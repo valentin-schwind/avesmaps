@@ -114,6 +114,32 @@
 	let lastPaintMs = 0;
 	// Solange der Flächendialog offen ist: volle Deckung statt höhenabhängigem Alpha.
 	let solidMode = false;
+	// Der Weisspunkt, mit dem ZULETZT GEMALT wurde -- die Auskunft, aus der die Höhenskala im
+	// Topographie-Dialog ihre Zahlen zieht (Fall #79).
+	//
+	// 🔴 SIE LIEST IHN, SIE RECHNET IHN NICHT NACH. Er entsteht unten in redraw() aus dem Stapel;
+	// eine zweite Rechnung anderswo wäre eine zweite Wahrheit, und die Legende erklärte irgendwann
+	// eine andere Karte als die sichtbare.
+	// 🪤 `0` heisst „gerade wird nichts gemalt" (kein Dialog offen, leerer Stapel, Karte ohne
+	// Ausdehnung) -- und NICHT „Weisspunkt null". Wer das verwechselt, zeigt eine Skala zu einem
+	// Bild, das gar nicht auf der Karte liegt.
+	let lastWhitePoint = 0;
+	const paintListeners = new Set();
+
+	function meldeAnstrich(weisspunkt) {
+		if (weisspunkt === lastWhitePoint) {
+			return;                          // redraw() läuft bei JEDER Kartenbewegung -- nur Änderungen melden
+		}
+		lastWhitePoint = weisspunkt;
+		paintListeners.forEach((listener) => {
+			try {
+				listener(weisspunkt);
+			} catch (fehler) {
+				// Ein Zuhörer darf das Zeichnen nicht mitreissen: die Karte ist wichtiger als ihre Legende.
+				console.warn("Höhenskala: Zuhörer hat geworfen", fehler);
+			}
+		});
+	}
 
 	function rampColors() {
 		if (rampCache) {
@@ -267,6 +293,7 @@
 		// reisst den ganzen Ebenenwechsel mit -- redraw() hängt an syncEcosystemPaneStates. Erst
 		// gemessen, dann gefangen: der Fehler trat beim ersten Prüflauf genau so auf.
 		if (!(size.x > 0) || !(size.y > 0)) {
+			meldeAnstrich(0);
 			return;
 		}
 		const topLeft = map.containerPointToLayerPoint([0, 0]);
@@ -284,11 +311,13 @@
 		context.clearRect(0, 0, canvas.width, canvas.height);
 		context.setTransform(dpr, 0, 0, dpr, 0, 0);
 		if (!shouldDraw()) {
+			meldeAnstrich(0);                // kein Dialog offen = kein Höhenfeld = nichts zu erklären
 			return;                          // Canvas ist oben schon geleert -> Ebenenwechsel löscht es
 		}
 
 		const stack = ensureStack();
 		if (!stack || !Array.isArray(stack.fields) || stack.fields.length === 0) {
+			meldeAnstrich(0);
 			return;
 		}
 
@@ -298,6 +327,9 @@
 		const reference = solidMode
 			? Math.max(HEIGHT_WHITE_SCHRITT * 0.02, ...stackFieldsHmax(stack))
 			: HEIGHT_WHITE_SCHRITT;
+		// Ab hier steht fest, womit gemalt wird -- vor dem ersten Pixel, damit die Skala und das Bild
+		// dieselbe Zahl tragen, auch wenn die Malschleife gleich lange läuft.
+		meldeAnstrich(reference);
 		const started = performance.now();
 		const image = context.createImageData(pixelWidth, pixelHeight);
 		const data = image.data;
@@ -506,5 +538,19 @@
 		setSolid: setHeightCanvasSolid,
 		lastPaintMs: () => lastPaintMs,
 		stack: () => heightStack,
+		// Fall #79: der Weisspunkt des letzten Anstrichs, und wer davon erfahren will.
+		whitePoint: () => lastWhitePoint,
+		onPaint: (listener) => {
+			if (typeof listener !== "function") {
+				return () => {};
+			}
+			paintListeners.add(listener);
+			// Der Zuhörer kommt meist NACH dem ersten Anstrich (der Dialog geht später auf als die
+			// Karte). Ohne diesen Nachschlag bliebe seine Skala leer, bis sich zufällig etwas bewegt.
+			if (lastWhitePoint > 0) {
+				listener(lastWhitePoint);
+			}
+			return () => paintListeners.delete(listener);
+		},
 	};
 })();

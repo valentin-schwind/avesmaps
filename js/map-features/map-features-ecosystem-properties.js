@@ -504,6 +504,9 @@
 		propertiesElement("wiki-host")?.replaceChildren?.();
 
 		overlayElement.hidden = false;
+		// Fall #79: erst jetzt, der Balken braucht seine Breite (siehe renderEcosystemHeightScale).
+		abonniereHoehenskala();
+		renderEcosystemHeightScale(area);
 		document.getElementById("ecosystem-properties-dialog")?.focus();
 		nameInput?.focus();
 		nameInput?.select();
@@ -971,6 +974,146 @@
 		}).join("");
 	}
 
+	// ---- Die Höhenskala (Fall #79) ------------------------------------------------------------------
+	//
+	// Entwurf: docs/superpowers/specs/2026-08-18-hoehenskala-legende-design.md
+	//
+	// 🔴 SIE LIEST DEN WEISSPUNKT AUS DEM ZEICHNER, sie rechnet ihn nie nach. Er entsteht in
+	// map-features-ecosystem-height-render.js:298 aus dem Stapel ALLER geladenen Gebirgsflächen und
+	// wandert deshalb mit dem Bildausschnitt (live gemessen 18.08.2026: derselbe Eisenwald hat mit dem
+	// Raschtulswall im Bild den hellsten Pixel 55, allein im Bild 235). Eine zweite Rechnung hier wäre
+	// eine zweite Wahrheit.
+	let hoehenskalaAbo = null;
+	// Deckel für das Nachfassen bei Breite 0 (siehe renderEcosystemHeightScale).
+	let hoehenskalaNachfassen = 0;
+
+	// Nur die Gebirge: `topographyAreas()` im Zeichner filtert genau so, und nur dort entsteht
+	// überhaupt ein Höhenfeld. Für alles andere gäbe es keinen Grauton zu erklären.
+	function hatHoehenfeld(area) {
+		return String(area?.kind || "") === "topographie" && String(area?.region_type || "") === "gebirge";
+	}
+
+	function renderEcosystemHeightScale(area) {
+		const block = propertiesElement("heightscale");
+		const bar = propertiesElement("scale-bar");
+		const ticks = propertiesElement("scale-ticks");
+		const note = propertiesElement("scale-note");
+		if (!block || !bar || !ticks || !note) {
+			return;
+		}
+
+		const weisspunkt = Number(window.AvesmapsEcosystemHeightRender?.whitePoint?.() || 0);
+		// 🪤 `0` heisst „gerade wird nichts gemalt" -- kein Dialog, leerer Stapel, Karte ohne Ausdehnung.
+		// Eine Skala zu einem Bild, das nicht auf der Karte liegt, erklärt nichts und behauptet viel.
+		if (!hatHoehenfeld(area) || !(weisspunkt > 0)) {
+			block.hidden = true;
+			bar.replaceChildren();
+			return;
+		}
+
+		// 💣 ERST SICHTBAR MACHEN, DANN MESSEN -- in dieser Reihenfolge, und das ist keine Kosmetik:
+		// solange der Block `hidden` ist, ist SEIN Balken 0 px breit. Wer vorher misst, verschiebt sich
+		// per rAF auf ein Bild, in dem der Block immer noch verborgen ist, misst wieder 0 und dreht sich
+		// im Kreis -- die Skala erschien nie. Im Browser gefunden (18.08.2026), von keiner Textprüfung.
+		block.hidden = false;
+
+		// Auch jetzt kann die Breite noch 0 sein: der erste Aufbau läuft vor `overlayElement.hidden =
+		// false`, und ein verborgenes OVERLAY misst genauso wenig. Dann EIN Bild später nachfassen --
+		// aber gezählt, sonst bliebe eine Fläche in einem nie sichtbaren Dialog ewig im rAF-Karussell.
+		const breite = bar.getBoundingClientRect().width;
+		if (!(breite > 0)) {
+			if (hoehenskalaNachfassen < 30) {
+				hoehenskalaNachfassen++;
+				window.requestAnimationFrame(() => renderEcosystemHeightScale(currentPropertiesArea()));
+			}
+			return;
+		}
+		hoehenskalaNachfassen = 0;
+
+		const gipfel = peaksInsideArea(area).map((label) => ({
+			name: String(label.text || "").trim() || "(ohne Namen)",
+			hoehe: label.heightSchritt,
+		}));
+		const skala = avesmapsHoehenskala(gipfel, weisspunkt, breite);
+
+		bar.replaceChildren();
+		// Erst die Marken, dann die Beschriftungen -- so liegt kein Text unter einem Dreieck.
+		skala.marken.forEach((marke) => {
+			const zeichen = document.createElement("span");
+			zeichen.className = "ecosystem-properties-dialog__scalemark"
+				+ (marke.gruppe ? " ecosystem-properties-dialog__scalemark--gruppe" : "");
+			zeichen.style.right = (100 - marke.prozent) + "%";
+			zeichen.title = marke.namen.join("\n");
+			bar.appendChild(zeichen);
+		});
+		skala.beschriftungen.forEach((zeile) => {
+			const halter = document.createElement("span");
+			halter.className = "ecosystem-properties-dialog__scalename";
+			halter.title = zeile.titel;
+			const name = document.createElement("em");
+			name.textContent = zeile.name;
+			const zahl = document.createElement("b");
+			zahl.textContent = zeile.zahl;
+			halter.append(name, zahl);
+			halter.style.right = (100 - zeile.prozent) + "%";
+			halter.dataset.prozent = String(zeile.prozent);
+			bar.appendChild(halter);
+		});
+
+		// 🔴 GEKÜRZT WIRD DER NAME, NIE DIE HÖHE -- und wie viel Platz bleibt, hängt an der GEMESSENEN
+		// Breite der Zahl. Deshalb ein zweiter Durchgang: schätzen liesse „11.000" in einer Schrift, die
+		// wir nicht kontrollieren, irgendwann doch überlaufen.
+		bar.querySelectorAll(".ecosystem-properties-dialog__scalename").forEach((halter) => {
+			const zahl = halter.querySelector("b");
+			const prozent = Number(halter.dataset.prozent) || 0;
+			const platz = avesmapsHoehenskalaNamensbreite(prozent, breite, zahl.getBoundingClientRect().width);
+			halter.style.setProperty("--namebreite", platz.breitePx + "px");
+			if (platz.gekippt) {
+				halter.classList.add("ecosystem-properties-dialog__scalename--gekippt");
+				halter.style.right = "";
+				halter.style.left = prozent + "%";
+			}
+		});
+
+		ticks.replaceChildren();
+		skala.achse.forEach((wert) => {
+			const marke = document.createElement("span");
+			marke.textContent = wert.text;
+			// Die äusseren beiden bündig, die inneren mittig -- sonst hängen sie über den Balkenenden.
+			if (wert.prozent === 0) {
+				marke.style.left = "0";
+			} else if (wert.prozent === 100) {
+				marke.style.right = "0";
+			} else {
+				marke.style.left = wert.prozent + "%";
+				marke.style.transform = "translateX(-50%)";
+			}
+			ticks.appendChild(marke);
+		});
+
+		note.replaceChildren();
+		note.append(document.createTextNode("Werte in Schritt. "));
+		const stark = document.createElement("b");
+		stark.textContent = "Weiß = " + avesmapsHoehenskalaZahl(weisspunkt);
+		note.append(stark, document.createTextNode(
+			" — der höchste Gipfel im Bildausschnitt. Was höher liegt, wird nicht heller."));
+	}
+
+	// Der Zeichner meldet jeden Anstrich; die Skala hängt sich EINMAL dran. Ohne das bliebe sie beim
+	// Zoomen stehen und behauptete einen Weisspunkt, der nicht mehr gilt -- und genau das Wandern ist
+	// der Grund, warum es sie gibt.
+	function abonniereHoehenskala() {
+		if (hoehenskalaAbo || typeof window.AvesmapsEcosystemHeightRender?.onPaint !== "function") {
+			return;                          // der Zeichner richtet sich verzögert ein -- nächstes Öffnen erneut
+		}
+		hoehenskalaAbo = window.AvesmapsEcosystemHeightRender.onPaint(() => {
+			const area = currentPropertiesArea();
+			if (area) {
+				renderEcosystemHeightScale(area);
+			}
+		});
+	}
+
 	// 💣 `update_label` setzt Größe, Drehung, Zoom-Band und Priorität BEDINGUNGSLOS aus dem Payload
 	// (features.php:2244-2249). Nur die Höhe zu schicken warf das Label auf Standardwerte zurück --
 	// deshalb reist hier derselbe volle Darstellungssatz mit wie beim Umbenennen (:549). Der Schutz
@@ -1020,6 +1163,11 @@
 			if (typeof invalidateEcosystemHeightForPeak === "function") {
 				invalidateEcosystemHeightForPeak(label);
 			}
+			// 💣 DIE SKALA MUSS HIER AUSDRÜCKLICH NACHZIEHEN. Sie hängt sonst am Melder des Zeichners,
+			// und der feuert nur, wenn sich der WEISSPUNKT ändert -- eine Gipfelhöhe von 5.000 auf 4.000
+			// zu senken lässt ihn unberührt, solange ein höherer Gipfel im Bild steht. Die Marke stünde
+			// dann weiter bei 5.000, neben einem Balken, der es besser weiss.
+			renderEcosystemHeightScale(currentPropertiesArea());
 		} catch (error) {
 			// 💣 409 IST HIER DER NORMALFALL, nicht die Ausnahme. Am 2026-07-28 im eingeloggten Browser
 			// gemessen: der Client schickt die Revision aus SEINER Kartennutzlast (16069), die Zeile in

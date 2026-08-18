@@ -1134,6 +1134,120 @@ body.leaflet-dragging .ecosystem-brush-pan .leaflet-interactive {
 	justify-content: flex-end;
 }
 
+/* ============================================================================================
+   DIE HÖHENSKALA (Fall #79, Owner-Entscheid 18.08.2026: waagerecht, Namen schräg).
+   Entwurf: docs/superpowers/specs/2026-08-18-hoehenskala-legende-design.md
+   Mockup:  docs/hoehenskala-mockup.html
+   ============================================================================================ */
+.ecosystem-properties-dialog__scale {
+	display: grid;
+	row-gap: var(--space-6);
+	/* Platz für die schräge Beschriftung. Ein Text der Länge L unter dem Winkel ist L x sin(Winkel)
+	   hoch; 116 px Höchstlänge ergeben unter 52 Grad 91 px, dazu 9 px bis zur Marke.
+	   💣 Der Winkel steht an DREI Stellen: hier als Polsterung, unten als `rotate`, und in
+	   js/map-features/ecosystem-hoehenskala.js als HOEHENSKALA_WINKEL_GRAD (aus ihm folgt der
+	   Mindestabstand, ab dem zwei Beschriftungen zusammenfallen). Wer ihn ändert, ändert alle drei. */
+	padding-top: 104px;
+}
+
+/* 🔴 Der Verlauf ist GRAU, und das ist keine Ausnahme von AGENTS.md §12, sondern dessen Datenfall:
+   er zeigt die gemalten Graustufen, keine Bedienoberfläche. Er MUSS dem Canvas entsprechen --
+   linear schwarz nach weiss (map-features-ecosystem-height-render.js:374). Ein Token gäbe es dafür
+   nicht: das hier sind keine Gestaltungsfarben, sondern die Pixelwerte selbst. */
+.ecosystem-properties-dialog__scalebar {
+	position: relative;
+	height: 16px;
+	border-radius: var(--radius-sm);
+	border: 1px solid var(--color-border);
+	overflow: visible;
+	background: linear-gradient(to right, #000 0%, #fff 100%);
+}
+
+/* Die Gipfelmarke.
+   💣 SIE STEHT ÜBER DEM BALKEN, NIE AUF IHM. Als Strich auf dem Verlauf ist eine braune Marke im
+   dunklen Drittel unsichtbar -- und genau dort sitzen die Gipfel im häufigsten Fall (eine niedrige
+   Fläche neben einem hohen Nachbarn). Über dem Balken steht sie auf der Panelfarbe und trägt in
+   beiden Themen. */
+.ecosystem-properties-dialog__scalemark {
+	position: absolute;
+	bottom: 100%;
+	margin-bottom: 2px;
+	transform: translateX(50%);
+	width: 0;
+	height: 0;
+	border-left: 4px solid transparent;
+	border-right: 4px solid transparent;
+	border-top: 5px solid var(--color-accent-brown);
+}
+/* Mehrere Gipfel auf EXAKT derselben Höhe -- etwas breiter, damit „eine Marke, zwei Gipfel" nicht
+   wie ein einzelner aussieht. */
+.ecosystem-properties-dialog__scalemark--gruppe {
+	border-left-width: 5px;
+	border-right-width: 5px;
+	border-top-width: 6px;
+}
+
+/* Die schräge Beschriftung. Sie ENDET an ihrer Marke und steigt nach links oben, wie eine
+   Achsenbeschriftung. Nach rechts oben lief der äusserste Name 24 px aus dem Panel (gemessen). */
+.ecosystem-properties-dialog__scalename {
+	position: absolute;
+	bottom: calc(100% + 9px);
+	transform-origin: right bottom;
+	transform: rotate(52deg);
+	white-space: nowrap;
+	font-size: 11px;
+	display: flex;
+	align-items: baseline;
+	gap: 4px;
+}
+/* Ganz links am Balken wäre selbst die Zahl draussen -- dann kippt die Zeile auf die andere Seite,
+   statt überzulaufen. Sie beginnt dann an der Marke und steigt nach rechts oben. */
+.ecosystem-properties-dialog__scalename--gekippt {
+	transform-origin: left bottom;
+	transform: rotate(-52deg);
+}
+/* 🔴 GEKÜRZT WIRD DER NAME, NIE DIE HÖHE (Owner 18.08.2026: „die höhe sollte noch lesbar sein").
+   Deshalb zwei Elemente: die Ellipse sitzt am NAMEN, die Zahl daneben ist `flex: none`.
+   💣 Stünde beides in EINEM Element, frässe `text-overflow` zuerst die Zahl -- sie steht ja hinten.
+   Dieselbe Falle wie beim Wiki-Override (AGENTS.md §11): die Auslassungspunkte gehören an den TEXT,
+   nicht an die Zelle. */
+.ecosystem-properties-dialog__scalename em {
+	font-style: normal;
+	color: var(--color-text-muted);
+	max-width: var(--namebreite, 76px);
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+/* Die Zahl: die Auskunft, um die es in Fall #79 überhaupt geht. Nie gekürzt, nie blass. */
+.ecosystem-properties-dialog__scalename b {
+	flex: none;
+	color: var(--color-accent-brown);
+	font-weight: 600;
+}
+
+.ecosystem-properties-dialog__scaleticks {
+	position: relative;
+	height: 1.3em;
+	font-size: 11px;
+	color: var(--color-text-muted);
+}
+.ecosystem-properties-dialog__scaleticks span {
+	position: absolute;
+	top: 0;
+	white-space: nowrap;
+}
+
+.ecosystem-properties-dialog__scalenote {
+	margin: 0;
+	font-size: 11px;
+	line-height: 1.45;
+	color: var(--color-text-muted);
+}
+.ecosystem-properties-dialog__scalenote b {
+	color: var(--color-text);
+	font-weight: 600;
+}
+
 .ecosystem-properties-dialog__peaks-list {
 	display: grid;
 	grid-template-columns: minmax(0, 1fr) 5.5em auto;

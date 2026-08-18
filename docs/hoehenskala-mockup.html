@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Höhenskala im Topographie-Dialog – Mockup (Fall #79)</title>
+<script>
+  /* Wie jede Editorseite: gespeicherte Wahl schlaegt OS-Schema, vor dem ersten Anstrich. */
+  (function () {
+    function isDark() {
+      var s = null; try { s = localStorage.getItem("avesmaps-theme"); } catch (e) {}
+      if (s === "dark") { return true; }
+      if (s === "light") { return false; }
+      return !!(window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches);
+    }
+    if (isDark()) { document.documentElement.setAttribute("data-theme", "dark"); }
+  })();
+</script>
+<!-- 🔴 RELATIVE Pfade auf die ECHTE CSS-Kette. Nichts hier ist nachgebaut: der Dialogausschnitt
+     traegt dieselben Regeln wie die Karte. base/base.css MUSS mit (globale Schriftsperre). -->
+<link rel="stylesheet" href="../css/base/fonts.css">
+<link rel="stylesheet" href="../css/base/tokens.css">
+<link rel="stylesheet" href="../css/base/base.css">
+<link rel="stylesheet" href="../css/components/region-sync.css">
+<link rel="stylesheet" href="../css/features/ecosystem-layer.css">
+<style>
+	body { margin: 0; padding: 24px; background: var(--color-bg); color: var(--color-text); }
+	.wrap { max-width: 1180px; margin: 0 auto; }
+	h1 { font-size: 20px; margin: 0 0 var(--space-8) 0; }
+	.lead { color: var(--color-text-muted); max-width: 64ch; margin: 0 0 24px 0; line-height: 1.5; }
+	.faelle { display: flex; gap: 24px; flex-wrap: wrap; align-items: flex-start; }
+	.fall > h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .04em;
+		color: var(--color-text-muted); margin: 0 0 var(--space-8) 0; font-weight: 600; }
+	.dialog-stub { width: 430px; background: var(--color-panel); border: 1px solid var(--color-border);
+		border-radius: var(--radius-lg); padding: var(--space-16); display: grid; row-gap: var(--space-12); }
+	.notiz { margin: 24px 0 0 0; padding-top: var(--space-16);
+		border-top: 1px solid var(--color-divider); color: var(--color-text-muted);
+		max-width: 80ch; line-height: 1.55; font-size: var(--font-size-small); }
+	.notiz b { color: var(--color-text); }
+	.themeswitch { float: right; }
+
+	/* ============================================================================================
+	   NEU — die Hoehenskala (Owner-Entscheid 18.08.2026: waagerecht, Namen schraeg).
+	   Diese Regeln wandern spaeter nach css/features/ecosystem-layer.css.
+	   ============================================================================================ */
+	.ecosystem-properties-dialog__scale {
+		display: grid; row-gap: var(--space-6);
+		/* Platz fuer die schraege Beschriftung. Ein Text der Laenge L unter WINKEL Grad ist
+		   L x sin(WINKEL) hoch; die 116 px Hoechstlaenge (unten) ergeben unter 52 Grad 91 px, dazu
+		   9 px bis zur Marke. Wer den Winkel aendert, aendert diese Zahl mit. */
+		padding-top: 104px;
+	}
+
+	/* 🔴 Der Verlauf ist GRAU, und das ist kein Verstoss gegen AGENTS.md §12: er zeigt DATEN (die
+	   gemalten Graustufen), nicht Bedienoberflaeche. Er muss dem Canvas exakt entsprechen, sonst
+	   erklaert die Legende eine andere Karte als die sichtbare. */
+	.ecosystem-properties-dialog__scalebar {
+		position: relative; height: 16px; border-radius: var(--radius-sm);
+		border: 1px solid var(--color-border); overflow: visible;
+		background: linear-gradient(to right, #000 0%, #fff 100%);
+	}
+
+	/* Die Gipfelmarke. 🔴 Am Gipfelmittelpunkt IST die gemalte Hoehe genau die eingetragene
+	   Gipfelhoehe -- das Gipfelfenster loescht dort das Rauschen
+	   (map-features-ecosystem-height-field.js:510-512). Die Marke zeigt also auf einen Grauton, den
+	   es auf der Karte wirklich gibt, und behauptet nichts.
+	   💣 SIE STEHT UEBER DEM BALKEN, NICHT AUF IHM: als Strich auf dem Verlauf war sie unsichtbar,
+	   sobald sie im dunklen Drittel sass -- und genau dort sitzen die Gipfel im haeufigsten Fall. */
+	.ecosystem-properties-dialog__scalemark {
+		position: absolute; bottom: 100%; margin-bottom: 2px; transform: translateX(50%);
+		width: 0; height: 0; border-left: 4px solid transparent; border-right: 4px solid transparent;
+		border-top: 5px solid var(--color-accent-brown);
+	}
+	.ecosystem-properties-dialog__scalemark--gruppe {
+		border-left-width: 5px; border-right-width: 5px; border-top-width: 6px;
+	}
+
+	/* Die schraege Beschriftung. Sie ENDET an ihrer Marke und steigt nach links oben -- wie eine
+	   Achsenbeschriftung. Nach rechts oben lief der aeusserste Name 24 px aus dem Panel (gemessen). */
+	.ecosystem-properties-dialog__scalename {
+		position: absolute; bottom: calc(100% + 9px); transform-origin: right bottom;
+		transform: rotate(52deg); white-space: nowrap; font-size: 11px;
+		display: flex; align-items: baseline; gap: 4px;
+	}
+	/* 🔴 GEKUERZT WIRD DER NAME, NIE DIE HOEHE (Owner 18.08.2026: "die höhe sollte noch lesbar sein").
+	   Deshalb zwei Elemente: die Ellipse sitzt am NAMEN, die Zahl steht daneben und ist `flex: none`.
+	   💣 Steht beides in EINEM Element, frisst `text-overflow` zuerst die Zahl -- sie steht ja hinten.
+	   Dieselbe Falle wie beim Wiki-Override (AGENTS.md §11): die Auslassungspunkte gehoeren an den
+	   TEXT, nicht an die Zelle. */
+	.ecosystem-properties-dialog__scalename em {
+		font-style: normal; color: var(--color-text-muted);
+		max-width: var(--namebreite, 76px); overflow: hidden; text-overflow: ellipsis;
+	}
+	/* Die Zahl: die Auskunft, um die es in Fall #79 ueberhaupt geht. Nie gekuerzt, nie blass. */
+	.ecosystem-properties-dialog__scalename b {
+		flex: none; color: var(--color-accent-brown); font-weight: 600;
+	}
+	.ecosystem-properties-dialog__scaleticks {
+		position: relative; height: 1.3em; font-size: 11px; color: var(--color-text-muted);
+	}
+	.ecosystem-properties-dialog__scaleticks span { position: absolute; top: 0; white-space: nowrap; }
+	.ecosystem-properties-dialog__scalenote {
+		margin: 0; font-size: 11px; line-height: 1.45; color: var(--color-text-muted);
+	}
+	.ecosystem-properties-dialog__scalenote b { color: var(--color-text); font-weight: 600; }
+</style>
+</head>
+<body>
+<div class="wrap">
+	<button class="themeswitch ecosystem-properties-dialog__button" type="button" id="themeswitch">Hell / Dunkel</button>
+	<h1>Höhenskala im Topographie-Dialog</h1>
+	<p class="lead">Fall&nbsp;#79 (Tigersprung, 17.08.2026): „Hell ist hoch, dunkel ist niedrig. Aber wie
+		hoch ist wie hell?“ — Der Abschnitt sitzt im Fenster „Topographie-Fläche bearbeiten“, zwischen den
+		Gelände-Reglern und den Gipfeln. Die Gipfel dieser Fläche stehen mit Namen und Höhe an der Skala;
+		gekürzt wird nur der Name.</p>
+
+	<div class="faelle">
+
+		<div class="fall">
+			<h2>Fall A — Raschtulswall, vier Gipfel</h2>
+			<div class="dialog-stub">
+				<div class="label-wiki-reference">
+					<div class="label-wiki-reference__head">
+						<span class="label-wiki-reference__title">Höhenskala</span>
+					</div>
+					<div class="ecosystem-properties-dialog__scale">
+						<div class="ecosystem-properties-dialog__scalebar">
+							<!-- 💣 Zwei Gipfel auf 5.000 -- und das ist der NORMALFALL, kein Sonderfall:
+							     ein Gipfel ohne erfasste Hoehe bekommt ECOSYSTEM_HEIGHT_PLACEHOLDER,
+							     also genau 5.000. Sie teilen sich EINE Marke und EINE Zeile. -->
+							<span class="ecosystem-properties-dialog__scalemark ecosystem-properties-dialog__scalemark--gruppe"
+							      style="right:44.4%"></span>
+							<span class="ecosystem-properties-dialog__scalename" style="right:44.4%"
+							      title="Raschtul Kandscharot · 5.000&#10;Thron des Greifen · 5.000"><em>2 Gipfel</em><b>5.000</b></span>
+
+							<span class="ecosystem-properties-dialog__scalemark" style="right:29.8%"></span>
+							<span class="ecosystem-properties-dialog__scalename" style="right:29.8%"
+							      title="Sturmspitze · 6.318"><em>Sturmspitze</em><b>6.318</b></span>
+
+							<span class="ecosystem-properties-dialog__scalemark" style="right:0"></span>
+							<span class="ecosystem-properties-dialog__scalename" style="right:0"
+							      title="Djer Tulam · 9.000"><em>Djer Tulam</em><b>9.000</b></span>
+						</div>
+						<div class="ecosystem-properties-dialog__scaleticks">
+							<span style="left:0">0</span>
+							<span style="left:25%;transform:translateX(-50%)">2.250</span>
+							<span style="left:50%;transform:translateX(-50%)">4.500</span>
+							<span style="left:75%;transform:translateX(-50%)">6.750</span>
+							<span style="right:0">9.000</span>
+						</div>
+						<p class="ecosystem-properties-dialog__scalenote">
+							Werte in Schritt. <b>Weiß = 9.000</b> — der höchste Gipfel im Bildausschnitt.
+							Was höher liegt, wird nicht heller.
+						</p>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<div class="fall">
+			<h2>Fall B — 2.600er Bergland neben einem 11.000er</h2>
+			<div class="dialog-stub">
+				<div class="label-wiki-reference">
+					<div class="label-wiki-reference__head">
+						<span class="label-wiki-reference__title">Höhenskala</span>
+					</div>
+					<div class="ecosystem-properties-dialog__scale">
+						<div class="ecosystem-properties-dialog__scalebar">
+							<!-- ⚠️ Beide Marken sitzen im dunklen Fuenftel. Ihr Text laeuft nach links oben und
+							     stiesse ueber den Panelrand -- deshalb ist der Name hier auf 44 px gekuerzt.
+							     Die ZAHL bleibt in voller Laenge stehen. -->
+							<span class="ecosystem-properties-dialog__scalemark" style="right:82.7%"></span>
+							<span class="ecosystem-properties-dialog__scalename" style="right:82.7%; --namebreite:44px"
+							      title="Wachtfels · 1.900"><em>Wachtfels</em><b>1.900</b></span>
+
+							<span class="ecosystem-properties-dialog__scalemark" style="right:76.4%"></span>
+							<span class="ecosystem-properties-dialog__scalename" style="right:76.4%; --namebreite:58px"
+							      title="Grauer Zahn · 2.600"><em>Grauer Zahn</em><b>2.600</b></span>
+						</div>
+						<div class="ecosystem-properties-dialog__scaleticks">
+							<span style="left:0">0</span>
+							<span style="left:25%;transform:translateX(-50%)">2.750</span>
+							<span style="left:50%;transform:translateX(-50%)">5.500</span>
+							<span style="left:75%;transform:translateX(-50%)">8.250</span>
+							<span style="right:0">11.000</span>
+						</div>
+						<p class="ecosystem-properties-dialog__scalenote">
+							Werte in Schritt. <b>Weiß = 11.000</b> — ein höherer Nachbar im Bild.
+							Diese Fläche malt sich nie heller als ihre oberste Marke.
+						</p>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<p class="notiz">
+		<b>Gekürzt wird der Name, nie die Höhe.</b> Name und Zahl sind zwei Elemente; die Ellipse sitzt am
+		Namen, die Zahl steht daneben und ist <code>flex: none</code>. 💣 Stünde beides in einem Element,
+		fräße <code>text-overflow</code> zuerst die Zahl — sie steht ja hinten. Dieselbe Falle wie beim
+		Wiki-Override.<br><br>
+		<b>Wie kurz, entscheidet der Platz.</b> Ein Text der Länge L steht unter 52° und ragt
+		L&nbsp;×&nbsp;cos(52°) nach links. Bei einer Marke weit links wäre er aus dem Fenster heraus, also
+		wird der Name auf das gekürzt, was bis zum Rand passt (in Fall&nbsp;B auf 44 bzw. 58&nbsp;px). Der
+		volle Name steht im Tooltip — und zwei Zeilen tiefer ohnehin in der Gipfelliste.<br><br>
+		<b>Zusammengefasst wird nach PLATZ, nicht nach Gleichheit.</b> Gemessen (18.08.2026): zwei
+		Schriftlinien unter 52° stehen <code>Δx&nbsp;×&nbsp;sin(52°)</code> auseinander, die Zeile ist
+		14&nbsp;px hoch — enger als <b>18&nbsp;px waagerecht</b> (4,4&nbsp;% der Skala, bei Weißpunkt 9.000
+		also rund 390 Schritt) stoßen sie zusammen. Im engsten Mockup-Fall bleiben 6,3&nbsp;px Luft.
+		⚠️ Eine Gruppe aus <i>verschieden</i> hohen Gipfeln nennt eine Spanne („2 Gipfel · 2.450–2.600“) —
+		eine einzelne Zahl wäre dort schlicht falsch.<br><br>
+		<b>Gleich hohe Gipfel teilen sich eine Zeile — und das ist der Normalfall.</b> Ein Gipfel ohne
+		erfasste Höhe bekommt <code>ECOSYSTEM_HEIGHT_PLACEHOLDER</code>, also genau 5.000: im Raschtulswall
+		liegen deshalb zwei auf demselben Punkt. Sie werden zu <i>„2 Gipfel · 5.000“</i>, beide Namen im
+		Tooltip. 💣 Zwei Beschriftungen exakt übereinander sähen aus wie eine — wer Marken zählt, käme auf
+		eine andere Zahl als die Gipfelliste darunter. Und ein willkürlich bevorzugter Name („Raschtul
+		Kandscharot +1“) wäre eine Aussage, die die Daten nicht hergeben.<br><br>
+		<b>Und der Weißpunkt wandert.</b> Live gemessen am Eisenwald (18.08.2026): mit dem Raschtulswall im
+		Bild ist sein hellster Pixel <b>55</b>, allein im Bild <b>235</b> — dieselbe Fläche, unveränderte
+		Daten. Genau diese Zahl steht rechts an der Skala; ohne sie sieht der Editor den Unterschied und
+		hat keine Erklärung dafür.
+	</p>
+</div>
+<script>
+	document.getElementById("themeswitch").addEventListener("click", function () {
+		var dunkel = document.documentElement.getAttribute("data-theme") === "dark";
+		document.documentElement.setAttribute("data-theme", dunkel ? "light" : "dark");
+		try { localStorage.setItem("avesmaps-theme", dunkel ? "light" : "dark"); } catch (e) {}
+	});
+</script>
+</body>
+</html>
