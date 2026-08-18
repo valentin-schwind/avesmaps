@@ -1232,15 +1232,25 @@ function avesmapsWikiRegionMatch(PDO $pdo, array $options = []): array {
             $consideredStagingKeys[$k] = true;
         }
 
+        // 💣 ZWEI SEHR VERSCHIEDENE TREFFER LANDEN IN DEMSELBEN TOPF, und bis 18.08.2026
+        // waren sie danach nicht mehr auseinanderzuhalten: ein blosser NAMENSGLEICHSTAND und eine
+        // ausdrueckliche ZUWEISUNG. Fuer die Frage „liegt die Region auf der Karte" ist das richtig
+        // (beides zeigt ein Label), fuer „ist sie zugewiesen" nicht -- 195 der 540 unzugewiesenen
+        // Flaechen-Regionen tragen einen Namen, den auch irgendein Label traegt. Der Statuskreis
+        // fragt das Zweite, deshalb reist `assigned` jetzt mit.
+        // ⚠️ Reihenfolge tragend: dieselbe Zeile kann BEIDES sein, und der zweite Durchgang
+        // ueberschreibt den ersten im geschluesselten Topf -- die Zuweisung gewinnt, richtig so.
         $hits = [];
         foreach ($keys as $k) {
             foreach (($labelsByKey[$k] ?? []) as $label) {
+                $label['assigned'] = false;
                 $hits[$label['public_id'] !== '' ? $label['public_id'] : $label['name']] = $label;
             }
         }
         // Explizit zugewiesene Labels (Link auf diesen wiki_key) zaehlen ebenfalls als Treffer -- auch wenn
         // ihr Name nicht zum Region-Namen passt. Sonst zeigt eine bewusst zugewiesene Region "nicht zugewiesen".
         foreach (($labelsByWikiRegion[(string) $row['wiki_key']] ?? []) as $label) {
+            $label['assigned'] = true;
             $hits[$label['public_id'] !== '' ? $label['public_id'] : $label['name']] = $label;
         }
 
@@ -1279,6 +1289,10 @@ function avesmapsWikiRegionMatch(PDO $pdo, array $options = []): array {
     foreach ($labelsByKey as $key => $labels) {
         if (!isset($consideredStagingKeys[$key])) {
             foreach ($labels as $label) {
+                // ⚠️ Ausdruecklich `false` statt weggelassen: diese Labels haengen per Definition an
+                // keiner Wiki-Region. Ein fehlendes Feld liest sich im Browser wie `false` und waere
+                // hier zufaellig richtig -- ausgeschrieben ist es begruendet.
+                $label['assigned'] = false;
                 $unmatchedLabels[] = $label;
             }
         }

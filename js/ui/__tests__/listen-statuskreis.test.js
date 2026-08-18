@@ -281,4 +281,72 @@ assert.ok(/'place_open_count' => \$placeOpenCounts\[\$id\] \?\? 0,/.test(citymap
 	"avesmapsListCitymapsForEdit gibt `place_open_count` nicht mehr heraus.");
 checks++;
 
+// ── LANDSCHAFT: ZWEI unabhaengige Bits ──────────────────────────────────────────────────────────
+// 🔴 Owner 18.08.2026: „Linker halbkreis gefüllt wenn mind. 1 zugewiesenes Label. Rechter
+// Halbkreis wenn mindestens eine zugewiesene Fläche. voll wenn beides."
+assert.ok(/tree-map-status--children-only/.test(kreis.avesmapsStatuskreisLandschaft(true, false)),
+	"Nur ein zugewiesenes LABEL muss die LINKE Haelfte fuellen (--children-only).");
+assert.ok(/tree-map-status--own-only/.test(kreis.avesmapsStatuskreisLandschaft(false, true)),
+	"Nur eine zugewiesene FLAECHE muss die RECHTE Haelfte fuellen (--own-only).");
+assert.ok(/tree-map-status--all/.test(kreis.avesmapsStatuskreisLandschaft(true, true)),
+	"Label UND Flaeche muessen voll ergeben.");
+assert.ok(!/--/.test(kreis.avesmapsStatuskreisLandschaft(false, false)),
+	"Weder Label noch Flaeche: leerer Ring.");
+checks += 4;
+// 💣 Die zwei Bits sind UNABHAENGIG, keine Stufenleiter -- die zwei Halbformen duerfen nicht
+// dieselbe sein, sonst ist „nur Label" von „nur Flaeche" nicht zu unterscheiden.
+assert.notStrictEqual(
+	kreis.avesmapsStatuskreisLandschaft(true, false),
+	kreis.avesmapsStatuskreisLandschaft(false, true),
+	"nur Label und nur Flaeche liefern dieselbe Form -- dann sagt der Kreis nur noch halb "
+	+ "und die zwei Bits sind wieder eine Stufenleiter.");
+checks++;
+// ⚠️ Und „halb" (Ort/Weg/Ortsbezug) IST dieselbe Form wie „nur Flaeche" -- absichtlich, aber unter
+// zwei Namen, damit ein Umbau die zwei Aussagen nicht zusammenzieht.
+assert.strictEqual(kreis.avesmapsStatuskreisKlasse("halb"), kreis.avesmapsStatuskreisKlasse("nurFlaeche"),
+	"halb und nurFlaeche muessen dieselbe rechte Haelfte zeichnen.");
+checks++;
+
+// ── VERDRAHTUNG: Regionenliste im LANDSCHAFTEN-EDITOR ───────────────────────────────────────────
+const landEditor = lies("html", "landschaften-editor.html");
+assert.ok(/<script src="\/js\/ui\/listen-statuskreis\.js"><\/script>/.test(landEditor),
+	"Der Landschaften-Editor laedt js/ui/listen-statuskreis.js nicht.");
+checks++;
+assert.ok(/avesmapsStatuskreisLandschaft\(/.test(landEditor),
+	"Der Landschaften-Editor ruft den geteilten Bauer nicht auf.");
+checks++;
+assert.ok(/'<div class="avm-row has-map-status'/.test(landEditor),
+	'Die Zeile des Landschaften-Editors setzt "has-map-status" nicht.');
+checks++;
+// 💣 `label.assigned`, nicht `row.labels.length`: die Trefferliste des Servers zaehlt auch blossen
+// Namensgleichstand als Treffer (195 von 540 live).
+assert.ok(/label\.assigned === true/.test(landEditor),
+	"Der Landschaften-Editor misst das Label-Bit nicht an `assigned`. Ein blosses "
+	+ "`row.labels.length` behauptet eine Zuweisung, die es nicht gibt.");
+checks++;
+
+// ── VERDRAHTUNG: Regionenliste im WIKISYNC-PANEL ────────────────────────────────────────────────
+const regionPanel = lies("js", "review", "review-region-sync.js");
+assert.ok(/avesmapsStatuskreisLandschaft\(/.test(regionPanel),
+	"Die Panel-Regionenliste ruft den geteilten Bauer nicht auf.");
+checks++;
+assert.ok(/label\.assigned === true/.test(regionPanel),
+	"Die Panel-Regionenliste misst das Label-Bit nicht an `assigned`.");
+checks++;
+// 🪤 Und kein fest verdrahtetes `--all` mehr. Genau das stand hier: 238 map-only-Zeilen zeigten
+// den vollen Kreis ohne jede Wiki-Verbindung.
+assert.ok(!/tree-map-status--all/.test(regionPanel),
+	"review-region-sync.js schreibt wieder ein festes `tree-map-status--all`. Der Kreis muss "
+	+ "gerechnet werden -- sonst meldet sich eine unverbundene Zeile als fertig.");
+checks++;
+
+// ⚠️ Und der Server muss `assigned` ueberhaupt mitschicken -- an BEIDEN Stellen, an denen er
+// Labels ausgibt: den Treffern und den Karten-Labels ohne Wiki-Treffer.
+const regionsLib = lies("api", "_internal", "wiki", "regions.php");
+assert.strictEqual((regionsLib.match(/\$label\['assigned'\] = /g) || []).length, 3,
+	"avesmapsWikiRegionMatch markiert nicht mehr alle drei Label-Quellen mit `assigned` "
+	+ "(Namensgleichstand = false, ausdrueckliche Zuweisung = true, unmatched = false). Fehlt "
+	+ "eine, liest der Browser dort `undefined` und der Kreis raet.");
+checks++;
+
 console.log(`OK -- ${checks} Zusicherungen (geteilter Statuskreis-Bauer).`);

@@ -43,9 +43,14 @@
 // aus einer Zeichenkette (der Ortseditor). Ohne diese Fassung schriebe die sich ihre Klassen selbst
 // zusammen -- und hätte damit die zweite Fassung, die dieses Modul gerade verhindern soll.
 function avesmapsStatuskreisKlasse(zustand) {
-	const stufe = zustand === "voll" ? " tree-map-status--all"
-		: (zustand === "halb" ? " tree-map-status--own-only" : "");
-	return "tree-map-status" + stufe;
+	// ⚠️ Fünf Zustände, aber nur VIER Formen: „halb" und „nurFlaeche" sind dieselbe rechte Hälfte.
+	//    Sie haben trotzdem zwei Namen, weil sie zwei verschiedene Aussagen sind -- „da, aber nicht
+	//    verbunden" bei Ort/Weg/Ortsbezug gegen „Fläche ja, Label nein" bei der Landschaft. Ein
+	//    gemeinsamer Name würde die zwei beim ersten Umbau zusammenziehen.
+	if (zustand === "voll") { return "tree-map-status tree-map-status--all"; }
+	if (zustand === "halb" || zustand === "nurFlaeche") { return "tree-map-status tree-map-status--own-only"; }
+	if (zustand === "nurLabel") { return "tree-map-status tree-map-status--children-only"; }
+	return "tree-map-status";
 }
 
 // Die Markierung selbst. 🔴 Genau EIN unsichtbarer <span> -- ein zweites Zeichen daneben ist
@@ -83,23 +88,41 @@ function avesmapsStatuskreisOrt(aufKarte, hatWikiZuweisung) {
 	return avesmapsStatuskreisMarkup(avesmapsStatuskreisOrtZustand(aufKarte, hatWikiZuweisung));
 }
 
-// ── LANDSCHAFT ──────────────────────────────────────────────────────────────────────────────────
-// Eine Zeile der Landschaftsliste ist eine VEREINIGUNG: eine Wiki-Region, die gezeichneten Flächen
-// an ihrem Schlüssel, und ggf. ein Kartenlabel. Der Kreis fragt in dieser Reihenfolge:
-//   1. Steht überhaupt etwas auf der Karte (Fläche ODER Label)? Sonst leer -- die Zeile ist eine
-//      reine Wiki-Zeile, es gibt nichts zuzuweisen.
-//   2. Trägt JEDE gezeichnete Fläche einen `wiki_region_key`? Dann voll, sonst halb.
-// 💣 Der Schlüssel ist `ecosystem_region.wiki_region_key` (abgeleitet aus `wiki_url`, api/_internal/
-//    app/ecosystem.php) -- die beiden dürfen nie auseinanderlaufen, deshalb wird nur einer gelesen.
-// ⚠️ Ein Label OHNE Fläche ist damit halb: es steht auf der Karte, aber am Artikel hängt keine
-//    Fläche. Das ist die Aussage, nicht ein Mangel der Rechnung.
-function avesmapsStatuskreisLandschaft(flaechen, hatKartenLabel) {
-	const liste = Array.isArray(flaechen) ? flaechen : [];
-	if (liste.length === 0) {
-		return avesmapsStatuskreisMarkup(hatKartenLabel === true ? "halb" : "leer");
-	}
-	const alle = liste.every((f) => avesmapsStatuskreisText(f && f.wiki_region_key) !== "");
-	return avesmapsStatuskreisMarkup(alle ? "voll" : "halb");
+// ── LANDSCHAFT (Region) ────────────────────────────────────────────────────────────────
+// 🔴 HIER SIND ES ZWEI UNABHÄNGIGE BITS, keine Stufenleiter -- Owner 18.08.2026, wörtlich:
+//    „Linker halbkreis gefüllt wenn mind. 1 zugewiesenes Label. Rechter Halbkreis wenn mindestens
+//    eine zugewiesene Fläche. voll wenn beides".
+//
+// 💣 DIE ZWEI MODIFIER HEISSEN HIER ANDERS ALS SIE MEINEN. `--children-only` und
+//    `--own-only` stammen aus den Territorien („Kinder ja, selbst nein"); sie sind an dieser
+//    Stelle rein VISUELL gemeint -- linke Hälfte, rechte Hälfte. Wer hier nach „Kindern" sucht,
+//    sucht vergeblich. Ein eigenes Modifier-Paar wäre ein zweites Vokabular für dieselben zwei
+//    Formen und ist deshalb ausdrücklich nicht gebaut.
+//
+//    links gefüllt (`--children-only`) = mindestens ein zugewiesenes LABEL
+//    rechts gefüllt (`--own-only`)      = mindestens eine zugewiesene FLÄCHE
+//    voll (`--all`)                      = beides · leerer Ring = keins von beidem
+//
+// 💣 „ZUGEWIESEN", NICHT „GLEICH BENANNT". Die Label-Seite kommt aus
+//    `avesmapsWikiRegionMatch` (api/_internal/wiki/regions.php), und die zählt einen Treffer schon
+//    bei exaktem Namensgleichstand -- 195 der 540 unzugewiesenen Flächen-Regionen tragen einen
+//    Namen, den auch irgendein Label trägt. Deshalb liest dieser Bauer `label.assigned`, das seit
+//    18.08.2026 mitreist, und niemals bloß „da ist ein Label".
+// 💣 Die Felder: Label = `map_features.properties.wiki_region`, Fläche =
+//    `ecosystem_region.wiki_region_key`. ZWEI Objektarten mit ZWEI Speichern, und 1:N ist real
+//    (39 Schlüssel tragen mehrere Labels, 8 mehrere Flächen) -- deshalb `some` je Bit.
+function avesmapsStatuskreisLandschaftZustand(hatZugewiesenesLabel, hatZugewieseneFlaeche) {
+	const links = hatZugewiesenesLabel === true;
+	const rechts = hatZugewieseneFlaeche === true;
+	if (links && rechts) { return "voll"; }
+	if (links) { return "nurLabel"; }
+	if (rechts) { return "nurFlaeche"; }
+	return "leer";
+}
+
+function avesmapsStatuskreisLandschaft(hatZugewiesenesLabel, hatZugewieseneFlaeche) {
+	return avesmapsStatuskreisMarkup(
+		avesmapsStatuskreisLandschaftZustand(hatZugewiesenesLabel, hatZugewieseneFlaeche));
 }
 
 // ── WEG ─────────────────────────────────────────────────────────────────────────────────────────
@@ -196,6 +219,7 @@ if (typeof module !== "undefined" && module.exports) {
 		avesmapsStatuskreisMarkup,
 		avesmapsStatuskreisOrtZustand,
 		avesmapsStatuskreisOrt,
+		avesmapsStatuskreisLandschaftZustand,
 		avesmapsStatuskreisLandschaft,
 		avesmapsStatuskreisWeg,
 		avesmapsStatuskreisOrtsbezug,

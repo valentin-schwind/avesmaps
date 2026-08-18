@@ -167,6 +167,9 @@
      hier nicht, sie müssen hier stehen (Kopf von js/ui/wiki-assign.js).
      💣 Und der Stil kommt aus css/components/editor-page.css, das oben schon eingebunden ist --
      deshalb die Hülle „dt" und nicht „label-wiki". -->
+<!-- Der geteilte Statuskreis-Bauer der Listenzeilen; dieselbe Datei laedt index.html
+     fuer die Panel-Liste derselben Objektart. -->
+<script src="/js/ui/listen-statuskreis.js"></script>
 <script src="/js/ui/wiki-assign-registry.js"></script>
 <script src="/js/ui/wiki-assign-diff.js"></script>
 <script src="/js/ui/wiki-assign.js"></script>
@@ -487,9 +490,21 @@ function renderList() {
 		if (kinds) { parts.push(kinds); }
 		if (row.art) { parts.push(row.art); }
 		if (row.wikiKey === "") { parts.push("ohne Wiki-Eintrag"); }
-		return '<div class="avm-row' + (row.key === selectedKey ? " is-selected" : "") + '" data-key="' + esc(row.key) + '">'
+		// 🔴 Der Statuskreis: ZWEI unabhängige Bits (Owner 18.08.2026) -- linke Hälfte = mindestens
+		// ein zugewiesenes Label, rechte Hälfte = mindestens eine zugewiesene Fläche, voll = beides.
+		// 💣 `label.assigned`, nicht `row.labels.length`: die Trefferliste des Servers zählt auch
+		// blossen Namensgleichstand als Treffer (195 der 540 unzugewiesenen Flächen-Regionen tragen
+		// einen Namen, den auch ein Label trägt). Die Flächen unter einer Wiki-Zeile tragen den
+		// Schlüssel dagegen per Konstruktion -- geprüft wird er trotzdem, weil eine eigenständige
+		// `eco:`-Zeile ihre Fläche ohne Schlüssel mitbringt.
+		// ⚠️ `has-map-status` ausdrücklich; der Kreis steht NEBEN dem Namen, nicht darin
+		// (`.avm-row__name` ellipsiert).
+		return '<div class="avm-row has-map-status' + (row.key === selectedKey ? " is-selected" : "") + '" data-key="' + esc(row.key) + '">'
 			+ '<div class="avm-row__text">'
 			+ '<div class="avm-row__l1"><span class="avm-row__name">' + esc(row.name) + "</span>"
+			+ avesmapsStatuskreisLandschaft(
+				row.labels.some((label) => label && label.assigned === true),
+				row.regions.some((flaeche) => String((flaeche && flaeche.wiki_region_key) || "").trim() !== ""))
 			+ '<span class="avm-pill' + (row.orphanKey ? " avm-pill--unresolved" : "") + '">'
 			+ esc(row.orphanKey ? "Schlüssel ohne Wiki-Zeile" : DISPLAY_LABEL[display]) + "</span></div>"
 			+ '<div class="avm-row__l2' + (nameMismatch ? " warn" : "") + '">' + esc(parts.join(" · ")) + "</div>"

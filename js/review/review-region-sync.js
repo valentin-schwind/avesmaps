@@ -269,7 +269,23 @@ function renderRegionSyncList() {
 			const dragAttrs = draggable ? ` draggable="true" data-wiki-key="${regionSyncEscapeAttr(row.wiki_key)}"` : "";
 			const classes = "tree-item has-map-status region-sync__item" + (draggable ? " region-sync__item--draggable" : "");
 			const title = draggable ? "Auf die Karte ziehen, um die Region anzulegen" : "";
-			const marker = `<span class="tree-map-status${onMap ? " tree-map-status--all" : ""}" aria-hidden="true"></span>`;
+			// 🔴 Der Statuskreis: ZWEI unabhängige Bits (Owner 18.08.2026) -- linke Hälfte =
+			// mindestens ein zugewiesenes Label, rechte Hälfte = mindestens eine zugewiesene
+			// Fläche, voll = beides. Derselbe Bauer wie im Landschaften-Editor.
+			// 💣 `label.assigned`, NICHT `onMap`. Hier stand bis 18.08.2026 „voll, sobald ein
+			// Label da ist" -- und `avesmapsWikiRegionMatch` zählt ein Label schon bei blossem
+			// Namensgleichstand als Treffer. 195 der 540 unzugewiesenen Flächen-Regionen tragen
+			// einen Namen, den auch ein Label trägt; der Kreis behauptete dort eine Zuweisung, die
+			// es nicht gibt. Und 238 map-only-Zeilen standen voll da, ohne jede Wiki-Verbindung.
+			// ⚠️ Die Flächenseite kommt aus dem bereits geladenen Index nach `wiki_region_key`
+			// (review-region-sync-ecosystem.js) -- kein zusätzlicher Abruf. Fehlt die
+			// Landschaftsebene auf diesem Host, ist der Index leer und das rechte Bit bleibt aus:
+			// die sichere Richtung, denn eine fehlende Angabe darf keine Zuweisung behaupten.
+			const regionLabelListe = row.label ? [row.label] : (row.labels || []);
+			const marker = avesmapsStatuskreisLandschaft(
+				regionLabelListe.some((label) => label && label.assigned === true),
+				typeof ecosystemRegionsForWikiKey === "function"
+					&& ecosystemRegionsForWikiKey(row.wiki_key).length > 0);
 			return (
 				`<div class="${classes}"${dragAttrs} title="${regionSyncEscapeAttr(title)}">` +
 				handle +

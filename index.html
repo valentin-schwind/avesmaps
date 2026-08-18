@@ -3041,6 +3041,11 @@
 		<script src="js/review/review-locations.js"></script>
 		<script src="js/review/review-panels.js"></script>
 		<script src="js/review/review-panels-change-log.js"></script>
+		<!-- Der geteilte Statuskreis-Bauer der Listenzeilen. Dieselbe Datei laden die fuenf
+		     Editorfenster: jede Objektart hat ihre Liste ZWEIMAL (Panel hier, Editor im eigenen
+		     Dokument), und die Regel darf es nur einmal geben. Steht vor allen vier Panel-Listen,
+		     die ihn rufen -- Regionen, Wege, Orte, Literatur/Karten. Haengt selbst von nichts ab. -->
+		<script src="js/ui/listen-statuskreis.js"></script>
 		<script src="js/review/review-region-sync.js"></script>
 		<!-- V6: der Landschaftsteil derselben Liste (Flaechenspalte + Zuweisen). Eigene Datenquelle
 		     (api/edit/map/ecosystem.php), deshalb eigene Datei. MUSS nach review-region-sync.js stehen:
@@ -3052,11 +3057,6 @@
 		     erkennbaren Blindgaenger (bereit === false), aber ein Blindgaenger ist kein Ersatz.
 		     Danach der Datenweg des Wegs, den sich Kartendialog und Wege-Editor teilen; er haengt
 		     von keiner der drei ab und steht nur der Lesbarkeit halber hier. -->
-		<!-- Der geteilte Statuskreis-Bauer der Listenzeilen. Dieselbe Datei laden die fuenf
-		     Editorfenster: jede Objektart hat ihre Liste ZWEIMAL (Panel hier, Editor im eigenen
-		     Dokument), und die Regel darf es nur einmal geben. Muss vor review-settlement-list.js
-		     stehen -- die ruft den Bauer beim ersten Zeichnen der Liste. -->
-		<script src="js/ui/listen-statuskreis.js"></script>
 		<script src="js/ui/wiki-assign-registry.js"></script>
 		<script src="js/ui/wiki-assign-diff.js"></script>
 		<!-- Der Wiki-Override an der Feldzeile: was weicht ab, und wer hat es gesetzt. Rein, kein

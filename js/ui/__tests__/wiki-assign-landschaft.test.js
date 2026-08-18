@@ -943,10 +943,13 @@ function sandkastenBauen(dateien, felder, behaelterIds, fetchAntwort, zusatz) {
 		wiki_no_article: false, updated_at: "2026-08-16 00:00:00",
 	};
 	const editorAufrufe = [];
-	// ⚠️ Zwei ECHTE Nachbarn kommen mit: das Filtermenü (das Inline-Skript ruft es beim Start) und
-	// die Auto-Namen-Regel (der Block leitet den Haken daraus ab). Attrappen dafuer waeren zwei
-	// weitere Wahrheiten ueber Dinge, die es fertig gibt.
-	const editorLadeliste = ["js/ui/filter-menu.js", "js/map-features/map-features-ecosystem-naming.js"]
+	// ⚠️ Drei ECHTE Nachbarn kommen mit: das Filtermenü (das Inline-Skript ruft es beim Start), die
+	// Auto-Namen-Regel (der Block leitet den Haken daraus ab) und seit 18.08.2026 der geteilte
+	// Statuskreis-Bauer (`renderList` ruft ihn je Zeile -- ohne ihn wirft die Liste, und der Klick
+	// unten findet gar keine Zeile mehr). Attrappen dafuer waeren drei weitere Wahrheiten ueber
+	// Dinge, die es fertig gibt.
+	const editorLadeliste = ["js/ui/filter-menu.js", "js/map-features/map-features-ecosystem-naming.js",
+		"js/ui/listen-statuskreis.js"]
 		.concat(editorSkripte);
 	const e = sandkastenBauen(editorLadeliste, { ecoDetail: detail, ecoList: liste }, [],
 		(url) => {
