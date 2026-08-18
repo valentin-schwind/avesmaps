@@ -64,7 +64,7 @@ SELECT SHA2('https://www.herzogtum-weiden.net/politik/liste-bn/baronien/gfl-salt
 --    erst muehsam wieder herausklauben muessen. PREPARE/EXECUTE braucht kein besonderes Recht.
 SET SESSION group_concat_max_len = 1000000;
 
-SET @sql = CONCAT('SELECT * FROM (', (
+SET @sql = CONCAT('SELECT stelle, treffer FROM (', (
     SELECT GROUP_CONCAT(
                CONCAT('SELECT ''', TABLE_SCHEMA, '.', TABLE_NAME, '.', COLUMN_NAME,
                       ''' AS stelle, COUNT(*) AS treffer FROM `', TABLE_SCHEMA, '`.`', TABLE_NAME,
@@ -77,16 +77,24 @@ SET @sql = CONCAT('SELECT * FROM (', (
       AND DATA_TYPE IN ('char', 'varchar', 'text', 'mediumtext', 'longtext', 'json')
       AND (COLUMN_NAME LIKE '%url%' OR COLUMN_NAME LIKE '%link%'
            OR COLUMN_NAME LIKE '%source%' OR COLUMN_NAME LIKE '%json%')
-), ') x WHERE treffer > 0 ORDER BY treffer DESC');
+), ') x ORDER BY treffer DESC, stelle LIMIT 40');
+
+-- Sagt, ob ueberhaupt etwas zu suchen war. NULL oder 0 heisst: der Generator hat nichts gebaut, die
+-- Suche lief nie -- und eine leere Trefferliste waere dann keine Aussage ueber die Daten.
+SELECT LENGTH(@sql) AS sql_laenge_muss_gross_sein;
 
 PREPARE stmt FROM @sql;
 EXECUTE stmt;
-DEALLOCATE PREPARE stmt;
+-- 💣 KEIN `DEALLOCATE PREPARE` hinterher. phpMyAdmin zeigt bei mehreren Anweisungen das Ergebnis der
+-- LETZTEN, und DEALLOCATE liefert keins -- die Suche laeuft, man sieht nur nichts ("passiert nix",
+-- 18.08.2026). Die Anweisung MUSS als letzte stehen. Der Handle wird mit der Sitzung ohnehin frei.
+-- ⚠️ Aus demselben Grund NICHT `WHERE treffer > 0` filtern: null Zeilen sehen genauso aus wie eine
+-- Abfrage, die gar nicht angezeigt wird. Lieber alles sortiert zeigen -- oben stehen die Treffer.
 
 -- Das Ergebnis IST die Antwort: welche Spalten tragen die toten Links, und wie viele. Es sagt zugleich,
 -- welche der Abschnitte 3-5 ueberhaupt gebraucht werden.
 --
--- Kommt keine Zeile zurueck, obwohl auf der Karte tote Weiden-Links stehen, dann steckt die Adresse in
+-- Steht ueberall treffer = 0, obwohl auf der Karte tote Weiden-Links stehen, dann steckt die Adresse in
 -- einer Spalte mit unauffaelligem Namen. Dann dasselbe noch einmal OHNE die letzte AND-Zeile -- es
 -- durchsucht dann jede Textspalte der Datenbank und laeuft entsprechend laenger.
 -- ⚠️ Der Lauf scannt einige grosse Tabellen. Das ist harmlos: es belastet MySQL, nicht die
