@@ -264,6 +264,39 @@ assert.ok(/tree-map-status--own-only/.test(context.avesmapsLoreListRowHtml(
 assert.ok(/Uthuria \+1</.test(context.avesmapsLoreListRowHtml(vieleOrte, true, "avm")),
 	"Die Meta-Zeile nennt weiter die sechs Titel und den Rest als Zahl.");
 
+// ---- 5e. Eine REGEL ist ein Vorkommen ----------------------------------------------------------
+// Owner 18.08.2026: „regeln (sofern vorhanden und mit verbreitung) sind gueltige vorkommen“.
+// 🔴 Sie aendert NUR, was als Vorkommen zaehlt -- nicht die drei Stufen. Der Fall, der das
+// beweist, steht live: „Alprute“ hat KEINE einzige Ortszeile und eine Regel ueber 119 Waelder.
+const nurRegel = Object.assign({}, eintrag, {
+	name: "Alprute", places: [], place_count: 0, place_mapped_count: 0,
+	rule_count: 1, rule_mapped_count: 1,
+});
+assert.ok(/tree-map-status--all/.test(context.avesmapsLoreListRowHtml(nurRegel, true, "avm")),
+	"Ein Eintrag OHNE Ortszeile, dessen Regel Flaechen trifft, muss den VOLLEN Kreis tragen. "
+	+ "Ist: " + context.avesmapsLoreListRowHtml(nurRegel, true, "avm"));
+// 💣 Und eine Regel, die (noch) nichts trifft, macht ihn HALB -- nie leer. „Vorhanden“ und
+// „trifft etwas“ sind zwei Fragen; waehrend „Zugehoerigkeit rechnen“ laeuft, ist die zweite
+// vorruebergehend nein.
+assert.ok(/tree-map-status--own-only/.test(context.avesmapsLoreListRowHtml(
+	Object.assign({}, nurRegel, { rule_mapped_count: 0 }), true, "avm")),
+	"Eine Regel ohne Treffer ist HALB, nicht leer -- das Vorkommen ist da, es liegt nur nirgends.");
+// ⚠️ Und ohne beides bleibt es leer.
+assert.ok(!/tree-map-status--/.test(context.avesmapsLoreListRowHtml(
+	Object.assign({}, nurRegel, { rule_count: 0, rule_mapped_count: 0 }), true, "avm")),
+	"Ohne Ortszeile UND ohne Regel bleibt der Ring leer.");
+// 💣 Die Meta-Zeile muss die Regel NENNEN, sonst widerspricht der Text dem Kreis: voller Kreis
+// neben „ohne Ortsangabe“ liest sich wie ein Fehler.
+const alpruteZeile = context.avesmapsLoreListRowHtml(nurRegel, true, "avm");
+assert.ok(/1 Regel</.test(alpruteZeile) && !/ohne Ortsangabe/.test(alpruteZeile),
+	"Ein Eintrag mit Regel und ohne Ortszeile sagt „1 Regel“, nicht „ohne Ortsangabe“. Ist: "
+	+ alpruteZeile);
+// ⚠️ `place_count` bleibt die Zahl der ORTSZEILEN -- der „+N“-Zaehler der Meta-Zeile haengt daran,
+// und eine Regel ist dort kein Ortsname.
+const ortUndRegel = Object.assign({}, eintrag, { rule_count: 2, rule_mapped_count: 0 });
+assert.ok(/Weiden, Kosch · 2 Regeln</.test(context.avesmapsLoreListRowHtml(ortUndRegel, true, "avm")),
+	"Orte und Regeln stehen nebeneinander in der Meta-Zeile, mit demselben Trenner.");
+
 // ---- 6. Die Leichen sind wirklich weg ---------------------------------------------------------
 // Ein zurueckgebliebener Verweis auf die alte Struktur faellt nicht auf: er wirft nicht, er tut
 // nur nichts. Genau so bliebe eine Spalte leer, ohne dass irgendwo ein Fehler stuende.

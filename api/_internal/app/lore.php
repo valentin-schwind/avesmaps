@@ -387,6 +387,10 @@ function avesmapsLoreReadCatalog(
     //    Schlüssel, und das ist die sichere Richtung -- ein Eintrag wird dann als „nicht verortet"
     //    gezeigt statt fälschlich als erledigt. Ein Fehler hier darf die Liste nicht kosten.
     $placeKeysOnMap = avesmapsLoreReadPlaceKeysOnMap($pdo, array_keys($allPlaceKeys));
+    // Und die Regeln: eine Lebensraum-Regel mit Verbreitung ist ein gleichwertiges Vorkommen
+    // (Owner 18.08.2026, siehe avesmapsLoreReadRuleCountsByEntry). Hat kein Eintrag dieser Seite
+    // eine, kostet der Aufruf genau EINE indizierte Abfrage.
+    $ruleCounts = avesmapsLoreReadRuleCountsByEntry($pdo, $keys);
 
     $items = [];
     foreach ($rows as $row) {
@@ -414,6 +418,12 @@ function avesmapsLoreReadCatalog(
             // Wieviele der genannten Orte auf der Karte liegen. 🔴 Gerechnet über ALLE Ortszeilen,
             // nicht über die auf 6 gekappte Titelliste darüber.
             'place_mapped_count' => $mappedPlaces,
+            // Regeln als Vorkommen: wie viele der Eintrag hat und wie viele davon etwas treffen.
+            // 🔴 ZWEI EIGENE FELDER statt einer Addition auf `place_count` -- die Meta-Zeile der
+            // Liste baut ihren „+N"-Zaehler daraus („Weiden, Kosch +3"), und eine Regel ist dort
+            // kein Ortsname. Addiert wird erst im Zeilenbauer, fuer den Kreis.
+            'rule_count' => (int) ($ruleCounts[$entryKey]['rules'] ?? 0),
+            'rule_mapped_count' => (int) ($ruleCounts[$entryKey]['matched'] ?? 0),
             'source_count' => $sourceCounts[(string) $row['wiki_key']] ?? 0,
         ];
     }
@@ -555,6 +565,145 @@ function avesmapsLoreReadPlaceKeysOnMap(PDO $pdo, array $placeKeys): array
     unset($found['']);
 
     return $found;
+}
+
+/**
+ * WELCHE EINTRÄGE HABEN EINE REGEL -- UND TRIFFT SIE ETWAS?
+ *
+ * Owner 18.08.2026: „beachte auch, dass regeln (sofern vorhanden und mit verbreitung) gültige
+ * vorkommen sind". Eine Lebensraum-Regel („alle Wälder der gemäßigten Zone") ist im Kasten
+ * „Vorkommen" gleichberechtigt neben einer Ortszeile -- der zweite Knopf dort heißt „+ Regel".
+ *
+ * 🔴 SIE ÄNDERT NUR, WAS ALS VORKOMMEN ZÄHLT, NIE DIE DREI STUFEN. Der Zustand bleibt
+ *    voll = mindestens eines liegt auf der Karte · halb = vorhanden, keines verortet ·
+ *    leer = gar keines. Ein Eintrag ohne Ortszeile, aber mit Regel, ist damit mindestens HALB --
+ *    nie mehr leer.
+ * 💣 `relation = 'verbreitung'` ist die Bedingung des Owners („sofern vorhanden UND mit
+ *    verbreitung"), und sie steht hier, obwohl der Regel-Editor heute gar nichts anderes
+ *    schreiben kann: `avesmapsLoreRuleEditor.relation` startet auf `"verbreitung"` und keine
+ *    Oberfläche ändert es (`js/review/review-lore-rule.js`). Die SPALTE kennt vier Werte
+ *    (avesmapsLoreNormalizeRelation: verbreitung|vorkommen|herkunft|regionen) -- kommt je ein
+ *    Wähler dazu, gilt die Regel des Owners von selbst weiter.
+ *
+ * 🔴 EIN Treffer IST auf der Karte, per Konstruktion -- hier wird nichts nachgeschlagen.
+ *    `avesmapsLoreRuleReadAreas` liest `ecosystem_region WHERE is_active = 1 AND kind <> 'klima'`,
+ *    also gezeichnete Landschaftsflächen. Das ist dieselbe Familie, gegen die
+ *    avesmapsLoreReadPlaceKeysOnMap eine Ortszeile prüft -- nur kommt die Fläche hier schon als
+ *    Objekt heraus statt als Schlüssel. ⚠️ Deshalb zählt ein Treffer auch OHNE
+ *    `wiki_region_key`: live tragen 561 der 929 Flächen keinen, und sie liegen trotzdem auf der
+ *    Karte (Alprutes Regel trifft 119 Wälder, davon viele namenlose „Wald-041").
+ *
+ * ⭐ DIE KETTENAUSWERTUNG WIRD NICHT NACHGEBAUT. `avesmapsLoreRuleChainMatchesSubject`
+ *    (lore-rule-match.php) ist die einzige Stelle, an der die UND/ODER-Kette gelesen wird; diese
+ *    Funktion ist ihr dritter AUFRUFER neben avesmapsLoreRuleEntriesForSubjects und
+ *    avesmapsFetchLoreRulePlacesByEntry. Eine zweite Lesart der Präzedenz hätte Liste und
+ *    Infobox lautlos auseinanderlaufen lassen -- der Grund, aus dem die Kette schon einmal
+ *    zusammengezogen wurde.
+ *
+ * 💣 DER KURZSCHLUSS TRÄGT DIE KOSTEN. Die erste Abfrage ist indiziert
+ *    (`idx_lore_rule_entry`) und winzig; hat KEIN Eintrag dieser Seite eine Regel, ist hier
+ *    Schluss und nichts weiter wird gelesen. Live ist das der Normalfall: von 5104 Einträgen
+ *    trägt am 18.08.2026 genau EINER eine Regel („Alprute"), gemessen über 24 Sonden
+ *    `?area=<region_public_id>`, eine je Landschaftsart.
+ *
+ * ⚠️ Der Rechenstand (`ecosystem_assignment_stamp.completed`) gilt NUR für die zweite Zahl.
+ *    Dass eine Regel DA ist, hängt an keinem Lauf -- dass sie etwas TRIFFT, sehr wohl: während
+ *    „Zugehörigkeit rechnen" läuft, sind die Flächentabellen leer. Ein Eintrag fällt dann von
+ *    voll auf halb, nie auf leer. Dieselbe Trennung wie in avesmapsFetchLoreRulePlacesByEntry
+ *    (lore-search.php), wo die Zonen vor und die Flächen hinter dem Stempel stehen.
+ *
+ * @param list<string> $entryKeys
+ * @return array<string, array{rules: int, matched: int}>
+ */
+function avesmapsLoreReadRuleCountsByEntry(PDO $pdo, array $entryKeys): array
+{
+    $keys = [];
+    foreach ($entryKeys as $key) {
+        $key = trim((string) $key);
+        if ($key !== '') {
+            $keys[$key] = true;
+        }
+    }
+    if ($keys === []) {
+        return [];
+    }
+    $keys = array_keys($keys);
+
+    try {
+        $statement = $pdo->prepare(
+            "SELECT entry_wiki_key, COUNT(*) AS n FROM lore_rule
+              WHERE status = 'active' AND relation = 'verbreitung'
+                AND entry_wiki_key IN (" . implode(',', array_fill(0, count($keys), '?')) . ')
+              GROUP BY entry_wiki_key'
+        );
+        $statement->execute($keys);
+        $rows = $statement->fetchAll(PDO::FETCH_ASSOC) ?: [];
+    } catch (Throwable) {
+        return []; // Tabelle fehlt (Regeln nie benutzt) -> kein Regelzweig, kein Fehler
+    }
+
+    $out = [];
+    foreach ($rows as $row) {
+        $out[(string) $row['entry_wiki_key']] = ['rules' => (int) $row['n'], 'matched' => 0];
+    }
+    if ($out === []) {
+        return []; // DER Kurzschluss: nichts weiter wird gelesen
+    }
+
+    // 🔴 Nackter SELECT, nie avesmapsEcosystemEnsureTables -- dessen information_schema-Sonden
+    // sind die Last, die den PHP-Worker-Pool am 17.07.2026 erschöpft hat (AGENTS.md §10).
+    try {
+        $stampStatement = $pdo->query('SELECT completed FROM ecosystem_assignment_stamp WHERE id = 1');
+        $stampValue = $stampStatement === false ? false : $stampStatement->fetchColumn();
+        if ($stampValue === false || (int) $stampValue !== 1) {
+            return $out; // Regeln da, Flächen (noch) nicht gerechnet -> halb, nicht leer
+        }
+    } catch (Throwable) {
+        return $out;
+    }
+
+    $rules = avesmapsLoreRuleReadAllActive($pdo);
+    if ($rules === []) {
+        return $out;
+    }
+    $areas = avesmapsLoreRuleReadAreas($pdo);
+    if ($areas === []) {
+        return $out;
+    }
+    // Einmal je Aufruf, nie je Fläche und nie je Regel -- dieselbe Regel wie in den zwei
+    // Geschwister-Aufrufern.
+    $orderedZoneKeys = avesmapsLoreRuleOrderedZoneKeys($pdo);
+
+    // Nur die Regeln der Einträge DIESER Seite, und nur mit Verbreitung.
+    $relevant = [];
+    foreach ($rules as $rule) {
+        $entryKey = (string) ($rule['entry_wiki_key'] ?? '');
+        if (isset($out[$entryKey]) && (string) ($rule['relation'] ?? '') === 'verbreitung') {
+            $relevant[] = $rule;
+        }
+    }
+    if ($relevant === []) {
+        return $out;
+    }
+
+    // ⚠️ Gezählt werden die REGELN, die etwas treffen, nicht die getroffenen Flächen. Für den
+    // Kreis genügt „mindestens eine" -- und eine Regel, die 119 Wälder trifft, ist EIN Vorkommen,
+    // nicht 119. Sonst stünde in `place_mapped_count` eine Zahl, die niemand erklären kann.
+    $matchedRuleIds = [];
+    foreach ($areas as $area) {
+        $subject = avesmapsLoreRuleSubjectFromArea($area);
+        foreach ($relevant as $index => $rule) {
+            if (isset($matchedRuleIds[$index])) {
+                continue; // diese Regel trifft schon -- ein zweiter Treffer ändert nichts
+            }
+            if (avesmapsLoreRuleChainMatchesSubject($rule['terms'], $subject, $orderedZoneKeys)) {
+                $matchedRuleIds[$index] = true;
+                $out[(string) $rule['entry_wiki_key']]['matched']++;
+            }
+        }
+    }
+
+    return $out;
 }
 
 /**

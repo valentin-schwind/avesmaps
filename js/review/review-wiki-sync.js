@@ -2730,6 +2730,14 @@ function avesmapsLoreListRowHtml(item, showKind, form) {
 	if (rest > 0) {
 		placeText += " +" + rest;
 	}
+	// 💣 Eine REGEL steht auch in der Meta-Zeile, sonst widerspricht der Text dem Kreis: „Alprute"
+	//    hat keine einzige Ortszeile, aber eine Regel über 119 Wälder -- der Kreis wäre voll und
+	//    daneben stünde „ohne Ortsangabe". ⚠️ „ohne Ortsangabe" heißt seither wirklich „gar
+	//    nichts", nicht „keine Ortszeile".
+	var regeln = Number(item.rule_count) || 0;
+	if (regeln > 0) {
+		placeText = (placeText ? placeText + " · " : "") + (regeln === 1 ? "1 Regel" : regeln + " Regeln");
+	}
 	if (!placeText) {
 		placeText = "ohne Ortsangabe";
 	}
@@ -2754,7 +2762,18 @@ function avesmapsLoreListRowHtml(item, showKind, form) {
 	//    fehlenden Verdrahtung eine lautlos unvollständige Liste -- genau der Fehler, den der
 	//    Kraftlinien-Ring am 18.08.2026 hatte. Fehlt das Skript, soll es krachen; dass index.html
 	//    es lädt, nagelt js/ui/__tests__/listen-statuskreis.test.js fest.
-	var kreis = avesmapsStatuskreisVorkommen(item.place_count, item.place_mapped_count);
+	// 💣 EINE REGEL IST EIN VORKOMMEN (Owner 18.08.2026: „regeln (sofern vorhanden und mit
+	//    verbreitung) sind gültige vorkommen"). Der Kasten „Vorkommen" im Editor trägt zwei
+	//    Knöpfe, „+ Ort" UND „+ Regel"; für den Kreis zählen beide. Deshalb wird hier addiert --
+	//    und NUR hier: `place_count` bleibt die Zahl der Ortszeilen, weil die Meta-Zeile oben
+	//    ihren „+N"-Zähler daraus baut und eine Regel dort kein Ortsname ist.
+	// ⚠️ Addiert werden zwei SERVER-Zahlen, es wird nichts nachgerechnet: welche Fläche eine
+	//    Regel trifft, weiß nur der Server (avesmapsLoreReadRuleCountsByEntry) -- dieselbe
+	//    Begründung wie bei `place_mapped_count`.
+	var kreis = avesmapsStatuskreisVorkommen(
+		(Number(item.place_count) || 0) + (Number(item.rule_count) || 0),
+		(Number(item.place_mapped_count) || 0) + (Number(item.rule_mapped_count) || 0)
+	);
 	var gemeinsam = ' data-lore-entry="' + avesmapsLoreListEscape(item.wiki_key) + '"'
 		+ (safe ? ' data-lore-url="' + avesmapsLoreListEscape(safe) + '"' : "")
 		+ ' title="' + avesmapsLoreListEscape(item.name + " – klicken zum Bearbeiten") + '"';

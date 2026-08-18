@@ -384,8 +384,19 @@ checks++;
 // Zusicherung dafuer waere tot (sie loeste nie als erste aus). Beide Vorkommen-Listen leben in
 // index.html, also gilt sie hier mit.
 const vorkommenListe = lies("js", "review", "review-wiki-sync.js");
-assert.ok(/avesmapsStatuskreisVorkommen\(item\.place_count, item\.place_mapped_count\)/.test(vorkommenListe),
-	"Die Vorkommen-Zeile ruft den geteilten Bauer nicht mit BEIDEN Zahlen auf.");
+// 💣 Seit 19.08.2026 sind es VIER Zahlen, nicht zwei: eine Lebensraum-Regel mit Verbreitung ist
+// ein gleichwertiges Vorkommen (Owner). Geprueft wird, dass beide PAARE eingehen -- addiert wird
+// nur hier, `place_count` bleibt die Zahl der Ortszeilen (daran haengt der „+N"-Zaehler der
+// Meta-Zeile).
+for (const feld of ["item.place_count", "item.rule_count", "item.place_mapped_count", "item.rule_mapped_count"]) {
+	assert.ok(new RegExp(feld.replace(".", "\.")).test(vorkommenListe),
+		`Die Vorkommen-Zeile liest ${feld} nicht mehr. Ohne das eine Paar zaehlen Ortszeilen nicht `
+		+ "mehr, ohne das andere sind Regeln wieder unsichtbar -- beides faerbt Zeilen still falsch.");
+	checks++;
+}
+assert.ok(/avesmapsStatuskreisVorkommen\(\s*\(Number\(item\.place_count\) \|\| 0\) \+ \(Number\(item\.rule_count\) \|\| 0\),/.test(vorkommenListe),
+	"Ortszeilen und Regeln muessen fuer die ERSTE Zahl (gesamt) addiert werden -- sonst ist ein "
+	+ "Eintrag mit Regel und ohne Ortszeile wieder leer statt mindestens halb.");
 checks++;
 // ⚠️ Dass die Zahl NICHT aus der auf 6 gekappten `places`-Liste gezaehlt werden darf, prueft
 // js/review/__tests__/lore-dialog-layout.test.js am VERHALTEN (Eintrag mit sieben Orten, der
