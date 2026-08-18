@@ -202,7 +202,7 @@
 <body>
 	<div class="hb-topbar">
 		<span class="hb-topbar__title">Avesmaps · Editor-Handbuch</span>
-		<span class="hb-topbar__meta">Stand: 18.08.2026</span>
+		<span class="hb-topbar__meta">Stand: 19.08.2026</span>
 		<div class="hb-topbar__actions">
 			<button type="button" class="theme-toggle-btn" aria-label="Auf dunkles Design umschalten" title="Design umschalten (hell/dunkel)">
 				<svg class="theme-toggle-ico theme-toggle-ico--sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4.2" /><g stroke-width="1.9" stroke-linecap="round"><line x1="12" y1="2" x2="12" y2="4.4" /><line x1="12" y1="19.6" x2="12" y2="22" /><line x1="2" y1="12" x2="4.4" y2="12" /><line x1="19.6" y1="12" x2="22" y2="12" /><line x1="4.9" y1="4.9" x2="6.6" y2="6.6" /><line x1="17.4" y1="17.4" x2="19.1" y2="19.1" /><line x1="4.9" y1="19.1" x2="6.6" y2="17.4" /><line x1="17.4" y1="6.6" x2="19.1" y2="4.9" /></g></svg>
@@ -340,7 +340,7 @@
 					<li><strong>admin</strong> — darf alles, inkl. Verwaltung (z.&nbsp;B. Konten anlegen), das <strong>Datenbank-Backup</strong> und den <strong>SVG-Abzug der Karte</strong>.</li>
 				</ul>
 				<div class="hb-note hb-tip"><strong>Admins ziehen den Abzug direkt aus der Kopfzeile.</strong> Neben <em>„📖 Handbuch"</em> steht dort <strong>„💾 Datenbank-Backup"</strong>. Ein Klick auf <strong>„Backup erstellen"</strong> zieht einen vollständigen Abzug der Datenbank — Schema <em>und</em> Daten — als gepackte <code>.sql.gz</code>-Datei und lädt sie herunter; einspielen lässt sie sich unverändert per <code>mysql</code> oder über den Import von phpMyAdmin. Der Lauf geht in kleinen Schritten, damit er nicht an den PHP-Grenzen des Webhostings scheitert: <strong>den Tab offen lassen, bis 100&nbsp;% erreicht sind</strong>. Der Haken <em>„WikiSync-Zwischenspeicher überspringen"</em> macht die Datei kleiner. <strong>Editoren sehen den Link nicht</strong> — ein solcher Abzug enthält auch Passwort-Hashes, alle Share-Links und alle Meldungen.</div>
-				<div class="hb-note hb-tip"><strong>„↧ Karte als SVG" zieht die ganze Karte als Vektorgrafik.</strong> Der dritte Eintrag der Kopfzeile, ebenfalls <em>nur für Admins</em>. Er baut aus den Kartendaten eine <strong>bearbeitbare</strong> Datei — jede Ebene eine Gruppe, jedes Element benannt — für Illustrator, Inkscape oder Affinity, also für Poster, Drucke und eigene Fassungen. Vorher stellst du dreierlei ein: <strong>für welches Programm</strong> (die beiden lesen Objektnamen an verschiedenen Stellen — Illustrator in der <code>id</code>, Inkscape in <code>inkscape:label</code>; eine Datei kann nur einem von beiden lesbare Namen zeigen), <strong>welche Ebenen</strong> mitsollen — viele davon bis hinunter zu ihren Unterarten, jeweils mit der Zahl der Objekte daneben — und die <strong>Kantenlänge</strong> der Ausgabe in Pixeln. <strong>Die Datei baut dein Browser</strong>, nicht der Server: rund 20&nbsp;MB Kartendaten wollen geladen werden, also <strong>den Tab offen lassen</strong>. Wer eine kleinere Datei will, hakt Ebenen ab — an der <em>Kantenlänge</em> liegt es nicht, eine Vektordatei speichert Formen und keine Bildpunkte.</div>
+				<div class="hb-note hb-tip"><strong>„↧ Karte als SVG" zieht die ganze Karte als Vektorgrafik.</strong> Der dritte Eintrag der Kopfzeile, ebenfalls <em>nur für Admins</em>. Er baut aus den Kartendaten eine <strong>bearbeitbare</strong> Datei — jede Ebene eine Gruppe, jedes Element benannt — für Illustrator, Inkscape oder Affinity, also für Poster, Drucke und eigene Fassungen. Vorher stellst du dreierlei ein: <strong>für welches Programm</strong> (die beiden lesen Objektnamen an verschiedenen Stellen — Illustrator in der <code>id</code>, Inkscape in <code>inkscape:label</code>; eine Datei kann nur einem von beiden lesbare Namen zeigen), <strong>welche Ebenen</strong> mitsollen — viele davon bis hinunter zu ihren Unterarten, jeweils mit der Zahl der Objekte daneben — und die <strong>Kantenlänge</strong> der Ausgabe in Pixeln. Dazu zwei Häkchen: <strong>„Passmarken in jede Ebene legen"</strong> hält beim Rastern in Photoshop die volle Leinwand, und <strong>„Semantische Metadaten"</strong> — vorangehakt — schreibt an jedes Element, was es ist und worin es liegt (Art, Klimazone, Relief), damit eine Bildgenerierung damit arbeiten kann. <strong>Die Datei baut dein Browser</strong>, nicht der Server: rund 20&nbsp;MB Kartendaten wollen geladen werden, also <strong>den Tab offen lassen</strong>. Wer eine kleinere Datei will, hakt Ebenen ab — an der <em>Kantenlänge</em> liegt es nicht, eine Vektordatei speichert Formen und keine Bildpunkte.</div>
 					<div class="hb-note hb-tip"><strong>Die Oberfläche sagt dir, was deiner Rolle gehört.</strong> Bedienelemente, die nicht jeder sieht, tragen neben ihrer Überschrift den Zusatz <em>„nur Editoren"</em>: im Infopanel eines Ortes, Weges, Labels, einer Kreuzung oder Kraftlinie über den Editier-Kacheln (Überschrift <em>„Bearbeiten"</em>), im Rechtsklick-Menü über <em>„Hier hinzufügen"</em> (Überschrift <em>„Anlegen"</em>) und im <a href="#n-haekchen">Anzeige-Menü</a> über den Gruppen „Prüfen" und „Mapstil". In der Kopfzeile tragen das Datenbank-Backup und „Karte als SVG" entsprechend <em>„nur Admins"</em>. Der Zusatz ist eine Auskunft, keine Sperre — du siehst ihn, weil du darfst. Er sagt dir, was ein Besucher an dieser Stelle <em>nicht</em> vorfindet, damit du nicht auf etwas verweist, das dein Gegenüber gar nicht hat.</div>
 				<div class="hb-diagram">
 					<svg viewBox="0 0 640 200" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Rollen und ihre Rechte">
@@ -465,51 +465,45 @@
 				<p>Jede Sorten-Liste hat oben dieselben Ansichten: <strong>Alle</strong>, <strong>Platziert</strong> und <strong>Fehlt</strong> — mit der Anzahl in Klammern. „Fehlt" ist deine Arbeitsliste: Dinge, die das Wiki kennt und die Karte noch nicht.</p>
 
 				<h3 id="kreise" class="hb-sub">Der Kreis neben dem Namen</h3>
-				<p>In allen vier Listen steht rechts neben jedem Namen ein kleiner grüner Kreis. Er beantwortet eine einzige Frage: <strong>Ist das schon auf der Karte?</strong> Gefüllt heißt ja, leer heißt nein — und die halb gefüllten sind die interessanten Fälle dazwischen.</p>
-				<p><strong>Achtung:</strong> Derselbe Kreis bedeutet je nach Liste etwas anderes. Bei Orten geht es um die Wiki-Verknüpfung, bei Territorien um die Untergebiete.</p>
+				<p>Rechts neben jedem Namen steht ein kleiner grüner Kreis — in den Listen des WikiSync-Panels und in denen der Editorfenster gleichermaßen. Er beantwortet eine einzige Frage: <strong>Ist das hier fertig?</strong> Gefüllt heißt ja, leer heißt nein — und die halb gefüllten sind die interessanten Fälle dazwischen.</p>
+				<p><strong>Die Form ist überall dieselbe, die Frage dahinter nicht.</strong> Was „fertig" bedeutet, entscheidet die Objektart: bei Orten die Wiki-Verknüpfung, bei Literatur und Karten die zugeordneten Orte, bei Territorien die Untergebiete.</p>
 				<table class="hb-table">
 					<tr>
-						<th>Kreis</th><th>Orte</th><th>Territorien</th><th>Regionen &amp; Wege</th>
+						<th>Objektart</th><th><svg width="17" height="17" viewBox="0 0 18 18" role="img" aria-label="leerer Kreis"><circle cx="9" cy="9" r="6" fill="var(--hb-card)" stroke="var(--hb-presence)" stroke-width="2" /></svg> <strong>leer</strong></th><th><svg width="17" height="17" viewBox="0 0 18 18" role="img" aria-label="links halb gefuellter Kreis"><circle cx="9" cy="9" r="6" fill="var(--hb-card)" stroke="var(--hb-presence)" stroke-width="2" /><path d="M9 3 A6 6 0 0 0 9 15 Z" fill="var(--hb-presence)" /></svg><svg width="17" height="17" viewBox="0 0 18 18" role="img" aria-label="rechts halb gefuellter Kreis"><circle cx="9" cy="9" r="6" fill="var(--hb-card)" stroke="var(--hb-presence)" stroke-width="2" /><path d="M9 3 A6 6 0 0 1 9 15 Z" fill="var(--hb-presence)" /></svg> <strong>halb</strong></th><th><svg width="17" height="17" viewBox="0 0 18 18" role="img" aria-label="voll gefuellter Kreis"><circle cx="9" cy="9" r="6" fill="var(--hb-presence)" stroke="var(--hb-presence)" stroke-width="2" /></svg> <strong>voll</strong></th>
 					</tr>
 					<tr>
-						<td>
-							<svg width="17" height="17" viewBox="0 0 18 18" role="img" aria-label="leerer Kreis"><circle cx="9" cy="9" r="6" fill="var(--hb-card)" stroke="var(--hb-presence)" stroke-width="2" /></svg>
-							<strong>leer</strong>
-						</td>
+						<td><strong>Orte</strong></td>
 						<td>Fehlt auf der Karte — steht nur im Wiki. Das ist deine Arbeit.</td>
-						<td>Gebiet <em>und</em> Untergebiete fehlen auf der Karte.</td>
-						<td>Nicht auf der Karte.</td>
-					</tr>
-					<tr>
-						<td>
-							<svg width="17" height="17" viewBox="0 0 18 18" role="img" aria-label="rechts halb gefuellter Kreis"><circle cx="9" cy="9" r="6" fill="var(--hb-card)" stroke="var(--hb-presence)" stroke-width="2" /><path d="M9 3 A6 6 0 0 1 9 15 Z" fill="var(--hb-presence)" /></svg>
-							<strong>rechte Hälfte</strong>
-						</td>
-						<td>Auf der Karte, aber <strong>ohne Wiki-Verknüpfung</strong>. Der Ort existiert, ihm fehlt nur die Verbindung.</td>
-						<td>Das Gebiet selbst liegt auf der Karte, seine Untergebiete fehlen oder sind unvollständig.</td>
-						<td>—</td>
-					</tr>
-					<tr>
-						<td>
-							<svg width="17" height="17" viewBox="0 0 18 18" role="img" aria-label="links halb gefuellter Kreis"><circle cx="9" cy="9" r="6" fill="var(--hb-card)" stroke="var(--hb-presence)" stroke-width="2" /><path d="M9 3 A6 6 0 0 0 9 15 Z" fill="var(--hb-presence)" /></svg>
-							<strong>linke Hälfte</strong>
-						</td>
-						<td>—</td>
-						<td>Das Gebiet ist nur <em>indirekt</em> da: Es hat keine eigene Fläche, aber Untergebiete liegen auf der Karte.</td>
-						<td>—</td>
-					</tr>
-					<tr>
-						<td>
-							<svg width="17" height="17" viewBox="0 0 18 18" role="img" aria-label="voll gefuellter Kreis"><circle cx="9" cy="9" r="6" fill="var(--hb-presence)" stroke="var(--hb-presence)" stroke-width="2" /></svg>
-							<strong>voll</strong>
-						</td>
+						<td><em>rechts:</em> auf der Karte, aber <strong>ohne Wiki-Verknüpfung</strong>. Der Ort existiert, ihm fehlt nur die Verbindung.</td>
 						<td>Auf der Karte <em>und</em> mit dem Wiki verbunden. Fertig.</td>
+					</tr>
+					<tr>
+						<td><strong>Wege &amp; Kraftlinien</strong></td>
+						<td>Nicht auf der Karte. Den Zustand gibt es nur in der Panel-Liste — sie führt Wiki-Artikel; im Wege-Editor stehen gezeichnete Wege, und die sind immer da.</td>
+						<td>Ein Weg ist eine <em>Namensgruppe aus Segmenten</em> — hier trägt nur ein Teil davon den Artikel.</td>
+						<td>Jedes Segment der Gruppe trägt den Artikel.</td>
+					</tr>
+					<tr>
+						<td><strong>Regionen</strong></td>
+						<td>Weder Label noch Fläche zugewiesen.</td>
+						<td><strong>Zwei unabhängige Hälften</strong>, keine Stufe: <em>links</em> = mindestens ein zugewiesenes Label, <em>rechts</em> = mindestens eine zugewiesene Fläche.</td>
+						<td>Beides.</td>
+					</tr>
+					<tr>
+						<td><strong>Literatur &amp; Karten</strong></td>
+						<td>Das Werk liegt nirgends — ihm ist kein Ort zugeordnet.</td>
+						<td>Mindestens ein zugeordneter Ort ist noch <em>nicht aufgelöst</em>.</td>
+						<td>Alle zugeordneten Orte sind aufgelöst.</td>
+					</tr>
+					<tr>
+						<td><strong>Territorien</strong></td>
+						<td>Gebiet <em>und</em> Untergebiete fehlen auf der Karte.</td>
+						<td><em>links:</em> nur <em>indirekt</em> da — keine eigene Fläche, aber Untergebiete liegen auf der Karte. <em>rechts:</em> das Gebiet selbst liegt auf der Karte, seine Untergebiete fehlen oder sind unvollständig.</td>
 						<td>Gebiet und alle Untergebiete sind vollständig auf der Karte.</td>
-						<td>Auf der Karte.</td>
 					</tr>
 				</table>
 				<div class="hb-note hb-tip"><strong>Bei Territorien zählt der ganze Ast.</strong> Ein Gebiet wird erst voll, wenn auch jedes Untergebiet vollständig ist — und deren Untergebiete ebenso, bis nach unten. Ein Kaiserreich mit einer einzigen fehlenden Baronie bleibt darum halb gefüllt. Das ist kein Fehler, sondern der Hinweis, wo noch Arbeit liegt: Klapp den Ast auf und folge den halben Kreisen nach unten.</div>
-				<div class="hb-note hb-tip"><strong>Im Territorien-Baum</strong> kannst du mit der Maus über dem Kreis stehen bleiben, dann erscheint die Bedeutung im Klartext. In den anderen drei Listen gibt es diesen Hinweis nicht — dafür ist diese Tabelle da.</div>
+				<div class="hb-note hb-tip"><strong>Im Territorien-Baum</strong> kannst du mit der Maus über dem Kreis stehen bleiben, dann erscheint die Bedeutung im Klartext. In den übrigen Listen gibt es diesen Hinweis nicht — dafür ist diese Tabelle da.</div>
 
 				<h3 id="siedlungen" class="hb-sub">Orte</h3>
 				<p class="hb-path"><strong>Auf der Karte:</strong> Linksklick → Infopanel → „Bearbeiten" &nbsp;·&nbsp; <strong>Anlegen:</strong> Rechtsklick → „Hier hinzufügen" → „Neuer Ort" &nbsp;·&nbsp; <strong>Liste:</strong> Editor → WikiSync → Orte</p>
@@ -759,6 +753,7 @@
 				<div class="hb-note hb-warn"><strong>Fläche und Beschriftung sind ein Ding.</strong> Löschst du die letzte Fläche einer Region, verschwindet die Region mit ihren Beschriftungen. Die Rückfrage sagt das vorher — lies sie.</div>
 				<h5>Der Steckbrief</h5>
 				<p>Unter <em>„Eigenschaften …"</em> steht oben die <strong>Identität</strong>: <em>Name</em>, <em>Art</em> (aus der Vokabelliste genau dieser Ebene), dazu die Haken <em>Auto-Name</em>, <em>Regionname anzeigen</em> und <em>Nodix</em>. Darunter das <strong>Gelände</strong> mit vier Werten — <em>Erhebungen</em>, <em>Erosion</em>, <em>Maximalhöhe</em> und <em>Durchschnittshöhe</em>. Sie formen, wie sich das Gelände anfühlt, und damit, wie lange man hindurch braucht; <strong>„Auf Automatik zurück"</strong> gibt einen Wert wieder an die Vorgabe der Art zurück. Jeder Wert steht als Schieberegler mit einem <strong>Zahlenfeld</strong> daneben — du kannst ziehen oder die Zahl eintippen. Beim Verlassen des Feldes rastet sie auf die Schrittweite des Reglers ein (bei den beiden Höhen 50, aus getippten 3.501 wird also 3.500) und wird auf dessen Grenzen geklemmt: kein verworfener Eintrag, sondern der Wert, den Regler und Vorschau ohnehin meinen.</p>
+				<p>Bei einer <strong>Gebirgs</strong>fläche steht darunter die <strong>Höhenskala</strong>: ein Graubalken mit Achse in Schritt und den Gipfeln dieser Fläche an ihrer Stelle — die Ablesehilfe zu „hell ist hoch, dunkel ist niedrig". Sie ändert nichts an der Karte. <strong>Ihr hellster Ton ist der höchste Gipfel aller gerade geladenen Gebirgsflächen</strong> und wandert deshalb mit dem Bildausschnitt: dieselbe Fläche wirkt dunkler, sobald ein höherer Nachbar mit im Bild ist.</p>
 				<div class="hb-note hb-tip"><strong>Die Ränder siehst du nur beim Bearbeiten.</strong> Eine Kontur wird nur gezeichnet, solange <em>eine</em> Ebene im Editiermodus offen ist — nicht in „Alle" und nicht für Besucher. „Im Frontend fehlen die Ränder" ist also die Regel, kein Fehler.</div>
 				<h5>Klimazonen: die Ausnahme</h5>
 				<p>Die vierte Ebene zeichnest du <strong>nicht</strong>. Ihre Bänder — Polar bis Tropisch, von Nord nach Süd — sind <em>abgeleitet</em>: du ziehst nur die <strong>Trennlinien</strong> dazwischen, und die Bänder werden bei jedem Speichern neu gerechnet. Deshalb kann es zwischen zwei Zonen weder Lücke noch Überlappung geben — ein Band <em>ist</em> der Raum zwischen zwei Linien.</p>
@@ -1250,7 +1245,7 @@
 				<div class="hb-note hb-warn"><strong>Instagram ohne Bild bleibt gesperrt</strong> — dort geht kein reiner Text. Umgekehrt gilt für <strong>Neuigkeiten</strong>: nur dieser Kanal nutzt die <strong>Titelzeile</strong> (die Netze kennen keine Überschrift), und ein Bild übernimmt er nicht.</div>
 				<div class="hb-note hb-tip"><strong>Hängt ein Bild dran, schreib die <em>Bildbeschreibung</em> dazu.</strong> Das Feld darunter geht als Bildbeschreibung an <strong>Mastodon</strong> und wird Screenreadern vorgelesen. Beschreibe das <em>Bild</em>, nicht den Beitrag — „Kartenausschnitt des Bornlands mit den neuen Reichsstraßen" statt „Neue Wege".</div>
 
-				<div class="hb-note hb-warn"><strong>„Mit KI erstellt" ist vorangehakt.</strong> Lass das Häkchen stehen, wenn Text oder Bild von einer KI stammen, und nimm es weg, wenn nicht. Entgegennehmen können die Erklärung nur <strong>Instagram</strong> und <strong>Facebook</strong> — die übrigen Kanäle kennen kein solches Feld. Und <strong>Facebook bringt sie nur an einem Bild an</strong>: Ein angehakter Facebook-Beitrag <em>ohne</em> Bild geht ohne Kennzeichnung hinaus. Das Fenster sagt dir das in diesem Fall; gesperrt wird nichts, denn ein Beitrag ohne Bild ist völlig zulässig.</div>
+				<div class="hb-note hb-warn"><strong>„Mit KI erstellt" ist vorangehakt.</strong> Lass das Häkchen stehen, wenn Text oder Bild von einer KI stammen, und nimm es weg, wenn nicht. Selbst anbringen kann die Erklärung derzeit nur <strong>Instagram</strong>. <strong>Facebook</strong> hat zwar ein solches Feld, lässt uns aber nicht heran — dort <strong>trägst du die Kennzeichnung nach dem Veröffentlichen von Hand am Beitrag nach</strong>. Beim Anhaken sagt dir das Fenster, welche Kanäle diesen Handgriff brauchen; die übrigen kennen gar kein solches Feld. Gesperrt wird nichts.</div>
 
 				<h4>Der Status gehört dem Kanal, nicht dem Beitrag</h4>
 				<p>Ein Beitrag geht an mehrere Netze, und jedes kann für sich scheitern. Deshalb trägt jede Zeile der Liste <em>eine Marke je Kanal</em>: <strong>„… ✓"</strong>, <strong>„… — wartet"</strong>, <strong>„… — geplant"</strong> oder <strong>„… — Fehler"</strong>, den Fehlertext zeigt der Tooltip. Nur eine gescheiterte Marke bekommt den Knopf <strong>„Erneut"</strong>, und der wiederholt <em>genau diesen einen</em> Kanal — ein bereits gesendeter wäre auf Instagram ein Doppelbeitrag. Grün heißt „es steht draußen"; alles Unklare zeigt „wartet", nie einen Erfolg. Kennt das Netz die Adresse des fertigen Beitrags, ist die Marke selbst der Link dorthin (<strong>„… ✓ ↗"</strong>) — fehlt der Pfeil, heißt das nur, dass keine Adresse zurückkam, nicht dass der Beitrag fehlt.</p>
@@ -1424,7 +1419,7 @@
 					<figcaption>Der Bereich <strong>„Quellen"</strong>: oben bestehende Quellen, jede mit <em>Typ</em> (<code>*</code> = offiziell) und <em>Abdeckung</em>; darunter die Eingabezeile mit <em>URL</em>, <em>Quellenname</em>, <em>Seite(n)</em>, <em>Typ</em>, <em>Abdeckung</em> und <em>„offiziell"</em>.</figcaption>
 				</figure>
 				<p>Eine neue Quelle trägst du in einer Zeile ein: <strong>URL</strong>, <strong>Quellenname</strong>, <strong>Seite(n)</strong>, der <strong>Typ</strong>, die <strong>Abdeckung</strong> und das Häkchen <strong>offiziell</strong> — dann <strong>„Hinzufügen"</strong>. Beim Quellennamen gehört der <em>Veröffentlichungstitel</em> hinein, nicht eine Umschreibung.</p>
-				<div class="hb-note hb-tip"><strong>Beim Anlegen trägst du Quellen sofort mit ein.</strong> Ein Ort, den du gerade erst anlegst, hat noch keine Kennung, an der eine Quelle hängen könnte. Der Block sammelt sie deshalb unter <em>„Wird beim Anlegen übernommen"</em> und hängt sie an, sobald du gespeichert hast — Autocomplete und ✕ funktionieren dabei wie gewohnt. Du musst den Ort also nicht mehr erst speichern und dann noch einmal aufmachen.</div>
+				<div class="hb-note hb-tip"><strong>Beim Anlegen trägst du Quellen sofort mit ein.</strong> Ein Ort, den du gerade erst anlegst, hat noch keine Kennung, an der eine Quelle hängen könnte. Der Block sammelt sie deshalb unter <em>„Wird beim Anlegen übernommen"</em> und hängt sie an, sobald du gespeichert hast — Autocomplete und ✕ funktionieren dabei wie gewohnt.</div>
 
 				<h4>Die Abdeckung entscheidet, wo die Quelle landet</h4>
 				<p>Das unscheinbarste Feld hat die größte Wirkung auf die Leseransicht:</p>
@@ -1496,7 +1491,7 @@
 					<tr><td><strong>Nodices</strong></td><td>Als Nodix markierte Objekte.</td></tr>
 					<tr><td><strong>Verborgene Orte</strong></td><td>Holt die als <a href="#siedlungen">verborgen</a> markierten Orte samt Namen zurück aufs Bild. Kein eigener Ring und keine eigene Farbe — der Haken erzeugt keine Markierung, er zeigt nur wieder, was sonst weggelassen wird.</td></tr>
 					<tr><td><strong>nur Labels mit Region</strong></td><td>Blendet alle Beschriftungen aus, an denen <em>keine</em> Landschaftsfläche hängt — was stehen bleibt, ist die Restliste zum Nacharbeiten. Steht nur da, wenn die Landschaften-Ebene eingeschaltet ist.</td></tr>
-					<tr><td><strong>Mapstil</strong></td><td>Kein Häkchen, sondern eine Auswahl: Stylized · Original · Politics. Sie hat im Menü eine eigene Gruppe.</td></tr>
+					<tr><td><strong>Mapstil</strong></td><td>Kein Häkchen, sondern eine Auswahl: Stylized · Original. Sie hat im Menü eine eigene Gruppe.</td></tr>
 				</table>
 				<p>Trägt ein Marker beide Fehler, gewinnt der pinke Ring — es wird immer nur einer gezeigt.</p>
 				<div class="hb-note hb-tip"><strong>Die drei Prüf-Häkchen holen ihre Funde hervor, statt sie nur zu markieren</strong> (seit dem 14.08.2026). <em>„Unverbunden"</em>, <em>„Kreuzungen mit 2 Wegen"</em> und <em>„Kreuzungen"</em> hängen nicht mehr davon ab, welche Ortsgrößen an sind oder wie weit du herausgezoomt hast — sonst versteckte man sich mit der Zoomstufe genau das, wonach man sucht. Der Bildausschnitt gilt weiterhin. Die beiden Zeilen tragen im Menü jetzt auch <strong>den Marker selbst als Zeichen</strong> — dunkler Kern, farbiger Ring —, statt der Lupe, die dort fünfmal gleich aussah: Du siehst die Farbe also schon in der Zeile und musst sie nicht auf der Karte suchen.</div>
