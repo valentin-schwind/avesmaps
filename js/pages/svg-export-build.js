@@ -365,7 +365,28 @@ function svgxRepPoint(geometry) {
 // ⚠️ Die Hüllbox ist ein VORfilter, kein Treffer -- danach entscheidet der Punkttest.
 // (Am Seepunkt lagen 9 Gebiete in der Box und 0 bestanden den Test; dieselbe Falle wie
 // bei "Was ist hier?".)
-function svgxBuildContextIndex(ecosystems) {
+// 🔴 Die Gipfel. Das HÖHENFELD der Karte (map-features-ecosystem-height-field.js) wird im
+// Browser aus benannten Gipfeln plus Rauschen gerechnet und hat KEINEN Endpunkt -- also wird
+// hier nicht das Feld nachgebaut, sondern seine Quelle benutzt: die Gipfel selbst.
+// Jede Reliefﬂäche bekommt die höchste Gipfelhöhe in ihr; ein Wald darin erbt sie.
+// ⚠️ Die Höhe steht in `height_schritt` (Meter), NICHT in `height`. Live tragen 35 von 74
+// Gipfeln eine -- die übrigen liefern schlicht keine Angabe, und das ist ehrlicher als 0.
+const SVGX_PEAK_SUBTYPES = ["berggipfel", "vulkan"];
+
+function svgxPeaks(mapFeatures) {
+	return svgxAsFeatures(mapFeatures)
+		.filter((f) => f && f.properties && f.properties.feature_type === "label"
+			&& SVGX_PEAK_SUBTYPES.includes(f.properties.feature_subtype)
+			&& f.geometry && f.geometry.type === "Point"
+			&& Number(f.properties.height_schritt) > 0)
+		.map((f) => ({
+			x: Number(f.geometry.coordinates[0]),
+			y: Number(f.geometry.coordinates[1]),
+			hoehe: Number(f.properties.height_schritt),
+		}));
+}
+
+function svgxBuildContextIndex(ecosystems, mapFeatures) {
 	const bauen = (pruef) => svgxAsFeatures(ecosystems)
 		.filter((f) => f && f.geometry && pruef(svgxProps(f)))
 		.map((f) => {
@@ -380,31 +401,54 @@ function svgxBuildContextIndex(ecosystems) {
 			return { typ: svgxProps(f).region_type || "", geometry: g, minX, minY, maxX, maxY };
 		});
 
-	return {
-		klima: bauen((pr) => pr.kind === "klima"),
-		relief: bauen((pr) => SVGX_RELIEF_TYPES.includes(pr.region_type)),
-	};
+	const relief = bauen((pr) => SVGX_RELIEF_TYPES.includes(pr.region_type));
+
+	// Gipfel den Reliefflächen zuordnen, EINMAL -- nicht je Element neu.
+	svgxPeaks(mapFeatures).forEach((g) => {
+		for (const e of relief) {
+			if (g.x < e.minX || g.x > e.maxX || g.y < e.minY || g.y > e.maxY) { continue; }
+			if (!svgxPointInPolygon(g.x, g.y, e.geometry)) { continue; }
+			if (!(e.hoehe >= g.hoehe)) { e.hoehe = g.hoehe; }
+			break;
+		}
+	});
+
+	return { klima: bauen((pr) => pr.kind === "klima"), relief: relief };
 }
 
-function svgxLookup(liste, punkt) {
-	if (!punkt) { return ""; }
+function svgxLookupEintrag(liste, punkt) {
+	if (!punkt) { return null; }
 	const [x, y] = punkt;
 	for (const e of liste) {
 		if (x < e.minX || x > e.maxX || y < e.minY || y > e.maxY) { continue; }
-		if (svgxPointInPolygon(x, y, e.geometry)) { return e.typ; }
+		if (svgxPointInPolygon(x, y, e.geometry)) { return e; }
 	}
-	return "";
+	return null;
+}
+
+function svgxLookup(liste, punkt) {
+	const e = svgxLookupEintrag(liste, punkt);
+	return e ? e.typ : "";
 }
 
 // Klimazone und Relief eines Elements. Leer, wenn nichts zutrifft -- eine leere Angabe ist
 // ehrlicher als eine geratene.
-function svgxContextFor(geometry, index) {
+function svgxContextFor(geometry, index, zaehler, typ) {
 	if (!index) { return {}; }
 	const punkt = svgxRepPoint(geometry);
 	if (!punkt) { return {}; }
+	const relief = svgxLookupEintrag(index.relief || [], punkt);
+	if (zaehler && typ) {
+		const k = [typ, relief ? relief.typ : "-", svgxLookup(index.klima || [], punkt) || "-",
+			relief && relief.hoehe ? relief.hoehe : "-"].join("|");
+		zaehler.set(k, (zaehler.get(k) || 0) + 1);
+	}
 	return {
 		klima: svgxLookup(index.klima || [], punkt),
-		relief: svgxLookup(index.relief || [], punkt),
+		relief: relief ? relief.typ : "",
+		// Leer, wenn das Relief keinen benannten Gipfel mit Höhe trägt -- eine fehlende
+		// Angabe ist ehrlicher als eine gerundete Null.
+		hoehe: relief && relief.hoehe ? String(relief.hoehe) : "",
 	};
 }
 
@@ -819,7 +863,7 @@ function svgxAreaLayer(options) {
 			const id = svgxIdFor(name, svgxProps(f).public_id, o.dialect, o.seen);
 			stuecke.push(`<path id="${svgxEscapeText(id)}"${svgxLabelAttr(name, o.dialect)}`
 				+ svgxSem(o.semantics, Object.assign({ kind: o.semKind || "flaeche", type: schluessel,
-					ebene: svgxProps(f).kind, name: name }, svgxContextFor(f.geometry, o.context)))
+					ebene: svgxProps(f).kind, name: name }, svgxContextFor(f.geometry, o.context, o.kombi, schluessel)))
 				+ ` d="${d}">`
 				+ `<title>${svgxEscapeText(name)}</title></path>\n`);
 			anzahl += 1;
@@ -968,8 +1012,15 @@ function svgxBuildDocument(options) {
 	const wayIds = new Map();
 	// 🔴 Der Kopf wird ZULETZT gesetzt: das Vokabular kennt erst, wer die Ebenen gebaut hat.
 	const koerper = [];
-	const kontext = o.semantics ? svgxBuildContextIndex(o.ecosystems) : null;
+	const kontext = o.semantics ? svgxBuildContextIndex(o.ecosystems, o.mapFeatures) : null;
 	const semAn = o.semantics === true;
+
+	// 🔴 DIE MATRIX ENTSTEHT BEIM EXPORT, sie wird nirgends abgeschrieben.
+	// Owner 16.08.2026: „die editoren ändern ständig was, es wird nicht bei 37 bleiben."
+	// Eine Matrix in einer Datei wäre am nächsten Tag falsch, ohne dass es jemandem auffällt.
+	// Also zählt der Bauer die Kombinationen mit, während er sie ohnehin ausrechnet -- Kosten:
+	// eine Zeile je Element, kein zweiter Durchgang, keine zweite Wahrheit.
+	const kombi = new Map();
 	const stats = {};
 
 	const detail = [];
@@ -1016,7 +1067,7 @@ function svgxBuildDocument(options) {
 	// (gemessen 14.08.2026 an 11.810 Features -- location, crossing, path, junction, label,
 	// powerline). Die Flächen, die man dafür hielte, sind die Landschaften-Ebene.
 	if (an.landschaften !== false) {
-		nimm("Landschaften", svgxAreaLayer({ semantics: semAn, context: kontext, semKind: "landschaft",
+		nimm("Landschaften", svgxAreaLayer({ semantics: semAn, context: kontext, semKind: "landschaft", kombi: kombi,
 			features: o.ecosystems, layerName: "Landschaften", layerId: "layer-landschaften",
 			// 💣 Der Rückfall heißt `ohne_typ` und NICHT etwa der Name der Art. 49 Flächen
 			// tragen keinen region_type; fielen sie auf "topographie"/"derographisch"
@@ -1109,6 +1160,17 @@ function svgxBuildDocument(options) {
 			felder: { kind: "Objektart", type: "Gelaende- bzw. Wegart", klima: "Klimazone am Ort",
 				relief: "Relief am Ort", ebene: "Landschaftsebene", name: "Eigenname" },
 			typen: typen,
+			// Die tatsächlich vorkommenden Kombinationen aus DIESEM Export, absteigend.
+			// Wer die Datei liest, sieht damit ohne Vorwissen, welche Fälle es gibt --
+			// und beim nächsten Export stehen die aktuellen darin.
+			kombinationen: [...kombi.entries()]
+				.map(([k, anzahl]) => {
+					const [typ, relief, klima, hoehe] = k.split("|");
+					return { typ: typ, relief: relief === "-" ? "" : relief,
+						klima: klima === "-" ? "" : klima,
+						gipfelhoehe: hoehe === "-" ? "" : Number(hoehe), anzahl: anzahl };
+				})
+				.sort((a, b) => b.anzahl - a.anzahl),
 		};
 	}
 
@@ -1157,6 +1219,7 @@ if (typeof module !== "undefined" && module.exports) {
 		svgxSmoothRingData: svgxSmoothRingData,
 		svgxRegistrationMarks: svgxRegistrationMarks,
 		svgxBuildContextIndex: svgxBuildContextIndex,
+		svgxPeaks: svgxPeaks,
 		svgxContextFor: svgxContextFor,
 		svgxPointInPolygon: svgxPointInPolygon,
 		svgxRepPoint: svgxRepPoint,
