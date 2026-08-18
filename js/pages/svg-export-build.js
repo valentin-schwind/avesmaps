@@ -293,8 +293,8 @@ function svgxSem(an, felder, gesehen) {
 	// 💣 Das Vokabular MUSS aus den wirklich geschriebenen Werten entstehen, nicht aus dem
 	// Zählwerk: dort stehen Anzeige-Labels ("Metropole", "Flusswege"), an den Elementen aber
 	// Schlüssel ("metropole", "Flussweg"). Der erste Anlauf baute es aus dem Zählwerk -- die
-	// Datei erklärte 39 Typen und benutzte 47, darunter alle sechs Ortsgrößen. Eine Datei,
-	// die sich selbst erklären soll, darf keine Vokabel benutzen, die sie nicht führt.
+	// Datei erklärte 39 Typen und benutzte 47. Eine Datei, die sich selbst erklären soll,
+	// darf keine Vokabel benutzen, die sie nicht führt.
 	if (gesehen && felder && felder.type) {
 		gesehen.set(felder.type, (gesehen.get(felder.type) || 0) + 1);
 	}
@@ -303,6 +303,7 @@ function svgxSem(an, felder, gesehen) {
 		.map(([k, v]) => ` avm:${k}="${svgxEscapeText(v)}"`)
 		.join("");
 }
+
 
 
 // ---------------------------------------------------------------------------------------
@@ -446,6 +447,24 @@ function svgxLookup(liste, punkt) {
 
 // Klimazone und Relief eines Elements. Leer, wenn nichts zutrifft -- eine leere Angabe ist
 // ehrlicher als eine geratene.
+// Flächeninhalt in viewBox-Einheiten². 🔴 Für die Matrix wichtiger als die ANZAHL:
+// 500 Waldflecken und 3 Waldmeere zählen gleich, wirken im Bild aber gar nicht gleich.
+// Gaußsche Trapezformel über die Außenringe, Löcher abgezogen.
+function svgxPolygonArea(geometry) {
+	const typ = geometry && geometry.type;
+	const c = (geometry && geometry.coordinates) || [];
+	const teile = typ === "MultiPolygon" ? c : (typ === "Polygon" ? [c] : []);
+	let summe = 0;
+	teile.forEach((teil) => (teil || []).forEach((ring, i) => {
+		let a = 0;
+		for (let k = 0, j = ring.length - 1; k < ring.length; j = k, k += 1) {
+			a += (ring[j][0] * ring[k][1]) - (ring[k][0] * ring[j][1]);
+		}
+		summe += (i === 0 ? 1 : -1) * Math.abs(a / 2);
+	}));
+	return summe;
+}
+
 function svgxContextFor(geometry, index, zaehler, typ) {
 	if (!index) { return {}; }
 	const punkt = svgxRepPoint(geometry);
@@ -454,7 +473,8 @@ function svgxContextFor(geometry, index, zaehler, typ) {
 	if (zaehler && typ) {
 		const k = [typ, relief ? relief.typ : "-", svgxLookup(index.klima || [], punkt) || "-",
 			relief && relief.hoehe ? relief.hoehe : "-"].join("|");
-		zaehler.set(k, (zaehler.get(k) || 0) + 1);
+		const alt = zaehler.get(k) || { anzahl: 0, flaeche: 0 };
+		zaehler.set(k, { anzahl: alt.anzahl + 1, flaeche: alt.flaeche + svgxPolygonArea(geometry) });
 	}
 	return {
 		klima: svgxLookup(index.klima || [], punkt),
@@ -513,19 +533,30 @@ const SVGX_DEFAULT_SIZE_PX = 32768;
 // Nur so skaliert alles mit: Koordinaten, Strichstärken, Schriftgrößen. Wer stattdessen die
 // Koordinaten multiplizierte, müsste jede Strichstärke und jede Schrift einzeln mitrechnen --
 // und ein Vergessener fiele erst im Druck auf.
-function svgxDocumentOpen(dialect, sizePx, vokabular) {
+function svgxDocumentOpen(dialect, sizePx, vokabular, stempel) {
 	const groesse = Math.max(1, Math.round(Number(sizePx) || SVGX_DEFAULT_SIZE_PX));
 	const inkscapeNs = dialect === SVGX_DIALECTS.INKSCAPE
 		? ' xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"'
 		: "";
 	const avmNs = vokabular ? ` xmlns:avm="${SVGX_NS_AVM}"` : "";
+	// 🔴 DER FASSUNGSSTEMPEL. Ohne ihn laesst sich nicht beweisen, dass dieser Vektorabzug
+	// und ein danebenliegender Rasterabzug DIESELBE Welt zeigen -- und genau daran ist im
+	// Projekt schon einmal etwas gescheitert (zwei Staende gegeneinander, 22 % widerspruechliche
+	// Kacheln). Die Revisionen kommen aus den Endpunkten selbst, nicht aus einer Uhr.
+	const st = stempel || {};
+	const stempelAttrs = vokabular ? svgxAttrs({
+		"avm:kartenfassung": st.mapRevision, "avm:landschaftsfassung": st.ecoRevision,
+		"avm:exportiert": st.zeit, "avm:einheit_px": st.einheitPx,
+		"avm:geglaettet": st.geglaettet, "avm:flaechen_geglaettet": st.flaechenGeglaettet,
+	}) : "";
 	return '<?xml version="1.0" encoding="UTF-8"?>\n'
 		+ '<svg xmlns="http://www.w3.org/2000/svg"'
 		+ ' xmlns:xlink="http://www.w3.org/1999/xlink"'
 		+ inkscapeNs
 		+ avmNs
 		+ ` viewBox="0 0 ${SVGX_VIEWBOX_SIZE} ${SVGX_VIEWBOX_SIZE}"`
-		+ ` width="${groesse}" height="${groesse}">\n`
+		+ ` width="${groesse}" height="${groesse}"`
+		+ stempelAttrs + ">\n"
 		// Die Lizenz reist mit: eine SVG geht nach draußen und muss ohne die Website
 		// erklären können, woher sie kommt und was erlaubt ist (wie fb763021).
 		+ "<metadata>\n"
@@ -773,7 +804,15 @@ function svgxWayLayer(options) {
 				o.wayIds.set(f.properties.public_id, id);
 			}
 			stuecke.push(`<path id="${svgxEscapeText(id)}"${svgxLabelAttr(name, o.dialect)}`
-				+ svgxSem2(o.semantics, o.typen, Object.assign({ kind: "weg", type: art, name: name },
+				+ svgxSem2(o.semantics, o.typen, Object.assign({ kind: "weg", type: art, name: name,
+					id: (f.properties && f.properties.public_id) || "",
+					// Die GEZEICHNETE Breite in viewBox-Einheiten. Der Renderer der PNG zieht
+					// Fluesse mit einem helleren Mantel von rund dreifacher Breite; wer Label
+					// und Bild zur Deckung bringen will, braucht die Breite als Zahl und nicht
+					// nur die Achse.
+					breite: String((SVGX_WAY_WIDTHS[art] || 0.078) * skala),
+					kontur_breite: konturFarbe
+						? String((SVGX_WAY_OUTLINE_WIDTHS[art] || 0.125) * skala) : "" },
 					svgxContextFor(f.geometry, o.context)))
 				+ ` d="${svgxPathData(f.geometry.coordinates, zeichnen)}">`
 				+ `<title>${svgxEscapeText(name)}</title></path>\n`);
@@ -804,7 +843,8 @@ function svgxPowerlineLayer(options) {
 		const name = f.properties.name || "Kraftlinie";
 		const id = svgxIdFor(name, f.properties.public_id, o.dialect, o.seen);
 		stuecke.push(`<path id="${svgxEscapeText(id)}"${svgxLabelAttr(name, o.dialect)}`
-			+ svgxSem2(o.semantics, o.typen, Object.assign({ kind: "kraftlinie", name: name },
+			+ svgxSem2(o.semantics, o.typen, Object.assign({ kind: "kraftlinie", name: name,
+			id: (f.properties && f.properties.public_id) || "" },
 			svgxContextFor(f.geometry, o.context)))
 			+ ` d="${svgxPathData(f.geometry.coordinates)}">`
 			+ `<title>${svgxEscapeText(name)}</title></path>\n`);
@@ -876,6 +916,7 @@ function svgxAreaLayer(options) {
 			const id = svgxIdFor(name, svgxProps(f).public_id, o.dialect, o.seen);
 			stuecke.push(`<path id="${svgxEscapeText(id)}"${svgxLabelAttr(name, o.dialect)}`
 				+ svgxSem2(o.semantics, o.typen, Object.assign({ kind: o.semKind || "flaeche", type: schluessel,
+					id: svgxProps(f).public_id || "",
 					ebene: svgxProps(f).kind, name: name }, svgxContextFor(f.geometry, o.context, o.kombi, schluessel)))
 				+ ` d="${d}">`
 				+ `<title>${svgxEscapeText(name)}</title></path>\n`);
@@ -929,7 +970,11 @@ function svgxPlaceLayer(options) {
 			const name = f.properties.name || kind.label || slug;
 			const id = svgxIdFor(name, f.properties.public_id, o.dialect, o.seen);
 			stuecke.push(`<circle id="${svgxEscapeText(id)}"${svgxLabelAttr(name, o.dialect)}`
-				+ svgxSem2(o.semantics, o.typen, Object.assign({ kind: "ort", type: slug, name: name },
+				+ svgxSem2(o.semantics, o.typen, Object.assign({ kind: "ort", type: slug, name: name,
+					id: f.properties.public_id || "",
+					// ⚠️ DARSTELLUNGSradius, keine Stadtausdehnung. Avesmaps speichert Orte als
+					// Punkte; diese Zahl sagt, wie gross der Punkt gezeichnet wird.
+					radius: String(kind.r || 0.8) },
 				svgxContextFor(f.geometry, o.context)))
 				+ ` cx="${p.x}" cy="${p.y}" r="${kind.r || 0.8}">`
 				+ `<title>${svgxEscapeText(name)}</title></circle>\n`);
@@ -1172,27 +1217,59 @@ function svgxBuildDocument(options) {
 				? { de: v.de, en: v.en, anzahl: anzahl }
 				: { de: schluessel, en: "", anzahl: anzahl, unbeschrieben: true };
 		});
+		// Die Klimabänder als y-Bereiche, in SVG-y (nach unten wachsend) wie alles hier.
+		// 💣 DAS SIND HÜLLBOXEN, KEINE SCHNITTE -- und sie ÜBERLAPPEN SICH kräftig
+		// (gemessen 18.08.2026: polar 0…141, subpolar 102…290, boreal 145…408). Die
+		// Trennlinien der Karte dürfen zurücklaufen, also ist ein Band kein Streifen mit
+		// zwei Kanten. Wer allein aus y auf die Zone schließt, ordnet im Überlappungsbereich
+		// falsch ein.
+		// ⭐ Sie taugen als VORFILTER. Für die exakte Einordnung liegen die Bandpolygone
+		// selbst in der Datei (Ebene Landschaften, avm:ebene="klima") -- der Verbraucher
+		// kann punktgenau verschneiden, ohne etwas nachzubauen.
+		const baender = (kontext && kontext.klima ? kontext.klima : []).map((e) => ({
+			typ: e.typ,
+			y_von: Math.round((SVGX_VIEWBOX_SIZE - e.maxY) * 100) / 100,
+			y_bis: Math.round((SVGX_VIEWBOX_SIZE - e.minY) * 100) / 100,
+		})).sort((a, b) => a.y_von - b.y_von);
+
 		vokabular = {
 			hinweis: "avm:kind/type/klima/relief an jedem Element. Nur Fakten, keine Deutung.",
 			quelle: "https://avesmaps.de",
 			felder: { kind: "Objektart", type: "Gelaende- bzw. Wegart", klima: "Klimazone am Ort",
 				relief: "Relief am Ort", ebene: "Landschaftsebene", name: "Eigenname" },
 			typen: typen,
+			klimabaender_hinweis: "Huellboxen, ueberlappend -- Vorfilter. Exakt: die Bandpolygone in der Ebene Landschaften (avm:ebene=klima).",
+			klimabaender: baender,
+			// 🔴 Zusicherung: die Malreihenfolge IST die Dokumentordnung. Was später im
+			// Dokument steht, liegt oben -- so wie SVG es ohnehin vorschreibt. Es gibt
+			// keine z-Angabe und keine Sortierung, die das überstimmt.
+			reihenfolge: "Dokumentordnung: was spaeter steht, liegt oben.",
 			// Die tatsächlich vorkommenden Kombinationen aus DIESEM Export, absteigend.
 			// Wer die Datei liest, sieht damit ohne Vorwissen, welche Fälle es gibt --
 			// und beim nächsten Export stehen die aktuellen darin.
 			kombinationen: [...kombi.entries()]
-				.map(([k, anzahl]) => {
+				.map(([k, w]) => {
 					const [typ, relief, klima, hoehe] = k.split("|");
 					return { typ: typ, relief: relief === "-" ? "" : relief,
 						klima: klima === "-" ? "" : klima,
-						gipfelhoehe: hoehe === "-" ? "" : Number(hoehe), anzahl: anzahl };
+						gipfelhoehe: hoehe === "-" ? "" : Number(hoehe),
+						anzahl: w.anzahl, flaeche: Math.round(w.flaeche * 100) / 100 };
 				})
-				.sort((a, b) => b.anzahl - a.anzahl),
+				// Nach FLÄCHE sortiert, nicht nach Anzahl -- was gross ist, praegt das Bild.
+				.sort((a, b) => b.flaeche - a.flaeche),
 		};
 	}
 
-	return { parts: [svgxDocumentOpen(dialect, o.sizePx, vokabular)].concat(koerper),
+	const stempel = {
+		mapRevision: o.mapFeatures && (o.mapFeatures.revision || (o.mapFeatures.data || {}).revision),
+		ecoRevision: o.ecoRevision,
+		zeit: o.exportedAt,
+		einheitPx: String(Math.round(((Number(o.sizePx) || SVGX_DEFAULT_SIZE_PX) / SVGX_VIEWBOX_SIZE) * 1000) / 1000),
+		geglaettet: o.smooth ? "ja" : "nein",
+		flaechenGeglaettet: o.smoothAreas ? "ja" : "nein",
+	};
+
+	return { parts: [svgxDocumentOpen(dialect, o.sizePx, vokabular, stempel)].concat(koerper),
 		stats: stats, detail: detail };
 }
 

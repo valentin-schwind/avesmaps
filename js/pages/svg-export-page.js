@@ -299,6 +299,7 @@
 			}
 
 			let ecosystems = null;
+			let ecoRevision = "";
 			if (an.landschaften) {
 				const gesammelt = [];
 				// Nur die angehakten Arten holen. Das spart hier echte Ladezeit, nicht nur
@@ -309,6 +310,7 @@
 					status(`Landschaften werden geladen … (${kind})`);
 					const teil = await holen(`/api/app/ecosystem-areas.php?kind=${encodeURIComponent(kind)}`);
 					window.AvesmapsSvgExport.asFeatures(teil).forEach((f) => gesammelt.push(f));
+					if (teil && teil.revision) { ecoRevision = String(teil.revision); }
 				}
 				ecosystems = gesammelt;
 			}
@@ -339,6 +341,10 @@
 				smoothAreas: kurve.smoothAreas,
 				registrationMarks: Boolean((el("svgx-regmarks") || {}).checked),
 				semantics: Boolean((el("svgx-semantics") || {}).checked),
+				// 🔴 Die Fassungsnummern kommen aus den Endpunkten selbst, nicht aus einer Uhr --
+				// nur damit laesst sich beweisen, dass Vektor- und Rasterabzug dieselbe Welt zeigen.
+				ecoRevision: ecoRevision,
+				exportedAt: new Date().toISOString(),
 				tension: kurve.tension,
 				wayColors: farben.wayColors,
 				wayOutlines: farben.wayOutlines,

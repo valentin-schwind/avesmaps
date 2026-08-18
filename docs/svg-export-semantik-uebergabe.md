@@ -85,3 +85,85 @@ winterfeuchten Subtropen. Was daraus im Bild wird, entscheidet ihr.
 `js/pages/svg-export-build.js` (reiner Bauer, ohne DOM — dort steht das Vokabular und die
 Kontextrechnung), `js/pages/svg-export-page.js` (Kitt), `edit/svg-export.php` (Seite).
 Tests: `js/pages/__tests__/svg-export-build.test.js`.
+
+---
+
+## Nachtrag 18.08.2026 — für die Bild-Pipeline
+
+Auf Rückfragen der Sitzung, die daraus SPADE-Label-Karten baut. Alles Folgende ist
+gebaut und live.
+
+### Fassungsstempel (die wichtigste Ergänzung)
+
+Am Wurzelelement:
+
+```
+avm:kartenfassung="76178"        map-features.php, revision
+avm:landschaftsfassung="21358"   ecosystem-areas.php, revision
+avm:exportiert="2026-08-18T…Z"
+avm:einheit_px="32"              Pixel je viewBox-Einheit bei der gewählten Größe
+avm:geglaettet="nein"            Linien
+avm:flaechen_geglaettet="nein"   Flächen
+```
+
+🔴 **Vektor und Raster gelten nur zusammen, wenn beide dieselbe `revision` tragen.**
+Die Zahlen kommen aus den Endpunkten, nicht aus einer Uhr.
+
+### Stabile Kennung
+
+`avm:id` ist die `public_id` der Datenbank. Sie überlebt Umbenennung und Neuexport —
+die XML-`id` nicht, die trägt den Namen, damit Illustrator und Inkscape etwas Lesbares
+zeigen. Für Abzugsvergleiche also **immer `avm:id`**.
+
+### Gezeichnete Breite
+
+Wege tragen `avm:breite` (und `avm:kontur_breite`, wenn eine Kontur gezeichnet wird) in
+viewBox-Einheiten. ⚠️ Das ist die Breite **dieses** Abzugs; sie folgt dem
+Linienstärke-Regler. In Pixeln: `avm:breite × avm:einheit_px`.
+
+### Orte
+
+`avm:radius` in viewBox-Einheiten. ⚠️ **Darstellungsradius, keine Stadtausdehnung** —
+Avesmaps speichert Orte als Punkte. Metropole 2,2 · Großstadt 1,7 · Stadt 1,3 ·
+Kleinstadt 1,0 · Dorf 0,7 · Gebäude 0,6.
+
+### Wasser
+
+Kein eigenes `kind` — Wasser sind Flächen der Ebene `topographie` mit
+`avm:type` ∈ `meer`, `see`, `kueste`, `flussdelta`, plus die Linien `Flussweg` und
+`Seeweg` unter `kind="weg"`. 🔴 **Die Flüsse liegen UNTER den Wasserflächen** (eigene
+Zeichenreihenfolge, siehe unten), damit ein Fluss im See verschwindet statt ihn zu queren.
+
+### Klimabänder
+
+`klimabaender` im Vokabular gibt je Zone `y_von`/`y_bis`. 💣 **Das sind Hüllboxen und sie
+überlappen sich kräftig** (gemessen: polar 0…141, subpolar 102…290, boreal 145…408) — die
+Trennlinien dürfen zurücklaufen. Als **Vorfilter** brauchbar, zur Einordnung nicht.
+⭐ Exakt geht es trotzdem: die Bandpolygone liegen selbst in der Datei
+(`avm:ebene="klima"`), punktgenau verschneidbar.
+
+### Malreihenfolge
+
+`reihenfolge` im Vokabular sagt es zu: **Dokumentordnung**, was später steht liegt oben.
+Keine z-Angabe, keine Sortierung, die das überstimmt.
+
+### Matrix jetzt nach Fläche
+
+`kombinationen` trägt `anzahl` **und** `flaeche` (viewBox-Einheiten²) und ist nach Fläche
+sortiert — 500 Waldflecken und 3 Waldmeere zählen gleich, wirken aber nicht gleich.
+
+### Zur Zentroid-Falle bei `avm:relief`
+
+Sie entschärft sich von selbst: **die Topographie-Polygone werden mitexportiert**
+(`avm:ebene="topographie"`, Typen `gebirge`, `huegelland`, `tal`, `hochebene`, `tiefebene`,
+`schlucht`, `wadi`). `avm:relief` ist Bequemlichkeit; wer genau sein will, verschneidet selbst.
+
+### Was NICHT geliefert wird
+
+- **Kein Datenhash über die Kartendaten.** Es gibt nur die `revision`-Zähler. Ein Hash,
+  der zum PNG-Renderer passt, müsste dort erst gestempelt werden — das ist eine Änderung
+  am Renderer, nicht am Export.
+- **Keine echte Ortsausdehnung.** Existiert in den Daten nicht.
+- **Keine Flussbreite aus dem PNG-Renderer.** `avm:breite` ist die Breite des SVG-Abzugs.
+  Ob der Raster-Renderer dieselbe zieht, ist ungeprüft — das gehört gemessen, bevor
+  jemand Label und Bild zur Deckung bringt.
