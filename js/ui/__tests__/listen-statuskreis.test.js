@@ -494,4 +494,23 @@ assert.ok(!/coat_of_arms|wappen|wp-slot/i.test(panelBauer),
 	+ "daran war zu erkennen, dass der Auftrag vom 18.08.2026 eine andere Datei meinte.");
 checks++;
 
+
+// ── Der Kreis darf nicht auf Zeile 2 rutschen ────────────────────────────────────────────────
+// 🪤 DIESER FEHLER WAR MIT DER REIHENFOLGE NICHT ZU FANGEN: sie war die ganze Zeit richtig.
+// `.row` ist flex-wrap:wrap; solange `.nm` einen Boden von 9.5em hatte, ergab sich eine
+// Mindestbreite von ~161,5 px, und unter rund 607 px Fensterbreite fiel der Kreis auf eine
+// zweite Zeile -- genau dorthin, wo der Owner ihn ausdruecklich NICHT wollte.
+// ⚠️ Diese Zusicherung prueft die tragende EIGENSCHAFT, nicht die Darstellung. Ob der Kreis im
+// Bild oben sitzt, kann nur ein Browser beantworten; das bleibt offen und wird hier nicht
+// behauptet.
+{
+	const monitor = fs.readFileSync(path.join(wurzel, "html", "wiki-sync-monitor.html"), "utf8");
+	const regel = monitor.match(/\.row \.nm \{[^}]*\}/);
+	assert.ok(regel, "Die Regel .row .nm steht nicht mehr in html/wiki-sync-monitor.html.");
+	assert.ok(/min-width:\s*0\s*;/.test(regel[0]),
+		"`.row .nm` braucht min-width:0, sonst schiebt der Namensboden den Statuskreis in einer"
+		+ " schmalen Spalte auf die zweite Zeile -- der Owner-Auftrag lautete 'ans Ende der 1. Zeile'.");
+	checks++;
+}
+
 console.log(`OK -- ${checks} Zusicherungen (Statuskreis-Bauer + Territorien-Editor-Zeile).`);

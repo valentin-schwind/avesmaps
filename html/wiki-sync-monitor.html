@@ -114,7 +114,21 @@
   .row:hover { background:var(--color-hover-wash); }
   /* Gebietsname hat Vorrang: Mindestbreite + fett, damit er nicht von langen Eltern-/Konflikt-Tags
      zerquetscht wird. Tags brechen bei Bedarf in die nächste Zeile um (flex-wrap am .row). */
-  .row .nm { flex:1 1 9.5em; min-width:9.5em; font-weight:var(--font-weight-bold); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  /* 💣 min-width:0, NICHT 9.5em -- und daran haengt der Owner-Auftrag „Kreis ans ENDE der 1. Zeile".
+     Vorher stand der Kreis als ERSTES Flex-Kind, und das erste Element einer umbrechenden Zeile
+     bleibt per Definition auf Zeile 1 -- er KONNTE nicht rutschen. Hinter dem Namen kann er es:
+     `.row` ist flex-wrap:wrap, und mit einem Namensboden von 9.5em (123,5 px) ergab sich eine
+     Mindestbreite von ~161,5 px (15 Wappen + 6 + 123,5 + 6 + 11 Kreis). Gerechnet gegen den
+     Dialograhmen (min(1400px, 100vw-24px), drei gleich breite Spalten) fiel der Kreis unter rund
+     607 px Fensterbreite auf eine zweite Zeile -- kein Telefon noetig, ein nicht maximiertes
+     Fenster genuegt. Gefunden von der Konsistenzpruefung, NACHDEM der Diff schon freigegeben war.
+     ⚠️ Der Tausch dafuer ist sichtbar und gewollt: der Name kuerzt frueher (er traegt ohnehin
+     text-overflow:ellipsis), statt den Kreis zu verdraengen. `.col` daneben benutzt dasselbe
+     min-width:0 aus demselben Grund.
+     🪤 Eine Zusicherung kann das nur halb fangen: die Reihenfolge im Template blieb bei diesem
+     Fehler die ganze Zeit RICHTIG. Geprueft wird deshalb die tragende Eigenschaft (min-width),
+     nicht die Darstellung -- die braucht einen Browser. */
+  .row .nm { flex:1 1 9.5em; min-width:0; font-weight:var(--font-weight-bold); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   .tag { font-size:var(--font-size-caption); padding:1px 5px; border-radius:8px; border:1px solid var(--line2); color:var(--mut); }
   .tag.lock { color:var(--accent); border-color:var(--accent); }
   .tag.div { color:var(--warn); border-color:var(--warn); }
