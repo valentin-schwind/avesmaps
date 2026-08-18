@@ -414,9 +414,36 @@ if (window.AvesmapsSession && typeof window.AvesmapsSession.load === "function")
 // ⚠️ Trifft sie doch später ein UND weicht sie von der Vorgabe ab, wird einmal nachgezogen. Nur
 // dann: ein bedingungsloser Durchlauf kostet bei jedem Seitenstart einen vollen Sichtbarkeits-Pass
 // umsonst.
+//
+// 💣 GEMESSEN WIRD, OB SCHON MARKER STEHEN -- NICHT, OB ES DIE FUNKTIONEN GIBT. Ein
+// `typeof syncLocationMarkerVisibility === "function"` beweist nur, dass DEREN Datei gelaufen ist.
+// Ihre erste Zeile ruft aber `syncLocationToggleButtons` aus js/app/bootstrap.js, und das steht in
+// index.html als vorletztes von ~117 Skripten, weit hinter dieser Datei. Landete die Antwort in
+// diesem Fenster, gab es genau den ReferenceError, mit dem das hier aufgefallen ist -- eine
+// Funktionsdeklaration wandert ins globale Objekt, sobald IHRE eigene Datei durch ist, und sagt
+// deshalb nichts über die Datei, die sie ihrerseits braucht.
+// 💣 Ein Riegel auf `map` rettet dabei NICHT: `map` ist ein `const` in bootstrap.js, liegt also
+// nicht auf `window`, und `typeof` auf eine noch uninitialisierte lexikalische Bindung WIRFT
+// („Cannot access 'map' before initialization") statt "undefined" zu liefern. Beide Nachzieher
+// brauchen es (`map.getZoom()`) -- der Riegel wäre bloss eine Zeile weiter zerbrochen.
+// ⭐ `locationMarkers` ist der lückenlose Maßstab: es steht in js/app/runtime-state.js (VOR dieser
+// Datei geladen, also kein TDZ) und wird von prepareLocationData gefüllt, das seinerseits erst
+// läuft, wenn `map` existiert. Ist es leer, ist noch nichts gezeichnet und es gibt auch nichts
+// nachzuziehen: die Werte stehen dann längst in _avesmapsLocationZoomBands, und die erste
+// Zeichnung liest sie von selbst.
+// ⚠️ Bewusst NICHT `avesmaps:map-ready`: das Ereignis feuert erst im `.finally()` hinter dem
+// Datenload, und zwischen der fertig gezeichneten Karte und diesem `.finally` liegen Mikrotasks,
+// in denen die Antwort landen kann -- dort fiele der Nachzieher still aus, und „still falsch" ist
+// schlimmer als der Absturz, den es hier zu beheben gab.
+// ⚠️ `typeof locationMarkers` und nicht der nackte Zugriff: drei verify-Prüfseiten laden
+// js/config.js ohne js/app/runtime-state.js. Bei einer UNdeklarierten Variablen liefert `typeof`
+// brav "undefined" -- das ist genau der Unterschied zur TDZ-Bindung zwei Absätze weiter oben.
 if (typeof avesmapsLoadLocationZoomBands === "function") {
 	avesmapsLoadLocationZoomBands().then(function (changed) {
 		if (!changed) {
+			return;
+		}
+		if (typeof locationMarkers === "undefined" || !Array.isArray(locationMarkers) || locationMarkers.length === 0) {
 			return;
 		}
 		if (typeof bumpLocationNameLabelStyleRevision === "function") {
