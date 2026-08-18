@@ -69,7 +69,7 @@
 	const BOUNDS = [[0, 0], [MAP_SIZE, MAP_SIZE]];
 
 	const map = L.map("map", { crs: L.CRS.Simple, minZoom: 0, maxZoom: 6, noWrap: true, zoomControl: true }).setView([MAP_SIZE / 2, MAP_SIZE / 2], 0);
-	L.tileLayer("../tiles/politics/{z}/map_{x}_{y}.webp", { tileSize: 256, maxNativeZoom: 4, noWrap: true, bounds: BOUNDS }).addTo(map);
+	L.tileLayer("../tiles/stylized/{z}/map_{x}_{y}.webp", { tileSize: 256, maxNativeZoom: 5, noWrap: true, bounds: BOUNDS }).addTo(map);
 	map.setMaxBounds(BOUNDS);
 	const drawLayerGroup = L.layerGroup().addTo(map);
 

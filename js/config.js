@@ -533,7 +533,6 @@ const ROUTE_WAYPOINT_POPUP_CLOSE_DELAY_MS = 220;
 const MAP_TILE_STYLES = {
 	old: { label: "Original", url: "./tiles/old/{z}/map_{x}_{y}.webp" },
 	stylized: { label: "Stylized", url: "./tiles/stylized/{z}/map_{x}_{y}.webp" },
-	politics: { label: "Politics", url: "./tiles/politics/{z}/map_{x}_{y}.webp", maxNativeZoom: 4 },
 };
 const MAP_FEATURE_UPDATE_API_URL = window.AVESMAPS_MAP_FEATURE_UPDATE_ENDPOINT || "api/edit/map/features.php";
 const LOCATION_REPORT_REVIEW_API_URL = window.AVESMAPS_LOCATION_REPORT_REVIEW_ENDPOINT || "api/edit/reports/locations.php";
