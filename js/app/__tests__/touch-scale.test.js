@@ -855,6 +855,17 @@ assert.ok(einfahrt,
 	+ " sie muss eigens mitbewegt werden");
 assert.ok(/transform:\s*translateX\(calc\(-1 \* var\(--avesmaps-planner-width\)\)\)/.test(einfahrt[1]),
 	"...und beide um dieselbe Panelbreite, aus dem Token statt als Zahl");
+// 💣 Und die RUHESTELLUNG der Lasche liest denselben Token. Bis zum 19.08.2026 stand hier
+// `left: 350px` als Zahl, waehrend die Startstellung darueber um den Token verschob -- zwei Werte
+// fuer dieselbe Panelbreite. Solange beide 350 meinten, fiel nichts auf; wer den Token verstellt,
+// haette den Planer wandern und die Lasche stehen sehen, und die Einfahrt oben waere neben der
+// Panelkante gelandet. Die Startstellung ist die Ruhestellung MINUS diese Breite -- das geht nur
+// auf, wenn beide dieselbe Quelle lesen.
+const laschenRuhe = layoutCss.match(/^#toggle-button\s*\{([^}]*)\}/m);
+assert.ok(laschenRuhe, "die Ruheregel der Lasche ist auffindbar");
+assert.ok(/left:\s*var\(--avesmaps-planner-width\)/.test(laschenRuhe[1]),
+	"die Lasche steht an der Panelkante, aus dem Token -- als Zahl liefe sie beim ersten"
+	+ " Verstellen von der Startstellung weg, die denselben Token verschiebt");
 // ⚠️ `transform`, nicht `left`: das Auf- und Zuklappen animiert `left` inline per jQuery, eine
 // CSS-Transition darauf interpolierte jeden Schritt ein zweites Mal.
 ["#search", "#toggle-button"].forEach((selektor) => {

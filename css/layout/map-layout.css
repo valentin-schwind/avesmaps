@@ -84,7 +84,10 @@ html.avesmaps-phone #search {
 #toggle-button {
 	position: fixed;
 	top: var(--avesmaps-tab-top);
-	left: 350px;
+	/* 💣 Die Ruhestellung IST die Panelbreite. Als Zahl geschrieben bliebe die Lasche stehen,
+	   sobald jemand den Token verstellt -- und die Startstellung in css/features/loading-bar.css
+	   verschiebt beide um genau diesen Token, sie kaeme dann nicht mehr an der Panelkante an. */
+	left: var(--avesmaps-planner-width);
 	width: var(--avesmaps-tab-w);
 	height: var(--avesmaps-tab-h);
 	/* Auf voller Hoehe wandert die Beschriftung sonst an den oberen Rand: bei `writing-mode:
