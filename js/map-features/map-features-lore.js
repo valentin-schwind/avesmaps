@@ -1,3 +1,14 @@
+// 💣 Diese Datei holt hier ihren vergifteten Asset-Stempel ab (19.08.2026).
+// Drei Deploy-Laeufe hintereinander wurden abgebrochen -- einer hing ueber 35 Minuten am
+// SFTP-Schritt und blockierte die Warteschlange (concurrency: cancel-in-progress: false).
+// Der naechste gruene Lauf diffte ab dem abgebrochenen Stand: er schrieb den NEUEN ?v=-Hash
+// in die index.html, ohne die Datei selbst mitzunehmen. Ab da liefert datei.js?v=<neu> den
+// ALTEN Inhalt, unter ?cb= ebenso -- die Datei liegt auf dem Server falsch, nicht nur im
+// Browser-Cache. Ein Voll-Deploy heilt das NICHT (er legt die richtige Datei unter dieselbe,
+// laengst vergiftete Adresse). Nur eine INHALTSAENDERUNG heilt: neuer Hash = neue Adresse.
+// Details: docs/asset-caching-and-versioning.md.
+//
+
 // Natur & Waren im Infopanel: Pflanzen, Tiere, Spezies und Handelswaren eines Ortes.
 // Design: docs/flora-fauna-handelswaren-design.md. Backend: api/app/lore.php.
 //

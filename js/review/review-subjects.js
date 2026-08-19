@@ -1,3 +1,14 @@
+// 💣 Diese Datei holt hier ihren vergifteten Asset-Stempel ab (19.08.2026).
+// Drei Deploy-Laeufe hintereinander wurden abgebrochen -- einer hing ueber 35 Minuten am
+// SFTP-Schritt und blockierte die Warteschlange (concurrency: cancel-in-progress: false).
+// Der naechste gruene Lauf diffte ab dem abgebrochenen Stand: er schrieb den NEUEN ?v=-Hash
+// in die index.html, ohne die Datei selbst mitzunehmen. Ab da liefert datei.js?v=<neu> den
+// ALTEN Inhalt, unter ?cb= ebenso -- die Datei liegt auf dem Server falsch, nicht nur im
+// Browser-Cache. Ein Voll-Deploy heilt das NICHT (er legt die richtige Datei unter dieselbe,
+// laengst vergiftete Adresse). Nur eine INHALTSAENDERUNG heilt: neuer Hash = neue Adresse.
+// Details: docs/asset-caching-and-versioning.md.
+//
+
 // The WikiSync panel's subjects, as DATA. Everything else -- the selection grid, the verb row,
 // the list's tab strip, the filter menu -- reads from here, so a new feature costs one entry
 // instead of a new nesting level. Spec: docs/superpowers/specs/2026-07-22-editor-navigation-design.md
