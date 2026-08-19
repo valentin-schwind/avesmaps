@@ -477,7 +477,7 @@ window.AVESMAPS_I18N_EN = {
 	"ecosystem.editor.noData": "No data loaded",
 	"ecosystem.editor.filter": "Filter",
 	"ecosystem.editor.sync.title": "Takes the regions from the last dump read into the staging tables (wave 2 sync). Runs in the main window; the result appears in the status line here.",
-	"ecosystem.editor.raycast.title": "Computes which vegetation and topography areas lie in which deregraphic region: share of the SMALLER of the two areas, threshold 10 %. Computed, never stored.",
+	"ecosystem.editor.raycast.title": "Computes which vegetation and topography areas lie in which deregraphic region: counted from 10 % of the smaller of the two areas; the stored value is each side's own share. Computed, never stored.",
 	"ecosystem.editor.ribbon.raycastIdle": "not computed yet",
 	// The facet headings. Deliberately the SAME words the panel list uses -- the same column must
 	// not be called something else in the window than in the tab (review-subjects.js).

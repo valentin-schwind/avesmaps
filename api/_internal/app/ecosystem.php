@@ -674,8 +674,16 @@ function avesmapsEcosystemEnsureTables(PDO $pdo): void
     );
 
     // Both directions are stored. A reader always asks "what lies in THIS region", never "does this
-    // pair exist" -- and the client already carries the pairs symmetrically. share = the fraction of
-    // the SMALLER of the two regions, threshold 10 % (owner 2026-07-27).
+    // pair exist".
+    //
+    // 🔴 `share` ist GERICHTET (seit 19.08.2026): in der Zeile (region_id = A, other_region_id = B)
+    // steht der Anteil von A, der in B liegt. Die zwei Zeilen eines Paares tragen damit
+    // verschiedene Zahlen -- bis dahin stand in beiden der Anteil der KLEINEREN, und fuer die
+    // groessere der beiden log die Zahl. Die SCHWELLE (10 %, Owner 2026-07-27) entscheidet
+    // weiterhin ueber die kleinere und damit ueber das Paar als Ganzes; sie steht als
+    // RAYCAST_THRESHOLD in html/landschaften-editor.html, dem einzigen Erzeuger dieser Zeilen.
+    // 💣 Ein neuer Lauf muss die Tabelle einmal neu schreiben, sonst steht die alte, symmetrische
+    // Zahl darin -- Leser sind dann grosszuegiger als gewollt, nie strenger.
     $pdo->exec(
         "CREATE TABLE IF NOT EXISTS ecosystem_region_overlap (
             region_id INT UNSIGNED NOT NULL,

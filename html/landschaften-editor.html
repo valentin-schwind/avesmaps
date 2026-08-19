@@ -53,7 +53,7 @@
 <div class="avm-ribbon-bar">
   <div class="avm-ribbon">
     <button type="button" class="avm-tile avm-tile--primary" id="ecoSync" data-i18n-title="ecosystem.editor.sync.title" title="Übernimmt die Regionen aus dem zuletzt gelesenen Dump in die Staging-Tabellen (Wave 2 Syncen). Läuft im Hauptfenster; das Ergebnis erscheint hier in der Statuszeile."><span class="t1" data-i18n="ecosystem.editor.ribbon.sync">🚨 Syncen</span><span class="t2" id="ecoSyncInfo" data-i18n="ecosystem.editor.ribbon.syncInfo">Regionen aus dem Wiki-Dump</span></button>
-    <button type="button" class="avm-tile" id="ecoRaycast" data-i18n-title="ecosystem.editor.raycast.title" title="Rechnet, welche Flächen ineinander liegen, in welchem Territorium sie liegen und welche Wege durch sie führen — und speichert das Ergebnis. Anteil an der KLEINEREN der beiden Flächen, Schwelle 10 %."><span class="t1" data-i18n="ecosystem.editor.ribbon.raycast">Zugehörigkeit rechnen</span><span class="t2" id="ecoRaycastInfo" data-i18n="ecosystem.editor.ribbon.raycastIdle">noch nicht gerechnet</span></button>
+    <button type="button" class="avm-tile" id="ecoRaycast" data-i18n-title="ecosystem.editor.raycast.title" title="Rechnet, welche Flächen ineinander liegen, in welchem Territorium sie liegen und welche Wege durch sie führen — und speichert das Ergebnis. Gezählt ab 10 % der kleineren der beiden Flächen; gespeichert wird je Richtung der eigene Anteil."><span class="t1" data-i18n="ecosystem.editor.ribbon.raycast">Zugehörigkeit rechnen</span><span class="t2" id="ecoRaycastInfo" data-i18n="ecosystem.editor.ribbon.raycastIdle">noch nicht gerechnet</span></button>
     <button type="button" class="avm-tile" id="ecoAssignAll" title="Verknüpft alle Karten-Label, deren Name zu einer Wiki-Landschaft passt (Aventurien). Zeigt erst, wie viele es wären, und schreibt erst nach Ihrer Bestätigung. Bereits richtig Verbundene bleiben unberührt; eine abweichende Zuordnung wird überschrieben — auch eine von Hand gesetzte. Passt die Wiki-Art nicht zum Label-Typ, wird übersprungen."><span class="t1">Wiki zuweisen</span><span class="t2" id="ecoAssignAllInfo">noch nicht geprüft</span></button>
     <button type="button" class="avm-tile" id="ecoHeightmap" title="Rechnet je Gebirgsfläche ihr Höhenraster im Browser und speichert es — eine Anfrage je Fläche. Der Pixelwert ist die Höhe in Schritt."><span class="t1">Höhenraster rechnen</span><span class="t2" id="ecoHeightmapInfo">noch nicht gerechnet</span></button>
     <button type="button" class="avm-tile" id="ecoProfiles" title="Leitet aus den gespeicherten Höhenrastern je Weg Anstieg und Gefälle ab. Läuft in Stücken auf dem Server; nichts davon wird beim Routen nachgerechnet."><span class="t1">Wegprofile rechnen</span><span class="t2" id="ecoProfilesInfo">noch nicht gerechnet</span></button>
@@ -559,7 +559,9 @@ function wireFilters() {
 // NEVER stored -- exactly like the conflict centre: a moved boundary corrects the answer by itself,
 // and a stored column would be a second truth about the same thing.
 //
-// Rule (owner 2026-07-27, measured): share of the SMALLER of the two areas, threshold 10 %.
+// Rule (owner 2026-07-27, measured): the SCHWELLE is the share of the SMALLER of the two areas,
+// 10 %. 🔴 Der gespeicherte WERT ist seit dem 19.08.2026 gerichtet -- je Richtung der eigene
+// Anteil, siehe die Begruendung in computeRaycast. Die Schwelle blieb, der Wert wanderte.
 //   * "smaller of the two" also covers a mountain range running through several derographic regions
 //     -- measured as "share of the range" it would drop out everywhere.
 //   * NOT ">= 1 vertex": that misses a long forest crossing a region without having a corner in it,
@@ -661,12 +663,33 @@ function computeRaycast(areas) {
 				}
 			}
 			if (shared <= 0) { continue; }
-			// Share of the SMALLER region. Summed over the area pairs and divided by the smaller
-			// TOTAL, so a region made of several pieces is judged as one thing.
-			const share = shared / Math.max(1e-9, Math.min(a.total, b.total));
-			if (share < RAYCAST_THRESHOLD) { continue; }
-			result.get(a.regionId).push({ regionId: b.regionId, name: b.name, kind: b.kind, regionType: b.regionType, share });
-			result.get(b.regionId).push({ regionId: a.regionId, name: a.name, kind: a.kind, regionType: a.regionType, share });
+			// OB das Paar zählt, entscheidet weiter der Anteil der KLEINEREN Region (Owner-Regel vom
+			// 27.07.2026, RAYCAST_THRESHOLD): ein Gebirgszug, der durch mehrere derographische
+			// Regionen läuft, fiele „als Anteil des Zuges" gemessen überall heraus. Summiert über die
+			// Flächenpaare und durch das kleinere GESAMT geteilt, damit eine mehrteilige Region als
+			// ein Ding beurteilt wird.
+			if (shared / Math.max(1e-9, Math.min(a.total, b.total)) < RAYCAST_THRESHOLD) { continue; }
+			// 🔴 GESPEICHERT wird seit dem 19.08.2026 je Richtung der EIGENE Anteil: „so viel von MIR
+			// liegt im anderen". Beide Richtungen stehen ohnehin als zwei Zeilen in
+			// ecosystem_region_overlap -- sie trugen bis dahin nur zweimal dieselbe Zahl, und die war
+			// für die größere der beiden die Zahl der kleineren.
+			//
+			// 💣 Das ist keine Kosmetik: seit die Lebensraum-Regel „innerhalb" bedeutet, IST diese
+			// Zahl die Antwort auf „liegt X in Y". Symmetrisch gespeichert sagt sie bei „Wälder
+			// innerhalb der Albuminer Pforte" (28,7 Einheiten², kleiner als mancher Wald) das
+			// Gegenteil dessen, was die Regel fragt.
+			//
+			// ⚠️ Der Preis, gemessen am Livebestand vom 19.08.2026: von 999 Klimazeilen fallen VIER
+			// weg -- Aventurien verliert „trockene Subtropen" (4,3 % statt gespeicherter 38,5 %) und
+			// „subtropisch" (3,9 % statt 33,2 %), das Perlenmeer dieselben zwei. Keine einzige Fläche
+			// steht danach ganz ohne Klimazone da. Alle vier sind Korrekturen: genau die zwei Riesen,
+			// vor denen der Kommentar über avesmapsClimateReadRegionZones (climate-membership.php)
+			// heute schon warnt.
+			//
+			// ⚠️ Und es wirkt ERST nach einem neuen Lauf. Bis dahin steht die alte, symmetrische Zahl
+			// in der Tabelle -- die Regel ist dann großzügiger, nie strenger.
+			result.get(a.regionId).push({ regionId: b.regionId, name: b.name, kind: b.kind, regionType: b.regionType, share: shared / Math.max(1e-9, a.total) });
+			result.get(b.regionId).push({ regionId: a.regionId, name: a.name, kind: a.kind, regionType: a.regionType, share: shared / Math.max(1e-9, b.total) });
 		}
 	}
 	// Sorted by share, biggest first -- the threshold is then a line one can argue about, not magic.

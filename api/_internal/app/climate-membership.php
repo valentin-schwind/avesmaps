@@ -217,11 +217,15 @@ function avesmapsClimateReadBands(PDO $pdo): array
  * that lands. Re-deriving it here would be a second answer to the same question, and the two would
  * disagree the first time the rule changed -- the exact failure ecosystem-label-link.php exists to avoid.
  *
- * ⚠️ `share` is the fraction of the SMALLER of the two regions (V9, threshold 10 %). A band covers a
- * seventh of the map, so for any ordinary region the smaller one IS the region and the share reads as
- * "this much of the forest lies in that zone" -- which is what the row says. For something bigger than a
- * band (a sea, a continent) the roles swap and the number would mean the reverse; those rows fall below
- * the threshold and drop out on their own. Worth knowing before trusting the number on a huge area.
+ * ⚠️ `share` ist seit dem 19.08.2026 GERICHTET: in der gelesenen Zeile (region_id = die Flaeche,
+ * other_region_id = das Band) steht der Anteil der FLAECHE, der in dieser Zone liegt -- genau das,
+ * was die Zeile behauptet. Davor stand dort der Anteil der KLEINEREN von beiden, und fuer alles,
+ * was groesser ist als ein Band (ein Meer, ein Kontinent), bedeutete die Zahl das Gegenteil.
+ * Gemessen am Livebestand: VIER von 999 Zeilen aendern sich dadurch -- Aventurien und das
+ * Perlenmeer verlieren je „trockene Subtropen" und „subtropisch", beide zu Recht. Keine Flaeche
+ * bleibt ohne Zone.
+ * 💣 Wirksam erst nach einem neuen „Zugehoerigkeit rechnen"-Lauf (der Erzeuger ist
+ * computeRaycast in html/landschaften-editor.html); bis dahin steht die alte Zahl da.
  *
  * ⚠️ The redundant-looking IN (...) is what keeps this off the whole table. ecosystem_region_overlap
  * holds every pair of regions that touch, both directions -- thousands of rows -- and only a handful
