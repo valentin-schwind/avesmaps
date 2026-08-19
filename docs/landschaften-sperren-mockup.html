@@ -1,0 +1,879 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Landschaften — Reihenfolge und Sperren (Mockup)</title>
+<style>
+/* Werte 1:1 aus css/base/tokens.css, dunkles Thema — die Landschaften-Dialoge stehen
+   auf der Karte und sind dunkel (siehe Screenshot des Owners). Nichts hier ist geraten. */
+:root {
+	--panel:              #312e26;
+	--panel-soft:         #37342b;
+	--panel-active:       #4c4636;
+	--text:               #eee7da;
+	--text-strong:        #f5f0e4;
+	--text-muted:         #b4a895;
+	--placeholder:        #7b7467;
+	--border:             #514a3c;
+	--divider:            rgba(207, 197, 171, 0.24);
+	--button-soft:        #3a362c;
+	--button-soft-text:   #eae1cf;
+	--button-soft-border: #585142;
+	--button-soft-hover:  #453f32;
+	--accent-strong:      #dcc77e;
+	--danger:             #d27566;
+	--pill:               #3b3522;
+	--pill-border:        #5c5237;
+	--pill-text:          #e7d7a5;
+
+	--radius-sm: 5px;
+	--radius-md: 8px;
+	--radius-lg: 10px;
+
+	--space-2: 4px;
+	--space-4: 6px;
+	--space-6: 8px;
+	--space-8: 10px;
+	--space-10: 12px;
+	--space-12: 14px;
+	--space-16: 18px;
+
+	--font-size-caption: 11px;
+	--font-size-small:   12px;
+	--font-size-body:    13px;
+	--font-size-reading: 14px;
+	--font-size-subhead: 16px;
+	--font-size-title:   20px;
+}
+
+* { box-sizing: border-box; }
+
+body {
+	margin: 0;
+	padding: 32px 28px 90px;
+	background: #211f19;
+	color: var(--text);
+	font-family: "Faculty Glyphic", Arial, sans-serif;
+	font-size: var(--font-size-reading);
+	line-height: 1.5;
+}
+
+h1 {
+	margin: 0 0 6px;
+	color: var(--text-strong);
+	font-size: 26px;
+	font-weight: 600;
+}
+
+.lede {
+	max-width: 74ch;
+	margin: 0 0 34px;
+	color: var(--text-muted);
+}
+
+h2 {
+	margin: 44px 0 4px;
+	color: var(--accent-strong);
+	font-size: var(--font-size-caption);
+	font-weight: 700;
+	letter-spacing: 0.08em;
+	text-transform: uppercase;
+}
+
+.note {
+	max-width: 74ch;
+	margin: 0 0 18px;
+	color: var(--text-muted);
+	font-size: var(--font-size-small);
+}
+
+.note b { color: var(--text); font-weight: 600; }
+
+.stage {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 28px;
+	align-items: flex-start;
+	padding: 22px;
+	border: 1px dashed var(--border);
+	border-radius: var(--radius-lg);
+	background: #26241e;
+}
+
+/* ---------------------------------------------------------------- Kontextmenue */
+
+.menucol { display: grid; gap: 10px; align-content: start; }
+
+.menutitle {
+	color: var(--text-muted);
+	font-size: var(--font-size-caption);
+	font-weight: 700;
+	letter-spacing: .08em;
+	text-transform: uppercase;
+}
+
+.menutitle--win { color: var(--accent-strong); }
+
+.map-context-menu {
+	width: 268px;
+	padding: var(--space-6);
+	border: 1px solid var(--border);
+	border-radius: var(--radius-lg);
+	background: var(--panel);
+	box-shadow: 0 10px 30px rgba(0,0,0,.45);
+	color: var(--text);
+}
+
+.map-context-menu--today { width: 344px; }
+.map-context-menu--tidy  { width: 236px; }
+
+.map-context-menu__item {
+	width: 100%;
+	display: grid;
+	grid-template-columns: 1.45em minmax(0, 1fr) auto;
+	column-gap: 0.8em;
+	align-items: center;
+	border: 0;
+	border-radius: var(--radius-md);
+	background: transparent;
+	color: var(--text);
+	cursor: pointer;
+	font: inherit;
+	font-size: var(--font-size-body);
+	padding: var(--space-8) var(--space-10);
+	line-height: 1.25;
+	text-align: left;
+	white-space: nowrap;
+}
+
+.map-context-menu__item::before {
+	content: attr(data-glyph);
+	display: block;
+	width: 1.45em;
+	color: var(--text-muted);
+	text-align: center;
+}
+
+.map-context-menu__item:hover { background: var(--panel-soft); }
+.map-context-menu__item--danger { color: var(--danger); }
+
+.pill {
+	justify-self: end;
+	padding: 1px 6px;
+	border: 1px solid var(--pill-border);
+	border-radius: 999px;
+	background: var(--pill);
+	color: var(--pill-text);
+	font-size: var(--font-size-caption);
+	letter-spacing: .04em;
+}
+
+/* Untermenü — Bauform aus css/components/map-context-menu.css (`.map-context-submenu`,
+   `left: 100%`); hier fest aufgeklappt, damit man den Inhalt sieht. */
+.submenu-host { position: relative; }
+
+.map-context-submenu {
+	position: absolute;
+	left: calc(100% + 6px);
+	top: -8px;
+	width: 268px;
+	padding: var(--space-6);
+	border: 1px solid var(--border);
+	border-radius: var(--radius-lg);
+	background: var(--panel);
+	box-shadow: 0 10px 30px rgba(0,0,0,.45);
+	z-index: 2;
+}
+
+.map-context-menu__item--open { background: var(--panel-soft); }
+
+.map-context-menu__group--display {
+	margin-top: var(--space-6);
+	padding-top: var(--space-6);
+	border-top: 1px solid var(--divider);
+}
+
+.map-context-menu__hint {
+	margin-top: var(--space-6);
+	padding: var(--space-4) var(--space-10) 0;
+	border-top: 1px solid var(--divider);
+	color: var(--text-muted);
+	font-size: var(--font-size-caption);
+}
+
+.map-context-menu__fade {
+	padding: var(--space-4) var(--space-10);
+	color: var(--text-muted);
+	font-size: var(--font-size-caption);
+	font-style: italic;
+	white-space: normal;
+}
+
+/* ---------------------------------------------------------------- Dialoge */
+
+.dialog {
+	width: 420px;
+	padding: var(--space-16);
+	border-radius: var(--radius-sm);
+	background: var(--panel);
+	box-shadow: 0 18px 44px rgba(0,0,0,.5);
+	color: var(--text);
+}
+
+.dialog__header {
+	display: flex;
+	align-items: baseline;
+	justify-content: space-between;
+	gap: var(--space-8);
+	padding-bottom: var(--space-6);
+	margin-bottom: var(--space-6);
+	border-bottom: 1px solid var(--divider);
+}
+
+.dialog__header h3 {
+	margin: 0;
+	color: var(--text-strong);
+	font-size: var(--font-size-title);
+	font-weight: 500;
+	line-height: 1.15;
+}
+
+.dialog__close {
+	border: 0;
+	background: none;
+	color: var(--text-muted);
+	cursor: pointer;
+	font: inherit;
+	font-size: var(--font-size-subhead);
+	line-height: 1;
+}
+
+.dialog__form { display: grid; gap: var(--space-10); }
+
+.dialog__group {
+	margin: 0;
+	padding: 0;
+	border: 0;
+	display: grid;
+	gap: var(--space-10);
+}
+
+.dialog__legend {
+	padding: 0;
+	color: var(--accent-strong);
+	font-size: var(--font-size-caption);
+	font-weight: 700;
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+}
+
+.dialog__field {
+	display: grid;
+	gap: var(--space-4);
+	font-size: var(--font-size-small);
+	color: var(--text-muted);
+}
+
+.dialog__field input,
+.dialog__field select {
+	width: 100%;
+	padding: var(--space-6) var(--space-8);
+	border: 1px solid var(--border);
+	border-radius: var(--radius-md);
+	background: var(--panel);
+	color: var(--text);
+	font: inherit;
+	font-size: var(--font-size-reading);
+}
+
+.dialog__field input::placeholder { color: var(--placeholder); }
+
+.dialog__checkbox {
+	display: flex;
+	align-items: center;
+	gap: var(--space-8);
+	font-size: var(--font-size-small);
+	color: var(--text-muted);
+}
+
+.dialog__checkbox input { width: auto; margin: 0; }
+
+.dialog__checkbox--fresh {
+	margin: 0 calc(var(--space-6) * -1);
+	padding: var(--space-4) var(--space-6);
+	border-radius: var(--radius-md);
+	background: rgba(220, 199, 126, .10);
+	box-shadow: inset 2px 0 0 var(--accent-strong);
+	color: var(--text);
+}
+
+.dialog__hint {
+	margin: 0;
+	color: var(--text-muted);
+	font-size: var(--font-size-caption);
+	line-height: 1.35;
+}
+
+.dialog__areas {
+	margin: 0;
+	color: var(--text-muted);
+	font-size: var(--font-size-small);
+}
+
+.dialog__actions {
+	display: flex;
+	justify-content: flex-end;
+	gap: var(--space-8);
+	padding-top: var(--space-10);
+	border-top: 1px solid var(--divider);
+}
+
+.btn {
+	padding: var(--space-6) var(--space-12);
+	border: 1px solid var(--button-soft-border);
+	border-radius: var(--radius-md);
+	background: var(--button-soft);
+	color: var(--button-soft-text);
+	cursor: pointer;
+	font: inherit;
+	font-size: var(--font-size-body);
+}
+
+.btn:hover { background: var(--button-soft-hover); }
+.btn--primary { border-color: #7a7361; background: #6b6456; color: #f5ebd7; }
+.btn--danger  { border-color: #6b463f; background: #3f2a26; color: #e29c8f; }
+
+/* ---------------------------------------------------------------- Ebenen-Chips */
+
+.kindchips { display: flex; gap: var(--space-4); }
+
+.kindchip {
+	padding: var(--space-4) var(--space-8);
+	border: 1px solid var(--button-soft-border);
+	border-radius: var(--radius-md);
+	background: var(--button-soft);
+	color: var(--button-soft-text);
+	cursor: pointer;
+	font: inherit;
+	font-size: var(--font-size-small);
+}
+
+.kindchip--on {
+	border-color: var(--pill-border);
+	background: var(--panel-active);
+	color: var(--text-strong);
+}
+
+/* ---------------------------------------------------------------- Stapelliste */
+
+.stacklist {
+	max-height: 268px;
+	overflow-y: auto;
+	border-top: 1px solid var(--divider);
+	border-bottom: 1px solid var(--divider);
+}
+
+.stackrow {
+	display: grid;
+	grid-template-columns: 2.1em minmax(0, 1fr) auto;
+	align-items: center;
+	gap: 0 var(--space-8);
+	padding: var(--space-4) 0;
+}
+
+.stackrow:hover { background: var(--panel-soft); }
+
+.stackrow__pos {
+	color: var(--text-muted);
+	font-size: var(--font-size-caption);
+	font-variant-numeric: tabular-nums;
+	text-align: right;
+}
+
+.stackrow__name {
+	color: var(--text-strong);
+	font-size: var(--font-size-reading);
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.stackrow__meta {
+	grid-column: 2;
+	color: var(--text-muted);
+	font-size: var(--font-size-small);
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.stackrow__tools { grid-row: 1 / span 2; display: flex; gap: var(--space-2); }
+
+.tool {
+	width: 30px;
+	height: 30px;
+	display: grid;
+	place-items: center;
+	border: 1px solid var(--button-soft-border);
+	border-radius: var(--radius-md);
+	background: var(--button-soft);
+	color: var(--button-soft-text);
+	cursor: pointer;
+	font: inherit;
+	font-size: var(--font-size-body);
+	line-height: 1;
+}
+
+.tool:hover { background: var(--button-soft-hover); }
+
+.tool--locked {
+	border-color: var(--pill-border);
+	background: var(--pill);
+	color: var(--pill-text);
+}
+
+.stackrow--locked .stackrow__name { color: var(--text-muted); }
+
+.lockmark {
+	margin-left: 6px;
+	padding: 0 6px;
+	border: 1px solid var(--pill-border);
+	border-radius: 999px;
+	background: var(--pill);
+	color: var(--pill-text);
+	font-size: var(--font-size-caption);
+	vertical-align: 1px;
+}
+
+.balance {
+	display: flex;
+	justify-content: space-between;
+	gap: var(--space-8);
+	color: var(--text-muted);
+	font-size: var(--font-size-small);
+}
+
+/* ---------------------------------------------------------------- Leisten-Knopf */
+
+.layerbar {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--space-6);
+	padding: var(--space-6);
+	border: 1px solid var(--border);
+	border-radius: var(--radius-lg);
+	background: var(--panel);
+	box-shadow: 0 10px 30px rgba(0,0,0,.45);
+}
+
+.layerbar__seg {
+	display: flex;
+	border: 1px solid var(--button-soft-border);
+	border-radius: var(--radius-md);
+	overflow: hidden;
+}
+
+.layerbar__seg button {
+	border: 0;
+	border-right: 1px solid var(--button-soft-border);
+	background: var(--button-soft);
+	color: var(--button-soft-text);
+	cursor: pointer;
+	font: inherit;
+	font-size: var(--font-size-small);
+	padding: var(--space-4) var(--space-8);
+}
+
+.layerbar__seg button:last-child { border-right: 0; }
+.layerbar__seg button.on { background: var(--panel-active); color: var(--text-strong); }
+
+.lockbtn {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	padding: var(--space-4) var(--space-8);
+	border: 1px solid var(--pill-border);
+	border-radius: var(--radius-md);
+	background: var(--pill);
+	color: var(--pill-text);
+	cursor: pointer;
+	font: inherit;
+	font-size: var(--font-size-small);
+}
+
+/* ---------------------------------------------------------------- Schema */
+
+.schema { display: flex; flex-wrap: wrap; gap: 26px; align-items: center; }
+
+.schema figure { margin: 0; }
+
+.schema figcaption {
+	margin-top: 8px;
+	max-width: 32ch;
+	color: var(--text-muted);
+	font-size: var(--font-size-small);
+}
+
+.caption {
+	flex: 1 1 240px;
+	min-width: 240px;
+	max-width: 40ch;
+	color: var(--text-muted);
+	font-size: var(--font-size-small);
+}
+
+.caption strong { display: block; margin-bottom: 4px; color: var(--text-strong); font-size: var(--font-size-reading); font-weight: 600; }
+.caption ul { margin: 8px 0 0; padding-left: 1.1em; }
+.caption li { margin-bottom: 5px; }
+.caption b { color: var(--text); font-weight: 600; }
+</style>
+</head>
+<body>
+
+<h1>Landschaften — Reihenfolge und Sperren</h1>
+<p class="lede">
+	Entwurf, noch kein Code. Drei Stellen: das Flächenmenü bekommt vier Einträge, der
+	Eigenschaften-Dialog einen Haken, und es gibt ein neues Fenster, in dem alle Regionen
+	einer Ebene in ihrer Stapelreihenfolge stehen.
+</p>
+
+<h2>1 · Das Flächenmenü — aus 17 Einträgen werden 9</h2>
+<p class="note">
+	Vier neue Einträge in ein Menü mit schon 17 zu hängen, macht es unbenutzbar. Also erst
+	aufräumen: drei Familien, die im Code ohnehin zusammenstehen, wandern in Untermenüs.
+	<b>Das ist ein eigener Schritt</b> — nichts Neues, nichts weg, nur umsortiert; danach
+	fällt das neue Feature in ein aufgeräumtes Menü.
+</p>
+<div class="stage">
+	<div class="menucol">
+		<div class="menutitle">heute · 17 Einträge</div>
+		<div class="map-context-menu map-context-menu--today">
+			<button class="map-context-menu__item" data-glyph="➕">Neue Fläche ▸</button>
+			<button class="map-context-menu__item" data-glyph="✎">Fläche bearbeiten</button>
+			<button class="map-context-menu__item" data-glyph="✥">Verschieben</button>
+			<button class="map-context-menu__item" data-glyph="╱">Fläche zerschneiden</button>
+			<button class="map-context-menu__item" data-glyph="∪">Mit anderer vereinigen</button>
+			<button class="map-context-menu__item" data-glyph="−">Von anderer ausschneiden</button>
+			<button class="map-context-menu__item" data-glyph="⊖">Von anderer ausschneiden und andere beibehalten</button>
+			<button class="map-context-menu__item" data-glyph="∩">Neue von anderer ausschneiden</button>
+			<button class="map-context-menu__item" data-glyph="⧏">Alle Unterflächen vereinigen</button>
+			<button class="map-context-menu__item" data-glyph="✂">Unterfläche herauslösen</button>
+			<button class="map-context-menu__item" data-glyph="🖌">Fläche malen</button>
+			<button class="map-context-menu__item" data-glyph="⌫">Fläche radieren</button>
+			<button class="map-context-menu__item" data-glyph="∿">Fläche vereinfachen</button>
+			<button class="map-context-menu__item" data-glyph="⚙">Eigenschaften …</button>
+			<button class="map-context-menu__item" data-glyph="→">Kopieren …</button>
+			<button class="map-context-menu__item map-context-menu__item--danger" data-glyph="⌦">Unterfläche löschen</button>
+			<button class="map-context-menu__item map-context-menu__item--danger" data-glyph="✕">Fläche löschen</button>
+			<div class="map-context-menu__hint">Strg + Rechtsklick: Kartenmenü</div>
+		</div>
+	</div>
+
+	<div class="menucol">
+		<div class="menutitle menutitle--win">danach · 9 Einträge</div>
+		<div class="map-context-menu map-context-menu--tidy">
+			<button class="map-context-menu__item" data-glyph="➕">Neue Fläche ▸</button>
+			<button class="map-context-menu__item" data-glyph="✎">Fläche bearbeiten</button>
+			<button class="map-context-menu__item" data-glyph="✥">Form ändern ▸</button>
+			<button class="map-context-menu__item" data-glyph="∪">Mit anderer Fläche ▸</button>
+			<button class="map-context-menu__item" data-glyph="⧏">Unterflächen ▸</button>
+			<div class="submenu-host">
+				<button class="map-context-menu__item map-context-menu__item--open" data-glyph="⤒">Reihenfolge und Sperren ▸<span class="pill">neu</span></button>
+				<div class="map-context-submenu">
+					<button class="map-context-menu__item" data-glyph="⤒">Region in den Vordergrund</button>
+					<button class="map-context-menu__item" data-glyph="⤓">Region in den Hintergrund</button>
+					<button class="map-context-menu__item" data-glyph="🔒">Region sperren</button>
+					<button class="map-context-menu__item" data-glyph="☰">Alle Regionen …</button>
+				</div>
+			</div>
+			<button class="map-context-menu__item" data-glyph="⚙">Eigenschaften …</button>
+			<button class="map-context-menu__item" data-glyph="→">Kopieren …</button>
+			<button class="map-context-menu__item map-context-menu__item--danger" data-glyph="✕">Fläche löschen</button>
+			<div class="map-context-menu__hint">Strg + Rechtsklick: Kartenmenü</div>
+		</div>
+	</div>
+
+	<div class="caption">
+		<strong>Was wohin wandert</strong>
+		<ul>
+			<li><b>Mit anderer Fläche ▸</b> nimmt die vier Verrechnungen auf. Sie sind eine echte
+				Familie — alle vier starten dieselbe Geste („jetzt die zweite Fläche anklicken") —
+				und sie sind die vier <b>längsten</b> Beschriftungen. Sie bestimmen heute die
+				Breite des ganzen Kastens: 344 px werden 236 px.</li>
+			<li><b>Unterflächen ▸</b> nimmt „Alle vereinigen", „herauslösen" und „löschen" auf —
+				die drei betreffen die Teile eines Multipolygons, nicht die Fläche als Ganzes.</li>
+			<li><b>Form ändern ▸</b> nimmt Verschieben, Zerschneiden, Malen, Radieren,
+				Vereinfachen. „Fläche bearbeiten" bleibt oben: es ist der sichtbare Zwilling des
+				Doppelklicks, und den zu verstecken wäre ein Rückschritt.</li>
+			<li>„Unterfläche löschen" verliert dabei seinen roten Sonderplatz ganz unten und
+				steht künftig rot in seinem Untermenü — dort, wo es hingehört.</li>
+			<li><b>Dasselbe im Herrschaftsgebiete-Menü</b> (11 → 7): die vier Verrechnungen stehen
+				dort wortgleich, bewusst abgeschrieben. Nur eines der beiden Menüs umzubauen
+				hiesse, sie in der Form auseinanderlaufen zu lassen.</li>
+		</ul>
+	</div>
+</div>
+
+<h2>1b · Das neue Untermenü</h2>
+<p class="note">
+	Die Einträge sagen <b>Region</b>, nicht „Fläche": sie wirken auf alles, was zu dieser
+	Region gehört — auch auf ihre weiteren Teilflächen und Multipolygone. Direkt darüber
+	steht „Fläche löschen", das nur die eine Teilfläche meint; genau dieser Unterschied
+	soll im Wort sichtbar sein.
+</p>
+<div class="stage">
+	<div class="map-context-menu map-context-menu--tidy">
+		<button class="map-context-menu__item" data-glyph="⤒">Region in den Vordergrund</button>
+		<button class="map-context-menu__item" data-glyph="⤓">Region in den Hintergrund</button>
+		<button class="map-context-menu__item" data-glyph="🔒">Region sperren</button>
+		<button class="map-context-menu__item" data-glyph="☰">Alle Regionen …</button>
+	</div>
+	<div class="caption">
+		<strong>Vier Einträge, vier Aufgaben</strong>
+		<ul>
+			<li><b>Vordergrund / Hintergrund</b> heißt <i>ganz</i> nach vorn bzw. <i>ganz</i>
+				nach hinten — nicht eine Stufe. Eine Stufe im Menü und „ganz" im Fenster wären
+				zwei Bedeutungen für dasselbe Wort.</li>
+			<li><b>Region sperren</b> ist ein Umschalter; bei einer gesperrten Region steht dort
+				„Region entsperren". Rechtsklicken lässt sie sich dann allerdings nicht mehr —
+				dafür gibt es das Fenster.</li>
+			<li><b>Alle Regionen …</b> öffnet das Fenster aus Abschnitt 3.</li>
+		</ul>
+	</div>
+</div>
+
+<h2>2 · Derselbe Haken im Eigenschaften-Dialog</h2>
+<p class="note">
+	Deine Anmerkung: die Sperre ist eine Eigenschaft der Region wie „Nodix" und gehört auch
+	hierher. Sie steht als vierter Haken unter den drei bestehenden, mit einer Zeile
+	darunter, die sagt, was sie tut.
+</p>
+<div class="stage">
+	<div class="dialog">
+		<div class="dialog__header">
+			<h3>Vegetations-Fläche bearbeiten</h3>
+			<button class="dialog__close">×</button>
+		</div>
+		<div class="dialog__form">
+			<fieldset class="dialog__group">
+				<legend class="dialog__legend">Identität</legend>
+				<label class="dialog__field">
+					Name *
+					<input type="text" value="Breitenau">
+				</label>
+				<label class="dialog__checkbox"><input type="checkbox"> Auto-Name</label>
+				<label class="dialog__checkbox"><input type="checkbox"> Regionname anzeigen</label>
+				<label class="dialog__checkbox"><input type="checkbox"> Nodix</label>
+				<label class="dialog__checkbox dialog__checkbox--fresh"><input type="checkbox"> Für Klicks gesperrt</label>
+				<p class="dialog__hint">
+					Klicks fallen durch die Region hindurch auf das, was darunter liegt.
+					Der Schwebezettel mit dem Namen bleibt. Gilt nur im Bearbeiten-Modus.
+				</p>
+				<label class="dialog__field">
+					Art
+					<select><option>Auenlandschaft</option></select>
+				</label>
+				<p class="dialog__areas">Diese Region trägt 1 Fläche.</p>
+			</fieldset>
+			<div class="dialog__actions">
+				<button class="btn btn--danger">Löschen</button>
+				<button class="btn">Abbrechen</button>
+				<button class="btn btn--primary">Speichern</button>
+			</div>
+		</div>
+	</div>
+	<div class="caption">
+		<strong>Was der Haken tut</strong>
+		<ul>
+			<li>Er ist <b>dieselbe</b> Eigenschaft wie „Region sperren" im Menü — eine Sache,
+				zwei Wege dorthin, kein zweiter Schalter.</li>
+			<li>Die Reihenfolge bekommt hier <b>keinen</b> Platz: ein Haken kann keine Ordnung
+				ausdrücken, und ein drittes Bedienbild für dieselbe Zahl wäre genau die
+				Divergenz, die dieses Haus sonst überall aufräumt.</li>
+			<li>Wirkt wie alles in diesem Dialog erst mit „Speichern".</li>
+		</ul>
+	</div>
+</div>
+
+<h2>3 · Das Fenster „Reihenfolge und Sperren"</h2>
+<p class="note">
+	Gebaut wie „Grenze aus Territorien" — gleiche Hülle, gleiche Suchzeile, gleiche
+	Listenform. Oben die Ebenen-Chips, darunter die Suche, darunter die Regionen
+	<b>dieser</b> Ebene in ihrer Stapelreihenfolge: oben liegt vorn.
+</p>
+<div class="stage">
+	<div class="dialog">
+		<div class="dialog__header">
+			<h3>Reihenfolge und Sperren</h3>
+			<button class="dialog__close">×</button>
+		</div>
+		<div class="dialog__form">
+			<div class="kindchips">
+				<button class="kindchip">Derographie</button>
+				<button class="kindchip kindchip--on">Vegetation</button>
+				<button class="kindchip">Topographie</button>
+			</div>
+			<label class="dialog__field">
+				Suchen
+				<input type="text" placeholder="Name der Region …">
+			</label>
+			<div class="stacklist">
+				<div class="stackrow">
+					<div class="stackrow__pos">1</div>
+					<div class="stackrow__name">Breitenau</div>
+					<div class="stackrow__meta">Auenlandschaft · 1 Fläche</div>
+					<div class="stackrow__tools">
+						<button class="tool" title="ganz nach vorn">⤒</button>
+						<button class="tool" title="ganz nach hinten">⤓</button>
+						<button class="tool" title="sperren">🔓</button>
+					</div>
+				</div>
+				<div class="stackrow">
+					<div class="stackrow__pos">2</div>
+					<div class="stackrow__name">Farindel</div>
+					<div class="stackrow__meta">Wald · 1 Fläche</div>
+					<div class="stackrow__tools">
+						<button class="tool">⤒</button>
+						<button class="tool">⤓</button>
+						<button class="tool">🔓</button>
+					</div>
+				</div>
+				<div class="stackrow">
+					<div class="stackrow__pos">3</div>
+					<div class="stackrow__name">Nebelmoor</div>
+					<div class="stackrow__meta">Sumpf · 3 Flächen</div>
+					<div class="stackrow__tools">
+						<button class="tool">⤒</button>
+						<button class="tool">⤓</button>
+						<button class="tool">🔓</button>
+					</div>
+				</div>
+				<div class="stackrow stackrow--locked">
+					<div class="stackrow__pos">4</div>
+					<div class="stackrow__name">Bornwald <span class="lockmark">gesperrt</span></div>
+					<div class="stackrow__meta">Wald · 7 Flächen</div>
+					<div class="stackrow__tools">
+						<button class="tool">⤒</button>
+						<button class="tool">⤓</button>
+						<button class="tool tool--locked" title="entsperren">🔒</button>
+					</div>
+				</div>
+				<div class="stackrow">
+					<div class="stackrow__pos">5</div>
+					<div class="stackrow__name">Steineichenhain</div>
+					<div class="stackrow__meta">Wald · 1 Fläche</div>
+					<div class="stackrow__tools">
+						<button class="tool">⤒</button>
+						<button class="tool">⤓</button>
+						<button class="tool">🔓</button>
+					</div>
+				</div>
+				<div class="stackrow stackrow--locked">
+					<div class="stackrow__pos">6</div>
+					<div class="stackrow__name">Große Steppe <span class="lockmark">gesperrt</span></div>
+					<div class="stackrow__meta">Steppe · 12 Flächen</div>
+					<div class="stackrow__tools">
+						<button class="tool">⤒</button>
+						<button class="tool">⤓</button>
+						<button class="tool tool--locked">🔒</button>
+					</div>
+				</div>
+				<div class="stackrow stackrow--locked">
+					<div class="stackrow__pos">7</div>
+					<div class="stackrow__name">Khôm <span class="lockmark">gesperrt</span></div>
+					<div class="stackrow__meta">Wüste · 4 Flächen</div>
+					<div class="stackrow__tools">
+						<button class="tool">⤒</button>
+						<button class="tool">⤓</button>
+						<button class="tool tool--locked">🔒</button>
+					</div>
+				</div>
+			</div>
+			<div class="balance">
+				<span>7 Regionen · 3 gesperrt</span>
+				<span>oben = vorn</span>
+			</div>
+			<div class="dialog__actions">
+				<button class="btn">Schließen</button>
+			</div>
+		</div>
+	</div>
+	<div class="caption">
+		<strong>Warum das Fenster mehr ist als eine Entsperr-Liste</strong>
+		<ul>
+			<li>Was du nach hinten geschoben hast, ist unter Umständen per Rechtsklick nicht
+				mehr erreichbar. Es braucht also ohnehin eine Stelle, an der <b>alle</b>
+				Regionen stehen — dann ist die Entsperr-Liste darin schon enthalten.</li>
+			<li>Die drei großen Regionen sind gesperrt. Genau das ist dein Fall: sie sind da,
+				sie werden gezeichnet, aber sie fangen nichts mehr ab.</li>
+			<li>Klimazonen fehlen mit Absicht: die Ebene wird gerechnet, nicht gezeichnet, und
+				lässt sich nicht bearbeiten.</li>
+		</ul>
+	</div>
+</div>
+
+<h2>4 · Woran man sieht, dass etwas gesperrt ist</h2>
+<p class="note">
+	Ohne ein sichtbares Zeichen suchst du in zwei Wochen eine Fläche, die einfach nicht mehr
+	reagiert. Deshalb ein Zähler in der Landschaften-Leiste, der zugleich der Weg ins Fenster ist.
+</p>
+<div class="stage">
+	<div class="layerbar">
+		<div class="layerbar__seg">
+			<button>Derographie</button>
+			<button class="on">Vegetation</button>
+			<button>Topographie</button>
+			<button>Klimazonen</button>
+			<button>Alle</button>
+		</div>
+		<button class="lockbtn">🔒 3</button>
+	</div>
+	<div class="caption">
+		<strong>Der Zähler</strong>
+		<ul>
+			<li>Zeigt, wie viele Regionen der <b>aktiven</b> Ebene gesperrt sind. Ist nichts
+				gesperrt, ist der Knopf unauffällig.</li>
+			<li>Ein Klick öffnet dasselbe Fenster wie der Menüeintrag.</li>
+			<li>Er sitzt in der Leiste und nicht auf der Karte: eine gesperrte Region sieht auf
+				der Karte <b>unverändert</b> aus — sie soll ja aussehen wie immer, sie soll nur
+				den Klick nicht mehr abfangen.</li>
+		</ul>
+	</div>
+</div>
+
+<h2>5 · Was der Klick macht</h2>
+<div class="stage">
+	<div class="schema">
+		<figure>
+			<svg width="260" height="150" viewBox="0 0 260 150" xmlns="http://www.w3.org/2000/svg">
+				<rect x="10" y="20" width="240" height="110" rx="6" fill="#3a4a33" stroke="#6f8a5f"/>
+				<text x="20" y="40" fill="#cfe0c2" font-family="Arial" font-size="11">Große Steppe (gesperrt)</text>
+				<rect x="70" y="58" width="110" height="58" rx="5" fill="#4b4030" stroke="#a98a5f"/>
+				<text x="80" y="76" fill="#e8d7bb" font-family="Arial" font-size="11">Breitenau</text>
+				<circle cx="126" cy="82" r="4" fill="#dcc77e"/>
+				<path d="M126 86 L126 104" stroke="#dcc77e" stroke-width="2" stroke-dasharray="3 3"/>
+				<path d="M120 102 L126 112 L132 102 Z" fill="#dcc77e"/>
+			</svg>
+			<figcaption>Klick auf die Stelle, an der beide liegen: er geht durch die gesperrte
+				Steppe hindurch und kommt bei der Breitenau an.</figcaption>
+		</figure>
+		<div class="caption">
+			<strong>Und wenn darunter nichts liegt?</strong>
+			<ul>
+				<li>Dann landet der Klick auf der blanken Karte — mit allem, was dazugehört:
+					Kartenmenü beim Rechtsklick, „Neue Fläche", „Hierher reisen". Das ist der
+					eigentliche Gewinn: du bekommst die freie Karte zurück.</li>
+				<li>Der Schwebezettel gehört weiterhin der <b>oberen</b> Fläche — die Maus spürt
+					sie ja noch. Nur der Klick wird weitergereicht. Das ist genau die Trennung,
+					die du wolltest.</li>
+				<li>Gilt für Links-, Rechts- und Doppelklick, und auch für die Zielwahl bei
+					„Vereinigen"/„Differenz": eine gesperrte Region lässt sich nicht
+					versehentlich als Ziel erwischen.</li>
+			</ul>
+		</div>
+	</div>
+</div>
+
+</body>
+</html>
