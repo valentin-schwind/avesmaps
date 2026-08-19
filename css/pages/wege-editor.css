@@ -66,6 +66,54 @@
 
 .wp-segment.is-selected { border-left-color: var(--color-accent); }
 
+/* ---- Column 2: die WEG-EBENE ------------------------------------------------------------
+ * Ein Weg liegt auf der Karte in Abschnitten; seit dem 19.08.2026 laesst sich der ganze Weg
+ * auswaehlen und in einem Zug bearbeiten (Owner: „fuer die editoren war/ist es muehselig alle
+ * abschnitte zu konfigurieren").
+ * Entwurf: docs/superpowers/specs/2026-08-19-wege-editor-weg-ebene-design.md
+ */
+
+/* Das Kopfband sagt in einem Satz, worauf das Speichern wirkt -- die Speicherleiste unten
+   wiederholt es im Knopf. 🔴 Kein gerahmter Kasten und keine eigene Farbe: gruppiert wird im
+   Haus per Trennlinie, und die eine Kante links ist der braune Akzent (AGENTS.md §12). */
+.wp-scope {
+	margin: 0 0 var(--space-8);
+	padding: var(--space-8) var(--space-10);
+	background: var(--color-panel-soft);
+	border-left: 3px solid var(--color-accent-brown);
+	border-radius: var(--radius-md);
+}
+
+.wp-scope__title {
+	font-size: var(--font-size-reading);
+	color: var(--color-text-strong);
+}
+
+.wp-scope__sub {
+	margin-top: var(--space-2);
+	font-size: var(--font-size-caption);
+	color: var(--color-text-muted);
+	line-height: 1.45;
+}
+
+/* Der Zaehler hinter einem halb gefuellten Haken („2 von 8").
+   💣 ER SITZT IN DER NAMENSZELLE, nicht als dritte Zelle daneben. `.dt-tt` ist ein Flex mit
+      `flex-wrap: wrap` und rechts fest breiten Zeitfeldern; eine dritte Zelle draengt die Zeile
+      in den Umbruch -- gemessen 56px statt 31, und genau dieser Befund steht schon als Warnung
+      an der `.dt-tt`-Regel in css/components/editor-page.css. */
+.wp-mixed {
+	flex: 0 0 auto;
+	font-size: var(--font-size-caption);
+	color: var(--color-text-muted);
+	white-space: nowrap;
+}
+
+/* Die Abschnittsliste unter der Speicherleiste fuehrt zum einzelnen Abschnitt -- eine
+   Zeilenhandlung, also weich und ohne Knopf (AGENTS.md §12: ein gefuellter Knopf in einer
+   Listenzeile multipliziert sich mit der Zeilenzahl). */
+.wp-share[data-jump] { cursor: pointer; }
+.wp-share[data-jump]:hover { background: var(--color-hover-wash); }
+
 /* ---- Column 2: Zugehörigkeit (read-only) -----------------------------------------------------
  * 🔴 DISPLAY ONLY (owner 2026-08-02). The assignment is computed by „Zugehörigkeit rechnen" in the
  *    LANDSCAPE editor and stays there; this column shows the result and links across. No input, no

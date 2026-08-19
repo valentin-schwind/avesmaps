@@ -2736,6 +2736,248 @@ function avesmapsUpdatePathFeatureDetails(PDO $pdo, array $payload, array $user)
     }
 }
 
+/**
+ * Wie viele Abschnitte ein Sammel-Speichern hoechstens fasst. Der laengste Weg im Bestand traegt
+ * 26 Segmente („Reichsstrasse 1"); der Deckel ist der Riegel gegen einen Rumpf, der die halbe
+ * Karte nennt, nicht eine erwartete Grenze.
+ */
+const AVESMAPS_PATH_GROUP_MAX_SEGMENTS = 250;
+
+/** Die Felder, die ein Sammel-Speichern setzen darf. Alles andere im Rumpf wird ignoriert. */
+const AVESMAPS_PATH_GROUP_FIELDS = ['name', 'show_label', 'feature_subtype', 'allowed_transports', 'other_source'];
+
+/**
+ * DIE WEG-EBENE: ein Speichern fuer alle Abschnitte eines Weges.
+ *
+ * Ein Weg liegt auf der Karte in Abschnitten (der Schattenbachpass in acht, „Reichsstrasse 1" in
+ * 26). Bis zum 19.08.2026 liess sich nur ein Abschnitt bearbeiten -- wer einem Pass die Kutsche
+ * verbieten wollte, klickte sich achtmal durch dieselbe Maske. Owner, woertlich: „fuer die
+ * editoren war/ist es muehselig alle abschnitte zu konfigurieren."
+ * Entwurf: docs/superpowers/specs/2026-08-19-wege-editor-weg-ebene-design.md §5
+ *
+ * 💣 GESCHRIEBEN WIRD NUR, WAS IN `fields` STEHT. Ein Sammel-Speichern, das alle Felder des
+ * Formulars schreibt, macht jede gewollte Ausnahme platt -- und zwar lautlos, weil ein Formular
+ * nun einmal alle Felder mitschickt. Genau dieser Fehler ist am 17.08.2026 in
+ * `avesmapsUpsertGameLiterature` gemessen worden: dort stempelte er jedes MITGESCHICKTE Feld auf
+ * `manual`, und die Spalte sah danach gepflegt aus, ohne etwas auszusagen.
+ *
+ * 💣 DER AUFRUFER SCHICKT DIE `public_ids`, DIESE FUNKTION BILDET DIE GRUPPE NICHT NACH. Die
+ * Gruppierungsregel steht in `wpGroupWays` (js/pages/wege-editor-model.js): `wiki_key`, sonst
+ * Art+Name. Sie hier zu wiederholen waere die zweite Wahrheit aus AGENTS.md §5 -- und sie liefe
+ * beim ersten geaenderten Namen auseinander.
+ * ⚠️ Der Preis: eine Liste kann veralten. Deshalb wird still uebersprungen, was kein aktiver Weg
+ * mehr ist, und die Antwort nennt die Zahl der wirklich geschriebenen Abschnitte.
+ *
+ * 💣 `allowed_transports` reist als ENTSCHEIDUNGEN (`transport_decisions`: {fahrtyp: bool}), nicht
+ * als fertige Liste. Ein Fahrtyp, den der Editor auf „teils" stehen laesst, steht gar nicht drin
+ * und behaelt je Abschnitt seinen eigenen Zustand. Eine fertige Liste koennte das nicht
+ * ausdruecken -- sie machte aus „2 von 8 haben die Kutsche" ein „keiner hat sie".
+ *
+ * ⚠️ `transport_seasons` bleibt AUSSEN VOR. Die Zeitfenster propagieren laengst ueber den
+ * `wiki_key` (avesmapsApplyTransportSeasonsToWikiSiblings), und zwei Regeln mit verschiedener
+ * Reichweite auf demselben Feld sind eine Divergenz, die auf ihren ersten Unterschied wartet.
+ */
+function avesmapsUpdatePathGroupDetails(PDO $pdo, array $payload, array $user): array {
+    $publicIds = [];
+    foreach (is_array($payload['public_ids'] ?? null) ? $payload['public_ids'] : [] as $candidate) {
+        $publicIds[] = avesmapsReadMapFeaturePublicId($candidate);
+    }
+    $publicIds = array_values(array_unique($publicIds));
+    if ($publicIds === []) {
+        throw new InvalidArgumentException('Es wurde kein Abschnitt genannt.');
+    }
+    if (count($publicIds) > AVESMAPS_PATH_GROUP_MAX_SEGMENTS) {
+        throw new InvalidArgumentException('Zu viele Abschnitte auf einmal.');
+    }
+
+    $fields = [];
+    foreach (is_array($payload['fields'] ?? null) ? $payload['fields'] : [] as $field) {
+        $name = avesmapsNormalizeSingleLine((string) $field, 40);
+        if (in_array($name, AVESMAPS_PATH_GROUP_FIELDS, true)) {
+            $fields[] = $name;
+        }
+    }
+    $fields = array_values(array_unique($fields));
+    // Ein Speichern ohne ein einziges angefasstes Feld ist kein Fehler -- es ist die Maske, die
+    // jemand geoeffnet und wieder gespeichert hat. Sie darf nur nichts tun.
+    if ($fields === []) {
+        return ['ok' => true, 'written' => 0, 'skipped' => count($publicIds), 'revision' => null];
+    }
+
+    $wantsName = in_array('name', $fields, true);
+    $wantsShowLabel = in_array('show_label', $fields, true);
+    $wantsSubtype = in_array('feature_subtype', $fields, true);
+    $wantsTransports = in_array('allowed_transports', $fields, true);
+    $wantsSource = in_array('other_source', $fields, true);
+
+    $newName = $wantsName ? avesmapsReadFeatureName($payload['name'] ?? '', 'Der Wegname') : null;
+    $newShowLabel = $wantsShowLabel ? avesmapsReadBoolean($payload['show_label'] ?? false) : null;
+    $newSubtype = $wantsSubtype ? avesmapsReadPathSubtype($payload['feature_subtype'] ?? 'Weg') : null;
+    $newSource = $wantsSource ? avesmapsReadOptionalOtherSource($payload['other_source'] ?? null) : null;
+
+    $decisions = [];
+    if ($wantsTransports) {
+        foreach (is_array($payload['transport_decisions'] ?? null) ? $payload['transport_decisions'] : [] as $key => $value) {
+            $option = avesmapsNormalizeSingleLine((string) $key, 40);
+            if ($option !== '') {
+                $decisions[$option] = avesmapsReadBoolean($value);
+            }
+        }
+        // Kein einziger entschiedener Fahrtyp heisst: alle standen auf „teils". Dann ist an den
+        // Transportmitteln nichts zu tun -- und `avesmapsReadAllowedTransports` duerfte auch gar
+        // nicht laufen, es wuerde die Vorauswahl des Wegtyps ueber gepflegte Listen schreiben.
+        if ($decisions === []) {
+            $wantsTransports = false;
+        }
+    }
+
+    $pdo->beginTransaction();
+    try {
+        $platzhalter = implode(', ', array_fill(0, count($publicIds), '?'));
+        $statement = $pdo->prepare(
+            'SELECT id, public_id, name, feature_type, feature_subtype, geometry_json,
+                    properties_json, style_json, is_active, revision
+               FROM map_features
+              WHERE public_id IN (' . $platzhalter . ")
+                AND feature_type = 'path' AND is_active = 1
+              FOR UPDATE"
+        );
+        $statement->execute($publicIds);
+        $features = $statement->fetchAll(PDO::FETCH_ASSOC);
+        if ($features === []) {
+            $pdo->commit();
+
+            return ['ok' => true, 'written' => 0, 'skipped' => count($publicIds), 'revision' => null];
+        }
+
+        $revision = avesmapsNextMapRevision($pdo);
+        $update = $pdo->prepare(
+            'UPDATE map_features
+                SET name = :name, feature_subtype = :feature_subtype,
+                    properties_json = :properties_json, revision = :revision,
+                    updated_by = :updated_by
+              WHERE id = :id'
+        );
+
+        $written = 0;
+        foreach ($features as $feature) {
+            // ⚠️ MIT LEEREM RUMPF: `expected_revision` gehoert einem einzelnen Objekt und gibt es
+            // hier nicht. Geprueft wird die SPERRE -- bearbeitet jemand gerade einen der
+            // Abschnitte, bricht der ganze Lauf ab, statt halb zu schreiben.
+            avesmapsAssertFeatureCanBeEdited($pdo, [], $feature, $user);
+
+            $properties = avesmapsDecodeJsonColumnForEdit($feature['properties_json'] ?? null);
+            $vorher = $properties;
+            $nameVorher = (string) ($feature['name'] ?? '');
+            $subtypeVorher = (string) ($feature['feature_subtype'] ?? 'Weg');
+
+            $name = $nameVorher;
+            if ($wantsName) {
+                // R1: ein zugewiesener Wiki-Weg BESITZT den Namen -- je Abschnitt entschieden,
+                // weil in einer ueber Art+Name gebildeten Gruppe nicht jeder einen tragen muss.
+                $name = avesmapsWikiPathEffectiveEditName($newName, $properties);
+                $properties['name'] = $name;
+                $properties['display_name'] = $name;
+            }
+
+            $subtype = $wantsSubtype ? $newSubtype : $subtypeVorher;
+            if ($wantsSubtype) {
+                $properties['feature_subtype'] = $subtype;
+            }
+            $properties['feature_type'] = 'path';
+
+            if ($wantsShowLabel) {
+                $properties['show_label'] = $newShowLabel;
+            }
+
+            // 💣 Die Fahrtyp-Liste wird auch dann neu gerechnet, wenn nur der WEGTYP wandert: mit
+            // ihm wandert die Verkehrsdomaene, und ein Landfahrzeug auf einem Flussweg waere tote
+            // Angabe, die an dem Tag aufwacht, an dem jemand den Wegtyp zurueckdreht.
+            // ⚠️ Gefragt wird, ob DIESES Segment seinen Typ wechselt -- nicht, ob das Feld
+            // im Rumpf steht. In einer gemischten Gruppe traegt die Mehrheit den gewaehlten Typ
+            // schon; ein Aufraeumen bei ihnen aendert nichts, wuerde aber `transport_domain`
+            // nachtragen und damit als Aenderung durchgehen -- acht neue Revisionen fuer nichts.
+            if ($wantsTransports || $subtype !== $subtypeVorher) {
+                $domain = avesmapsDefaultTransportDomainForPathSubtype($subtype);
+                $bestand = is_array($properties['allowed_transports'] ?? null)
+                    ? array_values($properties['allowed_transports'])
+                    : avesmapsReadAllowedTransports(null, avesmapsDefaultTransportDomainForPathSubtype($subtypeVorher), $subtypeVorher);
+                foreach ($decisions as $option => $an) {
+                    $bestand = array_values(array_filter($bestand, static fn(string $v): bool => $v !== $option));
+                    if ($an) {
+                        $bestand[] = $option;
+                    }
+                }
+                $allowed = avesmapsReadAllowedTransports($bestand, $domain, $subtype);
+                $properties['transport_domain'] = $domain;
+                $properties['allowed_transports'] = $allowed;
+                // Ein Fenster auf einem nicht mehr erlaubten Fahrtyp ist tote Angabe -- derselbe
+                // Filter, den der Einzel-Schreibweg auf seinen Rumpf anwendet.
+                $seasons = avesmapsReadTransportSeasons($properties['transport_seasons'] ?? null, $allowed);
+                if ($seasons === []) {
+                    unset($properties['transport_seasons']);
+                } else {
+                    $properties['transport_seasons'] = $seasons;
+                }
+            }
+
+            if ($wantsSource) {
+                if ($newSource === null) {
+                    unset($properties['other_source']);
+                } else {
+                    $properties['other_source'] = $newSource;
+                }
+            }
+
+            // 🔴 NICHTS ANFASSEN, WAS SICH NICHT AENDERT. Sonst hebt ein Speichern ohne Aenderung
+            // die Revision jedes Segments und schickt jedem warmen Client die halbe Karte neu --
+            // dieselbe Wache wie in avesmapsApplyTransportSeasonsToWikiSiblings.
+            if ($properties == $vorher && $name === $nameVorher && $subtype === $subtypeVorher) {
+                continue;
+            }
+
+            $update->execute([
+                'id' => (int) $feature['id'],
+                'name' => $name,
+                'feature_subtype' => $subtype,
+                'properties_json' => avesmapsEncodeJson($properties),
+                'revision' => $revision,
+                'updated_by' => (int) $user['id'],
+            ]);
+
+            // 💣 JE SEGMENT EIN EIGENER EINTRAG, und er heisst `update_path_details` wie der des
+            // Einzelweges: das Rueckgaengig arbeitet auf Feature-Ebene und kennt genau diese
+            // Aktion (avesmapsUndoColumnsForAuditAction). Ein Sammelvermerk liesse sieben von acht
+            // Aenderungen ausserhalb der Historie stehen.
+            avesmapsWriteMapAuditLog($pdo, (int) $feature['id'], 'update_path_details', (int) $user['id'],
+                avesmapsEncodeAuditJson($feature),
+                avesmapsEncodeAuditJson([
+                    'public_id' => (string) $feature['public_id'],
+                    'feature_type' => 'path',
+                    'name' => $name,
+                    'feature_subtype' => $subtype,
+                    'properties_json' => $properties,
+                    'revision' => $revision,
+                    // Damit im Protokoll steht, dass hier die WEG-EBENE geschrieben hat und nicht
+                    // jemand acht Masken hintereinander -- wortgleiche Absicht wie `via_wiki_key`.
+                    'via_path_group' => count($features),
+                ]));
+            $written++;
+        }
+
+        $pdo->commit();
+
+        return [
+            'ok' => true,
+            'written' => $written,
+            'skipped' => count($publicIds) - count($features),
+            'revision' => $written > 0 ? $revision : null,
+        ];
+    } catch (Throwable $exception) {
+        avesmapsRollbackAndRethrow($pdo, $exception);
+    }
+}
+
 function avesmapsUpdatePathFeatureGeometry(PDO $pdo, array $payload, array $user): array {
     $publicId = avesmapsReadMapFeaturePublicId($payload['public_id'] ?? '');
     $coordinates = avesmapsReadLineStringCoordinates($payload['coordinates'] ?? null);

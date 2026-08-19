@@ -337,6 +337,169 @@ function wpTempoChanges(before, after) {
 	return changes;
 }
 
+/**
+ * REIN: was die Abschnitte EINES Weges gemeinsam haben -- und wo sie uneins sind.
+ *
+ * Die Weg-Ebene des Editors zeigt dieselben Felder wie die Abschnittsebene, nur fuer alle
+ * Abschnitte zugleich. Damit gibt es je Feld einen dritten Zustand neben „an" und „aus":
+ * GEMISCHT. Diese Funktion rechnet ihn aus, und zwar nur ihn -- was die Oberflaeche daraus
+ * macht, entscheidet sie selbst.
+ *
+ * 💣 DER GEMISCHTE ZUSTAND IST EIN EIGENER WERT, KEIN „AUS". Wer ihn beim Speichern wie „aus"
+ * behandelt, loescht genau die Ausnahmen, wegen derer die Abschnitte ueberhaupt auseinandergehen:
+ * am Schattenbachpass haben 2 von 8 Abschnitten die Kutsche, und ein Sammel-Speichern, das den
+ * halben Haken als leeren liest, nimmt sie ihnen stillschweigend weg.
+ *
+ * ⚠️ Die VERKEHRSDOMAENE (Land/Fluss/See) beantwortet diese Funktion NICHT. Sie liefert die
+ * Verteilung der Wegtypen; welche Fahrtypen daraus folgen, weiss `wpVerkehrsdomaene` im Editor,
+ * und eine zweite Wasserliste hier waere die zweite Wahrheit aus AGENTS.md §5.
+ *
+ * @param {Array} segmente  die Abschnitte einer Gruppe (Zeilen der Editorliste)
+ * @param {Array<string>} transportSchluessel  alle Fahrtypen, in Anzeigereihenfolge
+ */
+function wpGroupFieldStates(segmente, transportSchluessel) {
+	var liste = Array.isArray(segmente) ? segmente : [];
+	var schluessel = Array.isArray(transportSchluessel) ? transportSchluessel : [];
+	var gesamt = liste.length;
+
+	// Ein einfaches Feld: alle gleich -> der Wert, sonst `gleich: false` und KEIN Wert. 💣 Kein
+	// Rueckfall auf den Wert des ersten Abschnitts -- der saehe aus wie eine Aussage ueber alle.
+	function einfach(lies) {
+		if (gesamt === 0) { return { gleich: true, wert: null }; }
+		var erster = lies(liste[0]);
+		for (var i = 1; i < gesamt; i++) {
+			if (lies(liste[i]) !== erster) { return { gleich: false, wert: null }; }
+		}
+		return { gleich: true, wert: erster };
+	}
+
+	// Die Verteilung der Wegtypen, haeufigster zuerst -- daraus wird der Satz „6× Gebirgspass,
+	// 2× Pfad", den die Oberflaeche unter den Waehler schreibt.
+	var zaehler = {};
+	liste.forEach(function (segment) {
+		var key = String((segment && segment.feature_subtype) || "");
+		zaehler[key] = (zaehler[key] || 0) + 1;
+	});
+	var verteilung = Object.keys(zaehler).map(function (key) {
+		return { wert: key, anzahl: zaehler[key] };
+	}).sort(function (a, b) {
+		if (a.anzahl !== b.anzahl) { return b.anzahl - a.anzahl; }
+		return a.wert < b.wert ? -1 : (a.wert > b.wert ? 1 : 0);
+	});
+
+	// Je Fahrtyp: „an" (alle), „aus" (keiner), „teils" (dazwischen).
+	var transports = {};
+	schluessel.forEach(function (key) {
+		var an = 0;
+		liste.forEach(function (segment) {
+			var erlaubt = segment && Array.isArray(segment.allowed_transports)
+				? segment.allowed_transports : [];
+			if (erlaubt.indexOf(key) !== -1) { an++; }
+		});
+		// ⚠️ Die leere Gruppe ist „aus", nicht „teils": 0 von 0 ist kein Widerspruch.
+		var zustand = an === 0 ? "aus" : (an === gesamt ? "an" : "teils");
+		transports[key] = { zustand: zustand, an: an, gesamt: gesamt };
+	});
+
+	return {
+		gesamt: gesamt,
+		name: einfach(function (s) { return String((s && s.name) || ""); }),
+		show_label: einfach(function (s) { return (s && s.show_label) === true; }),
+		feature_subtype: {
+			gleich: verteilung.length <= 1,
+			wert: verteilung.length === 1 ? verteilung[0].wert : null,
+			verteilung: verteilung
+		},
+		// Die andere Quelle ist ein Paar; verglichen wird die Adresse SAMT Linktext -- zwei Zeilen
+		// mit derselben Adresse und verschiedenem Text sind nicht dasselbe.
+		other_source: einfach(function (s) {
+			var quelle = s && s.other_source;
+			if (!quelle || !quelle.url) { return ""; }
+			return String(quelle.url) + "\u0000" + String(quelle.label || "");
+		}),
+		transports: transports
+	};
+}
+
+/**
+ * REIN: welche Felder ein Sammel-Speichern wirklich schreiben soll.
+ *
+ * 💣 DIE EINE REGEL DER WEG-EBENE. Geschrieben wird nur, was der Editor ANGEFASST hat -- ein
+ * Sammel-Speichern, das alle Felder schickt, macht jede gewollte Ausnahme platt, und zwar
+ * lautlos, weil ein Formular nun einmal alle Felder mitschickt. Genau dieser Fehler ist am
+ * 17.08.2026 in `avesmapsUpsertGameLiterature` gemessen worden (dort stempelte er jedes Feld auf
+ * `manual`, und die Spalte sah gepflegt aus, ohne etwas auszusagen).
+ *
+ * @param {Object} vorher  das Ergebnis von wpGroupFieldStates beim Oeffnen
+ * @param {Object} entwurf  was in der Maske steht: {name, show_label, feature_subtype,
+ *                          transports: {key: "an"|"aus"|"teils"}, other_source}
+ * @return {Array<string>} die Feldnamen fuer `fields`
+ */
+function wpGroupChangedFields(vorher, entwurf) {
+	var felder = [];
+	if (!vorher || !entwurf) { return felder; }
+
+	// Der Wegtyp: `null` im Entwurf heisst „gemischt lassen" und ist keine Aenderung.
+	if (entwurf.feature_subtype !== null && entwurf.feature_subtype !== undefined
+		&& entwurf.feature_subtype !== ""
+		&& !(vorher.feature_subtype.gleich && vorher.feature_subtype.wert === entwurf.feature_subtype)) {
+		felder.push("feature_subtype");
+	}
+
+	if (entwurf.name !== null && entwurf.name !== undefined
+		&& !(vorher.name.gleich && vorher.name.wert === entwurf.name)) {
+		felder.push("name");
+	}
+
+	if (entwurf.show_label !== null && entwurf.show_label !== undefined
+		&& !(vorher.show_label.gleich && vorher.show_label.wert === entwurf.show_label)) {
+		felder.push("show_label");
+	}
+
+	// 💣 Ein Fahrtyp, der auf „teils" STEHENGEBLIEBEN ist, gehoert nicht in die Liste. Nur wer
+	// von „teils" auf „an"/„aus" gezogen wurde -- oder von „an" auf „aus" und umgekehrt --
+	// wird geschrieben.
+	var transporte = entwurf.transports || {};
+	var geaendert = Object.keys(transporte).some(function (key) {
+		var alt = vorher.transports[key];
+		if (!alt) { return true; }
+		if (transporte[key] === "teils") { return false; }
+		return transporte[key] !== alt.zustand;
+	});
+	if (geaendert) { felder.push("allowed_transports"); }
+
+	if (entwurf.other_source !== null && entwurf.other_source !== undefined) {
+		var neu = entwurf.other_source && entwurf.other_source.url
+			? String(entwurf.other_source.url) + "\u0000" + String(entwurf.other_source.label || "")
+			: "";
+		if (!(vorher.other_source.gleich && vorher.other_source.wert === neu)) {
+			felder.push("other_source");
+		}
+	}
+
+	return felder;
+}
+
+/**
+ * REIN: die Fahrtypen-Liste, die ein Sammel-Speichern je Abschnitt schreiben muss.
+ *
+ * ⚠️ Sie ist NICHT fuer alle Abschnitte dieselbe. Ein Fahrtyp auf „teils" behaelt je Abschnitt
+ * seinen eigenen Zustand -- nur die ausdruecklich gesetzten werden ueberall gleich gemacht.
+ * Deshalb rechnet der Server das nicht: er bekommt je Fahrtyp eine ENTSCHEIDUNG, nicht eine
+ * fertige Liste (`allowed_transports_set`).
+ */
+function wpGroupTransportDecisions(vorher, entwurf) {
+	var entscheidungen = {};
+	var transporte = (entwurf && entwurf.transports) || {};
+	Object.keys(transporte).forEach(function (key) {
+		if (transporte[key] === "teils") { return; }
+		var alt = vorher && vorher.transports ? vorher.transports[key] : null;
+		if (alt && alt.zustand === transporte[key]) { return; }
+		entscheidungen[key] = transporte[key] === "an";
+	});
+	return entscheidungen;
+}
+
 if (typeof module !== "undefined" && module.exports) {
 	module.exports = {
 		wpTempoFlatValues: wpTempoFlatValues,
@@ -356,6 +519,9 @@ if (typeof module !== "undefined" && module.exports) {
 		wpProfileCurve: wpProfileCurve,
 		wpPieceLengths: wpPieceLengths,
 		wpGroupWays: wpGroupWays,
+		wpGroupFieldStates: wpGroupFieldStates,
+		wpGroupChangedFields: wpGroupChangedFields,
+		wpGroupTransportDecisions: wpGroupTransportDecisions,
 		wpRoughMiles: wpRoughMiles
 	};
 }

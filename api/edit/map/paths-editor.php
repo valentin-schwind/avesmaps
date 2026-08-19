@@ -49,6 +49,19 @@ try {
         avesmapsJsonResponse(200, avesmapsPathEditorList($pdo));
     }
 
+    // Die WEG-EBENE: alle Abschnitte eines Weges in EINER Antwort. 💣 Der Client schickt die
+    // Kennungen; dieser Endpunkt bildet die Gruppe NICHT nach (die Regel steht in `wpGroupWays`,
+    // js/pages/wege-editor-model.js, und eine zweite Fassung liefe beim ersten geaenderten Namen
+    // auseinander -- AGENTS.md §5).
+    if ($action === 'group_detail') {
+        $roh = (string) ($_GET['public_ids'] ?? '');
+        $ids = array_values(array_filter(array_map('trim', explode(',', $roh)), static fn(string $v): bool => $v !== ''));
+        if ($ids === []) {
+            avesmapsErrorResponse(400, 'invalid_request', 'public_ids is required.');
+        }
+        avesmapsJsonResponse(200, avesmapsPathEditorGroupDetail($pdo, $ids));
+    }
+
     if ($action === 'detail') {
         $publicId = trim((string) ($_GET['public_id'] ?? ''));
         if ($publicId === '') {
@@ -235,8 +248,57 @@ function avesmapsPathEditorDetail(PDO $pdo, string $publicId): ?array
         'revision' => (int) $row['revision'],
         'length_units' => array_sum($pieceLengths),
         'piece_lengths' => $pieceLengths,
+        // 💣 Die ENDEN der gezeichneten Linie, nicht die ganze Geometrie: aus ihnen baut die
+        // Weg-Ebene die Kette der Abschnitte (welcher haengt an welchem, und liegt einer
+        // rueckwaerts darin). Die volle Koordinatenliste waere ein Vielfaches der Antwort fuer
+        // eine Frage, die zwei Punkte beantworten.
+        'ends' => count($coordinates) >= 2
+            ? ['from' => array_map('floatval', array_slice($coordinates[0], 0, 2)),
+               'to' => array_map('floatval', array_slice($coordinates[count($coordinates) - 1], 0, 2))]
+            : null,
         'terrain' => $terrain,
         'landscapes' => avesmapsPathEditorLandscapes($pdo, (string) $row['public_id']),
+    ];
+}
+
+/**
+ * Die WEG-EBENE: was `detail` fuer einen Abschnitt liefert, fuer alle Abschnitte eines Weges.
+ *
+ * Entwurf: docs/superpowers/specs/2026-08-19-wege-editor-weg-ebene-design.md §6
+ *
+ * ⭐ Zusaetzlich zu `detail` reisen die ENDPUNKTE der Geometrie mit. Die Abschnitte liegen in der
+ * Liste nach ihrer bbox-Ecke sortiert -- das ordnet sie UNGEFAEHR von West nach Ost und reicht
+ * fuer eine durchgehende Hoehenkurve nicht. Wer die Kette bauen will, braucht die Enden.
+ *
+ * 💣 DER DECKEL IST DIE ADRESSZEILE, nicht die Datenmenge. Die Kennungen reisen als
+ * `?public_ids=…` (36 Zeichen je Stueck), und eine URL ueber ~8 KB weist der Server ab, bevor
+ * PHP sie sieht. Der laengste Weg im Bestand traegt 26 Segmente; bei mehr als
+ * AVESMAPS_PATH_GROUP_DETAIL_MAX wird gekappt und die Kappung GESAGT -- eine stille Kappung
+ * saehe wie ein kurzer Weg aus.
+ */
+const AVESMAPS_PATH_GROUP_DETAIL_MAX = 120;
+
+function avesmapsPathEditorGroupDetail(PDO $pdo, array $publicIds): array
+{
+    $gekappt = count($publicIds) > AVESMAPS_PATH_GROUP_DETAIL_MAX;
+    $ids = array_slice($publicIds, 0, AVESMAPS_PATH_GROUP_DETAIL_MAX);
+
+    $abschnitte = [];
+    foreach ($ids as $publicId) {
+        $detail = avesmapsPathEditorDetail($pdo, $publicId);
+        // Eine Kennung, die es nicht mehr gibt, faellt still heraus -- die Liste des Clients kann
+        // veralten, und eine 404 fuer den ganzen Weg waere die falsche Antwort darauf.
+        if ($detail === null) {
+            continue;
+        }
+        $abschnitte[] = $detail;
+    }
+
+    return [
+        'ok' => true,
+        'segments' => $abschnitte,
+        'requested' => count($publicIds),
+        'capped' => $gekappt,
     ];
 }
 

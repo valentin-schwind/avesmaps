@@ -58,6 +58,13 @@
 		selected: null,      // public_id
 		detail: null,        // Antwort von ?action=detail
 		draft: null,         // die bearbeitete Fassung des gewählten Weges
+		// Die WEG-EBENE (Entwurf: docs/superpowers/specs/2026-08-19-wege-editor-weg-ebene-design.md).
+		// 🔴 `selected` und `selectedGroup` schliessen einander aus, immer -- eine Maske, die zwei
+		// Geltungsbereiche zugleich zeigt, hat einen Speichern-Knopf, der luegt.
+		selectedGroup: null,  // Gruppenschluessel aus wpGroupWays
+		groupStand: null,     // wpGroupFieldStates beim Oeffnen -- der Vergleichsstand
+		groupDraft: null,     // was in der Maske steht
+		groupDetail: null,    // Antwort von ?action=group_detail
 		profileScale: "total",
 		openGroups: {},      // key -> true, welche Weg-Gruppen aufgeklappt sind
 		typeFilter: new Set(),
@@ -250,7 +257,9 @@
 					? "alle mit Profil"
 					: withProfile + " mit Profil")
 				+ "</div>";
-			var head = '<div class="avm-row has-map-status wp-group" data-group="' + escapeHtml(group.key) + '"'
+			var head = '<div class="avm-row has-map-status wp-group'
+				+ (group.key === state.selectedGroup ? " is-selected" : "")
+				+ '" data-group="' + escapeHtml(group.key) + '"'
 				+ ' role="button" tabindex="0" aria-expanded="' + (isOpen ? "true" : "false") + '">'
 				+ '<span class="wp-group__twist">' + (isOpen ? "▾" : "▸") + "</span>"
 				+ '<div class="avm-row__text">'
@@ -337,6 +346,7 @@
 	function renderDetail() {
 		var host = $("wpDetail");
 		if (!host) { return; }
+		if (state.groupDraft) { renderGroupDetail(host); return; }
 		if (!state.draft) {
 			host.innerHTML = '<div class="avm-empty">Links einen Weg wählen.</div>';
 			return;
@@ -786,6 +796,7 @@
 	function renderProfile() {
 		var host = $("wpProfile");
 		if (!host) { return; }
+		if (state.selectedGroup !== null) { renderGroupProfile(host); return; }
 		if (!state.detail) {
 			host.innerHTML = '<div class="avm-empty">Links einen Weg wählen.</div>';
 			return;
@@ -908,12 +919,438 @@
 			+ rows + "</tbody></table>";
 	}
 
+	// ── Die WEG-EBENE ─────────────────────────────────────────────────────────────────────────
+	//
+	// Ein Weg liegt auf der Karte in Abschnitten; bis zum 19.08.2026 liess sich nur einer davon
+	// bearbeiten. Owner, woertlich: „fuer die editoren war/ist es muehselig alle abschnitte zu
+	// konfigurieren." Die Weg-Ebene zeigt dieselben Felder fuer alle Abschnitte zugleich.
+	// Entwurf: docs/superpowers/specs/2026-08-19-wege-editor-weg-ebene-design.md
+	//
+	// 🔴 EIN EINTEILIGER WEG BEKOMMT SIE NICHT. `renderList` zeichnet fuer ihn schon immer die
+	// Segmentzeile statt eines Gruppenkopfs („die Zeile IST der Weg"), und zwei Masken fuer
+	// dasselbe Objekt sind eine Divergenz, die auf ihren ersten Unterschied wartet.
+
+	function findGroup(key) {
+		var gruppen = groupedWays();
+		for (var i = 0; i < gruppen.length; i++) {
+			if (gruppen[i].key === key) { return gruppen[i]; }
+		}
+		return null;
+	}
+
+	function selectGroup(key, force) {
+		if (!key) { return Promise.resolve(); }
+		if (!force && state.selectedGroup === key) { renderList(); return Promise.resolve(); }
+		var gruppe = findGroup(key);
+		if (!gruppe || gruppe.segments.length < 2) { return Promise.resolve(); }
+
+		state.selected = null;
+		state.detail = null;
+		state.draft = null;
+		state.selectedGroup = key;
+		state.groupDetail = null;
+
+		// 💣 DER VERGLEICHSSTAND WIRD BEIM OEFFNEN FESTGEHALTEN. Ohne ihn liesse sich hinterher
+		// nicht mehr sagen, welches Feld jemand ANGEFASST hat -- und genau das entscheidet, was
+		// geschrieben wird (§4.1 des Entwurfs).
+		var schluessel = TRANSPORTS.map(function (t) { return t.key; });
+		state.groupStand = wpGroupFieldStates(gruppe.segments, schluessel);
+		var transporte = {};
+		schluessel.forEach(function (key2) {
+			transporte[key2] = state.groupStand.transports[key2].zustand;
+		});
+		state.groupDraft = {
+			key: key,
+			name: state.groupStand.name.wert,
+			show_label: state.groupStand.show_label.gleich ? state.groupStand.show_label.wert : null,
+			// `null` heisst „— gemischt lassen —" und ist der Startwert einer uneinigen Gruppe.
+			feature_subtype: state.groupStand.feature_subtype.wert,
+			transports: transporte,
+			other_source: gruppe.segments[0].other_source && state.groupStand.other_source.gleich
+				? { url: gruppe.segments[0].other_source.url, label: gruppe.segments[0].other_source.label }
+				: null,
+			dirty: false
+		};
+
+		renderList();
+		renderDetail();
+		$("wpProfile").innerHTML = '<div class="avm-empty">Wird geladen…</div>';
+
+		var ids = gruppe.segments.map(function (s) { return s.public_id; });
+		return getJson(LIST_URL + "?action=group_detail&public_ids=" + encodeURIComponent(ids.join(",")))
+			.then(function (response) {
+				if (!response || response.ok !== true) { throw new Error("Die Abschnitte konnten nicht geladen werden."); }
+				// ⚠️ Nur uebernehmen, wenn die Auswahl noch dieselbe ist -- ein schneller zweiter Klick
+				// liesse sonst die aeltere Antwort gewinnen.
+				if (state.selectedGroup !== key) { return; }
+				state.groupDetail = response;
+				renderProfile();
+			})
+			.catch(function (error) {
+				if (state.selectedGroup !== key) { return; }
+				$("wpProfile").innerHTML = '<div class="avm-error">' + escapeHtml(error.message || error) + "</div>";
+			});
+	}
+
+	function markGroupDirty() {
+		if (!state.groupDraft) { return; }
+		state.groupDraft.dirty = true;
+		var message = $("wpSaveMsg");
+		if (message) { message.textContent = "Ungespeicherte Änderungen."; message.className = "avm-savebar__msg"; }
+	}
+
+	/* Die Verteilung als Satz: „6× Gebirgspass, 2× Pfad". */
+	function verteilungText(verteilung) {
+		return verteilung.map(function (eintrag) {
+			return eintrag.anzahl + "× " + subtypeLabel(eintrag.wert);
+		}).join(", ");
+	}
+
+	function renderGroupDetail(host) {
+		var gruppe = findGroup(state.selectedGroup);
+		if (!gruppe) {
+			host.innerHTML = '<div class="avm-empty">Links einen Weg wählen.</div>';
+			return;
+		}
+		var stand = state.groupStand;
+		var entwurf = state.groupDraft;
+		var anzahl = gruppe.segments.length;
+		var wikiName = gruppe.wiki_path && gruppe.wiki_path.wiki_key ? String(gruppe.wiki_path.name || "") : "";
+		var locked = wikiName !== "";
+
+		var html = '<div class="wp-scope">'
+			+ '<div class="wp-scope__title">Ganzer Weg — <b>' + escapeHtml(gruppe.name) + "</b></div>"
+			+ '<div class="wp-scope__sub">Was hier steht, gilt beim Speichern für <b>alle '
+			+ anzahl + ' Abschnitte</b>. Einzelne Ausnahmen setzt man weiterhin am Abschnitt links.</div>'
+			+ "</div>";
+
+		html += '<div class="dt-grp">Identität</div>';
+		html += '<div class="dt-grid"><div class="k">Wegname</div><div>'
+			+ '<input type="text" id="wpGroupName" maxlength="160" value="'
+			+ escapeHtml(stand.name.gleich ? (stand.name.wert || "") : "") + '"'
+			+ (stand.name.gleich ? "" : ' placeholder="gemischt"')
+			+ (locked ? " readonly" : "") + "></div></div>";
+		if (locked) {
+			html += '<div class="pl-hint">Der Name gehört dem zugewiesenen Wiki-Weg '
+				+ '<span class="avm-pill">' + escapeHtml(wikiName) + "</span> — er gilt ohnehin für alle Abschnitte.</div>";
+		} else {
+			html += '<div class="dt-check"><input type="checkbox" id="wpGroupShowLabel"'
+				+ (entwurf.show_label === true ? " checked" : "") + "> <span>Weg anzeigen</span></div>";
+			if (!stand.show_label.gleich) {
+				html += '<div class="dt-hint">Die Abschnitte sind hier uneins — ein Klick setzt alle '
+					+ anzahl + " gleich.</div>";
+			}
+		}
+
+		// 💣 „— gemischt lassen —" ist bei einer uneinigen Gruppe VORAUSGEWAEHLT und keine Wahl:
+		// solange es steht, bleibt jeder Abschnitt, wie er ist.
+		html += '<div class="dt-grid"><div class="k">Wegtyp</div><div><select id="wpGroupSubtype">';
+		if (!stand.feature_subtype.gleich) {
+			html += '<option value=""' + (entwurf.feature_subtype === null ? " selected" : "")
+				+ ">— gemischt lassen —</option>";
+		}
+		html += SUBTYPES.map(function (s) {
+			return '<option value="' + s.key + '"' + (s.key === entwurf.feature_subtype ? " selected" : "")
+				+ ">" + escapeHtml(s.label) + "</option>";
+		}).join("") + "</select></div></div>";
+		if (!stand.feature_subtype.gleich) {
+			html += '<div class="dt-hint">Die ' + anzahl + ' Abschnitte sind <b>nicht gleich</b>: '
+				+ escapeHtml(verteilungText(stand.feature_subtype.verteilung))
+				+ '. Solange „— gemischt lassen —“ steht, bleibt jeder, wie er ist. Wählst du eine Art, '
+				+ "werden <b>alle " + anzahl + " gleichgemacht</b>.</div>";
+		}
+
+		// Die Fahrtypen. 🔴 Welche ueberhaupt dastehen, entscheidet die Verkehrsdomaene -- und die
+		// haengt am Wegtyp. Mischt eine Gruppe Land und Wasser, gibt es keine gemeinsame Antwort,
+		// und dann wird die Liste WEGGELASSEN statt eine falsche Haelfte angeboten.
+		var domaenen = {};
+		gruppe.segments.forEach(function (segment) { domaenen[wpVerkehrsdomaene(segment.feature_subtype)] = true; });
+		var domaeneListe = Object.keys(domaenen);
+		var domaene = entwurf.feature_subtype ? wpVerkehrsdomaene(entwurf.feature_subtype)
+			: (domaeneListe.length === 1 ? domaeneListe[0] : null);
+
+		html += '<div class="dt-grp">Erlaubte Transportmittel</div>';
+		if (domaene === null) {
+			html += '<div class="avm-empty">Dieser Weg mischt Land- und Wasserabschnitte — '
+				+ "welche Transportmittel gelten, lässt sich für alle zusammen nicht sagen. "
+				+ "Entweder oben einen Wegtyp wählen, oder die Abschnitte einzeln bearbeiten.</div>";
+		} else {
+			TRANSPORTS.forEach(function (transport) {
+				if (transport.domain !== domaene) { return; }
+				var zustand = entwurf.transports[transport.key];
+				var alt = stand.transports[transport.key];
+				html += '<div class="dt-tt" data-transport="' + transport.key + '">'
+					+ '<label class="dt-tt__name"><input type="checkbox" class="wp-group-transport" value="'
+					+ transport.key + '"' + (zustand === "an" ? " checked" : "") + "> <span>"
+					+ escapeHtml(transport.label) + "</span>"
+					// 💣 DER ZAEHLER GEHOERT IN DIE NAMENSZELLE. `.dt-tt` bricht um, sobald eine
+					// dritte Zelle dazukommt (gemessen: 56px statt 31) -- die Warnung dazu steht an
+					// der `.dt-tt`-Regel in css/components/editor-page.css.
+					+ (zustand === "teils"
+						? '<span class="wp-mixed">' + alt.an + " von " + alt.gesamt + "</span>"
+						: "")
+					+ "</label></div>";
+			});
+			html += '<div class="avm-empty">Ein halb gefüllter Haken heißt: die Abschnitte sind uneins. '
+				+ "Lässt du ihn so, ändert sich nichts. Klickst du ihn an oder aus, gilt das für alle "
+				+ anzahl + ".</div>";
+			html += '<div class="pl-hint">Die <b>Gangbarkeit nach Monaten</b> steht am einzelnen '
+				+ "Abschnitt — sie gilt dort ohnehin schon für den ganzen Wiki-Weg.</div>";
+		}
+
+		html += '<div class="dt-grp">Andere Quelle</div>';
+		var quelle = entwurf.other_source || { url: "", label: "" };
+		html += '<div class="dt-grid"><div class="k">Adresse</div><div>'
+			+ '<input type="url" id="wpGroupSourceUrl" maxlength="500" placeholder="'
+			+ (stand.other_source.gleich ? "https://…" : "gemischt") + '" value='
+			+ '"' + escapeHtml(quelle.url || "") + '"></div>'
+			+ '<div class="k">Linktext</div><div>'
+			+ '<input type="text" id="wpGroupSourceLabel" maxlength="255" placeholder="Quelle" value="'
+			+ escapeHtml(quelle.label || "") + '"></div></div>';
+
+		html += '<div class="avm-savebar"><span class="avm-savebar__msg" id="wpSaveMsg">'
+			+ (entwurf.dirty ? "Ungespeicherte Änderungen." : "Keine ungespeicherten Änderungen.")
+			+ '</span><button type="button" id="wpGroupDiscard">Verwerfen</button>'
+			+ '<button type="button" class="is-primary" id="wpGroupSave">Speichern für '
+			+ anzahl + " Abschnitte</button></div>";
+
+		html += '<div class="dt-grp">Die Abschnitte</div>';
+		gruppe.segments.forEach(function (segment, index) {
+			html += '<div class="wp-share" data-jump="' + escapeHtml(segment.public_id) + '" role="button" tabindex="0">'
+				+ '<span class="wp-share__name">Abschnitt ' + (index + 1) + "</span>"
+				+ '<span class="wp-share__kind">' + escapeHtml(subtypeLabel(segment.feature_subtype)) + "</span>"
+				+ '<span class="wp-share__value">' + (roughMiles(segment) === null ? "" : "≈ " + num(roughMiles(segment), 1) + " Meilen")
+				+ "</span></div>";
+		});
+
+		host.innerHTML = html;
+		wireGroupDetail();
+	}
+
+	function wireGroupDetail() {
+		var name = $("wpGroupName");
+		if (name) {
+			name.addEventListener("input", function () {
+				state.groupDraft.name = name.value;
+				markGroupDirty();
+			});
+		}
+		var showLabel = $("wpGroupShowLabel");
+		if (showLabel) {
+			showLabel.addEventListener("change", function () {
+				state.groupDraft.show_label = showLabel.checked;
+				markGroupDirty();
+			});
+		}
+		var subtype = $("wpGroupSubtype");
+		if (subtype) {
+			subtype.addEventListener("change", function () {
+				state.groupDraft.feature_subtype = subtype.value === "" ? null : subtype.value;
+				markGroupDirty();
+				// Der Wegtyp entscheidet ueber die angebotenen Fahrtypen -- die Spalte muss neu.
+				renderDetail();
+			});
+		}
+		Array.prototype.forEach.call(document.querySelectorAll(".wp-group-transport"), function (box) {
+			// 💣 Der DRITTE ZUSTAND liegt im Entwurf, nicht im Kaestchen: `indeterminate` ist eine
+			// Anzeige und ueberlebt keinen Klick. Wer ihn nur am Kaestchen fuehrt, liest nach dem
+			// ersten Klick „aus" und nimmt zwei Abschnitten die Kutsche.
+			var key = box.getAttribute("value");
+			if (state.groupDraft.transports[key] === "teils") { box.indeterminate = true; }
+			box.addEventListener("change", function () {
+				state.groupDraft.transports[key] = box.checked ? "an" : "aus";
+				box.indeterminate = false;
+				markGroupDirty();
+				renderDetail();
+			});
+		});
+		var url = $("wpGroupSourceUrl");
+		var label = $("wpGroupSourceLabel");
+		var quelleGeaendert = function () {
+			var adresse = url ? url.value.trim() : "";
+			state.groupDraft.other_source = adresse === ""
+				? null
+				: { url: adresse, label: label ? label.value.trim() : "" };
+			markGroupDirty();
+		};
+		if (url) { url.addEventListener("input", quelleGeaendert); }
+		if (label) { label.addEventListener("input", quelleGeaendert); }
+
+		var discard = $("wpGroupDiscard");
+		if (discard) {
+			discard.addEventListener("click", function () { void selectGroup(state.selectedGroup, true); });
+		}
+		var save = $("wpGroupSave");
+		if (save) { save.addEventListener("click", saveGroupDraft); }
+
+		Array.prototype.forEach.call(document.querySelectorAll("[data-jump]"), function (zeile) {
+			zeile.addEventListener("click", function () { void selectWay(zeile.getAttribute("data-jump")); });
+		});
+	}
+
+	function saveGroupDraft() {
+		if (!state.groupDraft || !state.groupStand) { return; }
+		var gruppe = findGroup(state.selectedGroup);
+		if (!gruppe) { return; }
+		var message = $("wpSaveMsg");
+		var button = $("wpGroupSave");
+
+		// 💣 DIE EINE REGEL: geschrieben wird nur, was jemand ANGEFASST hat. Die Rechnung dazu ist
+		// rein und geprueft (wpGroupChangedFields, js/pages/__tests__/wege-gruppe-felder.test.js).
+		var felder = wpGroupChangedFields(state.groupStand, state.groupDraft);
+		if (felder.length === 0) {
+			if (message) { message.textContent = "Nichts geändert."; message.className = "avm-savebar__msg"; }
+			state.groupDraft.dirty = false;
+			return;
+		}
+
+		if (button) { button.disabled = true; }
+		if (message) { message.textContent = "Wird gespeichert…"; message.className = "avm-savebar__msg"; }
+
+		var rumpf = {
+			action: "update_path_group_details",
+			public_ids: gruppe.segments.map(function (s) { return s.public_id; }),
+			fields: felder
+		};
+		if (felder.indexOf("name") !== -1) { rumpf.name = state.groupDraft.name; }
+		if (felder.indexOf("show_label") !== -1) { rumpf.show_label = state.groupDraft.show_label === true; }
+		if (felder.indexOf("feature_subtype") !== -1) { rumpf.feature_subtype = state.groupDraft.feature_subtype; }
+		if (felder.indexOf("allowed_transports") !== -1) {
+			rumpf.transport_decisions = wpGroupTransportDecisions(state.groupStand, state.groupDraft);
+		}
+		if (felder.indexOf("other_source") !== -1) { rumpf.other_source = state.groupDraft.other_source; }
+
+		var key = state.selectedGroup;
+		postJson(FEATURES_URL, rumpf).then(function (response) {
+			if (!response || response.ok !== true) {
+				var text2 = response && response.error
+					? (response.error.message || response.error)
+					: "Unerwartete Antwort";
+				throw new Error(text2);
+			}
+			if (message) {
+				message.textContent = response.written === 0
+					? "Nichts zu ändern — die Abschnitte standen schon so."
+					: (response.written + " von " + gruppe.segments.length + " Abschnitten geschrieben.");
+				message.className = "avm-savebar__msg ok";
+			}
+			// 💣 Die Liste MUSS neu geladen werden: Name und Wegtyp stehen dort, und dieses Fenster
+			// ueberlebt sein Schliessen. Ohne das zeigt ein Wiedereroeffnen den alten Stand.
+			// ⚠️ Und der Vergleichsstand muss mit -- sonst gilt beim naechsten Speichern noch der
+			// von vorhin, und dieselbe Aenderung ginge ein zweites Mal raus.
+			return loadList().then(function () { return selectGroup(key, true); });
+		}).catch(function (error) {
+			var spaeter = $("wpSaveMsg");
+			if (spaeter) {
+				spaeter.textContent = "Fehlgeschlagen: " + (error && error.message ? error.message : error);
+				spaeter.className = "avm-savebar__msg bad";
+			}
+		}).then(function () {
+			var again = $("wpGroupSave");
+			if (again) { again.disabled = false; }
+		});
+	}
+
+	/* Spalte 3 im Weg-Modus: was die Abschnitte zusammen ergeben. */
+	function renderGroupProfile(host) {
+		var gruppe = findGroup(state.selectedGroup);
+		if (!gruppe) {
+			host.innerHTML = '<div class="avm-empty">Links einen Weg wählen.</div>';
+			return;
+		}
+		if (!state.groupDetail) {
+			host.innerHTML = '<div class="avm-empty">Wird geladen…</div>';
+			return;
+		}
+
+		var segmente = state.groupDetail.segments || [];
+		var mitProfil = segmente.filter(function (s) { return s.terrain && s.terrain.profile; });
+		var wasser = segmente.filter(function (s) { return isWater(s.feature_subtype); }).length;
+
+		var html = "";
+		if (mitProfil.length === 0) {
+			host.innerHTML = '<div class="avm-empty">Für keinen Abschnitt dieses Weges liegt ein '
+				+ 'Höhenprofil vor' + (wasser === segmente.length
+					? " — Fluss- und Seewege bekommen bewusst keins (der Steigungsfaktor ist eine <b>Landregel</b>)."
+					: " — Kachel „Wegprofile rechnen“ im Menüband.")
+				+ "</div>";
+			return;
+		}
+
+		// Die Summen ueber alle Abschnitte. 💣 Gerechnet wird aus den SUMMEN, nie als Mittel ueber
+		// die Abschnittsfaktoren: `wpLeistungsFactor` ist ohne Deckel additiv, mit Deckel nicht --
+		// die Begruendung steht woertlich an der Funktion (`options.capped`).
+		var laenge = 0, anstieg = 0, abstieg = 0, steil = 0, stuecke = 0;
+		var zeilen = "";
+		segmente.forEach(function (segment, index) {
+			var meilen = Number(segment.length_units || 0) * 3;
+			var sums = segment.terrain && segment.terrain.profile
+				? wpProfileSums(segment.terrain.profile)
+				: null;
+			var faktoren = segment.terrain && segment.terrain.profile
+				? wpBothDirectionFactors(segment.terrain.profile, segment.length_units)
+				: null;
+			laenge += meilen;
+			if (sums) {
+				anstieg += sums.ascent;
+				abstieg += sums.descent;
+				steil += sums.steepDescent;
+				stuecke += segment.terrain.profile.length;
+			}
+			zeilen += "<tr><td>" + (index + 1) + "</td><td>" + num(meilen, 1) + "</td><td>"
+				+ (sums ? num(sums.ascent, 0) : "—") + "</td><td>"
+				+ (sums ? num(sums.descent, 0) : "—") + "</td><td>"
+				+ (faktoren ? num(faktoren.forward, 2) : "—") + "</td><td>"
+				+ (faktoren ? num(faktoren.backward, 2) : "—") + "</td></tr>";
+		});
+
+		html += '<table class="wp-tab-num"><thead><tr><th>Abschnitt</th><th>Meilen</th>'
+			+ "<th>↑ Schritt</th><th>↓ Schritt</th><th>F hin</th><th>F zurück</th></tr></thead><tbody>"
+			+ zeilen + "</tbody></table>";
+
+		// Der Faktor des GANZEN Weges: Leistungsmeilen ueber Meilen, aus den Summen.
+		var gesamtEinheiten = laenge / 3;
+		var hin = wpLeistungsFactor(anstieg, steil, gesamtEinheiten);
+		var zurueck = wpLeistungsFactor(abstieg, 0, gesamtEinheiten);
+
+		html += '<dl class="wp-facts">';
+		html += "<dt>Länge, ganzer Weg</dt><dd>" + num(laenge, 2) + " Meilen</dd>";
+		html += "<dt>Anstieg gesamt</dt><dd>" + num(anstieg, 0) + " Schritt</dd>";
+		html += "<dt>Abstieg gesamt</dt><dd>" + num(abstieg, 0) + " Schritt</dd>";
+		html += "<dt>davon steiler Abstieg (&gt; 20 %)</dt><dd>" + num(steil, 0) + " Schritt</dd>";
+		html += "<dt>Netto über den Start</dt><dd>" + num(anstieg - abstieg, 0) + " Schritt</dd>";
+		html += "<dt>Zeitfaktor hinwärts</dt><dd><b>" + num(hin, 2) + "</b></dd>";
+		html += "<dt>Zeitfaktor rückwärts</dt><dd><b>" + num(zurueck, 2) + "</b></dd>";
+		html += "<dt>Abschnitte · Wegstücke</dt><dd>" + segmente.length + " · " + stuecke + "</dd>";
+		html += "</dl>";
+
+		if (mitProfil.length !== segmente.length) {
+			html += '<div class="pl-hint">' + (segmente.length - mitProfil.length)
+				+ " Abschnitt(e) ohne Höhenprofil sind in den Summen <b>nicht</b> enthalten — "
+				+ "das heißt <b>„unbekannt“</b>, nicht „eben“.</div>";
+		}
+		if (state.groupDetail.capped) {
+			html += '<div class="pl-hint">Dieser Weg hat mehr Abschnitte, als auf einmal gelesen '
+				+ "werden — gezeigt sind die ersten " + segmente.length + ".</div>";
+		}
+		html += '<div class="pl-hint">💣 Die Zahlen sind eine <b>Vereinfachung</b>: gespeichert sind '
+			+ "je Wegstück nur Summen. Der Zeitfaktor des ganzen Weges ist aus den Summen gerechnet, "
+			+ "nicht aus den Abschnittsfaktoren gemittelt.</div>";
+
+		host.innerHTML = html;
+	}
+
 	// ── Auswahl ───────────────────────────────────────────────────────────────────────────────
 
 	function selectWay(publicId, force) {
 		if (!publicId) { return Promise.resolve(); }
-		if (!force && state.selected === publicId) { return Promise.resolve(); }
+		if (!force && state.selected === publicId && state.selectedGroup === null) { return Promise.resolve(); }
 		state.selected = publicId;
+		// Die beiden Ebenen schliessen einander aus (siehe `state`).
+		state.selectedGroup = null;
+		state.groupStand = null;
+		state.groupDraft = null;
+		state.groupDetail = null;
 
 		var source = null;
 		for (var i = 0; i < state.ways.length; i++) {
@@ -1364,8 +1801,17 @@
 			if (!row) { return; }
 			var groupKey = row.getAttribute("data-group");
 			if (groupKey) {
-				state.openGroups[groupKey] = state.openGroups[groupKey] !== true;
-				renderList();
+				// 🔴 ZWEI GESTEN AN EINER ZEILE, und die Trennung ist die alte: der PFEIL klappt nur
+				// auf und zu (das konnte diese Zeile immer schon), die ZEILE waehlt den ganzen Weg
+				// aus (seit 19.08.2026). Waehlen klappt mit auf -- wer auf einen Weg schreibt, muss
+				// sehen, worauf.
+				if (event.target.closest(".wp-group__twist")) {
+					state.openGroups[groupKey] = state.openGroups[groupKey] !== true;
+					renderList();
+					return;
+				}
+				state.openGroups[groupKey] = true;
+				void selectGroup(groupKey);
 				return;
 			}
 			void selectWay(row.getAttribute("data-id"));

@@ -52,6 +52,10 @@ try {
         'reorder_powerline_line' => avesmapsReorderPowerlineLine($pdo, $payload, $user),
         'create_path' => avesmapsCreatePathFeature($pdo, $payload, $user),
         'update_path_details' => avesmapsUpdatePathFeatureDetails($pdo, $payload, $user),
+        // Die WEG-EBENE: ein Speichern fuer alle Abschnitte eines Weges. Eigene Aktion,
+        // nicht ein Zusatzfeld an `update_path_details` -- sie nimmt einen anderen Rumpf
+        // (`public_ids` + `fields`) und darf sich mit dem Einzelweg nicht vermischen.
+        'update_path_group_details' => avesmapsUpdatePathGroupDetails($pdo, $payload, $user),
         'update_path_geometry' => avesmapsUpdatePathFeatureGeometry($pdo, $payload, $user),
         'create_label' => avesmapsCreateLabelFeature($pdo, $payload, $user),
         'update_label' => avesmapsUpdateLabelFeature($pdo, $payload, $user),

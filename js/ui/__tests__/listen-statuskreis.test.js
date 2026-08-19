@@ -153,7 +153,10 @@ assert.strictEqual((wegeEditor.match(/avesmapsStatuskreisWeg\(group\.segments\)/
 	"Der Wegeeditor ruft den geteilten Bauer nicht an BEIDEN Zeilen, die einen Weg darstellen: "
 	+ "dem Gruppenkopf und der einteiligen Zeile (segmentRow mit index === null).");
 checks++;
-assert.ok(/'<div class="avm-row has-map-status wp-group"/.test(wegeEditor),
+// ⚠️ OHNE schliessendes Anfuehrungszeichen: seit dem 19.08.2026 haengt an der Klassenliste
+// der Gruppenzeile die Auswahl der WEG-EBENE (is-selected). Die Zusicherung ist dieselbe --
+// die Zeile traegt has-map-status --, nur ihr Ende ist nicht mehr fest.
+assert.ok(/'<div class="avm-row has-map-status wp-group/.test(wegeEditor),
 	'Die Gruppenzeile des Wegeeditors setzt "has-map-status" nicht -- ohne die Klasse greift keine '
 	+ "Regel in map-status-circle.css und der Kreis fehlt, lautlos.");
 checks++;
