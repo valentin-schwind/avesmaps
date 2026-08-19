@@ -47,6 +47,7 @@ $applyFiles = [
     'game-literature-plan-apply.php',
     'publication-plan-apply.php',
     'lore-plan-apply.php',
+    'lore-rule-plan-apply.php',
     'territory-wiki-plan-apply.php',
     'territory-plan-apply.php',
 ];

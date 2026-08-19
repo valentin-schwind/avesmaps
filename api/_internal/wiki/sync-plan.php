@@ -145,9 +145,23 @@ function avesmapsSyncPlanCountsFromItems(array $items): array
  * (AGENTS.md §11): DDL on a read path runs for every visitor and makes the file untestable without a
  * live database. And DDL commits an open transaction implicitly on MySQL, so it has to stay far away
  * from the apply step's writes.
+ *
+ * ⚠️ Zwei Dialekte, EIN Schema (seit 19.08.2026) -- dieselbe Bauform wie avesmapsLoreRuleEnsureTables:
+ * scharf läuft MySQL, die Tests laufen gegen sqlite (es gibt lokal keine MySQL-Instanz, AGENTS.md §9).
+ * Vorher war diese Funktion die erste Zeile jeder Rechen- und Ausführ-Hälfte und warf gegen sqlite --
+ * damit war KEINE der sechs Hälften je im Ablauf prüfbar, sondern nur in ihren reinen Teilen. Genau
+ * diese Lücke hat am 19.08.2026 früh einen Endpunkt live gehen lassen, dessen Leseweg nie ausgeführt
+ * worden war. 🔴 Die MySQL-Zweige sind Zeichen für Zeichen die von vorher: der sqlite-Zweig ist eine
+ * ZUSÄTZLICHE Fassung, keine Umschrift der Produktionsform (die Lehre aus dem 1093-Fall, AGENTS.md §9).
  */
 function avesmapsEnsureSyncPlanTables(PDO $pdo): void
 {
+    if ($pdo->getAttribute(PDO::ATTR_DRIVER_NAME) === 'sqlite') {
+        avesmapsEnsureSyncPlanTablesSqlite($pdo);
+
+        return;
+    }
+
     $pdo->exec(
         "CREATE TABLE IF NOT EXISTS sync_plan_run (
             id INT AUTO_INCREMENT PRIMARY KEY,
@@ -201,6 +215,62 @@ function avesmapsEnsureSyncPlanTables(PDO $pdo): void
             PRIMARY KEY (kind, entity_key, change_type)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"
     );
+}
+
+/**
+ * Dieselben drei Tabellen im sqlite-Dialekt -- NUR für die Tests.
+ *
+ * ⚠️ sqlite kennt kein AUTO_INCREMENT/ENGINE/KEY-in-CREATE und keine Genauigkeit an DATETIME; MySQL
+ * kennt vor 8.0 kein „CREATE INDEX IF NOT EXISTS". Die Spaltennamen, ihre Reihenfolge und die
+ * Vorgabewerte sind identisch -- alles andere wäre ein Test gegen ein anderes Schema.
+ */
+function avesmapsEnsureSyncPlanTablesSqlite(PDO $pdo): void
+{
+    $pdo->exec(
+        "CREATE TABLE IF NOT EXISTS sync_plan_run (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            kind TEXT NOT NULL,
+            state TEXT NOT NULL DEFAULT 'building',
+            source_stamp TEXT NULL,
+            counts_json TEXT NULL,
+            created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            created_by INTEGER NULL,
+            applied_at TEXT NULL,
+            applied_by INTEGER NULL
+        )"
+    );
+    $pdo->exec(
+        "CREATE TABLE IF NOT EXISTS sync_plan_item (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            run_id INTEGER NOT NULL,
+            entity_key TEXT NOT NULL,
+            entity_public_id TEXT NULL,
+            change_type TEXT NOT NULL,
+            label TEXT NOT NULL,
+            before_json TEXT NULL,
+            after_json TEXT NULL,
+            override_json TEXT NULL,
+            selected INTEGER NOT NULL DEFAULT 1,
+            apply_state TEXT NULL,
+            apply_note TEXT NULL
+        )"
+    );
+    $pdo->exec(
+        "CREATE TABLE IF NOT EXISTS sync_decision (
+            kind TEXT NOT NULL,
+            entity_key TEXT NOT NULL,
+            change_type TEXT NOT NULL,
+            skipped_count INTEGER NOT NULL DEFAULT 0,
+            last_skipped_at TEXT NULL,
+            last_skipped_by INTEGER NULL,
+            declined_at TEXT NULL,
+            declined_by INTEGER NULL,
+            PRIMARY KEY (kind, entity_key, change_type)
+        )"
+    );
+    $pdo->exec('CREATE INDEX IF NOT EXISTS idx_sync_plan_run_kind_state ON sync_plan_run (kind, state, id)');
+    $pdo->exec('CREATE INDEX IF NOT EXISTS idx_sync_plan_item_run ON sync_plan_item (run_id, change_type, id)');
+    $pdo->exec('CREATE INDEX IF NOT EXISTS idx_sync_plan_item_apply ON sync_plan_item (run_id, selected, apply_state, id)');
 }
 
 // ===========================================================================

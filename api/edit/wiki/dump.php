@@ -158,6 +158,10 @@ require_once __DIR__ . '/../../_internal/wiki/citymap-sync.php';
 // owner-triggered sync_lore reconcile below. Function-definitions-only on include; the parser
 // it pulls in (lore-parsing.php) is likewise side-effect-free.
 require_once __DIR__ . '/../../_internal/wiki/lore-sync.php';
+// „Regeln ableiten" (19.08.2026) -- die Rechen-Haelfte der Aktion derive_lore_rules. Sie braucht
+// keinen Dump: sie liest lore_entry und ecosystem_region.
+require_once __DIR__ . '/../../_internal/wiki/lore-rule-derive.php';
+require_once __DIR__ . '/../../_internal/wiki/lore-rule-plan.php';
 // Single-flight concurrency lock (DB-persisted): serializes the WHOLE dump
 // pipeline (fetch_dump/start_read/read_step/apply/cleanup_state) so only ONE
 // runs at a time across ALL editors. See avesmapsWikiDumpLock* in dump-lock.php.
@@ -850,6 +854,53 @@ try {
                 'progress' => [
                     'processed' => (int) ($loreStep['processed_this_step'] ?? 0),
                     'total' => avesmapsLoreCountStaging($pdo),
+                ],
+            ]);
+            // no break -- avesmapsJsonResponse exits.
+
+        case 'derive_lore_rules':
+            // „Regeln ableiten" (19.08.2026). RECHNET NUR: aus den zwei Wiki-Infoboxfeldern jedes
+            // Vorkommens (|Verbreitung= im Merkmalsnest, |Vorkommen= in der Spalte `lebensraum`)
+            // entsteht ein Vorschlag fuer eine Lebensraum-Regel, und der landet als Plan in
+            // sync_plan_item. Geschrieben wird erst, was ein Editor in der Vorschau anhaekelt
+            // (api/edit/wiki/sync-plan.php, 'apply'). Entwurf und Messung:
+            // .superpowers/sdd/2026-08-15-wiki-zuweisung-vereinheitlichung/regeln-ableiten-bericht.md
+            //
+            // 🔴 ER BRAUCHT KEINEN DUMP. Gelesen werden die LEBENDEN Tabellen lore_entry und
+            // ecosystem_region -- der Knopf haengt an keinem vorherigen Schritt und rechnet auf dem
+            // Bestand, den der Editor vor sich sieht. Er steht trotzdem hier, weil hier die
+            // Einzelplatz-Sperre und die Schrittform wohnen, die STRATO verlangt.
+            //
+            // ⚠️ Die Sperre wird gehalten, obwohl nichts geschrieben wird: der Lauf ERSETZT den
+            // Plan, der gerade offen liegt (Entwurf §6).
+            avesmapsWikiDumpLockAcquireOrThrow($pdo, $lockUserId, $lockUsername, 'derive_lore_rules');
+            $lockHeldByThisRequest = true;
+
+            $loreRuleCursor = avesmapsNormalizeSingleLine((string) ($payload['cursor'] ?? ''), 190);
+            $loreRuleStep = avesmapsLoreRuleDerivePlanStep($pdo, $loreRuleCursor, $lockUserId);
+            $loreRuleDone = ($loreRuleStep['done'] ?? false) === true;
+
+            avesmapsWikiDumpLockHeartbeat($pdo, $lockUserId, 'derive_lore_rules');
+            if ($loreRuleDone) {
+                avesmapsWikiDumpLockRelease($pdo, $lockUserId);
+                $lockHeldByThisRequest = false;
+            }
+
+            avesmapsJsonResponse(200, [
+                // Immer true: der SCHRITT ist gelaufen. Ein leerer Bestand ist ein Zustand, kein
+                // Fehler -- der Client erkennt ihn an entries_empty und nennt den Grund.
+                'ok' => true,
+                'stage' => 'plan',
+                'cursor' => (string) ($loreRuleStep['nextCursor'] ?? $loreRuleCursor),
+                'done' => $loreRuleDone,
+                'run_id' => (int) ($loreRuleStep['run_id'] ?? 0),
+                'planned' => (int) ($loreRuleStep['planned'] ?? 0),
+                'processed' => (int) ($loreRuleStep['processed_this_step'] ?? 0),
+                'counts' => (array) ($loreRuleStep['counts'] ?? []),
+                'entries_empty' => ($loreRuleStep['entries_empty'] ?? false) === true,
+                'progress' => [
+                    'processed' => (int) ($loreRuleStep['processed_this_step'] ?? 0),
+                    'total' => avesmapsLoreRulePlanCountEntries($pdo),
                 ],
             ]);
             // no break -- avesmapsJsonResponse exits.

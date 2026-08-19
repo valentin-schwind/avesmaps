@@ -10,9 +10,15 @@ declare(strict_types=1);
 // lore_rule eine FRAGE (welche Orte). Eine Regel hat keinen place_wiki_key; ein
 // synthetischer Schluessel muesste auf dem heissen Lesepfad geparst werden.
 //
-// 💣 Eine Regel ist IMMER origin='manual'. avesmapsLoreReconcile legt Ortszeilen per
-// delete+insert neu an und fasst nur origin='wiki' an -- eine Regel mit origin='wiki'
-// waere beim naechsten „Vorkommen syncen" weg. Der Sync kennt diese Tabellen nicht.
+// 💣 Eine Regel ist von Hand IMMER origin='manual'. avesmapsLoreReconcile legt Ortszeilen
+// per delete+insert neu an und fasst nur origin='wiki' an -- eine Regel mit origin='wiki'
+// waere beim naechsten „Vorkommen syncen" weg. Der Vorkommen-Sync kennt diese Tabellen nicht.
+//
+// 🔴 SEIT 19.08.2026 GIBT ES EINEN ZWEITEN HERKUNFTSWERT: 'wiki_verbreitung', geschrieben
+// von „Regeln ableiten" (api/_internal/wiki/lore-rule-plan{,-apply}.php). Er ist bewusst
+// NICHT 'wiki' -- genau damit der Satz oben wahr bleibt. Und er ist der EINZIGE, den jener
+// Lauf anfasst: eine Regel mit 'manual' wird von ihm weder gelesen noch ueberschrieben
+// noch geloescht. Dasselbe Muster wie feature_sources.origin = 'wiki_publication'.
 
 // Fuer avesmapsLoreRuleReadPlaces: die Klimazone eines Ortes ist keine gespeicherte Spalte,
 // sondern wird aus den Baendern gerechnet (dieselbe Wahrheit wie die Infobox-Zeile
@@ -76,6 +82,10 @@ function avesmapsLoreRuleEnsureTables(PDO $pdo): void
  * Ersetzen, nicht anhaengen: die Reihenfolge der Bedingungen IST die Auswertungsreihenfolge,
  * und eine halb ersetzte Kette rechnet still etwas anderes als die Vorschau zeigte.
  *
+ * ⚠️ `$origin` wirkt NUR beim Anlegen. Ein Ersetzen laesst die Herkunft stehen, wo sie ist: sonst
+ * koennte ein Aufrufer die Regel eines anderen Erzeugers unter seinen Namen ziehen, und „diesen
+ * Wert fasst der Lauf nicht an" waere keine Zusage mehr.
+ *
  * @param list<array<string,mixed>> $terms
  */
 function avesmapsLoreRuleSave(
@@ -84,7 +94,8 @@ function avesmapsLoreRuleSave(
     array $terms,
     string $relation,
     ?int $userId,
-    ?int $ruleId = null
+    ?int $ruleId = null,
+    string $origin = 'manual'
 ): int {
     // I2: alles ab hier ist EIN Ersetzen -- alte Bedingungen weg, neue rein -- und das darf
     // nicht auf halbem Weg stehen bleiben. Ohne Transaktion legt lore_rule_term_type's
@@ -97,9 +108,9 @@ function avesmapsLoreRuleSave(
         if ($ruleId === null) {
             $insert = $pdo->prepare(
                 'INSERT INTO lore_rule (entry_wiki_key, relation, origin, status, created_by)
-                 VALUES (:wk, :rel, \'manual\', \'active\', :user)'
+                 VALUES (:wk, :rel, :origin, \'active\', :user)'
             );
-            $insert->execute(['wk' => $entryWikiKey, 'rel' => $relation, 'user' => $userId]);
+            $insert->execute(['wk' => $entryWikiKey, 'rel' => $relation, 'origin' => $origin, 'user' => $userId]);
             $ruleId = (int) $pdo->lastInsertId();
         } else {
             // 💣 Fix-Runde 1, Befund 2: eine fremde rule_id darf nie die Bedingungen einer Regel
@@ -249,6 +260,62 @@ function avesmapsLoreRuleDelete(PDO $pdo, int $ruleId, string $entryWikiKey): bo
     }
 
     return $delete->rowCount() > 0;
+}
+
+/**
+ * Loescht ALLE Regeln eines Eintrags, die eine bestimmte HERKUNFT tragen -- samt Bedingungen.
+ *
+ * 🔴 Der Riegel ist die Herkunft, und er steht in jeder einzelnen Anweisung, nicht in einer
+ * vorgelagerten Pruefung: dieselbe Begruendung wie beim Eintragsschluessel in
+ * avesmapsLoreRuleDelete. Eine halb geloeschte fremde Regel waere schlimmer als eine ganz
+ * unangetastete.
+ *
+ * ⚠️ `'manual'` ist als Herkunft hier VERBOTEN. Diese Funktion existiert fuer die Ableitung, und
+ * ein Aufrufer, der sich vertut, wuerde sonst die Handarbeit eines Editors wegraeumen -- lautlos,
+ * und ohne dass es je jemand zurueckholen koennte.
+ *
+ * 💣 Die Ids werden ERST GELESEN, dann geloescht. MySQL lehnt „DELETE … WHERE id IN (SELECT … FROM
+ * derselben Tabelle)" mit Fehler 1093 ab (AGENTS.md §9), und eine Fassung, die nur gegen SQLite
+ * laeuft, waere ein Test, der die Regression erzwingt statt sie zu verhindern.
+ *
+ * @return int Zahl der geloeschten Regeln
+ */
+function avesmapsLoreRuleDeleteByOrigin(PDO $pdo, string $entryWikiKey, string $origin): int
+{
+    if ($origin === 'manual' || trim($origin) === '') {
+        throw new InvalidArgumentException('avesmapsLoreRuleDeleteByOrigin fasst keine manuellen Regeln an.');
+    }
+
+    $select = $pdo->prepare('SELECT id FROM lore_rule WHERE entry_wiki_key = :wk AND origin = :origin');
+    $select->execute(['wk' => $entryWikiKey, 'origin' => $origin]);
+    $ruleIds = array_map('intval', $select->fetchAll(PDO::FETCH_COLUMN) ?: []);
+    if ($ruleIds === []) {
+        return 0;
+    }
+
+    $pdo->beginTransaction();
+    try {
+        $terms = $pdo->prepare('SELECT id FROM lore_rule_term WHERE rule_id = :id');
+        $deleteTypes = $pdo->prepare('DELETE FROM lore_rule_term_type WHERE term_id = :id');
+        $deleteTerms = $pdo->prepare('DELETE FROM lore_rule_term WHERE rule_id = :id');
+        $deleteRule = $pdo->prepare('DELETE FROM lore_rule WHERE id = :id AND entry_wiki_key = :wk AND origin = :origin');
+        $geloescht = 0;
+        foreach ($ruleIds as $ruleId) {
+            $terms->execute(['id' => $ruleId]);
+            foreach ($terms->fetchAll(PDO::FETCH_COLUMN) ?: [] as $termId) {
+                $deleteTypes->execute(['id' => (int) $termId]);
+            }
+            $deleteTerms->execute(['id' => $ruleId]);
+            $deleteRule->execute(['id' => $ruleId, 'wk' => $entryWikiKey, 'origin' => $origin]);
+            $geloescht += $deleteRule->rowCount();
+        }
+        $pdo->commit();
+    } catch (Throwable $exception) {
+        $pdo->rollBack();
+        throw $exception;
+    }
+
+    return $geloescht;
 }
 
 /**

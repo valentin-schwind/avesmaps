@@ -417,6 +417,50 @@ foreach (['avesmapsLorePlanStep', 'avesmapsLoreApplyStep'] as $half) {
     );
 }
 
+// ==================================================================================================
+// „REGELN ABLEITEN" (19.08.2026). Der Lauf ERZEUGT Regeln -- das ist eine Sammelaktion mit
+// Entscheidungsgehalt, und genau daran ist am selben Tag frueh ein Massenlauf gescheitert. Die
+// Rechen-Haelfte darf deshalb keine einzige Regelzeile anfassen.
+// ==================================================================================================
+
+$loreRuleCompute = $reachFrom($bodies, ['avesmapsLoreRuleDerivePlanStep']);
+assert(count($loreRuleCompute) >= 6, 'der Lauf erreicht die gerufenen Funktionen (' . count($loreRuleCompute) . ')');
+foreach (['avesmapsLoreRulePlanItem', 'avesmapsLoreRulePlanKatalog', 'avesmapsLoreRuleDeriveVorschlag',
+    'avesmapsSyncPlanAddItem'] as $expected) {
+    assert(isset($loreRuleCompute[$expected]), "der Lauf erreicht {$expected}");
+}
+
+$loreRuleTables = ['lore_rule', 'lore_rule_term', 'lore_rule_term_type', 'lore_entry', 'lore_place',
+    'ecosystem_region', 'map_audit_log'];
+foreach ($loreRuleCompute as $name => $body) {
+    foreach ($loreRuleTables as $table) {
+        foreach ($forbiddenStatements($table) as $statement) {
+            assert(
+                !str_contains($body, $statement),
+                "{$name} laeuft in der RECHEN-Haelfte und schreibt: {$statement}"
+            );
+        }
+    }
+}
+
+// 🔴 Die beiden Schreiber gehoeren der anderen Haelfte -- und der Loescher erst recht.
+assert(!isset($loreRuleCompute['avesmapsLoreRuleSave']), 'kein Schreiber in der Rechen-Haelfte');
+assert(!isset($loreRuleCompute['avesmapsLoreRuleDeleteByOrigin']), 'und kein Loescher');
+assert(!isset($loreRuleCompute['avesmapsLoreRuleApplyEntry']), 'und nicht der Eintragsschreiber');
+
+// 💣 UND DER LAUF MUSS BEISSEN: die Ausfuehr-Haelfte ruft beide wirklich.
+$loreRuleApply = $reachFrom($bodies, ['avesmapsLoreRuleApplyStep']);
+assert(isset($loreRuleApply['avesmapsLoreRuleApplyEntry']), 'die Ausfuehr-Haelfte ruft den Schreiber');
+assert(isset($loreRuleApply['avesmapsLoreRuleSave']), 'und legt Regeln an');
+assert(isset($loreRuleApply['avesmapsLoreRuleDeleteByOrigin']), 'und raeumt die alten weg');
+
+// 🔴 Der Herkunfts-Riegel: KEINE Stelle dieses Laufs darf 'manual' schreiben oder loeschen.
+foreach (array_merge($loreRuleCompute, $loreRuleApply) as $name => $body) {
+    assert(
+        !preg_match("/origin\s*=\s*'manual'/", $body),
+        "{$name} fasst eine manuelle Regel an"
+    );
+}
 // =================================================================================================
 // Sitzung 4 -- die Wiki-Kopie der Herrschaftsgebiete
 // =================================================================================================

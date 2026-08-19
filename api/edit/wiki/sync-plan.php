@@ -52,6 +52,11 @@ require_once __DIR__ . '/../../_internal/wiki/publication-plan-apply.php';
 // chain (avesmapsLoreWikiKeyForTitle folds titles through it), app-setting.php comes with lore-sync.
 require_once __DIR__ . '/../../_internal/wiki/lore-sync.php';
 require_once __DIR__ . '/../../_internal/wiki/lore-plan-apply.php';
+// „Regeln ableiten" (19.08.2026): die Ableitung, ihre Rechen- und ihre Ausfuehr-Haelfte. Sie liest
+// die LEBENDE lore_entry samt ecosystem_region -- kein Staging, kein Dump, kein Abgleich davor.
+require_once __DIR__ . '/../../_internal/wiki/lore-rule-derive.php';
+require_once __DIR__ . '/../../_internal/wiki/lore-rule-plan.php';
+require_once __DIR__ . '/../../_internal/wiki/lore-rule-plan-apply.php';
 // Session 4, territories: the model + identity libraries the two compute halves read, then the two
 // apply halves. sync-monitor.php carries the table constants and is already in the chain via
 // lore-sync.php -- required again here, explicitly, because "somebody else pulls it in" is exactly the
@@ -78,7 +83,7 @@ require_once __DIR__ . '/../../_internal/wiki/territory-plan.php';
 require_once __DIR__ . '/../../_internal/wiki/territory-plan-apply.php';
 
 /** The syncs that have a preview. Grows one entry per session (design §7). */
-const AVESMAPS_SYNC_PLAN_KINDS = ['citymap', 'adventure', 'publication', 'lore', 'territory_wiki', 'territory'];
+const AVESMAPS_SYNC_PLAN_KINDS = ['citymap', 'adventure', 'publication', 'lore', 'lore_rule', 'territory_wiki', 'territory'];
 
 /**
  * One plan row, shaped for the component. The JSON columns are decoded HERE so the client never
@@ -256,6 +261,7 @@ try {
                 'adventure' => avesmapsGameLiteratureApplyStep($pdo, $runId, $userId, $currentUser),
                 'publication' => avesmapsPublicationApplyStep($pdo, $runId, $userId, $currentUser),
                 'lore' => avesmapsLoreApplyStep($pdo, $runId, $userId, $currentUser),
+                'lore_rule' => avesmapsLoreRuleApplyStep($pdo, $runId, $userId, $currentUser),
                 'territory_wiki' => avesmapsTerritoryWikiApplyStep($pdo, $runId, $userId, $currentUser),
                 'territory' => avesmapsTerritoryApplyStep($pdo, $runId, $userId, $currentUser),
             };
