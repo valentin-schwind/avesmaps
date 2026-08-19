@@ -9,6 +9,21 @@ declare(strict_types=1);
 // Entwurf: docs/superpowers/specs/2026-08-12-vorkommen-lebensraum-regel-design.md
 
 /**
+ * Hoechstzahl der Bedingungen EINER Regel -- der einzige Ort dieser Zahl.
+ *
+ * I3: ein Deckel gegen einen Worker, der beliebig lange laeuft -- preview_rule wertet die GANZE
+ * Regel EINMAL JE BEDINGUNG aus (avesmapsLoreRuleEvaluate, ~2.782 Flaechen+Orte). Auf
+ * STRATO-Shared-Hosting haelt ein zu grosses Payload sonst einen Worker unbegrenzt fest. Der
+ * Schreibpfad lehnt darueber ab statt still zu kappen (api/edit/map/lore.php): eine stumm
+ * gekuerzte Regel rechnete etwas anderes, als der Editor zeigt.
+ *
+ * ⚠️ Die ABLEITUNG kappt dagegen und SAGT es (avesmapsLoreRuleDeriveVorschlag, Grund `zu_viele`) --
+ * sie hat keinen Menschen, dem sie etwas ablehnen koennte. Beide lesen dieselbe Zahl; zwei Kopien
+ * waeren der gekoppelte Wert, den nur einer von zweien mitbekommt (Konsistenzpruefung 19.08.2026).
+ */
+const AVESMAPS_LORE_RULE_MAX_TERMS = 25;
+
+/**
  * PURE: die Zonen einer Spanne, aus ihren beiden ENDPUNKTEN aufgeloest.
  *
  * 🔴 Die Spanne wird als Endpunkte gespeichert, nie als Menge. Am 03.08.2026 wurde

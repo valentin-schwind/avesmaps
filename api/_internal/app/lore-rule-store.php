@@ -82,9 +82,21 @@ function avesmapsLoreRuleEnsureTables(PDO $pdo): void
  * Ersetzen, nicht anhaengen: die Reihenfolge der Bedingungen IST die Auswertungsreihenfolge,
  * und eine halb ersetzte Kette rechnet still etwas anderes als die Vorschau zeigte.
  *
- * ⚠️ `$origin` wirkt NUR beim Anlegen. Ein Ersetzen laesst die Herkunft stehen, wo sie ist: sonst
- * koennte ein Aufrufer die Regel eines anderen Erzeugers unter seinen Namen ziehen, und „diesen
- * Wert fasst der Lauf nicht an" waere keine Zusage mehr.
+ * 🔴 DIE HERKUNFT FOLGT DEM SPEICHERNDEN -- beim Anlegen UND beim Ersetzen. Wer eine Regel speichert,
+ * dem gehoert sie: der Editor (Vorgabe `'manual'`) macht eine abgeleitete Regel damit zu seiner, und
+ * „Regeln ableiten" laesst sie danach fuer immer in Ruhe.
+ *
+ * 💣 Die erste Fassung liess die Herkunft beim Ersetzen STEHEN, und das war ein stiller Datenverlust
+ * mit einem Umweg: ein Editor korrigiert eine abgeleitete Bedingung von Hand, die Zeile bleibt
+ * `origin='wiki_verbreitung'`, der naechste Ableitungslauf sieht eine Abweichung, schlaegt sie als
+ * „geaendert" VORANGEHAEKELT vor -- und ein Klick auf „Uebernehmen" verwirft die Handarbeit, ohne
+ * dass irgendwo gestanden haette, dass diese Regel je vom Automatismus stammte. Damit waere die
+ * Zusage „origin='manual' wird nie ueberschrieben" im Ergebnis unterlaufen worden, obwohl jede
+ * einzelne Anweisung sie einhielt. Gefunden von der Konsistenzpruefung am 19.08.2026.
+ *
+ * ⚠️ Genau dieselbe Regel wie beim Wiki-Override (`avesmapsFieldOriginsStempeln`, AGENTS.md §11):
+ * ein Wert, den jemand anfasst, wird `manual`, sofern der Aufrufer nicht ausdruecklich etwas
+ * anderes sagt.
  *
  * @param list<array<string,mixed>> $terms
  */
@@ -126,8 +138,8 @@ function avesmapsLoreRuleSave(
                 );
             }
 
-            $update = $pdo->prepare('UPDATE lore_rule SET relation = :rel WHERE id = :id');
-            $update->execute(['rel' => $relation, 'id' => $ruleId]);
+            $update = $pdo->prepare('UPDATE lore_rule SET relation = :rel, origin = :origin WHERE id = :id');
+            $update->execute(['rel' => $relation, 'origin' => $origin, 'id' => $ruleId]);
         }
 
         $oldTerms = $pdo->prepare('SELECT id FROM lore_rule_term WHERE rule_id = :id');
@@ -180,7 +192,7 @@ function avesmapsLoreRuleSave(
 function avesmapsLoreRuleReadForEntry(PDO $pdo, string $entryWikiKey): array
 {
     $rules = $pdo->prepare(
-        'SELECT id, relation FROM lore_rule
+        'SELECT id, relation, origin FROM lore_rule
          WHERE entry_wiki_key = :wk AND status = \'active\' ORDER BY sort_order, id'
     );
     $rules->execute(['wk' => $entryWikiKey]);
@@ -215,7 +227,16 @@ function avesmapsLoreRuleReadForEntry(PDO $pdo, string $entryWikiKey): array
                 'types' => $types,
             ];
         }
-        $out[] = ['id' => (int) $row['id'], 'relation' => (string) $row['relation'], 'terms' => $terms];
+        // 🔴 Die HERKUNFT reist mit: der Regeleditor zeigte bis 19.08.2026 an JEDER Regel die Pille
+        // „von Hand", weil es damals gar keine andere gab. Seit „Regeln ableiten" gibt es sie, und
+        // eine Oberflaeche, die zwei Herkuenfte nicht unterscheiden kann, laesst einen Editor eine
+        // abgeleitete Regel fuer seine eigene halten.
+        $out[] = [
+            'id' => (int) $row['id'],
+            'relation' => (string) $row['relation'],
+            'origin' => (string) ($row['origin'] ?? 'manual'),
+            'terms' => $terms,
+        ];
     }
 
     return $out;

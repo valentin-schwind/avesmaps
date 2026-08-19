@@ -24,7 +24,10 @@ declare(strict_types=1);
 // Abgelehnt, nicht still gekappt: eine stumm gekuerzte Regel wuerde etwas anderes rechnen als
 // der Editor zeigt, ohne dass es jemand merkt. Vorbild: AVESMAPS_PATH_ECOSYSTEM_CHUNK_MAX
 // (path-ecosystem.php).
-const AVESMAPS_LORE_RULE_MAX_TERMS = 25;
+// 🔴 Steht seit 19.08.2026 in api/_internal/app/lore-rule.php -- EINMAL. Vorher gab es sie hier und
+// eine zweite Kopie derselben Zahl in der Ableitung ("derselbe Deckel wie…", als Kommentar, nicht
+// als Verweis): der Ableiter kappt einen Vorschlag auf diesen Wert, und eine Kopie waere genau der
+// gekoppelte Wert, den nur einer von zwei Lesern mitbekommt.
 const AVESMAPS_LORE_RULE_MAX_TYPES_PER_TERM = 40;
 /**
  * Wie viele Namen die Vorschau je Liste mitschickt.

@@ -485,8 +485,10 @@ function avesmapsLoreRuleTermLines(term, zoneLabels) {
 // .lore-detail__place-main, siehe docs/vorkommen-klimazonen-mockup.html Kommentar „Sie ist bewusst
 // KEIN anderer Kasten"). Nur der INHALT in .lore-detail__place-main ist anders: Titel, die
 // Bedingungszeilen (mit ihrem eigenen join_op als Marke zwischen den Bedingungen), Herkunftszeile
-// (relation, wie bei einer Ortskarte) und die „von Hand"-Pille -- jede Regel ist von Hand angelegt,
-// das Wiki liefert keine (docs/superpowers/specs/2026-08-12-vorkommen-lebensraum-regel-design.md §10).
+// (relation, wie bei einer Ortskarte) und die Herkunfts-Pille.
+// 🔴 KORRIGIERT 19.08.2026: hier stand „jede Regel ist von Hand angelegt, das Wiki liefert keine"
+// (docs/superpowers/specs/2026-08-12-vorkommen-lebensraum-regel-design.md §10). Das galt bis zum
+// Knopf „Regeln ableiten"; seither gibt es `origin='wiki_verbreitung'`, und die Pille liest ihn.
 function avesmapsLoreRuleCardMarkup(rule, zoneLabels) {
 	var terms = (rule && Array.isArray(rule.terms)) ? rule.terms : [];
 	var relation = escapeHtml(String((rule && rule.relation) || ""));
@@ -514,6 +516,19 @@ function avesmapsLoreRuleCardMarkup(rule, zoneLabels) {
 	// Ortszeile. Der Klick-Handler liest die Regel ueber die id aus dem Modulzustand nach
 	// (avesmapsLoreRuleModuleState), nicht aus einem Attribut -- eine Bedingungskette gehoert nicht
 	// in ein data-Attribut.
+	// 🔴 DIE HERKUNFTS-PILLE SAGT DIE WAHRHEIT, seit es zwei Herkuenfte gibt. Bis 19.08.2026 stand
+	// hier unbedingt „von Hand" -- damals richtig, denn eine andere Regel konnte es nicht geben.
+	// Seit „Regeln ableiten" gibt es sie, und eine Oberflaeche, die beide gleich zeichnet, laesst
+	// einen Editor eine abgeleitete Regel fuer seine eigene halten. ⚠️ „Bearbeiten" und Speichern
+	// macht sie danach WIRKLICH zu seiner (avesmapsLoreRuleSave stempelt die Herkunft des
+	// Speichernden) -- die Pille ist also keine Warnung, sondern eine Auskunft.
+	var abgeleitet = rule && String(rule.origin || "manual") !== "manual";
+	var herkunftPille = abgeleitet
+		? '<span class="lore-detail__pill" title="Aus den Wiki-Feldern „Verbreitung“ und „Vorkommen“ abgeleitet.'
+			+ ' Ein Speichern über „Bearbeiten“ macht sie zu einer Regel von Hand — danach fasst'
+			+ ' „Regeln ableiten“ sie nie wieder an.">aus dem Wiki</span>'
+		: '<span class="lore-detail__pill is-manual">von Hand</span>';
+
 	var ruleId = escapeHtml(String((rule && rule.id) || ""));
 	var editBtn = ruleId
 		? '<button type="button" class="lore-detail__place-btn" data-lore-rule-edit-id="' + ruleId + '">Bearbeiten</button>'
@@ -524,7 +539,7 @@ function avesmapsLoreRuleCardMarkup(rule, zoneLabels) {
 		+ '<span class="lore-detail__rule-title">Regel</span>'
 		+ '<div class="lore-detail__rule-lines">' + lineBlocks + "</div>"
 		+ (relation ? '<span class="lore-detail__place-meta">' + relation + "</span>" : "")
-		+ '<span class="lore-detail__pill is-manual">von Hand</span>'
+		+ herkunftPille
 		+ "</div>"
 		+ editBtn
 		+ "</li>";

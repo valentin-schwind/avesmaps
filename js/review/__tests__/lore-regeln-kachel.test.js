@@ -210,3 +210,34 @@ const stil = fs.readFileSync("css/components/sync-plan-sheet.css", "utf8");
 assert.ok(stil.includes(".sync-plan-host .row__note"), "die Warnform ist gestylt");
 assert.ok(/\.sync-plan-host \.row__note \{[^}]*var\(--color-warning\)/.test(stil),
 	"und zwar über Token, nicht über eine Literalfarbe (AGENTS.md §12)");
+
+// ---- 6. Die Kopplung an die Nachbarkachel ist KEIN Zufall --------------------------------------
+// 💣 Zwei fetches an verschiedene Endpunkte, parallel gestartet. „Regeln ableiten" liest den Zähler
+// der Nachbarkachel nur EINMAL -- wenn sein eigener Abruf zurückkommt. Gewinnt er das Rennen (die
+// Zugehörigkeits-Abfrage verschneidet ~929 Flächen), fehlte die Warnung „3 ungerechnet" ganz.
+// Deshalb muss der langsamere die Kachel danach neu zeichnen lassen.
+assert.ok(/avesmapsLoreZugehoerigkeitRefresh\(\)\s*\.then\(/.test(wikiSync)
+	|| /avesmapsLoreZugehoerigkeitRefresh\(\)\r?\n[\s\S]{0,400}?avesmapsLoreRegelnPaint\(\)/.test(wikiSync),
+	"nach dem Zugehörigkeits-Abruf wird die Regel-Kachel neu gezeichnet");
+assert.ok(wikiSync.includes("window.avesmapsLoreRegelnPaint()"),
+	"und zwar über den Paint, nicht über einen zweiten Abruf");
+
+// ---- 7. Die Herkunfts-Pille sagt die Wahrheit --------------------------------------------------
+// 🪤 Bis 19.08.2026 stand an JEDER Regelkarte hart „von Hand" -- damals richtig, denn eine andere
+// Regel konnte es nicht geben. Seit „Regeln ableiten" gibt es sie, und eine Oberfläche, die beide
+// gleich zeichnet, lässt einen Editor eine abgeleitete Regel für seine eigene halten.
+const regelKarte = fs.readFileSync("js/review/review-lore-rule.js", "utf8");
+assert.ok(!/\+ '<span class="lore-detail__pill is-manual">von Hand<\/span>'/.test(regelKarte),
+	"die Pille steht nicht mehr unbedingt im Markup");
+assert.ok(regelKarte.includes('String(rule.origin || "manual") !== "manual"'),
+	"sie liest die Herkunft der Regel");
+assert.ok(regelKarte.includes(">aus dem Wiki</span>"), "und hat einen zweiten Zustand");
+// Und der Leser gibt sie überhaupt heraus -- ohne das prüft die Zeile darüber für immer `undefined`.
+const store = fs.readFileSync("api/_internal/app/lore-rule-store.php", "utf8");
+assert.ok(/SELECT id, relation, origin FROM lore_rule/.test(store),
+	"avesmapsLoreRuleReadForEntry liest die Herkunft");
+assert.ok(/'origin' => \(string\) \(\$row\['origin'\] \?\? 'manual'\)/.test(store),
+	"und reicht sie durch");
+// 🔴 Und wer speichert, dem gehört die Regel -- sonst überschreibt der nächste Lauf die Handarbeit.
+assert.ok(/UPDATE lore_rule SET relation = :rel, origin = :origin WHERE id = :id/.test(store),
+	"ein Ersetzen stempelt die Herkunft des Speichernden");

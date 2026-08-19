@@ -240,4 +240,56 @@ assert($schritt['run_id'] === 0, 'kein Lauf eröffnet');
 assert((string) $leer->query("SELECT state FROM sync_plan_run WHERE kind='lore_rule'")->fetchColumn() === 'open',
     '🔴 der offene Plan eines anderen Editors bleibt offen');
 
+
+
+// =================================================================================================
+// Teil 3: 🔴 WER EINE ABGELEITETE REGEL VON HAND SPEICHERT, DEM GEHOERT SIE
+// =================================================================================================
+//
+// 💣 Ohne diese Regel gibt es einen stillen Datenverlust mit einem Umweg: der Editor korrigiert eine
+// abgeleitete Bedingung, die Zeile bleibt `wiki_verbreitung`, der naechste Lauf sieht eine
+// Abweichung und schlaegt sie VORANGEHAEKELT als „geaendert" vor -- ein Klick verwirft die
+// Handarbeit. Die Zusage „origin='manual' wird nie ueberschrieben" waere damit im Ergebnis
+// unterlaufen, obwohl jede einzelne Anweisung sie einhaelt.
+
+$eintrag($pdo, 'bergwolf', 'Bergwolf', '[[Nordaventurien]]', '[[Steppe]]');
+$schritt = avesmapsLoreRuleDerivePlanStep($pdo, '', 1);
+$runId4 = (int) $schritt['run_id'];
+$pdo->exec("UPDATE sync_plan_item SET selected = 1 WHERE run_id = {$runId4} AND entity_key = 'bergwolf'");
+$pdo->exec("UPDATE sync_plan_item SET selected = 0 WHERE run_id = {$runId4} AND entity_key <> 'bergwolf'");
+avesmapsLoreRuleApplyStep($pdo, $runId4, 1, null);
+$bergId = (int) $pdo->query("SELECT id FROM lore_rule WHERE entry_wiki_key='bergwolf'")->fetchColumn();
+assert($bergId > 0);
+assert((string) $pdo->query('SELECT origin FROM lore_rule WHERE id = ' . $bergId)->fetchColumn()
+    === 'wiki_verbreitung', 'frisch abgeleitet');
+
+// Der Editor faehrt seinen eigenen Schreibweg (avesmapsLoreRuleSave mit rule_id, Vorgabe 'manual').
+avesmapsLoreRuleSave($pdo, 'bergwolf', [
+    ['join_op' => 'und', 'area_public_id' => 'id-orkland', 'types' => [['kind' => 'vegetation', 'region_type' => 'steppe']]],
+], 'verbreitung', 1, $bergId);
+assert((string) $pdo->query('SELECT origin FROM lore_rule WHERE id = ' . $bergId)->fetchColumn() === 'manual',
+    '🔴 wer speichert, dem gehoert die Regel');
+
+// Und der naechste Lauf sieht sie nicht mehr -- er schlaegt seine eigene als NEU vor, statt die
+// Handarbeit als „geaendert" zu ueberschreiben.
+$schritt = avesmapsLoreRuleDerivePlanStep($pdo, '', 1);
+$runId5 = (int) $schritt['run_id'];
+$zeile = $pdo->query("SELECT change_type FROM sync_plan_item WHERE run_id = {$runId5} AND entity_key = 'bergwolf'")
+    ->fetchColumn();
+assert($zeile === 'new', 'die Handarbeit ist fuer den Lauf unsichtbar (change_type: ' . var_export($zeile, true) . ')');
+
+// Und der Leser gibt die Herkunft heraus -- sonst kann die Oberflaeche die zwei nicht unterscheiden.
+$gelesen = avesmapsLoreRuleReadForEntry($pdo, 'bergwolf');
+assert(count($gelesen) === 1 && ($gelesen[0]['origin'] ?? '') === 'manual',
+    'avesmapsLoreRuleReadForEntry liefert die Herkunft mit');
+
+// 🔴 Der Deckel steht an EINER Stelle. Zwei Kopien derselben Zahl waeren der gekoppelte Wert, den
+// nur einer von zwei Lesern mitbekommt.
+$definitionen = 0;
+foreach (['/../../app/lore-rule.php', '/../lore-rule-derive.php', '/../../edit/map/lore.php'] as $rel) {
+    $quelle = (string) @file_get_contents(__DIR__ . $rel);
+    $definitionen += preg_match_all('/^const AVESMAPS_LORE_RULE_MAX_TERMS\s*=/m', $quelle);
+}
+assert($definitionen === 1, 'genau EINE Definition des Bedingungs-Deckels (gefunden: ' . $definitionen . ')');
+
 echo "lore-rule-plan ok\n";

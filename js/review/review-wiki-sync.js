@@ -2452,7 +2452,17 @@ function setWikiSyncLoreDialogOpen(isOpen) {
 		// sichtbar, wenn dieses Fenster aufgeht, und ein Abruf fuer eine unsichtbare Kachel ist
 		// auf STRATO ein Request ohne Anlass.
 		if (typeof window.avesmapsLoreZugehoerigkeitRefresh === "function") {
-			window.avesmapsLoreZugehoerigkeitRefresh();
+			// 💣 UND DANACH die Nachbarkachel neu zeichnen. „Regeln ableiten" hängt den Zähler dieser
+			// Kachel an seine eigene Zeile an, liest ihn aber nur EINMAL -- wenn sein eigener Abruf
+			// zurückkommt. Die zwei Abrufe gehen an verschiedene Endpunkte und laufen um die Wette;
+			// gewinnt der Regel-Abruf (der Zugehörigkeits-Abruf verschneidet ~929 Flächen), fehlte
+			// die Warnung „3 ungerechnet" ganz, obwohl sie in dem Moment gälte. Ohne diese Zeile ist
+			// die zugesagte Kopplung ein Zufall (Konsistenzprüfung 19.08.2026).
+			window.avesmapsLoreZugehoerigkeitRefresh().then(function () {
+				if (typeof window.avesmapsLoreRegelnPaint === "function") {
+					window.avesmapsLoreRegelnPaint();
+				}
+			}).catch(function () { /* der Stand fehlt -- die Kachel sagt das selbst */ });
 		}
 		// Und der Stand des Regel-Vorschlags in die Kachel „Regeln ableiten"
 		// (js/review/review-lore-regeln.js). Ebenfalls NUR LESEN: der Abruf holt den offenen Plan

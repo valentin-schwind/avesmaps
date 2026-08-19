@@ -204,14 +204,14 @@ assert($v['neu'] === true);
 
 $viele = [];
 $vieleRegionen = $regionen;
-for ($i = 0; $i < AVESMAPS_LORE_RULE_DERIVE_MAX_TERMS + 3; $i++) {
+for ($i = 0; $i < AVESMAPS_LORE_RULE_MAX_TERMS + 3; $i++) {
     $vieleRegionen[] = ['public_id' => 'a-x' . $i, 'name' => 'Xland' . $i, 'kind' => 'vegetation',
         'region_type' => 'wald', 'wiki_region_key' => 'xland' . $i];
     $viele[] = '[[Xland' . $i . ']]';
 }
 $grosserKatalog = avesmapsLoreRuleDeriveKatalog($vieleRegionen, $arten, $territorien);
 $v = avesmapsLoreRuleDeriveVorschlag(implode(', ', $viele), '', $grosserKatalog);
-assert(count($v['terms']) === AVESMAPS_LORE_RULE_DERIVE_MAX_TERMS, 'gedeckelt auf die Zahl, die der Schreibpfad annimmt');
+assert(count($v['terms']) === AVESMAPS_LORE_RULE_MAX_TERMS, 'gedeckelt auf die Zahl, die der Schreibpfad annimmt');
 assert(in_array('zu_viele', $gruende($v), true), 'und die Kappung ist sichtbar, nicht still');
 
 // =================================================================================================

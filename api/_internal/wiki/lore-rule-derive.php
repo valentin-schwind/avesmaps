@@ -44,6 +44,8 @@ require_once __DIR__ . '/regions.php';
 require_once __DIR__ . '/../app/ecosystem.php';
 // AVESMAPS_LORE_PLACE_FIELDS + avesmapsWikiSyncMonitorFieldKey -- welches Feld je Objektart der Ort ist.
 require_once __DIR__ . '/lore-parsing.php';
+// AVESMAPS_LORE_RULE_MAX_TERMS -- der Deckel, den der Schreibpfad durchsetzt. Rein, kein PDO.
+require_once __DIR__ . '/../app/lore-rule.php';
 
 /** Der Herkunftswert, den dieser Lauf schreibt -- und der EINZIGE, den er anfassen darf. */
 const AVESMAPS_LORE_RULE_DERIVE_ORIGIN = 'wiki_verbreitung';
@@ -91,8 +93,10 @@ const AVESMAPS_LORE_RULE_DERIVE_FREMDE_WELTEN = [
     'ehernes-schwert', 'dere', 'lorakis', 'arkania',
 ];
 
-/** Hoechstzahl der Bedingungen einer abgeleiteten Regel -- derselbe Deckel wie AVESMAPS_LORE_RULE_MAX_TERMS. */
-const AVESMAPS_LORE_RULE_DERIVE_MAX_TERMS = 25;
+// 🔴 Der Deckel für die Zahl der Bedingungen steht in api/_internal/app/lore-rule.php und NUR dort
+// (AVESMAPS_LORE_RULE_MAX_TERMS). Er ist der gekoppelte Wert zwischen dem Schreibpfad, der darüber
+// ABLEHNT, und dieser Ableitung, die darauf KAPPT -- eine eigene Kopie hier hätte beim nächsten
+// Verstellen genau einen der beiden mitgenommen (Konsistenzprüfung 19.08.2026).
 
 /** Die Gruende, aus denen eine Angabe nicht uebernommen wird -- Maschinenwert => deutscher Satz. */
 const AVESMAPS_LORE_RULE_DERIVE_GRUENDE = [
@@ -647,12 +651,12 @@ function avesmapsLoreRuleDeriveVorschlag(string $ortsfeld, string $lebensraum, a
         }
     }
 
-    if (count($flaechen) > AVESMAPS_LORE_RULE_DERIVE_MAX_TERMS) {
+    if (count($flaechen) > AVESMAPS_LORE_RULE_MAX_TERMS) {
         $verworfen[] = [
-            'text' => (count($flaechen) - AVESMAPS_LORE_RULE_DERIVE_MAX_TERMS) . ' weitere Flächen',
+            'text' => (count($flaechen) - AVESMAPS_LORE_RULE_MAX_TERMS) . ' weitere Flächen',
             'grund' => 'zu_viele',
         ];
-        $flaechen = array_slice($flaechen, 0, AVESMAPS_LORE_RULE_DERIVE_MAX_TERMS);
+        $flaechen = array_slice($flaechen, 0, AVESMAPS_LORE_RULE_MAX_TERMS);
     }
 
     $terms = [];
