@@ -234,9 +234,92 @@ function avesmapsLoreRuleLoadAreaCatalog() {
 				// "Boreale Zone" waehlt, bekommt "0 Flaechen · 0 Siedlungen" ohne Erklaerung, weil
 				// der Server die Wahl gar nicht kennt.
 				.filter(function (row) { return row.public_id !== "" && row.name !== "" && row.kind !== "klima"; });
+			avesmapsLoreRuleAreaCatalog = avesmapsLoreRuleBenenneVorschlaege(avesmapsLoreRuleAreaCatalog);
 			return avesmapsLoreRuleAreaCatalog;
 		});
 	return avesmapsLoreRuleAreaCatalogPromise;
+}
+
+// ---- Die Beschriftung EINES Flaechen-Vorschlags (rein) -----------------------------------------
+//
+// 💣 Doppelte Flaechennamen waren bis zum 19.08.2026 folgenlos: ein Flaechenname traf nur sich
+// selbst, also war es gleichgueltig, welchen der beiden man erwischte. Seit „innerhalb" bestimmt die
+// Wahl einen BEHAELTER -- und „Finsterkamm" gibt es zweimal: als derographische Region (11 Regionen
+// darin) und als Gebirge. Wer den falschen waehlt, bekommt eine Regel, die etwas voellig anderes
+// trifft, ohne Fehlermeldung.
+//
+// Gemessen am Livebestand 19.08.2026: 13 Namen kommen mehrfach vor. Ebene und Art trennen 10 davon
+// (darunter den Finsterkamm, den der Owner in seiner Regel benutzt hat). Fuer die uebrigen drei --
+// „Schwarzkuppen" (zweimal topographie/gebirge), „Grauer Wald" und „Hexenwald" (je zweimal
+// vegetation/wald) -- gibt es in diesem Katalog KEIN unterscheidendes Merkmal mehr: gleicher Name,
+// gleiche Ebene, gleiche Art, je eine Flaeche. Dann tritt der Anfang der public_id dazu. Er ist
+// haesslich und genau deshalb richtig: er sagt „diese beiden sind wirklich gleich benannt", statt
+// eine Unterscheidung vorzutaeuschen, die die Daten nicht hergeben.
+//
+// ⚠️ Der Zusatz erscheint NUR, wo er gebraucht wird -- ihn ueberall anzuhaengen machte 900 Zeilen
+// unleserlich, um 6 zu retten.
+// 🔴 ZWEI Ergebnisse, und sie sind verschieden:
+//   `pickerLabel` -- was in der Vorschlagsliste steht. Zeigt IMMER die Ebene (Entwurf §6.2:
+//                    „Jeder Vorschlag zeigt Ebene und Flächenzahl").
+//   `zusatz`      -- der KLEINSTE Unterschied, der diesen Namen von seinen Namensvettern trennt,
+//                    leer bei einem eindeutigen Namen. Er reist mit in Satz, Kartenzeile und
+//                    Marke, denn dort steht sonst wieder der nackte Name -- und eine GESPEICHERTE
+//                    Regel waere genauso mehrdeutig wie vorher (Befund der Konsistenzpruefung
+//                    19.08.2026: die Trennung lebte zuerst NUR im Vorschlag).
+function avesmapsLoreRuleBenenneVorschlaege(rows) {
+	var liste = Array.isArray(rows) ? rows : [];
+	// Eskalation: nichts -> Ebene -> Ebene + Art -> Ebene + Art + Anfang der public_id. Genommen
+	// wird die ERSTE Stufe, die die Namensvettern auseinanderhaelt.
+	var stufen = [
+		function () { return ""; },
+		function (row) { return row.kindLabel; },
+		function (row) { return row.kindLabel + (row.region_type ? " · " + row.region_type : ""); },
+		function (row) { return row.kindLabel + (row.region_type ? " · " + row.region_type : "")
+			+ " · " + String(row.public_id).slice(0, 4); },
+	];
+
+	var nachName = {};
+	liste.forEach(function (row) {
+		(nachName[row.name] = nachName[row.name] || []).push(row);
+	});
+	Object.keys(nachName).forEach(function (name) {
+		var gruppe = nachName[name];
+		var stufe = 0;
+		while (stufe < stufen.length - 1) {
+			var gesehen = {};
+			var doppelt = false;
+			gruppe.forEach(function (row) {
+				var schluessel = stufen[stufe](row);
+				if (gesehen[schluessel]) { doppelt = true; }
+				gesehen[schluessel] = true;
+			});
+			if (!doppelt) { break; }
+			stufe++;
+		}
+		gruppe.forEach(function (row) {
+			row.zusatz = stufen[stufe](row);
+			// Die Liste zeigt mindestens die Ebene, auch wenn der Name eindeutig ist.
+			row.pickerLabel = row.name + " — " + (row.zusatz || row.kindLabel);
+		});
+	});
+
+	return liste;
+}
+
+// Der Zusatz zu EINER gewaehlten Flaeche, aus dem Katalog. Leer, solange der Katalog nicht da ist
+// (die Regelkarte in der Liste wird gezeichnet, bevor der Editor je offen war) -- dann steht der
+// nackte Name da, wie vorher. Nie geraten: ein fehlender Katalog sagt nichts, statt etwas Falsches.
+function avesmapsLoreRuleAreaZusatz(publicId) {
+	if (!publicId || !Array.isArray(avesmapsLoreRuleAreaCatalog)) {
+		return "";
+	}
+	for (var i = 0; i < avesmapsLoreRuleAreaCatalog.length; i++) {
+		if (avesmapsLoreRuleAreaCatalog[i].public_id === publicId) {
+			return String(avesmapsLoreRuleAreaCatalog[i].zusatz || "");
+		}
+	}
+
+	return "";
 }
 
 // Die Beschriftung EINER Landschaftsart-Angabe ({kind, region_type}). Kennt der Katalog den
@@ -269,7 +352,13 @@ function avesmapsLoreRuleZoneLabel(zoneKey, zoneLabels) {
 // docs/vorkommen-klimazonen-mockup.html, „eine zweite Ableitung wäre genau die Stelle, an der Anzeige
 // und Wirkung auseinanderlaufen"). Werte sind bereits escaped.
 function avesmapsLoreRuleTermFields(term, zoneLabels) {
-	var areaName = escapeHtml(String((term && term.area_name) || "").trim());
+	// 💣 Der Zusatz gehoert HIERHER, nicht in den Satzbauer: Satz, Kartenzeile UND Marke lesen alle
+	// von dieser einen Ableitung. Haengte er nur am Vorschlag, waere eine GESPEICHERTE Regel wieder
+	// genauso mehrdeutig wie vor der Umstellung -- „Wald innerhalb von Grauer Wald" sagt nicht,
+	// welcher der beiden gemeint ist (Entwurf §3.4: Identitaet ist die public_id, nie der Name).
+	var rohName = String((term && term.area_name) || "").trim();
+	var zusatz = rohName ? avesmapsLoreRuleAreaZusatz((term && term.area_public_id) || "") : "";
+	var areaName = escapeHtml(rohName + (zusatz ? " (" + zusatz + ")" : ""));
 
 	var types = (term && Array.isArray(term.types)) ? term.types : [];
 	var typeLabels = types.map(function (type) { return escapeHtml(avesmapsLoreRuleTypeLabel(type)); });
@@ -290,26 +379,54 @@ function avesmapsLoreRuleTermFields(term, zoneLabels) {
 
 // ---- Satzbauer (rein) --------------------------------------------------------------------------------
 //
-// Je Bedingung, untereinander immer UND: Flächenname ("X heißt"), Landschaftsarten ("A oder B ist",
-// mehrere = ODER), Klimaspanne ("im Klima X liegt" bzw. "im Klima zwischen X und Y liegt" -- nie bei
-// gleichem Anfang und Ende). Folgt docs/vorkommen-regeleditor-mockup.html Zeilen 748-766.
+// 🔴 Der Satz IST der Anlass der Umstellung vom 19.08.2026. Der Owner nannte „bessere kommunikation"
+// als Grund, und der alte Satz war die Fehldiagnose in Textform: „etwas, das Mittelaventurien heißt
+// und Gebirge ist" sagte woertlich, was der Code tat -- und niemand las ihn so, weil niemand einen
+// Satz erwartet, der nie wahr sein kann (eine Flaeche hat genau eine Art).
+//
+// Jetzt ein ENTHALTENSEIN-Satz mit drei weglassbaren Teilen, in dieser Reihenfolge:
+//     [Landschaftsart] innerhalb von [Flaeche] im Klima [Klimazone]
+// (Der Owner schrieb den dritten Teil als „innerhalb der [Klimazone]"; dass hier „im Klima" steht,
+// ist Grammatik und nicht Bedeutung -- die Begruendung steht unten am Klimateil.)
+//
+// 💣 Ein WEGGELASSENER Teil faellt aus dem Satz heraus, statt als leeres Feld dazustehen -- und der
+// Fall „Art leer, Flaeche gesetzt" bekommt eine EIGENE Formulierung („die Flaeche X selbst"), weil er
+// etwas anderes bedeutet als „alles in X": er nennt einen Ort, keine Auswahl (siehe
+// avesmapsLoreRuleFlaecheErfuelltArtUndOrt, api/_internal/app/lore-rule.php). Wer den Unterschied
+// hier verschweigt, baut genau das Missverstaendnis wieder ein, das die Umstellung beseitigt hat --
+// live ist er der Unterschied zwischen 14 Waeldern und einer einzigen Flaeche.
 function avesmapsLoreRuleTermSentence(term, zoneLabels) {
 	var fields = avesmapsLoreRuleTermFields(term, zoneLabels);
-	var bits = [];
+	var satz;
 
-	if (fields.areaName) {
-		bits.push("<b>" + fields.areaName + "</b> heißt");
-	}
 	if (fields.typeLabels.length) {
-		bits.push("<b>" + fields.typeLabels.join("</b> oder <b>") + "</b> ist");
-	}
-	if (fields.climate) {
-		bits.push(fields.climate.isSpan
-			? "im Klima zwischen <b>" + fields.climate.from + "</b> und <b>" + fields.climate.to + "</b> liegt"
-			: "im Klima <b>" + fields.climate.from + "</b> liegt");
+		satz = "<b>" + fields.typeLabels.join("</b> oder <b>") + "</b>";
+		if (fields.areaName) {
+			satz += " innerhalb von <b>" + fields.areaName + "</b>";
+		}
+	} else if (fields.areaName) {
+		satz = "die Fläche <b>" + fields.areaName + "</b> selbst";
+	} else {
+		satz = "alles";
 	}
 
-	return bits.length ? bits.join(" und ") : "alles";
+	// ⚠️ „im Klima X", nicht „innerhalb der X" -- und das ist kein Rueckfall, sondern Grammatik.
+	// Die Zonennamen stehen im Nominativ im Katalog („Gemäßigte Zone", „Winterfeuchte Subtropen");
+	// „innerhalb der Gemäßigte Zone" waere falsches Deutsch, und die richtige Form braeuchte eine
+	// Deklination -- also genau den Textumbau, den diese Datei sich an anderer Stelle ausdruecklich
+	// verbietet (siehe avesmapsLoreRuleTypeLabel: „Aünlandschaft" sah richtig aus und war es nicht).
+	// Die Beziehung ist dieselbe; das Feld darueber heisst „innerhalb der Klimazone".
+	if (fields.climate) {
+		var klima = fields.climate.isSpan
+			? "im Klima zwischen <b>" + fields.climate.from + "</b> und <b>" + fields.climate.to + "</b>"
+			: "im Klima <b>" + fields.climate.from + "</b>";
+		// ⚠️ Steht davor nur „alles", bekommt der Klimateil einen Relativsatz: „alles im Klima X"
+		// behauptet erst Uneingeschraenktheit und nimmt sie im naechsten Wort zurueck -- genau die
+		// Art Satz, die diese Umstellung beseitigen sollte (Befund der Designpruefung 19.08.2026).
+		satz = satz === "alles" ? "alles, was " + klima + " liegt" : satz + " " + klima;
+	}
+
+	return satz;
 }
 
 // Der ganze Satz einer Regel. Rein: kein DOM-, kein Netzzugriff. Eine Regel ohne Bedingungen wirft
@@ -318,35 +435,43 @@ function avesmapsLoreRuleTermSentence(term, zoneLabels) {
 function avesmapsLoreRuleSentence(rule, zoneLabels) {
 	var terms = (rule && Array.isArray(rule.terms)) ? rule.terms : [];
 	if (!terms.length) {
-		return "Die Regel liest sich: etwas, das alles ist.";
+		return "Die Regel liest sich: alles.";
 	}
 
 	var parts = terms.map(function (term) { return avesmapsLoreRuleTermSentence(term || {}, zoneLabels); });
 	var sentence = parts[0];
 	for (var i = 1; i < parts.length; i++) {
 		var joinWord = terms[i] && terms[i].join_op === "oder" ? "oder" : "und";
-		sentence += " <b>" + joinWord + "</b> " + parts[i];
+		// ⚠️ Eigene Klasse fuer die Verknuepfung, nicht dieselbe Hervorhebung wie die Werte: seit die
+		// Art VOR der Flaeche steht, stossen drei fette Woerter aneinander („… Almada oder Gebirge"),
+		// und in derselben Akzentfarbe liest sich das wie eine Aufzaehlung statt wie ein Operator.
+		sentence += ' <b class="lore-rule-op">' + joinWord + "</b> " + parts[i];
 	}
-	return "Die Regel liest sich: etwas, das " + sentence + ".";
+	return "Die Regel liest sich: " + sentence + ".";
 }
 
 // ---- Zeilen EINER Bedingung für die Kartenansicht (rein) -----------------------------------------
 //
-// docs/vorkommen-klimazonen-mockup.html render(): "Fläche" (falls benannt), "Landschaft" (mehrere
-// Arten mit einem gedämpften „oder" verbunden, KEIN fett -- das Fett ist dem Satzbauer vorbehalten,
-// die Karte listet nur), "Klima" (eine Zone oder "von — bis" bei einer Spanne).
+// Mehrere Arten werden mit einem gedämpften „oder" verbunden, KEIN fett -- das Fett ist dem
+// Satzbauer vorbehalten, die Karte listet nur (docs/vorkommen-klimazonen-mockup.html, render()).
+// ⚠️ Die BESCHRIFTUNGEN dort („Fläche"/„Landschaft"/„Klima") gelten seit dem 19.08.2026 nicht mehr;
+// die Begruendung steht eine Zeile tiefer im Rumpf.
 function avesmapsLoreRuleTermLines(term, zoneLabels) {
 	var fields = avesmapsLoreRuleTermFields(term, zoneLabels);
 	var lines = [];
 
-	if (fields.areaName) {
-		lines.push(["Fläche", fields.areaName]);
-	}
+	// 🔴 Reihenfolge und Beschriftung folgen dem SATZ (19.08.2026): erst die Art, dann der
+	// Behaelter, dann die Zone. Und der Feldname sagt die BEZIEHUNG, nicht nur das Feld -- „Fläche"
+	// waere fuer beide Faelle dasselbe Wort und wuerde genau den Unterschied verschweigen, den der
+	// Satz eine Zeile tiefer ausschreibt.
 	if (fields.typeLabels.length) {
 		lines.push(["Landschaft", fields.typeLabels.join('<span class="lore-detail__rule-or"> oder </span>')]);
 	}
+	if (fields.areaName) {
+		lines.push([fields.typeLabels.length ? "innerhalb von" : "Fläche selbst", fields.areaName]);
+	}
 	if (fields.climate) {
-		lines.push(["Klima", fields.climate.isSpan
+		lines.push(["in der Zone", fields.climate.isSpan
 			? fields.climate.from + " — " + fields.climate.to
 			: fields.climate.from]);
 	}
@@ -750,9 +875,12 @@ function avesmapsLoreRuleAreaTokenMarkup(term, index) {
 	}
 	var areaKnown = avesmapsLoreRuleAreaCatalog.length === 0
 		|| avesmapsLoreRuleAreaCatalog.some(function (area) { return area.public_id === term.area_public_id; });
+	// Der Zusatz kommt aus derselben Ableitung wie Satz und Kartenzeile (avesmapsLoreRuleTermFields)
+	// -- die Marke ist die Stelle, an der ein Editor prueft, WAS er gerade gewaehlt hat.
+	var beschriftung = avesmapsLoreRuleTermFields(term, null).areaName || escapeHtml(String(term.area_public_id));
 	return '<button type="button" class="lore-rule-token' + (areaKnown ? "" : " is-unlisted")
 		+ '" data-lore-rule-remove-area data-term-index="' + index + '">'
-		+ escapeHtml(term.area_name || term.area_public_id) + '<span class="lore-rule-token__x">×</span></button>';
+		+ beschriftung + '<span class="lore-rule-token__x">×</span></button>';
 }
 
 function avesmapsLoreRuleTypeTokensMarkup(term, index) {
@@ -804,13 +932,9 @@ function avesmapsLoreRuleTermMarkup(term, index, total) {
 		+ (total < 2 ? " disabled" : "") + ' title="Bedingung entfernen">×</button>'
 		+ "</div>"
 
-		+ '<label class="lore-rule-field">'
-		+ '<span class="lore-rule-field__label">Flächenname</span>'
-		+ '<input type="text" class="lore-rule-input lore-rule-ac-input" data-lore-rule-area-input data-term-index="' + index + '"'
-		+ (term.area_public_id ? " hidden" : "") + ' placeholder="eine bestimmte Fläche suchen — leer = alle" autocomplete="off">'
-		+ '<span class="lore-rule-tokens" data-lore-rule-area-tokens>' + avesmapsLoreRuleAreaTokenMarkup(term, index) + "</span>"
-		+ "</label>"
-
+		// 🔴 Die Art steht seit dem 19.08.2026 OBEN, die Flaeche darunter -- die Reihenfolge des
+		// Satzes („Gebirge innerhalb von Mittelaventurien innerhalb der Gemaessigten Zone"), damit
+		// das Formular von oben nach unten dasselbe sagt wie der Satz darunter.
 		+ '<label class="lore-rule-field">'
 		+ '<span class="lore-rule-field__label">Landschaftsart <span class="lore-rule-field__hint">— mehrere sind ein ODER</span></span>'
 		+ '<input type="text" class="lore-rule-input lore-rule-ac-input" data-lore-rule-type-input data-term-index="' + index + '"'
@@ -818,8 +942,19 @@ function avesmapsLoreRuleTermMarkup(term, index, total) {
 		+ '<span class="lore-rule-tokens" data-lore-rule-type-tokens>' + avesmapsLoreRuleTypeTokensMarkup(term, index) + "</span>"
 		+ "</label>"
 
+		// ⚠️ Der Hinweis nennt BEIDE Bedeutungen, weil das Feld je nach Nachbarfeld zwei hat: mit
+		// Landschaftsart ist es ein Behaelter, ohne sie ist es das Objekt selbst. Ein Hinweis, der
+		// nur die eine nennt, ist in der Haelfte der Faelle falsch -- und der Satz unten sagt es
+		// ohnehin fuer den gerade eingestellten Zustand.
+		+ '<label class="lore-rule-field">'
+		+ '<span class="lore-rule-field__label">innerhalb von <span class="lore-rule-field__hint">— leer = überall; ohne Landschaftsart gilt die Fläche selbst</span></span>'
+		+ '<input type="text" class="lore-rule-input lore-rule-ac-input" data-lore-rule-area-input data-term-index="' + index + '"'
+		+ (term.area_public_id ? " hidden" : "") + ' placeholder="eine bestimmte Fläche suchen — leer = überall" autocomplete="off">'
+		+ '<span class="lore-rule-tokens" data-lore-rule-area-tokens>' + avesmapsLoreRuleAreaTokenMarkup(term, index) + "</span>"
+		+ "</label>"
+
 		+ '<div class="lore-rule-field">'
-		+ '<span class="lore-rule-field__label">Klimazone <span class="lore-rule-field__hint">— eine Spanne</span></span>'
+		+ '<span class="lore-rule-field__label">innerhalb der Klimazone <span class="lore-rule-field__hint">— eine Spanne</span></span>'
 		+ '<div class="lore-rule-climate">'
 		+ '<div class="lore-rule-climate__strip" data-lore-rule-climate-strip>' + avesmapsLoreRuleClimateStripMarkup(term, index, climateState) + "</div>"
 		+ '<div class="lore-rule-climate__ends"><span>Norden</span><span>Süden</span></div>'
@@ -1599,10 +1734,11 @@ function avesmapsLoreRuleWireAutocomplete(body) {
 					response(catalog.filter(function (area) {
 						return !needle || area.key.indexOf(needle) >= 0;
 					}).slice(0, 12).map(function (area) {
-						// Ebene als Zusatz im Label (Brief: "Jeder Vorschlag zeigt Ebene ..."), gebacken statt
-						// per eigenem _renderItem -- jQuery UI escaped item.label ueber .text() beim Zeichnen,
-						// ein eigener Renderer waere hier ein zweiter, ungeprueften Weg fuer denselben Namen.
-						return { label: area.name + " — " + area.kindLabel, value: area.public_id, name: area.name };
+						// Ebene (und seit 19.08.2026 Art, bei Gleichstand auch der Anfang der public_id) als
+						// Zusatz im Label -- gebacken in avesmapsLoreRuleBenenneVorschlaege statt per eigenem
+						// _renderItem: jQuery UI escaped item.label ueber .text() beim Zeichnen, ein eigener
+						// Renderer waere hier ein zweiter, ungeprueften Weg fuer denselben Namen.
+						return { label: area.pickerLabel, value: area.public_id, name: area.name };
 					}));
 				});
 			},

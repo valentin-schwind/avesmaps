@@ -796,10 +796,15 @@ details.avesmaps-lore__gruppe[open] > .avesmaps-lore__gruppe-kopf::after {
 	font-size: var(--font-size-small);
 }
 
-/* Feste Breite, keine Skala -- eine Ausrichtungsspalte für die Feldnamen ("Fläche"/"Landschaft"/
-   "Klima"), kein Design-Wert im Sinn von §12 (keine Farbe/Radius/Trenner). */
+/* Feste Breite, keine Skala -- eine Ausrichtungsspalte für die Feldnamen, kein Design-Wert im Sinn
+   von §12 (keine Farbe/Radius/Trenner).
+   💣 Die Zahl ist an die LÄNGSTE Beschriftung gebunden, und die ist am 19.08.2026 gewachsen: aus
+   "Fläche"/"Landschaft"/"Klima" wurden "Landschaft"/"innerhalb von"/"Fläche selbst"/"in der Zone"
+   (13 statt 10 Zeichen). 96px waren daran gemessen knapp; ohne Nachziehen bricht die Zeile in der
+   zugeklappten Regelkarte um und die Wertespalte verliert ihre Flucht. Wer die Beschriftungen in
+   avesmapsLoreRuleTermLines (js/review/review-lore-rule.js) ändert, misst hier nach. */
 .lore-detail__rule-layer {
-	flex: 0 0 96px;
+	flex: 0 0 112px;
 	color: var(--color-text-muted);
 }
 
@@ -1243,6 +1248,15 @@ details.avesmaps-lore__gruppe[open] > .avesmaps-lore__gruppe-kopf::after {
 
 .lore-rule-sentence b {
 	color: var(--color-accent-strong);
+}
+
+/* Die Verknuepfung ZWISCHEN zwei Bedingungen ("und"/"oder") ist ein Operator, kein Wert. Seit die
+   Landschaftsart im Satz VOR der Flaeche steht (19.08.2026), stossen drei fette Woerter aneinander
+   -- „… Almada oder Gebirge" liest sich in EINER Farbe wie eine Aufzaehlung. Gedaempft wie die
+   Bedingungs-Marke der Regelkarte (.lore-detail__rule-or-tag), damit beide Oberflaechen denselben
+   Unterschied auf dieselbe Art zeigen. */
+.lore-rule-sentence b.lore-rule-op {
+	color: var(--color-text-muted);
 }
 
 /* ---- Vorschau (Task 7): was die Regel trifft, plus der Rechenstand ---------------------------

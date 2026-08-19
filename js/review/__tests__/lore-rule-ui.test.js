@@ -49,6 +49,11 @@ const eine = { id: 2, relation: "verbreitung", terms: [term({ climate_from: "bor
 const satzEine = context.avesmapsLoreRuleSentence(eine, zoneLabels);
 assert.ok(!satzEine.includes("zwischen"), "eine einzelne Zone ohne 'zwischen'");
 assert.ok(satzEine.includes("Boreale Zone"));
+// 💣 Steht vor dem Klimateil nur "alles", braucht er einen Relativsatz. "alles im Klima X"
+// behauptet erst Uneingeschraenktheit und nimmt sie im naechsten Wort zurueck -- Befund der
+// Designpruefung vom 19.08.2026, und genau die Art Satz, die diese Umstellung beseitigen sollte.
+assert.strictEqual(satzEine, "Die Regel liest sich: alles, was im Klima <b>Boreale Zone</b> liegt.",
+	"eine Bedingung mit NUR Klima liest sich als Einschraenkung, nicht als Widerspruch");
 
 // Mehrere Arten in EINER Bedingung sind ein ODER, zwei Bedingungen tragen ihr eigenes Wort.
 const kette = { id: 3, relation: "verbreitung", terms: [
@@ -68,8 +73,15 @@ const ketteOhneTypen = { id: 6, relation: "verbreitung", terms: [
 	term({ join_op: "oder", area_public_id: "b2", area_name: "Zweitgebiet" }),
 ] };
 const satzKetteOhneTypen = context.avesmapsLoreRuleSentence(ketteOhneTypen, zoneLabels);
-assert.ok(satzKetteOhneTypen.includes("<b>oder</b>"), "join_op der zweiten Bedingung wird gelesen, nicht uebergangen");
-assert.ok(!satzKetteOhneTypen.includes("<b>und</b>"), "kein festverdrahtetes 'und' zwischen den Bedingungen");
+assert.ok(satzKetteOhneTypen.includes('<b class="lore-rule-op">oder</b>'),
+	"join_op der zweiten Bedingung wird gelesen, nicht uebergangen");
+assert.ok(!satzKetteOhneTypen.includes('<b class="lore-rule-op">und</b>'),
+	"kein festverdrahtetes 'und' zwischen den Bedingungen");
+// 💣 Die Verknuepfung traegt eine EIGENE Klasse -- ohne sie stossen im neuen Satz drei fette
+// Woerter aneinander („… Almada oder Gebirge") und lesen sich wie eine Aufzaehlung. Die Regel dazu
+// steht in css/features/lore.css; hier haengt nur, dass das Markup sie ueberhaupt anbietet.
+assert.ok(!satzKetteOhneTypen.includes("<b>oder</b>"),
+	"der Operator darf nicht dieselbe Hervorhebung tragen wie ein Wert");
 
 // 💣 Der Flaechenname kommt aus der Datenbank und wird ESCAPED. Ohne das traegt ein Name mit
 // spitzer Klammer fremdes Markup in die Editorliste.
@@ -282,6 +294,107 @@ ersteRunde.then((katalog) => {
 	assert.ok(!/avesmapsLoreRuleTypeLabelsPromise = null/.test(oeffner.slice(0, warten)),
 		"Der Landschaftsart-Katalog wird mitverworfen. Er ist ein fester Seed "
 		+ "(AVESMAPS_ECOSYSTEM_REGION_TYPE_SEED) -- das waere ein zweiter Abruf ohne Anlass.");
+
+	// ---- Die Regelsprache „innerhalb" (19.08.2026) --------------------------------------------
+	// 🔴 Der Owner nannte „bessere kommunikation" als Anlass der Umstellung. Der Satz ist damit die
+	// halbe Aufgabe, nicht ihre Kuer -- diese Zusicherungen pruefen ihn, nicht die Auswertung
+	// (die steht in api/_internal/app/__tests__/lore-regel-innerhalb-test.php).
+	const satzInnerhalb = context.avesmapsLoreRuleSentence({ id: 10, relation: "verbreitung", terms: [term({
+		types: [{ kind: "topographie", region_type: "gebirge" }],
+		area_public_id: "mav", area_name: "Mittelaventurien",
+	})] }, zoneLabels);
+	// 🔴 WOERTLICH, nicht per includes: das ist der Satz des Owners, und er ist die Abnahme dieser
+	// Umstellung. Eine lose Pruefung („enthaelt innerhalb von") laesst ein zurueckgekehrtes „ist"
+	// oder „heisst" daneben stehen -- gemessen: genau diese Mutation blieb gruen.
+	assert.strictEqual(satzInnerhalb,
+		"Die Regel liest sich: <b>Gebirge</b> innerhalb von <b>Mittelaventurien</b>.",
+		"Art plus Flaeche liest sich als Enthaltensein, nicht als zwei Eigenschaften desselben Dings");
+	assert.ok(satzInnerhalb.indexOf("Gebirge") < satzInnerhalb.indexOf("Mittelaventurien"),
+		"die Art steht VOR der Flaeche: Gebirge innerhalb von Mittelaventurien, nicht umgekehrt");
+	assert.ok(!satzInnerhalb.includes("heißt"),
+		'„X heisst und Y ist“ war die Fehldiagnose in Textform und darf nicht zurueckkommen');
+
+	// 💣 Der Fall, den der Satz UNTERSCHEIDEN muss: ohne Landschaftsart nennt die Bedingung einen
+	// ORT, keine Auswahl. Sagte der Satz auch hier „innerhalb von", laese sich „Almada" wie „alles
+	// in Almada" -- live der Unterschied zwischen 1 und bis zu 647 Treffern.
+	const satzNurFlaeche = context.avesmapsLoreRuleSentence({ id: 11, relation: "verbreitung", terms: [term({
+		area_public_id: "almada", area_name: "Almada",
+	})] }, zoneLabels);
+	assert.ok(satzNurFlaeche.includes("selbst"),
+		"ohne Art sagt der Satz, dass die Flaeche SELBST gemeint ist");
+	assert.ok(!satzNurFlaeche.includes("innerhalb von"),
+		"ohne Art darf der Satz kein Enthaltensein behaupten");
+
+	// Die Kartenzeilen tragen dieselbe Unterscheidung, mit denselben zwei Woertern.
+	const zeilenMitArt = context.avesmapsLoreRuleTermLines(term({
+		types: [{ kind: "topographie", region_type: "gebirge" }],
+		area_public_id: "mav", area_name: "Mittelaventurien",
+	}), zoneLabels).map((zeile) => zeile[0]);
+	// ⚠️ Ueber den TEXT verglichen, nicht per deepStrictEqual: die Zeilen kommen aus dem
+	// vm-Sandkasten und tragen dessen Array-Prototyp -- ein strikter Vergleich scheitert daran,
+	// obwohl der Inhalt stimmt.
+	assert.strictEqual(zeilenMitArt.join(" | "), "Landschaft | innerhalb von",
+		"Reihenfolge und Beschriftung der Kartenzeilen folgen dem Satz");
+	const zeilenOhneArt = context.avesmapsLoreRuleTermLines(term({
+		area_public_id: "almada", area_name: "Almada",
+	}), zoneLabels).map((zeile) => zeile[0]);
+	assert.strictEqual(zeilenOhneArt.join(" | "), "Fläche selbst",
+		"ohne Art heisst die Zeile anders -- sonst verschweigt die Karte, was der Satz ausschreibt");
+
+	// ---- Doppelte Flaechennamen im Vorschlag ---------------------------------------------------
+	// 💣 Live gemessen 19.08.2026: 13 Namen kommen mehrfach vor. Seit „innerhalb" bestimmt die Wahl
+	// einen BEHAELTER -- „Finsterkamm" gibt es als derographische Region (11 Regionen darin) und als
+	// Gebirge, und wer den falschen erwischt, bekommt eine Regel, die etwas anderes trifft.
+	const vorschlaege = context.avesmapsLoreRuleBenenneVorschlaege([
+		{ public_id: "aaaa1111", name: "Finsterkamm", kind: "derographisch", region_type: "", kindLabel: "Derographisch" },
+		{ public_id: "bbbb2222", name: "Finsterkamm", kind: "topographie", region_type: "gebirge", kindLabel: "Topographie" },
+		{ public_id: "cccc3333", name: "Grauer Wald", kind: "vegetation", region_type: "wald", kindLabel: "Vegetation" },
+		{ public_id: "dddd4444", name: "Grauer Wald", kind: "vegetation", region_type: "wald", kindLabel: "Vegetation" },
+		{ public_id: "eeee5555", name: "Farindelwald", kind: "vegetation", region_type: "wald", kindLabel: "Vegetation" },
+	]);
+	const beschriftet = vorschlaege.map((row) => row.pickerLabel);
+	assert.notStrictEqual(beschriftet[0], beschriftet[1],
+		"zwei Flaechen gleichen Namens auf verschiedenen Ebenen sind unterscheidbar");
+	// 🪤 Und die zwei, die auch mit Ebene UND Art gleich bleiben: gleicher Name, gleiche Ebene,
+	// gleiche Art. Dann tritt der Anfang der public_id dazu -- haesslich, und genau deshalb richtig.
+	assert.notStrictEqual(beschriftet[2], beschriftet[3],
+		"auch bei gleicher Ebene UND Art bleiben zwei Vorschlaege unterscheidbar");
+	assert.ok(beschriftet[2].includes("cccc") && beschriftet[3].includes("dddd"));
+	assert.ok(!beschriftet[4].includes("eeee"),
+		"ein eindeutiger Name traegt den Zusatz NICHT -- er waere Laerm in 900 Zeilen");
+	// Die Liste zeigt IMMER die Ebene (Entwurf §6.2), auch bei eindeutigem Namen ...
+	assert.ok(beschriftet[4].includes("Vegetation"), "jeder Vorschlag zeigt seine Ebene");
+	// ... der ZUSATZ dagegen ist der kleinste noetige Unterschied und bei einem eindeutigen Namen leer.
+	assert.strictEqual(vorschlaege[4].zusatz, "");
+	assert.strictEqual(vorschlaege[1].zusatz, "Topographie",
+		"beim Finsterkamm trennt die Ebene schon -- die Art waere ueberfluessiger Ballast");
+
+	// 🔴 DER BEFUND DER KONSISTENZPRUEFUNG (19.08.2026): der Zusatz lebte zuerst NUR im Vorschlag.
+	// Eine GESPEICHERTE Regel war damit wieder genauso mehrdeutig wie vor der Umstellung -- Satz,
+	// Kartenzeile und Marke lasen alle den nackten `area_name`. Alle drei kommen jetzt aus
+	// avesmapsLoreRuleTermFields, und die kennt den Katalog.
+	context.avesmapsLoreRuleAreaCatalog = vorschlaege;
+	const gewaehlt = term({ area_public_id: "cccc3333", area_name: "Grauer Wald",
+		types: [{ kind: "vegetation", region_type: "wald" }] });
+	assert.ok(context.avesmapsLoreRuleSentence({ terms: [gewaehlt] }, zoneLabels).includes("cccc"),
+		"der Satz nennt, WELCHER der zwei gleichnamigen Waelder gemeint ist");
+	assert.ok(context.avesmapsLoreRuleAreaTokenMarkup(gewaehlt, 0).includes("cccc"),
+		"die Marke unter dem Feld ebenso -- dort prueft ein Editor seine Wahl");
+	assert.ok(context.avesmapsLoreRuleTermLines(gewaehlt, zoneLabels)[1][1].includes("cccc"),
+		"und die Kartenzeile der zugeklappten Regel");
+	// Ein eindeutiger Name bleibt nackt -- der Zusatz ist eine Notloesung, keine Verzierung.
+	const eindeutig = term({ area_public_id: "eeee5555", area_name: "Farindelwald",
+		types: [{ kind: "vegetation", region_type: "wald" }] });
+	assert.ok(!context.avesmapsLoreRuleSentence({ terms: [eindeutig] }, zoneLabels).includes("("),
+		"ein eindeutiger Flaechenname steht ohne Klammerzusatz im Satz");
+	context.avesmapsLoreRuleAreaCatalog = [];
+
+	// Die Felder stehen in der Reihenfolge des Satzes: erst die Art, dann der Behaelter.
+	const feldMarkup = context.avesmapsLoreRuleTermMarkup(term({}), 0, 1);
+	assert.ok(feldMarkup.indexOf("Landschaftsart") < feldMarkup.indexOf("innerhalb von"),
+		"das Formular liest sich von oben nach unten wie der Satz darunter");
+	assert.ok(!feldMarkup.includes("Flächenname"),
+		'„Flaechenname“ sagt nur, WAS im Feld steht, nicht was es bedeutet');
 
 	console.log("lore-rule-ui: OK");
 }).catch((fehler) => {
