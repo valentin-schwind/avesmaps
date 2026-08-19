@@ -366,6 +366,82 @@ function avesmapsPathEcosystemCommit(PDO $pdo, array $payload, int $userId): arr
     return avesmapsPathEcosystemStatus($pdo);
 }
 
+// Wie viele Namen die Zahl „noch nicht gerechnet" mitschickt. Dieselbe Grenze wie der
+// Regionenfilter in ecosystem.php (avesmapsEcosystemParseRegionFilter), und aus demselben Grund:
+// eine Liste, die der Regeleditor Bedingung fuer Bedingung durchsieht, muss endlich sein.
+// 💣 Sie steht VOR ihrem ersten Gebrauch: PHP hoistet Funktionen, aber keine `const` auf
+// Dateiebene -- eine Konstante unter der Funktion ist ein Fatal Error mit LEEREM Rumpf
+// (gewacht von api/_internal/__tests__/const-vor-benutzung-test.php).
+const AVESMAPS_ECOSYSTEM_UNCOMPUTED_SAMPLE = 200;
+
+/**
+ * Wie viele Landschaftsflaechen haben GAR KEINE Zeile in ecosystem_region_overlap?
+ *
+ * 🔴 DAS IST DIE GROESSE, DIE „noch rechnen" TRAEGT -- und der Grund, warum sie und nicht ein
+ * Zeitstempel-Vergleich: eine Flaeche ohne Zeile ist fuer jede Lebensraum-Regel STUMM. „innerhalb"
+ * liest genau diese Tabelle (avesmapsLoreRuleFlaecheLiegtIn, lore-rule.php); ohne Zeile trifft die
+ * Regel wortlos nichts. Der Owner hat am 18.08.2026 eine halbe Stunde daran gesucht.
+ *
+ * 💣 SIE IST FALSCH-POSITIV-FREI, und das ist gemessen, nicht gehofft: die acht Klimabaender
+ * KACHELN DIE KARTE EXAKT (Flaechensumme 1.048.576 = 1024 x 1024, am Livebestand vom 19.08.2026
+ * auf die Einheit genau nachgerechnet). Jede gezeichnete Flaeche ueberlappt also mindestens ein
+ * Band, und bei der Speicherschwelle von 10 % der kleineren bekommt jede mindestens eine Zeile.
+ * Nachgerechnet ueber alle 929 Regionen: NULL haetten auch nach einem sauberen Lauf keine Zeile.
+ * „Null Zeilen" heisst damit ausnahmslos „nie gerechnet" -- keine Dauerwarnung, kein Sonderfall,
+ * keine Insel, die man wegdefinieren muss.
+ *
+ * 🪤 DER VERWORFENE WEG, damit ihn niemand zurueckbaut: „updated_at neuer als der Lauf". Er meldet
+ * auch eine reine UMBENENNUNG, und er ist an denselben Daten schwaecher -- am 19.08.2026 waren
+ * SIEBEN Regionen juenger als die neueste beweisbar gerechnete, sechs davon Seen, Buchten und
+ * Moore, bei denen der Zeitstempel nicht zwischen „neu gezeichnet" und „umbenannt" unterscheidet.
+ * Die Zeilenzahl unterscheidet es.
+ *
+ * ⚠️ ZWEI Ausschluesse, beide noetig, sonst zaehlt die Zahl Dinge mit, die nie eine Zeile bekommen:
+ *   * `r.kind <> 'klima'` -- ein Klimaband ist keine Flaeche im Sinne einer Regel (dieselbe Grenze
+ *     wie avesmapsLoreRuleReadAreas).
+ *   * eine Region OHNE aktive Flaeche hat nichts zu verschneiden. Es gibt sie: der Landschaften-
+ *     Editor sagt an seiner eigenen Partnerliste „Ohne gezeichnete Flaeche gibt es nichts zu
+ *     verschneiden". Ohne diesen Ausschluss stuende sie fuer immer im Zaehler und der Knopf waere
+ *     nie zufrieden.
+ *
+ * ⚠️ Die ZAHL bleibt vollstaendig, gekappt wird nur die Namensliste -- dieselbe Trennung und
+ * derselbe Grund wie bei AVESMAPS_LORE_RULE_PREVIEW_SAMPLE (api/edit/map/lore.php): eine gekappte
+ * Zahl waere eine Luege ueber die Reichweite des Problems.
+ *
+ * @return array{count: int, public_ids: list<string>, truncated: bool}
+ */
+function avesmapsEcosystemRegionsWithoutOverlap(PDO $pdo, int $limit = AVESMAPS_ECOSYSTEM_UNCOMPUTED_SAMPLE): array
+{
+    $where = "r.is_active = 1 AND r.kind <> 'klima' AND o.region_id IS NULL"
+        . ' AND EXISTS (SELECT 1 FROM ecosystem_area a WHERE a.region_id = r.id AND a.is_active = 1)';
+    $from = 'FROM ecosystem_region r LEFT JOIN ecosystem_region_overlap o ON o.region_id = r.id';
+
+    try {
+        $count = (int) $pdo->query("SELECT COUNT(*) {$from} WHERE {$where}")->fetchColumn();
+    } catch (Throwable) {
+        // Fehlt eine der Tabellen (nie eingerichtet), ist die Antwort „nichts bekannt" -- nicht
+        // „alles offen". Ein Knopf, der nach einem Tabellenfehler „929 Flaechen noch nicht
+        // gerechnet" behauptet, schickt jemanden in einen Lauf, den es nicht braucht.
+        return ['count' => 0, 'public_ids' => [], 'truncated' => false];
+    }
+    if ($count === 0) {
+        return ['count' => 0, 'public_ids' => [], 'truncated' => false];
+    }
+
+    try {
+        $statement = $pdo->prepare("SELECT r.public_id {$from} WHERE {$where} ORDER BY r.name, r.public_id LIMIT :grenze");
+        $statement->bindValue('grenze', max(1, $limit), PDO::PARAM_INT);
+        $statement->execute();
+        $ids = $statement->fetchAll(PDO::FETCH_COLUMN);
+    } catch (Throwable) {
+        return ['count' => $count, 'public_ids' => [], 'truncated' => $count > 0];
+    }
+
+    $ids = array_map('strval', $ids ?: []);
+
+    return ['count' => $count, 'public_ids' => $ids, 'truncated' => $count > count($ids)];
+}
+
 /**
  * The stamp plus the CURRENT revisions, so the button can say „veraltet" without a second request.
  *
@@ -396,5 +472,9 @@ function avesmapsPathEcosystemStatus(PDO $pdo): array
             'ecosystem_revision' => avesmapsReadEcosystemRevision($pdo),
             'map_revision' => (int) ($pdo->query('SELECT revision FROM map_revision WHERE id = 1')->fetchColumn() ?: 0),
         ],
+        // Die eigentliche Auskunft fuer die Kachel „Zugehoerigkeit rechnen": nicht „wann zuletzt",
+        // sondern „wie viel ist stumm". Siehe avesmapsEcosystemRegionsWithoutOverlap fuer die
+        // Herleitung -- und dafuer, warum es nicht der Zeitstempel ist.
+        'uncomputed' => avesmapsEcosystemRegionsWithoutOverlap($pdo),
     ];
 }

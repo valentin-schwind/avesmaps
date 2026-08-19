@@ -37,11 +37,50 @@ function avesmapsLoreZugehoerigkeitText(response) {
 	if (!run) {
 		return "noch nie gerechnet";
 	}
+	// 💣 DIE REIHENFOLGE TRAEGT. Waehrend eines Laufs ist ecosystem_region_overlap LEER
+	// (avesmapsPathEcosystemBegin loescht sie, bevor er sie neu fuellt) -- der Zaehler stuende dann
+	// auf „929 Flaechen noch nicht gerechnet" und forderte genau den Lauf, der gerade laeuft.
+	// Derselbe Grund, aus dem avesmapsLoreRuleAssignmentRunning die Trefferzahlen daneben
+	// unterdrueckt: eine echte Null waehrend des Laufs sieht aus wie ein Befund.
 	if (!run.completed) {
 		return "wird gerade gerechnet …";
 	}
 
+	// Der ZAEHLER, sobald er ueber null ist: er sagt, dass etwas zu tun ist, und wie viel.
+	// Sonst der ZEITPUNKT -- er beruhigt, statt eine Null zu zeigen (Owner-Wortlaut 19.08.2026).
+	var offen = avesmapsLoreZugehoerigkeitOffeneZahl(response);
+	if (offen > 0) {
+		return offen === 1
+			? "1 Fläche noch nicht gerechnet"
+			: offen + " Flächen noch nicht gerechnet";
+	}
+
 	return "zuletzt " + avesmapsLoreZugehoerigkeitZeit(run.computed_at);
+}
+
+// PURE: wie viele Flaechen haben GAR KEINE Ueberlappungszeile -- also: wie viele sind fuer jede
+// Lebensraum-Regel stumm? `-1` heisst „unbekannt" (nicht gefragt, Abruf gescheitert, oder eine
+// Serverfassung ohne dieses Feld) und ist ausdruecklich NICHT null: „unbekannt" darf nirgends als
+// „alles in Ordnung" gelesen werden.
+//
+// ⭐ Nach aussen gegeben (window.avesmapsLoreZugehoerigkeitOffeneFlaechen), damit eine
+// Nachbarkachel im selben Menueband sie mitbenutzen kann, statt dieselbe Abfrage ein zweites Mal zu
+// schreiben. Die naechste ist „Regeln ableiten": ein Regelvorschlag auf ungerechnetem Bestand
+// erzeugt Regeln, die stumm bleiben -- genau der Fall vom 18.08.2026.
+function avesmapsLoreZugehoerigkeitOffeneZahl(response) {
+	if (!response || !response.uncomputed || typeof response.uncomputed.count !== "number") {
+		return -1;
+	}
+
+	return response.uncomputed.count;
+}
+
+// Die public_id aller (bis zur Kappung genannten) Flaechen ohne Zeile -- fuer den Hinweis AN DER
+// BEDINGUNG im Regeleditor. Leer, solange nichts bekannt ist.
+function avesmapsLoreZugehoerigkeitOffeneIds(response) {
+	var roh = response && response.uncomputed && response.uncomputed.public_ids;
+
+	return Array.isArray(roh) ? roh : [];
 }
 
 // PURE: „19.08.2026, 04:12". Von Hand statt toLocaleString, damit das Format nicht von der
@@ -116,7 +155,18 @@ document.addEventListener("click", function (event) {
 	avesmapsLoreZugehoerigkeitOeffnen();
 });
 
+// Der zuletzt gemessene Stand, fuer Nachbarkacheln im selben Menueband. `-1` = unbekannt.
+window.avesmapsLoreZugehoerigkeitOffeneFlaechen = function () {
+	return avesmapsLoreZugehoerigkeitOffeneZahl(avesmapsLoreZugehoerigkeitStand);
+};
+// Dieselbe Auskunft als Liste -- der Regeleditor faerbt damit die einzelne Bedingung.
+window.avesmapsLoreZugehoerigkeitOffeneFlaechenIds = function () {
+	return avesmapsLoreZugehoerigkeitOffeneIds(avesmapsLoreZugehoerigkeitStand);
+};
+
 window.avesmapsLoreZugehoerigkeitText = avesmapsLoreZugehoerigkeitText;
+window.avesmapsLoreZugehoerigkeitOffeneZahl = avesmapsLoreZugehoerigkeitOffeneZahl;
+window.avesmapsLoreZugehoerigkeitOffeneIds = avesmapsLoreZugehoerigkeitOffeneIds;
 window.avesmapsLoreZugehoerigkeitZeit = avesmapsLoreZugehoerigkeitZeit;
 window.avesmapsLoreZugehoerigkeitPaint = avesmapsLoreZugehoerigkeitPaint;
 window.avesmapsLoreZugehoerigkeitRefresh = avesmapsLoreZugehoerigkeitRefresh;

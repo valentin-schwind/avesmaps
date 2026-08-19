@@ -951,6 +951,11 @@ function avesmapsLoreRuleTermMarkup(term, index, total) {
 		+ '<input type="text" class="lore-rule-input lore-rule-ac-input" data-lore-rule-area-input data-term-index="' + index + '"'
 		+ (term.area_public_id ? " hidden" : "") + ' placeholder="eine bestimmte Fläche suchen — leer = überall" autocomplete="off">'
 		+ '<span class="lore-rule-tokens" data-lore-rule-area-tokens>' + avesmapsLoreRuleAreaTokenMarkup(term, index) + "</span>"
+		// 🔴 DER ORT, AN DEM DER OWNER GESUCHT HAT. Waehlt jemand eine Flaeche, fuer die es noch
+		// keine Ueberlappungszeilen gibt, trifft diese Bedingung wortlos nichts -- und im
+		// Rechenweg daneben steht dann eine 0, die wie ein Befund aussieht. Gefuellt von
+		// avesmapsLoreRulePaintPreview, sobald der Stand da ist; leer, solange nichts bekannt ist.
+		+ '<span class="lore-rule-hint lore-rule-hint--warn" data-lore-rule-area-warn hidden></span>'
 		+ "</label>"
 
 		+ '<div class="lore-rule-field">'
@@ -1317,6 +1322,27 @@ function avesmapsLoreRuleFormatStamp(value) {
 		+ " " + pad(parsed.getHours()) + ":" + pad(parsed.getMinutes());
 }
 
+// PURE: trifft diese Bedingung eine Flaeche, fuer die es noch keine Ueberlappungszeilen gibt?
+//
+// 🔴 Dann trifft sie WORTLOS nichts -- „innerhalb" liest ecosystem_region_overlap, und eine Flaeche
+// ohne Zeile steht dort nicht. Genau daran hat der Owner am 18.08.2026 eine halbe Stunde gesucht:
+// die Regel war richtig, der Rechenweg zeigte 0, und nichts sagte warum.
+//
+// ⚠️ Nur bei GESETZTER Flaeche: ohne Flaechenbedingung gibt es keine einzelne Flaeche, an der etwas
+// haengen koennte -- die Kachel im Menueband traegt die Gesamtzahl.
+// ⚠️ Die Liste ist gekappt (AVESMAPS_ECOSYSTEM_UNCOMPUTED_SAMPLE, 200). Eine Flaeche, die nicht
+// darin steht, gilt hier als gerechnet -- lieber ein Hinweis zu wenig als einer, der bei einer
+// gepflegten Flaeche steht.
+function avesmapsLoreRuleTermAreaUngerechnet(term, response) {
+	var wanted = term && term.area_public_id;
+	if (!wanted) {
+		return false;
+	}
+	var ids = (response && response.uncomputed && response.uncomputed.public_ids) || [];
+
+	return Array.isArray(ids) && ids.indexOf(wanted) >= 0;
+}
+
 // PURE: die Aussage „Zuletzt gerechnet" aus der assignment_status-Antwort ({stamp, current}).
 // 💣 „veraltet" ist ein VERGLEICH, keine Vermutung -- der Stempel traegt die Revisionen, gegen die
 // gerechnet wurde, `current` die aktuellen. Ist `completed` falsch, rechnet gerade ein Lauf UND die
@@ -1476,6 +1502,14 @@ function avesmapsLoreRulePaintPreview(body) {
 	}
 
 	state.terms.forEach(function (term, index) {
+		var warnEl = body.querySelector('[data-lore-rule-term][data-term-index="' + index + '"] [data-lore-rule-area-warn]');
+		if (warnEl) {
+			var ungerechnet = avesmapsLoreRuleTermAreaUngerechnet(term, state.assignmentStamp);
+			warnEl.hidden = !ungerechnet;
+			warnEl.textContent = ungerechnet
+				? "Diese Fläche ist noch nicht gerechnet — die Bedingung trifft nichts, bis der Lauf ‚Zugehörigkeit rechnen‘ durch ist."
+				: "";
+		}
 		var hitsEl = body.querySelector('[data-lore-rule-term][data-term-index="' + index + '"] [data-lore-rule-term-hits]');
 		if (!hitsEl) {
 			return;

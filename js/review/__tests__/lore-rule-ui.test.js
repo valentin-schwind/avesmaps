@@ -396,6 +396,33 @@ ersteRunde.then((katalog) => {
 	assert.ok(!feldMarkup.includes("Flächenname"),
 		'„Flaechenname“ sagt nur, WAS im Feld steht, nicht was es bedeutet');
 
+	// ---- Der Hinweis AN DER BEDINGUNG (19.08.2026) --------------------------------------------
+	// 🔴 Waehlt jemand eine Flaeche, fuer die es noch keine Ueberlappungszeilen gibt, trifft die
+	// Bedingung WORTLOS nichts -- und der Rechenweg daneben zeigt eine 0, die wie ein Befund
+	// aussieht. Genau daran hat der Owner am 18.08.2026 eine halbe Stunde gesucht.
+	const stand = { stamp: { completed: true }, uncomputed: { count: 1, public_ids: ["neu-1"], truncated: false } };
+	assert.strictEqual(
+		context.avesmapsLoreRuleTermAreaUngerechnet(term({ area_public_id: "neu-1" }), stand), true,
+		"eine Bedingung auf einer ungerechneten Flaeche wird erkannt");
+	assert.strictEqual(
+		context.avesmapsLoreRuleTermAreaUngerechnet(term({ area_public_id: "alt-1" }), stand), false,
+		"GEGENPROBE: eine gerechnete Flaeche bekommt keinen Hinweis");
+	// ⚠️ Ohne Flaechenbedingung gibt es keine einzelne Flaeche, an der etwas haengen koennte --
+	// die Gesamtzahl traegt die Kachel im Menueband.
+	assert.strictEqual(
+		context.avesmapsLoreRuleTermAreaUngerechnet(term({ types: [{ kind: "vegetation", region_type: "wald" }] }), stand),
+		false, "eine Bedingung ohne Flaeche traegt den Hinweis nicht");
+	// Solange nichts bekannt ist, wird nichts behauptet.
+	assert.strictEqual(context.avesmapsLoreRuleTermAreaUngerechnet(term({ area_public_id: "neu-1" }), null), false);
+	assert.strictEqual(context.avesmapsLoreRuleTermAreaUngerechnet(term({ area_public_id: "neu-1" }), { stamp: null }), false);
+
+	// Und der Platz dafuer steht im Markup -- ohne ihn faende das Neuzeichnen nichts zu fuellen.
+	// 🪤 Auf die ATTRIBUTGRENZE geprueft, nicht auf die Zeichenfolge: eine Umbenennung nach
+	// „…-warn-XX" enthaelt den alten Namen als Teilstring und blieb damit gruen (gemessen 19.08.2026)
+	// -- das Neuzeichnen haette den Knoten trotzdem nie gefunden.
+	assert.ok(new RegExp("data-lore-rule-area-warn[ >]").test(context.avesmapsLoreRuleTermMarkup(term({}), 0, 1)),
+		"die Bedingung hat keinen Platz fuer den Hinweis");
+
 	console.log("lore-rule-ui: OK");
 }).catch((fehler) => {
 	console.error(fehler);

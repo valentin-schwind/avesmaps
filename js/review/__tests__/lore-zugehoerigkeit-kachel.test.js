@@ -54,6 +54,46 @@ assert.strictEqual(
 	"der Zeitpunkt beruhigt, solange nichts offen ist -- Wortlaut aus dem Brief"
 );
 
+// ---- 1b. Der ZAEHLER schlaegt den Zeitpunkt ---------------------------------------------------
+// Owner-Wortlaut 19.08.2026: der Zaehler, sobald er ueber null ist (er sagt, dass etwas zu tun ist,
+// und wie viel); sonst der Zeitpunkt (er beruhigt, statt eine Null zu zeigen).
+const fertig = (offen) => ({
+	stamp: { completed: true, computed_at: "2026-08-19 04:12:00.000" },
+	uncomputed: { count: offen, public_ids: [], truncated: false },
+});
+assert.strictEqual(text(fertig(3)), "3 Flächen noch nicht gerechnet");
+assert.strictEqual(text(fertig(1)), "1 Fläche noch nicht gerechnet", "Einzahl, nicht '1 Flächen'");
+assert.strictEqual(text(fertig(0)), "zuletzt 19.08.2026, 04:12", "bei null zeigt sie den Zeitpunkt");
+
+// 💣 DIE REIHENFOLGE. Waehrend eines Laufs ist ecosystem_region_overlap LEER (der Lauf loescht sie,
+// bevor er sie neu fuellt) -- der Zaehler stuende dann auf „alles offen" und forderte genau den
+// Lauf, der gerade laeuft.
+assert.strictEqual(
+	text({ stamp: { completed: false }, uncomputed: { count: 929, public_ids: [] } }),
+	"wird gerade gerechnet …",
+	"ein laufender Lauf schlaegt den Zaehler -- sonst meldet er seine eigene geleerte Tabelle"
+);
+// Und dasselbe, wenn nie gerechnet wurde: „noch nie gerechnet" sagt mehr als eine Zahl.
+assert.strictEqual(
+	text({ stamp: null, uncomputed: { count: 929, public_ids: [] } }),
+	"noch nie gerechnet"
+);
+
+// Eine Serverfassung OHNE das Feld faellt auf den Zeitpunkt zurueck, statt zu werfen.
+assert.strictEqual(text({ stamp: { completed: true, computed_at: "2026-08-19 04:12:00.000" } }),
+	"zuletzt 19.08.2026, 04:12");
+
+// ⭐ Die Zahl ist von aussen abfragbar -- die Nachbarkachel „Regeln ableiten" braucht sie, statt
+// dieselbe Abfrage ein zweites Mal zu schreiben. `-1` heisst UNBEKANNT und darf nirgends als
+// „alles in Ordnung" gelesen werden.
+assert.strictEqual(k.avesmapsLoreZugehoerigkeitOffeneZahl(fertig(3)), 3);
+assert.strictEqual(k.avesmapsLoreZugehoerigkeitOffeneZahl(null), -1, "unbekannt ist nicht null");
+assert.strictEqual(k.avesmapsLoreZugehoerigkeitOffeneZahl({ stamp: null }), -1);
+assert.deepStrictEqual(
+	k.avesmapsLoreZugehoerigkeitOffeneIds({ uncomputed: { public_ids: ["r-1", "r-2"] } }).join("|"),
+	"r-1|r-2"
+);
+
 // ---- 2. Verdrahtung: die Kachel steht im Menüband des Vorkommen-Fensters ------------------------
 const seite = fs.readFileSync("index.html", "utf8");
 const bandStart = seite.indexOf('<div class="lore-ribbon" id="lore-ribbon">');
