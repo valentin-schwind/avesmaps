@@ -168,9 +168,27 @@ assert.equal(facets("citymaps").find((f) => f.key === "scale").kind, "tri");
 // nicht gibt, rendert lautlos ins Nichts -- der Trichter zaehlt sie dann, zeigt aber nichts an.
 // Siedlungen tragen ihre Abschnitte noch als festes Markup; Abenteuer und Karten bekommen nur
 // die leere Huelle, die wikiSyncBuildFacetMenu aus der Registry fuellt.
+// 🪤 Der Schluessel der Registry ist NICHT die id im Markup, und der rohe Schluessel ist
+// KEINE der beiden Ableitungen, die das Haus benutzt:
+//   Siedlungen (festes Markup)     camelCase -> kebab-case   buildingType -> building-type
+//   Abenteuer/Karten (Generator)   key.toLowerCase()         thumbOrigin  -> thumborigin
+// Bis 2026-08-19 setzte diese Zeile den rohen Schluessel ein und meldete deshalb, der
+// Abschnitt "settlement-buildingType-filter-menu" fehle. Er fehlt nicht -- er heisst
+// "settlement-building-type-filter-menu" und steht als "↳ Art (nur Bauwerke)" im Markup,
+// gezeichnet in review-settlement-list.js und im Trichter gezaehlt. Dass "scope" einwortig
+// ist und unter allen drei Schreibweisen gleich aussieht, hat den Fehler verdeckt.
+const settlementMenuId = (key) => `settlement-${key.replace(/[A-Z]/g, (c) => "-" + c.toLowerCase())}-filter-menu`;
+const settlementListSource = readFileSync(path.join(repoRoot, "js", "review", "review-settlement-list.js"), "utf8");
 facetKeys("locations").forEach((key) => {
-	assert.ok(markup.includes(`id="settlement-${key}-filter-menu"`),
-		`Siedlungs-Facette ${key} hat keinen Abschnitt in index.html`);
+	const menuId = settlementMenuId(key);
+	assert.ok(markup.includes(`id="${menuId}"`),
+		`Siedlungs-Facette ${key} hat keinen Abschnitt #${menuId} in index.html`);
+	// Die Huelle allein genuegt nicht: gezeichnet wird ueber dieselbe id (renderTypeFilter)
+	// und GEZAEHLT wird ueber sie im Trichter (attachFilterMenu). Steht sie dort nicht, ist
+	// der Abschnitt zwar da, aber niemand fuellt oder zaehlt ihn -- genau das lautlose Nichts,
+	// das dieser Block verhindern soll, nur eine Ebene tiefer als das blosse Markup.
+	assert.ok(settlementListSource.includes(`"${menuId}"`),
+		`review-settlement-list.js nennt #${menuId} nicht -- Registry und Renderer laufen auseinander`);
 });
 [["adv", "wiki-sync-adv"], ["cm", "wiki-sync-cm"]].forEach(([, prefix]) => {
 	assert.ok(markup.includes(`id="${prefix}-filter-toggle"`), `${prefix}: Trichter fehlt in index.html`);
