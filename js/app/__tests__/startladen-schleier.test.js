@@ -224,10 +224,23 @@ assert.ok(/transition:[^;]*transform 0\.22s/.test(handleRegel[1]),
 	"die Info-Lasche fuehrt transform in ihrer Transition -- sonst springt sie, statt zu gleiten");
 
 const reviewCss = withoutComments(read("css", "features", "review-panel.css"));
-const toggleRegel = reviewCss.match(/^\.review-panel-toggle\s*\{([^}]*)\}/m);
-assert.ok(toggleRegel, "die Regel .review-panel-toggle steht in review-panel.css");
-assert.ok(/transition:[^;]*transform 220ms/.test(toggleRegel[1]),
-	"die Editor-Lasche ebenso -- und in IHRER Dauer (220ms), nicht in einer neuen");
+// 💣 Der Selektor `.review-panel-toggle` steht ZWEIMAL am Zeilenanfang: einmal als letzte
+// Selektorzeile einer SAMMELREGEL (gemeinsam mit .review-panel__icon-button -- dort steht die
+// geteilte Optik der Knoepfe), einmal als EIGENE Regel. Gemeint ist die eigene, erkennbar an
+// `position: fixed`. Ein `^`-verankertes match() nimmt die erste und damit die falsche; genau
+// das ist beim Bau passiert und hat die Sammelregel veraendert, die hier nichts zu suchen hat.
+const toggleRegeln = [...reviewCss.matchAll(/^\.review-panel-toggle\s*\{([^}]*)\}/gm)].map((t) => t[1]);
+const toggleRegel = toggleRegeln.find((rumpf) => /position:\s*fixed/.test(rumpf));
+assert.ok(toggleRegel,
+	"die EIGENSTAENDIGE Regel .review-panel-toggle steht in review-panel.css (die mit position: fixed)");
+assert.ok(/transition:[^;]*transform 220ms/.test(toggleRegel),
+	"die Editor-Lasche fuehrt transform in ihrer Transition -- und in IHRER Dauer (220ms)");
+// ...und die Sammelregel bleibt unberuehrt: sie faerbt auch die Kopfknoepfe des Panels, die mit
+// dem Startlauf nichts zu tun haben.
+const sammelRegel = reviewCss.match(/^\.review-panel__icon-button,\s*\.review-panel-toggle\s*\{([^}]*)\}/m);
+assert.ok(sammelRegel && !/transition:/.test(sammelRegel[1]),
+	"die Sammelregel .review-panel__icon-button + .review-panel-toggle traegt KEINE transition --"
+	+ " sie gehoert der geteilten Knopf-Optik, nicht dem Startlauf");
 
 // 🔴 Der Planer und SEINE Lasche bleiben unangetastet. #toggle-button steht auf left:350px und
 // landet beim Start auf left:0 -- also sichtbar. Das ist der Owner-Entscheid vom 12.08.2026

@@ -58,7 +58,6 @@
 	color: var(--color-text-strong);
 	cursor: pointer;
 	font: inherit;
-	transition: transform 220ms ease;
 }
 
 .review-panel__icon-button {
