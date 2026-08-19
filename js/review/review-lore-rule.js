@@ -625,6 +625,23 @@ function avesmapsLoreRuleOpenEditor(wikiKey, rule) {
 		}
 	});
 
+	// 🔴 DER FLAECHEN-VORRAT WIRD BEIM OEFFNEN VERWORFEN, nicht einmal je Seitenleben behalten.
+	// Owner 18.08.2026: „ich habe bei bergwolf mittelaventurien als neue derographische region
+	// hinzugefuegt aber sie war unter ‚regel' nicht gelistet - erst nachdem ich die seite neugeladen
+	// hatte". Ursache: `avesmapsLoreRuleAreaCatalogPromise` wurde einmal gesetzt und nie wieder --
+	// wer im Landschaften-Editor eine Flaeche anlegt und dann zu den Vorkommen wechselt, sucht sie
+	// vergeblich. Ein Neuladen half, und genau daran war es nicht als Fehler zu erkennen.
+	// ⭐ EINMAL JE OEFFNEN, nicht je Tastendruck: die Vervollstaendigung ruft
+	// avesmapsLoreRuleLoadAreaCatalog() bei jedem Zeichen auf, bekommt aber dieselbe Zusage zurueck
+	// -- der Abruf faellt genau einmal an, wenn der Kasten aufgeht (list_regions, rund 900 Zeilen).
+	// Eine Vollabfrage je Klick waere die Last, vor der AGENTS.md §9 warnt.
+	// ⚠️ Die zuletzt geholte LISTE bleibt stehen (`avesmapsLoreRuleAreaCatalog` wird nicht geleert):
+	// solange die neue Antwort unterwegs ist, schlaegt die Vervollstaendigung weiter den alten
+	// Bestand vor, statt eine Sekunde lang gar nichts zu finden.
+	// 🪤 Der ART-Katalog (region_types) wird bewusst NICHT verworfen -- das ist ein fester Seed
+	// (AVESMAPS_ECOSYSTEM_REGION_TYPE_SEED), keine Sammlung, die ein Editor nebenan waechst.
+	avesmapsLoreRuleAreaCatalogPromise = null;
+
 	Promise.all([avesmapsLoreRuleLoadTypeLabels(), avesmapsLoreRuleLoadAreaCatalog()]).then(function () {
 		// Der Editor kann inzwischen zu sein oder eine ANDERE Regel zeigen -- ein spaetes Nachladen
 		// darf dann nicht mehr zeichnen (dieselbe Vorsicht wie openLoreDetail gegen schnelles

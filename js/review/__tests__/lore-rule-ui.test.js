@@ -217,4 +217,75 @@ const hitsBoese = hitsMarkup([{ public_id: "a1", name: '<img src=x onerror="aler
 assert.ok(!hitsBoese.includes("<img"), "der Name darf kein Markup einschleusen");
 assert.ok(hitsBoese.includes("&lt;img"), "er steht escaped drin");
 
-console.log("lore-rule-ui: OK");
+// ── Der Flaechen-Vorrat darf nicht ueberaltern ─────────────────────────────────────────────────
+// Owner 18.08.2026: „ich habe bei bergwolf mittelaventurien als neue derographische region
+// hinzugefuegt aber sie war unter ‚regel' nicht gelistet - erst nachdem ich die seite neugeladen
+// hatte". Ursache: der Vorrat wurde einmal je Seitenleben geholt und nie erneuert.
+//
+// 🔴 ZWEI HAELFTEN, und nur die erste ist hier wirklich pruefbar.
+// (a) VERHALTEN: die Zusage wird gecacht (kein Abruf je Tastendruck), und ein Verwerfen des
+//     Modulzustands fuehrt zu genau EINEM neuen Abruf. Das ist der Mechanismus, auf dem die
+//     Reparatur steht -- gemessen an einem Abrufzaehler, nicht behauptet.
+// (b) VERDRAHTUNG: dass avesmapsLoreRuleOpenEditor ihn beim Oeffnen verwirft. Das ist eine Aussage
+//     ueber den QUELLTEXT, weil die Funktion ohne echtes DOM sofort zurueckkehrt -- sie ist als
+//     solche gekennzeichnet und ersetzt den Handgriff im Browser nicht.
+let abrufe = 0;
+context.fetch = function (url, options) {
+	const rumpf = String((options && options.body) || "");
+	if (rumpf.indexOf("list_regions") >= 0) {
+		abrufe += 1;
+	}
+	return Promise.resolve({
+		ok: true,
+		json: function () {
+			return Promise.resolve({
+				ok: true,
+				regions: [{ public_id: "r-neu", name: "Mittelaventurien", kind: "derographisch", region_type: "region" }],
+			});
+		},
+	});
+};
+
+const ersteRunde = context.avesmapsLoreRuleLoadAreaCatalog();
+context.avesmapsLoreRuleLoadAreaCatalog();
+context.avesmapsLoreRuleLoadAreaCatalog();
+ersteRunde.then((katalog) => {
+	assert.strictEqual(abrufe, 1,
+		`Drei Aufrufe duerfen EINEN Abruf ausloesen (die Vervollstaendigung ruft ihn bei jedem `
+		+ `Zeichen). Waren: ${abrufe}. Ohne den Cache waere das eine Vollabfrage je Tastendruck.`);
+	assert.deepStrictEqual(katalog.map((a) => a.name), ["Mittelaventurien"],
+		"Der Vorrat traegt, was der Server geliefert hat.");
+
+	// Das Verwerfen -- genau das, was avesmapsLoreRuleOpenEditor beim Oeffnen tut.
+	context.avesmapsLoreRuleAreaCatalogPromise = null;
+	return context.avesmapsLoreRuleLoadAreaCatalog();
+}).then(() => {
+	assert.strictEqual(abrufe, 2,
+		`Nach dem Verwerfen muss GENAU EIN weiterer Abruf kommen -- sonst bliebe eine neu `
+		+ `angelegte Flaeche bis zum Neuladen unsichtbar. Waren: ${abrufe}.`);
+
+	// (b) Die Verdrahtung, ausdruecklich am Quelltext: der Riegel steht IM Oeffner und VOR dem
+	// Warten auf die beiden Kataloge -- danach waere er wirkungslos, weil die alte Zusage dann
+	// schon abgewartet ist.
+	const quelle = fs.readFileSync("js/review/review-lore-rule.js", "utf8");
+	const oeffner = quelle.slice(quelle.indexOf("function avesmapsLoreRuleOpenEditor("));
+	const verwerfen = oeffner.indexOf("avesmapsLoreRuleAreaCatalogPromise = null");
+	const warten = oeffner.indexOf("Promise.all([avesmapsLoreRuleLoadTypeLabels()");
+	assert.ok(verwerfen > -1,
+		"avesmapsLoreRuleOpenEditor verwirft den Flaechen-Vorrat nicht mehr. Dann ist eine neu "
+		+ "angelegte Landschaftsflaeche im Regel-Kasten wieder erst nach einem Neuladen da.");
+	assert.ok(warten > -1 && verwerfen < warten,
+		"Das Verwerfen muss VOR dem Warten auf die Kataloge stehen -- danach wuerde bereits die "
+		+ "alte Zusage abgewartet und der Riegel liefe ins Leere.");
+	// 🪤 Und der ART-Katalog bleibt ausdruecklich stehen: er ist ein fester Seed, keine Sammlung,
+	// die ein Editor nebenan waechst. Wer ihn mitverwirft, holt bei jedem Oeffnen zwei Listen.
+	assert.ok(!/avesmapsLoreRuleTypeLabelsPromise = null/.test(oeffner.slice(0, warten)),
+		"Der Landschaftsart-Katalog wird mitverworfen. Er ist ein fester Seed "
+		+ "(AVESMAPS_ECOSYSTEM_REGION_TYPE_SEED) -- das waere ein zweiter Abruf ohne Anlass.");
+
+	console.log("lore-rule-ui: OK");
+}).catch((fehler) => {
+	console.error(fehler);
+	process.exitCode = 1;
+});
+
