@@ -129,3 +129,49 @@ html.avesmaps-booting .avesmaps-boot-veil {
 	color: var(--color-text-strong);
 	letter-spacing: 0.01em;
 }
+
+/* ---- Die Windrose im Schleier ----------------------------------------------------------------
+   Gebaut in js/app/loading-bar.js (windroseMarkup); hier stehen ihre Farben und ihre Bewegung.
+   💣 Die Farben stehen NUR hier. Das Markup traegt Klassen und keinen einzigen Farbwert -- ein
+   Literal im JS-String faende kein CSS-Sweep je (AGENTS.md §12), und im dunklen Thema stuende es
+   als schwarzer Fleck da. */
+.avesmaps-boot-veil__rose {
+	display: block;
+	width: 64px;
+	height: 64px;
+}
+.avesmaps-boot-veil__pale { fill: var(--color-boot-ring-pale); }
+.avesmaps-boot-veil__ink { fill: var(--color-boot-ring-ink); }
+.avesmaps-boot-veil__hub { fill: var(--color-accent-strong); }
+.avesmaps-boot-veil__track { stroke: var(--color-boot-ring-track); }
+
+/* 🔴 Das EINZIGE, was sich bewegt. Die Rose selbst steht -- eine kreiselnde Kompassrose liest sich
+   als „verirrt", nicht als „laedt" (Owner 19.08.2026).
+   💣 `transform-box: fill-box` ist tragend: ohne sie ist der Bezugspunkt einer Drehung bei einem
+   SVG-Teilelement der ganze Zeichenbereich, und das Goldstueck liefe auf einer KREISBAHN um die
+   Rose herum, statt sich an Ort und Stelle zu drehen. Das sieht aus wie ein Fehler im Pfad und
+   ist keiner. */
+.avesmaps-boot-veil__sweep {
+	stroke: var(--color-accent-strong);
+	transform-box: fill-box;
+	transform-origin: center;
+	animation: avesmaps-boot-sweep 1.5s linear infinite;
+}
+
+@keyframes avesmaps-boot-sweep {
+	to { transform: rotate(360deg); }
+}
+
+/* ⚠️ Ein voellig stehender Kreis sagt nichts -- er saehe aus, als waere die Seite eingefroren,
+   also genau nach dem, was er widerlegen soll. Statt der Drehung blendet er langsam auf und ab:
+   das ist keine vestibulaere Bewegung und bleibt trotzdem ein Lebenszeichen. */
+@keyframes avesmaps-boot-pulse {
+	0%, 100% { opacity: 0.35; }
+	50% { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.avesmaps-boot-veil__sweep {
+		animation: avesmaps-boot-pulse 1.8s ease-in-out infinite;
+	}
+}

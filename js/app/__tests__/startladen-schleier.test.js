@@ -125,4 +125,61 @@ const enStrings = withoutComments(read("js", "app", "i18n-en.js"));
 assert.ok(/"boot\.loading":\s*"[^"]+"/.test(enStrings),
 	"js/app/i18n-en.js kennt boot.loading -- sonst steht der Satz unter ?lang=en dauerhaft deutsch");
 
+// ---- Die Windrose ------------------------------------------------------------------------------
+//
+// 💣 Der Ring haengt am SCHLEIER, nicht im Textknoten: der Uebersetzer setzt `el.textContent = v`
+// und raeumte die SVG im selben Knoten mit weg, sobald jemand ?lang=en aufruft. Der Fehler waere
+// unter Deutsch unsichtbar.
+assert.ok(/veil\.insertBefore\(\s*rose\s*,\s*veilText\s*\)/.test(ladeJs),
+	"die Windrose wird VOR den Textknoten in den Schleier gehaengt (Geschwister, nicht Kind)");
+assert.ok(!/veilText\.(innerHTML|appendChild)/.test(ladeJs),
+	"...und NICHT in den Textknoten: der Uebersetzer setzt dort textContent und raeumte die SVG"
+	+ " mit weg -- unter Deutsch waere das unsichtbar");
+
+// 🔴 Die Rose STEHT. Bewegt wird allein das goldene Stueck (Owner 19.08.2026) -- eine kreiselnde
+// Kompassrose liest sich als „verirrt", nicht als „laedt".
+const sweep = ladeCss.match(/^\.avesmaps-boot-veil__sweep\s*\{([^}]*)\}/m);
+assert.ok(sweep, "das laufende Stueck hat eine eigene Regel");
+assert.ok(/animation:\s*avesmaps-boot-sweep/.test(sweep[1]),
+	"...und es ist das EINZIGE, was sich dreht");
+const rosenRegel = ladeCss.match(/^\.avesmaps-boot-veil__rose\s*\{([^}]*)\}/m);
+assert.ok(rosenRegel && !/animation:/.test(rosenRegel[1]),
+	"die Rose selbst dreht sich NICHT -- eine kreiselnde Kompassrose liest sich als „verirrt\"");
+
+// 💣 Ohne `transform-box: fill-box` ist der Bezugspunkt einer Drehung bei einem SVG-Teilelement
+// der ganze Zeichenbereich: das goldene Stueck liefe dann auf einer KREISBAHN um die Rose herum,
+// statt sich an Ort und Stelle zu drehen. Das sieht aus wie ein Fehler im Pfad und ist keiner.
+assert.ok(/transform-box:\s*fill-box/.test(sweep[1]),
+	"transform-box: fill-box ist tragend -- ohne sie kreist das Goldstueck um die Rose herum");
+assert.ok(/transform-origin:\s*center/.test(sweep[1]),
+	"...zusammen mit transform-origin: center");
+
+// ⚠️ Ein voellig stehender Kreis sagt nichts. Unter prefers-reduced-motion blendet er auf und ab.
+const ruhig = ladeCss.match(/@media\s*\(prefers-reduced-motion:\s*reduce\)\s*\{([\s\S]*?)\n\}/g) || [];
+assert.ok(ruhig.some((block) => /avesmaps-boot-veil__sweep/.test(block) && /avesmaps-boot-pulse/.test(block)),
+	"unter prefers-reduced-motion tritt eine Blende an die Stelle der Drehung -- ein voellig"
+	+ " stehender Kreis sagt nichts, und eine Blende ist keine vestibulaere Bewegung");
+
+// ---- Keine Farbe im Markup ---------------------------------------------------------------------
+//
+// 💣 Die SVG entsteht als String im JS. Genau dort schleicht sich ein Literal ein, das kein
+// CSS-Sweep je findet -- und im dunklen Thema faellt es dann als schwarzer Fleck auf.
+const markup = ladeJs.match(/function windroseMarkup\(\)[\s\S]*?\n\t\}/);
+assert.ok(markup, "windroseMarkup() steht in loading-bar.js");
+assert.ok(!/#[0-9a-fA-F]{3,8}\b|rgba?\(/.test(markup[0]),
+	"kein Farbliteral in der SVG -- die Farben kommen ueber Klassen aus dem Stylesheet"
+	+ " (AGENTS.md §12). Ein Literal hier faende kein CSS-Sweep je.");
+
+// ---- Der Teilstrichkranz ist GERECHNET, nicht geraten -------------------------------------------
+//
+// 24 Striche auf dem Ring r=40: Umfang 2*PI*40 = 251,33, geteilt durch 24 = 10,47 -- minus der
+// Strichlaenge 1,6 bleibt die Luecke 8,87. Eine geratene Zahl laesst den Kranz sichtbar auslaufen
+// (der letzte Strich trifft den ersten nicht).
+const kranz = ladeJs.match(/stroke-dasharray="1\.6 ([0-9.]+)"/);
+assert.ok(kranz, "der Teilstrichkranz traegt seine dasharray");
+const erwarteteLuecke = (2 * Math.PI * 40) / 24 - 1.6;
+assert.ok(Math.abs(Number(kranz[1]) - erwarteteLuecke) < 0.05,
+	`die Luecke im Kranz ist ${kranz[1]}, gerechnet waeren es ${erwarteteLuecke.toFixed(2)}`
+	+ " (24 Striche auf r=40). Eine geratene Zahl laesst den Kranz sichtbar auslaufen.");
+
 console.log("startladen-schleier: alle Zusicherungen gehalten");

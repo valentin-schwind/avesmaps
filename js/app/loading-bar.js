@@ -46,6 +46,54 @@
 	veilText.setAttribute("role", "status");
 	veilText.textContent = "Karte wird geladen …";
 	veil.appendChild(veilText);
+
+	// Die Windrose -- das Wappen der alten Karten, gewaehlt aus vier vorgelegten Fassungen
+	// (Owner 19.08.2026: „die windrose ist schön").
+	// 🔴 Sie STEHT. Bewegt wird allein das goldene Stueck auf dem Aussenring, wie ein
+	// Sonnenschatten: eine kreiselnde Kompassrose liest sich als „verirrt", nicht als „laedt".
+	// 💣 Kein Farbwert im Markup -- die Farben haengen an Klassen und kommen aus dem Stylesheet
+	// (AGENTS.md §12). Ein Literal hier faende kein CSS-Sweep je, und im dunklen Thema stuende es
+	// als schwarzer Fleck da.
+	// Die acht Zacken entstehen in zwei Schleifen, damit die Drehwinkel nicht achtmal von Hand
+	// dastehen. Gezeichnet wird in einem 0..100-Feld um den Mittelpunkt 50,50.
+	function windroseMarkup() {
+		let zacken = "";
+		// vier LANGE Zacken (N/O/S/W), je zwei Haelften hell/dunkel -- die Seekarten-Optik
+		[0, 90, 180, 270].forEach(function (grad) {
+			zacken += '<g transform="rotate(' + grad + ' 50 50)">'
+				+ '<path class="avesmaps-boot-veil__pale" d="M50 15 L43.5 43.5 L50 50 Z"/>'
+				+ '<path class="avesmaps-boot-veil__ink" d="M50 15 L56.5 43.5 L50 50 Z"/>'
+				+ "</g>";
+		});
+		// vier KURZE Zacken (NO/SO/SW/NW)
+		[45, 135, 225, 315].forEach(function (grad) {
+			zacken += '<g transform="rotate(' + grad + ' 50 50)">'
+				+ '<path class="avesmaps-boot-veil__pale" d="M50 27 L46 46 L50 50 Z"/>'
+				+ '<path class="avesmaps-boot-veil__ink" d="M50 27 L54 46 L50 50 Z"/>'
+				+ "</g>";
+		});
+		return '<svg class="avesmaps-boot-veil__rose" viewBox="0 0 100 100" aria-hidden="true">'
+			+ '<circle class="avesmaps-boot-veil__track" cx="50" cy="50" r="46" fill="none"'
+			+ ' stroke-width="1.5"/>'
+			// 💣 Die Luecke ist AUS DEM UMFANG gerechnet: 24 Striche auf r=40, Umfang 2*PI*40 =
+			// 251,33, davon ein Vierundzwanzigstel = 10,47, minus 1,6 Strichlaenge = 8,87. Eine
+			// geratene Zahl laesst den Kranz sichtbar auslaufen -- der letzte Strich trifft den
+			// ersten nicht. Der Test rechnet es nach.
+			+ '<circle class="avesmaps-boot-veil__track" cx="50" cy="50" r="40" fill="none"'
+			+ ' stroke-width="4" stroke-dasharray="1.6 8.87"/>'
+			+ zacken
+			+ '<circle class="avesmaps-boot-veil__hub" cx="50" cy="50" r="2.6"/>'
+			// Das laufende Stueck: 48 von 289,03 Umfang (2*PI*46), also rund ein Sechstel des
+			// Kreises -- gross genug, um es zu sehen, klein genug, um nicht als Ring zu lesen.
+			+ '<circle class="avesmaps-boot-veil__sweep" cx="50" cy="50" r="46" fill="none"'
+			+ ' stroke-width="3" stroke-linecap="round" stroke-dasharray="48 241"/>'
+			+ "</svg>";
+	}
+
+	const rose = document.createElement("div");
+	rose.className = "avesmaps-boot-veil__ring";
+	rose.innerHTML = windroseMarkup();
+	veil.insertBefore(rose, veilText);
 	host.appendChild(veil);
 
 	const pending = new Set();
