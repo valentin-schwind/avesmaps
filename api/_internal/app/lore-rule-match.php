@@ -44,8 +44,14 @@ const AVESMAPS_LORE_RULE_AREA_LIMIT = 25;
  * Eine Flaeche ist genau EINE Art (kind/region_type) und beruehrt eine oder mehrere Zonen --
  * `zones` wandert unveraendert durch, das ist dieselbe Aussage wie in lore-rule.php.
  *
- * @param array{public_id: string, kind: string, region_type: string, zones: list<string>} $area
- * @return array{public_id: string, area_public_ids: list<string>, types: list<array{kind: string, region_type: string}>, zones: list<string>}
+ * 🔴 `flaechen` ist seit dem 19.08.2026 eine Liste von FLAECHEN, nicht mehr eine Liste von
+ * Arten. Der Unterschied traegt „innerhalb": eine Art allein sagt nicht, WELCHE Flaeche sie
+ * hatte, und ohne diese Bindung laesst sich „ein Gebirge, das in Mittelaventurien liegt"
+ * nicht von „irgendein Gebirge, und ausserdem liege ich in Mittelaventurien" unterscheiden.
+ * Genau diese Verwechslung war der alte Siedlungszweig (siehe avesmapsLoreRuleTermMatchesSubject).
+ *
+ * @param array{public_id: string, kind: string, region_type: string, zones: list<string>, container_public_ids?: list<string>} $area
+ * @return array{public_id: string, area_public_ids: list<string>, flaechen: list<array{public_id: string, kind: string, region_type: string, container_public_ids: list<string>}>, zones: list<string>}
  */
 function avesmapsLoreRuleSubjectFromArea(array $area): array
 {
@@ -57,9 +63,11 @@ function avesmapsLoreRuleSubjectFromArea(array $area): array
         // die Flaeche X selbst treffen, ohne dass avesmapsLoreRuleTermMatchesSubject zwei
         // verschiedene Felder (public_id vs. area_public_ids) je nach Subjektart kennen muss.
         'area_public_ids' => [$publicId],
-        'types' => [[
+        'flaechen' => [[
+            'public_id' => $publicId,
             'kind' => (string) ($area['kind'] ?? ''),
             'region_type' => (string) ($area['region_type'] ?? ''),
+            'container_public_ids' => array_values(array_map('strval', (array) ($area['container_public_ids'] ?? []))),
         ]],
         'zones' => array_values((array) ($area['zones'] ?? [])),
     ];
@@ -73,41 +81,47 @@ function avesmapsLoreRuleSubjectFromArea(array $area): array
  * genau EINER. Von den 44 Siedlungen im Finsterkamm liegen nur 4 im borealen Band -- wer der
  * Siedlung die Zonen ihrer Flaeche vererbt, macht aus 4 Treffern 44. Deshalb kommt `zones`
  * hier IMMER aus `$place['zone']` (der gerechneten Punktzone), nie aus einer der Flaechen in
- * `$areasById`. `types` dagegen IST die Vereinigung ueber alle Flaechen, in denen die Siedlung
- * liegt -- das ist die Frage "von welcher Art ist die Umgebung", die eine Flaeche allein nicht
+ * `$areasById`. `flaechen` dagegen IST die Liste aller Flaechen, in denen die Siedlung liegt --
+ * das ist die Frage "von welcher Art ist die Umgebung", die eine Flaeche allein nicht
  * beantworten kann, sobald ein Ort (der "Bergwald") in mehreren liegt.
  *
+ * 💣 Und seit dem 19.08.2026 wird NICHT MEHR nach (kind|region_type) dedupliziert. Die
+ * Entdopplung war richtig, solange nur die Art zaehlte -- zwei Waelder sind fuer die Frage
+ * „bist du ein Wald" dasselbe. Fuer „bist du ein Wald IN Almada" sind sie es nicht: der eine
+ * liegt darin, der andere nicht, und die Entdopplung wuerde den falschen von beiden
+ * behalten. Jede Flaeche reist deshalb einzeln, mit ihren eigenen Behaeltern.
+ *
  * @param array{public_id: string, zone: string, area_public_ids: list<string>} $place
- * @param array<string, array{public_id: string, kind: string, region_type: string, zones?: list<string>}> $areasById
- * @return array{public_id: string, area_public_ids: list<string>, types: list<array{kind: string, region_type: string}>, zones: list<string>}
+ * @param array<string, array{public_id: string, kind: string, region_type: string, container_public_ids?: list<string>}> $areasById
+ * @return array{public_id: string, area_public_ids: list<string>, flaechen: list<array{public_id: string, kind: string, region_type: string, container_public_ids: list<string>}>, zones: list<string>}
  */
 function avesmapsLoreRuleSubjectFromPlace(array $place, array $areasById): array
 {
     $areaIds = array_values(array_map('strval', (array) ($place['area_public_ids'] ?? [])));
 
-    $types = [];
+    $flaechen = [];
     $seen = [];
-    // In der Reihenfolge der Flaechenliste, nicht dedupliziert erst am Ende: dieselbe
-    // "Ausgabe folgt der Eingabe"-Zusage wie avesmapsLoreRuleEvaluate.
+    // In der Reihenfolge der Flaechenliste: dieselbe "Ausgabe folgt der Eingabe"-Zusage wie
+    // avesmapsLoreRuleEvaluate. Entdoppelt wird nur noch ueber die public_id -- dieselbe
+    // Flaeche zweimal genannt ist eine Flaeche, zwei verschiedene sind zwei.
     foreach ($areaIds as $areaId) {
         $area = $areasById[$areaId] ?? null;
-        if ($area === null) {
+        if ($area === null || isset($seen[$areaId])) {
             continue;
         }
-        $kind = (string) ($area['kind'] ?? '');
-        $regionType = (string) ($area['region_type'] ?? '');
-        $key = $kind . '|' . $regionType;
-        if (isset($seen[$key])) {
-            continue;
-        }
-        $seen[$key] = true;
-        $types[] = ['kind' => $kind, 'region_type' => $regionType];
+        $seen[$areaId] = true;
+        $flaechen[] = [
+            'public_id' => $areaId,
+            'kind' => (string) ($area['kind'] ?? ''),
+            'region_type' => (string) ($area['region_type'] ?? ''),
+            'container_public_ids' => array_values(array_map('strval', (array) ($area['container_public_ids'] ?? []))),
+        ];
     }
 
     return [
         'public_id' => (string) ($place['public_id'] ?? ''),
         'area_public_ids' => $areaIds,
-        'types' => $types,
+        'flaechen' => $flaechen,
         'zones' => [(string) ($place['zone'] ?? '')],
     ];
 }
@@ -115,68 +129,65 @@ function avesmapsLoreRuleSubjectFromPlace(array $place, array $areasById): array
 /**
  * PURE: trifft diese Bedingung dieses Subjekt?
  *
- * Dieselben drei Fragen, dieselbe UND-Verknuepfung wie avesmapsLoreRuleTermMatchesArea:
- * "heisst so" (Identitaet) · "ist von dieser Art" (mehrere Typen an der Bedingung = ODER,
- * mehrere Typen am Subjekt ebenfalls ODER -- irgendein Paar muss passen) · "liegt in dieser
- * Zone". Ein leeres Feld fragt nicht.
+ * 🔴 DIE ZWEI ZWEIGE SIND SEIT DEM 19.08.2026 EINE RECHNUNG. Art und Ort beantwortet
+ * `avesmapsLoreRuleFlaecheErfuelltArtUndOrt` (lore-rule.php) -- dieselbe Funktion, die auch
+ * avesmapsLoreRuleTermMatchesArea ruft. Hier kommt nur noch dazu, dass ein Subjekt MEHRERE
+ * Flaechen haben kann (eine Siedlung liegt in Wald und Gebirge zugleich): es genuegt, wenn
+ * EINE davon die Bedingung erfuellt.
  *
- * Die Identitaet prueft gegen ZWEI Felder: `$subject['public_id']` (das Subjekt selbst) ODER
- * eines seiner `$subject['area_public_ids']` (die Flaechen, in denen es liegt). Fuer eine
- * Flaeche als Subjekt sind das dieselbe eine ID; fuer eine Siedlung deckt es "die Regel nennt
- * die Flaeche, in der ich liege" ab -- die Siedlung im Farindel wird von einer Bedingung
- * "Flaechenname = Farindel" mitgetroffen, nicht nur die Flaeche selbst.
+ * 💣 „Eine davon" ist der ganze Unterschied zur alten Fassung. Die prueft(e) Identitaet und
+ * Art UNABHAENGIG voneinander -- eine Siedlung galt als „Gebirge in Mittelaventurien", wenn
+ * sie IRGENDWO in einem Gebirge lag UND IRGENDWO in Mittelaventurien, auch wenn das zwei
+ * verschiedene Flaechen waren und das Gebirge gar nicht in Mittelaventurien liegt. Gemessen
+ * am Livebestand: 124 Siedlungen unter der alten Lesart, waehrend derselbe Satz fuer Flaechen
+ * 0 ergab. Die zwei Zahlen waren nie dieselbe Frage.
+ *
+ * ⚠️ Der Klimateil bleibt getrennt und wird gegen `$subject['zones']` geprueft, nie gegen die
+ * Zonen der Flaeche: eine Siedlung ist ein PUNKT und liegt in genau EINER Zone (Entwurf §3.3
+ * -- der Finsterkamm traegt 44 Siedlungen, 4 davon im borealen Band).
  *
  * @param array<string, mixed> $term
- * @param array{public_id: string, area_public_ids: list<string>, types: list<array{kind: string, region_type: string}>, zones: list<string>} $subject
+ * @param array{public_id: string, area_public_ids: list<string>, flaechen: list<array{public_id: string, kind: string, region_type: string, container_public_ids: list<string>}>, zones: list<string>} $subject
  * @param list<string> $orderedZoneKeys
  */
 function avesmapsLoreRuleTermMatchesSubject(array $term, array $subject, array $orderedZoneKeys): bool
 {
-    $wanted = $term['area_public_id'] ?? null;
-    if ($wanted !== null) {
-        $ownId = (string) ($subject['public_id'] ?? '');
-        $areaIds = (array) ($subject['area_public_ids'] ?? []);
-        if ($ownId !== $wanted && !in_array($wanted, $areaIds, true)) {
-            return false;
-        }
-    }
-
-    $types = $term['types'] ?? [];
-    if ($types !== []) {
-        $hit = false;
-        foreach ((array) ($subject['types'] ?? []) as $subjectType) {
-            $subjectKind = (string) ($subjectType['kind'] ?? '');
-            $subjectRegionType = (string) ($subjectType['region_type'] ?? '');
-            foreach ($types as $type) {
-                if ((string) ($type['kind'] ?? '') === $subjectKind
-                    && (string) ($type['region_type'] ?? '') === $subjectRegionType) {
-                    $hit = true;
-                    break 2;
-                }
-            }
-        }
-        if (!$hit) {
-            return false;
-        }
-    }
-
     $zoneKeys = avesmapsLoreRuleZoneKeys($orderedZoneKeys, $term['climate_from'] ?? null, $term['climate_to'] ?? null);
     if ($zoneKeys !== [] && array_intersect($zoneKeys, (array) ($subject['zones'] ?? [])) === []) {
         return false;
     }
 
-    return true;
+    $flaechen = (array) ($subject['flaechen'] ?? []);
+    if ($flaechen === []) {
+        // Kein Ort ohne Flaeche: eine Siedlung ausserhalb jeder Landschaftsflaeche kann von
+        // keiner Art- und keiner Ortsbedingung getroffen werden. Nur eine reine Klimaregel
+        // (Art leer, Flaeche leer) darf sie noch treffen -- die hat den Riegel oben passiert.
+        return ($term['area_public_id'] ?? null) === null && ($term['types'] ?? []) === [];
+    }
+
+    foreach ($flaechen as $flaeche) {
+        if (avesmapsLoreRuleFlaecheErfuelltArtUndOrt($term, (array) $flaeche)) {
+            return true;
+        }
+    }
+
+    return false;
 }
 
 /**
  * Liest EINE Flaeche als Subjekt -- fuer den oeffentlichen Lesepfad, nicht fuer den Editor.
  *
  * Vorbild: avesmapsLoreRuleReadAreas (lore-rule-store.php), fast wortgleich, aber auf eine
- * einzelne public_id eingeschraenkt statt auf den ganzen Bestand. Das redundant wirkende
- * `IN (...)` ist von dort uebernommen und aus demselben Grund noetig: ecosystem_region_overlap
- * haelt jedes beruehrende Flaechenpaar in BEIDEN Richtungen, tausende Zeilen, und nur eine
- * Handvoll betrifft ein Klimaband. Der JOIN allein wuerde richtig filtern, aber die ganze
- * Tabelle lesen; das IN laesst idx_ecosystem_overlap_other den Index nutzen.
+ * einzelne public_id eingeschraenkt statt auf den ganzen Bestand.
+ *
+ * 🔴 Der Partner-JOIN kennt seit dem 19.08.2026 KEINEN kind-Filter mehr: dieselbe Zeile
+ * beantwortet jetzt zwei Fragen -- ein Klimapartner wird eine `zone`, jeder andere ein
+ * BEHAELTER (das „innerhalb" der Regelsprache). Das frueher hier stehende, absichtlich
+ * redundante `IN (SELECT id … WHERE kind = 'klima')` faellt damit weg, und es fehlt nicht:
+ * es sollte `idx_ecosystem_overlap_other` erzwingen, wenn nur eine Handvoll Klimazeilen aus
+ * tausenden gesucht war. Hier greift `o.region_id = r.id` auf das PRIMARY KEY-Praefix von
+ * ecosystem_region_overlap, und gesucht sind ohnehin ALLE Partner dieser einen Region --
+ * gemessen im Median 3 Zeilen, im Extremfall 654 (Aventurien).
  *
  * null, wenn es die Flaeche nicht gibt (falsche/geloeschte public_id, inaktiv, oder
  * `r.kind = 'klima'` -- ein Klimaband ist selbst keine Flaeche im Sinne einer Regel) ODER wenn
@@ -191,12 +202,12 @@ function avesmapsLoreRuleReadSubjectForArea(PDO $pdo, string $areaPublicId): ?ar
 
     try {
         $statement = $pdo->prepare(
-            "SELECT r.public_id, r.kind, r.region_type, k.region_type AS zone_key, o.share
+            "SELECT r.public_id, r.kind, r.region_type,
+                    p.public_id AS partner_public_id, p.kind AS partner_kind,
+                    p.region_type AS partner_region_type, o.share
                FROM ecosystem_region r
-               LEFT JOIN ecosystem_region_overlap o
-                 ON o.region_id = r.id
-                AND o.other_region_id IN (SELECT id FROM ecosystem_region WHERE kind = 'klima' AND is_active = 1)
-               LEFT JOIN ecosystem_region k ON k.id = o.other_region_id AND k.kind = 'klima' AND k.is_active = 1
+               LEFT JOIN ecosystem_region_overlap o ON o.region_id = r.id
+               LEFT JOIN ecosystem_region p ON p.id = o.other_region_id AND p.is_active = 1
               WHERE r.is_active = 1 AND r.kind <> 'klima' AND r.public_id = :area"
         );
         $statement->execute(['area' => $areaPublicId]);
@@ -214,36 +225,15 @@ function avesmapsLoreRuleReadSubjectForArea(PDO $pdo, string $areaPublicId): ?ar
         'kind' => (string) $rows[0]['kind'],
         'region_type' => (string) $rows[0]['region_type'],
         'zones' => [],
+        'container_public_ids' => [],
     ];
     foreach ($rows as $row) {
-        $zone = trim((string) ($row['zone_key'] ?? ''));
-        $share = (float) ($row['share'] ?? 0);
-        // ⚠️ Dieselbe Schwelle wie avesmapsLoreRuleReadAreas und die Infobox-Zeile "Klimazone":
-        // unterhalb von AVESMAPS_CLIMATE_REGION_MIN_SHARE ist eine Randberuehrung Rauschen.
-        if ($zone !== '' && $share >= AVESMAPS_CLIMATE_REGION_MIN_SHARE
-            && !in_array($zone, $area['zones'], true)) {
-            $area['zones'][] = $zone;
-        }
+        avesmapsLoreRulePartnerzeileEinsortieren($row, $area);
     }
 
     return avesmapsLoreRuleSubjectFromArea($area);
 }
 
-/**
- * Liest EINEN Ort als Subjekt -- fuer den oeffentlichen Lesepfad, nicht fuer den Editor.
- *
- * Die Flaechen kommen ueber denselben Weg wie in avesmapsLoreRuleReadPlaces
- * (location_ecosystem -> ecosystem_area -> ecosystem_region), aber nur fuer die eine
- * angefragte public_id -- kein Scan ueber den ganzen Ortsbestand.
- *
- * 💣 Die Zone eines Ortes ist KEINE Spalte -- sie wird aus den Koordinaten in `geometry_json`
- * gerechnet (avesmapsClimateZoneKeyAt gegen avesmapsClimateReadBands), dieselbe Wahrheit wie
- * die Infobox-Zeile "Klimazone". Die Baender werden EINMAL je Aufruf geholt, nie je Zeile --
- * das war in Sitzung 1 schon einmal ein Planfehler (siehe avesmapsLoreRuleReadPlaces).
- *
- * null, wenn es den Ort nicht gibt (falsche/geloeschte public_id, inaktiv, kein `location`)
- * ODER wenn eine der beteiligten Tabellen fehlt. Kein 500 auf dem oeffentlichen Lesepfad.
- */
 function avesmapsLoreRuleReadSubjectForLocation(PDO $pdo, string $locationPublicId): ?array
 {
     $locationPublicId = trim($locationPublicId);
@@ -251,14 +241,25 @@ function avesmapsLoreRuleReadSubjectForLocation(PDO $pdo, string $locationPublic
         return null;
     }
 
+    // 🔴 Der zweite Sprung (Flaeche -> ihre Behaelter) haengt an DERSELBEN Abfrage, nicht an
+    // einer je Flaeche: eine Siedlung liegt live in bis zu einer Handvoll Flaechen, und eine
+    // Abfrage je Flaeche waere das N+1, das der Kopfkommentar dieser Datei verbietet.
+    // ⚠️ Zwei LEFT JOIN hintereinander auf dieselbe Tabelle (r und p) sind Absicht: `r` ist die
+    // Flaeche, in der die Siedlung liegt, `p` die Region, in der jene liegt. Ein Ort ohne
+    // Flaeche behaelt trotzdem seine Zeile (das f.public_id-Ergebnis), sonst verschwaende eine
+    // Siedlung ausserhalb jeder Landschaft aus der Antwort.
     try {
         $statement = $pdo->prepare(
             "SELECT f.public_id, f.geometry_json,
-                    r.public_id AS area_public_id, r.kind, r.region_type
+                    r.public_id AS area_public_id, r.kind, r.region_type,
+                    p.public_id AS partner_public_id, p.kind AS partner_kind,
+                    p.region_type AS partner_region_type, o.share
                FROM map_features f
                LEFT JOIN location_ecosystem le ON le.location_id = f.id
                LEFT JOIN ecosystem_area a ON a.id = le.area_id AND a.is_active = 1
                LEFT JOIN ecosystem_region r ON r.id = a.region_id AND r.is_active = 1
+               LEFT JOIN ecosystem_region_overlap o ON o.region_id = r.id
+               LEFT JOIN ecosystem_region p ON p.id = o.other_region_id AND p.is_active = 1
               WHERE f.feature_type = 'location' AND f.is_active = 1 AND f.public_id = :location"
         );
         $statement->execute(['location' => $locationPublicId]);
@@ -291,11 +292,22 @@ function avesmapsLoreRuleReadSubjectForLocation(PDO $pdo, string $locationPublic
         if (!in_array($areaId, $areaIds, true)) {
             $areaIds[] = $areaId;
         }
-        $areasById[$areaId] = [
-            'public_id' => $areaId,
-            'kind' => (string) ($row['kind'] ?? ''),
-            'region_type' => (string) ($row['region_type'] ?? ''),
-        ];
+        // Die Flaeche kommt so oft vor, wie sie Partner hat -- angelegt wird sie beim ersten
+        // Mal, danach wachsen nur noch ihre Behaelter. Ueberschreiben wuerde sie bei jeder
+        // Zeile leeren, und die letzte Zeile gewaenne.
+        if (!isset($areasById[$areaId])) {
+            $areasById[$areaId] = [
+                'public_id' => $areaId,
+                'kind' => (string) ($row['kind'] ?? ''),
+                'region_type' => (string) ($row['region_type'] ?? ''),
+                'zones' => [],
+                'container_public_ids' => [],
+            ];
+        }
+        // ⚠️ Nur die Behaelter werden hier gebraucht; die `zones` der FLAECHE bleiben ungenutzt,
+        // weil die Zone einer Siedlung ihre eigene Punktzone ist (Entwurf §3.3). Sie wandern
+        // trotzdem mit, weil der Einsortierer EINER ist und nicht je Aufrufer anders sortiert.
+        avesmapsLoreRulePartnerzeileEinsortieren($row, $areasById[$areaId]);
     }
 
     $place = [
@@ -313,15 +325,19 @@ function avesmapsLoreRuleReadSubjectForLocation(PDO $pdo, string $locationPublic
  *
  * Vorbild: avesmapsLoreRuleReadAreas (lore-rule-store.php), dieselbe Form und dieselbe Schwelle
  * (AVESMAPS_CLIMATE_REGION_MIN_SHARE), aber EINE Abfrage fuer GENAU die genannten public_id statt
- * fuer den ganzen Bestand. Das redundant wirkende IN (SELECT id FROM ecosystem_region WHERE
- * kind = 'klima' ...) ist von dort uebernommen und aus demselben Grund noetig (Index statt
- * Tabellenscan auf ecosystem_region_overlap).
+ * fuer den ganzen Bestand.
+ *
+ * 🔴 Der frueher hier stehende, absichtlich redundante Klimafilter im JOIN ist am 19.08.2026
+ * entfallen -- dieselbe Begruendung wie bei avesmapsLoreRuleReadSubjectForArea: gesucht sind
+ * jetzt ALLE Partner (Klimapartner werden Zonen, alle uebrigen Behaelter), und
+ * `o.region_id = r.id` trifft das PRIMARY KEY-Praefix von ecosystem_region_overlap. Der Filter
+ * kann nichts mehr sparen, was noch gebraucht wuerde.
  *
  * 🔴 EINE Abfrage fuer alle genannten Flaechen, nie eine je Flaeche -- derselbe Grund wie im
  * Kopfkommentar dieser Datei (PHP-Worker-Pool-Vorfall vom 17.07.2026).
  *
  * @param list<string> $areaPublicIds
- * @return array{subjects: list<array{public_id: string, area_public_ids: list<string>, types: list<array{kind: string, region_type: string}>, zones: list<string>}>, truncated: bool}
+ * @return array{subjects: list<array{public_id: string, area_public_ids: list<string>, flaechen: list<array{public_id: string, kind: string, region_type: string, container_public_ids: list<string>}>, zones: list<string>}>, truncated: bool}
  */
 function avesmapsLoreRuleReadSubjectsForAreas(PDO $pdo, array $areaPublicIds): array
 {
@@ -345,12 +361,12 @@ function avesmapsLoreRuleReadSubjectsForAreas(PDO $pdo, array $areaPublicIds): a
     try {
         $placeholders = implode(',', array_fill(0, count($ids), '?'));
         $statement = $pdo->prepare(
-            "SELECT r.public_id, r.kind, r.region_type, k.region_type AS zone_key, o.share
+            "SELECT r.public_id, r.kind, r.region_type,
+                    p.public_id AS partner_public_id, p.kind AS partner_kind,
+                    p.region_type AS partner_region_type, o.share
                FROM ecosystem_region r
-               LEFT JOIN ecosystem_region_overlap o
-                 ON o.region_id = r.id
-                AND o.other_region_id IN (SELECT id FROM ecosystem_region WHERE kind = 'klima' AND is_active = 1)
-               LEFT JOIN ecosystem_region k ON k.id = o.other_region_id AND k.kind = 'klima' AND k.is_active = 1
+               LEFT JOIN ecosystem_region_overlap o ON o.region_id = r.id
+               LEFT JOIN ecosystem_region p ON p.id = o.other_region_id AND p.is_active = 1
               WHERE r.is_active = 1 AND r.kind <> 'klima' AND r.public_id IN ($placeholders)"
         );
         $statement->execute($ids);
@@ -368,14 +384,10 @@ function avesmapsLoreRuleReadSubjectsForAreas(PDO $pdo, array $areaPublicIds): a
                 'kind' => (string) $row['kind'],
                 'region_type' => (string) $row['region_type'],
                 'zones' => [],
+                'container_public_ids' => [],
             ];
         }
-        $zone = trim((string) ($row['zone_key'] ?? ''));
-        $share = (float) ($row['share'] ?? 0);
-        if ($zone !== '' && $share >= AVESMAPS_CLIMATE_REGION_MIN_SHARE
-            && !in_array($zone, $byId[$publicId]['zones'], true)) {
-            $byId[$publicId]['zones'][] = $zone;
-        }
+        avesmapsLoreRulePartnerzeileEinsortieren($row, $byId[$publicId]);
     }
 
     // Ausgabereihenfolge folgt der EINGABE ($ids), nicht der SQL-Zeilenreihenfolge -- eine
@@ -404,7 +416,7 @@ function avesmapsLoreRuleReadSubjectsForAreas(PDO $pdo, array $areaPublicIds): a
  * ein Gebiet beruehrt, ist keine andere Flaeche als eine, die ein Weg beruehrt -- EINE Funktion,
  * zwei Aufrufer, kein zweiter Subjekt-Bauer.
  *
- * @return array{subjects: list<array{public_id: string, area_public_ids: list<string>, types: list<array{kind: string, region_type: string}>, zones: list<string>}>, truncated: bool}
+ * @return array{subjects: list<array{public_id: string, area_public_ids: list<string>, flaechen: list<array{public_id: string, kind: string, region_type: string, container_public_ids: list<string>}>, zones: list<string>}>, truncated: bool}
  */
 function avesmapsLoreRuleReadSubjectsForTerritory(PDO $pdo, string $territoryPublicId): array
 {
@@ -534,7 +546,7 @@ function avesmapsLoreRuleReadAllActive(PDO $pdo): array
  * Daten, ohne Fehlermeldung. Jetzt EINE Stelle, zwei Aufrufer.
  *
  * @param list<array<string,mixed>> $terms
- * @param array{public_id: string, area_public_ids: list<string>, types: list<array{kind: string, region_type: string}>, zones: list<string>} $subject
+ * @param array{public_id: string, area_public_ids: list<string>, flaechen: list<array{public_id: string, kind: string, region_type: string, container_public_ids: list<string>}>, zones: list<string>} $subject
  * @param list<string> $orderedZoneKeys
  */
 function avesmapsLoreRuleChainMatchesSubject(array $terms, array $subject, array $orderedZoneKeys): bool
@@ -568,7 +580,7 @@ function avesmapsLoreRuleChainMatchesSubject(array $terms, array $subject, array
  * Zonenreihenfolge (avesmapsLoreRuleOrderedZoneKeys) GENAU EINMAL je Aufruf -- nicht je Subjekt
  * und nicht je Regel --, wertet beides dann rein in PHP gegen jedes Subjekt aus.
  *
- * @param list<array{public_id: string, area_public_ids: list<string>, types: list<array{kind: string, region_type: string}>, zones: list<string>}> $subjects
+ * @param list<array{public_id: string, area_public_ids: list<string>, flaechen: list<array{public_id: string, kind: string, region_type: string, container_public_ids: list<string>}>, zones: list<string>}> $subjects
  * @return array<string, string> entry_wiki_key => relation
  */
 function avesmapsLoreRuleEntriesForSubjects(PDO $pdo, array $subjects): array
@@ -607,7 +619,7 @@ function avesmapsLoreRuleEntriesForSubjects(PDO $pdo, array $subjects): array
  * Ein Sonderfall von avesmapsLoreRuleEntriesForSubjects mit genau einem Subjekt -- ruft sie, statt
  * den Regelbestand-plus-Auswertung-Ablauf ein zweites Mal hinzuschreiben.
  *
- * @param array{public_id: string, area_public_ids: list<string>, types: list<array{kind: string, region_type: string}>, zones: list<string>} $subject
+ * @param array{public_id: string, area_public_ids: list<string>, flaechen: list<array{public_id: string, kind: string, region_type: string, container_public_ids: list<string>}>, zones: list<string>} $subject
  * @return array<string, string> entry_wiki_key => relation
  */
 function avesmapsLoreRuleEntriesForSubject(PDO $pdo, array $subject): array

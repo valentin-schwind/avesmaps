@@ -278,6 +278,61 @@ function avesmapsLoreRuleOrderedZoneKeys(PDO $pdo): array
 }
 
 /**
+ * EINE Partnerzeile aus ecosystem_region_overlap in ihre zwei moeglichen Rollen einsortieren:
+ * ein Klimapartner wird eine `zone`, jeder andere ein Behaelter (`container_public_ids`).
+ *
+ * 🔴 EINE Stelle, vier Aufrufer: avesmapsLoreRuleReadAreas hier plus die drei Leser in
+ * lore-rule-match.php (Flaeche, Flaechenliste, Siedlung). Vor dem
+ * 19.08.2026 stand die Zonenschleife viermal wortgleich da; mit dem zweiten Zweig waeren es
+ * acht Kopien derselben Schwellenpruefung geworden -- und die Schwelle ist genau der Wert,
+ * den niemand an acht Stellen gleichzeitig aendert.
+ *
+ * ⚠️ Dieselbe Schwelle fuer beide Rollen, AVESMAPS_CLIMATE_REGION_MIN_SHARE: unterhalb davon
+ * ist eine Randberuehrung Rauschen, ob sie nun ein Klimaband oder eine Nachbarregion betrifft.
+ * Wirksam ist ohnehin die HAERTERE Schwelle des Schreibers (RAYCAST_THRESHOLD = 0,10 in
+ * html/landschaften-editor.html) -- unter 10 % entsteht gar keine Zeile.
+ *
+ * @param array<string, mixed> $row
+ * @param array{zones: list<string>, container_public_ids: list<string>} $ziel
+ */
+function avesmapsLoreRulePartnerzeileEinsortieren(array $row, array &$ziel): void
+{
+    $share = (float) ($row['share'] ?? 0);
+    if ($share < AVESMAPS_CLIMATE_REGION_MIN_SHARE) {
+        return;
+    }
+
+    if ((string) ($row['partner_kind'] ?? '') === 'klima') {
+        $zone = trim((string) ($row['partner_region_type'] ?? ''));
+        if ($zone !== '' && !in_array($zone, $ziel['zones'], true)) {
+            $ziel['zones'][] = $zone;
+        }
+
+        return;
+    }
+
+    $container = trim((string) ($row['partner_public_id'] ?? ''));
+    if ($container !== '' && !in_array($container, $ziel['container_public_ids'], true)) {
+        $ziel['container_public_ids'][] = $container;
+    }
+}
+
+/**
+ * Liest EINEN Ort als Subjekt -- fuer den oeffentlichen Lesepfad, nicht fuer den Editor.
+ *
+ * Die Flaechen kommen ueber denselben Weg wie in avesmapsLoreRuleReadPlaces
+ * (location_ecosystem -> ecosystem_area -> ecosystem_region), aber nur fuer die eine
+ * angefragte public_id -- kein Scan ueber den ganzen Ortsbestand.
+ *
+ * 💣 Die Zone eines Ortes ist KEINE Spalte -- sie wird aus den Koordinaten in `geometry_json`
+ * gerechnet (avesmapsClimateZoneKeyAt gegen avesmapsClimateReadBands), dieselbe Wahrheit wie
+ * die Infobox-Zeile "Klimazone". Die Baender werden EINMAL je Aufruf geholt, nie je Zeile --
+ * das war in Sitzung 1 schon einmal ein Planfehler (siehe avesmapsLoreRuleReadPlaces).
+ *
+ * null, wenn es den Ort nicht gibt (falsche/geloeschte public_id, inaktiv, kein `location`)
+ * ODER wenn eine der beteiligten Tabellen fehlt. Kein 500 auf dem oeffentlichen Lesepfad.
+ */
+/**
  * Alle Landschaftsflaechen mit Art und den Klimazonen, die sie BERUEHREN.
  *
  * 🔴 Die Zonen kommen aus ecosystem_region_overlap -- dem Ergebnis von „Zugehoerigkeit
@@ -288,17 +343,29 @@ function avesmapsLoreRuleOrderedZoneKeys(PDO $pdo): array
  * ⚠️ Klimabaender selbst sind KEINE Flaechen im Sinne einer Regel und fallen heraus:
  * „alle Flaechen der Borealen Zone" darf nicht das Band selbst treffen.
  *
- * @return list<array{public_id: string, kind: string, region_type: string, name: string, wiki_region_key: string, zones: list<string>}>
+ * 🔴 Und seit dem 19.08.2026 auch die Regionen, IN DENEN sie liegen (`container_public_ids`) --
+ * das „innerhalb" der Regelsprache. Dieselbe Tabelle, dieselbe Zeile, dieselbe Schwelle: ein
+ * Klimapartner wird eine `zone`, jeder andere ein Behaelter. Der frueher hier stehende,
+ * absichtlich redundante Klimafilter im JOIN ist damit entfallen -- er sollte
+ * `idx_ecosystem_overlap_other` erzwingen, wenn nur eine Handvoll Klimazeilen aus tausenden
+ * gesucht war; jetzt werden ALLE gebraucht, und die ganze Tabelle sind 6.188 Zeilen (gemessen
+ * 19.08.2026 am Livebestand, 929 Regionen).
+ *
+ * 🔴 `r.region_type IS NOT NULL` ist ebenfalls entfallen, und das war eine stille Falle: 53
+ * Regionen tragen keine Art -- darunter Almada, Bornland, Darpatien, Aranien, Weiden. Der
+ * Vorschlagskatalog des Regeleditors (`list_regions`) bot sie an, dieser Kandidatenbestand
+ * kannte sie nicht, und „Flaechenname = Almada" ergab 0 Treffer OHNE Erklaerung. Der
+ * Geschwisterleser avesmapsLoreRuleReadSubjectForArea (lore-rule-match.php) hat den Filter
+ * nie gehabt -- die zwei Zweige antworteten also verschieden auf dieselbe Frage. Eine Flaeche
+ * ohne Art kann keine Art-Bedingung erfuellen (`region_type` ist dann '', und ein gespeicherter
+ * Typ hat nie einen leeren `region_type`, siehe api/edit/map/lore.php) -- sie kann nur als sie
+ * selbst oder als Behaelter genannt werden, und genau das soll sie.
+ *
+ * @return list<array{public_id: string, kind: string, region_type: string, name: string, wiki_region_key: string, zones: list<string>, container_public_ids: list<string>}>
  */
 function avesmapsLoreRuleReadAreas(PDO $pdo): array
 {
     try {
-        // ⚠️ The redundant-looking IN (...) is what keeps this off the WHOLE ecosystem_region_overlap
-        // table -- same reasoning and the same fix as avesmapsClimateReadRegionZones
-        // (climate-membership.php): the table holds every pair of regions that touch, both
-        // directions, thousands of rows, and only a handful involve a climate band. The join alone
-        // would filter correctly but scan everything; the IN lets idx_ecosystem_overlap_other do
-        // the work.
         //
         // r.wiki_region_key rides along for avesmapsFetchLoreRulePlacesByEntry (lore-search.php,
         // Task 5): a rule-matched area needs the SAME {title, wiki_key} shape as a named lore
@@ -308,13 +375,12 @@ function avesmapsLoreRuleReadAreas(PDO $pdo): array
         // /zones).
         $statement = $pdo->query(
             "SELECT r.public_id, r.kind, r.region_type, r.name, r.wiki_region_key,
-                    k.region_type AS zone_key, o.share
+                    p.public_id AS partner_public_id, p.kind AS partner_kind,
+                    p.region_type AS partner_region_type, o.share
                FROM ecosystem_region r
-               LEFT JOIN ecosystem_region_overlap o
-                 ON o.region_id = r.id
-                AND o.other_region_id IN (SELECT id FROM ecosystem_region WHERE kind = 'klima' AND is_active = 1)
-               LEFT JOIN ecosystem_region k ON k.id = o.other_region_id AND k.kind = 'klima' AND k.is_active = 1
-              WHERE r.is_active = 1 AND r.kind <> 'klima' AND r.region_type IS NOT NULL
+               LEFT JOIN ecosystem_region_overlap o ON o.region_id = r.id
+               LEFT JOIN ecosystem_region p ON p.id = o.other_region_id AND p.is_active = 1
+              WHERE r.is_active = 1 AND r.kind <> 'klima'
               ORDER BY r.name, r.public_id"
         );
         $rows = $statement === false ? [] : $statement->fetchAll(PDO::FETCH_ASSOC);
@@ -329,24 +395,18 @@ function avesmapsLoreRuleReadAreas(PDO $pdo): array
             $byId[$publicId] = [
                 'public_id' => $publicId,
                 'kind' => (string) $row['kind'],
-                'region_type' => (string) $row['region_type'],
+                // ⚠️ NULL wird '' -- eine Flaeche ohne Art hat keine Art, und '' trifft keine
+                // gespeicherte Typbedingung (die hat nie einen leeren region_type).
+                'region_type' => (string) ($row['region_type'] ?? ''),
                 'name' => (string) ($row['name'] ?? ''),
                 'wiki_region_key' => (string) ($row['wiki_region_key'] ?? ''),
                 'zones' => [],
+                'container_public_ids' => [],
             ];
         }
-        $zone = trim((string) ($row['zone_key'] ?? ''));
-        $share = (float) ($row['share'] ?? 0);
-        // ⚠️ Dieselbe Schwelle wie die Infobox-Zeile "Klimazone" und ihre Schwesterfunktion
-        // avesmapsClimateReadRegionZones (climate-membership.php): unterhalb von
-        // AVESMAPS_CLIMATE_REGION_MIN_SHARE ist eine Randberuehrung Rauschen, keine
-        // Zugehoerigkeit. `share` ist der Anteil der KLEINEREN der beiden Flaechen -- fuer
-        // eine gewoehnliche Flaeche (kleiner als ein Klimaband) heisst das "so viel liegt in
-        // dieser Zone" (siehe dort fuer die ausfuehrliche Begruendung).
-        if ($zone !== '' && $share >= AVESMAPS_CLIMATE_REGION_MIN_SHARE
-            && !in_array($zone, $byId[$publicId]['zones'], true)) {
-            $byId[$publicId]['zones'][] = $zone;
-        }
+        // EIN Einsortierer fuer beide Rollen, geteilt mit den drei Lesern in lore-rule-match.php --
+        // die Schwelle steht damit an einer Stelle statt an vieren.
+        avesmapsLoreRulePartnerzeileEinsortieren($row, $byId[$publicId]);
     }
 
     return array_values($byId);

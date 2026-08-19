@@ -196,4 +196,52 @@ assert(count($detail['places']) === 2,
     . 'Grabsteine sehen koennen. Nur die ZAHL laesst sie aus.');
 $pruefungen += 3;
 
+// -- (9) DER ABNAHMEFALL DER REGELSPRACHE "innerhalb" (19.08.2026) -----------------------------
+// "Gebirge innerhalb von Mittelaventurien" -- die Regel, die der Owner gebaut hat. Vor der
+// Umstellung traf sie 0 Flaechen (keine Flaeche heisst Mittelaventurien UND ist ein Gebirge), der
+// Eintrag stand damit auf HALB: Regel vorhanden, aber nirgends verortet. Jetzt trifft sie, und
+// `rule_mapped_count` geht von 0 auf 1 -- der Kreis springt von halb auf voll.
+// Am Livebestand sind es 17 von 62 Gebirgen (gemessen 19.08.2026 mit derselben Funktion,
+// avesmapsLoreRuleEvaluate, gegen /api/app/ecosystem-areas.php); gezaehlt wird hier wie dort die
+// REGEL, nicht die Zahl der Flaechen.
+$pdo = avesmapsRegelTestPdo();
+$pdo->exec("INSERT INTO ecosystem_region (public_id, name, kind, region_type, wiki_region_key, is_active)
+            VALUES ('area-mav', 'Mittelaventurien', 'derographisch', 'region', NULL, 1),
+                   ('area-berg-2', 'Khoramgebirge', 'topographie', 'gebirge', NULL, 1)");
+$idVon = static function (PDO $pdo, string $publicId): int {
+    $s = $pdo->prepare('SELECT id FROM ecosystem_region WHERE public_id = ?');
+    $s->execute([$publicId]);
+
+    return (int) $s->fetchColumn();
+};
+// Altimont (area-berg-1, aus der Fixture) liegt in Mittelaventurien, das Khoramgebirge nicht.
+$pdo->prepare('INSERT INTO ecosystem_region_overlap (region_id, other_region_id, share) VALUES (?,?,?)')
+    ->execute([$idVon($pdo, 'area-berg-1'), $idVon($pdo, 'area-mav'), 0.99]);
+
+// Die Regel des Owners: Art UND Flaeche in EINER Bedingung.
+$pdo->prepare('INSERT INTO lore_rule (entry_wiki_key, relation, origin, status) VALUES (?,?,?,?)')
+    ->execute(['bergwolf', 'verbreitung', 'manual', 'active']);
+$regelId = (int) $pdo->lastInsertId();
+$pdo->prepare('INSERT INTO lore_rule_term (rule_id, seq, join_op, area_public_id) VALUES (?,?,?,?)')
+    ->execute([$regelId, 0, 'und', 'area-mav']);
+$bedingungId = (int) $pdo->lastInsertId();
+$pdo->prepare('INSERT INTO lore_rule_term_type (term_id, kind, region_type) VALUES (?,?,?)')
+    ->execute([$bedingungId, 'topographie', 'gebirge']);
+
+$zahlen = avesmapsLoreReadRuleCountsByEntry($pdo, ['bergwolf']);
+assert(($zahlen['bergwolf']['rules'] ?? 0) === 1, 'Die Regel ist vorhanden.');
+assert(($zahlen['bergwolf']['matched'] ?? 0) === 1,
+    'rule_mapped_count geht von 0 auf 1 -- der Statuskreis springt von halb auf voll.');
+$pruefungen += 2;
+
+// GEGENPROBE, die nicht null ist: ohne die Ueberlappungszeile trifft dieselbe Regel nichts mehr,
+// obwohl beide Gebirge unveraendert dastehen. Ohne sie waere die 1 auch dann richtig, wenn die
+// Behaelter gar nicht gelesen wuerden.
+$pdo->exec('DELETE FROM ecosystem_region_overlap');
+$ohne = avesmapsLoreReadRuleCountsByEntry($pdo, ['bergwolf']);
+assert(($ohne['bergwolf']['rules'] ?? 0) === 1, 'Die Regel bleibt vorhanden -- halb, nicht leer.');
+assert(($ohne['bergwolf']['matched'] ?? -1) === 0,
+    'GEGENPROBE: ohne Behaelter liegt kein Gebirge mehr in Mittelaventurien');
+$pruefungen += 2;
+
 echo "lore-regel-als-vorkommen: {$pruefungen} Zusicherungen bestanden.\n";

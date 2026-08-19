@@ -102,11 +102,83 @@ function avesmapsLoreRuleTermIsEmpty(array $term): bool
 }
 
 /**
+ * PURE: liegt diese Flaeche in jener? REFLEXIV -- eine Flaeche liegt in sich selbst.
+ *
+ * 🔴 „innerhalb" ist die VORHANDENE Zuordnung, nie eine zweite Rechnung:
+ * `container_public_ids` ist das Ergebnis von „Zugehoerigkeit rechnen"
+ * (`ecosystem_region_overlap`, Anteil >= 10 %, gemessen 19.08.2026 an 6.188 Zeilen). Wer
+ * hier Geometrie rechnet, baut die zweite Wahrheit, vor der AGENTS.md §5 warnt -- und
+ * bezahlt sie mit 14 s je Anfrage (nachgemessen ueber die 929 Live-Regionen).
+ *
+ * ⚠️ Reflexiv, weil sonst „Wald innerhalb des Farindelwald" ausgerechnet den Farindelwald
+ * verloere. Fehlt der Schluessel ganz, ist die Flaeche in nichts ausser sich selbst
+ * enthalten -- der sichere Ausgang, nie ein stiller Volltreffer.
+ */
+function avesmapsLoreRuleFlaecheLiegtIn(array $flaeche, string $wanted): bool
+{
+    if ((string) ($flaeche['public_id'] ?? '') === $wanted) {
+        return true;
+    }
+
+    return in_array($wanted, (array) ($flaeche['container_public_ids'] ?? []), true);
+}
+
+/**
+ * PURE: erfuellt diese EINE Flaeche den Art- und den Ort-Teil der Bedingung?
+ *
+ * 🔴 Hier wohnt „innerhalb", und NUR hier. Der Flaechenzweig
+ * (avesmapsLoreRuleTermMatchesArea, gleich darunter) und der Siedlungszweig
+ * (avesmapsLoreRuleTermMatchesSubject, lore-rule-match.php) rufen beide diese Funktion.
+ * Vor dem 19.08.2026 hatten sie zwei verschiedene Antworten auf dieselbe Frage: der
+ * Siedlungszweig prueft(e) Art und Ort UNABHAENGIG voneinander (live 124 Siedlungen fuer
+ * „Gebirge in Mittelaventurien"), der Flaechenzweig verlangte, dass EINE Flaeche zugleich
+ * Mittelaventurien heisst UND ein Gebirge ist -- was keine sein kann (live 0 Flaechen).
+ *
+ * Drei Faelle, nach dem Owner-Satz vom 18.08.2026 („ist der Flaechennamen leer gelten alle
+ * landschaftsarten. ist die landschaftsart leer gilt der Flaechenname"):
+ *
+ *   Art gesetzt, Flaeche leer     -> jede Flaeche dieser Art, ueberall
+ *   Art gesetzt, Flaeche gesetzt  -> eine Flaeche dieser Art, die IN der genannten liegt
+ *   Art leer,    Flaeche gesetzt  -> die genannte Flaeche SELBST, nichts darin
+ *
+ * 💣 Der dritte Fall ist kein Versehen. „Wald innerhalb Almada" sind 14 Flaechen, „Almada"
+ * allein ist EINE -- eine Bedingung ohne Art beschreibt keine Auswahl, sie nennt einen Ort.
+ * Waere sie „alles darin", spraenge jede bestehende Regel, die nur eine Flaeche nennt, ohne
+ * Zutun von 1 auf bis zu 647 Treffer (so viele Regionen liegen in Aventurien). Der Editor
+ * schreibt den Unterschied deshalb im Satz aus, statt ihn zu verschweigen.
+ */
+function avesmapsLoreRuleFlaecheErfuelltArtUndOrt(array $term, array $flaeche): bool
+{
+    $wanted = $term['area_public_id'] ?? null;
+    $types = $term['types'] ?? [];
+
+    if ($types === []) {
+        // Art leer: die genannte Flaeche selbst, sonst nichts. Ohne Flaeche fragt die
+        // Bedingung an dieser Stelle gar nichts (der Klimateil kann sie noch tragen).
+        return $wanted === null || (string) ($flaeche['public_id'] ?? '') === $wanted;
+    }
+
+    $kind = (string) ($flaeche['kind'] ?? '');
+    $regionType = (string) ($flaeche['region_type'] ?? '');
+    $hit = false;
+    foreach ($types as $type) {
+        if ((string) ($type['kind'] ?? '') === $kind && (string) ($type['region_type'] ?? '') === $regionType) {
+            $hit = true;
+            break;
+        }
+    }
+    if (!$hit) {
+        return false;
+    }
+
+    return $wanted === null || avesmapsLoreRuleFlaecheLiegtIn($flaeche, (string) $wanted);
+}
+
+/**
  * PURE: trifft diese Bedingung diese Flaeche?
  *
- * Die drei Felder sind drei verschiedene Fragen an dasselbe Ding und daher UND-verknuepft:
- * „heisst so" (Identitaet) · „ist von dieser Art" (mehrere = ODER) · „liegt in dieser Zone".
- * Ein leeres Feld fragt nicht.
+ * Der Art- und der Ort-Teil kommen aus avesmapsLoreRuleFlaecheErfuelltArtUndOrt (die
+ * gemeinsame Haelfte beider Zweige); hier kommt nur noch der Klimateil dazu.
  *
  * ⚠️ `$area['zones']` sind die Zonen, die die Flaeche BERUEHRT (>= 5 % Anteil, dieselbe
  * Schwelle wie die Infobox-Zeile). Fuer eine Flaeche genuegt das Beruehren -- die Aussage
@@ -117,25 +189,8 @@ function avesmapsLoreRuleTermIsEmpty(array $term): bool
  */
 function avesmapsLoreRuleTermMatchesArea(array $term, array $area, array $orderedZoneKeys): bool
 {
-    $wanted = $term['area_public_id'] ?? null;
-    if ($wanted !== null && (string) ($area['public_id'] ?? '') !== $wanted) {
+    if (!avesmapsLoreRuleFlaecheErfuelltArtUndOrt($term, $area)) {
         return false;
-    }
-
-    $types = $term['types'] ?? [];
-    if ($types !== []) {
-        $kind = (string) ($area['kind'] ?? '');
-        $regionType = (string) ($area['region_type'] ?? '');
-        $hit = false;
-        foreach ($types as $type) {
-            if ((string) ($type['kind'] ?? '') === $kind && (string) ($type['region_type'] ?? '') === $regionType) {
-                $hit = true;
-                break;
-            }
-        }
-        if (!$hit) {
-            return false;
-        }
     }
 
     $zoneKeys = avesmapsLoreRuleZoneKeys($orderedZoneKeys, $term['climate_from'] ?? null, $term['climate_to'] ?? null);

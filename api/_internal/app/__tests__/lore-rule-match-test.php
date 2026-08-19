@@ -19,7 +19,8 @@ $term = static fn (array $o = []): array => array_merge(
 $farindel = ['public_id' => 'a1', 'kind' => 'vegetation', 'region_type' => 'wald', 'zones' => ['gemaessigt']];
 $subjectArea = avesmapsLoreRuleSubjectFromArea($farindel);
 assert($subjectArea['public_id'] === 'a1');
-assert($subjectArea['types'] === [['kind' => 'vegetation', 'region_type' => 'wald']]);
+assert($subjectArea['flaechen'] === [['public_id' => 'a1', 'kind' => 'vegetation',
+    'region_type' => 'wald', 'container_public_ids' => []]]);
 assert($subjectArea['zones'] === ['gemaessigt']);
 
 $wald = $term(['types' => [['kind' => 'vegetation', 'region_type' => 'wald']]]);
@@ -42,7 +43,8 @@ $subjectNord = avesmapsLoreRuleSubjectFromPlace($imNorden, $areasById);
 
 assert($subjectSued['zones'] === ['gemaessigt'], 'die EIGENE Zone, nicht die der Flaeche');
 assert($subjectNord['zones'] === ['boreal']);
-assert($subjectSued['types'] === [['kind' => 'topographie', 'region_type' => 'gebirge']]);
+assert($subjectSued['flaechen'] === [['public_id' => 'a2', 'kind' => 'topographie',
+    'region_type' => 'gebirge', 'container_public_ids' => []]]);
 
 $gebirgeBoreal = $term(['types' => [['kind' => 'topographie', 'region_type' => 'gebirge']],
     'climate_from' => 'boreal', 'climate_to' => 'boreal']);
@@ -59,6 +61,19 @@ $a2NurWald = $term(['area_public_id' => 'a2', 'types' => [['kind' => 'vegetation
 assert(avesmapsLoreRuleTermMatchesSubject($a2NurWald, $subjectNord, $zones) === false,
     'liegt in a2, ist aber gebirge -- Identitaet allein darf nicht reichen');
 
+// 🔴 19.08.2026: DERSELBE Fall am Ort, der in BEIDEN Flaechen liegt -- und hier antwortete die
+// alte Fassung falsch. Sie prueft(e) Identitaet und Art unabhaengig: der Bergwald liegt in a2
+// (Identitaet trifft) und ist ueber a1 auch ein Wald (Art trifft), also galt „Wald innerhalb a2"
+// als erfuellt -- obwohl der Wald a1 gar nicht in a2 liegt. Jetzt muss EINE Flaeche beides
+// erfuellen. Ohne diese Zeile kaeme eine Rueckkehr zur unabhaengigen Pruefung ungestraft durch,
+// weil $subjectNord sie nur ueber die ART abweist.
+$subjectBergwaldVorab = avesmapsLoreRuleSubjectFromPlace(
+    ['public_id' => 'p3', 'zone' => 'gemaessigt', 'area_public_ids' => ['a1', 'a2']],
+    $areasById
+);
+assert(avesmapsLoreRuleTermMatchesSubject($a2NurWald, $subjectBergwaldVorab, $zones) === false,
+    'der Wald a1 liegt NICHT in a2 -- Art und Ort muessen dieselbe Flaeche treffen');
+
 // --- Mehrere Arten AN EINER Bedingung sind ODER-verknuepft -- nicht nur die erste zaehlt --
 // (Schritt 5: die urspruengliche Fassung dieser Datei hatte keinen Fall mit zwei Typen an
 // EINER Bedingung -- eine Implementierung, die nur types[0] prueft, kam ungestraft durch.)
@@ -71,10 +86,10 @@ assert(avesmapsLoreRuleTermMatchesSubject($waldOderGebirge, $subjectArea, $zones
 assert(avesmapsLoreRuleTermMatchesSubject($waldOderGebirge, $subjectSued, $zones) === true,
     'gebirge steht an ZWEITER Stelle -- wer nur die erste Art prueft, faellt hier durch');
 
-// --- Ein Ort in ZWEI Flaechen erbt beide Arten (der "Bergwald") ---------------------------
+// --- Ein Ort in ZWEI Flaechen traegt beide Flaechen (der "Bergwald") ----------------------
 $bergwald = ['public_id' => 'p3', 'zone' => 'gemaessigt', 'area_public_ids' => ['a1', 'a2']];
 $subjectBeide = avesmapsLoreRuleSubjectFromPlace($bergwald, $areasById);
-assert(count($subjectBeide['types']) === 2);
+assert(count($subjectBeide['flaechen']) === 2);
 assert(avesmapsLoreRuleTermMatchesSubject($wald, $subjectBeide, $zones) === true);
 assert(avesmapsLoreRuleTermMatchesSubject($gebirge, $subjectBeide, $zones) === true);
 
@@ -85,10 +100,8 @@ assert(avesmapsLoreRuleTermMatchesSubject($gebirge, $subjectBeide, $zones) === t
 // Assert auf die Liste selbst.
 $umgekehrterBergwald = ['public_id' => 'p4', 'zone' => 'gemaessigt', 'area_public_ids' => ['a2', 'a1']];
 $subjectUmgekehrt = avesmapsLoreRuleSubjectFromPlace($umgekehrterBergwald, $areasById);
-assert($subjectUmgekehrt['types'] === [
-    ['kind' => 'topographie', 'region_type' => 'gebirge'],
-    ['kind' => 'vegetation', 'region_type' => 'wald'],
-], 'Reihenfolge folgt area_public_ids (a2 vor a1), nicht der Schluesselreihenfolge von $areasById');
+assert(array_column($subjectUmgekehrt['flaechen'], 'public_id') === ['a2', 'a1'],
+    'Reihenfolge folgt area_public_ids (a2 vor a1), nicht der Schluesselreihenfolge von $areasById');
 
 // --- Die Identitaets-Bedingung trifft nur die genannte FLAECHE -----------------------------
 // 💣 Eine Regel "Flaechenname = Farindelwald" trifft die Flaeche selbst. Ob sie auch die Orte
