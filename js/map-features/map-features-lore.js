@@ -221,15 +221,18 @@ function avesmapsLoreFetch(request) {
 // Spezies -- als Zeilen in derselben Feldliste wie Oberhaupt/Einwohner/Verkehrswege,
 // nicht als eigene Blöcke daneben.
 //
-// SPEZIES WIRD NICHT ANGEZEIGT (Owner 2026-07-21): das Feld „Regionen" der
-// {{Infobox Spezies}} ist in Wiki Aventurica schlecht gepflegt, die Zuordnungen sind
-// zu unzuverlässig für eine Infobox-Zeile. Das ist eine Aussage über die
-// DATENGRUNDLAGE, nicht über die Technik -- der Rang-3-Filter unten hatte den
-// auffälligsten Auswuchs („überall Tiefzwerg") bereits behoben.
+// 🪤 SPEZIES STAND VOM 21.07. BIS ZUM 19.08.2026 NICHT IN DIESER LISTE. Der Grund war die
+// DATENGRUNDLAGE, nie die Technik: das Feld „Regionen" der {{Infobox Spezies}} ist in Wiki
+// Aventurica dünn gepflegt (Owner 2026-07-21). Diese Aussage gilt unverändert -- was sich
+// geändert hat, ist der Rang-3-Filter weiter unten. Er fängt genau den Auswuchs, der die Zeile
+// damals wertlos machte: „Tiefzwerg" ist für ganz Aventurien gelistet und erschien deshalb bei
+// JEDEM Ort. Seit dem 12.08.2026 stehen kontinentweite Einträge nur noch im aufgeklappten Teil,
+// wo ihre Einordnung danebensteht -- die Vorschauzeile zeigt nur, was hier oder in einem
+// Untergebiet liegt.
 //
-// Die Daten bleiben vollständig erhalten: Katalog, Editor-Reiter und der Endpoint
-// führen Spezies weiter. Nur die öffentliche Anzeige verzichtet darauf, bis die
-// Pflege im Wiki besser ist.
+// 🔴 SPEZIES STEHT UNTEN, hinter Flora (Owner 19.08.2026: „einfach drunter"), und ist sonst in
+// nichts mehr ein Sonderfall: derselbe Deckel, dieselbe Gliederung, derselbe Schalter im
+// Menüband. Die Reihenfolge dieser Liste IST die Reihenfolge in der Infobox.
 // Der Satz unter jedem Deckel, in Mehrzahl und Einzahl (Owner 2026-08-12, sein Wortlaut).
 //
 // ⚠️ „hier" und nicht „in der Nähe": dieselbe Zeile steht an FÜNF Oberflächen -- Siedlung,
@@ -252,6 +255,9 @@ var AVESMAPS_LORE_ROWS = [
 	{ kind: "ware", label: "Waren", singular: "Handelsware gelistet", plural: "Handelswaren gelistet" },
 	{ kind: "fauna", label: "Fauna", singular: "Tierart beobachtet", plural: "Tierarten beobachtet" },
 	{ kind: "flora", label: "Flora", singular: "Pflanzenart gesehen", plural: "Pflanzenarten gesehen" },
+	// 💣 „Spezies" ist in beiden Zahlformen dasselbe Wort -- „1 Spezie" gibt es nicht. Die drei
+	// Zeilen darüber beugen ihre Einzahl echt, und ein Abschreiber zieht das gern nach.
+	{ kind: "spezies", label: "Spezies", singular: "Spezies verzeichnet", plural: "Spezies verzeichnet" },
 ];
 
 // EINE Infobox-Zeile im Hausformat (.region-info-box__row + dt/dd), damit sie sich in

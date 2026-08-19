@@ -2399,9 +2399,10 @@ function moveLoreSectionIntoDialog() {
 /**
  * Die vier Menüband-Schalter auf den Serverzustand setzen.
  *
- * `Spezies` steht per Default auf AUS (das Wiki-Feld „Regionen" ist zu schlecht gepflegt,
- * Owner-Entscheid). Das stand früher als HTML-Kommentar im Markup — jetzt ist es ein
- * Schalter, den der Owner ohne Codeänderung umlegen kann.
+ * Alle vier stehen per Default auf AN; nur ein gespeichertes '0' schaltet ab. Der Schalter
+ * stand früher als HTML-Kommentar im Markup — jetzt legt der Owner ihn ohne Codeänderung um.
+ * 🪤 `Spezies` war bis zum 19.08.2026 die Ausnahme mit Default AUS (das Wiki-Feld „Regionen"
+ * ist dünn gepflegt); die Begründung samt Aufhebung steht an avesmapsLoreKindDefaultEnabled.
  */
 function renderLoreKindToggles(kinds) {
 	if (!kinds) {
@@ -2608,11 +2609,11 @@ async function startWikiSyncLoreSync() {
  * derselben id wären ein DOM-Fehler, und getElementById träfe stets nur das erste), die
  * Logik nicht. Deshalb steht hier nur, WO die Elemente sitzen; alles Übrige ist geteilt.
  *
- * BEIDE kennen „spezies" -- seit 2026-07-22 (Owner) auch der Reiterstreifen im Panel, dort
- * ausgegraut. Vorher stand hier das Gegenteil („nur das Fenster kennt spezies"), weil der
- * Menüband-Schalter die öffentliche ANZEIGE steuert und nicht die Bearbeitbarkeit. Genau das
- * ist der Grund, warum Spezies jetzt sichtbar, aber grau ist: nicht öffentlich, sehr wohl
- * bearbeitbar. Die Begründung steht im Tooltip des Reiters, damit sie niemand wegräumt.
+ * BEIDE kennen „spezies" -- seit 2026-07-22 (Owner) auch der Reiterstreifen im Panel. Vorher
+ * stand hier das Gegenteil („nur das Fenster kennt spezies"), weil der Menüband-Schalter die
+ * öffentliche ANZEIGE steuert und nicht die Bearbeitbarkeit -- eine abgeschaltete Art bleibt
+ * im Editor vollständig bearbeitbar.
+ * 🪤 Bis zum 19.08.2026 war Spezies die einzige abgeschaltete und stand deshalb ausgegraut da.
  *
  * BEIDE kennen seit 2026-08-15 auch „all" (keine Art-Einschränkung). Im Panel-Streifen gab es
  * den Reiter längst, im Fenster fehlte nur der Knopf -- der Codeweg konnte es die ganze Zeit.

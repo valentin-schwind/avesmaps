@@ -69,14 +69,22 @@ function avesmapsLoreRequestHasSubject(
  *
  * Polarität wie bei citymaps_enabled/adventures_enabled: **Default AN**, nur ein
  * ausdrücklich gespeichertes '0' schaltet ab — ein nie geschriebenes Flag funktioniert
- * auf einem frischen Deploy also von selbst. AUSNAHME `spezies`: das Feld „Regionen" der
- * {{Infobox Spezies}} ist im Wiki zu schlecht gepflegt (Owner 2026-07-21), deshalb ist
- * diese eine Art per Default AUS. Vorher stand das als HTML-Kommentar im Markup — jetzt
- * ist es ein Schalter, den der Owner ohne Codeänderung umlegen kann.
+ * auf einem frischen Deploy also von selbst. Der Schalter bleibt der Notaus je Art.
+ *
+ * 🪤 `spezies` war hier bis zum 19.08.2026 die AUSNAHME (Default AUS, Owner 2026-07-21: das
+ * Feld „Regionen" der {{Infobox Spezies}} ist im Wiki zu dünn gepflegt). Freigeschaltet, weil der
+ * Rang-3-Filter den auffälligsten Auswuchs längst fängt: „Tiefzwerg" ist kontinentweit gelistet
+ * und stand deshalb bei JEDEM Ort — solche Einträge stehen seit dem 12.08.2026 nur noch im
+ * aufgeklappten Dialog, nicht mehr in der Vorschauzeile. Die Aussage über die Datenlage gilt
+ * unverändert; sie trägt nur keine eigene Vorgabe mehr.
+ *
+ * 💣 Diese Vorgabe steht ZWEIMAL im Haus — die Kartensuche führt ihre eigene Kopie
+ * (avesmapsLoreSearchKindDefaultEnabled), weil sie diese Datei nicht laden darf. Wer hier etwas
+ * ändert, ändert dort mit; gewacht von __tests__/lore-kind-default-parity-test.php.
  */
 function avesmapsLoreKindDefaultEnabled(string $kind): bool
 {
-    return $kind !== 'spezies';
+    return in_array($kind, AVESMAPS_LORE_KINDS, true);
 }
 
 function avesmapsLoreKindSettingKey(string $kind): string

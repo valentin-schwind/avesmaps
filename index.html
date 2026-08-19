@@ -1449,7 +1449,7 @@
 						<button class="lore-btn2" type="button" data-lore-toggle="fauna" aria-pressed="true" title="Blendet Fauna in Infobox und Dialog ein oder aus. Die Daten bleiben erhalten – Wiedereinschalten stellt sie vollständig her."><span class="t1">Fauna: AN</span><span class="t2">öffentliche Anzeige</span></button>
 						<button class="lore-btn2" type="button" data-lore-toggle="flora" aria-pressed="true" title="Blendet Flora in Infobox und Dialog ein oder aus. Die Daten bleiben erhalten – Wiedereinschalten stellt sie vollständig her."><span class="t1">Flora: AN</span><span class="t2">öffentliche Anzeige</span></button>
 						<button class="lore-btn2" type="button" data-lore-toggle="ware" aria-pressed="true" title="Blendet Waren in Infobox und Dialog ein oder aus. Die Daten bleiben erhalten – Wiedereinschalten stellt sie vollständig her."><span class="t1">Waren: AN</span><span class="t2">öffentliche Anzeige</span></button>
-						<button class="lore-btn2" type="button" data-lore-toggle="spezies" aria-pressed="false" title="Spezies ist aus: das Wiki-Feld „Regionen“ der Infobox Spezies ist zu schlecht gepflegt. Die Daten liegen vollständig vor und kommen beim Einschalten sofort zurück."><span class="t1">Spezies: AUS</span><span class="t2">öffentliche Anzeige</span></button>
+						<button class="lore-btn2" type="button" data-lore-toggle="spezies" aria-pressed="true" title="Blendet Spezies in Infobox und Dialog ein oder aus. Die Daten bleiben erhalten – Wiedereinschalten stellt sie vollständig her."><span class="t1">Spezies: AN</span><span class="t2">öffentliche Anzeige</span></button>
 						<!-- „Zugehörigkeit rechnen" ist die Rechnung des LANDSCHAFTEN-Editors, und sie bleibt dort:
 						     diese Kachel oeffnet nur sein Fenster und hebt seinen Knopf hervor. Sie steht hier, weil
 						     eine Lebensraum-Regel ohne diesen Lauf wortlos nichts trifft -- eine neu gezeichnete
@@ -1472,11 +1472,11 @@
 					<div class="lore-dlg__status" id="lore-dlg-status">
 						<span class="lore-dlg__status-text" id="lore-dlg-status-text">Bereit.</span>
 					</div>
-					<!-- Reiter fuer ALLE VIER Arten -- auch Spezies, obwohl es oeffentlich aus ist:
-					     der Schalter im Menueband steuert die Karte, nicht den Editor. Die Daten sind
-					     vollstaendig da und muessen bearbeitbar bleiben. Ihr Platz zwischen Statuszeile
-					     und Spalten ist Absicht (Spec §3.1): sie schalten den GANZEN Editor um, nicht
-					     nur die Liste. -->
+					<!-- Reiter fuer ALLE VIER Arten. Der Schalter im Menueband steuert die KARTE, nicht
+					     den Editor: eine abgeschaltete Art bleibt hier vollstaendig bearbeitbar. Bis zum
+					     19.08.2026 war Spezies die einzige abgeschaltete und stand deshalb ausgegraut da.
+					     Ihr Platz zwischen Statuszeile und Spalten ist Absicht (Spec §3.1): sie schalten
+					     den GANZEN Editor um, nicht nur die Liste. -->
 					<div class="wiki-sync-panel__tabs lore-dlg__tabs">
 						<button class="wiki-sync-panel__tab is-active" type="button" data-lore-dlg-kind="all" title="Alle vier Arten in einer Liste. Jede Zeile nennt dort ihre Art – „Bräubier" (Ware) und „Bräuwurm" (Fauna) wären sonst nicht zu unterscheiden.">Alle <span class="wiki-sync-panel__tab-count" data-lore-dlg-count="all"></span></button>
 						<button class="wiki-sync-panel__tab" type="button" data-lore-dlg-kind="fauna">Fauna <span class="wiki-sync-panel__tab-count" data-lore-dlg-count="fauna"></span></button>

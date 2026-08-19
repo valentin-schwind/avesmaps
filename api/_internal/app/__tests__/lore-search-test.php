@@ -87,17 +87,25 @@ assert(!in_array('', $byId['alraune']['search_texts'], true));
 assert(avesmapsBuildLoreSearchEntries([['wiki_key' => 'x', 'kind' => 'flora', 'name' => '  ']], [], $labels) === []);
 assert(avesmapsBuildLoreSearchEntries([['wiki_key' => '', 'kind' => 'flora', 'name' => 'X']], [], $labels) === []);
 
-// 💣 The kind switch is PER KIND and its default differs: spezies is OFF unless switched on, the other
-// three are ON unless switched off (avesmapsLoreKindDefaultEnabled).
+// Der Schalter ist PER ART, die Polaritaet aber fuer alle vier dieselbe: **Default AN**, nur ein
+// ausdruecklich gespeichertes '0' schaltet ab (avesmapsLoreKindDefaultEnabled).
+//
+// 🪤 Bis zum 19.08.2026 war `spezies` hier die AUSNAHME (Default AUS, Owner 2026-07-21: das Feld
+// „Regionen" der {{Infobox Spezies}} ist im Wiki zu duenn gepflegt). Freigeschaltet, weil der
+// Rang-3-Filter den auffaelligsten Auswuchs laengst faengt -- „Tiefzwerg" ist kontinentweit gelistet
+// und stand deshalb bei JEDEM Ort; solche Eintraege stehen seit dem 12.08.2026 nur noch im
+// aufgeklappten Dialog, nicht mehr in der Vorschauzeile.
 assert(AVESMAPS_LORE_SEARCH_KINDS === ['flora', 'fauna', 'spezies', 'ware']);
 assert(avesmapsLoreSearchKindDefaultEnabled('flora') === true);
 assert(avesmapsLoreSearchKindDefaultEnabled('ware') === true);
-assert(avesmapsLoreSearchKindDefaultEnabled('spezies') === false);
+assert(avesmapsLoreSearchKindDefaultEnabled('spezies') === true);
 assert(avesmapsLoreSearchSettingKey('fauna') === 'lore_kind_fauna_enabled');
 
 // Reading a stored value: '' means "never written" -> default, '0' means off, anything else on.
-assert(avesmapsLoreSearchKindIsEnabled('spezies', '') === false);
-assert(avesmapsLoreSearchKindIsEnabled('spezies', '1') === true);
+assert(avesmapsLoreSearchKindIsEnabled('spezies', '') === true);
+// 🔴 Der Notaus muss weiter greifen: eine gespeicherte '0' schlaegt den Default, sonst waere der
+// Editor-Schalter fuer diese eine Art wirkungslos.
+assert(avesmapsLoreSearchKindIsEnabled('spezies', '0') === false);
 assert(avesmapsLoreSearchKindIsEnabled('flora', '') === true);
 assert(avesmapsLoreSearchKindIsEnabled('flora', '0') === false);
 
@@ -105,11 +113,12 @@ assert(avesmapsLoreSearchKindIsEnabled('flora', '0') === false);
 // wraps -- fed from avesmapsAppSettingGetManyWithoutDdl's batch read (api/_internal/app/app-setting.php)
 // instead of running its own query, so map-search.php can fold this into ONE call with the other
 // switches. No stored rows at all -> every kind falls back to its own default.
-assert(avesmapsLoreSearchEnabledKindsFromSettings([]) === ['flora', 'fauna', 'ware']);
+assert(avesmapsLoreSearchEnabledKindsFromSettings([]) === ['flora', 'fauna', 'spezies', 'ware']);
 // A key simply ABSENT from $stored (never written) must read exactly like the '' case above -- not
 // like an accidental off.
 assert(avesmapsLoreSearchEnabledKindsFromSettings(['lore_kind_spezies_enabled' => '1']) === ['flora', 'fauna', 'spezies', 'ware']);
-assert(avesmapsLoreSearchEnabledKindsFromSettings(['lore_kind_flora_enabled' => '0']) === ['fauna', 'ware']);
+assert(avesmapsLoreSearchEnabledKindsFromSettings(['lore_kind_spezies_enabled' => '0']) === ['flora', 'fauna', 'ware']);
+assert(avesmapsLoreSearchEnabledKindsFromSettings(['lore_kind_flora_enabled' => '0']) === ['fauna', 'spezies', 'ware']);
 
 // Regeln reisen in derselben Ortsliste mit -- der Client hat nie gewusst, woher ein Ort kommt.
 $entries = avesmapsBuildLoreSearchEntries(

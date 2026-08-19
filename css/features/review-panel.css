@@ -1922,8 +1922,10 @@ body.modal-dialog-open #wiki-sync-conflicts-overlay.is-minimized ~ * {
 	display: none;
 }
 
-/* Greyed = not shown publicly (today only Spezies). Deliberately NOT disabled: the data is
-   complete and stays editable, only the public display is off. The reason sits in the tooltip. */
+/* Greyed = not shown publicly. Deliberately NOT disabled: the data stays complete and editable,
+   only the public display is off, and the reason sits in the tooltip.
+   🪤 Spezies was the only user of this until 2026-08-19 and is now switched on -- the rule
+   keeps standing for whoever greys a tab next (WIKI_SYNC_LORE_VIEWS, js/review/review-subjects.js). */
 .wiki-sync-views .wiki-sync-panel__tab.is-off { opacity: 0.5; }
 
 /* Ein Subjekt ohne Sichten (Abenteuer, Karten, Kraftlinien) laesst den geteilten Streifen leer.

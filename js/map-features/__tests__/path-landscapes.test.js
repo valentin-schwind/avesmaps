@@ -307,7 +307,7 @@ console.log("OK: Klimazonen bleiben aus der Landschaftszeile draussen -- und kom
 	assert(markup.indexOf("gemaessigte-zone") < 0,
 		"💣 die Klimazone gehoert NICHT dazu -- sonst staende hier die Flora eines Rechenbandes");
 	assert(markup.indexOf('data-lore-kinds=""') >= 0,
-		"alle drei Arten am Weg (Owner 2026-08-12) -- anders als die Etappe, die auf flora|fauna kappt");
+		"alle Arten am Weg (Owner 2026-08-12; seit dem 19.08. sind es vier) -- ein leeres kinds kappt nie");
 	// 💣 Der Name ist die LANDSCHAFT, nie der Weg: der „+N"-Dialog ueberschreibt damit seine Gruppen,
 	// und „Direkt in Reichsstraße Gareth–Elenvina" waere schlicht falsch -- das Braeubier steht in
 	// Weiden. In der Abnahme am 2026-08-12 stand genau dieser Satz auf dem Schirm.

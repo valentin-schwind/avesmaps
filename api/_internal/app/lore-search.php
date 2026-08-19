@@ -49,9 +49,16 @@ function avesmapsLoreSearchSettingKey(string $kind): string {
     return 'lore_kind_' . $kind . '_enabled';
 }
 
-/** Mirrors avesmapsLoreKindDefaultEnabled: everything is on by default EXCEPT spezies. */
+/**
+ * Mirrors avesmapsLoreKindDefaultEnabled: every kind is on unless a stored '0' says otherwise.
+ *
+ * 🪤 `spezies` was the exception here until 2026-08-19 -- see the reasoning at the original in
+ * api/_internal/app/lore.php. 💣 The two copies must agree; __tests__/lore-kind-default-parity-test.php
+ * is what keeps them from drifting apart, which would show a kind in the infobox and hide it from
+ * the search without anything ever erroring.
+ */
 function avesmapsLoreSearchKindDefaultEnabled(string $kind): bool {
-    return $kind !== 'spezies';
+    return in_array($kind, AVESMAPS_LORE_SEARCH_KINDS, true);
 }
 
 /** '' = never written -> the kind's own default; '0' = off; anything else = on. */

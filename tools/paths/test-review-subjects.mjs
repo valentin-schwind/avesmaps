@@ -53,10 +53,15 @@ assert.equal(buttonId("territories"), "wiki-sync-territories");
 assert.equal(buttonId("adventures"), "game-literature-editor-open");
 assert.equal(buttonId("citymaps"), "citymaps-editor-open");
 assert.equal(buttonId("lore"), "wiki-sync-lore-open");
-// The three without a list editor fall through to their sync button.
-assert.equal(buttonId("regions"), "wiki-sync-sync-region");
-assert.equal(buttonId("paths"), "wiki-sync-sync-path");
-assert.equal(buttonId("powerlines"), "wiki-sync-powerlines-sync");
+// 🪤 These three read "the ones without a list editor" until 2026-08-19 -- they all have one
+// now (Landschaften, Wege, Kraftlinien each grew theirs), and this file has been RED ever since:
+// the CI gate globs `js tools -path '*__tests__*' -name '*.test.js'`, which matches neither the
+// .mjs suffix nor this directory, so nothing ever ran it. The RULE above is unchanged; only its
+// examples had moved. Territories is now the only subject that still falls through to its sync
+// button.
+assert.equal(buttonId("regions"), "ecosystem-editor-open");
+assert.equal(buttonId("paths"), "path-editor-open");
+assert.equal(buttonId("powerlines"), "powerline-editor-open");
 assert.equal(buttonId("nonsense"), null, "unknown key must not throw");
 
 // Karten is the one subject with no panel sync button at all -- its sync lives entirely inside
@@ -82,10 +87,14 @@ assert.deepEqual(views("adventures"), [], "no invented empty 'Alle' where there 
 assert.deepEqual(views("powerlines"), []);
 assert.deepEqual(views("nonsense"), [], "unknown key must not throw");
 
-// --- Spezies is off in public, but stays editable ---------------------------------------
-const spezies = views("lore").find((v) => v.key === "spezies");
-assert.equal(spezies.off, true, "greyed out, not removed");
-assert.ok(spezies.reason && spezies.reason.length > 20, "a greyed tab must say why");
+// --- no lore tab is greyed any more (spezies freed 2026-08-19) --------------------------
+// The `off`/`reason` pair stays a registry OPTION -- it just has no user right now. Whoever marks
+// a tab off again must supply the reason with it: a greyed surface without one gets flipped back
+// by the next person "tidying up".
+views("lore").forEach((view) => {
+	assert.ok(!view.off, `no lore view is off: ${view.key}`);
+	assert.ok(!view.reason, `and none carries a leftover reason: ${view.key}`);
+});
 
 // --- the sync-kind mapping (NOT in the instruction; the rail needs it) -------------------
 // The rail shows a "last synced" date per subject, but the server answers keyed by SYNC KIND
@@ -106,7 +115,10 @@ assert.equal(syncKind("citymaps"), "citymap");
 // dump endpoint; loadLoreList feeds it into the same map. Powerlines have no source at all, and
 // null has to stay null there -- a rail that invents a date claims a sync nobody ran.
 assert.equal(syncKind("lore"), "lore");
-assert.equal(syncKind("powerlines"), null, "nothing answers for powerlines -- do not invent one");
+// 🪤 Also stale, same reason as the button ids above: powerlines DOES record a reconcile
+// timestamp now (avesmapsWikiPowerlineLastSynced, wired into avesmapsWikiDumpSyncKindLastSynced),
+// so it carries a syncKind. The registry comment above WIKI_SYNC_SUBJECTS says so verbatim.
+assert.equal(syncKind("powerlines"), "powerline");
 assert.equal(syncKind("nonsense"), null);
 
 // --- Facetten: FELD und BESCHRIFTUNG, niemals Werte -------------------------------------
@@ -116,7 +128,10 @@ assert.equal(syncKind("nonsense"), null);
 const facets = (k) => local(vm.runInContext(`wikiSyncSubjectFacets(${JSON.stringify(k)})`, context));
 const facetKeys = (k) => facets(k).map((f) => f.key);
 
-assert.deepEqual(facetKeys("locations"), ["type", "continent", "source", "coat", "image"],
+// 🪤 Stale again: "Lage" (scope, innerorts/ausserorts) and "Art" (buildingType, the Besondere
+// Staetten weiche) joined the settlement editor after this line was written. The RULE is what
+// this file guards -- field and label, never values -- not the length of the list.
+assert.deepEqual(facetKeys("locations"), ["type", "continent", "scope", "buildingType", "source", "coat", "image"],
 	"der Satz ist der des Siedlungseditors -- Fenster und Panel duerfen nicht zwei Fragen stellen");
 assert.deepEqual(facetKeys("adventures"), ["type", "edition", "region", "cover", "fshop"]);
 assert.deepEqual(facetKeys("citymaps"), ["paid", "scale", "preview", "thumbOrigin"]);

@@ -28,16 +28,15 @@ const WIKI_SYNC_LORE_VIEWS = [
 	{ key: "fauna", label: "Fauna" },
 	{ key: "flora", label: "Flora" },
 	{ key: "ware", label: "Waren" },
-	{
-		key: "spezies",
-		label: "Spezies",
-		// Public display is off (owner 2026-07-21) but the data is complete and stays editable,
-		// so the tab is greyed -- never removed. Reason verbatim from index.html:819: a greyed
-		// surface without a reason gets flipped back by someone "tidying up".
-		off: true,
-		reason: "Das Wiki-Feld „Regionen“ der Infobox Spezies ist zu schlecht gepflegt. "
-			+ "Die Daten liegen vollständig vor und kommen beim Einschalten sofort zurück.",
-	},
+	// 🪤 Spezies trug hier bis zum 19.08.2026 ein `off: true` samt Begründung und war deshalb als
+	// einziger Reiter ausgegraut -- die öffentliche Anzeige war aus (Owner 2026-07-21), die Daten
+	// waren die ganze Zeit vollständig und bearbeitbar. Freigeschaltet; siehe die Begründung an
+	// avesmapsLoreKindDefaultEnabled (api/_internal/app/lore.php).
+	//
+	// `off`/`reason` bleiben eine Option der Registry, nur ohne Nutzer. Wer einen Reiter wieder
+	// ausgraut, liefert die Begründung mit: eine graue Fläche ohne Grund wird vom Nächsten
+	// zurückgedreht, der „aufräumt".
+	{ key: "spezies", label: "Spezies" },
 ];
 
 // 💣 EIN Knopf je Subjekt, und zwar der, den es schon gibt (Owner 2026-07-22, korrigiert eine

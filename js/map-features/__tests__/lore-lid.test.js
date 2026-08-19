@@ -186,4 +186,31 @@ const sortiert = avesmapsLoreInfoRowMarkup(zeile("ware"),
 assert.ok(sortiert.indexOf("Älbler") < sortiert.indexOf("Zwerg"),
 	"sortiert wird deutsch: Aelbler vor Zwerg");
 
+// ---- Spezies (freigeschaltet 19.08.2026) ------------------------------------------------------
+// 🪤 Bis dahin kannte AVESMAPS_LORE_ROWS die vierte Art gar nicht -- die Daten lagen die ganze
+// Zeit vollstaendig da (187 Eintraege, Katalog und Editor fuehrten sie), nur die oeffentliche
+// Anzeige verzichtete darauf (Owner 2026-07-21: das Feld „Regionen“ der {{Infobox Spezies}} ist im
+// Wiki zu duenn gepflegt). Aufgehoben, weil der Rang-3-Filter den auffaelligsten Auswuchs faengt:
+// „Tiefzwerg“ ist kontinentweit gelistet und stand deshalb bei JEDEM Ort -- seit dem 12.08.2026
+// stehen solche Eintraege nur noch im aufgeklappten Dialog, nicht mehr in der Vorschauzeile.
+const spezies = zeile("spezies");
+assert.ok(spezies, "Spezies ist eine Zeile wie die anderen drei, kein Sonderfall");
+
+// 🔴 UNTEN, hinter Flora (Owner 19.08.2026: „einfach drunter“).
+assert.deepStrictEqual(AVESMAPS_LORE_ROWS.map((r) => r.kind), ["ware", "fauna", "flora", "spezies"],
+	"die Reihenfolge der Infobox-Zeilen");
+
+const arten = avesmapsLoreInfoRowMarkup(spezies, [ware("Tiefzwerg"), ware("Ork")], 2, "punin", null);
+assert.ok(arten.indexOf("<details") >= 0, "derselbe Deckel wie ueberall");
+assert.ok(arten.indexOf("2") >= 0 && arten.indexOf("Spezies verzeichnet") >= 0,
+	"mit demselben Satzbau: " + arten);
+assert.ok(zu(arten).indexOf("Tiefzwerg") < 0 && zu(arten).indexOf("Ork") < 0,
+	"und zugeklappt steht auch hier kein Name: " + zu(arten));
+
+// 💣 „Spezies“ ist in beiden Zahlformen dasselbe Wort -- „1 Spezie“ gibt es nicht. Der Test steht
+// hier, weil die drei anderen Zeilen ihre Einzahl echt beugen und ein Abschreiber das nachzieht.
+const eineArt = avesmapsLoreInfoRowMarkup(spezies, [ware("Ork")], 1, "punin", null);
+assert.ok(eineArt.indexOf("Spezies verzeichnet") >= 0, "Einzahl heisst genauso: " + eineArt);
+assert.strictEqual(spezies.singular, spezies.plural, "beide Zahlformen sind derselbe Satz");
+
 console.log("OK: die Lore-Zeilen sind Deckel -- EIN Satz, keine Namen zugeklappt, Gliederung nach Naehe");
