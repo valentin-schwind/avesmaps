@@ -422,6 +422,21 @@
 	--color-scrim-spoiler: rgba(20, 16, 12, 0.62);
 	--color-scrim-spoiler-text: #f4ece0;
 
+	/* ---- Der Startschleier (css/features/loading-bar.css) ----
+	   Liegt ueber der Karte, solange die Klasse `avesmaps-booting` steht (Owner 19.08.2026:
+	   „sollen die kacheln im hintergrund leicht weiss erscheinen"). Entwurf:
+	   docs/superpowers/specs/2026-08-19-startladen-schleier-und-windrose-design.md
+	   🔴 Anders als jeder Scrim darueber ist er NICHT gepinnt: „leicht weiss" beschreibt das helle
+	   Thema, und derselbe Wert ueber der dunklen Karte waere ein Blitz. Der dunkle Gegenwert steht
+	   im data-theme-Block weiter unten -- wer hier etwas aendert, aendert dort mit. */
+	--color-boot-veil: rgba(255, 253, 249, 0.55);
+	/* Die Windrose darin: zwei Haelften je Zacke (die Seekarten-Optik) plus der ruhende Ring und
+	   sein Teilstrichkranz. Das Gold des laufenden Stuecks ist bewusst KEIN eigenes Token -- es ist
+	   --color-accent-strong, das Wappengold, das die Designsprache dafuer schon fuehrt. */
+	--color-boot-ring-ink: #6d5236;
+	--color-boot-ring-pale: #d7c9a8;
+	--color-boot-ring-track: rgba(109, 82, 54, 0.22);
+
 	/* Territory-editor sticky header — translucent panel + backdrop-filter blur
 	   so scrolled content shows through faintly. */
 	--color-panel-translucent: rgba(255, 253, 249, 0.96);
@@ -856,4 +871,12 @@ html.avesmaps-phone {
 	--shadow-dialog: 0 20px 45px rgba(0, 0, 0, 0.6);
 	--shadow-button-hover: 0 4px 10px rgba(0, 0, 0, 0.38);
 	--shadow-button-hover-strong: 0 5px 12px rgba(0, 0, 0, 0.5);
+
+	/* Der Startschleier, dunkel. Kein Weiss ueber der dunklen Karte -- die Begruendung steht im
+	   hellen Block. Die Rose dreht ihre beiden Haelften um: hell wird cremefarben, „dunkel" wird
+	   ein warmes Mittelbraun, damit beide auf dem dunklen Grund lesbar bleiben. */
+	--color-boot-veil: rgba(33, 31, 25, 0.66);
+	--color-boot-ring-ink: #cbb99a;
+	--color-boot-ring-pale: #efe6d2;
+	--color-boot-ring-track: rgba(238, 231, 218, 0.20);
 }
