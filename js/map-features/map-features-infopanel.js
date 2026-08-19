@@ -769,7 +769,7 @@
 		// zwischen Kartenzeitraum und dem Ende der Tabelle.
 		// Wiki-Regionen/Territorien tragen den Button jetzt im Kopf-Band (region-info-markup.js). Nur die
 		// kompakte Mini-Box (ohne Wiki, ohne Aktionsband) bekommt ihn hier unten angehaengt.
-		if (typeof hasRegionWikiInfo === "function" && !hasRegionWikiInfo(regionEntry)) { markup += regionSuggestChangeBandMarkup(regionEntry); }
+		if (typeof regionShowsFullInfoBox === "function" && !regionShowsFullInfoBox(regionEntry)) { markup += regionSuggestChangeBandMarkup(regionEntry); }
 		return markup;
 	}
 
@@ -812,7 +812,10 @@
 		}
 		showRegionMarkup(regionEntry);
 		regionDetailToken = regionEntry;
-		var needsDetail = typeof hasRegionWikiInfo === "function" && hasRegionWikiInfo(regionEntry)
+		// 💣 Dieselbe Weiche wie die Box daneben -- und das ist die eigentliche Reparatur. Oberhaupt,
+		// Hauptstadt, Status und Klimazone kommen AUSSCHLIESSLICH aus territory-detail.php; haengt das
+		// Tor an hasRegionWikiInfo, bekommt ein eigener Knoten zwar die volle Box, aber eine leere.
+		var needsDetail = typeof regionShowsFullInfoBox === "function" && regionShowsFullInfoBox(regionEntry)
 			&& !regionEntry.detail && regionEntry.territoryPublicId;
 		if (needsDetail) {
 			var token = regionEntry;

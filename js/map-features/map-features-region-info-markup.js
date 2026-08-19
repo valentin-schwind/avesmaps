@@ -18,7 +18,7 @@ function avesmapsCoatSrc(url) {
 }
 
 function createRegionCompactTooltipMarkup(regionEntry) {
-	if (hasRegionWikiInfo(regionEntry)) {
+	if (regionShowsFullInfoBox(regionEntry)) {
 		return createRegionWikiInfoBoxMarkup(regionEntry);
 	}
 
@@ -69,6 +69,27 @@ function hasRegionWikiInfo(regionEntry) {
 	);
 }
 
+// Welche der beiden Boxen ein Gebiet bekommt. Ein politisches Territorium bekommt IMMER die volle
+// Infobox -- auch ein eigener Knoten ohne Wiki-Artikel (Owner 19.08.2026: „wenn sachen fehlen fehlen
+// sie halt, aber alles wegzulassen ist falsch"). Seine gepflegten Felder liegen in political_territory
+// und in wiki_territory_model.metadata_overrides_json und reisen ueber territory-detail.php; die
+// Mini-Box zeigt von beidem fast nichts -- live gemessen an „Ujak" blieben Name und Typ uebrig.
+//
+// 💣 Bewusst NICHT dasselbe wie hasRegionWikiInfo. Das beantwortet „gibt es Wiki-Info?" und wird
+// weiterhin genau dafuer gebraucht. Beide Fragen in EINEM Praedikat waren die Ursache des Befunds:
+// die Weiche und das Tor vor dem Detail-Abruf hingen an derselben Antwort, und fuer einen eigenen
+// Knoten war das zirkulaer -- der Abruf, der die Wiki-Info erst mitbringt, lief nur, wenn schon
+// Wiki-Info da war.
+//
+// ⚠️ Landschaftsregionen (source „map_feature") bleiben an hasRegionWikiInfo: ihre reichen Felder
+// haengen am Wiki, und einen territory-detail.php-Abruf gibt es fuer sie gar nicht.
+function regionShowsFullInfoBox(regionEntry) {
+	if (!regionEntry) {
+		return false;
+	}
+	return regionEntry.source === "political_territory" || hasRegionWikiInfo(regionEntry);
+}
+
 function createRegionWikiInfoBoxMarkup(regionEntry) {
 	// #5: reichhaltige, read-only Wiki-Zusatzfelder kommen aus dem Detail-Endpoint (regionEntry.detail),
 	// async nachgeladen. Vor dem Laden zeigt die Box die Map-Features-Basisdaten; danach das Volle.
@@ -84,6 +105,12 @@ function createRegionWikiInfoBoxMarkup(regionEntry) {
 		: "";
 	const hasCoatClass = coatMarkup ? " has-coat" : "";
 	const wikiUrl = regionEntry.wikiUrl || f.wiki_url;
+	// 💣 Ohne Wiki-Artikel ist die Zeile „Wiki-Eintrag" keine fehlende Angabe, sondern eine falsche:
+	// wikiName faellt auf den eigenen Namen zurueck und behauptet damit einen Wiki-Eintrag, den es
+	// nicht gibt -- und der Name steht ohnehin schon im Kopf der Box. hasRegionWikiInfo taugt hier
+	// nicht als Mass: sobald der Detail-Abruf `fields` mitbringt, ist das auch fuer einen eigenen
+	// Knoten true.
+	const hasWikiArticle = Boolean(regionEntry.wikiId || regionEntry.wikiName || wikiUrl);
 	// "Link teilen" nur bei vorhandenem Wiki-Artikel (kein ?place=-Fallback: focusRegionPlace loest nur
 	// Orts-public_ids auf, nicht das public_id des Gebiets/der Region selbst -- siehe
 	// js/map-features/map-features-region-tooltip-lifecycle.js focusRegionPlace). wikiParam-Diskriminator:
@@ -99,7 +126,7 @@ function createRegionWikiInfoBoxMarkup(regionEntry) {
 	const suggestButton = suggestSpec ? popupActionButtonMarkup(suggestSpec) : "";
 	const shareMarkup = (shareButton || suggestButton) ? locationPopupActionsMarkup([shareButton, suggestButton].filter(Boolean)) : "";
 	const wikiRows = [
-		createRegionInfoTextRow(tr("infobox.wikiEntry", "Wiki-Eintrag"), wikiName),
+		createRegionInfoTextRow(tr("infobox.wikiEntry", "Wiki-Eintrag"), hasWikiArticle ? wikiName : ""),
 		createRegionInfoTextRow(tr("infobox.status", "Status"), regionEntry.status || f.status),
 		createRegionContestedRow(regionEntry),
 		createRegionInfoTextRow(tr("infobox.governmentForm", "Herrschaftsform"), f.form_of_government),

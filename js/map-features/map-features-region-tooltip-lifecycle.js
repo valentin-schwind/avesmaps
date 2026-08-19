@@ -316,9 +316,11 @@ function bindRegionHoverTooltip(polygon, regionEntry) {
 
 // #5: laedt die reichhaltigen Wiki-Zusatzfelder (Oberhaupt/Sprache/Waehrung/Einwohner/Gruender/
 // Herrschaftsform/Handelswaren/Geographisch) + das lizenz-gegatete Wappen aus dem Detail-Endpoint
-// nach und rendert den Tooltip neu. Nur für Wiki-Infoboxen mit bekanntem Territorium.
+// nach und rendert den Tooltip neu. Fuer alles, was die volle Infobox zeigt, und mit bekanntem
+// Territorium -- also auch fuer einen eigenen Knoten ohne Wiki-Artikel, dessen gepflegte Felder
+// ausschliesslich von dort kommen (regionShowsFullInfoBox, map-features-region-info-markup.js).
 function enrichRegionTooltipWithWikiDetail(regionEntry, tooltip) {
-	if (!hasRegionWikiInfo(regionEntry) || regionEntry.detail) {
+	if (!regionShowsFullInfoBox(regionEntry) || regionEntry.detail) {
 		return;
 	}
 	const territoryPublicId = regionEntry.territoryPublicId || "";
