@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="de" data-theme="light">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Startladen &ndash; Mockup</title>
+<style>
+/* Auszug der echten Token (css/base/tokens.css) -- nur was dieses Mockup braucht. */
+:root {
+	--color-page-bg: #f3f0e8;
+	--color-panel: #fffdf9;
+	--color-panel-soft: #faf6ee;
+	--color-text: #3a3529;
+	--color-text-strong: #241f16;
+	--color-text-muted: #6d6555;
+	--color-border: #d9cfb8;
+	--color-button: #5b5548;
+	--color-button-text: #f6efe1;
+	--color-accent: #bfa03a;
+	--color-accent-strong: #9c7f22;
+	--color-accent-brown: #7a5a3a;
+	--radius-sm: 6px;
+	--radius-md: 8px;
+	--avesmaps-planner-width: 350px;
+
+	/* NEU: der Startschleier. Eigene Token, damit hell und dunkel getrennt einstellbar sind. */
+	--color-boot-veil: rgba(255, 253, 249, 0.55);
+	/* NEU: die Farben des Ladekreises. Vier Rollen, nicht vier Zahlen an vier Stellen. */
+	--color-boot-ring-gold: #9c7f22;   /* das laufende Stueck */
+	--color-boot-ring-ink: #6d5236;    /* Speichen, Nabe, dunkle Rosenhaelfte */
+	--color-boot-ring-track: rgba(109, 82, 54, 0.22); /* der ruhende Ring darunter */
+	--color-boot-ring-pale: #d7c9a8;   /* helle Rosenhaelfte */
+}
+:root[data-theme="dark"] {
+	--color-page-bg: #211f19;
+	--color-panel: #312e26;
+	--color-panel-soft: #37342b;
+	--color-text: #eee7da;
+	--color-text-strong: #f5f0e4;
+	--color-text-muted: #b4a895;
+	--color-border: #514a3c;
+	--color-button: #6b6456;
+	--color-button-text: #f5ebd7;
+	--color-accent: #cbb05a;
+	--color-accent-strong: #d8bd63;
+	--color-accent-brown: #9a7a5a;
+	/* Im dunklen Thema ist der Schleier NICHT weiss -- weiss auf dunkler Karte ist ein Blitz. */
+	--color-boot-veil: rgba(33, 31, 25, 0.66);
+	--color-boot-ring-gold: #d8bd63;
+	--color-boot-ring-ink: #cbb99a;
+	--color-boot-ring-track: rgba(238, 231, 218, 0.20);
+	--color-boot-ring-pale: #efe6d2;
+}
+
+* { box-sizing: border-box; }
+body {
+	margin: 0;
+	font-family: "Segoe UI", system-ui, sans-serif;
+	background: var(--color-page-bg);
+	color: var(--color-text);
+}
+.wrap { max-width: 1180px; margin: 0 auto; padding: 24px 20px 60px; }
+h1 { font-size: 22px; margin: 0 0 4px; color: var(--color-text-strong); }
+.sub { margin: 0 0 20px; color: var(--color-text-muted); font-size: 14px; }
+.bar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 16px; }
+.bar button {
+	font: inherit; padding: 7px 14px; border-radius: var(--radius-md); cursor: pointer;
+	border: 1px solid var(--color-border); background: var(--color-panel-soft); color: var(--color-text-strong);
+}
+.bar button.primary { background: var(--color-button); color: var(--color-button-text); border-color: var(--color-button); }
+.hint { font-size: 13px; color: var(--color-text-muted); }
+
+/* ---- Die Auswahl der vier Ladekreise -------------------------------------------------------- */
+.picker { display: flex; gap: 12px; flex-wrap: wrap; margin: 0 0 18px; }
+.picker button {
+	font: inherit; cursor: pointer; width: 148px; padding: 14px 10px 10px;
+	display: flex; flex-direction: column; align-items: center; gap: 10px;
+	border: 1px solid var(--color-border); border-radius: var(--radius-md);
+	background: var(--color-panel-soft); color: var(--color-text-strong);
+}
+.picker button[aria-pressed="true"] {
+	border-color: var(--color-accent-strong);
+	box-shadow: inset 0 0 0 1px var(--color-accent-strong);
+	background: var(--color-panel);
+}
+.picker .pk-name { font-size: 13px; font-weight: 600; }
+.picker .pk-note { font-size: 11px; color: var(--color-text-muted); line-height: 1.35; text-align: center; }
+.picker svg { width: 54px; height: 54px; display: block; }
+
+/* ---- Die Buehne: ein Karten-Ausschnitt im Seitenverhaeltnis eines Fensters ------------------ */
+.stage {
+	position: relative; height: 560px; overflow: hidden;
+	border: 1px solid var(--color-border); border-radius: var(--radius-md);
+	background: #cfc6ae;
+	isolation: isolate;
+}
+/* Fake-Kacheln */
+.tiles {
+	position: absolute; inset: 0;
+	background:
+		linear-gradient(135deg, #b9c9a0 0%, #cdd4ae 30%, #d9d0ae 55%, #bfd0d6 100%),
+		repeating-linear-gradient(0deg, rgba(0,0,0,.05) 0 1px, transparent 1px 96px),
+		repeating-linear-gradient(90deg, rgba(0,0,0,.05) 0 1px, transparent 1px 96px);
+	background-blend-mode: normal, multiply, multiply;
+}
+.tiles::after {
+	content: ""; position: absolute; inset: 0;
+	background:
+		radial-gradient(120px 70px at 22% 30%, rgba(120,140,90,.5), transparent 70%),
+		radial-gradient(180px 90px at 68% 62%, rgba(150,130,90,.45), transparent 70%),
+		radial-gradient(90px 60px at 45% 78%, rgba(110,150,160,.5), transparent 70%);
+}
+/* Fake-Beschriftungen: erscheinen erst mit den Daten */
+.labels { position: absolute; inset: 0; opacity: 0; transition: opacity .35s ease .1s; }
+.stage.ready .labels { opacity: 1; }
+.labels span {
+	position: absolute; font-size: 12px; color: #2f2a20; white-space: nowrap;
+	text-shadow: 0 0 3px #fff, 0 0 3px #fff, 0 0 3px #fff;
+}
+.labels i {
+	position: absolute; width: 8px; height: 8px; border-radius: 50%;
+	background: #7a4a2a; border: 1.5px solid #fffdf9; transform: translate(-50%, -50%);
+}
+
+/* ---- Der schmale Streifen oben (bleibt, unveraendert) -------------------------------------- */
+.topbar { position: absolute; top: 0; left: 0; right: 0; height: 4px; z-index: 90; opacity: 0; transition: opacity .25s ease; }
+.stage.booting .topbar { opacity: 1; }
+.topbar i {
+	display: block; height: 100%; width: 8%;
+	background: linear-gradient(90deg, #6b3f10 0%, #a9741f 50%, #cf9a34 100%);
+	box-shadow: 0 0 6px rgba(169,116,31,.5), 0 1px 2px rgba(0,0,0,.22);
+	transition: width .2s cubic-bezier(.2,.7,.2,1);
+}
+
+/* ---- NEU (1): der Startschleier + der Ladekreis --------------------------------------------- */
+.veil {
+	position: absolute; inset: 0; z-index: 80;
+	display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px;
+	background: var(--color-boot-veil);
+	pointer-events: none;              /* laesst durch: Schieben/Zoomen geht wie heute */
+	opacity: 0; visibility: hidden;
+	transition: opacity .28s ease, visibility 0s linear .28s;
+}
+.stage.booting .veil { opacity: 1; visibility: visible; transition: opacity .28s ease, visibility 0s linear 0s; }
+.veil svg { width: 64px; height: 64px; display: block; }
+.veil__text { font-size: 14px; color: var(--color-text-strong); letter-spacing: .01em; }
+
+/* ---- Die Drehungen. EIN Keyframe, drei Geschwindigkeiten. ----------------------------------- */
+@keyframes avesmaps-boot-spin { to { transform: rotate(360deg); } }
+@keyframes avesmaps-boot-pulse { 0%, 100% { opacity: .35; } 50% { opacity: 1; } }
+.bt-spin, .bt-spin-rev, .bt-spin-slow {
+	/* Bei einem SVG-Teilelement ist der Bezugsrahmen sonst der ganze Zeichenbereich -- der Kreis
+	   liefe dann auf einer Kreisbahn statt sich zu drehen. */
+	transform-box: fill-box;
+	transform-origin: center;
+}
+.bt-spin      { animation: avesmaps-boot-spin 1.5s linear infinite; }
+.bt-spin-rev  { animation: avesmaps-boot-spin 2.6s linear infinite reverse; }
+.bt-spin-slow { animation: avesmaps-boot-spin 3.6s linear infinite; }
+svg.bt-spin-slow { transform-box: view-box; }
+@media (prefers-reduced-motion: reduce) {
+	.bt-spin, .bt-spin-rev, .bt-spin-slow {
+		animation: avesmaps-boot-pulse 1.8s ease-in-out infinite;
+	}
+}
+
+/* ---- Der Routenplaner links (heute schon so) ------------------------------------------------ */
+.planner {
+	position: absolute; top: 10px; bottom: 12px; left: 0; width: var(--avesmaps-planner-width); z-index: 60;
+	background: var(--color-panel); border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+	box-shadow: 10px 12px 28px rgba(0,0,0,.22); padding: 16px;
+	transition: transform .22s ease;
+}
+.planner h3 { margin: 0 0 12px; font-size: 15px; color: var(--color-text-strong); }
+.planner .row { height: 34px; border: 1px solid var(--color-border); border-radius: var(--radius-md); margin-bottom: 8px; background: var(--color-panel-soft); }
+.planner .go { height: 36px; border-radius: var(--radius-md); background: var(--color-button); color: var(--color-button-text); display: flex; align-items: center; justify-content: center; font-size: 14px; margin-top: 4px; }
+.planner-tab {
+	position: absolute; top: 30px; left: var(--avesmaps-planner-width); z-index: 60;
+	width: 30px; height: 140px; border-radius: 0 5px 5px 0;
+	background: var(--color-button); color: var(--color-button-text);
+	writing-mode: vertical-rl; display: flex; align-items: center; justify-content: center; font-size: 13px;
+	box-shadow: 5px 6px 14px rgba(0,0,0,.28);
+	transition: transform .22s ease;
+}
+.stage.booting .planner,
+.stage.booting .planner-tab { transform: translateX(calc(-1 * var(--avesmaps-planner-width))); }
+
+/* ---- NEU (2): die rechte Kante faehrt herein ------------------------------------------------ */
+.info-tab, .editor-tab {
+	position: absolute; right: 0; z-index: 60;
+	width: 30px; height: 140px;
+	background: var(--color-button); color: var(--color-button-text);
+	writing-mode: vertical-rl; display: flex; align-items: center; justify-content: center; font-size: 13px;
+	transition: transform .22s ease, right .22s ease;
+}
+.info-tab {
+	top: 30px; border-radius: 5px 0 0 5px;
+	box-shadow: -4px 0 9px rgba(0,0,0,.3);
+}
+.editor-tab {
+	top: 180px; border-radius: 0 5px 5px 0;
+	transform: rotate(180deg);                       /* der Editor-Tab ist GEDREHT */
+	box-shadow: 4px 0 9px rgba(0,0,0,.3);
+}
+.stage.booting .info-tab   { transform: translateX(100%); }
+/* Nach rotate(180deg) zeigt die eigene x-Achse nach LINKS -> minus, um nach rechts zu gehen. */
+.stage.booting .editor-tab { transform: rotate(180deg) translateX(-100%); }
+
+.legend { margin-top: 18px; font-size: 13px; color: var(--color-text-muted); line-height: 1.7; }
+.legend b { color: var(--color-text-strong); font-weight: 600; }
+.legend code { background: var(--color-panel-soft); border: 1px solid var(--color-border); border-radius: 4px; padding: 1px 5px; font-size: 12px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+	<h1>Startladen &ndash; Schleier, Ladekreis, rechte Kante</h1>
+	<p class="sub">Mockup zum Entwurf. Alles h&auml;ngt an der schon vorhandenen Klasse <code>avesmaps-booting</code> &ndash; kein neuer Zustand, kein neues Ereignis.</p>
+
+	<div class="picker" id="picker"></div>
+
+	<div class="bar">
+		<button class="primary" id="play">&#9654; Ladevorgang abspielen</button>
+		<button id="hold">Im Ladezustand halten</button>
+		<button id="theme">Dunkles Thema</button>
+		<span class="hint" id="phase">bereit</span>
+	</div>
+
+	<div class="stage booting" id="stage">
+		<div class="tiles"></div>
+		<div class="labels">
+			<i style="left:22%;top:31%"></i><span style="left:23.5%;top:29%">Gareth</span>
+			<i style="left:66%;top:61%"></i><span style="left:67.5%;top:59%">Al&rsquo;Anfa</span>
+			<i style="left:45%;top:77%"></i><span style="left:46.5%;top:75%">Riva</span>
+			<i style="left:78%;top:24%"></i><span style="left:79.5%;top:22%">Festum</span>
+		</div>
+
+		<div class="topbar"><i id="fill"></i></div>
+
+		<div class="veil">
+			<div id="stage-ring"></div>
+			<div class="veil__text">Karte wird geladen &hellip;</div>
+		</div>
+
+		<div class="planner">
+			<h3>Reiseplanung</h3>
+			<div class="row"></div><div class="row"></div><div class="row"></div>
+			<div class="go">Route berechnen</div>
+		</div>
+		<div class="planner-tab">Reiseplanung</div>
+
+		<div class="info-tab">Info</div>
+		<div class="editor-tab">Editor</div>
+	</div>
+
+	<div class="legend">
+		<b>Was bleibt:</b> der schmale Streifen oben (unver&auml;ndert), und der Routenplaner f&auml;hrt weiter von links herein.<br />
+		<b>Was neu ist (1):</b> ein Schleier &uuml;ber der ganzen Karte &ndash; hell &uuml;ber den Kacheln, dunkel im dunklen Thema &ndash; mit Ladekreis und Text mittig. Er l&auml;sst Klicks durch.<br />
+		<b>Was neu ist (2):</b> die rechte Kante (Laschen &bdquo;Info&ldquo; und &bdquo;Editor&ldquo;, im Editor auch das Panel selbst) wartet drau&szlig;en und f&auml;hrt nach links herein &ndash; spiegelbildlich zum Planer, gleiche 0,22&nbsp;s.
+	</div>
+</div>
+
+<script>
+/* ---------------------------------------------------------------------------------------------
+   Die vier Ladekreise. Alle rein aus Token gefaerbt, alle EIN Keyframe (Drehung), alle ohne JS
+   im Betrieb -- das JS hier baut nur das Mockup-Auswahlbrett.
+--------------------------------------------------------------------------------------------- */
+var GOLD  = "var(--color-boot-ring-gold)";
+var INK   = "var(--color-boot-ring-ink)";
+var TRACK = "var(--color-boot-ring-track)";
+var PALE  = "var(--color-boot-ring-pale)";
+
+function svg(inner) {
+	return '<svg viewBox="0 0 100 100" role="img" aria-hidden="true">' + inner + '</svg>';
+}
+
+/* 0 -- der schlichte Bogen von vorhin, als Vergleich. */
+function ringSchlicht() {
+	return svg(
+		'<circle cx="50" cy="50" r="42" fill="none" stroke="' + TRACK + '" stroke-width="7"/>' +
+		'<circle cx="50" cy="50" r="42" fill="none" stroke="' + GOLD + '" stroke-width="7"' +
+		' stroke-linecap="round" stroke-dasharray="66 198" class="bt-spin"/>'
+	);
+}
+
+/* 1 -- Windrose: das Wappen der alten Karten. Die Rose steht STILL (eine kreiselnde Kompassrose
+   liest sich als „verirrt"), das goldene Stueck wandert aussen herum wie ein Sonnenschatten. */
+function ringWindrose() {
+	var zacken = "";
+	// vier lange Zacken (N/O/S/W) -- je zwei Haelften, hell und dunkel, wie auf einer Seekarte
+	[0, 90, 180, 270].forEach(function (grad) {
+		zacken +=
+			'<g transform="rotate(' + grad + ' 50 50)">' +
+			'<path d="M50 15 L43.5 43.5 L50 50 Z" fill="' + PALE + '"/>' +
+			'<path d="M50 15 L56.5 43.5 L50 50 Z" fill="' + INK + '"/>' +
+			'</g>';
+	});
+	// vier kurze Zacken (NO/SO/SW/NW)
+	[45, 135, 225, 315].forEach(function (grad) {
+		zacken +=
+			'<g transform="rotate(' + grad + ' 50 50)">' +
+			'<path d="M50 27 L46 46 L50 50 Z" fill="' + PALE + '"/>' +
+			'<path d="M50 27 L54 46 L50 50 Z" fill="' + INK + '"/>' +
+			'</g>';
+	});
+	return svg(
+		'<circle cx="50" cy="50" r="46" fill="none" stroke="' + TRACK + '" stroke-width="1.5"/>' +
+		// Teilstriche des Randes: 24 Striche, aus dem Umfang gerechnet (2*PI*40 = 251,3 / 24 = 10,47)
+		'<circle cx="50" cy="50" r="40" fill="none" stroke="' + TRACK + '" stroke-width="4"' +
+		' stroke-dasharray="1.6 8.87"/>' +
+		zacken +
+		'<circle cx="50" cy="50" r="2.6" fill="' + GOLD + '"/>' +
+		// das laufende Stueck auf dem Aussenring (Umfang 2*PI*46 = 289,0)
+		'<circle cx="50" cy="50" r="46" fill="none" stroke="' + GOLD + '" stroke-width="3"' +
+		' stroke-linecap="round" stroke-dasharray="48 241" class="bt-spin"/>'
+	);
+}
+
+/* 2 -- Astrolabium: zwei Reifen laufen gegeneinander, der Randkranz steht. Das Geraet des
+   Kartenmachers -- und die Bewegung liest sich am klarsten als „es rechnet". */
+function ringAstrolab() {
+	// Die vier Hauptrichtungen als LÄNGERE Teilstriche -- ein zweiter gestrichelter Reif mit nur
+	// vier Strichen, statt Striche, die oben aus dem Kranz herausragen (das las sich als Bruch).
+	return svg(
+		'<circle cx="50" cy="50" r="47" fill="none" stroke="' + TRACK + '" stroke-width="1.4"/>' +
+		// Zahnkranz, 24 Striche (Umfang 2*PI*43,5 = 273,3 / 24 = 11,39)
+		'<circle cx="50" cy="50" r="43.5" fill="none" stroke="' + TRACK + '" stroke-width="6"' +
+		' stroke-dasharray="1.8 9.59"/>' +
+		// die vier Hauptrichtungen, doppelt so lang (Umfang / 4 = 68,3)
+		'<circle cx="50" cy="50" r="42" fill="none" stroke="' + INK + '" stroke-width="9"' +
+		' stroke-dasharray="2 63.96"/>' +
+		'<circle cx="50" cy="50" r="38.5" fill="none" stroke="' + TRACK + '" stroke-width="1"/>' +
+		// aussen laufender Goldreif -- gut zwei Drittel des Kreises, damit er als REIF liest
+		// und nicht als Stummel (Umfang 2*PI*30 = 188,5)
+		'<circle cx="50" cy="50" r="30" fill="none" stroke="' + GOLD + '" stroke-width="4"' +
+		' stroke-linecap="round" stroke-dasharray="120 69" class="bt-spin"/>' +
+		// innen gegenlaeufig (Umfang 2*PI*18 = 113,1)
+		'<circle cx="50" cy="50" r="18" fill="none" stroke="' + INK + '" stroke-width="3"' +
+		' stroke-linecap="round" stroke-dasharray="66 48" class="bt-spin-rev"/>' +
+		'<circle cx="50" cy="50" r="4.6" fill="' + GOLD + '"/>'
+	);
+}
+
+/* 3 -- Wagenrad: die Reise selbst. Das ganze Rad dreht sich, eine Speiche ist vergoldet --
+   ohne sie waere die Drehung bei acht gleichen Speichen kaum zu sehen. */
+function ringWagenrad() {
+	var speichen = "";
+	for (var i = 0; i < 8; i++) {
+		speichen += '<line x1="50" y1="40" x2="50" y2="12.5" stroke="' + (i === 0 ? GOLD : INK) + '"' +
+			' stroke-width="3.4" stroke-linecap="round" transform="rotate(' + (i * 45) + ' 50 50)"/>';
+	}
+	return '<svg viewBox="0 0 100 100" role="img" aria-hidden="true" class="bt-spin-slow">' +
+		'<circle cx="50" cy="50" r="45" fill="none" stroke="' + INK + '" stroke-width="5.5"/>' +
+		'<circle cx="50" cy="50" r="38.5" fill="none" stroke="' + TRACK + '" stroke-width="1.6"/>' +
+		speichen +
+		'<circle cx="50" cy="50" r="10" fill="' + INK + '"/>' +
+		'<circle cx="50" cy="50" r="4.6" fill="' + GOLD + '"/>' +
+		'</svg>';
+}
+
+var RINGE = [
+	{ key: "schlicht", name: "0 · Schlichter Bogen", note: "der Stand von vorhin, zum Vergleich", bau: ringSchlicht },
+	{ key: "windrose", name: "1 · Windrose",         note: "Rose steht, das Gold wandert außen herum", bau: ringWindrose },
+	{ key: "astrolab", name: "2 · Astrolabium",      note: "zwei Reifen gegeneinander, Randkranz still", bau: ringAstrolab },
+	{ key: "wagenrad", name: "3 · Wagenrad",         note: "das ganze Rad dreht, eine Speiche vergoldet", bau: ringWagenrad }
+];
+
+var picker = document.getElementById("picker");
+var stageRing = document.getElementById("stage-ring");
+var gewaehlt = "windrose";
+
+function zeichneAuswahl() {
+	picker.innerHTML = "";
+	RINGE.forEach(function (r) {
+		var b = document.createElement("button");
+		b.type = "button";
+		b.setAttribute("aria-pressed", String(r.key === gewaehlt));
+		b.innerHTML = r.bau() +
+			'<span class="pk-name">' + r.name + '</span>' +
+			'<span class="pk-note">' + r.note + '</span>';
+		b.addEventListener("click", function () {
+			gewaehlt = r.key;
+			zeichneAuswahl();
+			zeichneBuehne();
+		});
+		picker.appendChild(b);
+	});
+}
+
+function zeichneBuehne() {
+	var r = RINGE.filter(function (x) { return x.key === gewaehlt; })[0];
+	stageRing.innerHTML = r.bau();
+}
+
+/* ---- Der gespielte Ladevorgang -------------------------------------------------------------- */
+var stage = document.getElementById("stage");
+var fill = document.getElementById("fill");
+var phase = document.getElementById("phase");
+var timer = null, t = 0;
+
+function stop() { if (timer) { clearInterval(timer); timer = null; } }
+
+function play() {
+	stop();
+	stage.classList.add("booting");
+	stage.classList.remove("ready");
+	t = 0.08; fill.style.width = "8%";
+	phase.textContent = "lädt …";
+	timer = setInterval(function () {
+		t += (0.9 - t) * 0.12 + 0.01;
+		fill.style.width = (t * 100).toFixed(1) + "%";
+		if (t > 0.86) {
+			stop();
+			fill.style.width = "100%";
+			stage.classList.remove("booting");
+			stage.classList.add("ready");
+			phase.textContent = "fertig – Karte bedienbar";
+		}
+	}, 200);
+}
+
+document.getElementById("play").addEventListener("click", play);
+document.getElementById("hold").addEventListener("click", function () {
+	stop();
+	stage.classList.add("booting");
+	stage.classList.remove("ready");
+	fill.style.width = "62%";
+	phase.textContent = "angehalten – Ladezustand";
+});
+document.getElementById("theme").addEventListener("click", function () {
+	var dark = document.documentElement.getAttribute("data-theme") === "dark";
+	document.documentElement.setAttribute("data-theme", dark ? "light" : "dark");
+	this.textContent = dark ? "Dunkles Thema" : "Helles Thema";
+});
+
+zeichneAuswahl();
+zeichneBuehne();
+play();
+</script>
+</body>
+</html>
