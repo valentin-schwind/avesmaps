@@ -2637,8 +2637,10 @@ var avesmapsLoreListPage = {
 // Kontinent zaehlt serverseitig als Aventurien, vor dem ersten scharfen Sync blendet die
 // Vorgabe also nichts aus. Herkunft/Ortsangabe/Quelle standardmaessig ohne Einschraenkung.
 var avesmapsLoreFilterState = {
-	panel:  { continent: new Set(["Aventurien"]), origin: new Set(), place: { value: "" }, source: { value: "" } },
-	dialog: { continent: new Set(["Aventurien"]), origin: new Set(), place: { value: "" }, source: { value: "" } },
+	panel:  { continent: new Set(["Aventurien"]), origin: new Set(), place: { value: "" }, source: { value: "" },
+		mapStatus: { value: "" }, sourceKind: { value: "" } },
+	dialog: { continent: new Set(["Aventurien"]), origin: new Set(), place: { value: "" }, source: { value: "" },
+		mapStatus: { value: "" }, sourceKind: { value: "" } },
 };
 // Zuletzt vom Server gemeldete Trichter-Optionen (Wert + Zaehler) je Ansicht; der Katalog
 // berechnet sie ueber die Art+Such-Basis, damit eine Auswahl ihre Alternativen nicht ausblendet.
@@ -2762,18 +2764,18 @@ function avesmapsLoreListRowHtml(item, showKind, form) {
 	//    fehlenden Verdrahtung eine lautlos unvollständige Liste -- genau der Fehler, den der
 	//    Kraftlinien-Ring am 18.08.2026 hatte. Fehlt das Skript, soll es krachen; dass index.html
 	//    es lädt, nagelt js/ui/__tests__/listen-statuskreis.test.js fest.
-	// 💣 EINE REGEL IST EIN VORKOMMEN (Owner 18.08.2026: „regeln (sofern vorhanden und mit
-	//    verbreitung) sind gültige vorkommen"). Der Kasten „Vorkommen" im Editor trägt zwei
-	//    Knöpfe, „+ Ort" UND „+ Regel"; für den Kreis zählen beide. Deshalb wird hier addiert --
-	//    und NUR hier: `place_count` bleibt die Zahl der Ortszeilen, weil die Meta-Zeile oben
-	//    ihren „+N"-Zähler daraus baut und eine Regel dort kein Ortsname ist.
-	// ⚠️ Addiert werden zwei SERVER-Zahlen, es wird nichts nachgerechnet: welche Fläche eine
-	//    Regel trifft, weiß nur der Server (avesmapsLoreReadRuleCountsByEntry) -- dieselbe
-	//    Begründung wie bei `place_mapped_count`.
-	var kreis = avesmapsStatuskreisVorkommen(
-		(Number(item.place_count) || 0) + (Number(item.rule_count) || 0),
-		(Number(item.place_mapped_count) || 0) + (Number(item.rule_mapped_count) || 0)
-	);
+	// 🔴 DER ZUSTAND WIRD HIER NICHT ENTSCHIEDEN, NUR GEZEICHNET. `map_status` kommt aus
+	//    avesmapsLoreMapStatus (api/_internal/app/lore.php) -- derselben Funktion, gegen die der
+	//    Filter „Auf Karte" vergleicht. Seit es diesen Filter gibt, MUSS die Entscheidung
+	//    serverseitig fallen (die Liste laedt seitenweise nach); entschiede der Browser sie
+	//    daneben ein zweites Mal, koennte der Filter „offen" eine Zeile zeigen, deren Kreis voll
+	//    ist -- und niemand fände je heraus, welche der beiden lügt.
+	// ⚠️ Ein unbekannter Wert wird zum leeren Ring. Er kann nur auftreten, wenn Skript und Server
+	//    aus verschiedenen Ständen kommen (ein Deploy lang); die sichere Richtung ist dieselbe wie
+	//    überall: lieber „nicht auf der Karte" zeigen als etwas als erledigt melden.
+	// 💣 Die vier Zahlen reisen weiter mit -- `place_count` traegt den „+N"-Zaehler der Meta-Zeile,
+	//    `rule_count` ihre Regelangabe. Nur der ZUSTAND wird nicht mehr aus ihnen abgeleitet.
+	var kreis = avesmapsStatuskreisMarkup(item.map_status);
 	var gemeinsam = ' data-lore-entry="' + avesmapsLoreListEscape(item.wiki_key) + '"'
 		+ (safe ? ' data-lore-url="' + avesmapsLoreListEscape(safe) + '"' : "")
 		+ ' title="' + avesmapsLoreListEscape(item.name + " – klicken zum Bearbeiten") + '"';
@@ -3080,6 +3082,11 @@ function avesmapsLoreFetchList(view, append) {
 		if (originParam) { url += "&origin=" + encodeURIComponent(originParam); }
 		if (filter.place.value) { url += "&has_place=" + encodeURIComponent(filter.place.value); }
 		if (filter.source.value) { url += "&has_source=" + encodeURIComponent(filter.source.value); }
+		// 💣 Serverseitig, wie alle anderen vier: die Liste laedt seitenweise nach, ein
+		//    Browser-Filter saehe nur das geladene Fenster -- und die Bilanzzeile darunter
+		//    („200 von 5.104") zaehlt ohnehin das, was der Server meldet.
+		if (filter.mapStatus.value) { url += "&map_status=" + encodeURIComponent(filter.mapStatus.value); }
+		if (filter.sourceKind.value) { url += "&source_kind=" + encodeURIComponent(filter.sourceKind.value); }
 	}
 	page.loading = true;
 	avesmapsLoreFetchWithTimeout(url, { credentials: "same-origin", headers: { Accept: "application/json" } })
@@ -3254,6 +3261,37 @@ if (typeof avmFilterMenuAttach === "function" && typeof document !== "undefined"
 				{
 					menuId: prefix + "-source-menu", kind: "single", state: state.source,
 					options: [{ value: "1", label: "mit Quelle" }, { value: "0", label: "ohne Quelle" }],
+				},
+				// 🔴 DIE DREI OPTIONEN SIND DIE DREI ZUSTAENDE DES STATUSKREISES -- dieselbe
+				//    Entscheidung, nicht eine zweite: `map_status` kommt aus avesmapsLoreMapStatus
+				//    (api/_internal/app/lore.php), der Filter vergleicht ihn und die Zeile daneben
+				//    malt ihn. Waeren es zwei Bedingungen, koennte „offen" eine Zeile zeigen, deren
+				//    Kreis voll ist, und niemand fuende je heraus, welche der beiden luegt.
+				// ⚠️ Die WOERTER sind die des Owners (18.08.2026), die WERTE die des Codes --
+				//    dieselbe Trennung wie bei „Neuigkeiten"/`changelog`.
+				{
+					menuId: prefix + "-mapstatus-menu", kind: "single", state: state.mapStatus,
+					options: [
+						{ value: "voll", label: "auffindbar" },
+						{ value: "halb", label: "offen" },
+						{ value: "leer", label: "nicht zugewiesen" },
+					],
+				},
+				// „Vorkommen ueber": ein Filter auf die HERKUNFT des Vorkommens, kein
+				// Entweder-Oder ueber den Eintrag -- wer Ortszeilen UND eine Regel hat, erscheint
+				// in BEIDEN Listen (gemessen 19.08.2026: genau ein Eintrag von 5.104, die
+				// „Vierblaettrige Einbeere").
+				// ⚠️ „alle" steht hier NICHT als Option: der geteilte Trichter setzt jeder
+				//    einwertigen Gruppe von sich aus ein „Alle" voran (avmRenderRadioSection,
+				//    js/ui/filter-menu.js). Eine eigene waere die zweite, und beim naechsten Umbau
+				//    des Trichters staenden zwei „Alle" untereinander. Dasselbe gilt fuer
+				//    „Auf Karte" darueber.
+				{
+					menuId: prefix + "-sourcekind-menu", kind: "single", state: state.sourceKind,
+					options: [
+						{ value: "orte", label: "über Orte" },
+						{ value: "regeln", label: "über Regeln" },
+					],
 				},
 			],
 			function () { loadLoreList(view); },
@@ -3440,6 +3478,8 @@ function avesmapsLoreRowItemFromDetail(entry) {
 		place_mapped_count: Number(entry && entry.place_mapped_count) || 0,
 		rule_count: Number(entry && entry.rule_count) || 0,
 		rule_mapped_count: Number(entry && entry.rule_mapped_count) || 0,
+		// Der Zustand kommt aus derselben Antwort und derselben Funktion wie beim Laden.
+		map_status: entry && entry.map_status,
 	};
 }
 

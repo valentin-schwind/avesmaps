@@ -135,6 +135,10 @@ vm.runInContext(js, context);
 const eintrag = {
 	wiki_key: "wiki:braeubier", name: "Bräubier", kind: "ware", typ: "[[Bier]]",
 	places: ["Weiden", "Kosch"], place_count: 2, origin: "wiki", wiki_url: "",
+	// 🔴 Seit 19.08.2026 entscheidet der SERVER den Zustand (avesmapsLoreMapStatus) -- die Zeile
+	// zeichnet ihn nur noch. Der Filter „Auf Karte" vergleicht dieselbe Angabe; zwei Bedingungen
+	// koennten auseinanderlaufen, und dann zeigte „offen" eine Zeile mit vollem Kreis.
+	place_mapped_count: 0, rule_count: 0, rule_mapped_count: 0, map_status: "halb",
 };
 const inAlle = context.avesmapsLoreListRowHtml(eintrag, true, "tree");
 const inWaren = context.avesmapsLoreListRowHtml(eintrag, false, "tree");
@@ -241,61 +245,68 @@ assert.ok(l1Regel && /display:\s*flex/.test(l1Regel[0]),
 // Zusicherung dafuer waere tot: sie wuerde nie als erste ausloesen. Ihr Umbruch kommt ohnehin
 // aus dem Raster (`.wikisync-itemlist .tree-item` ist `display:grid` mit zwei Reihen).
 
-// ---- 5d. Der Statuskreis, und warum er NICHT aus `places` gezaehlt werden darf -----------------
-// Die Regel selbst (voll = mindestens ein Fundort auf der Karte) steht in
-// js/ui/__tests__/listen-statuskreis.test.js. Hier steht die FALLE dieser Liste: `places` traegt
-// hoechstens 6 Titel (api/_internal/app/lore.php kappt sie), `place_count` und
-// `place_mapped_count` zaehlen dagegen ALLE Ortszeilen.
-// 💣 Ein Eintrag mit sieben Orten, dessen einziger verorteter der siebte ist, faerbte sich
-// deshalb faelschlich halb, sobald jemand die Verortung aus der Titelliste rechnet.
-const vieleOrte = Object.assign({}, eintrag, {
-	places: ["Schiff", "Myranor", "Nordaventurien", "Mittelaventurien", "Schattenlande", "Uthuria"],
-	place_count: 7,
-	place_mapped_count: 1,
-});
-assert.ok(/tree-map-status--all/.test(context.avesmapsLoreListRowHtml(vieleOrte, true, "avm")),
-	"Ein Eintrag mit sieben Orten, von denen genau EINER auf der Karte liegt, muss den VOLLEN "
-	+ "Kreis tragen -- auch wenn keiner der sechs angezeigten Titel der verortete ist.");
+// ---- 5d. Der Kreis ZEICHNET den Server-Zustand, er leitet ihn nicht her ------------------------
+// 🔴 Bis zum 19.08.2026 rechnete die Zeile ihn selbst aus vier Zahlen. Seit es den Filter
+// „Auf Karte" gibt, entscheidet avesmapsLoreMapStatus (api/_internal/app/lore.php) -- der Filter
+// vergleicht das Ergebnis, die Zeile malt es. Zwei Bedingungen fuer dieselbe Aussage koennten
+// auseinanderlaufen, und dann zeigte „offen" eine Zeile, deren Kreis voll ist.
+// 💣 Der Beweis, dass wirklich nichts mehr hergeleitet wird: derselbe Eintrag, dieselben vier
+// Zahlen -- nur `map_status` verschieden. Faerbte die Zeile weiter selbst, kaeme dreimal dasselbe
+// heraus.
+for (const [zustand, erwartet] of [["voll", "--all"], ["halb", "--own-only"], ["leer", null]]) {
+	const zeile = context.avesmapsLoreListRowHtml(
+		Object.assign({}, eintrag, { map_status: zustand }), true, "avm");
+	if (erwartet) {
+		assert.ok(new RegExp("tree-map-status" + erwartet).test(zeile),
+			`map_status "${zustand}" muss den Marker ${erwartet} setzen. Ist: ${zeile}`);
+	} else {
+		assert.ok(!/tree-map-status--/.test(zeile),
+			`map_status "leer" darf KEINEN Modifier setzen -- der leere Ring IST die Aussage. Ist: ${zeile}`);
+	}
+}
+// ⚠️ Und ein unbekannter/fehlender Wert wird zum leeren Ring, nicht zu einem vollen. Er kann nur
+// auftreten, wenn Skript und Server aus verschiedenen Staenden kommen (ein Deploy lang); die
+// sichere Richtung ist dieselbe wie ueberall.
+assert.ok(!/tree-map-status--/.test(context.avesmapsLoreListRowHtml(
+	Object.assign({}, eintrag, { map_status: undefined }), true, "avm")),
+	"Ohne `map_status` darf kein gefuellter Kreis herauskommen.");
+// 💣 Die vier Zahlen sind damit NICHT arbeitslos: `place_count` traegt den „+N"-Zaehler der
+// Meta-Zeile. Sie duerfen den Kreis aber nicht mehr bewegen.
 assert.ok(/tree-map-status--own-only/.test(context.avesmapsLoreListRowHtml(
-	Object.assign({}, vieleOrte, { place_mapped_count: 0 }), true, "avm")),
-	"Und ohne einen einzigen verorteten Ort bleibt er halb.");
-// ⚠️ Die Meta-Zeile zeigt weiterhin die gekappte Titelliste samt „+1" -- der Kreis rechnet
-// anders als der Text, und genau das ist beabsichtigt.
-assert.ok(/Uthuria \+1</.test(context.avesmapsLoreListRowHtml(vieleOrte, true, "avm")),
-	"Die Meta-Zeile nennt weiter die sechs Titel und den Rest als Zahl.");
+	Object.assign({}, eintrag, { map_status: "halb", place_mapped_count: 99, rule_mapped_count: 99 }), true, "avm")),
+	"Die Zahlen duerfen den Zustand nicht mehr ueberstimmen -- sonst ist die alte, zweite "
+	+ "Bedingung zurueck.");
 
-// ---- 5e. Eine REGEL ist ein Vorkommen ----------------------------------------------------------
-// Owner 18.08.2026: „regeln (sofern vorhanden und mit verbreitung) sind gueltige vorkommen“.
-// 🔴 Sie aendert NUR, was als Vorkommen zaehlt -- nicht die drei Stufen. Der Fall, der das
-// beweist, steht live: „Alprute“ hat KEINE einzige Ortszeile und eine Regel ueber 119 Waelder.
+// ---- 5e. Eine REGEL ist ein Vorkommen -- die Meta-Zeile sagt es ---------------------------------
+// Owner 18.08.2026: „regeln (sofern vorhanden und mit verbreitung) sind gueltige vorkommen".
+// 🔴 Die ZUSTANDS-Seite davon steht jetzt in PHP (avesmapsLoreMapStatus, gewacht von
+// api/_internal/app/__tests__/lore-map-status-test.php). Was hier bleibt, ist der sichtbare Teil:
+// die Zeile muss die Regel NENNEN, sonst widerspricht der Text dem Kreis -- „Alprute" hat keine
+// einzige Ortszeile und eine Regel ueber 119 Waelder, ihr Kreis ist voll, und daneben staende
+// „ohne Ortsangabe".
 const nurRegel = Object.assign({}, eintrag, {
 	name: "Alprute", places: [], place_count: 0, place_mapped_count: 0,
-	rule_count: 1, rule_mapped_count: 1,
+	rule_count: 1, rule_mapped_count: 1, map_status: "voll",
 });
-assert.ok(/tree-map-status--all/.test(context.avesmapsLoreListRowHtml(nurRegel, true, "avm")),
-	"Ein Eintrag OHNE Ortszeile, dessen Regel Flaechen trifft, muss den VOLLEN Kreis tragen. "
-	+ "Ist: " + context.avesmapsLoreListRowHtml(nurRegel, true, "avm"));
-// 💣 Und eine Regel, die (noch) nichts trifft, macht ihn HALB -- nie leer. „Vorhanden“ und
-// „trifft etwas“ sind zwei Fragen; waehrend „Zugehoerigkeit rechnen“ laeuft, ist die zweite
-// vorruebergehend nein.
-assert.ok(/tree-map-status--own-only/.test(context.avesmapsLoreListRowHtml(
-	Object.assign({}, nurRegel, { rule_mapped_count: 0 }), true, "avm")),
-	"Eine Regel ohne Treffer ist HALB, nicht leer -- das Vorkommen ist da, es liegt nur nirgends.");
-// ⚠️ Und ohne beides bleibt es leer.
-assert.ok(!/tree-map-status--/.test(context.avesmapsLoreListRowHtml(
-	Object.assign({}, nurRegel, { rule_count: 0, rule_mapped_count: 0 }), true, "avm")),
-	"Ohne Ortszeile UND ohne Regel bleibt der Ring leer.");
-// 💣 Die Meta-Zeile muss die Regel NENNEN, sonst widerspricht der Text dem Kreis: voller Kreis
-// neben „ohne Ortsangabe“ liest sich wie ein Fehler.
 const alpruteZeile = context.avesmapsLoreListRowHtml(nurRegel, true, "avm");
 assert.ok(/1 Regel</.test(alpruteZeile) && !/ohne Ortsangabe/.test(alpruteZeile),
 	"Ein Eintrag mit Regel und ohne Ortszeile sagt „1 Regel“, nicht „ohne Ortsangabe“. Ist: "
 	+ alpruteZeile);
-// ⚠️ `place_count` bleibt die Zahl der ORTSZEILEN -- der „+N“-Zaehler der Meta-Zeile haengt daran,
-// und eine Regel ist dort kein Ortsname.
+// ⚠️ `place_count` bleibt die Zahl der ORTSZEILEN -- der „+N"-Zaehler haengt daran, und eine Regel
+// ist dort kein Ortsname.
 const ortUndRegel = Object.assign({}, eintrag, { rule_count: 2, rule_mapped_count: 0 });
 assert.ok(/Weiden, Kosch · 2 Regeln</.test(context.avesmapsLoreListRowHtml(ortUndRegel, true, "avm")),
 	"Orte und Regeln stehen nebeneinander in der Meta-Zeile, mit demselben Trenner.");
+// 💣 Und die auf 6 gekappte Titelliste bleibt gekappt, waehrend der Rest-Zaehler die volle Zahl
+// nennt -- der Kreis rechnet ohnehin nicht mehr mit.
+const vieleOrte = Object.assign({}, eintrag, {
+	places: ["Schiff", "Myranor", "Nordaventurien", "Mittelaventurien", "Schattenlande", "Uthuria"],
+	place_count: 7, map_status: "voll",
+});
+assert.ok(/Uthuria \+1</.test(context.avesmapsLoreListRowHtml(vieleOrte, true, "avm")),
+	"Die Meta-Zeile nennt die sechs Titel und den Rest als Zahl.");
+assert.ok(/tree-map-status--all/.test(context.avesmapsLoreListRowHtml(vieleOrte, true, "avm")),
+	"Und der Kreis folgt weiter dem Server-Zustand, nicht der gekappten Titelliste.");
 
 // ---- 5f. Der Kreis geht mit, wenn etwas dazukommt ---------------------------------------------
 // Owner 18.08.2026: „der gruene punkt soll sich aktualisieren, wenn was dazu kommt".

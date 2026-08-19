@@ -30,8 +30,8 @@
 //   halb (`--own-only`)  = da, aber nicht verbunden
 //   leer (kein Modifier) = nicht auf der Karte
 //
-// 💣 WORAN „fertig" gemessen wird, entscheidet die OBJEKTART -- und es sind VIER Regeln, jede
-//    begründet, keine davon ein Versehen:
+// 💣 WORAN „fertig" gemessen wird, entscheidet die OBJEKTART -- und es sind FÜNF Regeln, jede
+//    begründet, keine davon ein Versehen (die fünfte steht in PHP, siehe unten):
 //      · Wiki-Zuweisung  -- Ort, Landschaft   (hängt das Ding an einem Artikel?)
 //      · `every`         -- Weg, Kraftlinie   (eine Namensgruppe aus Segmenten; teilweise ist HALB)
 //      · Ortsbezug       -- Literatur, Karte  (liegt das Werk überhaupt irgendwo? halb schlägt voll)
@@ -216,42 +216,31 @@ function avesmapsStatuskreisOrtsbezug(orte) {
 	);
 }
 
-// ── VORKOMMEN (Flora, Fauna, Spezies, Waren) ────────────────────────────────────────────────────
+// ── VORKOMMEN (Flora, Fauna, Spezies, Waren) -- HIER STEHT DIE REGEL NICHT ──────────────────────
 // Owner 18.08.2026, wörtlich: „vorkommen sollen kreisförmig sein, halbgefüllt, wenn sie vorkommen
 // aber nicht mit einem ort oder einer region auf der [karte] zugewiesen sind (z.b. schiff), voll
 // wenn sie auf der karte irgendwo vorkommen".
 //
-//   voll (`--all`)      = MINDESTENS EIN genannter Ort liegt auf der Karte
-//   halb (`--own-only`) = Orte genannt, aber KEINER davon auf der Karte („Schiff", „Myranor")
-//   leer (kein Marker)  = gar keine Ortsangabe
+//   voll (`--all`)      = mindestens EIN Vorkommen liegt auf der Karte  (Filter: „auffindbar")
+//   halb (`--own-only`) = Vorkommen vorhanden, KEINES verortet          (Filter: „offen")
+//   leer (kein Marker)  = gar kein Vorkommen                            (Filter: „nicht zugewiesen")
 //
-// 🔴 DAS IST NICHT DIE REGEL VON LITERATUR UND KARTE, SONDERN IHR GEGENTEIL -- und das ist so
-//    gewollt: bei einem Werk ist jeder unaufgelöste Ort offene Arbeit, deshalb schlägt dort HALB
-//    das VOLL („mindestens einer offen" gewinnt). Bei einer Ware genügt EIN Fundort, damit sie auf
-//    der Karte vorkommt; die übrigen Nennungen dürfen ruhig ins Leere zeigen, „Aventurien" und
-//    „Schiff" stehen im selben Wiki-Feld nebeneinander. Wer die beiden Bauer zusammenlegt, dreht
-//    eine der zwei Aussagen um.
-// 💣 Gemessen wird der SCHLÜSSEL der Ortszeile (`lore_place.place_wiki_key`) gegen die
-//    Wiki-Zuweisung eines Kartenobjekts, nicht der angezeigte Titel -- die Rechnung steht in
-//    avesmapsLoreReadPlaceKeysOnMap (api/_internal/app/lore.php) und kommt als
-//    `place_mapped_count` fertig aus dem Server. 🔴 Sie gehört dorthin und nicht in den Browser:
-//    was der Client geladen hat, hängt an Zoom und Ansicht (die politische Ebene liefert bei
-//    Zoom 3 gerade 174 von rund 800 Gebieten), der Kreis würde also mit dem Kartenausschnitt
-//    flackern -- dieselbe Begründung wie bei `derived_source_geometry_public_ids` (AGENTS.md §10).
-// ⚠️ Am Livebestand 18.08.2026 (5104 Einträge): 2612 voll, 793 halb, 1699 leer.
-function avesmapsStatuskreisVorkommenZustand(anzahlOrte, anzahlVerortet) {
-	const gesamt = Number(anzahlOrte) || 0;
-	const verortet = Number(anzahlVerortet) || 0;
-	if (gesamt <= 0) { return "leer"; }
-	// 💣 Hier steht `> 0`, bei Literatur/Karte steht an derselben Stelle „offen > 0 ⇒ halb".
-	//    Zwei Zeilen, entgegengesetzte Vorzeichen, beide richtig.
-	return verortet > 0 ? "voll" : "halb";
-}
-
-function avesmapsStatuskreisVorkommen(anzahlOrte, anzahlVerortet) {
-	return avesmapsStatuskreisMarkup(
-		avesmapsStatuskreisVorkommenZustand(anzahlOrte, anzahlVerortet));
-}
+// 🔴 UND SIE STEHT ALS EINZIGE DER FÜNF IN PHP: `avesmapsLoreMapStatus`
+//    (api/_internal/app/lore.php). Hier stand sie bis zum 19.08.2026 auch, und das ging genau so
+//    lange gut, bis der Owner den Filter „Auf Karte" bestellte. Der muss serverseitig
+//    entscheiden -- die Liste lädt seitenweise nach, ein Browser-Filter sähe nur das geladene
+//    Fenster. Zwei Bedingungen für dieselbe Aussage hätten bedeutet: der Filter „offen" zeigt eine
+//    Zeile, deren Kreis voll ist, und niemand findet je heraus, welche der beiden lügt.
+// ⇒ EINE Quelle, ZWEI Verbraucher: der Filter vergleicht `map_status`, die Zeile zeichnet ihn mit
+//    `avesmapsStatuskreisMarkup(item.map_status)`. Diese Datei behält die FORM und die drei Namen;
+//    die Entscheidung hat sie abgegeben.
+// ⚠️ Wer hier je wieder ein `avesmapsStatuskreisVorkommen…` anlegt, baut die zweite Bedingung
+//    zurück. Gewacht von js/ui/__tests__/listen-statuskreis.test.js.
+//
+// 💣 Die Regel ist der von LITERATUR und KARTE (oben) entgegengesetzt, und das ist gewollt: dort
+//    ist jeder unaufgelöste Ort offene Arbeit (halb schlägt voll), hier genügt EIN Fundort. Wer
+//    sie zusammenlegt, dreht eine der zwei Aussagen um. Die Begründung steht ausgeschrieben an
+//    avesmapsLoreMapStatus.
 
 if (typeof module !== "undefined" && module.exports) {
 	module.exports = {
@@ -265,7 +254,5 @@ if (typeof module !== "undefined" && module.exports) {
 		avesmapsStatuskreisOrtsbezug,
 		avesmapsStatuskreisOrtsbezugZahlen,
 		avesmapsStatuskreisOrtIstOffen,
-		avesmapsStatuskreisVorkommenZustand,
-		avesmapsStatuskreisVorkommen,
 	};
 }

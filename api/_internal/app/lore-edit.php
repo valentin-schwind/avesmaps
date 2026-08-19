@@ -142,6 +142,12 @@ function avesmapsLoreReadEntryDetail(PDO $pdo, string $wikiKey): ?array
         'place_mapped_count' => $mappedPlaces,
         'rule_count' => (int) ($ruleCounts[$wikiKey]['rules'] ?? 0),
         'rule_mapped_count' => (int) ($ruleCounts[$wikiKey]['matched'] ?? 0),
+        // Der Zustand selbst -- dieselbe Funktion wie im Katalog und im Filter. Der Browser baut
+        // die Zeile nach einem „+ Ort" / „+ Regel" daraus neu und entscheidet nichts nach.
+        'map_status' => avesmapsLoreMapStatus(
+            count($activePlaceKeys) + (int) ($ruleCounts[$wikiKey]['rules'] ?? 0),
+            $mappedPlaces + (int) ($ruleCounts[$wikiKey]['matched'] ?? 0)
+        ),
     ];
 }
 

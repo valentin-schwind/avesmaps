@@ -137,7 +137,20 @@ try {
         if (array_key_exists('has_source', $_GET) && (string) $_GET['has_source'] !== '') {
             $hasSource = (string) $_GET['has_source'] === '1' ? 1 : 0;
         }
-        $catalog = avesmapsLoreReadCatalog($pdo, $kind, $query, $limit, $offset, $continents, $origins, $hasPlace, $hasSource);
+        // „Auf Karte" (auffindbar|offen|nicht zugewiesen) und „Vorkommen ueber" (alle|orte|regeln),
+        // Owner 18.08.2026. Beide einwertig; ein unbekannter Wert heisst „ohne Einschraenkung" --
+        // ein 400 waere hier ueberzogen, die Liste ist ein Trichter, kein Vertrag.
+        // 💣 Die DREI ZUSTAENDE heissen im Code wie ueberall `voll|halb|leer`; die Beschriftungen
+        //    des Owners stehen NUR in der Oberflaeche (js/review/review-wiki-sync.js). Dieselbe
+        //    Trennung wie bei „Neuigkeiten"/`changelog`: Wort gewandert, Kennung nicht.
+        $mapStatus = avesmapsNormalizeSingleLine((string) ($_GET['map_status'] ?? ''), 12);
+        $mapStatus = in_array($mapStatus, AVESMAPS_LORE_MAP_STATUSES, true) ? $mapStatus : null;
+        $sourceKind = avesmapsNormalizeSingleLine((string) ($_GET['source_kind'] ?? ''), 12);
+        $sourceKind = in_array($sourceKind, ['orte', 'regeln'], true) ? $sourceKind : null;
+        $catalog = avesmapsLoreReadCatalog(
+            $pdo, $kind, $query, $limit, $offset, $continents, $origins, $hasPlace, $hasSource,
+            $mapStatus, $sourceKind
+        );
         avesmapsJsonResponse(200, [
             'ok' => true,
             'kind' => $kind,

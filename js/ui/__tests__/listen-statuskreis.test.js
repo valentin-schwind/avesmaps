@@ -352,58 +352,38 @@ assert.strictEqual((regionsLib.match(/\$label\['assigned'\] = /g) || []).length,
 	+ "eine, liest der Browser dort `undefined` und der Kreis raet.");
 checks++;
 
-// ── VORKOMMEN: die vierte Regel, und sie ist der von Literatur/Karte ENTGEGENGESETZT ────────────
+// ── VORKOMMEN: die fuenfte Regel steht in PHP, und das ist die Zusicherung ─────────────────────
 // Owner 18.08.2026: „halbgefuellt, wenn sie vorkommen aber nicht mit einem ort oder einer region
-// auf der karte zugewiesen sind (z.b. schiff), voll wenn sie auf der karte irgendwo vorkommen“.
-assert.ok(/--all/.test(kreis.avesmapsStatuskreisVorkommen(3, 1)),
-	"EIN verorteter Fundort genuegt fuer den vollen Kreis -- eine Ware, die es in Belhanka gibt, "
-	+ "kommt auf der Karte vor, auch wenn zwei weitere Nennungen ins Leere zeigen.");
-checks++;
-assert.ok(/--own-only/.test(kreis.avesmapsStatuskreisVorkommen(2, 0)),
-	'Genannte Orte, aber keiner auf der Karte („Schiff“, „Myranor“) muss HALB sein.');
-checks++;
-assert.ok(!/--/.test(kreis.avesmapsStatuskreisVorkommen(0, 0)),
-	"Ohne jede Ortsangabe („ohne Ortsangabe“) bleibt der Ring leer.");
-checks++;
-// 🔴 DIE PROBE AUF DIE GEGENLAEUFIGKEIT. Dieselben zwei Zahlen, zwei Objektarten, zwei
-// entgegengesetzte Antworten -- und genau das ist beabsichtigt: bei einem WERK ist jeder
-// unaufgeloeste Ort offene Arbeit (halb schlaegt voll), bei einer WARE genuegt ein Fundort.
-// Wer die beiden Bauer je zusammenlegt, bricht diese Zusicherung, und das ist ihr einziger Zweck.
-assert.ok(/--all/.test(kreis.avesmapsStatuskreisVorkommen(3, 1))
-	&& /--own-only/.test(kreis.avesmapsStatuskreisOrtsbezugZahlen(3, 2)),
-	"Vorkommen und Literatur/Karte muessen bei „3 Orte, 1 davon aufgeloest“ VERSCHIEDEN antworten: "
-	+ "die Ware voll, das Werk halb. Kommt hier dasselbe heraus, wurden die zwei Regeln "
-	+ "vereinheitlicht -- und mindestens eine Aussage ist damit umgedreht.");
-checks++;
-// ⚠️ Strikt: ein fehlendes Feld darf nicht als „verortet“ durchgehen (sichere Richtung).
-assert.ok(/--own-only/.test(kreis.avesmapsStatuskreisVorkommen(2, undefined)),
-	"Ohne Angabe zur Verortung darf nicht „voll“ herauskommen.");
+// auf der karte zugewiesen sind (z.b. schiff), voll wenn sie auf der karte irgendwo vorkommen" --
+// und am 19.08.2026 dazu der Filter „Auf Karte (auffindbar, offen, nicht zugewiesen)".
+//
+// 🔴 SEITHER ENTSCHEIDET DER SERVER. Der Filter muss es (die Liste laedt seitenweise nach, ein
+// Browser-Filter saehe nur das geladene Fenster), und zwei Bedingungen fuer dieselbe Aussage
+// koennten auseinanderlaufen: „offen" zeigte dann eine Zeile, deren Kreis voll ist. Deshalb gibt
+// es hier KEINEN Vorkommen-Bauer mehr -- und diese Zusicherung ist der Riegel dagegen, dass
+// jemand ihn zurueckbaut.
+for (const tot of ["avesmapsStatuskreisVorkommen", "avesmapsStatuskreisVorkommenZustand"]) {
+	assert.strictEqual(typeof kreis[tot], "undefined",
+		`${tot} ist zurueck. Die Vorkommen-Regel steht seit 19.08.2026 in avesmapsLoreMapStatus `
+		+ "(api/_internal/app/lore.php), weil der Filter „Auf Karte“ sie serverseitig braucht. Eine "
+		+ "zweite Fassung im Browser ist genau die Divergenz, gegen die das gebaut wurde.");
+	checks++;
+}
+const statuskreisQuelle = lies("js", "ui", "listen-statuskreis.js");
+assert.ok(/avesmapsLoreMapStatus/.test(statuskreisQuelle),
+	"Die Datei sagt nicht mehr, WO die Vorkommen-Regel steht. Ohne den Zeiger sucht der naechste "
+	+ "Leser sie hier und legt sie neu an.");
 checks++;
 
 // ── VERDRAHTUNG: Vorkommen-Liste (Reiter UND Fenster, beide in index.html) ──────────────────────
-// 🔴 EIN Zeilenbauer fuer beide Oberflaechen (avesmapsLoreListRowHtml, `form` = "tree"|"avm") --
-// deshalb steht die Verdrahtung hier nur einmal, anders als bei den fuenf Nachbarn.
-// ⚠️ Dass index.html das Skript laedt, steht schon oben bei der Panel-Ortsliste; eine zweite
-// Zusicherung dafuer waere tot (sie loeste nie als erste aus). Beide Vorkommen-Listen leben in
-// index.html, also gilt sie hier mit.
+// 🔴 EIN Zeilenbauer fuer beide Oberflaechen (avesmapsLoreListRowHtml, `form` = "tree"|"avm").
+// ⚠️ Dass index.html das Skript laedt, steht schon oben bei der Panel-Ortsliste.
 const vorkommenListe = lies("js", "review", "review-wiki-sync.js");
-// 💣 Seit 19.08.2026 sind es VIER Zahlen, nicht zwei: eine Lebensraum-Regel mit Verbreitung ist
-// ein gleichwertiges Vorkommen (Owner). Geprueft wird, dass beide PAARE eingehen -- addiert wird
-// nur hier, `place_count` bleibt die Zahl der Ortszeilen (daran haengt der „+N"-Zaehler der
-// Meta-Zeile).
-for (const feld of ["item.place_count", "item.rule_count", "item.place_mapped_count", "item.rule_mapped_count"]) {
-	assert.ok(new RegExp(feld.replace(".", "\.")).test(vorkommenListe),
-		`Die Vorkommen-Zeile liest ${feld} nicht mehr. Ohne das eine Paar zaehlen Ortszeilen nicht `
-		+ "mehr, ohne das andere sind Regeln wieder unsichtbar -- beides faerbt Zeilen still falsch.");
-	checks++;
-}
-assert.ok(/avesmapsStatuskreisVorkommen\(\s*\(Number\(item\.place_count\) \|\| 0\) \+ \(Number\(item\.rule_count\) \|\| 0\),/.test(vorkommenListe),
-	"Ortszeilen und Regeln muessen fuer die ERSTE Zahl (gesamt) addiert werden -- sonst ist ein "
-	+ "Eintrag mit Regel und ohne Ortszeile wieder leer statt mindestens halb.");
+// 💣 Die Zeile ZEICHNET den Server-Zustand, sie leitet ihn nicht her.
+assert.ok(/avesmapsStatuskreisMarkup\(item\.map_status\)/.test(vorkommenListe),
+	"Die Vorkommen-Zeile malt nicht mehr `item.map_status`. Leitet sie den Zustand selbst her, gibt "
+	+ "es zwei Bedingungen fuer dieselbe Aussage -- Filter und Kreis koennen dann auseinanderlaufen.");
 checks++;
-// ⚠️ Dass die Zahl NICHT aus der auf 6 gekappten `places`-Liste gezaehlt werden darf, prueft
-// js/review/__tests__/lore-dialog-layout.test.js am VERHALTEN (Eintrag mit sieben Orten, der
-// einzige verortete ist der siebte) -- hier waere es nur eine Aussage ueber die Schreibweise.
 assert.ok(/class="tree-item has-map-status"/.test(vorkommenListe),
 	'Die Vorkommen-Zeile im REITER setzt "has-map-status" nicht -- ohne die Klasse greift keine '
 	+ "Regel in map-status-circle.css und der Kreis fehlt lautlos.");
@@ -416,15 +396,14 @@ checks++;
 assert.ok(/avm-row__l1"><span class="avm-row__name">' \+ name \+ "<\/span>" \+ kreis/.test(vorkommenListe),
 	"Im Vorkommen-Fenster steht der Kreis nicht neben dem Namen in `.avm-row__l1`.");
 checks++;
-// 💣 Und der Server muss die Zahl ueberhaupt liefern -- sonst prueft der Bauer fuer immer
-// `undefined` und faerbt jede Zeile mit Orten halb (gruener Test, wirkungslose Liste).
+// 💣 Und der Server muss den Zustand ueberhaupt liefern -- sonst liest der Browser `undefined`
+// und faerbt JEDE Zeile leer (gruener Test, tote Liste).
 const loreLib = lies("api", "_internal", "app", "lore.php");
-assert.ok(/'place_mapped_count' => \$mappedPlaces,/.test(loreLib),
-	"api/_internal/app/lore.php liefert `place_mapped_count` nicht mehr im Katalog-Eintrag.");
+assert.ok(/'map_status' => avesmapsLoreMapStatus\(/.test(loreLib),
+	"api/_internal/app/lore.php liefert `map_status` nicht mehr im Katalog-Eintrag.");
 checks++;
 assert.ok(/avesmapsLoreReadPlaceKeysOnMap\(\$pdo, array_keys\(\$allPlaceKeys\)\)/.test(loreLib),
-	"Der Katalog fragt die Kartenschluessel nicht mehr ab -- ohne sie ist `place_mapped_count` "
-	+ "ueberall 0 und jede Zeile mit Orten waere halb.");
+	"Der Katalog fragt die Kartenschluessel nicht mehr ab -- ohne sie waere jede Zeile mit Orten halb.");
 checks++;
 
 // ── Die Panel-Wegeliste: zwei alte Fehlbefunde ──────────────────────────────────────────────────

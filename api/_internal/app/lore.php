@@ -209,7 +209,9 @@ function avesmapsLoreReadCatalog(
     array $continents = [],
     array $origins = [],
     ?int $hasPlace = null,
-    ?int $hasSource = null
+    ?int $hasSource = null,
+    ?string $mapStatus = null,
+    ?string $sourceKind = null
 ): array {
     avesmapsLoreEnsureContinentColumn($pdo);
 
@@ -284,29 +286,100 @@ function avesmapsLoreReadCatalog(
         $where[] = ($hasSource === 1 ? 'e.wiki_key IN ' : 'e.wiki_key NOT IN ') . $sourceSubquery;
     }
 
+    // FILTER „Vorkommen ueber" (Owner 18.08.2026: „alle, orte, regeln"). 🔴 Ein Filter auf die
+    // HERKUNFT des Vorkommens, kein Entweder-Oder ueber den Eintrag: wer beides hat, erscheint in
+    // beiden. Gemessen 19.08.2026 betrifft das genau EINEN von 5.104 Eintraegen („Vierblaettrige
+    // Einbeere": eine Ortszeile UND eine Regel) -- die Frage ist heute fast akademisch, die
+    // Antwort darf es trotzdem nicht sein.
+    // ⚠️ Beide Zweige sind reines SQL und indiziert; „regeln" ist wortgleich die Bedingung des
+    //    Regelzaehlers (avesmapsLoreReadRuleCountsByEntry), damit Filter und Zahl dasselbe meinen.
+    if ($sourceKind === 'orte') {
+        $where[] = "EXISTS (SELECT 1 FROM lore_place lp WHERE lp.entry_wiki_key = e.wiki_key AND lp.status = 'active')";
+    } elseif ($sourceKind === 'regeln') {
+        $where[] = "EXISTS (SELECT 1 FROM lore_rule lr WHERE lr.entry_wiki_key = e.wiki_key"
+            . " AND lr.status = 'active' AND lr.relation = 'verbreitung')";
+    }
+
     $whereSql = implode(' AND ', $where);
     $baseWhereSql = implode(' AND ', $baseWhere);
     $limit = max(1, min(500, $limit));
     $offset = max(0, $offset);
 
+    // FILTER „Auf Karte" (auffindbar / offen / nicht zugewiesen). 💣 Er laesst sich NICHT als
+    // WHERE schreiben: ob ein Vorkommen auf der Karte liegt, steht in keiner Spalte -- es ist der
+    // Vergleich von `lore_place.place_wiki_key` gegen vier Zuweisungsfelder plus die Regeltreffer,
+    // gerechnet in PHP. Deshalb ein VORLAUF: er bestimmt die passenden Schluessel, und erst die
+    // gehen als (kleines) `IN` in die gewohnte Abfrage.
+    // 🔴 Entschieden wird mit avesmapsLoreMapStatus -- DERSELBEN Funktion, deren Ergebnis unten als
+    //    `map_status` mitreist und im Browser den Kreis malt. Eine zweite Bedingung an dieser
+    //    Stelle koennte „offen" zeigen, wo der Kreis voll ist.
+    // ⚠️ Der Vorlauf laeuft NUR, wenn der Filter gesetzt ist -- ohne ihn bleibt der Weg exakt der
+    //    von gestern (Seite holen, Zahlen fuer die Seite rechnen). Dass beide Wege dieselben
+    //    Zeilen liefern, ist als Zusicherung festgenagelt (die drei Zustaende sind disjunkt und
+    //    ergeben zusammen den ungefilterten Bestand).
+    $statusKeys = null;
+    if ($mapStatus !== null && in_array($mapStatus, AVESMAPS_LORE_MAP_STATUSES, true)) {
+        try {
+            $keyStatement = $pdo->prepare('SELECT e.wiki_key FROM lore_entry e WHERE ' . $whereSql . ' ORDER BY e.name');
+            $keyStatement->execute($params);
+            $candidateKeys = $keyStatement->fetchAll(PDO::FETCH_COLUMN) ?: [];
+        } catch (Throwable $error) {
+            error_log('lore map-status prefilter failed: ' . $error->getMessage());
+
+            return ['items' => [], 'total' => 0, 'failed' => true];
+        }
+        $statusByEntry = avesmapsLoreReadMapStatusByEntry($pdo, $candidateKeys);
+        $statusKeys = [];
+        foreach ($candidateKeys as $candidate) {
+            if (($statusByEntry[(string) $candidate] ?? '') === $mapStatus) {
+                $statusKeys[] = (string) $candidate;
+            }
+        }
+        // Die Reihenfolge steht schon (ORDER BY e.name oben) -- geschnitten wird hier, damit die
+        // Zeilenabfrage unten ein `IN` von hoechstens `limit` Schluesseln bekommt statt eines von
+        // mehreren tausend.
+        $total = count($statusKeys);
+        $statusKeys = array_slice($statusKeys, $offset, $limit);
+    }
+
     try {
-        $countStatement = $pdo->prepare('SELECT COUNT(*) FROM lore_entry e WHERE ' . $whereSql);
-        $countStatement->execute($params);
-        $total = (int) $countStatement->fetchColumn();
+        if ($statusKeys === null) {
+            $countStatement = $pdo->prepare('SELECT COUNT(*) FROM lore_entry e WHERE ' . $whereSql);
+            $countStatement->execute($params);
+            $total = (int) $countStatement->fetchColumn();
+        }
 
         // 💣 KEINE korrelierten Unterabfragen je Zeile. Die erste Fassung hatte DREI --
         // bei 200 Zeilen also 600 Abfragen für eine Liste. Stattdessen: erst die
         // Einträge, dann Orte und Quellen für genau diese Schlüssel in je EINER
         // Abfrage. Drei Abfragen statt sechshundert, unabhängig von der Seitengröße.
-        $statement = $pdo->prepare(
-            'SELECT e.wiki_key, e.kind, e.name, e.wiki_url, e.gruppe, e.typ, e.lebensraum, e.origin, e.continent
-             FROM lore_entry e
-             WHERE ' . $whereSql . '
-             ORDER BY e.name
-             LIMIT ' . $limit . ' OFFSET ' . $offset
-        );
-        $statement->execute($params);
-        $rows = $statement->fetchAll(PDO::FETCH_ASSOC) ?: [];
+        $spalten = 'e.wiki_key, e.kind, e.name, e.wiki_url, e.gruppe, e.typ, e.lebensraum, e.origin, e.continent';
+        if ($statusKeys === null) {
+            $statement = $pdo->prepare(
+                'SELECT ' . $spalten . ' FROM lore_entry e WHERE ' . $whereSql . '
+                 ORDER BY e.name LIMIT ' . $limit . ' OFFSET ' . $offset
+            );
+            $statement->execute($params);
+            $rows = $statement->fetchAll(PDO::FETCH_ASSOC) ?: [];
+        } elseif ($statusKeys === []) {
+            $rows = [];
+        } else {
+            // Eigene Platzhalternamen, weil $params bereits benannte traegt -- gemischt (benannt
+            // plus `?`) lehnt PDO das Statement ab.
+            $statusParams = $params;
+            $statusPlaceholders = [];
+            foreach ($statusKeys as $i => $statusKey) {
+                $statusPlaceholders[] = ':msk' . $i;
+                $statusParams['msk' . $i] = $statusKey;
+            }
+            $statement = $pdo->prepare(
+                'SELECT ' . $spalten . ' FROM lore_entry e WHERE ' . $whereSql
+                . ' AND e.wiki_key IN (' . implode(',', $statusPlaceholders) . ')
+                 ORDER BY e.name'
+            );
+            $statement->execute($statusParams);
+            $rows = $statement->fetchAll(PDO::FETCH_ASSOC) ?: [];
+        }
 
         $keys = array_column($rows, 'wiki_key');
         $placesByEntry = [];
@@ -437,6 +510,14 @@ function avesmapsLoreReadCatalog(
             // kein Ortsname. Addiert wird erst im Zeilenbauer, fuer den Kreis.
             'rule_count' => (int) ($ruleCounts[$entryKey]['rules'] ?? 0),
             'rule_mapped_count' => (int) ($ruleCounts[$entryKey]['matched'] ?? 0),
+            // 🔴 DER ZUSTAND SELBST, entschieden von avesmapsLoreMapStatus -- derselben Funktion,
+            // gegen die der Filter „Auf Karte" oben vergleicht. Der Browser ZEICHNET ihn nur; er
+            // leitet ihn nicht noch einmal her, sonst gaebe es zwei Bedingungen fuer dieselbe
+            // Aussage und der Filter koennte „offen" zeigen, wo der Kreis voll ist.
+            'map_status' => avesmapsLoreMapStatus(
+                count($placeKeysByEntry[$entryKey] ?? []) + (int) ($ruleCounts[$entryKey]['rules'] ?? 0),
+                $mappedPlaces + (int) ($ruleCounts[$entryKey]['matched'] ?? 0)
+            ),
             'source_count' => $sourceCounts[(string) $row['wiki_key']] ?? 0,
         ];
     }
@@ -581,6 +662,117 @@ function avesmapsLoreReadPlaceKeysOnMap(PDO $pdo, array $placeKeys): array
 }
 
 /**
+ * DIE EINE REGEL DES STATUSKREISES DER VORKOMMEN -- und die einzige Stelle, an der sie steht.
+ *
+ * Owner 18.08.2026: „vorkommen sollen kreisfoermig sein, halbgefuellt, wenn sie vorkommen aber
+ * nicht mit einem ort oder einer region auf der karte zugewiesen sind (z.b. schiff), voll wenn sie
+ * auf der karte irgendwo vorkommen".
+ *
+ *   voll = mindestens EIN Vorkommen liegt auf der Karte  (Filter: „auffindbar")
+ *   halb = Vorkommen vorhanden, KEINES verortet          (Filter: „offen")
+ *   leer = gar kein Vorkommen                            (Filter: „nicht zugewiesen")
+ *
+ * 🔴 SIE STEHT IN PHP UND NICHT MEHR IM BROWSER, seit es den Filter „Auf Karte" gibt. Der Grund
+ *    ist zwingend: die Liste laedt seitenweise nach, ein Browser-Filter saehe nur das geladene
+ *    Fenster (dieselbe Begruendung wie bei Kontinent/Herkunft/Ortsangabe/Quelle). Der Filter muss
+ *    also serverseitig entscheiden -- und wenn der Kreis daneben SEINERSEITS entschiede, gaebe es
+ *    zwei Bedingungen fuer dieselbe Aussage. Dann kann der Filter „offen" eine Zeile zeigen, deren
+ *    Kreis voll ist, und niemand findet je heraus, welche der beiden luegt.
+ * ⇒ EINE Quelle, ZWEI Verbraucher: der Filter VERGLEICHT das Ergebnis dieser Funktion, der Browser
+ *    ZEICHNET es (`map_status` reist im Payload mit, `avesmapsStatuskreisMarkup` malt nur noch).
+ *    Gewacht von api/_internal/app/__tests__/lore-map-status-test.php und
+ *    js/review/__tests__/lore-dialog-layout.test.js.
+ *
+ * 💣 GEGENLAEUFIG ZU LITERATUR UND KARTE, und das ist gewollt: dort schlaegt halb das volle („jeder
+ *    unaufgeloeste Ort ist offene Arbeit"), hier genuegt EIN Fundort, damit eine Ware auf der Karte
+ *    vorkommt. „Aventurien" und „Schiff" stehen im selben Wiki-Feld nebeneinander. Wer die beiden
+ *    Regeln zusammenlegt, dreht eine der zwei Aussagen um.
+ * ⚠️ `$gesamt` zaehlt Ortszeilen UND Regeln mit Verbreitung, `$verortet` die verorteten Ortszeilen
+ *    UND die treffenden Regeln -- eine Regel ist ein gleichwertiges Vorkommen (Owner 18.08.2026).
+ */
+function avesmapsLoreMapStatus(int $gesamt, int $verortet): string
+{
+    if ($gesamt <= 0) {
+        return 'leer';
+    }
+
+    // 💣 Hier steht `> 0`. Bei Literatur/Karte steht an derselben Stelle „offen > 0 ⇒ halb" --
+    //    zwei Zeilen, entgegengesetzte Vorzeichen, beide richtig.
+    return $verortet > 0 ? 'voll' : 'halb';
+}
+
+/** Die drei Zustaende, in der Reihenfolge des Filtermenues. */
+const AVESMAPS_LORE_MAP_STATUSES = ['voll', 'halb', 'leer'];
+
+/**
+ * Der Zustand JE EINTRAG fuer eine (auch grosse) Schluesselmenge -- die Vorarbeit des Filters
+ * „Auf Karte".
+ *
+ * 💣 KEIN `IN` mit tausenden Platzhaltern. Der Filter fragt ueber den ganzen Bestand (5.104
+ *    Eintraege); ein `IN` daraus waere ein 80-KB-Statement je Seite. `lore_place` hat 7.748 aktive
+ *    Zeilen und `lore_rule` drei -- beide einmal ganz zu lesen und in PHP zu schneiden ist
+ *    billiger als die Platzhalterliste. ⚠️ Deshalb liest diese Funktion bewusst OHNE Filter und
+ *    wirft danach weg; der Katalog auf seinem normalen Weg macht es genau andersherum (kleine
+ *    Seite, kleines `IN`).
+ *
+ * @param list<string> $entryKeys
+ * @return array<string,string> entry_wiki_key => voll|halb|leer
+ */
+function avesmapsLoreReadMapStatusByEntry(PDO $pdo, array $entryKeys): array
+{
+    $wanted = [];
+    foreach ($entryKeys as $key) {
+        $key = trim((string) $key);
+        if ($key !== '') {
+            $wanted[$key] = true;
+        }
+    }
+    if ($wanted === []) {
+        return [];
+    }
+
+    $placeKeysByEntry = [];
+    $allPlaceKeys = [];
+    try {
+        $statement = $pdo->query(
+            "SELECT entry_wiki_key, place_wiki_key FROM lore_place WHERE status = 'active'"
+        );
+        foreach (($statement === false ? [] : $statement->fetchAll(PDO::FETCH_ASSOC)) as $row) {
+            $entry = (string) $row['entry_wiki_key'];
+            if (!isset($wanted[$entry])) {
+                continue;
+            }
+            $placeKey = avesmapsLoreStripKeyPrefix((string) $row['place_wiki_key']);
+            $placeKeysByEntry[$entry][] = $placeKey;
+            if ($placeKey !== '') {
+                $allPlaceKeys[$placeKey] = true;
+            }
+        }
+    } catch (Throwable $error) {
+        // ⚠️ Kein stiller Rueckfall: ohne Ortszeilen faende der Filter „offen" nichts und
+        // „nicht zugewiesen" alles -- das saehe aus wie ein gepflegter Bestand.
+        error_log('lore map-status places failed: ' . $error->getMessage());
+    }
+
+    $placeKeysOnMap = avesmapsLoreReadPlaceKeysOnMap($pdo, array_keys($allPlaceKeys));
+    $ruleCounts = avesmapsLoreReadRuleCountsByEntry($pdo, array_keys($wanted));
+
+    $out = [];
+    foreach (array_keys($wanted) as $entry) {
+        $gesamt = count($placeKeysByEntry[$entry] ?? []) + (int) ($ruleCounts[$entry]['rules'] ?? 0);
+        $verortet = (int) ($ruleCounts[$entry]['matched'] ?? 0);
+        foreach ($placeKeysByEntry[$entry] ?? [] as $placeKey) {
+            if ($placeKey !== '' && isset($placeKeysOnMap[$placeKey])) {
+                $verortet++;
+            }
+        }
+        $out[$entry] = avesmapsLoreMapStatus($gesamt, $verortet);
+    }
+
+    return $out;
+}
+
+/**
  * WELCHE EINTRÄGE HABEN EINE REGEL -- UND TRIFFT SIE ETWAS?
  *
  * Owner 18.08.2026: „beachte auch, dass regeln (sofern vorhanden und mit verbreitung) gültige
@@ -640,16 +832,21 @@ function avesmapsLoreReadRuleCountsByEntry(PDO $pdo, array $entryKeys): array
     if ($keys === []) {
         return [];
     }
+    $wanted = $keys;
     $keys = array_keys($keys);
 
+    // 💣 Ab einer gewissen Menge KEIN `IN` mehr: der Filter „Auf Karte" fragt ueber den ganzen
+    //    Bestand (5.104 Eintraege), und daraus eine Platzhalterliste zu bauen kostet mehr als die
+    //    ganze Tabelle zu lesen -- `lore_rule` hat live DREI aktive Zeilen. Geschnitten wird dann
+    //    in PHP. Beide Wege liefern dasselbe; nur der Umweg ueber die Datenbank ist verschieden.
+    $ohneIn = count($keys) > 1000;
     try {
-        $statement = $pdo->prepare(
-            "SELECT entry_wiki_key, COUNT(*) AS n FROM lore_rule
-              WHERE status = 'active' AND relation = 'verbreitung'
-                AND entry_wiki_key IN (" . implode(',', array_fill(0, count($keys), '?')) . ')
-              GROUP BY entry_wiki_key'
-        );
-        $statement->execute($keys);
+        $sql = "SELECT entry_wiki_key, COUNT(*) AS n FROM lore_rule
+                 WHERE status = 'active' AND relation = 'verbreitung'"
+            . ($ohneIn ? '' : ' AND entry_wiki_key IN (' . implode(',', array_fill(0, count($keys), '?')) . ')')
+            . ' GROUP BY entry_wiki_key';
+        $statement = $pdo->prepare($sql);
+        $statement->execute($ohneIn ? [] : $keys);
         $rows = $statement->fetchAll(PDO::FETCH_ASSOC) ?: [];
     } catch (Throwable) {
         return []; // Tabelle fehlt (Regeln nie benutzt) -> kein Regelzweig, kein Fehler
@@ -657,7 +854,11 @@ function avesmapsLoreReadRuleCountsByEntry(PDO $pdo, array $entryKeys): array
 
     $out = [];
     foreach ($rows as $row) {
-        $out[(string) $row['entry_wiki_key']] = ['rules' => (int) $row['n'], 'matched' => 0];
+        $entryKey = (string) $row['entry_wiki_key'];
+        if (!isset($wanted[$entryKey])) {
+            continue; // beim IN-losen Weg: alles, was nicht gefragt war
+        }
+        $out[$entryKey] = ['rules' => (int) $row['n'], 'matched' => 0];
     }
     if ($out === []) {
         return []; // DER Kurzschluss: nichts weiter wird gelesen
