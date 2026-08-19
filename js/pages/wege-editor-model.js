@@ -524,19 +524,85 @@ function wpReverseProfile(profil) {
 	return profil.slice().reverse().map(wpReversePiece);
 }
 
-// Auf wie viele Nachkommastellen zwei Endpunkte als DERSELBE Punkt gelten. Dieselbe Rundung,
-// mit der avesmapsAddClientCompatiblePathConnection (api/_internal/routing/client-graph.php) Wege
-// an Orten teilt -- eine zweite Toleranz waere eine zweite Wahrheit darueber, was „haengt
-// zusammen" heisst.
-var WP_CHAIN_ROUND = 5;
+// Wie nah zwei Endpunkte liegen muessen, um als DERSELBE Punkt zu gelten -- in Karteneinheiten
+// (1 Einheit = 3 Meilen), also 0,001 = drei Meter.
+//
+// 💣 AM LIVEBESTAND GEMESSEN (19.08.2026, 5994 Wege, 416 mehrteilige Namensgruppen). Zwei freie
+// Enden derselben Gruppe liegen entweder WINZIG auseinander oder WEIT; dazwischen ist fast
+// nichts:
+//
+//     unter 0,001 Einheiten (3 Meter):  19 % der freien Enden
+//     unter 0,01  Einheiten:            20 %
+//     unter 0,1   Einheiten:            22 %
+//     Median des Abstands:              4,12 Einheiten (12,4 Meilen)
+//
+// Die erste Gruppe ist Zeichenungenauigkeit (jemand hat zwei Linien „aneinander" gesetzt), die
+// zweite sind echte Luecken. Die Schwelle gehoert in das leere Feld dazwischen.
+//
+// 💣 UND SIE IST EINE DISTANZ, KEINE RUNDUNG. Der erste Entwurf rundete beide Punkte auf drei
+// Nachkommastellen und verglich die Ergebnisse -- das ist keine Toleranz, sondern ein Raster:
+// 10,0 und 10,0005 fallen in verschiedene Zellen (10,000 gegen 10,001) und finden sich nicht,
+// waehrend 10,0004 und 10,0006 sich finden. Ob zwei Enden zusammengehoeren, haengt dann davon
+// ab, WO sie liegen, nicht wie weit sie auseinander sind. Der Test haelt genau diesen Fall fest.
+//
+// ⚠️ Das ist NICHT dieselbe Zahl wie in avesmapsAddClientCompatiblePathConnection
+// (api/_internal/routing/client-graph.php), und das ist Absicht: dort wird ein Weg an einem
+// ORT geteilt, dessen Koordinate gesetzt und exakt ist. Hier treffen zwei von Hand gezogene
+// Linienenden aufeinander. Zwei verschiedene Fragen, zwei Toleranzen.
+var WP_CHAIN_TOLERANZ = 0.001;
 
-function wpChainNodeKey(punkt) {
-	if (!Array.isArray(punkt) || punkt.length < 2) { return null; }
-	var faktor = Math.pow(10, WP_CHAIN_ROUND);
-	var x = Math.round(Number(punkt[0]) * faktor) / faktor;
-	var y = Math.round(Number(punkt[1]) * faktor) / faktor;
-	if (!isFinite(x) || !isFinite(y)) { return null; }
-	return x + "|" + y;
+/**
+ * REIN: Endpunkte zu KNOTEN zusammenfassen, die naeher als die Toleranz beieinanderliegen.
+ *
+ * ⭐ Ueber ein Gitter mit Maschenweite = Toleranz und eine 3x3-Sonde: jeder Punkt sieht nur
+ * seine acht Nachbarzellen, und weiter als eine Masche kann ein Treffer nicht liegen. Dasselbe
+ * Verfahren wie das Segment-Gitter des Kreuzungs-Pruefhakens (AGENTS.md §11) -- ohne es waere
+ * die Suche quadratisch in der Zahl der Abschnitte.
+ *
+ * @return {function(Array): (string|null)} eine Nachschlagefunktion Punkt -> Knotenschluessel
+ */
+function wpChainNodeResolver(punkte) {
+	var gitter = {};
+	var zelle = function (x, y) { return Math.floor(x / WP_CHAIN_TOLERANZ) + ":" + Math.floor(y / WP_CHAIN_TOLERANZ); };
+
+	function suche(punkt) {
+		if (!Array.isArray(punkt) || punkt.length < 2) { return null; }
+		var x = Number(punkt[0]);
+		var y = Number(punkt[1]);
+		if (!isFinite(x) || !isFinite(y)) { return null; }
+		var cx = Math.floor(x / WP_CHAIN_TOLERANZ);
+		var cy = Math.floor(y / WP_CHAIN_TOLERANZ);
+		for (var dx = -1; dx <= 1; dx++) {
+			for (var dy = -1; dy <= 1; dy++) {
+				var eintraege = gitter[(cx + dx) + ":" + (cy + dy)];
+				if (!eintraege) { continue; }
+				for (var i = 0; i < eintraege.length; i++) {
+					var kandidat = eintraege[i];
+					if (Math.hypot(kandidat.x - x, kandidat.y - y) <= WP_CHAIN_TOLERANZ) {
+						return kandidat.key;
+					}
+				}
+			}
+		}
+		return null;
+	}
+
+	// Erst alle Punkte einmal registrieren -- der erste seiner Nachbarschaft gibt den Namen.
+	// ⚠️ Die Reihenfolge entscheidet, WELCHER Punkt der kanonische wird; sie ist die Reihenfolge
+	// der Abschnitte und damit stabil. Die Zugehoerigkeit selbst haengt nicht daran.
+	(punkte || []).forEach(function (punkt) {
+		if (suche(punkt) !== null) { return; }
+		if (!Array.isArray(punkt) || punkt.length < 2) { return; }
+		var x = Number(punkt[0]);
+		var y = Number(punkt[1]);
+		if (!isFinite(x) || !isFinite(y)) { return; }
+		var key = x + "|" + y;
+		var schluessel = zelle(x, y);
+		if (!gitter[schluessel]) { gitter[schluessel] = []; }
+		gitter[schluessel].push({ x: x, y: y, key: key });
+	});
+
+	return suche;
 }
 
 /**
@@ -564,10 +630,21 @@ function wpChainSegments(segmente) {
 	var knoten = {};   // knotenSchluessel -> [Segmentindex]
 	var enden = [];    // Segmentindex -> [vonSchluessel, nachSchluessel]
 
+	// Erst alle Endpunkte sammeln, dann zu Knoten zusammenfassen -- die Zusammenfassung braucht
+	// die ganze Menge, ein Punkt allein kennt seine Nachbarn nicht.
+	var alleEnden = [];
+	liste.forEach(function (segment) {
+		var ends = segment && segment.ends;
+		if (!ends) { return; }
+		alleEnden.push(ends.from);
+		alleEnden.push(ends.to);
+	});
+	var knotenVon = wpChainNodeResolver(alleEnden);
+
 	liste.forEach(function (segment, index) {
 		var ends = segment && segment.ends;
-		var von = ends ? wpChainNodeKey(ends.from) : null;
-		var nach = ends ? wpChainNodeKey(ends.to) : null;
+		var von = ends ? knotenVon(ends.from) : null;
+		var nach = ends ? knotenVon(ends.to) : null;
 		enden[index] = [von, nach];
 		[von, nach].forEach(function (schluessel) {
 			if (schluessel === null) { return; }

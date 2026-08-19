@@ -111,9 +111,9 @@ angezeigt werden. Bei „gemischt" wird die Domäne des **ersten** Abschnitts ge
 Gruppe Land und Wasser mischt, wird die Fahrtyp-Liste ganz weggelassen samt Hinweis, statt eine
 falsche Hälfte anzubieten.
 
-🔧 Ob es solche Gruppen im Bestand gibt, ist **ungemessen** (der Typriegel der Wiki-Zuweisung
-verhindert Fluss ↔ Straße, aber die Gruppierung über Art+Name kennt ihn nicht). Der Fall wird
-behandelt, weil er billig ist, nicht weil er belegt ist.
+✅ **Belegt, 19.08.2026:** es gibt genau zwei solche Gruppen — „Knüppeldamm von Drôl nach Port
+Corrad" (9 Abschnitte) und „Angra" (2). Der Fall ist damit nicht vorsorglich gebaut, sondern
+gemessen (§12).
 
 ---
 
@@ -164,8 +164,13 @@ heutige Antwort nicht enthält (sie gibt nur `piece_lengths` heraus).
 Die Abschnitte liegen in der Liste nach `bbox`-Ecke sortiert — das ordnet sie *ungefähr* von West
 nach Ost und ist für eine Kurve **nicht** gut genug. Gebaut wird eine echte Kette:
 
-1. Endpunkte auf 5 Nachkommastellen runden (dieselbe Rundung, mit der
-   `avesmapsAddClientCompatiblePathConnection` Wege an Orten teilt) und als Knoten führen.
+1. Endpunkte zu Knoten zusammenfassen, die **näher als 0,001 Einheiten (3 Meter)**
+   beieinanderliegen.
+   🪤 Hier stand „auf 5 Nachkommastellen runden (dieselbe Rundung, mit der
+   `avesmapsAddClientCompatiblePathConnection` Wege an Orten teilt)" — beim Bau an den Daten
+   gemessen und **zweifach widerlegt**: die Zahl ist zu fein (sie fängt 1 % statt 19 %, §12),
+   und eine Rundung ist überhaupt keine Toleranz, sondern ein Raster. Die Begründung steht in
+   §12 und an der Konstante `WP_CHAIN_TOLERANZ`.
 2. Segmente sind Kanten; die Kette ist der Pfad durch sie.
 3. Ein Knoten mit **einer** Kante ist ein Ende, mit **zwei** ein Durchgang, mit **drei oder mehr**
    eine Verzweigung.
@@ -288,10 +293,74 @@ Speichern-Knopf lügt.
 
 ---
 
-## 12. Offen
+## 12. Gemessen (19.08.2026, am Livebestand)
 
-- 🔧 **Ungemessen:** wie viele Namensgruppen im Bestand eine gebrochene Kette haben. Fällt beim
-  Bau mit einer einzelnen Abfrage ab und gehört dann hierher.
-- 🔧 **Ungemessen:** ob eine Gruppe je Land- und Wasserabschnitte mischt (§4.3).
-- 🔧 Ob die Weg-Ebene auch die **Flussrichtung** sammeln soll. Bewusst draußen: sie ist je Segment
-  eine Richtung entlang der gezeichneten Geometrie, und „alle gleich" hat dort keine Bedeutung.
+Die beiden offenen Punkte sind beantwortet — ein einziger Abruf des öffentlichen
+Kartenpayloads (5994 Wege), ausgewertet mit demselben `wpGroupWays`/`wpChainSegments`, das der
+Editor fährt.
+
+### Wie viele Wege bekommen die Weg-Ebene überhaupt?
+
+| | |
+|---|---|
+| Namensgruppen gesamt | **4157** |
+| davon einteilig (behalten die Abschnittsmaske) | 3741 |
+| davon mehrteilig (**bekommen die Weg-Ebene**) | **416** |
+
+### Wie oft geht die Kurve durch?
+
+| | |
+|---|---|
+| eine durchgehende Kette | **143** (34 %) |
+| mehrere Teilstücke | **273** (66 %) |
+
+🔴 **Die mehrteilige Kurve ist der Normalfall, nicht der Ausnahmefall** — zwei Drittel. Der
+Entwurf hat das vermutet; jetzt ist es gezählt. Die Ursache ist fast immer eine **Lücke**
+(236 Gruppen), nicht eine Verzweigung (0 allein, 55 mit beidem): die Segmente einer
+Reichsstraße hängen schlicht nicht aneinander. Damit ist die getrennte Darstellung keine
+Notlösung für einen Randfall, sondern das, was man meistens sieht.
+
+### 💣 Und der Befund, der den Bau geändert hat: die Toleranz
+
+Freie Enden derselben Gruppe liegen **entweder winzig auseinander oder weit** — dazwischen ist
+fast nichts:
+
+| Abstand zum nächsten freien Ende | Anteil |
+|---|---|
+| unter 0,001 Einheiten (3 Meter) | **19 %** |
+| unter 0,01 Einheiten | 20 % |
+| unter 0,1 Einheiten | 22 % |
+| Median | **4,12 Einheiten (12,4 Meilen)** |
+
+Die erste Gruppe ist Zeichenungenauigkeit, die zweite sind echte Lücken. §6.1 wollte auf fünf
+Nachkommastellen runden (die Zahl aus `client-graph.php`) — das fängt **1 %** und ließe 362
+offensichtlich gemeinte Verbindungen zerfallen. Gebaut ist deshalb eine Toleranz von **0,001
+Einheiten**.
+
+💣 **Und sie ist eine DISTANZ, keine Rundung.** Der erste Bau rundete beide Punkte und verglich
+die Ergebnisse. Das ist ein Raster, keine Toleranz: `10,0` und `10,0005` fallen in verschiedene
+Zellen und finden sich nicht, während `10,0004` und `10,0006` sich finden — ob zwei Enden
+zusammengehören, hinge dann davon ab, *wo* sie liegen, nicht *wie weit* sie auseinander sind.
+Gefunden hat das der Test, nicht der Autor. Gebaut ist jetzt ein Gitter mit Maschenweite =
+Toleranz und einer 3×3-Sonde (dasselbe Verfahren wie das Segment-Gitter des
+Kreuzungs-Prüfhakens); Laufzeit für alle 4157 Gruppen: 0,24 s.
+
+⚠️ Eine feinere Verbindung ergibt **nicht** überall weniger Teilstücke: wo zwei Enden
+verschmelzen, entsteht mitunter ein Knoten mit drei Kanten, und dort endet die Kette zu Recht.
+Gemessen: „Reichsstraße 3" 20 → 2 Teilstücke, „Reichsstraße 1" 8 → 13. Die Zahl der
+Teilstücke ist kein Gütemaß; behauptet wird in keinem Fall etwas Falsches.
+
+### Mischt eine Gruppe Land- und Wasserabschnitte?
+
+**Ja, zweimal:** „Knüppeldamm von Drôl nach Port Corrad" (9 Abschnitte) und „Angra" (2). Der
+Sonderfall aus §4.3 ist damit belegt und nicht bloß vorsorglich gebaut — bei beiden lässt der
+Editor die Fahrtyp-Liste weg und sagt, warum.
+
+### Weiterhin offen
+
+- 🔧 **Kein Handgriff lief je gegen die echte Datenbank oder im Browser.** Der Sammel-Schreibweg
+  ist gegen eine SQLite-Karte gefahren, die Oberfläche in einem Sandkasten gebootet und
+  geklickt — aber niemand hat mit angemeldeter Sitzung einen Weg ausgewählt und gespeichert.
+- 🔧 Ob die Weg-Ebene auch die **Flussrichtung** sammeln soll. Bewusst draußen: sie ist je
+  Segment eine Richtung entlang der gezeichneten Geometrie, und „alle gleich" hat dort keine
+  Bedeutung.

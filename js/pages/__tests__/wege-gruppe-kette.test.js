@@ -151,4 +151,30 @@ assert.throws(() => assert.equal(1, 2), "assert ist wirkungslos");
 	assert.equal(letzter.x, 75, "seine LAENGE zaehlt trotzdem mit (10 + 5 + 10 Einheiten = 75 Meilen)");
 }
 
+// ── 10) DIE TOLERANZ: Zeichenungenauigkeit verbindet, eine Luecke nicht ──────────────────────
+//
+// 💣 Am Livebestand gemessen (19.08.2026, 416 mehrteilige Namensgruppen): zwei freie Enden
+// derselben Gruppe liegen entweder WINZIG auseinander (19 % unter 0,001 Einheiten = 3 Meter)
+// oder WEIT (Median 4,12 Einheiten = 12,4 Meilen). Dazwischen ist fast nichts -- und genau
+// dorthin gehoert die Schwelle. Mit der frueheren Rundung auf fuenf Stellen zerfielen 362
+// offensichtlich gemeinte Verbindungen zu Teilstuecken ("Reichsstrasse 2": 22 statt 10).
+{
+	// 0,0005 Einheiten = anderthalb Meter. Das ist dieselbe Stelle, mit zittriger Hand gesetzt.
+	const zittrig = [
+		{ public_id: "a", ends: { from: [0, 0], to: [10, 0] } },
+		{ public_id: "b", ends: { from: [10.0005, 0], to: [20, 0] } }
+	];
+	assert.equal(wpChainSegments(zittrig).length, 1,
+		"eine Zeichenungenauigkeit von anderthalb Metern zerreisst die Kette -- die Toleranz ist zu fein");
+
+	// 0,5 Einheiten = anderthalb Meilen. Das ist eine Luecke, und sie soll eine bleiben.
+	const luecke = [
+		{ public_id: "a", ends: { from: [0, 0], to: [10, 0] } },
+		{ public_id: "b", ends: { from: [10.5, 0], to: [20, 0] } }
+	];
+	assert.equal(wpChainSegments(luecke).length, 2,
+		"anderthalb Meilen Abstand werden ueberbrueckt -- die Toleranz ist zu grob, und die Kurve "
+		+ "behauptet einen Weg, den es nicht gibt");
+}
+
 console.log("wege-gruppe-kette.test.js: alle Zusicherungen gruen");
