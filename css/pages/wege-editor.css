@@ -112,6 +112,25 @@
    Zeilenhandlung, also weich und ohne Knopf (AGENTS.md §12: ein gefuellter Knopf in einer
    Listenzeile multipliziert sich mit der Zeilenzahl). */
 .wp-share[data-jump] { cursor: pointer; }
+
+/* Die Abschnittsmarken in der Kurve des ganzen Weges: eine gestrichelte Senkrechte je Grenze,
+   die Nummer des Abschnitts darueber.
+   ⚠️ Beschriftet wird nur, wo Platz ist (der Zeichner laesst kurze Abschnitte aus) -- sonst
+      stehen die Ziffern uebereinander. Ein Weg im Bestand mischt 1,9 und 28,7 Meilen. */
+.wp-cut {
+	stroke: var(--color-divider);
+	stroke-width: 1;
+	stroke-dasharray: 2 3;
+}
+
+.wp-cut-label {
+	fill: var(--color-text-muted);
+	font-size: 7px;
+	text-anchor: middle;
+}
+
+/* Mehrere Teilstuecke stehen untereinander -- jedes mit eigener Ueberschrift. */
+.wp-chart svg + .wp-chart__title { margin-top: var(--space-8); }
 .wp-share[data-jump]:hover { background: var(--color-hover-wash); }
 
 /* ---- Column 2: Zugehörigkeit (read-only) -----------------------------------------------------

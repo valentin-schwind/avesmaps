@@ -500,6 +500,165 @@ function wpGroupTransportDecisions(vorher, entwurf) {
 	return entscheidungen;
 }
 
+/**
+ * REIN: ein Wegstueck GEDREHT -- gelesen von seinem anderen Ende her.
+ *
+ * 💣 DAS IST MEHR ALS EINE UMGEKEHRTE LISTE. Die vier Zahlen je Wegstueck sind
+ * `[Anstieg, Abstieg, steiler Anstieg, steiler Abstieg]` IN SPEICHERRICHTUNG
+ * (avesmapsTerrainProfileForLine, api/_internal/app/terrain-store.php). Wer nur die Liste
+ * umdreht, bekommt eine Kurve, die bergauf laeuft, wo der Weg bergab geht -- und die Summen
+ * darunter stimmen trotzdem, weil sie sich beim Drehen nicht aendern. Es faellt also nicht auf.
+ *
+ * ⚠️ Ein Stueck mit weniger als vier Zahlen stammt aus der Zeit vor dem 30.07.2026 (Paare aus
+ * zwei). Es wird UNVERAENDERT durchgereicht statt halb gedreht: der Router weist solche Zeilen
+ * ohnehin ab („keine Hoehendaten"), und eine halbe Drehung waere eine erfundene Zahl.
+ */
+function wpReversePiece(stueck) {
+	if (!Array.isArray(stueck) || stueck.length < 4) { return stueck; }
+	return [stueck[1], stueck[0], stueck[3], stueck[2]];
+}
+
+/** REIN: das ganze Profil eines Abschnitts, von hinten gelesen. */
+function wpReverseProfile(profil) {
+	if (!Array.isArray(profil)) { return []; }
+	return profil.slice().reverse().map(wpReversePiece);
+}
+
+// Auf wie viele Nachkommastellen zwei Endpunkte als DERSELBE Punkt gelten. Dieselbe Rundung,
+// mit der avesmapsAddClientCompatiblePathConnection (api/_internal/routing/client-graph.php) Wege
+// an Orten teilt -- eine zweite Toleranz waere eine zweite Wahrheit darueber, was „haengt
+// zusammen" heisst.
+var WP_CHAIN_ROUND = 5;
+
+function wpChainNodeKey(punkt) {
+	if (!Array.isArray(punkt) || punkt.length < 2) { return null; }
+	var faktor = Math.pow(10, WP_CHAIN_ROUND);
+	var x = Math.round(Number(punkt[0]) * faktor) / faktor;
+	var y = Math.round(Number(punkt[1]) * faktor) / faktor;
+	if (!isFinite(x) || !isFinite(y)) { return null; }
+	return x + "|" + y;
+}
+
+/**
+ * REIN: die Abschnitte eines Weges zu KETTEN ordnen.
+ *
+ * Die Editorliste sortiert Abschnitte nach ihrer bbox-Ecke. Das ordnet sie UNGEFAEHR von West
+ * nach Ost und reicht fuer eine durchgehende Hoehenkurve nicht -- die braucht die echte Abfolge
+ * samt der Frage, welcher Abschnitt rueckwaerts darin liegt.
+ *
+ * Gebaut wird ein Graph: Knoten sind die (gerundeten) Endpunkte, Kanten die Abschnitte. Eine
+ * Kette laeuft solange weiter, wie der naechste Knoten GENAU ZWEI Kanten hat. Ein Knoten mit
+ * einer Kante ist ein Ende, einer mit drei oder mehr eine Verzweigung -- dort schliesst die
+ * Kette.
+ *
+ * 🔴 EINE GEBROCHENE KETTE WIRD GEZEIGT, NICHT UEBERBRUECKT. Verzweigungen und Luecken sind der
+ * Normalfall, nicht die Ausnahme („Reichsstrasse 1" traegt 26 Segmente ueber den halben
+ * Kontinent). Eine erfundene Verbindung waere eine Kurve, die einen Weg behauptet, den es nicht
+ * gibt.
+ *
+ * @param {Array} segmente  je Eintrag {public_id, ends: {from, to}, …}
+ * @return {Array<Array<{index:number, gedreht:boolean}>>} Ketten, laengste zuerst
+ */
+function wpChainSegments(segmente) {
+	var liste = Array.isArray(segmente) ? segmente : [];
+	var knoten = {};   // knotenSchluessel -> [Segmentindex]
+	var enden = [];    // Segmentindex -> [vonSchluessel, nachSchluessel]
+
+	liste.forEach(function (segment, index) {
+		var ends = segment && segment.ends;
+		var von = ends ? wpChainNodeKey(ends.from) : null;
+		var nach = ends ? wpChainNodeKey(ends.to) : null;
+		enden[index] = [von, nach];
+		[von, nach].forEach(function (schluessel) {
+			if (schluessel === null) { return; }
+			if (!knoten[schluessel]) { knoten[schluessel] = []; }
+			knoten[schluessel].push(index);
+		});
+	});
+
+	var benutzt = {};
+	var ketten = [];
+
+	// Von einem Ende aus weiterlaufen, solange der naechste Knoten genau zwei Kanten hat.
+	function laufe(startIndex, startSchluessel) {
+		var kette = [];
+		var index = startIndex;
+		var eingang = startSchluessel;
+		while (index !== null && !benutzt[index]) {
+			benutzt[index] = true;
+			var paar = enden[index];
+			// Betreten wir das Stueck an seinem `to`, liegt es rueckwaerts in der Kette.
+			var gedreht = paar[0] !== eingang;
+			kette.push({ index: index, gedreht: gedreht });
+			var ausgang = gedreht ? paar[0] : paar[1];
+			if (ausgang === null) { break; }
+			var nachbarn = knoten[ausgang] || [];
+			// 🔴 GENAU ZWEI. Bei einer Verzweigung (drei und mehr) schliesst die Kette hier --
+			// welcher Arm der „richtige" waere, kann niemand wissen.
+			if (nachbarn.length !== 2) { break; }
+			var naechster = nachbarn[0] === index ? nachbarn[1] : nachbarn[0];
+			if (benutzt[naechster]) { break; }
+			index = naechster;
+			eingang = ausgang;
+		}
+		return kette;
+	}
+
+	// Erst von echten ENDEN aus (Knoten mit einer Kante), dann der Rest. Ohne diese Reihenfolge
+	// begaenne eine Kette womoeglich in ihrer Mitte und zerfiele in zwei Haelften.
+	liste.forEach(function (segment, index) {
+		if (benutzt[index]) { return; }
+		var paar = enden[index];
+		var vonGrad = paar[0] === null ? 0 : (knoten[paar[0]] || []).length;
+		var nachGrad = paar[1] === null ? 0 : (knoten[paar[1]] || []).length;
+		if (vonGrad === 1) { ketten.push(laufe(index, paar[0])); return; }
+		if (nachGrad === 1) { ketten.push(laufe(index, paar[1])); }
+	});
+	liste.forEach(function (segment, index) {
+		if (benutzt[index]) { return; }
+		ketten.push(laufe(index, enden[index][0]));
+	});
+
+	ketten.sort(function (a, b) { return b.length - a.length; });
+	return ketten.filter(function (kette) { return kette.length > 0; });
+}
+
+/**
+ * REIN: die Hoehenkurve einer KETTE -- Stuetzpunkte {x: Meilen ab Anfang, y: Schritt ueber Start}.
+ *
+ * ⚠️ Abschnitte OHNE Profil unterbrechen die Kurve nicht, sie werden UEBERSPRUNGEN: ihre Laenge
+ * zaehlt auf der x-Achse mit, ihre Hoehe bleibt stehen. „Kein Profil" heisst „unbekannt", nicht
+ * „eben" -- deshalb sagt der Kasten daneben, wie viele es waren.
+ */
+function wpChainCurve(kette, segmente) {
+	var punkte = [{ x: 0, y: 0 }];
+	var x = 0;
+	var y = 0;
+	(Array.isArray(kette) ? kette : []).forEach(function (glied) {
+		var segment = segmente[glied.index];
+		if (!segment) { return; }
+		var laengen = Array.isArray(segment.piece_lengths) ? segment.piece_lengths.slice() : [];
+		var profil = segment.terrain && Array.isArray(segment.terrain.profile)
+			? segment.terrain.profile.slice()
+			: null;
+		if (glied.gedreht) {
+			laengen.reverse();
+			profil = profil === null ? null : wpReverseProfile(profil);
+		}
+		if (profil === null) {
+			x += Number(segment.length_units || 0) * WP_MEILEN_PER_MAPUNIT;
+			punkte.push({ x: x, y: y });
+			return;
+		}
+		profil.forEach(function (stueck, i) {
+			x += Number(laengen[i] || 0) * WP_MEILEN_PER_MAPUNIT;
+			y += Number(stueck[0] || 0) - Number(stueck[1] || 0);
+			punkte.push({ x: x, y: y });
+		});
+	});
+	return punkte;
+}
+
 if (typeof module !== "undefined" && module.exports) {
 	module.exports = {
 		wpTempoFlatValues: wpTempoFlatValues,
@@ -522,6 +681,10 @@ if (typeof module !== "undefined" && module.exports) {
 		wpGroupFieldStates: wpGroupFieldStates,
 		wpGroupChangedFields: wpGroupChangedFields,
 		wpGroupTransportDecisions: wpGroupTransportDecisions,
+		wpReversePiece: wpReversePiece,
+		wpReverseProfile: wpReverseProfile,
+		wpChainSegments: wpChainSegments,
+		wpChainCurve: wpChainCurve,
 		wpRoughMiles: wpRoughMiles
 	};
 }

@@ -212,6 +212,26 @@ const ruhe = () => new Promise((fertig) => setTimeout(fertig, 20));
 		"ein Abschnitt ohne Profil wird verschwiegen -- „unbekannt“ ist nicht „eben“");
 	checks += 4;
 
+	// ── 2b) Die KURVE des ganzen Weges ────────────────────────────────────────────────────────
+	// Die drei Abschnitte der Fixture haengen aneinander (10,10 → 12,12 → 15,15 → 17,17), es ist
+	// also EINE Kette.
+	assert.ok(profil.indexOf("<svg") !== -1, "die Hoehenkurve fehlt: " + profil.slice(0, 300));
+	assert.ok(profil.indexOf("lückenlos aneinander") !== -1,
+		"der Kasten sagt nicht, ob die Kette durchgeht");
+	assert.ok(profil.indexOf("wp-cut") !== -1,
+		"die Abschnittsgrenzen sind nicht markiert -- dann sagt die Kurve nicht, wo ein "
+		+ "Abschnitt liegt, und genau das war ihr Zweck");
+	assert.ok(profil.indexOf("Höchster Punkt über Start") !== -1,
+		"die Zahl, die man bei einem Pass sucht, fehlt");
+	checks += 4;
+
+	// Der Umschalter hat DREI Stufen (der Abschnitt daneben hat zwei).
+	assert.ok(profil.indexOf("data-gscale=\"ganz\"") !== -1
+		&& profil.indexOf("data-gscale=\"abschnitte\"") !== -1
+		&& profil.indexOf("data-gscale=\"stuecke\"") !== -1,
+		"der Umschalter hat nicht alle drei Stufen");
+	checks += 1;
+
 	// ── 3) 🔴 EIN SPEICHERN OHNE AENDERUNG SCHICKT NICHTS ─────────────────────────────────────
 	s.gesendet.length = 0;
 	s.elemente.wpGroupSave.feuere("click");

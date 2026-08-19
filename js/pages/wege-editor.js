@@ -65,6 +65,8 @@
 		groupStand: null,     // wpGroupFieldStates beim Oeffnen -- der Vergleichsstand
 		groupDraft: null,     // was in der Maske steht
 		groupDetail: null,    // Antwort von ?action=group_detail
+		// Drei Stufen statt zwei: der ganze Weg · je Abschnitt · je Wegstueck.
+		groupScale: "ganz",
 		profileScale: "total",
 		openGroups: {},      // key -> true, welche Weg-Gruppen aufgeklappt sind
 		typeFilter: new Set(),
@@ -1251,6 +1253,61 @@
 		});
 	}
 
+	/* Die Hoehenkurve EINER Kette. Dieselbe Zeichenform wie renderTotalChart (viewBox 320x140,
+	   dieselben Klassen) -- neu sind allein die Abschnittsmarken.
+	   ⚠️ Beschriftet wird nur, wo Platz ist: ein 1,9-Meilen-Abschnitt neben einem von 28,7 bekommt
+	   keine Nummer ins Bild, sonst stehen die Ziffern uebereinander. */
+	function renderChainChart(kette, segmente, nummern) {
+		var kurve = wpChainCurve(kette, segmente);
+		if (kurve.length < 2) { return ""; }
+		var maxX = kurve[kurve.length - 1].x || 1;
+		var ys = kurve.map(function (p) { return p.y; });
+		var minY = Math.min.apply(null, ys);
+		var maxY = Math.max.apply(null, ys);
+		if (maxY - minY < 1) { maxY = minY + 1; }
+
+		var X0 = 40, X1 = 312, Y0 = 18, Y1 = 122;
+		function px(x) { return X0 + (x / maxX) * (X1 - X0); }
+		function py(y) { return Y1 - ((y - minY) / (maxY - minY)) * (Y1 - Y0); }
+
+		var points = kurve.map(function (p) { return px(p.x).toFixed(1) + "," + py(p.y).toFixed(1); }).join(" ");
+		var area = "M" + points.split(" ").join(" L") + " L" + px(maxX).toFixed(1) + "," + Y1
+			+ " L" + X0 + "," + Y1 + " Z";
+
+		var marken = "";
+		var lauf = 0;
+		kette.forEach(function (glied, i) {
+			var segment = segmente[glied.index];
+			var meilen = Number((segment && segment.length_units) || 0) * 3;
+			var mitte = lauf + meilen / 2;
+			lauf += meilen;
+			if (i < kette.length - 1) {
+				marken += '<line class="wp-cut" x1="' + px(lauf).toFixed(1) + '" y1="' + Y0
+					+ '" x2="' + px(lauf).toFixed(1) + '" y2="' + Y1 + '"></line>';
+			}
+			if (meilen / maxX > 0.05) {
+				marken += '<text class="wp-cut-label" x="' + px(mitte).toFixed(1) + '" y="' + (Y0 + 9)
+					+ '">' + (nummern[glied.index] || "") + "</text>";
+			}
+		});
+
+		return '<svg viewBox="0 0 320 140" role="img" aria-label="Höhenkurve des Weges">'
+			+ '<line class="wp-grid" x1="' + X0 + '" y1="' + Y0 + '" x2="' + X1 + '" y2="' + Y0 + '"></line>'
+			+ '<line class="wp-grid" x1="' + X0 + '" y1="' + ((Y0 + Y1) / 2) + '" x2="' + X1 + '" y2="' + ((Y0 + Y1) / 2) + '"></line>'
+			+ '<path class="wp-fill" d="' + area + '"></path>'
+			+ marken
+			+ '<polyline class="wp-line wp-line--1" points="' + points + '"></polyline>'
+			+ '<line class="wp-axis" x1="' + X0 + '" y1="' + Y1 + '" x2="' + X1 + '" y2="' + Y1 + '"></line>'
+			+ '<line class="wp-axis" x1="' + X0 + '" y1="' + Y0 + '" x2="' + X0 + '" y2="' + Y1 + '"></line>'
+			+ '<text class="wp-tick" x="2" y="' + (Y0 + 3) + '">' + escapeHtml(num(maxY, 0)) + "</text>"
+			+ '<text class="wp-tick" x="2" y="' + (Y1 + 3) + '">' + escapeHtml(num(minY, 0)) + "</text>"
+			+ '<text class="wp-tick" x="' + X0 + '" y="136">0</text>'
+			+ '<text class="wp-tick" x="' + (X1 - 30) + '" y="136">' + escapeHtml(num(maxX, 1)) + "</text>"
+			+ '<text class="wp-axis-label" x="' + X0 + '" y="12">Schritt über Start (relativ)</text>'
+			+ '<text class="wp-axis-label" x="' + (X1 - 34) + '" y="136">Meilen</text>'
+			+ "</svg>";
+	}
+
 	/* Spalte 3 im Weg-Modus: was die Abschnitte zusammen ergeben. */
 	function renderGroupProfile(host) {
 		var gruppe = findGroup(state.selectedGroup);
@@ -1267,61 +1324,81 @@
 		var mitProfil = segmente.filter(function (s) { return s.terrain && s.terrain.profile; });
 		var wasser = segmente.filter(function (s) { return isWater(s.feature_subtype); }).length;
 
-		var html = "";
 		if (mitProfil.length === 0) {
 			host.innerHTML = '<div class="avm-empty">Für keinen Abschnitt dieses Weges liegt ein '
-				+ 'Höhenprofil vor' + (wasser === segmente.length
+				+ "Höhenprofil vor" + (wasser === segmente.length
 					? " — Fluss- und Seewege bekommen bewusst keins (der Steigungsfaktor ist eine <b>Landregel</b>)."
 					: " — Kachel „Wegprofile rechnen“ im Menüband.")
 				+ "</div>";
 			return;
 		}
 
-		// Die Summen ueber alle Abschnitte. 💣 Gerechnet wird aus den SUMMEN, nie als Mittel ueber
-		// die Abschnittsfaktoren: `wpLeistungsFactor` ist ohne Deckel additiv, mit Deckel nicht --
-		// die Begruendung steht woertlich an der Funktion (`options.capped`).
-		var laenge = 0, anstieg = 0, abstieg = 0, steil = 0, stuecke = 0;
-		var zeilen = "";
-		segmente.forEach(function (segment, index) {
-			var meilen = Number(segment.length_units || 0) * 3;
-			var sums = segment.terrain && segment.terrain.profile
-				? wpProfileSums(segment.terrain.profile)
-				: null;
-			var faktoren = segment.terrain && segment.terrain.profile
-				? wpBothDirectionFactors(segment.terrain.profile, segment.length_units)
-				: null;
-			laenge += meilen;
-			if (sums) {
-				anstieg += sums.ascent;
-				abstieg += sums.descent;
-				steil += sums.steepDescent;
-				stuecke += segment.terrain.profile.length;
-			}
-			zeilen += "<tr><td>" + (index + 1) + "</td><td>" + num(meilen, 1) + "</td><td>"
-				+ (sums ? num(sums.ascent, 0) : "—") + "</td><td>"
-				+ (sums ? num(sums.descent, 0) : "—") + "</td><td>"
-				+ (faktoren ? num(faktoren.forward, 2) : "—") + "</td><td>"
-				+ (faktoren ? num(faktoren.backward, 2) : "—") + "</td></tr>";
-		});
+		var html = '<div class="wp-scale">'
+			+ '<button type="button" data-gscale="ganz"' + (state.groupScale === "ganz" ? ' class="is-active"' : "") + ">Ganzer Weg</button>"
+			+ '<button type="button" data-gscale="abschnitte"' + (state.groupScale === "abschnitte" ? ' class="is-active"' : "") + ">je Abschnitt</button>"
+			+ '<button type="button" data-gscale="stuecke"' + (state.groupScale === "stuecke" ? ' class="is-active"' : "") + ">je Wegstück</button>"
+			+ "</div>";
 
-		html += '<table class="wp-tab-num"><thead><tr><th>Abschnitt</th><th>Meilen</th>'
-			+ "<th>↑ Schritt</th><th>↓ Schritt</th><th>F hin</th><th>F zurück</th></tr></thead><tbody>"
-			+ zeilen + "</tbody></table>";
+		var veraltet = segmente.filter(function (s) { return s.terrain && s.terrain.stale_geometry; }).length;
+		if (veraltet > 0) {
+			html += '<div class="pl-hint"><b>' + veraltet + " Abschnitt(e): der Verlauf hat sich seit "
+				+ "der Messung geändert.</b> Die Route verwendet deren Profil nicht. Neu rechnen mit "
+				+ "„Wegprofile rechnen“.</div>";
+		}
 
-		// Der Faktor des GANZEN Weges: Leistungsmeilen ueber Meilen, aus den Summen.
-		var gesamtEinheiten = laenge / 3;
-		var hin = wpLeistungsFactor(anstieg, steil, gesamtEinheiten);
-		var zurueck = wpLeistungsFactor(abstieg, 0, gesamtEinheiten);
+		// Die Nummer, unter der ein Abschnitt in der Liste steht -- die Kette ordnet anders als die
+		// Liste, und eine Kurve mit fremden Nummern waere schlimmer als eine ohne.
+		var nummern = {};
+		segmente.forEach(function (segment, index) { nummern[index] = index + 1; });
+
+		var ketten = wpChainSegments(segmente);
+
+		if (state.groupScale === "ganz") {
+			html += '<div class="wp-chart">';
+			ketten.forEach(function (kette, i) {
+				var meilen = kette.reduce(function (summe, glied) {
+					return summe + Number((segmente[glied.index] || {}).length_units || 0) * 3;
+				}, 0);
+				html += '<div class="wp-chart__title">'
+					+ (ketten.length === 1
+						? "Relative Höhe über den ganzen Weg · " + kette.length + " Abschnitte"
+						: "Teilstück " + (i + 1) + " von " + ketten.length + " · " + kette.length
+							+ " Abschnitt(e) · " + num(meilen, 1) + " Meilen")
+					+ "</div>" + renderChainChart(kette, segmente, nummern);
+			});
+			html += "</div>";
+			// 🔴 EINE GEBROCHENE KETTE WIRD GESAGT, NICHT UEBERBRUECKT. Verzweigungen und Luecken
+			// sind der Normalfall („Reichsstrasse 1" traegt 26 Segmente ueber den halben Kontinent),
+			// und eine erfundene Verbindung waere eine Kurve, die einen Weg behauptet, den es nicht
+			// gibt.
+			html += '<div class="pl-hint">' + (ketten.length === 1
+				? "Die Abschnitte hängen <b>lückenlos aneinander</b> — deshalb geht diese Kurve durch."
+				: "Dieser Weg zerfällt in <b>" + ketten.length + " Teilstücke</b>, die sich nicht "
+					+ "berühren (Abzweig oder Lücke). Sie stehen getrennt — eine durchgehende Linie "
+					+ "wäre erfunden.") + "</div>";
+		} else if (state.groupScale === "abschnitte") {
+			html += renderGroupSegmentTable(segmente);
+		} else {
+			html += renderGroupPieceTable(segmente);
+		}
+
+		// Die Summen ueber alle Abschnitte. 💣 Der Faktor des GANZEN Weges wird aus den SUMMEN
+		// gerechnet, nie als Mittel ueber die Abschnittsfaktoren: `wpLeistungsFactor` ist ohne Deckel
+		// additiv, mit Deckel nicht -- die Begruendung steht woertlich an der Funktion.
+		var summen = groupSums(segmente);
+		var hin = wpLeistungsFactor(summen.anstieg, summen.steil, summen.einheiten);
+		var zurueck = wpLeistungsFactor(summen.abstieg, summen.steilRueck, summen.einheiten);
 
 		html += '<dl class="wp-facts">';
-		html += "<dt>Länge, ganzer Weg</dt><dd>" + num(laenge, 2) + " Meilen</dd>";
-		html += "<dt>Anstieg gesamt</dt><dd>" + num(anstieg, 0) + " Schritt</dd>";
-		html += "<dt>Abstieg gesamt</dt><dd>" + num(abstieg, 0) + " Schritt</dd>";
-		html += "<dt>davon steiler Abstieg (&gt; 20 %)</dt><dd>" + num(steil, 0) + " Schritt</dd>";
-		html += "<dt>Netto über den Start</dt><dd>" + num(anstieg - abstieg, 0) + " Schritt</dd>";
+		html += "<dt>Länge, ganzer Weg</dt><dd>" + num(summen.einheiten * 3, 2) + " Meilen</dd>";
+		html += "<dt>Anstieg gesamt</dt><dd>" + num(summen.anstieg, 0) + " Schritt</dd>";
+		html += "<dt>Abstieg gesamt</dt><dd>" + num(summen.abstieg, 0) + " Schritt</dd>";
+		html += "<dt>davon steiler Abstieg (&gt; 20 %)</dt><dd>" + num(summen.steil, 0) + " Schritt</dd>";
+		html += "<dt>Höchster Punkt über Start</dt><dd>" + num(summen.hoechster, 0) + " Schritt</dd>";
+		html += "<dt>Netto über den Start</dt><dd>" + num(summen.anstieg - summen.abstieg, 0) + " Schritt</dd>";
 		html += "<dt>Zeitfaktor hinwärts</dt><dd><b>" + num(hin, 2) + "</b></dd>";
 		html += "<dt>Zeitfaktor rückwärts</dt><dd><b>" + num(zurueck, 2) + "</b></dd>";
-		html += "<dt>Abschnitte · Wegstücke</dt><dd>" + segmente.length + " · " + stuecke + "</dd>";
+		html += "<dt>Abschnitte · Wegstücke</dt><dd>" + segmente.length + " · " + summen.stuecke + "</dd>";
 		html += "</dl>";
 
 		if (mitProfil.length !== segmente.length) {
@@ -1333,11 +1410,88 @@
 			html += '<div class="pl-hint">Dieser Weg hat mehr Abschnitte, als auf einmal gelesen '
 				+ "werden — gezeigt sind die ersten " + segmente.length + ".</div>";
 		}
-		html += '<div class="pl-hint">💣 Die Zahlen sind eine <b>Vereinfachung</b>: gespeichert sind '
-			+ "je Wegstück nur Summen. Der Zeitfaktor des ganzen Weges ist aus den Summen gerechnet, "
-			+ "nicht aus den Abschnittsfaktoren gemittelt.</div>";
+		html += '<div class="pl-hint">💣 Die Kurve ist eine <b>Vereinfachung</b>: gespeichert sind je '
+			+ "Wegstück nur Summen, die Linie entsteht aus <b>Anstieg − Abstieg</b> je Stück. Der "
+			+ "Nullpunkt ist frei gewählt — gespeichert sind Differenzen, keine absoluten Höhen.</div>";
 
 		host.innerHTML = html;
+		Array.prototype.forEach.call(host.querySelectorAll(".wp-scale button"), function (button) {
+			button.addEventListener("click", function () {
+				state.groupScale = button.getAttribute("data-gscale");
+				renderProfile();
+			});
+		});
+	}
+
+	/* Die Summen ueber alle Abschnitte -- in EINEM Durchgang, damit die Zahlen unter jeder der drei
+	   Stufen dieselben sind. */
+	function groupSums(segmente) {
+		var summen = { einheiten: 0, anstieg: 0, abstieg: 0, steil: 0, steilRueck: 0, stuecke: 0, hoechster: 0 };
+		var hoehe = 0;
+		segmente.forEach(function (segment) {
+			summen.einheiten += Number(segment.length_units || 0);
+			var profil = segment.terrain && segment.terrain.profile;
+			if (!profil) { return; }
+			summen.stuecke += profil.length;
+			profil.forEach(function (stueck) {
+				summen.anstieg += Number(stueck[0] || 0);
+				summen.abstieg += Number(stueck[1] || 0);
+				// 🔴 Der steile ABSTIEG ist der vierte Wert, der steile ANSTIEG der dritte -- fuer die
+				// Rueckrichtung tauschen sie die Rollen (avesmapsTerrainProfileForLine).
+				summen.steil += Number(stueck[3] || 0);
+				summen.steilRueck += Number(stueck[2] || 0);
+				hoehe += Number(stueck[0] || 0) - Number(stueck[1] || 0);
+				if (hoehe > summen.hoechster) { summen.hoechster = hoehe; }
+			});
+		});
+		return summen;
+	}
+
+	function renderGroupSegmentTable(segmente) {
+		var zeilen = segmente.map(function (segment, index) {
+			var meilen = Number(segment.length_units || 0) * 3;
+			var sums = segment.terrain && segment.terrain.profile
+				? wpProfileSums(segment.terrain.profile) : null;
+			var faktoren = segment.terrain && segment.terrain.profile
+				? wpBothDirectionFactors(segment.terrain.profile, segment.length_units) : null;
+			return "<tr><td>" + (index + 1) + "</td><td>" + num(meilen, 1) + "</td><td>"
+				+ (sums ? num(sums.ascent, 0) : "—") + "</td><td>"
+				+ (sums ? num(sums.descent, 0) : "—") + "</td><td>"
+				+ (faktoren ? num(faktoren.forward, 2) : "—") + "</td><td>"
+				+ (faktoren ? num(faktoren.backward, 2) : "—") + "</td></tr>";
+		}).join("");
+		// Die Summenzeile. ⭐ Sie steht in der Tabelle UND als Kennzahl darunter, und das ist
+		// keine Doppelung: hier vergleicht man sie mit den Abschnitten, dort liest man sie als
+		// Ergebnis. Dieselbe Auszeichnung wie die Bezugszeile der Modellkurven (`is-reference`).
+		var summen = groupSums(segmente);
+		var hin = wpLeistungsFactor(summen.anstieg, summen.steil, summen.einheiten);
+		var zurueck = wpLeistungsFactor(summen.abstieg, summen.steilRueck, summen.einheiten);
+		zeilen += '<tr class="is-reference"><td>gesamt</td><td>' + num(summen.einheiten * 3, 1)
+			+ "</td><td>" + num(summen.anstieg, 0) + "</td><td>" + num(summen.abstieg, 0)
+			+ "</td><td>" + num(hin, 2) + "</td><td>" + num(zurueck, 2) + "</td></tr>";
+
+		return '<table class="wp-tab-num"><thead><tr><th>Abschnitt</th><th>Meilen</th>'
+			+ "<th>↑ Schritt</th><th>↓ Schritt</th><th>F hin</th><th>F zurück</th></tr></thead><tbody>"
+			+ zeilen + "</tbody></table>";
+	}
+
+	function renderGroupPieceTable(segmente) {
+		var zeilen = "";
+		segmente.forEach(function (segment, index) {
+			var profil = segment.terrain && segment.terrain.profile;
+			if (!profil) { return; }
+			var laengen = segment.piece_lengths || [];
+			profil.forEach(function (stueck, i) {
+				var laenge = Number(laengen[i] || 0);
+				zeilen += "<tr><td>" + (index + 1) + "." + (i + 1) + "</td><td>" + num(laenge * 3, 2)
+					+ "</td><td>" + num(stueck[0], 0) + "</td><td>" + num(stueck[1], 0) + "</td><td>"
+					+ num(wpLeistungsFactor(stueck[0], stueck[3], laenge), 2) + "</td><td>"
+					+ num(wpLeistungsFactor(stueck[1], stueck[2], laenge), 2) + "</td></tr>";
+			});
+		});
+		return '<table class="wp-tab-num"><thead><tr><th>Stück</th><th>Meilen</th><th>↑ Schritt</th>'
+			+ "<th>↓ Schritt</th><th>F hin</th><th>F zurück</th></tr></thead><tbody>"
+			+ zeilen + "</tbody></table>";
 	}
 
 	// ── Auswahl ───────────────────────────────────────────────────────────────────────────────
