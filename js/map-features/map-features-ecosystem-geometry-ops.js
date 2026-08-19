@@ -681,11 +681,16 @@
 			return;
 		}
 
-		const entry = (action, german, onClick, danger = false) => menu.addEntry({
+		// `group` seit 19.08.2026: das Flächenmenü hatte 17 Einträge, und die Familien darunter standen
+		// hier im Code längst beieinander. Die Kennung ist die des Untermenüs (AREA_GROUPS in
+		// map-features-ecosystem-context-action.js) — die Aktionen selbst ändern sich NICHT: sie sind
+		// gleichzeitig der Schlüssel des Handlers und der Selektor der Glyphe.
+		const entry = (action, german, onClick, danger = false, group = "") => menu.addEntry({
 			action,
 			label: typeof tr === "function" ? tr(`ecosystem.ctxmenu.${action}`, german) : german,
 			onClick,
 			danger,
+			group,
 		});
 
 		entry("move", "Verschieben", (publicId) => {
@@ -708,7 +713,7 @@
 				map.on("click", handleMapClick);
 			}
 			say("Fläche verschieben. Klick speichert, ESC bricht ab.", "info");
-		});
+		}, false, "form");
 
 		entry("split", "Fläche zerschneiden", (publicId) => {
 			startPending("split", publicId, { points: [] });
@@ -716,7 +721,7 @@
 				map.on("click", handleMapClick);
 			}
 			say("Ersten Schnittpunkt setzen. ESC bricht ab.", "info");
-		});
+		}, false, "form");
 
 		TARGET_OPERATIONS.forEach((operation) => {
 			entry(operation.action, operation.label, (publicId) => {
@@ -727,17 +732,19 @@
 				bindTargetHighlight();
 				setLayerPicking(true);
 				say("Jetzt die zweite Fläche anklicken — auch auf einer anderen Ebene. ESC bricht ab.", "info");
-			});
+			}, false, "mit-anderer");
 		});
 
 		// Die drei Unterflächen-Einträge. Sie erscheinen nur, wenn es überhaupt mehrere gibt.
-		entry("merge-subareas", "Alle Unterflächen vereinigen", (publicId) => void runMergeSubareas(publicId));
-		entry("extract", "Unterfläche herauslösen", (publicId) => startSubareaPick(publicId, "Herauslösen", runExtract));
+		entry("merge-subareas", "Alle Unterflächen vereinigen", (publicId) => void runMergeSubareas(publicId), false, "unterflaechen");
+		entry("extract", "Unterfläche herauslösen", (publicId) => startSubareaPick(publicId, "Herauslösen", runExtract), false, "unterflaechen");
 		// 🔴 ROT wie „Fläche löschen" (Owner 2026-07-29). Es ist derselbe Vorgang, nur eine Ebene tiefer --
 		// und der einzige Eintrag in diesem Menü, der Geometrie vernichtet, ohne so auszusehen. Damit
 		// rutscht er zugleich ans Ende: die Einfügeregel setzt jeden NICHT-gefährlichen Eintrag vor den
 		// ersten gefährlichen, also sammeln sich die Zerstörer unten.
-		entry("delete-part", "Unterfläche löschen", (publicId) => startSubareaPick(publicId, "Löschen", runDeleteSubarea), true);
+		// ⚠️ Seit 19.08.2026 ans Ende SEINER GRUPPE, nicht mehr ans Ende des ganzen Menüs — die Regel
+		// ist dieselbe, ihre Reichweite ist die des Untermenüs „Unterflächen".
+		entry("delete-part", "Unterfläche löschen", (publicId) => startSubareaPick(publicId, "Löschen", runDeleteSubarea), true, "unterflaechen");
 	}
 
 	// ---- Verdrahtung --------------------------------------------------------------------------------

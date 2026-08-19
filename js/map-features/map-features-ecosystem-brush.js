@@ -562,11 +562,15 @@
 			action: "brush",
 			label: typeof tr === "function" ? tr("ecosystem.ctxmenu.brush", "Fläche malen") : "Fläche malen",
 			onClick: (publicId) => startBrush("brush", publicId),
+			// Untermenü „Form ändern" (19.08.2026): Malen und Radieren formen dieselbe Fläche wie
+			// Verschieben, Zerschneiden und Vereinfachen — sie gehören in dieselbe Gruppe.
+			group: "form",
 		});
 		menu.addEntry({
 			action: "eraser",
 			label: typeof tr === "function" ? tr("ecosystem.ctxmenu.eraser", "Fläche radieren") : "Fläche radieren",
 			onClick: (publicId) => startBrush("eraser", publicId),
+			group: "form",
 		});
 	}
 

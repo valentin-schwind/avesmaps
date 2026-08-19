@@ -69,6 +69,45 @@
 	const AREA_GROUP_NEW = "new-area";
 	let ecosystemAreaMenuMapHooked = false;
 
+	// ---- Die Untermenüs des Flächenmenüs (19.08.2026) -----------------------------------------------
+	//
+	// 🔴 EIN REGISTER FÜR ALLE GRUPPEN. Bis heute kannte diese Datei genau eine Gruppe („Neue Fläche"),
+	// fest verdrahtet in addEcosystemAreaMenuEntry. Mit 17 Einträgen im obersten Menü war das Menü
+	// keins mehr — die drei Familien darunter standen im Code längst beieinander, nur nicht in der
+	// Oberfläche. Owner 19.08.2026 auf den Vorschlag, sie zusammenzufassen: „genau so".
+	//
+	// 🪤 Die Reihenfolge kann NICHT aus der Registrierungsreihenfolge kommen: die ist die
+	// Skript-Reihenfolge in index.html, also eine unausgesprochene Absprache zwischen fünf Dateien,
+	// die beim nächsten Verschieben eines <script>-Tags lautlos zerfällt. Dieselbe Überlegung, die
+	// „Fläche bearbeiten" in ensureAreaMenuElement fest verankert hält.
+	const AREA_GROUPS = [
+		{ id: "new-area", key: "ecosystem.ctxmenu.areaMenuNewArea", label: "Neue Fläche" },
+		{ id: "form", key: "ecosystem.ctxmenu.areaMenuForm", label: "Form ändern" },
+		{ id: "mit-anderer", key: "ecosystem.ctxmenu.areaMenuWithOther", label: "Mit anderer Fläche" },
+		{ id: "unterflaechen", key: "ecosystem.ctxmenu.areaMenuSubareas", label: "Unterflächen" },
+	];
+
+	// 💣 DIE REIHENFOLGE DES OBERSTEN MENÜS, VOLLSTÄNDIG — Gruppen UND Einzeleinträge in EINER Liste.
+	// Ein Register nur über die Gruppen genügt nicht: die Zielreihenfolge verschränkt beides („Neue
+	// Fläche ▸", dann „Fläche bearbeiten", dann drei Gruppen, dann „Eigenschaften …"). Ohne die
+	// Einzeleinträge im selben Register gäbe es keinen Anker, an dem sich eine Gruppe relativ zu ihnen
+	// einordnen könnte — die erste angelegte Gruppe landete dann vor oder hinter „Fläche bearbeiten",
+	// je nachdem, welche Datei zuerst geladen wurde. Genau diese Zufälligkeit soll weg.
+	//
+	// ⚠️ Was hier NICHT steht, wandert ans Ende der nicht-gefährlichen Einträge — die bisherige Regel
+	// gilt für alles Unbekannte unverändert weiter, ein neuer Eintrag muss dieses Register also nicht
+	// kennen. Gefährliches bleibt in jedem Fall zuletzt, und „Fläche löschen" steht deshalb bewusst
+	// nicht hier: zwei Regeln für dieselbe Stellung wären eine zu viel.
+	const AREA_MENU_ORDER = [
+		{ typ: "gruppe", id: "new-area" },
+		{ typ: "aktion", id: "edit-geometry" },
+		{ typ: "gruppe", id: "form" },
+		{ typ: "gruppe", id: "mit-anderer" },
+		{ typ: "gruppe", id: "unterflaechen" },
+		{ typ: "aktion", id: "ecosystem-properties" },
+		{ typ: "aktion", id: "send-to" },
+	];
+
 	// V3.6 extension point: action -> handler, for entries a SIBLING file hangs into this menu. The menu
 	// is built in JS and everything around it is private to this IIFE, so without a registry the only way
 	// in from outside would be monkey-patching window.AvesmapsEcosystemAreaMenu.open -- which would run
@@ -505,6 +544,29 @@
 		return menu;
 	}
 
+	// Vor welches Element gehört ein neues Menüglied? Vor das erste, das im Register SPÄTER steht — und
+	// wenn es keins gibt, vor den ersten gefährlichen Eintrag. Der zweite Teil IST die bisherige Regel;
+	// sie gilt damit unverändert für jeden Eintrag, den AREA_MENU_ORDER nicht kennt.
+	//
+	// 💣 `:scope >` beim Einzeleintrag ist tragend. Ohne den Nachfahren-Riegel fände querySelector auch
+	// einen Eintrag INNERHALB eines Untermenüs — und dann landete die nächste Gruppe mitten in einer
+	// anderen.
+	function areaMenuEinfuegePunkt(menu, schluessel) {
+		const rang = AREA_MENU_ORDER.findIndex((eintrag) => eintrag.id === schluessel);
+		if (rang >= 0) {
+			for (const eintrag of AREA_MENU_ORDER.slice(rang + 1)) {
+				const treffer = eintrag.typ === "gruppe"
+					? menu.querySelector(`.map-context-menu__group[${AREA_GROUP_ATTRIBUTE}="${eintrag.id}"]`)
+					: menu.querySelector(`:scope > [${AREA_ACTION_ATTRIBUTE}="${eintrag.id}"]`);
+				if (treffer) {
+					return treffer;
+				}
+			}
+		}
+
+		return menu.querySelector(".map-context-menu__item--danger");
+	}
+
 	// Adds one entry to the area menu on behalf of another file (V3.6: "Kopieren ..."). Idempotent by
 	// action, exactly like ensureAreaMenuElement is by element -- both may run again after a reload of
 	// the calling file without producing a second entry.
@@ -525,15 +587,22 @@
 	//
 	// Baut dieselbe Struktur wie das Kartenmenü (`__group` > `__item--submenu` + `.map-context-submenu`),
 	// damit das vorhandene CSS greift und es kein zweites Untermenü-Aussehen im Haus gibt.
-	function ensureAreaMenuGroup(menu) {
-		const existing = menu.querySelector(`[${AREA_GROUP_ATTRIBUTE}="${AREA_GROUP_NEW}"] .map-context-submenu`);
+	function ensureAreaMenuGroup(menu, groupId) {
+		const gruppe = AREA_GROUPS.find((kandidat) => kandidat.id === groupId);
+		if (!gruppe) {
+			return null;
+		}
+		const existing = menu.querySelector(`[${AREA_GROUP_ATTRIBUTE}="${groupId}"] .map-context-submenu`);
 		if (existing) {
 			return existing;
 		}
 
 		const group = document.createElement("div");
 		group.className = "map-context-menu__group";
-		group.setAttribute(AREA_GROUP_ATTRIBUTE, AREA_GROUP_NEW);
+		// 💣 `groupId`, NICHT AREA_GROUP_NEW. Solange hier die feste Kennung stand, trug JEDE Gruppe
+		// „new-area" — die Idempotenz-Prüfung oben suchte nach `groupId` und fand nie etwas, also
+		// entstand bei jedem Eintrag eine weitere Gruppe. Gemessen: neun statt vier.
+		group.setAttribute(AREA_GROUP_ATTRIBUTE, groupId);
 
 		const opener = document.createElement("button");
 		opener.type = "button";
@@ -542,16 +611,18 @@
 		// BESCHRIFTUNG wird zum ersten Rasterelement und beginnt bei 12 statt bei 41 px -- in V7 genau so
 		// gemessen. Deshalb dasselbe Attribut wie „Hier hinzufügen" im Kartenmenü, damit dieselbe Regel
 		// greift und derselbe Eintrag nicht zwei Glyphen im Haus hat.
-		opener.setAttribute(AREA_GROUP_ATTRIBUTE, AREA_GROUP_NEW);
-		opener.textContent = label("ecosystem.ctxmenu.areaMenuNewArea", "Neue Fläche");
+		opener.setAttribute(AREA_GROUP_ATTRIBUTE, groupId);
+		opener.textContent = label(gruppe.key, gruppe.label);
 		group.appendChild(opener);
 
 		const submenu = document.createElement("div");
 		submenu.className = "map-context-submenu";
 		group.appendChild(submenu);
 
-		// Über allen anderen Einträgen: Anlegen ist die häufigste Absicht, und Zerstörendes bleibt unten.
-		menu.insertBefore(group, menu.firstChild);
+		// 🪤 Bis 19.08.2026 stand hier `menu.firstChild` — die Sonderregel „Anlegen ist die häufigste
+		// Absicht, also ganz oben". Genau das sagt jetzt AREA_MENU_ORDER, nur für alle vier Gruppen
+		// statt für eine, und ohne dass eine zweite Gruppe die erste verdrängen könnte.
+		menu.insertBefore(group, areaMenuEinfuegePunkt(menu, groupId));
 
 		return submenu;
 	}
@@ -580,17 +651,24 @@
 		button.setAttribute(AREA_ACTION_ATTRIBUTE, actionName);
 		button.textContent = String(entryLabel || actionName);
 
-		if (String(group) === AREA_GROUP_NEW) {
-			ensureAreaMenuGroup(menu).appendChild(button);
+		const gruppe = AREA_GROUPS.find((kandidat) => kandidat.id === String(group));
+		if (gruppe) {
+			// 🪤 Auch INNERHALB eines Untermenüs bleibt Zerstörendes unten — „Unterfläche löschen" steht
+			// rot am Ende seiner Gruppe, nicht mittendrin. Dieselbe Regel wie im obersten Menü, nur eine
+			// Ebene tiefer; bis 19.08.2026 rutschte der Eintrag stattdessen ans Ende des GANZEN Menüs.
+			const ziel = ensureAreaMenuGroup(menu, gruppe.id);
+			const ersterGefaehrlicher = ziel.querySelector(".map-context-menu__item--danger");
+			if (danger || !ersterGefaehrlicher) {
+				ziel.appendChild(button);
+			} else {
+				ziel.insertBefore(button, ersterGefaehrlicher);
+			}
 			return button;
 		}
 
-		const firstDanger = menu.querySelector(".map-context-menu__item--danger");
-		if (firstDanger) {
-			menu.insertBefore(button, firstDanger);
-		} else {
-			menu.appendChild(button);
-		}
+		// insertBefore(…, null) hängt an — der Fall „kein gefährlicher Eintrag da" braucht also keinen
+		// eigenen Zweig mehr.
+		menu.insertBefore(button, areaMenuEinfuegePunkt(menu, actionName));
 
 		return button;
 	}

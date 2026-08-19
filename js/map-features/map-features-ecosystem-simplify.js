@@ -318,6 +318,9 @@
 			action: "simplify",
 			label: typeof tr === "function" ? tr("ecosystem.ctxmenu.simplify", "Fläche vereinfachen") : "Fläche vereinfachen",
 			onClick: (publicId) => openSimplifyDialog(publicId),
+			// Untermenü „Form ändern" (19.08.2026) — siehe AREA_GROUPS in
+			// map-features-ecosystem-context-action.js.
+			group: "form",
 		});
 	}
 
