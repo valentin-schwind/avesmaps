@@ -358,9 +358,15 @@ Editor die Fahrtyp-Liste weg und sagt, warum.
 
 ### Weiterhin offen
 
-- 🔧 **Kein Handgriff lief je gegen die echte Datenbank oder im Browser.** Der Sammel-Schreibweg
-  ist gegen eine SQLite-Karte gefahren, die Oberfläche in einem Sandkasten gebootet und
-  geklickt — aber niemand hat mit angemeldeter Sitzung einen Weg ausgewählt und gespeichert.
+- ✅ **Der Leseweg ist bestätigt** (Owner, 19.08.2026, im Browser) — und er war beim ersten Klick
+  kaputt: `AVESMAPS_PATH_GROUP_DETAIL_MAX` stand hinter dem `try`-Block, PHP hoistet `const` auf
+  Dateiebene nicht, und ein Fatal Error antwortet mit einem leeren Rumpf. 🪤 Durchgekommen ist
+  das, weil der Zug den **Schreibweg** und die **Oberfläche** testete, den **Leser** aber nie
+  ausführte. Beides ist jetzt gewacht (`const-vor-benutzung-test.php`,
+  `wege-gruppe-detail-test.php`).
+- 🔧 **Offen: das SPEICHERN gegen die echte Datenbank.** Der Sammel-Schreibweg ist gegen eine
+  SQLite-Karte gefahren und die Maske in einem Sandkasten geklickt — aber niemand hat mit
+  angemeldeter Sitzung einen Weg ausgewählt und wirklich gespeichert.
 - 🔧 Ob die Weg-Ebene auch die **Flussrichtung** sammeln soll. Bewusst draußen: sie ist je
   Segment eine Richtung entlang der gezeichneten Geometrie, und „alle gleich" hat dort keine
   Bedeutung.
