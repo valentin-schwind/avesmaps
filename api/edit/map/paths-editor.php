@@ -25,6 +25,23 @@ require_once __DIR__ . '/../../_internal/app/path-landscapes.php';
 //
 // ⚠️ NO DDL. This is a read path (AGENTS.md §10 names DDL-before-read as a known hotspot), and a
 // missing path_terrain table is a normal state before the first profile run, not an error.
+
+/**
+ * Wie viele Abschnitte `group_detail` hoechstens liest.
+ *
+ * 💣 DER DECKEL IST DIE ADRESSZEILE, nicht die Datenmenge. Die Kennungen reisen als
+ * `?public_ids=…` (36 Zeichen je Stueck), und eine URL ueber ~8 KB weist der Server ab, bevor
+ * PHP sie sieht. Der laengste Weg im Bestand traegt 57 Segmente; bei mehr wird gekappt und die
+ * Kappung GESAGT -- eine stille Kappung saehe wie ein kurzer Weg aus.
+ *
+ * 🔴 SIE STEHT HIER OBEN, UND ZWAR NOTGEDRUNGEN: PHP hoistet FUNKTIONEN, aber KEINE `const`
+ * auf Dateiebene. Stand sie unten bei ihrer Funktion, waere sie beim Aufruf aus dem try-Block
+ * darunter noch nicht definiert -- ein Fatal Error, und der antwortet mit einem LEEREN Rumpf.
+ * Der Browser meldet dann „Unexpected end of JSON input", was nach einem Netzfehler aussieht
+ * und keiner ist. Genau so am 19.08.2026 live gemessen, vom Owner gefunden.
+ */
+const AVESMAPS_PATH_GROUP_DETAIL_MAX = 120;
+
 try {
     $config = avesmapsLoadApiConfig(avesmapsApiRoot());
 
@@ -270,14 +287,9 @@ function avesmapsPathEditorDetail(PDO $pdo, string $publicId): ?array
  * Liste nach ihrer bbox-Ecke sortiert -- das ordnet sie UNGEFAEHR von West nach Ost und reicht
  * fuer eine durchgehende Hoehenkurve nicht. Wer die Kette bauen will, braucht die Enden.
  *
- * 💣 DER DECKEL IST DIE ADRESSZEILE, nicht die Datenmenge. Die Kennungen reisen als
- * `?public_ids=…` (36 Zeichen je Stueck), und eine URL ueber ~8 KB weist der Server ab, bevor
- * PHP sie sieht. Der laengste Weg im Bestand traegt 26 Segmente; bei mehr als
- * AVESMAPS_PATH_GROUP_DETAIL_MAX wird gekappt und die Kappung GESAGT -- eine stille Kappung
- * saehe wie ein kurzer Weg aus.
+ * ⚠️ Der Deckel `AVESMAPS_PATH_GROUP_DETAIL_MAX` steht am Dateikopf, nicht hier -- die
+ * Begruendung dafuer auch.
  */
-const AVESMAPS_PATH_GROUP_DETAIL_MAX = 120;
-
 function avesmapsPathEditorGroupDetail(PDO $pdo, array $publicIds): array
 {
     $gekappt = count($publicIds) > AVESMAPS_PATH_GROUP_DETAIL_MAX;
