@@ -64,4 +64,65 @@ assert.ok(!/--color-boot-ring-gold\s*:/.test(tokens),
 	"--color-boot-ring-gold gehoert NICHT nach tokens.css -- das Gold ist --color-accent-strong."
 	+ " (Das Mockup fuehrt es abweichend; massgeblich ist der Bauplan.)");
 
+const ladeCss = withoutComments(read("css", "features", "loading-bar.css"));
+const ladeJs = withoutComments(read("js", "app", "loading-bar.js"));
+
+// ---- Der Schleier laesst DURCH -----------------------------------------------------------------
+//
+// 🔴 Owner-Entscheid 19.08.2026, keine Feinheit: Schieben und Zoomen gehen waehrend des Ladens
+// weiter wie bisher. Wer das umdreht, sperrt den Besucher bei einem haengenden Ladevorgang
+// 20 Sekunden aus -- so lange laeuft das Sicherheitsnetz in loading-bar.js.
+const schleier = ladeCss.match(/^\.avesmaps-boot-veil\s*\{([^}]*)\}/m);
+assert.ok(schleier, "css/features/loading-bar.css traegt die Regel .avesmaps-boot-veil");
+assert.ok(/pointer-events:\s*none/.test(schleier[1]),
+	"Der Schleier laesst Klicks DURCH (Owner-Entscheid). Sperrt er, sitzt der Besucher bei einem"
+	+ " haengenden Ladevorgang 20 Sekunden fest, bis das Sicherheitsnetz greift.");
+
+// ---- ...und liegt UNTER dem schmalen Streifen oben ----------------------------------------------
+//
+// 💣 Beide Zahlen werden aus der Datei GELESEN, nicht hier abgeschrieben -- sonst prueft der Test
+// seine eigene Kopie und nicht das Stylesheet.
+const balken = ladeCss.match(/^\.avesmaps-loading-bar\s*\{([^}]*)\}/m);
+assert.ok(balken, "die Balken-Regel steht weiterhin da");
+const zBalken = Number((balken[1].match(/z-index:\s*(\d+)/) || [])[1]);
+const zSchleier = Number((schleier[1].match(/z-index:\s*(\d+)/) || [])[1]);
+assert.ok(Number.isFinite(zBalken) && Number.isFinite(zSchleier),
+	"Balken und Schleier tragen beide einen z-index");
+assert.ok(zSchleier < zBalken,
+	`Der Schleier (${zSchleier}) muss UNTER dem Balken (${zBalken}) liegen -- darueber verdeckt er`
+	+ " genau den schmalen Streifen oben, der laut Auftrag bleiben soll.");
+
+// ---- Er blendet aus, er verschwindet nicht ------------------------------------------------------
+//
+// 💣 Gleiche Begruendung wie beim Knopfbund darueber: aus `display: none` gibt es kein Ausblenden.
+assert.ok(/opacity:\s*0/.test(schleier[1]) && /visibility:\s*hidden/.test(schleier[1]),
+	"der Schleier ruht auf opacity + visibility");
+assert.ok(!/display:\s*none/.test(schleier[1]),
+	"...und NICHT auf display:none -- daraus gibt es kein Ausblenden, nur ein Verschwinden");
+const schleierAn = ladeCss.match(/^html\.avesmaps-booting \.avesmaps-boot-veil\s*\{([^}]*)\}/m);
+assert.ok(schleierAn && /opacity:\s*1/.test(schleierAn[1]),
+	"und er kommt an der Startlauf-Klasse -- nicht an einem eigenen, zweiten Zustand");
+
+// ---- Die Farbe kommt aus dem Token --------------------------------------------------------------
+assert.ok(/background:\s*var\(--color-boot-veil\)/.test(schleier[1]),
+	"die Schleierfarbe kommt aus einem Token (AGENTS.md §12), nicht als Literal");
+
+// ---- Der Satz darunter: data-i18n, weil es hier kein tr() gibt ----------------------------------
+//
+// ⚠️ js/app/loading-bar.js laeuft in index.html Zeile 247, js/app/i18n.js erst in Zeile 3003 --
+// `window.tr` existiert zur Bauzeit des Knotens NICHT. Der Satz steht deutsch im Knoten und wird
+// vom Durchlauf des Uebersetzers nachgezogen. Eine zweite Spracherkennung hier waere der teurere
+// Fehler (dass es davon nur EINE gibt, ist die Zusicherung, die zaehlt).
+assert.ok(/setAttribute\("data-i18n",\s*"boot\.loading"\)/.test(ladeJs),
+	"der Satz unter dem Kreis traegt data-i18n=\"boot.loading\"");
+assert.ok(/veilText\.textContent\s*=/.test(ladeJs),
+	"...und seine deutsche Vorgabe steht als textContent im Knoten (nicht leer, sonst sieht ein"
+	+ " deutscher Besucher gar nichts)");
+assert.ok(!/window\.tr\b|[^.\w]tr\(/.test(ladeJs),
+	"loading-bar.js ruft kein tr() -- es gibt hier keins, und ein Aufruf waere still undefined");
+
+const enStrings = withoutComments(read("js", "app", "i18n-en.js"));
+assert.ok(/"boot\.loading":\s*"[^"]+"/.test(enStrings),
+	"js/app/i18n-en.js kennt boot.loading -- sonst steht der Satz unter ?lang=en dauerhaft deutsch");
+
 console.log("startladen-schleier: alle Zusicherungen gehalten");

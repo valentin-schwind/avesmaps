@@ -10,6 +10,13 @@ window.AVESMAPS_I18N_EN = {
 	// component's prefix. Was "display.editorOnly" until 2026-08-13, when it stopped being the
 	// display menu's private word. Lower case on purpose: it is an aside, not a heading.
 	"ui.editorOnly": "editors only",
+
+	// Der Satz unter der Windrose waehrend des Startlaufs (js/app/loading-bar.js).
+	// ⚠️ Er wird NACHGEZOGEN, nicht sofort gesetzt: loading-bar.js laeuft lange vor dieser Datei
+	// und kennt kein tr(). Unter ?lang=en steht der Satz auf einem kalten Ladevorgang deshalb
+	// kurz deutsch da, bis der Uebersetzer laeuft. Bewusst so; siehe den Entwurf §5.
+	"boot.loading": "Loading the map …",
+
 	"ui.adminOnly": "admins only",
 	// --- planner: static chrome (data-i18n) ---
 	"planner.addDestination": "Add destination",

@@ -27,6 +27,27 @@
 	bar.appendChild(fill);
 	host.appendChild(bar);
 
+	// Der Startschleier. Dieselbe Frage („laeuft der Start noch?"), also dieselbe Datei -- er haengt
+	// an derselben `avesmaps-booting`-Klasse wie der Knopfbund und der Planer und bekommt damit auch
+	// deren 20-Sekunden-Netz geschenkt. Wie er aussieht, steht in css/features/loading-bar.css.
+	// ⚠️ Der Satz steht DEUTSCH im Knoten und traegt `data-i18n`. `window.tr` gibt es hier NICHT:
+	// diese Datei laeuft in index.html Zeile 247, js/app/i18n.js erst in Zeile 3003. Der Uebersetzer
+	// laeuft dann einmal ueber das Dokument und zieht den Satz nach -- unter ?lang=en steht er auf
+	// einem kalten Ladevorgang also kurz deutsch da. Eine zweite Spracherkennung hier waere der
+	// teurere Fehler; dass es davon nur EINE gibt, wiegt die Sekunde auf.
+	// 💣 `data-i18n` gehoert an ein Element, das NUR den Text enthaelt: der Uebersetzer setzt
+	// `el.textContent = v` und raeumte eine SVG im selben Knoten mit weg (die Falle steht zweimal
+	// in index.html vermerkt). Die Windrose ist deshalb ein GESCHWISTER, kein Kind.
+	const veil = document.createElement("div");
+	veil.className = "avesmaps-boot-veil";
+	const veilText = document.createElement("div");
+	veilText.className = "avesmaps-boot-veil__text";
+	veilText.setAttribute("data-i18n", "boot.loading");
+	veilText.setAttribute("role", "status");
+	veilText.textContent = "Karte wird geladen …";
+	veil.appendChild(veilText);
+	host.appendChild(veil);
+
 	const pending = new Set();
 	let progress = 0;
 	let visible = false;

@@ -87,3 +87,45 @@ html:not(.avesmaps-phone).avesmaps-booting #search,
 html:not(.avesmaps-phone).avesmaps-booting #toggle-button {
 	transform: translateX(calc(-1 * var(--avesmaps-planner-width)));
 }
+
+/* ---- Der Startschleier ---------------------------------------------------------------------
+   Owner 19.08.2026: „sollen die kacheln im hintergrund leicht weiss erscheinen waehrend im
+   vordergrund zentriert mittig ein ladebalkenzirkel erscheint bis die labels geladen und die
+   routenplanung verfuegbar ist". Entwurf:
+   docs/superpowers/specs/2026-08-19-startladen-schleier-und-windrose-design.md
+   Den Knoten baut js/app/loading-bar.js -- dieselbe Datei, die weiss, WANN der Startlauf vorbei
+   ist; hier steht nur, WIE er aussieht. Damit haengt er an derselben einen Stelle wie der Balken,
+   der Knopfbund und der Planer, samt ihrem 20-Sekunden-Netz.
+   🔴 `pointer-events: none` ist ein Owner-Entscheid, keine Feinheit: Schieben und Zoomen gehen
+   waehrend des Ladens weiter wie bisher. Wer das umdreht, sperrt den Besucher bei einem
+   haengenden Ladevorgang 20 Sekunden aus.
+   💣 Der z-index liegt UNTER dem des Balkens (2000000). Darueber verdeckte der Schleier genau den
+   schmalen Streifen, der laut Auftrag bleiben soll -- der Test liest beide Zahlen und vergleicht.
+   💣 `opacity`/`visibility`, nicht `display: none`: dieselbe Begruendung wie beim Knopfbund
+   weiter oben -- aus `display: none` gibt es kein Ausblenden, nur ein Verschwinden. */
+.avesmaps-boot-veil {
+	position: fixed;
+	inset: 0;
+	z-index: 1999000;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	gap: 18px;
+	background: var(--color-boot-veil);
+	pointer-events: none;
+	opacity: 0;
+	visibility: hidden;
+	transition: opacity 0.28s ease, visibility 0s linear 0.28s;
+}
+html.avesmaps-booting .avesmaps-boot-veil {
+	opacity: 1;
+	visibility: visible;
+	transition: opacity 0.28s ease, visibility 0s linear 0s;
+}
+
+.avesmaps-boot-veil__text {
+	font-size: 14px;
+	color: var(--color-text-strong);
+	letter-spacing: 0.01em;
+}
