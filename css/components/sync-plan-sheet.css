@@ -208,6 +208,21 @@
 	color: var(--color-danger-soft-text);
 }
 
+/* Der Hinweis an einer NEUEN Zeile -- dieselbe Aussage wie `.diff__note`, aber ohne dessen Raster:
+   eine neue Zeile beschreibt sich, sie vergleicht nicht, also gibt es dort keine `<dl class="diff">`,
+   in die er hineinpasste. Gleiche Farbe, gleiche Kante, gleicher Ton: eine Warnung soll überall
+   gleich aussehen, sonst liest man sie an einer Stelle nicht als Warnung. */
+.sync-plan-host .row__note {
+	display: block;
+	margin: 4px 0 0;
+	padding: 6px 9px;
+	border-left: 3px solid var(--color-warning-soft-border);
+	border-radius: var(--radius-sm);
+	background: var(--color-warning-soft);
+	color: var(--color-warning);
+	font-size: var(--font-size-small);
+}
+
 .sync-plan-host .diff {
 	margin: 6px 0 0;
 	display: grid;

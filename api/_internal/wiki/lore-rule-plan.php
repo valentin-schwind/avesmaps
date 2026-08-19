@@ -432,7 +432,11 @@ function avesmapsLoreRuleDerivePlanStep(PDO $pdo, string $cursor, int $userId): 
     }
 
     $runId = $cursor === ''
-        ? avesmapsSyncPlanStartRun($pdo, AVESMAPS_LORE_RULE_PLAN_KIND, $userId, gmdate('d.m.Y H:i'))
+        // 🔴 KEIN Quellenstempel. Das Blatt schreibt daraus den Satz „Verglichen mit dem Dump vom …",
+        // und dieser Lauf vergleicht mit KEINEM Dump -- er rechnet auf den lebenden Tabellen. Ein
+        // Stempel hier wäre eine Herkunftsangabe, die es nicht gibt (gefunden von der Rauchprobe, die
+        // den Kopf des Blattes wirklich gezeichnet hat).
+        ? avesmapsSyncPlanStartRun($pdo, AVESMAPS_LORE_RULE_PLAN_KIND, $userId, null)
         : (int) (avesmapsSyncPlanBuildingRun($pdo, AVESMAPS_LORE_RULE_PLAN_KIND)['id'] ?? 0);
     if ($runId <= 0) {
         throw new RuntimeException('Der Lauf wurde von einem zweiten abgeloest. Bitte neu starten.');

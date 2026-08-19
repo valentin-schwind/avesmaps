@@ -456,6 +456,13 @@ function syncPlanFooterState(state) {
  * bringt gut dreißig Felder mit; ungefiltert stünden `pin_fields`, `hand_edited` und zwei JSON-Klumpen
  * mit rohem Spaltennamen mitten drin, in einer Zeile, die niemand mehr liest. Dieselbe Sechs wie im
  * Vergleich, und der Rest wird gezählt statt verschwiegen.
+ *
+ * 🪤 EINE WARNUNG IST KEIN FELD, ABER SIE MUSS TROTZDEM DASTEHEN (19.08.2026). Die Notizfelder waren
+ * hier nur AUSGEFILTERT und wurden nirgends wieder gezeichnet -- auf einer „Neu"-Zeile verschwanden
+ * sie also spurlos. Bei „Regeln ableiten" trägt genau dieses Feld die Liste dessen, was NICHT
+ * übernommen wurde, und alle 417 Zeilen sind neu: die Auflage „nichts stillschweigend weglassen"
+ * wäre damit an der letzten Stelle gescheitert, an der sie zählt. Gefunden hat es eine Rauchprobe,
+ * die die Zeile wirklich gezeichnet hat -- kein Unit-Test der Funktion daneben.
  */
 function syncPlanNewSummary(item) {
 	const after = item.after || {};
@@ -473,7 +480,15 @@ function syncPlanNewSummary(item) {
 		parts.push(`+ ${syncPlanNumber(more)} weitere Felder`);
 	}
 
-	return parts.length > 0 ? `<span class="row__sub">${parts.join(" · ")}</span>` : "";
+	// Die Notizen kommen NACH der Zusammenfassung und in ihrer eigenen Form -- dieselbe Klasse wie im
+	// Vergleich (`diff__note`), damit eine Warnung überall gleich aussieht.
+	const notes = SYNC_PLAN_NOTE_FIELDS
+		.filter((field) => String(after[field] || "") !== "")
+		.map((field) => `<span class="row__note">⚠ ${syncPlanEscape(after[field])}</span>`);
+
+	const summary = parts.length > 0 ? `<span class="row__sub">${parts.join(" · ")}</span>` : "";
+
+	return summary + notes.join("");
 }
 
 /** Die Unterschiedsliste einer Zeile: alt → neu, und was von Hand festgehalten ist. */

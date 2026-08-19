@@ -162,3 +162,51 @@ const modul = fs.readFileSync("js/review/review-lore-regeln.js", "utf8");
 assert.ok(modul.includes('submitWikiSyncDumpAction("derive_lore_rules"'), "die Kachel ruft die Aktion");
 assert.ok(fs.readFileSync("api/edit/wiki/dump.php", "utf8").includes("case 'derive_lore_rules':"),
 	"und dump.php hat sie");
+
+// ---- 5. Die Zeile wird WIRKLICH gezeichnet ------------------------------------------------------
+// 🪤 Der Befund, der nur beim Zeichnen auffiel: syncPlanNewSummary filterte die Notizfelder heraus
+// und zeichnete sie nirgends wieder -- auf einer „Neu"-Zeile verschwand der Hinweis auf die NICHT
+// übernommenen Angaben spurlos. Und alle Zeilen dieses Laufs sind neu. Eine Prüfung, die nur die
+// Funktion daneben aufruft, hätte das nie gesehen (AGENTS.md §9: Abnahme heißt ABLAUF, nicht Maß).
+const blattKtx = { console, Math, Number, String, Object, Array, JSON, Date, Intl };
+blattKtx.globalThis = blattKtx;
+vm.createContext(blattKtx);
+vm.runInContext(blatt, blattKtx);
+
+const zeileNeu = blattKtx.syncPlanRowMarkup({
+	id: 2, entity_key: "karen", change_type: "new", label: "Karen", before: {},
+	after: {
+		regel: "die Fläche Nordaventurien selbst", bedingungen: "1",
+		regel_hinweis: "1 Angabe nicht übernommen — Herrschaftsgebiet, keine Landschaft: 1 (Tobrien)",
+		regel_kern: "x",
+	},
+	override: {}, selected: false, skipped_count: 0, last_skipped_at: "",
+}, "lore_rule");
+assert.ok(zeileNeu.includes("die Fläche Nordaventurien selbst"), "der Satz steht in der Zeile");
+assert.ok(zeileNeu.includes("Herrschaftsgebiet, keine Landschaft: 1 (Tobrien)"),
+	"🔴 und die nicht übernommene Angabe AUCH -- sonst wäre „nichts stillschweigend weglassen\" gebrochen");
+assert.ok(zeileNeu.includes('class="row__note"'), "sie steht in der Warnform, nicht als weiteres Feld");
+assert.ok(!zeileNeu.includes("regel_kern"), "der Vergleichskern bleibt unsichtbar");
+assert.ok(!zeileNeu.includes(" checked"), "und die unvollständige Zeile kommt ungehäkelt");
+
+// Die dritte Kategorie nennt, was verschwindet -- und sagt es in ihren eigenen Worten.
+const zeileWeg = blattKtx.syncPlanRowMarkup({
+	id: 4, entity_key: "alt", change_type: "deleted", label: "Alter Eintrag",
+	before: { bedingungen: 3 }, after: {}, override: {}, selected: false,
+	skipped_count: 0, last_skipped_at: "",
+}, "lore_rule");
+assert.ok(zeileWeg.includes("3 Bedingungen fallen weg."), zeileWeg);
+assert.ok(!zeileWeg.includes(" checked"), "🔴 eine Löschung ist NIE vorangehäkelt");
+
+// 🔴 Und der Kopf behauptet keinen Dump: dieser Lauf vergleicht mit KEINEM.
+assert.ok(!blattKtx.syncPlanVerdict({ new: 1, changed: 0, deleted: 0, total: 1 }, null).text.includes("Dump"),
+	"ohne Quellenstempel steht kein „Verglichen mit dem Dump\" da");
+const planQuelle = fs.readFileSync("api/_internal/wiki/lore-rule-plan.php", "utf8");
+assert.ok(/avesmapsSyncPlanStartRun\(\$pdo, AVESMAPS_LORE_RULE_PLAN_KIND, \$userId, null\)/.test(planQuelle),
+	"und die Rechen-Hälfte schickt auch keinen");
+
+// Die Warnform hat eine Regel -- ohne sie stünde der Hinweis als grauer Fließtext da.
+const stil = fs.readFileSync("css/components/sync-plan-sheet.css", "utf8");
+assert.ok(stil.includes(".sync-plan-host .row__note"), "die Warnform ist gestylt");
+assert.ok(/\.sync-plan-host \.row__note \{[^}]*var\(--color-warning\)/.test(stil),
+	"und zwar über Token, nicht über eine Literalfarbe (AGENTS.md §12)");
