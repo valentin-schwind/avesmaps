@@ -339,12 +339,36 @@
 			<button type="button" class="map-context-menu__item" data-region-context-action="edit-geometry">Grenzen bearbeiten</button>
 			<button type="button" class="map-context-menu__item" data-region-context-action="edit-properties">Territoriumseditor öffnen</button>
 			<button type="button" class="map-context-menu__item" data-region-context-action="show-info">Infobox anzeigen</button>
-			<button type="button" class="map-context-menu__item" data-region-context-action="move">Verschieben</button>
-			<button type="button" class="map-context-menu__item" data-region-context-action="split">Gebiet zerschneiden</button>
-			<button type="button" class="map-context-menu__item" data-region-context-action="union">Mit anderem vereinigen</button>
-			<button type="button" class="map-context-menu__item" data-region-context-action="difference">Von anderem ausschneiden</button>
-			<button type="button" class="map-context-menu__item" data-region-context-action="difference-keep-target">Von anderem ausschneiden und anderes beibehalten</button>
-			<button type="button" class="map-context-menu__item" data-region-context-action="intersection">Neues von anderem ausschneiden</button>
+				<!-- 🔴 ZWEI UNTERMENÜS, wortgleich zum Flächenmenü der Landschaften (19.08.2026). Das Menü
+				     trug elf Einträge; die vier Verrechnungen sind zugleich die vier LÄNGSTEN
+				     Beschriftungen und bestimmten damit die Breite des ganzen Kastens.
+				     💣 Beide Menüs werden ZUSAMMEN umgebaut. Der Wortlaut der Verrechnungen wurde
+				     seinerzeit von HIER ins Flächenmenü abgeschrieben („zwei Vokabulare für dieselbe
+				     Geste wäre die eigentliche Zumutung", map-features-ecosystem-geometry-ops.js) --
+				     nur eines der beiden zu gruppieren ließe sie in der FORM auseinanderlaufen,
+				     während die WORTE gleich bleiben.
+				     💣 Kein `data-region-context-action` hat sich geändert: daran hängen der
+				     delegierte Handler, die Sichtbarkeitsregel in openRegionContextMenu und die
+				     Glyphen im CSS.
+				     ⚠️ „Neues Gebiet herausloesen" bleibt oben -- hier gibt es keine
+				     Unterflächen-Familie, und ein Untermenü mit einem einzigen Eintrag ist eine
+				     Schikane. -->
+			<div class="map-context-menu__group" data-region-context-group="form">
+				<button type="button" class="map-context-menu__item map-context-menu__item--submenu" data-region-context-group="form">Form ändern</button>
+				<div class="map-context-submenu">
+					<button type="button" class="map-context-menu__item" data-region-context-action="move">Verschieben</button>
+					<button type="button" class="map-context-menu__item" data-region-context-action="split">Gebiet zerschneiden</button>
+				</div>
+			</div>
+			<div class="map-context-menu__group" data-region-context-group="mit-anderem">
+				<button type="button" class="map-context-menu__item map-context-menu__item--submenu" data-region-context-group="mit-anderem">Mit anderem Gebiet</button>
+				<div class="map-context-submenu">
+					<button type="button" class="map-context-menu__item" data-region-context-action="union">Mit anderem vereinigen</button>
+					<button type="button" class="map-context-menu__item" data-region-context-action="difference">Von anderem ausschneiden</button>
+					<button type="button" class="map-context-menu__item" data-region-context-action="difference-keep-target">Von anderem ausschneiden und anderes beibehalten</button>
+					<button type="button" class="map-context-menu__item" data-region-context-action="intersection">Neues von anderem ausschneiden</button>
+				</div>
+			</div>
 			<button type="button" class="map-context-menu__item" data-region-context-action="extract">Neues Gebiet herausloesen</button>
 			<button type="button" class="map-context-menu__item map-context-menu__item--danger" data-region-context-action="delete">Löschen</button>
 				<!-- Der Notausgang, dort wo man ihn braucht. Wo die Karte flächendeckend mit Gebieten

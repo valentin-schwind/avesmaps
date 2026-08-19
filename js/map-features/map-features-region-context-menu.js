@@ -41,6 +41,18 @@ function openRegionContextMenu(regionEntry, regionLayer, latlng, clientX, client
 		item.hidden = !menuPlan.actions.includes(action);
 	});
 
+	// 💣 EIN LEERES UNTERMENÜ IST SCHLIMMER ALS KEINES. Seit dem 19.08.2026 stecken „Verschieben"/
+	// „Gebiet zerschneiden" und die vier Verrechnungen in Untermenüs -- und die Regel oben blendet
+	// EINZELNE Einträge aus. Für eine verwaiste Außenhülle bleiben genau drei übrig
+	// (AVESMAPS_REGION_SOURCELESS_HULL_ACTIONS), beide Gruppen wären also sichtbar und innen leer:
+	// man klappt auf und findet nichts. Die Gruppe leitet ihre Sichtbarkeit deshalb von ihrem Inhalt
+	// ab, statt ein eigenes `hidden` zu bekommen -- ein zweiter Zustand hätte genau einen Aufrufer
+	// und beim nächsten Umbau einen zu wenig.
+	menuElement.querySelectorAll(".map-context-menu__group[data-region-context-group]").forEach((group) => {
+		const sichtbare = group.querySelectorAll(".map-context-submenu [data-region-context-action]:not([hidden])");
+		group.hidden = sichtbare.length === 0;
+	});
+
 	menuElement.hidden = false;
 	positionContextMenuElement(menuElement, clientX, clientY);
 }

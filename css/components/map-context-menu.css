@@ -191,6 +191,19 @@
 	content: "\29CF";
 }
 
+/* Dieselben zwei Untermenues im Herrschaftsgebiete-Menue (19.08.2026, #region-context-menu in
+   index.html). Beide Menues tragen denselben Wortlaut fuer die vier Verrechnungen -- sie bekommen
+   deshalb auch dieselbe Form und dieselben Zeichen.
+   💣 Pflicht, nicht Zierde: ohne `content` kein ::before, und die Beschriftung beginnt bei 12 statt
+   bei 41 px. */
+.map-context-menu__item[data-region-context-group="form"]::before {
+	content: "\2725";
+}
+
+.map-context-menu__item[data-region-context-group="mit-anderem"]::before {
+	content: "\222A";
+}
+
 /* „aus Territoriumsgrenze" im Flächenmenü. Eigene Regel statt `data-ecosystem-import-action`: auf
    dieses Attribut hört handleImportMenuClick, und ein zweiter Treffer liesse denselben Klick zweimal
    laufen. Dieselbe Glyphe wie der Zwilling im Kartenmenü. */
