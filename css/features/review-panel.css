@@ -58,6 +58,7 @@
 	color: var(--color-text-strong);
 	cursor: pointer;
 	font: inherit;
+	transition: transform 220ms ease;
 }
 
 .review-panel__icon-button {
@@ -81,7 +82,10 @@
 	font-size: 13px;
 	text-orientation: mixed;
 	transform: rotate(180deg);
-	transition: right 220ms ease;
+	/* `transform` gehoert dazu, seit die Lasche beim Startlauf hereinfaehrt
+	   (css/features/loading-bar.css) -- ohne sie SPRINGT sie am Ende auf ihren Platz. Die Drehung
+	   darueber ist konstant und wird dadurch nicht animiert. */
+	transition: right 220ms ease, transform 220ms ease;
 	writing-mode: vertical-rl;
 }
 

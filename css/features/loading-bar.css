@@ -175,3 +175,32 @@ html.avesmaps-booting .avesmaps-boot-veil {
 		animation: avesmaps-boot-pulse 1.8s ease-in-out infinite;
 	}
 }
+
+/* ---- Und die rechte Kante faehrt herein ------------------------------------------------------
+   Owner 19.08.2026: „info bzw. editor panel ebenfalls rechts versteckt bleiben und nach links
+   ausklappen sobald geladen ist" -- spiegelbildlich zum Planer weiter oben, gleiche 0,22s.
+   Betroffen sind vier Flaechen: die beiden Rand-Laschen und die beiden Panels dahinter. Die
+   Panels tragen ihre Startstellung ueber `.is-hidden` ohnehin schon; die Regel hier wirkt bei
+   ihnen nur in dem einen Fall, der sonst durchfiele -- ein Panel, das im Edit-Modus bereits
+   offen ist, waehrend der Startlauf noch laeuft.
+   💣 `transform`, nicht `right`. `right` waere naheliegend: beide Laschen haben schon eine
+   right-Transition fuers Andocken an die Panelkante. Aber die Andockregeln in
+   css/features/infopanel.css setzen `right: 0` bei GLEICHER Spezifitaet und stehen spaeter im
+   Ladepfad als diese Datei -- sie ueberstuermen die Startstellung lautlos, und die Laschen
+   blieben einfach stehen. `transform` kollidiert mit nichts.
+   💣 Verschoben wird um 100% der EIGENEN Breite, nicht um eine Zahl: am Telefon ist die Lasche
+   26px breit statt 30 (--avesmaps-tab-w im Finger-Block von tokens.css), und ein Token waere hier
+   eine zweite Stelle, die das wissen muesste. */
+html.avesmaps-booting .avesmaps-infopanel__handle,
+html.avesmaps-booting .avesmaps-infopanel,
+html.avesmaps-booting #review-panel {
+	transform: translateX(100%);
+}
+/* 💣 Und DESHALB steht die Editor-Lasche nicht in der Regel darueber, obwohl es dieselbe Strecke
+   ist: sie traegt schon `transform: rotate(180deg)` (css/features/review-panel.css). Ein
+   danebengeschriebenes translateX ERSETZT die Drehung -- die Beschriftung stuende kopf. Und weil
+   nach der Drehung ihre eigene x-Achse nach LINKS zeigt, muss es MINUS heissen: ein +100% schoebe
+   sie ueber die Karte statt aus dem Bild. Beide Vorzeichen sind einzeln im Test festgenagelt. */
+html.avesmaps-booting #review-panel-toggle {
+	transform: rotate(180deg) translateX(-100%);
+}

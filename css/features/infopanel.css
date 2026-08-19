@@ -374,7 +374,9 @@
 	/* Schatten faellt NUR nach links (kein vertikaler Versatz) -> der darunter gestapelte Editor-Tab
 	   bekommt keinen Schatten von oben und umgekehrt (kein doppelter/dunkler Uebergang). */
 	box-shadow: -4px 0 9px rgba(0, 0, 0, 0.3);
-	transition: right 0.22s ease, background-color 0.12s ease;
+	/* `transform` gehoert dazu, seit die Lasche beim Startlauf hereinfaehrt
+	   (css/features/loading-bar.css) -- ohne sie SPRINGT sie am Ende auf ihren Platz. */
+	transition: right 0.22s ease, transform 0.22s ease, background-color 0.12s ease;
 }
 /* Das Wort "Info" um 180° gedreht (liest von unten wie der Editor-Tab); die Tab-Form bleibt. */
 .avesmaps-infopanel__handle-label {

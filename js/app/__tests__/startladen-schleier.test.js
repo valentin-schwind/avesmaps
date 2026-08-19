@@ -182,4 +182,59 @@ assert.ok(Math.abs(Number(kranz[1]) - erwarteteLuecke) < 0.05,
 	`die Luecke im Kranz ist ${kranz[1]}, gerechnet waeren es ${erwarteteLuecke.toFixed(2)}`
 	+ " (24 Striche auf r=40). Eine geratene Zahl laesst den Kranz sichtbar auslaufen.");
 
+// ---- Die rechte Kante faehrt herein ------------------------------------------------------------
+//
+// Owner 19.08.2026: „info bzw. editor panel ebenfalls rechts versteckt bleiben und nach links
+// ausklappen sobald geladen ist" -- spiegelbildlich zum Planer gegenueber.
+const startstellung = ladeCss.match(
+	/^html\.avesmaps-booting \.avesmaps-infopanel__handle,\s*html\.avesmaps-booting \.avesmaps-infopanel,\s*html\.avesmaps-booting #review-panel\s*\{([^}]*)\}/m);
+assert.ok(startstellung,
+	"die drei UNGEDREHTEN Flaechen der rechten Kante stehen in EINER Regel -- drei Regeln waeren"
+	+ " drei Strecken, die auseinanderlaufen koennen");
+assert.ok(/transform:\s*translateX\(100%\)/.test(startstellung[1]),
+	"...und warten 100% ihrer EIGENEN Breite weit draussen. Prozent, keine Zahl: am Telefon ist"
+	+ " die Lasche 26px breit statt 30 (--avesmaps-tab-w im Finger-Block), und ein Token waere"
+	+ " hier eine zweite Stelle, die das wissen muesste.");
+
+// 💣 `transform`, nicht `right`. `right` waere naheliegend -- beide Laschen haben schon eine
+// right-Transition fuers Andocken an die Panelkante. Aber die Andockregeln in
+// css/features/infopanel.css setzen `right: 0` bei GLEICHER Spezifitaet und stehen SPAETER im
+// Ladepfad als diese Datei: sie ueberstuermen die Startstellung lautlos, und die Laschen blieben
+// einfach stehen. `transform` kollidiert mit nichts.
+assert.ok(!/(^|[^-])right:/.test(startstellung[1]),
+	"die Startstellung laeuft ueber transform, NICHT ueber right -- die Andockregeln in"
+	+ " infopanel.css setzen right:0 bei gleicher Spezifitaet und stehen spaeter im Ladepfad");
+
+// 💣 Die Editor-Lasche traegt schon `transform: rotate(180deg)`. Ein danebengeschriebenes
+// translateX ERSETZT die Drehung -- die Beschriftung stuende kopf. Und weil nach der Drehung ihre
+// eigene x-Achse nach LINKS zeigt, muss es MINUS heissen: ein +100% schoebe sie ueber die Karte
+// statt aus dem Bild. Dieselbe Strecke wie oben, zwei Schreibweisen -- deshalb eine eigene Regel.
+const editorLasche = ladeCss.match(/^html\.avesmaps-booting #review-panel-toggle\s*\{([^}]*)\}/m);
+assert.ok(editorLasche, "die Editor-Lasche hat ihre EIGENE Regel (sie ist gedreht)");
+assert.ok(/transform:\s*rotate\(180deg\)\s+translateX\(-100%\)/.test(editorLasche[1]),
+	"Sie komponiert rotate(180deg) MIT translateX(-100%). Ohne das rotate steht die Beschriftung"
+	+ " kopf; mit +100% schiebt sie sich ueber die Karte statt aus dem Bild.");
+
+// ⚠️ Ohne `transform` in der eigenen Transition SPRINGEN die Laschen am Ende des Startlaufs auf
+// ihren Platz, statt zu gleiten. Der Balken faellt auf, die fehlende Bewegung nicht.
+const infoCss = withoutComments(read("css", "features", "infopanel.css"));
+const handleRegel = infoCss.match(/^\.avesmaps-infopanel__handle\s*\{([^}]*)\}/m);
+assert.ok(handleRegel, "die Regel .avesmaps-infopanel__handle steht in infopanel.css");
+assert.ok(/transition:[^;]*transform 0\.22s/.test(handleRegel[1]),
+	"die Info-Lasche fuehrt transform in ihrer Transition -- sonst springt sie, statt zu gleiten");
+
+const reviewCss = withoutComments(read("css", "features", "review-panel.css"));
+const toggleRegel = reviewCss.match(/^\.review-panel-toggle\s*\{([^}]*)\}/m);
+assert.ok(toggleRegel, "die Regel .review-panel-toggle steht in review-panel.css");
+assert.ok(/transition:[^;]*transform 220ms/.test(toggleRegel[1]),
+	"die Editor-Lasche ebenso -- und in IHRER Dauer (220ms), nicht in einer neuen");
+
+// 🔴 Der Planer und SEINE Lasche bleiben unangetastet. #toggle-button steht auf left:350px und
+// landet beim Start auf left:0 -- also sichtbar. Das ist der Owner-Entscheid vom 12.08.2026
+// („ich meinte nicht, dass die tab-lasche nachgeladen wird") und kein Versehen.
+const planerEinfahrt = ladeCss.match(
+	/^html:not\(\.avesmaps-phone\)\.avesmaps-booting #search,\s*html:not\(\.avesmaps-phone\)\.avesmaps-booting #toggle-button\s*\{([^}]*)\}/m);
+assert.ok(planerEinfahrt && /--avesmaps-planner-width/.test(planerEinfahrt[1]),
+	"die Startstellung des Planers steht unveraendert da -- dieser Bau fasst sie nicht an");
+
 console.log("startladen-schleier: alle Zusicherungen gehalten");
