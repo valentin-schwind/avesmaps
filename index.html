@@ -1457,6 +1457,12 @@
 						     18.08.2026, eine halbe Stunde daran gesucht). Weich/outline, nicht gefuellt: die
 						     Haupthandlung dieses Fensters ist „Vorkommen syncen". -->
 						<button class="lore-btn2" type="button" id="lore-zugehoerigkeit" title="Öffnet den Landschaften-Editor, in dessen Menüband „Zugehörigkeit rechnen" steht. Rechnet hier NICHTS: der Lauf verschneidet alle Landschaftsflächen gegeneinander und wird ausschließlich von Hand gestartet."><span class="t1">Zugehörigkeit rechnen</span><span class="t2" id="lore-zugehoerigkeit-sub">wird geprüft …</span></button>
+						<!-- „Regeln ableiten" (19.08.2026, Owner: „n button ,Regeln ableiten“ neben ,Zugehörigkeit rechnen“").
+						     Sie rechnet aus |Verbreitung= (Ort) und |Vorkommen= (Landschaftsart) Lebensraum-Regeln und
+						     öffnet die Übernahme-Vorschau. Sie SCHREIBT NICHTS -- geschrieben wird nur, was angehäkelt
+						     ist -- und sie fasst ausschließlich eigene, abgeleitete Regeln an (origin=wiki_verbreitung).
+						     Weich/outline: die Haupthandlung dieses Fensters bleibt „Vorkommen syncen". -->
+						<button class="lore-btn2" type="button" id="lore-regeln-ableiten"><span class="t1">Regeln ableiten</span><span class="t2" id="lore-regeln-sub">wird geprüft …</span></button>
 					</div>
 					<!-- Statuszeile unter dem Menueband, volle Breite (Spec §3.1/§3.4, Vorbild
 					     #settlementStatus). Sie ist hier nicht bloss Struktur: die drei Schreibwege
@@ -3130,6 +3136,7 @@
 		     renderLoreDetail rufen avesmapsLoreRuleLoad/-CardMarkup schon beim Aufbau der Liste. -->
 		<script src="js/review/review-lore-rule.js"></script>
 		<script src="js/review/review-lore-zugehoerigkeit.js"></script>
+		<script src="js/review/review-lore-regeln.js"></script>
 		<script src="js/review/review-wiki-sync.js"></script>
 		<script src="js/review/review-link-check.js"></script>
 		<script src="js/review/review-citymap-autoget.js"></script>

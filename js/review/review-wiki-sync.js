@@ -2454,6 +2454,12 @@ function setWikiSyncLoreDialogOpen(isOpen) {
 		if (typeof window.avesmapsLoreZugehoerigkeitRefresh === "function") {
 			window.avesmapsLoreZugehoerigkeitRefresh();
 		}
+		// Und der Stand des Regel-Vorschlags in die Kachel „Regeln ableiten"
+		// (js/review/review-lore-regeln.js). Ebenfalls NUR LESEN: der Abruf holt den offenen Plan
+		// (action get), er rechnet nichts und schreibt nichts.
+		if (typeof window.avesmapsLoreRegelnRefresh === "function") {
+			window.avesmapsLoreRegelnRefresh();
+		}
 	}
 }
 

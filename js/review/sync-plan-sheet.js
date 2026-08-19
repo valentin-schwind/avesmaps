@@ -19,6 +19,7 @@ const SYNC_PLAN_KIND_NOUNS = {
 	adventure: { one: "Werk", many: "Werke" },
 	publication: { one: "Quellenverweis", many: "Quellenverweise" },
 	lore: { one: "Eintrag", many: "Einträge" },
+	lore_rule: { one: "Regel", many: "Regeln" },
 	territory_wiki: { one: "Kopie", many: "Kopien" },
 	territory: { one: "Herrschaftsgebiet", many: "Herrschaftsgebiete" },
 };
@@ -28,6 +29,7 @@ const SYNC_PLAN_KIND_TITLES = {
 	adventure: "Literatur aus dem Wiki übernehmen",
 	publication: "Publikationsquellen aus dem Wiki übernehmen",
 	lore: "Vorkommen aus dem Wiki übernehmen",
+	lore_rule: "Lebensraum-Regeln aus dem Wiki ableiten",
 	territory_wiki: "Die Wiki-Kopie der Herrschaftsgebiete nachführen",
 	territory: "Herrschaftsgebiete in die Karte übernehmen",
 };
@@ -89,6 +91,24 @@ const SYNC_PLAN_KIND_DELETION = {
 		},
 		actPlural: "Stilllegungen",
 	},
+	// 💣 Hier verschwindet eine Regel, die WIR abgeleitet haben -- kein Wiki-Objekt und kein Grabstein.
+	// Sie steht in der dritten Kategorie, weil eine ganze EINHEIT verschwindet, nicht eine ihrer
+	// Bedingungen. Und sie kommt von selbst wieder, sobald das Wiki die Angabe wieder trägt: der
+	// nächste Lauf leitet sie erneut ab. Von Hand gebaute Regeln sind davon NIE betroffen.
+	lore_rule: {
+		hint: "die Wiki-Angabe ist weg · <b>nichts vorangehäkelt</b>",
+		lead: "Angehäkelt wird die <b>abgeleitete</b> Regel entfernt — die Wiki-Felder tragen sie nicht "
+			+ "mehr. Von Hand gebaute Regeln sind nicht dabei und werden nie angefasst. Was du <b>nicht</b> "
+			+ "anhäkelst, bleibt stehen; es wird nicht wieder gefragt.",
+		verb: "entfernen",
+		gateSuffix: "Trägt das Wiki die Angabe wieder, wird die Regel beim nächsten Lauf neu vorgeschlagen.",
+		loss: {
+			lead: "Die Wiki-Felder dieses Eintrags ergeben keine Regel mehr.",
+			counts: [["bedingungen", "Bedingung", "Bedingungen"]],
+			sentence: (list, single) => `${list} ${single ? "fällt" : "fallen"} weg.`,
+		},
+		actPlural: "Entfernungen",
+	},
 	// Die Kopie einer Wiki-Seite, auf die KEIN Gebiet der Karte zeigt. Hängt eins daran, kommt die
 	// Zeile gar nicht erst her -- der Vorspann nennt sie trotzdem, sonst sähe es nach „alles erledigt" aus.
 	territory_wiki: {
@@ -121,6 +141,7 @@ const SYNC_PLAN_KIND_EMPTY_HINT = {
 	adventure: 'Erst „🚨 Literatur syncen" ausführen.',
 	publication: 'Erst „Dump holen" ausführen — der Quellen-Abgleich ist dessen letzter Schritt.',
 	lore: 'Erst „🚨 Vorkommen syncen" ausführen.',
+	lore_rule: 'Erst „Regeln ableiten" drücken — die Liste wird dann gerechnet.',
 	territory_wiki: 'Erst „1 · 🚨 Syncen" ausführen.',
 	territory: 'Erst „3 · Übernehmen" drücken — die Liste wird dann gerechnet.',
 };
@@ -168,7 +189,7 @@ const SYNC_PLAN_LOSS_DETAIL = { sources_removed: "sources_removed_titles" };
  * Pseudo-Felder, die keine Änderung sind, sondern eine Warnung ZU einer. Eigene Form, eigene Farbe —
  * damit sie in einer vorangehäkelten Liste nicht als weitere Zeile „alt → neu" untergehen.
  */
-const SYNC_PLAN_NOTE_FIELDS = ["boundary_note"];
+const SYNC_PLAN_NOTE_FIELDS = ["boundary_note", "regel_hinweis"];
 
 /**
  * Felder, die nur die ZEILE informieren und nie selbst erscheinen.
@@ -177,7 +198,7 @@ const SYNC_PLAN_NOTE_FIELDS = ["boundary_note"];
  * der Baum seit der Vorschau umgezogen ist (Namen sind hier keine Schlüssel). Für den Leser wäre er
  * eine zweite, rohe Fassung derselben Zeile.
  */
-const SYNC_PLAN_SILENT_FIELDS = ["pin_fields", "hand_edited", "parent_key"];
+const SYNC_PLAN_SILENT_FIELDS = ["pin_fields", "hand_edited", "parent_key", "regel_kern"];
 
 /**
  * Der Satz, mit dem jedes Blatt anfängt: hat sich etwas geändert, und was.
@@ -314,6 +335,9 @@ function syncPlanFieldLabel(field) {
 		continent: "Kontinent",
 		occurrences: "Vorkommen",
 		occurrences_removed: "Vorkommen entfallen",
+		// --- Lebensraum-Regeln (19.08.2026) ---
+		regel: "Regel",
+		bedingungen: "Bedingungen",
 		// --- Herrschaftsgebiete (Sitzung 4). Dieselben deutschen Wörter, die der Territorien-Dialog
 		// und die Infobox benutzen -- zwei Beschriftungen für dasselbe Feld wären die Divergenz, die
 		// die Token-Regel für Farben verbietet.
