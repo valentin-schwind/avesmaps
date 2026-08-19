@@ -2446,6 +2446,14 @@ function setWikiSyncLoreDialogOpen(isOpen) {
 		// „zuletzt gesynct"-Stempel. Startet ausdrücklich KEINEN Sync -- der hängt allein
 		// am Knopf #wiki-sync-sync-lore im Fenster.
 		loadLoreList("dialog");
+		// Der Stand des Zugehoerigkeits-Laufs in die Kachel „Zugehörigkeit rechnen"
+		// (js/review/review-lore-zugehoerigkeit.js). Auch NUR LESEN: assignment_status holt den
+		// Stempel, es startet nichts. Hier und nicht beim Seitenaufbau -- die Kachel ist erst
+		// sichtbar, wenn dieses Fenster aufgeht, und ein Abruf fuer eine unsichtbare Kachel ist
+		// auf STRATO ein Request ohne Anlass.
+		if (typeof window.avesmapsLoreZugehoerigkeitRefresh === "function") {
+			window.avesmapsLoreZugehoerigkeitRefresh();
+		}
 	}
 }
 

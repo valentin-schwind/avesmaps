@@ -1450,6 +1450,13 @@
 						<button class="lore-btn2" type="button" data-lore-toggle="flora" aria-pressed="true" title="Blendet Flora in Infobox und Dialog ein oder aus. Die Daten bleiben erhalten – Wiedereinschalten stellt sie vollständig her."><span class="t1">Flora: AN</span><span class="t2">öffentliche Anzeige</span></button>
 						<button class="lore-btn2" type="button" data-lore-toggle="ware" aria-pressed="true" title="Blendet Waren in Infobox und Dialog ein oder aus. Die Daten bleiben erhalten – Wiedereinschalten stellt sie vollständig her."><span class="t1">Waren: AN</span><span class="t2">öffentliche Anzeige</span></button>
 						<button class="lore-btn2" type="button" data-lore-toggle="spezies" aria-pressed="false" title="Spezies ist aus: das Wiki-Feld „Regionen“ der Infobox Spezies ist zu schlecht gepflegt. Die Daten liegen vollständig vor und kommen beim Einschalten sofort zurück."><span class="t1">Spezies: AUS</span><span class="t2">öffentliche Anzeige</span></button>
+						<!-- „Zugehörigkeit rechnen" ist die Rechnung des LANDSCHAFTEN-Editors, und sie bleibt dort:
+						     diese Kachel oeffnet nur sein Fenster und hebt seinen Knopf hervor. Sie steht hier, weil
+						     eine Lebensraum-Regel ohne diesen Lauf wortlos nichts trifft -- eine neu gezeichnete
+						     Flaeche hat keine Zeile in ecosystem_region_overlap und ist fuer Regeln stumm (Owner
+						     18.08.2026, eine halbe Stunde daran gesucht). Weich/outline, nicht gefuellt: die
+						     Haupthandlung dieses Fensters ist „Vorkommen syncen". -->
+						<button class="lore-btn2" type="button" id="lore-zugehoerigkeit" title="Öffnet den Landschaften-Editor, in dessen Menüband „Zugehörigkeit rechnen" steht. Rechnet hier NICHTS: der Lauf verschneidet alle Landschaftsflächen gegeneinander und wird ausschließlich von Hand gestartet."><span class="t1">Zugehörigkeit rechnen</span><span class="t2" id="lore-zugehoerigkeit-sub">wird geprüft …</span></button>
 					</div>
 					<!-- Statuszeile unter dem Menueband, volle Breite (Spec §3.1/§3.4, Vorbild
 					     #settlementStatus). Sie ist hier nicht bloss Struktur: die drei Schreibwege
@@ -3122,6 +3129,7 @@
 		     js/app/utils.js (escapeHtml), VOR review-wiki-sync.js: dessen openLoreDetail/
 		     renderLoreDetail rufen avesmapsLoreRuleLoad/-CardMarkup schon beim Aufbau der Liste. -->
 		<script src="js/review/review-lore-rule.js"></script>
+		<script src="js/review/review-lore-zugehoerigkeit.js"></script>
 		<script src="js/review/review-wiki-sync.js"></script>
 		<script src="js/review/review-link-check.js"></script>
 		<script src="js/review/review-citymap-autoget.js"></script>
