@@ -50,10 +50,18 @@
 
 /* The indent is what says „belongs to the row above". A left rule rather than pure padding: with
    several groups open, padding alone stops telling you where one group ends. */
+/* 💣 `width: auto` ist keine Kosmetik, sondern die Reparatur einer gemessenen Ueberbreite.
+   `.avm-row` traegt `width: 100%` (css/components/editor-row.css -- dort fuer die
+   <button>-Zeilen des Literatur- und des Karteneditors eingefuehrt), und dieser Rand kommt
+   OBENDRAUF: 12px zu breit, und die Wegeliste bekam davon eine waagerechte Bildlaufleiste.
+   Gemeldet vom Owner am 19.08.2026, am Bild der Liste zu sehen.
+   ⚠️ NICHT stattdessen `width: 100%` an `.avm-row` entfernen -- dann verlieren die beiden
+   Knopf-Editoren ihre Zeilenbreite. Der Rand gehoert dieser Zeile, also loest sie es auch. */
 .wp-segment {
 	margin-left: var(--space-10);
 	padding-left: var(--space-6);
 	border-left: 2px solid var(--color-border);
+	width: auto;
 }
 
 .wp-segment.is-selected { border-left-color: var(--color-accent); }

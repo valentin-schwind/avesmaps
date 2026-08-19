@@ -43,7 +43,7 @@
      seven editor pages and a bare `body {}` would reach all of them. -->
 <body class="avm-editor-body">
 
-<!-- Menüband: SIX tiles, all the same width. „Zugehörigkeit rechnen" is deliberately NOT here --
+<!-- Menüband: FIVE tiles, all the same width. „Zugehörigkeit rechnen" is deliberately NOT here --
      it stays in the landscape editor (owner 2026-08-02); column 2 links across instead.
      Only the sync tile carries an icon and --primary (owner decision, ribbon session 2026-07-17).
      ✅ Die gleiche Breite trägt die Kachelzahl von selbst: `.avm-ribbon` ist ein GRID
@@ -55,7 +55,6 @@
 <div class="avm-ribbon-bar">
   <div class="avm-ribbon">
     <button type="button" class="avm-tile avm-tile--primary" id="wpSync" title="Übernimmt die Wege aus dem zuletzt gelesenen Dump in die Staging-Tabellen. Läuft im Hauptfenster; das Ergebnis erscheint hier in der Statuszeile."><span class="t1">🚨 Wege syncen</span><span class="t2" id="wpSyncInfo">Wege aus dem Wiki-Dump</span></button>
-    <button type="button" class="avm-tile" id="wpAssignAll" title="Verknüpft alle Karten-Abschnitte, deren Name zu einem Wiki-Weg passt (Aventurien). Zeigt erst, wie viele es wären, und schreibt erst nach Ihrer Bestätigung. ⚠️ Bereits verknüpfte Abschnitte sind mitgezählt: ihre Angaben werden aufgefrischt, und eine abweichende Zuordnung wird überschrieben — auch eine von Hand gesetzte."><span class="t1">Wiki zuweisen</span><span class="t2" id="wpAssignAllInfo">noch nicht geprüft</span></button>
     <button type="button" class="avm-tile" id="wpProfiles" title="Leitet aus den gespeicherten Höhenrastern je Weg Anstieg und Gefälle ab. Läuft in Stücken auf dem Server; nichts davon wird beim Routen nachgerechnet."><span class="t1">Wegprofile rechnen</span><span class="t2" id="wpProfilesInfo">noch nicht gerechnet</span></button>
     <button type="button" class="avm-tile" id="wpTempo" title="Die Zahlen aus der Geographia Aventurica, aus denen jede Reisezeit entsteht: Tagesleistung je Reisemittel, Geländefaktor je Wegtyp, Boden nach Jahreszeit. Einstellbar, mit Rücksetzer auf die Quellenwerte."><span class="t1">Tempowerte</span><span class="t2" id="wpTempoInfo">wird geladen…</span></button>
     <button type="button" class="avm-tile" id="wpCalibrate" title="Bestimmt den globalen Skalierungsfaktor c über alle Straßen und berichtet ihn. Ändert keine einzige Reisezeit."><span class="t1">Wegprofile kalibrieren</span><span class="t2" id="wpCalibrateInfo">noch nicht geeicht</span></button>
@@ -174,10 +173,13 @@
 <script src="/js/ui/wiki-assign-diff.js"></script>
 <script src="/js/ui/wiki-assign.js"></script>
 <script src="/js/ui/wiki-assign-weg.js"></script>
-<!-- Der Massenlauf der Zuweisung (Menuebandkachel „Wiki zuweisen"). Eigene Datei, weil dieselbe
-     Abfolge -- zeigen, fragen, schreiben -- auch im Landschaften-Editor haengt und in node
-     geprueft wird. Kein DOM, keine Reihenfolgebindung ausser: VOR wege-editor.js. -->
-<script src="/js/ui/wiki-massenzuweisung.js"></script>
+<!-- 🔴 KEIN js/ui/wiki-massenzuweisung.js MEHR. Die Kachel „Wiki zuweisen" ist am 19.08.2026
+     gefallen (Owner: „ist glaub nicht mehr nötig"), und sie war der einzige Aufrufer in diesem
+     Dokument. Der Grund ist keiner der Bequemlichkeit: seit dem 16.08.2026 sitzt die Zuweisung
+     im geteilten Bauteil in der Eigenschaften-Spalte, und `assign_to` erfasst dort ohne
+     `single_segment` ohnehin die ganze Namensgruppe -- der Massenlauf war die Erstbefuellung.
+     ⚠️ Serverseitig bleibt `assign_all` unangetastet, und der Landschaften- wie der
+     Karteneditor laden die Datei weiter. Hier fehlt sie mit Absicht. -->
 <script src="/js/pages/wege-editor.js"></script>
 
 </body>

@@ -1106,9 +1106,12 @@ async function assignPathWiki(wikiKey) {
 // die Frage des Owners „warum ist so vieles nicht zugewiesen, obwohl die wiki-keys stimmen" -- der
 // Schlüssel sagt nur, wie der Weg heißen würde; die Zuweisung (`properties.wiki_path`) entsteht
 // erst, wenn sie jemand ausführt, und ausführen konnte sie niemand.
-// ⭐ Der Auslöser steht jetzt im Menüband des Wege-Editors („Wiki zuweisen",
-// html/wege-editor.html, runAssignAll in js/pages/wege-editor.js) und läuft über die geteilte
-// Abfolge in js/ui/wiki-massenzuweisung.js -- dieselbe für Wege und Landschaften.
+// ⭐ Ausgeführt wurde er über die Menübandkachel „Wiki zuweisen" des Wege-Editors; die ist am
+// 19.08.2026 gefallen, weil sie ihre Arbeit getan hatte (Owner: „ist glaub nicht mehr nötig").
+// Zugewiesen wird seither einzeln, im geteilten Bauteil der Eigenschaften-Spalte -- und weil
+// `assign_to` ohne `single_segment` die ganze Namensgruppe erfasst, ist das für einen Weg
+// dasselbe Werkzeug. Serverseitig ist `assign_all` unverändert da; das Rezept
+// js/ui/wiki-massenzuweisung.js tragen weiterhin der Landschaften- und der Karteneditor.
 
 function findPathSyncRow(wikiKey) {
 	if (!pathSyncData || !wikiKey) {
