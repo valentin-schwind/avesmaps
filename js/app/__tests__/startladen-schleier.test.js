@@ -197,10 +197,12 @@ assert.ok(/transform:\s*translateX\(100%\)/.test(startstellung[1]),
 	+ " hier eine zweite Stelle, die das wissen muesste.");
 
 // 💣 `transform`, nicht `right`. `right` waere naheliegend -- beide Laschen haben schon eine
-// right-Transition fuers Andocken an die Panelkante. Aber die Andockregeln in
-// css/features/infopanel.css setzen `right: 0` bei GLEICHER Spezifitaet und stehen SPAETER im
-// Ladepfad als diese Datei: sie ueberstuermen die Startstellung lautlos, und die Laschen blieben
-// einfach stehen. `transform` kollidiert mit nichts.
+// right-Transition fuers Andocken an die Panelkante, und diese Datei laedt NACH css/styles.css
+// (index.html:55/56), gewoenne bei gleicher Spezifitaet also sogar. Aber `right` IST hier bereits
+// belegt: die Andockregeln in css/features/infopanel.css fahren die Laschen damit zwischen
+// Bildschirm- und Panelkante hin und her. Eine zweite Bedeutung auf derselben Eigenschaft hiesse,
+// dass beide Bewegungen sich gegenseitig ueberschreiben, sobald sich der Andockzustand waehrend
+// des Startlaufs aendert. `transform` ist frei und kollidiert mit nichts.
 assert.ok(!/(^|[^-])right:/.test(startstellung[1]),
 	"die Startstellung laeuft ueber transform, NICHT ueber right -- die Andockregeln in"
 	+ " infopanel.css setzen right:0 bei gleicher Spezifitaet und stehen spaeter im Ladepfad");
@@ -249,5 +251,21 @@ const planerEinfahrt = ladeCss.match(
 	/^html:not\(\.avesmaps-phone\)\.avesmaps-booting #search,\s*html:not\(\.avesmaps-phone\)\.avesmaps-booting #toggle-button\s*\{([^}]*)\}/m);
 assert.ok(planerEinfahrt && /--avesmaps-planner-width/.test(planerEinfahrt[1]),
 	"die Startstellung des Planers steht unveraendert da -- dieser Bau fasst sie nicht an");
+
+// ---- ...und weiter, wenn ein Panel offen steht ---------------------------------------------------
+//
+// 💣 Die Laschen docken bei offenem Panel an der PANELkante, nicht an der Bildschirmkante. Die
+// eigene Breite reicht dann nicht -- und das ist der VORGABEfall im Editor.
+const offenHandle = ladeCss.match(
+	/^html\.avesmaps-booting\.avesmaps-any-panel-open \.avesmaps-infopanel__handle\s*\{([^}]*)\}/m);
+assert.ok(offenHandle, "es gibt eine Startstellung fuer den Fall, dass ein Panel offen steht");
+assert.ok(/translateX\(calc\(100% \+ var\(--avesmaps-ip-w\)\)\)/.test(offenHandle[1]),
+	"...und sie weicht um die eigene Breite PLUS die Panelbreite -- sonst schwebt die Lasche"
+	+ " waehrend des Startlaufs frei auf der Karte");
+const offenToggle = ladeCss.match(
+	/^html\.avesmaps-booting\.avesmaps-any-panel-open #review-panel-toggle\s*\{([^}]*)\}/m);
+assert.ok(offenToggle, "dasselbe fuer die gedrehte Editor-Lasche");
+assert.ok(/rotate\(180deg\)\s+translateX\(calc\(-100% - var\(--avesmaps-ip-w\)\)\)/.test(offenToggle[1]),
+	"...mit negativem Vorzeichen, weil ihre x-Achse nach der Drehung nach links zeigt");
 
 console.log("startladen-schleier: alle Zusicherungen gehalten");

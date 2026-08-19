@@ -114,10 +114,12 @@ gemeinsamen Regel stehen können wie Planer und Planer-Lasche: dieselbe Strecke,
 Beide Vorzeichen werden deshalb einzeln im Test festgenagelt.
 
 💣 **`transform`, nicht `right`.** `right` wäre naheliegend — beide Laschen haben schon eine
-`right`-Transition für das Andocken an die Panelkante. Aber die Andock-Regeln in
-`css/features/infopanel.css` setzen `right: 0` bei **gleicher Spezifität** und stehen später im
-Ladepfad als `loading-bar.css`; sie würden die Startstellung lautlos überstimmen, und die Laschen
-blieben einfach stehen. `transform` kollidiert mit nichts.
+`right`-Transition für das Andocken an die Panelkante, und diese Datei lädt NACH `css/styles.css`
+(`index.html:55/56`), gewönne bei gleicher Spezifität also sogar. Aber `right` IST hier bereits
+belegt: die Andock-Regeln in `css/features/infopanel.css` fahren die Laschen damit zwischen
+Bildschirm- und Panelkante hin und her. Eine zweite Bedeutung auf derselben Eigenschaft hieße, dass
+beide Bewegungen sich gegenseitig überschreiben, sobald sich der Andockzustand während des
+Startlaufs ändert. `transform` ist frei und kollidiert mit nichts.
 
 ⚠️ **Beide Laschen brauchen `transform` in ihrer eigenen Transition** (`infopanel.css` bzw.
 `review-panel.css`). Ohne das springen sie am Ende des Startlaufs auf ihren Platz, statt zu
@@ -126,6 +128,13 @@ gleiten — der Balken fiele auf, die Bewegung nicht.
 ⚠️ Die Panels tragen ihre Startstellung ohnehin schon über `.is-hidden` (`translateX(100%)`). Die
 Boot-Regel schreibt denselben Wert und wirkt nur in dem einen Fall, der sonst durchfiele: ein Panel,
 das im Edit-Modus bereits offen ist, wenn der Startlauf noch läuft.
+
+⚠️ **Und dieser Teil ist praktisch nur für Editoren sichtbar.** `js/map-features/map-features-infopanel.js`
+setzt `handle.style.display = "none"`, solange kein Feature angeklickt wurde — für einen Besucher
+ohne Edit-Modus existiert die Info-Lasche während des Startlaufs also gar nicht im Bild, und
+`#review-panel`/`#review-panel-toggle` sind ohne Edit-Modus `hidden`. Es bewegt sich an der rechten
+Kante damit nichts, was ein gewöhnlicher Besucher je sieht. Die Einfahrt sieht in der Praxis nur,
+wer im Editor arbeitet oder während des Startlaufs bereits ein Panel offen hat.
 
 ## 7. Was ausdrücklich NICHT geändert wird
 

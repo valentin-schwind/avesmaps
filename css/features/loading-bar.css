@@ -183,11 +183,13 @@ html.avesmaps-booting .avesmaps-boot-veil {
    Panels tragen ihre Startstellung ueber `.is-hidden` ohnehin schon; die Regel hier wirkt bei
    ihnen nur in dem einen Fall, der sonst durchfiele -- ein Panel, das im Edit-Modus bereits
    offen ist, waehrend der Startlauf noch laeuft.
-   💣 `transform`, nicht `right`. `right` waere naheliegend: beide Laschen haben schon eine
-   right-Transition fuers Andocken an die Panelkante. Aber die Andockregeln in
-   css/features/infopanel.css setzen `right: 0` bei GLEICHER Spezifitaet und stehen spaeter im
-   Ladepfad als diese Datei -- sie ueberstuermen die Startstellung lautlos, und die Laschen
-   blieben einfach stehen. `transform` kollidiert mit nichts.
+   💣 `transform`, nicht `right`. `right` waere naheliegend -- beide Laschen haben schon eine
+   right-Transition fuers Andocken an die Panelkante, und diese Datei laedt NACH css/styles.css
+   (index.html:55/56), gewoenne bei gleicher Spezifitaet also sogar. Aber `right` IST hier bereits
+   belegt: die Andockregeln in css/features/infopanel.css fahren die Laschen damit zwischen
+   Bildschirm- und Panelkante hin und her. Eine zweite Bedeutung auf derselben Eigenschaft hiesse,
+   dass beide Bewegungen sich gegenseitig ueberschreiben, sobald sich der Andockzustand waehrend
+   des Startlaufs aendert. `transform` ist frei und kollidiert mit nichts.
    💣 Verschoben wird um 100% der EIGENEN Breite, nicht um eine Zahl: am Telefon ist die Lasche
    26px breit statt 30 (--avesmaps-tab-w im Finger-Block von tokens.css), und ein Token waere hier
    eine zweite Stelle, die das wissen muesste. */
@@ -203,4 +205,18 @@ html.avesmaps-booting #review-panel {
    sie ueber die Karte statt aus dem Bild. Beide Vorzeichen sind einzeln im Test festgenagelt. */
 html.avesmaps-booting #review-panel-toggle {
 	transform: rotate(180deg) translateX(-100%);
+}
+/* 💣 Steht ein Panel offen, docken die Laschen NICHT an der Bildschirmkante, sondern an der
+   PANELkante (`right: var(--avesmaps-ip-w)`, css/features/infopanel.css). Die eigene Breite
+   reicht dann nicht: sie muessen zusaetzlich um die Panelbreite weichen. Ohne das schwebt ein
+   30x140-Knopf waehrend des ganzen Startlaufs frei auf der Karte und rueckt am Ende nur um seine
+   eigene Breite -- wortgleich der Fehler, der weiter oben fuer die Planer-Lasche vermerkt ist.
+   ⚠️ Das ist kein Randfall, sondern der VORGABEfall im Editor: ohne gespeicherten Zustand steht
+   das Editor-Panel am Zeiger offen (restoreReviewPanelState in js/review/review-panels.js), und
+   damit traegt <html> die Klasse `avesmaps-any-panel-open`, bevor der Startlauf endet. */
+html.avesmaps-booting.avesmaps-any-panel-open .avesmaps-infopanel__handle {
+	transform: translateX(calc(100% + var(--avesmaps-ip-w)));
+}
+html.avesmaps-booting.avesmaps-any-panel-open #review-panel-toggle {
+	transform: rotate(180deg) translateX(calc(-100% - var(--avesmaps-ip-w)));
 }
