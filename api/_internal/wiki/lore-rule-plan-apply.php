@@ -97,6 +97,13 @@ function avesmapsLoreRuleApplyStep(PDO $pdo, int $runId, int $userId, ?array $us
     $totals = ['applied' => 0, 'removed' => 0, 'stale' => 0, 'processed' => 0];
 
     foreach (avesmapsSyncPlanPendingItems($pdo, $runId, $budget) as $row) {
+        // 💣 Die Zeitschranke steht VORN, nicht am Ende der Schleife: mehrere Zweige dieses Rumpfes
+        // enden mit `continue` (jede überholte Zeile), und ein Deckel hinter einem `continue` ist
+        // keiner. Die erste Zeile läuft immer, sonst käme ein Aufruf ohne Fortschritt zurück und der
+        // Client drehte sich im Kreis.
+        if ($totals['processed'] > 0 && microtime(true) >= $deadline) {
+            break;
+        }
         $totals['processed']++;
         $itemId = (int) $row['id'];
         $wikiKey = (string) $row['entity_key'];
@@ -145,10 +152,6 @@ function avesmapsLoreRuleApplyStep(PDO $pdo, int $runId, int $userId, ?array $us
         $ergebnis = avesmapsLoreRuleApplyEntry($pdo, $wikiKey, $termsJeRelation, $userId);
         $totals['applied'] += $ergebnis['rules_written'];
         avesmapsSyncPlanMarkItem($pdo, $itemId, 'applied');
-
-        if (microtime(true) >= $deadline) {
-            break;
-        }
     }
 
     $remaining = avesmapsSyncPlanPendingCount($pdo, $runId);
