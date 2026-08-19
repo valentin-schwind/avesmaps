@@ -204,8 +204,9 @@ assert.ok(/transform:\s*translateX\(100%\)/.test(startstellung[1]),
 // dass beide Bewegungen sich gegenseitig ueberschreiben, sobald sich der Andockzustand waehrend
 // des Startlaufs aendert. `transform` ist frei und kollidiert mit nichts.
 assert.ok(!/(^|[^-])right:/.test(startstellung[1]),
-	"die Startstellung laeuft ueber transform, NICHT ueber right -- die Andockregeln in"
-	+ " infopanel.css setzen right:0 bei gleicher Spezifitaet und stehen spaeter im Ladepfad");
+	"die Startstellung laeuft ueber transform, nicht ueber right -- `right` wird bereits fuer die"
+	+ " Andockbewegung genutzt (Bildschirm- vs. Panelkante in infopanel.css), eine zweite Bedeutung"
+	+ " hiesse, dass sich beide Bewegungen gegenseitig ueberschreiben");
 
 // 💣 Die Editor-Lasche traegt schon `transform: rotate(180deg)`. Ein danebengeschriebenes
 // translateX ERSETZT die Drehung -- die Beschriftung stuende kopf. Und weil nach der Drehung ihre
