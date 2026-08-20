@@ -112,16 +112,21 @@ Feature, weil der Owner-Auftrag „Länder" ausdrücklich nennt, und sie ist bil
 als alle anderen — die Zeilen liegen bereits in `political_territory`, und
 `parent_id` liefert das Sprungziel ohne jede Zusatzspalte.
 
-### 3.4 Die Mengen sind ungemessen
+### 3.4 Die Menge, live gemessen
 
-🔧 **Wie viele Zeilen je Art anfallen, ist nicht bekannt.** Auf der
-Entwicklungsmaschine gibt es keine `api/config.local.php` und keinen lokalen Dump;
-jede Zahl hier wäre geraten. Die Ortsliste des Editors zählt die Menge bereits
-(`wiki_only` in `avesmapsWikiSettlementListRegistry`) — sie wird **vor** dem Bau
-einmal live abgefragt, und der Bauplan trägt die Zahlen nach.
+✅ **Gemessen am 20.08.2026 nach dem Deploy von Stufe 1**, an der Suche selbst statt
+an der Datenbank: die Anfrage „stein" liefert **98** Treffer ohne Kartenobjekt, von
+denen fünf gezeigt werden.
 
-⚠️ Das ändert die Gestaltung nicht, aber es entscheidet über die Deckelhöhe (§4.3)
-und darüber, ob eine Art überhaupt lohnt.
+Das beantwortet die Frage, die offen war: **der Deckel ist nicht optional.** Ein
+einzelnes Allerweltswort bringt rund hundert Zeilen mit; ohne die Kappung auf fünf
+wären die echten Kartentreffer aus dem Sichtfeld geschoben. Die Deckelhöhe bleibt
+bei 5, wie bei Kartensammlung, Literatur und Vorkommen.
+
+⚠️ Die Verteilung **je Objektart** ist damit noch nicht gemessen — dafür bräuchte es
+einen Datenbankzugang, den die Entwicklungsmaschine nicht hat. Für die Gestaltung
+ist sie ohne Belang; interessant wäre sie nur, um zu sehen, welche Art am meisten
+beiträgt.
 
 ## 4. Die Lösung
 
@@ -269,14 +274,32 @@ Objektart.
 - 💣 **Vor dem Push das GANZE Testfeld**, nicht die eigenen (AGENTS.md §9), samt der
   `tools/wikidump/test-*.php`, die das übliche Muster nicht findet.
 
-## 8. Offene Punkte
+## 8. Stand und offene Punkte
 
-- 🔧 **Die Mengen sind ungemessen** (§3.4) — einmal live abfragen, bevor gebaut
-  wird; die Zahlen entscheiden über die Deckelhöhe und darüber, ob eine Objektart
-  sich lohnt.
-- 🔧 **Die neue Spalte füllt sich erst beim nächsten Dump-Lauf.** Bis dahin haben
-  Siedlungen ohne Kartenobjekt kein Sprungziel und tragen „kein Ort auf der Karte".
-  Das ist korrekt, aber es heißt: der sichtbare Nutzen für Siedlungen kommt einen
-  Sync später als der Code. Bauwerke, Regionen, Wege und Territorien wirken sofort.
-- 🔧 **Abnahme im Browser mit angemeldeter Sitzung** steht aus — gemessen wird der
-  Ablauf, nicht eine Zahl (AGENTS.md §9): tippen, Treffer sehen, klicken, fliegen.
+**Live seit 20.08.2026**, in drei Stufen: Landschaften/Wege/Stätten, dann
+Herrschaftsgebiete, dann Siedlungen.
+
+✅ **Am Livebestand geprüft** (Stufe 1): die Anfrage „stein" liefert 98 Treffer, fünf
+gezeigt, alle mit aufgelöstem Sprungziel — „Angbarer Steinkreis · Fürstentum Kosch",
+„Drachenstein · Steineichenwald". Der Abschnitt steht unter allen Kartentreffern und
+trägt seinen Zähler.
+
+- 🔧 **Der Klick ist nicht bis zum Flug abgenommen.** Der Pfad ist bis in die
+  Flugfunktion nachgewiesen (der Aufrufstapel läuft durch
+  `focusSpotlightPlaceEntry` → `focusSpotlightRegion`), aber der Flug selbst wirft
+  in der Prüfumgebung `Invalid LatLng object: (NaN, NaN)` — **auch bei einem ganz
+  normalen Orts- oder Regionstreffer**, also unabhängig von diesem Feature. Ursache
+  ist die nicht rendernde Browser-Umgebung, nicht der Code. ⚠️ Was ein Emulator
+  nicht beantworten kann, wird als offene Frage gemeldet, nicht als bestanden
+  (AGENTS.md §9): **ein Mensch muss einmal klicken.**
+- 🔧 **Die Spalte `lage` füllt sich erst beim nächsten „Siedlungen syncen".** Bis
+  dahin haben Siedlungen ohne Kartenobjekt kein Sprungziel und tragen ehrlich „kein
+  Ort auf der Karte". Landschaften, Wege, Stätten und Herrschaftsgebiete wirken
+  sofort.
+- 🔧 **Die Verteilung je Objektart ist ungemessen** (§3.4) — ohne Belang für die
+  Gestaltung.
+- ⚠️ **Die Zwischenüberschrift „Nicht auf der Karte" weicht vom freigegebenen
+  Mockup ab**, das die Zeilen ohne Abschnittskopf zeigte. Nur der eigene Abschnitt
+  bringt Deckel und feste Endposition mit; ohne ihn konkurrieren die Zeilen im
+  Punktestand und können einen echten Kartentreffer verdrängen. Den Kopf
+  wegzulassen ist eine Zeile im Client, der Weg zurück wäre ein Umbau.
