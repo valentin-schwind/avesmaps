@@ -543,7 +543,15 @@ function createConflictPartyElement(party, conflict = null) {
 	// Bei einem Fall OHNE gespeicherte Verknuepfung heisst ein Treffer etwas anderes als bei einer
 	// Kollision: dort belegt er, wem der Artikel gehoert, hier ist er ein Vorschlag.
 	const unlinked = conflict?.rule_id === "wiki.missing_key";
-	if (party.own_wiki?.url) {
+	// ⚠️ Bei einer Dublette wäre diese Zeile eine Falschaussage. Beide Beteiligten tragen sehr wohl
+	// einen Wiki-Artikel — DASS sie denselben tragen, ist ja der Fall. Der Erkenner schickt dort
+	// deshalb gar kein `own_wiki`, und ohne diesen Riegel stünde stur „kein eigener Wiki-Artikel"
+	// darunter. Was dort entscheidet, ist etwas anderes: wo die Beschriftung liegt und ob eine
+	// Fläche an ihr hängt — beides steht in der Zeile darunter.
+	const isDuplicateCase = conflict?.rule_id === "label.duplicate";
+	if (isDuplicateCase) {
+		// nichts: siehe den Absatz darüber
+	} else if (party.own_wiki?.url) {
 		const link = document.createElement("a");
 		link.className = "conflict-party__wiki";
 		link.href = party.own_wiki.url;
@@ -569,6 +577,18 @@ function createConflictPartyElement(party, conflict = null) {
 	// gefunden" (das darf dastehen), fehlend heisst "damals nicht mitgeschrieben" (das nicht).
 	// Aufgefallen an #EDCXYJ „Hursach", wo zwei Beteiligte genau so heissen wie der Artikel, um den
 	// es ging, und trotzdem alle drei "kein eigener Wiki-Artikel" trugen (Owner 2026-07-21).
+
+	// 🔴 „Zuletzt geändert" — bei einer Dublette das EINZIGE, woran sich die Beteiligten
+	// unterscheiden lassen. Sie heißen gleich, sind von derselben Art und zeigen auf denselben
+	// Artikel; ohne dieses Merkmal stünde der Editor vor zwei identischen Zeilen mit je einem
+	// Löschknopf und könnte nicht entscheiden, welche die überzählige ist. Bei den übrigen Regeln
+	// unterscheiden sich die Beteiligten schon durch Namen und Art — dort wäre es nur Rauschen.
+	if (isDuplicateCase && party.updated_at) {
+		const stand = document.createElement("span");
+		stand.className = "conflict-party__none";
+		stand.textContent = `zuletzt geändert: ${String(party.updated_at).replace("T", " ").slice(0, 16)}`;
+		evidence.appendChild(stand);
+	}
 
 	// "Auf der Karte?" -- asked of the resolver, not of the payload, so a case that brought no
 	// coordinate (every merged WikiSync case) still gets the button as long as the object is findable.
@@ -673,6 +693,87 @@ function createConflictLinkAction(conflict, party) {
 		}
 	});
 	bar.appendChild(link);
+
+	return bar;
+}
+
+// Der einzige Knopf eines Dubletten-Falls: DIESE eine Beschriftung von der Karte nehmen.
+//
+// 🔴 Er muss hier stehen und nicht auf der Karte. Eine Beschriftung, die die Label-Kollision
+// verliert, wird nicht gezeichnet — und was nicht gezeichnet ist, lässt sich nicht anklicken: kein
+// Klick, kein Rechtsklick, kein Löschen. Genau die Lage, die der Owner bei den verwaisten
+// Außenhüllen ausgeschlossen hat: „es darf doch auf der map keine elemente geben über die ich keine
+// kontrolle mehr habe."
+//
+// 💣 UND NICHT AN JEDER PARTEI. Hängt an der Beschriftung eine Landschaftsfläche, kann ein
+// Löschvorgang die ganze Fläche mitnehmen (AVESMAPS_ECOSYSTEM_CASCADE_ENABLED: das letzte Label
+// einer Region nimmt Region UND Flächen mit). Der Server lehnt das ab — aber ein Knopf, der immer
+// nur eine Fehlermeldung erzeugt, ist eine Falle und kein Angebot. Dort steht deshalb der GRUND.
+//
+// ⚠️ Angeboten wird NUR bei `deletable === true`. Ein fehlendes Feld (eine gecachte alte
+// index.html gegen einen neuen Server, AGENTS.md §7) heißt „weiß ich nicht" und muss dieselbe
+// Antwort bekommen wie „nein" — die sichere Richtung, denn die unsichere kostet gezeichnete
+// Geometrie.
+function createConflictDuplicateActions(conflict, party) {
+	const bar = document.createElement("div");
+	bar.className = "conflict-party__actions";
+
+	if (party.deletable !== true) {
+		const hint = document.createElement("span");
+		hint.className = "conflict-party__locked";
+		hint.textContent = party.ecosystem_region_public_id
+			? "gehört zu einer Landschaftsfläche"
+			: "lässt sich hier nicht löschen";
+		hint.title = party.ecosystem_region_public_id
+			? "Wäre sie deren letzte Beschriftung, verschwände die ganze Fläche mit ihr — das gehört in den Landschaften-Editor."
+			: "Diese Beschriftung kann von hier aus nicht entfernt werden.";
+		bar.appendChild(hint);
+
+		return bar;
+	}
+
+	const remove = document.createElement("button");
+	remove.type = "button";
+	// Weich, nicht gefüllt: eine Zeilenhandlung ist nie die Haupthandlung der Seite (AGENTS.md §12).
+	remove.className = "conflict-action";
+	remove.textContent = "Beschriftung löschen";
+	remove.title = "Nimmt genau diese Beschriftung von der Karte. Die anderen dieses Falls bleiben stehen.";
+	remove.addEventListener("click", async () => {
+		// Zerstörend, also wird gefragt — und die Rückfrage sagt beides: was verschwindet, und dass
+		// es sich über den Änderungs-Log zurückholen lässt.
+		const frage = `„${party.label || "Diese Beschriftung"}“ von der Karte nehmen?\n\n`
+			+ "Die anderen Beschriftungen dieses Falls bleiben stehen. Rückgängig machen geht über den Änderungs-Log.";
+		if (!window.confirm(frage)) {
+			return;
+		}
+		remove.disabled = true;
+		try {
+			const result = await submitConflictAction("resolve", {
+				mode: "delete_label",
+				targets: [{ type: party.type, id: party.id }],
+				rule_id: conflict.rule_id,
+				fingerprint: conflict.fingerprint,
+				subject_type: party.type,
+				subject_id: party.id,
+				acted_type: party.type,
+				acted_id: party.id,
+				title: conflict.title || "",
+				severity: conflict.severity || "",
+				parties: conflictDecisionParties(conflict),
+			});
+			// Der Server kann ablehnen (eine Fläche hängt daran, oder es ist die letzte Beschriftung)
+			// — das gehört gesagt, nicht verschluckt. Derselbe Melder wie bei den übrigen Verben.
+			const complaints = conflictResolveComplaints(result);
+			if (complaints.length > 0) {
+				window.alert(complaints.join("\n"));
+			}
+			await loadConflicts();
+		} catch (error) {
+			remove.disabled = false;
+			window.alert(`Konnte nicht gelöscht werden: ${error.message}`);
+		}
+	});
+	bar.appendChild(remove);
 
 	return bar;
 }
@@ -822,12 +923,20 @@ function createConflictElement(conflict) {
 	// A shared article is repaired per party; the watchlist rule has nothing to repair, so it only
 	// offers the bookkeeping verbs below.
 	const isRepairable = Boolean(conflict.wiki_url) && (conflict.parties || []).length > 1;
+	// 🔴 Die Dublette hat ihr EIGENES Verb, und die der Artikel-Regel wären dort falsch: „Trennen"
+	// nähme der Beschriftung nur den Wiki-Link, der Name stünde danach immer noch zweimal auf der
+	// Karte. Der Fall sähe erledigt aus und wäre es nicht.
+	const isDuplicate = conflict.rule_id === "label.duplicate";
 	if ((conflict.parties || []).length > 0) {
 		const parties = document.createElement("div");
 		parties.className = "conflict-case__parties";
 		conflict.parties.forEach((party) => {
 			const partyElement = createConflictPartyElement(party, conflict);
-			if (isRepairable && conflict.status === "open") {
+			if (isDuplicate) {
+				if (conflict.status === "open") {
+					partyElement.appendChild(createConflictDuplicateActions(conflict, party));
+				}
+			} else if (isRepairable && conflict.status === "open") {
 				partyElement.appendChild(createConflictPartyActions(conflict, party));
 			} else if (conflict.status === "open" && party.own_wiki?.url) {
 				// Beobachtungsliste MIT Kandidat: der Fall sagte "passender Artikel gefunden" und bot

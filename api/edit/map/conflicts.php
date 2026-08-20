@@ -62,7 +62,13 @@ try {
     // the case shows as handled instead of silently vanishing on the next scan.
     if ($action === 'resolve') {
         $result = avesmapsConflictResolve($pdo, $payload, (int) ($user['id'] ?? 0));
-        if (($payload['rule_id'] ?? '') !== '' && ($payload['fingerprint'] ?? '') !== '') {
+        // 💣 NUR wenn wirklich etwas repariert wurde. Bis 20.08.2026 stand hier keine Bedingung, und
+        // damit verliess ein Fall die Liste „Offen" auch dann, wenn der Server den Schreibvorgang
+        // abgelehnt hatte -- er stand danach unter „Archiviert", also „bewusst so gelassen". Beim
+        // Loeschen einer Beschriftung ist das eine Ablehnung mit Ansage (eine Landschaftsflaeche
+        // haengt daran): der Editor sieht die Fehlermeldung, und der Fall waere trotzdem weg.
+        if (avesmapsConflictShouldRecordRepair($result)
+            && ($payload['rule_id'] ?? '') !== '' && ($payload['fingerprint'] ?? '') !== '') {
             avesmapsConflictRecordDecision($pdo, [
                 'rule_id' => $payload['rule_id'],
                 'fingerprint' => $payload['fingerprint'],

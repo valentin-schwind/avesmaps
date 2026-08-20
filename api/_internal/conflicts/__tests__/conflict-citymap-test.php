@@ -174,10 +174,15 @@ $pruef(avesmapsConflictLoadCitymapRows($leer) === [], 'eine fehlende Tabelle wir
 // absichtlich: ihre Lader fangen das ab, und so bleibt uebrig, was diese Probe messen will.
 $gesamt = new PDO('sqlite::memory:', null, null, [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]);
 $gesamt->exec(
+    // ⚠️ `updated_at` gehoert dazu, seit avesmapsConflictLoadLabelRows es liest (Regel
+    // label.duplicate, 20.08.2026): die Beteiligten eines Dubletten-Falls sehen einander sonst zum
+    // Verwechseln aehnlich. In `sql/schema.sql` ist die Spalte NOT NULL, die Fixture war also
+    // schlicht unvollstaendig -- ohne sie bricht dieser Lauf mit "no such column".
     'CREATE TABLE map_features (
         public_id TEXT NOT NULL, name TEXT NOT NULL, feature_type TEXT NOT NULL,
         feature_subtype TEXT NOT NULL DEFAULT "", properties_json TEXT NOT NULL DEFAULT "{}",
-        geometry_json TEXT NULL, is_active INTEGER NOT NULL DEFAULT 1
+        geometry_json TEXT NULL, is_active INTEGER NOT NULL DEFAULT 1,
+        updated_at TEXT NOT NULL DEFAULT ""
      )'
 );
 $gesamt->prepare(

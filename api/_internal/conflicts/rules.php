@@ -19,6 +19,12 @@ declare(strict_types=1);
  */
 
 require_once __DIR__ . '/core.php';
+// „Welche Beschriftung gehoert zu welcher Landschaftsflaeche" -- die EINE Stelle, an der diese
+// Beziehung gelesen wird. Ihr Dateikopf sagt selbst, warum sie eine eigene ist: sie ist in BEIDE
+// Richtungen gespeichert, und keine Seite allein ist vollstaendig. Sie macht kein DDL, schreibt
+// nichts und liefert die leere Beziehung, wenn die Landschaften-Tabellen fehlen -- eine Installation
+// ohne das Feature verhaelt sich also wie vorher.
+require_once __DIR__ . '/../app/ecosystem-label-link.php';
 
 // PATH_SUBTYPE_KEYS as they appear in map_features.feature_subtype (AGENTS.md §2).
 const AVESMAPS_CONFLICT_PATH_SUBTYPES = ['Pfad', 'Weg', 'Gebirgspass', 'Strasse', 'Reichsstrasse', 'Seeweg', 'Flussweg', 'Wuestenpfad'];
@@ -390,7 +396,7 @@ function avesmapsConflictLoadWikiTitles(PDO $pdo): array {
  * Jergan (Wasserfall) auf der Karte -> dann kann ich entscheiden." So every party reports whether an
  * article under its own exact name exists, and where it sits on the map.
  */
-function avesmapsConflictRuleSharedArticle(array $rows, array $wikiTitles = []): array {
+function avesmapsConflictRuleSharedArticle(array $rows, array $wikiTitles = [], array $suppressedPartySets = []): array {
     $meta = [];
     foreach ($rows as $row) {
         $meta[$row['type'] . '|' . $row['id']] = [
@@ -400,6 +406,18 @@ function avesmapsConflictRuleSharedArticle(array $rows, array $wikiTitles = []):
     }
     $conflicts = [];
     foreach (avesmapsConflictFindSharedWikiUrls($rows) as $group) {
+        // 💣 Derselbe Fall darf nicht ZWEIMAL in der Liste stehen. Zwei Beschriftungen desselben
+        // Dings tragen im Wiki-Nest dieselbe Adresse, also findet diese Regel sie ebenfalls -- nur
+        // sagt sie „mehrere Objekte beanspruchen einen Artikel" und bietet Knoepfe an, die den
+        // doppelten Namen auf der Karte nicht loswerden. avesmapsConflictRuleDuplicateLabel sagt
+        // dasselbe besser UND hat das Verb dafuer. Zwei Knoepfe am selben Fall mit verschiedener
+        // Wirkung sind schlimmer als zwei getrennte Fehler (Owner-Entscheid 15.08.2026 zu den Wegen).
+        // ⚠️ Unterdrueckt wird nur bei EXAKT gleicher Parteienliste: kommt ein Ort dazu, der denselben
+        // Artikel beansprucht, ist das ein zusaetzlicher Befund -- die Dubletten-Regel kennt nur
+        // Beschriftungen und saehe ihn nie. Live betrifft das genau eine Gruppe (20.08.2026).
+        if ($suppressedPartySets !== [] && isset($suppressedPartySets[avesmapsConflictPartySetKey($group['parties'])])) {
+            continue;
+        }
         $claimedKey = avesmapsConflictArticleKey((string) $group['wiki_url']);
         $parties = array_map(static function (array $party) use ($wikiTitles, $meta, $group, $claimedKey): array {
             $party['type_label'] = AVESMAPS_CONFLICT_TYPE_LABELS[$party['type']] ?? $party['type'];
@@ -439,6 +457,120 @@ function avesmapsConflictRuleSharedArticle(array $rows, array $wikiTitles = []):
             'parties' => $parties,
             'subject_type' => $parties[0]['type'] ?? '',
             'subject_id' => $parties[0]['id'] ?? '',
+        ];
+    }
+
+    return $conflicts;
+}
+
+/**
+ * REIN: der Wiedererkennungsschluessel einer PARTEIENLISTE -- sortiert, damit die Reihenfolge zweier
+ * Abfragen nichts entscheidet (dieselbe Ueberlegung wie in avesmapsConflictFingerprint).
+ *
+ * @param list<array{type?:string,id?:string}> $parties
+ */
+function avesmapsConflictPartySetKey(array $parties): string {
+    $keys = [];
+    foreach ($parties as $party) {
+        $type = trim((string) ($party['type'] ?? ''));
+        $id = trim((string) ($party['id'] ?? ''));
+        if ($type !== '' && $id !== '') {
+            $keys[] = $type . '|' . $id;
+        }
+    }
+    sort($keys, SORT_STRING);
+
+    return implode(',', $keys);
+}
+
+/**
+ * REIN: Die Parteienlisten, die eine andere Regel bereits vollstaendig abdeckt.
+ *
+ * @param list<array{parties?:list<array<string,mixed>>}> $conflicts
+ * @return array<string,bool>
+ */
+function avesmapsConflictSuppressedPartySets(array $conflicts): array {
+    $sets = [];
+    foreach ($conflicts as $conflict) {
+        $key = avesmapsConflictPartySetKey($conflict['parties'] ?? []);
+        if ($key !== '') {
+            $sets[$key] = true;
+        }
+    }
+
+    return $sets;
+}
+
+/**
+ * Regel 3 -- dieselbe Beschriftung steht zweimal auf der Karte (Discord #83).
+ *
+ * Ausloeser: „Drei Schwestern" liegt zweimal in `map_features` -- zwei `berggipfel`-Beschriftungen
+ * auf demselben Wiki-Schluessel, 2,35 Karteneinheiten auseinander. Eine davon gewinnt die
+ * Label-Kollision nie und wird deshalb nie gezeichnet; was nicht gezeichnet ist, laesst sich auf der
+ * Karte auch nicht anklicken. Ohne diese Liste gibt es also keinen Weg, sie loszuwerden -- die
+ * Owner-Regel von den verwaisten Aussenhuellen, in der zweiten Auflage.
+ *
+ * 🔴 GELOEST WIRD DAS AN DEN DATEN, NICHT AN DER DARSTELLUNG. Owner 20.08.2026: „berggipfel muessen
+ * lesbar sein, das hat nix mit kollisionen zu tun." Zwei Beschriftungen desselben Bergs BEIDE lesbar
+ * zu machen waere die falsche Reparatur -- dann stuende der Name zweimal auf der Karte.
+ *
+ * Die Identitaet und der tragende Rauschfilter stehen in core.php (avesmapsConflictLabelIdentity,
+ * avesmapsConflictFindDuplicateLabels), samt der Messung, die sie begruendet.
+ *
+ * @param list<array{id:string,label:string,subtype:string,wiki_key:string,region:string,position?:mixed}> $rows
+ */
+function avesmapsConflictRuleDuplicateLabel(array $rows): array {
+    $meta = [];
+    foreach ($rows as $row) {
+        $meta[(string) ($row['id'] ?? '')] = [
+            'position' => $row['position'] ?? null,
+            'updated_at' => (string) ($row['updated_at'] ?? ''),
+        ];
+    }
+
+    $conflicts = [];
+    foreach (avesmapsConflictFindDuplicateLabels($rows) as $group) {
+        $parties = array_map(static function (array $party) use ($meta): array {
+            $region = (string) $party['region'];
+
+            return [
+                'type' => 'label',
+                'id' => (string) $party['id'],
+                'label' => (string) $party['label'],
+                'type_label' => AVESMAPS_CONFLICT_TYPE_LABELS['label'],
+                'position' => $meta[(string) $party['id']]['position'] ?? null,
+                // 🔴 DAS UNTERSCHEIDUNGSMERKMAL. Die Parteien eines Dubletten-Falls sehen einander
+                // zum Verwechseln aehnlich -- gleicher Name, gleiche Art, gleicher Artikel. Ohne
+                // etwas, woran sie sich unterscheiden, steht der Editor vor zwei gleichen Zeilen mit
+                // je einem Loeschknopf und kann gar nicht entscheiden, welche die ueberzaehlige ist.
+                // „Zuletzt geaendert" liegt ohnehin in der Zeile und ist die generische Antwort:
+                // live traegt die gepflegte „Drei Schwestern" den 20.08.2026, die Karteileiche den
+                // 07.08.2026.
+                'updated_at' => $meta[(string) $party['id']]['updated_at'] ?? '',
+                // 🔴 DIE EINE FRAGE, AN DER DER LOESCHKNOPF HAENGT. Eine Beschriftung, an der eine
+                // Landschaftsflaeche haengt, darf von hier aus NIE geloescht werden: entfernt ein
+                // Loeschvorgang das letzte Label einer Flaeche, nimmt
+                // avesmapsEcosystemCascadeAfterRemoval die ganze Region samt ihren gezeichneten
+                // Flaechen mit (weich, aber nichts hier stellt sie wieder her). Am Livebestand hat
+                // fast jede Region genau ein Label -- der Ausloesefall IST der Normalfall.
+                // ⚠️ Das ist nur die ANZEIGE. Der Riegel steht im Schreibpfad (repair.php) und fragt
+                // dort dieselbe Funktion, die auch die Kaskade selbst befragt.
+                'ecosystem_region_public_id' => $region,
+                'deletable' => $region === '',
+            ];
+        }, $group['parties']);
+
+        $conflicts[] = [
+            'rule_id' => 'label.duplicate',
+            // Die Identitaet gehoert in die Fakten: aendert jemand den Wiki-Schluessel einer der
+            // beiden, ist es ein anderer Fall -- und eine alte Entscheidung darf ihn nicht decken.
+            'fingerprint' => avesmapsConflictFingerprint('label.duplicate', $parties, ['identity' => $group['identity']]),
+            'severity' => AVESMAPS_CONFLICT_ERROR,
+            'title' => (string) ($parties[0]['label'] ?? ''),
+            'wiki_url' => '',
+            'parties' => $parties,
+            'subject_type' => 'label',
+            'subject_id' => (string) ($parties[0]['id'] ?? ''),
         ];
     }
 
@@ -595,7 +727,73 @@ function avesmapsConflictRuleCatalog(): array {
                 ['label' => 'Archivieren', 'effect' => 'Bewusst so gelassen. Bleibt unter „Archiviert“ auffindbar und lässt sich jederzeit wieder öffnen.'],
             ],
         ],
+        [
+            'id' => 'label.duplicate',
+            'label' => 'Dieselbe Beschriftung zweimal',
+            // Der Anlass in einem Satz, plus der Grund, warum das hier steht und nicht auf der
+            // Karte gelöst wird: eine Beschriftung, die die Kollision verliert, wird nicht
+            // gezeichnet — und was nicht gezeichnet ist, lässt sich nicht anklicken.
+            'hint' => 'Zwei oder mehr Beschriftungen meinen dasselbe Ding: gleicher Wiki-Artikel, gleicher Name, gleiche Art. Eine davon steht auf der Karte meist gar nicht sichtbar und ist dort auch nicht anklickbar — deshalb lässt sie sich hier entfernen. Mehrere Beschriftungen EINER Landschaftsfläche sind kein Fall: ein langes Gebirge darf seinen Namen mehrfach tragen.',
+            'severity' => AVESMAPS_CONFLICT_ERROR,
+            'actions' => ['delete_label', 'defer', 'ignore'],
+            'verbs' => [
+                ['label' => 'Beschriftung löschen', 'effect' => 'Nimmt GENAU DIESE eine Beschriftung von der Karte (umkehrbar über den Änderungs-Log, wie jedes Löschen im Editor). Die anderen des Falls bleiben stehen, und die letzte verbleibende lässt sich nicht löschen.'],
+                ['label' => 'gehört zu einer Landschaftsfläche', 'effect' => 'Kein Knopf, sondern der Grund, warum hier keiner steht: an dieser Beschriftung hängt eine gezeichnete Fläche. Wäre sie deren letzte, verschwände die ganze Fläche mit ihr — das gehört in den Landschaften-Editor, nicht hierher.'],
+                ['label' => 'Genehmigt', 'effect' => 'Der Fund stimmt, die Lage ist aber richtig so. Ändert die Daten nicht und taucht nicht wieder unter „Wichtig“ auf.'],
+                ['label' => 'Zurückstellen / Archivieren', 'effect' => 'Ändern die Daten nicht. Zurückgestellt heißt „später“, archiviert heißt „bewusst so gelassen, aber weiterhin doppelt“ — beides bleibt auffindbar und umkehrbar.'],
+            ],
+        ],
     ];
+}
+
+/**
+ * Jede aktive Beschriftung mit ihrer Identitaet und ihrer Landschaftsflaeche -- roh gelesen, ohne
+ * jede Anreicherung.
+ *
+ * 💣 Gelesen wird `properties.wiki_region.wiki_key`, NICHT das schlichte `wiki_url` daneben. Der
+ * Lesepfad der Karte raet bei leerem Feld eine Adresse per Namen dazu (avesmapsEnrichMapFeatureWikiUrl);
+ * der Schluessel im Nest ist dagegen das, was ein Abgleich oder ein Editor wirklich zugewiesen hat.
+ * Dieselbe Trennung wie beim Statuskreis der Listen (AGENTS.md §11).
+ *
+ * Die Flaechenzugehoerigkeit kommt aus avesmapsEcosystemReadLabelRegionMap() -- EIN Buendel-Lesen fuer
+ * alle Beschriftungen statt einer Abfrage je Zeile, und aus BEIDEN gespeicherten Richtungen.
+ *
+ * @return list<array{id:string,label:string,subtype:string,wiki_key:string,region:string,position:mixed}>
+ */
+function avesmapsConflictLoadLabelRows(PDO $pdo): array {
+    $statement = $pdo->query(
+        "SELECT public_id, name, feature_subtype, properties_json, geometry_json, updated_at
+         FROM map_features
+         WHERE is_active = 1 AND feature_type = 'label'"
+    );
+    if ($statement === false) {
+        return [];
+    }
+
+    $regionByLabel = avesmapsEcosystemReadLabelRegionMap($pdo)['by_label'] ?? [];
+
+    $rows = [];
+    foreach ($statement->fetchAll(PDO::FETCH_ASSOC) as $row) {
+        $publicId = (string) ($row['public_id'] ?? '');
+        if ($publicId === '') {
+            continue;
+        }
+        $properties = json_decode((string) ($row['properties_json'] ?? '{}'), true);
+        if (!is_array($properties)) {
+            $properties = [];
+        }
+        $rows[] = [
+            'id' => $publicId,
+            'label' => trim((string) ($row['name'] ?? '')),
+            'subtype' => (string) ($row['feature_subtype'] ?? ''),
+            'wiki_key' => trim((string) ($properties['wiki_region']['wiki_key'] ?? '')),
+            'region' => trim((string) ($regionByLabel[$publicId] ?? '')),
+            'position' => avesmapsConflictFirstPosition($row['geometry_json'] ?? null),
+            'updated_at' => (string) ($row['updated_at'] ?? ''),
+        ];
+    }
+
+    return $rows;
 }
 
 /**
@@ -617,9 +815,15 @@ function avesmapsConflictDetectAll(PDO $pdo): array {
         avesmapsConflictLoadGameLiteratureRows($pdo),
         avesmapsConflictLoadCitymapRows($pdo)
     );
+    // 🔴 ZUERST die Dubletten, denn sie entscheiden mit, was die Artikel-Regel noch melden darf:
+    // zwei Beschriftungen desselben Dings tragen dieselbe Adresse und stuenden sonst zweimal in der
+    // Liste, das zweite Mal mit Knoepfen, die den doppelten Namen nicht loswerden.
+    $duplicateLabels = avesmapsConflictRuleDuplicateLabel(avesmapsConflictLoadLabelRows($pdo));
+
     $conflicts = array_merge(
-        avesmapsConflictRuleSharedArticle($claimRows, $wikiTitles),
-        avesmapsConflictCollapseSegmentsByName(avesmapsConflictRuleMissingKey($rows, $wikiTitles))
+        avesmapsConflictRuleSharedArticle($claimRows, $wikiTitles, avesmapsConflictSuppressedPartySets($duplicateLabels)),
+        avesmapsConflictCollapseSegmentsByName(avesmapsConflictRuleMissingKey($rows, $wikiTitles)),
+        $duplicateLabels
     );
 
     return $conflicts;

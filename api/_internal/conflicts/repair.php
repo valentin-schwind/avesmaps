@@ -23,6 +23,13 @@ declare(strict_types=1);
 require_once __DIR__ . '/core.php';
 require_once __DIR__ . '/../map/features.php';
 require_once __DIR__ . '/rules.php';
+// 🔴 Fuer avesmapsEcosystemRegionPublicIdOfLabel() -- den Riegel vor der Landschafts-Kaskade
+// (avesmapsConflictLabelDeleteRefusal). AUSDRUECKLICH hier und nicht beim Endpunkt: repair.php hat
+// genau EINEN Aufrufer, und der ist der, der loescht. Eine Verdrahtung, die jemand vergessen kann,
+// waere hier ein stiller Ausfall in der gefaehrlichen Richtung -- deshalb steht sie an der Stelle,
+// die den Riegel braucht. Der `function_exists`-Gurt in avesmapsConflictDeleteLabel bleibt trotzdem
+// stehen: er faengt ab, wenn diese Zeile eines Tages wieder verschwindet.
+require_once __DIR__ . '/../app/ecosystem.php';
 
 // Where a party's wiki claim is stored. Only the plain field is safely removable (rule 1 above).
 const AVESMAPS_CONFLICT_CLAIM_FIELD = 'wiki_url';
@@ -508,11 +515,210 @@ function avesmapsConflictLinkFeature(PDO $pdo, string $publicId, array $wikiTitl
 }
 
 /**
+ * REIN: Hat dieser Reparatur-Aufruf wirklich etwas repariert -- darf also „erledigt" verbucht werden?
+ *
+ * 💣 Der Endpunkt schrieb die Entscheidung bisher nach JEDEM `resolve`, auch nach einem, der nichts
+ * geaendert hat. Damit verlaesst ein Fall die Liste „Offen" und steht unter „Archiviert" (der Status
+ * faellt aus „Konflikt besteht weiter" + „jemand hat entschieden"), obwohl niemand ihn angefasst
+ * hat. Bei den Wiki-Verben war das schwer zu bemerken; beim Loeschen ist es ein Loch mit Ansage:
+ * eine flaechengebundene Beschriftung wird abgelehnt, der Editor sieht die Fehlermeldung -- und der
+ * Fall waere trotzdem aus seiner Liste verschwunden.
+ *
+ * ⚠️ Das gilt fuer ALLE Verben, nicht nur fuer das neue. Eine Regel, die einen von vier Erzeugern
+ * bindet, ist keine Regel (AGENTS.md §11) -- und „verbuche nur, was du getan hast" ist bei jedem
+ * einzelnen richtig. Folge fuer die uebrigen: ein Klick, der auf Sicherheitsregel 1 laeuft und
+ * nichts schreibt, laesst den Fall jetzt offen stehen, statt ihn stumm zu archivieren.
+ */
+function avesmapsConflictShouldRecordRepair(array $result): bool {
+    return (int) ($result['applied'] ?? 0) > 0;
+}
+
+/**
+ * REIN: Darf diese Beschriftung aus dem Konfliktzentrum GELOESCHT werden? '' = ja, sonst der Grund.
+ *
+ * 💣 DIE ZWEITE BEDINGUNG IST DER GANZE GRUND, WARUM ES DIESE FUNKTION GIBT. Eine Beschriftung zu
+ * loeschen kann ihre ganze Landschaft mitnehmen: entfernt ein Loeschvorgang das LETZTE Label einer
+ * Region, deaktiviert avesmapsEcosystemCascadeAfterRemoval die Region samt ihren gezeichneten
+ * Flaechen (api/_internal/app/ecosystem.php, AVESMAPS_ECOSYSTEM_CASCADE_ENABLED = true). Am
+ * Livebestand hat fast jede Region genau ein Label -- der Ausloesefall IST der Normalfall. Der
+ * Auftrag lautet: ein Loeschknopf, der eine Dublette wegraeumt, darf unter keinen Umstaenden eine
+ * Flaeche mitreissen. Also wird eine flaechengebundene Beschriftung hier gar nicht erst geloescht --
+ * sie gehoert in den Landschaften-Editor, der die Folgen kennt und ankuendigt.
+ *
+ * 🔴 UND SIE SCHLAEGT FEHL IN RICHTUNG ABSAGE. `$regionLookupReady = false` heisst „ich konnte nicht
+ * nachsehen", nicht „es haengt nichts dran". Ein Ausfall, der still in die gefaehrliche Richtung
+ * kippt, ist genau die Bauart, an der das Projekt schon einmal Daten verloren hat (die stille
+ * MySQL-Kuerzung, AGENTS.md §10).
+ *
+ * Die letzte Beschriftung eines Objekts bleibt stehen: „Dublette aufraeumen" darf einem Ding nicht
+ * seinen Namen nehmen. Ein Fall in der Liste hat immer mindestens zwei Parteien, ueber die
+ * Oberflaeche ist dieser Zustand also gar nicht erreichbar -- der Riegel gilt dem direkten Aufruf.
+ *
+ * @param string $featureType              map_features.feature_type der Zielzeile
+ * @param bool   $regionLookupReady        stand die Landschaften-Pruefung ueberhaupt zur Verfuegung?
+ * @param string $ecosystemRegionPublicId  '' = haengt an keiner Landschaftsflaeche
+ * @param int    $twinsLeft                wie viele Beschriftungen desselben Dings danach bleiben
+ */
+function avesmapsConflictLabelDeleteRefusal(
+    string $featureType,
+    bool $regionLookupReady,
+    string $ecosystemRegionPublicId,
+    int $twinsLeft
+): string {
+    if ($featureType !== 'label') {
+        return 'Hier lassen sich nur Beschriftungen löschen.';
+    }
+    if (!$regionLookupReady) {
+        return 'Die Landschaften-Prüfung steht gerade nicht zur Verfügung — es wird nichts gelöscht.';
+    }
+    if (trim($ecosystemRegionPublicId) !== '') {
+        return 'Diese Beschriftung gehört zu einer Landschaftsfläche. Wäre sie deren letzte, verschwände die ganze Fläche mit ihr — bitte im Landschaften-Editor lösen.';
+    }
+    if ($twinsLeft < 1) {
+        return 'Das ist die letzte Beschriftung dieses Objekts — sie bleibt stehen.';
+    }
+
+    return '';
+}
+
+/**
+ * REIN: Wie viele ANDERE aktive Beschriftungen meinen dasselbe Ding wie diese Zeile?
+ *
+ * Gerechnet ueber avesmapsConflictLabelIdentity, also mit derselben Regel, nach der der Erkenner
+ * seine Faelle bildet -- eine zweite waere eine zweite Wahrheit. Eine Zeile ohne Identitaet (kein
+ * Wiki-Schluessel) hat per Definition keine Zwillinge; sie wird vom Erkenner nie gemeldet und faellt
+ * hier zusaetzlich in die Absage „letzte Beschriftung".
+ *
+ * @param list<array{public_id:string,name:string,feature_subtype:string,wiki_key:string}> $labels
+ */
+function avesmapsConflictLabelTwinsLeft(array $labels, string $publicId): int {
+    $identityOf = static fn(array $row): string => avesmapsConflictLabelIdentity(
+        (string) ($row['wiki_key'] ?? ''),
+        (string) ($row['name'] ?? ''),
+        (string) ($row['feature_subtype'] ?? '')
+    );
+
+    $own = '';
+    foreach ($labels as $row) {
+        if ((string) ($row['public_id'] ?? '') === $publicId) {
+            $own = $identityOf($row);
+            break;
+        }
+    }
+    if ($own === '') {
+        return 0;
+    }
+
+    $count = 0;
+    foreach ($labels as $row) {
+        if ((string) ($row['public_id'] ?? '') !== $publicId && $identityOf($row) === $own) {
+            $count++;
+        }
+    }
+
+    return $count;
+}
+
+/**
+ * Alle aktiven Beschriftungen, so schlank wie der Zwillingszaehler sie braucht.
+ *
+ * @return list<array{public_id:string,name:string,feature_subtype:string,wiki_key:string}>
+ */
+function avesmapsConflictReadLabelIdentities(PDO $pdo): array {
+    $statement = $pdo->query(
+        "SELECT public_id, name, feature_subtype, properties_json FROM map_features
+         WHERE feature_type = 'label' AND is_active = 1"
+    );
+    if ($statement === false) {
+        return [];
+    }
+
+    $rows = [];
+    foreach ($statement->fetchAll(PDO::FETCH_ASSOC) as $row) {
+        $properties = json_decode((string) ($row['properties_json'] ?? '{}'), true);
+        $rows[] = [
+            'public_id' => (string) ($row['public_id'] ?? ''),
+            'name' => (string) ($row['name'] ?? ''),
+            'feature_subtype' => (string) ($row['feature_subtype'] ?? ''),
+            'wiki_key' => is_array($properties) ? trim((string) ($properties['wiki_region']['wiki_key'] ?? '')) : '',
+        ];
+    }
+
+    return $rows;
+}
+
+/**
+ * Eine ueberzaehlige Beschriftung von der Karte nehmen -- das Verb, das Discord #83 braucht.
+ *
+ * 🔴 WARUM DAS UEBERHAUPT HIER STEHT UND NICHT AUF DER KARTE: eine Beschriftung, die die
+ * Label-Kollision verliert, wird nicht gezeichnet, und was nicht gezeichnet ist, laesst sich nicht
+ * anklicken -- kein Klick, kein Rechtsklick, kein Loeschen. Die Owner-Regel von den verwaisten
+ * Aussenhuellen gilt hier genauso: „es darf doch auf der map keine elemente geben ueber die ich
+ * keine kontrolle mehr habe."
+ *
+ * 🔴 UND DIE KASKADE WIRD NICHT UMGANGEN, SONDERN UNMOEGLICH GEMACHT. Gefragt wird
+ * avesmapsEcosystemRegionPublicIdOfLabel() -- DIESELBE Funktion mit denselben Argumenten, an der
+ * avesmapsDeleteMapFeature() selbst entscheidet, ob es die Kaskade anstoesst
+ * (api/_internal/map/features.php: `if ($regionPublicId !== '') { $cascade = … }`). Liefert sie
+ * hier den leeren Wert, kann der Kaskadenzweig dort nicht genommen werden; liefert sie einen Wert,
+ * kommt es gar nicht erst zum Loeschen. Eine EIGENE, strengere oder mildere Rechnung waere genau
+ * der Fehler, den avesmapsPoliticalDerivedHullIsSourceless bei den verwaisten Aussenhuellen
+ * ausdruecklich vermeidet (AGENTS.md §11).
+ *
+ * ⚠️ `function_exists` statt `require`: dieselbe Bauform wie in avesmapsDeleteMapFeature, damit die
+ * reinen Einheitentests dieses Verzeichnisses die Landschaften-Bibliothek nicht mitschleppen. Der
+ * Endpunkt api/edit/map/conflicts.php zieht sie ausdruecklich herein, die Bedingung ist dort also
+ * nie falsch. Fehlt sie doch, wird NICHT geloescht (avesmapsConflictLabelDeleteRefusal).
+ *
+ * Geloescht wird durch avesmapsDeleteMapFeature() -- die kanonische Strasse mit Revisionszaehler,
+ * Sperrpruefung, Kraftlinien-Riegel und Protokollzeile. Umkehrbar wie jedes Loeschen im Editor.
+ *
+ * @return array{ok:bool, public_id:string, changed:bool, name?:string, reason?:string}
+ */
+function avesmapsConflictDeleteLabel(PDO $pdo, string $publicId, int $userId): array {
+    $select = $pdo->prepare(
+        "SELECT public_id, name, feature_type, properties_json FROM map_features
+         WHERE public_id = :p AND is_active = 1 LIMIT 1"
+    );
+    $select->execute(['p' => $publicId]);
+    $feature = $select->fetch(PDO::FETCH_ASSOC);
+    if (!$feature) {
+        return ['ok' => false, 'public_id' => $publicId, 'changed' => false, 'reason' => 'Objekt nicht gefunden.'];
+    }
+
+    $properties = json_decode((string) ($feature['properties_json'] ?? '{}'), true);
+    if (!is_array($properties)) {
+        $properties = [];
+    }
+
+    $regionLookupReady = function_exists('avesmapsEcosystemRegionPublicIdOfLabel');
+    $regionPublicId = $regionLookupReady
+        ? avesmapsEcosystemRegionPublicIdOfLabel($pdo, $publicId, $properties)
+        : '';
+
+    $refusal = avesmapsConflictLabelDeleteRefusal(
+        (string) ($feature['feature_type'] ?? ''),
+        $regionLookupReady,
+        $regionPublicId,
+        avesmapsConflictLabelTwinsLeft(avesmapsConflictReadLabelIdentities($pdo), $publicId)
+    );
+    if ($refusal !== '') {
+        return ['ok' => false, 'public_id' => $publicId, 'changed' => false,
+            'name' => (string) ($feature['name'] ?? ''), 'reason' => $refusal];
+    }
+
+    avesmapsDeleteMapFeature($pdo, ['public_id' => $publicId], ['id' => $userId]);
+
+    return ['ok' => true, 'public_id' => $publicId, 'changed' => true, 'name' => (string) ($feature['name'] ?? '')];
+}
+
+/**
  * Apply one resolution across a conflict's parties, in a transaction.
  *
  * mode 'unlink'   -- drop the claim on every target
  * mode 'no_wiki'  -- drop it AND record that there is no article (makes the removal stick)
  * mode 'link'     -- attach the article carrying the object's exact name (looked up server-side)
+ * mode 'delete_label' -- eine ueberzaehlige Beschriftung von der Karte nehmen (Discord #83)
  *
  * "Behält den Link" is expressed by the caller as: unlink every party EXCEPT the keeper.
  *
@@ -528,12 +734,37 @@ function avesmapsConflictLinkFeature(PDO $pdo, string $publicId, array $wikiTitl
  */
 function avesmapsConflictResolve(PDO $pdo, array $input, int $userId): array {
     $mode = trim((string) ($input['mode'] ?? ''));
-    if (!in_array($mode, ['unlink', 'no_wiki', 'link'], true)) {
+    if (!in_array($mode, ['unlink', 'no_wiki', 'link', 'delete_label'], true)) {
         throw new RuntimeException('Unbekannter Reparatur-Modus.');
     }
     $targets = is_array($input['targets'] ?? null) ? $input['targets'] : [];
     if ($targets === []) {
         throw new RuntimeException('Keine Ziele angegeben.');
+    }
+
+    // 🔴 EIGENE BAHN, VOR der gemeinsamen Transaktion. avesmapsDeleteMapFeature() oeffnet seine
+    // eigene -- PDO kennt keine geschachtelten, ein beginTransaction() darum herum wuerde werfen.
+    // Jede Beschriftung ist damit fuer sich atomar, und das genuegt: der Knopf steht an EINER Partei
+    // und schickt genau eine. Der Verbund-Apparat der uebrigen Verben gilt hier ausdruecklich nicht
+    // -- eine Beschriftung ist eine Zeile, kein Namensverbund (avesmapsConflictRepairSpansNameGroup
+    // sagt fuer 'label' seit jeher false), und „alle gleichnamigen loeschen" waere das Gegenteil
+    // dessen, was dieser Fall will.
+    if ($mode === 'delete_label') {
+        $results = [];
+        $applied = 0;
+        foreach ($targets as $target) {
+            $publicId = trim((string) ($target['id'] ?? ''));
+            if ($publicId === '') {
+                continue;
+            }
+            $result = avesmapsConflictDeleteLabel($pdo, $publicId, $userId);
+            $results[] = $result;
+            if (!empty($result['changed'])) {
+                $applied++;
+            }
+        }
+
+        return ['ok' => true, 'applied' => $applied, 'results' => $results];
     }
     $expectedUrl = trim((string) ($input['wiki_url'] ?? ''));
     // Nur fuer 'link' gebraucht, und bewusst SERVERSEITIG geholt statt aus der Anfrage.

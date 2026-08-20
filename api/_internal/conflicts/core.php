@@ -306,3 +306,95 @@ function avesmapsConflictFindSharedWikiUrls(array $rows): array {
 
     return $conflicts;
 }
+
+/**
+ * Die IDENTITAET einer Beschriftung: „welches Ding beschriftet diese Zeile?" -- '' heisst „laesst
+ * sich nicht sagen".
+ *
+ * Drei Stuecke, und alle drei sind noetig (gemessen am Livebestand, 20.08.2026):
+ *   Wiki-Schluessel -- die EINZIGE gespeicherte Aussage „das hier ist jenes Ding". Ohne ihn bleibt
+ *      nur der Name, und ein Name ist kein Schluessel: „Hexenwald" gibt es dreimal, zwei davon 158
+ *      Karteneinheiten auseinander. Ohne Schluessel also keine Identitaet und kein Fall.
+ *   Name -- 💣 sonst waeren die zehn Arme des Mhanadi-Deltas eine Dublette. Sie zeigen alle auf den
+ *      Artikel „Mhanadi-Delta", heissen aber „Weisser Mhanadi", „Tiefer Mhanadi", … -- zehn echte
+ *      Beschriftungen. Sie gehoeren in avesmapsConflictRuleSharedArticle, nicht hierher.
+ *   Art -- 💣 „Grillenbusch" liegt zweimal auf einem Schluessel: als `graslandschaft` (Ebene
+ *      Vegetation) und als `huegelland` (Ebene Topographie). Die vier Landschaften-Ebenen
+ *      beschreiben denselben Fleck aus verschiedenen Blicken; das ist der Entwurf.
+ *
+ * Kleingeschrieben und getrimmt, weil MySQL live ebenfalls ohne Ruecksicht auf Gross-/Kleinschreibung
+ * vergleicht (utf8mb4_unicode_ci) -- derselbe Schnitt wie avesmapsConflictRepairGroupKey.
+ */
+function avesmapsConflictLabelIdentity(string $wikiKey, string $name, string $subtype): string {
+    $wikiKey = trim($wikiKey);
+    $name = trim($name);
+    if ($wikiKey === '' || $name === '') {
+        return '';
+    }
+
+    return mb_strtolower($wikiKey, 'UTF-8')
+        . "\0" . mb_strtolower($name, 'UTF-8')
+        . "\0" . mb_strtolower(trim($subtype), 'UTF-8');
+}
+
+/**
+ * Beschriftungen, die dasselbe Ding zweimal auf die Karte schreiben.
+ *
+ * 💣 DER RAUSCHFILTER IST DIE HALBE REGEL: eine Gruppe, deren Beschriftungen ALLE an DERSELBEN
+ * Landschaftsflaeche haengen, ist KEIN Fall. Die Beziehung Flaeche->Label ist ausdruecklich 1:N
+ * (docs/superpowers/specs/2026-07-28-landschaften-flaeche-label-kopplung-design.md) -- der
+ * Finsterkamm ist 57 Karteneinheiten lang und traegt seinen Namen zweimal, das Ingvaltal dreimal.
+ * Live gemessen (20.08.2026): ohne den Filter 10 Gruppen mit 22 Beschriftungen, davon sind 8
+ * Gruppen mit 19 Beschriftungen genau diese Lage. Die Regel meldete also 8 Fehltreffer gegen 1
+ * echten -- und boete an, Beschriftungen zu loeschen, an denen eine gezeichnete Flaeche haengt.
+ *
+ * ⚠️ VERSCHIEDENE Flaechen sind kein 1:N: zwei gleichnamige Regionen (live „Tulamidenlande", 120
+ * Einheiten auseinander) bleiben ein Befund, auch wenn dort nichts geloescht werden darf.
+ *
+ * Eine Zeile ist ['id','label','subtype','wiki_key','region'] -- `region` ist die public_id der
+ * Landschaftsflaeche oder ''. Sie reist bis in die Oberflaeche durch: dort entscheidet sie, ob der
+ * Loeschknopf ueberhaupt angeboten wird.
+ *
+ * @param list<array{id:string,label:string,subtype:string,wiki_key:string,region:string}> $rows
+ * @return list<array{identity:string, parties:list<array{id:string,label:string,subtype:string,region:string}>}>
+ */
+function avesmapsConflictFindDuplicateLabels(array $rows): array {
+    $groups = [];
+    foreach ($rows as $row) {
+        $id = trim((string) ($row['id'] ?? ''));
+        if ($id === '') {
+            continue;
+        }
+        $identity = avesmapsConflictLabelIdentity(
+            (string) ($row['wiki_key'] ?? ''),
+            (string) ($row['label'] ?? ''),
+            (string) ($row['subtype'] ?? '')
+        );
+        if ($identity === '') {
+            continue;
+        }
+        $groups[$identity][] = [
+            'id' => $id,
+            'label' => trim((string) ($row['label'] ?? '')),
+            'subtype' => (string) ($row['subtype'] ?? ''),
+            'region' => trim((string) ($row['region'] ?? '')),
+        ];
+    }
+
+    $duplicates = [];
+    foreach ($groups as $identity => $parties) {
+        if (count($parties) < 2) {
+            continue;
+        }
+        $regions = array_unique(array_column($parties, 'region'));
+        // Genau EINE Flaeche, und sie ist eine echte: das ist das 1:N und kein Fall. Ein leerer
+        // Wert steht fuer „gehoert zu keiner Flaeche" -- zwei freie Beschriftungen teilen sich
+        // damit zwar den leeren Wert, aber eben keine Flaeche.
+        if (count($regions) === 1 && reset($regions) !== '') {
+            continue;
+        }
+        $duplicates[] = ['identity' => (string) $identity, 'parties' => $parties];
+    }
+
+    return $duplicates;
+}
