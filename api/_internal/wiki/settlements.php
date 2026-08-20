@@ -17,6 +17,9 @@ declare(strict_types=1);
 // locations.php (Settlement-Class-Labels).
 
 require_once __DIR__ . '/place-scope.php';
+// „Liegt dieser Wiki-Titel auf der Karte?" -- geteilt mit der Kartensuche, damit die
+// drei Leser dieser Frage (zwei Listen hier, die Suche dort) nicht auseinanderlaufen.
+require_once __DIR__ . '/map-presence.php';
 // The global "Wappen: An/Aus" switch for settlement coats (ribbon toggle next to "Bilder: An").
 require_once __DIR__ . '/../app/coat-display.php';
 
@@ -1180,7 +1183,12 @@ function avesmapsWikiSettlementListLocations(PDO $pdo): array {
     };
 
     $items = [];
-    $mapKeys = [];
+    // „Liegt auf der Karte?" ist EINE Rechnung (api/_internal/wiki/map-presence.php) --
+    // dieselbe, die avesmapsWikiSettlementEditorList und die Kartensuche benutzen.
+    // Sie enthaelt beide Haelften, die hier frueher inline standen: die Kartennamen UND
+    // die Titel der zugewiesenen wiki_settlement-Nester (Oasen etwa tragen einen
+    // Karten-Namen, der den Wiki-Titel nicht 1:1 trifft), jeweils ohne Kreuzungen.
+    $mapKeys = avesmapsBuildMapPresenceIndex($rows);
     foreach ($rows as $r) {
         $sub = (string) ($r['feature_subtype'] ?? '');
         if ($sub === 'kreuzung') {
@@ -1190,25 +1198,9 @@ function avesmapsWikiSettlementListLocations(PDO $pdo): array {
         if ($name === '' || str_starts_with($name, 'Kreuzung')) {
             continue;
         }
-        // Angeglichen an den Fall-Sync: derselbe Match-Key (Umlaut-/ß-Faltung) wie
-        // avesmapsWikiSyncMatchMapPlaces, damit „Nur im Wiki" dieselbe „liegt auf der
-        // Karte"-Entscheidung trifft wie die Fehlende-Wiki-Orte-Cases.
-        $mk = avesmapsWikiSyncCreateMatchKey($name);
-        if ($mk !== '') {
-            $mapKeys[$mk] = true;
-        }
         $props = avesmapsWikiSyncDecodeJson($r['properties_json'] ?? null);
         $ws = $props['wiki_settlement'] ?? null;
         $connected = is_array($ws) && !empty($ws['title']);
-        // Manuell verlinkte Wiki-Siedlung ebenfalls als „liegt auf der Karte" werten: sonst bleibt
-        // ihr Registry-Eintrag unten als „Fehlt" stehen, wenn der Karten-Name vom Wiki-Titel
-        // abweicht (z. B. Oasen, deren Karten-Name den Wiki-Titel nicht 1:1 trifft).
-        if ($connected) {
-            $wsKey = avesmapsWikiSyncCreateMatchKey((string) $ws['title']);
-            if ($wsKey !== '') {
-                $mapKeys[$wsKey] = true;
-            }
-        }
         // Wappen + eigene Bilder: dieselbe Lesart wie avesmapsWikiSettlementEditorList (unten,
         // ~1405) -- Fenster und Panel-Liste sollen dieselbe Frage gleich beantworten. Ohne diese
         // zwei Felder koennte die Panel-Liste ihre Facetten „Wappen" und „Bilder" nicht bauen; sie
@@ -1272,7 +1264,7 @@ function avesmapsWikiSettlementListLocations(PDO $pdo): array {
             continue;
         }
         $bk = avesmapsWikiSyncCreateMatchKey($title);
-        if ($bk === '' || isset($mapKeys[$bk]) || isset($seen[$bk])) {
+        if ($bk === '' || avesmapsIsTitleOnMap($title, $mapKeys) || isset($seen[$bk])) {
             continue;
         }
         $seen[$bk] = true;
@@ -1458,7 +1450,11 @@ function avesmapsWikiSettlementEditorList(PDO $pdo): array {
     };
 
     $items = [];
-    $mapKeys = [];
+    // „Liegt auf der Karte?" ist EINE Rechnung, geteilt mit der Kartensuche
+    // (api/_internal/wiki/map-presence.php). Sie enthaelt beide Haelften, die hier
+    // frueher inline standen: die Kartennamen UND die Titel der zugewiesenen
+    // wiki_settlement-Nester, jeweils ohne Kreuzungen.
+    $mapKeys = avesmapsBuildMapPresenceIndex($rows);
     $onMap = 0;
     $unassigned = 0;
     foreach ($rows as $row) {
@@ -1469,13 +1465,6 @@ function avesmapsWikiSettlementEditorList(PDO $pdo): array {
         }
 
         $props = avesmapsWikiSyncDecodeJson($row['properties_json'] ?? null);
-
-        // Angeglichen an avesmapsWikiSettlementListLocations: derselbe Match-Key (Umlaut-/ß-Faltung),
-        // damit die Registry-Union unten dieselbe „liegt auf der Karte"-Entscheidung trifft.
-        $mk = avesmapsWikiSyncCreateMatchKey($name);
-        if ($mk !== '') {
-            $mapKeys[$mk] = true;
-        }
 
         $lng = null;
         $lat = null;
@@ -1496,15 +1485,9 @@ function avesmapsWikiSettlementEditorList(PDO $pdo): array {
         if ($wikiUrl === '') {
             $wikiUrl = (string) ($props['wiki_url'] ?? '');
         }
-        // Manuell verlinkte Wiki-Siedlung ebenfalls als „liegt auf der Karte" werten (siehe
-        // list_locations): sonst bleibt ihr Registry-Eintrag unten als wiki-only stehen, wenn der
-        // Karten-Name vom Wiki-Titel abweicht.
-        if (is_array($ws) && !empty($ws['title'])) {
-            $wsKey = avesmapsWikiSyncCreateMatchKey((string) $ws['title']);
-            if ($wsKey !== '') {
-                $mapKeys[$wsKey] = true;
-            }
-        }
+        // (Die manuell verlinkte Wiki-Siedlung zaehlt ebenfalls als „liegt auf der Karte" --
+        // sonst bliebe ihr Registry-Eintrag unten als wiki-only stehen, wenn der Karten-Name
+        // vom Wiki-Titel abweicht. Das steckt jetzt in avesmapsBuildMapPresenceIndex oben.)
         $otherSource = is_array($props['other_source'] ?? null) ? $props['other_source'] : null;
 
         $sourceCategory = 'keine';
@@ -1612,7 +1595,7 @@ function avesmapsWikiSettlementEditorList(PDO $pdo): array {
             continue;
         }
         $bk = avesmapsWikiSyncCreateMatchKey($title);
-        if ($bk === '' || isset($mapKeys[$bk]) || isset($seen[$bk])) {
+        if ($bk === '' || avesmapsIsTitleOnMap($title, $mapKeys) || isset($seen[$bk])) {
             continue;
         }
         $seen[$bk] = true;
