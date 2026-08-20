@@ -144,13 +144,30 @@ Neue Bibliothek `api/_internal/app/offmap-search.php`, Vorbild
 außer den Abfragen eine reine Funktion, damit ein Test sie ohne MySQL fahren kann —
 das Einzige, was auf dieser Maschine beweisbar ist.
 
-**Wie aus dem Rohwert ein Sprungziel wird.** Die Quellspalten sind roh und tragen
-Wiki-Markup (`standort` ausdrücklich, „[[Gareth]]: [[Arenaviertel]]"). Aufgelöst
-wird mit dem Werkzeug, das dafür existiert: `avesmapsPlaceScopeLoadIndex($pdo)`
-baut **einen** Index aus Siedlungs- **und** Regionsnamen, und
-`avesmapsPlaceScopeClassifyWithIndex($raw, $index)` liefert daraus die Zuordnung.
-Beides steht in `place-scope.php` und wird von der Innerorts-Suche und der
-Ortsliste des Editors bereits benutzt.
+**Wie aus dem Rohwert ein Sprungziel wird.** Die Quellspalten sind verschieden
+geformt: `standort` trägt rohes Wiki-Markup („[[Gareth]]: [[Arenaviertel]]"), `lage`
+ist bereits geputzt und zusammengesetzt („Garetien · Mittelreich"), `region_parent`
+und der Elternname eines Gebiets sind blanke Namen. Alle drei Formen liefern
+Kandidaten in Nennungsreihenfolge; der erste, der auf der Karte liegt, gewinnt.
+
+🪤 **Dieser Absatz stand bis zum 20.08.2026 falsch hier** — er nannte
+`avesmapsPlaceScopeClassifyWithIndex` als Auflöser. Die Funktion gibt ein Ziel aber
+**nur heraus, wenn es eine SIEDLUNG ist** (`place-scope.php:316`): sie ist gebaut
+für die Frage „in welcher Stadt liegt dieses Bauwerk". Die Sprungziele dieses
+Features sind überwiegend Regionen und Länder — für die hätte sie ausnahmslos leer
+geliefert, und **jeder** Treffer wäre im „kein Ort auf der Karte"-Zweig gelandet.
+Gefunden beim Bau, bevor eine Zeile davon abhing.
+
+💣 **Es sind zwei Fragen, und sie brauchen zwei Werkzeuge:**
+
+| Frage | Werkzeug | Rolle |
+|---|---|---|
+| „Liegt das innerorts?" | `avesmapsPlaceScopeClassifyWithIndex` | **Ausschluss** — `inside` gehört der dritten Quelle |
+| „Welches Kartenobjekt ist gemeint?" | `avesmapsOffmapResolvePlace` (neu) | **Auflösung** — gegen den Ziel-Index |
+
+⚠️ Der Fall `unklar` bleibt **drin**, nur ohne Sprungziel: dort weiß niemand, ob
+eine Stadt oder ein Gebiet gemeint ist, und ein Treffer ohne Ziel ist besser als
+gar keiner.
 
 💣 **EIN Index für die ganze Anfrage, nie einer je Zeile.** `settlements.php:1444`
 schreibt genau das als Regel hin, und der Grund ist STRATO: die Suche ist der
