@@ -772,6 +772,10 @@
 		     es gibt keinen Layoutsprung. Sichtbar nur bei mapLayerMode=ecosystem UND ?edit=1 UND
 		     ?landschaften=1 (drei Tore, siehe map-features-ecosystem-layer-switch.js). -->
 		<div id="ecosystem-controls" class="ecosystem-controls" hidden>
+			<!-- Ebenen-Reiter und der Knopf daneben in EINER Zeile. `#ecosystem-controls` ist ein Raster,
+			     in dem jedes Kind eine eigene Zeile bekommt -- ohne diese Hülle sass der Knopf allein
+			     und volle Breite darunter (Owner-Screenshot 20.08.2026). -->
+			<div class="ecosystem-layer-row">
 			<div id="ecosystem-layer-switch" class="ecosystem-layer-switch" role="tablist" aria-label="Landschafts-Ebene" data-i18n-aria-label="ecosystem.layerSwitch.aria">
 				<!-- 💣 „Alle" trägt BEWUSST KEIN data-ecosystem-kind. Dieses Attribut ist der Schlüssel des
 				     Ebenen-Zustands: er reist zum Server (list_regions, create_region), und
@@ -790,14 +794,19 @@
 					     kein Zeichenwerkzeug und keine Flächenverben gibt. -->
 					<button class="ecosystem-layer-switch__tab" type="button" role="tab" data-ecosystem-kind="klima" aria-selected="false" tabindex="-1" data-i18n="ecosystem.kind.klima">Klimazonen</button>
 			</div>
-			<!-- Der Zähler der gesperrten Regionen (19.08.2026).
-			     🔴 ER IST DER EINZIGE ORT, AN DEM EINE SPERRE SICHTBAR WIRD. Auf der Karte sieht eine
-			     gesperrte Region unverändert aus -- sie soll ja aussehen wie immer und nur den Klick
-			     nicht abfangen. Ohne den Zähler sucht in zwei Wochen jemand eine Fläche, die nicht
-			     mehr reagiert, und findet den Grund nicht.
+			<!-- Der Knopf zum Fenster „Reihenfolge und Sperren" (19.08.2026).
+			     🔴 SEIN ZEICHEN SAGT, WAS ER TUT: er öffnet eine Liste, also ☰. Bis zum 20.08.2026 trug
+			     er ein Schloss -- und ein Schloss behauptet einen ZUSTAND („hier ist etwas gesperrt"),
+			     während der Knopf in Wahrheit ein Fenster aufmacht. Owner: „das schloss impliziert dass
+			     was gesperrt ist, eigentlich geht ja ein menü auf".
+			     ⚠️ Die Zahl der gesperrten Regionen kommt als eigenes Abzeichen DANEBEN und nur, wenn
+			     es welche gibt -- sie ist die Auskunft, nicht die Handlung. Auf der Karte sieht eine
+			     gesperrte Region unverändert aus; ohne dieses Abzeichen sucht in zwei Wochen jemand eine
+			     Fläche, die nicht mehr reagiert, und findet den Grund nicht.
 			     ⚠️ Er steht AUSSERHALB von #ecosystem-layer-switch: dessen role="tablist" duldet nur
 			     Reiter, und syncEcosystemLayerSwitchControls stempelt darin jeden Knopf. -->
 			<button id="ecosystem-stapel-open" class="ecosystem-stapel-open" type="button" hidden aria-label="Reihenfolge und Sperren" data-i18n-aria-label="ecosystem.stapel.openAria"></button>
+			</div>
 			<!-- Untergrund-Regler (Owner 2026-07-26): blendet die Basiskacheln gegen Weiss aus, damit sich
 			     die gezeichneten Flaechen vom gemalten Gelaende abheben. 0 % sieht aus wie gar keine
 			     Grundkarte. Sitzt unter den drei Ebenen-Knoepfen, weil er zur Ansicht gehoert, nicht zur

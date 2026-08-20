@@ -232,11 +232,24 @@
 		const kind = typeof getActiveEcosystemLayerKind === "function" ? getActiveEcosystemLayerKind() : "";
 		const anzahl = gesperrteRegionen(kind).size;
 		knopf.hidden = false;
-		// Bei 0 unauffällig: ein Zähler, der immer leuchtet, sagt nichts mehr.
+
+		// 🔴 DAS ZEICHEN SAGT, WAS DER KNOPF TUT: ☰ öffnet eine Liste. Ein Schloss behauptete einen
+		// ZUSTAND, und der Knopf öffnet ein Fenster (Owner 20.08.2026).
+		knopf.textContent = "☰";
+
+		// Die Zahl der gesperrten Regionen als eigenes Abzeichen daneben — und nur, wenn es welche
+		// gibt. Sie ist die Auskunft, nicht die Handlung.
+		// ⚠️ Bei 0 verschwindet das Abzeichen ganz, statt „0" zu zeigen: ein Zähler, der immer da ist,
+		// sagt nichts mehr.
+		if (anzahl > 0) {
+			const abzeichen = document.createElement("span");
+			abzeichen.className = "ecosystem-stapel-open__zahl";
+			abzeichen.textContent = `🔒${anzahl}`;
+			knopf.appendChild(abzeichen);
+		}
 		knopf.classList.toggle("ecosystem-stapel-open--aktiv", anzahl > 0);
-		knopf.textContent = anzahl > 0 ? `🔒 ${anzahl}` : "🔒";
 		knopf.title = anzahl > 0
-			? `${anzahl} ${anzahl === 1 ? "gesperrte Region" : "gesperrte Regionen"} — Reihenfolge und Sperren öffnen`
+			? `Reihenfolge und Sperren — ${anzahl} ${anzahl === 1 ? "Region ist gesperrt" : "Regionen sind gesperrt"}`
 			: tr_("ecosystem.stapel.openAria", "Reihenfolge und Sperren");
 	}
 

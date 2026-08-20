@@ -2073,33 +2073,78 @@ body.leaflet-dragging .ecosystem-brush-pan .leaflet-interactive {
 	font-size: var(--font-size-small);
 }
 
-/* Der Zaehler in der Landschaften-Leiste.
-   🔴 ER IST DER EINZIGE ORT, AN DEM EINE SPERRE SICHTBAR WIRD -- auf der Karte sieht eine gesperrte
-   Region unveraendert aus. Bei 0 bleibt er unauffaellig: ein Zaehler, der immer leuchtet, sagt nichts. */
+/* Ebenen-Reiter und der Knopf daneben in EINER Zeile (20.08.2026).
+   💣 `#ecosystem-controls` ist ein RASTER: jedes Kind bekommt dort eine eigene Zeile. Ohne diese
+   Huelle sass der Knopf allein und in voller Breite unter den Reitern -- ein leerer Balken mit einem
+   winzigen Zeichen in der Mitte (Owner-Screenshot). */
+.ecosystem-layer-row {
+	display: flex;
+	align-items: stretch;
+	gap: var(--space-6);
+}
+
+/* Die Reiter nehmen den Rest. `1 1 auto`, nicht `1 1 0`: der Reiterbund ist selbst ein Raster mit
+   `minmax(0, 1fr)`-Spalten und bringt seine eigene Mindestbreite mit. */
+.ecosystem-layer-row > .ecosystem-layer-switch {
+	flex: 1 1 auto;
+	min-width: 0;
+}
+
+/* Der Knopf zum Fenster „Reihenfolge und Sperren".
+   🔴 SEIN ZEICHEN SAGT, WAS ER TUT (☰ = Liste oeffnen). Ein Schloss behauptete einen ZUSTAND,
+   waehrend der Knopf ein Fenster aufmacht -- Owner 20.08.2026. Die Zahl der gesperrten Regionen
+   haengt als Abzeichen daneben und nur, wenn es welche gibt. */
 .ecosystem-stapel-open {
-	align-self: flex-start;
-	margin-top: var(--space-4);
-	padding: var(--space-4) var(--space-8);
-	border: 1px solid var(--color-button-soft-border);
+	flex: 0 0 auto;
+	display: inline-flex;
+	align-items: center;
+	gap: var(--space-2);
+	padding: 0 var(--space-8);
+	border: 1px solid var(--color-border);
 	border-radius: var(--radius-md);
-	background: var(--color-button-soft);
-	color: var(--color-button-soft-text);
+	background: var(--color-panel-soft);
+	color: var(--color-text-muted);
 	cursor: pointer;
 	font: inherit;
-	font-size: var(--font-size-small);
-	line-height: var(--leading-snug);
+	font-size: var(--font-size-reading);
+	line-height: 1;
 }
 
 .ecosystem-stapel-open:hover {
 	background: var(--color-button-soft-hover);
+	color: var(--color-text);
 }
 
+/* Ist etwas gesperrt, faellt der Knopf auf -- aber nur so weit, wie eine Auskunft darf. */
 .ecosystem-stapel-open--aktiv {
 	border-color: var(--color-pill-border);
-	background: var(--color-pill);
 	color: var(--color-pill-text);
+}
+
+.ecosystem-stapel-open__zahl {
+	font-size: var(--font-size-caption);
+	font-variant-numeric: tabular-nums;
+	white-space: nowrap;
 }
 
 .ecosystem-stapel-open[hidden] {
 	display: none;
+}
+
+/* Das Fenster ist BREITER und seine Liste HOEHER als die geteilte Huelle (Owner 20.08.2026: „kannst
+   du das dialogfenster groesser machen"). In 420 px und 240 px Listenhoehe standen sechs von 89
+   Regionen -- man scrollte mehr, als man las.
+   ⚠️ Bewusst als ID-Regel: das ist die Groesse DIESES Fensters, keine neue Rezeptur fuer Listenzeilen.
+   Die Huelle, die Suchzeile und die Zeilenform kommen weiterhin von `.ecosystem-import-dialog`, damit
+   es kein zweites Fensteraussehen im Haus gibt. */
+#ecosystem-stapel-dialog {
+	width: min(640px, 100%);
+}
+
+/* ⚠️ `vh` UND ein Deckel: auf einem hohen Bildschirm soll die Liste nicht bis zum Rand laufen (der
+   Kopf, die Suchzeile und die Bilanz brauchen ihren Platz), auf einem niedrigen muss sie mitschrumpfen.
+   Gemessen bei 51 px Zeilenhöhe: rund 8 Zeilen in einem 720 px hohen Fenster, rund 12 auf 1080p.
+   Vorher waren es sechs, immer. */
+#ecosystem-stapel-list {
+	max-height: min(62vh, 620px);
 }
