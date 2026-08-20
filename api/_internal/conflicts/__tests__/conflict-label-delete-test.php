@@ -309,4 +309,45 @@ $geteilteArtikel = array_values(array_filter($alleFaelle, static fn(array $c): b
 assert($geteilteArtikel === [], 'die Artikel-Regel meldet dieselben Parteien nicht noch einmal: '
     . json_encode(array_map(static fn(array $c): string => (string) $c['title'], $geteilteArtikel)));
 
+// ================================================================================================
+// 7. Ohne Landschaften-Tabellen wird ABGELEHNT, nicht geworfen -- und schon gar nicht geloescht
+// ================================================================================================
+// ⚠️ avesmapsEcosystemRegionPublicIdOfLabel() fragt `ecosystem_region` OHNE try/catch. Auf einer
+// Installation ohne die Landschaften-Tabellen fliegt dort eine PDOException -- der Listenpfad faengt
+// das ab (avesmapsEcosystemReadLabelRegionMap), der Loeschpfad tat es nicht und antwortete mit 500.
+// Ein 500 ist zwar die sichere Richtung (es wird nichts geloescht), aber der Editor liest daraus
+// „kaputt" statt „geht hier nicht". Die Ausnahme heisst jetzt „ich konnte nicht nachsehen" und
+// landet in derselben Absage wie ein fehlendes function_exists.
+$ohneLandschaft = new AvesmapsLabelDeleteTestPdo('sqlite::memory:', null, null, [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]);
+$ohneLandschaft->exec('CREATE TABLE map_features (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    public_id TEXT, name TEXT, feature_type TEXT, feature_subtype TEXT,
+    geometry_type TEXT, geometry_json TEXT, properties_json TEXT, style_json TEXT,
+    revision INTEGER DEFAULT 0, is_active INTEGER DEFAULT 1, updated_by INTEGER NULL,
+    updated_at TEXT DEFAULT ""
+)');
+$einfuegen = $ohneLandschaft->prepare(
+    'INSERT INTO map_features (public_id, name, feature_type, feature_subtype, properties_json, is_active)
+     VALUES (?, ?, ?, ?, ?, 1)'
+);
+$einfuegen->execute([$DS_A, 'Drei Schwestern', 'label', 'berggipfel', json_encode($NEST('drei-schwestern'))]);
+$einfuegen->execute([$DS_B, 'Drei Schwestern', 'label', 'berggipfel', json_encode($NEST('drei-schwestern'))]);
+
+// Das Protokoll wird UMGELENKT statt unterdrueckt: dass der Fehler ueberhaupt irgendwo landet,
+// ist Teil der Zusicherung -- ein stiller catch waere die Bauart, die AGENTS.md anschreibt.
+$protokollDatei = tempnam(sys_get_temp_dir(), 'avesmaps-konflikt-');
+$altesProtokoll = ini_get('error_log');
+ini_set('error_log', $protokollDatei);
+$ohneAntwort = avesmapsConflictDeleteLabel($ohneLandschaft, $DS_B, 7);
+ini_set('error_log', $altesProtokoll === false ? '' : $altesProtokoll);
+$protokoll = (string) file_get_contents($protokollDatei);
+@unlink($protokollDatei);
+assert(mb_stripos($protokoll, 'ecosystem_region') !== false, 'der echte Grund steht im Fehlerprotokoll: ' . $protokoll);
+assert($ohneAntwort['ok'] === false, 'ohne Landschaften-Tabellen: Absage statt Ausnahme');
+assert(mb_stripos((string) $ohneAntwort['reason'], 'Landschaften') !== false, (string) $ohneAntwort['reason']);
+assert(
+    (int) $ohneLandschaft->query("SELECT is_active FROM map_features WHERE public_id = '" . $DS_B . "'")->fetchColumn() === 1,
+    'und geloescht wird dabei nichts'
+);
+
 fwrite(STDOUT, "conflict-label-delete-test: OK\n");

@@ -691,10 +691,25 @@ function avesmapsConflictDeleteLabel(PDO $pdo, string $publicId, int $userId): a
         $properties = [];
     }
 
+    // ⚠️ DER `catch` MACHT AUS EINEM FEHLER EINE ABSAGE, NICHT EIN „ES HAENGT NICHTS DRAN".
+    // avesmapsEcosystemRegionPublicIdOfLabel() fragt `ecosystem_region` ohne eigenes try/catch: auf
+    // einer Installation ohne die Landschaften-Tabellen fliegt dort eine PDOException, und die kam
+    // hier als HTTP 500 heraus. Ein 500 ist zwar die sichere Richtung -- geloescht wird nichts --,
+    // aber der Editor liest daraus „kaputt" statt „geht hier nicht". Wichtig ist die Richtung: der
+    // Fehler wird NICHT zu einem leeren Ergebnis (das hiesse „keine Flaeche daran" und gaebe den
+    // Loeschknopf frei), sondern zu demselben `false`, das auch ein fehlendes function_exists setzt.
+    // Protokolliert wird trotzdem -- ein stiller catch ist genau die Bauart, die AGENTS.md §11
+    // als „verschluckt seither jeden SQL-Fehler" anschreibt.
     $regionLookupReady = function_exists('avesmapsEcosystemRegionPublicIdOfLabel');
-    $regionPublicId = $regionLookupReady
-        ? avesmapsEcosystemRegionPublicIdOfLabel($pdo, $publicId, $properties)
-        : '';
+    $regionPublicId = '';
+    if ($regionLookupReady) {
+        try {
+            $regionPublicId = avesmapsEcosystemRegionPublicIdOfLabel($pdo, $publicId, $properties);
+        } catch (Throwable $exception) {
+            error_log('conflict label delete: Landschaften-Pruefung fehlgeschlagen: ' . $exception->getMessage());
+            $regionLookupReady = false;
+        }
+    }
 
     $refusal = avesmapsConflictLabelDeleteRefusal(
         (string) ($feature['feature_type'] ?? ''),
