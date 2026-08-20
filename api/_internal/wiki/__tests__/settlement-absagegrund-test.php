@@ -81,8 +81,13 @@ foreach (['settlements.php', 'paths.php'] as $dateiname) {
         !str_contains($pdo['rumpf'], 'getMessage()'),
         "{$dateiname}: der PDO-Zweig gibt NICHTS heraus -- SQLSTATE-Texte nennen Tabellen und Spalten"
     );
+    // 💣 ZWEI Hausformen, und beide sind richtig: avesmapsServerErrorResponse (bootstrap.php:409)
+    // schreibt zusaetzlich eine Protokollzeile und antwortet dann mit demselben Umschlag wie
+    // avesmapsErrorResponse(500, 'server_error', …). Der Test darf deshalb nicht auf eine der
+    // beiden festnageln -- er prueft, dass der Zweig NACH AUSSEN 500 und stumm ist.
     assert(
-        str_contains($pdo['rumpf'], "avesmapsErrorResponse(500, 'server_error'"),
+        str_contains($pdo['rumpf'], 'avesmapsServerErrorResponse($error')
+        || str_contains($pdo['rumpf'], "avesmapsErrorResponse(500, 'server_error'"),
         "{$dateiname}: der PDO-Zweig antwortet mit 500 und dem stummen Satz"
     );
 
@@ -99,6 +104,12 @@ foreach (['settlements.php', 'paths.php'] as $dateiname) {
     assert(
         !str_contains($rest['rumpf'], 'getMessage()'),
         "{$dateiname}: der Throwable-Zweig bleibt stumm -- dort landet, was NICHT abgesprochen ist"
+    );
+
+    assert(
+        str_contains($rest['rumpf'], 'avesmapsServerErrorResponse($error')
+        || str_contains($rest['rumpf'], "avesmapsErrorResponse(500, 'server_error'"),
+        "{$dateiname}: der Throwable-Zweig antwortet mit 500"
     );
 
     echo "OK  {$dateiname}: PDOException -> RuntimeException (mit Grund) -> Throwable\n";

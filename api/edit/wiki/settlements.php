@@ -147,7 +147,11 @@ try {
     // 🔴 ZUERST, UND DAS IST DER GANZE GRUND FUER DIE REIHENFOLGE: PDOException ERBT von
     // RuntimeException. Stuende sie unter dem Zweig darunter, gingen SQLSTATE-Texte samt
     // Tabellen- und Spaltennamen an den Client (AGENTS.md §10, Meilenstein M1).
-    avesmapsErrorResponse(500, 'server_error', 'Internal server error.');
+    // ⚠️ avesmapsServerErrorResponse statt avesmapsErrorResponse: derselbe Umschlag nach aussen
+    // (500/server_error/"Internal server error."), zusaetzlich EINE Zeile im Serverprotokoll.
+    // Vorher wurde $error gefangen und nie benutzt -- die Ausnahme verschwand spurlos, und genau
+    // das machte Fall #84 unauffindbar. Der Helfer steht seit laengerem in bootstrap.php:409.
+    avesmapsServerErrorResponse($error, 'wiki-settlements');
 } catch (RuntimeException $error) {
     // 💣 EINE ABSAGE MUSS IHREN GRUND NENNEN. Bis zum 20.08.2026 fing hier ein einziges
     // catch (Throwable) auch die EIGENEN, handgeschriebenen Absagen dieses Endpunkts ab
@@ -163,6 +167,6 @@ try {
     // sync.php) -- eine neue darf das nicht brechen.
     avesmapsErrorResponse(400, 'invalid_request', $error->getMessage());
 } catch (Throwable $error) {
-    // Was hier landet, ist NICHT abgesprochen -- also bleibt es stumm.
-    avesmapsErrorResponse(500, 'server_error', 'Internal server error.');
+    // Was hier landet, ist NICHT abgesprochen -- nach aussen bleibt es stumm, ins Protokoll nicht.
+    avesmapsServerErrorResponse($error, 'wiki-settlements');
 }
