@@ -80,6 +80,21 @@ function avesmapsEcosystemSeedStackOrder(PDO $pdo): int
     $hoechster = $pdo->prepare(
         'SELECT COALESCE(MAX(stack_order), 0) FROM ecosystem_region WHERE kind = :kind AND is_active = 1'
     );
+
+    // ⭐ EINE Transaktion um den ganzen Lauf. Es sind rund 780 Zeilen, und dieser Lauf faellt in die
+    // eine Anfrage, die die Spalte anlegt -- auf STRATO ist der Unterschied zwischen 780 einzeln
+    // bestaetigten Schreibvorgaengen und einem Rutsch der Unterschied zwischen Sekunden und
+    // Millisekunden. Ausserdem sieht so keine gleichzeitige Anfrage einen halb einsortierten Stapel.
+    //
+    // ⚠️ Nur, wenn nicht schon eine laeuft: die Schreib-Handler rufen EnsureTables VOR ihrem eigenen
+    // beginTransaction, aber verlassen darf man sich darauf nicht -- ein verschachteltes
+    // beginTransaction wirft.
+    $eigeneTransaktion = !$pdo->inTransaction();
+    if ($eigeneTransaktion) {
+        $pdo->beginTransaction();
+    }
+
+    try {
     foreach ($jeEbene as $kind => $liste) {
         // Absteigend nach Groesse: die groesste bekommt die kleinste Zahl und liegt damit unten.
         // 🪤 STABIL bei Gleichstand -- danach nach id. Sonst wuerfelte jeder Lauf die Stapelung neu,
@@ -99,6 +114,15 @@ function avesmapsEcosystemSeedStackOrder(PDO $pdo): int
             $schreiben->execute(['rang' => $rang, 'id' => $eintrag['id']]);
             $geschrieben++;
         }
+    }
+        if ($eigeneTransaktion) {
+            $pdo->commit();
+        }
+    } catch (Throwable $ausnahme) {
+        if ($eigeneTransaktion && $pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
+        throw $ausnahme;
     }
 
     return $geschrieben;
