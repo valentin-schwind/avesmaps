@@ -218,6 +218,105 @@ function avesmapsBuildOffmapSearchEntries(
 }
 
 /**
+ * Die Zeilen der Arten, deren Sprungziel BEREITS als Spalte dasteht:
+ * Landschaften, Wege und Staetten ausserhalb von Staedten.
+ *
+ * 💣 Jede Abfrage steht in ihrem EIGENEN try/catch. Fehlt eine Staging-Tabelle
+ * (frische Installation, Sync nie gelaufen), darf die Kartensuche deswegen nicht
+ * ausfallen -- sie verliert dann nur diese eine Art. Ein gemeinsames catch wuerde
+ * beim ersten Fehler alle drei verschlucken.
+ *
+ * ⚠️ Kontinent-Filter: „Aventurien" ODER leer. Die Staging-Tabellen halten
+ * bewusst ALLE Kontinente (Owner-Entscheid, der Dump spiegelt das Wiki), aber ein
+ * myranischer Ort kann auf dieser Karte nie ein Sprungziel haben und wuerde nur
+ * den Deckel fuellen. Leer zaehlt als Aventurien -- dieselbe Lesart wie die
+ * Ortsliste des Editors, wo der Kontinent per Backfill nachgetragen wird.
+ *
+ * @return list<array{title: string, type_label: string, place_raw: string, wiki_url: string, kind: string}>
+ */
+function avesmapsFetchOffmapSearchRows(PDO $pdo): array
+{
+    $rows = [];
+    $aventurien = "(continent IS NULL OR continent = '' OR continent = 'Aventurien')";
+
+    // Landschaften/Regionen: region_parent und affiliation_staat sind eigene Spalten.
+    // Beide reisen als Kandidaten mit -- ist die Elternregion ungezeichnet, der Staat
+    // aber schon, gewinnt der Staat (avesmapsOffmapPlaceCandidates).
+    try {
+        $statement = $pdo->query(
+            "SELECT name, art, region_parent, affiliation_staat, wiki_url
+               FROM wiki_region_staging
+              WHERE {$aventurien}"
+        );
+        foreach ($statement !== false ? $statement->fetchAll(PDO::FETCH_ASSOC) : [] as $row) {
+            $eltern = array_filter([
+                (string) ($row['region_parent'] ?? ''),
+                (string) ($row['affiliation_staat'] ?? ''),
+            ], static fn(string $value): bool => trim($value) !== '');
+            $rows[] = [
+                'title' => (string) ($row['name'] ?? ''),
+                'type_label' => trim((string) ($row['art'] ?? '')) !== ''
+                    ? (string) $row['art']
+                    : 'Landschaft',
+                'place_raw' => implode(' · ', $eltern),
+                'wiki_url' => (string) ($row['wiki_url'] ?? ''),
+                'kind' => 'region',
+            ];
+        }
+    } catch (Throwable) {
+        // Tabelle fehlt -> diese Art faellt aus, die Suche laeuft weiter.
+    }
+
+    // Wege/Fluesse: lage_raw traegt das Markup, lage die geputzte Fassung.
+    // Beide taugen als Rohwert; lage_raw zuerst, weil die Links darin die
+    // Namensgrenzen mitliefern.
+    try {
+        $statement = $pdo->query(
+            "SELECT name, art, lage, lage_raw, wiki_url FROM wiki_path_staging WHERE {$aventurien}"
+        );
+        foreach ($statement !== false ? $statement->fetchAll(PDO::FETCH_ASSOC) : [] as $row) {
+            $roh = trim((string) ($row['lage_raw'] ?? ''));
+            $rows[] = [
+                'title' => (string) ($row['name'] ?? ''),
+                'type_label' => trim((string) ($row['art'] ?? '')) !== ''
+                    ? (string) $row['art']
+                    : 'Weg',
+                'place_raw' => $roh !== '' ? $roh : (string) ($row['lage'] ?? ''),
+                'wiki_url' => (string) ($row['wiki_url'] ?? ''),
+                'kind' => 'path',
+            ];
+        }
+    } catch (Throwable) {
+    }
+
+    // Bauwerke/Staetten. Der Innerorts-Fall faellt in
+    // avesmapsBuildOffmapSearchEntries heraus (er gehoert in-settlement-search.php);
+    // hier wird bewusst NICHT vorgefiltert, weil die Entscheidung den Scope-Index
+    // braucht, den erst der Endpunkt hat.
+    try {
+        $statement = $pdo->query(
+            "SELECT title, building_type, standort, wiki_url
+               FROM wiki_sync_pages
+              WHERE settlement_class = 'gebaeude' AND {$aventurien}"
+        );
+        foreach ($statement !== false ? $statement->fetchAll(PDO::FETCH_ASSOC) : [] as $row) {
+            $rows[] = [
+                'title' => (string) ($row['title'] ?? ''),
+                'type_label' => trim((string) ($row['building_type'] ?? '')) !== ''
+                    ? (string) $row['building_type']
+                    : 'Bauwerk',
+                'place_raw' => (string) ($row['standort'] ?? ''),
+                'wiki_url' => (string) ($row['wiki_url'] ?? ''),
+                'kind' => 'building',
+            ];
+        }
+    } catch (Throwable) {
+    }
+
+    return $rows;
+}
+
+/**
  * PURE: Tiebreak fuer avesmapsCollectSearchSection.
  *
  * 🔴 Wer hinfliegen kann, steht vor dem, der nur gelesen werden kann -- aber erst
