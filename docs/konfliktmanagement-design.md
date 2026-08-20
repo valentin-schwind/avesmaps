@@ -469,6 +469,113 @@ Editor bei Gelegenheit durchgeht statt ihn als Rückstand vor sich herzuschieben
 > „Durenwald" ⇄ „Dûrenwald"). Die Kandidaten müssen also aus `wiki_sync_pages` kommen,
 > nicht aus dem Kartenbestand — die Messung von hier aus kann sie nicht vorwegnehmen.
 
+## 6c. Dieselbe Beschriftung zweimal — die einzige Regel, die LÖSCHT
+
+> Live 2026-08-20 · Auslöser: Discord #83 („Unsichtbare Berg-Labels")
+> Regel `label.duplicate`, Gruppe „Dieselbe Beschriftung zweimal"
+
+„Drei Schwestern" liegt zweimal in `map_features`: zwei `berggipfel`-Beschriftungen
+auf demselben Wiki-Schlüssel, 2,35 Karteneinheiten auseinander, eine davon mit
+Höhe und eine ohne. Eine der beiden gewinnt die Label-Kollision nie und wird
+deshalb nie gezeichnet — und **was nicht gezeichnet ist, lässt sich auf der Karte
+nicht anklicken**: kein Klick, kein Rechtsklick, kein Löschen. Das ist die
+Owner-Regel von den verwaisten Außenhüllen in zweiter Auflage („es darf doch auf
+der map keine elemente geben über die ich keine kontrolle mehr habe").
+
+🔴 **Gelöst wird das an den DATEN, nicht an der Darstellung.** Owner, wörtlich:
+„berggipfel müssen lesbar sein, das hat nix mit kollisionen zu tun." Beide
+Beschriftungen lesbar zu machen wäre die falsche Reparatur — dann stünde der Name
+zweimal auf der Karte.
+
+### Die Identität
+
+Gleicher **Wiki-Schlüssel** + gleicher **Name** + gleiche **Art**. Alle drei sind
+nötig, jedes am Livebestand belegt (20.08.2026):
+
+- ohne den **Namen** wären die zehn Arme des Mhanadi-Deltas („Weißer Mhanadi" …,
+  alle auf dem Artikel *Mhanadi-Delta*) eine Dublette — das sind zehn echte
+  Beschriftungen, und eine zu löschen nähme der Karte einen Flussarm;
+- ohne die **Art** der „Grillenbusch", der als `graslandschaft` (Vegetation) und
+  als `huegelland` (Topographie) auf einem Schlüssel liegt — zwei
+  Landschaften-Ebenen beschreiben denselben Fleck, das ist der Entwurf;
+- ohne den **Schlüssel** bliebe nur der Name, und „Hexenwald" gibt es dreimal,
+  zwei davon 158 Einheiten auseinander. Ein Name ist kein Schlüssel.
+
+### 💣 Der Rauschfilter ist die halbe Regel
+
+Eine Gruppe, deren Beschriftungen **alle an derselben Landschaftsfläche** hängen,
+ist **kein** Fall: Fläche→Label ist ausdrücklich 1:N. Der Finsterkamm ist 57
+Einheiten lang und trägt seinen Namen zweimal, das Ingvaltal dreimal.
+
+Gemessen: ohne den Filter 10 Gruppen mit 22 Beschriftungen, davon **8 Gruppen mit
+19 Beschriftungen** genau diese Lage — 8 Fehltreffer gegen 1 echten. Schlimmer
+noch: er böte an, genau die Labels zu löschen, an denen gezeichnete Geometrie
+hängt. Live bleiben **zwei** Fälle: „Drei Schwestern" (beide löschbar) und
+„Tulamidenlande" (zwei gleichnamige Regionen, keine löschbar).
+
+### 💣 Zwei Kaskaden hängen an einem gelöschten Label, und beide sind still
+
+**(a) Die Landschafts-Kaskade.** Entfernt ein Löschvorgang das *letzte* Label
+einer Region, verschwindet die Region samt ihren gezeichneten Flächen
+(`AVESMAPS_ECOSYSTEM_CASCADE_ENABLED`). Am Livebestand hat fast jede Region genau
+ein Label — der Auslösefall IST der Normalfall.
+
+🔴 Verhindert wird sie **nicht durch eine eigene Rechnung**, sondern durch
+`refuse_ecosystem_cascade` im Rumpf von `avesmapsDeleteMapFeature`: die Regel
+steht damit INNERHALB der Transaktion, hinter dem `FOR UPDATE`, und jeder
+künftige Erzeuger erbt sie. ⚠️ Ein nur beratender Riegel im Konfliktzentrum
+reichte **nicht**: `ecosystem_region.label_public_id` wird allein in
+`ecosystem_region` geschrieben, die Label-Zeile bleibt dabei unberührt — das
+`FOR UPDATE` deckt diese Richtung also nicht, und wer im Fenster „Beschriftung
+zuweisen" drückt, macht aus dem geprüften `''` ein `R`. Der beratende Riegel
+bleibt trotzdem: er liefert die verständliche Absage im Normalfall, und die
+Anzeige `deletable` hängt an derselben Frage.
+
+**(b) Das Höhenfeld.** Ein `berggipfel`/`vulkan`-Label **ist** ein Stützpunkt:
+`terrain-store.php` liest genau diese Labels mit `is_active = 1` und nimmt
+`properties.height_schritt`. Owner-Entscheid: **keine Verweigerung, aber eine
+zweite Rückfrage, die die Folge beim Namen nennt** — das Löschen ist weich und
+über den Änderungs-Log umkehrbar, ein Verbot nähme dem Editor einen legitimen
+Fall.
+
+### ⚠️ Woran man die beiden auseinanderhält
+
+Die Parteien sehen einander zum Verwechseln ähnlich. Unterschieden werden sie an
+der **Lage** (x/y, ausdrücklich beschriftet — GeoJSON speichert `[x, y]`, Leaflet
+will `[lat, lng]`) und an der **Höhe**, wo eine vorhanden ist. **Nicht** am
+Zeitstempel: `map_features.updated_at` ist `ON UPDATE CURRENT_TIMESTAMP(3)`, und
+ausgerechnet `avesmapsWikiRegionAssign` — der Erzeuger dieser Gruppen — schreibt
+beide Zeilen im selben Lauf. Er steht als Beigabe da und trägt nichts.
+
+### 🪤 Die Verdrängung erbt die Entscheidung
+
+Zwei Beschriftungen desselben Dings tragen dieselbe Wiki-Adresse, also findet
+`wiki.shared_article` sie ebenfalls — mit Verben, die den doppelten Namen gar
+nicht loswerden. Diese Gruppe wird deshalb **verdrängt**, aber nur bei exakt
+gleicher Parteienliste (kommt ein Ort dazu, bleibt der Befund stehen).
+
+💣 Und der verdrängte Fall **vererbt seine Entscheidung**. Ohne das wäre die
+Verdrängung ein Datenverlust auf Raten: der berechnete Fall verschwindet, eine
+gespeicherte Entscheidung passt auf nichts mehr,
+`avesmapsConflictApplyDecisions` macht daraus eine „Erledigt"-Historienzeile
+(„Daten repariert") — obwohl niemand etwas repariert hat —, und derselbe
+Sachverhalt steht sofort als offener Fehler unter der neuen Regel. Genau dafür
+gibt es „Genehmigt": der Owner hat am 21.07.2026 beim Maraskansund entschieden,
+dass zwei Buchten-Labels auf einem Artikel richtig sind.
+
+### Bauteile
+
+`avesmapsConflictLabelIdentity` / `avesmapsConflictFindDuplicateLabels`
+(`core.php`, rein) · `avesmapsConflictLoadLabelRows` /
+`avesmapsConflictRuleDuplicateLabel` / `avesmapsConflictMergeDuplicateIntoShared`
+(`rules.php`) · `avesmapsConflictLabelDeleteRefusal` /
+`avesmapsConflictLabelTwinsLeft` / `avesmapsConflictDeleteLabel` (`repair.php`) ·
+`createConflictDuplicateActions` (`review-conflicts.js`). Tests:
+`conflict-label-duplicate-test.php`, `conflict-label-delete-test.php`
+(mit **Zeugen**: die Kaskade schlägt in derselben Fixture erst wirklich zu),
+`conflict-dublette-verben.test.js`.
+
+
 ## 7. Die Regeln zum Start
 
 Viele Prüfungen existieren bereits — aber **weniger, als ich zunächst behauptet
@@ -493,6 +600,7 @@ existiert, taugt aber nicht direkt als Erkenner) und *neu*.
 | Weg | Befahrbarkeit fehlt | **neu** — es existiert keinerlei Prüfung |
 | Region | Art ≠ Label-Subtyp | **fertig und bereits sichtbar** — `avesmapsWikiRegionTypeConflict` (`regions.php:85`) wird mit ⚠-Präfix gerendert (`review-region-sync.js:219-222`) und lässt die Massenzuordnung das Paar überspringen (`regions.php:816-818`) |
 | Region | dieselbe Wiki-Region mehrfach zugeordnet | **fertig** — `…ReadMapLabelsByWikiRegion` (`regions.php:916`) |
+| **Beschriftung** | dieselbe Beschriftung zweimal auf der Karte | **live 20.08.2026** — `label.duplicate`, siehe §6c; einzige Regel mit einem löschenden Verb |
 | Abenteuer | unaufgelöste Orte | **fertig** — `adventure-resolve.php` |
 | Karte | Dubletten | **erledigt** — `avesmapsCitymapDedupeByWikiKey` (`citymap-sync.php:612`); der Bug wurde am 2026-07-18 mit `84b52c42` behoben |
 | Quelle | `wiki_key`-Kollision | **fertig** — `avesmapsSourceWikiKeyReport` (`feature-sources.php:546`), löst über drei Wege auf (stored / hash / url), nur ohne Oberfläche |
