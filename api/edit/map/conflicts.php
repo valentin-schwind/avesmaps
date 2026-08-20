@@ -153,6 +153,21 @@ try {
             'by_type' => $byType,
         ],
     ]);
+} catch (AvesmapsConflictException $exception) {
+    // 💣 MUSS VOR dem Throwable-Block stehen -- PHP nimmt den ersten passenden, darunter waere
+    // dieser unerreichbar und ein Rennfall kaeme als nacktes 500 heraus.
+    //
+    // Die Meldungen dieser Klasse sind fuer den Editor geschrieben und sagen, was zu tun ist:
+    // „wird gerade von X bearbeitet", „wurde inzwischen geaendert", und seit dem 20.08.2026
+    // „gehoert inzwischen zu einer Landschaftsflaeche" (der Riegel im Loeschweg, der die Kaskade
+    // verbietet). Ein 500 mit generischem Text machte daraus „kaputt". 409 mit Text, wie
+    // api/edit/map/features.php es fuer dieselbe Klasse laengst tut.
+    //
+    // 🔴 Die Klasse ist seit dem 20.08.2026 in api/_internal/map/features.php deklariert (unter
+    // class_exists) und kommt ueber conflicts/repair.php mit. Vorher stand sie NUR im
+    // Karten-Endpunkt und war in dieser Kette gar nicht vorhanden -- ein `throw` haette hier einen
+    // Fatal Error „Class not found" ergeben, nicht die gemeinte Meldung.
+    avesmapsErrorResponse(409, 'conflict', $exception->getMessage());
 } catch (Throwable $exception) {
     // Canonical helper: writes the real reason to the PHP error log and returns a generic 500 to the
     // client. Swallowing it entirely (the first draft here) would have made a failed first run

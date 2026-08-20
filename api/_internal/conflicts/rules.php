@@ -21,9 +21,14 @@ declare(strict_types=1);
 require_once __DIR__ . '/core.php';
 // „Welche Beschriftung gehoert zu welcher Landschaftsflaeche" -- die EINE Stelle, an der diese
 // Beziehung gelesen wird. Ihr Dateikopf sagt selbst, warum sie eine eigene ist: sie ist in BEIDE
-// Richtungen gespeichert, und keine Seite allein ist vollstaendig. Sie macht kein DDL, schreibt
-// nichts und liefert die leere Beziehung, wenn die Landschaften-Tabellen fehlen -- eine Installation
-// ohne das Feature verhaelt sich also wie vorher.
+// Richtungen gespeichert, und keine Seite allein ist vollstaendig. Sie macht kein DDL und schreibt
+// nichts.
+// 🪤 Fehlen die Landschaften-Tabellen, liefert sie die LEERE Beziehung -- und dann gilt hier jede
+// Beschriftung als frei, die Liste zeigt also ueberall `deletable: true`. Hier stand „verhaelt sich
+// wie vorher", und das war zu bequem gesagt. Gefaehrlich ist es nicht: der Schreibpfad fragt
+// avesmapsEcosystemRegionPublicIdOfLabel selbst, und die wirft ohne die Tabellen -- was
+// avesmapsConflictDeleteLabel in eine ABSAGE uebersetzt. Die Anzeige verspricht dort also mehr als
+// der Knopf haelt, und das ist die sichere Richtung.
 require_once __DIR__ . '/../app/ecosystem-label-link.php';
 
 // PATH_SUBTYPE_KEYS as they appear in map_features.feature_subtype (AGENTS.md §2).
@@ -396,7 +401,7 @@ function avesmapsConflictLoadWikiTitles(PDO $pdo): array {
  * Jergan (Wasserfall) auf der Karte -> dann kann ich entscheiden." So every party reports whether an
  * article under its own exact name exists, and where it sits on the map.
  */
-function avesmapsConflictRuleSharedArticle(array $rows, array $wikiTitles = [], array $suppressedPartySets = []): array {
+function avesmapsConflictRuleSharedArticle(array $rows, array $wikiTitles = []): array {
     $meta = [];
     foreach ($rows as $row) {
         $meta[$row['type'] . '|' . $row['id']] = [
@@ -406,18 +411,6 @@ function avesmapsConflictRuleSharedArticle(array $rows, array $wikiTitles = [], 
     }
     $conflicts = [];
     foreach (avesmapsConflictFindSharedWikiUrls($rows) as $group) {
-        // 💣 Derselbe Fall darf nicht ZWEIMAL in der Liste stehen. Zwei Beschriftungen desselben
-        // Dings tragen im Wiki-Nest dieselbe Adresse, also findet diese Regel sie ebenfalls -- nur
-        // sagt sie „mehrere Objekte beanspruchen einen Artikel" und bietet Knoepfe an, die den
-        // doppelten Namen auf der Karte nicht loswerden. avesmapsConflictRuleDuplicateLabel sagt
-        // dasselbe besser UND hat das Verb dafuer. Zwei Knoepfe am selben Fall mit verschiedener
-        // Wirkung sind schlimmer als zwei getrennte Fehler (Owner-Entscheid 15.08.2026 zu den Wegen).
-        // ⚠️ Unterdrueckt wird nur bei EXAKT gleicher Parteienliste: kommt ein Ort dazu, der denselben
-        // Artikel beansprucht, ist das ein zusaetzlicher Befund -- die Dubletten-Regel kennt nur
-        // Beschriftungen und saehe ihn nie. Live betrifft das genau eine Gruppe (20.08.2026).
-        if ($suppressedPartySets !== [] && isset($suppressedPartySets[avesmapsConflictPartySetKey($group['parties'])])) {
-            continue;
-        }
         $claimedKey = avesmapsConflictArticleKey((string) $group['wiki_url']);
         $parties = array_map(static function (array $party) use ($wikiTitles, $meta, $group, $claimedKey): array {
             $party['type_label'] = AVESMAPS_CONFLICT_TYPE_LABELS[$party['type']] ?? $party['type'];
@@ -484,21 +477,51 @@ function avesmapsConflictPartySetKey(array $parties): string {
 }
 
 /**
- * REIN: Die Parteienlisten, die eine andere Regel bereits vollstaendig abdeckt.
+ * REIN: Der Dubletten-Fall VERDRAENGT die Artikelgruppe, die aus denselben Parteien besteht -- und
+ * ERBT deren Entscheidung.
  *
- * @param list<array{parties?:list<array<string,mixed>>}> $conflicts
- * @return array<string,bool>
+ * 💣 Ohne das Erben waere die Entdopplung ein Datenverlust auf Raten: verschwindet der berechnete
+ * Artikelfall, passt eine dazu gespeicherte Entscheidung auf nichts mehr.
+ * avesmapsConflictApplyDecisions macht daraus eine „Erledigt"-Historienzeile („Daten repariert"),
+ * obwohl niemand etwas repariert hat -- und derselbe Sachverhalt steht sofort als OFFENER Fehler
+ * unter der neuen Regel. Genau dafuer gibt es „Genehmigt": der Owner hat am 21.07.2026 beim
+ * Maraskansund entschieden, dass zwei Buchten-Labels auf einem Artikel richtig sind (core.php).
+ *
+ * 🔴 Verdraengt wird NUR bei exakt gleicher Parteienliste. Kommt ein Ort dazu, der denselben Artikel
+ * beansprucht, ist das ein zusaetzlicher Befund -- die Dubletten-Regel kennt nur Beschriftungen und
+ * saehe ihn nie.
+ *
+ * ⚠️ Der Fingerabdruck wird HIER dem fertigen Fall entnommen, nicht nachgebaut. Ein Nachbau muesste
+ * die Anzeige-URL der Gruppe erraten (avesmapsConflictFindSharedWikiUrls nimmt die des ERSTEN
+ * Treffers), und eine andere Schreibweise desselben Links ergaebe einen anderen Schluessel -- die
+ * Erbschaft ginge lautlos verloren.
+ *
+ * @param list<array<string,mixed>> $sharedConflicts
+ * @param list<array<string,mixed>> $duplicateConflicts
+ * @return array{shared:list<array<string,mixed>>, duplicates:list<array<string,mixed>>}
  */
-function avesmapsConflictSuppressedPartySets(array $conflicts): array {
-    $sets = [];
-    foreach ($conflicts as $conflict) {
-        $key = avesmapsConflictPartySetKey($conflict['parties'] ?? []);
+function avesmapsConflictMergeDuplicateIntoShared(array $sharedConflicts, array $duplicateConflicts): array {
+    $duplicateByPartySet = [];
+    foreach ($duplicateConflicts as $index => $duplicate) {
+        $key = avesmapsConflictPartySetKey($duplicate['parties'] ?? []);
         if ($key !== '') {
-            $sets[$key] = true;
+            $duplicateByPartySet[$key] = $index;
         }
+        $duplicateConflicts[$index]['inherits'] = [];
     }
 
-    return $sets;
+    $sharedLeft = [];
+    foreach ($sharedConflicts as $shared) {
+        $key = avesmapsConflictPartySetKey($shared['parties'] ?? []);
+        if ($key === '' || !isset($duplicateByPartySet[$key])) {
+            $sharedLeft[] = $shared;
+            continue;
+        }
+        $duplicateConflicts[$duplicateByPartySet[$key]]['inherits'][] =
+            (string) ($shared['rule_id'] ?? '') . '|' . (string) ($shared['fingerprint'] ?? '');
+    }
+
+    return ['shared' => $sharedLeft, 'duplicates' => array_values($duplicateConflicts)];
 }
 
 /**
@@ -835,10 +858,18 @@ function avesmapsConflictDetectAll(PDO $pdo): array {
     // Liste, das zweite Mal mit Knoepfen, die den doppelten Namen nicht loswerden.
     $duplicateLabels = avesmapsConflictRuleDuplicateLabel(avesmapsConflictLoadLabelRows($pdo));
 
-    $conflicts = array_merge(
-        avesmapsConflictRuleSharedArticle($claimRows, $wikiTitles, avesmapsConflictSuppressedPartySets($duplicateLabels)),
-        avesmapsConflictCollapseSegmentsByName(avesmapsConflictRuleMissingKey($rows, $wikiTitles)),
+    // Die Artikelgruppe, die aus GENAU denselben Parteien besteht, wird vom Dubletten-Fall
+    // verdraengt -- und ihre Entscheidung wandert mit. Beides in EINEM Schritt, weil der echte
+    // Fingerabdruck der verdraengten Gruppe nur hier vorliegt (nachbauen ginge daneben).
+    $zusammengefuehrt = avesmapsConflictMergeDuplicateIntoShared(
+        avesmapsConflictRuleSharedArticle($claimRows, $wikiTitles),
         $duplicateLabels
+    );
+
+    $conflicts = array_merge(
+        $zusammengefuehrt['shared'],
+        avesmapsConflictCollapseSegmentsByName(avesmapsConflictRuleMissingKey($rows, $wikiTitles)),
+        $zusammengefuehrt['duplicates']
     );
 
     return $conflicts;

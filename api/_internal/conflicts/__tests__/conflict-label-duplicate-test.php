@@ -29,6 +29,7 @@ if (ini_get('zend.assertions') !== '1') {
 }
 
 require __DIR__ . '/../rules.php';
+require_once __DIR__ . '/../store.php';
 
 /** Kurzform fuer eine Beschriftungszeile, wie sie der Leser in rules.php baut. */
 $zeile = static function (string $id, string $name, string $subtype, string $wikiKey, string $region = '', string $updatedAt = '', $hoehe = null): array {
@@ -249,9 +250,7 @@ $geteilt = [
     ['type' => 'label', 'id' => 'cc22', 'label' => 'Drei Schwestern', 'wiki_url' => $SCHWESTERN_URL, 'position' => null, 'claim_source' => 'wiki_region'],
     ['type' => 'label', 'id' => 'aafc', 'label' => 'Drei Schwestern', 'wiki_url' => $SCHWESTERN_URL, 'position' => null, 'claim_source' => 'wiki_region'],
 ];
-assert(count(avesmapsConflictRuleSharedArticle($geteilt)) === 1, 'ohne Unterdrueckung steht der Fall zweimal');
-$unterdrueckt = avesmapsConflictSuppressedPartySets($fall);
-assert(count(avesmapsConflictRuleSharedArticle($geteilt, [], $unterdrueckt)) === 0, 'mit Unterdrueckung nur noch einmal');
+assert(count(avesmapsConflictRuleSharedArticle($geteilt)) === 1, 'ohne Entdopplung steht der Fall zweimal');
 
 // ⚠️ UND NUR DANN, WENN DIE PARTEIEN DIESELBEN SIND. Kommt ein Ort dazu, der denselben Artikel
 // beansprucht, ist das ein zusaetzlicher Befund und muss stehen bleiben -- die Dubletten-Regel
@@ -259,6 +258,66 @@ assert(count(avesmapsConflictRuleSharedArticle($geteilt, [], $unterdrueckt)) ===
 $mitOrt = array_merge($geteilt, [
     ['type' => 'location', 'id' => 'ort-1', 'label' => 'Dreischwesternstein', 'wiki_url' => $SCHWESTERN_URL, 'position' => null, 'claim_source' => 'wiki_url'],
 ]);
-assert(count(avesmapsConflictRuleSharedArticle($mitOrt, [], $unterdrueckt)) === 1, 'eine groessere Gruppe bleibt ein Fall');
+
+// --- 🪤 Die Entdopplung darf keine BESTEHENDE Entscheidung stilllegen --------------------------
+// Wird eine Artikelgruppe verdraengt, verschwindet ihr berechneter Fall -- eine dazu gespeicherte
+// Entscheidung passt dann auf nichts mehr. avesmapsConflictApplyDecisions macht daraus eine
+// „Erledigt"-Historienzeile („Daten repariert"), obwohl niemand etwas repariert hat, und derselbe
+// Sachverhalt steht sofort als OFFENER Fehler unter der neuen Regel. Genau das ist dem Owner am
+// 21.07.2026 beim Maraskansund passiert -- er hat dort ausdruecklich „Genehmigt" geklickt.
+// 🔴 Deshalb ERBT der Dubletten-Fall die Entscheidung der Gruppe, die er verdraengt.
+$geteilteFaelle = avesmapsConflictRuleSharedArticle($geteilt);
+assert(count($geteilteFaelle) === 1);
+$geteilterFingerabdruck = $geteilteFaelle[0]['fingerprint'];
+
+$zusammengefuehrt = avesmapsConflictMergeDuplicateIntoShared($geteilteFaelle, $fall);
+assert($zusammengefuehrt['shared'] === [], 'die verdraengte Gruppe faellt heraus');
+assert(count($zusammengefuehrt['duplicates']) === 1);
+assert(
+    in_array('wiki.shared_article|' . $geteilterFingerabdruck, $zusammengefuehrt['duplicates'][0]['inherits'], true),
+    'und der Dubletten-Fall traegt ihren Schluessel: ' . json_encode($zusammengefuehrt['duplicates'][0]['inherits'] ?? [])
+);
+
+// ⚠️ Eine GROESSERE Gruppe wird nicht verdraengt und vererbt deshalb auch nichts.
+$mitOrtFaelle = avesmapsConflictRuleSharedArticle($mitOrt);
+$grosseGruppe = avesmapsConflictMergeDuplicateIntoShared($mitOrtFaelle, $fall);
+assert(count($grosseGruppe['shared']) === 1, 'die groessere Gruppe bleibt ein eigener Fall');
+assert(($grosseGruppe['duplicates'][0]['inherits'] ?? []) === [], 'und es gibt nichts zu erben');
+
+// --- Und die Entscheidung kommt wirklich an ----------------------------------------------------
+$geerbt = avesmapsConflictApplyDecisions($zusammengefuehrt['duplicates'], [
+    'wiki.shared_article|' . $geteilterFingerabdruck => [
+        'rule_id' => 'wiki.shared_article',
+        'fingerprint' => $geteilterFingerabdruck,
+        'decision' => 'approved',
+        'reviewed_at' => '2026-07-21 10:00:00',
+        'subject_name' => '',
+        'reviewer_name' => 'owner',
+        'note' => 'zwei Buchten, beide brauchen einen Namen',
+        'detail_json' => '{}',
+    ],
+]);
+assert(count($geerbt) === 1, 'KEINE zusaetzliche Historienzeile: ' . count($geerbt));
+assert($geerbt[0]['rule_id'] === 'label.duplicate');
+assert($geerbt[0]['decision'] === 'approved', 'die Genehmigung wirkt weiter: ' . json_encode($geerbt[0]['decision']));
+assert($geerbt[0]['status'] === AVESMAPS_CONFLICT_STATUS_APPROVED, $geerbt[0]['status']);
+assert($geerbt[0]['note'] === 'zwei Buchten, beide brauchen einen Namen');
+
+// 🔴 Die EIGENE Entscheidung schlaegt die geerbte -- sonst liesse sich ein geerbter Fall nie
+// wieder oeffnen.
+$eigene = avesmapsConflictApplyDecisions($zusammengefuehrt['duplicates'], [
+    'label.duplicate|' . $zusammengefuehrt['duplicates'][0]['fingerprint'] => [
+        'rule_id' => 'label.duplicate', 'fingerprint' => $zusammengefuehrt['duplicates'][0]['fingerprint'],
+        'decision' => 'deferred', 'reviewed_at' => '2026-08-20 10:00:00', 'subject_name' => '',
+        'reviewer_name' => 'editor', 'note' => null, 'detail_json' => '{}',
+    ],
+    'wiki.shared_article|' . $geteilterFingerabdruck => [
+        'rule_id' => 'wiki.shared_article', 'fingerprint' => $geteilterFingerabdruck,
+        'decision' => 'approved', 'reviewed_at' => '2026-07-21 10:00:00', 'subject_name' => '',
+        'reviewer_name' => 'owner', 'note' => null, 'detail_json' => '{}',
+    ],
+]);
+assert(count($eigene) === 1, 'auch hier keine Historienzeile fuer den geerbten Schluessel');
+assert($eigene[0]['decision'] === 'deferred', 'die eigene gewinnt: ' . json_encode($eigene[0]['decision']));
 
 fwrite(STDOUT, "conflict-label-duplicate-test: OK\n");

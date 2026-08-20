@@ -36,13 +36,13 @@ if (ini_get('zend.assertions') !== '1') {
 // `function_exists`-Rueckfall kippen zu lassen. Zugleich ist damit die ECHTE Kaskade geladen, nicht
 // eine nachgebaute; nur so ist der Zeuge unten ein Beweis.
 require __DIR__ . '/../repair.php';
+
+// 🔴 DIE LANDSCHAFTEN-BIBLIOTHEK KOMMT ERST BEIM LOESCHEN -- und beides ist eine Zusicherung.
+// Im Dateikopf zahlte JEDE Aktion des Konflikt-Endpunkts rund 292 KB Quelltext mit, auch `list`,
+// die ohnehin teuerste (AGENTS.md §10 fuehrt sie als Hotspot). Deshalb erst: sie ist NOCH NICHT da.
 assert(
-    function_exists('avesmapsEcosystemRegionPublicIdOfLabel'),
-    'repair.php zieht die Landschaften-Pruefung selbst herein'
-);
-assert(
-    function_exists('avesmapsEcosystemCascadeAfterRemoval'),
-    'und damit auch die Kaskade, die avesmapsDeleteMapFeature per function_exists sucht'
+    !function_exists('avesmapsEcosystemRegionPublicIdOfLabel'),
+    'repair.php zieht die Landschaften-Bibliothek NICHT im Dateikopf herein'
 );
 
 /**
@@ -53,7 +53,7 @@ assert(
  *   FOR UPDATE        -> entfaellt             (avesmapsFetchEditableFeature; SQLite sperrt ohnehin)
  *   NOW(3)            -> datetime('now')       (avesmapsAssertFeatureCanBeEdited, Sperrpruefung)
  */
-final class AvesmapsLabelDeleteTestPdo extends PDO
+class AvesmapsLabelDeleteTestPdo extends PDO
 {
     public function exec(string $statement): int|false
     {
@@ -73,36 +73,41 @@ final class AvesmapsLabelDeleteTestPdo extends PDO
     }
 }
 
-$pdo = new AvesmapsLabelDeleteTestPdo('sqlite::memory:', null, null, [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]);
-$pdo->exec('CREATE TABLE map_features (
+// Die Tabellen als LISTE, nicht als Folge von Aufrufen: die Rennprobe weiter unten braucht
+// frische Verbindungen mit demselben Schema, und zwei Abschriften liefen auseinander.
+$tabellen = [
+    'CREATE TABLE map_features (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     public_id TEXT, name TEXT, feature_type TEXT, feature_subtype TEXT,
     geometry_type TEXT, geometry_json TEXT, properties_json TEXT, style_json TEXT,
     revision INTEGER DEFAULT 0, is_active INTEGER DEFAULT 1, updated_by INTEGER NULL,
     updated_at TEXT DEFAULT ""
-)');
-$pdo->exec('CREATE TABLE map_revision (id INTEGER PRIMARY KEY, revision INTEGER)');
-$pdo->exec('CREATE TABLE map_audit_log (
+)',
+    'CREATE TABLE map_revision (id INTEGER PRIMARY KEY, revision INTEGER)',
+    'CREATE TABLE map_audit_log (
     id INTEGER PRIMARY KEY AUTOINCREMENT, feature_id INTEGER NULL, action TEXT,
     actor_user_id INTEGER NULL, before_json TEXT, after_json TEXT
-)');
-$pdo->exec('CREATE TABLE map_feature_locks (public_id TEXT, user_id INTEGER, username TEXT, locked_until TEXT)');
-$pdo->exec('CREATE TABLE ecosystem_region (
+)',
+    'CREATE TABLE map_feature_locks (public_id TEXT, user_id INTEGER, username TEXT, locked_until TEXT)',
+    'CREATE TABLE ecosystem_region (
     id INTEGER PRIMARY KEY AUTOINCREMENT, public_id TEXT, name TEXT, kind TEXT, region_type TEXT NULL,
     origin TEXT, wiki_region_key TEXT NULL, wiki_url TEXT NULL, label_public_id TEXT NULL,
     properties_json TEXT NULL, is_active INTEGER DEFAULT 1, updated_at TEXT DEFAULT "", updated_by INTEGER NULL
-)');
-$pdo->exec('CREATE TABLE ecosystem_area (
+)',
+    'CREATE TABLE ecosystem_area (
     id INTEGER PRIMARY KEY AUTOINCREMENT, public_id TEXT, region_id INTEGER,
     geometry_geojson TEXT, min_x REAL, min_y REAL, max_x REAL, max_y REAL,
     geometry_revision INTEGER DEFAULT 1, is_trial INTEGER DEFAULT 0, is_active INTEGER DEFAULT 1,
     updated_at TEXT DEFAULT "", updated_by INTEGER NULL
-)');
-$pdo->exec('CREATE TABLE ecosystem_geometry_audit_log (
+)',
+    'CREATE TABLE ecosystem_geometry_audit_log (
     id INTEGER PRIMARY KEY AUTOINCREMENT, action TEXT, actor_user_id INTEGER NULL,
     area_public_id TEXT NULL, region_public_id TEXT NULL, before_json TEXT, after_json TEXT,
     operation_id TEXT NULL, operation_label TEXT NULL
-)');
+)',
+];
+$pdo = new AvesmapsLabelDeleteTestPdo('sqlite::memory:', null, null, [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]);
+foreach ($tabellen as $ddl) { $pdo->exec($ddl); }
 
 // 💣 Eine public_id ist eine UUID -- avesmapsReadMapFeaturePublicId() laesst nur 36 Zeichen aus
 // [a-f0-9-] durch und wirft sonst. Sprechende Kuerzel taeten es hier NICHT.
@@ -111,8 +116,6 @@ $DS_B = '22222222-2222-4222-8222-222222222222';       // „Drei Schwestern“, 
 $FK_FLAECHE = '33333333-3333-4333-8333-333333333333'; // „Finsterkamm“, haengt an der Flaeche
 $FK_FREI = '44444444-4444-4444-8444-444444444444';    // „Finsterkamm“, frei
 
-// Das Wiki-Nest, wie ein Abgleich es hinterlaesst. Die Adresse steht MIT drin -- daran haengt der
-// Nachweis unten, dass die Artikel-Regel denselben Fall nicht ein zweites Mal meldet.
 $NEST = static fn(string $wikiKey): array => ['wiki_region' => [
     'wiki_key' => $wikiKey,
     'wiki_url' => 'https://de.wiki-aventurica.de/wiki/' . $wikiKey,
@@ -165,6 +168,21 @@ $aktiv = static function (PDO $pdo, string $table, string $publicId): int {
 // ================================================================================================
 // 0. DER ZEUGE: in genau dieser Fixture NIMMT das Loeschen der Beschriftung die Flaeche mit.
 // ================================================================================================
+// ⭐ ...und der GEGENBEWEIS: ein Aufruf des Loeschwegs holt sie nach. Ohne diese zweite Haelfte
+// waere die Zusicherung oben nur „nicht geladen" -- was ein vergessener Einschluss auch waere.
+// Der Aufruf laeuft ins Leere (die Kennung gibt es nicht), der `require_once` steht aber als erste
+// Zeile im Rumpf und ist damit erreicht.
+$leerlauf = avesmapsConflictDeleteLabel($pdo, '99999999-9999-4999-8999-999999999999', 7);
+assert($leerlauf['ok'] === false);
+assert(
+    function_exists('avesmapsEcosystemRegionPublicIdOfLabel'),
+    'der Loeschweg holt die Landschaften-Pruefung nach'
+);
+assert(
+    function_exists('avesmapsEcosystemCascadeAfterRemoval'),
+    'und damit auch die Kaskade, die avesmapsDeleteMapFeature per function_exists sucht'
+);
+
 $seed($pdo);
 assert($aktiv($pdo, 'ecosystem_area', 'a-fk') === 1, 'Ausgangszustand: die Flaeche ist da');
 avesmapsDeleteMapFeature($pdo, ['public_id' => $FK_FLAECHE], ['id' => 7]);
@@ -357,5 +375,186 @@ assert(
     (int) $ohneLandschaft->query("SELECT is_active FROM map_features WHERE public_id = '" . $DS_B . "'")->fetchColumn() === 1,
     'und geloescht wird dabei nichts'
 );
+
+// ================================================================================================
+// 8. 💣 DER RIEGEL MUSS DURCHSETZEN, NICHT BERATEN -- das Rennen um die zweite Schreibrichtung
+// ================================================================================================
+// Der beratende Riegel liest im Autocommit; avesmapsDeleteMapFeature rechnet den Wert in seiner
+// EIGENEN Transaktion neu. Richtung 1 (`properties.ecosystem_region_public_id`) ist ab
+// Transaktionsbeginn durch das `FOR UPDATE` auf der map_features-Zeile geschuetzt -- Richtung 2 NICHT:
+// `ecosystem_region.label_public_id` wird allein in `ecosystem_region` geschrieben
+// (api/_internal/app/ecosystem.php, avesmapsUpdateEcosystemRegion), die Label-Zeile wird dabei nie
+// angefasst. Wer in genau diesem Fenster „Beschriftung zuweisen" drueckt, macht aus dem geprueften ''
+// ein 'r-rennen', und die Kaskade nimmt Region und Flaeche mit.
+//
+// 🔴 Deshalb reist die Regel jetzt IN die Transaktion: `refuse_ecosystem_cascade` im Rumpf laesst
+// avesmapsDeleteMapFeature WERFEN statt kaskadieren -- hinter dem FOR UPDATE, und jeder kuenftige
+// Erzeuger erbt sie, statt sie sich merken zu muessen.
+
+/** Legt die Rennbahn an: Region + Flaeche, die den Zeiger auf DS_B noch NICHT traegt. */
+$rennbahnSaeen = static function (PDO $pdo) use ($seed): void {
+    $seed($pdo);
+    $pdo->prepare('INSERT INTO ecosystem_region (public_id, name, kind, region_type, origin, label_public_id, is_active) VALUES (?, ?, ?, ?, ?, NULL, 1)')
+        ->execute(['r-rennen', 'Rennbahn', 'topographie', 'gebirge', 'manual']);
+    $rennId = (int) $pdo->query("SELECT id FROM ecosystem_region WHERE public_id = 'r-rennen'")->fetchColumn();
+    $pdo->prepare('INSERT INTO ecosystem_area (public_id, region_id, geometry_geojson, min_x, min_y, max_x, max_y, is_active) VALUES (?, ?, ?, 0, 0, 1, 1, 1)')
+        ->execute(['a-rennen', $rennId, json_encode(['type' => 'Polygon', 'coordinates' => [[[0, 0], [1, 0], [1, 1], [0, 0]]]])]);
+};
+
+/**
+ * Eine Verbindung, die GENAU EINMAL im richtigen Moment dazwischenfunkt: sobald
+ * avesmapsFetchEditableFeature seine Zeile holt (das ist der Transaktionsbeginn, nach dem beratenden
+ * Riegel), setzt ein fremder Schreibvorgang den Regionszeiger auf die Beschriftung. Kein Sleep, kein
+ * Zufall -- die Naht ist deterministisch.
+ */
+final class AvesmapsLabelDeleteRacePdo extends AvesmapsLabelDeleteTestPdo
+{
+    public string $zielPublicId = '';
+    public bool $schonGefunkt = false;
+
+    public function prepare(string $query, array $options = []): PDOStatement|false
+    {
+        if (!$this->schonGefunkt && $this->zielPublicId !== ''
+            && str_contains($query, 'FROM map_features') && str_contains($query, 'FOR UPDATE')) {
+            $this->schonGefunkt = true;
+                $funke = parent::prepare("UPDATE ecosystem_region SET label_public_id = :l WHERE public_id = 'r-rennen'");
+            $funke->execute(['l' => $this->zielPublicId]);
+        }
+
+        return parent::prepare($query, $options);
+    }
+}
+
+// ---- Erst der ZEUGE: ohne den Riegel richtet das Rennen wirklich Schaden an ---------------------
+$rennen = new AvesmapsLabelDeleteRacePdo('sqlite::memory:', null, null, [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]);
+foreach ($tabellen as $ddl) { $rennen->exec($ddl); }
+$rennbahnSaeen($rennen);
+$rennen->zielPublicId = $DS_B;
+avesmapsDeleteMapFeature($rennen, ['public_id' => $DS_B], ['id' => 7]);
+assert($aktiv($rennen, 'map_features', $DS_B) === 0, 'ohne Riegel: die Beschriftung ist weg');
+assert(
+    $aktiv($rennen, 'ecosystem_area', 'a-rennen') === 0,
+    '🔴 DER ZEUGE DES RENNENS: der dazwischengefunkte Zeiger reisst die Flaeche mit'
+);
+
+// ---- Und jetzt MIT Riegel: es wirft, und NICHTS bleibt veraendert -------------------------------
+$rennen2 = new AvesmapsLabelDeleteRacePdo('sqlite::memory:', null, null, [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]);
+foreach ($tabellen as $ddl) { $rennen2->exec($ddl); }
+$rennbahnSaeen($rennen2);
+$rennen2->zielPublicId = $DS_B;
+$geworfen = null;
+try {
+    avesmapsDeleteMapFeature($rennen2, ['public_id' => $DS_B, 'refuse_ecosystem_cascade' => true], ['id' => 7]);
+} catch (Throwable $fehler) {
+    $geworfen = $fehler;
+}
+assert($geworfen instanceof AvesmapsConflictException, 'der Riegel wirft: ' . ($geworfen === null ? '(nichts)' : get_class($geworfen)));
+assert(mb_stripos($geworfen->getMessage(), 'Landschaftsfläche') !== false, $geworfen->getMessage());
+// 🔴 Und weil er INNERHALB der Transaktion wirft, rollt alles zurueck -- auch die Deaktivierung, die
+// schon geschrieben war. Ein Riegel, der erst nach dem Schreiben greift, waere keiner.
+assert($aktiv($rennen2, 'map_features', $DS_B) === 1, 'die Beschriftung steht noch (Rollback)');
+assert($aktiv($rennen2, 'ecosystem_area', 'a-rennen') === 1, '🔴 und die Flaeche auch');
+assert($aktiv($rennen2, 'ecosystem_region', 'r-rennen') === 1);
+
+// ---- Der Konflikt-Loeschweg schickt die Fahne MIT ------------------------------------------------
+// ⚠️ Das ist die Verdrahtungsfrage: der beratende Riegel allein wuerde hier ein '' sehen und
+// durchwinken. Nur weil avesmapsConflictDeleteLabel die Fahne setzt, faengt die Transaktion es ab.
+$rennen3 = new AvesmapsLabelDeleteRacePdo('sqlite::memory:', null, null, [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]);
+foreach ($tabellen as $ddl) { $rennen3->exec($ddl); }
+$rennbahnSaeen($rennen3);
+$rennen3->zielPublicId = $DS_B;
+$geworfen3 = null;
+try {
+    avesmapsConflictDeleteLabel($rennen3, $DS_B, 7);
+} catch (Throwable $fehler) {
+    $geworfen3 = $fehler;
+}
+assert($geworfen3 instanceof AvesmapsConflictException, 'auch ueber den Konfliktweg: ' . ($geworfen3 === null ? '(nichts)' : get_class($geworfen3)));
+assert($aktiv($rennen3, 'ecosystem_area', 'a-rennen') === 1, '🔴 die Flaeche ueberlebt auch das Rennen ueber den Konfliktweg');
+assert($aktiv($rennen3, 'map_features', $DS_B) === 1);
+
+// ================================================================================================
+// 9. Der teure Zwillingsscan laeuft nur, wenn er noch etwas entscheiden kann
+// ================================================================================================
+// avesmapsConflictReadLabelIdentities liest ALLE aktiven Beschriftungen (live 909) und steht in der
+// Zielschleife von avesmapsConflictResolve. Solange alle vier Argumente der Absage eager ausgewertet
+// wurden, lief er auch dann, wenn die Absage laengst durch „ist keine Beschriftung" oder „haengt an
+// einer Flaeche" feststand -- pro Ziel einmal.
+final class AvesmapsLabelDeleteZaehlPdo extends AvesmapsLabelDeleteTestPdo
+{
+    public int $labelScans = 0;
+
+    public function query(string $query, ?int $fetchMode = null, mixed ...$args): PDOStatement|false
+    {
+        if (str_contains($query, "feature_type = 'label'") && str_contains($query, 'feature_subtype')) {
+            $this->labelScans++;
+        }
+
+        return parent::query($query);
+    }
+}
+
+$zaehler = new AvesmapsLabelDeleteZaehlPdo('sqlite::memory:', null, null, [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]);
+foreach ($tabellen as $ddl) { $zaehler->exec($ddl); }
+$seed($zaehler);
+$zaehler->prepare('INSERT INTO map_features (public_id, name, feature_type, feature_subtype, properties_json, is_active, updated_at) VALUES (?, ?, ?, ?, ?, 1, "")')
+    ->execute(['55555555-5555-4555-8555-555555555555', 'Gareth', 'location', 'metropole', '{}']);
+
+// Kein Label -> die Absage steht nach der ersten Zeile fest, der Scan darf gar nicht laufen.
+$zaehler->labelScans = 0;
+$keinLabel = avesmapsConflictDeleteLabel($zaehler, '55555555-5555-4555-8555-555555555555', 7);
+assert($keinLabel['ok'] === false);
+assert($zaehler->labelScans === 0, 'kein Scan fuer ein Nicht-Label: ' . $zaehler->labelScans);
+
+// Flaechengebunden -> ebenfalls entschieden, bevor der Scan etwas beitragen koennte.
+$zaehler->labelScans = 0;
+$mitFlaeche = avesmapsConflictDeleteLabel($zaehler, $FK_FLAECHE, 7);
+assert($mitFlaeche['ok'] === false);
+assert($zaehler->labelScans === 0, 'kein Scan fuer eine flaechengebundene Beschriftung: ' . $zaehler->labelScans);
+
+// Und wo er wirklich entscheidet, laeuft er -- genau EINMAL.
+$zaehler->labelScans = 0;
+$echt = avesmapsConflictDeleteLabel($zaehler, $DS_B, 7);
+assert($echt['ok'] === true);
+assert($zaehler->labelScans === 1, 'genau ein Scan, wo er gebraucht wird: ' . $zaehler->labelScans);
+
+// ================================================================================================
+// 10. Die VERDRAHTUNG im Endpunkt -- zwei Zeilen, die kein Einheitentest von innen sehen kann
+// ================================================================================================
+// 💣 Ein gruener Test ueber eine reine Funktion beweist nicht, dass jemand sie aufruft. Beide Zeilen
+// hier aendern Verhalten, das ALLE Verben betrifft, und beide liegen in einer Datei, die ohne
+// Sitzung und Datenbank nicht ausfuehrbar ist. Hausform wie conflict-keeper-test.php: den Quelltext
+// lesen und die Aussage festnageln.
+$endpunkt = file_get_contents(__DIR__ . '/../../../edit/map/conflicts.php');
+assert(is_string($endpunkt));
+
+// (a) „Erledigt" wird nur verbucht, wenn wirklich etwas repariert wurde. Ohne diese Bedingung
+// verliess ein Fall die Liste „Offen" auch nach einer ABGELEHNTEN Reparatur -- beim Loeschen einer
+// flaechengebundenen Beschriftung ist das eine Ablehnung mit Ansage.
+assert(
+    preg_match('/avesmapsConflictShouldRecordRepair\(\$result\)\s*\n?\s*&&/', $endpunkt) === 1,
+    'der Endpunkt fragt vor dem Verbuchen, ob ueberhaupt etwas repariert wurde'
+);
+$stelleWaechter = strpos($endpunkt, 'avesmapsConflictShouldRecordRepair');
+$stelleVerbuchen = strpos($endpunkt, 'avesmapsConflictRecordDecision($pdo, [');
+assert(is_int($stelleWaechter) && is_int($stelleVerbuchen) && $stelleWaechter < $stelleVerbuchen,
+    'und zwar VOR dem Verbuchen');
+
+// (b) Der Rennfall des Loeschriegels wirft eine AvesmapsConflictException. Sie muss als 409 mit
+// Text herauskommen, nicht als nacktes 500 -- ihre Meldungen sind fuer den Editor geschrieben.
+// 💣 UND VOR dem Throwable-Block: PHP nimmt den ersten passenden `catch`, darunter waere er
+// unerreichbar. Genau diese Reihenfolge nennt api/edit/map/features.php als Falle.
+$stelleKonflikt = strpos($endpunkt, 'catch (AvesmapsConflictException');
+$stelleThrowable = strpos($endpunkt, 'catch (Throwable');
+assert(is_int($stelleKonflikt), 'der Endpunkt faengt AvesmapsConflictException');
+assert($stelleKonflikt < $stelleThrowable, 'und zwar VOR dem Throwable-Block');
+assert(
+    preg_match('/catch \(AvesmapsConflictException \$exception\) \{.*?avesmapsErrorResponse\(409, \x27conflict\x27, \$exception->getMessage\(\)\)/s', $endpunkt) === 1,
+    '409 mit dem Text des Servers'
+);
+
+// (c) Und die Klasse existiert in DIESER Kette wirklich -- vorher stand sie nur im Karten-Endpunkt,
+// ein `throw` haette hier einen Fatal Error „Class not found" ergeben statt der Meldung.
+assert(class_exists('AvesmapsConflictException'), 'die Ausnahmeklasse ist ueber repair.php da');
 
 fwrite(STDOUT, "conflict-label-delete-test: OK\n");

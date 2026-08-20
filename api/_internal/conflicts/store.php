@@ -106,6 +106,28 @@ function avesmapsConflictApplyDecisions(array $conflicts, array $decisions): arr
         $key = (string) ($conflict['rule_id'] ?? '') . '|' . (string) ($conflict['fingerprint'] ?? '');
         $seen[$key] = true;
         $decision = $decisions[$key] ?? null;
+        // 💣 GEERBTE ENTSCHEIDUNGEN. Eine Regel kann den Fall einer anderen VERDRAENGEN --
+        // avesmapsConflictMergeDuplicateIntoShared tut das: eine Artikelgruppe aus lauter
+        // Beschriftungen desselben Dings sagt „Dublette" besser und hat das Verb dafuer. Ohne diese
+        // Zeilen waere das ein Datenverlust auf Raten: der verdraengte Fall wird nicht mehr
+        // berechnet, seine Entscheidung passt auf nichts mehr, und die Schleife weiter unten macht
+        // daraus eine „Erledigt"-Historienzeile („Daten repariert") -- obwohl niemand etwas
+        // repariert hat. Derselbe Sachverhalt stuende gleichzeitig als OFFENER Fall unter der neuen
+        // Regel, und ein „Genehmigt" des Owners waere stillschweigend zurueckgenommen.
+        //
+        // 🔴 Die EIGENE Entscheidung schlaegt die geerbte -- sonst liesse sich ein geerbter Fall nie
+        // wieder oeffnen. ⚠️ Und der geerbte Schluessel gilt als GESEHEN, auch wenn schon eine eigene
+        // Entscheidung vorlag: sonst taucht er unten doch noch als Historienzeile auf.
+        foreach ($conflict['inherits'] ?? [] as $inheritedKey) {
+            $inheritedKey = (string) $inheritedKey;
+            if (!isset($decisions[$inheritedKey])) {
+                continue;
+            }
+            $seen[$inheritedKey] = true;
+            if ($decision === null) {
+                $decision = $decisions[$inheritedKey];
+            }
+        }
         $conflict['decision'] = $decision['decision'] ?? null;
         $conflict['status'] = avesmapsConflictStatus(true, $conflict['decision']);
         $conflict['reviewed_at'] = $decision['reviewed_at'] ?? null;

@@ -21,6 +21,18 @@ require_once __DIR__ . '/wiki-claim.php';
 require_once __DIR__ . '/field-origins.php';
 require_once __DIR__ . '/../audit-prune.php';
 
+// 🔴 DIESE BIBLIOTHEK WIRFT SIE, ALSO DEKLARIERT SIE SIE AUCH. Bis zum 20.08.2026 stand die
+// Klasse nur in api/edit/map/features.php -- fuenf `throw new AvesmapsConflictException` hier drin
+// verliessen sich darauf, dass genau jener Endpunkt sie vorher angelegt hat. Jeder andere Aufrufer
+// (das Konfliktzentrum ist seit heute einer) bekam statt der gemeinten Meldung einen Fatal Error
+// „Class not found". Unter `class_exists`, damit die vorhandene, ungeschuetzte Deklaration dort und
+// die in ecosystem.php unveraendert gewinnen duerfen, wenn sie zuerst laufen.
+if (!class_exists('AvesmapsConflictException')) {
+    class AvesmapsConflictException extends RuntimeException
+    {
+    }
+}
+
 function avesmapsReadMapFeaturePublicId(mixed $value): string {
     $publicId = avesmapsNormalizeSingleLine((string) $value, 36);
     if (preg_match('/^[a-f0-9-]{36}$/i', $publicId) !== 1) {
@@ -2569,8 +2581,10 @@ function avesmapsApplyPathWikiNoArticle(array $properties, array $payload): arra
  * ein Speichern ohne Aenderung die Revision jedes Segments und schickt jedem warmen Client die halbe
  * Karte neu -- dieselbe Regel wie in avesmapsApplyTransportSeasonsToWikiSiblings daneben.
  *
- * ⚠️ `require_once` IM RUMPF, nicht im Dateikopf, und das ist Absicht: repair.php zieht core.php und
- * rules.php nach (zusammen rund 1.400 Zeilen), und features.php haengt an rund zwanzig Endpunkten,
+ * ⚠️ `require_once` IM RUMPF, nicht im Dateikopf, und das ist Absicht: repair.php zieht core.php,
+ * rules.php und -- seit dem 20.08.2026 fuer den Landschafts-Riegel -- app/ecosystem.php nach
+ * (zusammen rund 2.100 Zeilen bzw. rund 650 KB Quelltext, gemessen 20.08.2026), und
+ * features.php haengt an rund zwanzig Endpunkten,
  * darunter oeffentliche Leser -- im Kopf wuerde jeder davon sie mitparsen (STRATO, AGENTS.md §10).
  * Dazu laedt repair.php seinerseits features.php: im Kopf waere das ein Zyklus. Hausform:
  * api/_internal/routing/travel-values.php:481, api/_internal/app/citymaps.php:2109 u. a.
@@ -3673,6 +3687,27 @@ function avesmapsDeleteMapFeature(PDO $pdo, array $payload, array $user): array 
                 is_array($properties) ? $properties : []
             );
             if ($regionPublicId !== '') {
+                // 💣 DER AUFRUFER DARF DIE KASKADE VERBIETEN -- und dann wird sie nicht umgangen,
+                // sondern der ganze Loeschvorgang abgebrochen. Das Konfliktzentrum raeumt Dubletten weg
+                // und darf dabei unter keinen Umstaenden eine gezeichnete Flaeche mitreissen; es
+                // prueft das zwar vorher selbst, aber jene Pruefung laeuft im Autocommit VOR dieser
+                // Transaktion.
+                //
+                // 🔴 Und genau dazwischen liegt ein Rennen: Richtung 1 des Zeigers
+                // (`properties.ecosystem_region_public_id`) ist ab hier durch das FOR UPDATE auf der
+                // map_features-Zeile gedeckt, Richtung 2 NICHT -- `ecosystem_region.label_public_id`
+                // wird allein in `ecosystem_region` geschrieben, die Label-Zeile bleibt dabei
+                // unberuehrt. Wer in dem Fenster „Beschriftung zuweisen" drueckt, macht aus dem
+                // geprueften '' ein 'R'. Hier drin, hinter dem FOR UPDATE, kann das nicht passieren.
+                //
+                // ⚠️ Geworfen statt still uebersprungen: eine halb ausgefuehrte Loeschung waere
+                // schlimmer als eine Absage. Der Wurf laeuft in avesmapsRollbackAndRethrow, die
+                // Deaktivierung von oben rollt also mit zurueck.
+                if (!empty($payload['refuse_ecosystem_cascade'])) {
+                    throw new AvesmapsConflictException(
+                        'Diese Beschriftung gehört inzwischen zu einer Landschaftsfläche — ein Löschen würde die Fläche mitnehmen. Bitte im Landschaften-Editor lösen.'
+                    );
+                }
                 $cascade = avesmapsEcosystemCascadeAfterRemoval($pdo, $regionPublicId, 'label', (int) $user['id']);
             }
         }

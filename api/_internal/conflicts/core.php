@@ -322,8 +322,12 @@ function avesmapsConflictFindSharedWikiUrls(array $rows): array {
  *      Vegetation) und als `huegelland` (Ebene Topographie). Die vier Landschaften-Ebenen
  *      beschreiben denselben Fleck aus verschiedenen Blicken; das ist der Entwurf.
  *
- * Kleingeschrieben und getrimmt, weil MySQL live ebenfalls ohne Ruecksicht auf Gross-/Kleinschreibung
- * vergleicht (utf8mb4_unicode_ci) -- derselbe Schnitt wie avesmapsConflictRepairGroupKey.
+ * Kleingeschrieben und getrimmt, damit ein Editor, der denselben Namen anders tippt, nicht zwei
+ * Objekte daraus macht. 🪤 Hier stand als Begruendung „weil MySQL live ebenfalls ohne Ruecksicht auf
+ * Gross-/Kleinschreibung vergleicht (utf8mb4_unicode_ci)" -- das traegt NICHT: verglichen wird ueber
+ * PHP-Array-Schluessel, die Datenbank sieht diese Zeichenketten nie. (Bei
+ * avesmapsConflictRepairGroupKey stimmt der Satz, dort steht daneben eine echte SQL-Abfrage ueber
+ * `name`.) Die Faltung ist trotzdem richtig, nur aus dem anderen Grund.
  */
 function avesmapsConflictLabelIdentity(string $wikiKey, string $name, string $subtype): string {
     $wikiKey = trim($wikiKey);

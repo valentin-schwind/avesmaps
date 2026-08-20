@@ -23,13 +23,6 @@ declare(strict_types=1);
 require_once __DIR__ . '/core.php';
 require_once __DIR__ . '/../map/features.php';
 require_once __DIR__ . '/rules.php';
-// 🔴 Fuer avesmapsEcosystemRegionPublicIdOfLabel() -- den Riegel vor der Landschafts-Kaskade
-// (avesmapsConflictLabelDeleteRefusal). AUSDRUECKLICH hier und nicht beim Endpunkt: repair.php hat
-// genau EINEN Aufrufer, und der ist der, der loescht. Eine Verdrahtung, die jemand vergessen kann,
-// waere hier ein stiller Ausfall in der gefaehrlichen Richtung -- deshalb steht sie an der Stelle,
-// die den Riegel braucht. Der `function_exists`-Gurt in avesmapsConflictDeleteLabel bleibt trotzdem
-// stehen: er faengt ab, wenn diese Zeile eines Tages wieder verschwindet.
-require_once __DIR__ . '/../app/ecosystem.php';
 
 // Where a party's wiki claim is stored. Only the plain field is safely removable (rule 1 above).
 const AVESMAPS_CONFLICT_CLAIM_FIELD = 'wiki_url';
@@ -676,6 +669,18 @@ function avesmapsConflictReadLabelIdentities(PDO $pdo): array {
  * @return array{ok:bool, public_id:string, changed:bool, name?:string, reason?:string}
  */
 function avesmapsConflictDeleteLabel(PDO $pdo, string $publicId, int $userId): array {
+    // 🔴 Fuer avesmapsEcosystemRegionPublicIdOfLabel() -- den Riegel vor der Landschafts-Kaskade.
+    // AUSDRUECKLICH hier und nicht beim Endpunkt: eine Verdrahtung, die jemand vergessen kann, waere
+    // ein stiller Ausfall in der gefaehrlichen Richtung. Der `function_exists`-Gurt unten bleibt
+    // trotzdem stehen -- er faengt ab, wenn diese Zeile eines Tages verschwindet.
+    //
+    // ⚠️ IM RUMPF, nicht im Dateikopf, und das ist der teure Teil: ecosystem.php zieht mit seinen
+    // Nachbarn rund 292 KB Quelltext nach (gemessen 20.08.2026: repair.php-Kette 654 KB mit, 362 KB
+    // ohne). Im Kopf zahlte das JEDE Aktion dieses Endpunkts, auch `list` -- und die ist ohnehin die
+    // teuerste (voller Tabellenlauf ueber map_features, AGENTS.md §10 fuehrt sie als Hotspot).
+    // Hausform: api/_internal/map/features.php bei avesmapsApplyPathWikiNoArticleToNameGroup.
+    require_once __DIR__ . '/../app/ecosystem.php';
+
     $select = $pdo->prepare(
         "SELECT public_id, name, feature_type, properties_json FROM map_features
          WHERE public_id = :p AND is_active = 1 LIMIT 1"
@@ -711,18 +716,39 @@ function avesmapsConflictDeleteLabel(PDO $pdo, string $publicId, int $userId): a
         }
     }
 
-    $refusal = avesmapsConflictLabelDeleteRefusal(
-        (string) ($feature['feature_type'] ?? ''),
-        $regionLookupReady,
-        $regionPublicId,
-        avesmapsConflictLabelTwinsLeft(avesmapsConflictReadLabelIdentities($pdo), $publicId)
-    );
+    // ⚠️ ZWEI DURCHGAENGE, damit der teure Zaehler nur laeuft, wenn er noch etwas entscheidet.
+    // avesmapsConflictReadLabelIdentities liest ALLE aktiven Beschriftungen (live 909) und steht in
+    // der Zielschleife von avesmapsConflictResolve -- eager ausgewertet lief er auch dann, wenn die
+    // Absage laengst durch „ist keine Beschriftung" oder „haengt an einer Flaeche" feststand.
+    //
+    // 🔴 Die REIHENFOLGE der Riegel steht weiterhin NUR in der reinen Funktion, und dieser
+    // Vorlauf schreibt sie nicht ab: er ruft sie mit „es gibt Zwillinge" auf und liest ab, ob einer
+    // der davorstehenden Riegel schon greift. Wer die Ordnung dort aendert, aendert sie damit hier
+    // mit -- eine zweite Abschrift der drei Bedingungen waere die zweite Wahrheit.
+    $featureType = (string) ($feature['feature_type'] ?? '');
+    $refusal = avesmapsConflictLabelDeleteRefusal($featureType, $regionLookupReady, $regionPublicId, 1);
+    if ($refusal === '') {
+        $refusal = avesmapsConflictLabelDeleteRefusal(
+            $featureType,
+            $regionLookupReady,
+            $regionPublicId,
+            avesmapsConflictLabelTwinsLeft(avesmapsConflictReadLabelIdentities($pdo), $publicId)
+        );
+    }
     if ($refusal !== '') {
         return ['ok' => false, 'public_id' => $publicId, 'changed' => false,
             'name' => (string) ($feature['name'] ?? ''), 'reason' => $refusal];
     }
 
-    avesmapsDeleteMapFeature($pdo, ['public_id' => $publicId], ['id' => $userId]);
+    // 🔴 DIE FAHNE IST DER EIGENTLICHE RIEGEL. Die Pruefung oben ist BERATEND -- sie laeuft im
+    // Autocommit, vor der Transaktion des Loeschwegs, und `ecosystem_region.label_public_id` kann
+    // sich dazwischen aendern, ohne dass die Label-Zeile angefasst wird (das FOR UPDATE deckt sie
+    // also nicht). Mit `refuse_ecosystem_cascade` steht die Regel INNERHALB der Transaktion, hinter
+    // dem FOR UPDATE, und jeder kuenftige Erzeuger erbt sie -- statt sich daran erinnern zu muessen.
+    // Sie wirft dann, statt zu kaskadieren; der Wurf rollt die Deaktivierung mit zurueck.
+    // ⚠️ Der beratende Riegel bleibt trotzdem: er liefert die verstaendliche Absage im Normalfall
+    // (und die Anzeige `deletable` haengt an derselben Frage). Der Wurf ist der seltene Rennfall.
+    avesmapsDeleteMapFeature($pdo, ['public_id' => $publicId, 'refuse_ecosystem_cascade' => true], ['id' => $userId]);
 
     return ['ok' => true, 'public_id' => $publicId, 'changed' => true, 'name' => (string) ($feature['name'] ?? '')];
 }
