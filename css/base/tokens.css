@@ -385,6 +385,18 @@
 	   hat (map-features-region-pending-highlight.js:16) -- hier steht er einmal als Token, damit die
 	   beiden Ebenen nicht auseinanderlaufen. Gepinnt wie die Nachbarn: liegt auf hellen Kacheln. */
 	--color-ecosystem-target-outline: #fff4a3;
+	/* Und die Flaeche, auf der der Zeiger GERADE steht (Owner 20.08.2026: „das highlight etwas staerker
+	   ... als nur minimal die transparenz der kontur zu veraendern").
+	   💣 BIS DAHIN TRUGEN KANDIDAT UND ZIEL DIESELBE FARBE und unterschieden sich allein in der
+	   Deckkraft (0,55 gegen 1). Das ist der schwaechste Unterschied, den zwei Zustaende haben koennen --
+	   auf zehn verschiedenen Grundtoenen war er stellenweise gar nicht zu sehen. Jetzt ein eigener,
+	   saftiger Ton: das blasse Gold heisst „hier kannst du anfassen", dieser heisst „das hier".
+	   Gepinnt wie die Nachbarn -- liegt auf hellen Kacheln. */
+	--color-ecosystem-target-active: #ffab24;
+	/* Der Schein darum. Er traegt den Unterschied auf dunklen Grundtoenen, wo Farbe allein zu wenig
+	   waere. ⚠️ Ein `filter` aendert das Trefferfeld NICHT -- `pointer-events: stroke` misst an
+	   `stroke-width`, und die bleibt der Token darunter. */
+	--color-ecosystem-target-glow: rgba(255, 171, 36, 0.85);
 	/* 💣 DIE BREITE DES TREFFERBANDES STEHT EINMAL, WEIL SIE ZWEI REGELN TRAEGT (Owner 2026-08-14, 12px).
 	   Waehrend einer booleschen Zielwahl trifft nicht mehr die Fuellung, sondern allein die Kontur
 	   (`pointer-events: stroke`) -- und `stroke` misst sein Trefferfeld an `stroke-width`. Die Zahl ist

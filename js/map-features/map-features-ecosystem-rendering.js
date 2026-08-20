@@ -686,8 +686,15 @@ function buildEcosystemAreaLayer(area) {
 	// 🪤 Am `tooltipopen` abgefangen und nicht an den Zuständen vorbei entschieden: die Bearbeitung kann
 	// beginnen, während er schon offen steht, und sie kann enden, ohne dass der Zeiger sich bewegt. Hier
 	// wird beides richtig -- er geht sofort zu und kommt erst wieder, wenn wirklich nichts mehr läuft.
+	// 🔴 MIT EINER AUSNAHME: DER ZIELWAHL (Owner 20.08.2026). Bei den Zwei-Flächen-Gesten („Mit anderer
+	// vereinigen" …) ist der Zeiger kein WERKZEUG, sondern ein AUSWÄHLER -- und dann ist der Zettel
+	// genau die Antwort auf die Frage, die man gerade stellt: welche Fläche ist das? Die Begründung
+	// oben trifft weiterhin auf Malen, Zeichnen, Verschieben und Zerschneiden zu, und dort schweigt er.
+	//
+	// ⚠️ Die Frage lautet „wartet eine ZIELWAHL", nicht „läuft irgendetwas" -- `isPickingTarget` und
+	// nicht `isPending`. Sonst käme der Zettel auch beim Verschieben zurück, wo er die Stelle verdeckt.
 	layer.on("tooltipopen", () => {
-		if (isEcosystemEditingInProgress()) {
+		if (isEcosystemEditingInProgress() && !window.AvesmapsEcosystemGeometryOps?.isPickingTarget?.()) {
 			layer.closeTooltip();
 		}
 	});

@@ -141,4 +141,61 @@ assert.ok(klima.some((rule) => /pointer-events\s*:\s*none/.test(rule.body)),
 	"Die Regel, die ein Klimaband aus der Zielwahl heraushaelt, ist weg. Sie ist der Punktfix von"
 	+ " 2026-08-03 (`ich kann nur die Klimazone anklicken`) und traegt weiter.");
 
+// ---- 5. Die Flaeche unter dem Zeiger hebt sich WIRKLICH ab (Owner 20.08.2026) -------------------
+//
+// 💣 Bis dahin trugen Kandidat und Ziel DIESELBE Farbe und unterschieden sich allein in der Deckkraft
+// der Kontur. Owner: „das highlight etwas staerker ... als nur minimal die transparenz der kontur zu
+// veraendern." Geprueft wird deshalb, dass es mehr als eine Zahl ist, die die beiden trennt.
+const bandFarbe = bandRules[0].body.match(/stroke\s*:\s*var\((--[a-z-]+)\)/);
+assert.ok(bandFarbe, "Die Band-Regel setzt keine Konturfarbe mehr.");
+
+const zielRegel = targetRules.find((rule) => /stroke\s*:\s*var\(/.test(rule.body));
+assert.ok(zielRegel, "Die Regel fuer die Flaeche unter dem Zeiger setzt keine Konturfarbe.");
+const zielFarbe = zielRegel.body.match(/stroke\s*:\s*var\((--[a-z-]+)\)/);
+
+assert.notStrictEqual(zielFarbe[1], bandFarbe[1],
+	`Kandidaten und Ziel lesen beide "${bandFarbe[1]}". Dann trennt die beiden Zustaende nur noch die`
+	+ " Deckkraft -- der schwaechste Unterschied, den zwei Zustaende haben koennen, und auf zehn"
+	+ " verschiedenen Grundtoenen stellenweise gar nicht zu sehen.");
+
+assert.ok(/filter\s*:\s*drop-shadow/.test(zielRegel.body),
+	"Dem Ziel fehlt sein Schein. Er traegt den Unterschied auf dunklen Grundtoenen, wo Farbe allein zu"
+	+ " wenig ist. ⚠️ `filter` ist bewusst gewaehlt: es malt, ohne die Geometrie anzufassen, an der"
+	+ " `pointer-events: stroke` das Treffen misst -- eine dickere Kontur waere ein anderer Anfasser.");
+
+// 💣 UND DIE FUELLUNG MUSS AUCH GEWINNEN. Mit drei Klassen (0,3,2) verlor sie gegen
+// `.ecosystem-pane--derographisch.ecosystem-pane--active > svg path.leaflet-interactive` weiter unten
+// -- gleiche Staerke, spaeter im Blatt -- und die Hervorhebung blieb ausgerechnet auf der Ebene der
+// grossen Behaelter bei 0,16 haengen. Genau dort liegen die Flaechen, um die es dem Owner ging.
+const klassen = (selektor) => (selektor.match(/\.[a-zA-Z][\w-]*/g) || []).length;
+const derographischFuellung = rules("ecosystem-pane--derographisch")
+	.find((rule) => /fill-opacity/.test(rule.body) && rule.selector.includes("path.leaflet-interactive"));
+assert.ok(derographischFuellung, "Die Fuellungsregel der derographischen Ebene ist verschwunden -- die"
+	+ " Zusicherung darunter haette dann keinen Gegner mehr und waere still wertlos.");
+
+const zielKlassen = Math.min(...zielRegel.selector.split(",").map(klassen));
+assert.ok(zielKlassen > klassen(derographischFuellung.selector),
+	`Die Ziel-Regel hat ${zielKlassen} Klassen, die Fuellungsregel der derographischen Ebene`
+	+ ` ${klassen(derographischFuellung.selector)}. Bei gleicher Staerke gewinnt die spaetere im Blatt`
+	+ " -- und das ist die derographische. Die Hervorhebung bliebe dort bei 0,16 haengen.");
+
+// ---- 6. Der Schwebezettel kommt bei der ZIELWAHL zurueck ----------------------------------------
+//
+// 🔴 „Wartet eine Zielwahl" ist etwas anderes als „laeuft irgendetwas". Beim Malen, Zeichnen,
+// Verschieben und Zerschneiden IST der Zeiger das Werkzeug, und ein Zettel daran verdeckt die Stelle,
+// an der gearbeitet wird (Owner 2026-07-28). Bei der Zielwahl waehlt er aus -- da ist der Zettel die
+// Antwort auf die Frage, die man stellt.
+const ops = read("js", "map-features", "map-features-ecosystem-geometry-ops.js");
+const renderer = read("js", "map-features", "map-features-ecosystem-rendering.js");
+
+assert.ok(/isPickingTarget\s*:/.test(ops),
+	"map-features-ecosystem-geometry-ops.js bietet kein `isPickingTarget` mehr an -- ohne das kann der"
+	+ " Renderer die Zielwahl nicht von einer laufenden Bearbeitung unterscheiden.");
+assert.ok(renderer.includes("isPickingTarget"),
+	"Der Zettel-Riegel im Renderer fragt `isPickingTarget` nicht mehr. Dann schweigt der Zettel auch"
+	+ " bei der Zielwahl, und man sieht wieder nicht, welche Flaeche man gleich waehlt.");
+assert.ok(!/isEcosystemEditingInProgress\(\)\s*\)\s*\{\s*layer\.closeTooltip/.test(withoutComments(renderer)),
+	"Der Riegel schliesst den Zettel wieder bedingungslos bei jeder Bearbeitung -- die Ausnahme fuer"
+	+ " die Zielwahl ist weg.");
+
 console.log("ecosystem-pick-band.test.js: alle Zusicherungen halten.");

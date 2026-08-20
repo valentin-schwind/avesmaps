@@ -1506,12 +1506,28 @@ body.leaflet-dragging .ecosystem-brush-pan .leaflet-interactive {
    Stünde hier weiterhin die alte 5, schrumpfte der Anfasser genau in dem Augenblick, in dem der Zeiger
    ihn erreicht -- man verlöre den Treffer unter der Hand. Deshalb der gemeinsame Token; wer ihn hier
    durch eine Zahl ersetzt, baut den Sprung wieder ein. */
-.ecosystem-pane > svg path.leaflet-interactive.ecosystem-area--target,
-.ecosystem-pane > svg path.leaflet-interactive.ecosystem-area--selected.ecosystem-area--target {
-	stroke: var(--color-ecosystem-target-outline);
+/* 🔴 DEUTLICH STAERKER ALS DIE KANDIDATEN (Owner 20.08.2026). Bis dahin unterschied sich die Flaeche
+   unter dem Zeiger von allen anderen NUR in der Deckkraft ihrer Kontur (0,55 gegen 1) -- derselbe Ton,
+   dieselbe Breite. Das ist der schwaechste Unterschied, den zwei Zustaende haben koennen. Jetzt sind es
+   drei zugleich: eigene Farbe, eigener Schein, kraeftigere Fuellung.
+
+   💣 DIE BREITE BLEIBT DER TOKEN. Seit die Zielwahl ueber die KONTUR trifft (`pointer-events: stroke`),
+   IST diese Zahl das Trefferfeld -- eine dickere Kontur fuer den Effekt waere ein groesserer Anfasser,
+   eine duennere ein Treffer, der unter der Hand verlorengeht. Der Schein kommt deshalb als `filter`:
+   `drop-shadow` malt, ohne die Geometrie anzufassen, an der das Treffen gemessen wird.
+
+   💣 VIER KLASSEN, und das ist keine Kosmetik. Mit dreien (0,3,2) verlor die Fuellung gegen
+   `.ecosystem-pane--derographisch.ecosystem-pane--active > svg path.leaflet-interactive` weiter unten
+   -- gleiche Staerke, spaeter im Blatt -- und die Hervorhebung blieb ausgerechnet auf der Ebene der
+   grossen Behaelter bei 0,16 haengen. Das war der zweite Grund, aus dem sie „minimal" wirkte. */
+.leaflet-pane.ecosystem-pane > svg path.leaflet-interactive.ecosystem-area--target,
+.leaflet-pane.ecosystem-pane > svg path.leaflet-interactive.ecosystem-area--selected.ecosystem-area--target {
+	stroke: var(--color-ecosystem-target-active);
 	stroke-opacity: 1;
 	stroke-width: var(--ecosystem-pick-band-width);
-	fill-opacity: 0.5;
+	fill: var(--color-ecosystem-target-active);
+	fill-opacity: 0.42;
+	filter: drop-shadow(0 0 6px var(--color-ecosystem-target-glow));
 }
 
 /* Open for editing: the contour switches to the SAME blue as the drag handles sitting on it, so the

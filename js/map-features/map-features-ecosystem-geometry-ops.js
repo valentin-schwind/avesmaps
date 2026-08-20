@@ -838,6 +838,14 @@
 			cancel: cancelPending,
 			isPending: () => Boolean(pending),
 			claimsMapClick: pendingClaimsMapClick,
+			// 🔴 „Wartet gerade eine ZIELWAHL?" -- und das ist etwas anderes als „läuft irgendetwas".
+			// Beim Malen, Zeichnen, Verschieben und Zerschneiden IST der Zeiger das Werkzeug; da darf
+			// kein Schwebezettel an ihm kleben und die Stelle verdecken, an der gearbeitet wird
+			// (Owner 2026-07-28). Bei der Zielwahl ist der Zeiger ein AUSWÄHLER, und dann ist der
+			// Zettel genau die Antwort auf die Frage, die man gerade stellt: welche ist das?
+			// Owner 20.08.2026: „wenn das ziellayer das gehighlighted wird auch mit tooltip versehen".
+			isPickingTarget: () => Boolean(pending)
+				&& TARGET_OPERATIONS.some((operation) => operation.action === pending.operation),
 		};
 	}
 
