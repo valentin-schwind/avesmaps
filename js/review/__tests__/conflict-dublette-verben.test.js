@@ -125,6 +125,22 @@ assert.ok(textBeide.includes("2026-08-07"), "und der der anderen auch: " + textB
 // Wiki-Artikel — dass es derselbe ist, IST der Fall.
 assert.ok(!textBeide.includes("kein eigener Wiki-Artikel"), "keine Falschaussage über den Artikel: " + textBeide);
 
+// ---- 💣 WAS AN DER BESCHRIFTUNG HÄNGT, MUSS SICHTBAR SEIN, BEVOR SIE VERSCHWINDET ---------------
+// Ein `berggipfel`-Label trägt seine Höhe in `height_schritt`, und das Höhenfeld der Karte liest
+// GENAU DIESE Labels als Stützpunkte (`api/_internal/app/terrain-store.php`, `is_active = 1`). Live
+// trägt eine der beiden „Drei Schwestern" 2100 Schritt und die andere gar nichts — wer die falsche
+// löscht, nimmt der Karte einen Höhenstützpunkt, ohne es zu merken. Der Wert wird deshalb GEZEIGT;
+// entschieden wird nach wie vor vom Editor.
+const mitHoehe = createConflictElement(Object.assign({}, DUBLETTE, {
+	parties: [
+		Object.assign({}, DUBLETTE.parties[0], { height_schritt: 2100 }),
+		DUBLETTE.parties[1],
+	],
+}));
+assert.ok(ganzerText(mitHoehe).includes("2100"), "die Höhe steht an der Zeile, die sie trägt: " + ganzerText(mitHoehe));
+// Und die ohne Höhe behauptet keine — „0" wäre eine Aussage, die niemand gemacht hat.
+assert.ok(!ganzerText(beide).includes("Schritt"), "ohne Höhe steht dort nichts: " + ganzerText(beide));
+
 // 💣 DIE VERBEN DER ARTIKEL-REGEL GEHÖREN HIER NICHT HIN. „Trennen" nimmt der Beschriftung nur den
 // Wiki-Link — der Name stünde danach immer noch zweimal auf der Karte. Der Fall sähe erledigt aus
 // und wäre es nicht.

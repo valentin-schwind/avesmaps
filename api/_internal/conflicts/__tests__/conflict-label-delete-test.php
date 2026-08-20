@@ -138,7 +138,11 @@ $seed = static function (PDO $pdo) use ($NEST, $DS_A, $DS_B, $FK_FLAECHE, $FK_FR
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?)'
     );
     $punkt = static fn(float $x, float $y): string => json_encode(['type' => 'Point', 'coordinates' => [$x, $y]]);
-    $insert->execute([$DS_A, 'Drei Schwestern', 'label', 'berggipfel', 'Point', $punkt(525.9, 647.8), json_encode($NEST('drei-schwestern')), '{}', '2026-08-20 12:38:09']);
+    // 💣 DIE GEPFLEGTE traegt eine HOEHE, die andere nicht. Genau so liegt es live -- und das
+// Hoehenfeld der Karte liest Gipfel-Labels als Stuetzpunkte (terrain-store.php). Wer hier die
+// falsche loescht, nimmt der Karte einen Stuetzpunkt.
+    $insert->execute([$DS_A, 'Drei Schwestern', 'label', 'berggipfel', 'Point', $punkt(525.9, 647.8),
+        json_encode($NEST('drei-schwestern') + ['height_schritt' => 2100]), '{}', '2026-08-20 12:38:09']);
     $insert->execute([$DS_B, 'Drei Schwestern', 'label', 'berggipfel', 'Point', $punkt(524.1, 646.3), json_encode($NEST('drei-schwestern')), '{}', '2026-08-07 09:50:13']);
     $insert->execute([$FK_FLAECHE, 'Finsterkamm', 'label', 'gebirge', 'Point', $punkt(500.0, 600.0),
         json_encode($NEST('finsterkamm') + ['ecosystem_region_public_id' => 'r-fk']), '{}', '2026-08-01 00:00:00']);
@@ -300,6 +304,10 @@ assert($loeschbarJeFall['Finsterkamm'] === 1, json_encode($loeschbarJeFall));
 $schwesternFall = $dubletten[array_search('Drei Schwestern', array_column($dubletten, 'title'), true)];
 $staende = array_column($schwesternFall['parties'], 'updated_at', 'id');
 assert($staende[$DS_A] === '2026-08-20 12:38:09', json_encode($staende));
+// Und die Hoehe ebenso -- normalisiert zur Zahl, „nicht erfasst" bleibt null.
+$hoehenDurchgereicht = array_column($schwesternFall['parties'], 'height_schritt', 'id');
+assert($hoehenDurchgereicht[$DS_A] === 2100.0, json_encode($hoehenDurchgereicht));
+assert($hoehenDurchgereicht[$DS_B] === null, json_encode($hoehenDurchgereicht));
 assert($staende[$DS_B] === '2026-08-07 09:50:13', json_encode($staende));
 
 // 💣 UND DERSELBE FALL STEHT NICHT ZWEIMAL DA. Beide Nester tragen dieselbe Wiki-Adresse, die

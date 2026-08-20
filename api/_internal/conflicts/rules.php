@@ -525,6 +525,7 @@ function avesmapsConflictRuleDuplicateLabel(array $rows): array {
         $meta[(string) ($row['id'] ?? '')] = [
             'position' => $row['position'] ?? null,
             'updated_at' => (string) ($row['updated_at'] ?? ''),
+            'height_schritt' => $row['height_schritt'] ?? null,
         ];
     }
 
@@ -547,6 +548,14 @@ function avesmapsConflictRuleDuplicateLabel(array $rows): array {
                 // live traegt die gepflegte „Drei Schwestern" den 20.08.2026, die Karteileiche den
                 // 07.08.2026.
                 'updated_at' => $meta[(string) $party['id']]['updated_at'] ?? '',
+                // 💣 WAS AN DER BESCHRIFTUNG HAENGT, MUSS SICHTBAR SEIN, BEVOR SIE VERSCHWINDET.
+                // Ein Gipfel-Label traegt seine Hoehe hier, und das Hoehenfeld der Karte liest GENAU
+                // DIESE Labels als Stuetzpunkte (api/_internal/app/terrain-store.php, `is_active = 1`).
+                // Live traegt eine der beiden „Drei Schwestern" 2100 Schritt und die andere gar
+                // nichts -- wer die falsche loescht, nimmt der Karte einen Hoehenstuetzpunkt, ohne
+                // es zu merken. ⚠️ `null` heisst „nicht erfasst" und ist NICHT `0`; dieselbe
+                // Trennung wie in readLabelHeightSchritt (map-features-labels.js).
+                'height_schritt' => $meta[(string) $party['id']]['height_schritt'] ?? null,
                 // 🔴 DIE EINE FRAGE, AN DER DER LOESCHKNOPF HAENGT. Eine Beschriftung, an der eine
                 // Landschaftsflaeche haengt, darf von hier aus NIE geloescht werden: entfernt ein
                 // Loeschvorgang das letzte Label einer Flaeche, nimmt
@@ -790,6 +799,12 @@ function avesmapsConflictLoadLabelRows(PDO $pdo): array {
             'region' => trim((string) ($regionByLabel[$publicId] ?? '')),
             'position' => avesmapsConflictFirstPosition($row['geometry_json'] ?? null),
             'updated_at' => (string) ($row['updated_at'] ?? ''),
+            // Spiegel von avesmapsReadOptionalPeakHeight() -- der Schreibpfad besitzt die Regel,
+            // hier muss sie nur damit uebereinstimmen: eine Zahl > 0, sonst „nicht erfasst".
+            'height_schritt' => is_numeric($properties['height_schritt'] ?? null)
+                && (float) $properties['height_schritt'] > 0.0
+                ? (float) $properties['height_schritt']
+                : null,
         ];
     }
 

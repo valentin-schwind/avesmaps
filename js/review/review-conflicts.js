@@ -590,6 +590,21 @@ function createConflictPartyElement(party, conflict = null) {
 		evidence.appendChild(stand);
 	}
 
+	// 💣 WAS AN DER BESCHRIFTUNG HÄNGT, MUSS SICHTBAR SEIN, BEVOR SIE VERSCHWINDET. Ein Gipfel-Label
+	// trägt seine Höhe in `height_schritt`, und das Höhenfeld der Karte liest GENAU DIESE Labels als
+	// Stützpunkte (`api/_internal/app/terrain-store.php`, `is_active = 1`). Live trägt eine der
+	// beiden „Drei Schwestern" 2100 Schritt und die andere gar nichts — wer die falsche löscht,
+	// nimmt der Karte einen Höhenstützpunkt, ohne es zu merken.
+	// ⚠️ Keine Artenliste: gezeigt wird, WAS DA IST. Nur Gipfel und Vulkane tragen das Feld, und die
+	// drei Stellen, die diese beiden Arten aufzählen, bleiben damit drei (map-features-labels.js,
+	// peaks-geometry.php, terrain-store.php sagen einander das ausdrücklich).
+	if (isDuplicateCase && Number.isFinite(Number(party.height_schritt)) && Number(party.height_schritt) > 0) {
+		const hoehe = document.createElement("span");
+		hoehe.className = "conflict-party__none";
+		hoehe.textContent = `trägt eine Höhe: ${Number(party.height_schritt)} Schritt`;
+		evidence.appendChild(hoehe);
+	}
+
 	// "Auf der Karte?" -- asked of the resolver, not of the payload, so a case that brought no
 	// coordinate (every merged WikiSync case) still gets the button as long as the object is findable.
 	if (resolveConflictPartyLatLng(party)) {

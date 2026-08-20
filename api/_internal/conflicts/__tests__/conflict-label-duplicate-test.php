@@ -31,9 +31,9 @@ if (ini_get('zend.assertions') !== '1') {
 require __DIR__ . '/../rules.php';
 
 /** Kurzform fuer eine Beschriftungszeile, wie sie der Leser in rules.php baut. */
-$zeile = static function (string $id, string $name, string $subtype, string $wikiKey, string $region = '', string $updatedAt = ''): array {
+$zeile = static function (string $id, string $name, string $subtype, string $wikiKey, string $region = '', string $updatedAt = '', $hoehe = null): array {
     return ['id' => $id, 'label' => $name, 'subtype' => $subtype, 'wiki_key' => $wikiKey,
-        'region' => $region, 'updated_at' => $updatedAt];
+        'region' => $region, 'updated_at' => $updatedAt, 'height_schritt' => $hoehe];
 };
 
 // --- avesmapsConflictLabelIdentity: WANN sind zwei Beschriftungen dasselbe Ding? ----------------
@@ -199,6 +199,24 @@ foreach ($unterscheidbar[0]['parties'] as $partei) {
 }
 assert($stand['cc22'] === '2026-08-20 12:38:09', 'der Stand reist mit: ' . json_encode($stand));
 assert($stand['aafc'] === '2026-08-07 09:50:13');
+
+// 💣 UND WAS AN DER BESCHRIFTUNG HAENGT, REIST MIT. Ein Gipfel-Label traegt seine Hoehe in
+// `height_schritt`, und das Hoehenfeld der Karte liest GENAU DIESE Labels als Stuetzpunkte
+// (api/_internal/app/terrain-store.php, `is_active = 1`). Live traegt eine der beiden „Drei
+// Schwestern" 2100 Schritt und die andere gar nichts -- wer die falsche loescht, nimmt der Karte
+// einen Hoehenstuetzpunkt, ohne es zu merken.
+$mitHoehe = avesmapsConflictRuleDuplicateLabel([
+    $zeile('cc22', 'Drei Schwestern', 'berggipfel', 'drei-schwestern', '', '2026-08-20 12:38:09', 2100.0),
+    $zeile('aafc', 'Drei Schwestern', 'berggipfel', 'drei-schwestern', '', '2026-08-07 09:50:13'),
+]);
+$hoehen = [];
+foreach ($mitHoehe[0]['parties'] as $partei) {
+    $hoehen[$partei['id']] = $partei['height_schritt'];
+}
+assert($hoehen['cc22'] === 2100.0, 'die Hoehe reist DURCH -- die reine Regel normalisiert nicht, das tut der Leser: ' . json_encode($hoehen));
+// ⚠️ Und die ohne Hoehe behauptet KEINE. `0` waere eine Aussage, die niemand gemacht hat -- dieselbe
+// Trennung wie bei readLabelHeightSchritt (map-features-labels.js): „nicht erfasst" ist nicht „null".
+assert($hoehen['aafc'] === null, json_encode($hoehen));
 
 // Der Fingerabdruck haengt an der Identitaet: aendert jemand den Wiki-Schluessel einer der beiden,
 // ist es ein anderer Fall und eine alte Entscheidung gilt nicht mehr.
