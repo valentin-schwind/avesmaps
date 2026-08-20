@@ -120,9 +120,12 @@ Richtung zeigen:
    Provinz — sind **Regionen**. Zwei Teilflächen derselben Region überlappen einander
    nicht sinnvoll; ihre relative Ordnung ist bedeutungslos.
 
-⚠️ **Kein Audit-Eintrag.** `ecosystem_geometry_audit_log` protokolliert Geometrie; weder
-Reihenfolge noch Sperre ist eine. Wer es später doch will, hat mit `updated_by` auf der
-Region den Anker.
+🔴 **Korrigiert beim Bau (19.08.2026): BEIDE werden protokolliert.** Der Entwurf sagte hier
+„kein Audit-Eintrag — `ecosystem_geometry_audit_log` protokolliert Geometrie". Beim Bauen
+stellte sich das als bereits überholt heraus: die Sperre läuft über `update_region`, und das
+schreibt seit jeher eine Audit-Zeile. Sie herauszunehmen wäre Arbeit gewesen, um eine
+Auskunft zu verlieren; `set_region_stack` schreibt seine deshalb genauso. Beide Zeilen sind
+klein und die Tabelle wird gestutzt (`audit-prune.php`).
 
 ### Die DDL
 
@@ -252,10 +255,20 @@ dagegen gilt für ihn wie für alle, sie ist ja jetzt eine Karteneigenschaft.
 
 - **Lesen:** `GET /api/app/ecosystem-areas.php` trägt `stack_order` und `is_locked` je
   Fläche mit (aus der Region gejoint, wie `region_name` und `kind` es schon tun).
-- **Schreiben:** eine Aktion in `api/edit/map/ecosystem.php`, Fähigkeit `edit`. Sie nimmt
-  die `region_public_id` und **genau die Felder, die mitgeschickt werden** — dieselbe
-  Regel wie beim Sammel-Speichern der Wege-Gruppe (19.08.2026) und aus demselben Grund:
-  ein Schreibvorgang, der alle Felder setzt, macht jede gewollte Ausnahme platt.
+- **Schreiben, die Sperre:** über das vorhandene `update_region`, Fähigkeit `edit`. Es nimmt
+  **genau die Felder, die mitgeschickt werden** — dieselbe Regel wie beim Sammel-Speichern der
+  Wege-Gruppe (19.08.2026) und aus demselben Grund: ein Schreibvorgang, der alle Felder setzt,
+  macht jede gewollte Ausnahme platt. 💣 Gelesen wird mit `array_key_exists`, nicht `isset` —
+  sonst wäre ein ausdrückliches `is_locked: false` lautlos wirkungslos.
+- 🔴 **Schreiben, die Reihenfolge: `set_region_stack`, eine eigene Aktion.** Der Entwurf sah
+  hier zunächst „kein neuer Endpunkt, `stack_order` reiht sich in `update_region` ein" vor.
+  Das ist beim Bauen **widerlegt** worden: „ganz nach vorn" heisst *höchster Rang der Ebene
+  + Schritt*, und diesen Rang kennt der Browser nicht — der Loader lädt nach bbox, er sieht
+  also nur den Bildausschnitt. Eine dort gerechnete Zahl schöbe die Region hinter jede
+  gerade nicht geladene, und zwei gleichzeitig drückende Editoren bekämen denselben Rang.
+  Die Aktion nimmt `{public_id, position: "front"|"back"}` und rechnet in einer Transaktion.
+  ⚠️ `stack_order` ist deshalb in `avesmapsEcosystemReadRegionFields` **kein** Feld: ein
+  zweiter Weg zur selben Spalte wäre genau die Einladung, ihn doch im Browser zu rechnen.
 - ⚠️ Der Eigenschaften-Dialog schreibt die Sperre über **seinen** vorhandenen Speicherweg
   mit (er speichert Name, Anzeige, Nodix, Art ohnehin in einem Zug). Kein zweiter Aufruf
   neben „Speichern", sonst ist „Abbrechen" für einen der beiden Werte wirkungslos.
@@ -310,18 +323,42 @@ zeigt seine Funde".)
 
 | Test | sichert |
 |---|---|
-| `ecosystem-stapelreihenfolge.test.js` | Client sortiert nach `stack_order`, nicht nach Größe; Teilmenge (bbox) ordnet richtig |
-| `ecosystem-sperre-durchlass.test.js` | Klick auf gesperrte Fläche erreicht die darunter; Zettel bleibt gebunden; zwei gesperrte übereinander |
-| `ecosystem-sperre-eingaenge.test.js` | alle vier Eingänge fragen die Weiche — zur **Laufzeit** gezählt, nicht per Grep (Vorbild `field-origins-test.php`, das genau so den vergessenen zweiten Schreibweg fand) |
-| `ecosystem-sperre-nur-editor.test.js` | ohne `canOperateEcosystemLayers()` ist die Sperre wirkungslos, das Infopanel geht auf |
-| `ecosystem-flaechenrechnung-test.php` | PHP-Flächenrechnung == `ecosystemGeometryArea`, gegen dieselbe Fixture, Löcher inbegriffen |
-| `ecosystem-startaufstellung-test.php` | der Seed reproduziert die heutige Ordnung Ziffer für Ziffer — mit der abgeschafften JS-Regel als **Zeugen** in der Fixture (Vorbild `zoombaender-vorgabe.test.js`) |
-| `ecosystem-menue-struktur.test.js` | jeder `action`-Wert hat weiterhin eine Glyphenregel im CSS; kein Eintrag ohne Untermenü-Zuordnung |
+| `ecosystem-stapelreihenfolge.test.js` | Client sortiert nach `stack_order`, nicht nach Größe; stabil bei Gleichstand; die abgeschaffte Regel ist wirklich weg |
+| `ecosystem-sperre-durchlass.test.js` | die reine Frage: gesperrt **und** Bearbeiten-Modus; alles Fehlende zählt als „nicht gesperrt" |
+| `ecosystem-sperre-eingaenge.test.js` | jede Zeigergeste fragt die Weiche und steigt danach aus — zur **Laufzeit** gezählt, nicht per Grep (Vorbild `field-origins-test.php`). Gegen die entfernte Weiche gegengeprüft |
+| `ecosystem-properties-sperre.test.js` | der Namensvertrag zwischen `index.html` und dem Dialog; genau EIN `update_region`-Aufruf im Fenster |
+| `ecosystem-menue-struktur.test.js` | jede Gruppe steht in **beiden** Registern und hat eine Glyphenregel; die Zielreihenfolge stimmt |
+| `ecosystem-flaeche-test.php` | PHP-Flächenrechnung == `ecosystemGeometryArea`, Löcher und MultiPolygon inbegriffen |
+| `ecosystem-startaufstellung-test.php` | der Seed reproduziert die alte Ordnung — mit der abgeschafften Regel als **Zeugen** in der Fixture (Vorbild `zoombaender-vorgabe.test.js`); ein zweiter Lauf rührt nichts an |
+| `ecosystem-stapel-schreiben-test.php` | Partialität; `is_locked: false` kommt durch; `stack_order` ist in `update_region` **kein** Feld |
+
+⭐ **Was kein Unit-Test beantworten kann, haben Prüfseiten im echten Browser gemessen**
+(untracked, `.gitignore: verify-*`): `verify-sperre-durchlass.html` fährt echtes Leaflet mit
+zwei gestapelten Flächen und misst mit `elementFromPoint`, dass der Klick durchfällt, die
+Karte zurückkommt, **der Zettel gebunden bleibt** und der Zeiger-Stil danach wieder auf dem
+alten Wert steht. `verify-stapel-fenster.html` nimmt das echte Markup aus `index.html` und
+das echte Modul und prüft Liste, Suche, Bilanz, Zähler und beide Schreibwege.
 
 ⚠️ Vor dem Push das **ganze** Testfeld, JS und PHP, samt der 21 `tools/wikidump/test-*.php`
 (AGENTS.md §9).
 
-## 13. Offen
+## 13. Was die Weiche wirklich bindet
+
+Der Entwurf zählte hier vier Eingänge auf und verlangte eine gemeinsame Weiche. Gebaut sind es
+**drei** Zeigergesten der Fläche (`click`, `dblclick`, `contextmenu`) — und die Zielwahl der
+Zwei-Flächen-Gesten braucht **keinen** eigenen Riegel:
+
+⭐ `AvesmapsEcosystemGeometryOps.handleAreaClick` hängt am Klickhandler und bekommt den Klick
+erst, **nachdem** die Weiche ihn durchgelassen hat. Bei einer gesperrten Region läuft der
+Handler der Fläche darunter, und die wird zum Ziel — was genau die gewollte Antwort ist.
+Ein zweiter Riegel dort wäre eine zweite Regel für dieselbe Frage.
+
+⚠️ Damit steht im Code **keine Zahl** — die Falle vom 14.08.2026 war nicht die fehlende
+Sperre, sondern der Kommentar „ERZEUGER 1 VON 2", der sich wie eine vollständige Liste las.
+Gezählt wird stattdessen zur Laufzeit (`ecosystem-sperre-eingaenge.test.js`), und der Test ist
+gegen die entfernte Weiche gegengeprüft.
+
+## 14. Offen
 
 - 🔧 **Der echte Ablauf mit angemeldeter Sitzung** — Sperren, Neuladen, Entsperren gegen die
   Produktivdatenbank. Kein Test ersetzt ihn (AGENTS.md §9: „Abnahme heißt ABLAUF, nicht Maß").
