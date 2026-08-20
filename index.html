@@ -811,6 +811,16 @@
 			     die gezeichneten Flaechen vom gemalten Gelaende abheben. 0 % sieht aus wie gar keine
 			     Grundkarte. Sitzt unter den drei Ebenen-Knoepfen, weil er zur Ansicht gehoert, nicht zur
 			     Bearbeitung. -->
+			<!-- Der Ansage-Streifen der Isolation (20.08.2026).
+			     🔴 EIN ZUSTAND, DER DIE KARTE VERÄNDERT, MUSS SICH ANSAGEN. „Nur diese Region zeigen"
+			     lebt nur zur Laufzeit und wird nirgends gespeichert — aber wer das Fenster schliesst
+			     und weiterarbeitet, sässe sonst vor einer Ebene, die leer aussieht, ohne den Grund zu
+			     finden. Dieselbe Überlegung wie beim Zähler der gesperrten Regionen: der Ausweg gehört
+			     dorthin, wo man den Zustand sieht, nicht in ein Fenster, das man erst öffnen muss. -->
+			<div id="ecosystem-isolation-note" class="ecosystem-isolation-note" role="status" hidden>
+				<span id="ecosystem-isolation-name" class="ecosystem-isolation-note__name"></span>
+				<button id="ecosystem-isolation-off" class="ecosystem-isolation-note__off" type="button" data-i18n="ecosystem.isolation.showAll">Alle zeigen</button>
+			</div>
 			<label class="ecosystem-underground">
 				<span class="ecosystem-underground__label" data-i18n="ecosystem.underground.label">Untergrund</span>
 				<input id="ecosystem-underground-range" class="ecosystem-underground__range" type="range" min="0" max="100" step="5" value="50" aria-label="Deckkraft des Untergrunds" data-i18n-aria-label="ecosystem.underground.aria" />

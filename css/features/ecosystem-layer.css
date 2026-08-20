@@ -2230,3 +2230,74 @@ body.leaflet-dragging .ecosystem-brush-pan .leaflet-interactive {
 .ecosystem-stapel__tool--gefahr:hover {
 	background: var(--color-danger-soft);
 }
+
+/* ---- „Nur diese Region zeigen" (20.08.2026) ------------------------------------------------------
+   Owner: „ein isolated modus, wo nur die region angezeigt wird ... der modus soll keinen dauerhaften
+   effekt haben, es geht nur um die schnelle anzeige."
+
+   💣 DIE VORGABE IST VERSTECKEN, die AUSNAHME ist die isolierte Region -- nicht umgekehrt. Der Grund
+   ist das Nachladen: der Loader holt Flaechen nach, sobald man schwenkt, und die kommen als neue
+   Pfade in die Pane. Waere die Vorgabe „sichtbar", tauchten sie einzeln wieder auf, und die Isolation
+   zerfiele beim ersten Schwenk. So ist alles Neue erst einmal weg -- die sichere Richtung -- und nur
+   was ausdruecklich markiert ist, bleibt stehen.
+
+   🪤 `display`, nicht `opacity`: eine unsichtbare Flaeche mit Deckkraft 0 nimmt weiterhin Klicks an,
+   und dann klickt man auf etwas, das man nicht sieht. Genau die Sorte Deckel, die die Klick-Sperre
+   nebenan abschafft. */
+.ecosystem-isolation .ecosystem-pane > svg path.leaflet-interactive {
+	display: none;
+}
+
+.ecosystem-isolation .ecosystem-pane > svg path.leaflet-interactive.ecosystem-area--isoliert {
+	display: revert;
+}
+
+/* Der Ansage-Streifen in der Landschaften-Leiste. Er ist der Ausweg fuer den, der das Fenster
+   inzwischen geschlossen hat -- ohne ihn waere „die Ebene ist leer" ein Raetsel. */
+.ecosystem-isolation-note {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--space-8);
+	padding: var(--space-4) var(--space-8);
+	border: 1px solid var(--color-pill-border);
+	border-radius: var(--radius-md);
+	background: var(--color-pill);
+	color: var(--color-pill-text);
+	font-size: var(--font-size-small);
+}
+
+.ecosystem-isolation-note[hidden] {
+	display: none;
+}
+
+.ecosystem-isolation-note__name {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+/* ⚠️ Weich/outline wie jede Nebenhandlung -- gefuellt waere er die Haupthandlung der Leiste, und das
+   ist er nicht: die Haupthandlung dort ist die Wahl der Ebene. */
+.ecosystem-isolation-note__off {
+	flex: 0 0 auto;
+	padding: var(--space-2) var(--space-6);
+	border: 1px solid var(--color-button-soft-border);
+	border-radius: var(--radius-md);
+	background: var(--color-button-soft);
+	color: var(--color-button-soft-text);
+	cursor: pointer;
+	font: inherit;
+	font-size: var(--font-size-caption);
+}
+
+.ecosystem-isolation-note__off:hover {
+	background: var(--color-button-soft-hover);
+}
+
+/* Der Knopf in der Zeile, solange SEINE Region die isolierte ist. */
+.ecosystem-stapel__tool--solo {
+	border-color: var(--color-pill-border);
+	background: var(--color-pill);
+	color: var(--color-pill-text);
+}

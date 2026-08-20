@@ -251,6 +251,10 @@ function applyEcosystemAreaPayload(payload) {
 	// Der Zähler der gesperrten Regionen zählt im GELADENEN Bestand -- nach jedem Nachladen kann sich
 	// die Zahl also ändern, ohne dass jemand etwas gesperrt hat (19.08.2026).
 	window.AvesmapsEcosystemStapel?.zeichneZaehler?.();
+	// 💣 Und die Isolation („nur diese Region zeigen", 20.08.2026) muss ihre Markierung neu setzen:
+	// die eben nachgeholten Flächen sind frische Pfade ohne sie. Ohne diese Zeile zerfiele die
+	// Isolation beim ersten Schwenk -- stückweise, was schlimmer aussieht als gar nicht zu gehen.
+	window.AvesmapsEcosystemStapel?.wendeIsolationAn?.();
 
 	// Welche Labels in dieser Ebene blass sind, hängt an genau dieser Registry: ein Label ist „eigen",
 	// wenn eine geladene Fläche der aktiven Art darauf zeigt. Nach jedem Nachladen kann sich das also

@@ -408,6 +408,81 @@
 		}
 	}
 
+	// ---- „Nur diese Region zeigen" -------------------------------------------------------------------
+	//
+	// Owner 20.08.2026: „ein isolated modus, wo nur die region angezeigt wird … der modus soll keinen
+	// dauerhaften effekt haben, es geht nur um die schnelle anzeige. bei nochmaligem klicken soll alles
+	// wieder auftauchen."
+	//
+	// 🔴 REINE LAUFZEIT. Nichts davon geht zum Server, nichts in den Speicher des Browsers, nichts in
+	// die Karteneigenschaften. Ein Neuladen der Seite hebt es auf -- das ist gewollt und der Unterschied
+	// zur Sperre nebenan, die eine echte Eigenschaft der Region ist.
+	//
+	// 🔴 UND ER SAGT SICH AN. Wer isoliert und danach das Fenster schliesst, sässe sonst vor einer
+	// Ebene, die leer aussieht, ohne den Grund zu finden -- dieselbe Falle wie eine gesperrte Fläche
+	// ohne Zähler. Der Streifen in der Landschaften-Leiste nennt die Region und trägt den Ausweg.
+	//
+	// ⚠️ Er versteckt FLÄCHEN, keine Labels. Der Name einer Nachbarregion kann also stehen bleiben;
+	// „nur die Region anzeigen" meint ihre Geometrie, und die Beschriftungen kommen aus der
+	// Kartennutzlast, nicht aus dieser Ebene.
+	let isolierteRegion = "";
+
+	function kartenHuelle() {
+		return typeof map !== "undefined" && map && typeof map.getContainer === "function"
+			? map.getContainer()
+			: null;
+	}
+
+	// Die Markierung neu setzen. MUSS nach jedem Nachladen laufen -- der Loader holt beim Schwenken
+	// neue Flächen, und die kommen als frische Pfade ohne Markierung in die Pane.
+	function wendeIsolationAn() {
+		const huelle = kartenHuelle();
+		if (huelle) {
+			huelle.classList.toggle("ecosystem-isolation", isolierteRegion !== "");
+		}
+		if (typeof ecosystemLayers !== "undefined" && ecosystemLayers instanceof Map) {
+			ecosystemLayers.forEach((layer) => {
+				const pfad = layer?._path;
+				if (pfad) {
+					pfad.classList.toggle(
+						"ecosystem-area--isoliert",
+						isolierteRegion !== "" && layer._ecosystemArea?.region_public_id === isolierteRegion
+					);
+				}
+			});
+		}
+		zeichneIsolationsStreifen();
+	}
+
+	function zeichneIsolationsStreifen() {
+		const streifen = el("ecosystem-isolation-note");
+		if (!streifen) {
+			return;
+		}
+		streifen.hidden = isolierteRegion === "";
+		if (isolierteRegion === "") {
+			return;
+		}
+		// Der Name kommt aus dem geladenen Bestand oder aus der Fensterliste -- je nachdem, was da ist.
+		const ausBestand = flaechenDerRegion(isolierteRegion)[0]?._ecosystemArea?.region_name;
+		const ausListe = fensterRegionen.find((region) => region.public_id === isolierteRegion)?.name;
+		const name = String(ausBestand || ausListe || "");
+		const feld = el("ecosystem-isolation-name");
+		if (feld) {
+			feld.textContent = name === ""
+				? tr_("ecosystem.isolation.noteUnnamed", "Nur eine Region wird gezeigt")
+				: `Nur „${name}"`;
+		}
+	}
+
+	// Umschalter: dieselbe Region noch einmal hebt die Isolation auf, eine andere übernimmt sie.
+	function schalteIsolation(regionPublicId) {
+		const gewaehlt = String(regionPublicId || "");
+		isolierteRegion = isolierteRegion === gewaehlt ? "" : gewaehlt;
+		wendeIsolationAn();
+		zeichneListe();
+	}
+
 	// ---- Löschen -------------------------------------------------------------------------------------
 	//
 	// 🔴 DIE RÜCKFRAGE KOMMT AUS DEM EIGENSCHAFTEN-DIALOG, sie wird hier nicht nachgebaut. Sie sagt,
@@ -704,6 +779,20 @@
 		}
 		werkzeuge.appendChild(schloss);
 
+		// 👁 „Nur diese Region zeigen" (Owner 20.08.2026). Reine Anzeige, kein gespeicherter Zustand --
+		// derselbe Knopf noch einmal holt alles zurück.
+		const solo = baueWerkzeug(
+			"👁",
+			isolierteRegion === region.public_id
+				? tr_("ecosystem.isolation.off", "Wieder alles zeigen")
+				: tr_("ecosystem.isolation.on", "Nur diese Region zeigen"),
+			() => schalteIsolation(region.public_id)
+		);
+		if (isolierteRegion === region.public_id) {
+			solo.classList.add("ecosystem-stapel__tool--solo");
+		}
+		werkzeuge.appendChild(solo);
+
 		// 🗑 Löschen (Owner 20.08.2026, nachdem ihm in der Liste die Regionen OHNE Fläche aufgefallen
 		// sind). Als Zerstörer zuletzt -- dieselbe Ordnung wie in jedem Menü dieses Hauses.
 		//
@@ -777,6 +866,8 @@
 		el("ecosystem-stapel-done")?.addEventListener("click", schliesseFenster);
 		el("ecosystem-stapel-filter")?.addEventListener("input", zeichneListe);
 		el("ecosystem-stapel-open")?.addEventListener("click", () => void oeffneFenster(""));
+		// Der Ausweg aus der Isolation, dort wo man den Zustand sieht -- ohne das Fenster zu öffnen.
+		el("ecosystem-isolation-off")?.addEventListener("click", () => schalteIsolation(""));
 		el("ecosystem-stapel-overlay")?.addEventListener("click", (event) => {
 			if (event.target === el("ecosystem-stapel-overlay")) {
 				schliesseFenster();
@@ -803,6 +894,11 @@
 		window.AvesmapsEcosystemStapel = {
 			oeffne: oeffneFenster,
 			zeichneZaehler,
+			// 🔴 MUSS NACH JEDEM NACHLADEN LAUFEN. Der Loader holt beim Schwenken neue Flächen, und die
+			// kommen als frische Pfade ohne Markierung in die Pane. Ohne diesen Aufruf zerfiele die
+			// Isolation beim ersten Schwenk -- und zwar stückweise, was schlimmer aussieht als gar nicht
+			// zu funktionieren.
+			wendeIsolationAn,
 			// Der Eigenschaften-Dialog meldet hierher, wenn sein Haken gespeichert wurde -- damit der
 			// Zähler stimmt, ohne dass dieser Datei ein zweiter Schreibweg gehört.
 			merkeSperre: (regionPublicId, gesperrt) => {
