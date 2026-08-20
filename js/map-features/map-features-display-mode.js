@@ -177,6 +177,35 @@ function syncEditorDisplayTogglesToMode(mode) {
 	$("#toggleTerritoryBorders").prop("checked", BOUNDARY_OVERLAY_MODES.includes(mode));
 }
 
+/**
+ * Die Basiskarte, die vor dem Betreten der Ansicht „Original" lag -- `null`, solange die Ansicht
+ * gar nichts überschrieben hat.
+ *
+ * 💣 SIE IST DER RÜCKWEG, den es im Editor bis zum 20.08.2026 nicht gab (Fall #82, gemeldet von
+ * „Tigersprung"): `setSelectedMapLayerMode` SCHRIEB die Basis beim Betreten unbedingt auf „old",
+ * der Zweig, der sie zurückgibt, hing aber an `!IS_EDIT_MODE`. Ein Hinweg ohne Rückweg -- wer im
+ * Editor einmal auf „Original" geschaltet hatte, sass für den Rest der Sitzung auf der alten
+ * Karte, während die Überlagerungen daneben brav weiterschalteten. Genau dieser Unterschied stand
+ * in der Meldung, und er ist die Fundstelle: Überlagerungen hängen an den sync*-Aufrufen, die
+ * Basis an setMapStyle.
+ *
+ * ⚠️ Gemerkt statt geraten, und das ist der Unterschied zum Frontend-Zweig: der Editor darf „none"
+ * (leerer Untergrund, js/ui/route-planner-toggle.js) oder eine von Hand gewählte „old"-Basis
+ * stehen haben. Ein Rückweg, der stur „stylized" setzt, macht aus „None" eine gemalte Karte --
+ * genau die manuelle Wahl, die der Kommentar unten seit jeher zu schützen versprach.
+ * 🔴 Nur die Ansicht schreibt hier hinein. Wer die Basis von Hand wählt, setzt eine neue Wahrheit
+ * und löscht die Erinnerung (`vergissBasisVorOriginal`, gerufen vom change-Handler des
+ * #mapStyleSelect in js/map-features/map-features.js).
+ */
+let basisVorOriginal = null;
+
+// Der Editor hat die Basiskarte von Hand gewählt: ab jetzt gilt seine Wahl, nicht mehr das, was die
+// Ansicht „Original" einmal überschrieben hat. Ohne diesen Ruf legte das Verlassen der Ansicht die
+// gemerkte Vorgängerin über eine frische Handwahl.
+function vergissBasisVorOriginal() {
+	basisVorOriginal = null;
+}
+
 function setSelectedMapLayerMode(mode) {
 	// Diese Liste ist die Stelle, an der ein GETEILTER LINK ankommt: ?mapLayerMode=… läuft über
 	// map-features-layer-state.js (restorePlannerState) hierher, an der Auswahlbox vorbei. Was hier
@@ -196,15 +225,29 @@ function setSelectedMapLayerMode(mode) {
 	$("#mapLayerModeSelect").val(normalizedMode);
 	syncTransportControl("mapLayerModeSelect");
 	// "Original" ist die einzige Derographie-Ansicht mit abweichender Basiskarte: sie zeigt die alte
-	// Karte (Tile-Style "old"). Beim Verlassen zurueck auf "stylized" -- im Frontend automatisch; im
-	// Edit-Modus bleibt eine manuell ueber #mapStyleSelect gewaehlte Basis unangetastet.
+	// Karte (Tile-Style "old"). Beim Verlassen kommt die vorherige Basis zurueck -- im Frontend ist
+	// das immer "stylized", im Edit-Modus genau das, was die Ansicht ueberschrieben hat.
 	if (typeof setMapStyle === "function") {
 		if (normalizedMode === "original") {
+			// 💣 Nur merken, was die Ansicht WIRKLICH ueberschreibt. Stand die Basis schon auf "old"
+			// (der Editor hat sie im Anzeige-Menue selbst so gestellt), gibt es nichts zurueckzugeben
+			// -- und ein zweiter Aufruf mit "original" (restorePlannerState) darf die Erinnerung nicht
+			// mit "old" ueberschreiben und sie damit wertlos machen.
+			if (typeof activeMapStyle !== "undefined" && activeMapStyle !== "old") {
+				basisVorOriginal = activeMapStyle;
+			}
 			setMapStyle("old");
 		} else if (typeof IS_EDIT_MODE === "undefined" || !IS_EDIT_MODE) {
 			// Alle anderen Derographie-Modi nutzen im Frontend IMMER die stylized-Basis. setMapStyle ist
 			// ein No-op, wenn stylized bereits aktiv ist (Guard in bootstrap.js), daher unbedingt sicher.
+			basisVorOriginal = null;
 			setMapStyle("stylized");
+		} else if (basisVorOriginal !== null) {
+			// 🔴 Im Editor NUR zurueckgeben, was die Ansicht selbst genommen hat. Ohne Erinnerung wird
+			// hier gar nichts angefasst: eine Sitzung, die nie in "Original" war, behaelt ihre Basis.
+			const zurueck = basisVorOriginal;
+			basisVorOriginal = null;
+			setMapStyle(zurueck);
 		}
 	}
 	// Mittelgrauer Karten-Hintergrund hinter/um die Kacheln -- NUR im Edit-Modus, und dort nur in den Modi

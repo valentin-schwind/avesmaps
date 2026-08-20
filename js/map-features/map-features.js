@@ -60,6 +60,13 @@ $("#mapStyleSelect").on("change", function () {
 		return;
 	}
 
+	// Eine von Hand gewaehlte Basis ist ab jetzt die Wahrheit -- die Ansicht "Original" darf beim
+	// Verlassen nicht mehr ihre gemerkte Vorgaengerin darueberlegen (Fall #82; `basisVorOriginal`
+	// in map-features-display-mode.js). typeof-Riegel wie bei den Nachbarn: die andere Datei
+	// koennte einmal in einer aelteren Fassung ausgeliefert sein (§7).
+	if (typeof vergissBasisVorOriginal === "function") {
+		vergissBasisVorOriginal();
+	}
 	setMapStyle(String(this.value || "stylized"), { persist: true });
 });
 $("#togglePaths").change(syncPathVisibility);
