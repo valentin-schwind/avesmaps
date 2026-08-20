@@ -2060,10 +2060,37 @@ function avesmapsListEcosystemRegions(PDO $pdo, array $payload): array
         // „Reihenfolge und Sperren" zeigt den Stapel, und oben liegt vorn. Der Regionen-Picker, der
         // dieselbe Liste zieht, bekommt damit ebenfalls die Stapelreihenfolge statt der
         // alphabetischen -- gewollt: er waehlt aus, was auf der Karte obenauf liegt.
+        // 🔴 Die AUSDEHNUNG der Region reist seit dem 20.08.2026 mit (Owner: „cool wärs wenn man im
+        // dialogfenster auf ein layer doppelklicken könnte und er zoomt hin"). Sie MUSS vom Server
+        // kommen: der Browser kennt nur die Flächen seines Bildausschnitts, und gerade die Region, die
+        // man suchen will, liegt per Definition ausserhalb.
+        //
+        // ⭐ EIN Verbund statt fünf Unterabfragen: die Zählung lief schon als korrelierte Unterabfrage,
+        // vier weitere für die Ecken wären fünf Durchläufe über dieselben Zeilen. `COALESCE` bei der
+        // Zahl, weil eine Region ohne Fläche im LEFT JOIN mit NULL ankommt und „0" heissen muss --
+        // die Ecken bleiben dann bewusst NULL: „keine Ausdehnung" ist etwas anderes als „bei 0,0".
         'SELECT r.public_id, r.name, r.kind, r.region_type, r.wiki_region_key, r.wiki_url, r.label_public_id,
                 r.properties_json, r.updated_at, r.stack_order, r.is_locked,
-                (SELECT COUNT(*) FROM ecosystem_area a WHERE a.region_id = r.id AND a.is_active = 1) AS area_count
+                COALESCE(f.area_count, 0) AS area_count,
+                f.min_x, f.min_y, f.max_x, f.max_y,
+                e.public_id AS first_area_public_id
            FROM ecosystem_region r
+           LEFT JOIN (
+                SELECT region_id,
+                       COUNT(*) AS area_count,
+                       MIN(id) AS first_area_id,
+                       MIN(min_x) AS min_x, MIN(min_y) AS min_y,
+                       MAX(max_x) AS max_x, MAX(max_y) AS max_y
+                  FROM ecosystem_area
+                 WHERE is_active = 1
+                 GROUP BY region_id
+           ) f ON f.region_id = r.id
+           -- Eine BEISPIELflaeche der Region (20.08.2026): der Eigenschaften-Dialog wird ueber eine
+           -- FLAECHE geoeffnet, das Fenster kennt aber nur Regionen. Die aelteste, also `MIN(id)` --
+           -- deterministisch, damit derselbe Klick zweimal dasselbe Fenster oeffnet.
+           -- ⚠️ Die Geländeregler in jenem Dialog gehoeren dieser einen Flaeche, die Felder darueber
+           -- der Region. Das ist eine Eigenschaft des Dialogs, keine dieses Fensters.
+           LEFT JOIN ecosystem_area e ON e.id = f.first_area_id
           WHERE ' . implode(' AND ', $where) . '
           ORDER BY r.kind ASC, r.stack_order DESC, r.name ASC, r.id ASC'
     );
@@ -2088,6 +2115,20 @@ function avesmapsListEcosystemRegions(PDO $pdo, array $payload): array
             // Liste hieraus, der Zaehler in der Ebenen-Leiste seine Zahl.
             'stack_order' => (int) $row['stack_order'],
             'is_locked' => (int) $row['is_locked'] === 1,
+            // 🔴 Die Ausdehnung als GeoJSON-Ecken (x/y), nicht als Leaflet-Paar: die Leitung fuehrt in
+            // diesem Haus ueberall [x, y], und getauscht wird erst im Browser (AGENTS.md §5).
+            // ⚠️ `null` heisst „diese Region hat keine aktive Flaeche" -- etwas anderes als „liegt bei
+            // 0,0". Der Doppelklick sagt dann, dass es nichts zu zeigen gibt, statt an den Kartenrand
+            // zu springen.
+            'first_area_public_id' => $row['first_area_public_id'] === null
+                ? null
+                : (string) $row['first_area_public_id'],
+            'bounds' => $row['min_x'] === null ? null : [
+                'min_x' => (float) $row['min_x'],
+                'min_y' => (float) $row['min_y'],
+                'max_x' => (float) $row['max_x'],
+                'max_y' => (float) $row['max_y'],
+            ],
             'updated_at' => (string) $row['updated_at'],
         ];
     }
@@ -2568,6 +2609,88 @@ function avesmapsEcosystemSetRegionStack(PDO $pdo, array $payload, int $userId):
         'stack_order' => $rang,
         'revision' => $revision,
     ];
+}
+
+// ---- Die ganze Reihenfolge einer Ebene auf einmal (20.08.2026) --------------------------------------
+//
+// Owner: „über drag-n-drop die reihenfolge ändern." Gezogen wird an eine BELIEBIGE Stelle, nicht nur
+// nach ganz vorn oder hinten -- und dafuer ist „setze diese eine Zahl" der falsche Auftrag: zwischen
+// zwei Nachbarn ist nach drei Einschueben kein Platz mehr, und dann muesste doch neu nummeriert werden.
+// Also nimmt diese Aktion die GANZE Reihenfolge entgegen und vergibt sie frisch. Sie ist damit auch
+// gegen sich selbst robust: zweimal dasselbe geschickt ergibt zweimal dasselbe Ergebnis.
+//
+// 🔴 SIE LEHNT EINE UNVOLLSTAENDIGE LISTE AB. Das Fenster hat ein Suchfeld; wer waehrend eines Filters
+// zieht, sieht drei von 89 Zeilen und wuerde eine Reihenfolge aus dreien schicken -- die uebrigen 86
+// verloeren ihren Platz, ohne dass irgendwo etwas fehlschlaegt. Der Riegel gehoert HIERHER und nicht
+// nur an ein ausgegrautes Zieh-Symbol: ein deaktiviertes Bedienelement verhindert das Ziehen, nicht das
+// Senden. Dieselbe Ueberlegung wie beim Ebenen-Riegel der Klimazonen.
+//
+// ⚠️ Der Rumpf ist in ANZEIGEreihenfolge: vorn zuerst. Auf der Karte heisst „vorn" der HOECHSTE Rang
+// (wer zuletzt gezeichnet wird, liegt oben) -- die Zahlen laufen hier also absteigend.
+function avesmapsEcosystemReorderRegions(PDO $pdo, array $payload, int $userId): array
+{
+    avesmapsEcosystemEnsureTables($pdo);
+
+    $kind = avesmapsEcosystemReadKind($payload['kind'] ?? '');
+    avesmapsClimateAssertNotDerived($kind, 'reorder_regions');
+
+    $roh = $payload['public_ids'] ?? null;
+    if (!is_array($roh) || $roh === []) {
+        throw new InvalidArgumentException('public_ids must be a non-empty list.');
+    }
+    $publicIds = [];
+    foreach ($roh as $eintrag) {
+        $publicIds[] = avesmapsEcosystemReadPublicId($eintrag, 'public_ids');
+    }
+    if (count(array_unique($publicIds)) !== count($publicIds)) {
+        throw new InvalidArgumentException('public_ids contains duplicates.');
+    }
+
+    $pdo->beginTransaction();
+    try {
+        // Der Riegel: genau die aktiven Regionen dieser Ebene, keine mehr und keine weniger.
+        $bestand = $pdo->prepare(
+            'SELECT public_id FROM ecosystem_region WHERE kind = :kind AND is_active = 1'
+        );
+        $bestand->execute(['kind' => $kind]);
+        $vorhanden = $bestand->fetchAll(PDO::FETCH_COLUMN) ?: [];
+        if (!avesmapsEcosystemOrderIsComplete($vorhanden, $publicIds)) {
+            throw new InvalidArgumentException(
+                'public_ids must list every active region of this layer exactly once ('
+                . count($vorhanden) . ' expected, ' . count($publicIds) . ' sent).'
+            );
+        }
+
+        $schreiben = $pdo->prepare(
+            'UPDATE ecosystem_region SET stack_order = :rang, updated_by = :user_id WHERE public_id = :public_id'
+        );
+        foreach (avesmapsEcosystemStackRanksForOrder($publicIds) as $publicId => $rang) {
+            $schreiben->execute([
+                'rang' => $rang,
+                'user_id' => $userId > 0 ? $userId : null,
+                'public_id' => $publicId,
+            ]);
+        }
+
+        // EINE Protokollzeile fuer die ganze Geste, nicht 89. „Reihenfolge der Vegetation neu gesetzt"
+        // ist die Aussage; welche Zahl dabei welche Region traf, steht danach in der Tabelle.
+        avesmapsEcosystemWriteAuditLog(
+            $pdo,
+            'reorder_regions',
+            $userId,
+            null,
+            null,
+            [],
+            ['kind' => $kind, 'public_ids' => $publicIds]
+        );
+        $revision = avesmapsNextEcosystemRevision($pdo);
+        $pdo->commit();
+    } catch (Throwable $exception) {
+        $pdo->rollBack();
+        throw $exception;
+    }
+
+    return ['kind' => $kind, 'count' => count($publicIds), 'revision' => $revision];
 }
 
 function avesmapsUpdateEcosystemRegion(PDO $pdo, array $payload, int $userId): array

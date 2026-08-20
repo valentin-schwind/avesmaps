@@ -365,11 +365,197 @@
 		zeichneBilanz(sichtbar.length);
 	}
 
+	// ---- Doppelklick: dorthin zoomen -----------------------------------------------------------------
+	//
+	// Owner 20.08.2026: „cool wärs wenn man im dialogfenster auf ein layer doppelklicken könnte und er
+	// zoomt hin."
+	//
+	// 💣 KOORDINATENTAUSCH. Die Leitung führt GeoJSON — [x, y]. Leaflets `L.CRS.Simple` will
+	// [lat, lng] = [y, x] (AGENTS.md §5). Ohne den Tausch landet man spiegelverkehrt irgendwo auf der
+	// Karte, und weil beide Achsen 0..1024 laufen, sieht das Ergebnis plausibel aus.
+	//
+	// 🔴 Das Fenster bleibt OFFEN. Es verdunkelt die Karte nicht und lässt Zeiger durch — genau dafür
+	// steht es in der Ausnahmeliste von `dialog-overlays.css` — man sieht den Zoom also, während die
+	// Liste stehen bleibt. Bei 89 Regionen wäre „jedes Mal schliessen und neu suchen" die Zumutung.
+	function zeigeAufKarte(region) {
+		const ecken = region?.bounds;
+		if (!ecken) {
+			sag(tr_("ecosystem.stapel.noBounds", "Diese Region hat keine Fläche — es gibt nichts zu zeigen."), "warning");
+			return;
+		}
+		if (typeof map === "undefined" || !map || typeof map.fitBounds !== "function") {
+			return;
+		}
+
+		// Die Ebene mitziehen: eine Region der Topographie nützt nichts, wenn die Vegetation
+		// eingeschaltet ist -- man zoomt dann auf eine Stelle, an der man sie nicht sieht.
+		if (region.kind && typeof setActiveEcosystemLayerKind === "function"
+			&& typeof getActiveEcosystemLayerKind === "function"
+			&& getActiveEcosystemLayerKind() !== region.kind) {
+			setActiveEcosystemLayerKind(region.kind);
+		}
+
+		map.fitBounds(
+			[[ecken.min_y, ecken.min_x], [ecken.max_y, ecken.max_x]],
+			// Luft ringsum, damit die Region nicht bündig am Rand klebt -- und damit eine winzige
+			// Region nicht auf die höchste Zoomstufe springt, auf der man die Nachbarschaft verliert.
+			{ padding: [40, 40], maxZoom: 5 }
+		);
+
+		// Und sagen, WELCHE es war: nach dem Zoom liegen oft mehrere nebeneinander.
+		if (typeof setHighlightedEcosystemRegion === "function") {
+			setHighlightedEcosystemRegion(region.public_id);
+		}
+	}
+
+	// ---- Ziehen: die Reihenfolge von Hand legen ------------------------------------------------------
+	//
+	// Owner 20.08.2026: „über drag-n-drop die reihenfolge ändern."
+	//
+	// 🔴 GEZOGEN WIRD NUR OHNE FILTER. Wer bei aktiver Suche drei von 89 Zeilen sieht und eine davon
+	// verschiebt, meint eine Reihenfolge, die er nicht sieht. Der eigentliche Riegel steht im Server
+	// (`reorder_regions` lehnt eine unvollständige Liste ab) -- hier wird nur gar nicht erst gezogen,
+	// damit niemand eine Geste macht, die danach abgewiesen wird.
+	//
+	// ⚠️ HTML5-Ziehen kennt kein Touch. Am Telefon bleiben ⤒ und ⤓, und die tun dasselbe in gröber.
+	let ziehIndex = -1;
+
+	// Wohin gehört die gezogene Zeile, wenn sie über `zeilenIndex` losgelassen wird?
+	//
+	// 💣 DER FEHLER UM EINS. Wird nach UNTEN gezogen, rutscht alles zwischen Start und Ziel um eine
+	// Stelle hoch, sobald die gezogene Zeile herausgenommen ist -- ohne die Korrektur landet sie eine
+	// Stelle zu weit. Nach oben gezogen passiert das nicht. Rein und einzeln geprüft, weil man den
+	// Fehler beim Ausprobieren für „ungenaues Ziehen" hält und nicht für einen Rechenfehler.
+	function avesmapsStapelZielIndex(vonIndex, zeilenIndex, obereHaelfte) {
+		let ziel = obereHaelfte ? zeilenIndex : zeilenIndex + 1;
+		if (vonIndex < ziel) {
+			ziel -= 1;
+		}
+
+		return ziel;
+	}
+
+	// Die reine Umsortierung. Getrennt vom Server-Aufruf, damit die Reihenfolge prüfbar ist.
+	function avesmapsStapelUmsortieren(liste, vonIndex, nachIndex) {
+		const neu = Array.isArray(liste) ? liste.slice() : [];
+		if (vonIndex < 0 || vonIndex >= neu.length || nachIndex < 0 || nachIndex >= neu.length) {
+			return neu;
+		}
+		const [gezogen] = neu.splice(vonIndex, 1);
+		neu.splice(nachIndex, 0, gezogen);
+
+		return neu;
+	}
+
+	function darfZiehen() {
+		return String(el("ecosystem-stapel-filter")?.value || "").trim() === "";
+	}
+
+	async function reiheNeu(vonIndex, nachIndex) {
+		if (vonIndex === nachIndex || vonIndex < 0 || nachIndex < 0 || laeuft) {
+			return;
+		}
+		const vorher = fensterRegionen.slice();
+		const neu = avesmapsStapelUmsortieren(fensterRegionen, vonIndex, nachIndex);
+
+		// Sofort neu zeichnen: das Ziehen soll sich anfühlen, als wäre es schon passiert.
+		fensterRegionen = neu;
+		zeichneListe();
+
+		laeuft = true;
+		try {
+			await postEcosystemEdit("reorder_regions", {
+				kind: fensterEbene,
+				// In ANZEIGEreihenfolge: vorn zuerst. Der Server rechnet daraus die Ränge.
+				public_ids: neu.map((region) => region.public_id),
+			});
+			// Den geladenen Bestand nachziehen, damit die Karte sofort stimmt.
+			const anzahl = neu.length;
+			neu.forEach((region, index) => {
+				merkeAmBestand(region.public_id, { stack_order: (anzahl - index) * 10 });
+			});
+			if (typeof applyEcosystemStackingOrder === "function") {
+				applyEcosystemStackingOrder();
+			}
+		} catch (fehler) {
+			// 🔴 Zurück auf den Stand VOR dem Ziehen. Eine Liste, die eine Reihenfolge zeigt, die der
+			// Server abgelehnt hat, ist schlimmer als eine Fehlermeldung: man sieht seine Änderung und
+			// glaubt, sie sei da.
+			fensterRegionen = vorher;
+			zeichneListe();
+			sag(fehler?.message || tr_("ecosystem.stapel.reorderFailed", "Die Reihenfolge liess sich nicht speichern."), "warning");
+		} finally {
+			laeuft = false;
+		}
+	}
+
 	function baueZeile(region, platz) {
 		const zeile = document.createElement("div");
 		zeile.className = "ecosystem-stapel__row";
 		if (region.is_locked === true) {
 			zeile.classList.add("ecosystem-stapel__row--gesperrt");
+		}
+		// 🔴 Eine Geste, die man kennen muss, ist für den, der sie nicht kennt, keine -- deshalb steht
+		// sie im Zettel der Zeile UND unten in der Bilanzzeile. Dieselbe Überlegung, die „Fläche
+		// bearbeiten" als sichtbaren Zwilling des Doppelklicks ins Menü gebracht hat.
+		zeile.title = darfZiehen()
+			? tr_("ecosystem.stapel.rowHint", "Doppelklick: auf der Karte zeigen · Ziehen: Reihenfolge ändern")
+			: tr_("ecosystem.stapel.showHint", "Doppelklick: auf der Karte zeigen");
+		zeile.addEventListener("dblclick", (event) => {
+			// 🪤 Nicht auf den Werkzeugen: zweimal schnell auf „ganz nach vorn" ist ein doppelter
+			// Klick auf den Knopf, keine Zoom-Anforderung.
+			if (event.target?.closest?.(".ecosystem-stapel__tools")) {
+				return;
+			}
+			zeigeAufKarte(region);
+		});
+
+		// ---- Ziehen ---------------------------------------------------------------------------------
+		const platzIndex = platz - 1;
+		if (darfZiehen()) {
+			zeile.draggable = true;
+			zeile.addEventListener("dragstart", (event) => {
+				ziehIndex = platzIndex;
+				zeile.classList.add("ecosystem-stapel__row--zieht");
+				// Firefox startet ohne gesetzte Daten gar kein Ziehen.
+				event.dataTransfer?.setData?.("text/plain", region.public_id);
+				if (event.dataTransfer) {
+					event.dataTransfer.effectAllowed = "move";
+				}
+			});
+			zeile.addEventListener("dragend", () => {
+				ziehIndex = -1;
+				zeile.classList.remove("ecosystem-stapel__row--zieht");
+				el("ecosystem-stapel-list")?.querySelectorAll(".ecosystem-stapel__row--ziel-oben, .ecosystem-stapel__row--ziel-unten")
+					.forEach((andere) => andere.classList.remove("ecosystem-stapel__row--ziel-oben", "ecosystem-stapel__row--ziel-unten"));
+			});
+			zeile.addEventListener("dragover", (event) => {
+				if (ziehIndex < 0) {
+					return;
+				}
+				// 💣 Ohne preventDefault gibt es kein `drop` -- der Browser lehnt die Ablage sonst ab.
+				event.preventDefault();
+				if (event.dataTransfer) {
+					event.dataTransfer.dropEffect = "move";
+				}
+				// Über oder unter der Mitte? Danach richtet sich die Linie UND die Zielstelle.
+				const kasten = zeile.getBoundingClientRect();
+				const obereHaelfte = (event.clientY - kasten.top) < kasten.height / 2;
+				zeile.classList.toggle("ecosystem-stapel__row--ziel-oben", obereHaelfte);
+				zeile.classList.toggle("ecosystem-stapel__row--ziel-unten", !obereHaelfte);
+			});
+			zeile.addEventListener("dragleave", () => {
+				zeile.classList.remove("ecosystem-stapel__row--ziel-oben", "ecosystem-stapel__row--ziel-unten");
+			});
+			zeile.addEventListener("drop", (event) => {
+				event.preventDefault();
+				if (ziehIndex < 0) {
+					return;
+				}
+				const kasten = zeile.getBoundingClientRect();
+				const obereHaelfte = (event.clientY - kasten.top) < kasten.height / 2;
+				void reiheNeu(ziehIndex, avesmapsStapelZielIndex(ziehIndex, platzIndex, obereHaelfte));
+			});
 		}
 
 		const nummer = document.createElement("span");
@@ -401,6 +587,18 @@
 			await schiebe(region.public_id, "back");
 			await ladeEbene(fensterEbene);
 		}));
+		// ⚙ Eigenschaften (Owner 20.08.2026). Der Dialog wird über eine FLÄCHE geöffnet, das Fenster
+		// kennt aber nur Regionen -- deshalb reist die älteste Fläche der Region als
+		// `first_area_public_id` im Payload mit.
+		// ⚠️ Die Geländeregler in jenem Dialog gehören genau dieser einen Fläche, die Felder darüber
+		// der Region. Das ist eine Eigenschaft des Dialogs und keine dieses Fensters.
+		if (region.first_area_public_id) {
+			werkzeuge.appendChild(baueWerkzeug("⚙", tr_("ecosystem.stapel.properties", "Eigenschaften"), () => {
+				if (typeof openEcosystemPropertiesDialog === "function") {
+					void openEcosystemPropertiesDialog(region.first_area_public_id);
+				}
+			}));
+		}
 		const schloss = baueWerkzeug(
 			region.is_locked === true ? "🔒" : "🔓",
 			region.is_locked === true
@@ -458,7 +656,13 @@
 		if (gesperrt > 0) {
 			teile.push(`${gesperrt} gesperrt`);
 		}
-		zeile.textContent = `${teile.join(" · ")}   ·   oben = vorn`;
+		// 🔴 Der Hinweis auf die zwei Gesten steht hier, weil eine Geste, die man kennen muss, für den,
+		// der sie nicht kennt, keine ist. Bei aktiver Suche fällt das Ziehen aus dem Satz -- ein
+		// Hinweis auf etwas, das gerade nicht geht, ist schlimmer als keiner.
+		const gesten = darfZiehen()
+			? tr_("ecosystem.stapel.rowHint", "Doppelklick: auf der Karte zeigen · Ziehen: Reihenfolge ändern")
+			: tr_("ecosystem.stapel.showHint", "Doppelklick: auf der Karte zeigen");
+		zeile.textContent = `${teile.join(" · ")}   ·   oben = vorn   ·   ${gesten}`;
 	}
 
 	// ---- Verdrahtung --------------------------------------------------------------------------------
@@ -506,6 +710,6 @@
 	}
 
 	if (typeof module !== "undefined" && module.exports) {
-		module.exports = { EBENEN };
+		module.exports = { EBENEN, avesmapsStapelZielIndex, avesmapsStapelUmsortieren };
 	}
 })();

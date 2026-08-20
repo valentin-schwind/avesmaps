@@ -2148,3 +2148,31 @@ body.leaflet-dragging .ecosystem-brush-pan .leaflet-interactive {
 #ecosystem-stapel-list {
 	max-height: min(62vh, 620px);
 }
+
+/* ---- Ziehen und Doppelklick in der Stapelliste (20.08.2026) --------------------------------------
+   Owner: „über drag-n-drop die reihenfolge ändern" und „auf ein layer doppelklicken ... und er
+   zoomt hin". */
+
+/* Der Greifer sagt vor dem Anfassen, dass sich hier etwas ziehen laesst.
+   ⚠️ NUR wenn wirklich gezogen werden darf -- bei aktiver Suche traegt die Zeile kein `draggable`,
+   und ein Greifer ueber einer Zeile, die sich nicht bewegt, ist eine Luege. */
+.ecosystem-stapel__row[draggable="true"] {
+	cursor: grab;
+}
+
+.ecosystem-stapel__row--zieht {
+	cursor: grabbing;
+	opacity: 0.45;
+}
+
+/* Die Ablagelinie. Sie liegt ueber ODER unter der Zeile, je nachdem, wo der Zeiger steht -- so sieht
+   man VOR dem Loslassen, wohin es geht.
+   💣 `inset`-Schatten statt `border`: ein Rahmen aendert die Zeilenhoehe, und dann springt die ganze
+   Liste beim Darueberziehen um einen Pixel. */
+.ecosystem-stapel__row--ziel-oben {
+	box-shadow: inset 0 2px 0 0 var(--color-accent-strong);
+}
+
+.ecosystem-stapel__row--ziel-unten {
+	box-shadow: inset 0 -2px 0 0 var(--color-accent-strong);
+}

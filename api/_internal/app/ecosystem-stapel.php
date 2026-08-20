@@ -26,6 +26,40 @@ function avesmapsEcosystemNextStackOrder(PDO $pdo, string $kind): int
     return ((int) $statement->fetchColumn()) + AVESMAPS_ECOSYSTEM_STACK_STEP;
 }
 
+// Deckt die gesendete Reihenfolge die Ebene vollstaendig ab? Reihenfolge egal, Vielfache verboten.
+//
+// 🔴 DER RIEGEL GEGEN DEN FILTER. Das Fenster hat ein Suchfeld; wer waehrend eines Filters zieht,
+// sieht drei von 89 Zeilen. Eine Reihenfolge aus dreien wuerde die uebrigen 86 um ihren Platz bringen,
+// ohne dass irgendwo etwas fehlschlaegt. Rein und einzeln geprueft, weil genau das die Regel ist, an
+// der alles haengt.
+function avesmapsEcosystemOrderIsComplete(array $vorhanden, array $gesendet): bool
+{
+    if (count($vorhanden) !== count($gesendet)) {
+        return false;
+    }
+    $a = array_values($vorhanden);
+    $b = array_values($gesendet);
+    sort($a);
+    sort($b);
+
+    return $a === $b;
+}
+
+// Anzeigereihenfolge (vorn zuerst) -> public_id => Rang.
+//
+// ⚠️ ABSTEIGEND: auf der Karte liegt vorn, wer den HOECHSTEN Rang hat (wer zuletzt gezeichnet wird,
+// liegt oben). Die erste Zeile der Liste bekommt also die groesste Zahl, nicht die kleinste.
+function avesmapsEcosystemStackRanksForOrder(array $publicIdsVornZuerst): array
+{
+    $anzahl = count($publicIdsVornZuerst);
+    $raenge = [];
+    foreach (array_values($publicIdsVornZuerst) as $index => $publicId) {
+        $raenge[$publicId] = ($anzahl - $index) * AVESMAPS_ECOSYSTEM_STACK_STEP;
+    }
+
+    return $raenge;
+}
+
 // ---- Die Startaufstellung ---------------------------------------------------------------------------
 //
 // 🔴 SIE LAEUFT EINMAL. Bis zum 19.08.2026 rechnete der BROWSER die Stapelreihenfolge bei jedem Laden

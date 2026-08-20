@@ -81,6 +81,9 @@ try {
         // kennt nur der Server -- der Browser sieht bloss den Bildausschnitt. Dieselbe Ueberlegung
         // wie bei update_area_terrain neben update_area_geometry.
         'set_region_stack' => avesmapsEcosystemSetRegionStack($pdo, $payload, $userId),
+        // Drag-and-drop im Fenster „Reihenfolge und Sperren" (20.08.2026). Nimmt die GANZE Reihenfolge
+        // einer Ebene und lehnt eine unvollstaendige Liste ab -- siehe die Begruendung an der Funktion.
+        'reorder_regions' => avesmapsEcosystemReorderRegions($pdo, $payload, $userId),
         // Soft, and it takes its areas along inside one transaction.
         'delete_region' => avesmapsDeleteEcosystemRegion($pdo, $payload, $userId),
         // Needs region_public_id (region_id accepted as an alias); geometry_geojson takes a GeoJSON
