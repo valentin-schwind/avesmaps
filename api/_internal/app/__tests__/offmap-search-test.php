@@ -240,6 +240,50 @@ $ausZyklus = avesmapsOffmapTerritoriesWithoutArea($zyklus, [1]);
 assert($ausZyklus === [], 'der Zyklus wird durchlaufen und endet -- ohne Haenger');
 
 // ---------------------------------------------------------------------------
+// Siedlungen (Stufe 3). Ihre `lage` ist die EINZIGE Quelle mit dem ·-Trenner --
+// „Region · Staat", zusammengesetzt von avesmapsWikiSettlementParseInfobox.
+// ---------------------------------------------------------------------------
+
+$nurStaatIndex = avesmapsBuildOffmapTargetIndex(
+    [], [['public_id' => 'ter-mittelreich', 'name' => 'Mittelreich']]
+);
+$siedlung = avesmapsBuildOffmapSearchEntries(
+    [['title' => 'Auhof', 'type_label' => 'Dorf', 'place_raw' => 'Kosch · Mittelreich',
+      'wiki_url' => '', 'kind' => 'settlement']],
+    $nurStaatIndex,
+    ['settlements' => [], 'regions' => []],
+    []
+);
+// 💣 Beide Haelften sind Kandidaten: Kosch ist hier nicht gezeichnet, Mittelreich schon.
+// Nur die erste zu pruefen liesse den Treffer ohne Ziel, obwohl eines dasteht.
+assert($siedlung[0]['place_name'] === 'Mittelreich', 'faellt die Region aus, traegt der Staat');
+assert($siedlung[0]['type_label'] === 'Dorf · Mittelreich');
+
+// Und die Region gewinnt, wenn sie da ist -- sie ist die genauere Angabe.
+$beideIndex = avesmapsBuildOffmapTargetIndex(
+    [['feature_type' => 'region', 'public_id' => 'reg-kosch', 'name' => 'Kosch']],
+    [['public_id' => 'ter-mittelreich', 'name' => 'Mittelreich']]
+);
+$genauer = avesmapsBuildOffmapSearchEntries(
+    [['title' => 'Auhof', 'type_label' => 'Dorf', 'place_raw' => 'Kosch · Mittelreich',
+      'wiki_url' => '', 'kind' => 'settlement']],
+    $beideIndex,
+    ['settlements' => [], 'regions' => []],
+    []
+);
+assert($genauer[0]['place_name'] === 'Kosch', 'die zuerst genannte, genauere Angabe gewinnt');
+
+// ⚠️ Eine leere `lage` (Spalte noch nicht gefuellt, Sync stand aus) heisst „kein
+// Sprungziel" -- der Ort bleibt auffindbar, nur ohne Flug.
+$ohneLage = avesmapsBuildOffmapSearchEntries(
+    [['title' => 'Auhof', 'type_label' => 'Dorf', 'place_raw' => '', 'wiki_url' => '', 'kind' => 'settlement']],
+    $beideIndex,
+    ['settlements' => [], 'regions' => []],
+    []
+);
+assert(count($ohneLage) === 1 && $ohneLage[0]['unresolved'] === true, 'ohne Lage auffindbar, aber ohne Flug');
+
+// ---------------------------------------------------------------------------
 // Die Rangfolge: wer hinfliegen kann, steht vorn.
 // ---------------------------------------------------------------------------
 

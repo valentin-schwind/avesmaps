@@ -806,6 +806,17 @@ $check(
     (string) ($ferdok['wiki_key'] ?? '(none)'),
     "hand-derived: avesmapsPoliticalSlug('Ferdok') = 'ferdok'"
 );
+// 💣 `lage` is the jump target the map search needs for a settlement with no map feature
+// ("Kosch · Mittelreich" -> fly to Kosch). ParseInfobox has always COMPUTED it; until
+// 2026-08-20 the record dropped it, so every dump run threw it away again and the search
+// had nothing to aim at. Hand-derived from the fixture's |Region= / |Staat=, joined by
+// ParseInfobox with " · " -- the same separator avesmapsOffmapPlaceCandidates splits on.
+$check(
+    '(g6b) Ferdok.lage = "Kosch · Mittelreich" (region + state, the search jump target)',
+    'Kosch · Mittelreich',
+    (string) ($ferdok['lage'] ?? '(none)'),
+    'hand-derived from |Region=[[Kosch]] + |Staat=[[Mittelreich]] via the real ParseInfobox'
+);
 $check(
     '(g7) Ferdok.wiki_url',
     'https://de.wiki-aventurica.de/wiki/Ferdok',

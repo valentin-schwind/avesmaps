@@ -66,6 +66,13 @@ function avesmapsWikiSettlementEnsureSchema(PDO $pdo): void {
     // dieses Feld füllt erst der Dump-Pfad, also bleibt es bis zum nächsten
     // „Siedlungen syncen" leer (und ein leeres Feld heißt ausserorts, nie innerorts).
     $addColumn('standort', 'VARCHAR(1000) NULL');
+    // Wo der Ort laut Infobox LIEGT („Region · Staat"), fertig zusammengesetzt von
+    // avesmapsWikiSettlementParseInfobox. Der Dump-Lauf rechnet den Wert laengst aus und warf
+    // ihn beim Bauen des Records weg; hier landet er, damit die Kartensuche einen Ort ohne
+    // Kartenobjekt zu seiner Region schicken kann, ohne dafuer das Wiki zu fragen.
+    // ⚠️ Fuellt sich erst mit dem naechsten „Siedlungen syncen" -- bis dahin leer, und ein
+    // leerer Wert heisst „kein Sprungziel", nie „falsches Sprungziel".
+    $addColumn('lage', 'VARCHAR(300) NULL');
     // Die Gottheit(en) einer Kultstaette, kommasepariert ("Ingerimm,Rondra"), Discord #54.
     // 💣 Sie steht NICHT im Wikitext: die Kategorie "Rondra-Tempel" kommt ueber eine Vorlage,
     // der Artikelquelltext enthaelt keinen solchen Link. Sie fuellt sich deshalb nur ueber die

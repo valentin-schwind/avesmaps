@@ -671,6 +671,11 @@ function avesmapsWikiDumpParseSettlementPage(array $page, array $override = []):
         'continent' => mb_substr($continent, 0, 120, 'UTF-8'),
         'is_ruined' => (bool) ($enrichment['is_ruined'] ?? false),
         'coat_url' => (string) ($enrichment['coat_url'] ?? ''),
+        // Wo der Ort laut Infobox liegt („Region · Staat"). ParseInfobox setzt den Wert
+        // laengst zusammen -- er wurde hier nur nie in den Record uebernommen und war
+        // damit nach jedem Dump-Lauf wieder weg. Die Kartensuche schickt einen Ort ohne
+        // Kartenobjekt darueber zu seiner Region.
+        'lage' => mb_substr((string) ($infobox['lage'] ?? ''), 0, 300, 'UTF-8'),
         // I5: dump has no license metadata -> NULL, never invented.
         'coat_license_status' => null,
         'coat_author' => null,
@@ -1498,6 +1503,7 @@ function avesmapsWikiDumpPersistSettlementRecords(PDO $pdo, iterable $pages): in
     $enrichUpdate = $pdo->prepare(
         'UPDATE ' . AVESMAPS_WIKI_SETTLEMENT_PAGES_TABLE . ' SET
             continent = :continent, is_ruined = :is_ruined, coat_url = :coat_url,
+            lage = :lage,
             coat_license_status = NULL, coat_author = NULL,
             coat_attribution = NULL, coat_license_url = NULL,
             enriched_at = CURRENT_TIMESTAMP()
@@ -1521,10 +1527,14 @@ function avesmapsWikiDumpPersistSettlementRecords(PDO $pdo, iterable $pages): in
 
         // 2) Enrichment columns via the reused UPDATE shape (license NULL, I5).
         $coatUrl = (string) ($record['coat_url'] ?? '');
+        $lage = (string) ($record['lage'] ?? '');
         $enrichUpdate->execute([
             'continent' => $record['continent'] !== '' ? $record['continent'] : AVESMAPS_POLITICAL_DEFAULT_CONTINENT,
             'is_ruined' => !empty($record['is_ruined']) ? 1 : 0,
             'coat_url' => $coatUrl !== '' ? $coatUrl : null,
+            // Leer bleibt NULL, nicht '': „unbekannt" und „ausdruecklich nirgends" sind
+            // dasselbe fuer die Suche (kein Sprungziel), und NULL sagt das ehrlicher.
+            'lage' => $lage !== '' ? $lage : null,
             'title' => (string) $record['title'],
         ]);
         $written++;

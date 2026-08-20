@@ -376,6 +376,47 @@ function avesmapsFetchOffmapSearchRows(PDO $pdo): array
     } catch (Throwable) {
     }
 
+    // Siedlungen: `lage` ist „Region · Staat" aus der Wiki-Infobox.
+    //
+    // 💣 Der Rueckfall auf '' ist PFLICHT, nicht Vorsicht. avesmapsWikiSettlementEnsureSchema
+    // legt die Spalte NUR im Sync-Pfad an; auf einer Installation, die noch nie gesynct hat,
+    // wirft das SELECT, der catch macht daraus eine leere Liste, und ALLE Siedlungen
+    // verschwinden lautlos aus der Suche -- der stille Ausfall, den niemand einem SELECT
+    // zuordnet (AGENTS.md, „Neue Spalte im LESEpfad").
+    // ⚠️ Die Probe ist ein SELECT … LIMIT 1, kein information_schema-Zugriff: Letzterer ist
+    // genau die Last, die §10 dem Pool-Vorfall zuschreibt. Und sie laeuft einmal je
+    // Anfrage, nicht je Zeile.
+    $lageSpalte = "'' AS lage";
+    try {
+        if ($pdo->query('SELECT lage FROM wiki_sync_pages LIMIT 1') !== false) {
+            $lageSpalte = 'lage';
+        }
+    } catch (Throwable) {
+    }
+
+    try {
+        $statement = $pdo->query(
+            "SELECT title, settlement_label, wiki_url, {$lageSpalte}
+               FROM wiki_sync_pages
+              WHERE settlement_class IS NOT NULL
+                AND settlement_class <> ''
+                AND settlement_class <> 'gebaeude'
+                AND {$aventurien}"
+        );
+        foreach ($statement !== false ? $statement->fetchAll(PDO::FETCH_ASSOC) : [] as $row) {
+            $rows[] = [
+                'title' => (string) ($row['title'] ?? ''),
+                'type_label' => trim((string) ($row['settlement_label'] ?? '')) !== ''
+                    ? (string) $row['settlement_label']
+                    : 'Siedlung',
+                'place_raw' => (string) ($row['lage'] ?? ''),
+                'wiki_url' => (string) ($row['wiki_url'] ?? ''),
+                'kind' => 'settlement',
+            ];
+        }
+    } catch (Throwable) {
+    }
+
     // EIGENE Herrschaftsgebiete ohne jede gezeichnete Flaeche -- weder selbst noch
     // irgendwo in ihrem Unterbaum. Sprungziel ist das Elterngebiet.
     //
