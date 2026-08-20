@@ -346,6 +346,11 @@ try {
     // stehenbleibt statt zu drehen. Diese Anfrage hat den Riegel nie gehalten (sie hat das Rennen
     // verloren), also gibt es hier nichts freizugeben.
     avesmapsErrorResponse(409, 'dump_locked', $busy->getMessage());
+} catch (AvesmapsWikiUnreachableException $error) {
+    // Das Wiki hat nicht geantwortet -- ein eigener Fall, kein Serverfehler. Fertig formulierter
+    // Satz ohne Interna, 503 weil die Ursache draussen liegt. Begruendung samt Reihenfolge-Falle:
+    // api/edit/wiki/settlements.php.
+    avesmapsErrorResponse(503, 'wiki_unreachable', $error->getMessage());
 } catch (Throwable $error) {
     // Ein Fehler mitten in einer Riegel-Aktion gibt ihn frei -- sonst blockiert ein Absturz die
     // Pipeline bis zur Stale-Uebernahme (180 s).

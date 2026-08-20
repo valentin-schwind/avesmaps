@@ -152,6 +152,17 @@ try {
     // Vorher wurde $error gefangen und nie benutzt -- die Ausnahme verschwand spurlos, und genau
     // das machte Fall #84 unauffindbar. Der Helfer steht seit laengerem in bootstrap.php:409.
     avesmapsServerErrorResponse($error, 'wiki-settlements');
+} catch (AvesmapsWikiUnreachableException $error) {
+    // 🔴 WEDER UNSER FEHLER NOCH DER DES EDITORS -- das Wiki hat nicht geantwortet. Bis zum
+    // 20.08.2026 fiel dieser Fall in den RuntimeException-Zweig darunter und ging als
+    // 400/invalid_request mit „Wiki Aventurica konnte nicht gelesen werden. HTTP-Status: 0 URL: …"
+    // hinaus -- 164 der 212 Zeichen waren die URL, und WARUM stand nirgends (Discord #84).
+    // 💣 ER MUSS VOR DEM RuntimeException-ZWEIG STEHEN, denn er erbt von ihm; darunter waere er
+    // tot, ohne dass es jemandem auffiele. Dieselbe Falle wie bei PDOException.
+    // Die Meldung ist fertig formuliert (avesmapsWikiSyncUnreachableMessage, wiki/sync.php) und
+    // traegt keine Interna -- nur den Satz, eine deutsche Kurzfassung und die Technikmeldung.
+    // 503 statt 400: die Ursache liegt DRAUSSEN, und ein spaeterer Versuch kann gelingen.
+    avesmapsErrorResponse(503, 'wiki_unreachable', $error->getMessage());
 } catch (RuntimeException $error) {
     // 💣 EINE ABSAGE MUSS IHREN GRUND NENNEN. Bis zum 20.08.2026 fing hier ein einziges
     // catch (Throwable) auch die EIGENEN, handgeschriebenen Absagen dieses Endpunkts ab

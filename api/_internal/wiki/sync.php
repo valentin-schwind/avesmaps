@@ -14,6 +14,11 @@ const AVESMAPS_WIKI_REQUEST_DELAY_MICROSECONDS = 600000;
 const AVESMAPS_WIKI_REQUEST_RETRY_COUNT = 3;
 const AVESMAPS_WIKI_REQUEST_RETRY_BASE_DELAY_MICROSECONDS = 1200000;
 const AVESMAPS_WIKI_LOCK_TTL_SECONDS = 120;
+// 🔴 OWNER-WORTLAUT (20.08.2026). Das ist Produktsprache, keine Fehlermeldung fuer
+// Entwickler -- wer ihn aendert, aendert, was tausende Editoren lesen. Der Grund steht in der
+// Klammer dahinter (avesmapsWikiSyncUnreachableMessage), damit ein Fehlerbericht trotzdem
+// brauchbar bleibt.
+const AVESMAPS_WIKI_UNREACHABLE_MESSAGE = 'Wiki Aventurica ist nicht erreichbar. Bitte später noch einmal versuchen.';
 
 function avesmapsWikiSyncDecodeJson(mixed $value): array {
     if ($value === null || $value === '') {
@@ -96,6 +101,65 @@ function avesmapsWikiSyncPageUrl(string $title): string {
     return AVESMAPS_WIKI_PAGE_BASE_URL . str_replace('%2F', '/', rawurlencode(str_replace(' ', '_', $title)));
 }
 
+/**
+ * 🔴 „DAS WIKI ANTWORTET NICHT" IST EIN EIGENER FALL -- weder ein Serverfehler von uns noch
+ * ein Eingabefehler des Editors. Genau deshalb ein eigener Typ: die Endpunkte koennen ihn gezielt
+ * fangen und mit 503/`wiki_unreachable` beantworten, statt ihn in „Internal server error." zu
+ * verwandeln (Discord #84, 20.08.2026).
+ *
+ * 💣 ER ERBT VON RuntimeException und muss deshalb in jeder Fangkette VOR dem
+ * RuntimeException-Zweig stehen -- sonst schluckt jener ihn und der Zweig ist tot, ohne dass es
+ * auffaellt. Dieselbe Falle wie bei PDOException (siehe api/edit/wiki/paths.php).
+ */
+class AvesmapsWikiUnreachableException extends RuntimeException {}
+
+/**
+ * REIN: baut den Satz, den ein Editor im Toast liest.
+ *
+ * 🔴 ZWEI TEILE, BEIDE GEWOLLT (Owner 20.08.2026): der Satz fuer den Menschen, dahinter in
+ * Klammern eine deutsche Kurzfassung UND die genaue Technikmeldung. Die Kurzfassung sagt ihm, ob er
+ * warten oder jemanden rufen muss; die Technikmeldung macht seinen Fehlerbericht brauchbar.
+ *
+ * 💣 DIE URL FLIEGT RAUS. PHPs Stream-Warnung lautet
+ * „file_get_contents(<die ganze URL>): Failed to open stream: Connection refused" -- am 20.08.2026
+ * waren 164 der 212 Zeichen der Meldung diese URL, und der eigentliche Grund stand gar nicht drin.
+ * Sie geht nicht verloren: `avesmapsWikiSyncLogServerError` schreibt sie weiter ins Fehlerprotokoll.
+ *
+ * ⚠️ Gedeckelt, weil die Meldung in einen Toast passen muss -- ein Rohtext kann beliebig lang sein.
+ */
+function avesmapsWikiSyncUnreachableMessage(int $statusCode, string $rawWarning): string {
+    // Alles bis zum ersten „): " ist der Funktionsaufruf samt URL -- weg damit. `[^)]*` reicht,
+    // weil http_build_query jede Klammer prozentkodiert (aus „(Siedlung)" wird „%28Siedlung%29").
+    $technik = trim((string) preg_replace('/^\w+\([^)]*\):\s*/', '', trim($rawWarning)));
+    if ($technik === '' && $statusCode > 0) {
+        $technik = 'HTTP-Status ' . $statusCode;
+    }
+    if ($technik === '') {
+        $technik = 'Grund unbekannt';
+    }
+    if (mb_strlen($technik) > 160) {
+        $technik = mb_substr($technik, 0, 159) . '…';
+    }
+
+    $niedrig = mb_strtolower($technik);
+    $kurz = match (true) {
+        str_contains($niedrig, 'refused') => 'Verbindung abgewiesen',
+        str_contains($niedrig, 'timed out'), str_contains($niedrig, 'timeout') => 'Zeitüberschreitung',
+        str_contains($niedrig, 'getaddrinfo'),
+        str_contains($niedrig, 'name or service not known'),
+        str_contains($niedrig, 'could not resolve') => 'Name nicht auflösbar',
+        str_contains($niedrig, 'ssl'),
+        str_contains($niedrig, 'certificate'),
+        str_contains($niedrig, 'crypto') => 'Verschlüsselung gescheitert',
+        $statusCode === 429 => 'Zu viele Anfragen',
+        $statusCode >= 500 => 'Wiki vorübergehend nicht verfügbar',
+        $statusCode > 0 => 'Unerwartete Antwort',
+        default => 'Verbindung gescheitert',
+    };
+
+    return AVESMAPS_WIKI_UNREACHABLE_MESSAGE . ' (' . $kurz . ' · ' . $technik . ')';
+}
+
 function avesmapsWikiSyncApiRequest(array $params): array {
     $queryParams = [
         'format' => 'json',
@@ -105,6 +169,11 @@ function avesmapsWikiSyncApiRequest(array $params): array {
 
     $lastRawResponse = '';
     $lastStatusCode = 0;
+    // 💣 Der GRUND des Verbindungsfehlers wurde bis zum 20.08.2026 weggeworfen: das `@` unten
+    // unterdrueckt die Warnung, und niemand hat sie je gelesen. Uebrig blieb „HTTP-Status: 0",
+    // und damit war von aussen nicht zu unterscheiden, ob wir gesperrt, ueberlastet oder
+    // namenlos waren. `error_get_last()` liefert die Warnung auch bei unterdruecktem Fehler.
+    $lastWarning = '';
 
     for ($attempt = 0; $attempt <= AVESMAPS_WIKI_REQUEST_RETRY_COUNT; $attempt++) {
         if ($attempt === 0) {
@@ -127,7 +196,13 @@ function avesmapsWikiSyncApiRequest(array $params): array {
         ]);
 
         $http_response_header = null;
+        // ⚠️ Erst leeren: sonst liest `error_get_last()` eine fremde, aeltere Warnung und die
+        // Meldung nennt einen Grund, der gar nicht zu diesem Versuch gehoert.
+        error_clear_last();
         $rawResponse = @file_get_contents($url, false, $context);
+        if ($rawResponse === false) {
+            $lastWarning = (string) (error_get_last()['message'] ?? '');
+        }
         $lastRawResponse = is_string($rawResponse) ? $rawResponse : '';
         // A connection-level failure (DNS/timeout/reset -- no response reaches
         // the wrapper at all) leaves $http_response_header unset, which
@@ -162,6 +237,9 @@ function avesmapsWikiSyncApiRequest(array $params): array {
             avesmapsWikiSyncLogServerError('wiki_api_connection_failure', [
                 'url' => $url,
                 'attempt' => $attempt + 1,
+                // Der Grund gehoert ins Protokoll, nicht nur in den Toast -- am 20.08.2026 stand
+                // hier nur URL und Nummer, und die Diagnose kostete eine ganze Sitzung.
+                'reason' => $lastWarning,
             ]);
             continue;
         }
@@ -186,28 +264,35 @@ function avesmapsWikiSyncApiRequest(array $params): array {
                 continue;
             }
 
-            throw new RuntimeException(
-                'Wiki Aventurica hat ungueltiges JSON geliefert. URL: '
-                . $url
-                . ' Antwort: '
-                . $responsePrefix
+            // ⚠️ Auch das ist fuer den Editor „nicht erreichbar": es kam etwas zurueck, aber nichts
+            // Brauchbares -- genau der Zweig, den eine Sperrseite nimmt. Die Klammer nennt den
+            // Status, damit die Meldung nie in die Irre fuehrt. URL und Antwort stehen oben im
+            // Protokoll (wiki_api_invalid_json).
+            throw new AvesmapsWikiUnreachableException(
+                avesmapsWikiSyncUnreachableMessage($lastStatusCode, '')
             );
         }
 
         if (!is_array($data)) {
-            throw new RuntimeException('Wiki Aventurica hat keine gueltige Antwort geliefert.');
+            throw new AvesmapsWikiUnreachableException(
+                avesmapsWikiSyncUnreachableMessage($lastStatusCode, '')
+            );
         }
 
         return $data;
     }
 
     $responsePrefix = substr($lastRawResponse, 0, 500);
-    throw new RuntimeException(
-        'Wiki Aventurica konnte nicht gelesen werden. HTTP-Status: '
-        . $lastStatusCode
-        . ' URL: '
-        . $url
-        . ($responsePrefix !== '' ? ' Antwort: ' . $responsePrefix : '')
+    // 💣 ALLES, was der Toast NICHT mehr traegt, gehoert hierher -- sonst tauschen wir eine
+    // unlesbare Meldung gegen eine undiagnostizierbare. URL, Status und Antwortanfang bleiben.
+    avesmapsWikiSyncLogServerError('wiki_api_unreachable', [
+        'url' => $url,
+        'status_code' => $lastStatusCode,
+        'reason' => $lastWarning,
+        'response_prefix' => $responsePrefix,
+    ]);
+    throw new AvesmapsWikiUnreachableException(
+        avesmapsWikiSyncUnreachableMessage($lastStatusCode, $lastWarning)
     );
 }
 

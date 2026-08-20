@@ -1043,6 +1043,11 @@ try {
         try { avesmapsWikiDumpLockRelease($pdo, $lockUserId); } catch (Throwable) { /* best-effort */ }
     }
     avesmapsServerErrorResponse($exception, 'wiki-dump');
+} catch (AvesmapsWikiUnreachableException $error) {
+    // Das Wiki hat nicht geantwortet -- ein eigener Fall, kein Serverfehler. Fertig formulierter
+    // Satz ohne Interna, 503 weil die Ursache draussen liegt. Begruendung samt Reihenfolge-Falle:
+    // api/edit/wiki/settlements.php.
+    avesmapsErrorResponse(503, 'wiki_unreachable', $error->getMessage());
 } catch (Throwable $error) {
     // ANY other failure in a mutating flow releases the lock so a crash cannot
     // wedge the pipeline (the stale-takeover is the backstop if even this fails).

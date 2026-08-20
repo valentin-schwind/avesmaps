@@ -78,6 +78,11 @@ try {
     // Datenbankmeldung die Fehlerausgabe nach draussen. Dieselbe Reihenfolge wie in den drei
     // Schwestern.
     avesmapsErrorResponse(500, 'server_error', 'Der Literatur-Katalog konnte nicht gelesen werden.');
+} catch (AvesmapsWikiUnreachableException $error) {
+    // Das Wiki hat nicht geantwortet -- ein eigener Fall, kein Serverfehler. Fertig formulierter
+    // Satz ohne Interna, 503 weil die Ursache draussen liegt. Begruendung samt Reihenfolge-Falle:
+    // api/edit/wiki/settlements.php.
+    avesmapsErrorResponse(503, 'wiki_unreachable', $error->getMessage());
 } catch (RuntimeException $error) {
     avesmapsErrorResponse(400, 'invalid_request', $error->getMessage());
 } catch (Throwable) {

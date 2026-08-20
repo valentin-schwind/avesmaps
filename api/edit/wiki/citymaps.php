@@ -84,6 +84,11 @@ try {
     // 💣 PDOException MUSS vor RuntimeException stehen (sie erbt davon) -- sonst traegt eine
     // Datenbankmeldung die Fehlerausgabe nach draussen. Dieselbe Reihenfolge wie in den Schwestern.
     avesmapsErrorResponse(500, 'server_error', 'Die Wiki-Registry konnte nicht gelesen werden.');
+} catch (AvesmapsWikiUnreachableException $error) {
+    // Das Wiki hat nicht geantwortet -- ein eigener Fall, kein Serverfehler. Fertig formulierter
+    // Satz ohne Interna, 503 weil die Ursache draussen liegt. Begruendung samt Reihenfolge-Falle:
+    // api/edit/wiki/settlements.php.
+    avesmapsErrorResponse(503, 'wiki_unreachable', $error->getMessage());
 } catch (RuntimeException $error) {
     avesmapsErrorResponse(400, 'invalid_request', $error->getMessage());
 } catch (Throwable) {

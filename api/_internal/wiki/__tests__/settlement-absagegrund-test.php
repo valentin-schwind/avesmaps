@@ -66,16 +66,25 @@ foreach (['settlements.php', 'paths.php'] as $dateiname) {
     // 💣 Nur die ÄUSSERE Kette zählt: `dump.php` & Co. haben innen best-effort-Fänger. Die drei
     // gesuchten stehen am Dateiende, also wird von hinten gelesen.
     $typen = array_map(static fn(array $satz): string => $satz['typ'], $kette);
-    $letzteDrei = array_slice($typen, -3);
+    // 🔴 SEIT DEM 20.08.2026 SIND ES VIER. Dazwischen kam AvesmapsWikiUnreachableException:
+    // „das Wiki antwortet nicht" ist weder ein Serverfehler noch eine abgelehnte Eingabe, und der
+    // Editor bekam dafuer bis dahin eine Meldung, deren 164 von 212 Zeichen die API-URL waren.
+    // 💣 Sie ERBT von RuntimeException und steht deshalb DAVOR -- darunter waere der Zweig tot.
+    $letzteVier = array_slice($typen, -4);
 
     assert(
-        $letzteDrei === ['PDOException $error', 'RuntimeException $error', 'Throwable $error'],
-        "{$dateiname}: PDOException vor RuntimeException vor Throwable -- gelesen: "
-        . implode(' | ', $letzteDrei)
+        $letzteVier === [
+            'PDOException $error',
+            'AvesmapsWikiUnreachableException $error',
+            'RuntimeException $error',
+            'Throwable $error',
+        ],
+        "{$dateiname}: PDOException vor Unerreichbar vor RuntimeException vor Throwable -- gelesen: "
+        . implode(' | ', $letzteVier)
     );
 
-    $rümpfe = array_slice($kette, -3);
-    [$pdo, $laufzeit, $rest] = $rümpfe;
+    $rümpfe = array_slice($kette, -4);
+    [$pdo, $unerreichbar, $laufzeit, $rest] = $rümpfe;
 
     assert(
         !str_contains($pdo['rumpf'], 'getMessage()'),
@@ -89,6 +98,16 @@ foreach (['settlements.php', 'paths.php'] as $dateiname) {
         str_contains($pdo['rumpf'], 'avesmapsServerErrorResponse($error')
         || str_contains($pdo['rumpf'], "avesmapsErrorResponse(500, 'server_error'"),
         "{$dateiname}: der PDO-Zweig antwortet mit 500 und dem stummen Satz"
+    );
+
+    assert(
+        str_contains($unerreichbar['rumpf'], '$error->getMessage()'),
+        "{$dateiname}: der Unerreichbar-Zweig reicht seinen fertigen Satz durch"
+    );
+    assert(
+        str_contains($unerreichbar['rumpf'], "avesmapsErrorResponse(503, 'wiki_unreachable'"),
+        "{$dateiname}: 503/wiki_unreachable -- die Ursache liegt DRAUSSEN, ein spaeterer Versuch "
+        . 'kann gelingen; 400 wuerde dem Editor die Schuld geben'
     );
 
     assert(
@@ -112,7 +131,7 @@ foreach (['settlements.php', 'paths.php'] as $dateiname) {
         "{$dateiname}: der Throwable-Zweig antwortet mit 500"
     );
 
-    echo "OK  {$dateiname}: PDOException -> RuntimeException (mit Grund) -> Throwable\n";
+    echo "OK  {$dateiname}: PDOException -> Unerreichbar -> RuntimeException (mit Grund) -> Throwable\n";
 }
 
 echo "OK  Fall #84: die Absage des Siedlungs-Endpunkts nennt ihren Grund.\n";

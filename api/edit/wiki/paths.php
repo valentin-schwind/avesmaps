@@ -236,6 +236,11 @@ try {
 } catch (PDOException $error) {
     // PDOException extends RuntimeException -- catch it FIRST: DB details never reach clients.
     avesmapsErrorResponse(500, 'server_error', 'Internal server error.');
+} catch (AvesmapsWikiUnreachableException $error) {
+    // Das Wiki hat nicht geantwortet -- ein eigener Fall, kein Serverfehler. Fertig formulierter
+    // Satz ohne Interna, 503 weil die Ursache draussen liegt. Begruendung samt Reihenfolge-Falle:
+    // api/edit/wiki/settlements.php.
+    avesmapsErrorResponse(503, 'wiki_unreachable', $error->getMessage());
 } catch (RuntimeException $error) {
     // Deliberate hand-written validation messages (English, no internals) -- surface them so
     // editors see WHY an action was refused instead of a masked 500 (M3 envelope direction).

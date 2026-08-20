@@ -325,6 +325,11 @@ try {
         try { avesmapsWikiDumpLockRelease($pdo, $userId); } catch (Throwable) { /* best-effort */ }
     }
     avesmapsErrorResponse(400, 'invalid_request', $exception->getMessage());
+} catch (AvesmapsWikiUnreachableException $error) {
+    // Das Wiki hat nicht geantwortet -- ein eigener Fall, kein Serverfehler. Fertig formulierter
+    // Satz ohne Interna, 503 weil die Ursache draussen liegt. Begruendung samt Reihenfolge-Falle:
+    // api/edit/wiki/settlements.php.
+    avesmapsErrorResponse(503, 'wiki_unreachable', $error->getMessage());
 } catch (Throwable $error) {
     // Any failure mid-apply releases the lock so a crash cannot wedge the pipeline, and answers with
     // the generic server envelope -- never getMessage(), which is finding M1 next door.
