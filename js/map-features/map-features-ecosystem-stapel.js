@@ -408,6 +408,60 @@
 		}
 	}
 
+	// ---- Löschen -------------------------------------------------------------------------------------
+	//
+	// 🔴 DIE RÜCKFRAGE KOMMT AUS DEM EIGENSCHAFTEN-DIALOG, sie wird hier nicht nachgebaut. Sie sagt,
+	// wie viele Flächen mitgehen, ob Labels mitgehen oder stehen bleiben, und dass auch verschwindet,
+	// was gerade nicht im Bild ist. Zwei Sätze für dieselbe Geste wären zwei Vokabeln, und einer davon
+	// würde beim nächsten Umbau vergessen.
+	//
+	// ⚠️ `ecosystemLabelCountOfRegion` zählt die GELADENEN Labels -- für eine Region ausserhalb des
+	// Bildausschnitts kann die Zahl zu klein sein. Das ist im Eigenschaften-Dialog nicht anders, und
+	// beide benutzen dieselbe Funktion: lieber dieselbe Unschärfe an beiden Stellen als zwei
+	// verschiedene Aussagen über denselben Vorgang. Der Satz BEHAUPTET bei 0 auch nichts -- er
+	// erwähnt Labels dann schlicht nicht.
+	async function loescheRegion(region) {
+		if (laeuft || !region?.public_id) {
+			return;
+		}
+		const satz = window.AvesmapsEcosystemProperties?.formatDeleteConfirmation;
+		if (typeof satz !== "function") {
+			sag(tr_("ecosystem.stapel.deleteUnavailable", "Löschen ist gerade nicht verfügbar."), "warning");
+			return;
+		}
+		const labels = typeof ecosystemLabelCountOfRegion === "function"
+			? ecosystemLabelCountOfRegion(region.public_id)
+			: 0;
+		const kaskade = typeof isEcosystemCascadeEnabled === "function" ? isEcosystemCascadeEnabled() : false;
+		if (!window.confirm(satz(region.name || "", region.area_count, labels, kaskade))) {
+			return;
+		}
+
+		laeuft = true;
+		try {
+			const ergebnis = await postEcosystemEdit("delete_region", { public_id: region.public_id });
+			// Die mitgelöschten Labels sofort von der Karte: sie kommen aus der Kartennutzlast, die der
+			// Landschaften-Loader nicht neu holt.
+			if (typeof removeEcosystemCascadedLabels === "function") {
+				removeEcosystemCascadedLabels(ergebnis);
+			}
+			if (typeof scheduleEcosystemAreaReload === "function") {
+				scheduleEcosystemAreaReload({ immediate: true });
+			}
+			const mitgegangen = Number(ergebnis?.labels_deleted) || 0;
+			sag(mitgegangen > 0
+				? `Region „${region.name}" gelöscht — mit ${mitgegangen === 1 ? "ihrem Label" : `ihren ${mitgegangen} Labels`}.`
+				: `Region „${region.name}" gelöscht.`, "success");
+		} catch (fehler) {
+			sag(fehler?.message || tr_("ecosystem.stapel.deleteFailed", "Die Region liess sich nicht löschen."), "warning");
+		} finally {
+			laeuft = false;
+		}
+		// Immer neu laden -- auch nach einem Fehlschlag: nur so zeigt die Liste, was wirklich noch da ist.
+		await ladeEbene(fensterEbene);
+		zeichneZaehler();
+	}
+
 	// ---- Ziehen: die Reihenfolge von Hand legen ------------------------------------------------------
 	//
 	// Owner 20.08.2026: „über drag-n-drop die reihenfolge ändern."
@@ -558,6 +612,18 @@
 			});
 		}
 
+		// ⠿ — die etablierte Vokabel für „das hier lässt sich ziehen" (Owner 20.08.2026).
+		//
+		// 🔴 NUR WENN WIRKLICH GEZOGEN WERDEN DARF. Bei aktiver Suche ist das Ziehen aus (siehe
+		// darfZiehen), und ein Greifer über einer Zeile, die sich nicht bewegt, ist eine Lüge.
+		// ⚠️ Die SPALTE bleibt trotzdem stehen, nur leer -- sonst rückt bei jedem Tippen ins Suchfeld
+		// die ganze Liste um eine Spaltenbreite. Dieselbe Überlegung wie beim ausgegrauten Zahnrad.
+		const greifer = document.createElement("span");
+		greifer.className = "ecosystem-stapel__greifer";
+		greifer.setAttribute("aria-hidden", "true");
+		greifer.textContent = darfZiehen() ? "⠿" : "";
+		zeile.appendChild(greifer);
+
 		const nummer = document.createElement("span");
 		nummer.className = "ecosystem-stapel__pos";
 		nummer.textContent = String(platz);
@@ -592,13 +658,23 @@
 		// `first_area_public_id` im Payload mit.
 		// ⚠️ Die Geländeregler in jenem Dialog gehören genau dieser einen Fläche, die Felder darüber
 		// der Region. Das ist eine Eigenschaft des Dialogs und keine dieses Fensters.
-		if (region.first_area_public_id) {
-			werkzeuge.appendChild(baueWerkzeug("⚙", tr_("ecosystem.stapel.properties", "Eigenschaften"), () => {
-				if (typeof openEcosystemPropertiesDialog === "function") {
-					void openEcosystemPropertiesDialog(region.first_area_public_id);
-				}
-			}));
+		//
+		// 💣 IMMER GEBAUT, NOTFALLS AUSGEGRAUT -- nie weggelassen. Bis zum 20.08.2026 fiel der Knopf
+		// bei einer Region ohne Fläche ganz weg, und damit sprang die ganze Werkzeugspalte in genau
+		// den Zeilen, die man sich ansehen will (Owner: „dass die button spalten konsistent bleiben").
+		// Ein ausgegrauter Knopf sagt zudem, WARUM er nicht geht; eine Lücke sagt gar nichts.
+		const zahnrad = baueWerkzeug("⚙", tr_("ecosystem.stapel.properties", "Eigenschaften"), () => {
+			if (region.first_area_public_id && typeof openEcosystemPropertiesDialog === "function") {
+				void openEcosystemPropertiesDialog(region.first_area_public_id);
+			}
+		});
+		if (!region.first_area_public_id) {
+			zahnrad.disabled = true;
+			zahnrad.title = tr_("ecosystem.stapel.propertiesEmpty",
+				"Diese Region hat keine Fläche — der Eigenschaften-Dialog wird über eine Fläche geöffnet.");
 		}
+		werkzeuge.appendChild(zahnrad);
+
 		const schloss = baueWerkzeug(
 			region.is_locked === true ? "🔒" : "🔓",
 			region.is_locked === true
@@ -613,6 +689,19 @@
 			schloss.classList.add("ecosystem-stapel__tool--zu");
 		}
 		werkzeuge.appendChild(schloss);
+
+		// 🗑 Löschen (Owner 20.08.2026, nachdem ihm in der Liste die Regionen OHNE Fläche aufgefallen
+		// sind). Als Zerstörer zuletzt -- dieselbe Ordnung wie in jedem Menü dieses Hauses.
+		//
+		// ⚠️ Der Knopf gilt für ALLE Zeilen, nicht nur die leeren. Eine Region mit zwölf Flächen zu
+		// löschen ist ein grosser Eingriff, und genau deshalb steht die Rückfrage davor -- eine Regel
+		// „nur wenn leer" wäre bequem und liesse den Fall unerledigt, für den man den Knopf zuerst
+		// gebraucht hat: die halb gefüllte Region.
+		const loeschen = baueWerkzeug("🗑", tr_("ecosystem.stapel.delete", "Region löschen"),
+			() => void loescheRegion(region));
+		loeschen.classList.add("ecosystem-stapel__tool--gefahr");
+		werkzeuge.appendChild(loeschen);
+
 		zeile.appendChild(werkzeuge);
 
 		const meta = document.createElement("span");

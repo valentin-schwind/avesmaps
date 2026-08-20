@@ -1693,6 +1693,12 @@
 			// (map-features-ecosystem-label-writeback.js). Eine zweite Fassung derselben Schleife wäre
 			// die zweite Wahrheit darüber, was von einer Fläche an ihre Labels durchträgt.
 			applyToLabels: applyRegionToLabels,
+			// 🔴 DIE RÜCKFRAGE VOR DEM LÖSCHEN, damit das Fenster „Reihenfolge und Sperren" sie MITBENUTZT
+			// (20.08.2026). Sie ist mühsam erarbeitet -- sie sagt, wie viele Flächen mitgehen, ob Labels
+			// mitgehen oder stehen bleiben, und dass auch verschwindet, was gerade nicht im Bild ist.
+			// Ein zweiter Satz für dieselbe Geste wäre die zweite Vokabel, und die eine davon würde beim
+			// nächsten Umbau vergessen. Derselbe Grund wie bei `applyToLabels` darüber.
+			formatDeleteConfirmation: formatRegionDeleteConfirmation,
 		};
 	}
 
