@@ -533,33 +533,46 @@ function showEcosystemAreaInfopanel(area) {
 	return true;
 }
 
-// ---- Stapelreihenfolge (Owner 2026-07-28, Punkt 9) --------------------------------------------------
+// ---- Stapelreihenfolge -------------------------------------------------------------------------
 //
-// 🔴 GROSS UNTEN, KLEIN OBEN. Derographische Regionen verschachteln sich: Kontinent ⊃ Insel ⊃ Provinz.
-// Alle Flächen einer Ebene liegen in EINER SVG-Gruppe, und dort gewinnt, wer zuletzt gezeichnet wurde --
-// also die Ladereihenfolge. Eine grosse Fläche, die zufällig nach ihrer kleinen kam, deckte diese
-// vollständig zu UND nahm ihren Klick. Nach Flächeninhalt gestapelt liegt die enthaltene Fläche immer
-// obenauf und ist immer erreichbar.
+// 🔴 SIE STEHT IN DER DATENBANK (Owner 19.08.2026: „die sortierung muss eine karteneigenschaft
+// werden"). Alle Flächen einer Ebene liegen in EINER SVG-Gruppe, und dort gewinnt, wer zuletzt
+// gezeichnet wurde -- wer oben liegt, nimmt auch den Klick. Diese Reihenfolge ist jetzt ein Wert an
+// der Region (`stack_order`, api/_internal/app/ecosystem.php) und keine Rechnung mehr.
 //
-// 🪤 STABIL bei Gleichstand. Zwei gleich grosse Flächen behalten ihre Eingangsreihenfolge -- sonst
-// würfelte jedes Nachladen die Stapelung neu, und ein Klick träfe beim zweiten Mal etwas anderes.
-// Array.prototype.sort IST seit ES2019 stabil; der Index-Vergleich macht es unabhängig davon explizit.
+// 💣 BIS ZUM 19.08.2026 RECHNETE SIE HIER: nach Flächeninhalt, gross unten, klein oben (Owner
+// 2026-07-28, Punkt 9). Die Regel ist EINMAL gelaufen, als Startaufstellung auf dem Server
+// (`avesmapsEcosystemSeedStackOrder`, api/_internal/app/ecosystem-stapel.php), und danach aufgelöst.
+// SIE NICHT WIEDERBELEBEN: eine zweite, gerechnete Ordnung neben der gespeicherten sieht auf dem
+// Bildschirm gleich aus und widerspricht dem, was im Fenster „Reihenfolge und Sperren" steht.
+//
+// ⚠️ `ecosystemGeometryArea` bleibt und ist NICHT die Regel -- sie trägt die Plausibilitätsprüfung
+// der booleschen Operationen (map-features-ecosystem-boolean.js) und die Höhenkombination.
+//
+// ⭐ Die gespeicherte Zahl verträgt sich zudem besser mit dem Nachladen: der Loader lädt nach bbox,
+// und eine Zahl ordnet auch eine Teilmenge richtig, während eine Größenregel über eine Teilmenge nur
+// zufällig dasselbe Ergebnis hatte.
+//
+// 🪤 STABIL bei Gleichstand. Zwei Flächen mit derselben Zahl behalten ihre Eingangsreihenfolge --
+// sonst würfelte jedes Nachladen die Stapelung neu, und ein Klick träfe beim zweiten Mal etwas
+// anderes. Array.prototype.sort IST seit ES2019 stabil; der Index-Vergleich macht es unabhängig
+// davon ausdrücklich.
 //
 // Rein und ohne Leaflet, damit die Regel prüfbar ist: der Aufrufer holt die Flächen in dieser
-// Reihenfolge nach vorn (bringToFront), womit die kleinste zuletzt und damit ganz oben landet.
-function ecosystemStackingOrder(areas) {
+// Reihenfolge nach vorn (bringToFront), womit die vorderste zuletzt und damit ganz oben landet.
+function ecosystemStapelOrdnung(areas) {
 	const list = Array.isArray(areas) ? areas : [];
-	const measured = list.map((area, index) => ({
+	const gemessen = list.map((area, index) => ({
 		publicId: String(area?.public_id || ""),
 		index,
-		// Eine Fläche ohne brauchbare Geometrie zählt als 0 und landet damit ganz oben -- oben ist der
-		// ungefährliche Platz: sie verdeckt nichts, sie ist nur selbst erreichbar.
-		size: typeof ecosystemGeometryArea === "function" ? (Number(ecosystemGeometryArea(area?.geometry)) || 0) : 0,
-	})).filter((entry) => entry.publicId !== "");
+		// Ohne Zahl zählt 0: die Fläche ist noch nicht einsortiert (frisch angelegt, alter Payload)
+		// und liegt hinten. `|| 0` fängt zugleich NaN ab -- eine NaN-Sortierung ist keine.
+		rang: Number(area?.stack_order) || 0,
+	})).filter((eintrag) => eintrag.publicId !== "");
 
-	measured.sort((left, right) => (right.size - left.size) || (left.index - right.index));
+	gemessen.sort((links, rechts) => (links.rang - rechts.rang) || (links.index - rechts.index));
 
-	return measured.map((entry) => entry.publicId);
+	return gemessen.map((eintrag) => eintrag.publicId);
 }
 
 // Die berechnete Reihenfolge auf die Karte anwenden. Getrennt von der Regel, weil hier Leaflet ins
@@ -578,7 +591,7 @@ function applyEcosystemStackingOrder() {
 	// und eine gemeinsame Sortierung über alle drei würde nur innerhalb jeder Pane wirken -- aber die
 	// Reihenfolge dazwischen unnötig durcheinanderbringen.
 	ECOSYSTEM_KINDS.forEach((kind) => {
-		ecosystemStackingOrder(areas.filter((area) => String(area?.kind || "") === kind)).forEach((publicId) => {
+		ecosystemStapelOrdnung(areas.filter((area) => String(area?.kind || "") === kind)).forEach((publicId) => {
 			ecosystemLayers.get(publicId)?.bringToFront?.();
 		});
 	});
@@ -703,6 +716,16 @@ function buildEcosystemAreaLayer(area) {
 		if (window.AvesmapsEcosystemTerritoryImport?.claimsMapClick?.()) {
 			return;
 		}
+		// 🔴 GESPERRT HEISST: DIESER KLICK GEHÖRT MIR NICHT. Er geht an das, was darunter liegt, oder
+		// an die Karte. VOR dem stopPropagation darunter -- danach wäre er geschluckt. Begründung und
+		// Verfahren in map-features-ecosystem-sperre.js.
+		//
+		// ⭐ Damit ist auch die ZIELWAHL erledigt: `handleAreaClick` weiter unten bekommt den Klick
+		// erst, wenn diese Weiche ihn durchgelassen hat. Bei einer gesperrten Region läuft der
+		// Handler der Fläche DARUNTER, und die wird zum Ziel -- ohne zweite Sperre an zweiter Stelle.
+		if (window.avesmapsEcosystemReichtWeiter?.(layer, event)) {
+			return;
+		}
 		if (event?.originalEvent && typeof L?.DomEvent?.stopPropagation === "function") {
 			L.DomEvent.stopPropagation(event);
 		}
@@ -777,6 +800,11 @@ function buildEcosystemAreaLayer(area) {
 		if (typeof canOperateEcosystemLayers !== "function" || !canOperateEcosystemLayers()) {
 			return;
 		}
+		// 🔴 Gesperrt: dieselbe Weiche wie beim Klick, und aus demselben Grund VOR dem `stop`.
+		// map-features-ecosystem-sperre.js
+		if (window.avesmapsEcosystemReichtWeiter?.(layer, event)) {
+			return;
+		}
 		if (event?.originalEvent) {
 			L.DomEvent.stop(event);
 		}
@@ -834,6 +862,13 @@ function buildEcosystemAreaLayer(area) {
 		if (event?.originalEvent?.ctrlKey || event?.originalEvent?.metaKey) {
 			return;
 		}
+		// 🔴 Gesperrt: derselbe Weg wie beim Klick. Liegt eine Fläche darunter, geht IHR Menü auf;
+		// liegt keine darunter, fällt das Ereignis ohne `stop` durch und die Karte öffnet ihr Menü --
+		// genau der Notausgang, den der Strg-Griff darüber von Hand anbietet, hier von selbst.
+		// map-features-ecosystem-sperre.js
+		if (window.avesmapsEcosystemReichtWeiter?.(layer, event)) {
+			return;
+		}
 		if (!window.AvesmapsEcosystemAreaMenu) {
 			return;
 		}
@@ -860,6 +895,6 @@ if (typeof module !== "undefined" && module.exports) {
 		isDerivedEcosystemKind,
 		ecosystemDialogTitle,
 		formatEcosystemAreaTooltip,
-		ecosystemStackingOrder,
+		ecosystemStapelOrdnung,
 	};
 }

@@ -8,7 +8,6 @@ global.ecosystemGeometryArea = require("../map-features-ecosystem-geometry.js").
 const {
 	ecosystemDialogTitle,
 	formatEcosystemAreaTooltip,
-	ecosystemStackingOrder,
 } = require("../map-features-ecosystem-rendering.js");
 
 // ------------------------------------------------------------------------ DIALOGTITEL ---
@@ -79,44 +78,13 @@ assert.strictEqual(
 assert.strictEqual(formatEcosystemAreaTooltip({ region_name: "Wald-001" }), "Wald-001");
 
 // -------------------------------------------------------------------- STAPELREIHENFOLGE ---
-// Ein Quadrat der Kantenlänge n hat den Flächeninhalt n².
-const quadrat = (publicId, size) => ({
-	public_id: publicId,
-	geometry: { type: "Polygon", coordinates: [[[0, 0], [size, 0], [size, size], [0, size], [0, 0]]] },
-});
-
-// 🔴 Gross zuerst. Der Aufrufer holt in dieser Reihenfolge nach vorn, also landet die KLEINSTE zuletzt
-// und damit ganz oben -- die enthaltene Fläche liegt auf ihrem Behälter und ist anklickbar.
-assert.deepStrictEqual(
-	ecosystemStackingOrder([quadrat("klein", 1), quadrat("gross", 10), quadrat("mittel", 5)]),
-	["gross", "mittel", "klein"]
-);
-
-// Der Verschachtelungsfall, um den es geht: Kontinent ⊃ Insel ⊃ Provinz.
-assert.deepStrictEqual(
-	ecosystemStackingOrder([quadrat("provinz", 2), quadrat("kontinent", 100), quadrat("insel", 20)]),
-	["kontinent", "insel", "provinz"]
-);
-
-// 🪤 STABIL bei Gleichstand: gleich grosse Flächen behalten ihre Eingangsreihenfolge. Ohne das würfelte
-// jedes Nachladen die Stapelung neu, und derselbe Klick träfe beim zweiten Mal etwas anderes.
-assert.deepStrictEqual(
-	ecosystemStackingOrder([quadrat("a", 4), quadrat("b", 4), quadrat("c", 4)]),
-	["a", "b", "c"]
-);
-
-// Eine Fläche ohne brauchbare Geometrie zählt als 0 und landet damit ganz oben -- oben ist der
-// ungefährliche Platz: sie verdeckt nichts und ist nur selbst erreichbar.
-assert.deepStrictEqual(
-	ecosystemStackingOrder([{ public_id: "kaputt", geometry: null }, quadrat("gross", 10)]),
-	["gross", "kaputt"]
-);
-
-// Zeilen ohne public_id fallen raus, statt eine leere Kennung in die Reihenfolge zu tragen.
-assert.deepStrictEqual(ecosystemStackingOrder([{ geometry: null }, quadrat("da", 3)]), ["da"]);
-
-// Leere und unsinnige Eingaben ergeben eine leere Reihenfolge, keinen Absturz.
-assert.deepStrictEqual(ecosystemStackingOrder([]), []);
-assert.deepStrictEqual(ecosystemStackingOrder(null), []);
+// 🔴 SIE WIRD HIER NICHT MEHR GEPRUEFT. Bis zum 19.08.2026 rechnete diese Datei die Reihenfolge
+// aus der Flaechengroesse (`ecosystemStackingOrder`, gross unten, klein oben). Seither steht sie
+// als `stack_order` an der Region in der Datenbank; die Groessenregel lief EINMAL als
+// Startaufstellung auf dem Server und ist danach aufgeloest.
+//
+// Die neue Regel und ihre Zusicherungen -- samt der abgeschafften als Zeuge -- stehen in
+// js/map-features/__tests__/ecosystem-stapelreihenfolge.test.js.
+// Die Startaufstellung selbst in api/_internal/app/__tests__/ecosystem-startaufstellung-test.php.
 
 console.log("ecosystem-rendering tests passed");

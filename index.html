@@ -3212,6 +3212,11 @@
 		     verschieben), ohne Karte und ohne DOM. MUSS nach ecosystem-geometry.js stehen: sie benutzt
 		     dessen ecosystemGeometryParts/-Area/-Bounds. -->
 		<script src="js/map-features/map-features-ecosystem-boolean.js"></script>
+		<!-- Die Klick-Sperre einer Region (19.08.2026). VOR dem Renderer, weil dessen drei
+		     Zeigergesten sie fragen -- sie tun es zwar über `window.…?.()` und liefen auch ohne, dann
+		     aber wäre eine gesperrte Region bis zum ersten Neuladen einfach nicht gesperrt.
+		     💣 Sie ist NICHT `pointer-events: none`: der Schwebezettel muss bleiben (Owner). -->
+		<script src="js/map-features/map-features-ecosystem-sperre.js"></script>
 		<script src="js/map-features/map-features-ecosystem-rendering.js"></script>
 		<script src="js/map-features/map-features-ecosystem-layer-switch.js"></script>
 		<script src="js/map-features/map-features-ecosystem-loader.js"></script>

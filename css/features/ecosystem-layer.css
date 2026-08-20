@@ -1728,7 +1728,9 @@ body.leaflet-dragging .ecosystem-brush-pan .leaflet-interactive {
    (setLayerPicking) -- und ab da entschied allein die Leiter, WELCHE Fläche ein Klick trifft. Eine
    Fläche, über der irgendwo eine andere liegt, war unerreichbar: gemeldet als „ich kann die Vegetation
    mit nichts vereinigen, es liegt immer was drüber". Innerhalb einer Ebene ist das gelöst
-   (ecosystemStackingOrder stapelt gross unten, klein oben); ZWISCHEN den Ebenen sortierte nichts.
+   (die Stapelreihenfolge, seit 19.08.2026 als `stack_order` an der Region gespeichert und im Fenster
+   „Reihenfolge und Sperren" einstellbar; davor rechnete sie der Browser aus der Flächengrösse);
+   ZWISCHEN den Ebenen sortierte nichts und sortiert weiterhin nichts.
 
    Die Antwort ist nicht eine zweite Reihenfolge zum Pflegen, sondern ein anderes Trefferfeld: für die
    Dauer der Zielwahl nimmt die FÜLLUNG keine Klicks mehr an, sondern allein das Band der Kontur.
