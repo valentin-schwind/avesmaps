@@ -43,7 +43,18 @@ function knoten(tagName) {
 		dataset: {},
 		classList: { add() {}, remove() {}, toggle() {}, contains() { return false; } },
 		appendChild(kind) { this.children.push(kind); return kind; },
-		addEventListener() {},
+		// Merkt sich die Zuhörer, statt sie wegzuwerfen: nur so lässt sich der Löschklick wirklich
+		// AUSLÖSEN. Ein Test, der bloß nachsieht, ob ein Knopf dasteht, sagt nichts darüber, was er tut.
+		_handlers: null,
+		addEventListener(typ, fn) {
+			if (!this._handlers) { this._handlers = {}; }
+			if (!this._handlers[typ]) { this._handlers[typ] = []; }
+			this._handlers[typ].push(fn);
+		},
+		async fire(typ) {
+			const liste = (this._handlers && this._handlers[typ]) || [];
+			for (const fn of liste) { await fn(); }
+		},
 		setAttribute() {},
 		removeAttribute() {},
 		getAttribute() { return null; },
@@ -54,6 +65,9 @@ const sandbox = {
 	console, JSON, Math, Date, Number, String, Array, Object, Boolean, Map, Set, Promise,
 	setTimeout, clearTimeout,
 	fetch: () => {},
+	// Leaflet, so weit resolveConflictPartyLatLng es braucht -- mit echten Koordinaten erscheint
+	// auch „Auf der Karte zeigen", und genau so sieht der Editor die Zeile.
+	L: { latLng: (lat, lng) => ({ lat, lng }) },
 	window: { alert() {}, setTimeout() {} },
 	navigator: {},
 	document: {
@@ -101,8 +115,8 @@ const DUBLETTE = {
 	subject_type: "label",
 	subject_id: "frei-1",
 	parties: [
-		{ type: "label", id: "frei-1", label: "Drei Schwestern", type_label: "Region/Landschaft", position: null, ecosystem_region_public_id: "", deletable: true, updated_at: "2026-08-20 12:38:09" },
-		{ type: "label", id: "frei-2", label: "Drei Schwestern", type_label: "Region/Landschaft", position: null, ecosystem_region_public_id: "", deletable: true, updated_at: "2026-08-07 09:50:13" },
+		{ type: "label", id: "frei-1", label: "Drei Schwestern", type_label: "Region/Landschaft", position: { lat: 647.766, lng: 525.914 }, ecosystem_region_public_id: "", deletable: true, updated_at: "2026-08-20 12:38:09" },
+		{ type: "label", id: "frei-2", label: "Drei Schwestern", type_label: "Region/Landschaft", position: { lat: 646.313, lng: 524.063 }, ecosystem_region_public_id: "", deletable: true, updated_at: "2026-08-07 09:50:13" },
 	],
 };
 
@@ -118,6 +132,17 @@ assert.ok(loeschKnoepfe[0].includes("Beschriftung"), "der Knopf sagt, WAS er lö
 // Löschknopf kann niemand entscheiden, welche die überzählige ist. „Zuletzt geändert" ist das
 // Merkmal, das ohnehin in der Zeile liegt.
 const textBeide = ganzerText(beide);
+
+// 🔴 DIE KOORDINATE IST DAS TRAGENDE MERKMAL, nicht der Zeitstempel. `map_features.updated_at`
+// ist `ON UPDATE CURRENT_TIMESTAMP(3)`, und ausgerechnet der Erzeuger dieser Gruppen
+// (`avesmapsWikiRegionAssign`) schreibt BEIDE Zeilen im selben Lauf -- dann stehen dort zwei Werte
+// im Millisekundenabstand. „20.08. gegen 07.08." ist eine Momentaufnahme, keine Regel. Zwei
+// Beschriftungen liegen dagegen nie am selben Fleck, sonst wären sie eine.
+assert.ok(textBeide.includes("525,9"), "die Lage der einen steht da: " + textBeide);
+assert.ok(textBeide.includes("524,1"), "und die der anderen auch: " + textBeide);
+assert.ok(textBeide.includes("647,8") && textBeide.includes("646,3"), "mit beiden Achsen: " + textBeide);
+
+// Der Zeitstempel darf bleiben -- als Beigabe, nicht als Beweis.
 assert.ok(textBeide.includes("2026-08-20"), "der Stand der einen steht da: " + textBeide);
 assert.ok(textBeide.includes("2026-08-07"), "und der der anderen auch: " + textBeide);
 
@@ -202,4 +227,84 @@ assert.strictEqual(
 	"und bekommt KEINEN Löschknopf — dort ist Löschen nie die Reparatur"
 );
 
-console.log("conflict-dublette-verben.test.js: OK");
+// ================================================================================================
+// 💣 DIE ZWEITE KASKADE: ein Gipfel-Label IST ein Stützpunkt des Höhenfelds
+// ================================================================================================
+// `api/_internal/app/terrain-store.php` liest `feature_type='label' AND is_active = 1 AND
+// feature_subtype IN ('berggipfel','vulkan')` und nimmt `properties.height_schritt`. Der Löschweg
+// setzt `is_active = 0` — der Stützpunkt ist damit weg, lautlos. Owner-Entscheid: KEINE
+// Verweigerung (das Löschen ist weich und umkehrbar), aber eine ausdrückliche ZWEITE Rückfrage, die
+// die Folge beim Namen nennt.
+
+/** Findet den ersten Knopf mit dieser Beschriftung im gebauten Baum. */
+function knopf(wurzel, text) {
+	let treffer = null;
+	(function lauf(el) {
+		if (treffer) { return; }
+		if (el.tagName === "button" && String(el.textContent).includes(text)) { treffer = el; return; }
+		(el.children || []).forEach(lauf);
+	})(wurzel);
+	return treffer;
+}
+
+/** Baut den Fall, klickt „Beschriftung löschen" an der genannten Partei und protokolliert alles. */
+async function loeschKlick(parties, indexDerPartei, antwortenAufConfirm) {
+	const gefragt = [];
+	const gesendet = [];
+	let stelle = 0;
+	sandbox.window.confirm = (text) => {
+		gefragt.push(String(text));
+		const antwort = antwortenAufConfirm[stelle];
+		stelle += 1;
+		return antwort === undefined ? true : antwort;
+	};
+	sandbox.window.alert = () => {};
+	sandbox.submitConflictAction = async (aktion, rumpf) => { gesendet.push({ aktion, rumpf }); return { ok: true, results: [] }; };
+	sandbox.loadConflicts = async () => {};
+
+	const fall = Object.assign({}, DUBLETTE, { parties });
+	const element = createConflictElement(fall);
+	// Der Knopf der gewünschten Partei: die Parteien stehen in der Reihenfolge des Falls im Baum.
+	const parteiKnoepfe = [];
+	(function lauf(el) {
+		if (el.tagName === "button" && String(el.textContent).includes("Beschriftung löschen")) { parteiKnoepfe.push(el); }
+		(el.children || []).forEach(lauf);
+	})(element);
+	await parteiKnoepfe[indexDerPartei].fire("click");
+
+	return { gefragt, gesendet };
+}
+
+const MIT_HOEHE = { type: "label", id: "hoch", label: "Drei Schwestern", type_label: "Region/Landschaft", position: null, ecosystem_region_public_id: "", deletable: true, updated_at: "2026-08-20 12:38:09", height_schritt: 2100 };
+const OHNE_HOEHE = { type: "label", id: "flach", label: "Drei Schwestern", type_label: "Region/Landschaft", position: null, ecosystem_region_public_id: "", deletable: true, updated_at: "2026-08-07 09:50:13" };
+
+(async () => {
+	// ---- Die HÖHENLOSE Zeile bleibt ein normaler Klick: eine Rückfrage ---------------------------
+	const flach = await loeschKlick([MIT_HOEHE, OHNE_HOEHE], 1, [true]);
+	assert.strictEqual(flach.gefragt.length, 1, "eine Rückfrage: " + JSON.stringify(flach.gefragt));
+	assert.strictEqual(flach.gesendet.length, 1, "und es wird gelöscht");
+	assert.strictEqual(flach.gesendet[0].rumpf.mode, "delete_label");
+	assert.strictEqual(flach.gesendet[0].rumpf.targets[0].id, "flach");
+
+	// ---- Die HÖHENTRAGENDE bekommt eine ZWEITE, die die Folge beim Namen nennt -------------------
+	const hoch = await loeschKlick([MIT_HOEHE, OHNE_HOEHE], 0, [true, true]);
+	assert.strictEqual(hoch.gefragt.length, 2, "zwei Rückfragen: " + JSON.stringify(hoch.gefragt));
+	const zweite = hoch.gefragt[1];
+	assert.ok(zweite.includes("2100"), "sie nennt die Höhe: " + zweite);
+	assert.ok(/Höhenfeld/i.test(zweite), "und dass es ein Stützpunkt des Höhenfelds ist: " + zweite);
+	assert.ok(/Zwilling|andere/i.test(zweite), "und dass der Zwilling keine trägt: " + zweite);
+	assert.strictEqual(hoch.gesendet.length, 1, "nach zweimal Ja wird gelöscht");
+
+	// ---- 🔴 Und ein NEIN auf die zweite hält es auf ------------------------------------------------
+	// Ohne diese Zusicherung wäre die zweite Rückfrage Zierde: sie muss den Vorgang wirklich stoppen.
+	const abgebrochen = await loeschKlick([MIT_HOEHE, OHNE_HOEHE], 0, [true, false]);
+	assert.strictEqual(abgebrochen.gefragt.length, 2);
+	assert.strictEqual(abgebrochen.gesendet.length, 0, "nach Nein wird NICHTS gesendet");
+
+	// ---- Ein Nein auf die ERSTE hält es ebenfalls auf, ohne die zweite zu stellen ----------------
+	const sofortNein = await loeschKlick([MIT_HOEHE, OHNE_HOEHE], 0, [false]);
+	assert.strictEqual(sofortNein.gefragt.length, 1, "die zweite kommt gar nicht erst");
+	assert.strictEqual(sofortNein.gesendet.length, 0);
+
+	console.log("conflict-dublette-verben.test.js: OK");
+})().catch((fehler) => { console.error(fehler); process.exit(1); });

@@ -578,11 +578,29 @@ function createConflictPartyElement(party, conflict = null) {
 	// Aufgefallen an #EDCXYJ „Hursach", wo zwei Beteiligte genau so heissen wie der Artikel, um den
 	// es ging, und trotzdem alle drei "kein eigener Wiki-Artikel" trugen (Owner 2026-07-21).
 
-	// 🔴 „Zuletzt geändert" — bei einer Dublette das EINZIGE, woran sich die Beteiligten
-	// unterscheiden lassen. Sie heißen gleich, sind von derselben Art und zeigen auf denselben
-	// Artikel; ohne dieses Merkmal stünde der Editor vor zwei identischen Zeilen mit je einem
-	// Löschknopf und könnte nicht entscheiden, welche die überzählige ist. Bei den übrigen Regeln
-	// unterscheiden sich die Beteiligten schon durch Namen und Art — dort wäre es nur Rauschen.
+	// 🔴 DIE LAGE IST DAS TRAGENDE UNTERSCHEIDUNGSMERKMAL. Die Beteiligten eines Dubletten-Falls
+	// heißen gleich, sind von derselben Art und zeigen auf denselben Artikel — ohne etwas, woran
+	// sie sich unterscheiden, stünde der Editor vor zwei identischen Zeilen mit je einem Löschknopf.
+	// Zwei Beschriftungen liegen aber nie am selben Fleck, sonst wären sie eine.
+	//
+	// 💣 Und deshalb NICHT der Zeitstempel: `map_features.updated_at` ist
+	// `ON UPDATE CURRENT_TIMESTAMP(3)`, und ausgerechnet `avesmapsWikiRegionAssign` — der Erzeuger
+	// dieser Gruppen — schreibt BEIDE Zeilen im selben Lauf; danach stehen dort zwei Werte im
+	// Millisekundenabstand. Live sieht man heute „20.08." gegen „07.08.", aber das ist eine
+	// Momentaufnahme, keine Regel. Er bleibt als Beigabe stehen, trägt aber nichts.
+	//
+	// ⚠️ Ausdrücklich x/y beschriftet, nicht als „lat, lng": GeoJSON speichert [x, y], Leaflet will
+	// [lat, lng] (AGENTS.md §5), und wer eine abgetippte Koordinate verdreht, sucht an einer ganz
+	// anderen Stelle der Karte — das hat schon einmal eine Stunde gekostet.
+	if (isDuplicateCase && party.position
+		&& Number.isFinite(Number(party.position.lng)) && Number.isFinite(Number(party.position.lat))) {
+		const lage = document.createElement("span");
+		lage.className = "conflict-party__none";
+		const eineStelle = (wert) => Number(wert).toFixed(1).replace(".", ",");
+		lage.textContent = `Lage: x ${eineStelle(party.position.lng)} · y ${eineStelle(party.position.lat)}`;
+		evidence.appendChild(lage);
+	}
+
 	if (isDuplicateCase && party.updated_at) {
 		const stand = document.createElement("span");
 		stand.className = "conflict-party__none";
@@ -760,6 +778,37 @@ function createConflictDuplicateActions(conflict, party) {
 			+ "Die anderen Beschriftungen dieses Falls bleiben stehen. Rückgängig machen geht über den Änderungs-Log.";
 		if (!window.confirm(frage)) {
 			return;
+		}
+		// 💣 DIE ZWEITE KASKADE, und sie ist die stillere von beiden. Ein `berggipfel`/`vulkan`-Label
+		// IST ein Stützpunkt des Höhenfelds: `api/_internal/app/terrain-store.php` liest genau diese
+		// Labels mit `is_active = 1` und nimmt `properties.height_schritt`. Ein Löschen setzt
+		// `is_active = 0` — der Stützpunkt ist weg, ohne dass irgendwo etwas davon steht.
+		//
+		// 🔴 Owner-Entscheid: KEINE Verweigerung — das Löschen ist weich und über den Änderungs-Log
+		// umkehrbar, und ein Verbot nähme dem Editor einen legitimen Fall. Aber eine folgenreiche
+		// Handlung muss auch so beschriftet sein (AGENTS.md §9), also eine ausdrückliche ZWEITE
+		// Rückfrage, die die Folge beim Namen nennt.
+		//
+		// ⚠️ Sie kommt, sobald DIESE Zeile eine Höhe trägt — auch wenn die andere ebenfalls eine hat,
+		// denn dann geht immer noch DIESER Stützpunkt verloren. Trägt keine der übrigen eine, sagt
+		// der Satz das zusätzlich: dann bleibt gar keiner übrig.
+		const eigeneHoehe = Number(party.height_schritt);
+		if (Number.isFinite(eigeneHoehe) && eigeneHoehe > 0) {
+			const andereMitHoehe = (conflict.parties || []).filter((other) => {
+				if (other.id === party.id && other.type === party.type) {
+					return false;
+				}
+				const h = Number(other.height_schritt);
+				return Number.isFinite(h) && h > 0;
+			}).length;
+			const zweiteFrage = `Achtung: „${party.label}“ trägt eine Höhe (${eigeneHoehe} Schritt) und ist damit ein Stützpunkt des Höhenfelds der Karte.\n\n`
+				+ (andereMitHoehe > 0
+					? `Die ${andereMitHoehe === 1 ? "andere Beschriftung" : "anderen Beschriftungen"} dieses Falls tragen ebenfalls eine Höhe, dieser Stützpunkt geht aber trotzdem verloren.\n\n`
+					: "Ihr Zwilling trägt keine — nach dem Löschen hat dieser Gipfel gar keine Höhe mehr.\n\n")
+				+ "Wirklich löschen?";
+			if (!window.confirm(zweiteFrage)) {
+				return;
+			}
 		}
 		remove.disabled = true;
 		try {
