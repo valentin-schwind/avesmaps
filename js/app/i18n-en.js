@@ -750,6 +750,12 @@ window.AVESMAPS_I18N_EN = {
 	"spotlight.gameLiteratureCovers": "covers {place}",
 	"spotlight.lore": "Occurrences",
 	"spotlight.loreMore": "… and {n} more occurrences",
+	// The seventh source: what the wiki knows and no map shows. "notOnMap" is the hint on a hit
+	// that HAS a place to jump to; a hit without one carries "spotlight.noPlaceOnMap" instead --
+	// the two must stay distinguishable, or a click that moves nothing reads as broken.
+	"spotlight.offmap": "Not on the map",
+	"spotlight.offmapMore": "… and {n} more",
+	"spotlight.notOnMap": "not on the map",
 	"spotlight.labelType.region": "Region",
 	"spotlight.labelType.fluss": "River",
 	"spotlight.labelType.meer": "Sea",

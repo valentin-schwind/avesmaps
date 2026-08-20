@@ -58,7 +58,12 @@ function selectSpotlightSearchEntry(entry) {
 		return;
 	}
 
-	if (entry.kind === "citymap" || entry.kind === "adventure") {
+	// 💣 "offmap" MUSS hier stehen. buildPlaceBoundSpotlightEntry ueberschreibt `kind` mit der
+	// eigenen Art des Treffers, damit die Liste ihn als eigenen Abschnitt liest -- ohne einen
+	// Zweig hier faellt der Klick durch alle Faelle und tut gar nichts. Der Treffer saehe dabei
+	// vollkommen richtig aus. Dieselbe Verdrahtung wie bei Karten und Werken; den
+	// Kartensammlungs-Dialog loest er nicht aus, der bleibt auf kind === "citymap" gegated.
+	if (entry.kind === "citymap" || entry.kind === "adventure" || entry.kind === "offmap") {
 		focusSpotlightPlaceEntry(entry);
 		return;
 	}

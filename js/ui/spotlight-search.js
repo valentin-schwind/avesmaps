@@ -21,6 +21,10 @@ const SPOTLIGHT_SEARCH_SECTIONS = [
 	{ kind: "citymap", totalField: "citymapTotal", labelKey: "spotlight.citymaps", label: "Kartensammlung", moreKey: "spotlight.citymapsMore", more: "… und {n} weitere Karten" },
 	{ kind: "adventure", totalField: "gameLiteratureTotal", labelKey: "spotlight.gameLiterature", label: "Literatur", moreKey: "spotlight.gameLiteratureMore", more: "… und {n} weitere Werke" },
 	{ kind: "lore", totalField: "loreTotal", labelKey: "spotlight.lore", label: "Vorkommen", moreKey: "spotlight.loreMore", more: "… und {n} weitere Vorkommen" },
+	// 🔴 ZULETZT, und das ist die Regel, nicht der Zufall: ein Treffer, den man anspringen kann,
+	// ist mehr wert als einer, den man nur nachlesen kann. Diese Position IST die Rangfolge --
+	// es gibt keinen zweiten Sortierschritt, der sie noch herstellen wuerde.
+	{ kind: "offmap", totalField: "offmapTotal", labelKey: "spotlight.offmap", label: "Nicht auf der Karte", moreKey: "spotlight.offmapMore", more: "… und {n} weitere" },
 ];
 const SPOTLIGHT_SECTION_KINDS = new Set(SPOTLIGHT_SEARCH_SECTIONS.map((section) => section.kind));
 const SPOTLIGHT_PATH_HIGHLIGHT_STYLE = {
@@ -532,15 +536,20 @@ function buildPlaceBoundSpotlightEntry(result, kind) {
 		// server sends WHICH one in place_role; it never sends a play place at all). Composed HERE, not
 		// on the server: every other visible German string in the result list lives in this file, and the
 		// server has no business owning one. Only shown when the place is actually reachable.
+		// Für ein Objekt ohne Kartenobjekt sagt der Hinweis genau das -- und NUR wenn ein Ziel
+		// aufgelöst wurde. Ohne Ziel greift `unreachable` unten, und die Zeile trägt den
+		// anderen Satz ("kein Ort auf der Karte"): wer "nicht auf der Karte" liest und klickt,
+		// erwartet Bewegung, und bleibt die Karte stehen, hält er es für kaputt.
 		placeHint: placeEntry && kind === "adventure" && result.place_name
 			? (String(result.place_role || "") === "covers"
 				? tr("spotlight.gameLiteratureCovers", "beschreibt {place}")
 				: tr("spotlight.gameLiteratureStartsIn", "beginnt in {place}")).replace("{place}", String(result.place_name))
-			: "",
+			: (placeEntry && kind === "offmap" ? tr("spotlight.notOnMap", "nicht auf der Karte") : ""),
 		notOnMap: true,
 		unreachable: !placeEntry,
 		citymapTotal: Number(result.citymap_total) || 0,
 		gameLiteratureTotal: Number(result.adventure_total) || 0,
+		offmapTotal: Number(result.offmap_total) || 0,
 	};
 }
 
@@ -679,7 +688,10 @@ function resolveBackendSpotlightEntries(backendResults, localEntries) {
 			entry = buildInSettlementSpotlightEntry(result);
 		}
 
-		if (!entry && (kind === "citymap" || kind === "adventure")) {
+		// Objekte OHNE Kartenobjekt (siebte Quelle) laufen durch denselben Bauer: ihr Treffer
+		// zeigt auf das Gebiet, in dem sie liegen, und ein Fall ohne Ziel wird dort schon
+		// richtig als unreachable geführt.
+		if (!entry && (kind === "citymap" || kind === "adventure" || kind === "offmap")) {
 			entry = buildPlaceBoundSpotlightEntry(result, kind);
 		}
 
