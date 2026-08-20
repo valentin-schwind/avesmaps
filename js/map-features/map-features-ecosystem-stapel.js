@@ -663,10 +663,24 @@
 		// bei einer Region ohne Fläche ganz weg, und damit sprang die ganze Werkzeugspalte in genau
 		// den Zeilen, die man sich ansehen will (Owner: „dass die button spalten konsistent bleiben").
 		// Ein ausgegrauter Knopf sagt zudem, WARUM er nicht geht; eine Lücke sagt gar nichts.
+		// 💣 ÜBER `AvesmapsEcosystemProperties.open`, NICHT über einen blanken Namen.
+		// `openEcosystemPropertiesDialog` ist PRIVAT in seiner Datei (innerhalb der IIFE) -- von hier aus
+		// existiert der Name nicht. Ein `typeof … === "function"` davor ist dann für immer falsch, und
+		// der Knopf tut still gar nichts: kein Fehler, keine Meldung, nur ein Klick ins Leere.
+		// Genau so ausgeliefert am 20.08.2026 und vom Owner gemeldet („das eigenschaftsfenster geht
+		// nicht auf"). ⚠️ Und die Prüfseite war grün, weil sie den fehlenden Namen als globale Attrappe
+		// selbst erfunden hatte -- eine Probe, die ihren Treffer vorbelegt, beweist nichts.
 		const zahnrad = baueWerkzeug("⚙", tr_("ecosystem.stapel.properties", "Eigenschaften"), () => {
-			if (region.first_area_public_id && typeof openEcosystemPropertiesDialog === "function") {
-				void openEcosystemPropertiesDialog(region.first_area_public_id);
+			if (!region.first_area_public_id) {
+				return;
 			}
+			const oeffne = window.AvesmapsEcosystemProperties?.open;
+			if (typeof oeffne !== "function") {
+				sag(tr_("ecosystem.stapel.propertiesUnavailable",
+					"Der Eigenschaften-Dialog ist gerade nicht erreichbar."), "warning");
+				return;
+			}
+			void oeffne(region.first_area_public_id);
 		});
 		if (!region.first_area_public_id) {
 			zahnrad.disabled = true;
