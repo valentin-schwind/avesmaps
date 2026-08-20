@@ -143,6 +143,26 @@ try {
     }
 
     avesmapsJsonResponse(200, $response);
+} catch (PDOException $error) {
+    // 🔴 ZUERST, UND DAS IST DER GANZE GRUND FUER DIE REIHENFOLGE: PDOException ERBT von
+    // RuntimeException. Stuende sie unter dem Zweig darunter, gingen SQLSTATE-Texte samt
+    // Tabellen- und Spaltennamen an den Client (AGENTS.md §10, Meilenstein M1).
+    avesmapsErrorResponse(500, 'server_error', 'Internal server error.');
+} catch (RuntimeException $error) {
+    // 💣 EINE ABSAGE MUSS IHREN GRUND NENNEN. Bis zum 20.08.2026 fing hier ein einziges
+    // catch (Throwable) auch die EIGENEN, handgeschriebenen Absagen dieses Endpunkts ab
+    // ("Ziel-Ort nicht gefunden.", "Wiki-Seite nicht gefunden oder leer: X", "title/public_id
+    // fehlt.") und machte daraus "Internal server error.". Der Editor las ueber die Oberflaeche
+    // "Zuweisen fehlgeschlagen: Internal server error." (settlementWikiAssignZuweisen,
+    // html/wiki-sync-settlement-editor.html) und konnte daraus nichts ableiten -- Discord #84.
+    // 💣 Schlimmer als die schlechte Meldung ist, was sie kostet: die Maskierung macht den Grund
+    // auch von AUSSEN unauffindbar. Eine gewoehnliche Absage und ein echter Serverfehler sehen
+    // Wort fuer Wort gleich aus, es war also niemand mehr in der Lage, den Fall zu benennen.
+    // Wortgleiches Vorbild samt Begruendung: api/edit/wiki/paths.php.
+    // ⚠️ Jede Meldung dieser Kette ist handgeschrieben und ohne Interna (settlements.php,
+    // sync.php) -- eine neue darf das nicht brechen.
+    avesmapsErrorResponse(400, 'invalid_request', $error->getMessage());
 } catch (Throwable $error) {
+    // Was hier landet, ist NICHT abgesprochen -- also bleibt es stumm.
     avesmapsErrorResponse(500, 'server_error', 'Internal server error.');
 }
