@@ -28,6 +28,11 @@ declare(strict_types=1);
 require_once __DIR__ . '/app-setting.php';
 require_once __DIR__ . '/../audit-prune.php';
 
+// Die Stapelreihenfolge: die Schrittweite und die EINMALIGE Startaufstellung, die die abgeschaffte
+// Groessenregel des Browsers ein letztes Mal ausfuehrt (19.08.2026). Zieht ecosystem-flaeche.php mit
+// -- die Flaechenrechnung selbst. Beide sind rein; nichts laeuft beim Einbinden.
+require_once __DIR__ . '/ecosystem-stapel.php';
+
 // Which label belongs to which region, resolved from BOTH stored directions. Its own file because
 // api/app/map-features.php needs the same answer and two copies of this rule would be the second truth
 // (see the header there). Pure functions + one reader; nothing runs on include.
@@ -362,6 +367,47 @@ function avesmapsEcosystemEnsureTables(PDO $pdo): void
         if (!$areaColumnExists($pdo, $column)) {
             $pdo->exec('ALTER TABLE ecosystem_area ADD COLUMN ' . $column . ' ' . $type . ' NULL');
         }
+    }
+
+    // ---- Stapelreihenfolge und Klick-Sperre der REGION (19.08.2026) ------------------------------
+    //
+    // 🔴 Beide sind KARTENEIGENSCHAFTEN (Owner: „wandert in die Datenbank, gilt fuer jeden Editor").
+    // Sie sitzen an der Region und nicht an der einzelnen Flaeche -- gesperrt wird alles, was zum
+    // angeklickten Ding gehoert, auch Multipolygone und mehrere zusammenhaengende Flaechen einer
+    // Region (Owner, woertlich). Ausserdem hat nur eine Region einen NAMEN, und das Fenster
+    // „Reihenfolge und Sperren" sucht nach Namen.
+    //
+    // 💣 `is_locked` heisst NICHT dasselbe wie `map_feature_locks` (api/_internal/map/features.php).
+    // Jene Tabelle ist die BEARBEITUNGSsperre -- „dieses Objekt hat gerade jemand anderes offen",
+    // befristet, mit user_id und locked_until. Diese Spalte hier ist dauerhaft, gilt fuer alle und
+    // betrifft nur den Zeiger: die Flaeche faengt keine Klicks mehr ab, behaelt aber ihren
+    // Schwebezettel. `git grep lock` findet beide -- der Unterschied steht deshalb hier.
+    $regionColumnExists = static function (PDO $pdo, string $column): bool {
+        $statement = $pdo->prepare(
+            "SELECT COUNT(*) FROM information_schema.COLUMNS
+              WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'ecosystem_region' AND COLUMN_NAME = :c"
+        );
+        $statement->execute(['c' => $column]);
+
+        return $statement !== false && (int) $statement->fetchColumn() > 0;
+    };
+    $stapelSpalteIstNeu = false;
+    foreach ([
+        'stack_order' => 'INT NOT NULL DEFAULT 0',
+        'is_locked' => 'TINYINT(1) NOT NULL DEFAULT 0',
+    ] as $column => $type) {
+        if (!$regionColumnExists($pdo, $column)) {
+            $pdo->exec('ALTER TABLE ecosystem_region ADD COLUMN ' . $column . ' ' . $type);
+            $stapelSpalteIstNeu = $stapelSpalteIstNeu || $column === 'stack_order';
+        }
+    }
+    // 🔴 DER SEED LAEUFT IM ALTER-ZWEIG, also in genau der einen Anfrage, die die Spalte anlegt --
+    // nicht als Nachlauf bei jedem Aufruf. Das ist der Unterschied zwischen einer Startaufstellung
+    // und einer weiterlaufenden Regel; die Begruendung steht bei avesmapsEcosystemSeedStackOrder.
+    // ⚠️ Ein zweiter, spaeterer Aufruf ist trotzdem harmlos: die Funktion fasst nur Zeilen mit
+    // stack_order = 0 an. Er passiert hier bloss nicht mehr.
+    if ($stapelSpalteIstNeu) {
+        avesmapsEcosystemSeedStackOrder($pdo);
     }
 
     $pdo->exec(
@@ -1481,6 +1527,8 @@ function avesmapsEcosystemReadAreas(
                 r.wiki_region_key,
                 r.wiki_url,
                 r.label_public_id,
+                r.stack_order,
+                r.is_locked,
                 COALESCE(t.affects_paths, 1) AS affects_paths
            FROM ecosystem_area a
            INNER JOIN ecosystem_region r ON r.id = a.region_id AND r.is_active = 1
@@ -1501,6 +1549,19 @@ function avesmapsEcosystemReadAreas(
             'wiki_region_key' => $row['wiki_region_key'] === null ? null : (string) $row['wiki_region_key'],
             'wiki_url' => $row['wiki_url'] === null ? null : (string) $row['wiki_url'],
             'label_public_id' => $row['label_public_id'] === null ? null : (string) $row['label_public_id'],
+            // ---- Reihenfolge und Sperre (19.08.2026) -------------------------------------------
+            // Beide gehoeren der REGION und reisen je Flaeche mit, wie region_name und kind es schon
+            // tun. Der Browser stapelt danach (aufsteigend, die vorderste zuletzt) und laesst eine
+            // gesperrte Region Klicks durch.
+            //
+            // 💣 KEIN `'' AS spalte`-Rueckfall noetig -- und das ist eine ZUSICHERUNG, keine
+            // Beobachtung: api/app/ecosystem-areas.php ruft avesmapsEcosystemEnsureTables VOR diesem
+            // Leser, die Spalten existieren also, wenn er sie liest. Wer diesen Aufruf je aus
+            // Leistungsgruenden entfernt, nimmt genau diese Zusicherung weg -- dann muss der
+            // Rueckfall zuerst gebaut werden. Vorbild fuer das Gegenteil: wiki_sync_pages.deity,
+            // 15.08.2026, zehn Minuten stiller Ausfall live.
+            'stack_order' => (int) $row['stack_order'],
+            'is_locked' => (int) $row['is_locked'] === 1,
             // Decoded so the payload nests a real GeoJSON object rather than a JSON-in-a-string.
             'geometry' => json_decode((string) $row['geometry_geojson'], true),
             'bounds' => [
@@ -1733,6 +1794,17 @@ function avesmapsEcosystemReadRegionFields(array $payload, ?string $currentKind)
         $fields['label_public_id'] = $labelPublicId === ''
             ? null
             : avesmapsEcosystemReadPublicId($labelPublicId, 'label_public_id');
+    }
+    // ---- Reihenfolge und Sperre (19.08.2026) ----------------------------------------------------
+    //
+    // 💣 `array_key_exists`, nicht `isset` -- wie jedes Feld darueber. `isset` waere bei `null`
+    // falsch, und ein Rumpf, der stack_order ausdruecklich auf 0 setzt, ginge damit verloren.
+    // Die Partialitaet dieser Funktion IST die Regel: geschrieben wird nur, was mitgeschickt wurde.
+    if (array_key_exists('stack_order', $payload)) {
+        $fields['stack_order'] = (int) $payload['stack_order'];
+    }
+    if (array_key_exists('is_locked', $payload)) {
+        $fields['is_locked'] = ((bool) $payload['is_locked']) ? 1 : 0;
     }
     if (array_key_exists('properties', $payload)) {
         $properties = $payload['properties'];
@@ -1979,12 +2051,16 @@ function avesmapsListEcosystemRegions(PDO $pdo, array $payload): array
         // naechsten Oeffnen wieder leer da, ohne dass irgendwo etwas fehlschluege. `list_regions` ist
         // die richtige Stelle, weil BEIDE Landschafts-Oberflaechen ohnehin von hier ihr Art-Vokabular
         // ziehen (der Flaechen-Dialog sucht sich seine Zeile ueber `public_id` heraus).
+        // 🔴 `stack_order`/`is_locked` und die Sortierung DANACH (19.08.2026): das Fenster
+        // „Reihenfolge und Sperren" zeigt den Stapel, und oben liegt vorn. Der Regionen-Picker, der
+        // dieselbe Liste zieht, bekommt damit ebenfalls die Stapelreihenfolge statt der
+        // alphabetischen -- gewollt: er waehlt aus, was auf der Karte obenauf liegt.
         'SELECT r.public_id, r.name, r.kind, r.region_type, r.wiki_region_key, r.wiki_url, r.label_public_id,
-                r.properties_json, r.updated_at,
+                r.properties_json, r.updated_at, r.stack_order, r.is_locked,
                 (SELECT COUNT(*) FROM ecosystem_area a WHERE a.region_id = r.id AND a.is_active = 1) AS area_count
            FROM ecosystem_region r
           WHERE ' . implode(' AND ', $where) . '
-          ORDER BY r.kind ASC, r.name ASC, r.id ASC'
+          ORDER BY r.kind ASC, r.stack_order DESC, r.name ASC, r.id ASC'
     );
     $statement->execute($params);
 
@@ -2003,6 +2079,10 @@ function avesmapsListEcosystemRegions(PDO $pdo, array $payload): array
             // brauchen die Antwort, nicht die Ablage, und ein `properties_json` auf der Leitung waere
             // die Einladung, dort noch etwas anderes hineinzuschreiben.
             'wiki_no_article' => avesmapsEcosystemRegionNoArticle($row['properties_json'] ?? null),
+            // Reihenfolge und Sperre (19.08.2026) -- das Fenster „Reihenfolge und Sperren" baut seine
+            // Liste hieraus, der Zaehler in der Ebenen-Leiste seine Zahl.
+            'stack_order' => (int) $row['stack_order'],
+            'is_locked' => (int) $row['is_locked'] === 1,
             'updated_at' => (string) $row['updated_at'],
         ];
     }
@@ -2328,15 +2408,20 @@ function avesmapsCreateEcosystemRegion(PDO $pdo, array $payload, int $userId): a
     $publicId = avesmapsUuidV4();
     $pdo->beginTransaction();
     try {
+        // 🔴 Eine neue Region liegt ganz VORN (19.08.2026). Begruendung an
+        // avesmapsEcosystemNextStackOrder; sie steht dort und nicht hier, weil auch die
+        // Startaufstellung dieselbe Schrittweite benutzt.
+        $stackOrder = avesmapsEcosystemNextStackOrder($pdo, $fields['kind']);
         $statement = $pdo->prepare(
             'INSERT INTO ecosystem_region
-                (public_id, name, kind, region_type, wiki_region_key, wiki_url, label_public_id, properties_json, created_by, updated_by)
-             VALUES (:public_id, :name, :kind, :region_type, :wiki_region_key, :wiki_url, :label_public_id, :properties_json, :user_id, :user_id2)'
+                (public_id, name, kind, region_type, wiki_region_key, wiki_url, label_public_id, properties_json, stack_order, created_by, updated_by)
+             VALUES (:public_id, :name, :kind, :region_type, :wiki_region_key, :wiki_url, :label_public_id, :properties_json, :stack_order, :user_id, :user_id2)'
         );
         $statement->execute([
             'public_id' => $publicId,
             'name' => $fields['name'] ?? '',
             'kind' => $fields['kind'],
+            'stack_order' => $stackOrder,
             'region_type' => $fields['region_type'] ?? null,
             'wiki_region_key' => $fields['wiki_region_key'] ?? null,
             'wiki_url' => $fields['wiki_url'] ?? null,
