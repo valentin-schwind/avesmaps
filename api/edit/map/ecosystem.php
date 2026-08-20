@@ -76,6 +76,11 @@ try {
         // Partial: only the fields actually present in the payload are written, so an update never wipes
         // what the client did not send.
         'update_region' => avesmapsUpdateEcosystemRegion($pdo, $payload, $userId),
+        // „Ganz nach vorn" / „ganz nach hinten" (19.08.2026). Eigene Aktion NEBEN update_region und
+        // nicht darin: die Bewegung braucht den hoechsten bzw. niedrigsten Rang der EBENE, und den
+        // kennt nur der Server -- der Browser sieht bloss den Bildausschnitt. Dieselbe Ueberlegung
+        // wie bei update_area_terrain neben update_area_geometry.
+        'set_region_stack' => avesmapsEcosystemSetRegionStack($pdo, $payload, $userId),
         // Soft, and it takes its areas along inside one transaction.
         'delete_region' => avesmapsDeleteEcosystemRegion($pdo, $payload, $userId),
         // Needs region_public_id (region_id accepted as an alias); geometry_geojson takes a GeoJSON

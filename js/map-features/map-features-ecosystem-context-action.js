@@ -85,6 +85,7 @@
 		{ id: "form", key: "ecosystem.ctxmenu.areaMenuForm", label: "Form ändern" },
 		{ id: "mit-anderer", key: "ecosystem.ctxmenu.areaMenuWithOther", label: "Mit anderer Fläche" },
 		{ id: "unterflaechen", key: "ecosystem.ctxmenu.areaMenuSubareas", label: "Unterflächen" },
+		{ id: "stapel", key: "ecosystem.ctxmenu.areaMenuStack", label: "Reihenfolge und Sperren" },
 	];
 
 	// 💣 DIE REIHENFOLGE DES OBERSTEN MENÜS, VOLLSTÄNDIG — Gruppen UND Einzeleinträge in EINER Liste.
@@ -104,6 +105,7 @@
 		{ typ: "gruppe", id: "form" },
 		{ typ: "gruppe", id: "mit-anderer" },
 		{ typ: "gruppe", id: "unterflaechen" },
+		{ typ: "gruppe", id: "stapel" },
 		{ typ: "aktion", id: "ecosystem-properties" },
 		{ typ: "aktion", id: "send-to" },
 	];
@@ -113,6 +115,11 @@
 	// in from outside would be monkey-patching window.AvesmapsEcosystemAreaMenu.open -- which would run
 	// on every open, after the entry was needed, and would break the moment this file changes.
 	const areaMenuEntryHandlers = new Map();
+
+	// action -> (knopf, publicId) => void, für Einträge, deren BESCHRIFTUNG an der angeklickten Fläche
+	// hängt. Bislang gibt es genau einen solchen („Region sperren"/„Region entsperren"), und er ist der
+	// Grund, warum es diesen Haken gibt: ein Umschalter, der immer dasselbe Wort trägt, ist keiner.
+	const areaMenuEntryRefreshers = new Map();
 
 	function label(key, german) {
 		return typeof tr === "function" ? tr(key, german) : german;
@@ -631,13 +638,16 @@
 	// ihn wie „Fläche löschen" und schiebt ihn damit ans Ende -- die Einfügeregel unten setzt jeden neuen
 	// Eintrag VOR den ersten gefährlichen, also sortieren sich Zerstörer von selbst nach unten.
 	// Sonst unverändert -- die Nachbardatei für den Territorien-Import benutzt denselben Weg wie „Kopieren …".
-	function addEcosystemAreaMenuEntry({ action = "", label: entryLabel = "", onClick = null, group = "", danger = false } = {}) {
+	function addEcosystemAreaMenuEntry({ action = "", label: entryLabel = "", onClick = null, group = "", danger = false, refresh = null } = {}) {
 		const actionName = String(action).trim();
 		if (!actionName || typeof onClick !== "function") {
 			return null;
 		}
 
 		areaMenuEntryHandlers.set(actionName, onClick);
+		if (typeof refresh === "function") {
+			areaMenuEntryRefreshers.set(actionName, refresh);
+		}
 
 		const menu = ensureAreaMenuElement();
 		const existing = menu.querySelector(`[${AREA_ACTION_ATTRIBUTE}="${actionName}"]`);
@@ -780,6 +790,22 @@
 		}
 
 		const menuElement = ensureAreaMenuElement();
+
+		// 🔴 Ein Eintrag darf sich beim Öffnen selbst beschriften (19.08.2026). Gebraucht von
+		// „Region sperren"/„Region entsperren": das ist EIN Eintrag mit zwei Wörtern, und welches
+		// gilt, hängt an der Fläche, die gerade angeklickt wurde.
+		//
+		// 🪤 Der Haken gehört HIERHER und nicht in den Aufrufer. Dieses Menü weiss, wann es aufgeht;
+		// ein Nachbar wüsste es nur über einen eigenen contextmenu-Zuhörer plus setTimeout — und dann
+		// stünde für einen Wimpernschlag das falsche Wort da. Derselbe Gedanke wie bei addEntry: die
+		// eine Naht, die diese Datei nach aussen anbietet, statt fremder Zugriffe auf ihr DOM.
+		areaMenuEntryRefreshers.forEach((refresh, actionName) => {
+			const knopf = menuElement.querySelector(`[${AREA_ACTION_ATTRIBUTE}="${actionName}"]`);
+			if (knopf) {
+				refresh(knopf, publicId);
+			}
+		});
+
 		activeEcosystemAreaMenuPublicId = publicId;
 		// Wo geklickt wurde -- „Neue Fläche" beginnt an genau dieser Stelle. Aus dem Leaflet-Ereignis, weil
 		// nur das die Kartenkoordinate kennt; die Bildschirmposition darunter positioniert bloss das Menü.

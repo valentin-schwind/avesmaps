@@ -23,9 +23,7 @@ const quelle = fs.readFileSync(
 
 // ---- die Gruppen, die es geben muss --------------------------------------------------------------
 //
-// „stapel" kommt mit dem Untermenü „Reihenfolge und Sperren" dazu; bis dahin sind es drei plus die
-// bestehende „new-area".
-const GRUPPEN = ["new-area", "form", "mit-anderer", "unterflaechen"];
+const GRUPPEN = ["new-area", "form", "mit-anderer", "unterflaechen", "stapel"];
 
 function hatGlyphe(attribut, wert) {
 	// Die Regel darf mehrere Selektoren tragen; gesucht wird der Block, der zu diesem Attributwert
@@ -77,6 +75,7 @@ const ERWARTET = [
 	"form",
 	"mit-anderer",
 	"unterflaechen",
+	"stapel",
 	"ecosystem-properties",
 	"send-to",
 ];

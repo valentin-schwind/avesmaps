@@ -537,6 +537,9 @@ function syncEcosystemLayerSwitchControls() {
 		tabElement.setAttribute("aria-selected", showAll ? "true" : "false");
 		tabElement.tabIndex = showAll ? 0 : -1;
 	});
+	// Der Zähler der gesperrten Regionen gilt der AKTIVEN Ebene und wandert deshalb mit ihr
+	// (19.08.2026). Er steht ausserhalb dieses Reiterbunds -- die Schleifen oben fassen ihn nicht an.
+	window.AvesmapsEcosystemStapel?.zeichneZaehler?.();
 }
 
 function setActiveEcosystemLayerKind(kind, { focusTab = false } = {}) {

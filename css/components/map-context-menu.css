@@ -191,6 +191,30 @@
 	content: "\29CF";
 }
 
+/* „Reihenfolge und Sperren" (19.08.2026). ⤒ ist die Glyphe seines haeufigsten Eintrags („Region in
+   den Vordergrund") -- dieselbe Regel wie bei den drei Gruppen darueber. */
+.map-context-menu__item[data-ecosystem-area-group="stapel"]::before {
+	content: "\2912";
+}
+
+/* Die vier Eintraege der Gruppe. ⤒/⤓ sagen „ganz nach vorn"/„ganz nach hinten" -- die Pfeile mit
+   Balken, nicht die blanken: eine Stufe gibt es hier nicht, es geht immer GANZ. */
+.map-context-menu__item[data-ecosystem-area-action="stapel-vorn"]::before {
+	content: "\2912";
+}
+
+.map-context-menu__item[data-ecosystem-area-action="stapel-hinten"]::before {
+	content: "\2913";
+}
+
+.map-context-menu__item[data-ecosystem-area-action="stapel-sperre"]::before {
+	content: "\1F512";
+}
+
+.map-context-menu__item[data-ecosystem-area-action="stapel-fenster"]::before {
+	content: "\2630";
+}
+
 /* Dieselben zwei Untermenues im Herrschaftsgebiete-Menue (19.08.2026, #region-context-menu in
    index.html). Beide Menues tragen denselben Wortlaut fuer die vier Verrechnungen -- sie bekommen
    deshalb auch dieselbe Form und dieselben Zeichen.

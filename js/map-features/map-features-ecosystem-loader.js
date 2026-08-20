@@ -248,6 +248,10 @@ function applyEcosystemAreaPayload(payload) {
 		applyEcosystemStackingOrder();
 	}
 
+	// Der Zähler der gesperrten Regionen zählt im GELADENEN Bestand -- nach jedem Nachladen kann sich
+	// die Zahl also ändern, ohne dass jemand etwas gesperrt hat (19.08.2026).
+	window.AvesmapsEcosystemStapel?.zeichneZaehler?.();
+
 	// Welche Labels in dieser Ebene blass sind, hängt an genau dieser Registry: ein Label ist „eigen",
 	// wenn eine geladene Fläche der aktiven Art darauf zeigt. Nach jedem Nachladen kann sich das also
 	// geändert haben -- ohne diesen Aufruf bliebe ein gerade erst hereingepanntes Waldlabel blass.

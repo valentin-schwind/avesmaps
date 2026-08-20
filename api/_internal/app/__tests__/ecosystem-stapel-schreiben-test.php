@@ -4,10 +4,13 @@ declare(strict_types=1);
 
 // Der Schreibweg fuer Reihenfolge und Sperre (19.08.2026).
 //
-// 🔴 ES GIBT KEINEN NEUEN ENDPUNKT. `update_region` schreibt seit jeher NUR die Felder, die im Rumpf
-// stehen -- die zwei neuen reihen sich dort ein. Ein Sammel-Schreibvorgang, der alle Felder setzt,
-// machte jede gewollte Ausnahme platt; genau daran ist avesmapsUpsertGameLiterature am 17.08.2026
-// gescheitert.
+// 🔴 DIE SPERRE GEHT UEBER `update_region`, DIE REIHENFOLGE NICHT.
+// `update_region` schreibt seit jeher NUR die Felder, die im Rumpf stehen -- `is_locked` reiht sich
+// dort ein. Ein Sammel-Schreibvorgang, der alle Felder setzt, machte jede gewollte Ausnahme platt;
+// genau daran ist avesmapsUpsertGameLiterature am 17.08.2026 gescheitert.
+//
+// `stack_order` bleibt draussen: „ganz nach vorn"/„ganz nach hinten" braucht den hoechsten bzw.
+// niedrigsten Rang der EBENE, und den kennt nur der Server. Dafuer gibt es `set_region_stack`.
 
 require_once __DIR__ . '/../ecosystem.php';
 
@@ -16,21 +19,21 @@ require_once __DIR__ . '/../ecosystem.php';
 $nurSperre = avesmapsEcosystemReadRegionFields(['is_locked' => true], 'vegetation');
 assert($nurSperre === ['is_locked' => 1], 'nur is_locked: ' . json_encode($nurSperre));
 
-$nurRang = avesmapsEcosystemReadRegionFields(['stack_order' => 40], 'vegetation');
-assert($nurRang === ['stack_order' => 40], 'nur stack_order: ' . json_encode($nurRang));
-
 $nichts = avesmapsEcosystemReadRegionFields(['name' => 'Farindel'], 'vegetation');
-assert(!array_key_exists('stack_order', $nichts), 'ohne stack_order im Rumpf bleibt die Spalte unangetastet');
 assert(!array_key_exists('is_locked', $nichts), 'ohne is_locked im Rumpf bleibt die Spalte unangetastet');
+
+// 🔴 `stack_order` ist hier ABSICHTLICH KEIN Feld. Die Reihenfolge kennt zwei Bewegungen, und beide
+// brauchen den hoechsten bzw. niedrigsten Rang der Ebene -- den kennt nur der Server. Sie laufen
+// deshalb ueber `set_region_stack`. Eine freie Zahl hier daneben waere ein zweiter Weg zur selben
+// Spalte, und der erste, der ihn benutzt, rechnet den Rang aus seinem Bildausschnitt.
+$rangVersuch = avesmapsEcosystemReadRegionFields(['stack_order' => 40], 'vegetation');
+assert(!array_key_exists('stack_order', $rangVersuch), 'update_region schreibt stack_order NICHT');
 
 // 💣 `array_key_exists`, nicht `isset`: ein Rumpf, der ausdruecklich ENTsperrt oder auf 0 setzt, ist
 // ein gueltiger Schreibvorgang. Mit `isset` waere das Entsperren wirkungslos gewesen -- und zwar
 // lautlos, weil nichts fehlschlaegt.
 $entsperren = avesmapsEcosystemReadRegionFields(['is_locked' => false], 'vegetation');
 assert($entsperren === ['is_locked' => 0], 'is_locked=false schreibt 0: ' . json_encode($entsperren));
-
-$aufNull = avesmapsEcosystemReadRegionFields(['stack_order' => 0], 'vegetation');
-assert($aufNull === ['stack_order' => 0], 'stack_order=0 wird geschrieben: ' . json_encode($aufNull));
 
 // Die Sperre reist neben anderen Feldern mit, ohne sie zu stoeren -- der Eigenschaften-Dialog
 // speichert Name, Anzeige, Art und Sperre in EINEM Zug.

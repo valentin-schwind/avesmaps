@@ -492,6 +492,7 @@
 		// verbundenen Label. Deshalb sofort, nicht erst nach list_regions.
 		syncPropertiesShowName(area);
 		syncPropertiesNodix(area);
+		syncPropertiesLocked(area);
 		// Wie die beiden Haken: sofort, nicht erst nach list_regions. Die Gipfel hängen an den geladenen
 		// Labels und an der Geometrie der Fläche -- beides liegt schon vor.
 		renderTerrainControls(area);
@@ -625,6 +626,20 @@
 		box.disabled = !entry;
 		box.checked = Boolean(entry) && Boolean(entry.label?.isNodix);
 		box.title = entry ? "" : `Erst „Regionname anzeigen" — ein Nodix braucht das Label als Punkt.`;
+	}
+
+	// Die Klick-Sperre der Region (19.08.2026).
+	//
+	// 🔴 Sie liegt an der REGION und reist mit jeder ihrer Flächen im Payload mit -- der Haken liest
+	// sie deshalb direkt von der angeklickten Fläche, ohne Nachladen. Sperrt jemand die Region über
+	// das Fenster oder das Flächenmenü, zieht `merkeSperre` den Bestand nach, und das nächste Öffnen
+	// dieses Dialogs zeigt den neuen Stand.
+	function syncPropertiesLocked(area) {
+		const box = propertiesElement("locked");
+		if (!box) {
+			return;
+		}
+		box.checked = area?.is_locked === true;
 	}
 
 	// ---- Gelände: die vier Regler DIESER Fläche (V8) --------------------------------------------------
@@ -1378,6 +1393,13 @@
 			name,
 			region_type: String(propertiesElement("type")?.value || ""),
 		};
+		// Die Klick-Sperre (19.08.2026). Sie geht über DIESE Speicherleiste und nicht über einen
+		// eigenen Aufruf daneben: der Dialog schreibt Name, Anzeige, Nodix und Art ohnehin in einem
+		// Zug, und ein zweiter Aufruf machte „Abbrechen" für einen der beiden Werte wirkungslos.
+		const sperrHaken = propertiesElement("locked");
+		if (sperrHaken) {
+			payload.is_locked = Boolean(sperrHaken.checked);
+		}
 		// Nur mitschicken, wenn wirklich daran gedreht wurde: update_region schreibt ausschliesslich die
 		// Felder, die IM Payload stehen (avesmapsEcosystemReadRegionFields), und ein mitgeschicktes
 		// wiki_url='' würde eine bestehende Zuweisung stillschweigend löschen.
@@ -1404,6 +1426,11 @@
 
 		try {
 			await postEcosystemEdit("update_region", payload);
+			// Den geladenen Bestand und den Zähler in der Leiste nachziehen. Über das Nachbarmodul,
+			// damit dieser Datei kein zweiter Schreib- und Zählweg gehört.
+			if (payload.is_locked !== undefined) {
+				window.AvesmapsEcosystemStapel?.merkeSperre?.(area.region_public_id, payload.is_locked);
+			}
 			// 🔴 Das verbundene Karten-Label trägt den Namen MIT. Bis heute galt hier der Satz „wer die
 			// Fläche umbenennt, benennt das Label NICHT mit um" -- richtig, solange die beiden nichts
 			// voneinander wussten. Seit eine derographische Region ihr Label automatisch bekommt

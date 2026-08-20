@@ -1941,3 +1941,165 @@ body.leaflet-dragging .ecosystem-brush-pan .leaflet-interactive {
 	display: inline-block;
 	transform: translateX(calc(-100% - var(--space-12)));
 }
+
+/* ---- Reihenfolge und Sperren (19.08.2026) --------------------------------------------------------
+   Fenster, Liste und der Zaehler in der Landschaften-Leiste. Entwurf:
+   docs/superpowers/specs/2026-08-19-landschaften-reihenfolge-und-sperren-design.md
+
+   🔴 Die HUELLE des Fensters kommt von `.ecosystem-import-dialog` („Grenze aus Territorien") -- das
+   Markup traegt dessen Klassen. Hier steht nur, was eine STAPELLISTE braucht und jenes Fenster nicht
+   hat. Es gibt kein zweites Fensteraussehen im Haus. */
+
+.ecosystem-stapel__kinds {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--space-4);
+}
+
+/* ⚠️ Weich/outline, nie gefuellt: das sind Umschalter, nicht die Haupthandlung des Fensters. */
+.ecosystem-stapel__kind {
+	padding: var(--space-4) var(--space-8);
+	border: 1px solid var(--color-button-soft-border);
+	border-radius: var(--radius-md);
+	background: var(--color-button-soft);
+	color: var(--color-button-soft-text);
+	cursor: pointer;
+	font: inherit;
+	font-size: var(--font-size-small);
+}
+
+.ecosystem-stapel__kind:hover {
+	background: var(--color-button-soft-hover);
+}
+
+.ecosystem-stapel__kind--aktiv {
+	border-color: var(--color-pill-border);
+	background: var(--color-panel-active);
+	color: var(--color-text-strong);
+}
+
+/* Die Zeile. Zwei Zeilen hoch: Name oben, Art und Flaechenzahl darunter -- dieselbe Anordnung wie in
+   `.ecosystem-import-dialog__row`, nur mit der Rangnummer davor und den Werkzeugen dahinter. */
+.ecosystem-stapel__row {
+	display: grid;
+	grid-template-columns: 2.2em minmax(0, 1fr) auto;
+	align-items: center;
+	gap: 0 var(--space-8);
+	padding: var(--space-4) 0;
+}
+
+.ecosystem-stapel__row:hover {
+	background: var(--color-panel-soft);
+}
+
+.ecosystem-stapel__pos {
+	color: var(--color-text-muted);
+	font-size: var(--font-size-caption);
+	font-variant-numeric: tabular-nums;
+	text-align: right;
+}
+
+/* 💣 Die Auslassungspunkte gehoeren an den TEXT, nicht an die Zelle: `ellipsis` wirkt nur auf das
+   Element, dessen eigener Text ueberlaeuft. An der Rasterzelle wird hart abgeschnitten. */
+.ecosystem-stapel__name {
+	color: var(--color-text-strong);
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.ecosystem-stapel__row--gesperrt .ecosystem-stapel__name {
+	color: var(--color-text-muted);
+}
+
+.ecosystem-stapel__mark {
+	margin-left: var(--space-4);
+	padding: 0 var(--space-4);
+	border: 1px solid var(--color-pill-border);
+	border-radius: 999px;
+	background: var(--color-pill);
+	color: var(--color-pill-text);
+	font-size: var(--font-size-caption);
+}
+
+.ecosystem-stapel__meta {
+	grid-column: 2;
+	color: var(--color-text-muted);
+	font-size: var(--font-size-small);
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.ecosystem-stapel__tools {
+	grid-row: 1 / span 2;
+	grid-column: 3;
+	display: flex;
+	gap: var(--space-2);
+}
+
+/* 💣 EINE ZEILENHANDLUNG IST NIE DIE HAUPTHANDLUNG DER SEITE (AGENTS.md §12). Ein gefuellter Knopf in
+   einer Listenzeile multipliziert sich mit der Zeilenzahl -- bei 777 Regionen waeren das 2.331
+   Akzentknoepfe in einer schmalen Spalte. Genau dieser Fehler wurde am 07.08.2026 in den
+   WikiSync-Listen zurueckgebaut. */
+.ecosystem-stapel__tool {
+	width: 30px;
+	height: 30px;
+	display: grid;
+	place-items: center;
+	border: 1px solid var(--color-button-soft-border);
+	border-radius: var(--radius-md);
+	background: var(--color-button-soft);
+	color: var(--color-button-soft-text);
+	cursor: pointer;
+	font: inherit;
+	font-size: var(--font-size-body);
+	line-height: 1;
+}
+
+.ecosystem-stapel__tool:hover {
+	background: var(--color-button-soft-hover);
+}
+
+.ecosystem-stapel__tool--zu {
+	border-color: var(--color-pill-border);
+	background: var(--color-pill);
+	color: var(--color-pill-text);
+}
+
+.ecosystem-stapel__balance {
+	margin: 0;
+	color: var(--color-text-muted);
+	font-size: var(--font-size-small);
+}
+
+/* Der Zaehler in der Landschaften-Leiste.
+   🔴 ER IST DER EINZIGE ORT, AN DEM EINE SPERRE SICHTBAR WIRD -- auf der Karte sieht eine gesperrte
+   Region unveraendert aus. Bei 0 bleibt er unauffaellig: ein Zaehler, der immer leuchtet, sagt nichts. */
+.ecosystem-stapel-open {
+	align-self: flex-start;
+	margin-top: var(--space-4);
+	padding: var(--space-4) var(--space-8);
+	border: 1px solid var(--color-button-soft-border);
+	border-radius: var(--radius-md);
+	background: var(--color-button-soft);
+	color: var(--color-button-soft-text);
+	cursor: pointer;
+	font: inherit;
+	font-size: var(--font-size-small);
+	line-height: var(--leading-snug);
+}
+
+.ecosystem-stapel-open:hover {
+	background: var(--color-button-soft-hover);
+}
+
+.ecosystem-stapel-open--aktiv {
+	border-color: var(--color-pill-border);
+	background: var(--color-pill);
+	color: var(--color-pill-text);
+}
+
+.ecosystem-stapel-open[hidden] {
+	display: none;
+}

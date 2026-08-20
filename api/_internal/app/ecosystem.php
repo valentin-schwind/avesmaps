@@ -1795,14 +1795,19 @@ function avesmapsEcosystemReadRegionFields(array $payload, ?string $currentKind)
             ? null
             : avesmapsEcosystemReadPublicId($labelPublicId, 'label_public_id');
     }
-    // ---- Reihenfolge und Sperre (19.08.2026) ----------------------------------------------------
+    // ---- Die Klick-Sperre (19.08.2026) -----------------------------------------------------------
     //
-    // 💣 `array_key_exists`, nicht `isset` -- wie jedes Feld darueber. `isset` waere bei `null`
-    // falsch, und ein Rumpf, der stack_order ausdruecklich auf 0 setzt, ginge damit verloren.
-    // Die Partialitaet dieser Funktion IST die Regel: geschrieben wird nur, was mitgeschickt wurde.
-    if (array_key_exists('stack_order', $payload)) {
-        $fields['stack_order'] = (int) $payload['stack_order'];
-    }
+    // 💣 `array_key_exists`, nicht `isset` -- wie jedes Feld darueber. Mit `isset` waere ein Rumpf,
+    // der ausdruecklich ENTsperrt (`is_locked: false`), lautlos wirkungslos gewesen: nichts schlaegt
+    // fehl, der Haken steht beim naechsten Oeffnen wieder da. Die Partialitaet dieser Funktion IST
+    // die Regel -- geschrieben wird nur, was mitgeschickt wurde.
+    //
+    // ⚠️ `stack_order` steht hier ABSICHTLICH NICHT. Die Reihenfolge kennt genau zwei Bewegungen,
+    // „ganz nach vorn" und „ganz nach hinten", und beide brauchen den hoechsten bzw. niedrigsten Rang
+    // der EBENE -- den kennt nur der Server. Sie laufen deshalb ueber `set_region_stack`
+    // (avesmapsEcosystemSetRegionStack). Eine freie Zahl hier daneben waere ein zweiter Weg zur
+    // selben Spalte, und der erste, der sie benutzt, rechnet den Rang aus dem, was er gerade
+    // geladen hat -- also aus dem Bildausschnitt.
     if (array_key_exists('is_locked', $payload)) {
         $fields['is_locked'] = ((bool) $payload['is_locked']) ? 1 : 0;
     }
@@ -2489,6 +2494,80 @@ function avesmapsEcosystemAssertLabelPointerFree(PDO $pdo, array $before, array 
             'Diese Region hat bereits ein primaeres Label. Erst das bestehende loesen oder loeschen, dann ein anderes zum primaeren machen. (Weitere Labels derselben Flaeche brauchen diesen Zeiger nicht -- sie tragen ihn selbst.)'
         );
     }
+}
+
+// ---- „Ganz nach vorn" / „ganz nach hinten" (19.08.2026) ---------------------------------------------
+//
+// 🔴 ES GIBT NUR ZWEI BEWEGUNGEN, und beide heissen GANZ. Eine Stufe im Menue und „ganz" im Fenster
+// waeren zwei Bedeutungen fuer dasselbe Wort; jede Ordnung laesst sich durch wiederholtes
+// Nach-vorn-Holen herstellen.
+//
+// 💣 DIE RECHNUNG GEHOERT HIERHER, NICHT IN DEN BROWSER. Der Browser kennt nur die Flaechen seines
+// BILDAUSSCHNITTS (der Loader laedt nach bbox) -- ein dort gerechnetes „hoechster Rang + 10" schoebe
+// die Region hinter jede Region, die gerade nicht geladen ist. Ausserdem ist es hier atomar: zwei
+// Editoren, die gleichzeitig „nach vorn" druecken, bekommen zwei verschiedene Raenge statt desselben.
+//
+// ⚠️ Der Rang darf negativ werden -- „ganz nach hinten" ist MIN - Schritt, und irgendwann ist MIN
+// eben 10. Die Spalte ist INT; eine Untergrenze bei 0 wuerde stattdessen zwei Regionen auf denselben
+// Rang zwingen, und dann entschiede wieder die Ladereihenfolge.
+function avesmapsEcosystemSetRegionStack(PDO $pdo, array $payload, int $userId): array
+{
+    avesmapsEcosystemEnsureTables($pdo);
+
+    $publicId = avesmapsEcosystemReadPublicId($payload['public_id'] ?? '', 'public_id');
+    $position = avesmapsNormalizeSingleLine((string) ($payload['position'] ?? ''), 10);
+    if ($position !== 'front' && $position !== 'back') {
+        throw new InvalidArgumentException('position must be "front" or "back".');
+    }
+
+    $before = avesmapsEcosystemRegionRow($pdo, $publicId);
+    $kind = (string) $before['kind'];
+
+    $pdo->beginTransaction();
+    try {
+        $grenze = $pdo->prepare(
+            'SELECT COALESCE(MAX(stack_order), 0), COALESCE(MIN(stack_order), 0)
+               FROM ecosystem_region WHERE kind = :kind AND is_active = 1'
+        );
+        $grenze->execute(['kind' => $kind]);
+        [$hoechster, $niedrigster] = $grenze->fetch(PDO::FETCH_NUM) ?: [0, 0];
+
+        $rang = $position === 'front'
+            ? ((int) $hoechster) + AVESMAPS_ECOSYSTEM_STACK_STEP
+            : ((int) $niedrigster) - AVESMAPS_ECOSYSTEM_STACK_STEP;
+
+        $schreiben = $pdo->prepare(
+            'UPDATE ecosystem_region SET stack_order = :rang, updated_by = :user_id WHERE public_id = :public_id'
+        );
+        $schreiben->execute([
+            'rang' => $rang,
+            'user_id' => $userId > 0 ? $userId : null,
+            'public_id' => $publicId,
+        ]);
+
+        $after = avesmapsEcosystemRegionRow($pdo, $publicId);
+        avesmapsEcosystemWriteAuditLog(
+            $pdo,
+            'set_region_stack',
+            $userId,
+            null,
+            $publicId,
+            avesmapsEcosystemRegionSnapshot($before),
+            avesmapsEcosystemRegionSnapshot($after)
+        );
+        $revision = avesmapsNextEcosystemRevision($pdo);
+        $pdo->commit();
+    } catch (Throwable $exception) {
+        $pdo->rollBack();
+        throw $exception;
+    }
+
+    return [
+        'public_id' => $publicId,
+        'kind' => $kind,
+        'stack_order' => $rang,
+        'revision' => $revision,
+    ];
 }
 
 function avesmapsUpdateEcosystemRegion(PDO $pdo, array $payload, int $userId): array

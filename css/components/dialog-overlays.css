@@ -25,6 +25,7 @@ body.modal-dialog-open {
 #ecosystem-properties-overlay[hidden],
 #ecosystem-simplify-overlay[hidden],
 #ecosystem-import-overlay[hidden],
+#ecosystem-stapel-overlay[hidden],
 #review-overlay[hidden],
 #social-hub-overlay[hidden] {
 	display: none !important;
@@ -50,6 +51,7 @@ body.modal-dialog-open {
 #ecosystem-properties-overlay,
 #ecosystem-simplify-overlay,
 #ecosystem-import-overlay,
+#ecosystem-stapel-overlay,
 #review-overlay,
 #social-hub-overlay {
 	position: fixed;
@@ -74,6 +76,7 @@ body.modal-dialog-open {
    an einer Vorschau -- ein Schleier vor dem Relief macht unkenntlich, was der Regler gerade tut. */
 #ecosystem-simplify-overlay,
 #ecosystem-import-overlay,
+#ecosystem-stapel-overlay,
 #ecosystem-properties-overlay {
 	background: transparent;
 	pointer-events: none;
@@ -81,6 +84,7 @@ body.modal-dialog-open {
 
 #ecosystem-simplify-overlay > *,
 #ecosystem-import-overlay > *,
+#ecosystem-stapel-overlay > *,
 #ecosystem-properties-overlay > * {
 	pointer-events: auto;
 }
@@ -114,6 +118,7 @@ body.modal-dialog-open {
 #ecosystem-properties-overlay,
 #ecosystem-simplify-overlay,
 #ecosystem-import-overlay,
+#ecosystem-stapel-overlay,
 #review-overlay,
 #social-hub-overlay {
 	z-index: 1260;
