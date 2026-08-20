@@ -12,6 +12,7 @@ require_once __DIR__ . '/../_internal/app/app-setting.php';
 require_once __DIR__ . '/../_internal/app/citymap-search.php';
 require_once __DIR__ . '/../_internal/app/game-literature-search.php';
 require_once __DIR__ . '/../_internal/app/lore-search.php';
+require_once __DIR__ . '/../_internal/app/offmap-search.php';
 
 const AVESMAPS_MAP_SEARCH_MAX_LIMIT = 20;
 // The map section is capped independently of the 20-result limit, so maps never displace map objects.
@@ -21,6 +22,9 @@ const AVESMAPS_CITYMAP_SEARCH_LIMIT = 5;
 // everything else in the payload.
 const AVESMAPS_GAME_LITERATURE_SEARCH_LIMIT = 5;
 const AVESMAPS_LORE_SEARCH_LIMIT = 5;
+// Seventh source: what the wiki knows and no map shows. Same cap, same reason -- a
+// generic word ("burg", "stein") would otherwise push the real map objects out of view.
+const AVESMAPS_OFFMAP_SEARCH_LIMIT = 5;
 // Mirrors AVESMAPS_GAME_LITERATURE_SETTING in api/_internal/app/game-literature.php. Duplicated rather than
 // required: that file carries the whole adventure catalogue, cover engine and DDL, and this endpoint
 // needs one string.
@@ -100,7 +104,11 @@ try {
     // Sixth source: occurrences. 💣 The switch here is PER KIND, not global -- 'spezies' is off by
     // default and off live (187 entries the search must not show).
     $loreRows = avesmapsFetchLoreSearchRows($pdo, avesmapsLoreSearchEnabledKindsFromSettings($storedSearchSettings));
-    $results = avesmapsBuildMapSearchResults($rows, $politicalRows, $query, $limit, $inSettlementRows, $pdo, $citymapRows, $gameLiteratureRows, $loreRows);
+    // Seventh source: objects with no map feature at all (wiki landscapes, ways, buildings
+    // outside towns). No kill switch -- unlike maps/adventures/occurrences these are not a
+    // content collection that can be switched off, they are the map's own blind spots.
+    $offmapRows = avesmapsFetchOffmapSearchRows($pdo);
+    $results = avesmapsBuildMapSearchResults($rows, $politicalRows, $query, $limit, $inSettlementRows, $pdo, $citymapRows, $gameLiteratureRows, $loreRows, $offmapRows);
 
     avesmapsJsonResponse(200, [
         'ok' => true,
@@ -198,7 +206,12 @@ function avesmapsBuildMapSearchResults(
     ?PDO $pdo = null,
     array $citymapRows = [],
     array $gameLiteratureRows = [],
-    array $loreRows = ['entries' => [], 'places_by_entry' => []]
+    array $loreRows = ['entries' => [], 'places_by_entry' => []],
+    // ⚠️ Ten positional parameters is at the limit, and this one is deliberately LAST so no
+    // existing caller or test breaks. Reshaping this into an options array would touch every
+    // caller and every test of this function -- out of scope here, noted so the next reader
+    // knows it is a decision, not neglect.
+    array $offmapRows = []
 ): array {
     $normalizedQuery = avesmapsNormalizeSearchText($query);
     if ($normalizedQuery === '') {
@@ -271,15 +284,19 @@ function avesmapsBuildMapSearchResults(
         $results[] = $entry;
     }
 
+    // Der Scope-Index („liegt das in einer Stadt?") bedient ZWEI Quellen: die
+    // Innerorts-Objekte unten und die Objekte ohne Kartenobjekt weiter unten. Er wird
+    // deshalb EINMAL gebaut, nicht je Zweig.
+    // $rows durchreichen: die Suche hat map_features schon vollstaendig geladen, ein
+    // zweiter Scan derselben Tabelle waere reine Verschwendung. Dieselbe Funktion,
+    // dieselbe Regel wie im Editor -- nur ohne die doppelte Abfrage.
+    $scopeIndex = $pdo !== null ? avesmapsPlaceScopeLoadIndex($pdo, $rows) : [];
+
     // Innerorts-Objekte (dritte Quelle). Der Scope-Index braucht die DB (Regionen +
     // Territorien fuer die Mehrdeutigkeitspruefung); ohne PDO bleibt die Quelle einfach
     // leer, damit die Funktion rein testbar bleibt.
     if ($inSettlementRows !== [] && $pdo !== null) {
         $settlementIndex = avesmapsBuildSettlementLocationIndex($rows);
-        // $rows durchreichen: die Suche hat map_features schon vollstaendig geladen, ein
-        // zweiter Scan derselben Tabelle waere reine Verschwendung. Dieselbe Funktion,
-        // dieselbe Regel wie im Editor -- nur ohne die doppelte Abfrage.
-        $scopeIndex = avesmapsPlaceScopeLoadIndex($pdo, $rows);
         foreach (avesmapsBuildInSettlementSearchEntries($inSettlementRows, $settlementIndex, $scopeIndex) as $entry) {
             $score = avesmapsCalculateSearchScore($entry, $normalizedQuery);
             if ($score === null) {
@@ -330,6 +347,24 @@ function avesmapsBuildMapSearchResults(
         AVESMAPS_LORE_SEARCH_LIMIT
     );
 
+    // Seventh source: objects with no map feature. 💣 Both indexes are built from $rows --
+    // the map_features this endpoint has already loaded. No second query (STRATO, AGENTS.md §9).
+    // The political rows are the territories WITH geometry, which is exactly right for a jump
+    // target: a territory without an area cannot itself be one.
+    [$offmapResults, $offmapTotal] = $offmapRows !== [] && $pdo !== null
+        ? avesmapsCollectSearchSection(
+            avesmapsBuildOffmapSearchEntries(
+                $offmapRows,
+                avesmapsBuildOffmapTargetIndex($rows, $politicalRows),
+                $scopeIndex,
+                avesmapsBuildMapPresenceIndex($rows)
+            ),
+            $normalizedQuery,
+            'avesmapsOffmapSearchCompare',
+            AVESMAPS_OFFMAP_SEARCH_LIMIT
+        )
+        : [[], 0];
+
     $results = array_merge($results, array_values($pathGroups));
     usort($results, static function (array $left, array $right): int {
         $scoreDiff = (int) $left['score'] <=> (int) $right['score'];
@@ -360,6 +395,9 @@ function avesmapsBuildMapSearchResults(
         [$citymapResults, 'citymap_total', $citymapTotal],
         [$gameLiteratureResults, 'adventure_total', $gameLiteratureTotal],
         [$loreResults, 'lore_total', $loreTotal],
+        // Last on purpose: a hit you can fly to beats one you can only read about
+        // (Entwurf §2). This position IS that rule -- there is no second sort.
+        [$offmapResults, 'offmap_total', $offmapTotal],
     ];
     foreach ($sections as [$sectionResults, $totalField, $sectionTotal]) {
         foreach ($sectionResults as $entry) {
