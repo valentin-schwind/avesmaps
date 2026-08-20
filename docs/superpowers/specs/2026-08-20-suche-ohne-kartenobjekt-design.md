@@ -94,8 +94,17 @@ stehen, bevor gesucht wird.
 `avesmapsFetchPoliticalTerritorySearchRows` (`map-search.php:160`) verlangt
 `JOIN political_territory_geometry g ON g.territory_id = st.node_id AND g.is_active = 1`.
 Ein Gebiet, das weder selbst noch irgendwo in seinem Unterbaum eine gezeichnete
-Fläche hat, verlässt die Suche stillschweigend — **obwohl es in unserer eigenen
-Tabelle steht, mit Namen, Rang, Eltern und Wiki-Verweis**.
+Fläche hat, verlässt die Suche — **obwohl es in unserer eigenen Tabelle steht, mit
+Namen, Rang, Eltern und Wiki-Verweis**.
+
+🪤 **Das ist kein Versehen.** Der Kommentar über der Abfrage sagt den Grund
+wörtlich: „Geometrielose Gebiete (auch ohne Nachfahren-Geometrie) fallen raus
+(nichts zum Anspringen)." Die Entscheidung war richtig, solange ein Suchtreffer
+zwingend ein Flugziel brauchte. **Genau diese Voraussetzung hebt dieses Feature
+auf** — ein Treffer darf jetzt zum Elterngebiet springen oder nur die Infobox
+öffnen. Die Zeile fällt also nicht, weil sie falsch war, sondern weil ihre
+Begründung entfällt; und sie wird durch die zwei Hinweistexte aus §5 ersetzt, nicht
+ersatzlos gestrichen.
 
 Das ist eine **zweite** Klasse von „nicht auf der Karte", und sie ist nicht
 Wiki-only: wir kennen das Gebiet, wir zeichnen es nur nicht. Sie gehört in dieses
