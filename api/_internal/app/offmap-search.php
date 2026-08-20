@@ -218,6 +218,69 @@ function avesmapsBuildOffmapSearchEntries(
 }
 
 /**
+ * PURE: die Herrschaftsgebiete, die weder selbst noch irgendwo in ihrem Unterbaum
+ * eine gezeichnete Flaeche haben -- als fertige Quellzeilen.
+ *
+ * 💣 Gerechnet wird LINEAR, nicht per rekursiver CTE. Die naheliegende SQL-Fassung
+ * („WITH RECURSIVE subtree …", wie die bestehende Territoriumsabfrage sie fuehrt)
+ * baut den Unterbaum JEDES Gebiets auf -- bei rund 1400 Territorien, in dem
+ * Endpunkt, der pro Tastendruck feuert. Das ist die Sorte Last, die AGENTS.md §10
+ * dem PHP-Pool-Vorfall vom 17.07.2026 zuschreibt.
+ *
+ * Stattdessen: von jedem Gebiet MIT Flaeche einmal die Elternkette hinauf markieren.
+ * Danach ist „hat irgendwo im Unterbaum eine Flaeche" ein Nachschlagen.
+ *
+ * ⚠️ Die Antwort MUSS dieselbe sein wie die des JOINs in
+ * avesmapsFetchPoliticalTerritorySearchRows -- weicht sie ab, erscheint ein Gebiet
+ * doppelt oder in keiner der beiden Quellen.
+ *
+ * @param array<int, array<string, mixed>> $baum id => Zeile (parent_id, name, type, wiki_url, continent)
+ * @param list<int|string> $territoryIdsMitFlaeche territory_id aus political_territory_geometry
+ * @return list<array{title: string, type_label: string, place_raw: string, wiki_url: string, kind: string}>
+ */
+function avesmapsOffmapTerritoriesWithoutArea(array $baum, array $territoryIdsMitFlaeche): array
+{
+    $bedeckt = [];
+    foreach ($territoryIdsMitFlaeche as $territoryId) {
+        // 💣 Der Tiefenzaehler ist die Bremse gegen einen Zyklus in parent_id. Eine
+        // einzige kaputte Zeile wuerde die Suche sonst haengen lassen -- und zwar
+        // jede Anfrage, nicht nur eine.
+        $knoten = (int) $territoryId;
+        $tiefe = 0;
+        while ($knoten !== 0 && !isset($bedeckt[$knoten]) && $tiefe++ < 32) {
+            $bedeckt[$knoten] = true;
+            $knoten = (int) ($baum[$knoten]['parent_id'] ?? 0);
+        }
+    }
+
+    $zeilen = [];
+    foreach ($baum as $id => $row) {
+        if (isset($bedeckt[(int) $id])) {
+            continue;
+        }
+        $kontinent = (string) ($row['continent'] ?? '');
+        if ($kontinent !== '' && $kontinent !== 'Aventurien') {
+            continue;
+        }
+        $elternId = (int) ($row['parent_id'] ?? 0);
+        $zeilen[] = [
+            'title' => (string) ($row['name'] ?? ''),
+            'type_label' => trim((string) ($row['type'] ?? '')) !== ''
+                ? (string) $row['type']
+                : 'Herrschaftsgebiet',
+            // ⚠️ Ein Gebiet OHNE Elterngebiet (eine Wurzel) bekommt einen leeren
+            // Rohwert und damit kein Sprungziel -- gezeigt wird es trotzdem, sonst
+            // verschwaenden ausgerechnet die groessten Reiche.
+            'place_raw' => (string) ($baum[$elternId]['name'] ?? ''),
+            'wiki_url' => (string) ($row['wiki_url'] ?? ''),
+            'kind' => 'territory',
+        ];
+    }
+
+    return $zeilen;
+}
+
+/**
  * Die Zeilen der Arten, deren Sprungziel BEREITS als Spalte dasteht:
  * Landschaften, Wege und Staetten ausserhalb von Staedten.
  *
@@ -308,6 +371,81 @@ function avesmapsFetchOffmapSearchRows(PDO $pdo): array
                 'place_raw' => (string) ($row['standort'] ?? ''),
                 'wiki_url' => (string) ($row['wiki_url'] ?? ''),
                 'kind' => 'building',
+            ];
+        }
+    } catch (Throwable) {
+    }
+
+    // EIGENE Herrschaftsgebiete ohne jede gezeichnete Flaeche -- weder selbst noch
+    // irgendwo in ihrem Unterbaum. Sprungziel ist das Elterngebiet.
+    //
+    // 🪤 Diese Zeilen fallen NICHT versehentlich aus der Suche: die bestehende
+    // Territoriumsabfrage (map-search.php) schliesst sie mit einem JOIN auf
+    // political_territory_geometry bewusst aus, und ihr Kommentar nennt den Grund --
+    // „nichts zum Anspringen". Die Voraussetzung ist mit dieser Quelle weg, also
+    // werden sie hier aufgefangen, statt die alte Regel aufzuweichen.
+    //
+    // 💣 GERECHNET WIRD IN PHP, NICHT PER REKURSIVER CTE. Die naheliegende Fassung
+    // („WITH RECURSIVE subtree …", wie die bestehende Territoriumsabfrage sie fuehrt)
+    // baut den Unterbaum JEDES Gebiets auf -- bei rund 1400 Territorien, in dem
+    // Endpunkt, der pro Tastendruck feuert. Das ist genau die Last, die AGENTS.md §10
+    // dem PHP-Pool-Vorfall vom 17.07.2026 zuschreibt.
+    //
+    // Stattdessen zwei flache Abfragen und ein linearer Lauf: von jedem Gebiet MIT
+    // Flaeche einmal die Elternkette hinauf markieren. Danach ist „hat irgendwo im
+    // Unterbaum eine Flaeche" ein Nachschlagen, keine Rekursion.
+    // ⚠️ Die Antwort MUSS dieselbe sein wie die des JOINs in map-search.php -- weicht
+    // sie ab, erscheint ein Gebiet doppelt oder in keiner der beiden Quellen.
+    try {
+        $baum = [];
+        $statement = $pdo->query(
+            "SELECT id, parent_id, name, type, wiki_url, continent
+               FROM political_territory
+              WHERE is_active = 1 AND name IS NOT NULL AND name <> ''"
+        );
+        foreach ($statement !== false ? $statement->fetchAll(PDO::FETCH_ASSOC) : [] as $row) {
+            $baum[(int) $row['id']] = $row;
+        }
+
+        $geoStatement = $pdo->query(
+            'SELECT DISTINCT territory_id FROM political_territory_geometry WHERE is_active = 1'
+        );
+        $mitFlaeche = $geoStatement !== false ? $geoStatement->fetchAll(PDO::FETCH_COLUMN) : [];
+
+        foreach (avesmapsOffmapTerritoriesWithoutArea($baum, $mitFlaeche) as $zeile) {
+            $rows[] = $zeile;
+        }
+    } catch (Throwable) {
+    }
+
+    // Wiki-Territorien, fuer die es nicht einmal eine Zeile in political_territory gibt.
+    //
+    // 💣 Der Elternbezug laeuft ueber affiliation_key, einen wiki_key -- NIE ueber den
+    // Namen. Die Schluesselableitung ist eine feste Tabelle mit eigener Geschichte
+    // (AGENTS.md §5); ein Join ueber Namen faende bei jedem Umlaut etwas anderes.
+    // affiliation_raw reist als Rueckfall mit: es traegt Wiki-Markup, und der
+    // Kandidaten-Extraktor kommt damit zurecht.
+    try {
+        $statement = $pdo->query(
+            "SELECT w.name, w.type, w.wiki_url, w.affiliation_raw, p.name AS parent_name
+               FROM political_territory_wiki w
+               LEFT JOIN political_territory_wiki p ON p.wiki_key = w.affiliation_key
+              WHERE (w.continent IS NULL OR w.continent = '' OR w.continent = 'Aventurien')
+                AND NOT EXISTS (
+                    SELECT 1 FROM political_territory t
+                     WHERE t.is_active = 1 AND t.wiki_key = w.wiki_key
+                )"
+        );
+        foreach ($statement !== false ? $statement->fetchAll(PDO::FETCH_ASSOC) : [] as $row) {
+            $eltern = trim((string) ($row['parent_name'] ?? ''));
+            $rows[] = [
+                'title' => (string) ($row['name'] ?? ''),
+                'type_label' => trim((string) ($row['type'] ?? '')) !== ''
+                    ? (string) $row['type']
+                    : 'Herrschaftsgebiet',
+                'place_raw' => $eltern !== '' ? $eltern : (string) ($row['affiliation_raw'] ?? ''),
+                'wiki_url' => (string) ($row['wiki_url'] ?? ''),
+                'kind' => 'territory',
             ];
         }
     } catch (Throwable) {

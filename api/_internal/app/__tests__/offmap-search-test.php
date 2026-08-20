@@ -151,6 +151,95 @@ assert(count($unklar) === 1, 'ein unklarer Fall wird gezeigt, nicht verschluckt'
 assert($unklar[0]['unresolved'] === true, 'aber ohne vorgetaeuschtes Ziel');
 
 // ---------------------------------------------------------------------------
+// Herrschaftsgebiete (Stufe 2). Ihr Sprungziel ist das ELTERNgebiet, und das ist
+// ein Territorium -- der Ziel-Index muss es aus den politischen Zeilen kennen.
+// ---------------------------------------------------------------------------
+
+$zielIndex = avesmapsBuildOffmapTargetIndex(
+    [],
+    [['public_id' => 'ter-garetien', 'name' => 'Garetien']]
+);
+$gebiete = avesmapsBuildOffmapSearchEntries(
+    [['title' => 'Baronie Falkenstein', 'type_label' => 'Baronie',
+      'place_raw' => 'Garetien', 'wiki_url' => '', 'kind' => 'territory']],
+    $zielIndex,
+    ['settlements' => [], 'regions' => ['garetien' => true]],
+    []
+);
+assert($gebiete[0]['unresolved'] === false, 'Elterngebiet ist ein gueltiges Ziel');
+assert($gebiete[0]['place_kind'] === 'territory', 'und wird als Territorium angesprungen');
+assert($gebiete[0]['place_public_id'] === 'ter-garetien');
+assert($gebiete[0]['type_label'] === 'Baronie · Garetien');
+
+// 💣 Ein Gebiet OHNE Elterngebiet (eine Wurzel) ist kein Fehler -- es wird gezeigt,
+// nur ohne Flug. Sonst verschwaenden ausgerechnet die groessten Reiche.
+$wurzel = avesmapsBuildOffmapSearchEntries(
+    [['title' => 'Mittelreich', 'type_label' => 'Reich',
+      'place_raw' => '', 'wiki_url' => '', 'kind' => 'territory']],
+    $zielIndex,
+    ['settlements' => [], 'regions' => []],
+    []
+);
+assert(count($wurzel) === 1, 'ein Reich ohne Elterngebiet bleibt auffindbar');
+assert($wurzel[0]['unresolved'] === true, 'nur eben ohne Sprungziel');
+
+// ---------------------------------------------------------------------------
+// „Welches Gebiet hat nirgends eine Flaeche?" -- die Rechnung, die statt einer
+// rekursiven CTE laeuft (sie wuerde pro Tastendruck ~1400 Unterbaeume bauen).
+// ---------------------------------------------------------------------------
+
+//   1 Mittelreich
+//   +-- 2 Garetien            (hat selbst KEINE Flaeche)
+//   |    +-- 3 Falkenstein    (hat eine Flaeche)
+//   +-- 4 Nostria             (nichts im ganzen Zweig)
+//        +-- 5 Salza
+$baum = [
+    1 => ['parent_id' => null, 'name' => 'Mittelreich', 'type' => 'Reich', 'wiki_url' => '', 'continent' => 'Aventurien'],
+    2 => ['parent_id' => 1, 'name' => 'Garetien', 'type' => 'Koenigreich', 'wiki_url' => '', 'continent' => 'Aventurien'],
+    3 => ['parent_id' => 2, 'name' => 'Falkenstein', 'type' => 'Baronie', 'wiki_url' => '', 'continent' => 'Aventurien'],
+    4 => ['parent_id' => 1, 'name' => 'Nostria', 'type' => 'Koenigreich', 'wiki_url' => '', 'continent' => 'Aventurien'],
+    5 => ['parent_id' => 4, 'name' => 'Salza', 'type' => 'Baronie', 'wiki_url' => '', 'continent' => 'Aventurien'],
+];
+
+$ohneFlaeche = avesmapsOffmapTerritoriesWithoutArea($baum, [3]);
+$namen = array_map(static fn(array $z): string => $z['title'], $ohneFlaeche);
+sort($namen);
+
+// 🔴 Nur Nostria und Salza. Garetien und Mittelreich sind BEDECKT -- ueber Falkenstein,
+// ihren Nachfahren. Genau das leistet die Elternkette, und genau das entscheidet auch
+// der JOIN in map-search.php; weichen die beiden ab, erscheint ein Gebiet doppelt.
+assert($namen === ['Nostria', 'Salza'], 'nur der Zweig ganz ohne Flaeche, Vorfahren sind bedeckt');
+
+$nostria = null;
+foreach ($ohneFlaeche as $zeile) {
+    if ($zeile['title'] === 'Nostria') {
+        $nostria = $zeile;
+    }
+}
+assert($nostria['place_raw'] === 'Mittelreich', 'das Elterngebiet ist der Rohwert');
+assert($nostria['type_label'] === 'Koenigreich', 'die Art kommt aus `type`, nicht aus einem geratenen Feld');
+assert($nostria['kind'] === 'territory');
+
+// Ohne jede Flaeche ist ALLES unbedeckt.
+assert(count(avesmapsOffmapTerritoriesWithoutArea($baum, [])) === 5, 'ohne Flaechen faellt nichts heraus');
+
+// Ein anderer Kontinent gehoert nicht auf diese Karte.
+$myranor = $baum;
+$myranor[5]['continent'] = 'Myranor';
+$ohneMyranor = avesmapsOffmapTerritoriesWithoutArea($myranor, [3]);
+assert(count($ohneMyranor) === 1, 'Myranor faellt heraus, Nostria bleibt');
+
+// 💣 Ein Zyklus in parent_id darf die Suche nicht haengen lassen -- und zwar keine
+// einzige Anfrage, nicht nur diese eine. Ohne den Tiefenzaehler laeuft die
+// Elternkette hier fuer immer.
+$zyklus = [
+    1 => ['parent_id' => 2, 'name' => 'A', 'type' => '', 'wiki_url' => '', 'continent' => ''],
+    2 => ['parent_id' => 1, 'name' => 'B', 'type' => '', 'wiki_url' => '', 'continent' => ''],
+];
+$ausZyklus = avesmapsOffmapTerritoriesWithoutArea($zyklus, [1]);
+assert($ausZyklus === [], 'der Zyklus wird durchlaufen und endet -- ohne Haenger');
+
+// ---------------------------------------------------------------------------
 // Die Rangfolge: wer hinfliegen kann, steht vorn.
 // ---------------------------------------------------------------------------
 
