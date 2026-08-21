@@ -323,6 +323,13 @@
 		ensurePanel();
 		const targetKey = getTargetKey(value || undefined);
 		state = createEmptyState({ targetKey });
+		// 💣 Der ZUSTAND ist damit leer, das BILD im DOM aber nicht. Bis die Antwort eintrifft --
+		// und davor liegt noch das await auf computeOuterBoundaryLock -- haengt die Flaeche des
+		// vorher geoeffneten Knotens im Kasten. Genau so sah Irakema (0 Flaechen, Kreis korrekt
+		// leer) wie ein modelliertes Gebiet aus: gezeigt wurden Mer'imens zwei Unterflaechen
+		// (Bug #87, 21.08.2026). setThumbnail konnte leeren -- es wurde auf diesem Weg nur nie
+		// gerufen. Gewacht von __tests__/derived-panel-reset.test.js.
+		setThumbnail(null, []);
 		{ const e = document.getElementById("derivedGeometryEnabledInput"); if (e) e.disabled = false; document.getElementById("derivedGeometryEnabledLabel")?.classList.remove("derived-geometry-outer-boundaries-disabled"); } // Sperre vom vorherigen Knoten lösen
 		document.getElementById("derivedGeometryInnerBoundariesInput").checked = false;
 		updateInnerBoundaryControl();
@@ -403,6 +410,14 @@
 			renderPreview();
 		} catch (error) {
 			console.warn("Quellgeometrien für die Vorschau konnten nicht geladen werden:", error);
+			// 💣 Ohne dieses Leeren bleibt die Flaeche des VORGAENGERS dauerhaft stehen -- ein
+			// console.warn sieht niemand, ein fremdes Gebiet im Kasten schon. ⚠️ Nur, wenn der
+			// Kasten noch uns gehoert: laeuft bereits ein neuerer Ladevorgang, darf die alte
+			// Antwort ihn weder malen noch leeren.
+			if (state.targetKey === targetKey) {
+				setThumbnail(null, []);
+				updateModeNote();
+			}
 		}
 	}
 
