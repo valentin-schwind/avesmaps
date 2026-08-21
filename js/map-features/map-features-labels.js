@@ -354,7 +354,7 @@ function labelWikiInfoboxMarkup(label, options = {}) {
 	const licenseStatus = String(wiki.image_license_status || "").toLowerCase();
 	const imageIsFree = licenseStatus === "public_domain" || licenseStatus === "public-domain" || licenseStatus === "gemeinfrei";
 	const coatMarkup = wiki.image_url && imageIsFree
-		? `<img class="region-info-box__coat" src="${escapeHtml(wiki.image_url)}" alt="" loading="lazy" decoding="async">`
+		? `<img class="region-info-box__coat" src="${escapeHtml(avesmapsCoatSrc(wiki.image_url))}" alt="" loading="lazy" decoding="async">`
 		: "";
 	const hasCoatClass = coatMarkup ? " has-coat" : "";
 

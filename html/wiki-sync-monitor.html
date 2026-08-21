@@ -398,6 +398,7 @@
 </div>
 <!-- Der geteilte Filter-Trichter (avmFilterMenuAttach + Zeitraum-Abschnitt). Ersetzt die lokale
      Trichter-Nachimplementierung dieser Seite und die zwei „Zeige nur"-Zeilen. -->
+<script src="/js/ui/wappen-quelle.js"></script>
 <script src="/js/ui/filter-menu.js"></script>
 <!-- Verschiebbare Fenster: greift die .modal-title dieser Seite. Die Fenster der Hauptseite bedient
      dieselbe Datei dort; ein iframe braucht seine eigene Kopie, sein Dokument ist ein anderes. -->
@@ -674,7 +675,7 @@ function licClass(n){ const s=n.license_status; if(s==='public_domain') return '
 // ANFUEHRT, fiele ohne Platzhalter in sieben von acht Zeilen das erste Element ersatzlos weg.
 // 🔴 Der Platzhalter traegt KEINE Lizenzklasse (licClass): eine leere Zelle darf keinen
 // Lizenzstatus behaupten.
-function wappenThumb(n){ if(!n.coat_of_arms_url) return '<span class="wp-slot" aria-hidden="true"></span>'; return `<img class="wp ${licClass(n)}" src="${esc(n.coat_of_arms_url)}" alt="" loading="lazy" draggable="false" title="${esc(n.coat_of_arms_author||n.license_status||'Wappen')}">`; }
+function wappenThumb(n){ if(!n.coat_of_arms_url) return '<span class="wp-slot" aria-hidden="true"></span>'; return `<img class="wp ${licClass(n)}" src="${esc(avesmapsCoatSrc(n.coat_of_arms_url))}" alt="" loading="lazy" draggable="false" title="${esc(n.coat_of_arms_author||n.license_status||'Wappen')}">`; }
 async function lockNode(k, lock){
   const n = BYKEY.get(k); if(!n) return;
   busy(true);
@@ -799,7 +800,7 @@ function buildDetailHead(n){
   const coat=effCoat(n), ls=effLic(n);
   const wpClass=(coat && (ls==='unknown'||!ls))?'dt-wappen gray':'dt-wappen';
   const wappenImg=coat
-    ? `<img class="${wpClass}" src="${esc(coat)}" alt="">`
+    ? `<img class="${wpClass}" src="${esc(avesmapsCoatSrc(coat))}" alt="">`
     : `<div class="dt-wappen gray" style="display:flex;align-items:center;justify-content:center;color:var(--mut);font-size:18px">∅</div>`;
   const nameOv=isOvr(n,'name');
   const titleNm=nameOv?(effVal(n,'name')||n.name):n.name;

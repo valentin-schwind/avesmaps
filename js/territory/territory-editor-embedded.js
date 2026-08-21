@@ -1718,7 +1718,7 @@
 						const img = document.createElement("img");
 						img.className = "wappen";
 						img.dataset.role = "wiki-coat-preview";
-						img.src = coatUrl;
+						img.src = avesmapsCoatSrc(coatUrl);
 						img.alt = `Wappen ${node.label}`;
 						img.loading = "lazy";
 						valueElement.appendChild(img);

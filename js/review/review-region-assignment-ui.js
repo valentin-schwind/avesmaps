@@ -327,7 +327,7 @@ function renderRegionAssignmentSummary(summaryElement, wiki, territory = null, o
 		<div class="political-territory-assignment-summary__content">
 			<div class="political-territory-assignment-summary__panes">
 				<div class="political-territory-assignment-summary__wiki-box">
-					${coatUrl ? `<img class="political-territory-assignment-summary__coat" src="${escapeHtml(coatUrl)}" alt="">` : `<span class="political-territory-assignment-summary__coat-placeholder"></span>`}
+					${coatUrl ? `<img class="political-territory-assignment-summary__coat" src="${escapeHtml(avesmapsCoatSrc(coatUrl))}" alt="">` : `<span class="political-territory-assignment-summary__coat-placeholder"></span>`}
 					<dl>${rows.map(([label, value]) => {
 			if (label === "Wiki-Link" && wikiUrl) {
 				return `<dt>${escapeHtml(label)}</dt><dd><a href="${escapeHtml(wikiUrl)}" target="_blank" rel="noopener noreferrer">${escapeHtml(wikiUrl)}</a></dd>`;

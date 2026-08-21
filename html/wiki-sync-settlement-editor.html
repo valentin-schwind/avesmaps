@@ -633,6 +633,7 @@
      ?v=Date.now() geholt und laeuft nicht durch die Asset-Stempelung von index.html. -->
 <!-- Der geteilte Statuskreis-Bauer. Dieselbe Datei laedt index.html: Panel und Editorfenster
      derselben Objektart duerfen nicht zwei Fassungen derselben Regel bekommen. -->
+<script src="/js/ui/wappen-quelle.js"></script>
 <script src="/js/ui/listen-statuskreis.js"></script>
 <script src="/js/ui/wiki-assign-registry.js"></script>
 <script src="/js/ui/wiki-assign-diff.js"></script>
@@ -907,7 +908,7 @@ function settlementLicClass(node) {
 }
 function settlementWappenThumb(node) {
 	if (!node.coat_of_arms_url) return "";
-	return `<img class="wp ${settlementLicClass(node)}" src="${settlementEscape(node.coat_of_arms_url)}" alt="" loading="lazy" draggable="false" title="Wappen">`;
+	return `<img class="wp ${settlementLicClass(node)}" src="${settlementEscape(avesmapsCoatSrc(node.coat_of_arms_url))}" alt="" loading="lazy" draggable="false" title="Wappen">`;
 }
 // BF-Jahr formatieren (Muster fmtBF in wiki-sync-monitor.html): negativ = v.BF.
 function settlementFmtBf(year) {
@@ -1342,7 +1343,7 @@ function renderSettlementRowElement(item) {
 	if (item.coat_url) {
 		const coat = document.createElement("img");
 		coat.className = "se-row-coat";
-		coat.src = item.coat_url;
+		coat.src = avesmapsCoatSrc(item.coat_url);
 		coat.alt = "";
 		coat.loading = "lazy";
 		coat.draggable = false;
@@ -1645,7 +1646,10 @@ function buildSettlementCoatBlockHtml(detail) {
 	const coat = props.coat && props.coat.url ? props.coat : null;
 	const ws = props.wiki_settlement || null;
 	const wappenUrl = coat ? coat.url : (ws && ws.wappen_url) || "";
-	const src = coat ? settlementCoatImageSrc(coat) : (wappenUrl ? `/api/app/coat.php?u=${encodeURIComponent(wappenUrl)}` : "");
+	// Eine Weiche statt zweier: avesmapsCoatSrc leitet nur wiki-aventurica um und lässt eigene
+	// Uploads wie bereits geleitete Adressen unberührt -- der handgebaute Zweig hier war eine
+	// zweite Fassung derselben Regel (js/ui/wappen-quelle.js).
+	const src = avesmapsCoatSrc(coat ? settlementCoatImageSrc(coat) : (wappenUrl || ""));
 	const licenseStatus = coat ? coat.license_status : (wappenUrl ? "unknown" : "");
 	const isDim = wappenUrl && (licenseStatus === "unknown" || !licenseStatus);
 	const imgHtml = src

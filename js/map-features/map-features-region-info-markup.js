@@ -3,19 +3,9 @@
  * This file contains only function declarations and no top-level execution.
  */
 
-// Leitet externe wiki-aventurica-Wappen über den serverseitigen Cache/Proxy (/api/app/coat.php),
-// damit die Karte nicht hunderte SVGs direkt hotlinkt (net::ERR_NO_BUFFER_SPACE). Lokale /uploads/-
-// URLs und bereits proxied URLs bleiben unverändert.
-function avesmapsCoatSrc(url) {
-	const value = String(url || "").trim();
-	if (value === "") {
-		return "";
-	}
-	if (/^https?:\/\/([a-z0-9-]+\.)?wiki-aventurica\.de\//iu.test(value)) {
-		return "/api/app/coat.php?u=" + encodeURIComponent(value);
-	}
-	return value;
-}
+// 🔴 `avesmapsCoatSrc` ist am 21.08.2026 nach js/ui/wappen-quelle.js UMGEZOGEN -- hier stand sie in
+// einer Datei, die nur index.html lädt, und die Editorseiten kannten sie deshalb nicht. Sieben von
+// elf Wappen-Ausgaben gingen an ihr vorbei; die Begründung steht in der neuen Datei.
 
 function createRegionCompactTooltipMarkup(regionEntry) {
 	if (regionShowsFullInfoBox(regionEntry)) {
