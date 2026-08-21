@@ -116,3 +116,31 @@ function respondJson(array $payload, int $status = 200): never {
     echo json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT);
     exit;
 }
+
+/**
+ * Baut die WHERE-Bedingung der Wiki-Browser-Suche samt ihrer Werte.
+ *
+ * 💣 Jeder benannte Platzhalter darf hier nur EINMAL vorkommen. avesmapsCreatePdo setzt
+ * ATTR_EMULATE_PREPARES => false, und MySQL lehnt ein Statement mit wiederholtem Platzhalter
+ * dann mit HY093 ab. Bis zum 21.08.2026 stand hier achtmal ':q' bei einer einzigen Bindung:
+ * JEDE Suche antwortete mit HTTP 500 (q=Gareth, q=Irak, q=Kemi, q=Irakema -- alle gemessen),
+ * ohne q kam 200. Das catch (Throwable) am Ende des Endpunkts machte daraus ein nacktes
+ * 'Internal server error.', weshalb es von aussen nicht zu diagnostizieren war.
+ *
+ * ⚠️ Dieselbe Falle wie bei "Was ist hier?" (AGENTS.md §11) -- sie stand damit zum zweiten Mal
+ * im Haus. Gewacht von __tests__/wiki-browser-suche-platzhalter-test.php, und zwar STATISCH:
+ * sqlite ERLAUBT den wiederholten Platzhalter, ein Test dagegen bliebe gruen.
+ */
+function avesmapsPoliticalWikiBrowserSearchCondition(string $search): array {
+    $spalten = ['name', 'type', 'affiliation_raw', 'affiliation_root', 'status', 'capital_name', 'seat_name', 'ruler'];
+
+    $teile = [];
+    $params = [];
+    foreach ($spalten as $index => $spalte) {
+        $platzhalter = ':q' . ($index + 1);
+        $teile[] = $spalte . ' LIKE ' . $platzhalter;
+        $params[$platzhalter] = '%' . $search . '%';
+    }
+
+    return ['(' . implode(' OR ', $teile) . ')', $params];
+}

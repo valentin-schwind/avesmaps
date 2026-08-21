@@ -29,8 +29,12 @@ try {
 
     $search = trim((string)($_GET['q'] ?? ''));
     if ($search !== '') {
-        $where[] = '(name LIKE :q OR type LIKE :q OR affiliation_raw LIKE :q OR affiliation_root LIKE :q OR status LIKE :q OR capital_name LIKE :q OR seat_name LIKE :q OR ruler LIKE :q)';
-        $params[':q'] = '%' . $search . '%';
+        // 💣 Acht Spalten, acht EIGENE Platzhalter. Hier stand ':q' achtmal bei einer einzigen
+        // Bindung -- ohne ATTR_EMULATE_PREPARES lehnt MySQL das mit HY093 ab, und jede Suche
+        // antwortete mit HTTP 500 (gemessen 21.08.2026). Siehe den Bauer in wiki-browser-support.php.
+        [$searchCondition, $searchParams] = avesmapsPoliticalWikiBrowserSearchCondition($search);
+        $where[] = $searchCondition;
+        $params = array_merge($params, $searchParams);
     }
 
     $continent = trim((string)($_GET['continent'] ?? ''));
