@@ -481,7 +481,19 @@ function avesmapsPoliticalSaveGeometryAssignment(PDO $pdo, array $payload, array
     }
 
     $chain = [];
-    if ($wikiPublicIds !== []) {
+    // 💣 Der Wiki-Zweig darf nur gewinnen, wenn er die Kette VOLLSTAENDIG beschreibt -- sonst legt er
+    // die Flaeche auf einem VORFAHREN ab. Der Client baut beide Listen mit .filter(Boolean) ueber
+    // denselben Pfad, und eigene Knoten tragen bewusst einen leeren wikiKey (1f943292): bei einer
+    // gemischten Kette (wiki-gestuetzte Wurzel, eigene Knoten darunter) bleibt oben also EIN Element
+    // stehen statt keines. Ein "if ($wikiPublicIds !== [])" nimmt dann den Wiki-Zweig, die Kette ist
+    // auf die Wurzel gekuerzt, und $chain[count-1] IST die Wurzel. Genau so landete Irakemas Zeichnung
+    // auf dem Reich Kahet Ni Kemi (Bug #87, live gemessen 21.08.2026) -- und dessen Zoom-Band bekam
+    // obendrein den Blatt-Vorgabewert 0..6, weil avesmapsPoliticalDefaultAssignmentZoomRange eine
+    // einelementige Kette fuer ein Blatt haelt.
+    // ⚠️ Der Vergleich ist die Regel, nicht die Nicht-Leere: ist gar kein Territorien-Pfad dabei
+    // (Drag'n'drop schickt nur wiki_public_ids), ist count([]) = 0 und der Wiki-Zweig gewinnt wie
+    // bisher. Gewacht von __tests__/gemischte-kette-zuweisung-test.php.
+    if ($wikiPublicIds !== [] && count($wikiPublicIds) >= count($territoryPublicIds)) {
         $chainResponse = avesmapsPoliticalEnsureWikiTerritoryChain($pdo, [
             ...$payload,
             'wiki_public_ids' => $wikiPublicIds,
