@@ -171,7 +171,37 @@ in Löser und Fenster — ein grüner Rechentest beweist nichts, solange niemand
 angepasst `zoombaender-abstaende.test.js`, `zoombaender-abstaende-dialog.test.js`,
 `api/_internal/app/__tests__/zoom-bands-test.php`.
 
-## 7. Offen
+## 7. Die Beschriftungen (22.08.2026, nach dem Einbau)
+
+🔴 **Umbenannt sind nur die Beschriftungen, nie die Schlüssel** — dieselbe Trennung wie
+„Neuigkeiten"/`changelog` und „Verborgen"/`is_hidden`. `spalt`/`repel`/`versatz`/`drift` stehen als
+Werte in `app_setting`, die Element-Kennungen (`zbGapRange`, `zbShiftRange`, `zbDriftRange` …) in
+Tests; beide bleiben.
+
+| Schlüssel | vorher | jetzt | warum |
+|---|---|---|---|
+| `spalt` | Spalt | **Abstand zum Punkt** | „Spalt" sagte nicht, wovon |
+| `repel` | Repel | **Schutzrand** | englisches Jargon in deutscher Oberfläche |
+| `versatz` | Versatz | **Ausweichschritt** | war mit dem Deckel darunter verwechselbar |
+| `drift` | Max. Drift | **Ausweichgrenze** | „Drift" sagte nicht, wovon weg |
+
+Die letzten beiden teilen jetzt einen Wortstamm, weil sie dasselbe regeln: das Ausweichen.
+
+⚠️ **Layout:** die vier Regler stehen links, die Vorschau rechts (Owner). Die Vorschauspalte ist auf
+die Bühnenbreite festgenagelt — ohne das fordert sie so viel Platz, wie ihr breitester Inhalt haben
+möchte (gemessen 726 px), und die zwei Spalten fallen untereinander.
+
+🪤 **Die Repel-Anschauung ist entfallen** (zwei feste Punkte mit gestrichelten Rahmen): sie zeigte
+dasselbe wie die echte Vorschau, nur vereinfacht auf eine Achse und ein Paar — und sie passte nicht
+in eine 318 px schmale Reglerspalte.
+
+💣 **Marker unter Namen, in zwei Ebenen.** Die erste Fassung hängte Punkt und Name abwechselnd in die
+Bühne; dann deckt der nächste Punkt den vorigen Namen zu, und bei z6 (Marker bis 53 px) waren 16 von
+24 Namen unlesbar. Auf der Karte liegt der `locationsPane` unter dem `labelsPane` — das Panel bildet
+das jetzt nach. ⚠️ Vorgabe ist **z5**, nicht z6: dort bedecken die Marker 4 % statt 9 % der Bühne,
+bei gleich vielen Ausweichern.
+
+## 8. Offen
 
 - 🔧 Eine Schieflage im Bestand, beim Messen gefunden: „mittig darüber" hält 30 px senkrechten
   Abstand, „mittig darunter" nur 8 — `verticalCenterOffset` steckt in der oberen Formel einmal zu

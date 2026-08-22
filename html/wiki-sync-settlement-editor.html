@@ -397,10 +397,25 @@
      Buehnenbreite, und auf einem breiten Fenster zogen sie sich so weit auseinander, dass gar
      nichts mehr kollidierte -- dann taten Versatz und Deckel sichtbar nichts. Bei schmalem
      Fenster wird gescrollt, wie bei der Repel-Anschauung darueber. */
-  .zbv-wrap { overflow-x:auto; margin-top:var(--space-8); }
-  .zbv-stage { position:relative; width:720px; height:330px; background:var(--color-panel-muted);
+  /* 🔴 Regler LINKS, Vorschau RECHTS (Owner 22.08.2026). Bei schmalem Fenster fallen sie
+     untereinander -- die Bühne behält ihre feste Breite, siehe unten. */
+  .zb-abst { display:flex; gap:var(--space-16); align-items:flex-start; flex-wrap:wrap; }
+  .zb-abst__regler { flex:1 1 19rem; min-width:17rem; }
+  /* 💣 Auf die BÜHNENBREITE festgenagelt. Ohne das fordert die Spalte so viel Platz, wie ihr
+     breitester Inhalt (Kopfzeile, Zähler) haben möchte -- gemessen 726 px -- und dann passen
+     die zwei Spalten nicht mehr nebeneinander und fallen untereinander. Kopf und Zähler
+     brechen jetzt innerhalb der 560 px um. */
+  .zb-abst__vorschau { flex:0 0 auto; width:560px; max-width:100%; }
+  .zbv-wrap { overflow-x:auto; }
+  .zbv-stage { position:relative; width:560px; height:330px; background:var(--color-panel-muted);
     border:1px solid var(--line); border-radius:var(--radius-md); overflow:hidden; }
   .zbv-stage svg { position:absolute; inset:0; width:100%; height:100%; pointer-events:none; }
+  /* 🔴 ZWEI EBENEN, wie auf der Karte: dort liegt der locationsPane UNTER dem labelsPane, also
+     liegen ALLE Marker unter ALLEN Namen. Die erste Fassung haengte Punkt und Name abwechselnd in
+     die Buehne -- dann deckt der naechste Punkt den vorigen Namen zu, und bei z6 (Marker bis 53 px)
+     waren 16 von 24 Namen unlesbar. Das war kein Gedraenge, das war eine falsche Stapelung. */
+  .zbv-layer { position:absolute; inset:0; pointer-events:none; }
+  .zbv-layer--namen { z-index:2; }
   .zbv-dot { position:absolute; border-radius:50%; background:var(--color-marker-waypoint);
     box-sizing:border-box; border:1px solid var(--color-marker-waypoint-core); }
   .zbv-name { position:absolute; white-space:nowrap; color:var(--color-text-strong);
@@ -585,13 +600,15 @@
            dem abgenommenen Prototyp docs/zoombaender-mockup.html uebernommen. -->
       <div class="zb__section">
         <div class="zb__head"><h3>Abstände</h3><span class="zb__src">global — ein Wert für alle Ortsklassen und Zoomstufen</span></div>
+        <div class="zb-abst">
+        <div class="zb-abst__regler">
         <div class="zb-slider-row">
           <div class="zb-slider-row__head">
-            <span class="zb-slider-row__name">Spalt</span>
-            <span class="zb-slider-row__desc">Abstand vom Marker-Rand zu seinem eigenen Label — wird auf den Außenradius addiert, wächst also mit dem Marker mit.</span>
+            <span class="zb-slider-row__name">Abstand zum Punkt</span>
+            <span class="zb-slider-row__desc">Wie weit der Name neben seinem Punkt sitzt.</span>
           </div>
           <div class="zb-slider-row__control">
-            <input type="range" class="zb-range" id="zbGapRange" min="0" max="20" step="0.5" aria-label="Spalt in px">
+            <input type="range" class="zb-range" id="zbGapRange" min="0" max="20" step="0.5" aria-label="Abstand zum Punkt in px">
             <input type="number" class="zb-num-input" id="zbGapInput" min="0" max="20" step="0.5">
             <span class="zb-selected__unit">px</span>
             <button type="button" class="zb-row-reset" id="zbGapReset">↺</button>
@@ -599,53 +616,42 @@
         </div>
         <div class="zb-slider-row">
           <div class="zb-slider-row__head">
-            <span class="zb-slider-row__name">Repel</span>
-            <span class="zb-slider-row__desc">Luft, die um jedes Label frei bleiben muss, bevor die Kollisionsauflösung es als Überschneidung zählt.</span>
+            <span class="zb-slider-row__name">Schutzrand</span>
+            <span class="zb-slider-row__desc">Luft um jeden Namen, bevor er als Überschneidung zählt.</span>
           </div>
           <div class="zb-slider-row__control">
-            <input type="range" class="zb-range" id="zbRepelRange" min="0" max="20" step="0.5" aria-label="Repel in px">
+            <input type="range" class="zb-range" id="zbRepelRange" min="0" max="20" step="0.5" aria-label="Schutzrand in px">
             <input type="number" class="zb-num-input" id="zbRepelInput" min="0" max="20" step="0.5">
             <span class="zb-selected__unit">px</span>
             <button type="button" class="zb-row-reset" id="zbRepelReset">↺</button>
           </div>
         </div>
-        <div class="zb-repel-demo-wrap">
-          <div class="zb-repel-demo" id="zbRepelDemo" role="img" aria-label="Zwei feste Ortspunkte mit ihren Labeln; die Labels weichen einander aus, sobald der geforderte Rand um jedes Label sich berührt">
-            <span class="zb-repel-demo__dot" id="zbRepelDotA"></span>
-            <span class="zb-repel-demo__box" id="zbRepelBoxA"></span>
-            <span class="zb-repel-demo__word" id="zbRepelWordA"></span>
-            <span class="zb-repel-demo__dot" id="zbRepelDotB"></span>
-            <span class="zb-repel-demo__box" id="zbRepelBoxB"></span>
-            <span class="zb-repel-demo__word" id="zbRepelWordB"></span>
-          </div>
-        </div>
-        <p class="zb-repel-demo-note">Zwei feste Ortspunkte; der gestrichelte Rahmen zeigt den Rand, den Repel um jedes Label verlangt — berühren sich zwei Rahmen, weicht das rechte Label aus. Vereinfacht auf eine Achse und ein Paar; die echte Auflösung prüft zwölf Ausweichstellen und Prioritäten.</p>
         <div class="zb-slider-row">
           <div class="zb-slider-row__head">
-            <span class="zb-slider-row__name">Versatz</span>
-            <span class="zb-slider-row__desc">Wie weit der kleine Ausweichschritt nach oben bzw. unten geht, wenn die Kollisionsauflösung eine freie Stelle für ein Label sucht.</span>
+            <span class="zb-slider-row__name">Ausweichschritt</span>
+            <span class="zb-slider-row__desc">Weite eines Schritts nach oben bzw. unten.</span>
           </div>
           <div class="zb-slider-row__control">
-            <input type="range" class="zb-range" id="zbShiftRange" min="0" max="20" step="0.5" aria-label="Versatz in px">
+            <input type="range" class="zb-range" id="zbShiftRange" min="0" max="20" step="0.5" aria-label="Ausweichschritt in px">
             <input type="number" class="zb-num-input" id="zbShiftInput" min="0" max="20" step="0.5">
             <span class="zb-selected__unit">px</span>
             <button type="button" class="zb-row-reset" id="zbShiftReset">↺</button>
           </div>
         </div>
-        <p class="zb-shift-note">Zwölf Stellen, in dieser Reihenfolge gesucht — rechts · rechts-oben · rechts-unten · oben-rechts · unten-rechts · links · links-oben · links-unten · oben-links · unten-links · oben · unten; Versatz bestimmt den Schritt an allen außer den ersten beiden (den ungestörten Grundrichtungen rechts/links). Findet sich keine freie Stelle, wird das Label ausgeblendet (bei Siedlungen; Flächen-Labels nie).</p>
         <div class="zb-slider-row">
           <div class="zb-slider-row__head">
-            <span class="zb-slider-row__name">Max. Drift</span>
-            <span class="zb-slider-row__desc">Wie weit ein Ortsname beim Ausweichen höchstens von seiner Normalstellung wegrücken darf. Wer weiter müsste, wird stattdessen ausgeblendet.</span>
+            <span class="zb-slider-row__name">Ausweichgrenze</span>
+            <span class="zb-slider-row__desc">Wie weit ein Name höchstens ausweichen darf — darüber verschwindet er.</span>
           </div>
           <div class="zb-slider-row__control">
-            <input type="range" class="zb-range" id="zbDriftRange" min="0" max="300" step="1" aria-label="Maximaler Drift in px">
+            <input type="range" class="zb-range" id="zbDriftRange" min="0" max="300" step="1" aria-label="Ausweichgrenze in px">
             <input type="number" class="zb-num-input" id="zbDriftInput" min="0" max="300" step="1">
             <span class="zb-selected__unit">px</span>
             <button type="button" class="zb-row-reset" id="zbDriftReset">↺</button>
           </div>
         </div>
-        <p class="zb-shift-note">Gemessen wird die Luftlinie von der Normalstellung (rechts neben dem Punkt) zur Ausweichstelle — <strong>waagerecht wie senkrecht</strong>. Ein kleiner Ausweichschritt kostet wenige Pixel, eine Zeile hoch oder runter rund 30; der <strong>Seitenwechsel</strong> auf die andere Seite des Punktes rückt den Namen um seine eigene Breite weg und liegt je nach Namenslänge bei 78 bis 203 px — das ist das sichtbarste Wegrücken. Bei <strong>0</strong> bleibt jeder Name auf seiner Normalstellung; wer dort keinen Platz hat, verschwindet. Die Vorgabe 300 liegt über jedem erreichbaren Wert und schneidet nichts weg.</p>
+        </div><!-- /.zb-abst__regler -->
+        <div class="zb-abst__vorschau">
         <div class="zbv-head">
           <span class="zb-slider-row__name">Vorschau</span>
           <span class="zb-slider-row__desc">Wie sich die Namen bei diesen Werten ordnen — dieselbe Rechnung wie auf der Karte.</span>
@@ -653,12 +659,12 @@
           <span class="zb-slider-row__desc">Zoomstufe</span>
           <span class="zbv-seg" id="zbvZoom">
             <button type="button" data-z="4">z4</button>
-            <button type="button" data-z="5">z5</button>
-            <button type="button" data-z="6" aria-pressed="true">z6</button>
+            <button type="button" data-z="5" aria-pressed="true">z5</button>
+            <button type="button" data-z="6">z6</button>
             <button type="button" data-z="7">z7</button>
           </span>
         </div>
-        <div class="zbv-wrap"><div class="zbv-stage" id="zbvStage"><svg id="zbvLines" aria-hidden="true"></svg></div></div>
+        <div class="zbv-wrap"><div class="zbv-stage" id="zbvStage"><svg id="zbvLines" aria-hidden="true"></svg><div class="zbv-layer" id="zbvPunkte"></div><div class="zbv-layer zbv-layer--namen" id="zbvNamen"></div></div></div>
         <div class="zbv-read">
           <div><span class="k">Namen sichtbar</span><span class="v" id="zbvSicht">–</span></div>
           <div><span class="k">davon ausgewichen</span><span class="v v--drift" id="zbvDrift">–</span></div>
@@ -667,7 +673,9 @@
         </div>
         <p class="zbv-hint" id="zbvHint" hidden></p>
         <p class="zbv-legend"><span>Normalstellung — weicht nicht aus</span><span style="color:var(--color-accent-brown)">ausgewichen, Linie zeigt zum Punkt</span><span style="color:var(--color-danger)">ausgeblendet</span></p>
-        <p class="zb-repel-demo-note">Eine erfundene, absichtlich gedrängte Ortslage — kein Kartenausschnitt: sie soll Kollisionen erzwingen. Auf der echten Karte stehen vier von fünf Namen ungestört, dort bewegen Versatz und Max. Drift entsprechend weniger. Marker- und Schriftgrößen kommen aus den Kurven oben, die Abstände aus den vier Reglern — auch ungespeichert.</p>
+        <p class="zb-repel-demo-note">Erfundene, dichte Ortslage — kein Kartenausschnitt: sie soll Kollisionen erzwingen. Auf der echten Karte weicht nur jeder fünfte Name aus.</p>
+        </div><!-- /.zb-abst__vorschau -->
+        </div><!-- /.zb-abst -->
       </div>
     </div>
     <p class="zb__msg" id="seZoomBandsMsg"></p>
@@ -3791,6 +3799,14 @@ let zoomBandsState = { marker: {}, label: {}, abstaende: {} };
 let zoomBandsSelected = { marker: null, label: null }; // { cls, z } | null
 let zoomBandPreviewStage = null;
 let zoomBandPlotsCache = null;
+// 🔴 DIE SCHLÜSSEL BLEIBEN, DIE BESCHRIFTUNGEN WURDEN UMBENANNT (22.08.2026):
+//   spalt   -> „Abstand zum Punkt"   (hiess „Spalt" -- sagte nicht, wovon)
+//   repel   -> „Schutzrand"          (hiess „Repel" -- englisches Jargon in deutscher Oberfläche)
+//   versatz -> „Ausweichschritt"     (hiess „Versatz" -- verwechselbar mit dem Deckel darunter)
+//   drift   -> „Ausweichgrenze"      (hiess „Max. Drift" -- „Drift" sagte nicht, wovon weg)
+// Die letzten beiden teilen jetzt einen Wortstamm, weil sie dasselbe regeln: das Ausweichen.
+// ⚠️ Umbenannt sind NUR Beschriftungen. Die Schlüssel stehen als Werte in `app_setting`,
+// die Element-Kennungen in Tests -- dieselbe Trennung wie „Neuigkeiten"/`changelog`.
 const ZOOM_BAND_SPACING_KEYS = ["spalt", "repel", "versatz", "drift"];
 
 // 🔴 Prüfbefund 1 (Fix-Runde 2): "weicht von der Vorgabe ab" und "ungespeichert" sind ZWEI Aussagen,
@@ -4350,10 +4366,10 @@ let zoomBandSpacingElsCache = null;
 function zoomBandSpacingEls() {
 	if (zoomBandSpacingElsCache) { return zoomBandSpacingElsCache; }
 	zoomBandSpacingElsCache = {
-		spalt: { range: $("zbGapRange"), input: $("zbGapInput"), reset: $("zbGapReset"), name: "Spalt" },
-		repel: { range: $("zbRepelRange"), input: $("zbRepelInput"), reset: $("zbRepelReset"), name: "Repel" },
-		versatz: { range: $("zbShiftRange"), input: $("zbShiftInput"), reset: $("zbShiftReset"), name: "Versatz" },
-		drift: { range: $("zbDriftRange"), input: $("zbDriftInput"), reset: $("zbDriftReset"), name: "Max. Drift" },
+		spalt: { range: $("zbGapRange"), input: $("zbGapInput"), reset: $("zbGapReset"), name: "Abstand zum Punkt" },
+		repel: { range: $("zbRepelRange"), input: $("zbRepelInput"), reset: $("zbRepelReset"), name: "Schutzrand" },
+		versatz: { range: $("zbShiftRange"), input: $("zbShiftInput"), reset: $("zbShiftReset"), name: "Ausweichschritt" },
+		drift: { range: $("zbDriftRange"), input: $("zbDriftInput"), reset: $("zbDriftReset"), name: "Ausweichgrenze" },
 	};
 	ZOOM_BAND_SPACING_KEYS.forEach((key) => {
 		const els = zoomBandSpacingElsCache[key];
@@ -4375,12 +4391,9 @@ function setZoomBandSpacing(key, rawVal) {
 	const els = zoomBandSpacingEls()[key];
 	if (els.range) { els.range.value = String(val); }
 	if (els.input) { els.input.value = String(val); }
-	// 🔴 Spalt bewegt live die Vorschau; Spalt UND Repel fließen in die Repel-Anschauung ein (der
-	// Spalt setzt die Ausgangslage der Labels, der Repel den geforderten Rand). Versatz hat bewusst
 	// KEINE eigene Anschauung (Owner-Entscheid, siehe Bericht) -- ein Aufruf hier bewegte nichts, das
 	// von ihm abhängt.
 	if (key === "spalt") { updateZoomBandPreview(); }
-	if (key === "spalt" || key === "repel") { updateZoomBandRepelDemo(); }
 	updateZoomBandsMessage();
 }
 
@@ -4401,7 +4414,6 @@ function renderZoomBandSpacing() {
 			rowEls.reset.title = `${rowEls.name} auf Vorgabe (${zoomBandSpacingDefault(key)} px) zurücksetzen`;
 		}
 	});
-	updateZoomBandRepelDemo();
 }
 
 // ---- Repel-Anschauung: zwei FESTE Ortspunkte, ihre Labels weichen nur so weit aus, wie der
@@ -4413,50 +4425,6 @@ const ZOOM_BAND_REPEL_DOT_D = 10;   // px -- generische Punktgröße, an keine O
 const ZOOM_BAND_REPEL_DOT_GAP = 64; // px -- fester Abstand der beiden Punkte, bewegt sich nie (Begründung: Prototyp-Bericht)
 const ZOOM_BAND_REPEL_WORD_A = "Fasar", ZOOM_BAND_REPEL_WORD_B = "Vinsalt";
 
-function updateZoomBandRepelDemo() {
-	const demo = $("zbRepelDemo");
-	if (!demo) { return; }
-	const dotA = $("zbRepelDotA"), dotB = $("zbRepelDotB");
-	const boxA = $("zbRepelBoxA"), boxB = $("zbRepelBoxB");
-	const wordA = $("zbRepelWordA"), wordB = $("zbRepelWordB");
-	if (!dotA || !dotB || !boxA || !boxB || !wordA || !wordB) { return; }
-	const dotR = ZOOM_BAND_REPEL_DOT_D / 2;
-	const spalt = zoomBandsState.abstaende.spalt ?? zoomBandSpacingDefault("spalt");
-	const repel = zoomBandsState.abstaende.repel ?? zoomBandSpacingDefault("repel");
-
-	const dotAx = 12, dotBx = dotAx + ZOOM_BAND_REPEL_DOT_GAP;
-	dotA.style.left = dotAx + "px";
-	dotB.style.left = dotBx + "px";
-
-	// Ausgangslage: dieselbe Formel wie die Vorschau oben (Radius + Spalt) -- der Spalt-Regler wirkt
-	// also auch hier, bevor der Repel-Regler überhaupt etwas zu tun hat.
-	wordA.textContent = ZOOM_BAND_REPEL_WORD_A;
-	wordB.textContent = ZOOM_BAND_REPEL_WORD_B;
-	const labelAx = dotAx + dotR + spalt;
-	const labelBx0 = dotBx + dotR + spalt; // B VOR dem Ausweichen
-	wordA.style.left = labelAx + "px";
-	wordB.style.left = labelBx0 + "px";
-	const rectA = wordA.getBoundingClientRect(), rectB = wordB.getBoundingClientRect();
-	const widthA = rectA.width, heightA = rectA.height;
-	const widthB = rectB.width, heightB = rectB.height;
-
-	// Die einzige Rechnung: überschneiden sich die beiden um `repel` erweiterten Rahmen, weicht NUR
-	// B nach rechts aus (A bleibt an seiner Stelle) -- eine Achse, eine Richtung, ein Paar.
-	const boxARight = labelAx + widthA + repel;
-	const boxBLeft0 = labelBx0 - repel;
-	const push = Math.max(0, boxARight - boxBLeft0);
-	const labelBx = labelBx0 + push;
-	wordB.style.left = labelBx + "px";
-
-	boxA.style.left = (labelAx - repel) + "px";
-	boxA.style.width = (widthA + 2 * repel) + "px";
-	boxA.style.height = (heightA + 2 * repel) + "px";
-	boxB.style.left = (labelBx - repel) + "px";
-	boxB.style.width = (widthB + 2 * repel) + "px";
-	boxB.style.height = (heightB + 2 * repel) + "px";
-
-	demo.style.width = Math.max(labelBx + widthB + repel, dotBx + dotR) + 16 + "px";
-}
 
 function MK_LINE(x1, y1, x2, y2) {
 	return '<line x1="' + x1 + '" y1="' + y1 + '" x2="' + x2 + '" y2="' + y2
@@ -4466,8 +4434,8 @@ function MK_LINE(x1, y1, x2, y2) {
 // nichts tun. Ohne ihn liest sich das als "der Regler ist kaputt" -- genau die Verwechslung,
 // die diesen Umbau ausgeloest hat.
 const HINWEIS_LEER = "Auf dieser Zoomstufe dr\u00e4ngt sich nichts: jeder Name steht in seiner "
-	+ "Normalstellung. \u201eVersatz\u201c und \u201eMax. Drift\u201c greifen nur bei Namen, die ausweichen "
-	+ "m\u00fcssen \u2014 hier haben sie also nichts zu tun. Wechsle die Zoomstufe oder verkleinere den Spalt.";
+	+ "Normalstellung. \u201eAusweichschritt\u201c und \u201eAusweichgrenze\u201c greifen nur bei Namen, die ausweichen "
+	+ "m\u00fcssen \u2014 hier haben sie also nichts zu tun. Wechsle die Zoomstufe oder verkleinere den Abstand zum Punkt.";
 
 // ---- Das Vorschaupanel (22.08.2026) -------------------------------------------------------------
 // 🔴 ES RECHNET NICHTS SELBST. Grundstellung, die zwölf Ausweichstellen und der Löser kommen aus
@@ -4493,9 +4461,12 @@ const ZBV_ORTE = [
 	{ n: "Ragath", k: "dorf", x: 70, y: 298 },          { n: "Perricum", k: "stadt", x: 172, y: 302 },
 	{ n: "Ilsur", k: "dorf", x: 268, y: 296 },
 	// Zwei freie Einzelgänger als Gegenprobe: sie stehen in der Normalstellung und rühren sich NIE.
-	{ n: "Riva", k: "kleinstadt", x: 545, y: 108 },     { n: "Festum", k: "grossstadt", x: 545, y: 214 }
+	{ n: "Riva", k: "kleinstadt", x: 424, y: 108 },     { n: "Festum", k: "grossstadt", x: 424, y: 214 }
 ];
-let zbvZoom = 6;
+// ⚠️ z5 als Vorgabe, nicht z6: bei z6 ist ein Metropolen-Marker 53 px breit, und 26 Orte auf
+// 560 px werden dann zur Punktsuppe (gemessen: 9 % der Bühne von Markern bedeckt gegen 4 % bei
+// z5). Bei z5 weichen genauso viele Namen aus, es ist nur lesbar.
+let zbvZoom = 5;
 let zbvKnoten = null;
 
 // Der Wert einer Zelle im FENSTERZUSTAND (nicht im gespeicherten): vor `start` gilt "unsichtbar".
@@ -4507,17 +4478,20 @@ function zbvBandwert(kind, cls, z) {
 }
 
 function zbvAufbauen() {
-	const buehne = $("zbvStage");
-	if (!buehne) { return false; }
+	const punkteEbene = $("zbvPunkte");
+	const namenEbene = $("zbvNamen");
+	if (!punkteEbene || !namenEbene) { return false; }
 	if (zbvKnoten) { return true; }
+	// 🔴 Getrennte Ebenen, nicht abwechselnd in eine: sonst deckt der naechste Punkt den vorigen
+	// Namen zu. Auf der Karte liegt der locationsPane unter dem labelsPane -- genau das hier.
 	zbvKnoten = ZBV_ORTE.map((ort) => {
 		const dot = document.createElement("div");
 		dot.className = "zbv-dot";
 		const name = document.createElement("div");
 		name.className = "zbv-name";
 		name.textContent = ort.n;
-		buehne.appendChild(dot);
-		buehne.appendChild(name);
+		punkteEbene.appendChild(dot);
+		namenEbene.appendChild(name);
 		return { ort: ort, dot: dot, name: name };
 	});
 	const seg = $("zbvZoom");
