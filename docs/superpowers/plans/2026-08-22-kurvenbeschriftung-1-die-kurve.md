@@ -1662,6 +1662,25 @@ assert(avesmapsCurveBaselinesFromCache('{"version":2,"regions":{"r1":{"rev":7,"m
 // Eine Zeile ohne Linie ist keine Kurve.
 assert(avesmapsCurveBaselinesFromCache('{"version":1,"regions":{"r1":{"rev":7,"max":1}}}', ['r1' => 7]) === []);
 assert(avesmapsCurveBaselinesFromCache('{"version":1,"regions":{"r1":{"rev":7,"max":1,"line":[[1,2]]}}}', ['r1' => 7]) === []);
+
+// 💣 Eine kaputte Region reisst die anderen NICHT mit. Das braucht ZWEI Regionen, um ueberhaupt
+// sichtbar zu sein -- mit nur einer sehen "diese Region weglassen" und "alles weglassen" identisch
+// aus, und genau daran ist der erste Entwurf vorbeigelaufen.
+$gemischt = '{"version":1,"regions":{'
+    . '"kaputt":{"rev":1,"max":1,"line":[[1,2],["x",4]]},'
+    . '"heil":{"rev":2,"max":1,"line":[[5,6],[7,8]]}}}';
+$geladen = avesmapsCurveBaselinesFromCache($gemischt, ['kaputt' => 1, 'heil' => 2]);
+assert(array_keys($geladen) === ['heil']);
+assert($geladen['heil']['line'] === [[5.0, 6.0], [7.0, 8.0]]);
+
+// Dasselbe fuer die uebrigen Fehlerklassen, damit keine von ihnen heimlich eskaliert.
+$gemischt2 = '{"version":1,"regions":{'
+    . '"ohneLinie":{"rev":1,"max":1},'
+    . '"zuKurz":{"rev":1,"max":1,"line":[[1,2]]},'
+    . '"veraltet":{"rev":9,"max":1,"line":[[1,2],[3,4]]},'
+    . '"heil":{"rev":2,"max":1,"line":[[5,6],[7,8]]}}}';
+$geladen2 = avesmapsCurveBaselinesFromCache($gemischt2, ['ohneLinie' => 1, 'zuKurz' => 1, 'veraltet' => 1, 'heil' => 2]);
+assert(array_keys($geladen2) === ['heil']);
 ```
 
 - [ ] **Schritt 2: Test laufen lassen, er muss fehlschlagen**
@@ -1729,12 +1748,25 @@ function avesmapsCurveBaselinesFromCache(string $json, array $revisionByRegion):
         if (!is_array($linie) || count($linie) < 2) {
             continue;
         }
+        // 💣 Eine kaputte Koordinate wirft DIESE Region weg, nicht alle. Der erste Entwurf dieses
+        // Plans stand hier auf `return []` -- und widersprach damit seiner eigenen Regel eine Zeile
+        // weiter oben: jede andere Fehlerklasse (fehlende Linie, zu kurze Linie, veraltete Revision,
+        // unbekannte Region) ueberspringt genau eine Region. Ein einziger verdorbener Punkt haette
+        // die Kurven ALLER rund 56 Regionen geloescht, auf jeder Kartenanfrage, wortlos.
+        // ⚠️ Kein `continue 2`, sondern ein Merker: `continue 2` in einer verschachtelten Schleife
+        // liest sich wie ein Tippfehler, und diese Stelle wird von jemandem gelesen, der den Grund
+        // nicht kennt.
         $sauber = [];
+        $kaputt = false;
         foreach ($linie as $p) {
             if (!is_array($p) || count($p) < 2 || !is_numeric($p[0]) || !is_numeric($p[1])) {
-                return [];
+                $kaputt = true;
+                break;
             }
             $sauber[] = [(float) $p[0], (float) $p[1]];
+        }
+        if ($kaputt) {
+            continue;
         }
         $raus[$regionId] = [
             'line' => $sauber,
