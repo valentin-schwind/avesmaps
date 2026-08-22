@@ -1623,6 +1623,21 @@
    mitbetreffen oder lautlos ueberstimmen. */
 [data-editor-panel-section="changes"] .wiki-sync-panel__filter {
 	justify-content: flex-end;
+	align-items: center;
+}
+
+/* „Meine · Alle" links, der Trichter bleibt rechts -- `margin-right: auto` statt space-between,
+   damit die Regel darüber (der Trichter MUSS rechts stehen) unberührt gilt, auch wenn hier je
+   wieder etwas dazukommt. Abstand wie bei .status-subtabs, aber ohne dessen Trennlinie: die Zeile
+   trägt schon den Trichter und soll nicht wie ein eigener Reiterbund aussehen. */
+.change-log-scope {
+	display: flex;
+	gap: 14px;
+	margin-right: auto;
+}
+
+.change-log-scope[hidden] {
+	display: none;
 }
 
 /* Die Erklaerzeile („Name, Einwohner geändert") teilt sich Groesse und Farbe mit Ziel und

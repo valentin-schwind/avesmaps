@@ -180,6 +180,21 @@ const CHANGE_LOG_FILTER_RELOAD_DELAY_MS = 250;
 // Ergebnis. Gemessen am 22.08.2026 im Ablauf, nicht im Test.
 let changeLogFilterWartet = false;
 
+// Die zwei Reiter spiegeln die Auswahl, sie führen keinen eigenen Zustand. ⚠️ Ohne Sitzung gibt es
+// den Umschalter GAR NICHT: „Meine" ohne bekannten Namen wäre ein Knopf, der nichts tun kann.
+function changeLogSyncScopeButtons() {
+	const huelle = document.getElementById("change-log-scope");
+	if (!huelle) {
+		return;
+	}
+	const meinName = changeLogCurrentUsername();
+	huelle.hidden = meinName === null;
+	const zustand = changeLogScopeState(changeLogEditorFilter, meinName);
+	huelle.querySelectorAll("[data-change-log-scope]").forEach((knopf) => {
+		knopf.classList.toggle("is-active", knopf.dataset.changeLogScope === zustand);
+	});
+}
+
 function changeLogFilterChanged() {
 	changeLogFilterWartet = true;
 	renderChangeLog();
@@ -267,6 +282,65 @@ function changeLogEditorOptions(entries, selected, roster) {
 			|| left.label.localeCompare(right.label, "de"));
 }
 
+// Der eigene Name. ⚠️ Er kommt aus der Sitzung, nicht aus den Zeilen: wer heute noch nichts geändert
+// hat, steht in keiner Zeile und soll „Meine" trotzdem drücken können (die Antwort ist dann leer, und
+// das ist die richtige Antwort). Fehlt die Sitzung, gibt es keinen Umschalter -- siehe unten.
+function changeLogCurrentUsername() {
+	const sitzung = typeof window !== "undefined" && window.AvesmapsSession
+		&& typeof window.AvesmapsSession.current === "function"
+		? window.AvesmapsSession.current()
+		: null;
+	const name = String(sitzung?.username ?? "").trim();
+
+	return name === "" ? null : name;
+}
+
+// PUR: welcher der beiden Reiter ist aktiv?
+//
+// 🔴 ES GIBT EINEN DRITTEN ZUSTAND, UND ER IST KEINER VON BEIDEN. Der Umschalter und der Trichter
+// schreiben in DIESELBE Auswahl: „Alle" ist die leere Auswahl, „Meine" ist der eigene Name allein.
+// Steht im Trichter jemand anderes (oder mehrere), trifft keiner der beiden Reiter zu -- dann ist
+// auch keiner hervorgehoben. Einen davon trotzdem zu markieren wäre eine Behauptung über den
+// Zustand, die nicht stimmt; der Zähler am Trichter sagt derweil, was wirklich gilt.
+function changeLogScopeState(selected, meinName) {
+	if (!selected || typeof selected.has !== "function" || Number(selected.size || 0) < 1) {
+		return "all";
+	}
+	if (meinName && Number(selected.size) === 1 && selected.has(meinName)) {
+		return "mine";
+	}
+
+	return "";
+}
+
+// PUR: wie viele Zeilen sind von den Ausgewählten überhaupt aufbewahrt? `null` heisst „unbekannt" --
+// dann nennt die Bilanzzeile nur, was sie zeigt, statt eine Zahl zu erfinden.
+//
+// ⚠️ Ein maschineller Urheber („Import") hat im Namensverzeichnis keine Anzahl (er hat kein Konto).
+// Ist einer davon ausgewählt, ist die Summe nicht ehrlich zu bilden -- dann `null`, nicht „so viel
+// wie ich gerade weiss".
+function changeLogSelectionTotal(selected, roster) {
+	if (!selected || typeof selected.forEach !== "function" || Number(selected.size || 0) < 1) {
+		return null;
+	}
+	if (!roster || typeof roster.get !== "function") {
+		return null;
+	}
+
+	let summe = 0;
+	let bekannt = true;
+	selected.forEach((name) => {
+		const anzahl = roster.get(name);
+		if (typeof anzahl !== "number") {
+			bekannt = false;
+			return;
+		}
+		summe += anzahl;
+	});
+
+	return bekannt ? summe : null;
+}
+
 // PUR: leere Auswahl heisst ALLE -- dieselbe Regel wie in jedem anderen Trichter des Hauses.
 function changeLogFilterEntries(entries, selected) {
 	const list = Array.isArray(entries) ? entries : [];
@@ -350,6 +424,7 @@ function renderChangeLog() {
 	}
 
 	listElement.innerHTML = "";
+	changeLogSyncScopeButtons();
 	// ⚠️ Die Reihenfolge der zwei leeren Zustaende ist Absicht: „noch nichts da" kommt VOR „nichts
 	// passt", sonst behauptet ein frisches Protokoll, der Filter haette etwas weggenommen.
 	if (changeLogEntries.length < 1) {
@@ -370,7 +445,21 @@ function renderChangeLog() {
 
 	// Dieselbe Bilanz-Formel wie die acht WikiSync-Listen (js/review/review-list-balance.js) -- eine
 	// zweite Schreibweise derselben Angabe daneben ist genau der Zustand, den jene Datei beseitigt hat.
-	setChangePanelStatus(avesmapsListBalanceText("Änderungen", sichtbar.length, changeLogEntries.length), "success");
+	//
+	// 💣 DAS „GESAMT" IST, WAS AUFBEWAHRT IST -- nicht, was gerade geladen wurde. Genau daran ist die
+	// erste Fassung aufgefallen: im Trichter stand für eine Person 486, die Zeile darunter sagte
+	// „200 Änderungen", und nichts erklärte den Unterschied (Owner: „warum steht bei nics 486").
+	// ⚠️ Ist die Summe nicht ehrlich zu bilden (ein maschineller Urheber ohne Konto), wird sie NICHT
+	// geraten: dann nennt die Zeile nur, was sie zeigt.
+	const aufbewahrt = changeLogSelectionTotal(changeLogEditorFilter, changeLogActorRoster);
+	setChangePanelStatus(
+		avesmapsListBalanceText(
+			"Änderungen",
+			sichtbar.length,
+			typeof aufbewahrt === "number" ? Math.max(aufbewahrt, sichtbar.length) : sichtbar.length
+		),
+		"success"
+	);
 	changeLogFilterRebuild();
 	sichtbar.forEach((entry) => {
 		const itemElement = document.createElement("article");
@@ -447,6 +536,27 @@ if (typeof avmFilterMenuAttach === "function" && typeof document !== "undefined"
 		() => changeLogFilterChanged(),
 		"Filter"
 	);
+}
+
+// Die zwei Reiter. Sie setzen dieselbe Auswahl, die der Trichter füllt -- ein Zustand, zwei
+// Bedienwege. Zwei getrennte Zustände wären der sichere Weg in einen Widerspruch.
+if (typeof document !== "undefined") {
+	const scopeHuelle = document.getElementById("change-log-scope");
+	if (scopeHuelle) {
+		scopeHuelle.addEventListener("click", (event) => {
+			const knopf = event.target instanceof Element ? event.target.closest("[data-change-log-scope]") : null;
+			if (!knopf) {
+				return;
+			}
+			const meinName = changeLogCurrentUsername();
+			changeLogEditorFilter.clear();
+			if (knopf.dataset.changeLogScope === "mine" && meinName !== null) {
+				changeLogEditorFilter.add(meinName);
+			}
+			changeLogFilterChanged();
+		});
+		changeLogSyncScopeButtons();
+	}
 }
 
 function findLabelMarkerByPublicId(publicId) {

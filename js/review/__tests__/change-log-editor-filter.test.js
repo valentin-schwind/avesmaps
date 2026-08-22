@@ -128,8 +128,14 @@ assert.ok(
 	"der geteilte Trichter ist an die Huelle gehaengt -- kein zweiter Nachbau",
 );
 assert.ok(
-	/avesmapsListBalanceText\("Änderungen"/.test(source),
+	/avesmapsListBalanceText\(\s*"Änderungen"/.test(source),
 	"die Bilanzzeile kommt aus dem EINEN Erzeuger, nicht aus einer zweiten Formel",
+);
+// 💣 Und ihr „gesamt" ist, was AUFBEWAHRT ist -- nicht, was gerade geladen wurde. Genau daran ist die
+// erste Fassung aufgefallen: im Trichter stand 486, die Zeile darunter sagte „200 Änderungen".
+assert.ok(
+	/changeLogSelectionTotal\(changeLogEditorFilter, changeLogActorRoster\)/.test(source),
+	"die Bilanzzeile rechnet gegen das, was aufbewahrt ist",
 );
 // 🔴 Ein Haken LÄDT NACH. Ohne das siebte er weiter nur in den 200 Zeilen, die schon da sind -- und
 // die ganze Ablage-Umstellung auf „200 je Person" wäre wirkungslos.
@@ -187,6 +193,55 @@ assert.ok(
 assert.ok(
 	source.includes('changeLogFilterWartet ? "Änderungen werden geladen..." : "Keine Änderungen von dieser Auswahl."'),
 	"waehrend des Nachladens steht der Ladehinweis da, nicht das leere Ergebnis",
+);
+
+// ---- Der Umschalter „Meine · Alle" ----------------------------------------------------------------
+// 🔴 Er führt KEINEN eigenen Zustand: „Alle" ist die leere Auswahl, „Meine" der eigene Name allein --
+// dieselbe Auswahl, die der Trichter füllt. Zwei getrennte Zustände wären der sichere Weg in einen
+// Widerspruch (Umschalter sagt „Alle", Trichter zeigt einen Haken).
+const changeLogScopeState = sandbox.changeLogScopeState;
+const changeLogSelectionTotal = sandbox.changeLogSelectionTotal;
+assert.strictEqual(typeof changeLogScopeState, "function", "die echte Funktion ist geladen");
+assert.strictEqual(typeof changeLogSelectionTotal, "function", "die echte Funktion ist geladen");
+
+assert.strictEqual(changeLogScopeState(new Set(), "nics"), "all", "keine Auswahl heisst „Alle\"");
+assert.strictEqual(changeLogScopeState(new Set(["nics"]), "nics"), "mine", "der eigene Name allein heisst „Meine\"");
+// 🔴 DER DRITTE ZUSTAND: steht im Trichter jemand anderes, trifft KEINER der beiden Reiter zu -- dann
+// ist auch keiner hervorgehoben. Einen davon trotzdem zu markieren wäre eine Behauptung, die nicht stimmt.
+assert.strictEqual(changeLogScopeState(new Set(["Alrike"]), "nics"), "", "ein fremder Name ist keiner von beiden");
+assert.strictEqual(changeLogScopeState(new Set(["nics", "Alrike"]), "nics"), "", "ich UND jemand anderes ebenso");
+assert.strictEqual(changeLogScopeState(new Set(["nics"]), null), "", "ohne bekannten Namen gibt es kein „Meine\"");
+assert.strictEqual(changeLogScopeState(null, "nics"), "all", "und null wirft nicht");
+
+// ---- Was ist von den Ausgewählten aufbewahrt? -------------------------------------------------------
+const rost = new Map([["nics", 187], ["Alrike", 42], ["Import", null]]);
+assert.strictEqual(changeLogSelectionTotal(new Set(), rost), null, "ohne Auswahl gibt es kein „von\"");
+assert.strictEqual(changeLogSelectionTotal(new Set(["nics"]), rost), 187, "eine Person: ihre Anzahl");
+assert.strictEqual(changeLogSelectionTotal(new Set(["nics", "Alrike"]), rost), 229, "zwei Personen: die Summe");
+// ⚠️ Ein maschineller Urheber hat kein Konto und damit keine ehrliche Anzahl -- dann wird NICHT
+// geraten, sondern die Bilanzzeile nennt nur, was sie zeigt.
+assert.strictEqual(changeLogSelectionTotal(new Set(["Import"]), rost), null, "ohne ehrliche Zahl: null");
+assert.strictEqual(changeLogSelectionTotal(new Set(["nics", "Import"]), rost), null, "eine unbekannte reicht");
+assert.strictEqual(changeLogSelectionTotal(new Set(["nics"]), null), null, "und null wirft nicht");
+
+// Verdrahtung: die Reiter spiegeln die Auswahl bei jedem Zeichnen, und ihr Klick setzt sie.
+assert.ok(/changeLogSyncScopeButtons\(\)/.test(source), "die Reiter werden mit der Auswahl abgeglichen");
+assert.ok(
+	/knopf\.dataset\.changeLogScope === "mine" && meinName !== null/.test(source),
+	"„Meine\" setzt den eigenen Namen als Auswahl",
+);
+assert.ok(
+	/huelle\.hidden = meinName === null/.test(source),
+	"ohne Sitzung gibt es den Umschalter gar nicht -- ein Knopf, der nichts tun kann, gehoert weg",
+);
+for (const marke of ['id="change-log-scope"', 'data-change-log-scope="mine"', 'data-change-log-scope="all"']) {
+	assert.ok(markup.includes(marke), `die Huelle traegt ${marke}`);
+}
+// ⚠️ Er benutzt die Reiter-Form, die im selben Panel schon dreimal steht -- kein zweites Aussehen.
+assert.ok(
+	/data-change-log-scope="mine"[^>]*>|class="status-subtab"[^>]*data-change-log-scope/.test(markup)
+		&& markup.includes('class="status-subtab" type="button" data-change-log-scope="mine"'),
+	"der Umschalter benutzt .status-subtab, nicht eine eigene Knopfform",
 );
 
 console.log("change-log-editor-filter ok");
