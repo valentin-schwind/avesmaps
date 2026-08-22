@@ -54,6 +54,40 @@ Folge: jedes Speichern, das `name`/`region_type` bzw. `text`/`feature_subtype` �
 
 ## 4 · Die Aufgaben
 
+### 🆕 Aufgabe 0a · EIN Stylesheet, bevor irgendetwas dazukommt (Owner 22.08.2026)
+
+Owner: „wichtig wär mir, dass du ein einheitliches stylesheet hast." Gemessen: **hat es nicht.**
+Die Override-Regeln stehen ZWEIMAL — `.dt-grid--wiki`, `.dt-old`, `.dt-reset`, `.k.ovr`,
+`.wiki-alt` in `css/components/editor-page.css`, und `.wiki-alt` samt Anhang noch einmal in
+`css/components/location-report-dialog.css`. Die Klassennamen sind gleich, die Regeln doppelt.
+
+🔴 Grund ist echt, nicht Nachlässigkeit: ein Editorfenster ist ein eigenes Dokument und lädt
+`css/styles.css` nie; `index.html` lädt `editor-page.css` nie. Aber genau dafuer hat das Haus ein
+MUSTER, und es steht wörtlich im Kopf von `editor-page.css`: „erneut zu deklarieren hiesse,
+denselben Wert an zwei Stellen zu führen; genau das hat diese Datei einmal beendet."
+
+⭐ Zwei Vorbilder, beide gelöst: `css/components/editor-row.css` (die geteilte Listenzeile) und
+`css/components/map-status-circle.css` („drei Wirte") — je EINE Datei, importiert von
+`editor-page.css` UND `css/styles.css`.
+
+**Zu tun, vor allem anderen:**
+- Neue Datei `css/components/wiki-override.css` mit ALLEN Regeln des Overrides — beide Bauformen.
+- `@import url("wiki-override.css");` im Kopf von `css/components/editor-page.css` (⚠️ ein
+  `@import` muss VOR jeder Regel stehen — deshalb oben, neben dem für `editor-row.css`).
+- `@import url("components/wiki-override.css");` in `css/styles.css`.
+- Die doppelten Blöcke aus beiden Dateien entfernen.
+- Test `css/__tests__/wiki-override-eine-quelle.test.js` mit **zwei Hälften**, wie beim Wappen-Fall:
+  1. keine der Regeln steht mehr ausserhalb von `wiki-override.css`, und
+  2. **beide** Welten binden die Datei ein.
+  💣 Nur die erste Hälfte zu prüfen ist der Fehler von `avesmapsCoatSrc`: eine geteilte Datei, die
+  nur EIN Dokument lädt, ist keine geteilte Datei — dort kostete es die IP-Sperre.
+- ⚠️ **Sichtbar ändert sich nichts.** Reines Zusammenlegen; der Beleg ist das volle Testfeld plus
+  ein Blick auf beide Bauformen im gerenderten Zustand.
+
+🔴 **Warum ZUERST:** die Stufen 2–5 fassen fünf weitere Oberflächen an. Ohne diesen Schritt stünde
+dieselbe Regel danach an zwei Orten und würde von fünf Oberflächen benutzt — die Divergenz, die
+dieses Feature gerade beseitigen soll, eingebaut in das Feature selbst.
+
 ### Aufgabe 0 · Die Merkliste zuerst, die Anzeige danach
 Je Oberfläche zuerst `wiki_uebernommen` in den Speicher-Rumpf, dann die Zeile. Damit hört das
 Falschstempeln beim ersten Deploy auf, auch wenn die Anzeige noch nicht sitzt.
@@ -129,6 +163,8 @@ für eine eigene Regression hält: `test-place-scope-filter`, `test-route-leg-po
 
 ## 5 · Die Abhak-Liste
 
+- [ ] **EIN Stylesheet zuerst** — `wiki-override.css`, importiert von BEIDEN Welten (A0a)
+- [ ] Der Stylesheet-Test hat ZWEI Hälften: nirgends sonst · und beide Welten laden ihn (A0a)
 - [ ] Jede Oberfläche schickt `wiki_uebernommen`, **bevor** ihre Anzeige gebaut wird (A0)
 - [ ] Beide Landschafts-Oberflächen, nie nur eine
 - [ ] Landschaft: die Herkunft als **fertige Antwort** projizieren, nie `properties_json` (A1)
