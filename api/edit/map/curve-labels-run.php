@@ -8,8 +8,11 @@ declare(strict_types=1);
 //
 // 🔴 Nur `admin`. Der Lauf rechnet ueber alle Flaechen und schreibt eine Zeile, die JEDE Karte
 // liest -- das ist keine Editorhandlung.
-// ⚠️ Er laeuft SEKUNDEN (56 Regionen mal rund 50 ms). Genau deshalb steht er hier und nicht im
-// Lesepfad (AGENTS.md §9, STRATO).
+// ⚠️ Er laeuft SEKUNDEN, nicht Millisekunden (rund 50 eingeschaltete Regionen mal 165-796 ms je
+// Flaeche, also grob 20 s, im schlechten Fall ueber 40 s -- Details beim set_time_limit unten).
+// Genau deshalb steht er hier und nicht im Lesepfad (AGENTS.md §9, STRATO): der Lesepfad zaehlt
+// nur je Region eine Revisionssumme (rund 56 Regionen mal rund 50 ms, siehe
+// avesmapsCurveReadBaselines) und rechnet selbst nie eine Kurve.
 
 require __DIR__ . '/../../_internal/auth.php';
 require_once __DIR__ . '/../../_internal/app/app-setting.php';
