@@ -1612,6 +1612,19 @@
 	font-weight: 700;
 }
 
+/* 💣 DER TRICHTER MUSS AM RECHTEN ENDE SEINER ZEILE STEHEN. Sein Menue haengt an `right: 0`
+   (.type-filter__menu) und klappt damit nach LINKS auf; ist es breiter als der Knopf und der Knopf
+   steht links, laeuft es aus dem Panel heraus -- und das Panel hat `overflow: hidden`. Gemessen am
+   22.08.2026: Menue 170px breit bei x = -79, sichtbar blieb allein die Anzahl ganz rechts in der
+   Zeile. Ueberall sonst erzwingt das Suchfeld daneben die rechte Lage; im Reiter „Änderungen" steht
+   der Trichter allein, also muss die Zeile es tun.
+   ⚠️ Deshalb hier und nicht an `.type-filter__menu`: die Regel gehoert der ZEILE, nicht dem geteilten
+   Bauteil -- eine zweite Menue-Geometrie danebenzustellen wuerde die anderen fuenf Trichter
+   mitbetreffen oder lautlos ueberstimmen. */
+[data-editor-panel-section="changes"] .wiki-sync-panel__filter {
+	justify-content: flex-end;
+}
+
 /* Die Erklaerzeile („Name, Einwohner geändert") teilt sich Groesse und Farbe mit Ziel und
    Zeitstempel -- sie ist eine weitere Angabe zur Zeile, keine neue Stufe. Ein eigener Farbwert
    waere ein Token, das es nicht gibt (§12: nie eine Farbe hartkodieren). */

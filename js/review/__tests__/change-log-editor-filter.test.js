@@ -119,4 +119,19 @@ assert.ok(
 	"der Trichter steht im Reiter „Änderungen\", ueber der Liste",
 );
 
+// 💣 DER TRICHTER MUSS AM RECHTEN ENDE SEINER ZEILE STEHEN, sonst ist er zwar da, aber unsichtbar.
+// Sein Menü hängt an `right: 0` und klappt nach LINKS auf; steht der Knopf links und ist das Menü
+// breiter als er, läuft es aus dem Panel heraus -- und `.review-panel` hat `overflow: hidden`.
+// Live gemessen am 22.08.2026: Menü 170px breit bei x = -79, sichtbar blieb allein die Anzahl ganz
+// rechts in der Zeile. Überall sonst schiebt das Suchfeld daneben den Trichter nach rechts; im
+// Reiter „Änderungen" steht er allein.
+//
+// ⚠️ Das fängt kein DOM-Test: die Ankreuzfelder EXISTIEREN, tragen Text und die richtige Farbe --
+// sie liegen nur außerhalb. Genau deshalb steht die Regel hier als Zusicherung an der CSS-Datei.
+const panelCss = fs.readFileSync(path.join(ROOT, "css", "features", "review-panel.css"), "utf8");
+assert.ok(
+	/\[data-editor-panel-section="changes"\]\s+\.wiki-sync-panel__filter\s*\{[^}]*justify-content:\s*flex-end/.test(panelCss),
+	"die Filterzeile des Reiters schiebt den Trichter nach rechts -- sonst klappt sein Menue aus dem Panel",
+);
+
 console.log("change-log-editor-filter ok");
