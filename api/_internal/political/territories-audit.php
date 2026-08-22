@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 // Die Erklaerzeile („1 Fläche → 2 Flächen", „Gültigkeit geändert") und ihre gemeinsamen Bausteine.
 require_once __DIR__ . '/../audit-detail.php';
+// Die Stufe „je Person" des Aufraeumers. Der globale Riegel bleibt hier unten die eigene Fassung --
+// sie umgeht MySQL-Fehler 1093 mit einer doppelten Ableitungstabelle, und die will niemand zweimal.
+require_once __DIR__ . '/../audit-prune.php';
 
 function avesmapsPoliticalReadAudit(PDO $pdo, array $query): array {
     $yearBf = avesmapsPoliticalReadOptionalInt($query['year_bf'] ?? null) ?? AVESMAPS_POLITICAL_DEFAULT_YEAR_BF;
@@ -550,7 +553,11 @@ function avesmapsPoliticalWriteGeometryAuditLog(PDO $pdo, string $action, int $a
     ]);
 
     $auditId = (int) $pdo->lastInsertId();
-    avesmapsPoliticalPruneGeometryAuditLog($pdo, 250);
+    // Zwei Stufen wie bei Karte und Landschaften: erst die Zeilen DIESER Person, dann die globale
+    // Unfallbremse. Die 250 von vorher waren die alte, globale Anzeigehoehe -- mit ihr loeschte ein
+    // laengerer Grenzabend die Zeilen aller anderen.
+    avesmapsPruneAuditLogForActor($pdo, 'political_territory_geometry_audit_log', $actorUserId);
+    avesmapsPoliticalPruneGeometryAuditLog($pdo, AVESMAPS_POLITICAL_AUDIT_GLOBAL_KEEP_ROWS);
 
     return $auditId;
 }
@@ -566,8 +573,12 @@ function avesmapsPoliticalDecodeAuditPayload(mixed $value): array {
     ];
 }
 
-function avesmapsPoliticalPruneGeometryAuditLog(PDO $pdo, int $keepRows = 250): void {
-    $keepRows = max(100, min(1000, $keepRows));
+function avesmapsPoliticalPruneGeometryAuditLog(PDO $pdo, int $keepRows = AVESMAPS_POLITICAL_AUDIT_GLOBAL_KEEP_ROWS): void {
+    // ⚠️ Die Obergrenze der Klemme war 1.000 und haette den uebergebenen Wert stillschweigend
+    // gedrittelt -- die globale Bremse haette dann schon ab fuenf Personen gegriffen und die Zusage
+    // „200 je Person" sofort wieder entwertet. Eine Klemme, die den Aufrufer heimlich korrigiert,
+    // ist genau dann gefaehrlich, wenn sich der Aufrufer aendert.
+    $keepRows = max(100, min(5000, $keepRows));
 
     $statement = $pdo->prepare(
         'DELETE FROM political_territory_geometry_audit_log

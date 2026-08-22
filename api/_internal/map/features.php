@@ -3884,10 +3884,10 @@ function avesmapsNextMapRevision(PDO $pdo): int {
     return (int) $revision;
 }
 
-// Wie viele Protokollzeilen die Karte behaelt. 200 ist die Anzeigehoehe von api/edit/map/audit-log.php
-// und zugleich die Untergrenze, die avesmapsPruneAuditLog erzwingt: mehr zeigt das Fenster nie, und
-// weniger naehme dem Rueckgaengigmachen Zeilen, die es noch anbietet.
-const AVESMAPS_MAP_AUDIT_KEEP_ROWS = 200;
+// 🔴 Die zwei Grenzen dieses Protokolls stehen bei ihrem Aufraeumer (api/_internal/audit-prune.php):
+// AVESMAPS_AUDIT_KEEP_PER_ACTOR (200 je Person, die Zahl, die zaehlt) und
+// AVESMAPS_MAP_AUDIT_GLOBAL_KEEP_ROWS (die Unfallbremse). Dort stehen auch die Byte-Rechnungen --
+// nebeneinander, weil sie sich EIN Speicherbudget teilen.
 
 // feature_id is nullable because not every logged action is about a map object: a community-report
 // moderation decision (api/_internal/map/report-audit.php) has no feature, and the read path already
@@ -3909,7 +3909,11 @@ function avesmapsWriteMapAuditLog(PDO $pdo, ?int $featureId, string $action, int
 
     // 🔴 HIER und nicht bei den Aufrufern: diese Funktion hat 30 davon. Eine Grenze, die einen
     // von dreissig Erzeugern bindet, ist keine Grenze -- dieselbe Lehre wie bei der Verkehrsmittel-Sperre.
-    avesmapsPruneAuditLog($pdo, 'map_audit_log', AVESMAPS_MAP_AUDIT_KEEP_ROWS);
+    //
+    // Zwei Stufen: erst die Zeilen DIESER Person kappen -- billiger als vorher, weil der Lauf die
+    // Zeilen der anderen gar nicht anfasst --, dann die globale Unfallbremse.
+    avesmapsPruneAuditLogForActor($pdo, 'map_audit_log', $actorUserId);
+    avesmapsPruneAuditLog($pdo, 'map_audit_log', AVESMAPS_MAP_AUDIT_GLOBAL_KEEP_ROWS);
 
     return $auditId;
 }

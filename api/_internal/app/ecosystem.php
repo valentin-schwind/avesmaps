@@ -1729,10 +1729,11 @@ function avesmapsEcosystemWriteAuditLog(
         'operation_label' => avesmapsEcosystemOperationLabel(),
     ]);
 
-    // 🔴 Dieselbe Grenze und dieselbe Begruendung wie bei der Karte -- nur ist eine Zeile hier
-    // rund 40 KB schwer (Geometrie vorher UND nachher), 200 Zeilen sind also ~8 MB statt ~0,4 MB.
-    // Ohne diese Zeile waren es am 18.08.2026 716 MB und eine schreibgesperrte Datenbank.
-    avesmapsPruneAuditLog($pdo, 'ecosystem_geometry_audit_log', AVESMAPS_ECOSYSTEM_AUDIT_KEEP_ROWS);
+    // 🔴 Dieselben zwei Stufen wie bei der Karte -- nur ist eine Zeile hier rund 40 KB schwer
+    // (Geometrie vorher UND nachher), 200 Zeilen sind also ~8 MB statt ~0,4 MB. Ohne eine Grenze
+    // waren es am 18.08.2026 716 MB und eine schreibgesperrte Datenbank.
+    avesmapsPruneAuditLogForActor($pdo, 'ecosystem_geometry_audit_log', $actorUserId);
+    avesmapsPruneAuditLog($pdo, 'ecosystem_geometry_audit_log', AVESMAPS_ECOSYSTEM_AUDIT_GLOBAL_KEEP_ROWS);
 }
 
 function avesmapsEcosystemRegionRow(PDO $pdo, string $publicId, bool $activeOnly = true): array
@@ -3551,7 +3552,10 @@ function avesmapsEcosystemAreaSnapshot(array $row): array
 const AVESMAPS_ECOSYSTEM_CHANGE_LOG_LIMIT = 200;
 // Was die Ablage davon behaelt. Bewusst dieselbe Zahl wie die Anzeigehoehe darueber: was das Fenster
 // nie zeigt, muss die Datenbank nicht tragen (Owner 18.08.2026).
-const AVESMAPS_ECOSYSTEM_AUDIT_KEEP_ROWS = 200;
+// 🔴 Die zwei Grenzen dieses Protokolls stehen bei ihrem Aufraeumer (api/_internal/audit-prune.php):
+// AVESMAPS_AUDIT_KEEP_PER_ACTOR (200 je Person) und AVESMAPS_ECOSYSTEM_AUDIT_GLOBAL_KEEP_ROWS.
+// Dort stehen auch die Byte-Rechnungen -- nebeneinander, weil sich die drei Protokolle EIN
+// Speicherbudget teilen und die Landschaften mit ~40 KB je Zeile das schwerste davon sind.
 
 // Welche Aktionen lassen sich überhaupt zurücknehmen? Alles, was einen Zustand VORHER hatte oder
 // erzeugt hat. Nicht dabei: `undo_*` (siehe unten) und alles, was gar keine Fläche anfasst.

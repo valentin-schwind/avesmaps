@@ -201,6 +201,12 @@ function avesmapsWikiSyncAuditFeaturePropsChange(PDO $pdo, array $beforeRow, arr
     );
 }
 
+// 🔴 `map_audit_log` HAT ZWEI SCHREIBER, UND BIS ZUM 22.08.2026 RAEUMTE NUR EINER AUF.
+// avesmapsWriteMapAuditLog (map/features.php) kappt seit dem 18.08. nach jedem Schreiben, dieser
+// Zwilling nicht -- ein WikiSync-Lauf schrieb also in dieselbe Tabelle und liess sie wachsen. Genau
+// die Asymmetrie, die die Grenze wertlos macht: sie bindet einen von zwei Erzeugern.
+require_once __DIR__ . '/../audit-prune.php';
+
 function avesmapsWikiSyncWriteMapAuditLog(PDO $pdo, int $featureId, string $action, int $actorUserId, string $beforeJson, string $afterJson): void {
     $statement = $pdo->prepare(
         'INSERT INTO map_audit_log (feature_id, action, actor_user_id, before_json, after_json)
@@ -213,6 +219,11 @@ function avesmapsWikiSyncWriteMapAuditLog(PDO $pdo, int $featureId, string $acti
         'before_json' => $beforeJson,
         'after_json' => $afterJson,
     ]);
+
+    // Dieselben zwei Stufen wie beim Zwilling -- und dieselben Konstanten, damit die zwei Schreiber
+    // nicht mit verschiedenen Grenzen in dieselbe Tabelle schreiben.
+    avesmapsPruneAuditLogForActor($pdo, 'map_audit_log', $actorUserId);
+    avesmapsPruneAuditLog($pdo, 'map_audit_log', AVESMAPS_MAP_AUDIT_GLOBAL_KEEP_ROWS);
 }
 
 function avesmapsWikiSyncBuildPointFeatureResponse(string $publicId, string $name, string $subtype, float $lat, float $lng, array $properties, int $revision): array {
