@@ -597,16 +597,16 @@
         <div class="zb-slider-row">
           <div class="zb-slider-row__head">
             <span class="zb-slider-row__name">Max. Drift</span>
-            <span class="zb-slider-row__desc">Wie weit ein Ortsname beim Ausweichen höchstens von seinem Punkt abheben darf. Wer darüber hinaus müsste, wird stattdessen ausgeblendet.</span>
+            <span class="zb-slider-row__desc">Wie weit ein Ortsname beim Ausweichen höchstens von seiner Normalstellung wegrücken darf. Wer weiter müsste, wird stattdessen ausgeblendet.</span>
           </div>
           <div class="zb-slider-row__control">
-            <input type="range" class="zb-range" id="zbDriftRange" min="0" max="90" step="1" aria-label="Maximaler Drift in px">
-            <input type="number" class="zb-num-input" id="zbDriftInput" min="0" max="90" step="1">
+            <input type="range" class="zb-range" id="zbDriftRange" min="0" max="300" step="1" aria-label="Maximaler Drift in px">
+            <input type="number" class="zb-num-input" id="zbDriftInput" min="0" max="300" step="1">
             <span class="zb-selected__unit">px</span>
             <button type="button" class="zb-row-reset" id="zbDriftReset">↺</button>
           </div>
         </div>
-        <p class="zb-shift-note">Drift ist der senkrechte Spalt zwischen dem Punkt und dem Namenskasten — <strong>waagerecht zählt nicht</strong>: ein Name, der auf die andere Seite des Punktes springt, klebt weiter und driftet nicht. Bei <strong>0</strong> muss jeder Name seinen Punkt berühren, sonst verschwindet er; die Vorgabe 90 liegt über jedem erreichbaren Drift und schneidet nichts weg.</p>
+        <p class="zb-shift-note">Gemessen wird die Luftlinie von der Normalstellung (rechts neben dem Punkt) zur Ausweichstelle — <strong>waagerecht wie senkrecht</strong>. Ein kleiner Ausweichschritt kostet wenige Pixel, eine Zeile hoch oder runter rund 30; der <strong>Seitenwechsel</strong> auf die andere Seite des Punktes rückt den Namen um seine eigene Breite weg und liegt je nach Namenslänge bei 78 bis 203 px — das ist das sichtbarste Wegrücken. Bei <strong>0</strong> bleibt jeder Name auf seiner Normalstellung; wer dort keinen Platz hat, verschwindet. Die Vorgabe 300 liegt über jedem erreichbaren Wert und schneidet nichts weg.</p>
       </div>
     </div>
     <p class="zb__msg" id="seZoomBandsMsg"></p>

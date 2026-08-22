@@ -192,16 +192,18 @@ function getLocationNameLabelOffsets(element, labelRect) {
 	const smallShift = avesmapsLocationLabelSpacing("versatz");
 	const verticalCenterOffset = -labelHeight / 2;
 
-	// 🔴 22.08.2026 -- DER DRIFT EINER STELLE: der senkrechte Spalt zwischen der Markermitte und dem
-	// Namenskasten. Bei `dy = 0` liegt der Kasten senkrecht MITTIG auf dem Marker (live gemessen:
-	// Marker bei y=359, Kasten 345..373), er überdeckt den Punkt also -- Drift 0. Erst wenn |dy| die
-	// halbe Kastenhöhe übersteigt, hebt der Name ab, und genau diese Differenz ist der Drift.
+	// 🔴 DER DRIFT EINER STELLE: wie weit sie den Namen von seiner NORMALSTELLUNG wegrückt --
+	// Luftlinie, waagerecht wie senkrecht. Die Normalstellung ist „rechts neben dem Punkt"
+	// (baseOffset), sie hat damit Drift 0 und ist bei jedem Deckel erlaubt.
 	//
-	// 💣 WAAGERECHT WIRD NICHT GEZÄHLT. Ein Seitenwechsel („links") ist KEIN Drift -- der Name klebt
-	// weiter am Punkt, nur auf der anderen Seite. Der erste Entwurf maß den Abstand zur
-	// Grundstellung und zählte den Seitenwechsel deshalb als 133 px Wanderung; das war das falsche
-	// Maß und hätte den Deckel genau das wegschneiden lassen, was noch klebt.
-	const driftOf = (dy) => Math.max(0, Math.abs(dy) - labelHeight / 2);
+	// 🪤 DAS MASS WAR EINEN TAG LANG FALSCH, und zwar in genau diese Richtung: es zählte nur den
+	// SENKRECHTEN Spalt, weil ein Seitenwechsel „ja weiter am Punkt klebt". Am Bildschirm stimmt das
+	// nicht. Der Owner hat es an „Nordhag (Weiden)" gezeigt (22.08.2026): bei z6 steht der Name
+	// rechts am Punkt (Spalt 8 px, „normal"), bei z4 springt er nach links -- der Kasten ist 149 px
+	// breit, sein Anfang liegt danach 170 px vom Punkt entfernt, und man liest den Namen weit weg
+	// von seinem Ort („zu weit weg"). Ein Deckel, der das nicht sieht, kann das sichtbarste
+	// Wegrücken überhaupt nicht verhindern.
+	const driftOf = (dx, dy) => Math.hypot(dx - baseOffset.x, dy - baseOffset.y);
 
 	return [
 		{ name: "right", dx: baseOffset.x, dy: baseOffset.y },
@@ -218,7 +220,7 @@ function getLocationNameLabelOffsets(element, labelRect) {
 		{ name: "bottom", dx: -labelWidth / 2, dy: verticalCenterOffset + labelHeight + smallShift },
 	// ⚠️ Der Drift wird ANGEHÄNGT, die zwölf Zeilen darüber bleiben unberührt: ihre Reihenfolge ist
 	// laut AGENTS.md §11 tragend, und ein Wert je Zeile von Hand wäre zwölfmal dieselbe Rechnung.
-	].map((stelle) => ({ ...stelle, drift: driftOf(stelle.dy) }));
+	].map((stelle) => ({ ...stelle, drift: driftOf(stelle.dx, stelle.dy) }));
 }
 
 function setLabelElementChosenOffset(element, isLocation, baseOffset, candidate) {

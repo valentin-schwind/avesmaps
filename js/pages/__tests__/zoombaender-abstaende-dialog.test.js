@@ -27,7 +27,7 @@ const collisions = read("js/map-features/map-features-label-collisions.js");
 
 // ---- 1. Die Regler stehen im Markup, mit den geforderten Schranken -----------------------------
 // ⚠️ NUR die drei ENGEN (0-20). „Drift" kam am 22.08.2026 dazu und traegt eine eigene, weitere
-// Schranke (0-90, ganze Pixel) -- er wird unten eigens geprueft, nicht in diese Schleife gezwungen.
+// Schranke (0-300, ganze Pixel) -- er wird unten eigens geprueft, nicht in diese Schleife gezwungen.
 ["Gap", "Repel", "Shift"].forEach((suffix) => {
 	const rangeTag = seite.match(new RegExp(`<input[^>]*id="zb${suffix}Range"[^>]*>`));
 	assert.ok(rangeTag, `der Regler zb${suffix}Range steht im Markup`);
@@ -59,17 +59,17 @@ assert.ok(!/abstaende\.php/.test(seite), "kein zweiter, eigener Endpunkt fuer di
 
 // ---- 3. Der Server prueft den Abschnitt, akzeptiert ihn aber auch, wenn er FEHLT -----------------
 // 🔴 Der Server fuehrt EINE Schranke fuer alle Abstaende, und sie ist die WEITESTE der im Browser
-// gefuehrten (seit 22.08.2026 die des Drift-Deckels, 90). Er prueft die FORM, der Browser die
+// gefuehrten (seit 22.08.2026 die des Drift-Deckels, 300). Er prueft die FORM, der Browser die
 // BEDEUTUNG und klemmt jeden Schluessel gegen seine eigene, engere Schranke.
-assert.ok(/AVESMAPS_ZOOM_BANDS_SPACING_LIMITS\s*=\s*\[0\.0, 90\.0\]/.test(bibliothek),
-	"der Server laesst die weiteste der Browser-Schranken durch (0 bis 90)");
+assert.ok(/AVESMAPS_ZOOM_BANDS_SPACING_LIMITS\s*=\s*\[0\.0, 300\.0\]/.test(bibliothek),
+	"der Server laesst die weiteste der Browser-Schranken durch (0 bis 300)");
 assert.ok(/array_key_exists\('abstaende', \$incoming\)/.test(bibliothek),
 	"ein FEHLENDER Abschnitt ist gueltig -- rueckwaertskompatibel zu vor Aufgabe 8b gespeicherten Tafeln");
 assert.ok(/\$clean\['abstaende'\]\s*=\s*\$cleanAbstaende/.test(bibliothek),
 	"ein VORHANDENER, wohlgeformter Abschnitt wird uebernommen");
 
 // ---- 4. Die Vorgabewerte stehen an EINER Stelle -- gelesen, nicht in der Seite abgeschrieben -----
-assert.ok(/abstaende:\s*\{\s*spalt:\s*4,\s*repel:\s*2,\s*versatz:\s*8,\s*drift:\s*90\s*\}/.test(vorgabetafel),
+assert.ok(/abstaende:\s*\{\s*spalt:\s*4,\s*repel:\s*2,\s*versatz:\s*8,\s*drift:\s*300\s*\}/.test(vorgabetafel),
 	"die Vorgabewerte (4/2/8, die heutigen Konstanten, plus der Drift-Deckel) stehen in der Vorgabetafel");
 assert.ok(!/spalt:\s*4/.test(seite) && !/versatz:\s*8/.test(seite),
 	"und die Seite schreibt sie nicht ab");

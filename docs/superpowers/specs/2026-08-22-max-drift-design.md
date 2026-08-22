@@ -21,43 +21,48 @@ Owner darauf: „ich will den maximalen versatz, den ein label zur vermeidung ei
 einstellen können … diese versuchen eine kollision zu vermeiden und driften und diesen drift will
 ich begrenzen bis sie verschwinden."
 
-## 2. Was Drift ist — und was er NICHT ist
+## 2. Was Drift ist
 
-**Drift = der senkrechte Spalt zwischen der Markermitte und dem Namenskasten.**
-Null, solange der Kasten den Punkt überdeckt.
+**Drift = die Luftlinie von der Normalstellung zur gewählten Ausweichstelle — waagerecht wie
+senkrecht.** Die Normalstellung ist „rechts neben dem Punkt"; sie hat Drift 0 und ist bei jedem
+Deckel erlaubt.
 
 ```
-drift = max(0, |dy| - labelHeight / 2)
+drift = hypot(dx - baseOffset.x, dy - baseOffset.y)
 ```
 
-🪤 **Der erste Entwurf maß falsch** und ist hier als Warnung festgehalten: er nahm den Abstand zur
-**Grundstellung** und kam für den Seitenwechsel („links") auf 133 px Median, bis 203 px. Owner:
-„ich versteh nicht warum markierungen mitreingenommen werden, es geht nur um labels, die an den
-markierungen kleben". Genau: ein Name, der auf die andere Seite seines Punktes springt, **klebt
-weiter** — er ist nicht abgedriftet. Ein Deckel auf das Grundstellungs-Maß hätte zuerst
-weggeschnitten, was noch klebt.
+🪤 **Das Maß war einen Tag lang falsch, und die Korrektur ist der Kern dieses Entwurfs.** Die erste
+Fassung zählte nur den **senkrechten** Anteil, mit der Begründung, ein Seitenwechsel „klebe ja
+weiter am Punkt, nur auf der anderen Seite". Am Bildschirm stimmt das nicht. Der Owner hat es an
+**„Nordhag (Weiden)"** gezeigt:
 
-💣 **Waagerecht zählt nicht.** Ein viermal so breiter Name driftet kein Stück.
+| Zoom | Stelle | Was man sieht |
+|---|---|---|
+| z6 | `right` | Name klebt 8 px am Punkt — **„normal"** |
+| z4 | `left` | Name auf der anderen Seite; sein **Anfang** liegt 170 px vom Punkt — **„zu weit weg"** |
 
-Belegt: bei `dy = 0` liegt der Kasten senkrecht **mittig** auf dem Marker — live gemessen an einer
-Kleinstadt, Marker bei y = 359, Kasten 345…373. Das Modell wurde an drei unabhängigen Stellen
-gegengeprüft (rechts-oben 19, oben-mittig 30, unten-mittig 8 — die Messung liefert jeweils denselben
-Wert minus dem durchsichtigen Halo-Rand des Label-Bildes).
+Der Seitenwechsel rückt den Namen um seine **eigene Breite** weg. Ein Deckel, der ihn nicht sieht,
+kann das sichtbarste Wegrücken überhaupt nicht verhindern — und genau das war der Grund, warum der
+Regler beim ersten Anlauf für den Owner wieder „nichts tat".
 
-Damit fallen die zwölf Ausweichstellen bei Höhe 22 und Versatz 8 in vier Gruppen:
+Bei Breite 99, Höhe 22, Spalt 14 und Versatz 8 ergibt das:
 
 | Stellen | Drift |
 |---|---|
-| rechts, rechts-hoch/-runter, links, links-hoch/-runter | 0 — klebt |
-| unten mittig | 8 |
-| rechts-oben/-unten, links-oben/-unten | 19 (Höhe/2 + Versatz) |
-| oben mittig | 30 (Höhe + Versatz) |
+| rechts (Normalstellung) | 0 |
+| rechts hoch/runter | 8 (der Versatz) |
+| rechts oben/unten | 30 (Höhe + Versatz) |
+| mittig unter / über dem Punkt | 66 / 76 |
+| **links (Seitenwechsel)** | **127** — live 78 bis 203, Median 123 |
+| links oben/unten | 130,5 |
 
-🪤 **Und die Schieflage, die dabei auffällt:** „oben mittig" hält 30 px Abstand, „unten mittig" nur
-8 — `verticalCenterOffset` steckt in der oberen Formel einmal zu viel. Das ist **Bestand, nicht
-Entwurf**, und es ist in `zoombaender-drift.test.js` festgenagelt. Ein enger Deckel macht es
-sichtbar: unterhalb von 30 weichen Namen nur noch nach unten aus. Bewusst **nicht** in diesem Zug
-repariert — eine sichtbare Änderung geht einzeln live (AGENTS.md §9).
+🔴 **Die Ordnung ist das eigentliche Versprechen:** senkrechtes Ausweichen ist billig, der
+Seitenwechsel teuer. Nur so kann ein mittlerer Deckel das eine erlauben und das andere verbieten.
+Bei **60** bleiben genau die fünf senkrechten Stellen übrig.
+
+🔧 **Offen und bewusst nicht gebaut:** die 79–86 % der Namen, die in der Normalstellung stehen und
+nie ausweichen, fasst dieser Regler nicht an — kein Kollisions-Regler kann das. Wer ihre Lage
+einstellen will (höher, tiefer, über dem Punkt statt daneben), braucht einen eigenen Regler.
 
 ## 3. Wie der Deckel wirkt
 
@@ -72,37 +77,37 @@ die Grundstellung mit Drift 0 und deshalb bei jedem Deckel erlaubt.
 ⚠️ **Nur Siedlungsnamen.** Freie Kartenlabels (Kontinente, Meere, Landschaften) haben ihre eigene
 Kandidatenliste ohne `drift` und dürfen laut Regel nie ausgeblendet werden.
 
-Gemessen an den Live-Daten (Versatz auf der Vorgabe 8):
+Gemessen an den Live-Daten, „weit weg" = Drift über 60 px:
 
-| Zoom | Deckel ≤ 12 | Deckel ≥ 20 |
-|---|---|---|
-| z5 | 59 sichtbar, 4 weg, größter Drift 0 | 62 sichtbar, 1 weg, größter Drift 19 |
-| z6 | 28 sichtbar, 1 weg, größter Drift 0 | 29 sichtbar, 0 weg, größter Drift 18 |
+| Zoom | Deckel 300 (Vorgabe) | Deckel 60 | Deckel 0 |
+|---|---|---|---|
+| z4 | 12 sichtbar, 1 weit weg | 11 sichtbar, **0 weit weg** | 11 sichtbar, 2 verschwunden |
+| z5 | 61 sichtbar, 0 weit weg | 61 sichtbar, 0 weit weg | 52 sichtbar, 11 verschwunden |
+| z6 | 28 sichtbar, 1 weit weg | 27 sichtbar, **0 weit weg** | 23 sichtbar, 6 verschwunden |
+
+Ein Deckel von 60 kostet also **einen** Namen je Ausschnitt und beseitigt jedes Wegrücken. Der
+Abnahmefall: „Nordhag (Weiden)" bei z4 steht mit Deckel 300 mittig über dem Punkt, sein Anfang
+84 px daneben; ab Deckel 60 verschwindet er, statt wegzurücken.
 
 ## 4. Schranke und Vorgabe
 
-`drift` bekommt eine **eigene** Schranke `0…90`; Spalt/Repel/Versatz bleiben bei `0…20`
+`drift` bekommt eine **eigene** Schranke `0…300`; Spalt/Repel/Versatz bleiben bei `0…20`
 (`AVESMAPS_LOCATION_LABEL_SPACING_LIMITS_BY_KEY`). Ohne sie wäre jeder Deckel über 20 lautlos auf
-die Vorgabe zurückgefallen, und der Regler hätte an seinem oberen Ende nichts getan.
+die Vorgabe zurückgefallen.
 
-💣 **Die 90 ist gerechnet, und zwei Griffe davor waren falsch.** Der größte erreichbare Drift ist
-`labelHeight + versatz`. `labelHeight` ist die Höhe des **gerenderten** Label-Bildes samt Halo, nicht
-die Schriftgröße: live gemessen an 80 Labels über z3/z5/z7 höchstens **2,182 px je pt**.
+💣 **Die Spanne richtet sich nach dem Seitenwechsel, und der hängt an der Namenslänge** — nicht an
+einer festen Geometrie. Live gemessen 78 bis 203 px; der größte über den ganzen Bestand erreichbare
+Wert (längster Name je Ortsklasse in **deren** größter Schrift, 2882 Namen) ist **287 px**
+(„Firun-Tempel unter dem Hängenden Gletscher"). Vorgabe **300** liegt darüber und schneidet nichts
+weg; die Arbeit des Reglers passiert zwischen 0 und 203, also auf gut zwei Dritteln seines Weges.
 
-- bei den heutigen Schriftgrößen (max. 19 pt): rund **50 px** — dort arbeitet der Regler
-- bei der obersten erlaubten Schriftgröße (30 pt): 65,5 + 20 = **85,5 px**
-
-Erster Griff 80 lag **unter** dem Maximum und hätte beim Ausliefern geschnitten. Zweiter Griff 120
-lag darüber, hätte aber **fünf Sechstel des Reglerwegs wirkungslos** gemacht — genau der Befund aus
-§1, ein zweites Mal. 90 deckt das Maximum und lässt gut die Hälfte des Wegs auf dem Bereich liegen,
-in dem sich etwas bewegt.
-
-**Vorgabe 90** — über jedem erreichbaren Drift, schneidet beim Ausliefern also nichts weg.
+⚠️ Drei Griffe waren nötig, und die ersten beiden waren aus demselben Grund falsch: 80 lag **unter**
+dem Maximum (die Vorgabe hätte geschnitten), 120 lag darüber, hätte aber den halben Reglerweg
+wirkungslos gemacht — und ein Regler ohne spürbare Wirkung ist genau der Befund aus §1. Eine Spanne
+muss **beides**: das Maximum decken und nicht viel darüber hinausreichen.
 
 ⚠️ Der Server führt bewusst **keine Schlüsselliste** und prüft deshalb mit **einer** Schranke, der
-weitesten (0…90). Er prüft die Form, der Browser die Bedeutung und klemmt jeden Schlüssel gegen
-seine eigene, engere Schranke — dieselbe Arbeitsteilung wie bei marker/label, wo der Server die
-Klassennamen ebenfalls nicht kennt.
+weitesten (0…300). Er prüft die Form, der Browser die Bedeutung.
 
 ## 5. Bauteile
 
@@ -118,6 +123,10 @@ angepasst `zoombaender-abstaende.test.js`, `zoombaender-abstaende-dialog.test.js
 
 ## 6. Offen
 
-- 🔧 Die Oben/Unten-Schieflage aus §2 — eigener Zug, eigener Blick.
+- 🔧 Eine Schieflage im Bestand, beim Messen gefunden: „mittig darüber" hält 30 px senkrechten
+  Abstand, „mittig darunter" nur 8 — `verticalCenterOffset` steckt in der oberen Formel einmal zu
+  viel. Eigener Zug, eigener Blick.
+- 🔧 Ein Regler für die Namen, die NIE ausweichen (79–86 %) — siehe §2. Das ist der Regler, den der
+  Owner am 22.08.2026 gewählt hat („Alle Namen"); er ist noch nicht gebaut.
 - 🔧 Der gespeicherte `versatz: 0` des Owners bleibt unangetastet; er kollabiert vier der zwölf
   Stellen auf ihre Nachbarn. Ob das gewollt ist, ist eine eigene Frage.

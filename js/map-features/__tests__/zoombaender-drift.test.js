@@ -6,14 +6,13 @@ const vm = require("vm");
 // Der Deckel „Max. Drift" (22.08.2026, Owner: „den maximalen versatz, den ein label zur vermeidung
 // einer kollision geht ... will ich begrenzen bis sie verschwinden").
 //
-// 🔴 DRIFT IST DER SENKRECHTE SPALT zwischen der Markermitte und dem Namenskasten -- NICHT der
-// Abstand zur Grundstellung. Bei `dy = 0` liegt der Kasten senkrecht mittig auf dem Marker (live
-// gemessen: Marker bei y=359, Kasten 345..373), er überdeckt den Punkt also, und das ist Drift 0.
+// 🔴 DRIFT IST DIE LUFTLINIE VON DER NORMALSTELLUNG zur Ausweichstelle -- waagerecht wie senkrecht.
 //
-// 💣 WAAGERECHT ZÄHLT NICHT. Ein Seitenwechsel („links") ist kein Drift: der Name klebt weiter am
-// Punkt, nur auf der anderen Seite. Der erste Entwurf maß den Abstand zur Grundstellung und kam für
-// den Seitenwechsel auf 133 px -- ein Deckel darunter hätte genau das weggeschnitten, was noch
-// klebt. Diese Datei nagelt das falsche Maß mit fest, damit es nicht zurückkommt.
+// 🪤 EINEN TAG LANG ZÄHLTE NUR DER SENKRECHTE ANTEIL, mit der Begründung, ein Seitenwechsel „klebe
+// ja weiter am Punkt". Am Bildschirm stimmt das nicht: der Owner hat es an „Nordhag (Weiden)"
+// gezeigt -- bei z6 steht der Name rechts am Punkt, bei z4 springt er nach links, und sein Anfang
+// liegt dann 170 px vom Punkt entfernt. Genau das ist das „zu weit weg", das der Regler verhindern
+// soll. Diese Datei nagelt das richtige Maß fest, damit das falsche nicht zurückkommt.
 //
 // Aus der Wurzel des Repos:  node js/map-features/__tests__/zoombaender-drift.test.js
 
@@ -50,66 +49,73 @@ function driftVon(labelHeight) {
 	return map;
 }
 
-// ---- A. Der Drift jeder der zwölf Stellen, bei Höhe 22 und Versatz 8 -----------------------------
+// ---- A. Der Drift jeder der zwölf Stellen, bei Breite 99 / Höhe 22 / Versatz 8 ------------------
 avesmapsApplyLocationZoomBands(null);
 const d = driftVon(22);
 
-// Die sieben Stellen, an denen der Kasten den Punkt noch überdeckt: Drift 0.
-// 💣 „links" IST DARUNTER -- der Seitenwechsel klebt. Fällt diese Zusicherung, ist jemand auf das
-// Grundstellungs-Maß zurückgefallen, und ein enger Deckel löscht dann den halben Ausweichvorrat.
-["right", "right-up", "right-down", "left", "left-up", "left-down"].forEach((name) => {
-	assert.strictEqual(d[name], 0, `"${name}" klebt am Punkt -- Drift 0`);
-});
+assert.strictEqual(d.right, 0, "die Normalstellung driftet nicht -- sie IST der Nullpunkt");
+assert.strictEqual(d["right-up"], 8, "kleiner Schritt hoch: der Versatz");
+assert.strictEqual(d["right-down"], 8, "kleiner Schritt runter: der Versatz");
+assert.strictEqual(d["top-right"], 30, "eine Zeile hoch: Hoehe + Versatz");
+assert.strictEqual(d["bottom-right"], 30, "eine Zeile runter: Hoehe + Versatz");
 
-// Eine Zeile hoch/runter, gleiche oder andere Seite: der Kasten hebt um (Höhe/2 + Versatz) ab.
-["top-right", "bottom-right", "top-left", "bottom-left"].forEach((name) => {
-	assert.strictEqual(d[name], 19, `"${name}" hebt um Hoehe/2 + Versatz ab (11 + 8)`);
-});
+// 💣 DER SEITENWECHSEL IST DER GROSSE. Er rueckt den Namen um seine EIGENE BREITE weg -- hier
+// 99 + 2 x 14 = 127. Genau diesen Fall hat der Owner am 22.08.2026 an „Nordhag (Weiden)" gezeigt:
+// bei z6 steht der Name rechts am Punkt („normal"), bei z4 springt er nach links und sein Anfang
+// liegt 170 px vom Punkt entfernt („zu weit weg"). Ein Maß, das nur senkrecht zaehlt, gibt hier 0
+// zurueck und kann das sichtbarste Wegruecken nicht verhindern -- diese Zusicherung haelt das fest.
+assert.strictEqual(d.left, 127, "Seitenwechsel: eigene Breite plus zweimal der Spalt");
+assert.strictEqual(d["left-up"], 127.25, "Seitenwechsel mit kleinem Schritt");
+assert.strictEqual(d["top-left"], 130.5, "Seitenwechsel und eine Zeile hoch");
+assert.ok(d.top > 70 && d.top < 80, `mittig darueber liegt dazwischen (${d.top})`);
+assert.ok(d.bottom > 60 && d.bottom < 70, `mittig darunter liegt dazwischen (${d.bottom})`);
 
-// 🪤 Und die Schieflage, die dabei sichtbar wird: „oben mittig" haelt 30 px Abstand, „unten mittig"
-// nur 8 -- `verticalCenterOffset` steckt in der oberen Formel einmal zu viel drin. Das ist der
-// BESTAND, nicht der Entwurf; hier festgenagelt, damit die Reparatur auffaellt statt durchzurutschen.
-assert.strictEqual(d.top, 30, "oben mittig: Hoehe + Versatz");
-assert.strictEqual(d.bottom, 8, "unten mittig: nur der Versatz -- die vorhandene Schieflage");
+// 🔴 UND DIE ORDNUNG IST DAS EIGENTLICHE VERSPRECHEN: senkrechtes Ausweichen ist billig, der
+// Seitenwechsel teuer. Nur so kann ein mittlerer Deckel das eine erlauben und das andere verbieten.
+assert.ok(d["top-right"] < d.bottom && d.bottom < d.left,
+	"Zeile hoch < mittig drunter < Seitenwechsel -- daran haengt der ganze Regler");
 
-// ---- B. Der Drift waechst mit der Kastenhoehe, nicht mit der Breite ------------------------------
-assert.strictEqual(driftVon(40).top, 48, "groesserer Kasten, groesserer Drift (40 + 8)");
-assert.strictEqual(
-	getLocationNameLabelOffsets(elementStub, { width: 400, height: 22 }).find((s) => s.name === "left").drift,
-	0,
-	"ein VIERMAL so breiter Name driftet kein Stueck -- Breite geht den Deckel nichts an"
-);
+// ---- B. Der Drift waechst mit der BREITE, nicht nur mit der Hoehe --------------------------------
+// 💣 Die Umkehrung des alten, falschen Masses: dort war die Breite bedeutungslos.
+const breit = getLocationNameLabelOffsets(elementStub, { width: 400, height: 22 });
+assert.strictEqual(breit.find((s2) => s2.name === "left").drift, 428,
+	"ein viermal so breiter Name rueckt beim Seitenwechsel viermal so weit weg");
+assert.strictEqual(breit.find((s2) => s2.name === "right").drift, 0,
+	"seine Normalstellung bleibt der Nullpunkt");
+assert.strictEqual(driftVon(40)["top-right"], 48, "und die Hoehe zaehlt weiterhin (40 + 8)");
 
-// ---- C. Der Versatz verschiebt den Drift, weil er die Stellen verschiebt -------------------------
-avesmapsApplyLocationZoomBands({ abstaende: { versatz: 0 } });
-assert.strictEqual(driftVon(22)["top-right"], 11, "ohne Versatz bleibt nur die halbe Kastenhoehe");
-avesmapsApplyLocationZoomBands(null);
+// ---- C. Ein mittlerer Deckel trennt genau die beiden Familien -------------------------------------
+const DECKEL = 60;
+const erlaubt = stellen(22).filter((s2) => s2.drift <= DECKEL).map((s2) => s2.name);
+assert.deepStrictEqual(erlaubt, ["right", "right-up", "right-down", "top-right", "bottom-right"],
+	"bei Deckel 60 bleibt das senkrechte Ausweichen, der Seitenwechsel faellt weg");
 
 // ---- D. Die Vorgabe darf NICHTS wegschneiden ------------------------------------------------------
-// 💣 Der groesste erreichbare Drift ist `labelHeight + versatz` (Stelle "top"). labelHeight ist die
-// Hoehe des gerenderten Label-BILDES samt Halo-Rand: live gemessen an 80 Labels ueber z3/z5/z7
-// hoechstens 2,182 px je pt. Der erste Entwurf setzte die Vorgabe auf 80 und lag damit UNTER dem
-// Maximum -- beim Ausliefern haette sie Stellen weggeschnitten.
-const PX_JE_PT_MAX = 2.182;
-const maxLabelHoehe = AVESMAPS_ZOOM_BAND_LIMITS.label.max * PX_JE_PT_MAX;
-const maxDrift = maxLabelHoehe + AVESMAPS_LOCATION_LABEL_SPACING_LIMITS.max;
-assert.ok(VORGABE.abstaende.drift > maxDrift,
-	`die Vorgabe (${VORGABE.abstaende.drift}) liegt ueber dem groessten erreichbaren Drift (${maxDrift.toFixed(1)})`);
+// 💣 Der groesste ueber den Bestand erreichbare Drift ist der Seitenwechsel des laengsten Namens je
+// Ortsklasse in DEREN groesster Schrift: live ueber alle 2882 Namen gemessen 287 px
+// („Firun-Tempel unter dem Haengenden Gletscher"). Die Vorgabe muss darueber liegen.
+const GEMESSENES_MAXIMUM = 287;
+assert.ok(VORGABE.abstaende.drift > GEMESSENES_MAXIMUM,
+	`die Vorgabe (${VORGABE.abstaende.drift}) liegt ueber dem gemessenen Maximum (${GEMESSENES_MAXIMUM})`);
+// ⚠️ Und nicht viel darueber: sonst waere der halbe Reglerweg wirkungslos -- genau der Befund, der
+// diesen Umbau ausgeloest hat.
+assert.ok(VORGABE.abstaende.drift < GEMESSENES_MAXIMUM * 1.5,
+	"aber nicht so weit darueber, dass der Regler auf halbem Weg nichts tut");
 assert.ok(AVESMAPS_LOCATION_LABEL_DRIFT_LIMITS.max >= VORGABE.abstaende.drift,
 	"und die Schranke laesst die Vorgabe ueberhaupt zu");
 
 // ---- E. Eigene Schranke je Schluessel -------------------------------------------------------------
-assert.strictEqual(avesmapsLocationLabelSpacingLimits("drift").max, 90, "drift darf bis 90");
+assert.strictEqual(avesmapsLocationLabelSpacingLimits("drift").max, 300, "drift darf bis 300");
 assert.strictEqual(avesmapsLocationLabelSpacingLimits("spalt").max, 20, "die anderen bleiben bei 20");
 assert.strictEqual(avesmapsLocationLabelSpacingLimits("versatz").max, 20);
-// 💣 Ohne eigene Schranke waere ein Deckel von 100 als "ausserhalb" auf die Vorgabe zurueckgefallen
-// -- lautlos, und der Regler haette an seinem oberen Ende nichts getan.
+// 💣 Ohne eigene Schranke waere jeder Deckel ueber 20 als "ausserhalb" auf die Vorgabe
+// zurueckgefallen -- lautlos, und der Regler haette auf dem groessten Teil seines Weges nichts getan.
 assert.strictEqual(avesmapsResolveLocationZoomBands({ abstaende: { drift: 60 } }).abstaende.drift, 60,
-	"ein Deckel von 60 wird uebernommen, nicht verworfen -- mit der alten 20er-Schranke waere er still gefallen");
-assert.strictEqual(avesmapsResolveLocationZoomBands({ abstaende: { drift: 91 } }).abstaende.drift,
-	VORGABE.abstaende.drift, "ueber 90 -> Vorgabe");
+	"ein Deckel von 60 wird uebernommen, nicht verworfen");
+assert.strictEqual(avesmapsResolveLocationZoomBands({ abstaende: { drift: 301 } }).abstaende.drift,
+	VORGABE.abstaende.drift, "ueber 300 -> Vorgabe");
 assert.strictEqual(avesmapsResolveLocationZoomBands({ abstaende: { drift: 0 } }).abstaende.drift, 0,
-	"0 ist gueltig -- 'muss den Punkt beruehren' ist eine Einstellung, kein Nichtwissen");
+	"0 ist gueltig -- 'bleibt auf der Normalstellung' ist eine Einstellung, kein Nichtwissen");
 assert.strictEqual(avesmapsResolveLocationZoomBands({ abstaende: { spalt: 60 } }).abstaende.spalt,
 	VORGABE.abstaende.spalt, "und spalt erbt die weite Schranke NICHT");
 

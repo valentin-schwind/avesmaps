@@ -26,12 +26,12 @@ const AVESMAPS_ZOOM_BANDS_LIMITS = [
 ];
 // 🔴 AUFGABE 8B: GLOBALE Abstände (Spalt/Repel/Versatz/Drift) -- EIN Wert je Schlüssel, keine Zeile
 // je Zoomstufe. EINE Schranke fuer alle, und sie ist die WEITESTE der im Browser gefuehrten:
-// Spalt/Repel/Versatz gehen bis 20, der Drift-Deckel bis 90 (22.08.2026).
+// Spalt/Repel/Versatz gehen bis 20, der Drift-Deckel bis 300 (22.08.2026).
 // ⚠️ Der Server fuehrt bewusst KEINE Schluesselliste (siehe unten) und kann deshalb nicht je
 // Schluessel enger pruefen -- er prueft die FORM, der Browser die BEDEUTUNG und klemmt jeden Wert
 // gegen seine eigene, engere Schranke (avesmapsLocationLabelSpacingLimits). Dieselbe Arbeitsteilung
 // wie bei marker/label, wo der Server die Klassenliste ebenfalls nicht kennt.
-const AVESMAPS_ZOOM_BANDS_SPACING_LIMITS = [0.0, 90.0];
+const AVESMAPS_ZOOM_BANDS_SPACING_LIMITS = [0.0, 300.0];
 
 /**
  * Prüft eine eingehende Tafel. Gibt die bereinigte Tafel zurück oder null, wenn sie abzulehnen ist.

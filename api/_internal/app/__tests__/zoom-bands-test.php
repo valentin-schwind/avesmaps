@@ -131,13 +131,13 @@ assert(avesmapsZoomBandsValidate(['marker' => [], 'label' => [], 'abstaende' => 
     'null ist bei einem Abstand KEIN gueltiger Wert (anders als bei einer Zelle)');
 assert(avesmapsZoomBandsValidate(['marker' => [], 'label' => [], 'abstaende' => ['spalt' => -0.5]]) === null,
     'unter der Schranke: -0,5 px');
-assert(avesmapsZoomBandsValidate(['marker' => [], 'label' => [], 'abstaende' => ['spalt' => 90.5]]) === null,
-    'ueber der Schranke: 90,5 px');
+assert(avesmapsZoomBandsValidate(['marker' => [], 'label' => [], 'abstaende' => ['spalt' => 300.5]]) === null,
+    'ueber der Schranke: 300,5 px');
 // Die Obergrenze selbst ist einschliesslich (<=), nicht ausschliesslich -- wie bei marker/label.
-assert(avesmapsZoomBandsValidate(['marker' => [], 'label' => [], 'abstaende' => ['spalt' => 90.0]]) !== null,
-    'genau 90 px ist noch gueltig');
+assert(avesmapsZoomBandsValidate(['marker' => [], 'label' => [], 'abstaende' => ['spalt' => 300.0]]) !== null,
+    'genau 300 px ist noch gueltig');
 // 🔴 22.08.2026 -- DIE SCHRANKE HIER IST DIE WEITESTE, NICHT DIE ENGSTE. Seit der Drift-Deckel
-// (0-90) dazugekommen ist, kann der Server nicht mehr je Schluessel pruefen: er fuehrt bewusst
+// (0-300) dazugekommen ist, kann der Server nicht mehr je Schluessel pruefen: er fuehrt bewusst
 // keine Schluesselliste. 30 px sind fuer 'spalt' zu viel und kommen hier TROTZDEM durch -- geklemmt
 // wird im Browser, gegen seine eigene engere Schranke (avesmapsLocationLabelSpacingLimits,
 // js/map-features/__tests__/zoombaender-drift.test.js Abschnitt E). Dieselbe Arbeitsteilung wie bei

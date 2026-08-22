@@ -22,25 +22,21 @@ const AVESMAPS_ZOOM_BAND_LIMITS = {
 const AVESMAPS_LOCATION_LABEL_SPACING_LIMITS = { min: 0, max: 20 };
 
 // 🔴 „drift" braucht eine EIGENE, weitere Schranke als die anderen drei: er ist kein Abstand
-// zwischen zwei Dingen, sondern ein DECKEL auf den senkrechten Spalt, den ein Name zum eigenen
-// Punkt aufreißen darf (Owner 22.08.2026: „den maximalen versatz ... will ich begrenzen bis sie
-// verschwinden").
+// zwischen zwei Dingen, sondern ein DECKEL darauf, wie weit eine Ausweichstelle den Namen von
+// seiner Normalstellung wegrückt (Owner 22.08.2026: „den maximalen versatz ... will ich begrenzen
+// bis sie verschwinden").
 //
-// 💣 DIE 90 IST GEMESSEN, NICHT GEGRIFFEN -- und der erste Griff (80) war zu klein. Der größte
-// erreichbare Drift ist `labelHeight + versatz` (die Stelle „oben mittig"). `labelHeight` ist die
-// Höhe des GERENDERTEN Label-Bildes samt seines durchsichtigen Halo-Randes, nicht die Schriftgröße:
-// live gemessen an 80 Labels über z3/z5/z7 sind das höchstens 2,182 px je pt. Bei der obersten
-// erlaubten Schriftgröße (30 pt, AVESMAPS_ZOOM_BAND_LIMITS.label.max) also rund 66 px, plus der
-// oberste Versatz 20 = 86 px. Die Vorgabe MUSS darüber liegen, sonst schneidet sie beim Ausliefern
-// Stellen weg.
+// 💣 DIE SPANNE RICHTET SICH NACH DEM SEITENWECHSEL, und der hängt an der NAMENSLÄNGE -- nicht an
+// einer festen Geometrie. Springt der Name auf die andere Seite des Punktes, rückt er um seine
+// eigene Breite plus zweimal den Spalt weg: live gemessen 78 bis 203 px, Median 123. Der größte
+// über den ganzen Bestand erreichbare Wert (längster Name je Ortsklasse in DEREN größter Schrift,
+// 2882 Namen) ist 287 px. 300 liegt darüber, die Vorgabe schneidet also nichts weg -- und die
+// Arbeit des Reglers passiert zwischen 0 und 203, also auf gut zwei Dritteln seines Weges.
 //
-// ⚠️ UND SIE DARF NICHT VIEL WEITER REICHEN: bei den heutigen Schriftgrößen (höchstens 19 pt)
-// liegt der größte Drift bei rund 50 px, die Arbeit des Reglers passiert also zwischen 0 und 50.
-// Eine Schranke von 120 hätte fünf Sechstel des Reglerwegs wirkungslos gemacht -- genau der
-// Befund, der diesen Umbau ausgelöst hat. 90 deckt das theoretische Maximum und lässt trotzdem
-// gut die Hälfte des Wegs auf dem Bereich liegen, in dem sich etwas bewegt.
-// Bewacht von __tests__/zoombaender-drift.test.js.
-const AVESMAPS_LOCATION_LABEL_DRIFT_LIMITS = { min: 0, max: 90 };
+// ⚠️ Der senkrechte Anteil ist dagegen klein (höchstens Kastenhöhe + Versatz, rund 50 px). Eine
+// Spanne, die nur ihn abdeckt, kann den Seitenwechsel nicht verhindern -- und der ist das, was ein
+// Betrachter als „zu weit weg" sieht.
+const AVESMAPS_LOCATION_LABEL_DRIFT_LIMITS = { min: 0, max: 300 };
 
 // Die Schranke eines einzelnen globalen Abstands. Ohne eigenen Eintrag gilt die enge Vorgabe --
 // eine Zeile je Schlüssel, damit ein neuer Abstand nicht stillschweigend die Schranke eines
@@ -84,9 +80,9 @@ const AVESMAPS_LOCATION_ZOOM_BAND_DEFAULTS = {
 	//   versatz = LOCATION_LABEL_SHIFT_SMALL (8, war js/map-features/map-features.js)
 	// 🔴 22.08.2026 -- „drift" ist der VIERTE und einzige, der vorher keine Konstante hatte: es gab
 	// keinen Deckel, ein Name durfte so weit abheben, wie die weiteste Ausweichstelle reicht. Die
-	// Vorgabe 90 liegt über dem größten erreichbaren Drift (gerechnet 85,5) und schneidet deshalb
+	// Vorgabe 300 liegt über dem größten erreichbaren Drift (gemessen 287) und schneidet deshalb
 	// nichts weg (siehe AVESMAPS_LOCATION_LABEL_DRIFT_LIMITS) -- beim Ausliefern ändert sich nichts.
-	abstaende: { spalt: 4, repel: 2, versatz: 8, drift: 90 },
+	abstaende: { spalt: 4, repel: 2, versatz: 8, drift: 300 },
 };
 
 // Eine Zeile gegen ihre Vorgabe normalisieren.
