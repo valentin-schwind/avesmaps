@@ -1,11 +1,12 @@
 # Bauplan · Wiki-Override, was noch fehlt: Region · Landschaftslabel · Weg
 
-> **Stand 18.08.2026.** Ersetzt für die verbleibenden Stufen den Plan
+> **Angelegt 18.08.2026, am 22.08.2026 gegen den Code nachgemessen und an vier Stellen korrigiert
+> (§6).** Ersetzt für die verbleibenden Stufen den Plan
 > `docs/superpowers/plans/2026-08-17-wiki-override-ort.md` — jener beschreibt den Ort, ist
-> abgearbeitet, und seine Layout-Anweisungen sind vom Owner überholt worden (siehe §2).
+> abgearbeitet, und seine Layout-Anweisungen sind vom Owner überholt worden (§2).
 > Entwurf: `docs/superpowers/specs/2026-08-17-wiki-override-fuer-alle-design.md`.
 
-## 1 · Wo das Ding wirklich steht — am 18.08.2026 gemessen, nicht erinnert
+## 1 · Wo das Ding wirklich steht — am 22.08.2026 gemessen, nicht erinnert
 
 | Objektart | Wiki-Felder | Zustand |
 |---|---:|---|
@@ -17,111 +18,140 @@
 | **weg** | **1 (+1)** | nichts gebaut |
 | kraftlinie · karte | 0 | bekommen nichts — dort landet kein Wiki-Wert auf einem Kartenfeld |
 
-Die Zahlen sind am 18.08.2026 neu aus dem Feldregister gezählt (Zeilen mit `karte !== ""`), nicht
-aus dem Entwurf übernommen: **24 Kartenziele, unverändert** gegenüber dem 17.08.
+**24 Kartenziele**, am 22.08. aus dem Feldregister neu gezählt (Zeilen mit `karte !== ""`) —
+unverändert gegenüber dem 17.08., obwohl 93 fremde Commits dazwischenliegen.
 
-## 2 · 🔴 Was sich seit dem alten Plan geändert hat
+## 2 · 🔴 Was gegenüber dem ALTEN Plan (17.08.) gilt
 
 1. **50 | 50 statt drei Spalten.** Owner 17.08.2026, wörtlich: „50% | 50% · Text
    --durchgestrichener text-- ↺ | Eingabe". Der durchgestrichene Wiki-Stand steht IN der
    Beschriftung, links; das Eingabefeld bekommt die andere Hälfte. Die Token `--avm-wiki-alt-w`
    und `--avm-wiki-input-min` sind ersatzlos gefallen, ebenso die Zelle `.dt-alt`.
-   **Aufgabe 5 des alten Plans beschreibt die verworfene Fassung.**
 2. **Zwei Bauformen — und das CSS entscheidet, welche gilt, nicht das Markup:**
-   - Beschriftung **links** neben dem Feld → `.dt-grid--wiki`, zwei gleiche Hälften, Wiki-Stand
-     in der `.k`-Zelle. So im **Ortseditor** und im **Landschaften-Editor**.
-   - Beschriftung **oben** über dem Feld → `.wiki-alt` in der Beschriftung. So in den
-     **Kartendialogen**.
-   🪤 Der Literatur-Editor sieht im Markup aus wie ein Kartendialog (`<label>` vor dem
-   Bedienelement), ist im CSS aber ein Flex-ROW mit fester Beschriftungsspalte — die falsche
-   Annahme brach „ISBN (für DNB)" auf drei Zeilen.
-3. **Das Listensymbol ist KEINE offene Pflicht mehr.** Der Owner-Dauerauftrag vom 17.08. („immer
-   parallel Wiki-Zuweisung und Listen-Update") wurde gebaut und am selben Tag zurückgenommen
+   - Beschriftung **links** → `.dt-grid--wiki`, zwei gleiche Hälften, Wiki-Stand in der `.k`-Zelle.
+   - Beschriftung **oben** → `.wiki-alt` in der Beschriftung.
+   🪤 Der Literatur-Editor sieht im Markup aus wie ein Kartendialog, ist im CSS aber ein Flex-ROW
+   mit fester Beschriftungsspalte — die falsche Annahme brach „ISBN (für DNB)" auf drei Zeilen.
+3. **Das Listensymbol ist KEINE offene Pflicht.** Gebaut und am selben Tag zurückgenommen
    (`94889119` — „die Raute fällt weg, der grüne Kreis sagt das längst").
-   `js/review/review-list-wikistatus.js` existiert auf `master` nicht mehr.
 
-## 3 · 💣 Der Befund, der diesen Plan dringend macht
+## 3 · 💣 Der Befund, der diesen Plan dringend macht — am 22.08. erneut bestätigt
 
-**Die Serverhälfte für Landschaft und Label IST auf `master` und seit dem 17.08. live** — obwohl
-ihr Commit „ABSICHTLICH NICHT auf master" heißt (`85cd1e62`). Sie ist beim Push des
-AGENTS.md-Commits als darunterliegender Commit der Kette mitgereist.
+**Die Serverhälfte für Landschaft und Label IST auf `master` und live**, obwohl ihr Commit
+„ABSICHTLICH NICHT auf master" heißt (`85cd1e62`). Sie ist beim Push des AGENTS.md-Commits als
+darunterliegender Commit der Kette mitgereist. Ein Commit-Betreff ist keine Sperre.
 
-Das ist die Falle aus `geteilter-baum-push-nimmt-fremde-commits-mit`: **ungepusht heißt nicht
-geschützt, sondern abflugbereit** — wer eine Commit-Kette pusht, pusht die ganze Kette. Ein
-Commit-Betreff, der „nicht auf master" sagt, ist keine Sperre; er ist eine Bitte an jemanden, der
-den Betreff liest. Gelesen hat ihn niemand, weil `git push origin HEAD:master` nicht liest.
+Am 22.08. nachgemessen, beide Hälften unverändert:
+- `avesmapsEcosystemApplyRegionFieldOrigins` und `AVESMAPS_LABEL_WIKI_ORIGIN_FIELDS` stehen da.
+- **Keine** der fünf offenen Oberflächen schickt `wiki_uebernommen`.
 
-Was das heute anrichtet, gemessen:
+Folge: jedes Speichern, das `name`/`region_type` bzw. `text`/`feature_subtype` ändert, stempelt
+`manual` — auch wenn der **Sync-Knopf** die Änderung verursacht hat.
+🔴 Die Richtung ist die sichere (ein falsches `manual` überschützt, es verliert nichts), und
+**nichts liest die Daten heute**. Aber es sammelt sich falsches Wissen an.
 
-- **Kein sichtbarer Schaden.** Nichts LIEST die neuen Herkünfte: `git grep field_origins` findet
-  für Landschaft und Label ausschließlich Schreibstellen. Die Sync-Vorschau der Landschaft bekommt
-  kein `field_origins` in ihre Quelle, `herkunft` bleibt leer, das Vorhäkeln verhält sich wie
-  vorher.
-- ⚠️ **Aber es sammelt sich falsches Wissen an.** Jedes Speichern, das `name`/`region_type` bzw.
-  `text`/`feature_subtype` ändert, stempelt `manual` — auch wenn der **Sync-Knopf** der Landschaft
-  die Änderung verursacht hat. Sobald die Oberflächen kommen, behauptet die Zeile für diese Felder
-  „von uns", obwohl sie aus dem Wiki stammen.
-- 🔴 **Die Richtung ist die sichere:** ein falsches `manual` überschützt, es verliert nichts. Es
-  löst sich auf, sobald jemand das Feld mit ↺ zurückholt oder es erneut ändert.
-
-**Entscheidung:** die Oberflächen nachziehen statt die Serverhälfte zurückbauen — ein Rückbau
-kostet dieselbe Arbeit und ließe die bereits geschriebenen Einträge trotzdem stehen.
+**Entscheidung:** Oberflächen nachziehen statt Serverhälfte zurückbauen.
 
 ## 4 · Die Aufgaben
 
 ### Aufgabe 0 · Die Merkliste zuerst, die Anzeige danach
 Je Oberfläche zuerst `wiki_uebernommen` in den Speicher-Rumpf, dann die Zeile. Damit hört das
 Falschstempeln beim ersten Deploy auf, auch wenn die Anzeige noch nicht sitzt.
-⚠️ Für die Landschaft sind es **zwei** Oberflächen; eine allein genügt nicht (die Falle vom
-14.08.: eine Regel, die einen von zwei Erzeugern bindet, ist keine).
+⚠️ Für die Landschaft sind es **zwei** Oberflächen; eine allein genügt nicht.
 
-### Aufgabe 1 · Landschaft — Editorfenster (`html/landschaften-editor.html`)
-- Bauform: `.dt-grid`, Rezept **50/50**. Die zwei Zeilen heißen dort **Name** und **Art**
-  (`regionEditBlock`, `data-f="name"` / `data-f="type"`).
-- Datenweg: `avesmapsWikiAssignLandschaftZustand` gibt `herkunft` bereits heraus (liegt auf
-  master) — die Oberfläche muss `field_origins` nur noch in ihre Quelle legen.
-- ⚠️ **Erst messen, was `list_regions` wirklich liefert**, bevor auf `region.properties`
-  zugegriffen wird. Zweimal in dieser Sitzung war ein geratener Feldname der Fehler
-  (`state.detail.wiki_kandidat`, `location.properties` — letzteres existierte gar nicht).
-- 🔴 Die Klimazone hat eine **gesperrte** Art (`gesperrt.region_type`); dort darf kein ↺
-  erscheinen — der Server lehnt die Änderung ohnehin ab.
+### Aufgabe 1 · 🆕 Die Herkunft muss beim Landschafts-Editor erst ANKOMMEN
+**Am 22.08. gemessen, und es ändert die Arbeit:** `list_regions` gibt `properties_json`
+**absichtlich nicht** heraus. Der Kommentar an der Projektion sagt warum: *„die Oberflächen
+brauchen die Antwort, nicht die Ablage, und ein `properties_json` auf der Leitung wäre die
+Einladung, dort noch etwas anderes hineinzuschreiben."* Der dritte Zustand reist deshalb als
+BOOLEAN (`wiki_no_article`), serverseitig aus der Ablage abgeleitet.
 
-### Aufgabe 2 · Landschaft — Kartendialog „Fläche bearbeiten"
+🔴 Also **dieselbe Bauform für die Herkunft**: eine fertige, auf die zwei Kartenfelder gefilterte
+Karte `field_origins` in die Projektion (`api/_internal/app/ecosystem.php`, neben
+`wiki_no_article`) — **nicht** das rohe `properties_json`.
+⚠️ Der alte Plan sagte „die Oberfläche muss `field_origins` nur noch in ihre Quelle legen". Das war
+falsch: die Daten sind gar nicht auf der Leitung.
+
+### Aufgabe 2 · Landschaft — Editorfenster (`html/landschaften-editor.html`)
+Bauform `.dt-grid`, Rezept **50/50**. Die zwei Zeilen heißen dort **Name** und **Art**
+(`regionEditBlock`, `data-f="name"` / `data-f="type"` — am 22.08. bestätigt).
+Datenweg `avesmapsWikiAssignLandschaftZustand` gibt `herkunft` bereits heraus.
+🔴 Die Klimazone hat eine **gesperrte** Art (`gesperrt.region_type`, weiterhin vorhanden); dort
+darf kein ↺ erscheinen.
+
+### Aufgabe 3 · Landschaft — Kartendialog „Fläche bearbeiten"
 `js/map-features/map-features-ecosystem-properties.js` + `index.html`
-(`.ecosystem-properties-dialog__field`, Beschriftung **oben** → `.wiki-alt`-Rezept).
-⚠️ Die Stilregeln dieses Dialogs stehen in `css/features/ecosystem-layer.css` — **erst prüfen, ob
-`location-report-dialog.css` ohnehin mitgeladen wird**, sonst entstünde eine dritte Kopie
-derselben `.wiki-alt`-Regeln. Zwei sind die Obergrenze.
+(`.ecosystem-properties-dialog__field`, Beschriftung **oben** → `.wiki-alt`).
+✅ **Keine CSS-Kopie nötig** (am 22.08. gemessen): `location-report-dialog.css` kommt über
+`css/styles.css` in `index.html`, `.wiki-alt` ist dort also schon da. Die Sorge des alten Plans
+vor einer dritten Fassung ist gegenstandslos.
 
-### Aufgabe 3 · Landschaftslabel — Label-Dialog
-`js/review/review-label-wiki.js` + `index.html` (`location-report-form__field`, Beschriftung oben
-→ `.wiki-alt`; die Regeln stehen dort bereits, weil der Ort-Kartendialog sie nutzt).
+### Aufgabe 4 · Landschaftslabel — Label-Dialog
+`js/review/review-label-wiki.js` + `index.html` (`location-report-form__field`, Beschriftung oben).
+✅ **Die Herkunft ist schon auf der Leitung**: die Label-Projektion im Browser liest
+`properties.*` direkt (`map-features-labels.js`), der Kartenpayload filtert nichts weg. Es fehlt
+nur die Zeile `fieldOrigins: properties.field_origins || null` — kein Server-Eingriff.
 Felder: `text`, `feature_subtype`. Nutzlast: `buildLabelEditPayload`.
 
-### Aufgabe 4 · Weg
-Zwei Oberflächen (`js/pages/wege-editor.js`, `js/review/review-path-wiki.js`), ein Kartenziel
-(`feature_subtype`) plus `name`.
-🔴 **Der Name ist die eigene Überlegung dieser Stufe:** ihn schreibt `assign_to` **serverseitig auf
-den ganzen Namensverbund** (R1, `api/_internal/wiki/paths.php`). Er ist damit per Definition aus
-dem Wiki — die Herkunft dafür gehört an die Zuweisung, nicht an das Speichern des Formulars.
-⚠️ Erst messen, wo `map_features.properties_json` eines Wegs geschrieben wird und ob es dafür mehr
-als einen Weg gibt. Vorbild: die Laufzeitzählung in `field-origins-test.php`, die beim Ort den
-zweiten Schreibweg fand, den der Autor übersehen hatte.
+### Aufgabe 5 · Weg — und er ist der aufwendigste, nicht der kleinste
+Zwei Oberflächen: `js/pages/wege-editor.js` (`.dt-grid` → 50/50) und der Kartendialog
+`#path-edit-*` (Beschriftung oben → `.wiki-alt`).
 
-### Aufgabe 5 · Das Tor
-Ganzes Testfeld, alle drei Läufe. **Baseline am 18.08.2026 auf `master`: 188 JS grün · 191 PHP mit
-genau einem vorbestehend roten (`linkcheck/link-url-test.php`, echter DNS-Abruf) · 21 Wikidump
-grün.** Jeder weitere rote Test ist eine Regression.
+💣 **ZWEI Schreibwege, nicht einer** — am 22.08. zur Laufzeit gezählt (fünf Funktionen schreiben
+`feature_subtype` in `map_features`, zwei davon gehören dem Weg):
+- `avesmapsUpdatePathFeatureDetails` — ein Abschnitt.
+- `avesmapsUpdatePathGroupDetails` — die **Weg-Ebene** (19.08.2026): schreibt `name`,
+  `feature_subtype` und `properties_json` in einer Schleife über ALLE Abschnitte einer
+  Namensgruppe. Die Herkunft muss dort **je Abschnitt** gestempelt werden.
+⭐ Der Gruppen-Schreiber führt bereits eine Liste „was jemand angefasst hat"
+(`AVESMAPS_PATH_GROUP_FIELDS` + `fields` im Rumpf) — genau die Angabe, die der Stempler braucht.
+
+🔴 **Der Name ist die eigene Überlegung dieser Stufe:** ihn schreibt `assign_to` serverseitig auf
+den ganzen Namensverbund. Er ist damit per Definition aus dem Wiki — die Herkunft dafür gehört an
+die Zuweisung, nicht an das Speichern des Formulars.
+
+### Aufgabe 6 · Das Tor
+🆕 **Der Deploy fährt ein BREITERES PHP-Muster als AGENTS.md §9.** Der Workflow läuft
+`find api tools \( -path '*__tests__*' -name '*.php' \) -o \( -name 'test-*.php' -not -path '*__tests__*' \)`
+— also **jede** `.php` unter `__tests__`, nicht nur `*-test.php`. Gemessen am 22.08.:
+
+| Lauf | Anzahl | rot |
+|---|---:|---|
+| JS (`*.test.js` unter `__tests__`) | 211 | 0 |
+| **PHP nach CI-Muster** | **244** | 1 (`linkcheck/link-url-test.php`, echter DNS-Abruf) |
+| `tools/wikidump/test-*.php` | 21 | 0 |
+| `.mjs` unter `tools/` | 21 | **4 — vorbestehend** |
+
+⚠️ **Die vier roten `.mjs` sind KEIN Deploy-Tor.** Der Workflow sagt es ausdrücklich: sie „would
+block every deploy. They need fixing before they can be added". Sie stehen hier, damit niemand sie
+für eine eigene Regression hält: `test-place-scope-filter`, `test-route-leg-popup`,
+`test-wiki-sync-verb-row`, `test-client-route-flow`.
 
 ## 5 · Die Abhak-Liste
 
 - [ ] Jede Oberfläche schickt `wiki_uebernommen`, **bevor** ihre Anzeige gebaut wird (A0)
 - [ ] Beide Landschafts-Oberflächen, nie nur eine
+- [ ] Landschaft: die Herkunft als **fertige Antwort** projizieren, nie `properties_json` (A1)
 - [ ] Bauform aus dem **CSS** bestimmt, nicht aus dem Markup (§2.2)
-- [ ] Keine dritte `.wiki-alt`-Kopie ohne Messung (A2)
-- [ ] Kein geratener Feldname — jeder Zugriff auf einen Payload-Schlüssel vorher gemessen
-- [ ] Klimazone: kein ↺ auf der gesperrten Art
-- [ ] Weg: die Herkunft des Namens hängt an `assign_to`, nicht am Formular
+- [ ] Keine dritte `.wiki-alt`-Kopie — sie ist über `styles.css` schon da (A3)
+- [ ] Klimazone: kein ↺ auf der gesperrten Art (A2)
+- [ ] Weg: **beide** Schreibwege stempeln, der Gruppen-Schreiber je Abschnitt (A5)
+- [ ] Weg: die Herkunft des Namens hängt an `assign_to`, nicht am Formular (A5)
+- [ ] Kein geratener Feldname — jeder Payload-Schlüssel vorher gemessen
 - [ ] Jede neue Zusicherung EINZELN mutiert, roter Lauf mit echter Meldung festgehalten
-- [ ] Ganzes Testfeld gegen die Baseline aus A5
+- [ ] Testfeld gegen die Baseline aus A6, **mit dem CI-Muster**, nicht dem aus §9
 - [ ] **Vor dem Push `git log origin/master..HEAD` lesen** — eine Kette nimmt alles mit (§3)
+
+## 6 · 🪤 Was am 22.08.2026 gegenüber der Fassung vom 18.08. korrigiert wurde
+
+Vier Annahmen sind an der Wirklichkeit gemessen worden; drei waren falsch. Sie stehen hier, damit
+die Korrektur nicht als „war schon immer so" verschwindet:
+
+1. **„Die Oberfläche muss `field_origins` nur noch in ihre Quelle legen"** (Landschaft) — falsch.
+   `list_regions` gibt die Ablage bewusst nicht heraus; es braucht eine Projektion (A1).
+2. **„Erst prüfen, ob eine dritte `.wiki-alt`-Kopie nötig ist"** — geprüft, nicht nötig (A3).
+3. **„Weg: erst messen, ob es mehr als einen Schreibweg gibt"** — gemessen: **zwei**, und der
+   zweite schreibt eine ganze Namensgruppe (A5). Der Weg ist damit die aufwendigste Stufe, nicht
+   die kleinste; der alte Plan führte ihn als „ein Feld".
+4. **Baseline** — das Muster aus AGENTS.md §9 ist schmaler als das des Deploys (235 gegen 244
+   Dateien), und es gibt vier vorbestehend rote `.mjs`, die kein Tor sind (A6).
