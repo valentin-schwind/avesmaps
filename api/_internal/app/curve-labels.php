@@ -283,3 +283,183 @@ function avesmapsCurveDelaunay(array $points): array
 
     return $raus;
 }
+
+// Die Mittelachse aus den Innendreiecken (Chordal Axis).
+//
+// Knoten sind die Mittelpunkte der INNEREN Kanten -- Kanten zwischen zwei Innendreiecken. Ein
+// Dreieck mit drei inneren Kanten ist eine Verzweigung (Stern ueber den Schwerpunkt), mit zwei ein
+// Durchgang, mit einer eine Spitze (bis zur gegenueberliegenden Ecke).
+//
+// 💣 FALLE 1 -- der Innentest. Der Schwerpunkt allein genuegt nicht: ein Dreieck ueber einer Bucht
+// kann ihn drinnen haben und trotzdem draussen verlaufen. Also auch die drei Kantenmitten pruefen,
+// ABER ein Stueck zum Schwerpunkt hin gerueckt: die Mitte einer RANDkante liegt exakt auf der
+// Polygonlinie, und dort ist der Strahlentest eine Muenze. Ungerueckt fiel im Prototyp jedes
+// randstaendige Dreieck heraus und die Achse zerfiel in Splitter (Rohachse 2,2 statt 139 Einheiten
+// an den Drachensteinen). Eine Sehne UEBER eine Bucht holt der Ruck nicht herein -- 5 % sind zu
+// wenig.
+//
+// 💣 FALLE 2 -- KEIN Deckel auf die Kantenlaenge. Im Inneren einer breiten Flaeche sind die
+// Dreiecke von Natur aus gross. Ein Laengendeckel wirkt wie eine Rauschunterdrueckung und loescht
+// genau die Achse, die man sucht.
+function avesmapsCurveChordalAxis(array $points, array $tris, array $rings): array
+{
+    $inner = [];
+    foreach ($tris as $t) {
+        [$a, $b, $c] = $t;
+        $cx = ($points[$a][0] + $points[$b][0] + $points[$c][0]) / 3.0;
+        $cy = ($points[$a][1] + $points[$b][1] + $points[$c][1]) / 3.0;
+        if (!avesmapsCurvePointInPolygon([$cx, $cy], $rings)) {
+            continue;
+        }
+        $ruck = static function (float $px, float $py) use ($cx, $cy): array {
+            return [$px + (($cx - $px) * 0.05), $py + (($cy - $py) * 0.05)];
+        };
+        $mitten = [
+            $ruck(($points[$a][0] + $points[$b][0]) / 2.0, ($points[$a][1] + $points[$b][1]) / 2.0),
+            $ruck(($points[$b][0] + $points[$c][0]) / 2.0, ($points[$b][1] + $points[$c][1]) / 2.0),
+            $ruck(($points[$c][0] + $points[$a][0]) / 2.0, ($points[$c][1] + $points[$a][1]) / 2.0),
+        ];
+        $drinnen = true;
+        foreach ($mitten as $m) {
+            if (!avesmapsCurvePointInPolygon($m, $rings)) {
+                $drinnen = false;
+                break;
+            }
+        }
+        if ($drinnen) {
+            $inner[] = ['v' => $t, 'cx' => $cx, 'cy' => $cy];
+        }
+    }
+
+    $kantenSchluessel = static function (int $i, int $j): string {
+        return $i < $j ? $i . ',' . $j : $j . ',' . $i;
+    };
+    $nutzung = [];
+    foreach ($inner as $ti => $rec) {
+        [$a, $b, $c] = $rec['v'];
+        foreach ([[$a, $b], [$b, $c], [$c, $a]] as $e) {
+            $nutzung[$kantenSchluessel($e[0], $e[1])][] = $ti;
+        }
+    }
+
+    $nodes = [];
+    $adj = [];
+    $index = [];
+    $knoten = static function (string $key, float $x, float $y) use (&$nodes, &$adj, &$index): int {
+        if (isset($index[$key])) {
+            return $index[$key];
+        }
+        $id = count($nodes);
+        $nodes[] = [$x, $y];
+        $adj[] = [];
+        $index[$key] = $id;
+
+        return $id;
+    };
+    $binde = static function (int $u, int $v) use (&$nodes, &$adj): void {
+        $w = hypot($nodes[$u][0] - $nodes[$v][0], $nodes[$u][1] - $nodes[$v][1]);
+        $adj[$u][] = [$v, $w];
+        $adj[$v][] = [$u, $w];
+    };
+
+    foreach ($inner as $ti => $rec) {
+        [$a, $b, $c] = $rec['v'];
+        $geteilt = [];
+        foreach ([[$a, $b], [$b, $c], [$c, $a]] as $e) {
+            if (count($nutzung[$kantenSchluessel($e[0], $e[1])] ?? []) === 2) {
+                $geteilt[] = $e;
+            }
+        }
+        if ($geteilt === []) {
+            continue;
+        }
+        $mitte = static function (array $e) use ($points, $knoten, $kantenSchluessel): int {
+            return $knoten(
+                'e' . $kantenSchluessel($e[0], $e[1]),
+                ($points[$e[0]][0] + $points[$e[1]][0]) / 2.0,
+                ($points[$e[0]][1] + $points[$e[1]][1]) / 2.0
+            );
+        };
+        if (count($geteilt) === 3) {
+            $mittelpunkt = $knoten('t' . $ti, $rec['cx'], $rec['cy']);
+            foreach ($geteilt as $e) {
+                $binde($mittelpunkt, $mitte($e));
+            }
+        } elseif (count($geteilt) === 2) {
+            $binde($mitte($geteilt[0]), $mitte($geteilt[1]));
+        } else {
+            $e = $geteilt[0];
+            $spitze = null;
+            foreach ([$a, $b, $c] as $v) {
+                if ($v !== $e[0] && $v !== $e[1]) {
+                    $spitze = $v;
+                    break;
+                }
+            }
+            if ($spitze !== null) {
+                $binde($mitte($e), $knoten('v' . $spitze, $points[$spitze][0], $points[$spitze][1]));
+            }
+        }
+    }
+
+    return ['nodes' => $nodes, 'adj' => $adj, 'inner_count' => count($inner)];
+}
+
+// Dijkstra vom Startknoten; liefert den entferntesten Knoten und die Vorgaengerkette.
+function avesmapsCurveFarthest(array $nodes, array $adj, int $start): array
+{
+    $anzahl = count($nodes);
+    $dist = array_fill(0, $anzahl, INF);
+    $prev = array_fill(0, $anzahl, -1);
+    $fertig = array_fill(0, $anzahl, false);
+    $dist[$start] = 0.0;
+    while (true) {
+        $u = -1;
+        $best = INF;
+        for ($i = 0; $i < $anzahl; $i++) {
+            if (!$fertig[$i] && $dist[$i] < $best) {
+                $best = $dist[$i];
+                $u = $i;
+            }
+        }
+        if ($u < 0) {
+            break;
+        }
+        $fertig[$u] = true;
+        foreach ($adj[$u] as [$v, $w]) {
+            if ($dist[$u] + $w < $dist[$v]) {
+                $dist[$v] = $dist[$u] + $w;
+                $prev[$v] = $u;
+            }
+        }
+    }
+    $knoten = $start;
+    $best = -1.0;
+    for ($i = 0; $i < $anzahl; $i++) {
+        if ($dist[$i] < INF && $dist[$i] > $best) {
+            $best = $dist[$i];
+            $knoten = $i;
+        }
+    }
+
+    return ['node' => $knoten, 'prev' => $prev];
+}
+
+// Die „beste" Mittellinie: der laengste gewichtete Pfad, gefunden mit zwei Dijkstra-Laeufen.
+function avesmapsCurveLongestPath(array $nodes, array $adj): array
+{
+    if ($nodes === []) {
+        return [];
+    }
+    $a = avesmapsCurveFarthest($nodes, $adj, 0);
+    $b = avesmapsCurveFarthest($nodes, $adj, $a['node']);
+    $pfad = [];
+    $cur = $b['node'];
+    $wache = 0;
+    while ($cur !== -1 && $wache++ < count($nodes) + 5) {
+        $pfad[] = $nodes[$cur];
+        $cur = $b['prev'][$cur];
+    }
+
+    return array_reverse($pfad);
+}
