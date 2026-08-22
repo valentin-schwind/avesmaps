@@ -65,4 +65,35 @@ assert(avesmapsCurveLabelRolloutFor([10, 20, 30, 40]) === ['enabled' => true, 'm
 // Eine Region ohne Label ergibt keine Umstellung.
 assert(avesmapsCurveLabelRolloutFor([]) === ['enabled' => false, 'max_labels' => 1]);
 
+// ------------------------------------------------------------------ ANHAENGEN ---
+
+$features = [
+    ['properties' => ['feature_type' => 'label', 'public_id' => 'l1', 'ecosystem_region_public_id' => 'r1']],
+    ['properties' => ['feature_type' => 'label', 'public_id' => 'l2', 'ecosystem_region_public_id' => 'r2']],
+    ['properties' => ['feature_type' => 'label', 'public_id' => 'l3']],
+    ['properties' => ['feature_type' => 'location', 'public_id' => 'o1', 'ecosystem_region_public_id' => 'r1']],
+];
+$byRegion = ['r1' => ['line' => [[1.0, 2.0], [3.0, 4.0]], 'max_labels' => 2]];
+avesmapsCurveApplyToFeatures($features, $byRegion);
+
+// Das Label seiner Region bekommt Kurve und Anzahl.
+assert($features[0]['properties']['curve_label_line'] === [[1.0, 2.0], [3.0, 4.0]]);
+assert($features[0]['properties']['curve_label_max'] === 2);
+
+// 🔴 Eine Region OHNE Kurve bekommt keinen Schluessel -- nicht `null`, nicht `[]`. Der Client
+// unterscheidet „hat keine Kurve" an der Abwesenheit; ein leeres Feld waere eine leere Kurve.
+assert(!array_key_exists('curve_label_line', $features[1]['properties']));
+
+// Ein Label ohne Region bleibt unberuehrt.
+assert(!array_key_exists('curve_label_line', $features[2]['properties']));
+
+// 💣 Nur LABELS. Ein Ort, der zufaellig in derselben Region liegt, bekommt nichts -- er hat keine
+// Achse und traegt seinen Namen neben seinem Punkt.
+assert(!array_key_exists('curve_label_line', $features[3]['properties']));
+
+// Ein leeres Verzeichnis aendert nichts und wirft nicht.
+$unveraendert = $features;
+avesmapsCurveApplyToFeatures($features, []);
+assert($features === $unveraendert);
+
 echo "curve-label-store tests passed\n";

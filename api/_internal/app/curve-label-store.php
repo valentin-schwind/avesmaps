@@ -55,3 +55,34 @@ function avesmapsCurveLabelRolloutFor(array $rotations): array
         'max_labels' => max(1, min(AVESMAPS_CURVE_LABEL_MAX, count($rotations))),
     ];
 }
+
+// Die Kurve an jedes Label haengen, dessen Region eine hat.
+//
+// 🔴 EMITTIERT, NICHT GESPEICHERT -- dieselbe Haltung wie bei
+// avesmapsEcosystemApplyLabelRegionsToFeatures: die dauerhafte Wahrheit ist die Geometrie plus die
+// Einstellung an der Region. Die Kurve ist ihre abgeleitete Ansicht.
+//
+// 🔴 Fehlt die Kurve, fehlt der SCHLUESSEL -- nicht `null`, nicht `[]`. Der Client unterscheidet
+// „hat keine Kurve" an der Abwesenheit; ein leeres Feld waere eine leere Kurve, und die zeichnet
+// sich als Nichts statt als Gerade.
+//
+// @param list<array<string,mixed>> $features gebaute GeoJSON-Features (wird veraendert)
+// @param array<string,array{line:list<array{0:float,1:float}>,max_labels:int}> $byRegion
+function avesmapsCurveApplyToFeatures(array &$features, array $byRegion): void
+{
+    if ($byRegion === []) {
+        return;
+    }
+    foreach ($features as $i => $feature) {
+        $properties = $feature['properties'] ?? null;
+        if (!is_array($properties) || (string) ($properties['feature_type'] ?? '') !== 'label') {
+            continue;
+        }
+        $regionId = trim((string) ($properties['ecosystem_region_public_id'] ?? ''));
+        if ($regionId === '' || !isset($byRegion[$regionId])) {
+            continue;
+        }
+        $features[$i]['properties']['curve_label_line'] = $byRegion[$regionId]['line'];
+        $features[$i]['properties']['curve_label_max'] = $byRegion[$regionId]['max_labels'];
+    }
+}
