@@ -155,4 +155,55 @@ $gemischt2 = '{"version":1,"regions":{'
 $geladen2 = avesmapsCurveBaselinesFromCache($gemischt2, ['ohneLinie' => 1, 'zuKurz' => 1, 'veraltet' => 1, 'heil' => 2]);
 assert(array_keys($geladen2) === ['heil']);
 
+// ------------------------------------------------------------------ SAMMELLAUF ---
+
+// Der Bauer der Ablage: nur eingeschaltete Regionen, Linie auf Lieferdichte gebracht, drei
+// Nachkommastellen.
+$gebaut = avesmapsCurveBuildCachePayload([
+    'r1' => [
+        'rev' => 7,
+        'settings' => ['enabled' => true, 'max_labels' => 2],
+        'geometries' => [['type' => 'Polygon', 'coordinates' => [[
+            [0.0, 0.0], [100.0, 0.0], [100.0, 10.0], [0.0, 10.0], [0.0, 0.0],
+        ]]]],
+    ],
+    'r2' => [
+        'rev' => 3,
+        'settings' => ['enabled' => false, 'max_labels' => 1],
+        'geometries' => [['type' => 'Polygon', 'coordinates' => [[
+            [0.0, 0.0], [50.0, 0.0], [50.0, 10.0], [0.0, 10.0], [0.0, 0.0],
+        ]]]],
+    ],
+]);
+$daten = json_decode($gebaut, true);
+assert($daten['version'] === 1);
+
+// 🔴 Eine ausgeschaltete Region steht NICHT in der Ablage. Sie mitzuschreiben hiesse, jede Karte
+// Kurven ausliefern zu lassen, die niemand sehen soll.
+assert(array_keys($daten['regions']) === ['r1']);
+assert($daten['regions']['r1']['rev'] === 7);
+assert($daten['regions']['r1']['max'] === 2);
+
+// Lieferdichte: 32 Punkte, nicht die 120 der Rechnung.
+assert(count($daten['regions']['r1']['line']) === 32);
+
+// Drei Nachkommastellen -- die Quelle hat nicht mehr Aussagekraft, und die Nutzlast ist der Preis.
+foreach ($daten['regions']['r1']['line'] as $punkt) {
+    assert(round($punkt[0], 3) === $punkt[0]);
+    assert(round($punkt[1], 3) === $punkt[1]);
+}
+
+// 💣 Was hier herauskommt, muss der Leser aus Aufgabe 7 wieder hereinbekommen. Die beiden Formate
+// EINZELN zu testen liesse genau die Naht ungeprueft, an der sie auseinanderlaufen.
+$zurueck = avesmapsCurveBaselinesFromCache($gebaut, ['r1' => 7, 'r2' => 3]);
+assert(array_keys($zurueck) === ['r1']);
+assert(count($zurueck['r1']['line']) === 32);
+assert($zurueck['r1']['max_labels'] === 2);
+
+// Eine Region ohne brauchbare Geometrie faellt still heraus, sie bricht den Lauf nicht ab.
+$mitMuell = avesmapsCurveBuildCachePayload([
+    'r3' => ['rev' => 1, 'settings' => ['enabled' => true, 'max_labels' => 1], 'geometries' => []],
+]);
+assert(json_decode($mitMuell, true)['regions'] === []);
+
 echo "curve-label-store tests passed\n";

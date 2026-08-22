@@ -203,3 +203,93 @@ function avesmapsCurveReadBaselines(PDO $pdo): array
 
     return avesmapsCurveBaselinesFromCache($json, $revisionByRegion);
 }
+
+// Aus den Regionen die Ablage bauen. Reine Funktion -- der PDO-Teil steht darunter.
+//
+// @param array<string,array{rev:int,settings:array{enabled:bool,max_labels:int},geometries:list<array<string,mixed>>}> $regionen
+function avesmapsCurveBuildCachePayload(array $regionen): string
+{
+    $raus = [];
+    foreach ($regionen as $regionId => $rec) {
+        // 🔴 Eine ausgeschaltete Region steht NICHT in der Ablage. Sonst liefert jede Karte Kurven
+        // aus, die niemand sehen soll -- und die Nutzlast waechst um Regionen ohne Nutzen.
+        if (!($rec['settings']['enabled'] ?? false) || ($rec['geometries'] ?? []) === []) {
+            continue;
+        }
+        $kurve = avesmapsCurveBaseline($rec['geometries'], []);
+        if ($kurve === null) {
+            continue;
+        }
+        $geliefert = avesmapsCurveResample($kurve['line'], AVESMAPS_CURVE_LABEL_PAYLOAD_POINTS);
+        $linie = [];
+        foreach ($geliefert as $p) {
+            $linie[] = [round($p[0], 3), round($p[1], 3)];
+        }
+        $raus[(string) $regionId] = [
+            'rev' => (int) ($rec['rev'] ?? 0),
+            'max' => max(1, min(AVESMAPS_CURVE_LABEL_MAX, (int) ($rec['settings']['max_labels'] ?? 1))),
+            'line' => $linie,
+        ];
+    }
+
+    // 💣 JSON_PRESERVE_ZERO_FRACTION -- ohne das Flag schreibt json_encode ein glattes 0.0 als "0",
+    // und json_decode liest ein "0" als int(0), nicht als float(0.0). Eine resamplete Achse trifft
+    // ihren Rand oft exakt (Start-/Endpunkt einer Rechteck-Flaeche z.B. bei x=0.0/x=100.0) -- ohne
+    // das Flag wechselt fuer genau diese Punkte still der Typ, und ein strikter Typvergleich nach
+    // dem Ruecklesen (Test dieser Datei, „drei Nachkommastellen") schluege fehl, obwohl der Wert
+    // unveraendert ist.
+    return (string) json_encode(['version' => 1, 'regions' => (object) $raus], JSON_PRESERVE_ZERO_FRACTION);
+}
+
+// Der Sammellauf: alle Regionen lesen, rechnen, ablegen, ZURUECKLESEN.
+//
+// 💣 Der Schreibvorgang liest zurueck. app_setting.setting_value war einmal VARCHAR(255), und die
+// erste Zeile mit echtem Inhalt wurde ausserhalb des strict mode lautlos abgeschnitten -- der
+// Speichern-Knopf der Tempowerte tat daraufhin wochenlang nichts, ohne Fehler und ohne Warnung
+// (AGENTS.md §10). Ein Marker darf bezeugen, dass etwas DA ist, nie dass ein Schreibvorgang
+// ABGESETZT wurde.
+//
+// @return array{regions:int,bytes:int,ok:bool}
+function avesmapsCurveRebuildCache(PDO $pdo): array
+{
+    $stmt = $pdo->query(
+        'SELECT r.public_id AS region_id, r.properties_json,
+                a.geometry_geojson, a.geometry_revision
+         FROM ecosystem_region r
+         INNER JOIN ecosystem_area a ON a.region_id = r.id AND a.is_active = 1
+         WHERE r.is_active = 1'
+    );
+    $rows = $stmt !== false ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
+
+    $regionen = [];
+    foreach ($rows as $row) {
+        $regionId = (string) $row['region_id'];
+        if (!isset($regionen[$regionId])) {
+            $properties = json_decode((string) ($row['properties_json'] ?? ''), true);
+            $regionen[$regionId] = [
+                'rev' => 0,
+                'settings' => avesmapsCurveLabelSettingsFromProperties(is_array($properties) ? $properties : null),
+                'geometries' => [],
+            ];
+        }
+        $regionen[$regionId]['rev'] += (int) $row['geometry_revision'];
+        $geom = json_decode((string) $row['geometry_geojson'], true);
+        if (is_array($geom)) {
+            $regionen[$regionId]['geometries'][] = $geom;
+        }
+    }
+
+    $json = avesmapsCurveBuildCachePayload($regionen);
+    avesmapsAppSettingEnsureWideValue($pdo);
+    avesmapsAppSettingSet($pdo, avesmapsCurveCacheKey(), $json);
+
+    // 💣 ZURUECKLESEN. Ohne diese Zeile meldet der Lauf Erfolg, waehrend MySQL gekuerzt hat.
+    $zurueck = avesmapsAppSettingGetWithoutDdl($pdo, avesmapsCurveCacheKey(), '');
+    $gezaehlt = json_decode($json, true)['regions'] ?? [];
+
+    return [
+        'regions' => is_array($gezaehlt) ? count($gezaehlt) : 0,
+        'bytes' => strlen($json),
+        'ok' => $zurueck === $json,
+    ];
+}
