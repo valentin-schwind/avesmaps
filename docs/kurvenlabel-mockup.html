@@ -1,0 +1,1818 @@
+<!doctype html>
+<html lang="de" data-theme="light">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Mockup — Kurvenbeschriftung für Landschaftsflächen</title>
+
+<!-- Dieses Mockup liegt bewusst NICHT alleine da: es zieht die echten Token, die echte Schrift und
+     das echte Leaflet aus dem Repo. Ein Mockup, das seine Farben abschreibt, beweist nichts ueber
+     das Aussehen im Produkt. Ueber den PHP-Vorschauserver aufrufen (Wurzel = Repo), nicht per
+     file:// -- die Kacheln kommen von avesmaps.de. -->
+<link rel="stylesheet" href="../css/base/tokens.css" />
+<link rel="stylesheet" href="../css/base/fonts.css" />
+<link rel="stylesheet" href="../css/third-party/leaflet.css" />
+
+<style>
+* { box-sizing: border-box; }
+
+body {
+	margin: 0;
+	background: var(--color-page, #f4efe4);
+	color: var(--color-text);
+	font-family: var(--font-ui, "Faculty Glyphic", Arial, sans-serif);
+	font-size: var(--font-size-body, 13px);
+	line-height: 1.5;
+}
+
+a { color: var(--color-link); }
+
+.kopf {
+	padding: 18px 22px 14px;
+	border-bottom: 1px solid var(--color-divider);
+	background: var(--color-panel);
+}
+
+.kopf h1 {
+	margin: 0 0 6px;
+	font-size: var(--font-size-title, 20px);
+	color: var(--color-text-strong);
+	font-weight: 400;
+}
+
+.kopf p {
+	margin: 0;
+	max-width: 96ch;
+	color: var(--color-text-muted);
+	font-size: var(--font-size-small, 12px);
+}
+
+.reiter {
+	display: flex;
+	gap: 6px;
+	padding: 10px 22px 0;
+	background: var(--color-panel);
+	border-bottom: 1px solid var(--color-divider);
+}
+
+.reiter button {
+	appearance: none;
+	border: 1px solid var(--color-button-soft-border);
+	border-bottom: none;
+	background: var(--color-button-soft);
+	color: var(--color-button-soft-text);
+	font: inherit;
+	padding: 7px 16px;
+	border-radius: var(--radius-md, 6px) var(--radius-md, 6px) 0 0;
+	cursor: pointer;
+	position: relative;
+	bottom: -1px;
+}
+
+.reiter button[aria-selected="true"] {
+	background: var(--color-panel);
+	color: var(--color-text-strong);
+	border-bottom: 1px solid var(--color-panel);
+}
+
+.blatt { display: none; }
+.blatt.aktiv { display: block; }
+
+/* ---------- Ansicht „Karte" ---------- */
+.karten-layout {
+	display: grid;
+	grid-template-columns: 300px minmax(0, 1fr);
+	gap: 0;
+	height: calc(100vh - 168px);
+	min-height: 520px;
+}
+
+.steuerung {
+	overflow-y: auto;
+	padding: 16px 18px 40px;
+	background: var(--color-panel);
+	border-right: 1px solid var(--color-divider);
+}
+
+.gruppe { padding: 14px 0; border-top: 1px solid var(--color-divider); }
+.gruppe:first-child { border-top: none; padding-top: 0; }
+
+.gruppe > h2 {
+	margin: 0 0 10px;
+	font-size: var(--font-size-caption, 11px);
+	letter-spacing: 0.08em;
+	text-transform: uppercase;
+	color: var(--color-text-muted);
+	font-weight: 400;
+}
+
+/* Der Kasten, der zeigt, was vom ganzen Regelwerk beim Editor ankommt: zwei Bedienelemente. */
+.gruppe--editor {
+	margin: 0 -18px 0;
+	padding: 12px 18px 14px;
+	background: var(--color-panel-soft);
+	border-left: 3px solid var(--color-accent-brown, #8f7326);
+	border-top: none;
+}
+
+.gruppe--editor > h2 { color: var(--color-text-strong); }
+
+.notiz {
+	margin: 10px 0 0;
+	font-size: var(--font-size-caption, 11px);
+	color: var(--color-text-muted);
+	line-height: 1.4;
+}
+
+.flaechenwahl { display: flex; flex-direction: column; gap: 4px; }
+
+.flaechenwahl button {
+	appearance: none;
+	text-align: left;
+	border: 1px solid var(--color-button-soft-border);
+	background: var(--color-button-soft);
+	color: var(--color-button-soft-text);
+	font: inherit;
+	padding: 6px 10px;
+	border-radius: var(--radius-md, 6px);
+	cursor: pointer;
+	line-height: 1.3;
+}
+
+.flaechenwahl button:hover { background: var(--color-button-soft-hover); }
+
+.flaechenwahl button[aria-pressed="true"] {
+	background: var(--color-button);
+	border-color: var(--color-button-border);
+	color: var(--color-button-text);
+}
+
+.flaechenwahl small { display: block; opacity: 0.75; font-size: var(--font-size-caption, 11px); }
+
+label.zeile {
+	display: flex;
+	align-items: flex-start;
+	gap: 8px;
+	padding: 3px 0;
+	cursor: pointer;
+}
+
+label.zeile input { margin-top: 3px; }
+
+label.zeile input[type="checkbox"], label.zeile input[type="radio"] { margin: 0; accent-color: var(--color-button); }
+
+.regler { display: grid; grid-template-columns: 1fr auto; gap: 2px 8px; align-items: center; padding: 5px 0; }
+.regler > span:first-child { font-size: var(--font-size-caption, 11px); color: var(--color-text-muted); }
+.regler output { font-variant-numeric: tabular-nums; font-size: var(--font-size-caption, 11px); color: var(--color-text-strong); }
+.regler input[type="range"] { grid-column: 1 / -1; width: 100%; accent-color: var(--color-button); }
+
+select {
+	width: 100%;
+	font: inherit;
+	font-size: var(--font-size-select, 14px);
+	padding: 5px 8px;
+	border: 1px solid var(--color-button-soft-border);
+	border-radius: var(--radius-md, 6px);
+	background: var(--color-panel);
+	color: var(--color-text);
+}
+
+.kartenspalte { position: relative; display: flex; flex-direction: column; min-width: 0; }
+#karte { flex: 1 1 auto; min-height: 0; background: #cfc6b2; }
+
+.ablesung {
+	flex: 0 0 auto;
+	border-top: 1px solid var(--color-divider);
+	background: var(--color-panel);
+	padding: 9px 16px;
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px 18px;
+	align-items: center;
+	font-size: var(--font-size-caption, 11px);
+}
+
+.ablesung b { font-weight: 400; color: var(--color-text-muted); }
+.ablesung span { color: var(--color-text-strong); font-variant-numeric: tabular-nums; }
+
+.marke {
+	display: inline-block;
+	padding: 1px 8px;
+	border-radius: var(--radius-md, 6px);
+	border: 1px solid var(--color-button-soft-border);
+	background: var(--color-button-soft);
+}
+
+.marke--warn { background: #f6e6cd; border-color: #d9b678; color: #6b4a12; }
+.marke--gut { background: #e3ecd8; border-color: #a9bf8d; color: #3d5225; }
+
+/* ---------- Ansicht „Alle sechs" ---------- */
+/* Hoechstens drei Spalten. Bei sechs nebeneinander landet fitBounds auf Zoom 1 -- und dort zeigt
+   die echte Karte diese Labels ueberhaupt nicht (min_zoom 2 bzw. 4). Eine Kachel, die einen
+   Zustand zeigt, den es nicht gibt, ist keine Abnahme. */
+.galerie {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(420px, 1fr));
+	gap: 16px;
+	padding: 18px 22px 32px;
+	max-width: 1580px;
+}
+
+.kachel {
+	background: var(--color-panel);
+	border: 1px solid var(--color-divider);
+	border-radius: var(--radius-md, 6px);
+	overflow: hidden;
+}
+
+.kachel h3 {
+	margin: 0;
+	padding: 9px 12px;
+	font-size: var(--font-size-body, 13px);
+	font-weight: 400;
+	color: var(--color-text-strong);
+	border-bottom: 1px solid var(--color-divider);
+	display: flex;
+	justify-content: space-between;
+	gap: 10px;
+	align-items: baseline;
+}
+
+.kachel h3 em { font-style: normal; font-size: var(--font-size-caption, 11px); color: var(--color-text-muted); }
+.kachel .karte { height: 380px; background: #cfc6b2; }
+
+/* Die zwei Bedienelemente je Kachel -- dieselben, die der Editor später bekommt. */
+.kachelsteuerung {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 4px 18px;
+	padding: 7px 12px;
+	background: var(--color-panel-soft);
+	border-bottom: 1px solid var(--color-divider);
+	font-size: var(--font-size-caption, 11px);
+}
+
+.kachelsteuerung label.zeile { padding: 0; }
+
+.zeile--zahl { gap: 8px; align-items: center; }
+.zeile--zahl > span { flex: 1 1 auto; }
+
+.zeile--zahl input[type="number"] {
+	flex: 0 0 auto;
+	width: 56px;
+	font: inherit;
+	font-size: var(--font-size-control, 12px);
+	padding: 3px 6px;
+	border: 1px solid var(--color-button-soft-border);
+	border-radius: var(--radius-md, 6px);
+	background: var(--color-panel);
+	color: var(--color-text);
+}
+.kachel .fuss { padding: 7px 12px; font-size: var(--font-size-caption, 11px); color: var(--color-text-muted); border-top: 1px solid var(--color-divider); }
+
+/* ---------- Die Beschriftungen selbst ---------- */
+.kurven-overlay { position: absolute; inset: 0; z-index: 500; pointer-events: none; }
+.kurven-overlay.stumm { visibility: hidden; }
+
+.dbg-flaeche { fill: rgba(143, 115, 38, 0.16); stroke: rgba(90, 72, 24, 0.55); stroke-width: 1; }
+.dbg-netz { fill: none; stroke: rgba(90, 72, 24, 0.22); stroke-width: 0.5; }
+.dbg-rohachse { fill: none; stroke: #b0552a; stroke-width: 1.2; stroke-dasharray: 3 3; }
+.dbg-kurve { fill: none; stroke: #8f7326; stroke-width: 1.6; opacity: 0.55; }
+/* Die Linie, auf der der Text WIRKLICH sitzt -- nach ruhigstem Fenster und Beruhigung. */
+.dbg-basis { fill: none; stroke: #b0552a; stroke-width: 2.2; }
+.dbg-anker { fill: #b0552a; }
+
+/* Naturgetreu zur Karte: Farbe, Kapitaelchen und Sperrung kommen aus css/features/map-labels.css,
+   der Halo aus getLabelHaloParams(1.5, 0.25) in js/map-features/map-features-labels.js. Das echte
+   Label ist ein Canvas-Bild; hier steht SVG-Text mit paint-order + drop-shadow -- optisch nah,
+   nicht identisch. */
+.beschriftung {
+	font-family: "Faculty Glyphic", Georgia, "Times New Roman", serif;
+	letter-spacing: 0.02em;
+	paint-order: stroke fill;
+	stroke: rgba(0, 0, 0, 0.95);
+	stroke-linejoin: round;
+}
+
+.beschriftung--gebirge { fill: #e2ddd2; text-transform: uppercase; }
+.beschriftung--wald { fill: #bfeec8; }
+.beschriftung--heute { opacity: 0.95; }
+.beschriftung--heute.gedimmt { opacity: 0.34; }
+
+.hinweiskasten {
+	margin: 0 22px 18px;
+	padding: 12px 14px;
+	border: 1px solid var(--color-divider);
+	border-left: 3px solid var(--color-accent-brown, #8f7326);
+	border-radius: var(--radius-md, 6px);
+	background: var(--color-panel-soft);
+	font-size: var(--font-size-small, 12px);
+	max-width: 110ch;
+}
+
+.hinweiskasten h2 { margin: 0 0 6px; font-size: var(--font-size-body, 13px); font-weight: 400; color: var(--color-text-strong); }
+.hinweiskasten ul { margin: 6px 0 0; padding-left: 18px; }
+.hinweiskasten li { margin: 3px 0; }
+</style>
+</head>
+<body>
+
+<header class="kopf">
+	<h1>Mockup — Kurvenbeschriftung statt fester Labeldrehung</h1>
+	<p>
+		Verfahren nach <a href="https://eox.at/2015/12/curved-labels/" target="_blank" rel="noopener">EOX, „Curved Labels"&nbsp;↗</a>:
+		Rand segmentieren → vereinfachen → Delaunay/Voronoi → Mittelachse → beste Linie wählen → glätten →
+		Schrift darauf setzen. Die sechs Flächen, die Labels und deren heutige Drehung sind am 22.08.2026 aus
+		der Live-Datenbank gemessen, nicht erfunden. Kacheln kommen von avesmaps.de.
+	</p>
+</header>
+
+<nav class="reiter" role="tablist">
+	<button role="tab" id="reiter-karte" aria-selected="true" aria-controls="blatt-karte">Karte</button>
+	<button role="tab" id="reiter-galerie" aria-selected="false" aria-controls="blatt-galerie">Alle sechs</button>
+	<button role="tab" id="reiter-befund" aria-selected="false" aria-controls="blatt-befund">Befund</button>
+</nav>
+
+<section class="blatt aktiv" id="blatt-karte" role="tabpanel">
+	<div class="karten-layout">
+		<aside class="steuerung">
+			<div class="gruppe">
+				<h2>Fläche</h2>
+				<div class="flaechenwahl" id="flaechenwahl"></div>
+			</div>
+
+			<div class="gruppe gruppe--editor">
+				<h2>Was der Editor später sieht</h2>
+				<label class="zeile"><input type="checkbox" id="c-kurvenlabel" checked> <span>Kurvenbeschriftung</span></label>
+				<label class="zeile zeile--zahl"><span>Maximale Anzahl der Labels</span><input type="number" id="n-max" min="1" max="6" step="1" value="1"></label>
+				<p class="notiz">Mehr nicht, und beides gilt <b>pro Fläche</b>. Alles unter dieser Linie zieht
+				in die Kachel „Darstellung“ des Editorbands um — dort für Admins einstellbar, für Editoren
+				nur sichtbar (Owner 22.08.2026, Muster: „Zoombänder“).</p>
+			</div>
+
+			<div class="gruppe">
+				<h2>Werkstatt — was gezeichnet wird</h2>
+				<label class="zeile"><input type="checkbox" id="c-heute" checked> Label heute (feste Drehung)</label>
+				<label class="zeile"><input type="checkbox" id="c-neu" checked> Name neu (Kurve oder Gerade)</label>
+				<label class="zeile"><input type="checkbox" id="c-flaeche" checked> Fläche</label>
+				<label class="zeile"><input type="checkbox" id="c-kurve"> Kurve</label>
+				<label class="zeile"><input type="checkbox" id="c-roh"> Rohe Mittelachse</label>
+				<label class="zeile"><input type="checkbox" id="c-netz"> Dreiecksnetz</label>
+			</div>
+
+			<div class="gruppe">
+				<h2>Glättung</h2>
+				<label class="zeile" style="display:block">
+					<select id="s-modus">
+						<option value="poly3">Polynom, Grad 3</option>
+						<option value="poly2">Polynom, Grad 2 (eine Biegung)</option>
+						<option value="poly4">Polynom, Grad 4</option>
+						<option value="mittel">Gleitender Mittelwert</option>
+					</select>
+				</label>
+				<div class="regler">
+					<span>Begradigung</span><output id="o-gerade">0 %</output>
+					<input type="range" id="r-gerade" min="0" max="100" step="5" value="0">
+				</div>
+				<div class="regler">
+					<span>Randvereinfachung</span><output id="o-tol">0,30</output>
+					<input type="range" id="r-tol" min="0" max="200" step="5" value="155">
+				</div>
+				<div class="regler">
+					<span>Stützpunktabstand</span><output id="o-dicht">1,00</output>
+					<input type="range" id="r-dicht" min="30" max="400" step="10" value="30">
+				</div>
+			</div>
+
+			<div class="gruppe">
+				<h2>Teilflächen</h2>
+				<label class="zeile"><input type="radio" name="teil" value="verbinden" checked> <span>Alle wesentlichen zu einer Kurve verbinden</span></label>
+				<label class="zeile"><input type="radio" name="teil" value="groesste"> Nur die größte</label>
+				<label class="zeile"><input type="radio" name="teil" value="einzeln"> Jede einzeln beschriften</label>
+				<div class="regler">
+					<span>zählt ab Anteil an der Gesamtfläche</span><output id="o-anteil">2 %</output>
+					<input type="range" id="r-anteil" min="0" max="40" step="1" value="2">
+				</div>
+			</div>
+
+			<div class="gruppe">
+				<h2>Mehrere Labels auf einer Kurve</h2>
+				<label class="zeile"><input type="radio" name="mehr" value="teilen" checked> Kurve gleichmäßig aufteilen</label>
+				<label class="zeile"><input type="radio" name="mehr" value="wiederholen"> So oft wiederholen, wie es passt</label>
+			</div>
+
+			<div class="gruppe">
+				<h2>Passung und Leserichtung</h2>
+				<div class="regler">
+					<span>max. Verdrehung gegen die Sehne</span><output id="o-maxdreh">30°</output>
+					<input type="range" id="r-maxdreh" min="5" max="90" step="5" value="30">
+				</div>
+				<div class="regler">
+					<span>Sperrung höchstens (× Schriftgröße je Lücke)</span><output id="o-sperrdeckel">0,60</output>
+					<input type="range" id="r-sperrdeckel" min="0" max="300" step="10" value="60">
+				</div>
+				<div class="regler">
+					<span>Kurve verlängern höchstens</span><output id="o-verlaengern">30 %</output>
+					<input type="range" id="r-verlaengern" min="0" max="150" step="5" value="30">
+				</div>
+				<div class="regler">
+					<span>Sperrung über die Fläche ziehen (höchstens 50 %)</span><output id="o-dehnung">0 %</output>
+					<input type="range" id="r-dehnung" min="0" max="50" step="5" value="20">
+				</div>
+				<label class="zeile"><input type="checkbox" id="c-schrumpf" checked> Schrift verkleinern, bis der Name passt</label>
+				<label class="zeile"><input type="checkbox" id="c-kollision" checked> <span>Kollidierende Labels abbauen</span></label>
+				<div class="regler">
+					<span>Mindestabstand zweier Namen (× Schriftgröße)</span><output id="o-abstand">2,00</output>
+					<input type="range" id="r-abstand" min="0" max="800" step="10" value="200">
+				</div>
+			</div>
+		</aside>
+
+		<div class="kartenspalte">
+			<div id="karte"></div>
+			<div class="ablesung" id="ablesung"></div>
+		</div>
+	</div>
+</section>
+
+<section class="blatt" id="blatt-galerie" role="tabpanel">
+	<div class="hinweiskasten">
+		<h2>Alle sechs nebeneinander, jede auf ihren eigenen Ausschnitt gezoomt</h2>
+		Jede Kachel trägt die <b>zwei Bedienelemente, die der Editor später bekommt</b> — sie gehören der
+		Fläche, nicht der Seite, und lassen sich hier einzeln verstellen. Die Werkstattregler im Reiter
+		„Karte" gelten weiterhin für alle. Blass das Label, wie es heute steht — hell das neue.
+		<div class="regler" style="max-width:320px">
+			<span>Ausschnitt — Stufen näher als „passend"</span><output id="o-galzoom">+1</output>
+			<input type="range" id="r-galzoom" min="0" max="3" step="1" value="1">
+		</div>
+		⚠️ Die Kachel zeigt sonst gern Zoom 1, und dort blendet die echte Karte diese Labels überhaupt nicht
+		ein (<code>min_zoom</code> 2 bei den Gebirgen, 4 bei den Hangwäldern).
+	</div>
+	<div class="galerie" id="galerie"></div>
+</section>
+
+<section class="blatt" id="blatt-befund" role="tabpanel">
+	<div class="hinweiskasten" id="befund"></div>
+</section>
+
+<script src="../js/third-party/leaflet.js"></script>
+<script src="kurvenlabel-referenzdaten.js"></script>
+<script>
+/* ==========================================================================================
+   Teil 1 — Das Verfahren. Reines JS, keine Abhaengigkeit.
+   segmentieren -> vereinfachen -> Delaunay -> Innendreiecke -> Chordal Axis -> laengster Pfad
+   -> glaetten. Alles in KARTENkoordinaten [x, y]; die Projektion auf den Schirm kommt spaeter
+   und ist bei L.CRS.Simple eine reine Aehnlichkeitsabbildung, die Kurve also zoomunabhaengig.
+   ========================================================================================== */
+(function (root) {
+"use strict";
+
+function dist(a, b) { const dx = a[0] - b[0], dy = a[1] - b[1]; return Math.hypot(dx, dy); }
+
+function ringArea(ring) {
+	let s = 0;
+	for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+		s += (ring[j][0] * ring[i][1]) - (ring[i][0] * ring[j][1]);
+	}
+	return s / 2;
+}
+
+function pointInRing(pt, ring) {
+	let inside = false;
+	const x = pt[0], y = pt[1];
+	for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+		const xi = ring[i][0], yi = ring[i][1], xj = ring[j][0], yj = ring[j][1];
+		if (((yi > y) !== (yj > y)) && (x < (xj - xi) * (y - yi) / (yj - yi) + xi)) inside = !inside;
+	}
+	return inside;
+}
+
+// rings[0] = Aussenring, rings[1..] = Loecher.
+function pointInPolygon(pt, rings) {
+	if (!pointInRing(pt, rings[0])) return false;
+	for (let i = 1; i < rings.length; i += 1) if (pointInRing(pt, rings[i])) return false;
+	return true;
+}
+
+// ---------- Schritt 2: vereinfachen (Douglas-Peucker) ----------
+function dp(pts, tol) {
+	if (pts.length < 3) return pts.slice();
+	const keep = new Uint8Array(pts.length); keep[0] = 1; keep[pts.length - 1] = 1;
+	const stack = [[0, pts.length - 1]];
+	while (stack.length) {
+		const seg = stack.pop();
+		const s = seg[0], e = seg[1];
+		let maxD = -1, idx = -1;
+		const ax = pts[s][0], ay = pts[s][1], bx = pts[e][0], by = pts[e][1];
+		const dx = bx - ax, dy = by - ay, len2 = dx * dx + dy * dy;
+		for (let i = s + 1; i < e; i += 1) {
+			const px = pts[i][0] - ax, py = pts[i][1] - ay;
+			let d;
+			if (len2 === 0) d = Math.hypot(px, py);
+			else { let t = (px * dx + py * dy) / len2; t = Math.max(0, Math.min(1, t)); d = Math.hypot(px - t * dx, py - t * dy); }
+			if (d > maxD) { maxD = d; idx = i; }
+		}
+		if (maxD > tol && idx > 0) { keep[idx] = 1; stack.push([s, idx], [idx, e]); }
+	}
+	const out = [];
+	for (let i = 0; i < pts.length; i += 1) if (keep[i]) out.push(pts[i]);
+	return out;
+}
+
+function simplifyRing(ring, tol) {
+	if (tol <= 0 || ring.length < 5) return ring;
+	const closed = dist(ring[0], ring[ring.length - 1]) < 1e-9;
+	const pts = closed ? ring.slice(0, -1) : ring.slice();
+	if (pts.length < 5) return ring;
+	// Ein geschlossener Ring hat keine natuerlichen Enden fuer DP -> die zwei am weitesten
+	// auseinander liegenden Punkte als Anker nehmen und beide Haelften einzeln vereinfachen.
+	let a = 0, b = 0, best = -1;
+	for (let i = 1; i < pts.length; i += 1) { const d = dist(pts[0], pts[i]); if (d > best) { best = d; b = i; } }
+	best = -1;
+	for (let i = 0; i < pts.length; i += 1) { const d = dist(pts[b], pts[i]); if (d > best) { best = d; a = i; } }
+	const lo = Math.min(a, b), hi = Math.max(a, b);
+	if (hi - lo < 2 || (pts.length - (hi - lo)) < 2) return ring;
+	const s1 = dp(pts.slice(lo, hi + 1), tol);
+	const s2 = dp(pts.slice(hi).concat(pts.slice(0, lo + 1)), tol);
+	const out = s1.concat(s2.slice(1, -1));
+	return out.length >= 3 ? out.concat([out[0]]) : ring;
+}
+
+// ---------- Schritt 1: segmentieren ----------
+function densifyRing(ring, spacing) {
+	const out = [];
+	for (let i = 0; i < ring.length - 1; i += 1) {
+		const a = ring[i], b = ring[i + 1];
+		const d = dist(a, b);
+		out.push(a);
+		if (d > spacing) {
+			const n = Math.floor(d / spacing);
+			for (let k = 1; k <= n; k += 1) {
+				const t = k / (n + 1);
+				out.push([a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t]);
+			}
+		}
+	}
+	return out;
+}
+
+// ---------- Schritt 3: Delaunay (Bowyer-Watson) ----------
+function circumcircle(ax, ay, bx, by, cx, cy) {
+	const d = 2 * (ax * (by - cy) + bx * (cy - ay) + cx * (ay - by));
+	if (Math.abs(d) < 1e-12) return null;
+	const a2 = ax * ax + ay * ay, b2 = bx * bx + by * by, c2 = cx * cx + cy * cy;
+	const ux = (a2 * (by - cy) + b2 * (cy - ay) + c2 * (ay - by)) / d;
+	const uy = (a2 * (cx - bx) + b2 * (ax - cx) + c2 * (bx - ax)) / d;
+	return { x: ux, y: uy, r2: (ax - ux) * (ax - ux) + (ay - uy) * (ay - uy) };
+}
+
+function makeTri(pts, a, b, c) {
+	return { a: a, b: b, c: c, cc: circumcircle(pts[a][0], pts[a][1], pts[b][0], pts[b][1], pts[c][0], pts[c][1]) };
+}
+
+function delaunay(points) {
+	const n = points.length;
+	if (n < 3) return [];
+	let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+	for (const p of points) { if (p[0] < minX) minX = p[0]; if (p[0] > maxX) maxX = p[0]; if (p[1] < minY) minY = p[1]; if (p[1] > maxY) maxY = p[1]; }
+	const dm = Math.max(maxX - minX || 1, maxY - minY || 1) * 20;
+	const mx = (minX + maxX) / 2, my = (minY + maxY) / 2;
+	const pts = points.concat([[mx - dm, my - dm], [mx + dm, my - dm], [mx, my + dm]]);
+	let tris = [makeTri(pts, n, n + 1, n + 2)];
+	for (let i = 0; i < n; i += 1) {
+		const px = pts[i][0], py = pts[i][1];
+		const bad = [], good = [];
+		for (const t of tris) {
+			if (t.cc && ((px - t.cc.x) * (px - t.cc.x) + (py - t.cc.y) * (py - t.cc.y)) <= t.cc.r2 + 1e-9) bad.push(t); else good.push(t);
+		}
+		const edgeCount = new Map();
+		for (const t of bad) {
+			for (const e of [[t.a, t.b], [t.b, t.c], [t.c, t.a]]) {
+				const k = e[0] < e[1] ? e[0] + "," + e[1] : e[1] + "," + e[0];
+				const cur = edgeCount.get(k);
+				if (cur) cur.n += 1; else edgeCount.set(k, { n: 1, a: e[0], b: e[1] });
+			}
+		}
+		tris = good;
+		for (const rec of edgeCount.values()) if (rec.n === 1) tris.push(makeTri(pts, rec.a, rec.b, i));
+	}
+	const out = [];
+	for (const t of tris) if (t.a < n && t.b < n && t.c < n) out.push([t.a, t.b, t.c]);
+	return out;
+}
+
+// ---------- Schritt 3b: Mittelachse aus den Innendreiecken (Chordal Axis) ----------
+function chordalAxis(points, tris, rings) {
+	const inner = [];
+	for (const t of tris) {
+		const a = t[0], b = t[1], c = t[2];
+		const cx = (points[a][0] + points[b][0] + points[c][0]) / 3;
+		const cy = (points[a][1] + points[b][1] + points[c][1]) / 3;
+		if (!pointInPolygon([cx, cy], rings)) continue;
+		// 💣 Der Schwerpunkt allein genuegt nicht: ein Dreieck ueber einer Bucht kann ihn drinnen
+		// haben und trotzdem draussen verlaufen. Also auch die drei Kantenmitten pruefen -- ABER
+		// ein Stueck zum Schwerpunkt hin gerueckt. Die Mitte einer RANDkante liegt exakt auf der
+		// Polygonlinie, und dort ist der Strahlentest eine Muenze; ungerueckt fiel jedes
+		// randstaendige Dreieck heraus und die Mittelachse zerfiel in Splitter (gemessen an den
+		// Drachensteinen: Rohachse 2,2 statt 139 Einheiten). Eine Sehne UEBER eine Bucht holt der
+		// Ruck nicht herein, dafuer sind 5 % zu wenig.
+		// 💣 Und KEIN Deckel auf die Kantenlaenge: im Inneren einer breiten Flaeche sind die
+		// Dreiecke von Natur aus gross -- ein Laengendeckel loescht genau die Achse, die man sucht.
+		const nud = function (px, py) { return [px + (cx - px) * 0.05, py + (cy - py) * 0.05]; };
+		if (!pointInPolygon(nud((points[a][0] + points[b][0]) / 2, (points[a][1] + points[b][1]) / 2), rings)) continue;
+		if (!pointInPolygon(nud((points[b][0] + points[c][0]) / 2, (points[b][1] + points[c][1]) / 2), rings)) continue;
+		if (!pointInPolygon(nud((points[c][0] + points[a][0]) / 2, (points[c][1] + points[a][1]) / 2), rings)) continue;
+		inner.push({ v: t, cx: cx, cy: cy });
+	}
+	const edgeKey = function (i, j) { return i < j ? i + "," + j : j + "," + i; };
+	const edgeUse = new Map();
+	for (let ti = 0; ti < inner.length; ti += 1) {
+		const v = inner[ti].v;
+		for (const e of [[v[0], v[1]], [v[1], v[2]], [v[2], v[0]]]) {
+			const k = edgeKey(e[0], e[1]);
+			const cur = edgeUse.get(k);
+			if (cur) cur.push(ti); else edgeUse.set(k, [ti]);
+		}
+	}
+	const nodes = [], adj = [], nodeIdx = new Map();
+	function addNode(key, x, y) {
+		if (nodeIdx.has(key)) return nodeIdx.get(key);
+		const id = nodes.length; nodes.push([x, y]); nodeIdx.set(key, id); adj.push([]); return id;
+	}
+	function link(u, v) {
+		const w = dist(nodes[u], nodes[v]);
+		adj[u].push([v, w]); adj[v].push([u, w]);
+	}
+	// Ein Dreieck mit 3 inneren Kanten ist eine Verzweigung (Stern ueber den Schwerpunkt),
+	// mit 2 ein Durchgang, mit 1 eine Spitze (bis zur gegenueberliegenden Ecke).
+	for (let ti = 0; ti < inner.length; ti += 1) {
+		const v = inner[ti].v;
+		const a = v[0], b = v[1], c = v[2];
+		const shared = [];
+		for (const e of [[a, b], [b, c], [c, a]]) if ((edgeUse.get(edgeKey(e[0], e[1])) || []).length === 2) shared.push(e);
+		if (shared.length === 0) continue;
+		const midId = function (e) {
+			return addNode("e" + edgeKey(e[0], e[1]), (points[e[0]][0] + points[e[1]][0]) / 2, (points[e[0]][1] + points[e[1]][1]) / 2);
+		};
+		if (shared.length === 3) {
+			const cId = addNode("t" + ti, inner[ti].cx, inner[ti].cy);
+			for (const e of shared) link(cId, midId(e));
+		} else if (shared.length === 2) {
+			link(midId(shared[0]), midId(shared[1]));
+		} else {
+			const e = shared[0];
+			const apex = [a, b, c].filter(function (x) { return x !== e[0] && x !== e[1]; })[0];
+			link(midId(e), addNode("v" + apex, points[apex][0], points[apex][1]));
+		}
+	}
+	return { nodes: nodes, adj: adj, innerTris: inner };
+}
+
+// ---------- Schritt 4: die „beste" Mittellinie = laengster Pfad ----------
+function farthest(nodes, adj, start) {
+	const n = nodes.length;
+	const dists = new Float64Array(n).fill(Infinity);
+	const prev = new Int32Array(n).fill(-1);
+	const done = new Uint8Array(n);
+	dists[start] = 0;
+	for (;;) {
+		let u = -1, bd = Infinity;
+		for (let i = 0; i < n; i += 1) if (!done[i] && dists[i] < bd) { bd = dists[i]; u = i; }
+		if (u < 0) break;
+		done[u] = 1;
+		for (const e of adj[u]) if (dists[u] + e[1] < dists[e[0]]) { dists[e[0]] = dists[u] + e[1]; prev[e[0]] = u; }
+	}
+	let best = start, bd = -1;
+	for (let i = 0; i < n; i += 1) if (dists[i] < Infinity && dists[i] > bd) { bd = dists[i]; best = i; }
+	return { node: best, prev: prev };
+}
+
+function longestPath(nodes, adj) {
+	if (!nodes.length) return [];
+	const a = farthest(nodes, adj, 0);
+	const b = farthest(nodes, adj, a.node);
+	const path = [];
+	let cur = b.node, guard = 0;
+	while (cur !== -1 && guard++ < nodes.length + 5) { path.push(nodes[cur]); cur = b.prev[cur]; }
+	return path.reverse();
+}
+
+// ---------- Schritt 5: glaetten ----------
+function lineLength(line) {
+	let L = 0;
+	for (let i = 1; i < line.length; i += 1) L += dist(line[i - 1], line[i]);
+	return L;
+}
+
+function resample(line, n) {
+	if (line.length < 2) return line.slice();
+	const cum = [0];
+	for (let i = 1; i < line.length; i += 1) cum.push(cum[i - 1] + dist(line[i - 1], line[i]));
+	const L = cum[cum.length - 1];
+	if (L <= 0) return line.slice();
+	const out = [];
+	let seg = 1;
+	for (let k = 0; k < n; k += 1) {
+		const target = (L * k) / (n - 1);
+		while (seg < cum.length - 1 && cum[seg] < target) seg += 1;
+		const t = (target - cum[seg - 1]) / ((cum[seg] - cum[seg - 1]) || 1);
+		out.push([
+			line[seg - 1][0] + (line[seg][0] - line[seg - 1][0]) * t,
+			line[seg - 1][1] + (line[seg][1] - line[seg - 1][1]) * t,
+		]);
+	}
+	return out;
+}
+
+function movingAverage(line, passes, win) {
+	let cur = line.map(function (p) { return p.slice(); });
+	for (let p = 0; p < passes; p += 1) {
+		const src = cur;
+		cur = src.map(function (pt, i) {
+			let sx = 0, sy = 0, c = 0;
+			for (let k = -win; k <= win; k += 1) {
+				const j = i + k;
+				if (j < 0 || j >= src.length) continue;
+				sx += src[j][0]; sy += src[j][1]; c += 1;
+			}
+			return [sx / c, sy / c];
+		});
+	}
+	return cur;
+}
+
+// Polynom-Fit im Hauptachsen-Frame. Die ruhigste aller Glaettungen, weil das Ergebnis von Bauart
+// her EINE weiche Biegung ist und kein geglaetteter Zickzack -- Schrift auf einem Zickzack ist
+// unlesbar, lange bevor die Kurve „falsch" waere.
+function polyFit(line, degree) {
+	const n = line.length;
+	if (n < degree + 2) return line.slice();
+	let mx = 0, my = 0;
+	for (const p of line) { mx += p[0]; my += p[1]; }
+	mx /= n; my /= n;
+	let sxx = 0, sxy = 0, syy = 0;
+	for (const p of line) { const dx = p[0] - mx, dy = p[1] - my; sxx += dx * dx; sxy += dx * dy; syy += dy * dy; }
+	const theta = 0.5 * Math.atan2(2 * sxy, sxx - syy);
+	const ct = Math.cos(theta), st = Math.sin(theta);
+	const U = [], V = [];
+	for (const p of line) { const dx = p[0] - mx, dy = p[1] - my; U.push(dx * ct + dy * st); V.push(-dx * st + dy * ct); }
+	const m = degree + 1;
+	const A = [];
+	for (let r = 0; r < m; r += 1) A.push(new Float64Array(m + 1));
+	for (let i = 0; i < n; i += 1) {
+		const pw = [1];
+		for (let k = 1; k < 2 * m; k += 1) pw.push(pw[k - 1] * U[i]);
+		for (let r = 0; r < m; r += 1) {
+			for (let c = 0; c < m; c += 1) A[r][c] += pw[r + c];
+			A[r][m] += pw[r] * V[i];
+		}
+	}
+	for (let col = 0; col < m; col += 1) {
+		let piv = col;
+		for (let r = col + 1; r < m; r += 1) if (Math.abs(A[r][col]) > Math.abs(A[piv][col])) piv = r;
+		if (Math.abs(A[piv][col]) < 1e-12) return line.slice();
+		const tmp = A[col]; A[col] = A[piv]; A[piv] = tmp;
+		for (let r = 0; r < m; r += 1) {
+			if (r === col) continue;
+			const f = A[r][col] / A[col][col];
+			for (let c = col; c <= m; c += 1) A[r][c] -= f * A[col][c];
+		}
+	}
+	const coef = [];
+	for (let r = 0; r < m; r += 1) coef.push(A[r][m] / A[r][r]);
+	const out = [];
+	for (let i = 0; i < n; i += 1) {
+		let v = 0, p = 1;
+		for (let k = 0; k < m; k += 1) { v += coef[k] * p; p *= U[i]; }
+		out.push([mx + U[i] * ct - v * st, my + U[i] * st + v * ct]);
+	}
+	return out;
+}
+
+// 💣 Ein Gebirge ist selten EINE Flaeche. Die Koschberge liegen in zwei Lappen (59 % / 41 %), und
+// die Mittelachse der groesseren allein endet mitten im Gebirge -- das Label beschriftet dann die
+// halbe Kette. Deshalb: die Mittelachsen ALLER wesentlichen Teile als EINE Punktwolke nehmen und
+// EIN Polynom hindurchlegen. Die Luecke zwischen den Lappen ueberbrueckt die Kurve von selbst,
+// weil sie ueber die Hauptachse parametrisiert ist und nicht ueber die Flaeche laeuft.
+// ⚠️ Das ist bewusst nur fuer die BESCHRIFTUNG richtig, nicht als Geometrie: die Kurve verlaesst
+// zwischen zwei Lappen die Flaeche. Genau das tut eine Kartenbeschriftung auch.
+function polyFitSpanning(clouds, degree, samples) {
+	const pts = [];
+	for (const c of clouds) for (const p of c) pts.push(p);
+	const n = pts.length;
+	if (n < degree + 2) return null;
+	let mx = 0, my = 0;
+	for (const p of pts) { mx += p[0]; my += p[1]; }
+	mx /= n; my /= n;
+	let sxx = 0, sxy = 0, syy = 0;
+	for (const p of pts) { const dx = p[0] - mx, dy = p[1] - my; sxx += dx * dx; sxy += dx * dy; syy += dy * dy; }
+	const theta = 0.5 * Math.atan2(2 * sxy, sxx - syy);
+	const ct = Math.cos(theta), st = Math.sin(theta);
+	const paare = pts.map(function (p) {
+		const dx = p[0] - mx, dy = p[1] - my;
+		return [dx * ct + dy * st, -dx * st + dy * ct];
+	}).sort(function (a, b) { return a[0] - b[0]; });
+	const gefittet = polyFit(paare.map(function (uv) { return [mx + uv[0] * ct - uv[1] * st, my + uv[0] * st + uv[1] * ct]; }), degree);
+	return resample(gefittet, samples);
+}
+
+function straighten(line, amount) {
+	if (amount <= 0 || line.length < 2) return line;
+	const a = line[0], b = line[line.length - 1];
+	const cum = [0];
+	for (let i = 1; i < line.length; i += 1) cum.push(cum[i - 1] + dist(line[i - 1], line[i]));
+	const L = cum[cum.length - 1] || 1;
+	return line.map(function (p, i) {
+		const t = cum[i] / L;
+		return [p[0] + (a[0] + (b[0] - a[0]) * t - p[0]) * amount, p[1] + (a[1] + (b[1] - a[1]) * t - p[1]) * amount];
+	});
+}
+
+function centerlineForRings(rings, opts) {
+	const o = Object.assign({ spacing: 1.0, simplifyTol: 0.3, mode: "poly", polyDegree: 3, smoothPasses: 4, smoothWindow: 3, samples: 120, straighten: 0 }, opts || {});
+	const simplified = rings.map(function (r) { return simplifyRing(r, o.simplifyTol); });
+	let pts = [];
+	for (const r of simplified) pts = pts.concat(densifyRing(r, o.spacing));
+	const seen = new Set(), uniq = [];
+	for (const p of pts) { const k = p[0].toFixed(4) + "," + p[1].toFixed(4); if (!seen.has(k)) { seen.add(k); uniq.push(p); } }
+	if (uniq.length < 4) return null;
+	const tris = delaunay(uniq);
+	const axis = chordalAxis(uniq, tris, simplified);
+	if (!axis.nodes.length) return null;
+	const raw = longestPath(axis.nodes, axis.adj);
+	if (raw.length < 2) return null;
+	let line = resample(raw, o.samples);
+	line = o.mode === "mittel" ? movingAverage(line, o.smoothPasses, o.smoothWindow) : polyFit(line, o.polyDegree);
+	line = straighten(line, o.straighten);
+	return { line: line, raw: raw, axis: axis, points: uniq, tris: tris, rings: simplified, length: lineLength(line) };
+}
+
+function geometryParts(geoms) {
+	const out = [];
+	for (const g of geoms) {
+		const polys = g.type === "Polygon" ? [g.coordinates] : g.coordinates;
+		for (const rings of polys) out.push({ rings: rings, area: Math.abs(ringArea(rings[0])) });
+	}
+	return out.sort(function (a, b) { return b.area - a.area; });
+}
+
+root.AvesKurve = {
+	dist: dist, ringArea: ringArea, pointInPolygon: pointInPolygon, lineLength: lineLength,
+	resample: resample, centerlineForRings: centerlineForRings, geometryParts: geometryParts,
+	polyFitSpanning: polyFitSpanning, straighten: straighten,
+};
+})(window);
+
+/* ==========================================================================================
+   Teil 2 — Das Mockup.
+   ========================================================================================== */
+(function () {
+"use strict";
+
+const K = window.AvesKurve;
+const NS = "http://www.w3.org/2000/svg";
+const DATEN = window.KURVEN_REFERENZ;
+
+// Farbe/Kapitaelchen kommen aus css/features/map-labels.css (siehe .beschriftung--*).
+// Die GROESSE kommt aus getScaledLabelSize() in js/map-features/map-features-labels.js --
+// hier nachgebaut, damit der Vergleich „heute gegen Kurve" bei jeder Zoomstufe stimmt.
+const VISUAL_MAX_ZOOM_LEVEL = 5;
+
+function skalierteLabelgroesse(basis, zoom) {
+	const visuell = Math.max(0, Math.min(VISUAL_MAX_ZOOM_LEVEL, Math.round(zoom)));
+	const b = Math.max(10, Math.min(56, Number(basis) || 18));
+	return Math.round(b * (0.5 + (visuell / VISUAL_MAX_ZOOM_LEVEL) * 0.5));
+}
+
+const zustand = {
+	flaeche: 0,
+	modus: "poly3",
+	gerade: 0,
+	tol: 1.55,
+	dichte: 0.30,
+	teilflaechen: "verbinden", // verbinden | groesste | einzeln
+	mindestanteil: 0.02,
+	mehr: "teilen",
+	anzahl: 0, // 0 = so viele wie es Labels gibt
+	dehnung: 0.20,
+	maxdreh: 30,
+	sperrdeckel: 0.6,
+	verlaengern: 0.30,
+	galzoom: 1,
+	heute: true, neu: true, zeigeFlaeche: true, kurve: false, roh: false, netz: false,
+	schrumpf: true, kollision: true, abstand: 2.0,
+};
+
+// ---------- Textbreite messen, mit derselben Schrift wie die Karte ----------
+const messCtx = document.createElement("canvas").getContext("2d");
+
+function textbreite(text, groesse) {
+	messCtx.font = groesse + 'px "Faculty Glyphic", Georgia, "Times New Roman", serif';
+	// Sperrung 0.02em -- canvas kann sie erst seit Kurzem selbst, deshalb immer nachrechnen.
+	if ("letterSpacing" in messCtx) messCtx.letterSpacing = "0px";
+	return messCtx.measureText(text).width + groesse * 0.02 * Math.max(0, text.length - 1);
+}
+
+// 🔴 Die zwei Werte, die spaeter dem EDITOR gehoeren, haengen an der FLAECHE, nicht an der Seite
+// (Owner 22.08.2026: „immer pro Fläche"). Alles andere ist Werkstatt und global.
+// `max` startet bei der Zahl der heute vorhandenen Labels -- das ist die Angabe, die es in den
+// Daten wirklich gibt.
+const proFlaeche = DATEN.map(function (r) {
+	return { kurve: true, max: Math.max(1, r.labels.length) };
+});
+
+function einstellung(i) { return proFlaeche[i]; }
+
+// ---------- Kurvencache: die Achse haengt nur an Geometrie + Glaettung, nicht am Zoom ----------
+// ⚠️ Und NICHT an der Zahl der Labels oder am Verteilverfahren -- die schneiden nur Stuecke aus der
+// fertigen Kurve. Sie im Schluessel zu fuehren, hiesse bei jedem Klick auf „Maximale Anzahl" die
+// ganze Triangulierung neu zu rechnen.
+const cache = new Map();
+
+function kurvenSchluessel(i) {
+	return [i, zustand.modus, zustand.gerade, zustand.tol, zustand.dichte, zustand.teilflaechen,
+		zustand.mindestanteil].join("|");
+}
+
+function berechne(i) {
+	const key = kurvenSchluessel(i);
+	if (cache.has(key)) return cache.get(key);
+	const region = DATEN[i];
+	const t0 = performance.now();
+	const teile = K.geometryParts(region.geoms);
+	const gesamt = teile.reduce(function (s, p) { return s + p.area; }, 0) || 1;
+	const opt = {
+		spacing: zustand.dichte,
+		simplifyTol: zustand.tol,
+		mode: zustand.modus === "mittel" ? "mittel" : "poly",
+		polyDegree: zustand.modus === "poly2" ? 2 : (zustand.modus === "poly4" ? 4 : 3),
+		straighten: zustand.gerade,
+	};
+	// Welche Teilflaechen zaehlen ueberhaupt? Die groesste immer, dazu jede ab dem Mindestanteil.
+	// ⚠️ Ohne diese Schwelle zieht bei „Oestlicher Hangwald des Raschtulswalls" eine von 26
+	// Streuinseln die gemeinsame Kurve schief -- 26 Teile, die groesste haelt 73 %.
+	const wesentlich = teile.filter(function (p, i) { return i === 0 || p.area / gesamt >= zustand.mindestanteil; });
+
+	const kurven = [];
+	const netzTeile = [];
+	const einzelne = [];
+	const wieViele = zustand.teilflaechen === "groesste" ? 1 : wesentlich.length;
+	for (let t = 0; t < wieViele; t += 1) {
+		const res = K.centerlineForRings(wesentlich[t].rings, opt);
+		if (!res) continue;
+		netzTeile.push(res);
+		einzelne.push({ line: res.line, raw: res.raw, anteil: wesentlich[t].area / gesamt, laenge: res.length });
+	}
+
+	if (zustand.teilflaechen === "verbinden" && einzelne.length > 1) {
+		let gemeinsam = K.polyFitSpanning(einzelne.map(function (e) { return e.line; }),
+			zustand.modus === "poly2" ? 2 : (zustand.modus === "poly4" ? 4 : 3), 120);
+		if (gemeinsam) {
+			gemeinsam = K.straighten(gemeinsam, zustand.gerade);
+			kurven.push({
+				line: gemeinsam,
+				raw: einzelne.reduce(function (acc, e) { return acc.concat(e.raw); }, []),
+				anteil: 1,
+				laenge: K.lineLength(gemeinsam),
+			});
+		}
+	}
+	if (!kurven.length) for (const e of einzelne) kurven.push(e);
+
+	const wert = {
+		kurven: kurven,
+		netz: netzTeile,
+		rohachsen: einzelne.map(function (e) { return e.raw; }),
+		teile: teile,
+		wesentlich: wesentlich.length,
+		gesamtflaeche: gesamt,
+		ms: performance.now() - t0,
+	};
+	cache.set(key, wert);
+	return wert;
+}
+
+// ---------- Kurve -> Schirm ----------
+function aufSchirm(karte, line) {
+	return line.map(function (p) {
+		const pt = karte.latLngToContainerPoint([p[1], p[0]]); // [x,y] -> [lat,lng] = [y,x]
+		return [pt.x, pt.y];
+	});
+}
+
+function dVon(line) {
+	let d = "M " + line[0][0].toFixed(2) + " " + line[0][1].toFixed(2);
+	for (let i = 1; i < line.length; i += 1) d += " L " + line[i][0].toFixed(2) + " " + line[i][1].toFixed(2);
+	return d;
+}
+
+function teilStueck(line, von, bis) {
+	// von/bis als Bogenlaenge in Schirm-Pixeln.
+	const cum = [0];
+	for (let i = 1; i < line.length; i += 1) cum.push(cum[i - 1] + Math.hypot(line[i][0] - line[i - 1][0], line[i][1] - line[i - 1][1]));
+	const L = cum[cum.length - 1];
+	von = Math.max(0, von); bis = Math.min(L, bis);
+	if (bis - von < 1) return null;
+	const punktBei = function (s) {
+		let seg = 1;
+		while (seg < cum.length - 1 && cum[seg] < s) seg += 1;
+		const t = (s - cum[seg - 1]) / ((cum[seg] - cum[seg - 1]) || 1);
+		return [line[seg - 1][0] + (line[seg][0] - line[seg - 1][0]) * t, line[seg - 1][1] + (line[seg][1] - line[seg - 1][1]) * t];
+	};
+	const out = [punktBei(von)];
+	for (let i = 0; i < line.length; i += 1) if (cum[i] > von && cum[i] < bis) out.push(line[i]);
+	out.push(punktBei(bis));
+	return out;
+}
+
+function winkelVon(a, b) { return Math.atan2(b[1] - a[1], b[0] - a[0]); }
+
+function winkelDiff(a, b) {
+	let d = a - b;
+	while (d > Math.PI) d -= 2 * Math.PI;
+	while (d < -Math.PI) d += 2 * Math.PI;
+	return d;
+}
+
+// 🔴 DIE LESERICHTUNG, in einem Satz und ohne Ausnahme (Owner 22.08.2026):
+// „kannst du nicht überprüfen ob der 1. buchstabe weiter links ist wie der letzte?"
+// Also: dx > 0, gemessen an der Sehne der Grundlinie. Sonst nichts.
+//
+// 🪤 Vorher standen hier DREI Regeln -- Gleichlauf mit der Gesamtrichtung, „nie kopfüber", und ein
+// Band von 15° um die Senkrechte, in dem von unten nach oben gelesen wurde. Das Band war der
+// Fehler: es liess ein fast senkrechtes Label mit LEICHT negativem dx durchgehen. Gemessen an der
+// Schwarzen Sichel: Sehne dx = -34 px auf 161 px Laenge, also -102° -- 12° hinter dem Kopfstand,
+// und genau so sah es aus. Eine Regel mit einem Toleranzband um die verbotene Stellung herum
+// erlaubt die verbotene Stellung.
+// ⚠️ Damit ist auch der „Gleichlauf" weg: er ist nicht mehr noetig, weil ALLE Labels links nach
+// rechts lesen -- und er war ohnehin nur dort wirksam, wo er der Lesbarkeit nicht widersprach.
+// Toleranz der Leserichtungsprobe, in PIXELN. ⚠️ Nicht zu verwechseln mit dem abgeschafften Band:
+// jenes war ein ANTEIL (0,26 der Laenge, rund 15°) und liess eine Sehne von -102° durch. Ein Pixel
+// ist keine Stellung, sondern Rundung -- innerhalb davon ist der Name senkrecht, und dann gilt die
+// kartografische Gewohnheit „von unten nach oben".
+const LESE_TOLERANZ = 1.0;
+
+function richtungWaehlen(line) {
+	if (line.length < 2) return line;
+	const dx = line[line.length - 1][0] - line[0][0];
+	if (dx < -LESE_TOLERANZ) return line.slice().reverse();
+	if (dx > LESE_TOLERANZ) return line;
+	// Senkrecht: beide Richtungen lesen sich gleich gut -> von unten nach oben.
+	return line[line.length - 1][1] > line[0][1] ? line.slice().reverse() : line;
+}
+
+// Das ruhigste Stueck der Laenge `ziel` aus einer Kurve. 💣 Ein Label darf nicht dort sitzen, wo die
+// Kurve am staerksten dreht -- genau das erzeugte den „oben verdrehten" Anfang an der Spitze der
+// Sichel und am Nordzipfel der Koschberge. Gewertet wird die Summe der Richtungsaenderungen im
+// Fenster; ein kleiner Zuschlag fuer den Abstand zur Mitte haelt das Label mittig, wo alles gleich
+// ruhig ist.
+function ruhigstesFenster(line, ziel) {
+	const fein = K.resample(line, 160);
+	const L = K.lineLength(fein);
+	if (!(L > 0) || ziel >= L) return fein;
+	const n = fein.length;
+	const k = Math.max(2, Math.round((n - 1) * (ziel / L)));
+	if (k >= n - 1) return fein;
+	const dreh = [];
+	for (let i = 1; i < n - 1; i += 1) {
+		dreh.push(Math.abs(winkelDiff(winkelVon(fein[i], fein[i + 1]), winkelVon(fein[i - 1], fein[i]))));
+	}
+	// 💣 Der Zuschlag fuer den Abstand zur Mitte muss STARK und auf die freie Strecke normiert sein.
+	// Mit einem schwachen Zuschlag gewinnt bei einer gebogenen Flaeche immer die Kruemmung: bei der
+	// Schwarzen Sichel liegt die ruhigste Stelle beider Haelften jeweils an der GEMEINSAMEN Naht, und
+	// beide Namen rutschten dorthin -- gemessen 4 px Abstand zwischen zwei Grundlinien, die 566 px
+	// Platz gehabt haetten. Das sah dann wie eine Kollision aus und war in Wahrheit die Fenstersuche.
+	// Der Zuschlag laeuft von 0 (Fenster mittig) bis MITTE_GEWICHT (Fenster am Rand) und ist damit mit
+	// der Unruhe -- einer Summe von Bogenmassen -- vergleichbar gross.
+	const MITTE_GEWICHT = 2.5;
+	const freiraum = Math.max(1, (n - 1 - k) / 2);
+	let bestStart = 0, bestKosten = Infinity;
+	for (let s = 0; s + k < n; s += 1) {
+		let unruhe = 0;
+		for (let i = s; i < s + k - 1 && i < dreh.length; i += 1) unruhe += dreh[i];
+		const drift = Math.abs((s + k / 2) - (n - 1) / 2) / freiraum;
+		const kosten = unruhe + drift * MITTE_GEWICHT;
+		if (kosten < bestKosten) { bestKosten = kosten; bestStart = s; }
+	}
+	return fein.slice(bestStart, bestStart + k + 1);
+}
+
+// Die Kurve so weit zu ihrer Sehne hin beruhigen, bis kein Stueck mehr als `maxDreh` von ihr
+// abweicht. ⚠️ Die Sehne bleibt dabei liegen (straighten mischt zwischen denselben Endpunkten),
+// die Leserichtung aendert sich also nicht. Im Extremfall wird daraus eine Gerade -- und das ist
+// bei einem stark geknickten Objekt genau das, was ein Kartograf auch tut.
+function beruhigen(line, maxDreh) {
+	if (line.length < 3 || !(maxDreh > 0)) return line;
+	const sehne = winkelVon(line[0], line[line.length - 1]);
+	for (let a = 0; a <= 1.0001; a += 0.08) {
+		const kand = a > 0 ? K.straighten(line, a) : line;
+		let schlimmste = 0;
+		for (let i = 1; i < kand.length; i += 1) {
+			const d = Math.abs(winkelDiff(winkelVon(kand[i - 1], kand[i]), sehne));
+			if (d > schlimmste) schlimmste = d;
+		}
+		if (schlimmste <= maxDreh) return kand;
+	}
+	return K.straighten(line, 1);
+}
+
+// Eine Grundlinie tangential verlaengern, an beiden Enden gleich viel. ⚠️ Die Richtung wird ueber
+// mehrere Punkte gemittelt -- die letzte Einzelstrecke ist nach dem Resampling sehr kurz und ihre
+// Richtung entsprechend zittrig, ein daraus verlaengertes Ende knickt sichtbar weg.
+function verlaengern(line, ziel) {
+	const L = K.lineLength(line);
+	if (!(ziel > L) || line.length < 2) return line;
+	const zusatz = (ziel - L) / 2;
+	const richtung = function (p, q) {
+		const dx = p[0] - q[0], dy = p[1] - q[1];
+		const l = Math.hypot(dx, dy) || 1;
+		return [dx / l, dy / l];
+	};
+	const k = Math.min(4, line.length - 1);
+	const va = richtung(line[0], line[k]);
+	const vb = richtung(line[line.length - 1], line[line.length - 1 - k]);
+	return [[line[0][0] + va[0] * zusatz, line[0][1] + va[1] * zusatz]]
+		.concat(line, [[line[line.length - 1][0] + vb[0] * zusatz, line[line.length - 1][1] + vb[1] * zusatz]]);
+}
+
+// Stossen zwei Namen DESSELBEN Objekts aneinander? Gemessen an Kreisen entlang der Grundlinie --
+// eine achsenparallele Huellbox waere bei einem schraeg laufenden Namen ein Vielfaches zu gross und
+// meldete Kollisionen, die es nicht gibt.
+// ⚠️ Geprueft wird nur INNERHALB einer Flaeche. Labels verschiedener Objekte gegeneinander sind die
+// bestehende Kollisionsauflösung der Karte und in diesem Mockup nicht nachgebaut.
+function habenKollision(liste) {
+	// `abstand` ist der geforderte LICHTE Abstand zweier Namen in Schriftgroessen -- also je Label
+	// die Haelfte davon als Radius.
+	const kreise = liste.map(function (b) { return { p: K.resample(b.basis, 16), r: (b.g * zustand.abstand) / 2 }; });
+	for (let i = 0; i < kreise.length; i += 1) {
+		for (let j = i + 1; j < kreise.length; j += 1) {
+			const grenze = kreise[i].r + kreise[j].r;
+			for (const a of kreise[i].p) {
+				for (const c of kreise[j].p) {
+					if (Math.hypot(a[0] - c[0], a[1] - c[1]) < grenze) return true;
+				}
+			}
+		}
+	}
+	return false;
+}
+
+// ---------- Eine Karte samt Overlay ----------
+function macheKarte(el, index, opts) {
+	const region = DATEN[index];
+	const b = region.geoms[0].bounds;
+	const karte = L.map(el, {
+		crs: L.CRS.Simple,
+		minZoom: 1,
+		maxZoom: 7,
+		zoomControl: !opts.klein,
+		attributionControl: false,
+		zoomSnap: 1,
+	});
+	L.tileLayer("https://avesmaps.de/tiles/stylized/{z}/map_{x}_{y}.webp", {
+		tileSize: 256,
+		minZoom: 0,
+		maxZoom: 7,
+		maxNativeZoom: 5,
+		noWrap: true,
+		bounds: [[0, 0], [1024, 1024]],
+	}).addTo(karte);
+	const anpassen = function () {
+		karte.invalidateSize({ animate: false });
+		karte.fitBounds([[b.min_y, b.min_x], [b.max_y, b.max_x]], { padding: [24, 24], animate: false });
+		const naeher = opts.klein ? zustand.galzoom : 0;
+		if (naeher > 0) karte.setZoom(Math.min(karte.getMaxZoom(), karte.getZoom() + naeher), { animate: false });
+	};
+	anpassen();
+	// ⚠️ Beim ersten Lauf steht das Layout noch nicht -- eine Karte in einem Behaelter der Groesse 0
+	// landet in fitBounds auf maxZoom und zeigt eine einzige Kachel. Ein einzelnes
+	// requestAnimationFrame reicht dafuer NICHT (gemessen: der erste Aufruf der Seite blieb auf
+	// Zoom 7 stehen, waehrend jeder Flaechenwechsel danach richtig lag -- der baut die Karte neu,
+	// wenn die Masse längst stehen). Deshalb ein ResizeObserver, der nachfuehrt, bis der Benutzer
+	// die Karte selbst anfasst.
+	requestAnimationFrame(anpassen);
+	karte.__anpassen = anpassen;
+	let angefasst = false;
+	const anfassen = function () { angefasst = true; };
+	karte.getContainer().addEventListener("pointerdown", anfassen, { passive: true });
+	karte.getContainer().addEventListener("wheel", anfassen, { passive: true });
+	if (typeof ResizeObserver === "function") {
+		new ResizeObserver(function () { if (!angefasst) anpassen(); }).observe(el);
+	}
+
+	const svg = document.createElementNS(NS, "svg");
+	svg.setAttribute("class", "kurven-overlay");
+	karte.getContainer().appendChild(svg);
+
+	const zeichner = { karte: karte, svg: svg, index: index };
+	const male = function () { zeichneOverlay(zeichner, opts); };
+	karte.on("move zoom viewreset resize", male);
+	karte.on("zoomstart", function () { svg.classList.add("stumm"); });
+	karte.on("zoomend", function () { svg.classList.remove("stumm"); male(); });
+	male();
+	return zeichner;
+}
+
+function zeichneOverlay(z, opts) {
+	const svg = z.svg, karte = z.karte, region = DATEN[z.index];
+	const size = karte.getSize();
+	svg.setAttribute("width", size.x);
+	svg.setAttribute("height", size.y);
+	svg.setAttribute("viewBox", "0 0 " + size.x + " " + size.y);
+	while (svg.firstChild) svg.removeChild(svg.firstChild);
+
+	const berechnet = berechne(z.index);
+	const zoom = karte.getZoom();
+	const basisGroesse = region.labels.length ? region.labels[0].size : 18;
+	const groesse = skalierteLabelgroesse(basisGroesse, zoom);
+	const klasse = "beschriftung beschriftung--" + (region.labels.length ? region.labels[0].subtype : "region");
+
+	const add = function (name, attrs, parent) {
+		const e = document.createElementNS(NS, name);
+		for (const k in attrs) e.setAttribute(k, attrs[k]);
+		(parent || svg).appendChild(e);
+		return e;
+	};
+
+	// --- Fläche ---
+	if (zustand.zeigeFlaeche) {
+		let d = "";
+		for (const g of region.geoms) {
+			const polys = g.type === "Polygon" ? [g.coordinates] : g.coordinates;
+			for (const rings of polys) for (const ring of rings) d += dVon(aufSchirm(karte, ring)) + " Z ";
+		}
+		if (d) add("path", { d: d, class: "dbg-flaeche", "fill-rule": "evenodd" });
+	}
+
+	// --- Dreiecksnetz ---
+	if (zustand.netz) {
+		let d = "";
+		for (const netz of berechnet.netz) {
+			const pts = aufSchirm(karte, netz.points);
+			for (const t of netz.axis.innerTris) {
+				const v = t.v;
+				d += "M " + pts[v[0]][0].toFixed(1) + " " + pts[v[0]][1].toFixed(1)
+					+ " L " + pts[v[1]][0].toFixed(1) + " " + pts[v[1]][1].toFixed(1)
+					+ " L " + pts[v[2]][0].toFixed(1) + " " + pts[v[2]][1].toFixed(1) + " Z ";
+			}
+		}
+		if (d) add("path", { d: d, class: "dbg-netz" });
+	}
+
+	// --- rohe Mittelachse ---
+	if (zustand.roh) {
+		// Je Teilflaeche EIN Pfad -- aneinandergehaengt zoege der Zeichner eine Linie ueber die Luecke,
+		// und die gehoert der geglaetteten Kurve, nicht der rohen Achse.
+		for (const roh of berechnet.rohachsen) if (roh.length > 1) add("path", { d: dVon(aufSchirm(karte, roh)), class: "dbg-rohachse" });
+	}
+
+	// --- Label heute ---
+	if (zustand.heute) {
+		for (const l of region.labels) {
+			const p = karte.latLngToContainerPoint([l.y, l.x]);
+			const g = skalierteLabelgroesse(l.size, zoom);
+			const t = add("text", {
+				x: p.x, y: p.y,
+				class: klasse + " beschriftung--heute" + (zustand.neu ? " gedimmt" : ""),
+				"text-anchor": "middle",
+				"dominant-baseline": "central",
+				"font-size": g,
+				"stroke-width": (g * 0.06).toFixed(2),
+				transform: "rotate(" + l.rotation + " " + p.x + " " + p.y + ")",
+			});
+			t.textContent = l.text;
+			add("circle", { cx: p.x, cy: p.y, r: 2, class: "dbg-anker" });
+		}
+	}
+
+	// --- Der Name: auf der Kurve oder als ganz normale Gerade ---
+	const einst = einstellung(z.index);
+	const bericht = {
+		platziert: 0, gewuenscht: Math.max(1, einst.max), kurveLaenge: 0, textBreite: 0,
+		passung: Infinity, geschrumpft: 0, verlaengert: 0, kollisionsabbau: 0, kopfueber: 0, kurve: einst.kurve,
+	};
+	if (zustand.neu || zustand.kurve) {
+		const text = region.labels.length ? region.labels[0].text : region.name;
+		const anzeigeText = region.labels.length && region.labels[0].subtype === "gebirge" ? text.toUpperCase() : text;
+		const defs = add("defs", {});
+
+		// 💣 KEINE Leserichtung auf der ganzen Kurve mehr. Sie wird pro LABEL entschieden, unten --
+		// sonst erbt ein zurueckbiegendes Stueck die Richtung des anderen und steht auf dem Kopf.
+		const schirmKurven = berechnet.kurven.map(function (kv) { return aufSchirm(karte, kv.line); });
+		bericht.kurveLaenge = schirmKurven.length ? K.lineLength(schirmKurven[0]) : 0;
+
+		// Aus den Kurven die Bogenstuecke fuer `n` Namen machen.
+		const stueckeFuer = function (n) {
+			const out = [];
+			if (schirmKurven.length > 1) {
+				for (let i = 0; i < Math.min(n, schirmKurven.length); i += 1) out.push(schirmKurven[i]);
+				return out;
+			}
+			if (!schirmKurven.length) return out;
+			const sk = schirmKurven[0];
+			const L = K.lineLength(sk);
+			if (zustand.mehr === "wiederholen") {
+				const w = textbreite(anzeigeText, groesse);
+				const luft = w * 0.8;
+				const wieOft = Math.min(n, Math.max(1, Math.floor((L + luft) / (w + luft))));
+				const belegt = wieOft * w + (wieOft - 1) * luft;
+				let s = (L - belegt) / 2;
+				for (let i = 0; i < wieOft; i += 1) {
+					const st = teilStueck(sk, s, s + w);
+					if (st) out.push(st);
+					s += w + luft;
+				}
+				return out;
+			}
+			for (let i = 0; i < n; i += 1) {
+				const st = teilStueck(sk, (L * i) / n, (L * (i + 1)) / n);
+				if (st) out.push(st);
+			}
+			return out;
+		};
+
+		// Ein Bogenstueck -> eine fertige Beschriftung. Hier steht die ganze Passungsregel.
+		// ⚠️ Diese Funktion aendert NICHTS am Bericht -- sie laeuft auch fuer Kandidaten, die die
+		// Kollisionsprobe gleich wieder verwirft, und wuerde die Zaehler sonst aufblasen.
+		const beschriftungFuer = function (st) {
+			const L = K.lineLength(st);
+			let g = groesse;
+			let w = textbreite(anzeigeText, g);
+			// 💣 Sicherheitsrand: ein textPath zeichnet NICHTS, was ueber das Pfadende hinausragt --
+			// ohne Rand fehlt bei jedem Rundungsrest der erste und letzte Buchstabe („CHWARZE SICHE").
+			let benoetigt = w * 1.04;
+			const rohPassung = L / Math.max(1, benoetigt);
+			let geschrumpft = false, gedehnt = false;
+
+			let basis;
+			if (einst.kurve) {
+				// ⚠️ Das Fenster wird 15 % groesser angefordert, als der Name braucht: die Beruhigung
+				// mischt zur SEHNE hin und verkuerzt den Bogen dabei immer ein Stueck. Ohne diesen
+				// Vorhalt liefe jedes Label ins Verlaengern -- und die Meldung „Kurve verlaengert"
+				// waere kein Befund mehr, sondern Grundrauschen.
+				basis = ruhigstesFenster(st, Math.min(L, benoetigt * 1.15));
+				basis = beruhigen(basis, (zustand.maxdreh * Math.PI) / 180);
+				basis = richtungWaehlen(basis);
+			} else {
+				// 🔴 Ohne Kurvenbeschriftung ist der Name eine ganz normale Gerade (Owner 22.08.2026):
+				// waagerecht, mittig ueber demselben Bogenstueck. Die Verteilung mehrerer Namen bleibt
+				// dieselbe, nur die Grundlinie ist gerade -- und eine Gerade kann beliebig lang werden,
+				// hier kann also nie etwas abgeschnitten werden.
+				const m = st[Math.floor(st.length / 2)];
+				basis = [[m[0] - benoetigt / 2, m[1]], [m[0] + benoetigt / 2, m[1]]];
+			}
+			let Lb = K.lineLength(basis);
+
+			// 💣 Einzelne Buchstaben duerfen NIE abgeschnitten werden (Owner 22.08.2026). Drei Mittel,
+			// alle vom Owner benannt, in dieser Reihenfolge: Kurve verlaengern (gedeckelt) -> Schrift
+			// verkleinern -> und wenn beides nicht reicht, doch weiter verlaengern. Mittig steht der
+			// Name ohnehin immer (startOffset 50 % + text-anchor middle).
+			if (benoetigt > Lb) {
+				const deckel = Lb * (1 + zustand.verlaengern);
+				if (deckel > Lb) { basis = verlaengern(basis, Math.min(benoetigt, deckel)); Lb = K.lineLength(basis); gedehnt = true; }
+			}
+			if (benoetigt > Lb && zustand.schrumpf) {
+				const kleiner = Math.max(8, Math.floor(g * (Lb / benoetigt)));
+				if (kleiner < g) {
+					g = kleiner;
+					w = textbreite(anzeigeText, g);
+					benoetigt = w * 1.04;
+					geschrumpft = true;
+				}
+			}
+			if (benoetigt > Lb) { basis = verlaengern(basis, benoetigt); Lb = K.lineLength(basis); gedehnt = true; }
+
+			// Sperrung -- gedeckelt auf den Anteil UND auf den Zusatz je Luecke.
+			// 💣 Der Anteil allein genuegt nicht: bei Zoom 7 ist die Drachenstein-Kurve 11.246 px lang
+			// und der Name 197 px; 20 % davon sind Buchstaben mit 50 px Abstand, die als Wort nicht
+			// mehr lesbar sind. Gedeckelt wird der ZUSATZ je Luecke in Schriftgroessen -- das ist die
+			// Zahl, die man am Schirm sieht.
+			const luecken = Math.max(1, anzeigeText.length - 1);
+			const zielText = Math.min(
+				w + Math.max(0, Lb * 0.98 - w) * zustand.dehnung,
+				w + luecken * zustand.sperrdeckel * g,
+				Lb * 0.98
+			);
+			return {
+				st: st, basis: basis, g: g, w: w, zielText: zielText,
+				geschrumpft: geschrumpft, gedehnt: gedehnt, rohPassung: rohPassung,
+			};
+		};
+
+		// 🔴 „Maximale Anzahl der Labels" (Owner 22.08.2026): kollidieren zwei Namen -- typisch beim
+		// Herauszoomen --, wird EINER weniger gezeigt. Und zwar durch NEUVERTEILEN, nicht durch
+		// Weglassen: der verbleibende Name saesse sonst auf seiner halben Kurve statt auf der ganzen.
+		let gewaehlt = [];
+		const maxN = Math.max(1, einst.max);
+		for (let n = maxN; n >= 1; n -= 1) {
+			const kandidaten = stueckeFuer(n).map(beschriftungFuer);
+			if (!kandidaten.length) continue;
+			if (kandidaten.length === 1 || !zustand.kollision || !habenKollision(kandidaten)) { gewaehlt = kandidaten; break; }
+			bericht.kollisionsabbau += 1;
+		}
+
+		let lauf = 0;
+		for (const b of gewaehlt) {
+			if (!bericht.textBreite) bericht.textBreite = b.w;
+			bericht.passung = Math.min(bericht.passung, b.rohPassung);
+			if (b.geschrumpft) bericht.geschrumpft += 1;
+			if (b.gedehnt) bericht.verlaengert += 1;
+			if (zustand.kurve) {
+				add("path", { d: dVon(b.st), class: "dbg-kurve" });
+				add("path", { d: dVon(b.basis), class: "dbg-basis" });
+			}
+			if (!zustand.neu) continue;
+			const id = "kurve-" + z.index + "-" + (lauf++) + "-" + Math.random().toString(36).slice(2, 7);
+			const pfad = add("path", { id: id, d: dVon(b.basis), fill: "none" }, defs);
+			const t = add("text", { class: klasse, "font-size": b.g, "stroke-width": (b.g * 0.06).toFixed(2), "text-anchor": "middle" });
+			const tp = document.createElementNS(NS, "textPath");
+			tp.setAttribute("href", "#" + id);
+			tp.setAttribute("startOffset", "50%");
+			if (b.zielText > b.w + 0.5) {
+				tp.setAttribute("textLength", b.zielText.toFixed(1));
+				tp.setAttribute("lengthAdjust", "spacing");
+			}
+			tp.textContent = anzeigeText;
+			t.appendChild(tp);
+			bericht.platziert += 1;
+
+			// ⭐ Die Probe des Owners -- und sie ENTSCHEIDET, sie prueft nicht nur: steht der erste
+			// Buchstabe weiter links als der letzte? Gemessen am GERENDERTEN Text, nicht an der Geometrie
+			// behauptet. Die Sehne der GRUNDLINIE und die Sehne der BUCHSTABENREIHE sind nicht dasselbe --
+			// der Text sitzt mittig auf einem etwas laengeren Bogen, und bei einer fast senkrechten Kurve
+			// entscheidet genau diese Differenz. Gemessen an den Koschbergen: die Grundlinie sagte
+			// „passt", die Buchstaben standen exakt senkrecht (dx = 0).
+			// ⚠️ Erst NACH dem appendChild -- vorher gibt es keine Glyphenposition. Das Umhaengen des
+			// Pfades erzwingt ein zweites Layout; in einem Mockup ist das billig, im Produkt gehoert die
+			// Entscheidung in die Geometrie und diese Messung nur als Netz darunter.
+			const anz = anzeigeText.length;
+			const messen = function () {
+				try {
+					const p0 = t.getStartPositionOfChar(0), p1 = t.getEndPositionOfChar(anz - 1);
+					return { dx: p1.x - p0.x, dy: p1.y - p0.y };
+				} catch (e) { return null; }
+			};
+			let m = messen();
+			if (m && (m.dx < -LESE_TOLERANZ || (Math.abs(m.dx) <= LESE_TOLERANZ && m.dy > 0))) {
+				pfad.setAttribute("d", dVon(b.basis.slice().reverse()));
+				m = messen();
+			}
+			if (m && m.dx < -LESE_TOLERANZ) bericht.kopfueber += 1;
+		}
+		if (bericht.passung === Infinity) bericht.passung = 1;
+	}
+
+	if (opts.bericht) opts.bericht(bericht, berechnet, region, zoom, groesse);
+}
+
+/* ---------- Bedienung ---------- */
+const $ = function (id) { return document.getElementById(id); };
+
+// Flächenwahl
+const wahl = $("flaechenwahl");
+DATEN.forEach(function (r, i) {
+	const b = document.createElement("button");
+	b.type = "button";
+	b.setAttribute("aria-pressed", String(i === 0));
+	b.innerHTML = "" + r.name + "<small>" + (r.kind === "vegetation" ? "Vegetation" : "Topographie")
+		+ " · " + r.labels.length + " Label" + (r.labels.length === 1 ? "" : "s") + "</small>";
+	b.addEventListener("click", function () {
+		zustand.flaeche = i;
+		[].forEach.call(wahl.children, function (c, k) { c.setAttribute("aria-pressed", String(k === i)); });
+		setzeHauptkarte();
+	});
+	wahl.appendChild(b);
+});
+
+let hauptkarte = null;
+
+function setzeHauptkarte() {
+	if (hauptkarte) { hauptkarte.karte.remove(); $("karte").innerHTML = ""; }
+	zeigeEditorwerte();
+	hauptkarte = macheKarte($("karte"), zustand.flaeche, { bericht: schreibeAblesung });
+	window.__mockup = { haupt: hauptkarte, zustand: zustand, proFlaeche: proFlaeche, galerie: galerieKarten };
+}
+
+function schreibeAblesung(bericht, berechnet, region, zoom, groesse) {
+	// Die „Passung" ist der ROHE Stand vor allen Gegenmitteln -- wie eng es war, bevor die Kurve
+	// verlaengert oder die Schrift verkleinert wurde. Nach den Mitteln passt es immer; eine Anzeige,
+	// die das meldet, sagt nichts.
+	const p = bericht.passung;
+	const eng = p < 1;
+	const massnahmen = [];
+	if (bericht.verlaengert) massnahmen.push("Kurve verlängert ×" + bericht.verlaengert);
+	if (bericht.geschrumpft) massnahmen.push("verkleinert ×" + bericht.geschrumpft);
+	$("ablesung").innerHTML = [
+		"<b>Zoom</b> <span>" + zoom + "</span>",
+		"<b>Schrift</b> <span>" + groesse + " px</span>",
+		bericht.kurve
+			? "<b>Kurve</b> <span>" + Math.round(bericht.kurveLaenge) + " px</span>"
+			: "<b>Grundlinie</b> <span>gerade</span>",
+		"<b>Name</b> <span>" + Math.round(bericht.textBreite) + " px</span>",
+		"<b>roh</b> <span class=\"marke " + (eng ? "marke--warn" : "marke--gut") + "\">"
+			+ (eng ? "zu lang um " + Math.round((1 / p - 1) * 100) + " %" : "passt (" + Math.round(p * 100) + " %)") + "</span>",
+		massnahmen.length ? "<b>Gegenmittel</b> <span>" + massnahmen.join(", ") + "</span>" : "",
+		"<b>Labels</b> <span" + (bericht.kollisionsabbau ? " class=\"marke marke--warn\"" : "") + ">"
+			+ bericht.platziert + " von " + bericht.gewuenscht
+			+ (bericht.kollisionsabbau ? " (Kollision)" : "") + "</span>",
+		"<b>Leserichtung</b> <span class=\"marke " + (bericht.kopfueber ? "marke--warn" : "marke--gut") + "\">"
+			+ (bericht.kopfueber ? bericht.kopfueber + "× kopfüber" : "erster Buchstabe links, geprüft") + "</span>",
+		"<b>Teilflächen</b> <span>" + berechnet.wesentlich + " von " + berechnet.teile.length + " wesentlich</span>",
+		"<b>Rechenzeit</b> <span>" + berechnet.ms.toFixed(1) + " ms</span>",
+	].join("");
+}
+
+// Galerie
+let galerieKarten = [];
+
+function baueGalerie() {
+	const g = $("galerie");
+	g.innerHTML = "";
+	galerieKarten = [];
+	DATEN.forEach(function (r, i) {
+		const e = einstellung(i);
+		const k = document.createElement("div");
+		k.className = "kachel";
+		k.innerHTML = "<h3><span>" + r.name + "</span><em>" + (r.kind === "vegetation" ? "Vegetation" : "Topographie")
+			+ " · heute " + r.labels.length + " Label" + (r.labels.length === 1 ? "" : "s") + "</em></h3>"
+			// Dieselben ZWEI Bedienelemente wie in der Seitenleiste -- hier je Flaeche, weil genau das
+			// der Editor spaeter vor sich hat.
+			+ "<div class=\"kachelsteuerung\">"
+			+ "<label class=\"zeile\"><input type=\"checkbox\" class=\"k-kurve\"" + (e.kurve ? " checked" : "") + "> <span>Kurvenbeschriftung</span></label>"
+			+ "<label class=\"zeile zeile--zahl\"><span>Max. Labels</span><input type=\"number\" class=\"k-max\" min=\"1\" max=\"6\" step=\"1\" value=\"" + e.max + "\"></label>"
+			+ "</div>"
+			+ "<div class=\"karte\"></div><div class=\"fuss\">…</div>";
+		g.appendChild(k);
+		const fuss = k.querySelector(".fuss");
+		const zeichner = macheKarte(k.querySelector(".karte"), i, {
+			klein: true,
+			bericht: function (bericht, berechnet, region, zoom, groesse) {
+				fuss.textContent = fussText(bericht, berechnet, zoom, groesse);
+			},
+		});
+		galerieKarten.push(zeichner);
+		k.querySelector(".k-kurve").addEventListener("change", function () {
+			einstellung(i).kurve = this.checked;
+			if (i === zustand.flaeche) zeigeEditorwerte();
+			neuZeichnen();
+		});
+		k.querySelector(".k-max").addEventListener("input", function () {
+			einstellung(i).max = Math.max(1, Math.min(6, Math.round(Number(this.value) || 1)));
+			if (i === zustand.flaeche) zeigeEditorwerte();
+			neuZeichnen();
+		});
+	});
+}
+
+// Die Kachelbedienung nachziehen, wenn derselbe Wert in der Seitenleiste verstellt wurde.
+function spiegleGalerie() {
+	const kacheln = $("galerie").children;
+	for (let i = 0; i < kacheln.length; i += 1) {
+		const e = einstellung(i);
+		const hk = kacheln[i].querySelector(".k-kurve");
+		const hm = kacheln[i].querySelector(".k-max");
+		if (hk) hk.checked = e.kurve;
+		if (hm) hm.value = String(e.max);
+	}
+}
+
+function fussText(bericht, berechnet, zoom, groesse) {
+	const teile = [
+		"Zoom " + zoom,
+		"Schrift " + groesse + " px",
+		bericht.kurve ? "Kurve " + Math.round(bericht.kurveLaenge) + " px" : "gerade",
+		"Name " + Math.round(bericht.textBreite) + " px",
+		bericht.platziert + " von " + bericht.gewuenscht + " Labels",
+	];
+	if (bericht.kopfueber) teile.push("⚠ " + bericht.kopfueber + "× kopfüber");
+	if (bericht.kollisionsabbau) teile.push(bericht.kollisionsabbau + "× wegen Kollision reduziert");
+	if (bericht.verlaengert) teile.push("Kurve verlängert (" + bericht.verlaengert + ")");
+	if (bericht.geschrumpft) teile.push("verkleinert (" + bericht.geschrumpft + ")");
+	teile.push(berechnet.ms.toFixed(0) + " ms");
+	return teile.join(" · ");
+}
+
+function neuZeichnen() {
+	if (hauptkarte) hauptkarte.karte.fire("viewreset");
+	galerieKarten.forEach(function (z) { z.karte.fire("viewreset"); });
+}
+
+// Regler und Haken verdrahten
+function haken(id, feld) {
+	$(id).addEventListener("change", function () { zustand[feld] = this.checked; neuZeichnen(); });
+}
+
+// Die ZWEI Bedienelemente, die der Editor spaeter bekommt. Sie gehoeren der FLAECHE, nicht der
+// Seite -- deshalb schreiben sie in proFlaeche[...] und werden beim Flaechenwechsel nachgezogen.
+$("c-kurvenlabel").addEventListener("change", function () {
+	einstellung(zustand.flaeche).kurve = this.checked;
+	neuZeichnen();
+	spiegleGalerie();
+});
+$("n-max").addEventListener("input", function () {
+	const v = Math.max(1, Math.min(6, Math.round(Number(this.value) || 1)));
+	einstellung(zustand.flaeche).max = v;
+	neuZeichnen();
+	spiegleGalerie();
+});
+
+// Editorwerte der gerade gewaehlten Flaeche in die Seitenleiste holen.
+function zeigeEditorwerte() {
+	const e = einstellung(zustand.flaeche);
+	$("c-kurvenlabel").checked = e.kurve;
+	$("n-max").value = String(e.max);
+}
+
+haken("c-heute", "heute");
+haken("c-neu", "neu");
+haken("c-flaeche", "zeigeFlaeche");
+haken("c-kurve", "kurve");
+haken("c-roh", "roh");
+haken("c-netz", "netz");
+haken("c-schrumpf", "schrumpf");
+haken("c-kollision", "kollision");
+
+$("s-modus").addEventListener("change", function () { zustand.modus = this.value; neuZeichnen(); });
+
+function regler(id, ausId, feld, umrechnen, anzeigen) {
+	const r = $(id), o = $(ausId);
+	const wirk = function () {
+		zustand[feld] = umrechnen(Number(r.value));
+		o.textContent = anzeigen(zustand[feld]);
+		neuZeichnen();
+	};
+	r.addEventListener("input", wirk);
+	wirk();
+}
+regler("r-gerade", "o-gerade", "gerade", function (v) { return v / 100; }, function (v) { return Math.round(v * 100) + " %"; });
+regler("r-tol", "o-tol", "tol", function (v) { return v / 100; }, function (v) { return v.toFixed(2).replace(".", ","); });
+regler("r-dicht", "o-dicht", "dichte", function (v) { return v / 100; }, function (v) { return v.toFixed(2).replace(".", ","); });
+regler("r-anteil", "o-anteil", "mindestanteil", function (v) { return v / 100; }, function (v) { return Math.round(v * 100) + " %"; });
+regler("r-dehnung", "o-dehnung", "dehnung", function (v) { return v / 100; }, function (v) { return Math.round(v * 100) + " %"; });
+regler("r-maxdreh", "o-maxdreh", "maxdreh", function (v) { return v; }, function (v) { return v + "°"; });
+regler("r-sperrdeckel", "o-sperrdeckel", "sperrdeckel", function (v) { return v / 100; }, function (v) { return v.toFixed(2).replace(".", ","); });
+regler("r-verlaengern", "o-verlaengern", "verlaengern", function (v) { return v / 100; }, function (v) { return Math.round(v * 100) + " %"; });
+regler("r-abstand", "o-abstand", "abstand", function (v) { return v / 100; }, function (v) { return v.toFixed(2).replace(".", ","); });
+
+function radios(name, feld) {
+	[].forEach.call(document.querySelectorAll("input[name=" + name + "]"), function (r) {
+		r.addEventListener("change", function () { if (this.checked) { zustand[feld] = this.value; neuZeichnen(); } });
+	});
+}
+radios("mehr", "mehr");
+radios("teil", "teilflaechen");
+
+(function () {
+	const r = $("r-galzoom"), o = $("o-galzoom");
+	const wirk = function () {
+		zustand.galzoom = Number(r.value);
+		o.textContent = "+" + zustand.galzoom;
+		galerieKarten.forEach(function (z) { z.karte.__anpassen(); });
+	};
+	r.addEventListener("input", wirk);
+	o.textContent = "+" + zustand.galzoom;
+})();
+
+// Reiter
+const reiter = [["reiter-karte", "blatt-karte"], ["reiter-galerie", "blatt-galerie"], ["reiter-befund", "blatt-befund"]];
+reiter.forEach(function (paar) {
+	$(paar[0]).addEventListener("click", function () {
+		reiter.forEach(function (p) {
+			const an = p[0] === paar[0];
+			$(p[0]).setAttribute("aria-selected", String(an));
+			$(p[1]).classList.toggle("aktiv", an);
+		});
+		if (paar[0] === "reiter-galerie") {
+			if (!galerieKarten.length) baueGalerie();
+			else galerieKarten.forEach(function (z) { z.karte.invalidateSize(); });
+		}
+		if (paar[0] === "reiter-karte" && hauptkarte) hauptkarte.karte.invalidateSize();
+		if (paar[0] === "reiter-befund") schreibeBefund();
+	});
+});
+
+function schreibeBefund() {
+	const zeilen = DATEN.map(function (r, i) {
+		const b = berechne(i);
+		const bb = r.geoms[0].bounds;
+		return "<li><b>" + r.name + "</b> — " + r.labels.length + " Label"
+			+ (r.labels.length === 1 ? "" : "s") + ", " + b.teile.length + " Teilfläche"
+			+ (b.teile.length === 1 ? "" : "n") + " (größte " + Math.round(100 * b.teile[0].area / b.gesamtflaeche)
+			+ " %), Ausdehnung " + Math.round(bb.max_x - bb.min_x) + "×" + Math.round(bb.max_y - bb.min_y)
+			+ " Einheiten, Kurve " + (b.kurven[0] ? b.kurven[0].laenge.toFixed(1) : "—")
+			+ " Einheiten, Rechenzeit " + b.ms.toFixed(1) + " ms. Heutige Drehung: "
+			+ r.labels.map(function (l) { return l.rotation + "°"; }).join(" / ") + ".</li>";
+	}).join("");
+	$("befund").innerHTML = ""
+		+ "<h2>Geht das? Ja — und zwar ohne neue Abhängigkeit.</h2>"
+		+ "<p>Das ganze Verfahren steht in diesem Mockup in rund 300 Zeilen reinem JavaScript: eigene "
+		+ "Delaunay-Triangulierung (Bowyer-Watson), Innendreiecke, Chordal Axis, längster Pfad, "
+		+ "Polynom-Glättung. Kein Bundler, keine Bibliothek — passt also zum bauschrittfreien Frontend. "
+		+ "Gerechnet wird in Kartenkoordinaten, EINMAL je Fläche; die Kurve ist damit zoomunabhängig und "
+		+ "die Projektion auf den Schirm kostet nichts.</p>"
+		+ "<h2>Funktionieren mehrere Labels? Ja — besser als heute.</h2>"
+		+ "<p>„Östlicher Hangwald des Raschtulswalls&ldquo; ist der Prüffall: er trägt <b>zwei</b> Labels, beide mit "
+		+ "derselben festen Drehung 300° und nur 16 Einheiten auseinander — sie liegen heute übereinander am "
+		+ "Südende. Auf der Kurve verteilen sich dieselben zwei Namen über den ganzen Waldgürtel, jeder folgt "
+		+ "dem Hang. Zwei Verfahren stehen zur Wahl: die Kurve gleichmäßig <i>aufteilen</i> (ein Label je "
+		+ "Abschnitt) oder den Namen <i>wiederholen</i>, so oft er passt — Letzteres ist die Gewohnheit bei "
+		+ "Flüssen und langen Gebirgen.</p>"
+		+ "<h2>Was der Editor bekommt — und was in die Kachel &bdquo;Darstellung&ldquo; umzieht</h2>"
+		+ "<p>Zwei Bedienelemente, mehr nicht: <b>Kurvenbeschriftung an/aus</b> und <b>maximale Anzahl der "
+		+ "Labels</b> — beide <b>pro Fläche</b>. Alles andere ist eine <b>Darstellungseinstellung</b> und "
+		+ "zieht in die Kachel &bdquo;Darstellung&ldquo; des Editorbands um: für Admins einstellbar, für "
+		+ "Editoren sichtbar — dasselbe Muster wie die &bdquo;Zoombänder&ldquo; (Owner 22.08.2026). Also "
+		+ "keine Konstante, aber auch kein Editorregler. Stand dieses Mockups:</p>"
+		+ "<ul>"
+		+ "<li>Glättung <b>Polynom Grad 3</b>, Begradigung <b>0 %</b></li>"
+		+ "<li>Randvereinfachung <b>1,55</b>, Stützpunktabstand <b>0,30</b></li>"
+		+ "<li>Teilflächen: <b>alle wesentlichen zu einer Kurve verbinden</b>, wesentlich ab <b>2 %</b> "
+		+ "der Gesamtfläche</li>"
+		+ "<li>Mehrere Labels: <b>Kurve gleichmäßig aufteilen</b>, Mindestabstand zweier Namen "
+		+ "<b>2,0 Schriftgrößen</b></li>"
+		+ "<li>Sperrung über die Fläche <b>20 %</b> (Deckel <b>50 %</b>, zusätzlich höchstens <b>0,6</b> "
+		+ "Schriftgrößen Zusatz je Lücke), max. Verdrehung gegen die Sehne <b>30°</b></li>"
+		+ "<li>Passung: Kurve verlängern höchstens <b>30 %</b>, danach Schrift verkleinern (Untergrenze "
+		+ "<b>8 px</b>)</li>"
+		+ "</ul>"
+		+ "<h2>Die vier Regeln, die der Owner am 22.08.2026 gesetzt hat</h2>"
+		+ "<ul>"
+		+ "<li><b>Der erste Buchstabe steht weiter links als der letzte.</b> Die ganze Leserichtungsregel, "
+		+ "in einem prüfbaren Satz — und im Mockup am gerenderten Text nachgemessen, nicht behauptet.</li>"
+		+ "<li><b>Die Zahl ist ein Höchstwert, kein Sollwert.</b> Kollidieren zwei Namen — typisch beim "
+		+ "Herauszoomen —, wird einer weniger gezeigt. Und zwar durch <b>Neuverteilen</b>, nicht durch "
+		+ "Weglassen: der verbleibende Name säße sonst auf seiner halben Kurve statt auf der ganzen. "
+		+ "Gemessen an der Schwarzen Sichel: bei Zoom 3 stehen zwei Namen 172 px auseinander, bei Zoom 1 "
+		+ "bleibt einer übrig.</li>"
+		+ "<li><b>Ohne Kurvenbeschriftung ist der Name eine ganz normale Gerade</b> — waagerecht, mittig, "
+		+ "an derselben Stelle wie sonst die Kurve. Nicht die heutige Handdrehung: die soll ja gerade "
+		+ "wegfallen.</li>"
+		+ "<li><b>Kein Umbruch, kein abgeschnittener Buchstabe.</b> Ist der Name länger als die Kurve, "
+		+ "greifen drei Mittel in dieser Reihenfolge: Kurve verlängern (tangential, gedeckelt) → Schrift "
+		+ "verkleinern → notfalls doch weiter verlängern. Mittig steht der Name immer.</li>"
+		+ "<li><b>Die Sperrung geht nie über 50 %.</b></li>"
+		+ "</ul>"
+		+ "<p>🔴 <b>„Jede Teilfläche einzeln beschriften&ldquo; fällt raus.</b> Es ist die Einstellung, unter der "
+		+ "die Koschberge zwei gegenläufige Labels bekamen: die beiden Lappen haben verschiedene eigene "
+		+ "Achsen, der Nordlappen läuft nach unten-rechts, der Südlappen nach oben-rechts — beide sind "
+		+ "für sich lesbar und widersprechen sich trotzdem. Verbunden gibt es nur eine Achse und damit "
+		+ "nur eine Leserichtung. Der Regler bleibt in der Werkstatt, damit man den Unterschied sieht.</p>"
+		+ "<h2>Acht Dinge, die das Mockup unterwegs herausgefunden hat</h2>"
+		+ "<ul>"
+		+ "<li>💣 <b>Ein textPath zeichnet nichts, was über das Pfadende hinausragt</b> — er bricht nicht "
+		+ "um und er staucht nicht, er lässt Buchstaben einfach weg. Genau so entstand „CHWARZE SICHE&ldquo;: "
+		+ "die Beruhigung kürzt den Bogen zur Sehne hin, und der Text war danach ein paar Pixel zu lang. "
+		+ "Deshalb wird das Fenster von vornherein 15 % größer angefordert, als der Name braucht, und die "
+		+ "Passung rechnet mit einem Sicherheitsrand von 4 %. Ein fehlender erster Buchstabe sieht aus wie "
+		+ "ein Schriftproblem und ist ein Längenproblem.</li>"
+		+ "<li>💣 <b>Was wie eine Kollision aussah, war die Fenstersuche.</b> Bei einer gebogenen Fläche "
+		+ "liegt die ruhigste Stelle <i>beider</i> Hälften an der gemeinsamen Naht — beide Namen rutschten "
+		+ "dorthin und standen 4 px auseinander, wo sie 566 px Platz gehabt hätten. Der Zuschlag für den "
+		+ "Abstand zur Mitte muss stark und auf die freie Strecke normiert sein, sonst gewinnt immer die "
+		+ "Krümmung. Danach: 172 px Abstand.</li>"
+		+ "<li>💣 <b>Ein Gebirge ist selten EINE Fläche.</b> Die Koschberge liegen in zwei Lappen (59 % / 41 %); "
+		+ "die Mittelachse der größeren allein endet mitten in der Kette. Deshalb werden die Achsen aller "
+		+ "wesentlichen Teile als eine Punktwolke gefittet — die Kurve überbrückt die Lücke. Beim „Östlichen "
+		+ "Hangwald des Raschtulswalls&ldquo; sind es 26 Teilflächen, von denen 4 wesentlich sind; ohne "
+		+ "Mindestanteil zieht eine Streuinsel die Kurve schief.</li>"
+		+ "<li>💣 <b>Die Leserichtung gehört dem einzelnen LABEL, nicht der Kurve.</b> Sie einmal für die "
+		+ "ganze Kurve zu entscheiden und die Stücke erben zu lassen, war der erste Bau — und bei der "
+		+ "Schwarzen Sichel stand die obere Hälfte damit auf dem Kopf: sie biegt zurück und erbt trotzdem "
+		+ "die Richtung der unteren.</li>"
+		+ "<li>🪤 <b>Und der zweite Anlauf war auch falsch — an einer Stelle, die man leicht übersieht: "
+		+ "ein Toleranzband um die verbotene Stellung herum erlaubt die verbotene Stellung.</b> Die Regel "
+		+ "lautete „nie kopfüber, aber innerhalb von 15° um die Senkrechte lies von unten nach oben&ldquo;. "
+		+ "Genau dieses Band liess ein Label mit leicht negativem dx durch: gemessen an der Schwarzen "
+		+ "Sichel eine Sehne von <b>−34 px auf 161 px Länge</b>, also −102° — 12° hinter dem Kopfstand, "
+		+ "und genau so sah es aus. Ersetzt durch die Probe, die der Owner selbst vorgeschlagen hat: "
+		+ "<b>steht der erste Buchstabe weiter links als der letzte?</b> Ein Satz, keine Ausnahme.</li>"
+		+ "<li>⭐ <b>Und diese Probe misst jetzt den gerenderten Text, statt der Geometrie zu glauben.</b> "
+		+ "Die Sehne der Grundlinie und die Sehne der Buchstabenreihe sind nicht dasselbe — der Name sitzt "
+		+ "mittig auf einem etwas längeren Bogen, und bei einer fast senkrechten Kurve entscheidet genau "
+		+ "diese Differenz. Bei den Koschbergen sagte die Grundlinie „passt&ldquo;, während die Buchstaben "
+		+ "exakt senkrecht standen. Passt es nicht, wird der Pfad umgedreht und noch einmal gemessen; die "
+		+ "Ablesung darunter zeigt das Ergebnis, statt es zu behaupten. ⚠️ Die verbleibende Toleranz ist "
+		+ "<b>ein Pixel</b> — das ist Rundung, keine Stellung, und darin gilt „von unten nach oben&ldquo;.</li>"
+		+ "<li>💣 <b>Ein Label darf nicht dort sitzen, wo die Kurve am stärksten dreht.</b> Genau das erzeugte "
+		+ "den verdrehten Anfang an der Spitze der Sichel. Jeder Name sucht sich jetzt das <b>ruhigste "
+		+ "Stück</b> seines Bogens (Summe der Richtungsänderungen, mit einem kleinen Zuschlag für den "
+		+ "Abstand zur Mitte) und wird danach zu seiner Sehne hin <b>beruhigt</b>, bis kein Stück mehr als "
+		+ "30° abweicht. Im Extremfall wird daraus eine Gerade — was ein Kartograf bei einem stark "
+		+ "geknickten Objekt auch tut.</li>"
+		+ "<li>⭐ <b>Die Kurve erlaubt etwas, das die feste Drehung nie konnte:</b> die Sperrung über die Fläche "
+		+ "zu ziehen, so dass der Name das Objekt aufspannt. Bei den Drachensteinen belegt der Name ungesperrt "
+		+ "13 % der Kette; gesperrt beschriftet er sie.</li>"
+		+ "</ul>"
+		+ "<h2>Was die sechs Referenzflächen hergeben</h2><ul>" + zeilen + "</ul>"
+		+ "<p>⚠️ Offen und im Mockup <b>nicht</b> beantwortet: die Kollisionsauflösung (heute verschiebt "
+		+ "<code>--label-offset</code> ein rechteckiges Label; eine Kurve hat kein Rechteck), das Zeichnen als "
+		+ "Canvas-Bild statt SVG, das Verhalten im Bearbeiten-Modus (das Label ist heute mit der Maus drehbar) "
+		+ "und die Frage, ob die Drehung als Handkorrektur erhalten bleiben soll.</p>";
+}
+
+setzeHauptkarte();
+})();
+</script>
+</body>
+</html>
