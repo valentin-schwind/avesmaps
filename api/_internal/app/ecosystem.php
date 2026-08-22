@@ -1734,7 +1734,7 @@ function avesmapsEcosystemWriteAuditLog(
     // 🔴 Dieselben zwei Stufen wie bei der Karte -- nur ist eine Zeile hier rund 40 KB schwer
     // (Geometrie vorher UND nachher), 200 Zeilen sind also ~8 MB statt ~0,4 MB. Ohne eine Grenze
     // waren es am 18.08.2026 716 MB und eine schreibgesperrte Datenbank.
-    avesmapsPruneAuditLogForActor($pdo, 'ecosystem_geometry_audit_log', $actorUserId);
+    avesmapsPruneActorAcrossAuditLogs($pdo, $actorUserId);
     avesmapsPruneAuditLog($pdo, 'ecosystem_geometry_audit_log', AVESMAPS_ECOSYSTEM_AUDIT_GLOBAL_KEEP_ROWS);
 }
 

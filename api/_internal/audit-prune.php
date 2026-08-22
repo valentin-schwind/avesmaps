@@ -17,12 +17,18 @@ declare(strict_types=1);
  * Editor Schritte weg, die die Oberflaeche ihm noch anbietet. Ein zu kleiner Wert wird deshalb
  * hochgeklemmt, nicht befolgt.
  *
- * 🔴 SEIT 22.08.2026 GILT DIESE ZAHL JE PERSON, NICHT INSGESAMT (Owner-Auftrag: „jeder editor sieht
- * seine letzten 200"). Vorher loeschte ein einziger produktiver Nachmittag die Zeilen aller anderen
- * -- nicht ausgeblendet, GELOESCHT; kein Filter konnte sie zurueckholen. Der Aufraeumer ist damit
- * zweistufig:
- *   1. `avesmapsPruneAuditLogForActor` -- laeuft beim Schreiben und raeumt NUR die Zeilen dessen,
- *      der gerade gespeichert hat. Billiger als vorher: er fasst die Zeilen der anderen nicht an.
+ * 🔴 SEIT 22.08.2026 GILT DIESE ZAHL JE PERSON, NICHT FUER ALLE ZUSAMMEN (Owner-Auftrag: „jeder
+ * editor sieht seine letzten 200"). Vorher loeschte ein einziger produktiver Nachmittag die Zeilen
+ * aller anderen -- nicht ausgeblendet, GELOESCHT; kein Filter konnte sie zurueckholen.
+ *
+ * 🔴 UND SIE GILT UEBER ALLE DREI PROTOKOLLE ZUSAMMEN, nicht je Protokoll (Owner, wenige Stunden
+ * spaeter: „jeder person darf max. 200 eintraege haben"). Die Zwischenfassung kappte je Tabelle;
+ * im Trichter stand dann fuer eine Person 486 -- die Summe aus drei Protokollen --, waehrend die
+ * Liste darunter 200 zeigte. Eine Zahl, die mehr verspricht als die Liste haelt.
+ *
+ * Der Aufraeumer ist damit zweistufig:
+ *   1. `avesmapsPruneActorAcrossAuditLogs` -- laeuft beim Schreiben und raeumt NUR die Zeilen
+ *      dessen, der gerade gespeichert hat, dafuer ueber alle drei Protokolle hinweg.
  *   2. `avesmapsPruneAuditLog` -- der globale Riegel, eine reine Unfallbremse gegen das, was hier
  *      niemand kennt: die Zahl der Leute. Er greift erst weit oberhalb des Normalbetriebs.
  *
@@ -144,10 +150,22 @@ function avesmapsPruneAuditLog(
 }
 
 /**
- * Kappt die Zeilen EINER Person auf ihre juengsten $keepRows -- hoechstens $maxDelete je Lauf.
+ * Kappt die Zeilen EINER Person auf ihre juengsten $keepRows -- ueber ALLE Protokolle zusammen.
  *
- * Gleiche Bauform wie avesmapsPruneAuditLog daneben (zwei Indexgriffe, ein Bereichs-DELETE, keine
- * Unterabfrage im DELETE). Der einzige Unterschied ist die Einschraenkung auf den Urheber.
+ * 🔴 200 GILT JE PERSON UND INSGESAMT, NICHT JE PROTOKOLL (Owner 22.08.2026: „jeder person darf
+ * max. 200 eintraege haben"). Die erste Fassung kappte je Tabelle, und damit stand im Trichter fuer
+ * eine Person 486 -- die Summe aus drei Protokollen --, waehrend die Liste darunter 200 zeigte. Eine
+ * Zahl, die mehr verspricht als die Liste haelt, war die Frage des Owners in Reinform:
+ * „warum steht bei nics 486".
+ *
+ * Ablauf: zaehlen, wie viele Zeilen die Person insgesamt hat; ist sie darueber, aus JEDEM Protokoll
+ * die aeltesten Kandidaten holen, in PHP zusammenfuehren, und genau die aeltesten $ueber loeschen --
+ * gleichgueltig, in welcher Tabelle sie liegen.
+ *
+ * 💣 EIN Durchgang, keine Schleife ueber Einzelzeilen. Drei SELECTs (je hoechstens $maxDelete
+ * Zeilen, nur id und Zeitstempel) und hoechstens drei DELETEs. Zeile fuer Zeile die global aelteste
+ * zu suchen gaebe dasselbe Ergebnis und rund 1.200 Abfragen fuer einen Rueckstand von 300 -- in der
+ * Transaktion, in der jemand gerade gespeichert hat.
  *
  * 💣 `actor_user_id` IST NULLABLE, und `= NULL` trifft nie etwas. Die maschinellen Schreiber
  * (Import-Tuer, WikiSync ohne angemeldete Person, Systemlaeufe) landen alle in EINEM Topf, und der
@@ -155,27 +173,25 @@ function avesmapsPruneAuditLog(
  * Menschen sauber gekappt werden. Kein `<=>`: das kennt nur MySQL, und die Tests fahren SQLite.
  *
  * 💣 UND DIESER TOPF HAT ZWEI SCHREIBWEISEN. `avesmapsWriteMapAuditLog` legt bei fehlender Person
- * eine `0` ab, `avesmapsWikiSyncWriteMapAuditLog` und die beiden anderen Protokolle ein `NULL` --
- * in derselben Spalte derselben Tabelle. Wer nur auf `IS NULL` prueft, laesst die Haelfte der
- * maschinellen Zeilen ungekappt liegen, und zwar unbemerkt: die Tabelle waechst, alle Zusicherungen
- * bleiben gruen. Deshalb fasst die Bedingung beides.
+ * eine `0` ab, die drei anderen Schreiber ein `NULL` -- in derselben Spalte derselben Tabelle. Wer
+ * nur auf `IS NULL` prueft, laesst die Haelfte der maschinellen Zeilen ungekappt liegen, und zwar
+ * unbemerkt: die Tabelle waechst, alle Zusicherungen bleiben gruen.
  *
- * @param string   $table        Muss in AVESMAPS_AUDIT_PRUNE_TABLES stehen.
- * @param int|null $actorUserId  `null` oder 0 = der Topf der maschinellen Schreiber.
+ * ⚠️ Ein Protokoll, dessen Tabelle es (noch) nicht gibt, zaehlt als LEER statt zu werfen. Die drei
+ * Tabellen entstehen an verschiedenen Stellen per DDL, und ein Schreibvorgang der Karte darf nicht
+ * daran scheitern, dass die Landschaften-Ebene in dieser Installation nie benutzt wurde. Der Fang
+ * ist bewusst eng (nur PDOException) und darf NICHT ausgeweitet werden -- ein geschluckter
+ * SQL-Fehler saehe hier aus wie „nichts zu tun".
+ *
+ * @param int|null $actorUserId `null` oder 0 = der Topf der maschinellen Schreiber.
  * @return int Wie viele Zeilen dieser Lauf geloescht hat (0 = nichts zu tun).
- * @throws InvalidArgumentException bei einer unbekannten Tabelle.
  */
-function avesmapsPruneAuditLogForActor(
+function avesmapsPruneActorAcrossAuditLogs(
     PDO $pdo,
-    string $table,
     ?int $actorUserId,
     int $keepRows = AVESMAPS_AUDIT_KEEP_PER_ACTOR,
     int $maxDelete = AVESMAPS_AUDIT_PRUNE_DEFAULT_MAX_DELETE
 ): int {
-    if (!in_array($table, AVESMAPS_AUDIT_PRUNE_TABLES, true)) {
-        throw new InvalidArgumentException('Unbekanntes Protokoll: ' . $table);
-    }
-
     $keepRows = max(AVESMAPS_AUDIT_PRUNE_MIN_KEEP, min(AVESMAPS_AUDIT_PRUNE_MAX_KEEP, $keepRows));
     $maxDelete = max(1, $maxDelete);
 
@@ -187,36 +203,80 @@ function avesmapsPruneAuditLogForActor(
         }
     };
 
-    // Die id der $keepRows-juengsten Zeile DIESER Person. Hat sie so viele nicht, ist nichts zu tun.
-    $schwelle = $pdo->prepare(
-        'SELECT id FROM ' . $table . ' WHERE ' . $wo . ' ORDER BY id DESC LIMIT 1 OFFSET :offset'
-    );
-    $binden($schwelle);
-    $schwelle->bindValue('offset', $keepRows - 1, PDO::PARAM_INT);
-    $schwelle->execute();
-    $grenze = $schwelle->fetchColumn();
-    if ($grenze === false || $grenze === null) {
+    $gesamt = 0;
+    $bestand = [];
+    foreach (AVESMAPS_AUDIT_PRUNE_TABLES as $table) {
+        try {
+            $zaehler = $pdo->prepare('SELECT COUNT(*) FROM ' . $table . ' WHERE ' . $wo);
+            $binden($zaehler);
+            $zaehler->execute();
+            $anzahl = (int) $zaehler->fetchColumn();
+        } catch (PDOException) {
+            continue; // Tabelle gibt es hier nicht -- siehe die Begruendung oben.
+        }
+        if ($anzahl > 0) {
+            $bestand[$table] = $anzahl;
+            $gesamt += $anzahl;
+        }
+    }
+
+    $ueber = $gesamt - $keepRows;
+    if ($ueber < 1) {
         return 0;
     }
-    $grenze = (int) $grenze;
+    $ueber = min($ueber, $maxDelete);
 
-    // Der Deckel, aus demselben Grund wie beim globalen Lauf: ein erster Lauf auf einer gewachsenen
-    // Tabelle darf nicht zehntausende Zeilen in der Transaktion eines Speicherns loeschen.
-    $deckel = $pdo->prepare(
-        'SELECT id FROM ' . $table . ' WHERE ' . $wo . ' ORDER BY id ASC LIMIT 1 OFFSET :offset'
-    );
-    $binden($deckel);
-    $deckel->bindValue('offset', $maxDelete, PDO::PARAM_INT);
-    $deckel->execute();
-    $deckelId = $deckel->fetchColumn();
-    if ($deckelId !== false && $deckelId !== null) {
-        $grenze = min($grenze, (int) $deckelId);
+    // Aus jedem Protokoll die aeltesten Kandidaten. Mehr als $ueber je Tabelle kann nie gebraucht
+    // werden -- selbst wenn alle zu loeschenden Zeilen in einer einzigen liegen.
+    $kandidaten = [];
+    foreach (array_keys($bestand) as $table) {
+        try {
+            $lese = $pdo->prepare(
+                'SELECT id, created_at FROM ' . $table . ' WHERE ' . $wo
+                . ' ORDER BY created_at ASC, id ASC LIMIT :grenze'
+            );
+            $binden($lese);
+            $lese->bindValue('grenze', $ueber, PDO::PARAM_INT);
+            $lese->execute();
+        } catch (PDOException) {
+            continue;
+        }
+        foreach ($lese->fetchAll(PDO::FETCH_ASSOC) ?: [] as $zeile) {
+            $kandidaten[] = [
+                'table' => $table,
+                'id' => (int) $zeile['id'],
+                'created_at' => (string) ($zeile['created_at'] ?? ''),
+            ];
+        }
     }
 
-    $delete = $pdo->prepare('DELETE FROM ' . $table . ' WHERE ' . $wo . ' AND id < :grenze');
-    $binden($delete);
-    $delete->bindValue('grenze', $grenze, PDO::PARAM_INT);
-    $delete->execute();
+    // ⚠️ Sortiert wird nach ZEIT, nicht nach id: die ids sind je Tabelle eigene Zaehler und quer
+    // ueber die drei voellig unvergleichbar. Tabellenname und id sind nur Stichentscheid, damit die
+    // Reihenfolge bei gleicher Zeit ueberhaupt festliegt.
+    usort($kandidaten, static function (array $links, array $rechts): int {
+        return [$links['created_at'], $links['table'], $links['id']]
+            <=> [$rechts['created_at'], $rechts['table'], $rechts['id']];
+    });
 
-    return $delete->rowCount();
+    $zuLoeschen = [];
+    foreach (array_slice($kandidaten, 0, $ueber) as $eintrag) {
+        $zuLoeschen[$eintrag['table']][] = $eintrag['id'];
+    }
+
+    $geloescht = 0;
+    foreach ($zuLoeschen as $table => $ids) {
+        $platzhalter = [];
+        $parameter = [];
+        foreach (array_values($ids) as $position => $id) {
+            $platzhalter[] = ':i' . $position;
+            $parameter['i' . $position] = $id;
+        }
+        $delete = $pdo->prepare(
+            'DELETE FROM ' . $table . ' WHERE id IN (' . implode(', ', $platzhalter) . ')'
+        );
+        $delete->execute($parameter);
+        $geloescht += $delete->rowCount();
+    }
+
+    return $geloescht;
 }

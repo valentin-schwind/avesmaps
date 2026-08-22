@@ -3912,7 +3912,7 @@ function avesmapsWriteMapAuditLog(PDO $pdo, ?int $featureId, string $action, int
     //
     // Zwei Stufen: erst die Zeilen DIESER Person kappen -- billiger als vorher, weil der Lauf die
     // Zeilen der anderen gar nicht anfasst --, dann die globale Unfallbremse.
-    avesmapsPruneAuditLogForActor($pdo, 'map_audit_log', $actorUserId);
+    avesmapsPruneActorAcrossAuditLogs($pdo, $actorUserId);
     avesmapsPruneAuditLog($pdo, 'map_audit_log', AVESMAPS_MAP_AUDIT_GLOBAL_KEEP_ROWS);
 
     return $auditId;

@@ -222,7 +222,7 @@ function avesmapsWikiSyncWriteMapAuditLog(PDO $pdo, int $featureId, string $acti
 
     // Dieselben zwei Stufen wie beim Zwilling -- und dieselben Konstanten, damit die zwei Schreiber
     // nicht mit verschiedenen Grenzen in dieselbe Tabelle schreiben.
-    avesmapsPruneAuditLogForActor($pdo, 'map_audit_log', $actorUserId);
+    avesmapsPruneActorAcrossAuditLogs($pdo, $actorUserId);
     avesmapsPruneAuditLog($pdo, 'map_audit_log', AVESMAPS_MAP_AUDIT_GLOBAL_KEEP_ROWS);
 }
 

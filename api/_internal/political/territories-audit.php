@@ -567,7 +567,7 @@ function avesmapsPoliticalWriteGeometryAuditLog(PDO $pdo, string $action, int $a
     // Zwei Stufen wie bei Karte und Landschaften: erst die Zeilen DIESER Person, dann die globale
     // Unfallbremse. Die 250 von vorher waren die alte, globale Anzeigehoehe -- mit ihr loeschte ein
     // laengerer Grenzabend die Zeilen aller anderen.
-    avesmapsPruneAuditLogForActor($pdo, 'political_territory_geometry_audit_log', $actorUserId);
+    avesmapsPruneActorAcrossAuditLogs($pdo, $actorUserId);
     avesmapsPoliticalPruneGeometryAuditLog($pdo, AVESMAPS_POLITICAL_AUDIT_GLOBAL_KEEP_ROWS);
 
     return $auditId;
