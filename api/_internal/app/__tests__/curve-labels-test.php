@@ -132,4 +132,83 @@ foreach ($innen as $p) {
 // Ein leerer Graph liefert eine leere Linie, keinen Fehler.
 assert(avesmapsCurveLongestPath([], []) === []);
 
+// ------------------------------------------------------- DER GESAMTLAUF, AN SECHS FLAECHEN ---
+
+// 🔴 Die Fixture ist am 22.08.2026 aus der LIVE-Datenbank gemessen, nicht erfunden
+// (docs/kurvenlabel-referenzdaten.js). Die Bogenlaengen darunter stammen aus dem abgenommenen
+// Prototyp mit genau diesen Vorgabewerten. Weicht PHP hier ab, rechnet es etwas anderes als das,
+// was der Owner gesehen und abgenommen hat.
+// 🪤 Die sechs sind bewusst GEMISCHT: eine einteilige Flaeche, eine zweilappige, eine mit 26 Teilen
+// und eine Region mit zwei Labels. Eine homogene Fixture faengt den gemischten Fall nie.
+$referenz = json_decode(file_get_contents(__DIR__ . '/fixtures/kurvenlabel-referenz.json'), true);
+assert(is_array($referenz) && count($referenz) === 6);
+
+$erwartet = [
+    'Drachensteine' => 87.9,
+    'Koschberge' => 70.1,
+    'Schwarze Sichel' => 141.2,
+    'Östlicher Hangwald des Raschtulswalls' => 122.1,
+    'Östlicher Hangwald des Finsterkamms' => 82.2,
+    'Westlicher Hangwald des Raschtulswalls' => 125.8,
+];
+
+$optionen = [
+    'simplify_tol' => 1.55,
+    'spacing' => 0.30,
+    'poly_degree' => 3,
+    'straighten' => 0.0,
+    'min_part_share' => 0.02,
+    'samples' => 120,
+];
+
+foreach ($referenz as $flaeche) {
+    $name = (string) $flaeche['name'];
+    $kurve = avesmapsCurveBaseline($flaeche['geometries'], $optionen);
+    assert($kurve !== null, $name . ': keine Kurve');
+    assert(count($kurve['line']) === 120, $name . ': falsche Punktzahl');
+
+    // ⚠️ 2 % Toleranz, nicht Gleichheit: PHP und JavaScript runden im Polynomfit verschieden.
+    // Groesser als 2 % ist kein Rundungsunterschied mehr, sondern ein anderes Verfahren.
+    $soll = $erwartet[$name];
+    $ist = $kurve['length'];
+    assert(abs($ist - $soll) / $soll < 0.02, $name . ': Bogen ' . round($ist, 1) . ' statt ' . $soll);
+}
+
+// 💣 Mehrteilige Flaechen werden zu EINER Kurve verbunden. Die Koschberge liegen in zwei Lappen
+// (59 % / 41 %); nur den groesseren zu nehmen liefert eine Kurve, die mitten in der Kette endet.
+$koschberge = null;
+foreach ($referenz as $f) {
+    if ($f['name'] === 'Koschberge') {
+        $koschberge = $f;
+    }
+}
+assert($koschberge !== null);
+$verbunden = avesmapsCurveBaseline($koschberge['geometries'], $optionen);
+$nurGroesste = avesmapsCurveBaseline($koschberge['geometries'], ['min_part_share' => 0.99] + $optionen);
+assert($verbunden['parts_used'] >= 2);
+assert($nurGroesste['parts_used'] === 1);
+assert($verbunden['length'] > $nurGroesste['length'] * 1.15);
+
+// ⚠️ Die Mindestanteil-Schwelle ist keine Zierde: beim Raschtulswall-Hangwald sind 26 Teile da,
+// wesentlich sind vier. Ohne Schwelle zieht eine Streuinsel die gemeinsame Kurve schief.
+$hangwald = null;
+foreach ($referenz as $f) {
+    if ($f['name'] === 'Östlicher Hangwald des Raschtulswalls') {
+        $hangwald = $f;
+    }
+}
+$mitSchwelle = avesmapsCurveBaseline($hangwald['geometries'], $optionen);
+$ohneSchwelle = avesmapsCurveBaseline($hangwald['geometries'], ['min_part_share' => 0.0] + $optionen);
+// ⚠️ Die Zusicherung ist eine SPANNE, keine feste Zahl. `parts_used` zaehlt die Teile, aus denen
+// wirklich eine Achse wurde -- ein Splitter kann zu klein dafuer sein, und dann waere eine exakte 4
+// sproede aus einem Grund, der nichts mit der Regel zu tun hat. Geprueft wird, was die Regel
+// behauptet: die Schwelle SIEBT, und sie laesst nicht alles durch.
+assert($mitSchwelle['parts_used'] >= 2 && $mitSchwelle['parts_used'] <= 4, 'wesentliche Teile: ' . $mitSchwelle['parts_used']);
+assert($ohneSchwelle['parts_used'] > $mitSchwelle['parts_used']);
+assert($ohneSchwelle['parts_used'] > 8);
+
+// Eine leere oder unbrauchbare Geometrie liefert null, keinen Fehler.
+assert(avesmapsCurveBaseline([], $optionen) === null);
+assert(avesmapsCurveBaseline([['type' => 'Polygon', 'coordinates' => [[[0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0]]]]], $optionen) === null);
+
 echo "curve-labels: Grundlagen ok\n";

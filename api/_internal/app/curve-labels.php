@@ -463,3 +463,322 @@ function avesmapsCurveLongestPath(array $nodes, array $adj): array
 
     return array_reverse($pfad);
 }
+
+function avesmapsCurveLineLength(array $line): float
+{
+    $l = 0.0;
+    $anzahl = count($line);
+    for ($i = 1; $i < $anzahl; $i++) {
+        $l += hypot($line[$i][0] - $line[$i - 1][0], $line[$i][1] - $line[$i - 1][1]);
+    }
+
+    return $l;
+}
+
+// Auf n gleichmaessig verteilte Punkte umtasten.
+function avesmapsCurveResample(array $line, int $n): array
+{
+    if (count($line) < 2 || $n < 2) {
+        return $line;
+    }
+    $kum = [0.0];
+    for ($i = 1; $i < count($line); $i++) {
+        $kum[$i] = $kum[$i - 1] + hypot($line[$i][0] - $line[$i - 1][0], $line[$i][1] - $line[$i - 1][1]);
+    }
+    $gesamt = $kum[count($kum) - 1];
+    if ($gesamt <= 0.0) {
+        return $line;
+    }
+    $raus = [];
+    $seg = 1;
+    for ($k = 0; $k < $n; $k++) {
+        $ziel = ($gesamt * $k) / ($n - 1);
+        while ($seg < count($kum) - 1 && $kum[$seg] < $ziel) {
+            $seg++;
+        }
+        $spanne = $kum[$seg] - $kum[$seg - 1];
+        $t = $spanne > 0.0 ? ($ziel - $kum[$seg - 1]) / $spanne : 0.0;
+        $raus[] = [
+            $line[$seg - 1][0] + (($line[$seg][0] - $line[$seg - 1][0]) * $t),
+            $line[$seg - 1][1] + (($line[$seg][1] - $line[$seg - 1][1]) * $t),
+        ];
+    }
+
+    return $raus;
+}
+
+// Polynomfit im Hauptachsen-Frame. Das Ergebnis ist von Bauart her EINE weiche Biegung und kein
+// geglaetteter Zickzack -- Schrift auf einem Zickzack ist unlesbar, lange bevor die Kurve „falsch"
+// waere.
+// Der Hauptachsen-Frame einer Punktwolke: Schwerpunkt plus die Richtung der groessten Streuung.
+// 🔴 EIGENE FUNKTION, weil ZWEI Rechnungen ihn brauchen -- der Polynomfit einer Linie und der Fit
+// ueber mehrere Teilflaechen. Zweimal dieselben zwanzig Zeilen waeren die zweite Wahrheit ueber
+// dieselbe Groesse, und sie laufen beim ersten Eingriff auseinander.
+//
+// @return array{0:float,1:float,2:float,3:float} [mx, my, cos(theta), sin(theta)]
+function avesmapsCurvePrincipalFrame(array $points): array
+{
+    $n = count($points);
+    if ($n === 0) {
+        return [0.0, 0.0, 1.0, 0.0];
+    }
+    $mx = 0.0;
+    $my = 0.0;
+    foreach ($points as $p) {
+        $mx += $p[0];
+        $my += $p[1];
+    }
+    $mx /= $n;
+    $my /= $n;
+    $sxx = $sxy = $syy = 0.0;
+    foreach ($points as $p) {
+        $dx = $p[0] - $mx;
+        $dy = $p[1] - $my;
+        $sxx += $dx * $dx;
+        $sxy += $dx * $dy;
+        $syy += $dy * $dy;
+    }
+    $theta = 0.5 * atan2(2 * $sxy, $sxx - $syy);
+
+    return [$mx, $my, cos($theta), sin($theta)];
+}
+
+function avesmapsCurvePolyFit(array $line, int $degree): array
+{
+    $n = count($line);
+    if ($n < $degree + 2) {
+        return $line;
+    }
+    [$mx, $my, $ct, $st] = avesmapsCurvePrincipalFrame($line);
+    $u = [];
+    $v = [];
+    foreach ($line as $p) {
+        $dx = $p[0] - $mx;
+        $dy = $p[1] - $my;
+        $u[] = ($dx * $ct) + ($dy * $st);
+        $v[] = (-$dx * $st) + ($dy * $ct);
+    }
+    $m = $degree + 1;
+    $A = [];
+    for ($r = 0; $r < $m; $r++) {
+        $A[$r] = array_fill(0, $m + 1, 0.0);
+    }
+    for ($i = 0; $i < $n; $i++) {
+        $pw = [1.0];
+        for ($k = 1; $k < 2 * $m; $k++) {
+            $pw[$k] = $pw[$k - 1] * $u[$i];
+        }
+        for ($r = 0; $r < $m; $r++) {
+            for ($c = 0; $c < $m; $c++) {
+                $A[$r][$c] += $pw[$r + $c];
+            }
+            $A[$r][$m] += $pw[$r] * $v[$i];
+        }
+    }
+    for ($col = 0; $col < $m; $col++) {
+        $piv = $col;
+        for ($r = $col + 1; $r < $m; $r++) {
+            if (abs($A[$r][$col]) > abs($A[$piv][$col])) {
+                $piv = $r;
+            }
+        }
+        if (abs($A[$piv][$col]) < 1e-12) {
+            return $line;
+        }
+        $tmp = $A[$col];
+        $A[$col] = $A[$piv];
+        $A[$piv] = $tmp;
+        for ($r = 0; $r < $m; $r++) {
+            if ($r === $col) {
+                continue;
+            }
+            $f = $A[$r][$col] / $A[$col][$col];
+            for ($c = $col; $c <= $m; $c++) {
+                $A[$r][$c] -= $f * $A[$col][$c];
+            }
+        }
+    }
+    $koeff = [];
+    for ($r = 0; $r < $m; $r++) {
+        $koeff[$r] = $A[$r][$m] / $A[$r][$r];
+    }
+    $raus = [];
+    for ($i = 0; $i < $n; $i++) {
+        $w = 0.0;
+        $p = 1.0;
+        for ($k = 0; $k < $m; $k++) {
+            $w += $koeff[$k] * $p;
+            $p *= $u[$i];
+        }
+        $raus[] = [$mx + ($u[$i] * $ct) - ($w * $st), $my + ($u[$i] * $st) + ($w * $ct)];
+    }
+
+    return $raus;
+}
+
+// Zwischen Kurve und ihrer Sehne mischen (0 = Kurve, 1 = Gerade). Die Endpunkte bleiben liegen.
+function avesmapsCurveStraighten(array $line, float $amount): array
+{
+    if ($amount <= 0.0 || count($line) < 2) {
+        return $line;
+    }
+    $a = $line[0];
+    $b = $line[count($line) - 1];
+    $kum = [0.0];
+    for ($i = 1; $i < count($line); $i++) {
+        $kum[$i] = $kum[$i - 1] + hypot($line[$i][0] - $line[$i - 1][0], $line[$i][1] - $line[$i - 1][1]);
+    }
+    $gesamt = $kum[count($kum) - 1] ?: 1.0;
+    $raus = [];
+    foreach ($line as $i => $p) {
+        $t = $kum[$i] / $gesamt;
+        $sx = $a[0] + (($b[0] - $a[0]) * $t);
+        $sy = $a[1] + (($b[1] - $a[1]) * $t);
+        $raus[] = [$p[0] + (($sx - $p[0]) * $amount), $p[1] + (($sy - $p[1]) * $amount)];
+    }
+
+    return $raus;
+}
+
+// GeoJSON-Geometrien in Teilflaechen zerlegen, nach Flaeche absteigend.
+function avesmapsCurveGeometryParts(array $geometries): array
+{
+    $teile = [];
+    foreach ($geometries as $g) {
+        $typ = (string) ($g['type'] ?? '');
+        $koord = $g['coordinates'] ?? [];
+        $polys = $typ === 'Polygon' ? [$koord] : $koord;
+        foreach ($polys as $rings) {
+            if (!is_array($rings) || $rings === [] || count($rings[0]) < 4) {
+                continue;
+            }
+            $teile[] = ['rings' => $rings, 'area' => abs(avesmapsCurveRingArea($rings[0]))];
+        }
+    }
+    usort($teile, static fn(array $a, array $b): int => $b['area'] <=> $a['area']);
+
+    return $teile;
+}
+
+// 💣 Ein Gebirge ist selten EINE Flaeche. Die Koschberge liegen in zwei Lappen (59 % / 41 %); die
+// Mittelachse des groesseren allein endet mitten in der Kette. Deshalb die Achsen ALLER
+// wesentlichen Teile als eine Punktwolke nehmen und EIN Polynom hindurchlegen -- die Luecke
+// ueberbrueckt die Kurve von selbst, weil sie ueber die Hauptachse parametrisiert ist und nicht
+// ueber die Flaeche laeuft.
+// ⚠️ Das ist nur fuer die BESCHRIFTUNG richtig, nicht als Geometrie: die Kurve verlaesst zwischen
+// zwei Lappen die Flaeche. Genau das tut eine Kartenbeschriftung auch.
+function avesmapsCurveFitAcross(array $wolken, int $degree, int $samples): ?array
+{
+    $pts = [];
+    foreach ($wolken as $w) {
+        foreach ($w as $p) {
+            $pts[] = $p;
+        }
+    }
+    if (count($pts) < $degree + 2) {
+        return null;
+    }
+    [$mx, $my, $ct, $st] = avesmapsCurvePrincipalFrame($pts);
+    $paare = [];
+    foreach ($pts as $p) {
+        $dx = $p[0] - $mx;
+        $dy = $p[1] - $my;
+        $paare[] = [($dx * $ct) + ($dy * $st), (-$dx * $st) + ($dy * $ct)];
+    }
+    usort($paare, static fn(array $a, array $b): int => $a[0] <=> $b[0]);
+    $sortiert = [];
+    foreach ($paare as $uv) {
+        $sortiert[] = [$mx + ($uv[0] * $ct) - ($uv[1] * $st), $my + ($uv[0] * $st) + ($uv[1] * $ct)];
+    }
+
+    return avesmapsCurveResample(avesmapsCurvePolyFit($sortiert, $degree), $samples);
+}
+
+// Die Mittelachse EINES Teils.
+function avesmapsCurveAxisForPart(array $rings, array $o): ?array
+{
+    $vereinfacht = [];
+    foreach ($rings as $r) {
+        $vereinfacht[] = avesmapsCurveSimplifyRing($r, (float) $o['simplify_tol']);
+    }
+    $pts = [];
+    foreach ($vereinfacht as $r) {
+        foreach (avesmapsCurveDensifyRing($r, (float) $o['spacing']) as $p) {
+            $pts[] = $p;
+        }
+    }
+    $gesehen = [];
+    $uniq = [];
+    foreach ($pts as $p) {
+        $k = number_format($p[0], 4, '.', '') . ',' . number_format($p[1], 4, '.', '');
+        if (!isset($gesehen[$k])) {
+            $gesehen[$k] = true;
+            $uniq[] = $p;
+        }
+    }
+    if (count($uniq) < 4) {
+        return null;
+    }
+    $tris = avesmapsCurveDelaunay($uniq);
+    $achse = avesmapsCurveChordalAxis($uniq, $tris, $vereinfacht);
+    if ($achse['nodes'] === []) {
+        return null;
+    }
+    $roh = avesmapsCurveLongestPath($achse['nodes'], $achse['adj']);
+
+    return count($roh) >= 2 ? avesmapsCurveResample($roh, (int) $o['samples']) : null;
+}
+
+// Der Gesamtlauf: Geometrien -> eine fertige Beschriftungskurve.
+function avesmapsCurveBaseline(array $geometries, array $options): ?array
+{
+    $o = $options + [
+        'simplify_tol' => 1.55,
+        'spacing' => 0.30,
+        'poly_degree' => 3,
+        'straighten' => 0.0,
+        'min_part_share' => 0.02,
+        'samples' => 120,
+    ];
+    $teile = avesmapsCurveGeometryParts($geometries);
+    if ($teile === []) {
+        return null;
+    }
+    $gesamt = 0.0;
+    foreach ($teile as $t) {
+        $gesamt += $t['area'];
+    }
+    if ($gesamt <= 0.0) {
+        return null;
+    }
+    // Die groesste immer, dazu jede ab dem Mindestanteil.
+    $wesentlich = [];
+    foreach ($teile as $i => $t) {
+        if ($i === 0 || ($t['area'] / $gesamt) >= (float) $o['min_part_share']) {
+            $wesentlich[] = $t;
+        }
+    }
+    $achsen = [];
+    foreach ($wesentlich as $t) {
+        $achse = avesmapsCurveAxisForPart($t['rings'], $o);
+        if ($achse !== null) {
+            $achsen[] = $achse;
+        }
+    }
+    if ($achsen === []) {
+        return null;
+    }
+    if (count($achsen) > 1) {
+        $gemeinsam = avesmapsCurveFitAcross($achsen, (int) $o['poly_degree'], (int) $o['samples']);
+        $linie = $gemeinsam ?? $achsen[0];
+    } else {
+        $linie = avesmapsCurvePolyFit($achsen[0], (int) $o['poly_degree']);
+    }
+    $linie = avesmapsCurveStraighten($linie, (float) $o['straighten']);
+
+    return [
+        'line' => $linie,
+        'length' => avesmapsCurveLineLength($linie),
+        'parts_used' => count($achsen),
+    ];
+}
