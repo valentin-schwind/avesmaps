@@ -12,7 +12,30 @@ function scheduleLabelCollisionResolution() {
 		// Regionenlabels zuerst aufloesen; ihre finalen Rechtecke dann als feste Hindernisse an den
 		// Orts-/Frei-Label-Pass geben, damit Staedtenamen unter Regionenlabels auf die Gegenseite ausweichen.
 		const regionLabelRects = resolveRegionLabelCollisions();
-		const occupiedRects = resolveLabelCollisions(regionLabelRects);
+		// 🔴 Die Kurvenlabels werden HIER platziert, VOR den Orts- und Freilabels -- nicht am Ende
+		// beim Zeichnen. Ein Landschaftsname ist heute Teilnehmer dieser Stufe; ihn ans Ende zu
+		// haengen, weil er kuenftig auf Canvas gemalt wird, waere eine RANGaenderung, getarnt als
+		// Zeichenaenderung: Dorfnamen gewaennen gegen „Schwarze Sichel". Entwurf §7.2 verbietet das
+		// ausdruecklich („An der Prioritaetenordnung wird in diesem Vorhaben nichts geaendert").
+		// ⚠️ Es geht als MEHRERE kleine Rechtecke entlang der Grundlinie ein, nicht als eine
+		// Huellbox -- ein um 297° gedrehtes <img> liefert heute eine stark aufgeblaehte
+		// achsenparallele Huelle, die kleinen Kaesten sind die genauere Aussage (Entwurf §7.2).
+		// ⚠️ Sie kommen in VIEWPORT-Koordinaten heraus, wie die Rechtecke der Gebietsnamen darueber;
+		// die Umrechnung aus den Container-Pixeln des Canvas macht die Funktion selbst, mit dem
+		// containerOrigin von oben (siehe dort, und map-features-label-occupancy.js).
+		const kurvenRects = typeof avesmapsKurvenlabelPlatzierungen === "function"
+			? avesmapsKurvenlabelPlatzierungen(containerOrigin)
+			: [];
+		// 💣 UND ERST JETZT DEN ALTEN MARKER WEGNEHMEN. Der Riegel in shouldShowLabelMarker haengt am
+		// ERGEBNIS der Zeile darueber, und niemand sonst fragt ihn erneut: syncLabelVisibility laeuft
+		// nur bei Zoom und Schwenk. Ohne diesen Aufruf stuende der Name nach dem Laden dauerhaft
+		// DOPPELT -- gebogen auf der Kurve und waagerecht am Marker daneben.
+		// ⚠️ Er steht VOR resolveLabelCollisions, damit getCollisionEntries den abgemeldeten Marker
+		// nicht noch einmal als Hindernis mitzaehlt: die Kurve tut das schon, und zwar genauer.
+		if (typeof avesmapsSyncKurvenlabelMarker === "function") {
+			avesmapsSyncKurvenlabelMarker();
+		}
+		const occupiedRects = resolveLabelCollisions(regionLabelRects.concat(kurvenRects));
 
 		// Dieser Pass ist der Taktgeber der GESAMTEN Beschriftung: erst steht die DOM-Seite (Gebiets-,
 		// Landschafts- und Ortsnamen), dann erfaehrt die Canvas-Seite, wo kein Platz mehr ist, und

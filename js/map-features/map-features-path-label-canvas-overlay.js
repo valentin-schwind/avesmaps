@@ -144,15 +144,141 @@
 		return { glow: hp.glow, blur: fontSize * (hp.glowBlurRatio || 0), strokeW: fontSize * (hp.strokeRatio || 0) };
 	}
 
-	// Ein Landschaftsname auf seiner Kurve. Der Ablauf ist kurz, weil die Arbeit woanders liegt:
-	// curve-label-fit.js passt, curved-label-layout.js setzt die Glyphen, paintGlyphs malt.
-	function zeichneKurvenlabels() {
+	// --- Die Ablage: was zuletzt gerechnet wurde, und fuer WELCHE Ansicht ---------------------------
+	// 💣 Eine Glyphenreihe ist in CONTAINER-Pixeln notiert und nach einem Schwenk nicht bloss alt,
+	// sondern falsch. redraw() kommt naemlich nicht nur vom Kollisionsdurchgang, sondern auch aus
+	// map-features-path-rendering.js, map-features-powerlines.js und map-features-display-mode.js --
+	// und die rufen, ohne dass vorher jemand gerechnet haette. Deshalb traegt die Ablage einen Stempel
+	// der Ansicht (Zoomstufe + linke obere Ecke als LatLng); passt er nicht, wird neu gerechnet statt
+	// falsch gemalt.
+	let kurvenlabelAblage = { zoom: null, topLeft: null, eintraege: [], gemalt: new Set() };
+
+	// Die Schrittweite des Ausweichens. Die REICHWEITE gehoert der Tafel in curve-label-fit.js
+	// (`dodgePx`, Entwurf §7.2 -- dort haengt Plan 4 seinen Regler an); wie fein dazwischen abgetastet
+	// wird, ist eine Aufloesung und keine Gestaltungsfrage: 2 px sind bei 6 px Reichweite drei Stellen
+	// je Richtung.
+	const KURVENLABEL_AUSWEICH_SCHRITT_PX = 2;
+
+	function kurvenlabelAnsichtsStempel() {
+		return { zoom: map.getZoom(), topLeft: map.containerPointToLatLng([0, 0]) };
+	}
+
+	// Gilt die Ablage noch fuer die Ansicht, die gerade gemalt werden soll?
+	function kurvenlabelAblageGilt() {
+		const jetzt = kurvenlabelAnsichtsStempel();
+		return kurvenlabelAblage.zoom === jetzt.zoom
+			&& Boolean(kurvenlabelAblage.topLeft)
+			&& kurvenlabelAblage.topLeft.equals(jetzt.topLeft);
+	}
+
+	// Entwurf §7.2 Punkt 1: ein Kurvenlabel belegt MEHRERE kleine Kaesten entlang seiner Grundlinie,
+	// nicht eine Huellbox. Ein um 297° gedrehter Name liefert als achsenparallele Huelle ein
+	// Vielfaches seiner Tinte; je Buchstabe ein Kasten aus dessen GEDREHTEN Ecken (labelGlyphCorners
+	// -- dieselbe Rechnung, mit der die Wegnamen gegen die Belegung geprueft werden) ist die genauere
+	// Aussage. Container-Pixel.
+	// ⚠️ Das Polster ist der GETEILTE Regler „Repel" (Fenster „Zoombänder"), keine neue Zahl: die
+	// Glyphenhoehe ist die Tintenhoehe (0,72 x Schriftgrad), ohne Polster stiessen fremde Namen bis an
+	// die Buchstaben heran.
+	function kurvenlabelKaesten(glyphs) {
+		const polster = typeof avesmapsLocationLabelSpacing === "function"
+			? Number(avesmapsLocationLabelSpacing("repel")) || 0
+			: 0;
+		return glyphs.map((glyph) => {
+			const ecken = typeof labelGlyphCorners === "function"
+				? labelGlyphCorners(glyph)
+				: [{ x: glyph.x, y: glyph.y }];
+			let left = Infinity, top = Infinity, right = -Infinity, bottom = -Infinity;
+			for (const ecke of ecken) {
+				if (ecke.x < left) left = ecke.x;
+				if (ecke.x > right) right = ecke.x;
+				if (ecke.y < top) top = ecke.y;
+				if (ecke.y > bottom) bottom = ecke.y;
+			}
+			return { left: left - polster, top: top - polster, right: right + polster, bottom: bottom + polster };
+		});
+	}
+
+	// Entwurf §7.2 Punkt 2: ein Kurvenlabel darf ein PAAR PIXEL entlang der eigenen Kurve ausweichen.
+	//
+	// ⚠️ findFreePlacement (curved-label-layout.js) waere der naheliegende Weg und ist der falsche:
+	// sie ruft pathLabelBendSettings() und rechnete damit mit den Stellgroessen des WEGE-Kanals
+	// (?pathtune=1). Gebaut ist das Ausweichen deshalb aus denselben Bausteinen, aber mit der Tafel
+	// der Kurvenbeschriftung.
+	//
+	// 💣 Die Passung hat die Grundlinie auf den NAMEN zugeschnitten -- auf ihr ist unter Umstaenden
+	// gar kein Platz zum Schieben. Sie wird deshalb an beiden Enden um den Ausweichweg tangential
+	// verlaengert (curveLabelExtend, dasselbe Mittel wie in der Passung selbst) und daraus ein
+	// textbreites Fenster ausgeschnitten. Bei Versatz 0 kommt Zeichen fuer Zeichen dieselbe Lage
+	// heraus wie ohne diesen Schritt: das Ausweichen aendert nichts, solange nichts im Weg steht.
+	//
+	// 🔴 Bringt es nichts, weicht das Kurvenlabel NICHT weiter aus (Entwurf §7.2 Punkt 3). Es sitzt
+	// auf seiner Flaeche; das fremde Label muss ausweichen oder verschwinden -- wie heute bei den
+	// Gebietsnamen. Also kein „dann eben ausblenden": ein Landschaftsname, der wegen eines Dorfnamens
+	// verschwindet, waere genau die Rangaenderung, die dieser Plan vermeidet. Der Rueckfall ist die
+	// erste geometrisch gueltige Lage, und das ist der Versatz 0.
+	function platziereKurvenfenster(fenster) {
+		const weite = Math.max(0, Number(AVESMAPS_CURVE_LABEL_DEFAULTS.dodgePx) || 0);
+		const textLaenge = fenster.widths.reduce((summe, w) => summe + w + fenster.ls, 0) - fenster.ls;
+		// 💣 AUSGESCHNITTEN WIRD IN DER LAENGE DES PASSUNGSFENSTERS, nicht in der des Textes. Die
+		// Passung laesst bewusst einen Vorhalt (§4.4) -- schnitte man auf die Textbreite zu, faellt
+		// der weg, der Kruemmungsausgleich in layoutGlyphsAlong hat keinen Platz mehr, und bei
+		// Versatz 0 kaeme etwas anderes heraus als vor dieser Aufgabe. Ausserdem waere ein Fenster
+		// von exakt Textbreite ein Rundungsrest davon entfernt, gar nichts mehr zu liefern
+		// (layoutGlyphsAlong gibt null, sobald der Text laenger ist als das Stueck).
+		const laenge = curveLabelLineLength(fenster.pts);
+		const bahn = weite > 0 ? curveLabelExtend(fenster.pts, laenge + 2 * weite) : fenster.pts;
+		const cum = cumulativeLengths(bahn);
+		const gesamt = cum[cum.length - 1];
+		const mitte = gesamt / 2;
+		// Ohne Richtungsprofil (null): auf 6 px unterscheiden sich die Stellen in ihrer Kruemmung
+		// nicht, eine Ruhe-Rangfolge waere Rauschen. orderDodgeOffsets liefert dann die alte Ordnung
+		// 0, +2, -2, +4, -4, +6, -6 -- und die Null bleibt vorn.
+		const versaetze = orderDodgeOffsets(weite, KURVENLABEL_AUSWEICH_SCHRITT_PX, null, mitte, textLaenge, 0);
+		let rueckfall = null;
+		for (const versatz of versaetze) {
+			const teil = sliceLabelWindowAt(bahn, cum, gesamt, mitte + versatz, laenge / 2);
+			if (teil.length < 2) {
+				continue;
+			}
+			const glyphs = layoutGlyphsAlong(teil, fenster.chars, fenster.widths, fenster.ls, 0, fenster.fontSize);
+			if (!glyphs || glyphs.length === 0) {
+				continue;
+			}
+			// 💣 DIE PROBE DES OWNERS, am fertig gesetzten Text (Entwurf §4.1, §7.3): steht die
+			// erste Glyphe weiter links als die letzte? Im Prototyp beantwortete der Browser das
+			// (getStartPositionOfChar); auf dem Canvas fragt niemand, also wird gerechnet.
+			// Sie steht HIER und nicht nur in der Passung, weil zwischen beidem noch geglaettet
+			// und verlaengert wird -- und weil genau diese Zusicherung beim Entwerfen zweimal
+			// danebengegangen ist. Ein Toleranzband gibt es nicht: -1 px ist die Grenze, und
+			// ein Band um die verbotene Lage LAESST DIE VERBOTENE LAGE ZU.
+			if (glyphs[glyphs.length - 1].x - glyphs[0].x < -1) {
+				continue;
+			}
+			if (!rueckfall) {
+				rueckfall = glyphs;
+			}
+			const huelle = glyphsHullBox(glyphs, fenster.fontSize);
+			if (typeof labelOccupancyBlocksGlyphs === "function"
+				&& typeof avesmapsLabelOccupancy !== "undefined"
+				&& labelOccupancyBlocksGlyphs(avesmapsLabelOccupancy, huelle, glyphs)) {
+				continue;
+			}
+			return glyphs;
+		}
+		return rueckfall;
+	}
+
+	// DIE RECHNUNG. Sie laeuft im Kollisionsdurchgang zwischen den Gebietsnamen und den Orts-/
+	// Freilabels (map-features-label-collisions.js) -- nicht beim Zeichnen. Der Ablauf ist kurz, weil
+	// die Arbeit woanders liegt: curve-label-fit.js passt, curved-label-layout.js setzt die Glyphen.
+	function berechneKurvenlabels() {
+		kurvenlabelAblage = Object.assign(kurvenlabelAnsichtsStempel(), { eintraege: [], gemalt: new Set() });
 		if (typeof avesmapsKurvenlabelKandidaten !== "function" || typeof avesmapsCurveLabelFit !== "function") {
-			return;
+			return kurvenlabelAblage;
 		}
 		const kandidaten = avesmapsKurvenlabelKandidaten();
 		if (!Array.isArray(kandidaten) || kandidaten.length === 0) {
-			return;
+			return kurvenlabelAblage;
 		}
 		for (const label of kandidaten) {
 			// 1. Die Kurve in Bildschirmpunkte. label.curveLine ist [lat, lng] -- der Tausch ist
@@ -178,33 +304,94 @@
 				continue;
 			}
 
-			// 4. Malen. Je Fenster einmal.
-			for (const fenster of passung.fenster) {
+			// 4. Platzieren -- je Fenster einmal.
+			const fenster = [];
+			for (const f of passung.fenster) {
+				const glyphs = platziereKurvenfenster(f);
+				if (!glyphs) {
+					continue;
+				}
+				fenster.push({ glyphs, chars: f.chars, fontSize: f.fontSize, kaesten: kurvenlabelKaesten(glyphs) });
+			}
+			// 💣 Kein einziges gesetztes Fenster heisst: dieser Name wird NICHT als Kurve gemalt -- und
+			// dann muss sein alter Marker stehenbleiben. Er kommt deshalb gar nicht erst in die Ablage;
+			// avesmapsLabelWirdAlsKurveGemalt liest genau sie.
+			if (fenster.length === 0) {
+				continue;
+			}
+			kurvenlabelAblage.eintraege.push({
+				label,
+				fenster,
+				halo: kurvenlabelHalo(label),
+				fill: kurvenlabelFarbe(label),
+			});
+			kurvenlabelAblage.gemalt.add(label);
+		}
+		return kurvenlabelAblage;
+	}
+
+	// DER MALER. Er rechnet nicht mehr -- ausser die Ablage gilt einer anderen Ansicht als der, die
+	// gerade gemalt wird (siehe kurvenlabelAblageGilt): dann lieber neu rechnen als falsch malen.
+	function zeichneKurvenlabels() {
+		if (!kurvenlabelAblageGilt()) {
+			berechneKurvenlabels();
+		}
+		for (const eintrag of kurvenlabelAblage.eintraege) {
+			for (const f of eintrag.fenster) {
 				// ⚠️ ctx.font wird JE FENSTER gesetzt, nicht nur wenn es vom Ausgangswert abweicht: bei
 				// mehreren Fenstern (curveMax > 1) schrumpft `fensterFuer` jedes Fenster UNABHAENGIG --
 				// ein Vergleich nur gegen die urspruengliche `fontSize` liesse ein spaeteres, NICHT
 				// verkleinertes Fenster in der Schriftgroesse des vorigen (verkleinerten) Fensters
 				// zeichnen. Sonst malt der Canvas in der falschen Groesse an Positionen, die fuer eine
 				// andere gerechnet wurden.
-				ctx.font = kurvenlabelFont(label, fenster.fontSize);
-				const glyphs = layoutGlyphsAlong(fenster.pts, fenster.chars, fenster.widths, fenster.ls, 0, fenster.fontSize);
-				if (!glyphs) {
-					continue;
-				}
-				// 💣 DIE PROBE DES OWNERS, am fertig gesetzten Text (Entwurf §4.1, §7.3): steht die
-				// erste Glyphe weiter links als die letzte? Im Prototyp beantwortete der Browser das
-				// (getStartPositionOfChar); auf dem Canvas fragt niemand, also wird gerechnet.
-				// Sie steht HIER und nicht nur in der Passung, weil zwischen beidem noch geglaettet
-				// und verlaengert wird -- und weil genau diese Zusicherung beim Entwerfen zweimal
-				// danebengegangen ist. Ein Toleranzband gibt es nicht: -1 px ist die Grenze, und
-				// ein Band um die verbotene Lage LAESST DIE VERBOTENE LAGE ZU.
-				if (glyphs[glyphs.length - 1].x - glyphs[0].x < -1) {
-					continue;
-				}
-				paintGlyphs(glyphs, fenster.chars, kurvenlabelHalo(label), kurvenlabelFarbe(label));
+				ctx.font = kurvenlabelFont(eintrag.label, f.fontSize);
+				paintGlyphs(f.glyphs, f.chars, eintrag.halo, eintrag.fill);
 			}
 		}
 	}
+
+	// 🔴 DIE SCHNITTSTELLE ZUR KASKADE (Entwurf §7.2). Der Kollisionsdurchgang ruft sie ZWISCHEN den
+	// Gebietsnamen und den Orts-/Freilabels und bekommt zurueck, was die Kurvenlabels belegen.
+	//
+	// 💣 ZWEI KOORDINATENSYSTEME, DIE GLEICH AUSSEHEN. Gerechnet wird hier in CONTAINER-Pixeln
+	// (map.latLngToContainerPoint). resolveLabelCollisions vergleicht dagegen gegen Rechtecke aus
+	// getBoundingClientRect, also VIEWPORT-Pixel -- abgeschrieben von resolveRegionLabelCollisions,
+	// das ihm seine bisherige Vorbelegung liefert. Umgerechnet wird deshalb HIER, ein einziges Mal,
+	// durch ADDIEREN des Container-Ursprungs; publishLabelOccupancy zieht ihn hinterher wieder ab und
+	// bekommt so seine Container-Pixel zurueck (map-features-label-occupancy.js). Wer das vergisst,
+	// laesst die Kurvenlabels an der falschen Stelle blockieren -- kein Absturz, nur „hier fehlt
+	// komisch oft ein Ortsname".
+	window.avesmapsKurvenlabelPlatzierungen = function (containerOrigin) {
+		const ablage = berechneKurvenlabels();
+		const links = Number(containerOrigin && containerOrigin.left) || 0;
+		const oben = Number(containerOrigin && containerOrigin.top) || 0;
+		const rechtecke = [];
+		for (const eintrag of ablage.eintraege) {
+			for (const f of eintrag.fenster) {
+				for (const kasten of f.kaesten) {
+					rechtecke.push({
+						left: kasten.left + links,
+						right: kasten.right + links,
+						top: kasten.top + oben,
+						bottom: kasten.bottom + oben,
+						width: kasten.right - kasten.left,
+						height: kasten.bottom - kasten.top,
+					});
+				}
+			}
+		}
+		return rechtecke;
+	};
+
+	// 💣 Sie fragt das ERGEBNIS der Platzierung ab, nie die Eingabe. `Boolean(label.curveLine)` waere
+	// falsch: eine Kurve am Label heisst „der Server hat eine geliefert", nicht „sie wurde auch
+	// gezeichnet". Findet die Passung kein Fenster oder scheitert die Leserichtungsprobe, wird nichts
+	// gemalt -- und dann muss der Marker stehenbleiben, sonst verschwindet der Name GANZ. Das ist
+	// derselbe Fehler wie eine Absage, die stumm als Erfolg durchgeht: aus „ich konnte nicht" wird
+	// „es gibt nichts".
+	window.avesmapsLabelWirdAlsKurveGemalt = function (label) {
+		return Boolean(label) && kurvenlabelAblage.gemalt.has(label);
+	};
 
 	function redraw() {
 		// Klickbare Way-Labels (Task 16): Register IMMER zuerst leeren -- auch wenn redraw() gleich
@@ -231,14 +418,19 @@
 		ctx.clearRect(0, 0, canvas.width, canvas.height);
 		ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-		if (typeof pathData === "undefined" || !Array.isArray(pathData) || !pathData.length) {
-			return;
-		}
-		if (typeof isPathLabelVisibleAtCurrentZoom !== "function" || typeof getPathLabelVisualLatLngCoordinates !== "function") {
-			return;
-		}
 		ctx.textAlign = "center";
 		ctx.textBaseline = "middle";
+
+		// 💣 KANAL C HAENGT NICHT AN DEN WEGEN, und seit Aufgabe 6 haengt der ALTE MARKER am Ergebnis
+		// seiner Rechnung: ein frueher Ausstieg hier liesse den Landschaftsnamen ganz verschwinden --
+		// die Kurve ungemalt, der Marker schon abgemeldet. Dieselbe Fehlerklasse wie eine Absage, die
+		// stumm als Erfolg durchgeht. Deshalb malt Kanal C auch dann, wenn es keine Wege gibt.
+		if (typeof pathData === "undefined" || !Array.isArray(pathData) || !pathData.length
+			|| typeof isPathLabelVisibleAtCurrentZoom !== "function"
+			|| typeof getPathLabelVisualLatLngCoordinates !== "function") {
+			zeichneKurvenlabels();
+			return;
+		}
 		pathData.forEach((path) => {
 			// Kanal B: wiki-zugewiesene Wege werden jetzt als Ganzes über Kanal A beschriftet (unten) --
 			// show_label wird für sie ignoriert (kein Doppel-Label). Unzugewiesene Segmente bleiben
@@ -499,7 +691,10 @@
 
 		// KANAL C: die Namen der Landschaftsflaechen auf ihrer Kurve (Entwurf §7.3).
 		// 🔴 Die Kurve kommt vom SERVER und liegt fertig am Label (label.curveLine, Leaflet-Ordnung).
-		// Hier wird nur projiziert, gepasst und gemalt -- gerechnet hat api/_internal/app/curve-labels.php.
+		// 🔴 Und GERECHNET wird hier nichts mehr: die Platzierung faellt eine Stufe frueher, im
+		// Kollisionsdurchgang zwischen Gebiets- und Ortsnamen (avesmapsKurvenlabelPlatzierungen,
+		// map-features-label-collisions.js). Hier wird nur noch die Ablage gemalt -- und nur dann neu
+		// gerechnet, wenn sie einer anderen Ansicht gilt.
 		zeichneKurvenlabels();
 
 		// Kraftlinien-Namen -- nur im Modus „Kraftlinien". Text liegt auf der (geraden) Mittellinie, leicht

@@ -824,7 +824,7 @@ function isLabelOfActiveEcosystemLayer(label) {
 	return String(label?.ecosystemRegionKind || "") === getActiveEcosystemLayerKind();
 }
 
-function shouldShowLabelMarker(entry, zoomLevel = map.getZoom(), renderBounds = getMapRenderBounds(), editorOverride = isMapLabelEditorOverrideActive()) {
+function shouldShowLabelMarker(entry, zoomLevel = map.getZoom(), renderBounds = getMapRenderBounds(), editorOverride = isMapLabelEditorOverrideActive(), mitKurvenriegel = true) {
 	const minZoom = Number(entry.label.minZoom) || 0;
 	const maxZoom = Number.isFinite(Number(entry.label.maxZoom)) ? Number(entry.label.maxZoom) : 7;
 	// Sichtbarkeits-Band gegen die ECHTE Zoomstufe pruefen (Karte geht bis 7), NICHT gegen den auf
@@ -864,6 +864,29 @@ function shouldShowLabelMarker(entry, zoomLevel = map.getZoom(), renderBounds = 
 		return false;
 	}
 
+	// 🔴 Ein Kurvenlabel wird auf CANVAS gemalt (Entwurf §7.3), nicht als gedrehtes <img> im divIcon.
+	// Wieder ein `return false` und keine wahrheitswertige Bedingung, aus demselben Grund wie die
+	// vier Riegel darueber: er darf nur verbergen, nie zeigen.
+	// ⚠️ DER RIEGEL STEHT ZULETZT. Weiter oben stuende er ueber dem Ebenen- und dem Zoomfilter --
+	// dann waere „Kurvenbeschriftung an" ein Weg, ein Label an der Ebenenwahl vorbeizuschmuggeln.
+	// ⚠️ Er haengt an einem Zustand, den erst der Kollisionsdurchgang setzt
+	// (avesmapsKurvenlabelPlatzierungen). Beim allerersten Bild ist die Ablage noch leer, der Marker
+	// steht also einen Durchgang lang. Das ist richtig herum: lieber ein Bild zu viel Marker als ein
+	// fehlender Name.
+	// 💣 `typeof`, nicht blank: mit ?canvaspathlabels=0 steigt das Overlay aus, bevor es die Funktion
+	// ueberhaupt setzt -- dann wird auch keine Kurve gemalt, und genau dann gehoert der Marker
+	// stehengelassen. Ein blanker Aufruf waere derselbe ReferenceError, an dem am 22.08.2026
+	// findFreePlacement beinahe saemtliche Wegnamen gekostet haette.
+	// 🔴 `mitKurvenriegel` ist die EINE Ausnahme, und sie ist tragend: avesmapsKurvenlabelKandidaten
+	// fragt mit `false`. Sonst schluege der Riegel auf seine eigene Voraussetzung zurueck -- ein
+	// gemaltes Kurvenlabel fiele im naechsten Durchgang aus der Kandidatenliste, wuerde nicht mehr
+	// gemalt, der Marker kaeme zurueck, und das Ganze flackerte im Wechsel.
+	if (mitKurvenriegel
+		&& typeof avesmapsLabelWirdAlsKurveGemalt === "function"
+		&& avesmapsLabelWirdAlsKurveGemalt(entry.label)) {
+		return false;
+	}
+
 	return (MAP_LABEL_MODES.includes(getSelectedMapLayerMode()) || editorOverride === true)
 		&& bandZoom >= minZoom
 		&& bandZoom <= maxZoom
@@ -892,8 +915,42 @@ function avesmapsKurvenlabelKandidaten() {
 	const editorOverride = isMapLabelEditorOverrideActive();
 	return labelMarkers
 		.filter((entry) => Array.isArray(entry.label.curveLine) && entry.label.curveLine.length >= 2)
-		.filter((entry) => shouldShowLabelMarker(entry, zoomLevel, renderBounds, editorOverride))
+		// 💣 OHNE DEN KURVENRIEGEL (letztes Argument `false`). Der Riegel in shouldShowLabelMarker
+		// fragt, ob dieses Label GERADE als Kurve gemalt wird -- und diese Liste ist es, aus der das
+		// Malen erst hervorgeht. Mit Riegel fiele jedes einmal gemalte Kurvenlabel im naechsten
+		// Durchgang aus seiner eigenen Kandidatenliste; es wuerde nicht mehr gemalt, der Marker kaeme
+		// zurueck, und beides wechselte sich Bild fuer Bild ab. Alle uebrigen Regeln (Zoomband,
+		// Ebenenwahl, Bildausschnitt, die beiden Haken) gelten unveraendert -- es ist EIN Riegel, der
+		// hier ausgenommen ist, kein zweites Regelwerk.
+		.filter((entry) => shouldShowLabelMarker(entry, zoomLevel, renderBounds, editorOverride, false))
 		.map((entry) => entry.label);
+}
+
+// Die Marker der Kurvenlabels nachziehen -- gerufen vom Kollisionsdurchgang, direkt nachdem die
+// Platzierungen stehen (map-features-label-collisions.js).
+//
+// 💣 Ohne diesen Aufruf stuende der Name DOPPELT: der Riegel in shouldShowLabelMarker haengt am
+// Ergebnis der Platzierung, aber niemand sonst fragt ihn erneut -- syncLabelVisibility laeuft nur
+// bei Zoom und Schwenk. Nach dem Laden bliebe der waagerechte Marker also neben der Kurve stehen,
+// bis der Benutzer die Karte bewegt.
+//
+// ⚠️ Sie ruft syncLabelMarkerVisibility und NICHT syncLabelVisibility: jenes meldet am Ende einen
+// neuen Kollisionsdurchgang an, und der liefe mitten im laufenden Durchgang auf eine Schleife
+// hinaus. Nachgezogen werden nur Labels MIT Kurve -- alle anderen kann dieser Riegel nicht
+// betreffen.
+function avesmapsSyncKurvenlabelMarker() {
+	if (typeof labelMarkers === "undefined" || !Array.isArray(labelMarkers)) {
+		return;
+	}
+	const zoomLevel = map.getZoom();
+	const renderBounds = getMapRenderBounds();
+	const editorOverride = isMapLabelEditorOverrideActive();
+	labelMarkers.forEach((entry) => {
+		if (!Array.isArray(entry.label.curveLine) || entry.label.curveLine.length < 2) {
+			return;
+		}
+		syncLabelMarkerVisibility(entry, zoomLevel, renderBounds, editorOverride);
+	});
 }
 
 function syncLabelMarkerVisibility(entry, zoomLevel = map.getZoom(), renderBounds = getMapRenderBounds(), editorOverride = isMapLabelEditorOverrideActive()) {
