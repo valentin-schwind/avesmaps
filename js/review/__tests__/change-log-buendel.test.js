@@ -190,14 +190,23 @@ assert.ok(/\.change-log-group\s*\{/.test(panelCss), "die Kopfzeile eines Bündel
 // Änderung nicht -- ohne die Einrückung stünde deren Name um Dreieck plus Abstand weiter links, und
 // die Liste hätte einen ausgefransten Rand (Owner 22.08.2026: „es ist doof dass der text eingerückt ist").
 //
-// ⚠️ Die 22px sind KEINE freie Zahl: 4px Grundpolsterung + 10px Dreieck + 8px Abstand -- genau das,
-// was die Kopfzeile davor verbraucht. Vier gekoppelte Werte in zwei Regeln; wer einen anfasst, muss
-// alle zusammen bewegen. Live gemessen: beide Namen beginnen bei x = 33.
-assert.ok(/padding: 7px 4px 7px 22px/.test(zeileCss), "die einzelne Zeile rückt auf die Kante des Bündels ein");
+// ⚠️ Die 18px sind KEINE freie Zahl: 10px Dreieck + 8px Abstand -- genau das, was die Kopfzeile
+// davor verbraucht. Drei gekoppelte Werte in zwei Regeln; wer einen anfasst, muss alle zusammen
+// bewegen. Live gemessen: beide Namen beginnen bei x = 29.
+assert.ok(/padding: 7px 0 7px 18px/.test(zeileCss), "die einzelne Zeile rückt auf die Kante des Bündels ein");
 const gruppeCss = panelCss.slice(panelCss.indexOf(".change-log-group {"), panelCss.indexOf(".change-log-group__caret"));
-assert.ok(/padding: 7px 4px;/.test(gruppeCss), "die Kopfzeile behält ihre Grundpolsterung von 4px");
+assert.ok(/padding: 7px 0;/.test(gruppeCss), "die Kopfzeile hat KEINE seitliche Polsterung");
 assert.ok(/gap: 8px/.test(gruppeCss), "und das Dreieck steht 8px vor dem Namen");
 const caretCss = panelCss.slice(panelCss.indexOf(".change-log-group__caret"), panelCss.indexOf(".change-log-group__name"));
 assert.ok(/width: 10px/.test(caretCss), "das Dreieck ist 10px breit");
+
+// 🔴 UND DIE ZEILEN STEHEN AUF DERSELBEN KANTE WIE DIE BEDIENELEMENTE DARÜBER -- links wie rechts.
+// Owner 22.08.2026: „der abstand ist nicht ganz perfekt". Mit einer seitlichen Polsterung von 4px
+// stand alles um vier Pixel versetzt: Bedienelemente bei 11, das Dreieck bei 15, und rechts endete
+// die Zeile bei 385, der Filterknopf bei 389.
+// ⚠️ Deshalb `0` als seitliche Polsterung und NICHT eine zweite Zahl daneben: die gemeinsame Kante
+// kommt allein aus dem Rand der Liste (10px) und dem der Bedienzeile (10px), die ohnehin gleich sind.
+// Live gemessen: links 11 / Namen 29 / im Bündel 43, rechts überall 389.
+assert.ok(!/padding: 7px 4px[^0-9]/.test(zeileCss), "keine 4px-Stufe mehr an der Zeile");
 
 console.log("change-log-buendel ok");

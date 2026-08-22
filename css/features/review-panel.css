@@ -1567,14 +1567,17 @@
 	align-items: center;
 }
 
-/* „Meine · Alle" links, der Trichter bleibt rechts -- `margin-right: auto` statt space-between,
-   damit die Regel darüber (der Trichter MUSS rechts stehen) unberührt gilt, auch wenn hier je
-   wieder etwas dazukommt. Abstand wie bei .status-subtabs, aber ohne dessen Trennlinie: die Zeile
-   trägt schon den Trichter und soll nicht wie ein eigener Reiterbund aussehen. */
+/* 🔴 „Meine · Alle" steht in einer EIGENEN Zeile ÜBER Suche und Trichter (Owner 22.08.2026:
+   „setz die suche doch drunter, also suche und filter unter ‚Meine | Alle‘"). Zu dritt in einer
+   Zeile blieben dem Suchfeld 204px in einem 400px-Panel, und die drei Abstände nebeneinander
+   lasen sich ungleich -- der Fokusring des Feldes frisst optisch den Zwischenraum.
+   ⚠️ Bewusst OHNE die Trennlinie von .status-subtabs: die Reiterleiste des Panels sitzt zwei
+   Zeilen darüber und trägt schon eine. Die aktive Lage sagt der Unterstrich des Reiters selbst.
+   Der linke Rand ist derselbe wie bei der Suchzeile darunter (10px). */
 .change-log-scope {
 	display: flex;
-	flex: 0 0 auto;
 	gap: 14px;
+	margin: 0 10px 6px;
 }
 
 .change-log-scope[hidden] {
@@ -1585,7 +1588,7 @@
    Statusfeld ist weg). Eine leere Fläche ohne jedes Wort liest sich wie ein Fehler. */
 .change-log-notice {
 	margin: 0;
-	padding: 14px 4px;
+	padding: 14px 0;
 	color: var(--color-text-muted);
 	font-size: var(--font-size-small);
 }
@@ -1610,9 +1613,13 @@
 	   einzelne Änderung nicht -- ohne diese Einrückung stünde der Name der einzelnen um Dreieck plus
 	   Abstand weiter links als der des Bündels, und die Liste hätte einen ausgefransten Rand
 	   (Owner 22.08.2026: „es ist doof dass der text eingerückt ist").
-	   ⚠️ 22px sind KEINE freie Zahl: 4px Grundpolsterung + 10px Dreieck + 8px Abstand -- genau das,
-	   was die Kopfzeile davor verbraucht. Wer eines der drei ändert, ändert diese Zahl mit. */
-	padding: 7px 4px 7px 22px;
+	   ⚠️ 18px sind KEINE freie Zahl: 10px Dreieck + 8px Abstand -- genau das, was die Kopfzeile
+	   davor verbraucht. Wer eines der beiden ändert, ändert diese Zahl mit.
+	   ⚠️ Und KEINE seitliche Grundpolsterung: die Zeile soll links auf derselben Kante beginnen wie
+	   „Meine · Alle" und das Suchfeld darüber (11px) und rechts auf derselben enden wie der
+	   Filterknopf (389px). Mit 4px stand alles um vier Pixel versetzt -- „der abstand ist nicht ganz
+	   perfekt" (Owner, 22.08.2026). */
+	padding: 7px 0 7px 18px;
 	border: 0;
 	border-top: 1px solid var(--color-border);
 	border-radius: 0;
@@ -1628,7 +1635,7 @@
 .change-log-entry--grouped {
 	/* Eine Stufe TIEFER als die gemeinsame Kante -- sonst stünden die Zeilen eines offenen Bündels
 	   genau unter dem Namen ihres Bündels und läsen sich wie Geschwister, nicht wie Inhalt. */
-	padding-left: 36px;
+	padding-left: 32px;
 	background: var(--color-panel-muted);
 }
 
@@ -1718,7 +1725,9 @@
 	box-sizing: border-box;
 	width: 100%;
 	min-width: 0;
-	padding: 7px 4px;
+	/* Ohne seitliche Polsterung: das Dreieck beginnt damit auf derselben Kante wie die
+	   Bedienelemente darüber. Die 18px der einzelnen Zeile leiten sich hieraus ab. */
+	padding: 7px 0;
 	border-top: 1px solid var(--color-border);
 	color: var(--color-text-strong);
 	cursor: pointer;

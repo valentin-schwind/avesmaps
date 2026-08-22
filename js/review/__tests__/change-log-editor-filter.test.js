@@ -188,6 +188,14 @@ assert.ok(
 	abschnitt.indexOf('id="change-log-scope"') < abschnitt.indexOf('id="change-log-search"'),
 	"und der Umschalter vor beiden",
 );
+// 🔴 „Meine · Alle" steht in einer EIGENEN Zeile ÜBER Suche und Trichter (Owner 22.08.2026: „setz die
+// suche doch drunter, also suche und filter unter ‚Meine | Alle‘"). Zu dritt in einer Zeile blieben
+// dem Suchfeld 204px in einem 400px-Panel, und die drei Abstände lasen sich ungleich.
+const scopeBis = abschnitt.indexOf("</div>", abschnitt.indexOf('id="change-log-scope"'));
+assert.ok(
+	scopeBis < abschnitt.indexOf('class="wiki-sync-panel__filter"'),
+	"der Umschalter steht AUSSERHALB der Suchzeile, in einer eigenen",
+);
 
 // ---- Die Suche -------------------------------------------------------------------------------------
 const changeLogSearchEntries = sandbox.changeLogSearchEntries;

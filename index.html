@@ -471,16 +471,18 @@
 				<!-- Der geteilte Filter-Trichter (js/ui/filter-menu.js), gefüllt und verdrahtet in
 				     review-panels-change-log.js. Die Namen der Editoren stehen NICHT hier: sie fallen aus
 				     den geladenen Zeilen, samt Anzahl -- eine feste Liste wäre am Tag danach falsch. -->
+				<!-- „Meine · Alle": derselbe Reiter wie „Empfangen/Gesendet/Archiv" nebenan (.status-subtab) --
+				     kein zweites Aussehen für dieselbe Frage. Beide Knöpfe schreiben in DIESELBE Auswahl,
+				     die auch der Trichter füllt; „Meine" ist der Haken auf dem eigenen Namen, „Alle" ist
+				     kein Haken. Deshalb kann keiner der beiden aktiv sein, wenn im Trichter jemand anderes
+				     steht -- das ist ehrlich, kein Fehler. Verdrahtet in review-panels-change-log.js.
+				     🔴 EIGENE ZEILE (Owner 22.08.2026: „setz die suche doch drunter“). Zu dritt in einer
+				     Zeile blieben dem Suchfeld 204px, und die drei Abstände lasen sich ungleich. -->
+				<div id="change-log-scope" class="change-log-scope" role="group" aria-label="Wessen Änderungen" hidden>
+					<button class="status-subtab" type="button" data-change-log-scope="mine">Meine</button>
+					<button class="status-subtab is-active" type="button" data-change-log-scope="all">Alle</button>
+				</div>
 				<div class="wiki-sync-panel__filter">
-					<!-- „Meine · Alle": derselbe Reiter wie „Empfangen/Gesendet/Archiv" nebenan (.status-subtab) --
-					     kein zweites Aussehen für dieselbe Frage. Beide Knöpfe schreiben in DIESELBE Auswahl,
-					     die auch der Trichter füllt; „Meine" ist der Haken auf dem eigenen Namen, „Alle" ist
-					     kein Haken. Deshalb kann keiner der beiden aktiv sein, wenn im Trichter jemand
-					     anderes steht -- das ist ehrlich, kein Fehler. Verdrahtet in review-panels-change-log.js. -->
-					<div id="change-log-scope" class="change-log-scope" role="group" aria-label="Wessen Änderungen" hidden>
-						<button class="status-subtab" type="button" data-change-log-scope="mine">Meine</button>
-						<button class="status-subtab is-active" type="button" data-change-log-scope="all">Alle</button>
-					</div>
 					<!-- Die Suche siebt in dem, was geladen ist -- Objektname, Aktion, Erklärzeile und Urheber.
 					     Kein Serverweg: die Liste hat höchstens 200 Zeilen, und „was ist gerade passiert" ist
 					     genau die Frage, die sie beantwortet. 🔴 Der Trichter steht DAHINTER -- sein Menü hängt
