@@ -520,6 +520,82 @@ async function approveOutlier(wikiKey, fingerprint, wayName) {
 	void loadOutliers();
 }
 
+// „gehört nicht zum Weg": der Streuner verliert seine Wiki-Zuordnung und bekommt einen eigenen
+// generischen Namen. Die Zeichnung bleibt liegen — ein Weg IST dort meistens, er ist nur nicht
+// dieser Weg (der gemeldete Fall: ein siebenpunktiges Stück bei Qinsay hieß „Eisenstraße",
+// während die echte Eisenstraße 345 Einheiten weiter südlich läuft, Discord #88).
+//
+// ⭐ KEIN NEUES SERVER-VERB. `clear_assign` mit `single_segment` steht seit langem da, und sein
+// Kommentar in api/_internal/wiki/paths.php nennt wörtlich den „faelschlich zugewiesenen
+// Zufahrts-Sporn". Eine zweite Fassung von „Zuweisung lösen" wäre die Divergenz, vor der
+// AGENTS.md an einem Dutzend Stellen warnt.
+//
+// 🔴 Und es wird KEINE Entscheidung gespeichert (anders als bei „gehört zum Weg"): der Fall
+// verschwindet, weil sich die DATEN geändert haben. Das ist die Regel des Konfliktzentrums —
+// berechnet, nie abgelegt —, und sie trägt hier von selbst.
+async function detachOutlier(wikiKey, segmentIds, wayName, ambiguous) {
+	const ids = String(segmentIds || "").split(",").map((id) => id.trim()).filter(Boolean);
+	if (!wikiKey || ids.length === 0) {
+		return;
+	}
+	const eins = ids.length === 1;
+	if (!window.confirm(
+		`„${wayName}": ${eins ? "dieses eine Segment" : `diese ${ids.length} Segmente`} vom Weg lösen?\n\n`
+		+ `${eins ? "Es verliert" : "Sie verlieren"} die Wiki-Zuordnung und `
+		+ `${eins ? "bekommt einen eigenen Namen" : "bekommen je einen eigenen Namen"}. `
+		+ "Die Zeichnung bleibt auf der Karte liegen, der übrige Weg bleibt verknüpft.\n\n"
+		+ "Rückgängig über den Änderungs-Log, wie jedes Lösen im Editor.")) {
+		// 🔴 ABGEBROCHEN IST ABGELEHNT — hier nichts anfassen und nichts neu laden.
+		return;
+	}
+	// 🔴 MEHRDEUTIG HEISST: NIEMAND WEISS, WELCHE HÄLFTE DIE STRASSE IST. Der Server hält sich dort
+	// ausdrücklich zurück (path-outliers.php: „no mechanic can decide them"), und die Liste sagt es
+	// in der Zeile. Wer hier die falsche Hälfte löst, nimmt dem Weg seine echte Strecke — deshalb
+	// dieselbe zweite Frage wie bei der Dublette mit Höhe (63b0b35b).
+	if (ambiguous && !window.confirm(
+		`Achtung: „${wayName}" zerfällt in zwei gleich große Hälften — welche davon der Weg ist, `
+		+ "entscheidet keine Regel. Löst du die falsche, verliert der Weg seine echte Strecke.\n\n"
+		+ "Trotzdem lösen?")) {
+		return;
+	}
+	let geloest = 0;
+	let letzterName = "";
+	for (const publicId of ids) {
+		// 💣 NACHEINANDER, nicht per Promise.all: clear_assign vergibt dem gelösten Segment einen
+		// neuen generischen Namen und liest den Vorrat dafür FRISCH aus der Datenbank
+		// (avesmapsWikiPathNextGenericName). Zwei gleichzeitige Rufe lesen denselben Vorrat und
+		// vergeben denselben Namen. Die Reihenfolge ist hier Korrektheit, nicht Höflichkeit.
+		const result = await pathSyncPost({
+			action: "clear_assign",
+			public_id: publicId,
+			single_segment: true,
+			dry_run: false,
+			confirm: "apply",
+		});
+		if (!result || result.ok !== true) {
+			const status = pathSyncElement("path-sync-summary");
+			if (status) {
+				status.textContent = "Fehler: " + apiErrorMessage(result, "Lösen fehlgeschlagen");
+			}
+			// ⚠️ Abbrechen, aber NICHT zurückkehren: was schon gelöst ist, ist gelöst, und die Liste
+			// muss den halben Stand zeigen statt den alten.
+			break;
+		}
+		geloest += 1;
+		letzterName = String(result.generic_name || "");
+	}
+	if (geloest > 0 && typeof showFeedbackToast === "function") {
+		showFeedbackToast(geloest === 1
+			? (letzterName
+				? `Segment vom Weg gelöst — heißt jetzt „${letzterName}".`
+				: "Segment vom Weg gelöst.")
+			: `${geloest} Segmente vom Weg gelöst.`, "success");
+	}
+	outlierLoaded = false;
+	outlierData = null;
+	void loadOutliers();
+}
+
 async function reopenOutlier(fingerprint) {
 	if (!fingerprint) {
 		return;
@@ -590,7 +666,15 @@ function renderOutlierList(list) {
 			`<span class="region-sync__badge">${cluster.size} Segment${cluster.size === 1 ? "" : "e"} · Abstand ${pathSyncEscapeText(String(cluster.distance ?? "?"))}</span> ` +
 			`<span class="region-sync__cand region-sync__cand--conflict">${cluster.on_course ? "liegt auf dem Verlauf, aber Zuordnung mehrdeutig" : (way.has_course ? "liegt bei keiner Verlauf-Station" : "kein Wiki-Verlauf zum Abgleich")}</span> ` +
 			(cluster.segments || []).map(chip).join(" ") + " " +
-			`<button type="button" class="region-sync__cand" data-outlier-approve="${pathSyncEscapeAttr(way.wiki_key)}" data-fingerprint="${pathSyncEscapeAttr(cluster.fingerprint || "")}" data-way-name="${pathSyncEscapeAttr(way.name || way.wiki_key)}" title="Bestätigen, dass dieser Klumpen zum Weg gehört — verschwindet aus der Liste, öffnet sich wieder, wenn der Weg neu gezeichnet wird">gehört zum Weg</button>` +
+			`<button type="button" class="region-sync__cand" data-outlier-approve="${pathSyncEscapeAttr(way.wiki_key)}" data-fingerprint="${pathSyncEscapeAttr(cluster.fingerprint || "")}" data-way-name="${pathSyncEscapeAttr(way.name || way.wiki_key)}" title="Bestätigen, dass dieser Klumpen zum Weg gehört — verschwindet aus der Liste, öffnet sich wieder, wenn der Weg neu gezeichnet wird">gehört zum Weg</button> ` +
+			// 🔴 DAS GEGENSTÜCK, und ohne es taugt die Liste nur für Fehlalarme: bis 22.08.2026 sagten
+			// alle drei Verben des Reiters „stimmt schon" („Neu prüfen", „gehört zum Weg", „wieder
+			// öffnen"). Ein ECHTER Streuner ließ sich hier nur ANSEHEN — er musste von Hand im
+			// Wege-Editor gesucht werden, und genau deshalb stand der Strand-Streuner der Eisenstraße
+			// vom 23.07. bis zum 22.08.2026 unverändert live und kam als Discord #88 zurück.
+			// ⚠️ Die Reichweite steht IM Knopf: data-segments trägt genau die Segmente DIESES Klumpens,
+			// nie den ganzen Weg. Ein Knopf, dessen Wirkung man erst im Dialog erfährt, ist eine Falle.
+			`<button type="button" class="region-sync__cand" data-outlier-detach="${pathSyncEscapeAttr(way.wiki_key)}" data-segments="${pathSyncEscapeAttr((cluster.segments || []).map((segment) => segment.public_id).join(","))}" data-way-name="${pathSyncEscapeAttr(way.name || way.wiki_key)}" data-ambiguous="${way.ambiguous ? "1" : ""}" title="Diesen Klumpen vom Weg lösen — er verliert die Wiki-Zuordnung, bekommt einen eigenen Namen und bleibt als namenloser Weg auf der Karte liegen">gehört nicht zum Weg</button>` +
 			"</div>").join("");
 		return (
 			`<div class="tree-item region-sync__item" data-focus-way="${pathSyncEscapeAttr(way.wiki_key)}"` +
@@ -1407,6 +1491,18 @@ document.addEventListener("click", (event) => {
 	const approveBtn = event.target.closest("[data-outlier-approve]");
 	if (approveBtn) {
 		void approveOutlier(approveBtn.dataset.outlierApprove, approveBtn.dataset.fingerprint, approveBtn.dataset.wayName || "");
+		return;
+	}
+	// ⚠️ Der Reparatur-Knopf trägt bewusst KEIN data-path-id: sonst finge ihn der Segment-Chip-Zweig
+	// weiter oben ab (".region-sync__cand[data-path-id]") und zeigte den Streuner nur auf der Karte.
+	const detachBtn = event.target.closest("[data-outlier-detach]");
+	if (detachBtn) {
+		void detachOutlier(
+			detachBtn.dataset.outlierDetach,
+			detachBtn.dataset.segments,
+			detachBtn.dataset.wayName || "",
+			detachBtn.dataset.ambiguous === "1"
+		);
 		return;
 	}
 	const reopenBtn = event.target.closest("[data-outlier-reopen]");
