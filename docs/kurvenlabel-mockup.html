@@ -345,7 +345,7 @@ select {
 			<div class="gruppe gruppe--editor">
 				<h2>Was der Editor später sieht</h2>
 				<label class="zeile"><input type="checkbox" id="c-kurvenlabel" checked> <span>Kurvenbeschriftung</span></label>
-				<label class="zeile zeile--zahl"><span>Maximale Anzahl der Labels</span><input type="number" id="n-max" min="1" max="6" step="1" value="1"></label>
+				<label class="zeile zeile--zahl"><span>Maximale Anzahl der Labels</span><input type="number" id="n-max" min="1" max="3" step="1" value="1"></label>
 				<p class="notiz">Mehr nicht, und beides gilt <b>pro Fläche</b>. Alles unter dieser Linie zieht
 				in die Kachel „Darstellung“ des Editorbands um — dort für Admins einstellbar, für Editoren
 				nur sichtbar (Owner 22.08.2026, Muster: „Zoombänder“).</p>
@@ -1540,7 +1540,7 @@ function baueGalerie() {
 			// der Editor spaeter vor sich hat.
 			+ "<div class=\"kachelsteuerung\">"
 			+ "<label class=\"zeile\"><input type=\"checkbox\" class=\"k-kurve\"" + (e.kurve ? " checked" : "") + "> <span>Kurvenbeschriftung</span></label>"
-			+ "<label class=\"zeile zeile--zahl\"><span>Max. Labels</span><input type=\"number\" class=\"k-max\" min=\"1\" max=\"6\" step=\"1\" value=\"" + e.max + "\"></label>"
+			+ "<label class=\"zeile zeile--zahl\"><span>Max. Labels</span><input type=\"number\" class=\"k-max\" min=\"1\" max=\"3\" step=\"1\" value=\"" + e.max + "\"></label>"
 			+ "</div>"
 			+ "<div class=\"karte\"></div><div class=\"fuss\">…</div>";
 		g.appendChild(k);
@@ -1558,7 +1558,7 @@ function baueGalerie() {
 			neuZeichnen();
 		});
 		k.querySelector(".k-max").addEventListener("input", function () {
-			einstellung(i).max = Math.max(1, Math.min(6, Math.round(Number(this.value) || 1)));
+			einstellung(i).max = Math.max(1, Math.min(3, Math.round(Number(this.value) || 1)));
 			if (i === zustand.flaeche) zeigeEditorwerte();
 			neuZeichnen();
 		});
@@ -1611,7 +1611,7 @@ $("c-kurvenlabel").addEventListener("change", function () {
 	spiegleGalerie();
 });
 $("n-max").addEventListener("input", function () {
-	const v = Math.max(1, Math.min(6, Math.round(Number(this.value) || 1)));
+	const v = Math.max(1, Math.min(3, Math.round(Number(this.value) || 1)));
 	einstellung(zustand.flaeche).max = v;
 	neuZeichnen();
 	spiegleGalerie();
