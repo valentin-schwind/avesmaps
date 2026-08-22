@@ -468,6 +468,12 @@
 				</div>
 			</section>
 			<section class="review-panel__section" data-editor-panel-section="changes">
+				<!-- Der geteilte Filter-Trichter (js/ui/filter-menu.js), gefüllt und verdrahtet in
+				     review-panels-change-log.js. Die Namen der Editoren stehen NICHT hier: sie fallen aus
+				     den geladenen Zeilen, samt Anzahl -- eine feste Liste wäre am Tag danach falsch. -->
+				<div class="wiki-sync-panel__filter">
+					<div class="type-filter"><button type="button" id="change-log-filter-toggle" class="type-filter__toggle" aria-label="Filter">Filter ▾</button><div id="change-log-filter-menu" class="type-filter__menu" hidden><div class="type-filter__section"><div class="type-filter__section-title">Editor</div><div id="change-log-editor-menu"></div></div></div></div>
+				</div>
 				<p id="change-panel-status" class="review-panel__status" role="status" aria-live="polite">Änderungen werden geladen...</p>
 				<div id="change-log-list" class="review-panel__list"></div>
 			</section>

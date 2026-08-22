@@ -141,6 +141,54 @@ function changeLogEntryDetail(entry) {
 	return String(entry?.detail ?? "").trim();
 }
 
+// Der Filter nach Editor. ⚠️ ER SIEBT AUS DEN GELADENEN 200 ZEILEN, er holt nichts nach: ein Haken
+// zeigt „die Zeilen dieses Editors unter den letzten 200 insgesamt", nicht „seine letzten 200".
+// Owner-Entscheid 22.08.2026 (Fassung A) -- der Reiter beantwortet „was ist gerade passiert und wer
+// war's", und dafuer reicht das. Serverseitig zu filtern hiesse, drei getrennte Protokolle einzeln
+// zu erweitern.
+const changeLogEditorFilter = new Set();
+let changeLogFilterRebuild = () => {};
+
+// PUR: die Namen im Trichter, mit ihrer Anzahl. Die Reihenfolge ist „wer am meisten getan hat
+// zuerst" -- die Liste ist kurz, und danach sucht man.
+//
+// 💣 EIN ANGEHAKTER NAME BLEIBT IN DER LISTE, AUCH WENN ER GERADE NICHT VORKOMMT. Nach einem
+// Zuruecknehmen laedt der Reiter neu, und ein Editor kann aus den letzten 200 herausfallen. Ohne
+// diese Vereinigung verschwaende sein Haken aus dem Menue, waere aber weiter WIRKSAM -- die Liste
+// stuende leer da, und niemand koennte den Haken finden, um ihn zu loesen. Genau der unsichtbare
+// Luegner, den der Trichter vermeiden soll (siehe js/ui/filter-menu.js).
+function changeLogEditorOptions(entries, selected) {
+	const counts = new Map();
+	(Array.isArray(entries) ? entries : []).forEach((entry) => {
+		const actor = changeLogEntryActor(entry);
+		counts.set(actor, (counts.get(actor) || 0) + 1);
+	});
+	// ⚠️ Gefragt wird nach der FAEHIGKEIT, nicht nach `instanceof Set`: ein Set aus einem anderen
+	// Realm (der vm-Sandbox des Tests) besteht die Prueffrage nicht, kann aber alles, was hier
+	// gebraucht wird. Ein Riegel, der am Pruefstand anders urteilt als live, ist keiner.
+	if (selected && typeof selected.forEach === "function") {
+		selected.forEach((actor) => {
+			if (!counts.has(actor)) {
+				counts.set(actor, 0);
+			}
+		});
+	}
+
+	return [...counts.entries()]
+		.map(([value, count]) => ({ value, label: value, count }))
+		.sort((left, right) => right.count - left.count || left.label.localeCompare(right.label, "de"));
+}
+
+// PUR: leere Auswahl heisst ALLE -- dieselbe Regel wie in jedem anderen Trichter des Hauses.
+function changeLogFilterEntries(entries, selected) {
+	const list = Array.isArray(entries) ? entries : [];
+	if (!selected || typeof selected.has !== "function" || Number(selected.size || 0) < 1) {
+		return list;
+	}
+
+	return list.filter((entry) => selected.has(changeLogEntryActor(entry)));
+}
+
 function formatChangeAction(action) {
 	if (String(action || "").startsWith("undo_")) {
 		return `Rückgängig: ${formatChangeAction(String(action).replace(/^undo_/, ""))}`;
@@ -214,13 +262,26 @@ function renderChangeLog() {
 	}
 
 	listElement.innerHTML = "";
+	// ⚠️ Die Reihenfolge der zwei leeren Zustaende ist Absicht: „noch nichts da" kommt VOR „nichts
+	// passt", sonst behauptet ein frisches Protokoll, der Filter haette etwas weggenommen.
 	if (changeLogEntries.length < 1) {
 		setChangePanelStatus("Noch keine Änderungen.", "empty");
+		changeLogFilterRebuild();
 		return;
 	}
 
-	setChangePanelStatus(`${changeLogEntries.length} letzte Änderungen.`, "success");
-	changeLogEntries.forEach((entry) => {
+	const sichtbar = changeLogFilterEntries(changeLogEntries, changeLogEditorFilter);
+	if (sichtbar.length < 1) {
+		setChangePanelStatus("Keine Änderungen von dieser Auswahl.", "empty");
+		changeLogFilterRebuild();
+		return;
+	}
+
+	// Dieselbe Bilanz-Formel wie die acht WikiSync-Listen (js/review/review-list-balance.js) -- eine
+	// zweite Schreibweise derselben Angabe daneben ist genau der Zustand, den jene Datei beseitigt hat.
+	setChangePanelStatus(avesmapsListBalanceText("Änderungen", sichtbar.length, changeLogEntries.length), "success");
+	changeLogFilterRebuild();
+	sichtbar.forEach((entry) => {
 		const itemElement = document.createElement("article");
 		itemElement.className = "change-log-entry";
 		// 💣 Nur was sich zeigen lässt, ist ein Knopf. Eine Moderationszeile hat kein Kartenobjekt --
@@ -277,6 +338,24 @@ function renderChangeLog() {
 		}
 		listElement.appendChild(itemElement);
 	});
+}
+
+// Den Trichter verdrahten. Einmal beim Auswerten -- die Huelle steht statisch in index.html, wie
+// beim Territorien-Trichter nebenan (review-wiki-sync.js).
+if (typeof avmFilterMenuAttach === "function" && typeof document !== "undefined") {
+	changeLogFilterRebuild = avmFilterMenuAttach(
+		"change-log-filter-toggle",
+		"change-log-filter-menu",
+		[{
+			menuId: "change-log-editor-menu",
+			kind: "multi",
+			state: changeLogEditorFilter,
+			getOptions: () => changeLogEditorOptions(changeLogEntries, changeLogEditorFilter),
+			label: "Editor",
+		}],
+		() => renderChangeLog(),
+		"Filter"
+	);
 }
 
 function findLabelMarkerByPublicId(publicId) {
