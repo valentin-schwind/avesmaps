@@ -96,4 +96,44 @@ $unveraendert = $features;
 avesmapsCurveApplyToFeatures($features, []);
 assert($features === $unveraendert);
 
+// ------------------------------------------------------------------ ZWISCHENSPEICHER ---
+
+$blob = json_encode([
+    'version' => 1,
+    'regions' => [
+        'r1' => ['rev' => 7, 'max' => 2, 'line' => [[1.0, 2.0], [3.0, 4.0]]],
+        'r2' => ['rev' => 3, 'max' => 1, 'line' => [[5.0, 6.0], [7.0, 8.0]]],
+    ],
+]);
+
+// Passt die Revision, kommt die Kurve.
+$geladen = avesmapsCurveBaselinesFromCache($blob, ['r1' => 7, 'r2' => 3]);
+assert(array_keys($geladen) === ['r1', 'r2']);
+assert($geladen['r1']['line'] === [[1.0, 2.0], [3.0, 4.0]]);
+assert($geladen['r1']['max_labels'] === 2);
+
+// 💣 Eine VERALTETE Kurve wird weggelassen, nicht ausgeliefert. Jemand hat die Flaeche geaendert;
+// die alte Achse gehoert zu einer Geometrie, die es nicht mehr gibt. Die Karte zeichnet dann eine
+// Gerade -- sichtbar schlichter, aber nicht falsch.
+$geladen = avesmapsCurveBaselinesFromCache($blob, ['r1' => 8, 'r2' => 3]);
+assert(array_keys($geladen) === ['r2']);
+
+// Eine Region, die es nicht mehr gibt, faellt heraus.
+assert(avesmapsCurveBaselinesFromCache($blob, []) === []);
+
+// 🔴 Unsinn im Zwischenspeicher ergibt LEER, nie eine halbe Kurve und nie eine Ausnahme. Der
+// Lesepfad einer Karte darf an einer Beschriftung nicht scheitern.
+assert(avesmapsCurveBaselinesFromCache('', ['r1' => 7]) === []);
+assert(avesmapsCurveBaselinesFromCache('kein json', ['r1' => 7]) === []);
+assert(avesmapsCurveBaselinesFromCache('null', ['r1' => 7]) === []);
+assert(avesmapsCurveBaselinesFromCache('{"version":1}', ['r1' => 7]) === []);
+
+// 💣 Eine kuenftige Fassung des Formats wird IGNORIERT, nicht falsch gelesen. Ohne diese Pruefung
+// liest eine alte Auslieferung ein neues Feld als altes -- und niemand sieht es.
+assert(avesmapsCurveBaselinesFromCache('{"version":2,"regions":{"r1":{"rev":7,"max":1,"line":[[1,2],[3,4]]}}}', ['r1' => 7]) === []);
+
+// Eine Zeile ohne Linie ist keine Kurve.
+assert(avesmapsCurveBaselinesFromCache('{"version":1,"regions":{"r1":{"rev":7,"max":1}}}', ['r1' => 7]) === []);
+assert(avesmapsCurveBaselinesFromCache('{"version":1,"regions":{"r1":{"rev":7,"max":1,"line":[[1,2]]}}}', ['r1' => 7]) === []);
+
 echo "curve-label-store tests passed\n";

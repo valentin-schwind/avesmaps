@@ -10,6 +10,7 @@ declare(strict_types=1);
 // ecosystem_region.properties_json. Die Spalte gibt es bereits -- kein DDL.
 
 require_once __DIR__ . '/curve-labels.php';
+require_once __DIR__ . '/app-setting.php';
 
 const AVESMAPS_CURVE_LABEL_MAX = 3;
 
@@ -85,4 +86,107 @@ function avesmapsCurveApplyToFeatures(array &$features, array $byRegion): void
         $features[$i]['properties']['curve_label_line'] = $byRegion[$regionId]['line'];
         $features[$i]['properties']['curve_label_max'] = $byRegion[$regionId]['max_labels'];
     }
+}
+
+// Der Schluessel des Zwischenspeichers. Eigene Funktion statt einer nackten Konstante, damit der
+// Sammellauf (api/edit/map/curve-labels-run.php) und der Leser sich nicht auf zwei Schreibweisen
+// desselben Wortes verlassen.
+function avesmapsCurveCacheKey(): string
+{
+    return 'curve_label_baselines';
+}
+
+// Die Zahl der Punkte, mit denen eine Kurve AUSGELIEFERT wird. Gerechnet wird mit 120 (das braucht
+// der Polynomfit), geliefert werden 32 -- gemessen 433 Byte je Kurve, gegen 1,7 KB bei 120.
+// ⚠️ Nicht mit `samples` im Optionsfeld verwechseln: das ist die Rechen-, dies die Lieferdichte.
+const AVESMAPS_CURVE_LABEL_PAYLOAD_POINTS = 32;
+
+// Den abgelegten Zwischenspeicher lesen und gegen die heutigen Geometrierevisionen halten.
+//
+// 🔴 Reine Funktion, damit sie ohne DB testbar ist -- dieselbe Trennung wie in
+// ecosystem-label-link.php. Der PDO-Teil steht in avesmapsCurveReadBaselines darunter.
+//
+// 💣 Ein unlesbarer, leerer oder zu neuer Zwischenspeicher ergibt LEER. Nie eine halbe Kurve, nie
+// eine Ausnahme: der Lesepfad einer Karte darf an einer Beschriftung nicht scheitern.
+//
+// @param array<string,int> $revisionByRegion region public_id => Summe der geometry_revision
+// @return array<string,array{line:list<array{0:float,1:float}>,max_labels:int}>
+function avesmapsCurveBaselinesFromCache(string $json, array $revisionByRegion): array
+{
+    if (trim($json) === '') {
+        return [];
+    }
+    $daten = json_decode($json, true);
+    if (!is_array($daten) || ($daten['version'] ?? null) !== 1 || !is_array($daten['regions'] ?? null)) {
+        return [];
+    }
+    $raus = [];
+    foreach ($daten['regions'] as $regionId => $rec) {
+        $regionId = (string) $regionId;
+        if (!is_array($rec) || !isset($revisionByRegion[$regionId])) {
+            continue;
+        }
+        // 💣 Veraltet heisst WEGLASSEN. Die alte Achse gehoert zu einer Geometrie, die es nicht mehr
+        // gibt; eine Gerade ist schlichter, eine falsche Kurve ist ein Fehler, den niemand bemerkt.
+        if ((int) ($rec['rev'] ?? -1) !== (int) $revisionByRegion[$regionId]) {
+            continue;
+        }
+        $linie = $rec['line'] ?? null;
+        if (!is_array($linie) || count($linie) < 2) {
+            continue;
+        }
+        $sauber = [];
+        foreach ($linie as $p) {
+            if (!is_array($p) || count($p) < 2 || !is_numeric($p[0]) || !is_numeric($p[1])) {
+                return [];
+            }
+            $sauber[] = [(float) $p[0], (float) $p[1]];
+        }
+        $raus[$regionId] = [
+            'line' => $sauber,
+            'max_labels' => max(1, min(AVESMAPS_CURVE_LABEL_MAX, (int) ($rec['max'] ?? 1))),
+        ];
+    }
+
+    return $raus;
+}
+
+// Der Leser fuer den Endpunkt: EINE leichte Aggregatabfrage plus EIN app_setting-Lesevorgang.
+//
+// ⚠️ KEIN DDL (AGENTS.md §10) -- deshalb avesmapsAppSettingGetWithoutDdl und nicht ...Get.
+// ⚠️ KEINE Berechnung. 56 Regionen mal rund 50 ms waeren 2,8 s auf jeder Kartenanfrage.
+function avesmapsCurveReadBaselines(PDO $pdo): array
+{
+    try {
+        $stmt = $pdo->query(
+            'SELECT r.public_id AS region_id, SUM(a.geometry_revision) AS rev
+             FROM ecosystem_region r
+             INNER JOIN ecosystem_area a ON a.region_id = r.id AND a.is_active = 1
+             WHERE r.is_active = 1
+             GROUP BY r.public_id'
+        );
+        $rows = $stmt !== false ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
+    } catch (Throwable $e) {
+        // ⚠️ Still, aber nicht blind: ohne diese Zeile ist eine Absage von aussen unauffindbar.
+        error_log('avesmapsCurveReadBaselines (Revisionen): ' . $e->getMessage());
+
+        return [];
+    }
+    $revisionByRegion = [];
+    foreach ($rows as $row) {
+        $revisionByRegion[(string) $row['region_id']] = (int) $row['rev'];
+    }
+    if ($revisionByRegion === []) {
+        return [];
+    }
+
+    try {
+        $json = avesmapsAppSettingGetWithoutDdl($pdo, avesmapsCurveCacheKey(), '');
+    } catch (Throwable $e) {
+        error_log('avesmapsCurveReadBaselines (Zwischenspeicher): ' . $e->getMessage());
+
+        return [];
+    }
+
+    return avesmapsCurveBaselinesFromCache($json, $revisionByRegion);
 }

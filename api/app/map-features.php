@@ -18,6 +18,7 @@ require_once __DIR__ . '/../_internal/app/in-settlement-search.php';
 // complete, so a second copy of the rule here would be the second truth. Pure functions + one reader;
 // nothing runs on include, and it returns the empty relation when the ecosystem tables are absent.
 require_once __DIR__ . '/../_internal/app/ecosystem-label-link.php';
+require_once __DIR__ . '/../_internal/app/curve-label-store.php';
 // "In welcher Klimazone liegt das?" for the two shapes that travel in this payload: a place (a point,
 // so exactly one zone) and a landscape label (an area, so shares). A way answers the same question
 // through api/app/path-landscapes.php -- 5.765 ways x their stretches do not belong in here.
@@ -62,7 +63,12 @@ require_once __DIR__ . '/../_internal/app/feature-sources.php';
 //    laengst gesetzt haben. Ohne Bump haelt ein warmer Client seinen 304 und zeigt weiterhin das
 //    verschwundene Wappen/Bild nicht, obwohl der Bestand es seit Phase 3 zulaesst (dieselbe Begruendung
 //    wie Version 4/8/9/10/11 oben und api/_internal/app/ecosystem-areas.php:39).
-const AVESMAPS_MAP_FEATURES_PAYLOAD_VERSION = 12;
+// 13 (2026-08-22): ein Label, dessen Region die Kurvenbeschriftung eingeschaltet hat, traegt
+//    properties.curve_label_line (die Beschriftungskurve in Kartenkoordinaten, 32 Punkte) und
+//    properties.curve_label_max. 💣 Der Bump ist nicht Kosmetik: der ETag ist revisionsbasiert,
+//    also behielte ein warmer Client den alten Rumpf ueber 304 und saehe nie eine Kurve --
+//    waehrend der Server sie laengst liefert.
+const AVESMAPS_MAP_FEATURES_PAYLOAD_VERSION = 13;
 
 // 🔴 Fix-Runde 6 (15.08.2026): the coat-of-arms staging/model table constants AND the two loader/gate
 // functions that used to sit here (avesmapsLoadSettlementCoatGateInputs, avesmapsSettlementTerritoryCoatUrl)
@@ -193,6 +199,12 @@ try {
     // legacy-other-source merge above.
     $labelRegions = avesmapsEcosystemReadLabelRegionMap($pdo);
     avesmapsEcosystemApplyLabelRegionsToFeatures($features, $labelRegions['by_label'], $labelRegions['kind_by_region'] ?? []);
+    // Die Beschriftungskurve. 🔴 STRIKT NACH der Zeile darueber: sie haengt an
+    // properties.ecosystem_region_public_id, und fuer ~137 Labels ist das genau der Zeiger, den die
+    // Zeile darueber gerade aufgeloest hat. Vertauscht verlieren diese Labels ihre Kurve wortlos --
+    // dieselbe Reihenfolgefalle wie bei der Klimazone eine Zeile weiter unten.
+    // ⚠️ Der Leser RECHNET NICHT, er liest den Zwischenspeicher (api/_internal/app/curve-label-store.php).
+    avesmapsCurveApplyToFeatures($features, avesmapsCurveReadBaselines($pdo));
     // Climate zone, one infobox row down the line. 🔴 STRICTLY AFTER the line above: a landscape label
     // finds its shares through properties.ecosystem_region_public_id, and for ~137 of them that pointer
     // is what the line above just resolved. Swap the two and those labels silently lose the row.
