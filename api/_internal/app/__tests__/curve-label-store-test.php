@@ -38,6 +38,17 @@ assert(avesmapsCurveLabelSettingsFromProperties(['curve_label' => 'vielleicht'])
 assert(avesmapsCurveLabelSettingsFromProperties(['curve_label' => 1])['enabled'] === true);
 assert(avesmapsCurveLabelSettingsFromProperties(['curve_label' => true, 'curve_label_max' => 'zwei'])['max_labels'] === 1);
 
+// ------------------------------------------------------------------ BEFUND 7: DER KLEMMHELFER ---
+// 💣 Derselbe Klemmausdruck stand VIERMAL in curve-label-store.php. avesmapsCurveClampMaxLabels
+// ist jetzt die einzige Stelle, die den Deckel (3) und die Untergrenze (1) kennt -- alle vier
+// Aufrufer (oben, avesmapsCurveLabelRolloutFor, avesmapsCurveBaselinesFromCache,
+// avesmapsCurveBuildCachePayload) sind ueber diese Funktion bereits indirekt mitgeprueft.
+assert(avesmapsCurveClampMaxLabels(1) === 1);
+assert(avesmapsCurveClampMaxLabels(3) === 3);
+assert(avesmapsCurveClampMaxLabels(0) === 1);
+assert(avesmapsCurveClampMaxLabels(-5) === 1);
+assert(avesmapsCurveClampMaxLabels(9) === 3);
+
 // ------------------------------------------------------------------ DIE UMSTELLREGEL ---
 
 // Rotation 0 ueberall -> bleibt aus. Das sind 601 der 657 Labels; sie duerfen sich am Umstelltag
@@ -98,16 +109,18 @@ assert($features === $unveraendert);
 
 // ------------------------------------------------------------------ ZWISCHENSPEICHER ---
 
+// 🔴 Befund 8 der Zweigpruefung: der Fingerabdruck ist jetzt das PAAR aus Revisionssumme UND
+// Flaechenzahl (rev, cnt) -- SUM(geometry_revision) allein kollidiert (eigene Probe weiter unten).
 $blob = json_encode([
     'version' => 1,
     'regions' => [
-        'r1' => ['rev' => 7, 'max' => 2, 'line' => [[1.0, 2.0], [3.0, 4.0]]],
-        'r2' => ['rev' => 3, 'max' => 1, 'line' => [[5.0, 6.0], [7.0, 8.0]]],
+        'r1' => ['rev' => 7, 'cnt' => 1, 'max' => 2, 'line' => [[1.0, 2.0], [3.0, 4.0]]],
+        'r2' => ['rev' => 3, 'cnt' => 1, 'max' => 1, 'line' => [[5.0, 6.0], [7.0, 8.0]]],
     ],
 ]);
 
-// Passt die Revision, kommt die Kurve.
-$geladen = avesmapsCurveBaselinesFromCache($blob, ['r1' => 7, 'r2' => 3]);
+// Passt der Fingerabdruck, kommt die Kurve.
+$geladen = avesmapsCurveBaselinesFromCache($blob, ['r1' => ['rev' => 7, 'cnt' => 1], 'r2' => ['rev' => 3, 'cnt' => 1]]);
 assert(array_keys($geladen) === ['r1', 'r2']);
 assert($geladen['r1']['line'] === [[1.0, 2.0], [3.0, 4.0]]);
 assert($geladen['r1']['max_labels'] === 2);
@@ -115,53 +128,68 @@ assert($geladen['r1']['max_labels'] === 2);
 // 💣 Eine VERALTETE Kurve wird weggelassen, nicht ausgeliefert. Jemand hat die Flaeche geaendert;
 // die alte Achse gehoert zu einer Geometrie, die es nicht mehr gibt. Die Karte zeichnet dann eine
 // Gerade -- sichtbar schlichter, aber nicht falsch.
-$geladen = avesmapsCurveBaselinesFromCache($blob, ['r1' => 8, 'r2' => 3]);
+$geladen = avesmapsCurveBaselinesFromCache($blob, ['r1' => ['rev' => 8, 'cnt' => 1], 'r2' => ['rev' => 3, 'cnt' => 1]]);
 assert(array_keys($geladen) === ['r2']);
+
+// 💣 Befund 8: gleiche SUMME, andere FLAECHENZAHL ist EBENFALLS veraltet -- genau der Fall, den
+// eine reine Summenpruefung nicht bemerkt haette (eine Flaeche stillgelegt, Summe zufaellig
+// unveraendert).
+$geladen = avesmapsCurveBaselinesFromCache($blob, ['r1' => ['rev' => 7, 'cnt' => 2], 'r2' => ['rev' => 3, 'cnt' => 1]]);
+assert(array_keys($geladen) === ['r2'], 'gleiche Summe, andere Flaechenzahl muss als veraltet gelten');
 
 // Eine Region, die es nicht mehr gibt, faellt heraus.
 assert(avesmapsCurveBaselinesFromCache($blob, []) === []);
 
 // 🔴 Unsinn im Zwischenspeicher ergibt LEER, nie eine halbe Kurve und nie eine Ausnahme. Der
 // Lesepfad einer Karte darf an einer Beschriftung nicht scheitern.
-assert(avesmapsCurveBaselinesFromCache('', ['r1' => 7]) === []);
-assert(avesmapsCurveBaselinesFromCache('kein json', ['r1' => 7]) === []);
-assert(avesmapsCurveBaselinesFromCache('null', ['r1' => 7]) === []);
-assert(avesmapsCurveBaselinesFromCache('{"version":1}', ['r1' => 7]) === []);
+assert(avesmapsCurveBaselinesFromCache('', ['r1' => ['rev' => 7, 'cnt' => 1]]) === []);
+assert(avesmapsCurveBaselinesFromCache('kein json', ['r1' => ['rev' => 7, 'cnt' => 1]]) === []);
+assert(avesmapsCurveBaselinesFromCache('null', ['r1' => ['rev' => 7, 'cnt' => 1]]) === []);
+assert(avesmapsCurveBaselinesFromCache('{"version":1}', ['r1' => ['rev' => 7, 'cnt' => 1]]) === []);
 
 // 💣 Eine kuenftige Fassung des Formats wird IGNORIERT, nicht falsch gelesen. Ohne diese Pruefung
 // liest eine alte Auslieferung ein neues Feld als altes -- und niemand sieht es.
-assert(avesmapsCurveBaselinesFromCache('{"version":2,"regions":{"r1":{"rev":7,"max":1,"line":[[1,2],[3,4]]}}}', ['r1' => 7]) === []);
+assert(avesmapsCurveBaselinesFromCache(
+    '{"version":2,"regions":{"r1":{"rev":7,"cnt":1,"max":1,"line":[[1,2],[3,4]]}}}',
+    ['r1' => ['rev' => 7, 'cnt' => 1]]
+) === []);
 
 // Eine Zeile ohne Linie ist keine Kurve.
-assert(avesmapsCurveBaselinesFromCache('{"version":1,"regions":{"r1":{"rev":7,"max":1}}}', ['r1' => 7]) === []);
-assert(avesmapsCurveBaselinesFromCache('{"version":1,"regions":{"r1":{"rev":7,"max":1,"line":[[1,2]]}}}', ['r1' => 7]) === []);
+assert(avesmapsCurveBaselinesFromCache('{"version":1,"regions":{"r1":{"rev":7,"cnt":1,"max":1}}}', ['r1' => ['rev' => 7, 'cnt' => 1]]) === []);
+assert(avesmapsCurveBaselinesFromCache('{"version":1,"regions":{"r1":{"rev":7,"cnt":1,"max":1,"line":[[1,2]]}}}', ['r1' => ['rev' => 7, 'cnt' => 1]]) === []);
 
 // 💣 Eine kaputte Region reisst die anderen NICHT mit. Das braucht ZWEI Regionen, um ueberhaupt
 // sichtbar zu sein -- mit nur einer sehen "diese Region weglassen" und "alles weglassen" identisch
 // aus, und genau daran ist der erste Entwurf vorbeigelaufen.
 $gemischt = '{"version":1,"regions":{'
-    . '"kaputt":{"rev":1,"max":1,"line":[[1,2],["x",4]]},'
-    . '"heil":{"rev":2,"max":1,"line":[[5,6],[7,8]]}}}';
-$geladen = avesmapsCurveBaselinesFromCache($gemischt, ['kaputt' => 1, 'heil' => 2]);
+    . '"kaputt":{"rev":1,"cnt":1,"max":1,"line":[[1,2],["x",4]]},'
+    . '"heil":{"rev":2,"cnt":1,"max":1,"line":[[5,6],[7,8]]}}}';
+$geladen = avesmapsCurveBaselinesFromCache($gemischt, ['kaputt' => ['rev' => 1, 'cnt' => 1], 'heil' => ['rev' => 2, 'cnt' => 1]]);
 assert(array_keys($geladen) === ['heil']);
 assert($geladen['heil']['line'] === [[5.0, 6.0], [7.0, 8.0]]);
 
 // Dasselbe fuer die uebrigen Fehlerklassen, damit keine von ihnen heimlich eskaliert.
 $gemischt2 = '{"version":1,"regions":{'
-    . '"ohneLinie":{"rev":1,"max":1},'
-    . '"zuKurz":{"rev":1,"max":1,"line":[[1,2]]},'
-    . '"veraltet":{"rev":9,"max":1,"line":[[1,2],[3,4]]},'
-    . '"heil":{"rev":2,"max":1,"line":[[5,6],[7,8]]}}}';
-$geladen2 = avesmapsCurveBaselinesFromCache($gemischt2, ['ohneLinie' => 1, 'zuKurz' => 1, 'veraltet' => 1, 'heil' => 2]);
+    . '"ohneLinie":{"rev":1,"cnt":1,"max":1},'
+    . '"zuKurz":{"rev":1,"cnt":1,"max":1,"line":[[1,2]]},'
+    . '"veraltet":{"rev":9,"cnt":1,"max":1,"line":[[1,2],[3,4]]},'
+    . '"heil":{"rev":2,"cnt":1,"max":1,"line":[[5,6],[7,8]]}}}';
+$geladen2 = avesmapsCurveBaselinesFromCache($gemischt2, [
+    'ohneLinie' => ['rev' => 1, 'cnt' => 1],
+    'zuKurz' => ['rev' => 1, 'cnt' => 1],
+    'veraltet' => ['rev' => 1, 'cnt' => 1],
+    'heil' => ['rev' => 2, 'cnt' => 1],
+]);
 assert(array_keys($geladen2) === ['heil']);
 
 // ------------------------------------------------------------------ SAMMELLAUF ---
 
 // Der Bauer der Ablage: nur eingeschaltete Regionen, Linie auf Lieferdichte gebracht, drei
-// Nachkommastellen.
+// Nachkommastellen, Fingerabdruck (rev, cnt) vollstaendig uebernommen (Befund 8).
 $gebaut = avesmapsCurveBuildCachePayload([
     'r1' => [
         'rev' => 7,
+        'cnt' => 2,
         'settings' => ['enabled' => true, 'max_labels' => 2],
         'geometries' => [['type' => 'Polygon', 'coordinates' => [[
             [0.0, 0.0], [100.0, 0.0], [100.0, 10.0], [0.0, 10.0], [0.0, 0.0],
@@ -169,6 +197,7 @@ $gebaut = avesmapsCurveBuildCachePayload([
     ],
     'r2' => [
         'rev' => 3,
+        'cnt' => 1,
         'settings' => ['enabled' => false, 'max_labels' => 1],
         'geometries' => [['type' => 'Polygon', 'coordinates' => [[
             [0.0, 0.0], [50.0, 0.0], [50.0, 10.0], [0.0, 10.0], [0.0, 0.0],
@@ -182,6 +211,7 @@ assert($daten['version'] === 1);
 // Kurven ausliefern zu lassen, die niemand sehen soll.
 assert(array_keys($daten['regions']) === ['r1']);
 assert($daten['regions']['r1']['rev'] === 7);
+assert($daten['regions']['r1']['cnt'] === 2);
 assert($daten['regions']['r1']['max'] === 2);
 
 // Lieferdichte: 32 Punkte, nicht die 120 der Rechnung.
@@ -195,15 +225,64 @@ foreach ($daten['regions']['r1']['line'] as $punkt) {
 
 // 💣 Was hier herauskommt, muss der Leser aus Aufgabe 7 wieder hereinbekommen. Die beiden Formate
 // EINZELN zu testen liesse genau die Naht ungeprueft, an der sie auseinanderlaufen.
-$zurueck = avesmapsCurveBaselinesFromCache($gebaut, ['r1' => 7, 'r2' => 3]);
+$zurueck = avesmapsCurveBaselinesFromCache($gebaut, ['r1' => ['rev' => 7, 'cnt' => 2], 'r2' => ['rev' => 3, 'cnt' => 1]]);
 assert(array_keys($zurueck) === ['r1']);
 assert(count($zurueck['r1']['line']) === 32);
 assert($zurueck['r1']['max_labels'] === 2);
 
 // Eine Region ohne brauchbare Geometrie faellt still heraus, sie bricht den Lauf nicht ab.
 $mitMuell = avesmapsCurveBuildCachePayload([
-    'r3' => ['rev' => 1, 'settings' => ['enabled' => true, 'max_labels' => 1], 'geometries' => []],
+    'r3' => ['rev' => 1, 'cnt' => 1, 'settings' => ['enabled' => true, 'max_labels' => 1], 'geometries' => []],
 ]);
 assert(json_decode($mitMuell, true)['regions'] === []);
+
+// ------------------------------------------------------------------ BEFUND 8: DIE KOLLISIONSPROBE ---
+// Eine Region mit EINER Flaeche der Revision 3 und eine mit DREI Flaechen der Revision 1 ergeben
+// beide die reine Summe 3 -- SUM(geometry_revision) allein kann sie nicht unterscheiden ("eine
+// Flaeche mit Revision 3 stilllegen" und "eine andere dreimal bearbeiten ergibt dieselbe Summe").
+// Der Fingerabdruck (rev, cnt) tut es.
+$einesRechteck = [['type' => 'Polygon', 'coordinates' => [[
+    [0.0, 0.0], [40.0, 0.0], [40.0, 25.0], [0.0, 25.0], [0.0, 0.0],
+]]]];
+$einLappen = avesmapsCurveBuildCachePayload([
+    'x' => ['rev' => 3, 'cnt' => 1, 'settings' => ['enabled' => true, 'max_labels' => 1], 'geometries' => $einesRechteck],
+]);
+$dreiLappen = avesmapsCurveBuildCachePayload([
+    'x' => ['rev' => 3, 'cnt' => 3, 'settings' => ['enabled' => true, 'max_labels' => 1], 'geometries' => $einesRechteck],
+]);
+$regionEinLappen = json_decode($einLappen, true)['regions']['x'];
+$regionDreiLappen = json_decode($dreiLappen, true)['regions']['x'];
+assert($regionEinLappen['rev'] === $regionDreiLappen['rev'], 'die reine Summe ist bewusst gleich -- das ist die Kollision');
+assert($regionEinLappen['cnt'] !== $regionDreiLappen['cnt'], 'die Flaechenzahl unterscheidet, was die Summe allein nicht kann');
+
+// Ein Leser mit dem Fingerabdruck der "3 Flaechen"-Lage darf die "1 Flaeche"-Ablage NICHT als
+// aktuell akzeptieren, obwohl die Revisionssumme uebereinstimmt.
+$geladenKollision = avesmapsCurveBaselinesFromCache($einLappen, ['x' => ['rev' => 3, 'cnt' => 3]]);
+assert($geladenKollision === [], 'Befund 8: reine Summengleichheit darf die Kurve NICHT durchlassen');
+
+// ------------------------------------------------------------------ BEFUND 3: REIHENFOLGE IN map-features.php ---
+// 🔴 avesmapsCurveApplyToFeatures muss NACH avesmapsEcosystemApplyLabelRegionsToFeatures stehen --
+// rund 137 Labels bekommen ihren ecosystem_region_public_id erst dort. Vertauscht verlieren genau
+// die ihre Kurve, WORTLOS, bei gruenem Testfeld. Nach dem Vorbild in
+// api/_internal/app/__tests__/settlement-coat-gate-test.php:64-68.
+$mapFeaturesQuelle = file_get_contents(__DIR__ . '/../../../app/map-features.php');
+$posEcosystemLink = strpos($mapFeaturesQuelle, 'avesmapsEcosystemApplyLabelRegionsToFeatures(');
+$posCurveApply = strpos($mapFeaturesQuelle, 'avesmapsCurveApplyToFeatures(');
+assert($posEcosystemLink !== false && $posCurveApply !== false, 'eine der beiden Stellen fehlt in map-features.php');
+assert($posEcosystemLink < $posCurveApply, 'avesmapsCurveApplyToFeatures muss NACH avesmapsEcosystemApplyLabelRegionsToFeatures stehen');
+
+// ------------------------------------------------------------------ BEFUND 2: KEIN DECODE FUER AUS ---
+// Die Einstellung steht bereits beim ERSTEN Zeilentreffer der Region fest (sie haengt an
+// r.properties_json, nicht an der Flaeche) -- json_decode() der Geometrie darf fuer eine
+// ausgeschaltete Region nie laufen (91 % Verschwendung am Umstelltag, AGENTS.md §9). Strukturell
+// geprueft wie Befund 3 oben: die Ueberspring-Pruefung muss VOR dem json_decode der Geometrie im
+// Quelltext von avesmapsCurveRebuildCache stehen.
+$storeQuelle = file_get_contents(__DIR__ . '/../curve-label-store.php');
+$funcStart = strpos($storeQuelle, 'function avesmapsCurveRebuildCache(');
+assert($funcStart !== false, 'avesmapsCurveRebuildCache fehlt');
+$posEnabledSkip = strpos($storeQuelle, "if (!\$regionen[\$regionId]['settings']['enabled']) {", $funcStart);
+$posGeomDecode = strpos($storeQuelle, "json_decode((string) \$row['geometry_geojson']", $funcStart);
+assert($posEnabledSkip !== false && $posGeomDecode !== false, 'eine der beiden Stellen fehlt in avesmapsCurveRebuildCache');
+assert($posEnabledSkip < $posGeomDecode, 'die Region muss VOR dem json_decode der Geometrie als ausgeschaltet erkannt werden');
 
 echo "curve-label-store tests passed\n";

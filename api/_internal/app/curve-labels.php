@@ -770,7 +770,10 @@ function avesmapsCurveBaseline(array $geometries, array $options): ?array
     }
     if (count($achsen) > 1) {
         $gemeinsam = avesmapsCurveFitAcross($achsen, (int) $o['poly_degree'], (int) $o['samples']);
-        $linie = $gemeinsam ?? $achsen[0];
+        // 💣 Befund 6 der Zweigpruefung: bei `null` NICHT die rohe Achse ungeglaettet uebernehmen --
+        // der Einteiler-Zweig eine Zeile weiter unten glaettet immer, und ein stiller Rueckfall auf
+        // die rohe Achse waere schlechter als noetig ohne erkennbaren Grund.
+        $linie = $gemeinsam ?? avesmapsCurvePolyFit($achsen[0], (int) $o['poly_degree']);
     } else {
         $linie = avesmapsCurvePolyFit($achsen[0], (int) $o['poly_degree']);
     }

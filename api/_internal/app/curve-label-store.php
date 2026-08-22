@@ -14,6 +14,14 @@ require_once __DIR__ . '/app-setting.php';
 
 const AVESMAPS_CURVE_LABEL_MAX = 3;
 
+// 💣 Befund 7 der Zweigpruefung: derselbe Klemmausdruck stand VIERMAL in dieser Datei. Ein Helfer
+// statt vier Abschriften -- eine kuenftige Aenderung des Deckels traefe sonst leicht nur drei von
+// vier Stellen, wie es bei abgeschriebenem Code passiert.
+function avesmapsCurveClampMaxLabels(int $n): int
+{
+    return max(1, min(AVESMAPS_CURVE_LABEL_MAX, $n));
+}
+
 // 🔴 Fehlt der Schluessel, ist die Kurvenbeschriftung AUS. Die beiden Fehlrichtungen sind nicht
 // gleich teuer: „aus" laesst alles, wie es ist, „an" stellt 657 Labels auf einen Schlag um.
 function avesmapsCurveLabelSettingsFromProperties(?array $properties): array
@@ -25,7 +33,7 @@ function avesmapsCurveLabelSettingsFromProperties(?array $properties): array
 
     return [
         'enabled' => $an,
-        'max_labels' => max(1, min(AVESMAPS_CURVE_LABEL_MAX, $zahl)),
+        'max_labels' => avesmapsCurveClampMaxLabels($zahl),
     ];
 }
 
@@ -53,7 +61,7 @@ function avesmapsCurveLabelRolloutFor(array $rotations): array
 
     return [
         'enabled' => $gedreht,
-        'max_labels' => max(1, min(AVESMAPS_CURVE_LABEL_MAX, count($rotations))),
+        'max_labels' => avesmapsCurveClampMaxLabels(count($rotations)),
     ];
 }
 
@@ -101,7 +109,7 @@ function avesmapsCurveCacheKey(): string
 // ⚠️ Nicht mit `samples` im Optionsfeld verwechseln: das ist die Rechen-, dies die Lieferdichte.
 const AVESMAPS_CURVE_LABEL_PAYLOAD_POINTS = 32;
 
-// Den abgelegten Zwischenspeicher lesen und gegen die heutigen Geometrierevisionen halten.
+// Den abgelegten Zwischenspeicher lesen und gegen den heutigen Fingerabdruck der Region halten.
 //
 // 🔴 Reine Funktion, damit sie ohne DB testbar ist -- dieselbe Trennung wie in
 // ecosystem-label-link.php. Der PDO-Teil steht in avesmapsCurveReadBaselines darunter.
@@ -109,7 +117,14 @@ const AVESMAPS_CURVE_LABEL_PAYLOAD_POINTS = 32;
 // 💣 Ein unlesbarer, leerer oder zu neuer Zwischenspeicher ergibt LEER. Nie eine halbe Kurve, nie
 // eine Ausnahme: der Lesepfad einer Karte darf an einer Beschriftung nicht scheitern.
 //
-// @param array<string,int> $revisionByRegion region public_id => Summe der geometry_revision
+// 💣 Befund 8 der Zweigpruefung: SUM(geometry_revision) ALLEIN ist kein Fingerabdruck. Eine
+// Region, die eine Flaeche der Revision 3 stilllegt, und eine andere, deren EINE Flaeche dreimal
+// bearbeitet wurde (Revision 1+1+1), ergeben beide die Summe 3 -- obwohl sich die Zahl ihrer
+// Flaechen ("Lappen") unterscheidet. Der Fingerabdruck ist deshalb das PAAR aus Revisionssumme UND
+// Flaechenzahl (`cnt`): aendert sich nur die Zahl der aktiven Flaechen, gilt die Kurve als
+// veraltet, auch wenn die Summe zufaellig gleich bleibt.
+//
+// @param array<string,array{rev:int,cnt:int}> $revisionByRegion region public_id => Fingerabdruck
 // @return array<string,array{line:list<array{0:float,1:float}>,max_labels:int}>
 function avesmapsCurveBaselinesFromCache(string $json, array $revisionByRegion): array
 {
@@ -128,7 +143,11 @@ function avesmapsCurveBaselinesFromCache(string $json, array $revisionByRegion):
         }
         // 💣 Veraltet heisst WEGLASSEN. Die alte Achse gehoert zu einer Geometrie, die es nicht mehr
         // gibt; eine Gerade ist schlichter, eine falsche Kurve ist ein Fehler, den niemand bemerkt.
-        if ((int) ($rec['rev'] ?? -1) !== (int) $revisionByRegion[$regionId]) {
+        // Verglichen wird der VOLLE Fingerabdruck (Revisionssumme UND Flaechenzahl) -- eine reine
+        // Summengleichheit haette eine stillgelegte Flaeche nicht bemerkt (Befund 8).
+        $fingerabdruck = $revisionByRegion[$regionId];
+        if ((int) ($rec['rev'] ?? -1) !== (int) $fingerabdruck['rev']
+            || (int) ($rec['cnt'] ?? -1) !== (int) $fingerabdruck['cnt']) {
             continue;
         }
         $linie = $rec['line'] ?? null;
@@ -157,22 +176,44 @@ function avesmapsCurveBaselinesFromCache(string $json, array $revisionByRegion):
         }
         $raus[$regionId] = [
             'line' => $sauber,
-            'max_labels' => max(1, min(AVESMAPS_CURVE_LABEL_MAX, (int) ($rec['max'] ?? 1))),
+            'max_labels' => avesmapsCurveClampMaxLabels((int) ($rec['max'] ?? 1)),
         ];
     }
 
     return $raus;
 }
 
-// Der Leser fuer den Endpunkt: EINE leichte Aggregatabfrage plus EIN app_setting-Lesevorgang.
+// Der Leser fuer den Endpunkt: EIN billiger app_setting-Lesevorgang, und NUR wenn der etwas
+// enthaelt, eine leichte Aggregatabfrage.
 //
 // ⚠️ KEIN DDL (AGENTS.md §10) -- deshalb avesmapsAppSettingGetWithoutDdl und nicht ...Get.
-// ⚠️ KEINE Berechnung. 56 Regionen mal rund 50 ms waeren 2,8 s auf jeder Kartenanfrage.
+// ⚠️ KEINE Berechnung. Wuerde dieser Leser die Kurve selbst rechnen, waeren das bei rund 50
+// eingeschalteten Regionen und gemessenen 165-796 ms je Flaeche real 10-40 Sekunden auf JEDER
+// Kartenanfrage -- die frueher angenommenen ~50 ms je Flaeche waren falsch (Befund 4 der
+// Zweigpruefung). Der Leser tut das nie: er liest nur die billige Revisionssumme (Aggregatabfrage,
+// gemessen unter 20 ms) und den vom Sammellauf (api/edit/map/curve-labels-run.php) bereits
+// berechneten Zwischenspeicher.
+//
+// 🔴 Befund 9 der Zweigpruefung: ERST der billige Einzelsatz, DANN -- nur wenn er etwas enthaelt --
+// die Aggregatabfrage. Solange niemand den Sammellauf ausgeloest hat (die gesamte Lebensdauer
+// dieses Plans, bis Plan 4 die Kachel "Darstellung" bringt), ist der Zwischenspeicher leer, und die
+// Aggregatabfrage waere auf JEDER oeffentlichen Kartenanfrage reine Verschwendung.
 function avesmapsCurveReadBaselines(PDO $pdo): array
 {
     try {
+        $json = avesmapsAppSettingGetWithoutDdl($pdo, avesmapsCurveCacheKey(), '');
+    } catch (Throwable $e) {
+        error_log('avesmapsCurveReadBaselines (Zwischenspeicher): ' . $e->getMessage());
+
+        return [];
+    }
+    if (trim($json) === '') {
+        return [];
+    }
+
+    try {
         $stmt = $pdo->query(
-            'SELECT r.public_id AS region_id, SUM(a.geometry_revision) AS rev
+            'SELECT r.public_id AS region_id, SUM(a.geometry_revision) AS rev, COUNT(*) AS cnt
              FROM ecosystem_region r
              INNER JOIN ecosystem_area a ON a.region_id = r.id AND a.is_active = 1
              WHERE r.is_active = 1
@@ -187,17 +228,9 @@ function avesmapsCurveReadBaselines(PDO $pdo): array
     }
     $revisionByRegion = [];
     foreach ($rows as $row) {
-        $revisionByRegion[(string) $row['region_id']] = (int) $row['rev'];
+        $revisionByRegion[(string) $row['region_id']] = ['rev' => (int) $row['rev'], 'cnt' => (int) $row['cnt']];
     }
     if ($revisionByRegion === []) {
-        return [];
-    }
-
-    try {
-        $json = avesmapsAppSettingGetWithoutDdl($pdo, avesmapsCurveCacheKey(), '');
-    } catch (Throwable $e) {
-        error_log('avesmapsCurveReadBaselines (Zwischenspeicher): ' . $e->getMessage());
-
         return [];
     }
 
@@ -206,7 +239,7 @@ function avesmapsCurveReadBaselines(PDO $pdo): array
 
 // Aus den Regionen die Ablage bauen. Reine Funktion -- der PDO-Teil steht darunter.
 //
-// @param array<string,array{rev:int,settings:array{enabled:bool,max_labels:int},geometries:list<array<string,mixed>>}> $regionen
+// @param array<string,array{rev:int,cnt:int,settings:array{enabled:bool,max_labels:int},geometries:list<array<string,mixed>>}> $regionen
 function avesmapsCurveBuildCachePayload(array $regionen): string
 {
     $raus = [];
@@ -227,7 +260,11 @@ function avesmapsCurveBuildCachePayload(array $regionen): string
         }
         $raus[(string) $regionId] = [
             'rev' => (int) ($rec['rev'] ?? 0),
-            'max' => max(1, min(AVESMAPS_CURVE_LABEL_MAX, (int) ($rec['settings']['max_labels'] ?? 1))),
+            // 💣 Befund 8 der Zweigpruefung: die Flaechenzahl gehoert zum Fingerabdruck dazu, sonst
+            // kollidiert eine stillgelegte Flaeche mit einer dreifach bearbeiteten (beide Summe 3,
+            // siehe avesmapsCurveReadBaselines).
+            'cnt' => (int) ($rec['cnt'] ?? 0),
+            'max' => avesmapsCurveClampMaxLabels((int) ($rec['settings']['max_labels'] ?? 1)),
             'line' => $linie,
         ];
     }
@@ -268,11 +305,26 @@ function avesmapsCurveRebuildCache(PDO $pdo): array
             $properties = json_decode((string) ($row['properties_json'] ?? ''), true);
             $regionen[$regionId] = [
                 'rev' => 0,
+                'cnt' => 0,
                 'settings' => avesmapsCurveLabelSettingsFromProperties(is_array($properties) ? $properties : null),
                 'geometries' => [],
             ];
         }
         $regionen[$regionId]['rev'] += (int) $row['geometry_revision'];
+        $regionen[$regionId]['cnt']++;
+        // 💣 Befund 2 der Zweigpruefung: die Einstellung steht bereits beim ERSTEN Zeilentreffer der
+        // Region fest (sie haengt an r.properties_json, nicht an der Flaeche) -- also NIE
+        // json_decode()n, was avesmapsCurveBuildCachePayload ohnehin wegwirft, weil die Region
+        // ausgeschaltet ist. Am Umstelltag sind das 56 von 644 gebrauchten Regionen -- 91 % waeren
+        // verschwendetes json_decode ueber GeoJSON-Polygone von mitunter mehreren hundert KB, auf
+        // einem STRATO-Worker ein "Allowed memory size exhausted", das mit einem LEEREN Rumpf
+        // antwortet und im Browser wie ein Netzfehler aussieht (AGENTS.md §9).
+        // ⚠️ Revisionssumme UND Flaechenzahl (Befund 8) werden dennoch fuer JEDE Region weitergefuehrt,
+        // auch fuer ausgeschaltete -- das kostet nur zwei Ganzzahladditionen, und schaltet ein
+        // Editor die Region spaeter wieder ein, muss ihr Fingerabdruck von Anfang an stimmen.
+        if (!$regionen[$regionId]['settings']['enabled']) {
+            continue;
+        }
         $geom = json_decode((string) $row['geometry_geojson'], true);
         if (is_array($geom)) {
             $regionen[$regionId]['geometries'][] = $geom;

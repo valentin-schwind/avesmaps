@@ -10,13 +10,26 @@ declare(strict_types=1);
 // liest -- das ist keine Editorhandlung.
 // ⚠️ Er laeuft SEKUNDEN, nicht Millisekunden (rund 50 eingeschaltete Regionen mal 165-796 ms je
 // Flaeche, also grob 20 s, im schlechten Fall ueber 40 s -- Details beim set_time_limit unten).
-// Genau deshalb steht er hier und nicht im Lesepfad (AGENTS.md §9, STRATO): der Lesepfad zaehlt
-// nur je Region eine Revisionssumme (rund 56 Regionen mal rund 50 ms, siehe
-// avesmapsCurveReadBaselines) und rechnet selbst nie eine Kurve.
+// Genau deshalb steht er hier und nicht im Lesepfad (AGENTS.md §9, STRATO): der Lesepfad
+// (avesmapsCurveReadBaselines) RECHNET NIE eine Kurve -- er zaehlt nur je Region eine billige
+// Revisionssumme (Aggregatabfrage, gemessen unter 20 ms) und liest den hier abgelegten
+// Zwischenspeicher. Die 165-796 ms je Flaeche gelten NUR fuer den Sammellauf hier, nie fuer den
+// Leser (Befund 4 der Zweigpruefung -- die alte Formulierung las sich als „der Lesepfad braucht
+// 2,8 s", also als das Gegenteil dessen, was sie belegen sollte).
 
 require __DIR__ . '/../../_internal/auth.php';
 require_once __DIR__ . '/../../_internal/app/app-setting.php';
 require_once __DIR__ . '/../../_internal/app/curve-label-store.php';
+// 🔴 Befund 1 der Zweigpruefung: dieser Lauf aendert die Nutzlast (den Zwischenspeicher, der ins
+// map-features-Payload einfliesst), bewegt aber KEINEN der vier ETag-Bestandteile
+// (PAYLOAD_VERSION, map_revision, Query-Parameter, climateStamp; avesmapsMapFeaturesETag,
+// api/app/map-features.php) -- ein warmer Client bliebe per 304 auf dem kurvenlosen Rumpf haengen.
+// avesmapsNextEcosystemRevision() wird unten NUR bei Erfolg aufgerufen; sie bumpt
+// ecosystem_revision.revision, und genau die liest avesmapsClimateReadStamp() in den ETag-Seed
+// (api/_internal/app/climate-membership.php) -- ohne eine ZWEITE, teure Abfrage auf dem heissen
+// oeffentlichen Lesepfad. Bewusst KEINE eigene `_stamp`-Zeile (das kostete eine zweite Abfrage bei
+// jedem Besucher, siehe die Zoombaender-Falle in AGENTS.md §11).
+require_once __DIR__ . '/../../_internal/app/ecosystem.php';
 
 try {
     $config = avesmapsLoadApiConfig(avesmapsApiRoot());
@@ -43,6 +56,12 @@ try {
     // mit jeder Region, die ein Editor einschaltet.
     // 🔧 Sobald die Kachel "Darstellung" (Plan 4) einen Auslöser mit Fortschritt hat, gehoert der
     // Lauf gestueckelt -- so wie das Hoehenraster eine Anfrage je Flaeche faehrt.
+    // ⚠️ Befund 5 der Zweigpruefung: diese Zeile schuetzt NUR vor PHPs EIGENEM Zeitlimit. Der reale
+    // Ausfall dieses Projekts am 23.07.2026 war ein PLATTFORM-WORKER-KILL ("FastCGI: aborted: read
+    // failed (0 bytes)"), kein PHP-Fatal -- @set_time_limit() half dort nachweislich NICHT. Weil
+    // ausschliesslich am Ende geschrieben wird, ist das Ergebnis eines solchen Kills weiterhin
+    // NICHTS, und zwar stillschweigend: kein Fehler, kein Log, keine Teilablage. Das bleibt eine
+    // offene Frage dieses Plans, keine geloeste.
     @set_time_limit(0);
 
     // 💣 DER TEILBAUM, NICHT DIE GANZE KONFIGURATION -- dieselbe Falle steht in zoom-bands.php
@@ -59,6 +78,11 @@ try {
         avesmapsErrorResponse(500, 'curve_cache_truncated',
             'Die Ablage kam gekuerzt zurueck (' . $ergebnis['bytes'] . ' Bytes geschrieben).');
     }
+
+    // 🔴 Befund 1 der Zweigpruefung: NUR bei Erfolg -- ein gekuerzter Schreibvorgang hat oben schon
+    // geantwortet, und ein Bump auf eine gekuerzte Ablage haette den ETag geaendert, ohne dass sich
+    // etwas Brauchbares dahinter verbirgt.
+    avesmapsNextEcosystemRevision($pdo);
 
     avesmapsJsonResponse(200, [
         'ok' => true,

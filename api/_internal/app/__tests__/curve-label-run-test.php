@@ -135,4 +135,101 @@ assert($gekuerzt['ok'] === false,
 
 $pdo->exec('DROP TRIGGER curve_label_baselines_kappen');
 
+// ============================================================ C. Fingerabdruck-Kopplung, ECHT durch die DB
+//
+// 💣 Befund 8 der Zweigpruefung: der Bauer (avesmapsCurveRebuildCache) und der Leser
+// (avesmapsCurveReadBaselines) muessen DENSELBEN Fingerabdruck (Revisionssumme UND Flaechenzahl)
+// bilden. Getrennt getestet (wie in curve-label-store-test.php) liesse genau die Naht ungeprueft,
+// an der sie auseinanderlaufen -- deshalb hier einmal frisch bauen (nach dem Kuerzungs-Trigger von
+// Block B) und mit der ECHTEN SQL-Aggregatabfrage des Lesers zurueckholen.
+$frisch = avesmapsCurveRebuildCache($pdo);
+assert($frisch['ok'] === true, 'der frische Lauf nach Block B muss wieder gelingen');
+
+$baselines = avesmapsCurveReadBaselines($pdo);
+assert(array_key_exists('r1', $baselines),
+    'der ECHTE Leser muss die gerade gebaute Kurve wiederfinden -- Bauer und Leser bilden denselben Fingerabdruck');
+assert(count($baselines['r1']['line']) === 32);
+assert($baselines['r1']['max_labels'] === 1);
+
+// ============================================================ D. Befund 8: eine stillgelegte Flaeche
+// veraltet die Kurve, auch wenn die Summe zufaellig gleich bleibt
+//
+// Region 'y' bekommt drei Flaechen: A (Revision 1), B (Revision 1) und eine dritte, UNBERUEHRTE
+// Flaeche C (Revision 0) -- Summe 2, drei Flaechen. SUM(geometry_revision) ALLEIN bleibt nach dem
+// Stilllegen von C bei 2 (die 0 traegt nichts zur Summe bei), obwohl die Flaeche verschwunden ist --
+// genau die Kollision aus dem Befund ("eine Flaeche mit Revision 3 stilllegen und eine andere
+// dreimal bearbeiten ergibt dieselbe Summe").
+$pdo->exec(
+    "INSERT INTO ecosystem_region (id, public_id, properties_json, is_active)
+     VALUES (2, 'y', '{\"curve_label\":true,\"curve_label_max\":1}', 1)"
+);
+$dreieckA = (string) json_encode(['type' => 'Polygon', 'coordinates' => [[
+    [0.0, 0.0], [30.0, 0.0], [30.0, 20.0], [0.0, 20.0], [0.0, 0.0],
+]]]);
+$dreieckB = (string) json_encode(['type' => 'Polygon', 'coordinates' => [[
+    [50.0, 0.0], [80.0, 0.0], [80.0, 20.0], [50.0, 20.0], [50.0, 0.0],
+]]]);
+$dreieckC = (string) json_encode(['type' => 'Polygon', 'coordinates' => [[
+    [100.0, 0.0], [130.0, 0.0], [130.0, 20.0], [100.0, 20.0], [100.0, 0.0],
+]]]);
+$stmtY = $pdo->prepare(
+    'INSERT INTO ecosystem_area (id, region_id, geometry_geojson, geometry_revision, is_active)
+     VALUES (:id, 2, :geom, :rev, 1)'
+);
+$stmtY->execute(['id' => 2, 'geom' => $dreieckA, 'rev' => 1]);
+$stmtY->execute(['id' => 3, 'geom' => $dreieckB, 'rev' => 1]);
+$stmtY->execute(['id' => 4, 'geom' => $dreieckC, 'rev' => 0]);
+
+$mitDreiFlaechen = avesmapsCurveRebuildCache($pdo);
+assert($mitDreiFlaechen['ok'] === true);
+assert($mitDreiFlaechen['regions'] === 2, 'jetzt sind beide Regionen (r1, y) eingeschaltet und in der Ablage');
+
+$vorher = avesmapsCurveReadBaselines($pdo);
+assert(array_key_exists('y', $vorher), 'Region y muss mit drei aktiven Flaechen eine Kurve haben');
+
+// Die dritte, unberuehrte Flaeche (Revision 0) wird stillgelegt -- die reine Summe bleibt bei 2, nur
+// die Flaechenzahl faellt von 3 auf 2. Der Sammellauf wird NICHT wiederholt (das ist der Punkt: der
+// Zwischenspeicher ist jetzt veraltet, und niemand hat das gemeldet).
+$pdo->exec('UPDATE ecosystem_area SET is_active = 0 WHERE id = 4');
+
+$nachher = avesmapsCurveReadBaselines($pdo);
+assert(!array_key_exists('y', $nachher),
+    'Befund 8: eine stillgelegte Flaeche muss die Kurve veralten lassen, auch wenn SUM(geometry_revision) unveraendert bleibt');
+
+// ============================================================ E. Befund 9: die teure Aggregatabfrage
+// darf nicht laufen, solange der Zwischenspeicher leer ist
+//
+// 💣 Der Grund fuer die Sonde statt einer reinen Rueckgabepruefung: BEIDE Reihenfolgen liefern []
+// zurueck, wenn die Aggregatabfrage gegen eine fehlende Tabelle laeuft (ihr Fehler wird
+// abgefangen) -- nur ein Zaehler am PDO selbst zeigt, ob sie ueberhaupt GESTARTET wurde.
+final class AvesmapsCurveReadOrderSpyPdo extends PDO
+{
+    public int $aggregateQueries = 0;
+
+    public function query(string $query, ?int $fetchMode = null, mixed ...$fetchModeArgs): PDOStatement|false
+    {
+        if (str_contains($query, 'FROM ecosystem_region')) {
+            $this->aggregateQueries++;
+        }
+        return parent::query($query, $fetchMode, ...$fetchModeArgs);
+    }
+}
+
+$spyPdo = new AvesmapsCurveReadOrderSpyPdo('sqlite::memory:', null, null, [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]);
+$spyPdo->exec('CREATE TABLE app_setting (setting_key TEXT PRIMARY KEY, setting_value TEXT NOT NULL)');
+// KEINE ecosystem_region/ecosystem_area Tabelle -- liefe die Aggregatabfrage doch, wuerfe sie eine
+// Ausnahme (die avesmapsCurveReadBaselines abfaengt); der Zaehler haette trotzdem angeschlagen.
+
+$leer = avesmapsCurveReadBaselines($spyPdo);
+assert($leer === [], 'ohne Zwischenspeicher muss der Leser leer zurueckgeben');
+assert($spyPdo->aggregateQueries === 0,
+    'Befund 9: die teure Aggregatabfrage darf NIE laufen, solange der Zwischenspeicher leer ist');
+
+$spyPdo->exec(
+    "INSERT INTO app_setting (setting_key, setting_value) VALUES ('curve_label_baselines', '{\"version\":1,\"regions\":{}}')"
+);
+avesmapsCurveReadBaselines($spyPdo);
+assert($spyPdo->aggregateQueries === 1,
+    'sobald der Zwischenspeicher etwas enthaelt, MUSS die Aggregatabfrage laufen');
+
 echo "curve-label-run tests passed\n";
