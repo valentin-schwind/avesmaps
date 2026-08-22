@@ -1601,6 +1601,15 @@ function wireEditBlocks(host) {
 			if (typeof avesmapsWikiFeldStand !== "function" || typeof avesmapsWikiAssignSubject !== "function") {
 				return;
 			}
+			// 🪤 HIER STAND `abgeleitet` OHNE DEKLARATION -- die Variable gehört `regionEditBlock`, der
+			// das Markup baut, und dieser Zeichner steht in `wireEditBlocks`. Ein ReferenceError, der
+			// aus `laden` herausfiel und den Kasten mit „der Stand konnte nicht gelesen werden"
+			// abwürgte -- aber NUR bei einem Gebiet, dessen Wert wirklich abweicht: darüber steht ein
+			// `return` für den unauffälligen Fall, und der deckte den Fehler in jedem Test und bei
+			// jedem gepflegten Gebiet zu. Gefunden vom Owner am 22.08.2026 an „Adrak" (Schlucht gegen
+			// Insel). ⚠️ `region` ist hier in Reichweite -- daraus wird sie abgeleitet, nicht von drüben
+			// geholt.
+			const istKlimazone = String(region.kind || "") === "klima";
 			const stand = avesmapsWikiFeldStand(
 				(avesmapsWikiAssignSubject("landschaft") || {}).felder || [],
 				{ name: field("name").value, region_type: field("type").value },
@@ -1627,7 +1636,7 @@ function wireEditBlocks(host) {
 				// lehnt sie ab, avesmapsClimateAssertNotDerived) -- ein Knopf, der sie zurücksetzen
 				// will, führte in eine Ablehnung. Der durchgestrichene Wiki-Stand bleibt: er ist eine
 				// Auskunft, kein Angebot.
-				if (abgeleitet && feld === "region_type") { zelle.append(alt); return; }
+				if (istKlimazone && feld === "region_type") { zelle.append(alt); return; }
 				const knopf = document.createElement("button");
 				knopf.type = "button";
 				knopf.className = "dt-reset";
