@@ -30,10 +30,21 @@ Künftig läuft der Name auf der **Mittelachse der Fläche**. Zwei Einstellungen
 🔴 **Sie ersetzen das Feld „Rotation" im Beschriftungsdialog** (Owner-Entscheid, im Screenshot
 markiert). Die gespeicherte Rotation bleibt in der Datenbank stehen, wird aber nicht mehr benutzt.
 
-🔴 **Betroffen sind nur Labels, die an einer Landschaftsfläche hängen.** Von **922** Karten-Labels
-tragen **657** eine `ecosystem_region_public_id` (Topographie 369, Vegetation 205, Derographisch 83).
-Die übrigen 265 — Meere, Kontinente, Inseln, Berggipfel, Seen — behalten ihr heutiges Verhalten;
-bei ihnen ist die Option **deaktiviert**, denn ohne Fläche gibt es keine Achse.
+🔴 **Alle drei Landschaftsebenen bekommen das Feature** (Owner 22.08.2026): **Vegetation,
+Derographie, Topographie.** Keine Sonderbehandlung, keine Ebene zuerst.
+
+⭐ Und das sind genau die drei, die es brauchen können — gemessen, nicht angenommen: von **922**
+Karten-Labels tragen **657** eine `ecosystem_region_public_id`, und sie verteilen sich auf
+Topographie 369, Vegetation 205, Derographisch 83. **Die vierte Ebene, Klima, trägt null Labels** und
+ist damit kein Sonderfall, den man abfangen müsste: ein Klimaband ist abgeleitet und darf nie als
+Polygon bearbeitet werden (`avesmapsClimateAssertNotDerived`, AGENTS.md §11).
+
+Die übrigen **265** Labels — Meere, Kontinente, Inseln, Berggipfel, Seen — behalten ihr heutiges
+Verhalten; bei ihnen ist die Option **deaktiviert**, denn ohne Fläche gibt es keine Achse.
+
+⚠️ Die 56 Flächen, die am Umstelltag eine Kurve bekommen (§8.2), sind der ANFANG, nicht das Ziel.
+Owner: *„es gibt noch mehr gebiete, die das feature benötigen."* Der Haken ist dafür da, dass Editoren
+ihn setzen.
 
 ---
 
@@ -294,9 +305,11 @@ nimmt davon nichts vorweg.
 | Ausweichweg eines Kurvenlabels | 6 px | Kollisionsvermeidung (§7.2) |
 | Schrift verkleinern bis es passt | an | Passung, Mittel 2 |
 
-⚠️ **Der Mindestabstand ist der unsicherste Wert im Entwurf.** Er entscheidet, wann beim Herauszoomen
-ein Name verschwindet, und er ist an sechs Flächen geraten, nicht an 644 gemessen. Genau deshalb
-gehört er in die einstellbare Tafel und nicht in eine Konstante.
+⚠️ **Mindestabstand und Ausweichweg sind an sechs Flächen geraten, nicht an 644 gemessen.** Genau
+deshalb stehen sie in der einstellbaren Tafel und nicht in einer Konstante. 🔴 **Sie werden nach dem
+Bau gemeinsam nachgesehen** (Owner 22.08.2026: *„wir können auch nochmal alle anschauen, wenn du
+implementiert hast"*) — an allen Flächen, nicht an den sechs. Das ist Teil der Abnahme, nicht eine
+Absicht für später.
 
 ---
 
@@ -359,25 +372,48 @@ Konkret:
 `getBoundingClientRect()` schon jetzt eine stark aufgeblähte achsenparallele Hülle. Mehrere kleine
 Rechtecke entlang der Schrift sind die genauere Aussage.
 
-🔧 **Ungeprüft:** ob die Ordnung kippt — Kurvenlabels sind am Ende unverdrängbar und drängen damit
-Ortsnamen weg, die heute gewinnen könnten. Am Livebestand zu messen, nicht zu behaupten.
+🔴 **Die Ordnung wird gemessen und dann vermutlich gelassen** (Owner 22.08.2026). Kurvenlabels sind
+am Ende unverdrängbar und drängen damit Ortsnamen weg, die heute gewinnen könnten — wie oft das
+vorkommt, gehört gemessen, bevor jemand daran dreht. ⚠️ **An der Prioritätenordnung wird in diesem
+Vorhaben nichts geändert:** eine globale Prioritäten-Entscheidung kommt mit der vollständigen
+Überarbeitung der Kollisionen, und sie hier vorwegzunehmen hiesse, dieselbe Frage zweimal und
+verschieden zu beantworten.
 
 ### §7.3 Zeichnen
 
-Der Prototyp zeichnet SVG-`<textPath>`. Die Karte zeichnet Labels heute als **Canvas-Bild** in einem
-`L.divIcon` (`renderMapLabelToImage`), damit die Schrift „in die gemalte Karte einsinkt".
+🔴 **Canvas** (Owner-Entscheid 22.08.2026). Die Karte zeichnet Labels als Canvas-Bild in einem
+`L.divIcon` (`renderMapLabelToImage`), damit die Schrift „in die gemalte Karte einsinkt"; zwei
+Schriftbilder nebeneinander würden auffallen. Der Prototyp zeichnet SVG-`<textPath>` — das ist eine
+Eigenschaft des Prototyps, kein Vorschlag.
 
-🔧 **Offene Entscheidung.** Empfehlung: **Canvas**, weil die Anmutung der Karte eine getroffene
-Entscheidung ist und zwei Schriftbilder nebeneinander auffallen. ⚠️ Dann ist die Leserichtungsprobe
-aus §4.1 selbst zu rechnen statt vom Browser zu bekommen — und sie ist die Zusicherung, die zweimal
-danebengegangen ist.
+Damit ist Glyphe für Glyphe zu setzen: Position aus der Bogenlänge, Drehung aus der Tangente,
+Sperrung als Zuschlag je Lücke. Halo und Kapitälchen kommen unverändert aus `renderMapLabelToImage`.
+
+💣 **Und die Leserichtungsprobe aus §4.1 muss dann selbst gerechnet werden.** Im Prototyp liefert sie
+der Browser (`getStartPositionOfChar`); auf dem Canvas gibt es niemanden, der antwortet. Sie ist
+genau die Zusicherung, die zweimal danebengegangen ist — sie darf nicht mit dem Zeichenweg verloren
+gehen, sondern wird über die gesetzten Glyphenpositionen gerechnet: **die x-Lage der ersten Glyphe
+gegen die x-Lage der letzten.** ⭐ Das ist auf dem Canvas sogar leichter als im SVG, weil die
+Positionen ohnehin selbst berechnet werden — sie müssen nur verglichen werden.
 
 ### §7.4 Bearbeiten-Modus
 
 Ein Label ist heute mit der Maus verschiebbar (`body.edit-mode .map-label`).
 
-🔧 **Offen:** was ein Zug an einem Kurvenlabel tun soll. Naheliegend: **nichts** — die Lage folgt der
-Fläche. Dann muss der Zeiger das auch sagen (kein `cursor: move`).
+🔴 **Ein Kurvenlabel richtet sich neu aus, sobald die Bearbeitung abgeschlossen ist** (Owner
+22.08.2026). Es bleibt also nicht liegen, wo man es hinzieht: mit dem Ende der Bearbeitung wird die
+Kurve aus der Fläche neu abgeleitet und der Name darauf neu gesetzt.
+
+Das gilt für **beide** Bearbeitungen, und das ist der Punkt:
+
+* nach einem **Zug am Label** — die gezogene Lage wird nicht gespeichert;
+* nach einer **Änderung der Flächengeometrie** — die Kurve ist danach eine andere, also auch die Lage
+  des Namens.
+
+⚠️ Neu ausgerichtet wird am **Ende**, nicht während des Ziehens. Ein Label, das unter dem Zeiger
+zurückspringt, sieht kaputt aus; eines, das sich beim Loslassen setzt, sieht nach Regel aus.
+
+⚠️ Der Zeiger muss es vorher sagen: kein `cursor: move` an einem Kurvenlabel.
 
 ---
 
@@ -435,11 +471,27 @@ Drehung am Label.
 genau die zeigt es mit ausgeschalteter Kurvenbeschriftung weiterhin (§4.3). **601 Labels ändern sich
 am Umstelltag nicht um ein Pixel.**
 
-🔧 **Eine Rückfrage zur Anzahl.** „Anzahl = 1" trifft 51 der 56 Fälle. **Fünf** gedrehte Regionen
-tragen heute zwei Labels — Finsterkamm (317°/325°), Raschtulswall (304°/304°), Regengebirge
-(304°/290°), Große Olochtai (310°/355°), Östlicher Hangwald des Raschtulswalls (300°/300°). Auf 1
-gesetzt verlieren sie einen Namen. **Empfehlung: bei diesen fünf die Anzahl auf 2 setzen**, dann geht
-nichts verloren und die zwei Namen verteilen sich endlich (§1). Sonst gilt schlicht 1.
+💣 **Der Winkel muss modulo 360 geprüft werden, nicht auf „ungleich 0".** Von den 83 derographischen
+Labels ist genau **eines** gedreht: „Weiden" mit **360°** — sichtbar identisch mit 0°, numerisch
+verschieden. Roh geprüft schaltet die Regel dort eine Kurve ein, wo heute nichts gedreht ist und
+niemand etwas gedreht haben wollte. Also: `((r % 360) + 360) % 360 !== 0`. ⚠️ Dieselbe Normalisierung
+benutzt der Zeichner heute schon (`createLabelIcon`) — die Umstellregel muss sie mitbenutzen, sonst
+widersprechen sich zwei Stellen über denselben Wert.
+
+⚠️ **Damit bekommt die Derographie am Umstelltag null Kurven** (55 statt 56 Labels). Das ist kein
+Fehler und kein Widerspruch zu „alle drei Ebenen bekommen das Feature": die Ebene *hat* es, es hat
+dort nur noch niemand eingeschaltet. Ihre Namen — „Streitende Königreiche", „Albernia",
+„Nordmarken" — sind Herrschaftsräume, keine gebogenen Ketten; ob sie eine Kurve wollen, entscheidet
+ein Editor, nicht der Altbestand.
+
+🔴 **Anzahl 1 — ausser bei fünf Regionen, die heute zwei Labels tragen: dort 2** (Owner-Entscheid
+22.08.2026). Es sind Finsterkamm (317°/325°), Raschtulswall (304°/304°), Regengebirge (304°/290°),
+Große Olochtai (310°/355°) und Östlicher Hangwald des Raschtulswalls (300°/300°). Auf 1 gesetzt
+verlören sie einen Namen; auf 2 verteilen sich die beiden endlich über die Fläche (§1).
+
+⚠️ Die Regel für den Einmal-Lauf lautet damit nicht „Anzahl = 1", sondern **„Anzahl = Zahl der
+vorhandenen Labels dieser Region, gedeckelt auf 3"**. Für 51 der 56 ergibt das 1, für die fünf 2 —
+und sie kommt ohne eine Liste von fünf Namen im Code aus, die beim nächsten neuen Label falsch wäre.
 
 ---
 
@@ -459,9 +511,19 @@ Nicht Maße, sondern Handgriffe (AGENTS.md §9):
 6. Die **maximale Anzahl** von 1 auf 3 stellen und zurück.
 7. Ein Label **ohne** Fläche öffnen (ein Meer, ein Berggipfel): beide Bedienelemente deaktiviert, mit
    Begründung.
-8. Als **Editor** (nicht Admin) die Kachel „Darstellung" öffnen: Werte sichtbar, Speichern gesperrt.
-9. Als **Admin** einen Wert ändern, speichern, neu laden, **zurücklesen** — steht er wirklich da?
-10. Prüfen, dass an **keinem** der sechs Namen ein Buchstabe fehlt und keiner kopfsteht.
+8. 🪤 Eine **derographische** Fläche anfassen — unter den sechs Referenzflächen ist keine, sie decken
+   nur Topographie und Vegetation ab. „Albernia" oder „Nordmarken" nehmen, Haken setzen, ansehen.
+   Eine Ebene, die im Entwurf nur als Zahl vorkommt, ist nicht abgenommen.
+9. Im Bearbeiten-Modus **an einem Kurvenlabel ziehen** und loslassen: es richtet sich neu aus, die
+   gezogene Lage wird nicht gespeichert — und es springt erst beim Loslassen, nicht unter dem Zeiger
+   (§7.4).
+10. Die **Flächengeometrie ändern** und speichern: die Kurve ist danach eine andere, der Name sitzt
+    neu (§7.4).
+11. Als **Editor** (nicht Admin) die Kachel „Darstellung" öffnen: Werte sichtbar, Speichern gesperrt.
+12. Als **Admin** einen Wert ändern, speichern, neu laden, **zurücklesen** — steht er wirklich da?
+13. Prüfen, dass an **keinem** der Namen ein Buchstabe fehlt und keiner kopfsteht.
+14. **Mindestabstand und Ausweichweg an allen Flächen nachsehen**, nicht an den sechs (§6.1) — der
+    Owner sieht sie gemeinsam mit durch.
 
 Automatisch zu wachen:
 
@@ -508,13 +570,22 @@ Automatisch zu wachen:
 
 ---
 
-## §12 Was noch offen ist
+## §12 Entschieden am 22.08.2026
 
-1. 🔧 **Zeichnen** — SVG oder Canvas (§7.3). Empfehlung: Canvas.
-2. 🔧 **Die fünf gedrehten Regionen mit zwei Labels** — Anzahl 1 (wörtlich) oder 2 (nichts geht
-   verloren)? Empfehlung: 2 (§8.2).
-3. 🔧 **Ordnung der Kollision** — verdrängen Kurvenlabels künftig Ortsnamen, die heute gewinnen? Am
-   Livebestand zu messen (§7.2).
-4. 🔧 **Bearbeiten-Modus** — was tut ein Zug an einem Kurvenlabel (§7.4).
-5. ⚠️ **Mindestabstand 2,0 Schriftgrößen** und **Ausweichweg 6 px** sind an sechs Flächen geraten,
-   nicht an 644 gemessen (§6.1). Beide stehen deshalb in der einstellbaren Tafel.
+Der Entwurf hat keine offenen Entscheidungen mehr. Die fünf, die er hatte, sind beantwortet:
+
+1. **Zeichnen: Canvas** (§7.3) — mit der Auflage, die Leserichtungsprobe selbst zu rechnen.
+2. **Die fünf gedrehten Regionen mit zwei Labels bekommen 2** (§8.2) — als Regel „so viele Labels wie
+   vorhanden, höchstens 3", nicht als Namensliste im Code.
+3. **Ordnung der Kollision: messen, vermutlich lassen** (§7.2). Die globale
+   Prioritäten-Entscheidung gehört zur vollständigen Überarbeitung der Kollisionen und wird hier
+   nicht vorweggenommen.
+4. **Bearbeiten-Modus: neu ausrichten, sobald die Bearbeitung abgeschlossen ist** (§7.4).
+5. **Mindestabstand und Ausweichweg werden nach dem Bau an allen Flächen nachgesehen** (§6.1), nicht
+   an den sechs Referenzflächen. Das ist Teil der Abnahme.
+
+Was bleibt, sind **Messungen**, keine Fragen:
+
+* die Ordnung der Kollision am Livebestand (§7.2),
+* die zwei geratenen Werte an allen Flächen (§6.1),
+* die PHP-Kurve gegen die sechs gemessenen Bogenlängen (§9).
