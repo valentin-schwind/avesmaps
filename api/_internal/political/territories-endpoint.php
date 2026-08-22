@@ -66,7 +66,11 @@ try {
         $action = avesmapsNormalizeSingleLine((string) ($_GET['action'] ?? 'layer'), 60);
         if ($action === 'change_log') {
             $reviewUser = avesmapsRequireUserWithCapability('review');
-            $response = avesmapsPoliticalReadChangeLog($pdo, avesmapsUserCan($reviewUser, 'edit'));
+            $response = avesmapsPoliticalReadChangeLog(
+                $pdo,
+                avesmapsUserCan($reviewUser, 'edit'),
+                avesmapsAuditReadEditorNames($_GET['editors'] ?? null)
+            );
             avesmapsJsonResponse(200, $response);
         }
 

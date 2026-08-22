@@ -7,6 +7,8 @@ require_once __DIR__ . '/../audit-detail.php';
 // Die Stufe „je Person" des Aufraeumers. Der globale Riegel bleibt hier unten die eigene Fassung --
 // sie umgeht MySQL-Fehler 1093 mit einer doppelten Ableitungstabelle, und die will niemand zweimal.
 require_once __DIR__ . '/../audit-prune.php';
+// Der Urheber-Filter des Fensters „Änderungen" -- dieselbe Regel wie bei Karte und Landschaften.
+require_once __DIR__ . '/../audit-filter.php';
 
 function avesmapsPoliticalReadAudit(PDO $pdo, array $query): array {
     $yearBf = avesmapsPoliticalReadOptionalInt($query['year_bf'] ?? null) ?? AVESMAPS_POLITICAL_DEFAULT_YEAR_BF;
@@ -105,8 +107,12 @@ function avesmapsPoliticalReadAudit(PDO $pdo, array $query): array {
     ];
 }
 
-function avesmapsPoliticalReadChangeLog(PDO $pdo, bool $canUndoChanges): array {
-    $statement = $pdo->query(
+function avesmapsPoliticalReadChangeLog(PDO $pdo, bool $canUndoChanges, array $editorNames = []): array {
+    [$wo, $filterParameter] = avesmapsAuditActorWhereClause(
+        avesmapsAuditResolveActorFilter($pdo, $editorNames),
+        'audit.actor_user_id'
+    );
+    $statement = $pdo->prepare(
         'SELECT
             audit.id,
             audit.action,
@@ -120,10 +126,12 @@ function avesmapsPoliticalReadChangeLog(PDO $pdo, bool $canUndoChanges): array {
         FROM political_territory_geometry_audit_log audit
         LEFT JOIN users ON users.id = audit.actor_user_id
         LEFT JOIN users undone_users ON undone_users.id = audit.undone_by
+        WHERE ' . $wo . '
         ORDER BY audit.created_at DESC, audit.id DESC
         LIMIT 200'
     );
-    $rows = $statement === false ? [] : $statement->fetchAll(PDO::FETCH_ASSOC);
+    $statement->execute($filterParameter);
+    $rows = $statement->fetchAll(PDO::FETCH_ASSOC) ?: [];
 
     // Einmal auspacken, nicht dreimal: Name, Ziel und Erklaerzeile lesen denselben Schnappschuss.
     $payloads = [];
@@ -148,6 +156,9 @@ function avesmapsPoliticalReadChangeLog(PDO $pdo, bool $canUndoChanges): array {
 
     return [
         'ok' => true,
+        // Siehe map/audit-log.php: die Namensliste zaehlt ueber die ganze Tabelle, nie ueber die
+        // gelieferten Zeilen.
+        'actors' => avesmapsAuditActorRoster($pdo, 'political_territory_geometry_audit_log'),
         'changes' => $changes,
     ];
 }

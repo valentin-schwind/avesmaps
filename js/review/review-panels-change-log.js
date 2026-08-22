@@ -15,7 +15,11 @@ async function loadChangeLog() {
 
 	setChangePanelStatus("Änderungen werden geladen...", "pending");
 	try {
-		const response = await fetch(MAP_AUDIT_LOG_API_URL, {
+		// 🔴 DIE AUSWAHL REIST MIT: ohne Haken die jüngsten 200 von allen, mit Haken die jüngsten 200
+		// VON DEN ANGEHAKTEN. Die Ablage behält seit dem 22.08.2026 je Person 200 Zeilen
+		// (api/_internal/audit-prune.php) -- erst dadurch ist beim Server überhaupt etwas zu holen.
+		const gewaehlt = [...changeLogEditorFilter];
+		const response = await fetch(changeLogRequestUrl(MAP_AUDIT_LOG_API_URL, gewaehlt), {
 			credentials: "same-origin",
 			headers: { Accept: "application/json" },
 		});
@@ -25,9 +29,11 @@ async function loadChangeLog() {
 		}
 
 		let politicalChanges = [];
+		let politicalActors = [];
 		try {
-			const politicalChangeLog = await fetchPoliticalChangeLog();
+			const politicalChangeLog = await fetchPoliticalChangeLog(gewaehlt);
 			politicalChanges = Array.isArray(politicalChangeLog?.changes) ? politicalChangeLog.changes : [];
+			politicalActors = Array.isArray(politicalChangeLog?.actors) ? politicalChangeLog.actors : [];
 		} catch (error) {
 			console.warn("Politischer Änderungsverlauf konnte nicht geladen werden:", error);
 		}
@@ -47,14 +53,21 @@ async function loadChangeLog() {
 		// sein. Ein Fehler dort darf den Verlauf von Karte und Politik nicht mit ins Leere ziehen --
 		// dieselbe Vorsicht, die der politische Abruf oben schon nimmt.
 		let ecosystemChanges = [];
+		let ecosystemActors = [];
 		if (typeof postEcosystemEdit === "function") {
 			try {
-				const ecosystemChangeLog = await postEcosystemEdit("list_changes", {});
+				const ecosystemChangeLog = await postEcosystemEdit(
+					"list_changes",
+					gewaehlt.length > 0 ? { editors: gewaehlt } : {}
+				);
 				ecosystemChanges = Array.isArray(ecosystemChangeLog?.changes) ? ecosystemChangeLog.changes : [];
+				ecosystemActors = Array.isArray(ecosystemChangeLog?.actors) ? ecosystemChangeLog.actors : [];
 			} catch (error) {
 				console.warn("Landschafts-Änderungsverlauf konnte nicht geladen werden:", error);
 			}
 		}
+
+		changeLogMergeActors(data.actors, politicalActors, ecosystemActors);
 
 		const mapChanges = Array.isArray(data.changes)
 			? data.changes.map((entry) => ({ ...entry, audit_source: "map_feature" }))
@@ -148,20 +161,91 @@ function changeLogEntryDetail(entry) {
 // zu erweitern.
 const changeLogEditorFilter = new Set();
 let changeLogFilterRebuild = () => {};
+// 💣 DIE NAMENSLISTE DES TRICHTERS KOMMT VOM SERVER, NICHT AUS DEN GELADENEN ZEILEN. Sobald ein
+// Haken gesetzt ist, liefert der Lesepfad nur noch die Zeilen dieser Person -- aus der Antwort
+// abgeleitet enthielte die Liste dann NUR NOCH SIE, und niemand käme je wieder zu den anderen
+// zurück. Ein Trichter, der sich beim ersten Haken selbst zusperrt, ist schlimmer als keiner.
+// Der Server zählt deshalb über die ganze Tabelle (avesmapsAuditActorRoster).
+// Name -> Anzahl; `null` heißt „bekannt, aber ohne ehrliche Zahl" (die maschinellen Schreiber).
+const changeLogActorRoster = new Map();
+let changeLogNachladen = null;
+
+// Ein Haken löst ein Nachladen aus -- kurz gebremst, damit drei Klicks hintereinander nicht drei
+// Runden über drei Endpunkte auslösen. Neu gezeichnet wird SOFORT aus dem, was schon da ist:
+// Rückmeldung jetzt, verbindliche Menge in einem Augenblick.
+const CHANGE_LOG_FILTER_RELOAD_DELAY_MS = 250;
+// 💣 Solange nachgeladen wird, darf NICHT „Keine Änderungen von dieser Auswahl" dastehen. Genau das
+// tat es für einen Wimpernschlag: das Sieben im Browser findet die Zeilen der Angehakten nicht, weil
+// sie noch gar nicht geladen sind -- der richtige Satz zum falschen Zeitpunkt liest sich wie ein
+// Ergebnis. Gemessen am 22.08.2026 im Ablauf, nicht im Test.
+let changeLogFilterWartet = false;
+
+function changeLogFilterChanged() {
+	changeLogFilterWartet = true;
+	renderChangeLog();
+	if (changeLogNachladen !== null) {
+		window.clearTimeout(changeLogNachladen);
+	}
+	changeLogNachladen = window.setTimeout(() => {
+		changeLogNachladen = null;
+		changeLogFilterWartet = false;
+		void loadChangeLog();
+	}, CHANGE_LOG_FILTER_RELOAD_DELAY_MS);
+}
+
+// Die Namen aus den drei Antworten in EINE Liste. ⚠️ Die Anzahlen werden ADDIERT: dieselbe Person
+// steht in allen drei Protokollen, und der Trichter zeigt einen Haken je Person, nicht je Protokoll.
+function changeLogMergeActors(...listen) {
+	changeLogActorRoster.clear();
+	listen.forEach((liste) => {
+		(Array.isArray(liste) ? liste : []).forEach((eintrag) => {
+			const name = String(eintrag?.name ?? "").trim();
+			if (name === "") {
+				return;
+			}
+			const bisher = changeLogActorRoster.get(name);
+			changeLogActorRoster.set(name, Number(bisher || 0) + Number(eintrag?.count || 0));
+		});
+	});
+}
+
+// PUR: die Adresse mit der Auswahl. Leere Auswahl heisst „alle" und schickt gar kein Feld mit --
+// der Server unterscheidet „nichts ausgewählt" von „eine Auswahl, die niemanden trifft".
+function changeLogRequestUrl(basis, editorNames) {
+	const namen = (Array.isArray(editorNames) ? editorNames : []).filter((name) => String(name || "").trim() !== "");
+	if (namen.length < 1) {
+		return basis;
+	}
+
+	return `${basis}${String(basis).includes("?") ? "&" : "?"}editors=${encodeURIComponent(namen.join(","))}`;
+}
 
 // PUR: die Namen im Trichter, mit ihrer Anzahl. Die Reihenfolge ist „wer am meisten getan hat
 // zuerst" -- die Liste ist kurz, und danach sucht man.
 //
-// 💣 EIN ANGEHAKTER NAME BLEIBT IN DER LISTE, AUCH WENN ER GERADE NICHT VORKOMMT. Nach einem
-// Zuruecknehmen laedt der Reiter neu, und ein Editor kann aus den letzten 200 herausfallen. Ohne
-// diese Vereinigung verschwaende sein Haken aus dem Menue, waere aber weiter WIRKSAM -- die Liste
-// stuende leer da, und niemand koennte den Haken finden, um ihn zu loesen. Genau der unsichtbare
-// Luegner, den der Trichter vermeiden soll (siehe js/ui/filter-menu.js).
-function changeLogEditorOptions(entries, selected) {
+// DREI QUELLEN, in dieser Rangfolge:
+//   1. `roster` -- die Konten, vom Server über die GANZE Tabelle gezählt. Die tragende Quelle.
+//   2. die geladenen Zeilen -- für die maschinellen Schreiber („Import"), die kein Konto haben und
+//      deshalb in keinem Roster stehen können. Sie tragen KEINE Anzahl: der Server kann keine
+//      ehrliche nennen, und die aus den geladenen Zeilen wäre nur die der aktuellen Ansicht.
+//   3. die Auswahl selbst.
+//
+// 💣 EIN ANGEHAKTER NAME BLEIBT IN DER LISTE, AUCH WENN ER GERADE NICHT VORKOMMT -- sonst
+// verschwände sein Haken aus dem Menü, wäre aber weiter WIRKSAM: die Liste stünde leer da, und
+// niemand könnte den Haken finden, um ihn zu lösen. Genau der unsichtbare Lügner, den der Trichter
+// vermeiden soll (siehe js/ui/filter-menu.js).
+function changeLogEditorOptions(entries, selected, roster) {
 	const counts = new Map();
+	if (roster && typeof roster.forEach === "function") {
+		roster.forEach((anzahl, name) => {
+			counts.set(name, Number(anzahl || 0));
+		});
+	}
 	(Array.isArray(entries) ? entries : []).forEach((entry) => {
 		const actor = changeLogEntryActor(entry);
-		counts.set(actor, (counts.get(actor) || 0) + 1);
+		if (!counts.has(actor)) {
+			counts.set(actor, null);
+		}
 	});
 	// ⚠️ Gefragt wird nach der FAEHIGKEIT, nicht nach `instanceof Set`: ein Set aus einem anderen
 	// Realm (der vm-Sandbox des Tests) besteht die Prueffrage nicht, kann aber alles, was hier
@@ -169,14 +253,18 @@ function changeLogEditorOptions(entries, selected) {
 	if (selected && typeof selected.forEach === "function") {
 		selected.forEach((actor) => {
 			if (!counts.has(actor)) {
-				counts.set(actor, 0);
+				counts.set(actor, null);
 			}
 		});
 	}
 
+	// ⚠️ `null` heißt „keine ehrliche Zahl" und wird beim Sortieren wie 0 behandelt, aber NICHT
+	// angezeigt -- avmRenderCheckboxSection lässt die Anzahl bei `null` weg. Eine erfundene 0 stünde
+	// dort als Aussage („der hat nichts gemacht"), und das wäre falsch.
 	return [...counts.entries()]
 		.map(([value, count]) => ({ value, label: value, count }))
-		.sort((left, right) => right.count - left.count || left.label.localeCompare(right.label, "de"));
+		.sort((left, right) => Number(right.count || 0) - Number(left.count || 0)
+			|| left.label.localeCompare(right.label, "de"));
 }
 
 // PUR: leere Auswahl heisst ALLE -- dieselbe Regel wie in jedem anderen Trichter des Hauses.
@@ -272,7 +360,10 @@ function renderChangeLog() {
 
 	const sichtbar = changeLogFilterEntries(changeLogEntries, changeLogEditorFilter);
 	if (sichtbar.length < 1) {
-		setChangePanelStatus("Keine Änderungen von dieser Auswahl.", "empty");
+		setChangePanelStatus(
+			changeLogFilterWartet ? "Änderungen werden geladen..." : "Keine Änderungen von dieser Auswahl.",
+			changeLogFilterWartet ? "pending" : "empty"
+		);
 		changeLogFilterRebuild();
 		return;
 	}
@@ -350,10 +441,10 @@ if (typeof avmFilterMenuAttach === "function" && typeof document !== "undefined"
 			menuId: "change-log-editor-menu",
 			kind: "multi",
 			state: changeLogEditorFilter,
-			getOptions: () => changeLogEditorOptions(changeLogEntries, changeLogEditorFilter),
+			getOptions: () => changeLogEditorOptions(changeLogEntries, changeLogEditorFilter, changeLogActorRoster),
 			label: "Editor",
 		}],
-		() => renderChangeLog(),
+		() => changeLogFilterChanged(),
 		"Filter"
 	);
 }

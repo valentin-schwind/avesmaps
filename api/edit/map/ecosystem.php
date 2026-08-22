@@ -103,7 +103,11 @@ try {
         // vollem before/after -- es fehlte nur der Weg zurück und ein Fenster, in dem man ihn sieht.
         // list_changes fasst die Zeilen zu GESTEN zusammen (operation_id), undo_change nimmt eine ganze
         // Geste zurück. Beide hinter derselben Fähigkeitsprüfung wie alles andere hier.
-        'list_changes' => avesmapsListEcosystemChanges($pdo, avesmapsUserCan($user, 'edit')),
+        'list_changes' => avesmapsListEcosystemChanges(
+            $pdo,
+            avesmapsUserCan($user, 'edit'),
+            avesmapsAuditReadEditorNames($payload['editors'] ?? null)
+        ),
         'undo_change' => avesmapsUndoEcosystemChange($pdo, $payload, $userId),
         // `set_enabled` (Totmannschalter) und `promote_trial` (Ende der Erprobung) sind am 2026-08-01
         // entfallen -- promote_trial, nachdem sein letzter Lauf durch war (mode=keep, 133 Flaechen).

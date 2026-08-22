@@ -303,10 +303,16 @@ async function undoMapAuditChange(changeId) {
 	});
 }
 
-async function fetchPoliticalChangeLog() {
-	return fetchPoliticalTerritories({
-		action: "change_log",
-	});
+// `editors` sind die Anzeigenamen aus dem Trichter. Leer heisst „alle" -- der Server unterscheidet
+// „nichts ausgewaehlt" von „eine Auswahl, die niemanden trifft" und darf das Feld deshalb nicht
+// leer gesetzt bekommen, wenn nichts angehakt ist.
+async function fetchPoliticalChangeLog(editorNames = []) {
+	const anfrage = { action: "change_log" };
+	if (Array.isArray(editorNames) && editorNames.length > 0) {
+		anfrage.editors = editorNames.join(",");
+	}
+
+	return fetchPoliticalTerritories(anfrage);
 }
 
 async function undoPoliticalAuditChange(changeId) {

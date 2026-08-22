@@ -27,6 +27,8 @@ declare(strict_types=1);
 // stays because avesmapsAppSetting* is reached through this file's other readers.
 require_once __DIR__ . '/app-setting.php';
 require_once __DIR__ . '/../audit-prune.php';
+// Der Urheber-Filter des Fensters „Änderungen" -- dieselbe Regel wie bei Karte und Territorien.
+require_once __DIR__ . '/../audit-filter.php';
 
 // Die Stapelreihenfolge: die Schrittweite und die EINMALIGE Startaufstellung, die die abgeschaffte
 // Groessenregel des Browsers ein letztes Mal ausfuehrt (19.08.2026). Zieht ecosystem-flaeche.php mit
@@ -3662,10 +3664,14 @@ function avesmapsEcosystemClimateSouthKeyOfAudit(array $zones, mixed $after): st
 }
 
 // Die Liste fürs „Änderungen"-Fenster, schon zu Gesten zusammengefasst.
-function avesmapsListEcosystemChanges(PDO $pdo, bool $canUndoChanges): array
+function avesmapsListEcosystemChanges(PDO $pdo, bool $canUndoChanges, array $editorNames = []): array
 {
     avesmapsEcosystemEnsureTables($pdo);
 
+    [$wo, $filterParameter] = avesmapsAuditActorWhereClause(
+        avesmapsAuditResolveActorFilter($pdo, $editorNames),
+        'audit.actor_user_id'
+    );
     $statement = $pdo->prepare(
         'SELECT audit.id, audit.action, audit.created_at, audit.area_public_id, audit.region_public_id,
                 audit.operation_id, audit.operation_label, audit.undone_at,
@@ -3690,10 +3696,11 @@ function avesmapsListEcosystemChanges(PDO $pdo, bool $canUndoChanges): array
            LEFT JOIN ecosystem_region region ON region.public_id = audit.region_public_id
            LEFT JOIN ecosystem_area area ON area.public_id = audit.area_public_id
            LEFT JOIN ecosystem_region area_region ON area_region.id = area.region_id
+          WHERE ' . $wo . '
           ORDER BY audit.created_at DESC, audit.id DESC
           LIMIT ' . AVESMAPS_ECOSYSTEM_CHANGE_LOG_LIMIT
     );
-    $statement->execute();
+    $statement->execute($filterParameter);
     $rows = $statement->fetchAll(PDO::FETCH_ASSOC) ?: [];
 
     // Die Zonenliste nur holen, wenn wirklich eine Klimazeile dabei ist -- sonst kostet jede Anzeige der
@@ -3771,7 +3778,13 @@ function avesmapsListEcosystemChanges(PDO $pdo, bool $canUndoChanges): array
         ];
     }
 
-    return ['ok' => true, 'changes' => $changes];
+    // Siehe map/audit-log.php: die Namensliste zaehlt ueber die ganze Tabelle, nie ueber die
+    // gelieferten Zeilen -- sonst sperrt sich der Trichter beim ersten Haken selbst zu.
+    return [
+        'ok' => true,
+        'actors' => avesmapsAuditActorRoster($pdo, 'ecosystem_geometry_audit_log'),
+        'changes' => $changes,
+    ];
 }
 
 // Nimmt eine ganze Geste zurück -- die Zeile, auf die der Knopf zeigt, und alle Zeilen ihrer Klammer.

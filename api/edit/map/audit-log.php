@@ -13,6 +13,9 @@ require_once __DIR__ . '/../../_internal/map/features.php';
 // „Was hat dieser Schritt getan?" -- die Erklaerzeile. Sie leitet sich aus denselben Spalten ab,
 // die avesmapsUndoColumnsForAuditAction() beim Zuruecknehmen wirklich zurueckschreibt.
 require_once __DIR__ . '/../../_internal/audit-detail.php';
+// „Zeig mir die Zeilen DIESER Leute" -- ohne Auswahl die juengsten von allen, mit Auswahl die
+// juengsten von den Ausgewaehlten. Erst moeglich, seit jedes Protokoll je Person aufraeumt.
+require_once __DIR__ . '/../../_internal/audit-filter.php';
 
 try {
     $config = avesmapsLoadApiConfig(avesmapsApiRoot());
@@ -33,7 +36,11 @@ try {
     $user = avesmapsRequireUserWithCapability('review');
     $pdo = avesmapsCreatePdo($config['database'] ?? []);
     avesmapsEnsureMapAuditUndoColumns($pdo);
-    avesmapsJsonResponse(200, avesmapsListMapAuditLog($pdo, avesmapsUserCan($user, 'edit')));
+    avesmapsJsonResponse(200, avesmapsListMapAuditLog(
+        $pdo,
+        avesmapsUserCan($user, 'edit'),
+        avesmapsAuditReadEditorNames($_GET['editors'] ?? null)
+    ));
 } catch (InvalidArgumentException $exception) {
     avesmapsErrorResponse(400, 'invalid_request', $exception->getMessage());
 } catch (PDOException) {
@@ -44,8 +51,14 @@ try {
     avesmapsErrorResponse(500, 'server_error', 'Der Änderungsverlauf konnte nicht verarbeitet werden.');
 }
 
-function avesmapsListMapAuditLog(PDO $pdo, bool $canUndoChanges): array {
-    $statement = $pdo->query(
+function avesmapsListMapAuditLog(PDO $pdo, bool $canUndoChanges, array $editorNames = []): array {
+    [$wo, $parameter] = avesmapsAuditActorWhereClause(
+        avesmapsAuditResolveActorFilter($pdo, $editorNames),
+        'audit.actor_user_id'
+    );
+    // ⚠️ prepare/execute statt query(), seit die Bedingung Parameter tragen kann. Ohne Auswahl ist
+    // sie „1 = 1" und die Abfrage genau die von vorher.
+    $statement = $pdo->prepare(
         'SELECT
             audit.id,
             audit.feature_id,
@@ -71,13 +84,18 @@ function avesmapsListMapAuditLog(PDO $pdo, bool $canUndoChanges): array {
         LEFT JOIN map_features features ON features.id = audit.feature_id
         LEFT JOIN users ON users.id = audit.actor_user_id
         LEFT JOIN users undone_users ON undone_users.id = audit.undone_by
+        WHERE ' . $wo . '
         ORDER BY audit.created_at DESC, audit.id DESC
         LIMIT 200'
     );
-    $rows = $statement !== false ? $statement->fetchAll() : [];
+    $statement->execute($parameter);
+    $rows = $statement->fetchAll();
 
     return [
         'ok' => true,
+        // Die Namensliste des Trichters -- ueber die GANZE Tabelle gezaehlt, nie aus den gelieferten
+        // Zeilen abgeleitet. Sonst sperrt sich der Trichter beim ersten Haken selbst zu.
+        'actors' => avesmapsAuditActorRoster($pdo, 'map_audit_log'),
         'changes' => array_map(
             static fn(array $row): array => avesmapsNormalizeAuditRow($row, $canUndoChanges),
             $rows
