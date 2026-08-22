@@ -586,8 +586,18 @@ for ($i = 1; $i < count($roh); $i++) {
 }
 assert($laenge > 80.0);
 
-// Die Achse liegt IM Polygon.
-foreach ($roh as $p) {
+// Die Achse liegt IM Polygon -- ABER ihre beiden ENDpunkte liegen per Bauart AUF dem Rand.
+// 🪤 Diese Zusicherung stand im ersten Entwurf des Plans ohne die Ausnahme da und war damit
+// unerfuellbar; der Implementierer von Aufgabe 3 hat es gemeldet statt sie aufzuweichen. Der Grund
+// ist strukturell: der laengste Pfad ist der Durchmesser eines BAUMS und endet deshalb immer an
+// Blaettern, und ein Blatt ist genau der „Spitzen"-Fall oben -- die gegenueberliegende Ecke eines
+// Randdreiecks, also ein roher Randpunkt. Auf dem Rand ist der Strahlentest eine Muenze (siehe den
+// Kommentar an avesmapsCurvePointInRing). Dass die Achse die Spitze beruehrt, ist gewollt: dort
+// soll die Beschriftung hinlaufen.
+// ⚠️ Die Zusicherung bleibt scharf -- eine Achse, die die Flaeche VERLAESST, faellt weiterhin auf.
+$innen = array_slice($roh, 1, -1);
+assert(count($innen) > 0);
+foreach ($innen as $p) {
     assert(avesmapsCurvePointInPolygon($p, $vereinfacht) === true);
 }
 
