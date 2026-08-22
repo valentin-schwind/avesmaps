@@ -1,0 +1,153 @@
+/* Der Wiki-Override an einer Feldzeile — EINE Datei, zwei Welten.
+ * Entwurf: docs/superpowers/specs/2026-08-17-wiki-override-fuer-alle-design.md
+ *
+ * Was die Regeln zeigen: wo unser Wert vom Wiki abweicht, steht der Wiki-Stand DURCHGESTRICHEN in
+ * der Beschriftung, daneben ein ↺ („diese eine Zeile auf den Wiki-Stand zuruecknehmen"), und wenn
+ * wir den Wert selbst gesetzt haben, faerbt sich die Beschriftung braun. Wortgleich zum
+ * Territoriumseditor, der es seit jeher so macht.
+ *
+ * 🔴 WARUM ES DIESE DATEI GIBT (Owner 22.08.2026: „wichtig waer mir, dass du ein einheitliches
+ * stylesheet hast"). Bis dahin standen dieselben Regeln ZWEIMAL:
+ *   css/components/editor-page.css            → verlinkt von den sieben Editor-SEITEN in html/
+ *   css/components/location-report-dialog.css → kommt ueber css/styles.css in die App (index.html)
+ * Der Grund war echt und nicht Nachlaessigkeit: ein Editorfenster ist ein eigenes Dokument und
+ * laedt css/styles.css nie; index.html laedt editor-page.css nie. Aber genau dafuer hat das Haus
+ * ein MUSTER, und es steht woertlich im Kopf von editor-page.css: „erneut zu deklarieren hiesse,
+ * denselben Wert an zwei Stellen zu fuehren; genau das hat diese Datei einmal beendet."
+ * ⭐ Zwei geloeste Vorbilder: css/components/editor-row.css (die geteilte Listenzeile) und
+ * css/components/map-status-circle.css („drei Wirte"). Je EINE Datei, importiert von
+ * editor-page.css UND css/styles.css. Diese hier ist die dritte.
+ * Gewacht von js/pages/__tests__/wiki-override-eine-quelle.test.js — mit ZWEI Haelften: die Regeln
+ * stehen nirgends sonst, UND beide Welten binden die Datei ein. Nur die erste Haelfte zu pruefen
+ * ist der Fehler von avesmapsCoatSrc: eine geteilte Datei, die nur EIN Dokument laedt, ist keine
+ * geteilte Datei — dort kostete es die IP-Sperre.
+ * 🪤 Der Bauplan nannte fuer den Wachtest den Pfad `css/__tests__/…`. Dort haette ihn die CI
+ * NIE gefunden: ihr Muster lautet `find js tools -path '*__tests__*' -name '*.test.js'` und
+ * durchsucht `css/` gar nicht — ein gruener Test, den niemand faehrt. Er liegt deshalb neben
+ * seinem Vorbild in js/pages/__tests__/, das aus demselben Grund CSS prueft und trotzdem laeuft.
+ *
+ * 🔴 ZWEI BAUFORMEN, und welche gilt, entscheidet das CSS, nicht das Markup:
+ *   Beschriftung LINKS neben dem Feld  → .dt-grid--wiki, zwei gleiche Haelften, Wiki-Stand in .k
+ *                                        (Ortseditor, kuenftig Landschafts- und Wege-Editor)
+ *   Beschriftung OBEN ueber dem Feld   → .wiki-alt in der Beschriftung
+ *                                        (Kartendialoge, Literatur-Editor)
+ * ⚠️ ZWEI sind die Obergrenze — dieselbe Regel wie bei der Wiki-Zuweisung und den Listenzeilen.
+ * 🪤 Der Literatur-Editor sieht im MARKUP aus wie ein Kartendialog, ist im CSS aber ein Flex-ROW
+ * mit fester Beschriftungsspalte; die falsche Annahme brach live „ISBN (für DNB)" auf drei Zeilen.
+ *
+ * 🔴 NUR die echten Token, nie die Kurzformen --mut/--bad. Die sind :root-Aliase, die AUSSCHLIESS-
+ * LICH in editor-page.css deklariert werden — in index.html gaebe es sie nicht, und die Farbe
+ * fiele lautlos auf den geerbten Wert zurueck. editor-page.css sagt es selbst: „NEW rules should
+ * reach for the real token".
+ */
+
+/* ---- Bauform 1: Beschriftung links, zwei gleiche Haelften ------------------------------------
+ * 🔴 HALBE / HALBE (Owner 17.08.2026, woertlich: „50% | 50% · Text --durchgestrichener text-- ↺ |
+ * Eingabe"). Links Beschriftung SAMT durchgestrichenem Wiki-Stand, rechts das Bedienelement.
+ * 🪤 Davor standen hier DREI Spalten mit einem clamp() fuer den Mindestplatz des Feldes. Das war
+ * gerechnet, wo eine Aufteilung genuegt — und es zwang die zweite Oberflaeche zu einer eigenen
+ * Fassung. Zwei gleiche Haelften brauchen keinen Mindestwert: die Haelfte IST er.
+ *
+ * 💣 DER DOPPELTE KLASSENNAME IST TRAGEND, keine Verzierung: `.dt-grid--wiki` allein hat dieselbe
+ * Spezifitaet (0,1,0) wie `.dt-grid`, und seit diese Regeln per @import GANZ OBEN in
+ * editor-page.css stehen, kaeme `.dt-grid { grid-template-columns: var(--avm-field-label-w) … }`
+ * SPAETER und gewaenne — die Zeile fiele lautlos auf 130px|1fr zurueck. Dasselbe gilt fuer die
+ * `.k`-Zelle darunter, wo `white-space` direkt kollidiert. Wer hier auf einen Klassennamen
+ * „vereinfacht", baut genau diese Regression ein. Das Markup traegt beide Klassen ohnehin
+ * (`class="dt-grid dt-grid--wiki …"`). */
+.dt-grid.dt-grid--wiki {
+	grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+	column-gap: var(--space-4);
+	align-items: center;
+}
+
+/* Die linke Haelfte traegt beides. „white-space: normal" hebt das „nowrap" der Grundregel auf —
+   der Wiki-Stand daneben darf umbrechen statt die Zeile aufzuziehen. */
+.dt-grid.dt-grid--wiki .k {
+	display: flex;
+	align-items: baseline;
+	gap: var(--space-2);
+	min-width: 0;
+	white-space: normal;
+}
+
+/* ---- Bauform 2: Beschriftung oben, der Wiki-Stand haengt sich an sie an ----------------------
+ * 🪤 Diese Huelle hiess bis zum 17.08.2026 `.loc-wiki-alt`, und der Name haette den
+ * Literatur-Editor zu einer DRITTEN Fassung gezwungen. Umbenannt, bevor er sich verbreitet hat. */
+.wiki-alt {
+	display: inline-flex;
+	align-items: baseline;
+	gap: var(--space-2);
+	margin-left: var(--space-4);
+	max-width: 60%;
+	vertical-align: baseline;
+	font-weight: normal;
+	font-size: var(--font-size-caption);
+}
+
+/* ---- Die zwei Bauteile, die beide Bauformen teilen -------------------------------------------
+ * ⚠️ Die Klassennamen `dt-old`/`dt-reset` stammen aus dem Territoriumseditor und sind ABSICHTLICH
+ * dieselben: es ist dieselbe Sache, und ein zweiter Name dafuer waere der Anfang der Divergenz. */
+.dt-old {
+	color: var(--color-danger);
+	text-decoration: line-through;
+}
+
+/* 🪤 HIER STAND EINE ZEITLANG `margin-left: var(--space-4)`, und zwar nur in der Editor-Fassung:
+   das ↺ sass dort 10px hinter dem Wiki-Stand (6px Rand + 4px Spalt), im Kartendialog 4px. Beim
+   Zusammenlegen am 22.08.2026 gemessen und auf den Spalt vereinheitlicht — `.wiki-alt` ist ein
+   Flex-Container und setzt den Abstand bereits ueber `gap`; ein Rand daneben ist ein zweiter Wert
+   fuer dieselbe Luecke. `.dt-reset` steht heute in JEDER Oberflaeche innerhalb von `.wiki-alt`.
+   ⚠️ Der Territoriumseditor (html/wiki-sync-monitor.html) fuehrt sein eigenes `.dt-reset` inline
+   und behaelt seine 6px — sein Bearbeiten-Modus setzt das ↺ ohne `.wiki-alt` in die Rasterzelle. */
+.dt-reset {
+	cursor: pointer;
+	color: var(--color-text-muted);
+	font-size: var(--font-size-caption);
+	text-decoration: underline;
+	background: none;
+	border: 0;
+	padding: 0;
+	line-height: 1;
+}
+
+.dt-reset:hover { color: var(--color-text-strong); }
+
+/* 💣 DIE AUSLASSUNGSPUNKTE GEHOEREN AN DEN TEXT, NICHT AN DIE HUELLE — `ellipsis` wirkt nur auf das
+   Element, dessen EIGENER Text ueberlaeuft, nie auf ein ueberlaufendes Kind. Ohne diese Zeile wird
+   ein langer Wiki-Stand hart abgeschnitten, ohne ein einziges Puenktchen. */
+.wiki-alt .dt-old {
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+/* 💣 Das ↺ darf NIE mitgekappt werden: es ist der Knopf, der Wiki-Stand nur die Auskunft. */
+.wiki-alt .dt-reset { flex: 0 0 auto; }
+
+/* ---- „Wir haben dieses Feld gesetzt" ---------------------------------------------------------
+ * 🔴 Die einzige zusaetzliche Marke, und sie sitzt an der BESCHRIFTUNG, nicht als Abzeichen
+ * daneben. Wortgleich zum Territoriumseditor (.dt-grid .k.ovr). Ein erster Entwurf trug drei
+ * Abzeichen; zwei davon waren redundant zur Durchstreichung.
+ * ⚠️ Eine eigene Klasse AN der Beschriftung, nicht `:has(> .wiki-alt.is-ovr)`. Die Elternauswahl
+ * waere kuerzer — aber sie haengt an einer Browserfaehigkeit, die diese Regeln sonst nirgends
+ * voraussetzen, und faellt bei ihrem Fehlen LAUTLOS aus: die Zeile saehe dann aus wie eine mit
+ * unbekannter Herkunft, also genau wie der andere Zustand. */
+.dt-grid .k.ovr { color: var(--color-accent-brown); }
+.location-report-form__field > span.has-wiki-ovr { color: var(--color-accent-brown); }
+.ae-field > label.has-wiki-ovr { color: var(--color-accent-brown); }
+
+/* Der Literatur-Editor: dieselben zwei Haelften in Flex-Form.
+ * ⚠️ Die Grundregel jenes Editors setzt `flex: 0 0 var(--avm-field-label-w)` auf die Beschriftung
+ * — 130px, in die ein Wiki-Stand nicht passt. Sie steht INLINE in html/game-literature-editor.html
+ * und gewinnt gegen diese Datei; ueberschrieben wird sie deshalb dort, nicht hier.
+ * 🪤 Und diese Regel selbst greift heute NICHT: aeWikiZeichneAbweichungen haengt die `.wiki-alt`
+ * IN das `<label>`, nicht neben es, `.ae-field > .wiki-alt` findet also nichts. Sie steht hier
+ * unveraendert weiter, weil das Zusammenlegen nichts entfernen soll, was es nicht auch pruefen
+ * kann — wer die Zelle je nach aussen zieht, findet die Regel vor. */
+.ae-field > .wiki-alt {
+	flex: 0 1 auto;
+	min-width: 0;
+	margin-left: 0;
+}

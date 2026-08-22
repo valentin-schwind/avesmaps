@@ -76,7 +76,10 @@ denselben Wert an zwei Stellen zu führen; genau das hat diese Datei einmal been
   `@import` muss VOR jeder Regel stehen — deshalb oben, neben dem für `editor-row.css`).
 - `@import url("components/wiki-override.css");` in `css/styles.css`.
 - Die doppelten Blöcke aus beiden Dateien entfernen.
-- Test `css/__tests__/wiki-override-eine-quelle.test.js` mit **zwei Hälften**, wie beim Wappen-Fall:
+- Test `js/pages/__tests__/wiki-override-eine-quelle.test.js` mit **zwei Hälften**, wie beim
+  Wappen-Fall (🪤 hier stand `css/__tests__/…`; dort **fährt die CI nie** — ihr Muster lautet
+  `find js tools …`, `css/` kommt darin nicht vor. Vorbild ist
+  `js/pages/__tests__/editor-row-single-source.test.js`, das aus demselben Grund CSS prüft):
   1. keine der Regeln steht mehr ausserhalb von `wiki-override.css`, und
   2. **beide** Welten binden die Datei ein.
   💣 Nur die erste Hälfte zu prüfen ist der Fehler von `avesmapsCoatSrc`: eine geteilte Datei, die
@@ -163,8 +166,8 @@ für eine eigene Regression hält: `test-place-scope-filter`, `test-route-leg-po
 
 ## 5 · Die Abhak-Liste
 
-- [ ] **EIN Stylesheet zuerst** — `wiki-override.css`, importiert von BEIDEN Welten (A0a)
-- [ ] Der Stylesheet-Test hat ZWEI Hälften: nirgends sonst · und beide Welten laden ihn (A0a)
+- [x] **EIN Stylesheet zuerst** — `wiki-override.css`, importiert von BEIDEN Welten (A0a) · live 22.08.2026
+- [x] Der Stylesheet-Test hat ZWEI Hälften: nirgends sonst · und beide Welten laden ihn (A0a)
 - [ ] Jede Oberfläche schickt `wiki_uebernommen`, **bevor** ihre Anzeige gebaut wird (A0)
 - [ ] Beide Landschafts-Oberflächen, nie nur eine
 - [ ] Landschaft: die Herkunft als **fertige Antwort** projizieren, nie `properties_json` (A1)
@@ -189,5 +192,19 @@ die Korrektur nicht als „war schon immer so" verschwindet:
 3. **„Weg: erst messen, ob es mehr als einen Schreibweg gibt"** — gemessen: **zwei**, und der
    zweite schreibt eine ganze Namensgruppe (A5). Der Weg ist damit die aufwendigste Stufe, nicht
    die kleinste; der alte Plan führte ihn als „ein Feld".
+5. **„Die Regeln stehen ZWEIMAL“** — es waren **DREI**: `.ae-field > label.has-wiki-ovr`
+   stand zusätzlich inline in `html/game-literature-editor.html`. Mit entfernt.
+6. **„Sichtbar ändert sich nichts“** — fast. Beim Zusammenlegen gemessen: das ↺ trug in der
+   Editor-Fassung `margin-left: var(--space-4)` **zusätzlich** zum 4px-`gap` von `.wiki-alt`, im
+   Kartendialog nie — 10px gegen 4px. Vereinheitlicht auf den `gap`; die Editoren rücken ihr ↺
+   um 6px nach links, sonst nichts. A/B am gerenderten Zustand gemessen, beide Bauformen,
+   inklusive einer überlangen Zeile (die war vorher wie nachher auf `…` gekappt).
+7. 💣 **Die Kaskade dreht sich beim `@import` um.** Ein `@import` muss vor jeder Regel stehen,
+   die geteilte Datei steht also **oben** — und damit käme `.dt-grid` (0,1,0) **nach**
+   `.dt-grid--wiki` (0,1,0) und gewänne bei `grid-template-columns`: die 50/50-Zeile fiele
+   lautlos auf 130px|1fr zurück, bei der `.k`-Zelle kollidiert `white-space` genauso. Deshalb
+   heißt die Regel `.dt-grid.dt-grid--wiki` (0,2,0). Für jede weitere Regel, die in eine
+   geteilte, oben importierte Datei wandert, ist das die erste Frage.
+
 4. **Baseline** — das Muster aus AGENTS.md §9 ist schmaler als das des Deploys (235 gegen 244
    Dateien), und es gibt vier vorbestehend rote `.mjs`, die kein Tor sind (A6).

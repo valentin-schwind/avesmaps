@@ -231,69 +231,15 @@
 	font-weight: normal;
 }
 
-/* ---- Der Wiki-Override an der Feldbeschriftung (Entwurf 2026-08-17-wiki-override-fuer-alle) ----
- * DIE ZWEITE VON ZWEI FORMEN, und welche gilt, entscheidet die ZEILE, nicht die Oberflaeche:
- *   .dt-alt    -- eigene Rasterspalte, wo die Beschriftung LINKS neben dem Feld steht (.dt-grid,
- *                 css/components/editor-page.css). Ortseditor.
- *   .wiki-alt  -- in der Beschriftung, wo diese OBEN ueber dem Feld steht. Kartendialog hier,
- *                 Literatur-Editor (.ae-field) -- der bekommt dieselbe Regel aus editor-page.css.
- * 🪤 Sie hiess bis zum 17.08.2026 `.loc-wiki-alt`, und der Name haette den Literatur-Editor zu
- * einer DRITTEN Fassung gezwungen. Umbenannt, bevor er sich verbreitet hat.
- * 🔴 Uebertragen wird die REGEL, nicht das CSS: Wiki-Stand durchgestrichen, ↺ daneben, „von uns"
- * hebt die Beschriftung hervor. ⚠️ ZWEI Huellen sind die Obergrenze -- dieselbe Regel wie bei der
- * Wiki-Zuweisung und den Listenzeilen. Eine dritte Bauform waere die Divergenz, die dieser Umbau
- * gerade beendet.
- * ⚠️ Die Klassennamen `dt-old`/`dt-reset` sind ABSICHTLICH dieselben wie drueben: es ist dieselbe
- * Sache, und ein zweiter Name dafuer waere der Anfang der Divergenz. Die Regeln stehen hier eigens,
- * weil index.html editor-page.css nicht bindet. */
-.wiki-alt {
-	display: inline-flex;
-	align-items: baseline;
-	gap: 4px;
-	margin-left: 6px;
-	max-width: 60%;
-	vertical-align: baseline;
-	font-weight: normal;
-	font-size: var(--font-size-caption);
-}
+/* ---- Der Wiki-Override an der Feldbeschriftung -----------------------------------------------
+ * 🔴 Die Regeln stehen NICHT mehr hier, sondern in css/components/wiki-override.css, das
+ *    css/styles.css bindet -- .wiki-alt, .dt-old, .dt-reset und die braune Beschriftung.
+ *    Bis zum 22.08.2026 standen sie zweimal da: hier fuer index.html und in
+ *    css/components/editor-page.css fuer die Editorseiten. Gedriftet war die Abschrift bereits
+ *    (hier 4px/6px als Zahl, drueben als Token; das ↺ trug drueben 6px Rand mehr).
+ * 💣 Wer eine Override-Regel wieder hier ablegt, hat die zweite Fassung zurueck. Der Wachtest
+ *    js/pages/__tests__/wiki-override-eine-quelle.test.js meldet es. */
 
-/* 💣 DIE AUSLASSUNGSPUNKTE GEHOEREN AN DEN TEXT, NICHT AN DIE HUELLE -- `ellipsis` wirkt nur auf das
-   Element, dessen EIGENER Text ueberlaeuft, nie auf ein ueberlaufendes Kind. Ohne diese Zeile wird
-   ein langer Wiki-Stand hart abgeschnitten, ohne ein einziges Puenktchen. */
-.wiki-alt .dt-old {
-	min-width: 0;
-	overflow: hidden;
-	text-overflow: ellipsis;
-	white-space: nowrap;
-	color: var(--color-danger);
-	text-decoration: line-through;
-}
-
-/* 💣 Das ↺ darf NIE mitgekappt werden: es ist der Knopf, der Wiki-Stand nur die Auskunft. */
-.wiki-alt .dt-reset {
-	flex: 0 0 auto;
-	cursor: pointer;
-	color: var(--color-text-muted);
-	font-size: var(--font-size-caption);
-	background: none;
-	border: 0;
-	padding: 0;
-	line-height: 1;
-	text-decoration: underline;
-}
-
-.wiki-alt .dt-reset:hover { color: var(--color-text-strong); }
-
-/* „Wir haben dieses Feld gesetzt" -- hebt die BESCHRIFTUNG hervor, wortgleich zum
-   Territoriumseditor (`.dt-grid .k.ovr`). Kein eigenes Abzeichen daneben.
-   ⚠️ Eine eigene Klasse AN der Beschriftung, nicht `:has(> .wiki-alt.is-ovr)`. Die
-   Elternauswahl waere kuerzer und haette hier auch funktioniert -- aber sie haengt an einer
-   Browserfaehigkeit, die diese Datei sonst nirgends voraussetzt, und faellt bei ihrem Fehlen
-   LAUTLOS aus: die Zeile saehe dann aus wie eine mit unbekannter Herkunft, also genau wie der
-   andere Zustand. Die Klasse setzt settlementWikiZeichneAbweichungen. */
-.location-report-form__field > span.has-wiki-ovr {
-	color: var(--color-accent-brown);
-}
 
 /* Der Wunsch eines Melders: zu lesen, nicht zu veroeffentlichen. Abgesetzt durch eine Kante wie
    ein Zitat, gedaempft, kein gerahmter Kasten (docs/design-language.md: gruppieren ueber Trenner,

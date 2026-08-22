@@ -37,6 +37,12 @@
    seit die Kraftlinienliste im Editor einen traegt (Owner 18.08.2026). editor-page.css bindet
    dieselbe Datei fuer die sechs Editorseiten -- die Regel steht also genau einmal. */
 @import url("components/map-status-circle.css");
+
+/* Der Wiki-Override an einer Feldzeile (durchgestrichener Wiki-Stand, ↺, braune Beschriftung).
+   Dieselbe Reise wie die zwei Zeilen darueber und aus demselben Grund: er gehoert den
+   Kartendialogen der App UND den Editorfenstern. editor-page.css bindet dieselbe Datei fuer die
+   sieben Editorseiten -- die Regel steht also genau einmal. */
+@import url("components/wiki-override.css");
 @import url("components/region-wiki-dialogs.css");
 @import url("components/political-territory-tree.css");
 @import url("components/political-territory-controls.css");

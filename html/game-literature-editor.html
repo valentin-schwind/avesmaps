@@ -302,7 +302,9 @@
   .ae-field > label { flex: 1 1 50%; }
   .ae-field > .ae-input,
   .ae-field > .ae-select { flex: 1 1 50%; min-width: 0; }
-  .ae-field > label.has-wiki-ovr { color: var(--color-accent-brown); }
+  /* 🔴 .ae-field > label.has-wiki-ovr („von uns gesetzt", braune Beschriftung) stand hier bis zum
+     22.08.2026 ein zweites Mal. Sie kommt jetzt aus css/components/wiki-override.css, das
+     editor-page.css bindet -- dieselbe Regel fuer alle Oberflaechen des Wiki-Overrides. */
   /* Ausnahme: bei einem Ankreuzfeld IST die Beschriftung die Zeile (das <input> steckt darin) --
      eine 130px-Spalte wuerde sie mittendrin abschneiden. Sie nimmt die volle Breite. */
   .ae-field > label.ae-check { flex: 1 1 auto; }
