@@ -1493,17 +1493,21 @@
 }
 
 /* Unified editor sub-tab rows (underline style, shared across all panels:
-   Meldungen, WikiSync, Konfliktlösung-Status, Status/Besucher). */
+   Meldungen, WikiSync, Konfliktlösung-Status, Status/Besucher, Änderungen/Meine-Alle). */
 .wiki-sync-panel__tabs,
 .region-sync__viewtabs,
-.status-subtabs {
+.status-subtabs,
+.change-log-scope {
 	display: flex;
 	flex-wrap: wrap;
 	gap: 14px;
 	border-bottom: 1px solid var(--color-border);
 }
 
-.wiki-sync-panel__tabs {
+/* 10px ist die HAUSNUMMER DIESES PANELS -- dieselbe Zahl steht in social-hub.css als solche
+   benannt. Deshalb steht „Meine · Alle" HIER und nicht mit eigenen Werten weiter unten. */
+.wiki-sync-panel__tabs,
+.change-log-scope {
 	margin: 10px 10px 8px;
 }
 
@@ -1592,14 +1596,19 @@
    „setz die suche doch drunter, also suche und filter unter ‚Meine | Alle‘"). Zu dritt in einer
    Zeile blieben dem Suchfeld 204px in einem 400px-Panel, und die drei Abstände nebeneinander
    lasen sich ungleich -- der Fokusring des Feldes frisst optisch den Zwischenraum.
-   ⚠️ Bewusst OHNE die Trennlinie von .status-subtabs: die Reiterleiste des Panels sitzt zwei
-   Zeilen darüber und trägt schon eine. Die aktive Lage sagt der Unterstrich des Reiters selbst.
-   Der linke Rand ist derselbe wie bei der Suchzeile darunter (10px). */
-.change-log-scope {
-	display: flex;
-	gap: 14px;
-	margin: 0 10px 6px;
-}
+
+   🔴 UND SIE IST EINE DER GETEILTEN REITERZEILEN, keine eigene Fassung -- Aussehen und Abstände
+   stehen deshalb OBEN, in den zwei Regeln, die auch .wiki-sync-panel__tabs, .region-sync__viewtabs
+   und .status-subtabs tragen. Hier steht nur noch, was sonst niemand braucht.
+   🪤 Bis zum 22.08.2026 stand hier eine EIGENE Rezeptur (margin 0 10px 6px, keine Trennlinie) mit
+   der Begründung, die Reiterleiste zwei Zeilen darüber trage schon eine Linie. Am Bild gemessen
+   war das die einzige Reiterzeile des Panels ohne Oberluft und ohne Linie: die Knöpfe klebten mit
+   0px am Reiterstreifen, während „Besucher · Editoren" nebenan 4px Luft und eine Linie hat und um
+   zwei Pixel weiter rechts beginnt (12px gegen 10px). Owner 22.08.2026: „die abstände in dem rot
+   eingezeichneten bereich sind andere wie in anderen teilen". Nicht die Zahlen waren der Fehler,
+   sondern dass es überhaupt eine vierte Fassung derselben Zeile gab.
+   ⚠️ Die Regel für den VERSTECKTEN Zustand bleibt und ist tragend: die geteilte Zeile setzt
+   `display: flex`, und das schlägt die Voreinstellung des Browsers für [hidden]. */
 
 .change-log-scope[hidden] {
 	display: none;

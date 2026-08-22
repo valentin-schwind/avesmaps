@@ -164,6 +164,45 @@ assert.ok(
 	/\[data-editor-panel-section="changes"\]\s+\.wiki-sync-panel__filter\s*\{[^}]*justify-content:\s*flex-end/.test(panelCss),
 	"die Filterzeile des Reiters schiebt den Trichter nach rechts -- sonst klappt sein Menue aus dem Panel",
 );
+// 🔴 „Meine · Alle" IST eine der geteilten Reiterzeilen des Panels, keine vierte Fassung davon.
+// Owner 22.08.2026: „die abstände in dem rot eingezeichneten bereich sind andere wie in anderen
+// teilen". Sie hatte eine eigene Rezeptur (margin 0 10px 6px, keine Trennlinie) und war damit die
+// einzige Reiterzeile ohne Oberluft und ohne Linie -- gemessen 0px statt 10px über den Knöpfen.
+// Die Zusicherung prüft die KOPPLUNG, nicht die Zahlen: dieselbe Regel, die .wiki-sync-panel__tabs
+// trägt, muss auch diese Zeile nennen. Wer die Zahlen anfasst, verschiebt beide zugleich; wer sie
+// trennt, fällt hier um.
+// 💣 Kommentare MÜSSEN vorher raus. Der Selektor einer Regel ist hier alles zwischen der letzten
+// schließenden Klammer und der nächsten öffnenden -- also samt des Kommentars darüber. Der
+// Kommentar an dieser Zeile nennt `.wiki-sync-panel__tabs`, und die erste Fassung der Prüfung
+// unten hielt deshalb JEDE Regel darunter für eine geteilte: die Mutation „eigene Rezeptur wieder
+// aufmachen" lief grün durch.
+const cssOhneKommentar = panelCss.replace(/\/\*[\s\S]*?\*\//g, "");
+const cssRegeln = [...cssOhneKommentar.matchAll(/([^{}]+)\{([^{}]*)\}/g)].map(
+	(m) => ({ wahl: m[1].trim(), rumpf: m[2] }),
+);
+const scopeRegeln = cssRegeln.filter((r) => /(^|,|\s)\.change-log-scope(\s*,|\s*$|\[)/.test(r.wahl));
+assert.ok(
+	scopeRegeln.some((r) => r.wahl.includes(".wiki-sync-panel__tabs") && /border-bottom:/.test(r.rumpf)),
+	"die Zeile steht in der geteilten Regel, die den Reiterzeilen ihre Trennlinie gibt",
+);
+assert.ok(
+	scopeRegeln.some((r) => r.wahl.includes(".wiki-sync-panel__tabs") && /margin:\s*10px 10px 8px/.test(r.rumpf)),
+	"und in der, die ihnen die Abstaende des Panels gibt (10px oben/seitlich, 8px unten)",
+);
+// Die Gegenrichtung: keine EIGENE Geometrie mehr. Ein `.change-log-scope { margin: ... }` neben den
+// geteilten Regeln wäre genau die vierte Fassung, die der Owner gesehen hat -- und es stünde weiter
+// unten in der Datei, gewönne also lautlos.
+const eigeneGeometrie = scopeRegeln.filter(
+	(r) => !r.wahl.includes(".wiki-sync-panel__tabs")
+		&& !r.wahl.includes("[hidden]")
+		&& /(^|\s)(margin|padding|gap|border-bottom)\s*:/.test(r.rumpf),
+);
+assert.strictEqual(
+	eigeneGeometrie.length,
+	0,
+	"die Zeile hat KEINE eigenen Abstaende mehr -- gefunden: " + eigeneGeometrie.map((r) => r.wahl).join(" | "),
+);
+
 // ⚠️ Seit das Suchfeld in derselben Zeile steht, trägt NICHT MEHR `justify-content` allein die
 // rechte Lage: das Feld wächst (`flex: 1 1 auto`) und schiebt den Trichter ohnehin nach rechts. Die
 // Regel oben bleibt als zweiter Gurt, aber die tragende Zusicherung ist ab hier die REIHENFOLGE --
