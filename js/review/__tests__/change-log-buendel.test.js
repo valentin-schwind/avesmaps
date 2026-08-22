@@ -19,7 +19,56 @@ const ROOT = path.join(__dirname, "..", "..", "..");
 const QUELLE = path.join(ROOT, "js", "review", "review-panels-change-log.js");
 const source = fs.readFileSync(QUELLE, "utf8");
 
-const sandbox = { console, fetch: () => {}, document: undefined, window: undefined };
+// 🔴 EIN WINZIGES DOM, damit die Zeilenbauer WIRKLICH LAUFEN. Die Spaltenregeln sind Verhalten,
+// nicht nur CSS -- „im Bündel trägt Spalte 2 die Aktion statt des Namens" und „die Urheberzelle
+// bleibt auch leer stehen" lassen sich an keiner Textsuche ablesen. Nachgebildet ist genau so viel,
+// wie changeLogGroupHeader und changeLogEntryRow anfassen; alles andere fehlt absichtlich, damit ein
+// künftiger Griff daneben hier auffällt statt still ins Leere zu laufen.
+function macheElement(tag) {
+	const el = {
+		tag,
+		className: "",
+		dataset: {},
+		kinder: [],
+		textContent: "",
+		title: "",
+		hidden: false,
+		attribute: {},
+		classList: {
+			add: (n) => { el.klassen.add(n); el.className = [...el.klassen].join(" "); },
+			toggle: (n, an) => { if (an) { el.klassen.add(n); } else { el.klassen.delete(n); }
+				el.className = [...el.klassen].join(" "); },
+			contains: (n) => el.klassen.has(n),
+		},
+		setAttribute: (k, v) => { el.attribute[k] = v; },
+		appendChild: (kind) => { el.kinder.push(kind); return kind; },
+		querySelector: (wahl) => el.kinder.find((k) => ("." + k.className.split(" ").join(".")).includes(wahl)) || null,
+	};
+	el.klassen = new Set();
+	Object.defineProperty(el, "innerHTML", {
+		set(html) {
+			el.kinder = (html.match(/class="[^"]+"/g) || []).map((treffer) => {
+				const kind = macheElement("span");
+				kind.className = treffer.slice(7, -1);
+				kind.klassen = new Set(kind.className.split(" "));
+				return kind;
+			});
+		},
+		get() { return ""; },
+	});
+
+	return el;
+}
+const sandbox = {
+	console,
+	fetch: () => {},
+	// ⚠️ `getElementById` gibt null zurück: das Modul hängt beim Laden Zuhörer an Suchfeld und Liste
+	// und prüft jeden Fund -- „nicht da" ist der Zustand, den es ohnehin verträgt. Vorher stand hier
+	// `document: undefined`, was denselben Zweig traf; sobald das Objekt existiert, muss es die
+	// Methode aber wirklich haben.
+	document: { createElement: macheElement, getElementById: () => null },
+	window: undefined,
+};
 vm.createContext(sandbox);
 vm.runInContext(source, sandbox, { filename: "review-panels-change-log.js" });
 
@@ -186,19 +235,107 @@ assert.ok(/border-top:\s*1px solid var\(--color-border\)/.test(zeileCss), "die Z
 assert.ok(!/border-radius:\s*8px/.test(zeileCss), "und ist kein gerahmter Kasten mehr");
 assert.ok(/\.change-log-group\s*\{/.test(panelCss), "die Kopfzeile eines Bündels hat ihr Aussehen");
 
-// 🔴 DIE LINKE KANTE IST BEI ALLEN ZEILEN DIESELBE. Ein Bündel trägt vorn sein Dreieck, eine einzelne
-// Änderung nicht -- ohne die Einrückung stünde deren Name um Dreieck plus Abstand weiter links, und
-// die Liste hätte einen ausgefransten Rand (Owner 22.08.2026: „es ist doof dass der text eingerückt ist").
+// 🔴 TITEL, NAME UND ANZAHL STEHEN IN SPALTEN -- über beide Zeilenarten hinweg. Owner 22.08.2026:
+// „mach, dass titel, name, anzahl änderungen tabellarisch untereinander stehen, das verbessert die
+// lesbarkeit der liste." Vorher war jede Zeile ein Flex-Streifen, und ausser dem Titel richtete sich
+// nichts aus: der Name wanderte mit der Titellänge mit (gemessen 1082 gegen 1101) und stand in einer
+// Einzelzeile sogar in der zweiten Zeile.
 //
-// ⚠️ Die 18px sind KEINE freie Zahl: 10px Dreieck + 8px Abstand -- genau das, was die Kopfzeile
-// davor verbraucht. Drei gekoppelte Werte in zwei Regeln; wer einen anfasst, muss alle zusammen
-// bewegen. Live gemessen: beide Namen beginnen bei x = 29.
-assert.ok(/padding: 7px 0 7px 18px/.test(zeileCss), "die einzelne Zeile rückt auf die Kante des Bündels ein");
-const gruppeCss = panelCss.slice(panelCss.indexOf(".change-log-group {"), panelCss.indexOf(".change-log-group__caret"));
+// 💣 Die Zusicherung prüft, dass es GENAU EINE Tafel gibt und beide Zeilenarten daran hängen. Zwei
+// Tafeln liefen beim ersten geänderten Wert auseinander -- und eine Tabelle, die an einer einzelnen
+// Zeile bricht, liest sich schlechter als gar keine.
+// 💣 Kommentare vorher weg: sie stehen zwischen der letzten schliessenden und der nächsten
+// öffnenden Klammer und zählten sonst zum Selektor der Regel darunter.
+const cssOhneKommentar = panelCss
+	.split("/*")
+	.map((teil, i) => (i === 0 ? teil : teil.slice(teil.indexOf("*/") + 2)))
+	.join("");
+const iTafel = cssOhneKommentar.indexOf(".change-log-group,");
+assert.ok(iTafel >= 0, "es gibt eine Regel, die mit .change-log-group beginnt und noch etwas nennt");
+const tafelAuf = cssOhneKommentar.indexOf("{", iTafel);
+const tafelWahl = cssOhneKommentar.slice(iTafel, tafelAuf);
+const tafelRumpf = cssOhneKommentar.slice(tafelAuf + 1, cssOhneKommentar.indexOf("}", tafelAuf));
+assert.ok(
+	tafelWahl.includes(".change-log-entry"),
+	"Bündelkopf und Einzelzeile teilen sich EINE Spaltentafel",
+);
+assert.ok(tafelRumpf.includes("display: grid"), "und die Tafel ist ein Raster");
+
+// ⚠️ Die erste Spalte plus der Spalt ergeben die 18px, auf denen der Titel vorher stand (Dreieck
+// 10px + Abstand 8px). Die linke Kante war ein eigener Owner-Entscheid („es ist doof dass der text
+// eingerückt ist") und darf sich durch den Umbau nicht verschoben haben. Zwei gekoppelte Werte in
+// EINER Regel; wer einen anfasst, muss den anderen mitbewegen. Live gemessen: Titel bei x = 909 in
+// jeder Zeile, Name 1071, Anzahl 1149, Zeit 1179, Rückgängig 1244.
+const spalten = tafelRumpf.slice(
+	tafelRumpf.indexOf("grid-template-columns:") + "grid-template-columns:".length,
+	tafelRumpf.indexOf(";", tafelRumpf.indexOf("grid-template-columns:")),
+).trim().split(" ");
+const spalt = tafelRumpf.slice(
+	tafelRumpf.indexOf("column-gap:") + "column-gap:".length,
+	tafelRumpf.indexOf(";", tafelRumpf.indexOf("column-gap:")),
+).trim();
+assert.strictEqual(
+	parseInt(spalten[0], 10) + parseInt(spalt, 10),
+	18,
+	"erste Spalte + Spalt = 18px -- die linke Kante von vorher, jetzt aus dem Raster",
+);
+// 💣 Die letzte Spalte muss den Rückgängig-Knopf fassen (gemessen 25px). Mit 18px stiess er nach
+// links aus seiner Zelle heraus und berührte die Zeitangabe: ein Rasterplatz hält seinen Inhalt
+// nicht, er lässt ihn überlaufen.
+assert.ok(
+	parseInt(spalten[spalten.length - 1], 10) >= 25,
+	"die letzte Spalte fasst den Rückgängig-Knopf (25px), sonst stösst er in die Zeit",
+);
+
+// 🔴 JEDE ZELLE NENNT IHRE SPALTE SELBST. Eine Einzelzeile hat kein Dreieck, eine Bündelzeile kein
+// „Rückgängig" -- bei automatischer Platzierung rutschte alles um eine Spalte nach links, und zwar
+// nur in den Zeilen, in denen etwas fehlt. Die Tabelle bräche also unregelmässig.
+function spalteVon(klasse) {
+	let pos = 0;
+	for (;;) {
+		const i = cssOhneKommentar.indexOf(klasse, pos);
+		if (i < 0) {
+			return null;
+		}
+		const auf = cssOhneKommentar.indexOf("{", i);
+		const zu = cssOhneKommentar.indexOf("}", auf);
+		if (auf < 0 || zu < 0) {
+			return null;
+		}
+		const rumpf = cssOhneKommentar.slice(auf + 1, zu);
+		const p = rumpf.indexOf("grid-column:");
+		if (p >= 0) {
+			return rumpf.slice(p + "grid-column:".length, rumpf.indexOf(";", p)).trim();
+		}
+		pos = i + klasse.length;
+	}
+}
+[
+	[".change-log-group__caret", "1"],
+	[".change-log-group__name", "2"],
+	[".change-log-entry__target", "2"],
+	[".change-log-group__actor", "3"],
+	[".change-log-entry__actor", "3"],
+	[".change-log-group__count", "4"],
+	[".change-log-group__time", "5"],
+	[".change-log-entry__time", "5"],
+	[".change-log-entry__actions", "6"],
+].forEach(([klasse, spalte]) => {
+	assert.strictEqual(spalteVon(klasse), spalte, klasse + " steht in Spalte " + spalte);
+});
+// Die Erklärzeile spannt von Spalte 2 bis zum Rand: unter dem Titel beginnen, aber die volle Breite
+// nutzen -- sie ist der längste Text der Zeile.
+assert.strictEqual(spalteVon(".change-log-entry__l2"), "2 / -1", "die zweite Zeile spannt bis zum Rand");
+
+const gruppeCss = panelCss.slice(panelCss.indexOf(".change-log-group {"), panelCss.indexOf(".change-log-group:hover"));
 assert.ok(/padding: 7px 0;/.test(gruppeCss), "die Kopfzeile hat KEINE seitliche Polsterung");
-assert.ok(/gap: 8px/.test(gruppeCss), "und das Dreieck steht 8px vor dem Namen");
-const caretCss = panelCss.slice(panelCss.indexOf(".change-log-group__caret"), panelCss.indexOf(".change-log-group__name"));
-assert.ok(/width: 10px/.test(caretCss), "das Dreieck ist 10px breit");
+// ⚠️ 14px, nicht 32: die 18px aus Spalte 1 kommen hinzu. Die Einrückung eines offenen Bündels bleibt
+// damit bei 32px -- live gemessen beginnt der Text dort bei x = 923 statt 909.
+const gebuendeltCss = panelCss.slice(
+	panelCss.indexOf(".change-log-entry--grouped {"),
+	panelCss.indexOf(".change-log-group__name,"),
+);
+assert.ok(/padding-left: 14px/.test(gebuendeltCss), "gebündelte Zeilen rücken um 14px ein (macht mit Spalte 1 wieder 32px)");
 
 // 🔴 UND DIE ZEILEN STEHEN AUF DERSELBEN KANTE WIE DIE BEDIENELEMENTE DARÜBER -- links wie rechts.
 // Owner 22.08.2026: „der abstand ist nicht ganz perfekt". Mit einer seitlichen Polsterung von 4px
@@ -220,5 +357,66 @@ assert.ok(
 	/\[data-editor-panel-section="changes"\]\s+\.review-panel__list\s*\{[^}]*gap:\s*0/.test(panelCss),
 	"die Liste des Reiters hat keinen Zeilenabstand -- sonst steht die Trennlinie frei",
 );
+
+// ---- Die Zellen, die die Spalten füllen ------------------------------------------------------------
+// 🔴 Hier laufen die Zeilenbauer WIRKLICH (gegen das kleine DOM oben). Die Spalten aus dem CSS sind
+// nur die eine Hälfte -- die andere ist, dass jede Zeile die passenden Zellen mitbringt.
+const changeLogGroupHeader = sandbox.changeLogGroupHeader;
+const changeLogEntryRow = sandbox.changeLogEntryRow;
+for (const [name, fn] of [["changeLogGroupHeader", changeLogGroupHeader], ["changeLogEntryRow", changeLogEntryRow]]) {
+	assert.strictEqual(typeof fn, "function", name + " ist geladen");
+}
+const buendel = {
+	key: "Reichsstraße 2|nics|1",
+	target: "Reichsstraße 2",
+	actor: "nics",
+	entries: [
+		{ id: 1, name: "Reichsstraße 2", action: "update_path", username: "nics", created_at: "2026-08-22 12:38:00" },
+		{ id: 2, name: "Reichsstraße 2", action: "update_path", username: "nics", created_at: "2026-08-22 12:36:00" },
+		{ id: 3, name: "Reichsstraße 2", action: "update_path", username: "nics", created_at: "2026-08-22 12:34:00" },
+	],
+};
+const kopf = changeLogGroupHeader(buendel);
+const zelle = (el, klasse) => el.querySelector("." + klasse);
+assert.strictEqual(zelle(kopf, "change-log-group__name").textContent, "Reichsstraße 2", "Spalte 2: der Titel");
+assert.strictEqual(zelle(kopf, "change-log-group__actor").textContent, "nics", "Spalte 3: der Name");
+
+// 🔴 „3×" statt „3 Änderungen": in einer eigenen Spalte kostete das Wort 74 statt 13 Pixel, und das
+// ging bei 361px Zeilenbreite direkt vom Titel ab. Das Wort steht im `title`, es geht nicht verloren.
+assert.strictEqual(zelle(kopf, "change-log-group__count").textContent, "3×", "Spalte 4: die Anzahl, kurz");
+assert.strictEqual(zelle(kopf, "change-log-group__count").title, "3 Änderungen", "und ausgeschrieben im title");
+
+// ⚠️ Die Zeitspalte zeigt EINEN Zeitpunkt, den jüngsten -- die Spanne hiesse an einem älteren Tag
+// „19.08. 12:34–19.08. 12:38" und sprengte jede Spalte. Sie bleibt im `title`, und genau deshalb ist
+// changeLogGroupTimeLabel weiter verdrahtet und nicht toter Code mit lebendem Test.
+assert.strictEqual(zelle(kopf, "change-log-group__time").textContent, "12:38", "Spalte 5: der jüngste Zeitpunkt");
+assert.strictEqual(zelle(kopf, "change-log-group__time").title, "12:34–12:38", "die Spanne bleibt im title erreichbar");
+
+const einzeln = changeLogEntryRow(buendel.entries[0], false);
+assert.strictEqual(zelle(einzeln, "change-log-entry__target").textContent, "Reichsstraße 2", "ausserhalb eines Bündels trägt Spalte 2 den NAMEN");
+assert.strictEqual(zelle(einzeln, "change-log-entry__actor").textContent, "nics", "und Spalte 3 den Urheber");
+assert.ok(zelle(einzeln, "change-log-entry__l2").textContent.length > 0, "die Aktion rutscht in die zweite Zeile");
+
+// 🔴 Im Bündel steht der Name in der Kopfzeile -- Spalte 2 trägt dort die AKTION. Leer zu bleiben
+// wäre die Alternative gewesen, und dann stünde jede Zeile eines offenen Bündels ohne Kopf da.
+const imBuendel = changeLogEntryRow(buendel.entries[0], true);
+assert.notStrictEqual(zelle(imBuendel, "change-log-entry__target").textContent, "Reichsstraße 2", "im Bündel wird der Name NICHT wiederholt");
+assert.ok(zelle(imBuendel, "change-log-entry__target").textContent.length > 0, "aber Spalte 2 bleibt gefüllt -- mit der Aktion");
+assert.ok(
+	zelle(imBuendel, "change-log-entry__target").classList.contains("change-log-entry__target--action"),
+	"und sie ist als Aktion gekennzeichnet, damit sie nicht fett wie eine Überschrift steht",
+);
+
+// 💣 Die Urheber-ZELLE bleibt stehen, auch wenn sie leer ist: ein Rasterplatz gehört der Spalte,
+// nicht dem Inhalt. Fehlte sie, rutschten Zeit und Rückgängig in einem offenen Bündel nach links --
+// und die Tabelle bräche genau dort, wo sie am dichtesten steht.
+assert.ok(zelle(imBuendel, "change-log-entry__actor") !== null, "die Urheberzelle bleibt auch im Bündel stehen");
+assert.strictEqual(zelle(imBuendel, "change-log-entry__actor").textContent, "", "sie ist nur leer");
+
+// ⚠️ Die alten Hüllen sind weg: ein Rasterplatz wird nur an DIREKTE Kinder vergeben, __body und __l1
+// hätten die Spalten der Zellen darin verschluckt.
+for (const alt of ["change-log-entry__body", "change-log-entry__l1"]) {
+	assert.strictEqual(zelle(einzeln, alt), null, "die Hülle ." + alt + " gibt es nicht mehr");
+}
 
 console.log("change-log-buendel ok");

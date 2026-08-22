@@ -1632,24 +1632,49 @@
    Kasten samt seiner 10px-Polsterung und 8px Abstand fällt weg.
 
    💣 Das ZIEL steht vorn, die Aktion dahinter: gesucht wird „Schattenforst", nicht „Label geändert". */
+/* 🔴 EINE SPALTENTAFEL FÜR BEIDE ZEILENARTEN. Owner 22.08.2026: „mach, dass titel, name, anzahl
+   änderungen tabellarisch untereinander stehen, das verbessert die lesbarkeit der liste."
+   Vorher war jede Zeile ein Flex-Streifen. Der Titel stand zwar überall auf derselben Kante, der
+   NAME aber wanderte mit der Titellänge mit -- live gemessen 1082px bei „Talloner Hügelsteig" gegen
+   1101px bei „Reichsstraße 2" --, und in einer Einzelzeile stand er überhaupt in der zweiten Zeile.
+   Ausser dem Titel richtete sich nichts aus.
+
+   💣 DIE SPALTEN STEHEN GENAU EINMAL. Zwei Tafeln für die zwei Zeilenarten liefen beim ersten
+   geänderten Wert auseinander, und eine Tabelle, die an einer einzigen Zeile bricht, liest sich
+   schlechter als gar keine.
+
+   ⚠️ Die Breiten sind an gerendertem Text GEMESSEN (22.08.2026, 361px Zeilenbreite, 11px Schrift),
+   nicht geschätzt: Name 72px trägt "Karten-Routine" (77px, kürzt minimal) und "Valentin" (42px) ·
+   Zeit 58px trägt "19.08. 12:28" (56px), den längsten Fall · Anzahl 24px trägt "12x" · die letzte
+   Spalte 26px den Rückgängig-Knopf, der 25px misst. Was übrig bleibt, gehört dem Titel (139px) --
+   "Talloner Hügelsteig" misst 118px, "Ruine Khell Dairon" 114px. Wer eine Spalte verbreitert, nimmt
+   es dem Titel weg.
+   💣 Die letzte Spalte MUSS den Knopf fassen. Mit 18px stiess er 7px nach links aus seiner Zelle
+   heraus und berührte die Zeitangabe (gemessen: Zeit endet bei 1245, Knopf begann bei 1244) -- ein
+   Rasterplatz hält seinen Inhalt nicht, er lässt ihn überlaufen.
+
+   ⚠️ 12px + 6px Spalt = 18px, und das ist KEINE freie Zahl: genau so weit stand der Titel vorher vom
+   Zeilenanfang (Dreieck 10px + Abstand 8px). Die linke Kante bleibt damit unverändert -- sie war ein
+   eigener Owner-Entscheid ("es ist doof dass der text eingerückt ist"). Sie hängt jetzt an der
+   SPALTE und nicht mehr an einer nachgerechneten Polsterung der Einzelzeile. */
+.change-log-group,
 .change-log-entry {
-	display: flex;
+	display: grid;
+	grid-template-columns: 12px minmax(0, 1fr) 72px 24px 58px 26px;
+	column-gap: 6px;
+	row-gap: 1px;
 	align-items: baseline;
-	gap: 8px;
 	box-sizing: border-box;
 	width: 100%;
 	min-width: 0;
-	/* 🔴 DIE LINKE KANTE IST BEI ALLEN ZEILEN DIESELBE. Ein Bündel trägt vorn sein Dreieck, eine
-	   einzelne Änderung nicht -- ohne diese Einrückung stünde der Name der einzelnen um Dreieck plus
-	   Abstand weiter links als der des Bündels, und die Liste hätte einen ausgefransten Rand
-	   (Owner 22.08.2026: „es ist doof dass der text eingerückt ist").
-	   ⚠️ 18px sind KEINE freie Zahl: 10px Dreieck + 8px Abstand -- genau das, was die Kopfzeile
-	   davor verbraucht. Wer eines der beiden ändert, ändert diese Zahl mit.
-	   ⚠️ Und KEINE seitliche Grundpolsterung: die Zeile soll links auf derselben Kante beginnen wie
+}
+
+.change-log-entry {
+	/* ⚠️ KEINE seitliche Polsterung: die Zeile soll links auf derselben Kante beginnen wie
 	   „Meine · Alle" und das Suchfeld darüber (11px) und rechts auf derselben enden wie der
 	   Filterknopf (389px). Mit 4px stand alles um vier Pixel versetzt -- „der abstand ist nicht ganz
-	   perfekt" (Owner, 22.08.2026). */
-	padding: 7px 0 7px 18px;
+	   perfekt" (Owner, 22.08.2026). Die 18px, die früher hier standen, sind in Spalte 1 gewandert. */
+	padding: 7px 0;
 	border: 0;
 	border-top: 1px solid var(--color-border);
 	border-radius: 0;
@@ -1664,46 +1689,72 @@
    Kopfzeile darüber, und ohne diesen Unterschied liest sich ein offenes Bündel wie eine Liste. */
 .change-log-entry--grouped {
 	/* Eine Stufe TIEFER als die gemeinsame Kante -- sonst stünden die Zeilen eines offenen Bündels
-	   genau unter dem Namen ihres Bündels und läsen sich wie Geschwister, nicht wie Inhalt. */
-	padding-left: 32px;
+	   genau unter dem Namen ihres Bündels und läsen sich wie Geschwister, nicht wie Inhalt.
+	   ⚠️ 14px, nicht 32: die 18px aus Spalte 1 kommen hinzu, die Einrückung bleibt also bei 32px.
+	   Sie kostet den Titel dieser Zeilen 14px Breite -- gewollt, im Bündel ist er die Beifügung. */
+	padding-left: 14px;
 	background: var(--color-panel-muted);
 }
 
-.change-log-entry__body {
-	flex: 1 1 auto;
-	min-width: 0;
-}
-
-/* ⚠️ Beide Zeilen kürzen mit Auslassungspunkten statt umzubrechen. Ein Umbruch macht die Zeile
-   wieder hoch, und genau die Höhe war der Anlass. */
-.change-log-entry__l1,
+/* ⚠️ JEDE Zelle kürzt mit Auslassungspunkten statt umzubrechen. Ein Umbruch macht die Zeile wieder
+   hoch, und genau die Höhe war der Anlass für die flachen Zeilen. Der volle Text steht im `title`.
+   💣 Die Auslassungspunkte gehören an das Element, dessen EIGENER Text überläuft -- an einer Hülle
+   ohne eigenen Text wird hart abgeschnitten (dieselbe Falle wie beim Wiki-Override, AGENTS.md §11). */
+.change-log-group__name,
+.change-log-group__actor,
+.change-log-entry__target,
+.change-log-entry__actor,
 .change-log-entry__l2 {
-	display: block;
 	min-width: 0;
 	overflow: hidden;
 	white-space: nowrap;
 	text-overflow: ellipsis;
 }
 
+/* 🔴 JEDE ZELLE NENNT IHRE SPALTE SELBST, statt sich auf die Reihenfolge zu verlassen. Eine
+   Einzelzeile hat kein Dreieck und eine Bündelzeile kein „Rückgängig"; bei automatischer
+   Platzierung rutschte dann alles um eine Spalte nach links -- und zwar genau in den Zeilen, in
+   denen etwas fehlt, also unregelmässig. */
+.change-log-group__caret {
+	grid-column: 1;
+	color: var(--color-text-muted);
+	font-size: var(--font-size-caption);
+}
+
+.change-log-group__name,
 .change-log-entry__target {
+	grid-column: 2;
 	font-weight: 700;
 }
 
-.change-log-entry__target[hidden] {
-	display: none;
-}
-
-/* Die Aktion ist die Beifügung zum Namen, nicht die Überschrift -- deshalb gedämpft und mit dem
-   Mittelpunkt angebunden, wie überall im Panel. */
-.change-log-entry__action {
+/* Im Bündel trägt Spalte 2 die AKTION statt des Namens (der steht in der Kopfzeile). Sie ist eine
+   Beifügung und wird deshalb nicht fett gesetzt -- sonst läse sich jede Zeile eines offenen Bündels
+   wie eine eigene Überschrift und das Bündel zerfiele optisch wieder. */
+.change-log-entry__target--action {
 	color: var(--color-text-muted);
+	font-weight: 400;
 }
 
-.change-log-entry__target:not([hidden]) + .change-log-entry__action::before {
-	content: "· ";
+.change-log-group__actor,
+.change-log-entry__actor {
+	grid-column: 3;
+	color: var(--color-text-muted);
+	font-size: var(--font-size-caption);
+}
+
+.change-log-group__count {
+	grid-column: 4;
+	color: var(--color-text-muted);
+	font-size: var(--font-size-caption);
+	font-variant-numeric: tabular-nums;
+	text-align: right;
 }
 
 .change-log-entry__l2 {
+	/* Von Spalte 2 bis zum Rand: unter dem Titel beginnen, aber die volle Breite nutzen -- die
+	   Erklärzeile ist der längste Text der Zeile und hätte in den 147px des Titels keinen Platz. */
+	grid-column: 2 / -1;
+	grid-row: 2;
 	color: var(--color-text-muted);
 	font-size: var(--font-size-caption);
 }
@@ -1712,15 +1763,19 @@
 	display: none;
 }
 
+.change-log-group__time,
 .change-log-entry__time {
-	flex: 0 0 auto;
+	grid-column: 5;
 	color: var(--color-text-muted);
 	font-size: var(--font-size-caption);
 	font-variant-numeric: tabular-nums;
+	text-align: right;
+	white-space: nowrap;
 }
 
 .change-log-entry__actions {
-	flex: 0 0 auto;
+	grid-column: 6;
+	justify-self: end;
 }
 
 .change-log-entry__actions[hidden] {
@@ -1749,14 +1804,9 @@
 /* Die Kopfzeile eines Bündels. Sie ist keine `.change-log-entry` -- die Klick-Zuhörer in
    js/routing/routing.js suchen genau diese Klasse, und ein Bündel hat keine eigene Änderung. */
 .change-log-group {
-	display: flex;
-	align-items: baseline;
-	gap: 8px;
-	box-sizing: border-box;
-	width: 100%;
-	min-width: 0;
 	/* Ohne seitliche Polsterung: das Dreieck beginnt damit auf derselben Kante wie die
-	   Bedienelemente darüber. Die 18px der einzelnen Zeile leiten sich hieraus ab. */
+	   Bedienelemente darüber. Raster und Spaltenbreiten stehen weiter oben und sind mit der
+	   Einzelzeile geteilt. */
 	padding: 7px 0;
 	border-top: 1px solid var(--color-border);
 	color: var(--color-text-strong);
@@ -1767,40 +1817,6 @@
 .change-log-group:focus-visible {
 	background: var(--color-hover-wash, var(--color-panel-muted));
 	outline: none;
-}
-
-.change-log-group__caret {
-	flex: 0 0 auto;
-	width: 10px;
-	color: var(--color-text-muted);
-	font-size: var(--font-size-caption);
-}
-
-.change-log-group__name {
-	flex: 1 1 auto;
-	min-width: 0;
-	overflow: hidden;
-	white-space: nowrap;
-	text-overflow: ellipsis;
-	font-weight: 700;
-}
-
-/* Der Urheber steht direkt hinter dem Namen und darf VOR ihm weichen: der Name des Objekts ist
-   die Angabe, nach der gesucht wird. */
-.change-log-group__actor {
-	flex: 0 1 auto;
-	min-width: 0;
-	overflow: hidden;
-	white-space: nowrap;
-	text-overflow: ellipsis;
-	color: var(--color-text-muted);
-	font-size: var(--font-size-caption);
-}
-
-.change-log-group__count {
-	flex: 0 0 auto;
-	color: var(--color-text-muted);
-	font-size: var(--font-size-caption);
 }
 
 /* Der Knopf ist jetzt ein Zeichen, kein Wort. Rahmen und Farbe kommen weiter oben aus der

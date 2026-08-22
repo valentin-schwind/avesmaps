@@ -654,14 +654,31 @@ function changeLogGroupHeader(gruppe) {
 		<span class="change-log-group__name"></span>
 		<span class="change-log-group__actor"></span>
 		<span class="change-log-group__count"></span>
+		<span class="change-log-group__time"></span>
 	`;
 	element.querySelector(".change-log-group__caret").textContent = offen ? "▾" : "▸";
-	element.querySelector(".change-log-group__name").textContent = gruppe.target;
+	const nameElement = element.querySelector(".change-log-group__name");
+	nameElement.textContent = gruppe.target;
+	nameElement.title = gruppe.target;
 	// ⚠️ Der Urheber gehört in die Kopfzeile, nicht in die Zeilen darunter: ein Bündel ist per
 	// Konstruktion EINE Person, und zugeklappt stünde sonst nirgends, wer es war.
-	element.querySelector(".change-log-group__actor").textContent = gruppe.actor;
-	element.querySelector(".change-log-group__count").textContent =
-		`${gruppe.entries.length} Änderungen · ${changeLogGroupTimeLabel(gruppe.entries, changeLogHeute())}`;
+	const actorElement = element.querySelector(".change-log-group__actor");
+	actorElement.textContent = gruppe.actor;
+	actorElement.title = gruppe.actor;
+	// 🔴 „3×" statt „3 Änderungen": die Anzahl hat seit dem 22.08.2026 eine eigene SPALTE, und das
+	// Wort kostete darin 74 statt 13 Pixel (bei 11px gemessen). Bei 361px Zeilenbreite ging das
+	// direkt vom Titel ab -- der wäre auf 111px gefallen und hätte „Talloner Hügelsteig" (118px)
+	// gekürzt. Das Wort steht im `title`, die Bedeutung geht also nicht verloren.
+	const zaehlerElement = element.querySelector(".change-log-group__count");
+	zaehlerElement.textContent = `${gruppe.entries.length}×`;
+	zaehlerElement.title = `${gruppe.entries.length} Änderungen`;
+	// ⚠️ Die Zeitspalte zeigt EINEN Zeitpunkt (den jüngsten), nicht die Spanne: an einem älteren Tag
+	// hiesse die Spanne „19.08. 12:34–19.08. 12:38" und sprengte jede Spalte. Sie bleibt über `title`
+	// erreichbar -- deshalb ist changeLogGroupTimeLabel weiter verdrahtet und nicht toter Code mit
+	// lebendem Test.
+	const zeitElement = element.querySelector(".change-log-group__time");
+	zeitElement.textContent = changeLogFormatTime(gruppe.entries[0]?.created_at, changeLogHeute());
+	zeitElement.title = changeLogGroupTimeLabel(gruppe.entries, changeLogHeute());
 
 	return element;
 }
@@ -687,34 +704,44 @@ function changeLogEntryRow(entry, imBuendel) {
 	itemElement.dataset.featureType = entry.feature_type || "";
 	itemElement.dataset.action = entry.action || "";
 	itemElement.classList.toggle("is-undone", Boolean(entry.undone));
+	// 🔴 KEINE VERSCHACHTELUNG MEHR. Die Zeile IST das Raster (siehe review-panel.css): jedes Kind
+	// bekommt seine Spalte zugewiesen, die zweite Zeile spannt von Spalte 2 bis zum Rand. Die alten
+	// Hüllen __body/__l1 haben nur gestapelt, was das Raster selbst stapelt -- und sie hätten die
+	// Spalten der Kinder verschluckt, weil ein Rasterplatz nur an DIREKTE Kinder vergeben wird.
 	itemElement.innerHTML = `
-		<span class="change-log-entry__body">
-			<span class="change-log-entry__l1">
-				<span class="change-log-entry__target"></span>
-				<span class="change-log-entry__action"></span>
-			</span>
-			<span class="change-log-entry__l2"></span>
-		</span>
+		<span class="change-log-entry__target"></span>
+		<span class="change-log-entry__actor"></span>
 		<span class="change-log-entry__time"></span>
 		<span class="change-log-entry__actions"></span>
+		<span class="change-log-entry__l2"></span>
 	`;
-	// ⚠️ Im Bündel steht der Name schon in der Kopfzeile -- ihn je Zeile zu wiederholen war der
-	// halbe Grund, warum die Liste so viel Platz brauchte.
+	// 🔴 SPALTE 2 TRÄGT DIE ÜBERSCHRIFT DER ZEILE -- und die ist nicht überall dieselbe: ausserhalb
+	// eines Bündels ist es der NAME des Objekts, innerhalb die AKTION. Im Bündel steht der Name schon
+	// in der Kopfzeile, ihn je Zeile zu wiederholen war der halbe Grund, warum die Liste so viel
+	// Platz brauchte; die Spalte dort aber LEER zu lassen, liesse jede Zeile ohne Kopf dastehen und
+	// schöbe ihren Text allein in die zweite Zeile.
+	const aktion = changeLogEntryLabel(entry);
+	const kopf = imBuendel ? aktion : changeLogEntryTarget(entry);
 	const targetElement = itemElement.querySelector(".change-log-entry__target");
-	if (imBuendel) {
-		targetElement.hidden = true;
-	} else {
-		targetElement.textContent = changeLogEntryTarget(entry);
-	}
-	itemElement.querySelector(".change-log-entry__action").textContent = changeLogEntryLabel(entry);
+	targetElement.textContent = kopf;
+	targetElement.title = kopf;
+	targetElement.classList.toggle("change-log-entry__target--action", Boolean(imBuendel));
 
-	// Zweite Zeile: was der Schritt getan hat, wer es war, und ob es schon zurückgenommen wurde.
 	// ⚠️ Der Urheber entfällt im Bündel (er steht in der Kopfzeile) -- gebündelt wird nur, was
-	// derselbe Mensch am selben Objekt hintereinander getan hat.
-	const zweiteZeile = [changeLogEntryDetail(entry)];
+	// derselbe Mensch am selben Objekt hintereinander getan hat. Seine SPALTE bleibt trotzdem
+	// stehen: ein Rasterplatz gehört der Spalte, nicht dem Inhalt, sonst rutschten Zeit und
+	// Rückgängig in einem offenen Bündel nach links und die Tabelle bräche genau dort.
+	const actorElement = itemElement.querySelector(".change-log-entry__actor");
 	if (!imBuendel) {
-		zweiteZeile.push(changeLogEntryActor(entry));
+		const wer = changeLogEntryActor(entry);
+		actorElement.textContent = wer;
+		actorElement.title = wer;
 	}
+
+	// Zweite Zeile: was der Schritt getan hat und ob er schon zurückgenommen wurde. Die Aktion steht
+	// hier NUR ausserhalb eines Bündels -- innerhalb trägt sie bereits Spalte 2.
+	const zweiteZeile = imBuendel ? [] : [aktion];
+	zweiteZeile.push(changeLogEntryDetail(entry));
 	if (entry.undone) {
 		zweiteZeile.push(`zurückgenommen${entry.undone_username ? ` von ${entry.undone_username}` : ""}`);
 	}
@@ -724,6 +751,7 @@ function changeLogEntryRow(entry, imBuendel) {
 		l2.hidden = true;
 	} else {
 		l2.textContent = l2Text;
+		l2.title = l2Text;
 	}
 
 	itemElement.querySelector(".change-log-entry__time").textContent =
