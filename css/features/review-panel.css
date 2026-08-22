@@ -1612,7 +1612,11 @@
 	font-weight: 700;
 }
 
+/* Die Erklaerzeile („Name, Einwohner geändert") teilt sich Groesse und Farbe mit Ziel und
+   Zeitstempel -- sie ist eine weitere Angabe zur Zeile, keine neue Stufe. Ein eigener Farbwert
+   waere ein Token, das es nicht gibt (§12: nie eine Farbe hartkodieren). */
 .change-log-entry__target,
+.change-log-entry__detail,
 .change-log-entry__meta,
 .change-log-entry__state {
 	min-width: 0;

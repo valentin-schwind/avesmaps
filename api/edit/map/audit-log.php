@@ -10,6 +10,9 @@ require __DIR__ . '/../../_internal/auth.php';
 // Wiederherstellen button never appeared. avesmapsEnsureMapAuditUndoColumns and
 // avesmapsFetchTableColumnNames were byte-identical duplicates of the same kind and are gone too.
 require_once __DIR__ . '/../../_internal/map/features.php';
+// „Was hat dieser Schritt getan?" -- die Erklaerzeile. Sie leitet sich aus denselben Spalten ab,
+// die avesmapsUndoColumnsForAuditAction() beim Zuruecknehmen wirklich zurueckschreibt.
+require_once __DIR__ . '/../../_internal/audit-detail.php';
 
 try {
     $config = avesmapsLoadApiConfig(avesmapsApiRoot());
@@ -110,6 +113,9 @@ function avesmapsNormalizeAuditRow(array $row, bool $canUndoChanges): array {
         'feature_type' => (string) ($row['feature_type'] ?? ($after['feature_type'] ?? $before['feature_type'] ?? '')),
         'feature_subtype' => (string) ($row['feature_subtype'] ?? ($after['feature_subtype'] ?? $before['feature_subtype'] ?? '')),
         'name' => (string) ($row['name'] ?? ($after['name'] ?? $before['name'] ?? '')),
+        // Was der Schritt getan hat, in einem Satz -- leer, wenn sich nichts sagen laesst. Die
+        // Spaltenliste kommt von der Undo-Seite, damit Zeile und Knopf dasselbe meinen.
+        'detail' => avesmapsMapAuditDetailText($action, $before, $after, avesmapsUndoColumnsForAuditAction($action)),
         'focus' => avesmapsBuildAuditFocusTarget($row, $before, $after),
     ];
 }

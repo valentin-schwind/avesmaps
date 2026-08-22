@@ -112,6 +112,35 @@ function changeLogEntryLabel(entry) {
 	return steps > 1 ? `${label} (${steps} Schritte)` : label;
 }
 
+// 💣 EINE TECHNISCHE KENNUNG IST KEIN NAME. Bis zum 22.08.2026 endete die Rueckfallkette der
+// Zielspalte auf `entry.public_id` -- und der politische Lesepfad schrieb seine Geometrie-Kennung
+// sogar in `name`. In der Liste stand dann `f74ea2ed-29a9-460d-8d3f-3832e4fbc86b`, wo ein Editor
+// „Baronie Hügelsee" erwartet. Der Server nennt das Gebiet inzwischen beim Namen; dieser Riegel
+// hier ist der zweite Gurt: er faengt JEDE Quelle, die je wieder eine Kennung durchreicht.
+//
+// 🔴 `public_id` faellt aus der Kette ganz heraus. Sie bleibt am Datensatz (das Hinspringen und das
+// Zuruecknehmen brauchen sie) -- sie ist nur nichts, was jemand LESEN soll.
+const CHANGE_LOG_TECHNICAL_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+function changeLogEntryTarget(entry) {
+	for (const candidate of [entry?.name, entry?.feature_subtype]) {
+		const text = String(candidate ?? "").trim();
+		if (text !== "" && !CHANGE_LOG_TECHNICAL_ID_PATTERN.test(text)) {
+			return text;
+		}
+	}
+
+	return "Unbenannt";
+}
+
+// Was der Schritt getan hat -- „Name, Einwohner geändert", „um 3,2 Meilen verschoben",
+// „1 Fläche → 2 Flächen". Der Server leitet das aus dem Vorher-/Nachher-Stand ab, und zwar aus
+// genau den Spalten, die „Rückgängig" zurückschreibt. Leer heisst: dazu laesst sich nichts
+// Belastbares sagen -- dann steht die Zeile gar nicht erst da, statt „geändert" zu behaupten.
+function changeLogEntryDetail(entry) {
+	return String(entry?.detail ?? "").trim();
+}
+
 function formatChangeAction(action) {
 	if (String(action || "").startsWith("undo_")) {
 		return `Rückgängig: ${formatChangeAction(String(action).replace(/^undo_/, ""))}`;
@@ -212,12 +241,20 @@ function renderChangeLog() {
 		itemElement.innerHTML = `
 			<span class="change-log-entry__action"></span>
 			<span class="change-log-entry__target"></span>
+			<span class="change-log-entry__detail"></span>
 			<span class="change-log-entry__meta"></span>
 			<span class="change-log-entry__state"></span>
 			<span class="change-log-entry__actions"></span>
 		`;
 		itemElement.querySelector(".change-log-entry__action").textContent = changeLogEntryLabel(entry);
-		itemElement.querySelector(".change-log-entry__target").textContent = entry.name || entry.feature_subtype || entry.public_id || "Unbenannt";
+		itemElement.querySelector(".change-log-entry__target").textContent = changeLogEntryTarget(entry);
+		const detailElement = itemElement.querySelector(".change-log-entry__detail");
+		const detailText = changeLogEntryDetail(entry);
+		if (detailText === "") {
+			detailElement.hidden = true;
+		} else {
+			detailElement.textContent = detailText;
+		}
 		itemElement.querySelector(".change-log-entry__meta").textContent = `${changeLogEntryActor(entry)} · ${entry.created_at || ""}`;
 		const stateElement = itemElement.querySelector(".change-log-entry__state");
 		if (entry.undone) {
@@ -307,8 +344,10 @@ function scheduleChangeLogFocusMarkerRemoval() {
 	}, CHANGE_LOG_FOCUS_MARKER_TTL_MS);
 }
 
+// Derselbe Erzeuger wie in der Liste -- sonst steht auf der Karte eine Kennung, die die Zeile
+// daneben gerade vermeidet.
 function getChangeLogFocusTooltip(entry) {
-	return `${formatChangeAction(entry.action)} · ${entry.name || entry.feature_subtype || entry.public_id || "Änderung"}`;
+	return `${formatChangeAction(entry.action)} · ${changeLogEntryTarget(entry)}`;
 }
 
 function focusAuditChangeTarget(entry) {

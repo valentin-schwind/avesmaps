@@ -2,6 +2,9 @@
 
 declare(strict_types=1);
 
+// Die Erklaerzeile („1 Fläche → 2 Flächen", „Gültigkeit geändert") und ihre gemeinsamen Bausteine.
+require_once __DIR__ . '/../audit-detail.php';
+
 function avesmapsPoliticalReadAudit(PDO $pdo, array $query): array {
     $yearBf = avesmapsPoliticalReadOptionalInt($query['year_bf'] ?? null) ?? AVESMAPS_POLITICAL_DEFAULT_YEAR_BF;
     $zoomFrom = avesmapsPoliticalReadOptionalZoom($query['zoom_from'] ?? null) ?? 0;
@@ -119,18 +122,128 @@ function avesmapsPoliticalReadChangeLog(PDO $pdo, bool $canUndoChanges): array {
     );
     $rows = $statement === false ? [] : $statement->fetchAll(PDO::FETCH_ASSOC);
 
+    // Einmal auspacken, nicht dreimal: Name, Ziel und Erklaerzeile lesen denselben Schnappschuss.
+    $payloads = [];
+    foreach ($rows as $index => $row) {
+        $payloads[$index] = [
+            avesmapsPoliticalDecodeAuditPayload($row['before_json'] ?? null),
+            avesmapsPoliticalDecodeAuditPayload($row['after_json'] ?? null),
+        ];
+    }
+
+    $territoryNames = avesmapsPoliticalAuditTerritoryNames($pdo, $payloads);
+    $changes = [];
+    foreach ($rows as $index => $row) {
+        $changes[] = avesmapsPoliticalNormalizeChangeLogEntry(
+            $row,
+            $payloads[$index][0],
+            $payloads[$index][1],
+            $territoryNames,
+            $canUndoChanges
+        );
+    }
+
     return [
         'ok' => true,
-        'changes' => array_map(
-            static fn(array $row): array => avesmapsPoliticalNormalizeChangeLogEntry($row, $canUndoChanges),
-            $rows
-        ),
+        'changes' => $changes,
     ];
 }
 
-function avesmapsPoliticalNormalizeChangeLogEntry(array $row, bool $canUndoChanges): array {
-    $beforePayload = avesmapsPoliticalDecodeAuditPayload($row['before_json'] ?? null);
-    $afterPayload = avesmapsPoliticalDecodeAuditPayload($row['after_json'] ?? null);
+/**
+ * 💣 EINE FLAECHE HAT KEINEN NAMEN, IHR GEBIET SCHON. Das Protokoll der Flaechen fragt beim Gebiet
+ * nicht nach, und deshalb stand im Fenster „Aenderungen" jahrelang die technische Kennung der
+ * Geometrie (`f74ea2ed-29a9-…`) da, wo ein Leser den Namen erwartet -- fuer JEDE der sieben
+ * Gebiets-Aktionen. Der Schnappschuss traegt `territory_id` laengst mit; es fehlte nur das
+ * Nachschlagen.
+ *
+ * ⚠️ Zwei Abfragen, nicht eine mit OR: `territory_id` steht in den Flaechen, die oeffentliche
+ * Kennung in `territories`. Beides in ein Statement zu ziehen braeuchte denselben Platzhalter
+ * zweimal, und `avesmapsCreatePdo` schaltet `ATTR_EMULATE_PREPARES` ab -- MySQL lehnt das mit
+ * HY093 ab (derselbe Fehler wie bei „Was ist hier?").
+ */
+function avesmapsPoliticalAuditTerritoryNames(PDO $pdo, array $payloads): array {
+    $ids = [];
+    $publicIds = [];
+    foreach ($payloads as $pair) {
+        foreach ($pair as $payload) {
+            foreach ((array) ($payload['geometries'] ?? []) as $snapshot) {
+                $territoryId = is_array($snapshot) ? avesmapsPoliticalNullableInt($snapshot['territory_id'] ?? null) : null;
+                if ($territoryId !== null && $territoryId > 0) {
+                    $ids[$territoryId] = true;
+                }
+            }
+            foreach (array_keys((array) ($payload['territories'] ?? [])) as $publicId) {
+                if ((string) $publicId !== '') {
+                    $publicIds[(string) $publicId] = true;
+                }
+            }
+        }
+    }
+
+    return avesmapsPoliticalAuditNamesByColumn($pdo, 'id', array_keys($ids), 'id:')
+        + avesmapsPoliticalAuditNamesByColumn($pdo, 'public_id', array_keys($publicIds), 'pid:');
+}
+
+function avesmapsPoliticalAuditNamesByColumn(PDO $pdo, string $column, array $values, string $prefix): array {
+    if ($values === []) {
+        return [];
+    }
+
+    $placeholders = [];
+    $parameters = [];
+    foreach (array_values($values) as $position => $value) {
+        $placeholders[] = ':v' . $position;
+        $parameters['v' . $position] = $value;
+    }
+
+    $statement = $pdo->prepare(
+        'SELECT ' . $column . ' AS lookup_key, name
+        FROM political_territory
+        WHERE ' . $column . ' IN (' . implode(', ', $placeholders) . ')'
+    );
+    $statement->execute($parameters);
+
+    $names = [];
+    foreach ($statement->fetchAll(PDO::FETCH_ASSOC) ?: [] as $row) {
+        $name = trim((string) ($row['name'] ?? ''));
+        if ($name !== '') {
+            $names[$prefix . (string) $row['lookup_key']] = $name;
+        }
+    }
+
+    return $names;
+}
+
+/**
+ * PUR: der Name, der in der Zeile steht. Der Nachher-Stand gewinnt, wie beim Ziel der Zeile auch.
+ * ⚠️ Findet sich kein Gebiet, steht das AUSDRUECKLICH da -- eine geloeschte Flaeche ohne Zuordnung
+ * ist ein echter Zustand, und ihn wieder mit der Kennung zu fuellen waere der alte Fehler.
+ */
+function avesmapsPoliticalAuditEntryName(array $beforePayload, array $afterPayload, array $territoryNames): string {
+    foreach ([$afterPayload, $beforePayload] as $payload) {
+        foreach ((array) ($payload['geometries'] ?? []) as $snapshot) {
+            $territoryId = is_array($snapshot) ? avesmapsPoliticalNullableInt($snapshot['territory_id'] ?? null) : null;
+            if ($territoryId !== null && isset($territoryNames['id:' . $territoryId])) {
+                return $territoryNames['id:' . $territoryId];
+            }
+        }
+        foreach (array_keys((array) ($payload['territories'] ?? [])) as $publicId) {
+            if (isset($territoryNames['pid:' . (string) $publicId])) {
+                return $territoryNames['pid:' . (string) $publicId];
+            }
+        }
+    }
+
+    return 'Ohne Herrschaftsgebiet';
+}
+
+function avesmapsPoliticalNormalizeChangeLogEntry(
+    array $row,
+    array $beforePayload,
+    array $afterPayload,
+    array $territoryNames,
+    bool $canUndoChanges
+): array {
     $focus = avesmapsPoliticalBuildAuditFocusTarget($beforePayload, $afterPayload);
     $primaryPublicId = avesmapsPoliticalResolveAuditPrimaryPublicId($beforePayload, $afterPayload);
     $isUndone = (string) ($row['undone_at'] ?? '') !== '';
@@ -149,7 +262,8 @@ function avesmapsPoliticalNormalizeChangeLogEntry(array $row, bool $canUndoChang
         'public_id' => $primaryPublicId,
         'feature_type' => 'political_territory',
         'feature_subtype' => 'region',
-        'name' => $primaryPublicId,
+        'name' => avesmapsPoliticalAuditEntryName($beforePayload, $afterPayload, $territoryNames),
+        'detail' => avesmapsPoliticalAuditDetailText($beforePayload, $afterPayload),
         'focus' => $focus,
     ];
 }
