@@ -1576,6 +1576,18 @@
 	align-items: center;
 }
 
+/* 💣 DIE LISTE DES ÄNDERUNGSPROTOKOLLS HAT KEINEN ZEILENABSTAND MEHR. `.review-panel__list` setzt
+   `gap: 8px` -- richtig für die gerahmten Kästen der übrigen Panels, falsch, seit diese Zeilen mit
+   einer TRENNLINIE arbeiten: die Linie sitzt am OBERRAND der nächsten Zeile, also klaffte zwischen
+   dem Ende einer Zeile und ihrer Linie ein 8px-Loch. An der überfahrenen Zeile war es sofort zu
+   sehen -- ihre Fläche hörte auf, dann kam Nichts, dann erst der Strich (Owner 22.08.2026: „da ist
+   noch ein komischer abstand zwischen item und trenner").
+   ⚠️ Nur für DIESEN Reiter: die anderen Listen im selben Panel zeichnen weiter Kästen und brauchen
+   ihren Abstand. */
+[data-editor-panel-section="changes"] .review-panel__list {
+	gap: 0;
+}
+
 /* 🔴 „Meine · Alle" steht in einer EIGENEN Zeile ÜBER Suche und Trichter (Owner 22.08.2026:
    „setz die suche doch drunter, also suche und filter unter ‚Meine | Alle‘"). Zu dritt in einer
    Zeile blieben dem Suchfeld 204px in einem 400px-Panel, und die drei Abstände nebeneinander

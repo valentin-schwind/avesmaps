@@ -209,4 +209,16 @@ assert.ok(/width: 10px/.test(caretCss), "das Dreieck ist 10px breit");
 // Live gemessen: links 11 / Namen 29 / im Bündel 43, rechts überall 389.
 assert.ok(!/padding: 7px 4px[^0-9]/.test(zeileCss), "keine 4px-Stufe mehr an der Zeile");
 
+// 💣 UND DIE LISTE HAT KEINEN ZEILENABSTAND. `.review-panel__list` setzt `gap: 8px` -- richtig für
+// die gerahmten Kästen der übrigen Panels, falsch, seit diese Zeilen mit einer TRENNLINIE arbeiten:
+// die Linie sitzt am OBERRAND der nächsten Zeile, also klaffte zwischen dem Ende einer Zeile und
+// ihrer Linie ein 8px-Loch. An der überfahrenen Zeile war es sofort zu sehen (Owner 22.08.2026:
+// „da ist noch ein komischer abstand zwischen item und trenner").
+// ⚠️ Die Regel gilt NUR für diesen Reiter -- die anderen Listen im selben Panel zeichnen weiter
+// Kästen und brauchen ihren Abstand. Live gemessen: Lücke zwischen zwei Zeilen 0px.
+assert.ok(
+	/\[data-editor-panel-section="changes"\]\s+\.review-panel__list\s*\{[^}]*gap:\s*0/.test(panelCss),
+	"die Liste des Reiters hat keinen Zeilenabstand -- sonst steht die Trennlinie frei",
+);
+
 console.log("change-log-buendel ok");
