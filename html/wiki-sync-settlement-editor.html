@@ -4742,9 +4742,21 @@ async function saveZoomBands() {
 		zoomBandsBearbeitetSeitLaden = false;
 		renderZoomBandsDialog();
 		$("seZoomBandsMsg").textContent = "Gespeichert. Die Karte zeigt es nach dem nächsten Laden.";
+		// 🔴 Speichern schließt das Fenster (Owner 22.08.2026).
+		// 💣 NUR HIER, im Erfolgszweig -- im `catch` unten MUSS es offen bleiben, sonst verschwindet
+		// die Fehlermeldung mit dem Fenster und ein fehlgeschlagenes Speichern sieht aus wie ein
+		// gelungenes.
+		// ⚠️ Und die Bestätigung wandert in die Statuszeile der SEITE: „Gespeichert." steht in
+		// #seZoomBandsMsg, also im Fenster, und wäre nach dem Schließen niemals lesbar gewesen.
+		setStatusText("Zoombänder gespeichert. Die Karte zeigt es nach dem nächsten Laden.");
+		closeZoomBandsDialog();
 	} catch (error) {
 		fehler.textContent = error && error.message ? error.message : String(error);
 		fehler.hidden = false;
+		// ⚠️ Die Statuszeile MUSS mit: nach einem gelungenen Speichern steht dort „Gespeichert."
+		// Bleibt sie stehen, während das Fenster einen Fehler zeigt, widersprechen sich die beiden
+		// Meldungen -- und die freundlichere gewinnt beim Überfliegen.
+		setStatusText("Zoombänder NICHT gespeichert — Meldung im Fenster.");
 	}
 }
 

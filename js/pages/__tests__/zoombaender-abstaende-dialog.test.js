@@ -129,4 +129,25 @@ assert.ok(/zoomBandSpacingEqualsDefault\(key\)/.test(seite), "die Meldung prueft
 assert.ok(/spacingChanged === 1 \? "Abstand" : "Abstände"/.test(seite),
 	"der Plural traegt den Umlaut (Abstände), kein blosses '+e'");
 
+// ---- 7. Speichern schliesst das Fenster -- aber NUR im Erfolgsfall ------------------------------
+// 🔴 Owner 22.08.2026: "beim speichern soll der dialog schliessen".
+// 💣 Der Fehlerzweig darf es NICHT: die Fehlermeldung steht IM Fenster (#seZoomBandsError), und ein
+// fehlgeschlagenes Speichern saehe sonst genau aus wie ein gelungenes -- das Fenster geht zu, und
+// niemand erfaehrt, dass nichts geschrieben wurde.
+const speichern = seite.slice(seite.indexOf("async function saveZoomBands()"));
+const rumpf = speichern.slice(0, speichern.indexOf("async function resetAllZoomBands"));
+const [erfolgszweig, fehlerzweig] = rumpf.split("} catch (error) {");
+assert.ok(fehlerzweig, "saveZoomBands hat einen Fehlerzweig");
+assert.ok(/closeZoomBandsDialog\(\);/.test(erfolgszweig),
+	"der Erfolgszweig schliesst das Fenster");
+assert.ok(!/closeZoomBandsDialog\(/.test(fehlerzweig),
+	"der Fehlerzweig schliesst es NICHT -- sonst verschwindet die Fehlermeldung mit dem Fenster");
+
+// ⚠️ Und die Bestaetigung muss aus dem Fenster heraus: "Gespeichert." steht in #seZoomBandsMsg, also
+// IM Fenster, und waere nach dem Schliessen nie lesbar gewesen.
+assert.ok(/setStatusText\("Zoombänder gespeichert/.test(erfolgszweig),
+	"die Bestaetigung wandert in die Statuszeile der Seite");
+assert.ok(/setStatusText\("Zoombänder NICHT gespeichert/.test(fehlerzweig),
+	"und der Fehlerfall raeumt sie wieder weg -- sonst stehen zwei widerspruechliche Meldungen");
+
 console.log("zoombaender-abstaende-dialog: alle Zusicherungen erfuellt");
