@@ -1319,7 +1319,11 @@ git commit -m "feat(kurvenlabel): Glaettung, mehrteilige Flaechen und der Gesamt
 - Test: `api/_internal/app/__tests__/curve-label-store-test.php`
 
 **Schnittstellen:**
-- Verbraucht: nichts aus 1–4 (reine Regelfunktionen).
+- Verbraucht: **funktional nichts** aus 1–4 — die beiden Regelfunktionen kommen ohne Geometrie aus.
+  ⚠️ Die Datei bindet `curve-labels.php` trotzdem gleich hier ein: **Aufgabe 8** ruft aus derselben
+  Datei `avesmapsCurveBaseline` und `avesmapsCurveResample` auf. Das Einbinden erst dort nachzuholen
+  hiesse, dieselbe Datei zweimal anzufassen. (Ein Prüfer hat den Widerspruch zwischen dieser Zeile
+  und dem Codeblock unten zu Recht gemeldet — die Zeile war ungenau, nicht der Code.)
 - Liefert: `avesmapsCurveLabelSettingsFromProperties(?array $properties): array` →
   `['enabled' => bool, 'max_labels' => int]`;
   `avesmapsCurveLabelRolloutFor(array $rotations): array` → dieselbe Form.
