@@ -46,4 +46,43 @@ assert(abs(abs(avesmapsCurveRingArea($einfach)) - 12.0) < 1e-6);
 $dreieck = [[0.0, 0.0], [1.0, 0.0], [0.0, 1.0], [0.0, 0.0]];
 assert(avesmapsCurveSimplifyRing($dreieck, 5.0) === $dreieck);
 
+// ---------------------------------------------------------------- DELAUNAY ---
+
+// 💣 Die Kontrollprobe, die den Bau ueberhaupt erst vertrauenswuerdig macht: fuer Punkte in
+// KONVEXER Lage muss eine Delaunay-Triangulierung genau n-2 Dreiecke liefern, und ihre Flaechen
+// muessen zusammen die Polygonflaeche ergeben. Faellt eine der beiden Zahlen, ist die
+// Triangulierung kaputt -- und alles danach rechnet auf Sand weiter.
+$n = 40;
+$kreis = [];
+for ($i = 0; $i < $n; $i++) {
+    $w = 2 * M_PI * $i / $n;
+    $kreis[] = [600.0 + (40.0 * cos($w)), 600.0 + (25.0 * sin($w))];
+}
+$tris = avesmapsCurveDelaunay($kreis);
+assert(count($tris) === $n - 2);
+
+$flaeche = 0.0;
+foreach ($tris as [$a, $b, $c]) {
+    $flaeche += abs(
+        (($kreis[$b][0] - $kreis[$a][0]) * ($kreis[$c][1] - $kreis[$a][1]))
+        - (($kreis[$c][0] - $kreis[$a][0]) * ($kreis[$b][1] - $kreis[$a][1]))
+    ) / 2.0;
+}
+$ring = $kreis;
+$ring[] = $kreis[0];
+assert(abs($flaeche - abs(avesmapsCurveRingArea($ring))) < 1e-6);
+
+// Kein Dreieck doppelt.
+$schluessel = [];
+foreach ($tris as $t) {
+    $s = $t;
+    sort($s);
+    $k = implode(',', $s);
+    assert(!isset($schluessel[$k]));
+    $schluessel[$k] = true;
+}
+
+// Zu wenige Punkte ergeben kein Dreieck, nicht einen Fehler.
+assert(avesmapsCurveDelaunay([[0.0, 0.0], [1.0, 0.0]]) === []);
+
 echo "curve-labels: Grundlagen ok\n";

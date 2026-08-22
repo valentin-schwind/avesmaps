@@ -189,3 +189,97 @@ function avesmapsCurveDensifyRing(array $ring, float $spacing): array
 
     return $raus;
 }
+
+// Umkreis eines Dreiecks. null bei entarteten (kollinearen) Dreiecken.
+function avesmapsCurveCircumcircle(float $ax, float $ay, float $bx, float $by, float $cx, float $cy): ?array
+{
+    $d = 2.0 * (($ax * ($by - $cy)) + ($bx * ($cy - $ay)) + ($cx * ($ay - $by)));
+    if (abs($d) < 1e-12) {
+        return null;
+    }
+    $a2 = ($ax * $ax) + ($ay * $ay);
+    $b2 = ($bx * $bx) + ($by * $by);
+    $c2 = ($cx * $cx) + ($cy * $cy);
+    $ux = (($a2 * ($by - $cy)) + ($b2 * ($cy - $ay)) + ($c2 * ($ay - $by))) / $d;
+    $uy = (($a2 * ($cx - $bx)) + ($b2 * ($ax - $cx)) + ($c2 * ($bx - $ax))) / $d;
+
+    return ['x' => $ux, 'y' => $uy, 'r2' => (($ax - $ux) ** 2) + (($ay - $uy) ** 2)];
+}
+
+// Delaunay nach Bowyer-Watson. Fuer die hier auftretenden Punktzahlen (gemessen 189-779 je Flaeche)
+// ist die einfache Fassung schnell genug; eine Bibliothek waere eine neue Abhaengigkeit in einem
+// Projekt ohne Bauschritt.
+function avesmapsCurveDelaunay(array $points): array
+{
+    $n = count($points);
+    if ($n < 3) {
+        return [];
+    }
+    $minX = $minY = INF;
+    $maxX = $maxY = -INF;
+    foreach ($points as $p) {
+        $minX = min($minX, $p[0]);
+        $maxX = max($maxX, $p[0]);
+        $minY = min($minY, $p[1]);
+        $maxY = max($maxY, $p[1]);
+    }
+    $dm = max($maxX - $minX ?: 1.0, $maxY - $minY ?: 1.0) * 20.0;
+    $mx = ($minX + $maxX) / 2.0;
+    $my = ($minY + $maxY) / 2.0;
+    $pts = $points;
+    $pts[] = [$mx - $dm, $my - $dm];
+    $pts[] = [$mx + $dm, $my - $dm];
+    $pts[] = [$mx, $my + $dm];
+
+    $mache = static function (int $a, int $b, int $c) use ($pts): array {
+        return [
+            'a' => $a,
+            'b' => $b,
+            'c' => $c,
+            'cc' => avesmapsCurveCircumcircle(
+                $pts[$a][0], $pts[$a][1], $pts[$b][0], $pts[$b][1], $pts[$c][0], $pts[$c][1]
+            ),
+        ];
+    };
+
+    $tris = [$mache($n, $n + 1, $n + 2)];
+    for ($i = 0; $i < $n; $i++) {
+        $px = $pts[$i][0];
+        $py = $pts[$i][1];
+        $schlecht = [];
+        $gut = [];
+        foreach ($tris as $t) {
+            $cc = $t['cc'];
+            if ($cc !== null && ((($px - $cc['x']) ** 2) + (($py - $cc['y']) ** 2)) <= $cc['r2'] + 1e-9) {
+                $schlecht[] = $t;
+            } else {
+                $gut[] = $t;
+            }
+        }
+        $kanten = [];
+        foreach ($schlecht as $t) {
+            foreach ([[$t['a'], $t['b']], [$t['b'], $t['c']], [$t['c'], $t['a']]] as $e) {
+                $k = $e[0] < $e[1] ? $e[0] . ',' . $e[1] : $e[1] . ',' . $e[0];
+                if (isset($kanten[$k])) {
+                    $kanten[$k]['n']++;
+                } else {
+                    $kanten[$k] = ['n' => 1, 'a' => $e[0], 'b' => $e[1]];
+                }
+            }
+        }
+        $tris = $gut;
+        foreach ($kanten as $rec) {
+            if ($rec['n'] === 1) {
+                $tris[] = $mache($rec['a'], $rec['b'], $i);
+            }
+        }
+    }
+    $raus = [];
+    foreach ($tris as $t) {
+        if ($t['a'] < $n && $t['b'] < $n && $t['c'] < $n) {
+            $raus[] = [$t['a'], $t['b'], $t['c']];
+        }
+    }
+
+    return $raus;
+}
