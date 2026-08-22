@@ -170,7 +170,7 @@ für eine eigene Regression hält: `test-place-scope-filter`, `test-route-leg-po
 - [x] Der Stylesheet-Test hat ZWEI Hälften: nirgends sonst · und beide Welten laden ihn (A0a)
 - [ ] Jede Oberfläche schickt `wiki_uebernommen`, **bevor** ihre Anzeige gebaut wird (A0)
 - [ ] Beide Landschafts-Oberflächen, nie nur eine
-- [ ] Landschaft: die Herkunft als **fertige Antwort** projizieren, nie `properties_json` (A1)
+- [x] Landschaft: die Herkunft als **fertige Antwort** projizieren, nie `properties_json` (A1) · live 22.08.2026
 - [ ] Bauform aus dem **CSS** bestimmt, nicht aus dem Markup (§2.2)
 - [ ] Keine dritte `.wiki-alt`-Kopie — sie ist über `styles.css` schon da (A3)
 - [ ] Klimazone: kein ↺ auf der gesperrten Art (A2)

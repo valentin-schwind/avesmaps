@@ -1864,6 +1864,48 @@ function avesmapsEcosystemRegionNoArticle(mixed $propertiesJson): bool
 }
 
 /**
+ * REIN: die Feldherkunft dieser Regionszeile, gefiltert auf die zwei Wiki-Felder.
+ *
+ * 🔴 HERAUS GEHT DIE ANTWORT, NIE DIE ABLAGE -- dieselbe Bauform wie `wiki_no_article` eine Zeile
+ * darueber, und aus demselben Grund: der Kommentar an der Projektion sagt es woertlich, „die
+ * Oberflaechen brauchen die Antwort, nicht die Ablage, und ein `properties_json` auf der Leitung
+ * waere die Einladung, dort noch etwas anderes hineinzuschreiben".
+ * 🪤 Der Bauplan vom 18.08.2026 nahm an, „die Oberflaeche muss `field_origins` nur noch in ihre
+ * Quelle legen". Das war falsch: die Daten waren gar nicht auf der Leitung -- `list_regions` gibt
+ * `properties_json` bewusst nicht heraus, und ohne diese Projektion konnte der Editor die Herkunft
+ * nicht kennen, egal wie gepflegt sie in der Ablage stand.
+ *
+ * ⚠️ GEFILTERT AUF `name` UND `region_type`, obwohl der Stempler nur diese beiden schreibt: eine
+ * Ablage, die von Hand oder aus einer kuenftigen Fassung mehr traegt, soll die Oberflaeche nicht
+ * mit Eintraegen fuellen, fuer die es keine Zeile gibt. Unbekannte Herkunftswerte fallen ebenso
+ * heraus -- dieselbe Strenge wie in avesmapsFieldOriginsStempeln und js/ui/wiki-feld-herkunft.js.
+ *
+ * ⚠️ Eine LEERE Karte reist als `[]`, nicht als `null`: „keine Herkunft bekannt" ist der Normalfall
+ * am ersten Tag und keine Stoerung. Der Browser unterscheidet die zwei ohnehin nicht.
+ */
+function avesmapsEcosystemRegionFieldOrigins(mixed $propertiesJson): array
+{
+    // 💣 field-origins.php wird sonst erst vom SCHREIBER geladen (avesmapsEcosystemApplyRegion-
+    // FieldOrigins). Der Leser laeuft frueher -- ohne dieses require waeren die zwei Konstanten
+    // undefiniert, und PHP 8 wirft dafuer einen Fatal Error, der mit LEEREM Rumpf antwortet.
+    require_once __DIR__ . '/../map/field-origins.php';
+
+    $properties = json_decode((string) ($propertiesJson ?? ''), true);
+    $bestand = is_array($properties) && is_array($properties['field_origins'] ?? null)
+        ? $properties['field_origins']
+        : [];
+    $karte = [];
+    foreach (['name', 'region_type'] as $feld) {
+        $wert = $bestand[$feld] ?? null;
+        if ($wert === AVESMAPS_FIELD_ORIGIN_WIKI || $wert === AVESMAPS_FIELD_ORIGIN_MANUAL) {
+            $karte[$feld] = (string) $wert;
+        }
+    }
+
+    return $karte;
+}
+
+/**
  * REIN: was `update_region` am Merker zu tun hat. Leeres Ergebnis = nichts zu schreiben.
  *
  * 💣 FEHLT `wiki_no_article` IM RUMPF, BLEIBT DER MERKER UNANGETASTET -- dieselbe array_key_exists-Regel
@@ -2111,6 +2153,11 @@ function avesmapsListEcosystemRegions(PDO $pdo, array $payload): array
             // brauchen die Antwort, nicht die Ablage, und ein `properties_json` auf der Leitung waere
             // die Einladung, dort noch etwas anderes hineinzuschreiben.
             'wiki_no_article' => avesmapsEcosystemRegionNoArticle($row['properties_json'] ?? null),
+            // Die Feldherkunft, ebenfalls als fertige Antwort (`{name|region_type: wiki|manual}`).
+            // 🔴 Ohne sie gaebe es fuer den Wiki-Override der Landschaft keinen LESEWEG: der Server
+            // stempelt seit dem 18.08.2026, aber nichts gab die Stempel je heraus -- die braune
+            // Beschriftung und das ↺ haetten schweigend nie erscheinen koennen.
+            'field_origins' => avesmapsEcosystemRegionFieldOrigins($row['properties_json'] ?? null),
             // Reihenfolge und Sperre (19.08.2026) -- das Fenster „Reihenfolge und Sperren" baut seine
             // Liste hieraus, der Zaehler in der Ebenen-Leiste seine Zahl.
             'stack_order' => (int) $row['stack_order'],
