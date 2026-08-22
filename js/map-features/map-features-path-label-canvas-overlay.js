@@ -111,6 +111,101 @@
 		return paintGlyphs(glyphs, chars, halo, fillColor);
 	}
 
+	// KANAL C -- Landschaftsnamen auf ihrer Kurve (Entwurf §7.3): Schriftfamilie/-schnitt 1:1 aus dem
+	// vorhandenen Label-Stil (getMapLabelTypeStyle, wie renderMapLabelToImage sie zusammensetzt).
+	// Keine neue Schrift: zwei Schriftbilder nebeneinander wuerden auffallen -- genau deshalb wird
+	// ueberhaupt auf Canvas gezeichnet, statt eine zweite Optik zu erfinden (AGENTS.md §12).
+	function kurvenlabelFont(label, fontSize) {
+		const typeStyle = getMapLabelTypeStyle(label.labelType);
+		const fontStylePrefix = typeStyle.fontStyle ? `${typeStyle.fontStyle} ` : "";
+		return `${fontStylePrefix}${typeStyle.fontWeight} ${fontSize}px ${typeStyle.fontFamily}`;
+	}
+
+	// Fuellfarbe, ebenfalls aus dem vorhandenen Label-Stil -- keine hartkodierte Farbe (AGENTS.md §12).
+	function kurvenlabelFarbe(label) {
+		return getMapLabelTypeStyle(label.labelType).color;
+	}
+
+	// Halo wie am Marker-Label selbst: createLabelIcon baut seinen Schein aus genau denselben zwei
+	// Werten (REGION_LABEL_HALO_STRENGTH/-SHARPNESS) -- hier nur in die {glow, blur, strokeW}-Form
+	// gebracht, die paintGlyphs schon fuer die Kanaele A/B erwartet. Bezugsgroesse ist die
+	// EINGESTELLTE Schriftgroesse des Labels (getScaledLabelSize), nicht ein ggf. verkleinertes
+	// Fenster -- derselbe Bezug, mit dem der Marker seinen Halo baut.
+	function kurvenlabelHalo(label) {
+		const kein = { glow: null, blur: 0, strokeW: 0 };
+		if (typeof getLabelHaloParams !== "function") {
+			return kein;
+		}
+		const hp = getLabelHaloParams(REGION_LABEL_HALO_STRENGTH, REGION_LABEL_HALO_SHARPNESS);
+		if (!hp.glow) {
+			return kein;
+		}
+		const fontSize = getScaledLabelSize(label);
+		return { glow: hp.glow, blur: fontSize * (hp.glowBlurRatio || 0), strokeW: fontSize * (hp.strokeRatio || 0) };
+	}
+
+	// Ein Landschaftsname auf seiner Kurve. Der Ablauf ist kurz, weil die Arbeit woanders liegt:
+	// curve-label-fit.js passt, curved-label-layout.js setzt die Glyphen, paintGlyphs malt.
+	function zeichneKurvenlabels() {
+		if (typeof avesmapsKurvenlabelKandidaten !== "function" || typeof avesmapsCurveLabelFit !== "function") {
+			return;
+		}
+		const kandidaten = avesmapsKurvenlabelKandidaten();
+		if (!Array.isArray(kandidaten) || kandidaten.length === 0) {
+			return;
+		}
+		for (const label of kandidaten) {
+			// 1. Die Kurve in Bildschirmpunkte. label.curveLine ist [lat, lng] -- der Tausch ist
+			//    schon in normalizeLabelFeature passiert und passiert hier NICHT noch einmal.
+			const pts = label.curveLine.map(([lat, lng]) => map.latLngToContainerPoint(L.latLng(lat, lng)));
+
+			// 2. Schrift und Zeichenbreiten messen. ⚠️ ctx.font MUSS vor dem Messen stehen --
+			//    measureText misst gegen die zuletzt gesetzte Schrift, nicht gegen die gewuenschte.
+			const fontSize = getScaledLabelSize(label);
+			ctx.font = kurvenlabelFont(label, fontSize);
+			// Dieselbe Gross-/Kleinschreibung wie am Marker-Label (renderMapLabelToImage liest
+			// typeStyle.uppercase aus dem echten CSS): Gebirge/Region/Kontinent erscheinen dort
+			// GROSSGESCHRIEBEN. Ohne diesen Schritt stuende auf der Kurve "Drachensteine", am Marker
+			// daneben "DRACHENSTEINE" -- genau die zwei Schriftbilder, die dieses Overlay vermeiden soll.
+			const typeStyle = getMapLabelTypeStyle(label.labelType);
+			const anzeigeText = typeStyle.uppercase ? String(label.text).toUpperCase() : String(label.text);
+			const chars = Array.from(anzeigeText);
+			const widths = chars.map((c) => ctx.measureText(c).width);
+
+			// 3. Passen lassen.
+			const passung = avesmapsCurveLabelFit(pts, chars, widths, fontSize, label.curveMax);
+			if (!passung) {
+				continue;
+			}
+
+			// 4. Malen. Je Fenster einmal.
+			for (const fenster of passung.fenster) {
+				// ⚠️ ctx.font wird JE FENSTER gesetzt, nicht nur wenn es vom Ausgangswert abweicht: bei
+				// mehreren Fenstern (curveMax > 1) schrumpft `fensterFuer` jedes Fenster UNABHAENGIG --
+				// ein Vergleich nur gegen die urspruengliche `fontSize` liesse ein spaeteres, NICHT
+				// verkleinertes Fenster in der Schriftgroesse des vorigen (verkleinerten) Fensters
+				// zeichnen. Sonst malt der Canvas in der falschen Groesse an Positionen, die fuer eine
+				// andere gerechnet wurden.
+				ctx.font = kurvenlabelFont(label, fenster.fontSize);
+				const glyphs = layoutGlyphsAlong(fenster.pts, fenster.chars, fenster.widths, fenster.ls, 0, fenster.fontSize);
+				if (!glyphs) {
+					continue;
+				}
+				// 💣 DIE PROBE DES OWNERS, am fertig gesetzten Text (Entwurf §4.1, §7.3): steht die
+				// erste Glyphe weiter links als die letzte? Im Prototyp beantwortete der Browser das
+				// (getStartPositionOfChar); auf dem Canvas fragt niemand, also wird gerechnet.
+				// Sie steht HIER und nicht nur in der Passung, weil zwischen beidem noch geglaettet
+				// und verlaengert wird -- und weil genau diese Zusicherung beim Entwerfen zweimal
+				// danebengegangen ist. Ein Toleranzband gibt es nicht: -1 px ist die Grenze, und
+				// ein Band um die verbotene Lage LAESST DIE VERBOTENE LAGE ZU.
+				if (glyphs[glyphs.length - 1].x - glyphs[0].x < -1) {
+					continue;
+				}
+				paintGlyphs(glyphs, fenster.chars, kurvenlabelHalo(label), kurvenlabelFarbe(label));
+			}
+		}
+	}
+
 	function redraw() {
 		// Klickbare Way-Labels (Task 16): Register IMMER zuerst leeren -- auch wenn redraw() gleich
 		// darunter frueh returnt (Canvas aus, mitten in der CSS-Zoom-Animation, keine pathData). So
@@ -401,6 +496,11 @@
 				});
 			});
 		}
+
+		// KANAL C: die Namen der Landschaftsflaechen auf ihrer Kurve (Entwurf §7.3).
+		// 🔴 Die Kurve kommt vom SERVER und liegt fertig am Label (label.curveLine, Leaflet-Ordnung).
+		// Hier wird nur projiziert, gepasst und gemalt -- gerechnet hat api/_internal/app/curve-labels.php.
+		zeichneKurvenlabels();
 
 		// Kraftlinien-Namen -- nur im Modus „Kraftlinien". Text liegt auf der (geraden) Mittellinie, leicht
 		// darüber versetzt (wie früher SVG-dy -10), mit dezentem weichem Halo für Lesbarkeit.

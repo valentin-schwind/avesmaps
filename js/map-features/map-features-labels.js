@@ -870,6 +870,32 @@ function shouldShowLabelMarker(entry, zoomLevel = map.getZoom(), renderBounds = 
 		&& isLatLngInRenderBounds(entry.marker.getLatLng(), renderBounds);
 }
 
+// Welche Labels wuerden JETZT als Kurve gezeichnet? Der schmale Leser fuer Kanal C
+// (map-features-path-label-canvas-overlay.js) -- er liefert genau die Labels, die eine `curveLine`
+// tragen UND nach `shouldShowLabelMarker` sichtbar waeren. Die Sichtbarkeitsregel bleibt damit an
+// ihrer EINEN Stelle; das Overlay bekommt eine fertige Liste und kein zweites Regelwerk.
+// 💣 Wer die Zoom- und Ebenenpruefung im Overlay nachbaut, hat zwei Regeln, die beim ersten neuen
+// Filter auseinanderlaufen. Genau diese Falle hat am 14.08.2026 die Verkehrsmittel-Sperre gekostet:
+// eine Regel, die einen von vier Erzeugern bindet, ist keine Regel.
+// ⚠️ `shouldShowLabelMarker` prueft den Bildausschnitt gegen `entry.marker.getLatLng()` -- die
+// ANKERLAGE des Labels. Eine Kurve ist bis zu 88 Karteneinheiten lang; ihr Anker kann ausserhalb
+// liegen, waehrend ein Stueck Kurve noch im Bild ist. Das ergibt an den Bildraendern ein spaet
+// erscheinendes Kurvenlabel -- fuer Plan 2 hingenommen und gemessen (Aufgabe 7), nicht behoben: die
+// Ankerpruefung gilt heute allen Labels, sie hier allein fuer Kurven zu aendern waere eine zweite
+// Sichtbarkeitsregel.
+function avesmapsKurvenlabelKandidaten() {
+	if (typeof labelMarkers === "undefined" || !Array.isArray(labelMarkers)) {
+		return [];
+	}
+	const zoomLevel = map.getZoom();
+	const renderBounds = getMapRenderBounds();
+	const editorOverride = isMapLabelEditorOverrideActive();
+	return labelMarkers
+		.filter((entry) => Array.isArray(entry.label.curveLine) && entry.label.curveLine.length >= 2)
+		.filter((entry) => shouldShowLabelMarker(entry, zoomLevel, renderBounds, editorOverride))
+		.map((entry) => entry.label);
+}
+
 function syncLabelMarkerVisibility(entry, zoomLevel = map.getZoom(), renderBounds = getMapRenderBounds(), editorOverride = isMapLabelEditorOverrideActive()) {
 	const shouldShow = shouldShowLabelMarker(entry, zoomLevel, renderBounds, editorOverride);
 	const isVisible = map.hasLayer(entry.marker);
