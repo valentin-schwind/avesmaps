@@ -1553,65 +1553,6 @@
 	overflow: auto;
 }
 
-.change-log-entry {
-	display: grid;
-	gap: 4px;
-	box-sizing: border-box;
-	min-width: 0;
-	padding: 10px;
-	border: 1px solid var(--color-border);
-	border-radius: 8px;
-	background: var(--color-panel);
-	color: var(--color-text-strong);
-	cursor: pointer;
-	font: inherit;
-	text-align: left;
-}
-
-/* A3: eine bearbeitete Meldung wird gezeigt, nicht angeboten -- gedaempft wie eine
-   zurueckgenommene Aenderung, damit die offene Liste optisch die Arbeitsliste bleibt.
-   Nur Token, keine festen Werte (docs/design-language.md). */
-.review-report--done {
-	background: var(--color-panel-muted);
-	color: var(--color-text-muted);
-}
-
-.review-report__decision {
-	color: var(--color-text-muted);
-	font-size: 0.85em;
-}
-
-.review-report__note {
-	border-left: 2px solid var(--color-divider);
-	padding-left: 8px;
-	color: var(--color-text-muted);
-	font-size: 0.85em;
-}
-
-.change-log-entry.is-undone {
-	background: var(--color-panel-muted);
-	color: var(--color-text-muted);
-}
-
-.change-log-entry:hover,
-.change-log-entry:focus-visible {
-	border-color: var(--color-border-strong);
-	outline: none;
-}
-
-/* Eine Zeile ohne Kartenobjekt (Moderation einer Community-Meldung) ist kein Knopf: kein Zeigefinger
-   und keine Hover-Kante, die ein Ziel verspricht, das es nicht gibt. Muss NACH der Hover-Regel stehen
-   -- beide Selektoren wiegen gleich schwer, also entscheidet die Reihenfolge. */
-.change-log-entry--static,
-.change-log-entry--static:hover {
-	cursor: default;
-	border-color: var(--color-border);
-}
-
-.change-log-entry__action {
-	font-weight: 700;
-}
-
 /* 💣 DER TRICHTER MUSS AM RECHTEN ENDE SEINER ZEILE STEHEN. Sein Menue haengt an `right: 0`
    (.type-filter__menu) und klappt damit nach LINKS auf; ist es breiter als der Knopf und der Knopf
    steht links, laeuft es aus dem Panel heraus -- und das Panel hat `overflow: hidden`. Gemessen am
@@ -1640,22 +1581,180 @@
 	display: none;
 }
 
-/* Die Erklaerzeile („Name, Einwohner geändert") teilt sich Groesse und Farbe mit Ziel und
-   Zeitstempel -- sie ist eine weitere Angabe zur Zeile, keine neue Stufe. Ein eigener Farbwert
-   waere ein Token, das es nicht gibt (§12: nie eine Farbe hartkodieren). */
-.change-log-entry__target,
-.change-log-entry__detail,
-.change-log-entry__meta,
-.change-log-entry__state {
+/* Die Zeilen des Änderungsprotokolls. Owner 22.08.2026: „mach die items etwas kompakter, da geht
+   viel platz verloren".
+
+   🔴 FLACHE ZEILEN MIT TRENNLINIE, keine gerahmten Kästen -- das ist die Regel aus AGENTS.md §12
+   („Group by divider, not framed boxes"), gegen die die alte Karten-Form von Anfang an stand. Aus
+   fünf Zeilen je Eintrag (Aktion / Ziel / Detail / Urheber+Zeitstempel / Knopf) werden zwei, und der
+   Kasten samt seiner 10px-Polsterung und 8px Abstand fällt weg.
+
+   💣 Das ZIEL steht vorn, die Aktion dahinter: gesucht wird „Schattenforst", nicht „Label geändert". */
+.change-log-entry {
+	display: flex;
+	align-items: baseline;
+	gap: 8px;
+	box-sizing: border-box;
+	width: 100%;
 	min-width: 0;
-	color: var(--color-text-muted);
-	font-size: 12px;
-	overflow-wrap: anywhere;
+	padding: 7px 4px;
+	border: 0;
+	border-top: 1px solid var(--color-border);
+	border-radius: 0;
+	background: none;
+	color: var(--color-text-strong);
+	cursor: pointer;
+	font: inherit;
+	text-align: left;
 }
 
-.change-log-entry__state {
-	color: var(--color-pill-text);
+/* Die Zeilen eines aufgeklappten Bündels rücken ein und liegen leicht tiefer -- sie gehören zu der
+   Kopfzeile darüber, und ohne diesen Unterschied liest sich ein offenes Bündel wie eine Liste. */
+.change-log-entry--grouped {
+	padding-left: 22px;
+	background: var(--color-panel-muted);
+}
+
+.change-log-entry__body {
+	flex: 1 1 auto;
+	min-width: 0;
+}
+
+/* ⚠️ Beide Zeilen kürzen mit Auslassungspunkten statt umzubrechen. Ein Umbruch macht die Zeile
+   wieder hoch, und genau die Höhe war der Anlass. */
+.change-log-entry__l1,
+.change-log-entry__l2 {
+	display: block;
+	min-width: 0;
+	overflow: hidden;
+	white-space: nowrap;
+	text-overflow: ellipsis;
+}
+
+.change-log-entry__target {
 	font-weight: 700;
+}
+
+.change-log-entry__target[hidden] {
+	display: none;
+}
+
+/* Die Aktion ist die Beifügung zum Namen, nicht die Überschrift -- deshalb gedämpft und mit dem
+   Mittelpunkt angebunden, wie überall im Panel. */
+.change-log-entry__action {
+	color: var(--color-text-muted);
+}
+
+.change-log-entry__target:not([hidden]) + .change-log-entry__action::before {
+	content: "· ";
+}
+
+.change-log-entry__l2 {
+	color: var(--color-text-muted);
+	font-size: var(--font-size-caption);
+}
+
+.change-log-entry__l2[hidden] {
+	display: none;
+}
+
+.change-log-entry__time {
+	flex: 0 0 auto;
+	color: var(--color-text-muted);
+	font-size: var(--font-size-caption);
+	font-variant-numeric: tabular-nums;
+}
+
+.change-log-entry__actions {
+	flex: 0 0 auto;
+}
+
+.change-log-entry__actions[hidden] {
+	display: none;
+}
+
+.change-log-entry.is-undone {
+	color: var(--color-text-muted);
+}
+
+.change-log-entry:hover,
+.change-log-entry:focus-visible {
+	background: var(--color-hover-wash, var(--color-panel-muted));
+	outline: none;
+}
+
+/* Eine Zeile ohne Kartenobjekt (Moderation einer Community-Meldung) ist kein Knopf: kein Zeigefinger
+   und keine Hover-Fläche, die ein Ziel verspricht, das es nicht gibt. Muss NACH der Hover-Regel
+   stehen -- beide Selektoren wiegen gleich schwer, also entscheidet die Reihenfolge. */
+.change-log-entry--static,
+.change-log-entry--static:hover {
+	background: none;
+	cursor: default;
+}
+
+/* Die Kopfzeile eines Bündels. Sie ist keine `.change-log-entry` -- die Klick-Zuhörer in
+   js/routing/routing.js suchen genau diese Klasse, und ein Bündel hat keine eigene Änderung. */
+.change-log-group {
+	display: flex;
+	align-items: baseline;
+	gap: 8px;
+	box-sizing: border-box;
+	width: 100%;
+	min-width: 0;
+	padding: 7px 4px;
+	border-top: 1px solid var(--color-border);
+	color: var(--color-text-strong);
+	cursor: pointer;
+}
+
+.change-log-group:hover,
+.change-log-group:focus-visible {
+	background: var(--color-hover-wash, var(--color-panel-muted));
+	outline: none;
+}
+
+.change-log-group__caret {
+	flex: 0 0 auto;
+	width: 10px;
+	color: var(--color-text-muted);
+	font-size: var(--font-size-caption);
+}
+
+.change-log-group__name {
+	flex: 1 1 auto;
+	min-width: 0;
+	overflow: hidden;
+	white-space: nowrap;
+	text-overflow: ellipsis;
+	font-weight: 700;
+}
+
+/* Der Urheber steht direkt hinter dem Namen und darf VOR ihm weichen: der Name des Objekts ist
+   die Angabe, nach der gesucht wird. */
+.change-log-group__actor {
+	flex: 0 1 auto;
+	min-width: 0;
+	overflow: hidden;
+	white-space: nowrap;
+	text-overflow: ellipsis;
+	color: var(--color-text-muted);
+	font-size: var(--font-size-caption);
+}
+
+.change-log-group__count {
+	flex: 0 0 auto;
+	color: var(--color-text-muted);
+	font-size: var(--font-size-caption);
+}
+
+/* Der Knopf ist jetzt ein Zeichen, kein Wort. Rahmen und Farbe kommen weiter oben aus der
+   geteilten Knopfregel (er teilt sie sich mit „Übernehmen“ in den Meldungen); hier wird nur die
+   Größe an die flache Zeile angepasst -- 30px Mindesthöhe hätten die Zeile wieder aufgeblasen.
+   ⚠️ Die Bedeutung trägt `title`/`aria-label`, nicht das Zeichen. */
+.change-log-entry__undo {
+	min-height: 0;
+	padding: 1px 7px;
+	line-height: 1.3;
 }
 
 .change-log-entry__undo:disabled {

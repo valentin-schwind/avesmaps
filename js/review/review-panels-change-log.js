@@ -417,6 +417,97 @@ function formatChangeAction(action) {
 	return labels[action] || action;
 }
 
+// ---- Bündeln und Datum ---------------------------------------------------------------------------
+// Owner 22.08.2026: „mach die items etwas kompakter, da geht viel platz verloren, fass die items
+// besser zusammen". Entwurf 2 von dreien.
+
+/** Ab so vielen Zeilen wird gebündelt. Eine einzelne bleibt eine normale Zeile, nie ein Bündel mit „1". */
+const CHANGE_LOG_GROUP_MIN = 2;
+
+/** Welche Bündel gerade offen sind. Überlebt ein Neuzeichnen, damit ein Nachladen nicht zuklappt. */
+const changeLogOpenGroups = new Set();
+
+/** Heute, als `YYYY-MM-DD`. Ausgelagert, damit die Datumsformung rein und prüfbar bleibt. */
+function changeLogHeute() {
+	const jetzt = new Date();
+	const zwei = (zahl) => String(zahl).padStart(2, "0");
+
+	return `${jetzt.getFullYear()}-${zwei(jetzt.getMonth() + 1)}-${zwei(jetzt.getDate())}`;
+}
+
+// PUR: aus `2026-08-22 18:52:58.708` wird `18:52` -- und `20.08. 18:52`, wenn es nicht heute war.
+//
+// 💣 Die Millisekunden waren Maschinenausgabe. In einer 400px schmalen Spalte hat
+// `2026-08-22 18:52:58.708` mehr Platz gebraucht als der Name des Objekts, um das es ging.
+// ⚠️ Nicht `new Date(...)` zum Zerlegen: der Zeitstempel kommt ohne Zeitzone, und Safari liest
+// `2026-08-22 18:52` gar nicht als Datum. Zerlegt wird der TEXT, den der Server geschickt hat.
+function changeLogFormatTime(createdAt, heute) {
+	const text = String(createdAt || "").trim();
+	if (text === "") {
+		return "";
+	}
+	const teile = text.split(" ");
+	const datum = teile[0] || "";
+	const uhrzeit = (teile[1] || "").slice(0, 5);
+	if (uhrzeit === "") {
+		return text;
+	}
+	if (datum === heute) {
+		return uhrzeit;
+	}
+	const stuecke = datum.split("-");
+
+	return stuecke.length === 3 ? `${stuecke[2]}.${stuecke[1]}. ${uhrzeit}` : uhrzeit;
+}
+
+// PUR: die Zeitspanne eines Bündels. Gleiche Minute -> eine Angabe, sonst von–bis.
+// ⚠️ Die Liste ist absteigend sortiert: die LETZTE Zeile ist die älteste.
+function changeLogGroupTimeLabel(entries, heute) {
+	const liste = Array.isArray(entries) ? entries : [];
+	if (liste.length < 1) {
+		return "";
+	}
+	const neueste = changeLogFormatTime(liste[0]?.created_at, heute);
+	const aelteste = changeLogFormatTime(liste[liste.length - 1]?.created_at, heute);
+
+	return neueste === aelteste ? neueste : `${aelteste}–${neueste}`;
+}
+
+// PUR: aufeinanderfolgende Zeilen desselben Objekts durch dieselbe Person werden ein Bündel.
+//
+// 🔴 NUR AUFEINANDERFOLGENDE. Über die Zeit hinweg zusammengezogen würde eine Änderung von 15 Uhr
+// nach oben zu einer von 18 Uhr wandern, und die Liste beantwortete „was ist gerade passiert" nicht
+// mehr -- das ist neben „wer war das" ihre zweite Aufgabe. Die Reihenfolge bleibt unangetastet.
+//
+// ⚠️ Gebündelt wird nach dem, was in der Zeile STEHT (Ziel und Urheber), nicht nach `public_id`:
+// die drei Protokolle vergeben ihre Kennungen unabhängig, und zwei Zeilen desselben Namens aus
+// verschiedenen Protokollen gehören für den Leser trotzdem zusammen. „Unbenannt" bündelt damit
+// nicht -- richtig so, das ist kein gemeinsames Objekt, sondern ein fehlender Name.
+function changeLogGroupEntries(entries) {
+	const liste = Array.isArray(entries) ? entries : [];
+	const gruppen = [];
+	liste.forEach((entry) => {
+		const target = changeLogEntryTarget(entry);
+		const actor = changeLogEntryActor(entry);
+		const letzte = gruppen[gruppen.length - 1];
+		if (letzte && letzte.target === target && letzte.actor === actor && target !== "Unbenannt") {
+			letzte.entries.push(entry);
+
+			return;
+		}
+		gruppen.push({
+			// Der Schlüssel muss ein Neuzeichnen überleben, aber zwei gleichnamige Bündel an
+			// verschiedenen Stellen der Liste unterscheiden -- deshalb die id der ersten Zeile.
+			key: `${target}|${actor}|${entry?.id ?? ""}`,
+			target,
+			actor,
+			entries: [entry],
+		});
+	});
+
+	return gruppen;
+}
+
 function renderChangeLog() {
 	const listElement = document.getElementById("change-log-list");
 	if (!listElement) {
@@ -461,63 +552,136 @@ function renderChangeLog() {
 		"success"
 	);
 	changeLogFilterRebuild();
-	sichtbar.forEach((entry) => {
-		const itemElement = document.createElement("article");
-		itemElement.className = "change-log-entry";
-		// 💣 Nur was sich zeigen lässt, ist ein Knopf. Eine Moderationszeile hat kein Kartenobjekt --
-		// als Knopf angeboten, antwortet sie beim Klick „Dieses Objekt kann nicht lokalisiert werden.",
-		// was nach einem Fehler aussieht und keiner ist. Gilt allgemein: weder public_id noch focus =
-		// nichts zum Hinspringen.
-		const canFocusEntry = Boolean(entry.public_id) || Boolean(entry.focus);
-		itemElement.classList.toggle("change-log-entry--static", !canFocusEntry);
-		if (canFocusEntry) {
-			itemElement.tabIndex = 0;
-			itemElement.setAttribute("role", "button");
+
+	changeLogGroupEntries(sichtbar).forEach((gruppe) => {
+		if (gruppe.entries.length < CHANGE_LOG_GROUP_MIN) {
+			listElement.appendChild(changeLogEntryRow(gruppe.entries[0], false));
+
+			return;
 		}
-		itemElement.dataset.changeId = String(entry.id || "");
-		itemElement.dataset.publicId = entry.public_id || "";
-		itemElement.dataset.featureType = entry.feature_type || "";
-		itemElement.dataset.action = entry.action || "";
-		itemElement.classList.toggle("is-undone", Boolean(entry.undone));
-		itemElement.innerHTML = `
-			<span class="change-log-entry__action"></span>
-			<span class="change-log-entry__target"></span>
-			<span class="change-log-entry__detail"></span>
-			<span class="change-log-entry__meta"></span>
-			<span class="change-log-entry__state"></span>
-			<span class="change-log-entry__actions"></span>
-		`;
-		itemElement.querySelector(".change-log-entry__action").textContent = changeLogEntryLabel(entry);
-		itemElement.querySelector(".change-log-entry__target").textContent = changeLogEntryTarget(entry);
-		const detailElement = itemElement.querySelector(".change-log-entry__detail");
-		const detailText = changeLogEntryDetail(entry);
-		if (detailText === "") {
-			detailElement.hidden = true;
-		} else {
-			detailElement.textContent = detailText;
+
+		listElement.appendChild(changeLogGroupHeader(gruppe));
+		if (changeLogOpenGroups.has(gruppe.key)) {
+			gruppe.entries.forEach((entry) => {
+				listElement.appendChild(changeLogEntryRow(entry, true));
+			});
 		}
-		itemElement.querySelector(".change-log-entry__meta").textContent = `${changeLogEntryActor(entry)} · ${entry.created_at || ""}`;
-		const stateElement = itemElement.querySelector(".change-log-entry__state");
-		if (entry.undone) {
-			stateElement.textContent = `Rückgängig gemacht${entry.undone_username ? ` von ${entry.undone_username}` : ""}`;
-		} else {
-			stateElement.hidden = true;
-		}
-		const actionsElement = itemElement.querySelector(".change-log-entry__actions");
-		if (entry.can_undo) {
-			const undoButtonElement = document.createElement("button");
-			undoButtonElement.type = "button";
-			undoButtonElement.className = "change-log-entry__undo";
-			// On a "Rückgängig: …" entry the same action is a REDO, so it says what it does. Calling it
-			// "Rückgängig" there would read as "undo the undo of …" and leave the editor guessing which
-			// direction they are about to move -- exactly the moment somebody is already unsure.
-			undoButtonElement.textContent = isUndoChangeLogEntry(entry) ? "Wiederherstellen" : "Rückgängig";
-			actionsElement.appendChild(undoButtonElement);
-		} else {
-			actionsElement.hidden = true;
-		}
-		listElement.appendChild(itemElement);
 	});
+}
+
+// Die Kopfzeile eines Bündels. ⚠️ Sie trägt bewusst KEIN „Rückgängig": ein Knopf, der drei Schritte
+// auf einmal zurücknimmt, verspräche etwas, das kein Protokoll einlöst -- die drei Schritte sind
+// einzeln aufgezeichnet und werden einzeln zurückgenommen. Aufklappen, dann zurücknehmen.
+function changeLogGroupHeader(gruppe) {
+	const offen = changeLogOpenGroups.has(gruppe.key);
+	const element = document.createElement("div");
+	element.className = "change-log-group";
+	element.classList.toggle("is-open", offen);
+	element.dataset.groupKey = gruppe.key;
+	element.tabIndex = 0;
+	element.setAttribute("role", "button");
+	element.setAttribute("aria-expanded", offen ? "true" : "false");
+	element.innerHTML = `
+		<span class="change-log-group__caret" aria-hidden="true"></span>
+		<span class="change-log-group__name"></span>
+		<span class="change-log-group__actor"></span>
+		<span class="change-log-group__count"></span>
+	`;
+	element.querySelector(".change-log-group__caret").textContent = offen ? "▾" : "▸";
+	element.querySelector(".change-log-group__name").textContent = gruppe.target;
+	// ⚠️ Der Urheber gehört in die Kopfzeile, nicht in die Zeilen darunter: ein Bündel ist per
+	// Konstruktion EINE Person, und zugeklappt stünde sonst nirgends, wer es war.
+	element.querySelector(".change-log-group__actor").textContent = gruppe.actor;
+	element.querySelector(".change-log-group__count").textContent =
+		`${gruppe.entries.length} Änderungen · ${changeLogGroupTimeLabel(gruppe.entries, changeLogHeute())}`;
+
+	return element;
+}
+
+// Eine Zeile. 🔴 Klasse und `data-change-id` bleiben, wie sie waren -- die Klick- und Rückgängig-
+// Zuhörer hängen in js/routing/routing.js am Dokument und suchen genau danach.
+function changeLogEntryRow(entry, imBuendel) {
+	const itemElement = document.createElement("article");
+	itemElement.className = "change-log-entry";
+	itemElement.classList.toggle("change-log-entry--grouped", Boolean(imBuendel));
+	// 💣 Nur was sich zeigen lässt, ist ein Knopf. Eine Moderationszeile hat kein Kartenobjekt --
+	// als Knopf angeboten, antwortet sie beim Klick „Dieses Objekt kann nicht lokalisiert werden.",
+	// was nach einem Fehler aussieht und keiner ist. Gilt allgemein: weder public_id noch focus =
+	// nichts zum Hinspringen.
+	const canFocusEntry = Boolean(entry.public_id) || Boolean(entry.focus);
+	itemElement.classList.toggle("change-log-entry--static", !canFocusEntry);
+	if (canFocusEntry) {
+		itemElement.tabIndex = 0;
+		itemElement.setAttribute("role", "button");
+	}
+	itemElement.dataset.changeId = String(entry.id || "");
+	itemElement.dataset.publicId = entry.public_id || "";
+	itemElement.dataset.featureType = entry.feature_type || "";
+	itemElement.dataset.action = entry.action || "";
+	itemElement.classList.toggle("is-undone", Boolean(entry.undone));
+	itemElement.innerHTML = `
+		<span class="change-log-entry__body">
+			<span class="change-log-entry__l1">
+				<span class="change-log-entry__target"></span>
+				<span class="change-log-entry__action"></span>
+			</span>
+			<span class="change-log-entry__l2"></span>
+		</span>
+		<span class="change-log-entry__time"></span>
+		<span class="change-log-entry__actions"></span>
+	`;
+	// ⚠️ Im Bündel steht der Name schon in der Kopfzeile -- ihn je Zeile zu wiederholen war der
+	// halbe Grund, warum die Liste so viel Platz brauchte.
+	const targetElement = itemElement.querySelector(".change-log-entry__target");
+	if (imBuendel) {
+		targetElement.hidden = true;
+	} else {
+		targetElement.textContent = changeLogEntryTarget(entry);
+	}
+	itemElement.querySelector(".change-log-entry__action").textContent = changeLogEntryLabel(entry);
+
+	// Zweite Zeile: was der Schritt getan hat, wer es war, und ob es schon zurückgenommen wurde.
+	// ⚠️ Der Urheber entfällt im Bündel (er steht in der Kopfzeile) -- gebündelt wird nur, was
+	// derselbe Mensch am selben Objekt hintereinander getan hat.
+	const zweiteZeile = [changeLogEntryDetail(entry)];
+	if (!imBuendel) {
+		zweiteZeile.push(changeLogEntryActor(entry));
+	}
+	if (entry.undone) {
+		zweiteZeile.push(`zurückgenommen${entry.undone_username ? ` von ${entry.undone_username}` : ""}`);
+	}
+	const l2 = itemElement.querySelector(".change-log-entry__l2");
+	const l2Text = zweiteZeile.filter((teil) => String(teil || "").trim() !== "").join(" · ");
+	if (l2Text === "") {
+		l2.hidden = true;
+	} else {
+		l2.textContent = l2Text;
+	}
+
+	itemElement.querySelector(".change-log-entry__time").textContent =
+		changeLogFormatTime(entry.created_at, changeLogHeute());
+
+	const actionsElement = itemElement.querySelector(".change-log-entry__actions");
+	if (entry.can_undo) {
+		const undoButtonElement = document.createElement("button");
+		undoButtonElement.type = "button";
+		undoButtonElement.className = "change-log-entry__undo";
+		// On a "Rückgängig: …" entry the same action is a REDO, so it says what it does. Calling it
+		// "Rückgängig" there would read as "undo the undo of …" and leave the editor guessing which
+		// direction they are about to move -- exactly the moment somebody is already unsure.
+		//
+		// ⚠️ Das Zeichen allein trägt die Bedeutung nicht -- der Name steht im `title` UND im
+		// `aria-label`, sonst ist der Knopf für eine Vorlesehilfe ein „Pfeil nach links".
+		const istWiederherstellen = isUndoChangeLogEntry(entry);
+		undoButtonElement.textContent = istWiederherstellen ? "↷" : "↶";
+		undoButtonElement.title = istWiederherstellen ? "Wiederherstellen" : "Rückgängig";
+		undoButtonElement.setAttribute("aria-label", undoButtonElement.title);
+		actionsElement.appendChild(undoButtonElement);
+	} else {
+		actionsElement.hidden = true;
+	}
+
+	return itemElement;
 }
 
 // Den Trichter verdrahten. Einmal beim Auswerten -- die Huelle steht statisch in index.html, wie
@@ -536,6 +700,41 @@ if (typeof avmFilterMenuAttach === "function" && typeof document !== "undefined"
 		() => changeLogFilterChanged(),
 		"Filter"
 	);
+}
+
+// Ein Bündel auf- und zuklappen. ⚠️ Der Zuhörer hängt an der LISTE, nicht am Dokument: die Zeilen
+// selbst werden in js/routing/routing.js über einen Dokument-Zuhörer bedient, und ein zweiter, der
+// dieselbe Fläche beansprucht, wäre die Sorte Doppelung, die man erst bei der ersten Kollision merkt.
+if (typeof document !== "undefined") {
+	const listenHuelle = document.getElementById("change-log-list");
+	if (listenHuelle) {
+		const umschalten = (ziel) => {
+			const kopf = ziel instanceof Element ? ziel.closest(".change-log-group") : null;
+			if (!kopf) {
+				return false;
+			}
+			const schluessel = kopf.dataset.groupKey || "";
+			if (changeLogOpenGroups.has(schluessel)) {
+				changeLogOpenGroups.delete(schluessel);
+			} else {
+				changeLogOpenGroups.add(schluessel);
+			}
+			renderChangeLog();
+
+			return true;
+		};
+		listenHuelle.addEventListener("click", (event) => {
+			umschalten(event.target);
+		});
+		listenHuelle.addEventListener("keydown", (event) => {
+			if (event.key !== "Enter" && event.key !== " ") {
+				return;
+			}
+			if (umschalten(event.target)) {
+				event.preventDefault();
+			}
+		});
+	}
 }
 
 // Die zwei Reiter. Sie setzen dieselbe Auswahl, die der Trichter füllt -- ein Zustand, zwei
