@@ -164,6 +164,10 @@ assert.ok(
 	/\[data-editor-panel-section="changes"\]\s+\.wiki-sync-panel__filter\s*\{[^}]*justify-content:\s*flex-end/.test(panelCss),
 	"die Filterzeile des Reiters schiebt den Trichter nach rechts -- sonst klappt sein Menue aus dem Panel",
 );
+// ⚠️ Seit das Suchfeld in derselben Zeile steht, trägt NICHT MEHR `justify-content` allein die
+// rechte Lage: das Feld wächst (`flex: 1 1 auto`) und schiebt den Trichter ohnehin nach rechts. Die
+// Regel oben bleibt als zweiter Gurt, aber die tragende Zusicherung ist ab hier die REIHENFOLGE --
+// sonst prüfte sie eine Regel, die nichts mehr bewirkt.
 
 // 💣 Die Hülle steht statisch in index.html. Fehlt eine der drei Kennungen, findet avmFilterMenuAttach
 // nichts und gibt still eine leere Funktion zurück -- kein Fehler, kein Knopf, kein Hinweis.
@@ -176,6 +180,53 @@ assert.ok(
 	abschnitt.indexOf('id="change-log-filter-toggle"') < abschnitt.indexOf('id="change-log-list"'),
 	"der Trichter steht im Reiter „Änderungen\", ueber der Liste",
 );
+assert.ok(
+	abschnitt.indexOf('id="change-log-search"') < abschnitt.indexOf('id="change-log-filter-toggle"'),
+	"das Suchfeld steht VOR dem Trichter -- der muss das letzte Element der Zeile bleiben",
+);
+assert.ok(
+	abschnitt.indexOf('id="change-log-scope"') < abschnitt.indexOf('id="change-log-search"'),
+	"und der Umschalter vor beiden",
+);
+
+// ---- Die Suche -------------------------------------------------------------------------------------
+const changeLogSearchEntries = sandbox.changeLogSearchEntries;
+assert.strictEqual(typeof changeLogSearchEntries, "function", "die echte Funktion ist geladen");
+
+const suchzeilen = [
+	{ name: "Pergelbach", username: "nics", action: "update_path_geometry", detail: "14 → 17 Stützpunkte" },
+	{ name: "Pergelsee", username: "nics", action: "move_label", detail: "um 2,2 Meilen verschoben" },
+	{ name: "Ferdok", username: "nottel", action: "delete_feature", detail: "" },
+];
+assert.strictEqual(changeLogSearchEntries(suchzeilen, "").length, 3, "ohne Text bleibt alles -- „nichts eingegeben\" ist keine Einschränkung");
+assert.strictEqual(changeLogSearchEntries(suchzeilen, "   ").length, 3, "Leerraum ebenso");
+assert.strictEqual(changeLogSearchEntries(suchzeilen, "pergel").length, 2, "der Objektname wird durchsucht");
+assert.strictEqual(changeLogSearchEntries(suchzeilen, "PERGEL").length, 2, "Gross- und Kleinschreibung ist egal");
+// ⚠️ Gesucht wird in dem, was in der Zeile STEHT -- auch in der Aktion und der Erklärzeile. Ein
+// Suchfeld, das anderes durchsucht als das Sichtbare, liefert Treffer, die niemand nachvollziehen kann.
+assert.strictEqual(changeLogSearchEntries(suchzeilen, "gelöscht").length, 1, "die Aktion wird mitdurchsucht");
+assert.strictEqual(changeLogSearchEntries(suchzeilen, "stützpunkte").length, 1, "die Erklärzeile auch");
+assert.strictEqual(changeLogSearchEntries(suchzeilen, "nottel").length, 1, "und der Urheber");
+assert.strictEqual(changeLogSearchEntries(suchzeilen, "gibtsnicht").length, 0, "ohne Treffer bleibt nichts");
+assert.strictEqual(changeLogSearchEntries(null, "x").length, 0, "und null wirft nicht");
+
+// Verdrahtung: die Suche greift VOR dem Bündeln und NACH dem Trichter.
+assert.ok(
+	/changeLogSearchEntries\(sichtbar, changeLogSearchText\)/.test(source),
+	"gesucht wird in dem, was der Trichter übrig lässt -- „Meine\" plus Suchtext ist ein UND",
+);
+assert.ok(
+	/changeLogGroupEntries\(gefunden\)/.test(source),
+	"gebündelt wird das Suchergebnis, nicht der Gesamtbestand",
+);
+assert.ok(
+	/Keine Treffer für/.test(source),
+	"eine erfolglose Suche sagt das, statt eine leere Fläche zu zeigen",
+);
+// 🔴 Kein Serverweg. Drei Anfragen je Tastendruck wären auf STRATO genau die Last, die AGENTS.md §10
+// verbietet -- und die Frage „was ist gerade passiert" beantwortet die geladene Liste ohnehin.
+const suchBlock = source.slice(source.indexOf('getElementById("change-log-search")'), source.indexOf("// Ein Bündel auf- und zuklappen"));
+assert.ok(!/loadChangeLog/.test(suchBlock), "das Suchfeld zeichnet neu, es lädt nicht nach");
 
 // 💣 Solange nachgeladen wird, darf NICHT „Keine Änderungen von dieser Auswahl" dastehen: das Sieben
 // im Browser findet die Zeilen der Angehakten nicht, weil sie noch gar nicht geladen sind -- der

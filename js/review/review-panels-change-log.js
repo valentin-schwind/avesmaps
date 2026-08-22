@@ -316,6 +316,38 @@ function changeLogScopeState(selected, meinName) {
 	return "";
 }
 
+/** Der Text im Suchfeld. Reiner Anzeigezustand -- er reist nie zum Server. */
+let changeLogSearchText = "";
+
+// PUR: der Text, in dem gesucht wird. ⚠️ Genau das, was in der Zeile STEHT -- Ziel, Aktion,
+// Erklärzeile und Urheber. Ein Suchfeld, das anderes durchsucht als das Sichtbare, liefert Treffer,
+// die niemand nachvollziehen kann.
+function changeLogEntryHaystack(entry) {
+	return [
+		changeLogEntryTarget(entry),
+		changeLogEntryLabel(entry),
+		changeLogEntryDetail(entry),
+		changeLogEntryActor(entry),
+	].join(" ").toLowerCase();
+}
+
+// PUR: die Zeilen, die zum Suchtext passen. Leerer Text heisst ALLE -- dieselbe Regel wie beim
+// Trichter, und dieselbe Begründung: „nichts eingegeben" ist keine Einschränkung.
+//
+// ⚠️ Gesucht wird NUR im Geladenen (höchstens 200 Zeilen bzw. die der ausgewählten Person), nicht in
+// der ganzen Historie. Das ist eine echte Einschränkung, und sie ist die richtige: der Reiter
+// beantwortet „was ist gerade passiert", und ein Serverweg für jede Taste wäre drei Anfragen je
+// Zeichen -- auf STRATO genau die Last, die AGENTS.md §10 verbietet.
+function changeLogSearchEntries(entries, text) {
+	const liste = Array.isArray(entries) ? entries : [];
+	const suche = String(text || "").trim().toLowerCase();
+	if (suche === "") {
+		return liste;
+	}
+
+	return liste.filter((entry) => changeLogEntryHaystack(entry).includes(suche));
+}
+
 // PUR: leere Auswahl heisst ALLE -- dieselbe Regel wie in jedem anderen Trichter des Hauses.
 function changeLogFilterEntries(entries, selected) {
 	const list = Array.isArray(entries) ? entries : [];
@@ -555,9 +587,20 @@ function renderChangeLog() {
 		return;
 	}
 
+	// ⚠️ Die Suche greift VOR dem Bündeln: sonst spiegelten die Bündel den Gesamtbestand und die
+	// Treffer verschwänden darin. Und sie greift NACH dem Trichter -- „Meine" plus Suchtext ist ein
+	// UND, kein ODER.
+	const gefunden = changeLogSearchEntries(sichtbar, changeLogSearchText);
+	if (gefunden.length < 1) {
+		changeLogRenderNotice(`Keine Treffer für „${changeLogSearchText.trim()}".`);
+		changeLogFilterRebuild();
+
+		return;
+	}
+
 	changeLogFilterRebuild();
 
-	changeLogGroupEntries(sichtbar).forEach((gruppe) => {
+	changeLogGroupEntries(gefunden).forEach((gruppe) => {
 		if (gruppe.entries.length < CHANGE_LOG_GROUP_MIN) {
 			listElement.appendChild(changeLogEntryRow(gruppe.entries[0], false));
 
@@ -725,6 +768,18 @@ if (typeof avmFilterMenuAttach === "function" && typeof document !== "undefined"
 		() => changeLogFilterChanged(),
 		"Filter"
 	);
+}
+
+// Das Suchfeld. ⚠️ Es zeichnet nur NEU, es lädt nicht nach: gesucht wird in dem, was schon da ist.
+// Deshalb braucht es auch keine Bremse -- kein Serverweg, keine Anfrage je Tastendruck.
+if (typeof document !== "undefined") {
+	const suchfeld = document.getElementById("change-log-search");
+	if (suchfeld) {
+		suchfeld.addEventListener("input", () => {
+			changeLogSearchText = suchfeld.value;
+			renderChangeLog();
+		});
+	}
 }
 
 // Ein Bündel auf- und zuklappen. ⚠️ Der Zuhörer hängt an der LISTE, nicht am Dokument: die Zeilen

@@ -1573,8 +1573,8 @@
    trägt schon den Trichter und soll nicht wie ein eigener Reiterbund aussehen. */
 .change-log-scope {
 	display: flex;
+	flex: 0 0 auto;
 	gap: 14px;
-	margin-right: auto;
 }
 
 .change-log-scope[hidden] {

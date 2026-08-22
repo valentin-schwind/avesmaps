@@ -151,7 +151,9 @@ assert.strictEqual(changeLogGroupEntries(null).length, 0, "und null wirft nicht"
 
 // ---- Verdrahtung -------------------------------------------------------------------------------------
 
-assert.ok(/changeLogGroupEntries\(sichtbar\)/.test(source), "der Zeichner bündelt wirklich");
+// ⚠️ Gebündelt wird das SUCHERGEBNIS, nicht der Gesamtbestand -- sonst spiegelten die Bündel etwas,
+// das die Liste gerade nicht zeigt.
+assert.ok(/changeLogGroupEntries\(gefunden\)/.test(source), "der Zeichner bündelt wirklich, und zwar das Gesiebte");
 assert.ok(
 	/gruppe\.entries\.length < CHANGE_LOG_GROUP_MIN/.test(source),
 	"eine einzelne Änderung bleibt eine normale Zeile, kein Bündel mit „1\"",

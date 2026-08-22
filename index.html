@@ -481,6 +481,11 @@
 						<button class="status-subtab" type="button" data-change-log-scope="mine">Meine</button>
 						<button class="status-subtab is-active" type="button" data-change-log-scope="all">Alle</button>
 					</div>
+					<!-- Die Suche siebt in dem, was geladen ist -- Objektname, Aktion, Erklärzeile und Urheber.
+					     Kein Serverweg: die Liste hat höchstens 200 Zeilen, und „was ist gerade passiert" ist
+					     genau die Frage, die sie beantwortet. 🔴 Der Trichter steht DAHINTER -- sein Menü hängt
+					     an `right: 0` und liefe sonst aus dem Panel heraus. -->
+					<input id="change-log-search" class="wiki-sync-panel__filter-input" type="search" placeholder="Suchen ..." aria-label="Änderungen durchsuchen" />
 					<div class="type-filter"><button type="button" id="change-log-filter-toggle" class="type-filter__toggle" aria-label="Filter">Filter ▾</button><div id="change-log-filter-menu" class="type-filter__menu" hidden><div class="type-filter__section"><div class="type-filter__section-title">Editor</div><div id="change-log-editor-menu"></div></div></div></div>
 				</div>
 				<!-- 🔴 KEIN STATUSFELD. Owner 22.08.2026: „kannst du das ‚200 Änderungen‘ bzw. das komische
