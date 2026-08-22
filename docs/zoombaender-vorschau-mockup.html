@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Zoombänder – Vorschaupanel (Prototyp, 2026-08-22)</title>
+<script>
+  /* Wie jede Editorseite: gespeicherte Wahl schlägt OS-Schema, vor dem ersten Anstrich. */
+  (function () {
+    function isDark() {
+      var s = null; try { s = localStorage.getItem("avesmaps-theme"); } catch (e) {}
+      if (s === "dark") { return true; }
+      if (s === "light") { return false; }
+      return !!(window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches);
+    }
+    function apply() {
+      if (isDark()) { document.documentElement.setAttribute("data-theme", "dark"); }
+      else { document.documentElement.removeAttribute("data-theme"); }
+    }
+    apply();
+    if (window.matchMedia) {
+      var mq = window.matchMedia("(prefers-color-scheme: dark)");
+      if (mq.addEventListener) { mq.addEventListener("change", apply); }
+      else if (mq.addListener) { mq.addListener(apply); }
+    }
+  })();
+</script>
+<!-- 🔴 RELATIVE Pfade, Absicht: eine docs/-Datei, die per file:// geöffnet wird.
+     Geladen wird die ECHTE CSS-Kette der Editor-Seiten. -->
+<link rel="stylesheet" href="../css/base/fonts.css">
+<link rel="stylesheet" href="../css/base/tokens.css">
+<link rel="stylesheet" href="../css/components/editor-page.css">
+<style>
+/* Kein hartkodierter Farbwert, kein hartkodierter Radius, keine Schrift unter 11px (AGENTS.md §12). */
+body.mock { height: auto; padding: var(--space-12); }
+.mock-note {
+	max-width: 66rem; margin: 0 auto var(--space-12);
+	padding: var(--space-8) var(--space-12);
+	font-size: var(--font-size-small); color: var(--color-text-muted);
+	background: var(--color-panel-soft); border: 1px solid var(--color-border);
+	border-radius: var(--radius-md); line-height: 1.6;
+}
+.mock-note strong { color: var(--color-text-strong); }
+.mock-note code { color: var(--color-text-strong); }
+.mock-note ul { margin: var(--space-6) 0 0; padding-left: var(--space-16); }
+
+.pv { max-width: 66rem; margin: 0 auto; }
+.pv-head { display: flex; align-items: baseline; gap: var(--space-8); flex-wrap: wrap;
+	padding-bottom: var(--space-6); border-bottom: 1px solid var(--color-divider); }
+.pv-head h3 { margin: 0; font-size: var(--font-size-body); color: var(--color-text-strong); }
+.pv-head .pv-sub { font-size: var(--font-size-caption); color: var(--color-text-muted); }
+.pv-head .pv-spacer { flex: 1 1 auto; }
+
+.pv-seg { display: inline-flex; border: 1px solid var(--color-button-soft-border);
+	border-radius: var(--radius-md); overflow: hidden; }
+.pv-seg button { border: 0; background: var(--color-button-soft); color: var(--color-button-soft-text);
+	font: inherit; font-size: var(--font-size-caption); padding: 3px var(--space-8); cursor: pointer; }
+.pv-seg button + button { border-left: 1px solid var(--color-button-soft-border); }
+.pv-seg button[aria-pressed="true"] { background: var(--color-button); color: var(--color-button-text); }
+
+.pv-check { display: inline-flex; align-items: center; gap: 6px;
+	font-size: var(--font-size-caption); color: var(--color-text); cursor: pointer; }
+
+/* Die Bühne. Ein neutraler Grund, KEIN Kartenbild -- es geht um die Lage der Namen,
+   und ein Kartenausschnitt würde nur davon ablenken. */
+.pv-stage { position: relative; height: 320px; margin: var(--space-8) 0;
+	background: var(--color-panel-muted); border: 1px solid var(--color-border);
+	border-radius: var(--radius-md); overflow: hidden; }
+.pv-stage svg { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+
+.pv-dot { position: absolute; border-radius: 50%; background: var(--color-marker-waypoint);
+	box-sizing: border-box; border: 1px solid var(--color-marker-waypoint-core); }
+.pv-name { position: absolute; white-space: nowrap; color: var(--color-text-strong);
+	line-height: 1.35; pointer-events: none; }
+.pv-name.is-drift { color: var(--color-accent-brown); font-weight: 500; }
+.pv-name.is-gone { color: var(--color-danger); opacity: 0.55; text-decoration: line-through;
+	border: 1px dashed var(--color-danger-soft-border); border-radius: var(--radius-sm); padding: 0 2px; }
+
+.pv-read { display: flex; gap: var(--space-16); flex-wrap: wrap;
+	padding: var(--space-6) 0 var(--space-8); border-bottom: 1px solid var(--color-divider); }
+.pv-read div { min-width: 7rem; }
+.pv-read .k { display: block; font-size: var(--font-size-caption); color: var(--color-text-muted); }
+.pv-read .v { display: block; font-size: var(--font-size-body); color: var(--color-text-strong); }
+.pv-read .v.warn { color: var(--color-accent-brown); }
+.pv-read .v.bad { color: var(--color-danger); }
+
+.pv-legend { display: flex; gap: var(--space-16); flex-wrap: wrap;
+	font-size: var(--font-size-caption); color: var(--color-text-muted); padding-top: var(--space-6); }
+.pv-legend span::before { content: ""; display: inline-block; width: 10px; height: 10px;
+	margin-right: 5px; vertical-align: -1px; border-radius: 2px; }
+.pv-legend .l-normal::before { background: var(--color-text-strong); }
+.pv-legend .l-drift::before { background: var(--color-accent-brown); }
+.pv-legend .l-gone::before { background: var(--color-danger); }
+
+/* ---- Aus html/wiki-sync-settlement-editor.html uebernommen, damit der Prototyp dieselbe Bauform
+       zeigt wie das Fenster. Die seitenlokalen Kuerzel (--mut/--line/--soft) sind hier auf die
+       echten Tokens aufgeloest -- beim Bau entfaellt dieser Block ersatzlos. ------------------- */
+.zb-slider-row { display:flex; flex-wrap:wrap; align-items:center; gap:var(--space-8); padding:var(--space-6) 0; }
+.zb-slider-row + .zb-slider-row { border-top:1px solid var(--color-divider); }
+.zb-slider-row__head { flex:1 1 14rem; min-width:12rem; }
+.zb-slider-row__name { display:block; font-size:var(--font-size-small); font-weight:var(--font-weight-bold); color:var(--color-text-strong); }
+.zb-slider-row__desc { display:block; font-size:var(--font-size-caption); color:var(--color-text-muted); }
+.zb-slider-row__control { display:flex; align-items:center; gap:var(--space-6); flex:1 1 16rem; }
+.zb-range { appearance:none; -webkit-appearance:none; flex:1 1 auto; min-width:8rem; height:var(--space-16); margin:0; background:none; cursor:pointer; }
+.zb-range:focus-visible { outline:none; border-radius:var(--radius-md); box-shadow:var(--focus-ring); }
+.zb-range::-webkit-slider-runnable-track { height:var(--space-4); border:1px solid var(--color-border); border-radius:var(--radius-sm); background:var(--color-panel-soft); }
+.zb-range::-moz-range-track { height:var(--space-4); border:1px solid var(--color-border); border-radius:var(--radius-sm); background:var(--color-panel-soft); }
+.zb-range::-webkit-slider-thumb { -webkit-appearance:none; width:var(--space-12); height:var(--space-12); margin-top:calc((var(--space-4) - var(--space-12)) / 2 - 1px); border:1px solid var(--color-button-border); border-radius:var(--radius-md); background:var(--color-button); }
+.zb-range::-moz-range-thumb { width:var(--space-12); height:var(--space-12); border:1px solid var(--color-button-border); border-radius:var(--radius-md); background:var(--color-button); }
+.zb-slider-row .zb-num-input { width:4.5rem; }
+.zb-num-input { font:inherit; font-size:var(--font-size-small); padding:2px var(--space-6);
+	color:var(--color-text-strong); background:var(--color-panel); border:1px solid var(--color-border);
+	border-radius:var(--radius-md); }
+
+.pv-rows { padding-top: var(--space-8); }
+</style>
+</head>
+<body class="mock">
+
+<div class="mock-note">
+  <strong>Prototyp, kein gebautes Fenster.</strong> Er zeigt, wie ein Vorschaupanel unter den vier
+  Abstandsreglern im Fenster „Zoombänder“ aussehen und sich anfühlen könnte. Zieh die Regler und
+  wechsle die Zoomstufe — die Namen ordnen sich nach demselben Verfahren wie auf der Karte.
+  <ul>
+    <li>💣 <strong>Beim Bau darf das Verfahren NICHT abgeschrieben werden.</strong> Dieser Prototyp
+      trägt eine zweite Fassung der zwölf Ausweichstellen und des Lösers, damit er allein per
+      <code>file://</code> läuft. Im Fenster muss die Vorschau die <em>echten</em> Funktionen rufen
+      (<code>getLocationNameLabelOffsets</code>, dieselbe gierige Auflösung). Eine zweite Kopie liefe
+      beim ersten Eingriff auseinander, und dann zeigt die Vorschau etwas anderes als die Karte —
+      schlimmer als keine Vorschau.</li>
+    <li>⭐ Dafür wandert die Auflösung in eine <strong>reine Funktion</strong>
+      (Rechtecke + Abstände rein, gewählte Stelle je Label raus), die Karte <em>und</em> Fenster rufen.
+      Heute steckt sie in <code>resolveLabelCollisions</code> zwischen DOM-Messungen fest.</li>
+    <li>🔴 <strong>Die Zoomstufe gehört ins Panel.</strong> Markergröße und Schriftgröße kommen aus
+      dem Zoomband, und beide bestimmen mit, ob ein Name ausweichen muss — dieselbe Einstellung sieht
+      bei z4 und z6 verschieden aus. Genau daran ist die Beurteilung bisher gescheitert.</li>
+    <li>🔴 <strong>Ausgeblendete Namen werden GEZEIGT</strong> (durchgestrichen, gestrichelt).
+      Ohne sie sieht ein enger Deckel einfach nur aufgeräumt aus, und man merkt nicht, was er kostet.</li>
+    <li>⚠️ Die Bühne ist eine erfundene, dichte Ortslage — kein Kartenausschnitt. Sie soll Kollisionen
+      erzwingen; auf der echten Karte stehen vier von fünf Namen ungestört.</li>
+  </ul>
+</div>
+
+<div class="pv">
+  <div class="pv-head">
+    <h3>Vorschau</h3>
+    <span class="pv-sub">Wie sich die Namen bei diesen Werten ordnen</span>
+    <span class="pv-spacer"></span>
+    <span class="pv-sub">Zoomstufe</span>
+    <span class="pv-seg" id="pvZoom">
+      <button type="button" data-z="4">z4</button>
+      <button type="button" data-z="5" aria-pressed="true">z5</button>
+      <button type="button" data-z="6">z6</button>
+    </span>
+    <label class="pv-check"><input type="checkbox" id="pvShowGone" checked> Ausgeblendete zeigen</label>
+  </div>
+
+  <div class="pv-stage" id="pvStage"><svg id="pvLines" aria-hidden="true"></svg></div>
+
+  <div class="pv-read">
+    <div><span class="k">Namen sichtbar</span><span class="v" id="rSicht">–</span></div>
+    <div><span class="k">davon ausgewichen</span><span class="v warn" id="rDrift">–</span></div>
+    <div><span class="k">ausgeblendet</span><span class="v bad" id="rWeg">–</span></div>
+    <div><span class="k">weitester Drift</span><span class="v" id="rMax">–</span></div>
+  </div>
+
+  <div class="pv-legend">
+    <span class="l-normal">Normalstellung — weicht nicht aus</span>
+    <span class="l-drift">ausgewichen, Linie zeigt den Weg zum Punkt</span>
+    <span class="l-gone">ausgeblendet: kein erlaubter Platz frei</span>
+  </div>
+
+  <div class="pv-rows">
+    <div class="zb-slider-row">
+      <div class="zb-slider-row__head">
+        <span class="zb-slider-row__name">Spalt</span>
+        <span class="zb-slider-row__desc">Abstand vom Marker-Rand zu seinem eigenen Label.</span>
+      </div>
+      <div class="zb-slider-row__control">
+        <input type="range" class="zb-range" id="sSpalt" min="0" max="20" step="0.5" value="4" aria-label="Spalt in px">
+        <input type="number" class="zb-num-input" id="nSpalt" min="0" max="20" step="0.5" value="4">
+        <span class="zb-selected__unit">px</span>
+      </div>
+    </div>
+    <div class="zb-slider-row">
+      <div class="zb-slider-row__head">
+        <span class="zb-slider-row__name">Repel</span>
+        <span class="zb-slider-row__desc">Luft, die um jedes Label frei bleiben muss.</span>
+      </div>
+      <div class="zb-slider-row__control">
+        <input type="range" class="zb-range" id="sRepel" min="0" max="20" step="0.5" value="2" aria-label="Repel in px">
+        <input type="number" class="zb-num-input" id="nRepel" min="0" max="20" step="0.5" value="2">
+        <span class="zb-selected__unit">px</span>
+      </div>
+    </div>
+    <div class="zb-slider-row">
+      <div class="zb-slider-row__head">
+        <span class="zb-slider-row__name">Versatz</span>
+        <span class="zb-slider-row__desc">Der kleine Ausweichschritt nach oben bzw. unten.</span>
+      </div>
+      <div class="zb-slider-row__control">
+        <input type="range" class="zb-range" id="sVersatz" min="0" max="20" step="0.5" value="8" aria-label="Versatz in px">
+        <input type="number" class="zb-num-input" id="nVersatz" min="0" max="20" step="0.5" value="8">
+        <span class="zb-selected__unit">px</span>
+      </div>
+    </div>
+    <div class="zb-slider-row">
+      <div class="zb-slider-row__head">
+        <span class="zb-slider-row__name">Max. Drift</span>
+        <span class="zb-slider-row__desc">Wie weit ein Name höchstens von seiner Normalstellung wegrücken darf.</span>
+      </div>
+      <div class="zb-slider-row__control">
+        <input type="range" class="zb-range" id="sDrift" min="0" max="300" step="1" value="300" aria-label="Maximaler Drift in px">
+        <input type="number" class="zb-num-input" id="nDrift" min="0" max="300" step="1" value="300">
+        <span class="zb-selected__unit">px</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ═══════════════════════════════════════════════════════════════════════════════════════════
+   💣 ZWEITE FASSUNG DES VERFAHRENS -- nur damit diese Datei allein läuft. Beim Bau ins Fenster
+   wird sie ERSETZT durch die echten Funktionen (siehe Notiz oben).
+   ═══════════════════════════════════════════════════════════════════════════════════════════ */
+
+/* Die Vorgabetafel, gekürzt auf die drei gezeigten Zoomstufen. Im Fenster kommen diese Zahlen
+   aus dem Zustand der Plots darüber -- der Nutzer sieht dann SEINE eingestellten Kurven wirken. */
+var BAND = {
+	marker: { metropole: {4:26.6,5:37.62,6:53.2}, grossstadt: {4:18.52,5:27.18,6:39.9},
+	          stadt: {4:11.07,5:18.79,6:31.92}, kleinstadt: {4:7.7,5:13.82,6:24.82},
+	          dorf: {4:4.86,5:9.28,6:17.74}, gebaeude: {4:2.8,5:5.9,6:12.42} },
+	label:  { metropole: {4:13,5:17,6:19}, grossstadt: {4:12,5:15,6:17},
+	          stadt: {4:11,5:13,6:15}, kleinstadt: {4:9.5,5:11,6:13},
+	          dorf: {4:null,5:10,6:11}, gebaeude: {4:null,5:9,6:9} }
+};
+var PRIO = { metropole:100, grossstadt:90, stadt:80, kleinstadt:70, dorf:60, gebaeude:60 };
+var LOCATION_LABEL_GAP = 11;
+
+/* Eine erfundene, absichtlich dichte Ortslage. Sie soll Kollisionen erzwingen. */
+var ORTE = [
+	/* fx = Anteil der Bühnenbreite (die Bühne ist fließend breit), y = Pixel.
+	   🔴 Zwei ENGE Gruppen und ein paar freie Einzelgänger: ohne echtes Gedränge zeigt eine
+	   Vorschau der Kollisionsauflösung nichts, und genau das war der Fehler der ersten Fassung. */
+	{ n: "Elenvina",           k: "grossstadt", fx: 0.04, y:  40 },
+	{ n: "Tempel des Firun",   k: "gebaeude",   fx: 0.40, y:  44 },
+
+	{ n: "Ferdok",             k: "grossstadt", fx: 0.19, y:  84 },
+	{ n: "Angbar",             k: "stadt",      fx: 0.19, y: 110 },
+	{ n: "Gareth",             k: "metropole",  fx: 0.03, y: 190 },
+	{ n: "Ysilia",             k: "stadt",      fx: 0.19, y: 136 },
+	{ n: "Auplog",             k: "kleinstadt", fx: 0.20, y: 162 },
+
+	{ n: "Nordhag (Weiden)",   k: "kleinstadt", fx: 0.48, y: 108 },
+	{ n: "Trallop",            k: "kleinstadt", fx: 0.48, y: 134 },
+	{ n: "Baliho",             k: "dorf",       fx: 0.48, y: 158 },
+	{ n: "Wehrheim",           k: "dorf",       fx: 0.50, y: 182 },
+	{ n: "Joborn",             k: "dorf",       fx: 0.48, y: 206 },
+
+	{ n: "Warunker Höhenburg", k: "gebaeude",   fx: 0.08, y: 262 },
+	{ n: "Zwingard",           k: "dorf",       fx: 0.34, y: 254 },
+	{ n: "Rommilys",           k: "stadt",      fx: 0.62, y: 254 },
+	{ n: "Ottarje",            k: "dorf",       fx: 0.66, y:  70 }
+];
+
+var stage = document.getElementById("pvStage");
+var lines = document.getElementById("pvLines");
+var zoom = 5;
+var knoten = [];
+
+function el(id) { return document.getElementById(id); }
+function wert(id) { return parseFloat(el(id).value); }
+
+/* Einmal die Knoten anlegen; danach wird nur noch gemessen und verschoben. */
+ORTE.forEach(function (o) {
+	var dot = document.createElement("div");
+	dot.className = "pv-dot";
+	var name = document.createElement("div");
+	name.className = "pv-name";
+	name.textContent = o.n;
+	stage.appendChild(dot); stage.appendChild(name);
+	knoten.push({ ort: o, dot: dot, name: name });
+});
+
+/* Die zwölf Ausweichstellen -- Reihenfolge und Formeln wie in
+   js/map-features/map-features-label-collisions.js. */
+function stellen(basisX, w, h, versatz) {
+	var mitte = -h / 2;
+	var spaltLinks = Math.max(LOCATION_LABEL_GAP, Math.abs(basisX));
+	var liste = [
+		{ name: "right",        dx: basisX,             dy: 0 },
+		{ name: "right-up",     dx: basisX,             dy: -versatz },
+		{ name: "right-down",   dx: basisX,             dy: versatz },
+		{ name: "top-right",    dx: basisX,             dy: -h - versatz },
+		{ name: "bottom-right", dx: basisX,             dy: h + versatz },
+		{ name: "left",         dx: -w - spaltLinks,    dy: 0 },
+		{ name: "left-up",      dx: -w - spaltLinks,    dy: -versatz },
+		{ name: "left-down",    dx: -w - spaltLinks,    dy: versatz },
+		{ name: "top-left",     dx: -w - spaltLinks,    dy: -h - versatz },
+		{ name: "bottom-left",  dx: -w - spaltLinks,    dy: h + versatz },
+		{ name: "top",          dx: -w / 2,             dy: mitte - h - versatz },
+		{ name: "bottom",       dx: -w / 2,             dy: mitte + h + versatz }
+	];
+	liste.forEach(function (s) { s.drift = Math.hypot(s.dx - basisX, s.dy); });
+	return liste;
+}
+
+function ueberlappt(a, b) {
+	return a.l < b.r && b.l < a.r && a.t < b.b && b.t < a.b;
+}
+
+function zeichne() {
+	var spalt = wert("sSpalt"), repel = wert("sRepel"), versatz = wert("sVersatz"), deckel = wert("sDrift");
+	var zeigeWeg = el("pvShowGone").checked;
+
+	/* Die Bühne ist fließend breit -- die x-Anteile werden bei jedem Lauf frisch gerechnet, damit
+	   die Namen auch bei schmalem Fenster nicht rechts herauslaufen. */
+	var buehne = stage.clientWidth;
+	knoten.forEach(function (kn) { kn.ort.x = Math.round(20 + kn.ort.fx * Math.max(240, buehne - 210)); });
+
+	/* Messphase: Schrift setzen, Kasten messen. */
+	var mess = [];
+	knoten.forEach(function (kn) {
+		var pt = BAND.label[kn.ort.k][zoom];
+		var dm = BAND.marker[kn.ort.k][zoom];
+		if (pt === null || pt === undefined) {          /* Klasse auf dieser Stufe unsichtbar */
+			kn.dot.style.display = "none"; kn.name.style.display = "none"; return;
+		}
+		kn.dot.style.display = ""; kn.name.style.display = "";
+		kn.name.style.fontSize = (pt * 96 / 72).toFixed(2) + "px";
+		kn.dot.style.width = dm.toFixed(1) + "px";
+		kn.dot.style.height = dm.toFixed(1) + "px";
+		kn.dot.style.left = (kn.ort.x - dm / 2) + "px";
+		kn.dot.style.top = (kn.ort.y - dm / 2) + "px";
+		var r = kn.name.getBoundingClientRect();
+		mess.push({ kn: kn, w: r.width, h: r.height, basisX: Math.round(dm / 2 + spalt),
+			prio: PRIO[kn.ort.k] });
+	});
+
+	/* Auflösung: nach Priorität, gierig die erste freie erlaubte Stelle. */
+	mess.sort(function (a, b) { return b.prio - a.prio; });
+	var belegt = [], sicht = 0, gewichen = 0, weg = 0, maxDrift = 0, striche = "";
+
+	mess.forEach(function (m) {
+		var kandidaten = stellen(m.basisX, m.w, m.h, versatz);
+		var gewaehlt = null;
+		for (var i = 0; i < kandidaten.length; i += 1) {
+			var c = kandidaten[i];
+			if (c.drift > deckel + 0.01) { continue; }
+			var box = { l: m.kn.ort.x + c.dx - repel, r: m.kn.ort.x + c.dx + m.w + repel,
+				t: m.kn.ort.y - m.h / 2 + c.dy - repel, b: m.kn.ort.y + m.h / 2 + c.dy + repel };
+			var frei = true;
+			for (var j = 0; j < belegt.length; j += 1) { if (ueberlappt(box, belegt[j])) { frei = false; break; } }
+			if (frei) { belegt.push(box); gewaehlt = c; break; }
+		}
+
+		var stelle = gewaehlt || kandidaten[0];
+		var l = m.kn.ort.x + stelle.dx, t = m.kn.ort.y - m.h / 2 + stelle.dy;
+		m.kn.name.style.left = l + "px";
+		m.kn.name.style.top = t + "px";
+		m.kn.name.className = "pv-name";
+
+		if (!gewaehlt) {
+			weg += 1;
+			m.kn.name.classList.add("is-gone");
+			m.kn.name.style.visibility = zeigeWeg ? "visible" : "hidden";
+			return;
+		}
+		m.kn.name.style.visibility = "visible";
+		sicht += 1;
+		if (stelle.drift > 0.01) {
+			gewichen += 1;
+			if (stelle.drift > maxDrift) { maxDrift = stelle.drift; }
+			m.kn.name.classList.add("is-drift");
+			/* Die Linie macht sichtbar, WIE WEIT der Name von seinem Punkt weg ist. */
+			var zx = Math.max(l, Math.min(m.kn.ort.x, l + m.w));
+			var zy = Math.max(t, Math.min(m.kn.ort.y, t + m.h));
+			striche += '<line x1="' + m.kn.ort.x + '" y1="' + m.kn.ort.y + '" x2="' + zx + '" y2="' + zy +
+				'" style="stroke:var(--color-accent-brown)" stroke-width="1" stroke-dasharray="3 3" />';
+		}
+	});
+
+	lines.innerHTML = striche;
+	el("rSicht").textContent = sicht;
+	el("rDrift").textContent = gewichen;
+	el("rWeg").textContent = weg;
+	el("rMax").textContent = Math.round(maxDrift) + " px";
+}
+
+/* Regler und Zahlenfeld sind EIN Wert in zwei Feldern -- beide schreiben, beide zeigen. */
+[["sSpalt","nSpalt"],["sRepel","nRepel"],["sVersatz","nVersatz"],["sDrift","nDrift"]].forEach(function (paar) {
+	var a = el(paar[0]), b = el(paar[1]);
+	a.addEventListener("input", function () { b.value = a.value; zeichne(); });
+	b.addEventListener("input", function () { a.value = b.value; zeichne(); });
+});
+el("pvShowGone").addEventListener("change", zeichne);
+el("pvZoom").addEventListener("click", function (ev) {
+	var b = ev.target.closest("button"); if (!b) { return; }
+	zoom = Number(b.dataset.z);
+	Array.prototype.forEach.call(this.querySelectorAll("button"), function (x) {
+		x.setAttribute("aria-pressed", x === b ? "true" : "false");
+	});
+	zeichne();
+});
+
+zeichne();
+window.addEventListener("resize", zeichne);
+</script>
+</body>
+</html>
