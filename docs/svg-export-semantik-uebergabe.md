@@ -1,6 +1,6 @@
 # Die Vektorkarte als semantische Quelle — Übergabe
 
-**Stand:** 18.08.2026 · **Für:** eine Sitzung, die aus diesem Abzug Bildgenerierungs-Prompts baut
+**Stand:** 22.08.2026 · **Für:** eine Sitzung, die aus diesem Abzug Bildgenerierungs-Prompts baut
 
 ## Worum es geht
 
@@ -84,7 +84,9 @@ winterfeuchten Subtropen. Was daraus im Bild wird, entscheidet ihr.
 
 `js/pages/svg-export-build.js` (reiner Bauer, ohne DOM — dort steht das Vokabular und die
 Kontextrechnung), `js/pages/svg-export-page.js` (Kitt), `edit/svg-export.php` (Seite).
-Tests: `js/pages/__tests__/svg-export-build.test.js`.
+Tests: `js/pages/__tests__/svg-export-build.test.js` und
+`js/pages/__tests__/svg-export-ortsgroessen.test.js` (der Maßstab der Ortszirkel — die
+einzige Stelle, an der Bauer und Zoombänder-Tafel zusammenkommen).
 
 ---
 
@@ -123,9 +125,22 @@ Linienstärke-Regler. In Pixeln: `avm:breite × avm:einheit_px`.
 
 ### Orte
 
-`avm:radius` in viewBox-Einheiten. ⚠️ **Darstellungsradius, keine Stadtausdehnung** —
-Avesmaps speichert Orte als Punkte. Metropole 2,2 · Großstadt 1,7 · Stadt 1,3 ·
-Kleinstadt 1,0 · Dorf 0,7 · Gebäude 0,6.
+`avm:radius` in viewBox-Einheiten. ⚠️ **Darstellungsradius, keine gemessene Stadtausdehnung** —
+Avesmaps speichert Orte als Punkte; niemand hat je die Fläche von Gareth erhoben.
+Metropole 0,2078 · Großstadt 0,1559 · Stadt 0,1247 · Kleinstadt 0,097 · Dorf 0,0693 ·
+Gebäude 0,0485. Eine unbekannte Ortsklasse bekommt 0,08.
+
+🔴 **Seit 22.08.2026 hat die Zahl einen MASSSTAB, und er ist eine andere Größenordnung
+als vorher.** Sie ist jetzt die Größe, die die Karte dem Ort auf ihrer höchsten Zoomstufe
+gibt (Zoombänder-Tafel bei z7, umgerechnet über `2^7` Bildpunkte je Karteneinheit) — davor
+waren es sechs gegriffene Zahlen (2,2 … 0,6), unter denen eine Metropole **13,2 Meilen**
+breit war und ein Dorf 4,2. Bei 1 Karteneinheit = 3 Meilen ergibt das jetzt: Metropole
+1,25 Meilen (rund 2,0 km), Dorf 0,42 (rund 670 m). **Wer die alten Radien in einem
+Prompt oder Renderer verankert hat, muss nachziehen — die Faktoren sind rund 1/10.**
+
+⚠️ Verstellt ein Admin die Zoombänder, wandert diese Zahl mit; sie gilt wie `avm:breite`
+für **diesen** Abzug. Bleibt die Serverantwort aus, greift dieselbe Tafel als Vorgabe —
+der Maßstab ist derselbe, nur ohne Übersteuerung.
 
 ### Wasser
 
@@ -212,6 +227,12 @@ Der Renderer zeichnet **63 % der Ortspunkte nicht** — gestaffelt nach Größe:
 0 %, Großstadt 3 %, Stadt 30 %, Kleinstadt 35 %, Dorf 70 %, Gebäude 82 %. Das ist eine
 Darstellungsschwelle (Zoombänder), kein Fassungsversatz. ⚠️ **Export und Renderer haben
 verschiedene Auswahlregeln** — der Export liefert *alle* Orte, ungefiltert.
+
+💣 **Das bleibt so, obwohl der Export seit 22.08.2026 aus derselben Tafel liest.** Die
+Zoombänder sagen zweierlei: **ab wann** ein Ort erscheint und **wie groß** er dann ist.
+Der Export übernimmt nur das Zweite. Die Erscheinungsstufe zu übernehmen hieße, aus einer
+Datenquelle ein Kartenbild zu machen — und ein Häkchen „Dörfer" würde nichts mehr
+liefern. Wer eine Auswahl wie die Karte will, filtert selbst über `avm:type`.
 
 ### Behoben
 
