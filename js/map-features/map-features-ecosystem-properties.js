@@ -39,6 +39,13 @@
 	let wikiSchnappschuss = null;
 	// Der dritte Zustand, wie `list_regions` ihn geliefert hat.
 	let regionKeinArtikel = false;
+	// 🔴 WELCHE FELDER SEIT DEM ÖFFNEN AUS DEM WIKI KAMEN -- die Merkliste DIESES Dialogs. Der Server
+	// stempelt daraus die Feldherkunft, und nur für Felder, deren Wert sich wirklich ändert.
+	// 💣 ZWEI OBERFLÄCHEN, ZWEI MERKLISTEN, EINE REGEL. Das Editorfenster führt seine eigene
+	// (html/landschaften-editor.html) -- anderes Dokument, eigenes `window`, die zwei sehen einander
+	// nicht. Trägt eine der beiden nicht ein, stempelt der Server ihre Übernahmen als „von uns", und
+	// der nächste Abgleich liesse genau die Felder in Ruhe, die er selbst gefüllt hat.
+	let wikiUebernommen = new Set();
 	let regionTypesForKind = [];
 	let regionAreaCount = 0;
 	// 💣 Die Flächenzahl kommt ERST mit list_regions an. Bis dahin darf nicht gelöscht werden: die
@@ -115,6 +122,7 @@
 		pendingWikiRegion = undefined;
 		wikiSchnappschuss = null;
 		regionKeinArtikel = false;
+		wikiUebernommen = new Set();
 		// 🔴 Zuhoerer abnehmen und den Behaelter leeren, nicht bloss die Steuerung vergessen: das Bauteil
 		// haengt vier Zuhoerer an den Behaelter, und ein zweites Oeffnen mountet ein zweites daneben.
 		if (wikiAssign) {
@@ -334,18 +342,29 @@
 		if (avesmapsWikiAssignLandschaftSyncLeer(werte)) {
 			throw new Error("Keine übernehmbare Angabe angehakt.");
 		}
+		// 🔴 ZWEITE HÄLFTE DER ÜBERNAHME: merken, WELCHE Felder aus dem Wiki kamen. Ohne sie stempelt
+		// der Server sie als „von uns", und der nächste Abgleich liesse genau die Felder in Ruhe, die
+		// er gerade selbst gefüllt hat.
 		const nameInput = propertiesElement("name");
 		if (werte.name !== null && nameInput) {
 			nameInput.value = werte.name;
+			wikiUebernommen.add("name");
 		}
 		const typeSelect = propertiesElement("type");
 		if (werte.region_type !== null && typeSelect
 			&& Array.from(typeSelect.options || []).some((option) => option.value === werte.region_type)) {
 			typeSelect.value = werte.region_type;
+			wikiUebernommen.add("region_type");
 			applyTerrainPresetForType();
 		}
 		// Der Griff folgt der Art, und die Art hat sich gerade geändert.
+		// ⚠️ Und wenn er ihr folgt, ist der Name DANN von uns, nicht aus dem Wiki: das Wiki hat „Wald"
+		// gesagt, „Wald-001" haben wir daraus gebaut. Deshalb fällt `name` hier wieder heraus.
+		const nameVorGriff = String(propertiesElement("name")?.value || "");
 		syncPropertiesAutoName();
+		if (String(propertiesElement("name")?.value || "") !== nameVorGriff) {
+			wikiUebernommen.delete("name");
+		}
 		setPropertiesStatus("Aus dem Wiki übernommen — noch nicht gespeichert.");
 	}
 
@@ -456,6 +475,7 @@
 		pendingWikiRegion = undefined;
 		wikiSchnappschuss = null;
 		regionKeinArtikel = false;
+		wikiUebernommen = new Set();
 		if (wikiAssign) {
 			wikiAssign.zerstoeren();
 			wikiAssign = null;
@@ -1406,6 +1426,11 @@
 		if (pendingWikiRegion !== undefined) {
 			payload.wiki_url = pendingWikiRegion?.wiki_url || "";
 		}
+		// 🔴 Die Merkliste reist IMMER mit, auch leer: eine leere Liste ist dasselbe wie ein fehlender
+		// Schlüssel („nichts kam aus dem Wiki, also alles von uns“), und das ist die sichere Richtung
+		// -- eine falsche „Wiki“-Angabe liesse einen späteren Abgleich eine Handarbeit überschreiben,
+		// eine falsche „von uns“-Angabe schützt nur zu viel.
+		payload.wiki_uebernommen = Array.from(wikiUebernommen);
 		// 🔴 KEIN `wiki_no_article` MEHR -- gefallen am 16.08.2026 mit dem Häkchen (Owner-Entscheid).
 		// 💣 TRAGBAR IST DAS, WEIL avesmapsEcosystemApplyRegionNoArticle BEIDE HÄLFTEN SCHON KANN: ein
 		// FEHLENDER Schlüssel heißt „nicht geändert" (die Entscheidung des Konfliktzentrums überlebt
@@ -1426,6 +1451,10 @@
 
 		try {
 			await postEcosystemEdit("update_region", payload);
+			// ⚠️ Geleert, sobald der Stempel gesetzt ist -- sonst nennte das NÄCHSTE Speichern dieselben
+			// Felder noch einmal als Wiki-Übernahme, und wer inzwischen von Hand getippt hat, bekäme
+			// „aus dem Wiki“ auf seine eigene Eingabe.
+			wikiUebernommen = new Set();
 			// Den geladenen Bestand und den Zähler in der Leiste nachziehen. Über das Nachbarmodul,
 			// damit dieser Datei kein zweiter Schreib- und Zählweg gehört.
 			if (payload.is_locked !== undefined) {

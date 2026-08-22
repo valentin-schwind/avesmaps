@@ -168,8 +168,8 @@ für eine eigene Regression hält: `test-place-scope-filter`, `test-route-leg-po
 
 - [x] **EIN Stylesheet zuerst** — `wiki-override.css`, importiert von BEIDEN Welten (A0a) · live 22.08.2026
 - [x] Der Stylesheet-Test hat ZWEI Hälften: nirgends sonst · und beide Welten laden ihn (A0a)
-- [ ] Jede Oberfläche schickt `wiki_uebernommen`, **bevor** ihre Anzeige gebaut wird (A0)
-- [ ] Beide Landschafts-Oberflächen, nie nur eine
+- [~] Jede Oberfläche schickt `wiki_uebernommen`, **bevor** ihre Anzeige gebaut wird (A0) · Landschaft live 22.08.2026, Label und Weg offen
+- [x] Beide Landschafts-Oberflächen, nie nur eine · Merkliste live 22.08.2026 in beiden
 - [x] Landschaft: die Herkunft als **fertige Antwort** projizieren, nie `properties_json` (A1) · live 22.08.2026
 - [ ] Bauform aus dem **CSS** bestimmt, nicht aus dem Markup (§2.2)
 - [ ] Keine dritte `.wiki-alt`-Kopie — sie ist über `styles.css` schon da (A3)
