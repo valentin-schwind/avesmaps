@@ -237,8 +237,31 @@ schluckt künftig stumm Labels.
 ### §5.2 Die Sperrung
 
 ⭐ Die Kurve erlaubt etwas, das die feste Drehung nie konnte: die **Sperrung über die Fläche ziehen**,
-so dass der Name das Objekt aufspannt — die kartografische Gewohnheit bei Gebirgen und Wäldern. Bei
-den Drachensteinen belegt der Name ungesperrt 13 % der Kette; gesperrt beschriftet er sie.
+so dass der Name das Objekt aufspannt — die kartografische Gewohnheit bei Gebirgen und Wäldern.
+
+🪤 **KORREKTUR 22.08.2026, beim Bauen gemessen: die Sperrung tut das NICHT, und zwar auch im
+abgenommenen Prototyp nicht.** Hier stand: *„Bei den Drachensteinen belegt der Name ungesperrt 13 %
+der Kette; gesperrt beschriftet er sie."* Der Satz stammt wörtlich aus der Eigenbeschreibung des
+Prototyps (`docs/kurvenlabel-mockup.html`) und war an keiner Stelle gemessen — weder dort noch beim
+Schreiben dieses Entwurfs.
+
+Nachgemessen an „DRACHENSTEINE" (130 px roh, Schrift 12 px): der Name belegt **konstant 133,9 px**,
+unabhängig von der Kurvenlänge. Das sind 13,4 % bei einer 1000-px-Kurve und **1,2 %** bei den
+11 246 px von Zoom 7.
+
+Der Grund ist nicht die Sperrung, sondern das **Fenster**: es wird nach dem NAMEN bemessen
+(`ruhigstesFenster(st, benoetigt * 1.15)`), nicht nach der Fläche. In einem textgroßen Fenster gibt
+es kaum freien Platz, und 20 % davon sind rund 4 px.
+
+💣 **Und der zweite Hebel begrenzt härter als der erste.** Selbst mit einem Fenster über den ganzen
+Bogen käme man auf 21,6 % (1000 px) bzw. 1,9 % (11 246 px) — ab etwa 1000 px deckelt dann nicht mehr
+der Anteil, sondern der **Zusatz je Lücke** (0,6 Schriftgrößen). Mit diesem Deckel ist „gesperrt
+beschriftet er sie" **überhaupt nicht erreichbar**, und der Deckel steht aus gutem Grund da (siehe
+unten). Wer den Namen wirklich über die Fläche ziehen will, muss **ihn** heben — das ist ein Wert
+der Tafel §6.1 und gehört in die Kachel „Darstellung" (Plan 4), nicht in eine stille Codeänderung.
+
+🔧 **Offen für den Owner:** so lassen (= was im Prototyp abgenommen wurde) oder weiter aufziehen.
+Zu entscheiden an den Referenzflächen, nicht an dieser Zahl.
 
 Nur **Sperren** (`lengthAdjust="spacing"`), nie die Glyphen strecken.
 
