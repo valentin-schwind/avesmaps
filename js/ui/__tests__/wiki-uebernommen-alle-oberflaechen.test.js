@@ -61,11 +61,11 @@ const EIGENER_WEG = new Set(["territorium"]);
 // docs/superpowers/plans/2026-08-18-wiki-override-rest.md. Dieser Eintrag ist die AUFGABE, nicht die
 // Erlaubnis: wer eine Objektart hier streicht, muss ihre Oberflaechen vorher versorgt haben. Die
 // Gegenrichtung ganz unten sorgt dafuer, dass die Liste schrumpft und nicht waechst.
-const NOCH_OFFEN = new Set(["weg"]);
+const NOCH_OFFEN = new Set([]);
 
 const zuPruefen = mitKartenziel.filter((art) => !EIGENER_WEG.has(art) && !NOCH_OFFEN.has(art));
-assert.ok(zuPruefen.length >= 4,
-	"weniger als vier Objektarten zu pruefen -- das Register wurde vermutlich nicht gelesen, "
+assert.ok(zuPruefen.length >= 5,
+	"weniger als fuenf Objektarten zu pruefen -- das Register wurde vermutlich nicht gelesen, "
 	+ "oder eine Objektart ist still in NOCH_OFFEN gewandert: "
 	+ JSON.stringify(zuPruefen));
 checks++;
@@ -113,6 +113,11 @@ const RUMPF_WOANDERS = {
 	"js/review/review-label-wiki.js": {
 		datei: "js/review/review-labels.js",
 		bezeichner: "getLabelWikiUebernommenPayload",
+	},
+	// Und beim Weg ebenso: der Zuweisungskasten fuehrt die Liste, review-paths.js baut den Rumpf.
+	"js/review/review-path-wiki.js": {
+		datei: "js/review/review-paths.js",
+		bezeichner: "getPathWikiUebernommenPayload",
 	},
 };
 

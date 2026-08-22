@@ -178,6 +178,15 @@ function avesmapsPathEditorList(PDO $pdo): array
             // laengst jemand entschieden hat; der Kartendialog daneben bekaeme es (der Kartenpayload
             // reicht alle Eigenschaften durch) und die zwei Oberflaechen zeigten Verschiedenes.
             'wiki_no_article' => !empty($properties['wiki_no_article']),
+            // Die FELDHERKUNFT (`{feature_subtype: "manual"|"wiki"}`) -- und sie muss aus demselben
+            // Grund hier stehen wie der Merker darueber: die Liste ist eine WEISSE LISTE. Ohne diese
+            // Zeile bliebe die Beschriftung im Editor fuer immer grau, obwohl der Server die Herkunft
+            // pflegt, und das Vorhaekeln der Sync-Vorschau verhielte sich, als haette nie jemand
+            // etwas von Hand gesetzt. Ein `(object)` waere hier falsch: der Browser prueft auf ein
+            // Objekt, und `[]` ist in JSON eine Liste -- deshalb der leere Standardwert als Objekt.
+            'field_origins' => (object) (is_array($properties['field_origins'] ?? null)
+                ? $properties['field_origins']
+                : []),
             'continent' => (string) ($properties['continent'] ?? ''),
             'has_profile' => isset($withProfile[(int) $row['id']]),
             'flow_direction' => (string) ($properties['flow_direction'] ?? ''),

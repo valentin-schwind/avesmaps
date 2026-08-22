@@ -1790,8 +1790,15 @@
 						<input id="path-edit-show-label" name="show_label" type="checkbox" />
 						<span>Weg anzeigen</span>
 					</label>
+					<!-- Der Wiki-Override, Bauform 2: die Zelle haengt sich an die Beschriftung und bleibt
+					     leer, bis pathWikiZeichneAbweichungen sie fuellt. Regeln in
+					     css/components/wiki-override.css, hier ueber css/styles.css.
+					     🔴 NUR der Wegtyp: von den vier Registerzeilen des Weges hat nur `wegtyp` ein
+					     Kartenziel. Den NAMEN schreibt `assign_to` serverseitig auf den ganzen
+					     Namensverbund -- er ist per Definition aus dem Wiki, und eine Herkunft dafuer
+					     gehoert an die Zuweisung, nicht an dieses Formular. -->
 					<label class="location-report-form__field">
-						<span>Wegtyp *</span>
+						<span>Wegtyp *<span class="wiki-alt" data-path-wiki-alt="feature_subtype"></span></span>
 						<div class="location-edit-fieldrow"><select id="path-edit-type" name="feature_subtype" required>
 							<option value="Reichsstrasse">Reichsstraße</option>
 							<option value="Strasse">Straße</option>

@@ -214,7 +214,30 @@ function avesmapsWikiAssignWegZustand(quelle) {
 		artikel: avesmapsWikiAssignWegArtikel(quelle.wiki_path),
 		keinArtikel: quelle.kein_artikel === true,
 		kartenwerte: kartenwerte,
+		herkunft: avesmapsWikiAssignWegHerkunft(quelle.field_origins),
 	};
+}
+
+/**
+ * REIN: `properties.field_origins` -> die Herkunftskarte, gefiltert auf das EINE Kartenfeld des
+ * Weges. Wortgleich zu den Fassungen bei Ort, Landschaft und Literatur -- und aus demselben Grund
+ * gefiltert: ein Eintrag fuer ein Feld ohne Zeile waere Ballast in einer Karte, die ueber das
+ * Vorhaekeln entscheidet.
+ *
+ * 🔴 `name` KOMMT HIER NICHT VOR, obwohl das Wiki einen Namen liefert. Den schreibt `assign_to`
+ * serverseitig auf den ganzen Namensverbund -- das Formular kann ihn gar nicht gegen das Wiki
+ * setzen, und eine Herkunft dafuer gehoert an die Zuweisung, nicht an das Speichern. Die
+ * Serverliste AVESMAPS_PATH_WIKI_ORIGIN_FIELDS fuehrt ihn aus demselben Grund nicht; die zwei
+ * muessen uebereinstimmen, sonst zeigt der Editor eine Zeile, deren Herkunft niemand fortschreibt.
+ *
+ * ⚠️ Alles ausser `'manual'`/`'wiki'` faellt heraus. Eine kuenftige dritte Herkunft darf weder die
+ * Beschriftung faerben noch vorhaken, sondern muss auf „nicht bekannt" zurueckfallen.
+ */
+function avesmapsWikiAssignWegHerkunft(herkunft) {
+	const h = (herkunft && typeof herkunft === "object" && !Array.isArray(herkunft)) ? herkunft : {};
+	const wert = avesmapsWikiAssignWegText(h.feature_subtype);
+
+	return (wert === "manual" || wert === "wiki") ? { feature_subtype: wert } : {};
 }
 
 /** REIN: der Rumpf der Zuweisung. Beide Oberflaechen schicken denselben -- mit `dry_run:false` UND
@@ -280,6 +303,7 @@ if (typeof module !== "undefined" && module.exports) {
 		avesmapsWikiAssignWegTreffer: avesmapsWikiAssignWegTreffer,
 		avesmapsWikiAssignWegArtikel: avesmapsWikiAssignWegArtikel,
 		avesmapsWikiAssignWegZustand: avesmapsWikiAssignWegZustand,
+		avesmapsWikiAssignWegHerkunft: avesmapsWikiAssignWegHerkunft,
 		avesmapsWikiAssignWegZuweisungsKoerper: avesmapsWikiAssignWegZuweisungsKoerper,
 		avesmapsWikiAssignWegAntwortPruefen: avesmapsWikiAssignWegAntwortPruefen,
 		avesmapsWikiAssignWegSyncWegtyp: avesmapsWikiAssignWegSyncWegtyp,

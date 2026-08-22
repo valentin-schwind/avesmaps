@@ -112,7 +112,114 @@ function pathWikiZustand() {
 		// Vorschau dann einen Wechsel an, den die Auswahl daneben laengst zeigt.
 		feature_subtype: () => pathWikiElement("path-edit-type")?.value
 			|| (pathEditFeature && pathEditFeature.properties ? pathEditFeature.properties.feature_subtype : "") || "",
+		// 🔴 Die Feldherkunft -- aus demselben Kartenpayload wie der dritte Zustand darueber: der
+		// reicht ALLE Eigenschaften durch, und `update_path_details` schreibt sie seit dem
+		// 22.08.2026 zurueck. Ohne sie bliebe die Beschriftung fuer immer grau, und das Vorhaekeln
+		// der Sync-Vorschau verhielte sich, als haette nie jemand etwas von Hand gesetzt.
+		field_origins: pathEditFeature.properties.field_origins || null,
 	});
+}
+
+// 🔴 WELCHE FELDER SEIT DEM OEFFNEN AUS DEM WIKI KAMEN -- die Merkliste DIESES Dialogs. Der Server
+// stempelt daraus die Feldherkunft, und nur fuer Felder, deren Wert sich wirklich aendert.
+// 💣 ZWEI OBERFLAECHEN, ZWEI MERKLISTEN, EINE REGEL: der Wege-Editor (js/pages/wege-editor.js)
+// fuehrt seine eigene -- anderes Dokument, eigenes `window`, die zwei sehen einander nicht.
+let pathWikiUebernommen = new Set();
+
+/** Die Felder, die dieses Speichern als Wiki-Uebernahme nennt -- fuer `buildPathEditPayload`. */
+function getPathWikiUebernommenPayload() {
+	return Array.from(pathWikiUebernommen);
+}
+
+/**
+ * ⚠️ Ein frisch geoeffneter Dialog hat nichts uebernommen. Ohne das Leeren truege die Merkliste die
+ * Uebernahmen des ZULETZT geoeffneten Weges weiter, und dessen Wegtyp bekaeme beim naechsten
+ * Speichern die Herkunft „aus dem Wiki" fuer einen Wert, der nie aus einem Wiki kam.
+ */
+function resetPathWikiUebernommen() {
+	pathWikiUebernommen = new Set();
+}
+
+// ---- Der Wiki-Override an der Wegtyp-Zeile ------------------------------------------------------
+// Entwurf: docs/superpowers/specs/2026-08-17-wiki-override-fuer-alle-design.md
+//
+// 💣 DER WEGTYP TRAEGT EINEN SCHLUESSEL („Reichsstrasse", angezeigt „Reichsstraße"). Ohne die
+// Uebersetzung stuende der Join-Key durchgestrichen neben einem Auswahlfeld, das die Beschriftung
+// zeigt -- genau der Befund, der beim Ort am 17.08.2026 live sichtbar wurde und sich wie ein
+// Tippfehler las. Die Beschriftungen kommen aus dem AUSWAHLFELD SELBST: was dort steht, ist per
+// Definition das, was der Editor liest.
+function pathWikiZeichneAbweichungen() {
+	if (typeof avesmapsWikiFeldStand !== "function" || typeof avesmapsWikiAssignSubject !== "function") {
+		return;
+	}
+	if (!pathEditFeature || !pathEditFeature.properties) {
+		return;
+	}
+	const select = pathWikiElement("path-edit-type");
+	const beschriftungen = {};
+	Array.from((select && select.options) || []).forEach((option) => {
+		beschriftungen[option.value] = option.textContent || option.value;
+	});
+	const stand = avesmapsWikiFeldStand(
+		(avesmapsWikiAssignSubject("weg") || {}).felder || [],
+		{ feature_subtype: String(select?.value || pathEditFeature.properties.feature_subtype || "") },
+		avesmapsWikiAssignWegWerte(pathWikiCurrentAssignment()),
+		avesmapsWikiAssignWegHerkunft(pathEditFeature.properties.field_origins),
+		{ feature_subtype: beschriftungen }
+	);
+	document.querySelectorAll("#path-edit-overlay [data-path-wiki-alt]").forEach((zelle) => {
+		const feld = zelle.getAttribute("data-path-wiki-alt") || "";
+		const s = stand[feld];
+		zelle.replaceChildren();
+		const vonUns = Boolean(s && s.abweicht && s.herkunft === "manual");
+		// Die Hervorhebung sitzt an der BESCHRIFTUNG, nicht an der Zelle. Als Klasse gesetzt statt
+		// per `:has()`: jene Elternauswahl faellt bei fehlender Browserfaehigkeit LAUTLOS aus, und
+		// die Zeile saehe dann aus wie eine mit unbekannter Herkunft -- also wie der andere Zustand.
+		zelle.parentElement?.classList.toggle("has-wiki-ovr", vonUns);
+		if (!s || !s.abweicht) {
+			return;
+		}
+		const alt = document.createElement("span");
+		alt.className = "dt-old";
+		alt.textContent = s.wikiAnzeige;
+		alt.title = (vonUns ? "Von uns gesetzt. " : "Weicht vom Wiki ab. ") + "Wiki-Stand: " + s.wikiAnzeige;
+		const knopf = document.createElement("button");
+		knopf.type = "button";
+		knopf.className = "dt-reset";
+		knopf.textContent = "↺";
+		knopf.title = "Auf Wiki-Stand zurücksetzen";
+		// ⚠️ Der Knopf sitzt IN einem `<label>`: ohne diesen Riegel reichte der Klick an das Feld
+		// durch und fokussierte es, waehrend sich sein Wert aendert.
+		knopf.addEventListener("click", (ereignis) => {
+			ereignis.preventDefault();
+			ereignis.stopPropagation();
+			pathWikiFeldZuruecksetzen(s.wikiWert);
+		});
+		zelle.append(alt, knopf);
+	});
+}
+
+/**
+ * ↺ an der Wegtyp-Zeile: genau diesen einen Wert aus dem Wiki ins Formular holen.
+ * ⭐ ES IST DIE SYNC-UEBERNAHME EINER EINZIGEN ZEILE -- derselbe Weg, dieselbe Merkliste, kein
+ * zweiter Schreibpfad. Geschrieben wird mit „Speichern".
+ */
+function pathWikiFeldZuruecksetzen(wikiWert) {
+	const select = pathWikiElement("path-edit-type");
+	// 💣 Nur, wenn die Auswahl den Schluessel kennt -- dieselbe zweite Haelfte des Riegels wie in
+	// pathWikiSyncUebernehmen.
+	if (!select || !Array.from(select.options).some((option) => option.value === wikiWert)) {
+		return;
+	}
+	select.value = wikiWert;
+	pathWikiUebernommen.add("feature_subtype");
+	// Der Wegtyp entscheidet, welche Transportmittel angeboten werden -- die Weiche haengt am
+	// `change`-Ereignis, also wird es echt ausgeloest (wortgleich zu pathWikiSyncUebernehmen).
+	select.dispatchEvent(new Event("change", { bubbles: true }));
+	pathWikiZeichneAbweichungen();
+	if (typeof setPathEditStatus === "function") {
+		setPathEditStatus("Aus dem Wiki übernommen — noch nicht gespeichert.");
+	}
 }
 
 // 🔴 HIER STANDEN pathWikiKeinArtikelFuerPayload UND pathWikiKeinArtikelGeaendert -- beide gefallen
@@ -244,9 +351,13 @@ function pathWikiSyncUebernehmen(zeilen) {
 		throw new Error("Der Wegtyp „" + wegtyp + "“ steht in der Auswahl nicht zur Verfügung.");
 	}
 	select.value = wegtyp;
+	// 🔴 ZWEITE HAELFTE DER UEBERNAHME: merken, WELCHES Feld aus dem Wiki kam. Ohne sie stempelt der
+	// Server es als „von uns", und der naechste Abgleich liesse genau dieses Feld in Ruhe.
+	pathWikiUebernommen.add("feature_subtype");
 	// Der Wegtyp entscheidet, welche Transportmittel ueberhaupt angeboten werden -- die Weiche
 	// haengt am `change`-Ereignis (js/app/bootstrap.js), also wird es echt ausgeloest.
 	select.dispatchEvent(new Event("change", { bubbles: true }));
+	pathWikiZeichneAbweichungen();
 	if (typeof setPathEditStatus === "function") {
 		setPathEditStatus("Aus dem Wiki übernommen — noch nicht gespeichert.");
 	}
@@ -277,6 +388,30 @@ function renderPathWikiReference() {
 		loesen: pathWikiLoesen,
 		syncUebernehmen: pathWikiSyncUebernehmen,
 	});
+	// ⚠️ NACH dem Mounten: der Kasten und die Feldzeile darueber sollen denselben Stand zeigen.
+	// Das Bauteil ruft `laden` selbst, aber sein Ergebnis erreicht diesen Zeichner nicht -- er liest
+	// die Zuweisung direkt aus `pathEditFeature`.
+	pathWikiZeichneAbweichungen();
+}
+
+// 🔴 WAEHLEN IM FORMULAR AENDERT DIE ABWEICHUNG. Ohne diesen Zuhoerer bliebe ein durchgestrichener
+// Wiki-Stand samt ↺ stehen, nachdem der Editor den Wegtyp von Hand an das Wiki angeglichen hat --
+// ein Rueckholangebot fuer etwas, das gar nicht mehr abweicht.
+// ⚠️ EINMAL, nicht bei jedem Oeffnen: das Auswahlfeld steht fest in index.html, und
+// `renderPathWikiReference` laeuft bei jedem Dialogaufruf -- dort verdrahtet, haetten sich die
+// Zuhoerer gestapelt.
+function verdrahtePathWikiZeichner() {
+	pathWikiElement("path-edit-type")?.addEventListener("change", pathWikiZeichneAbweichungen);
+}
+
+if (typeof document !== "undefined") {
+	if (document.readyState === "loading") {
+		document.addEventListener("DOMContentLoaded", verdrahtePathWikiZeichner, { once: true });
+	} else {
+		verdrahtePathWikiZeichner();
+	}
 }
 
 window.renderPathWikiReference = renderPathWikiReference;
+window.getPathWikiUebernommenPayload = getPathWikiUebernommenPayload;
+window.resetPathWikiUebernommen = resetPathWikiUebernommen;

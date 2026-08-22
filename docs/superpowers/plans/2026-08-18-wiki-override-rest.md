@@ -168,18 +168,18 @@ für eine eigene Regression hält: `test-place-scope-filter`, `test-route-leg-po
 
 - [x] **EIN Stylesheet zuerst** — `wiki-override.css`, importiert von BEIDEN Welten (A0a) · live 22.08.2026
 - [x] Der Stylesheet-Test hat ZWEI Hälften: nirgends sonst · und beide Welten laden ihn (A0a)
-- [~] Jede Oberfläche schickt `wiki_uebernommen`, **bevor** ihre Anzeige gebaut wird (A0) · Landschaft und Label live 22.08.2026, Weg offen
+- [x] Jede Oberfläche schickt `wiki_uebernommen`, **bevor** ihre Anzeige gebaut wird (A0) · alle fünf Objektarten live 22.08.2026
 - [x] Beide Landschafts-Oberflächen, nie nur eine · Merkliste live 22.08.2026 in beiden
 - [x] Landschaft: die Herkunft als **fertige Antwort** projizieren, nie `properties_json` (A1) · live 22.08.2026
 - [x] Bauform aus dem **CSS** bestimmt, nicht aus dem Markup (§2.2) · Landschaft live 22.08.2026
 - [x] Keine dritte `.wiki-alt`-Kopie — sie ist über `styles.css` schon da (A3) · nur EIN neuer Wirt für die braune Beschriftung
 - [x] Klimazone: kein ↺ auf der gesperrten Art (A2) · in BEIDEN Landschafts-Oberflächen
-- [ ] Weg: **beide** Schreibwege stempeln, der Gruppen-Schreiber je Abschnitt (A5)
-- [ ] Weg: die Herkunft des Namens hängt an `assign_to`, nicht am Formular (A5)
-- [ ] Kein geratener Feldname — jeder Payload-Schlüssel vorher gemessen
-- [ ] Jede neue Zusicherung EINZELN mutiert, roter Lauf mit echter Meldung festgehalten
-- [ ] Testfeld gegen die Baseline aus A6, **mit dem CI-Muster**, nicht dem aus §9
-- [ ] **Vor dem Push `git log origin/master..HEAD` lesen** — eine Kette nimmt alles mit (§3)
+- [x] Weg: **beide** Schreibwege stempeln, der Gruppen-Schreiber je Abschnitt (A5) · es waren **DREI** — der Anlegefall kam dazu, gefunden vom Wachtest
+- [x] Weg: die Herkunft des Namens hängt an `assign_to`, nicht am Formular (A5)
+- [x] Kein geratener Feldname — jeder Payload-Schlüssel vorher gemessen
+- [x] Jede neue Zusicherung EINZELN mutiert, roter Lauf mit echter Meldung festgehalten · 🪤 drei Zusicherungen überlebten ihre erste Mutation und mussten geschärft werden
+- [x] Testfeld gegen die Baseline aus A6, **mit dem CI-Muster**, nicht dem aus §9 · PHP 246/1 (vorbestehend), JS 217/0, wikidump 21/0
+- [x] **Vor dem Push `git log origin/master..HEAD` lesen** — eine Kette nimmt alles mit (§3) · vor jedem der sieben Pushes
 
 ## 6 · 🪤 Was am 22.08.2026 gegenüber der Fassung vom 18.08. korrigiert wurde
 

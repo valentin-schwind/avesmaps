@@ -1355,6 +1355,23 @@ const AVESMAPS_POINT_WIKI_ORIGIN_FIELDS = ['name', 'feature_subtype', 'einwohner
 const AVESMAPS_LABEL_WIKI_ORIGIN_FIELDS = ['text', 'feature_subtype'];
 
 /**
+ * Dasselbe fuer einen WEG -- und es ist genau EIN Feld.
+ *
+ * 🔴 `name` STEHT ABSICHTLICH NICHT HIER, obwohl der Weg einen Namen hat und das Wiki ihn liefert.
+ * Den Namen schreibt `assign_to` serverseitig auf den ganzen Namensverbund
+ * (avesmapsWikiPathEffectiveEditName: „ein zugewiesener Wiki-Weg BESITZT den Namen"), das Formular
+ * kann ihn also gar nicht gegen das Wiki setzen. Eine Herkunft dafuer gehoert an die ZUWEISUNG,
+ * nicht an dieses Speichern -- und sie hier zu fuehren hiesse, bei jedem Speichern eines
+ * zugewiesenen Weges `manual` auf einen Wert zu stempeln, den der Server selbst gerade
+ * durchgesetzt hat.
+ *
+ * ⚠️ Das Feldregister (js/ui/wiki-assign-registry.js, Objektart `weg`) fuehrt genau ein
+ * Kartenziel: `wegtyp` -> `feature_subtype`. Die drei uebrigen Zeilen (art, lage, laenge) sind
+ * Anzeige ohne Kartenziel; die Laenge entsteht aus der Geometrie und wird nicht gepflegt.
+ */
+const AVESMAPS_PATH_WIKI_ORIGIN_FIELDS = ['feature_subtype'];
+
+/**
  * REIN: die Wiki-Angaben eines Ortes in seine Eigenschaften schreiben -- der Merker „kein Artikel"
  * und die drei Textfelder. Wirft, wenn Merker und Adresse einander widersprechen.
  *
@@ -2352,6 +2369,25 @@ function avesmapsCreatePathFeature(PDO $pdo, array $payload, array $user): array
         'allowed_transports' => $allowedTransports,
     ];
 
+    // Die Feldherkunft eines FRISCH GEZEICHNETEN Weges.
+    // 🔴 DER ANLEGEFALL IST EIN EIGENER SCHREIBWEG, und er ist beim Bauen zuerst uebersehen worden
+    // -- gefunden hat ihn nicht der Autor, sondern die Zusicherung in
+    // __tests__/weg-feld-herkunft-test.php, die die Schreibwege ZAEHLT statt sie aufzuzaehlen.
+    // Dieselbe Reihenfolge wie beim Ort, wo derselbe Test denselben Fall fand.
+    // ⚠️ „Vorher" ist hier LEER -- ein neuer Weg hat keinen Vorzustand. Der gesetzte Wegtyp ist
+    // damit eine Aenderung und bekommt eine Herkunft: `manual`, solange die Anfrage nichts anderes
+    // sagt. Das ist richtig -- ein frisch gezeichneter Weg traegt keinen Wiki-Artikel, und wer ihn
+    // spaeter zuweist, laesst den Wegtyp ueber die Sync-Vorschau nachziehen.
+    $herkunftNeu = avesmapsFieldOriginsStempeln(
+        [],
+        [],
+        ['feature_subtype' => $subtype],
+        avesmapsFieldOriginsAusWikiLesen($payload, AVESMAPS_PATH_WIKI_ORIGIN_FIELDS)
+    );
+    if ($herkunftNeu !== []) {
+        $properties['field_origins'] = $herkunftNeu;
+    }
+
     $pdo->beginTransaction();
     try {
         $revision = avesmapsNextMapRevision($pdo);
@@ -2666,6 +2702,10 @@ function avesmapsUpdatePathFeatureDetails(PDO $pdo, array $payload, array $user)
         $feature = avesmapsFetchEditableLineStringFeature($pdo, $publicId);
         avesmapsAssertFeatureCanBeEdited($pdo, $payload, $feature, $user);
         $properties = avesmapsDecodeJsonColumnForEdit($feature['properties_json'] ?? null);
+        // 🔴 DER STAND VOR DEM SPEICHERN -- hier und nirgends spaeter, denn die naechsten Zeilen
+        // ueberschreiben genau dieses Feld. Aus der SPALTE gelesen, nicht aus dem Nest: die Kopie
+        // im properties_json ist ein Abbild, massgeblich ist, was die Karte laedt.
+        $herkunftVorher = ['feature_subtype' => (string) ($feature['feature_subtype'] ?? '')];
         // R1: an assigned wiki way (properties.wiki_path) always names the way -- the typed or
         // auto-generated form name must not override it. show_label stays form-controlled (R3).
         $name = avesmapsWikiPathEffectiveEditName($name, $properties);
@@ -2688,6 +2728,27 @@ function avesmapsUpdatePathFeatureDetails(PDO $pdo, array $payload, array $user)
         // in avesmapsApplyPathWikiNoArticle, nicht hier: sie ist rein und damit ohne Datenbank
         // pruefbar -- und sie ist die EINZIGE Stelle, an der der Merker eines Weges entsteht.
         $properties = avesmapsApplyPathWikiNoArticle($properties, $payload);
+        // Die Feldherkunft fortschreiben: hat sich der Wegtyp geaendert, und kam er aus dem Wiki?
+        // 💣 EINER VON ZWEI SCHREIBWEGEN. Der andere ist avesmapsUpdatePathGroupDetails (die
+        // Weg-Ebene, 19.08.2026), und der schreibt `feature_subtype` in einer Schleife ueber ALLE
+        // Abschnitte einer Namensgruppe. Eine Regel, die nur hier stuende, waere keine -- genau
+        // diese Fehlerklasse ist am 14.08.2026 die Verkehrsmittel-Sperre gewesen (zwei von vier
+        // Erzeugern gebunden). Die Zahl steht hier bewusst NICHT als „1 von 2": eine Zahl im
+        // Kommentar liest sich wie eine vollstaendige Liste, und genau daran suchte damals niemand
+        // weiter. Wer einen dritten Schreibweg baut, sucht `AVESMAPS_PATH_WIKI_ORIGIN_FIELDS`.
+        // ⚠️ Ein leeres Ergebnis wird ENTFERNT statt als `[]` abgelegt -- dieselbe Regel wie beim
+        // Merker `wiki_no_article`: was nichts aussagt, steht nicht drin.
+        $herkunft = avesmapsFieldOriginsStempeln(
+            is_array($properties['field_origins'] ?? null) ? $properties['field_origins'] : [],
+            $herkunftVorher,
+            ['feature_subtype' => $subtype],
+            avesmapsFieldOriginsAusWikiLesen($payload, AVESMAPS_PATH_WIKI_ORIGIN_FIELDS)
+        );
+        if ($herkunft === []) {
+            unset($properties['field_origins']);
+        } else {
+            $properties['field_origins'] = $herkunft;
+        }
         $otherSource = avesmapsReadOptionalOtherSource($payload['other_source'] ?? null);
         if ($otherSource === null) {
             unset($properties['other_source']);
@@ -2897,6 +2958,30 @@ function avesmapsUpdatePathGroupDetails(PDO $pdo, array $payload, array $user): 
             $subtype = $wantsSubtype ? $newSubtype : $subtypeVorher;
             if ($wantsSubtype) {
                 $properties['feature_subtype'] = $subtype;
+            }
+
+            // 💣 DIE HERKUNFT WIRD JE ABSCHNITT GESTEMPELT, nicht einmal fuer die Gruppe. Eine
+            // Namensgruppe kann gemischt sein -- in einer ueber Art+Name gebildeten Gruppe traegt
+            // nicht jeder Abschnitt denselben Wegtyp. Fuer die Abschnitte, die den gewaehlten Typ
+            // schon haben, aendert sich nichts, und `avesmapsFieldOriginsStempeln` fasst sie
+            // deshalb auch nicht an: „unveraendert heisst unangetastet" ist seine erste Regel.
+            // Einmal fuer die Gruppe gestempelt, bekaemen genau diese Abschnitte eine Herkunft fuer
+            // eine Aenderung, die bei ihnen gar nicht stattgefunden hat.
+            // ⚠️ Nur wenn `feature_subtype` ueberhaupt angefasst wurde -- sonst zaehlt dieser
+            // Schreibweg eine Aenderung, die von woanders kommt (ein Wegtyp kann sich hier auch
+            // durch `$subtypeVorher` nicht aendern, aber die Bedingung sagt die Absicht).
+            if ($wantsSubtype) {
+                $herkunft = avesmapsFieldOriginsStempeln(
+                    is_array($properties['field_origins'] ?? null) ? $properties['field_origins'] : [],
+                    ['feature_subtype' => $subtypeVorher],
+                    ['feature_subtype' => $subtype],
+                    avesmapsFieldOriginsAusWikiLesen($payload, AVESMAPS_PATH_WIKI_ORIGIN_FIELDS)
+                );
+                if ($herkunft === []) {
+                    unset($properties['field_origins']);
+                } else {
+                    $properties['field_origins'] = $herkunft;
+                }
             }
             $properties['feature_type'] = 'path';
 

@@ -364,7 +364,14 @@
 
 		var html = "";
 		html += '<div class="dt-grp">Identität</div>';
-		html += '<div class="dt-grid"><div class="k">Wegname</div><div>'
+		// 🔴 `dt-grid--wiki` = 50/50 (Owner 17.08.2026: „50% | 50% · Text --durchgestrichener text--
+		// ↺ | Eingabe"). Die Regeln stehen in css/components/wiki-override.css, das editor-page.css
+		// bindet.
+		// ⚠️ ALLE DREI Raster dieser Spalte, auch die ohne Wiki-Bezug: jede Zeile ist hier ihr
+		// eigenes `.dt-grid`, und liesse man eines auf der 130px-Beschriftungsspalte stehen, stuenden
+		// die Eingabefelder untereinander an zwei verschiedenen Stellen. Genau daran ist der
+		// Literatur-Editor am 17.08.2026 aufgefallen.
+		html += '<div class="dt-grid dt-grid--wiki"><div class="k">Wegname</div><div>'
 			+ '<input type="text" id="wpName" maxlength="160" value="' + escapeHtml(way.name) + '"'
 			+ (locked ? " readonly" : "") + "></div></div>";
 		html += '<div class="dt-check"><input type="checkbox" id="wpAutoName"'
@@ -377,7 +384,11 @@
 			html += '<div class="pl-hint">„Weg anzeigen“ entfällt: die Beschriftung übernimmt das '
 				+ "Way-Label des zugewiesenen Wiki-Weges.</div>";
 		}
-		html += '<div class="dt-grid"><div class="k">Wegtyp</div><div><select id="wpSubtype">'
+		// 💣 Die Zelle ist LEER und bleibt es, bis `wpZeichneWikiAbweichungen` sie fuellt -- der
+		// Kasten wird als Zeichenkette gebaut, der Wiki-Stand steht erst nach dem Ladelauf fest.
+		html += '<div class="dt-grid dt-grid--wiki"><div class="k">Wegtyp'
+			+ '<span class="wiki-alt" data-wp-wiki-alt="feature_subtype"></span></div>'
+			+ '<div><select id="wpSubtype">'
 			+ SUBTYPES.map(function (s) {
 				return '<option value="' + s.key + '"'
 					+ (s.key === way.feature_subtype ? " selected" : "") + ">" + escapeHtml(s.label) + "</option>";
@@ -439,7 +450,7 @@
 		html += '<div id="wpWikiAssign"></div>';
 
 		html += '<div class="dt-grp">Andere Quelle</div>';
-		html += '<div class="dt-grid"><div class="k">Adresse</div><div>'
+		html += '<div class="dt-grid dt-grid--wiki"><div class="k">Adresse</div><div>'
 			+ '<input type="url" id="wpSourceUrl" maxlength="500" placeholder="https://…" value="'
 			+ escapeHtml(way.other_source ? way.other_source.url : "") + '"></div>'
 			+ '<div class="k">Linktext</div><div>'
@@ -508,6 +519,11 @@
 				var domaeneVorher = wpVerkehrsdomaene(state.draft.feature_subtype);
 				state.draft.feature_subtype = subtype.value;
 				markDirty();
+				// 🔴 TIPPEN/WAEHLEN AENDERT DIE ABWEICHUNG. Ohne diese Zeile bliebe ein
+				// durchgestrichener Wiki-Stand samt ↺ stehen, nachdem der Editor den Wegtyp von Hand
+				// an das Wiki angeglichen hat -- ein Rueckholangebot fuer etwas, das nicht mehr
+				// abweicht. (Beim Domaenenwechsel unten baut `renderDetail()` ohnehin neu auf.)
+				wpZeichneWikiAbweichungen();
 				if (wpVerkehrsdomaene(subtype.value) !== domaeneVorher) {
 					renderDetail();
 					return;
@@ -590,6 +606,13 @@
 		if (save) { save.addEventListener("click", saveDraft); }
 
 		mountWikiAssign();
+		// ⚠️ NACH dem Mounten: der Kasten und die Wegtyp-Zeile darueber sollen denselben Stand
+		// zeigen. Das Bauteil ruft `laden` selbst, aber sein Ergebnis erreicht diesen Zeichner nicht
+		// -- er liest die Zuweisung direkt aus dem Entwurf.
+		// 💣 Ohne diese Zeile liefe der Zeichner NUR beim Wegtyp-Wechsel: ein frisch geoeffneter Weg
+		// zeigte weder Durchstreichung noch ↺ noch braune Beschriftung, bis jemand zufaellig die
+		// Auswahl anfasst. Der Zwilling im Kartendialog zeichnet an derselben Stelle.
+		wpZeichneWikiAbweichungen();
 	}
 
 	// ── Wiki-Weg: der Datenweg fuer das gemeinsame Bauteil ────────────────────────────────────
@@ -597,6 +620,17 @@
 	// „label-wiki"). Was beide brauchen, steht in js/ui/wiki-assign-weg.js.
 
 	var wpWikiAssign = null;
+	// 🔴 WELCHE FELDER SEIT DEM OEFFNEN AUS DEM WIKI KAMEN. Der Server stempelt daraus die
+	// Feldherkunft (avesmapsFieldOriginsStempeln), und nur fuer Felder, deren Wert sich wirklich
+	// aendert. Sagt diese Oberflaeche nichts, stempelt er ihre Uebernahmen als „von uns" -- die
+	// harmlose Richtung, aber die Auskunft waere falsch, und der naechste Abgleich liesse genau die
+	// Felder in Ruhe, die er selbst gefuellt hat.
+	// 💣 ZWEI OBERFLAECHEN, ZWEI MERKLISTEN, EINE REGEL: der Kartendialog `#path-edit-*`
+	// (js/review/review-path-wiki.js) fuehrt seine eigene -- anderes Dokument, eigenes `window`.
+	// 🔴 `name` STEHT NICHT DRIN, und das ist kein Vergessen: den Namen schreibt `assign_to`
+	// serverseitig auf den ganzen Namensverbund; das Formular kann ihn gar nicht gegen das Wiki
+	// setzen. Die Serverliste AVESMAPS_PATH_WIKI_ORIGIN_FIELDS fuehrt ihn aus demselben Grund nicht.
+	var wpWikiUebernommen = new Set();
 
 	/**
 	 * 🔴 WIRFT, WENN KEIN WEG GEWAEHLT IST -- der Vertrag aus dem Kopf von js/ui/wiki-assign.js.
@@ -615,8 +649,91 @@
 			// 💣 Eine LESEFUNKTION, kein Wert: die Wegtyp-Auswahl steht in derselben Spalte und
 			// schreibt seit dem 16.08.2026 in den Entwurf, OHNE die Spalte neu zu bauen. Eingefroren
 			// verglichen boete die Sync-Vorschau einen Wechsel an, den die Auswahl daneben schon zeigt.
-			feature_subtype: function () { return state.draft ? state.draft.feature_subtype : ""; }
+			feature_subtype: function () { return state.draft ? state.draft.feature_subtype : ""; },
+			// 🔴 Die Feldherkunft. Sie kommt aus der Liste (`?action=list`, weisse Liste in
+			// api/edit/map/paths-editor.php). Ohne sie wuesste weder das Vorhaekeln der
+			// Sync-Vorschau noch die braune Beschriftung, wer den Wegtyp gesetzt hat.
+			field_origins: state.draft.field_origins || null
 		});
+	}
+
+	// ---- Der Wiki-Override an der Wegtyp-Zeile --------------------------------------------------
+	// Entwurf: docs/superpowers/specs/2026-08-17-wiki-override-fuer-alle-design.md
+	//
+	// 🔴 EINE Zeile, nicht vier: von den vier Registerzeilen des Weges hat nur `wegtyp` ein
+	// Kartenziel (`feature_subtype`). „Art", „Lage" und „Laenge" sind Anzeige -- die Laenge entsteht
+	// aus der Geometrie und wird nicht gepflegt.
+	//
+	// 💣 DER WEGTYP TRAEGT EINEN SCHLUESSEL („Reichsstrasse", angezeigt „Reichsstraße"). Ohne die
+	// Uebersetzung stuende der Join-Key durchgestrichen neben einem Auswahlfeld, das die
+	// Beschriftung zeigt -- genau der Befund, der beim Ort am 17.08.2026 live sichtbar wurde und
+	// sich wie ein Tippfehler las. Die Beschriftungen kommen aus SUBTYPES, derselben Liste, aus der
+	// das Auswahlfeld gebaut wird.
+	function wpZeichneWikiAbweichungen() {
+		if (typeof avesmapsWikiFeldStand !== "function" || typeof avesmapsWikiAssignSubject !== "function") {
+			return;
+		}
+		if (!state.draft) { return; }
+		var beschriftungen = {};
+		SUBTYPES.forEach(function (eintrag) { beschriftungen[eintrag.key] = eintrag.label; });
+		var stand = avesmapsWikiFeldStand(
+			(avesmapsWikiAssignSubject("weg") || {}).felder || [],
+			{ feature_subtype: state.draft.feature_subtype || "" },
+			avesmapsWikiAssignWegWerte(state.draft.wiki_path),
+			avesmapsWikiAssignWegHerkunft(state.draft.field_origins),
+			{ feature_subtype: beschriftungen }
+		);
+		Array.prototype.forEach.call(document.querySelectorAll("[data-wp-wiki-alt]"), function (zelle) {
+			var feld = zelle.getAttribute("data-wp-wiki-alt") || "";
+			var s = stand[feld];
+			zelle.replaceChildren();
+			var vonUns = Boolean(s && s.abweicht && s.herkunft === "manual");
+			// Die Hervorhebung sitzt an der BESCHRIFTUNGSZELLE (`.k.ovr`), wortgleich zum
+			// Territoriumseditor. Als Klasse gesetzt statt per `:has()`: jene Elternauswahl faellt
+			// bei fehlender Browserfaehigkeit LAUTLOS aus, und die Zeile saehe dann aus wie eine mit
+			// unbekannter Herkunft -- also wie der andere Zustand.
+			if (zelle.parentElement) { zelle.parentElement.classList.toggle("ovr", vonUns); }
+			if (!s || !s.abweicht) { return; }
+			var alt = document.createElement("span");
+			alt.className = "dt-old";
+			alt.textContent = s.wikiAnzeige;
+			alt.title = (vonUns ? "Von uns gesetzt. " : "Weicht vom Wiki ab. ") + "Wiki-Stand: " + s.wikiAnzeige;
+			var knopf = document.createElement("button");
+			knopf.type = "button";
+			knopf.className = "dt-reset";
+			knopf.textContent = "↺";
+			knopf.title = "Auf Wiki-Stand zurücksetzen";
+			knopf.addEventListener("click", function (ereignis) {
+				ereignis.preventDefault();
+				ereignis.stopPropagation();
+				wpWikiFeldZuruecksetzen(feld, s.wikiWert);
+			});
+			zelle.append(alt, knopf);
+		});
+	}
+
+	/**
+	 * ↺ an der Wegtyp-Zeile: genau diesen einen Wert aus dem Wiki in den Entwurf holen.
+	 * ⭐ ES IST DIE SYNC-UEBERNAHME EINER EINZIGEN ZEILE -- derselbe Weg, dieselbe Merkliste, kein
+	 * zweiter Schreibpfad. Geschrieben wird mit „Speichern".
+	 * 💣 UEBER `wikiAssignSyncUebernehmen`, nicht daneben: jener setzt den Entwurf, die Merkliste
+	 * UND baut die Spalte neu auf (der Wegtyp entscheidet, welche Transportmittel angeboten werden).
+	 * Ein eigener kurzer Weg hier haette den dritten Teil vergessen -- und zwar lautlos.
+	 */
+	function wpWikiFeldZuruecksetzen(feld, wikiWert) {
+		if (feld !== "feature_subtype" || !state.draft) { return; }
+		// Nur, wenn die Liste den Schluessel kennt: die Abbildung Wiki-Art -> Wegtyp kann leer
+		// ausgehen, und ein fremder Schluessel wuerde vom Server mit 400 abgelehnt.
+		if (!SUBTYPES.some(function (eintrag) { return eintrag.key === wikiWert; })) { return; }
+		state.draft.feature_subtype = wikiWert;
+		state.draft.dirty = true;
+		wpWikiUebernommen.add("feature_subtype");
+		renderDetail();
+		var message = $("wpSaveMsg");
+		if (message) {
+			message.textContent = "Aus dem Wiki übernommen — noch nicht gespeichert.";
+			message.className = "avm-savebar__msg";
+		}
 	}
 
 	/**
@@ -711,6 +828,8 @@
 		if (wegtyp === null || !state.draft) { throw new Error("Keine übernehmbare Angabe angehakt."); }
 		state.draft.feature_subtype = wegtyp;
 		state.draft.dirty = true;
+		// 🔴 ZWEITE HAELFTE DER UEBERNAHME: merken, WELCHES Feld aus dem Wiki kam.
+		wpWikiUebernommen.add("feature_subtype");
 		// Der Wegtyp entscheidet, welche Transportmittel ueberhaupt angeboten werden -- also neu
 		// zeichnen, nicht nur den Wert merken (dieselbe Regel wie beim Auswahlfeld daneben).
 		renderDetail();
@@ -760,7 +879,12 @@
 			show_label: state.draft.show_label === true,
 			allowed_transports: state.draft.allowed_transports,
 			transport_seasons: state.draft.transport_seasons || {},
-			other_source: state.draft.other_source
+			other_source: state.draft.other_source,
+			// 🔴 Die Merkliste reist IMMER mit, auch leer: eine leere Liste ist dasselbe wie ein
+			// fehlender Schluessel („nichts kam aus dem Wiki, also alles von uns"), und das ist die
+			// sichere Richtung -- eine falsche „Wiki"-Angabe liesse einen spaeteren Abgleich eine
+			// Handarbeit ueberschreiben, eine falsche „von uns"-Angabe schuetzt nur zu viel.
+			wiki_uebernommen: Array.from(wpWikiUebernommen)
 		};
 		// 🔴 KEIN `wiki_no_article` MEHR -- gefallen am 16.08.2026 mit dem Haekchen (Owner-Entscheid).
 		// Der Merker selbst bleibt; gesetzt wird er im Konfliktzentrum, wo die Entscheidung hingehoert
@@ -1528,10 +1652,22 @@
 			// dort die Zeile, staende das Haekchen bei jedem Weg leer da, auch bei einem, fuer den
 			// laengst jemand entschieden hat.
 			wiki_no_article: source.wiki_no_article === true,
+			// Die FELDHERKUNFT -- aus derselben weissen Liste und aus demselben Grund. Fehlt sie hier,
+			// bleibt die Beschriftung fuer immer grau, obwohl der Server sie pflegt: `undefined` liest
+			// sich ueberall wie „nicht bekannt", und genau so verhaelt sich die Oberflaeche dann auch.
+			field_origins: source.field_origins || null,
 			other_source: source.other_source ? { url: source.other_source.url, label: source.other_source.label } : null,
 			flow_direction: source.flow_direction,
 			dirty: false
 		};
+		// 🔴 EIN FRISCH GEWAEHLTER WEG HAT NICHTS UEBERNOMMEN. Ohne dieses Leeren truege die
+		// Merkliste die Uebernahmen des ZULETZT bearbeiteten Weges weiter, und dessen Wegtyp bekaeme
+		// beim naechsten Speichern die Herkunft „aus dem Wiki" fuer einen Wert, der nie aus einem
+		// Wiki kam -- und das ist die GEFAEHRLICHE Richtung: ein spaeterer Abgleich boete ihn dann
+		// vorangehakt an und ueberschriebe echte Handarbeit.
+		// 💣 Der Zwilling im Kartendialog hat den Riegel von Anfang an (resetPathWikiUebernommen in
+		// js/review/review-paths.js); hier fehlte er, und gefunden hat es die Konsistenzpruefung.
+		wpWikiUebernommen = new Set();
 		state.detail = null;
 		renderList();
 		renderDetail();

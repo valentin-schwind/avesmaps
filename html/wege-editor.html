@@ -173,6 +173,12 @@
 <script src="/js/ui/wiki-assign-diff.js"></script>
 <script src="/js/ui/wiki-assign.js"></script>
 <script src="/js/ui/wiki-assign-weg.js"></script>
+<!-- 💣 DER WIKI-OVERRIDE AN DER FELDZEILE braucht avesmapsWikiFeldStand. Der Zeichner prueft
+     `typeof avesmapsWikiFeldStand !== "function"` und gibt sonst LAUTLOS auf -- die Wegtyp-Zeile
+     saehe aus, als gaebe es keine Abweichung. Dieselbe Falle wie bei avesmapsCoatSrc, wo eine
+     geteilte Datei nur EIN Dokument band. Gewacht von
+     js/ui/__tests__/wiki-feld-herkunft-geladen.test.js. -->
+<script src="/js/ui/wiki-feld-herkunft.js"></script>
 <!-- 🔴 KEIN js/ui/wiki-massenzuweisung.js MEHR. Die Kachel „Wiki zuweisen" ist am 19.08.2026
      gefallen (Owner: „ist glaub nicht mehr nötig"), und sie war der einzige Aufrufer in diesem
      Dokument. Der Grund ist keiner der Bequemlichkeit: seit dem 16.08.2026 sitzt die Zuweisung

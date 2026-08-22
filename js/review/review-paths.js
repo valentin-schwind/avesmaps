@@ -20,6 +20,12 @@ function populatePathEditForm(path) {
 	}
 	syncPathTransportOptions({ path });
 	syncPathAutoNameControls();
+	// 🔴 EIN FRISCH GEOEFFNETER DIALOG HAT NICHTS UEBERNOMMEN. Ohne das Leeren trüge die Merkliste
+	// die Übernahmen des ZULETZT geöffneten Weges weiter, und dessen Wegtyp bekäme beim nächsten
+	// Speichern die Herkunft „aus dem Wiki" für einen Wert, der nie aus einem Wiki kam.
+	if (typeof resetPathWikiUebernommen === "function") {
+		resetPathWikiUebernommen();
+	}
 	if (typeof renderPathWikiReference === "function") {
 		renderPathWikiReference();
 	}
@@ -171,6 +177,15 @@ function buildPathEditPayload(formElement) {
 		// traegt das Ergebnis auf alle Segmente desselben Wiki-Weges.
 		transport_seasons: typeof readPathSeasonsFromForm === "function" ? readPathSeasonsFromForm(allowedTransports) : {},
 		other_source: typeof readOtherSourceFromForm === "function" ? readOtherSourceFromForm("path-edit") : { url: "", label: "" },
+		// 🔴 Die Merkliste reist IMMER mit, auch leer: eine leere Liste ist dasselbe wie ein fehlender
+		// Schlüssel („nichts kam aus dem Wiki, also alles von uns"), und das ist die sichere Richtung --
+		// eine falsche „Wiki"-Angabe liesse einen späteren Abgleich eine Handarbeit überschreiben, eine
+		// falsche „von uns"-Angabe schützt nur zu viel.
+		// ⚠️ Kein Rückfall auf `[]`, wenn die Funktion fehlt -- dann sagt dieses Speichern gar nichts,
+		// und der Server stempelt `manual`. Überschützen ist harmlos, überschreiben nicht.
+		...(typeof getPathWikiUebernommenPayload === "function"
+			? { wiki_uebernommen: getPathWikiUebernommenPayload() }
+			: {}),
 	};
 	return payload;
 }
