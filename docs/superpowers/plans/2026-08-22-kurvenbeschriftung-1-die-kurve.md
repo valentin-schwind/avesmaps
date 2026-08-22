@@ -820,6 +820,7 @@ git commit -m "feat(kurvenlabel): Mittelachse und laengster Pfad -- samt der zwe
 **Schnittstellen:**
 - Verbraucht: alles aus 1–3.
 - Liefert: `avesmapsCurveResample(array $line, int $n): array`,
+  `avesmapsCurvePrincipalFrame(array $points): array` (→ `[mx, my, cos θ, sin θ]`),
   `avesmapsCurvePolyFit(array $line, int $degree): array`,
   `avesmapsCurveStraighten(array $line, float $amount): array`,
   `avesmapsCurveLineLength(array $line): float`,
@@ -991,22 +992,28 @@ function avesmapsCurveResample(array $line, int $n): array
 // Polynomfit im Hauptachsen-Frame. Das Ergebnis ist von Bauart her EINE weiche Biegung und kein
 // geglaetteter Zickzack -- Schrift auf einem Zickzack ist unlesbar, lange bevor die Kurve „falsch"
 // waere.
-function avesmapsCurvePolyFit(array $line, int $degree): array
+// Der Hauptachsen-Frame einer Punktwolke: Schwerpunkt plus die Richtung der groessten Streuung.
+// 🔴 EIGENE FUNKTION, weil ZWEI Rechnungen ihn brauchen -- der Polynomfit einer Linie und der Fit
+// ueber mehrere Teilflaechen. Zweimal dieselben zwanzig Zeilen waeren die zweite Wahrheit ueber
+// dieselbe Groesse, und sie laufen beim ersten Eingriff auseinander.
+//
+// @return array{0:float,1:float,2:float,3:float} [mx, my, cos(theta), sin(theta)]
+function avesmapsCurvePrincipalFrame(array $points): array
 {
-    $n = count($line);
-    if ($n < $degree + 2) {
-        return $line;
+    $n = count($points);
+    if ($n === 0) {
+        return [0.0, 0.0, 1.0, 0.0];
     }
     $mx = 0.0;
     $my = 0.0;
-    foreach ($line as $p) {
+    foreach ($points as $p) {
         $mx += $p[0];
         $my += $p[1];
     }
     $mx /= $n;
     $my /= $n;
     $sxx = $sxy = $syy = 0.0;
-    foreach ($line as $p) {
+    foreach ($points as $p) {
         $dx = $p[0] - $mx;
         $dy = $p[1] - $my;
         $sxx += $dx * $dx;
@@ -1014,8 +1021,17 @@ function avesmapsCurvePolyFit(array $line, int $degree): array
         $syy += $dy * $dy;
     }
     $theta = 0.5 * atan2(2 * $sxy, $sxx - $syy);
-    $ct = cos($theta);
-    $st = sin($theta);
+
+    return [$mx, $my, cos($theta), sin($theta)];
+}
+
+function avesmapsCurvePolyFit(array $line, int $degree): array
+{
+    $n = count($line);
+    if ($n < $degree + 2) {
+        return $line;
+    }
+    [$mx, $my, $ct, $st] = avesmapsCurvePrincipalFrame($line);
     $u = [];
     $v = [];
     foreach ($line as $p) {
@@ -1141,29 +1157,10 @@ function avesmapsCurveFitAcross(array $wolken, int $degree, int $samples): ?arra
             $pts[] = $p;
         }
     }
-    $n = count($pts);
-    if ($n < $degree + 2) {
+    if (count($pts) < $degree + 2) {
         return null;
     }
-    $mx = 0.0;
-    $my = 0.0;
-    foreach ($pts as $p) {
-        $mx += $p[0];
-        $my += $p[1];
-    }
-    $mx /= $n;
-    $my /= $n;
-    $sxx = $sxy = $syy = 0.0;
-    foreach ($pts as $p) {
-        $dx = $p[0] - $mx;
-        $dy = $p[1] - $my;
-        $sxx += $dx * $dx;
-        $sxy += $dx * $dy;
-        $syy += $dy * $dy;
-    }
-    $theta = 0.5 * atan2(2 * $sxy, $sxx - $syy);
-    $ct = cos($theta);
-    $st = sin($theta);
+    [$mx, $my, $ct, $st] = avesmapsCurvePrincipalFrame($pts);
     $paare = [];
     foreach ($pts as $p) {
         $dx = $p[0] - $mx;
