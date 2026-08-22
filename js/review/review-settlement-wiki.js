@@ -672,6 +672,12 @@ async function syncSettlementWikiFromServer() {
 // etwas, das gar nicht mehr abweicht. Live seit dem 17.08.2026, gefunden am 22.08. beim Bau des
 // Zwillings fuer die Landschaft.
 // ⚠️ EINMAL, nicht bei jedem Oeffnen: die fuenf Felder stehen fest in index.html.
+// 🪤 UND DIESE DATEI IST DER ZEUGE EINER DEPLOY-FALLE: ihr Commit ging als einziger Traeger live,
+// und sein Lauf wurde vom naechsten Push ABGEBROCHEN. Ein abgebrochener Lauf laedt nichts hoch,
+// und der naechste rechnet seine geaenderten Dateien ab `github.event.before` -- also ab dem
+// abgebrochenen Commit, dessen Dateien damit nie jemand hochlaedt. Live fehlte genau diese Datei,
+// waehrend alle neun anderen des Umbaus dastanden. Geheilt nur durch eine INHALTSaenderung
+// (AGENTS.md §9).
 // ⚠️ Ein programmatisch gesetzter Wert feuert KEIN `input`/`change` -- der Zeichner ruft sich also
 // nicht selbst, wenn das ↺ gerade schreibt.
 function verdrahteSettlementWikiZeichner() {

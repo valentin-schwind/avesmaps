@@ -294,6 +294,17 @@ is the default, English is opt-in. Therefore:
   und sechs in alter Fassung, während `index.html` schon die neue anforderte. Nur eine
   **Inhaltsänderung** heilt das. Diagnose: `fetch(url+'?cb='+Date.now())` gegen
   `fetch(url)` (siehe `docs/asset-caching-and-versioning.md`).
+  💣 **Und ein ABGEBROCHENER Lauf tut dasselbe — den holt man sich beim Einzeln-live-Gehen
+  selbst.** Ein zweiter Push, während der erste noch läuft, bricht dessen Lauf ab; ein
+  abgebrochener Lauf lädt **nichts** hoch. Der nächste rechnet seine geänderten Dateien ab
+  `github.event.before` — also ab dem abgebrochenen Commit —, und dessen eigene Dateien lädt
+  damit **nie jemand**. Gemessen am 22.08.2026: von zehn Dateien eines Umbaus stand genau die
+  eine nicht live, die nur ein einziger, abgebrochener Commit angefasst hatte; die anderen neun
+  waren später noch einmal berührt worden und kamen dadurch mit. ⚠️ Es fällt nicht auf: der
+  Stempel in `index.html` ist der neue, die Datei dahinter die alte — die Funktion fehlt
+  einfach. Wer mehrere Schritte hintereinander live schickt, **wartet den Lauf ab** oder prüft
+  danach jede Datei einzeln gegen die Live-Seite. Geheilt wird auch hier nur durch eine
+  Inhaltsänderung.
 - 💣 **Ein SQLite-Test kann eine MySQL-Regression ERZWINGEN.** Am 16.08.2026 baute eine Sitzung
   `DELETE g FROM political_territory_geometry g LEFT JOIN …` in
   `DELETE … WHERE id IN (SELECT g.id FROM political_territory_geometry g …)` um, damit die
