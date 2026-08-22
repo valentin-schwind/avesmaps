@@ -159,6 +159,15 @@ $("#toggleSparseCrossings").change(() => {
 	syncLocationMarkerVisibility();
 	syncPlannerStateToUrl();
 });
+// Idee #86. ⚠️ Nicht syncLocationMarkerVisibility wie die Nachbarn darüber: dieser Befund gehört einem
+// WEG, nicht einem Ort. avesmapsSyncOpenPathEndCheck zieht Ringe, Sichtbarkeit und Linienfarbe in EINEM
+// Aufruf nach -- getrennt könnte ein Weg eingeblendet sein, ohne rot zu werden.
+$("#toggleOpenPathEnds").change(() => {
+	if (typeof avesmapsSyncOpenPathEndCheck === "function") {
+		avesmapsSyncOpenPathEndCheck();
+	}
+	syncPlannerStateToUrl();
+});
 $("#toggleNodix").change(() => {
 	syncLocationMarkerVisibility();
 	syncPlannerStateToUrl();
@@ -294,7 +303,7 @@ function getPathStyleColors(path) {
 	// Breiten-Faktor je Straßentyp + Zoomstufe (?roadtune=1, Default 1 -> unverändert).
 	const widthScale = (typeof getPathWidthScale === "function") ? getPathWidthScale(pathSubtype, map.getZoom()) : 1;
 
-	return {
+	const style = {
 		// Reichsstraßen bekommen einen grauen Rand (Kontur), alle anderen weiterhin weiß.
 		outline: isReichsstrasse ? "#9a9a9a" : "#ffffff",
 		center: centerColors[pathSubtype] || centerColors.Weg,
@@ -302,6 +311,25 @@ function getPathStyleColors(path) {
 		centerWeight: baseCenterWeight * widthScale,
 		outlineOpacity: outlineOverride != null ? 1 : (simplifiedRender ? PATH_RENDER_CONFIG.simplifiedOutlineOpacity : 1),
 	};
+
+	// Prüfhaken „Offene Wegenden" (Idee #86): ein Weg, der weder auf einem Ort noch auf einer Kreuzung
+	// endet, wird von BEIDEN Graphbauern komplett verworfen -- er liegt auf der Karte und ist für die
+	// Routenfindung nicht da. Solange der Haken an ist, sagt die Linie das.
+	// 💣 Die Breite kommt aus avesmapsOpenPathEndStyle und hat eine Untergrenze: `widthScale` fährt eine
+	// Wegart auf kleinen Zoomstufen auf 0, und ein Fund der Breite 0 wäre eingeblendet und trotzdem
+	// unsichtbar. Die weiße Kontur bleibt und wächst mit -- ohne sie verschwindet das Rot auf dem
+	// Gebirgspass-Braun der Karte.
+	if (typeof avesmapsIsOpenPathEndCheckActive === "function"
+		&& avesmapsIsOpenPathEndCheckActive()
+		&& avesmapsPathHasOpenEnd(path)) {
+		const befund = avesmapsOpenPathEndStyle(style.centerWeight);
+		style.center = befund.farbe;
+		style.centerWeight = befund.breite;
+		style.outlineWeight = Math.max(style.outlineWeight, befund.breite + 2.6);
+		style.outlineOpacity = 1;
+	}
+
+	return style;
 }
 
 function findNearestGraphEndpointToLatLng(latlng, { excludeLocation = null } = {}) {

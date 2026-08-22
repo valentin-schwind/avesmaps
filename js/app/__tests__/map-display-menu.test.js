@@ -287,6 +287,23 @@ assert.ok(powerlinesEintrag, "der Eintrag fuer powerlines existiert");
 });
 assert.ok(/orte|places/.test(powerlinesEintrag[0]), "und die Ortsklassen");
 
+// 💣 DIE ZWEITE LISTE. Der Riegel laeuft nicht ueber GESPERRT, sondern ueber eine fest getippte
+// ID-Liste; die Tabelle sagt nur, WARUM gesperrt wird. Steht ein Haken in der Tabelle, aber nicht in
+// der Liste, wird er nie angefasst -- er bleibt in jeder Ansicht klickbar, und die Tabelle sieht dabei
+// vollstaendig aus. Genau so ging „Offene Wegenden" am 22.08.2026 daneben (im Browser gemessen: drei
+// Nachbarhaken disabled, dieser nicht). `orte` ist ausgenommen: das sind Knoepfe, kein Haken, und sie
+// haben ihren eigenen Zweig.
+const riegelListe = menueJs.match(/\[([^\]]*?)\]\.forEach\(function \(id\) \{/);
+assert.ok(riegelListe, "map-display-menu.js iteriert eine ID-Liste, um den Riegel zu setzen");
+Object.values(gesperrtTabelle[0].match(/\{[^}]*\}/g) || []).forEach(() => {});
+[...gesperrtTabelle[0].matchAll(/(\w+)\s*:\s*"/g)]
+	.map((treffer) => treffer[1])
+	.filter((id) => id !== "orte")
+	.forEach((id) => {
+		assert.ok(riegelListe[1].includes(`"${id}"`),
+			`#${id} steht in GESPERRT, muss also auch in der Riegel-Liste stehen -- sonst ist der Eintrag wirkungslos`);
+	});
+
 // 💣 Faengt: der Riegel wird EINMAL beim Aufbau gesetzt und friert ein. Ab dem naechsten
 // Ansichtswechsel waere er gelogen -- genau der Fehler, den die Transport-Combobox schon hatte.
 // Ein Moduswechsel feuert KEIN Ereignis (setSelectedMapLayerMode setzt den Wert per jQuery .val(),

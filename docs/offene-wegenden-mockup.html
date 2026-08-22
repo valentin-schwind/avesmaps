@@ -1,0 +1,261 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Pruefhaken Offene Wegenden - Entwurf</title>
+<style>
+:root{
+  --fund:#e0333a;
+  --papier:#f4ecdd; --panel:#fbf6ec; --tinte:#3d3227; --leise:#7c6a55;
+  --linie:#ddcfb8; --gold:#a8842c;
+}
+*{box-sizing:border-box}
+body{margin:0;padding:28px;background:var(--papier);color:var(--tinte);
+  font:15px/1.55 "Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif}
+.wrap{max-width:1180px;margin:0 auto}
+h1{font-size:23px;margin:0 0 4px;letter-spacing:.01em}
+.sub{color:var(--leise);margin:0 0 22px;font-size:14px}
+.zahlen{display:flex;gap:26px;flex-wrap:wrap;background:var(--panel);border:1px solid var(--linie);
+  border-radius:8px;padding:14px 18px;margin:0 0 24px}
+.zahl b{display:block;font-size:22px;color:var(--gold);line-height:1.2}
+.zahl span{font-size:12.5px;color:var(--leise)}
+.paar{display:grid;grid-template-columns:1fr 1fr;gap:22px;align-items:start}
+@media(max-width:920px){.paar{grid-template-columns:1fr}}
+.karte{background:var(--panel);border:1px solid var(--linie);border-radius:8px;overflow:hidden}
+.karte h2{font-size:15px;margin:0;padding:11px 15px;border-bottom:1px solid var(--linie);
+  display:flex;align-items:baseline;gap:9px}
+.karte h2 em{font-style:normal;font-size:12.5px;color:var(--leise);font-weight:400}
+.buehne{background:#e8dcc4;display:block}
+.ortname{font:italic 10.5px Georgia,serif;fill:#2f2a22;paint-order:stroke;stroke:#e8dcc4;stroke-width:2.6px}
+.note{padding:11px 15px;font-size:13px;color:var(--leise);border-top:1px solid var(--linie)}
+.legende{display:flex;gap:20px;flex-wrap:wrap;margin:22px 0 0;padding:14px 18px;
+  background:var(--panel);border:1px solid var(--linie);border-radius:8px;font-size:13.5px}
+.legende i{display:inline-block;width:26px;height:0;border-top:3px solid;vertical-align:middle;margin-right:7px}
+.regel{margin:24px 0 0;padding:16px 18px;background:var(--panel);border:1px solid var(--linie);border-radius:8px}
+.regel h3{margin:0 0 8px;font-size:15px}
+.regel ul{margin:0;padding-left:19px}
+.regel li{margin:5px 0;font-size:14px}
+code{font:12.5px/1.4 ui-monospace,Consolas,monospace;background:#efe6d4;padding:1px 5px;border-radius:3px}
+</style>
+<div class="wrap">
+<h1>Pr&uuml;fen &rarr; &bdquo;Offene Wegenden&ldquo;</h1>
+<p class="sub">Idee #86 &middot; Ausschnitt &ouml;stlich von Abszint, echte Geometrie aus dem Livebestand.
+Vier Pfade treffen sich auf demselben Punkt &mdash; dort sitzt keine Kreuzung, also verwirft der Router alle vier.</p>
+
+<div class="zahlen">
+  <div class="zahl"><b>51</b><span>Wege mit offenem Ende (von 6.023)</span></div>
+  <div class="zahl"><b>53</b><span>offene Enden</span></div>
+  <div class="zahl"><b>42</b><span>davon loser Sto&szlig; &mdash; hier fehlt eine Kreuzung</span></div>
+  <div class="zahl"><b>11</b><span>enden wirklich im Nichts</span></div>
+</div>
+
+<div class="paar">
+  <div class="karte">
+    <h2>A &mdash; nur die Fundstelle <em>verworfen</em></h2>
+    <svg class="buehne" viewBox="0 0 560 475" width="100%"><polyline points="169.1,213.9 202.6,227.9 224.6,234.1 238.9,243.6" fill="none" stroke="#ffffff" stroke-width="4.6" stroke-linecap="round" stroke-linejoin="round"/>
+<polyline points="169.1,213.9 202.6,227.9 224.6,234.1 238.9,243.6" fill="none" stroke="#9b755a" stroke-width="2.0" stroke-linecap="round" stroke-linejoin="round"/>
+<polyline points="106.9,488.4 103.9,472.4 99.3,464.0 78.5,448.7 66.8,424.3 72.6,414.1 79.1,406.9" fill="none" stroke="#ffffff" stroke-width="4.6" stroke-linecap="round" stroke-linejoin="round"/>
+<polyline points="106.9,488.4 103.9,472.4 99.3,464.0 78.5,448.7 66.8,424.3 72.6,414.1 79.1,406.9" fill="none" stroke="#9b755a" stroke-width="2.0" stroke-linecap="round" stroke-linejoin="round"/>
+<polyline points="3.7,615.5 25.1,605.1 44.7,574.4 53.1,535.2 67.0,507.1 84.9,485.7 106.9,488.4" fill="none" stroke="#ffffff" stroke-width="4.6" stroke-linecap="round" stroke-linejoin="round"/>
+<polyline points="3.7,615.5 25.1,605.1 44.7,574.4 53.1,535.2 67.0,507.1 84.9,485.7 106.9,488.4" fill="none" stroke="#9b755a" stroke-width="2.0" stroke-linecap="round" stroke-linejoin="round"/>
+<polyline points="106.9,488.4 121.0,486.7 134.8,477.6 149.9,458.2 164.7,443.5 180.8,434.8 198.9,436.0" fill="none" stroke="#ffffff" stroke-width="4.6" stroke-linecap="round" stroke-linejoin="round"/>
+<polyline points="106.9,488.4 121.0,486.7 134.8,477.6 149.9,458.2 164.7,443.5 180.8,434.8 198.9,436.0" fill="none" stroke="#9b755a" stroke-width="2.0" stroke-linecap="round" stroke-linejoin="round"/>
+<polyline points="475.9,255.9 474.0,278.3 511.2,304.6 560.6,317.4 593.4,321.3 616.4,344.9 643.9,362.4 660.5,393.6" fill="none" stroke="#ffffff" stroke-width="4.6" stroke-linecap="round" stroke-linejoin="round"/>
+<polyline points="475.9,255.9 474.0,278.3 511.2,304.6 560.6,317.4 593.4,321.3 616.4,344.9 643.9,362.4 660.5,393.6" fill="none" stroke="#9b755a" stroke-width="2.0" stroke-linecap="round" stroke-linejoin="round"/>
+<polyline points="-375.0,12.6 -350.8,-1.5 -316.9,-4.3 -303.1,-9.4 -283.1,-10.2 -265.2,-29.9 -240.0,-40.1 -221.8,-38.6 -200.2,-48.3 -182.3,-48.8 -167.1,-59.3 -157.2,-55.0 -146.4,-46.3 -144.9,-36.5 -138.3,-25.8 -140.3,-12.6 -139.5,3.7 -132.3,9.0 -107.0,1.2 -86.5,9.1 -64.6,2.6 -55.3,4.9 -40.2,17.9 -35.7,33.1 -31.5,56.2 -16.6,76.7 5.0,89.9 28.8,112.8 41.7,126.8 74.4,137.0 97.5,145.3 106.8,147.8 130.7,148.4 138.4,153.5 147.4,176.6 159.5,186.7 169.1,213.9" fill="none" stroke="#ffffff" stroke-width="4.8" stroke-linecap="round" stroke-linejoin="round"/>
+<polyline points="-375.0,12.6 -350.8,-1.5 -316.9,-4.3 -303.1,-9.4 -283.1,-10.2 -265.2,-29.9 -240.0,-40.1 -221.8,-38.6 -200.2,-48.3 -182.3,-48.8 -167.1,-59.3 -157.2,-55.0 -146.4,-46.3 -144.9,-36.5 -138.3,-25.8 -140.3,-12.6 -139.5,3.7 -132.3,9.0 -107.0,1.2 -86.5,9.1 -64.6,2.6 -55.3,4.9 -40.2,17.9 -35.7,33.1 -31.5,56.2 -16.6,76.7 5.0,89.9 28.8,112.8 41.7,126.8 74.4,137.0 97.5,145.3 106.8,147.8 130.7,148.4 138.4,153.5 147.4,176.6 159.5,186.7 169.1,213.9" fill="none" stroke="#a8695c" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+<polyline points="322.3,77.8 354.1,63.8 373.7,35.8 393.7,16.8 414.1,-11.2 420.6,-36.8" fill="none" stroke="#ffffff" stroke-width="5.8" stroke-linecap="round" stroke-linejoin="round"/>
+<polyline points="322.3,77.8 354.1,63.8 373.7,35.8 393.7,16.8 414.1,-11.2 420.6,-36.8" fill="none" stroke="#8b8b8b" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/>
+<polyline points="253.3,136.3 268.9,126.2 281.6,109.6 294.5,93.6 322.3,77.8" fill="none" stroke="#ffffff" stroke-width="5.8" stroke-linecap="round" stroke-linejoin="round"/>
+<polyline points="253.3,136.3 268.9,126.2 281.6,109.6 294.5,93.6 322.3,77.8" fill="none" stroke="#8b8b8b" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/>
+<polyline points="169.1,213.9 189.0,205.4 206.8,194.8 216.6,177.0 232.7,166.6 238.2,149.6 253.3,136.3" fill="none" stroke="#ffffff" stroke-width="5.8" stroke-linecap="round" stroke-linejoin="round"/>
+<polyline points="169.1,213.9 189.0,205.4 206.8,194.8 216.6,177.0 232.7,166.6 238.2,149.6 253.3,136.3" fill="none" stroke="#8b8b8b" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/>
+<polyline points="28.1,402.0 53.4,358.4 104.9,327.6 115.4,307.7 137.6,289.6 154.3,244.2 169.1,213.9" fill="none" stroke="#ffffff" stroke-width="5.8" stroke-linecap="round" stroke-linejoin="round"/>
+<polyline points="28.1,402.0 53.4,358.4 104.9,327.6 115.4,307.7 137.6,289.6 154.3,244.2 169.1,213.9" fill="none" stroke="#8b8b8b" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/>
+<polyline points="466.7,704.0 388.7,726.4 312.1,712.5 252.5,664.8 216.1,572.7 198.9,436.0" fill="none" stroke="#ffffff" stroke-width="5.2" stroke-linecap="round" stroke-linejoin="round"/>
+<polyline points="466.7,704.0 388.7,726.4 312.1,712.5 252.5,664.8 216.1,572.7 198.9,436.0" fill="none" stroke="#2f7dd3" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
+<polyline points="173.1,749.8 127.3,707.2 147.4,638.8 178.4,519.1 198.9,436.0" fill="none" stroke="#ffffff" stroke-width="5.2" stroke-linecap="round" stroke-linejoin="round"/>
+<polyline points="173.1,749.8 127.3,707.2 147.4,638.8 178.4,519.1 198.9,436.0" fill="none" stroke="#2f7dd3" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
+<polyline points="428.2,-40.6 431.4,-26.0 413.4,3.2 408.1,12.7 406.2,21.7 391.4,33.9 365.4,64.4 354.2,75.3 337.8,81.6 324.0,84.3 322.2,84.8" fill="none" stroke="#ffffff" stroke-width="5.0" stroke-linecap="round" stroke-linejoin="round"/>
+<polyline points="428.2,-40.6 431.4,-26.0 413.4,3.2 408.1,12.7 406.2,21.7 391.4,33.9 365.4,64.4 354.2,75.3 337.8,81.6 324.0,84.3 322.2,84.8" fill="none" stroke="#6ec6ff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+<polyline points="322.2,84.8 322.3,77.8" fill="none" stroke="#ffffff" stroke-width="5.0" stroke-linecap="round" stroke-linejoin="round"/>
+<polyline points="322.2,84.8 322.3,77.8" fill="none" stroke="#6ec6ff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+<polyline points="322.2,84.8 308.4,92.5 299.9,108.1 290.6,117.7 281.1,127.0 269.7,134.9 259.3,141.3 257.2,141.5" fill="none" stroke="#ffffff" stroke-width="5.0" stroke-linecap="round" stroke-linejoin="round"/>
+<polyline points="322.2,84.8 308.4,92.5 299.9,108.1 290.6,117.7 281.1,127.0 269.7,134.9 259.3,141.3 257.2,141.5" fill="none" stroke="#6ec6ff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+<polyline points="257.2,141.5 253.3,136.3" fill="none" stroke="#ffffff" stroke-width="5.0" stroke-linecap="round" stroke-linejoin="round"/>
+<polyline points="257.2,141.5 253.3,136.3" fill="none" stroke="#6ec6ff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+<polyline points="257.2,141.5 243.7,165.4 229.9,178.4 224.1,184.5 210.3,200.9 197.5,210.2 190.9,213.1 187.7,213.6 181.6,213.1 169.1,213.9" fill="none" stroke="#ffffff" stroke-width="5.0" stroke-linecap="round" stroke-linejoin="round"/>
+<polyline points="257.2,141.5 243.7,165.4 229.9,178.4 224.1,184.5 210.3,200.9 197.5,210.2 190.9,213.1 187.7,213.6 181.6,213.1 169.1,213.9" fill="none" stroke="#6ec6ff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+<polyline points="44.5,81.6 58.9,90.1 68.7,112.1 80.3,124.3 86.0,141.0" fill="none" stroke="#ffffff" stroke-width="5.0" stroke-linecap="round" stroke-linejoin="round"/>
+<polyline points="44.5,81.6 58.9,90.1 68.7,112.1 80.3,124.3 86.0,141.0" fill="none" stroke="#6ec6ff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+<polyline points="86.0,141.0 123.6,142.6 144.8,147.9 146.4,161.2 152.7,173.4 161.7,182.9 167.0,193.0 172.9,201.5 169.1,213.9" fill="none" stroke="#ffffff" stroke-width="5.0" stroke-linecap="round" stroke-linejoin="round"/>
+<polyline points="86.0,141.0 123.6,142.6 144.8,147.9 146.4,161.2 152.7,173.4 161.7,182.9 167.0,193.0 172.9,201.5 169.1,213.9" fill="none" stroke="#6ec6ff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+<polyline points="169.1,213.9 179.3,221.6 169.7,238.0 164.9,253.4 160.7,270.9 148.5,297.4 131.0,312.8 124.9,323.2" fill="none" stroke="#ffffff" stroke-width="5.0" stroke-linecap="round" stroke-linejoin="round"/>
+<polyline points="169.1,213.9 179.3,221.6 169.7,238.0 164.9,253.4 160.7,270.9 148.5,297.4 131.0,312.8 124.9,323.2" fill="none" stroke="#6ec6ff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+<polyline points="131.0,312.8 124.1,316.2 117.5,324.7 116.7,335.3 108.2,349.9 90.7,358.6 76.9,369.5 64.4,378.0 52.2,391.0 43.7,402.4 35.3,412.2 29.2,425.7 18.6,450.9" fill="none" stroke="#ffffff" stroke-width="5.0" stroke-linecap="round" stroke-linejoin="round"/>
+<polyline points="131.0,312.8 124.1,316.2 117.5,324.7 116.7,335.3 108.2,349.9 90.7,358.6 76.9,369.5 64.4,378.0 52.2,391.0 43.7,402.4 35.3,412.2 29.2,425.7 18.6,450.9" fill="none" stroke="#6ec6ff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+<polyline points="67.9,896.1 70.5,807.4 109.8,705.6 152.7,600.6 198.9,436.0" fill="none" stroke="#ffffff" stroke-width="5.2" stroke-linecap="round" stroke-linejoin="round"/>
+<polyline points="67.9,896.1 70.5,807.4 109.8,705.6 152.7,600.6 198.9,436.0" fill="none" stroke="#2f7dd3" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
+<polyline points="238.9,243.6 229.6,250.7" fill="none" stroke="#ffffff" stroke-width="4.6" stroke-linecap="round" stroke-linejoin="round"/>
+<polyline points="238.9,243.6 229.6,250.7" fill="none" stroke="#9b755a" stroke-width="2.0" stroke-linecap="round" stroke-linejoin="round"/>
+<polyline points="475.9,255.9 477.8,241.5 481.5,223.7 493.7,199.1 492.4,174.7 523.4,155.9 554.2,152.7 599.3,120.6 604.8,93.8 575.6,83.2" fill="none" stroke="#ffffff" stroke-width="5.0" stroke-linecap="round" stroke-linejoin="round"/>
+<polyline points="475.9,255.9 477.8,241.5 481.5,223.7 493.7,199.1 492.4,174.7 523.4,155.9 554.2,152.7 599.3,120.6 604.8,93.8 575.6,83.2" fill="none" stroke="#cec4ae" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+<polyline points="184.0,371.6 165.7,393.6 198.9,436.0" fill="none" stroke="#ffffff" stroke-width="4.6" stroke-linecap="round" stroke-linejoin="round"/>
+<polyline points="184.0,371.6 165.7,393.6 198.9,436.0" fill="none" stroke="#9b755a" stroke-width="2.0" stroke-linecap="round" stroke-linejoin="round"/>
+<polyline points="79.1,406.9 70.0,402.5 60.4,401.3 56.2,400.3 52.9,398.3 43.7,402.4" fill="none" stroke="#ffffff" stroke-width="4.6" stroke-linecap="round" stroke-linejoin="round"/>
+<polyline points="79.1,406.9 70.0,402.5 60.4,401.3 56.2,400.3 52.9,398.3 43.7,402.4" fill="none" stroke="#9b755a" stroke-width="2.0" stroke-linecap="round" stroke-linejoin="round"/>
+<polyline points="281.6,296.1 304.3,274.6 339.5,266.4 371.7,265.8 399.6,280.9 475.9,255.9" fill="none" stroke="#ffffff" stroke-width="4.6" stroke-linecap="round" stroke-linejoin="round"/>
+<polyline points="281.6,296.1 304.3,274.6 339.5,266.4 371.7,265.8 399.6,280.9 475.9,255.9" fill="none" stroke="#9b755a" stroke-width="2.0" stroke-linecap="round" stroke-linejoin="round"/>
+<polyline points="281.6,296.1 297.0,313.3 310.2,328.7 331.4,342.5 342.6,341.4 349.5,342.5 355.8,352.5 372.0,381.4" fill="none" stroke="#ffffff" stroke-width="4.6" stroke-linecap="round" stroke-linejoin="round"/>
+<polyline points="281.6,296.1 297.0,313.3 310.2,328.7 331.4,342.5 342.6,341.4 349.5,342.5 355.8,352.5 372.0,381.4" fill="none" stroke="#9b755a" stroke-width="2.0" stroke-linecap="round" stroke-linejoin="round"/>
+<polyline points="238.9,243.6 252.2,247.8 263.3,256.9 271.5,268.0 275.8,278.1 281.6,296.1" fill="none" stroke="#ffffff" stroke-width="4.6" stroke-linecap="round" stroke-linejoin="round"/>
+<polyline points="238.9,243.6 252.2,247.8 263.3,256.9 271.5,268.0 275.8,278.1 281.6,296.1" fill="none" stroke="#9b755a" stroke-width="2.0" stroke-linecap="round" stroke-linejoin="round"/>
+<polyline points="281.6,296.1 253.8,329.0 253.8,352.7 211.3,389.2 184.0,371.6" fill="none" stroke="#ffffff" stroke-width="4.6" stroke-linecap="round" stroke-linejoin="round"/>
+<polyline points="281.6,296.1 253.8,329.0 253.8,352.7 211.3,389.2 184.0,371.6" fill="none" stroke="#9b755a" stroke-width="2.0" stroke-linecap="round" stroke-linejoin="round"/>
+<circle cx="322.3" cy="77.8" r="3.6" fill="#4a3a2c" stroke="#fff" stroke-width="1.4"/>
+<text x="328.3" y="81.2" class="ortname">Krividhan</text>
+<circle cx="253.3" cy="136.3" r="3.6" fill="#4a3a2c" stroke="#fff" stroke-width="1.4"/>
+<text x="259.3" y="139.7" class="ortname">Halderot</text>
+<circle cx="169.1" cy="213.9" r="3.6" fill="#4a3a2c" stroke="#fff" stroke-width="1.4"/>
+<text x="175.1" y="217.3" class="ortname">Abszint</text>
+<circle cx="475.9" cy="255.9" r="3.6" fill="#4a3a2c" stroke="#fff" stroke-width="1.4"/>
+<text x="481.9" y="259.3" class="ortname">Tsh'Awah</text>
+<circle cx="106.9" cy="488.4" r="3.6" fill="#4a3a2c" stroke="#fff" stroke-width="1.4"/>
+<text x="112.9" y="491.8" class="ortname">Chag</text>
+<circle cx="198.9" cy="436.0" r="3.6" fill="#4a3a2c" stroke="#fff" stroke-width="1.4"/>
+<text x="204.9" y="439.4" class="ortname">Uru'Achin</text>
+<circle cx="372.0" cy="381.4" r="3.6" fill="#4a3a2c" stroke="#fff" stroke-width="1.4"/>
+<text x="378.0" y="384.8" class="ortname">Khirr'Zsugg</text>
+<circle cx="124.9" cy="323.2" r="3.6" fill="#4a3a2c" stroke="#fff" stroke-width="1.4"/>
+<text x="130.9" y="326.6" class="ortname">Raschid Ra'ad</text>
+<rect x="42.0" y="79.1" width="5" height="5" transform="rotate(45 44.5 81.6)" fill="#6b5744" stroke="#fff" stroke-width="1.2"/>
+<rect x="319.7" y="82.3" width="5" height="5" transform="rotate(45 322.2 84.8)" fill="#6b5744" stroke="#fff" stroke-width="1.2"/>
+<rect x="254.7" y="139.0" width="5" height="5" transform="rotate(45 257.2 141.5)" fill="#6b5744" stroke="#fff" stroke-width="1.2"/>
+<rect x="83.5" y="138.5" width="5" height="5" transform="rotate(45 86.0 141.0)" fill="#6b5744" stroke="#fff" stroke-width="1.2"/>
+<rect x="128.5" y="310.3" width="5" height="5" transform="rotate(45 131.0 312.8)" fill="#6b5744" stroke="#fff" stroke-width="1.2"/>
+<circle cx="229.6" cy="250.7" r="3.6" fill="#4a3a2c" stroke="#fff" stroke-width="1.4"/>
+<text x="235.6" y="254.1" class="ortname">Drs'Urr</text>
+<rect x="236.4" y="241.1" width="5" height="5" transform="rotate(45 238.9 243.6)" fill="#6b5744" stroke="#fff" stroke-width="1.2"/>
+<circle cx="184.0" cy="371.6" r="3.6" fill="#4a3a2c" stroke="#fff" stroke-width="1.4"/>
+<text x="190.0" y="375.0" class="ortname">Neshai'Rai</text>
+<circle cx="79.1" cy="406.9" r="3.6" fill="#4a3a2c" stroke="#fff" stroke-width="1.4"/>
+<text x="85.1" y="410.3" class="ortname">Astashar</text>
+<circle cx="281.6" cy="296.1" r="13" fill="none" stroke="var(--fund)" stroke-width="3" opacity=".95"/><circle cx="281.6" cy="296.1" r="4" fill="var(--fund)"/></svg>
+    <p class="note">Ruhig. Zeigt <b>wo</b> repariert wird, aber nicht, <b>was</b> alles daran h&auml;ngt.</p>
+  </div>
+  <div class="karte">
+    <h2>B &mdash; Fundstelle + der ganze Weg rot <em>GEBAUT (Owner 22.08.2026)</em></h2>
+    <svg class="buehne" viewBox="0 0 560 475" width="100%"><polyline points="169.1,213.9 202.6,227.9 224.6,234.1 238.9,243.6" fill="none" stroke="#ffffff" stroke-width="4.6" stroke-linecap="round" stroke-linejoin="round"/>
+<polyline points="169.1,213.9 202.6,227.9 224.6,234.1 238.9,243.6" fill="none" stroke="#9b755a" stroke-width="2.0" stroke-linecap="round" stroke-linejoin="round"/>
+<polyline points="106.9,488.4 103.9,472.4 99.3,464.0 78.5,448.7 66.8,424.3 72.6,414.1 79.1,406.9" fill="none" stroke="#ffffff" stroke-width="4.6" stroke-linecap="round" stroke-linejoin="round"/>
+<polyline points="106.9,488.4 103.9,472.4 99.3,464.0 78.5,448.7 66.8,424.3 72.6,414.1 79.1,406.9" fill="none" stroke="#9b755a" stroke-width="2.0" stroke-linecap="round" stroke-linejoin="round"/>
+<polyline points="3.7,615.5 25.1,605.1 44.7,574.4 53.1,535.2 67.0,507.1 84.9,485.7 106.9,488.4" fill="none" stroke="#ffffff" stroke-width="4.6" stroke-linecap="round" stroke-linejoin="round"/>
+<polyline points="3.7,615.5 25.1,605.1 44.7,574.4 53.1,535.2 67.0,507.1 84.9,485.7 106.9,488.4" fill="none" stroke="#9b755a" stroke-width="2.0" stroke-linecap="round" stroke-linejoin="round"/>
+<polyline points="106.9,488.4 121.0,486.7 134.8,477.6 149.9,458.2 164.7,443.5 180.8,434.8 198.9,436.0" fill="none" stroke="#ffffff" stroke-width="4.6" stroke-linecap="round" stroke-linejoin="round"/>
+<polyline points="106.9,488.4 121.0,486.7 134.8,477.6 149.9,458.2 164.7,443.5 180.8,434.8 198.9,436.0" fill="none" stroke="#9b755a" stroke-width="2.0" stroke-linecap="round" stroke-linejoin="round"/>
+<polyline points="475.9,255.9 474.0,278.3 511.2,304.6 560.6,317.4 593.4,321.3 616.4,344.9 643.9,362.4 660.5,393.6" fill="none" stroke="#ffffff" stroke-width="4.6" stroke-linecap="round" stroke-linejoin="round"/>
+<polyline points="475.9,255.9 474.0,278.3 511.2,304.6 560.6,317.4 593.4,321.3 616.4,344.9 643.9,362.4 660.5,393.6" fill="none" stroke="#9b755a" stroke-width="2.0" stroke-linecap="round" stroke-linejoin="round"/>
+<polyline points="-375.0,12.6 -350.8,-1.5 -316.9,-4.3 -303.1,-9.4 -283.1,-10.2 -265.2,-29.9 -240.0,-40.1 -221.8,-38.6 -200.2,-48.3 -182.3,-48.8 -167.1,-59.3 -157.2,-55.0 -146.4,-46.3 -144.9,-36.5 -138.3,-25.8 -140.3,-12.6 -139.5,3.7 -132.3,9.0 -107.0,1.2 -86.5,9.1 -64.6,2.6 -55.3,4.9 -40.2,17.9 -35.7,33.1 -31.5,56.2 -16.6,76.7 5.0,89.9 28.8,112.8 41.7,126.8 74.4,137.0 97.5,145.3 106.8,147.8 130.7,148.4 138.4,153.5 147.4,176.6 159.5,186.7 169.1,213.9" fill="none" stroke="#ffffff" stroke-width="4.8" stroke-linecap="round" stroke-linejoin="round"/>
+<polyline points="-375.0,12.6 -350.8,-1.5 -316.9,-4.3 -303.1,-9.4 -283.1,-10.2 -265.2,-29.9 -240.0,-40.1 -221.8,-38.6 -200.2,-48.3 -182.3,-48.8 -167.1,-59.3 -157.2,-55.0 -146.4,-46.3 -144.9,-36.5 -138.3,-25.8 -140.3,-12.6 -139.5,3.7 -132.3,9.0 -107.0,1.2 -86.5,9.1 -64.6,2.6 -55.3,4.9 -40.2,17.9 -35.7,33.1 -31.5,56.2 -16.6,76.7 5.0,89.9 28.8,112.8 41.7,126.8 74.4,137.0 97.5,145.3 106.8,147.8 130.7,148.4 138.4,153.5 147.4,176.6 159.5,186.7 169.1,213.9" fill="none" stroke="#a8695c" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+<polyline points="322.3,77.8 354.1,63.8 373.7,35.8 393.7,16.8 414.1,-11.2 420.6,-36.8" fill="none" stroke="#ffffff" stroke-width="5.8" stroke-linecap="round" stroke-linejoin="round"/>
+<polyline points="322.3,77.8 354.1,63.8 373.7,35.8 393.7,16.8 414.1,-11.2 420.6,-36.8" fill="none" stroke="#8b8b8b" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/>
+<polyline points="253.3,136.3 268.9,126.2 281.6,109.6 294.5,93.6 322.3,77.8" fill="none" stroke="#ffffff" stroke-width="5.8" stroke-linecap="round" stroke-linejoin="round"/>
+<polyline points="253.3,136.3 268.9,126.2 281.6,109.6 294.5,93.6 322.3,77.8" fill="none" stroke="#8b8b8b" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/>
+<polyline points="169.1,213.9 189.0,205.4 206.8,194.8 216.6,177.0 232.7,166.6 238.2,149.6 253.3,136.3" fill="none" stroke="#ffffff" stroke-width="5.8" stroke-linecap="round" stroke-linejoin="round"/>
+<polyline points="169.1,213.9 189.0,205.4 206.8,194.8 216.6,177.0 232.7,166.6 238.2,149.6 253.3,136.3" fill="none" stroke="#8b8b8b" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/>
+<polyline points="28.1,402.0 53.4,358.4 104.9,327.6 115.4,307.7 137.6,289.6 154.3,244.2 169.1,213.9" fill="none" stroke="#ffffff" stroke-width="5.8" stroke-linecap="round" stroke-linejoin="round"/>
+<polyline points="28.1,402.0 53.4,358.4 104.9,327.6 115.4,307.7 137.6,289.6 154.3,244.2 169.1,213.9" fill="none" stroke="#8b8b8b" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/>
+<polyline points="466.7,704.0 388.7,726.4 312.1,712.5 252.5,664.8 216.1,572.7 198.9,436.0" fill="none" stroke="#ffffff" stroke-width="5.2" stroke-linecap="round" stroke-linejoin="round"/>
+<polyline points="466.7,704.0 388.7,726.4 312.1,712.5 252.5,664.8 216.1,572.7 198.9,436.0" fill="none" stroke="#2f7dd3" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
+<polyline points="173.1,749.8 127.3,707.2 147.4,638.8 178.4,519.1 198.9,436.0" fill="none" stroke="#ffffff" stroke-width="5.2" stroke-linecap="round" stroke-linejoin="round"/>
+<polyline points="173.1,749.8 127.3,707.2 147.4,638.8 178.4,519.1 198.9,436.0" fill="none" stroke="#2f7dd3" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
+<polyline points="428.2,-40.6 431.4,-26.0 413.4,3.2 408.1,12.7 406.2,21.7 391.4,33.9 365.4,64.4 354.2,75.3 337.8,81.6 324.0,84.3 322.2,84.8" fill="none" stroke="#ffffff" stroke-width="5.0" stroke-linecap="round" stroke-linejoin="round"/>
+<polyline points="428.2,-40.6 431.4,-26.0 413.4,3.2 408.1,12.7 406.2,21.7 391.4,33.9 365.4,64.4 354.2,75.3 337.8,81.6 324.0,84.3 322.2,84.8" fill="none" stroke="#6ec6ff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+<polyline points="322.2,84.8 322.3,77.8" fill="none" stroke="#ffffff" stroke-width="5.0" stroke-linecap="round" stroke-linejoin="round"/>
+<polyline points="322.2,84.8 322.3,77.8" fill="none" stroke="#6ec6ff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+<polyline points="322.2,84.8 308.4,92.5 299.9,108.1 290.6,117.7 281.1,127.0 269.7,134.9 259.3,141.3 257.2,141.5" fill="none" stroke="#ffffff" stroke-width="5.0" stroke-linecap="round" stroke-linejoin="round"/>
+<polyline points="322.2,84.8 308.4,92.5 299.9,108.1 290.6,117.7 281.1,127.0 269.7,134.9 259.3,141.3 257.2,141.5" fill="none" stroke="#6ec6ff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+<polyline points="257.2,141.5 253.3,136.3" fill="none" stroke="#ffffff" stroke-width="5.0" stroke-linecap="round" stroke-linejoin="round"/>
+<polyline points="257.2,141.5 253.3,136.3" fill="none" stroke="#6ec6ff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+<polyline points="257.2,141.5 243.7,165.4 229.9,178.4 224.1,184.5 210.3,200.9 197.5,210.2 190.9,213.1 187.7,213.6 181.6,213.1 169.1,213.9" fill="none" stroke="#ffffff" stroke-width="5.0" stroke-linecap="round" stroke-linejoin="round"/>
+<polyline points="257.2,141.5 243.7,165.4 229.9,178.4 224.1,184.5 210.3,200.9 197.5,210.2 190.9,213.1 187.7,213.6 181.6,213.1 169.1,213.9" fill="none" stroke="#6ec6ff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+<polyline points="44.5,81.6 58.9,90.1 68.7,112.1 80.3,124.3 86.0,141.0" fill="none" stroke="#ffffff" stroke-width="5.0" stroke-linecap="round" stroke-linejoin="round"/>
+<polyline points="44.5,81.6 58.9,90.1 68.7,112.1 80.3,124.3 86.0,141.0" fill="none" stroke="#6ec6ff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+<polyline points="86.0,141.0 123.6,142.6 144.8,147.9 146.4,161.2 152.7,173.4 161.7,182.9 167.0,193.0 172.9,201.5 169.1,213.9" fill="none" stroke="#ffffff" stroke-width="5.0" stroke-linecap="round" stroke-linejoin="round"/>
+<polyline points="86.0,141.0 123.6,142.6 144.8,147.9 146.4,161.2 152.7,173.4 161.7,182.9 167.0,193.0 172.9,201.5 169.1,213.9" fill="none" stroke="#6ec6ff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+<polyline points="169.1,213.9 179.3,221.6 169.7,238.0 164.9,253.4 160.7,270.9 148.5,297.4 131.0,312.8 124.9,323.2" fill="none" stroke="#ffffff" stroke-width="5.0" stroke-linecap="round" stroke-linejoin="round"/>
+<polyline points="169.1,213.9 179.3,221.6 169.7,238.0 164.9,253.4 160.7,270.9 148.5,297.4 131.0,312.8 124.9,323.2" fill="none" stroke="#6ec6ff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+<polyline points="131.0,312.8 124.1,316.2 117.5,324.7 116.7,335.3 108.2,349.9 90.7,358.6 76.9,369.5 64.4,378.0 52.2,391.0 43.7,402.4 35.3,412.2 29.2,425.7 18.6,450.9" fill="none" stroke="#ffffff" stroke-width="5.0" stroke-linecap="round" stroke-linejoin="round"/>
+<polyline points="131.0,312.8 124.1,316.2 117.5,324.7 116.7,335.3 108.2,349.9 90.7,358.6 76.9,369.5 64.4,378.0 52.2,391.0 43.7,402.4 35.3,412.2 29.2,425.7 18.6,450.9" fill="none" stroke="#6ec6ff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+<polyline points="67.9,896.1 70.5,807.4 109.8,705.6 152.7,600.6 198.9,436.0" fill="none" stroke="#ffffff" stroke-width="5.2" stroke-linecap="round" stroke-linejoin="round"/>
+<polyline points="67.9,896.1 70.5,807.4 109.8,705.6 152.7,600.6 198.9,436.0" fill="none" stroke="#2f7dd3" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
+<polyline points="238.9,243.6 229.6,250.7" fill="none" stroke="#ffffff" stroke-width="4.6" stroke-linecap="round" stroke-linejoin="round"/>
+<polyline points="238.9,243.6 229.6,250.7" fill="none" stroke="#9b755a" stroke-width="2.0" stroke-linecap="round" stroke-linejoin="round"/>
+<polyline points="475.9,255.9 477.8,241.5 481.5,223.7 493.7,199.1 492.4,174.7 523.4,155.9 554.2,152.7 599.3,120.6 604.8,93.8 575.6,83.2" fill="none" stroke="#ffffff" stroke-width="5.0" stroke-linecap="round" stroke-linejoin="round"/>
+<polyline points="475.9,255.9 477.8,241.5 481.5,223.7 493.7,199.1 492.4,174.7 523.4,155.9 554.2,152.7 599.3,120.6 604.8,93.8 575.6,83.2" fill="none" stroke="#cec4ae" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+<polyline points="184.0,371.6 165.7,393.6 198.9,436.0" fill="none" stroke="#ffffff" stroke-width="4.6" stroke-linecap="round" stroke-linejoin="round"/>
+<polyline points="184.0,371.6 165.7,393.6 198.9,436.0" fill="none" stroke="#9b755a" stroke-width="2.0" stroke-linecap="round" stroke-linejoin="round"/>
+<polyline points="79.1,406.9 70.0,402.5 60.4,401.3 56.2,400.3 52.9,398.3 43.7,402.4" fill="none" stroke="#ffffff" stroke-width="4.6" stroke-linecap="round" stroke-linejoin="round"/>
+<polyline points="79.1,406.9 70.0,402.5 60.4,401.3 56.2,400.3 52.9,398.3 43.7,402.4" fill="none" stroke="#9b755a" stroke-width="2.0" stroke-linecap="round" stroke-linejoin="round"/>
+<polyline points="281.6,296.1 304.3,274.6 339.5,266.4 371.7,265.8 399.6,280.9 475.9,255.9" fill="none" stroke="#ffffff" stroke-width="4.6" stroke-linecap="round" stroke-linejoin="round"/>
+<polyline points="281.6,296.1 304.3,274.6 339.5,266.4 371.7,265.8 399.6,280.9 475.9,255.9" fill="none" stroke="var(--fund)" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/>
+<polyline points="281.6,296.1 297.0,313.3 310.2,328.7 331.4,342.5 342.6,341.4 349.5,342.5 355.8,352.5 372.0,381.4" fill="none" stroke="#ffffff" stroke-width="4.6" stroke-linecap="round" stroke-linejoin="round"/>
+<polyline points="281.6,296.1 297.0,313.3 310.2,328.7 331.4,342.5 342.6,341.4 349.5,342.5 355.8,352.5 372.0,381.4" fill="none" stroke="var(--fund)" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/>
+<polyline points="238.9,243.6 252.2,247.8 263.3,256.9 271.5,268.0 275.8,278.1 281.6,296.1" fill="none" stroke="#ffffff" stroke-width="4.6" stroke-linecap="round" stroke-linejoin="round"/>
+<polyline points="238.9,243.6 252.2,247.8 263.3,256.9 271.5,268.0 275.8,278.1 281.6,296.1" fill="none" stroke="var(--fund)" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/>
+<polyline points="281.6,296.1 253.8,329.0 253.8,352.7 211.3,389.2 184.0,371.6" fill="none" stroke="#ffffff" stroke-width="4.6" stroke-linecap="round" stroke-linejoin="round"/>
+<polyline points="281.6,296.1 253.8,329.0 253.8,352.7 211.3,389.2 184.0,371.6" fill="none" stroke="var(--fund)" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/>
+<circle cx="322.3" cy="77.8" r="3.6" fill="#4a3a2c" stroke="#fff" stroke-width="1.4"/>
+<text x="328.3" y="81.2" class="ortname">Krividhan</text>
+<circle cx="253.3" cy="136.3" r="3.6" fill="#4a3a2c" stroke="#fff" stroke-width="1.4"/>
+<text x="259.3" y="139.7" class="ortname">Halderot</text>
+<circle cx="169.1" cy="213.9" r="3.6" fill="#4a3a2c" stroke="#fff" stroke-width="1.4"/>
+<text x="175.1" y="217.3" class="ortname">Abszint</text>
+<circle cx="475.9" cy="255.9" r="3.6" fill="#4a3a2c" stroke="#fff" stroke-width="1.4"/>
+<text x="481.9" y="259.3" class="ortname">Tsh'Awah</text>
+<circle cx="106.9" cy="488.4" r="3.6" fill="#4a3a2c" stroke="#fff" stroke-width="1.4"/>
+<text x="112.9" y="491.8" class="ortname">Chag</text>
+<circle cx="198.9" cy="436.0" r="3.6" fill="#4a3a2c" stroke="#fff" stroke-width="1.4"/>
+<text x="204.9" y="439.4" class="ortname">Uru'Achin</text>
+<circle cx="372.0" cy="381.4" r="3.6" fill="#4a3a2c" stroke="#fff" stroke-width="1.4"/>
+<text x="378.0" y="384.8" class="ortname">Khirr'Zsugg</text>
+<circle cx="124.9" cy="323.2" r="3.6" fill="#4a3a2c" stroke="#fff" stroke-width="1.4"/>
+<text x="130.9" y="326.6" class="ortname">Raschid Ra'ad</text>
+<rect x="42.0" y="79.1" width="5" height="5" transform="rotate(45 44.5 81.6)" fill="#6b5744" stroke="#fff" stroke-width="1.2"/>
+<rect x="319.7" y="82.3" width="5" height="5" transform="rotate(45 322.2 84.8)" fill="#6b5744" stroke="#fff" stroke-width="1.2"/>
+<rect x="254.7" y="139.0" width="5" height="5" transform="rotate(45 257.2 141.5)" fill="#6b5744" stroke="#fff" stroke-width="1.2"/>
+<rect x="83.5" y="138.5" width="5" height="5" transform="rotate(45 86.0 141.0)" fill="#6b5744" stroke="#fff" stroke-width="1.2"/>
+<rect x="128.5" y="310.3" width="5" height="5" transform="rotate(45 131.0 312.8)" fill="#6b5744" stroke="#fff" stroke-width="1.2"/>
+<circle cx="229.6" cy="250.7" r="3.6" fill="#4a3a2c" stroke="#fff" stroke-width="1.4"/>
+<text x="235.6" y="254.1" class="ortname">Drs'Urr</text>
+<rect x="236.4" y="241.1" width="5" height="5" transform="rotate(45 238.9 243.6)" fill="#6b5744" stroke="#fff" stroke-width="1.2"/>
+<circle cx="184.0" cy="371.6" r="3.6" fill="#4a3a2c" stroke="#fff" stroke-width="1.4"/>
+<text x="190.0" y="375.0" class="ortname">Neshai'Rai</text>
+<circle cx="79.1" cy="406.9" r="3.6" fill="#4a3a2c" stroke="#fff" stroke-width="1.4"/>
+<text x="85.1" y="410.3" class="ortname">Astashar</text>
+<circle cx="281.6" cy="296.1" r="13" fill="none" stroke="var(--fund)" stroke-width="3" opacity=".95"/><circle cx="281.6" cy="296.1" r="4" fill="var(--fund)"/></svg>
+    <p class="note">Auff&auml;llig. Man sieht sofort, dass hier <b>vier ganze Pfade</b> tot sind &mdash; nicht nur ein Punkt.</p>
+  </div>
+</div>
+
+<div class="legende">
+  <span><i style="border-color:var(--fund)"></i>Befund</span>
+  <span><i style="border-color:#9b755a"></i>Pfad</span>
+  <span><i style="border-color:#8b8b8b"></i>Stra&szlig;e</span>
+  <span><i style="border-color:#a8695c"></i>Gebirgspass</span>
+  <span><i style="border-color:#6ec6ff"></i>Flussweg</span>
+  <span><i style="border-color:#2f7dd3"></i>Seeweg</span>
+  <span>&#9679; Ort &nbsp; &#9670; Kreuzung</span>
+</div>
+
+<div class="regel">
+  <h3>Was der Haken z&auml;hlt</h3>
+  <ul>
+    <li>Ein Weg ist ein Befund, wenn an einem seiner beiden <b>Enden</b> weder Ort noch Kreuzung liegt &mdash;
+        gemessen mit <code>getLocationAtPathEndpoint()</code>, also mit <b>genau der Rechnung, mit der der Router
+        den Weg verwirft</b>. Server und Client rechnen hier nachweislich gleich.</li>
+    <li>Er <b>blendet seine Funde ein</b>: ein roter Weg erscheint auch dann, wenn &bdquo;Wege&ldquo;/&bdquo;Fl&uuml;sse&ldquo;/&bdquo;Seewege&ldquo;
+        ausgeschaltet sind oder der Zoom die Wegart sonst wegblendet. Sonst w&auml;ren genau die gesuchten Wege unsichtbar.</li>
+    <li>Alle acht Wegarten, nicht nur Stra&szlig;en: ein Flussweg ohne Knoten ist genauso tot &mdash; und die Messung zeigt
+        22 davon.</li>
+  </ul>
+</div>
+</div>

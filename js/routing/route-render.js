@@ -454,6 +454,13 @@ function refreshPlannerAfterFeatureChange({ updateRoute = false } = {}) {
 	if (typeof avesmapsRefreshOpenPathEnds === "function") {
 		avesmapsRefreshOpenPathEnds();
 	}
+	// Idee #86, gleiche Begründung eine Zeile höher, andere Reichweite: der Prüfhaken misst nicht die
+	// eigene Merkliste, sondern den Gesamtbestand -- eine gesetzte Kreuzung nimmt hier also auch einen
+	// Befund zurück, den nie jemand aufgemacht hat. Erst den Index verwerfen, dann neu zeichnen.
+	if (typeof avesmapsInvalidateOpenPathEndCheck === "function") {
+		avesmapsInvalidateOpenPathEndCheck();
+		avesmapsSyncOpenPathEndCheck();
+	}
 
 	if (updateRoute && getWaypointInputValues().length) {
 		updateRouteKeepingCurrentMapView();

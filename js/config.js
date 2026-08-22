@@ -748,6 +748,7 @@ const DEFAULT_PLANNER_STATE = {
 	toggleCrossings: false,
 	toggleUnconnected: false,
 	toggleSparseCrossings: false,
+	toggleOpenPathEnds: false,
 	toggleNodix: false,
 	toggleHidden: false,
 	toggleLabelsWithRegion: false,

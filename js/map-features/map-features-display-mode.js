@@ -23,6 +23,10 @@ function currentPathVisibilityContext() {
 		showSeaPaths: (typeof IS_EDIT_MODE !== "undefined" && IS_EDIT_MODE) && $("#toggleSeaPaths").is(":checked"),
 		zoom: map.getZoom(),
 		bounds: map.getBounds().pad(0.25), // 25% Polster -> kein Pop-In am Rand beim Pannen
+		// Prüfhaken „Offene Wegenden" (Idee #86). Einmal je Durchlauf gelesen, nicht je Weg -- dasselbe
+		// Muster wie die Toggle-Stände darüber.
+		openEndCheck: typeof avesmapsIsOpenPathEndCheckActive === "function" && avesmapsIsOpenPathEndCheckActive(),
+		powerlineMode: typeof getSelectedMapLayerMode === "function" && getSelectedMapLayerMode() === "powerlines",
 	};
 }
 
@@ -30,13 +34,30 @@ function currentPathVisibilityContext() {
 // sichtbare Breite (Skalierung > 0) UND im (gepolsterten) Sichtfeld. So reprojiziert Leaflet bei jedem Zoom nur
 // die paar Hundert sichtbaren Wege statt aller ~5500 -> raus-/reinzoomen deutlich schneller.
 function pathShouldBeOnMap(path, ctx) {
-	if (!shouldShowPathOnMap(path, ctx)) {
-		return false;
-	}
-	if (typeof getPathWidthScale === "function") {
-		const subtype = normalizePathSubtype(path?.properties?.feature_subtype || path?.properties?.name);
-		if (!(getPathWidthScale(subtype, ctx.zoom) > 0)) {
+	// 🔴 EIN PRÜFHAKEN ZEIGT SEINE FUNDE (Owner 14.08.2026). Ein Weg mit offenem Ende erscheint auch
+	// dann, wenn seine Wegart gerade abgeschaltet ist ("Wege"/"Flüsse"/"Seewege") oder auf dieser
+	// Zoomstufe wegskaliert wird -- sonst wären ausgerechnet die gesuchten Wege unsichtbar, und der
+	// Haken markierte nur, was eine ANDERE Einstellung ohnehin zeigt. Genau daran ist „Unverbunden"
+	// anderthalb Jahre lang gescheitert (live gemessen: 180 unverbundene Orte, davon sichtbar null).
+	// Was BLEIBT: der Bildausschnitt (sonst zeichnet die Karte alles) und der Kraftlinien-Modus -- der
+	// ist eine ANSICHT (Magiersicht ohne jeden Weg), kein Filter über Wegarten.
+	const istOffenerWegBefund = Boolean(ctx.openEndCheck)
+		&& typeof avesmapsPathHasOpenEnd === "function"
+		&& avesmapsPathHasOpenEnd(path);
+
+	if (istOffenerWegBefund) {
+		if (ctx.powerlineMode) {
 			return false;
+		}
+	} else {
+		if (!shouldShowPathOnMap(path, ctx)) {
+			return false;
+		}
+		if (typeof getPathWidthScale === "function") {
+			const subtype = normalizePathSubtype(path?.properties?.feature_subtype || path?.properties?.name);
+			if (!(getPathWidthScale(subtype, ctx.zoom) > 0)) {
+				return false;
+			}
 		}
 	}
 	const b = getPathGeomBounds(path);
@@ -300,6 +321,13 @@ function setSelectedMapLayerMode(mode) {
 	syncPowerlineMapTint();
 	syncLocationMarkerVisibility(); // Modus beeinflusst die Marker (Kraftlinien-Modus -> nur Nodices)
 	syncPathVisibility();           // Modus beeinflusst die Wege/Flüsse (Kraftlinien-Modus -> aus) + Pfad-Labels
+	// Idee #86: die Fundstellen-Ringe und die roten Linien. NACH syncPathVisibility und mit
+	// `zieheWegeNach: false`, weil die Wege eine Zeile höher schon durch sind -- typeof-Guard aus
+	// demselben Grund wie bei syncEcosystemVisibility oben (neue Datei; bliebe sie einmal aus, dürfte
+	// nicht der ganze Zustands-Restore mitfallen).
+	if (typeof avesmapsSyncOpenPathEndCheck === "function") {
+		avesmapsSyncOpenPathEndCheck({ zieheWegeNach: false });
+	}
 	syncPlannerStateToUrl();
 }
 

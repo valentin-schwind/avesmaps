@@ -962,6 +962,24 @@
 	cursor: pointer;
 }
 
+/* Idee #86 -- die Fundstelle des Pruefhakens „Offene Wegenden". Bewusst DURCHGEZOGEN und eine Spur
+   groesser als der gestrichelte Bernstein-Ring darueber: dieselbe Luecke, aber als Befund ueber den
+   Gesamtbestand statt als eigener Arbeitszustand. Treffen beide auf dieselbe Stelle, liegen sie
+   ineinander -- selten (die Merkliste ist normalerweise leer) und dann richtig gelesen. */
+.open-path-check-marker__ring {
+	display: block;
+	box-sizing: border-box;
+	width: 30px;
+	height: 30px;
+	border: 4px solid var(--color-path-open-end);
+	border-radius: 50%;
+	background: transparent;
+	box-shadow:
+		inset 0 0 0 2px rgba(255, 255, 255, 0.85),
+		0 0 0 1px rgba(0, 0, 0, 0.28);
+	cursor: pointer;
+}
+
 /* Discord #43 -- der Zaehler. Bleibt stehen, solange ein getrenntes Wegende an nichts haengt; das
    Trennen ist ein Arbeitszustand auf Zeit, und genau daran erinnert er. Warnton wie die Meldung
    beim Trennen, damit beide als dieselbe Sache lesbar sind. Ueber dem Regions-Chip, damit sich

@@ -61,9 +61,13 @@ RING_KLASSEN.forEach((klasse) => {
 
 // --- 5. Die Legende im Anzeige-Menue traegt den Ton ihres Befunds --------------------------------
 // Ohne sie stehen fuenf identische Lupen in der Gruppe PRUEFEN und die Farbe muss geraten werden.
+// ⚠️ „Offene Wegenden" (Idee #86) steht mit in der Liste, obwohl sein Befund keinem ORT gehoert,
+// sondern einem WEG: sein Zeichen ist eine rote Linie mit Ring statt eines Marker-Rings. Die Regel ist
+// dieselbe -- ein Zeichen ohne den Ton seines Befunds ist eine Legende, die nichts erklaert.
 [
 	{ id: "toggleUnconnectedControl", token: "--color-marker-unconnected-ring" },
 	{ id: "toggleSparseCrossingsControl", token: "--color-marker-sparse-crossing-ring" },
+	{ id: "toggleOpenPathEndsControl", token: "--color-path-open-end" },
 ].forEach(({ id, token }) => {
 	const zeile = indexHtml.match(new RegExp('id="' + id + '"[\\s\\S]*?</label>'));
 	assert.ok(zeile, "Zeile " + id + " fehlt in index.html");

@@ -403,6 +403,8 @@ if (IS_EDIT_MODE) {
     document.getElementById("toggleUnconnected")?.removeAttribute("disabled");
     document.getElementById("toggleSparseCrossingsControl")?.removeAttribute("hidden");
     document.getElementById("toggleSparseCrossings")?.removeAttribute("disabled");
+    document.getElementById("toggleOpenPathEndsControl")?.removeAttribute("hidden");
+    document.getElementById("toggleOpenPathEnds")?.removeAttribute("disabled");
     document.getElementById("toggleNodixControl")?.removeAttribute("hidden");
     document.getElementById("toggleNodix")?.removeAttribute("disabled");
     document.getElementById("toggleHiddenControl")?.removeAttribute("hidden");
@@ -430,6 +432,7 @@ if (IS_EDIT_MODE) {
     document.getElementById("toggleCrossings")?.setAttribute("disabled", "disabled");
     document.getElementById("toggleUnconnected")?.setAttribute("disabled", "disabled");
     document.getElementById("toggleSparseCrossings")?.setAttribute("disabled", "disabled");
+    document.getElementById("toggleOpenPathEnds")?.setAttribute("disabled", "disabled");
     document.getElementById("toggleNodix")?.setAttribute("disabled", "disabled");
     document.getElementById("toggleLabelsWithRegion")?.setAttribute("disabled", "disabled");
 }

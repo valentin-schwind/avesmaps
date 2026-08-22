@@ -2726,6 +2726,18 @@
 							<input type="checkbox" id="toggleSparseCrossings" class="map-display-menu__state" />
 							<span class="map-display-menu__eye" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.8-6.5 10-6.5S22 12 22 12s-3.8 6.5-10 6.5S2 12 2 12z"></path><circle cx="12" cy="12" r="2.8"></circle><path class="map-display-menu__eye-slash" d="M3.5 3.5l17 17"></path></svg></span>
 						</label>
+						<!-- Idee #86 (Thomas, 20.08.2026). 💣 Das Zeichen ist die Legende und zeigt, was der Haken
+						     WIRKLICH tut: eine rote LINIE mit einem Ring an ihrem offenen Ende -- nicht der
+						     Marker-Ring der beiden Zeilen darüber, denn dieser Befund gehört einem WEG, nicht
+						     einem Ort. Farbe fest am Token, kein `stroke="currentColor"`: sie ist die Aussage.
+						     ⚠️ `stroke-width` steht als feste SVG-Einheit da -- `var()` löst in diesem
+						     Präsentationsattribut nicht auf (siehe --marker-check-ring-width). -->
+						<label class="map-display-menu__row" id="toggleOpenPathEndsControl" hidden>
+							<span class="map-display-menu__glyph" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="M2 18C7 18 8.5 7 14 7" stroke="var(--color-path-open-end)" stroke-width="3" stroke-linecap="round"></path><circle cx="16.5" cy="6.5" r="4.6" stroke="var(--color-path-open-end)" stroke-width="2.6"></circle></svg></span>
+							<span class="map-display-menu__name">Offene Wegenden</span>
+							<input type="checkbox" id="toggleOpenPathEnds" class="map-display-menu__state" />
+							<span class="map-display-menu__eye" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.8-6.5 10-6.5S22 12 22 12s-3.8 6.5-10 6.5S2 12 2 12z"></path><circle cx="12" cy="12" r="2.8"></circle><path class="map-display-menu__eye-slash" d="M3.5 3.5l17 17"></path></svg></span>
+						</label>
 					</div>
 				</div>
 				<!-- 💣 Der Mapstil hat seine display-options__*-Klassen beim Umzug ABGELEGT: er steht
@@ -3397,6 +3409,12 @@
 		<script src="js/map-features/map-features-location-lookup.js"></script>
 		<script src="js/map-features/map-features-location-marker-entry.js"></script>
 		<script src="js/map-features/map-features-location-detach-edit.js"></script>
+		<!-- Direkt hinter detach-edit.js, weil beide dieselbe Lücke messen (ein Wegende ohne Ort) und
+		     denselben Rechner rufen: dort die eigene Merkliste, hier der Gesamtbestand. Die Datei setzt
+		     beim Laden nur window-Funktionen -- sie rührt weder `map` noch `pathData` an, der Index
+		     entsteht erst beim ersten Zugriff. NACH map-features-location-editing.js (liefert
+		     getLocationAtPathEndpoint) und nach path-rendering.js (updatePathLayerStyle). -->
+		<script src="js/map-features/map-features-open-path-check.js"></script>
 		<script src="js/map-features/map-features-place-extras.js"></script>
 		<script src="js/map-features/map-features-region-operation-chip.js"></script>
 		<script src="js/map-features/map-features-region-context-menu.js"></script>

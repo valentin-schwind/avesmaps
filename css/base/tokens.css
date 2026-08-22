@@ -192,6 +192,18 @@
 	   NICHT --color-accent: das Gold markiert waehrend des Ziehens den Marker, das Bernstein danach
 	   die zurueckgebliebene Luecke -- zwei Zustaende, zwei Toene. */
 	--color-marker-open-path-end-ring: #e8850c;
+	/* Idee #86 -- der Prüfhaken „Offene Wegenden": dieselbe Lücke wie das Bernstein darüber, aber aus
+	   dem GESAMTBESTAND statt aus der eigenen Merkliste, und damit ein Befund statt eines
+	   Arbeitszustands. Trägt die rote LINIE des Weges und den Ring auf seiner Fundstelle -- ein Weg mit
+	   offenem Ende wird beim Routen ganz verworfen, das ist die lauteste Aussage der ganzen Prüfgruppe.
+	   Gepinnt wie die Ringe darüber (helle Kartenkacheln, kein Dark-Override).
+	   💣 Bewusst NICHT --color-marker-waypoint (#e33b35): das Rot gehört den Reise-Wegpunkten, und die
+	   liegen auf derselben Karte. Dieser Ton ist satter und kälter, damit „Befund" und „Wegpunkt" nicht
+	   dieselbe Farbe sprechen.
+	   ⚠️ Wird auch im JS gelesen (map-features-open-path-check.js): Leaflet-Linienfarben können kein
+	   `var()` tragen, weder im Canvas- noch im SVG-Renderer. Wer den Wert ändert, ändert ihn hier --
+	   der Rückfallwert dort ist nur die Notbremse, wenn der Token fehlt. */
+	--color-path-open-end: #e01b24;
 
 	/* „Grenze aus Territorien" (Fall #68) -- die Territoriumsumrisse, solange das Fenster offen ist
 	   (leise), und der Umriss unter dem Zeiger (laut). Gepinnt wie die Ringe darueber: beides liegt auf

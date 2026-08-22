@@ -43,6 +43,12 @@
 			// weil sie erst mit dem Editor-Teil ins Menue kamen -- genau die Sorte Luecke, gegen
 			// die eine vollstaendige Tabelle steht.
 			toggleSeaPaths: "powerlines",
+			// ⚠️ Und „Offene Wegenden" (Idee #86) genauso, aus demselben Grund und mit einer eigenen
+			// Wendung: dieser Haken durchbricht sonst JEDEN Wegfilter -- er MUSS das, sonst zeigte er
+			// seine Funde nicht. Der Kraftlinien-Modus ist die eine Ausnahme, die stehenbleibt (eine
+			// ANSICHT ohne Wege, kein Filter ueber Wegarten), und pathShouldBeOnMap prueft ihn eigens.
+			// Ohne diese Zeile liesse sich ein Haken umlegen, der sichtbar nichts tut.
+			toggleOpenPathEnds: "powerlines",
 			toggleTerritoryBorders: "powerlines",
 			orte: "powerlines"
 		},
@@ -177,7 +183,13 @@
 			var modus = (typeof getSelectedMapLayerMode === "function") ? getSelectedMapLayerMode() : "";
 			var gesperrt = GESPERRT[modus] || {};
 
-			["togglePaths", "toggleMapLabels", "toggleTerritoryBorders", "toggleRivers", "toggleSeaPaths"].forEach(function (id) {
+			// 💣 ZWEITE LISTE, UND SIE MUSS ZUR TABELLE OBEN PASSEN. Ein Haken, der in GESPERRT steht,
+			// aber hier fehlt, wird schlicht nie angefasst -- er bleibt in jeder Ansicht klickbar, und
+			// die Tabelle sieht dabei vollstaendig aus. Genau so ging „Offene Wegenden" am 22.08.2026
+			// daneben: Eintrag gesetzt, Riegel wirkungslos, im Browser gemessen. Gewacht von
+			// map-display-menu.test.js (jede ID aus GESPERRT ausser `orte` muss hier stehen).
+			["togglePaths", "toggleMapLabels", "toggleTerritoryBorders", "toggleRivers", "toggleSeaPaths",
+				"toggleOpenPathEnds"].forEach(function (id) {
 				var box = document.getElementById(id);
 				var zeile = box && box.closest(".map-display-menu__row");
 				if (!zeile) {
