@@ -84,6 +84,20 @@
 		return layer?._ecosystemArea || null;
 	}
 
+	// Wird diese Fläche ABGELEITET statt gezeichnet? EINE Frage, EIN Zugriff für diese Datei.
+	//
+	// 🔴 Die Entscheidung selbst gehört `isDerivedEcosystemKind` (map-features-ecosystem-rendering.js)
+	// -- dem einen Ort, der weiss, welche Ebenen aus etwas anderem entstehen. Hier steht nur der
+	// Zugriff darauf.
+	//
+	// 🪤 Bis zum 22.08.2026 stand in DIESER Datei ein eigenes `=== "klima"` (im Zeichner der
+	// Wiki-Abweichungen, für das unterdrückte ↺) -- und drei Funktionen weiter ein Auswahlfeld, das
+	// die Frage gar nicht erst stellte und deshalb bei einer Klimazone bedienbar blieb. Genau diese
+	// Mischung ist der Grund, aus dem es die Funktion gibt.
+	function istAbgeleiteteFlaeche(area) {
+		return typeof isDerivedEcosystemKind === "function" && isDerivedEcosystemKind(area?.kind);
+	}
+
 	function setPropertiesError(message) {
 		const errorElement = propertiesElement("error");
 		if (!errorElement) {
@@ -419,7 +433,7 @@
 		if (typeof avesmapsWikiFeldStand !== "function" || typeof avesmapsWikiAssignSubject !== "function") {
 			return;
 		}
-		const abgeleitet = String(currentPropertiesArea()?.kind || "") === "klima";
+		const abgeleitet = istAbgeleiteteFlaeche(currentPropertiesArea());
 		const stand = avesmapsWikiFeldStand(
 			(avesmapsWikiAssignSubject("landschaft") || {}).felder || [],
 			{
@@ -636,8 +650,12 @@
 		if (typeSelect) {
 			typeSelect.innerHTML = "";
 			typeSelect.appendChild(new Option(emptyTypeLabel(area?.kind), "", true, true));
-			typeSelect.disabled = true;
 		}
+		// Gesperrt, solange das Vokabular fehlt -- und die Erklärzeile der Klimazone steht ab dem
+		// ERSTEN Bild da, nicht erst nach `list_regions`: die Ebene steht in der Flächenzeile, die
+		// längst geladen ist, und ein Satz, der eine halbe Sekunde später nachrückt, liest sich wie
+		// eine Reaktion auf etwas, das man getan hat.
+		syncPropertiesTypeLock(area, false);
 		// Anders als der Auto-Name-Haken braucht dieser hier KEIN Art-Vokabular -- er hängt allein am
 		// verbundenen Label. Deshalb sofort, nicht erst nach list_regions.
 		syncPropertiesShowName(area);
@@ -690,8 +708,11 @@
 					typeSelect.appendChild(new Option(type.label, type.type_key));
 				});
 				typeSelect.value = String(area.region_type || "");
-				typeSelect.disabled = false;
 			}
+			// HIER STAND `typeSelect.disabled = false;` -- die Zeile, die die Klimazone bedienbar
+			// machte. Der Aufruf ersetzt sie und steht aus demselben Grund an derselben Stelle:
+			// wenn das Feld seine endgültige Gestalt hat.
+			syncPropertiesTypeLock(area, true);
 			const areasNote = propertiesElement("areas");
 			if (areasNote) {
 				areasNote.textContent = formatEcosystemRegionCarryNote(regionAreaCount, Boolean(linkedEcosystemLabelEntry(area)));
@@ -795,6 +816,45 @@
 			return;
 		}
 		box.checked = area?.is_locked === true;
+	}
+
+	// Die Art einer KLIMAZONE steht fest (22.08.2026).
+	//
+	// 🔴 Ihre Fläche entsteht aus den Trennlinien, und ihre ART sagt, WELCHE der Zonen das ist --
+	// der Server lehnt eine Änderung deshalb ab (avesmapsUpdateEcosystemRegion, ecosystem.php).
+	// Bis hierher erfuhr der Editor das erst beim Speichern, als Fehlermeldung ohne Grund: das
+	// Auswahlfeld liess sich verstellen, und was daran falsch war, stand nirgends.
+	// Der Zwilling im Editorfenster (html/landschaften-editor.html, regionEditBlock) kann es seit
+	// dem 03.08.2026 -- gesperrtes Feld PLUS Erklärzeile, und beides wortgleich.
+	//
+	// 💣 EINE Funktion für BEIDE Zustände des Feldes. Bis heute stand `disabled` an zwei Stellen mit
+	// zwei Bedeutungen: beim Öffnen `true` („das Vokabular fehlt noch"), nach `list_regions` `false`
+	// („fertig geladen") -- und die zweite Stelle wusste nichts von der Ebene. Wer die Sperre nur an
+	// einer der beiden anbringt, baut genau den Fehler wieder ein, den es hier zu beheben gab.
+	//
+	// 🔴 Über `istAbgeleiteteFlaeche`, nie über einen eigenen Vergleich gegen "klima".
+	// Der Kommentar an `isDerivedEcosystemKind` (03.08.2026) war eine VORHERSAGE, keine Zählung --
+	// bei ihrer Einführung gab es noch keine einzige Aufrufstelle: „fuenf Aufrufstellen stellen
+	// dieselbe Frage -- und die fuenfte wird sonst vergessen". Sie sind heute fünf, diese ist die
+	// fünfte, und sie war tatsächlich vergessen worden.
+	//
+	// ⚠️ Der Riegel, der zählt, bleibt der auf dem Server. Ein `disabled` verhindert das Verstellen,
+	// nicht das Senden -- ein gesperrtes `<select>` gibt seinen `value` weiterhin heraus, und genau
+	// das ist gewollt: der Rumpf trägt die UNVERÄNDERTE Art mit, und der Server vergleicht gegen den
+	// Bestand, statt jedes Mitschicken abzulehnen.
+	//
+	// @param {boolean} vokabularDa Ist die Artenliste schon geladen? Vorher ist das Feld für JEDE
+	//   Ebene gesperrt (es trägt nur den Platzhalter), danach nur noch für die Klimazone.
+	function syncPropertiesTypeLock(area, vokabularDa) {
+		const typeSelect = propertiesElement("type");
+		const hinweis = propertiesElement("typehint");
+		const abgeleitet = istAbgeleiteteFlaeche(area);
+		if (typeSelect) {
+			typeSelect.disabled = abgeleitet || !vokabularDa;
+		}
+		if (hinweis) {
+			hinweis.hidden = !abgeleitet;
+		}
 	}
 
 	// ---- Gelände: die vier Regler DIESER Fläche (V8) --------------------------------------------------

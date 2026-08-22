@@ -600,6 +600,41 @@ body.leaflet-dragging .ecosystem-brush-pan .leaflet-interactive {
 	box-shadow: var(--focus-ring);
 }
 
+/* Ein Feld, das man nicht bedienen kann, muss auch so AUSSEHEN (22.08.2026).
+   Bis heute war `disabled` in diesen Fenstern nur ein Ladezustand von einer halben Sekunde -- die
+   Artauswahl wartet auf `list_regions` --, und eine Regel dafür fehlte folgenlos. Seit die Art einer
+   KLIMAZONE dauerhaft gesperrt ist, steht das Feld solange grau da, wie der Dialog offen ist: ohne
+   diese Regel sähe es aus wie jedes andere, und die Erklärzeile darunter erklärte etwas, das man
+   nicht sieht.
+   ⭐ Das Rezept steht schon in dieser Datei (.ecosystem-region-picker__select:disabled) -- dieselben
+   drei Token, keine vierte Handschrift.
+   💣 NACH der :hover-Regel oben: beide wiegen gleich schwer (0,2,1), und ein gesperrtes Feld
+   bekommt in den Browsern weiterhin :hover. Davor stehend zöge das Überfahren die Kante wieder
+   kräftig -- also genau das Signal „hier kannst du etwas tun".
+   ⚠️ Gemessen trifft die Regel heute GENAU EIN Feld -- die Artauswahl einer Klimazone. Alles
+   andere, was in diesen sechs Fenstern `disabled` wird, ist ein Knopf, ein Kontrollkästchen
+   (`__checkbox input`) oder eine einzelne `<option>`, und keines davon steht in dieser Liste.
+   Die Eingabefelder stehen trotzdem mit drin, weil die Nachbarregeln oben es auch tun und ein
+   gesperrtes Feld dieselbe Auskunft geben muss, egal welcher Art es ist. `readonly` fällt zu
+   Recht NICHT hinein (so steht der Name bei „Auto-Name"): er ist lesbar und kopierbar.
+   Kein toter Knopf. */
+.ecosystem-region-dialog__field input:disabled,
+.ecosystem-properties-dialog__field input:disabled,
+.ecosystem-assign-dialog__field input:disabled,
+.label-assign-dialog__field input:disabled,
+.ecosystem-import-dialog__field input:disabled,
+.ecosystem-region-dialog__field select:disabled,
+.ecosystem-properties-dialog__field select:disabled,
+.ecosystem-assign-dialog__field select:disabled,
+.label-assign-dialog__field select:disabled,
+.ecosystem-import-dialog__field select:disabled,
+.ecosystem-transfer-dialog__field input:disabled,
+.ecosystem-transfer-dialog__field select:disabled {
+	border-color: var(--color-disabled-border);
+	background: var(--color-disabled-bg);
+	color: var(--color-disabled-text);
+}
+
 .ecosystem-region-dialog__error[hidden],
 .ecosystem-properties-dialog__error[hidden],
 .ecosystem-assign-dialog__error[hidden],
@@ -1035,7 +1070,16 @@ body.leaflet-dragging .ecosystem-brush-pan .leaflet-interactive {
 	text-transform: uppercase;
 }
 
-.ecosystem-properties-dialog__areas {
+/* Die Flächenzeile und die Erklärzeilen darunter sind DIESELBE Notiz: gedämpft, klein und ohne
+   Aussenrand -- der `<p>`-Rand des Browsers risse sonst eine Lücke in das Raster der Gruppe.
+   Ein zweites Rezept daneben wäre die Divergenz, die §12 meint; `__hint` trug bis zum 22.08.2026
+   GAR KEINE Regel und stand deshalb als einzige Notiz des Fensters in voller Textgrösse da.
+   ⚠️ Und KEIN `display` hier: die Erklärzeile der Klimazone steht mit `hidden` im Markup, und ein
+   `display` an dieser Stelle schlüge die Regel des Browsers. Was das kostet, zeigt die Feldregel
+   oben (.ecosystem-*-dialog__field, `display: grid`) -- sie ist der Grund, aus dem der
+   [hidden]-Block weiter oben ein !important braucht. Solange hier nichts steht, genügt `hidden`. */
+.ecosystem-properties-dialog__areas,
+.ecosystem-properties-dialog__hint {
 	margin: 0;
 	color: var(--color-text-muted);
 	font-size: var(--font-size-small);

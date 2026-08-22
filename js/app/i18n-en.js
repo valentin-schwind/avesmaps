@@ -410,6 +410,8 @@ window.AVESMAPS_I18N_EN = {
 	"ecosystem.properties.autoName": "Auto name",
 	"ecosystem.properties.showName": "Show region name",
 	"ecosystem.properties.typeLabel": "Kind",
+	// Nur die Klimazone zeigt sie -- der Riegel selbst sitzt in map-features-ecosystem-properties.js.
+	"ecosystem.properties.typeDerivedHint": "This zone's area comes from the divider lines on the map (Landschaften → Klimazonen). Kind and outline cannot be changed here.",
 	// "Schritt" stays -- it is the DSA unit of length, domain content like the BF calendar suffix.
 	"ecosystem.properties.peaksTitle": "Peaks",
 	"ecosystem.properties.terrainTitle": "Terrain",
