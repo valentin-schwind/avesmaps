@@ -483,7 +483,11 @@
 					</div>
 					<div class="type-filter"><button type="button" id="change-log-filter-toggle" class="type-filter__toggle" aria-label="Filter">Filter ▾</button><div id="change-log-filter-menu" class="type-filter__menu" hidden><div class="type-filter__section"><div class="type-filter__section-title">Editor</div><div id="change-log-editor-menu"></div></div></div></div>
 				</div>
-				<p id="change-panel-status" class="review-panel__status" role="status" aria-live="polite">Änderungen werden geladen...</p>
+				<!-- 🔴 KEIN STATUSFELD. Owner 22.08.2026: „kannst du das ‚200 Änderungen‘ bzw. das komische
+				     Statusfeld zum Laden raus? braucht niemand." Dieselbe Entscheidung wie am 19.07.2026 im
+				     WikiSync-Panel („es braucht kein statusfeld -- nirgends"). Fehler gehen in die
+				     Einblendung, leere Zustände in die Liste selbst -- ein Feld über der Liste schiebt sie
+				     nach unten und steht die übrige Zeit nur da. -->
 				<div id="change-log-list" class="review-panel__list"></div>
 			</section>
 			<section class="review-panel__section" data-editor-panel-section="wiki-sync">

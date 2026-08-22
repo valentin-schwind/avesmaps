@@ -1581,6 +1581,15 @@
 	display: none;
 }
 
+/* Der leere Zustand steht IN der Liste, nicht in einem Feld darüber (Owner 22.08.2026: das
+   Statusfeld ist weg). Eine leere Fläche ohne jedes Wort liest sich wie ein Fehler. */
+.change-log-notice {
+	margin: 0;
+	padding: 14px 4px;
+	color: var(--color-text-muted);
+	font-size: var(--font-size-small);
+}
+
 /* Die Zeilen des Änderungsprotokolls. Owner 22.08.2026: „mach die items etwas kompakter, da geht
    viel platz verloren".
 

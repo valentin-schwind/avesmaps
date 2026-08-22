@@ -106,10 +106,6 @@ function setPanelStateStatus(statusElement, message = "", state = "") {
 	}
 }
 
-function setChangePanelStatus(message = "", state = "") {
-	setPanelStateStatus(document.getElementById("change-panel-status"), message, state);
-}
-
 function setPresencePanelStatus(message = "", state = "") {
 	setPanelStateStatus(document.getElementById("presence-panel-status"), message, state);
 }

@@ -13,7 +13,6 @@ async function loadChangeLog() {
 		return;
 	}
 
-	setChangePanelStatus("Änderungen werden geladen...", "pending");
 	try {
 		// 🔴 DIE AUSWAHL REIST MIT: ohne Haken die jüngsten 200 von allen, mit Haken die jüngsten 200
 		// VON DEN ANGEHAKTEN. Die Ablage behält seit dem 22.08.2026 je Person 200 Zeilen
@@ -87,7 +86,11 @@ async function loadChangeLog() {
 		renderChangeLog();
 	} catch (error) {
 		console.error("Änderungsverlauf konnte nicht geladen werden:", error);
-		setChangePanelStatus(error.message || "Änderungsverlauf konnte nicht geladen werden.", "error");
+		// 🔴 In die Einblendung, nicht in ein Statusfeld: die überlagert, statt die Liste nach unten zu
+		// schieben -- dieselbe Regel wie im WikiSync-Panel. ⚠️ Und sie muss bleiben: ein Fehler, der nur
+		// in der Konsole steht, ist für einen Editor kein Fehler, sondern eine leere Liste.
+		showFeedbackToast(error.message || "Änderungsverlauf konnte nicht geladen werden.", "warning");
+		changeLogRenderNotice("Änderungsverlauf konnte nicht geladen werden.");
 	}
 }
 
@@ -313,34 +316,6 @@ function changeLogScopeState(selected, meinName) {
 	return "";
 }
 
-// PUR: wie viele Zeilen sind von den Ausgewählten überhaupt aufbewahrt? `null` heisst „unbekannt" --
-// dann nennt die Bilanzzeile nur, was sie zeigt, statt eine Zahl zu erfinden.
-//
-// ⚠️ Ein maschineller Urheber („Import") hat im Namensverzeichnis keine Anzahl (er hat kein Konto).
-// Ist einer davon ausgewählt, ist die Summe nicht ehrlich zu bilden -- dann `null`, nicht „so viel
-// wie ich gerade weiss".
-function changeLogSelectionTotal(selected, roster) {
-	if (!selected || typeof selected.forEach !== "function" || Number(selected.size || 0) < 1) {
-		return null;
-	}
-	if (!roster || typeof roster.get !== "function") {
-		return null;
-	}
-
-	let summe = 0;
-	let bekannt = true;
-	selected.forEach((name) => {
-		const anzahl = roster.get(name);
-		if (typeof anzahl !== "number") {
-			bekannt = false;
-			return;
-		}
-		summe += anzahl;
-	});
-
-	return bekannt ? summe : null;
-}
-
 // PUR: leere Auswahl heisst ALLE -- dieselbe Regel wie in jedem anderen Trichter des Hauses.
 function changeLogFilterEntries(entries, selected) {
 	const list = Array.isArray(entries) ? entries : [];
@@ -519,38 +494,20 @@ function renderChangeLog() {
 	// ⚠️ Die Reihenfolge der zwei leeren Zustaende ist Absicht: „noch nichts da" kommt VOR „nichts
 	// passt", sonst behauptet ein frisches Protokoll, der Filter haette etwas weggenommen.
 	if (changeLogEntries.length < 1) {
-		setChangePanelStatus("Noch keine Änderungen.", "empty");
+		changeLogRenderNotice("Noch keine Änderungen.");
 		changeLogFilterRebuild();
 		return;
 	}
 
 	const sichtbar = changeLogFilterEntries(changeLogEntries, changeLogEditorFilter);
 	if (sichtbar.length < 1) {
-		setChangePanelStatus(
-			changeLogFilterWartet ? "Änderungen werden geladen..." : "Keine Änderungen von dieser Auswahl.",
-			changeLogFilterWartet ? "pending" : "empty"
+		changeLogRenderNotice(
+			changeLogFilterWartet ? "Änderungen werden geladen ..." : "Keine Änderungen von dieser Auswahl."
 		);
 		changeLogFilterRebuild();
 		return;
 	}
 
-	// Dieselbe Bilanz-Formel wie die acht WikiSync-Listen (js/review/review-list-balance.js) -- eine
-	// zweite Schreibweise derselben Angabe daneben ist genau der Zustand, den jene Datei beseitigt hat.
-	//
-	// 💣 DAS „GESAMT" IST, WAS AUFBEWAHRT IST -- nicht, was gerade geladen wurde. Genau daran ist die
-	// erste Fassung aufgefallen: im Trichter stand für eine Person 486, die Zeile darunter sagte
-	// „200 Änderungen", und nichts erklärte den Unterschied (Owner: „warum steht bei nics 486").
-	// ⚠️ Ist die Summe nicht ehrlich zu bilden (ein maschineller Urheber ohne Konto), wird sie NICHT
-	// geraten: dann nennt die Zeile nur, was sie zeigt.
-	const aufbewahrt = changeLogSelectionTotal(changeLogEditorFilter, changeLogActorRoster);
-	setChangePanelStatus(
-		avesmapsListBalanceText(
-			"Änderungen",
-			sichtbar.length,
-			typeof aufbewahrt === "number" ? Math.max(aufbewahrt, sichtbar.length) : sichtbar.length
-		),
-		"success"
-	);
 	changeLogFilterRebuild();
 
 	changeLogGroupEntries(sichtbar).forEach((gruppe) => {
@@ -567,6 +524,27 @@ function renderChangeLog() {
 			});
 		}
 	});
+}
+
+// 🔴 KEIN STATUSFELD ÜBER DER LISTE (Owner 22.08.2026: „das komische Statusfeld zum Laden raus,
+// braucht niemand") -- dieselbe Entscheidung wie am 19.07.2026 im WikiSync-Panel („es braucht kein
+// statusfeld -- nirgends"). Ein leerer Zustand steht deshalb IN der Liste: eine leere Fläche ohne
+// jedes Wort liest sich wie ein Fehler, und ein Feld darüber schiebt die Liste die übrige Zeit nur
+// nach unten. Fehler gehen zusätzlich in die Einblendung, die überlagert statt zu schieben.
+function changeLogRenderNotice(text) {
+	const listElement = document.getElementById("change-log-list");
+	if (!listElement) {
+		return;
+	}
+	// 💣 SETZEN, nicht anhängen. Der Fehlerpfad ruft diese Stelle, ohne dass davor jemand die Liste
+	// geleert hat -- angehängt stünden dann „Noch keine Änderungen." und „konnte nicht geladen
+	// werden." untereinander, zwei Aussagen über denselben Zustand. Im Browser gemessen, nicht im Test.
+	listElement.innerHTML = "";
+	const hinweis = document.createElement("p");
+	hinweis.className = "change-log-notice";
+	hinweis.setAttribute("role", "status");
+	hinweis.textContent = text;
+	listElement.appendChild(hinweis);
 }
 
 // Die Kopfzeile eines Bündels. ⚠️ Sie trägt bewusst KEIN „Rückgängig": ein Knopf, der drei Schritte
@@ -936,7 +914,7 @@ async function undoChangeLogEntry(entry) {
 	// otherwise the confirmation for a restore reads "Rückgängig: Ort geändert rückgängig gemacht".
 	const isRedo = isUndoChangeLogEntry(entry);
 	const undoneLabel = isRedo ? formatChangeAction(String(entry.action).replace(/^undo_/, "")) : formatChangeAction(entry.action);
-	setChangePanelStatus(isRedo ? "Änderung wird wiederhergestellt..." : "Änderung wird rückgängig gemacht...", "pending");
+
 	try {
 		const auditSource = String(entry.audit_source || "map_feature");
 		if (auditSource === "political_territory") {
