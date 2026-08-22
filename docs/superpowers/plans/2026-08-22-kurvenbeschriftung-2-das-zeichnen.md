@@ -235,19 +235,27 @@ Das ist der Kern der Aufgabe. Der Vergleich läuft mechanisch, nicht mit dem Aug
 node -e '
 const cp = require("child_process");
 const fs = require("fs");
-const alt = cp.execSync("git show origin/master:js/map-features/map-features-path-label-canvas-overlay.js", {encoding:"utf8", maxBuffer: 1<<24});
+const alt = cp.execFileSync("git", ["show", "origin/master:js/map-features/map-features-path-label-canvas-overlay.js"], {encoding:"utf8", maxBuffer: 1<<24});
 const neu = fs.readFileSync("js/map-features/curved-label-layout.js", "utf8");
 const namen = ["labelSpanRunsLeftward","buildLabelTurningProfile","labelSpanTurning","findCalmLabelCenter",
   "labelWindowHalf","layoutGlyphsAlong","labelGlyphRunTurningDegrees","glyphsHullBox",
   "orderDodgeOffsets","findFreePlacement","sliceLabelWindowAt","cumulativeLengths"];
+// Rumpf ab "function <name>(" bis zur schliessenden Klammer auf DER Spalte, auf der "function"
+// beginnt. 💣 Danach wird jede Zeile LINKS VOLLSTAENDIG entblaettert (trimStart) und die leeren
+// fallen heraus -- verglichen wird der reine Inhalt. Ein pauschaler Abzug EINES Tabulators
+// (`replace(/^\t/gm, "")`) taete es NICHT: die alte Fassung steht eine Ebene tiefer, der Abzug
+// trifft beide Seiten verschieden, und der Befehl meldet dann zwoelf Abweichungen, die keine sind.
 function rumpf(text, name) {
   const i = text.indexOf("function " + name + "(");
   if (i < 0) return null;
-  const spalte = text.slice(0, i).split("\n").pop();   // die Tabs vor "function"
+  const spalte = text.slice(0, i).split("\n").pop();
   const zu = spalte + "}";
   const raus = [];
-  for (const z of text.slice(i).split("\n")) { raus.push(z); if (z === zu) break; }
-  return raus.join("\n").replace(/^\t/gm, "").trimEnd();
+  for (const z of text.slice(i).split("\n")) {
+    raus.push(z);
+    if (z === zu) return raus.map((x) => x.trimStart()).filter((x) => x !== "").join("\n");
+  }
+  return null;
 }
 let schlecht = 0;
 for (const n of namen) {
@@ -262,6 +270,26 @@ process.exit(schlecht ? 1 : 0);'
 
 Erwartet: zwölfmal `gleich:` und Rückgabewert 0. ⚠️ Meldet es `ABWEICHUNG`, ist etwas mitverändert
 worden — zurücknehmen, nicht nachbessern.
+
+🪤 **Dieser Befehl stand hier zuerst mit dem pauschalen Ein-Tab-Abzug und hat am 22.08.2026 zwölf
+Abweichungen gemeldet, die keine waren.** Ein Prüfbefehl, der falschen Alarm schlägt, ist beim
+zweiten Mal keiner mehr — man glaubt ihm nicht. Wer ihn hier ändert, führt ihn einmal gegen einen
+bekannt korrekten Umzug aus, bevor er ihn stehen lässt.
+
+- [ ] **Schritt 3b: Und die Kommentare gehen MIT ihrer Funktion**
+
+💣 **Der Vergleich oben prüft Rümpfe, nicht Kommentare — und genau dort ist es beim ersten Bau
+schiefgegangen.** Die Zeilenbereiche schneiden zwischen einem Kommentarblock und der Funktion
+darunter: `pathLabelBendSettings` und `layoutGlyphsAlong` haben ihre Erklärungen getauscht,
+`labelSpanRunsLeftward` stand ohne, und `findFreePlacement` fehlten die ersten zwei Zeilen. Ein
+Kommentar über der falschen Funktion ist schlechter als gar keiner — der Leser glaubt ihm.
+
+Also je Funktion nachsehen, ob der Block darüber sie auch beschreibt. Mechanisch geht das so: für
+jede der zwölf Funktionen den unmittelbar darüberstehenden Lauf von `//`-Zeilen aus der
+Basisfassung lesen (Abschnittsüberschriften `// --- … ---` gehören NICHT dazu) und mit dem
+vergleichen, was jetzt dort steht. Dasselbe im Overlay für `pathLabelBendSettings`, `paintGlyphs`
+und `drawGlyphsAlong` — die drei stehen im geschnittenen Bereich und sind die wahrscheinlichsten
+Opfer.
 
 - [ ] **Schritt 4: Syntax und die stille Verdopplung**
 
