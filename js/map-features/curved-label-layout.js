@@ -14,6 +14,10 @@
 // labelOccupancyBlocksGlyphs), beide per `typeof` abgesichert. Im Test sind sie schlicht nicht da,
 // und dann weicht nur niemand aus -- das ist gewollt, kein Loch.
 
+// Läuft der Abschnitt, den der Text TATSÄCHLICH belegt (drawGlyphsAlong zentriert ihn immer auf
+// dem übergebenen Punkte-Array), netto nach links? Die Aufrufer drehen nur die GANZE Polyline
+// links->rechts -- eine Serpentine kann in ihrer Mitte trotzdem zurücklaufen, und genau dort stand
+// die Schrift auf dem Kopf (Discord #34). Gleiche Konvention wie dort, nur auf dem Teilstück.
 function labelSpanRunsLeftward(pts, textLen) {
 	const cum = [0];
 	for (let i = 1; i < pts.length; i += 1) {
@@ -54,6 +58,7 @@ const LABEL_TURN_PROFILE_STEP_PX = 5;
 // Richtungsprofil einer Bildschirm-Polylinie: Kurs alle LABEL_TURN_PROFILE_STEP_PX Pixel, dazu die
 // aufsummierte |Richtungsaenderung| als Praefixsumme. EIN Vorwaertslauf (O(n+m)); danach kostet jede
 // Spannen-Frage zwei Array-Zugriffe. Ohne das liefe die Suche unten pro Kandidat neu ueber die ganze
+// Kette -- bei ~50 Kandidaten je Platzierung waere das pro Redraw spuerbar. Pur.
 function buildLabelTurningProfile(pts, stepPx) {
 	const step = Number(stepPx) > 0 ? Number(stepPx) : 5;
 	if (!Array.isArray(pts) || pts.length < 2) {
@@ -129,7 +134,10 @@ function labelWindowHalf(textLen, fontSize, relief) {
 	return textLen / 2 + 4 + (relief > 0 ? Math.max(0, Number(fontSize) || 0) : 0);
 }
 
-// Aktueller Wert der drei #18-Stellgroessen (map-features-path-labels.js, live per ?pathtune=1).
+// Glyphen einzeln entlang der Pixel-Polyline platzieren (zentriert auf dem jeweiligen Slot, tangential
+// rotiert) -- die reine RECHNUNG, ohne zu zeichnen. Getrennt vom Malen, weil das Ausweichen vor
+// Ortsnamen die Buchstabenlagen BRAUCHT, bevor entschieden ist, ob hier ueberhaupt gezeichnet wird
+// (siehe findFreePlacement). Eine Rechnung, zwei Aufrufer: drawGlyphsAlong malt genau das hier.
 function layoutGlyphsAlong(pts, chars, widths, ls, perpOffset, fontSize) {
 	const textLen = widths.reduce((s, w) => s + w + ls, 0) - ls;
 	// Vor dem perpOffset-Shift umdrehen, damit „positiv = oben" für den gedrehten Lauf gilt.

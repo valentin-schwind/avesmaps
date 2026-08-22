@@ -64,11 +64,7 @@
 	// map-features-way-labels.js (extractFunction-getestet, tools/paths/test-way-labels.mjs).
 	let wayLabelClickRegister = [];
 
-	// Läuft der Abschnitt, den der Text TATSÄCHLICH belegt (drawGlyphsAlong zentriert ihn immer auf
-	// dem übergebenen Punkte-Array), netto nach links? Die Aufrufer drehen nur die GANZE Polyline
-	// links->rechts -- eine Serpentine kann in ihrer Mitte trotzdem zurücklaufen, und genau dort stand
-	// die Schrift auf dem Kopf (Discord #34). Gleiche Konvention wie dort, nur auf dem Teilstück.
-	// Kette -- bei ~50 Kandidaten je Platzierung waere das pro Redraw spuerbar. Pur.
+	// Aktueller Wert der drei #18-Stellgroessen (map-features-path-labels.js, live per ?pathtune=1).
 	function pathLabelBendSettings() {
 		return {
 			searchPx: typeof PATH_LABEL_CALM_SEARCH_PX !== "undefined" ? Number(PATH_LABEL_CALM_SEARCH_PX) || 0 : 0,
@@ -78,10 +74,8 @@
 		};
 	}
 
-	// Glyphen einzeln entlang der Pixel-Polyline platzieren (zentriert auf dem jeweiligen Slot, tangential
-	// rotiert) -- die reine RECHNUNG, ohne zu zeichnen. Getrennt vom Malen, weil das Ausweichen vor
-	// Ortsnamen die Buchstabenlagen BRAUCHT, bevor entschieden ist, ob hier ueberhaupt gezeichnet wird
-	// (siehe findFreePlacement). Eine Rechnung, zwei Aufrufer: drawGlyphsAlong malt genau das hier.
+	// Die fertig gerechneten Glyphen malen. textAlign/textBaseline werden in redraw() gesetzt;
+	// Halo = weicher Schatten + scharfe Kontur.
 	function paintGlyphs(glyphs, chars, halo, fillColor) {
 		for (let i = 0; i < chars.length; i += 1) {
 			const p = glyphs[i];
