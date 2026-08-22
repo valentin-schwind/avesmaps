@@ -89,14 +89,76 @@ function svgxStrokeScale(scale) {
 
 // Ortsarten in Katalogreihenfolge, mit Punktgröße. Der Kitt darf eine gemessene Liste
 // hereinreichen; ohne sie gilt diese.
+// 🔴 DER MASSSTAB DER ORTSZIRKEL: die Zoomstufe, auf der gemessen wird. Ein Ort ist im Abzug so
+// groß, wie die Karte ihn auf ihrer HÖCHSTEN Stufe zeichnet -- dort ist der Marker im Verhältnis
+// zur Karte am kleinsten und kommt einer Ortsausdehnung am nächsten.
+// ⚠️ Eine Kopie von `maxZoom` aus js/app/bootstrap.js; einen geteilten Export dafür gibt es nicht
+// (dieselbe Lage wie ZOOM_BAND_MAP_MAX_ZOOM im Ortseditor, der es genauso hält). Ändert sich
+// maxZoom, muss diese Zahl mit -- __tests__/svg-export-ortsgroessen.test.js vergleicht alle drei.
+// 💣 NICHT AVESMAPS_ZOOM_BAND_MAX_ZOOM (8): die Datenschicht trägt eine Stufe, die die Karte nie
+// zeigt, und eine Übersteuerung darf dort etwas anderes stehen haben als bei z7.
+const SVGX_PLACE_SIZE_ZOOM = 7;
+
+// Bei L.CRS.Simple ist der Maßstab 2^zoom -- eine Karteneinheit misst auf Stufe z genau 2^z
+// Bildpunkte. Der Bandwert ist ein DURCHMESSER (Außendurchmesser samt der weißen Kontur, die die
+// Karte um jeden Punkt zieht), gebraucht wird ein Radius: daher die 2.
+// Vier Nachkommastellen, weil die Zahlen klein sind -- bei 1024 Einheiten Kantenlänge wäre die
+// sonst übliche zweite Stelle für ein Gebäude (0,0485) bereits eine Stufe von 20 %.
+function svgxPlaceRadiusFromDiameter(diameterPx) {
+	return Math.round((diameterPx / 2 / Math.pow(2, SVGX_PLACE_SIZE_ZOOM)) * 10000) / 10000;
+}
+
+// Die Ortsklassen und ihre Zirkelradien in Karteneinheiten (1 Einheit = 3 Meilen).
+// 🔴 DIE ZAHLEN SIND GERECHNET, NICHT GEGRIFFEN: es ist AVESMAPS_LOCATION_ZOOM_BAND_DEFAULTS
+// .marker bei z7, durch svgxPlaceRadiusFromDiameter geschickt. Sie stehen hier als Literale, weil
+// dieser Bauer rein bleibt und die Zoombänder-Datei nicht lädt; der Wächter gegen ihr
+// Auseinanderlaufen ist __tests__/svg-export-ortsgroessen.test.js, der beide zusammenbringt.
+// ⚠️ Das ist die VORGABE. Verstellt ein Admin die Tafel, reicht die Seite die daraus gerechnete
+// Liste als `placeKinds` durch (svgxPlaceKindsFromBands).
+// 🪤 Davor standen hier sechs frei gegriffene Zahlen (2,2 … 0,6): eine Metropole maß damit 13,2
+// Meilen, ein Dorf 4,2 -- rund zehnmal zu groß. Die Verhältnisse untereinander stimmten schon,
+// nur der Maßstab fehlte (Owner 22.08.2026: "die zirkel sind aktuell viel zu groß").
 const SVGX_PLACE_KINDS = [
-	{ slug: "metropole", label: "Metropole", r: 2.2 },
-	{ slug: "grossstadt", label: "Großstadt", r: 1.7 },
-	{ slug: "stadt", label: "Stadt", r: 1.3 },
-	{ slug: "kleinstadt", label: "Kleinstadt", r: 1.0 },
-	{ slug: "dorf", label: "Dorf", r: 0.7 },
-	{ slug: "gebaeude", label: "Gebäude", r: 0.6 },
+	{ slug: "metropole", label: "Metropole", r: 0.2078 },
+	{ slug: "grossstadt", label: "Großstadt", r: 0.1559 },
+	{ slug: "stadt", label: "Stadt", r: 0.1247 },
+	{ slug: "kleinstadt", label: "Kleinstadt", r: 0.097 },
+	{ slug: "dorf", label: "Dorf", r: 0.0693 },
+	{ slug: "gebaeude", label: "Gebäude", r: 0.0485 },
 ];
+
+// 💣 Der Radius einer Ortsklasse, die diese Liste NICHT kennt (der Abzug zeichnet auch solche --
+// svgxPlaceLayer hängt sie hinten an). Er muss im selben Maßstab liegen wie die Liste darüber:
+// bis 22.08.2026 stand hier 0,8 und blieb beim Umbau fast liegen -- eine unbekannte Klasse wäre
+// 4,8 Meilen breit geworden, während die Metropole daneben 1,25 misst. 0,08 hält denselben Platz
+// in der Reihe wie die alte 0,8: zwischen Dorf und Kleinstadt.
+const SVGX_PLACE_FALLBACK_R = 0.08;
+
+// Die Ortsklassen mit den Radien, die aus einer Zoombänder-Tafel folgen -- übergeben wird der
+// `marker`-Teil von avesmapsResolveLocationZoomBands (Vorgabe + Übersteuerung, schon
+// zusammengeführt). Rein: eine Tafel kommt herein, eine Liste geht hinaus.
+//
+// 💣 UNBRAUCHBAR IST EIN NICHTWISSEN, KEIN RADIUS NULL. Eine fehlende Zeile, ein `null` auf allen
+// Stufen oder ein kaputter Wert fällt auf die Vorgabe zurück. Ein Kreis mit r=0 wäre gezeichnet
+// und unsichtbar zugleich -- und der Abzug ist eine Datenquelle, kein Kartenbild: er zeichnet
+// eine Ortsklasse, wenn ihr Häkchen gesetzt ist, auch wenn die Karte sie nie zeigt.
+//
+// ⚠️ Gelaufen wird über SVGX_PLACE_KINDS, nicht über die Schlüssel der Tafel: die Liste der
+// Ortsklassen führt der Browser, nicht der Server (dieselbe Regel wie in
+// avesmapsResolveLocationZoomBands).
+function svgxPlaceKindsFromBands(markerBands) {
+	const tafel = (markerBands && typeof markerBands === "object" && !Array.isArray(markerBands))
+		? markerBands
+		: {};
+	return SVGX_PLACE_KINDS.map((kind) => {
+		const zeile = tafel[kind.slug];
+		const wert = Array.isArray(zeile) ? zeile[SVGX_PLACE_SIZE_ZOOM] : undefined;
+		if (typeof wert !== "number" || !Number.isFinite(wert) || wert <= 0) {
+			return Object.assign({}, kind);
+		}
+		return Object.assign({}, kind, { r: svgxPlaceRadiusFromDiameter(wert) });
+	});
+}
 
 // 💣 GeoJSON speichert [x, y]; Leaflets L.CRS.Simple rechnet [lat, lng] = [y, x] und lässt
 // lat NACH OBEN wachsen (deshalb tragen die Kacheldateien negative y). SVG lässt y nach
@@ -977,7 +1039,7 @@ function svgxPlaceLayer(options) {
 		const orte = nachArt.get(slug);
 		if (!orte || orte.length === 0) { return; }
 		if (!svgxSubgroupEnabled(o.enabled, slug)) { return; }
-		const kind = kinds.find((k) => k.slug === slug) || { slug: slug, label: slug || "Ort", r: 0.8 };
+		const kind = kinds.find((k) => k.slug === slug) || { slug: slug, label: slug || "Ort", r: SVGX_PLACE_FALLBACK_R };
 		stuecke.push(svgxGroupOpen({
 			name: kind.label || slug, id: `orte-${svgxFoldAscii(slug).toLowerCase() || "ohne"}`,
 			dialect: o.dialect,
@@ -995,9 +1057,9 @@ function svgxPlaceLayer(options) {
 					id: f.properties.public_id || "",
 					// ⚠️ DARSTELLUNGSradius, keine Stadtausdehnung. Avesmaps speichert Orte als
 					// Punkte; diese Zahl sagt, wie gross der Punkt gezeichnet wird.
-					radius: String(kind.r || 0.8) },
+					radius: String(kind.r || SVGX_PLACE_FALLBACK_R) },
 				svgxContextFor(f.geometry, o.context)))
-				+ ` cx="${p.x}" cy="${p.y}" r="${kind.r || 0.8}">`
+				+ ` cx="${p.x}" cy="${p.y}" r="${kind.r || SVGX_PLACE_FALLBACK_R}">`
 				+ `<title>${svgxEscapeText(name)}</title></circle>\n`);
 			anzahl += 1;
 		});
@@ -1303,6 +1365,9 @@ if (typeof window !== "undefined") {
 		asFeatures: svgxAsFeatures,
 		DIALECTS: SVGX_DIALECTS,
 		PLACE_COLOR: SVGX_PLACE_COLOR,
+		// Die Seite holt die Zoombänder und reicht das Ergebnis als `placeKinds` in build()
+		// zurück -- so bleibt dieser Bauer ohne fetch und ohne DOM.
+		placeKindsFromBands: svgxPlaceKindsFromBands,
 		WAY_COLORS: SVGX_WAY_COLORS,
 		WAY_SUBTYPES: SVGX_WAY_SUBTYPES,
 	};
@@ -1318,6 +1383,10 @@ if (typeof module !== "undefined" && module.exports) {
 		SVGX_BOUNDARY_WIDTH: SVGX_BOUNDARY_WIDTH,
 		SVGX_PLACE_KINDS: SVGX_PLACE_KINDS,
 		SVGX_PLACE_COLOR: SVGX_PLACE_COLOR,
+		SVGX_PLACE_SIZE_ZOOM: SVGX_PLACE_SIZE_ZOOM,
+		SVGX_PLACE_FALLBACK_R: SVGX_PLACE_FALLBACK_R,
+		svgxPlaceRadiusFromDiameter: svgxPlaceRadiusFromDiameter,
+		svgxPlaceKindsFromBands: svgxPlaceKindsFromBands,
 		svgxPoint: svgxPoint,
 		svgxEscapeText: svgxEscapeText,
 		svgxFoldAscii: svgxFoldAscii,

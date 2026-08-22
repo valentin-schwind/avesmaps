@@ -8,6 +8,10 @@
 	const ENDPOINTS = {
 		mapFeatures: "/api/app/map-features.php",
 		territories: "/api/app/political-territories.php?action=layer",
+		// Die Zoombänder geben den MASSSTAB der Ortszirkel her (svgxPlaceKindsFromBands).
+		// ⚠️ Der öffentliche Leser, nicht /api/edit/map/zoom-bands.php: gebraucht wird nur die
+		// gespeicherte Übersteuerung, und dieser hier fällt offen aus (bands: null ⇒ Vorgabe).
+		zoomBands: "/api/app/zoom-bands.php",
 		// ⚠️ EINE Anfrage je Art, nie in einer Schleife über Werte: der Landschaften- und
 		// der Territorien-Endpunkt sind bekannte Perf-Brennpunkte auf dem Shared Hosting.
 		//
@@ -244,6 +248,41 @@
 		return antwort.json();
 	}
 
+	// Die Ortszirkel im Abzug sind so groß, wie die Karte den Ort auf ihrer höchsten Zoomstufe
+	// zeichnet -- die Zahlen dafür stehen in der Zoombänder-Tafel, die ein Admin verstellen kann.
+	//
+	// 🔴 FÄLLT STILL AUF DIE VORGABE ZURÜCK und gibt dann `null` zurück: der Bauer trägt dieselbe
+	// Tafel als Literale (SVGX_PLACE_KINDS). Ein Abzug ohne Serverantwort hat also denselben
+	// Maßstab wie einer mit -- nur eben ohne die Übersteuerung. Ein Ausfall hier darf einen
+	// zwanzig Megabyte großen Export nicht scheitern lassen.
+	//
+	// ⚠️ avesmapsResolveLocationZoomBands kommt aus js/map-features/location-zoom-bands.js, das
+	// edit/svg-export.php eigens dafür lädt. Es führt die Vorgabe mit der Übersteuerung zusammen
+	// (Loch-Regel inbegriffen) -- diese Seite schreibt keine seiner Zahlen ab.
+	// ⚠️ Still heißt hier NICHT stumm: der Rückfall sagt in der Konsole, dass er stattgefunden hat.
+	// Sonst verstellt jemand die Tafel, der Abzug ignoriert sie, und die Ursache ist von außen
+	// nicht mehr von "wir rechnen halt so" zu unterscheiden.
+	async function ortsgroessenHolen() {
+		if (typeof avesmapsResolveLocationZoomBands !== "function"
+			|| !window.AvesmapsSvgExport.placeKindsFromBands) {
+			console.warn("SVG-Export: location-zoom-bands.js fehlt — Ortszirkel nach Vorgabetafel.");
+			return null;
+		}
+		try {
+			const payload = await holen(ENDPOINTS.zoomBands);
+			if (!payload || payload.ok !== true) {
+				console.warn("SVG-Export: Zoombänder ohne brauchbare Antwort — Ortszirkel nach Vorgabetafel.");
+				return null;
+			}
+			const tafel = avesmapsResolveLocationZoomBands(payload.bands);
+			return window.AvesmapsSvgExport.placeKindsFromBands(tafel.marker);
+		} catch (fehler) {
+			console.warn(`SVG-Export: Zoombänder nicht erreichbar (${fehler && fehler.message}) `
+				+ "— Ortszirkel nach Vorgabetafel.");
+			return null;
+		}
+	}
+
 	function heute() {
 		const d = new Date();
 		const zwei = (n) => String(n).padStart(2, "0");
@@ -315,6 +354,9 @@
 				ecosystems = gesammelt;
 			}
 
+			// Nur wenn Orte im Abzug sind -- sonst wäre es eine Anfrage für nichts.
+			const ortsgroessen = an.orte ? await ortsgroessenHolen() : null;
+
 			status("Die Datei wird gebaut …");
 			await atmen();
 
@@ -350,6 +392,8 @@
 				wayOutlines: farben.wayOutlines,
 				areaOutlines: farben.areaOutlines,
 				placeColors: farben.placeColors,
+				// null heißt "nimm die Vorgabe des Bauers" -- dieselben Zahlen, ohne Übersteuerung.
+				placeKinds: ortsgroessen,
 				areaColors: flaechenFarben,
 				boundaryColor: farben.boundaryColor,
 				powerlineColor: farben.powerlineColor,

@@ -398,8 +398,15 @@ $renderNode = static function (array $node, string $parentPath, int $depth) use 
                 </table>
             </section>
         </main>
-        <script src="../js/pages/svg-export-build.js?v=20260818-svgexport-16"></script>
-        <script src="../js/pages/svg-export-page.js?v=20260818-svgexport-16"></script>
+        <!-- 🔴 VOR svg-export-page.js: die Seite liest daraus avesmapsResolveLocationZoomBands, um
+             die Ortszirkel im Maßstab der höchsten Zoomstufe zu zeichnen. Ohne diese Zeile fällt
+             der Abzug still auf die Vorgabetafel des Bauers zurück -- gleicher Maßstab, aber die
+             Übersteuerung eines Admins wirkt nicht mehr.
+             ⚠️ Diese Datei ruft von sich aus NICHTS ab (siehe ihren Kopf); den Abruf macht
+             svg-export-page.js über /api/app/zoom-bands.php. -->
+        <script src="../js/map-features/location-zoom-bands.js?v=20260822-svgexport-17"></script>
+        <script src="../js/pages/svg-export-build.js?v=20260822-svgexport-17"></script>
+        <script src="../js/pages/svg-export-page.js?v=20260822-svgexport-17"></script>
     <?php endif; ?>
 </body>
 
