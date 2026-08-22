@@ -3265,7 +3265,9 @@ function avesmapsUpdateEcosystemAreaGeometry(PDO $pdo, array $payload, int $user
             'update_area_geometry',
             $userId,
             $publicId,
-            null,
+            // Die Region MITGEBEN, sonst heisst die Zeile im Fenster „Änderungen" für immer
+            // „Unbenannt" -- der Lesepfad benennt sie ueber diese Spalte.
+            avesmapsEcosystemRegionPublicIdOfId($pdo, (int) $before['region_id']),
             avesmapsEcosystemAreaSnapshot($before),
             avesmapsEcosystemAreaSnapshot($after)
         );
@@ -3305,7 +3307,8 @@ function avesmapsDeleteEcosystemArea(PDO $pdo, array $payload, int $userId): arr
             'delete_area',
             $userId,
             $publicId,
-            null,
+            // Wie beim Bearbeiten: ohne die Region bleibt die Zeile namenlos.
+            avesmapsEcosystemRegionPublicIdOfId($pdo, (int) $before['region_id']),
             avesmapsEcosystemAreaSnapshot($before),
             []
         );
@@ -3663,7 +3666,15 @@ function avesmapsListEcosystemChanges(PDO $pdo, bool $canUndoChanges): array
         'SELECT audit.id, audit.action, audit.created_at, audit.area_public_id, audit.region_public_id,
                 audit.operation_id, audit.operation_label, audit.undone_at,
                 users.username, undone_users.username AS undone_username,
-                region.name AS region_name, region.kind AS region_kind,
+                -- ⚠️ ZWEI WEGE ZUM NAMEN. Eine Zeile nennt ihre Region entweder direkt -- so schreiben
+                -- es alle Aktionen seit dem 22.08.2026 -- oder sie nennt nur die Flaeche; dann
+                -- fuehrt der Weg ueber diese zu ihrer Region. Der zweite Weg traegt den BESTAND:
+                -- jede Zeile von „Fläche bearbeitet" und „Fläche radieren" davor hat
+                -- `region_public_id = NULL` und hiess deshalb im Fenster „Unbenannt".
+                -- 💣 Er funktioniert auch nach dem Loeschen, weil eine Flaeche weich geloescht wird
+                -- (`is_active = 0`) und ihre Zeile stehen bleibt.
+                COALESCE(region.name, area_region.name) AS region_name,
+                COALESCE(region.kind, area_region.kind) AS region_kind,
                 -- 💣 NUR fuer die Klima-Zeilen. `after_json` traegt bei einer Flaeche bis zu 20.000
                 -- Positionen; ueber die ganze Liste geholt waeren das Megabytes fuer einen Namen. Eine
                 -- Trennlinie hat hoechstens 500 Punkte, meist ein paar Dutzend -- das ist der Grund,
@@ -3673,6 +3684,8 @@ function avesmapsListEcosystemChanges(PDO $pdo, bool $canUndoChanges): array
            LEFT JOIN users ON users.id = audit.actor_user_id
            LEFT JOIN users undone_users ON undone_users.id = audit.undone_by
            LEFT JOIN ecosystem_region region ON region.public_id = audit.region_public_id
+           LEFT JOIN ecosystem_area area ON area.public_id = audit.area_public_id
+           LEFT JOIN ecosystem_region area_region ON area_region.id = area.region_id
           ORDER BY audit.created_at DESC, audit.id DESC
           LIMIT ' . AVESMAPS_ECOSYSTEM_CHANGE_LOG_LIMIT
     );
@@ -4035,6 +4048,28 @@ function avesmapsEcosystemKindOfRegionId(PDO $pdo, int $regionId): string
     $statement->execute(['id' => $regionId]);
 
     return (string) ($statement->fetchColumn() ?: '');
+}
+
+/**
+ * 💣 EINE FLAECHE OHNE REGIONSBEZUG HEISST IM PROTOKOLL „Unbenannt". `update_area_geometry` und
+ * `delete_area` uebergaben `region_public_id` als `null`, obwohl die Flaeche ihre Region ueber
+ * `region_id` die ganze Zeit kennt -- und der Lesepfad benennt die Zeile ueber genau diese Spalte.
+ * Ergebnis: „Fläche bearbeitet / Unbenannt", bei jedem einzelnen Eckzug, seit es die Ebene gibt.
+ *
+ * ⚠️ Gleiche Bauform wie avesmapsEcosystemKindOfRegionId direkt darueber -- ein Griff auf denselben
+ * Datensatz, damit die beiden nicht auseinanderlaufen.
+ */
+function avesmapsEcosystemRegionPublicIdOfId(PDO $pdo, int $regionId): ?string
+{
+    if ($regionId < 1) {
+        return null;
+    }
+
+    $statement = $pdo->prepare('SELECT public_id FROM ecosystem_region WHERE id = :id LIMIT 1');
+    $statement->execute(['id' => $regionId]);
+    $publicId = $statement->fetchColumn();
+
+    return $publicId === false || $publicId === null || (string) $publicId === '' ? null : (string) $publicId;
 }
 
 /**
