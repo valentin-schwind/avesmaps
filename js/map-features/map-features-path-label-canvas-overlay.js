@@ -64,15 +64,9 @@
 	// map-features-way-labels.js (extractFunction-getestet, tools/paths/test-way-labels.mjs).
 	let wayLabelClickRegister = [];
 
-	// Aktueller Wert der drei #18-Stellgroessen (map-features-path-labels.js, live per ?pathtune=1).
-	function pathLabelBendSettings() {
-		return {
-			searchPx: typeof PATH_LABEL_CALM_SEARCH_PX !== "undefined" ? Number(PATH_LABEL_CALM_SEARCH_PX) || 0 : 0,
-			anchor: typeof PATH_LABEL_CALM_ANCHOR !== "undefined" ? Number(PATH_LABEL_CALM_ANCHOR) || 0 : 0,
-			relief: typeof PATH_LABEL_CURVATURE_RELIEF !== "undefined" ? Number(PATH_LABEL_CURVATURE_RELIEF) || 0 : 0,
-			maxTurn: typeof PATH_LABEL_MAX_TURN_DEG !== "undefined" ? Number(PATH_LABEL_MAX_TURN_DEG) || 0 : 0,
-		};
-	}
+	// 🔴 pathLabelBendSettings ist am 22.08.2026 mit nach curved-label-layout.js gezogen -- NICHT
+	// aus Ordnungsliebe, sondern weil findFreePlacement sie ruft und dort steht. Siehe die
+	// Begruendung an ihrer neuen Stelle.
 
 	// Die fertig gerechneten Glyphen malen. textAlign/textBaseline werden in redraw() gesetzt;
 	// Halo = weicher Schatten + scharfe Kontur.

@@ -311,6 +311,32 @@ function orderDodgeOffsets(slide, step, profile, wishCenter, textLen, anchorWeig
 // Zur Seite weicht hier nichts aus -- ein Strassenname gehoert auf seine Strasse. Findet sich keine
 // freie Stelle, gibt es null zurueck und der Aufrufer laesst diese Platzierung aus; der naechste
 // Name derselben Kette steht ~WAY_LABEL_SCREEN_INTERVAL_PX weiter.
+// Aktueller Wert der drei #18-Stellgroessen (map-features-path-labels.js, live per ?pathtune=1).
+//
+// 🔴 Sie stand bis zum 22.08.2026 in der IIFE des Overlays, und der Bauplan liess sie dort
+// ausdruecklich stehen -- „sie gehoert dem Wege-Kanal". Das war falsch, und der Fehler war teuer
+// genug, um hier zu stehen: findFreePlacement RUFT sie, und findFreePlacement ist umgezogen. Eine
+// Globale sieht eine IIFE-lokale nicht; jeder Aufruf warf `ReferenceError`, und weil redraw() das
+// nicht abfaengt, waeren live SAEMTLICHE Weg-, Fluss- und Kraftlinien-Namen verschwunden.
+//
+// 💣 Die Lehre, und sie ist groesser als dieser Fall: die Reinheitspruefung vor dem Umzug suchte
+// nach ZUSTAND (ctx, map, canvas, document, L) und fand nichts. Eine Funktion haengt aber auch
+// dann an ihrem Gueltigkeitsbereich, wenn sie nur eine GESCHWISTERFUNKTION ruft. Wer etwas aus
+// einer IIFE herausloest, prueft beides -- gewacht von pruefe-verweise.js.
+//
+// ⚠️ Ohne die PATH_LABEL_*-Globalen liefert sie lauter Nullen. Das ist gewollt: ein Aufrufer, der
+// diese Datei ohne den Wege-Kanal laedt (ein Test etwa), bekommt „keine Beruhigung" statt einen
+// Absturz. Ein Kurvenlabel braucht ANDERE Werte -- die kommen mit Plan 2 als eigene Tafel, nicht
+// dadurch, dass hier etwas umdefiniert wird.
+function pathLabelBendSettings() {
+	return {
+		searchPx: typeof PATH_LABEL_CALM_SEARCH_PX !== "undefined" ? Number(PATH_LABEL_CALM_SEARCH_PX) || 0 : 0,
+		anchor: typeof PATH_LABEL_CALM_ANCHOR !== "undefined" ? Number(PATH_LABEL_CALM_ANCHOR) || 0 : 0,
+		relief: typeof PATH_LABEL_CURVATURE_RELIEF !== "undefined" ? Number(PATH_LABEL_CURVATURE_RELIEF) || 0 : 0,
+		maxTurn: typeof PATH_LABEL_MAX_TURN_DEG !== "undefined" ? Number(PATH_LABEL_MAX_TURN_DEG) || 0 : 0,
+	};
+}
+
 // `blockedByOwnKind` prueft die Selbstkollision der Wegnamen untereinander (Kanal A), `hull`/`glyphs`
 // gehen an die gemeinsame Belegungskarte (Orts-, Landschafts-, Gebietsnamen).
 function findFreePlacement(chainPts, cum, total, wishCenter, chars, widths, ls, fontSize, blockedByOwnKind, turningProfile = null) {
