@@ -61,7 +61,7 @@ const EIGENER_WEG = new Set(["territorium"]);
 // docs/superpowers/plans/2026-08-18-wiki-override-rest.md. Dieser Eintrag ist die AUFGABE, nicht die
 // Erlaubnis: wer eine Objektart hier streicht, muss ihre Oberflaechen vorher versorgt haben. Die
 // Gegenrichtung ganz unten sorgt dafuer, dass die Liste schrumpft und nicht waechst.
-const NOCH_OFFEN = new Set(["landschaftslabel", "weg"]);
+const NOCH_OFFEN = new Set(["weg"]);
 
 const zuPruefen = mitKartenziel.filter((art) => !EIGENER_WEG.has(art) && !NOCH_OFFEN.has(art));
 assert.ok(zuPruefen.length >= 2,
@@ -106,6 +106,12 @@ const RUMPF_WOANDERS = {
 	"js/review/review-settlement-wiki.js": {
 		datei: "js/review/review-locations.js",
 		bezeichner: "settlementWikiUebernommenFuerPayload",
+	},
+	// Dasselbe beim Landschaftslabel: der Zuweisungskasten fuehrt die Liste, der Formularbauer
+	// daneben legt sie in den Rumpf.
+	"js/review/review-label-wiki.js": {
+		datei: "js/review/review-labels.js",
+		bezeichner: "getLabelWikiUebernommenPayload",
 	},
 };
 

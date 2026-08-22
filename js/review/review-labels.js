@@ -166,7 +166,10 @@ function populateLabelEditForm({ labelEntry = null, latlng = null } = {}) {
 		// 🔴 ZWEI Angaben, nicht eine: das Nest UND der dritte Zustand. Der Merker ist nicht aus dem
 		// Nest ableitbar (siehe map-features-labels.js), und ohne ihn stünde das Häkchen bei jedem
 		// Öffnen leer da -- ein Speichern nähme die Entscheidung dann zurück.
-		setLabelWikiRegion(label.wikiRegion || null, label.keinArtikel === true);
+		// ⚠️ DREI Angaben, nicht zwei: dazu die Feldherkunft. Sie ist so wenig aus dem Nest ableitbar
+		// wie der Merker daneben -- ohne sie stünde jede Zeile auf „Herkunft unbekannt", und das
+		// Vorhäkeln der Sync-Vorschau verhielte sich, als hätte niemand je etwas von Hand gesetzt.
+		setLabelWikiRegion(label.wikiRegion || null, label.keinArtikel === true, label.fieldOrigins || null);
 	}
 	// „Andere Quelle" ist aus diesem Dialog raus (Owner 2026-07-28) -- weder gelesen noch geschrieben.
 	// Ein bereits gespeicherter Wert bleibt am Feature liegen, weil der Save den Schluessel nicht mehr
@@ -582,6 +585,13 @@ function buildLabelEditPayload(formElement) {
 		priority: Number.parseInt(String(formData.get("priority") || "3"), 10),
 		is_nodix: formData.get("is_nodix") === "on",
 		wiki_region: typeof getLabelWikiRegionPayload === "function" ? getLabelWikiRegionPayload() : null,
+		// 🔴 Die Merkliste reist IMMER mit, auch leer: eine leere Liste ist dasselbe wie ein fehlender
+		// Schlüssel („nichts kam aus dem Wiki, also alles von uns"), und das ist die sichere Richtung.
+		// ⚠️ Kein Rückfall auf `[]`, wenn die Funktion fehlt -- dann sagt dieses Speichern gar nichts,
+		// und der Server stempelt `manual`. Überschützen ist harmlos, überschreiben nicht.
+		...(typeof getLabelWikiUebernommenPayload === "function"
+			? { wiki_uebernommen: getLabelWikiUebernommenPayload() }
+			: {}),
 		// Manuelle Quellen bleiben am Label (Owner 2026-07-28). Der Server fasst other_source nur an,
 		// wenn der Schlüssel mitkommt -- deshalb ist Mitschicken hier sicher und Weglassen wäre es auch.
 		other_source: typeof readOtherSourceFromForm === "function" ? readOtherSourceFromForm("label-edit") : { url: "", label: "" },

@@ -37,6 +37,18 @@ function normalizeLabelFeature(feature) {
 		// (api/_internal/conflicts/rules.php liest denselben Schlüssel serverseitig).
 		// ⚠️ Nur ein ausdrückliches `true` setzt ihn -- als `false` wird er nirgends abgelegt.
 		keinArtikel: properties.wiki_no_article === true,
+		// 🔴 Die FELDHERKUNFT (`{text|feature_subtype: "manual"|"wiki"}`). Sie steht seit dem
+		// 18.08.2026 in der Ablage und reist im Kartenpayload ohnehin mit (`properties` geht dort
+		// unverändert heraus, nur `svg_id` fällt) -- gefehlt hat nur diese Zeile. Ohne sie wüsste
+		// weder die braune Beschriftung noch das Vorhäkeln der Sync-Vorschau, wer den Wert gesetzt
+		// hat. ⚠️ `null` heisst „nicht bekannt", nie „vom Wiki".
+		// 💣 `!Array.isArray` ist noetig, nicht kosmetisch: `typeof [] === "object"`, ein Array reiste
+		// also durch. Der Leser dahinter faengt es zwar noch einmal ab -- aber zwei Riegel fuer
+		// dieselbe Sache sind einer zu viel, und der zweite hier war beim Bauen tatsaechlich falsch.
+		fieldOrigins: properties.field_origins && typeof properties.field_origins === "object"
+			&& !Array.isArray(properties.field_origins)
+			? properties.field_origins
+			: null,
 		// 🔴 EINE Fläche, VIELE Labels (Owner 2026-07-28): der Finsterkamm will im Norden und im Süden
 		// beschriftet werden, mit eigener Drehung und Lage je Label. Deshalb zeigt das LABEL auf seine
 		// Region -- `ecosystem_region.label_public_id` kann nur eines halten und bezeichnet weiterhin

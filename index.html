@@ -1884,12 +1884,15 @@
 					<input id="label-edit-lat" name="lat" type="hidden" />
 					<input id="label-edit-lng" name="lng" type="hidden" />
 						<div class="label-edit-section"><div class="label-edit-section-title">Identität</div>
+					<!-- Der Wiki-Override, Bauform 2: die Zelle hängt sich an die Beschriftung und
+					     bleibt leer, bis labelWikiZeichneAbweichungen sie füllt. Regeln in
+					     css/components/wiki-override.css, hier über css/styles.css. -->
 					<label class="location-report-form__field">
-						<span>Text *</span>
+						<span>Text *<span class="wiki-alt" data-label-wiki-alt="text"></span></span>
 						<div class="location-edit-fieldrow"><input id="label-edit-text" name="text" type="text" maxlength="160" required /></div>
 					</label>
 					<label class="location-report-form__field">
-						<span>Art *</span>
+						<span>Art *<span class="wiki-alt" data-label-wiki-alt="feature_subtype"></span></span>
 						<div class="location-edit-fieldrow"><select id="label-edit-type" name="feature_subtype" required>
 							<!-- Alphabetisch (Fall #64, 2026-08-07), Umlaut auf seinem Grundbuchstaben: Küste bei K,
 							     Sümpfe bei S, Wüste bei W. Dieselbe Ordnung, die avesmapsEcosystemReadRegionTypes der

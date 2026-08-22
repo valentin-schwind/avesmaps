@@ -78,13 +78,32 @@ let labelWikiKeinArtikelGeladen = false;
 // ⚠️ Er wird an denselben zwei Stellen gesetzt wie `currentLabelWikiRegion` selbst, und NUR dort:
 // jede weitere Setzstelle wäre die zweite Wahrheit darüber, was „geladen" heißt.
 let labelWikiRegionGeladen = null;
+// 🔴 DIE FELDHERKUNFT DES LABELS -- `{text|feature_subtype: "manual"|"wiki"}`, aus dem
+// Kartenpayload (`properties.field_origins`, map-features-labels.js). Ein Feld OHNE Eintrag heisst
+// „nicht bekannt", nie „vom Wiki".
+let labelWikiFieldOrigins = null;
+// 🔴 WELCHE FELDER SEIT DEM ÖFFNEN AUS DEM WIKI KAMEN. Der Server stempelt daraus die Feldherkunft
+// (avesmapsFieldOriginsStempeln), und nur für Felder, deren Wert sich wirklich ändert. Ohne diese
+// Liste stempelt er auch eine Sync-Übernahme als „von uns" -- die harmlose Richtung, aber die
+// Auskunft wäre falsch, und der nächste Abgleich liesse genau die Felder in Ruhe, die er selbst
+// gefüllt hat.
+// ⚠️ Dieses Label hat nur EINE Oberfläche; die Zwei-Erzeuger-Falle gibt es hier nicht. Sie steht
+// trotzdem in der Bauform der anderen, damit die nächste Oberfläche nichts erfinden muss.
+let labelWikiUebernommen = new Set();
+let letzterLabelWikiArtikel = null;
 
 /** Der Stand, den ein Label lädt. Ruft das Bauteil neu auf, damit der Kasten dem Label folgt. */
-function setLabelWikiRegion(wiki, keinArtikel) {
+function setLabelWikiRegion(wiki, keinArtikel, fieldOrigins) {
 	currentLabelWikiRegion = wiki && wiki.wiki_key ? wiki : null;
 	labelWikiRegionGeladen = currentLabelWikiRegion;
 	labelWikiSchnappschuss = null;
 	labelWikiKeinArtikelGeladen = keinArtikel === true;
+	// ⚠️ DRITTER Parameter, und er ist optional: `assignLabelWikiRegionToForm` (der WikiSync-Weg von
+	// aussen) ruft dieselbe Funktion mit zwei Argumenten. `undefined` heisst dort „nicht bekannt",
+	// und das ist richtig -- ein frisch angelegtes Label hat noch keine Herkunft.
+	labelWikiFieldOrigins = fieldOrigins && typeof fieldOrigins === "object" ? fieldOrigins : null;
+	labelWikiUebernommen = new Set();
+	letzterLabelWikiArtikel = null;
 	toggleLabelOtherSourceSection();
 	mountLabelWikiAssign();
 }
@@ -105,6 +124,9 @@ function resetLabelWikiState() {
 	labelWikiRegionGeladen = null;
 	labelWikiSchnappschuss = null;
 	labelWikiKeinArtikelGeladen = false;
+	labelWikiFieldOrigins = null;
+	labelWikiUebernommen = new Set();
+	letzterLabelWikiArtikel = null;
 	toggleLabelOtherSourceSection();
 	mountLabelWikiAssign();
 }
@@ -194,16 +216,112 @@ async function labelWikiAssignZustand() {
 	if (schluessel === "") {
 		labelWikiSchnappschuss = null;
 	}
-	return avesmapsWikiAssignLandschaftslabelZustand({
+	const zustand = avesmapsWikiAssignLandschaftslabelZustand({
 		wiki_region: currentLabelWikiRegion,
 		schnappschuss: labelWikiSchnappschuss,
 		arten: labelWikiArten(),
 		kein_artikel: labelWikiKeinArtikelGeladen,
+		field_origins: labelWikiFieldOrigins,
 		// 💣 Lesefunktionen, nicht Werte: `laden` läuft einmal, die Sync-Vorschau entsteht erst beim
 		// Druck auf „Sync" -- dazwischen kann im Formular getippt worden sein.
 		text: () => String(labelWikiElement("label-edit-text")?.value || ""),
 		feature_subtype: () => String(labelWikiElement("label-edit-type")?.value || ""),
 	});
+	// ⚠️ NACH dem Bau, nicht davor: erst hier steht der Schnappschuss fest.
+	letzterLabelWikiArtikel = zustand.artikel || null;
+	labelWikiZeichneAbweichungen();
+	return zustand;
+}
+
+// ---- Der Wiki-Override an den zwei Feldzeilen ---------------------------------------------------
+// Entwurf: docs/superpowers/specs/2026-08-17-wiki-override-fuer-alle-design.md
+//
+// 🔴 ZWEI SICHTBARE ZUSTÄNDE, NICHT VIER: braune Beschriftung + durchgestrichener Wiki-Stand + ↺
+// heisst „wir haben das gesetzt"; ohne Farbe heisst „weicht ab, Herkunft unbekannt".
+// `herkunft === "wiki"` wird mitgeschrieben, aber nicht angezeigt -- sie wirkt beim Vorhäkeln.
+//
+// 💣 DIE KATEGORIE TRÄGT EINEN SCHLÜSSEL. Ohne Übersetzung stünde „gebirge" durchgestrichen neben
+// einem Feld, das „Gebirge" zeigt -- genau der Befund, der beim Ort am 17.08.2026 live sichtbar
+// wurde und sich wie ein Tippfehler las. Die Beschriftungen kommen aus dem AUSWAHLFELD SELBST
+// (`labelWikiArten`), nicht aus einer zweiten Liste.
+function labelWikiZeichneAbweichungen() {
+	if (typeof avesmapsWikiFeldStand !== "function" || typeof avesmapsWikiAssignSubject !== "function") {
+		return;
+	}
+	const beschriftungen = {};
+	labelWikiArten().forEach((art) => {
+		beschriftungen[String(art.type_key)] = String(art.label || art.type_key);
+	});
+	const stand = avesmapsWikiFeldStand(
+		(avesmapsWikiAssignSubject("landschaftslabel") || {}).felder || [],
+		{
+			text: String(labelWikiElement("label-edit-text")?.value || ""),
+			feature_subtype: String(labelWikiElement("label-edit-type")?.value || ""),
+		},
+		(letzterLabelWikiArtikel && letzterLabelWikiArtikel.werte) || {},
+		avesmapsWikiAssignLandschaftHerkunft(labelWikiFieldOrigins, AVESMAPS_WIKI_ASSIGN_LANDSCHAFTSLABEL_KARTENFELDER),
+		{ feature_subtype: beschriftungen }
+	);
+	document.querySelectorAll("#label-edit-overlay [data-label-wiki-alt]").forEach((zelle) => {
+		const feld = zelle.getAttribute("data-label-wiki-alt") || "";
+		const s = stand[feld];
+		zelle.replaceChildren();
+		const vonUns = Boolean(s && s.abweicht && s.herkunft === "manual");
+		// Die Hervorhebung sitzt an der BESCHRIFTUNG, nicht an der Zelle. Als Klasse gesetzt statt
+		// per `:has()`: jene Elternauswahl fällt bei fehlender Browserfähigkeit LAUTLOS aus, und die
+		// Zeile sähe dann aus wie eine mit unbekannter Herkunft -- also wie der andere Zustand.
+		zelle.parentElement?.classList.toggle("has-wiki-ovr", vonUns);
+		if (!s || !s.abweicht) {
+			return;
+		}
+		const alt = document.createElement("span");
+		alt.className = "dt-old";
+		alt.textContent = s.wikiAnzeige;
+		alt.title = (vonUns ? "Von uns gesetzt. " : "Weicht vom Wiki ab. ") + "Wiki-Stand: " + s.wikiAnzeige;
+		const knopf = document.createElement("button");
+		knopf.type = "button";
+		knopf.className = "dt-reset";
+		knopf.textContent = "↺";
+		knopf.title = "Auf Wiki-Stand zurücksetzen";
+		// ⚠️ Der Knopf sitzt IN einem `<label>`: ohne diesen Riegel reichte der Klick an das Feld
+		// durch und fokussierte es, während sich sein Wert ändert.
+		knopf.addEventListener("click", (ereignis) => {
+			ereignis.preventDefault();
+			ereignis.stopPropagation();
+			labelWikiFeldZuruecksetzen(feld, s.wikiWert);
+		});
+		zelle.append(alt, knopf);
+	});
+}
+
+/**
+ * ↺ an einer Feldzeile: genau diesen einen Wert aus dem Wiki ins Formular holen.
+ * ⭐ ES IST DIE SYNC-ÜBERNAHME EINER EINZIGEN ZEILE -- derselbe Weg, dieselbe Merkliste, kein
+ * zweiter Schreibpfad. Geschrieben wird mit „Speichern".
+ */
+function labelWikiFeldZuruecksetzen(feld, wikiWert) {
+	if (feld === "text") {
+		const eingabe = labelWikiElement("label-edit-text");
+		if (!eingabe) {
+			return;
+		}
+		eingabe.value = wikiWert;
+	} else if (feld === "feature_subtype") {
+		const select = labelWikiElement("label-edit-type");
+		// 💣 Nur, wenn das Auswahlfeld die Kategorie kennt -- dieselbe zweite Hälfte des Riegels wie
+		// in `labelWikiKategorieAusArt`.
+		if (!select || !Array.from(select.options || []).some((option) => option.value === wikiWert)) {
+			return;
+		}
+		select.value = wikiWert;
+	}
+	labelWikiUebernommen.add(feld);
+	labelWikiZeichneAbweichungen();
+}
+
+/** Die Felder, die dieses Speichern als Wiki-Übernahme nennt -- für `buildLabelEditPayload`. */
+function getLabelWikiUebernommenPayload() {
+	return Array.from(labelWikiUebernommen);
 }
 
 /**
@@ -217,6 +335,19 @@ async function labelWikiAssignZustand() {
 function labelWikiAssignZuweisen(treffer) {
 	const roh = (treffer && treffer.roh) || {};
 	currentLabelWikiRegion = labelWikiRegionFromRow(roh);
+	// 🪤 Das Bauteil ruft nach „Zuweisen" KEIN `laden` -- es ändert seine Daten selbst. Ohne diese
+	// zwei Zeilen zeigte der Kasten den neuen Artikel und die Feldzeile daneben den Stand des alten.
+	labelWikiSchnappschuss = roh;
+	letzterLabelWikiArtikel = avesmapsWikiAssignLandschaftslabelZustand({
+		wiki_region: currentLabelWikiRegion,
+		schnappschuss: roh,
+		arten: labelWikiArten(),
+		kein_artikel: labelWikiKeinArtikelGeladen,
+		field_origins: labelWikiFieldOrigins,
+		text: () => String(labelWikiElement("label-edit-text")?.value || ""),
+		feature_subtype: () => String(labelWikiElement("label-edit-type")?.value || ""),
+	}).artikel || null;
+	labelWikiZeichneAbweichungen();
 	labelWikiSchnappschuss = roh;
 	toggleLabelOtherSourceSection();
 	labelWikiKategorieAusArt(roh.art);
@@ -258,20 +389,24 @@ function labelWikiAssignSyncUebernehmen(zeilen) {
 	if (avesmapsWikiAssignLandschaftslabelSyncLeer(werte)) {
 		throw new Error("Keine übernehmbare Angabe angehakt.");
 	}
+	// 🔴 ZWEITE HÄLFTE DER ÜBERNAHME: merken, WELCHE Felder aus dem Wiki kamen.
 	const textInput = labelWikiElement("label-edit-text");
 	if (werte.text !== null && textInput) {
 		textInput.value = werte.text;
+		labelWikiUebernommen.add("text");
 	}
 	const typeSelect = labelWikiElement("label-edit-type");
 	if (werte.feature_subtype !== null && typeSelect
 		&& Array.from(typeSelect.options || []).some((option) => option.value === werte.feature_subtype)) {
 		typeSelect.value = werte.feature_subtype;
+		labelWikiUebernommen.add("feature_subtype");
 	}
 	// 🔴 Und das NEST folgt dem Wiki nach: genau das tat der alte „Sync"-Knopf, und ohne diese Zeile
 	// bliebe der halbe Artikel, den die Infobox des Labels zeigt, auf dem Stand der Zuweisung stehen.
 	if (labelWikiSchnappschuss) {
 		currentLabelWikiRegion = labelWikiRegionFromRow(labelWikiSchnappschuss);
 	}
+	labelWikiZeichneAbweichungen();
 }
 
 /**
@@ -302,7 +437,30 @@ function mountLabelWikiAssign() {
 	});
 }
 
+// 🔴 TIPPEN IM FORMULAR AENDERT DIE ABWEICHUNG. Ohne diese zwei Zuhoerer bliebe ein
+// durchgestrichener Wiki-Stand samt ↺ stehen, nachdem der Editor den Wert von Hand angeglichen
+// hat -- ein Rueckholangebot fuer etwas, das gar nicht mehr abweicht.
+// ⚠️ EINMAL, nicht bei jedem Oeffnen: die zwei Felder stehen fest in index.html, und
+// `mountLabelWikiAssign` laeuft bei jedem Dialogaufruf -- dort verdrahtet, haetten sie sich
+// gestapelt. Der Riegel steht deshalb hier, auf Modulebene.
+// 💣 Gefunden hat diese Luecke der Wachtest js/ui/__tests__/wiki-feld-herkunft-geladen.test.js,
+// unmittelbar nachdem er fuer den Zwilling im Kartendialog der Landschaft geschrieben war. Genau
+// dafuer ist er da: eine Regel, die einen von mehreren Erzeugern bindet, ist keine Regel.
+function verdrahteLabelWikiZeichner() {
+	labelWikiElement("label-edit-text")?.addEventListener("input", labelWikiZeichneAbweichungen);
+	labelWikiElement("label-edit-type")?.addEventListener("change", labelWikiZeichneAbweichungen);
+}
+
+if (typeof document !== "undefined") {
+	if (document.readyState === "loading") {
+		document.addEventListener("DOMContentLoaded", verdrahteLabelWikiZeichner, { once: true });
+	} else {
+		verdrahteLabelWikiZeichner();
+	}
+}
+
 window.setLabelWikiRegion = setLabelWikiRegion;
+window.getLabelWikiUebernommenPayload = getLabelWikiUebernommenPayload;
 window.resetLabelWikiState = resetLabelWikiState;
 window.getLabelWikiRegionPayload = getLabelWikiRegionPayload;
 window.getLabelWikiNoArticlePayload = getLabelWikiNoArticlePayload;
