@@ -136,4 +136,23 @@ assert(avesmapsCurveBaselinesFromCache('{"version":2,"regions":{"r1":{"rev":7,"m
 assert(avesmapsCurveBaselinesFromCache('{"version":1,"regions":{"r1":{"rev":7,"max":1}}}', ['r1' => 7]) === []);
 assert(avesmapsCurveBaselinesFromCache('{"version":1,"regions":{"r1":{"rev":7,"max":1,"line":[[1,2]]}}}', ['r1' => 7]) === []);
 
+// 💣 Eine kaputte Region reisst die anderen NICHT mit. Das braucht ZWEI Regionen, um ueberhaupt
+// sichtbar zu sein -- mit nur einer sehen "diese Region weglassen" und "alles weglassen" identisch
+// aus, und genau daran ist der erste Entwurf vorbeigelaufen.
+$gemischt = '{"version":1,"regions":{'
+    . '"kaputt":{"rev":1,"max":1,"line":[[1,2],["x",4]]},'
+    . '"heil":{"rev":2,"max":1,"line":[[5,6],[7,8]]}}}';
+$geladen = avesmapsCurveBaselinesFromCache($gemischt, ['kaputt' => 1, 'heil' => 2]);
+assert(array_keys($geladen) === ['heil']);
+assert($geladen['heil']['line'] === [[5.0, 6.0], [7.0, 8.0]]);
+
+// Dasselbe fuer die uebrigen Fehlerklassen, damit keine von ihnen heimlich eskaliert.
+$gemischt2 = '{"version":1,"regions":{'
+    . '"ohneLinie":{"rev":1,"max":1},'
+    . '"zuKurz":{"rev":1,"max":1,"line":[[1,2]]},'
+    . '"veraltet":{"rev":9,"max":1,"line":[[1,2],[3,4]]},'
+    . '"heil":{"rev":2,"max":1,"line":[[5,6],[7,8]]}}}';
+$geladen2 = avesmapsCurveBaselinesFromCache($gemischt2, ['ohneLinie' => 1, 'zuKurz' => 1, 'veraltet' => 1, 'heil' => 2]);
+assert(array_keys($geladen2) === ['heil']);
+
 echo "curve-label-store tests passed\n";

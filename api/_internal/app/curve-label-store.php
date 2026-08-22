@@ -135,12 +135,25 @@ function avesmapsCurveBaselinesFromCache(string $json, array $revisionByRegion):
         if (!is_array($linie) || count($linie) < 2) {
             continue;
         }
+        // 💣 Eine kaputte Koordinate wirft DIESE Region weg, nicht alle. Der erste Entwurf dieses
+        // Plans stand hier auf `return []` -- und widersprach damit seiner eigenen Regel eine Zeile
+        // weiter oben: jede andere Fehlerklasse (fehlende Linie, zu kurze Linie, veraltete Revision,
+        // unbekannte Region) ueberspringt genau eine Region. Ein einziger verdorbener Punkt haette
+        // die Kurven ALLER rund 56 Regionen geloescht, auf jeder Kartenanfrage, wortlos.
+        // ⚠️ Kein `continue 2`, sondern ein Merker: `continue 2` in einer verschachtelten Schleife
+        // liest sich wie ein Tippfehler, und diese Stelle wird von jemandem gelesen, der den Grund
+        // nicht kennt.
         $sauber = [];
+        $kaputt = false;
         foreach ($linie as $p) {
             if (!is_array($p) || count($p) < 2 || !is_numeric($p[0]) || !is_numeric($p[1])) {
-                return [];
+                $kaputt = true;
+                break;
             }
             $sauber[] = [(float) $p[0], (float) $p[1]];
+        }
+        if ($kaputt) {
+            continue;
         }
         $raus[$regionId] = [
             'line' => $sauber,
