@@ -870,6 +870,14 @@
   // ---- selection / new ----
   async function selectGameLiterature(publicId) {
     state.selectedId = publicId;
+    // 🔴 EIN FRISCH GEWAEHLTER EINTRAG HAT NICHTS UEBERNOMMEN. Ohne dieses Leeren truege die
+    // Merkliste die Uebernahmen des ZULETZT bearbeiteten Werkes weiter, und dessen Nachfolger
+    // bekaeme beim naechsten Speichern die Herkunft „aus dem Wiki" fuer Werte, die nie aus einem
+    // Wiki kamen -- die GEFAEHRLICHE Richtung: ein spaeterer Abgleich boete sie vorangehakt an und
+    // ueberschriebe echte Handarbeit. Live seit dem 17.08.2026; gefunden am 22.08. von
+    // js/ui/__tests__/wiki-uebernommen-alle-oberflaechen.test.js, unmittelbar nachdem dieselbe
+    // Luecke im Wege-Editor aufgefallen war.
+    aeWikiUebernommen = new Set();
     renderList();
     try {
       state.detail = await gameLiteraturePost({ action: "detail", public_id: publicId });
@@ -887,6 +895,8 @@
   function newGameLiterature() {
     state.selectedId = null;
     state.detail = null;
+    // Dasselbe fuer den leeren Entwurf: ein neues Werk hat erst recht nichts uebernommen.
+    aeWikiUebernommen = new Set();
     renderList();
     renderDetail();
     renderPlaces();

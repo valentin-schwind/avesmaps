@@ -23,9 +23,9 @@
 // seit dem 17.08.2026 live und richtig ist. Das Paar steht deshalb ausdruecklich in RUMPF_WOANDERS.
 //
 // ⚠️ WAS ER NICHT FAENGT, damit niemand mehr hineinliest, als drinsteht: er prueft, DASS eine
-// Oberflaeche ihre Uebernahmen meldet, nicht WELCHE. Ein , das ein einzelnes Feld vergisst,
+// Oberflaeche ihre Uebernahmen meldet, nicht WELCHE. Ein Eintrag, der ein einzelnes Feld vergisst,
 // bleibt hier gruen -- dagegen hilft nur, dass jede Oberflaeche ihre Wiki-Werte an genau EINER
-// Stelle ins Formular schreibt (), und genau daneben steht das .
+// Stelle ins Formular schreibt (der Sync-Uebernahme), und genau daneben steht der Eintrag.
 //
 // Run: node js/ui/__tests__/wiki-uebernommen-alle-oberflaechen.test.js
 
@@ -64,8 +64,9 @@ const EIGENER_WEG = new Set(["territorium"]);
 const NOCH_OFFEN = new Set(["weg"]);
 
 const zuPruefen = mitKartenziel.filter((art) => !EIGENER_WEG.has(art) && !NOCH_OFFEN.has(art));
-assert.ok(zuPruefen.length >= 2,
-	"weniger als zwei Objektarten zu pruefen -- das Register wurde vermutlich nicht gelesen: "
+assert.ok(zuPruefen.length >= 4,
+	"weniger als vier Objektarten zu pruefen -- das Register wurde vermutlich nicht gelesen, "
+	+ "oder eine Objektart ist still in NOCH_OFFEN gewandert: "
 	+ JSON.stringify(zuPruefen));
 checks++;
 
@@ -161,6 +162,47 @@ for (const art of zuPruefen) {
 			+ "nicht als Paar mit der Datei eingetragen, die das fuer sie tut (RUMPF_WOANDERS). Die "
 			+ "Liste erreicht den Server nie, und er stempelt jede Uebernahme als „von uns\".");
 		checks++;
+	}
+}
+
+// ---- 💣 UND JEDE MERKLISTE MUSS AUCH GELEERT WERDEN -----------------------------------------
+// Eine Liste, die nur waechst, ist schlimmer als keine. Der Wege-Editor fuehrte sie modulweit ueber
+// die ganze Sitzung: wer an Weg A das ↺ drueckte und danach an Weg B den Wegtyp VON HAND aenderte,
+// schickte fuer B weiterhin `wiki_uebernommen:["feature_subtype"]` -- der Server stempelte echte
+// Handarbeit als „aus dem Wiki", und ein spaeterer Abgleich haette sie vorangehakt angeboten und
+// stillschweigend ueberschrieben. Das ist die GEFAEHRLICHE Richtung (Entwurf §2.1), und auf dem
+// Bildschirm war nichts davon zu sehen.
+// ⚠️ Geprueft wird, DASS es einen Ruecksetzer gibt (`= new Set()` ein zweites Mal, oder `.clear()`),
+// nicht wo er steht -- beim Kartendialog beim Oeffnen, beim Editorfenster beim Wegwechsel, beim
+// Landschafts-Editor je Block. Die Oberflaechen sind zu verschieden fuer eine Formvorschrift.
+
+for (const art of zuPruefen) {
+	for (const datei of oberflaechenVon(art)) {
+		const quelle = inhalt.get(datei);
+		for (const name of merklistenBezeichner(quelle)) {
+			// Ohne Regex-Bau aus Fremdtext: der Bezeichner ist ein blanker JS-Name, gesucht wird
+			// woertlich. Ein `new RegExp(name + …)` hatte hier zweimal die Escapes verschluckt.
+			if (!quelle.includes(name + ".add(")) { continue; }
+			// 🪤 GEZAEHLT WERDEN NUR ZUWEISUNGEN OHNE DEKLARATION. Der erste Entwurf addierte die
+			// Treffer von `x = new Set(` UND `let x = new Set(` -- eine einzelne Deklaration zaehlte
+			// damit als zwei, und die Zusicherung war unerschuetterlich gruen. Erst drei
+			// Mutationsproben haben es gezeigt.
+			let neuGesetzt = 0;
+			let stelle = quelle.indexOf(name + " = new Set(");
+			while (stelle !== -1) {
+				const davor = quelle.slice(Math.max(0, stelle - 6), stelle);
+				if (!/(?:^|[\s;{(])(?:let|var|const)\s$/.test(davor)) { neuGesetzt++; }
+				stelle = quelle.indexOf(name + " = new Set(", stelle + 1);
+			}
+			const geleert = quelle.includes(name + ".clear(");
+			assert.ok(neuGesetzt >= 1 || geleert,
+				datei + ' (Objektart "' + art + '"): die Merkliste ' + name + " wird nie geleert -- sie "
+				+ "traegt die Uebernahmen des ZULETZT bearbeiteten Objekts weiter, und dessen Nachfolger "
+				+ "bekommt beim naechsten Speichern die Herkunft „aus dem Wiki\" fuer einen Wert, der nie "
+				+ "aus einem Wiki kam. Das ist die gefaehrliche Richtung: ein spaeterer Abgleich bietet ihn "
+				+ "dann vorangehakt an und ueberschreibt echte Handarbeit.");
+			checks++;
+		}
 	}
 }
 

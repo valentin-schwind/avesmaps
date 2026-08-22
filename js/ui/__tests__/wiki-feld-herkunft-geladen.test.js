@@ -114,8 +114,31 @@ for (const dok of dokumente) {
 // mindestens einen Eingabe- oder Auswahl-Zuhoerer haengen. Wie er heisst und wo er sitzt, bleibt
 // seine Sache -- die Oberflaechen sind zu verschieden fuer eine Formvorschrift.
 
+// 🪤 Gemessen wird der CODE, nicht die Datei: die Kommentare dieses Projekts sind laenger als der
+// Rumpf, den sie erklaeren -- im Wege-Editor liegen ueber 400 Zeichen Begruendung zwischen dem
+// `addEventListener("change"` und dem Aufruf darunter. Ein Fenster ueber den Rohtext haette dort
+// eine richtige Verdrahtung als fehlend gemeldet.
+function ohneKommentare(text) {
+	// Blockkommentare: alles zwischen /* und */ faellt weg.
+	const ohneBloecke = text.split("/*")
+		.map((teil, n) => (n === 0 ? teil : teil.split("*/").slice(1).join("*/")))
+		.join(" ");
+	// Zeilenkommentare: ab // bis Zeilenende.
+	return ohneBloecke.split("\n")
+		.map((zeile) => {
+			const stelle = zeile.indexOf("//");
+			return stelle === -1 ? zeile : zeile.slice(0, stelle);
+		})
+		.join(" ")
+		// 🪤 UND DIE LEERE ZUSAMMENFALTEN: ein weggeschnittener Kommentar hinterlaesst seine
+		// Einrueckung, und im Wege-Editor frassen neun solcher Zeilen das ganze Fenster auf, bevor
+		// der Aufruf darunter erreicht war. Gemessen wird die Dichte des CODES, nicht die seiner
+		// Einrueckung.
+		.replace(/\s+/g, " ");
+}
+
 for (const datei of aufrufer) {
-	const quelle = inhalt.get(datei);
+	const quelle = ohneKommentare(inhalt.get(datei));
 	// Der Name des Zeichners: die Funktion, in deren Koerper avesmapsWikiFeldStand steht.
 	const zeichner = (quelle.match(/function\s+(\w*[Zz]eichne\w*)\s*\(/g) || [])
 		.map((t) => t.replace(/function\s+/, "").replace(/\s*\($/, ""));
@@ -138,6 +161,40 @@ for (const datei of aufrufer) {
 		+ " haengt an keinem input/change-Zuhoerer). Ein durchgestrichener Wiki-Stand bliebe stehen, "
 		+ "nachdem der Editor den Wert von Hand angeglichen hat -- ein Rueckholangebot fuer etwas, das "
 		+ "gar nicht mehr abweicht.");
+	checks++;
+
+	// 💣 UND ER MUSS AUCH BEIM AUFBAU LAUFEN, nicht nur beim Tippen. Im Wege-Editor stand der
+	// Zeichner genau EINMAL im Code -- im `change`-Zuhoerer der Wegtyp-Auswahl. Ein frisch
+	// geoeffneter Weg zeigte damit weder Durchstreichung noch ↺ noch braune Beschriftung, bis
+	// jemand zufaellig die Auswahl anfasste. Der Test darueber war gruen: die Verdrahtung an den
+	// Zuhoerer war ja da. Gefunden hat es die Konsistenzpruefung, nicht das Testfeld.
+	// ⚠️ Geprueft wird, dass es MINDESTENS EINEN Aufruf ausserhalb aller Zuhoerer-Fenster gibt --
+	// wo er steht (nach dem Mounten, nach dem Laden, in einem `setTimeout`), bleibt jeder
+	// Oberflaeche selbst ueberlassen.
+	const aufrufeAussen = zeichner.some((name) => {
+		let von = quelle.indexOf(name + "()");
+		while (von !== -1) {
+			// 🪤 Die DEKLARATION ist kein Aufruf. Der erste Entwurf zaehlte sie mit -- damit war die
+			// Zusicherung unerschuetterlich gruen, denn jede Funktion enthaelt ihren eigenen Namen
+			// gefolgt von "()". Erst die Mutationsprobe hat es gezeigt.
+			if (quelle.slice(Math.max(0, von - 9), von) === "function ") {
+				von = quelle.indexOf(name + "()", von + 1);
+				continue;
+			}
+			const drin = fenster.some((stueck) => {
+				const start = quelle.indexOf(stueck);
+				return start !== -1 && von >= start && von < start + stueck.length;
+			});
+			if (!drin) { return true; }
+			von = quelle.indexOf(name + "()", von + 1);
+		}
+		return false;
+	});
+	assert.ok(aufrufeAussen,
+		datei + " ruft seinen Zeichner AUSSCHLIESSLICH aus einem input/change-Zuhoerer ("
+		+ zeichner.join(", ") + "). Ein frisch geoeffnetes Formular zeigt dann weder Durchstreichung "
+		+ "noch ↺ noch braune Beschriftung, bis jemand zufaellig ein Feld anfasst -- und der Test "
+		+ "darueber bleibt gruen, weil die Verdrahtung an den Zuhoerer ja da ist.");
 	checks++;
 }
 
