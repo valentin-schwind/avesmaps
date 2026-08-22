@@ -392,6 +392,45 @@
   .zb-range::-moz-range-thumb { width:var(--space-12); height:var(--space-12); border:1px solid var(--color-button-border); border-radius:var(--radius-md); background:var(--color-button); }
   .zb-range:disabled { opacity:.5; cursor:default; }
   .zb-slider-row .zb-num-input { width:4.5rem; }
+  /* ---- Vorschaupanel (22.08.2026) ---------------------------------------------------------
+     🔴 Feste Buehnenbreite, und das ist tragend: der Prototyp rechnete die Ortslagen aus der
+     Buehnenbreite, und auf einem breiten Fenster zogen sie sich so weit auseinander, dass gar
+     nichts mehr kollidierte -- dann taten Versatz und Deckel sichtbar nichts. Bei schmalem
+     Fenster wird gescrollt, wie bei der Repel-Anschauung darueber. */
+  .zbv-wrap { overflow-x:auto; margin-top:var(--space-8); }
+  .zbv-stage { position:relative; width:720px; height:330px; background:var(--color-panel-muted);
+    border:1px solid var(--line); border-radius:var(--radius-md); overflow:hidden; }
+  .zbv-stage svg { position:absolute; inset:0; width:100%; height:100%; pointer-events:none; }
+  .zbv-dot { position:absolute; border-radius:50%; background:var(--color-marker-waypoint);
+    box-sizing:border-box; border:1px solid var(--color-marker-waypoint-core); }
+  .zbv-name { position:absolute; white-space:nowrap; color:var(--color-text-strong);
+    line-height:1.35; pointer-events:none; }
+  .zbv-name--drift { color:var(--color-accent-brown); font-weight:var(--font-weight-bold); }
+  .zbv-name--gone { color:var(--color-danger); opacity:.55; text-decoration:line-through;
+    border:1px dashed var(--color-danger-soft-border); border-radius:var(--radius-sm); padding:0 2px; }
+  .zbv-head { display:flex; align-items:baseline; gap:var(--space-8); flex-wrap:wrap; }
+  .zbv-head__spacer { flex:1 1 auto; }
+  .zbv-seg { display:inline-flex; border:1px solid var(--color-button-soft-border);
+    border-radius:var(--radius-md); overflow:hidden; }
+  .zbv-seg button { border:0; background:var(--color-button-soft); color:var(--color-button-soft-text);
+    font:inherit; font-size:var(--font-size-caption); padding:3px var(--space-8); cursor:pointer; }
+  .zbv-seg button + button { border-left:1px solid var(--color-button-soft-border); }
+  .zbv-seg button[aria-pressed="true"] { background:var(--color-button); color:var(--color-button-text); }
+  .zbv-read { display:flex; gap:var(--space-16); flex-wrap:wrap; padding:var(--space-6) 0; }
+  .zbv-read .k { display:block; font-size:var(--font-size-caption); color:var(--mut); }
+  .zbv-read .v { display:block; font-size:var(--font-size-body); color:var(--color-text-strong); }
+  .zbv-read .v--drift { color:var(--color-accent-brown); }
+  .zbv-read .v--gone { color:var(--color-danger); }
+  /* 🔴 DER WICHTIGSTE SATZ DES PANELS: weicht KEIN Name aus, koennen Versatz und Deckel gar nichts
+     tun. Ohne diesen Hinweis liest sich das als "der Regler ist kaputt" -- genau die Verwechslung,
+     die diesen Umbau ausgeloest hat. */
+  .zbv-hint { margin:var(--space-6) 0 0; padding:var(--space-6) var(--space-8);
+    font-size:var(--font-size-caption); color:var(--color-warning-soft-text);
+    background:var(--color-warning-soft); border:1px solid var(--color-warning-soft-border);
+    border-radius:var(--radius-md); }
+  .zbv-hint[hidden] { display:none; }
+  .zbv-legend { display:flex; gap:var(--space-16); flex-wrap:wrap; font-size:var(--font-size-caption);
+    color:var(--mut); }
   .zb-repel-demo-wrap { overflow-x:auto; margin-top:var(--space-10); }
   .zb-repel-demo { position:relative; height:56px; min-width:20rem; }
   .zb-repel-demo__dot { position:absolute; top:50%; width:10px; height:10px; margin-top:-5px; border-radius:50%; background:var(--color-accent-strong); border:1px solid var(--panel); box-shadow:0 0 0 1px var(--line2); }
@@ -607,6 +646,28 @@
           </div>
         </div>
         <p class="zb-shift-note">Gemessen wird die Luftlinie von der Normalstellung (rechts neben dem Punkt) zur Ausweichstelle — <strong>waagerecht wie senkrecht</strong>. Ein kleiner Ausweichschritt kostet wenige Pixel, eine Zeile hoch oder runter rund 30; der <strong>Seitenwechsel</strong> auf die andere Seite des Punktes rückt den Namen um seine eigene Breite weg und liegt je nach Namenslänge bei 78 bis 203 px — das ist das sichtbarste Wegrücken. Bei <strong>0</strong> bleibt jeder Name auf seiner Normalstellung; wer dort keinen Platz hat, verschwindet. Die Vorgabe 300 liegt über jedem erreichbaren Wert und schneidet nichts weg.</p>
+        <div class="zbv-head">
+          <span class="zb-slider-row__name">Vorschau</span>
+          <span class="zb-slider-row__desc">Wie sich die Namen bei diesen Werten ordnen — dieselbe Rechnung wie auf der Karte.</span>
+          <span class="zbv-head__spacer"></span>
+          <span class="zb-slider-row__desc">Zoomstufe</span>
+          <span class="zbv-seg" id="zbvZoom">
+            <button type="button" data-z="4">z4</button>
+            <button type="button" data-z="5">z5</button>
+            <button type="button" data-z="6" aria-pressed="true">z6</button>
+            <button type="button" data-z="7">z7</button>
+          </span>
+        </div>
+        <div class="zbv-wrap"><div class="zbv-stage" id="zbvStage"><svg id="zbvLines" aria-hidden="true"></svg></div></div>
+        <div class="zbv-read">
+          <div><span class="k">Namen sichtbar</span><span class="v" id="zbvSicht">–</span></div>
+          <div><span class="k">davon ausgewichen</span><span class="v v--drift" id="zbvDrift">–</span></div>
+          <div><span class="k">ausgeblendet</span><span class="v v--gone" id="zbvWeg">–</span></div>
+          <div><span class="k">weitester Drift</span><span class="v" id="zbvMax">–</span></div>
+        </div>
+        <p class="zbv-hint" id="zbvHint" hidden></p>
+        <p class="zbv-legend"><span>Normalstellung — weicht nicht aus</span><span style="color:var(--color-accent-brown)">ausgewichen, Linie zeigt zum Punkt</span><span style="color:var(--color-danger)">ausgeblendet</span></p>
+        <p class="zb-repel-demo-note">Eine erfundene, absichtlich gedrängte Ortslage — kein Kartenausschnitt: sie soll Kollisionen erzwingen. Auf der echten Karte stehen vier von fünf Namen ungestört, dort bewegen Versatz und Max. Drift entsprechend weniger. Marker- und Schriftgrößen kommen aus den Kurven oben, die Abstände aus den vier Reglern — auch ungespeichert.</p>
       </div>
     </div>
     <p class="zb__msg" id="seZoomBandsMsg"></p>
@@ -636,6 +697,9 @@
      läuft. Vor dem Inline-Skript unten, das sie liest (AVESMAPS_ZOOM_BAND_MAX_ZOOM/_LIMITS/
      _DEFAULTS, avesmapsResolveLocationZoomBands). -->
 <script src="/js/map-features/location-zoom-bands.js"></script>
+<!-- Dasselbe reine Fundament wie die Karte: das Vorschaupanel unter den Abstandsreglern
+     ordnet die Namen mit GENAU denselben Funktionen, nicht mit einer Abschrift. -->
+<script src="/js/map-features/label-placement.js"></script>
 <!-- Die Wiki-Zuweisung: EIN Bauteil fuer alle Objektarten (Entwurf
      docs/superpowers/specs/2026-08-15-wiki-zuweisung-vereinheitlichung-design.md).
      🔴 DIE REIHENFOLGE IST VERTRAG: Feldregister, dann Diff-Rechnung, dann das Bauteil --
@@ -4394,7 +4458,181 @@ function updateZoomBandRepelDemo() {
 	demo.style.width = Math.max(labelBx + widthB + repel, dotBx + dotR) + 16 + "px";
 }
 
+function MK_LINE(x1, y1, x2, y2) {
+	return '<line x1="' + x1 + '" y1="' + y1 + '" x2="' + x2 + '" y2="' + y2
+		+ '" style="stroke:var(--color-accent-brown)" stroke-width="1" stroke-dasharray="3 3" />';
+}
+// 🔴 DER WICHTIGSTE SATZ DES PANELS: weicht KEIN Name aus, koennen Versatz und Deckel gar
+// nichts tun. Ohne ihn liest sich das als "der Regler ist kaputt" -- genau die Verwechslung,
+// die diesen Umbau ausgeloest hat.
+const HINWEIS_LEER = "Auf dieser Zoomstufe dr\u00e4ngt sich nichts: jeder Name steht in seiner "
+	+ "Normalstellung. \u201eVersatz\u201c und \u201eMax. Drift\u201c greifen nur bei Namen, die ausweichen "
+	+ "m\u00fcssen \u2014 hier haben sie also nichts zu tun. Wechsle die Zoomstufe oder verkleinere den Spalt.";
+
+// ---- Das Vorschaupanel (22.08.2026) -------------------------------------------------------------
+// 🔴 ES RECHNET NICHTS SELBST. Grundstellung, die zwölf Ausweichstellen und der Löser kommen aus
+// js/map-features/label-placement.js -- DERSELBEN Fassung, die die Karte ruft. Eine Abschrift liefe
+// beim ersten Eingriff auseinander, und eine Vorschau, die etwas anderes zeigt als die Karte, ist
+// schlimmer als keine.
+// ⚠️ Was hier NICHT stimmt und auch nicht stimmen kann: die Karte rendert ihre Namen auf ein
+// Canvas, dieses Fenster setzt sie als Text. Die Kastenbreiten weichen deshalb um wenige Pixel ab.
+// Die ORDNUNG (wer weicht wohin aus, wer fällt weg) ist davon unberührt.
+const ZBV_ORTE = [
+	{ n: "Gareth", k: "metropole", x: 56, y: 62 },      { n: "Angbar", k: "stadt", x: 120, y: 66 },
+	{ n: "Baliho", k: "dorf", x: 184, y: 60 },          { n: "Ottarje", k: "dorf", x: 246, y: 80 },
+	{ n: "Ferdok", k: "grossstadt", x: 62, y: 100 },    { n: "Ysilia", k: "stadt", x: 126, y: 96 },
+	{ n: "Wehrheim", k: "dorf", x: 190, y: 104 },       { n: "Joborn", k: "dorf", x: 254, y: 98 },
+	{ n: "Trallop", k: "kleinstadt", x: 58, y: 136 },   { n: "Auplog", k: "kleinstadt", x: 122, y: 140 },
+	{ n: "Punin", k: "stadt", x: 186, y: 134 },         { n: "Zwingard", k: "dorf", x: 250, y: 142 },
+	{ n: "Nordhag (Weiden)", k: "kleinstadt", x: 58, y: 176 },
+	{ n: "Rommilys", k: "stadt", x: 190, y: 180 },      { n: "Elenvina", k: "grossstadt", x: 268, y: 174 },
+	{ n: "Warunker Höhenburg", k: "gebaeude", x: 60, y: 216 },
+	{ n: "Tempel des Firun", k: "gebaeude", x: 186, y: 212 }, { n: "Hügelsteig", k: "dorf", x: 300, y: 220 },
+	{ n: "Sighelms Halm", k: "gebaeude", x: 62, y: 256 }, { n: "Vinsalt", k: "stadt", x: 178, y: 260 },
+	{ n: "Khunchom", k: "metropole", x: 268, y: 254 },
+	{ n: "Ragath", k: "dorf", x: 70, y: 298 },          { n: "Perricum", k: "stadt", x: 172, y: 302 },
+	{ n: "Ilsur", k: "dorf", x: 268, y: 296 },
+	// Zwei freie Einzelgänger als Gegenprobe: sie stehen in der Normalstellung und rühren sich NIE.
+	{ n: "Riva", k: "kleinstadt", x: 545, y: 108 },     { n: "Festum", k: "grossstadt", x: 545, y: 214 }
+];
+let zbvZoom = 6;
+let zbvKnoten = null;
+
+// Der Wert einer Zelle im FENSTERZUSTAND (nicht im gespeicherten): vor `start` gilt "unsichtbar".
+function zbvBandwert(kind, cls, z) {
+	const zeile = zoomBandsState[kind] && zoomBandsState[kind][cls];
+	if (!zeile || z < zeile.start) { return null; }
+	const wert = zeile.values[z];
+	return (typeof wert === "number" && isFinite(wert)) ? wert : null;
+}
+
+function zbvAufbauen() {
+	const buehne = $("zbvStage");
+	if (!buehne) { return false; }
+	if (zbvKnoten) { return true; }
+	zbvKnoten = ZBV_ORTE.map((ort) => {
+		const dot = document.createElement("div");
+		dot.className = "zbv-dot";
+		const name = document.createElement("div");
+		name.className = "zbv-name";
+		name.textContent = ort.n;
+		buehne.appendChild(dot);
+		buehne.appendChild(name);
+		return { ort: ort, dot: dot, name: name };
+	});
+	const seg = $("zbvZoom");
+	if (seg) {
+		seg.addEventListener("click", (ev) => {
+			const knopf = ev.target.closest("button");
+			if (!knopf) { return; }
+			zbvZoom = Number(knopf.dataset.z);
+			seg.querySelectorAll("button").forEach((x) => {
+				x.setAttribute("aria-pressed", x === knopf ? "true" : "false");
+			});
+			updateZoomBandVorschau();
+		});
+	}
+	return true;
+}
+
+function updateZoomBandVorschau() {
+	if (!zbvAufbauen() || !zbvKnoten) { return; }
+	const abstaende = zoomBandsState.abstaende;
+	const repel = (typeof abstaende.repel === "number") ? abstaende.repel : 0;
+
+	// Messphase: Marker setzen, Schrift setzen, Kasten EINMAL messen.
+	const mess = [];
+	zbvKnoten.forEach((kn) => {
+		const durchmesser = zbvBandwert("marker", kn.ort.k, zbvZoom);
+		const pt = zbvBandwert("label", kn.ort.k, zbvZoom);
+		if (durchmesser === null) {
+			kn.dot.style.display = "none";
+		} else {
+			kn.dot.style.display = "";
+			kn.dot.style.width = durchmesser.toFixed(1) + "px";
+			kn.dot.style.height = durchmesser.toFixed(1) + "px";
+			kn.dot.style.left = (kn.ort.x - durchmesser / 2) + "px";
+			kn.dot.style.top = (kn.ort.y - durchmesser / 2) + "px";
+		}
+		if (pt === null) {
+			kn.name.style.display = "none";
+			// ⚠️ Die Klasse MIT zurücksetzen, sonst hängt ein "--gone" von der vorigen Stufe weiter am
+			// Knoten -- unsichtbar, aber Zähler und DOM sagten dann Verschiedenes.
+			kn.name.className = "zbv-name";
+			return;
+		}
+		kn.name.style.display = "";
+		const hoehePx = pt * 4 / 3;
+		kn.name.style.fontSize = hoehePx.toFixed(2) + "px";
+		const rect = kn.name.getBoundingClientRect();
+		const basis = avesmapsLabelBaseOffset((durchmesser || 0) / 2, hoehePx, abstaende);
+		const roh = {
+			left: kn.ort.x + basis.x, top: kn.ort.y + basis.y,
+			right: kn.ort.x + basis.x + rect.width, bottom: kn.ort.y + basis.y + rect.height,
+			width: rect.width, height: rect.height
+		};
+		mess.push({
+			kn: kn,
+			kollisionsRect: expandRect(roh, repel),
+			basisOffset: basis,
+			kandidaten: avesmapsLabelCandidatePlacements(basis, rect.width, rect.height, abstaende),
+			gruppe: "",
+			relativ: true,
+			prioritaet: AVESMAPS_LABEL_PRIORITY_BY_TYPE[kn.ort.k] || 50,
+			minZoom: 0
+		});
+	});
+
+	const geloest = avesmapsResolveLabelPlacements(mess, { abstaende: abstaende });
+	const ergebnisse = geloest.ergebnisse;
+
+	// Schreibphase.
+	let sicht = 0, gewichen = 0, weg = 0, maxDrift = 0, striche = "";
+	mess.forEach((m, i) => {
+		const stelle = ergebnisse[i].kandidat;
+		const links = m.kn.ort.x + stelle.dx;
+		const oben = m.kn.ort.y + stelle.dy;
+		m.kn.name.style.left = links + "px";
+		m.kn.name.style.top = oben + "px";
+		m.kn.name.className = "zbv-name";
+		if (ergebnisse[i].kollidiert) {
+			weg += 1;
+			m.kn.name.classList.add("zbv-name--gone");
+			return;
+		}
+		sicht += 1;
+		if (stelle.drift > 0.01) {
+			gewichen += 1;
+			if (stelle.drift > maxDrift) { maxDrift = stelle.drift; }
+			m.kn.name.classList.add("zbv-name--drift");
+			// Die Linie macht sichtbar, WIE WEIT der Name von seinem Punkt weg ist.
+			const zx = Math.max(links, Math.min(m.kn.ort.x, links + m.kollisionsRect.width));
+			const zy = Math.max(oben, Math.min(m.kn.ort.y, oben + m.kollisionsRect.height));
+			striche += MK_LINE(m.kn.ort.x, m.kn.ort.y, zx, zy);
+		}
+	});
+
+	const linien = $("zbvLines");
+	if (linien) { linien.innerHTML = striche; }
+	const hinweis = $("zbvHint");
+	if (hinweis) {
+		if (gewichen === 0 && weg === 0) {
+			hinweis.textContent = HINWEIS_LEER;
+			hinweis.hidden = false;
+		} else {
+			hinweis.hidden = true;
+		}
+	}
+	if ($("zbvSicht")) { $("zbvSicht").textContent = String(sicht); }
+	if ($("zbvDrift")) { $("zbvDrift").textContent = String(gewichen); }
+	if ($("zbvWeg")) { $("zbvWeg").textContent = String(weg); }
+	if ($("zbvMax")) { $("zbvMax").textContent = Math.round(maxDrift) + " px"; }
+}
+
 function updateZoomBandsMessage() {
+	// 🔴 EIN Aufhänger für alle Setzer: Regler, Zahlenfeld, Plot-Punkt, Erscheinungsstufe und
+	// Rücksetzer rufen alle hier durch. Die Vorschau hängt deshalb hier und nicht an fünf Stellen.
+	try { updateZoomBandVorschau(); } catch (e) { /* eine kaputte Vorschau darf das Fenster nicht lahmlegen */ }
 	const msg = $("seZoomBandsMsg");
 	if (!msg) { return; }
 	if (!zoomBandsDarfSpeichern) {

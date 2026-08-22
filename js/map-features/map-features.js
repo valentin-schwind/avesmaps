@@ -1,6 +1,8 @@
 // Location markers and labels
 const VISUAL_MAX_ZOOM_LEVEL = 5;
-const LOCATION_LABEL_GAP = 11;
+// 🔴 LOCATION_LABEL_GAP steht seit 22.08.2026 in js/map-features/label-placement.js -- es wurde
+// NUR vom Kollisionsloeser gelesen, und das Vorschaupanel im Fenster „Zoombaender" braucht es
+// ebenfalls, ohne diese ganze Datei zu laden.
 // 🔴 AUFGABE 8B: "Versatz" (war LOCATION_LABEL_SHIFT_SMALL, 8) und "Repel" (war
 // LOCATION_LABEL_COLLISION_PADDING, 2) wurden GLOBALE Regler im Fenster „Zoombänder" -- die
 // Vorgabewerte liegen jetzt allein in js/map-features/location-zoom-bands.js

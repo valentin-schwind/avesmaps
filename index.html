@@ -3101,6 +3101,11 @@
 		     -location-name-labels.js, deren Zeichner die Tafel lesen. Keine eigenen
 		     Abhängigkeiten, die frühe Position kostet also nichts. -->
 		<script src="js/map-features/location-zoom-bands.js"></script>
+		<!-- Das reine Fundament der Beschriftungs-Platzierung (zwoelf Ausweichstellen, Deckel,
+		     Rechteck-Mathe). Nach location-zoom-bands.js, weil es avesmapsLocationLabelSpacing
+		     liest; vor map-features*.js, deren Loeser es ruft. Dieselbe Datei laedt das Fenster
+		     „Zoombaender" -- das Verfahren gibt es genau einmal. -->
+		<script src="js/map-features/label-placement.js"></script>
 		<script src="js/config.js"></script>
 		<script src="js/app/visitor-tracking.js"></script>
 		<script src="js/app/i18n-en.js"></script>

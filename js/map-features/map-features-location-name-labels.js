@@ -27,10 +27,10 @@ function getLocationNameLabelOffset(labelSize, zoomLevel = map.getZoom(), locati
 	// Schrift rechts NEBEN den Marker setzen: Aussenradius + fester Spalt -> respektiert die (variable) Markergroesse.
 	const markerOuterRadius = getLocationMarkerSize(locationType, zoomLevel) / 2;
 	const labelHeightInPixels = labelSize * 4 / 3;
-	return {
-		x: Math.round(markerOuterRadius + avesmapsLocationLabelSpacing("spalt")),
-		y: -(Math.round(labelHeightInPixels * 0.531 * 10) / 10), // 0.531 statt 0.5: optisch beste Zentrierung -- Mixed-Case-Worte (Kleinbuchstaben) wirken tiefer als die reine Versalhoehe, daher Text minimal hoeher
-	};
+	// 🔴 EINE Formel, zwei Aufrufer: avesmapsLabelBaseOffset steht in
+	// js/map-features/label-placement.js und wird auch vom Vorschaupanel im Fenster „Zoombaender"
+	// gerufen. Abgeschrieben liefe die Vorschau beim ersten Eingriff von der Karte weg.
+	return avesmapsLabelBaseOffset(markerOuterRadius, labelHeightInPixels);
 }
 
 // visibilityContext (optional, siehe createLocationVisibilityContext): pro Sync-Lauf EINMAL erhobene

@@ -24,6 +24,7 @@ const vorgabetafel = read("js/map-features/location-zoom-bands.js");
 const mapFeatures = read("js/map-features/map-features.js");
 const nameLabels = read("js/map-features/map-features-location-name-labels.js");
 const collisions = read("js/map-features/map-features-label-collisions.js");
+const platzierung = read("js/map-features/label-placement.js");
 
 // ---- 1. Die Regler stehen im Markup, mit den geforderten Schranken -----------------------------
 // ⚠️ NUR die drei ENGEN (0-20). „Drift" kam am 22.08.2026 dazu und traegt eine eigene, weitere
@@ -83,10 +84,18 @@ assert.ok(!/const LOCATION_NAME_LABEL_GAP\s*=/.test(nameLabels),
 	"LOCATION_NAME_LABEL_GAP existiert nicht mehr als eigene Konstante");
 assert.ok(!/const LOCATION_LABEL_SHIFT_SMALL\s*=/.test(mapFeatures),
 	"LOCATION_LABEL_SHIFT_SMALL existiert nicht mehr als eigene Konstante");
-assert.ok(/x:\s*Math\.round\(markerOuterRadius \+ avesmapsLocationLabelSpacing\("spalt"\)\)/.test(nameLabels),
-	"getLocationNameLabelOffset (der Spalt-Leser) ruft avesmapsLocationLabelSpacing(\"spalt\")");
-assert.ok(/const smallShift = avesmapsLocationLabelSpacing\("versatz"\)/.test(collisions),
-	"der Versatz-Leser (smallShift, zehn von zwoelf Ausweichstellen) ruft avesmapsLocationLabelSpacing(\"versatz\")");
+// 🔴 22.08.2026 -- Spalt- und Versatz-Leser sind nach js/map-features/label-placement.js
+// umgezogen (rein, ohne DOM), damit das Vorschaupanel im Fenster DIESELBE Rechnung ruft wie die
+// Karte. Sie lesen weiterhin die Regler, nur ueber avesmapsLabelSpacingOf -- das eine Zeile weiter
+// auf avesmapsLocationLabelSpacing faellt, wenn keine Uebersteuerung mitkommt.
+assert.ok(/x:\s*Math\.round\(markerAussenradius \+ avesmapsLabelSpacingOf\(abstaende, "spalt"\)\)/.test(platzierung),
+	"avesmapsLabelBaseOffset (der Spalt-Leser) liest den Regler");
+assert.ok(/return avesmapsLabelBaseOffset\(markerOuterRadius, labelHeightInPixels\)/.test(nameLabels),
+	"und die Karte ruft ihn, statt die Formel abzuschreiben");
+assert.ok(/const smallShift = avesmapsLabelSpacingOf\(abstaende, "versatz"\)/.test(platzierung),
+	"der Versatz-Leser (smallShift, zehn von zwoelf Ausweichstellen) liest den Regler");
+assert.ok(/return avesmapsLocationLabelSpacing\(key\);/.test(platzierung),
+	"ohne Uebersteuerung gilt der angewandte Stand -- die Karte ruft genau so");
 assert.ok(/function measureLabelCollisionRect\(element, padding = avesmapsLocationLabelSpacing\("repel"\)\)/.test(collisions),
 	"der Repel-Leser (measureLabelCollisionRect) ruft avesmapsLocationLabelSpacing(\"repel\") als Vorgabewert");
 

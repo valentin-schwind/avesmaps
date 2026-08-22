@@ -32,6 +32,11 @@ vm.runInThisContext(
 	fs.readFileSync(path.join(__dirname, "../location-zoom-bands.js"), "utf8"),
 	{ filename: "location-zoom-bands.js" }
 );
+// 🔴 Das reine Fundament ZUERST -- der Kollisionsloeser ruft es nur noch.
+vm.runInThisContext(
+	fs.readFileSync(path.join(__dirname, "../label-placement.js"), "utf8"),
+	{ filename: "label-placement.js" }
+);
 vm.runInThisContext(
 	fs.readFileSync(path.join(__dirname, "../map-features-label-collisions.js"), "utf8"),
 	{ filename: "map-features-label-collisions.js" }
@@ -122,11 +127,14 @@ assert.strictEqual(avesmapsResolveLocationZoomBands({ abstaende: { spalt: 60 } }
 // ---- F. Verdrahtung: der Deckel wird auch wirklich angewandt --------------------------------------
 // 💣 Ein gruener Rechentest beweist nichts, solange niemand den Wert liest (Hausregel). Diese
 // Haelfte prueft, dass der Loeser ihn holt und Kandidaten damit ueberspringt.
-const loeser = fs.readFileSync(path.join(__dirname, "../map-features-label-collisions.js"), "utf8");
-assert.ok(/const maxDrift = avesmapsLocationLabelSpacing\("drift"\)/.test(loeser),
-	"resolveLabelCollisions liest den Deckel");
-assert.ok(/if \(isLocation && candidate\.drift > maxDrift\) \{\s*\n\s*continue;/.test(loeser),
-	"und ueberspringt jede Stelle darueber -- nur bei Siedlungen");
+const loeser = fs.readFileSync(path.join(__dirname, "../label-placement.js"), "utf8");
+assert.ok(/avesmapsLabelSpacingOf\(opts\.abstaende, "drift"\)/.test(loeser),
+	"avesmapsResolveLabelPlacements liest den Deckel");
+assert.ok(/if \(relativ && typeof kandidat\.drift === "number" && kandidat\.drift > maxDrift\) \{\s*\n\s*continue;/.test(loeser),
+	"und ueberspringt jede Stelle darueber -- nur bei relativen (Orts-)Kandidaten");
+const karte = fs.readFileSync(path.join(__dirname, "../map-features-label-collisions.js"), "utf8");
+assert.ok(/avesmapsResolveLabelPlacements\(/.test(karte),
+	"und die Karte ruft genau diesen Loeser, statt einen eigenen zu fahren");
 // ⚠️ Der Deckel darf NICHT in getLocationNameLabelOffsets filtern: candidates[0] traegt den
 // Rueckfall fuer das ausgeblendete Label, und eine gekuerzte Liste haette dort ein Loch.
 assert.strictEqual(stellen(22).length, 12, "die Liste bleibt zwoelf Stellen lang, gefiltert wird im Loeser");

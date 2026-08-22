@@ -109,19 +109,69 @@ muss **beides**: das Maximum decken und nicht viel darüber hinausreichen.
 ⚠️ Der Server führt bewusst **keine Schlüsselliste** und prüft deshalb mit **einer** Schranke, der
 weitesten (0…300). Er prüft die Form, der Browser die Bedeutung.
 
-## 5. Bauteile
+## 5. Das Vorschaupanel — und warum es das Verfahren nicht abschreiben darf
+
+Owner: „bau das panel jetzt ins fenster ein."
+
+Unter den vier Reglern steht jetzt eine Bühne: 26 Orte, absichtlich gedrängt, die sich beim Ziehen
+neu ordnen. Ausgewichene Namen sind braun mit einer gestrichelten Linie zu ihrem Punkt,
+ausgeblendete stehen durchgestrichen da. Dazu Zähler (sichtbar · ausgewichen · ausgeblendet ·
+weitester Drift) und eine Zoomstufen-Wahl.
+
+🔴 **Die eigentliche Arbeit war nicht die Anzeige, sondern die Auslagerung.** Das Verfahren lag in
+`resolveLabelCollisions` zwischen DOM-Messungen fest. Es steht jetzt rein in
+`js/map-features/label-placement.js` und hat **zwei Aufrufer**: die Karte und das Fenster.
+
+- `avesmapsLabelBaseOffset` — die Grundstellung (Markerradius + Spalt)
+- `avesmapsLabelCandidatePlacements` — die zwölf Ausweichstellen samt Drift
+- `avesmapsResolveLabelPlacements` — der gierige Löser samt Deckel, Gruppenregel und Vorbelegung
+- dazu `translateLabelRect` / `rectanglesOverlap` / `expandRect` und `LOCATION_LABEL_GAP`
+  (stand bis dahin in `map-features.js` und wurde nur vom Löser gelesen)
+
+💣 **Eine Abschrift wäre der Fehler gewesen.** Eine Vorschau, die beim ersten Eingriff etwas anderes
+zeigt als die Karte, ist schlimmer als keine — sie belegt Falsches. Der Prototyp
+`docs/zoombaender-vorschau-mockup.html` trägt bewusst eine zweite Fassung, damit er per `file://`
+läuft; im Fenster ist genau das verboten. Gewacht von `label-placement.test.js` Abschnitt H: keiner
+der beiden Aufrufer darf eine eigene Liste der zwölf Stellen tragen.
+
+💣 **Das Panel zeigt UNGESPEICHERTE Werte**, ohne den globalen Zustand umzubiegen: die reinen
+Funktionen nehmen eine optionale `abstaende`-Übersteuerung und fallen ohne sie auf den angewandten
+Stand zurück. Ein Fenster, das `_avesmapsLocationZoomBands` verstellt, um sich selbst zu zeichnen,
+wäre eine Falle für den nächsten Leser.
+
+💣 **Feste Bühnenbreite (720 px), und das ist tragend.** Der Prototyp rechnete die Ortslagen aus der
+Bühnenbreite — auf einem breiten Fenster zogen sie sich so weit auseinander, dass nichts mehr
+kollidierte, und dann taten Versatz und Deckel wieder sichtbar nichts. Der Owner hat genau das
+gemeldet. Bei schmalem Fenster wird gescrollt.
+
+🔴 **Der wichtigste Satz des Panels** erscheint, wenn KEIN Name ausweicht: „Auf dieser Zoomstufe
+drängt sich nichts … hier haben sie also nichts zu tun." Ohne ihn liest sich ein funktionierender
+Regler als kaputter — genau die Verwechslung, die diesen ganzen Umbau ausgelöst hat.
+
+⚠️ **Was das Panel NICHT kann:** die Karte rendert ihre Namen auf ein Canvas, das Fenster setzt sie
+als Text. Die Kastenbreiten weichen um wenige Pixel ab; die Ordnung (wer weicht wohin, wer fällt
+weg) ist davon unberührt. Und die Bühne ist eine erfundene, dichte Ortslage — auf der echten Karte
+stehen vier von fünf Namen ungestört.
+
+Gemessen im eingebauten Panel (Vorgaben, z6): 23 sichtbar · 3 ausgewichen · 3 ausgeblendet.
+Versatz 8 → 20 ordnet 10 Namen um; Max. Drift 300 → 0 blendet 2 weitere aus; Spalt 4 → 16 bewegt
+alle 26.
+
+## 6. Bauteile
 
 - `js/map-features/location-zoom-bands.js` — Vorgabe, Schranke je Schlüssel
 - `js/map-features/map-features-label-collisions.js` — Driftwert je Stelle, Schnitt im Löser
 - `html/wiki-sync-settlement-editor.html` — der vierte Regler „Max. Drift"
 - `api/_internal/app/zoom-bands.php` — geweitete Formschranke
+- `js/map-features/label-placement.js` — das reine Fundament (siehe §5)
 
-Tests: `js/map-features/__tests__/zoombaender-drift.test.js` (Formel, Schranken **und** Verdrahtung
+Tests: `js/map-features/__tests__/label-placement.test.js` (Löser, Gruppenregel, Deckel,
+**Reinheit** und die Verdrahtung beider Aufrufer), `js/map-features/__tests__/zoombaender-drift.test.js` (Formel, Schranken **und** Verdrahtung
 in Löser und Fenster — ein grüner Rechentest beweist nichts, solange niemand den Wert liest),
 angepasst `zoombaender-abstaende.test.js`, `zoombaender-abstaende-dialog.test.js`,
 `api/_internal/app/__tests__/zoom-bands-test.php`.
 
-## 6. Offen
+## 7. Offen
 
 - 🔧 Eine Schieflage im Bestand, beim Messen gefunden: „mittig darüber" hält 30 px senkrechten
   Abstand, „mittig darunter" nur 8 — `verticalCenterOffset` steckt in der oberen Formel einmal zu
