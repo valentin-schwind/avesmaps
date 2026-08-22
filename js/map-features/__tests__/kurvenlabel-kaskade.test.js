@@ -38,10 +38,17 @@ const kanalBis = overlayQuelle.indexOf("function redraw()");
 assert.ok(kanalVon > 0 && kanalBis > kanalVon, "Kanal C steht zwischen kurvenlabelFont und redraw");
 const kanalC = overlayQuelle.slice(kanalVon, kanalBis);
 
+// Aufgabe 6b: der Fingerspielraum des Klick-Registers ist DERSELBE wie bei den Wegnamen. Er wird
+// hier aus der Quelle gelesen und nicht abgeschrieben -- eine abgeschriebene 6 im Test bewiese nur,
+// dass zwei Stellen dieselbe Zahl tragen, und genau das soll sie ja nicht.
+const padTreffer = overlayQuelle.match(/const WAY_LABEL_CLICK_PAD = (\d+(?:\.\d+)?);/);
+assert.ok(padTreffer, "WAY_LABEL_CLICK_PAD steht als Konstante in der Datei");
+const WAY_LABEL_CLICK_PAD = Number(padTreffer[1]);
+
 // `passungsStub` ist normalerweise leer -- dann rechnet die ECHTE Passung aus curve-label-fit.js.
 // Sie wird nur dort untergeschoben, wo eine Lage geprueft wird, die die echte Passung gar nicht
 // erzeugen kann (siehe 1g).
-function baueKanalC(stempel, kandidatenListe, passungsStub) {
+function baueKanalC(stempel, kandidatenListe, passungsStub, optionen = {}) {
 	const gemessen = { kandidatenAufrufe: 0, gemalt: [] };
 	const map = {
 		getZoom: () => stempel.zoom,
@@ -61,7 +68,10 @@ function baueKanalC(stempel, kandidatenListe, passungsStub) {
 		"window", "map", "L", "ctx", "paintGlyphs", "getMapLabelTypeStyle", "getScaledLabelSize",
 		"getLabelHaloParams", "REGION_LABEL_HALO_STRENGTH", "REGION_LABEL_HALO_SHARPNESS",
 		"avesmapsKurvenlabelKandidaten", "avesmapsLocationLabelSpacing", "avesmapsCurveLabelFit",
-		kanalC + "; return { berechneKurvenlabels, zeichneKurvenlabels, platziereKurvenfenster, kurvenlabelKaesten };"
+		// Aufgabe 6b: die drei stehen im Kanal-C-Stueck, seit der Maler das Klick-Register fuellt.
+		"WAY_LABEL_CLICK_PAD", "setHighlightedEcosystemRegion", "canOperateEcosystemLayers",
+		kanalC + "; return { berechneKurvenlabels, zeichneKurvenlabels, platziereKurvenfenster, kurvenlabelKaesten,"
+		+ " klickRegister: () => kurvenlabelClickRegister };"
 	)(
 		fenster, map, L, ctx,
 		(glyphs, chars) => { gemessen.gemalt.push({ glyphs, chars }); },
@@ -71,7 +81,12 @@ function baueKanalC(stempel, kandidatenListe, passungsStub) {
 		2, 2,
 		() => { gemessen.kandidatenAufrufe += 1; return kandidatenListe(); },
 		(schluessel) => (schluessel === "repel" ? 2 : 0),
-		passungsStub || avesmapsCurveLabelFit
+		passungsStub || avesmapsCurveLabelFit,
+		WAY_LABEL_CLICK_PAD,
+		// Der Maler ruft sie nie -- er fragt nur, ob es sie gibt. Gerufen wird sie im Schiedsrichter
+		// (Abschnitt 4), und dort mit einem eigenen Spion.
+		() => { throw new Error("der Maler darf nicht hervorheben"); },
+		() => Boolean(optionen.darfBearbeiten)
 	);
 	return { api, fenster, gemessen, ctx };
 }
@@ -324,6 +339,8 @@ function baueRiegel({ gemalt, ebeneGilt = true }) {
 		"map", "getMapRenderBounds", "isMapLabelEditorOverrideActive", "isLabelsWithRegionFilterActive",
 		"ecosystemRegionOfLabel", "isLabelOfActiveEcosystemLayer", "MAP_LABEL_MODES",
 		"getSelectedMapLayerMode", "isLatLngInRenderBounds", "avesmapsLabelWirdAlsKurveGemalt", "labelMarkers",
+		// Aufgabe 6b: der Riegel fragt seit heute auch nach dem Bearbeiten-Modus.
+		"IS_EDIT_MODE",
 		rumpfRiegel.rumpf + "\n" + rumpfLeser.rumpf
 		+ "; return { shouldShowLabelMarker, avesmapsKurvenlabelKandidaten };"
 	);
@@ -344,7 +361,8 @@ function baueRiegel({ gemalt, ebeneGilt = true }) {
 		() => "standard",
 		() => true,
 		(l) => gemalt.has(l),
-		[entry]
+		[entry],
+		false                                            // Ansichtsmodus
 	);
 
 	assert.strictEqual(api.shouldShowLabelMarker(entry), true, "ohne Kurvenzeichnung steht der Marker");
@@ -367,7 +385,7 @@ function baueRiegel({ gemalt, ebeneGilt = true }) {
 	const entry = { label, marker: { getLatLng: () => ({ lat: 1, lng: 2 }) } };
 	const api = baueRiegel({})(
 		{ getZoom: () => 4 }, () => "B", () => null, () => false, () => null, () => true,
-		["standard"], () => "standard", () => true, undefined, [entry]
+		["standard"], () => "standard", () => true, undefined, [entry], false
 	);
 	assert.strictEqual(api.shouldShowLabelMarker(entry), true, "ohne das Overlay steht der Marker weiter");
 }
@@ -451,6 +469,358 @@ function baueRiegel({ gemalt, ebeneGilt = true }) {
 	assert.strictEqual(gesehenePublish.origin, ursprung, "mit demselben Ursprung");
 	assert.notStrictEqual(gesehenerSeed, gebietsRects, "concat statt push -- die Gebietsliste wird nicht veraendert");
 	assert.strictEqual(gebietsRects.length, 1, "und bleibt einelementig");
+}
+
+// =================================================================================================
+// 4. Aufgabe 6b -- der gemalte Name bleibt anklickbar
+// =================================================================================================
+// 🔴 DIE REGRESSION, die diesen Abschnitt gibt: Aufgabe 6 nimmt den Marker nicht bloss die Sicht,
+// sie meldet ihn von der Karte AB (syncLabelMarkerVisibility ruft map.removeLayer). Mit ihm ging der
+// Klick, der die Landschaftsflaeche hervorhebt -- der gemalte Name war tot.
+//
+// Zwei Haelften, hier beide gemessen: (A) das Kurvenlabel traegt den Klick jetzt selbst,
+// (B) im Bearbeiten-Modus bleibt der Marker stehen.
+
+// Eine waagerechte Kurve MIT Flaeche daran -- das ist der Fall, um den es geht.
+const REGION_ID = "991703a0-7543-4a74-b4c3-f407ea57b509";
+const mitFlaeche = () => Object.assign(waagerecht(), { ecosystemRegionPublicId: REGION_ID });
+
+// --- 4a) Der Maler fuellt das Klick-Register -------------------------------------------------------
+{
+	const label = mitFlaeche();
+	const { api } = baueKanalC({ zoom: 4, lat: 0, lng: 0 }, () => [label]);
+	avesmapsLabelOccupancy.reset();
+	const ablage = api.berechneKurvenlabels();
+	assert.strictEqual(api.klickRegister().length, 0, "Vorbedingung: rechnen allein registriert nichts");
+
+	api.zeichneKurvenlabels();
+	const register = api.klickRegister();
+	assert.strictEqual(register.length, 1, "ein Eintrag je GEMALTEM Namen");
+	assert.strictEqual(register[0].regionPublicId, REGION_ID,
+		"und er traegt DIE Flaeche des Labels -- genau die, die der Marker hervorgehoben haette");
+
+	// Die Trefferflaeche ist die Huelle der Glyphen plus DERSELBE Fingerspielraum wie bei den Wegnamen.
+	const glyphs = ablage.eintraege[0].fenster[0].glyphs;
+	const roh = glyphsHullBox(glyphs, 0);
+	nahe(register[0].left, roh.left - WAY_LABEL_CLICK_PAD, "Trefferflaeche links", 1e-9);
+	nahe(register[0].right, roh.right + WAY_LABEL_CLICK_PAD, "Trefferflaeche rechts", 1e-9);
+	nahe(register[0].top, roh.top - WAY_LABEL_CLICK_PAD, "Trefferflaeche oben", 1e-9);
+	nahe(register[0].bottom, roh.bottom + WAY_LABEL_CLICK_PAD, "Trefferflaeche unten", 1e-9);
+	assert.ok(register[0].right > register[0].left && register[0].bottom > register[0].top,
+		"und sie hat eine Flaeche");
+	// Quelltext-Zusicherung, als solche benannt: die Zahl steht NICHT zweimal da. Eine abgeschriebene 6
+	// im Kanal C waere gegen die Rechnung oben nicht messbar -- gegen den Quelltext schon.
+	assert.ok(kanalC.includes("WAY_LABEL_CLICK_PAD"),
+		"Kanal C nimmt die Polsterung der Wegnamen, keine eigene Zahl");
+}
+
+// --- 4a2) Ein Name, der MEHRFACH steht, ist auch mehrfach anklickbar -------------------------------
+// ⚠️ „je gezeichnetem Namen ein Eintrag" heisst je VORKOMMEN, nicht je Label: bei curveMax > 1 setzt
+// die Passung denselben Namen mehrmals entlang seiner Kurve. Ein Eintrag fuer alle liesse zwei von
+// drei gemalten Namen tot -- genau die Regression, gegen die dieser Abschnitt steht.
+{
+	const langeKurve = {
+		text: "DRACHENSTEINE", labelType: "gebirge", curveMax: 3,
+		curveLine: [[100, 0], [100, 1800]], ecosystemRegionPublicId: REGION_ID,
+	};
+	const { api, gemessen } = baueKanalC({ zoom: 4, lat: 0, lng: 0 }, () => [langeKurve]);
+	avesmapsLabelOccupancy.reset();
+	api.zeichneKurvenlabels();
+	assert.strictEqual(gemessen.gemalt.length, 3, "Vorbedingung: der Name steht dreimal auf der Kurve");
+	const register = api.klickRegister();
+	assert.strictEqual(register.length, 3, "und jedes Vorkommen bekommt seine eigene Klickflaeche");
+	assert.ok(register.every((e) => e.regionPublicId === REGION_ID), "alle drei zeigen auf dieselbe Flaeche");
+	// Und sie liegen wirklich woanders -- sonst waere die Zahl 3 ohne Aussage.
+	const linkeKanten = new Set(register.map((e) => Math.round(e.left)));
+	assert.strictEqual(linkeKanten.size, 3, "an drei verschiedenen Stellen");
+}
+
+// --- 4b) Registriert wird nur, was auch WIRKLICH etwas tut -----------------------------------------
+{
+	// Kein Flaechenbezug -> gemalt, aber keine Klickflaeche. Sonst zeigte der Zeiger eine Hand ueber
+	// Text, der auf nichts antwortet.
+	const ohneFlaeche = waagerecht();
+	const { api, gemessen } = baueKanalC({ zoom: 4, lat: 0, lng: 0 }, () => [ohneFlaeche]);
+	avesmapsLabelOccupancy.reset();
+	api.zeichneKurvenlabels();
+	assert.strictEqual(gemessen.gemalt.length, 1, "der Name wird gemalt");
+	assert.strictEqual(api.klickRegister().length, 0, "aber er bekommt keine Klickflaeche");
+}
+{
+	// 🔴 DIESELBE BEDINGUNG WIE AM MARKER: wer die Ebene bearbeiten kann, bekommt die Hervorhebung
+	// nicht -- dort beantwortet derselbe Klick etwas Staerkeres.
+	const label = mitFlaeche();
+	const { api } = baueKanalC({ zoom: 4, lat: 0, lng: 0 }, () => [label], null, { darfBearbeiten: true });
+	avesmapsLabelOccupancy.reset();
+	api.zeichneKurvenlabels();
+	assert.strictEqual(api.klickRegister().length, 0,
+		"canOperateEcosystemLayers() == true -> keine Klickflaeche, wie am Marker");
+}
+{
+	// Nicht platziert -> nicht gemalt -> auch keine Klickflaeche. Die Kehrseite von 1g: sonst laege
+	// eine Trefferflaeche ueber einem Namen, den niemand sieht.
+	const chars = Array.from("DRACHENSTEINE");
+	const zuKurz = () => ({ fenster: [{ pts: [{ x: 0, y: 0 }, { x: 20, y: 0 }], ls: 0, fontSize: 12, chars, widths: chars.map(() => 8) }], hinweise: [] });
+	const label = mitFlaeche();
+	const { api } = baueKanalC({ zoom: 4, lat: 0, lng: 0 }, () => [label], zuKurz);
+	avesmapsLabelOccupancy.reset();
+	api.zeichneKurvenlabels();
+	assert.strictEqual(api.klickRegister().length, 0, "kein gesetztes Fenster -> keine Klickflaeche");
+}
+
+// --- 4c) Ein Bild ohne gezeichnete Kurvenlabels laesst das Register LEER ----------------------------
+// 💣 Sonst bliebe die Klickflaeche des VORHERIGEN Bildes stehen -- ein Klick ins Leere hoebe eine
+// Flaeche hervor, deren Name laengst woanders (oder gar nicht mehr) steht.
+{
+	const stempel = { zoom: 4, lat: 0, lng: 0 };
+	let kandidaten = [mitFlaeche()];
+	const { api } = baueKanalC(stempel, () => kandidaten);
+	avesmapsLabelOccupancy.reset();
+	api.zeichneKurvenlabels();
+	assert.strictEqual(api.klickRegister().length, 1, "Vorbedingung: erst steht eine Klickflaeche da");
+
+	kandidaten = [];
+	stempel.lng = 140;                                  // geschwenkt -> die Ablage wird neu gerechnet
+	api.zeichneKurvenlabels();
+	assert.strictEqual(api.klickRegister().length, 0,
+		"ein Bild ohne gemalte Kurvenlabels laesst KEINE Klickflaeche zurueck");
+}
+{
+	// ⚠️ Quelltext-Zusicherung, und als solche benannt: redraw() steigt vor dem Maler aus (CSS-Zoom,
+	// Canvas aus, keine Pane) -- dann leert es das Register selbst, ganz oben. Ohne echte Leaflet-Karte
+	// laesst sich redraw() nicht ausfuehren, die Stellung aber sehr wohl pruefen.
+	const redrawVon = overlayQuelle.indexOf("function redraw()");
+	const ersterReturn = overlayQuelle.indexOf("return;", redrawVon);
+	const leeren = overlayQuelle.indexOf("kurvenlabelClickRegister = [];", redrawVon);
+	assert.ok(redrawVon > 0 && ersterReturn > redrawVon, "redraw() hat einen ersten Ausstieg");
+	assert.ok(leeren > redrawVon && leeren < ersterReturn,
+		"redraw() leert das Kurvenlabel-Register VOR seinem ersten Ausstieg");
+}
+
+// --- 4d) Der Klick-Schiedsrichter ------------------------------------------------------------------
+// Der Handler wird aus der Quelle geschnitten und mit einer Attrappen-Karte gebaut, die ihn beim
+// `map.on("click", …)` einsammelt -- so laeuft die ECHTE Verzweigung, nicht ihr Nachbau.
+const arbiterVon = overlayQuelle.indexOf("\tmap.on(\"click\", (event) => {");
+const arbiterBis = overlayQuelle.indexOf("\t// Cursor-Feedback", arbiterVon);
+assert.ok(arbiterVon > 0 && arbiterBis > arbiterVon, "der Klick-Schiedsrichter steht in der Datei");
+const arbiterQuelle = overlayQuelle.slice(arbiterVon, arbiterBis);
+
+function baueSchiedsrichter({
+	kurvenRegister = [], wegRegister = [], editMode = false, cssZoom = false,
+	wegLabelsAn = true, siedlungGewinnt = false,
+} = {}) {
+	const gemessen = { hervorgehoben: [], popups: 0, siedlungGefragt: 0 };
+	let handler = null;
+	const map = { on: (typ, fn) => { if (typ === "click") { handler = fn; } } };
+	const popupKette = { setLatLng() { return this; }, setContent() { return this; }, openOn() { gemessen.popups += 1; return this; } };
+	new Function(
+		"map", "IS_EDIT_MODE", "cssZoomActive", "wayLabelsEnabled", "wayLabelClickRegister",
+		"kurvenlabelClickRegister", "window", "wayLabelHitTest", "setHighlightedEcosystemRegion",
+		"findPathForWayLabelEntry", "createPathPopupMarkup", "pathHasWiki", "L", "wayLabelPopupMarkup",
+		arbiterQuelle
+	)(
+		map, editMode, cssZoom, wegLabelsAn, wegRegister, kurvenRegister,
+		{
+			avesmapsTryOpenLocationAtContainerPoint: () => {
+				gemessen.siedlungGefragt += 1;
+				return siedlungGewinnt;
+			},
+		},
+		wayLabelHitTestEcht,
+		(id) => gemessen.hervorgehoben.push(id),
+		() => null,
+		undefined,
+		undefined,
+		{ popup: () => popupKette },
+		() => "<div>Weg</div>"
+	);
+	assert.ok(typeof handler === "function", "der Handler wurde am Klick angemeldet");
+	return { klick: (x, y) => handler({ containerPoint: { x, y } }), gemessen };
+}
+
+// Der ECHTE Treffer-Test, aus map-features-way-labels.js -- beide Register werden von ihm gelesen,
+// und ein Nachbau hier bewiese nur, dass der Nachbau stimmt.
+const wayLabelsQuelle = fs.readFileSync(hier("map-features-way-labels.js"), "utf8");
+const hitVon = wayLabelsQuelle.indexOf("function wayLabelHitTest(");
+assert.ok(hitVon >= 0, "wayLabelHitTest steht in map-features-way-labels.js");
+const hitBis = wayLabelsQuelle.indexOf("\n}", hitVon);
+const wayLabelHitTestEcht = new Function(
+	wayLabelsQuelle.slice(hitVon, hitBis + 2) + "; return wayLabelHitTest;"
+)();
+
+const kurvenKasten = (regionPublicId, links = 100, oben = 100) => ({
+	left: links, top: oben, right: links + 80, bottom: oben + 20, regionPublicId, text: "DRACHENSTEINE",
+});
+const wegKasten = (links = 100, oben = 100) => ({
+	left: links, top: oben, right: links + 80, bottom: oben + 20,
+	wikiKey: "wiki:reichsstrasse-2", name: "Reichsstraße 2", wikiUrl: "", subtype: "Strasse",
+	anchorLatLng: { lat: 1, lng: 2 },
+});
+
+{
+	// DER FALL, UM DEN ES GEHT: nur ein Kurvenlabel im Bild, kein einziger Wegname.
+	// 💣 Bis Aufgabe 6b stand hier `if (!wayLabelsEnabled || !wayLabelClickRegister.length) return;` --
+	// ein leeres Wegregister haette den Kurvennamen mitgenommen, und das ist der HAEUFIGE Fall.
+	const s = baueSchiedsrichter({ kurvenRegister: [kurvenKasten(REGION_ID)] });
+	s.klick(140, 110);
+	assert.deepStrictEqual(s.gemessen.hervorgehoben, [REGION_ID],
+		"ein Klick auf den gemalten Namen hebt SEINE Flaeche hervor");
+	assert.strictEqual(s.gemessen.siedlungGefragt, 1, "und die Siedlung wurde vorher gefragt");
+}
+{
+	// Danebengeklickt -> nichts.
+	const s = baueSchiedsrichter({ kurvenRegister: [kurvenKasten(REGION_ID)] });
+	s.klick(400, 400);
+	assert.deepStrictEqual(s.gemessen.hervorgehoben, [], "neben dem Namen passiert nichts");
+}
+{
+	// 🔴 DIE RANGFOLGE: Siedlung > Strasse/Fluss > Region. Beide Register treffen an derselben Stelle --
+	// der Wegname gewinnt, das Kurvenlabel schweigt.
+	const s = baueSchiedsrichter({
+		kurvenRegister: [kurvenKasten(REGION_ID)],
+		wegRegister: [wegKasten()],
+	});
+	s.klick(140, 110);
+	assert.strictEqual(s.gemessen.popups, 1, "der Wegname oeffnet sein Popup");
+	assert.deepStrictEqual(s.gemessen.hervorgehoben, [], "und das Kurvenlabel kommt NICHT auch noch dran");
+}
+{
+	// Und die Siedlung gewinnt ueber beide.
+	const s = baueSchiedsrichter({ kurvenRegister: [kurvenKasten(REGION_ID)], siedlungGewinnt: true });
+	s.klick(140, 110);
+	assert.deepStrictEqual(s.gemessen.hervorgehoben, [], "die Siedlung gewinnt");
+	assert.strictEqual(s.gemessen.popups, 0);
+}
+{
+	// 🔴 Im Bearbeiten-Modus steigt der Schiedsrichter aus -- genau deshalb bleibt dort der Marker
+	// stehen (Teil B, Abschnitt 4f).
+	const s = baueSchiedsrichter({ kurvenRegister: [kurvenKasten(REGION_ID)], editMode: true });
+	s.klick(140, 110);
+	assert.deepStrictEqual(s.gemessen.hervorgehoben, [], "im Bearbeiten-Modus hebt das Overlay nichts hervor");
+	assert.strictEqual(s.gemessen.siedlungGefragt, 0, "und fragt gar nicht erst weiter");
+}
+{
+	// Waehrend der CSS-Zoom-Animation haelt das Register Vor-Zoom-Container-Pixel -- dann schweigt er.
+	const s = baueSchiedsrichter({ kurvenRegister: [kurvenKasten(REGION_ID)], cssZoom: true });
+	s.klick(140, 110);
+	assert.deepStrictEqual(s.gemessen.hervorgehoben, [], "waehrend des Zooms nicht");
+}
+{
+	// ?waylabels=0 schaltet die WEGnamen ab, nicht das Kurvenlabel.
+	const s = baueSchiedsrichter({
+		kurvenRegister: [kurvenKasten(REGION_ID)],
+		wegRegister: [wegKasten()],
+		wegLabelsAn: false,
+	});
+	s.klick(140, 110);
+	assert.strictEqual(s.gemessen.popups, 0, "der abgeschaltete Wegname oeffnet nichts");
+	assert.deepStrictEqual(s.gemessen.hervorgehoben, [REGION_ID], "und das Kurvenlabel antwortet trotzdem");
+}
+{
+	// Beide Register leer -> gar nichts, auch keine Siedlungsabfrage (die Wache bleibt eine Wache).
+	const s = baueSchiedsrichter({});
+	s.klick(140, 110);
+	assert.strictEqual(s.gemessen.siedlungGefragt, 0, "ohne jede Klickflaeche wird niemand gefragt");
+	assert.deepStrictEqual(s.gemessen.hervorgehoben, []);
+}
+
+// --- 4e) Der Zeiger: ein anklickbarer Name sieht auch anklickbar aus -------------------------------
+// ⚠️ Ein Name, der antwortet, aber aussieht wie unbeweglicher Text, ist eine halbe Reparatur. Der
+// mousemove-Zuhoerer wird wie der Schiedsrichter aus der Quelle geschnitten -- mitsamt seinen beiden
+// `let`-Zustaenden, die im Stueck stehen.
+const zeigerVon = overlayQuelle.indexOf("\t// ⚠️ Der Zustand heisst seit Aufgabe 6b");
+const zeigerBis = overlayQuelle.indexOf("\t// Zoom-Animation wie beim Grenzen-Overlay", zeigerVon);
+assert.ok(zeigerVon > 0 && zeigerBis > zeigerVon, "der mousemove-Zuhoerer steht in der Datei");
+const zeigerQuelle = overlayQuelle.slice(zeigerVon, zeigerBis);
+
+function baueZeiger({ kurvenRegister = [], wegRegister = [], editMode = false, wegLabelsAn = true } = {}) {
+	const container = { style: { cursor: "" } };
+	let handler = null;
+	const map = { on: (typ, fn) => { if (typ === "mousemove") { handler = fn; } }, getContainer: () => container };
+	new Function(
+		"map", "IS_EDIT_MODE", "cssZoomActive", "wayLabelsEnabled", "wayLabelClickRegister",
+		"kurvenlabelClickRegister", "wayLabelHitTest",
+		zeigerQuelle
+	)(map, editMode, false, wegLabelsAn, wegRegister, kurvenRegister, wayLabelHitTestEcht);
+	assert.ok(typeof handler === "function", "der Zuhoerer wurde am mousemove angemeldet");
+	return { bewege: (x, y) => handler({ containerPoint: { x, y } }), container };
+}
+{
+	const z = baueZeiger({ kurvenRegister: [kurvenKasten(REGION_ID)] });
+	z.bewege(140, 110);
+	assert.strictEqual(z.container.style.cursor, "pointer", "ueber dem gemalten Namen: Hand-Zeiger");
+}
+{
+	const z = baueZeiger({ kurvenRegister: [kurvenKasten(REGION_ID)] });
+	z.bewege(400, 400);
+	assert.strictEqual(z.container.style.cursor, "", "daneben: kein Hand-Zeiger");
+}
+{
+	// Im Bearbeiten-Modus gibt es den Klick nicht -- also auch nicht seinen Zeiger.
+	const z = baueZeiger({ kurvenRegister: [kurvenKasten(REGION_ID)], editMode: true });
+	z.bewege(140, 110);
+	assert.strictEqual(z.container.style.cursor, "", "im Bearbeiten-Modus kein Hand-Zeiger");
+}
+{
+	// ?waylabels=0 nimmt dem Kurvenlabel seinen Zeiger nicht -- und die WEGnamen bekommen ihn nicht
+	// zurueck. Zwei Kaesten, weit auseinander: nur so sagt der Fall beides.
+	const z = baueZeiger({
+		kurvenRegister: [kurvenKasten(REGION_ID, 100, 100)],
+		wegRegister: [wegKasten(300, 300)],
+		wegLabelsAn: false,
+	});
+	z.bewege(140, 110);
+	assert.strictEqual(z.container.style.cursor, "pointer", "?waylabels=0 betrifft nur die Wegnamen");
+
+	const z2 = baueZeiger({
+		kurvenRegister: [kurvenKasten(REGION_ID, 100, 100)],
+		wegRegister: [wegKasten(300, 300)],
+		wegLabelsAn: false,
+	});
+	z2.bewege(340, 310);
+	assert.strictEqual(z2.container.style.cursor, "",
+		"und der abgeschaltete Wegname bekommt auch keinen Zeiger");
+}
+
+// --- 4f) Teil B: im Bearbeiten-Modus bleibt der Marker ---------------------------------------------
+// 🔴 Die zweite Haelfte derselben Regression. Der Schiedsrichter oben steigt bei IS_EDIT_MODE aus --
+// ein Editor kaeme ueber die Kurve also gar nicht an sein Label, und er braucht mehr als einen Klick
+// (Auswahl, Popup, Ziehgriff). Zwischenstufe bis Plan 3 (Entwurf §7.4).
+//
+// ⭐ Verdrahtet, nicht behauptet: der Riegel bekommt das ECHTE
+// avesmapsLabelWirdAlsKurveGemalt des Overlays, nicht eine Attrappe davon.
+{
+	const label = mitFlaeche();
+	const { api, fenster } = baueKanalC({ zoom: 4, lat: 0, lng: 0 }, () => [label]);
+	avesmapsLabelOccupancy.reset();
+	api.zeichneKurvenlabels();
+	assert.strictEqual(fenster.avesmapsLabelWirdAlsKurveGemalt(label), true,
+		"Vorbedingung: dieser Name wird wirklich als Kurve gemalt");
+
+	const entry = { label, marker: { getLatLng: () => ({ lat: 1, lng: 2 }) } };
+	const bauRiegel = (editMode) => baueRiegel({})(
+		{ getZoom: () => 4 }, () => "BOUNDS", () => null, () => false, () => null, () => true,
+		["standard"], () => "standard", () => true,
+		fenster.avesmapsLabelWirdAlsKurveGemalt, [entry], editMode
+	);
+
+	assert.strictEqual(bauRiegel(false).shouldShowLabelMarker(entry), false,
+		"Ansichtsmodus: der Marker geht -- die gemalte Kurve traegt den Klick jetzt selbst");
+	assert.strictEqual(bauRiegel(true).shouldShowLabelMarker(entry), true,
+		"Bearbeiten-Modus: der Marker BLEIBT -- sonst kaeme der Editor an sein Label nicht mehr heran");
+
+	// ⚠️ Und der Riegel bleibt ein Riegel: der Bearbeiten-Modus hebt keinen der Filter ueber ihm auf.
+	const mitHakenAus = baueRiegel({})(
+		{ getZoom: () => 4 }, () => "BOUNDS", () => null, () => false, () => null, () => true,
+		["standard"], () => "standard", () => true,
+		fenster.avesmapsLabelWirdAlsKurveGemalt, [entry], true
+	);
+	assert.strictEqual(mitHakenAus.shouldShowLabelMarker(entry, 4, "BOUNDS", false), false,
+		"Haken aus bleibt aus, auch im Bearbeiten-Modus");
+	// Und im Bearbeiten-Modus bleibt der Name trotzdem Kandidat -- die Kurve wird dort weiter gemalt
+	// (der Name steht dann doppelt; das ist die hingenommene Zwischenstufe).
+	assert.strictEqual(bauRiegel(true).avesmapsKurvenlabelKandidaten().length, 1,
+		"die Kurve wird im Bearbeiten-Modus weiter gemalt");
 }
 
 console.log("kurvenlabel-kaskade: alle Zusicherungen erfuellt");

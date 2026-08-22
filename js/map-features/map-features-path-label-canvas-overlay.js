@@ -153,6 +153,27 @@
 	// falsch gemalt.
 	let kurvenlabelAblage = { zoom: null, topLeft: null, eintraege: [], gemalt: new Set() };
 
+	// --- Das Klick-Register des Kurvenlabels (Aufgabe 6b) --------------------------------------------
+	// 🔴 EIN GEMALTER NAME MUSS ANKLICKBAR BLEIBEN. Den Klick, der die zugehoerige Landschaftsflaeche
+	// hervorhebt, trug bisher der Marker des Labels (createLabelMarker, map-features-labels.js). Seit
+	// Aufgabe 6 wird der aber ABGEMELDET, sobald die Kurve gemalt wird -- syncLabelMarkerVisibility
+	// ruft map.removeLayer, nicht bloss „unsichtbar". Ohne dieses Register waere der gemalte Name tot:
+	// „es darf doch auf der map keine elemente geben über die ich keine kontrolle mehr habe" (Owner,
+	// AGENTS.md „Verwaiste Aussenhuellen").
+	//
+	// Gleiche Bauart wie wayLabelClickRegister oben -- Rechtecke in CONTAINER-Pixeln, je Bild neu
+	// aufgebaut, gelesen von demselben wayLabelHitTest im Klick-Schiedsrichter weiter unten. Kein
+	// zweiter Treffer-Test: die Form ist dieselbe, und zwei Fassungen davon liefen beim ersten
+	// Randfall auseinander.
+	//
+	// 💣 GELEERT WIRD AN ZWEI STELLEN, UND BEIDE SIND NOETIG. Der Maler setzt es je Bild neu, weil das
+	// Register beschreibt, was GERADE gemalt ist -- nach einem Schwenk sind seine Container-Pixel nicht
+	// alt, sondern falsch (dieselbe Begruendung wie am Ansichts-Stempel der Ablage darueber). Und
+	// redraw() leert es zusaetzlich ganz oben, weil es VOR dem Maler aussteigen kann (CSS-Zoom-
+	// Animation, Canvas aus, keine Pane) -- sonst bliebe die Klickflaeche eines VORHERIGEN Bildes
+	// stehen. Genau diese zweite Begruendung steht wortgleich am Register der Wegnamen.
+	let kurvenlabelClickRegister = [];
+
 	// Die Schrittweite des Ausweichens. Die REICHWEITE gehoert der Tafel in curve-label-fit.js
 	// (`dodgePx`, Entwurf §7.2 -- dort haengt Plan 4 seinen Regler an); wie fein dazwischen abgetastet
 	// wird, ist eine Aufloesung und keine Gestaltungsfrage: 2 px sind bei 6 px Reichweite drei Stellen
@@ -336,7 +357,17 @@
 		if (!kurvenlabelAblageGilt()) {
 			berechneKurvenlabels();
 		}
+		// Das Register beschreibt, was JETZT gemalt wird -- also hier neu aufgebaut, nicht angehaengt
+		// (siehe die Begruendung an seiner Deklaration).
+		kurvenlabelClickRegister = [];
+		// 🔴 DIESELBE BEDINGUNG WIE AM MARKER (createLabelMarker, map-features-labels.js): eine Flaeche
+		// haengt am Label UND wer die Ebene bearbeiten kann, bekommt sie nicht -- dort beantwortet
+		// derselbe Klick schon etwas Staerkeres („daran arbeite ich", Auswahl samt Griffen). Kein neues
+		// Verhalten, nur derselbe Klick an einem anderen Traeger. Einmal je Bild gefragt, nicht je Label.
+		const hebtFlaecheHervor = typeof setHighlightedEcosystemRegion === "function"
+			&& !(typeof canOperateEcosystemLayers === "function" && canOperateEcosystemLayers());
 		for (const eintrag of kurvenlabelAblage.eintraege) {
+			const regionPublicId = String(eintrag.label.ecosystemRegionPublicId || "");
 			for (const f of eintrag.fenster) {
 				// ⚠️ ctx.font wird JE FENSTER gesetzt, nicht nur wenn es vom Ausgangswert abweicht: bei
 				// mehreren Fenstern (curveMax > 1) schrumpft `fensterFuer` jedes Fenster UNABHAENGIG --
@@ -346,6 +377,27 @@
 				// andere gerechnet wurden.
 				ctx.font = kurvenlabelFont(eintrag.label, f.fontSize);
 				paintGlyphs(f.glyphs, f.chars, eintrag.halo, eintrag.fill);
+				// Nur ein Name, der auch WIRKLICH etwas tut, bekommt eine Klickflaeche. Sonst zeigte der
+				// Zeiger unten eine Hand ueber Text, der auf nichts antwortet -- und ein Klick liefe ins
+				// Leere, wo er vorher bis zur Karte durchgefallen waere.
+				if (!hebtFlaecheHervor || !regionPublicId) {
+					continue;
+				}
+				// ⚠️ DERSELBE Fingerspielraum wie bei den Wegnamen (WAY_LABEL_CLICK_PAD), keine zweite
+				// Zahl daneben: glyphsHullBox polstert bereits um eine Schriftgroesse, die wird -- Zeile
+				// fuer Zeile wie im Way-Label-Register -- wieder abgezogen. Netto bleibt WAY_LABEL_CLICK_PAD
+				// rund um die Buchstabenlagen.
+				const huelle = glyphsHullBox(f.glyphs, f.fontSize);
+				const spanPad = WAY_LABEL_CLICK_PAD - f.fontSize;
+				kurvenlabelClickRegister.push({
+					left: huelle.left - spanPad,
+					top: huelle.top - spanPad,
+					right: huelle.right + spanPad,
+					bottom: huelle.bottom + spanPad,
+					// Was der Klick ausloest: genau das, was der Marker getan haette.
+					regionPublicId,
+					text: eintrag.label.text,
+				});
 			}
 		}
 	}
@@ -399,6 +451,9 @@
 		// bleibt nie eine Klickflaeche eines VORHERIGEN Frames stehen, wenn in diesem Frame gar nichts
 		// (neu) gezeichnet wird.
 		wayLabelClickRegister = [];
+		// Dasselbe fuer Kanal C, und aus demselben Grund: die drei Ausstiege gleich darunter erreichen
+		// zeichneKurvenlabels() nie, und der setzt das Register sonst als einziger neu.
+		kurvenlabelClickRegister = [];
 		if (!canvasEnabled() || !map.getPane(PANE) || cssZoomActive) {
 			return;
 		}
@@ -815,15 +870,30 @@
 		if (cssZoomActive) {
 			return; // Register haelt waehrend der CSS-Zoom-Animation veraltete Vor-Zoom-Container-px (redraw pausiert)
 		}
-		if (!wayLabelsEnabled || !wayLabelClickRegister.length) {
+		// 💣 Die Wache fragt BEIDE Register. Bis Aufgabe 6b stand hier nur das der Wegnamen -- ein
+		// leeres haette den Kurvenlabel-Namen mit rausgeworfen, und der ist der haeufigere Fall: in einer
+		// Landschaftsansicht ohne Wegnamen im Bild gaebe es keinen einzigen klickbaren Namen mehr.
+		const wegRegister = wayLabelsEnabled ? wayLabelClickRegister : [];
+		if (!wegRegister.length && !kurvenlabelClickRegister.length) {
 			return;
 		}
 		if (typeof window.avesmapsTryOpenLocationAtContainerPoint === "function"
 				&& window.avesmapsTryOpenLocationAtContainerPoint(event.containerPoint)) {
 			return; // Siedlung gewinnt (Prioritaet Siedlung > Strasse/Fluss > Region > Gebiet)
 		}
-		const hit = wayLabelHitTest(wayLabelClickRegister, event.containerPoint);
+		const hit = wayLabelHitTest(wegRegister, event.containerPoint);
 		if (!hit) {
+			// 🔴 NACH dem Wegnamen, nie davor: eine Landschaftsbeschriftung ist in der Rangfolge oben
+			// „Region", und die kommt hinter Strasse/Fluss. Nicht umsortieren.
+			//
+			// Der Treffer tut genau das, was der abgemeldete Marker getan haette
+			// (createLabelMarker, map-features-labels.js) -- dieselbe Funktion, dieselbe Bedingung. Sie
+			// steckt schon im Register: aufgenommen wird nur ein Name mit Flaeche und nur dort, wo
+			// niemand die Ebene bearbeiten kann.
+			const kurvenTreffer = wayLabelHitTest(kurvenlabelClickRegister, event.containerPoint);
+			if (kurvenTreffer && typeof setHighlightedEcosystemRegion === "function") {
+				setHighlightedEcosystemRegion(kurvenTreffer.regionPublicId);
+			}
 			return;
 		}
 		// Konsistenz (Owner 2026-07-07): ein Klick auf den WEG-NAMEN oeffnet EXAKT denselben Popup wie ein Klick
@@ -864,8 +934,11 @@
 	// klickbar ist -- gleiches Muster wie locationCanvasLayer._onMouseMove. Kein Redraw, keine
 	// Neuberechnung pro Frame: nur ein Treffer-Test auf dem ohnehin vorhandenen Register, hoechstens
 	// alle 100ms (Perf-Grundsatz: nichts Teures pro Frame).
-	let wayLabelCursorActive = false;
-	let wayLabelLastCursorCheck = 0;
+	// ⚠️ Der Zustand heisst seit Aufgabe 6b `labelCursor…` und nicht mehr `wayLabelCursor…`: er gilt
+	// jetzt BEIDEN Registern dieses Overlays. Ein Name, der auf „way" zeigt, waere die Sorte Kommentar,
+	// die spaeter jemanden aufhoeren laesst zu suchen.
+	let labelCursorActive = false;
+	let labelCursorLastCheck = 0;
 	map.on("mousemove", (event) => {
 		// Kein „klickbares Label"-Cursor-Feedback im Karten-Editor (siehe click-Handler oben).
 		if (typeof IS_EDIT_MODE !== "undefined" && IS_EDIT_MODE) {
@@ -874,15 +947,16 @@
 		if (cssZoomActive) {
 			return; // Register haelt waehrend der CSS-Zoom-Animation veraltete Vor-Zoom-Container-px (redraw pausiert)
 		}
-		if (!wayLabelsEnabled) {
-			return;
-		}
-		if (!wayLabelClickRegister.length) {
-			// Leeres Register (Zoom unter minZoom, Toggle aus, keine Daten): einen noch aktiven
+		// ⚠️ Ein anklickbarer Name, der aussieht wie unbeweglicher Text, ist eine halbe Reparatur --
+		// das Kurvenlabel bekommt denselben Hand-Zeiger wie die Wegnamen. `?waylabels=0` schaltet
+		// deshalb nur noch die Wegnamen ab, nicht mehr den ganzen Zeiger.
+		const wegRegister = wayLabelsEnabled ? wayLabelClickRegister : [];
+		if (!wegRegister.length && !kurvenlabelClickRegister.length) {
+			// Leere Register (Zoom unter minZoom, Toggle aus, keine Daten): einen noch aktiven
 			// pointer-Cursor SOFORT zuruecksetzen statt nur frueh rauszuspringen -- sonst klebt der
 			// Finger-Cursor bis zum naechsten Treffer-Test mit wieder gefuelltem Register.
-			if (wayLabelCursorActive) {
-				wayLabelCursorActive = false;
+			if (labelCursorActive) {
+				labelCursorActive = false;
 				if (map.getContainer().style.cursor === "pointer") {
 					map.getContainer().style.cursor = "";
 				}
@@ -890,15 +964,16 @@
 			return;
 		}
 		const now = Date.now();
-		if (now - wayLabelLastCursorCheck < 100) {
+		if (now - labelCursorLastCheck < 100) {
 			return;
 		}
-		wayLabelLastCursorCheck = now;
-		const over = Boolean(wayLabelHitTest(wayLabelClickRegister, event.containerPoint));
-		if (over === wayLabelCursorActive) {
+		labelCursorLastCheck = now;
+		const over = Boolean(wayLabelHitTest(wegRegister, event.containerPoint)
+			|| wayLabelHitTest(kurvenlabelClickRegister, event.containerPoint));
+		if (over === labelCursorActive) {
 			return;
 		}
-		wayLabelCursorActive = over;
+		labelCursorActive = over;
 		// Nur setzen/zuruecksetzen, wenn NICHTS anderes gerade den Cursor beansprucht (z. B. Leaflets
 		// grab/grabbing beim Draggen) -- auf "" zuruecksetzen wuerde einen aktiven Griff-Cursor sonst
 		// mitten im Drag ueberschreiben.

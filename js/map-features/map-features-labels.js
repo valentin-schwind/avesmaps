@@ -881,7 +881,19 @@ function shouldShowLabelMarker(entry, zoomLevel = map.getZoom(), renderBounds = 
 	// fragt mit `false`. Sonst schluege der Riegel auf seine eigene Voraussetzung zurueck -- ein
 	// gemaltes Kurvenlabel fiele im naechsten Durchgang aus der Kandidatenliste, wuerde nicht mehr
 	// gemalt, der Marker kaeme zurueck, und das Ganze flackerte im Wechsel.
+	// 🔴 IM BEARBEITEN-MODUS BLEIBT DER MARKER STEHEN -- der Name steht dort dann DOPPELT (Marker
+	// UND Kurve). Das ist haesslich und Absicht: der Klick-Schiedsrichter des Canvas-Overlays steigt
+	// bei IS_EDIT_MODE ausdruecklich sofort aus (ein Klick soll den Pfad DARUNTER treffen), ein
+	// Editor kaeme ueber die gemalte Kurve also gar nicht an sein Label -- und er braucht mehr als
+	// einen Klick: die Auswahl der Flaeche, das Popup und den Ziehgriff. Ein Editor, der sein Label
+	// nicht mehr anfassen kann, ist schlimmer als ein doppelt gezeichneter Name.
+	// 🔧 EINE ZWISCHENSTUFE, KEIN VERSEHEN: weg darf sie erst, wenn Plan 3 die Regel aus Entwurf
+	// §7.4 baut („ein Kurvenlabel richtet sich neu aus, sobald die Bearbeitung abgeschlossen ist“).
+	// Bis dahin NICHT „aufraeumen“ -- ohne diese Bedingung ist das Label im Editor unerreichbar.
+	// ⚠️ typeof-abgesichert, und die Richtung ist die sichere: fehlt das Flag, gilt Ansichtsmodus --
+	// dort traegt das gemalte Kurvenlabel den Klick selbst (kurvenlabelClickRegister im Overlay).
 	if (mitKurvenriegel
+		&& !(typeof IS_EDIT_MODE !== "undefined" && IS_EDIT_MODE)
 		&& typeof avesmapsLabelWirdAlsKurveGemalt === "function"
 		&& avesmapsLabelWirdAlsKurveGemalt(entry.label)) {
 		return false;
