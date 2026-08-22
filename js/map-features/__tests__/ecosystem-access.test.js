@@ -441,9 +441,11 @@ function antwortWelt({ ebene = "vegetation", gemerktAlle = "0" } = {}) {
 	context.globalThis = context;
 	vm.createContext(context);
 	vm.runInContext(source, context);
-	// Die drei ECHTEN Funktionen aus der Label-Datei -- die Umwandlung, ihre Hoehenhilfe und die Regel.
+	// Die ECHTEN Funktionen aus der Label-Datei -- die Umwandlung, ihre Hoehenhilfe, die Kurven-Helfer
+	// (seit der Kurvenbeschriftung ruft normalizeLabelFeature auch die beiden) und die Regel.
 	// Nachgebaut waere genau der Feldname weg, um den es hier geht.
-	["function readLabelHeightSchritt", "function normalizeLabelFeature", "function isLabelOfActiveEcosystemLayer"]
+	["function readLabelCurveLine", "function readLabelCurveMax", "function readLabelHeightSchritt",
+		"function normalizeLabelFeature", "function isLabelOfActiveEcosystemLayer"]
 		.forEach((kopf) => {
 			const anfang = labelQuelle.indexOf(kopf);
 			vm.runInContext(labelQuelle.slice(anfang, labelQuelle.indexOf("\n}", anfang) + 2), context);

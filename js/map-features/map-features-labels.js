@@ -2,6 +2,40 @@
 // rule, this only has to agree with it. Returns a finite number >= 0, or null for "not recorded".
 // Numeric strings are accepted because a payload that has round-tripped through a form field can
 // arrive as one; anything else -- 0-length string, boolean, array, NaN, negative -- is not a height.
+// Die Grundlinie eines Kurvenlabels aus dem Payload, gedreht in Leaflet-Ordnung.
+// 🔴 Eine einzige unbrauchbare Koordinate nimmt die KURVE, nicht das LABEL -- der Name muss auch
+// dann noch erscheinen, notfalls gerade. Dieselbe Regel wie serverseitig in
+// avesmapsCurveBaselinesFromCache: pro Objekt aussteigen, nie den ganzen Bestand.
+function readLabelCurveLine(properties) {
+	const roh = properties && properties.curve_label_line;
+	if (!Array.isArray(roh) || roh.length < 2) {
+		return null;
+	}
+	const punkte = [];
+	for (const paar of roh) {
+		if (!Array.isArray(paar) || paar.length < 2) {
+			return null;
+		}
+		const x = Number(paar[0]);
+		const y = Number(paar[1]);
+		if (!Number.isFinite(x) || !Number.isFinite(y)) {
+			return null;
+		}
+		punkte.push([y, x]);
+	}
+	return punkte;
+}
+
+// 1 … 3. Alles andere faellt auf 1 zurueck. Der Server klemmt schon; hier ein zweites Mal, weil ein
+// gecachter alter Payload jede Zahl tragen kann und der Deploy nie loescht (AGENTS.md §10).
+function readLabelCurveMax(properties) {
+	const roh = Number(properties && properties.curve_label_max);
+	if (!Number.isFinite(roh)) {
+		return 1;
+	}
+	return Math.min(3, Math.max(1, Math.round(roh)));
+}
+
 function readLabelHeightSchritt(properties) {
 	const raw = properties?.height_schritt;
 	if (raw === null || raw === undefined || raw === "" || typeof raw === "boolean") {
@@ -63,6 +97,16 @@ function normalizeLabelFeature(feature) {
 		// Fläche kann über zwei Bänder laufen -- anders als ein Ort, der genau in einem liegt.
 		// Serverseitig aus dem gespeicherten Verschnitt („Zugehörigkeit rechnen"), nicht neu gerechnet.
 		climateZones: Array.isArray(properties.climate_zones) ? properties.climate_zones : null,
+		// 🔴 DIE KURVE, auf der dieser Name steht -- gerechnet vom SERVER (Entwurf §7.1), weil die
+		// Flaechengeometrie beim normalen Besucher gar nicht im Browser liegt (1,6 MB Vegetation,
+		// 1,4 MB Topographie, nachgeladen erst beim Betreten der Landschaftsebene).
+		// 💣 Der Payload fuehrt [x, y], Leaflet will [lat, lng] = [y, x]. Hier wird getauscht, und
+		// zwar EINMAL -- alles dahinter rechnet in Leaflet-Ordnung.
+		// ⚠️ `null` heisst „diese Flaeche hat die Kurvenbeschriftung aus" und ist der Normalfall;
+		// eine leere Liste waere dasselbe in unklar.
+		curveLine: readLabelCurveLine(properties),
+		// Hoechstens so viele Namen auf dieser Kurve (Entwurf §4.2: ein HOECHSTwert, kein Sollwert).
+		curveMax: readLabelCurveMax(properties),
 		otherSource: readFeatureOtherSource(properties),
 		// A berggipfel carries its own height, in Schritt (V8). 🔴 `null` means NOT RECORDED and is
 		// not the same as 0 -- the height field falls back to a placeholder for the former and takes
