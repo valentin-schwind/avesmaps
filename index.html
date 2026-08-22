@@ -572,7 +572,12 @@
 						<div class="wiki-sync-panel__actions" hidden>
 							<button id="wiki-sync-sync-path" class="wiki-sync-panel__start wiki-sync-kind-sync" type="button" title="Übernimmt die Wege aus dem zuletzt gelesenen Dump in die Staging-Tabellen (Wave 2 Syncen).">🚨 Syncen</button>
 						</div>
-							<span id="path-sync-summary" class="wiki-sync-panel__summary wiki-sync-panel__row-summary">Keine Daten geladen</span>
+							<!-- Nur noch STATUSPLATZ: Laden, Fehler und der Fortschritt der Sammelaktionen
+							     (js/review/review-path-sync.js schreibt an zehn Stellen hierher). Die
+							     Statistikzeile "N gesynct - M Karten-Segmente" ist am 22.08.2026 entfallen
+							     (Owner). Im Ruhezustand ist die Zeile LEER; `:empty` blendet sie aus, sonst
+							     bliebe ihr margin-bottom als 8px-Luecke stehen (sie ist ein Flex-Item). -->
+							<span id="path-sync-summary" class="wiki-sync-panel__summary wiki-sync-panel__row-summary"></span>
 						<div class="wiki-sync-panel__filter">
 							<input id="path-sync-filter" class="wiki-sync-panel__filter-input" type="search" placeholder="Wege suchen ..." aria-label="Wege durchsuchen" />
 								<div class="type-filter"><button type="button" id="path-filter-toggle" class="type-filter__toggle" aria-label="Filter">Filter ▾</button><div id="path-filter-menu" class="type-filter__menu" hidden><div class="type-filter__section"><div class="type-filter__section-title">Typ</div><div id="path-type-filter-menu"></div></div><div class="type-filter__section"><div class="type-filter__section-title">Lage</div><div id="path-scope-filter-menu"></div></div><div class="type-filter__section"><div class="type-filter__section-title">Kontinent</div><div id="path-continent-filter-menu"></div></div><div class="type-filter__section"><div class="type-filter__section-title">Quelle</div><div id="path-source-filter-menu"></div></div></div></div>
@@ -665,7 +670,6 @@
 							<div class="wiki-sync-panel__actions" hidden>
 								<button id="wiki-sync-powerlines-sync" class="wiki-sync-panel__start" type="button" title="Übernimmt die Kraftlinien-Angaben aus dem Wiki (Stärke, Affinität, Länge, Regionen, Verlauf) auf die Kraftlinien der Karte. Zugeordnet wird über den Namen. Von Hand gesetzte Wiki-Links und Beschreibungen bleiben unangetastet.">⚡ Kraftlinien syncen</button>
 							</div>
-							<span id="powerline-sync-summary" class="wiki-sync-panel__summary wiki-sync-panel__row-summary">Kraftlinien werden geladen …</span>
 							<div class="wiki-sync-panel__filter">
 								<input id="powerline-sync-filter" class="wiki-sync-panel__filter-input" type="search" placeholder="Kraftlinie suchen …" aria-label="Kraftlinien durchsuchen" />
 							</div>
@@ -688,7 +692,9 @@
 						<div class="wiki-sync-panel__actions" hidden>
 								<button id="wiki-sync-sync-region" class="wiki-sync-panel__start wiki-sync-kind-sync" type="button" title="Übernimmt die Regionen aus dem zuletzt gelesenen Dump in die Staging-Tabellen (Wave 2 Syncen).">🚨 Syncen</button>
 						</div>
-								<span id="region-sync-summary" class="wiki-sync-panel__summary wiki-sync-panel__row-summary">Keine Daten geladen</span>
+								<!-- Nur noch STATUSPLATZ (Laden, Fehler) -- wie bei den Wegen. Die Statistikzeile
+								     "N gesynct - M Karten-Labels" ist am 22.08.2026 entfallen (Owner). -->
+								<span id="region-sync-summary" class="wiki-sync-panel__summary wiki-sync-panel__row-summary"></span>
 						<div class="wiki-sync-panel__filter">
 							<input id="region-sync-filter" class="wiki-sync-panel__filter-input" type="search" placeholder="Regionen suchen ..." aria-label="Regionen durchsuchen" />
 							<div class="type-filter"><button type="button" id="region-filter-toggle" class="type-filter__toggle" aria-label="Filter">Filter ▾</button><div id="region-filter-menu" class="type-filter__menu" hidden><div class="type-filter__section"><div class="type-filter__section-title">Typ</div><div id="region-type-filter-menu"></div></div><div class="type-filter__section"><div class="type-filter__section-title">Kontinent</div><div id="region-continent-filter-menu"></div></div><div class="type-filter__section"><div class="type-filter__section-title">Quelle</div><div id="region-source-filter-menu"></div></div></div></div>
@@ -712,7 +718,6 @@
 					<div class="wiki-sync-panel__actions" hidden>
 						<button id="wiki-sync-sync-settlement" class="wiki-sync-panel__start wiki-sync-kind-sync" type="button" title="Übernimmt die Orte aus dem zuletzt gelesenen Dump in die Staging-Tabellen (Wave 2 Syncen).">🚨 Syncen</button>
 					</div>
-					<span id="wiki-sync-locations-summary" class="wiki-sync-panel__summary wiki-sync-panel__row-summary">Keine Daten geladen</span>
 						<!-- Die Konfliktloesung stand hier (Accordion im Siedlungen-Reiter) und ist nach
 						     #wiki-sync-conflicts-overlay umgezogen -- Konfliktzentrum P0, siehe
 						     docs/konfliktmanagement-design.md. Sie war nie siedlungsspezifisch:
@@ -745,7 +750,6 @@
 						     run itself is a deliberate step inside that window. -->
 						<button id="wiki-sync-territories" class="wiki-sync-panel__start" type="button" title="Öffnet den Territorien-Sync-Editor: Crawl → Staging → Modell, mit Unterschieden und Lückenliste. Der scharfe Übernahmeschritt wird dort bewusst ausgelöst, nicht schon von diesem Knopf."><span class="t1">Territorien bearbeiten</span><span id="wiki-sync-territory-synced" class="wiki-sync-panel__summary" hidden></span></button>
 					</div>
-					<span id="wiki-sync-territories-summary" class="wiki-sync-panel__summary wiki-sync-panel__row-summary">Keine Daten geladen</span>
 
 					<div class="wiki-sync-panel__filter">
 						<input id="wiki-sync-territory-filter" class="wiki-sync-panel__filter-input" type="search" placeholder="Suchen ..." aria-label="Herrschaftsgebiete durchsuchen" />

@@ -124,14 +124,9 @@ function renderPowerlineSyncList() {
 	if (!list) { return; }
 	const esc = (typeof escapeHtml === "function") ? escapeHtml : ((s) => String(s == null ? "" : s));
 	const groups = avesmapsPowerlinePanelGroups();
-	const summary = document.getElementById("powerline-sync-summary");
-	if (summary) {
-		const segCount = (typeof powerlineData !== "undefined" && Array.isArray(powerlineData)) ? powerlineData.length : 0;
-		// 💣 "N Kraftlinien" stand hier UND steht seit 14.08.2026 in der Bilanzzeile -- beides ist
-		// groups.length, also zweimal wortgleich untereinander. Hier bleiben die Segmente, die die
-		// Bilanzzeile nicht kennt. Keine Information verloren, nur die Dopplung.
-		summary.textContent = segCount + " Segmente";
-	}
+	// Owner 22.08.2026: die Statistikzeile „N Segmente" ist entfallen, und mit ihr ihr Wirt
+	// #powerline-sync-summary in index.html. Was diese Liste über sich sagt, sagt die
+	// Bilanzzeile darunter (avesmapsListBalanceRender). Kein zweiter Erzeuger mehr.
 	if (groups.length === 0) {
 		avesmapsListBalanceRender("powerline-sync-balance", "Kraftlinien", 0, 0);
 		list.innerHTML = '<div class="wikisync-itemlist__empty" style="padding:8px;color:var(--color-text-muted);">Keine Kraftlinien geladen.</div>';

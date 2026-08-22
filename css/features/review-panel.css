@@ -638,6 +638,15 @@
 	font-size: 11px;
 }
 
+/* Seit 22.08.2026 tragen die Reiter Wege und Regionen hier KEINE Statistik mehr, sondern nur
+   noch Status („Wege werden abgeglichen …“, Fehler, Fortschritt der Sammelaktionen) -- im
+   Ruhezustand ist die Zeile leer. Ohne diese Regel bliebe sie trotzdem sichtbar: die Zeile ist
+   ein Flex-Item des Reiter-Panels, wird also blockifiziert und nimmt ihr margin-bottom mit.
+   8px Luft unter dem Reiterstreifen, um die niemand gebeten hat. */
+.wiki-sync-panel__row-summary:empty {
+	display: none;
+}
+
 /* Adventure picker (adventures tab): search + scrollable list; double-click a row opens the editor there. */
 /* Grows to the panel's bottom edge instead of stopping at a fixed height (owner 2026-07-17). Same
    recipe as .wiki-sync-territory-tree below -- the parent .wiki-sync-panel__tab-panel.is-active is

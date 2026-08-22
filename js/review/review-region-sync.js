@@ -93,7 +93,6 @@ function regionSyncEscapeAttr(value) {
 
 async function loadRegionWikiSync() {
 	const status = regionSyncElement("region-sync-summary");
-	const summary = regionSyncElement("region-sync-summary");
 	if (status) {
 		status.textContent = "Regionen werden abgeglichen ...";
 	}
@@ -110,13 +109,12 @@ async function loadRegionWikiSync() {
 		if (typeof loadEcosystemRegionsByWikiKey === "function") {
 			await loadEcosystemRegionsByWikiKey();
 		}
-		const s = data.summary || {};
-		if (summary) {
-			// „gesynct", nicht „Regionen": s.considered zählt, was der letzte Sync betrachtet hat
-			// (1851), nicht die Zeilen der Liste (1616). Seit die Bilanzzeile eine Zeile tiefer
-			// „1.616 Regionen" sagt, standen zwei verschiedene Zahlen unter demselben Wort
-			// untereinander. Owner 14.08.2026: „,1851 gesynct' ist klarer".
-			summary.textContent = `${s.considered || 0} gesynct · ${s.map_labels || 0} Karten-Labels`;
+		// Owner 22.08.2026: die Statistikzeile „N gesynct · M Karten-Labels" ist entfallen -- sie
+		// stand hier seit dem 14.08. gerade WEIL sie etwas anderes zählte als die Bilanzzeile
+		// darunter; der Owner will jetzt nur noch die Bilanzzeile. Die Zeile bleibt als
+		// STATUSPLATZ für Laden und Fehler und wird nach erfolgreichem Laden geleert.
+		if (status) {
+			status.textContent = "";
 		}
 		renderRegionSyncList();
 	} catch (error) {

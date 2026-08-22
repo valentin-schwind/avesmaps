@@ -169,7 +169,6 @@ function pathSyncEscapeAttr(value) {
 
 async function loadPathWikiSync() {
 	const status = pathSyncElement("path-sync-summary");
-	const summary = pathSyncElement("path-sync-summary");
 	if (status) {
 		status.textContent = "Wege werden abgeglichen ...";
 	}
@@ -180,12 +179,12 @@ async function loadPathWikiSync() {
 			throw new Error(apiErrorMessage(data, "Unerwartete Antwort"));
 		}
 		pathSyncData = data;
-		const s = data.summary || {};
-		if (summary) {
-			// „gesynct", nicht „Wege" — dieselbe Kollision wie bei den Regionen: s.considered ist,
-			// was der letzte Sync betrachtet hat (601), die Bilanzzeile darunter nennt die Zeilen
-			// der Liste (4.225).
-			summary.textContent = `${s.considered || 0} gesynct · ${s.map_paths || 0} Karten-Segmente`;
+		// Owner 22.08.2026: die Statistikzeile „N gesynct · M Karten-Segmente" ist entfallen. Die
+		// Zeile bleibt als reiner STATUSPLATZ stehen -- sie trägt Fehler und den Fortschritt der
+		// Sammelaktionen -- und wird nach erfolgreichem Laden GELEERT: sonst bliebe das
+		// „Wege werden abgeglichen ..." von oben für immer stehen.
+		if (status) {
+			status.textContent = "";
 		}
 		renderPathSyncList();
 	} catch (error) {

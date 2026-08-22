@@ -627,11 +627,6 @@ async function renderWikiSyncTerritoryTree({ forceReload = false } = {}) {
 				: baseTree;
 		const countVisibleNodes = (node) => (Array.isArray(node && node.children) ? node.children : []).reduce((sum, child) => sum + 1 + countVisibleNodes(child), 0);
 		const visibleRowCount = countVisibleNodes(treeResult.root);
-		// Summary identisch zum Sync-Monitor: alle Knoten gesamt, sichtbare Wurzeln (Aventurien+heute = 53).
-		wikiSyncTerritorySummary = {
-			territory_count: Array.isArray(rows) ? rows.length : 0,
-			root_count: Array.isArray(treeResult?.root?.children) ? treeResult.root.children.length : 0,
-		};
 
 		avesmapsListBalanceRender("wiki-sync-territory-balance", "Territorien",
 			visibleRowCount, Array.isArray(rows) ? rows.length : 0);
@@ -4056,21 +4051,7 @@ function buildWikiSyncStatusMessage(message = "") {
 }
 
 function syncWikiSyncPanelHeaderState() {
-	syncWikiSyncPanelSummaries();
 	syncWikiSyncActionButtonLabels();
-}
-
-function syncWikiSyncPanelSummaries() {
-	const locationsSummaryElement = document.getElementById("wiki-sync-locations-summary");
-	const territoriesSummaryElement = document.getElementById("wiki-sync-territories-summary");
-
-	if (locationsSummaryElement) {
-		locationsSummaryElement.textContent = formatWikiSyncSettlementSummaryText();
-	}
-
-	if (territoriesSummaryElement) {
-		territoriesSummaryElement.textContent = formatWikiSyncTerritorySummaryText();
-	}
 }
 
 function syncWikiSyncActionButtonLabels() {
@@ -4081,59 +4062,12 @@ function syncWikiSyncActionButtonLabels() {
 	}
 }
 
-function formatWikiSyncSettlementSummaryText() {
-	const openCount = Number(wikiSyncSummary?.by_status?.open ?? wikiSyncCases.filter((caseEntry) => caseEntry.status === "open").length);
-	const deferredCount = Number(wikiSyncSummary?.by_status?.deferred ?? wikiSyncCases.filter((caseEntry) => caseEntry.status === "deferred").length);
-	const archivedCount = Number(wikiSyncSummary?.by_status?.archived ?? wikiSyncCases.filter((caseEntry) => caseEntry.status === "archived").length);
-
-	if (openCount < 1 && deferredCount < 1 && archivedCount < 1) {
-		return "Keine Ortsdaten geladen";
-	}
-
-	// „Fälle", weil es keine Orte sind: gezählt wird by_status der WikiSync-FÄLLE. Das Substantiv
-	// fehlte hier ganz, und über der Zeile steht „Alle (3434)" — wer die 3007 sah, hatte keinen
-	// Anhaltspunkt, wovon. Trenner „·" wie bei den sieben anderen Subjekten.
-	return `${openCount} Fälle offen · ${deferredCount} zurückgestellt · ${archivedCount} archiviert`;
-}
-
-function formatWikiSyncTerritorySummaryText() {
-	const syncedTerritoryCount = Number(wikiSyncTerritorySummary?.territory_count ?? 0);
-	const syncedRootCount = Number(wikiSyncTerritorySummary?.root_count ?? 0);
-
-	if (syncedTerritoryCount > 0 || syncedRootCount > 0) {
-		return `${syncedTerritoryCount} Knoten · ${syncedRootCount} Wurzelknoten`;
-	}
-
-	const fallbackSummary = getWikiSyncTerritoryLoadedDataSummary();
-	if (fallbackSummary.territoryCount < 1 && fallbackSummary.rootCount < 1) {
-		return "Keine Herrschaftsgebietsdaten geladen";
-	}
-
-	return `${fallbackSummary.territoryCount} Knoten · ${fallbackSummary.rootCount} Wurzelknoten`;
-}
-
-function getWikiSyncTerritoryLoadedDataSummary() {
-	const territoryCount = wikiSyncTerritoryTreeRowsLoaded
-		? wikiSyncTerritoryTreeRowsCache.length
-		: (Array.isArray(politicalTerritoryOptions) ? politicalTerritoryOptions : [])
-			.filter((territory) => String(territory?.public_id || "").trim() !== "")
-			.length;
-	const rootCount = wikiSyncTerritoryTreeRowsLoaded
-		? Number(wikiSyncTerritoryTreeRootCountCache || 0)
-		: (Array.isArray(politicalTerritoryHierarchy) && politicalTerritoryHierarchy.length > 0)
-			? politicalTerritoryHierarchy.filter((node) => String(node?.name || "").trim() !== "").length
-			: (Array.isArray(politicalTerritoryOptions) ? politicalTerritoryOptions : [])
-				.filter((territory) => {
-					const publicId = String(territory?.public_id || "").trim();
-					const parentPublicId = String(territory?.parent_public_id || "").trim();
-					return publicId !== "" && parentPublicId === "";
-				}).length;
-
-	return {
-		territoryCount,
-		rootCount,
-	};
-}
+// (Die Statistikzeilen der Reiter „Orte" und „Territorien" -- „N Fälle offen · N zurückgestellt ·
+//  N archiviert" und „N Knoten · N Wurzelknoten" -- sind am 22.08.2026 entfallen (Owner). Mit ihnen
+//  fielen syncWikiSyncPanelSummaries(), formatWikiSyncSettlementSummaryText(),
+//  formatWikiSyncTerritorySummaryText() und getWikiSyncTerritoryLoadedDataSummary() weg, ebenso ihre
+//  Wirte #wiki-sync-locations-summary/#wiki-sync-territories-summary in index.html. Was eine Liste
+//  über sich sagt, sagt jetzt allein die Bilanzzeile unter der Suche (js/review/review-list-balance.js).)
 
 // (WikiSync case-list rendering moved to review-wiki-sync-cases.js - M5 split.)
 
