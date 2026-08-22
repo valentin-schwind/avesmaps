@@ -1874,6 +1874,25 @@ git commit -m "feat(kurvenlabel): Zwischenspeicher und Leser -- der Lesepfad rec
 
 Hier wird gerechnet — einmal, angestossen von einem Admin, nicht von einem Besucher.
 
+🪤 **Gemessen nach Aufgabe 4, und die Zahl ist grösser als der Plan annahm:** eine Fläche kostet
+**165–796 ms**, nicht die erwarteten 20–400. Profiliert liegt das zu rund 65 % an der
+Delaunay-Triangulierung (107–539 ms) und nur zu 25 % am Dijkstra (23–178 ms) — der naheliegende
+Verdacht „O(n²)-Dijkstra" zeigte auf die falsche Funktion. Treiber ist die Punktzahl: bei einem
+Stützpunktabstand von 0,30 entstehen 521–1790 Punkte je Teilfläche.
+
+**Folge für diesen Endpunkt:** rund 50 eingeschaltete Regionen × ~400 ms sind etwa **20 Sekunden**,
+im schlechten Fall über 40. Das reisst die PHP-Laufzeitgrenze knapp. Deshalb zwei Dinge:
+
+* Der Endpunkt setzt seine Laufzeitgrenze ausdrücklich hoch (Schritt 5) — mit einem Kommentar, der
+  sagt warum, sonst „räumt" der nächste Leser sie weg.
+* Schritt 7 **misst den echten Gesamtlauf** und schreibt die Zahl in den Bericht. Sie ist die
+  Grundlage für die Entscheidung, ob gestückelt werden muss.
+
+🔧 **Stückeln gehört NICHT in diesen Plan.** Das Haus löst lange Adminläufe gestückelt (das
+Höhenraster fährt eine Anfrage je Fläche, das Datenbank-Backup ist fortsetzbar) — aber beides hat
+eine Oberfläche, die den Fortschritt zeigt. Hier gibt es noch keine; der Auslöser kommt erst mit
+der Kachel „Darstellung" (Plan 4). Dort wird entschieden, mit der gemessenen Zahl in der Hand.
+
 **Dateien:**
 - Neu: `api/edit/map/curve-labels-run.php`
 - Ändern: `api/_internal/app/curve-label-store.php` (anhängen)
@@ -2091,6 +2110,15 @@ try {
     // 🔴 Der Riegel steht HIER, nicht nur am ausgegrauten Knopf im Fenster.
     avesmapsRequireUserWithCapability('admin');
 
+    // ⚠️ Der Lauf braucht SEKUNDEN, nicht Millisekunden: gemessen 165-796 ms je Flaeche, und bei
+    // rund 50 eingeschalteten Regionen sind das etwa 20 s. Ohne diese Zeile bricht PHP mitten im
+    // Lauf ab -- und weil erst ganz am Ende geschrieben wird, waere das Ergebnis dann NICHTS,
+    // stillschweigend. Bewusst 0 (unbegrenzt) und nicht eine geratene Zahl: die Laufzeit waechst
+    // mit jeder Region, die ein Editor einschaltet.
+    // 🔧 Sobald die Kachel "Darstellung" (Plan 4) einen Auslöser mit Fortschritt hat, gehoert der
+    // Lauf gestueckelt -- so wie das Hoehenraster eine Anfrage je Flaeche faehrt.
+    @set_time_limit(0);
+
     // 💣 DER TEILBAUM, NICHT DIE GANZE KONFIGURATION -- dieselbe Falle steht in zoom-bands.php
     // ausdruecklich angeschrieben.
     $pdo = avesmapsCreatePdo($config['database'] ?? []);
@@ -2142,7 +2170,30 @@ curl -s -X POST "http://localhost:8123/api/edit/map/curve-labels-run.php" -b "$C
 ```
 
 Erwartet vor dem Umstelllauf: `{"ok":true,"regions":0,"bytes":33}` — niemand hat die Einstellung
-gesetzt, also gibt es nichts zu rechnen.
+gesetzt, also gibt es nichts zu rechnen. ⚠️ Die von curl gemeldete Gesamtzeit ist hier die Messung,
+die zählt — schreib sie in den Bericht.
+
+⚠️ **Und miss den Lauf einmal unter Last**, sonst ist die Laufzeitfrage nur verschoben. Ohne
+Datenbankzugriff geht das direkt gegen die Fixture:
+
+```bash
+php -d extension=php_mbstring.dll -r '
+require "api/_internal/app/curve-label-store.php";
+$r = json_decode(file_get_contents("api/_internal/app/__tests__/fixtures/kurvenlabel-referenz.json"), true);
+// 50 Regionen nachstellen, indem die sechs Referenzflaechen reihum wiederholt werden.
+$regionen = [];
+for ($i = 0; $i < 50; $i++) {
+  $f = $r[$i % count($r)];
+  $regionen["r$i"] = ["rev" => 1, "settings" => ["enabled" => true, "max_labels" => 1], "geometries" => $f["geometries"]];
+}
+$t = microtime(true);
+$json = avesmapsCurveBuildCachePayload($regionen);
+printf("50 Regionen: %.1f s, %d Bytes
+", microtime(true) - $t, strlen($json));'
+```
+
+Schreib die Sekundenzahl in den Bericht und sag ausdrücklich, ob sie unter 30 s bleibt. Liegt sie
+darüber, ist das ein Befund für Plan 4, kein Grund, hier etwas umzubauen.
 
 🔧 **DU (Owner):** Um eine echte Kurve zu sehen, setze an *einer* Region über phpMyAdmin
 `ecosystem_region.properties_json` auf `{"curve_label": true, "curve_label_max": 1}`, lass den Lauf
