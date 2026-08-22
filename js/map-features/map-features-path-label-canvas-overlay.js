@@ -366,6 +366,16 @@
 		// Verhalten, nur derselbe Klick an einem anderen Traeger. Einmal je Bild gefragt, nicht je Label.
 		const hebtFlaecheHervor = typeof setHighlightedEcosystemRegion === "function"
 			&& !(typeof canOperateEcosystemLayers === "function" && canOperateEcosystemLayers());
+		// 🔴 UND DAS INFOPANEL -- die zweite Haelfte desselben Marker-Klicks, und die SICHTBARE.
+		// `createLabelMarker` oeffnet im Ansichtsmodus `avesmapsShowInfopanel(buildRegionLabelViewPopupHtml(label))`:
+		// Name, Typ, Kartensammlung, Literatur. Ohne sie waere der gemalte Name zwar wieder anklickbar,
+		// aber ein Klick liesse nur die Flaeche kurz aufleuchten -- und bei ruhender Ebene malt die Pane
+		// mit 0 % Fuellung, ein Besucher saehe also GAR NICHTS. Die erste Fassung dieser Reparatur hatte
+		// genau das uebersehen, weil die Luecke als „ein Klick" beschrieben war und in Wahrheit drei
+		// Dinge tat.
+		const zeigtInfopanel = typeof IS_INFOPANEL_MODE !== "undefined" && IS_INFOPANEL_MODE
+			&& typeof window.avesmapsShowInfopanel === "function"
+			&& typeof buildRegionLabelViewPopupHtml === "function";
 		for (const eintrag of kurvenlabelAblage.eintraege) {
 			const regionPublicId = String(eintrag.label.ecosystemRegionPublicId || "");
 			for (const f of eintrag.fenster) {
@@ -380,7 +390,10 @@
 				// Nur ein Name, der auch WIRKLICH etwas tut, bekommt eine Klickflaeche. Sonst zeigte der
 				// Zeiger unten eine Hand ueber Text, der auf nichts antwortet -- und ein Klick liefe ins
 				// Leere, wo er vorher bis zur Karte durchgefallen waere.
-				if (!hebtFlaecheHervor || !regionPublicId) {
+				// ⚠️ ZWEI Handlungen, nicht eine: die Hervorhebung braucht eine Flaeche am Label, das
+				// Infopanel nicht. Ein Eintrag entsteht, sobald EINE von beiden moeglich ist.
+				const hebtDiesesHervor = hebtFlaecheHervor && regionPublicId !== "";
+				if (!hebtDiesesHervor && !zeigtInfopanel) {
 					continue;
 				}
 				// ⚠️ DERSELBE Fingerspielraum wie bei den Wegnamen (WAY_LABEL_CLICK_PAD), keine zweite
@@ -395,8 +408,12 @@
 					right: huelle.right + spanPad,
 					bottom: huelle.bottom + spanPad,
 					// Was der Klick ausloest: genau das, was der Marker getan haette.
-					regionPublicId,
+					regionPublicId: hebtDiesesHervor ? regionPublicId : "",
 					text: eintrag.label.text,
+					// ⚠️ Das LABEL selbst, nicht fertiges Markup: `buildRegionLabelViewPopupHtml` baut ein
+					// ganzes Panel, und das je Bild fuer jeden Namen zu bauen waere Arbeit fuer einen
+					// Klick, der meistens nicht kommt. Gebaut wird erst beim Treffer.
+					label: zeigtInfopanel ? eintrag.label : null,
 				});
 			}
 		}
@@ -888,11 +905,31 @@
 			//
 			// Der Treffer tut genau das, was der abgemeldete Marker getan haette
 			// (createLabelMarker, map-features-labels.js) -- dieselbe Funktion, dieselbe Bedingung. Sie
-			// steckt schon im Register: aufgenommen wird nur ein Name mit Flaeche und nur dort, wo
-			// niemand die Ebene bearbeiten kann.
+			// steckt schon im Register: aufgenommen wird nur ein Name, der auch wirklich etwas tut.
 			const kurvenTreffer = wayLabelHitTest(kurvenlabelClickRegister, event.containerPoint);
-			if (kurvenTreffer && typeof setHighlightedEcosystemRegion === "function") {
+			if (!kurvenTreffer) {
+				return;
+			}
+			if (kurvenTreffer.regionPublicId && typeof setHighlightedEcosystemRegion === "function") {
 				setHighlightedEcosystemRegion(kurvenTreffer.regionPublicId);
+			}
+			// 🔴 Und das Infopanel -- die zweite, SICHTBARE Haelfte desselben Marker-Klicks
+			// (Name, Typ, Kartensammlung, Literatur). Ohne sie leuchtet bestenfalls eine Flaeche kurz
+			// auf, und bei ruhender Ebene sieht ein Besucher gar nichts.
+			//
+			// ⚠️ OHNE das `map.panTo`, das der Marker daneben tat. Bewusst: der Marker war ein PUNKT,
+			// den das Zentrieren ins Bild holte -- der gemalte Name ist ein 200 px langer Zug, den man
+			// bereits ansieht, wenn man ihn anklickt. Die Karte unter dem Zeiger wegzuziehen waere
+			// genau das Zurueckspringen, das der Entwurf an anderer Stelle (§7.4) ausdruecklich
+			// vermeidet -- und der Klick auf die FLAECHE zentriert aus demselben Grund auch nicht.
+			// Soll es doch zentrieren, ist hier die eine Zeile.
+			if (kurvenTreffer.label && typeof window.avesmapsShowInfopanel === "function"
+					&& typeof buildRegionLabelViewPopupHtml === "function") {
+				const l = kurvenTreffer.label;
+				window.avesmapsShowInfopanel(
+					buildRegionLabelViewPopupHtml(l),
+					l.text || (l.wikiRegion && l.wikiRegion.name) || ""
+				);
 			}
 			return;
 		}
