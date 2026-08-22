@@ -399,6 +399,35 @@ function formatChangeAction(action) {
 /** Ab so vielen Zeilen wird gebündelt. Eine einzelne bleibt eine normale Zeile, nie ein Bündel mit „1". */
 const CHANGE_LOG_GROUP_MIN = 2;
 
+/**
+ * Wie weit zwei Änderungen am selben Objekt auseinanderliegen dürfen, um noch ein Bündel zu sein.
+ *
+ * 💣 DIE ERSTE FASSUNG BÜNDELTE NUR DIREKT AUFEINANDERFOLGENDE ZEILEN -- und damit fast nichts.
+ * Editoren arbeiten im Wechsel: Pergelbach, Fluss Weiden 1, Pergelbach, Kreuzung, Pergelbach. Live
+ * am 22.08.2026 vom Owner gemeldet: SECHS Pergelbach-Bündel untereinander, dazwischen die anderen --
+ * das Gegenteil dessen, wofür das Bündeln gebaut wurde.
+ *
+ * 🔴 Die Lücke ist trotzdem nötig, und dafür steht diese Zahl: ohne sie wanderte eine Änderung von
+ * 15 Uhr nach oben zu einer von 18 Uhr, und die Liste beantwortete „was ist gerade passiert" nicht
+ * mehr. 15 Minuten sind GESETZT, nicht gemessen -- eine durchgehende Sitzung am selben Objekt kettet
+ * sich durch, eine Pause trennt.
+ */
+const CHANGE_LOG_GROUP_GAP_MS = 15 * 60 * 1000;
+
+/**
+ * PUR: liegen zwei Zeitpunkte nah genug beieinander?
+ *
+ * ⚠️ Ist eine der beiden Zeiten unlesbar, wird NICHT gebündelt. Zwei Zeilen ohne verwertbaren
+ * Zeitstempel zusammenzuziehen hiesse, eine Nähe zu behaupten, die niemand kennt.
+ */
+function changeLogWithinGroupGap(links, rechts) {
+	if (!Number.isFinite(links) || !Number.isFinite(rechts)) {
+		return false;
+	}
+
+	return Math.abs(links - rechts) <= CHANGE_LOG_GROUP_GAP_MS;
+}
+
 /** Welche Bündel gerade offen sind. Überlebt ein Neuzeichnen, damit ein Nachladen nicht zuklappt. */
 const changeLogOpenGroups = new Set();
 
@@ -455,29 +484,47 @@ function changeLogGroupTimeLabel(entries, heute) {
 // mehr -- das ist neben „wer war das" ihre zweite Aufgabe. Die Reihenfolge bleibt unangetastet.
 //
 // ⚠️ Gebündelt wird nach dem, was in der Zeile STEHT (Ziel und Urheber), nicht nach `public_id`:
-// die drei Protokolle vergeben ihre Kennungen unabhängig, und zwei Zeilen desselben Namens aus
-// verschiedenen Protokollen gehören für den Leser trotzdem zusammen. „Unbenannt" bündelt damit
-// nicht -- richtig so, das ist kein gemeinsames Objekt, sondern ein fehlender Name.
+// ein Fluss liegt in vielen Abschnitten auf der Karte, die alle „Pergelbach" heissen -- nach Kennung
+// gruppiert bliebe jeder Abschnitt für sich, und genau das war die Beschwerde. Der Preis: zwei
+// verschiedene Kreuzungen, die beide „Kreuzung" heissen, landen in einem Bündel. Zurückgenommen wird
+// ohnehin die einzelne Zeile, insofern kostet das nichts -- aber es ist eine Ungenauigkeit.
+// „Unbenannt" bündelt gar nicht: das ist kein gemeinsames Objekt, sondern ein fehlender Name.
+//
+// 🔴 EIN BÜNDEL STEHT AN DER STELLE SEINER JÜNGSTEN ZEILE. Die Liste ist absteigend sortiert, ein
+// Bündel entsteht also beim ersten (= jüngsten) Treffer und saugt die älteren nach -- die
+// zeitliche Ordnung der Liste bleibt damit die des Neuesten, was an einem Objekt passiert ist.
 function changeLogGroupEntries(entries) {
 	const liste = Array.isArray(entries) ? entries : [];
 	const gruppen = [];
+	// Bündel, die noch etwas aufnehmen können. Ein Bündel fällt heraus, sobald der Abstand zu seiner
+	// letzten (= ältesten) Zeile zu gross wird -- und weil die Liste absteigend läuft, kann es danach
+	// nie wieder passen. Ein späterer Treffer desselben Namens beginnt dann ein NEUES Bündel.
+	const offen = new Map();
 	liste.forEach((entry) => {
 		const target = changeLogEntryTarget(entry);
 		const actor = changeLogEntryActor(entry);
-		const letzte = gruppen[gruppen.length - 1];
-		if (letzte && letzte.target === target && letzte.actor === actor && target !== "Unbenannt") {
-			letzte.entries.push(entry);
+		const zeit = Date.parse(String(entry?.created_at || "").replace(" ", "T"));
+		const sammelName = `${target}|${actor}`;
+		const kandidat = target === "Unbenannt" ? null : offen.get(sammelName);
+		if (kandidat && changeLogWithinGroupGap(kandidat.letzteZeit, zeit)) {
+			kandidat.entries.push(entry);
+			kandidat.letzteZeit = zeit;
 
 			return;
 		}
-		gruppen.push({
+		const gruppe = {
 			// Der Schlüssel muss ein Neuzeichnen überleben, aber zwei gleichnamige Bündel an
 			// verschiedenen Stellen der Liste unterscheiden -- deshalb die id der ersten Zeile.
-			key: `${target}|${actor}|${entry?.id ?? ""}`,
+			key: `${sammelName}|${entry?.id ?? ""}`,
 			target,
 			actor,
 			entries: [entry],
-		});
+			letzteZeit: zeit,
+		};
+		gruppen.push(gruppe);
+		if (target !== "Unbenannt") {
+			offen.set(sammelName, gruppe);
+		}
 	});
 
 	return gruppen;

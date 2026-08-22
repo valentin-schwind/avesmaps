@@ -80,16 +80,54 @@ assert.strictEqual(gruppen[0].entries.length, 3, "die drei aufeinanderfolgenden 
 assert.strictEqual(gruppen[0].target, "Schattenforst", "und tragen den Namen des Objekts");
 assert.strictEqual(gruppen[1].entries.length, 1, "eine einzelne bleibt eine einzelne");
 
-// 🔴 NUR AUFEINANDERFOLGEND. Hier liegt eine fremde Zeile dazwischen -- dann sind es ZWEI Bündel,
-// keins. Alles andere würde die zeitliche Reihenfolge der Liste zerstören.
+// 💣 EINE FREMDE ZEILE DAZWISCHEN TRENNT NICHT. Das war die erste Fassung, und sie hat fast nichts
+// gebündelt: Editoren arbeiten im Wechsel (Pergelbach, Fluss Weiden 1, Pergelbach, Kreuzung,
+// Pergelbach). Live gemeldet am 22.08.2026: SECHS Pergelbach-Bündel untereinander statt einem.
 const unterbrochen = [
 	{ id: 4, name: "Schattenforst", username: "nics", created_at: "2026-08-22 18:52:00" },
 	{ id: 3, name: "Dunkeltann", username: "nics", created_at: "2026-08-22 18:51:00" },
 	{ id: 2, name: "Schattenforst", username: "nics", created_at: "2026-08-22 18:50:00" },
 ];
-const getrennt = changeLogGroupEntries(unterbrochen);
-assert.strictEqual(getrennt.length, 3, "eine fremde Zeile dazwischen trennt, sie wird nicht übersprungen");
-assert.notStrictEqual(getrennt[0].key, getrennt[2].key, "und die zwei gleichnamigen Bündel sind unterscheidbar");
+const verschraenkt = changeLogGroupEntries(unterbrochen);
+assert.strictEqual(verschraenkt.length, 2, "die zwei Schattenforst-Zeilen finden zueinander, trotz der Zeile dazwischen");
+assert.strictEqual(verschraenkt[0].target, "Schattenforst", "und das Bündel steht an der Stelle seiner JÜNGSTEN Zeile");
+assert.strictEqual(verschraenkt[0].entries.length, 2, "mit beiden darin");
+assert.strictEqual(verschraenkt[1].target, "Dunkeltann", "die fremde Zeile bleibt an ihrem Platz");
+
+// 🔴 ABER DIE LÜCKE TRENNT. Ohne sie wanderte eine Änderung von 15 Uhr nach oben zu einer von
+// 18 Uhr, und die Liste beantwortete „was ist gerade passiert" nicht mehr.
+const weitAuseinander = [
+	{ id: 3, name: "Schattenforst", username: "nics", created_at: "2026-08-22 18:52:00" },
+	{ id: 2, name: "Schattenforst", username: "nics", created_at: "2026-08-22 18:40:00" },
+	{ id: 1, name: "Schattenforst", username: "nics", created_at: "2026-08-22 15:00:00" },
+];
+const mitLuecke = changeLogGroupEntries(weitAuseinander);
+assert.strictEqual(mitLuecke.length, 2, "12 Minuten ketten durch, dreieinhalb Stunden trennen");
+assert.strictEqual(mitLuecke[0].entries.length, 2, "die beiden nahen bilden ein Bündel");
+assert.strictEqual(mitLuecke[1].entries.length, 1, "die alte steht für sich");
+assert.notStrictEqual(mitLuecke[0].key, mitLuecke[1].key, "und die zwei gleichnamigen Bündel sind unterscheidbar");
+
+// ⚠️ Ohne verwertbaren Zeitstempel wird NICHT gebündelt -- eine Nähe zu behaupten, die niemand
+// kennt, wäre schlimmer als zwei Zeilen.
+const ohneZeit = [
+	{ id: 2, name: "Schattenforst", username: "nics", created_at: "" },
+	{ id: 1, name: "Schattenforst", username: "nics", created_at: "" },
+];
+assert.strictEqual(changeLogGroupEntries(ohneZeit).length, 2, "ohne Zeit kein Bündel");
+
+// ---- Die Lücke selbst ------------------------------------------------------------------------------
+const changeLogWithinGroupGap = sandbox.changeLogWithinGroupGap;
+assert.strictEqual(typeof changeLogWithinGroupGap, "function", "changeLogWithinGroupGap ist geladen");
+assert.strictEqual(changeLogWithinGroupGap(0, 14 * 60 * 1000), true, "14 Minuten liegen drin");
+assert.strictEqual(changeLogWithinGroupGap(0, 16 * 60 * 1000), false, "16 Minuten nicht mehr");
+assert.strictEqual(changeLogWithinGroupGap(14 * 60 * 1000, 0), true, "und die Richtung ist egal");
+// 💣 `null` DARF NICHT ALS NULL DURCHGEHEN. `Math.abs(null - null)` ist 0 und läge damit mitten in
+// der Lücke -- zwei Zeilen ohne Zeitangabe würden zusammengezogen, als wären sie gleichzeitig.
+// ⚠️ Für `NaN` ist die Wache dagegen überflüssig (jeder Vergleich mit NaN ist ohnehin falsch); sie
+// steht für genau diesen null-Fall, und deshalb wird er hier geprüft und nicht der NaN-Fall.
+assert.strictEqual(changeLogWithinGroupGap(null, null), false, "null ist keine Zeit, auch nicht die Zeit 0");
+assert.strictEqual(changeLogWithinGroupGap(undefined, 5), false, "undefined ebenso");
+assert.strictEqual(changeLogWithinGroupGap(NaN, 5), false, "und eine unlesbare Zeit auch nicht");
 
 // ⚠️ Verschiedene Urheber am selben Objekt bündeln NICHT -- die Kopfzeile nennt nur einen Namen,
 // und zwei Leute unter einem Namen zusammenzufassen wäre eine falsche Aussage darüber, wer es war.
