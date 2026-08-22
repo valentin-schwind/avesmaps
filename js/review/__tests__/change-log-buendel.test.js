@@ -203,9 +203,20 @@ assert.strictEqual(changeLogGroupEntries(null).length, 0, "und null wirft nicht"
 // ⚠️ Gebündelt wird das SUCHERGEBNIS, nicht der Gesamtbestand -- sonst spiegelten die Bündel etwas,
 // das die Liste gerade nicht zeigt.
 assert.ok(/changeLogGroupEntries\(gefunden\)/.test(source), "der Zeichner bündelt wirklich, und zwar das Gesiebte");
+// 🔴 JEDE ZEILE IST EIN BÜNDEL -- auch eine mit einer einzigen Änderung (Owner 22.08.2026: „es wäre
+// konsequent wenn auch einzelne einträge, die nur aus einem item bestehen, das als subitem haben und
+// aufgeklappt werden können, sodass alles einheitlich ist"). Bis dahin fiel eine einzelne Änderung in
+// eine ANDERE Bauform: zwei Zeilen hoch statt einer, ohne Dreieck, mit dem Rückgängig-Knopf direkt in
+// der Zeile -- und das war die HÄUFIGERE der beiden Sorten.
+// 💣 Die Zusicherung prüft die ABWESENHEIT der Abzweigung, nicht ihre Anwesenheit: eine Schwelle, ab
+// der gebündelt wird, ist genau das, was hier nicht mehr existieren darf.
 assert.ok(
-	/gruppe\.entries\.length < CHANGE_LOG_GROUP_MIN/.test(source),
-	"eine einzelne Änderung bleibt eine normale Zeile, kein Bündel mit „1\"",
+	!/CHANGE_LOG_GROUP_MIN/.test(source),
+	"es gibt keine Schwelle mehr, ab der gebündelt wird -- jede Zeile ist ein Bündel",
+);
+assert.ok(
+	/changeLogGroupHeader\(gruppe\)/.test(source) && !/changeLogEntryRow\([^)]*,\s*false\)/.test(source),
+	"der Zeichner baut für JEDE Gruppe eine Kopfzeile und keine freistehende Zeile mehr",
 );
 // ⚠️ Die Klick- und Rückgängig-Zuhörer hängen in js/routing/routing.js am Dokument und suchen
 // `.change-log-entry` samt `data-change-id`. Beides muss bleiben, sonst ist die Liste tot.
@@ -315,7 +326,6 @@ function spalteVon(klasse) {
 	[".change-log-group__name", "2"],
 	[".change-log-entry__target", "2"],
 	[".change-log-group__actor", "3"],
-	[".change-log-entry__actor", "3"],
 	[".change-log-group__count", "4"],
 	[".change-log-group__time", "5"],
 	[".change-log-entry__time", "5"],
@@ -392,31 +402,42 @@ assert.strictEqual(zelle(kopf, "change-log-group__count").title, "3 Änderungen"
 assert.strictEqual(zelle(kopf, "change-log-group__time").textContent, "12:38", "Spalte 5: der jüngste Zeitpunkt");
 assert.strictEqual(zelle(kopf, "change-log-group__time").title, "12:34–12:38", "die Spanne bleibt im title erreichbar");
 
-const einzeln = changeLogEntryRow(buendel.entries[0], false);
-assert.strictEqual(zelle(einzeln, "change-log-entry__target").textContent, "Reichsstraße 2", "ausserhalb eines Bündels trägt Spalte 2 den NAMEN");
-assert.strictEqual(zelle(einzeln, "change-log-entry__actor").textContent, "nics", "und Spalte 3 den Urheber");
-assert.ok(zelle(einzeln, "change-log-entry__l2").textContent.length > 0, "die Aktion rutscht in die zweite Zeile");
+// 🔴 EINE EINZELNE ÄNDERUNG IST AUCH EIN BÜNDEL -- mit Dreieck, aufklappbar, „1×" in der Anzahl.
+// Owner 22.08.2026: „sodass alles einheitlich ist."
+const einzelBuendel = {
+	key: "Gareth|nics|9",
+	target: "Gareth",
+	actor: "nics",
+	entries: [{ id: 9, name: "Gareth", action: "update_location", username: "nics", created_at: "2026-08-22 12:28:00" }],
+};
+const einzelKopf = changeLogGroupHeader(einzelBuendel);
+assert.strictEqual(zelle(einzelKopf, "change-log-group__count").textContent, "1×", "auch eine einzelne Änderung zählt sichtbar");
+assert.ok(zelle(einzelKopf, "change-log-group__caret").textContent.length > 0, "und trägt ein Dreieck wie jede andere Zeile");
+assert.strictEqual(zelle(einzelKopf, "change-log-group__name").textContent, "Gareth", "ihr Name steht in der Kopfzeile");
 
-// 🔴 Im Bündel steht der Name in der Kopfzeile -- Spalte 2 trägt dort die AKTION. Leer zu bleiben
-// wäre die Alternative gewesen, und dann stünde jede Zeile eines offenen Bündels ohne Kopf da.
-const imBuendel = changeLogEntryRow(buendel.entries[0], true);
-assert.notStrictEqual(zelle(imBuendel, "change-log-entry__target").textContent, "Reichsstraße 2", "im Bündel wird der Name NICHT wiederholt");
-assert.ok(zelle(imBuendel, "change-log-entry__target").textContent.length > 0, "aber Spalte 2 bleibt gefüllt -- mit der Aktion");
+// 🔴 Damit gibt es nur noch EINE Sorte Zeile unter einer Kopfzeile: Spalte 2 trägt die AKTION (der
+// Name steht darüber). Sie leer zu lassen wäre die Alternative gewesen -- dann stünde jede Zeile
+// eines offenen Bündels ohne Kopf da und schöbe ihren Text allein in die zweite Zeile.
+const kindZeile = changeLogEntryRow(buendel.entries[0]);
+assert.strictEqual(changeLogEntryRow.length, 1, "der Zeilenbauer kennt keinen zweiten Bauweg mehr");
+assert.ok(kindZeile.classList.contains("change-log-entry--grouped"), "jede Zeile ist eine Bündelzeile");
+assert.notStrictEqual(zelle(kindZeile, "change-log-entry__target").textContent, "Reichsstraße 2", "der Name wird NICHT wiederholt");
+assert.ok(zelle(kindZeile, "change-log-entry__target").textContent.length > 0, "aber Spalte 2 bleibt gefüllt -- mit der Aktion");
 assert.ok(
-	zelle(imBuendel, "change-log-entry__target").classList.contains("change-log-entry__target--action"),
+	zelle(kindZeile, "change-log-entry__target").classList.contains("change-log-entry__target--action"),
 	"und sie ist als Aktion gekennzeichnet, damit sie nicht fett wie eine Überschrift steht",
 );
 
-// 💣 Die Urheber-ZELLE bleibt stehen, auch wenn sie leer ist: ein Rasterplatz gehört der Spalte,
-// nicht dem Inhalt. Fehlte sie, rutschten Zeit und Rückgängig in einem offenen Bündel nach links --
-// und die Tabelle bräche genau dort, wo sie am dichtesten steht.
-assert.ok(zelle(imBuendel, "change-log-entry__actor") !== null, "die Urheberzelle bleibt auch im Bündel stehen");
-assert.strictEqual(zelle(imBuendel, "change-log-entry__actor").textContent, "", "sie ist nur leer");
+// 🪤 KEINE Urheberzelle mehr. Hier stand, sie müsse leer stehenbleiben, „sonst rutschten Zeit und
+// Rückgängig nach links" -- das war falsch und ist am 22.08.2026 im Browser widerlegt worden: jede
+// Zelle nennt ihre Spalte selbst, und eine feste Platzierung verschiebt sich nicht, wenn eine andere
+// Zelle fehlt. Das Argument gälte nur bei automatischer Platzierung.
+assert.strictEqual(zelle(kindZeile, "change-log-entry__actor"), null, "die Urheberzelle ist weg -- sie wäre immer leer");
 
 // ⚠️ Die alten Hüllen sind weg: ein Rasterplatz wird nur an DIREKTE Kinder vergeben, __body und __l1
 // hätten die Spalten der Zellen darin verschluckt.
 for (const alt of ["change-log-entry__body", "change-log-entry__l1"]) {
-	assert.strictEqual(zelle(einzeln, alt), null, "die Hülle ." + alt + " gibt es nicht mehr");
+	assert.strictEqual(zelle(kindZeile, alt), null, "die Hülle ." + alt + " gibt es nicht mehr");
 }
 
 console.log("change-log-buendel ok");

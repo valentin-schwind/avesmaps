@@ -1703,7 +1703,6 @@
 .change-log-group__name,
 .change-log-group__actor,
 .change-log-entry__target,
-.change-log-entry__actor,
 .change-log-entry__l2 {
 	min-width: 0;
 	overflow: hidden;
@@ -1735,8 +1734,11 @@
 	font-weight: 400;
 }
 
-.change-log-group__actor,
-.change-log-entry__actor {
+/* ⚠️ Nur der Bündelkopf hat eine Urheberzelle. Die Zeilen darunter hatten bis zum 22.08.2026 eine
+   eigene; seit jede Zeile der Liste ein Bündel ist, wäre sie dort immer leer -- gebündelt wird nur,
+   was derselbe Mensch am selben Objekt getan hat. Die Spalte bleibt trotzdem für alle reserviert,
+   weil sie in der Tafel steht; dass in den Kindzeilen nichts drinsteht, verschiebt nichts. */
+.change-log-group__actor {
 	grid-column: 3;
 	color: var(--color-text-muted);
 	font-size: var(--font-size-caption);
@@ -1776,6 +1778,11 @@
 .change-log-entry__actions {
 	grid-column: 6;
 	justify-self: end;
+	/* ⚠️ Der geteilte Block weiter oben (mit .review-report__actions) bringt `margin-top: 4px` mit --
+	   dort stehen die Knöpfe UNTER dem Text, hier seit dem Raster in einer eigenen Spalte NEBEN ihm.
+	   Die 4px waren dadurch reine Luft am Zeilenkopf: gemessen 39px Zeilenhöhe statt 35px, ohne dass
+	   sich der Knopf gegenüber der Zeitangabe auch nur um ein Pixel verschoben hätte. */
+	margin-top: 0;
 }
 
 .change-log-entry__actions[hidden] {

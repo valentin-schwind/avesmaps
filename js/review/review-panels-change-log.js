@@ -428,9 +428,6 @@ function formatChangeAction(action) {
 // Owner 22.08.2026: „mach die items etwas kompakter, da geht viel platz verloren, fass die items
 // besser zusammen". Entwurf 2 von dreien.
 
-/** Ab so vielen Zeilen wird gebündelt. Eine einzelne bleibt eine normale Zeile, nie ein Bündel mit „1". */
-const CHANGE_LOG_GROUP_MIN = 2;
-
 /**
  * Wie weit zwei Änderungen am selben Objekt auseinanderliegen dürfen, um noch ein Bündel zu sein.
  *
@@ -600,17 +597,21 @@ function renderChangeLog() {
 
 	changeLogFilterRebuild();
 
+	// 🔴 JEDE ZEILE IST EIN BÜNDEL -- auch eines mit einer einzigen Änderung. Owner 22.08.2026:
+	// „es wäre konsequent wenn auch einzelne einträge, die nur aus einem item bestehen, das als
+	// subitem haben und aufgeklappt werden können, sodass alles einheitlich ist."
+	// Vorher fiel eine einzelne Änderung in eine ANDERE Bauform: zwei Zeilen hoch statt einer, ohne
+	// Dreieck, mit dem Rückgängig-Knopf direkt in der Zeile. Die Liste sah aus, als gäbe es zwei
+	// Sorten Eintrag -- und die häufigere war die grössere.
+	// ⚠️ DER PREIS, und er ist bewusst bezahlt: „Rückgängig" braucht seither überall einen Klick zum
+	// Aufklappen. Die Kopfzeile trägt keinen Knopf (Begründung bei changeLogGroupHeader), und diese
+	// Regel für Bündel mit genau einer Zeile aufzuweichen, brächte den Unterschied zurück, den der
+	// Umbau gerade beseitigt hat.
 	changeLogGroupEntries(gefunden).forEach((gruppe) => {
-		if (gruppe.entries.length < CHANGE_LOG_GROUP_MIN) {
-			listElement.appendChild(changeLogEntryRow(gruppe.entries[0], false));
-
-			return;
-		}
-
 		listElement.appendChild(changeLogGroupHeader(gruppe));
 		if (changeLogOpenGroups.has(gruppe.key)) {
 			gruppe.entries.forEach((entry) => {
-				listElement.appendChild(changeLogEntryRow(entry, true));
+				listElement.appendChild(changeLogEntryRow(entry));
 			});
 		}
 	});
@@ -685,10 +686,14 @@ function changeLogGroupHeader(gruppe) {
 
 // Eine Zeile. 🔴 Klasse und `data-change-id` bleiben, wie sie waren -- die Klick- und Rückgängig-
 // Zuhörer hängen in js/routing/routing.js am Dokument und suchen genau danach.
-function changeLogEntryRow(entry, imBuendel) {
+function changeLogEntryRow(entry) {
 	const itemElement = document.createElement("article");
 	itemElement.className = "change-log-entry";
-	itemElement.classList.toggle("change-log-entry--grouped", Boolean(imBuendel));
+	// 🔴 IMMER eine Bündelzeile. Seit jede Zeile der Liste ein Bündel ist (siehe renderChangeLog),
+	// gibt es die freistehende Änderung nicht mehr -- und mit ihr fiel der zweite Bauweg dieser
+	// Funktion weg: der Parameter `imBuendel` war danach überall `true` und hätte einen toten Zweig
+	// samt lebendem Test hinterlassen.
+	itemElement.classList.add("change-log-entry--grouped");
 	// 💣 Nur was sich zeigen lässt, ist ein Knopf. Eine Moderationszeile hat kein Kartenobjekt --
 	// als Knopf angeboten, antwortet sie beim Klick „Dieses Objekt kann nicht lokalisiert werden.",
 	// was nach einem Fehler aussieht und keiner ist. Gilt allgemein: weder public_id noch focus =
@@ -708,39 +713,30 @@ function changeLogEntryRow(entry, imBuendel) {
 	// bekommt seine Spalte zugewiesen, die zweite Zeile spannt von Spalte 2 bis zum Rand. Die alten
 	// Hüllen __body/__l1 haben nur gestapelt, was das Raster selbst stapelt -- und sie hätten die
 	// Spalten der Kinder verschluckt, weil ein Rasterplatz nur an DIREKTE Kinder vergeben wird.
+	// ⚠️ KEINE Urheberzelle. Sie stand hier, solange es freistehende Zeilen gab; im Bündel wäre sie
+	// immer leer, denn gebündelt wird nur, was derselbe Mensch am selben Objekt getan hat -- der
+	// Name steht in der Kopfzeile.
+	// 🪤 Hier stand als Begründung, die leere Zelle müsse trotzdem bleiben, „sonst rutschten Zeit und
+	// Rückgängig nach links". Das war FALSCH und ist am 22.08.2026 im Browser widerlegt worden: jede
+	// Zelle nennt ihre Spalte selbst (`grid-column`), und eine feste Platzierung verschiebt sich
+	// nicht, wenn eine andere Zelle fehlt. Das Argument gälte nur bei automatischer Platzierung.
 	itemElement.innerHTML = `
 		<span class="change-log-entry__target"></span>
-		<span class="change-log-entry__actor"></span>
 		<span class="change-log-entry__time"></span>
 		<span class="change-log-entry__actions"></span>
 		<span class="change-log-entry__l2"></span>
 	`;
-	// 🔴 SPALTE 2 TRÄGT DIE ÜBERSCHRIFT DER ZEILE -- und die ist nicht überall dieselbe: ausserhalb
-	// eines Bündels ist es der NAME des Objekts, innerhalb die AKTION. Im Bündel steht der Name schon
-	// in der Kopfzeile, ihn je Zeile zu wiederholen war der halbe Grund, warum die Liste so viel
-	// Platz brauchte; die Spalte dort aber LEER zu lassen, liesse jede Zeile ohne Kopf dastehen und
-	// schöbe ihren Text allein in die zweite Zeile.
+	// 🔴 SPALTE 2 TRÄGT DIE AKTION, nicht den Namen: der steht in der Kopfzeile darüber. Ihn je Zeile
+	// zu wiederholen war der halbe Grund, warum die Liste so viel Platz brauchte; die Spalte aber
+	// LEER zu lassen liesse jede Zeile ohne Kopf dastehen und schöbe ihren Text allein in Zeile zwei.
 	const aktion = changeLogEntryLabel(entry);
-	const kopf = imBuendel ? aktion : changeLogEntryTarget(entry);
 	const targetElement = itemElement.querySelector(".change-log-entry__target");
-	targetElement.textContent = kopf;
-	targetElement.title = kopf;
-	targetElement.classList.toggle("change-log-entry__target--action", Boolean(imBuendel));
+	targetElement.textContent = aktion;
+	targetElement.title = aktion;
+	targetElement.classList.add("change-log-entry__target--action");
 
-	// ⚠️ Der Urheber entfällt im Bündel (er steht in der Kopfzeile) -- gebündelt wird nur, was
-	// derselbe Mensch am selben Objekt hintereinander getan hat. Seine SPALTE bleibt trotzdem
-	// stehen: ein Rasterplatz gehört der Spalte, nicht dem Inhalt, sonst rutschten Zeit und
-	// Rückgängig in einem offenen Bündel nach links und die Tabelle bräche genau dort.
-	const actorElement = itemElement.querySelector(".change-log-entry__actor");
-	if (!imBuendel) {
-		const wer = changeLogEntryActor(entry);
-		actorElement.textContent = wer;
-		actorElement.title = wer;
-	}
-
-	// Zweite Zeile: was der Schritt getan hat und ob er schon zurückgenommen wurde. Die Aktion steht
-	// hier NUR ausserhalb eines Bündels -- innerhalb trägt sie bereits Spalte 2.
-	const zweiteZeile = imBuendel ? [] : [aktion];
+	// Zweite Zeile: was der Schritt getan hat und ob er schon zurückgenommen wurde.
+	const zweiteZeile = [];
 	zweiteZeile.push(changeLogEntryDetail(entry));
 	if (entry.undone) {
 		zweiteZeile.push(`zurückgenommen${entry.undone_username ? ` von ${entry.undone_username}` : ""}`);
