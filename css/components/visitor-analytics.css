@@ -1,13 +1,22 @@
 /* Sub-tab look is unified in review-panel.css (.status-subtab); keep only the
-   row's side padding here (the Status tab has no outer container padding). */
-.status-subtabs { padding: 4px 12px 0; }
+   row's side padding here (the Status tab has no outer container padding).
+   🔴 SEITLICH 10px -- die Hausnummer des Panels (`.wiki-sync-panel__tabs { margin: 10px 10px 8px }`,
+   in social-hub.css als solche benannt). Bis 22.08.2026 standen hier 12px, und dieser Reiter war
+   damit der einzige, dessen Inhalt nicht unter den Reitern darüber begann. ⚠️ Die 12px waren KEIN
+   Ausrutscher dieser Zeile: das ganze Besucher-Dashboard darunter stand auf 12px, die Zeile war
+   bündig dazu. Deshalb sind die drei Regeln weiter unten IM SELBEN Zug mitgewandert -- nur die
+   Zeile zu verschieben hätte eine bestehende Bündigkeit gegen eine neue getauscht.
+   ⚠️ Nur WAAGERECHT. Die 4px Oberluft bleiben: diese Zeile zieht ihre Trennlinie über die volle
+   Panelbreite, die der übrigen Reiter ist um 10px eingerückt -- sie zum vollen Mitglied der
+   geteilten Regel zu machen, änderte mehr als eine Einrückung. */
+.status-subtabs { padding: 4px 10px 0; }
 .status-subsection { display: none; }
 .status-subsection.is-active { display: flex; flex-direction: column; flex: 1; min-height: 0; }
 /* The dashboard fills the sub-section and scrolls when taller than the panel. */
 /* Fixed time-range bar above the scroll area, like a real sub-tab row. */
 /* Live presence line, directly above the time-range bar -- both belong to the fixed
    header over the scrolling dashboard, so they share its padding and hairline. */
-.va-live { flex: 0 0 auto; padding: 10px 12px; border-bottom: 1px solid var(--color-border); background: var(--color-panel-soft); }
+.va-live { flex: 0 0 auto; padding: 10px; border-bottom: 1px solid var(--color-border); background: var(--color-panel-soft); }
 /* .va-live sets a display below, which would otherwise outrank the browser's own
    [hidden] rule and leave the line visible before any data has arrived. */
 .va-live[hidden] { display: none; }
@@ -18,9 +27,9 @@
 .va-live__counts { margin-left: auto; font-size: 13px; color: var(--color-button-soft-text); }
 .va-live__counts b { font-size: 17px; font-weight: 700; }
 .va-live__split { margin-top: 4px; padding-left: 17px; font-size: 12px; color: var(--color-text-muted); }
-#visitor-pills { flex: 0 0 auto; padding: 10px 12px; border-bottom: 1px solid var(--color-border); }
+#visitor-pills { flex: 0 0 auto; padding: 10px; border-bottom: 1px solid var(--color-border); }
 #visitor-pills:empty { display: none; }
-#visitor-dashboard { flex: 1 1 auto; min-height: 0; overflow-y: auto; overflow-x: hidden; padding: 12px; }
+#visitor-dashboard { flex: 1 1 auto; min-height: 0; overflow-y: auto; overflow-x: hidden; padding: 12px 10px; }
 .va-pills { display: flex; gap: 6px; margin-bottom: 0; }
 .va-geo-legend { display: flex; align-items: center; gap: 6px; justify-content: center; margin-top: 8px; font-size: 11px; color: var(--color-text-muted); }
 .va-geo-scale { display: flex; gap: 2px; }

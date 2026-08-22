@@ -209,5 +209,42 @@ check("⚠️ ein zurueckgezogener Modus faellt auf seinen Schluessel zurueck, s
 check("ein leerer Wert bleibt leer, statt „undefined\" zu drucken",
 	vaPrettyMapMode(null, optionLabels) === "" && vaPrettyMapMode(undefined, optionLabels) === "");
 
+// ---- Die seitliche Kante des Reiters „Status" -------------------------------------------------
+// 🔴 10px ist die HAUSNUMMER des Editorpanels (`.wiki-sync-panel__tabs { margin: 10px 10px 8px }`,
+// in social-hub.css als solche benannt). Bis 22.08.2026 stand dieser Reiter als einziger auf 12px.
+// ⚠️ Geprueft werden ALLE VIER Regeln zusammen, nicht nur die Reiterzeile: die 12px waren kein
+// Ausrutscher der Zeile, sondern das Innenmass des Dashboards darunter, und die Zeile war buendig
+// dazu. Wer eine davon zurueckdreht, zerreisst die Buendigkeit wieder -- deshalb stehen sie hier
+// als EINE Zusicherung.
+// 💣 Kommentare vorher weg: der Kommentar ueber `.status-subtabs` zitiert eine fremde Regel samt
+// geschweifter Klammer, und eine Zerlegung ohne diesen Schritt liest den Kommentar als Regel.
+const cssOhneKommentar = css
+	.split("/*")
+	.map((teil, i) => (i === 0 ? teil : teil.slice(teil.indexOf("*/") + 2)))
+	.join("");
+function paddingVon(wahl) {
+	const auf = cssOhneKommentar.indexOf(wahl + " {");
+	if (auf < 0) {
+		return null;
+	}
+	const rumpf = cssOhneKommentar.slice(auf, cssOhneKommentar.indexOf("}", auf));
+	const p = rumpf.indexOf("padding:");
+	if (p < 0) {
+		return null;
+	}
+	return rumpf.slice(p + "padding:".length, rumpf.indexOf(";", p)).trim();
+}
+[
+	[".status-subtabs", "4px 10px 0"],
+	[".va-live", "10px"],
+	["#visitor-pills", "10px"],
+	["#visitor-dashboard", "12px 10px"],
+].forEach(([wahl, erwartet]) => {
+	check(
+		"die seitliche Kante von " + wahl + " steht auf der Hausnummer 10px (padding: " + erwartet + ")",
+		paddingVon(wahl) === erwartet,
+	);
+});
+
 console.log(failed === 0 ? "\nOK -- alle Pruefungen bestanden" : "\n" + failed + " Pruefung(en) fehlgeschlagen");
 process.exit(failed === 0 ? 0 : 1);
