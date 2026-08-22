@@ -929,6 +929,22 @@
    * ⚠️ UND DESHALB DARF HIER KEIN renderDetail() STEHEN: das baut das Formular aus `state.detail`
    * neu und wirft jede ungespeicherte Eingabe weg -- auch die, die das ↺ gerade hineingeschrieben hat.
    */
+  // 🔴 TIPPEN IM FORMULAR AENDERT DIE ABWEICHUNG. Bis hierher rechnete dieser Editor sie nur beim
+  // Laden, nach einem ↺ und nach einer Sync-Uebernahme -- gleicht jemand den Wert von Hand an den
+  // Wiki-Stand an, blieben der durchgestrichene Stand und das ↺ stehen: ein Rueckholangebot fuer
+  // etwas, das gar nicht mehr abweicht. Live seit dem 17.08.2026, gefunden am 22.08. beim Bau des
+  // Zwillings fuer die Landschaft.
+  // ⚠️ DELEGIERT an #aeStammBody, nicht an die zehn Felder: `renderDetail()` baut den Kasten neu
+  //    auf, und Zuhoerer an den Feldern waeren danach weg. Der Behaelter bleibt.
+  // ⚠️ Der Zeichner ruft sich nicht selbst: ein programmatisch gesetzter Wert (das ↺) feuert kein
+  //    `input`/`change`.
+  document.getElementById("aeStammBody")?.addEventListener("input", (ereignis) => {
+    if (ereignis.target?.dataset?.field) { aeWikiZeichneAbweichungen(); }
+  });
+  document.getElementById("aeStammBody")?.addEventListener("change", (ereignis) => {
+    if (ereignis.target?.dataset?.field) { aeWikiZeichneAbweichungen(); }
+  });
+
   function aeWikiZeichneAbweichungen() {
     const stand = aeWikiStand();
     aeWikiStandCache = stand;

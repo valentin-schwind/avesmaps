@@ -666,6 +666,35 @@ async function syncSettlementWikiFromServer() {
 	}
 }
 
+// 🔴 TIPPEN IM FORMULAR AENDERT DIE ABWEICHUNG. Bis hierher rechnete dieser Dialog sie nur beim
+// OEFFNEN, nach einem ↺ und nach einer Sync-Uebernahme -- gleicht ein Editor den Wert von Hand an
+// den Wiki-Stand an, blieben der durchgestrichene Stand und das ↺ stehen: ein Rueckholangebot fuer
+// etwas, das gar nicht mehr abweicht. Live seit dem 17.08.2026, gefunden am 22.08. beim Bau des
+// Zwillings fuer die Landschaft.
+// ⚠️ EINMAL, nicht bei jedem Oeffnen: die fuenf Felder stehen fest in index.html.
+// ⚠️ Ein programmatisch gesetzter Wert feuert KEIN `input`/`change` -- der Zeichner ruft sich also
+// nicht selbst, wenn das ↺ gerade schreibt.
+function verdrahteSettlementWikiZeichner() {
+	// ⚠️ Die zwei Ereignisnamen ausgeschrieben, nicht gerechnet: der Wachtest
+	// js/ui/__tests__/wiki-feld-herkunft-geladen.test.js sucht `addEventListener("input"` bzw.
+	// `("change"` woertlich, und ein `feld === "type" ? … : …` daneben war fuer ihn unsichtbar.
+	// Lesbarer ist es ohnehin.
+	["name", "einwohner", "lage", "oberhaupt"].forEach((feld) => {
+		settlementWikiElement("location-edit-" + feld)
+			?.addEventListener("input", settlementWikiZeichneAbweichungen);
+	});
+	settlementWikiElement("location-edit-type")
+		?.addEventListener("change", settlementWikiZeichneAbweichungen);
+}
+
+if (typeof document !== "undefined") {
+	if (document.readyState === "loading") {
+		document.addEventListener("DOMContentLoaded", verdrahteSettlementWikiZeichner, { once: true });
+	} else {
+		verdrahteSettlementWikiZeichner();
+	}
+}
+
 window.renderSettlementWikiReference = renderSettlementWikiReference;
 window.syncSettlementWikiFromServer = syncSettlementWikiFromServer;
 

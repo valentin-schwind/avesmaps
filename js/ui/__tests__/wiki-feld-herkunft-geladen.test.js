@@ -103,5 +103,43 @@ for (const dok of dokumente) {
 	checks++;
 }
 
+// ---- 💣 Und der Zeichner muss auch beim TIPPEN laufen ---------------------------------------
+// Eine Abweichung, die nur beim Oeffnen gerechnet wird, bleibt stehen, nachdem der Editor den Wert
+// von Hand angeglichen hat: durchgestrichener Wiki-Stand plus ↺ fuer etwas, das gar nicht mehr
+// abweicht. Das Editorfenster der Landschaft hatte die Zuhoerer von Anfang an, der Kartendialog
+// nicht -- gefunden hat es die Designpruefung, nicht das Testfeld. Eine Regel, die einen von zwei
+// Erzeugern bindet, ist keine Regel (dieselbe Klasse wie die Verkehrsmittel-Sperre am 14.08.2026).
+//
+// ⚠️ Geprueft wird die NAEHE, nicht der genaue Aufbau: jeder Aufrufer soll seinen Zeichner an
+// mindestens einen Eingabe- oder Auswahl-Zuhoerer haengen. Wie er heisst und wo er sitzt, bleibt
+// seine Sache -- die Oberflaechen sind zu verschieden fuer eine Formvorschrift.
+
+for (const datei of aufrufer) {
+	const quelle = inhalt.get(datei);
+	// Der Name des Zeichners: die Funktion, in deren Koerper avesmapsWikiFeldStand steht.
+	const zeichner = (quelle.match(/function\s+(\w*[Zz]eichne\w*)\s*\(/g) || [])
+		.map((t) => t.replace(/function\s+/, "").replace(/\s*\($/, ""));
+	if (zeichner.length === 0) { continue; }   // der Literatur-Editor nennt seinen anders
+	// Ohne Regex-Bau aus Fremdtext: jede Stelle, an der ein input/change-Zuhoerer haengt, und die
+	// naechsten 240 Zeichen dahinter -- der Zeichner soll darin vorkommen. Kurz genug, dass ein
+	// zufaelliger Treffer eine andere Handlung betreffen muesste, lang genug fuer einen
+	// mehrzeiligen Rumpf.
+	const fenster = [];
+	for (const auftakt of ['addEventListener("input"', 'addEventListener("change"']) {
+		let von = quelle.indexOf(auftakt);
+		while (von !== -1) {
+			fenster.push(quelle.slice(von, von + 240));
+			von = quelle.indexOf(auftakt, von + 1);
+		}
+	}
+	const haengt = zeichner.some((name) => fenster.some((stueck) => stueck.includes(name)));
+	assert.ok(haengt,
+		datei + " rechnet die Abweichung nie neu, wenn im Formular getippt wird (" + zeichner.join(", ")
+		+ " haengt an keinem input/change-Zuhoerer). Ein durchgestrichener Wiki-Stand bliebe stehen, "
+		+ "nachdem der Editor den Wert von Hand angeglichen hat -- ein Rueckholangebot fuer etwas, das "
+		+ "gar nicht mehr abweicht.");
+	checks++;
+}
+
 console.log(`OK — jeder Zeichner des Wiki-Overrides bekommt seinen Helfer, und keine Zelle steckt `
 	+ `im Uebersetzer (${checks} Zusicherungen; Aufrufer: ${aufrufer.join(", ")}).`);
