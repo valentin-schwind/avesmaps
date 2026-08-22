@@ -192,6 +192,17 @@ function getLocationNameLabelOffsets(element, labelRect) {
 	const smallShift = avesmapsLocationLabelSpacing("versatz");
 	const verticalCenterOffset = -labelHeight / 2;
 
+	// 🔴 22.08.2026 -- DER DRIFT EINER STELLE: der senkrechte Spalt zwischen der Markermitte und dem
+	// Namenskasten. Bei `dy = 0` liegt der Kasten senkrecht MITTIG auf dem Marker (live gemessen:
+	// Marker bei y=359, Kasten 345..373), er überdeckt den Punkt also -- Drift 0. Erst wenn |dy| die
+	// halbe Kastenhöhe übersteigt, hebt der Name ab, und genau diese Differenz ist der Drift.
+	//
+	// 💣 WAAGERECHT WIRD NICHT GEZÄHLT. Ein Seitenwechsel („links") ist KEIN Drift -- der Name klebt
+	// weiter am Punkt, nur auf der anderen Seite. Der erste Entwurf maß den Abstand zur
+	// Grundstellung und zählte den Seitenwechsel deshalb als 133 px Wanderung; das war das falsche
+	// Maß und hätte den Deckel genau das wegschneiden lassen, was noch klebt.
+	const driftOf = (dy) => Math.max(0, Math.abs(dy) - labelHeight / 2);
+
 	return [
 		{ name: "right", dx: baseOffset.x, dy: baseOffset.y },
 		{ name: "right-up", dx: baseOffset.x, dy: baseOffset.y - smallShift },
@@ -205,7 +216,9 @@ function getLocationNameLabelOffsets(element, labelRect) {
 		{ name: "bottom-left", dx: -labelWidth - scaledGap, dy: baseOffset.y + labelHeight + smallShift },
 		{ name: "top", dx: -labelWidth / 2, dy: verticalCenterOffset - labelHeight - smallShift },
 		{ name: "bottom", dx: -labelWidth / 2, dy: verticalCenterOffset + labelHeight + smallShift },
-	];
+	// ⚠️ Der Drift wird ANGEHÄNGT, die zwölf Zeilen darüber bleiben unberührt: ihre Reihenfolge ist
+	// laut AGENTS.md §11 tragend, und ein Wert je Zeile von Hand wäre zwölfmal dieselbe Rechnung.
+	].map((stelle) => ({ ...stelle, drift: driftOf(stelle.dy) }));
 }
 
 function setLabelElementChosenOffset(element, isLocation, baseOffset, candidate) {
@@ -321,6 +334,10 @@ function resolveLabelCollisions(seedRects = []) {
 			return { element, isLocation, collisionRect, baseOffset, candidates, group };
 		});
 
+	// EINMAL je Durchgang gelesen, nicht je Label: der Deckel ist ein globaler Wert, und ein Aufruf
+	// je Kandidat wären ~12 x N Zugriffe pro Bild.
+	const maxDrift = avesmapsLocationLabelSpacing("drift");
+
 	// Mit den Regionenlabel-Rechtecken vorbelegen -> Orts-/Frei-Labels weichen ihnen aus (Gegenseite).
 	const acceptedRects = Array.isArray(seedRects) ? seedRects.slice() : [];
 	const writes = [];
@@ -332,6 +349,16 @@ function resolveLabelCollisions(seedRects = []) {
 
 		let chosen = null;
 		for (const candidate of candidates) {
+			// 🔴 DER DECKEL (Owner 22.08.2026): eine Stelle, die den Namen weiter als `drift` von
+			// seinem Punkt abheben ließe, wird gar nicht erst probiert. Bleibt darunter nichts frei,
+			// fällt das Label unten durch auf den vorhandenen Ausblend-Weg -- „begrenzen, bis sie
+			// verschwinden". `candidates[0]` (rechts, Drift 0) ist nie betroffen und trägt den
+			// Rückfall weiter.
+			// ⚠️ NUR Siedlungsnamen: freie Kartenlabels haben ihre eigene Kandidatenliste ohne
+			// `drift` und dürfen laut Regel nie ausgeblendet werden (siehe unten).
+			if (isLocation && candidate.drift > maxDrift) {
+				continue;
+			}
 			// Translation in px relativ zur bei Offset 0 gemessenen Basis-Box.
 			const translateX = isLocation ? (candidate.dx - baseOffset.x) : candidate.dx;
 			const translateY = isLocation ? (candidate.dy - baseOffset.y) : candidate.dy;

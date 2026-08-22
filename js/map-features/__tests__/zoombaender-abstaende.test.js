@@ -23,7 +23,10 @@ const VORGABE = AVESMAPS_LOCATION_ZOOM_BAND_DEFAULTS;
 // ---- A. Die Vorgabewerte sind die heutigen Konstanten, zifferngenau -----------------------------
 // LOCATION_NAME_LABEL_GAP (map-features-location-name-labels.js) = 4, LOCATION_LABEL_COLLISION_PADDING
 // (map-features.js) = 2, LOCATION_LABEL_SHIFT_SMALL (map-features.js) = 8.
-assert.deepStrictEqual(VORGABE.abstaende, { spalt: 4, repel: 2, versatz: 8 },
+// 🔴 22.08.2026 -- "drift" kam als VIERTER dazu (Deckel auf den senkrechten Spalt zum eigenen
+// Punkt). Er hatte vorher keine Konstante, weil es keinen Deckel gab; 90 liegt ueber jedem
+// erreichbaren Drift und schneidet deshalb nichts weg. Siehe zoombaender-drift.test.js.
+assert.deepStrictEqual(VORGABE.abstaende, { spalt: 4, repel: 2, versatz: 8, drift: 90 },
 	"die Vorgabewerte der Abstaende sind die heutigen Konstanten, unveraendert");
 
 // ---- B. Nichts gespeichert / kaputt = reine Vorgabe ----------------------------------------------
@@ -72,10 +75,11 @@ assert.strictEqual(unfug.abstaende.versatz, VORGABE.abstaende.versatz, "Infinity
 const nullWert = avesmapsResolveLocationZoomBands({ abstaende: { spalt: null } });
 assert.strictEqual(nullWert.abstaende.spalt, VORGABE.abstaende.spalt, "null -> Vorgabe, nicht 'unsichtbar'");
 
-// ---- F. Unbekannter Schluessel wird ignoriert, bekannte bleiben drei -----------------------------
+// ---- F. Unbekannter Schluessel wird ignoriert, bekannte bleiben die der Vorgabetafel -------------
 const fremd = avesmapsResolveLocationZoomBands({ abstaende: { hauptstadt: 5 } });
 assert.strictEqual(fremd.abstaende.hauptstadt, undefined, "der Browser fuehrt die Schluesselliste");
-assert.strictEqual(Object.keys(fremd.abstaende).length, 3, "es bleiben genau drei Abstaende");
+assert.deepStrictEqual(Object.keys(fremd.abstaende).sort(), Object.keys(VORGABE.abstaende).sort(),
+	"es bleiben genau die Abstaende der Vorgabetafel -- gegen SIE gemessen, nicht gegen eine Zahl");
 
 // ---- G. Der Zugriff, den die Zeichner rufen -------------------------------------------------------
 avesmapsApplyLocationZoomBands(null);

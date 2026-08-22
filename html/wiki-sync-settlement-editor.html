@@ -594,6 +594,19 @@
           </div>
         </div>
         <p class="zb-shift-note">Zwölf Stellen, in dieser Reihenfolge gesucht — rechts · rechts-oben · rechts-unten · oben-rechts · unten-rechts · links · links-oben · links-unten · oben-links · unten-links · oben · unten; Versatz bestimmt den Schritt an allen außer den ersten beiden (den ungestörten Grundrichtungen rechts/links). Findet sich keine freie Stelle, wird das Label ausgeblendet (bei Siedlungen; Flächen-Labels nie).</p>
+        <div class="zb-slider-row">
+          <div class="zb-slider-row__head">
+            <span class="zb-slider-row__name">Max. Drift</span>
+            <span class="zb-slider-row__desc">Wie weit ein Ortsname beim Ausweichen höchstens von seinem Punkt abheben darf. Wer darüber hinaus müsste, wird stattdessen ausgeblendet.</span>
+          </div>
+          <div class="zb-slider-row__control">
+            <input type="range" class="zb-range" id="zbDriftRange" min="0" max="90" step="1" aria-label="Maximaler Drift in px">
+            <input type="number" class="zb-num-input" id="zbDriftInput" min="0" max="90" step="1">
+            <span class="zb-selected__unit">px</span>
+            <button type="button" class="zb-row-reset" id="zbDriftReset">↺</button>
+          </div>
+        </div>
+        <p class="zb-shift-note">Drift ist der senkrechte Spalt zwischen dem Punkt und dem Namenskasten — <strong>waagerecht zählt nicht</strong>: ein Name, der auf die andere Seite des Punktes springt, klebt weiter und driftet nicht. Bei <strong>0</strong> muss jeder Name seinen Punkt berühren, sonst verschwindet er; die Vorgabe 90 liegt über jedem erreichbaren Drift und schneidet nichts weg.</p>
       </div>
     </div>
     <p class="zb__msg" id="seZoomBandsMsg"></p>
@@ -3714,7 +3727,7 @@ let zoomBandsState = { marker: {}, label: {}, abstaende: {} };
 let zoomBandsSelected = { marker: null, label: null }; // { cls, z } | null
 let zoomBandPreviewStage = null;
 let zoomBandPlotsCache = null;
-const ZOOM_BAND_SPACING_KEYS = ["spalt", "repel", "versatz"];
+const ZOOM_BAND_SPACING_KEYS = ["spalt", "repel", "versatz", "drift"];
 
 // 🔴 Prüfbefund 1 (Fix-Runde 2): "weicht von der Vorgabe ab" und "ungespeichert" sind ZWEI Aussagen,
 // keine. zoomBandRowEqualsDefault/zoomBandSpacingEqualsDefault messen den Abstand zur VORGABE -- das
@@ -3749,7 +3762,13 @@ function zoomBandLimits(kind) {
 }
 // AUFGABE 8B, ebenso gelesen statt abgeschrieben: AVESMAPS_LOCATION_LABEL_SPACING_LIMITS steht in
 // js/map-features/location-zoom-bands.js.
-function zoomBandSpacingLimits() {
+// 🔴 JE SCHLÜSSEL, nicht mehr eine für alle: „drift" ist ein Deckel bis 80 px, die anderen drei
+// bleiben bei 0-20. GELESEN, NIE ABGESCHRIEBEN -- die Tafel steht in
+// js/map-features/location-zoom-bands.js.
+function zoomBandSpacingLimits(key) {
+	if (typeof avesmapsLocationLabelSpacingLimits === "function") {
+		return avesmapsLocationLabelSpacingLimits(key);
+	}
 	return (typeof AVESMAPS_LOCATION_LABEL_SPACING_LIMITS === "object" && AVESMAPS_LOCATION_LABEL_SPACING_LIMITS)
 		|| { min: 0, max: 20 };
 }
@@ -4270,10 +4289,11 @@ function zoomBandSpacingEls() {
 		spalt: { range: $("zbGapRange"), input: $("zbGapInput"), reset: $("zbGapReset"), name: "Spalt" },
 		repel: { range: $("zbRepelRange"), input: $("zbRepelInput"), reset: $("zbRepelReset"), name: "Repel" },
 		versatz: { range: $("zbShiftRange"), input: $("zbShiftInput"), reset: $("zbShiftReset"), name: "Versatz" },
+		drift: { range: $("zbDriftRange"), input: $("zbDriftInput"), reset: $("zbDriftReset"), name: "Max. Drift" },
 	};
-	const limits = zoomBandSpacingLimits();
 	ZOOM_BAND_SPACING_KEYS.forEach((key) => {
 		const els = zoomBandSpacingElsCache[key];
+		const limits = zoomBandSpacingLimits(key);
 		if (els.range) { els.range.min = String(limits.min); els.range.max = String(limits.max); }
 		if (els.input) { els.input.min = String(limits.min); els.input.max = String(limits.max); }
 	});
@@ -4285,7 +4305,7 @@ function zoomBandSpacingEls() {
 function setZoomBandSpacing(key, rawVal) {
 	if (!zoomBandsDarfSpeichern || !isFinite(rawVal)) { return; }
 	markZoomBandsBearbeitet();
-	const limits = zoomBandSpacingLimits();
+	const limits = zoomBandSpacingLimits(key);
 	const val = zoomBandRound2(zoomBandClamp(rawVal, limits.min, limits.max));
 	zoomBandsState.abstaende[key] = val;
 	const els = zoomBandSpacingEls()[key];

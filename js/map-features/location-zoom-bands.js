@@ -16,10 +16,40 @@ const AVESMAPS_ZOOM_BAND_LIMITS = {
 	label: { min: 4, max: 30 },     // Schriftgröße in pt
 };
 
-// 🔴 AUFGABE 8B -- drei GLOBALE Abstände, kein Wert je Ortsklasse/Zoomstufe (Owner-Entscheid
+// 🔴 AUFGABE 8B -- GLOBALE Abstände, kein Wert je Ortsklasse/Zoomstufe (Owner-Entscheid
 // 16.08.2026, Prototyp docs/zoombaender-mockup.html). Eigene, engere Schranke als marker/label:
 // 0 bis 20 px in 0,5-px-Schritten (Vorgabe im Fenster).
 const AVESMAPS_LOCATION_LABEL_SPACING_LIMITS = { min: 0, max: 20 };
+
+// 🔴 „drift" braucht eine EIGENE, weitere Schranke als die anderen drei: er ist kein Abstand
+// zwischen zwei Dingen, sondern ein DECKEL auf den senkrechten Spalt, den ein Name zum eigenen
+// Punkt aufreißen darf (Owner 22.08.2026: „den maximalen versatz ... will ich begrenzen bis sie
+// verschwinden").
+//
+// 💣 DIE 90 IST GEMESSEN, NICHT GEGRIFFEN -- und der erste Griff (80) war zu klein. Der größte
+// erreichbare Drift ist `labelHeight + versatz` (die Stelle „oben mittig"). `labelHeight` ist die
+// Höhe des GERENDERTEN Label-Bildes samt seines durchsichtigen Halo-Randes, nicht die Schriftgröße:
+// live gemessen an 80 Labels über z3/z5/z7 sind das höchstens 2,182 px je pt. Bei der obersten
+// erlaubten Schriftgröße (30 pt, AVESMAPS_ZOOM_BAND_LIMITS.label.max) also rund 66 px, plus der
+// oberste Versatz 20 = 86 px. Die Vorgabe MUSS darüber liegen, sonst schneidet sie beim Ausliefern
+// Stellen weg.
+//
+// ⚠️ UND SIE DARF NICHT VIEL WEITER REICHEN: bei den heutigen Schriftgrößen (höchstens 19 pt)
+// liegt der größte Drift bei rund 50 px, die Arbeit des Reglers passiert also zwischen 0 und 50.
+// Eine Schranke von 120 hätte fünf Sechstel des Reglerwegs wirkungslos gemacht -- genau der
+// Befund, der diesen Umbau ausgelöst hat. 90 deckt das theoretische Maximum und lässt trotzdem
+// gut die Hälfte des Wegs auf dem Bereich liegen, in dem sich etwas bewegt.
+// Bewacht von __tests__/zoombaender-drift.test.js.
+const AVESMAPS_LOCATION_LABEL_DRIFT_LIMITS = { min: 0, max: 90 };
+
+// Die Schranke eines einzelnen globalen Abstands. Ohne eigenen Eintrag gilt die enge Vorgabe --
+// eine Zeile je Schlüssel, damit ein neuer Abstand nicht stillschweigend die Schranke eines
+// fremden erbt.
+const AVESMAPS_LOCATION_LABEL_SPACING_LIMITS_BY_KEY = { drift: AVESMAPS_LOCATION_LABEL_DRIFT_LIMITS };
+
+function avesmapsLocationLabelSpacingLimits(key) {
+	return AVESMAPS_LOCATION_LABEL_SPACING_LIMITS_BY_KEY[key] || AVESMAPS_LOCATION_LABEL_SPACING_LIMITS;
+}
 
 // 🔴 DAS HEUTIGE BILD, ZIFFER FÜR ZIFFER (Entwurf §3.2). `null` = auf dieser Stufe gibt es diese
 // Klasse nicht -- die erste gefüllte Zelle IST die Erscheinungsstufe.
@@ -52,7 +82,11 @@ const AVESMAPS_LOCATION_ZOOM_BAND_DEFAULTS = {
 	//   spalt   = LOCATION_NAME_LABEL_GAP (4, war js/map-features/map-features-location-name-labels.js)
 	//   repel   = LOCATION_LABEL_COLLISION_PADDING (2, war js/map-features/map-features.js)
 	//   versatz = LOCATION_LABEL_SHIFT_SMALL (8, war js/map-features/map-features.js)
-	abstaende: { spalt: 4, repel: 2, versatz: 8 },
+	// 🔴 22.08.2026 -- „drift" ist der VIERTE und einzige, der vorher keine Konstante hatte: es gab
+	// keinen Deckel, ein Name durfte so weit abheben, wie die weiteste Ausweichstelle reicht. Die
+	// Vorgabe 90 liegt über dem größten erreichbaren Drift (gerechnet 85,5) und schneidet deshalb
+	// nichts weg (siehe AVESMAPS_LOCATION_LABEL_DRIFT_LIMITS) -- beim Ausliefern ändert sich nichts.
+	abstaende: { spalt: 4, repel: 2, versatz: 8, drift: 90 },
 };
 
 // Eine Zeile gegen ihre Vorgabe normalisieren.
@@ -127,7 +161,7 @@ function avesmapsResolveLocationZoomBands(stored) {
 		resolved.abstaende[key] = avesmapsZoomBandNormalizeSpacingValue(
 			storedAbstaende[key],
 			AVESMAPS_LOCATION_ZOOM_BAND_DEFAULTS.abstaende[key],
-			AVESMAPS_LOCATION_LABEL_SPACING_LIMITS
+			avesmapsLocationLabelSpacingLimits(key)
 		);
 	});
 	return resolved;
@@ -204,5 +238,7 @@ if (typeof globalThis !== "undefined") {
 	globalThis.AVESMAPS_ZOOM_BAND_MAX_ZOOM = AVESMAPS_ZOOM_BAND_MAX_ZOOM;
 	globalThis.AVESMAPS_ZOOM_BAND_LIMITS = AVESMAPS_ZOOM_BAND_LIMITS;
 	globalThis.AVESMAPS_LOCATION_LABEL_SPACING_LIMITS = AVESMAPS_LOCATION_LABEL_SPACING_LIMITS;
+	globalThis.AVESMAPS_LOCATION_LABEL_DRIFT_LIMITS = AVESMAPS_LOCATION_LABEL_DRIFT_LIMITS;
+	globalThis.AVESMAPS_LOCATION_LABEL_SPACING_LIMITS_BY_KEY = AVESMAPS_LOCATION_LABEL_SPACING_LIMITS_BY_KEY;
 	globalThis.AVESMAPS_LOCATION_ZOOM_BAND_DEFAULTS = AVESMAPS_LOCATION_ZOOM_BAND_DEFAULTS;
 }
