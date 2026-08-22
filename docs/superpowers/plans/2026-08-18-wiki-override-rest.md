@@ -171,9 +171,9 @@ für eine eigene Regression hält: `test-place-scope-filter`, `test-route-leg-po
 - [~] Jede Oberfläche schickt `wiki_uebernommen`, **bevor** ihre Anzeige gebaut wird (A0) · Landschaft live 22.08.2026, Label und Weg offen
 - [x] Beide Landschafts-Oberflächen, nie nur eine · Merkliste live 22.08.2026 in beiden
 - [x] Landschaft: die Herkunft als **fertige Antwort** projizieren, nie `properties_json` (A1) · live 22.08.2026
-- [ ] Bauform aus dem **CSS** bestimmt, nicht aus dem Markup (§2.2)
-- [ ] Keine dritte `.wiki-alt`-Kopie — sie ist über `styles.css` schon da (A3)
-- [ ] Klimazone: kein ↺ auf der gesperrten Art (A2)
+- [x] Bauform aus dem **CSS** bestimmt, nicht aus dem Markup (§2.2) · Landschaft live 22.08.2026
+- [x] Keine dritte `.wiki-alt`-Kopie — sie ist über `styles.css` schon da (A3) · nur EIN neuer Wirt für die braune Beschriftung
+- [x] Klimazone: kein ↺ auf der gesperrten Art (A2) · in BEIDEN Landschafts-Oberflächen
 - [ ] Weg: **beide** Schreibwege stempeln, der Gruppen-Schreiber je Abschnitt (A5)
 - [ ] Weg: die Herkunft des Namens hängt an `assign_to`, nicht am Formular (A5)
 - [ ] Kein geratener Feldname — jeder Payload-Schlüssel vorher gemessen

@@ -39,6 +39,10 @@
 	let wikiSchnappschuss = null;
 	// Der dritte Zustand, wie `list_regions` ihn geliefert hat.
 	let regionKeinArtikel = false;
+	// 🔴 Die Feldherkunft der Region -- `{name|region_type: "manual"|"wiki"}`. Sie kommt aus
+	// DERSELBEN `list_regions`-Antwort wie der dritte Zustand; ein zweiter Abruf nur dafuer waere
+	// eine Anfrage zu viel. Ein Feld OHNE Eintrag heisst „nicht bekannt", nie „vom Wiki".
+	let regionFieldOrigins = null;
 	// 🔴 WELCHE FELDER SEIT DEM ÖFFNEN AUS DEM WIKI KAMEN -- die Merkliste DIESES Dialogs. Der Server
 	// stempelt daraus die Feldherkunft, und nur für Felder, deren Wert sich wirklich ändert.
 	// 💣 ZWEI OBERFLÄCHEN, ZWEI MERKLISTEN, EINE REGEL. Das Editorfenster führt seine eigene
@@ -122,6 +126,7 @@
 		pendingWikiRegion = undefined;
 		wikiSchnappschuss = null;
 		regionKeinArtikel = false;
+		regionFieldOrigins = null;
 		wikiUebernommen = new Set();
 		// 🔴 Zuhoerer abnehmen und den Behaelter leeren, nicht bloss die Steuerung vergessen: das Bauteil
 		// haengt vier Zuhoerer an den Behaelter, und ein zweites Oeffnen mountet ein zweites daneben.
@@ -242,7 +247,7 @@
 			wikiSchnappschuss = null;
 		}
 
-		return avesmapsWikiAssignLandschaftZustand({
+		const zustand = avesmapsWikiAssignLandschaftZustand({
 			wiki_key: schluessel,
 			wiki_url: wiki?.wiki_url || "",
 			wiki_name: wiki?.name || "",
@@ -250,9 +255,14 @@
 			arten: regionTypesForKind,
 			kind: area.kind,
 			kein_artikel: regionKeinArtikel,
+			field_origins: regionFieldOrigins,
 			name: () => String(propertiesElement("name")?.value || ""),
 			region_type: () => String(propertiesElement("type")?.value || ""),
 		});
+		// ⚠️ NACH dem Bau, nicht davor: erst hier steht der Schnappschuss fest.
+		letzterWikiArtikel = zustand.artikel || null;
+		ecosystemZeichneWikiAbweichungen();
+		return zustand;
 	}
 
 	/**
@@ -280,6 +290,14 @@
 			wiki_url: roh.wiki_url || "",
 		};
 		wikiSchnappschuss = roh;
+		// 🪤 Das Bauteil ruft nach „Zuweisen" KEIN `laden` -- es ändert seine Daten selbst. Ohne diese
+		// zwei Zeilen zeigte der Kasten den neuen Artikel und die Feldzeilen daneben noch den
+		// durchgestrichenen Stand des alten.
+		letzterWikiArtikel = avesmapsWikiAssignLandschaftArtikel(
+			{ wiki_key: roh.wiki_key || "", wiki_url: roh.wiki_url || "", name: roh.name || "" },
+			roh, regionTypesForKind
+		);
+		ecosystemZeichneWikiAbweichungen();
 		// 🔴 Zuweisen benennt SOFORT um: „ist ein Wiki-Eintrag zugewiesen, heisst das Ding wie im Wiki".
 		// Nicht erst auf „Sync" warten -- ein Knopf, der das Selbstverständliche nachholt, wird
 		// vergessen, und dann steht neben „Farindelwald" weiter ein Tippfehler im Namensfeld.
@@ -365,6 +383,117 @@
 		if (String(propertiesElement("name")?.value || "") !== nameVorGriff) {
 			wikiUebernommen.delete("name");
 		}
+		ecosystemZeichneWikiAbweichungen();
+		setPropertiesStatus("Aus dem Wiki übernommen — noch nicht gespeichert.");
+	}
+
+	// ---- Der Wiki-Override an den zwei Feldzeilen ------------------------------------------------
+	// Entwurf: docs/superpowers/specs/2026-08-17-wiki-override-fuer-alle-design.md
+	//
+	// 🔴 DIE ZWEITE HÜLLE, und sie hat eine ANDERE Bauform als das Editorfenster: dort steht die
+	// Beschriftung LINKS in einer Rasterspalte (`.dt-grid--wiki`), hier OBEN über dem Feld
+	// (`.ecosystem-properties-dialog__field > span`). Übertragen wird die REGEL -- Wiki-Stand
+	// durchgestrichen, ↺ daneben, „von uns" hebt die Beschriftung hervor --, nicht das CSS.
+	// ⚠️ Zwei Hüllen sind die Obergrenze; beide Regelsätze stehen in EINER Datei
+	// (css/components/wiki-override.css), die diese Welt über css/styles.css bekommt.
+
+	/**
+	 * Die Art-Beschriftungen -- aus dem AUSWAHLFELD SELBST, nicht aus einer zweiten Liste.
+	 * 💣 Ohne sie stünde „wald" durchgestrichen neben einem Feld, das „Wald" zeigt: genau der
+	 * Befund, der beim Ort am 17.08.2026 live sichtbar wurde und sich wie ein Tippfehler las.
+	 */
+	function wikiArtBeschriftungen() {
+		const karte = {};
+		(regionTypesForKind || []).forEach((typ) => {
+			karte[String(typ.type_key)] = String(typ.label || typ.type_key);
+		});
+		return karte;
+	}
+
+	// 🪤 Der zuletzt geladene Artikel. Das Bauteil ruft `laden` nur beim Mounten und beim
+	// „Abbrechen" -- nach „Zuweisen" und „Entfernen" ändert es seine Daten selbst. Der Zeichner
+	// braucht die Wiki-Werte trotzdem.
+	let letzterWikiArtikel = null;
+
+	function ecosystemZeichneWikiAbweichungen() {
+		if (typeof avesmapsWikiFeldStand !== "function" || typeof avesmapsWikiAssignSubject !== "function") {
+			return;
+		}
+		const abgeleitet = String(currentPropertiesArea()?.kind || "") === "klima";
+		const stand = avesmapsWikiFeldStand(
+			(avesmapsWikiAssignSubject("landschaft") || {}).felder || [],
+			{
+				name: String(propertiesElement("name")?.value || ""),
+				region_type: String(propertiesElement("type")?.value || ""),
+			},
+			(letzterWikiArtikel && letzterWikiArtikel.werte) || {},
+			avesmapsWikiAssignLandschaftHerkunft(regionFieldOrigins, AVESMAPS_WIKI_ASSIGN_LANDSCHAFT_KARTENFELDER),
+			{ region_type: wikiArtBeschriftungen() }
+		);
+		document.querySelectorAll("#ecosystem-properties-overlay [data-eco-wiki-alt]").forEach((zelle) => {
+			const feld = zelle.getAttribute("data-eco-wiki-alt") || "";
+			const s = stand[feld];
+			zelle.replaceChildren();
+			const vonUns = Boolean(s && s.abweicht && s.herkunft === "manual");
+			// Die Hervorhebung sitzt an der BESCHRIFTUNG, nicht an der Zelle. Als Klasse gesetzt statt
+			// per `:has()`: jene Elternauswahl fällt bei fehlender Browserfähigkeit LAUTLOS aus, und
+			// die Zeile sähe dann aus wie eine mit unbekannter Herkunft -- also wie der andere Zustand.
+			zelle.parentElement?.classList.toggle("has-wiki-ovr", vonUns);
+			if (!s || !s.abweicht) {
+				return;
+			}
+			const alt = document.createElement("span");
+			alt.className = "dt-old";
+			alt.textContent = s.wikiAnzeige;
+			alt.title = (vonUns ? "Von uns gesetzt. " : "Weicht vom Wiki ab. ") + "Wiki-Stand: " + s.wikiAnzeige;
+			// 🔴 KEIN ↺ AUF EINER GESPERRTEN ZEILE: die Art einer Klimazone steht fest, der Server
+			// lehnt sie ab (avesmapsClimateAssertNotDerived). Der durchgestrichene Stand bleibt --
+			// er ist eine Auskunft, kein Angebot.
+			if (abgeleitet && feld === "region_type") {
+				zelle.append(alt);
+				return;
+			}
+			const knopf = document.createElement("button");
+			knopf.type = "button";
+			knopf.className = "dt-reset";
+			knopf.textContent = "↺";
+			knopf.title = "Auf Wiki-Stand zurücksetzen";
+			// ⚠️ Der Knopf sitzt IN einem `<label>`: ohne diesen Riegel reichte der Klick an das Feld
+			// durch und fokussierte es, während sich sein Wert ändert.
+			knopf.addEventListener("click", (ereignis) => {
+				ereignis.preventDefault();
+				ereignis.stopPropagation();
+				ecosystemWikiFeldZuruecksetzen(feld, s.wikiWert);
+			});
+			zelle.append(alt, knopf);
+		});
+	}
+
+	/**
+	 * ↺ an einer Feldzeile: genau diesen einen Wert aus dem Wiki ins Formular holen.
+	 * ⭐ ES IST DIE SYNC-ÜBERNAHME EINER EINZIGEN ZEILE -- derselbe Weg, dieselbe Merkliste, kein
+	 * zweiter Schreibpfad. Geschrieben wird mit „Speichern".
+	 */
+	function ecosystemWikiFeldZuruecksetzen(feld, wikiWert) {
+		if (feld === "name") {
+			const eingabe = propertiesElement("name");
+			if (!eingabe) {
+				return;
+			}
+			eingabe.value = wikiWert;
+		} else if (feld === "region_type") {
+			const select = propertiesElement("type");
+			// 💣 Nur, wenn das Auswahlfeld die Art kennt: das Vokabular ist je Ebene ein anderes, und
+			// der Server antwortet auf ein fremdes Paar mit 400.
+			if (!select || !Array.from(select.options || []).some((option) => option.value === wikiWert)) {
+				return;
+			}
+			select.value = wikiWert;
+			applyTerrainPresetForType();
+		}
+		wikiUebernommen.add(feld);
+		syncPropertiesAutoName();
+		ecosystemZeichneWikiAbweichungen();
 		setPropertiesStatus("Aus dem Wiki übernommen — noch nicht gespeichert.");
 	}
 
@@ -475,6 +604,7 @@
 		pendingWikiRegion = undefined;
 		wikiSchnappschuss = null;
 		regionKeinArtikel = false;
+		regionFieldOrigins = null;
 		wikiUebernommen = new Set();
 		if (wikiAssign) {
 			wikiAssign.zerstoeren();
@@ -547,6 +677,11 @@
 			// der ihn herausgibt (avesmapsListEcosystemRegions). Die Flächenzeile aus dem Kartenpayload
 			// trägt ihn nicht, und ein zweiter Abruf nur für ein Häkchen wäre eine Anfrage zu viel.
 			regionKeinArtikel = mine?.wiki_no_article === true;
+			// Aus derselben Antwort, aus demselben Grund. 🪤 Sie steht dort erst seit dem 22.08.2026:
+			// der Server stempelte seit dem 18.08., aber `list_regions` gab die Ablage bewusst nicht
+			// heraus -- es gab fuer die Stempel schlicht keinen Leser
+			// (avesmapsEcosystemRegionFieldOrigins).
+			regionFieldOrigins = mine?.field_origins || null;
 			setDeleteButtonReady(regionAreaCountLoaded);
 			if (typeSelect) {
 				typeSelect.innerHTML = "";
@@ -1669,7 +1804,15 @@
 		propertiesElement("type")?.addEventListener("change", () => {
 			syncPropertiesAutoName({ regenerate: true });
 			applyTerrainPresetForType();
+			ecosystemZeichneWikiAbweichungen();
 		});
+		// 🔴 TIPPEN IM FORMULAR AENDERT DIE ABWEICHUNG. Ohne diese zwei Zuhoerer bliebe ein
+		// durchgestrichener Wiki-Stand samt ↺ stehen, nachdem der Editor den Wert von Hand
+		// angeglichen hat -- ein Rueckholangebot fuer etwas, das gar nicht mehr abweicht.
+		// 💣 Der Zwilling im Editorfenster hat sie von Anfang an (html/landschaften-editor.html);
+		// hier fehlten sie und wurden von der Designpruefung gefunden, nicht vom Testfeld. Eine Regel,
+		// die einen von zwei Erzeugern bindet, ist keine Regel.
+		propertiesElement("name")?.addEventListener("input", ecosystemZeichneWikiAbweichungen);
 		// 🔴 ENTER IM SUCHFELD DARF DAS FORMULAR NICHT ABSCHICKEN -- es würde die Fläche SPEICHERN statt
 		// den Treffer zu wählen. Das Bauteil ruft für Enter selbst `preventDefault()`
 		// (js/ui/wiki-assign.js, aufTaste), aber es hängt seine Zuhörer an SEINEN Behälter; der

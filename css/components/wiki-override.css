@@ -134,8 +134,12 @@
  * waere kuerzer — aber sie haengt an einer Browserfaehigkeit, die diese Regeln sonst nirgends
  * voraussetzen, und faellt bei ihrem Fehlen LAUTLOS aus: die Zeile saehe dann aus wie eine mit
  * unbekannter Herkunft, also genau wie der andere Zustand. */
+/* ⚠️ EINE Regel, mehrere WIRTE -- je Oberflaeche eine Zeile, nie eine zweite Regel. Die Selektoren
+   sind gebunden, weil jede Huelle ihrer Beschriftung selbst eine Farbe gibt und eine blanke
+   `.has-wiki-ovr` (0,1,0) gegen `.location-report-form__field > span` (0,1,1) verloere. */
 .dt-grid .k.ovr { color: var(--color-accent-brown); }
 .location-report-form__field > span.has-wiki-ovr { color: var(--color-accent-brown); }
+.ecosystem-properties-dialog__field > span.has-wiki-ovr { color: var(--color-accent-brown); }
 .ae-field > label.has-wiki-ovr { color: var(--color-accent-brown); }
 
 /* Der Literatur-Editor: dieselben zwei Haelften in Flex-Form.

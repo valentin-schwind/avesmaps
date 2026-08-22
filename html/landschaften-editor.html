@@ -174,6 +174,12 @@
 <script src="/js/ui/wiki-assign-diff.js"></script>
 <script src="/js/ui/wiki-assign.js"></script>
 <script src="/js/ui/wiki-assign-landschaft.js"></script>
+<!-- 💣 DER WIKI-OVERRIDE AN DER FELDZEILE braucht avesmapsWikiFeldStand, und diese Datei laedt
+     ihn NICHT von selbst mit: der Zeichner prueft `typeof avesmapsWikiFeldStand !== "function"`
+     und gibt dann LAUTLOS auf -- die Zeilen saehen aus wie „keine Abweichung". Dieselbe Falle wie
+     bei avesmapsCoatSrc, wo eine geteilte Datei nur EIN Dokument band. Gewacht von
+     js/ui/__tests__/wiki-feld-herkunft-geladen.test.js. -->
+<script src="/js/ui/wiki-feld-herkunft.js"></script>
 <!-- Der Massenlauf der Zuweisung (Menübandkachel „Wiki zuweisen"). Eigene Datei, weil dieselbe
      Abfolge -- zeigen, fragen, schreiben -- auch im Wege-Editor hängt und in node geprüft wird. -->
 <script src="/js/ui/wiki-massenzuweisung.js"></script>
@@ -1392,11 +1398,20 @@ function regionEditBlock(region) {
 	return '<div class="eco-edit" data-region="' + esc(region.public_id) + '">'
 		+ '<div class="dt-grp">' + esc(KIND_LABEL[region.kind] || region.kind)
 		+ ' <span class="avm-pill">' + areaCount + (areaCount === 1 ? " Fläche" : " Flächen") + "</span></div>"
-		+ '<div class="dt-grid">'
-		+ '<div class="k">Name</div><div><input type="text" data-f="name" value="' + esc(region.name) + '"' + (auto ? " readonly" : "") + "></div>"
+		// 🔴 `dt-grid--wiki` = 50/50 (Owner 17.08.2026: „50% | 50% · Text --durchgestrichener text--
+		// ↺ | Eingabe"). Die Beschriftungszelle trägt den durchgestrichenen Wiki-Stand mit; die
+		// Regeln stehen in css/components/wiki-override.css, das editor-page.css bindet.
+		// ⚠️ Das Raster gilt für ALLE DREI Zeilen, auch für „Auto-Name" ohne Wiki-Bezug -- sonst
+		// stünden die Eingabefelder untereinander an zwei verschiedenen Stellen. Genau daran ist der
+		// Literatur-Editor am 17.08.2026 aufgefallen.
+		// 💣 Die zwei `.wiki-alt` sind LEER und bleiben es, bis `zeichneWikiAbweichungen` sie füllt --
+		// dieselbe Bauform wie im Kartendialog des Orts (index.html, `data-wiki-alt`). Der Block wird
+		// als Zeichenkette gebaut, der Wiki-Stand kommt erst mit dem Schnappschuss.
+		+ '<div class="dt-grid dt-grid--wiki">'
+		+ '<div class="k">Name<span class="wiki-alt" data-wiki-alt="name"></span></div><div><input type="text" data-f="name" value="' + esc(region.name) + '"' + (auto ? " readonly" : "") + "></div>"
 		+ '<div class="k">Auto-Name</div><div><label class="dt-check"><input type="checkbox" data-f="auto"' + (auto ? " checked" : "") + (wikiOwns ? " disabled" : "") + ">"
 		+ "<span>" + (wikiOwns ? "die Wiki-Landschaft besitzt den Namen" : "interner Griff — ein Leser sieht die Art") + "</span></label></div>"
-		+ '<div class="k">Art</div><div><select data-f="type"' + (abgeleitet ? " disabled" : "") + ">" + options.join("") + "</select>"
+		+ '<div class="k">Art<span class="wiki-alt" data-wiki-alt="region_type"></span></div><div><select data-f="type"' + (abgeleitet ? " disabled" : "") + ">" + options.join("") + "</select>"
 		+ (abgeleitet ? '<div class="pl-hint">Die Fläche dieser Zone entsteht aus den Trennlinien auf der Karte (Landschaften → Klimazonen). Art und Umriss lassen sich hier nicht ändern.</div>' : "")
 		+ "</div>"
 		+ "</div>"
@@ -1531,7 +1546,7 @@ function wireEditBlocks(host) {
 				wikiSchnappschuss = await ladeWikiSchnappschuss(key);
 			}
 			if (key === "") { wikiSchnappschuss = null; }
-			return avesmapsWikiAssignLandschaftZustand({
+			const zustand = avesmapsWikiAssignLandschaftZustand({
 				wiki_key: key,
 				wiki_url: wikiStand.wiki_url,
 				wiki_name: wikiStand.name,
@@ -1539,12 +1554,119 @@ function wireEditBlocks(host) {
 				arten: wikiArten(),
 				kind: region.kind,
 				kein_artikel: region.wiki_no_article === true,
+				// 🔴 Die Feldherkunft. Sie kommt aus `list_regions` -- der einzige Leseweg, der sie
+				// herausgibt (avesmapsEcosystemRegionFieldOrigins). Ohne sie wüsste weder das
+				// Vorhäkeln der Sync-Vorschau noch die braune Beschriftung, wer den Wert gesetzt hat.
+				field_origins: region.field_origins || null,
 				// 💣 Lesefunktionen, nicht Werte: die Sync-Vorschau entsteht erst beim Druck auf
 				// „Sync", und bis dahin kann im Formular daneben getippt worden sein.
 				name: () => field("name").value,
 				region_type: () => field("type").value,
 			});
+			// ⚠️ NACH dem Bau, nicht davor: erst hier steht der Schnappschuss fest. Der Zeichner läuft
+			// gleich mit, damit der Kasten und die Feldzeilen denselben Stand zeigen.
+			letzterWikiArtikel = zustand.artikel || null;
+			zeichneWikiAbweichungen();
+			return zustand;
 		};
+
+		// ---- Der Wiki-Override an den zwei Feldzeilen -------------------------------------------
+		// Entwurf: docs/superpowers/specs/2026-08-17-wiki-override-fuer-alle-design.md
+		//
+		// 🔴 ZWEI SICHTBARE ZUSTÄNDE, NICHT VIER: braune Beschriftung + durchgestrichener Wiki-Stand
+		// + ↺ heisst „wir haben das gesetzt"; ohne Farbe heisst „weicht ab, Herkunft unbekannt".
+		// `herkunft === "wiki"` wird mitgeschrieben, aber nicht angezeigt -- sie wirkt beim
+		// Vorhäkeln der Sync-Vorschau.
+		//
+		// 💣 DIE ART TRÄGT EINEN SCHLÜSSEL. Ohne Übersetzung stünde „wald" durchgestrichen neben
+		// einem Auswahlfeld, das „Wald" zeigt -- genau der Befund, der beim Ort am 17.08.2026 live
+		// sichtbar wurde. Die Beschriftungen kommen aus dem AUSWAHLFELD SELBST, nicht aus einer
+		// zweiten Liste: was dort steht, ist per Definition das, was der Editor liest.
+		const wikiArtBeschriftungen = () => {
+			const select = field("type");
+			const karte = {};
+			Array.prototype.forEach.call((select && select.options) || [], (option) => {
+				karte[option.value] = option.textContent || option.value;
+			});
+			return karte;
+		};
+
+		// 🪤 Der zuletzt geladene Stand. Das Bauteil ruft `laden` nur beim Mounten und beim
+		// „Abbrechen" -- nach „Zuweisen" und „Entfernen" ändert es seine Daten selbst. Der Zeichner
+		// braucht die Wiki-Werte trotzdem, also merkt sich diese Zeile den letzten Artikel, und die
+		// vier Handgriffe rufen den Zeichner ausdrücklich.
+		let letzterWikiArtikel = null;
+
+		const zeichneWikiAbweichungen = () => {
+			if (typeof avesmapsWikiFeldStand !== "function" || typeof avesmapsWikiAssignSubject !== "function") {
+				return;
+			}
+			const stand = avesmapsWikiFeldStand(
+				(avesmapsWikiAssignSubject("landschaft") || {}).felder || [],
+				{ name: field("name").value, region_type: field("type").value },
+				(letzterWikiArtikel && letzterWikiArtikel.werte) || {},
+				avesmapsWikiAssignLandschaftHerkunft(region.field_origins, AVESMAPS_WIKI_ASSIGN_LANDSCHAFT_KARTENFELDER),
+				{ region_type: wikiArtBeschriftungen() }
+			);
+			block.querySelectorAll("[data-wiki-alt]").forEach((zelle) => {
+				const feld = zelle.getAttribute("data-wiki-alt") || "";
+				const s = stand[feld];
+				zelle.replaceChildren();
+				const vonUns = Boolean(s && s.abweicht && s.herkunft === "manual");
+				// Die Hervorhebung sitzt an der BESCHRIFTUNGSZELLE (`.k.ovr`), nicht an der Zelle --
+				// wortgleich zum Territoriumseditor. Als Klasse gesetzt statt per `:has()`: jene
+				// Elternauswahl fällt bei fehlender Browserfähigkeit LAUTLOS aus, und die Zeile sähe
+				// dann aus wie eine mit unbekannter Herkunft, also wie der andere Zustand.
+				zelle.parentElement?.classList.toggle("ovr", vonUns);
+				if (!s || !s.abweicht) { return; }
+				const alt = document.createElement("span");
+				alt.className = "dt-old";
+				alt.textContent = s.wikiAnzeige;
+				alt.title = (vonUns ? "Von uns gesetzt. " : "Weicht vom Wiki ab. ") + "Wiki-Stand: " + s.wikiAnzeige;
+				// 🔴 KEIN ↺ AUF EINER GESPERRTEN ZEILE. Die Art einer Klimazone steht fest (der Server
+				// lehnt sie ab, avesmapsClimateAssertNotDerived) -- ein Knopf, der sie zurücksetzen
+				// will, führte in eine Ablehnung. Der durchgestrichene Wiki-Stand bleibt: er ist eine
+				// Auskunft, kein Angebot.
+				if (abgeleitet && feld === "region_type") { zelle.append(alt); return; }
+				const knopf = document.createElement("button");
+				knopf.type = "button";
+				knopf.className = "dt-reset";
+				knopf.textContent = "↺";
+				knopf.title = "Auf Wiki-Stand zurücksetzen";
+				knopf.addEventListener("click", (ereignis) => {
+					ereignis.preventDefault();
+					ereignis.stopPropagation();
+					wikiFeldZuruecksetzen(feld, s.wikiWert);
+				});
+				zelle.append(alt, knopf);
+			});
+		};
+
+		/**
+		 * ↺ an einer Feldzeile: genau diesen einen Wert aus dem Wiki ins Formular holen.
+		 * ⭐ ES IST DIE SYNC-ÜBERNAHME EINER EINZIGEN ZEILE -- derselbe Weg, dieselbe Merkliste, kein
+		 * zweiter Schreibpfad. Geschrieben wird mit „Speichern".
+		 */
+		const wikiFeldZuruecksetzen = (feld, wikiWert) => {
+			if (feld === "name") {
+				field("name").value = wikiWert;
+			} else if (feld === "region_type") {
+				const select = field("type");
+				// 💣 Nur, wenn das Auswahlfeld die Art kennt: das Vokabular ist je Ebene ein anderes,
+				// und der Server antwortet auf ein fremdes Paar mit 400.
+				if (!select || !Array.prototype.some.call(select.options, (o) => o.value === wikiWert)) { return; }
+				select.value = wikiWert;
+			}
+			wikiUebernommen.add(feld);
+			zeichneWikiAbweichungen();
+			message.textContent = "Aus dem Wiki übernommen — noch nicht gespeichert.";
+			message.className = "avm-savebar__msg";
+		};
+
+		// Tippen im Formular ändert die Abweichung -- ohne diese zwei Zuhörer bliebe eine
+		// durchgestrichene Zeile stehen, nachdem der Editor den Wert von Hand angeglichen hat.
+		field("name")?.addEventListener("input", zeichneWikiAbweichungen);
+		field("type")?.addEventListener("change", zeichneWikiAbweichungen);
 
 		// 🔴 Eine zugewiesene Wiki-Landschaft BESITZT den Namen (Verhaltensdoku §7d, Zeile 3): der
 		// Auto-Name-Haken ist dann abgeschaltet, nicht versteckt. Bis 16.08.2026 entschied das
@@ -1570,6 +1692,14 @@ function wireEditBlocks(host) {
 				name: String(roh.name || ""),
 			};
 			wikiSchnappschuss = roh;
+			// 🪤 Das Bauteil ruft nach „Zuweisen" KEIN `laden` -- es ändert seine Daten selbst. Ohne
+			// diese zwei Zeilen zeigte der Kasten den neuen Artikel und die Feldzeilen daneben noch
+			// den durchgestrichenen Stand des alten.
+			letzterWikiArtikel = avesmapsWikiAssignLandschaftArtikel(
+				{ wiki_key: wikiStand.wiki_key, wiki_url: wikiStand.wiki_url, name: wikiStand.name },
+				roh, wikiArten()
+			);
+			zeichneWikiAbweichungen();
 			wikiAutoNameRiegel();
 			message.textContent = "Zuweisung wird beim Speichern übernommen.";
 			message.className = "avm-savebar__msg";
@@ -1633,6 +1763,7 @@ function wireEditBlocks(host) {
 				// hier wieder heraus, statt mitzuwandern.
 				if (field("auto").checked) { applyAutoName(); wikiUebernommen.delete("name"); }
 			}
+			zeichneWikiAbweichungen();
 			message.textContent = "Aus dem Wiki übernommen — noch nicht gespeichert.";
 			message.className = "avm-savebar__msg";
 		};

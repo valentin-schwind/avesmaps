@@ -1007,8 +1007,15 @@
 				<form id="ecosystem-properties-form" class="ecosystem-properties-dialog__form">
 					<fieldset class="ecosystem-properties-dialog__group">
 						<legend data-i18n="ecosystem.properties.identity">Identität</legend>
+						<!-- Der Wiki-Override, Bauform 2 (Beschriftung OBEN): die Zelle haengt sich an die
+						     Beschriftung und bleibt leer, bis ecosystemZeichneWikiAbweichungen sie
+						     fuellt. Regeln in css/components/wiki-override.css, ueber css/styles.css.
+						     💣 `data-i18n` sitzt am INNEREN <span>, nicht am aeusseren: der Uebersetzer
+						     setzt `el.textContent = v` (js/app/i18n.js) und wuerde eine darin
+						     geschachtelte Zelle beim ersten Sprachlauf spurlos ausraeumen. Genau
+						     deshalb traegt die Ort-Fassung darueber gar kein data-i18n. -->
 						<label class="ecosystem-properties-dialog__field">
-							<span data-i18n="ecosystem.properties.nameLabel">Name *</span>
+							<span><span data-i18n="ecosystem.properties.nameLabel">Name *</span><span class="wiki-alt" data-eco-wiki-alt="name"></span></span>
 							<input id="ecosystem-properties-name" name="name" type="text" maxlength="190" required autocomplete="off" />
 						</label>
 						<!-- Der Haken wird beim Oeffnen ABGELEITET, nicht geladen: passt der Name auf
@@ -1044,7 +1051,7 @@
 						</label>
 						<p class="ecosystem-properties-dialog__hint" data-i18n="ecosystem.properties.lockedHint">Klicks fallen durch die Region hindurch auf das, was darunter liegt. Der Schwebezettel mit dem Namen bleibt. Gilt nur im Bearbeiten-Modus.</p>
 						<label class="ecosystem-properties-dialog__field">
-							<span data-i18n="ecosystem.properties.typeLabel">Art</span>
+							<span><span data-i18n="ecosystem.properties.typeLabel">Art</span><span class="wiki-alt" data-eco-wiki-alt="region_type"></span></span>
 							<!-- Aus ecosystem_region_type DIESER Ebene, nie aus einer Liste im Client. -->
 							<select id="ecosystem-properties-type" name="region_type"></select>
 						</label>
