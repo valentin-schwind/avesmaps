@@ -64,7 +64,13 @@ body.mock { height: auto; padding: var(--space-12); }
 
 /* Die Bühne. Ein neutraler Grund, KEIN Kartenbild -- es geht um die Lage der Namen,
    und ein Kartenausschnitt würde nur davon ablenken. */
-.pv-stage { position: relative; height: 320px; margin: var(--space-8) 0;
+/* 💣 FESTE BREITE, und das ist tragend. Die erste Fassung rechnete die x-Werte aus der
+   Bühnenbreite -- auf einem breiten Fenster zogen sich die Orte auseinander, kollidierten nicht
+   mehr, und damit taten Versatz und Deckel wieder nichts. Eine Vorschau, deren Aussage an der
+   Fensterbreite hängt, ist keine. Bei schmalem Fenster wird gescrollt (Hausmuster
+   .zb-repel-demo-wrap). */
+.pv-stage-wrap { overflow-x: auto; margin: var(--space-8) 0; }
+.pv-stage { position: relative; width: 720px; height: 330px;
 	background: var(--color-panel-muted); border: 1px solid var(--color-border);
 	border-radius: var(--radius-md); overflow: hidden; }
 .pv-stage svg { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
@@ -92,6 +98,15 @@ body.mock { height: auto; padding: var(--space-12); }
 .pv-legend .l-normal::before { background: var(--color-text-strong); }
 .pv-legend .l-drift::before { background: var(--color-accent-brown); }
 .pv-legend .l-gone::before { background: var(--color-danger); }
+
+/* 🔴 DER WICHTIGSTE SATZ DES PANELS. Wenn kein Name ausweicht, koennen Versatz und Deckel gar
+   nichts tun -- ohne diesen Hinweis liest sich das als "der Regler ist kaputt". Genau diese
+   Verwechslung hat den ganzen Umbau ausgeloest. */
+.pv-hint { margin: var(--space-6) 0 0; padding: var(--space-6) var(--space-8);
+	font-size: var(--font-size-caption); color: var(--color-warning-soft-text);
+	background: var(--color-warning-soft); border: 1px solid var(--color-warning-soft-border);
+	border-radius: var(--radius-md); }
+.pv-hint[hidden] { display: none; }
 
 /* ---- Aus html/wiki-sync-settlement-editor.html uebernommen, damit der Prototyp dieselbe Bauform
        zeigt wie das Fenster. Die seitenlokalen Kuerzel (--mut/--line/--soft) sind hier auf die
@@ -150,13 +165,13 @@ body.mock { height: auto; padding: var(--space-12); }
     <span class="pv-sub">Zoomstufe</span>
     <span class="pv-seg" id="pvZoom">
       <button type="button" data-z="4">z4</button>
-      <button type="button" data-z="5" aria-pressed="true">z5</button>
-      <button type="button" data-z="6">z6</button>
+      <button type="button" data-z="5">z5</button>
+      <button type="button" data-z="6" aria-pressed="true">z6</button>
     </span>
     <label class="pv-check"><input type="checkbox" id="pvShowGone" checked> Ausgeblendete zeigen</label>
   </div>
 
-  <div class="pv-stage" id="pvStage"><svg id="pvLines" aria-hidden="true"></svg></div>
+  <div class="pv-stage-wrap"><div class="pv-stage" id="pvStage"><svg id="pvLines" aria-hidden="true"></svg></div></div>
 
   <div class="pv-read">
     <div><span class="k">Namen sichtbar</span><span class="v" id="rSicht">–</span></div>
@@ -164,6 +179,8 @@ body.mock { height: auto; padding: var(--space-12); }
     <div><span class="k">ausgeblendet</span><span class="v bad" id="rWeg">–</span></div>
     <div><span class="k">weitester Drift</span><span class="v" id="rMax">–</span></div>
   </div>
+
+  <p class="pv-hint" id="pvHint" hidden></p>
 
   <div class="pv-legend">
     <span class="l-normal">Normalstellung — weicht nicht aus</span>
@@ -240,33 +257,50 @@ var LOCATION_LABEL_GAP = 11;
 
 /* Eine erfundene, absichtlich dichte Ortslage. Sie soll Kollisionen erzwingen. */
 var ORTE = [
-	/* fx = Anteil der Bühnenbreite (die Bühne ist fließend breit), y = Pixel.
-	   🔴 Zwei ENGE Gruppen und ein paar freie Einzelgänger: ohne echtes Gedränge zeigt eine
-	   Vorschau der Kollisionsauflösung nichts, und genau das war der Fehler der ersten Fassung. */
-	{ n: "Elenvina",           k: "grossstadt", fx: 0.04, y:  40 },
-	{ n: "Tempel des Firun",   k: "gebaeude",   fx: 0.40, y:  44 },
+	/* Feste Pixel in einer 720x330-Bühne. 🔴 ABSICHTLICH GEDRÄNGT: die Namen überlappen sich in der
+	   Grundstellung, konkurrieren also von Haus aus um denselben Platz. Nur so zeigt die Vorschau,
+	   was die Regler tun -- mit der Dichte der echten Karte (vier von fünf Namen ungestört) bewegte
+	   sich beim Ziehen fast nichts, und genau das war die Beschwerde. */
+	{ n: "Gareth",             k: "metropole",  x:  56, y:  62 },
+	{ n: "Angbar",             k: "stadt",      x: 120, y:  66 },
+	{ n: "Baliho",             k: "dorf",       x: 184, y:  60 },
+	{ n: "Ottarje",            k: "dorf",       x: 246, y:  68 },
 
-	{ n: "Ferdok",             k: "grossstadt", fx: 0.19, y:  84 },
-	{ n: "Angbar",             k: "stadt",      fx: 0.19, y: 110 },
-	{ n: "Gareth",             k: "metropole",  fx: 0.03, y: 190 },
-	{ n: "Ysilia",             k: "stadt",      fx: 0.19, y: 136 },
-	{ n: "Auplog",             k: "kleinstadt", fx: 0.20, y: 162 },
+	{ n: "Ferdok",             k: "grossstadt", x:  62, y: 100 },
+	{ n: "Ysilia",             k: "stadt",      x: 126, y:  96 },
+	{ n: "Wehrheim",           k: "dorf",       x: 190, y: 104 },
+	{ n: "Joborn",             k: "dorf",       x: 252, y:  98 },
 
-	{ n: "Nordhag (Weiden)",   k: "kleinstadt", fx: 0.48, y: 108 },
-	{ n: "Trallop",            k: "kleinstadt", fx: 0.48, y: 134 },
-	{ n: "Baliho",             k: "dorf",       fx: 0.48, y: 158 },
-	{ n: "Wehrheim",           k: "dorf",       fx: 0.50, y: 182 },
-	{ n: "Joborn",             k: "dorf",       fx: 0.48, y: 206 },
+	{ n: "Trallop",            k: "kleinstadt", x:  58, y: 136 },
+	{ n: "Auplog",             k: "kleinstadt", x: 122, y: 140 },
+	{ n: "Punin",              k: "stadt",      x: 186, y: 134 },
+	{ n: "Zwingard",           k: "dorf",       x: 250, y: 142 },
 
-	{ n: "Warunker Höhenburg", k: "gebaeude",   fx: 0.08, y: 262 },
-	{ n: "Zwingard",           k: "dorf",       fx: 0.34, y: 254 },
-	{ n: "Rommilys",           k: "stadt",      fx: 0.62, y: 254 },
-	{ n: "Ottarje",            k: "dorf",       fx: 0.66, y:  70 }
+	{ n: "Nordhag (Weiden)",   k: "kleinstadt", x:  58, y: 176 },
+	{ n: "Rommilys",           k: "stadt",      x: 190, y: 180 },
+	{ n: "Elenvina",           k: "grossstadt", x: 268, y: 174 },
+
+	{ n: "Warunker Höhenburg", k: "gebaeude",   x:  60, y: 216 },
+	{ n: "Tempel des Firun",   k: "gebaeude",   x: 190, y: 212 },
+	{ n: "Hügelsteig",         k: "dorf",       x: 300, y: 220 },
+
+	{ n: "Sighelms Halm",      k: "gebaeude",   x:  62, y: 256 },
+	{ n: "Vinsalt",            k: "stadt",      x: 178, y: 260 },
+	{ n: "Khunchom",           k: "metropole",  x: 268, y: 254 },
+
+	{ n: "Ragath",             k: "dorf",       x:  70, y: 298 },
+	{ n: "Perricum",           k: "stadt",      x: 172, y: 302 },
+	{ n: "Ilsur",              k: "dorf",       x: 268, y: 296 },
+
+	/* Zwei freie Einzelgänger als Gegenprobe: sie stehen in der Normalstellung und rühren sich
+	   NIE -- so sieht man den Unterschied zwischen "weicht aus" und "steht einfach da". */
+	{ n: "Riva",               k: "kleinstadt", x: 545, y: 108 },
+	{ n: "Festum",             k: "grossstadt", x: 545, y: 214 }
 ];
 
 var stage = document.getElementById("pvStage");
 var lines = document.getElementById("pvLines");
-var zoom = 5;
+var zoom = 6;
 var knoten = [];
 
 function el(id) { return document.getElementById(id); }
@@ -314,18 +348,17 @@ function zeichne() {
 	var spalt = wert("sSpalt"), repel = wert("sRepel"), versatz = wert("sVersatz"), deckel = wert("sDrift");
 	var zeigeWeg = el("pvShowGone").checked;
 
-	/* Die Bühne ist fließend breit -- die x-Anteile werden bei jedem Lauf frisch gerechnet, damit
-	   die Namen auch bei schmalem Fenster nicht rechts herauslaufen. */
-	var buehne = stage.clientWidth;
-	knoten.forEach(function (kn) { kn.ort.x = Math.round(20 + kn.ort.fx * Math.max(240, buehne - 210)); });
-
 	/* Messphase: Schrift setzen, Kasten messen. */
 	var mess = [];
 	knoten.forEach(function (kn) {
 		var pt = BAND.label[kn.ort.k][zoom];
 		var dm = BAND.marker[kn.ort.k][zoom];
 		if (pt === null || pt === undefined) {          /* Klasse auf dieser Stufe unsichtbar */
-			kn.dot.style.display = "none"; kn.name.style.display = "none"; return;
+			kn.dot.style.display = "none"; kn.name.style.display = "none";
+			/* ⚠️ Die Klasse MIT zuruecksetzen: sonst haengt ein "is-gone" von der vorigen Zoomstufe
+			   weiter am Knoten. Unsichtbar, aber der Zaehler und das DOM sagten dann Verschiedenes. */
+			kn.name.className = "pv-name";
+			return;
 		}
 		kn.dot.style.display = ""; kn.name.style.display = "";
 		kn.name.style.fontSize = (pt * 96 / 72).toFixed(2) + "px";
@@ -382,6 +415,17 @@ function zeichne() {
 	});
 
 	lines.innerHTML = striche;
+	/* Kein Name im Spiel = die beiden Regler haben hier nichts zu greifen. Das gehoert HINGESCHRIEBEN,
+	   nicht dem Betrachter ueberlassen. */
+	var hinweis = el("pvHint");
+	if (gewichen === 0 && weg === 0) {
+		hinweis.textContent = "Auf dieser Zoomstufe drängt sich nichts: jeder Name steht in seiner "
+			+ "Normalstellung. „Versatz“ und „Max. Drift“ greifen nur bei Namen, die ausweichen müssen — "
+			+ "hier haben sie also nichts zu tun. Wechsle die Zoomstufe oder verkleinere den Spalt.";
+		hinweis.hidden = false;
+	} else {
+		hinweis.hidden = true;
+	}
 	el("rSicht").textContent = sicht;
 	el("rDrift").textContent = gewichen;
 	el("rWeg").textContent = weg;
@@ -405,7 +449,6 @@ el("pvZoom").addEventListener("click", function (ev) {
 });
 
 zeichne();
-window.addEventListener("resize", zeichne);
 </script>
 </body>
 </html>
