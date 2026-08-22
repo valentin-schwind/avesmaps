@@ -146,4 +146,18 @@ assert.ok(/border-top:\s*1px solid var\(--color-border\)/.test(zeileCss), "die Z
 assert.ok(!/border-radius:\s*8px/.test(zeileCss), "und ist kein gerahmter Kasten mehr");
 assert.ok(/\.change-log-group\s*\{/.test(panelCss), "die Kopfzeile eines Bündels hat ihr Aussehen");
 
+// 🔴 DIE LINKE KANTE IST BEI ALLEN ZEILEN DIESELBE. Ein Bündel trägt vorn sein Dreieck, eine einzelne
+// Änderung nicht -- ohne die Einrückung stünde deren Name um Dreieck plus Abstand weiter links, und
+// die Liste hätte einen ausgefransten Rand (Owner 22.08.2026: „es ist doof dass der text eingerückt ist").
+//
+// ⚠️ Die 22px sind KEINE freie Zahl: 4px Grundpolsterung + 10px Dreieck + 8px Abstand -- genau das,
+// was die Kopfzeile davor verbraucht. Vier gekoppelte Werte in zwei Regeln; wer einen anfasst, muss
+// alle zusammen bewegen. Live gemessen: beide Namen beginnen bei x = 33.
+assert.ok(/padding: 7px 4px 7px 22px/.test(zeileCss), "die einzelne Zeile rückt auf die Kante des Bündels ein");
+const gruppeCss = panelCss.slice(panelCss.indexOf(".change-log-group {"), panelCss.indexOf(".change-log-group__caret"));
+assert.ok(/padding: 7px 4px;/.test(gruppeCss), "die Kopfzeile behält ihre Grundpolsterung von 4px");
+assert.ok(/gap: 8px/.test(gruppeCss), "und das Dreieck steht 8px vor dem Namen");
+const caretCss = panelCss.slice(panelCss.indexOf(".change-log-group__caret"), panelCss.indexOf(".change-log-group__name"));
+assert.ok(/width: 10px/.test(caretCss), "das Dreieck ist 10px breit");
+
 console.log("change-log-buendel ok");

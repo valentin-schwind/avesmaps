@@ -1597,7 +1597,13 @@
 	box-sizing: border-box;
 	width: 100%;
 	min-width: 0;
-	padding: 7px 4px;
+	/* 🔴 DIE LINKE KANTE IST BEI ALLEN ZEILEN DIESELBE. Ein Bündel trägt vorn sein Dreieck, eine
+	   einzelne Änderung nicht -- ohne diese Einrückung stünde der Name der einzelnen um Dreieck plus
+	   Abstand weiter links als der des Bündels, und die Liste hätte einen ausgefransten Rand
+	   (Owner 22.08.2026: „es ist doof dass der text eingerückt ist").
+	   ⚠️ 22px sind KEINE freie Zahl: 4px Grundpolsterung + 10px Dreieck + 8px Abstand -- genau das,
+	   was die Kopfzeile davor verbraucht. Wer eines der drei ändert, ändert diese Zahl mit. */
+	padding: 7px 4px 7px 22px;
 	border: 0;
 	border-top: 1px solid var(--color-border);
 	border-radius: 0;
@@ -1611,7 +1617,9 @@
 /* Die Zeilen eines aufgeklappten Bündels rücken ein und liegen leicht tiefer -- sie gehören zu der
    Kopfzeile darüber, und ohne diesen Unterschied liest sich ein offenes Bündel wie eine Liste. */
 .change-log-entry--grouped {
-	padding-left: 22px;
+	/* Eine Stufe TIEFER als die gemeinsame Kante -- sonst stünden die Zeilen eines offenen Bündels
+	   genau unter dem Namen ihres Bündels und läsen sich wie Geschwister, nicht wie Inhalt. */
+	padding-left: 36px;
 	background: var(--color-panel-muted);
 }
 
