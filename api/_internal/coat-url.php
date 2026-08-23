@@ -271,3 +271,45 @@ function avesmapsSettlementTerritoryCoatUrl(string $ptCoatUrl, array $stagingRow
         (string) ($stagingRow['coat_of_arms_license_status'] ?? '')
     );
 }
+
+/**
+ * DIE LOKALE KOPIE EINER WIKI-BILDADRESSE -- oder nichts.
+ *
+ * 🔴 Owner-Entscheid 23.08.2026: "hoer auf vom wiki sachen zu ziehen, wenn wir sie lokal haben."
+ * Bis dahin gab jeder Leser die WIKI-Adresse aus, und erst der Browser schickte sie durch
+ * `/api/app/coat.php?u=…`. Das ist eine Anfrage JE BILD und JE SEITENAUFBAU -- eine Ortsliste sind
+ * 3.538 davon -- und sie kostet auch dann eine Anfrage, wenn die Datei laengst bei uns liegt.
+ *
+ * Diese Funktion dreht das um: sie schaut auf der PLATTE nach und gibt die statische Adresse
+ * zurueck. Kein coat.php, kein Proxy, kein Wiki -- ein gewoehnliches Bild aus /uploads.
+ *
+ * 💣 DER RUECKGABEWERT '' HEISST "WIR HABEN ES NICHT", UND DAS IST ABSICHT. Vorher fiel jeder
+ * Leser in diesem Fall auf die Wiki-Adresse zurueck; genau dieser Rueckfall hat am 20.08.2026 die
+ * Sperre unserer Ausgangs-IP ausgeloest. Ein Bild, das wir nicht haben, wird nicht gezeigt --
+ * es wird nicht woanders geholt.
+ *
+ * ⚠️ Der Schluessel ist `sha1($url)` und muss dem in `api/app/coat.php` GLEICHEN, sonst findet
+ * diese Funktion nie etwas und alles faellt still auf '' -- die Wappen verschwaenden, ohne dass
+ * ein Fehler auftaucht. Der Test nagelt beide Formen aneinander.
+ *
+ * ⚠️ Fremde Hosts und bereits lokale Adressen bleiben unveraendert: der Riegel gilt dem Wiki.
+ */
+function avesmapsCoatLokaleKopie(string $url): string {
+    $wert = trim($url);
+    if ($wert === '') {
+        return '';
+    }
+    $host = strtolower((string) parse_url($wert, PHP_URL_HOST));
+    if ($host === '' || preg_match('/(^|\.)wiki-aventurica\.de$/', $host) !== 1) {
+        return $wert; // lokal oder fremd -- nicht unsere Sache
+    }
+
+    $docroot = rtrim((string) ($_SERVER['DOCUMENT_ROOT'] ?? dirname(__DIR__, 2)), '/');
+    $key = sha1($wert);
+    foreach (['png', 'jpg', 'svg', 'gif', 'webp'] as $ext) {
+        if (is_file($docroot . '/uploads/wappen/cache/' . $key . '.' . $ext)) {
+            return '/uploads/wappen/cache/' . $key . '.' . $ext;
+        }
+    }
+    return '';
+}

@@ -669,13 +669,22 @@ function coverage(n){
 }
 const COV_LABEL = {all:'Gebiet + alle Untergebiete auf der Karte', 'own-only':'Gebiet auf der Karte, Untergebiete unvollständig', 'children-only':'nur über Untergebiete (unvollständig)', none:'nicht auf der Karte'};
 function covCircle(n){ const c=coverage(n); return `<span class="cov ${c.kind}" title="${COV_LABEL[c.kind]}"></span>`; }
-function licClass(n){ const s=n.license_status; if(s==='public_domain') return 'pd'; if(!s||s==='unknown') return 'gray'; return ''; }
+// 🔴 effLic, nicht n.license_status: sonst traegt unser eigenes Wappen die Lizenz des Wiki-Bildes
+// -- der "URL X mit Lizenz Y"-Fehler, den der Territorien-Layer schon einmal hatte.
+function licClass(n){ const s=(typeof effLic==='function')?effLic(n):n.license_status; if(s==='public_domain') return 'pd'; if(!s||s==='unknown') return 'gray'; return ''; }
 // Wappen ODER sein leerer Platz -- nie nichts. Begruendung samt Zahlen an der Regel `.wp, .wp-slot`
 // im <style>: 1.386 von 1.581 Gebieten (87,7 %) haben kein Wappen, und seit das Wappen die Zeile
 // ANFUEHRT, fiele ohne Platzhalter in sieben von acht Zeilen das erste Element ersatzlos weg.
 // 🔴 Der Platzhalter traegt KEINE Lizenzklasse (licClass): eine leere Zelle darf keinen
 // Lizenzstatus behaupten.
-function wappenThumb(n){ if(!n.coat_of_arms_url) return '<span class="wp-slot" aria-hidden="true"></span>'; return `<img class="wp ${licClass(n)}" src="${esc(avesmapsCoatSrc(n.coat_of_arms_url))}" alt="" loading="lazy" draggable="false" title="${esc(n.coat_of_arms_author||n.license_status||'Wappen')}">`; }
+// 🔴 DIE LISTE NIMMT DASSELBE WAPPEN WIE DER DETAILKOPF -- effCoat(n), also den Override, wenn es
+// einen gibt. Bis 23.08.2026 stand hier n.coat_of_arms_url, der STAGING-Wert aus dem Wiki: der
+// Kopf rechts zeigte unser eigenes Wappen, die Zeile links versuchte dasselbe Wappen vom Wiki zu
+// laden und blieb leer. Owner, mit Screenshot: "wir haben das bild im grünen kreis ... aber du
+// fängst in der liste links an es vom wiki zu laden."
+// 💣 Dieselbe Frage darf nicht zwei Antworten haben -- genau daran ist Discord #32 (Ferdok,
+// Label != Infobox) gescheitert, und die Lehre steht seit dem 17.07.2026 in coat-url.php.
+function wappenThumb(n){ const u=(typeof effCoat==='function')?effCoat(n):n.coat_of_arms_url; if(!u) return '<span class="wp-slot" aria-hidden="true"></span>'; return `<img class="wp ${licClass(n)}" src="${esc(avesmapsCoatSrc(u))}" alt="" loading="lazy" draggable="false" title="${esc(n.coat_of_arms_author||effLic(n)||'Wappen')}">`; }
 async function lockNode(k, lock){
   const n = BYKEY.get(k); if(!n) return;
   busy(true);

@@ -2,6 +2,9 @@
 
 declare(strict_types=1);
 
+// avesmapsCoatLokaleKopie -- gibt die Datei von unserer Platte aus statt der Wiki-Adresse.
+require_once __DIR__ . '/../coat-url.php';
+
 // Siedlungs-WikiSync-VERBINDUNG (additiv). Verbindet ein Orts-Feature (feature_type=location)
 // mit seinem Wiki-Datensatz ({{Infobox Siedlung}}) und schreibt die Infobox-Felder als
 // properties.wiki_settlement ans Feature — analog zu wiki_path / wiki_region.
@@ -1505,7 +1508,16 @@ function avesmapsWikiSettlementEditorList(PDO $pdo): array {
         }
 
         $hasCoat = is_array($props['coat'] ?? null) && (string) ($props['coat']['url'] ?? '') !== '';
-        $coatUrl = $hasCoat ? (string) ($props['coat']['url'] ?? '') : '';
+        // 🔴 Owner 23.08.2026: "hoer auf vom wiki sachen zu ziehen, wenn wir sie lokal haben."
+        // Steht hier eine wiki-aventurica-Adresse, wird die Datei von UNSERER Platte ausgegeben --
+        // und wenn wir sie nicht haben, GAR NICHTS. Der alte Weg schickte die Wiki-Adresse in den
+        // Browser, der sie durch /api/app/coat.php reichte: eine Anfrage je Bild und je
+        // Seitenaufbau, bei 3.538 Zeilen entsprechend viele.
+        // 💣 Viele dieser Adressen sind von vornherein tot: sie werden aus einem DATEINAMEN
+        // gebaut (avesmapsWikiSyncMonitorCoatOfArmsUrl), auch wenn das Bild von uns stammt und im
+        // Wiki nie existiert hat -- Zwergenreich-Wappen und Siedlungsbilder sind genau das. Diese
+        // Abrufe konnten nie gelingen, wurden nie gecacht und wiederholten sich endlos.
+        $coatUrl = $hasCoat ? avesmapsCoatLokaleKopie((string) ($props['coat']['url'] ?? '')) : '';
         // Editor-list thumbnail + "Bilder N/10" badge/filter source: coat URL + own-image count
         // (properties.images, uploaded via settlement-images.php). Wiki-only registry rows have no images.
         $imageList = is_array($props['images'] ?? null) ? $props['images'] : [];
@@ -1631,7 +1643,9 @@ function avesmapsWikiSettlementEditorList(PDO $pdo): array {
             // Browser wie ein `false`, und das waere hier zufaellig richtig statt begruendet.
             'wiki_assigned' => false,
             'has_coat' => (string) ($r['coat_url'] ?? '') !== '',
-            'coat_url' => (string) ($r['coat_url'] ?? '') !== '' ? (string) $r['coat_url'] : null,
+            // Gleiche Regel wie oben: unsere Platte oder nichts, nie die Wiki-Adresse.
+            'coat_url' => avesmapsCoatLokaleKopie((string) ($r['coat_url'] ?? '')) !== ''
+                ? avesmapsCoatLokaleKopie((string) ($r['coat_url'] ?? '')) : null,
             'image_count' => 0,
             'wiki_url' => (string) ($r['wiki_url'] ?? '') !== '' ? (string) $r['wiki_url'] : null,
             'other_source' => null,

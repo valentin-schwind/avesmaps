@@ -68,7 +68,7 @@ require_once __DIR__ . '/../_internal/app/feature-sources.php';
 //    properties.curve_label_max. 💣 Der Bump ist nicht Kosmetik: der ETag ist revisionsbasiert,
 //    also behielte ein warmer Client den alten Rumpf ueber 304 und saehe nie eine Kurve --
 //    waehrend der Server sie laengst liefert.
-const AVESMAPS_MAP_FEATURES_PAYLOAD_VERSION = 13;
+const AVESMAPS_MAP_FEATURES_PAYLOAD_VERSION = 14;
 
 // 🔴 Fix-Runde 6 (15.08.2026): the coat-of-arms staging/model table constants AND the two loader/gate
 // functions that used to sit here (avesmapsLoadSettlementCoatGateInputs, avesmapsSettlementTerritoryCoatUrl)
@@ -572,6 +572,29 @@ function avesmapsNormalizeLegacyMapFeatureProperties(array $properties): array {
     // 💣 `id` bleibt: das liest der ROUTING-Graph als Kantenkennung (route-engine.js,
     // route-graph-routing.js). Nur der Zwilling faellt, nie das Original.
     unset($properties['svg_id']);
+
+    // 🔴 EIN CHOKE-POINT FUER ALLE WIKI-BILDADRESSEN. Owner 23.08.2026: "hoer auf vom wiki sachen
+    // zu ziehen, wenn wir sie lokal haben." Drei Nests fuehrten eine wiki-aventurica-Adresse in den
+    // Browser, der sie durch /api/app/coat.php reichte -- eine Anfrage je Bild und Seitenaufbau.
+    // Live gemessen am 23.08.2026: 325 wiki_region.image_url, 163 wiki_settlement.wappen_url,
+    // 46 wiki_path.image_url, zusammen 534.
+    //
+    // 💣 Ein grosser Teil davon konnte NIE gelingen: die Adresse wird aus einem DATEINAMEN gebaut
+    // (avesmapsWikiSyncMonitorCoatOfArmsUrl), auch wenn das Bild von uns stammt und im Wiki nie
+    // existiert hat -- die Zwergenreich-Wappen und die Siedlungsbilder sind genau das. Solche
+    // Abrufe scheitern, werden deshalb nie gecacht und wiederholen sich bei jedem Seitenaufbau.
+    // Genau diese Endlosschleife hat uns die Sperre unserer Ausgangs-IP eingebracht.
+    //
+    // 💣 HIER, an der EINEN Rueckgabe, und nicht an den drei Fuellstellen: die Nests werden an
+    // mehreren Orten zusammengesetzt, und eine Regel, die einen von mehreren Erzeugern bindet,
+    // ist keine Regel (die Lehre vom 14.08.2026).
+    // ⚠️ Der STAGING-Wert in der Datenbank bleibt unberuehrt -- er ist die Information "das Wiki
+    // nennt diese Datei" und wird beim Abgleich gebraucht. Gebunden ist nur die AUSGABE.
+    foreach ([['wiki_settlement', 'wappen_url'], ['wiki_region', 'image_url'], ['wiki_path', 'image_url']] as [$nest, $feld]) {
+        if (is_array($properties[$nest] ?? null) && ($properties[$nest][$feld] ?? '') !== '') {
+            $properties[$nest][$feld] = avesmapsCoatLokaleKopie((string) $properties[$nest][$feld]);
+        }
+    }
 
     return $properties;
 }

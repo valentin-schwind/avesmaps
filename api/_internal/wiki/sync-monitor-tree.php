@@ -2,6 +2,9 @@
 
 declare(strict_types=1);
 
+// avesmapsCoatLokaleKopie -- die Datei von unserer Platte statt der Wiki-Adresse (Owner 23.08.2026).
+require_once __DIR__ . '/../coat-url.php';
+
 // Model tree projection, geometry audit, wiki-rows view, sandbox clear and model
 // sample, split out of sync-monitor.php (M5 god-file split). Required by
 // sync-monitor.php; const/core deps resolve at call time.
@@ -253,7 +256,8 @@ function avesmapsWikiSyncMonitorModelTree(PDO $pdo): array {
             'has_conflict' => $conflictNames !== [],
             'conflicts' => $conflictNames,
             'aliases' => $aliases,
-            'coat_of_arms_url' => (string) ($row['coat_of_arms_url'] ?? ''),
+            // 🔴 Unsere Platte oder nichts -- nie die Wiki-Adresse in den Browser geben.
+            'coat_of_arms_url' => avesmapsCoatLokaleKopie((string) ($row['coat_of_arms_url'] ?? '')),
             'license_status' => (string) ($row['coat_of_arms_license_status'] ?? ''),
             'status' => (string) ($row['status'] ?? ''),
             'capital_name' => (string) ($row['capital_name'] ?? ''),
@@ -444,7 +448,7 @@ function avesmapsWikiSyncMonitorWikiRows(PDO $pdo): array {
             'trade_zone' => (string) $s['trade_zone'],
             'blazon' => (string) $s['blazon'],
             'wiki_url' => (string) $s['wiki_url'],
-            'coat_of_arms_url' => (string) $s['coat_of_arms_url'],
+            'coat_of_arms_url' => avesmapsCoatLokaleKopie((string) $s['coat_of_arms_url']),
             'map_assigned' => $geometryCount > 0,
             'map_geometry_count' => $geometryCount,
         ];
@@ -505,7 +509,7 @@ function avesmapsWikiSyncMonitorWikiRows(PDO $pdo): array {
             'trade_zone' => $ovs('trade_zone'),
             'blazon' => '',
             'wiki_url' => '',
-            'coat_of_arms_url' => $ovs('coat_of_arms_url'),
+            'coat_of_arms_url' => avesmapsCoatLokaleKopie((string) $ovs('coat_of_arms_url')),
             'map_assigned' => $geometryCount > 0,
             'map_geometry_count' => $geometryCount,
             'is_own_node' => true,
