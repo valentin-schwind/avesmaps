@@ -782,10 +782,15 @@ function baueZeiger({ kurvenRegister = [], wegRegister = [], editMode = false, w
 		"und der abgeschaltete Wegname bekommt auch keinen Zeiger");
 }
 
-// --- 4f) Teil B: im Bearbeiten-Modus bleibt der Marker ---------------------------------------------
-// 🔴 Die zweite Haelfte derselben Regression. Der Schiedsrichter oben steigt bei IS_EDIT_MODE aus --
-// ein Editor kaeme ueber die Kurve also gar nicht an sein Label, und er braucht mehr als einen Klick
-// (Auswahl, Popup, Ziehgriff). Zwischenstufe bis Plan 3 (Entwurf §7.4).
+// --- 4f) Teil B: der Marker geht AUCH im Bearbeiten-Modus ------------------------------------------
+// 🔴 UMGEDREHT AM 23.08.2026 (Owner, an vier Screenshots: „jetzt muessen nur ihre vorgaenger weg“).
+// Bis dahin stand hier das Gegenteil, mit dieser Begruendung: der Schiedsrichter des Overlays steigt
+// bei IS_EDIT_MODE aus, ein Editor kaeme ueber die Kurve also nicht an sein Label. Die Begruendung
+// war richtig -- deshalb ist sie nicht einfach gestrichen, sondern BEANTWORTET worden:
+// „Beschriftung bearbeiten“ im Kontextmenue der Flaeche ist der Ersatzweg, und die Zusicherung
+// darauf steht gleich unter diesem Block. Owner-Entscheid dazu: mit eingeschalteter Kurve laesst
+// sich ein Label NICHT mehr verschieben (der Ziehgriff geht mit dem Marker), alle uebrigen
+// Darstellungswerte bleiben ueber den Dialog bedienbar.
 //
 // ⭐ Verdrahtet, nicht behauptet: der Riegel bekommt das ECHTE
 // avesmapsLabelWirdAlsKurveGemalt des Overlays, nicht eine Attrappe davon.
@@ -806,8 +811,31 @@ function baueZeiger({ kurvenRegister = [], wegRegister = [], editMode = false, w
 
 	assert.strictEqual(bauRiegel(false).shouldShowLabelMarker(entry), false,
 		"Ansichtsmodus: der Marker geht -- die gemalte Kurve traegt den Klick jetzt selbst");
-	assert.strictEqual(bauRiegel(true).shouldShowLabelMarker(entry), true,
-		"Bearbeiten-Modus: der Marker BLEIBT -- sonst kaeme der Editor an sein Label nicht mehr heran");
+	assert.strictEqual(bauRiegel(true).shouldShowLabelMarker(entry), false,
+		"Bearbeiten-Modus: der Marker geht EBENFALLS -- der Name stand dort sonst doppelt");
+
+	// 💣 UND DER ERSATZWEG MUSS DA SEIN. Der Marker war der EINZIGE Weg zu einem bestehenden Label --
+	// das Flaechenmenue kannte nur `create-label`. Ihn zu entfernen, ohne einen Ersatz zu haben, macht
+	// jede Beschriftung mit Kurve unerreichbar; das ist die Owner-Regel von den verwaisten
+	// Aussenhuellen, zweite Auflage. Diese Zusicherung ist der Grund, warum die Umkehrung oben
+	// ueberhaupt zulaessig war -- wer sie streicht, nimmt ihr die Grundlage.
+	{
+		const ctx = fs.readFileSync(hier("map-features-ecosystem-context-action.js"), "utf8");
+		assert.ok(ctx.includes('action: "edit-label"'),
+			"das Flaechenmenue hat keinen Eintrag fuer eine BESTEHENDE Beschriftung mehr");
+		assert.ok(ctx.includes('{ typ: "aktion", id: "edit-label" }'),
+			"der Eintrag steht in keiner festen Reihenfolge und landete damit an zufaelliger Stelle");
+		// 🪤 NICHT `includes("registerAreaMenuEditLabelEntry()")` -- das trifft auch die DEFINITION,
+		// und dann ueberlebt das Entfernen des AUFRUFS die Pruefung. Genau so bleibt eine Funktion
+		// gebaut, getestet und ungerufen (avesmapsCurveLabelRolloutFor, 22.-23.08.2026).
+		assert.ok((ctx.match(/registerAreaMenuEditLabelEntry\(\)/g) || []).length >= 2,
+			"der Eintrag wird nirgends registriert -- gebaut, aber nie angehaengt");
+		assert.ok(ctx.includes("openLabelEditDialog("),
+			"der Eintrag oeffnet den Label-Dialog nicht");
+		assert.ok(fs.readFileSync(hier("map-features-labels.js"), "utf8")
+			.includes("function avesmapsLabelEntriesForEcosystemRegion("),
+			"der Aufloeser Flaeche -> bestehende Beschriftung fehlt");
+	}
 
 	// ⚠️ Und der Riegel bleibt ein Riegel: der Bearbeiten-Modus hebt keinen der Filter ueber ihm auf.
 	const mitHakenAus = baueRiegel({})(

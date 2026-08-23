@@ -102,6 +102,7 @@
 	const AREA_MENU_ORDER = [
 		{ typ: "gruppe", id: "new-area" },
 		{ typ: "aktion", id: "edit-geometry" },
+		{ typ: "aktion", id: "edit-label" },
 		{ typ: "gruppe", id: "form" },
 		{ typ: "gruppe", id: "mit-anderer" },
 		{ typ: "gruppe", id: "unterflaechen" },
@@ -949,9 +950,54 @@
 	// Beide Menüs bekommen ihre Anlege-Einträge: das Kartenmenü seine drei (dort im Markup verankert),
 	// das Flächenmenü dieselben als Untermenü. Zusammen in EINER Funktion, damit niemand die eine
 	// ergänzt und die andere vergisst -- genau das wäre der Zustand, den dieser Umbau beendet.
+	// „Beschriftung bearbeiten" (23.08.2026) -- DER ERSATZ fuer den Label-Marker, den der Kurvenriegel
+	// abmeldet, sobald eine Flaeche ihre Kurve traegt (shouldShowLabelMarker, map-features-labels.js).
+	//
+	// 🔴 OHNE IHN WAERE EIN KURVEN-LABEL UNERREICHBAR. Gemessen vor dem Umbau: dieses Menue kannte nur
+	// `create-label`; einen Weg zu einer BESTEHENDEN Beschriftung gab es hier nicht, sie hing allein am
+	// Marker. Das ist die Owner-Regel von den verwaisten Aussenhuellen, zweite Auflage -- „es darf
+	// keine Elemente geben, ueber die ich keine Kontrolle mehr habe".
+	//
+	// 🔴 Owner-Entscheid 23.08.2026: mit eingeschalteter Kurve laesst sich ein Label NICHT mehr
+	// verschieben (der Ziehgriff geht mit dem Marker), alle uebrigen Darstellungswerte -- Groesse,
+	// Zoom-Baender, Prioritaet, Nodix -- bleiben ueber diesen Dialog bedienbar.
+	//
+	// ⚠️ Traegt die Region mehrere Beschriftungen („Max. Namen" 2 oder 3), oeffnet der Eintrag die
+	// ERSTE. Ein Untermenue mit meist genau einem Eintrag waere teurer als der Nutzen; die
+	// Geschwister nennt der Dialog selbst („Dieses Label wird von N Flaechen getragen").
+	function registerAreaMenuEditLabelEntry() {
+		addEcosystemAreaMenuEntry({
+			action: "edit-label",
+			label: label("ecosystem.ctxmenu.editLabel", "Beschriftung bearbeiten"),
+			onClick: (publicId) => {
+				const layer = typeof ecosystemLayers !== "undefined" && ecosystemLayers instanceof Map
+					? ecosystemLayers.get(publicId)
+					: null;
+				const regionId = String(layer?._ecosystemArea?.region_public_id || "");
+				const eintraege = typeof avesmapsLabelEntriesForEcosystemRegion === "function"
+					? avesmapsLabelEntriesForEcosystemRegion(regionId)
+					: [];
+				if (eintraege.length === 0) {
+					// ⚠️ „nicht geladen" und „gibt es nicht" sind hier dasselbe Bild: der Lader wirft
+					// Labels ausserhalb des Bildausschnitts weg. Deshalb kein „existiert nicht".
+					say("Diese Fläche trägt keine geladene Beschriftung.", "warning");
+					return;
+				}
+				if (typeof openLabelEditDialog !== "function") {
+					say("Der Label-Dialog ist nicht bereit.", "warning");
+					return;
+				}
+				openLabelEditDialog({ labelEntry: eintraege[0] });
+			},
+		});
+	}
+
 	function ensureBothMenusNewAreaEntries() {
 		ensureNewAreaMenuEntries();
 		registerAreaMenuNewAreaEntries();
+		// Zusammen mit den uebrigen: wer den Riegel in shouldShowLabelMarker anfasst, muss diesen
+		// Eintrag vorfinden -- er ist der einzige verbliebene Weg zu einem Kurven-Label.
+		registerAreaMenuEditLabelEntry();
 	}
 
 	if (typeof document !== "undefined") {

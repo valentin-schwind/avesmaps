@@ -72,6 +72,10 @@ GRUPPEN.forEach((gruppe) => {
 const ERWARTET = [
 	"new-area",
 	"edit-geometry",
+	// „Beschriftung bearbeiten" (23.08.2026) -- direkt hinter „Flaeche bearbeiten", weil beide
+	// dasselbe Objekt betreffen. Er ist kein Schmuck: seit der Kurvenriegel den Label-Marker auch im
+	// Bearbeiten-Modus abmeldet, ist er der EINZIGE Weg zu einer bestehenden Beschriftung.
+	"edit-label",
 	"form",
 	"mit-anderer",
 	"unterflaechen",

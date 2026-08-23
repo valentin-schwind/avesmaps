@@ -905,19 +905,21 @@ function shouldShowLabelMarker(entry, zoomLevel = map.getZoom(), renderBounds = 
 	// fragt mit `false`. Sonst schluege der Riegel auf seine eigene Voraussetzung zurueck -- ein
 	// gemaltes Kurvenlabel fiele im naechsten Durchgang aus der Kandidatenliste, wuerde nicht mehr
 	// gemalt, der Marker kaeme zurueck, und das Ganze flackerte im Wechsel.
-	// 🔴 IM BEARBEITEN-MODUS BLEIBT DER MARKER STEHEN -- der Name steht dort dann DOPPELT (Marker
-	// UND Kurve). Das ist haesslich und Absicht: der Klick-Schiedsrichter des Canvas-Overlays steigt
-	// bei IS_EDIT_MODE ausdruecklich sofort aus (ein Klick soll den Pfad DARUNTER treffen), ein
-	// Editor kaeme ueber die gemalte Kurve also gar nicht an sein Label -- und er braucht mehr als
-	// einen Klick: die Auswahl der Flaeche, das Popup und den Ziehgriff. Ein Editor, der sein Label
-	// nicht mehr anfassen kann, ist schlimmer als ein doppelt gezeichneter Name.
-	// 🔧 EINE ZWISCHENSTUFE, KEIN VERSEHEN: weg darf sie erst, wenn Plan 3 die Regel aus Entwurf
-	// §7.4 baut („ein Kurvenlabel richtet sich neu aus, sobald die Bearbeitung abgeschlossen ist“).
-	// Bis dahin NICHT „aufraeumen“ -- ohne diese Bedingung ist das Label im Editor unerreichbar.
-	// ⚠️ typeof-abgesichert, und die Richtung ist die sichere: fehlt das Flag, gilt Ansichtsmodus --
-	// dort traegt das gemalte Kurvenlabel den Klick selbst (kurvenlabelClickRegister im Overlay).
+	// 🔴 DER MARKER GEHT AUCH IM BEARBEITEN-MODUS (Owner 23.08.2026, an vier Screenshots: „jetzt
+	// muessen nur ihre vorgaenger weg“). Bis dahin blieb er dort absichtlich stehen, und der Name
+	// stand doppelt -- gebogen auf der Kurve und waagerecht daneben.
+	// 💣 DER PREIS, UND ER IST BEWUSST BEZAHLT: mit dem Marker gehen Klick, Popup und ZIEHGRIFF des
+	// Labels. Ein Label laesst sich seither nicht mehr mit der Maus verschieben, und der
+	// Klick-Schiedsrichter des Canvas-Overlays steigt bei IS_EDIT_MODE weiterhin sofort aus (ein
+	// Klick soll die FLAECHE darunter treffen).
+	// ⭐ OHNE ERSATZ WAEREN ALLE 52 BESCHRIFTUNGEN UNERREICHBAR GEWESEN -- die Owner-Regel von den
+	// verwaisten Aussenhuellen, zweite Auflage („es darf keine Elemente geben, ueber die ich keine
+	// Kontrolle mehr habe“). Gemessen vor dem Umbau: das Flaechenmenue kannte nur `create-label`,
+	// einen Weg zu einem BESTEHENDEN Label gab es dort nicht. Der Ersatz ist „Beschriftung
+	// bearbeiten“ im Kontextmenue der FLAECHE (map-features-ecosystem-context-action.js, Eintrag
+	// `edit-label`) -- woertlich der vom Owner gewaehlte Weg. Wer diesen Riegel je wieder anfasst,
+	// prueft ZUERST, ob es diesen Eintrag noch gibt.
 	if (mitKurvenriegel
-		&& !(typeof IS_EDIT_MODE !== "undefined" && IS_EDIT_MODE)
 		&& typeof avesmapsLabelWirdAlsKurveGemalt === "function"
 		&& avesmapsLabelWirdAlsKurveGemalt(entry.label)) {
 		return false;
@@ -942,6 +944,29 @@ function shouldShowLabelMarker(entry, zoomLevel = map.getZoom(), renderBounds = 
 // erscheinendes Kurvenlabel -- fuer Plan 2 hingenommen und gemessen (Aufgabe 7), nicht behoben: die
 // Ankerpruefung gilt heute allen Labels, sie hier allein fuer Kurven zu aendern waere eine zweite
 // Sichtbarkeitsregel.
+// Die Beschriftungen EINER Landschaftsflaeche -- fuer „Beschriftung bearbeiten“ im Flaechenmenue.
+//
+// 🔴 Sie ist der Ersatz fuer den Marker, den der Kurvenriegel im Bearbeiten-Modus abmeldet. Ohne sie
+// gaebe es keinen Weg mehr zu einem bestehenden Label (das Flaechenmenue kannte nur `create-label`).
+//
+// 💣 Aufgeloest wird ueber `ecosystemRegionOfLabel`, den EINEN Aufloeser des Hauses -- nicht ueber
+// einen eigenen Vergleich auf `label.ecosystemRegionPublicId`. Die Zugehoerigkeit steht in BEIDEN
+// Richtungen (Zeiger am Label und `label_public_id` an der Region); wer nur eine liest, findet das
+// zweite und dritte Label einer Flaeche nie -- und genau die sind bei „Max. Namen 2“ der Sinn.
+function avesmapsLabelEntriesForEcosystemRegion(regionPublicId) {
+	const gesucht = String(regionPublicId || "").trim();
+	if (gesucht === "" || typeof labelMarkers === "undefined" || !Array.isArray(labelMarkers)) {
+		return [];
+	}
+	if (typeof ecosystemRegionOfLabel !== "function") {
+		return [];
+	}
+	return labelMarkers.filter((eintrag) => {
+		const region = ecosystemRegionOfLabel(eintrag?.label);
+		return Boolean(region) && String(region.public_id || "") === gesucht;
+	});
+}
+
 function avesmapsKurvenlabelKandidaten() {
 	if (typeof labelMarkers === "undefined" || !Array.isArray(labelMarkers)) {
 		return [];
