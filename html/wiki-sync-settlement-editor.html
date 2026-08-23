@@ -519,9 +519,18 @@
   <div class="modal-box wide">
     <div class="modal-title">Eigenes Wappen hochladen</div>
     <div class="modal-sub" id="seWappenFor">—</div>
-    <label class="fld">Bilddatei (PNG / JPG / WebP / GIF, max. 2 MB)
-      <input type="file" id="seWappenFile" accept="image/png,image/jpeg,image/webp,image/gif">
+    <!-- 🔴 Gleicher Umfang wie der Territorien-Dialog (Owner 23.08.2026): Datei ODER Bild-URL,
+         5 MB, SVG dabei. Vorher: nur Datei, 2 MB, kein SVG -- und die Zwergenreich-Wappen SIND SVG. -->
+    <label class="fld">Bilddatei (PNG / JPG / SVG / GIF / WEBP)
+      <input type="file" id="seWappenFile" accept="image/png,image/jpeg,image/svg+xml,image/gif,image/webp">
     </label>
+    <label class="fld">…oder Bild-URL
+      <input type="url" id="seWappenUrl" placeholder="https://…/wappen.png" autocomplete="off">
+    </label>
+    <!-- ⚠️ modal-sub, nicht "muted": das nutzt zwar der Territorien-Dialog, ist hier aber in keinem
+         geladenen Stylesheet definiert -- der Hinweis staende unformatiert da. modal-sub ist im
+         Inline-<style> dieses Editors definiert und zwei Zeilen weiter oben schon im Einsatz. -->
+    <div class="modal-sub">Datei ODER URL angeben. Maximale Größe 5 MB.</div>
     <!-- Lizenz/Urheber/Kommentar (js/ui/media-license-fields.js) -- von openSettlementCoatDialog()
          beim Oeffnen aus dem aktuell gespeicherten properties.coat gefuellt (Phase 4, Aufgabe 4). -->
     <div id="seWappenFields"></div>
@@ -2667,6 +2676,10 @@ function openSettlementCoatDialog() {
 	const fieldsEl = $("seWappenFields");
 	if (forEl) forEl.textContent = `für „${settlementDetailCache.detail.name}“`;
 	if (fileInput) fileInput.value = "";
+	// 💣 Auch das URL-Feld: eine stehengebliebene Adresse wuerde beim NAECHSTEN Ort
+	// mitgeschickt und ihm ein fremdes Wappen verpassen.
+	const urlInputReset = $("seWappenUrl");
+	if (urlInputReset) urlInputReset.value = "";
 	if (errorEl) { errorEl.hidden = true; errorEl.textContent = ""; }
 	if (fieldsEl) {
 		const props = settlementDetailCache.detail.properties || {};
@@ -2691,13 +2704,23 @@ async function uploadSettlementCoat() {
 	const fileInput = $("seWappenFile");
 	const errorEl = $("seWappenError");
 	const file = fileInput && fileInput.files && fileInput.files[0];
-	if (!selectedPublicId || !file) {
-		if (errorEl) { errorEl.textContent = "Bitte eine Bilddatei wählen."; errorEl.hidden = false; }
+	// Datei ODER Bild-URL -- wie im Territorien-Dialog (Owner 23.08.2026).
+	const urlInput = $("seWappenUrl");
+	const sourceUrl = urlInput ? String(urlInput.value || "").trim() : "";
+	if (!selectedPublicId || (!file && sourceUrl === "")) {
+		if (errorEl) { errorEl.textContent = "Bitte eine Bilddatei wählen oder eine Bild-URL angeben."; errorEl.hidden = false; }
 		return;
 	}
 	const formData = new FormData();
 	formData.append("public_id", selectedPublicId);
-	formData.append("coat", file);
+	// ⚠️ Nur EINEN der beiden Wege schicken. Der Server nimmt die Datei zuerst; beide zugleich
+	// waeren nicht falsch, aber die URL wuerde still ignoriert -- und still ignorierte Eingaben
+	// sind genau die Sorte Fehler, die niemand meldet.
+	if (file) {
+		formData.append("coat", file);
+	} else {
+		formData.append("coat_url", sourceUrl);
+	}
 	// Lizenz/Urheber/Kommentar reisen mit dem Upload -- der Endpunkt normalisiert sie serverseitig
 	// (avesmapsMediaLicenseNormalize), ein leeres/fehlendes Feld ist also kein Risiko.
 	const fieldsEl = $("seWappenFields");
