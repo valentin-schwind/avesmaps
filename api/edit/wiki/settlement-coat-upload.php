@@ -134,6 +134,9 @@ try {
     $auditBefore = avesmapsWikiSettlementAuditRow($pdo, (int) $feature['id']);
     // 🔴 uploaded_by/uploaded_at setzt AUSSCHLIESSLICH der Server, nie das Formular -- sonst waere der
     // Nachweis faelschbar. $user kommt aus avesmapsRequireUserWithCapability() weiter oben.
+    // Ein hochgeladenes Wappen hebt „kein Wappen" auf -- sonst muesste der Editor erst
+    // entsperren, bevor er hochladen darf.
+    unset($props['coat_none']);
     $props['coat'] = [
         'url' => $url,
         'source' => 'own',

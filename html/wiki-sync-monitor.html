@@ -723,6 +723,24 @@ async function saveCoatLocal(k){
 }
 // #4: eigenes/lokales Wappen wieder entfernen -> Wiki-Stand. Loescht die vier Wappen-Overrides
 // (Kommentar seit Aufgabe 5 mit dabei -- sonst bliebe er nach einem Restore als Waise stehen).
+// 🔴 DER DRITTE ZUSTAND (Owner 23.08.2026): „dieses Gebiet hat kein Wappen, und das bleibt so."
+// ⭐ Beim Territorium braucht es dafuer KEIN neues Feld -- avesmapsResolveGatedCoatUrl entscheidet
+// mit array_key_exists: ein Override, der DA ist und leer, heisst bereits „bewusst kein Wappen"
+// (kein Fall-through auf den Wiki-Stand). Es fehlte nur der Knopf, der ihn setzt.
+// ⚠️ Unterschied zu „Zuruecksetzen": das loescht die Overrides und holt den Wiki-Stand zurueck.
+// Hier wird einer GESETZT, damit gerade nichts zurueckkommt.
+async function removeCoat(k){
+  const n=BYKEY.get(k); if(!n) return;
+  if(!window.confirm('Wappen entfernen?\n\nDieses Gebiet zeigt danach kein Wappen — auch nicht das aus dem Wiki. '
+    +'"Wappen zurücksetzen" macht das wieder rückgängig.')) return;
+  busy(true);
+  try{
+    await api('set_field_override',{method:'POST',body:{wiki_key:k, field_key:'coat_of_arms_url', value:''}});
+    setStatus('Wappen entfernt — das Gebiet zeigt keines mehr.');
+    await loadModel();
+  } catch(e){ setStatus('Fehler: '+e.message); }
+  busy(false);
+}
 async function restoreCoat(k){
   const n=BYKEY.get(k); if(!n) return;
   busy(true);
@@ -885,7 +903,11 @@ function renderDetail(){
     ? `<button class="edbtn" data-save-coat-local="${esc(n.wiki_key)}" title="Lädt das gemeinfreie Wiki-Wappen auf den Avesmaps-Server und nutzt künftig die lokale Kopie (Override)">📥 Wappen lokal speichern</button>` : '';
   const coatRestoreBtn = (isOvr(n,'coat_of_arms_url')||isOvr(n,'coat_of_arms_license_status')||isOvr(n,'coat_of_arms_author')||isOvr(n,'coat_of_arms_note'))
     ? `<button class="edbtn" data-restore-coat="${esc(n.wiki_key)}" title="Eigenes/lokal gespeichertes Wappen + Lizenz-Override entfernen und wieder den Wiki-Stand verwenden">↺ Wappen zurücksetzen</button>` : '';
-  box.innerHTML = head + lic + `<div class="dt-actions">${lockBtn}${editBtn}${coatLocalBtn}${coatRestoreBtn}</div>` + `<div class="dt-grid">${rows.join('')}</div>`;
+  // „Entfernen" nur zeigen, wenn ueberhaupt ein Wappen da ist -- sonst bietet der Knopf an,
+  // etwas zu entfernen, das es nicht gibt.
+  const coatRemoveBtn = effCoat(n)
+    ? `<button class="edbtn" data-remove-coat="${esc(n.wiki_key)}" title="Dieses Gebiet zeigt danach KEIN Wappen — auch nicht das aus dem Wiki. Anders als „Zurücksetzen“, das den Wiki-Stand zurückholt. Mit „Wappen zurücksetzen“ rückgängig zu machen.">🚫 Wappen entfernen</button>` : '';
+  box.innerHTML = head + lic + `<div class="dt-actions">${lockBtn}${editBtn}${coatLocalBtn}${coatRestoreBtn}${coatRemoveBtn}</div>` + `<div class="dt-grid">${rows.join('')}</div>`;
 }
 function renderCapResults(){
   if(!capResults.length) return '';
@@ -1472,6 +1494,7 @@ $('detailBody').addEventListener('click', e=>{
   const rp=e.target.closest('[data-restore-parent]'); if(rp){ restoreWikiParent(rp.dataset.restoreParent); return; }
   const sc=e.target.closest('[data-save-coat-local]'); if(sc){ saveCoatLocal(sc.dataset.saveCoatLocal); return; }
   const rcoat=e.target.closest('[data-restore-coat]'); if(rcoat){ restoreCoat(rcoat.dataset.restoreCoat); return; }
+  const xcoat=e.target.closest('[data-remove-coat]'); if(xcoat){ removeCoat(xcoat.dataset.removeCoat); return; }
   const lb=e.target.closest('.lockbtn'); if(lb){ lockNode(lb.dataset.lockkey, lb.dataset.locknow!=='1'); return; }
   if(e.target.closest('[data-edit-start]')){ startEdit(); return; }
   if(e.target.closest('[data-edit-cancel]')){ cancelEdit(); return; }

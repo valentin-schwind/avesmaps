@@ -1751,6 +1751,10 @@ function buildSettlementCoatBlockHtml(detail) {
 		`<div class="dt-wappen-box">${imgHtml}<div class="dt-wappen-edit" data-coat-upload-trigger="1">Bild ändern</div></div>` +
 		`<div class="dt-coat-info"><div class="dt-title">Wappen</div>${licLine}` +
 		`<span class="dt-link" data-coat-upload-trigger="1" style="cursor:pointer">Ersetzen / hochladen</span>` +
+		// 🔴 „Entfernen" ist NICHT „Zuruecksetzen": es setzt den dritten Zustand („dieser Ort hat
+		// kein Wappen, und das bleibt so"). Ohne ihn traegt der naechste Abgleich das Wiki-Wappen
+		// wieder ein und die Entscheidung des Editors verschwindet still.
+		` · <span class="dt-link" data-coat-clear-trigger="1" style="cursor:pointer">Entfernen</span>` +
 		`</div></div>`
 	);
 }
@@ -2618,6 +2622,35 @@ function mountSettlementWikiAssign() {
 	});
 }
 
+// ---- Wappen entfernen (dritter Zustand) ----------------------------------------------
+// 🔴 Owner 23.08.2026. Drei Zustaende, nicht zwei:
+//   eigenes Wappen  ·  Wiki-Wappen (Vorgabe)  ·  KEIN Wappen (diese Aktion)
+// „Entfernen" schreibt properties.coat_none = true. Blosses Loeschen genuegte nicht -- der
+// naechste Abgleich haette das Wiki-Wappen wieder eingetragen.
+// ⚠️ Umkehrbar: ein hochgeladenes oder uebernommenes Wappen hebt die Entscheidung wieder auf.
+async function settlementCoatClear() {
+	// 🔴 selectedPublicId ist „the single source of truth for every write path (territory/coat/save)"
+	// -- nicht der Zeilenschluessel, der bei Wiki-only-Zeilen ein synthetisches „wiki:<name>" traegt.
+	const publicId = selectedPublicId ? String(selectedPublicId) : "";
+	if (!publicId) {
+		return;
+	}
+	if (!window.confirm("Wappen entfernen?\n\nDieser Ort zeigt danach kein Wappen — auch nicht das aus dem Wiki. "
+		+ "Ein neues Wappen hochzuladen hebt das wieder auf.")) {
+		return;
+	}
+	try {
+		// 💣 dry_run:false UND confirm:"apply" -- der Endpunkt verlangt BEIDES ($isApply in
+		// api/edit/wiki/settlements.php). Ein blosses apply:true laesst ihn im Probelauf: der
+		// Knopf haette Erfolg gemeldet und nichts getan.
+		await settlementDetailPost({ action: "clear_coat", public_id: publicId, dry_run: false, confirm: "apply" });
+		await renderSettlementDetail(publicId);
+		await loadSettlementItems();
+	} catch (error) {
+		window.alert("Wappen konnte nicht entfernt werden: " + (error && error.message ? error.message : "unbekannt"));
+	}
+}
+
 // ---- Wappen upload dialog (multipart -> settlement-coat-upload.php) -------------------
 const SETTLEMENT_COAT_UPLOAD_API = "/api/edit/wiki/settlement-coat-upload.php";
 
@@ -2860,6 +2893,11 @@ document.addEventListener("click", (event) => {
 	// is wired via this same delegated handler rather than a one-time addEventListener.
 	if (event.target.closest && event.target.closest("#dtEditSave")) {
 		void saveSettlementEditForm();
+		return;
+	}
+	if (event.target.closest && event.target.closest("[data-coat-clear-trigger]")) {
+		event.preventDefault();
+		void settlementCoatClear();
 		return;
 	}
 	if (event.target.closest && event.target.closest("[data-coat-upload-trigger]")) {

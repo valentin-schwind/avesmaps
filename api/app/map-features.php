@@ -590,6 +590,18 @@ function avesmapsNormalizeLegacyMapFeatureProperties(array $properties): array {
     // ist keine Regel (die Lehre vom 14.08.2026).
     // ⚠️ Der STAGING-Wert in der Datenbank bleibt unberuehrt -- er ist die Information "das Wiki
     // nennt diese Datei" und wird beim Abgleich gebraucht. Gebunden ist nur die AUSGABE.
+    // 🔴 DER DRITTE ZUSTAND: „dieser Ort hat kein Wappen, und das bleibt so" (Owner 23.08.2026).
+    // 💣 Es genuegt NICHT, properties.coat zu entfernen -- der Leser faellt sonst auf
+    // wiki_settlement.wappen_url zurueck und zeigt doch wieder das Wiki-Wappen. Genau dieser
+    // Rueckfall ist der Grund, warum der Schalter „Wappen: Aus" das Problem verschlimmert hat
+    // statt es zu loesen.
+    if (($properties['coat_none'] ?? false) === true) {
+        unset($properties['coat']);
+        if (is_array($properties['wiki_settlement'] ?? null)) {
+            $properties['wiki_settlement']['wappen_url'] = '';
+        }
+    }
+
     foreach ([['wiki_settlement', 'wappen_url'], ['wiki_region', 'image_url'], ['wiki_path', 'image_url']] as [$nest, $feld]) {
         if (is_array($properties[$nest] ?? null) && ($properties[$nest][$feld] ?? '') !== '') {
             $properties[$nest][$feld] = avesmapsCoatLokaleKopie((string) $properties[$nest][$feld]);

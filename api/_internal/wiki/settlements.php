@@ -422,6 +422,12 @@ function avesmapsWikiSettlementBulkRecordCoats(PDO $pdo, bool $dryRun, int $limi
                 continue; // eigenes Wappen nie überschreiben
             }
             $coatUrl = (string) $coats[$title]['coat_url'];
+            // 🔴 Wer „kein Wappen" gesagt hat, bekommt hier keines zurueck. Ohne diese Zeile
+            // macht der naechste Massenlauf jede Entfernen-Entscheidung wieder rueckgaengig --
+            // lautlos, weil niemand einen Abgleich Zeile fuer Zeile nachliest.
+            if (($props['coat_none'] ?? false) === true) {
+                continue;
+            }
             if (is_array($existing) && ($existing['url'] ?? '') === $coatUrl && ($existing['source'] ?? '') === 'wiki') {
                 continue; // schon übernommen
             }
@@ -441,7 +447,10 @@ function avesmapsWikiSettlementBulkRecordCoats(PDO $pdo, bool $dryRun, int $limi
     $applied = 0;
     foreach ($pending as $p) {
         $props = $p['props'];
-        $props['coat'] = [
+        // Ein ausdruecklich gesetztes Wappen hebt „kein Wappen" auf -- sonst muesste der Editor
+    // erst entsperren, bevor er zuweisen darf.
+    unset($props['coat_none']);
+    $props['coat'] = [
             'url' => (string) $p['coat']['coat_url'],
             'source' => 'wiki',
             'license_status' => 'public_domain',
@@ -522,6 +531,9 @@ function avesmapsWikiSettlementSetWikiCoat(PDO $pdo, string $publicId, bool $dry
         return ['ok' => true, 'dry_run' => true, 'applied' => 0];
     }
     $auditBefore = avesmapsWikiSettlementAuditRow($pdo, (int) $feature['id']);
+    // Ein ausdruecklich gesetztes Wappen hebt „kein Wappen" auf -- sonst muesste der Editor
+    // erst entsperren, bevor er zuweisen darf.
+    unset($props['coat_none']);
     $props['coat'] = [
         'url' => $coatUrl,
         'source' => 'wiki',
@@ -541,7 +553,13 @@ function avesmapsWikiSettlementClearCoat(PDO $pdo, string $publicId, bool $dryRu
     avesmapsWikiSettlementEnsureSchema($pdo);
     $feature = avesmapsWikiSettlementLoadFeature($pdo, $publicId);
     $props = $feature['props'];
-    if (!isset($props['coat'])) {
+    // 🔴 DER DRITTE ZUSTAND (Owner 23.08.2026). „Entfernen" heisst: dieser Ort hat kein Wappen,
+    // und das bleibt so. Blosses Loeschen genuegte nicht -- der naechste Abgleich
+    // (avesmapsWikiSettlementBulkRecordCoats) haette das Wiki-Wappen wieder eingetragen, und die
+    // Entscheidung des Editors waere still verschwunden.
+    // ⚠️ Das unterscheidet „Entfernen" von „Zuruecksetzen": Zuruecksetzen holt den Wiki-Stand
+    // zurueck, Entfernen sagt, dass es keinen geben soll.
+    if (!isset($props['coat']) && ($props['coat_none'] ?? false) === true) {
         return ['ok' => true, 'dry_run' => $dryRun, 'applied' => 0];
     }
     if ($dryRun) {
@@ -549,6 +567,7 @@ function avesmapsWikiSettlementClearCoat(PDO $pdo, string $publicId, bool $dryRu
     }
     $auditBefore = avesmapsWikiSettlementAuditRow($pdo, (int) $feature['id']);
     unset($props['coat']);
+    $props['coat_none'] = true;
     $revision = avesmapsWikiSyncNextMapRevision($pdo);
     $pdo->prepare('UPDATE map_features SET properties_json = :pj, revision = :rev WHERE id = :id')
         ->execute(['pj' => avesmapsWikiSyncEncodeJson($props), 'rev' => $revision, 'id' => $feature['id']]);
