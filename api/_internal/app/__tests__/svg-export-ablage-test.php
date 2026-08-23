@@ -240,6 +240,18 @@ $abzugKaputt = avesmapsSvgExportAbzug($tmp);
 assert(is_array($abzugKaputt));
 assert($abzugKaputt['etag'] === '"' . $sha . '"', 'bei Groessenstreit gewinnt die Datei, nicht der Zeiger');
 assert($abzugKaputt['bytes'] === strlen($inhalt), 'und die echte Groesse geht in Content-Length');
+// 💣 UND DIE ZWEITE DARSTELLUNG WANDERT MIT. `X-Avesmaps-SHA256` gibt es, weil der Proxy vor
+// STRATO den ETag verwirft (gemessen 23.08.2026, betrifft jede PHP-Antwort). Liefe sie aus
+// einer eigenen Quelle, truege sie hier -- nach dem Neuhashen -- noch den alten Wert, und ein
+// Client, der die Datei dagegen prueft, verwuerfe eine RICHTIGE Datei.
+assert($abzugKaputt['sha256'] === $sha, 'der abgeleitete sha folgt dem neu gehashten ETag');
+assert('"' . $abzugKaputt['sha256'] . '"' === $abzugKaputt['etag'],
+    'ETag und X-Avesmaps-SHA256 sind dieselbe Zahl');
+assert($abzug['sha256'] === $sha && '"' . $abzug['sha256'] . '"' === $abzug['etag'],
+    'auch im guten Fall');
+// Und der Endpunkt schickt sie auch wirklich raus.
+assert(str_contains($codeEndpunkt, "X-Avesmaps-SHA256: ' . \$abzug['sha256']"),
+    'die Kopfzeile haengt am abgeleiteten Wert, nicht an einer zweiten Quelle');
 
 // Traversal im Zeiger wird gar nicht erst gelesen.
 $zeigerSchreiben($tmp, array_merge($guterZeiger, ['datei' => '../../../api/config.local.php']));

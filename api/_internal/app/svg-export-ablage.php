@@ -165,6 +165,12 @@ function avesmapsSvgExportAbzug(string $verzeichnis): ?array {
         'pfad' => $pfad,
         'bytes' => $groesse,
         'etag' => $etag,
+        // 💣 AUS DEM ETAG ABGELEITET, nicht aus dem Zeiger noch einmal gelesen. Beide sagen
+        // dasselbe, und sie muessen es IMMER tun -- oben wird der ETag im Streitfall neu
+        // gehasht (abgerissener Upload), und eine zweite Quelle daneben truege dann den alten
+        // Wert. Ein Client, der die Datei gegen diese Zahl prueft, verwuerfe eine richtige
+        // Datei. Eine Zahl, zwei Darstellungen.
+        'sha256' => trim($etag, '"'),
         'dateiname' => avesmapsSvgExportDateinameSaeubern(
             is_string($zeiger['dateiname'] ?? null) ? $zeiger['dateiname'] : 'avesmaps-karte.svg'
         ),

@@ -81,6 +81,16 @@ if ($abzug === null) {
 // bekommt danach 304 -- „deine Kopie ist aktuell" fuer eine Fehlermeldung. Hier steht die
 // Datei bereits fest, wenn diese Zeile laeuft.
 header('ETag: ' . $abzug['etag']);
+// 💣 UND DIESELBE PRUEFSUMME NOCH EINMAL, UNTER EIGENEM NAMEN. Gemessen 23.08.2026: vor
+// STRATO sitzt etwas, das die Antwort umschreibt (`Vary: X-Forwarded-For,User-Agent,…`) und
+// dabei `ETag` UND `Content-Length` verwirft -- die Antwort kommt `chunked` an. Betroffen ist
+// jede PHP-Antwort, nicht nur diese: `api/app/zoom-bands.php` setzt ebenfalls einen ETag, und
+// auch der kommt nicht an. Eigene `X-`Koepfe ueberleben dagegen (nachgemessen an
+// `X-Robots-Tag` und den Fassungsstempeln).
+// ⚠️ Der ETag bleibt trotzdem stehen: kommt er durch, funktioniert die normale
+// 304-Aushandlung, und `If-None-Match` wertet der Endpunkt ohnehin aus. Wer sich NICHT darauf
+// verlassen will, vergleicht diese Zeile -- sie ist derselbe sha256, nur ohne Anfuehrungszeichen.
+header('X-Avesmaps-SHA256: ' . $abzug['sha256']);
 header('Cache-Control: private, no-cache');
 header('X-Avesmaps-Kartenfassung: ' . $abzug['kartenfassung']);
 header('X-Avesmaps-Landschaftsfassung: ' . $abzug['landschaftsfassung']);

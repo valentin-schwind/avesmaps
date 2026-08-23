@@ -138,6 +138,13 @@ async function main() {
 		'attachment; filename="avesmaps-karte-2026-08-23-r76178-inkscape.svg"');
 	const etag = gut.headers.get("etag");
 	assert.strictEqual(etag, '"' + sha + '"', "der ETag steht auf dem echten Inhalt");
+	// 💣 UND DIESELBE ZAHL NOCH EINMAL, weil der Proxy vor STRATO den ETag verwirft (gemessen
+	// 23.08.2026 an api/app/zoom-bands.php: ETag und Content-Length weg, Antwort chunked).
+	// Ohne diese Zeile hat ein Client dort GAR KEINE Pruefsumme.
+	assert.strictEqual(gut.headers.get("x-avesmaps-sha256"), sha,
+		"X-Avesmaps-SHA256 traegt den Hash ohne Anfuehrungszeichen");
+	assert.strictEqual('"' + gut.headers.get("x-avesmaps-sha256") + '"', etag,
+		"und ist dieselbe Zahl wie der ETag -- nie zwei Quellen");
 	// 🔴 Kein CORS auf einem Token-Endpunkt.
 	assert.strictEqual(gut.headers.get("access-control-allow-origin"), null);
 

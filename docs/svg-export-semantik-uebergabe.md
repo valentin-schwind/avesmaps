@@ -34,9 +34,16 @@ Einstellung, die für eine Auswertung gebraucht wird.
 
 Die Fassungsstempel stehen auch als Kopfzeilen, man muss die 8 MB also nicht parsen, um zu
 wissen, ob sich etwas geändert hat: `X-Avesmaps-Kartenfassung`,
-`X-Avesmaps-Landschaftsfassung`, `X-Avesmaps-Exported-At`. Der `ETag` liegt auf dem echten
-Inhalt — mit `If-None-Match` antwortet der Endpunkt `304`, und der Abzug wird gar nicht erst
-übertragen. ⭐ Für einen Läufer, der täglich nachsieht, ist das der richtige Weg.
+`X-Avesmaps-Landschaftsfassung`, `X-Avesmaps-Exported-At`, `X-Avesmaps-Quelle`.
+
+💣 **Prüfsumme: `X-Avesmaps-SHA256`, nicht der `ETag`.** Gemessen 23.08.2026: vor STRATO sitzt
+etwas, das die Antwort umschreibt (`Vary: X-Forwarded-For,…`) und dabei `ETag` **und**
+`Content-Length` verwirft — die Antwort kommt `chunked` an. Das trifft jede PHP-Antwort dieses
+Projekts, nicht nur diese. Eigene `X-`Kopfzeilen überleben, deshalb reist derselbe sha256 dort
+ein zweites Mal mit (ohne Anführungszeichen, aus demselben Wert abgeleitet).
+⚠️ Auch `Content-Length` fehlt dann — wer einen Fortschrittsbalken baut, hat keine Gesamtgröße.
+`If-None-Match` wertet der Server weiterhin aus; kommt der `ETag` durch, funktioniert `304`
+normal. Verlassen sollte man sich nicht darauf.
 
 - `401 unauthorized` — Token fehlt **oder** ist falsch (von außen nicht zu unterscheiden)
 - `404 export_not_available` — es liegt noch kein Abzug bereit
