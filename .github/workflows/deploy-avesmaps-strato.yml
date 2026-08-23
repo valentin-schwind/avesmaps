@@ -179,6 +179,12 @@ jobs:
             # Sie setzt CSP + nosniff fuer SVG-Wappen -- ein SVG kann <script> tragen und liefe
             # direkt aufgerufen im Ursprung von avesmaps.de.
             "uploads/wappen/.htaccess"
+            # Dieselbe Ausnahme fuer die beiden anderen Schutzdateien unter /uploads:
+            # db-backups sperrt Dumps MIT PASSWORT-HASHES, dumps die Wiki-Rohdaten. Beide
+            # wirken heute (403 gemessen), sind aber von Hand dorthin gekommen -- ohne
+            # diese Zeilen bliebe ihr Schutz davon abhaengig, dass das jemand wiederholt.
+            "uploads/db-backups/.htaccess"
+            "uploads/dumps/.htaccess"
           )
 
           copy_item() {
@@ -268,6 +274,38 @@ jobs:
             exit 0
           fi
 
+          # 🔴 DIE PUNKT-DATEIEN IMMER MITNEHMEN, auch wenn sie sich nicht geaendert haben.
+          #
+          # 🪤 Der Deploy ist INKREMENTELL: er kopiert nur, was der Push angefasst hat. Eine
+          # .htaccess, die seit Monaten unveraendert im Repo liegt, kommt damit NIE auf den Server
+          # -- uploads/wappen/.htaccess lag zwei Laeufe lang im Repo UND in der Allowlist und war
+          # trotzdem wirkungslos. Erst eine Zeile Kommentar darin hat sie angestossen.
+          #
+          # 🔴 Warum das mehr als ein Schoenheitsfehler ist: wer eine SCHUTZ-.htaccess ins Repo
+          # legt, sieht sie im Diff, sieht den Deploy gruen -- und haelt den Bereich fuer
+          # geschuetzt. Betrifft api/_internal, api/_schema, api/diagnostics, scripts,
+          # tools/wikidump und uploads/db-backups (dort liegen Dumps mit Passwort-Hashes).
+          # ⚠️ Alle diese Pfade antworten heute mit 403/404 -- kein Loch, aber bisher kein
+          # Verdienst des Deploys.
+          #
+          # ⭐ Bewusst HIER und nicht als eigener lftp-Schritt hinterher: ins Paket gelegt, nimmt
+          # der mirror sie auf dem normalen Weg mit -- kein zweiter Verbindungsaufbau, keine
+          # zweite Fehlerquelle. Ein solcher Extraschritt war der erste Entwurf; er arbeitete auf
+          # dem PAKET statt auf dem Repo und reichte damit nur nach, was ohnehin schon drin war.
+          # 🔴 HINTER dem "Paket leer?"-Check, und das ist tragend: davor waere das Paket NIE
+          # leer, SKIP_DEPLOY nie gesetzt -- jeder Push, auch einer, der nur .github/ anfasst,
+          # loeste dann einen vollen Deploy samt Asset-Stempelung aus. Die Punkt-Dateien
+          # fahren mit, wenn ohnehin deployt wird; sie erzwingen keinen Deploy.
+          # ⚠️ Gefiltert durch should_deploy_file: eine .htaccess ausserhalb der Allowlist (etwa
+          # unter uploads/) geht weiterhin NICHT mit, ausser ihr Pfad steht ausdruecklich drin.
+          while IFS= read -r htaccess_file; do
+            if should_deploy_file "$htaccess_file"; then
+              copy_item "$htaccess_file"
+              echo "Punkt-Datei mitgenommen: $htaccess_file"
+            fi
+          done < <(git ls-files | grep -E '(^|/)\.htaccess$' || true)
+
+
           echo "Deploy package:"
           find "$DEPLOY_DIR" -maxdepth 2 -mindepth 1 | sort
 
@@ -341,63 +379,6 @@ jobs:
           mirror ${mirror_options[*]} "$DEPLOY_DIR" .
           bye
           EOF
-
-          # 🔴 DIE PUNKT-DATEIEN BEI JEDEM ECHTEN DEPLOY NACHREICHEN.
-          #
-          # 🪤 Der Anlass war eine FEHLDIAGNOSE, und die steht hier, damit sie niemand wiederholt:
-          # "in vier gruenen Deploys wurde keine .htaccess uebertragen" -- das war trivial wahr,
-          # denn dieser Deploy ist INKREMENTELL (er kopiert nur, was der Push geaendert hat), und
-          # in jenen Laeufen hatte sich keine .htaccess geaendert. Zwei davon liefen ueberhaupt
-          # nicht (SKIP_DEPLOY, weil nur .github/ betroffen war). lftp trifft keine Schuld.
-          #
-          # 🔴 Der ECHTE Grund, warum uploads/wappen/.htaccess nie ankam, ist derselbe wie bei
-          # jedem anderen Nachzuegler: sie war seit ihrem Allowlist-Eintrag unveraendert, also
-          # kopierte der inkrementelle Lauf sie nie. Nur eine Inhaltsaenderung stoesst sie an.
-          #
-          # ⭐ Dieser Schritt macht genau das ueberfluessig: er nimmt bei JEDEM Deploy alle
-          # .htaccess aus dem Paket mit, unabhaengig davon, ob sie sich geaendert haben. Eine
-          # Schutzdatei, die im Repo steht, liegt danach auch auf dem Server -- und das Log nennt
-          # jede einzelne beim Namen, der Lauf ist also nachpruefbar statt geglaubt.
-          # ⚠️ Er ist billig (vier kleine Dateien), aber nicht kostenlos: er laeuft auch, wenn
-          # sich nichts geaendert hat. Das ist der Preis dafuer, dass Schutz nicht am Zufall
-          # haengt, ob jemand die Datei zufaellig im selben Push angefasst hat.
-          if [[ "${{ inputs.dry_run }}" != "true" ]]; then
-            dotfile_script="$RUNNER_TEMP/lftp-dotfiles.txt"
-            : > "$dotfile_script"
-            {
-              echo "set sftp:auto-confirm yes"
-              echo "set net:max-retries 2"
-              echo "set net:timeout 30"
-              echo "cd \"$AVESMAPS_REMOTE_PATH\""
-            } >> "$dotfile_script"
-
-            dotfile_count=0
-            while IFS= read -r found; do
-              rel="${found#"$DEPLOY_DIR"/}"
-              dir="$(dirname "$rel")"
-              if [[ "$dir" == "." ]]; then
-                echo "put -O . \"$found\"" >> "$dotfile_script"
-              else
-                echo "mkdir -f -p \"$dir\"" >> "$dotfile_script"
-                echo "put -O \"$dir\" \"$found\"" >> "$dotfile_script"
-              fi
-              echo "  $rel"
-              dotfile_count=$((dotfile_count + 1))
-            done < <(find "$DEPLOY_DIR" -type f -name ".htaccess" | sort)
-
-            echo "bye" >> "$dotfile_script"
-
-            if [[ "$dotfile_count" -eq 0 ]]; then
-              echo "Keine .htaccess im Paket -- nichts nachzureichen."
-            else
-              echo "Reiche $dotfile_count .htaccess-Datei(en) einzeln nach."
-              # 💣 `-f <datei>` NACH der URL liest lftp als Option fuer `open`, nicht fuer sich
-              # selbst ("open: invalid option -- 'f'") -- der Schritt ist daran einmal gescheitert.
-              # `-e "source …"` fuehrt das Skript in der bereits offenen Verbindung aus.
-              lftp -u "$AVESMAPS_USER","$AVESMAPS_PASSWORD" -p "$AVESMAPS_PORT"                 -e "source \"$dotfile_script\"" "sftp://$AVESMAPS_HOST"
-              echo "Punkt-Dateien nachgereicht."
-            fi
-          fi
 
       - name: Retire orphaned remote files
         if: env.SKIP_DEPLOY != 'true'
