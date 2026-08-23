@@ -298,13 +298,19 @@ function setSelectedMapLayerMode(mode) {
 		// die Schalterlage beim Betreten (syncEcosystemSettlementVisibility) -- und lief ERST DANACH.
 		// Sie merkte sich also die bereits geleerte Lage und gab genau die beim Verlassen zurueck.
 		// Ausblenden ist Sache der Ebene, die es auch wieder ruecknimmt; der Moduswechsel haelt sich
-		// davon fern. Wege/Fluesse darunter bleiben hier richtig -- fuer die gibt es keine Erinnerung.
+		// davon fern. Wege/Seewege darunter bleiben hier richtig -- fuer die gibt es keine Erinnerung.
+		//
+		// 💣 UND SEIT 23.08.2026 GILT GENAU DAS AUCH FUER DIE FLUESSE. Hier stand
+		// `$("#toggleRivers").prop("checked", false)` -- die Voreinstellung vom 2026-07-26 (die blauen
+		// Linien laufen quer durch jede Flaeche, die man gerade zieht). Seit die Ebene die Fluesse je
+		// EBENE setzt und sich dafuer die Lage beim Betreten MERKT (syncEcosystemRiverVisibility), ist
+		// diese Zeile derselbe Fehler wie das entfernte setAllLocationTypesVisible(false) darueber, nur
+		// ein Schalter weiter: sie lief VOR syncEcosystemVisibility, die Ebene merkte sich also die
+		// bereits geleerte Lage und gab beim Verlassen „aus" zurueck -- auch dem, der die Fluesse selbst
+		// angehabt hatte. Im Browser gemessen, nicht hergeleitet.
+		// ⚠️ Die Absicht von 2026-07-26 ist NICHT gefallen: Vegetation und Derographie schalten die
+		// Fluesse weiterhin aus -- nur eben die Ebene, die es auch wieder ruecknimmt.
 		$("#togglePaths").prop("checked", false);
-		// Fluesse gehen jetzt AUS. Das kehrt die Entscheidung vom Vormittag (2026-07-26) um, sie als
-		// Zeichenvorlage anzulassen -- nach dem ersten echten Zeichnen entschied der Owner am selben Tag
-		// anders: die blauen Linien laufen quer durch jede Flaeche, die man gerade zieht. Wie alle Zeilen
-		// hier ist das nur die Voreinstellung beim Betreten; der Haken schaltet sie von Hand zurueck.
-		$("#toggleRivers").prop("checked", false);
 		$("#toggleSeaPaths").prop("checked", false);
 	}
 	syncEditorDisplayTogglesToMode(normalizedMode);

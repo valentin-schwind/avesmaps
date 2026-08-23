@@ -178,6 +178,11 @@ function syncEcosystemPaneStates() {
 	// räumen sich bei jeder anderen Lage selbst ab, das Umschalten löscht sie also von allein, und es
 	// braucht keinen zweiten Aufräumweg neben diesem.
 	window.AvesmapsEcosystemClimate?.sync?.();
+	// Die Fluesse hängen an derselben Frage (23.08.2026). 🔴 DIE EINZIGE Aufrufstelle -- Eintreten,
+	// Ebenenwechsel und Verlassen kommen alle drei hier vorbei. Zwei Setzer einzeln zu verdrahten wäre
+	// die Falle vom 14.08.2026, und ein zusätzlicher Aufruf im Verlassen-Zweig war genau das (er stand
+	// hier kurz und ist wieder weg: syncEcosystemControlsVisibility endet ohnehin auf dieser Funktion).
+	syncEcosystemRiverVisibility();
 }
 
 // 🔴 Welche Labels sind in der gerade bearbeiteten Ebene FREMD? Nur die werden blass. Seit jede Region
@@ -460,6 +465,70 @@ function syncEcosystemSettlementVisibility(inLayer) {
 		syncLocationToggleButtons();
 	}
 	syncLocationMarkerVisibility();
+}
+
+// ---- Die Fluesse: welche Ebene zeigt sie (Owner 23.08.2026) ---------------------------------------
+//
+// 🔴 „Alle“ und „Topographie“ zeigen sie, die uebrigen nicht. Die Uebersicht will die Gewaesser, und
+// ein Gebirge ohne seine Fluesse ist ein halbes Relief; ueber den Vegetations- und Derographieflaechen
+// waeren es nur Linien.
+//
+// 🔴 DIE EBENE LEIHT SICH DEN HAKEN UND GIBT IHN ZURUECK -- dieselbe Bauart wie
+// syncEcosystemSettlementVisibility darueber, und aus demselben Grund: `#toggleRivers` gehoert dem
+// Anzeige-Menue der GANZEN Karte. Ohne Gedaechtnis saesse der Benutzer nach dem Verlassen in
+// „Standard“ mit einer Fluss-Lage, die er nie gewaehlt hat.
+//
+// ⚠️ Der Haken bleibt dabei benutzbar (Owner-Entscheid): der Wechsel setzt ihn, die naechste eigene
+// Entscheidung sticht ihn -- bis zum naechsten Wechsel.
+const ECOSYSTEM_RIVER_KINDS = new Set(["alle", "topographie"]);
+
+let ecosystemRiverMemory = null;   // die Hakenlage VOR dem Modus, oder null = nicht im Modus
+
+// 🔴 OHNE PARAMETER, UND DAS IST DER PUNKT. Eintreten, Ebenenwechsel und Verlassen kommen alle drei
+// bei syncEcosystemPaneStates vorbei; welcher davon es gerade ist, liest diese Funktion selbst am
+// Modus ab. Ein „drinnen/draussen"-Argument haette der Aufrufer mitfuehren muessen -- und der zweite
+// Aufrufer haette es falsch gesetzt.
+function syncEcosystemRiverVisibility() {
+	const haken = document.getElementById("toggleRivers");
+	if (!haken) {
+		return;
+	}
+
+	// 💣 syncEcosystemPaneStates laeuft AUCH in anderen Ansichten -- syncEcosystemControlsVisibility
+	// ruft es auf BEIDEN Wegen. Ohne diese Frage naehme die Landschaften-Ebene den Fluss-Haken der
+	// ganzen Karte in Beschlag, und „Standard" haette danach keine Fluesse mehr.
+	const drin = typeof isEcosystemLayerModeActive === "function" && isEcosystemLayerModeActive();
+
+	let soll;
+	if (drin) {
+		// Nur beim EINTRETEN merken. syncEcosystemControlsVisibility laeuft auch mitten im Modus (etwa
+		// wenn die Rechteauskunft eintrifft) -- ein zweites Merken schriebe die GELIEHENE Lage fest, und
+		// der Benutzer bekaeme seine eigene nie wieder.
+		if (ecosystemRiverMemory === null) {
+			ecosystemRiverMemory = haken.checked === true;
+		}
+		soll = ECOSYSTEM_RIVER_KINDS.has(isEcosystemShowAllLayers() ? "alle" : getActiveEcosystemLayerKind());
+	} else {
+		if (ecosystemRiverMemory === null) {
+			return;   // war gar nicht im Modus -- dann gibt es auch nichts zurueckzugeben
+		}
+		soll = ecosystemRiverMemory;
+		ecosystemRiverMemory = null;
+	}
+
+	if (haken.checked === soll) {
+		return;   // sonst zeichnete jeder Kachelklick die Wege neu
+	}
+	haken.checked = soll;
+	// 💣 Ein programmatisch gesetztes `checked` feuert KEIN `change`. Ohne dieses Signal blieben die
+	// Fluesse unsichtbar (syncPathVisibility, map-features.js) und die Fliessrichtungs-Pfeile stuenden
+	// auf altem Stand (map-features-river-flow-arrows.js) -- beide haengen an genau diesem Haken.
+	haken.dispatchEvent(new Event("change", { bubbles: true }));
+	// Und zusaetzlich direkt: das Ereignis erreicht nur, wer schon zugehoert hat, und diese Datei laedt
+	// vor map-features.js. Doppelt gezeichnet wird deshalb nicht -- syncPathVisibility ist idempotent.
+	if (typeof syncPathVisibility === "function") {
+		syncPathVisibility();
+	}
 }
 
 function syncEcosystemUndergroundControl() {
