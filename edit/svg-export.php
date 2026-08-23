@@ -396,14 +396,18 @@ $renderNode = static function (array $node, string $parentPath, int $depth) use 
 
                 <div class="svgx-group">
                     <h2 class="svgx-group__title">F&uuml;r die API hinterlegen</h2>
-                    <p class="svgx-hint">Legt den zuletzt erzeugten Abzug auf dem Server ab, wo
-                        <code>GET /api/svg-export.php</code> ihn gegen einen Token ausliefert &ndash;
-                        mit <strong>deinen</strong> Einstellungen. Die n&auml;chtliche Routine legt
-                        dort sonst ihre eigene Fassung ab; wer abruft, sieht an
-                        <code>X-Avesmaps-Quelle</code>, welche er bekommen hat.</p>
+                    <p class="svgx-hint">Baut einen <strong>vollst&auml;ndigen</strong> Abzug und legt
+                        ihn auf dem Server ab, wo <code>GET /api/svg-export.php</code> ihn gegen einen
+                        Token ausliefert. 🔴 Die Einstellungen oben gelten dabei <strong>nicht</strong>
+                        &ndash; sie geh&ouml;ren deinem Download. Der API-Abzug ist eine Datenquelle und
+                        kommt immer gleich: Inkscape, 32.768&nbsp;px, alle Ebenen, volle Semantik,
+                        nichts gegl&auml;ttet. Genau das baut auch die n&auml;chtliche Routine, dieser
+                        Knopf holt es nur sofort.</p>
+                    <p class="svgx-hint">L&auml;dt die Kartendaten neu (rund 20&nbsp;MB) &ndash; dauert
+                        einen Moment, unabh&auml;ngig davon, was du oben erzeugt hast.</p>
                     <div class="svgx-actions">
-                        <button type="button" class="svgx-secondary" id="svgx-deposit" disabled>
-                            Abzug hinterlegen
+                        <button type="button" class="svgx-secondary" id="svgx-deposit">
+                            Vollst&auml;ndigen Abzug hinterlegen
                         </button>
                     </div>
                     <p class="svgx-status" id="svgx-deposit-status" role="status" aria-live="polite"></p>
@@ -426,9 +430,9 @@ $renderNode = static function (array $node, string $parentPath, int $depth) use 
              ⚠️ Diese Datei ruft von sich aus NICHTS ab (siehe ihren Kopf); den Abruf macht
              svg-export-page.js über /api/app/zoom-bands.php. -->
         <script src="../js/map-features/location-zoom-bands.js?v=20260822-svgexport-17"></script>
-        <script src="../js/pages/svg-export-build.js?v=20260823-svgexport-18"></script>
-        <script src="../js/pages/svg-export-farben.js?v=20260823-svgexport-18"></script>
-        <script src="../js/pages/svg-export-page.js?v=20260823-svgexport-18"></script>
+        <script src="../js/pages/svg-export-build.js?v=20260823-svgexport-19"></script>
+        <script src="../js/pages/svg-export-farben.js?v=20260823-svgexport-19"></script>
+        <script src="../js/pages/svg-export-page.js?v=20260823-svgexport-19"></script>
     <?php endif; ?>
 </body>
 

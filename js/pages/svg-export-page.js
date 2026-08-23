@@ -266,13 +266,8 @@
 	}
 
 	// =====================================================================================
-	// Hinterlegen -- den fertigen Abzug in die Ablage schieben, aus der die API ihn ausliefert.
+	// Hinterlegen -- den API-Abzug bauen und in die Ablage schieben.
 	// =====================================================================================
-	//
-	// 🔴 KEIN ZWEITER BAU. Hinterlegt wird der Blob, den der Owner eben erzeugt und gesehen
-	// hat. Neu zu bauen hiesse 20 MB Kartendaten ein zweites Mal zu holen -- und wenn ein
-	// Editor dazwischen speichert, eine ANDERE Datei abzulegen als die heruntergeladene.
-	let letzterAbzug = null;
 
 	// 💣 GESTUECKELT. Ein Abzug ist ~8,6 MB; ein einzelner POST laeuft auf STRATO in
 	// `post_max_size`, und deren Fehlerbild ist ein LEERER Rumpf ohne Ausnahme -- also nicht
@@ -303,15 +298,72 @@
 		return rumpf;
 	}
 
-	async function hinterlegen() {
-		if (!letzterAbzug) {
-			hinterlegeStatus("Erst „SVG erzeugen“ — hinterlegt wird genau diese Datei.", true);
-			return;
+	// 🔴 DEN API-ABZUG BAUT DIESER KNOPF SELBST -- vollstaendig, in fester Schreibweise, und
+	// ohne einen Blick auf die Haekchen. Owner 23.08.2026: „die häkchen soll nur für den SVG
+	// export sein, der abzug für die API soll automatisch immer alles speichern."
+	//
+	// 💣 DIE ERSTE FASSUNG HINTERLEGTE DEN DOWNLOAD. Damit hing die Datei, die die API
+	// ausliefert, an dem, was jemand zuletzt eingestellt hatte -- und live kam genau das heraus:
+	// die Seite hat `illustrator` vorangehaekelt, die Routine baut `inkscape`, und Inkscape
+	// schreibt an JEDES Element zusaetzlich `inkscape:label`. Der hinterlegte Abzug war 7,4
+	// statt 9,0 MB bei identischem Inhalt. Das sah aus wie fehlende Ebenen.
+	//
+	// ⭐ Gleiche Einstellungen, gleiche Daten, gleicher Bauer: der Handabzug ist damit
+	// byte-identisch mit dem der Nacht. `X-Avesmaps-Quelle` sagt nur noch, WER ihn ausgeloest
+	// hat -- nicht mehr, dass er anders aussieht.
+	async function baueApiAbzug() {
+		const E = window.AvesmapsSvgExport;
+		const F = window.AvesmapsSvgExportFarben;
+
+		hinterlegeStatus("Kartendaten werden geladen … (rund 20 MB)");
+		const mapFeatures = await holen(ENDPOINTS.mapFeatures);
+
+		hinterlegeStatus("Herrschaftsgebiete werden geladen …");
+		const territories = await holen(ENDPOINTS.territories);
+
+		// ⚠️ ALLE vier Arten, in DIESER Reihenfolge -- sie ist die Zeichenreihenfolge, nicht
+		// Geschmack: in SVG liegt das Erste unten, und die Klimabaender decken die ganze Karte.
+		const oekosysteme = [];
+		let ecoRevision = "";
+		for (const art of ENDPOINTS.ecosystemKinds) {
+			hinterlegeStatus(`Landschaften werden geladen … (${art})`);
+			const teil = await holen(`/api/app/ecosystem-areas.php?kind=${encodeURIComponent(art)}`);
+			E.asFeatures(teil).forEach((f) => oekosysteme.push(f));
+			if (teil && teil.revision) { ecoRevision = String(teil.revision); }
 		}
+
+		hinterlegeStatus("Die Datei wird gebaut …");
+		await atmen();
+
+		const exportiertAm = new Date().toISOString();
+		const farben = F.vorgabeFarben(oekosysteme, tokenLeser(),
+			E.WAY_SUBTYPES, E.PLACE_KINDS, E.WAY_COLORS, E.PLACE_COLOR);
+		const ergebnis = E.build(Object.assign({}, E.ABZUG_EINSTELLUNGEN, {
+			mapFeatures: mapFeatures,
+			territories: territories,
+			ecosystems: oekosysteme,
+			ecoRevision: ecoRevision,
+			exportedAt: exportiertAm,
+		}, farben));
+
+		const kartenfassung = String((mapFeatures && mapFeatures.revision) || "");
+		return {
+			blob: new Blob(ergebnis.parts, { type: "image/svg+xml;charset=utf-8" }),
+			dateiname: `avesmaps-karte-${heute()}-r${kartenfassung}-${E.ABZUG_EINSTELLUNGEN.dialect}.svg`,
+			dialekt: E.ABZUG_EINSTELLUNGEN.dialect,
+			kartenfassung: kartenfassung,
+			landschaftsfassung: ecoRevision,
+			exportiert: exportiertAm,
+			stats: ergebnis.stats,
+		};
+	}
+
+	async function hinterlegen() {
 		const knopf = el("svgx-deposit");
 		if (knopf) { knopf.disabled = true; }
 
 		try {
+			const letzterAbzug = await baueApiAbzug();
 			hinterlegeStatus("Ablage wird geöffnet …");
 			const start = await hinterlegeRuf(`${HINTERLEGEN_URL}?action=start`, { method: "POST" });
 			const id = start.upload_id;
@@ -454,22 +506,6 @@
 			a.click();
 			document.body.removeChild(a);
 			setTimeout(() => URL.revokeObjectURL(url), 60000);
-
-			// 🔴 Den fertigen Abzug merken, damit „hinterlegen" NICHT neu bauen muss. Ein
-			// zweiter Bau holte 20 MB Kartendaten ein zweites Mal und könnte -- wenn ein
-			// Editor dazwischen speichert -- eine ANDERE Datei ergeben als die eben
-			// heruntergeladene. Hinterlegt wird genau das, was der Owner gesehen hat.
-			letzterAbzug = {
-				blob: blob,
-				dateiname: a.download,
-				dialekt: dialekt,
-				kartenfassung: String((mapFeatures && mapFeatures.revision) || ""),
-				landschaftsfassung: ecoRevision,
-				exportiert: exportiertAm,
-			};
-			const dk = el("svgx-deposit");
-			if (dk) { dk.disabled = false; }
-			hinterlegeStatus("");
 
 			status("Fertig — die Datei wurde heruntergeladen.");
 		} catch (fehler) {

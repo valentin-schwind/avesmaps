@@ -80,11 +80,65 @@ function svgxFarbeVorgabe(pfad, token, wegfarben, ortsfarbe) {
 	return "#3b2a18";   // Beschriftungen
 }
 
+
+// Die Farben des API-Abzugs: die, die das Programm ohne jede Einstellung zeichnen wuerde.
+//
+// 🔴 GETEILT von Browser und naechtlichem Lauf. Bis 23.08.2026 stand diese Rechnung nur im
+// Laeufer -- der Browser hinterlegte stattdessen die FARBFELDER der Seite. Damit hing die
+// Datei, die die API ausliefert, an dem, was jemand zuletzt eingestellt hatte. Der API-Abzug
+// ist aber eine Datenquelle, kein Gestaltungsstueck.
+//
+// ⚠️ Die Listen kommen als Argument (SVGX_WAY_SUBTYPES, SVGX_PLACE_KINDS aus dem Bauer) --
+// nicht abgeschrieben, sonst verlore eine neu eingefuehrte Wegart hier ihre Farbe. `token` ist
+// derselbe Nachschlager wie oben: im Browser getComputedStyle, im Laeufer tokens.css.
+function svgxVorgabeFarben(oekosysteme, token, wegarten, ortsarten, wegfarben, ortsfarbe) {
+	const vorgabe = (pfad) => svgxFarbeVorgabe(pfad, token, wegfarben, ortsfarbe);
+
+	const wayColors = {};
+	(wegarten || []).forEach((art) => { wayColors[art] = vorgabe("wege/" + art); });
+
+	// ⚠️ SVGX_PLACE_KINDS fuehrt OBJEKTE ({slug, label, r}), und der Ortsbauer schlaegt die
+	// Farbe unter `slug` nach. Ein forEach ueber das Objekt selbst ergaebe "[object Object]" --
+	// und weil der Bauer dann still auf seine Vorgabefarbe zurueckfaellt, saehe man dem Abzug
+	// nichts an.
+	const placeColors = {};
+	(ortsarten || []).forEach((art) => {
+		const slug = art && art.slug ? art.slug : art;
+		placeColors[slug] = vorgabe("orte/" + slug);
+	});
+
+	// 💣 Die Flaechenfarben kommen aus ZWEI Quellen, und die Reihenfolge ist tragend: zuerst die
+	// aus den DATEN abgeleiteten -- die decken auch einen Gelaendetyp ab, den die Seite noch gar
+	// nicht als Feld kennt --, darueber die Owner-Vorgaben.
+	const ausDaten = svgxLandschaftsFarben(oekosysteme, token);
+	const ausVorgaben = {};
+	Object.keys(SVGX_COLOR_PRESETS).forEach((pfad) => {
+		const teile = pfad.split("/");
+		if (teile[0] === "landschaften" && teile.length === 3) {
+			ausVorgaben[teile[2]] = SVGX_COLOR_PRESETS[pfad];
+		}
+	});
+
+	return {
+		wayColors: wayColors,
+		placeColors: placeColors,
+		areaColors: Object.assign({}, ausDaten, ausVorgaben),
+		boundaryColor: vorgabe("gebiete"),
+		powerlineColor: vorgabe("kraftlinien"),
+		labelColor: vorgabe("beschriftungen"),
+		// 🔴 Konturen AUS -- eine Kontur gehoert dem Bearbeiten, nicht dem Ansehen
+		// (AGENTS.md sec.12).
+		wayOutlines: {},
+		areaOutlines: {},
+	};
+}
+
 if (typeof window !== "undefined") {
 	window.AvesmapsSvgExportFarben = {
 		COLOR_PRESETS: SVGX_COLOR_PRESETS,
 		vorgabe: svgxFarbeVorgabe,
 		landschaftsFarben: svgxLandschaftsFarben,
+		vorgabeFarben: svgxVorgabeFarben,
 	};
 }
 
@@ -93,5 +147,6 @@ if (typeof module !== "undefined" && module.exports) {
 		SVGX_COLOR_PRESETS: SVGX_COLOR_PRESETS,
 		svgxFarbeVorgabe: svgxFarbeVorgabe,
 		svgxLandschaftsFarben: svgxLandschaftsFarben,
+		svgxVorgabeFarben: svgxVorgabeFarben,
 	};
 }

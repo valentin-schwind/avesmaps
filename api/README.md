@@ -254,10 +254,22 @@ CLAUDE.md warns about. PHP therefore never *builds* an export; it only stores an
 **Two producers, one way in.** Both build with the same builder and deposit through the same
 endpoint:
 
-| Producer | Trigger | Settings | `quelle` |
-|---|---|---|---|
-| The owner | „Abzug hinterlegen" on `/edit/svg-export.php` | whatever the sliders say | `manuell` |
-| The routine | `.github/workflows/svg-export-abzug.yml`, 03:17 UTC | fixed: inkscape, 32768², all layers, nothing smoothed | `routine` |
+| Producer | Trigger | `quelle` |
+|---|---|---|
+| The owner | „Vollständigen Abzug hinterlegen" on `/edit/svg-export.php` | `manuell` |
+| The routine | `.github/workflows/svg-export-abzug.yml`, 03:17 UTC | `routine` |
+
+🔴 **Both build with the same settings** — `SVGX_ABZUG_EINSTELLUNGEN` in
+`js/pages/svg-export-build.js`: inkscape, 32768², all layers, full semantics, nothing smoothed,
+default colours. **The page's checkboxes apply to the owner's own download only.** The API copy
+is a data source, not a design artefact; it has to be complete and in one fixed notation, or a
+consumer never knows what it is getting.
+
+💣 Live proof of why: the page pre-selects `illustrator`, the routine builds `inkscape`, and
+inkscape writes an extra `inkscape:label` on *every* element. A deposited hand-made export came
+out at 7.4 MB against the routine's 9.0 MB with identical content — and that reads exactly like
+missing layers. Same settings + same data + same builder now means the two are byte-identical;
+`quelle` says only who triggered it.
 
 💣 **A second write path would need a second copy of the same rules** — prune, write the
 pointer, set the lock. The first version pushed the routine's file up by SFTP and pruned with
@@ -290,9 +302,8 @@ is the important one: the client never sees the ETag, so the only value it can e
 we handed it. Demanding quotes around a value nobody received would mean a silent 200 on every
 single poll — 8.6 MB, forever, and a 200 looks perfectly normal.
 
-⚠️ **`X-Avesmaps-Quelle` matters.** With two producers, the version stamps are not enough: they
-name the *data* state, not who rendered it. A hand-made export may be smoothed and recoloured;
-the routine's never is.
+⚠️ **`X-Avesmaps-Quelle`** tells you which trigger produced the file. Since 23.08.2026 both
+produce the same bytes for the same data, so it is provenance, not a warning about geometry.
 
 ### Depositing
 

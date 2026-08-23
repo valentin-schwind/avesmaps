@@ -9,6 +9,34 @@
 
 const SVGX_VIEWBOX_SIZE = 1024;
 
+// 🔴 DER API-ABZUG. Diese Einstellungen gelten fuer die Datei, die GET /api/svg-export.php
+// ausliefert -- und zwar EGAL, wer sie erzeugt: die naechtliche Routine unter Node und der
+// Knopf „Abzug hinterlegen" im Browser bauen damit dasselbe.
+//
+// 🔴 DIE HAEKCHEN AUF DER SEITE GELTEN NUR FUER DEN DOWNLOAD (Owner-Entscheid 23.08.2026:
+// „die häkchen soll nur für den SVG export sein, der abzug für die API soll automatisch immer
+// alles speichern"). Der API-Abzug ist eine DATENQUELLE, kein Gestaltungsstueck -- er muss
+// vollstaendig und in einer festen Schreibweise kommen, sonst weiss ein Auswerter nie, was er
+// bekommt.
+// 💣 Genau das ist einmal passiert: die Seite hat `illustrator` vorangehaekelt, die Routine
+// baut `inkscape`, und Inkscape schreibt an JEDES Element zusaetzlich `inkscape:label`. Ein
+// hinterlegter Handabzug war deshalb 7,4 statt 9,0 MB -- bei identischem Inhalt. Das sah aus
+// wie fehlende Ebenen und war eine andere Schreibweise.
+// 💣 `layers: {}` und `subgroups: {}` heissen ALLES: svgxSubgroupEnabled schliesst nur bei
+// ausdruecklichem `false` aus. Eine Aufzaehlung waere eine Liste, die niemand nachfuehrt.
+const SVGX_ABZUG_EINSTELLUNGEN = {
+	dialect: "inkscape",
+	sizePx: 32768,
+	strokeScale: 1,
+	smooth: false,
+	smoothAreas: false,
+	tension: 0.5,
+	registrationMarks: false,
+	semantics: true,
+	layers: {},
+	subgroups: {},
+};
+
 const SVGX_DIALECTS = {
 	ILLUSTRATOR: "illustrator",
 	INKSCAPE: "inkscape",
@@ -1370,6 +1398,7 @@ if (typeof window !== "undefined") {
 		placeKindsFromBands: svgxPlaceKindsFromBands,
 		WAY_COLORS: SVGX_WAY_COLORS,
 		WAY_SUBTYPES: SVGX_WAY_SUBTYPES,
+		ABZUG_EINSTELLUNGEN: SVGX_ABZUG_EINSTELLUNGEN,
 	};
 }
 
@@ -1378,6 +1407,7 @@ if (typeof module !== "undefined" && module.exports) {
 		SVGX_VIEWBOX_SIZE: SVGX_VIEWBOX_SIZE,
 		SVGX_DIALECTS: SVGX_DIALECTS,
 		SVGX_WAY_SUBTYPES: SVGX_WAY_SUBTYPES,
+		SVGX_ABZUG_EINSTELLUNGEN: SVGX_ABZUG_EINSTELLUNGEN,
 		SVGX_WAY_COLORS: SVGX_WAY_COLORS,
 		SVGX_WAY_WIDTHS: SVGX_WAY_WIDTHS,
 		SVGX_BOUNDARY_WIDTH: SVGX_BOUNDARY_WIDTH,

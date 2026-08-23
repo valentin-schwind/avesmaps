@@ -63,12 +63,11 @@ nichts; Hinterlegen braucht einen **anderen** (`svg_export.deposit_token`). Er g
 eine Adresse (Serverprotokoll, Referrer, Browserverlauf) — der Endpunkt liest ausschließlich
 den `Authorization`-Kopf und weist einen Token als URL-Parameter ab.
 
-⚠️ **Es gibt ZWEI Erzeuger, und `X-Avesmaps-Quelle` sagt welcher.** `routine` ist der
-nächtliche Lauf mit festen Einstellungen (inkscape, 32768², alle Ebenen, nichts geglättet),
-`manuell` ein Abzug, den der Owner auf `/edit/svg-export.php` erzeugt und dort mit dem Knopf
-**„Abzug hinterlegen"** abgelegt hat — der kann geglättet, umgefärbt oder anders groß sein.
-Die Fassungsstempel sagen darüber nichts, sie nennen den **Datenstand**. Wer die Geometrie
-auswertet, prüft die Kopfzeile.
+⚠️ **Es gibt ZWEI Erzeuger, und `X-Avesmaps-Quelle` sagt welcher** — `routine` (nächtlich)
+oder `manuell` (der Owner hat ihn sofort angestoßen). 🔴 **Beide bauen mit denselben
+Einstellungen**: inkscape, 32768², alle Ebenen, volle Semantik, nichts geglättet. Bei gleichem
+Datenstand sind die beiden Dateien deshalb byte-identisch; die Angabe ist Herkunft, keine
+Warnung über die Geometrie.
 ## Der Vertrag
 
 Namensraum `xmlns:avm="https://avesmaps.de/ns/export/1"`. An jedem Element (⚠️ `avm:ebene` nur an Flächen, 904 von 10.084):

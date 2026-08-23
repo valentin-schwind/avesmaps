@@ -33,24 +33,11 @@ const REPO = path.resolve(__dirname, "..", "..");
 // zuerst kommen, sonst laege ein Farbschleier ueber Wald, Meer und Gebirge.
 const ECOSYSTEM_ARTEN = ["klima", "derographisch", "vegetation", "topographie"];
 
-// 🔴 Der Zustand der manuellen Seite mit allen Haekchen: Inkscape-Dialekt, 32768 px,
-// Semantik AN, nichts geglaettet, keine Passmarken, Strichstaerke wie auf der Karte.
-// `subgroups: {}` heisst ALLES -- svgxSubgroupEnabled schliesst nur bei ausdruecklichem
-// `false` aus, eine neue Unterart bleibt also von selbst dabei (statt aus einer Liste zu
-// fallen, die niemand nachfuehrt). `layers: {}` ebenso: die Ebenenbauer pruefen auf
-// `!== false`.
-const ABZUG_EINSTELLUNGEN = {
-	dialect: "inkscape",
-	sizePx: 32768,
-	strokeScale: 1,
-	smooth: false,
-	smoothAreas: false,
-	tension: 0.5,
-	registrationMarks: false,
-	semantics: true,
-	layers: {},
-	subgroups: {},
-};
+// 🔴 DIE EINSTELLUNGEN STEHEN IM BAUER (SVGX_ABZUG_EINSTELLUNGEN), nicht hier. Bis 23.08.2026
+// hatte dieser Laeufer eine eigene Kopie -- und der Browser gar keine, er hinterlegte die
+// Farbfelder der Seite. Zwei Erzeuger mit zwei Vorstellungen davon, was „der API-Abzug" ist:
+// live kam dabei ein 7,4-MB-Illustrator-Abzug heraus, wo 9,0 MB Inkscape erwartet wurden.
+const ABZUG_EINSTELLUNGEN = bauer.SVGX_ABZUG_EINSTELLUNGEN;
 
 function argument(name, vorgabe) {
 	const i = process.argv.indexOf(name);
@@ -82,48 +69,12 @@ async function holen(url, versuche = 3) {
 	return null;
 }
 
-// Die Farben, die der Browser einstellen WUERDE, wenn niemand ein Feld anfasst. Die Listen
-// kommen aus dem Bauer (SVGX_WAY_SUBTYPES, SVGX_PLACE_KINDS) -- nicht abgeschrieben, sonst
-// verlore eine neu eingefuehrte Wegart hier ihre Farbe.
+// 🔴 AUCH DIE FARBEN KOMMEN AUS DER GETEILTEN DATEI (svg-export-farben.js). Die Listen reicht
+// der Bauer bei, damit eine neu eingefuehrte Wegart nicht hier abgeschrieben werden muss.
 function vorgabeFarben(oekosysteme, token) {
-	const vorgabe = (pfad) => farben.svgxFarbeVorgabe(
-		pfad, token, bauer.SVGX_WAY_COLORS, bauer.SVGX_PLACE_COLOR
-	);
-
-	const wayColors = {};
-	bauer.SVGX_WAY_SUBTYPES.forEach((art) => { wayColors[art] = vorgabe("wege/" + art); });
-
-	// ⚠️ SVGX_PLACE_KINDS fuehrt OBJEKTE ({slug, label, r}), keine Zeichenketten -- und der
-	// Ortsbauer schlaegt die Farbe unter `slug` nach. Ein `forEach` ueber das Objekt selbst
-	// ergibt den Schluessel "[object Object]", und weil der Bauer dann still auf
-	// SVGX_PLACE_COLOR zurueckfaellt, saehe man dem Abzug nichts an.
-	const placeColors = {};
-	bauer.SVGX_PLACE_KINDS.forEach((art) => { placeColors[art.slug] = vorgabe("orte/" + art.slug); });
-
-	// 💣 Die Flaechenfarben kommen aus ZWEI Quellen, und die Reihenfolge ist tragend (wie im
-	// Kitt): zuerst die aus den DATEN abgeleiteten -- die decken auch einen Gelaendetyp ab,
-	// den es auf der Seite noch gar nicht als Feld gibt --, darueber die Owner-Vorgaben.
-	const ausDaten = farben.svgxLandschaftsFarben(oekosysteme, token);
-	const ausVorgaben = {};
-	Object.keys(farben.SVGX_COLOR_PRESETS).forEach((pfad) => {
-		const teile = pfad.split("/");
-		if (teile[0] === "landschaften" && teile.length === 3) {
-			ausVorgaben[teile[2]] = farben.SVGX_COLOR_PRESETS[pfad];
-		}
-	});
-
-	return {
-		wayColors: wayColors,
-		placeColors: placeColors,
-		areaColors: Object.assign({}, ausDaten, ausVorgaben),
-		boundaryColor: vorgabe("gebiete"),
-		powerlineColor: vorgabe("kraftlinien"),
-		labelColor: vorgabe("beschriftungen"),
-		// Konturen sind auf der Seite vorbelegt, aber AUS -- eine Kontur gehoert dem
-		// Bearbeiten, nicht dem Ansehen (AGENTS.md sec.12).
-		wayOutlines: {},
-		areaOutlines: {},
-	};
+	return farben.svgxVorgabeFarben(oekosysteme, token,
+		bauer.SVGX_WAY_SUBTYPES, bauer.SVGX_PLACE_KINDS,
+		bauer.SVGX_WAY_COLORS, bauer.SVGX_PLACE_COLOR);
 }
 
 // Die Stueckliste Stueck fuer Stueck in die Datei und durch denselben Hash. Nie ein einziger
