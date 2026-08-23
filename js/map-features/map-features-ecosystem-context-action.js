@@ -152,16 +152,30 @@
 	// Ansicht zeigt -- die Abkürzung entfällt also, man wechselt erst die Ansicht. `startNewEcosystemArea`
 	// schaltet den Modus weiterhin um; das ist jetzt bloss kein Sprung mehr, sondern eine Bestätigung.
 	//
-	// 🪤 „Original" und „Nur Karte" zeigen weder Orte noch Wege (MAP_LAYER_MODE_FEATURES in
-	// map-features-display-mode.js: `original: { orte: false, wege: false }`). Dort ist die Liste leer,
-	// und dann verschwindet die ganze Gruppe samt Überschrift -- ein „Hier hinzufügen", das ein leeres
-	// Untermenü aufklappt, ist schlimmer als keines.
+	// 🪤 HIER STAND, „Original" und „Nur Karte" zeigten weder Orte noch Wege -- belegt mit einer Quelle,
+	// die es nicht gibt: `MAP_LAYER_MODE_FEATURES` kommt im ganzen Repo NUR in diesem Kommentar vor.
+	// Am Livebestand gemessen (23.08.2026): in „Original" antwortet `shouldShowPathOnMap` mit true wie
+	// in der Standardansicht, `togglePaths` steht an und alle sechs Ortsklassen sind aktiv. Nur
+	// „Kraftlinien" nimmt die Wege wirklich weg -- „Original" tauscht die BASISKACHELN (Stil „old"),
+	// nicht die Ebenen darüber.
+	// 🔴 „Original" bekommt deshalb die Orts- und Wege-Einträge der Standardansicht. Gemeldet als
+	// Fall #90 („in der Ansicht Original lassen sich Wege nicht teilen"): mit der leeren Liste fiel die
+	// ganze Gruppe weg und mit ihr „Neue Kreuzung und Weg teilen" -- der einzige Weg, einen Weg zu
+	// teilen. Ein Editor sah dort Wege, an die er nicht mehr herankam.
+	// ⚠️ OHNE „create-label": freie Labels sind in „Original" per Vorgabe AUS (MAP_LABEL_MODES in
+	// js/config.js kennt nur deregraphic und ecosystem). Man legt an, was man SIEHT -- ein frisch
+	// angelegtes Label wäre dort unsichtbar.
+	// 🔧 „Nur Karte" (none) bleibt leer und ist die offene Frage dieser Zeile: gemessen zeigt auch sie
+	// Orte und Wege, ihr Name verspricht aber das Gegenteil. Das ist ein Owner-Entscheid und wird hier
+	// nicht nebenbei mitgedreht.
+	// Bleibt eine Liste leer, verschwindet die ganze Gruppe samt Überschrift -- ein „Hier hinzufügen",
+	// das ein leeres Untermenü aufklappt, ist schlimmer als keines.
 	const ADD_HERE_BY_MODE = {
 		political:   ["create-region"],
 		ecosystem:   ["new-area", "new-peak", "import-territory"],
 		deregraphic: ["create-location", "create-crossing", "split-path-at-node", "create-path", "create-label"],
 		powerlines:  ["create-location", "create-crossing", "create-label"],
-		original:    [],
+		original:    ["create-location", "create-crossing", "split-path-at-node", "create-path"],
 		none:        [],
 	};
 

@@ -57,12 +57,24 @@ assert.deepStrictEqual(
 assert.ok(!sichtbar(addHereMenuVisibility({ mode: "ecosystem", ...voll })).includes("createRegion"),
 	"Landschaften: kein Neues Herrschaftsgebiet");
 
-// 🪤 "Original" und "Nur Karte" zeigen weder Orte noch Wege -- dort ist die Liste LEER, und das ist
-// die Bedingung, unter der die ganze Gruppe samt Ueberschrift verschwindet.
-["original", "none"].forEach((mode) => {
-	assert.deepStrictEqual(sichtbar(addHereMenuVisibility({ mode, ...voll })), [],
-		`${mode}: gar nichts anzulegen -- die Gruppe faellt weg`);
-});
+// 🪤 HIER STAND, "Original" und "Nur Karte" zeigten weder Orte noch Wege -- die Begruendung nannte
+// eine Tabelle MAP_LAYER_MODE_FEATURES, die es im Repo nicht gibt. Am Livebestand gemessen
+// (23.08.2026) verhaelt sich "Original" bei Orten und Wegen wie die Standardansicht; nur
+// "Kraftlinien" nimmt die Wege weg. Gemeldet als Fall #90: dort liess sich kein Weg teilen, weil
+// die leere Liste die ganze Gruppe wegnahm.
+assert.deepStrictEqual(
+	sichtbar(addHereMenuVisibility({ mode: "original", ...voll })),
+	["createCrossing", "createLocation", "createPath", "splitPathAtNode"].sort(),
+	"Original: Ort, Kreuzung, Weg (+ die kontextabhaengige Wegteilung) -- die Ansicht zeigt beides"
+);
+// 🔴 KEIN freies Label in "Original": MAP_LABEL_MODES (js/config.js) kennt nur deregraphic und
+// ecosystem, die Labels sind dort per Vorgabe aus. Man legt an, was man SIEHT.
+assert.ok(!sichtbar(addHereMenuVisibility({ mode: "original", ...voll })).includes("createLabel"),
+	"Original: kein freies Label -- die Ansicht blendet die Labels per Vorgabe aus");
+
+// "Nur Karte" bleibt vorerst leer (Owner-Entscheid steht aus, siehe Kommentar an der Tabelle).
+assert.deepStrictEqual(sichtbar(addHereMenuVisibility({ mode: "none", ...voll })), [],
+	"Nur Karte: gar nichts anzulegen -- die Gruppe faellt weg");
 
 // ---- "Hoehenpunkt setzen" (V8) --------------------------------------------------------------------
 // 🔴 Er haengt ZUSAETZLICH zur Ansicht an EINER Ebene: nur in der Topographie ist ein Gipfel sichtbar,
