@@ -331,6 +331,17 @@ function applyLabelTypeVocabulary(region, label) {
 // Der beim Oeffnen vorgefundene Stand der Kurveneinstellung -- `null` heisst „nicht bedienbar“.
 let labelCurveGeladen = null;
 
+// Der beim SPEICHERN festgehaltene Stand.
+//
+// 💣 WARUM ES IHN GIBT -- der Fehler, der ihn erzwungen hat: der Schreibweg zur Region laeuft ueber
+// `ecosystemPushLabelChangesToRegion`, und der wartet ZUERST auf `loadEcosystemRegions` -- ein
+// `await`. Genau in dieser Luecke schliesst der Submit-Handler den Dialog mit `resetForm: true`
+// (review-editor-submit.js). Wer die Bedienelemente erst danach liest, liest das ZURUECKGESETZTE
+// Formular: `getLabelCurvePayload` lieferte `null`, es wurde nichts geschrieben, und beim naechsten
+// Oeffnen stand die Kurvenbeschriftung wieder auf „aus" -- ohne Fehlermeldung, ohne Konsole.
+// Deshalb wird der Stand SYNCHRON beim Bauen des Rumpfes genommen, nicht spaeter aus dem DOM.
+let labelCurveSchnappschuss = null;
+
 // Die zwei Bedienelemente der Kurvenbeschriftung (Entwurf §2) fuellen und verriegeln.
 //
 // 🔴 SIE GEHOEREN DER REGION, nicht dem Label: eine Region traegt N Labels und M Flaechen, der Wert
@@ -367,6 +378,7 @@ function syncLabelCurveControls(region) {
 		// einem deaktivierten Haken abgeleitet wuerde, schaltete die Kurve einer Region ab, sobald
 		// jemand irgendein flaechenloses Label speichert.
 		labelCurveGeladen = null;
+		labelCurveSchnappschuss = null;
 		haken.checked = false;
 		zahl.value = "1";
 		if (regler) {
@@ -382,6 +394,7 @@ function syncLabelCurveControls(region) {
 		regler.value = String(max);
 	}
 	labelCurveGeladen = { an, max };
+	labelCurveSchnappschuss = null;   // ein neu geoeffneter Dialog erbt nichts
 }
 
 // Was dieses Speichern an der Kurveneinstellung NENNT -- oder null, wenn sich nichts bewegt hat.
@@ -390,7 +403,7 @@ function syncLabelCurveControls(region) {
 // speichern dieselbe Region: ein Dialog, der ihn bei jedem Speichern mitschickt, nimmt die Aenderung
 // des anderen wortlos zurueck. Dieselbe Regel wie beim dritten Wiki-Zustand nebenan
 // (getLabelWikiNoArticlePayload) und dieselbe, die der Server noch einmal haelt.
-function getLabelCurvePayload() {
+function leseLabelCurveAenderung() {
 	if (!labelCurveGeladen) {
 		return null;
 	}
@@ -405,6 +418,17 @@ function getLabelCurvePayload() {
 		return null;
 	}
 	return { curve_label: an, curve_label_max: max };
+}
+
+// Den beim Speichern genommenen Stand herausgeben -- und verbrauchen.
+//
+// 🔴 Er wird GELEERT, nicht bloss gelesen: ein Rumpf ohne anschliessenden Schreibweg zur Region
+// (z. B. `create_label`) liesse ihn sonst liegen, und der naechste Speichervorgang eines ganz
+// anderen Labels schriebe ihn dessen Region zu.
+function getLabelCurvePayload() {
+	const stand = labelCurveSchnappschuss;
+	labelCurveSchnappschuss = null;
+	return stand;
 }
 
 function fillLabelRegionSelect(label, region) {
@@ -714,6 +738,10 @@ function buildLabelEditPayload(formElement) {
 		payload.lng = Number.parseFloat(String(formData.get("lng") || ""));
 		delete payload.public_id;
 	}
+
+	// 💣 HIER, SYNCHRON. Der Schreibweg zur Region liest die Bedienelemente sonst erst nach einem
+	// `await` -- und da ist das Formular schon zurueckgesetzt (siehe labelCurveSchnappschuss).
+	labelCurveSchnappschuss = leseLabelCurveAenderung();
 
 	// Zuletzt genutzte Darstellung merken -> neue Labels werden damit vorbefuellt (s. populateLabelEditForm).
 	persistLabelDisplaySettings(payload);

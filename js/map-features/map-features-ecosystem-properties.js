@@ -629,6 +629,13 @@
 		regionTypesForKind = [];
 		regionAreaCount = 0;
 		regionAreaCountLoaded = false;
+		// 💣 VERRIEGELT, BIS `list_regions` DA IST. Die zwei Kurven-Bedienelemente standen sonst
+		// zwischen Oeffnen und Antwort offen und ohne Ausgangswert: wer in dieser Luecke klickte,
+		// erzeugte keine Aenderung gegenueber `kurveGeladen` (das noch `null` war) -- der Rumpf trug
+		// nichts, gespeichert wurde nichts, und beim naechsten Oeffnen stand die Kurvenbeschriftung
+		// wieder auf „aus". Ohne Fehlermeldung. Ausserdem erbte der Dialog sonst den Stand der
+		// ZULETZT geoeffneten Flaeche.
+		syncPropertiesCurve(null);
 		setPropertiesError("");
 		setPropertiesStatus("");
 		setDeleteButtonReady(false);
@@ -1702,6 +1709,17 @@
 
 		try {
 			await postEcosystemEdit("update_region", payload);
+			// Dieselbe Sofort-Anwendung wie im Beschriftungsdialog (map-features-ecosystem-label-writeback.js):
+			// der Kartenpayload wird nach einem Speichern nicht neu geholt, ohne das aendert sich am Bild
+			// nichts. ⚠️ Einschalten zeigt die Kurve erst nach „Kurven rechnen" -- sie liegt im
+			// Zwischenspeicher des Servers, den nur der Sammellauf fuellt. Ausschalten wirkt sofort.
+			if (payload.curve_label !== undefined && typeof avesmapsCurveSettingAufLabelsAnwenden === "function") {
+				avesmapsCurveSettingAufLabelsAnwenden(
+					String(payload.public_id || ""),
+					payload.curve_label === true,
+					payload.curve_label_max
+				);
+			}
 			// ⚠️ Geleert, sobald der Stempel gesetzt ist -- sonst nennte das NÄCHSTE Speichern dieselben
 			// Felder noch einmal als Wiki-Übernahme, und wer inzwischen von Hand getippt hat, bekäme
 			// „aus dem Wiki“ auf seine eigene Eingabe.

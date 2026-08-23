@@ -40,6 +40,27 @@ GRUPPEN.forEach((gruppe) => {
 	);
 });
 
+// ---- und dasselbe für die EINZELEINTRÄGE ---------------------------------------------------------
+//
+// 🪤 Diese Prüfung fehlte bis zum 23.08.2026: sie galt nur den Gruppen, nicht den Aktionen. Genau
+// deshalb ging „Beschriftung bearbeiten" ohne Glyphe live, und der Owner sah es sofort — die Zeile
+// begann 29 px weiter links als alle anderen. Eine Zusicherung, die die halbe Menge prüft, liest
+// sich wie eine, die die ganze prüft.
+// ⚠️ Die Liste wird AUS AREA_MENU_ORDER gelesen, nicht danebengeschrieben: ein neuer Eintrag ist
+// damit automatisch erfasst, ohne dass jemand diese Datei kennt.
+const AKTIONEN = [...listeLesen("AREA_MENU_ORDER").matchAll(/\{\s*typ:\s*"aktion",\s*id:\s*"([^"]+)"/g)]
+	.map((treffer) => treffer[1]);
+
+assert.ok(AKTIONEN.length >= 3, "AREA_MENU_ORDER führt kaum Einzeleinträge -- die Leseregel stimmt nicht mehr");
+
+AKTIONEN.forEach((aktion) => {
+	assert.ok(
+		hatGlyphe("data-ecosystem-area-action", aktion),
+		`Der Eintrag "${aktion}" hat keine Glyphenregel in map-context-menu.css -- `
+			+ "seine Beschriftung beginnt dann bei 12 statt bei 41 px und steht aus der Flucht."
+	);
+});
+
 // ---- beide Listen kennen dieselben Gruppen -------------------------------------------------------
 
 function listeLesen(name) {

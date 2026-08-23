@@ -120,6 +120,16 @@ async function ecosystemPushLabelChangesToRegion(label) {
 
 	try {
 		await postEcosystemEdit("update_region", payload);
+		// Die frisch gespeicherte Kurveneinstellung SOFORT auf die Karte bringen. Der Kartenpayload
+		// wird nach einem Speichern nicht neu geholt -- ohne das aendert sich am Bild nichts, und der
+		// Editor haelt sein Speichern fuer wirkungslos (gemeldet 23.08.2026).
+		if (payload.curve_label !== undefined && typeof avesmapsCurveSettingAufLabelsAnwenden === "function") {
+			avesmapsCurveSettingAufLabelsAnwenden(
+				String(region.public_id || ""),
+				payload.curve_label === true,
+				payload.curve_label_max
+			);
+		}
 		// Und die ÜBRIGEN Labels derselben Fläche: seit eine Fläche mehrere tragen darf, wäre ein
 		// umbenanntes Label neben zwei alten genau die Uneinigkeit, die hier verschwinden soll. Das
 		// gerade gespeicherte wird ausgelassen -- es trägt die neuen Werte schon.

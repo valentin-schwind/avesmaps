@@ -944,6 +944,42 @@ function shouldShowLabelMarker(entry, zoomLevel = map.getZoom(), renderBounds = 
 // erscheinendes Kurvenlabel -- fuer Plan 2 hingenommen und gemessen (Aufgabe 7), nicht behoben: die
 // Ankerpruefung gilt heute allen Labels, sie hier allein fuer Kurven zu aendern waere eine zweite
 // Sichtbarkeitsregel.
+// Eine frisch gespeicherte Kurveneinstellung SOFORT auf die Karte bringen.
+//
+// 🔴 WARUM ES DAS BRAUCHT: die Kurve reist im Kartenpayload, und der wird nach einem Speichern nicht
+// neu geholt. Ohne diesen Schritt aendert sich am Bild gar nichts -- der Editor stellt um, drueckt
+// Speichern und sieht denselben Zustand wie vorher. Genau so gemeldet am 23.08.2026
+// („speichere, nix passiert").
+//
+// ⚠️ EINSCHALTEN kann hier keine Kurve herbeizaubern: sie wird auf dem SERVER gerechnet und liegt im
+// Zwischenspeicher, den nur der Sammellauf fuellt („Kurven rechnen“ im Landschaften-Editor). Diese
+// Funktion setzt deshalb beim Einschalten nur die ANZAHL; die Kurve selbst erscheint nach dem Lauf.
+// AUSschalten dagegen wirkt sofort -- die Kurve wird entfernt, das Label ist wieder ein normales.
+function avesmapsCurveSettingAufLabelsAnwenden(regionPublicId, an, max) {
+	const eintraege = avesmapsLabelEntriesForEcosystemRegion(regionPublicId);
+	if (eintraege.length === 0) {
+		return 0;
+	}
+	for (const eintrag of eintraege) {
+		if (an === false) {
+			eintrag.label.curveLine = null;
+		}
+		if (Number.isFinite(Number(max))) {
+			eintrag.label.curveMax = Math.min(3, Math.max(1, Math.round(Number(max))));
+		}
+		// Der Marker muss neu gezeichnet werden: ohne Kurve traegt er den Namen wieder, und zwar
+		// waagerecht (Entwurf §4.3). Sein Icon kennt die Drehung, nicht die Kurve -- also neu bauen.
+		eintrag.marker.setIcon(createLabelIcon(eintrag.label));
+	}
+	// Der Kollisionsdurchgang entscheidet, wer gemalt wird und wessen Marker geht. Er ist der einzige
+	// Ort, an dem beides zusammenkommt -- ihn anzustossen ist billiger und richtiger, als hier selbst
+	// Marker an- und abzumelden.
+	if (typeof scheduleLabelCollisionResolution === "function") {
+		scheduleLabelCollisionResolution();
+	}
+	return eintraege.length;
+}
+
 // Die Beschriftungen EINER Landschaftsflaeche -- fuer „Beschriftung bearbeiten“ im Flaechenmenue.
 //
 // 🔴 Sie ist der Ersatz fuer den Marker, den der Kurvenriegel im Bearbeiten-Modus abmeldet. Ohne sie
@@ -1066,6 +1102,20 @@ function addCreatedLabelFeature(feature) {
 
 function applyLabelFeatureResponse(entry, feature) {
 	const label = normalizeLabelFeature(feature);
+	// 💣 DIE ANTWORT DES SCHREIBWEGS KENNT KEINE KURVE. Sie entsteht nur im LESEPFAD
+	// (avesmapsCurveApplyToFeatures in api/app/map-features.php); der Editor-Endpunkt gibt das nackte
+	// Feature zurueck. Ohne diese zwei Zeilen setzt `Object.assign` `curveLine` auf `null`, der
+	// Kurvenriegel greift nicht mehr, der alte waagerechte Marker kommt zurueck -- und zwar bei JEDEM
+	// Speichern eines Kurven-Labels. Genau so gemeldet am 23.08.2026 („kommt wieder das waagrechte,
+	// alte label", nach dem Erhoehen der Anzahl auf 2).
+	// 🔴 Die Kurve haengt an der GEOMETRIE der Flaeche, nicht am Label -- ein Label-Speichern kann sie
+	// gar nicht ungueltig machen. Sie zu behalten ist deshalb nicht Notbehelf, sondern richtig.
+	// ⚠️ Das AUSschalten laeuft nicht hierueber, sondern ueber avesmapsCurveSettingAufLabelsAnwenden --
+	// dort wird sie ausdruecklich entfernt.
+	if (label.curveLine === null && Array.isArray(entry.label.curveLine)) {
+		label.curveLine = entry.label.curveLine;
+		label.curveMax = entry.label.curveMax;
+	}
 	Object.assign(entry.label, label);
 	entry.marker.setLatLng(label.coordinates);
 	entry.marker.setIcon(createLabelIcon(label));
