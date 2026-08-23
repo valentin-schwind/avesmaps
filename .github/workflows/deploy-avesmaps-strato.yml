@@ -342,6 +342,51 @@ jobs:
           bye
           EOF
 
+          # 💣 DIE PUNKT-DATEIEN EXPLIZIT HINTERHER. Gemessen 23.08.2026: in VIER aufeinander-
+          # folgenden gruenen Deploys steht im Uebertragungsprotokoll KEINE einzige .htaccess --
+          # auch dann nicht, wenn sie neu im Paket lag und ihr Pfad in der Allowlist stand. Die
+          # Schutzdateien auf dem Server sind von HAND dorthin gekommen.
+          # 🔴 Warum das gefaehrlich ist: wer eine Schutz-.htaccess ins Repo legt, sieht sie im
+          # Diff, sieht den Deploy gruen -- und haelt den Bereich fuer geschuetzt. Er ist es nicht.
+          # Betrifft api/_internal, api/_schema, api/diagnostics, scripts, tools/wikidump und
+          # uploads/db-backups (dort liegen Dumps mit Passwort-Hashes).
+          # ⚠️ Hier wird NICHT auf lftp-Verhalten vertraut (list-options, glob, Protokollvariante),
+          # sondern jede Datei einzeln benannt. Explizit schlaegt "sollte eigentlich".
+          if [[ "${{ inputs.dry_run }}" != "true" ]]; then
+            dotfile_script="$RUNNER_TEMP/lftp-dotfiles.txt"
+            : > "$dotfile_script"
+            {
+              echo "set sftp:auto-confirm yes"
+              echo "set net:max-retries 2"
+              echo "set net:timeout 30"
+              echo "cd \"$AVESMAPS_REMOTE_PATH\""
+            } >> "$dotfile_script"
+
+            dotfile_count=0
+            while IFS= read -r found; do
+              rel="${found#"$DEPLOY_DIR"/}"
+              dir="$(dirname "$rel")"
+              if [[ "$dir" == "." ]]; then
+                echo "put -O . \"$found\"" >> "$dotfile_script"
+              else
+                echo "mkdir -f -p \"$dir\"" >> "$dotfile_script"
+                echo "put -O \"$dir\" \"$found\"" >> "$dotfile_script"
+              fi
+              echo "  $rel"
+              dotfile_count=$((dotfile_count + 1))
+            done < <(find "$DEPLOY_DIR" -type f -name ".htaccess" | sort)
+
+            echo "bye" >> "$dotfile_script"
+
+            if [[ "$dotfile_count" -eq 0 ]]; then
+              echo "Keine .htaccess im Paket -- nichts nachzureichen."
+            else
+              echo "Reiche $dotfile_count .htaccess-Datei(en) einzeln nach."
+              lftp -u "$AVESMAPS_USER","$AVESMAPS_PASSWORD" -p "$AVESMAPS_PORT"                 "sftp://$AVESMAPS_HOST" -f "$dotfile_script"
+              echo "Punkt-Dateien nachgereicht."
+            fi
+          fi
+
       - name: Retire orphaned remote files
         if: env.SKIP_DEPLOY != 'true'
         shell: bash
