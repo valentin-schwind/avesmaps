@@ -81,8 +81,14 @@ function avesmapsWikiDateiAbrufErlaubt(string $url): bool {
  * dieser hier endet mit der Anfrage, in der er gesetzt wurde. Wer ihn setzt, hat den Lauf
  * gerade selbst gestartet.
  *
- * ⚠️ Gesetzt wird er an genau EINER Stelle (`avesmapsWikiBilderLokalisierenLauf`), und der
- * Endpunkt davor verlangt eine Faehigkeit. Wer ihn woanders setzt, hebelt den Riegel aus.
+ * ⚠️ Gesetzt wird er NUR ueber `avesmapsWikiAusdruecklicherAbruf` unten -- heute von zwei
+ * Stellen: dem Upload per Bild-URL (`edit/wiki/settlement-coat-upload.php`) und dem
+ * Territorien-Wappen-Download (`wiki/sync-monitor-identity.php`). Beide verlangen eine
+ * Faehigkeit. Wer ihn woanders setzt, hebelt den Riegel aus.
+ * 🪤 Hier stand „an genau EINER Stelle (`avesmapsWikiBilderLokalisierenLauf`)" -- den Lauf gibt
+ * es seit dem 23.08.2026 nicht mehr (Owner: der Knopf „Bilder lokalisieren" ist raus). Eine ZAHL
+ * in einem Kommentar veraltet still; sie war schon damals falsch, weil der Wrapper zwei weitere
+ * Aufrufer hatte.
  */
 function avesmapsWikiLokalisierungLaeuft(?bool $setzen = null): bool {
     static $laeuft = false;

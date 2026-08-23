@@ -34,10 +34,14 @@ declare(strict_types=1);
  * laeuft nie ohne seine Drossel weiter. Genau dieser Zustand (Proxy ohne Bremse) war der
  * Vorfall.
  *
- * ⭐ Seit 23.08.2026 gibt es davor den Lokalisierer (`wiki/bilder-lokalisieren.php`): er holt
- * jedes Bild EINMAL auf unsere Platte, und `avesmapsCoatLokaleKopie` liefert es danach
- * statisch aus. Ist dieser Bestand vollstaendig, laeuft die Drossel leer -- sie bleibt als
- * Sicherung fuer den Tag, an dem jemand den Riegel wieder oeffnet.
+ * ⭐ Davor liegt `avesmapsCoatLokaleKopie`: was auf unserer Platte liegt, wird statisch
+ * ausgeliefert und kommt hier gar nicht erst an. Die Drossel laeuft deshalb im Normalbetrieb
+ * leer -- sie bleibt als Sicherung fuer den Tag, an dem jemand den Riegel wieder oeffnet.
+ * 🪤 Hier stand ein Verweis auf den Lauf `wiki/bilder-lokalisieren.php`. Den gibt es seit dem
+ * 23.08.2026 nicht mehr: er holte drei Feldarten, von denen nur eine je auf der Karte erschien
+ * (Regionenbilder) -- die anderen beiden landeten auf der Platte, ohne dass ein Leser sie las.
+ * ⚠️ Die BEREITS geholten Dateien bleiben liegen und werden weiter ausgeliefert; nur neue kommen
+ * nicht mehr dazu. Wer sie wieder braucht, baut den Lauf neu -- dann bitte nur fuer das eine Feld.
  *
  * ⚠️ Ohne DB und ohne DDL: das hier laeuft auf einem oeffentlichen, heissen Pfad (dieselbe
  * Begruendung wie `avesmapsCoatSwitchEnabledFast`).
