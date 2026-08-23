@@ -2,6 +2,12 @@
 
 declare(strict_types=1);
 
+// 💣 AUF DATEIEBENE, nicht in der Funktion. avesmapsWikiAusdruecklicherAbruf wird weiter
+// unten aus einer ANDEREN Funktion gerufen; laege das require nur in
+// avesmapsWikiSyncMonitorHttpGetBinary, waere sie ungeladen, solange jene nicht lief --
+// ein Fatal Error, und ein Fatal antwortet mit LEEREM Rumpf ("Unexpected end of JSON").
+require_once __DIR__ . '/datei-riegel.php';
+
 // Identity / coat-of-arms / field-override apply (editable fields, coat upload,
 // identity & coats preview/apply/revert, capital resolution), split out of
 // sync-monitor.php (M5 god-file split). Required by sync-monitor.php; relies on its
@@ -38,7 +44,6 @@ function avesmapsWikiSyncMonitorHttpGetBinary(string $url): ?array {
     // 🔴 DER RIEGEL. Diese eine Funktion traegt VIER Aufrufer -- Territoriums-Wappen, Wappen-Upload,
     // „Wappen lokalisieren" und die Literatur-Cover. Hier zu fragen bindet alle vier auf einmal;
     // eine Sperre in nur einem Aufrufer waere keine Sperre (die Lehre vom 14.08.2026).
-    require_once __DIR__ . '/datei-riegel.php';
     if (!avesmapsWikiDateiAbrufErlaubt($url)) {
         return null;
     }
@@ -360,9 +365,18 @@ function avesmapsWikiSyncMonitorUploadCoat(PDO $pdo, string $wikiKey, string $so
         if ($scheme !== 'http' && $scheme !== 'https') {
             return ['ok' => false, 'error' => 'Bild-URL muss mit http(s):// beginnen.'];
         }
-        $downloaded = avesmapsWikiSyncMonitorHttpGetBinary($sourceUrl);
+        // 🔴 Ausdrueckliche Editor-Aktion: der Riegel gilt der ANZEIGE, nicht dem Knopfdruck.
+        // Ohne diese Freigabe schlug ein Upload per Wiki-Bild-URL seit dem Riegel fehl.
+        $downloaded = avesmapsWikiAusdruecklicherAbruf(
+            static fn (): ?array => avesmapsWikiSyncMonitorHttpGetBinary($sourceUrl)
+        );
         if ($downloaded === null) {
-            return ['ok' => false, 'error' => 'Bild konnte von der URL nicht geladen werden.'];
+            // ⚠️ Der Grund gehoert in die Meldung. Zeigt die Adresse aufs Wiki und wir sind dort
+            // gesperrt, ist das KEIN Bedienfehler -- ohne diesen Satz sucht der Editor bei sich.
+            return ['ok' => false, 'error' => avesmapsWikiDateiIstWikiHost($sourceUrl)
+                ? 'Wiki Aventurica hat die Anfrage verweigert (502). Das Bild laesst sich derzeit '
+                  . 'nicht von dort holen -- bitte die Datei direkt hochladen.'
+                : 'Bild konnte von der URL nicht geladen werden.'];
         }
         $bytes = $downloaded['bytes'];
         $contentType = $downloaded['content_type'];

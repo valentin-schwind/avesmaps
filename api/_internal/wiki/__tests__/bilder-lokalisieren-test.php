@@ -80,6 +80,36 @@ assert(avesmapsWikiDateiAbrufErlaubt($url) === false,
     '💣 und danach ist SOFORT wieder zu. Ein Lauf, der die Freigabe stehen laesst, oeffnet den '
     . 'Riegel fuer alles Uebrige in derselben Anfrage.');
 
+// ---- 3b. Der Wrapper fuer ausdrueckliche Editor-Aktionen ------------------------------------
+// 💣 Er behebt eine Regression, die der Riegel eingebaut hatte: der Territorien-Upload nimmt seit
+// jeher eine BILD-URL an und holt sie ueber denselben Fetcher. Seit dem Riegel schlug das fehl.
+$ergebnis = avesmapsWikiAusdruecklicherAbruf(static function () use ($url): bool {
+    return avesmapsWikiDateiAbrufErlaubt($url);
+});
+assert($ergebnis === true, 'innerhalb des Wrappers ist der Abruf erlaubt');
+assert(avesmapsWikiDateiAbrufErlaubt($url) === false, 'danach sofort wieder zu');
+
+// 💣 Auch wenn der Block WIRFT, muss die Freigabe zurueckgenommen werden -- sonst bleibt der
+// Riegel fuer alles Uebrige in derselben Anfrage offen.
+try {
+    avesmapsWikiAusdruecklicherAbruf(static function (): void {
+        throw new RuntimeException('Abbruch mittendrin');
+    });
+    assert(false, 'der Wurf muss durchgereicht werden');
+} catch (RuntimeException $e) {
+    // erwartet
+}
+assert(avesmapsWikiDateiAbrufErlaubt($url) === false,
+    'DER KERN: nach einem Wurf ist der Riegel wieder zu, nicht offen stehen geblieben');
+
+// ⚠️ Verschachtelt: der innere Aufruf darf die Freigabe des aeusseren nicht mitschliessen.
+avesmapsWikiAusdruecklicherAbruf(static function () use ($url): void {
+    avesmapsWikiAusdruecklicherAbruf(static fn (): bool => true);
+    assert(avesmapsWikiDateiAbrufErlaubt($url) === true,
+        'nach dem inneren Block ist der aeussere noch offen');
+});
+assert(avesmapsWikiDateiAbrufErlaubt($url) === false, 'und ganz am Ende wieder zu');
+
 // 🔴 Die Freigabe steht im Code hinter try/finally -- sonst laesst ein Wurf mittendrin sie offen.
 $quelle = (string) file_get_contents(__DIR__ . '/../bilder-lokalisieren.php');
 $abLauf = substr($quelle, strpos($quelle, 'function avesmapsWikiBilderLokalisierenLauf'));

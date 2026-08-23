@@ -1,0 +1,18 @@
+# Wappen-Verzeichnis. Hier liegen hochgeladene und lokalisierte Bilder, die der Webserver DIREKT
+# ausliefert -- ohne die Schutz-Kopfzeilen, die api/app/coat.php setzt.
+#
+# 💣 EIN SVG IST EIN DOKUMENT, KEIN BILD. Es kann <script> enthalten, und direkt aufgerufen liefe
+# das im Ursprung von avesmaps.de -- mit Zugriff auf die Sitzung eines angemeldeten Editors. Als
+# <img src> ist ein SVG inert, aber die Datei ist unter ihrer eigenen Adresse erreichbar, und der
+# Territorien-Upload nimmt SVG seit jeher an. Dieselben Kopfzeilen wie in coat.php, damit beide
+# Wege gleich geschuetzt sind.
+#
+# ⚠️ In <IfModule> gekapselt mit Absicht: eine .htaccess mit einer Direktive, die das Modul nicht
+# kennt, quittiert das GANZE Verzeichnis mit HTTP 500 -- dann waeren schlagartig alle Wappen weg.
+# So bleibt sie im schlimmsten Fall wirkungslos statt schaedlich.
+<IfModule mod_headers.c>
+    <FilesMatch "\.svg$">
+        Header always set Content-Security-Policy "default-src 'none'; style-src 'unsafe-inline'; sandbox"
+        Header always set X-Content-Type-Options "nosniff"
+    </FilesMatch>
+</IfModule>

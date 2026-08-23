@@ -91,3 +91,36 @@ function avesmapsWikiLokalisierungLaeuft(?bool $setzen = null): bool {
     }
     return $laeuft;
 }
+
+/**
+ * FUEHRT ETWAS ALS AUSDRUECKLICHE EDITOR-AKTION AUS -- der Riegel ist waehrenddessen offen.
+ *
+ * 🔴 Der Riegel gilt der ANZEIGE: jedem Bild, das eine Seite beim Aufbau von sich aus anfordert.
+ * Er gilt NICHT dem Editor, der auf einen Knopf drueckt und dabei weiss, dass jetzt eine Anfrage
+ * nach draussen geht. Genau drei Dinge sind solche Aktionen: der Lokalisierungslauf, ein Upload
+ * per Bild-URL und das Zuruecksetzen eines Wappens auf den Wiki-Stand.
+ *
+ * 💣 Ohne diesen Weg haette der Riegel eine Funktion mitgenommen, die es vorher gab: der
+ * Territorien-Upload nimmt seit jeher eine Bild-URL an und holt sie ueber denselben Fetcher.
+ * Seit dem Riegel schlug das mit „Bild konnte von der URL nicht geladen werden" fehl -- eine
+ * Regression, die wie ein Netzfehler aussieht.
+ *
+ * ⚠️ Immer ueber diesen Wrapper, nie mit `avesmapsWikiLokalisierungLaeuft(true)` von Hand: das
+ * `finally` hier nimmt die Freigabe auch dann zurueck, wenn der Block wirft. Eine haengengebliebene
+ * Freigabe oeffnet den Riegel fuer alles Uebrige in derselben Anfrage.
+ *
+ * @template T
+ * @param callable():T $tun
+ * @return T
+ */
+function avesmapsWikiAusdruecklicherAbruf(callable $tun) {
+    $vorher = avesmapsWikiLokalisierungLaeuft();
+    avesmapsWikiLokalisierungLaeuft(true);
+    try {
+        return $tun();
+    } finally {
+        // Auf den VORHERIGEN Stand, nicht hart auf false -- sonst schliesst ein verschachtelter
+        // Aufruf die Freigabe des aeusseren mit.
+        avesmapsWikiLokalisierungLaeuft($vorher);
+    }
+}
