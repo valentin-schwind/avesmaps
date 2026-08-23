@@ -258,7 +258,7 @@ $renderNode = static function (array $node, string $parentPath, int $depth) use 
     <!-- Hand-written on purpose: the deploy's asset stamper only follows index.html and
          html/*.html, so it never reaches this PHP page. Bump these whenever the stylesheet
          or either script changes, or admins keep the cached files. See AGENTS.md sec.7. -->
-    <link rel="stylesheet" href="../css/pages/svg-export.css?v=20260823-kartenarchiv" />
+    <link rel="stylesheet" href="../css/pages/svg-export.css?v=20260824-karte-herunterladen" />
 </head>
 
 <body class="edit-page">
@@ -299,7 +299,7 @@ $renderNode = static function (array $node, string $parentPath, int $depth) use 
             </header>
 
             <section class="svgx-panel" aria-labelledby="svgx-title">
-                <h1 id="svgx-title">Karte als SVG herunterladen</h1>
+                <h1 id="svgx-title">Karte herunterladen</h1>
                 <p class="svgx-lead">Die ganze Karte als <strong>bearbeitbare Vektorgrafik</strong>: jede Ebene eine Gruppe, jedes Element benannt.</p>
                 <p class="svgx-hint">Der Browser baut die Datei; die Kartendaten sind rund 20&nbsp;MB, das dauert einen Moment. Tab offen lassen.</p>
 
@@ -307,13 +307,13 @@ $renderNode = static function (array $node, string $parentPath, int $depth) use 
                     <h2 class="svgx-group__title">Für welches Programm?</h2>
                     <fieldset class="svgx-choices">
                         <label class="svgx-choice">
-                            <input type="radio" name="svgx-dialect" value="illustrator" checked />
+                            <input type="radio" name="svgx-dialect" value="illustrator" />
                             <span>Illustrator
                                 <span class="svgx-choice__note">&ndash; Objektnamen stehen in der <code>id</code></span>
                             </span>
                         </label>
                         <label class="svgx-choice">
-                            <input type="radio" name="svgx-dialect" value="inkscape" />
+                            <input type="radio" name="svgx-dialect" value="inkscape" checked />
                             <span>Inkscape
                                 <span class="svgx-choice__note">&ndash; echte Ebenen, Namen in <code>inkscape:label</code></span>
                             </span>
@@ -381,11 +381,11 @@ $renderNode = static function (array $node, string $parentPath, int $depth) use 
                     <h2 class="svgx-group__title">Glätten?</h2>
                     <div class="svgx-size">
                         <label class="svgx-choice">
-                            <input type="checkbox" id="svgx-smooth" />
+                            <input type="checkbox" id="svgx-smooth" checked />
                             <span>Linien &ndash; Wege, Fl&uuml;sse, Kraftlinien</span>
                         </label>
                         <label class="svgx-choice">
-                            <input type="checkbox" id="svgx-smooth-areas" />
+                            <input type="checkbox" id="svgx-smooth-areas" checked />
                             <span>Fl&auml;chen &ndash; Landschaften, K&uuml;ste, Klimaz&uuml;ge</span>
                         </label>
                         <label class="svgx-size__field">
@@ -453,7 +453,7 @@ $renderNode = static function (array $node, string $parentPath, int $depth) use 
                      dieser Seite ist „SVG erzeugen", und eine Zeilenhandlung ist nie die
                      Haupthandlung (design-language.md). -->
                 <div class="svgx-group">
-                    <h2 class="svgx-group__title">Originalkarte herunterladen</h2>
+                    <h2 class="svgx-heading">Originalkarte herunterladen</h2>
                     <p class="svgx-lead">Das Bildmaterial, aus dem diese Karte gebaut ist &ndash; die Gesamtkarte und die fertigen Kacheln.</p>
                     <?php if ($kartenarchive === []) : ?>
                         <p class="svgx-hint">In <code>uploads/map/</code> liegt derzeit kein Archiv.</p>

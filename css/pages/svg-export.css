@@ -22,7 +22,13 @@
 	box-sizing: border-box;
 }
 
-.svgx-panel h1 {
+/* Der Seitenkopf UND die Ueberschrift des Archivabschnitts: die zwei Angebote dieser Seite --
+   eine Vektorgrafik bauen und die Originalkarte holen -- stehen auf derselben Stufe und sehen
+   deshalb gleich aus. EINE Regel, keine Abschrift: zwei Fassungen derselben Ueberschrift laufen
+   auseinander, sobald jemand eine davon anfasst. `.svgx-heading` sitzt auf einem <h2> -- gleich
+   ist die FORM, die Stufe im Dokument bleibt richtig. */
+.svgx-panel h1,
+.svgx-panel .svgx-heading {
 	margin: 0 0 6px 0;
 	font-size: 22px;
 	color: var(--color-text-strong);
