@@ -38,6 +38,18 @@ Options -Indexes
 # damit die aktuellen ?v=-Hashes immer ankommen. Bilder/Fonts: moderates Caching.
 <IfModule mod_rewrite.c>
     RewriteEngine On
+    # --- Authorization an PHP durchreichen -------------------------------------------
+    # 💣 STRATO REICHT DEN KOPF NICHT VON SELBST DURCH. Gemessen 23.08.2026: eine Anfrage mit
+    #    `Authorization: Bearer …` an /api/svg-export-deposit.php lief in den Sitzungszweig
+    #    (erkennbar am gesetzten PHPSESSID), $_SERVER['HTTP_AUTHORIZATION'] war also leer --
+    #    JEDER Token wirkte falsch, und die Antwort war 401 wie bei einem echten Fehlversuch.
+    #    Das ist die klassische CGI/FastCGI-Falle: Apache haelt den Kopf zurueck, weil er ihn
+    #    fuer die eigene Authentifizierung haelt.
+    # ⚠️ Das E= landet je nach Aufbau in HTTP_AUTHORIZATION ODER REDIRECT_HTTP_AUTHORIZATION;
+    #    die Leser im Projekt fragen beide (avesmapsSvgExportBearerAusAnfrage).
+    # 🔴 Ohne [L], damit die Regeln darunter (Host-Kanonisierung, HTTPS) weiterlaufen.
+    RewriteCond %{HTTP:Authorization} .
+    RewriteRule ^ - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
     # --- Commercial SEO backlink scrapers: 403 --------------------------------------
     # They crawl completely and return nothing to this project. First rule in the file so a
     # blocked request costs one regex, not a redirect chain plus PHP.

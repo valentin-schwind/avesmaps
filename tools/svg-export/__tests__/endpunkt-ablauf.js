@@ -30,6 +30,14 @@ const aufgeraeumt = [];
 
 function ende(code) {
 	aufgeraeumt.forEach((p) => { try { fs.unlinkSync(p); } catch { /* schon weg */ } });
+	// 💣 AUCH DIE SPERRE, die der Endpunkt SELBST angelegt hat. Sie steht in keiner
+	// `aufgeraeumt`-Liste, weil dieser Test sie nicht geschrieben hat -- die Selbstheilung tat
+	// es. Blieb sie liegen, sah der naechste Unit-Test eine Datei, die er fuer eine Repo-Kopie
+	// hielt, und wurde rot: ein Testlauf, der den naechsten vergiftet.
+	try {
+		for (const f of fs.readdirSync(ABLAGE)) { fs.unlinkSync(path.join(ABLAGE, f)); }
+		fs.rmdirSync(ABLAGE);
+	} catch { /* nicht da, oder ein echter Abzug liegt drin -- dann anfassen wir nichts */ }
 	if (server) { server.kill(); }
 	process.exit(code);
 }
@@ -95,9 +103,22 @@ async function main() {
 	assert.strictEqual(falsch.status, 401, "ein falscher Token muss 401 geben");
 	const falschJson = await falsch.json();
 	assert.strictEqual(falschJson.error.code, "unauthorized");
-	// 💣 Fehlender und falscher Token sind von aussen NICHT zu unterscheiden -- sonst verriete
-	// der Endpunkt einem Probierer, dass sein Format stimmt.
-	assert.deepStrictEqual(falschJson, ohneJson, "beide Faelle antworten gleich");
+	// 💣 DIE REGEL IST NICHT „alle 401 sind gleich", sondern: der Endpunkt verraet nichts ueber
+	// den TOKEN. Code und Meldung sind darum in jedem Fall dieselben...
+	assert.strictEqual(falschJson.error.code, ohneJson.error.code);
+	assert.strictEqual(falschJson.error.message, ohneJson.error.message);
+	// ...und ZWEI verschiedene falsche Token antworten identisch. Das ist die eigentliche
+	// Zusicherung gegen einen Probierer: er lernt nie, ob sein Format, seine Laenge oder sein
+	// Praefix stimmt.
+	const falsch2 = await hole({ Authorization: "Bearer voellig-anders-und-viel-laenger-" + TOKEN.slice(0, 5) });
+	assert.deepStrictEqual(await falsch2.json(), falschJson,
+		"zwei falsche Token sind nicht auseinanderzuhalten");
+	// ⚠️ `auth_header_seen` unterscheidet sehr wohl -- aber nur, OB ein Kopf ankam, was der
+	// Aufrufer selbst weiss. Ohne diese Angabe hat am 23.08.2026 eine halbe Stunde gefehlt:
+	// STRATO reichte den Kopf nicht durch, jeder Token wirkte falsch, und die 401 sah aus wie
+	// ein gewoehnlicher Fehlversuch.
+	assert.strictEqual(ohneJson.error.auth_header_seen, false, "ohne Kopf: nicht gesehen");
+	assert.strictEqual(falschJson.error.auth_header_seen, true, "mit Kopf: gesehen");
 	sagen(`2. falscher Token          -> ${falsch.status} ${falschJson.error.code}`);
 
 	// ---- 3. Praefix des richtigen Tokens -> 401 -----------------------------------------

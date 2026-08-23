@@ -63,7 +63,8 @@ if (!avesmapsSvgExportTokenPasst($erwarteterToken, $gegebenerToken)) {
     // ⚠️ EINE Antwort fuer „kein Token" und „falscher Token". Sie zu unterscheiden verriete
     // einem Probierer, dass sein Format stimmt. Der Token selbst wird nirgends protokolliert.
     header('WWW-Authenticate: Bearer realm="avesmaps-svg-export"');
-    avesmapsErrorResponse(401, 'unauthorized', 'Gueltiger Bearer-Token erforderlich.');
+    avesmapsErrorResponse(401, 'unauthorized', 'Gueltiger Bearer-Token erforderlich.',
+        avesmapsSvgExportAbsageDetails($_SERVER));
 }
 
 // 🔴 ERST HIER, nach dem Riegel: die Sperre der Ablage heilt sich zur Laufzeit (Hausmuster,

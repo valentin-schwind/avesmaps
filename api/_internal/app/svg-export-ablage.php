@@ -258,6 +258,48 @@ function avesmapsSvgExportBearerAusAnfrage(array $server): string {
 }
 
 /**
+ * Kam ueberhaupt ein `Authorization`-Kopf an?
+ *
+ * 🔴 DAS GEHOERT IN DIE ABSAGE. Am 23.08.2026 hat genau diese Frage eine halbe Stunde
+ * gekostet: STRATO reichte den Kopf nicht an PHP durch (CGI-Falle), also wirkte JEDER Token
+ * falsch -- und die 401 sah aus wie ein gewoehnlicher Fehlversuch. Von aussen war der
+ * Unterschied nicht zu sehen; gefunden wurde er ueber ein Session-Cookie, das der Endpunkt
+ * nebenbei setzte. „Eine Absage ohne Grund ist von aussen unauffindbar."
+ *
+ * ⚠️ UND ES VERRAET NICHTS. Der Aufrufer weiss selbst, ob er einen Kopf geschickt hat -- die
+ * Angabe sagt ihm nur, ob der Server ihn AUCH gesehen hat. Ueber den Token selbst, seine
+ * Laenge oder sein Format steht darin kein Wort; „Kopf kam an, Token falsch" und „Kopf kam an,
+ * Token richtig" bleiben ununterscheidbar.
+ */
+function avesmapsSvgExportAuthKopfGesehen(array $server): bool {
+    foreach (['HTTP_AUTHORIZATION', 'REDIRECT_HTTP_AUTHORIZATION'] as $name) {
+        if (trim((string) ($server[$name] ?? '')) !== '') {
+            return true;
+        }
+    }
+
+    if (function_exists('apache_request_headers')) {
+        $koepfe = apache_request_headers();
+        if (is_array($koepfe)) {
+            foreach ($koepfe as $name => $wert) {
+                if (strcasecmp((string) $name, 'Authorization') === 0 && trim((string) $wert) !== '') {
+                    return true;
+                }
+            }
+        }
+    }
+
+    return false;
+}
+
+/**
+ * Die Zusatzangaben, die jede 401 dieses Features mitfuehrt. Siehe oben, warum.
+ */
+function avesmapsSvgExportAbsageDetails(array $server): array {
+    return ['auth_header_seen' => avesmapsSvgExportAuthKopfGesehen($server)];
+}
+
+/**
  * Zeitgleicher Vergleich. Ein leerer erwarteter Token darf NIE passen -- sonst oeffnete eine
  * vergessene Umgebungsvariable den Endpunkt fuer jeden, der irgendetwas schickt.
  */

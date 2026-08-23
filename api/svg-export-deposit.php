@@ -66,7 +66,8 @@ if (!$erlaubt && $gegeben === '') {
 if (!$erlaubt) {
     header('WWW-Authenticate: Bearer realm="avesmaps-svg-export-deposit"');
     avesmapsErrorResponse(401, 'unauthorized',
-        'Admin-Sitzung oder gueltiger Ablage-Token erforderlich.');
+        'Admin-Sitzung oder gueltiger Ablage-Token erforderlich.',
+        avesmapsSvgExportAbsageDetails($_SERVER));
 }
 
 $verzeichnis = avesmapsSvgExportEnsureAblage();

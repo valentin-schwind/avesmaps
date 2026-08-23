@@ -106,6 +106,32 @@ assert(str_contains($codeEndpunkt, 'readfile('),
 assert(!str_contains($codeEndpunkt, 'file_get_contents($abzug'),
     '8 MB in einer PHP-Variable sind auf dem Shared Hosting genau die Last, die AGENTS.md sec.10 meint');
 
+// ---- 3b. Die Absage sagt, ob der Kopf ueberhaupt ankam --------------------------------------
+// 🔴 Am 23.08.2026 reichte STRATO den Authorization-Kopf nicht an PHP durch (CGI-Falle). Jeder
+// Token wirkte falsch, und die 401 war von einem echten Fehlversuch nicht zu unterscheiden --
+// gefunden wurde es ueber ein Session-Cookie, das der Endpunkt nebenbei setzte.
+assert(avesmapsSvgExportAuthKopfGesehen([]) === false);
+assert(avesmapsSvgExportAuthKopfGesehen(['HTTP_AUTHORIZATION' => 'Bearer x']) === true);
+assert(avesmapsSvgExportAuthKopfGesehen(['REDIRECT_HTTP_AUTHORIZATION' => 'Bearer x']) === true);
+assert(avesmapsSvgExportAuthKopfGesehen(['HTTP_AUTHORIZATION' => '   ']) === false,
+    'ein leerer Kopf ist kein Kopf');
+// ⚠️ Auch ein Kopf, den der Leser nicht verwerten kann (kein Bearer), ist ANGEKOMMEN -- genau
+// diese Unterscheidung ist der Sinn der Angabe.
+assert(avesmapsSvgExportAuthKopfGesehen(['HTTP_AUTHORIZATION' => 'Basic abc']) === true);
+assert(avesmapsSvgExportBearerAusAnfrage(['HTTP_AUTHORIZATION' => 'Basic abc']) === '',
+    'verwertbar ist er trotzdem nicht');
+
+// 💣 UND SIE VERRAET NICHTS UEBER DEN TOKEN. Richtig und falsch muessen dieselbe Antwort
+// ergeben -- sonst haette ein Probierer eine Rueckmeldung, und genau dagegen sind die beiden
+// 401-Faelle zusammengelegt.
+$mitRichtig = avesmapsSvgExportAbsageDetails(['HTTP_AUTHORIZATION' => 'Bearer geheim']);
+$mitFalsch = avesmapsSvgExportAbsageDetails(['HTTP_AUTHORIZATION' => 'Bearer falsch']);
+assert($mitRichtig === $mitFalsch, 'die Angabe haengt am KOPF, nicht am Wert');
+assert(array_keys($mitRichtig) === ['auth_header_seen'], 'genau ein Feld, nichts sonst');
+// Und sie hängt in beiden Endpunkten an der 401.
+assert(substr_count($codeEndpunkt, 'avesmapsSvgExportAbsageDetails($_SERVER)') === 1);
+assert(substr_count($codeAblegen, 'avesmapsSvgExportAbsageDetails($_SERVER)') === 1);
+
 // ---- 4. Der Vergleich ------------------------------------------------------------------------
 assert(avesmapsSvgExportTokenPasst('geheim', 'geheim') === true);
 assert(avesmapsSvgExportTokenPasst('geheim', 'Geheim') === false);
@@ -242,8 +268,15 @@ assert(str_ends_with(str_replace(DIRECTORY_SEPARATOR, '/', $verzeichnis), '/uplo
 // zweite, veraltende Fassung. Gemessen 23.08.2026: genau das ist beim Backup der Fall, dessen
 // Repo-Datei traegt CRLF und seine PHP-Konstante LF, also schreibt es die Sperre bei JEDEM Lauf
 // neu, ohne dass es jemandem auffiele.
-assert(!is_file(dirname(__DIR__, 4) . '/uploads/svg-export/.htaccess'),
-    'keine Repo-Kopie -- die Konstante im Code ist die Quelle');
+// 💣 GEFRAGT WIRD .gitignore, NICHT DIE PLATTE. Auf der Platte LIEGT die Sperre, sobald der
+// Endpunkt einmal lief -- sie heilt sich ja selbst. Ein `is_file`-Test verwechselt dieses
+// Laufzeit-Erzeugnis mit einer Repo-Kopie und wird rot, sobald jemand vorher einen Ablauftest
+// gefahren hat. Gemeint ist: das Verzeichnis kann gar nicht ins Repo geraten.
+$ignoriert = (string) file_get_contents(dirname(__DIR__, 4) . '/.gitignore');
+assert(str_contains($ignoriert, 'uploads/svg-export/'),
+    'die Ablage ist ignoriert');
+assert(!str_contains($ignoriert, '!uploads/svg-export/'),
+    'und ohne Ausnahme -- keine Repo-Kopie der Sperre, die veralten koennte');
 assert(str_contains(AVESMAPS_SVG_EXPORT_HTACCESS, 'Require all denied')
     && str_contains(AVESMAPS_SVG_EXPORT_HTACCESS, 'Deny from all'),
     'beide Apache-Fassungen, wie bei uploads/db-backups und uploads/dumps');
