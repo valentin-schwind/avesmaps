@@ -25,13 +25,36 @@
  *
  * ⚠️ Nur wiki-aventurica.de wird geleitet -- coat.php hat aus gutem Grund eine Host-Allowlist gegen
  * SSRF und lehnt alles andere ab. Eine fremde Bildadresse bleibt deshalb, wie sie ist.
+ *
+ * 🔴 23.08.2026 -- ZU. Owner: „SCHALT DAS ENDLICH AB." Eine Wiki-Adresse wird seither GAR NICHT
+ * mehr angefragt, auch nicht ueber den eigenen Cache: sie bekommt den leeren Schild. Der Riegel im
+ * Server (datei-riegel.php) haelt das Wiki frei, aber der Browser fragte weiter unseren eigenen
+ * Endpunkt -- eine Ortsliste sind 3.538 Anfragen an uns selbst, alle mit 503, und die Konsole des
+ * Editors lief damit voll. Hier zu antworten statt dort abzuweisen spart beide Haelften.
+ *
+ * 💣 DER PLATZHALTER IST NICHT "" -- ein leeres src laesst den Browser die SEITE als Bild laden.
+ * Es ist derselbe leere Schild, den der Schalter „Wappen: Aus" einsetzt, damit jede
+ * Layout-Entscheidung (Groesse, object-fit, der has-coat-Zweig) unangetastet bleibt.
+ *
+ * 💣 GEKOPPELTER WERT IN ZWEI DATEIEN: `AVESMAPS_WAPPEN_VOM_WIKI_ERLAUBT` hier und
+ * `AVESMAPS_WIKI_DATEI_ABRUF_ERLAUBT` in `api/_internal/wiki/datei-riegel.php`. Wer nur den Server
+ * wieder aufmacht, sieht weiter Schilde; wer nur hier aufmacht, bekommt 503 statt Wappen. Beide
+ * zusammen umlegen.
  */
+
+// 🔴 Der Schalter. `false` = keine Wappenadresse des Wikis wird angefragt.
+const AVESMAPS_WAPPEN_VOM_WIKI_ERLAUBT = false;
+// Der leere Schild (500x500), schon vom Schalter „Wappen: Aus" benutzt.
+const AVESMAPS_WAPPEN_PLATZHALTER = "/img/wappen.png";
 function avesmapsCoatSrc(url) {
 	const value = String(url || "").trim();
 	if (value === "") {
 		return "";
 	}
 	if (/^https?:\/\/([a-z0-9-]+\.)?wiki-aventurica\.de\//iu.test(value)) {
+		if (!AVESMAPS_WAPPEN_VOM_WIKI_ERLAUBT) {
+			return AVESMAPS_WAPPEN_PLATZHALTER;
+		}
 		return "/api/app/coat.php?u=" + encodeURIComponent(value);
 	}
 	return value;
@@ -40,5 +63,5 @@ function avesmapsCoatSrc(url) {
 // Fuer den Test in Node -- im Browser ist `avesmapsCoatSrc` schlicht global (Hausmuster:
 // js/ui/listen-statuskreis.js).
 if (typeof module !== "undefined" && module.exports) {
-	module.exports = { avesmapsCoatSrc };
+	module.exports = { avesmapsCoatSrc, AVESMAPS_WAPPEN_VOM_WIKI_ERLAUBT, AVESMAPS_WAPPEN_PLATZHALTER };
 }
