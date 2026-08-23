@@ -31,11 +31,15 @@ assert.ok(
 	"Die Beschriftung braucht einen i18n-Schlüssel — das Markup steht in index.html, der "
 		+ "Übersetzungslauf findet es also (anders als bei injizierten Menüeinträgen)."
 );
-assert.ok(
-	html.includes('data-i18n="ecosystem.properties.lockedHint"'),
-	'Die Erklärzeile fehlt. „Gesperrt" allein hat in diesem Haus fünf mögliche Bedeutungen — '
-		+ "unter anderem die befristete Bearbeitungssperre aus map_feature_locks."
-);
+// 🔴 DIE ERKLAERZEILE IST RAUS (Owner 23.08.2026, woertlich: den Satz „Klicks fallen durch die
+// Region hindurch ..." aus dem Dialogfenster entfernen). Hier stand bis dahin eine Zusicherung, die
+// sie VERLANGTE, mit dieser Begruendung: „Gesperrt" allein hat in diesem Haus fuenf moegliche
+// Bedeutungen -- unter anderem die befristete Bearbeitungssperre aus map_feature_locks.
+// ⚠️ Die Begruendung war richtig und ist nicht widerlegt, sondern ueberstimmt: der Owner bedient
+// diesen Dialog taeglich und nimmt die Mehrdeutigkeit in Kauf. Sie steht hier, damit der naechste
+// Leser weiss, was der Satz geleistet hat -- und nicht meint, er sei versehentlich verschwunden.
+// KEINE Zusicherung auf Abwesenheit: wer ihn spaeter wieder haben will, soll ihn ohne roten Test
+// zurueckholen koennen.
 
 // Er steht bei den ANDEREN Haken, nicht irgendwo: Auto-Name · Regionname anzeigen · Nodix · Sperre.
 const nodixStelle = html.indexOf('id="ecosystem-properties-nodix"');
