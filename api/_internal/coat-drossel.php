@@ -30,6 +30,10 @@ declare(strict_types=1);
  * ueber temp+rename. Zwei gleichzeitige Worker koennen sich einen Zaehlschritt wegnehmen -- der
  * Riegel faellt dann eine Anfrage spaeter, was folgenlos ist.
  *
+ * ⚠️ Fehlt diese Datei auf dem Server, holt `api/app/coat.php` GAR NICHTS mehr -- der Proxy
+ * laeuft nie ohne seine Drossel weiter. Genau dieser Zustand (Proxy ohne Bremse) war der
+ * Vorfall.
+ *
  * ⚠️ Ohne DB und ohne DDL: das hier laeuft auf einem oeffentlichen, heissen Pfad (dieselbe
  * Begruendung wie `avesmapsCoatSwitchEnabledFast`).
  */

@@ -13,7 +13,15 @@ declare(strict_types=1);
 // GET ?u=<wiki-aventurica-Bild-URL>
 
 require __DIR__ . '/../_internal/bootstrap.php';
-require __DIR__ . '/../_internal/coat-drossel.php';
+// 💣 Kein blankes require: der Deploy laedt Dateien EINZELN hoch und laesst nie etwas weg,
+// aber ein abgebrochener Lauf kann coat.php mitnehmen und die Drossel zurueckhalten. Ein
+// Fatal Error waere dann die Antwort dieses Endpunkts -- und wichtiger: ein Proxy OHNE
+// Drossel ist genau der Zustand, der uns die Wiki-Sperre eingebracht hat. Fehlt sie, geht
+// darum gar nichts mehr nach draussen (siehe unten).
+$avesmapsCoatDrosselLib = __DIR__ . '/../_internal/coat-drossel.php';
+if (is_file($avesmapsCoatDrosselLib)) {
+    require $avesmapsCoatDrosselLib;
+}
 
 const AVESMAPS_COAT_ALLOWED_HOST_SUFFIX = 'wiki-aventurica.de';
 const AVESMAPS_COAT_EXT_TYPES = [
@@ -149,9 +157,19 @@ try {
     // dieselben Tausend Adressen erneut, waehrend das Wiki uns bereits sperrte. Die Drossel ist
     // die einzige Frage vor dem Ausgang; wer sie umgeht, baut den Vorfall nach.
     $jetzt = time();
+    // ⭐ Das Signal nach aussen. Ohne es ist "die Drossel greift" von "der alte Code laeuft" nicht
+    // zu unterscheiden -- daran ist die erste Abnahme dieses Fixes haengengeblieben, weil ein
+    // fehlgeschlagener Deploy die Datei gar nicht erst hochgeladen hatte (AGENTS.md §9).
+    header('X-Avesmaps-Coat-Drossel: v1');
+    if (!function_exists('avesmapsCoatDrosselDarfHolen')) {
+        header('X-Avesmaps-Coat: drossel-fehlt');
+        avesmapsCoatFail(503, 'Wappen gerade nicht abrufbar.');
+    }
     if (!avesmapsCoatDrosselDarfHolen($dir, $key, $jetzt)) {
+        header('X-Avesmaps-Coat: gedrosselt');
         avesmapsCoatFail(503, 'Wappen gerade nicht abrufbar (Drossel aktiv).');
     }
+    header('X-Avesmaps-Coat: abruf');
 
     [$bytes, $contentType] = avesmapsCoatFetch($url);
     if ($bytes === null) {
