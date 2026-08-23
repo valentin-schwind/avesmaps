@@ -111,4 +111,30 @@ assert(strpos($rumpfUpload, 'formData.append("coat_url"') !== false,
 assert(strpos($dialogSied, 'urlInputReset') !== false,
     'und leert es beim Oeffnen -- sonst verpasst eine alte Adresse dem naechsten Ort ein Wappen');
 
+// ---- 8. Und sie SEHEN gleich aus ---------------------------------------------------------------
+// 🔴 Owner 23.08.2026: "diese beiden solltest du auch visuell gleichziehen". Die Wappen-Aktionen
+// sind in BEIDEN Editoren leichte Textlinks (.dt-link), nicht Knoepfe. Im Territorien-Monitor
+// standen sie als drei gefuellte Knoepfe zwischen "Eltern sperren" und "Editieren" -- die haben
+// mit dem Wappen nichts zu tun, und ein Wappen zu tauschen ist eine Nebenhandlung (AGENTS.md §12).
+foreach ([['Siedlungs-Editor', $dialogSied], ['Territorien-Monitor', $dialogTerr]] as [$wo, $markup]) {
+    assert(strpos($markup, 'class="dt-link"') !== false,
+        "$wo: die Wappen-Aktionen sind Textlinks (.dt-link), keine Knoepfe");
+    // ⚠️ .dt-link kommt aus editor-page.css -- ohne sie waere die Zeile unformatiert.
+    assert(strpos($markup, 'css/components/editor-page.css') !== false,
+        "$wo laedt editor-page.css, wo .dt-link definiert ist");
+}
+$editorCss = $lies('css/components/editor-page.css');
+assert(strpos($editorCss, '.dt-link') !== false, '.dt-link ist dort auch wirklich definiert');
+
+// 💣 Und im Monitor darf keiner der Wappen-Knoepfe zurueckkommen: die alte Form hatte sie als
+// edbtn in der dt-actions-Reihe. Faellt einer dorthin zurueck, laufen die Oberflaechen wieder
+// auseinander -- und das faellt niemandem auf, weil man immer nur eine von beiden offen hat.
+$posActions = strpos($dialogTerr, 'class="dt-actions">${lockBtn}');
+assert($posActions !== false, 'die Knopfreihe existiert noch (fuer Eltern/Editieren)');
+$actionsZeile = substr($dialogTerr, $posActions, 160);
+foreach (['coatLocalBtn', 'coatRestoreBtn', 'coatRemoveBtn'] as $altBtn) {
+    assert(strpos($actionsZeile, $altBtn) === false,
+        "kein $altBtn mehr in der Knopfreihe -- die Wappen-Aktionen stehen in der Linkzeile");
+}
+
 echo "OK: wappen-upload-gleichstand-test -- alle Zusicherungen gehalten\n";

@@ -274,6 +274,11 @@
   .dt-wappen-box { position:relative; flex:0 0 56px; width:56px; height:56px; }
   .dt-wappen-edit { position:absolute; inset:0; display:none; align-items:center; justify-content:center; background:rgba(47,37,28,.62); color:var(--color-button-text); font-size:var(--font-size-caption); border-radius:6px; cursor:pointer; text-align:center; padding:2px; }
   .dt-wappen-box:hover .dt-wappen-edit { display:flex; }
+  /* Die Wappen-Aktionen als leichte Linkzeile -- gleiche Form wie der Ortseditor
+     (dort .dt-coat-info unter der Lizenzzeile). Bewusst KEINE Knoepfe: ein Wappen zu
+     tauschen ist eine Nebenhandlung, und drei gefuellte Knoepfe wiegen schwerer als die
+     Sache (AGENTS.md §12). */
+  .dt-coat-actions { font-size:12px; margin:6px 0 2px; color:var(--mut); }
   .dt-lic-wrap { margin-top:6px; }
   /* Upload-Dialog */
   .modal { position:fixed; inset:0; background:var(--color-scrim-dialog); display:flex; align-items:center; justify-content:center; z-index:100; }
@@ -899,15 +904,30 @@ function renderDetail(){
   const lockBtn = `<button class="lockbtn" title="${esc(lockTip)}" data-lockkey="${esc(n.wiki_key)}" data-locknow="${n.parent_locked?'1':'0'}">${n.parent_locked?'🔒 Eltern gesperrt – entsperren':'🔓 Eltern hier sperren'}</button>`;
   const editBtn = `<button class="edbtn" data-edit-start="1" title="Wiki-Details manuell überschreiben – Wiki-Stand bleibt erhalten und ist jederzeit rücksetzbar">✎ Editieren</button>`;
   const effCoatUrl = isOvr(n,'coat_of_arms_url') ? String(n.overrides.coat_of_arms_url||'') : (n.coat_of_arms_url||'');
-  const coatLocalBtn = (n.license_status==='public_domain' && effCoatUrl && effCoatUrl.indexOf('/uploads/wappen/')!==0)
-    ? `<button class="edbtn" data-save-coat-local="${esc(n.wiki_key)}" title="Lädt das gemeinfreie Wiki-Wappen auf den Avesmaps-Server und nutzt künftig die lokale Kopie (Override)">📥 Wappen lokal speichern</button>` : '';
-  const coatRestoreBtn = (isOvr(n,'coat_of_arms_url')||isOvr(n,'coat_of_arms_license_status')||isOvr(n,'coat_of_arms_author')||isOvr(n,'coat_of_arms_note'))
-    ? `<button class="edbtn" data-restore-coat="${esc(n.wiki_key)}" title="Eigenes/lokal gespeichertes Wappen + Lizenz-Override entfernen und wieder den Wiki-Stand verwenden">↺ Wappen zurücksetzen</button>` : '';
-  // „Entfernen" nur zeigen, wenn ueberhaupt ein Wappen da ist -- sonst bietet der Knopf an,
-  // etwas zu entfernen, das es nicht gibt.
-  const coatRemoveBtn = effCoat(n)
-    ? `<button class="edbtn" data-remove-coat="${esc(n.wiki_key)}" title="Dieses Gebiet zeigt danach KEIN Wappen — auch nicht das aus dem Wiki. Anders als „Zurücksetzen“, das den Wiki-Stand zurückholt. Mit „Wappen zurücksetzen“ rückgängig zu machen.">🚫 Wappen entfernen</button>` : '';
-  box.innerHTML = head + lic + `<div class="dt-actions">${lockBtn}${editBtn}${coatLocalBtn}${coatRestoreBtn}${coatRemoveBtn}</div>` + `<div class="dt-grid">${rows.join('')}</div>`;
+  // 🔴 DIE WAPPEN-AKTIONEN SIND TEXTLINKS, KEINE KNOEPFE -- gleiche Form wie im Ortseditor
+  // (Owner 23.08.2026: „diese beiden solltest du auch visuell gleichziehen"). Dort steht unter
+  // der Lizenzzeile „Ersetzen / hochladen · Entfernen"; hier stand dieselbe Sache als drei
+  // gefuellte Knoepfe, vermischt mit „Eltern sperren" und „Editieren" -- die haben mit dem
+  // Wappen nichts zu tun.
+  // ⚠️ AGENTS.md §12: die Haupthandlung ist gefuellt, alles andere weich. Ein Wappen zu tauschen
+  // ist eine Nebenhandlung; drei Knoepfe dafuer wiegen schwerer als die Sache.
+  // ⭐ .dt-link kommt aus css/components/editor-page.css, die BEIDE Editoren laden -- keine neue
+  // Klasse und keine Kopie.
+  const coatLinks = [];
+  coatLinks.push(`<span class="dt-link" data-coat-upload-open="${esc(n.wiki_key)}" style="cursor:pointer">Ersetzen / hochladen</span>`);
+  if (n.license_status==='public_domain' && effCoatUrl && effCoatUrl.indexOf('/uploads/wappen/')!==0) {
+    coatLinks.push(`<span class="dt-link" data-save-coat-local="${esc(n.wiki_key)}" style="cursor:pointer" title="Lädt das gemeinfreie Wiki-Wappen auf den Avesmaps-Server und nutzt künftig die lokale Kopie.">Lokal speichern</span>`);
+  }
+  if (isOvr(n,'coat_of_arms_url')||isOvr(n,'coat_of_arms_license_status')||isOvr(n,'coat_of_arms_author')||isOvr(n,'coat_of_arms_note')) {
+    coatLinks.push(`<span class="dt-link" data-restore-coat="${esc(n.wiki_key)}" style="cursor:pointer" title="Eigenes/lokal gespeichertes Wappen + Lizenz-Override entfernen und wieder den Wiki-Stand verwenden.">Zurücksetzen</span>`);
+  }
+  // „Entfernen" nur, wenn ueberhaupt ein Wappen da ist -- sonst boete der Link an, etwas zu
+  // entfernen, das es nicht gibt.
+  if (effCoat(n)) {
+    coatLinks.push(`<span class="dt-link" data-remove-coat="${esc(n.wiki_key)}" style="cursor:pointer" title="Dieses Gebiet zeigt danach KEIN Wappen — auch nicht das aus dem Wiki. Anders als „Zurücksetzen“, das den Wiki-Stand zurückholt.">Entfernen</span>`);
+  }
+  const coatRow = `<div class="dt-coat-actions">${coatLinks.join(' · ')}</div>`;
+  box.innerHTML = head + lic + coatRow + `<div class="dt-actions">${lockBtn}${editBtn}</div>` + `<div class="dt-grid">${rows.join('')}</div>`;
 }
 function renderCapResults(){
   if(!capResults.length) return '';
@@ -1491,6 +1511,9 @@ $('wappenCancel').onclick = closeWappenDialog;
 $('wappenDialog').addEventListener('click', e=>{ if(e.target.id==='wappenDialog') closeWappenDialog(); });
 $('detailBody').addEventListener('click', e=>{
   if(e.target.closest('.dt-wappen-edit')){ openWappenDialog(); return; }
+  // Derselbe Dialog wie der Hover „Bild ändern“ auf dem Wappen -- nur als Textlink daneben,
+  // damit die Aktion auch sichtbar ist, ohne dass man das Bild zufaellig ueberfaehrt.
+  if(e.target.closest('[data-coat-upload-open]')){ openWappenDialog(); return; }
   const rp=e.target.closest('[data-restore-parent]'); if(rp){ restoreWikiParent(rp.dataset.restoreParent); return; }
   const sc=e.target.closest('[data-save-coat-local]'); if(sc){ saveCoatLocal(sc.dataset.saveCoatLocal); return; }
   const rcoat=e.target.closest('[data-restore-coat]'); if(rcoat){ restoreCoat(rcoat.dataset.restoreCoat); return; }
