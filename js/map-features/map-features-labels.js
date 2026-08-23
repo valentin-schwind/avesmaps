@@ -971,9 +971,25 @@ function avesmapsCurveSettingAufLabelsAnwenden(regionPublicId, an, max) {
 		// waagerecht (Entwurf §4.3). Sein Icon kennt die Drehung, nicht die Kurve -- also neu bauen.
 		eintrag.marker.setIcon(createLabelIcon(eintrag.label));
 	}
-	// Der Kollisionsdurchgang entscheidet, wer gemalt wird und wessen Marker geht. Er ist der einzige
-	// Ort, an dem beides zusammenkommt -- ihn anzustossen ist billiger und richtiger, als hier selbst
-	// Marker an- und abzumelden.
+	// 💣 UND JETZT DIE DREI SCHRITTE IN GENAU DIESER REIHENFOLGE. Am 23.08.2026 im Browser des Owners
+	// gemessen, nachdem „Kurvenbeschriftung aus" den Namen GANZ verschwinden liess:
+	//
+	// 1. Die Platzierung NEU RECHNEN. `avesmapsLabelWirdAlsKurveGemalt` fragt das Ergebnis des letzten
+	//    Durchgangs; ohne Neurechnung gilt das eben abgeschaltete Label dort weiter als „wird als
+	//    Kurve gemalt", und der Riegel haelt seinen Marker unten. Gemessen: shouldShowLabelMarker
+	//    blieb `false`, obwohl Zoomband, Bildausschnitt und Ansicht alle passten.
+	//    ⚠️ Gerufen wird sie fuer ihren NEUAUFBAU, nicht fuer ihren Rueckgabewert.
+	// 2. Die Marker der geaenderten Labels EINZELN nachziehen. `avesmapsSyncKurvenlabelMarker`
+	//    kann das nicht: er ueberspringt jedes Label OHNE `curveLine` -- und genau das ist ein eben
+	//    abgeschaltetes. Gemessen: nach ihm blieb der Marker weg, nach syncLabelMarkerVisibility kam
+	//    er zurueck.
+	// 3. Und den normalen Durchgang anstossen, damit Kollisionen und Canvas nachziehen.
+	if (typeof avesmapsKurvenlabelPlatzierungen === "function") {
+		avesmapsKurvenlabelPlatzierungen(null);
+	}
+	for (const eintrag of eintraege) {
+		syncLabelMarkerVisibility(eintrag);
+	}
 	if (typeof scheduleLabelCollisionResolution === "function") {
 		scheduleLabelCollisionResolution();
 	}

@@ -249,6 +249,19 @@ assert.ok(anwender.includes("eintrag.label.curveLine = null"),
 // enthaelt ihn ebenfalls, und dann ueberlebt das Entfernen des Aufrufs die Pruefung.
 assert.ok(anwender.includes("scheduleLabelCollisionResolution();"),
 	"ohne Kollisionsdurchgang entscheidet niemand neu, wer gemalt wird und wessen Marker geht");
+// 💣 DIE REIHENFOLGE IST DER FEHLER, NICHT DIE ANWESENHEIT. Am 23.08.2026 im Browser des Owners
+// gemessen: (a) ohne Neurechnung der Platzierung gilt ein eben abgeschaltetes Label weiter als
+// "wird als Kurve gemalt", und der Riegel haelt seinen Marker unten -- shouldShowLabelMarker blieb
+// false, obwohl Zoomband, Bildausschnitt und Ansicht alle passten. (b) avesmapsSyncKurvenlabelMarker
+// kann ihn NICHT zurueckholen: er ueberspringt jedes Label ohne curveLine. Ohne beides verschwindet
+// der Name GANZ -- weder Kurve noch Marker.
+const posPlatz = anwender.indexOf("avesmapsKurvenlabelPlatzierungen(null)");
+const posSync = anwender.indexOf("syncLabelMarkerVisibility(eintrag)");
+assert.ok(posPlatz > -1, "die Platzierung wird nicht neu gerechnet -- der Riegel bleibt auf dem alten Stand");
+assert.ok(posSync > -1, "die Marker der geaenderten Labels werden nicht einzeln nachgezogen");
+assert.ok(posPlatz < posSync,
+	"erst neu rechnen, DANN die Marker nachziehen -- umgekehrt fragt der Riegel den alten Stand ab");
+checks += 3;
 checks += 3;
 
 // 💣 UND BEIDE Speicherwege muessen ihn rufen -- einer allein ist keine Regel (AGENTS.md §11).
