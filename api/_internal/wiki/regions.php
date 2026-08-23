@@ -598,7 +598,12 @@ function avesmapsWikiRegionParsePage(string $title, string $wikitext, string $ca
         'neighbors_json' => $neighbors,
         'synonyms_json' => $synonyms,
         'source_categories_json' => $source !== '' ? [$source] : [],
-        'image_url' => avesmapsWikiSyncMonitorCoatOfArmsUrl(avesmapsWikiSyncMonitorField($norm, ['bild', 'wappen', 'bilddatei', 'wappenbild'])),
+        // 🔴 NUR 'wappen'/'wappenbild' -- Owner 23.08.2026: "wir wollen nur wappen,
+        // wappenbild". Hier standen 'bild' und 'bilddatei': ein beliebiges Foto aus der
+        // Wiki-Infobox landete damit in unserem Bildfeld und wurde danach geladen wie ein
+        // Wappen. ⚠️ Bestehende Eintraege bleiben, bis ein Abgleich sie ueberschreibt --
+        // der Sync SETZT das Feld, er raeumt es nicht.
+        'image_url' => avesmapsWikiSyncMonitorCoatOfArmsUrl(avesmapsWikiSyncMonitorField($norm, ['wappen', 'wappenbild'])),
         'wiki_url' => avesmapsWikiSyncMonitorPageUrl($canonical),
         'raw_json' => ['source' => 'wiki-region-sync', 'infobox' => $infoboxName],
     ];

@@ -532,7 +532,12 @@ function avesmapsWikiPathParsePage(string $title, string $wikitext, string $cano
         'description' => avesmapsWikiPathExtractDescription($wikitext, $block),
         'synonyms_json' => $synonyms,
         'source_categories_json' => $source !== '' ? [$source] : [],
-        'image_url' => avesmapsWikiSyncMonitorCoatOfArmsUrl(avesmapsWikiSyncMonitorField($norm, ['bild', 'bilddatei'])),
+        // 🔴 NUR 'wappen'/'wappenbild' -- Owner 23.08.2026: "wir wollen nur wappen,
+        // wappenbild". Hier standen 'bild' und 'bilddatei': ein beliebiges Foto aus der
+        // Wiki-Infobox landete damit in unserem Bildfeld und wurde danach geladen wie ein
+        // Wappen. ⚠️ Bestehende Eintraege bleiben, bis ein Abgleich sie ueberschreibt --
+        // der Sync SETZT das Feld, er raeumt es nicht.
+        'image_url' => avesmapsWikiSyncMonitorCoatOfArmsUrl(avesmapsWikiSyncMonitorField($norm, ['wappen', 'wappenbild'])),
         'wiki_url' => avesmapsWikiSyncMonitorPageUrl($canonical),
         'raw_json' => ['source' => 'wiki-path-sync', 'infobox' => $infoboxName, 'kind' => $kind],
     ];

@@ -128,9 +128,19 @@ assert(strpos($aufruf, 'dry_run: false') !== false && strpos($aufruf, 'confirm: 
 // aber ein Foto in der Infobox, landete das Foto im WAPPENFELD -- und wurde danach ueberall wie
 // ein Wappen behandelt und geladen. Daher kamen "Drachenmuseum Sofus.jpg", "Auraleth by Fil.jpg"
 // und "Etilia-Statue2023 RvB.jpg" in den Fehlermeldungen des Editors.
-foreach (['bild', 'bilddatei'] as $fremd) {
-    assert(strpos($settlements, "'wappen', '$fremd'") === false,
-        "das Wappenfeld eines Ortes liest kein '$fremd' mehr -- ein Foto ist kein Wappen");
+// 🔴 ALLE DREI Objektarten, nicht nur der Ort: Regionen lasen 'bild' sogar ZUERST, Wege
+// ausschliesslich. Eine Regel, die eine von drei Stellen bindet, ist keine Regel.
+foreach ([
+    ['Ort', $settlements],
+    ['Region', $lies('api/_internal/wiki/regions.php')],
+    ['Weg', $lies('api/_internal/wiki/paths.php')],
+] as [$art, $quelle]) {
+    foreach (["'bild'", "'bilddatei'"] as $fremd) {
+        assert(strpos($quelle, 'MonitorField($norm, [' . $fremd) === false
+            && strpos($quelle, ", $fremd") === false,
+            "$art: das Bild-/Wappenfeld liest kein $fremd mehr -- ein beliebiges Foto aus der "
+            . "Wiki-Infobox ist kein Wappen (Owner 23.08.2026)");
+    }
 }
 $stellen = substr_count($settlements, "avesmapsWikiSyncMonitorField(\$norm, ['wappen', 'wappenbild'])");
 assert($stellen === 2,

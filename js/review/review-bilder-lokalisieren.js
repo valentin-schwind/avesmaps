@@ -52,7 +52,18 @@
 		}
 		ruf("status").then(function (s) {
 			var offen = Number(s.remaining || 0);
-			setze(offen > 0 ? ruhelabel + " — " + offen + " offen" : ruhelabel + " — ✓ alle lokal");
+			var gefunden = Number(s.gefunden || 0);
+			var tot = Number(s.tot || 0);
+			// 🔴 IMMER MIT BEZUGSGROESSE. „✓ alle lokal" allein sagt dasselbe, ob wirklich alles da
+			// ist ODER ob gar nichts gefunden wurde -- und genau daran ist der alte
+			// „Wappen lokalisieren"-Knopf jahrelang vorbeigelaufen, weil er nur Territorien zaehlte.
+			if (gefunden === 0) {
+				setze(ruhelabel + " — keine Wiki-Bilder gefunden");
+			} else if (offen > 0) {
+				setze(ruhelabel + " — " + offen + " von " + gefunden + " offen");
+			} else {
+				setze(ruhelabel + " — ✓ alle " + gefunden + " lokal" + (tot > 0 ? " (" + tot + " nicht im Wiki)" : ""));
+			}
 		}).catch(function () {
 			// Still: der Knopf behaelt seine Ruhebeschriftung. Wer nicht angemeldet ist, sieht
 			// hier keinen Fehler, sondern schlicht keinen Stand.

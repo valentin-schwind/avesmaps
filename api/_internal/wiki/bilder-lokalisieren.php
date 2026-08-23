@@ -197,7 +197,39 @@ function avesmapsWikiBilderLokalisierenLauf(PDO $pdo, string $docroot): array {
 
 /** Nur zaehlen, nichts holen -- fuer die Statuszeile am Knopf. */
 function avesmapsWikiBilderStatus(PDO $pdo, string $docroot): array {
-    return ['remaining' => count(avesmapsWikiBilderOffeneAdressen($pdo, $docroot))];
+    // 🔴 VIER ZAHLEN, NICHT EINE. „✓ alle lokal" ist ohne Bezugsgroesse wertlos: es sagt dasselbe,
+    // ob wirklich alles da ist ODER ob der Sammler ueberhaupt nichts gefunden hat. Genau diese
+    // Zweideutigkeit hat beim alten „Wappen lokalisieren" jahrelang verdeckt, dass drei Bestaende
+    // nie erfasst waren -- der Knopf meldete „alle lokal" und meinte nur die Territorien.
+    // ⚠️ Wer hier eine Zahl entfernt, nimmt dem Knopf seine Aussage zurueck.
+    $gesehen = [];
+    $offen = 0;
+    $erledigt = 0;
+    $tot = 0;
+    $stmt = $pdo->prepare('SELECT properties_json FROM map_features
+        WHERE properties_json LIKE :muster LIMIT ' . (int) AVESMAPS_WIKI_BILDER_SCAN_MAX);
+    $stmt->execute([':muster' => '%wiki-aventurica.de%']);
+    foreach ($stmt as $row) {
+        $props = json_decode((string) ($row['properties_json'] ?? ''), true);
+        if (!is_array($props)) {
+            continue;
+        }
+        foreach (avesmapsWikiBilderAdressenAusProperties($props) as $url) {
+            if (isset($gesehen[$url])) {
+                continue;
+            }
+            $gesehen[$url] = true;
+            if (is_file($docroot . '/uploads/wappen/cache/' . sha1($url) . '.tot')) {
+                $tot++;
+            } elseif (avesmapsWikiBilderErledigt($docroot, $url)) {
+                $erledigt++;
+            } else {
+                $offen++;
+            }
+        }
+    }
+
+    return ['remaining' => $offen, 'gefunden' => count($gesehen), 'erledigt' => $erledigt, 'tot' => $tot];
 }
 
 /**
