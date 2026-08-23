@@ -7,9 +7,13 @@ declare(strict_types=1);
 // Cache-Headern. Verhindert das Hotlinking hunderter externer SVGs (net::ERR_NO_BUFFER_SPACE) und
 // den Spezial:Dateipfad-Redirect-Sturm. Host-Allowlist gegen SSRF. Liefert Bild-Bytes (kein JSON).
 //
+// 💣 Ein Fehlschlag wird NOTIERT (api/_internal/coat-drossel.php), sonst holt der naechste
+// Seitenaufbau dieselbe Adresse erneut -- was uns die Wiki-Sperre eingebracht hat.
+//
 // GET ?u=<wiki-aventurica-Bild-URL>
 
 require __DIR__ . '/../_internal/bootstrap.php';
+require __DIR__ . '/../_internal/coat-drossel.php';
 
 const AVESMAPS_COAT_ALLOWED_HOST_SUFFIX = 'wiki-aventurica.de';
 const AVESMAPS_COAT_EXT_TYPES = [
@@ -126,6 +130,11 @@ try {
     $docroot = rtrim((string) ($_SERVER['DOCUMENT_ROOT'] ?? dirname(__DIR__, 2)), '/');
     $dir = $docroot . '/uploads/wappen/cache';
     $key = sha1($url);
+    // Muss vor der Drosselfrage stehen: die Drossel legt ihren Zustand hier ab und gilt ohne
+    // schreibbares Verzeichnis als "zu" -- ohne dieses mkdir kaeme nie wieder ein Wappen durch.
+    if (!is_dir($dir)) {
+        @mkdir($dir, 0775, true);
+    }
 
     // Cache-Treffer: vorhandene Datei <key>.<ext> direkt ausliefern.
     foreach (AVESMAPS_COAT_EXT_TYPES as $ext => $type) {
@@ -135,15 +144,27 @@ try {
         }
     }
 
-    // Cache-Miss: einmalig serverseitig laden.
+    // Cache-Miss. 🔴 AB HIER GEHT EINE ANFRAGE NACH DRAUSSEN -- und genau hier sass der Vorfall
+    // vom 20.-23.08.2026: ein Fehlschlag wurde nirgends notiert, also holte jeder Seitenaufbau
+    // dieselben Tausend Adressen erneut, waehrend das Wiki uns bereits sperrte. Die Drossel ist
+    // die einzige Frage vor dem Ausgang; wer sie umgeht, baut den Vorfall nach.
+    $jetzt = time();
+    if (!avesmapsCoatDrosselDarfHolen($dir, $key, $jetzt)) {
+        avesmapsCoatFail(503, 'Wappen gerade nicht abrufbar (Drossel aktiv).');
+    }
+
     [$bytes, $contentType] = avesmapsCoatFetch($url);
     if ($bytes === null) {
+        avesmapsCoatDrosselFehlschlag($dir, $key, $jetzt);
         avesmapsCoatFail(502, 'Wappen konnte nicht geladen werden.');
     }
     $ext = avesmapsCoatExtFromType($contentType, $url);
     if ($ext === null) {
+        // Das Wiki hat geantwortet -- der Riegel bleibt offen, nur diese Adresse ruht.
+        avesmapsCoatDrosselAdresseRuhen($dir, $key, $jetzt);
         avesmapsCoatFail(415, 'Kein erlaubtes Bildformat (png/jpg/svg/gif/webp).');
     }
+    avesmapsCoatDrosselErfolg($dir, $key, $jetzt);
     $type = AVESMAPS_COAT_EXT_TYPES[$ext];
 
     // Cachen (best effort) und ausliefern.
