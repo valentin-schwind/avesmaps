@@ -342,16 +342,25 @@ jobs:
           bye
           EOF
 
-          # 💣 DIE PUNKT-DATEIEN EXPLIZIT HINTERHER. Gemessen 23.08.2026: in VIER aufeinander-
-          # folgenden gruenen Deploys steht im Uebertragungsprotokoll KEINE einzige .htaccess --
-          # auch dann nicht, wenn sie neu im Paket lag und ihr Pfad in der Allowlist stand. Die
-          # Schutzdateien auf dem Server sind von HAND dorthin gekommen.
-          # 🔴 Warum das gefaehrlich ist: wer eine Schutz-.htaccess ins Repo legt, sieht sie im
-          # Diff, sieht den Deploy gruen -- und haelt den Bereich fuer geschuetzt. Er ist es nicht.
-          # Betrifft api/_internal, api/_schema, api/diagnostics, scripts, tools/wikidump und
-          # uploads/db-backups (dort liegen Dumps mit Passwort-Hashes).
-          # ⚠️ Hier wird NICHT auf lftp-Verhalten vertraut (list-options, glob, Protokollvariante),
-          # sondern jede Datei einzeln benannt. Explizit schlaegt "sollte eigentlich".
+          # 🔴 DIE PUNKT-DATEIEN BEI JEDEM ECHTEN DEPLOY NACHREICHEN.
+          #
+          # 🪤 Der Anlass war eine FEHLDIAGNOSE, und die steht hier, damit sie niemand wiederholt:
+          # "in vier gruenen Deploys wurde keine .htaccess uebertragen" -- das war trivial wahr,
+          # denn dieser Deploy ist INKREMENTELL (er kopiert nur, was der Push geaendert hat), und
+          # in jenen Laeufen hatte sich keine .htaccess geaendert. Zwei davon liefen ueberhaupt
+          # nicht (SKIP_DEPLOY, weil nur .github/ betroffen war). lftp trifft keine Schuld.
+          #
+          # 🔴 Der ECHTE Grund, warum uploads/wappen/.htaccess nie ankam, ist derselbe wie bei
+          # jedem anderen Nachzuegler: sie war seit ihrem Allowlist-Eintrag unveraendert, also
+          # kopierte der inkrementelle Lauf sie nie. Nur eine Inhaltsaenderung stoesst sie an.
+          #
+          # ⭐ Dieser Schritt macht genau das ueberfluessig: er nimmt bei JEDEM Deploy alle
+          # .htaccess aus dem Paket mit, unabhaengig davon, ob sie sich geaendert haben. Eine
+          # Schutzdatei, die im Repo steht, liegt danach auch auf dem Server -- und das Log nennt
+          # jede einzelne beim Namen, der Lauf ist also nachpruefbar statt geglaubt.
+          # ⚠️ Er ist billig (vier kleine Dateien), aber nicht kostenlos: er laeuft auch, wenn
+          # sich nichts geaendert hat. Das ist der Preis dafuer, dass Schutz nicht am Zufall
+          # haengt, ob jemand die Datei zufaellig im selben Push angefasst hat.
           if [[ "${{ inputs.dry_run }}" != "true" ]]; then
             dotfile_script="$RUNNER_TEMP/lftp-dotfiles.txt"
             : > "$dotfile_script"

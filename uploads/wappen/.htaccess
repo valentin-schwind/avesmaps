@@ -1,4 +1,6 @@
-# Wappen-Verzeichnis. Hier liegen hochgeladene und lokalisierte Bilder, die der Webserver DIREKT
+# Wappen-Verzeichnis. (Stand 23.08.2026 -- diese Zeile stoesst zugleich den inkrementellen
+# Deploy an: er kopiert nur, was ein Push geaendert hat, und eine unveraenderte Datei kam
+# deshalb nie auf den Server.) Hier liegen hochgeladene und lokalisierte Bilder, die der Webserver DIREKT
 # ausliefert -- ohne die Schutz-Kopfzeilen, die api/app/coat.php setzt.
 #
 # 💣 EIN SVG IST EIN DOKUMENT, KEIN BILD. Es kann <script> enthalten, und direkt aufgerufen liefe
