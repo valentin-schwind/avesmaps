@@ -124,6 +124,47 @@ function avesmapsMapFeaturesInSettlementPlaces(PDO $pdo): array {
     }
 }
 
+/**
+ * Ein Wappen aufloesen, ohne dass ein Fehler die ganze Karte mitnimmt.
+ *
+ * 🔴 WARUM ES DAS GIBT. Am 23.08.2026 hat ein Umbau am Wappen-Pfad die LIVE-KARTE fuer alle
+ * Besucher lahmgelegt: eine Ausnahme in der Wappen-Aufloesung lief in den grossen
+ * `catch (Throwable)` dieses Endpunkts (Zeile ~127-259), und der wirft die GESAMTE Nutzlast
+ * weg -- 19,6 MB Orte, Wege, Fluesse, Beschriftungen -- und antwortet mit einem generischen
+ * 500. Es gibt keine „Karte ohne Wappen", es gibt nur alles oder nichts.
+ *
+ * 💣 DIE HAELFTE WAR SCHON GESICHERT, und das ist der eigentliche Befund: das LESEN des
+ * Wappen-Schalters ist ausdruecklich fail-open („ein Lesefehler darf die Karte nicht
+ * entwappnen"). Die BERECHNUNG daneben war es nicht. Wer den Schalter absichert, aber nicht
+ * das, was er schaltet, hat die Haelfte gesichert.
+ *
+ * ⚠️ FAIL-OPEN HEISST NICHT STILL. Jeder Fehlschlag wird gezaehlt, und die Zahl reist in der
+ * Antwort mit (`coat_errors`). Ein Deckel ohne Zeichen ist die naechste unsichtbare Stoerung:
+ * fehlende Wappen faellt niemandem auf, ein Zaehler ueber null schon -- und er ist von aussen
+ * abrufbar, ohne Datenbankzugang.
+ */
+function avesmapsMapFeaturesCoatFehler(bool $erhoehen = false): int {
+    static $anzahl = 0;
+    if ($erhoehen) {
+        $anzahl++;
+    }
+
+    return $anzahl;
+}
+
+function avesmapsMapFeaturesCoatSicher(callable $aufloesen): string {
+    try {
+        return (string) $aufloesen();
+    } catch (Throwable) {
+        avesmapsMapFeaturesCoatFehler(true);
+
+        // '' und nicht der Platzhalter: an dieser Stelle ist unbekannt, ob es ueberhaupt ein
+        // Wappen gaebe -- und ein Platzhalter an einem Ort, der nie eines hatte, sieht aus wie
+        // Datenverlust (dieselbe Regel wie in avesmapsCoatDisplayUrl).
+        return '';
+    }
+}
+
 try {
     $config = avesmapsLoadApiConfig(avesmapsApiRoot());
 
@@ -223,6 +264,16 @@ try {
     avesmapsMapFeaturesRespond([
         'ok' => true,
         'revision' => $revision,
+        // ⚠️ FAIL-OPEN IST NICHT STILL. Wie viele Wappen-Aufloesungen in dieser Antwort
+        // gescheitert sind (siehe avesmapsMapFeaturesCoatSicher). Normalfall: 0. Ueber null
+        // heisst: irgendwo fehlen Wappen, die Karte laeuft aber -- und man sieht es von
+        // aussen, ohne Datenbankzugang. Ohne diese Zahl waere der Deckel die naechste
+        // unsichtbare Stoerung: fehlende Wappen faellt niemandem auf.
+        // 🔴 Der Schluessel wird NUR gesetzt, wenn wirklich etwas schiefging -- sonst
+        // waechst die 19,6-MB-Antwort um ein Feld, das immer dasselbe sagt, und jeder
+        // Client-Cache muesste wegen einer Null neu geladen werden.
+        ...(avesmapsMapFeaturesCoatFehler() > 0
+            ? ['coat_errors' => avesmapsMapFeaturesCoatFehler()] : []),
         'type' => 'FeatureCollection',
         'features' => $features,
         // 🔴 DIE DREI REISETAGE, damit der Planer sie nicht ein zweites Mal behaupten muss. Land 8
@@ -535,9 +586,11 @@ function avesmapsMapFeatureRowToGeoJsonFeature(array $row, array $wikiLocationLi
     // Hausentscheid („leer bleibt leer, sonst der Platzhalter"), und coat-display-test.php wacht
     // ueber sie. Eine nachgebaute Kopie hier haette dieselbe Regel ein zweites Mal behauptet.
     if (is_array($properties['coat'] ?? null)) {
-        $angezeigt = avesmapsCoatDisplayUrl(
-            (string) ($properties['coat']['url'] ?? ''),
-            $settlementCoatsEnabled
+        $angezeigt = avesmapsMapFeaturesCoatSicher(
+            static fn(): string => avesmapsCoatDisplayUrl(
+                (string) ($properties['coat']['url'] ?? ''),
+                $settlementCoatsEnabled
+            )
         );
         if ($angezeigt !== (string) ($properties['coat']['url'] ?? '')) {
             $properties['coat'] = ['url' => $angezeigt, 'source' => (string) ($properties['coat']['source'] ?? '')];
@@ -777,13 +830,15 @@ function avesmapsLoadSettlementPoliticalContext(PDO $pdo, bool $territoryCoatsEn
             // Public-domain-gated coat URL (or '' when none/not allowed), mirroring territory-detail.php.
             // The global "Wappen: Aus" switch swaps it for the placeholder afterwards -- one wrap here
             // covers every breadcrumb thumbnail, because the whole "Liegt in" staircase reads byId.
-            'coat_url' => avesmapsCoatDisplayUrl(
-                avesmapsSettlementTerritoryCoatUrl(
-                    trim((string) ($row['coat_of_arms_url'] ?? '')),
-                    $coatStaging[$wikiKey] ?? [],
-                    $coatOverrides[$wikiKey] ?? []
-                ),
-                $territoryCoatsEnabled
+            'coat_url' => avesmapsMapFeaturesCoatSicher(
+                static fn(): string => avesmapsCoatDisplayUrl(
+                    avesmapsSettlementTerritoryCoatUrl(
+                        trim((string) ($row['coat_of_arms_url'] ?? '')),
+                        $coatStaging[$wikiKey] ?? [],
+                        $coatOverrides[$wikiKey] ?? []
+                    ),
+                    $territoryCoatsEnabled
+                )
             ),
         ];
 

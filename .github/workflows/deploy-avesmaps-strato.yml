@@ -409,3 +409,56 @@ jobs:
           rm -f "css/features/questroute.css"
           bye
           EOF
+
+      # 🔴 DER KANARIENVOGEL: laeuft die Karte nach dem Hochladen ueberhaupt noch?
+      #
+      # 💣 WARUM ES DAS GIBT. Am 23.08.2026 lag die Live-Karte 35 Minuten tot --
+      # GET /api/app/map-features.php antwortete allen Besuchern mit HTTP 500 --, waehrend der
+      # Deploy gruen war und das ganze Testfeld gruen war. Beides stimmte auch: hochgeladen
+      # wurde alles, und die Tests pruefen Entscheidungen, nicht den Abruf. Aufgefallen ist es
+      # erst, als der Owner es meldete.
+      #
+      # ⚠️ DAS IST KEIN TOR, SONDERN EIN ALARM. Der Upload ist an dieser Stelle schon passiert;
+      # ein roter Lauf haelt nichts auf, er sagt nur laut Bescheid. Ein echtes Tor muesste vor
+      # dem Upload stehen und koennte die Live-Seite gar nicht befragen.
+      #
+      # ⚠️ EINE Anfrage, kein Dauerlauf. map-features.php ist ein bekannter Perf-Brennpunkt
+      # (CLAUDE.md: „never run heavy API endpoints in a loop"); drei Versuche mit Pause sind
+      # die Obergrenze, und sie greifen nur, wenn die erste fehlschlaegt.
+      # ⚠️ OHNE Cache-Brecher: so laeuft die Anfrage denselben Weg wie die eines Besuchers und
+      # kostet den Server im Normalfall fast nichts.
+      # 💣 KEIN `HEAD` -- map-features.php lehnt alles ausser GET mit 405 ab, bevor es
+      # ueberhaupt Daten anfasst; eine HEAD-Probe waere immer gruen und wertlos.
+      - name: Karte nach dem Deploy einmal abrufen
+        if: env.SKIP_DEPLOY != 'true' && inputs.dry_run != true
+        shell: bash
+        run: |
+          set -uo pipefail
+
+          ziel="https://avesmaps.de/api/app/map-features.php"
+          # Kurz warten: der Upload ist eben erst durch, und PHP mag einen Moment brauchen.
+          sleep 20
+
+          for versuch in 1 2 3; do
+            kopf="$(curl -s -o /tmp/karte.probe -D - -w '%{http_code}' --max-time 180 "$ziel" | tail -1)"
+            anfang="$(head -c 200 /tmp/karte.probe 2>/dev/null || true)"
+
+            if [[ "$kopf" == "200" && "$anfang" == *'"ok":true'* ]]; then
+              groesse=$(stat -c%s /tmp/karte.probe 2>/dev/null || echo 0)
+              fassung="$(sed -n 's/.*"revision":\([0-9]*\).*/\1/p' <<< "$anfang")"
+              echo "Karte lebt: HTTP 200, Kartenfassung ${fassung:-?}, $(( groesse / 1048576 )) MB."
+              # ⚠️ Fail-open ist nicht still: seit dem 23.08.2026 zaehlt map-features.php
+              # gescheiterte Wappen-Aufloesungen mit. Ueber null heisst „Karte laeuft, aber
+              # irgendwo fehlen Wappen" -- eine Warnung, kein Abbruch.
+              if [[ "$anfang" == *'"coat_errors"'* ]]; then
+                echo "::warning title=Wappen::map-features meldet coat_errors -- die Karte laeuft, aber Wappen-Aufloesungen sind gescheitert."
+              fi
+              exit 0
+            fi
+
+            echo "Versuch $versuch: HTTP $kopf -- $(head -c 160 /tmp/karte.probe 2>/dev/null)"
+            [[ "$versuch" -lt 3 ]] && sleep 25
+          done
+
+          echo "::error title=Die Karte ist tot::$ziel antwortet nicht mit ok:true. Die Seite laedt, die Karte bleibt LEER. Der Upload ist bereits erfolgt -- pruefe den letzten Commit und erwaege einen Revert."
+          exit 1
