@@ -2146,6 +2146,11 @@ function avesmapsListEcosystemRegions(PDO $pdo, array $payload): array
 
     $regions = [];
     foreach ($statement->fetchAll() as $row) {
+        // Einmal je Zeile gerechnet statt zweimal im Literal darunter -- der Leser decodiert
+        // properties_json, und das zweimal je Region waere bei 644 Regionen 644 Decodes zu viel.
+        $kurve = avesmapsCurveLabelSettingsFromProperties(
+            json_decode((string) ($row['properties_json'] ?? ''), true) ?: null
+        );
         $regions[] = [
             'public_id' => (string) $row['public_id'],
             'name' => (string) $row['name'],
@@ -2164,6 +2169,13 @@ function avesmapsListEcosystemRegions(PDO $pdo, array $payload): array
             // stempelt seit dem 18.08.2026, aber nichts gab die Stempel je heraus -- die braune
             // Beschriftung und das ↺ haetten schweigend nie erscheinen koennen.
             'field_origins' => avesmapsEcosystemRegionFieldOrigins($row['properties_json'] ?? null),
+            // 🔴 Die Kurvenbeschriftung braucht denselben LESEWEG wie die zwei darueber. Ohne ihn
+            // liesse sich der Haken setzen und stuende beim naechsten Oeffnen wieder leer da, ohne
+            // dass irgendwo etwas fehlschluege -- genau die Begruendung, mit der `wiki_no_article`
+            // hier gelandet ist. Beide Dialoge (Beschriftung und Flaeche) ziehen von hier.
+            // ⭐ Heraus geht die ANTWORT (zwei flache Werte), nie die Ablage.
+            'curve_label' => $kurve['enabled'],
+            'curve_label_max' => $kurve['max_labels'],
             // Reihenfolge und Sperre (19.08.2026) -- das Fenster „Reihenfolge und Sperren" baut seine
             // Liste hieraus, der Zaehler in der Ebenen-Leiste seine Zahl.
             'stack_order' => (int) $row['stack_order'],

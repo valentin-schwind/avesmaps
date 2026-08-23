@@ -71,6 +71,20 @@ function ecosystemRegionWriteBackPayload(label, region, allowedTypes) {
 		changed = true;
 	}
 
+	// --- Kurvenbeschriftung -------------------------------------------------------------------------
+	// 🔴 Sie gehoert der REGION, wird aber auch im Beschriftungsdialog bedient (Entwurf §2). Sie geht
+	// ueber DIESE Bruecke und nicht ueber einen eigenen Aufruf daneben: `update_region` ist ohnehin
+	// der Schreibweg der Region, und ein zweiter Aufruf machte „Abbrechen“ fuer einen der beiden
+	// Werte wirkungslos -- dieselbe Begruendung, mit der die Klick-Sperre im Flaechendialog auf
+	// dieser Speicherleiste sitzt.
+	// 💣 `null` heisst „nicht angefasst“ und schickt nichts (siehe getLabelCurvePayload).
+	const kurve = typeof getLabelCurvePayload === "function" ? getLabelCurvePayload() : null;
+	if (kurve) {
+		payload.curve_label = kurve.curve_label;
+		payload.curve_label_max = kurve.curve_label_max;
+		changed = true;
+	}
+
 	return changed ? payload : null;
 }
 

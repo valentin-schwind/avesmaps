@@ -232,6 +232,9 @@ async function renderLabelCarrierNote(label) {
 	// Die zweite Stufe des Titels (siehe populateLabelEditForm): jetzt ist die Ebene bekannt.
 	setLabelEditDialogTitle(region?.kind || "", { resolved: true });
 	fillLabelRegionSelect(label, region);
+	// VOR dem fruehen Ausstieg darunter: ohne Region muessen die zwei Bedienelemente
+	// ausdruecklich verriegelt werden, sonst behalten sie den Stand des zuletzt geoeffneten Labels.
+	syncLabelCurveControls(region);
 	if (!region) {
 		return;
 	}
@@ -325,6 +328,85 @@ function applyLabelTypeVocabulary(region, label) {
 //
 // Die Auswahl führt ALLE drei Ebenen, nicht nur eine: ein Label gehört zu genau einer Fläche, aber
 // welcher Ebene die angehört, ist die Antwort und nicht die Frage.
+// Der beim Oeffnen vorgefundene Stand der Kurveneinstellung -- `null` heisst „nicht bedienbar“.
+let labelCurveGeladen = null;
+
+// Die zwei Bedienelemente der Kurvenbeschriftung (Entwurf §2) fuellen und verriegeln.
+//
+// 🔴 SIE GEHOEREN DER REGION, nicht dem Label: eine Region traegt N Labels und M Flaechen, der Wert
+// existiert genau einmal. Gelesen wird er deshalb aus der REGIONSZEILE (`list_regions` gibt ihn als
+// zwei flache Werte heraus), nie aus dem Label -- und schon gar nicht aus `curveLine`: die sagt „der
+// Server hat eine Kurve gerechnet“, nicht „der Haken steht“. Eine eingeschaltete Region ohne
+// rechenbare Achse stuende sonst als „aus“ da.
+//
+// ⚠️ OHNE FLAECHE KEINE MITTELACHSE. Ein Meer, eine Insel, ein Gipfel traegt kein Polygon, aus dem
+// sich eine Achse rechnen liesse; beide Bedienelemente stehen dann deaktiviert da UND sagen warum.
+// Ein wirkungsloser Schalter ohne Begruendung ist schlimmer als keiner (index.html:2684).
+function syncLabelCurveControls(region) {
+	const haken = document.getElementById("label-edit-curve");
+	const zahl = document.getElementById("label-edit-curve-max");
+	const regler = document.getElementById("label-edit-curve-max-range");
+	const hinweis = document.getElementById("label-edit-curve-hint");
+	if (!haken || !zahl) {
+		return;
+	}
+	const hatFlaeche = Boolean(region) && Number(region.area_count || 0) > 0;
+	haken.disabled = !hatFlaeche;
+	zahl.disabled = !hatFlaeche;
+	if (regler) {
+		regler.disabled = !hatFlaeche;
+	}
+	if (hinweis) {
+		hinweis.hidden = hatFlaeche;
+		hinweis.textContent = hatFlaeche
+			? ""
+			: "Ohne Landschaftsfläche gibt es keine Mittelachse, auf der der Name laufen könnte.";
+	}
+	if (!hatFlaeche) {
+		// 💣 KEIN gemerkter Stand heisst: dieses Speichern NENNT die Felder nicht. Ein „aus“, das aus
+		// einem deaktivierten Haken abgeleitet wuerde, schaltete die Kurve einer Region ab, sobald
+		// jemand irgendein flaechenloses Label speichert.
+		labelCurveGeladen = null;
+		haken.checked = false;
+		zahl.value = "1";
+		if (regler) {
+			regler.value = "1";
+		}
+		return;
+	}
+	const an = region.curve_label === true;
+	const max = Number(region.curve_label_max || 1) || 1;
+	haken.checked = an;
+	zahl.value = String(max);
+	if (regler) {
+		regler.value = String(max);
+	}
+	labelCurveGeladen = { an, max };
+}
+
+// Was dieses Speichern an der Kurveneinstellung NENNT -- oder null, wenn sich nichts bewegt hat.
+//
+// 💣 GEPRUEFT WIRD VERAENDERT, NICHT GESETZT. Der Wert steht an ZWEI Oberflaechen, und beide
+// speichern dieselbe Region: ein Dialog, der ihn bei jedem Speichern mitschickt, nimmt die Aenderung
+// des anderen wortlos zurueck. Dieselbe Regel wie beim dritten Wiki-Zustand nebenan
+// (getLabelWikiNoArticlePayload) und dieselbe, die der Server noch einmal haelt.
+function getLabelCurvePayload() {
+	if (!labelCurveGeladen) {
+		return null;
+	}
+	const haken = document.getElementById("label-edit-curve");
+	const zahl = document.getElementById("label-edit-curve-max");
+	if (!haken || !zahl) {
+		return null;
+	}
+	const an = Boolean(haken.checked);
+	const max = Math.min(3, Math.max(1, Number.parseInt(String(zahl.value || "1"), 10) || 1));
+	if (an === labelCurveGeladen.an && max === labelCurveGeladen.max) {
+		return null;
+	}
+	return { curve_label: an, curve_label_max: max };
+}
+
 function fillLabelRegionSelect(label, region) {
 	const section = document.getElementById("label-edit-region-section");
 	const select = document.getElementById("label-edit-region");

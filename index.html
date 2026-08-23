@@ -1989,12 +1989,25 @@
 					</div><div class="label-edit-section"><div class="label-edit-section-title">Darstellung</div>
 						<div class="label-edit-grid">
 							<label class="location-report-form__field"><span>Größe</span><div class="label-edit-sliderrow"><input id="label-edit-size" name="size" type="number" min="12" max="50" step="1" value="18" /><input id="label-edit-size-range" type="range" min="12" max="50" step="1" value="18" aria-label="Groesse" /></div></label>
-							<label class="location-report-form__field"><span>Rotation</span><div class="label-edit-sliderrow"><input id="label-edit-rotation" name="rotation" type="number" min="0" max="360" step="1" value="0" /><input id="label-edit-rotation-range" type="range" min="0" max="360" step="1" value="0" aria-label="Rotation" /></div></label>
+							<!-- 🔴 „Rotation" ist als BEDIENELEMENT gefallen (Entwurf §2): der Name laeuft auf der
+							     Mittelachse der Flaeche, nicht mehr in einem von Hand getroffenen Winkel.
+							     💣 DAS FELD BLEIBT ALS HIDDEN STEHEN, und das ist kein vergessener Rest: der
+							     Payload liest `formData.get("rotation")`, und OHNE das Feld schriebe jedes
+							     Speichern eine 0 ueber den gespeicherten Winkel. Entwurf §8 verlangt
+							     ausdruecklich, ihn zu erhalten -- er ist der einzige Rueckweg, falls das
+							     Feature je zurueckgebaut wird, und der Deploy loescht nie (AGENTS.md §10). -->
+							<input id="label-edit-rotation" name="rotation" type="hidden" value="0" />
+							<label class="location-report-form__field location-report-form__field--checkbox"><input id="label-edit-curve" name="curve_label" type="checkbox" /><span>Kurvenbeschriftung</span></label>
+							<label class="location-report-form__field"><span>Max. Namen</span><div class="label-edit-sliderrow"><input id="label-edit-curve-max" name="curve_label_max" type="number" min="1" max="3" step="1" value="1" /><input id="label-edit-curve-max-range" type="range" min="1" max="3" step="1" value="1" aria-label="Maximale Anzahl der Namen" /></div></label>
 							<label class="location-report-form__field"><span>Sichtbar ab Zoom</span><div class="label-edit-zoomrow"><input id="label-edit-min-zoom-num" type="number" min="0" max="7" step="1" value="0" aria-label="Sichtbar ab Zoom" /><input id="label-edit-min-zoom" name="min_zoom" type="range" min="0" max="7" step="1" value="0" /></div></label>
 							<label class="location-report-form__field"><span>Sichtbar bis Zoom</span><div class="label-edit-zoomrow"><input id="label-edit-max-zoom-num" type="number" min="0" max="7" step="1" value="7" aria-label="Sichtbar bis Zoom" /><input id="label-edit-max-zoom" name="max_zoom" type="range" min="0" max="7" step="1" value="7" /></div></label>
 							<label class="location-report-form__field"><span>Priorität</span><div class="label-edit-sliderrow"><input id="label-edit-priority" name="priority" type="number" min="1" max="5" step="1" value="3" /><input id="label-edit-priority-range" type="range" min="1" max="5" step="1" value="3" aria-label="Prioritaet" /></div></label>
 							<label class="location-report-form__field location-report-form__field--checkbox"><input id="label-edit-is-nodix" name="is_nodix" type="checkbox" /><span>Nodix</span></label>
 						</div>
+						<!-- ⚠️ Ohne Landschaftsflaeche gibt es keine Mittelachse -- Meere, Inseln und
+						     Gipfel tragen die zwei Bedienelemente deshalb deaktiviert und sagen warum
+						     (Entwurf §2). Gefuellt wird der Satz von review-labels.js. -->
+						<p id="label-edit-curve-hint" class="location-report-form__status" hidden></p>
 					</div><!-- Die Wiki-Zuweisung des LABELS: seit 16.08.2026 dasselbe geteilte Bauteil
 					     (js/ui/wiki-assign.js), Objektart „landschaftslabel", Huelle „label-wiki" --
 					     ihr Namensgeber. Hier stand der letzte eigene Picker des Hauses samt einer
