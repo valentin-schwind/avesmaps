@@ -129,7 +129,13 @@
    worin sich dieses Menue unterscheidet. 💣 Das Filtermenue haengt RECHTSbuendig (right: 0),
    weil sein Knopf am rechten Rand einer Werkzeugleiste sitzt -- dieser hier steht mitten im Band
    und muesste sonst nach links aus seinem Knopf herauslaufen. */
-.rb-menu { position: relative; flex: 0 0 auto; display: flex; }
+/* 💣 Der Wirt ist ein GRID mit `grid-auto-columns: minmax(0,1fr)`, keine Flex-Leiste. Die Huelle
+   war von `.type-filter` abgeschrieben, dessen Wirt eine Flex-Werkzeugleiste ist -- dort ist
+   `flex: 0 0 auto` richtig, hier bekommt die Huelle eine volle Gitterspalte und der Knopf darin
+   schrumpft auf seine Textbreite. Ergebnis: eine Luecke im Band, vom Owner im Bild markiert
+   (23.08.2026). Wer eine Rezeptur abschreibt, muss ihren WIRT mitpruefen. */
+.rb-menu { position: relative; display: flex; }
+.rb-menu > .btn2 { flex: 1 1 auto; width: 100%; }
 .rb-menu__panel {
 	left: 0;
 	right: auto;

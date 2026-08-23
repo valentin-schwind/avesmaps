@@ -98,6 +98,29 @@ pruefe(band.includes('Wappen ▾'), 'der Sammelknopf „Wappen ▾" fehlt im Ban
 pruefe(html.includes('class="rb-menu__panel type-filter__menu"'),
 	'das Panel benutzt die vorhandene Menue-Optik, statt eine neue zu erfinden');
 
+// ---- 6. Die Huelle fuellt ihre Gitterspalte ---------------------------------------------------
+// 💣 `.controls` ist ein GRID mit `grid-auto-columns: minmax(0,1fr)` -- jede Kachel bekommt eine
+// gleich breite Spalte. Die Huelle war von `.type-filter` abgeschrieben, dessen Wirt eine
+// FLEX-Werkzeugleiste ist; dort ist `flex: 0 0 auto` richtig. Hier schrumpfte der Knopf dadurch
+// auf seine Textbreite und liess den Rest der Spalte leer -- eine Luecke im Band, die der Owner
+// im Bild markieren musste, weil kein Test sie sah (23.08.2026).
+// ⚠️ Wer eine Rezeptur abschreibt, muss ihren WIRT mitpruefen. Diese Zusicherung ist die einzige
+// Stelle, an der das Paar (Grid-Wirt / fuellendes Kind) zusammen aufgeschrieben ist.
+const editorCss = fs.readFileSync(
+	path.join(__dirname, '..', '..', '..', 'css', 'components', 'editor-page.css'), 'utf8');
+
+pruefe(/\.controls\s*\{[^}]*grid-auto-columns\s*:\s*minmax\(0\s*,\s*1fr\)/.test(html),
+	'der Wirt .controls ist noch ein Grid mit gleich breiten Spalten -- '
+	+ 'aendert sich das, gehoert die Regel darunter geprueft');
+pruefe(/\.rb-menu\s*>\s*\.btn2\s*\{[^}]*width:\s*100%/.test(editorCss),
+	'DER KERN VON TEIL 6: der Knopf in der Huelle fuellt seine Gitterspalte');
+
+// 🪤 Und das `flex: 0 0 auto` der Vorlage darf NICHT zurueckkommen -- es ist genau der Wert, der
+// die Luecke gemacht hat.
+const huelle = editorCss.slice(editorCss.indexOf('.rb-menu {'), editorCss.indexOf('.rb-menu__panel'));
+pruefe(!/flex:\s*0\s+0\s+auto/.test(huelle),
+	'die Huelle traegt kein `flex: 0 0 auto` mehr -- das war die Ursache der Luecke');
+
 if (fehler > 0) {
 	console.error(`\n${fehler} Zusicherung(en) verletzt.`);
 	process.exit(1);
