@@ -17,6 +17,44 @@ Polarzone ist schneebedeckt.
 Ebenen, Farben, Glättung und Ausgabegröße sind einstellbar; für eine Datenauswertung ist
 nichts davon nötig. Ergebnis: 7–10 MB, rund 20.000 Elemente.
 
+## Wie eine MASCHINE einen Abzug bekommt (seit 23.08.2026)
+
+Ohne Browser-Login, ohne Admin-Cookie:
+
+```bash
+curl --fail-with-body \
+  -H "Authorization: Bearer $AVESMAPS_SVG_API_TOKEN" \
+  -o avesmaps-latest.svg \
+  https://avesmaps.de/api/svg-export.php
+```
+
+Geliefert wird der **jeweils neueste** Abzug: Inkscape-Dialekt, 32768 x 32768,
+`viewBox="0 0 1024 1024"`, alle Ebenen, volle Semantik, nichts geglättet — also genau die
+Einstellung, die für eine Auswertung gebraucht wird.
+
+Die Fassungsstempel stehen auch als Kopfzeilen, man muss die 8 MB also nicht parsen, um zu
+wissen, ob sich etwas geändert hat: `X-Avesmaps-Kartenfassung`,
+`X-Avesmaps-Landschaftsfassung`, `X-Avesmaps-Exported-At`. Der `ETag` liegt auf dem echten
+Inhalt — mit `If-None-Match` antwortet der Endpunkt `304`, und der Abzug wird gar nicht erst
+übertragen. ⭐ Für einen Läufer, der täglich nachsieht, ist das der richtige Weg.
+
+- `401 unauthorized` — Token fehlt **oder** ist falsch (von außen nicht zu unterscheiden)
+- `404 export_not_available` — es liegt noch kein Abzug bereit
+- `503 export_not_configured` — die Umgebungsvariable fehlt **auf dem Server**
+
+⚠️ **Der Abzug ist bis zu 24 h alt.** Er entsteht nachts um 03:17 UTC in der CI, nicht beim
+Abruf — und das ist Absicht: der Bauer ist JavaScript, ihn in PHP nachzubauen wäre eine
+zweite Wahrheit über das Kartenbild (AGENTS.md §5) und ~21 MB JSON je Abruf auf einem
+Shared Hosting. Wer taggenau sein muss, vergleicht `avm:kartenfassung` mit `revision` aus
+`/api/app/map-features.php`.
+
+🔑 Den Token setzt der Owner serverseitig als Umgebungsvariable
+`AVESMAPS_SVG_EXPORT_TOKEN`; er kann **nur** diesen einen Export lesen, sonst nichts. Er
+gehört nie in eine Adresse (Serverprotokoll, Referrer, Browserverlauf) — der Endpunkt liest
+ausschließlich den `Authorization`-Kopf und weist einen Token als URL-Parameter ab.
+
+Ein Abzug von Hand geht weiter über `/edit/svg-export.php` (Admin) — mit allen Reglern.
+Es ist **dieselbe Datei**, gebaut von **demselben** Bauteil.
 ## Der Vertrag
 
 Namensraum `xmlns:avm="https://avesmaps.de/ns/export/1"`. An jedem Element (⚠️ `avm:ebene` nur an Flächen, 904 von 10.084):

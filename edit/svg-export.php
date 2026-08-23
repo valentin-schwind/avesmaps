@@ -10,9 +10,15 @@ declare(strict_types=1);
  * BROWSER assembles a vector drawing of the whole map and downloads it.
  *
  * Nothing runs on the server here beyond this shell. The heavy lifting is
- * js/pages/svg-export-build.js (pure, unit-tested) plus js/pages/svg-export-page.js
- * (fetch + Blob). A PHP renderer would have to restate the map's appearance a second
- * time -- and hold a 30 MB string on shared hosting.
+ * js/pages/svg-export-build.js (pure, unit-tested), js/pages/svg-export-farben.js (the
+ * default colours) plus js/pages/svg-export-page.js (fetch + Blob). A PHP renderer would
+ * have to restate the map's appearance a second time -- and hold a 30 MB string on
+ * shared hosting.
+ *
+ * Derselbe Bauer laeuft seit 23.08.2026 auch OHNE Browser: tools/svg-export/abzug-bauen.js
+ * baut naechtlich denselben Abzug fuer GET /api/svg-export.php. Deshalb liegen die
+ * Vorgabefarben in svg-export-farben.js und nicht mehr hier im Kitt -- zwei Fassungen
+ * derselben Regel laufen auseinander, sobald ein neuer Gelaendetyp dazukommt.
  *
  * ADMIN ONLY, matching the backup page: the export walks the full feature payload,
  * including the political layer.
@@ -405,8 +411,9 @@ $renderNode = static function (array $node, string $parentPath, int $depth) use 
              ⚠️ Diese Datei ruft von sich aus NICHTS ab (siehe ihren Kopf); den Abruf macht
              svg-export-page.js über /api/app/zoom-bands.php. -->
         <script src="../js/map-features/location-zoom-bands.js?v=20260822-svgexport-17"></script>
-        <script src="../js/pages/svg-export-build.js?v=20260822-svgexport-17"></script>
-        <script src="../js/pages/svg-export-page.js?v=20260822-svgexport-17"></script>
+        <script src="../js/pages/svg-export-build.js?v=20260823-svgexport-18"></script>
+        <script src="../js/pages/svg-export-farben.js?v=20260823-svgexport-18"></script>
+        <script src="../js/pages/svg-export-page.js?v=20260823-svgexport-18"></script>
     <?php endif; ?>
 </body>
 

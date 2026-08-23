@@ -1,0 +1,219 @@
+name: SVG-Abzug bauen und ablegen
+
+# Baut den semantischen SVG-Abzug der Karte und legt ihn auf STRATO ab, wo
+# GET /api/svg-export.php ihn gegen einen Bearer-Token ausliefert.
+#
+# 🔴 GEBAUT WIRD MIT DEM BAUER DER EXPORTSEITE, nicht mit einer zweiten Fassung.
+# tools/svg-export/abzug-bauen.js laedt js/pages/svg-export-build.js -- dieselbe Datei, die
+# /edit/svg-export.php im Browser laedt. Deshalb koennen manueller und automatischer Export
+# nicht auseinanderlaufen: es gibt nur einen.
+#
+# ⚠️ EINMAL AM TAG, und der Lauf holt drei bekannte Perf-Brennpunkte an (map-features,
+# political-territories?action=layer, ecosystem-areas je Art). Wer die Haeufigkeit erhoeht,
+# erhoeht die Last auf dem Shared Hosting -- CLAUDE.md beschreibt, wie das einmal wie ein
+# Datenbankausfall aussah.
+
+on:
+  schedule:
+    # 03:17 UTC -- abseits des Deploys und der Handbuch-Routine (00:00 Ortszeit).
+    - cron: "17 3 * * *"
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: "Woher die Kartendaten kommen"
+        required: true
+        default: "https://avesmaps.de"
+        type: string
+      dry_run:
+        description: "Nur bauen, nichts hochladen"
+        required: true
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: avesmaps-svg-export
+  cancel-in-progress: false
+
+jobs:
+  abzug:
+    name: Abzug bauen und hochladen
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    env:
+      AVESMAPS_HOST: ${{ secrets.AVESMAPS_HOST }}
+      AVESMAPS_PASSWORD: ${{ secrets.AVESMAPS_PASSWORD }}
+      AVESMAPS_PORT: ${{ secrets.AVESMAPS_PORT }}
+      AVESMAPS_REMOTE_PATH: ${{ secrets.AVESMAPS_REMOTE_PATH }}
+      AVESMAPS_USER: ${{ secrets.AVESMAPS_USER }}
+      ABZUG_DIR: /tmp/avesmaps-svg-export
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Node bereitstellen
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Abzug bauen
+        shell: bash
+        run: |
+          set -euo pipefail
+          basis="${{ inputs.base_url || 'https://avesmaps.de' }}"
+          rm -rf "$ABZUG_DIR"
+          mkdir -p "$ABZUG_DIR"
+          node tools/svg-export/abzug-bauen.js --out "$ABZUG_DIR" --base "$basis"
+          cp uploads/svg-export/.htaccess "$ABZUG_DIR/.htaccess"
+          ls -la "$ABZUG_DIR"
+
+      - name: Abzug pruefen
+        shell: bash
+        run: |
+          set -euo pipefail
+          node tools/svg-export/__tests__/abzug-pruefen.js "$ABZUG_DIR"
+
+      - name: Zugangsdaten pruefen
+        if: ${{ !inputs.dry_run }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          fehlt=0
+          for name in AVESMAPS_HOST AVESMAPS_PASSWORD AVESMAPS_PORT AVESMAPS_REMOTE_PATH AVESMAPS_USER; do
+            if [[ -z "${!name:-}" ]]; then
+              echo "::error title=Secret fehlt::${name} ist nicht gesetzt."
+              fehlt=1
+            fi
+          done
+          [[ "$fehlt" -eq 0 ]]
+
+      - name: SFTP-Client installieren
+        if: ${{ !inputs.dry_run }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install --yes lftp
+
+      # 🔴 DIE REIHENFOLGE IST DER GANZE TRICK. Erst die Sperre, dann die neue Datei unter
+      # einem Namen, den noch niemand kennt, und ZULETZT der Zeiger. Bis `aktuell.json`
+      # umspringt, liefert der Endpunkt weiter den alten Abzug aus -- es gibt kein Fenster,
+      # in dem eine halb hochgeladene Datei die neueste waere.
+      #
+      # ⚠️ `uploads/` steht NICHT in der Allowlist des Deploys, die .htaccess kaeme also nie
+      # von dort. Sie reist deshalb hier mit: das Verzeichnis wird von diesem Lauf angelegt,
+      # also schuetzt dieser Lauf es auch. Ohne sie waere der Dateiname das Passwort.
+      - name: Hochladen
+        if: ${{ !inputs.dry_run }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          neu="$(basename "$(ls "$ABZUG_DIR"/abzug-*.svg)")"
+          echo "Neuer Abzug: $neu"
+
+          # 💣 DEN BISHERIGEN NAMEN VOR DEM HOCHLADEN MERKEN. Danach ist er weg -- und ohne ihn
+          # bliebe zum Abraeumen nur „sortiere und wirf den Rest weg", also ein Verlass auf
+          # lftps Sortierrichtung. Die ist bei `cls --sort=date` AUFSTEIGEND: ein `tail -n +3`
+          # haette die zwei aeltesten behalten und die neuesten geloescht, den gerade
+          # hochgeladenen eingeschlossen.
+          # ⚠️ `aktuell.json` traegt genau EINEN Namen dieser Form (das Feld `datei`), also
+          # reicht das blosse Muster -- ein Grep auf `"datei": "…"` haenge zusaetzlich an der
+          # Einrueckung von JSON.stringify.
+          vorher="$(lftp -u "$AVESMAPS_USER","$AVESMAPS_PASSWORD" -p "$AVESMAPS_PORT" "sftp://$AVESMAPS_HOST" -e "
+          set sftp:auto-confirm yes
+          cat \"$AVESMAPS_REMOTE_PATH/uploads/svg-export/aktuell.json\"
+          bye" 2>/dev/null | grep -o 'abzug-[0-9a-f]\{16\}\.svg' | head -1 || true)"
+          echo "Bisheriger Abzug: ${vorher:-(keiner)}"
+          echo "BEHALTEN=$neu ${vorher:-}" >> "$GITHUB_ENV"
+
+          lftp -u "$AVESMAPS_USER","$AVESMAPS_PASSWORD" -p "$AVESMAPS_PORT" "sftp://$AVESMAPS_HOST" <<EOF
+          set sftp:auto-confirm yes
+          set net:max-retries 2
+          set net:timeout 30
+          cd "$AVESMAPS_REMOTE_PATH"
+          mkdir -p uploads/svg-export
+          cd uploads/svg-export
+          put "$ABZUG_DIR/.htaccess" -o .htaccess
+          put "$ABZUG_DIR/$neu" -o "$neu"
+          put "$ABZUG_DIR/aktuell.json" -o aktuell.json
+          bye
+          EOF
+
+      # Aufraeumen NACH dem Umspringen des Zeigers, und der VORHERIGE bleibt stehen: ein
+      # Abruf, der den alten Zeiger schon gelesen hatte, findet seine Datei noch.
+      # 💣 Ein Verzeichnis, in das taeglich 8 MB fallen und aus dem nie etwas verschwindet,
+      # ist voll, bevor es jemand bemerkt -- und auf STRATO entzieht ein voller Speicher der
+      # Datenbank die Schreibrechte (uploads-Quote, Fehler 1142 beim naechsten INSERT).
+      - name: Alte Abzuege abraeumen
+        if: ${{ !inputs.dry_run }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          # 🔴 Behalten wird NUR, was in BEHALTEN steht -- der neue und der vorherige Abzug.
+          # Kein Sortieren, kein Zaehlen: die Namen sind bekannt, also wird nach Namen
+          # entschieden. 💣 `cls --sort=date` sortiert AUFSTEIGEND; ein "sortieren und den Rest
+          # wegwerfen" haette die zwei aeltesten behalten und die neuesten geloescht, den
+          # gerade hochgeladenen eingeschlossen.
+          behalten_liste="${BEHALTEN:-}"
+          if [[ -z "${behalten_liste// /}" ]]; then
+            echo "::warning::Kein Name zum Behalten bekannt -- es wird nichts geloescht."
+            exit 0
+          fi
+
+          liste="$(lftp -u "$AVESMAPS_USER","$AVESMAPS_PASSWORD" -p "$AVESMAPS_PORT" "sftp://$AVESMAPS_HOST" -e "
+          set sftp:auto-confirm yes
+          cd \"$AVESMAPS_REMOTE_PATH/uploads/svg-export\"
+          cls -1 abzug-*.svg
+          bye" 2>/dev/null || true)"
+
+          # 💣 KEIN `[[ … ]] && x` unter `set -e`. Eine falsche Bedingung laesst die Liste mit
+          # Status 1 enden, und `set -e` beendet daraufhin den ganzen Schritt -- das Abraeumen
+          # waere beim ersten zu behaltenden Namen still ausgestiegen. `if` sagt dasselbe und
+          # traegt keinen Status nach draussen.
+          alt=""
+          while IFS= read -r zeile; do
+            datei="$(basename -- "${zeile%$'\r'}")"
+            case "$datei" in
+              abzug-*.svg) ;;
+              *) continue ;;
+            esac
+            drin=0
+            for k in $behalten_liste; do
+              if [[ "$datei" == "$k" ]]; then drin=1; fi
+            done
+            if [[ "$drin" -eq 0 ]]; then alt="$alt $datei"; fi
+          done <<< "$liste"
+
+          if [[ -z "${alt// /}" ]]; then
+            echo "Nichts abzuraeumen (behalten: $behalten_liste)."
+            exit 0
+          fi
+
+          echo "Behalten:      $behalten_liste"
+          echo "Wird geloescht:$alt"
+          {
+            echo 'set sftp:auto-confirm yes'
+            echo "cd \"$AVESMAPS_REMOTE_PATH/uploads/svg-export\""
+            for datei in $alt; do
+              echo "rm -f \"$datei\""
+            done
+            echo 'bye'
+          } | lftp -u "$AVESMAPS_USER","$AVESMAPS_PASSWORD" -p "$AVESMAPS_PORT" "sftp://$AVESMAPS_HOST"
+
+      - name: Zusammenfassung
+        if: always()
+        shell: bash
+        run: |
+          if [[ -f "$ABZUG_DIR/aktuell.json" ]]; then
+            {
+              echo "### SVG-Abzug"
+              echo '```json'
+              cat "$ABZUG_DIR/aktuell.json"
+              echo '```'
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi

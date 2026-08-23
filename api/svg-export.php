@@ -1,0 +1,92 @@
+<?php
+
+declare(strict_types=1);
+
+/**
+ * GET /api/svg-export.php -- der jeweils neueste semantische SVG-Abzug der Karte.
+ * ---------------------------------------------------------------------------------------
+ * Fuer Maschinen: ein Bearer-Token statt Browser-Login und Admin-Cookie. Der Abzug ist
+ * dieselbe Datei, die /edit/svg-export.php im Browser erzeugt -- gebaut vom naechtlichen
+ * Lauf (.github/workflows/svg-export-abzug.yml) mit demselben Bauer
+ * (js/pages/svg-export-build.js), 32768 x 32768, viewBox 0 0 1024 1024, alle Ebenen,
+ * volle avm:*-Semantik, nichts geglaettet.
+ *
+ * 🔴 NUR LESEN. Dieser Endpunkt hat keinen Schreibweg, keine Datenbankverbindung und keine
+ * Verwaltungsfunktion; er reicht eine Datei durch. Der Token kann nichts anderes.
+ *
+ * 💣 KEIN PDO, KEIN avesmapsLoadApiConfig. Beides waere unnoetige Last auf dem Shared
+ * Hosting -- und `avesmapsLoadApiConfig` WIRFT, wenn keine config.local.php danebenliegt,
+ * womit ein reiner Dateiendpunkt an einer Datenbankkonfiguration scheitern wuerde, die er
+ * gar nicht braucht.
+ *
+ * Vertrag im Fehlerfall wie ueberall: {ok:false, error:{code, message}} (AGENTS.md sec.4).
+ */
+
+require __DIR__ . '/_internal/bootstrap.php';
+require_once __DIR__ . '/_internal/app/svg-export-ablage.php';
+
+// 🔴 Kein CORS. Ein Bearer-Token gehoert nicht in eine Webseite, und `Access-Control-Allow-*`
+// waere die Einladung, ihn dort hineinzuschreiben. Dies ist ein Server-zu-Server-Endpunkt.
+$anfrageArt = strtoupper((string) ($_SERVER['REQUEST_METHOD'] ?? 'GET'));
+if ($anfrageArt !== 'GET' && $anfrageArt !== 'HEAD') {
+    header('Allow: GET, HEAD');
+    avesmapsErrorResponse(405, 'method_not_allowed', 'Nur GET und HEAD sind erlaubt.');
+}
+
+$erwarteterToken = avesmapsSvgExportToken();
+if ($erwarteterToken === '') {
+    // 💣 Das ist KEIN 401. Ein 401 hiesse „dein Token ist falsch" und schickte den Aufrufer
+    // auf die Suche nach einem Fehler, den er nicht hat -- hier fehlt die Umgebungsvariable
+    // AUF DEM SERVER. Eine Absage ohne unterscheidbaren Grund ist von aussen unauffindbar.
+    avesmapsErrorResponse(503, 'export_not_configured',
+        'Der SVG-Export ist auf diesem Server nicht eingerichtet.');
+}
+
+$gegebenerToken = avesmapsSvgExportBearerAusAnfrage($_SERVER);
+if (!avesmapsSvgExportTokenPasst($erwarteterToken, $gegebenerToken)) {
+    // ⚠️ EINE Antwort fuer „kein Token" und „falscher Token". Sie zu unterscheiden verriete
+    // einem Probierer, dass sein Format stimmt. Der Token selbst wird nirgends protokolliert.
+    header('WWW-Authenticate: Bearer realm="avesmaps-svg-export"');
+    avesmapsErrorResponse(401, 'unauthorized', 'Gueltiger Bearer-Token erforderlich.');
+}
+
+$abzug = avesmapsSvgExportAbzug(avesmapsSvgExportAblageVerzeichnis());
+if ($abzug === null) {
+    avesmapsErrorResponse(404, 'export_not_available',
+        'Es liegt noch kein Abzug bereit. Der naechtliche Lauf erzeugt ihn.');
+}
+
+// 🔴 DIE KOEPFE GEHEN MIT DER ANTWORT RAUS, nie vor der Arbeit. Ein ETag, der auch einen
+// Fehler begleitet, laesst einen Client seinen Fehlertext unter diesem Tag ablegen und
+// bekommt danach 304 -- „deine Kopie ist aktuell" fuer eine Fehlermeldung. Hier steht die
+// Datei bereits fest, wenn diese Zeile laeuft.
+header('ETag: ' . $abzug['etag']);
+header('Cache-Control: private, no-cache');
+header('X-Avesmaps-Kartenfassung: ' . $abzug['kartenfassung']);
+header('X-Avesmaps-Landschaftsfassung: ' . $abzug['landschaftsfassung']);
+header('X-Avesmaps-Exported-At: ' . $abzug['exportiert']);
+
+$ifNoneMatch = (string) ($_SERVER['HTTP_IF_NONE_MATCH'] ?? '');
+if ($ifNoneMatch !== '' && avesmapsETagMatches($ifNoneMatch, $abzug['etag'])) {
+    http_response_code(304);
+    exit;
+}
+
+header('Content-Type: image/svg+xml; charset=utf-8');
+header('Content-Disposition: attachment; filename="' . $abzug['dateiname'] . '"');
+header('Content-Length: ' . $abzug['bytes']);
+// Ein Abzug ist rund 8 MB; ein `Content-Encoding` darueber kostet auf dem Shared Hosting
+// Rechenzeit und macht `Content-Length` zunichte.
+header('X-Content-Type-Options: nosniff');
+
+if ($anfrageArt === 'HEAD') {
+    exit;
+}
+
+// 💣 readfile(), NICHT file_get_contents(). Der Abzug ist groesser als das, was ein
+// PHP-Prozess auf dem Shared Hosting bequem im Speicher haelt; readfile streamt. Und der
+// Ausgabepuffer muss vorher weg, sonst puffert PHP die ganze Datei doch wieder.
+while (ob_get_level() > 0) {
+    ob_end_flush();
+}
+readfile($abzug['pfad']);

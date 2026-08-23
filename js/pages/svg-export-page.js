@@ -36,76 +36,23 @@
 	// Ein Atemzug an den Browser, damit die Statuszeile mitläuft statt einzufrieren.
 	const atmen = () => new Promise((resolve) => setTimeout(resolve, 0));
 
-	// 🔴 Die Farbe JEDER Landschaftsfläche, nach DERSELBEN Regel, mit der die Karte sie
-	// ableitet (map-features-ecosystem-rendering.js, ecosystemAreaColor): erst der Token des
-	// Geländetyps, sonst der Token der Art. Also keine Abschrift, sondern dieselbe Quelle --
-	// ein neu eingeführter Typ braucht auch hier nur seinen Token in tokens.css, und der
-	// Export folgt von selbst. Wald grün, Wüste gelb, See blau, Meer dunkelblau.
-	// 💣 Der Unterstrich wird zum Bindestrich:
-	//    suempfe_moore -> --color-ecosystem-vegetation-suempfe-moore
-	// 💣 Gelesen wird HIER und nicht im Bauer: getComputedStyle braucht ein DOM, und der
-	// Bauer hat per Vertrag keins. Er bekommt die fertige Tafel gereicht.
-	function landschaftsFarben(features) {
+	// 🔴 Die Farbregeln stehen in svg-export-farben.js -- EINE Stelle fuer Browser UND den
+	// naechtlichen Laeufer (tools/svg-export/abzug-bauen.js). Hier bleibt nur, was ein DOM
+	// braucht: das Nachschlagen der Token per getComputedStyle. Der Bauer bekommt die fertige
+	// Tafel gereicht, er hat per Vertrag kein DOM.
+	const F = () => window.AvesmapsSvgExportFarben;
+	const tokenLeser = () => {
 		const stil = getComputedStyle(document.documentElement);
-		const token = (name) => (stil.getPropertyValue(name) || "").trim();
-		const farben = {};
-		(features || []).forEach((f) => {
-			const p = f.properties || f;
-			const typ = p.region_type || "ohne_typ";
-			if (farben[typ]) { return; }
-			const art = p.kind || "";
-			farben[typ] = token(`--color-ecosystem-${art}-${typ.replace(/_/g, "-")}`)
-				|| token(`--color-ecosystem-${art}`)
-				|| "#dfd6bd";
-		});
-		return farben;
-	}
-
-	// 🔴 Die Vorgaben des Owners (15.08.2026), sie schlagen die Kartenfarbe. Alles, was hier
-	// NICHT steht, kommt weiter aus dem Programm -- Token für Flächen, SVGX_WAY_COLORS für
-	// Wege. Der Owner: „seen sind 82befe, flüsse 4c89c6, wege f5ffe9, wälder 589a64,
-	// gebirge acaea2, der rest wie aus dem programm."
-	// ⚠️ „wege" heißt hier die sechs LANDwege. Seeweg bleibt bei seinem Kartenton, weil er
-	// eine Schiffsroute ist und kein Landweg; der Flussweg hat seinen eigenen Wert bekommen.
-	// Falls das anders gemeint war: die Farbfelder auf der Seite ändern es in einem Klick.
-	const SVGX_COLOR_PRESETS = {
-		"landschaften/topographie/see": "#82befe",
-		"landschaften/vegetation/wald": "#589a64",
-		"landschaften/topographie/gebirge": "#acaea2",
-		"wege/Flussweg": "#4c89c6",
-		"wege/Reichsstrasse": "#f5ffe9",
-		"wege/Strasse": "#f5ffe9",
-		"wege/Weg": "#f5ffe9",
-		"wege/Pfad": "#f5ffe9",
-		"wege/Gebirgspass": "#f5ffe9",
-		"wege/Wuestenpfad": "#f5ffe9",
+		return (name) => (stil.getPropertyValue(name) || "").trim();
 	};
 
-	// Farbe eines Knotens, wenn niemand etwas eingestellt hat: erst die Vorgabe oben, dann
-	// das, was das Programm ohnehin zeichnen würde.
-	function vorgabeFuer(pfad) {
-		if (SVGX_COLOR_PRESETS[pfad]) { return SVGX_COLOR_PRESETS[pfad]; }
-		const teile = pfad.split("/");
-		const stil = getComputedStyle(document.documentElement);
-		const token = (name) => (stil.getPropertyValue(name) || "").trim();
+	function landschaftsFarben(features) {
+		return F().landschaftsFarben(features, tokenLeser());
+	}
 
-		if (teile[0] === "landschaften" && teile.length === 3) {
-			return token(`--color-ecosystem-${teile[1]}-${teile[2].replace(/_/g, "-")}`)
-				|| token(`--color-ecosystem-${teile[1]}`) || "#dfd6bd";
-		}
-		if (teile[0] === "wege" && teile.length === 2) {
-			const W = (window.AvesmapsSvgExport && window.AvesmapsSvgExport.WAY_COLORS) || {};
-			return W[teile[1]] || "#888888";
-		}
-		if (teile[0] === "kraftlinien") { return "#7a5ea8"; }
-		if (teile[0] === "gebiete") { return "#8a6a3f"; }
-		// 🔴 Orte in der Farbe der Kartenmarkierung (--color-marker-waypoint), nicht im
-		// Braun der Schrift -- Owner 16.08.2026. Beschriftungen bleiben braun.
-		if (teile[0] === "orte") {
-			return token("--color-marker-waypoint")
-				|| (window.AvesmapsSvgExport && window.AvesmapsSvgExport.PLACE_COLOR) || "#e33b35";
-		}
-		return "#3b2a18";   // Beschriftungen
+	function vorgabeFuer(pfad) {
+		const B = window.AvesmapsSvgExport || {};
+		return F().vorgabe(pfad, tokenLeser(), B.WAY_COLORS, B.PLACE_COLOR);
 	}
 
 	// Die eingestellten Farben, nach Ebene sortiert, wie der Bauer sie erwartet.

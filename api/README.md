@@ -235,6 +235,53 @@ The following endpoints are used by the Avesmaps app. They are reachable, but no
 
 Legacy root wrappers such as /api/map-features.php, /api/map-search.php, /api/report-location.php and /api/wiki-proxy.php are no longer maintained as canonical paths.
 
+## Machine access: the semantic SVG export
+
+```text
+GET /api/svg-export.php
+Authorization: Bearer <token>
+```
+
+Hands out **the newest semantic SVG rendering of the whole map** — the same file
+`/edit/svg-export.php` produces in the browser, for tools that cannot hold a browser login.
+Inkscape dialect, 32768 x 32768 px, `viewBox="0 0 1024 1024"`, every layer, full `avm:*`
+metadata, nothing smoothed. The vocabulary contract is in
+`docs/svg-export-semantik-uebergabe.md`.
+
+Read-only: no write path, no database connection, no admin function. The token can do this
+and nothing else.
+
+| | |
+|---|---|
+| Token | env var `AVESMAPS_SVG_EXPORT_TOKEN` on the server — **never** a URL parameter, never `config.local.php`, never logged |
+| Compared with | `hash_equals`; an empty configured token never matches |
+| 200 | `image/svg+xml; charset=utf-8` + `Content-Disposition: attachment; filename="avesmaps-karte-YYYY-MM-DD-r<Kartenfassung>-inkscape.svg"` |
+| Headers | `ETag` (strong, sha256 of the bytes), `Cache-Control: private, no-cache`, `X-Avesmaps-Kartenfassung`, `X-Avesmaps-Landschaftsfassung`, `X-Avesmaps-Exported-At` |
+| 304 | on a matching `If-None-Match` (weak prefix and lists included) |
+| 401 `unauthorized` | missing **or** wrong token — deliberately indistinguishable |
+| 404 `export_not_available` | no rendering deposited yet |
+| 405 `method_not_allowed` | anything but GET/HEAD |
+| 503 `export_not_configured` | the env var is not set **on the server** — not a 401, because the caller has no error to look for |
+
+💣 **The file is NOT built by PHP, and that is the point.** The export is 1356 lines of map
+appearance in `js/pages/svg-export-build.js`. A PHP renderer would restate it a second time
+(AGENTS.md §5) and would have to `json_decode` ~21 MB per call on shared hosting — the load
+CLAUDE.md warns about. Instead `.github/workflows/svg-export-abzug.yml` runs
+`tools/svg-export/abzug-bauen.js` nightly under Node, which loads **that same builder**, and
+uploads the result to the HTTP-denied `uploads/svg-export/`. Browser and API export therefore
+cannot drift: there is only one.
+
+⚠️ Consequence: the rendering is **up to 24 h old**. It carries `avm:kartenfassung` /
+`avm:landschaftsfassung` so a caller can tell which world state it is looking at — vector and
+raster only belong together when both name the same revision.
+
+💣 **The pointer is the truth, not the directory.** `uploads/svg-export/aktuell.json` names the
+file; the runner writes it LAST and under a name nobody knew before. "Newest file in the
+directory" would hand out a half-uploaded one.
+
+Libs: `api/_internal/app/svg-export-ablage.php`. Tests:
+`api/_internal/app/__tests__/svg-export-ablage-test.php` (the decision),
+`tools/svg-export/__tests__/endpunkt-ablauf.js` (the real HTTP round trip against `php -S`).
 ## Editor, import, and diagnostic areas
 
 The API is organized into the following areas:

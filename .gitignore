@@ -34,6 +34,12 @@ uploads/db-backups/*
 uploads/wappen/*
 !uploads/wappen/.htaccess
 
+# Semantic SVG exports (api/svg-export.php). Built nightly by the CI runner and uploaded to
+# the server; 8 MB apiece and reproducible from the data, so never the repo. Keep the
+# deny-all .htaccess -- without it the filename would be the password.
+uploads/svg-export/*
+!uploads/svg-export/.htaccess
+
 # Manually-uploaded map export archives (large binaries; live on the server, not in the repo).
 uploads/*.zip
 uploads/map/*.zip
