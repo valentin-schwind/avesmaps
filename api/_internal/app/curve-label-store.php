@@ -358,12 +358,27 @@ function avesmapsCurveReadBaselines(PDO $pdo): array
     }
 
     try {
+        // 🔴 DIE EINSTELLUNG REIST MIT -- der Zwischenspeicher allein genuegt NICHT. Er kennt nur den
+        // Fingerabdruck der Geometrie; ob die Region ihre Kurve ueberhaupt WILL, steht in
+        // properties_json. Ohne diese Spalte lieferte der Lesepfad die gespeicherte Kurve auch an
+        // eine laengst abgeschaltete Region weiter: „Kurvenbeschriftung aus" hielt bis zum naechsten
+        // Neuladen und war dann wieder da. Am 23.08.2026 im Browser des Owners gemessen
+        // (Salamandersteine: in der Datenbank aus, nach dem Neuladen wieder gebogen).
+        //
+        // ⭐ UND WEITERHIN EINE EINZIGE ABFRAGE. Die Aggregation wandert in eine Ableitungstabelle,
+        // damit die aeussere Abfrage OHNE GROUP BY auskommt -- ein `GROUP BY` ueber eine
+        // JSON-Spalte ist in MySQL nicht verlaesslich, und eine zweite Abfrage auf dem heissen
+        // Lesepfad ist genau die Last, die AGENTS.md §11 bei den Zoombaendern anschreibt.
         $stmt = $pdo->query(
-            'SELECT r.public_id AS region_id, SUM(a.geometry_revision) AS rev, COUNT(*) AS cnt
+            'SELECT r.public_id AS region_id, r.properties_json AS props, x.rev, x.cnt
              FROM ecosystem_region r
-             INNER JOIN ecosystem_area a ON a.region_id = r.id AND a.is_active = 1
-             WHERE r.is_active = 1
-             GROUP BY r.public_id'
+             INNER JOIN (
+                 SELECT region_id, SUM(geometry_revision) AS rev, COUNT(*) AS cnt
+                 FROM ecosystem_area
+                 WHERE is_active = 1
+                 GROUP BY region_id
+             ) x ON x.region_id = r.id
+             WHERE r.is_active = 1'
         );
         $rows = $stmt !== false ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
     } catch (Throwable $e) {
@@ -373,14 +388,35 @@ function avesmapsCurveReadBaselines(PDO $pdo): array
         return [];
     }
     $revisionByRegion = [];
+    $maxByRegion = [];
     foreach ($rows as $row) {
-        $revisionByRegion[(string) $row['region_id']] = ['rev' => (int) $row['rev'], 'cnt' => (int) $row['cnt']];
+        $props = json_decode((string) ($row['props'] ?? ''), true);
+        $einstellung = avesmapsCurveLabelSettingsFromProperties(is_array($props) ? $props : null);
+        // 🔴 AUSGESCHALTET HEISST: GAR NICHT ERST ANBIETEN. Der Zwischenspeicher darf ruhig noch eine
+        // Kurve fuer diese Region halten -- der naechste Sammellauf raeumt sie weg. Bis dahin
+        // entscheidet die EINSTELLUNG, nicht die Ablage.
+        if (!$einstellung['enabled']) {
+            continue;
+        }
+        $id = (string) $row['region_id'];
+        $revisionByRegion[$id] = ['rev' => (int) $row['rev'], 'cnt' => (int) $row['cnt']];
+        $maxByRegion[$id] = $einstellung['max_labels'];
     }
     if ($revisionByRegion === []) {
         return [];
     }
 
-    return avesmapsCurveBaselinesFromCache($json, $revisionByRegion);
+    $baselines = avesmapsCurveBaselinesFromCache($json, $revisionByRegion);
+    // ⭐ Und die ANZAHL kommt ebenfalls aus der Einstellung, nicht aus der Ablage: so wirkt ein
+    // geaendertes „Max. Namen" beim naechsten Laden, ohne dass jemand den Sammellauf fahren muss.
+    // Die KURVE braucht ihn weiterhin -- sie wird gerechnet, die Anzahl nur gelesen.
+    foreach ($baselines as $id => $rec) {
+        if (isset($maxByRegion[$id])) {
+            $baselines[$id]['max_labels'] = $maxByRegion[$id];
+        }
+    }
+
+    return $baselines;
 }
 
 // Aus den Regionen die Ablage bauen. Reine Funktion -- der PDO-Teil steht darunter.

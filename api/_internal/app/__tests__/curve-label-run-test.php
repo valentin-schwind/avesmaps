@@ -232,4 +232,25 @@ avesmapsCurveReadBaselines($spyPdo);
 assert($spyPdo->aggregateQueries === 1,
     'sobald der Zwischenspeicher etwas enthaelt, MUSS die Aggregatabfrage laufen');
 
+// ---- AUSGESCHALTET HEISST: KEINE KURVE -----------------------------------------------------------
+// 💣 Am 23.08.2026 im Browser des Owners gemessen: „Kurvenbeschriftung aus" hielt nur bis zum
+// naechsten Neuladen und war dann wieder da. Der Lesepfad prueft den Fingerabdruck des
+// Zwischenspeichers (Revisionssumme + Flaechenzahl), aber NICHT, ob die Region ihre Kurve
+// ueberhaupt noch will. Die Ablage darf ruhig noch eine halten -- der Sammellauf raeumt sie
+// spaeter weg; bis dahin entscheidet die EINSTELLUNG.
+$vorherAn = avesmapsCurveReadBaselines($pdo);
+assert(isset($vorherAn['r1']), 'Vorbedingung: eingeschaltet liefert der Lesepfad eine Kurve');
+
+$pdo->exec("UPDATE ecosystem_region SET properties_json = '{\"curve_label_max\":1}' WHERE public_id = 'r1'");
+assert(avesmapsCurveReadBaselines($pdo) === [],
+    'ausgeschaltet darf der Lesepfad KEINE Kurve mehr liefern -- sonst kommt sie beim Neuladen zurueck');
+
+// ⭐ Und die ANZAHL kommt aus der EINSTELLUNG, nicht aus der Ablage: ein geaendertes „Max. Namen"
+// wirkt damit schon beim naechsten Laden, ohne dass jemand den Sammellauf fahren muss. Die KURVE
+// selbst braucht ihn weiterhin -- sie wird gerechnet, die Anzahl nur gelesen.
+$pdo->exec("UPDATE ecosystem_region SET properties_json = '{\"curve_label\":true,\"curve_label_max\":3}' WHERE public_id = 'r1'");
+$nachher = avesmapsCurveReadBaselines($pdo);
+assert(isset($nachher['r1']), 'wieder eingeschaltet muss die Kurve zurueckkommen');
+assert($nachher['r1']['max_labels'] === 3, 'die Anzahl muss aus der Einstellung kommen, nicht aus der Ablage');
+
 echo "curve-label-run tests passed\n";
