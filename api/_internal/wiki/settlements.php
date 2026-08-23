@@ -212,7 +212,17 @@ function avesmapsWikiSettlementBuildEnrichment(array $page): array {
     $isRuined = $artKey !== '' && (str_contains($artKey, 'ruine') || str_contains($artKey, 'zerstor'));
 
     // Wappen-URL (gleiche Aliase wie der Infobox-Parser).
-    $coatUrl = avesmapsWikiSyncMonitorCoatOfArmsUrl(avesmapsWikiSyncMonitorField($norm, ['wappen', 'bild', 'wappenbild', 'bilddatei']));
+    // 🔴 NUR 'wappen' und 'wappenbild' -- Owner 23.08.2026: "wir ziehen aber keine bilder von
+    // orten und wir wollen das auch gar nicht".
+    // 🪤 Hier standen zusaetzlich 'bild' und 'bilddatei'. Hat ein Ort im Wiki KEIN Wappen, aber
+    // ein Foto in seiner Infobox, landete das Foto im WAPPENFELD -- und wurde danach ueberall
+    // wie ein Wappen behandelt und geladen. Genau daher kamen Eintraege wie "Drachenmuseum
+    // Sofus.jpg", "Auraleth by Fil.jpg" oder "Etilia-Statue2023 RvB.jpg", die in den 502ern
+    // des Editors auftauchten und wie Ortsfotos aussahen. Es waren Ortsfotos -- nur eben im
+    // falschen Feld.
+    // ⚠️ Bestehende Eintraege bleiben, bis ein Abgleich sie ueberschreibt: der Sync SETZT das
+    // Feld, er raeumt es nicht.
+    $coatUrl = avesmapsWikiSyncMonitorCoatOfArmsUrl(avesmapsWikiSyncMonitorField($norm, ['wappen', 'wappenbild']));
 
     return ['continent' => $continent, 'is_ruined' => $isRuined, 'coat_url' => $coatUrl];
 }
@@ -654,7 +664,7 @@ function avesmapsWikiSettlementParseInfobox(string $title, string $wikitext, str
     $lageParts = array_values(array_filter([$region, $staat], static fn(string $v): bool => trim($v) !== ''));
     $lage = implode(' · ', array_unique($lageParts));
 
-    $wappenRaw = avesmapsWikiSyncMonitorField($norm, ['wappen', 'bild', 'wappenbild', 'bilddatei']);
+    $wappenRaw = avesmapsWikiSyncMonitorField($norm, ['wappen', 'wappenbild']);
 
     return [
         'title' => mb_substr($title, 0, 255, 'UTF-8'),

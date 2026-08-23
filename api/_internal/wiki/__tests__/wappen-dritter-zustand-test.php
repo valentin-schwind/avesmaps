@@ -122,4 +122,19 @@ $aufruf = substr($editor, $posClear, 200);
 assert(strpos($aufruf, 'dry_run: false') !== false && strpos($aufruf, 'confirm: "apply"') !== false,
     'und zwar scharf -- mit dry_run:false UND confirm:"apply", sonst laeuft er als Probelauf');
 
+// ---- 7. Ein WAPPENFELD nimmt nur Wappen -------------------------------------------------------
+// 🔴 Owner 23.08.2026: "wir ziehen aber keine bilder von orten und wir wollen das auch gar nicht".
+// 🪤 Der Parser las 'wappen', 'bild', 'wappenbild', 'bilddatei'. Hat ein Ort im Wiki kein Wappen,
+// aber ein Foto in der Infobox, landete das Foto im WAPPENFELD -- und wurde danach ueberall wie
+// ein Wappen behandelt und geladen. Daher kamen "Drachenmuseum Sofus.jpg", "Auraleth by Fil.jpg"
+// und "Etilia-Statue2023 RvB.jpg" in den Fehlermeldungen des Editors.
+foreach (['bild', 'bilddatei'] as $fremd) {
+    assert(strpos($settlements, "'wappen', '$fremd'") === false,
+        "das Wappenfeld eines Ortes liest kein '$fremd' mehr -- ein Foto ist kein Wappen");
+}
+$stellen = substr_count($settlements, "avesmapsWikiSyncMonitorField(\$norm, ['wappen', 'wappenbild'])");
+assert($stellen === 2,
+    "💣 BEIDE Lesestellen sind umgestellt (gefunden: $stellen von 2). Der Ort wird an zwei Orten "
+    . "geparst; eine Regel, die nur eine davon bindet, ist keine Regel.");
+
 echo "OK: wappen-dritter-zustand-test -- alle Zusicherungen gehalten\n";
