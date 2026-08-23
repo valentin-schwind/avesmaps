@@ -166,6 +166,24 @@ try {
     // zu unterscheiden -- daran ist die erste Abnahme dieses Fixes haengengeblieben, weil ein
     // fehlgeschlagener Deploy die Datei gar nicht erst hochgeladen hatte (AGENTS.md §9).
     header('X-Avesmaps-Coat-Drossel: v1');
+
+    // 🔴 DER RIEGEL, und er wird VOR der Drossel gefragt -- aus zwei Gruenden, beide am
+    // 23.08.2026 live gemessen:
+    // (1) Ohne eigenen Ausgang antwortet ein geriegelter Abruf mit demselben 502 wie ein echter
+    //     Fehlschlag. „Haemmern wir noch?" ist dann von AUSSEN nicht zu beantworten -- und genau
+    //     diese Frage stand drei Tage lang unbeantwortet im Raum. Die Absage muss ihren Grund
+    //     nennen (vgl. absage-ohne-grund-ist-von-aussen-unauffindbar).
+    // (2) 💣 SCHLIMMER: der geriegelte Pfad lief in `avesmapsCoatDrosselFehlschlag` und schrieb
+    //     einen Grabstein fuer eine Adresse, die NIE PROBIERT WURDE. Nach fuenf davon macht die
+    //     Drossel global fuer 30 Minuten zu, ohne dass eine einzige Anfrage nach draussen ging --
+    //     und beim Oeffnen des Riegels waeren alle beruehrten Adressen sechs Stunden gesperrt.
+    //     Also genau dann kaputt, wenn wir die Wappen endlich holen wollen.
+    // ⚠️ Der Riegel in `avesmapsCoatFetch` BLEIBT stehen: er deckt jeden anderen Aufrufer ab.
+    if (function_exists('avesmapsWikiDateiAbrufErlaubt') && !avesmapsWikiDateiAbrufErlaubt($url)) {
+        header('X-Avesmaps-Coat: geriegelt');
+        avesmapsCoatFail(503, 'Abrufe bei Wiki Aventurica sind abgeschaltet.');
+    }
+
     if (!function_exists('avesmapsCoatDrosselDarfHolen')) {
         header('X-Avesmaps-Coat: drossel-fehlt');
         avesmapsCoatFail(503, 'Wappen gerade nicht abrufbar.');
