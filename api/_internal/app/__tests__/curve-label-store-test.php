@@ -285,4 +285,63 @@ $posGeomDecode = strpos($storeQuelle, "json_decode((string) \$row['geometry_geoj
 assert($posEnabledSkip !== false && $posGeomDecode !== false, 'eine der beiden Stellen fehlt in avesmapsCurveRebuildCache');
 assert($posEnabledSkip < $posGeomDecode, 'die Region muss VOR dem json_decode der Geometrie als ausgeschaltet erkannt werden');
 
+// ------------------------------------------------------ DER SCHREIBER: NUR GENANNTES ANFASSEN ---
+// 💣 DIE TRAGENDE ZUSICHERUNG. Der Wert steht an ZWEI Oberflaechen (Beschriftungs- und
+// Flaechendialog) und beide speichern dieselbe Region. Wer ein NICHT genanntes Feld schreibt, nimmt
+// mit dem Speichern des einen Dialogs die Aenderung des anderen wortlos zurueck.
+$bestand = json_encode(['curve_label' => true, 'curve_label_max' => 3]);
+
+// Nichts genannt -> gar nichts schreiben.
+assert(avesmapsCurveLabelApplyToProperties($bestand, null, null) === []);
+assert(avesmapsCurveLabelApplyToProperties(null, null, null) === []);
+
+// Nur den Haken genannt -> die Zahl bleibt, wie sie war.
+$nurHaken = avesmapsCurveLabelApplyToProperties($bestand, false, null);
+$p = json_decode((string) $nurHaken['properties_json'], true);
+assert(!array_key_exists('curve_label', $p), 'aus muss den Schluessel ENTFERNEN, nicht false schreiben');
+assert($p['curve_label_max'] === 3, 'eine nicht genannte Zahl darf sich nicht bewegen');
+
+// Nur die Zahl genannt -> der Haken bleibt, wie er war.
+$nurZahl = avesmapsCurveLabelApplyToProperties($bestand, null, 2);
+$p = json_decode((string) $nurZahl['properties_json'], true);
+assert($p['curve_label'] === true, 'ein nicht genannter Haken darf sich nicht bewegen');
+assert($p['curve_label_max'] === 2);
+
+// Der Deckel gilt auch hier -- ueber avesmapsCurveClampMaxLabels, nie ueber eine abgeschriebene 3.
+assert(json_decode((string) avesmapsCurveLabelApplyToProperties(null, true, 9)['properties_json'], true)['curve_label_max'] === 3);
+assert(json_decode((string) avesmapsCurveLabelApplyToProperties(null, true, 0)['properties_json'], true)['curve_label_max'] === 1);
+assert(json_decode((string) avesmapsCurveLabelApplyToProperties(null, true, -4)['properties_json'], true)['curve_label_max'] === 1);
+
+// 💣 DREI SCHREIBER TEILEN EIN properties_json. Ein fremder Schluessel muss den Schreibvorgang
+// ueberleben -- sonst loescht das Umlegen des Hakens den Merker wiki_no_article gleich mit.
+$mitFremd = json_encode(['wiki_no_article' => true, 'field_origins' => ['name' => 'manual']]);
+$p = json_decode((string) avesmapsCurveLabelApplyToProperties($mitFremd, true, 2)['properties_json'], true);
+assert($p['wiki_no_article'] === true, 'ein fremder Schluessel darf nicht verlorengehen');
+assert($p['field_origins'] === ['name' => 'manual'], 'die Feldherkunft darf nicht verlorengehen');
+assert($p['curve_label'] === true && $p['curve_label_max'] === 2);
+
+// Bleibt nichts uebrig, wird die Spalte NULL.
+assert(avesmapsCurveLabelApplyToProperties(json_encode(['curve_label' => true]), false, null)['properties_json'] === null);
+
+// Eine kaputte Ablage wirft nicht, sie faengt bei leer an.
+$p = json_decode((string) avesmapsCurveLabelApplyToProperties('{kaputt', true, null)['properties_json'], true);
+assert($p === ['curve_label' => true]);
+
+// Schreiber und Leser muessen denselben Dialekt sprechen.
+$rund = avesmapsCurveLabelApplyToProperties(null, true, 2)['properties_json'];
+assert(avesmapsCurveLabelSettingsFromProperties(json_decode((string) $rund, true))
+    === ['enabled' => true, 'max_labels' => 2], 'Schreiber und Leser muessen zusammenpassen');
+
+// ----------------------------------------------------- VERDRAHTUNG: wird der Schreiber gerufen? ---
+// 💣 Ein gruener Test beweist nichts ohne Verdrahtung: avesmapsCurveLabelRolloutFor stand fertig und
+// getestet da, ohne dass irgendetwas sie rief -- deshalb trug am 23.08.2026 genau EINE Flaeche eine
+// Kurve. Diese Zusicherung nagelt fest, dass der Schreiber im Schreibweg der Landschaften steht.
+$ecoQuelle = file_get_contents(__DIR__ . '/../ecosystem.php');
+assert(strpos($ecoQuelle, 'avesmapsCurveLabelApplyToProperties(') !== false,
+    'der Schreiber ist nicht in ecosystem.php verdrahtet');
+$posHerkunft = strpos($ecoQuelle, 'avesmapsEcosystemApplyRegionFieldOrigins($before');
+$posKurve = strpos($ecoQuelle, 'avesmapsCurveLabelApplyToProperties(');
+assert($posHerkunft !== false && $posKurve !== false);
+assert($posHerkunft < $posKurve, 'der Kurvenschreiber muss NACH der Feldherkunft stehen -- beide schreiben properties_json');
+
 echo "curve-label-store tests passed\n";

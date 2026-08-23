@@ -37,6 +37,53 @@ function avesmapsCurveLabelSettingsFromProperties(?array $properties): array
     ];
 }
 
+// Die Kurveneinstellung einer Region FORTSCHREIBEN. Leeres Ergebnis = nichts zu schreiben.
+//
+// 💣 GESCHRIEBEN WIRD NUR, WAS DER AUFRUFER AUSDRUECKLICH NENNT (Entwurf §2). Der Wert steht an
+// ZWEI Oberflaechen -- Beschriftungsdialog und Flaechendialog -- und beide speichern dieselbe Region.
+// Steht der eine offen, waehrend jemand im anderen umstellt, naehme sein Speichern die Aenderung
+// sonst wortlos zurueck. Deshalb heisst `null` hier „nicht genannt“ und NICHT „aus“ -- derselbe
+// Fehler wie in avesmapsUpsertGameLiterature, das jedes MITGESCHICKTE Feld schrieb statt jedes
+// GEAENDERTEN (AGENTS.md §11, Wiki-Override).
+//
+// 🔴 „Aus“ ENTFERNT den Schluessel, statt `false` abzulegen -- dieselbe Regel wie beim Merker
+// wiki_no_article nebenan (avesmapsEcosystemApplyRegionNoArticle): der Leser oben haelt einen
+// fehlenden Schluessel ohnehin fuer „aus“, und ein `false` waere ein zweiter Weg, dasselbe zu sagen.
+//
+// ⚠️ Die Zahl laeuft durch avesmapsCurveClampMaxLabels -- den EINEN Deckel dieser Datei, nie
+// durch eine abgeschriebene 3.
+//
+// @param ?string $propertiesJson die Ablage VOR dem Schreiben
+// @param ?bool   $an             true/false = genannt, null = nicht genannt
+// @param ?int    $max            Zahl = genannt, null = nicht genannt
+// @return array<string,?string>  `['properties_json' => …]` oder `[]`
+function avesmapsCurveLabelApplyToProperties(?string $propertiesJson, ?bool $an, ?int $max): array
+{
+    if ($an === null && $max === null) {
+        return [];
+    }
+    $properties = json_decode((string) ($propertiesJson ?? ''), true);
+    if (!is_array($properties)) {
+        $properties = [];
+    }
+    if ($an !== null) {
+        if ($an) {
+            $properties['curve_label'] = true;
+        } else {
+            unset($properties['curve_label']);
+        }
+    }
+    if ($max !== null) {
+        $properties['curve_label_max'] = avesmapsCurveClampMaxLabels($max);
+    }
+
+    return [
+        'properties_json' => $properties === []
+            ? null
+            : json_encode($properties, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR),
+    ];
+}
+
 // Der Umstellzustand, aus den Daten statt aus einer Vermutung: eine Region, deren Labels heute
 // gedreht sind, bekommt die Kurve -- und so viele Namen, wie sie Labels hat.
 //

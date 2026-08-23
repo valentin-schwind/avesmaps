@@ -63,6 +63,9 @@ require_once __DIR__ . '/../map/wiki-claim.php';
 // auskommt und genau deshalb lokal beweisbar ist -- dort liegt nichts, was ein PDO braucht
 // (api/_internal/app/__tests__/climate-zones-test.php).
 require_once __DIR__ . '/climate-zones.php';
+// Die Kurvenbeschriftung je Region: Leser, Deckel, Umstellregel und Schreiber liegen dort
+// zusammen -- diese Datei ruft nur den Schreiber (Entwurf §2, §8).
+require_once __DIR__ . '/curve-label-store.php';
 
 // avesmapsUuidV4() (new public_ids) lives in api/_internal/map/features.php and is loaded by the EDIT
 // dispatcher, not here -- exactly like api/_internal/app/citymaps.php. Pulling a 2.700-line library into
@@ -2762,6 +2765,22 @@ function avesmapsUpdateEcosystemRegion(PDO $pdo, array $payload, int $userId): a
     );
     // Die Feldherkunft -- NACH dem Merker, weil beide in dasselbe `properties_json` schreiben.
     $fields = array_merge($fields, avesmapsEcosystemApplyRegionFieldOrigins($before, $payload, $fields));
+    // Die Kurvenbeschriftung -- NACH den beiden darueber, weil alle drei in dasselbe
+    // `properties_json` schreiben und der spaetere den Stand des frueheren lesen muss.
+    // 💣 `null` heisst „der Rumpf nennt das Feld nicht“ und laesst den gespeicherten Wert stehen.
+    // Nur so koennen Beschriftungs- und Flaechendialog dieselbe Region bedienen, ohne sich
+    // gegenseitig zu ueberschreiben (Entwurf §2).
+    $fields = array_merge($fields, avesmapsCurveLabelApplyToProperties(
+        array_key_exists('properties_json', $fields)
+            ? $fields['properties_json']
+            : ($before['properties_json'] ?? null),
+        array_key_exists('curve_label', $payload)
+            ? avesmapsEcosystemReadBoolean($payload['curve_label'])
+            : null,
+        array_key_exists('curve_label_max', $payload)
+            ? (int) $payload['curve_label_max']
+            : null
+    ));
     if ($fields === []) {
         throw new InvalidArgumentException('No updatable field was sent.');
     }
