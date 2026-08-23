@@ -272,7 +272,7 @@ ist keine Regel"*. Now only PHP touches the store.
 | Compared with | `hash_equals`; an empty configured token never matches |
 | 200 | `image/svg+xml; charset=utf-8` + `Content-Disposition: attachment; filename="avesmaps-karte-YYYY-MM-DD-r<Kartenfassung>-inkscape.svg"` |
 | Headers | `ETag` (strong, sha256), **`X-Avesmaps-SHA256`** (the same number, unquoted), `Cache-Control: private, no-cache`, `X-Avesmaps-Kartenfassung`, `X-Avesmaps-Landschaftsfassung`, `X-Avesmaps-Exported-At`, `X-Avesmaps-Quelle` |
-| 304 | on a matching `If-None-Match` (weak prefix and lists included) |
+| 304 | on a matching `If-None-Match` — the quoted ETag **or** the bare sha256 from `X-Avesmaps-SHA256`; weak prefix and lists included |
 | 401 `unauthorized` | missing **or** wrong token — deliberately indistinguishable |
 | 404 `export_not_available` | nothing deposited yet |
 | 405 `method_not_allowed` | anything but GET/HEAD |
@@ -285,7 +285,10 @@ not just this one: `api/app/zoom-bands.php` sets an ETag too, and it does not ar
 (a static file's Apache-generated ETag does). Own `X-` headers survive, which is why the
 checksum ships a second time as **`X-Avesmaps-SHA256`** — same number, no quotes, derived from
 the very same value so the two can never disagree. `If-None-Match` is still honoured
-server-side; it just cannot be counted on end to end.
+server-side, and it accepts **both** forms — the quoted ETag and the bare hash. 💣 The bare one
+is the important one: the client never sees the ETag, so the only value it can echo is the one
+we handed it. Demanding quotes around a value nobody received would mean a silent 200 on every
+single poll — 8.6 MB, forever, and a 200 looks perfectly normal.
 
 ⚠️ **`X-Avesmaps-Quelle` matters.** With two producers, the version stamps are not enough: they
 name the *data* state, not who rendered it. A hand-made export may be smoothed and recoloured;

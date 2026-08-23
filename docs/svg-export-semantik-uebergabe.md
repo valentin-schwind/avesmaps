@@ -42,8 +42,9 @@ etwas, das die Antwort umschreibt (`Vary: X-Forwarded-For,…`) und dabei `ETag`
 Projekts, nicht nur diese. Eigene `X-`Kopfzeilen überleben, deshalb reist derselbe sha256 dort
 ein zweites Mal mit (ohne Anführungszeichen, aus demselben Wert abgeleitet).
 ⚠️ Auch `Content-Length` fehlt dann — wer einen Fortschrittsbalken baut, hat keine Gesamtgröße.
-`If-None-Match` wertet der Server weiterhin aus; kommt der `ETag` durch, funktioniert `304`
-normal. Verlassen sollte man sich nicht darauf.
+⭐ **`If-None-Match` nimmt BEIDE Formen** — den ETag in Anführungszeichen und den blanken
+sha256 aus `X-Avesmaps-SHA256`. Schick einfach den Wert zurück, den du bekommen hast; ein
+unveränderter Abzug antwortet dann `304` und wird gar nicht erst übertragen.
 
 - `401 unauthorized` — Token fehlt **oder** ist falsch (von außen nicht zu unterscheiden)
 - `404 export_not_available` — es liegt noch kein Abzug bereit

@@ -101,8 +101,20 @@ header('X-Avesmaps-Exported-At: ' . $abzug['exportiert']);
 // ungeglaettete der Routine, und die Fassungsstempel sagen darueber nichts.
 header('X-Avesmaps-Quelle: ' . $abzug['quelle']);
 
+// 💣 ZWEI GUELTIGE FORMEN, und die zweite ist die WICHTIGERE. Der Client bekommt den ETag
+// gar nicht zu sehen -- der Proxy vor STRATO wirft ihn weg (siehe oben). Was er von uns
+// bekommt, ist `X-Avesmaps-SHA256`: derselbe Hash OHNE Anfuehrungszeichen. Schickt er den
+// zurueck, traefe die reine ETag-Regel NICHT, und er laedt 8,6 MB -- jedes Mal, ohne es je zu
+// merken, denn ein 200 sieht voellig normal aus. Von einem Aufrufer zu verlangen, dass er
+// Anfuehrungszeichen um einen Wert setzt, den er nie in dieser Form gesehen hat, ist keine
+// Strenge, sondern eine Falle.
+// 🔴 Geprueft wird zweimal mit der GETEILTEN Regel (avesmapsETagMatches), nur gegen zwei
+// Zielwerte -- keine zweite Umsetzung des Vergleichs (api/_internal/__tests__/etag-shared-test.php).
 $ifNoneMatch = (string) ($_SERVER['HTTP_IF_NONE_MATCH'] ?? '');
-if ($ifNoneMatch !== '' && avesmapsETagMatches($ifNoneMatch, $abzug['etag'])) {
+$trifft = $ifNoneMatch !== ''
+    && (avesmapsETagMatches($ifNoneMatch, $abzug['etag'])
+        || avesmapsETagMatches($ifNoneMatch, $abzug['sha256']));
+if ($trifft) {
     http_response_code(304);
     exit;
 }

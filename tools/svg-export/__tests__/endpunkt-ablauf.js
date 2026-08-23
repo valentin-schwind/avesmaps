@@ -174,7 +174,19 @@ async function main() {
 		"If-None-Match": '"fremd", ' + etag })).status, 304, "eine Liste wird durchsucht");
 	assert.strictEqual((await hole({ Authorization: "Bearer " + TOKEN,
 		"If-None-Match": '"ein-anderer"' })).status, 200, "ein fremder Tag holt die Datei");
+	// 💣 UND DER BLANKE HASH -- der Wert, den der Client als X-Avesmaps-SHA256 bekommt. Der
+	// ETag erreicht ihn nicht (der Proxy vor STRATO wirft ihn weg), also ist das die einzige
+	// Form, die er ueberhaupt zurueckschicken kann. Traefe sie nicht, laedt er 8,6 MB bei
+	// JEDEM Lauf und merkt es nie -- ein 200 sieht voellig normal aus.
+	assert.strictEqual((await hole({ Authorization: "Bearer " + TOKEN,
+		"If-None-Match": sha })).status, 304, "der blanke sha256 trifft ebenfalls");
+	assert.strictEqual((await hole({ Authorization: "Bearer " + TOKEN,
+		"If-None-Match": '"fremd", ' + sha })).status, 304, "auch in einer Liste");
+	// ⚠️ Aber ein FALSCHER blanker Hash darf nicht treffen -- sonst waere die Lockerung ein Loch.
+	assert.strictEqual((await hole({ Authorization: "Bearer " + TOKEN,
+		"If-None-Match": "0".repeat(64) })).status, 200, "ein fremder Hash holt die Datei");
 	sagen("6. W/, Liste, fremder Tag  -> 304 / 304 / 200");
+	sagen("6b. blanker sha256          -> 304 / 304 / 200 (falscher)");
 
 	// ---- 7. If-None-Match OHNE Token bleibt 401 -----------------------------------------
 	// 💣 Sonst waere „ist es noch dasselbe?" ohne Token zu beantworten -- ein 304 ist eine
