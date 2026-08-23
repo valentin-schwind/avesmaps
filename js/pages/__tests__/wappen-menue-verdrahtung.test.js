@@ -151,7 +151,7 @@ for (const [name, html] of BEIDE) {
 // stand nach dem Umbau kurz im Territorien-Editor.
 const KENNUNGEN = [
 	['Ortseditor', ORTE, ['seCoatsMenu', 'seCoatsMenuPanel', 'seCoatsMenuState', 'seCoatsLocal',
-		'seCoatsWiki', 'seLocalizeCoats', 'seLocalizeCoatsState', 'seCleanupCoats', 'seCleanupCoatsState']],
+		'seCoatsWiki', 'seLocalizeCoats', 'seLocalizeCoatsState']],
 	['Territorien-Editor', TERRITORIEN, ['btnCoatsMenu', 'btnCoatsMenuPanel', 'stCoatsMenuState',
 		'btnCoatsLocal', 'btnCoatsWiki', 'btnLocalizeCoats', 'stLocalize']],
 ];
@@ -180,6 +180,7 @@ const EINMALIG = [
 		'$("seCoatsMenu")?.addEventListener', '$("seCoatsMenuPanel")?.addEventListener',
 		'$("seCoatsLocal")?.addEventListener', '$("seCoatsWiki")?.addEventListener',
 		'$("seImagesToggle")?.addEventListener', 'function renderCoatsMenuState',
+		'async function pruefeWappenfelder',
 	]],
 	['Territorien-Editor', TERRITORIEN, [
 		'function setCoatsSwitchStates', 'function setCoatsMenuOpen', 'async function toggleCoatSwitch',
@@ -203,10 +204,21 @@ for (const [name, html] of BEIDE) {
 	pruefe(wachen === 1, `${name}: die Aussenklick-Wache ist ${wachen}x registriert, erwartet 1x`);
 }
 
-// ---- 10. Der Aufraeum-Lauf fragt, bevor er schreibt --------------------------------------------
-// ⚠️ Er steht NICHT im Mockup -- er ist die eine bewusste Zugabe, und der Owner entscheidet, ob er
-// dort bleibt. Solange er da ist, gilt seine Regel: erst zeigen, dann fragen, dann schreiben.
-const block = ORTE.slice(ORTE.indexOf('async function handleSeCleanupCoatsClick'));
+// ---- 10. Die Wappenfeld-Pruefung haengt am Hole-Lauf und fragt, bevor sie schreibt -------------
+// 🔴 Sie hatte bis zum 24.08.2026 einen eigenen Menueeintrag; der ist weg (Owner: „kann weg -- oder
+// du pruefst nachdem die wikiwappen geholt wurden"). Die Altlast waechst nicht mehr nach, seit der
+// Parser nur `wappen|wappenbild` liest -- ein Knopf fuer eine erledigte Aufgabe steht nur im Weg.
+// ⚠️ Damit ist der Hole-Lauf der EINZIGE Weg dorthin: laeuft der Aufruf dort nicht mehr, ist die
+// Funktion unerreichbar, ohne dass irgendwo etwas fehlt.
+pruefe(!ORTE.includes('<b>Wappenfelder aufräumen</b>'),
+	'Ortseditor: der eigene Menueeintrag „Wappenfelder aufräumen" ist wieder da');
+pruefe(/await pruefeWappenfelder\(\{ still: true \}\)/.test(ORTE),
+	'DER KERN VON TEIL 10a: die Pruefung haengt am Ende von „Hole Wiki-Wappen"');
+const holeLauf = ORTE.slice(ORTE.indexOf('async function handleSeLocalizeCoatsClick'));
+pruefe(holeLauf.indexOf('pruefeWappenfelder') > holeLauf.indexOf('localize_coats'),
+	'sie laeuft NACH dem Holen, nicht davor -- sonst prueft sie den alten Stand');
+
+const block = ORTE.slice(ORTE.indexOf('async function pruefeWappenfelder'));
 const vorschau = block.indexOf('cleanup_coats');
 const frage = block.indexOf('window.confirm');
 const scharf = block.indexOf('confirm: "apply"');

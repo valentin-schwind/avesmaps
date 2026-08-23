@@ -496,10 +496,6 @@
           <div class="rb-menu__txt"><b>Hole Wiki-Wappen</b><span id="seLocalizeCoatsState">nur gemeinfreie, auf unseren Server</span></div>
           <button type="button" class="rb-menu__sw" id="seLocalizeCoats">starten</button>
         </div>
-        <div class="rb-menu__row">
-          <div class="rb-menu__txt"><b>Wappenfelder aufräumen</b><span id="seCleanupCoatsState">Infobox-Fotos, die als Wappen gespeichert wurden</span></div>
-          <button type="button" class="rb-menu__sw" id="seCleanupCoats">prüfen</button>
-        </div>
       </div>
     </div>
     <button class="btn2" id="seLinkCheck" title="Prüft NUR die Quellen-Links der Orte auf Erreichbarkeit. Abenteuer, Karten und Territoriums-Quellen haben ihre eigenen Schalter. Höflich: 600ms Pause je Host, ein Durchlauf dauert entsprechend."><span class="t1">🔗 Links prüfen</span><span class="t2" id="seLinkCheckInfo">Quellen der Orte</span></button>
@@ -3438,6 +3434,14 @@ async function handleSeLocalizeCoatsClick() {
 		// überschrieben, und dann weiß niemand mehr, ob der Lauf durch war.
 		const locInfo = $("seLocalizeCoatsState");
 		if (locInfo) locInfo.textContent = `${locTotal} lokal${locFailed ? ` · ${locFailed} nicht ladbar` : ""}`;
+
+		// 🔴 UND DANACH: sehen, ob in einem Wappenfeld ein Infobox-FOTO steht (Owner 24.08.2026:
+		// „oder du prüfst nachdem die wikiwappen geholt wurden"). Der eigene Menüeintrag dafür ist
+		// weg — die Altlast wächst nicht mehr nach, seit der Parser nur noch `wappen|wappenbild`
+		// liest, und ein Knopf für eine erledigte Aufgabe steht nur im Weg.
+		// ⚠️ Er prüft NUR. Geräumt wird erst nach der Rückfrage — die Regel dahinter ist eine
+		// Heuristik, und die darf nie ungesehen scharf laufen.
+		await pruefeWappenfelder({ still: true });
 	} catch (error) {
 		setStatusText("Wappen lokalisieren fehlgeschlagen: " + (error && error.message ? error.message : String(error)));
 	} finally {
@@ -3648,37 +3652,35 @@ $("seCoatsMenuPanel")?.addEventListener("click", (event) => event.stopPropagatio
 document.addEventListener("click", () => setCoatsMenuOpen(false));
 document.addEventListener("keydown", (event) => { if (event.key === "Escape") setCoatsMenuOpen(false); });
 
-// ---- „Wappenfelder aufräumen" -------------------------------------------------------------------
+// ---- Die Wappenfelder prüfen — angehängt an „Hole Wiki-Wappen" ---------------------------------
 // 🔴 Der alte Wiki-Parser las `wappen|bild|wappenbild|bilddatei` in EIN Feld: hatte ein Ort im Wiki
 // kein Wappen, aber ein Foto in der Infobox, landete das Foto im WAPPENfeld. Der Parser liest seit
-// dem 23.08.2026 nur noch `wappen|wappenbild` -- aber er SETZT das Feld nur, er räumt es nicht.
+// dem 23.08.2026 nur noch `wappen|wappenbild` — die Altlast wächst also nicht mehr nach.
 //
-// 💣 ZWEI KLICKS, und der erste ist Pflicht: der Lauf zeigt erst, WAS er tun würde (Ortsname +
-// Dateiname), und schreibt nichts. Die Regel dahinter ist eine Heuristik -- „ein Wappen heißt im
-// Wiki Wappen…" -- und eine Heuristik darf nie ungesehen scharf laufen. Ein eigenes Wappen ohne das
-// Wort im Namen (Bath Molokh) steht darum mit in der Liste, obwohl es bleiben soll: genau dafür ist
-// die Vorschau da.
+// 🔴 DESHALB KEIN EIGENER MENÜEINTRAG MEHR (Owner 24.08.2026: „kann weg — oder du prüfst nachdem
+// die wikiwappen geholt wurden"). Der Lauf hängt jetzt am Ende von „Hole Wiki-Wappen": genau dann,
+// wenn frische Wiki-Daten angekommen sind, lohnt der Blick.
+//
+// 💣 ZWEI SCHRITTE, und der erste ist Pflicht: erst zeigen, WAS geleert würde (Ortsname +
+// Dateiname), dann fragen, dann schreiben. Die Regel dahinter ist eine Heuristik — „ein Wappen
+// heißt im Wiki Wappen…" — und eine Heuristik darf nie ungesehen scharf laufen. Ein eigenes Wappen
+// ohne das Wort im Namen (Bath Molokh) steht darum mit in der Liste, obwohl es bleiben soll.
 let seCleanupRunning = false;
 
-function setSeCleanupBusy(isBusy, text) {
-	seCleanupRunning = isBusy;
-	const btn = $("seCleanupCoats");
-	if (btn) { btn.disabled = isBusy; btn.textContent = isBusy ? "prüft …" : (text || "prüfen"); }
-}
-
-async function handleSeCleanupCoatsClick() {
+/**
+ * @param {{still?: boolean}} opt  still = keine Meldung, wenn es nichts zu räumen gibt. Angehängt
+ *        an einen anderen Lauf soll er dessen Ergebnis nicht überschreiben; nur ein FUND meldet sich.
+ */
+async function pruefeWappenfelder(opt) {
+	const still = !!(opt && opt.still);
 	if (seCleanupRunning) return;
-	setSeCleanupBusy(true);
+	seCleanupRunning = true;
 	try {
 		const vorschau = await settlementDetailPost({ action: "cleanup_coats", limit: 200 });
 		const liste = Array.isArray(vorschau.liste) ? vorschau.liste : [];
-		const info = $("seCleanupCoatsState");
 
 		if (liste.length === 0) {
-			if (info) info.textContent = vorschau.weitere_moeglich
-				? "in diesem Durchgang nichts gefunden — nochmal drücken"
-				: "✓ nichts zu räumen";
-			setStatusText(`Wappenfelder geprüft: ${vorschau.gesehen || 0} angesehen, nichts zu räumen.`);
+			if (!still) setStatusText(`Wappenfelder geprüft: ${vorschau.gesehen || 0} angesehen, nichts zu räumen.`);
 			return;
 		}
 
@@ -3686,7 +3688,6 @@ async function handleSeCleanupCoatsClick() {
 		// kann das Urteil nicht prüfen, und dann ist die Vorschau bloß eine Beruhigung.
 		const beispiele = liste.slice(0, 12).map((e) => `• ${e.ort}: ${e.datei}`).join("\n");
 		const mehr = liste.length > 12 ? `\n… und ${liste.length - 12} weitere` : "";
-		if (info) info.textContent = `${liste.length} Kandidaten gefunden`;
 		setStatusText(`Wappenfelder: ${liste.length} von ${vorschau.gesehen || 0} sehen nach Infobox-Foto aus.`);
 
 		const frage = `${liste.length} Wappenfelder sehen nach einem Infobox-Foto aus und würden geleert:\n\n`
@@ -3702,17 +3703,17 @@ async function handleSeCleanupCoatsClick() {
 		const fahrt = await settlementDetailPost({
 			action: "cleanup_coats", dry_run: false, confirm: "apply", limit: 200,
 		});
-		if (info) info.textContent = `${fahrt.geraeumt || 0} geleert`;
 		setStatusText(fahrt.weitere_moeglich
-			? `${fahrt.geraeumt || 0} Wappenfelder geleert — es können weitere sein, nochmal drücken.`
+			? `${fahrt.geraeumt || 0} Wappenfelder geleert — es können weitere sein, „Hole Wiki-Wappen" nochmal starten.`
 			: `Fertig: ${fahrt.geraeumt || 0} Wappenfelder geleert.`);
 	} catch (error) {
-		setStatusText("Aufräumen fehlgeschlagen: " + (error && error.message ? error.message : String(error)));
+		// ⚠️ Angehängt an einen fremden Lauf darf ein Fehler hier dessen Erfolgsmeldung nicht
+		// verschlucken — deshalb steht der Grund davor, nicht statt ihr.
+		setStatusText("Wappenfelder prüfen fehlgeschlagen: " + (error && error.message ? error.message : String(error)));
 	} finally {
-		setSeCleanupBusy(false);
+		seCleanupRunning = false;
 	}
 }
-$("seCleanupCoats")?.addEventListener("click", handleSeCleanupCoatsClick);
 
 // Nice-to-have (cheap): while the filter is ON, renderSettlementMid() itself re-narrows the parent
 // map's filter on every render (see its own tail call below) -- covers every list-filter change
