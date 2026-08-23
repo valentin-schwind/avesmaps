@@ -220,4 +220,39 @@ foreach (['password', 'lgpassword'] as $verboten) {
     }
 }
 
+// ------------------------------------------------------------- DIE AUSKUNFT ---
+// 🔴 Ohne sichtbare Auskunft ist „das Recht wirkt" von „das Recht wirkt nicht" nicht zu
+// unterscheiden -- genau die Fehlerklasse, die hier schon zweimal Tage gekostet hat.
+$angemeldet = avesmapsWikiBotZugangSatz(true, 'bot', '');
+$pruefe(str_contains($angemeldet['text'], '500'), 'angemeldet: der Satz nennt die 500');
+$pruefe($angemeldet['fehler'] === '', 'angemeldet ist kein Fehler');
+
+$abgewiesen = avesmapsWikiBotZugangSatz(true, 'gescheitert', 'wrongpassword');
+$pruefe(str_contains($abgewiesen['text'], 'wrongpassword'), 'abgelehnt: der Grund steht im Satz');
+$pruefe(str_contains($abgewiesen['text'], '50 Titel'), 'abgelehnt: der Satz sagt, was stattdessen gilt');
+$pruefe($abgewiesen['fehler'] === $abgewiesen['text'], 'abgelehnt: derselbe Satz stoert auch die Statuszeile');
+
+$ohneGrund = avesmapsWikiBotZugangSatz(true, 'gescheitert', '');
+$pruefe($ohneGrund['fehler'] !== '', 'abgelehnt ohne Grund bleibt trotzdem ein Fehler');
+
+$fehlt = avesmapsWikiBotZugangSatz(false, 'anonym', 'keine Zugangsdaten hinterlegt');
+$pruefe(str_contains($fehlt['text'], 'nicht hinterlegt'), 'ohne Zugangsdaten sagt der Satz genau das');
+// 💣 „nicht hinterlegt" ist KEIN Fehler -- das ist der Zustand jeder Installation ohne Bot-Konto,
+// und eine rote Zeile dafuer liest nach dem dritten Mal niemand mehr.
+$pruefe($fehlt['fehler'] === '', 'ohne Zugangsdaten wird nichts rot');
+
+$wartet = avesmapsWikiBotZugangSatz(true, 'unversucht', '');
+$pruefe(str_contains($wartet['text'], 'hinterlegt'), 'hinterlegt, aber ungeprueft: der Satz sagt beides');
+// ⚠️ Er darf keine Gewissheit behaupten, die er nicht hat: die Statusabfrage meldet sich nicht an.
+$pruefe(!str_contains($wartet['text'], '500'), 'hinterlegt heisst NICHT angemeldet -- keine 500 versprechen');
+$pruefe($wartet['fehler'] === '', 'ein ungeprueftes Feld ist kein Fehler');
+
+// 🔴 Und die Auskunft darf niemals die Zugangsdaten selbst tragen.
+$auskunft = avesmapsWikiBotStatusShape();
+$pruefe(!array_key_exists('username', $auskunft) && !array_key_exists('password', $auskunft), 'die Auskunft nennt weder Benutzer noch Passwort');
+$pruefe(!str_contains((string) json_encode($auskunft), 'password'), 'auch serialisiert steht dort kein Passwortfeld');
+foreach (['hinterlegt', 'status', 'grund', 'text', 'fehler'] as $feld) {
+    $pruefe(array_key_exists($feld, $auskunft), "die Auskunft traegt {$feld}");
+}
+
 echo "bot-login-test: {$geprueft} Zusicherungen gruen\n";

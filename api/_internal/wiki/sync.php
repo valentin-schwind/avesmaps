@@ -385,6 +385,81 @@ function avesmapsWikiSyncApiPost(array $params, array $cookies): array {
 }
 
 /**
+ * REIN genug fuer die Anzeige: was das Panel ueber den Bot-Zugang erfahren darf.
+ *
+ * 🔴 HIER KOMMT NIE EIN BENUTZERNAME UND NIE EIN PASSWORT HERAUS. `hinterlegt` beantwortet die
+ * Frage, die ein Editor wirklich hat („ist der Eintrag in der config.local.php angekommen und
+ * wohlgeformt?"), und `status`/`grund` sagen, was die letzte Anmeldung IN DIESEM PROZESS ergeben
+ * hat. Beides zusammen unterscheidet die drei Faelle, die sonst gleich aussehen: nichts
+ * eingetragen · eingetragen und abgelehnt · eingetragen und in Ordnung.
+ *
+ * ⚠️ `status` ist bei einer blossen Statusabfrage fast immer „unversucht" -- dort hat niemand
+ * einen grossen Stapel angefordert, also gab es keinen Anlass zur Anmeldung. Das ist kein Mangel:
+ * die Anzeige soll den Login gerade NICHT ausloesen, sonst kostete jedes Oeffnen des Panels zwei
+ * Anfragen beim Wiki. Die belastbare Auskunft kommt mit dem Lauf, der ihn wirklich braucht.
+ */
+function avesmapsWikiBotStatusShape(): array {
+    $zustand = avesmapsWikiBotZustand();
+    $hinterlegt = avesmapsWikiBotZugangLesen() !== null;
+    $status = (string) ($zustand['status'] ?? 'unversucht');
+    $grund = (string) ($zustand['grund'] ?? '');
+
+    return ['hinterlegt' => $hinterlegt, 'status' => $status, 'grund' => $grund]
+        + avesmapsWikiBotZugangSatz($hinterlegt, $status, $grund);
+}
+
+/**
+ * REIN: der Satz, den ein Editor liest -- und getrennt davon der, der ihn STOEREN muss.
+ *
+ * 🔴 Der Satz entsteht auf dem SERVER, nicht im Browser. Der Panel-Code liegt in einer Datei, die
+ * sechs Dokumente einbinden und die kein Testfeld laden kann; hier steht er beim Zustand und wird
+ * mitgeprueft. Der Client zeigt ihn nur an.
+ *
+ * 💣 Das Feld "fehler" ist NUR bei einer abgelehnten Anmeldung gefuellt. "nicht hinterlegt" ist
+ * kein Fehler -- das ist der Zustand jeder Installation ohne Bot-Konto, und eine rote Zeile dafuer
+ * waere Rauschen, das nach dem dritten Mal niemand mehr liest.
+ */
+function avesmapsWikiBotZugangSatz(bool $hinterlegt, string $status, string $grund): array {
+    if ($status === 'bot') {
+        return ['text' => 'Bot-Zugang: angemeldet — 500 Titel je Anfrage.', 'fehler' => ''];
+    }
+
+    if ($status === 'gescheitert') {
+        $satz = 'Bot-Zugang abgelehnt' . ($grund !== '' ? ' (' . $grund . ')' : '')
+            . ' — es laufen weiter 50 Titel je Anfrage.';
+
+        return ['text' => $satz, 'fehler' => $satz];
+    }
+
+    if (!$hinterlegt) {
+        return ['text' => 'Bot-Zugang: nicht hinterlegt — 50 Titel je Anfrage.', 'fehler' => ''];
+    }
+
+    // ⚠️ "hinterlegt" heisst NICHT "geprueft": die Statusabfrage meldet sich absichtlich nicht an.
+    // Der Satz sagt das, statt eine Gewissheit zu behaupten, die er nicht hat.
+    return ['text' => 'Bot-Zugang: hinterlegt, wird beim nächsten Lauf geprüft.', 'fehler' => ''];
+}
+
+/**
+ * Die Zugangsdaten aus der Konfiguration -- ohne jeden Fremdaufruf.
+ *
+ * ⭐ Getrennt von der Anmeldung, damit die Anzeige „ist etwas hinterlegt?" beantworten kann, ohne
+ * sich anzumelden. Genau diese Trennung macht die Statusabfrage verkehrsfrei.
+ */
+function avesmapsWikiBotZugangLesen(): ?array {
+    if (!function_exists('avesmapsLoadApiConfig') || !function_exists('avesmapsApiRoot')) {
+        return null;
+    }
+
+    try {
+        return avesmapsWikiBotZugangAusKonfiguration(avesmapsLoadApiConfig(avesmapsApiRoot()));
+    } catch (Throwable) {
+        // Keine ladbare Konfiguration -- auf dem Entwicklungsrechner und im Testfeld der
+        // Normalfall, und ausdruecklich KEIN Fehler.
+        return null;
+    }
+}
+/**
  * Meldet den Bot an -- hoechstens einmal je PHP-Prozess. Gibt zurueck, ob eine Bot-Sitzung steht.
  *
  * 🔴 EIN FEHLSCHLAG BRICHT NICHTS AB. Ohne Anmeldung laeuft alles weiter wie vor dem 23.08.2026,
@@ -400,17 +475,10 @@ function avesmapsWikiBotSitzungSicherstellen(): bool {
         return (string) ($zustand['status'] ?? '') === 'bot';
     }
 
-    $zugang = null;
-    if (function_exists('avesmapsLoadApiConfig') && function_exists('avesmapsApiRoot')) {
-        try {
-            $zugang = avesmapsWikiBotZugangAusKonfiguration(avesmapsLoadApiConfig(avesmapsApiRoot()));
-        } catch (Throwable) {
-            // Keine ladbare Konfiguration -- auf dem Entwicklungsrechner und im Testfeld der
-            // Normalfall, und ausdruecklich KEIN Fehler. Deshalb hier auch kein Protokolleintrag:
-            // er kaeme bei jedem Testlauf und niemand laese ihn je.
-            $zugang = null;
-        }
-    }
+    // 💣 EIN Leser fuer beide Wege. Eine zweite Fassung liefe beim ersten geaenderten
+    // Feldnamen auseinander, und dann sagte die Anzeige „hinterlegt", waehrend die Anmeldung
+    // nichts findet -- die schlimmste aller Auskuenfte.
+    $zugang = avesmapsWikiBotZugangLesen();
 
     if ($zugang === null) {
         avesmapsWikiBotZustand(['status' => 'anonym', 'grund' => 'keine Zugangsdaten hinterlegt']);

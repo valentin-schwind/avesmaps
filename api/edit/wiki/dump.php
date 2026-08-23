@@ -248,6 +248,11 @@ try {
         }
 
         $status = avesmapsWikiDumpStatus($pdo);
+        // 🔴 HIER angehaengt, nicht in avesmapsWikiDumpBuildStatusShape: jene Funktion ist auf einen
+        // festen, passwortfreien Schluesselsatz festgenagelt (Test c4), und das soll so bleiben.
+        // ⚠️ Loest KEINE Anmeldung aus -- „hinterlegt" ist eine reine Konfigurationsfrage und
+        // kostet keinen einzigen Fremdaufruf.
+        $status['bot'] = avesmapsWikiBotStatusShape();
         avesmapsJsonResponse(200, ['ok' => true, 'status' => $status]);
     }
 
@@ -363,6 +368,10 @@ try {
                 'cursor' => $stepResult['cursor'],
                 'done' => $stepResult['done'],
                 'progress' => $stepResult['progress'],
+                // 🔴 HIER ist die Auskunft belastbar: der Leseschritt fordert grosse Stapel an und
+                // loest damit die Anmeldung wirklich aus. Die Statusabfrage nebenan kann nur sagen,
+                // OB etwas hinterlegt ist -- sie meldet sich absichtlich nicht an.
+                'bot' => avesmapsWikiBotStatusShape(),
             ]);
             // no break -- avesmapsJsonResponse exits.
 

@@ -773,7 +773,13 @@ async function refreshWikiSyncDumpFetchedStatus() {
 		const runLabel = formatWikiSyncDumpRunStatusText(status);
 		button.dataset.idleLabel = `📥 Dump holen — ${runLabel || fetched}`;
 		// Die jeweils andere Angabe steht im Tooltip: beide sind wahr, nur unterschiedlich nützlich.
-		button.title = runLabel ? `${runLabel}\n${fetched.replace("zuletzt ", "Dump geholt: ")}` : "";
+		// 🔴 Der Bot-Zugang gehoert in den Tooltip des Knopfes, nicht in eine eigene Zeile: er ist
+		// Dauerzustand, keine Meldung. Ohne ihn ist "das Recht wirkt" von "das Recht wirkt nicht"
+		// nicht zu unterscheiden. Der Satz kommt FERTIG vom Server -- diese Datei laedt kein
+		// Testfeld, dort waere er ungeprueft.
+		const botText = typeof status?.bot?.text === "string" ? status.bot.text : "";
+		const geholtZeile = runLabel ? fetched.replace("zuletzt ", "Dump geholt: ") : "";
+		button.title = [runLabel, geholtZeile, botText].filter(Boolean).join("\n");
 		// Only adopt it right away when nothing is running; a live run owns the label meanwhile.
 		if (!button.disabled) {
 			button.textContent = button.dataset.idleLabel;
@@ -913,6 +919,8 @@ async function runWikiSyncDumpLoop(action, { runId = null } = {}) {
 	let done = false;
 	let safetyCounter = 0;
 	let lastRun = null;
+	// Einmal melden, nicht bei jedem der bis zu 2000 Schritte.
+	let gemeldeterBotFehler = "";
 	// The hybrid read can take many bounded steps (wikitext_collect re-walks the dump per
 	// step); allow a generous ceiling but still bound it so a backend bug can't spin forever.
 	const MAX_STEPS = 2000;
@@ -949,6 +957,14 @@ async function runWikiSyncDumpLoop(action, { runId = null } = {}) {
 		}
 
 		lastRun = stepResult.run || lastRun;
+		// 💣 Eine abgelehnte Bot-Anmeldung ist der Fall, der SONST unsichtbar bleibt: der Lauf laeuft
+		// weiter, nur zehnmal so oft ans Wiki. Sie gehoert deshalb in die Statuszeile, die genau fuer
+		// Fehler und Hinweise da ist -- und genau EINMAL, sonst uebertoent sie jede andere Meldung.
+		const botFehler = typeof stepResult.bot?.fehler === "string" ? stepResult.bot.fehler : "";
+		if (botFehler && botFehler !== gemeldeterBotFehler) {
+			gemeldeterBotFehler = botFehler;
+			setWikiSyncStatus(botFehler, "error");
+		}
 		done = stepResult.done === true || (stepResult.run?.status === "completed");
 		renderWikiSyncDumpProgress(stepResult.progress, done);
 		// The phase label deliberately does NOT go to the global #wiki-sync-status any more.
