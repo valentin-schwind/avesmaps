@@ -183,6 +183,7 @@ $check('(d6) subdir constant is uploads/dumps', 'uploads/dumps', AVESMAPS_WIKI_D
 $check('(d7) URL is the German small dump over https', true, str_starts_with(AVESMAPS_WIKI_DUMP_URL, 'https://') && str_contains(AVESMAPS_WIKI_DUMP_URL, 'dewa_dump_small.xml.bz2'), 'fetch targets the verified https dewa_ URL');
 
 // ===========================================================================
+
 // (e) If-Modified-Since -- die Nachfrage, die 40 MB spart
 // ===========================================================================
 echo "\n-- (e) avesmapsWikiDumpConditionalTimeValue + der 304-Zweig --\n";
@@ -207,6 +208,31 @@ $check('(e9) der 304-Zweig steht VOR der kein-2xx-Absage', true, strpos($fetchSo
 $dreihundertvier = substr($fetchSource, (int) strpos($fetchSource, '$httpCode === 304'), 600);
 $check('(e10) das Nachfragen fasst die Kopie nicht an', false, str_contains($dreihundertvier, 'touch('), 'ein touch() beim 304 verfaelscht das angezeigte Alter des Dumps');
 
+// ===========================================================================
+// (f) Die Absage nennt ihren Grund -- sonst sehen acht Ursachen gleich aus
+// ===========================================================================
+echo "
+-- (f) avesmapsWikiDumpAbsageMeldung --
+";
+
+// 🔴 Am 24.08.2026 drueckte der Owner „Dump holen" und bekam „The dump could not be downloaded
+// from the wiki server." -- ein Satz fuer acht verschiedene Ursachen. Sperre, Zeitablauf, voller
+// Speicher und HTML-Fehlerseite waren daran nicht zu unterscheiden.
+$gesperrt = avesmapsWikiDumpAbsageMeldung(['grund' => 'Verbindung gescheitert: Connection refused', 'http' => 0]);
+$check('(f1) Transportfehler nennt curls Auskunft', true, str_contains($gesperrt, 'Connection refused'), 'die Signatur einer REJECT-Regel steht genau hier -- ein Zeitablauf saehe anders aus');
+$check('(f2) HTTP 0 wird als Aussage geschrieben', true, str_contains($gesperrt, 'keine HTTP-Antwort'), '„es kam gar nichts zurueck" ist eine Aussage, keine fehlende Angabe');
+
+$verboten = avesmapsWikiDumpAbsageMeldung(['grund' => 'unerwartete Antwort', 'http' => 403]);
+$check('(f3) ein echter Status steht in der Klammer', true, str_contains($verboten, 'HTTP 403'), 'eine Statusnummer beantwortet die Frage sofort');
+
+$speicher = avesmapsWikiDumpAbsageMeldung(['grund' => 'Zwischendatei nicht beschreibbar (Speicher voll?)', 'http' => 0]);
+$check('(f4) der volle Speicher sieht NICHT aus wie eine Wiki-Sperre', false, $speicher === $gesperrt, 'genau diese zwei wurden bisher gleich gemeldet, obwohl das eine ohne jeden Fremdaufruf passiert');
+
+// ⚠️ Auch ohne Grund darf die Klammer nie leer sein -- sonst steht dort „( )" und der Satz
+// behauptet eine Auskunft, die er nicht gibt.
+$ohne = avesmapsWikiDumpAbsageMeldung([]);
+$check('(f5) ohne Grund bleibt die Klammer trotzdem gefuellt', true, str_contains($ohne, 'keine HTTP-Antwort'), 'eine leere Klammer waere schlimmer als keine');
+$check('(f6) kein Passwort in der Meldung', false, str_contains(mb_strtolower($gesperrt . $verboten . $speicher . $ohne), 'passwor'), 'die Meldung entsteht aus festen Texten und curls Fehlertext -- nie aus Zugangsdaten');
 // ===========================================================================
 // summary
 // ===========================================================================

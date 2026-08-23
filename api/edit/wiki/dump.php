@@ -198,10 +198,15 @@ function avesmapsWikiDumpEnsureDumpPresentOrFail(PDO $pdo): string
         );
     }
 
+    // 💣 DIE MELDUNG MUSS DEN GRUND NENNEN. Bis zum 24.08.2026 stand hier ein Satz, der acht
+    // verschiedene Ursachen gleich aussehen liess -- Sperre, Zeitablauf, voller Speicher, HTML-
+    // Fehlerseite. Der Owner drueckte den Knopf, bekam „konnte nicht geladen werden" und wir
+    // haetten ohne diese Klammer wieder raten muessen. Dieselbe Lehre wie am 20.08.2026 bei
+    // avesmapsWikiSyncUnreachableMessage, nur eine Etage tiefer.
     avesmapsErrorResponse(
         502,
         'dump_fetch_failed',
-        'The dump could not be downloaded from the wiki server.'
+        avesmapsWikiDumpAbsageMeldung($result)
     );
 }
 
@@ -305,7 +310,7 @@ try {
             avesmapsErrorResponse(
                 502,
                 'dump_fetch_failed',
-                'The dump could not be downloaded from the wiki server.'
+                avesmapsWikiDumpAbsageMeldung($result)
             );
             // no break -- avesmapsErrorResponse exits.
 

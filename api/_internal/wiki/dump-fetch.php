@@ -312,6 +312,33 @@ function avesmapsWikiDumpConditionalTimeValue(?int $mtime, bool $forceRefresh): 
     return $mtime;
 }
 /**
+ * REIN: aus einer Absage von avesmapsWikiDumpFetch den Satz bauen, den ein Editor liest.
+ *
+ * 🔴 ZWEI TEILE, wie bei avesmapsWikiSyncUnreachableMessage (sync.php): der Satz fuer den
+ * Menschen, dahinter in Klammern der GRUND und der HTTP-Status. Ohne die Klammer sehen acht
+ * verschiedene Ursachen gleich aus -- Sperre, Zeitablauf, voller Speicher, HTML-Fehlerseite --,
+ * und jede Diagnose beginnt wieder bei null. Genau das ist am 24.08.2026 passiert.
+ *
+ * ⚠️ Der Grund kann kein Passwort tragen: er entsteht aus festen Zeichenketten und curls
+ * Fehlertext, und das Passwort faehrt in CURLOPT_USERPWD, nie in der Adresse.
+ */
+function avesmapsWikiDumpAbsageMeldung(array $result): string
+{
+    $grund = trim((string) ($result['grund'] ?? ''));
+    $http = (int) ($result['http'] ?? 0);
+
+    $teile = [];
+    if ($grund !== '') {
+        $teile[] = $grund;
+    }
+    // ⚠️ HTTP 0 heisst „es kam gar keine Antwort" -- das ist eine AUSSAGE, keine fehlende Angabe,
+    // und gehoert deshalb genauso in die Klammer wie eine echte Statusnummer.
+    $teile[] = $http > 0 ? 'HTTP ' . $http : 'keine HTTP-Antwort';
+
+    return 'Der Dump konnte nicht geladen werden (' . implode(' · ', $teile) . ').';
+}
+
+/**
  * Sniff the bzip2 magic bytes ("BZh"). A real .bz2 begins with 0x42 0x5A 0x68.
  * Pure byte logic -- lets the fetch reject an HTML error page or a truncated
  * transfer that slipped through with a 200, and lets the offline test verify the
@@ -542,13 +569,13 @@ function avesmapsWikiDumpFetch(PDO $pdo, bool $forceRefresh = false): array
     }
 
     if (!function_exists('curl_init')) {
-        return ['ok' => false, 'code' => 'dump_fetch_failed', 'http' => 0];
+        return ['ok' => false, 'code' => 'dump_fetch_failed', 'grund' => 'curl fehlt', 'http' => 0];
     }
 
     // Ensure the protected storage dir + its deny-all .htaccess exist.
     $dir = avesmapsWikiDumpStorageDir();
     if (!is_dir($dir) && !@mkdir($dir, 0775, true) && !is_dir($dir)) {
-        return ['ok' => false, 'code' => 'dump_fetch_failed', 'http' => 0];
+        return ['ok' => false, 'code' => 'dump_fetch_failed', 'grund' => 'Ablageordner nicht anlegbar', 'http' => 0];
     }
     avesmapsWikiDumpEnsureStorageHtaccess($dir);
 
@@ -558,8 +585,10 @@ function avesmapsWikiDumpFetch(PDO $pdo, bool $forceRefresh = false): array
     // and a concurrent read never sees a half-written dump.
     $tmpPath = $dir . '/' . AVESMAPS_WIKI_DUMP_FILENAME . '.tmp.' . getmypid() . '.' . bin2hex(random_bytes(4));
     $handle = @fopen($tmpPath, 'wb');
+    // 💣 Das ist der Zweig, den ein voller Speicher nimmt -- und er sah bis zum 24.08.2026 aus
+    // wie „das Wiki antwortet nicht", obwohl noch kein einziges Byte das Haus verlassen hatte.
     if ($handle === false) {
-        return ['ok' => false, 'code' => 'dump_fetch_failed', 'http' => 0];
+        return ['ok' => false, 'code' => 'dump_fetch_failed', 'grund' => 'Zwischendatei nicht beschreibbar (Speicher voll?)', 'http' => 0];
     }
 
     // ~39 MB transfer may exceed the default script time limit.
@@ -597,6 +626,8 @@ function avesmapsWikiDumpFetch(PDO $pdo, bool $forceRefresh = false): array
 
     $ok = curl_exec($ch);
     $httpCode = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    // ⚠️ VOR curl_close lesen -- danach ist das Handle zu und die Auskunft weg.
+    $fehlertext = trim((string) curl_error($ch));
     curl_close($ch);
     // Always close the file handle before inspecting / renaming / unlinking.
     @fclose($handle);
@@ -606,7 +637,19 @@ function avesmapsWikiDumpFetch(PDO $pdo, bool $forceRefresh = false): array
     if ($ok === false) {
         @unlink($tmpPath);
         avesmapsWikiDumpTouchFetchTimestamps($pdo, false);
-        return ['ok' => false, 'code' => 'dump_fetch_failed', 'http' => $httpCode];
+
+        // 🔴 HIER steht der Unterschied zwischen „gesperrt", „ueberlastet" und „Name nicht
+        // aufloesbar" -- und er wurde bis zum 24.08.2026 weggeworfen. Am 20.08. kostete genau
+        // diese fehlende Zeile eine Sitzung: „Connection refused nach 24 ms" ist die Signatur
+        // einer REJECT-Regel, ein Zeitablauf waere eine ganz andere Diagnose gewesen.
+        // ⚠️ curls Meldung kann das Passwort nicht enthalten -- es faehrt in CURLOPT_USERPWD,
+        // nicht in der Adresse. Gedeckelt, weil sie in einen Toast passen muss.
+        return [
+            'ok' => false,
+            'code' => 'dump_fetch_failed',
+            'grund' => 'Verbindung gescheitert: ' . mb_substr($fehlertext !== '' ? $fehlertext : 'Grund unbekannt', 0, 160),
+            'http' => $httpCode,
+        ];
     }
 
     // 401 -> clear, distinct signal for the inline credential prompt.
@@ -638,7 +681,7 @@ function avesmapsWikiDumpFetch(PDO $pdo, bool $forceRefresh = false): array
     if ($httpCode < 200 || $httpCode >= 300) {
         @unlink($tmpPath);
         avesmapsWikiDumpTouchFetchTimestamps($pdo, false);
-        return ['ok' => false, 'code' => 'dump_fetch_failed', 'http' => $httpCode];
+        return ['ok' => false, 'code' => 'dump_fetch_failed', 'grund' => 'unerwartete Antwort', 'http' => $httpCode];
     }
 
     // Sanity: plausible size + bz2 magic bytes (rejects a 200 error page).
@@ -647,7 +690,7 @@ function avesmapsWikiDumpFetch(PDO $pdo, bool $forceRefresh = false): array
     if ($downloadedSize < AVESMAPS_WIKI_DUMP_MIN_PLAUSIBLE_BYTES || !avesmapsWikiDumpLooksLikeBzip2($leadingBytes)) {
         @unlink($tmpPath);
         avesmapsWikiDumpTouchFetchTimestamps($pdo, false);
-        return ['ok' => false, 'code' => 'dump_fetch_failed', 'http' => $httpCode];
+        return ['ok' => false, 'code' => 'dump_fetch_failed', 'grund' => 'Antwort ist kein Dump (Groesse/Kennung)', 'http' => $httpCode];
     }
 
     // Atomic publish.
@@ -655,7 +698,7 @@ function avesmapsWikiDumpFetch(PDO $pdo, bool $forceRefresh = false): array
     if (!@rename($tmpPath, $finalPath)) {
         @unlink($tmpPath);
         avesmapsWikiDumpTouchFetchTimestamps($pdo, false);
-        return ['ok' => false, 'code' => 'dump_fetch_failed', 'http' => $httpCode];
+        return ['ok' => false, 'code' => 'dump_fetch_failed', 'grund' => 'Umbenennen der fertigen Datei gescheitert', 'http' => $httpCode];
     }
 
     // Success: these creds worked -> persist as last-working + stamp timestamps.
