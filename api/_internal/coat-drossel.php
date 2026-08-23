@@ -34,6 +34,11 @@ declare(strict_types=1);
  * laeuft nie ohne seine Drossel weiter. Genau dieser Zustand (Proxy ohne Bremse) war der
  * Vorfall.
  *
+ * ⭐ Seit 23.08.2026 gibt es davor den Lokalisierer (`wiki/bilder-lokalisieren.php`): er holt
+ * jedes Bild EINMAL auf unsere Platte, und `avesmapsCoatLokaleKopie` liefert es danach
+ * statisch aus. Ist dieser Bestand vollstaendig, laeuft die Drossel leer -- sie bleibt als
+ * Sicherung fuer den Tag, an dem jemand den Riegel wieder oeffnet.
+ *
  * ⚠️ Ohne DB und ohne DDL: das hier laeuft auf einem oeffentlichen, heissen Pfad (dieselbe
  * Begruendung wie `avesmapsCoatSwitchEnabledFast`).
  */
