@@ -82,6 +82,40 @@ function avesmapsCoatSwitchEnabledFast(PDO $pdo, string $settingKey): bool
  * table if it is missing -- which is what makes the very first toggle on a fresh deploy work). Not for
  * the public read paths; those use avesmapsCoatSwitchEnabledFast above.
  */
+/**
+ * 🔴 EIN SCHALTER, DER DIE KARTE VERAENDERT, MUSS IHRE REVISION HEBEN.
+ *
+ * Gilt ALLEN DREI Frontend-Schaltern (Ortswappen, Territorienwappen, Ortsbilder) -- alle drei
+ * schrieben nur ihre `app_setting`-Zeile. Der Name sagt deshalb „Frontend", nicht „Coat":
+ * eine Regel, die einen von drei Erzeugern bindet, ist keine Regel.
+ *
+ * Owner 23.08.2026, empirisch geprueft: „ich schalte ‚Wappen: AUS' und alle wappen werden
+ * angezeigt". Der Schalter WIRKTE -- an der Live-Nutzlast gemessen trugen 7350 Felder den
+ * Platzhalter. Nur sah es niemand: das ETag von `map-features.php` ist REVISIONSBASIERT, die
+ * Revision blieb stehen, und jeder warme Browser bekam sein `304 Not Modified` samt der alten
+ * Nutzlast mit den echten Wappen. Ein Notaus, dessen Wirkung erst nach einem harten Neuladen
+ * eintritt, ist keiner.
+ *
+ * 💣 Der Kommentar an `avesmapsMapFeaturesETag` BEHAUPTETE genau das hier ("The switch STATE needs
+ * no seed of its own -- flipping it bumps map_revision"). Es stimmte nie: `avesmapsAppSettingSet`
+ * schreibt eine Zeile in `app_setting` und sonst nichts. Eine Behauptung im Kommentar ist keine
+ * Zusicherung -- deshalb steht sie jetzt als Test da (`coat-schalter-revision-test.php`).
+ *
+ * ⚠️ Best effort: der Schalter darf nicht scheitern, weil der Revisionswechsel scheitert. Ein
+ * ungehobener Zaehler kostet einen harten Neuladen; eine geworfene Ausnahme kostet den Notaus.
+ */
+function avesmapsFrontendSchalterRevisionHeben(PDO $pdo): void
+{
+    if (!function_exists('avesmapsWikiSyncNextMapRevision')) {
+        return;
+    }
+    try {
+        avesmapsWikiSyncNextMapRevision($pdo);
+    } catch (Throwable) {
+        // bewusst still: siehe oben.
+    }
+}
+
 function avesmapsTerritoryCoatsEnabled(PDO $pdo): bool
 {
     return avesmapsAppSettingGet($pdo, AVESMAPS_TERRITORY_COATS_SETTING, '1') !== '0';
@@ -90,6 +124,7 @@ function avesmapsTerritoryCoatsEnabled(PDO $pdo): bool
 function avesmapsSetTerritoryCoatsEnabled(PDO $pdo, bool $enabled): array
 {
     avesmapsAppSettingSet($pdo, AVESMAPS_TERRITORY_COATS_SETTING, $enabled ? '1' : '0');
+    avesmapsFrontendSchalterRevisionHeben($pdo);
 
     return ['ok' => true, 'coats_enabled' => $enabled];
 }
@@ -102,6 +137,7 @@ function avesmapsSettlementCoatsEnabled(PDO $pdo): bool
 function avesmapsSetSettlementCoatsEnabled(PDO $pdo, bool $enabled): array
 {
     avesmapsAppSettingSet($pdo, AVESMAPS_SETTLEMENT_COATS_SETTING, $enabled ? '1' : '0');
+    avesmapsFrontendSchalterRevisionHeben($pdo);
 
     return ['ok' => true, 'coats_enabled' => $enabled];
 }

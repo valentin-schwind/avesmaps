@@ -1459,6 +1459,9 @@ function avesmapsSetSettlementImagesEnabled(PDO $pdo, bool $enabled): array {
         'INSERT INTO app_setting (setting_key, setting_value) VALUES (:k, :v)
          ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)'
     )->execute(['k' => AVESMAPS_SETTLEMENT_IMAGES_SETTING, 'v' => $enabled ? '1' : '0']);
+    // Derselbe Grund wie bei den Wappen-Schaltern: ohne Revisionswechsel bleibt das ETag von
+    // map-features.php stehen und jeder warme Browser zeigt die alten Bilder weiter.
+    avesmapsFrontendSchalterRevisionHeben($pdo);
     return ['ok' => true, 'images_enabled' => $enabled];
 }
 

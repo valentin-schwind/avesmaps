@@ -68,7 +68,14 @@ require_once __DIR__ . '/../_internal/app/feature-sources.php';
 //    properties.curve_label_max. 💣 Der Bump ist nicht Kosmetik: der ETag ist revisionsbasiert,
 //    also behielte ein warmer Client den alten Rumpf ueber 304 und saehe nie eine Kurve --
 //    waehrend der Server sie laengst liefert.
-const AVESMAPS_MAP_FEATURES_PAYLOAD_VERSION = 14;
+// 15 (2026-08-23): steht „Wappen im Frontend" auf AUS, wird jetzt auch
+//    wiki_settlement.wappen_url geleert -- vorher trug properties.coat brav den Platzhalter, und
+//    der Leser fiel auf das Nest zurueck und zeigte doch das echte Wappen (119 Stueck, live
+//    gemessen). 💣 Der Bump ist hier zwingend: der Schalter steht bei vielen Clients seit Tagen
+//    auf AUS, deren warmer Cache traegt also die FALSCHE Nutzlast, und ohne Versionswechsel
+//    bekaemen genau sie die Korrektur nie zu sehen -- der Revisionswechsel am Schalter greift ja
+//    erst beim naechsten Umlegen.
+const AVESMAPS_MAP_FEATURES_PAYLOAD_VERSION = 15;
 
 // 🔴 Fix-Runde 6 (15.08.2026): the coat-of-arms staging/model table constants AND the two loader/gate
 // functions that used to sit here (avesmapsLoadSettlementCoatGateInputs, avesmapsSettlementTerritoryCoatUrl)
@@ -359,8 +366,17 @@ function avesmapsFetchMapRevision(PDO $pdo): int {
 // edit_mode is part of the seed because the two variants differ in CONTENT and coexist at the SAME
 // revision: with "Wappen: Aus" the public payload carries placeholder coat URLs while an edit-mode
 // request carries the real ones. Without it, a browser that cached one would be handed a 304 for the
-// other. The switch STATE needs no seed of its own -- flipping it bumps map_revision (see
-// api/edit/wiki/sync-monitor.php), exactly like the settlement-image switch.
+// other. The switch STATE needs no seed of its own -- flipping it bumps map_revision, exactly like
+// the settlement-image switch.
+// 🪤 DIESER SATZ WAR VIER MONATE LANG UNWAHR, und er hat genau den Fehler gedeckt, den er
+// beschreibt: kein Schalter hob die Revision, alle drei schrieben nur ihre `app_setting`-Zeile.
+// Der Notaus wirkte also serverseitig -- gemessen 7350 Platzhalter --, aber jeder warme Browser
+// bekam sein 304 samt alter Nutzlast und zeigte die Wappen weiter. Der Owner hat es am 23.08.2026
+// empirisch gemeldet („ich schalte Wappen: AUS und alle wappen werden angezeigt"), und die Suche
+// endete jedes Mal an diesem Kommentar, weil er die Frage beantwortet zu haben schien.
+// 🔴 Seither ist er wahr, aber NUR weil ein Test ihn haelt: `coat-schalter-revision-test.php`
+// prueft alle drei Schalter auf `avesmapsFrontendSchalterRevisionHeben`. Eine Behauptung im
+// Kommentar ist keine Zusicherung -- wer die naechste schreibt, schreibt den Test dazu.
 // 💣 $climateStamp IS NOT DECORATION. Places carry their climate zone since payload version 10, and that
 // zone changes when a divider is dragged or "Zugehörigkeit rechnen" runs again -- NEITHER of which touches
 // map_revision. Without this seed a warm client keeps its 304 and goes on showing the previous zone, with
@@ -619,6 +635,20 @@ function avesmapsNormalizeLegacyMapFeatureProperties(array $properties): array {
         if (is_array($properties['wiki_settlement'] ?? null)) {
             $properties['wiki_settlement']['wappen_url'] = '';
         }
+    }
+
+    // 🔴 DER SCHALTER MUSS DENSELBEN RUECKFALL SCHLIESSEN WIE DER DRITTE ZUSTAND DARUEBER.
+    // Owner 23.08.2026, empirisch geprueft: „ich schalte ‚Wappen: AUS' und alle wappen werden
+    // angezeigt". Gemessen an der Live-Nutzlast: 7350 Felder trugen brav den Platzhalter -- und
+    // 119 echte Wappen kamen trotzdem durch, weil `avesmapsCoatDisplayUrl` nur `properties.coat`
+    // anfasst und der Leser bei dessen Platzhalter auf `wiki_settlement.wappen_url` ZURUECKFAELLT.
+    // 💣 Die Begruendung stand seit Stunden zwanzig Zeilen weiter oben -- gebaut wurde sie nur fuer
+    // `coat_none`. Eine Regel, die einen von zwei Wegen schliesst, ist keine Regel (dieselbe Lehre
+    // wie bei den vier Querfeldein-Erzeugern am 14.08.).
+    // ⚠️ NUR das Wappen-Nest: `wiki_region.image_url` und `wiki_path.image_url` sind Bilder, keine
+    // Wappen, und haengen an ihrem eigenen Schalter.
+    if (!$settlementCoatsEnabled && is_array($properties['wiki_settlement'] ?? null)) {
+        $properties['wiki_settlement']['wappen_url'] = '';
     }
 
     foreach ([['wiki_settlement', 'wappen_url'], ['wiki_region', 'image_url'], ['wiki_path', 'image_url']] as [$nest, $feld]) {
