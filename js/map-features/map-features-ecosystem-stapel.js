@@ -435,21 +435,49 @@
 
 	// Die Markierung neu setzen. MUSS nach jedem Nachladen laufen -- der Loader holt beim Schwenken
 	// neue Flächen, und die kommen als frische Pfade ohne Markierung in die Pane.
+	//
+	// 🔴 WER FLÄCHEN VERSCHWINDEN LÄSST, MACHT DAS ÜBERFAHREN UNGÜLTIG UND HAT ES ZU SAGEN
+	// (Owner 23.08.2026: „das tooltip löscht sich oft nicht"). Diese Ansicht setzt die übrigen Pfade auf
+	// `display: none` -- und ein Element, das unter dem Zeiger VERSCHWINDET, bekommt vom Browser kein
+	// `mouseout` mehr. Ein Leaflet-Tooltip geht von selbst aber NUR bei `mouseout` zu; er erfährt also
+	// nie, dass die Maus weg ist, und bleibt für immer stehen. Im Browser gemessen: Zettel offen, andere
+	// Region isoliert, Pfad auf `display:none`, `isTooltipOpen()` weiterhin true.
+	//
+	// 💣 DIESELBE URSACHE WIE AM 2026-08-04, NUR EIN NEUER ERZEUGER. Damals waren es die Panes auf
+	// `pointer-events: none`; die Reparatur sitzt seither in syncEcosystemPaneStates und setLayerPicking.
+	// css/features/ecosystem-layer.css:1358 hat den nächsten wörtlich vorhergesagt („a fifth will appear,
+	// and nobody will remember this file") -- das hier ist er. Begründung an
+	// closeAllEcosystemAreaTooltips (map-features-ecosystem-rendering.js).
+	//
+	// ⚠️ NUR BEI ECHTER ÄNDERUNG, und das ist die andere Hälfte der Regel: diese Funktion läuft nach
+	// JEDEM Nachladen, also bei jedem Schwenk. Blind geschlossen nähme sie dem Leser den Zettel unter
+	// seinem Zeiger weg -- und Leaflet holt ihn erst zurück, wenn man die Fläche verlässt und neu betritt.
 	function wendeIsolationAn() {
+		let geaendert = false;
 		const huelle = kartenHuelle();
 		if (huelle) {
-			huelle.classList.toggle("ecosystem-isolation", isolierteRegion !== "");
+			const willIsolieren = isolierteRegion !== "";
+			geaendert = huelle.classList.contains("ecosystem-isolation") !== willIsolieren;
+			huelle.classList.toggle("ecosystem-isolation", willIsolieren);
 		}
 		if (typeof ecosystemLayers !== "undefined" && ecosystemLayers instanceof Map) {
 			ecosystemLayers.forEach((layer) => {
 				const pfad = layer?._path;
 				if (pfad) {
-					pfad.classList.toggle(
-						"ecosystem-area--isoliert",
-						isolierteRegion !== "" && layer._ecosystemArea?.region_public_id === isolierteRegion
-					);
+					const soll = isolierteRegion !== ""
+						&& layer._ecosystemArea?.region_public_id === isolierteRegion;
+					// 🪤 Auch die EINZELNE Fläche zählt: nachgeladene Pfade kommen unmarkiert in die Pane,
+					// die Hülle steht dabei längst richtig. Nur auf sie zu schauen übersähe genau den Fall,
+					// für den diese Funktion nach jedem Nachladen läuft.
+					if (pfad.classList.contains("ecosystem-area--isoliert") !== soll) {
+						geaendert = true;
+					}
+					pfad.classList.toggle("ecosystem-area--isoliert", soll);
 				}
 			});
+		}
+		if (geaendert && typeof closeAllEcosystemAreaTooltips === "function") {
+			closeAllEcosystemAreaTooltips();
 		}
 		zeichneIsolationsStreifen();
 	}
