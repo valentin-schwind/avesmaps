@@ -468,9 +468,33 @@
     <button class="btn2 primary" id="seSyncen" title="Übernimmt die Orte aus dem zuletzt gelesenen Dump in die Staging-Tabellen (Wave 2 Syncen)."><span class="t1">🚨 Syncen</span><span class="t2" id="seSyncedInfo">Letzte Sync: wird geladen…</span></button>
     <button class="btn2 primary" id="seAssign" title="Ordnet alle Orte ihrem Territorium per Ray-Cast zu"><span class="t1">Orte zuordnen</span><span class="t2">Ray-Cast über alles</span></button>
     <button class="btn2" id="seFilterMap" title="Zeigt auf der Live-Karte nur die aktuelle Auswahl"><span class="t1">Nur Auswahl anzeigen</span><span class="t2">auf der Karte</span></button>
-    <button class="btn2" id="seLocalizeCoats" title="Drei Schritte in einem: prüft die Wappen-Lizenzen im Wiki neu (nur die bisher unbekannten – sichtbare Wappen bleiben sichtbar), überträgt die gemeinfreien auf die Orte und lädt ihre Bilder dann auf den Avesmaps-Server (verkleinert, max. 512px). Nur gemeinfrei, nur von Wiki Aventurica. Eigene Uploads werden nie angefasst. Läuft in Schüben."><span class="t1">Wappen lokalisieren</span><span class="t2">gemeinfrei laden</span></button>
     <button class="btn2" id="seImagesToggle" aria-pressed="false" title="Globaler Schalter: blendet ALLE Ortsbilder im öffentlichen Frontend aus. Der Editor zeigt sie weiter."><span class="t1" id="seImagesToggleLabel">Bilder: An</span><span class="t2">im Frontend</span></button>
-    <button class="btn2" id="seCoatsToggle" aria-pressed="false" title="Globaler Schalter: ersetzt ALLE Ortswappen im öffentlichen Frontend. Der Kopf der Infobox zeigt dann wieder das Orts-Icon. Der Editor zeigt die Wappen weiter."><span class="t1" id="seCoatsToggleLabel">Wappen: An</span><span class="t2">im Frontend</span></button>
+    <!-- 🛡️ Das Wappen-Menue (Mockup docs/wappen-verwaltung-mockup.html, abgenommen
+         23.08.2026 -- Owner-Korrektur dazu: „das menü soll unter dem button liegen"). Es sammelt
+         ein, was vorher als zwei Knoepfe nebeneinander im Band stand: der Frontend-Schalter und
+         „Wappen lokalisieren", das hier „Hole Wiki-Wappen" heisst. 🔴 Die Unterzeile des
+         Knopfes zeigt die Schalterstellung, damit man den Notaus sieht, OHNE das Menue zu
+         oeffnen -- ein Notaus, dessen Stand man aufklappen muss, ist keiner.
+         ⚠️ Die Panel-Optik ist die des Filtermenues (.type-filter__menu), damit keine dritte
+         Menue-Rezeptur entsteht; nur die Zeilen sind eigen, weil sie zweizeilig sind und rechts
+         einen Schalter tragen. -->
+    <div class="rb-menu">
+      <button class="btn2" id="seCoatsMenu" aria-haspopup="true" aria-expanded="false" title="Wappen: Frontend-Schalter, Wiki-Wappen holen und die Wappenfelder aufraeumen."><span class="t1">🛡️ Wappen ▾</span><span class="t2" id="seCoatsMenuState">wird geladen…</span></button>
+      <div class="rb-menu__panel type-filter__menu" id="seCoatsMenuPanel" hidden>
+        <div class="rb-menu__row">
+          <div class="rb-menu__txt"><b>Wappen im Frontend</b><span>Besucher sehen sie — im Editor immer sichtbar</span></div>
+          <button type="button" class="rb-menu__sw" id="seCoatsToggle" aria-pressed="false">…</button>
+        </div>
+        <div class="rb-menu__row">
+          <div class="rb-menu__txt"><b>Hole Wiki-Wappen</b><span id="seLocalizeCoatsState">nur gemeinfreie, auf unseren Server</span></div>
+          <button type="button" class="rb-menu__sw" id="seLocalizeCoats">starten</button>
+        </div>
+        <div class="rb-menu__row">
+          <div class="rb-menu__txt"><b>Wappenfelder aufräumen</b><span id="seCleanupCoatsState">Infobox-Fotos, die als Wappen gespeichert wurden</span></div>
+          <button type="button" class="rb-menu__sw" id="seCleanupCoats">prüfen</button>
+        </div>
+      </div>
+    </div>
     <button class="btn2" id="seLinkCheck" title="Prüft NUR die Quellen-Links der Orte auf Erreichbarkeit. Abenteuer, Karten und Territoriums-Quellen haben ihre eigenen Schalter. Höflich: 600ms Pause je Host, ein Durchlauf dauert entsprechend."><span class="t1">🔗 Links prüfen</span><span class="t2" id="seLinkCheckInfo">Quellen der Orte</span></button>
     <!-- Achte Kachel (Aufgabe 8, Bauplan docs/superpowers/plans/2026-08-16-zoombaender.md): weich/
          outline wie fünf ihrer Geschwister -- die Haupthandlung dieses Menübands heißt „Syncen". -->
@@ -3351,8 +3375,9 @@ function setSeLocalizeCoatsBusy(isBusy) {
 	const button = $("seLocalizeCoats");
 	if (!button) return;
 	button.disabled = isBusy;
-	const label = button.querySelector(".t1");
-	if (label) label.textContent = isBusy ? "Lädt …" : "Wappen lokalisieren";
+	// ⚠️ Der Knopf liegt seit 23.08.2026 im Wappen-Menü und trägt seinen Text direkt -- das
+	// frühere .t1-Kind gibt es nicht mehr, ein querySelector darauf wäre still wirkungslos.
+	button.textContent = isBusy ? "lädt …" : "starten";
 }
 
 async function handleSeLocalizeCoatsClick() {
@@ -3402,6 +3427,10 @@ async function handleSeLocalizeCoatsClick() {
 		}
 
 		setStatusText(`Fertig: ${recApplied} gemeinfreie Wappen übertragen, ${locTotal} lokal gespeichert + verkleinert.`);
+		// ⚠️ Das Ergebnis bleibt im Menü stehen. Die Statuszeile darunter wird vom nächsten Handgriff
+		// überschrieben, und dann weiß niemand mehr, ob der Lauf durch war.
+		const locInfo = $("seLocalizeCoatsState");
+		if (locInfo) locInfo.textContent = `${locTotal} lokal${locFailed ? ` · ${locFailed} nicht ladbar` : ""}`;
 	} catch (error) {
 		setStatusText("Wappen lokalisieren fehlgeschlagen: " + (error && error.message ? error.message : String(error)));
 	} finally {
@@ -3510,20 +3539,31 @@ async function toggleSettlementImagesEnabled() {
 }
 $("seImagesToggle")?.addEventListener("click", toggleSettlementImagesEnabled);
 
-// Global settlement-COAT switch (ribbon), same shape as the image one right above. "Off" does not blank
-// the head: without properties.coat the infobox falls back to the settlement's own icon (popups.js), so
-// the switch takes the coat away, not the picture slot.
+// ===================== Das Wappen-Menue im Menueband ==============================
+// Mockup docs/wappen-verwaltung-mockup.html, abgenommen 23.08.2026 (Owner: „das menü soll unter dem
+// button liegen"). Es sammelt drei Handgriffe ein, die vorher als zwei Knoepfe im Band standen bzw.
+// gar nicht erreichbar waren: der Frontend-Schalter, „Hole Wiki-Wappen" (frueher „Wappen
+// lokalisieren") und der neue Aufraeum-Lauf.
+//
+// 🔴 aria-pressed heisst hier AN. Die alte Fassung hatte es INVERTIERT (`aria-pressed="true"` stand
+// fuer „aus"), was fuer einen Umschalter das Gegenteil dessen ist, was das Attribut bedeutet -- und
+// was jede CSS-Regel, die daran haengt, lautlos umdreht. Geradegerueckt, weil das Menue den Zustand
+// jetzt auch faerbt.
 function setCoatsToggleState(enabled) {
 	const btn = $("seCoatsToggle");
-	const label = $("seCoatsToggleLabel");
-	if (label) label.textContent = enabled ? "Wappen: An" : "Wappen: Aus";
-	if (btn) { btn.setAttribute("aria-pressed", enabled ? "false" : "true"); btn.classList.toggle("is-off", !enabled); }
+	if (btn) {
+		btn.setAttribute("aria-pressed", enabled ? "true" : "false");
+		btn.textContent = enabled ? "AN" : "AUS";
+	}
+	// 🔴 Der Stand steht im KNOPF, nicht nur im Menue: ein Notaus, dessen Stellung man erst
+	// aufklappen muss, ist keiner.
+	const state = $("seCoatsMenuState");
+	if (state) state.textContent = enabled ? "im Frontend sichtbar" : "im Frontend AUS";
 }
 async function toggleSettlementCoatsEnabled() {
 	const btn = $("seCoatsToggle");
 	if (!btn || btn.disabled) return;
-	const currentlyEnabled = btn.getAttribute("aria-pressed") !== "true";
-	const next = !currentlyEnabled;
+	const next = btn.getAttribute("aria-pressed") !== "true";
 	btn.disabled = true;
 	try {
 		const response = await fetch(SETTLEMENT_EDITOR_API, {
@@ -3541,6 +3581,93 @@ async function toggleSettlementCoatsEnabled() {
 	}
 }
 $("seCoatsToggle")?.addEventListener("click", toggleSettlementCoatsEnabled);
+
+// ---- „Wappenfelder aufräumen" -------------------------------------------------------------------
+// 🔴 Der alte Wiki-Parser las `wappen|bild|wappenbild|bilddatei` in EIN Feld: hatte ein Ort im Wiki
+// kein Wappen, aber ein Foto in der Infobox, landete das Foto im WAPPENfeld. Der Parser liest seit
+// dem 23.08.2026 nur noch `wappen|wappenbild` -- aber er SETZT das Feld nur, er räumt es nicht.
+//
+// 💣 ZWEI KLICKS, und der erste ist Pflicht: der Lauf zeigt erst, WAS er tun würde (Ortsname +
+// Dateiname), und schreibt nichts. Die Regel dahinter ist eine Heuristik -- „ein Wappen heißt im
+// Wiki Wappen…" -- und eine Heuristik darf nie ungesehen scharf laufen. Ein eigenes Wappen ohne das
+// Wort im Namen (Bath Molokh) steht darum mit in der Liste, obwohl es bleiben soll: genau dafür ist
+// die Vorschau da.
+let seCleanupRunning = false;
+
+function setSeCleanupBusy(isBusy, text) {
+	seCleanupRunning = isBusy;
+	const btn = $("seCleanupCoats");
+	if (btn) { btn.disabled = isBusy; btn.textContent = isBusy ? "prüft …" : (text || "prüfen"); }
+}
+
+async function handleSeCleanupCoatsClick() {
+	if (seCleanupRunning) return;
+	setSeCleanupBusy(true);
+	try {
+		const vorschau = await settlementDetailPost({ action: "cleanup_coats", limit: 200 });
+		const liste = Array.isArray(vorschau.liste) ? vorschau.liste : [];
+		const info = $("seCleanupCoatsState");
+
+		if (liste.length === 0) {
+			if (info) info.textContent = vorschau.weitere_moeglich
+				? "in diesem Durchgang nichts gefunden — nochmal drücken"
+				: "✓ nichts zu räumen";
+			setStatusText(`Wappenfelder geprüft: ${vorschau.gesehen || 0} angesehen, nichts zu räumen.`);
+			return;
+		}
+
+		// ⚠️ Die Liste gehört in die Bestätigung, nicht nur eine Zahl: wer nur „412 Felder" liest,
+		// kann das Urteil nicht prüfen, und dann ist die Vorschau bloß eine Beruhigung.
+		const beispiele = liste.slice(0, 12).map((e) => `• ${e.ort}: ${e.datei}`).join("\n");
+		const mehr = liste.length > 12 ? `\n… und ${liste.length - 12} weitere` : "";
+		if (info) info.textContent = `${liste.length} Kandidaten gefunden`;
+		setStatusText(`Wappenfelder: ${liste.length} von ${vorschau.gesehen || 0} sehen nach Infobox-Foto aus.`);
+
+		const frage = `${liste.length} Wappenfelder sehen nach einem Infobox-Foto aus und würden geleert:\n\n`
+			+ beispiele + mehr
+			+ "\n\nEigene Uploads sind nicht dabei — die werden nie angefasst."
+			+ "\nEin Wappen, das nicht „Wappen…“ heißt, steht fälschlich mit in der Liste."
+			+ "\n\nJetzt wirklich leeren?";
+		if (!window.confirm(frage)) {
+			setStatusText("Aufräumen abgebrochen — es wurde nichts geändert.");
+			return;
+		}
+
+		const fahrt = await settlementDetailPost({
+			action: "cleanup_coats", dry_run: false, confirm: "apply", limit: 200,
+		});
+		if (info) info.textContent = `${fahrt.geraeumt || 0} geleert`;
+		setStatusText(fahrt.weitere_moeglich
+			? `${fahrt.geraeumt || 0} Wappenfelder geleert — es können weitere sein, nochmal drücken.`
+			: `Fertig: ${fahrt.geraeumt || 0} Wappenfelder geleert.`);
+	} catch (error) {
+		setStatusText("Aufräumen fehlgeschlagen: " + (error && error.message ? error.message : String(error)));
+	} finally {
+		setSeCleanupBusy(false);
+	}
+}
+$("seCleanupCoats")?.addEventListener("click", handleSeCleanupCoatsClick);
+
+// ---- Auf- und Zuklappen -------------------------------------------------------------------------
+// 💣 Der Zustand ist das `hidden`-Attribut des Panels und sonst nichts -- kein Modulzustand daneben,
+// der auseinanderlaufen kann. Zugeklappt wird bei Aussenklick, Esc und nach jeder Handlung, die die
+// Seite verlaesst.
+function setCoatsMenuOpen(open) {
+	const panel = $("seCoatsMenuPanel");
+	const btn = $("seCoatsMenu");
+	if (!panel || !btn) return;
+	panel.hidden = !open;
+	btn.setAttribute("aria-expanded", open ? "true" : "false");
+}
+$("seCoatsMenu")?.addEventListener("click", (event) => {
+	event.stopPropagation();
+	setCoatsMenuOpen($("seCoatsMenuPanel")?.hidden === true);
+});
+// ⚠️ Der Klick INS Menue darf es nicht zuklappen -- sonst schliesst jeder Schalterdruck das Menue,
+// und man kann nicht zwei Dinge hintereinander tun.
+$("seCoatsMenuPanel")?.addEventListener("click", (event) => event.stopPropagation());
+document.addEventListener("click", () => setCoatsMenuOpen(false));
+document.addEventListener("keydown", (event) => { if (event.key === "Escape") setCoatsMenuOpen(false); });
 
 // Nice-to-have (cheap): while the filter is ON, renderSettlementMid() itself re-narrows the parent
 // map's filter on every render (see its own tail call below) -- covers every list-filter change

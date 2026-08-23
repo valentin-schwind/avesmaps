@@ -121,6 +121,62 @@
 	box-shadow: var(--shadow-panel);
 }
 .type-filter__menu[hidden] { display: none; }
+
+/* ---- Das Menue im Menueband (🛡️ Wappen ▾) ------------------------------------------------
+   Mockup docs/wappen-verwaltung-mockup.html, abgenommen 23.08.2026 -- Owner: „das menü soll unter
+   dem button liegen".
+   ⚠️ Das PANEL ist .type-filter__menu, damit es keine dritte Menue-Rezeptur gibt; hier steht nur,
+   worin sich dieses Menue unterscheidet. 💣 Das Filtermenue haengt RECHTSbuendig (right: 0),
+   weil sein Knopf am rechten Rand einer Werkzeugleiste sitzt -- dieser hier steht mitten im Band
+   und muesste sonst nach links aus seinem Knopf herauslaufen. */
+.rb-menu { position: relative; flex: 0 0 auto; display: flex; }
+.rb-menu__panel {
+	left: 0;
+	right: auto;
+	min-width: 300px;
+	padding: var(--space-4);
+}
+.rb-menu__row {
+	display: flex;
+	align-items: center;
+	gap: var(--space-8);
+	padding: var(--space-4);
+	border-radius: var(--radius-sm);
+}
+.rb-menu__row + .rb-menu__row { border-top: 1px solid var(--color-divider); }
+.rb-menu__row:hover { background: var(--color-hover-wash); }
+.rb-menu__txt { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.rb-menu__txt b { font-size: var(--font-size-small); font-weight: var(--font-weight-bold); color: var(--color-text); }
+/* ⚠️ 11px ist die Untergrenze aus AGENTS.md §12 -- darunter ist die Zeile im Editor nicht mehr
+   lesbar, und genau dieser Fehler ist beim Abschreiben von Listenzeilen schon zweimal gewandert. */
+.rb-menu__txt span { font-size: 11px; color: var(--color-text-muted); }
+/* Eine Zeilenhandlung ist nie die Haupthandlung der Seite (AGENTS.md §12): weich/outline, nie
+   gefuellt -- die Haupthandlung dieses Menuebands heisst „Syncen". */
+.rb-menu__sw {
+	flex: 0 0 auto;
+	min-width: 62px;
+	min-height: 26px;
+	padding: 0 var(--space-8);
+	font: inherit;
+	font-size: var(--font-size-caption);
+	font-weight: var(--font-weight-bold);
+	text-align: center;
+	cursor: pointer;
+	color: var(--color-button-soft-text);
+	background: var(--color-button-soft);
+	border: 1px solid var(--color-button-soft-border);
+	border-radius: var(--radius-md);
+}
+.rb-menu__sw:hover { background: var(--color-button-soft-hover); }
+.rb-menu__sw[disabled] { opacity: .55; cursor: default; }
+/* 🔴 Der EINGESCHALTETE Zustand ist gefuellt -- er ist eine Aussage ueber das oeffentliche
+   Frontend, kein Angebot. Ausgeschaltet bleibt weich: das ist der Notaus-Stand, und der soll
+   auffallen, indem er sich vom Rest UNTERSCHEIDET. */
+.rb-menu__sw[aria-pressed="true"] {
+	color: var(--color-button-text);
+	background: var(--color-button);
+	border-color: var(--color-button-border);
+}
 .type-filter__opt {
 	display: flex;
 	align-items: center;

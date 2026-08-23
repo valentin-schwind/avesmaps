@@ -15,6 +15,7 @@ require_once __DIR__ . '/../../_internal/political/territory.php';
 require_once __DIR__ . '/../../_internal/wiki/sync-monitor.php';
 require_once __DIR__ . '/../../_internal/wiki/settlements.php';
 require_once __DIR__ . '/../../_internal/wiki/settlements-coat-localize.php';
+require_once __DIR__ . '/../../_internal/wiki/wappen-aufraeumen.php';
 
 try {
     $config = avesmapsLoadApiConfig(__DIR__);
@@ -75,6 +76,16 @@ try {
             ),
             'set_coat' => avesmapsWikiSettlementSetWikiCoat($pdo, (string) ($payload['public_id'] ?? ''), !$isApply(), (int) ($user['id'] ?? 0)),
             'clear_coat' => avesmapsWikiSettlementClearCoat($pdo, (string) ($payload['public_id'] ?? ''), !$isApply(), (int) ($user['id'] ?? 0)),
+            // 🔴 Raeumt Infobox-FOTOS aus dem Wappenfeld (Altlast des alten Parsers).
+            // Die Vorschau darf jeder Reviewer sehen; GELOESCHT wird nur mit 'admin' -- und die
+            // Absage sagt warum, statt still auf den Probelauf zurueckzufallen.
+            'cleanup_coats' => (static function () use ($pdo, $user, $isApply): array {
+                $scharf = $isApply();
+                if ($scharf && !avesmapsUserCan($user, 'admin')) {
+                    avesmapsErrorResponse(403, 'forbidden', 'Der scharfe Aufraeum-Lauf ist Administratoren vorbehalten. Die Vorschau steht jedem offen.');
+                }
+                return avesmapsWappenAufraeumenLauf($pdo, $scharf, (int) ($user['id'] ?? 0), (int) ($payload['limit'] ?? 0));
+            })(),
             'assign_territory' => avesmapsWikiSettlementAssignTerritory(
                 $pdo,
                 (string) ($payload['public_id'] ?? ''),
