@@ -183,6 +183,17 @@ function syncEcosystemPaneStates() {
 	// die Falle vom 14.08.2026, und ein zusätzlicher Aufruf im Verlassen-Zweig war genau das (er stand
 	// hier kurz und ist wieder weg: syncEcosystemControlsVisibility endet ohnehin auf dieser Funktion).
 	syncEcosystemRiverVisibility();
+	// Und das Ansichtsprofil des Besuchers: Straßen, Grenzen, Ortsklassen, Untergrund samt Kacheln
+	// (23.08.2026). Auch hier gilt: Eintreten, Ebenenwechsel und Verlassen kommen alle drei hier vorbei.
+	// ⚠️ Der Untergrund läuft NICHT von hier, sondern aus syncEcosystemControlsVisibility -- er muss auch
+	// beim Verlassen des Modus gesetzt werden, und zwar mit `active=false`, was diese Funktion nicht weiß.
+	syncEcosystemFrontendFeatures();
+	syncEcosystemSettlementVisibility(isEcosystemLayerModeActive());
+	// 🔴 UND DER UNTERGRUND SAMT KACHELN. Er hing bis 23.08.2026 allein am MODUS-Wechsel
+	// (syncEcosystemControlsVisibility) -- ein Wechsel der EBENE liess ihn stehen. Das fiel erst auf,
+	// als der Wert je Ebene verschieden wurde: von „Alle“ nach Vegetation blieb er auf 0 und die
+	// Kacheln abgehängt, obwohl diese Ebene 25 % vorschreibt. Im Browser gemessen, nicht hergeleitet.
+	applyEcosystemUndergroundOpacity(isEcosystemLayerModeActive());
 }
 
 // 🔴 Welche Labels sind in der gerade bearbeiteten Ebene FREMD? Nur die werden blass. Seit jede Region
@@ -389,6 +400,116 @@ function storeEcosystemUndergroundOpacity(percent) {
 
 // `active` false restores the map completely: this must never leak into the other view modes, where a
 // half-faded base map would look like a broken tile server.
+// ---- Das Ansichtsprofil je Ebene (Owner 23.08.2026) ------------------------------------------------
+//
+// 🔴 „Alle“ IST IM FRONTEND DIE VOLLE KARTE OHNE KACHELN. Owner wörtlich: „in ‚Alle‘ im frontend können
+// siedlungen normal angezeigt werden, strassen normal angezeigt werden, grenzen normal angezeigt
+// werden, die transparenz für den untergrund kann auf 0 -- sprich du brauchst auch keine tiles
+// nachladen (aber nur im frontend modus)“. Übrig bleibt der Pergamentton, darauf die Landschafts-
+// flächen und die drei gewohnten Ebenen darüber. Die anderen Landschafts-Ebenen bleiben die ruhige
+// Zeichenfläche, die sie seit dem 2026-08-05 sind.
+//
+// 🔴 NUR DER BESUCHER. Der Editor behält in JEDER Ebene seine Haken und seinen Untergrund-Regler --
+// dort ist die Ansicht ein Arbeitsplatz, und ein Profil, das ihm Straßen und Grenzen einschaltet, legte
+// sich über seine eigene Wahl.
+//
+// ⚠️ DIE FLÜSSE GEHÖREN NICHT IN DIESE TABELLE. Ihre Regel gilt für BEIDE Rollen (Owner-Entscheid vom
+// selben Tag, syncEcosystemRiverVisibility) -- eine Zeile hier wäre für die Hälfte der Leser falsch.
+// Dieselbe Überlegung wie bei `transport_seasons` im Wege-Editor: zwei Reichweiten auf demselben Feld
+// sind eine Divergenz, auch wenn sie sich zusammenlegen liessen.
+const ECOSYSTEM_FRONTEND_PROFILE_RUHIG = Object.freeze({
+	orte: false, wege: false, grenzen: false, untergrund: ECOSYSTEM_UNDERGROUND_FRONTEND,
+});
+const ECOSYSTEM_FRONTEND_PROFILES = {
+	alle: Object.freeze({ orte: true, wege: true, grenzen: true, untergrund: 0 }),
+};
+
+// Das Profil der GERADE gezeigten Ebene -- oder `null` für „hier wird nichts angefasst“.
+//
+// 💣 `null` ist kein Rückfall auf die ruhige Tabelle, sondern eine eigene Aussage: der Editor und jede
+// andere Kartenansicht bekommen GAR KEIN Profil. Wer die beiden zusammenzieht, nimmt dem Editor seine
+// Haken oder greift in „Politisch“ hinein.
+function ecosystemFrontendProfile() {
+	if (typeof isEcosystemLayerModeActive !== "function" || !isEcosystemLayerModeActive()) {
+		return null;
+	}
+	if (canOperateEcosystemLayers()) {
+		return null;
+	}
+	const ebene = isEcosystemShowAllLayers() ? "alle" : getActiveEcosystemLayerKind();
+	return ECOSYSTEM_FRONTEND_PROFILES[ebene] || ECOSYSTEM_FRONTEND_PROFILE_RUHIG;
+}
+
+// Setzt einen Haken des Anzeige-Menüs und meldet, ob sich dabei etwas geändert hat.
+//
+// 💣 Ein programmatisch gesetztes `checked` feuert KEIN `change` -- und an genau diesem Ereignis hängen
+// die Zeichner (syncPathVisibility für die Wege, die Grenz-Leinwand für die Grenzen). Ohne das Signal
+// stünde der Haken richtig und die Karte falsch.
+// ⚠️ Und nur bei echter Änderung: diese Wege laufen bei JEDEM Ebenenwechsel, und ein blindes Setzen
+// zeichnete jedes Mal ~6.000 Wege neu.
+function ecosystemSetzeAnzeigeHaken(id, soll) {
+	const haken = document.getElementById(id);
+	if (!haken || haken.checked === Boolean(soll)) {
+		return false;
+	}
+	haken.checked = Boolean(soll);
+	haken.dispatchEvent(new Event("change", { bubbles: true }));
+	return true;
+}
+
+// Straßen und Grenzen nach dem Profil. Die Ortsklassen laufen über syncEcosystemSettlementVisibility
+// (sie werden GELIEHEN und beim Verlassen zurückgegeben), der Untergrund über
+// applyEcosystemUndergroundOpacity.
+//
+// ⚠️ Straßen und Grenzen brauchen hier KEINE Erinnerung: beide werden bei jedem Kartenmodus-Wechsel
+// ohnehin neu gesetzt -- die Wege von applyFrontendLayerModeDefaults, die Grenzen von
+// syncEditorDisplayTogglesToMode. Das Verlassen des Modus stellt sie also von selbst richtig, und eine
+// zweite Erinnerung daneben liefe genau dort auseinander, wo es niemandem auffiele.
+function syncEcosystemFrontendFeatures() {
+	const profil = ecosystemFrontendProfile();
+	if (!profil) {
+		return;
+	}
+	const wege = ecosystemSetzeAnzeigeHaken("togglePaths", profil.wege);
+	ecosystemSetzeAnzeigeHaken("toggleTerritoryBorders", profil.grenzen);
+	// Die Grenzen zeichnet ihr eigener `change`-Zuhörer; die Wege brauchen den direkten Anstoss, weil
+	// diese Datei vor map-features.js lädt und ihr Zuhörer beim ersten Aufruf noch fehlen kann.
+	if (wege && typeof syncPathVisibility === "function") {
+		syncPathVisibility();
+	}
+}
+
+// 🔴 Die Kachel-Ebene wird GENOMMEN, nicht nur ausgeblendet (Owner: „du brauchst auch keine tiles
+// nachladen“). Leaflet fordert Kacheln nur an, solange die Ebene auf der Karte liegt -- bei 0 %
+// Deckkraft lädt der Browser sonst Bilder, die niemand sieht.
+//
+// 💣 ZURÜCKGEGEBEN WIRD NUR, WAS DIESE EBENE SELBST GENOMMEN HAT. Der Editor kann die Kacheln über
+// `mapstyle=none` abschalten (js/ui/route-planner-toggle.js) -- diese Lage gehört ihm. Ohne die Marke
+// schaltete das Verlassen der Landschaften ihm die Kacheln wieder ein.
+// ⚠️ `baseTileLayer` wird dabei NICHT geleert: an der Variablen hängen der Stil-Umschalter und die
+// Kraftlinien-Entsättigung. Bei `mapstyle=none` ist sie bereits `null`, und dann tut diese Funktion
+// nichts -- die sichere Richtung.
+let ecosystemKachelnGenommen = false;
+
+function syncEcosystemBaseTiles(sichtbar) {
+	if (typeof map === "undefined" || !map || typeof baseTileLayer === "undefined" || !baseTileLayer) {
+		return;
+	}
+	if (!sichtbar) {
+		if (map.hasLayer(baseTileLayer)) {
+			map.removeLayer(baseTileLayer);
+			ecosystemKachelnGenommen = true;
+		}
+		return;
+	}
+	if (ecosystemKachelnGenommen && !map.hasLayer(baseTileLayer)) {
+		map.addLayer(baseTileLayer);
+		// Ganz nach hinten -- sonst lägen die Kacheln über den Landschaftsflächen.
+		baseTileLayer.bringToBack?.();
+	}
+	ecosystemKachelnGenommen = false;
+}
+
 function applyEcosystemUndergroundOpacity(active) {
 	if (typeof map === "undefined" || !map || typeof map.getPane !== "function") {
 		return;
@@ -396,10 +517,17 @@ function applyEcosystemUndergroundOpacity(active) {
 
 	const tilePane = map.getPane("tilePane");
 	const container = typeof map.getContainer === "function" ? map.getContainer() : null;
-	// Wer den Regler hat, bekommt seinen Wert; wer ihn nicht hat, die festen 25 %.
+	// Wer den Regler hat, bekommt seinen Wert; wer ihn nicht hat, den Wert seiner EBENE (23.08.2026 --
+	// vorher waren es für den Besucher überall dieselben 25 %).
+	const profil = ecosystemFrontendProfile();
 	const percent = active
-		? (canOperateEcosystemLayers() ? readStoredEcosystemUndergroundOpacity() : ECOSYSTEM_UNDERGROUND_FRONTEND)
+		? (canOperateEcosystemLayers()
+			? readStoredEcosystemUndergroundOpacity()
+			: (profil ? profil.untergrund : ECOSYSTEM_UNDERGROUND_FRONTEND))
 		: 100;
+	// 🔴 Bei 0 % gar nicht erst laden. Steht VOR dem Setzen der Deckkraft, damit ein laufender
+	// Kachel-Abruf so früh wie möglich abbricht.
+	syncEcosystemBaseTiles(!(active && percent <= 0));
 
 	if (tilePane) {
 		tilePane.style.opacity = percent >= 100 ? "" : String(percent / 100);
@@ -437,7 +565,13 @@ function syncEcosystemSettlementVisibility(inLayer) {
 		return;
 	}
 
-	if (inLayer) {
+	// 🔴 SEIT 23.08.2026 ENTSCHEIDET DIE EBENE, NICHT DER MODUS. „Alle“ zeigt dem Besucher die Orte wie
+	// jede andere Ansicht (Owner); die ruhigen Ebenen nehmen sie weiter zurück, und der Editor bekommt
+	// überall die leere Zeichenfläche (kein Profil ⇒ zurücktreten). Der Weg des Zurückgebens ist
+	// derselbe wie beim Verlassen des Modus -- deshalb steht hier eine Bedingung und kein zweiter Zweig.
+	const nimmtOrte = Boolean(inLayer) && !(ecosystemFrontendProfile()?.orte === true);
+
+	if (nimmtOrte) {
 		// Nur beim EINTRETEN merken. syncEcosystemControlsVisibility läuft auch mitten im Modus (etwa
 		// wenn die Rechteauskunft eintrifft) -- ein zweites Merken schriebe die bereits leere Lage fest
 		// und gäbe dem Nutzer seine Orte nie wieder.
@@ -452,7 +586,7 @@ function syncEcosystemSettlementVisibility(inLayer) {
 		});
 	} else {
 		if (ecosystemSettlementMemory === null) {
-			return;   // war gar nicht im Modus -- dann gibt es auch nichts zurückzugeben
+			return;   // nichts geliehen -- dann gibt es auch nichts zurückzugeben
 		}
 		LOCATION_TYPE_VISIBILITY_ORDER.forEach((locationType, index) => {
 			getLocationToggleButton(locationType).toggleClass("is-active", ecosystemSettlementMemory[index] === true);
@@ -786,8 +920,12 @@ function syncEcosystemControlsVisibility() {
 	// 🔴 Der ausgeblasste Untergrund gehört zur ANSICHT, nicht zum Werkzeug (Owner 2026-08-04). Er
 	// nimmt die gemalte Karte zurück, damit die Landschaftsflächen überhaupt zu lesen sind -- das gilt
 	// für den Besucher genauso wie für den, der darauf zeichnet. Nur der WERT unterscheidet sich: der
-	// Besucher bekommt die festen 25 %, der Editor seinen Regler (applyEcosystemUndergroundOpacity).
-	applyEcosystemUndergroundOpacity(shouldShow);
+	// Editor bekommt seinen Regler, der Besucher den Wert seiner EBENE (ecosystemFrontendProfile).
+	//
+	// 🪤 GESETZT WIRD ER IN syncEcosystemPaneStates, NICHT HIER. Diese Funktion läuft nur beim
+	// MODUS-Wechsel; seit der Wert je Ebene verschieden ist, muss er auch dem EBENEN-Wechsel folgen --
+	// und der kommt nur dort vorbei. Beide Wege dieser Funktion enden auf syncEcosystemPaneStates, das
+	// Verlassen des Modus ist damit abgedeckt.
 	// Die Orte treten für JEDEN zurück, der die Ebene ansieht -- nicht nur für den, der sie bedienen
 	// darf. Deshalb `shouldShow` und nicht `operable`: es ist eine Eigenschaft der Ansicht, keine
 	// Zeichenhilfe. Steht wie die Zeile darüber VOR dem frühen Ausstieg, damit das Verlassen des Modus

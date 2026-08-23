@@ -412,6 +412,20 @@ function applyFrontendLayerModeDefaults(mode, { includeCities = true } = {}) {
 	if (mode === "powerlines") {
 		syncLocationMarkerVisibility(); // restliche Marker ausblenden, Nodices einblenden
 	}
+	// 💣 UND ZULETZT DIE LANDSCHAFTEN-EBENE, denn sie verfeinert genau diese Vorgaben JE EBENE
+	// (23.08.2026). Die Reihenfolge ist der ganze Grund für diese zwei Zeilen: der Umschalter ruft
+	// `setSelectedMapLayerMode(...)` und DANACH diese Funktion (js/map-features/map-features.js) --
+	// die Ebene hat also längst gesetzt, was sie zeigen will, und die Zeilen darüber machen es wieder
+	// platt. Ohne das ist die Regel nur auf dem Weg wirksam, den kein Benutzer geht (direkter Aufruf
+	// von setSelectedMapLayerMode), und über den Umschalter gar nicht -- genau die Sorte Lücke, die
+	// eine Abnahme am falschen Weg für erledigt hält.
+	// ⚠️ Steht hinter dem frühen Ausstieg für IS_EDIT_MODE: der Editor bekommt hier ohnehin nichts.
+	if (typeof syncEcosystemRiverVisibility === "function") {
+		syncEcosystemRiverVisibility();
+	}
+	if (typeof syncEcosystemFrontendFeatures === "function") {
+		syncEcosystemFrontendFeatures();
+	}
 }
 
 function applyDisplayOptions() {

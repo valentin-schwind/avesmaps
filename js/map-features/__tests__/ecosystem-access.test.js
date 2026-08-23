@@ -204,6 +204,12 @@ function untergrundWelt({ recht, editor, gespeichert }) {
 		getSelectedMapLayerMode: () => "ecosystem",
 		IS_ECOSYSTEM_ENABLED: recht,
 		IS_EDIT_MODE: editor,
+		// Seit 23.08.2026 haengt der Untergrund des Besuchers an seiner EBENE (ecosystemFrontendProfile),
+		// nicht mehr an einer festen Zahl -- deshalb braucht diese Welt jetzt eine Ebene.
+		// 🪤 `gespeichert` beantwortet hier JEDEN localStorage-Schluessel, auch den fuer „Alle": "0" heisst
+		// also zugleich „nicht Alle", und das ist der Fall, den die Zusicherungen unten meinen.
+		isKnownEcosystemKind: () => true,
+		activeEcosystemLayerKind: "vegetation",
 		map: { getPane: (name) => (name === "tilePane" ? pane : null), getContainer: () => container },
 	};
 	context.globalThis = context;
@@ -215,7 +221,10 @@ function untergrundWelt({ recht, editor, gespeichert }) {
 const besucherUntergrund = untergrundWelt({ recht: false, editor: false, gespeichert: "0" });
 besucherUntergrund.context.applyEcosystemUndergroundOpacity(true);
 assert(besucherUntergrund.pane.style.opacity === "0.25",
-	"💣 der Besucher bekommt die festen 25 % -- nicht die 0, die in seinem Browser steht: " + besucherUntergrund.pane.style.opacity);
+	"💣 der Besucher bekommt in einer GEWAEHLTEN Ebene die festen 25 % -- nicht die 0, die in seinem "
+		+ "Browser steht: " + besucherUntergrund.pane.style.opacity);
+// 🔴 In „Alle" sind es seit 23.08.2026 0 % samt abgehaengter Kacheln; das prueft
+// js/map-features/__tests__/ecosystem-frontend-profil.test.js mit der noetigen Buehne.
 
 const editorUntergrund = untergrundWelt({ recht: true, editor: true, gespeichert: "40" });
 editorUntergrund.context.applyEcosystemUndergroundOpacity(true);
@@ -245,6 +254,12 @@ function schalterWelt() {
 		getSelectedMapLayerMode: () => "ecosystem",
 		IS_ECOSYSTEM_ENABLED: false,
 		IS_EDIT_MODE: false,
+		// Seit 23.08.2026 entscheidet die EBENE, ob die Orte zuruecktreten (ecosystemFrontendProfile).
+		// 🪤 localStorage antwortet hier auf JEDEN Schluessel mit "0" -- also auch „nicht Alle", und das
+		// ist genau der Fall, den die Zusicherungen unten meinen. Den Fall „Alle" prueft
+		// js/map-features/__tests__/ecosystem-frontend-profil.test.js.
+		isKnownEcosystemKind: () => true,
+		activeEcosystemLayerKind: "vegetation",
 		LOCATION_TYPE_VISIBILITY_ORDER: ["metropole", "grossstadt", "stadt", "kleinstadt", "dorf", "gebaeude"],
 		getLocationToggleButton: knopf,
 		syncLocationMarkerVisibility: () => {},
