@@ -2542,6 +2542,15 @@ function avesmapsCreateEcosystemRegion(PDO $pdo, array $payload, int $userId): a
             'user_id2' => $userId > 0 ? $userId : null,
         ]);
 
+        // Dieselbe Gegenseite wie im Aendern-Weg: nennt eine frische Region gleich ihr Label, muss das
+        // Label auf sie zeigen. Beide Erzeuger, oder es ist keine Regel.
+        avesmapsEcosystemAdoptLabelPointer(
+            $pdo,
+            avesmapsEcosystemLabelPointerToAdopt($fields),
+            $publicId,
+            $userId
+        );
+
         $row = avesmapsEcosystemRegionRow($pdo, $publicId);
         avesmapsEcosystemWriteAuditLog($pdo, 'create_region', $userId, null, $publicId, [], avesmapsEcosystemRegionSnapshot($row));
         $revision = avesmapsNextEcosystemRevision($pdo);
@@ -2600,6 +2609,123 @@ function avesmapsEcosystemAssertLabelPointerFree(PDO $pdo, array $before, array 
             'Diese Region hat bereits ein primaeres Label. Erst das bestehende loesen oder loeschen, dann ein anderes zum primaeren machen. (Weitere Labels derselben Flaeche brauchen diesen Zeiger nicht -- sie tragen ihn selbst.)'
         );
     }
+}
+
+// ---- wer ein Label zuweist, schreibt BEIDE Seiten (Owner 24.08.2026) -------------------------------
+//
+// 🔴 DIE REGEL: setzt eine Region `label_public_id`, bekommt dasselbe Label seinen eigenen Zeiger auf
+// genau diese Region. Sonst entsteht ein Widerspruch, den kein Leser aufloesen kann und niemand sieht.
+//
+// 💣 WARUM DAS NOETIG IST, obwohl es die Wache darueber schon zu geben scheint. Beim Aufloesen schlaegt
+// der Zeiger am LABEL den an der Region -- ausdruecklich (avesmapsEcosystemLabelRegionMap, Schritt 1
+// vor Schritt 2). Geschrieben wurde beim Zuweisen aber nur die Regionsseite. Eine Flaeche konnte damit
+// ein Label benennen, das selbst woanders hinzeigt: angenommen, gespeichert, angezeigt -- wirkungslos.
+// Und die Wache darueber greift genau hier nicht: sie fragt „hat DIESE Region schon ein Label?", nie
+// „gehoert dieses Label schon woanders hin?". Eine frisch gezeichnete Flaeche hat keinen alten Zeiger,
+// also laeuft sie durch.
+//
+// Live gemessen am 24.08.2026 („Schwarzkuppen"): die neue Flaeche nannte ihr Label und zaehlte
+// trotzdem NULL Labels, die alte trug beide. Das Flaechenmenue meldete „Diese Flaeche traegt keine
+// geladene Beschriftung" -- der Ersatzweg fuer den Kurvenriegel lief ins Leere, und weil beide Labels
+// an derselben Flaeche hingen, benannte der Geschwister-Abgleich den Finsterkamm mit um.
+//
+// ⚠️ Das LOESEN bleibt ausgenommen (`label_public_id = ''`). Es ist der bewusste Weg, ein Label
+// freizugeben; dem Label dabei seinen Zeiger zu nehmen, waere eine zweite Entscheidung in einem
+// Schreibvorgang, der nur eine getroffen hat.
+
+/**
+ * Welches Label muss seinen EIGENEN Zeiger nachgezogen bekommen? '' heisst „nichts zu tun".
+ *
+ * Rein und darum pruefbar -- dasselbe Paar wie avesmapsEcosystemLabelPointerToCheck neben der Wache.
+ */
+function avesmapsEcosystemLabelPointerToAdopt(array $fields): string
+{
+    if (!array_key_exists('label_public_id', $fields) || $fields['label_public_id'] === null) {
+        return '';                                  // Zeiger nicht angefasst oder ausdruecklich geloest
+    }
+
+    return trim((string) $fields['label_public_id']);
+}
+
+/**
+ * Die Eigenschaftsspalte des Labels MIT seiner Region -- oder null, wenn nichts zu schreiben ist.
+ *
+ * 🔴 null ist die Bremse des Aufrufers: nur eine echte Aenderung darf eine Kartenrevision ziehen. Ein
+ * Region-Save, der an der Karte nichts aendert, hebt sie nicht (Kopf dieser Datei).
+ *
+ * 🪤 Eine leere oder kaputte Spalte wird GEHEILT, nicht uebersprungen: das Label existiert, und seine
+ * Zugehoerigkeit ist genau das, was hier geschrieben werden soll.
+ */
+function avesmapsEcosystemLabelPropertiesWithRegion(?string $propertiesJson, string $regionPublicId): ?string
+{
+    $regionPublicId = trim($regionPublicId);
+    if ($regionPublicId === '') {
+        return null;                                // ohne Ziel wird nie ein Zeiger geschrieben
+    }
+
+    $properties = json_decode((string) $propertiesJson, true);
+    if (!is_array($properties)) {
+        $properties = [];
+    }
+    if (trim((string) ($properties['ecosystem_region_public_id'] ?? '')) === $regionPublicId) {
+        return null;                                // zeigt schon richtig
+    }
+    $properties['ecosystem_region_public_id'] = $regionPublicId;
+
+    return (string) json_encode($properties, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+}
+
+/**
+ * Die duenne DB-Schale dazu: den Zeiger am Label nachziehen, wenn er abweicht.
+ *
+ * 🔴 Die Kartenrevision wird ERST GEZOGEN, WENN feststeht, dass geschrieben wird. Ein Label ist eine
+ * map_features-Zeile und reitet in der grossen Nutzlast; ohne den Zaehler saehen warme Clients die
+ * Zuordnung per 304 nie. Dieselbe dokumentierte Ausnahme wie bei avesmapsEcosystemDeleteLabels und
+ * avesmapsEcosystemRestoreRegionLabel -- die Regel „ein Flaechen-Save fasst map_revision nie an" gilt
+ * dem Zeichenfeldzug, und das hier ist kein Geometrie-Save.
+ *
+ * Still, wenn es nichts zu tun gibt: kein Label, keine Region, oder der Zeiger stimmt schon.
+ */
+function avesmapsEcosystemAdoptLabelPointer(
+    PDO $pdo,
+    string $labelPublicId,
+    string $regionPublicId,
+    int $userId
+): bool {
+    $labelPublicId = trim($labelPublicId);
+    $regionPublicId = trim($regionPublicId);
+    if ($labelPublicId === '' || $regionPublicId === '') {
+        return false;
+    }
+
+    $read = $pdo->prepare(
+        "SELECT id, properties_json FROM map_features
+          WHERE public_id = :public_id AND feature_type = 'label' AND is_active = 1 LIMIT 1"
+    );
+    $read->execute(['public_id' => $labelPublicId]);
+    $row = $read->fetch(PDO::FETCH_ASSOC);
+    if (!is_array($row)) {
+        return false;                               // 🪤 Ein Zeiger ist kein Label: er darf ins Leere gehen
+    }
+
+    $properties = avesmapsEcosystemLabelPropertiesWithRegion(
+        $row['properties_json'] === null ? null : (string) $row['properties_json'],
+        $regionPublicId
+    );
+    if ($properties === null) {
+        return false;
+    }
+
+    $revision = avesmapsNextMapRevision($pdo);
+    $pdo->prepare('UPDATE map_features SET properties_json = :properties, revision = :revision, updated_by = :user_id WHERE id = :id')
+        ->execute([
+            'properties' => $properties,
+            'revision' => $revision,
+            'user_id' => $userId > 0 ? $userId : null,
+            'id' => (int) $row['id'],
+        ]);
+
+    return true;
 }
 
 // ---- „Ganz nach vorn" / „ganz nach hinten" (19.08.2026) ---------------------------------------------
@@ -2838,6 +2964,16 @@ function avesmapsUpdateEcosystemRegion(PDO $pdo, array $payload, int $userId): a
             'UPDATE ecosystem_region SET ' . implode(', ', $assignments) . ' WHERE public_id = :public_id AND is_active = 1'
         );
         $statement->execute($params);
+
+        // Die GEGENSEITE der Zuweisung. Ohne sie benennt die Region ein Label, das woanders hinzeigt --
+        // und weil der Zeiger am Label gewinnt, bliebe die Zuweisung wirkungslos (siehe
+        // avesmapsEcosystemAdoptLabelPointer). In der Transaktion, damit beide Seiten gemeinsam stehen.
+        avesmapsEcosystemAdoptLabelPointer(
+            $pdo,
+            avesmapsEcosystemLabelPointerToAdopt($fields),
+            $publicId,
+            $userId
+        );
 
         $after = avesmapsEcosystemRegionRow($pdo, $publicId);
         avesmapsEcosystemWriteAuditLog(
