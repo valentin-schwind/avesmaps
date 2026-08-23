@@ -3,6 +3,13 @@
 declare(strict_types=1);
 
 // avesmapsCoatLokaleKopie -- die Datei von unserer Platte statt der Wiki-Adresse (Owner 23.08.2026).
+// 🪤 HIER STAND EINEN COMMIT LANG avesmapsCoatLokaleKopie AN DEN DREI AUSGABEN, UND DAS WAR
+// FALSCH. Sie gibt '' zurueck, wenn ein Bild nicht bei uns liegt -- im FRONTEND richtig, im
+// EDITOR aber nicht: dort verschwand damit jedes Wappen, das nur ueber den Zwischenspeicher
+// (api/app/coat.php) erreichbar ist, und der Owner sah statt seines Wappens ein kaputtes Bild.
+// 🔴 Der Editor darf die Wiki-Adresse nennen. Dass daraus keine Wiki-Anfrage wird, sichert der
+// Riegel in coat.php -- nicht das Verschweigen der Adresse. Ein Cache-Treffer kommt so weiter
+// mit HTTP 200 durch, und nur was wirklich fehlt, bleibt leer.
 require_once __DIR__ . '/../coat-url.php';
 
 // Model tree projection, geometry audit, wiki-rows view, sandbox clear and model
@@ -256,8 +263,7 @@ function avesmapsWikiSyncMonitorModelTree(PDO $pdo): array {
             'has_conflict' => $conflictNames !== [],
             'conflicts' => $conflictNames,
             'aliases' => $aliases,
-            // 🔴 Unsere Platte oder nichts -- nie die Wiki-Adresse in den Browser geben.
-            'coat_of_arms_url' => avesmapsCoatLokaleKopie((string) ($row['coat_of_arms_url'] ?? '')),
+            'coat_of_arms_url' => (string) ($row['coat_of_arms_url'] ?? ''),
             'license_status' => (string) ($row['coat_of_arms_license_status'] ?? ''),
             'status' => (string) ($row['status'] ?? ''),
             'capital_name' => (string) ($row['capital_name'] ?? ''),
@@ -448,7 +454,7 @@ function avesmapsWikiSyncMonitorWikiRows(PDO $pdo): array {
             'trade_zone' => (string) $s['trade_zone'],
             'blazon' => (string) $s['blazon'],
             'wiki_url' => (string) $s['wiki_url'],
-            'coat_of_arms_url' => avesmapsCoatLokaleKopie((string) $s['coat_of_arms_url']),
+            'coat_of_arms_url' => (string) $s['coat_of_arms_url'],
             'map_assigned' => $geometryCount > 0,
             'map_geometry_count' => $geometryCount,
         ];
@@ -509,7 +515,7 @@ function avesmapsWikiSyncMonitorWikiRows(PDO $pdo): array {
             'trade_zone' => $ovs('trade_zone'),
             'blazon' => '',
             'wiki_url' => '',
-            'coat_of_arms_url' => avesmapsCoatLokaleKopie((string) $ovs('coat_of_arms_url')),
+            'coat_of_arms_url' => $ovs('coat_of_arms_url'),
             'map_assigned' => $geometryCount > 0,
             'map_geometry_count' => $geometryCount,
             'is_own_node' => true,
