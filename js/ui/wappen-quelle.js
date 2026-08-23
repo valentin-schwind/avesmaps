@@ -26,35 +26,26 @@
  * ⚠️ Nur wiki-aventurica.de wird geleitet -- coat.php hat aus gutem Grund eine Host-Allowlist gegen
  * SSRF und lehnt alles andere ab. Eine fremde Bildadresse bleibt deshalb, wie sie ist.
  *
- * 🔴 23.08.2026 -- ZU. Owner: „SCHALT DAS ENDLICH AB." Eine Wiki-Adresse wird seither GAR NICHT
- * mehr angefragt, auch nicht ueber den eigenen Cache: sie bekommt den leeren Schild. Der Riegel im
- * Server (datei-riegel.php) haelt das Wiki frei, aber der Browser fragte weiter unseren eigenen
- * Endpunkt -- eine Ortsliste sind 3.538 Anfragen an uns selbst, alle mit 503, und die Konsole des
- * Editors lief damit voll. Hier zu antworten statt dort abzuweisen spart beide Haelften.
+ * 🪤 HIER STAND AM 23.08.2026 EINEN COMMIT LANG EINE ZWEITE SPERRE, UND SIE WAR FALSCH.
+ * Nachdem der Riegel im Server (api/_internal/wiki/datei-riegel.php) das Wiki freigehalten hatte,
+ * lief die Konsole des Editors mit 503ern voll, und die Wiki-Adresse wurde hier pauschal durch
+ * einen leeren Schild ersetzt. Damit waren auch die Wappen weg, die LAENGST BEI UNS LIEGEN:
+ * Gareth, Fasar, Punin, Al'Anfa, Kuslik, Vinsalt -- sechs von sechs unter /uploads/wappen/cache,
+ * und coat.php liefert sie mit HTTP 200 in 0,15 s ohne jeden Wiki-Kontakt.
  *
- * 💣 DER PLATZHALTER IST NICHT "" -- ein leeres src laesst den Browser die SEITE als Bild laden.
- * Es ist derselbe leere Schild, den der Schalter „Wappen: Aus" einsetzt, damit jede
- * Layout-Entscheidung (Groesse, object-fit, der has-coat-Zweig) unangetastet bleibt.
- *
- * 💣 GEKOPPELTER WERT IN ZWEI DATEIEN: `AVESMAPS_WAPPEN_VOM_WIKI_ERLAUBT` hier und
- * `AVESMAPS_WIKI_DATEI_ABRUF_ERLAUBT` in `api/_internal/wiki/datei-riegel.php`. Wer nur den Server
- * wieder aufmacht, sieht weiter Schilde; wer nur hier aufmacht, bekommt 503 statt Wappen. Beide
- * zusammen umlegen.
+ * 🔴 DIE BREMSE GEHOERT AN GENAU EINE STELLE, UND DAS IST DER SERVER. coat.php beantwortet einen
+ * Cache-TREFFER aus unserem Verzeichnis und weist nur den Cache-MISS ab (503, ohne das Wiki zu
+ * fragen). Wer hier zusaetzlich sperrt, wirft die Treffer mit weg -- eine zweite Bremse vor der
+ * ersten sieht nicht, was die erste beantworten koennte. Die 503er in der Konsole sind der REST,
+ * der noch nicht im Cache liegt; sie verschwinden, wenn dieser Bestand einmal lokalisiert ist,
+ * nicht dadurch, dass man die Frage gar nicht mehr stellt.
  */
-
-// 🔴 Der Schalter. `false` = keine Wappenadresse des Wikis wird angefragt.
-const AVESMAPS_WAPPEN_VOM_WIKI_ERLAUBT = false;
-// Der leere Schild (500x500), schon vom Schalter „Wappen: Aus" benutzt.
-const AVESMAPS_WAPPEN_PLATZHALTER = "/img/wappen.png";
 function avesmapsCoatSrc(url) {
 	const value = String(url || "").trim();
 	if (value === "") {
 		return "";
 	}
 	if (/^https?:\/\/([a-z0-9-]+\.)?wiki-aventurica\.de\//iu.test(value)) {
-		if (!AVESMAPS_WAPPEN_VOM_WIKI_ERLAUBT) {
-			return AVESMAPS_WAPPEN_PLATZHALTER;
-		}
 		return "/api/app/coat.php?u=" + encodeURIComponent(value);
 	}
 	return value;
@@ -63,5 +54,5 @@ function avesmapsCoatSrc(url) {
 // Fuer den Test in Node -- im Browser ist `avesmapsCoatSrc` schlicht global (Hausmuster:
 // js/ui/listen-statuskreis.js).
 if (typeof module !== "undefined" && module.exports) {
-	module.exports = { avesmapsCoatSrc, AVESMAPS_WAPPEN_VOM_WIKI_ERLAUBT, AVESMAPS_WAPPEN_PLATZHALTER };
+	module.exports = { avesmapsCoatSrc };
 }

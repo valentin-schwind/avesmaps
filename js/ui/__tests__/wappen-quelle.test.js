@@ -21,24 +21,16 @@ const path = require("path");
 
 const wurzel = path.join(__dirname, "..", "..", "..");
 const lies = (rel) => fs.readFileSync(path.join(wurzel, rel), "utf8");
-const { avesmapsCoatSrc, AVESMAPS_WAPPEN_VOM_WIKI_ERLAUBT, AVESMAPS_WAPPEN_PLATZHALTER } = require("../wappen-quelle.js");
+const { avesmapsCoatSrc } = require("../wappen-quelle.js");
 let checks = 0;
 
 // ── 1. Die Weiche selbst ────────────────────────────────────────────────────────────────────────
 const wikiUrl = "https://de.wiki-aventurica.de/wiki/Spezial:Dateipfad/Wappen%20Ferdok.webp";
-
-// 🔴 23.08.2026: ZU. Eine Wiki-Adresse wird gar nicht mehr angefragt -- auch nicht ueber den
-// eigenen Cache. Der Server weist sie ohnehin ab (datei-riegel.php), und der Browser sparte sich
-// die Anfrage nicht: eine Ortsliste waren 3.538 Anfragen an uns selbst, alle mit 503.
-assert.strictEqual(AVESMAPS_WAPPEN_VOM_WIKI_ERLAUBT, false,
-	"Der Schalter ist zu. 💣 Gekoppelt mit AVESMAPS_WIKI_DATEI_ABRUF_ERLAUBT in "
-	+ "api/_internal/wiki/datei-riegel.php -- beide zusammen umlegen.");
-assert.strictEqual(avesmapsCoatSrc(wikiUrl), AVESMAPS_WAPPEN_PLATZHALTER,
-	"DER KERN: eine Wiki-Adresse wird NICHT angefragt, sondern durch den leeren Schild ersetzt.");
-
-// 💣 Der Platzhalter darf NIE "" sein -- ein leeres src laesst den Browser die SEITE als Bild laden.
-assert.ok(AVESMAPS_WAPPEN_PLATZHALTER.length > 0 && AVESMAPS_WAPPEN_PLATZHALTER.charAt(0) === "/",
-	"Der Platzhalter ist eine eigene, lokale Adresse -- nicht leer und nicht extern.");
+assert.strictEqual(
+	avesmapsCoatSrc(wikiUrl),
+	"/api/app/coat.php?u=" + encodeURIComponent(wikiUrl),
+	"Eine wiki-aventurica-Adresse MUSS ueber den Cache laufen."
+);
 assert.strictEqual(avesmapsCoatSrc("/uploads/wappen/grafschaft-ferdok.svg"),
 	"/uploads/wappen/grafschaft-ferdok.svg",
 	"Eigene Uploads bleiben unberuehrt -- coat.php lehnt eine relative Adresse mit 400 ab.");
@@ -51,13 +43,13 @@ checks += 5;
 // 💣 IDEMPOTENT: mehrere Oberflaechen reichen eine schon geleitete Adresse weiter (etwa der
 // Siedlungseditor, der erst `settlementCoatImageSrc` fragt). Ein zweiter Aufruf darf sie nicht
 // erneut einwickeln, sonst entsteht coat.php?u=coat.php?u=…
-const einmal = avesmapsCoatSrc("/api/app/coat.php?u=" + encodeURIComponent(wikiUrl));
+const einmal = avesmapsCoatSrc(wikiUrl);
 assert.strictEqual(avesmapsCoatSrc(einmal), einmal, "Zweiter Aufruf darf nichts mehr aendern.");
 checks++;
 
 // Auch die Subdomain des Dumps gehoert dazu -- sie liegt auf derselben IP und derselben Sperre.
-assert.strictEqual(avesmapsCoatSrc("https://offline.wiki-aventurica.de/x.png"), AVESMAPS_WAPPEN_PLATZHALTER,
-	"Auch Subdomains von wiki-aventurica.de werden erfasst -- sie liegen auf derselben IP und Sperre.");
+assert.ok(avesmapsCoatSrc("https://offline.wiki-aventurica.de/x.png").startsWith("/api/app/coat.php"),
+	"Auch Subdomains von wiki-aventurica.de werden geleitet.");
 checks++;
 
 // ── 2. Keine Wappen-Ausgabe ohne die Weiche ─────────────────────────────────────────────────────
