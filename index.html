@@ -520,6 +520,15 @@
 					<div class="wiki-sync-dump-solo">
 						<button id="wiki-sync-conflicts-open" class="wiki-sync-panel__start" type="button" title="Öffnet die Konfliktlösung: Fälle, bei denen sich Karte und Wiki Aventurica widersprechen — objektartübergreifend.">⚖️ Konflikte</button>
 					</div>
+<!-- Bilder lokalisieren (23.08.2026). Steht aus demselben Grund hier wie "Konflikte":
+     der Lauf ist objektartuebergreifend (Ortswappen, Regionen- und Wege-Bilder).
+     🔴 "Wappen lokalisieren" im Territorien-Monitor deckt NUR Territorien ab und meldete
+     deshalb "alle lokal", waehrend diese drei Bestaende nie erfasst waren -- genau die
+     Luecke, die uns zweimal die Wiki-Sperre eingebracht hat.
+     ⭐ Hausform "Status IN den Knopf" (Vorbild "Dump holen — Lauf: …"). -->
+<div class="wiki-sync-dump-solo">
+<button id="wiki-sync-images-localize" class="wiki-sync-panel__start" type="button" title="Holt jedes noch fehlende Wiki-Bild EINMAL auf den Avesmaps-Server (Ortswappen, Regionen- und Wege-Bilder) und liefert es danach von unserer Platte. Laeuft in Schueben mit Pause zwischen den Abrufen. Adressen, die es im Wiki nicht gibt, werden vermerkt und nicht erneut versucht.">🖼️ Bilder lokalisieren</button>
+</div>
 					<!-- Kraftlinien sat HERE, among the cross-subject actions, only because a sixth
 					     horizontal tab did not fit. It is not cross-subject at all, so it moved down
 					     into its own section (data-wiki-sync-panel-section="powerlines"). -->
@@ -3332,6 +3341,7 @@
 		<script src="js/review/review-game-literature-cover-autoget.js"></script>
 		<script src="js/review/review-wiki-sync-cases.js"></script>
 		<script src="js/review/review-conflicts.js"></script>
+	<script src="js/review/review-bilder-lokalisieren.js"></script>
 		<script src="js/review/review-wiki-sync-resolve.js"></script>
 		<script src="js/review/review-region-wiki-picker.js"></script>
 		<script src="js/review/review-region-basics.js"></script>

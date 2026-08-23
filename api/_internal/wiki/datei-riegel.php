@@ -65,5 +65,29 @@ function avesmapsWikiDateiAbrufErlaubt(string $url): bool {
     if (!avesmapsWikiDateiIstWikiHost($url)) {
         return true;
     }
-    return AVESMAPS_WIKI_DATEI_ABRUF_ERLAUBT;
+    return AVESMAPS_WIKI_DATEI_ABRUF_ERLAUBT || avesmapsWikiLokalisierungLaeuft();
+}
+
+/**
+ * DIE EINE AUSNAHME VOM RIEGEL: ein ausdruecklich gestarteter Lokalisierungslauf.
+ *
+ * 🔴 Der Riegel gilt der ANZEIGE -- jedem Bild, das eine Seite beim Aufbau anfordert. Der
+ * Lokalisierer ist das Gegenteil davon: er holt ein Bild EINMAL, damit es danach nie wieder
+ * geholt werden muss. Ohne diese Ausnahme koennte er nie laufen, und der Bestand bliebe fuer
+ * immer unvollstaendig.
+ *
+ * 💣 Das Flag lebt NUR IM LAUFENDEN PROZESS -- keine Konstante, keine Zeile in `app_setting`,
+ * keine Datei. Ein Zustand, der einen Request ueberlebt, kann vergessen werden anzuschalten;
+ * dieser hier endet mit der Anfrage, in der er gesetzt wurde. Wer ihn setzt, hat den Lauf
+ * gerade selbst gestartet.
+ *
+ * ⚠️ Gesetzt wird er an genau EINER Stelle (`avesmapsWikiBilderLokalisierenLauf`), und der
+ * Endpunkt davor verlangt eine Faehigkeit. Wer ihn woanders setzt, hebelt den Riegel aus.
+ */
+function avesmapsWikiLokalisierungLaeuft(?bool $setzen = null): bool {
+    static $laeuft = false;
+    if ($setzen !== null) {
+        $laeuft = $setzen;
+    }
+    return $laeuft;
 }
