@@ -169,4 +169,25 @@ assert.ok(eco.includes("'curve_label' => $kurve['enabled']"), "list_regions gibt
 assert.ok(eco.includes("'curve_label_max' => $kurve['max_labels']"), "list_regions gibt die Anzahl nicht heraus");
 checks += 2;
 
+// ---- §4.3: ohne Kurve eine GERADE, aber nur wo es die Option gibt -------------------------------
+// 💣 Die Weiche ist der REGIONSZEIGER, nicht der Labeltyp. Meere, Kontinente, Inseln, Seen und
+// Berggipfel tragen keinen Zeiger und behalten ihre Drehung (Entwurf §0) -- ihnen die Drehung zu
+// nehmen waere eine Aenderung an 265 Namen, die dieses Vorhaben nie versprochen hat.
+const labels = fs.readFileSync(path.join(wurzel, "js/map-features/map-features-labels.js"), "utf8");
+assert.ok(/safeRotation\s*=\s*label\.ecosystemRegionPublicId\s*\?\s*0/.test(labels),
+	"die Drehung wird nicht am Regionszeiger vorbeigefuehrt");
+// Der gespeicherte Winkel darf NICHT aus der Datei verschwinden -- er ist der Rueckweg (Entwurf §8).
+assert.ok(labels.includes("Number(label.rotation)"), "der gespeicherte Winkel wird gar nicht mehr gelesen");
+checks += 2;
+
+// ---- Der AUSLOESER: ohne Knopf laeuft der Umstelllauf nie ----------------------------------------
+// 💣 Genau daran ist es schon einmal gescheitert: der Sammellauf-Endpunkt war gebaut, getestet und
+// hatte NULL Aufrufer -- deshalb trug am 23.08.2026 eine einzige Flaeche eine Kurve.
+const editor = fs.readFileSync(path.join(wurzel, "html/landschaften-editor.html"), "utf8");
+assert.ok(editor.includes('id="ecoCurves"'), "die Kachel fehlt");
+assert.ok(editor.includes("curve-labels-run.php"), "die Kachel ruft den Endpunkt nicht");
+assert.ok(/\$\("ecoCurves"\)\.addEventListener/.test(editor), "die Kachel hat keinen Zuhoerer");
+assert.ok(editor.includes("runCurveLabels("), "der Handler fehlt");
+checks += 4;
+
 console.log("kurvenbeschriftung-bedienelemente: " + checks + " checks passed");

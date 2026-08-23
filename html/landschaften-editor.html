@@ -46,7 +46,10 @@
      loses its ground colour, its font and every button style. -->
 <body class="avm-editor-body">
 
-<!-- Menüband: six tiles, all the same width. Only the sync tile carries an icon and --primary.
+<!-- Menüband: seven tiles, all the same width. Only the sync tile carries an icon and --primary.
+     🔴 „Kurven rechnen" ist seit dem 23.08.2026 die siebte (Entwurf §7.1/§8.2). Sie ist NICHT die
+     Kachel „Darstellung" aus Entwurf §11 -- die gehört Plan 4 und trägt die zwölf Werte der
+     Passung; diese hier löst nur den Lauf aus.
      ⚠️ Die gleiche Breite trägt die Kachelzahl von selbst: `.avm-ribbon` ist ein GRID
      (`grid-auto-columns: minmax(0, 1fr)`, css/components/editor-page.css). Enger wird mit jeder
      Kachel nur die BESCHRIFTUNG -- `.t1`/`.t2` kürzen mit Ellipse, der ganze Satz steht im `title`. -->
@@ -58,6 +61,7 @@
     <button type="button" class="avm-tile" id="ecoHeightmap" title="Rechnet je Gebirgsfläche ihr Höhenraster im Browser und speichert es — eine Anfrage je Fläche. Der Pixelwert ist die Höhe in Schritt."><span class="t1">Höhenraster rechnen</span><span class="t2" id="ecoHeightmapInfo">noch nicht gerechnet</span></button>
     <button type="button" class="avm-tile" id="ecoProfiles" title="Leitet aus den gespeicherten Höhenrastern je Weg Anstieg und Gefälle ab. Läuft in Stücken auf dem Server; nichts davon wird beim Routen nachgerechnet."><span class="t1">Wegprofile rechnen</span><span class="t2" id="ecoProfilesInfo">noch nicht gerechnet</span></button>
     <button type="button" class="avm-tile" id="ecoTerrainTravel" title="Rechnet Anstieg und Gefälle in die Reisezeiten ein — für alle Besucher. AUS heisst Zeile für Zeile die heutigen Zahlen."><span class="t1">Geländeabhängiges Reisen</span><span class="t2" id="ecoTerrainTravelInfo">Zustand unbekannt</span></button>
+    <button type="button" class="avm-tile" id="ecoCurves" title="Rechnet die Beschriftungskurven aller eingeschalteten Landschaftsflächen neu und legt sie ab. Beim ERSTEN Lauf schaltet er ausserdem jede Fläche ein, deren Name heute von Hand gedreht ist (rund 56). Nur Admin; laeuft einige Sekunden."><span class="t1">Kurven rechnen</span><span class="t2" id="ecoCurvesInfo">noch nicht gerechnet</span></button>
     <!-- Die Kachel „Landschaftsmodul" ist am 2026-08-01 mit dem Totmannschalter entfallen (Owner-Auftrag).
          ⚠️ Nicht verwechseln mit „Geländeabhängiges Reisen" darüber: das ist V11s EIGENER Schalter
          (app_setting['terrain_travel_enabled']) und der bleibt. -->
@@ -1261,6 +1265,54 @@ function renderHeightmapTile() {
 	info.textContent = parts.join(" · ");
 }
 
+// Der Sammellauf der Beschriftungskurven (Entwurf §7.1) -- und beim ERSTEN Mal der einmalige
+// Umstelllauf (§8.2) gleich davor, im selben Aufruf.
+//
+// 🔴 NICHT über ecoPost: das ist der Kanal der Landschafts-AKTIONEN (postEcosystemEdit im
+// Hauptfenster) und kennt nur `action`-Rümpfe des Ökosystem-Endpunkts. Der Sammellauf hat einen
+// eigenen Endpunkt mit eigenem Rechteriegel (`admin`) -- also ein eigener Abruf, keine zweite
+// Bedeutung für `action`.
+// ⚠️ Er läuft SEKUNDEN (rund 20 s bei 50 eingeschalteten Regionen). Die Kachel bleibt so lange
+// gesperrt und sagt, dass sie rechnet -- ohne diesen Satz sieht ein Editor eine tote Seite.
+const CURVE_RUN_API = "/api/edit/map/curve-labels-run.php";
+
+async function runCurveLabels() {
+	const tile = $("ecoCurves");
+	const info = $("ecoCurvesInfo");
+	tile.disabled = true;
+	info.textContent = "rechnet …";
+	const started = Date.now();
+	try {
+		const response = await fetch(CURVE_RUN_API, {
+			method: "POST",
+			credentials: "same-origin",
+			headers: { Accept: "application/json", "Content-Type": "application/json" },
+			body: "{}",
+		});
+		const data = await response.json();
+		if (!response.ok || data.ok === false) {
+			throw new Error((data.error && data.error.message) || data.error || ("HTTP " + response.status));
+		}
+		const sekunden = ((Date.now() - started) / 1000).toFixed(1).replace(".", ",");
+		const teile = [Number(data.regions || 0) + " Flächen mit Kurve"];
+		// Die Kachel IST die Zustandsanzeige (Hausregel). Der Umstelllauf sagt hier, was er getan hat;
+		// beim zweiten Mal sagt er ausdrücklich, dass er sich zurückgehalten hat -- sonst liest sich
+		// „0 neu eingeschaltet" wie ein Fehlschlag.
+		if (data.rollout && data.rollout.ran === true) {
+			teile.push(Number(data.rollout.changed || 0) + " neu eingeschaltet");
+		} else if (data.rollout && data.rollout.reason === "already") {
+			teile.push("Umstellung lief bereits");
+		}
+		info.textContent = teile.join(" · ");
+		flashStatus("Kurven gerechnet: " + teile.join(" · ") + " · " + sekunden + " s", "ok");
+	} catch (error) {
+		info.textContent = "fehlgeschlagen";
+		flashStatus("Kurven rechnen: " + (error && error.message ? error.message : String(error)), "bad");
+	} finally {
+		tile.disabled = false;
+	}
+}
+
 // 🔴 Gestückelt, mit Lauf-Token, Budget und Cursor. Der Browser ruft nur wiederholt auf; gerechnet
 // wird auf dem Server, und jeder Schritt bleibt weit unter jedem FastCGI-Limit.
 async function runTerrainProfiles() {
@@ -2210,6 +2262,7 @@ function wireRibbon() {
 	$("ecoAssignAll").addEventListener("click", () => { void runAssignAll(); });
 	$("ecoHeightmap").addEventListener("click", () => { void runHeightmaps(); });
 	$("ecoProfiles").addEventListener("click", () => { void runTerrainProfiles(); });
+	$("ecoCurves").addEventListener("click", () => { void runCurveLabels(); });
 	$("ecoTerrainTravel").addEventListener("click", () => { void toggleTerrainTravel(); });
 
 	// Hier hing der Totmannschalter (`set_enabled`). Abgeschafft am 2026-08-01: sein Aus-Zustand legte

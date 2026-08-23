@@ -353,7 +353,23 @@ function renderMapLabelToImage(text, fontSizePx, typeStyle, opts) {
 
 function createLabelIcon(label) {
 	const safeSize = getScaledLabelSize(label);
-	const safeRotation = (((Number(label.rotation) || 0) % 360) + 360) % 360;
+	// 🔴 OHNE KURVENBESCHRIFTUNG IST DER NAME EINE GANZ NORMALE GERADE -- nicht die alte
+	// Handdrehung (Entwurf §4.3). Der gespeicherte Winkel bleibt in der Datenbank stehen (Entwurf
+	// §8, er ist der einzige Rueckweg eines Rueckbaus), wird aber nicht mehr gezeichnet.
+	//
+	// 💣 UND ZWAR NUR FUER LABELS AN EINER LANDSCHAFTSFLAECHE. Die uebrigen -- Meere, Kontinente,
+	// Inseln, Seen, Berggipfel -- behalten ihr heutiges Verhalten (Entwurf §0): sie koennen gar
+	// keine Kurve bekommen, weil ohne Flaeche keine Mittelachse existiert, und ihnen die Drehung
+	// zu nehmen waere eine Aenderung an 265 Namen, die dieses Vorhaben nie versprochen hat.
+	// ⚠️ Die Weiche ist der REGIONSZEIGER, nicht der Labeltyp: ein Berggipfel entsteht als Punkt
+	// OHNE Flaeche („Hoehenpunkt setzen" legt ihn frei an, siehe review-labels.js), traegt also
+	// keinen Zeiger und faellt von selbst heraus.
+	// 🔧 Offen: ein Label an einer Region, die (noch) keine Flaeche hat, wird hier ebenfalls
+	// geradegerichtet. Bei ihm ist das Bedienelement verriegelt, es kann die Kurve also nicht
+	// selbst einschalten -- gemessen ist dieser Fall nicht.
+	const safeRotation = label.ecosystemRegionPublicId
+		? 0
+		: (((Number(label.rotation) || 0) % 360) + 360) % 360;
 	const typeStyle = getMapLabelTypeStyle(label.labelType);
 	// Optionaler Halo hinter den Regionen-/Landschafts-Titeln (live über ?halotune=1; Default 0 = aus).
 	const halo = getLabelHaloParams(REGION_LABEL_HALO_STRENGTH, REGION_LABEL_HALO_SHARPNESS);

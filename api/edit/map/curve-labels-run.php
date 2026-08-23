@@ -69,6 +69,18 @@ try {
     $pdo = avesmapsCreatePdo($config['database'] ?? []);
     avesmapsAppSettingEnsureTable($pdo);
 
+    // ⚠️ Ein LEERER Rumpf ist gueltig -- der Sammellauf braucht keine Angabe. Deshalb NICHT
+    // avesmapsReadJsonRequest(), das auf Leere ausdruecklich wirft.
+    $rohRumpf = (string) file_get_contents('php://input');
+    $rumpf = $rohRumpf === '' ? [] : (json_decode($rohRumpf, true) ?: []);
+
+    // PHASE 0: der EINMALIGE Umstelllauf (Entwurf §8.2). Er steht VOR der Rechnung, denn er
+    // entscheidet, welche Regionen ueberhaupt eine Kurve bekommen -- danach waere er einen ganzen
+    // Lauf zu spaet. Beim zweiten Aufruf tut er nichts (app_setting-Merker).
+    // 🔴 `force_rollout` ist der Rueckweg, falls der Lauf nachweislich nichts getan hat. Er holt
+    // KEINE Abschaltung zurueck: der Umstelllauf schaltet nur EIN, nie aus.
+    $umstellung = avesmapsCurveRolloutFromRotations($pdo, !empty($rumpf['force_rollout']));
+
     $ergebnis = avesmapsCurveRebuildCache($pdo);
 
     if (!$ergebnis['ok']) {
@@ -88,6 +100,8 @@ try {
         'ok' => true,
         'regions' => $ergebnis['regions'],
         'bytes' => $ergebnis['bytes'],
+        // Die Kachel IST die Zustandsanzeige (Hausregel) -- sie kann nur sagen, was hier herauskommt.
+        'rollout' => $umstellung,
     ]);
 } catch (Throwable $e) {
     // ⚠️ Die Meldung des Fehlers geht NICHT nach draussen (AGENTS.md §10, Info-Disclosure), aber
