@@ -3689,27 +3689,6 @@ async function handleSeCleanupCoatsClick() {
 }
 $("seCleanupCoats")?.addEventListener("click", handleSeCleanupCoatsClick);
 
-// ---- Auf- und Zuklappen -------------------------------------------------------------------------
-// 💣 Der Zustand ist das `hidden`-Attribut des Panels und sonst nichts -- kein Modulzustand daneben,
-// der auseinanderlaufen kann. Zugeklappt wird bei Aussenklick, Esc und nach jeder Handlung, die die
-// Seite verlaesst.
-function setCoatsMenuOpen(open) {
-	const panel = $("seCoatsMenuPanel");
-	const btn = $("seCoatsMenu");
-	if (!panel || !btn) return;
-	panel.hidden = !open;
-	btn.setAttribute("aria-expanded", open ? "true" : "false");
-}
-$("seCoatsMenu")?.addEventListener("click", (event) => {
-	event.stopPropagation();
-	setCoatsMenuOpen($("seCoatsMenuPanel")?.hidden === true);
-});
-// ⚠️ Der Klick INS Menue darf es nicht zuklappen -- sonst schliesst jeder Schalterdruck das Menue,
-// und man kann nicht zwei Dinge hintereinander tun.
-$("seCoatsMenuPanel")?.addEventListener("click", (event) => event.stopPropagation());
-document.addEventListener("click", () => setCoatsMenuOpen(false));
-document.addEventListener("keydown", (event) => { if (event.key === "Escape") setCoatsMenuOpen(false); });
-
 // Nice-to-have (cheap): while the filter is ON, renderSettlementMid() itself re-narrows the parent
 // map's filter on every render (see its own tail call below) -- covers every list-filter change
 // (search/type/source/chip/tree) in one place, without wrapping/reassigning the function.

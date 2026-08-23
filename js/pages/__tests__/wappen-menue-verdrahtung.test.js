@@ -152,6 +152,43 @@ for (const [name, html, ids] of KENNUNGEN) {
 		`${name}: der entfernte Einzelschalter wird nirgends mehr angefasst`);
 }
 
+// ---- 9b. JEDES EINMAL, NICHT ZWEIMAL ----------------------------------------------------------
+// 🔴 GENAU DAS HAT DAS MENÜ LIVE UNBRAUCHBAR GEMACHT (23.08.2026, vom Owner gemeldet): beim Umbau
+// blieb der alte Auf-/Zuklapp-Block stehen und der neue kam dazu. Zwei `function setCoatsMenuOpen`
+// sind gültiges JavaScript -- die zweite gewinnt --, aber der Klick-Handler war damit ZWEIMAL
+// registriert: der erste öffnete das Menü, der zweite schloss es im selben Klick wieder. Für den
+// Benutzer passiert nichts, und im Code sieht jede einzelne Zeile richtig aus.
+//
+// 💣 Teil 2 und 9 prüfen, DASS verdrahtet ist -- nicht, WIE OFT. Eine Anwesenheitsprüfung kann eine
+// Verdopplung grundsätzlich nicht sehen; sie braucht eine eigene Zusicherung.
+const EINMALIG = [
+	['Ortseditor', ORTE, [
+		'function setCoatsSwitchStates', 'function setCoatsMenuOpen', 'async function toggleCoatSwitch',
+		'$("seCoatsMenu")?.addEventListener', '$("seCoatsMenuPanel")?.addEventListener',
+		'$("seCoatsLocal")?.addEventListener', '$("seCoatsWiki")?.addEventListener',
+	]],
+	['Territorien-Editor', TERRITORIEN, [
+		'function setCoatsSwitchStates', 'function setCoatsMenuOpen', 'async function toggleCoatSwitch',
+		"$('btnCoatsMenu')?.addEventListener", "$('btnCoatsMenuPanel')?.addEventListener",
+		"$('btnCoatsLocal')?.addEventListener", "$('btnCoatsWiki')?.addEventListener",
+	]],
+];
+for (const [name, html, stellen] of EINMALIG) {
+	for (const stelle of stellen) {
+		const anzahl = html.split(stelle).length - 1;
+		pruefe(anzahl === 1,
+			`DER KERN VON TEIL 9b (${name}): „${stelle}" kommt ${anzahl}x vor, erwartet genau 1x. `
+			+ 'Zwei Klick-Handler am selben Knopf heben sich gegenseitig auf.');
+	}
+}
+
+// ⚠️ Und die Aussenklick-Wache genau einmal je Dokument: zweimal registriert schliesst sie das
+// Menü, das der andere Handler gerade geöffnet hat.
+for (const [name, html] of BEIDE) {
+	const wachen = (html.match(/document\.addEventListener\(['"]click['"], \(\) => setCoatsMenuOpen\(false\)\)/g) || []).length;
+	pruefe(wachen === 1, `${name}: die Aussenklick-Wache ist ${wachen}x registriert, erwartet 1x`);
+}
+
 // ---- 10. Der Aufraeum-Lauf fragt, bevor er schreibt --------------------------------------------
 // ⚠️ Er steht NICHT im Mockup -- er ist die eine bewusste Zugabe, und der Owner entscheidet, ob er
 // dort bleibt. Solange er da ist, gilt seine Regel: erst zeigen, dann fragen, dann schreiben.
