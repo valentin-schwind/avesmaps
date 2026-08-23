@@ -133,6 +133,24 @@ const zeilenRumpf = zeilenRegel.slice(0, zeilenRegel.indexOf("}"));
 		+ "Ueberschrift naeher an ihrer Trennlinie als jede andere Zeile");
 });
 
+// 💣 (6) UND DIE SEITLICHE SYMMETRIE. Die naheliegende Bauform -- volle Polsterung an der Liste,
+// negativer Seitenrand an der Zeile -- war am 23.08.2026 live und falsch: `width: 100%` rechnet
+// mit `box-sizing: border-box` die CONTENT-Breite der Liste aus, der negative Rand VERSCHIEBT die
+// Flaeche nur und verbreitert sie nicht. Gemessen: links 2,7 px vom Rand, rechts 18,7 px; der
+// Owner sah die schiefe Hover-Flaeche im Bild. Die Zeilen fuellen jetzt von Kante zu Kante, weil
+// die Liste seitlich fast nichts polstert -- kein negativer Rand, keine gekoppelte Breite.
+assert.ok(!/margin:\s*0\s+-\d/.test(titelRumpf + zeilenRumpf),
+	"weder Zeile noch Ueberschrift zieht sich per negativem Seitenrand aus der Liste heraus");
+// ⚠️ Am ZEILENANFANG ankern: `.edit-shell__menu-list {` ist Teilstring des `:not([open])`-
+// Selektors daneben, und ein blankes `indexOf` landet in dessen Rumpf (nur `display: none`).
+const listenRegel = editCss.slice(editCss.search(/^\.edit-shell__menu-list \{/m));
+const seitlich = /\n\s*padding:\s*\d+px\s+(\d+)px\s*;/.exec(listenRegel.slice(0, listenRegel.indexOf("}")));
+assert.ok(seitlich && Number(seitlich[1]) <= 4,
+	"die Liste polstert seitlich schmal (<= 4px) -- den Textabstand bringt die Zeile mit");
+assert.ok(!/width:\s*calc\(100%\s*\+/.test(zeilenRumpf),
+	"die Zeilenbreite ist nicht an die Listenpolsterung gerechnet -- genau diese Kopplung soll "
+	+ "es nicht geben");
+
 // ---- Die abgeloeste Klasse ist WEG, nicht danebengelassen -------------------------------------
 //
 // Eine zurueckgelassene Regel wirkt weiter, solange irgendwo noch das alte Klassenwort steht --
@@ -167,8 +185,12 @@ assert.ok(/ereignis\.key !== "Escape"/.test(menueJs), "Esc schliesst");
 // 💣 Der Stamping-Schritt des Deploys laeuft nur ueber index.html und html/*.html und erreicht
 // diese PHP-Seite nie (AGENTS.md §7). Das Blatt traegt deshalb einen Stempel von Hand -- und wer
 // diese Datei anfasst, ohne ihn zu bewegen, liefert Editoren das alte Aussehen aus.
-assert.ok(/edit\.css\?v=20260823-hauptleisten-menue/.test(shellPhp),
-	"der Handstempel an edit.css ist auf den Stand dieser Aenderung gezogen");
+// ⚠️ Geprueft wird die FORM, nicht der Wert: ein fest verdrahteter Stempel muesste bei jedem
+// legitimen Bump mitgezogen werden, und ein Test, den man staendig anfassen muss, wird
+// irgendwann falsch nachgezogen statt gelesen. Dass jemand das Bumpen VERGISST, kann kein Test
+// sehen -- dagegen steht der Kommentar an der Stelle selbst.
+assert.ok(/edit\.css\?v=\d{8}-[a-z-]+"/.test(shellPhp),
+	"edit.css traegt einen handgeschriebenen Stempel der Form <datum>-<wort>");
 
 // ⭐ Das Skript stempelt sich dagegen SELBST (filemtime, wie der Karten-iframe daneben) und kann
 // damit gar nicht erst veralten. Wer es auf einen Handstempel zurueckbaut, holt sich die Falle

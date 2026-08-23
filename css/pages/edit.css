@@ -218,7 +218,15 @@
 	right: 0;
 	margin-top: 6px;
 	min-width: 232px;
-	padding: 10px;
+	/* 💣 SEITLICH NUR 2 px, UND DAS IST DER GANZE TRICK. Die Zeilen fuellen die Liste damit von
+	   Kante zu Kante und bringen ihren Textabstand als eigene Polsterung mit. Die naheliegende
+	   Bauform -- volle Polsterung hier, negativer Seitenrand an der Zeile -- war am 23.08.2026
+	   live und falsch: `width: 100%` rechnet mit `box-sizing: border-box` die CONTENT-Breite der
+	   Liste aus, der negative Rand VERSCHIEBT die Flaeche nur nach links und verbreitert sie
+	   nicht. Gemessen: links 2,7 px vom Rand, rechts 18,7 px -- der Owner sah die schiefe
+	   Hover-Flaeche im Bild. Wer die Polsterung hier wieder aufzieht, muss die Zeilenbreite
+	   daran koppeln (`calc(100% + 2 * x)`), und genau diese Kopplung soll es nicht geben. */
+	padding: 10px 2px;
 	border: 1px solid var(--color-border-strong);
 	border-radius: var(--radius-lg);
 	background: var(--color-panel);
@@ -230,8 +238,8 @@
    full-bleed: negativer Seitenrand = Polsterung der Liste, damit die Linie von Kante zu Kante
    geht statt in der Luft zu enden. */
 .edit-shell__menu-group + .edit-shell__menu-group {
-	margin: 10px -10px 0;
-	padding: 10px 10px 0;
+	margin: 10px -2px 0;
+	padding: 10px 2px 0;
 	border-top: 1px solid var(--color-divider);
 }
 
@@ -243,7 +251,7 @@
    und jeder Linie zum Text, 12 px von Text zu Text. ⚠️ Der negative Seitenrand gehoert dazu --
    ohne ihn steht die Ueberschrift 8 px weiter rechts als die Zeilen darunter. */
 .edit-shell__menu-title {
-	margin: 0 -8px;
+	margin: 0;
 	padding: 6px 8px;
 	color: var(--color-accent-strong);
 	font-size: var(--font-size-caption);
@@ -254,7 +262,8 @@
 
 /* Eine Zeile ist ein Verweis ODER ein Knopf (Abmelden ist ein Formular) -- beide sehen gleich
    aus, damit die Liste eine Liste bleibt und nicht ein Knopf zwischen Verweisen steht.
-   ⚠️ Der negative Seitenrand zieht die Hover-Flaeche bis unter die Polsterung der Liste.
+   ⚠️ Die Flaeche laeuft von Kante zu Kante, weil die Liste seitlich fast keine Polsterung
+   traegt (siehe dort) -- nicht ueber einen negativen Rand.
 
    💣 DIE LEISTE STEHT IM SELEKTOR, UND ZWAR MIT ABSICHT: `.edit-shell__bar button` weiter oben
    faerbt JEDEN Knopf der Kopfzeile gefuellt-braun ein (0,1,1) und schluege eine blanke
@@ -264,7 +273,7 @@
 .edit-shell__bar .edit-shell__menu-item {
 	display: block;
 	width: 100%;
-	margin: 0 -8px;
+	margin: 0;
 	padding: 6px 8px;
 	border: 0;
 	border-radius: var(--radius-md);

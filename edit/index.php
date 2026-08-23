@@ -80,7 +80,7 @@ if (is_file($menuScriptPath)) {
     <!-- Hand-written on purpose: the deploy's asset stamper only follows index.html and
          html/*.html, so it never reaches this PHP page. Bump this whenever edit.css changes,
          or editors keep the cached stylesheet. See AGENTS.md sec.7. -->
-    <link rel="stylesheet" href="../css/pages/edit.css?v=20260823-hauptleisten-menue" />
+    <link rel="stylesheet" href="../css/pages/edit.css?v=20260823-menue-symmetrie" />
 </head>
 
 <body class="edit-page">
