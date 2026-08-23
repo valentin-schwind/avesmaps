@@ -26,7 +26,8 @@ const CONFIG = path.join(WURZEL, "api", "config.local.php");
 const ABLAGE = path.join(WURZEL, "uploads", "svg-export");
 const LESE_TOKEN = "lesen-" + crypto.randomBytes(12).toString("hex");
 const ABLAGE_TOKEN = "ablegen-" + crypto.randomBytes(12).toString("hex");
-const PORT = 8900 + Math.floor(Math.random() * 80);
+const { freierPort } = require("./freier-port.js");
+let PORT = 0;
 
 let server = null;
 let configAngelegt = false;
@@ -60,6 +61,8 @@ async function main() {
 		+ "    ],\n];\n", "utf8");
 	configAngelegt = true;
 
+	// 💣 Kein gewuerfelter Port -- siehe freier-port.js.
+	[PORT] = await freierPort(1);
 	server = spawn("php", ["-S", "127.0.0.1:" + PORT, "-t", WURZEL],
 		{ stdio: ["ignore", "ignore", "ignore"] });
 	const lesen = "http://127.0.0.1:" + PORT + "/api/svg-export.php";

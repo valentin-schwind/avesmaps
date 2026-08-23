@@ -23,7 +23,9 @@ const FX = require("./fixture.js");
 const WURZEL = path.resolve(__dirname, "..", "..", "..");
 const ABLAGE = path.join(WURZEL, "uploads", "svg-export");
 const TOKEN = "probe-" + require("crypto").randomBytes(16).toString("hex");
-const PORT = 8000 + Math.floor(Math.random() * 900);
+const { freierPort } = require("./freier-port.js");
+let PORT = 0;
+let PORT2 = 0;
 
 let server = null;
 const aufgeraeumt = [];
@@ -74,6 +76,9 @@ async function main() {
 	// ---- Server starten ------------------------------------------------------------------
 	// 💣 Der Token geht ueber die UMGEBUNG hinein, nirgends sonst -- genau der Weg, den der
 	// Server spaeter benutzt.
+	// 💣 Kein gewuerfelter Port -- auf diesem Rechner horchen fuenf fremde Vorschauserver im
+	// Bereich 8000-8900, und ein Treffer laesst die Probe an einer HTML-Seite scheitern.
+	[PORT, PORT2] = await freierPort(2);
 	server = spawn("php", ["-S", "127.0.0.1:" + PORT, "-t", WURZEL], {
 		env: Object.assign({}, process.env, { AVESMAPS_SVG_EXPORT_TOKEN: TOKEN }),
 		stdio: ["ignore", "ignore", "pipe"],
@@ -212,7 +217,7 @@ async function main() {
 
 	// ---- 10. Ohne eingerichteten Token: 503, nicht 401 ----------------------------------
 	// Ein zweiter Server, diesmal ohne die Umgebungsvariable.
-	const port2 = PORT + 1;
+	const port2 = PORT2;
 	const server2 = spawn("php", ["-S", "127.0.0.1:" + port2, "-t", WURZEL],
 		{ env: Object.assign({}, process.env, { AVESMAPS_SVG_EXPORT_TOKEN: "" }),
 			stdio: ["ignore", "ignore", "ignore"] });
