@@ -47,8 +47,18 @@ assert(avesmapsCoatDisplayUrl($REAL, false) === AVESMAPS_COAT_PLACEHOLDER_URL,
 assert(avesmapsCoatDisplayUrl($WIKI, false) === AVESMAPS_COAT_PLACEHOLDER_URL,
     'a remote coat is replaced too -- its URL must not reach the public payload');
 
-assert(AVESMAPS_COAT_PLACEHOLDER_URL === '/img/wappen.png',
-    'the placeholder path is the file the deploy ships; changing it needs the asset to move with it');
+// 🔴 Die Absicht dieser Zusicherung ist nicht der NAME, sondern dass die Datei da ist: der
+// Platzhalter ist das, was der Deploy ausliefert, und ein Pfad ohne Datei liefert an jedem
+// Kartenlabel ein kaputtes Bild. Frueher stand hier der feste String '/img/wappen.png' --
+// dadurch war jeder Wechsel des Bildes ein roter Test, obwohl die Datei korrekt mitkam
+// (23.08.2026: Wechsel auf das silberne Avesmaps-Wappen als WebP, 60 statt 365 KB).
+$platzhalterDatei = dirname(__DIR__, 4) . AVESMAPS_COAT_PLACEHOLDER_URL;
+assert(is_file($platzhalterDatei),
+    'die Platzhalter-DATEI existiert im Repo (' . AVESMAPS_COAT_PLACEHOLDER_URL . ') -- sonst
+     liefert der Deploy einen Pfad ohne Bild aus');
+// ⚠️ und sie liegt unter img/, das in der Deploy-Allowlist steht.
+assert(strpos(AVESMAPS_COAT_PLACEHOLDER_URL, '/img/') === 0,
+    'der Platzhalter liegt unter /img/ -- ein anderer Ort waere womoeglich nicht deployt');
 
 // --- avesmapsPoliticalApplyCoatDisplaySwitch --------------------------------------------------------
 

@@ -57,13 +57,17 @@ assert(avesmapsSettlementCoatIsPublic('/x.png') === false);
 assert(avesmapsSettlementCoatIsPublic([]) === false);
 
 // ---- die Rangfolge: Gate VOR Schalter ---------------------------------------------------------------
-// ⚠️ Beides endet in unset(), das Ergebnis ist also gleich -- die Reihenfolge steht trotzdem fest, weil
+// 🔴 Seit 23.08.2026 enden die beiden NICHT mehr gleich, und das macht die Reihenfolge erst
+// wirklich tragend: das Gate LOESCHT (ein rechtlich gesperrtes Wappen ist weg), der Schalter
+// ERSETZT durch den Platzhalter. Stuende der Schalter zuerst, bekaeme ein gesperrtes Wappen
+// einen Platzhalter -- und damit einen Platz im Layout, den es nicht haben darf.
+// Die Reihenfolge stand schon vorher fest, weil
 // sie die Bedeutung traegt: der Riegel ist rechtlich, der Schalter eine Anzeigepraeferenz. Ein wieder
 // eingeschaltetes "Wappen: An" darf nie etwas hervorholen, das das Gate verworfen hat
 // (dieselbe Ordnung wie coat-display.php:92-94).
 $quelle = file_get_contents(__DIR__ . '/../../../app/map-features.php');
 $posGate = strpos($quelle, 'avesmapsSettlementCoatIsPublic($properties[\'coat\'])');
-$posSchalter = strpos($quelle, 'if (!$settlementCoatsEnabled)');
+$posSchalter = strpos($quelle, 'avesmapsCoatDisplayUrl(');
 assert($posGate !== false && $posSchalter !== false, 'eine der beiden Stellen fehlt');
 assert($posGate < $posSchalter, 'das Lizenz-Gate muss VOR dem Anzeige-Schalter stehen');
 

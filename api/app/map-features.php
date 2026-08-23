@@ -501,12 +501,31 @@ function avesmapsMapFeatureRowToGeoJsonFeature(array $row, array $wikiLocationLi
         unset($properties['coat']);
     }
 
-    // Global "Wappen: Aus" (settlement switch): drop the coat instead of replacing it with the
-    // placeholder. Here the coat REPLACES the settlement icon (popups.js settlementCoatIconMarkup), so an
-    // empty shield would take information away rather than just the coat -- without properties.coat the
-    // head falls back to the settlement's own icon at its normal size.
-    if (!$settlementCoatsEnabled) {
-        unset($properties['coat']);
+    // 🔴 „Wappen: Aus" -- der Platzhalter tritt an die Stelle des Wappens, wie bei den Territorien.
+    //
+    // 🪤 Hier stand bis zum 23.08.2026 ein ersatzloses unset(), mit der Begruendung: das Wappen
+    // ERSETZE bei Siedlungen das Ortssymbol, also komme ohne properties.coat das Ortssymbol
+    // zurueck. Im Browser nachgesehen (Punin, Schalter aus): es kommt NICHT zurueck. Ein Ort mit
+    // Titelbild bekommt den ganzen Icon-Block gar nicht erst gebaut --
+    // `${headerImageMarkup || `<div class="location-popup__header">…`}` in popups.js ist ein
+    // ODER, und das Titelbild gewinnt. Im Kopf stand dann weder Wappen noch Symbol, sondern
+    // nichts. Owner: „im frontend fehlt das wappen bei orten insgesamt".
+    //
+    // ⚠️ Die Lizenzangaben reisen NICHT mit dem Platzhalter: den Urheber eines Bildes zu nennen,
+    // das wir gerade nicht zeigen, waere falsch (dieselbe Regel wie in territory-detail.php).
+    // ⚠️ '' -> '': ein Ort ohne Wappen bekommt keines angehaengt, sonst wachsen Hunderte Schilde
+    // an Orten, die nie eines hatten -- das sieht aus wie Datenverlust.
+    // ⭐ Ueber avesmapsCoatDisplayUrl, nicht mit einer eigenen Regel: die Funktion IST der
+    // Hausentscheid („leer bleibt leer, sonst der Platzhalter"), und coat-display-test.php wacht
+    // ueber sie. Eine nachgebaute Kopie hier haette dieselbe Regel ein zweites Mal behauptet.
+    if (is_array($properties['coat'] ?? null)) {
+        $angezeigt = avesmapsCoatDisplayUrl(
+            (string) ($properties['coat']['url'] ?? ''),
+            $settlementCoatsEnabled
+        );
+        if ($angezeigt !== (string) ($properties['coat']['url'] ?? '')) {
+            $properties['coat'] = ['url' => $angezeigt, 'source' => (string) ($properties['coat']['source'] ?? '')];
+        }
     }
 
     // Genauer Bauwerkstyp (Festung/Turm/…) + Ruine aus der Registry an die verbundene Wiki-Siedlung

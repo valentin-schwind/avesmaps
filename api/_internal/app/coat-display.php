@@ -33,7 +33,14 @@ const AVESMAPS_SETTLEMENT_COATS_SETTING = 'settlement_coats_enabled';
 
 // The stand-in: an empty shield, 500x500 with transparency, so it stays sharp at every size a coat is
 // drawn in (the map label scales its coat with the zoom).
-const AVESMAPS_COAT_PLACEHOLDER_URL = '/img/wappen.png';
+// 🔴 Der Platzhalter: das silberne Avesmaps-Wappen (Owner 23.08.2026 -- der alte leere Schild
+// war "nicht ganz so langweilig" zu ersetzen). Quelle:
+// avesmaps-map-processing/icons/realistic/platzhalter_wappen_silber.png, dort 1254px und
+// 2,4 MB -- hier auf 500px und WEBP gebracht: 60 KB statt 365 KB als PNG. Er haengt an jedem
+// Kartenlabel, an dem gerade kein Wappen steht; das Gewicht zaehlt.
+// ⚠️ img/wappen.png bleibt liegen: gecachte Clients fordern ihn bis zu 30 Tage weiter an,
+// und der Deploy loescht nie (AGENTS.md §10).
+const AVESMAPS_COAT_PLACEHOLDER_URL = '/img/wappen.webp';
 
 // Both halves of this file read app_setting: the public one via the DDL-free reader, the editor pair via
 // the self-healing one. Same store, two entry points, one require.
