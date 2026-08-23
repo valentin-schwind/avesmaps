@@ -36,6 +36,14 @@ function pruefe(bedingung, was) {
 // 🔴 Genau die drei aus dem Mockup. Ein vierter Eintrag darf dazukommen, aber diese drei muessen
 // da sein und in dieser Ordnung stehen.
 const MOCKUP_ZEILEN = ['Lokale Wappen', 'Wiki-Wappen', 'Hole Wiki-Wappen'];
+// 🔴 Der Ortsbilder-Schalter kam am 24.08.2026 dazu (Owner) und steht ZWISCHEN den Wappen-Schaltern
+// und dem Lauf -- die drei Notaus-Schalter beieinander, die Handlung darunter.
+pruefe(ORTE.includes('<b>Ortsbilder</b>'), 'Ortseditor: die Zeile „Ortsbilder" fehlt im Menue');
+pruefe(ORTE.indexOf('<b>Ortsbilder</b>') > ORTE.indexOf('<b>Wiki-Wappen</b>')
+	&& ORTE.indexOf('<b>Ortsbilder</b>') < ORTE.indexOf('<b>Hole Wiki-Wappen</b>'),
+	'Ortseditor: „Ortsbilder" steht zwischen den Schaltern und dem Lauf');
+pruefe(!TERRITORIEN.includes('<b>Ortsbilder</b>'),
+	'Territorien-Editor: kein Ortsbilder-Schalter -- dort gaebe es nichts zu schalten');
 for (const [name, html] of BEIDE) {
 	const stellen = MOCKUP_ZEILEN.map((z) => html.indexOf('<b>' + z + '</b>'));
 	MOCKUP_ZEILEN.forEach((z, i) => pruefe(stellen[i] > -1, `${name}: die Mockup-Zeile „${z}" fehlt`));
@@ -91,7 +99,12 @@ for (const [name, html] of BEIDE) {
 	const band = html.slice(von, bis).replace(/<!--[\s\S]*?-->/g, '');
 	pruefe(!band.includes('>Wappen lokalisieren<'),
 		`${name}: „Wappen lokalisieren" steht wieder als eigener Knopf im Band`);
-	pruefe(band.includes('Wappen ▾'), `${name}: der Sammelknopf „Wappen ▾" fehlt im Band`);
+	// ⚠️ Der Ortseditor heisst „Wappen & Bilder", der Monitor „Wappen" -- der Bilder-Schalter gilt
+	// NUR Orten, im Monitor gaebe es nichts zu schalten. Das ist ein Feld, das die eine Oberflaeche
+	// nicht hat, keine Divergenz der Bauform.
+	pruefe(/Wappen (&amp; Bilder )?▾/.test(band), `${name}: der Sammelknopf „Wappen ▾" fehlt im Band`);
+	pruefe(!band.includes('>Bilder: An<') && !band.includes('Bilder: An</span>'),
+		`${name}: der Bilder-Schalter steht wieder als eigener Knopf im Band`);
 }
 
 // ---- 6. Die Huelle fuellt ihre Gitterspalte ---------------------------------------------------
@@ -166,6 +179,7 @@ const EINMALIG = [
 		'function setCoatsSwitchStates', 'function setCoatsMenuOpen', 'async function toggleCoatSwitch',
 		'$("seCoatsMenu")?.addEventListener', '$("seCoatsMenuPanel")?.addEventListener',
 		'$("seCoatsLocal")?.addEventListener', '$("seCoatsWiki")?.addEventListener',
+		'$("seImagesToggle")?.addEventListener', 'function renderCoatsMenuState',
 	]],
 	['Territorien-Editor', TERRITORIEN, [
 		'function setCoatsSwitchStates', 'function setCoatsMenuOpen', 'async function toggleCoatSwitch',

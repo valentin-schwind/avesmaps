@@ -468,7 +468,6 @@
     <button class="btn2 primary" id="seSyncen" title="Übernimmt die Orte aus dem zuletzt gelesenen Dump in die Staging-Tabellen (Wave 2 Syncen)."><span class="t1">🚨 Syncen</span><span class="t2" id="seSyncedInfo">Letzte Sync: wird geladen…</span></button>
     <button class="btn2 primary" id="seAssign" title="Ordnet alle Orte ihrem Territorium per Ray-Cast zu"><span class="t1">Orte zuordnen</span><span class="t2">Ray-Cast über alles</span></button>
     <button class="btn2" id="seFilterMap" title="Zeigt auf der Live-Karte nur die aktuelle Auswahl"><span class="t1">Nur Auswahl anzeigen</span><span class="t2">auf der Karte</span></button>
-    <button class="btn2" id="seImagesToggle" aria-pressed="false" title="Globaler Schalter: blendet ALLE Ortsbilder im öffentlichen Frontend aus. Der Editor zeigt sie weiter."><span class="t1" id="seImagesToggleLabel">Bilder: An</span><span class="t2">im Frontend</span></button>
     <!-- 🛡️ Das Wappen-Menü (Mockup docs/wappen-verwaltung-mockup.html, abgenommen 23.08.2026 —
          Owner-Korrektur: „das menü soll unter dem button liegen"). 🔴 ZWEI Schalter nach HERKUNFT,
          nicht einer: „Lokale Wappen" (eigene Uploads) und „Wiki-Wappen" (gemeinfrei aus dem Wiki).
@@ -476,7 +475,7 @@
          🔴 Die Unterzeile des Knopfes zeigt BEIDE Stellungen, damit man den Notaus sieht, ohne das
          Menü zu öffnen — ein Notaus, dessen Stand man aufklappen muss, ist keiner. -->
     <div class="rb-menu">
-      <button class="btn2" id="seCoatsMenu" aria-haspopup="true" aria-expanded="false" title="Wappen: die zwei Notaus-Schalter fürs Frontend und der Lauf, der die gemeinfreien Wiki-Wappen auf unseren Server holt."><span class="t1">🛡️ Wappen ▾</span><span class="t2" id="seCoatsMenuState">wird geladen…</span></button>
+      <button class="btn2" id="seCoatsMenu" aria-haspopup="true" aria-expanded="false" title="Die Notaus-Schalter fürs öffentliche Frontend — Wappen (eigene und aus dem Wiki) und Ortsbilder —, dazu der Lauf, der die gemeinfreien Wiki-Wappen auf unseren Server holt. Im Editor bleibt alles sichtbar."><span class="t1">🛡️ Wappen &amp; Bilder ▾</span><span class="t2" id="seCoatsMenuState">wird geladen…</span></button>
       <div class="rb-menu__panel type-filter__menu" id="seCoatsMenuPanel" hidden>
         <div class="rb-menu__row">
           <div class="rb-menu__txt"><b>Lokale Wappen</b><span>eigene Uploads</span></div>
@@ -485,6 +484,13 @@
         <div class="rb-menu__row">
           <div class="rb-menu__txt"><b>Wiki-Wappen</b><span>aus dem Wiki, nur gemeinfrei</span></div>
           <button type="button" class="rb-menu__sw rb-menu__sw--state" id="seCoatsWiki" data-which="wiki" aria-pressed="true">…</button>
+        </div>
+        <!-- ⚠️ Der Bilder-Schalter gilt NUR Orten (settlement_images_enabled) und steht deshalb
+             nur hier, nicht im Territorien-Monitor: dort gäbe es nichts zu schalten. Das ist keine
+             Divergenz der zwei Oberflächen, sondern ein Feld, das die eine nicht hat. -->
+        <div class="rb-menu__row">
+          <div class="rb-menu__txt"><b>Ortsbilder</b><span>Titelbilder der Orte — im Editor immer sichtbar</span></div>
+          <button type="button" class="rb-menu__sw rb-menu__sw--state" id="seImagesToggle" aria-pressed="true">…</button>
         </div>
         <div class="rb-menu__row">
           <div class="rb-menu__txt"><b>Hole Wiki-Wappen</b><span id="seLocalizeCoatsState">nur gemeinfreie, auf unseren Server</span></div>
@@ -3510,18 +3516,27 @@ function toggleMapFilter() {
 
 $("seFilterMap")?.addEventListener("click", toggleMapFilter);
 
-// Global settlement-image kill switch (ribbon). aria-pressed=true == kill switch engaged (images OFF).
+// Der Ortsbilder-Schalter -- seit 24.08.2026 im Menü „Wappen & Bilder" statt als eigener Knopf im
+// Band. 🔴 aria-pressed heisst AN, wie bei den zwei Wappen-Schaltern daneben; die alte Fassung
+// hatte es INVERTIERT ("true" == Schalter eingelegt == Bilder aus), und mit der Pillenfärbung, die
+// den Zustand zeigt, hätte das die Farbe umgedreht.
+// ⚠️ Er gilt NUR Orten (settlement_images_enabled) und steht deshalb nur hier, nicht im
+// Territorien-Monitor: dort gäbe es nichts zu schalten.
+let seImagesOn = true;
+
 function setImagesToggleState(enabled) {
+	if (typeof enabled === "boolean") seImagesOn = enabled;
 	const btn = $("seImagesToggle");
-	const label = $("seImagesToggleLabel");
-	if (label) label.textContent = enabled ? "Bilder: An" : "Bilder: Aus";
-	if (btn) { btn.setAttribute("aria-pressed", enabled ? "false" : "true"); btn.classList.toggle("is-off", !enabled); }
+	if (btn) {
+		btn.setAttribute("aria-pressed", seImagesOn ? "true" : "false");
+		btn.textContent = seImagesOn ? "AN" : "AUS";
+	}
+	renderCoatsMenuState();
 }
 async function toggleSettlementImagesEnabled() {
 	const btn = $("seImagesToggle");
 	if (!btn || btn.disabled) return;
-	const currentlyEnabled = btn.getAttribute("aria-pressed") !== "true";
-	const next = !currentlyEnabled;
+	const next = btn.getAttribute("aria-pressed") !== "true";
 	btn.disabled = true;
 	try {
 		const response = await fetch(SETTLEMENT_EDITOR_API, {
@@ -3565,10 +3580,20 @@ function setCoatsSwitchStates(lokal, wiki) {
 	}
 	// 🔴 BEIDE Stellungen im Knopf — genau das zeigt das Mockup („lokal an · Wiki aus"). Ein Notaus,
 	// dessen Stand man aufklappen muss, ist keiner.
+	renderCoatsMenuState();
+}
+
+// Der EINE Bauer der Kachelzeile. Seit dem Bilder-Schalter sind es drei Stellungen, und zwei
+// Stellen, die dieselbe Zeile schreiben, laufen beim nächsten neuen Schalter auseinander.
+// ⚠️ Nur AUS wird versalt: der Blick soll an dem hängenbleiben, was abgeschaltet ist.
+function renderCoatsMenuState() {
 	const state = $("seCoatsMenuState");
-	if (state) {
-		state.textContent = `lokal ${seCoatsLocalOn ? "an" : "AUS"} · Wiki ${seCoatsWikiOn ? "an" : "AUS"}`;
-	}
+	if (!state) return;
+	state.textContent = [
+		`lokal ${seCoatsLocalOn ? "an" : "AUS"}`,
+		`Wiki ${seCoatsWikiOn ? "an" : "AUS"}`,
+		`Bilder ${seImagesOn ? "an" : "AUS"}`,
+	].join(" · ");
 }
 
 // ⚠️ Der alte Name bleibt als Weiche stehen: renderSettlementDetail und der Status-Abruf rufen
