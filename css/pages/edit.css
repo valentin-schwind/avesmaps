@@ -65,19 +65,22 @@
 	padding: 8px 11px;
 }
 
-/* Right-hand group of the top bar: handbook link next to "Abmelden". Needs its own class
-   because the bare `.edit-shell__bar div` rule below aligns on the baseline, which sits a
-   button and a link at different heights. */
+/* Die rechte Gruppe der Kopfzeile -- heute nur noch auf den Unterseiten (backup.php,
+   svg-export.php), wo „← Zurück zum Editor" darin steht. In der Huelle selbst ist sie am
+   23.08.2026 dem Drei-Strich-Menue gewichen.
+   ⚠️ `display: flex` steht seit demselben Tag ausdruecklich hier. Vorher kam es von der
+   pauschalen Regel `.edit-shell__bar div` weiter unten; die ist jetzt auf den Titelblock
+   geschaerft, also muss diese Gruppe ihr Verhalten selbst mitbringen. */
 .edit-shell__bar .edit-shell__actions {
+	display: flex;
 	align-items: center;
 	gap: 10px;
 }
 
 /* Soft/outline: "Abmelden" is the filled action in this bar, and the handbook must not
    compete with it. See docs/design-language.md — one filled main action, the rest soft.
-   `__toplink` is the same treatment for the bar's other links (Datenbank-Backup, and the
-   way back from a sub-page), so a second entry point costs no second set of literals. */
-.edit-shell__handbook,
+   `__toplink` is the same treatment for the bar's other links (the way back from a
+   sub-page), so a second entry point costs no second set of literals. */
 .edit-shell__toplink {
 	border: 1px solid var(--color-button-soft-border);
 	border-radius: var(--radius-md);
@@ -89,8 +92,6 @@
 	white-space: nowrap;
 }
 
-.edit-shell__handbook:hover,
-.edit-shell__handbook:focus-visible,
 .edit-shell__toplink:hover,
 .edit-shell__toplink:focus-visible {
 	background: var(--color-button-soft-hover);
@@ -123,7 +124,15 @@
 	z-index: 2;
 }
 
-.edit-shell__bar div {
+/* Der Titelblock links: „Avesmaps Edit" und darin die Nebenzeile.
+   💣 Der Selektor hiess bis zum 23.08.2026 `.edit-shell__bar div` und traf damit JEDES div der
+   Leiste. Das ist dieselbe Falle wie beim `span` darunter, nur eine Ebene groesser: das
+   Drei-Strich-Menue haette Liste und Gruppen auf `display: flex; align-items: baseline`
+   gestellt, und ein untereinander gedachtes Menue stuende nebeneinander auf einer Grundlinie.
+   ⚠️ Wer hier wieder verallgemeinert, muss `.edit-shell__actions` mitdenken -- die Gruppe der
+   Unterseiten holte ihr `display: flex` bis dahin von genau dieser Regel und bringt es seither
+   selbst mit. */
+.edit-shell__bar > div:first-child {
 	display: flex;
 	align-items: baseline;
 	gap: 8px;
@@ -142,6 +151,137 @@
 
 .edit-shell__bar form {
 	margin: 0;
+}
+
+/* ═══ Das Drei-Strich-Menue der Kopfzeile ══════════════════════════════════════════════════
+   Entwurf: docs/hauptleiste-menue-mockup.html. Aufbau: <details> als Huelle, <summary> als
+   Knopf, darunter eine schwebende Liste.
+
+   ⚠️ Der Bezug fuer das Schweben ist das <details>, nicht die Leiste -- deshalb steht hier
+   `position: relative`. Die Leiste selbst ist ein Grid-Kind mit `z-index: 2` und damit ein
+   eigener Stapelkontext; das Menue liegt also ueber dem Karten-iframe, ohne dass es eine
+   eigene Leiter braucht. */
+.edit-shell__menu {
+	position: relative;
+}
+
+/* 💣 Den Standard-Marker (das Dreieck) nehmen ZWEI Regeln weg, nicht eine: `list-style` fuer
+   Firefox, die Pseudoklasse fuer WebKit. Mit nur einer der beiden traegt der Knopf auf der
+   Haelfte der Browser ein Dreieck neben den drei Strichen. */
+.edit-shell__menu-button {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 34px;
+	height: 34px;
+	border: 1px solid var(--color-button-soft-border);
+	border-radius: var(--radius-md);
+	background: var(--color-button-soft);
+	color: var(--color-button-soft-text);
+	cursor: pointer;
+	font: inherit;
+	font-size: 17px;
+	line-height: 1;
+	list-style: none;
+	user-select: none;
+}
+
+.edit-shell__menu-button::-webkit-details-marker {
+	display: none;
+}
+
+/* Aufgeklappt traegt der Knopf denselben Schimmer wie ein ueberfahrener -- er ist der offene
+   Schalter, kein zweiter Zustand mit eigenem Aussehen (wie beim Anzeige-Menue der Karte). */
+.edit-shell__menu-button:hover,
+.edit-shell__menu[open] > .edit-shell__menu-button {
+	background: var(--color-button-soft-hover);
+}
+
+.edit-shell__menu-button:focus-visible {
+	border-color: var(--color-border-strong);
+	outline: none;
+}
+
+/* 💣 DIESE ZWEI ZEILEN SIND TRAGEND, UND SIE SEHEN NACH NICHTS AUS. Ein zugeklapptes <details>
+   versteckt seine Kinder normalerweise selbst -- aber nur die im FLUSS. `position: absolute`
+   hebt die Liste da heraus, und sie stand daraufhin dauerhaft offen ueber der Karte, ohne dass
+   jemand den Knopf gedrueckt haette. Gemessen am 23.08.2026 im Browser: `details.open === false`
+   und trotzdem ein Kasten von 232x230 px an (734, 48). ⚠️ Kein DOM-Test findet das -- die
+   Elemente EXISTIEREN ja, sie liegen nur sichtbar da. Es brauchte den Blick auf das Bild. */
+.edit-shell__menu:not([open]) .edit-shell__menu-list {
+	display: none;
+}
+
+.edit-shell__menu-list {
+	position: absolute;
+	top: 100%;
+	right: 0;
+	margin-top: 6px;
+	min-width: 232px;
+	padding: 10px;
+	border: 1px solid var(--color-border-strong);
+	border-radius: var(--radius-lg);
+	background: var(--color-panel);
+	box-shadow: var(--shadow-panel);
+	text-align: left;
+}
+
+/* Gruppieren per Trenner + Ueberschrift, nicht per Rahmen (AGENTS.md §12). Der Trenner laeuft
+   full-bleed: negativer Seitenrand = Polsterung der Liste, damit die Linie von Kante zu Kante
+   geht statt in der Luft zu enden. */
+.edit-shell__menu-group + .edit-shell__menu-group {
+	margin: 10px -10px 0;
+	padding: 10px 10px 0;
+	border-top: 1px solid var(--color-divider);
+}
+
+/* 💣 DIE UEBERSCHRIFT TRAEGT DASSELBE INNENMASS WIE EINE ZEILE, sonst sitzt sie schief.
+   Mit `margin: 0 0 6px` und ohne Polsterung stand sie 10,6 px unter ihrer Trennlinie, waehrend
+   „Abmelden" 16,7 px unter seiner stand -- die Zeilen bringen ihre 6 px Polsterung mit, die
+   Ueberschrift brachte keine. Der Owner hat es im Bild gesehen, gemessen wurde es danach
+   (23.08.2026). Mit gleichem Innenmass liegt alles auf EINEM Rhythmus: 16 px von jeder Kante
+   und jeder Linie zum Text, 12 px von Text zu Text. ⚠️ Der negative Seitenrand gehoert dazu --
+   ohne ihn steht die Ueberschrift 8 px weiter rechts als die Zeilen darunter. */
+.edit-shell__menu-title {
+	margin: 0 -8px;
+	padding: 6px 8px;
+	color: var(--color-accent-strong);
+	font-size: var(--font-size-caption);
+	font-weight: var(--font-weight-bold);
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+}
+
+/* Eine Zeile ist ein Verweis ODER ein Knopf (Abmelden ist ein Formular) -- beide sehen gleich
+   aus, damit die Liste eine Liste bleibt und nicht ein Knopf zwischen Verweisen steht.
+   ⚠️ Der negative Seitenrand zieht die Hover-Flaeche bis unter die Polsterung der Liste.
+
+   💣 DIE LEISTE STEHT IM SELEKTOR, UND ZWAR MIT ABSICHT: `.edit-shell__bar button` weiter oben
+   faerbt JEDEN Knopf der Kopfzeile gefuellt-braun ein (0,1,1) und schluege eine blanke
+   `.edit-shell__menu-item`-Regel (0,1,0). „Abmelden" saesse dann als brauner Klotz zwischen
+   drei Textzeilen. Die pauschale Regel bleibt trotzdem stehen -- admin/index.php traegt ihren
+   Abmelden-Knopf weiterhin direkt in der Leiste. */
+.edit-shell__bar .edit-shell__menu-item {
+	display: block;
+	width: 100%;
+	margin: 0 -8px;
+	padding: 6px 8px;
+	border: 0;
+	border-radius: var(--radius-md);
+	background: none;
+	color: var(--color-text);
+	cursor: pointer;
+	font: inherit;
+	font-size: var(--font-size-reading);
+	line-height: var(--leading-snug);
+	text-align: left;
+	text-decoration: none;
+}
+
+.edit-shell__bar .edit-shell__menu-item:hover,
+.edit-shell__bar .edit-shell__menu-item:focus-visible {
+	background: var(--color-hover-wash);
+	outline: none;
 }
 
 .edit-shell__map {

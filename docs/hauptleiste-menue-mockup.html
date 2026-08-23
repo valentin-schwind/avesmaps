@@ -1,0 +1,365 @@
+<!doctype html>
+<html lang="de" data-theme="light">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Mockup — Drei-Strich-Menü in der Hauptleiste der Editor-Hülle</title>
+<style>
+
+/* ===== Schrift (wie css/base/fonts.css) ===== */
+@font-face {
+	font-family: "Faculty Glyphic";
+	src: url("../fonts/FacultyGlyphic-Regular.woff") format("woff"),
+		 url("../fonts/FacultyGlyphic-Regular.ttf") format("truetype");
+	font-display: swap;
+}
+
+/* ===== Auszug aus css/base/tokens.css — hell ===== */
+:root {
+	--font-ui: "Faculty Glyphic", "Arial", sans-serif;
+	--font-size-caption: 11px;
+	--font-size-small: 12px;
+	--font-size-body: 13px;
+	--font-size-reading: 14px;
+	--leading-snug: 1.25;
+	--font-weight-regular: 400;
+	--font-weight-bold: 700;
+
+	--space-2: 4px;
+	--space-4: 6px;
+	--space-6: 8px;
+	--space-8: 10px;
+	--space-10: 12px;
+
+	--radius-sm: 5px;
+	--radius-md: 8px;
+	--radius-lg: 10px;
+
+	--color-page-bg-deep: #2b2721;
+	--color-panel: #fffdf9;
+	--color-text: #2e271e;
+	--color-text-strong: #3c3327;
+	--color-text-muted: #706557;
+	--color-border-strong: #cdbfa8;
+	--color-divider: rgba(125, 115, 96, 0.30);
+	--color-button-soft: #efe9db;
+	--color-button-soft-text: #564b3b;
+	--color-button-soft-border: #cdbda0;
+	--color-button-soft-hover: #e7ddc9;
+	--color-accent-strong: #9c7f22;
+	--color-accent-brown-soft: #9a7a5a;
+	--color-hover-wash: rgba(191, 160, 58, 0.14);
+	--shadow-panel: 0 8px 24px rgba(0, 0, 0, 0.16);
+}
+
+/* ===== Auszug aus css/base/tokens.css — dunkel ===== */
+:root[data-theme="dark"] {
+	--color-page-bg-deep: #181611;
+	--color-panel: #312e26;
+	--color-text: #eee7da;
+	--color-text-strong: #f5f0e4;
+	--color-text-muted: #b4a895;
+	--color-border-strong: #615a49;
+	--color-divider: rgba(207, 197, 171, 0.24);
+	--color-button-soft: #3a362c;
+	--color-button-soft-text: #eae1cf;
+	--color-button-soft-border: #585142;
+	--color-button-soft-hover: #453f32;
+	--color-accent-strong: #d9bd63;
+	--color-accent-brown-soft: #a3835c;
+	--shadow-panel: 0 8px 24px rgba(0, 0, 0, 0.45);
+}
+
+* { box-sizing: border-box; }
+
+body {
+	margin: 0;
+	padding: 24px;
+	background: var(--color-page-bg-deep);
+	color: var(--color-text);
+	font-family: var(--font-ui);
+	font-size: var(--font-size-body);
+}
+
+.mock-head {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 16px;
+	max-width: 980px;
+	margin: 0 auto 18px;
+	color: #cfc6b4;
+	font-size: var(--font-size-small);
+}
+
+.mock-head strong { color: #efe6d4; font-weight: var(--font-weight-bold); }
+
+.mock-theme {
+	border: 1px solid #5c5342;
+	border-radius: var(--radius-md);
+	background: #3a352b;
+	color: #efe6d4;
+	cursor: pointer;
+	font: inherit;
+	padding: 6px 10px;
+}
+
+.mock-stage { max-width: 980px; margin: 0 auto 26px; }
+
+.mock-label {
+	margin: 0 0 8px;
+	color: #b9b0a0;
+	font-size: var(--font-size-caption);
+	font-weight: var(--font-weight-bold);
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+}
+
+.mock-frame {
+	border: 1px solid #4a4234;
+	border-radius: var(--radius-sm);
+	background: var(--color-page-bg-deep);
+}
+
+.mock-map {
+	height: 130px;
+	background:
+		repeating-linear-gradient(45deg, rgba(0,0,0,0.06) 0 12px, rgba(0,0,0,0) 12px 24px),
+		#8a7f68;
+}
+
+/* ===== Die Leiste — wie css/pages/edit.css ===== */
+.edit-shell__bar {
+	position: relative;
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 16px;
+	padding: 8px 12px;
+	border-bottom: 1px solid var(--color-accent-brown-soft);
+	background: var(--color-panel);
+	box-shadow: var(--shadow-panel);
+	z-index: 2;
+}
+
+.edit-shell__bar > div:first-child {
+	display: flex;
+	align-items: baseline;
+	gap: 8px;
+}
+
+.edit-shell__bar strong { color: var(--color-text-strong); }
+
+.edit-shell__bar > div:first-child > span {
+	color: var(--color-text-muted);
+	font-size: 12px;
+}
+
+/* ===== NEU: der Drei-Strich-Knopf ===== */
+.edit-shell__menu { position: relative; }
+
+.edit-shell__menu-button {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 34px;
+	height: 34px;
+	border: 1px solid var(--color-button-soft-border);
+	border-radius: var(--radius-md);
+	background: var(--color-button-soft);
+	color: var(--color-button-soft-text);
+	cursor: pointer;
+	font: inherit;
+	font-size: 17px;
+	line-height: 1;
+}
+
+.edit-shell__menu-button:hover,
+.edit-shell__menu-button[aria-expanded="true"] {
+	background: var(--color-button-soft-hover);
+}
+
+/* ===== NEU: das Menü ===== */
+.edit-shell__menu-list {
+	position: absolute;
+	top: 100%;
+	right: 0;
+	margin-top: 6px;
+	min-width: 232px;
+	padding: var(--space-8);
+	border: 1px solid var(--color-border-strong);
+	border-radius: var(--radius-lg);
+	background: var(--color-panel);
+	box-shadow: var(--shadow-panel);
+	text-align: left;
+	z-index: 3;
+}
+
+.edit-shell__menu-list[hidden] { display: none; }
+
+.edit-shell__menu-item {
+	display: block;
+	width: 100%;
+	padding: var(--space-4) var(--space-6);
+	margin: 0 calc(var(--space-6) * -1);
+	border: 0;
+	border-radius: var(--radius-md);
+	background: none;
+	color: var(--color-text);
+	cursor: pointer;
+	font: inherit;
+	font-size: var(--font-size-reading);
+	line-height: var(--leading-snug);
+	text-align: left;
+	text-decoration: none;
+}
+
+.edit-shell__menu-item:hover,
+.edit-shell__menu-item:focus-visible {
+	background: var(--color-hover-wash);
+	outline: none;
+}
+
+.edit-shell__menu-group + .edit-shell__menu-group {
+	margin-top: var(--space-8);
+	padding-top: var(--space-8);
+	border-top: 1px solid var(--color-divider);
+	margin-left: calc(var(--space-8) * -1);
+	margin-right: calc(var(--space-8) * -1);
+	padding-left: var(--space-8);
+	padding-right: var(--space-8);
+}
+
+.edit-shell__menu-title {
+	/* Dasselbe Innenmass wie eine Zeile -- ohne das sitzt die Ueberschrift naeher an ihrer
+	   Trennlinie als jede andere Zeile, und die Liste liest sich unruhig. */
+	margin: 0 -8px;
+	padding: 6px 8px;
+	color: var(--color-accent-strong);
+	font-size: var(--font-size-caption);
+	font-weight: var(--font-weight-bold);
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+}
+
+.edit-shell__menu-list form { margin: 0; }
+
+.mock-note {
+	max-width: 980px;
+	margin: 0 auto;
+	color: #b9b0a0;
+	font-size: var(--font-size-small);
+	line-height: 1.6;
+}
+
+.mock-note code { color: #e2d6b6; }
+</style>
+</head>
+<body>
+
+<div class="mock-head">
+	<span><strong>Entwurf</strong> — Drei-Strich-Menü in der Hauptleiste von <code>/edit/</code></span>
+	<button type="button" class="mock-theme" id="theme">Dunkel ansehen</button>
+</div>
+
+<div class="mock-stage">
+	<p class="mock-label">Was ein Admin sieht</p>
+	<div class="mock-frame">
+		<header class="edit-shell__bar">
+			<div>
+				<strong>Avesmaps Edit</strong>
+				<span>vali | admin</span>
+			</div>
+			<div class="edit-shell__menu">
+				<button type="button" class="edit-shell__menu-button" data-menue="menu-admin" aria-expanded="true" aria-haspopup="true" aria-label="Menü">&#9776;</button>
+				<div class="edit-shell__menu-list" id="menu-admin">
+					<div class="edit-shell__menu-group">
+						<a class="edit-shell__menu-item" href="#">Handbuch</a>
+					</div>
+					<div class="edit-shell__menu-group">
+						<p class="edit-shell__menu-title">Nur Admins</p>
+						<a class="edit-shell__menu-item" href="#">Datenbank-Backup</a>
+						<a class="edit-shell__menu-item" href="#">Karte als SVG</a>
+						<a class="edit-shell__menu-item" href="#">Admin</a>
+					</div>
+					<div class="edit-shell__menu-group">
+						<form><button type="button" class="edit-shell__menu-item">Abmelden</button></form>
+					</div>
+				</div>
+			</div>
+		</header>
+		<div class="mock-map"></div>
+	</div>
+</div>
+
+<div class="mock-stage">
+	<p class="mock-label">Was ein Editor sieht</p>
+	<div class="mock-frame">
+		<header class="edit-shell__bar">
+			<div>
+				<strong>Avesmaps Edit</strong>
+				<span>marbo | editor</span>
+			</div>
+			<div class="edit-shell__menu">
+				<button type="button" class="edit-shell__menu-button" data-menue="menu-editor" aria-expanded="true" aria-haspopup="true" aria-label="Menü">&#9776;</button>
+				<div class="edit-shell__menu-list" id="menu-editor">
+					<div class="edit-shell__menu-group">
+						<a class="edit-shell__menu-item" href="#">Handbuch</a>
+					</div>
+					<div class="edit-shell__menu-group">
+						<form><button type="button" class="edit-shell__menu-item">Abmelden</button></form>
+					</div>
+				</div>
+			</div>
+		</header>
+		<div class="mock-map"></div>
+	</div>
+</div>
+
+<p class="mock-note">
+	Rechts in der Leiste steht nur noch der Knopf. Gruppiert wird per Trennlinie und Überschrift, nicht per Rahmen
+	(Designsprache §12). Ein Editor sieht den Admin-Block gar nicht — deshalb sagt die Überschrift „Nur Admins“
+	dem Admin, welche drei Zeilen dem anderen fehlen. „Abmelden“ steht unten hinter einer eigenen Linie, damit es
+	beim Aufklappen nicht direkt unter dem Zeiger liegt. Klick auf den Knopf klappt auf und zu; Esc und ein Klick
+	daneben schließen ebenfalls.
+</p>
+
+<script>
+document.getElementById("theme").addEventListener("click", function () {
+	var root = document.documentElement;
+	var dunkel = root.getAttribute("data-theme") === "dark";
+	root.setAttribute("data-theme", dunkel ? "light" : "dark");
+	this.textContent = dunkel ? "Dunkel ansehen" : "Hell ansehen";
+});
+
+var knoepfe = Array.prototype.slice.call(document.querySelectorAll("[data-menue]"));
+
+function alleSchliessen() {
+	knoepfe.forEach(function (knopf) {
+		document.getElementById(knopf.getAttribute("data-menue")).hidden = true;
+		knopf.setAttribute("aria-expanded", "false");
+	});
+}
+
+knoepfe.forEach(function (knopf) {
+	var menue = document.getElementById(knopf.getAttribute("data-menue"));
+	knopf.addEventListener("click", function (ereignis) {
+		ereignis.stopPropagation();
+		var warOffen = !menue.hidden;
+		alleSchliessen();
+		if (!warOffen) {
+			menue.hidden = false;
+			knopf.setAttribute("aria-expanded", "true");
+		}
+	});
+	menue.addEventListener("click", function (ereignis) { ereignis.stopPropagation(); });
+});
+
+document.addEventListener("click", alleSchliessen);
+document.addEventListener("keydown", function (ereignis) {
+	if (ereignis.key === "Escape") { alleSchliessen(); }
+});
+</script>
+
+</body>
+</html>

@@ -58,6 +58,15 @@ if (is_file($indexPath)) {
 }
 $mapIframeSrc = '../index.html?' . htmlspecialchars($mapIframeQuery, ENT_QUOTES, 'UTF-8');
 
+// Das Skript des Drei-Strich-Menues stempelt sich selbst -- siehe der Kommentar an seinem
+// <script>-Tag unten. Fehlt die Datei (frischer Klon, halber Deploy), bleibt der Verweis
+// ungestempelt statt zu verschwinden: ein Menue ohne Esc ist besser als ein 404.
+$menuScriptPath = dirname(__DIR__) . '/js/pages/edit-shell-menu.js';
+$menuScriptSrc = '/js/pages/edit-shell-menu.js';
+if (is_file($menuScriptPath)) {
+    $menuScriptSrc .= '?v=' . filemtime($menuScriptPath);
+}
+
 ?><!DOCTYPE html>
 <html lang="de">
 
@@ -71,7 +80,7 @@ $mapIframeSrc = '../index.html?' . htmlspecialchars($mapIframeQuery, ENT_QUOTES,
     <!-- Hand-written on purpose: the deploy's asset stamper only follows index.html and
          html/*.html, so it never reaches this PHP page. Bump this whenever edit.css changes,
          or editors keep the cached stylesheet. See AGENTS.md sec.7. -->
-    <link rel="stylesheet" href="../css/pages/edit.css?v=20260813-adminhinweis" />
+    <link rel="stylesheet" href="../css/pages/edit.css?v=20260823-hauptleisten-menue" />
 </head>
 
 <body class="edit-page">
@@ -102,40 +111,64 @@ $mapIframeSrc = '../index.html?' . htmlspecialchars($mapIframeQuery, ENT_QUOTES,
                     <strong>Avesmaps Edit</strong>
                     <span><?php echo htmlspecialchars((string) $currentUser['username'], ENT_QUOTES, 'UTF-8'); ?> | <?php echo htmlspecialchars((string) $currentUser['role'], ENT_QUOTES, 'UTF-8'); ?></span>
                 </div>
-                <div class="edit-shell__actions">
-                    <!-- Permanent entry point. The other one lives at the end of the map's data
-                         status line, inside the editor panel, so it is invisible until that panel
-                         is opened. Root-relative is fine here: this page is the top-level shell,
-                         not the map iframe.
-                         🔧 OFFEN (13.08.2026): the two emoji in this bar (📖 and 💾) are the last
-                         unicode symbols on an editor surface. Deliberately left: the house rule since
-                         today is a MONOCHROME glyph for editor tools, and the shared set has no sign
-                         for "handbook" or "backup" -- inventing two would be inventing vocabulary.
-                         Listed as open in docs/editor-kennzeichnung-mockup.html. -->
-                    <a class="edit-shell__handbook" href="/html/editor-handbuch.html" target="_blank" rel="noopener" title="Editor-Handbuch öffnen" aria-label="Handbuch">📖 Handbuch</a>
-                    <?php if (avesmapsUserCan($currentUser, 'admin')) : ?>
-                        <!-- Admin only, not editors: a full dump carries users.password_hash, every
-                             share link and every report. The endpoint enforces the same gate.
-                             The "nur Admins" marker says so out loud: an editor never sees this link,
-                             so an admin standing next to one had no way of knowing which of the two
-                             entries in this bar the other person is missing. Same component as the
-                             editor marker on the map (css/components/scope-hint.css) -- one word
-                             changes, the form does not. -->
-                        <a class="edit-shell__toplink" href="/edit/backup.php" target="_blank" rel="noopener" title="Vollständiges Datenbank-Backup erstellen und herunterladen" aria-label="Datenbank-Backup">💾 Datenbank-Backup <span class="avesmaps-scope-hint">nur Admins</span></a>
-                        <!-- Monochrome glyph on purpose, not a third emoji: the house rule since
-                             13.08. is a monochrome sign for editor tools, and the two above are
-                             listed as an open point because no shared sign exists for "handbook"
-                             or "backup". For "download" one does exist -- nothing to invent. -->
-                        <a class="edit-shell__toplink" href="/edit/svg-export.php" target="_blank" rel="noopener" title="Die Karte als bearbeitbare Vektorgrafik herunterladen" aria-label="Karte als SVG">↧ Karte als SVG <span class="avesmaps-scope-hint">nur Admins</span></a>
-                    <?php endif; ?>
-                    <form method="post" action="./">
-                        <input type="hidden" name="action" value="logout" />
-                        <button type="submit">Abmelden</button>
-                    </form>
-                </div>
+                <!-- Das Drei-Strich-Menue der Huelle. Entwurf: docs/hauptleiste-menue-mockup.html
+                     (23.08.2026 lagen die vier Eintraege noch nebeneinander in der Leiste; „Admin"
+                     fehlte ganz -- aus dem Editor fuehrte kein Weg auf /admin/).
+
+                     💣 Es ist ein NATIVES <details>, kein selbstgebauter Umschalter. Aufklappen,
+                     Fokus, Enter/Leertaste und der Vorlese-Zustand kommen damit vom Browser; das
+                     Skript daneben ergaenzt nur „Klick daneben schliesst" und Esc. Faellt es aus,
+                     bleibt das Menue voll bedienbar -- dieselbe Ueberlegung wie beim
+                     Inhaltsverzeichnis der Hinweise (AGENTS.md §11).
+
+                     ⚠️ Kein `div` in diesem Baum: `.edit-shell__bar div` in css/pages/edit.css traf
+                     bis heute JEDES div der Leiste und haette Liste und Gruppen auf
+                     `display:flex; align-items:baseline` gestellt. Die Regel ist jetzt auf den
+                     Titelblock geschaerft -- dieselbe Korrektur, die das `span` daneben am
+                     13.08.2026 bekommen hat. -->
+                <details class="edit-shell__menu">
+                    <summary class="edit-shell__menu-button" title="Menü" aria-label="Menü">&#9776;</summary>
+                    <nav class="edit-shell__menu-list">
+                        <section class="edit-shell__menu-group">
+                            <!-- Zweiter Einstieg ins Handbuch; der andere haengt am Ende der
+                                 Datenstatuszeile im Editorpanel und ist damit unsichtbar, solange
+                                 das Panel zu ist. Wurzelrelativ ist hier richtig: diese Seite ist
+                                 die oberste Huelle, nicht der Karten-iframe. -->
+                            <a class="edit-shell__menu-item" href="/html/editor-handbuch.html" target="_blank" rel="noopener">Handbuch</a>
+                        </section>
+                        <?php if (avesmapsUserCan($currentUser, 'admin')) : ?>
+                            <!-- Nur Admins, nicht Editoren: ein voller Dump traegt
+                                 users.password_hash, jeden Teilen-Link und jeden Bericht; die
+                                 Endpunkte halten denselben Riegel. Die Ueberschrift sagt es laut --
+                                 ein Editor sieht den Block gar nicht, ein Admin daneben wuesste
+                                 sonst nicht, welche Zeilen dem anderen fehlen. Sie ersetzt die drei
+                                 Einzelmerkmale, die bis heute an den Links hingen. -->
+                            <section class="edit-shell__menu-group">
+                                <p class="edit-shell__menu-title">Nur Admins</p>
+                                <a class="edit-shell__menu-item" href="/edit/backup.php" target="_blank" rel="noopener">Datenbank-Backup</a>
+                                <a class="edit-shell__menu-item" href="/edit/svg-export.php" target="_blank" rel="noopener">Karte als SVG</a>
+                                <a class="edit-shell__menu-item" href="/admin/" target="_blank" rel="noopener">Admin</a>
+                            </section>
+                        <?php endif; ?>
+                        <!-- ⚠️ „Abmelden" steht unten und hinter einer eigenen Linie: ganz oben
+                             laege es genau unter dem Zeiger, der eben den Knopf gedrueckt hat. -->
+                        <section class="edit-shell__menu-group">
+                            <form method="post" action="./">
+                                <input type="hidden" name="action" value="logout" />
+                                <button type="submit" class="edit-shell__menu-item">Abmelden</button>
+                            </form>
+                        </section>
+                    </nav>
+                </details>
             </header>
             <iframe class="edit-shell__map" src="<?php echo $mapIframeSrc; ?>" title="Avesmaps Karte"></iframe>
         </main>
+        <!-- Ergaenzt das native <details>-Menue oben um „Klick daneben schliesst" und Esc.
+             Der Stempel wird GERECHNET, nicht von Hand gepflegt: der Stamping-Schritt des
+             Deploys laeuft nur ueber index.html und html/*.html und erreicht diese PHP-Seite
+             nie (AGENTS.md §7). Dasselbe filemtime-Muster wie beim Karten-iframe weiter oben --
+             so kann der Verweis gar nicht erst veralten. -->
+        <script src="<?php echo htmlspecialchars($menuScriptSrc, ENT_QUOTES, 'UTF-8'); ?>" defer></script>
     <?php endif; ?>
 </body>
 
