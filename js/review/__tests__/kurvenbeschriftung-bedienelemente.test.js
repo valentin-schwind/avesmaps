@@ -143,4 +143,30 @@ assert.ok(!html.includes('id="label-edit-rotation-range"'), "der Rotationsregler
 assert.ok(/id="label-edit-rotation"[^>]*type="hidden"/.test(html), "das Rotationsfeld muss als hidden erhalten bleiben");
 checks += 4;
 
+// ---- DIE ZWEITE OBERFLAECHE: der Flaechendialog ------------------------------------------------
+// 🔴 Derselbe Wert an ZWEI Oberflaechen (Entwurf §2). Der Flaechendialog liegt in einer IIFE und
+// laesst sich nicht wie oben ausfuehren -- geprueft wird deshalb STRUKTURELL, dass er dieselbe Regel
+// baut. ⚠️ Das ist schwaecher als der Lauf oben und hier bewusst so benannt.
+const props = fs.readFileSync(path.join(wurzel, "js/map-features/map-features-ecosystem-properties.js"), "utf8");
+assert.ok(props.includes("function syncPropertiesCurve("), "der Flaechendialog fuellt die Bedienelemente nicht");
+assert.ok(props.includes("function getPropertiesCurvePayload("), "der Flaechendialog kennt die Nur-wenn-angefasst-Regel nicht");
+assert.ok(props.includes("syncPropertiesCurve(regionAreaCount > 0"), "ohne Flaeche muss verriegelt werden");
+assert.ok(props.includes("payload.curve_label = kurve.curve_label"), "curve_label kommt nicht in den Rumpf");
+assert.ok(props.includes("payload.curve_label_max = kurve.curve_label_max"), "curve_label_max kommt nicht in den Rumpf");
+// 💣 Die gefaehrlichste Regel, auch hier: kein gemerkter Stand => nichts nennen.
+assert.ok(/kurveGeladen = bedienbar \? \{/.test(props), "der gemerkte Stand muss bei Unbedienbarkeit auf null fallen");
+checks += 6;
+
+// Und das Markup der zweiten Oberflaeche.
+assert.ok(html.includes('id="ecosystem-properties-curve"'), "der Haken fehlt im Flaechendialog");
+assert.ok(html.includes('id="ecosystem-properties-curve-max"'), "die Anzahl fehlt im Flaechendialog");
+checks += 2;
+
+// 🔴 Und der LESEWEG: ohne ihn stuende der Haken bei jedem Oeffnen leer da. list_regions ist der
+// einzige Weg, der ihn herausgibt -- die Flaechenzeile des Kartenpayloads traegt ihn nicht.
+const eco = fs.readFileSync(path.join(wurzel, "api/_internal/app/ecosystem.php"), "utf8");
+assert.ok(eco.includes("'curve_label' => $kurve['enabled']"), "list_regions gibt die Einstellung nicht heraus");
+assert.ok(eco.includes("'curve_label_max' => $kurve['max_labels']"), "list_regions gibt die Anzahl nicht heraus");
+checks += 2;
+
 console.log("kurvenbeschriftung-bedienelemente: " + checks + " checks passed");

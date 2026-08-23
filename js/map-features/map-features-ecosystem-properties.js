@@ -57,6 +57,8 @@
 	// Entwarnung — genau dann, wenn drei Flächen mit verschwinden. Der Knopf sagt das selbst, statt
 	// stillschweigend falsch zu rechnen.
 	let regionAreaCountLoaded = false;
+	// Der beim Oeffnen vorgefundene Stand der Kurveneinstellung -- `null` heisst „nicht bedienbar“.
+	let kurveGeladen = null;
 	let propertiesBusy = false;
 	let propertiesBound = false;
 
@@ -700,6 +702,9 @@
 			// heraus -- es gab fuer die Stempel schlicht keinen Leser
 			// (avesmapsEcosystemRegionFieldOrigins).
 			regionFieldOrigins = mine?.field_origins || null;
+			// Aus derselben Antwort und aus demselben Grund: der Kartenpayload traegt die Einstellung
+			// nicht, und ein zweiter Abruf nur dafuer waere eine Anfrage zu viel.
+			syncPropertiesCurve(regionAreaCount > 0 ? { an: mine?.curve_label === true, max: mine?.curve_label_max } : null);
 			setDeleteButtonReady(regionAreaCountLoaded);
 			if (typeSelect) {
 				typeSelect.innerHTML = "";
@@ -810,6 +815,50 @@
 	// sie deshalb direkt von der angeklickten Fläche, ohne Nachladen. Sperrt jemand die Region über
 	// das Fenster oder das Flächenmenü, zieht `merkeSperre` den Bestand nach, und das nächste Öffnen
 	// dieses Dialogs zeigt den neuen Stand.
+	// Die Kurvenbeschriftung der Region (Entwurf §2).
+	//
+	// 🔴 Sie kommt aus `list_regions`, nicht aus der Flaechenzeile: der Kartenpayload traegt sie
+	// nicht, und sie gehoert der REGION -- dieselbe Begruendung wie beim dritten Zustand daneben.
+	// ⚠️ Ohne Flaeche keine Mittelachse; dann verriegelt UND mit Grund, wie im Beschriftungsdialog.
+	function syncPropertiesCurve(stand) {
+		const haken = propertiesElement("curve");
+		const zahl = propertiesElement("curve-max");
+		const hinweis = propertiesElement("curvehint");
+		if (!haken || !zahl) {
+			return;
+		}
+		const bedienbar = Boolean(stand);
+		haken.disabled = !bedienbar;
+		zahl.disabled = !bedienbar;
+		if (hinweis) {
+			hinweis.hidden = bedienbar;
+			hinweis.textContent = bedienbar
+				? ""
+				: "Ohne Landschaftsfläche gibt es keine Mittelachse, auf der der Name laufen könnte.";
+		}
+		// 💣 Kein gemerkter Stand heisst: dieses Speichern NENNT die Felder nicht. Aus einem
+		// verriegelten Haken ein „aus“ abzuleiten schaltete die Kurve der Region ab.
+		kurveGeladen = bedienbar ? { an: stand.an === true, max: Number(stand.max || 1) || 1 } : null;
+		haken.checked = bedienbar ? kurveGeladen.an : false;
+		zahl.value = bedienbar ? String(kurveGeladen.max) : "1";
+	}
+
+	// Was dieses Speichern an der Kurveneinstellung NENNT -- oder null. Dieselbe Regel wie im
+	// Beschriftungsdialog (getLabelCurvePayload): geprueft wird VERAENDERT, nicht gesetzt.
+	function getPropertiesCurvePayload() {
+		const haken = propertiesElement("curve");
+		const zahl = propertiesElement("curve-max");
+		if (!kurveGeladen || !haken || !zahl) {
+			return null;
+		}
+		const an = Boolean(haken.checked);
+		const max = Math.min(3, Math.max(1, Number.parseInt(String(zahl.value || "1"), 10) || 1));
+		if (an === kurveGeladen.an && max === kurveGeladen.max) {
+			return null;
+		}
+		return { curve_label: an, curve_label_max: max };
+	}
+
 	function syncPropertiesLocked(area) {
 		const box = propertiesElement("locked");
 		if (!box) {
@@ -1611,6 +1660,13 @@
 		// Die Klick-Sperre (19.08.2026). Sie geht über DIESE Speicherleiste und nicht über einen
 		// eigenen Aufruf daneben: der Dialog schreibt Name, Anzeige, Nodix und Art ohnehin in einem
 		// Zug, und ein zweiter Aufruf machte „Abbrechen" für einen der beiden Werte wirkungslos.
+		// Die Kurvenbeschriftung -- ueber DIESE Speicherleiste, aus demselben Grund wie die
+		// Klick-Sperre darunter. 💣 Nur wenn angefasst (Entwurf §2).
+		const kurve = getPropertiesCurvePayload();
+		if (kurve) {
+			payload.curve_label = kurve.curve_label;
+			payload.curve_label_max = kurve.curve_label_max;
+		}
 		const sperrHaken = propertiesElement("locked");
 		if (sperrHaken) {
 			payload.is_locked = Boolean(sperrHaken.checked);

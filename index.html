@@ -1080,6 +1080,20 @@
 							<span data-i18n="ecosystem.properties.locked">Für Klicks gesperrt</span>
 						</label>
 						<p class="ecosystem-properties-dialog__hint" data-i18n="ecosystem.properties.lockedHint">Klicks fallen durch die Region hindurch auf das, was darunter liegt. Der Schwebezettel mit dem Namen bleibt. Gilt nur im Bearbeiten-Modus.</p>
+						<!-- Die Kurvenbeschriftung (Entwurf §2). 🔴 SIE GEHOERT DER REGION: dieselben zwei
+						     Bedienelemente stehen im Beschriftungsdialog (index.html, label-edit-curve), und
+						     beide bedienen denselben Wert. Wer hier einen dritten Zustand erfindet, hat zwei
+						     Wahrheiten ueber dieselbe Region.
+						     ⚠️ Ohne Flaeche gibt es keine Mittelachse -- dann verriegelt, mit Grund. -->
+						<label class="ecosystem-properties-dialog__checkbox">
+							<input id="ecosystem-properties-curve" name="curve_label" type="checkbox" />
+							<span data-i18n="ecosystem.properties.curveLabel">Kurvenbeschriftung</span>
+						</label>
+						<label class="ecosystem-properties-dialog__field">
+							<span data-i18n="ecosystem.properties.curveMax">Max. Namen</span>
+							<input id="ecosystem-properties-curve-max" name="curve_label_max" type="number" min="1" max="3" step="1" value="1" />
+						</label>
+						<p id="ecosystem-properties-curvehint" class="ecosystem-properties-dialog__hint" hidden></p>
 						<label class="ecosystem-properties-dialog__field">
 							<span><span data-i18n="ecosystem.properties.typeLabel">Art</span><span class="wiki-alt" data-eco-wiki-alt="region_type"></span></span>
 							<!-- Aus ecosystem_region_type DIESER Ebene, nie aus einer Liste im Client. -->
