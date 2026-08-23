@@ -71,10 +71,22 @@ const AVESMAPS_WIKI_DUMP_FILENAME = 'dewa_dump_small.xml.bz2';
 const AVESMAPS_WIKI_DUMP_STORAGE_SUBDIR = 'uploads/dumps';
 
 /**
- * Cache TTL: a local dump younger than this (seconds) is reused instead of
- * re-downloaded. 24 h -- the dump is regenerated daily upstream.
+ * 🔴 DER DUMP ENTSTEHT AM 1. JEDES MONATS, NICHT TAEGLICH. Betreiber-Auskunft (Discord,
+ * 23.08.2026): „exakt immer am 1. des Monats erstellt (per cron-Skript), auf das Last-Modified
+ * koennt ihr euch also verlassen." Hier standen bis dahin 24 h mit dem Kommentar „the dump is
+ * regenerated daily upstream" -- eine Annahme, die schon am 27.07.2026 widerlegt war: alle sechs
+ * Sprachdumps trugen den 01.07., waren also 26 Tage alt.
+ *
+ * 💣 UND DIE 24 h WAREN AUSGERECHNET AM EINEN WICHTIGEN TAG SCHAEDLICH: wer am 31. „Dump holen"
+ * drueckt und am 1. noch einmal, bekaeme den alten aus dem Zwischenspeicher -- an dem einzigen
+ * Tag im Monat, an dem es einen neuen gibt.
+ *
+ * Die Frist ist deshalb nur noch ein Schutz gegen den Doppelklick. Das Sparen macht seither die
+ * Nachfrage per If-Modified-Since (avesmapsWikiDumpConditionalTimeValue): hat sich drueben nichts
+ * geaendert, antwortet der Server mit 304 und ohne Rumpf -- 40 MB, die nicht ueber die Leitung
+ * gehen, und trotzdem jedes Mal eine ehrliche Antwort auf die Frage „gibt es was Neues?".
  */
-const AVESMAPS_WIKI_DUMP_CACHE_TTL_SECONDS = 86400;
+const AVESMAPS_WIKI_DUMP_CACHE_TTL_SECONDS = 3600;
 
 /**
  * A freshly downloaded dump must be at least this many bytes to count as a
@@ -276,6 +288,29 @@ function avesmapsWikiDumpCacheIsFresh(?int $mtime, int $now, bool $forceRefresh,
     return $age < $ttlSeconds;
 }
 
+/**
+ * REIN: der Zeitwert fuer `If-Modified-Since`. 0 heisst „ohne Bedingung holen".
+ *
+ * ⭐ Gefragt wird mit der mtime UNSERER Kopie, nicht mit einem gemerkten Last-Modified der
+ * Gegenseite: die mtime ist der Zeitpunkt unseres letzten erfolgreichen Abrufs, und alles, was
+ * drueben danach entstand, ist neuer. Das braucht keine zweite Ablage, und es kann nur in die
+ * sichere Richtung irren -- einmal zu viel laden, nie zu wenig.
+ *
+ * 💣 `forceRefresh` MUSS die Bedingung wegnehmen. Sonst beantwortete der Server ein
+ * ausdrueckliches „jetzt wirklich neu holen" mit 304, und der Knopf taete sichtbar nichts --
+ * dieselbe Klasse stiller Wirkungslosigkeit wie beim Speichern-Knopf der Tempowerte.
+ *
+ * ⚠️ Eine mtime <= 0 gibt es nur bei kaputter Dateisystem-Auskunft; sie als „keine Bedingung" zu
+ * behandeln laedt einmal zu viel und ist damit die richtige Richtung.
+ */
+function avesmapsWikiDumpConditionalTimeValue(?int $mtime, bool $forceRefresh): int
+{
+    if ($forceRefresh || $mtime === null || $mtime <= 0) {
+        return 0;
+    }
+
+    return $mtime;
+}
 /**
  * Sniff the bzip2 magic bytes ("BZh"). A real .bz2 begins with 0x42 0x5A 0x68.
  * Pure byte logic -- lets the fetch reject an HTML error page or a truncated
@@ -530,6 +565,9 @@ function avesmapsWikiDumpFetch(PDO $pdo, bool $forceRefresh = false): array
     // ~39 MB transfer may exceed the default script time limit.
     @set_time_limit(AVESMAPS_WIKI_DUMP_TRANSFER_TIMEOUT_SECONDS + 60);
 
+    // Nachfragen statt herunterladen -- siehe avesmapsWikiDumpConditionalTimeValue.
+    $timeValue = avesmapsWikiDumpConditionalTimeValue($state['mtime'] ?? null, $forceRefresh);
+
     $ch = curl_init();
     curl_setopt_array($ch, [
         CURLOPT_URL => AVESMAPS_WIKI_DUMP_URL,
@@ -550,6 +588,11 @@ function avesmapsWikiDumpFetch(PDO $pdo, bool $forceRefresh = false): array
         CURLOPT_TIMEOUT => AVESMAPS_WIKI_DUMP_TRANSFER_TIMEOUT_SECONDS,
         CURLOPT_USERAGENT => 'AvesmapsDumpBot/1.0 (+https://avesmaps.de)',
         CURLOPT_FAILONERROR => false, // we inspect the status code ourselves
+        // 💣 Bei $timeValue = 0 MUSS die Bedingung ganz weg (CURL_TIMECOND_NONE), nicht etwa mit
+        // dem Zeitpunkt 0 mitfahren: „seit dem 01.01.1970 geaendert?" ist immer wahr und damit
+        // harmlos -- aber es sagt dem Server etwas ueber uns, was schlicht nicht stimmt.
+        CURLOPT_TIMECONDITION => $timeValue > 0 ? CURL_TIMECOND_IFMODSINCE : CURL_TIMECOND_NONE,
+        CURLOPT_TIMEVALUE => $timeValue,
     ]);
 
     $ok = curl_exec($ch);
@@ -571,6 +614,25 @@ function avesmapsWikiDumpFetch(PDO $pdo, bool $forceRefresh = false): array
         @unlink($tmpPath);
         avesmapsWikiDumpTouchFetchTimestamps($pdo, false);
         return ['ok' => false, 'code' => 'dump_unauthorized', 'http' => 401];
+    }
+
+    // 🔴 304 IST EIN ERFOLG, KEIN FEHLSCHLAG: unsere Kopie ist noch die aktuelle. Der Rumpf ist
+    // leer, die Temp-Datei also auch -- sie fliegt weg, die vorhandene Kopie bleibt unangetastet.
+    // ⚠️ Bewusst KEIN touch() auf die Kopie: ihre mtime ist das Alter des DUMPS, das im Fenster
+    // steht. Wer sie beim Nachfragen anfasst, laesst einen zwei Wochen alten Dump als „gerade
+    // geholt" erscheinen -- und nimmt der Frist nebenbei ihren einzigen Zweck.
+    if ($httpCode === 304) {
+        @unlink($tmpPath);
+        avesmapsWikiDumpTouchFetchTimestamps($pdo, true);
+        $unveraendert = avesmapsWikiDumpFileState(time());
+
+        return [
+            'ok' => true,
+            'from_cache' => true,
+            'size' => (int) ($unveraendert['size'] ?? 0),
+            'age_seconds' => (int) ($unveraendert['age_seconds'] ?? 0),
+            'http' => 304,
+        ];
     }
 
     if ($httpCode < 200 || $httpCode >= 300) {

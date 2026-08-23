@@ -14,7 +14,9 @@ declare(strict_types=1);
  * testable and MUST NOT be faked. So this test exercises ONLY the genuinely
  * offline-decidable pure helpers -- it mocks NEITHER curl NOR MySQL:
  *
- *   1. avesmapsWikiDumpCacheIsFresh()      -- the 24 h cache-age decision.
+ *   1. avesmapsWikiDumpCacheIsFresh()      -- die Doppelklick-Frist (seit 23.08.2026 eine
+ *                                             Stunde: der Dump entsteht MONATLICH, am 1.).
+ *   1b. avesmapsWikiDumpConditionalTimeValue() -- der If-Modified-Since-Zeitwert.
  *   2. avesmapsWikiDumpLooksLikeBzip2()    -- the bz2 magic-byte ("BZh") sniff.
  *   3. avesmapsWikiDumpBuildStatusShape()  -- proves the status/result shape can
  *                                             NEVER carry a password field.
@@ -112,19 +114,22 @@ echo "-- (0) include purity --\n";
 $check('(0a) include emits no output', '', $includeOutput, 'requiring dump-fetch.php prints nothing (side-effect-free include)');
 
 // ===========================================================================
-// (a) cache-age decision -- the 24 h rule
+// (a) Frist gegen den Doppelklick -- NICHT mehr die 24-h-Regel
 // ===========================================================================
-echo "\n-- (a) avesmapsWikiDumpCacheIsFresh: 24 h cache rule --\n";
+echo "\n-- (a) avesmapsWikiDumpCacheIsFresh: Doppelklick-Frist --\n";
 $now = 1_700_000_000; // arbitrary fixed "now"
 $ttl = AVESMAPS_WIKI_DUMP_CACHE_TTL_SECONDS;
 
-$check('(a1) TTL constant is 24 h', 86400, $ttl, 'cache TTL is exactly 24 hours');
+// 🔴 Der Dump entsteht am 1. jedes Monats (Betreiber, 23.08.2026), nicht taeglich. 24 h waren
+// ausgerechnet am 1. schaedlich: ein Abruf am 31. haette den neuen Dump aus dem Zwischenspeicher
+// heraus verschluckt. Die Frist schuetzt nur noch vor dem Doppelklick; gespart wird per 304.
+$check('(a1) Frist ist eine Stunde, nicht 24', 3600, $ttl, 'die Frist ist nur noch der Doppelklick-Schutz -- der Monatstakt wird per If-Modified-Since erkannt');
 $check('(a2) absent file -> not fresh', false, avesmapsWikiDumpCacheIsFresh(null, $now, false), 'no local file => must download');
 $check('(a3) force overrides fresh file', false, avesmapsWikiDumpCacheIsFresh($now - 10, $now, true), 'force_refresh always re-downloads even for a brand-new file');
 $check('(a4) 1 s old -> fresh', true, avesmapsWikiDumpCacheIsFresh($now - 1, $now, false), 'a 1-second-old dump is reused');
-$check('(a5) 23 h 59 m old -> fresh', true, avesmapsWikiDumpCacheIsFresh($now - ($ttl - 60), $now, false), 'just under 24 h is still fresh');
-$check('(a6) exactly 24 h old -> stale', false, avesmapsWikiDumpCacheIsFresh($now - $ttl, $now, false), 'at the TTL boundary the cache is stale (re-download)');
-$check('(a7) 25 h old -> stale', false, avesmapsWikiDumpCacheIsFresh($now - ($ttl + 3600), $now, false), 'well past 24 h => re-download');
+$check('(a5) knapp unter der Frist -> frisch', true, avesmapsWikiDumpCacheIsFresh($now - ($ttl - 60), $now, false), 'eine Minute vor Fristende wird die Kopie noch benutzt');
+$check('(a6) genau auf der Frist -> nicht mehr frisch', false, avesmapsWikiDumpCacheIsFresh($now - $ttl, $now, false), 'at the TTL boundary the cache is stale (re-download)');
+$check('(a7) weit ueber der Frist -> nicht mehr frisch', false, avesmapsWikiDumpCacheIsFresh($now - ($ttl + 3600), $now, false), 'weit ueber der Frist => erneut nachfragen');
 $check('(a8) future mtime (clock skew) -> fresh', true, avesmapsWikiDumpCacheIsFresh($now + 5000, $now, false), 'a future mtime is treated as age 0 (fresh), never a negative age');
 
 // ===========================================================================
@@ -176,6 +181,31 @@ $check('(d4) path is inside the storage dir', true, str_starts_with($storagePath
 $check('(d5) no ".." in the storage path', false, str_contains($storagePath, '..'), 'no parent-directory traversal in the resolved path');
 $check('(d6) subdir constant is uploads/dumps', 'uploads/dumps', AVESMAPS_WIKI_DUMP_STORAGE_SUBDIR, 'storage subdir is the protected uploads/dumps area');
 $check('(d7) URL is the German small dump over https', true, str_starts_with(AVESMAPS_WIKI_DUMP_URL, 'https://') && str_contains(AVESMAPS_WIKI_DUMP_URL, 'dewa_dump_small.xml.bz2'), 'fetch targets the verified https dewa_ URL');
+
+// ===========================================================================
+// (e) If-Modified-Since -- die Nachfrage, die 40 MB spart
+// ===========================================================================
+echo "\n-- (e) avesmapsWikiDumpConditionalTimeValue + der 304-Zweig --\n";
+
+$check('(e1) vorhandene Kopie -> ihre mtime ist die Bedingung', 1_700_000_000, avesmapsWikiDumpConditionalTimeValue(1_700_000_000, false), 'gefragt wird mit dem Zeitpunkt unseres letzten erfolgreichen Abrufs');
+$check('(e2) keine Kopie -> keine Bedingung', 0, avesmapsWikiDumpConditionalTimeValue(null, false), 'ohne lokale Datei gibt es nichts zu vergleichen -- voll laden');
+// 💣 Der wichtigste Fall: ohne diese Zeile beantwortete der Server ein ausdrueckliches
+// „jetzt wirklich neu holen" mit 304, und der Knopf taete sichtbar nichts.
+$check('(e3) force nimmt die Bedingung weg', 0, avesmapsWikiDumpConditionalTimeValue(1_700_000_000, true), 'ein erzwungener Abruf darf nie 304 bekommen');
+$check('(e4) mtime 0 -> keine Bedingung', 0, avesmapsWikiDumpConditionalTimeValue(0, false), 'eine unbrauchbare mtime laedt lieber einmal zu viel');
+$check('(e5) negative mtime -> keine Bedingung', 0, avesmapsWikiDumpConditionalTimeValue(-5, false), 'dasselbe fuer eine kaputte Dateisystem-Auskunft');
+
+$fetchSource = str_replace(chr(13), '', (string) file_get_contents($repoRoot . '/api/_internal/wiki/dump-fetch.php'));
+$check('(e6) curl fragt bedingt an', true, str_contains($fetchSource, 'CURLOPT_TIMECONDITION') && str_contains($fetchSource, 'CURLOPT_TIMEVALUE'), 'ohne diese beiden Optionen wandert der Zeitwert nirgendwohin');
+$check('(e7) ohne Zeitwert faehrt gar keine Bedingung mit', true, str_contains($fetchSource, 'CURL_TIMECOND_NONE'), '$timeValue = 0 muss die Bedingung abschalten, nicht den 01.01.1970 senden');
+// 🔴 304 ist ein Erfolg. Faellt dieser Zweig weg, laeuft die Antwort in die „kein 2xx"-Absage --
+// und ein voellig gesunder Lauf meldete „Abruf gescheitert".
+$check('(e8) 304 wird als Erfolg behandelt', true, str_contains($fetchSource, '$httpCode === 304'), 'ohne eigenen Zweig faellt 304 in die kein-2xx-Absage');
+$check('(e9) der 304-Zweig steht VOR der kein-2xx-Absage', true, strpos($fetchSource, '$httpCode === 304') < strpos($fetchSource, '$httpCode < 200 || $httpCode >= 300'), 'die Reihenfolge IST die Regel -- dahinter waere der Zweig tot');
+// ⚠️ Die mtime der Kopie ist das Alter des DUMPS, das im Fenster steht. Wer sie beim Nachfragen
+// anfasst, laesst einen zwei Wochen alten Dump als „gerade geholt" erscheinen.
+$dreihundertvier = substr($fetchSource, (int) strpos($fetchSource, '$httpCode === 304'), 600);
+$check('(e10) das Nachfragen fasst die Kopie nicht an', false, str_contains($dreihundertvier, 'touch('), 'ein touch() beim 304 verfaelscht das angezeigte Alter des Dumps');
 
 // ===========================================================================
 // summary
