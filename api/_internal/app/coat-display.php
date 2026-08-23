@@ -31,17 +31,6 @@ declare(strict_types=1);
 const AVESMAPS_TERRITORY_COATS_SETTING = 'territory_coats_enabled';
 const AVESMAPS_SETTLEMENT_COATS_SETTING = 'settlement_coats_enabled';
 
-// 🔴 DIE ZWEI SCHALTER (Mockup docs/wappen-verwaltung-mockup.html, abgenommen 23.08.2026). Sie
-// unterscheiden nach HERKUNFT, nicht nach Objektart -- und sie gelten Orten UND Territorien
-// gemeinsam. Owner: „Bei Territorien und Siedlungen erwarte ich vollständig dasselbe aussehen und
-// verhalten", und ein Notaus fuer rechtliche Fragen, der nur die Haelfte abschaltet, ist keiner.
-// ⚠️ Damit loesen sie die zwei alten Schalter ab, deren Achse die OBJEKTART war. Die alten
-// Schluessel bleiben als HERKUNFTSWERT stehen (siehe avesmapsCoatSchalterStand) -- wer „Wappen:
-// AUS" gedrueckt hat, soll nicht dadurch wieder Wappen sehen, dass ein Umbau neue Schluessel
-// einfuehrt. Die sichere Richtung ist AUS.
-const AVESMAPS_COATS_LOCAL_SETTING = 'coats_local_enabled';
-const AVESMAPS_COATS_WIKI_SETTING = 'coats_wiki_enabled';
-
 // The stand-in: an empty shield, 500x500 with transparency, so it stays sharp at every size a coat is
 // drawn in (the map label scales its coat with the zoom).
 // 🔴 Der Platzhalter: das silberne Avesmaps-Wappen (Owner 23.08.2026 -- der alte leere Schild
@@ -58,51 +47,6 @@ const AVESMAPS_COAT_PLACEHOLDER_URL = '/img/wappen.webp';
 require_once __DIR__ . '/app-setting.php';
 // Fuer avesmapsSettlementCoatIsPublic() unten -- der EINE Lizenzkatalog (Phase 1), nicht eine eigene Liste.
 require_once __DIR__ . '/../media-license.php';
-
-/**
- * PUR: Wie steht einer der zwei Herkunfts-Schalter, gegeben die drei Rohwerte?
- *
- * 🔴 DIE ERBSCHAFTSREGEL, und sie steht genau EINMAL da. Es gibt zwei Leser -- den heissen
- * Kartenpfad (avesmapsCoatSchalterFast) und den Editorpfad (avesmapsCoatSchalterStand) --, und
- * zwei Fassungen derselben Regel waeren die Divergenz aus AGENTS.md: der Editor zeigte dann eine
- * Stellung, die die Karte nicht teilt.
- *
- * ⚠️ Fehlt der neue Schluessel, erbt er die STRENGERE der beiden alten Objektart-Stellungen: stand
- * einer davon auf AUS, gilt der neue als AUS. Ein Umbau darf ein gedruecktes Notaus nicht
- * aufheben -- die sichere Richtung ist AUS.
- */
-function avesmapsCoatSchalterAusWerten(string $neu, string $altOrt, string $altTerritorium): bool
-{
-    if (trim($neu) !== '') {
-        return trim($neu) !== '0';
-    }
-
-    return trim($altOrt) !== '0' && trim($altTerritorium) !== '0';
-}
-
-/**
- * Der heisse Leser der zwei Herkunfts-Schalter -- gleiche Bauart wie
- * avesmapsCoatSwitchEnabledFast daneben (kein DDL, memoisiert, fail-open), nur mit der
- * Erbschaftsregel darueber.
- */
-function avesmapsCoatSchalterFast(PDO $pdo, string $schluessel): bool
-{
-    static $memo = [];
-
-    if (array_key_exists($schluessel, $memo)) {
-        return $memo[$schluessel];
-    }
-    try {
-        return $memo[$schluessel] = avesmapsCoatSchalterAusWerten(
-            (string) avesmapsAppSettingGetWithoutDdl($pdo, $schluessel, ''),
-            (string) avesmapsAppSettingGetWithoutDdl($pdo, AVESMAPS_SETTLEMENT_COATS_SETTING, '1'),
-            (string) avesmapsAppSettingGetWithoutDdl($pdo, AVESMAPS_TERRITORY_COATS_SETTING, '1')
-        );
-    } catch (Throwable) {
-        // fail-open wie beim Nachbarn: ein Lesefehler darf die Karte nicht entwappnen.
-        return $memo[$schluessel] = true;
-    }
-}
 
 /**
  * Reads one of the two switches on a PUBLIC read path.
@@ -196,82 +140,6 @@ function avesmapsSetSettlementCoatsEnabled(PDO $pdo, bool $enabled): array
     avesmapsFrontendSchalterRevisionHeben($pdo);
 
     return ['ok' => true, 'coats_enabled' => $enabled];
-}
-
-/**
- * Der Stand EINES der zwei Schalter.
- *
- * ⚠️ Fehlt der neue Schluessel, erbt er den alten Objektart-Schalter -- und zwar die STRENGERE der
- * beiden Stellungen: stand einer der alten auf AUS, gilt der neue als AUS. Ein Umbau darf ein
- * gedruecktes Notaus nicht aufheben.
- */
-function avesmapsCoatSchalterStand(PDO $pdo, string $schluessel): bool
-{
-    // ⭐ Dieselbe reine Regel wie der heisse Leser -- nur mit dem selbstheilenden Getter, weil der
-    // Editorpfad die Tabelle anlegen darf.
-    return avesmapsCoatSchalterAusWerten(
-        (string) avesmapsAppSettingGet($pdo, $schluessel, ''),
-        (string) avesmapsAppSettingGet($pdo, AVESMAPS_SETTLEMENT_COATS_SETTING, '1'),
-        (string) avesmapsAppSettingGet($pdo, AVESMAPS_TERRITORY_COATS_SETTING, '1')
-    );
-}
-
-function avesmapsCoatsLocalEnabled(PDO $pdo): bool
-{
-    return avesmapsCoatSchalterStand($pdo, AVESMAPS_COATS_LOCAL_SETTING);
-}
-
-function avesmapsCoatsWikiEnabled(PDO $pdo): bool
-{
-    return avesmapsCoatSchalterStand($pdo, AVESMAPS_COATS_WIKI_SETTING);
-}
-
-/**
- * Setzt einen der zwei Schalter. `$welcher` ist 'local' oder 'wiki'.
- *
- * 🔴 Schreibt BEIDE alten Schluessel mit, solange sie noch gelesen werden: sonst faellt ein Leser,
- * den dieser Umbau uebersehen hat, auf einen veralteten Stand zurueck und zeigt Wappen, die
- * ausgeschaltet sein sollten. Die alten Schluessel tragen das UND beider neuen Schalter -- also
- * „irgendetwas ist an" nur, wenn beide an sind.
- */
-function avesmapsSetCoatSchalter(PDO $pdo, string $welcher, bool $enabled): array
-{
-    $schluessel = $welcher === 'wiki' ? AVESMAPS_COATS_WIKI_SETTING : AVESMAPS_COATS_LOCAL_SETTING;
-    avesmapsAppSettingSet($pdo, $schluessel, $enabled ? '1' : '0');
-
-    $lokal = avesmapsCoatsLocalEnabled($pdo);
-    $wiki = avesmapsCoatsWikiEnabled($pdo);
-    $beide = $lokal && $wiki ? '1' : '0';
-    avesmapsAppSettingSet($pdo, AVESMAPS_SETTLEMENT_COATS_SETTING, $beide);
-    avesmapsAppSettingSet($pdo, AVESMAPS_TERRITORY_COATS_SETTING, $beide);
-
-    avesmapsFrontendSchalterRevisionHeben($pdo);
-    // 💣 ZWEI Zwischenspeicher, nicht einer. map-features haengt an der Kartenrevision, der
-    // POLITISCHE LAYER an einem eigenen 300-Sekunden-Dateicache -- der alte Territorien-Schalter
-    // raeumte beide, und ein Schalter, der nur den halben Cache raeumt, wirkt fuenf Minuten lang
-    // nur auf der Haelfte der Karte. Genau die Sorte halb greifender Regel, die hier heute schon
-    // zweimal aufgefallen ist.
-    if (function_exists('avesmapsPoliticalInvalidateLayerCache')) {
-        try {
-            avesmapsPoliticalInvalidateLayerCache();
-        } catch (Throwable) {
-            // best effort, wie der Revisionswechsel darueber.
-        }
-    }
-
-    return ['ok' => true, 'coats_local_enabled' => $lokal, 'coats_wiki_enabled' => $wiki];
-}
-
-/**
- * Darf ein Wappen dieser HERKUNFT erscheinen?
- *
- * 💣 Eine unbekannte Herkunft gilt als 'wiki', nicht als 'own': die sichere Richtung. Ein falsch
- * als „von uns" eingestuftes Wiki-Wappen umgeht den Schalter, der aus rechtlichen Gruenden
- * gedrueckt wurde -- andersherum wird nur zu viel versteckt.
- */
-function avesmapsCoatHerkunftErlaubt(string $herkunft, bool $lokalAn, bool $wikiAn): bool
-{
-    return $herkunft === 'own' ? $lokalAn : $wikiAn;
 }
 
 /**

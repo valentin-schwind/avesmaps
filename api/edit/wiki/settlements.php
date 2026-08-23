@@ -106,13 +106,6 @@ try {
             'set_images_enabled' => avesmapsSetSettlementImagesEnabled($pdo, (bool) ($payload['enabled'] ?? true)),
             // Global settlement-COAT kill switch (second ribbon toggle). Same shape as the image one.
             'set_coats_enabled' => avesmapsSetSettlementCoatsEnabled($pdo, (bool) ($payload['enabled'] ?? true)),
-            // 🔴 Die zwei Herkunfts-Schalter (Mockup docs/wappen-verwaltung-mockup.html). Sie gelten
-            // Orten UND Territorien gemeinsam -- derselbe Endpunkt steht im Territorien-Monitor.
-            'set_coat_switch' => avesmapsSetCoatSchalter(
-                $pdo,
-                (string) ($payload['which'] ?? 'local'),
-                (bool) ($payload['enabled'] ?? true)
-            ),
             default => null,
         };
 

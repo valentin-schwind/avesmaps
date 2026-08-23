@@ -75,12 +75,7 @@ require_once __DIR__ . '/../_internal/app/feature-sources.php';
 //    auf AUS, deren warmer Cache traegt also die FALSCHE Nutzlast, und ohne Versionswechsel
 //    bekaemen genau sie die Korrektur nie zu sehen -- der Revisionswechsel am Schalter greift ja
 //    erst beim naechsten Umlegen.
-// 16 (2026-08-23): welcher der zwei Wappen-Schalter greift, entscheidet jetzt die HERKUNFT des
-//    Wappens (eigener Upload / Wiki) statt der Objektart. 💣 Fuer einen Client, dessen Cache noch
-//    unter der alten Achse gefuellt wurde, kann sich der Inhalt aendern, OHNE dass jemand einen
-//    Schalter umlegt -- die Erbschaftsregel wertet einen fehlenden neuen Schluessel aus den alten
-//    aus. Ohne Bump saehe genau er die Umstellung nie.
-const AVESMAPS_MAP_FEATURES_PAYLOAD_VERSION = 16;
+const AVESMAPS_MAP_FEATURES_PAYLOAD_VERSION = 15;
 
 // 🔴 Fix-Runde 6 (15.08.2026): the coat-of-arms staging/model table constants AND the two loader/gate
 // functions that used to sit here (avesmapsLoadSettlementCoatGateInputs, avesmapsSettlementTerritoryCoatUrl)
@@ -174,15 +169,10 @@ try {
     // once here (fail-open), then handed to the two places that emit a coat: the settlement breadcrumb
     // (territory switch) and properties.coat on the settlement itself (settlement switch).
     $mapFeaturesEditMode = trim((string) ($_GET['edit_mode'] ?? '')) === '1';
-    // 🔴 SEIT 23.08.2026 ZWEI SCHALTER NACH HERKUNFT, nicht mehr zwei nach Objektart (Mockup
-    // docs/wappen-verwaltung-mockup.html). Sie gelten Orten UND Territorien gemeinsam: ein Notaus
-    // fuer rechtliche Fragen, der nur die Haelfte abschaltet, ist keiner.
-    // ⚠️ Der Editiermodus hebt beide auf -- ein Editor muss sehen, was er bearbeitet.
-    $coatsLocalEnabled = $mapFeaturesEditMode || avesmapsCoatSchalterFast($pdo, AVESMAPS_COATS_LOCAL_SETTING);
-    $coatsWikiEnabled = $mapFeaturesEditMode || avesmapsCoatSchalterFast($pdo, AVESMAPS_COATS_WIKI_SETTING);
-    // Fuer die Stellen, die (noch) nur wissen wollen „darf ueberhaupt eines erscheinen".
-    $territoryCoatsEnabled = $coatsLocalEnabled || $coatsWikiEnabled;
-    $settlementCoatsEnabled = $territoryCoatsEnabled;
+    $territoryCoatsEnabled = $mapFeaturesEditMode
+        || avesmapsCoatSwitchEnabledFast($pdo, AVESMAPS_TERRITORY_COATS_SETTING);
+    $settlementCoatsEnabled = $mapFeaturesEditMode
+        || avesmapsCoatSwitchEnabledFast($pdo, AVESMAPS_SETTLEMENT_COATS_SETTING);
     $politicalContext = avesmapsLoadSettlementPoliticalContext($pdo, $territoryCoatsEnabled);
     // Global settlement-image kill switch (ribbon toggle in the Siedlungseditor): when OFF, no settlement
     // images reach the frontend at all. Read ONCE here (fail-open) and passed into the feature builder.
@@ -545,15 +535,9 @@ function avesmapsMapFeatureRowToGeoJsonFeature(array $row, array $wikiLocationLi
     // Hausentscheid („leer bleibt leer, sonst der Platzhalter"), und coat-display-test.php wacht
     // ueber sie. Eine nachgebaute Kopie hier haette dieselbe Regel ein zweites Mal behauptet.
     if (is_array($properties['coat'] ?? null)) {
-        // 🔴 Welcher der zwei Schalter gilt, entscheidet die HERKUNFT -- sie steht bei Orten seit
-        // jeher in coat.source ('own' = eigener Upload, sonst Wiki).
         $angezeigt = avesmapsCoatDisplayUrl(
             (string) ($properties['coat']['url'] ?? ''),
-            avesmapsCoatHerkunftErlaubt(
-                (string) ($properties['coat']['source'] ?? ''),
-                $coatsLocalEnabled,
-                $coatsWikiEnabled
-            )
+            $settlementCoatsEnabled
         );
         if ($angezeigt !== (string) ($properties['coat']['url'] ?? '')) {
             $properties['coat'] = ['url' => $angezeigt, 'source' => (string) ($properties['coat']['source'] ?? '')];
@@ -793,18 +777,14 @@ function avesmapsLoadSettlementPoliticalContext(PDO $pdo, bool $territoryCoatsEn
             // Public-domain-gated coat URL (or '' when none/not allowed), mirroring territory-detail.php.
             // The global "Wappen: Aus" switch swaps it for the placeholder afterwards -- one wrap here
             // covers every breadcrumb thumbnail, because the whole "Liegt in" staircase reads byId.
-            // 🔴 Wie beim Ort: die Herkunft entscheidet, welcher der zwei Schalter greift. Sie
-            // kommt aus derselben Aufloesung, die auch die Adresse liefert -- kein Nachraten.
-            'coat_url' => (static function (array $aufgeloest) use ($coatsLocalEnabled, $coatsWikiEnabled): string {
-                return avesmapsCoatDisplayUrl(
-                    $aufgeloest['url'],
-                    avesmapsCoatHerkunftErlaubt($aufgeloest['herkunft'], $coatsLocalEnabled, $coatsWikiEnabled)
-                );
-            })(avesmapsSettlementTerritoryCoat(
-                trim((string) ($row['coat_of_arms_url'] ?? '')),
-                $coatStaging[$wikiKey] ?? [],
-                $coatOverrides[$wikiKey] ?? []
-            )),
+            'coat_url' => avesmapsCoatDisplayUrl(
+                avesmapsSettlementTerritoryCoatUrl(
+                    trim((string) ($row['coat_of_arms_url'] ?? '')),
+                    $coatStaging[$wikiKey] ?? [],
+                    $coatOverrides[$wikiKey] ?? []
+                ),
+                $territoryCoatsEnabled
+            ),
         ];
 
         // Most-current era per wiki_key (highest valid_to_bf) is the canonical node the walk hops through.
