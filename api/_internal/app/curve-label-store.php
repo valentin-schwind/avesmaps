@@ -482,12 +482,16 @@ function avesmapsCurveBuildCachePayload(array $regionen): string
 // Lesepfad haengt zwar nicht mehr an ihr (er prueft die Einstellung), aber die Nutzlast truege sie
 // weiter mit.
 //
-// @return array{ok:bool, gerechnet:bool, bytes:int}
+// ⭐ Die gerechnete Linie kommt MIT heraus, nicht nur ein Erfolgsvermerk: der Aufrufer im Browser
+// haelt sonst weiter den alten Kartenpayload, und der Knopf sieht wirkungslos aus -- genau der
+// Fehler, der am 23.08.2026 dreimal gemeldet wurde.
+//
+// @return array{ok:bool, gerechnet:bool, bytes:int, line:?array, max:int}
 function avesmapsCurveRefreshCacheForRegion(PDO $pdo, string $regionPublicId): array
 {
     $regionPublicId = trim($regionPublicId);
     if ($regionPublicId === '') {
-        return ['ok' => false, 'gerechnet' => false, 'bytes' => 0];
+    return ['ok' => false, 'gerechnet' => false, 'bytes' => 0, 'line' => null, 'max' => 1];
     }
 
     $stmt = $pdo->prepare(
@@ -550,7 +554,13 @@ function avesmapsCurveRefreshCacheForRegion(PDO $pdo, string $regionPublicId): a
     // „nie geschrieben" nicht zu unterscheiden.
     $zurueck = avesmapsAppSettingGetWithoutDdl($pdo, avesmapsCurveCacheKey(), '');
 
-    return ['ok' => $zurueck === $json, 'gerechnet' => $eintrag !== null, 'bytes' => strlen($json)];
+    return [
+        'ok' => $zurueck === $json,
+        'gerechnet' => $eintrag !== null,
+        'bytes' => strlen($json),
+        'line' => is_array($eintrag) ? ($eintrag['line'] ?? null) : null,
+        'max' => is_array($eintrag) ? (int) ($eintrag['max'] ?? 1) : 1,
+    ];
 }
 
 // Der Sammellauf: alle Regionen lesen, rechnen, ablegen, ZURUECKLESEN.

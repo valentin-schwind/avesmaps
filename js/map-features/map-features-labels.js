@@ -966,7 +966,11 @@ function shouldShowLabelMarker(entry, zoomLevel = map.getZoom(), renderBounds = 
 // Zwischenspeicher, den nur der Sammellauf fuellt („Kurven rechnen“ im Landschaften-Editor). Diese
 // Funktion setzt deshalb beim Einschalten nur die ANZAHL; die Kurve selbst erscheint nach dem Lauf.
 // AUSschalten dagegen wirkt sofort -- die Kurve wird entfernt, das Label ist wieder ein normales.
-function avesmapsCurveSettingAufLabelsAnwenden(regionPublicId, an, max) {
+//
+// ⭐ Mit `roheLinie` faellt auch das Einschalten sofort ins Bild: die Aktion `refresh_curve` rechnet
+// die Kurve serverseitig und reicht sie zurueck, statt den Browser auf den naechsten Kartenpayload
+// warten zu lassen.
+function avesmapsCurveSettingAufLabelsAnwenden(regionPublicId, an, max, roheLinie) {
 	const eintraege = avesmapsLabelEntriesForEcosystemRegion(regionPublicId);
 	if (eintraege.length === 0) {
 		return 0;
@@ -974,6 +978,17 @@ function avesmapsCurveSettingAufLabelsAnwenden(regionPublicId, an, max) {
 	for (const eintrag of eintraege) {
 		if (an === false) {
 			eintrag.label.curveLine = null;
+		} else if (roheLinie) {
+			// ⭐ Eine frisch gerechnete Kurve („Kurven aktualisieren" im Flaechenmenue). Gedreht wird mit
+			// DEMSELBEN Leser, mit dem der Kartenpayload gelesen wird -- GeoJSON haelt [x, y], Leaflet
+			// [lat, lng] = [y, x] (AGENTS.md §5). Ein zweiter Dreh-Weg waere die Stelle, an der die
+			// Vorzeichen irgendwann auseinanderlaufen, und das faellt bei N/O/S/W nicht auf.
+			// ⚠️ Nur uebernehmen, wenn der Leser sie annimmt: eine unbrauchbare Linie darf die
+			// vorhandene nicht loeschen -- sonst macht ein Fehlschlag den Namen unsichtbar.
+			const gedreht = readLabelCurveLine({ curve_label_line: roheLinie });
+			if (gedreht) {
+				eintrag.label.curveLine = gedreht;
+			}
 		}
 		if (Number.isFinite(Number(max))) {
 			eintrag.label.curveMax = Math.min(3, Math.max(1, Math.round(Number(max))));

@@ -76,6 +76,12 @@ try {
         // Partial: only the fields actually present in the payload are written, so an update never wipes
         // what the client did not send.
         'update_region' => avesmapsUpdateEcosystemRegion($pdo, $payload, $userId),
+        // „Kurven aktualisieren" im Flaechenmenue (23.08.2026). EIGENE Aktion neben update_region,
+        // weil sie NICHTS an der Region aendert -- sie rechnet nur die abgeleitete Kurve nach, etwa
+        // nachdem jemand die Form veraendert hat. Ueber update_region zu gehen hiesse, dafuer ein
+        // Feld zu erfinden, das gar nicht geschrieben wird.
+        // 🔴 Faehigkeit `edit` wie der ganze Endpunkt -- kein Admin (Owner-Entscheid).
+        'refresh_curve' => avesmapsRefreshEcosystemRegionCurve($pdo, $payload),
         // „Ganz nach vorn" / „ganz nach hinten" (19.08.2026). Eigene Aktion NEBEN update_region und
         // nicht darin: die Bewegung braucht den hoechsten bzw. niedrigsten Rang der EBENE, und den
         // kennt nur der Server -- der Browser sieht bloss den Bildausschnitt. Dieselbe Ueberlegung

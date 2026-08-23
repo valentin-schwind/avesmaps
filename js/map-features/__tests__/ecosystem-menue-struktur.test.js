@@ -124,4 +124,44 @@ assert.ok(
 	'„Fläche löschen" gehört nicht ins Register -- die Gefahren-Regel sortiert es bereits ans Ende.'
 );
 
+// ---- UND JEDER per addEntry ANGEHAENGTE EINTRAG braucht ebenfalls eine Glyphe -----------------
+//
+// 🪤 Die Pruefung darueber liest AREA_MENU_ORDER -- dort stehen aber nur die Eintraege des OBERSTEN
+// Menues. Was in einer Gruppe haengt („Form aendern" usw.), steht dort NICHT und war damit
+// ungedeckt. Aufgefallen beim Eintrag „Kurven aktualisieren" am 23.08.2026.
+// ⚠️ Gelesen wird die QUELLE, nicht eine Liste daneben: ein neuer Eintrag ist damit automatisch
+// erfasst, ohne dass jemand diese Datei kennt.
+const ANGEHAENGT = [...quelle.matchAll(/addEcosystemAreaMenuEntry\(\{\s*action:\s*"([^"]+)"/g)]
+	.map((t) => t[1]);
+assert.ok(ANGEHAENGT.length >= 1, "keine per addEntry angehaengten Eintraege gefunden -- Leseregel pruefen");
+ANGEHAENGT.forEach((aktion) => {
+	assert.ok(
+		hatGlyphe("data-ecosystem-area-action", aktion),
+		`Der angehaengte Eintrag "${aktion}" hat keine Glyphenregel in map-context-menu.css -- `
+			+ "seine Beschriftung beginnt dann bei 12 statt bei 41 px."
+	);
+});
+
+// ---- „Kurven aktualisieren": die Sichtbarkeitsregel ist die EINSTELLUNG, nicht die Kurve --------
+// 💣 Nach einer Formaenderung ist die gerechnete Kurve gerade WEG (ihr Fingerabdruck stimmt nicht
+// mehr) -- und genau dann braucht man den Eintrag. Wer auf `curveLine` prueft, blendet ihn in dem
+// Augenblick aus, in dem er gebraucht wird.
+assert.ok(quelle.includes("function regionHatKurvenbeschriftung("),
+	'die Sichtbarkeitsregel fuer „Kurven aktualisieren" fehlt');
+assert.ok(quelle.includes("zeile.curve_label === true"),
+	"die Sichtbarkeit muss die EINSTELLUNG lesen (curve_label), nicht die gerechnete Kurve");
+const sichtStart = quelle.indexOf("function regionHatKurvenbeschriftung(");
+const sichtEnde = quelle.indexOf("function registerAreaMenuCurveRefreshEntry(");
+assert.ok(sichtEnde > sichtStart, "die zwei Bauteile stehen beieinander");
+assert.ok(!quelle.slice(sichtStart, sichtEnde).includes("curveLine"),
+	"die Sichtbarkeitsregel darf NICHT auf curveLine schauen");
+
+// 🔴 Und sie laeuft ueber `refresh_curve` (Faehigkeit `edit`), NICHT ueber den Sammellauf
+// (curve-labels-run.php, Faehigkeit `admin`). Owner: ein Killer-Vorgang gehoert nicht in die Hand
+// jedes Editors, eine einzelne lokale Bearbeitung schon.
+assert.ok(quelle.includes('postEcosystemEdit("refresh_curve"'),
+	"der Eintrag muss die Einzel-Aktion rufen");
+assert.ok(!quelle.includes("curve-labels-run.php"),
+	"der Eintrag darf NICHT den admin-pflichtigen Sammellauf ausloesen");
+
 console.log("ok - ecosystem-menue-struktur");

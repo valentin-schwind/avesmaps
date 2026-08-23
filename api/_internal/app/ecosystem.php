@@ -2881,6 +2881,46 @@ function avesmapsUpdateEcosystemRegion(PDO $pdo, array $payload, int $userId): a
     return ['region' => avesmapsEcosystemRegionSnapshot($after), 'revision' => $revision];
 }
 
+/**
+ * Die Kurve EINER Region auf Zuruf neu rechnen -- der Handgriff nach einer Formaenderung.
+ *
+ * 🔴 KEINE Admin-Faehigkeit (Owner-Entscheid 23.08.2026, woertlich: „die regel fuer eine einzelne
+ * flaeche ... braucht [kein] admin"). Dieser Endpunkt steht auf `edit`, und das ist hier richtig:
+ * gerechnet wird GENAU EINE Region, die der Editor gerade in der Hand hat. Admin bleibt dem
+ * Sammellauf vorbehalten (api/edit/map/curve-labels-run.php) -- der laeuft ueber ALLE
+ * Beschriftungen und schreibt eine Zeile, die jede Karte liest. „Nur `Kurven rechnen` ... benoetigt
+ * admin privilegien", ebenfalls woertlich.
+ *
+ * ⚠️ Die Geometrie ist zu diesem Zeitpunkt laengst gespeichert; dies rechnet nur die ABGELEITETE
+ * Kurve nach. Scheitert es, bleibt die Flaeche korrekt -- die Kurve holt spaetestens der Sammellauf.
+ *
+ * @return array{public_id:string, gerechnet:bool, ok:bool, revision:int}
+ */
+function avesmapsRefreshEcosystemRegionCurve(PDO $pdo, array $payload): array
+{
+    avesmapsEcosystemEnsureTables($pdo);
+    $publicId = avesmapsEcosystemReadPublicId($payload['public_id'] ?? '', 'public_id');
+    $ergebnis = avesmapsCurveRefreshCacheForRegion($pdo, $publicId);
+
+    // 💣 Der ETag der Karte haengt an dieser Revision (avesmapsClimateReadStamp im Seed von
+    // map-features.php). Ohne den Bump bliebe ein warmer Client per 304 auf der alten Kurve sitzen --
+    // und der Editor haelt den Knopf fuer wirkungslos, obwohl gerechnet wurde.
+    $revision = avesmapsNextEcosystemRevision($pdo);
+
+    return [
+        'public_id' => $publicId,
+        'gerechnet' => (bool) $ergebnis['gerechnet'],
+        'ok' => (bool) $ergebnis['ok'],
+        // ⭐ Die fertige Kurve reist mit -- in DERSELBEN Form wie im Kartenpayload
+        // (`curve_label_line`, Kartenkoordinaten [x, y]). Der Browser dreht sie mit demselben Leser,
+        // mit dem er den Payload liest; ein zweiter Dreh-Weg waere die Stelle, an der Vorzeichen
+        // irgendwann auseinanderlaufen (AGENTS.md §5, Koordinatenkonvention).
+        'curve_label_line' => $ergebnis['line'],
+        'curve_label_max' => (int) $ergebnis['max'],
+        'revision' => $revision,
+    ];
+}
+
 // 🔴 Soft delete, and it takes its areas with it in ONE transaction (house pattern
 // api/_internal/app/game-literature.php:1284-1293). Without the transaction an abort leaves a half-deleted
 // region: the region gone, its areas still active but invisible behind the read's INNER JOIN -- rows

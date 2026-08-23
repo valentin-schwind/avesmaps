@@ -1006,12 +1006,93 @@
 		});
 	}
 
+	// „Kurven aktualisieren" im Untermenue „Form aendern" (Owner 23.08.2026).
+	//
+	// 🔴 SIE GILT DER ANGEKLICKTEN FLAECHE, nicht der ganzen Karte -- und braucht deshalb KEIN Admin.
+	// Der Owner hat die Trennlinie benannt: „ein killer-vorgang [darf] nicht von allen editoren
+	// ausgeloest werden [koennen], aber einzelne lokale bearbeitungen gerne". Der Sammellauf im
+	// Menueband („Kurven rechnen") laeuft ueber ALLE Beschriftungen, dauert rund 12 s und schreibt
+	// eine Zeile, die jede Karte liest -- der bleibt bei `admin`. Dies hier rechnet EINE Region.
+	//
+	// 🔴 SICHTBAR NUR, WO ES ETWAS ZU RECHNEN GIBT -- „fuer alle die ein Kurvenlabel haben".
+	// 💣 Gemessen wird die EINSTELLUNG der Region, nicht die vorhandene Kurve. Nach einer
+	// Formaenderung ist die gerechnete Kurve naemlich gerade WEG (ihr Fingerabdruck stimmt nicht
+	// mehr) -- und genau dann braucht man den Eintrag. Wer auf `curveLine` prueft, blendet ihn in
+	// dem Augenblick aus, in dem er gebraucht wird.
+	function regionHatKurvenbeschriftung(areaPublicId) {
+		const layer = typeof ecosystemLayers !== "undefined" && ecosystemLayers instanceof Map
+			? ecosystemLayers.get(areaPublicId)
+			: null;
+		const regionId = String(layer?._ecosystemArea?.region_public_id || "");
+		if (regionId === "") {
+			return false;
+		}
+		const alle = typeof ecosystemRegionsByKind !== "undefined" && ecosystemRegionsByKind
+			? ecosystemRegionsByKind
+			: {};
+		for (const liste of Object.values(alle)) {
+			if (!Array.isArray(liste)) {
+				continue;
+			}
+			const zeile = liste.find((r) => String(r?.public_id || "") === regionId);
+			if (zeile) {
+				return zeile.curve_label === true;
+			}
+		}
+		return false;
+	}
+
+	function registerAreaMenuCurveRefreshEntry() {
+		addEcosystemAreaMenuEntry({
+			action: "curve-refresh",
+			group: "form",
+			label: label("ecosystem.ctxmenu.curveRefresh", "Kurven aktualisieren"),
+			refresh: (knopf, publicId) => {
+				knopf.hidden = !regionHatKurvenbeschriftung(publicId);
+			},
+			onClick: (publicId) => {
+				const layer = typeof ecosystemLayers !== "undefined" && ecosystemLayers instanceof Map
+					? ecosystemLayers.get(publicId)
+					: null;
+				const regionId = String(layer?._ecosystemArea?.region_public_id || "");
+				if (regionId === "") {
+					say("Diese Fläche gehört zu keiner Region.", "warning");
+					return;
+				}
+				if (typeof postEcosystemEdit !== "function") {
+					say("Der Schreibweg ist nicht bereit.", "warning");
+					return;
+				}
+				say("Kurve wird gerechnet …", "info");
+				postEcosystemEdit("refresh_curve", { public_id: regionId }).then((antwort) => {
+					if (!antwort || antwort.gerechnet !== true) {
+						// ⚠️ „Nicht gerechnet" ist kein Fehler: die Region kann ausgeschaltet sein oder
+						// keine Flaeche mehr haben. Beides sagt der Satz, statt einen Fehlschlag zu melden.
+						say("Für diese Fläche entsteht keine Kurve — ist die Kurvenbeschriftung aus?", "warning");
+						return;
+					}
+					// ⭐ SOFORT INS BILD. Der Kartenpayload wird nach einer Aktion nicht neu geholt; ohne
+					// diesen Schritt aendert sich nichts, und der Knopf sieht wirkungslos aus.
+					if (typeof avesmapsCurveSettingAufLabelsAnwenden === "function") {
+						avesmapsCurveSettingAufLabelsAnwenden(
+							regionId, true, antwort.curve_label_max, antwort.curve_label_line
+						);
+					}
+					say("Kurve aktualisiert.", "success");
+				}).catch((fehler) => {
+					say("Kurve rechnen: " + (fehler && fehler.message ? fehler.message : String(fehler)), "error");
+				});
+			},
+		});
+	}
+
 	function ensureBothMenusNewAreaEntries() {
 		ensureNewAreaMenuEntries();
 		registerAreaMenuNewAreaEntries();
 		// Zusammen mit den uebrigen: wer den Riegel in shouldShowLabelMarker anfasst, muss diesen
 		// Eintrag vorfinden -- er ist der einzige verbliebene Weg zu einem Kurven-Label.
 		registerAreaMenuEditLabelEntry();
+		registerAreaMenuCurveRefreshEntry();
 	}
 
 	if (typeof document !== "undefined") {
