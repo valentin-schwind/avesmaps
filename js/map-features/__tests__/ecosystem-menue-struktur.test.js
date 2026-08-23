@@ -128,7 +128,7 @@ assert.ok(
 //
 // 🪤 Die Pruefung darueber liest AREA_MENU_ORDER -- dort stehen aber nur die Eintraege des OBERSTEN
 // Menues. Was in einer Gruppe haengt („Form aendern" usw.), steht dort NICHT und war damit
-// ungedeckt. Aufgefallen beim Eintrag „Kurven aktualisieren" am 23.08.2026.
+// ungedeckt. Aufgefallen beim Eintrag „Labelkurve aktualisieren" am 23.08.2026.
 // ⚠️ Gelesen wird die QUELLE, nicht eine Liste daneben: ein neuer Eintrag ist damit automatisch
 // erfasst, ohne dass jemand diese Datei kennt.
 const ANGEHAENGT = [...quelle.matchAll(/addEcosystemAreaMenuEntry\(\{\s*action:\s*"([^"]+)"/g)]
@@ -142,12 +142,12 @@ ANGEHAENGT.forEach((aktion) => {
 	);
 });
 
-// ---- „Kurven aktualisieren": die Sichtbarkeitsregel ist die EINSTELLUNG, nicht die Kurve --------
+// ---- „Labelkurve aktualisieren": die Sichtbarkeitsregel ist die EINSTELLUNG, nicht die Kurve --------
 // 💣 Nach einer Formaenderung ist die gerechnete Kurve gerade WEG (ihr Fingerabdruck stimmt nicht
 // mehr) -- und genau dann braucht man den Eintrag. Wer auf `curveLine` prueft, blendet ihn in dem
 // Augenblick aus, in dem er gebraucht wird.
 assert.ok(quelle.includes("function regionHatKurvenbeschriftung("),
-	'die Sichtbarkeitsregel fuer „Kurven aktualisieren" fehlt');
+	'die Sichtbarkeitsregel fuer „Labelkurve aktualisieren" fehlt');
 assert.ok(quelle.includes("zeile.curve_label === true"),
 	"die Sichtbarkeit muss die EINSTELLUNG lesen (curve_label), nicht die gerechnete Kurve");
 const sichtStart = quelle.indexOf("function regionHatKurvenbeschriftung(");

@@ -979,7 +979,7 @@ function avesmapsCurveSettingAufLabelsAnwenden(regionPublicId, an, max, roheLini
 		if (an === false) {
 			eintrag.label.curveLine = null;
 		} else if (roheLinie) {
-			// ⭐ Eine frisch gerechnete Kurve („Kurven aktualisieren" im Flaechenmenue). Gedreht wird mit
+			// ⭐ Eine frisch gerechnete Kurve („Labelkurve aktualisieren" im Flaechenmenue). Gedreht wird mit
 			// DEMSELBEN Leser, mit dem der Kartenpayload gelesen wird -- GeoJSON haelt [x, y], Leaflet
 			// [lat, lng] = [y, x] (AGENTS.md §5). Ein zweiter Dreh-Weg waere die Stelle, an der die
 			// Vorzeichen irgendwann auseinanderlaufen, und das faellt bei N/O/S/W nicht auf.

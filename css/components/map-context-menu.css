@@ -254,7 +254,7 @@
 	content: "\0041";
 }
 
-/* „Kurven aktualisieren" im Untermenue „Form aendern" (23.08.2026). Der Kreispfeil sagt
+/* „Labelkurve aktualisieren" im Untermenue „Form aendern" (23.08.2026). Der Kreispfeil sagt
    „neu rechnen"; er ist im ganzen Menue sonst nicht vergeben.
    💣 Wie bei allen Nachbarn: Pflicht, nicht Zierde -- ohne `content` entsteht das ::before nicht und
    die Zeile beginnt bei 12 statt bei 41 px, also sichtbar aus der Flucht. */

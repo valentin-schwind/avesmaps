@@ -1006,7 +1006,7 @@
 		});
 	}
 
-	// „Kurven aktualisieren" im Untermenue „Form aendern" (Owner 23.08.2026).
+	// „Labelkurve aktualisieren" im Untermenue „Form aendern" (Owner 23.08.2026).
 	//
 	// 🔴 SIE GILT DER ANGEKLICKTEN FLAECHE, nicht der ganzen Karte -- und braucht deshalb KEIN Admin.
 	// Der Owner hat die Trennlinie benannt: „ein killer-vorgang [darf] nicht von allen editoren
@@ -1046,7 +1046,7 @@
 		addEcosystemAreaMenuEntry({
 			action: "curve-refresh",
 			group: "form",
-			label: label("ecosystem.ctxmenu.curveRefresh", "Kurven aktualisieren"),
+			label: label("ecosystem.ctxmenu.curveRefresh", "Labelkurve aktualisieren"),
 			refresh: (knopf, publicId) => {
 				knopf.hidden = !regionHatKurvenbeschriftung(publicId);
 			},
