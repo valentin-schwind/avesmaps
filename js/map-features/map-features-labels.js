@@ -393,11 +393,22 @@ function createLabelIcon(label) {
 	});
 }
 
+// Wachstum je Zoomstufe OBERHALB des Visual-Zoom-Deckels. Eine Konstante und kein Literal in der
+// Formel: sie ist der Wert, an dem der Owner drehen wird, wenn ihm „etwas groesser" zu wenig ist.
+const LABEL_SIZE_DEEP_ZOOM_STEP = 0.08;
+
 function getScaledLabelSize(label) {
 	const baseSize = Math.max(10, Math.min(56, Number(label.size) || 18));
 	const visualZoomLevel = getVisualZoomLevel(map.getZoom());
 	const zoomRatio = Math.max(0, Math.min(1, visualZoomLevel / VISUAL_MAX_ZOOM_LEVEL));
-	return Math.round(baseSize * (0.5 + zoomRatio * 0.5));
+	// 🔴 UEBER ZOOM 5 WAECHST DIE SCHRIFT WEITER (Owner 23.08.2026: „nach unten hin etwas groessere
+	// schriftart"). Der Visual-Zoom klemmt bei VISUAL_MAX_ZOOM_LEVEL = 5; ohne diesen Zusatz sind die
+	// Stufen 5, 6 und 7 fuer Labels ununterscheidbar, und beim Reinzoomen wirkt der Name gegenueber
+	// der wachsenden Karte immer kleiner. Gemessen vorher: 14 / 16 / 18 / 20 / 20 / 20 (Zoom 2..7).
+	// ⚠️ „Etwas": 8 % je Stufe, also hoechstens +17 % bei Zoom 7 (aus 20 wird 22 und 23). Bewusst
+	// KEIN zweiter Skalenbruch -- unterhalb von Zoom 5 aendert sich nichts.
+	const ueberVisual = Math.max(0, Math.min(2, map.getZoom() - VISUAL_MAX_ZOOM_LEVEL));
+	return Math.round(baseSize * (0.5 + zoomRatio * 0.5) * (1 + ueberVisual * LABEL_SIZE_DEEP_ZOOM_STEP));
 }
 
 function labelHasWikiRegion(label) {

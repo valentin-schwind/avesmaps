@@ -433,7 +433,18 @@ function avesmapsCurveLabelFit(punkte, zeichen, breiten, schriftgroesse, anzahl)
 			gewaehlt = kandidaten;
 			break;
 		}
-		if (kandidaten.every((k) => k.passtRoh) && !curveLabelWindowsCollide(kandidaten, tafel.minGapEm)) {
+		// 🔴 ALLE KOPIEN EINES NAMENS TRAGEN DIESELBE GROESSE (Owner 23.08.2026: „ich moechte dass die
+		// gleich gross sind", ausdruecklich gegen seine fruehere Angabe). Reicht der Platz dafuer
+		// nicht, faellt lieber eine Kopie weg, als dass eine schrumpft -- ebenfalls sein Entscheid:
+		// „lieber EINE Kopie als zwei ungleiche".
+		// 💣 `passtRoh` ALLEIN GENUEGT NICHT, und genau daran lag der gemeldete Fehler: es misst den
+		// ABSCHNITT, bevor die Beruhigung den Bogen zur Sehne hin kuerzt. Danach kann ein Fenster
+		// trotzdem schrumpfen. Live gemessen an der Schwarzen Sichel (Anzahl 2): bei Zoom 2 standen
+		// die zwei Kopien auf 8 px und 14 px, bei Zoom 3 auf 8 px und 16 px -- sichtbar ungleich.
+		// ⚠️ Fuer n === 1 gilt das NICHT (der Zweig darueber): ein einzelner Name darf schrumpfen,
+		// sonst verschwaende er ganz -- §4.4 verbietet nur das Abschneiden, nicht das Verkleinern.
+		if (kandidaten.every((k) => k.passtRoh && !k.geschrumpft)
+			&& !curveLabelWindowsCollide(kandidaten, tafel.minGapEm)) {
 			gewaehlt = kandidaten;
 			break;
 		}

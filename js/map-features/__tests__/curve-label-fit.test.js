@@ -179,4 +179,60 @@ assert.strictEqual(avesmapsCurveLabelFit(lang, zeichen, breiten.slice(1), 12, 1)
   "so viele Breiten wie Zeichen, sonst rechnet die Passung mit einem anderen Wort");
 assert.strictEqual(avesmapsCurveLabelFit(lang, zeichen, breiten, 0, 1), null, "ohne Schriftgroesse kein Fenster");
 
+// --- ALLE KOPIEN GLEICH GROSS (Owner 23.08.2026) -----------------------------------------------
+// 🔴 „ich moechte dass die gleich gross sind" -- ausdruecklich gegen seine fruehere Angabe. Und wenn
+// der Platz fuer zwei gleich grosse nicht reicht: „lieber EINE Kopie als zwei ungleiche".
+//
+// 💣 DER FEHLER, DEN DAS ABFAENGT: `passtRoh` misst den ABSCHNITT, bevor die Beruhigung den Bogen
+// zur Sehne hin kuerzt -- danach kann ein Fenster trotzdem schrumpfen. Live gemessen an der
+// Schwarzen Sichel (Anzahl 2): bei Zoom 2 standen die zwei Kopien auf 8 px und 14 px, bei Zoom 3
+// auf 8 px und 16 px. Sichtbar ungleich, und genau so gemeldet.
+{
+	// 🔴 DIE ECHTE KURVE DES GEMELDETEN FALLS -- am 23.08.2026 live aus dem Browser genommen
+	// (Schwarze Sichel, Zoom 3, Grundgroesse 16, Breiten mit der echten Schrift gemessen).
+	// ⚠️ Eine erfundene Fixture taugte hier NICHT: Kreisboegen loesen den Fehler nicht aus, weil die
+	// Beruhigung mit ihnen gut zurechtkommt. Diese Kurve LAEUFT IN SICH ZURUECK (Punkt 8 -> 9 springt
+	// um 26 px zurueck), und genau daran kuerzt die Beruhigung so stark, dass ein Fenster schrumpft,
+	// obwohl `passtRoh` fuer beide galt. Gegengeprueft: mit der alten Bedingung liefert sie
+	// 2 Fenster mit 8 px und 16 px, mit der neuen 1 Fenster mit 16 px.
+	const echt = [[0,0],[10,-21],[22,-49],[35,-83],[42,-119],[41,-155],[31,-190],[11,-221],[-10,-243],
+		[14,-217],[14,-217],[33,-186],[42,-151],[41,-114],[33,-79],[21,-45],[6,-11],[-10,21],[-25,55],
+		[-38,89],[-46,124],[-47,161],[-38,196],[-20,227],[4,254],[22,269],[52,290],[84,308],[117,323],
+		[103,317],[76,303],[44,285]].map(([x, y]) => ({x, y}));
+	const echtZeichen = "SCHWARZE SICHEL".split("");
+	const echtBreiten = [9.31, 11.95, 12.43, 19.12, 12.9, 10.56, 11.38, 10.1, 3.84, 9.31, 4.74, 11.95,
+		12.43, 10.1, 9.2];
+	const pEcht = avesmapsCurveLabelFit(echt, echtZeichen, echtBreiten, 16, 2);
+	assert.ok(pEcht, "die echte Kurve muss wenigstens EIN Fenster hergeben");
+	assert.strictEqual(pEcht.fenster.length, 1,
+		"auf dieser Kurve passen keine zwei GLEICH grossen Namen -- dann lieber einer");
+	assert.strictEqual(pEcht.fenster[0].fontSize, 16,
+		"und der eine traegt die volle Groesse, nicht die 8 px der geschrumpften Kopie");
+
+	// Gerade so lang, dass ZWEI Namen nur mit Schrumpfen hineinpassen.
+	const knapp = [{x: 0, y: 100}, {x: 330, y: 100}];
+	const p2 = avesmapsCurveLabelFit(knapp, zeichen, breiten, 12, 2);
+	assert.ok(p2, "auf 330 px muss wenigstens EIN Name passen");
+	assert.strictEqual(p2.fenster.length, 1,
+		"bei knappem Platz faellt eine Kopie weg -- statt zwei ungleich grosse zu zeichnen");
+
+	// Und wo zwei bequem passen, tragen sie DIESELBE Groesse.
+	const weit = [{x: 0, y: 100}, {x: 2400, y: 100}];
+	const p3 = avesmapsCurveLabelFit(weit, zeichen, breiten, 12, 2);
+	assert.ok(p3 && p3.fenster.length === 2, "auf 2400 px muessen zwei Namen passen");
+	const groessen = p3.fenster.map((f) => f.fontSize);
+	assert.strictEqual(new Set(groessen).size, 1,
+		"zwei Kopien desselben Namens muessen dieselbe Schriftgroesse tragen, gemessen: " + groessen.join(" / "));
+	assert.strictEqual(groessen[0], 12, "und zwar die volle -- keine von beiden darf geschrumpft sein");
+}
+
+// ⚠️ Ein EINZELNER Name darf weiterhin schrumpfen: §4.4 verbietet das Abschneiden, nicht das
+// Verkleinern. Ohne diese Ausnahme verschwaende ein zu langer Name auf kurzer Kurve ganz.
+{
+	const winzig = [{x: 0, y: 100}, {x: 90, y: 100}];
+	const p1 = avesmapsCurveLabelFit(winzig, zeichen, breiten, 12, 1);
+	assert.ok(p1 && p1.fenster.length === 1, "ein einzelner Name muss auch auf 90 px noch entstehen");
+	assert.ok(p1.fenster[0].fontSize < 12, "und er darf dafuer kleiner werden");
+}
+
 console.log("curve-label-fit: alle Zusicherungen erfuellt");
