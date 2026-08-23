@@ -18,6 +18,7 @@ require __DIR__ . '/../_internal/bootstrap.php';
 // Fatal Error waere dann die Antwort dieses Endpunkts -- und wichtiger: ein Proxy OHNE
 // Drossel ist genau der Zustand, der uns die Wiki-Sperre eingebracht hat. Fehlt sie, geht
 // darum gar nichts mehr nach draussen (siehe unten).
+require_once __DIR__ . '/../_internal/wiki/datei-riegel.php';
 $avesmapsCoatDrosselLib = __DIR__ . '/../_internal/coat-drossel.php';
 if (is_file($avesmapsCoatDrosselLib)) {
     require $avesmapsCoatDrosselLib;
@@ -80,6 +81,10 @@ function avesmapsCoatExtFromType(string $contentType, string $url): ?string {
 
 // Laedt eine Bild-URL serverseitig (cURL, folgt Redirects, nur HTTP/HTTPS). [bytes, content_type] oder [null, ''].
 function avesmapsCoatFetch(string $url): array {
+    // 🔴 DER RIEGEL. Owner 23.08.2026: keine Datei-Abrufe mehr bei Wiki Aventurica.
+    if (function_exists('avesmapsWikiDateiAbrufErlaubt') && !avesmapsWikiDateiAbrufErlaubt($url)) {
+        return [null, ''];
+    }
     if (!function_exists('curl_init')) {
         return [null, ''];
     }

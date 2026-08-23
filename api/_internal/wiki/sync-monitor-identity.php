@@ -35,6 +35,13 @@ function avesmapsWikiSyncMonitorIsBfField(string $fieldKey): bool {
 
 // Laedt eine Bild-URL serverseitig (cURL, folgt Redirects). Gibt [bytes, content_type] oder null.
 function avesmapsWikiSyncMonitorHttpGetBinary(string $url): ?array {
+    // 🔴 DER RIEGEL. Diese eine Funktion traegt VIER Aufrufer -- Territoriums-Wappen, Wappen-Upload,
+    // „Wappen lokalisieren" und die Literatur-Cover. Hier zu fragen bindet alle vier auf einmal;
+    // eine Sperre in nur einem Aufrufer waere keine Sperre (die Lehre vom 14.08.2026).
+    require_once __DIR__ . '/datei-riegel.php';
+    if (!avesmapsWikiDateiAbrufErlaubt($url)) {
+        return null;
+    }
     if (function_exists('curl_init')) {
         $ch = curl_init($url);
         curl_setopt_array($ch, [

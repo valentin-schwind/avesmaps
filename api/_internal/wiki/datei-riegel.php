@@ -1,0 +1,69 @@
+<?php
+
+declare(strict_types=1);
+
+/**
+ * DER RIEGEL VOR JEDEM DATEI-ABRUF BEI WIKI AVENTURICA.
+ *
+ * 🔴 Owner-Entscheid 23.08.2026, woertlich: „ich moechte, dass du alle file requests an die wiki
+ * aventurica einstellst." Vorgeschichte: der Betreiber hat unsere Ausgangs-IP am 20.08. gesperrt,
+ * der Owner hat um Entsperrung gebeten -- und zwei Tage spaeter lief der Wappen-Proxy erneut gegen
+ * `Spezial:Dateipfad`, die Spezialseite, die uns die robots.txt des Wikis verbietet. Es geht ab
+ * hier KEINE Bilddatei mehr raus.
+ *
+ * 💣 ES GIBT GENAU ZWEI FETCHER, UND BEIDE FRAGEN HIER (am Livebestand gemessen, 23.08.2026):
+ *
+ *   avesmapsCoatFetch                    -- api/app/coat.php (der oeffentliche Wappen-Proxy)
+ *   avesmapsWikiSyncMonitorHttpGetBinary -- api/_internal/wiki/sync-monitor-identity.php,
+ *                                           mit VIER Aufrufern: Territoriums-Wappen (:183),
+ *                                           Wappen-Upload (:356), „Wappen lokalisieren"
+ *                                           (settlements-coat-localize.php:198) und die
+ *                                           Literatur-Cover (game-literature-sync.php:522).
+ *
+ * ⚠️ Die Zahl steht hier BEWUSST nicht als „2 von 2" im Kommentar: genau so eine Zahl hat am
+ * 14.08.2026 die Suche nach weiteren Erzeugern beendet, obwohl es vier waren. Wer einen neuen
+ * ausgehenden Abruf baut, verlaesst sich nicht auf diese Liste, sondern auf den Scanner in
+ * `api/_internal/wiki/__tests__/datei-riegel-test.php` -- der laeuft ueber das ganze Repo.
+ *
+ * 🔴 BEWUSST NICHT ERFASST, beides mit Grund:
+ *   - `sync.php` spricht die MediaWiki-**API** (`api.php`), keine Datei. Der Betreiber hat sie nie
+ *     beanstandet, sie ist gedrosselt (0,6-0,85 s, 50 Titel je Anfrage) und war laut seiner eigenen
+ *     Auskunft nicht der Verursacher.
+ *   - `dump-fetch.php` holt den XML-Dump. Das ist EIN Abruf auf ausdrueckliche Editor-Aktion und
+ *     genau der Weg, den die Dump-Policy dem Crawlen vorzieht -- ihn zu sperren erzeugte mehr
+ *     Wiki-Verkehr, nicht weniger.
+ *   Soll eines davon doch fallen, ist das je eine Zeile am Anfang der betreffenden Funktion.
+ */
+
+// 🔴 DER SCHALTER. `false` = es geht keine Datei mehr ans Wiki. Bewusst eine Code-Konstante und
+// KEINE Zeile in `app_setting`: ein DB-Schalter kann leer laufen, stumm gekuerzt werden oder beim
+// Lesen scheitern und faellt dann auf seinen Code-Standard zurueck -- und genau dieser Fehlerfall
+// hat hier die teuerste Richtung. Wer wieder aufmacht, aendert diese Zeile und sieht es im Diff.
+const AVESMAPS_WIKI_DATEI_ABRUF_ERLAUBT = false;
+
+/**
+ * PUR: wird diese URL von wiki-aventurica selbst ausgeliefert?
+ *
+ * 💣 Kein `stripos($host, 'wiki-aventurica.de')` -- das nimmt auch
+ * `wiki-aventurica.de.angreifer.example` an. Geprueft wird der HOST auf Suffix-Grenze, dieselbe
+ * Form wie in `avesmapsWikiSettlementCoatUrlIsWikiHost`.
+ */
+function avesmapsWikiDateiIstWikiHost(string $url): bool {
+    $host = strtolower((string) parse_url(trim($url), PHP_URL_HOST));
+    if ($host === '') {
+        return false;
+    }
+    return preg_match('/(^|\.)wiki-aventurica\.de$/', $host) === 1;
+}
+
+/**
+ * DIE EINE FRAGE VOR JEDEM AUSGEHENDEN DATEI-ABRUF: darf diese URL geholt werden?
+ *
+ * Fremde Hosts bleiben unberuehrt -- der Riegel gilt dem Wiki, nicht dem Internet.
+ */
+function avesmapsWikiDateiAbrufErlaubt(string $url): bool {
+    if (!avesmapsWikiDateiIstWikiHost($url)) {
+        return true;
+    }
+    return AVESMAPS_WIKI_DATEI_ABRUF_ERLAUBT;
+}
