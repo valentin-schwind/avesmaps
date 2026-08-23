@@ -136,10 +136,14 @@
    (23.08.2026). Wer eine Rezeptur abschreibt, muss ihren WIRT mitpruefen. */
 .rb-menu { position: relative; display: flex; }
 .rb-menu > .btn2 { flex: 1 1 auto; width: 100%; }
+/* Der Sammelknopf traegt den Akzentrand des Mockups -- er ist das einzige Element im Band, das ein
+   Menue oeffnet, und das darf man ihm ansehen. */
+.rb-menu > .btn2[aria-haspopup] { border-color: var(--color-link); }
 .rb-menu__panel {
 	left: 0;
 	right: auto;
-	min-width: 300px;
+	width: 320px;
+	min-width: 320px;
 	padding: var(--space-4);
 }
 .rb-menu__row {
@@ -162,7 +166,7 @@
 	flex: 0 0 auto;
 	min-width: 62px;
 	min-height: 26px;
-	padding: 0 var(--space-8);
+	padding: 2px var(--space-8);
 	font: inherit;
 	font-size: var(--font-size-caption);
 	font-weight: var(--font-weight-bold);
@@ -175,13 +179,22 @@
 }
 .rb-menu__sw:hover { background: var(--color-button-soft-hover); }
 .rb-menu__sw[disabled] { opacity: .55; cursor: default; }
-/* 🔴 Der EINGESCHALTETE Zustand ist gefuellt -- er ist eine Aussage ueber das oeffentliche
-   Frontend, kein Angebot. Ausgeschaltet bleibt weich: das ist der Notaus-Stand, und der soll
-   auffallen, indem er sich vom Rest UNTERSCHEIDET. */
-.rb-menu__sw[aria-pressed="true"] {
-	color: var(--color-button-text);
-	background: var(--color-button);
-	border-color: var(--color-button-border);
+/* 🔴 DIE ZWEI SCHALTER SIND ZUSTANDSANZEIGEN, KEINE HANDLUNGEN -- deshalb die Pillenform aus dem
+   Mockup (abgenommen 23.08.2026) und ein FARBRAND statt einer Fuellung: AN gruen, AUS in der
+   Warnfarbe. Der Notaus-Stand soll auffallen, indem er sich unterscheidet.
+   ⚠️ Die Pille ist die begruendete Ausnahme zu „no pill shapes" (AGENTS.md §12): jene Regel gilt
+   Knoepfen, die etwas AUSLOESEN. Die drei Zeilenknoepfe daneben („starten") bleiben eckig, und
+   genau dieser Unterschied trennt Zustand von Handlung.
+   ⚠️ Tokens, keine Hexwerte -- das Mockup schreibt #7d8f4a/#cfe08e direkt hin, was im hellen Thema
+   nicht traegt. --color-success-soft-* und --color-warning-soft-* sind in beiden Themen definiert. */
+.rb-menu__sw--state { border-radius: 999px; min-width: 52px; }
+.rb-menu__sw--state[aria-pressed="true"] {
+	border-color: var(--color-success-soft-border);
+	color: var(--color-success-soft-text);
+}
+.rb-menu__sw--state[aria-pressed="false"] {
+	border-color: var(--color-warning-soft-border);
+	color: var(--color-warning-soft-text);
 }
 .type-filter__opt {
 	display: flex;

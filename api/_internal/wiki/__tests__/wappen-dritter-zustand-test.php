@@ -82,9 +82,15 @@ foreach ([
 // 💣 Es genuegt nicht, properties.coat zu entfernen: der Leser faellt sonst auf
 // wiki_settlement.wappen_url zurueck und zeigt doch wieder das Wiki-Wappen. Genau dieser Rueckfall
 // ist der Grund, warum der Schalter „Wappen: Aus" das Problem verschlimmert hat.
-$posNone = strpos($mapFeatures, "coat_none");
+// 🪤 KOMMENTARE RAUS, BEVOR GESUCHT WIRD. Ein neuer Erklaerblock nannte `coat_none` und stand vor
+// dem echten Zweig -- strpos traf den Kommentar und mass danach das falsche Fenster. Genau diese
+// Fehlerklasse ist im Haus schon mehrfach aufgetreten; sie kostet jedes Mal die Suche nach einer
+// Regression, die es nicht gibt.
+$mfCode = (string) preg_replace('#^\s*//.*$#m', '',
+    (string) preg_replace('#/\*.*?\*/#s', '', $mapFeatures));
+$posNone = strpos($mfCode, "coat_none");
 assert($posNone !== false, 'map-features.php kennt coat_none');
-$fenster = substr($mapFeatures, $posNone, 500);
+$fenster = substr($mfCode, $posNone, 500);
 assert(strpos($fenster, "unset(\$properties['coat'])") !== false,
     'die Ausgabe entfernt das eigene Wappen');
 // 💣 Die GENAUE Zuweisung, nicht das Wort: das Fenster reicht bis in den foreach-Block darunter,
@@ -97,13 +103,23 @@ assert(strpos($fenster, "\$properties['wiki_settlement']['wappen_url'] = ''") !=
 // ⭐ avesmapsResolveGatedCoatUrl entscheidet mit array_key_exists: ein Override, der DA ist und
 // leer, heisst schon immer „bewusst kein Wappen" (kein Fall-through auf den Wiki-Stand). Diese
 // Zusicherung haelt fest, dass der neue Knopf sich darauf verlassen darf.
-$coatUrl = $lies('api/_internal/coat-url.php');
-$resolve = $rumpf($coatUrl, 'avesmapsResolveGatedCoatUrl');
-assert(strpos($resolve, "array_key_exists('coat_of_arms_url', \$override)") !== false,
-    'der Territoriums-Resolver entscheidet ueber array_key_exists, nicht ueber "leer oder nicht" -- '
-    . 'darauf setzt der Entfernen-Knopf im Monitor auf');
-assert(strpos($resolve, "if (\$url === ''") !== false,
-    'und ein leerer Wert liefert wirklich kein Wappen, statt auf den Wiki-Stand zu fallen');
+// 🪤 Diese Zusicherung las bis zum 23.08.2026 den RUMPF von avesmapsResolveGatedCoatUrl und suchte
+// dort nach `array_key_exists`. Beim Umbau auf die zwei Herkunfts-Schalter wurde jene Funktion ein
+// duenner Wrapper um avesmapsResolveGatedCoat -- der Test brach, obwohl das VERHALTEN unveraendert
+// war. Deshalb misst er jetzt das Verhalten statt den Quelltext: das ueberlebt den naechsten Umbau,
+// und es ist ohnehin die Aussage, auf die sich der Knopf verlaesst.
+require_once dirname(__DIR__, 3) . '/_internal/coat-url.php';
+$pdTest = 'public_domain';
+
+// Ein Override, der DA ist und LEER: heisst „bewusst kein Wappen" -- kein Rueckfall auf das Wiki.
+assert(avesmapsResolveGatedCoatUrl(['coat_of_arms_url' => ''], '', 'https://wiki/w.png', $pdTest) === '',
+    'DER KERN VON TEIL 5: ein leerer Override heisst „kein Wappen" und faellt NICHT auf den '
+    . 'Wiki-Stand zurueck -- darauf setzt der Entfernen-Knopf im Monitor auf');
+
+// Und OHNE Override greift der Wiki-Stand ganz normal -- sonst waere die Zusicherung darueber
+// trivial erfuellt (jede Antwort waere leer).
+assert(avesmapsResolveGatedCoatUrl([], '', 'https://wiki/w.png', $pdTest) !== '',
+    'ohne Override liefert der Wiki-Stand weiterhin ein Wappen');
 
 // ---- 6. Beide Oberflaechen haben den Knopf, und beide verlangen eine Bestaetigung --------------
 $editor  = $lies('html/wiki-sync-settlement-editor.html');

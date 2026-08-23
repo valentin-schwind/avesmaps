@@ -67,18 +67,47 @@ function avesmapsCoatUrlCacheBust(string $url): string {
  * URL is cache-busted (?v=<mtime>) exactly like every other local upload.
  */
 function avesmapsResolveGatedCoatUrl(array $override, string $ownUrl, string $stagingUrl, string $stagingLicense): string {
+    return avesmapsResolveGatedCoat($override, $ownUrl, $stagingUrl, $stagingLicense)['url'];
+}
+
+/**
+ * Dieselbe Aufloesung, aber sie sagt auch, WOHER das Wappen kommt.
+ *
+ * 🔴 Die zwei Frontend-Schalter („Lokale Wappen" / „Wiki-Wappen", Mockup
+ * docs/wappen-verwaltung-mockup.html) unterscheiden nach Herkunft -- und die ist genau HIER
+ * bekannt, weil diese Funktion zwischen den drei Quellen waehlt. Eine zweite Stelle, die sie
+ * nachtraeglich errrät, waere die zweite Wahrheit aus AGENTS.md §5.
+ *
+ * ⚠️ `avesmapsResolveGatedCoatUrl` ist seither ein duenner Wrapper darauf -- die Regel steht
+ * einmal, und die vier bestehenden Leser aendern ihre Aufrufe nicht.
+ *
+ * @return array{url:string,herkunft:string}  herkunft: 'own' (von uns) | 'wiki' | '' (kein Wappen)
+ */
+function avesmapsResolveGatedCoat(array $override, string $ownUrl, string $stagingUrl, string $stagingLicense): array {
     $license = array_key_exists('coat_of_arms_license_status', $override)
         ? trim((string) $override['coat_of_arms_license_status'])
         : trim($stagingLicense);
     $ownUrl = trim($ownUrl);
-    $url = array_key_exists('coat_of_arms_url', $override)
-        ? trim((string) $override['coat_of_arms_url'])
-        : ($ownUrl !== '' ? $ownUrl : trim($stagingUrl));
-    if ($url === '' || !avesmapsMediaLicenseIsPublic($license)) {
-        return '';
+
+    // 💣 Die Reihenfolge IST die Herkunft: ein Override ist eine Entscheidung von uns, ein eigener
+    // Upload auch -- erst danach kommt der Wiki-Stand. Wer hier umsortiert, dreht die Bedeutung
+    // beider Schalter um.
+    if (array_key_exists('coat_of_arms_url', $override)) {
+        $url = trim((string) $override['coat_of_arms_url']);
+        $herkunft = 'own';
+    } elseif ($ownUrl !== '') {
+        $url = $ownUrl;
+        $herkunft = 'own';
+    } else {
+        $url = trim($stagingUrl);
+        $herkunft = 'wiki';
     }
 
-    return avesmapsCoatUrlCacheBust($url);
+    if ($url === '' || !avesmapsMediaLicenseIsPublic($license)) {
+        return ['url' => '', 'herkunft' => ''];
+    }
+
+    return ['url' => avesmapsCoatUrlCacheBust($url), 'herkunft' => $herkunft];
 }
 
 // Coat-of-arms staging + model tables the gate above consults. These MIRROR the constants of
@@ -264,7 +293,16 @@ function avesmapsLoadSettlementCoatGateInputsByKeys(PDO $pdo, array $wikiKeys): 
 // call site) so callers pass the raw $stagingRow shape avesmapsLoadSettlementCoatGateInputs() returns,
 // instead of each re-deriving the same two array reads.
 function avesmapsSettlementTerritoryCoatUrl(string $ptCoatUrl, array $stagingRow, array $overrides): string {
-    return avesmapsResolveGatedCoatUrl(
+    return avesmapsSettlementTerritoryCoat($ptCoatUrl, $stagingRow, $overrides)['url'];
+}
+
+/**
+ * Dasselbe mit Herkunft -- fuer die zwei Frontend-Schalter. Wrapper wie oben: EINE Regel.
+ *
+ * @return array{url:string,herkunft:string}
+ */
+function avesmapsSettlementTerritoryCoat(string $ptCoatUrl, array $stagingRow, array $overrides): array {
+    return avesmapsResolveGatedCoat(
         $overrides,
         $ptCoatUrl,
         (string) ($stagingRow['coat_of_arms_url'] ?? ''),

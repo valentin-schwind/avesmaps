@@ -75,7 +75,12 @@ require_once __DIR__ . '/../_internal/app/feature-sources.php';
 //    auf AUS, deren warmer Cache traegt also die FALSCHE Nutzlast, und ohne Versionswechsel
 //    bekaemen genau sie die Korrektur nie zu sehen -- der Revisionswechsel am Schalter greift ja
 //    erst beim naechsten Umlegen.
-const AVESMAPS_MAP_FEATURES_PAYLOAD_VERSION = 15;
+// 16 (2026-08-23): welcher der zwei Wappen-Schalter greift, entscheidet jetzt die HERKUNFT des
+//    Wappens (eigener Upload / Wiki) statt der Objektart. 💣 Fuer einen Client, dessen Cache noch
+//    unter der alten Achse gefuellt wurde, kann sich der Inhalt aendern, OHNE dass jemand einen
+//    Schalter umlegt -- die Erbschaftsregel wertet einen fehlenden neuen Schluessel aus den alten
+//    aus. Ohne Bump saehe genau er die Umstellung nie.
+const AVESMAPS_MAP_FEATURES_PAYLOAD_VERSION = 16;
 
 // 🔴 Fix-Runde 6 (15.08.2026): the coat-of-arms staging/model table constants AND the two loader/gate
 // functions that used to sit here (avesmapsLoadSettlementCoatGateInputs, avesmapsSettlementTerritoryCoatUrl)
@@ -210,11 +215,18 @@ try {
     // once here (fail-open), then handed to the two places that emit a coat: the settlement breadcrumb
     // (territory switch) and properties.coat on the settlement itself (settlement switch).
     $mapFeaturesEditMode = trim((string) ($_GET['edit_mode'] ?? '')) === '1';
-    $territoryCoatsEnabled = $mapFeaturesEditMode
-        || avesmapsCoatSwitchEnabledFast($pdo, AVESMAPS_TERRITORY_COATS_SETTING);
-    $settlementCoatsEnabled = $mapFeaturesEditMode
-        || avesmapsCoatSwitchEnabledFast($pdo, AVESMAPS_SETTLEMENT_COATS_SETTING);
-    $politicalContext = avesmapsLoadSettlementPoliticalContext($pdo, $territoryCoatsEnabled);
+    // 🔴 SEIT 23.08.2026 ZWEI SCHALTER NACH HERKUNFT, nicht mehr zwei nach Objektart (Mockup
+    // docs/wappen-verwaltung-mockup.html). Sie gelten Orten UND Territorien gemeinsam: ein Notaus
+    // fuer rechtliche Fragen, der nur die Haelfte abschaltet, ist keiner.
+    // ⚠️ Der Editiermodus hebt beide auf -- ein Editor muss sehen, was er bearbeitet.
+    $coatsLocalEnabled = $mapFeaturesEditMode || avesmapsCoatSchalterFast($pdo, AVESMAPS_COATS_LOCAL_SETTING);
+    $coatsWikiEnabled = $mapFeaturesEditMode || avesmapsCoatSchalterFast($pdo, AVESMAPS_COATS_WIKI_SETTING);
+    // Fuer die Stellen, die (noch) nur wissen wollen „darf ueberhaupt eines erscheinen".
+    // ⚠️ Hier stand bis zum 23.08.2026 eine Oder-Verknuepfung beider Schalter fuer die Stellen, die
+    // nur „darf ueberhaupt eines erscheinen" fragen. Sie ist WEG, weil ihre Leser Funktionen sind
+    // und die Verknuepfung dort lokal gebildet wird -- eine Variable im Hauptskript, die eine
+    // Funktion zu lesen scheint, ist genau die Falle, an der die Karte 35 Minuten tot lag.
+    $politicalContext = avesmapsLoadSettlementPoliticalContext($pdo, $coatsLocalEnabled, $coatsWikiEnabled);
     // Global settlement-image kill switch (ribbon toggle in the Siedlungseditor): when OFF, no settlement
     // images reach the frontend at all. Read ONCE here (fail-open) and passed into the feature builder.
     $settlementImagesEnabled = avesmapsMapFeaturesSettlementImagesEnabled($pdo);
@@ -238,7 +250,7 @@ try {
     avesmapsMapFeaturesMergeLegacyOtherSources($rows, $sourceCatalog, $featureSourceRefs);
 
     $features = array_map(
-        static fn(array $row): array => avesmapsMapFeatureRowToGeoJsonFeature($row, $wikiLocationLinks, $buildingTypes, $politicalContext, $settlementImagesEnabled, $settlementCoatsEnabled),
+        static fn(array $row): array => avesmapsMapFeatureRowToGeoJsonFeature($row, $wikiLocationLinks, $buildingTypes, $politicalContext, $settlementImagesEnabled, $coatsLocalEnabled, $coatsWikiEnabled),
         $rows
     );
     // Landscape membership: fill properties.ecosystem_region_public_id on every label that belongs to a
@@ -513,7 +525,12 @@ function avesmapsMapFeaturesTravelHours(PDO $pdo): array {
 // demselben Grund wie avesmapsSettlementCoatIsPublic() daneben: diese Datei ist ein Endpunkt und beim
 // `require` fuer einen Test nicht seiteneffektfrei ladbar, die Zieldatei schon).
 
-function avesmapsMapFeatureRowToGeoJsonFeature(array $row, array $wikiLocationLinks = [], array $buildingTypes = [], array $politicalContext = [], bool $settlementImagesEnabled = true, bool $settlementCoatsEnabled = true): array {
+function avesmapsMapFeatureRowToGeoJsonFeature(array $row, array $wikiLocationLinks = [], array $buildingTypes = [], array $politicalContext = [], bool $settlementImagesEnabled = true, bool $coatsLocalEnabled = true,
+    bool $coatsWikiEnabled = true): array {
+    // ⚠️ Was frueher EIN Schalter war ($settlementCoatsEnabled), sind seit dem 23.08.2026 zwei --
+    // nach Herkunft getrennt. Beide sind PARAMETER dieser Funktion, nicht Variablen des
+    // Hauptskripts; wer hier eine dritte Hilfsvariable einfuehrt, sollte sicher sein, dass sie
+    // auch einen Leser hat.
     if ((int) ($row['is_active'] ?? 1) !== 1) {
         return [
             'type' => 'Feature',
@@ -529,6 +546,24 @@ function avesmapsMapFeatureRowToGeoJsonFeature(array $row, array $wikiLocationLi
     }
 
     $properties = avesmapsNormalizeLegacyMapFeatureProperties(avesmapsDecodeJsonColumn($row['properties_json'] ?? null));
+
+    // 🔴 DER SCHALTER MUSS DENSELBEN RUECKFALL SCHLIESSEN WIE DER DRITTE ZUSTAND (`coat_none`):
+    // `avesmapsCoatDisplayUrl` setzt den Platzhalter in `properties.coat` -- und der Leser nimmt
+    // dann `wiki_settlement.wappen_url`, wenn die noch gefuellt ist. Owner 23.08.2026, empirisch:
+    // „ich schalte ‚Wappen: AUS' und alle wappen werden angezeigt".
+    //
+    // 🪤 DIESER BLOCK STAND ZUERST IN avesmapsNormalizeLegacyMapFeatureProperties -- einer anderen
+    // Funktion, in der `$settlementCoatsEnabled` gar nicht existiert. `!null` ist `true`, also lief
+    // er IMMER: die Wiki-Adresse wurde unabhaengig vom Schalter geleert. Die Messung „0 gefuellte
+    // wappen_url" sah wie ein bestandener Fix aus und war das Symptom des Fehlers.
+    // ⚠️ Ein `!$variable` auf einer undefinierten Variablen ist der gefaehrlichste Tippfehler in
+    // PHP: er wirft nicht, er ist nur immer wahr.
+    //
+    // ⚠️ NUR das Wappen-Nest: `wiki_region.image_url` und `wiki_path.image_url` sind Bilder, keine
+    // Wappen, und haengen an ihrem eigenen Schalter.
+    if (!$coatsLocalEnabled && !$coatsWikiEnabled && is_array($properties['wiki_settlement'] ?? null)) {
+        $properties['wiki_settlement']['wappen_url'] = '';
+    }
     $properties = avesmapsEnrichMapFeatureWikiUrl($properties, $row, $wikiLocationLinks);
     $style = avesmapsDecodeJsonColumn($row['style_json'] ?? null);
     foreach ($style as $styleKey => $styleValue) {
@@ -586,10 +621,20 @@ function avesmapsMapFeatureRowToGeoJsonFeature(array $row, array $wikiLocationLi
     // Hausentscheid („leer bleibt leer, sonst der Platzhalter"), und coat-display-test.php wacht
     // ueber sie. Eine nachgebaute Kopie hier haette dieselbe Regel ein zweites Mal behauptet.
     if (is_array($properties['coat'] ?? null)) {
+        // 🔴 Welcher der zwei Schalter gilt, entscheidet die HERKUNFT -- sie steht bei Orten seit
+        // jeher in coat.source ('own' = eigener Upload, sonst Wiki).
+        // 💣 $coatsLocalEnabled/$coatsWikiEnabled sind PARAMETER dieser Funktion, keine Variablen
+        // des Hauptskripts. Genau daran ist der erste Anlauf gescheitert und hat die Live-Karte
+        // 35 Minuten lahmgelegt: eine Funktion ist in PHP ein eigener Scope, die Werte waren hier
+        // `null`, und unter strict_types wurde daraus ein TypeError.
         $angezeigt = avesmapsMapFeaturesCoatSicher(
             static fn(): string => avesmapsCoatDisplayUrl(
                 (string) ($properties['coat']['url'] ?? ''),
-                $settlementCoatsEnabled
+                avesmapsCoatHerkunftErlaubt(
+                    (string) ($properties['coat']['source'] ?? ''),
+                    $coatsLocalEnabled,
+                    $coatsWikiEnabled
+                )
             )
         );
         if ($angezeigt !== (string) ($properties['coat']['url'] ?? '')) {
@@ -690,20 +735,6 @@ function avesmapsNormalizeLegacyMapFeatureProperties(array $properties): array {
         }
     }
 
-    // 🔴 DER SCHALTER MUSS DENSELBEN RUECKFALL SCHLIESSEN WIE DER DRITTE ZUSTAND DARUEBER.
-    // Owner 23.08.2026, empirisch geprueft: „ich schalte ‚Wappen: AUS' und alle wappen werden
-    // angezeigt". Gemessen an der Live-Nutzlast: 7350 Felder trugen brav den Platzhalter -- und
-    // 119 echte Wappen kamen trotzdem durch, weil `avesmapsCoatDisplayUrl` nur `properties.coat`
-    // anfasst und der Leser bei dessen Platzhalter auf `wiki_settlement.wappen_url` ZURUECKFAELLT.
-    // 💣 Die Begruendung stand seit Stunden zwanzig Zeilen weiter oben -- gebaut wurde sie nur fuer
-    // `coat_none`. Eine Regel, die einen von zwei Wegen schliesst, ist keine Regel (dieselbe Lehre
-    // wie bei den vier Querfeldein-Erzeugern am 14.08.).
-    // ⚠️ NUR das Wappen-Nest: `wiki_region.image_url` und `wiki_path.image_url` sind Bilder, keine
-    // Wappen, und haengen an ihrem eigenen Schalter.
-    if (!$settlementCoatsEnabled && is_array($properties['wiki_settlement'] ?? null)) {
-        $properties['wiki_settlement']['wappen_url'] = '';
-    }
-
     foreach ([['wiki_settlement', 'wappen_url'], ['wiki_region', 'image_url'], ['wiki_path', 'image_url']] as [$nest, $feld]) {
         if (is_array($properties[$nest] ?? null) && ($properties[$nest][$feld] ?? '') !== '') {
             $properties[$nest][$feld] = avesmapsCoatLokaleKopie((string) $properties[$nest][$feld]);
@@ -777,7 +808,11 @@ function avesmapsLoadWikiSyncBuildingTypes(PDO $pdo): array {
 // political_territory can hold several BF-era rows per wiki_key (different public_id, same wiki_key);
 // parent_id is an int FK to political_territory.id. Try/catch -> [] so a missing table/column can never
 // break the hot map-features payload.
-function avesmapsLoadSettlementPoliticalContext(PDO $pdo, bool $territoryCoatsEnabled = true): array {
+function avesmapsLoadSettlementPoliticalContext(PDO $pdo, bool $coatsLocalEnabled = true,
+    bool $coatsWikiEnabled = true): array {
+    // ⚠️ Wie beim Feature-Bauer: aus einem Schalter wurden zwei. Die Oder-Verknuepfung bleibt
+    // lokal fuer die Stellen, die nur „ueberhaupt eines?" fragen.
+    $territoryCoatsEnabled = $coatsLocalEnabled || $coatsWikiEnabled;
     try {
         // t.short_name = manually curated short/colloquial name ("Mittelreich"); the wiki apply-flow NEVER
         // writes it (sync-monitor-identity.php), so it is empty until an editor curates it. Preferred over the
@@ -830,15 +865,28 @@ function avesmapsLoadSettlementPoliticalContext(PDO $pdo, bool $territoryCoatsEn
             // Public-domain-gated coat URL (or '' when none/not allowed), mirroring territory-detail.php.
             // The global "Wappen: Aus" switch swaps it for the placeholder afterwards -- one wrap here
             // covers every breadcrumb thumbnail, because the whole "Liegt in" staircase reads byId.
+            // 🔴 Wie beim Ort: die Herkunft entscheidet, welcher der zwei Schalter greift. Sie
+            // kommt aus derselben Aufloesung, die auch die Adresse liefert -- kein Nachraten.
+            // 💣 Die zwei Schalter sind PARAMETER dieser Funktion. Der erste Anlauf griff sie aus
+            // dem Hauptskript ab, wo sie gesetzt werden -- in PHP ein anderer Scope, also `null`,
+            // und unter strict_types ein TypeError. Die Live-Karte lag 35 Minuten tot.
             'coat_url' => avesmapsMapFeaturesCoatSicher(
-                static fn(): string => avesmapsCoatDisplayUrl(
-                    avesmapsSettlementTerritoryCoatUrl(
+                static function () use ($row, $coatStaging, $coatOverrides, $wikiKey, $coatsLocalEnabled, $coatsWikiEnabled): string {
+                    $aufgeloest = avesmapsSettlementTerritoryCoat(
                         trim((string) ($row['coat_of_arms_url'] ?? '')),
                         $coatStaging[$wikiKey] ?? [],
                         $coatOverrides[$wikiKey] ?? []
-                    ),
-                    $territoryCoatsEnabled
-                )
+                    );
+
+                    return avesmapsCoatDisplayUrl(
+                        (string) ($aufgeloest['url'] ?? ''),
+                        avesmapsCoatHerkunftErlaubt(
+                            (string) ($aufgeloest['herkunft'] ?? ''),
+                            $coatsLocalEnabled,
+                            $coatsWikiEnabled
+                        )
+                    );
+                }
             ),
         ];
 

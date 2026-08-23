@@ -1694,6 +1694,10 @@ function avesmapsWikiSettlementEditorList(PDO $pdo): array {
         'images_enabled' => avesmapsSettlementImagesGloballyEnabled($pdo),
         // State of the second ribbon toggle ("Wappen: An/Aus"), on the same trip as the image switch.
         'coats_enabled' => avesmapsSettlementCoatsEnabled($pdo),
+        // 🔴 Die zwei Herkunfts-Schalter -- ohne sie zeigt das Wappen-Menue beim Oeffnen einen
+        // erfundenen Stand. `coats_enabled` darueber bleibt fuer aeltere Leser stehen.
+        'coats_local_enabled' => avesmapsCoatsLocalEnabled($pdo),
+        'coats_wiki_enabled' => avesmapsCoatsWikiEnabled($pdo),
     ];
 }
 

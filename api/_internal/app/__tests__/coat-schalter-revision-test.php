@@ -125,7 +125,7 @@ assert($mf !== '', 'map-features.php muss lesbar sein');
 $code = (string) preg_replace('#^\s*//.*$#m', '', (string) preg_replace('#/\*.*?\*/#s', '', $mf));
 
 assert(preg_match(
-    '/!\$settlementCoatsEnabled.{0,200}wiki_settlement.{0,120}wappen_url.{0,40}=\s*\'\'/s', $code) === 1,
+    '/!\$coats(Local|Wiki)Enabled.{0,200}wiki_settlement.{0,120}wappen_url.{0,40}=\s*\'\'/s', $code) === 1,
     'DER KERN VON TEIL 3: steht der Schalter auf AUS, wird auch wiki_settlement.wappen_url geleert '
     . '-- sonst faellt der Leser darauf zurueck und zeigt das echte Wappen');
 
@@ -134,7 +134,7 @@ assert(preg_match(
 // Abstand las die darauffolgende Schleife mit, die wiki_region/wiki_path voellig zu Recht nennt --
 // und machte aus einer richtigen Regel einen Fehlalarm. Heute der dritte Fall dieser Art:
 // ein zu weit gefasster Messbereich ist die haeufigste Ursache falscher Testbefunde.
-$block = (string) (preg_split('/!\$settlementCoatsEnabled/', $code)[1] ?? '');
+$block = (string) (preg_split('/!\$coatsLocalEnabled/', $code)[1] ?? '');
 $klammer = strpos($block, "
     }");
 assert($klammer !== false, 'der Block endet in einer schliessenden Klammer');

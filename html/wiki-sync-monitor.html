@@ -305,8 +305,28 @@
     <button class="btn2 primary" id="btnCrawl" title="Liest die Herrschaftsgebiete aus dem geholten Offline-Dump ins Staging, rechnet die Hierarchie neu und zeigt danach, was die Wiki-Kopie bekäme. Geschrieben wird erst, was du anhäkelst."><span class="t1">1 · 🚨 Syncen</span><span class="t2" id="stSync">—</span></button>
     <button class="btn2" id="btnModel" title="Berechnet die Hierarchie aus dem Staging neu (Locks + Aussortiert bleiben erhalten)"><span class="t1">2 · Hierarchie rechnen</span><span class="t2" id="stModel">—</span></button>
     <button class="btn2 primary" id="btnApply" title="Zeigt, was in die Karte geschrieben würde – Daten, Eltern-Zuweisungen und neue eigene Knoten. Geschrieben wird nur, was angehäkelt ist; Geometrien bleiben unberührt."><span class="t1">3 · Übernehmen</span><span class="t2" id="stApply">—</span></button>
-    <button class="btn2" id="btnLocalizeCoats" title="Prüft zuerst die Wappen-Lizenzen neu (nur die bisher unbekannten – sichtbare Wappen bleiben dabei sichtbar), lädt dann ALLE noch auf wiki-aventurica verlinkten gemeinfreien Wappen auf den Avesmaps-Server, verkleinert sie (max. 512px) und nutzt künftig die lokalen Kopien (Override). Läuft in Schüben; schreibt nur Wappen-Overrides, keine Geometrien."><span class="t1">Wappen lokalisieren</span><span class="t2" id="stLocalize">—</span></button>
-    <button class="btn2" id="btnCoatsToggle" aria-pressed="false" title="Globaler Schalter: ersetzt ALLE Wappen der Herrschaftsgebiete im öffentlichen Frontend durch einen leeren Schild – Kartenlabel, Infobox, Tooltip und die „Liegt in“-Treppe. Die Wappen selbst bleiben gespeichert, dieser Editor und der Edit-Modus der Karte zeigen sie weiter."><span class="t1" id="stCoatsToggleLabel">Wappen: An</span><span class="t2">im Frontend</span></button>
+    <!-- 🛡️ Das Wappen-Menü — Zeile für Zeile dasselbe wie im Ortseditor (Owner 23.08.2026:
+         „Bei Territorien und Siedlungen erwarte ich vollständig dasselbe aussehen und verhalten").
+         🔴 Die zwei Schalter gelten BEIDEN Objektarten gemeinsam: derselbe Endpunkt, dieselben zwei
+         app_setting-Zeilen. Ein Notaus für rechtliche Fragen, der nur die Hälfte abschaltet, ist
+         keiner. Deshalb steht hier auch keine eigene Logik — nur andere Kennungen. -->
+    <div class="rb-menu">
+      <button class="btn2" id="btnCoatsMenu" aria-haspopup="true" aria-expanded="false" title="Wappen: die zwei Notaus-Schalter fürs Frontend und der Lauf, der die gemeinfreien Wiki-Wappen auf unseren Server holt. Gilt Orten und Herrschaftsgebieten gemeinsam."><span class="t1">🛡️ Wappen ▾</span><span class="t2" id="stCoatsMenuState">wird geladen…</span></button>
+      <div class="rb-menu__panel type-filter__menu" id="btnCoatsMenuPanel" hidden>
+        <div class="rb-menu__row">
+          <div class="rb-menu__txt"><b>Lokale Wappen</b><span>eigene Uploads</span></div>
+          <button type="button" class="rb-menu__sw rb-menu__sw--state" id="btnCoatsLocal" data-which="local" aria-pressed="true">…</button>
+        </div>
+        <div class="rb-menu__row">
+          <div class="rb-menu__txt"><b>Wiki-Wappen</b><span>aus dem Wiki, nur gemeinfrei</span></div>
+          <button type="button" class="rb-menu__sw rb-menu__sw--state" id="btnCoatsWiki" data-which="wiki" aria-pressed="true">…</button>
+        </div>
+        <div class="rb-menu__row">
+          <div class="rb-menu__txt"><b>Hole Wiki-Wappen</b><span id="stLocalize">—</span></div>
+          <button type="button" class="rb-menu__sw" id="btnLocalizeCoats">starten</button>
+        </div>
+      </div>
+    </div>
     <button class="btn2" id="btnLinkCheck" title="Prüft NUR die Quellen-Links der Herrschaftsgebiete auf Erreichbarkeit. Abenteuer, Karten und Siedlungs-Quellen haben ihre eigenen Schalter. Höflich: 600ms Pause je Host, ein Durchlauf dauert entsprechend."><span class="t1">🔗 Links prüfen</span><span class="t2" id="stLinkCheck">—</span></button>
   </div>
 </header>
@@ -575,32 +595,80 @@ function renderEditorState(s){
   $('stSync').textContent  = s.last_sync_at ? `letzte Sync: ${fmtDT(s.last_sync_at)}` : 'noch nie gesynct';
   $('stModel').textContent = s.model_fresh ? '✓ Modell aktuell' : 'Modell nicht aktuell';
   $('stApply').textContent = s.apply_fresh ? '✓ gespeichert und übernommen' : 'noch nicht übernommen';
-  if (typeof s.coats_enabled === 'boolean') setCoatsToggleState(s.coats_enabled);
+  // 🔴 Die zwei echten Stände, wenn der Server sie liefert; `coats_enabled` ist der Rückfall für
+  // eine ältere Antwort (der Deploy löscht nie, AGENTS.md §10).
+  if (typeof s.coats_local_enabled === 'boolean' || typeof s.coats_wiki_enabled === 'boolean') {
+    setCoatsSwitchStates(s.coats_local_enabled, s.coats_wiki_enabled);
+  } else if (typeof s.coats_enabled === 'boolean') {
+    setCoatsToggleState(s.coats_enabled);
+  }
 }
 
-// Global "Wappen: An/Aus" for the territory coats. Off does not delete anything: the public payloads
-// swap every coat URL for /img/wappen.png, so label, infobox, tooltip and breadcrumb keep their exact
-// geometry and show an empty shield. THIS editor and the map's edit mode keep the real coats (they ask
-// with edit_mode=1). aria-pressed=true == switch engaged == coats off, like the Siedlungseditor's.
-function setCoatsToggleState(enabled){
-  const btn = $('btnCoatsToggle'), label = $('stCoatsToggleLabel');
-  if (label) label.textContent = enabled ? 'Wappen: An' : 'Wappen: Aus';
-  if (btn) { btn.setAttribute('aria-pressed', enabled ? 'false' : 'true'); btn.classList.toggle('is-off', !enabled); }
+// ===================== Das Wappen-Menü im Menüband ==============================
+// 🔴 Zeile für Zeile dasselbe wie im Ortseditor (Owner 23.08.2026: „Bei Territorien und Siedlungen
+// erwarte ich vollständig dasselbe aussehen und verhalten"). ZWEI Schalter nach HERKUNFT — „Lokale
+// Wappen" (eigene Uploads) und „Wiki-Wappen" (gemeinfrei aus dem Wiki) —, und sie gelten BEIDEN
+// Objektarten gemeinsam: derselbe Endpunkt, dieselben zwei app_setting-Zeilen. Ein Notaus für
+// rechtliche Fragen, der nur die Hälfte abschaltet, ist keiner.
+//
+// ⚠️ Der Editor und der Edit-Modus der Karte zeigen die Wappen weiter (sie fragen mit edit_mode=1) —
+// hier wird gearbeitet, hier ändert der Schalter nichts.
+let coatsLocalOn = true, coatsWikiOn = true;
+
+function setCoatsSwitchStates(lokal, wiki){
+  if (typeof lokal === 'boolean') coatsLocalOn = lokal;
+  if (typeof wiki === 'boolean') coatsWikiOn = wiki;
+  for (const [id, an] of [['btnCoatsLocal', coatsLocalOn], ['btnCoatsWiki', coatsWikiOn]]){
+    const btn = $(id);
+    if (!btn) continue;
+    // 🔴 aria-pressed heißt AN. Die alte Fassung hatte es hier INVERTIERT ("true" == Schalter
+    // eingelegt == Wappen aus) — für einen Umschalter das Gegenteil dessen, was das Attribut
+    // bedeutet, und jede CSS-Regel daran sagt dann den falschen Zustand.
+    btn.setAttribute('aria-pressed', an ? 'true' : 'false');
+    btn.textContent = an ? 'AN' : 'AUS';
+  }
+  // 🔴 BEIDE Stellungen im Knopf — ein Notaus, dessen Stand man aufklappen muss, ist keiner.
+  const st = $('stCoatsMenuState');
+  if (st) st.textContent = `lokal ${coatsLocalOn ? 'an' : 'AUS'} · Wiki ${coatsWikiOn ? 'an' : 'AUS'}`;
 }
-async function toggleTerritoryCoatsEnabled(){
-  const btn = $('btnCoatsToggle');
+
+// ⚠️ Alter Name als Weiche: bestehende Aufrufer meinen mit einem Bool „beide".
+function setCoatsToggleState(enabled){ setCoatsSwitchStates(enabled, enabled); }
+
+async function toggleCoatSwitch(ev){
+  const btn = ev.currentTarget;
   if (!btn || btn.disabled) return;
-  const next = btn.getAttribute('aria-pressed') === 'true'; // engaged -> turning back ON
+  const which = btn.getAttribute('data-which') || 'local';
+  const next = btn.getAttribute('aria-pressed') !== 'true';
   btn.disabled = true;
   try{
-    const r = await api('set_territory_coats_enabled', { method:'POST', body:{ enabled: next } });
-    setCoatsToggleState(typeof r.coats_enabled === 'boolean' ? r.coats_enabled : next);
-    setStatus(next
-      ? 'Wappen der Herrschaftsgebiete im Frontend aktiviert.'
-      : 'Wappen der Herrschaftsgebiete im Frontend deaktiviert (Editor und Edit-Modus zeigen sie weiter).');
+    const r = await api('set_coat_switch', { method:'POST', body:{ which, enabled: next } });
+    // ⚠️ Der Server kennt beide Stände — seine Antwort gewinnt, nicht die Vermutung des Klicks.
+    setCoatsSwitchStates(r.coats_local_enabled, r.coats_wiki_enabled);
+    const nameLang = which === 'wiki' ? 'Wiki-Wappen' : 'Lokale Wappen';
+    setStatus(`${nameLang} im Frontend ${next ? 'aktiviert' : 'deaktiviert (Editor zeigt sie weiter)'}.`);
   }catch(e){ setStatus('Wappen-Schalter fehlgeschlagen: '+e.message); }
   finally{ btn.disabled = false; }
 }
+
+// ---- Auf- und Zuklappen ---------------------------------------------------------------------
+// 💣 Der Zustand ist das `hidden`-Attribut des Panels und sonst nichts.
+function setCoatsMenuOpen(open){
+  const panel = $('btnCoatsMenuPanel'), btn = $('btnCoatsMenu');
+  if (!panel || !btn) return;
+  panel.hidden = !open;
+  btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+}
+$('btnCoatsMenu')?.addEventListener('click', (ev) => {
+  ev.stopPropagation();
+  setCoatsMenuOpen($('btnCoatsMenuPanel')?.hidden === true);
+});
+// ⚠️ Der Klick INS Menü darf es nicht zuklappen — sonst schließt jeder Schalterdruck das Menü.
+$('btnCoatsMenuPanel')?.addEventListener('click', (ev) => ev.stopPropagation());
+document.addEventListener('click', () => setCoatsMenuOpen(false));
+document.addEventListener('keydown', (ev) => { if (ev.key === 'Escape') setCoatsMenuOpen(false); });
+$('btnCoatsLocal')?.addEventListener('click', toggleCoatSwitch);
+$('btnCoatsWiki')?.addEventListener('click', toggleCoatSwitch);
 
 // Zaehlt die noch hotlinkenden gemeinfreien Wappen und spiegelt sie in den Button-Untertitel.
 async function refreshLocalizeCount(){
@@ -1393,7 +1461,6 @@ $('btnLinkCheck').onclick = async()=>{
   }finally{ btn.disabled = false; }
 };
 
-$('btnCoatsToggle').onclick = toggleTerritoryCoatsEnabled;
 
 $('btnLocalizeCoats').onclick = async()=>{
   busy(true);

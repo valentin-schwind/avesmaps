@@ -469,21 +469,22 @@
     <button class="btn2 primary" id="seAssign" title="Ordnet alle Orte ihrem Territorium per Ray-Cast zu"><span class="t1">Orte zuordnen</span><span class="t2">Ray-Cast über alles</span></button>
     <button class="btn2" id="seFilterMap" title="Zeigt auf der Live-Karte nur die aktuelle Auswahl"><span class="t1">Nur Auswahl anzeigen</span><span class="t2">auf der Karte</span></button>
     <button class="btn2" id="seImagesToggle" aria-pressed="false" title="Globaler Schalter: blendet ALLE Ortsbilder im öffentlichen Frontend aus. Der Editor zeigt sie weiter."><span class="t1" id="seImagesToggleLabel">Bilder: An</span><span class="t2">im Frontend</span></button>
-    <!-- 🛡️ Das Wappen-Menue (Mockup docs/wappen-verwaltung-mockup.html, abgenommen
-         23.08.2026 -- Owner-Korrektur dazu: „das menü soll unter dem button liegen"). Es sammelt
-         ein, was vorher als zwei Knoepfe nebeneinander im Band stand: der Frontend-Schalter und
-         „Wappen lokalisieren", das hier „Hole Wiki-Wappen" heisst. 🔴 Die Unterzeile des
-         Knopfes zeigt die Schalterstellung, damit man den Notaus sieht, OHNE das Menue zu
-         oeffnen -- ein Notaus, dessen Stand man aufklappen muss, ist keiner.
-         ⚠️ Die Panel-Optik ist die des Filtermenues (.type-filter__menu), damit keine dritte
-         Menue-Rezeptur entsteht; nur die Zeilen sind eigen, weil sie zweizeilig sind und rechts
-         einen Schalter tragen. -->
+    <!-- 🛡️ Das Wappen-Menü (Mockup docs/wappen-verwaltung-mockup.html, abgenommen 23.08.2026 —
+         Owner-Korrektur: „das menü soll unter dem button liegen"). 🔴 ZWEI Schalter nach HERKUNFT,
+         nicht einer: „Lokale Wappen" (eigene Uploads) und „Wiki-Wappen" (gemeinfrei aus dem Wiki).
+         Sie gelten Orten UND Territorien gemeinsam — dasselbe Menü steht im Territorien-Monitor.
+         🔴 Die Unterzeile des Knopfes zeigt BEIDE Stellungen, damit man den Notaus sieht, ohne das
+         Menü zu öffnen — ein Notaus, dessen Stand man aufklappen muss, ist keiner. -->
     <div class="rb-menu">
-      <button class="btn2" id="seCoatsMenu" aria-haspopup="true" aria-expanded="false" title="Wappen: Frontend-Schalter, Wiki-Wappen holen und die Wappenfelder aufraeumen."><span class="t1">🛡️ Wappen ▾</span><span class="t2" id="seCoatsMenuState">wird geladen…</span></button>
+      <button class="btn2" id="seCoatsMenu" aria-haspopup="true" aria-expanded="false" title="Wappen: die zwei Notaus-Schalter fürs Frontend und der Lauf, der die gemeinfreien Wiki-Wappen auf unseren Server holt."><span class="t1">🛡️ Wappen ▾</span><span class="t2" id="seCoatsMenuState">wird geladen…</span></button>
       <div class="rb-menu__panel type-filter__menu" id="seCoatsMenuPanel" hidden>
         <div class="rb-menu__row">
-          <div class="rb-menu__txt"><b>Wappen im Frontend</b><span>Besucher sehen sie — im Editor immer sichtbar</span></div>
-          <button type="button" class="rb-menu__sw" id="seCoatsToggle" aria-pressed="false">…</button>
+          <div class="rb-menu__txt"><b>Lokale Wappen</b><span>eigene Uploads</span></div>
+          <button type="button" class="rb-menu__sw rb-menu__sw--state" id="seCoatsLocal" data-which="local" aria-pressed="true">…</button>
+        </div>
+        <div class="rb-menu__row">
+          <div class="rb-menu__txt"><b>Wiki-Wappen</b><span>aus dem Wiki, nur gemeinfrei</span></div>
+          <button type="button" class="rb-menu__sw rb-menu__sw--state" id="seCoatsWiki" data-which="wiki" aria-pressed="true">…</button>
         </div>
         <div class="rb-menu__row">
           <div class="rb-menu__txt"><b>Hole Wiki-Wappen</b><span id="seLocalizeCoatsState">nur gemeinfreie, auf unseren Server</span></div>
@@ -3539,48 +3540,88 @@ async function toggleSettlementImagesEnabled() {
 }
 $("seImagesToggle")?.addEventListener("click", toggleSettlementImagesEnabled);
 
-// ===================== Das Wappen-Menue im Menueband ==============================
+// ===================== Das Wappen-Menü im Menüband ==============================
 // Mockup docs/wappen-verwaltung-mockup.html, abgenommen 23.08.2026 (Owner: „das menü soll unter dem
-// button liegen"). Es sammelt drei Handgriffe ein, die vorher als zwei Knoepfe im Band standen bzw.
-// gar nicht erreichbar waren: der Frontend-Schalter, „Hole Wiki-Wappen" (frueher „Wappen
-// lokalisieren") und der neue Aufraeum-Lauf.
+// button liegen"). 🔴 ZWEI Schalter nach HERKUNFT — „Lokale Wappen" (eigene Uploads) und
+// „Wiki-Wappen" (gemeinfrei aus dem Wiki) —, und sie gelten Orten UND Territorien GEMEINSAM: ein
+// Notaus für rechtliche Fragen, der nur die Hälfte abschaltet, ist keiner. Derselbe Code steht im
+// Territorien-Monitor.
 //
-// 🔴 aria-pressed heisst hier AN. Die alte Fassung hatte es INVERTIERT (`aria-pressed="true"` stand
-// fuer „aus"), was fuer einen Umschalter das Gegenteil dessen ist, was das Attribut bedeutet -- und
-// was jede CSS-Regel, die daran haengt, lautlos umdreht. Geradegerueckt, weil das Menue den Zustand
-// jetzt auch faerbt.
-function setCoatsToggleState(enabled) {
-	const btn = $("seCoatsToggle");
-	if (btn) {
-		btn.setAttribute("aria-pressed", enabled ? "true" : "false");
-		btn.textContent = enabled ? "AN" : "AUS";
+// 🪤 Bis zum 23.08.2026 stand hier EIN Schalter („Wappen im Frontend"), obwohl das Mockup zwei
+// versprochen hatte. Das war eine eigenmächtige Kürzung, keine Vereinfachung.
+let seCoatsLocalOn = true;
+let seCoatsWikiOn = true;
+
+function setCoatsSwitchStates(lokal, wiki) {
+	if (typeof lokal === "boolean") seCoatsLocalOn = lokal;
+	if (typeof wiki === "boolean") seCoatsWikiOn = wiki;
+	for (const [id, an] of [["seCoatsLocal", seCoatsLocalOn], ["seCoatsWiki", seCoatsWikiOn]]) {
+		const btn = $(id);
+		if (!btn) continue;
+		// 🔴 aria-pressed heißt AN. Die alte Fassung hatte es invertiert, und jede CSS-Regel und
+		// jeder Screenreader daran sagte damit das Gegenteil des Zustands.
+		btn.setAttribute("aria-pressed", an ? "true" : "false");
+		btn.textContent = an ? "AN" : "AUS";
 	}
-	// 🔴 Der Stand steht im KNOPF, nicht nur im Menue: ein Notaus, dessen Stellung man erst
-	// aufklappen muss, ist keiner.
+	// 🔴 BEIDE Stellungen im Knopf — genau das zeigt das Mockup („lokal an · Wiki aus"). Ein Notaus,
+	// dessen Stand man aufklappen muss, ist keiner.
 	const state = $("seCoatsMenuState");
-	if (state) state.textContent = enabled ? "im Frontend sichtbar" : "im Frontend AUS";
+	if (state) {
+		state.textContent = `lokal ${seCoatsLocalOn ? "an" : "AUS"} · Wiki ${seCoatsWikiOn ? "an" : "AUS"}`;
+	}
 }
-async function toggleSettlementCoatsEnabled() {
-	const btn = $("seCoatsToggle");
+
+// ⚠️ Der alte Name bleibt als Weiche stehen: renderSettlementDetail und der Status-Abruf rufen
+// setCoatsToggleState(bool) und meinen damit „beide".
+function setCoatsToggleState(enabled) {
+	setCoatsSwitchStates(enabled, enabled);
+}
+
+async function toggleCoatSwitch(event) {
+	const btn = event.currentTarget;
 	if (!btn || btn.disabled) return;
+	const which = btn.getAttribute("data-which") || "local";
 	const next = btn.getAttribute("aria-pressed") !== "true";
 	btn.disabled = true;
 	try {
 		const response = await fetch(SETTLEMENT_EDITOR_API, {
 			method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({ action: "set_coats_enabled", enabled: next }),
+			body: JSON.stringify({ action: "set_coat_switch", which, enabled: next }),
 		});
 		const payload = await response.json().catch(() => null);
 		if (!response.ok || !payload || payload.ok !== true) throw new Error((payload && payload.error && payload.error.message) || `HTTP ${response.status}`);
-		setCoatsToggleState(typeof payload.coats_enabled === "boolean" ? payload.coats_enabled : next);
-		setStatusText(next ? "Ortswappen im Frontend aktiviert." : "Ortswappen im Frontend deaktiviert (Editor zeigt sie weiter).");
+		// ⚠️ Die Antwort des Servers gewinnt, nicht die Vermutung des Klicks: er kennt beide Stände.
+		setCoatsSwitchStates(payload.coats_local_enabled, payload.coats_wiki_enabled);
+		const nameLang = which === "wiki" ? "Wiki-Wappen" : "Lokale Wappen";
+		setStatusText(`${nameLang} im Frontend ${next ? "aktiviert" : "deaktiviert (Editor zeigt sie weiter)"}.`);
 	} catch (error) {
 		setStatusText("Wappen-Schalter fehlgeschlagen: " + (error && error.message ? error.message : String(error)));
 	} finally {
 		btn.disabled = false;
 	}
 }
-$("seCoatsToggle")?.addEventListener("click", toggleSettlementCoatsEnabled);
+$("seCoatsLocal")?.addEventListener("click", toggleCoatSwitch);
+$("seCoatsWiki")?.addEventListener("click", toggleCoatSwitch);
+
+// ---- Auf- und Zuklappen -------------------------------------------------------------------------
+// 💣 Der Zustand ist das `hidden`-Attribut des Panels und sonst nichts — kein Modulzustand daneben,
+// der auseinanderlaufen kann.
+function setCoatsMenuOpen(open) {
+	const panel = $("seCoatsMenuPanel");
+	const btn = $("seCoatsMenu");
+	if (!panel || !btn) return;
+	panel.hidden = !open;
+	btn.setAttribute("aria-expanded", open ? "true" : "false");
+}
+$("seCoatsMenu")?.addEventListener("click", (event) => {
+	event.stopPropagation();
+	setCoatsMenuOpen($("seCoatsMenuPanel")?.hidden === true);
+});
+// ⚠️ Der Klick INS Menü darf es nicht zuklappen — sonst schließt jeder Schalterdruck das Menü, und
+// man kann nicht zwei Dinge hintereinander tun.
+$("seCoatsMenuPanel")?.addEventListener("click", (event) => event.stopPropagation());
+document.addEventListener("click", () => setCoatsMenuOpen(false));
+document.addEventListener("keydown", (event) => { if (event.key === "Escape") setCoatsMenuOpen(false); });
 
 // ---- „Wappenfelder aufräumen" -------------------------------------------------------------------
 // 🔴 Der alte Wiki-Parser las `wappen|bild|wappenbild|bilddatei` in EIN Feld: hatte ein Ort im Wiki
@@ -3890,7 +3931,13 @@ async function loadSettlementItems() {
 		}
 		settlementItems = Array.isArray(payload.items) ? payload.items : [];
 		if (typeof payload.images_enabled === "boolean") setImagesToggleState(payload.images_enabled);
-		if (typeof payload.coats_enabled === "boolean") setCoatsToggleState(payload.coats_enabled);
+		// 🔴 Die zwei echten Stände, wenn der Server sie liefert; `coats_enabled` ist der Rückfall
+		// für den Fall, dass eine ältere Fassung antwortet (der Deploy löscht nie, AGENTS.md §10).
+		if (typeof payload.coats_local_enabled === "boolean" || typeof payload.coats_wiki_enabled === "boolean") {
+			setCoatsSwitchStates(payload.coats_local_enabled, payload.coats_wiki_enabled);
+		} else if (typeof payload.coats_enabled === "boolean") {
+			setCoatsToggleState(payload.coats_enabled);
+		}
 		renderSettlementMid();
 	} catch (error) {
 		if (list) {
