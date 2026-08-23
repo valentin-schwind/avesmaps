@@ -448,7 +448,7 @@ function avesmapsWikiSyncFetchMissingWikiPlaces(PDO $pdo, array $settlementTitle
     }
 
     $missingPlaces = [];
-    foreach (array_chunk($missingTitles, AVESMAPS_WIKI_TITLE_BATCH_SIZE) as $batch) {
+    foreach (array_chunk($missingTitles, avesmapsWikiSyncTitleBatchSize()) as $batch) {
         $pages = avesmapsWikiSyncFetchPagesByTitle($pdo, $batch, true, true);
         foreach ($batch as $title) {
             $page = $pages[$title] ?? null;

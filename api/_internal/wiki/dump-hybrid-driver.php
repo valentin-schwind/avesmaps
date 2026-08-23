@@ -169,6 +169,30 @@ const AVESMAPS_WIKI_DUMP_PHASE_COMPLETED = 'completed';
 const AVESMAPS_WIKI_DUMP_CONTINENT_MAP_STEP_CALL_BUDGET = 20;
 
 /**
+ * Wie viele TITEL ein Schritt der Kontinent-Phase schaffen soll. 20 Aufrufe x 50 Titel = 1000 --
+ * exakt die Arbeitsmenge, die die Konstante darueber seit dem Perf-Fix beschreibt.
+ */
+const AVESMAPS_WIKI_DUMP_CONTINENT_MAP_STEP_TITLE_BUDGET = 1000;
+
+/**
+ * Das Schrittbudget in AUFRUFEN -- abgeleitet aus den TITELN, nicht mehr fest verdrahtet.
+ *
+ * 💣 DAS BUDGET ZAEHLT AUFRUFE, DIE ARBEIT STECKT ABER IN DEN TITELN. Mit der Bot-Anmeldung
+ * (sync.php, seit 23.08.2026) traegt EIN Aufruf 500 statt 50 Titel. Bliebe das Budget bei 20
+ * Aufrufen, taete ein Schritt das Zehnfache und liefe in die 28 Sekunden aus
+ * AVESMAPS_WIKI_DUMP_STEP_SECONDS -- also genau in den Fehler zurueck, den die Konstante darueber
+ * behoben hat, nur diesmal ausgeloest von einer Verbesserung an ganz anderer Stelle.
+ *
+ * Festgehalten wird deshalb die Zahl der TITEL je Schritt; das Aufrufbudget faellt daraus ab:
+ * anonym wieder 20, als Bot 2. Gleiche Wanduhr, ein Zehntel der Anfragen.
+ */
+function avesmapsWikiDumpContinentMapStepCallBudget(): int {
+    $stapel = max(1, avesmapsWikiSyncTitleBatchSize());
+
+    return max(1, (int) ceil(AVESMAPS_WIKI_DUMP_CONTINENT_MAP_STEP_TITLE_BUDGET / $stapel));
+}
+
+/**
  * The ordered work phases (excluding the terminal `completed`). progress_total
  * is count() of this list; progress_current is the index of the phase currently
  * being worked (0-based -> 1-based on completion), so the frontend can render a
@@ -927,7 +951,7 @@ function avesmapsWikiDumpHybridDispatchPhaseStep(
             // PERF FIX: an explicit per-step call budget (see the constant's docblock
             // above) so this phase is bounded like every other resumable phase --
             // NOT the ~4.5-minute single-step "process everything" default of null.
-            $r = avesmapsWikiDumpHybridFillContinentMapStep($pdo, $runId, $titles, $cursor, AVESMAPS_WIKI_DUMP_CONTINENT_MAP_STEP_CALL_BUDGET);
+            $r = avesmapsWikiDumpHybridFillContinentMapStep($pdo, $runId, $titles, $cursor, avesmapsWikiDumpContinentMapStepCallBudget());
             return [
                 'done' => (bool) ($r['done'] ?? false),
                 'nextCursor' => (int) ($r['nextCursor'] ?? $cursor),

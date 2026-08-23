@@ -265,7 +265,7 @@ function avesmapsWikiSyncFetchPagesByRequestedTitle(PDO $pdo, array $titles, boo
         return $pagesByRequestedTitle;
     }
 
-    foreach (array_chunk($titles, AVESMAPS_WIKI_TITLE_BATCH_SIZE) as $batch) {
+    foreach (array_chunk($titles, avesmapsWikiSyncTitleBatchSize()) as $batch) {
         $propParts = [];
         if ($includeCategories) {
             $propParts[] = 'categories';

@@ -439,7 +439,7 @@ function avesmapsWikiDumpCategoryFetchPageCategoriesReadOnly(array $titles): arr
         return $pagesByRequestedTitle;
     }
 
-    foreach (array_chunk($titles, AVESMAPS_WIKI_TITLE_BATCH_SIZE) as $batch) {
+    foreach (array_chunk($titles, avesmapsWikiSyncTitleBatchSize()) as $batch) {
         $params = [
             'action' => 'query',
             'titles' => implode('|', $batch),
@@ -517,13 +517,16 @@ function avesmapsWikiDumpCategoryFetchContinentMap(
     $map = [];
     $deities = [];
     $callsMade = 0;
+    // 💣 EINMAL fragen, nicht je Runde: die Stapelgroesse haengt an der Anmeldung, und ein
+    // Wechsel mitten im Lauf verschoebe den Cursor gegen die bereits gezaehlten Aufrufe.
+    $stapel = avesmapsWikiSyncTitleBatchSize();
 
     while ($cursor < $total) {
         if ($callBudget !== null && $callsMade >= $callBudget) {
             break;
         }
 
-        $batch = array_slice($titles, $cursor, AVESMAPS_WIKI_TITLE_BATCH_SIZE);
+        $batch = array_slice($titles, $cursor, $stapel);
         if ($batch === []) {
             break;
         }

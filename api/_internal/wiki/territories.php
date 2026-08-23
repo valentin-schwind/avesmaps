@@ -863,7 +863,7 @@ function avesmapsWikiSyncEnrichPoliticalTerritoryRowsFromWiki(array $rows): arra
 
 function avesmapsWikiSyncFetchPoliticalTerritoryPageContents(array $titles): array {
     $contentsByTitle = [];
-    foreach (array_chunk($titles, AVESMAPS_WIKI_TITLE_BATCH_SIZE) as $batch) {
+    foreach (array_chunk($titles, avesmapsWikiSyncTitleBatchSize()) as $batch) {
         $data = avesmapsWikiSyncApiRequest([
             'action' => 'query',
             'titles' => implode('|', $batch),

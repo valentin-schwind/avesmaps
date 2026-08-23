@@ -6,8 +6,29 @@ require_once __DIR__ . '/../text/ascii-fold.php';
 
 const AVESMAPS_WIKI_API_URL = 'https://de.wiki-aventurica.de/de/api.php';
 const AVESMAPS_WIKI_PAGE_BASE_URL = 'https://de.wiki-aventurica.de/wiki/';
-const AVESMAPS_WIKI_USER_AGENT = 'Avesmaps WikiSync/1.0';
+/**
+ * 🔴 DER USER-AGENT IST UNSERE KENNUNG BEIM WIKI, NICHT KOSMETIK.
+ *
+ * Der Betreiber kann eine Ausnahme von den Spamfallen-Regeln auf htaccess-Ebene NUR ueber den
+ * User-Agent eintragen (Discord, 23.08.2026) -- eine Zeichenkette, die wie ein Standardbrowser
+ * aussieht oder sich mit der eines anderen Projekts ueberschneidet, ist dort wertlos. Deshalb:
+ * eigener Name, Version, und die Adresse, unter der man uns findet. Dieselbe Bauform traegt
+ * schon `AvesmapsDumpBot/1.0` (dump-fetch.php) -- der gemeinsame Teil ist „Avesmaps", damit EINE
+ * htaccess-Regel beide erwischt.
+ */
+const AVESMAPS_WIKI_USER_AGENT = 'AvesmapsWikiSync/2.0 (+https://avesmaps.de)';
+/**
+ * Titel je `action=query`-Anfrage. ZWEI Werte, und welcher gilt, entscheidet die ANMELDUNG:
+ * 50 ist die Grenze fuer normale Nutzer, 500 die fuer `apihighlimits` -- ein Recht, das in der
+ * Bot-Gruppe steckt und das Wiki Aventurica unserem Konto `Avesmaps` am 23.08.2026 gegeben hat.
+ *
+ * 💣 NIE DIE KONSTANTE DIREKT NEHMEN, IMMER `avesmapsWikiSyncTitleBatchSize()`. Wer 500 Titel
+ * anonym schickt, bekommt `toomanyvalues` -- und das liefert MediaWiki als HTTP 200 mit einem
+ * `error`-Objekt, also als „nichts gefunden" statt als Fehler. Die Konstante bleibt stehen, weil
+ * sie der ANONYME Wert ist und die Bestandstests sie genau so lesen.
+ */
 const AVESMAPS_WIKI_TITLE_BATCH_SIZE = 50;
+const AVESMAPS_WIKI_TITLE_BATCH_SIZE_BOT = 500;
 const AVESMAPS_WIKI_SEARCH_RESULT_LIMIT = 5;
 const AVESMAPS_WIKI_REQUEST_TIMEOUT_SECONDS = 30;
 const AVESMAPS_WIKI_REQUEST_DELAY_MICROSECONDS = 600000;
@@ -160,11 +181,300 @@ function avesmapsWikiSyncUnreachableMessage(int $statusCode, string $rawWarning)
     return AVESMAPS_WIKI_UNREACHABLE_MESSAGE . ' (' . $kurz . ' · ' . $technik . ')';
 }
 
+// ===========================================================================
+// DER BOT-ZUGANG (Wiki-Konto `Avesmaps`, Bot-Recht seit 23.08.2026)
+// ===========================================================================
+
+/**
+ * Zustand der Bot-Anmeldung in DIESEM PHP-Prozess.
+ *
+ * 🔴 VIER Zustaende, und „unversucht" ist einer davon: ohne ihn waere „noch nicht angemeldet"
+ * von „Anmeldung gescheitert" nicht zu unterscheiden, und wir versuchten den Login bei jeder
+ * einzelnen Stapelabfrage erneut.
+ *   unversucht  -- es gab noch keinen Anlass
+ *   bot         -- angemeldet, `apihighlimits` gilt, 500 Titel je Anfrage
+ *   anonym      -- keine Zugangsdaten hinterlegt; alles laeuft wie vor dem 23.08.2026
+ *   gescheitert -- Zugangsdaten da, Anmeldung abgelehnt (Grund im Fehlerprotokoll und hier)
+ *
+ * ⚠️ PROZESSweit, nicht sitzungsweit: auf STRATO ist jede HTTP-Anfrage ein eigener Prozess. Wir
+ * melden uns hoechstens einmal je Anfrage an -- und nur, wenn jemand einen grossen Stapel will
+ * (siehe avesmapsWikiSyncTitleBatchSize).
+ *
+ * Ein Test setzt den Zustand einfach vor: avesmapsWikiBotZustand(['status' => 'bot']).
+ */
+function avesmapsWikiBotZustand(?array $neuerZustand = null): array {
+    static $zustand = ['status' => 'unversucht', 'grund' => '', 'cookies' => []];
+
+    if ($neuerZustand !== null) {
+        $zustand = $neuerZustand + ['status' => 'unversucht', 'grund' => '', 'cookies' => []];
+    }
+
+    return $zustand;
+}
+
+/**
+ * REIN: die Zugangsdaten aus der geladenen Konfiguration.
+ *
+ * 💣 EIN HALBER ZUGANG IST KEINER. Steht nur der Benutzername da, waere der Login ein garantiert
+ * fehlschlagender Fremdaufruf -- also gar nicht erst versuchen, sondern sauber anonym bleiben.
+ */
+function avesmapsWikiBotZugangAusKonfiguration(array $config): ?array {
+    $wiki = is_array($config['wiki'] ?? null) ? $config['wiki'] : [];
+    $benutzer = trim((string) ($wiki['bot_username'] ?? ''));
+    $passwort = (string) ($wiki['bot_password'] ?? '');
+
+    if ($benutzer === '' || trim($passwort) === '') {
+        return null;
+    }
+
+    return ['username' => $benutzer, 'password' => $passwort];
+}
+
+/**
+ * REIN: die Stapelgroesse folgt dem ZUSTAND, nicht der Hoffnung.
+ */
+function avesmapsWikiTitleBatchSizeFuerZustand(string $status): int {
+    return $status === 'bot' ? AVESMAPS_WIKI_TITLE_BATCH_SIZE_BOT : AVESMAPS_WIKI_TITLE_BATCH_SIZE;
+}
+
+/**
+ * REIN: `Set-Cookie`-Kopfzeilen einer Antwort in den Cookie-Bestand einruehren.
+ *
+ * ⚠️ Nur das erste Paar je Zeile ist der Cookie; alles hinter dem ersten Semikolon sind Attribute
+ * (Path, HttpOnly, Expires) und gehen uns nichts an. Ein leerer Wert oder „deleted" ist die Art,
+ * einen Cookie zurueckzunehmen -- der fliegt dann raus, statt leer stehen zu bleiben.
+ */
+function avesmapsWikiCookiesAusKopfzeilen(array $kopfzeilen, array $bestand = []): array {
+    foreach ($kopfzeilen as $zeile) {
+        $zeile = (string) $zeile;
+        if (stripos($zeile, 'Set-Cookie:') !== 0) {
+            continue;
+        }
+
+        $paar = trim(explode(';', trim(substr($zeile, 11)))[0] ?? '');
+        if ($paar === '' || !str_contains($paar, '=')) {
+            continue;
+        }
+
+        [$name, $wert] = explode('=', $paar, 2);
+        $name = trim($name);
+        if ($name === '') {
+            continue;
+        }
+
+        if ($wert === '' || strtolower($wert) === 'deleted') {
+            unset($bestand[$name]);
+            continue;
+        }
+
+        $bestand[$name] = $wert;
+    }
+
+    return $bestand;
+}
+
+/**
+ * REIN: Cookie-Bestand -> Kopfzeilenwert. Leerer Bestand = leere Zeichenkette = keine Kopfzeile.
+ */
+function avesmapsWikiCookieKopfzeile(array $cookies): string {
+    $teile = [];
+    foreach ($cookies as $name => $wert) {
+        $teile[] = $name . '=' . $wert;
+    }
+
+    return implode('; ', $teile);
+}
+
+/**
+ * REIN: die Kopfzeilen einer GET-Anfrage. Der Cookie kommt nur mit, wenn es einen gibt.
+ */
+function avesmapsWikiSyncRequestHeaderLines(array $cookies): string {
+    $zeilen = "User-Agent: " . AVESMAPS_WIKI_USER_AGENT . "\r\nAccept: application/json\r\n";
+
+    $cookieZeile = avesmapsWikiCookieKopfzeile($cookies);
+    if ($cookieZeile !== '') {
+        $zeilen .= "Cookie: " . $cookieZeile . "\r\n";
+    }
+
+    return $zeilen;
+}
+
+/**
+ * REIN: die Antwort von `action=login` lesen.
+ *
+ * 💣 MEDIAWIKI ANTWORTET AUCH BEI ABGELEHNTER ANMELDUNG MIT HTTP 200 -- der Befund steht
+ * ausschliesslich im Rumpf. Wer nur den Status prueft, haelt jeden Fehlschlag fuer einen Erfolg.
+ * ⚠️ `login.reason` ist unter formatversion=2 ein Objekt {code, text}, kein Text.
+ */
+function avesmapsWikiLoginErgebnis(array $antwort): array {
+    $login = is_array($antwort['login'] ?? null) ? $antwort['login'] : [];
+
+    if ((string) ($login['result'] ?? '') === 'Success') {
+        return ['ok' => true, 'grund' => ''];
+    }
+
+    $grund = $login['reason'] ?? '';
+    if (is_array($grund)) {
+        $grund = (string) ($grund['text'] ?? ($grund['code'] ?? ''));
+    }
+    $grund = trim((string) $grund);
+
+    if ($grund === '' && is_array($antwort['error'] ?? null)) {
+        $grund = trim((string) ($antwort['error']['code'] ?? ''));
+    }
+    if ($grund === '') {
+        $grund = trim((string) ($login['result'] ?? ''));
+    }
+
+    return ['ok' => false, 'grund' => $grund !== '' ? $grund : 'Grund unbekannt'];
+}
+
+/**
+ * Eine POST-Anfrage an die Wiki-API, mit Cookies hin und zurueck.
+ *
+ * 🔴 NUR FUER DIE ANMELDUNG. MediaWiki nimmt `action=login` ausschliesslich per POST an; der
+ * gesamte uebrige Verkehr bleibt bei GET, damit sich am eingespielten Weg nichts aendert.
+ * 💣 DAS PASSWORT STEHT IM RUMPF, NICHT IN DER ADRESSE -- und der Rumpf wird nirgends
+ * protokolliert. Genau deshalb POST und nicht GET: `avesmapsWikiSyncLogServerError` schreibt die
+ * URL mit ins Fehlerprotokoll, und dorthin gehoert kein Passwort.
+ *
+ * @return array{data: array, cookies: array, status: int}
+ */
+function avesmapsWikiSyncApiPost(array $params, array $cookies): array {
+    $rumpf = http_build_query(['format' => 'json', 'formatversion' => '2'] + $params, '', '&', PHP_QUERY_RFC1738);
+
+    $kopfzeilen = avesmapsWikiSyncRequestHeaderLines($cookies)
+        . "Content-Type: application/x-www-form-urlencoded\r\n";
+
+    $context = stream_context_create([
+        'http' => [
+            'method' => 'POST',
+            'timeout' => AVESMAPS_WIKI_REQUEST_TIMEOUT_SECONDS,
+            'header' => $kopfzeilen,
+            'content' => $rumpf,
+            'ignore_errors' => true,
+        ],
+        'ssl' => [
+            'verify_peer' => true,
+            'verify_peer_name' => true,
+        ],
+    ]);
+
+    avesmapsWikiSyncThrottleWikiRequest();
+
+    $http_response_header = null;
+    $rohantwort = @file_get_contents(AVESMAPS_WIKI_API_URL, false, $context);
+    $kopf = $http_response_header ?? [];
+    $status = $rohantwort === false ? 0 : avesmapsWikiSyncReadHttpStatusCode($kopf);
+
+    $daten = [];
+    if (is_string($rohantwort) && $rohantwort !== '') {
+        try {
+            $entschluesselt = json_decode($rohantwort, true, 512, JSON_THROW_ON_ERROR);
+            $daten = is_array($entschluesselt) ? $entschluesselt : [];
+        } catch (JsonException) {
+            $daten = [];
+        }
+    }
+
+    return [
+        'data' => $daten,
+        'cookies' => avesmapsWikiCookiesAusKopfzeilen($kopf, $cookies),
+        'status' => $status,
+    ];
+}
+
+/**
+ * Meldet den Bot an -- hoechstens einmal je PHP-Prozess. Gibt zurueck, ob eine Bot-Sitzung steht.
+ *
+ * 🔴 EIN FEHLSCHLAG BRICHT NICHTS AB. Ohne Anmeldung laeuft alles weiter wie vor dem 23.08.2026,
+ * nur mit 50 statt 500 Titeln je Anfrage. Ein harter Abbruch waere die schlechtere Wahl: er legte
+ * jeden Sync lahm, sobald das Wiki den Login einmal anders beantwortet.
+ * ⚠️ Aber er ist LAUT: der Grund geht ins Fehlerprotokoll und bleibt im Zustand abrufbar. Eine
+ * stille Rueckstufung auf 50 waere von „das Recht wirkt" nicht zu unterscheiden -- und genau
+ * diese Ununterscheidbarkeit ist die Fehlerklasse, die uns schon zweimal Tage gekostet hat.
+ */
+function avesmapsWikiBotSitzungSicherstellen(): bool {
+    $zustand = avesmapsWikiBotZustand();
+    if ((string) ($zustand['status'] ?? '') !== 'unversucht') {
+        return (string) ($zustand['status'] ?? '') === 'bot';
+    }
+
+    $zugang = null;
+    if (function_exists('avesmapsLoadApiConfig') && function_exists('avesmapsApiRoot')) {
+        try {
+            $zugang = avesmapsWikiBotZugangAusKonfiguration(avesmapsLoadApiConfig(avesmapsApiRoot()));
+        } catch (Throwable) {
+            // Keine ladbare Konfiguration -- auf dem Entwicklungsrechner und im Testfeld der
+            // Normalfall, und ausdruecklich KEIN Fehler. Deshalb hier auch kein Protokolleintrag:
+            // er kaeme bei jedem Testlauf und niemand laese ihn je.
+            $zugang = null;
+        }
+    }
+
+    if ($zugang === null) {
+        avesmapsWikiBotZustand(['status' => 'anonym', 'grund' => 'keine Zugangsdaten hinterlegt']);
+        return false;
+    }
+
+    $tokenAntwort = avesmapsWikiSyncApiPost(['action' => 'query', 'meta' => 'tokens', 'type' => 'login'], []);
+    $loginToken = (string) ($tokenAntwort['data']['query']['tokens']['logintoken'] ?? '');
+    if ($loginToken === '') {
+        avesmapsWikiSyncLogServerError('wiki_bot_login_no_token', ['status_code' => $tokenAntwort['status']]);
+        avesmapsWikiBotZustand(['status' => 'gescheitert', 'grund' => 'kein Login-Token']);
+        return false;
+    }
+
+    $loginAntwort = avesmapsWikiSyncApiPost([
+        'action' => 'login',
+        'lgname' => $zugang['username'],
+        'lgpassword' => $zugang['password'],
+        'lgtoken' => $loginToken,
+    ], $tokenAntwort['cookies']);
+
+    $ergebnis = avesmapsWikiLoginErgebnis($loginAntwort['data']);
+    if (!$ergebnis['ok']) {
+        // ⚠️ NUR der Grund. Nie der Benutzername, und niemals das Passwort.
+        avesmapsWikiSyncLogServerError('wiki_bot_login_failed', [
+            'reason' => $ergebnis['grund'],
+            'status_code' => $loginAntwort['status'],
+        ]);
+        avesmapsWikiBotZustand(['status' => 'gescheitert', 'grund' => $ergebnis['grund']]);
+        return false;
+    }
+
+    avesmapsWikiBotZustand(['status' => 'bot', 'grund' => '', 'cookies' => $loginAntwort['cookies']]);
+    return true;
+}
+
+/**
+ * Die Stapelgroesse fuer `titles=`-Abfragen -- und der EINZIGE Ausloeser der Anmeldung.
+ *
+ * ⭐ Den Login verursacht, wer von ihm profitiert. Eine einzelne Suche im Zuweisungsdialog bleibt
+ * damit anonym und schnell (sie spart nichts und zahlte sonst zwei zusaetzliche Anfragen),
+ * waehrend die Stapelphasen des Dump-Laufs sich anmelden und dafuer neun von zehn Anfragen sparen.
+ */
+function avesmapsWikiSyncTitleBatchSize(): int {
+    avesmapsWikiBotSitzungSicherstellen();
+
+    return avesmapsWikiTitleBatchSizeFuerZustand((string) (avesmapsWikiBotZustand()['status'] ?? ''));
+}
+
 function avesmapsWikiSyncApiRequest(array $params): array {
     $queryParams = [
         'format' => 'json',
         'formatversion' => '2',
     ] + $params;
+    // 🔴 `assert=user` faehrt NUR mit stehender Bot-Sitzung mit: es laesst die Anfrage scheitern,
+    // sobald die Anmeldung weg ist -- und genau das ist erwuenscht. Ohne den Riegel liefe ein
+    // 500er-Stapel in `toomanyvalues`, und der kaeme als HTTP 200 mit leerer Trefferliste zurueck,
+    // also als „im Wiki steht nichts". Anonym darf er nicht mit: dort gibt es keinen Benutzer.
+    $botZustand = avesmapsWikiBotZustand();
+    $istBot = (string) ($botZustand['status'] ?? '') === 'bot';
+    if ($istBot) {
+        $queryParams['assert'] = 'user';
+    }
+
     $url = AVESMAPS_WIKI_API_URL . '?' . http_build_query($queryParams, '', '&', PHP_QUERY_RFC3986);
 
     $lastRawResponse = '';
@@ -186,7 +496,7 @@ function avesmapsWikiSyncApiRequest(array $params): array {
             'http' => [
                 'method' => 'GET',
                 'timeout' => AVESMAPS_WIKI_REQUEST_TIMEOUT_SECONDS,
-                'header' => "User-Agent: " . AVESMAPS_WIKI_USER_AGENT . "\r\nAccept: application/json\r\n",
+                'header' => avesmapsWikiSyncRequestHeaderLines($istBot ? (array) ($botZustand['cookies'] ?? []) : []),
                 'ignore_errors' => true,
             ],
             'ssl' => [
@@ -276,6 +586,25 @@ function avesmapsWikiSyncApiRequest(array $params): array {
         if (!is_array($data)) {
             throw new AvesmapsWikiUnreachableException(
                 avesmapsWikiSyncUnreachableMessage($lastStatusCode, '')
+            );
+        }
+
+        // 💣 ZWEI FEHLER, DIE MEDIAWIKI MIT HTTP 200 AUSLIEFERT -- und die deshalb bis heute wie
+        // „nichts gefunden" aussahen statt wie ein Fehler:
+        //   assertuserfailed -- die Bot-Sitzung ist weg; jede weitere Antwort waere leer
+        //   toomanyvalues    -- der Stapel war groesser, als das Recht erlaubt. Die Antwort ist
+        //                       dann LEER, nicht etwa gekuerzt
+        // Beide muessen laut sein: ein stiller leerer Treffer wandert sonst als „das gibt es im
+        // Wiki nicht" in unsere Daten, und niemand kann es hinterher noch unterscheiden.
+        $fehlercode = (string) ($data['error']['code'] ?? '');
+        if ($fehlercode === 'assertuserfailed' || $fehlercode === 'toomanyvalues') {
+            avesmapsWikiSyncLogServerError('wiki_api_' . $fehlercode, [
+                'url' => $url,
+                'bot_status' => (string) ($botZustand['status'] ?? ''),
+            ]);
+
+            throw new AvesmapsWikiUnreachableException(
+                avesmapsWikiSyncUnreachableMessage($lastStatusCode, $fehlercode)
             );
         }
 
