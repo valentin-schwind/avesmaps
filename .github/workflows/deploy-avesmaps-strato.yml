@@ -391,7 +391,10 @@ jobs:
               echo "Keine .htaccess im Paket -- nichts nachzureichen."
             else
               echo "Reiche $dotfile_count .htaccess-Datei(en) einzeln nach."
-              lftp -u "$AVESMAPS_USER","$AVESMAPS_PASSWORD" -p "$AVESMAPS_PORT"                 "sftp://$AVESMAPS_HOST" -f "$dotfile_script"
+              # 💣 `-f <datei>` NACH der URL liest lftp als Option fuer `open`, nicht fuer sich
+              # selbst ("open: invalid option -- 'f'") -- der Schritt ist daran einmal gescheitert.
+              # `-e "source …"` fuehrt das Skript in der bereits offenen Verbindung aus.
+              lftp -u "$AVESMAPS_USER","$AVESMAPS_PASSWORD" -p "$AVESMAPS_PORT"                 -e "source \"$dotfile_script\"" "sftp://$AVESMAPS_HOST"
               echo "Punkt-Dateien nachgereicht."
             fi
           fi
