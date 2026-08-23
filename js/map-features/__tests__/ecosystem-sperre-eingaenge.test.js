@@ -61,6 +61,9 @@ const kontext = {
 	// Die Registrierung der Flächen. Leer: dieser Test baut EINE Fläche und ruft ihre Handler direkt.
 	ecosystemLayers: new Map(),
 	canOperateEcosystemLayers: () => true,
+	// Seit 23.08.2026 fragen die Gesten canEditEcosystemOnMap (Bedienrecht UND nicht „Alle"). Hier ist
+	// „Alle" aus -- diese Datei prüft die Sperre einer Region, nicht die Ansicht.
+	canEditEcosystemOnMap: () => true,
 	isEcosystemDrawing: () => false,
 	isEcosystemEditingInProgress: () => false,
 	isEcosystemGeometryEditOpen: () => false,

@@ -548,9 +548,17 @@ function createLabelMarkerEntry(label) {
 	// gespeicherten Richtungen aufgelöst (api/_internal/app/ecosystem-label-link.php). Ein Label ohne
 	// Fläche trägt sie nicht und bekommt hier folglich nichts.
 	const labelRegionPublicId = String(label.ecosystemRegionPublicId || "");
+	//
+	// 💣 HIER STAND DIE REGEL EIN ZWEITES MAL AUSGESCHRIEBEN (`!canOperateEcosystemLayers()`), und der
+	// Renderer nannte sie daneben ausdrücklich „wortgleich". Am 23.08.2026 wurde sie beim Original
+	// erweitert -- „Alle" ist seither ein Lese-Blick --, und die Abschrift hier wäre stumm zurückgeblieben:
+	// ein Klick auf die FLÄCHE hätte hervorgehoben, ein Klick auf ihr LABEL nicht. Deshalb wird jetzt die
+	// eine Definition gefragt (isEcosystemReaderClick, map-features-ecosystem-rendering.js).
+	// ⚠️ Damit auch deren Fehlerrichtung: fehlt die Frage, geschieht nichts. Vorher hob sie in dem Fall
+	// hervor -- die Abschrift war schon in ihrer Notbremse nicht wortgleich.
 	const hebtFlaecheHervor = labelRegionPublicId
 		&& typeof setHighlightedEcosystemRegion === "function"
-		&& !(typeof canOperateEcosystemLayers === "function" && canOperateEcosystemLayers());
+		&& typeof isEcosystemReaderClick === "function" && isEcosystemReaderClick();
 	if (hebtFlaecheHervor) {
 		marker.on("click", () => setHighlightedEcosystemRegion(labelRegionPublicId));
 	}

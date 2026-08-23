@@ -1139,8 +1139,12 @@ if (typeof document !== "undefined") {
 		// 🔴 „Im Modus" reicht seit 2026-08-04 nicht mehr: die Ebene steht jedem Besucher offen. Ohne die
 		// zweite Frage schluckte Strg+Z bei ihm die Taste und antwortete mit einer Editor-Meldung
 		// („Doppelklick auf eine Fläche öffnet ihre Ecken") auf ein Werkzeug, das er gar nicht hat.
+		//
+		// 🔴 Und nicht in „Alle“ (23.08.2026): dort wird auf der Karte nichts bearbeitet, also gibt es auch
+		// nichts zurückzunehmen — der Pinselstapel überlebt zwar das Beenden des Werkzeugs, aber die Taste
+		// gehört dem Arbeitsplatz, nicht der Übersicht.
 		const inEcosystemMode = typeof isEcosystemLayerModeActive === "function" && isEcosystemLayerModeActive()
-			&& (typeof canOperateEcosystemLayers !== "function" || canOperateEcosystemLayers());
+			&& (typeof canEditEcosystemOnMap !== "function" || canEditEcosystemOnMap());
 		if (!session && !inEcosystemMode) { return; }
 
 		event.preventDefault();

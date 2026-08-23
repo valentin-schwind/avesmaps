@@ -170,9 +170,15 @@
 	//
 	// 🪤 `activeKind` allein genügt dafür nicht -- die Ebene wird gemerkt (localStorage) und sagt auch
 	// im politischen Modus noch „topographie". Deshalb steht sie in der Tabelle UND wird hier geprüft.
-	function addHereMenuVisibility({ mode = "", isEditMode = false, isEcosystemEnabled = false, activeKind = "" } = {}) {
+	//
+	// 🔴 UND IN „Alle“ GIBT ES KEINEN DER DREI LANDSCHAFTS-EINTRÄGE (23.08.2026). Dort ist keine Ebene
+	// hervorgehoben, die gemerkte läuft aber weiter — „Neue Fläche“ legte also in einer Ebene an, die
+	// niemand im Blick hat. Genau so bekam die Weiden-Region eine Fläche im Süden der Heldentrutz.
+	// ⚠️ `showAll` fehlt beim Aufrufer ⇒ „nicht Alle“: die sichere Richtung, denn diese Tabelle wird auch
+	// von der Nachbardatei für den Territorien-Import gefragt.
+	function addHereMenuVisibility({ mode = "", isEditMode = false, isEcosystemEnabled = false, activeKind = "", showAll = false } = {}) {
 		const erlaubt = new Set(ADD_HERE_BY_MODE[String(mode)] || []);
-		const landscapeAllowed = Boolean(isEditMode) && Boolean(isEcosystemEnabled);
+		const landscapeAllowed = Boolean(isEditMode) && Boolean(isEcosystemEnabled) && !showAll;
 
 		return {
 			createLocation: erlaubt.has("create-location"),
@@ -196,6 +202,7 @@
 			isEditMode: typeof IS_EDIT_MODE !== "undefined" && IS_EDIT_MODE,
 			isEcosystemEnabled: typeof IS_ECOSYSTEM_ENABLED !== "undefined" && IS_ECOSYSTEM_ENABLED,
 			activeKind: typeof getActiveEcosystemLayerKind === "function" ? getActiveEcosystemLayerKind() : "",
+			showAll: typeof isEcosystemShowAllLayers === "function" && isEcosystemShowAllLayers(),
 		});
 	}
 

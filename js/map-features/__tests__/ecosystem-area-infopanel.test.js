@@ -128,14 +128,16 @@ context.window.avesmapsShowInfopanel = (html, activeName) => gezeigt.push(active
 context.IS_INFOPANEL_MODE = true;
 context.labelData = REGISTER;
 
-context.canOperateEcosystemLayers = () => true; // Editor
-assert(context.isEcosystemReaderClick() === false, "wer die Werkzeuge hat, ist kein Leser");
+context.canEditEcosystemOnMap = () => true; // Editor in einer gewählten Ebene
+assert(context.isEcosystemReaderClick() === false, "wer hier arbeiten darf, ist kein Leser");
 assert(context.showEcosystemAreaInfopanel(flaeche({ label_public_id: "l-eisen" })) === false,
 	"🔴 im Editor geht KEIN Panel auf -- dort heisst der Klick: daran arbeite ich");
 assert(gezeigt.length === 0, "und es wurde auch wirklich nichts gezeigt");
 
-context.canOperateEcosystemLayers = () => false; // Frontend
-assert(context.isEcosystemReaderClick() === true, "ohne Werkzeuge ist es ein Leserklick");
+// 🔴 Zwei Fälle, EINE Antwort (23.08.2026): der Besucher ohne Werkzeuge -- und der Editor in „Alle",
+// der dort dieselbe Karte sieht wie er. Beide fragen canEditEcosystemOnMap.
+context.canEditEcosystemOnMap = () => false; // Frontend, oder der Editor in „Alle"
+assert(context.isEcosystemReaderClick() === true, "wer hier nicht arbeiten darf, klickt lesend");
 assert(context.showEcosystemAreaInfopanel(flaeche({ label_public_id: "l-eisen" })) === true,
 	"im Frontend geht das Panel auf");
 assert(gezeigt.length === 1 && gezeigt[0] === "Eisenwald::<label-panel>Eisenwald</label-panel>",
@@ -154,9 +156,9 @@ context.IS_INFOPANEL_MODE = true;
 // 💣 Fehlt der Nachbar, der nach den Werkzeugen fragt, geschieht NICHTS -- wortgleich zu der Lesart,
 // die die Hervorhebung seit 2026-08-04 trägt. Ein Riegel, der bei fehlendem Nachbarn aufgeht, wäre
 // hier zwar harmlos, aber er widerspräche der Zeile daneben, und genau das ist die Divergenz.
-context.canOperateEcosystemLayers = undefined;
+context.canEditEcosystemOnMap = undefined;
 assert(context.isEcosystemReaderClick() === false,
-	"💣 ohne canOperateEcosystemLayers dieselbe Antwort wie die Hervorhebung: nein");
+	"💣 ohne canEditEcosystemOnMap dieselbe Antwort wie die Hervorhebung: nein");
 
 if (failures > 0) {
 	console.error(`ecosystem-area-infopanel.test: ${failures} failure(s)`);

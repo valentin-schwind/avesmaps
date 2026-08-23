@@ -325,6 +325,10 @@ function flaechenWelt({ bedienen }) {
 			},
 		},
 		canOperateEcosystemLayers: () => bedienen,
+		// 🔴 Seit 23.08.2026 fragen die Gesten die DRITTE Frage: „darf ich HIER bearbeiten" —
+		// canEditEcosystemOnMap = Bedienrecht UND nicht „Alle". Hier ist „Alle" aus, beide Antworten
+		// fallen also zusammen; den Fall „Alle" prüft ecosystem-alle-gesperrt.test.js.
+		canEditEcosystemOnMap: () => bedienen,
 		openEcosystemGeometryEdit: () => { gezaehlt.ecken += 1; },
 	};
 	context.globalThis = context;
@@ -334,7 +338,7 @@ function flaechenWelt({ bedienen }) {
 	// 💣 GEGENPROBE ZUR SANDKASTEN-FALLE: die geprüften Handler sind gegen fehlende Globals gehärtet
 	// (`typeof … === "function" && …`). Fehlte die Rechtefrage hier, liefen sie in ihre Notbremse und
 	// dieser Test wäre grün, ohne die Regel je ausgeführt zu haben.
-	assert(typeof context.canOperateEcosystemLayers === "function",
+	assert(typeof context.canEditEcosystemOnMap === "function",
 		"die Rechtefrage muss im Sandkasten stehen, sonst prueft dieser Test die Notbremse");
 
 	const gebaut = context.buildEcosystemAreaLayer({

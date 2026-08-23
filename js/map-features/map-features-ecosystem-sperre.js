@@ -22,9 +22,11 @@
  * übereinander, liefe das Verfahren sonst je Schicht erneut. So läuft es genau einmal, und ein
  * weitergereichtes Ereignis kann nie wieder auf einer gesperrten Fläche landen.
  *
- * 🔴 NUR IM BEARBEITEN-MODUS (`canOperateEcosystemLayers`) — dieselbe Frage, an der auch
+ * 🔴 NUR IM BEARBEITEN-MODUS (`canEditEcosystemOnMap`) — dieselbe Frage, an der auch
  * `isEcosystemReaderClick` hängt. Für einen Besucher wäre eine gesperrte Region eine Region ohne
- * Infopanel: ein Funktionsverlust, den er nicht erklären und nicht rückgängig machen kann.
+ * Infopanel: ein Funktionsverlust, den er nicht erklären und nicht rückgängig machen kann. Seit dem
+ * 23.08.2026 zählt „Alle“ dazu: wer dort steht, sieht die Karte wie ein Besucher, und eine Sperre, die
+ * ihm das Infopanel nähme, nähme ihm etwas, das er dort gar nicht bearbeiten kann.
  *
  * 💣 ALLE ZEIGERGESTEN DER FLÄCHE GEHEN DURCH DIESE EINE WEICHE. Keine Zahl in diesem Kommentar:
  * „Eingang 1 von 4" liest sich wie eine vollständige Liste, und genau daran ist die
@@ -54,7 +56,7 @@
 	}
 
 	function darfBearbeiten() {
-		return typeof canOperateEcosystemLayers === "function" && canOperateEcosystemLayers() === true;
+		return typeof canEditEcosystemOnMap === "function" && canEditEcosystemOnMap() === true;
 	}
 
 	// Ist DIESE Fläche gerade gesperrt? Der Weg, den alles ausserhalb dieser Datei benutzt.

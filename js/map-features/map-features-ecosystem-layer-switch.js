@@ -77,6 +77,28 @@ function canOperateEcosystemLayers() {
 		&& typeof IS_ECOSYSTEM_ENABLED !== "undefined" && Boolean(IS_ECOSYSTEM_ENABLED);
 }
 
+// 🔴 SEIT 23.08.2026 SIND ES DREI FRAGEN. Die dritte ist nicht das Recht, sondern der ORT: „Alle“ ist
+// eine ANSICHT, kein Arbeitsplatz (Owner: „anklicken (auch die flächen) ist ok, aber nix bearbeiten“).
+// Wer dort steht, bekommt genau das, was der gewöhnliche Besucher im Landschaftsmodus bekommt.
+//
+// 💣 DER ANLASS. In „Alle“ antworten alle drei Ebenen, aber die gemerkte ARBEITSEBENE läuft darunter
+// unverändert weiter — und KEINE Kachel ist hervorgehoben (syncEcosystemLayerSwitchControls, mit
+// Absicht). Jede Geste arbeitete deshalb in einer Ebene, die niemand mehr im Blick hatte. So bekam die
+// Weiden-Region den Namen „Harpyienbuckel“ und dazu eine Fläche im Süden der Heldentrutz; danach hiess
+// auf der Karte ganz Weiden „Harpyienbuckel“. Eine Region trägt den Namen und darf VIELE Flächen
+// halten — der Fehlgriff ist damit nicht auf die angefasste Fläche begrenzt.
+//
+// 🔴 SIE NIMMT DEM EDITOR NICHT SEIN RECHT. canOperateEcosystemLayers bleibt wahr — das Bedienfeld,
+// der Untergrund-Regler und die Fenster, die ihre Ebene SELBST benennen („Reihenfolge und Sperren“,
+// WikiSync → Regionen, das Änderungsprotokoll), arbeiten in „Alle“ weiter. Dort ist nie unklar, worauf
+// geschrieben wird; auf der Karte war es das.
+//
+// 💣 WER DIE BEIDEN ZUSAMMENZIEHT, NIMMT ENTWEDER DEM EDITOR SEINE FENSTER ODER GIBT „ALLE“ DIE
+// WERKZEUGE ZURÜCK.
+function canEditEcosystemOnMap() {
+	return canOperateEcosystemLayers() && !isEcosystemShowAllLayers();
+}
+
 // Active pane: visible and takes clicks. The two resting ones: drawn at 0% fill AND 0% contour, so you
 // only ever see the layer you are working in (Owner 2026-07-26, third pass). They stay on the map as
 // layers -- switching back is a class swap, not a reload -- and stay click-through, so the question
@@ -196,7 +218,10 @@ function isEcosystemPeakActive(labelPublicId) {
 		//
 		// 🪤 Die Pane-Ausnahme darunter verliert er nicht: `ecosystem-labels-dimmed` wird für ihn seit
 		// 2026-08-04 gar nicht mehr gesetzt, es gibt also nichts mehr aufzuheben.
-		&& canOperateEcosystemLayers()
+		//
+		// 🔴 UND NICHT IN „ALLE“ (23.08.2026). Die gemerkte Ebene sagt dort weiterhin „topographie“, der
+		// Gipfel bliebe also ziehbar — in einer Ansicht, die sonst nichts bearbeitet.
+		&& canEditEcosystemOnMap()
 		&& getActiveEcosystemLayerKind() === "topographie"
 		&& isEcosystemPeakLabel(labelPublicId);
 }
@@ -508,7 +533,43 @@ function isEcosystemKindVisible(kind) {
 	return isEcosystemShowAllLayers() || kind === getActiveEcosystemLayerKind();
 }
 
+// Beendet, was auf der Karte gerade in Arbeit ist. Die ANZAHL der Werkzeuge steht hier bewusst nicht:
+// eine Zahl im Kommentar liest sich wie eine vollständige Liste, und genau daran ist die
+// Verkehrsmittel-Sperre am 14.08.2026 gescheitert — es suchte niemand weiter. Wer ein weiteres baut,
+// hängt es hier ein; js/map-features/__tests__/ecosystem-alle-gesperrt.test.js zählt zur Laufzeit mit.
+//
+// ⚠️ Die Ecken-Sitzung wird GESCHLOSSEN, nicht verworfen — closeEcosystemGeometryEdit schreibt die
+// ausstehende Änderung heraus. Ein Wechsel der Ansicht darf keine getane Arbeit kosten. Der halb
+// gezeichnete Umriss dagegen ist per Entwurf ungespeichert und fällt weg, mit Ansage.
+function endEcosystemMapTools() {
+	if (typeof isEcosystemDrawing === "function" && isEcosystemDrawing()
+		&& typeof cancelEcosystemAreaDrawing === "function") {
+		cancelEcosystemAreaDrawing("Zeichnen abgebrochen — in „Alle“ wird nicht bearbeitet. Es wurde nichts gespeichert.");
+	}
+	if (typeof activeEcosystemGeometryEdit !== "undefined" && activeEcosystemGeometryEdit
+		&& typeof closeEcosystemGeometryEdit === "function") {
+		closeEcosystemGeometryEdit();
+	}
+	const pinsel = typeof window !== "undefined" ? window.AvesmapsEcosystemBrush : null;
+	if (pinsel?.isActive?.()) {
+		pinsel.stop?.("Werkzeug beendet — in „Alle“ wird nicht bearbeitet.");
+	}
+	const operation = typeof window !== "undefined" ? window.AvesmapsEcosystemGeometryOps : null;
+	if (operation?.isPending?.()) {
+		operation.cancel?.();
+	}
+}
+
 function setEcosystemShowAllLayers(on) {
+	// 🔴 KEIN WERKZEUG ÜBERLEBT DEN WEG NACH „ALLE“. Sonst klebt ein halb gezeichneter Umriss weiter am
+	// Zeiger, und sein abschliessender Doppelklick schreibt in eine Ansicht, die gar nichts mehr
+	// bearbeitet. Beendet wird VOR dem Umlegen des Schalters: die Werkzeuge räumen selbst auf, und ihr
+	// Aufräumen fragt teils dieselbe Bedingung, die gleich umspringt.
+	//
+	// ⚠️ Nur in DIESE Richtung. Der Weg zurück in eine Ebene gibt die Arbeit frei, er räumt sie nicht weg.
+	if (Boolean(on) && !isEcosystemShowAllLayers()) {
+		endEcosystemMapTools();
+	}
 	// Ab hier ist es eine eigene Wahl -- die Vorgabe oben greift für diesen Browser nie wieder.
 	ecosystemShowAllStored = Boolean(on);
 	try {

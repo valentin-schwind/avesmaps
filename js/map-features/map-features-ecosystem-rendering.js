@@ -408,8 +408,13 @@ function formatEcosystemAreaTooltip(area) {
 //
 // ⚠️ Wortgleich zur Bedingung, die die Hervorhebung seit 2026-08-04 trägt, inklusive ihrer Lesart bei
 // fehlendem Nachbarn (dann passiert nichts). Hier steht sie nur EINMAL statt zweimal ausgeschrieben.
+//
+// 🔴 UND SEIT 23.08.2026 IST „ALLE“ EIN LESE-BLICK (Owner: „Alle sollte das sein, was für normale
+// nutzer im frontend der Landschaftsmodus ist“). Dieselbe Geste, dieselbe Antwort: die Region leuchtet
+// auf, das Infopanel geht auf. Der Editor bekommt „daran arbeite ich“ nur dort, wo er auch arbeiten
+// darf — eine weisse Arbeitskontur in einer Ansicht ohne Werkzeuge verspricht etwas, das es nicht gibt.
 function isEcosystemReaderClick() {
-	return typeof canOperateEcosystemLayers === "function" && !canOperateEcosystemLayers();
+	return typeof canEditEcosystemOnMap === "function" && !canEditEcosystemOnMap();
 }
 
 // Welche Quelle füllt das Panel: das Label der Fläche, oder die Fläche selbst?
@@ -642,8 +647,10 @@ function syncEcosystemDoubleClickZoom() {
 	// 🔴 „In der Ebene" reicht seit 2026-08-04 NICHT mehr. Seit sie jedem Besucher offensteht, säße er
 	// sonst auf einer Karte, die nicht mehr auf Doppelklick zoomt -- und er hat nichts zu zeichnen, was
 	// den Entzug rechtfertigte. Der Doppelklick gehört dem, der auch die Werkzeuge bekommt.
+	// 🔴 Und seit 23.08.2026 auch nicht in „Alle“: der Doppelklick öffnet dort keine Ecken mehr, also
+	// gibt es keine Arbeitsgeste, für die der Zoom weichen müsste. Er kommt zurück.
 	const inEcosystemLayer = typeof isEcosystemLayerModeActive === "function" && isEcosystemLayerModeActive()
-		&& (typeof canOperateEcosystemLayers !== "function" || canOperateEcosystemLayers());
+		&& (typeof canEditEcosystemOnMap !== "function" || canEditEcosystemOnMap());
 	// Zeichnen und Ecken-Bearbeitung sind ohnehin nur dort möglich; sie stehen trotzdem hier, damit die
 	// Antwort auch dann stimmt, wenn der Moduswechsel noch nicht durchgelaufen ist.
 	const editing = typeof activeEcosystemGeometryEdit !== "undefined" && Boolean(activeEcosystemGeometryEdit);
@@ -804,7 +811,10 @@ function buildEcosystemAreaLayer(area) {
 		// 💣 FEHLT DIE FRAGE, IST DIE ANTWORT NEIN. `!== "function"` und nicht das im Haus übliche
 		// `typeof … === "function" && …`: das ist ein Recht, kein Komfort, und ein Riegel, der bei
 		// fehlendem Nachbarn aufgeht, ist keiner.
-		if (typeof canOperateEcosystemLayers !== "function" || !canOperateEcosystemLayers()) {
+		//
+		// 🔴 UND NICHT IN „ALLE“ (23.08.2026). Dort ist keine Ebene hervorgehoben, die gemerkte
+		// Arbeitsebene läuft aber weiter — eine Geste träfe also eine Ebene, die niemand im Blick hat.
+		if (typeof canEditEcosystemOnMap !== "function" || !canEditEcosystemOnMap()) {
 			return;
 		}
 		// 🔴 Gesperrt: dieselbe Weiche wie beim Klick, und aus demselben Grund VOR dem `stop`.
@@ -850,7 +860,10 @@ function buildEcosystemAreaLayer(area) {
 		// 🪤 OHNE `stop`, genau wie der Strg-Notausgang darunter: so bekommt der Besucher hier das
 		// gewöhnliche Kartenmenü („Hierher reisen", „Entfernung messen", „Hier melden") statt eines
 		// verschluckten Klicks. Begründung zur Fehlerrichtung: siehe dblclick oben.
-		if (typeof canOperateEcosystemLayers !== "function" || !canOperateEcosystemLayers()) {
+		//
+		// 🔴 UND NICHT IN „ALLE“ (23.08.2026). Dort ist keine Ebene hervorgehoben, die gemerkte
+		// Arbeitsebene läuft aber weiter — eine Geste träfe also eine Ebene, die niemand im Blick hat.
+		if (typeof canEditEcosystemOnMap !== "function" || !canEditEcosystemOnMap()) {
 			return;
 		}
 		// 🔴 STRG + RECHTSKLICK ERZWINGT DAS KARTENMENÜ (Owner 2026-07-29). Die Ebene ist so dicht
