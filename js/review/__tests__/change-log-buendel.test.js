@@ -373,6 +373,19 @@ assert.ok(
 // nur die eine Hälfte -- die andere ist, dass jede Zeile die passenden Zellen mitbringt.
 const changeLogGroupHeader = sandbox.changeLogGroupHeader;
 const changeLogEntryRow = sandbox.changeLogEntryRow;
+
+// 🪤 changeLogGroupHeader ruft changeLogHeute() SELBST auf und liest damit die echte Systemzeit --
+// nicht das HEUTE von oben, das nur die reine changeLogFormatTime bekommt. Ein festes Datum in den
+// Buendeln hier unten ist deshalb genau EINEN Tag lang gruen: am 23.08.2026 kippte der Test von
+// selbst um ("22.08. 12:38" statt "12:38"), ohne dass jemand Code angefasst hatte -- und weil der
+// Deploy ein Tor ist, hielt er ab da JEDEN Push zurueck, auch fremde. Das Datum kommt darum aus dem
+// Kalender; die Uhrzeiten bleiben fest, denn genau sie werden geprueft.
+const HEUTE_ECHT = (() => {
+	const jetzt = new Date();
+	const zwei = (zahl) => String(zahl).padStart(2, "0");
+
+	return `${jetzt.getFullYear()}-${zwei(jetzt.getMonth() + 1)}-${zwei(jetzt.getDate())}`;
+})();
 for (const [name, fn] of [["changeLogGroupHeader", changeLogGroupHeader], ["changeLogEntryRow", changeLogEntryRow]]) {
 	assert.strictEqual(typeof fn, "function", name + " ist geladen");
 }
@@ -381,9 +394,9 @@ const buendel = {
 	target: "Reichsstraße 2",
 	actor: "nics",
 	entries: [
-		{ id: 1, name: "Reichsstraße 2", action: "update_path", username: "nics", created_at: "2026-08-22 12:38:00" },
-		{ id: 2, name: "Reichsstraße 2", action: "update_path", username: "nics", created_at: "2026-08-22 12:36:00" },
-		{ id: 3, name: "Reichsstraße 2", action: "update_path", username: "nics", created_at: "2026-08-22 12:34:00" },
+		{ id: 1, name: "Reichsstraße 2", action: "update_path", username: "nics", created_at: HEUTE_ECHT + " 12:38:00" },
+		{ id: 2, name: "Reichsstraße 2", action: "update_path", username: "nics", created_at: HEUTE_ECHT + " 12:36:00" },
+		{ id: 3, name: "Reichsstraße 2", action: "update_path", username: "nics", created_at: HEUTE_ECHT + " 12:34:00" },
 	],
 };
 const kopf = changeLogGroupHeader(buendel);
@@ -408,7 +421,7 @@ const einzelBuendel = {
 	key: "Gareth|nics|9",
 	target: "Gareth",
 	actor: "nics",
-	entries: [{ id: 9, name: "Gareth", action: "update_location", username: "nics", created_at: "2026-08-22 12:28:00" }],
+	entries: [{ id: 9, name: "Gareth", action: "update_location", username: "nics", created_at: HEUTE_ECHT + " 12:28:00" }],
 };
 const einzelKopf = changeLogGroupHeader(einzelBuendel);
 assert.strictEqual(zelle(einzelKopf, "change-log-group__count").textContent, "1×", "auch eine einzelne Änderung zählt sichtbar");
