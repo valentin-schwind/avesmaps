@@ -172,6 +172,13 @@ jobs:
             "politics"
             "scripts"
             "tools/wikidump"
+            # 🔴 NUR diese eine Datei, nie "uploads" als Ganzes. /uploads sind LAUFZEITDATEN --
+            # hochgeladene Wappen, Bilder, DB-Backups -- und dort ist der SERVER die Quelle,
+            # nicht das Repo. Ein Verzeichnis-Eintrag liesse den Deploy etwas anfassen, dessen
+            # Inhalt er nicht kennt. Die .htaccess ist die Ausnahme: Konfiguration, kein Datum.
+            # Sie setzt CSP + nosniff fuer SVG-Wappen -- ein SVG kann <script> tragen und liefe
+            # direkt aufgerufen im Ursprung von avesmaps.de.
+            "uploads/wappen/.htaccess"
           )
 
           copy_item() {

@@ -28,6 +28,12 @@ uploads/dumps/*
 uploads/db-backups/*
 !uploads/db-backups/.htaccess
 
+# Die Wappen selbst gehoeren dem Server, nicht dem Repo (451 + 80 + 217 Dateien, Stand
+# 23.08.2026). Ohne diese Zeilen wuerde ein "git add uploads/" sie alle einchecken --
+# uploads/wappen war als einziges Unterverzeichnis nicht abgedeckt.
+uploads/wappen/*
+!uploads/wappen/.htaccess
+
 # Manually-uploaded map export archives (large binaries; live on the server, not in the repo).
 uploads/*.zip
 uploads/map/*.zip
