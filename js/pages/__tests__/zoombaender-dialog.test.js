@@ -31,7 +31,17 @@ const browser = read("js/map-features/location-zoom-bands.js");
 
 // ---- 1. Die Kachel -----------------------------------------------------------------------------
 assert.ok(/id="seZoomBands"/.test(seite), "die Kachel traegt die Kennung seZoomBands");
-assert.ok(/Zoombänder/.test(seite), "die Kachel heisst „Zoombänder\"");
+// 🔴 Die Kachel heisst seit dem 24.08.2026 „Darstellung" (Owner). Die KENNUNGEN bleiben:
+// seZoomBands, zoom-bands.php, location_zoom_bands -- dieselbe Trennung wie bei
+// „Neuigkeiten"/changelog (AGENTS.md §11).
+// 🪤 Und die Zusicherung prueft jetzt die KACHEL, nicht das blosse Vorkommen des Wortes. Vorher
+// stand hier /Zoombänder/.test(seite) mit der Aussage „die Kachel heisst Zoombänder" -- das Wort
+// steht aber in einem Dutzend Kommentare und Statusmeldungen derselben Datei. Nach der Umbenennung
+// blieb der Test gruen und seine Aussage war falsch: trivial erfuellt.
+const kachel = seite.slice(seite.indexOf('id="seZoomBands"'), seite.indexOf('id="seZoomBands"') + 400);
+assert.ok(/<span class="t1">Darstellung<\/span>/.test(kachel), "die Kachel heisst „Darstellung“");
+assert.ok(/<div class="modal-title" id="seZoomBandsTitle">Darstellung<\/div>/.test(seite),
+	"und das Fenster dahinter auch -- sonst oeffnet „Darstellung“ ein Fenster mit anderem Namen");
 // 🔴 Owner-Entscheid, Fix-Runde 2 (Clipping bei acht Kacheln): gekuerzt auf "Zoomlevel aller Orte",
 // nur die Kachel selbst -- "Nur Auswahl anzeigen" (fremde Kachel) bleibt unangetastet.
 assert.ok(/Zoomlevel aller Orte/.test(seite), "und traegt ihre zweite Zeile");

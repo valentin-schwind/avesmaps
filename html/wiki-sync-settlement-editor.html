@@ -475,7 +475,7 @@
          🔴 Die Unterzeile des Knopfes zeigt BEIDE Stellungen, damit man den Notaus sieht, ohne das
          Menü zu öffnen — ein Notaus, dessen Stand man aufklappen muss, ist keiner. -->
     <div class="rb-menu">
-      <button class="btn2" id="seCoatsMenu" aria-haspopup="true" aria-expanded="false" title="Die Notaus-Schalter fürs öffentliche Frontend — Wappen (eigene und aus dem Wiki) und Ortsbilder —, dazu der Lauf, der die gemeinfreien Wiki-Wappen auf unseren Server holt. Im Editor bleibt alles sichtbar."><span class="t1">🛡️ Wappen &amp; Bilder ▾</span><span class="t2" id="seCoatsMenuState">wird geladen…</span></button>
+      <button class="btn2" id="seCoatsMenu" aria-haspopup="true" aria-expanded="false" title="Die Notaus-Schalter fürs öffentliche Frontend — Wappen (eigene und aus dem Wiki) und Ortsbilder —, dazu der Lauf, der die gemeinfreien Wiki-Wappen auf unseren Server holt. Im Editor bleibt alles sichtbar."><span class="t1">Wappen &amp; Bilder ▾</span><span class="t2" id="seCoatsMenuState">wird geladen…</span></button>
       <div class="rb-menu__panel type-filter__menu" id="seCoatsMenuPanel" hidden>
         <div class="rb-menu__row">
           <div class="rb-menu__txt"><b>Lokale Wappen</b><span>eigene Uploads</span></div>
@@ -501,7 +501,7 @@
     <button class="btn2" id="seLinkCheck" title="Prüft NUR die Quellen-Links der Orte auf Erreichbarkeit. Abenteuer, Karten und Territoriums-Quellen haben ihre eigenen Schalter. Höflich: 600ms Pause je Host, ein Durchlauf dauert entsprechend."><span class="t1">🔗 Links prüfen</span><span class="t2" id="seLinkCheckInfo">Quellen der Orte</span></button>
     <!-- Achte Kachel (Aufgabe 8, Bauplan docs/superpowers/plans/2026-08-16-zoombaender.md): weich/
          outline wie fünf ihrer Geschwister -- die Haupthandlung dieses Menübands heißt „Syncen". -->
-    <button class="btn2" id="seZoomBands" title="Stellt ein, ab welcher Zoomstufe eine Ortsklasse auf der Karte erscheint, wie groß ihr Punkt dort ist und ab wann sie ihr Label trägt. Einstellen dürfen nur Administratoren; ansehen darf es jeder Editor."><span class="t1">Zoombänder</span><span class="t2">Zoomlevel aller Orte</span></button>
+    <button class="btn2" id="seZoomBands" title="Stellt ein, ab welcher Zoomstufe eine Ortsklasse auf der Karte erscheint, wie groß ihr Punkt dort ist und ab wann sie ihr Label trägt. Einstellen dürfen nur Administratoren; ansehen darf es jeder Editor."><span class="t1">Darstellung</span><span class="t2">Zoomlevel aller Orte</span></button>
   </div>
 </header>
 
@@ -587,7 +587,7 @@
      Endpunkt, Riegel dort UND hier -- siehe renderZoomBandsDialog im Inline-Skript unten). -->
 <div id="seZoomBandsDialog" class="modal" hidden>
   <div class="modal-box wide modal-box--zoombands" role="dialog" aria-modal="true" aria-labelledby="seZoomBandsTitle">
-    <div class="modal-title" id="seZoomBandsTitle">Zoombänder</div>
+    <div class="modal-title" id="seZoomBandsTitle">Darstellung</div>
     <div class="modal-sub">Ab welcher Zoomstufe eine Ortsklasse erscheint, wie groß ihr Punkt ist und ab wann sie ihr Label trägt.</div>
     <div class="zb">
       <p class="zb__lead">
