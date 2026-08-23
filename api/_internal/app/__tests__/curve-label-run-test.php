@@ -253,4 +253,74 @@ $nachher = avesmapsCurveReadBaselines($pdo);
 assert(isset($nachher['r1']), 'wieder eingeschaltet muss die Kurve zurueckkommen');
 assert($nachher['r1']['max_labels'] === 3, 'die Anzahl muss aus der Einstellung kommen, nicht aus der Ablage');
 
+// ---- DER RECHNER FUER EINE EINZELNE REGION -------------------------------------------------------
+// 🔴 Owner 23.08.2026: „kurvenbeschriftung funktioniert manchmal nicht". Die Kurve entstand nur im
+// Sammellauf -- wer den Haken setzte, sah bis dahin nichts. „Manchmal" hiess in Wahrheit „bei allem,
+// was seit dem letzten Lauf eingeschaltet wurde". Seither rechnet das Speichern die EINE Region nach.
+{
+    // Eine ZWEITE Region, eingeschaltet, aber noch nicht in der Ablage.
+    $pdo->exec(
+        "INSERT INTO ecosystem_region (id, public_id, properties_json, is_active)
+         VALUES (42, 'r-neu', '{\"curve_label\":true,\"curve_label_max\":1}', 1)"
+    );
+    $zweitesRechteck = (string) json_encode(['type' => 'Polygon', 'coordinates' => [[
+        [0.0, 50.0], [120.0, 50.0], [120.0, 62.0], [0.0, 62.0], [0.0, 50.0],
+    ]]]);
+    $st = $pdo->prepare(
+        'INSERT INTO ecosystem_area (id, region_id, geometry_geojson, geometry_revision, is_active)
+         VALUES (42, 42, :geom, 3, 1)'
+    );
+    $st->execute(['geom' => $zweitesRechteck]);
+
+    // Vorbedingung: die Ablage kennt r1, aber nicht r2.
+    $vorher = avesmapsCurveReadBaselines($pdo);
+    assert(isset($vorher['r1']), 'Vorbedingung: r1 liegt in der Ablage');
+    assert(!isset($vorher['r-neu']), 'Vorbedingung: r2 liegt NICHT in der Ablage -- genau der gemeldete Zustand');
+
+    $lauf = avesmapsCurveRefreshCacheForRegion($pdo, 'r-neu');
+    assert($lauf['ok'] === true, 'der Einzellauf muss sauber zurueckgelesen haben');
+    assert($lauf['gerechnet'] === true, 'fuer eine eingeschaltete Region mit Flaeche muss eine Kurve entstehen');
+
+    $nachher = avesmapsCurveReadBaselines($pdo);
+    assert(isset($nachher['r-neu']), 'r2 muss nach dem Einzellauf eine Kurve haben');
+    // 💣 DIE TRAGENDE ZUSICHERUNG: EINMISCHEN, NICHT NEU BAUEN. Wer den Rechner ueber nur EINE
+    // Region laufen laesst und das Ergebnis ablegt, loescht die Kurven aller uebrigen -- live waeren
+    // das 50 von 51, und es faellt erst beim naechsten Neuladen auf.
+    assert(isset($nachher['r1']), 'r1 darf durch den Einzellauf NICHT verschwinden');
+
+    // Ausgeschaltet -> Eintrag raus, die andere bleibt.
+    $pdo->exec("UPDATE ecosystem_region SET properties_json = '{\"curve_label_max\":1}' WHERE public_id = 'r-neu'");
+    $aus = avesmapsCurveRefreshCacheForRegion($pdo, 'r-neu');
+    assert($aus['ok'] === true);
+    assert($aus['gerechnet'] === false, 'fuer eine ausgeschaltete Region wird nichts gerechnet');
+    $danach = avesmapsCurveReadBaselines($pdo);
+    // 💣 IN DIE ABLAGE SCHAUEN, NICHT IN DEN LESEPFAD. avesmapsCurveReadBaselines filtert
+    // ausgeschaltete Regionen seit dem 23.08.2026 ohnehin heraus -- eine Zusicherung ueber ihn waere
+    // also auch dann gruen, wenn der Eintrag im Zwischenspeicher liegenbliebe. Genau diese Mutation
+    // hat die erste Fassung dieses Tests ueberlebt.
+    $rohAblage = json_decode(avesmapsAppSettingGetWithoutDdl($pdo, avesmapsCurveCacheKey(), ''), true);
+    assert(!isset($rohAblage['regions']['r-neu']),
+        'die alte Kurve muss aus der ABLAGE verschwinden, nicht bloss aus dem Lesepfad');
+    assert(isset($rohAblage['regions']['r1']), 'und r1 liegt weiterhin in der Ablage');
+    assert(!isset($danach['r-neu']), 'und der Lesepfad gibt sie ebenfalls nicht mehr heraus');
+    assert(isset($danach['r1']), 'und r1 bleibt auch dabei unberuehrt');
+
+    // ⚠️ Eine unbekannte Kennung darf nichts anfassen -- schon gar nicht die Ablage leeren.
+    $leer = avesmapsCurveRefreshCacheForRegion($pdo, '');
+    assert($leer['ok'] === false && $leer['gerechnet'] === false, 'ohne Kennung passiert gar nichts');
+    assert(isset(avesmapsCurveReadBaselines($pdo)['r1']), 'und r1 steht immer noch da');
+}
+
+// ---- VERDRAHTUNG: rechnet das SPEICHERN wirklich nach? -------------------------------------------
+// 💣 Ein gruener Test beweist nichts ohne Verdrahtung -- dieselbe Falle, die avesmapsCurveLabelRolloutFor
+// einen Tag lang ungerufen liegen liess.
+$ecoQuelle = file_get_contents(__DIR__ . '/../ecosystem.php');
+assert(str_contains($ecoQuelle, 'avesmapsCurveRefreshCacheForRegion('),
+    'update_region rechnet die Kurve nicht nach');
+$posCommit = strpos($ecoQuelle, '$pdo->commit();');
+$posRefresh = strpos($ecoQuelle, 'avesmapsCurveRefreshCacheForRegion(');
+assert($posCommit !== false && $posRefresh !== false);
+assert($posCommit < $posRefresh,
+    'das Nachrechnen gehoert NACH den Commit -- es dauert und schreibt in app_setting');
+
 echo "curve-label-run tests passed\n";

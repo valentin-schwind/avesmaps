@@ -2856,6 +2856,28 @@ function avesmapsUpdateEcosystemRegion(PDO $pdo, array $payload, int $userId): a
         throw $exception;
     }
 
+    // 🔴 DIE KURVE DIESER EINEN REGION SOFORT NACHRECHNEN (Owner 23.08.2026: „kurvenbeschriftung
+    // funktioniert manchmal nicht"). Vorher entstand sie NUR im Sammellauf -- wer den Haken setzte,
+    // sah bis dahin gar nichts, und „manchmal" hiess in Wahrheit „bei allem, was seit dem letzten
+    // Lauf eingeschaltet wurde". Gemessen an der Auenlandschaft „Pandlarilsau": Region auf
+    // `curve_label = true`, Label ohne Kurve. Einschalten und Sichtbarwerden waren zwei Schritte.
+    //
+    // ⚠️ NACH dem Commit, nicht darin: der Rechner braucht je Flaeche bis zu einige hundert
+    // Millisekunden und schreibt in `app_setting` -- das gehoert nicht in eine offene Transaktion
+    // auf ecosystem_region.
+    //
+    // 💣 UND ER SCHEITERT LEISE, mit Protokolleintrag: die Region IST gespeichert, das ist die
+    // Hauptsache. Bliebe die Kurve aus, holt sie der Sammellauf. Ein Wurf an dieser Stelle machte
+    // aus einem gelungenen Speichern einen Fehlschlag -- und der Editor haette seine Aenderung
+    // verloren geglaubt, obwohl sie steht.
+    if (array_key_exists('curve_label', $payload) || array_key_exists('curve_label_max', $payload)) {
+        try {
+            avesmapsCurveRefreshCacheForRegion($pdo, $publicId);
+        } catch (Throwable $exception) {
+            error_log('avesmapsUpdateEcosystemRegion (Kurve nachrechnen): ' . $exception->getMessage());
+        }
+    }
+
     return ['region' => avesmapsEcosystemRegionSnapshot($after), 'revision' => $revision];
 }
 

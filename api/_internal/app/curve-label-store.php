@@ -460,6 +460,99 @@ function avesmapsCurveBuildCachePayload(array $regionen): string
     return (string) json_encode(['version' => 1, 'regions' => (object) $raus], JSON_PRESERVE_ZERO_FRACTION);
 }
 
+// Die Kurve EINER Region neu rechnen und in die bestehende Ablage einmischen.
+//
+// 🔴 WARUM ES DAS GIBT (Owner 23.08.2026: „kurvenbeschriftung funktioniert manchmal nicht"): die
+// Kurve entsteht nur im Sammellauf. Wer den Haken setzte, sah bis zum naechsten Lauf gar nichts --
+// „manchmal" war in Wahrheit „bei allem, was seit dem letzten Lauf eingeschaltet wurde". Gemessen
+// an der Auenlandschaft „Pandlarilsau": Region `curve_label = true`, Label ohne Kurve.
+// Einschalten und Sichtbarwerden waren zwei Schritte; jetzt ist es einer.
+//
+// ⚠️ EINE Region, nicht 51: der Sammellauf braucht rund 12 s, diese Funktion rechnet nur die
+// Flaechen DIESER Region (typisch eine, 165-796 ms). Das ist die Groessenordnung eines Speicherns.
+//
+// 💣 EINMISCHEN, NICHT NEU BAUEN. Wer hier avesmapsCurveBuildCachePayload ueber nur EINE Region
+// laufen laesst und das Ergebnis ablegt, loescht die Kurven der uebrigen 50 -- und niemand merkt es,
+// bis jemand die Karte neu laedt.
+// ⚠️ Es bleibt ein Lesen-Aendern-Schreiben: speichern zwei Editoren im selben Augenblick zwei
+// verschiedene Regionen, kann eine der beiden Aenderungen verlorengehen. Bei der Zahl der Editoren
+// hingenommen; der Sammellauf richtet es in jedem Fall wieder.
+//
+// 🔴 AUSGESCHALTET HEISST: EINTRAG RAUS. Sonst bliebe die alte Kurve in der Ablage stehen, und der
+// Lesepfad haengt zwar nicht mehr an ihr (er prueft die Einstellung), aber die Nutzlast truege sie
+// weiter mit.
+//
+// @return array{ok:bool, gerechnet:bool, bytes:int}
+function avesmapsCurveRefreshCacheForRegion(PDO $pdo, string $regionPublicId): array
+{
+    $regionPublicId = trim($regionPublicId);
+    if ($regionPublicId === '') {
+        return ['ok' => false, 'gerechnet' => false, 'bytes' => 0];
+    }
+
+    $stmt = $pdo->prepare(
+        'SELECT r.public_id AS region_id, r.properties_json,
+                a.geometry_geojson, a.geometry_revision
+         FROM ecosystem_region r
+         INNER JOIN ecosystem_area a ON a.region_id = r.id AND a.is_active = 1
+         WHERE r.is_active = 1 AND r.public_id = :pid'
+    );
+    $stmt->execute([':pid' => $regionPublicId]);
+    $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    // Dieselbe Sammlung wie im Sammellauf -- bewusst dieselbe Form, damit beide durch DENSELBEN
+    // Rechner gehen (avesmapsCurveBuildCachePayload). Zwei Rechner fuer dieselbe Kurve waeren die
+    // zweite Wahrheit, an der frueher oder spaeter Sammellauf und Einzellauf auseinanderlaufen.
+    $regionen = [];
+    foreach ($rows as $row) {
+        $id = (string) $row['region_id'];
+        if (!isset($regionen[$id])) {
+            $properties = json_decode((string) ($row['properties_json'] ?? ''), true);
+            $regionen[$id] = [
+                'rev' => 0,
+                'cnt' => 0,
+                'settings' => avesmapsCurveLabelSettingsFromProperties(is_array($properties) ? $properties : null),
+                'geometries' => [],
+            ];
+        }
+        $regionen[$id]['rev'] += (int) $row['geometry_revision'];
+        $regionen[$id]['cnt']++;
+        if (!$regionen[$id]['settings']['enabled']) {
+            continue;
+        }
+        $geom = json_decode((string) $row['geometry_geojson'], true);
+        if (is_array($geom)) {
+            $regionen[$id]['geometries'][] = $geom;
+        }
+    }
+
+    $frisch = json_decode(avesmapsCurveBuildCachePayload($regionen), true);
+    $eintrag = (is_array($frisch) && is_array($frisch['regions'] ?? null))
+        ? ($frisch['regions'][$regionPublicId] ?? null)
+        : null;
+
+    $alt = json_decode(avesmapsAppSettingGetWithoutDdl($pdo, avesmapsCurveCacheKey(), ''), true);
+    $regions = (is_array($alt) && ($alt['version'] ?? null) === 1 && is_array($alt['regions'] ?? null))
+        ? $alt['regions']
+        : [];
+    if ($eintrag === null) {
+        unset($regions[$regionPublicId]);
+    } else {
+        $regions[$regionPublicId] = $eintrag;
+    }
+
+    // Dieselben Flags wie im Sammellauf -- siehe dort zu JSON_PRESERVE_ZERO_FRACTION.
+    $json = (string) json_encode(['version' => 1, 'regions' => (object) $regions], JSON_PRESERVE_ZERO_FRACTION);
+    avesmapsAppSettingEnsureWideValue($pdo);
+    avesmapsAppSettingSet($pdo, avesmapsCurveCacheKey(), $json);
+
+    // 💣 ZURUECKLESEN, aus demselben Grund wie im Sammellauf: eine stille MySQL-Kuerzung ist von
+    // „nie geschrieben" nicht zu unterscheiden.
+    $zurueck = avesmapsAppSettingGetWithoutDdl($pdo, avesmapsCurveCacheKey(), '');
+
+    return ['ok' => $zurueck === $json, 'gerechnet' => $eintrag !== null, 'bytes' => strlen($json)];
+}
+
 // Der Sammellauf: alle Regionen lesen, rechnen, ablegen, ZURUECKLESEN.
 //
 // 💣 Der Schreibvorgang liest zurueck. app_setting.setting_value war einmal VARCHAR(255), und die
