@@ -135,18 +135,29 @@ if (is_file($menuScriptPath)) {
                                  das Panel zu ist. Wurzelrelativ ist hier richtig: diese Seite ist
                                  die oberste Huelle, nicht der Karten-iframe. -->
                             <a class="edit-shell__menu-item" href="/html/editor-handbuch.html" target="_blank" rel="noopener">Handbuch</a>
+                            <!-- Seit 23.08.2026 fuer JEDEN Editor, vorher nur Admins. Der alte
+                                 Riegel schuetzte keine Daten: die Seite holt alles aus api/app/,
+                                 und das ist ohne Anmeldung lesbar. Ueber dieselbe Seite laufen
+                                 auch die Original-Kartenarchive -- die liegen per .htaccess dicht
+                                 und kommen nur ueber api/edit/map/kartenarchiv.php heraus.
+                                 Entwurf: docs/superpowers/specs/2026-08-23-kartenarchiv-und-svg-fuer-editoren-design.md -->
+                            <a class="edit-shell__menu-item" href="/edit/svg-export.php" target="_blank" rel="noopener">Karte als SVG</a>
                         </section>
                         <?php if (avesmapsUserCan($currentUser, 'admin')) : ?>
                             <!-- Nur Admins, nicht Editoren: ein voller Dump traegt
                                  users.password_hash, jeden Teilen-Link und jeden Bericht; die
                                  Endpunkte halten denselben Riegel. Die Ueberschrift sagt es laut --
                                  ein Editor sieht den Block gar nicht, ein Admin daneben wuesste
-                                 sonst nicht, welche Zeilen dem anderen fehlen. Sie ersetzt die drei
-                                 Einzelmerkmale, die bis heute an den Links hingen. -->
+                                 sonst nicht, welche Zeilen dem anderen fehlen. Sie ersetzt die
+                                 Einzelmerkmale, die bis zum 23.08.2026 an den Links hingen.
+
+                                 ⚠️ Hier stand bis zum 23.08.2026 auch „Karte als SVG". Der Riegel
+                                 gilt dem, was der Block WIRKLICH schuetzt -- Passwort-Hashes und
+                                 die Benutzerverwaltung. Der SVG-Export gehoerte nie dazu; er las
+                                 immer nur oeffentliche Endpunkte. -->
                             <section class="edit-shell__menu-group">
                                 <p class="edit-shell__menu-title">Nur Admins</p>
                                 <a class="edit-shell__menu-item" href="/edit/backup.php" target="_blank" rel="noopener">Datenbank-Backup</a>
-                                <a class="edit-shell__menu-item" href="/edit/svg-export.php" target="_blank" rel="noopener">Karte als SVG</a>
                                 <a class="edit-shell__menu-item" href="/admin/" target="_blank" rel="noopener">Admin</a>
                             </section>
                         <?php endif; ?>

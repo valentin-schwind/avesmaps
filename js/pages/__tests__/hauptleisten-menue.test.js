@@ -52,11 +52,22 @@ const adminBlock = menueMarkup.slice(
 	menueMarkup.indexOf("avesmapsUserCan($currentUser, 'admin')"),
 	menueMarkup.indexOf("<?php endif; ?>"));
 assert.ok(adminBlock.length > 0, "es gibt einen admin-gegateten Abschnitt im Menue");
-["/edit/backup.php", "/edit/svg-export.php", "/admin/"].forEach((ziel) => {
+["/edit/backup.php", "/admin/"].forEach((ziel) => {
 	assert.ok(adminBlock.includes(ziel), ziel + " liegt im Admin-Block, nicht davor oder danach");
 });
-assert.ok(!adminBlock.includes("/html/editor-handbuch.html"),
-	"das Handbuch liegt AUSSERHALB des Riegels -- jeder Editor braucht es");
+// 🔴 Und die Kehrseite, seit 23.08.2026: der SVG-Export liegt AUSSERHALB. Er stand bis dahin
+// zwischen den beiden darueber, obwohl er nur oeffentliche api/app/-Endpunkte liest -- der Riegel
+// gilt dem, was der Block wirklich schuetzt (Passwort-Hashes, Benutzerverwaltung). Ueber dieselbe
+// Seite laufen seither die Original-Kartenarchive, die JEDER Editor braucht.
+[
+	["/html/editor-handbuch.html", "das Handbuch"],
+	["/edit/svg-export.php", "der SVG-Export"],
+].forEach(([ziel, name]) => {
+	assert.ok(!adminBlock.includes(ziel),
+		name + " liegt AUSSERHALB des Riegels -- jeder Editor braucht ihn");
+	assert.ok(menueMarkup.includes('href="' + ziel + '"'),
+		name + " steht trotzdem im Menue (nicht versehentlich mit entfernt)");
+});
 
 // 💣 Abmelden steht als LETZTE Gruppe. Ganz oben laege es unter dem Zeiger, der eben den Knopf
 // gedrueckt hat; die Reihenfolge ist eine Entscheidung des Entwurfs, keine Zufaelligkeit des

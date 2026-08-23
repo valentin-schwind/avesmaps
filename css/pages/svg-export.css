@@ -334,3 +334,45 @@
 .svgx-layer > .svgx-entry > .svgx-swatches {
 	justify-self: start;
 }
+
+/* Die Archivliste ganz unten: eine Zeile je Datei -- Name, Größe/Datum, weicher Knopf.
+   Dieselbe Trennlinien-Rhythmik wie das Zählwerk darüber; kein Rahmen, kein Kasten
+   (design-language.md: gruppieren per Trenner, nicht per Kasten). */
+.svgx-archive {
+	list-style: none;
+	margin: 0 0 10px 0;
+	padding: 0;
+}
+
+.svgx-archive__row {
+	display: flex;
+	align-items: center;
+	flex-wrap: wrap;
+	gap: 4px 10px;
+	padding: 8px 0;
+	border-bottom: 1px solid var(--color-divider);
+}
+
+/* ⚠️ `break-all`, nicht `break-word`: die Namen sind lang und tragen kein einziges
+   Leerzeichen (avesmaps_aventurien_tiles_v2.05.zip) -- ohne das schiebt die Zeile den
+   Knopf am Telefon aus dem Panel. */
+.svgx-archive__name {
+	color: var(--color-text-strong);
+	font-weight: 600;
+	word-break: break-all;
+}
+
+.svgx-archive__meta {
+	color: var(--color-text-muted);
+	font-size: 13px;
+	font-variant-numeric: tabular-nums;
+}
+
+/* Rechts, solange Platz ist -- sonst rutscht er in die nächste Zeile statt sie zu sprengen.
+   `.svgx-secondary` ist für <button> geschrieben; ein <a> braucht die zwei Zeilen darunter,
+   sonst trägt der Knopf eine Unterstreichung und sitzt auf der Textgrundlinie. */
+.svgx-archive__button {
+	margin-left: auto;
+	display: inline-block;
+	text-decoration: none;
+}

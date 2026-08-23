@@ -98,9 +98,31 @@ const AVESMAPS_AUDIT_PRUNE_TABLES = [
 ];
 
 /**
+ * Welche Tabellen `avesmapsPruneAuditLog` ueberhaupt anfassen darf -- die AENDERUNGSprotokolle
+ * plus alles, was denselben globalen Deckel braucht, ohne ein Aenderungsprotokoll zu sein.
+ *
+ * 💣 GETRENNT VON DER LISTE DARUEBER, UND DAS IST DER GANZE PUNKT. Jene traegt die Regel
+ * „200 je Person ueber ALLE Protokolle zusammen" (Owner 22.08.2026). Wer hier etwas eintraegt
+ * UND dort, laesst es um dasselbe Budget konkurrieren: `map_archive_download` haelt fest, wer
+ * ein Kartenarchiv geholt hat -- das ist keine Aenderung, ist nicht rueckgaengig zu machen und
+ * darf einem Editor keinen einzigen seiner 200 Aenderungsschritte wegdraengen. Es ist auch
+ * nicht der umgekehrte Fall: haette der Trichter der Aenderungen es mitgezaehlt, staende dort
+ * wieder eine Zahl, die die Liste darunter nicht haelt -- genau der Befund vom 22.08.
+ *
+ * ⚠️ Neue Eintraege gehoeren HIER hinein, nicht oben, es sei denn, die Tabelle ist wirklich ein
+ * Aenderungsprotokoll mit `actor_user_id` und `created_at`, das im Trichter erscheinen soll.
+ */
+const AVESMAPS_AUDIT_PRUNE_CAPPABLE_TABLES = [
+    ...AVESMAPS_AUDIT_PRUNE_TABLES,
+    // Wer welches Kartenarchiv geholt hat (api/_internal/map/kartenarchiv.php).
+    'map_archive_download',
+];
+
+/**
  * Kappt ein Protokoll auf die juengsten $keepRows Zeilen -- hoechstens $maxDelete je Lauf.
  *
- * @param string $table Muss in AVESMAPS_AUDIT_PRUNE_TABLES stehen.
+ * @param string $table Muss in AVESMAPS_AUDIT_PRUNE_CAPPABLE_TABLES stehen (die WEITE Liste --
+ *                       nicht die engere darueber, die die 200-je-Person traegt).
  * @return int Wie viele Zeilen dieser Lauf geloescht hat (0 = nichts zu tun).
  * @throws InvalidArgumentException bei einer unbekannten Tabelle.
  */
@@ -110,7 +132,7 @@ function avesmapsPruneAuditLog(
     int $keepRows,
     int $maxDelete = AVESMAPS_AUDIT_PRUNE_DEFAULT_MAX_DELETE
 ): int {
-    if (!in_array($table, AVESMAPS_AUDIT_PRUNE_TABLES, true)) {
+    if (!in_array($table, AVESMAPS_AUDIT_PRUNE_CAPPABLE_TABLES, true)) {
         throw new InvalidArgumentException('Unbekanntes Protokoll: ' . $table);
     }
 

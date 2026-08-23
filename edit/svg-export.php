@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 /**
- * SVG-Export page (admin only).
+ * SVG-Export page (Faehigkeit `edit`).
  * ---------------------------------------------------------------------------
  * Reached from the "Karte als SVG" link in the edit shell's top bar, next to the
  * database backup. Tick the layers, pick the target program, press the button: the
@@ -20,13 +20,25 @@ declare(strict_types=1);
  * Vorgabefarben in svg-export-farben.js und nicht mehr hier im Kitt -- zwei Fassungen
  * derselben Regel laufen auseinander, sobald ein neuer Gelaendetyp dazukommt.
  *
- * ADMIN ONLY, matching the backup page: the export walks the full feature payload,
- * including the political layer.
+ * FAEHIGKEIT `edit` -- seit 23.08.2026, vorher `admin`. Der alte Riegel schuetzte KEINE
+ * Daten: die Seite holt alles aus api/app/map-features.php, api/app/political-territories.php
+ * und api/app/ecosystem-areas.php, und alle drei sind ohne Anmeldung lesbar (gemessen am
+ * 23.08.2026: keiner von ihnen ruft avesmapsRequireUserWithCapability). Er war Vorsicht,
+ * kein Schutz.
+ * ⚠️ Nicht zu verwechseln mit edit/backup.php nebenan -- ein voller Dump traegt
+ * `users.password_hash` und bleibt `admin`.
+ *
+ * Diese Seite bietet ausserdem die ORIGINALARCHIVE aus uploads/map/ an (Abschnitt ganz unten).
+ * Die liegen per .htaccess dicht und kommen nur ueber api/edit/map/kartenarchiv.php heraus;
+ * warum das eine vertretbare Ausnahme von Befund A25 ist, steht im Kopf von
+ * api/_internal/map/kartenarchiv.php.
+ * Entwurf: docs/superpowers/specs/2026-08-23-kartenarchiv-und-svg-fuer-editoren-design.md
  *
  * Design: docs/superpowers/specs/2026-08-14-svg-export-design.md
  */
 
 require __DIR__ . '/../api/auth.php';
+require_once __DIR__ . '/../api/_internal/map/kartenarchiv.php';
 
 $config = avesmapsLoadApiConfig(dirname(__DIR__) . '/api');
 $pdo = avesmapsCreatePdo($config['database'] ?? []);
@@ -43,17 +55,22 @@ if ($requestMethod === 'POST') {
     }
 
     $user = avesmapsLogin($pdo, (string) ($_POST['username'] ?? ''), (string) ($_POST['password'] ?? ''));
-    if ($user !== null && avesmapsUserCan($user, 'admin')) {
+    if ($user !== null && avesmapsUserCan($user, 'edit')) {
         header('Location: ./svg-export.php');
         exit;
     }
 
     avesmapsLogout();
-    $loginError = 'Login fehlgeschlagen oder keine Admin-Berechtigung.';
+    $loginError = 'Login fehlgeschlagen oder keine Editor-Berechtigung.';
 }
 
 $currentUser = avesmapsCurrentUser();
-$isAdmin = $currentUser !== null && avesmapsUserCan($currentUser, 'admin');
+$isEditor = $currentUser !== null && avesmapsUserCan($currentUser, 'edit');
+
+// Die Originalarchive: was in uploads/map/ TATSAECHLICH liegt, nicht ein hartkodiertes v2.05.
+// Die Begruendung steht im Kopf der Bibliothek -- es ist dieselbe, mit der der Owner seine
+// .htaccess nach ENDUNG statt nach Dateinamen filtert.
+$kartenarchive = $isEditor ? avesmapsKartenarchivListe() : [];
 
 /**
  * The layer list, in DRAW order -- in SVG the first one lies at the BOTTOM.
@@ -241,11 +258,11 @@ $renderNode = static function (array $node, string $parentPath, int $depth) use 
     <!-- Hand-written on purpose: the deploy's asset stamper only follows index.html and
          html/*.html, so it never reaches this PHP page. Bump these whenever the stylesheet
          or either script changes, or admins keep the cached files. See AGENTS.md sec.7. -->
-    <link rel="stylesheet" href="../css/pages/svg-export.css?v=20260818-svgexport-16" />
+    <link rel="stylesheet" href="../css/pages/svg-export.css?v=20260823-kartenarchiv" />
 </head>
 
 <body class="edit-page">
-    <?php if (!$isAdmin) : ?>
+    <?php if (!$isEditor) : ?>
         <main class="edit-login">
             <form class="edit-login__panel" method="post" action="./svg-export.php">
                 <input type="hidden" name="action" value="login" />
@@ -421,6 +438,43 @@ $renderNode = static function (array $node, string $parentPath, int $depth) use 
                     </thead>
                     <tbody id="svgx-stats-body"></tbody>
                 </table>
+                <!-- Die Originalarchive. Sie haben mit dem SVG-Bauer oben nichts zu tun und stehen
+                     deshalb ganz unten, hinter dem Zaehlwerk -- derselbe Personenkreis, andere
+                     Handlung. Gruppiert per Trennlinie und Ueberschrift wie jeder andere Abschnitt
+                     dieser Seite (design-language.md: kein Rahmenkasten).
+
+                     💣 Die Liste ist GERECHNET, nicht geschrieben: sie zeigt, was in uploads/map/
+                     tatsaechlich liegt. Ein hartkodiertes „v2.05" waere nach dem naechsten
+                     Kartenexport ein toter Verweis, und niemandem fiele auf, warum -- es ist
+                     dieselbe Ueberlegung, mit der die .htaccess des Ordners nach ENDUNG statt nach
+                     Dateinamen sperrt.
+
+                     ⚠️ Der Knopf ist WEICH (.svgx-secondary), nicht gefuellt: die Haupthandlung
+                     dieser Seite ist „SVG erzeugen", und eine Zeilenhandlung ist nie die
+                     Haupthandlung (design-language.md). -->
+                <div class="svgx-group">
+                    <h2 class="svgx-group__title">Originalkarte herunterladen</h2>
+                    <p class="svgx-lead">Das Bildmaterial, aus dem diese Karte gebaut ist &ndash; die Gesamtkarte und die fertigen Kacheln.</p>
+                    <?php if ($kartenarchive === []) : ?>
+                        <p class="svgx-hint">In <code>uploads/map/</code> liegt derzeit kein Archiv.</p>
+                    <?php else : ?>
+                        <ul class="svgx-archive">
+                            <?php foreach ($kartenarchive as $archiv) : ?>
+                                <li class="svgx-archive__row">
+                                    <span class="svgx-archive__name"><?php echo htmlspecialchars((string) $archiv['name'], ENT_QUOTES, 'UTF-8'); ?></span>
+                                    <span class="svgx-archive__meta"><?php echo htmlspecialchars(avesmapsKartenarchivGroesse((int) $archiv['size']), ENT_QUOTES, 'UTF-8'); ?> &middot; <?php echo date('d.m.Y', (int) $archiv['mtime']); ?></span>
+                                    <a class="svgx-secondary svgx-archive__button" href="/api/edit/map/kartenarchiv.php?datei=<?php echo rawurlencode((string) $archiv['name']); ?>">Herunterladen</a>
+                                </li>
+                            <?php endforeach; ?>
+                        </ul>
+                        <p class="svgx-hint">Gro&szlig;e Dateien &ndash; der Browser darf abbrechen und fortsetzen, es f&auml;ngt nicht wieder von vorn an.</p>
+                    <?php endif; ?>
+                    <p class="svgx-hint">
+                        Arbeitsmaterial f&uuml;r die Kartenpflege, <strong>nicht zur Weitergabe</strong>: das Projekt hat zugesagt,
+                        kein reines Bilderarchiv zu sein (<code>NOTICE.md</code>), &ouml;ffentlich sind die Archive deshalb gesperrt.
+                        Jeder Download wird mit Namen festgehalten.
+                    </p>
+                </div>
             </section>
         </main>
         <!-- 🔴 VOR svg-export-page.js: die Seite liest daraus avesmapsResolveLocationZoomBands, um
