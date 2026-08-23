@@ -41,7 +41,11 @@ $code = (string) $code;
 // und misst danach einen ganz anderen Codeabschnitt. Beim ersten Lauf genau so passiert: der
 // Test meldete einen fehlenden Header, der zwei Bildschirmseiten weiter unten stand.
 // Der Hauptpfad beginnt an seinem eigenen Marker.
-$hauptpfad = strpos($code, "X-Avesmaps-Coat-Drossel: v1");
+// ⚠️ Der Marker muss VOR allem liegen, dessen Reihenfolge hier geprueft wird -- sonst
+// verschwindet ein nach vorn gewanderter Riegel aus dem Messbereich und der Test meldet
+// „nicht im Hauptpfad" statt „steht an der falschen Stelle". Beim Mutieren genau so passiert:
+// richtig rot, irrefuehrend begruendet. `$key = sha1($url)` steht am Anfang des Hauptpfads.
+$hauptpfad = strpos($code, 'key = sha1($url);');
 assert($hauptpfad !== false, 'der Hauptpfad hat seinen Marker');
 $riegel  = strpos($code, 'avesmapsWikiDateiAbrufErlaubt($url)', $hauptpfad);
 $drossel = strpos($code, 'avesmapsCoatDrosselDarfHolen($dir', $hauptpfad);
@@ -94,6 +98,20 @@ assert(strpos($fetchRumpf, 'avesmapsWikiDateiAbrufErlaubt($url)') !== false,
     'DER KERN VON TEIL 4: der Riegel in avesmapsCoatFetch bleibt als zweite Ebene stehen');
 assert(preg_match('/avesmapsWikiDateiAbrufErlaubt\(\$url\).{0,120}return \[null/s', $fetchRumpf) === 1,
     'und er BRICHT dort auch wirklich ab, statt nur gefragt zu werden');
+
+// ---- 4b. DER RIEGEL DARF DEN CACHE NICHT BLOCKIEREN -------------------------------------------
+// 🔴 Die wichtigste Zusicherung dieser Datei. Am 23.08.2026 stand schon einmal eine zweite Bremse
+// VOR der ersten -- im Browser, gegen jede Wiki-Adresse -- und warf damit die ~118 Wappen mit weg,
+// die laengst im Cache liegen und mit HTTP 200 ausgeliefert wurden. Zurueckgenommen in d68f56dc.
+// **Eine Bremse vor dem Cache sieht nicht, was der Cache beantworten koennte.**
+$cacheTreffer = strpos($code, 'avesmapsCoatServeFile($cachedPath');
+assert($cacheTreffer !== false, 'der Cache-Treffer liefert die Datei aus');
+assert($cacheTreffer < $riegel,
+    'DER KERN VON TEIL 4b: der Cache-Treffer wird AUSGELIEFERT, bevor der Riegel gefragt wird -- '
+    . 'sonst nimmt der Riegel die Wappen mit, die wir laengst haben');
+
+// ⚠️ Und die Drossel ebenso: ein Wappen von der Platte kostet das Wiki nichts.
+assert($cacheTreffer < $drossel, 'auch die Drossel steht hinter dem Cache-Treffer');
 
 // ---- 5. Und der Riegel ist wirklich zu ---------------------------------------------------------
 require_once dirname(__DIR__) . '/wiki/datei-riegel.php';
