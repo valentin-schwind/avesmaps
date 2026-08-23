@@ -394,6 +394,21 @@ $renderNode = static function (array $node, string $parentPath, int $depth) use 
                     <button type="button" class="svgx-secondary" id="svgx-none">Keine</button>
                 </div>
 
+                <div class="svgx-group">
+                    <h2 class="svgx-group__title">F&uuml;r die API hinterlegen</h2>
+                    <p class="svgx-hint">Legt den zuletzt erzeugten Abzug auf dem Server ab, wo
+                        <code>GET /api/svg-export.php</code> ihn gegen einen Token ausliefert &ndash;
+                        mit <strong>deinen</strong> Einstellungen. Die n&auml;chtliche Routine legt
+                        dort sonst ihre eigene Fassung ab; wer abruft, sieht an
+                        <code>X-Avesmaps-Quelle</code>, welche er bekommen hat.</p>
+                    <div class="svgx-actions">
+                        <button type="button" class="svgx-secondary" id="svgx-deposit" disabled>
+                            Abzug hinterlegen
+                        </button>
+                    </div>
+                    <p class="svgx-status" id="svgx-deposit-status" role="status" aria-live="polite"></p>
+                </div>
+
                 <p class="svgx-status" id="svgx-status" role="status" aria-live="polite"></p>
 
                 <table class="svgx-stats" id="svgx-stats" hidden>

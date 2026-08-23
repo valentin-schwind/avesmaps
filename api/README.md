@@ -238,50 +238,93 @@ Legacy root wrappers such as /api/map-features.php, /api/map-search.php, /api/re
 ## Machine access: the semantic SVG export
 
 ```text
-GET /api/svg-export.php
-Authorization: Bearer <token>
+GET  /api/svg-export.php          Authorization: Bearer <svg_export.token>
+POST /api/svg-export-deposit.php  Authorization: Bearer <svg_export.deposit_token>  (or an admin session)
 ```
 
 Hands out **the newest semantic SVG rendering of the whole map** — the same file
 `/edit/svg-export.php` produces in the browser, for tools that cannot hold a browser login.
-Inkscape dialect, 32768 x 32768 px, `viewBox="0 0 1024 1024"`, every layer, full `avm:*`
-metadata, nothing smoothed. The vocabulary contract is in
-`docs/svg-export-semantik-uebergabe.md`.
+The vocabulary contract is in `docs/svg-export-semantik-uebergabe.md`.
 
-Read-only: no write path, no database connection, no admin function. The token can do this
-and nothing else.
+🔴 **The renderer is JavaScript and stays that way.** The export is 1356 lines of map
+appearance in `js/pages/svg-export-build.js`. A PHP renderer would restate it a second time
+(AGENTS.md §5) and would have to `json_decode` ~21 MB per call on shared hosting — the load
+CLAUDE.md warns about. PHP therefore never *builds* an export; it only stores and serves one.
+
+**Two producers, one way in.** Both build with the same builder and deposit through the same
+endpoint:
+
+| Producer | Trigger | Settings | `quelle` |
+|---|---|---|---|
+| The owner | „Abzug hinterlegen" on `/edit/svg-export.php` | whatever the sliders say | `manuell` |
+| The routine | `.github/workflows/svg-export-abzug.yml`, 03:17 UTC | fixed: inkscape, 32768², all layers, nothing smoothed | `routine` |
+
+💣 **A second write path would need a second copy of the same rules** — prune, write the
+pointer, set the lock. The first version pushed the routine's file up by SFTP and pruned with
+`lftp`; that is exactly the shape AGENTS.md calls out as *„zwei von drei Löschwegen gebunden
+ist keine Regel"*. Now only PHP touches the store.
+
+### Reading
 
 | | |
 |---|---|
-| Token | env var `AVESMAPS_SVG_EXPORT_TOKEN` on the server — **never** a URL parameter, never `config.local.php`, never logged |
+| Token | `$config['svg_export']['token']` in `api/config.local.php` — where this project's tokens live (`import_api`, `discord`, `changelog`, `social`). Env var `AVESMAPS_SVG_EXPORT_TOKEN` is a fallback for hosts without that file. **Never** a URL parameter, never logged. |
 | Compared with | `hash_equals`; an empty configured token never matches |
 | 200 | `image/svg+xml; charset=utf-8` + `Content-Disposition: attachment; filename="avesmaps-karte-YYYY-MM-DD-r<Kartenfassung>-inkscape.svg"` |
-| Headers | `ETag` (strong, sha256 of the bytes), `Cache-Control: private, no-cache`, `X-Avesmaps-Kartenfassung`, `X-Avesmaps-Landschaftsfassung`, `X-Avesmaps-Exported-At` |
+| Headers | `ETag` (strong, sha256 of the bytes), `Cache-Control: private, no-cache`, `X-Avesmaps-Kartenfassung`, `X-Avesmaps-Landschaftsfassung`, `X-Avesmaps-Exported-At`, `X-Avesmaps-Quelle` |
 | 304 | on a matching `If-None-Match` (weak prefix and lists included) |
 | 401 `unauthorized` | missing **or** wrong token — deliberately indistinguishable |
-| 404 `export_not_available` | no rendering deposited yet |
+| 404 `export_not_available` | nothing deposited yet |
 | 405 `method_not_allowed` | anything but GET/HEAD |
-| 503 `export_not_configured` | the env var is not set **on the server** — not a 401, because the caller has no error to look for |
+| 503 `export_not_configured` | the key is not set **on the server** — not a 401, because the caller has no error to look for |
 
-💣 **The file is NOT built by PHP, and that is the point.** The export is 1356 lines of map
-appearance in `js/pages/svg-export-build.js`. A PHP renderer would restate it a second time
-(AGENTS.md §5) and would have to `json_decode` ~21 MB per call on shared hosting — the load
-CLAUDE.md warns about. Instead `.github/workflows/svg-export-abzug.yml` runs
-`tools/svg-export/abzug-bauen.js` nightly under Node, which loads **that same builder**, and
-uploads the result to the HTTP-denied `uploads/svg-export/`. Browser and API export therefore
-cannot drift: there is only one.
+⚠️ **`X-Avesmaps-Quelle` matters.** With two producers, the version stamps are not enough: they
+name the *data* state, not who rendered it. A hand-made export may be smoothed and recoloured;
+the routine's never is.
 
-⚠️ Consequence: the rendering is **up to 24 h old**. It carries `avm:kartenfassung` /
-`avm:landschaftsfassung` so a caller can tell which world state it is looking at — vector and
-raster only belong together when both name the same revision.
+### Depositing
 
-💣 **The pointer is the truth, not the directory.** `uploads/svg-export/aktuell.json` names the
-file; the runner writes it LAST and under a name nobody knew before. "Newest file in the
-directory" would hand out a half-uploaded one.
+Chunked, like the database dump — an export is ~8.6 MB and a single POST runs into STRATO's
+`post_max_size`, whose failure mode is an **empty body with no exception**, indistinguishable
+from "nothing was sent".
 
-Libs: `api/_internal/app/svg-export-ablage.php`. Tests:
-`api/_internal/app/__tests__/svg-export-ablage-test.php` (the decision),
-`tools/svg-export/__tests__/endpunkt-ablauf.js` (the real HTTP round trip against `php -S`).
+```text
+POST ?action=start                     -> {ok, upload_id}
+POST ?action=chunk&upload_id=… (raw)   -> {ok, bytes}
+POST ?action=finish&upload_id=… (JSON) -> {ok, datei, bytes, quelle, aufgeraeumt}
+```
+
+🔴 **A separate token from the reading one.** The read token goes to outside tools; if it also
+opened the write path, every reader would be a writer. 🔴 **`quelle` is decided by the gate, not
+by the request body** — otherwise a hand-made export could label itself as the routine, and
+that field exists precisely to tell them apart.
+
+Rejected with `422 deposit_rejected` and a reason: under 64 KB (the likeliest silent failure is
+a builder that turned empty endpoint answers into a valid but empty SVG), or not an SVG at all.
+The previous export stays in place when a deposit is rejected.
+
+`AVESMAPS_SVG_EXPORT_KEEP_FILES = 3`, mirroring the backup. 🔴 The current export is never
+pruned, even if it is the oldest — a store whose pointer dangles reports "nothing available"
+right after something was deposited.
+
+### The store
+
+`uploads/svg-export/`, HTTP-denied, next to `uploads/db-backups`. 🔴 **No `.htaccess` in the
+repo**, unlike the backup: `uploads/` is not in the deploy allowlist, so a repo copy would never
+reach the server and would only be a second, drifting version. PHP writes and repairs the lock
+at run time (`avesmapsSvgExportEnsureAblage`) — the house pattern from
+`avesmapsDbBackupEnsureStorageDir`. (Measured 23.08.2026: the backup's repo copy is CRLF while
+its PHP constant is LF, so that one rewrites itself on every single run.)
+
+💣 **The pointer is the truth, not the directory.** `aktuell.json` names the file; it is written
+LAST and points at a name nobody knew before. "Newest file in the directory" would hand out a
+half-written one.
+
+Libs: `api/_internal/app/svg-export-ablage.php` (read), `…/svg-export-hinterlegen.php` (write).
+Tests: `api/_internal/app/__tests__/svg-export-ablage-test.php` (the decisions),
+`tools/svg-export/__tests__/endpunkt-ablauf.js` (10 HTTP steps, reading),
+`tools/svg-export/__tests__/ablage-ablauf.js` (9 HTTP steps, a real multi-chunk deposit).
+
 ## Editor, import, and diagnostic areas
 
 The API is organized into the following areas:

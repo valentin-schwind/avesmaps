@@ -19,6 +19,7 @@ if (ini_get('zend.assertions') !== '1') {
 
 require __DIR__ . '/../../bootstrap.php';
 require __DIR__ . '/../svg-export-ablage.php';
+require __DIR__ . '/../svg-export-hinterlegen.php';
 
 // ---- 1. Der Dateiname ist ein NAME, kein Pfad ------------------------------------------------
 // 💣 Das `datei`-Feld kommt aus einer Datei auf der Platte. Ein `../` darin waere ein Leseloch
@@ -80,6 +81,8 @@ $nurCode = static function (string $quelle): string {
 };
 $codeAblage = $nurCode($quelltextAblage);
 $codeEndpunkt = $nurCode($quelltextEndpunkt);
+$codeAblegen = $nurCode((string) file_get_contents(__DIR__ . '/../../../svg-export-deposit.php'));
+$codeHinterlegen = $nurCode((string) file_get_contents(__DIR__ . '/../svg-export-hinterlegen.php'));
 // Gegenprobe, damit das Heraustrennen selbst nicht luegt: die Erklaerung steht im Rohtext und
 // ist im Code weg.
 assert(str_contains($quelltextAblage, '$_GET') && !str_contains($codeAblage, '$_GET'),
@@ -89,7 +92,8 @@ foreach (['svg-export-ablage.php' => $codeAblage, 'svg-export.php' => $codeEndpu
     assert(!str_contains($q, '$_GET'), "{$wo} fasst \$_GET nicht an");
     assert(!str_contains($q, '$_POST'), "{$wo} fasst \$_POST nicht an");
     assert(!str_contains($q, '$_REQUEST'), "{$wo} fasst \$_REQUEST nicht an");
-    assert(!str_contains($q, 'config.local'), "{$wo} liest den Token nicht aus einer Datei");
+    // 🔴 config.local.php IST seit 23.08.2026 der Hauptweg (Owner: „unsere token werden in
+    // der config.local gesammelt") -- die alte Zusicherung stand hier genau andersherum.
 }
 // 🔴 Der Token wird nirgends protokolliert -- ein Token im Logfile ist ein veroeffentlichter Token.
 foreach (['error_log', 'syslog', 'file_put_contents'] as $schreiber) {
@@ -114,22 +118,49 @@ assert(avesmapsSvgExportTokenPasst('geheim', '') === false);
 // ⭐ Zeitgleich, also ueber hash_equals -- ein `===` verriete die Laenge des Praefixes.
 assert(str_contains($codeAblage, 'hash_equals('), 'der Vergleich laeuft ueber hash_equals');
 
-// ---- 5. Der Token kommt aus der UMGEBUNG, und aus drei ihrer PHP-Flaechen --------------------
-// ⚠️ Unter CGI landet ein SetEnv je nach Aufbau in $_SERVER, waehrend getenv() leer bleibt.
-// Das ist kein Rueckfall auf eine andere QUELLE, es ist dieselbe Variable auf einem anderen Weg.
+// ---- 5. Der Token kommt aus config.local.php, die Umgebung ist der Rueckfall -----------
+// 🔴 Owner-Entscheid 23.08.2026: „unsere token werden in der config.local gesammelt, da
+// existieren schon token." Derselbe Ort und dieselbe Form wie import_api, discord,
+// changelog und social -- ein siebter Ablageort waere eine zweite Stelle, an der jemand
+// nach Zugangsdaten suchen muss.
+assert(avesmapsSvgExportConfiguredToken(['svg_export' => ['token' => 'aus-config']]) === 'aus-config');
+assert(avesmapsSvgExportConfiguredToken(['svg_export' => ['token' => '  getrimmt  ']]) === 'getrimmt');
+assert(avesmapsSvgExportConfiguredToken([]) === '', 'ohne Schluessel gibt es keinen Token');
+assert(avesmapsSvgExportConfiguredToken(['svg_export' => 'kein-array']) === '',
+    'ein Skalar statt eines Teilbaums darf nicht durchschlagen');
+assert(avesmapsSvgExportConfiguredToken(['svg_export' => ['token' => '   ']]) === '',
+    'nur Leerzeichen ist kein Token');
+// ⚠️ Der Schluessel ist ein EIGENER -- nie der von import_api oder discord.
+assert(avesmapsSvgExportConfiguredToken(['import_api' => ['token' => 'fremd']]) === '',
+    'der Import-Token oeffnet den SVG-Export NICHT');
+
+// Die Umgebungsvariable bleibt als ZWEITE Flaeche, fuer einen Aufbau ohne config.local.php.
+// ⚠️ Unter CGI landet ein SetEnv je nach Aufbau in $_SERVER, waehrend getenv() leer bleibt --
+// dieselbe Variable auf einem anderen Weg, keine dritte Quelle.
 $_SERVER['AVESMAPS_SVG_EXPORT_TOKEN'] = ' aus-server ';
-assert(avesmapsSvgExportToken() === 'aus-server', 'aus $_SERVER, getrimmt');
+assert(avesmapsSvgExportConfiguredToken([]) === 'aus-server');
+// 💣 Und die Config SCHLAEGT die Umgebung -- sonst uebersteuerte eine vergessene Variable
+// auf dem Host lautlos den gepflegten Wert.
+assert(avesmapsSvgExportConfiguredToken(['svg_export' => ['token' => 'aus-config']]) === 'aus-config',
+    'config.local.php gewinnt gegen die Umgebung');
 unset($_SERVER['AVESMAPS_SVG_EXPORT_TOKEN']);
 $_ENV['AVESMAPS_SVG_EXPORT_TOKEN'] = 'aus-env';
-assert(avesmapsSvgExportToken() === 'aus-env');
+assert(avesmapsSvgExportConfiguredToken([]) === 'aus-env');
 unset($_ENV['AVESMAPS_SVG_EXPORT_TOKEN']);
 putenv('AVESMAPS_SVG_EXPORT_TOKEN=aus-getenv');
-assert(avesmapsSvgExportToken() === 'aus-getenv');
+assert(avesmapsSvgExportConfiguredToken([]) === 'aus-getenv');
 putenv('AVESMAPS_SVG_EXPORT_TOKEN');
-$_SERVER['AVESMAPS_SVG_EXPORT_TOKEN'] = '   ';
-assert(avesmapsSvgExportToken() === '', 'nur Leerzeichen ist kein Token');
-unset($_SERVER['AVESMAPS_SVG_EXPORT_TOKEN']);
-assert(avesmapsSvgExportToken() === '', 'ohne Umgebungsvariable gibt es keinen Token');
+assert(avesmapsSvgExportConfiguredToken([]) === '', 'ohne alles gibt es keinen Token');
+
+// 💣 Der Endpunkt muss den WURF von avesmapsLoadApiConfig fangen. Ohne config.local.php und
+// ohne DB-Umgebung wirft sie -- ein reiner Dateiendpunkt duerfte daran nicht mit einem 500
+// zerbrechen, an dem der Aufrufer nichts ablesen kann.
+assert(str_contains($codeEndpunkt, 'avesmapsLoadApiConfig(avesmapsApiRoot())'));
+assert(str_contains($codeEndpunkt, 'catch (Throwable)'), 'und der Wurf wird gefangen');
+$tryStelle = strpos($codeEndpunkt, 'try {');
+$tokenStelle = strpos($codeEndpunkt, 'avesmapsSvgExportConfiguredToken(');
+assert(is_int($tryStelle) && is_int($tokenStelle) && $tokenStelle > $tryStelle,
+    'der Aufruf steht IM try-Block, nicht davor');
 
 // ---- 6. Die Ablage: Zeiger, Traversal, abgerissener Upload -----------------------------------
 $tmp = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'avm-svgx-' . bin2hex(random_bytes(6));
@@ -201,15 +232,127 @@ assert(avesmapsSvgExportZeigerLesen($tmp) === null);
 
 $aufraeumen($tmp);
 
-// ---- 7. Die Ablage liegt ausserhalb von api/ und ist gesperrt --------------------------------
+// ---- 7. Die Ablage liegt ausserhalb von api/ und wird von PHP gesperrt ----------------------
 $verzeichnis = avesmapsSvgExportAblageVerzeichnis();
-assert(str_ends_with(str_replace('\\', '/', $verzeichnis), '/uploads/svg-export'),
+assert(str_ends_with(str_replace(DIRECTORY_SEPARATOR, '/', $verzeichnis), '/uploads/svg-export'),
     'die Abzuege liegen neben den Datenbank-Backups');
-$htaccess = dirname(__DIR__, 4) . '/uploads/svg-export/.htaccess';
-assert(is_file($htaccess), 'ohne die Sperre waere der Dateiname das Passwort');
-$sperre = (string) file_get_contents($htaccess);
-assert(str_contains($sperre, 'Require all denied') && str_contains($sperre, 'Deny from all'),
-    'beide Apache-Fassungen, wie bei uploads/db-backups');
+
+// 🔴 KEINE REPO-KOPIE DER SPERRE, anders als bei uploads/db-backups. `uploads/` steht nicht in
+// der Deploy-Allowlist -- eine Datei im Repo kaeme also nie auf den Server und waere nur eine
+// zweite, veraltende Fassung. Gemessen 23.08.2026: genau das ist beim Backup der Fall, dessen
+// Repo-Datei traegt CRLF und seine PHP-Konstante LF, also schreibt es die Sperre bei JEDEM Lauf
+// neu, ohne dass es jemandem auffiele.
+assert(!is_file(dirname(__DIR__, 4) . '/uploads/svg-export/.htaccess'),
+    'keine Repo-Kopie -- die Konstante im Code ist die Quelle');
+assert(str_contains(AVESMAPS_SVG_EXPORT_HTACCESS, 'Require all denied')
+    && str_contains(AVESMAPS_SVG_EXPORT_HTACCESS, 'Deny from all'),
+    'beide Apache-Fassungen, wie bei uploads/db-backups und uploads/dumps');
+
+// ---- 7b. Die Sperre heilt sich zur LAUFZEIT ------------------------------------------------
+// Das Hausmuster (avesmapsDbBackupEnsureStorageDir, uploads/dumps): geschrieben wird bei Bedarf,
+// bei jeder Anfrage. Die erste Fassung liess die Sperre stattdessen vom naechtlichen CI-Lauf
+// hochladen -- das repariert sie einmal pro Nacht, und nur solange die CI laeuft.
+assert(function_exists('avesmapsSvgExportEnsureAblage'));
+assert(str_contains($codeEndpunkt, 'avesmapsSvgExportEnsureAblage()'),
+    'der Leseendpunkt benutzt sie -- eine ungenutzte Selbstheilung heilt nichts');
+assert(str_contains($codeAblegen, 'avesmapsSvgExportEnsureAblage()'),
+    'und der Schreibendpunkt ebenso -- er legt das Verzeichnis ueberhaupt erst an');
+// ⚠️ NACH dem Tokenriegel, damit eine anonyme Anfrage keinen Schreibvorgang ausloest.
+$riegelStelle = strpos($codeEndpunkt, "401, 'unauthorized'");
+$heilStelle = strpos($codeEndpunkt, 'avesmapsSvgExportEnsureAblage()');
+assert(is_int($riegelStelle) && is_int($heilStelle) && $heilStelle > $riegelStelle,
+    'die Selbstheilung steht hinter dem Riegel');
+
+// Und sie tut es wirklich -- gefahren, nicht behauptet.
+$probe = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'avm-sperre-' . bin2hex(random_bytes(5));
+$tief = $probe . DIRECTORY_SEPARATOR . 'uploads' . DIRECTORY_SEPARATOR . 'svg-export';
+mkdir($tief, 0700, true);
+$h = $tief . DIRECTORY_SEPARATOR . '.htaccess';
+file_put_contents($h, 'kaputt');
+// Dieselben zwei Zeilen wie in avesmapsSvgExportEnsureAblage, hier gegen ein Testverzeichnis.
+if (!is_file($h) || file_get_contents($h) !== AVESMAPS_SVG_EXPORT_HTACCESS) {
+    file_put_contents($h, AVESMAPS_SVG_EXPORT_HTACCESS);
+}
+assert(file_get_contents($h) === AVESMAPS_SVG_EXPORT_HTACCESS,
+    'eine beschaedigte Sperre wird ueberschrieben, nicht stehen gelassen');
+@unlink($h);
+@rmdir($tief);
+@rmdir(dirname($tief));
+@rmdir($probe);
+
+// ---- 7c. Der SCHREIBWEG: Aufbewahrung, Kennungen, Kurzfelder -------------------------------
+// 💣 Der aktuelle Abzug faellt NIE, auch wenn er nach Datum herausfiele -- der Zeiger zeigt auf
+// ihn, und eine Ablage mit totem Zeiger meldet „kein Abzug vorhanden", obwohl gerade einer
+// hinterlegt wurde.
+$lager = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'avm-lager-' . bin2hex(random_bytes(5));
+mkdir($lager, 0700, true);
+$mach = static function (string $dir, string $hex, int $alter): string {
+    $name = 'abzug-' . $hex . '.svg';
+    file_put_contents($dir . DIRECTORY_SEPARATOR . $name, 'x');
+    touch($dir . DIRECTORY_SEPARATOR . $name, time() - $alter);
+    return $name;
+};
+$a1 = $mach($lager, str_repeat('1', 16), 500);   // aeltester
+$a2 = $mach($lager, str_repeat('2', 16), 400);
+$a3 = $mach($lager, str_repeat('3', 16), 300);
+$a4 = $mach($lager, str_repeat('4', 16), 200);   // neuester
+// Der AELTESTE ist der aktuelle -- genau der Fall, in dem eine Sortierung ihn wegwerfen wuerde.
+$weg = avesmapsSvgExportAufraeumen($lager, $a1);
+assert(is_file($lager . DIRECTORY_SEPARATOR . $a1), 'der aktuelle bleibt, auch als aeltester');
+$uebrig = array_map('basename', (array) glob($lager . DIRECTORY_SEPARATOR . 'abzug-*.svg'));
+assert(count($uebrig) === AVESMAPS_SVG_EXPORT_KEEP_FILES,
+    'genau ' . AVESMAPS_SVG_EXPORT_KEEP_FILES . ' bleiben, gezaehlt: ' . count($uebrig));
+assert(in_array($a4, $uebrig, true) && in_array($a3, $uebrig, true), 'die neuesten bleiben');
+assert(!in_array($a2, $uebrig, true) && $weg === [$a2], 'der aelteste ueberzaehlige faellt');
+
+// ⚠️ Fremde Dateien im Verzeichnis werden nie angefasst.
+file_put_contents($lager . DIRECTORY_SEPARATOR . 'aktuell.json', '{}');
+file_put_contents($lager . DIRECTORY_SEPARATOR . '.htaccess', 'x');
+avesmapsSvgExportAufraeumen($lager, $a1);
+assert(is_file($lager . DIRECTORY_SEPARATOR . 'aktuell.json'), 'der Zeiger bleibt');
+assert(is_file($lager . DIRECTORY_SEPARATOR . '.htaccess'), 'die Sperre bleibt');
+
+// 💣 Verwaiste Uploads: alt weg, frisch bleibt. Ohne das sammelt jeder Abbruch 8 MB an -- und
+// ein volles Webspace entzieht auf STRATO der Datenbank die Schreibrechte.
+$altUp = avesmapsSvgExportUploadPfad($lager, str_repeat('a', 32));
+$neuUp = avesmapsSvgExportUploadPfad($lager, str_repeat('b', 32));
+file_put_contents($altUp, 'x');
+touch($altUp, time() - AVESMAPS_SVG_EXPORT_UPLOAD_TTL - 60);
+file_put_contents($neuUp, 'x');
+assert(avesmapsSvgExportUploadsAufraeumen($lager, time()) === 1);
+assert(!is_file($altUp) && is_file($neuUp), 'nur der verwaiste faellt');
+
+foreach ((array) glob($lager . DIRECTORY_SEPARATOR . '*') as $f) {
+    @unlink((string) $f);
+}
+foreach ((array) glob($lager . DIRECTORY_SEPARATOR . '.*') as $f) {
+    if (!in_array(basename((string) $f), ['.', '..'], true)) {
+        @unlink((string) $f);
+    }
+}
+@rmdir($lager);
+
+// 💣 EIN NAME, KEIN PFAD -- auch fuer die Upload-Kennung. Sie kommt aus einer Anfrage und
+// landet in einem Dateinamen.
+assert(avesmapsSvgExportUploadIdGueltig(str_repeat('a', 32)) === true);
+assert(avesmapsSvgExportUploadIdGueltig('../../../api/config.local') === false);
+assert(avesmapsSvgExportUploadIdGueltig(str_repeat('A', 32)) === false, 'Hex ist klein');
+assert(avesmapsSvgExportUploadIdGueltig(str_repeat('a', 31)) === false, 'genau 32 Stellen');
+
+// 💣 KEIN mbstring. Die erste Fassung kappte mit `mb_substr` -- fehlt die Erweiterung, ist das
+// ein FATAL, und ein Fatal antwortet mit LEEREM Rumpf: der Aufrufer sieht „Unexpected end of
+// JSON input" und sucht den Fehler im Netz. Genau daran ist der erste Ablaufversuch gescheitert.
+assert(!str_contains($codeHinterlegen, 'mb_substr') && !str_contains($codeHinterlegen, 'mb_strlen'),
+    'der Schreibweg haengt nicht an mbstring');
+assert(avesmapsSvgExportKurzfeld('Fuerstentum Kosch', 8) === 'Fuersten', 'acht Zeichen sind acht');
+assert(avesmapsSvgExportKurzfeld("a\r\nb", 40) === 'a b', 'Steuerzeichen werden zu Leerraum');
+assert(avesmapsSvgExportKurzfeld(88513, 40) === '88513', 'Zahlen sind erlaubt');
+assert(avesmapsSvgExportKurzfeld(['x'], 40) === '', 'ein Array ist kein Feld');
+// ⚠️ Gekappt wird nach ZEICHEN, nicht nach Bytes -- sonst steht ein halber Umlaut im Zeiger,
+// und json_encode verwirft die ganze Datei.
+$umlaut = avesmapsSvgExportKurzfeld('Fürstentum Kosch', 12);
+assert($umlaut === 'Fürstentum K', 'an der Zeichengrenze geschnitten, nicht im Umlaut');
+assert(json_encode(['x' => $umlaut]) !== false, 'und das Ergebnis ist gueltiges UTF-8');
 
 // ---- 8. Der Endpunkt sagt die drei Faelle AUSEINANDER ----------------------------------------
 // 💣 Eine fehlende Umgebungsvariable ist KEIN 401. Ein 401 hiesse „dein Token ist falsch" und

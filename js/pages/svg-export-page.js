@@ -265,6 +265,96 @@
 		if (tabelle) { tabelle.hidden = false; }
 	}
 
+	// =====================================================================================
+	// Hinterlegen -- den fertigen Abzug in die Ablage schieben, aus der die API ihn ausliefert.
+	// =====================================================================================
+	//
+	// 🔴 KEIN ZWEITER BAU. Hinterlegt wird der Blob, den der Owner eben erzeugt und gesehen
+	// hat. Neu zu bauen hiesse 20 MB Kartendaten ein zweites Mal zu holen -- und wenn ein
+	// Editor dazwischen speichert, eine ANDERE Datei abzulegen als die heruntergeladene.
+	let letzterAbzug = null;
+
+	// 💣 GESTUECKELT. Ein Abzug ist ~8,6 MB; ein einzelner POST laeuft auf STRATO in
+	// `post_max_size`, und deren Fehlerbild ist ein LEERER Rumpf ohne Ausnahme -- also nicht
+	// von „nichts geschickt" zu unterscheiden. 2 MB je Stueck liegen deutlich unter jeder
+	// ueblichen Grenze.
+	const HINTERLEGEN_STUECK = 2 * 1024 * 1024;
+	const HINTERLEGEN_URL = "/api/svg-export-deposit.php";
+
+	function hinterlegeStatus(text, istFehler) {
+		const box = el("svgx-deposit-status");
+		if (!box) { return; }
+		box.textContent = text;
+		box.classList.toggle("svgx-status--error", Boolean(istFehler));
+	}
+
+	// ⚠️ Der Endpunkt antwortet IMMER im Hausvertrag {ok, error:{code,message}} -- auch bei
+	// 4xx. Die Meldung des Servers wird durchgereicht, weil sie hier die einzige Auskunft ist
+	// („zu klein", „kein SVG"); ein blosses „fehlgeschlagen" liesse den Owner ratlos.
+	async function hinterlegeRuf(url, optionen) {
+		const antwort = await fetch(url, Object.assign({ credentials: "same-origin" }, optionen));
+		let rumpf = null;
+		try { rumpf = await antwort.json(); } catch (e) { rumpf = null; }
+		if (!antwort.ok || !rumpf || rumpf.ok !== true) {
+			const grund = (rumpf && rumpf.error && rumpf.error.message)
+				|| `HTTP ${antwort.status}`;
+			throw new Error(grund);
+		}
+		return rumpf;
+	}
+
+	async function hinterlegen() {
+		if (!letzterAbzug) {
+			hinterlegeStatus("Erst „SVG erzeugen“ — hinterlegt wird genau diese Datei.", true);
+			return;
+		}
+		const knopf = el("svgx-deposit");
+		if (knopf) { knopf.disabled = true; }
+
+		try {
+			hinterlegeStatus("Ablage wird geöffnet …");
+			const start = await hinterlegeRuf(`${HINTERLEGEN_URL}?action=start`, { method: "POST" });
+			const id = start.upload_id;
+
+			const gesamt = letzterAbzug.blob.size;
+			for (let ab = 0; ab < gesamt; ab += HINTERLEGEN_STUECK) {
+				const stueck = letzterAbzug.blob.slice(ab, Math.min(ab + HINTERLEGEN_STUECK, gesamt));
+				hinterlegeStatus(`Wird hochgeladen … ${Math.round((ab / gesamt) * 100)} %`);
+				await hinterlegeRuf(
+					`${HINTERLEGEN_URL}?action=chunk&upload_id=${encodeURIComponent(id)}`,
+					{ method: "POST", body: stueck,
+						headers: { "Content-Type": "application/octet-stream" } }
+				);
+			}
+
+			hinterlegeStatus("Wird übernommen …");
+			// 🔴 `quelle` steht bewusst NICHT hier: die bestimmt der Server aus dem Riegel.
+			// Mitgeschickt könnte ein Handabzug sich als Routine ausgeben -- und genau diese
+			// Angabe soll die beiden ja auseinanderhalten.
+			const fertig = await hinterlegeRuf(
+				`${HINTERLEGEN_URL}?action=finish&upload_id=${encodeURIComponent(id)}`,
+				{ method: "POST", headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({
+						dateiname: letzterAbzug.dateiname,
+						dialekt: letzterAbzug.dialekt,
+						kartenfassung: letzterAbzug.kartenfassung,
+						landschaftsfassung: letzterAbzug.landschaftsfassung,
+						exportiert: letzterAbzug.exportiert,
+					}) }
+			);
+
+			const weg = (fertig.aufgeraeumt || []).length;
+			hinterlegeStatus(`Hinterlegt — ${(fertig.bytes / (1024 * 1024)).toFixed(1)} MB, `
+				+ `Kartenfassung ${fertig.kartenfassung || "—"}`
+				+ (weg ? `, ${weg} alte(r) Abzug entfernt` : "")
+				+ ". Die API liefert ab sofort diese Datei aus.");
+		} catch (fehler) {
+			hinterlegeStatus(`Hinterlegen fehlgeschlagen: ${fehler && fehler.message ? fehler.message : fehler}`, true);
+		} finally {
+			if (knopf) { knopf.disabled = false; }
+		}
+	}
+
 	async function erzeugen() {
 		const knopf = el("svgx-start");
 		if (knopf) { knopf.disabled = true; }
@@ -307,6 +397,10 @@
 			status("Die Datei wird gebaut …");
 			await atmen();
 
+			// ⚠️ EINMAL gebildet und zweimal benutzt: im Dokument (avm:exportiert) und im
+			// Zeiger der Ablage. Zwei `new Date()` ergäben zwei verschiedene Zeitpunkte, und
+			// der Abzug widerspräche seinem eigenen Eintrag.
+			const exportiertAm = new Date().toISOString();
 			const farben = eingestellteFarben();
 			const kurve = glaettung();
 
@@ -333,7 +427,7 @@
 				// 🔴 Die Fassungsnummern kommen aus den Endpunkten selbst, nicht aus einer Uhr --
 				// nur damit laesst sich beweisen, dass Vektor- und Rasterabzug dieselbe Welt zeigen.
 				ecoRevision: ecoRevision,
-				exportedAt: new Date().toISOString(),
+				exportedAt: exportiertAm,
 				tension: kurve.tension,
 				wayColors: farben.wayColors,
 				wayOutlines: farben.wayOutlines,
@@ -361,6 +455,22 @@
 			document.body.removeChild(a);
 			setTimeout(() => URL.revokeObjectURL(url), 60000);
 
+			// 🔴 Den fertigen Abzug merken, damit „hinterlegen" NICHT neu bauen muss. Ein
+			// zweiter Bau holte 20 MB Kartendaten ein zweites Mal und könnte -- wenn ein
+			// Editor dazwischen speichert -- eine ANDERE Datei ergeben als die eben
+			// heruntergeladene. Hinterlegt wird genau das, was der Owner gesehen hat.
+			letzterAbzug = {
+				blob: blob,
+				dateiname: a.download,
+				dialekt: dialekt,
+				kartenfassung: String((mapFeatures && mapFeatures.revision) || ""),
+				landschaftsfassung: ecoRevision,
+				exportiert: exportiertAm,
+			};
+			const dk = el("svgx-deposit");
+			if (dk) { dk.disabled = false; }
+			hinterlegeStatus("");
+
 			status("Fertig — die Datei wurde heruntergeladen.");
 		} catch (fehler) {
 			status(`Fehlgeschlagen: ${fehler && fehler.message ? fehler.message : fehler}`, true);
@@ -381,6 +491,8 @@
 		if (knopf) { knopf.addEventListener("click", erzeugen); }
 		const alle = el("svgx-all");
 		if (alle) { alle.addEventListener("click", () => alleSetzen(true)); }
+		const hinterlegenKnopf = el("svgx-deposit");
+		if (hinterlegenKnopf) { hinterlegenKnopf.addEventListener("click", hinterlegen); }
 		const keine = el("svgx-none");
 		if (keine) { keine.addEventListener("click", () => alleSetzen(false)); }
 

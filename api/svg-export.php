@@ -5,7 +5,9 @@ declare(strict_types=1);
 /**
  * GET /api/svg-export.php -- der jeweils neueste semantische SVG-Abzug der Karte.
  * ---------------------------------------------------------------------------------------
- * Fuer Maschinen: ein Bearer-Token statt Browser-Login und Admin-Cookie. Der Abzug ist
+ * Fuer Maschinen: ein Bearer-Token statt Browser-Login und Admin-Cookie. Der Token steht
+ * in api/config.local.php unter `svg_export.token` -- dort, wo die Token dieses Projekts
+ * gesammelt sind (import_api, discord, changelog, social). Der Abzug ist
  * dieselbe Datei, die /edit/svg-export.php im Browser erzeugt -- gebaut vom naechtlichen
  * Lauf (.github/workflows/svg-export-abzug.yml) mit demselben Bauer
  * (js/pages/svg-export-build.js), 32768 x 32768, viewBox 0 0 1024 1024, alle Ebenen,
@@ -14,10 +16,12 @@ declare(strict_types=1);
  * 🔴 NUR LESEN. Dieser Endpunkt hat keinen Schreibweg, keine Datenbankverbindung und keine
  * Verwaltungsfunktion; er reicht eine Datei durch. Der Token kann nichts anderes.
  *
- * 💣 KEIN PDO, KEIN avesmapsLoadApiConfig. Beides waere unnoetige Last auf dem Shared
- * Hosting -- und `avesmapsLoadApiConfig` WIRFT, wenn keine config.local.php danebenliegt,
- * womit ein reiner Dateiendpunkt an einer Datenbankkonfiguration scheitern wuerde, die er
- * gar nicht braucht.
+ * 💣 KEIN PDO. Eine Datenbankverbindung waere unnoetige Last auf dem Shared Hosting fuer
+ * einen Endpunkt, der eine Datei durchreicht.
+ *
+ * ⚠️ `avesmapsLoadApiConfig` WIRFT, wenn weder config.local.php noch die DB-Umgebung da ist.
+ * Ein reiner Dateiendpunkt darf daran nicht mit einem 500 zerbrechen -- der Wurf wird
+ * gefangen und heisst dasselbe wie ein leerer Token: „auf diesem Server nicht eingerichtet".
  *
  * Vertrag im Fehlerfall wie ueberall: {ok:false, error:{code, message}} (AGENTS.md sec.4).
  */
@@ -33,11 +37,23 @@ if ($anfrageArt !== 'GET' && $anfrageArt !== 'HEAD') {
     avesmapsErrorResponse(405, 'method_not_allowed', 'Nur GET und HEAD sind erlaubt.');
 }
 
-$erwarteterToken = avesmapsSvgExportToken();
+// 💣 DER WURF DARF DEN RUECKFALL NICHT VERSCHLUCKEN. `avesmapsLoadApiConfig` wirft, wenn
+// weder config.local.php noch die DB-Umgebung da ist -- landete der Aufruf der Tokenfunktion
+// IM try-Block, waere die Umgebungsvariable in genau dem Fall unerreichbar, fuer den sie
+// gedacht ist (ein Aufbau ohne config.local.php). Also: erst die Konfiguration holen, im
+// Fehlerfall ein leeres Array, und DANN den Token suchen.
+try {
+    $config = avesmapsLoadApiConfig(avesmapsApiRoot());
+} catch (Throwable) {
+    $config = [];
+}
+$erwarteterToken = avesmapsSvgExportConfiguredToken($config);
+
 if ($erwarteterToken === '') {
     // 💣 Das ist KEIN 401. Ein 401 hiesse „dein Token ist falsch" und schickte den Aufrufer
-    // auf die Suche nach einem Fehler, den er nicht hat -- hier fehlt die Umgebungsvariable
-    // AUF DEM SERVER. Eine Absage ohne unterscheidbaren Grund ist von aussen unauffindbar.
+    // auf die Suche nach einem Fehler, den er nicht hat -- hier fehlt der Schluessel
+    // `svg_export.token` in api/config.local.php AUF DEM SERVER. Eine Absage ohne
+    // unterscheidbaren Grund ist von aussen unauffindbar.
     avesmapsErrorResponse(503, 'export_not_configured',
         'Der SVG-Export ist auf diesem Server nicht eingerichtet.');
 }
@@ -50,7 +66,10 @@ if (!avesmapsSvgExportTokenPasst($erwarteterToken, $gegebenerToken)) {
     avesmapsErrorResponse(401, 'unauthorized', 'Gueltiger Bearer-Token erforderlich.');
 }
 
-$abzug = avesmapsSvgExportAbzug(avesmapsSvgExportAblageVerzeichnis());
+// 🔴 ERST HIER, nach dem Riegel: die Sperre der Ablage heilt sich zur Laufzeit (Hausmuster,
+// siehe avesmapsSvgExportEnsureAblage) -- aber eine anonyme Anfrage soll keinen
+// Schreibvorgang ausloesen koennen.
+$abzug = avesmapsSvgExportAbzug(avesmapsSvgExportEnsureAblage());
 if ($abzug === null) {
     avesmapsErrorResponse(404, 'export_not_available',
         'Es liegt noch kein Abzug bereit. Der naechtliche Lauf erzeugt ihn.');
@@ -65,6 +84,11 @@ header('Cache-Control: private, no-cache');
 header('X-Avesmaps-Kartenfassung: ' . $abzug['kartenfassung']);
 header('X-Avesmaps-Landschaftsfassung: ' . $abzug['landschaftsfassung']);
 header('X-Avesmaps-Exported-At: ' . $abzug['exportiert']);
+// 🔴 `routine` (naechtlicher Lauf, feste Einstellungen) oder `manuell` (der Owner auf
+// /edit/svg-export.php, mit seinen Reglern). Wer den Abzug maschinell auswertet, muss das
+// unterscheiden koennen -- ein geglaetteter Handabzug hat andere Geometrie als der
+// ungeglaettete der Routine, und die Fassungsstempel sagen darueber nichts.
+header('X-Avesmaps-Quelle: ' . $abzug['quelle']);
 
 $ifNoneMatch = (string) ($_SERVER['HTTP_IF_NONE_MATCH'] ?? '');
 if ($ifNoneMatch !== '' && avesmapsETagMatches($ifNoneMatch, $abzug['etag'])) {

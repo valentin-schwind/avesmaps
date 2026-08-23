@@ -34,11 +34,12 @@ uploads/db-backups/*
 uploads/wappen/*
 !uploads/wappen/.htaccess
 
-# Semantic SVG exports (api/svg-export.php). Built nightly by the CI runner and uploaded to
-# the server; 8 MB apiece and reproducible from the data, so never the repo. Keep the
-# deny-all .htaccess -- without it the filename would be the password.
-uploads/svg-export/*
-!uploads/svg-export/.htaccess
+# Semantic SVG exports (api/svg-export.php). 8 MB apiece and reproducible from the data, so
+# never the repo. 🔴 NO .htaccess anchor here, unlike uploads/db-backups: the deny-all lock is
+# written by PHP at run time (avesmapsSvgExportEnsureAblage) and the repo copy would only be a
+# stale second version of it -- measured 23.08.2026, the backup's repo copy is CRLF while its
+# PHP constant is LF, so that one rewrites itself on every single run.
+uploads/svg-export/
 
 # Manually-uploaded map export archives (large binaries; live on the server, not in the repo).
 uploads/*.zip

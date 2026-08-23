@@ -40,21 +40,27 @@ Inhalt — mit `If-None-Match` antwortet der Endpunkt `304`, und der Abzug wird 
 
 - `401 unauthorized` — Token fehlt **oder** ist falsch (von außen nicht zu unterscheiden)
 - `404 export_not_available` — es liegt noch kein Abzug bereit
-- `503 export_not_configured` — die Umgebungsvariable fehlt **auf dem Server**
+- `503 export_not_configured` — der Schlüssel fehlt **auf dem Server**
 
-⚠️ **Der Abzug ist bis zu 24 h alt.** Er entsteht nachts um 03:17 UTC in der CI, nicht beim
+⚠️ **Der Abzug der Routine ist bis zu 24 h alt** (der Owner kann jederzeit einen frischen
+hinterlegen). Er entsteht nachts um 03:17 UTC in der CI, nicht beim
 Abruf — und das ist Absicht: der Bauer ist JavaScript, ihn in PHP nachzubauen wäre eine
 zweite Wahrheit über das Kartenbild (AGENTS.md §5) und ~21 MB JSON je Abruf auf einem
 Shared Hosting. Wer taggenau sein muss, vergleicht `avm:kartenfassung` mit `revision` aus
 `/api/app/map-features.php`.
 
-🔑 Den Token setzt der Owner serverseitig als Umgebungsvariable
-`AVESMAPS_SVG_EXPORT_TOKEN`; er kann **nur** diesen einen Export lesen, sonst nichts. Er
-gehört nie in eine Adresse (Serverprotokoll, Referrer, Browserverlauf) — der Endpunkt liest
-ausschließlich den `Authorization`-Kopf und weist einen Token als URL-Parameter ab.
+🔑 Den Token setzt der Owner in `api/config.local.php` unter `svg_export.token` — dort, wo
+die Token dieses Projekts gesammelt sind. Er kann **nur** diesen einen Export lesen, sonst
+nichts; Hinterlegen braucht einen **anderen** (`svg_export.deposit_token`). Er gehört nie in
+eine Adresse (Serverprotokoll, Referrer, Browserverlauf) — der Endpunkt liest ausschließlich
+den `Authorization`-Kopf und weist einen Token als URL-Parameter ab.
 
-Ein Abzug von Hand geht weiter über `/edit/svg-export.php` (Admin) — mit allen Reglern.
-Es ist **dieselbe Datei**, gebaut von **demselben** Bauteil.
+⚠️ **Es gibt ZWEI Erzeuger, und `X-Avesmaps-Quelle` sagt welcher.** `routine` ist der
+nächtliche Lauf mit festen Einstellungen (inkscape, 32768², alle Ebenen, nichts geglättet),
+`manuell` ein Abzug, den der Owner auf `/edit/svg-export.php` erzeugt und dort mit dem Knopf
+**„Abzug hinterlegen"** abgelegt hat — der kann geglättet, umgefärbt oder anders groß sein.
+Die Fassungsstempel sagen darüber nichts, sie nennen den **Datenstand**. Wer die Geometrie
+auswertet, prüft die Kopfzeile.
 ## Der Vertrag
 
 Namensraum `xmlns:avm="https://avesmaps.de/ns/export/1"`. An jedem Element (⚠️ `avm:ebene` nur an Flächen, 904 von 10.084):
