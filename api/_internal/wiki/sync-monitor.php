@@ -235,6 +235,10 @@ function avesmapsWikiSyncMonitorEditorState(PDO $pdo): array {
         // State of the global "Wappen: An/Aus" toggle, so the ribbon button can render its label on load
         // instead of guessing. Same trip as every other button state -- no extra request.
         'coats_enabled' => avesmapsTerritoryCoatsEnabled($pdo),
+        // 🔴 Die zwei Herkunfts-Schalter -- ohne sie zeigt das Wappen-Menue beim Oeffnen einen
+        // erfundenen Stand. `coats_enabled` darueber bleibt fuer aeltere Leser stehen.
+        'coats_local_enabled' => avesmapsCoatsLocalEnabled($pdo),
+        'coats_wiki_enabled' => avesmapsCoatsWikiEnabled($pdo),
         'model_fresh' => $fresh($row['last_rebuild_at'] ?? null),
         'diff_fresh' => $fresh($row['last_diff_at'] ?? null),
         'test_fresh' => $fresh($row['last_test_at'] ?? null),

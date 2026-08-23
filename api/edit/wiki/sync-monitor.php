@@ -188,6 +188,13 @@ try {
             // Global "Wappen: An/Aus" for the TERRITORY coats (ribbon toggle). No dry_run -- always a real
             // write, like the settlement-image switch it mirrors.
             'set_territory_coats_enabled' => avesmapsSetTerritoryCoatsEnabled($pdo, (bool) ($payload['enabled'] ?? true)),
+            // 🔴 Die zwei Herkunfts-Schalter -- derselbe Aufruf wie im Ortseditor, denn sie gelten
+            // beiden Objektarten gemeinsam (Owner: „vollständig dasselbe aussehen und verhalten").
+            'set_coat_switch' => avesmapsSetCoatSchalter(
+                $pdo,
+                (string) ($payload['which'] ?? 'local'),
+                (bool) ($payload['enabled'] ?? true)
+            ),
             'upload_coat' => avesmapsWikiSyncMonitorUploadCoat(
                 $pdo,
                 (string) ($payload['wiki_key'] ?? ''),
