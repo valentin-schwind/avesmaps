@@ -5,9 +5,16 @@ declare(strict_types=1);
 /**
  * SVG-Export page (Faehigkeit `edit`).
  * ---------------------------------------------------------------------------
- * Reached from the "Karte als SVG" link in the edit shell's top bar, next to the
- * database backup. Tick the layers, pick the target program, press the button: the
- * BROWSER assembles a vector drawing of the whole map and downloads it.
+ * Reached from the "Karte herunterladen" link in the edit shell's menu. Tick the layers,
+ * pick the target program, press the button: the BROWSER assembles a vector drawing of
+ * the whole map and downloads it. Below that, the original map archives.
+ *
+ * ⚠️ Die Seite hiess bis zum 24.08.2026 "Karte als SVG" -- an vier Stellen, und eine davon
+ * ist der Menueeintrag der Huelle. Umbenannt, weil sie seit dem 23.08. ZWEI Dinge anbietet:
+ * den Vektorabzug und die Originalarchive. Die KENNUNGEN heissen unveraendert weiter nach
+ * dem Format (Dateiname, `svgx-*`, `#svgx-title`) -- dieselbe Trennung wie bei
+ * "Neuigkeiten"/`changelog` (AGENTS.md §11): der Deploy loescht nie, und eine umgetaufte
+ * Adresse liesse jeden gespeicherten Verweis ins Leere greifen.
  *
  * Nothing runs on the server here beyond this shell. The heavy lifting is
  * js/pages/svg-export-build.js (pure, unit-tested), js/pages/svg-export-farben.js (the
@@ -254,10 +261,10 @@ $renderNode = static function (array $node, string $parentPath, int $depth) use 
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="robots" content="noindex, nofollow" />
-    <title>Avesmaps &ndash; Karte als SVG</title>
+    <title>Avesmaps &ndash; Karte herunterladen</title>
     <!-- Hand-written on purpose: the deploy's asset stamper only follows index.html and
          html/*.html, so it never reaches this PHP page. Bump these whenever the stylesheet
-         or either script changes, or admins keep the cached files. See AGENTS.md sec.7. -->
+         or either script changes, or editors keep the cached files. See AGENTS.md sec.7. -->
     <link rel="stylesheet" href="../css/pages/svg-export.css?v=20260824-karte-herunterladen" />
 </head>
 
@@ -266,8 +273,8 @@ $renderNode = static function (array $node, string $parentPath, int $depth) use 
         <main class="edit-login">
             <form class="edit-login__panel" method="post" action="./svg-export.php">
                 <input type="hidden" name="action" value="login" />
-                <h1>Karte als SVG</h1>
-                <p>Bitte melde dich mit deinem Admin-Zugang an.</p>
+                <h1>Karte herunterladen</h1>
+                <p>Bitte melde dich mit einem Editor- oder Admin-Zugang an.</p>
                 <?php if ($loginError !== '') : ?>
                     <p class="edit-login__error" role="alert"><?php echo htmlspecialchars($loginError, ENT_QUOTES, 'UTF-8'); ?></p>
                 <?php endif; ?>
@@ -286,7 +293,7 @@ $renderNode = static function (array $node, string $parentPath, int $depth) use 
         <main class="svgx-shell">
             <header class="edit-shell__bar">
                 <div>
-                    <strong>Karte als SVG</strong>
+                    <strong>Karte herunterladen</strong>
                     <span><?php echo htmlspecialchars((string) $currentUser['username'], ENT_QUOTES, 'UTF-8'); ?> | <?php echo htmlspecialchars((string) $currentUser['role'], ENT_QUOTES, 'UTF-8'); ?></span>
                 </div>
                 <div class="edit-shell__actions">

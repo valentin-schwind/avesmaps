@@ -141,7 +141,7 @@ if (is_file($menuScriptPath)) {
                                  auch die Original-Kartenarchive -- die liegen per .htaccess dicht
                                  und kommen nur ueber api/edit/map/kartenarchiv.php heraus.
                                  Entwurf: docs/superpowers/specs/2026-08-23-kartenarchiv-und-svg-fuer-editoren-design.md -->
-                            <a class="edit-shell__menu-item" href="/edit/svg-export.php" target="_blank" rel="noopener">Karte als SVG</a>
+                            <a class="edit-shell__menu-item" href="/edit/svg-export.php" target="_blank" rel="noopener">Karte herunterladen</a>
                         </section>
                         <?php if (avesmapsUserCan($currentUser, 'admin')) : ?>
                             <!-- Nur Admins, nicht Editoren: ein voller Dump traegt
@@ -151,7 +151,8 @@ if (is_file($menuScriptPath)) {
                                  sonst nicht, welche Zeilen dem anderen fehlen. Sie ersetzt die
                                  Einzelmerkmale, die bis zum 23.08.2026 an den Links hingen.
 
-                                 ⚠️ Hier stand bis zum 23.08.2026 auch „Karte als SVG". Der Riegel
+                                 ⚠️ Hier stand bis zum 23.08.2026 auch der SVG-Export (damals „Karte als
+                                 SVG" beschriftet, seit dem 24.08. „Karte herunterladen"). Der Riegel
                                  gilt dem, was der Block WIRKLICH schuetzt -- Passwort-Hashes und
                                  die Benutzerverwaltung. Der SVG-Export gehoerte nie dazu; er las
                                  immer nur oeffentliche Endpunkte. -->

@@ -36,7 +36,7 @@ assert.ok(menueMarkup.length > 0, "das Menue steht als <details> in der Huelle")
 [
 	["Handbuch", "/html/editor-handbuch.html"],
 	["Datenbank-Backup", "/edit/backup.php"],
-	["Karte als SVG", "/edit/svg-export.php"],
+	["Karte herunterladen", "/edit/svg-export.php"],
 	["Admin", "/admin/"],
 ].forEach(([beschriftung, ziel]) => {
 	assert.ok(menueMarkup.includes(">" + beschriftung + "</a>"), beschriftung + " steht im Menue");
