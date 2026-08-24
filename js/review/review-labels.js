@@ -696,6 +696,31 @@ function openLabelEditDialog(options = {}) {
 	// ⚠️ NACH dem Fuellen: vorher steht im Artwaehler noch die Art des zuletzt geoeffneten
 	// Labels, und die Marken zeigten dessen Vorgabe.
 	avesmapsLabelZeichneVorgabeMarken();
+	// 🔴 DER QUELLEN-EDITOR: ein Mount-Aufruf, kein Neubau (AGENTS.md §5 -- Quellen leben an EINER
+	// Stelle). Eine Beschriftung ist dort `entity_type = "region"` mit ihrer map_features-public_id;
+	// genau dieses Paar liest die Karte schon, wenn sie die Quellenzeile der Infobox zeichnet.
+	//
+	// 💣 DER CONTAINER WIRD ERSETZT, BEVOR NEU GEMOUNTET WIRD. Das Bauteil haengt Zuhoerer an den
+	// Knoten; ohne den Austausch stapeln sie sich bei jedem Oeffnen, und ein Klick loeste die
+	// Aktion so oft aus, wie der Dialog schon offen war. Dasselbe Vorgehen wie im Ortseditor.
+	// ⚠️ `__fsDetachAutocomplete` zuerst -- die Vorschlagsliste haengt am DOKUMENT, nicht am
+	// Knoten, und ueberlebte den Austausch sonst als Waise.
+	const quellenHost = document.getElementById("label-edit-feature-sources");
+	if (quellenHost && typeof mountFeatureSourceEditor === "function") {
+		if (typeof quellenHost.__fsDetachAutocomplete === "function") {
+			quellenHost.__fsDetachAutocomplete();
+		}
+		const frisch = quellenHost.cloneNode(false);
+		quellenHost.replaceWith(frisch);
+		// ⚠️ Die public_id wird bei JEDER Anfrage frisch gelesen, nie beim Mounten eingefroren --
+		// sonst schriebe ein Dialogwechsel die Quelle auf die zuletzt geoeffnete Beschriftung.
+		void mountFeatureSourceEditor(
+			frisch,
+			"region",
+			() => document.getElementById("label-edit-public-id")?.value || "",
+			{ escape: escapeHtml }
+		);
+	}
 	setLabelEditDialogOpen(true);
 }
 

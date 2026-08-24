@@ -25,7 +25,9 @@ const skript = fs.readFileSync(path.join(wurzel, "js/review/review-labels.js"), 
 const stil = fs.readFileSync(path.join(wurzel, "css/components/location-report-dialog.css"), "utf8");
 
 // ---- A. Die Marke ist da, fuer die vier geratenen Felder ----------------------------------------
-["curve-max", "min-zoom", "max-zoom", "priority"].forEach((feld) => {
+// 🔴 FUENF Felder seit dem 24.08.2026 -- die Groesse ist dazugekommen, als der Regler
+// zurueckkam. Vier waere seither eine stille Luecke.
+["size", "curve-max", "min-zoom", "max-zoom", "priority"].forEach((feld) => {
 	assert.ok(seite.indexOf('id="label-edit-' + feld + '-marke"') >= 0,
 		"das Feld " + feld + " traegt eine Vorgabemarke");
 });
@@ -74,13 +76,27 @@ assert.ok(Math.abs(zahl(mitte)) < 1e-9, "in der Mitte ist die Korrektur null: " 
 assert.ok(/calc\(/.test(avesmapsLabelVorgabeMarkePosition(3, 3, 3)),
 	"min === max liefert eine gueltige Position statt NaN");
 
-// ---- D. Das Groessenfeld ist ein hidden geworden -------------------------------------------------
-// 🔴 GROESSE gibt die Tafel VOR -- der Editor hat dafuer kein Feld mehr. Aber das Feld BLEIBT als
-// hidden im Formular: der Payload liest formData.get("size"), und ohne das Feld schriebe jedes
-// Speichern eine 0 ueber den gemerkten Wert.
-assert.ok(/id="label-edit-size"[^>]*type="hidden"/.test(seite), "Groesse ist hidden");
-assert.ok(/id="label-edit-size"[^>]*name="size"/.test(seite), "und traegt weiter seinen Namen");
-assert.ok(!/id="label-edit-size-range"/.test(seite), "der Regler dazu ist weg");
+// ---- D. 🔴 DER GROESSENREGLER IST ZURUECK ------------------------------------------------------
+// Einen Tag lang war das Feld ein `hidden` und die Tafel setzte die Groesse. Der Owner wollte
+// den Editoren den Regler NICHT wegnehmen, sondern ihnen den Wert VORSCHLAGEN -- damit gilt
+// fuer Groesse und Band dieselbe Regel, und die Groesse ist die FUENFTE Marke.
+assert.ok(/id="label-edit-size-range"/.test(seite), "der Regler steht wieder da");
+assert.ok(!/id="label-edit-size"[^>]*type="hidden"/.test(seite), "und ist kein hidden mehr");
+assert.ok(/id="label-edit-size"[^>]*name="size"/.test(seite),
+	"es traegt weiter seinen Namen -- sonst faellt es aus dem Payload");
+assert.ok(/id="label-edit-size-marke"/.test(seite), "und traegt eine Vorgabemarke");
+
+// 💣 Die Groesse ist die einzige Marke, die NICHT aus dem Vorgabesatz kommt: die Tafel fuehrt
+// eine KURVE ueber neun Zoomstufen, der Regler aber eine Grundgroesse. Uebersetzt wird das
+// ueber avesmapsEcosystemDisplayBasisGroesse (den z5-Wert, wo der Zoomfaktor genau 1,0 ist).
+assert.ok(/avesmapsEcosystemDisplayBasisGroesse/.test(skript),
+	"die Groessenmarke fragt die Grundgroesse, nicht einen Feldnamen");
+assert.ok(/basis: true/.test(skript), "und ist im Register als Sonderform gekennzeichnet");
+
+// ⚠️ „aus" (bis < ab) betrifft das BAND. Eine Art ohne Namen auf der Karte hat trotzdem eine
+// sinnvolle Grundgroesse -- ihre Marke darf davon nicht verschwinden.
+assert.ok(/!eintrag\.basis && vorgabe && Number\(vorgabe\.bis\)/.test(skript),
+	"das Aus des Bandes nimmt der Groessenmarke nichts");
 
 // ---- E. Die Marke sitzt UNTER dem Balken ---------------------------------------------------------
 // 💣 Auf dem Balken verdeckt der Reglerknopf sie genau dann, wenn Wert und Vorgabe uebereinstimmen
@@ -106,8 +122,14 @@ assert.ok(!/ab:\s*0,\s*bis:\s*7/.test(skript), "und schreibt sie nicht ab");
 // umstellt, weiter die Marken der ALTEN -- und das sieht aus wie eine Vorgabe, die nicht stimmt.
 const vonZ = skript.indexOf("function avesmapsLabelZeichneVorgabeMarken");
 assert.ok(vonZ >= 0, "es gibt einen Zeichner fuer die Marken");
-assert.ok(/label-edit-subtype[\s\S]{0,400}addEventListener\("change"/.test(skript)
-	|| /addEventListener\("change"[\s\S]{0,400}avesmapsLabelZeichneVorgabeMarken/.test(skript),
-	"und er haengt am Wechsel der Art");
+// 🪤 Gemessen wird der ZWEIG, nicht ein Zeichenfenster. Die erste Fassung suchte
+// `addEventListener("change" … innerhalb von 400 Zeichen` -- und fiel um, als ein zweiter
+// Zuhörer (der Haken „Kurvenbeschriftung") davor kam und den Abstand vergrößerte. Am Zweig
+// gemessen ist die Zusicherung gegen solche Nachbarn unempfindlich.
+const vonT = skript.indexOf("event.target.id === \"label-edit-type\"");
+assert.ok(vonT >= 0, "der Artwechsel hat einen Zweig");
+const zweigT = skript.slice(vonT, skript.indexOf("}", skript.indexOf("{", vonT)));
+assert.ok(/avesmapsLabelZeichneVorgabeMarken()/.test(zweigT),
+	"und er zieht die Marken nach -- sonst zeigt ein umgestellter Dialog die Vorgabe der ALTEN Art");
 
 console.log("label-vorgabemarke: alle Zusicherungen gruen");

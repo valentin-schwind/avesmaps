@@ -608,6 +608,55 @@
 
 	// ---- öffnen ---------------------------------------------------------------------------------------
 
+	/**
+	 * Den geteilten Quellen-Editor an die REGION dieser Fläche hängen.
+	 *
+	 * 🔴 An die REGION, nicht an die Fläche. Eine Region liegt auf der Karte in vielen Flächen (der
+	 * Finsterkamm in 57); ihre Quellenangabe gilt für alle. Pro Fläche geführt wäre dieselbe Angabe
+	 * 57-mal einzutragen und 57-mal zu pflegen -- und beim Auseinanderlaufen wüsste niemand, welche
+	 * gilt. Es ist DIESELBE Liste, die der Landschaften-Editor an der Region zeigt; wer sie hier
+	 * ändert, ändert sie dort. Das ist der Sinn, kein Nebeneffekt.
+	 *
+	 * 🔴 ZUERST das Bauteil, DANN der Knoten. Wo es das Quellenmodul nicht gibt -- eine Prüfseite,
+	 * eine Testfixture mit Ersatz-DOM -- wird hier NICHTS angefasst. Die erste Fassung fragte
+	 * zuerst nach dem Knoten und rief `cloneNode` darauf; zwei Tests des Flächendialogs fielen um,
+	 * weil ihre Attrappe Ersatzknoten ohne `cloneNode` liefert. Ein Nebenfeature darf den Dialog
+	 * nicht mitreissen.
+	 */
+	function mountEcosystemAreaSources(regionPublicId) {
+		if (typeof mountFeatureSourceEditor !== "function") {
+			return;
+		}
+		const host = document.getElementById("ecosystem-properties-feature-sources");
+		if (!host || typeof host.cloneNode !== "function" || typeof host.replaceWith !== "function") {
+			return;
+		}
+		if (typeof host.__fsDetachAutocomplete === "function") {
+			// ⚠️ Die Vorschlagsliste hängt am DOKUMENT, nicht am Knoten -- sie überlebte den Austausch
+			// sonst als Waise.
+			host.__fsDetachAutocomplete();
+		}
+		// 💣 Der Container wird ERSETZT, bevor neu gemountet wird: das Bauteil hängt Zuhörer an den
+		// Knoten, und ohne den Austausch stapeln sie sich bei jedem Öffnen -- ein Klick löste die
+		// Aktion dann so oft aus, wie der Dialog schon offen war.
+		const frisch = host.cloneNode(false);
+		host.replaceWith(frisch);
+		const schluessel = String(regionPublicId || "");
+		if (schluessel === "") {
+			// ⚠️ Ohne Region kein Editor: eine Fläche ohne `region_public_id` bekäme sonst einen Kasten,
+			// dessen Schreibversuch am leeren Schlüssel scheitert.
+			return;
+		}
+		// ⚠️ Der Schlüssel als GETTER, nicht eingefroren -- dieselbe Vorsicht wie in jedem anderen
+		// Mount des Hauses: ein Dialogwechsel schriebe sonst auf die zuletzt geöffnete Region.
+		void mountFeatureSourceEditor(
+			frisch,
+			"ecosystem",
+			() => schluessel,
+			{ escape: typeof escapeHtml === "function" ? escapeHtml : ((v) => String(v)) }
+		);
+	}
+
 	async function openEcosystemPropertiesDialog(publicId) {
 		const overlayElement = document.getElementById(OVERLAY_ELEMENT_ID);
 		propertiesSourcePublicId = String(publicId || "");
@@ -700,6 +749,10 @@
 			const mine = (result.regions || []).find((region) => region.public_id === area.region_public_id);
 			regionAreaCount = Number(mine?.area_count || 0);
 			regionAreaCountLoaded = Boolean(mine);
+			// 🔴 Der Quellen-Editor hängt an der REGION dieser Fläche. Hier, nicht früher: der Riegel
+			// wenige Zeilen darüber hat gerade bestätigt, dass der Dialog noch DIESE Fläche zeigt --
+			// ein Mount davor könnte an einer längst geschlossenen hängen.
+			mountEcosystemAreaSources(area.region_public_id);
 			// Der dritte Zustand kommt aus DERSELBEN Antwort -- `list_regions` ist der einzige Leseweg,
 			// der ihn herausgibt (avesmapsListEcosystemRegions). Die Flächenzeile aus dem Kartenpayload
 			// trägt ihn nicht, und ein zweiter Abruf nur für ein Häkchen wäre eine Anfrage zu viel.

@@ -1180,6 +1180,20 @@
 					     doppelt geschachtelt da -- Rahmen im Rahmen, Polsterung doppelt (der Hinweis
 					     steht wörtlich im Kopf von js/ui/wiki-assign.js). -->
 					<div id="ecosystem-properties-wiki-host"></div>
+					<!-- 🔴 QUELLEN DER REGION, nicht der einzelnen Fläche. Eine Region liegt auf der Karte in
+					     vielen Flächen (der Finsterkamm in 57); ihre Quellenangabe gilt für alle. Pro Fläche
+					     geführt wäre dieselbe Angabe 57-mal einzutragen und 57-mal zu pflegen -- und beim
+					     Auseinanderlaufen wüsste niemand, welche gilt.
+					     ⚠️ Es ist DIESELBE Quellenliste, die der Landschaften-Editor an der Region zeigt
+					     (entity_type „ecosystem", ecosystem_region.public_id). Wer sie hier ändert, ändert sie
+					     dort -- das ist der Sinn, nicht ein Nebeneffekt.
+					     💣 Ein BLANKER Behälter, wie beim Wiki-Bauteil darüber: die Hülle erzeugt das Bauteil
+					     selbst, eine mitgegebene stünde doppelt geschachtelt da. -->
+					<div class="ecosystem-properties-dialog__group">
+						<div class="ecosystem-properties-dialog__grouptitle">Quellen</div>
+						<p class="ecosystem-properties-dialog__status">Gelten für die ganze Region und wirken <b>sofort</b>.</p>
+						<div id="ecosystem-properties-feature-sources"></div>
+					</div>
 					<p id="ecosystem-properties-status" class="ecosystem-properties-dialog__status" role="status"></p>
 					<p id="ecosystem-properties-error" class="ecosystem-properties-dialog__error" role="alert" hidden></p>
 					<div class="ecosystem-properties-dialog__actions">
@@ -2001,15 +2015,11 @@
 						<label class="location-report-form__field" id="label-edit-height-row" hidden><span>H&ouml;he (Schritt)</span><div class="label-edit-sliderrow label-edit-sliderrow--wide"><input id="label-edit-height" name="height_schritt" type="number" min="0" max="20000" step="1" inputmode="numeric" /><input id="label-edit-height-range" type="range" min="0" max="20000" step="50" aria-label="H&ouml;he in Schritt" /></div></label>
 					</div><div class="label-edit-section"><div class="label-edit-section-title">Darstellung</div>
 						<div class="label-edit-grid">
-							<!-- 🔴 „Größe" ist als BEDIENELEMENT gefallen (24.08.2026, Entwurf §5.5): die
-							     Schriftgröße steht seither je Art und Zoomstufe im Fenster „Darstellung"
-							     des Landschaften-Editors und gilt für alle Beschriftungen einer Art.
-							     💣 DAS FELD BLEIBT ALS HIDDEN STEHEN, und das ist kein vergessener Rest:
-							     der Payload liest `formData.get("size")`, und OHNE das Feld schriebe
-							     jedes Speichern eine 0 über den gespeicherten Wert. Genau dieselbe Falle
-							     steht zwei Zeilen weiter unten schon für `rotation`. Der Wert ist zudem
-							     der einzige Rückweg, falls die Sache je zurückgebaut wird -- und der
-							     Deploy löscht nie (AGENTS.md §10). -->
+							<!-- 🪤 HIER STAND EINEN TAG LANG DAS GEGENTEIL: „Größe ist als Bedienelement gefallen".
+							     Das war eine Fehllesung des Auftrags. Der Owner wollte den Editoren den Regler NICHT
+							     wegnehmen, sondern ihnen den Wert VORSCHLAGEN — die Marke darunter tut das.
+							     🔴 Damit gilt für Größe und Zoomband dieselbe Regel: der Wert des Labels gewinnt, die
+							     Tafel füllt nur die Lücke. Eine Regel statt zweier. -->
 							<label class="location-report-form__field"><span>Größe</span><div class="label-edit-sliderrow"><input id="label-edit-size" name="size" type="number" min="12" max="50" step="1" value="18" /><span class="label-edit-markewrap"><input id="label-edit-size-range" type="range" min="12" max="50" step="1" value="18" aria-label="Größe" /><i class="label-edit-marke" id="label-edit-size-marke" aria-hidden="true" hidden></i></span></div></label>
 							<!-- 🔴 „Rotation" ist als BEDIENELEMENT gefallen (Entwurf §2): der Name laeuft auf der
 							     Mittelachse der Flaeche, nicht mehr in einem von Hand getroffenen Winkel.
@@ -2021,8 +2031,8 @@
 							<input id="label-edit-rotation" name="rotation" type="hidden" value="0" />
 							<label class="location-report-form__field location-report-form__field--checkbox"><input id="label-edit-curve" name="curve_label" type="checkbox" /><span>Kurvenbeschriftung</span></label>
 							<label class="location-report-form__field"><span>Max. Namen</span><div class="label-edit-sliderrow"><input id="label-edit-curve-max" name="curve_label_max" type="number" min="1" max="3" step="1" value="1" /><span class="label-edit-markewrap"><input id="label-edit-curve-max-range" type="range" min="1" max="3" step="1" value="1" aria-label="Maximale Anzahl der Namen" /><i class="label-edit-marke" id="label-edit-curve-max-marke" aria-hidden="true" hidden></i></span></div></label>
-							<label class="location-report-form__field"><span>Sichtbar ab Zoom</span><div class="label-edit-zoomrow"><input id="label-edit-min-zoom-num" type="number" min="0" max="7" step="1" value="0" aria-label="Sichtbar ab Zoom" /><span class="label-edit-markewrap"><input id="label-edit-min-zoom" name="min_zoom" type="range" min="0" max="7" step="1" value="0" /><i class="label-edit-marke" id="label-edit-min-zoom-marke" aria-hidden="true" hidden></i></span></div></label>
-							<label class="location-report-form__field"><span>Sichtbar bis Zoom</span><div class="label-edit-zoomrow"><input id="label-edit-max-zoom-num" type="number" min="0" max="7" step="1" value="7" aria-label="Sichtbar bis Zoom" /><span class="label-edit-markewrap"><input id="label-edit-max-zoom" name="max_zoom" type="range" min="0" max="7" step="1" value="7" /><i class="label-edit-marke" id="label-edit-max-zoom-marke" aria-hidden="true" hidden></i></span></div></label>
+							<label class="location-report-form__field"><span>Sichtbar ab Zoom</span><div class="label-edit-sliderrow"><input id="label-edit-min-zoom-num" type="number" min="0" max="7" step="1" value="0" aria-label="Sichtbar ab Zoom" /><span class="label-edit-markewrap"><input id="label-edit-min-zoom" name="min_zoom" type="range" min="0" max="7" step="1" value="0" /><i class="label-edit-marke" id="label-edit-min-zoom-marke" aria-hidden="true" hidden></i></span></div></label>
+							<label class="location-report-form__field"><span>Sichtbar bis Zoom</span><div class="label-edit-sliderrow"><input id="label-edit-max-zoom-num" type="number" min="0" max="7" step="1" value="7" aria-label="Sichtbar bis Zoom" /><span class="label-edit-markewrap"><input id="label-edit-max-zoom" name="max_zoom" type="range" min="0" max="7" step="1" value="7" /><i class="label-edit-marke" id="label-edit-max-zoom-marke" aria-hidden="true" hidden></i></span></div></label>
 							<label class="location-report-form__field"><span>Priorität</span><div class="label-edit-sliderrow"><input id="label-edit-priority" name="priority" type="number" min="1" max="5" step="1" value="3" /><span class="label-edit-markewrap"><input id="label-edit-priority-range" type="range" min="1" max="5" step="1" value="3" aria-label="Prioritaet" /><i class="label-edit-marke" id="label-edit-priority-marke" aria-hidden="true" hidden></i></span></div></label>
 							<label class="location-report-form__field location-report-form__field--checkbox"><input id="label-edit-is-nodix" name="is_nodix" type="checkbox" /><span>Nodix</span></label>
 						</div>
@@ -2059,6 +2069,18 @@
 								</label>
 								<div id="label-edit-other-source-preview" class="label-wiki-reference__list"></div>
 							</div>
+						</div>
+						<!-- 🔴 QUELLEN. Eine Beschriftung ist im Quellensystem seit jeher `entity_type = "region"`
+						     mit ihrer `map_features.public_id` (api/app/map-features.php: $entityTypeByFeatureType).
+						     Die KARTE zeigt ihre Quellen schon lange (renderFeatureSourceLine in
+						     map-features-labels.js) -- nur der Editor konnte keine setzen. Deshalb kostet das hier
+						     KEINE Erweiterung der Freigabeliste, sondern nur diesen Behälter und einen Mount.
+						     💣 Nicht mit „Andere Quelle" darüber verwechseln: das ist das ALTE Einzelfeld und bleibt
+						     (Owner 2026-07-28). Es zeigt sich nur ohne zugewiesene Wiki-Landschaft; die Quellen hier
+						     sind das geteilte Mehrquellen-System und stehen immer. -->
+						<div class="label-edit-section"><div class="label-edit-section-title">Quellen</div>
+							<p class="location-report-form__status">Quellen wirken <b>sofort</b> — sie brauchen kein „Speichern“.</p>
+							<div id="label-edit-feature-sources"></div>
 						</div>
 						<p id="label-edit-carriers" class="location-report-form__status" hidden></p>
 						<!-- Landschaftsflaeche zuweisen. Bis 2026-07-28 bekam ein Label seinen Zeiger NUR beim

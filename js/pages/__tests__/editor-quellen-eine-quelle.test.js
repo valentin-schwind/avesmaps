@@ -133,8 +133,11 @@ montagenSammeln("html");
 montagenSammeln("js");
 // 🪤 EIN BODEN, DAMIT EIN KAPUTTES MUSTER NICHT ALS „ALLES GRUEN" DURCHGEHT. Ohne ihn waere der
 // Block hier bei einem Regex-Fehler lautlos leer und beweise gar nichts -- die Probe mit
-// vorbelegtem Treffer, nur andersherum. Acht ist der Stand vom 17.08.2026.
-assert.ok(gefundeneMontagen.length >= 8,
+// vorbelegtem Treffer, nur andersherum. ZEHN ist der Stand vom 24.08.2026: dazugekommen sind
+// der Beschriftungsdialog der Karte (`region`, die public_id des Labels -- die Karte LAS seine
+// Quellen laengst, nur setzen konnte man keine) und der Flaechendialog (`ecosystem`, die
+// public_id der REGION: eine Region liegt in vielen Flaechen, ihre Quelle gilt fuer alle).
+assert.ok(gefundeneMontagen.length >= 10,
 	"Es wurden nur " + gefundeneMontagen.length + " Montagestellen gefunden -- das Suchmuster passt "
 	+ "nicht mehr auf die Aufrufe, und dieser Block prueft dann nichts.");
 zaehl();

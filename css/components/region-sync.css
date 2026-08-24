@@ -724,22 +724,14 @@
 	min-width: 0; /* Grid-Zellen dürfen schrumpfen, sonst läuft das Grid auf schmalen Breiten über. */
 }
 
-.label-edit-zoomrow {
-	display: flex;
-	align-items: center;
-	gap: 8px;
-}
-
-.label-edit-zoomrow input[type="number"] {
-	width: 56px;
-	flex: 0 0 auto;
-}
-
-.label-edit-zoomrow input[type="range"] {
-	flex: 1 1 auto;
-	min-width: 0;
-	accent-color: var(--color-accent-brown);
-}
+/* 🪤 HIER STANDEN ZWEI REZEPTUREN FUER DIESELBE ZEILE: `.label-edit-zoomrow` und
+   `.label-edit-sliderrow` waren Zeichen fuer Zeichen gleich -- gleiche Anzeige, gleicher
+   Abstand, 56 px Zahlenfeld, derselbe Regler. Nur die Namen waren verschieden, und dadurch
+   liefen die zwei Haelften des Dialogs beim naechsten Griff auseinander (dieselbe Lehre wie
+   bei den Listenzeilen, AGENTS.md §11: es gibt ZWEI, und das ist die Obergrenze -- hier
+   reicht EINE). Zusammengelegt am 24.08.2026; die Zoomzeilen tragen seither `sliderrow`.
+   ⚠️ Die Ausnahme `--wide` BLEIBT und ist begruendet: eine Hoehe in Schritt ist fuenfstellig
+   und wurde in 56 px zu „500" abgeschnitten. */
 
 .label-edit-grid .location-report-form__field--checkbox {
 	flex-direction: row;
@@ -771,6 +763,11 @@
 	flex: 1 1 auto;
 	min-width: 0;
 	accent-color: var(--color-accent-brown);
+	/* 💣 Chrome gibt einem `input[type=range]` von sich aus `margin: 2px`. In einer Flex-Zeile
+	   addiert sich das AUSSEN auf die Breite -- jede Reglerzeile des Dialogs lief dadurch um genau
+	   2 px ueber ihren Kasten hinaus (gemessen 24.08.2026: 174 gegen 172). Zwei Pixel sieht man
+	   nicht, aber sie erzeugen die waagerechte Rollbarkeit, die man dann anderswo sucht. */
+	margin-inline: 0;
 }
 
 /* Abschnitts-Panels im Label-Editor (weisse Karten wie im Territorien-Editor). */
