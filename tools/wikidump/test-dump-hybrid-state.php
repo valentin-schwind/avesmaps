@@ -92,6 +92,7 @@ $requiredFunctions = [
     'avesmapsWikiDumpHybridComputeClassMapRows',
     'avesmapsWikiDumpHybridComputeBuildingMapRows',
     'avesmapsWikiDumpHybridComputeContinentMapRows',
+    'avesmapsWikiDumpHybridComputeDeityMapRows',
     'avesmapsWikiDumpHybridUpsertRows',
     'avesmapsWikiDumpHybridFillClassMapStep',
     'avesmapsWikiDumpHybridFillBuildingMapStep',
@@ -369,6 +370,127 @@ $check(
     ['done' => true, 'mapSize' => 70],
     ['done' => $step2['done'], 'mapSize' => count($step2['map'])],
     'resuming with $cursor=$step1[\'nextCursor\'] (the exact value the fill-step would have persisted) finishes the 120-title list'
+);
+
+// ---------------------------------------------------------------------------
+// (c6)-(c10) DIE GOTTHEIT FAELLT IN DIESER PHASE MIT AB (Discord #54, 24.08.2026).
+// ---------------------------------------------------------------------------
+// 💣 BEFUND: avesmapsWikiDumpCategoryFetchContinentMap() gibt seit jeher ZWEI Karten zurueck --
+// 'map' (Kontinent) und 'deities' (Weihung, aus derselben prop=categories-Antwort, ohne eine
+// einzige zusaetzliche Abfrage). Die Huelle las nur 'map' und warf 'deities' weg. Der einzige
+// Gottheits-Upsert im Haus stand in der KLASSEN-Huelle und las dort $result['deities'] -- einen
+// Schluessel, den avesmapsWikiDumpCategoryFetchSettlementClassMap() nie zurueckgibt. Ergebnis:
+// override_deity hatte einen Leser (dump-hybrid-read.php:216) und NULL Schreiber, ohne dass
+// irgendwo ein Fehler entstand -- ein Upsert ueber einer leeren Quelle schreibt 0 Zeilen und
+// schweigt. Diese Sorte Fehler faengt nur eine Zusicherung ueber die VERDRAHTUNG, nie eine ueber
+// das Ergebnis: beide sehen dasselbe Nichts.
+echo "\n-- (c6)-(c10) Gottheits-Fuellung haengt an der Kontinent-Phase (kein PDO/HTTP) --\n";
+
+$check(
+    '(c6) 💣 die Kontinent-Huelle wirft \'deities\' NICHT mehr weg',
+    true,
+    str_contains($fillContinentSource, "\$result['deities']"),
+    'der Sammler legt die Goetter-Map neben die Kontinent-Map -- wer nur \'map\' liest, laesst override_deity fuer immer leer und merkt es nie'
+);
+$check(
+    '(c7) 🔴 sie geht durch den EIGENEN Zeilenrechner und einen EIGENEN Upsert',
+    [true, 2],
+    [
+        str_contains($fillContinentSource, 'avesmapsWikiDumpHybridComputeDeityMapRows('),
+        substr_count($fillContinentSource, 'avesmapsWikiDumpHybridUpsertRows('),
+    ],
+    'kein gemischter Zeilensatz: die zwei Karten decken verschiedene Titel ab -- jeder Titel bekommt einen Kontinent, nur eine Kultstaette eine Weihung'
+);
+$check(
+    '(c8) ⚠️ die gemeldete Zahl bleibt die der KONTINENT-Zeilen',
+    ['$written kommt 2x vor' => 2, 'und zwar als Kontinent-Zuweisung' => true, 'nichts zaehlt dazu' => 0],
+    [
+        '$written kommt 2x vor' => substr_count($fillContinentSource, '$written'),
+        'und zwar als Kontinent-Zuweisung' => str_contains($fillContinentSource, '$written = avesmapsWikiDumpHybridUpsertRows($pdo, $runId, $rows);'),
+        'nichts zaehlt dazu' => substr_count($fillContinentSource, '$written +'),
+    ],
+    '\'written\' ist das Fortschrittsmass des Cursors ueber $titles -- EINE Zuweisung (die Kontinent-Zeilen) und EINE Rueckgabe, sonst nichts. 🪤 Die erste Fassung zaehlte nur \'$written = \' und blieb gruen, als die Mutation \'$written += <Gottheits-Upsert>\' danebenschrieb: die Phase meldete mehr Fortschritt, als ihr Cursor gemacht hatte, und die Zusicherung sah es nicht'
+);
+
+// Und jetzt am ECHTEN Sammler, was diese Verdrahtung traegt: Kultstaetten, deren prop=categories
+// BEIDES enthalten -- Kontinent UND Goetterkategorie. Kein PDO, kein HTTP.
+// 💣 Der Feuersturm-Tempel steht live in ZWEI Goetterkategorien; ein einzelner String verloere
+// hier lautlos die Haelfte, deshalb die mehrwertige Speicherung 'Ingerimm,Rondra'.
+$kultstaetten = ['Drachentempel', 'Feuersturm-Tempel', 'Kuslik'];
+$kultKatalog = [
+    'Drachentempel' => ['Kategorie:Aventurien', 'Kategorie:Rondra-Tempel'],
+    'Feuersturm-Tempel' => ['Kategorie:Aventurien', 'Kategorie:Ingerimm-Tempel', 'Kategorie:Rondra-Tempel'],
+    'Kuslik' => ['Kategorie:Aventurien'],
+];
+$kultFetcher = static function (array $batchTitles) use ($kultKatalog): array {
+    $pages = [];
+    foreach ($batchTitles as $title) {
+        $pages[$title] = [
+            'title' => $title,
+            'categories' => array_map(
+                static fn(string $k): array => ['title' => $k],
+                $kultKatalog[$title] ?? ['Kategorie:Aventurien']
+            ),
+        ];
+    }
+    return $pages;
+};
+
+$kultErgebnis = avesmapsWikiDumpCategoryFetchContinentMap($kultstaetten, 0, null, $kultFetcher);
+$kultZeilen = avesmapsWikiDumpHybridComputeDeityMapRows($kultErgebnis['deities'] ?? []);
+$check(
+    '(c9) der Sammler liefert die Weihungen, der Zeilenrechner macht override_deity daraus',
+    [
+        ['normalized_title' => 'Drachentempel', 'override_class' => null, 'override_building_type' => null, 'override_continent' => null, 'override_deity' => 'Rondra'],
+        ['normalized_title' => 'Feuersturm-Tempel', 'override_class' => null, 'override_building_type' => null, 'override_continent' => null, 'override_deity' => 'Ingerimm,Rondra'],
+    ],
+    $kultZeilen,
+    'MEHRWERTIG (Feuersturm-Tempel) und OHNE Leerzeilen: Kuslik traegt keine Goetterkategorie und bekommt gar keine Zeile'
+);
+
+// 💣 DIE REIHENFOLGE IM UPSERT, hier nachgeprueft statt angenommen. Seit 24.08.2026 gilt
+// COALESCE(override_deity, VALUES(override_deity)) -- der ERSTE Schreiber gewinnt (Docblock von
+// avesmapsWikiDumpHybridUpsertRows, Haelften (a)/(b), Zusicherungen (e5)/(e6)). Fuer die Gottheit
+// ist das GEWOLLT, aber es traegt nur wegen zweier Tatsachen, die hier festgenagelt werden:
+//
+//   (a) Der Kontinent-Upsert laeuft im SELBEN Schritt ZUERST und schreibt fuer denselben Titel
+//       override_deity = NULL. Waere das ein leerer STRING statt NULL, gewaenne er als erster
+//       Schreiber -- und die Weihung fiele an ihrer eigenen Nachbarfuellung, lautlos.
+//   (b) Ein Titel wird in dieser Phase GENAU EINMAL angefasst: der Cursor laeuft ueber $titles,
+//       nicht ueber Kategorien. Die Falle aus Haelfte (b) -- derselbe Titel aus zwei Kategorien in
+//       zwei Schritten -- kann hier also nicht eintreten; sie gehoert der Bauwerks-Phase.
+$kontZeilenFuerKult = avesmapsWikiDumpHybridComputeContinentMapRows($kultErgebnis['map'] ?? []);
+$deityWerteDerKontinentZeilen = array_values(array_unique(array_map(
+    static fn(array $r): string => $r['override_deity'] === null ? 'NULL' : ('NICHT-NULL: ' . var_export($r['override_deity'], true)),
+    $kontZeilenFuerKult
+)));
+// ⚠️ Beide Zeilensaetze werden mit avesmapsWikiSyncMonitorNormalizeTitle() verschluesselt (die
+// Unterstriche zu Leerzeichen macht und den Anker abschneidet -- sie KLEINSCHREIBT nicht). Dass sie
+// denselben Schluessel liefern, ist die Voraussetzung dafuer, dass sich die zwei Upserts in der
+// Datenbank ueberhaupt auf EINER Zeile treffen; ohne das waere die COALESCE-Frage gegenstandslos.
+$kultTitelKontinent = array_column($kontZeilenFuerKult, 'normalized_title');
+$kultTitelGottheit = array_column($kultZeilen, 'normalized_title');
+$check(
+    '(c10a) 💣 (a) dieselbe Zeile, und die Kontinent-Haelfte traegt override_deity = NULL, nie \'\'',
+    [['NULL'], []],
+    [
+        $deityWerteDerKontinentZeilen,
+        array_values(array_diff($kultTitelGottheit, $kultTitelKontinent)),
+    ],
+    'jeder Titel MIT Weihung hat auch eine Kontinent-Zeile, die im selben Schritt zuerst laeuft -- nur weil deren override_deity NULL ist, laesst COALESCE(override_deity, VALUES(...)) die Weihung danach noch durch; ein \'\' waere ein vorhandener Wert und gewaenne als erster Schreiber'
+);
+
+// (b) zwei aufeinanderfolgende Schritte derselben Phase fassen DISJUNKTE Titel an.
+$schrittKultA = avesmapsWikiDumpCategoryFetchContinentMap($kultstaetten, 0, 1, $kultFetcher);
+$schrittKultB = avesmapsWikiDumpCategoryFetchContinentMap($kultstaetten, $schrittKultA['nextCursor'], 1, $kultFetcher);
+$check(
+    '(c10b) 💣 (b) der Cursor laeuft ueber TITEL: ein Titel kommt kein zweites Mal',
+    [true, []],
+    [
+        $schrittKultA['done'],
+        array_values(array_intersect(array_keys($schrittKultA['deities']), array_keys($schrittKultB['deities']))),
+    ],
+    'deshalb ist "erster Schreiber gewinnt" fuer override_deity folgenlos -- anders als bei den Bauwerken, wo derselbe Titel aus zwei KATEGORIEN ueber eine Schrittgrenze faellt und die Reihenfolge tragend ist'
 );
 
 // ===========================================================================

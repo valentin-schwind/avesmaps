@@ -41,7 +41,10 @@ require_once __DIR__ . '/organisation-sync.php';
  *                            the FULLY-populated state table via FetchWantedTitles,
  *                            so it covers regions/territories, not just settlements;
  *                            dispatched with an explicit per-step call budget, see
- *                            avesmapsWikiDumpOnlineStepCallBudget() below)
+ *                            avesmapsWikiDumpOnlineStepCallBudget() below. Sie fuellt
+ *                            NEBENBEI override_deity: die Goetterkategorie steht in
+ *                            derselben prop=categories-Antwort und kostet keine eigene
+ *                            Abfrage -- Discord #54, seit 24.08.2026)
  *   6. parse_and_upsert     (RESUMABLE, cursor = stats['parse_cursor'], dryRun=
  *                            TRUE inside read_step: avesmapsWikiDumpHybridParseUpsertStep)
  *   7. completed

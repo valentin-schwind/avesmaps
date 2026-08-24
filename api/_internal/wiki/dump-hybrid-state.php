@@ -478,10 +478,15 @@ function avesmapsWikiDumpHybridUpsertRows(PDO $pdo, int $runId, array $rows): in
  * `$result['deities']` -- einen Schluessel, den der Klassen-Sammler nie zurueckgibt; erzeugt
  * wird die Gottheits-Map von avesmapsWikiDumpCategoryFetchContinentMap(), und der Docblock bei
  * avesmapsWikiDumpCategoryAssembleDeityMap() sagt auch ausdruecklich, sie haenge "an einer
- * fortsetzbaren Phase". Sie gehoert also in avesmapsWikiDumpHybridFillContinentMapStep(), wo
- * sie heute fehlt: `override_deity` wird zurzeit von niemandem gefuellt. Gemessen am
- * 24.08.2026, BEWUSST NICHT hier mitrepariert -- diese Aenderung soll allein die zwei
- * Online-Phasen unterbrechbar machen, und der Beweis dafuer ist EIN Klick des Owners.
+ * fortsetzbaren Phase". `override_deity` war dadurch von NIEMANDEM gefuellt -- die Spalte hatte
+ * einen Leser (dump-hybrid-read.php) und null Schreiber. Gemessen am 24.08.2026; seit demselben
+ * Tag steht der Upsert dort, wo die Map entsteht: in avesmapsWikiDumpHybridFillContinentMapStep().
+ * HIER gehoert keiner hin, auch kein "sicherheitshalber" zweiter.
+ *
+ * ⚠️ Die Lehre ist groesser als der Fall: ein Upsert, dessen Quelle IMMER leer ist, schreibt 0
+ * Zeilen, wirft nichts und meldet nichts -- von aussen nicht von "es gab diesmal nichts" zu
+ * unterscheiden. Wer einen Schreibweg anschliesst, prueft den SCHLUESSEL gegen die Rueckgabe
+ * seines Sammlers, nicht gegen den Namen, den er erwartet.
  *
  * @param callable|null $memberPageFetcher Testnaht, unveraendert an H1 weitergereicht
  * @return array{written: int, titles: list<string>, nextIndex: int, nextContinue: ?string, done: bool}
@@ -553,7 +558,11 @@ function avesmapsWikiDumpHybridFillBuildingMapStep(
  * above, threading H1's OWN cursor/callBudget/done contract straight through
  * unchanged so a caller (H4c) can loop this exactly the way it already loops
  * H1's builder directly -- this wrapper adds NOTHING to that contract except
- * "also persist the partial map returned by this call".
+ * "also persist what this call returned".
+ *
+ * 🔴 Und das ist seit 24.08.2026 ZWEIERLEI: die Kontinent-Karte UND die Gottheits-Karte, die
+ * derselbe Sammler aus derselben prop=categories-Antwort mit abwirft (Discord #54). Beide in
+ * getrennten Upserts, weil sie verschiedene Titel abdecken -- Begruendung am Aufruf unten.
  *
  * $titles is the full title list to walk (H4c's job to assemble -- typically
  * the union of the class-map + building-map title breadth, per design §5);
@@ -576,6 +585,30 @@ function avesmapsWikiDumpHybridFillContinentMapStep(
 
     $rows = avesmapsWikiDumpHybridComputeContinentMapRows($continentMap);
     $written = avesmapsWikiDumpHybridUpsertRows($pdo, $runId, $rows);
+
+    // Die Gottheiten aus DERSELBEN Antwort (Discord #54): avesmapsWikiDumpCategoryFetchContinentMap
+    // wertet die prop=categories-Seiten ein zweites Mal aus und legt die Goetter-Map unter
+    // 'deities' daneben. Bis 24.08.2026 hat diese Huelle sie weggeworfen und nur 'map' gelesen --
+    // override_deity war damit von NIEMANDEM gefuellt (der einzige Schreibversuch stand in der
+    // Klassen-Huelle und las einen Schluessel, den der Klassen-Sammler nie zurueckgibt; das 🪤 dort).
+    //
+    // 🔴 EIGENER Upsert, kein gemischter Zeilensatz: die beiden Maps decken verschiedene Titel ab --
+    // jeder Titel bekommt einen Kontinent, nur eine Kultstaette eine Weihung.
+    //
+    // ⚠️ Die gemeldete Zahl bleibt die der KONTINENT-Zeilen: sie ist das Fortschrittsmass dieser
+    // Phase (ein Cursor ueber $titles), die Gottheiten sind Beifang und wuerden sie verfaelschen.
+    //
+    // 💣 Dass der Upsert "erster Schreiber gewinnt" fuehrt, ist hier GEWOLLT und traegt allein
+    // dank Haelfte (a) seines Docblocks: die Kontinent-Zeile eine Zeile hoeher hat fuer denselben
+    // Titel gerade override_deity = NULL geschrieben, und ein NULL ueberbuegelt nichts -- die
+    // Weihung faellt also nicht an der eigenen Nachbarfuellung. Haelfte (b), derselbe Titel in ZWEI
+    // Schritten, kann hier gar nicht eintreten: diese Phase laeuft mit einem Cursor ueber $titles,
+    // jeder Titel wird genau einmal angefasst -- anders als die Bauwerks-Phase, die ueber
+    // KATEGORIEN laeuft und denselben Titel deshalb zweimal sieht. Und eine Mehrfachweihung
+    // ("Ingerimm,Rondra") ist schon INNERHALB eines Schritts aufgeloest, nicht ueber Schritte hinweg.
+    avesmapsWikiDumpHybridUpsertRows($pdo, $runId, avesmapsWikiDumpHybridComputeDeityMapRows(
+        is_array($result['deities'] ?? null) ? $result['deities'] : []
+    ));
 
     return [
         'written' => $written,
