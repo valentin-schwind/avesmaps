@@ -120,14 +120,24 @@ assert.ok(/id="zbPlotMarker"/.test(seite) && /id="zbPlotLabel"/.test(seite),
 	"Marker- und Label-Plot sind beide da");
 assert.ok(/pointerdown/.test(seite), "die Punkte lassen sich ziehen");
 
-// ⚠️ Die Zahlenfelder bleiben, mit Schrittweite 0,01 -- fuer Werte, die eine Maus nicht trifft, und
-// damit die Punkte auch ohne Maus (Tastatur) erreichbar sind.
+// ⚠️ Die Zahlenfelder bleiben -- fuer Werte, die eine Maus nicht trifft, und damit die Punkte auch
+// ohne Maus (Tastatur) erreichbar sind.
+// 🔴 IHRE SCHRITTWEITE STEHT SEIT 24.08.2026 NICHT MEHR IM MARKUP. Hier stand die Zusicherung, die
+// beiden Felder traegen `step="0.01"`; seit dem Raster (Owner: „0,5er Schritte bei pt und 1px bei
+// pixel") setzt das JS sie aus ZOOM_BAND_SNAP, und ein zweiter Wert im Markup waere bis zum ersten
+// JS-Lauf eine Luege. Geprueft wird deshalb, dass das Markup KEINEN eigenen traegt -- der Rest in
+// js/pages/__tests__/zoombaender-raster.test.js.
 // 🔴 An das KONKRETE Feld gebunden, kein `||`-Rueckfall auf "irgendwo im Dokument" -- ein
 // Rueckfall auf ein blosses /step="0\.01"/.test(seite) waere immer gruen gewesen, weil das
 // Dokument die Schrittweite an vielen anderen Stellen ohnehin traegt (Prüfbefund, Fix-Runde 1:
 // eine Zusicherung, die ihren Zweig nie verlaesst).
-assert.ok(/id="zbSelMarkerInput"[^>]*step="0\.01"/.test(seite), "das Marker-Zahlenfeld traegt Schrittweite 0,01");
-assert.ok(/id="zbSelLabelInput"[^>]*step="0\.01"/.test(seite), "das Label-Zahlenfeld traegt Schrittweite 0,01");
+["zbSelMarkerInput", "zbSelLabelInput"].forEach((id) => {
+	const zeile = seite.split("\n").find((l) => l.includes(`id="${id}"`));
+	assert.ok(zeile, `${id} steht im Markup`);
+	assert.ok(!/step=/.test(zeile), `${id} traegt keine eigene Schrittweite -- die kommt aus ZOOM_BAND_SNAP`);
+});
+assert.ok(/cfg\.selInputEl\.step = String\(ZOOM_BAND_SNAP\[cfg\.kind\]/.test(seite),
+	"und das JS setzt sie aus der einen Quelle");
 assert.ok(/ArrowUp/.test(seite) && /ArrowDown/.test(seite),
 	"die Punkte lassen sich mit der Tastatur verstellen");
 

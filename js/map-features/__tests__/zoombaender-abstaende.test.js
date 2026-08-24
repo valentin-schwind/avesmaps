@@ -24,9 +24,9 @@ const VORGABE = AVESMAPS_LOCATION_ZOOM_BAND_DEFAULTS;
 // LOCATION_NAME_LABEL_GAP (map-features-location-name-labels.js) = 4, LOCATION_LABEL_COLLISION_PADDING
 // (map-features.js) = 2, LOCATION_LABEL_SHIFT_SMALL (map-features.js) = 8.
 // 🔴 22.08.2026 -- "drift" kam als VIERTER dazu (Deckel auf den senkrechten Spalt zum eigenen
-// Punkt). Er hatte vorher keine Konstante, weil es keinen Deckel gab; 300 liegt ueber jedem
+// Punkt). Er hatte vorher keine Konstante, weil es keinen Deckel gab; 150 liegt ueber jedem
 // erreichbaren Drift und schneidet deshalb nichts weg. Siehe zoombaender-drift.test.js.
-assert.deepStrictEqual(VORGABE.abstaende, { spalt: 4, repel: 2, versatz: 8, drift: 300 },
+assert.deepStrictEqual(VORGABE.abstaende, { spalt: 4, repel: 2, versatz: 8, drift: 150 },
 	"die Vorgabewerte der Abstaende sind die heutigen Konstanten, unveraendert");
 
 // ---- B. Nichts gespeichert / kaputt = reine Vorgabe ----------------------------------------------

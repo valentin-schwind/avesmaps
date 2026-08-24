@@ -606,7 +606,7 @@
         <p class="zb-plot-caption">Gestaucht (Quadratwurzel) — die erlaubte Spanne von kleinstem zu größtem Wert ist zu groß für eine gerade Achse; die kleinen Werte lägen sonst als Strich am Boden.<span id="seZoomBandsMarkerFutureNote"></span></p>
         <div class="zb-selected" id="zbSelMarker">
           <span class="zb-selected__label">Ausgewählter Punkt: <strong id="zbSelMarkerLabel">— keiner —</strong></span>
-          <input type="number" class="zb-num-input" id="zbSelMarkerInput" step="0.01" disabled>
+          <input type="number" class="zb-num-input" id="zbSelMarkerInput" disabled>
           <span class="zb-selected__unit">px</span>
           <span class="zb-selected__hint">⌨️ Pfeiltasten verstellen den ausgewählten Punkt (Umschalt: großer Schritt) — für Werte, die eine Maus nicht genau trifft.</span>
         </div>
@@ -626,7 +626,7 @@
         <p class="zb-plot-caption">Linear, bewusst nicht gestaucht — die erlaubte Spanne ist hier klein genug, dass eine Quadratwurzel-Achse nur das Ablesen erschweren würde.<span id="seZoomBandsLabelFutureNote"></span></p>
         <div class="zb-selected" id="zbSelLabel">
           <span class="zb-selected__label">Ausgewählter Punkt: <strong id="zbSelLabelLabel">— keiner —</strong></span>
-          <input type="number" class="zb-num-input" id="zbSelLabelInput" step="0.01" disabled>
+          <input type="number" class="zb-num-input" id="zbSelLabelInput" disabled>
           <span class="zb-selected__unit">pt</span>
           <span class="zb-selected__hint">⌨️ Pfeiltasten verstellen den ausgewählten Punkt (Umschalt: großer Schritt) — für Werte, die eine Maus nicht genau trifft.</span>
         </div>
@@ -680,8 +680,8 @@
             <span class="zb-slider-row__desc">Wie weit ein Name höchstens vom Punkt abheben darf — darüber verschwindet er. Auf die andere Seite des Punktes darf er immer.</span>
           </div>
           <div class="zb-slider-row__control">
-            <input type="range" class="zb-range" id="zbDriftRange" min="0" max="300" step="1" aria-label="Ausweichgrenze in px">
-            <input type="number" class="zb-num-input" id="zbDriftInput" min="0" max="300" step="1">
+            <input type="range" class="zb-range" id="zbDriftRange" min="0" max="150" step="1" aria-label="Ausweichgrenze in px">
+            <input type="number" class="zb-num-input" id="zbDriftInput" min="0" max="150" step="1">
             <span class="zb-selected__unit">px</span>
             <button type="button" class="zb-row-reset" id="zbDriftReset">↺</button>
           </div>
@@ -4094,6 +4094,23 @@ function zoomBandSpacingDefault(key) {
 		: 0;
 }
 function zoomBandRound2(v) { return Math.round(v * 100) / 100; }
+// 🔴 DIE RASTERWEITE JE PLOT -- EINE Quelle für Ziehen, Pfeiltasten, Zahlenfeld und `step`-Attribut
+// (Owner 24.08.2026: „0,5er Schritte bei pt und 1px bei pixel"). Der Marker ist ein Außendurchmesser
+// in ganzen Pixeln, die Schriftgröße geht in halben Punkten.
+// ⚠️ Sie greift nur, wo jemand einen Wert ANFASST. Die Vorgabewerte tragen weiterhin ihre zwei
+// Nachkommastellen (6,65 · 18,81 · 37,62 -- aus der abgeschafften geometrischen Kurve gerechnet) und
+// werden davon nicht angerührt; ein Zurücksetzen holt sie unverändert zurück. Wer das anders will,
+// ändert die Tafel in location-zoom-bands.js, nicht dieses Raster.
+// ⚠️ Beim Marker rueckt das die erreichbare UNTERGRENZE von 0,5 auf 1 px -- ein halbes Pixel
+// Aussendurchmesser ist ohnehin nichts, was man sieht. Die Schranke selbst bleibt 0,5, weil sie
+// der Server mitprueft und die Vorgabetafel Werte wie 1,33 traegt.
+const ZOOM_BAND_SNAP = { marker: 1, label: 0.5 };
+// ⚠️ Nach dem Rasten noch einmal runden: 0,1 + 0,2 ist auch hier nicht 0,3, und der Wert steht
+// gleich als Text im Zahlenfeld.
+function zoomBandSnap(kind, v) {
+	const schritt = ZOOM_BAND_SNAP[kind] || 0.01;
+	return zoomBandRound2(Math.round(v / schritt) * schritt);
+}
 function zoomBandClamp(v, lo, hi) { return Math.min(hi, Math.max(lo, v)); }
 
 function zoomBandColX(z) {
@@ -4147,6 +4164,9 @@ function zoomBandPlots() {
 		const cfg = zoomBandPlotsCache[kind];
 		cfg.selInputEl.min = String(cfg.limits.min);
 		cfg.selInputEl.max = String(cfg.limits.max);
+		// 🔴 Auch das Zahlenfeld rastet -- sonst zeigten seine Pfeilchen 0,01er Schritte an, die der
+		// Setzer anschliessend wegraeumt. Dieselbe Quelle wie Ziehen und Tastatur.
+		cfg.selInputEl.step = String(ZOOM_BAND_SNAP[cfg.kind] || 0.01);
 	});
 	const markerSrc = $("seZoomBandsMarkerSrc");
 	if (markerSrc) markerSrc.textContent = `y-Achse ${markerLimits.min}–${markerLimits.max} px, quadratwurzel-gestaucht`;
@@ -4350,7 +4370,10 @@ function makeZoomBandPoint(cfg, cls, z) {
 		c.addEventListener("pointerup", onUp);
 	});
 	c.addEventListener("keydown", (ev) => {
-		const step = ev.shiftKey ? 1 : 0.01;
+		// 💣 DIE PFEILTASTEN MUESSEN AUF DEMSELBEN RASTER LAUFEN. Sie gingen in 0,01er Schritten --
+		// nach dem Rasten rutscht das auf denselben Wert zurueck, die Taste haette also NICHTS getan.
+		const schritt = ZOOM_BAND_SNAP[cfg.kind] || 0.01;
+		const step = ev.shiftKey ? schritt * 5 : schritt;
 		if (ev.key === "ArrowUp") { commit(zoomBandsState[cfg.kind][cls].values[z] + step); ev.preventDefault(); }
 		else if (ev.key === "ArrowDown") { commit(zoomBandsState[cfg.kind][cls].values[z] - step); ev.preventDefault(); }
 	});
@@ -4366,7 +4389,10 @@ function setZoomBandPointValue(kind, cls, z, rawVal, source) {
 	const st = zoomBandsState[kind][cls];
 	if (z < st.start || z > zoomBandMaxZoom()) { return; }
 	markZoomBandsBearbeitet();
-	const val = zoomBandRound2(zoomBandClamp(rawVal, cfg.limits.min, cfg.limits.max));
+	// 💣 KLEMMEN -> RASTEN -> KLEMMEN. Das Rasten kann um einen halben Schritt über die Schranke
+	// heben (bei 99,7 px auf 100), deshalb steht die Klemme auch danach.
+	const val = zoomBandClamp(zoomBandSnap(kind, zoomBandClamp(rawVal, cfg.limits.min, cfg.limits.max)),
+		cfg.limits.min, cfg.limits.max);
 	st.values[z] = val;
 	const circle = cfg.svg.querySelector(`circle[data-cls="${cls}"][data-z="${z}"]`);
 	if (circle) { circle.setAttribute("cy", cfg.scale.toY(val)); circle.setAttribute("aria-valuenow", val); }

@@ -139,28 +139,33 @@ assert.ok(bei60.includes("top-left") && bei60.includes("bottom-right"),
 	assert.strictEqual(mitte, alterSeitenwechsel / 2,
 		`Breite ${w}: die Mitte rueckt halb so weit wie der alte Seitenwechsel (${mitte} vs ${alterSeitenwechsel / 2})`);
 });
-// Damit liegt das erreichbare Maximum bei rund hypot(287/2, ~41) = 149 px statt 287.
-const GEMESSENES_MAXIMUM = 150;
+// Daraus das erreichbare Maximum, HERGELEITET aus der Live-Messung von 22.08. (nicht neu gemessen,
+// und deshalb hier mit seinen Eingangswerten aufgeschrieben): laengster Name je Ortsklasse in DEREN
+// groesster Schrift -> alter Seitenwechsel 287 px = Textbreite + zweimal der Spalt (bei einem
+// Gebaeude auf z6: 266 + 21). Waagerecht bleibt davon 266/2 + 10 = 143, senkrecht kommt
+// 0,969 x Hoehe + Versatz = rund 20 dazu -> hypot(143, 20) = rund 145.
+const GEMESSENES_MAXIMUM = 145;
 assert.ok(VORGABE.abstaende.drift > GEMESSENES_MAXIMUM,
 	`die Vorgabe (${VORGABE.abstaende.drift}) liegt ueber dem erreichbaren Maximum (${GEMESSENES_MAXIMUM})`);
-// 🔧 UND ZWAR MIT SCHLAG: die Spanne 0-300 stammt vom alten Maximum 287 und deckt jetzt das
-// Doppelte des Erreichbaren -- die obere Haelfte des Reglerwegs tut nichts. Das ist der Befund aus
-// §1 des Entwurfs in klein, aber die Spanne zu verengen aendert Vorgabe UND Reglergeometrie
-// sichtbar und geht deshalb NICHT mit dieser Aenderung zusammen live. Bewusst offen gelassen;
-// hier steht absichtlich KEINE Zusicherung „nicht viel darueber", die waere heute falsch.
+// ⚠️ Und nicht viel darueber: sonst waere ein Teil des Reglerwegs wirkungslos -- genau der Befund,
+// der diesen Umbau ausgeloest hat. Die Spanne stand bis 24.08.2026 auf 0-300 und deckte damit nach
+// dem Halbieren das Doppelte des Erreichbaren; Owner: „die ausweichgrenze kannst du auf 150
+// reduzieren, selbst das ist noch zu viel."
+assert.ok(VORGABE.abstaende.drift < GEMESSENES_MAXIMUM * 1.5,
+	"aber nicht so weit darueber, dass der Regler auf einem Teil seines Weges nichts tut");
 assert.ok(AVESMAPS_LOCATION_LABEL_DRIFT_LIMITS.max >= VORGABE.abstaende.drift,
 	"und die Schranke laesst die Vorgabe ueberhaupt zu");
 
 // ---- E. Eigene Schranke je Schluessel -------------------------------------------------------------
-assert.strictEqual(avesmapsLocationLabelSpacingLimits("drift").max, 300, "drift darf bis 300");
+assert.strictEqual(avesmapsLocationLabelSpacingLimits("drift").max, 150, "drift darf bis 150");
 assert.strictEqual(avesmapsLocationLabelSpacingLimits("spalt").max, 20, "die anderen bleiben bei 20");
 assert.strictEqual(avesmapsLocationLabelSpacingLimits("versatz").max, 20);
 // 💣 Ohne eigene Schranke waere jeder Deckel ueber 20 als "ausserhalb" auf die Vorgabe
 // zurueckgefallen -- lautlos, und der Regler haette auf dem groessten Teil seines Weges nichts getan.
 assert.strictEqual(avesmapsResolveLocationZoomBands({ abstaende: { drift: 60 } }).abstaende.drift, 60,
 	"ein Deckel von 60 wird uebernommen, nicht verworfen");
-assert.strictEqual(avesmapsResolveLocationZoomBands({ abstaende: { drift: 301 } }).abstaende.drift,
-	VORGABE.abstaende.drift, "ueber 300 -> Vorgabe");
+assert.strictEqual(avesmapsResolveLocationZoomBands({ abstaende: { drift: 151 } }).abstaende.drift,
+	VORGABE.abstaende.drift, "ueber 150 -> Vorgabe");
 assert.strictEqual(avesmapsResolveLocationZoomBands({ abstaende: { drift: 0 } }).abstaende.drift, 0,
 	"0 ist gueltig -- 'bleibt auf der Normalstellung' ist eine Einstellung, kein Nichtwissen");
 assert.strictEqual(avesmapsResolveLocationZoomBands({ abstaende: { spalt: 60 } }).abstaende.spalt,

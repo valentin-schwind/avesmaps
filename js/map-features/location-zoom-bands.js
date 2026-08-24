@@ -26,17 +26,22 @@ const AVESMAPS_LOCATION_LABEL_SPACING_LIMITS = { min: 0, max: 20 };
 // seiner Normalstellung wegrückt (Owner 22.08.2026: „den maximalen versatz ... will ich begrenzen
 // bis sie verschwinden").
 //
-// 💣 DIE SPANNE RICHTET SICH NACH DEM SEITENWECHSEL, und der hängt an der NAMENSLÄNGE -- nicht an
-// einer festen Geometrie. Springt der Name auf die andere Seite des Punktes, rückt er um seine
-// eigene Breite plus zweimal den Spalt weg: live gemessen 78 bis 203 px, Median 123. Der größte
-// über den ganzen Bestand erreichbare Wert (längster Name je Ortsklasse in DEREN größter Schrift,
-// 2882 Namen) ist 287 px. 300 liegt darüber, die Vorgabe schneidet also nichts weg -- und die
-// Arbeit des Reglers passiert zwischen 0 und 203, also auf gut zwei Dritteln seines Weges.
+// 💣 DIE SPANNE MUSS AUF DER WIRKUNG LIEGEN, und die hat sich am 24.08.2026 HALBIERT. Bis dahin gab
+// den Ausschlag der Seitenwechsel (eigene Namensbreite plus zweimal der Spalt, live 78 bis 203 px,
+// über den ganzen Bestand höchstens 287) -- seit er nur noch seinen senkrechten Anteil zahlt, ist
+// er gratis. Den Ausschlag gibt jetzt die MITTIGE Stelle über dem Punkt, und deren waagerechter
+// Anteil ist exakt die HÄLFTE des alten Seitenwechsels (`labelWidth/2 + spalt` gegen
+// `labelWidth + 2 × spalt`). Erreichbar sind damit rund 145 px; 150 liegt knapp darüber, die
+// Vorgabe schneidet also nichts weg und der Regler arbeitet auf seinem ganzen Weg.
 //
-// ⚠️ Der senkrechte Anteil ist dagegen klein (höchstens Kastenhöhe + Versatz, rund 50 px). Eine
-// Spanne, die nur ihn abdeckt, kann den Seitenwechsel nicht verhindern -- und der ist das, was ein
-// Betrachter als „zu weit weg" sieht.
-const AVESMAPS_LOCATION_LABEL_DRIFT_LIMITS = { min: 0, max: 300 };
+// 🪤 Die Spanne stand bis dahin auf 0…300 und deckte damit das Doppelte des Erreichbaren -- die
+// obere Hälfte tat nichts. Owner 24.08.2026: „die ausweichgrenze kannst du auf 150 reduzieren,
+// selbst das ist noch zu viel."
+//
+// ⚠️ Der gespeicherte Stand (25) liegt weit darunter und wird von der Verengung nicht angefasst.
+// Ein Wert ÜBER der Schranke fiele auf die Vorgabe zurück -- lautlos, deshalb steht sie hier und
+// nicht nur im Fenster.
+const AVESMAPS_LOCATION_LABEL_DRIFT_LIMITS = { min: 0, max: 150 };
 
 // Die Schranke eines einzelnen globalen Abstands. Ohne eigenen Eintrag gilt die enge Vorgabe --
 // eine Zeile je Schlüssel, damit ein neuer Abstand nicht stillschweigend die Schranke eines
@@ -79,10 +84,11 @@ const AVESMAPS_LOCATION_ZOOM_BAND_DEFAULTS = {
 	//   repel   = LOCATION_LABEL_COLLISION_PADDING (2, war js/map-features/map-features.js)
 	//   versatz = LOCATION_LABEL_SHIFT_SMALL (8, war js/map-features/map-features.js)
 	// 🔴 22.08.2026 -- „drift" ist der VIERTE und einzige, der vorher keine Konstante hatte: es gab
-	// keinen Deckel, ein Name durfte so weit abheben, wie die weiteste Ausweichstelle reicht. Die
-	// Vorgabe 300 liegt über dem größten erreichbaren Drift (gemessen 287) und schneidet deshalb
-	// nichts weg (siehe AVESMAPS_LOCATION_LABEL_DRIFT_LIMITS) -- beim Ausliefern ändert sich nichts.
-	abstaende: { spalt: 4, repel: 2, versatz: 8, drift: 300 },
+	// keinen Deckel, ein Name durfte so weit abheben, wie die weiteste Ausweichstelle reicht.
+	// 🔴 24.08.2026 von 300 auf 150 gezogen (Owner). Sie ist weiterhin das obere Ende der Spanne und
+	// liegt über dem erreichbaren Drift (rund 145, siehe AVESMAPS_LOCATION_LABEL_DRIFT_LIMITS) --
+	// die Vorgabe schneidet also nach wie vor nichts weg.
+	abstaende: { spalt: 4, repel: 2, versatz: 8, drift: 150 },
 };
 
 // Eine Zeile gegen ihre Vorgabe normalisieren.
