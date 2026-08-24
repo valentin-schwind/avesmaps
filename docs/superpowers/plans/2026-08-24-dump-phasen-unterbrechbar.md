@@ -1,5 +1,37 @@
 # Übergabe: die zwei Online-Phasen des Dump-Laufs unterbrechbar machen
 
+> ✅ **ERLEDIGT 24.08.2026** (`43970a06`, `afca72d2`, `02fdc91d`, alle live). Beide Phasen haben
+> ihren Cursor; das Aufrufbudget heißt jetzt `avesmapsWikiDumpOnlineStepCallBudget()` und gilt für
+> **alle drei** Online-Phasen. Drossel und User-Agent unangetastet.
+> **Offen ist nur noch die Abnahme:** der Klick des Owners auf „Dump holen" (§4).
+>
+> Vier Dinge, die beim Bauen dazukamen und im Entwurf noch nicht stehen:
+> - 💣 **Die Bauwerks-Phase ist ZWEISTUFIG.** Ihre Arbeitsliste kommt selbst von der API
+>   (`Bauwerk nach Art` → Unterkategorien) und kostet Abfragen. Stufe 1 löst die Artenliste auf,
+>   Stufe 2 holt je Art die Mitglieder; die Weiche steht in `avesmapsWikiDumpHybridBuildingStage()`,
+>   und eine **leere Liste wirft auf Stufe 1 zurück** — sonst meldet Stufe 2 mit null Arten sofort
+>   `done` und überspringt sämtliche Bauwerke, lautlos.
+> - 💣 **Der Upsert der Zustandstabelle behält jetzt je Spalte den ERSTEN Schreiber**
+>   (`COALESCE(col, VALUES(col))`, vorher umgekehrt). Über eine Schrittgrenze hinweg kann der
+>   Sammler „erster Typ gewinnt" nicht mehr selbst halten — der Feuersturm-Tempel steht in zwei
+>   Kategorien. Solange die Phasen in einem Zug liefen, konnte das nie auffallen.
+> - 💣 **Die eine `categorymembers`-Seite liegt in `sync.php`**, nicht bei einem der zwei Sammler:
+>   `locations.php` und `settlements.php` laden einander **nicht**. Gewacht von
+>   `api/_internal/wiki/__tests__/kategorie-seite-ladeweg-test.php` (zwei Halbzeiten in getrennten
+>   Prozessen — in EINEM Prozess kann dieser Fehler grundsätzlich nicht auftreten).
+> - 🪤 **Der erste Push fiel im Testtor um**, an genau diesem neuen Test: er gab seinem
+>   Unterprozess `-d extension=php_mbstring.dll` mit. Das lokale Feld fährt Windows, das Tor
+>   fährt **Linux**. Ein Test, der einen eigenen PHP-Prozess startet, darf keine
+>   plattformabhängigen ini-Schalter festschreiben. Weil das Tor nichts hochlädt, mussten die
+>   Dateien danach per `workflow_dispatch` (Voll-Deploy) nachgeliefert werden.
+>
+> 🔧 **Und ein Befund nebenan, BEWUSST nicht mitrepariert:** `override_deity` wird von niemandem
+> gefüllt. Der Gottheiten-Upsert stand in der Klassen-Phase und las dort einen Schlüssel, den nur
+> die **Kontinent**-Phase zurückgibt (`avesmapsWikiDumpCategoryFetchContinentMap()`); er hat immer
+> 0 Zeilen geschrieben. Die tote Zeile ist weg, der Befund steht als 🪤 an
+> `avesmapsWikiDumpHybridFillClassMapStep()`. Eigene Aufgabe — hier hätte sie den einen Klick,
+> der diese Änderung abnimmt, mehrdeutig gemacht.
+
 **Stand:** 24.08.2026, Abend. **Zustand:** „Dump holen" bricht mit **HTTP 502** ab.
 **Aufgabe:** `online_class_map` und `online_building_map` bekommen einen Cursor.
 
