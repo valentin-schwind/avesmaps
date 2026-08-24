@@ -228,7 +228,17 @@ body.edit-mode .map-label img {
 	transition: opacity var(--border-label-fade, 350ms) ease;
 }
 .leaflet-zoom-anim .avesmaps-border-label-canvas {
-	transition: transform 250ms cubic-bezier(0, 0, 0.25, 1);
+	/* 🔴 HIER STEHT AUCH DIE AUSBLENDUNG, und das ist der zweite Teil der Sache. Owner 24.08.2026:
+	   „von zoom 6 auf 7 (beide eingeblendet) springts“ -- zwischen zwei Stufen, auf denen die Namen
+	   beide Male stehen, wechselt ihr Inhalt (andere Lage, andere Schriftgroesse) hart. Also weggehen
+	   waehrend der Zoom-Animation und danach wieder einblenden; dasselbe Mittel, mit dem die
+	   Ortsmarkierungen ihr „Plopp“ loswerden (location-canvas-layer.js: 100 ms raus, 200 ms rein).
+	   ⚠️ Die Ausblendung MUSS in DIESER Regel stehen, nicht in der ersten: `transition` ist EINE
+	   Eigenschaft, und waehrend `.leaflet-zoom-anim` liegt, gewinnt diese hier. Stuende die Deckkraft
+	   nur oben, spraenge die Flaeche beim Zoomstart hart auf 0 statt auszublenden.
+	   ⚠️ Kuerzer als die 250 ms der Zoom-Animation, sonst ist sie bei deren Ende noch nicht bei 0. */
+	transition: transform 250ms cubic-bezier(0, 0, 0.25, 1),
+	            opacity var(--border-label-fade-out, 120ms) ease-out;
 }
 
 /* Alle Karten-Text-Labels faden waehrend der Leaflet-Zoom-Animation weich aus und nach dem Zoom wieder ein --

@@ -404,6 +404,17 @@
 		return 350;
 	})();
 	labelCanvas.style.setProperty("--border-label-fade", TERRITORY_LABEL_FADE_MS + "ms");
+	// Ausblenden beim Zoomschritt. ⚠️ EIGENER Wert und bewusst kuerzer als die 250 ms der
+	// Zoom-Animation: was danach noch sichtbar ist, springt beim Neuzeichnen doch. ?labelfadeout=<ms>.
+	const TERRITORY_LABEL_FADE_OUT_MS = (() => {
+		try {
+			const roh = new URLSearchParams(window.location.search).get("labelfadeout");
+			const wert = Number(roh);
+			if (roh !== null && Number.isFinite(wert) && wert >= 0) { return wert; }
+		} catch (e) { /* ohne Adresszeile die Vorgabe */ }
+		return 120;
+	})();
+	labelCanvas.style.setProperty("--border-label-fade-out", TERRITORY_LABEL_FADE_OUT_MS + "ms");
 
 	// Ob beim letzten redraw wirklich Namen gezeichnet wurden. 🔴 Der Wert wird VOR den vorzeitigen
 	// `return`s in redraw() zurueckgesetzt und erst an der Zeichenstelle gesetzt -- so stimmt die
@@ -742,6 +753,14 @@
 		// ⚠️ Ihre Transition kommt aus css/features/map-labels.css, NICHT inline: eine Inline-`transition`
 		// wuerde die Blenden-Regel dauerhaft ausloeschen (es ist EINE Eigenschaft, und inline gewinnt).
 		L.DomUtil.setTransform(labelCanvas, offset, scale);
+		// 🔴 UND WEGGEHEN, SOLANGE DER ZOOM LAEUFT. Owner 24.08.2026: „von zoom 6 auf 7 (beide
+		// eingeblendet) springts“. An der Schwelle genuegte das Einblenden; zwischen zwei Stufen, auf
+		// denen die Namen beide Male stehen, wechselt ihr INHALT (Lage, Schriftgroesse) und schneidet
+		// hart um. Also erst weg, dann neu zeichnen, dann wieder einblenden -- genau das Mittel, mit dem
+		// die Ortsmarkierungen ihr „Plopp“ loswerden (location-canvas-layer.js).
+		// ⚠️ Die Dauer kommt aus der `.leaflet-zoom-anim`-Regel in css/features/map-labels.css; die
+		// Klasse liegt hier bereits (Leaflet setzt sie VOR dem zoomanim-Ereignis), sonst spraenge es.
+		labelCanvas.style.opacity = "0";
 	});
 	// flyTo/setView: pro 'zoom'-Frame neu zeichnen (nur wenn KEIN CSS-Zoom läuft -> sonst Transform).
 	map.on("zoom", function () { if (!cssZoomActive) redraw(); });
