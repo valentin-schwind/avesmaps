@@ -158,6 +158,18 @@ let REGION_LABEL_HALO_STRENGTH = 1.5;
 let REGION_LABEL_HALO_SHARPNESS = 0.25;
 
 // Pro Label-Typ Farbe/Schreibung/Sperrung EINMAL aus dem echten CSS lesen (Probe-Element) -> „Farben lassen".
+// Den Typ-Zwischenspeicher leeren.
+//
+// 💣 OHNE IHN WIRKT EINE GELADENE ODER GEAENDERTE TAFEL ERST NACH EINEM NEULADEN -- und das sieht
+// aus wie „Speichern tut nichts". Der Speicher haelt je Labelart Farbe, Schreibung und Sperrung
+// fest; die Sonde laeuft nur beim ersten Mal.
+// 🪤 Der BILD-Zwischenspeicher (_mapLabelImageCache) braucht KEINEN eigenen Leerer: sein Schluessel
+// enthaelt `typeStyle.color`, ein neuer Ton ergibt also von selbst einen neuen Schluessel. Wer hier
+// einen zweiten Leerer ergaenzt, raeumt jedes Labelbild der Karte fuer nichts weg.
+function avesmapsLeereLabelTypStil() {
+	Object.keys(_mapLabelTypeStyleCache).forEach((k) => { delete _mapLabelTypeStyleCache[k]; });
+}
+
 function getMapLabelTypeStyle(labelType) {
 	if (_mapLabelTypeStyleCache[labelType]) {
 		return _mapLabelTypeStyleCache[labelType];
@@ -172,7 +184,12 @@ function getMapLabelTypeStyle(labelType) {
 	document.body.appendChild(probe);
 	const computed = window.getComputedStyle(span);
 	const style = {
-		color: computed.color || "#f5f0d6",
+		// 🔴 Der CSS-Ton ist die VORGABE, die Darstellungstafel entscheidet nur, ob eine
+		// Uebersteuerung ihn schlaegt (Entwurf §8). Eine Farbe je ART, nicht je Zoomstufe
+		// (Owner 23.08.2026: „die farben bleiben gleich").
+		color: typeof avesmapsEcosystemDisplayFarbe === "function"
+			? avesmapsEcosystemDisplayFarbe(labelType, computed.color || "#f5f0d6")
+			: (computed.color || "#f5f0d6"),
 		uppercase: computed.textTransform === "uppercase",
 		fontFamily: computed.fontFamily || '"Faculty Glyphic", Georgia, serif',
 		fontWeight: computed.fontWeight || "400",
