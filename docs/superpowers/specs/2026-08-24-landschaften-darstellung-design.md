@@ -509,11 +509,20 @@ nicht, aber sie erzeugen die waagerechte Rollbarkeit, die man dann anderswo such
 | Speicher-Fundament | `api/_internal/app/ecosystem-display.php` *(neu)* |
 | Das Fenster | `html/landschaften-editor.html` + `css/pages/landschaften-editor.css` |
 | Marke im Beschriftungsdialog | `index.html`, `js/review/review-labels.js` |
-| Größe global statt je Label | `js/map-features/map-features-labels.js` (`getScaledLabelSize`) |
+| Größe **rät**, gilt nicht (§5.5, zurückgenommen) | `js/map-features/map-features-labels.js` (`getScaledLabelSize`), `avesmapsEcosystemDisplayBasisGroesse` |
+| „Max. Namen" hängt am Haken (§5.8) | `js/review/review-labels.js` (`labelCurveMaxBedienbar`) |
+| Quellen der Beschriftung (`region`) | `index.html`, `js/review/review-labels.js` (Mount) |
+| Quellen der Fläche = die ihrer **Region** (`ecosystem`) | `index.html`, `js/map-features/map-features-ecosystem-properties.js` (`mountEcosystemAreaSources`) |
+| Eine Reglerzeile statt zweier | `css/components/region-sync.css` (`.label-edit-sliderrow`) |
 | Flächenton/Deckkraft | `js/map-features/map-features-ecosystem-rendering.js`, `css/features/ecosystem-layer.css` |
 | Kurvenwerte | `js/map-features/curve-label-fit.js` (`AVESMAPS_CURVE_LABEL_DEFAULTS`) |
 | Prototyp | `docs/landschaften-darstellung-mockup.html`, `docs/kurvenlabel-pipeline.js` |
 
+
+🪤 Diese Tabelle führte bis zum 24.08.2026 „Größe global statt je Label" — die verworfene Fassung.
+§5.5 und §6 waren da längst zurückgenommen, die Tabelle nicht. Eine Aufzählung, die nur einen ORT
+nennt, veraltet leiser als ein Satz, der eine Regel begründet; deshalb steht hier jetzt die Regel
+mit dem Ort. Gefunden von der Konsistenzprüfung, nicht vom Testfeld.
 ---
 
 ## §13 Entschieden am 23./24.08.2026

@@ -607,9 +607,15 @@ function labelEmptyTypeLabel(kind) {
 // ---- Die Vorgabemarken auf den Reglern ---------------------------------------------------------
 //
 // 🔴 DAS MODELL IST GEMISCHT, und das ist Absicht (Entwurf §6):
-//   Farbe und Groesse gibt die Tafel VOR -- der Editor hat dafuer kein Feld mehr.
-//   Zoomband, max. Namen und Prioritaet RAET sie nur -- er behaelt seinen Regler und sieht die
-//   Vorgabe als Marke darunter.
+//   Flaechenfarbe, Deckkraft und Namensfarbe gibt die Tafel VOR -- dafuer gibt es hier kein Feld.
+//   GROESSE, Zoomband, max. Namen und Prioritaet RAET sie nur -- der Editor behaelt seinen Regler
+//   und sieht die Vorgabe als Marke darunter. Das sind VIER ratende gegen drei geltende.
+//
+// 🪤 HIER STAND EINEN TAG LANG „Farbe und Groesse gibt die Tafel VOR -- der Editor hat dafuer kein
+// Feld mehr". Der Owner hat das am 24.08.2026 umgedreht, und der Kommentar wurde dabei zunaechst
+// NICHT mitgezogen: er widersprach damit dem Register fuenfzehn Zeilen weiter unten, das die
+// Groesse laengst als ratendes Feld fuehrte. Wer von oben nach unten liest, bekam zwei Aussagen
+// ueber dieselbe Sache. Gefunden von der Konsistenzpruefung, nicht vom Testfeld.
 //
 // 💣 DER MEDIAN ERREICHT IHN NIE (Owner 24.08.2026: „wir ermitteln den median, der wert, den die
 // editoren sehen ist der wert aus der zoombandeinstellung"). Eine zweite, graue Marke hiesse
@@ -648,7 +654,9 @@ function avesmapsLabelVorgabeMarkePosition(wert, min, max) {
 }
 
 /**
- * Die vier Marken setzen. ⚠️ Sie wandern mit der ART: die Vorgabe haengt an ihr, und ein Dialog, in
+ * Die fuenf Marken setzen -- Groesse, max. Namen, Zoomband (zwei) und Prioritaet.
+ * ⚠️ Die ZAHL steht hier, damit ein vergessener Eintrag auffaellt; sie war einen Tag lang vier,
+ * als die Groesse kurzzeitig kein Bedienelement hatte.
  * dem jemand die Art umstellt, zeigte sonst weiter die Marken der ALTEN -- das sieht aus wie eine
  * Vorgabe, die nicht stimmt.
  */

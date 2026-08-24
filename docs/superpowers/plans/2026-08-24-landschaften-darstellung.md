@@ -18,6 +18,25 @@ Zahlen-Vorgaben, und das Fenster als Verbraucher. Die Karte liest überall dasse
 **Technik:** PHP 8 strict + PDO · Vanilla JS ohne Build · Node-`assert`-Tests · `vm.runInThisContext`
 zum Laden von Globals-Modulen im Test.
 
+
+> 🪤 **ZWEI SCHRITTE DIESES PLANS SIND AM 24.08.2026 ZURÜCKGENOMMEN WORDEN** — und dieser Vermerk
+> steht hier, weil ein Bauplan als Nachschlagewerk gelesen wird, nicht nur als Protokoll.
+>
+> **Aufgabe 9 und Aufgabe 15** verlangen, dass `label-edit-size` ein `type="hidden"` wird und die
+> Tafel die Schriftgröße SETZT. Das galt einen Tag. Der Owner: *„bei den schriftgrößen wollte ich den
+> editoren diese nicht von den labels wegnehmen, sondern den slider beibehalten und denen den default
+> wert vorschlagen"*. Der Regler ist zurück, die Tafel rät nur noch — Begründung im Entwurf §5.5
+> („ZURÜCKGENOMMEN") und §6.
+>
+> ⚠️ Die Schritte bleiben stehen, statt umgeschrieben zu werden: sie sind so gelaufen, und das
+> `hidden` hat in seinen 24 Stunden genau seine Aufgabe erfüllt — **938 von 938** gespeicherten
+> Größen sind unversehrt. Wer den Plan nachbaut, überspringt sie; wer wissen will, warum die Werte
+> noch da sind, findet hier die Antwort.
+>
+> **Dazu drei Nachträge, die im Plan gar nicht vorkommen** (Owner-Zuruf nach dem Bau, Entwurf §5.8):
+> „Max. Namen" hängt am Haken · Quellen für Beschriftungen und Flächen · eine Reglerzeile statt
+> zweier.
+
 ## Globale Zusicherungen
 
 Sie gelten für **jede** Aufgabe:
