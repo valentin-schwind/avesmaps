@@ -163,6 +163,9 @@
      like the settlement editor: this iframe is fetched with ?v=Date.now(), not through index.html's
      asset-versioning pass. -->
 <script src="/js/ui/source-autocomplete.js"></script>
+<!-- ⚠️ feature-source-markup.js ZUERST: es traegt die Kuerzung langer Seitenangaben,
+     die der Quellen-Editor und die Infobox sich teilen (eine Fassung, zwei Oberflaechen). -->
+<script src="/js/ui/feature-source-markup.js"></script>
 <script src="/js/review/review-feature-sources.js"></script>
 <!-- Shared pure powerline topology helpers (same file the live map delegates to). -->
 <script src="/js/map-features/powerline-topology.js"></script>

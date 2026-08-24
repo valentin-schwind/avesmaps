@@ -19,13 +19,7 @@
 	padding: 7px 10px;
 	margin-bottom: 6px;
 }
-.fs-row {
-	display: flex;
-	align-items: center;
-	gap: 8px;
-	padding: 4px 0;
-	font-size: 12px;
-}
+/* (Die Flex-Fassung dieser Zeile ist am 24.08.2026 einem Spaltenraster gewichen -- unten.) */
 .fs-row + .fs-row {
 	border-top: 1px solid var(--color-divider);
 }
@@ -43,7 +37,10 @@
 /* Sub-group for sources auto-populated by the WikiSync publication reconcile
    (origin === "wiki_publication", js/review/review-feature-sources.js). */
 .fs-group-heading {
-	font-size: 10px;
+	/* ⚠️ 11px ist die Untergrenze des Hauses (AGENTS.md §12). Hier standen 10px --
+	   derselbe Fehler wie bei `.se-row-type`, der beim Abschreiben von einer Liste in die
+	   naechste wanderte. */
+	font-size: 11px;
 	font-weight: bold;
 	text-transform: uppercase;
 	letter-spacing: 0.02em;
@@ -136,7 +133,17 @@
 	background: transparent;
 	border-color: var(--color-danger-soft-border);
 }
+/* 🔴 DIE EINGABEZEILE GEHOERT NICHT INS SPALTENRASTER. Sie traegt acht Bedienelemente (Adresse,
+   Titel, Seiten, Typ, Art, „offiziell", Hinzufuegen) und keine vier Datenspalten -- in die
+   Fuenf-Spalten-Vorlage gezwungen rutschten drei davon in fremde Spalten und die Datenzeilen
+   darueber standen nicht mehr untereinander. Am 24.08.2026 genau so gemessen: die Seitenspalte
+   lag an zwei verschiedenen Stellen (771 und 658 px).
+   ⚠️ Sie behaelt deshalb ihren Umbruchsatz -- das ist kein vergessener Rest, sondern die Ausnahme.
+   💣 `display: flex` steht hier AUSDRUECKLICH: sie hat es frueher von `.fs-row` geerbt, und das ist
+   seit dem Spaltenraster ein `grid`. Ohne diese Zeile faellt sie auf das Raster zurueck. */
 .fs-row--add {
+	display: flex;
+	align-items: center;
 	flex-wrap: wrap;
 	gap: 6px;
 	margin-top: 8px;
@@ -274,6 +281,12 @@
 	color: var(--color-text-muted);
 	white-space: nowrap;
 }
+/* Gilt genauso fuer die Zeile „Quelle(n):" darueber -- dieselbe Angabe, dieselbe Kuerzung. */
+.fs-src-pages[title] {
+	text-decoration: underline dotted;
+	text-underline-offset: 2px;
+	cursor: help;
+}
 /* Der Lizenzhinweis der Wiki-Texte (CC BY-SA 3.0), direkt hinter dem Wiki-Eintrag. Er steht NEBEN
    einer Quelle, ist aber selbst keine -- deshalb kleiner und ungefettet, waehrend .fs-src-a fett ist.
    💣 KEINE Farbe hier: `a[target="_blank"]` in css/features/links.css faerbt jeden externen Link
@@ -410,4 +423,147 @@
 .fs-src-c-pages {
 	text-align: right;
 	color: var(--color-text-muted);
+}
+/* ⚠️ Dasselbe Zeichen wie im Quellen-Editor: eine gekuerzte Angabe muss zeigen, dass mehr
+   dahintersteckt -- ohne es liest sich „9 ff." wie die vollstaendige Angabe. Gemessen am
+   Livebestand: eine Zeile mit 21 Einzelseiten macht diese Tabelle 152 statt 85 px hoch. */
+.fs-src-c-pages[title] {
+	text-decoration: underline dotted;
+	text-underline-offset: 2px;
+	cursor: help;
+}
+
+/* ── „N weitere Quellen" (Owner 24.08.2026) ───────────────────────────────────────────────────
+   Ab der sechsten Quelle klappt der Rest zusammen. Die Listen werden im Wiki-Zweig zwanzig Zeilen
+   lang und schoben alles darunter aus dem Blick.
+
+   🔴 NATIV `<details>/<summary>` -- nur damit findet Strg+F den Text einer ZUgeklappten Quelle und
+   klappt sie selbst auf. Deshalb steht hier auch nichts, was das Element ersetzt: das Dreieck wird
+   nur getauscht, das Auf- und Zuklappen gehört dem Browser. */
+.fs-more {
+	border-top: 1px solid var(--color-divider);
+}
+.fs-more__toggle {
+	padding: 5px 0;
+	color: var(--color-link);
+	cursor: pointer;
+	/* ⚠️ 11px ist die Untergrenze des Hauses (AGENTS.md §12) -- 10px sind hier schon zweimal
+	   durchgerutscht. */
+	font-size: 11px;
+	list-style: none;
+	user-select: none;
+}
+/* Das voreingestellte Dreieck von WebKit lässt sich nur so abschalten. */
+.fs-more__toggle::-webkit-details-marker {
+	display: none;
+}
+/* Ein eigenes, das die Richtung mitdreht -- der Zustand steht damit IM Knopf, nicht daneben. */
+.fs-more__toggle::before {
+	content: "▸";
+	display: inline-block;
+	width: 1em;
+	transition: transform 0.12s ease;
+}
+.fs-more[open] > .fs-more__toggle::before {
+	transform: rotate(90deg);
+}
+.fs-more__toggle:hover {
+	color: var(--color-link-hover);
+}
+.fs-more__toggle:focus-visible {
+	outline: 2px solid var(--color-link);
+	outline-offset: 2px;
+	border-radius: var(--radius-sm);
+}
+/* 💣 Die erste versteckte Zeile bekommt KEINE eigene Trennlinie: `.fs-row + .fs-row` greift über
+   die Grenze des <details> hinweg nicht, und der Kasten bringt seine eigene mit. Ohne diese Regel
+   stünden dort beim Aufklappen zwei Linien übereinander. */
+.fs-more__rest > .fs-row:first-child {
+	border-top: none;
+}
+@media (prefers-reduced-motion: reduce) {
+	.fs-more__toggle::before {
+		transition: none;
+	}
+}
+
+
+/* ── Die Quellenzeile als SPALTEN (Owner 24.08.2026: „ein tabellarisches layout") ─────────────
+   Vorher eine Flex-Zeile: Titel, Typ, Art und Seiten standen dicht aneinander und begannen in
+   jeder Zeile woanders — bei zwanzig Zeilen ein Flattersatz.
+
+   💣 KEIN echtes <table>. Der Klappkasten ist ein `<details>`, und das darf zwischen `<tr>` nicht
+   stehen; ein `<tbody>` mit einem `<details>` darin wirft der Parser aus der Tabelle heraus. Das
+   Raster liegt deshalb JE ZEILE mit derselben Vorlage — dadurch stehen die Spalten auch über die
+   Grenze des Klappkastens hinweg untereinander, was ein `display: contents` nicht leisten würde.
+   ⚠️ Deshalb sind die Breiten FEST (nur der Titel dehnt sich): aus dem Inhalt abgeleitete Spalten
+   rechnete jede Zeile für sich, und genau das soll hier aufhören. */
+.fs-row {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) 104px 104px 74px 22px;
+	align-items: center;
+	gap: 8px;
+	padding: 4px 0;
+	font-size: 12px;
+}
+/* 💣 Der Titel ellipsiert am TEXT, nicht an der Zelle -- `text-overflow` wirkt nur auf das Element,
+   dessen eigener Text überläuft; an der Zelle wird hart abgeschnitten (dieselbe Falle wie beim
+   Wiki-Override). */
+.fs-row__link {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	min-width: 0;
+}
+.fs-row__badge,
+.fs-row__kind {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+/* Seitenzahlen rechtsbündig und auf gleicher Ziffernbreite -- so liest man eine Spalte davon. */
+.fs-row__pages {
+	text-align: right;
+	font-variant-numeric: tabular-nums;
+	white-space: nowrap;
+}
+/* ⚠️ Eine gekürzte Angabe zeigt, dass mehr dahintersteckt: gestrichelte Unterlinie plus Hilfezeiger.
+   Ohne dieses Zeichen liest sich „S. 16 ff." wie die vollständige Angabe. */
+.fs-row__pages[title] {
+	text-decoration: underline dotted;
+	text-underline-offset: 2px;
+	cursor: help;
+}
+.fs-row__remove {
+	justify-self: end;
+}
+
+/* Die Spaltenüberschrift der Gruppe — sie steht auf demselben Raster wie ihre Zeilen. */
+.fs-col-heads {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) 104px 104px 74px 22px;
+	gap: 8px;
+	padding: 2px 0 4px;
+	border-bottom: 1px solid var(--color-divider);
+	/* ⚠️ 11px ist die Untergrenze des Hauses (AGENTS.md §12). */
+	font-size: 11px;
+	color: var(--color-text-muted);
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+}
+.fs-col-heads span:nth-child(4) {
+	text-align: right;
+}
+
+/* Auf schmalen Fenstern bricht das Raster auf zwei Zeilen um, statt die Titel zu zerquetschen. */
+@media (max-width: 560px) {
+	.fs-row {
+		grid-template-columns: minmax(0, 1fr) 74px 22px;
+	}
+	.fs-row__kind {
+		grid-column: 1 / 2;
+	}
+	.fs-col-heads {
+		display: none;
+	}
 }

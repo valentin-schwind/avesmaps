@@ -22,6 +22,39 @@ var FEATURE_SOURCE_MARKUP_TYPE_LABELS = {
   sonstiges: "Sonstiges",
 };
 
+// Ab wie vielen Einzelseiten eine Angabe gekuerzt wird. 🔴 Owner 24.08.2026: „lange seitenzahl-
+// angaben mit ... abkuerzen (oder 1. seite und dann mit ff.)".
+// ⚠️ DREI bleiben stehen: „S. 91, 92" und „S. 8, 15, 80" liest man in einem Blick, und `ff.` waere
+// dort eine Verschlechterung -- es sagt „und folgende" und behauptet eine Fortsetzung, die es nicht
+// gibt. Am Livebestand 24.08.2026 gemessen: 54.571 Angaben, 17,2 % davon ueber drei Einzelseiten,
+// die laengste 31 Eintraege / 120 Zeichen.
+var FEATURE_SOURCE_PAGES_MAX = 3;
+
+// 💣 DIESE Datei ist die EINE Stelle. Die Angabe steht in ZWEI Oberflaechen -- der Infobox, die
+// jeder Besucher sieht (hier), und dem Quellen-Editor (`js/review/review-feature-sources.js`) --,
+// und beide zeigen dieselbe Spalte derselben Zeile. Eine Regel, die einen von zwei Erzeugern
+// bindet, ist keine Regel; deshalb laedt jede Seite mit dem Editor auch diese Datei.
+//
+// 🔴 `ff.` statt `…`: es ist die uebliche Zitierform und sagt AUS, was es meint -- „und folgende".
+// Drei Punkte sagen nur „hier fehlt etwas" und laden zum Raten ein, wie viel.
+// ⚠️ Die VOLLE Angabe geht nicht verloren, sie wandert in den Titel des Elements. Eine Kuerzung,
+// die das Gekuerzte wegwirft, ist Datenverlust in der Anzeige.
+// 💣 Ein BEREICH wird nie gekuerzt: „16-122" ist schon kurz, und `ff.` machte daraus eine andere
+// Aussage -- offenes Ende statt bekanntem Ende. Er traegt kein Komma und faellt schon durch die
+// Zaehlung heraus.
+function featureSourceShortenPages(pages) {
+  var voll = String(pages == null ? "" : pages).trim();
+  if (voll === "") {
+    return { kurz: "", voll: "", gekuerzt: false };
+  }
+  var teile = voll.split(",").map(function (t) { return t.trim(); })
+    .filter(function (t) { return t !== ""; });
+  if (teile.length <= FEATURE_SOURCE_PAGES_MAX) {
+    return { kurz: teile.join(", "), voll: voll, gekuerzt: false };
+  }
+  return { kurz: teile[0] + " ff.", voll: voll, gekuerzt: true };
+}
+
 function buildSourceListMarkup(wikiUrl, sources, opts) {
   opts = opts || {};
   var wikiLabel = opts.wikiLabel || "Wiki";
@@ -58,8 +91,10 @@ function buildSourceListMarkup(wikiUrl, sources, opts) {
   // Line-1 page citation for a direct/own source (e.g. a manually added publication). The tabbed
   // publication table has its own "Seiten" column, so this "S. …" form is only for line 1.
   var pagesInline = function (p) {
-    var value = String(p == null ? "" : p).trim();
-    return value ? '<span class="fs-src-pages">S. ' + esc(value) + "</span>" : "";
+    var s = featureSourceShortenPages(p);
+    if (!s.kurz) { return ""; }
+    var titel = s.gekuerzt ? ' title="S. ' + esc(s.voll) + '"' : "";
+    return '<span class="fs-src-pages"' + titel + ">S. " + esc(s.kurz) + "</span>";
   };
   var link = function (url, inner) {
     return '<a class="fs-src-a" href="' + esc(url) + '" target="_blank" rel="noopener">' + inner + ' <span class="fs-src-ext" aria-hidden="true">↗</span></a>';
@@ -126,9 +161,12 @@ function buildSourceListMarkup(wikiUrl, sources, opts) {
       var body = rows.map(function (s) {
         var label = esc(s.label || s.url || "");
         var titleCell = s.url ? link(s.url, label) : '<span class="fs-src-plain">' + label + "</span>";
-        var pages = esc(String(s.pages == null ? "" : s.pages).trim());
+        // ⚠️ Die Spalte ist schmal und fest (`fs-src-col-pages`); eine Angabe mit 31 Eintraegen
+        // brach dort ueber ein halbes Dutzend Zeilen um und schob die Tabelle auseinander.
+        var s2 = featureSourceShortenPages(s.pages);
+        var pagesTitel = s2.gekuerzt ? ' title="' + esc(s2.voll) + '"' : "";
         return "<tr><td>" + titleCell + '</td><td class="fs-src-c-type">' + esc(typeLabel(s.type)) +
-          '</td><td class="fs-src-c-pages">' + pages + "</td></tr>";
+          '</td><td class="fs-src-c-pages"' + pagesTitel + ">" + esc(s2.kurz) + "</td></tr>";
       }).join("");
       return '<table class="fs-src-table" data-fs-panel="' + key + '" hidden>' +
         '<colgroup><col class="fs-src-col-title"><col class="fs-src-col-type"><col class="fs-src-col-pages"></colgroup>' +
@@ -178,10 +216,11 @@ function avesmapsSourceTabKeydown(event, tabEl) {
 }
 
 if (typeof module !== "undefined" && module.exports) {
-  module.exports = { buildSourceListMarkup: buildSourceListMarkup, FEATURE_SOURCE_MARKUP_TYPE_LABELS: FEATURE_SOURCE_MARKUP_TYPE_LABELS };
+  module.exports = { buildSourceListMarkup: buildSourceListMarkup, FEATURE_SOURCE_MARKUP_TYPE_LABELS: FEATURE_SOURCE_MARKUP_TYPE_LABELS, featureSourceShortenPages: featureSourceShortenPages };
 }
 if (typeof window !== "undefined") {
   window.buildSourceListMarkup = buildSourceListMarkup;
+  window.featureSourceShortenPages = featureSourceShortenPages;
   window.avesmapsToggleSourceTab = avesmapsToggleSourceTab;
   window.avesmapsSourceTabKeydown = avesmapsSourceTabKeydown;
 }

@@ -727,6 +727,9 @@
      with ?v=Date.now() by its host, not through index.html's own asset-versioning pass. -->
 <link rel="stylesheet" href="/css/features/feature-sources.css" />
 <script src="/js/ui/source-autocomplete.js"></script>
+<!-- ⚠️ feature-source-markup.js ZUERST: es traegt die Kuerzung langer Seitenangaben,
+     die der Quellen-Editor und die Infobox sich teilen (eine Fassung, zwei Oberflaechen). -->
+<script src="/js/ui/feature-source-markup.js"></script>
 <script src="/js/review/review-feature-sources.js"></script>
 <!-- Der geteilte Filter-Trichter (avmFilterMenuAttach + Zeitraum-Abschnitt). Dieselbe Datei lädt
      auch das Hauptfenster; das iframe bekommt seine eigene Kopie der Globalen. Vor dem Inline-Skript

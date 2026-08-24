@@ -89,14 +89,53 @@ function renderFeatureSourceWikiRow(wikiUrl, escape, tr) {
   );
 }
 
+// 💣 `featureSourceShortenPages` steht in `js/ui/feature-source-markup.js` und NICHT hier: es gilt
+// fuer dieselbe Spalte derselben Zeile in ZWEI Oberflaechen -- der Infobox, die jeder Besucher
+// sieht, und diesem Editor. Zwei Fassungen liefen beim ersten abweichenden Sonderfall auseinander.
+//
+// 💣 ZWEI Ladewege, und der zweite ist beim Umzug fast durchgerutscht: im Browser laedt jede der
+// fuenf Seiten `feature-source-markup.js` DAVOR, und beide Skripte teilen sich den globalen Raum --
+// unter Node aber `require`t man diese Datei, und dort gibt es keinen. Zwei fremde Tests taten genau
+// das und fielen mit `ReferenceError` um; gefunden hat es das GANZE Testfeld, nicht die eigenen.
+//
+// 🪤 Und der Name ist ABSICHTLICH ein anderer: zwei `function` desselben Namens im globalen Raum
+// sind gueltiges JS, die spaeter geladene gewinnt -- ein gleichnamiger Weiterreicher, der
+// `window.featureSourceShortenPages` aufruft, ruft SICH SELBST auf.
+//
+// ⚠️ Nachgeschlagen wird bei JEDEM Aufruf, nicht einmal beim Laden: sonst haelt der Verweis eine
+// Fassung fest, und ein Test, der die geteilte Funktion ersetzt, misst weiter die alte.
+// 🔴 KEIN stiller Rueckfall: fehlt die Datei, gibt es einen lauten Fehler. Eine Ersatzfassung waere
+// genau die zweite Wahrheit, die dieser Umzug beseitigt.
+function featureSourcePagesShorten(pages) {
+  var geteilt = (typeof module !== "undefined" && module.exports)
+    ? require("../ui/feature-source-markup.js").featureSourceShortenPages
+    : (typeof featureSourceShortenPages === "function" ? featureSourceShortenPages : null);
+  if (typeof geteilt !== "function") {
+    throw new Error("feature-source-markup.js fehlt -- sie traegt die Kuerzung der Seitenangabe");
+  }
+  return geteilt(pages);
+}
+
 function renderFeatureSourceRow(source, escape, tr) {
   const officialMark = source.official ? " *" : "";
-  const pages = source.pages ? '<span class="fs-row__pages">S. ' + escape(source.pages) + "</span>" : "";
+  // 🔴 Gekuerzt ANGEZEIGT, vollstaendig im Titel. Eine Wiki-Publikation nennt schnell zwoelf
+  // Einzelseiten („S. 16, 19, 27, 28, 39, 63, 96, 102, 104, 105, 114, 122"), und die schoben in
+  // der Zeile alles andere aus dem Blick.
+  // 💣 Eine LEERE Zelle, wenn es keine Seitenangabe gibt -- nicht gar keine. Das Raster gibt jeder
+  // Zeile dieselbe Spaltenvorlage; faellt eine Zelle weg, rutscht alles rechts davon eine Spalte
+  // nach links. Dieselbe Falle steht bei der Bandtabelle schon angeschrieben.
+  const seiten = featureSourcePagesShorten(source.pages);
+  const pages = seiten.kurz
+    ? '<span class="fs-row__pages"'
+      + (seiten.gekuerzt ? ' title="' + escape("S. " + seiten.voll) + '"' : "")
+      + ">S. " + escape(seiten.kurz) + "</span>"
+    : '<span class="fs-row__pages"></span>';
   // Coverage classification badge (only when set) -- tells the editor which publication tab this row
   // renders in on the public popup. Empty reference_kind -> no badge (source shows on the flat line).
+  // 💣 Auch hier eine LEERE Zelle statt keiner -- siehe die Begruendung bei den Seiten.
   const kind = source.reference_kind
     ? '<span class="fs-row__kind">' + escape(featureSourceReferenceKindLabel(source.reference_kind)) + "</span>"
-    : "";
+    : '<span class="fs-row__kind"></span>';
   return (
     '<div class="fs-row" data-source-id="' + escape(source.source_id) + '">' +
     '<a class="fs-row__link" href="' + escape(source.url) + '" target="_blank" rel="noopener">' +
@@ -114,14 +153,80 @@ function renderFeatureSourceRow(source, escape, tr) {
 // from what they curated by hand. No rows -> no heading (never render an empty group). Each row
 // uses the same renderFeatureSourceRow as the manual list -- the remove button is identical;
 // only the server-side interpretation of "remove" differs by origin.
+// Ab wie vielen Quellen der Rest zusammengeklappt wird. 🔴 Owner 24.08.2026: „wenn mehr wie 5
+// quellen dranstehen, ist der rest zusammengeklappt" -- die Listen werden im Wiki-Zweig schnell
+// zwanzig Zeilen lang und schoben alles darunter aus dem Blick.
+// ⚠️ Die Regel gilt AUSNAHMSLOS ab 6: bei genau sechs verbirgt der Knopf eine einzige Zeile und
+// kostet dabei etwa so viel Platz, wie er spart. Das ist bewusst nicht wegoptimiert -- eine Regel
+// mit einer Ausnahme bei 6 ist schwerer zu erklaeren als die Regel selbst, und der haeufige Fall
+// sind zwanzig, nicht sechs.
+const FEATURE_SOURCE_COLLAPSE_AFTER = 5;
+
+/**
+ * Aus einer Zeilenliste: die ersten fuenf offen, der Rest in einem aufklappbaren Kasten.
+ *
+ * 🔴 NATIV, und nichts anderes -- `<details>/<summary>`. Nur damit findet Strg+F den Text einer
+ * ZUgeklappten Quelle und klappt sie selbst auf; ein selbstgebautes Auf- und Zuklappen mit
+ * `hidden` nimmt der Seitensuche den Text weg. Dieselbe Begruendung wie beim Fenster „Hinweise"
+ * (AGENTS.md §11). Fokus, Enter/Leertaste und `aria-expanded` kommen ebenfalls vom Element.
+ *
+ * ⚠️ Die Zahl steht IM Knopf („12 weitere"), nicht daneben. Ein „mehr anzeigen" ohne Zahl
+ * zwingt zum Aufklappen, nur um zu sehen, ob sich das Aufklappen lohnt.
+ *
+ * @param {string[]} zeilen fertige Zeilen-HTML-Schnipsel
+ * @returns {string} HTML
+ */
+function renderFeatureSourceCollapsedRows(zeilen, escape, tr) {
+  const alle = Array.isArray(zeilen) ? zeilen : [];
+  if (alle.length <= FEATURE_SOURCE_COLLAPSE_AFTER) {
+    return alle.join("");
+  }
+  const offen = alle.slice(0, FEATURE_SOURCE_COLLAPSE_AFTER).join("");
+  const rest = alle.slice(FEATURE_SOURCE_COLLAPSE_AFTER);
+  const wort = rest.length === 1
+    ? tr("sources.moreOne", "eine weitere Quelle")
+    : String(rest.length) + " " + tr("sources.moreMany", "weitere Quellen");
+  return offen
+    + '<details class="fs-more">'
+    + '<summary class="fs-more__toggle">' + escape(wort) + "</summary>"
+    + '<div class="fs-more__rest">' + rest.join("") + "</div>"
+    + "</details>";
+}
+
+/**
+ * Die Spaltenueberschrift einer Quellenliste.
+ *
+ * 🔴 Sie liegt auf DEMSELBEN Raster wie die Zeilen (`.fs-col-heads` traegt dieselbe
+ * `grid-template-columns` wie `.fs-row`) -- eine zweite Vorlage liefe beim ersten geaenderten
+ * Spaltenmass auseinander, und dann stuenden die Ueberschriften neben ihren Spalten.
+ * ⚠️ Erst ab zwei Zeilen: ueber einer einzelnen Quelle sind vier Ueberschriften mehr Text als
+ * Inhalt.
+ */
+function renderFeatureSourceColumnHeads(anzahl, escape, tr) {
+  if (anzahl < 2) {
+    return "";
+  }
+  const kopf = (schluessel, vorgabe) => "<span>" + escape(tr(schluessel, vorgabe)) + "</span>";
+  return '<div class="fs-col-heads" aria-hidden="true">'
+    + kopf("sources.colTitle", "Titel")
+    + kopf("sources.colType", "Typ")
+    + kopf("sources.colKind", "Art")
+    + kopf("sources.colPages", "Seiten")
+    + "<span></span>"
+    + "</div>";
+}
+
 function renderFeatureSourceWikiAutoGroup(wikiAutoSources, escape, tr) {
   if (!wikiAutoSources.length) {
     return "";
   }
   const heading =
     '<div class="fs-group-heading">' + escape(tr("sources.wikiAuto", "Aus dem Wiki (automatisch)")) + "</div>";
-  const rows = wikiAutoSources.map((source) => renderFeatureSourceRow(source, escape, tr)).join("");
-  return '<div class="fs-group fs-group--wiki-auto" data-fs-group="wiki-auto">' + heading + rows + "</div>";
+  // 🔴 Die laengste Liste im Haus: der Wiki-Zweig traegt bei gepflegten Objekten zwanzig und mehr
+  // Eintraege und schob alles darunter aus dem Blick.
+  const rows = renderFeatureSourceCollapsedRows(
+    wikiAutoSources.map((source) => renderFeatureSourceRow(source, escape, tr)), escape, tr);
+  return '<div class="fs-group fs-group--wiki-auto" data-fs-group="wiki-auto">' + heading + renderFeatureSourceColumnHeads(wikiAutoSources.length, escape, tr) + rows + "</div>";
 }
 
 // Sources an editor added while the entity does not exist yet (bug #41: creating a place). They
@@ -196,7 +301,11 @@ function renderFeatureSourceEditorHtml(state, opts) {
   const wikiRow = renderFeatureSourceWikiRow(safeState.wiki_url, escape, tr);
   const wikiAutoGroup = renderFeatureSourceWikiAutoGroup(wikiAutoSources, escape, tr);
   const pendingGroup = renderFeatureSourcePendingGroup(pendingSources, escape, tr);
-  const sourceRows = otherSources.map((source) => renderFeatureSourceRow(source, escape, tr)).join("");
+  // ⚠️ Dieselbe Regel fuer die von Hand gepflegten Quellen. Sie sind meist kuerzer -- aber eine
+  // Klappregel, die nur eine von zwei Listen bindet, ist keine Regel (die Lehre der
+  // Verkehrsmittel-Sperre, AGENTS.md).
+  const sourceRows = renderFeatureSourceCollapsedRows(
+    otherSources.map((source) => renderFeatureSourceRow(source, escape, tr)), escape, tr);
   const addRow = renderFeatureSourceAddRow(escape, tr);
 
   // Reviewer/editor guidance shown above the source list (all mount surfaces). The copy carries an
