@@ -406,6 +406,77 @@ function avesmapsErrorResponse(int $statusCode, string $code, string $message, a
     ]);
 }
 
+/**
+ * 🔴 EIN PHP-ABBRUCH ANTWORTET SONST MIT NICHTS -- UND DAS SIEHT AUS WIE EIN NETZFEHLER.
+ *
+ * Ein Zeitlimit, ein Speicherlimit oder ein Fatal laufen an JEDEM try/catch vorbei: PHP bricht
+ * ab, der Rumpf bleibt leer oder halb, und der Browser meldet „Internal server error" bzw.
+ * „Unexpected end of JSON input". Der Grund steht dann im Fehlerprotokoll des Servers -- und
+ * bei STRATO gibt es keins, das man lesen koennte (24.08.2026 nachgesehen: kein logs/).
+ *
+ * Also holt der Abschluss-Handler den Grund selbst ab. `error_get_last()` ueberlebt den
+ * Abbruch, und Abschlussfunktionen laufen auch nach einem Fatal noch.
+ *
+ * 💣 NUR wenn noch keine Antwort raus ist (`headers_sent()`), sonst haengt der Melder seinen
+ * JSON-Rumpf hinter eine bereits gesendete, gueltige Antwort und macht aus einem Erfolg Schrott.
+ * ⚠️ Der volle Dateipfad bleibt draussen -- er verraet die Serverstruktur. Datei*name* und
+ * Zeile reichen, um die Stelle zu finden.
+ */
+function avesmapsRegisterFatalReporter(string $context = ''): void {
+    register_shutdown_function(static function () use ($context): void {
+        $letzter = error_get_last();
+        if ($letzter === null) {
+            return;
+        }
+
+        $harteTypen = [E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR, E_USER_ERROR];
+        if (!in_array($letzter['type'] ?? 0, $harteTypen, true)) {
+            return;
+        }
+
+        if (headers_sent()) {
+            return;
+        }
+
+        avesmapsErrorResponse(500, 'server_fatal', avesmapsFatalMessage($letzter, $context));
+    });
+}
+
+/**
+ * REIN: aus error_get_last() den Satz bauen, den ein Editor liest.
+ *
+ * ⚠️ Gedeckelt und ohne Pfad: die Meldung landet in einem Toast, und der volle Pfad gehoert
+ * nicht in eine Antwort an den Browser.
+ */
+function avesmapsFatalMessage(array $letzterFehler, string $context = ''): string {
+    $text = trim((string) ($letzterFehler['message'] ?? ''));
+
+    // ⚠️ PHPs eigene Fehlertexte tragen VOLLE Pfade und einen mehrzeiligen Stapel mit. Beides
+    // gehoert nicht in eine Antwort an den Browser: der Pfad verraet die Serverstruktur, und der
+    // Stapel sprengt jeden Toast. Vom Pfad bleibt der Dateiname -- damit findet man die Stelle.
+    $text = (string) preg_replace('#\S*[\\/]([A-Za-z0-9._-]+\.php)#', '$1', $text);
+    $text = trim((string) preg_replace('#\s*\R\s*#', ' · ', $text));
+    if ($text === '') {
+        $text = 'Grund unbekannt';
+    }
+    // 💣 KEIN mb_* OHNE RUECKFALL. Dieser Code laeuft, NACHDEM der Prozess schon abgestuerzt ist --
+    // faellt er selbst um (fehlende Erweiterung, erschoepfter Speicher), meldet der Melder gar
+    // nichts und der Abbruch ist wieder unsichtbar. Genau das ist beim ersten Bau passiert und
+    // stand nur deshalb fest, weil der Ablauftest einen echten Prozess abstuerzen laesst.
+    $zuLang = function_exists('mb_strlen') ? mb_strlen($text) > 200 : strlen($text) > 200;
+    if ($zuLang) {
+        $text = function_exists('mb_substr') ? mb_substr($text, 0, 199) . '…' : substr($text, 0, 199) . '...';
+    }
+
+    $datei = basename((string) ($letzterFehler['file'] ?? ''));
+    $zeile = (int) ($letzterFehler['line'] ?? 0);
+    $ort = $datei !== '' ? $datei . ($zeile > 0 ? ':' . $zeile : '') : '';
+
+    $teile = array_values(array_filter([$context, $text, $ort], static fn(string $t): bool => $t !== ''));
+
+    return 'Der Server hat abgebrochen (' . implode(' · ', $teile) . ').';
+}
+
 function avesmapsServerErrorResponse(Throwable $error, string $context = ''): never {
     error_log('avesmaps' . ($context !== '' ? ' ' . $context : '') . ': ' . $error->getMessage());
     avesmapsErrorResponse(500, 'server_error', 'Internal server error.');

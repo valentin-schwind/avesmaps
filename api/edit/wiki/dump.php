@@ -210,6 +210,11 @@ function avesmapsWikiDumpEnsureDumpPresentOrFail(PDO $pdo): string
     );
 }
 
+// 🔴 Der Dump-Endpunkt ist der eine, der lange laeuft und dabei fremde Server befragt -- hier
+// schlaegt ein Zeitlimit zuerst zu. Ohne den Melder ist ein Abbruch von einem Netzfehler nicht
+// zu unterscheiden (24.08.2026: „Internal server error", und kein lesbares Serverprotokoll).
+avesmapsRegisterFatalReporter('Dump-Endpunkt');
+
 try {
     $config = avesmapsLoadApiConfig(avesmapsApiRoot());
 
