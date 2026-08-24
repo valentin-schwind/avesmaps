@@ -438,6 +438,27 @@ if (window.AvesmapsSession && typeof window.AvesmapsSession.load === "function")
 // ⚠️ `typeof locationMarkers` und nicht der nackte Zugriff: drei verify-Prüfseiten laden
 // js/config.js ohne js/app/runtime-state.js. Bei einer UNdeklarierten Variablen liefert `typeof`
 // brav "undefined" -- das ist genau der Unterschied zur TDZ-Bindung zwei Absätze weiter oben.
+// Dieselbe Arbeitsteilung fuer die Landschaften: die Tafel holen, und -- falls sie etwas anderes
+// sagt als die Vorgabe -- die schon gezeichneten Flaechen und Namen nachziehen.
+// 🔴 Faellt still aus (siehe avesmapsLoadEcosystemDisplay). Ohne Antwort gilt die Vorgabe, und die
+// ist Ziffer fuer Ziffer das heutige Bild.
+if (typeof avesmapsLoadEcosystemDisplay === "function") {
+	avesmapsLoadEcosystemDisplay().then(function (changed) {
+		if (!changed) {
+			return;
+		}
+		// 💣 Zwei Zwischenspeicher, nicht einer: der Typ-Stil je Labelart haelt die FARBE fest, und
+		// die Flaechen tragen ihre Deckkraft als CSS-Variable am <path>. Ohne beides wirkt eine
+		// geladene Tafel erst nach dem naechsten Neuladen -- und das sieht aus wie „Speichern tut nichts".
+		if (typeof avesmapsLeereLabelTypStil === "function") {
+			avesmapsLeereLabelTypStil();
+		}
+		if (typeof avesmapsRefreshEcosystemDisplay === "function") {
+			avesmapsRefreshEcosystemDisplay();
+		}
+	});
+}
+
 if (typeof avesmapsLoadLocationZoomBands === "function") {
 	avesmapsLoadLocationZoomBands().then(function (changed) {
 		if (!changed) {

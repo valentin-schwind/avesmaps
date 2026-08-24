@@ -110,14 +110,60 @@ function ecosystemAreaColor(kind, regionType) {
 	// treatment tomorrow. A type without a token falls through to the layer's base tone, so adding a
 	// tone is adding a token -- there is no type list in this file that could fall behind
 	// ecosystem_region_type.
+	// 🔴 Der Token ist die VORGABE, die Tafel entscheidet nur, ob eine Uebersteuerung ihn schlaegt
+	// (Entwurf §8). Die Farben bleiben damit im Stylesheet -- eine Farbe zweimal aufzuschreiben ist
+	// Divergenz mit Anlauf (AGENTS.md §12). Die Tafel kennt keine einzige.
+	let ton = "";
 	if (kind && regionType) {
-		const typeColor = readEcosystemColorToken(`--color-ecosystem-${kind}-${String(regionType).replace(/_/g, "-")}`);
-		if (typeColor) {
-			return typeColor;
-		}
+		ton = readEcosystemColorToken(`--color-ecosystem-${kind}-${String(regionType).replace(/_/g, "-")}`);
+	}
+	if (!ton) {
+		ton = readEcosystemColorToken(ECOSYSTEM_KIND_COLOR_TOKENS[kind]);
 	}
 
-	return readEcosystemColorToken(ECOSYSTEM_KIND_COLOR_TOKENS[kind]);
+	return typeof avesmapsEcosystemDisplayFlaechenTon === "function"
+		? avesmapsEcosystemDisplayFlaechenTon(kind, regionType, ton)
+		: ton;
+}
+
+// Alle schon gezeichneten Flaechen neu einfaerben und ihre Deckkraft nachziehen.
+//
+// ⚠️ Sie laeuft NUR, wenn die geladene Tafel etwas anderes sagt als die Vorgabe (js/config.js). Beim
+// Normalfall -- nichts uebersteuert -- passiert gar nichts, und die Karte zahlt keinen Neuaufbau.
+// 💣 `setStyle` allein genuegt nicht: die Deckkraft ist eine CSS-Variable am <path>, kein
+// Leaflet-Stil (Begruendung bei applyEcosystemAreaDeckkraft).
+function avesmapsRefreshEcosystemDisplay() {
+	if (typeof ecosystemLayers === "undefined" || !(ecosystemLayers instanceof Map)) {
+		return;
+	}
+	ecosystemLayers.forEach((layer) => {
+		const area = layer?._ecosystemArea;
+		if (!area) {
+			return;
+		}
+		if (typeof layer.setStyle === "function") {
+			layer.setStyle(ecosystemAreaStyle(area.kind, area.region_type));
+		}
+		applyEcosystemAreaDeckkraft(layer);
+	});
+}
+
+// Die Deckkraft einer EINZELNEN Flaeche an ihren <path> haengen.
+//
+// 💣 NICHT als Leaflet-Stil. Leaflet schreibt `fill-opacity` als SVG-PRAESENTATIONSATTRIBUT, und
+// CSS ueberstimmt das -- die Zustandsmatrix in css/features/ecosystem-layer.css gewinne also immer.
+// Deshalb eine CSS-Variable am Element, die die Matrix selbst liest.
+//
+// 🔴 Die ZUSTANDSLOGIK bleibt an der Pane (ruhend = 0, Kontur nur im Bearbeiten-Modus, „Alle").
+// Hier kommt nur der AKTIVE Fuellwert je Art dazu; ohne eigenen Wert erbt die Flaeche weiter den
+// Panewert, und „ruhend = unsichtbar" ist unberuehrt.
+function applyEcosystemAreaDeckkraft(layer) {
+	const element = typeof layer?.getElement === "function" ? layer.getElement() : null;
+	const area = layer?._ecosystemArea;
+	if (!element || !area || typeof avesmapsEcosystemDisplayDeckkraft !== "function") {
+		return;
+	}
+	element.style.setProperty("--eco-fill-art", String(avesmapsEcosystemDisplayDeckkraft(area.kind, area.region_type)));
 }
 
 // GeoJSON Polygon | MultiPolygon -> Leaflet latlngs, [x, y] -> [y, x]. A Polygon becomes a

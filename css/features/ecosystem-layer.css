@@ -1513,6 +1513,31 @@ body.leaflet-dragging .ecosystem-brush-pan .leaflet-interactive {
 	transition: fill-opacity 0.15s ease, stroke-opacity 0.15s ease;
 }
 
+/* 🔴 DER WERT JE FLAECHE, und NUR im aktiven Zustand (Entwurf §5.2, seit 24.08.2026).
+   `--eco-fill-art` setzt applyEcosystemAreaDeckkraft am <path>; ohne eigenen Wert erbt die Flaeche
+   den Zustandswert der Pane.
+
+   💣 DIE EINSCHRAENKUNG AUF `--active` IST TRAGEND. Stuende die Variable in der Grundregel darueber,
+   truege eine ruhende Flaeche ihre 0,72 mit -- und „ruhend = unsichtbar" waere weg. Ueber „Alle"
+   laege dann wieder das Farbnetz, das AGENTS.md §12 ausdruecklich abgeschafft hat.
+
+   💣 UND DESHALB SETZEN DIE EBENEN-REGELN JETZT `--eco-fill` STATT `fill-opacity`: als
+   `fill-opacity` auf einem Selektor mit zwei Klassen schlugen sie diese Regel hier, und der Wert je
+   Art waere bei Derographie und Klima wirkungslos gewesen -- lautlos, und nur bei zwei von vier
+   Ebenen. Die Zahlen selbst sind unveraendert.
+
+   🪤 WER DAS NACHMISST, SCHALTET ZUERST DIE UEBERBLENDUNG AB. Die Grundregel darueber traegt
+   `transition: fill-opacity 0.15s`, und getComputedStyle liefert waehrend einer Ueberblendung den
+   LAUFENDEN Wert. Auf einer Pruefseite ausserhalb eines echten Leaflet-Kontexts wird die Flaeche nie
+   gemalt, die Ueberblendung laeuft also nie weiter -- der Startwert steht dort fuer immer, und die
+   Messung sagt „die Uebersteuerung wirkt nicht", obwohl sie wirkt. Am 24.08.2026 hat genau das eine
+   halbe Stunde Fehlersuche an der falschen Stelle gekostet. Mit `transition: none` gemessen:
+   ohne Flaechenwert 0 / 0,72 / 0,16 / 0,30 (das heutige Bild), mit Flaechenwert gewinnt die
+   Flaeche -- und ruhend bleibt 0. */
+.ecosystem-pane--active > svg path.leaflet-interactive {
+	fill-opacity: var(--eco-fill-art, var(--eco-fill));
+}
+
 /* The derographic contour is DASHED (Owner 2026-07-26) -- in every state, because it belongs to the
    KIND and not to a state: a derographic area is an administrative container, and a container's edge
    is a convention, not a thing you could walk up to like a forest edge or a ridge. At rest it fills
@@ -1609,8 +1634,8 @@ body.leaflet-dragging .ecosystem-brush-pan .leaflet-interactive {
 /* 0,16 statt 0,1 (Owner 2026-08-04, „kräftiger"). Die derographische Ebene nimmt sich weiterhin am
    weitesten zurück -- sie ist der Behälter, nicht die Landschaft --, aber bei 0,1 war sie auf dem
    helleren Untergrund kaum noch eine Aussage. */
-.ecosystem-pane--derographisch.ecosystem-pane--active > svg path.leaflet-interactive {
-	fill-opacity: 0.16;
+.ecosystem-pane--derographisch.ecosystem-pane--active {
+	--eco-fill: 0.16;
 }
 
 /* 🔴 DIE KLIMA-EBENE NIMMT SICH NOCH STÄRKER ZURÜCK ALS DIE DEROGRAPHISCHE (Owner 2026-08-03). Ein Band
@@ -1632,8 +1657,10 @@ body.leaflet-dragging .ecosystem-brush-pan .leaflet-interactive {
    war die Polare Zone auf den hellen Kacheln praktisch nicht zu sehen; die Töne selbst sind im selben
    Zug eine Stufe kräftiger geworden (css/base/tokens.css). Es bleibt deutlich unter der Füllung der
    gezeichneten Ebenen (0,6) -- ein Band deckt die Karte in voller Breite und darf sie nicht zumachen. */
+.ecosystem-pane--klima.ecosystem-pane--active {
+	--eco-fill: 0.3;
+}
 .ecosystem-pane--klima.ecosystem-pane--active > svg path.leaflet-interactive {
-	fill-opacity: 0.3;
 	stroke-opacity: 0;
 }
 
@@ -1655,10 +1682,10 @@ body.leaflet-dragging .ecosystem-brush-pan .leaflet-interactive {
 
    10 % statt 30 % (Owner): in „Alle" geht es um die Überlappungen der gezeichneten Ebenen, und sieben
    kartenbreite Bänder darüber färben sonst alles ein. */
-.ecosystem-pane--klima.ecosystem-pane--active.ecosystem-pane--showall > svg path.leaflet-interactive {
+.ecosystem-pane--klima.ecosystem-pane--active.ecosystem-pane--showall {
 	/* 0,16 statt 0,1 (Owner 2026-08-04, „kräftiger"). Sie bleibt die leiseste der vier -- ein Band deckt
 	   die Karte in voller Breite --, aber auf dem dunkleren Untergrund war 0,1 kaum noch zu sehen. */
-	fill-opacity: 0.16;
+	--eco-fill: 0.16;
 }
 
 .leaflet-pane.ecosystem-pane--klima.ecosystem-pane--showall > svg path.leaflet-interactive {

@@ -155,6 +155,10 @@ function applyEcosystemAreaPayload(payload) {
 				// attribute writes per pan for nothing.
 				if (previous.region_type !== area.region_type) {
 					existingLayer.setStyle(ecosystemAreaStyle(area.kind, area.region_type));
+					// ⚠️ Und die Deckkraft mit: sie haengt an der ART, und genau die hat sich gerade
+					// geaendert. Ohne diese Zeile behielte eine umtypisierte Flaeche die Deckkraft
+					// ihrer alten Art -- sichtbar, aber unerklaerlich.
+					applyEcosystemAreaDeckkraft(existingLayer);
 				}
 				return;
 			}
@@ -178,6 +182,9 @@ function applyEcosystemAreaPayload(payload) {
 		// Only now does the <path> element exist. A rebuilt area that was selected has to get its class
 		// back, otherwise saving a geometry would silently drop the selection ring.
 		applyEcosystemSelectionClass(layer);
+		// Dasselbe gilt fuer die Deckkraft: sie steht als CSS-Variable am <path>, und den gibt es
+		// erst jetzt. 💣 Vor addTo(map) liefert getElement() null, und der Wert waere lautlos weg.
+		applyEcosystemAreaDeckkraft(layer);
 		// Dasselbe für die hervorgehobene Region (Owner 2026-08-04): auch sie ist eine Klasse am
 		// <path>, und ein neu gebautes Band bekäme sie sonst nicht zurück. Ein Klimaband ist zwar
 		// kartenbreit und fällt deshalb praktisch nie aus dem Ausschnitt -- aber „praktisch nie" ist

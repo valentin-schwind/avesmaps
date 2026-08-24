@@ -184,3 +184,38 @@ function avesmapsEcosystemDisplaySichtbar(subtype, zoom) {
 	const z = Math.min(Math.max(0, Math.round(Number(zoom) || 0)), AVESMAPS_ECOSYSTEM_DISPLAY_BAND_MAX);
 	return z >= b.ab && z <= b.bis;
 }
+
+const AVESMAPS_ECOSYSTEM_DISPLAY_ENDPOINT = "api/app/ecosystem-display.php";
+
+/**
+ * Die Tafel holen und einsetzen. Liefert true, wenn danach etwas anderes gilt als die Vorgabe.
+ *
+ * ⚠️ Wird NICHT beim Laden dieser Datei gerufen -- der Landschaften-Editor laedt sie ebenfalls und
+ * holt seine Werte ueber seinen eigenen, angemeldeten Endpunkt; ein Aufruf hier loeste dort eine
+ * zweite, nutzlose Anfrage aus. Der Aufruf steht in js/config.js. Dieselbe Arbeitsteilung wie bei
+ * avesmapsLoadLocationZoomBands.
+ *
+ * 🔴 FAELLT STILL AUS: kein Netz, kein Endpunkt, kaputte Antwort -> die Vorgaben bleiben, und die
+ * Karte zeichnet wie bisher. Ein Ausfall hier darf sie nicht aufhalten.
+ */
+function avesmapsLoadEcosystemDisplay() {
+	return fetch(AVESMAPS_ECOSYSTEM_DISPLAY_ENDPOINT, { credentials: "same-origin" })
+		.then((response) => (response.ok ? response.json() : null))
+		.then((payload) => {
+			if (!payload || payload.ok !== true || !payload.display) {
+				return false;
+			}
+			avesmapsEcosystemDisplayInstall(payload.display);
+			return true;
+		})
+		.catch(() => false);
+}
+
+// ⚠️ NUR FUER DIE NODE-TESTS. Im Browser teilen klassische <script>-Bausteine ihre obersten `const`
+// ueber die globale lexikalische Umgebung; `vm.runInThisContext` tut das NICHT -- dieselbe
+// Begruendung wie in location-zoom-bands.js.
+if (typeof globalThis !== "undefined") {
+	globalThis.AVESMAPS_ECOSYSTEM_DISPLAY_DECKKRAFT = AVESMAPS_ECOSYSTEM_DISPLAY_DECKKRAFT;
+	globalThis.AVESMAPS_ECOSYSTEM_DISPLAY_VORGABE = AVESMAPS_ECOSYSTEM_DISPLAY_VORGABE;
+	globalThis.AVESMAPS_ECOSYSTEM_DISPLAY_BAND_MAX = AVESMAPS_ECOSYSTEM_DISPLAY_BAND_MAX;
+}

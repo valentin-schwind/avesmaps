@@ -163,21 +163,37 @@ assert.ok(/filter\s*:\s*drop-shadow/.test(zielRegel.body),
 	+ " wenig ist. ⚠️ `filter` ist bewusst gewaehlt: es malt, ohne die Geometrie anzufassen, an der"
 	+ " `pointer-events: stroke` das Treffen misst -- eine dickere Kontur waere ein anderer Anfasser.");
 
-// 💣 UND DIE FUELLUNG MUSS AUCH GEWINNEN. Mit drei Klassen (0,3,2) verlor sie gegen
-// `.ecosystem-pane--derographisch.ecosystem-pane--active > svg path.leaflet-interactive` weiter unten
-// -- gleiche Staerke, spaeter im Blatt -- und die Hervorhebung blieb ausgerechnet auf der Ebene der
-// grossen Behaelter bei 0,16 haengen. Genau dort liegen die Flaechen, um die es dem Owner ging.
+// 💣 UND DIE FUELLUNG MUSS AUCH GEWINNEN. Mit drei Klassen (0,3,2) verlor sie einmal gegen
+// `.ecosystem-pane--derographisch.ecosystem-pane--active > svg path.leaflet-interactive` -- gleiche
+// Staerke, spaeter im Blatt -- und die Hervorhebung blieb ausgerechnet auf der Ebene der grossen
+// Behaelter bei 0,16 haengen. Genau dort liegen die Flaechen, um die es dem Owner ging.
+//
+// 🔴 DER GEGNER HAT SICH AM 24.08.2026 GEAENDERT, die Zusicherung nicht. Seit der Darstellungstafel
+// setzen die ebenenspezifischen Regeln `--eco-fill` an der PANE statt `fill-opacity` am Pfad; die
+// staerkste Fuellungsregel auf einem Pfad ist seither
+// `.ecosystem-pane--active > svg path.leaflet-interactive` mit ZWEI Klassen. Die Ziel-Regel steht
+// damit bequemer da als vorher -- aber „bequemer" ist kein Beleg, also wird weiter gemessen.
+// ⚠️ Wer hier wieder eine `fill-opacity` mit mehr Klassen einfuehrt, macht die Hervorhebung erneut
+// wirkungslos, und zwar lautlos.
 const klassen = (selektor) => (selektor.match(/\.[a-zA-Z][\w-]*/g) || []).length;
-const derographischFuellung = rules("ecosystem-pane--derographisch")
-	.find((rule) => /fill-opacity/.test(rule.body) && rule.selector.includes("path.leaflet-interactive"));
-assert.ok(derographischFuellung, "Die Fuellungsregel der derographischen Ebene ist verschwunden -- die"
+//
+// ⚠️ Gemeint sind die EBENEN-Fuellungen, nicht die Zustands-Hervorhebungen: `--highlight` und
+// `--selected` duerfen staerker sein, sie beschreiben denselben Belang wie das Ziel selbst. Und
+// gezaehlt wird JE Selektor, nicht ueber die ganze Kommaliste -- sonst blaeht eine Regel mit zwei
+// Selektoren ihre eigene Staerke auf und der Vergleich misst Unsinn.
+const staerkeVon = (selektor) => Math.max(...selektor.split(",").map(klassen));
+const fuellungsRegeln = rules("path.leaflet-interactive")
+	.filter((rule) => /(^|[;\s])fill-opacity\s*:/.test(rule.body)
+		&& !/ecosystem-area--(target|highlight|selected)/.test(rule.selector));
+assert.ok(fuellungsRegeln.length > 0, "Es gibt keine Ebenen-Fuellungsregel auf einem Pfad mehr -- die"
 	+ " Zusicherung darunter haette dann keinen Gegner mehr und waere still wertlos.");
 
+const staerksterGegner = Math.max(...fuellungsRegeln.map((r) => staerkeVon(r.selector)));
 const zielKlassen = Math.min(...zielRegel.selector.split(",").map(klassen));
-assert.ok(zielKlassen > klassen(derographischFuellung.selector),
-	`Die Ziel-Regel hat ${zielKlassen} Klassen, die Fuellungsregel der derographischen Ebene`
-	+ ` ${klassen(derographischFuellung.selector)}. Bei gleicher Staerke gewinnt die spaetere im Blatt`
-	+ " -- und das ist die derographische. Die Hervorhebung bliebe dort bei 0,16 haengen.");
+assert.ok(zielKlassen > staerksterGegner,
+	`Die Ziel-Regel hat ${zielKlassen} Klassen, die staerkste konkurrierende Fuellungsregel`
+	+ ` ${staerksterGegner}. Bei gleicher Staerke gewinnt die spaetere im Blatt, und die Hervorhebung`
+	+ " bliebe an der Deckkraft der Ebene haengen.");
 
 // ---- 6. Der Schwebezettel kommt bei der ZIELWAHL zurueck ----------------------------------------
 //
