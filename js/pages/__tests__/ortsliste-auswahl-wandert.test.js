@@ -121,7 +121,7 @@ vm.createContext(kasten);
 // Attrappe: die Zeile ruft seit 18.08.2026 `avesmapsStatuskreisOrt` beim Bauen. Eine freundliche
 // Attrappe wuerde genau die Delegation verstecken, die dort geprueft werden soll
 // (js/ui/__tests__/listen-statuskreis.test.js) -- dieselbe Entscheidung wie beim Kraftlinien-Test.
-["js/ui/filter-menu.js", "js/ui/listen-statuskreis.js",
+["js/ui/ribbon-menu.js", "js/ui/filter-menu.js", "js/ui/listen-statuskreis.js",
 	"js/ui/wiki-assign-registry.js", "js/ui/wiki-assign-diff.js", "js/ui/wiki-feld-herkunft.js",
 	"js/ui/wiki-assign.js", "js/ui/wiki-assign-ort.js"].forEach((datei) => {
 	vm.runInContext(fs.readFileSync(path.join(wurzel, datei), "utf8"), kasten, { filename: datei });

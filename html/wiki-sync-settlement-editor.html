@@ -732,6 +732,8 @@
      auch das Hauptfenster; das iframe bekommt seine eigene Kopie der Globalen. Vor dem Inline-Skript
      unten, das ihn für die linke Spalte verdrahtet. -->
 <script src="/js/ui/filter-menu.js"></script>
+<!-- Das Sammelmenue im Menueband (Wappen-Knopf) -- abhaengigkeitsfrei wie der Trichter daneben. -->
+<script src="/js/ui/ribbon-menu.js"></script>
 <!-- Verschiebbare Fenster: greift die .modal-title dieser Seite. Die Fenster der Hauptseite bedient
      dieselbe Datei dort; ein iframe braucht seine eigene Kopie, sein Dokument ist ein anderes. -->
 <script src="/js/ui/dialog-drag.js"></script>
@@ -3633,24 +3635,12 @@ $("seCoatsLocal")?.addEventListener("click", toggleCoatSwitch);
 $("seCoatsWiki")?.addEventListener("click", toggleCoatSwitch);
 
 // ---- Auf- und Zuklappen -------------------------------------------------------------------------
-// 💣 Der Zustand ist das `hidden`-Attribut des Panels und sonst nichts — kein Modulzustand daneben,
-// der auseinanderlaufen kann.
-function setCoatsMenuOpen(open) {
-	const panel = $("seCoatsMenuPanel");
-	const btn = $("seCoatsMenu");
-	if (!panel || !btn) return;
-	panel.hidden = !open;
-	btn.setAttribute("aria-expanded", open ? "true" : "false");
-}
-$("seCoatsMenu")?.addEventListener("click", (event) => {
-	event.stopPropagation();
-	setCoatsMenuOpen($("seCoatsMenuPanel")?.hidden === true);
-});
-// ⚠️ Der Klick INS Menü darf es nicht zuklappen — sonst schließt jeder Schalterdruck das Menü, und
-// man kann nicht zwei Dinge hintereinander tun.
-$("seCoatsMenuPanel")?.addEventListener("click", (event) => event.stopPropagation());
-document.addEventListener("click", () => setCoatsMenuOpen(false));
-document.addEventListener("keydown", (event) => { if (event.key === "Escape") setCoatsMenuOpen(false); });
+// 🔴 Das Verhalten steht seit dem 24.08.2026 EINMAL, in js/ui/ribbon-menu.js. Hier standen 16 Zeilen,
+// die im Territorien-Editor Wort für Wort noch einmal standen -- der dritte Editor (Landschaften)
+// hätte die dritte Kopie bekommen. Der Zustand ist weiterhin das `hidden` des Panels und sonst
+// nichts; das Bauteil ist zusätzlich gegen die Doppelanmeldung gesichert, die dieses Menü am
+// 23.08.2026 live unbrauchbar gemacht hat.
+avesmapsRibbonMenuAttachById("seCoatsMenu", "seCoatsMenuPanel");
 
 // ---- Die Wappenfelder prüfen — angehängt an „Hole Wiki-Wappen" ---------------------------------
 // 🔴 Der alte Wiki-Parser las `wappen|bild|wappenbild|bilddatei` in EIN Feld: hatte ein Ort im Wiki
