@@ -23,7 +23,7 @@ const FX = require("./fixture.js");
 const WURZEL = path.resolve(__dirname, "..", "..", "..");
 const ABLAGE = path.join(WURZEL, "uploads", "svg-export");
 const TOKEN = "probe-" + require("crypto").randomBytes(16).toString("hex");
-const { freierPort } = require("./freier-port.js");
+const { freierPort } = require("../../lib/freier-port.js");
 let PORT = 0;
 let PORT2 = 0;
 
