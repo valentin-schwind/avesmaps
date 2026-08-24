@@ -224,10 +224,10 @@ function avesmapsWikiSyncUnreachableMessage(int $statusCode, string $rawWarning)
  * Ein Test setzt den Zustand einfach vor: avesmapsWikiBotZustand(['status' => 'bot']).
  */
 function avesmapsWikiBotZustand(?array $neuerZustand = null): array {
-    static $zustand = ['status' => 'unversucht', 'grund' => '', 'cookies' => []];
+    static $zustand = ['status' => 'unversucht', 'grund' => '', 'grund_code' => '', 'cookies' => []];
 
     if ($neuerZustand !== null) {
-        $zustand = $neuerZustand + ['status' => 'unversucht', 'grund' => '', 'cookies' => []];
+        $zustand = $neuerZustand + ['status' => 'unversucht', 'grund' => '', 'grund_code' => '', 'cookies' => []];
     }
 
     return $zustand;
@@ -326,28 +326,43 @@ function avesmapsWikiSyncRequestHeaderLines(array $cookies): string {
  * 💣 MEDIAWIKI ANTWORTET AUCH BEI ABGELEHNTER ANMELDUNG MIT HTTP 200 -- der Befund steht
  * ausschliesslich im Rumpf. Wer nur den Status prueft, haelt jeden Fehlschlag fuer einen Erfolg.
  * ⚠️ `login.reason` ist unter formatversion=2 ein Objekt {code, text}, kein Text.
+ *
+ * 💣 DER `code` REIST SEIT 25.08.2026 MIT, UND ER IST DIE EIGENTLICHE AUSKUNFT. Der TEXT ist
+ * fuer mehrere Ursachen derselbe; die Ursachen stehen im Code auseinander:
+ * `wrongpassword` (Botpasswort weg oder falsch) gegen `botpasswords-restriction-failed`
+ * (IP-Bereich) gegen `nosuchuser` (Konto). Am lebenden Fall gemessen: ohne den Code nannten wir
+ * dem Betreiber drei Ursachen, von denen die Antwort des Wikis zwei bereits ausgeschlossen hatte.
  */
 function avesmapsWikiLoginErgebnis(array $antwort): array {
     $login = is_array($antwort['login'] ?? null) ? $antwort['login'] : [];
 
     if ((string) ($login['result'] ?? '') === 'Success') {
-        return ['ok' => true, 'grund' => ''];
+        return ['ok' => true, 'grund' => '', 'code' => ''];
     }
 
-    $grund = $login['reason'] ?? '';
-    if (is_array($grund)) {
-        $grund = (string) ($grund['text'] ?? ($grund['code'] ?? ''));
+    $rohGrund = $login['reason'] ?? '';
+    $code = '';
+    if (is_array($rohGrund)) {
+        $code = trim((string) ($rohGrund['code'] ?? ''));
+        $grund = (string) ($rohGrund['text'] ?? ($rohGrund['code'] ?? ''));
+    } else {
+        $grund = (string) $rohGrund;
     }
-    $grund = trim((string) $grund);
+    $grund = trim($grund);
 
-    if ($grund === '' && is_array($antwort['error'] ?? null)) {
-        $grund = trim((string) ($antwort['error']['code'] ?? ''));
+    if (is_array($antwort['error'] ?? null)) {
+        if ($code === '') {
+            $code = trim((string) ($antwort['error']['code'] ?? ''));
+        }
+        if ($grund === '') {
+            $grund = trim((string) ($antwort['error']['code'] ?? ''));
+        }
     }
     if ($grund === '') {
         $grund = trim((string) ($login['result'] ?? ''));
     }
 
-    return ['ok' => false, 'grund' => $grund !== '' ? $grund : 'Grund unbekannt'];
+    return ['ok' => false, 'grund' => $grund !== '' ? $grund : 'Grund unbekannt', 'code' => $code];
 }
 
 /**
@@ -528,7 +543,11 @@ function avesmapsWikiBotSitzungSicherstellen(): bool {
             'reason' => $ergebnis['grund'],
             'status_code' => $loginAntwort['status'],
         ]);
-        avesmapsWikiBotZustand(['status' => 'gescheitert', 'grund' => $ergebnis['grund']]);
+        avesmapsWikiBotZustand([
+            'status' => 'gescheitert',
+            'grund' => $ergebnis['grund'],
+            'grund_code' => (string) ($ergebnis['code'] ?? ''),
+        ]);
         return false;
     }
 
@@ -568,6 +587,7 @@ function avesmapsWikiBotDiagnose(): array {
         'passwort_hat_botform' => false,
         'status' => 'unversucht',
         'grund' => '',
+        'grund_code' => '',
         'urteil' => '',
     ];
 
@@ -595,6 +615,7 @@ function avesmapsWikiBotDiagnose(): array {
     $zustand = avesmapsWikiBotZustand();
     $befund['status'] = (string) ($zustand['status'] ?? 'unversucht');
     $befund['grund'] = (string) ($zustand['grund'] ?? '');
+    $befund['grund_code'] = (string) ($zustand['grund_code'] ?? '');
 
     $befund['urteil'] = avesmapsWikiBotDiagnoseUrteil($befund);
 
@@ -639,6 +660,34 @@ function avesmapsWikiBotDiagnoseUrteil(array $befund): string {
             . 'Zugangsdaten, sondern am Zugang zur API selbst (Sperre, Netzfehler oder '
             . 'Wartung). Das Fehlerprotokoll nennt unter "wiki_bot_login_no_token" den '
             . 'HTTP-Status.';
+    }
+
+    // 💣 DER CODE SCHLAEGT DEN TEXT. MediaWiki schickt fuer mehrere Ursachen denselben Satz,
+    // trennt sie aber im Code. Wer nur den Text liest, nennt Ursachen, die das Wiki gerade
+    // ausgeschlossen hat -- am 25.08.2026 genau so passiert.
+    $code = trim((string) ($befund['grund_code'] ?? ''));
+
+    if (str_contains($code, 'botpasswords-restriction')) {
+        return 'Das Botpasswort ist gueltig, aber BESCHRAENKT: das Wiki laesst es von unserer '
+            . 'Adresse nicht zu. In Spezial:BotPasswords beim Eintrag das Feld "Erlaubte '
+            . 'IP-Bereiche" oeffnen und die Server-Adresse 81.169.144.135 aufnehmen (oder auf '
+            . 'die Vorgabe 0.0.0.0/0 und ::/0 zuruecksetzen). Ein NEUES Passwort hilft hier '
+            . 'nicht -- das alte ist in Ordnung.';
+    }
+
+    if ($code === 'nosuchuser') {
+        return 'Das Wiki kennt das KONTO nicht, das vor dem "@" steht ("' . $grund . '"). Nicht '
+            . 'das Botpasswort ist das Problem, sondern der Kontoname davor.';
+    }
+
+    if ($code === 'wrongpassword') {
+        return 'Das Wiki kennt dieses Botpasswort nicht (mehr): entweder wurde es '
+            . 'zurueckgezogen -- das passiert automatisch, sobald das KONTO-Passwort geaendert '
+            . 'wird --, oder der Name nach dem "@" gehoert zu keinem Eintrag, oder die 32 Zeichen '
+            . 'stimmen nicht. Alle drei loest derselbe Handgriff: in Spezial:BotPasswords ein '
+            . 'Botpasswort neu erzeugen und BEIDE Angaben frisch in api/config.local.php '
+            . 'eintragen. ⭐ Eine IP-Beschraenkung ist es NICHT -- die meldet sich mit einem '
+            . 'eigenen Code (botpasswords-restriction-failed) und nicht mit diesem.';
     }
 
     if ($grund !== '') {

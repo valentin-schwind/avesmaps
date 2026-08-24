@@ -148,4 +148,75 @@ assert(
     'Selbstverstaendlichkeit, festgenagelt: das Urteil bekommt das Passwort gar nicht erst zu sehen'
 );
 
+
+// ===================================================================================
+// DER FEHLERCODE SCHLAEGT DEN FEHLERTEXT (25.08.2026, am lebenden Fall gemessen).
+// -----------------------------------------------------------------------------------
+// 💣 MediaWiki unterscheidet die Ursachen im `code`, nicht im Text -- und wir haben den Code
+// bis dahin weggeworfen. Der Owner bekam deshalb drei Ursachen genannt, von denen die Antwort
+// des Wikis zwei bereits ausschloss: eine gesperrte IP meldet `botpasswords-restriction-failed`,
+// ein unbekanntes Konto `nosuchuser`. Wer `wrongpassword` liest und trotzdem die IP-Liste
+// prueft, sucht an einer Stelle, die das Wiki gerade freigesprochen hat.
+// ===================================================================================
+$formMitCode = $formInOrdnung;
+
+$falschesPasswort = avesmapsWikiBotDiagnoseUrteil([
+    'grund' => 'Incorrect username or password entered. Please try again.',
+    'grund_code' => 'wrongpassword',
+] + $formMitCode);
+assert(
+    str_contains($falschesPasswort, 'neu erzeugen') || str_contains($falschesPasswort, 'neu erzeugt'),
+    'bei wrongpassword ist das neue Botpasswort der Handgriff: ' . $falschesPasswort
+);
+assert(
+    !str_contains($falschesPasswort, '81.169.144.135'),
+    '💣 die IP-Beschraenkung hat einen EIGENEN Code -- sie bei wrongpassword zu nennen schickt '
+        . 'den Betreiber an eine Stelle, die das Wiki gerade freigesprochen hat: ' . $falschesPasswort
+);
+
+$ipGesperrt = avesmapsWikiBotDiagnoseUrteil([
+    'grund' => 'The supplied credentials could not be used.',
+    'grund_code' => 'botpasswords-restriction-failed',
+] + $formMitCode);
+assert(
+    str_contains($ipGesperrt, '81.169.144.135'),
+    'bei einer Beschraenkung muss die Server-Adresse genannt sein: ' . $ipGesperrt
+);
+assert(
+    !str_contains($ipGesperrt, 'neu erzeugen'),
+    'und dann ist ein neues Passwort gerade NICHT der Handgriff: ' . $ipGesperrt
+);
+
+$keinKonto = avesmapsWikiBotDiagnoseUrteil([
+    'grund' => 'There is no user by the name "Avesmaps".',
+    'grund_code' => 'nosuchuser',
+] + $formMitCode);
+assert(
+    str_contains($keinKonto, 'Konto'),
+    'ein unbekanntes Konto muss als solches benannt werden: ' . $keinKonto
+);
+
+// ⚠️ Ohne Code bleibt es bei der alten, breiteren Auskunft -- ein fehlender Code darf nicht
+// dazu fuehren, dass gar nichts mehr gesagt wird.
+$ohneCode = avesmapsWikiBotDiagnoseUrteil([
+    'grund' => 'Irgendein unbekannter Grund.',
+] + $formMitCode);
+assert(
+    str_contains($ohneCode, 'Irgendein unbekannter Grund.') && str_contains($ohneCode, '81.169.144.135'),
+    'ohne Code bleiben alle Ursachen im Spiel: ' . $ohneCode
+);
+
+// Und der Code muss ueberhaupt erst aus der Antwort herauskommen.
+$ergebnis = avesmapsWikiLoginErgebnis([
+    'login' => ['result' => 'Failed', 'reason' => ['code' => 'wrongpassword', 'text' => 'Falsches Passwort.']],
+]);
+assert(
+    ($ergebnis['code'] ?? '') === 'wrongpassword',
+    'avesmapsWikiLoginErgebnis muss den Code mitgeben, nicht nur den Text'
+);
+assert(
+    ($ergebnis['grund'] ?? '') === 'Falsches Passwort.',
+    'und der Text bleibt, wie er war -- der Code kommt DAZU'
+);
+
 echo "bot-diagnose: alle Zusicherungen erfuellt\n";
