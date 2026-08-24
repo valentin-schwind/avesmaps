@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Einstellungen – Mockup (Abstimmung, 2026-08-25)</title>
+<script>
+  /* Wie jede Editorseite: gespeicherte Wahl schlaegt OS-Schema, vor dem ersten Anstrich. */
+  (function () {
+    function isDark() {
+      var s = null; try { s = localStorage.getItem("avesmaps-theme"); } catch (e) {}
+      if (s === "dark") { return true; }
+      if (s === "light") { return false; }
+      return !!(window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches);
+    }
+    function apply() {
+      if (isDark()) { document.documentElement.setAttribute("data-theme", "dark"); }
+      else { document.documentElement.removeAttribute("data-theme"); }
+    }
+    apply();
+    if (window.matchMedia) {
+      var mq = window.matchMedia("(prefers-color-scheme: dark)");
+      if (mq.addEventListener) { mq.addEventListener("change", apply); }
+      else if (mq.addListener) { mq.addListener(apply); }
+    }
+  })();
+</script>
+<!-- 🔴 RELATIVE Pfade, Absicht: eine docs/-Datei, die per file:// geoeffnet wird. Geladen wird die
+     ECHTE CSS-Kette der Editorseiten (fonts, tokens, editor-page).
+     ⭐ Dadurch steht in dieser Datei KEIN einziger Farbwert und kein einziger Radius -- alles kommt
+     aus css/base/tokens.css. Genau das ist auch der Bauplan fuers echte Fenster (AGENTS.md §12). -->
+<link rel="stylesheet" href="../css/base/fonts.css">
+<link rel="stylesheet" href="../css/base/tokens.css">
+<link rel="stylesheet" href="../css/components/editor-page.css">
+<style>
+/* ═══════════════════════════════════════════════════════════════════════════════════════════
+   Kein hartkodierter Farbwert, kein hartkodierter Radius, keine Schrift unter 11px
+   (AGENTS.md §12). Alles unten sind Tokens aus css/base/tokens.css.
+
+   Die Seite ist bewusst eine SEITE, kein Overlay: der Hamburger sitzt in der aeusseren Huelle
+   (edit/index.php), die Karte in einem <iframe> darin. Ihre drei Nachbarn -- Handbuch, Karte als
+   SVG, Datenbank-Backup -- sind aus demselben Grund alle eigene Seiten in einem neuen Tab.
+   ═══════════════════════════════════════════════════════════════════════════════════════════ */
+
+body { background: var(--color-page-bg); color: var(--color-text); font-family: var(--font-ui); margin: 0; }
+
+.es-page { max-width: 900px; margin: 0 auto; padding: var(--space-24) var(--space-16); }
+
+/* ── Kopf ───────────────────────────────────────────────────────────────────────────────── */
+.es-head { display: flex; align-items: baseline; gap: var(--space-12); flex-wrap: wrap; margin-bottom: var(--space-6); }
+.es-head h1 { margin: 0; font-size: var(--font-size-title); font-weight: var(--font-weight-bold); color: var(--color-text-strong); }
+.es-head__back { font-size: var(--font-size-small); color: var(--color-link); text-decoration: none; }
+.es-head__back:hover { color: var(--color-link-hover); text-decoration: underline; }
+.es-lead { margin: 0 0 var(--space-20); font-size: var(--font-size-reading); line-height: 1.5; color: var(--color-text-muted); max-width: 68ch; }
+
+/* ── Abschnitt: Gruppierung durch TRENNLINIE, nicht durch gerahmte Kaesten (AGENTS.md §12) ─ */
+.es-section { border-top: 1px solid var(--color-divider); padding-top: var(--space-16); margin-top: var(--space-24); }
+.es-section:first-of-type { border-top: 0; margin-top: 0; }
+.es-section > h2 {
+	margin: 0 0 var(--space-4); font-size: var(--font-size-subhead);
+	font-weight: var(--font-weight-bold); color: var(--color-text-strong);
+}
+.es-section__hint { margin: 0 0 var(--space-12); font-size: var(--font-size-small); line-height: 1.5; color: var(--color-text-muted); max-width: 68ch; }
+
+/* ── Eine Zeile: Beschriftung links, Bedienung rechts ───────────────────────────────────── */
+/* ⚠️ `flex-wrap` ist tragend, nicht Kosmetik: ohne es schiebt die 17em breite Dump-Kachel die
+   Seite auf einem schmalen Schirm waagerecht auf (gemessen 427 px Inhalt in 375 px Fenster).
+   Die Bedienung rutscht dann unter ihre Beschriftung, statt sie hinauszudruecken. */
+.es-row {
+	display: flex; align-items: flex-start; gap: var(--space-16); flex-wrap: wrap;
+	padding: var(--space-10) 0; border-top: 1px solid var(--color-border);
+}
+.es-row:first-of-type { border-top: 0; }
+.es-row__label { flex: 1 1 16em; min-width: 0; }
+.es-row__name { font-size: var(--font-size-body); color: var(--color-text-strong); }
+.es-row__note { display: block; margin-top: var(--space-2); font-size: var(--font-size-caption); line-height: 1.45; color: var(--color-text-muted); }
+.es-row__control { flex: 0 1 auto; display: flex; align-items: center; gap: var(--space-8); flex-wrap: wrap; }
+.es-btn--wide { max-width: 100%; }
+.es-table { display: block; overflow-x: auto; }
+
+/* ── Bedienelemente ─────────────────────────────────────────────────────────────────────── */
+.es-num { width: 5.5em; }
+.es-num--wide { width: 8em; }
+input[type="number"].es-num, input[type="text"].es-num, select.es-sel {
+	height: var(--avm-control-h); padding: 0 var(--space-8);
+	border: 1px solid var(--color-border-strong); border-radius: var(--radius-md);
+	background: var(--color-panel); color: var(--color-text);
+	font-family: var(--font-ui); font-size: var(--font-size-body);
+}
+.es-unit { font-size: var(--font-size-caption); color: var(--color-text-muted); }
+.es-check { display: inline-flex; align-items: center; gap: var(--space-6); font-size: var(--font-size-body); }
+.es-check input { accent-color: var(--color-check-accent); }
+
+/* Knoepfe: Haupthandlung gefuellt, alles andere weich (AGENTS.md §12). */
+.es-btn {
+	height: var(--avm-control-h); padding: 0 var(--space-12);
+	border: 1px solid var(--color-button-soft-border); border-radius: var(--radius-md);
+	background: var(--color-button-soft); color: var(--color-button-soft-text);
+	font-family: var(--font-ui); font-size: var(--font-size-body); cursor: pointer;
+}
+.es-btn:hover { background: var(--color-button-soft-hover); }
+.es-btn--primary {
+	border-color: var(--color-button-border); background: var(--color-button); color: var(--color-button-text);
+	font-weight: var(--font-weight-bold);
+}
+.es-btn--primary:hover { background: var(--color-button-hover); box-shadow: var(--shadow-button-hover-strong); }
+.es-btn--wide { min-width: 17em; }
+
+/* ── Speicherleiste JE ABSCHNITT -- die Abschnitte haben verschiedene Ablagen ────────────── */
+.es-savebar {
+	display: flex; align-items: center; gap: var(--space-10);
+	margin-top: var(--space-12); padding-top: var(--space-10);
+	border-top: 1px solid var(--color-divider);
+}
+.es-savebar__msg { font-size: var(--font-size-caption); color: var(--color-text-muted); }
+.es-savebar__spacer { flex: 1 1 auto; }
+
+/* ── Zustandsabzeichen der Uebersicht ───────────────────────────────────────────────────── */
+.es-state {
+	display: inline-block; min-width: 3.4em; text-align: center;
+	padding: var(--space-2) var(--space-8); border-radius: var(--radius-md);
+	border: 1px solid var(--color-pill-border); background: var(--color-pill);
+	color: var(--color-pill-text); font-size: var(--font-size-caption);
+}
+.es-state--on { border-color: var(--color-success-soft-border); background: var(--color-success-soft); color: var(--color-success-soft-text); }
+.es-state--off { border-color: var(--color-danger-soft-border); background: var(--color-danger-soft); color: var(--color-danger-soft-text); }
+
+.es-table { width: 100%; border-collapse: collapse; }
+.es-table th {
+	text-align: left; padding: var(--space-6) var(--space-8) var(--space-6) 0;
+	border-bottom: 1px solid var(--color-divider);
+	font-size: var(--font-size-caption); font-weight: var(--font-weight-bold);
+	text-transform: uppercase; letter-spacing: .04em; color: var(--color-text-muted);
+}
+.es-table td { padding: var(--space-6) var(--space-8) var(--space-6) 0; border-bottom: 1px solid var(--color-border); font-size: var(--font-size-body); vertical-align: baseline; }
+.es-table td:last-child, .es-table th:last-child { padding-right: 0; }
+.es-table__where { font-size: var(--font-size-caption); color: var(--color-text-muted); }
+.es-table__where a { color: var(--color-link); }
+
+/* ── Der Fortschritt sitzt IM Knopf, wie ueberall im Haus ───────────────────────────────── */
+.es-progress {
+	position: relative; overflow: hidden;
+}
+.es-progress::before {
+	content: ""; position: absolute; inset: 0 auto 0 0; width: var(--es-progress, 0%);
+	background: var(--color-accent-brown-soft); pointer-events: none;
+}
+.es-progress > span { position: relative; }
+
+/* ── Nur im Mockup: der Erklaerkasten ───────────────────────────────────────────────────── */
+.proto-note {
+	margin: 0 0 var(--space-20); padding: var(--space-10) var(--space-12);
+	border: 1px solid var(--color-border); border-left: 3px solid var(--color-accent-brown);
+	border-radius: var(--radius-md); background: var(--color-panel-soft);
+	color: var(--color-text-muted); font-size: var(--font-size-small); line-height: 1.5;
+}
+.proto-note strong { color: var(--color-text); }
+.proto-note ul { margin: var(--space-6) 0 0; padding-left: var(--space-20); }
+.proto-note li { margin: var(--space-2) 0; }
+</style>
+</head>
+<body>
+<div class="es-page">
+
+	<p class="proto-note">
+		<strong>Mockup, noch nichts Gebautes</strong> — Abstimmung 25.08.2026. Entwurf:
+		<code>docs/superpowers/specs/2026-08-25-einstellungen-fenster-design.md</code>.
+		Alle Zahlen unten sind die <strong>heutigen</strong> Werte aus dem Code; die Seite ändert am
+		Betrieb nichts, außer dass „📥 Dump holen“ hierher wandert.
+	</p>
+
+	<div class="es-head">
+		<h1>Einstellungen</h1>
+		<a class="es-head__back" href="#">← zurück zur Karte</a>
+	</div>
+	<p class="es-lead">
+		Die zentralen Schalthebel des Projekts. Nur Administratoren sehen diese Seite, und jeder
+		Endpunkt dahinter prüft dieselbe Berechtigung noch einmal selbst.
+	</p>
+
+	<!-- ═══ 1. WIKI-DATEN ═══════════════════════════════════════════════════════════════════
+	     Der volle Dump-Lauf zieht aus dem WikiSync-Panel hierher (Entwurf §4). Im eigenen Tab
+	     ist das ein Gewinn: der Lauf dauert Minuten, die Karte daneben bleibt benutzbar. -->
+	<section class="es-section">
+		<h2>Wiki-Daten</h2>
+		<p class="es-section__hint">
+			„Dump holen“ lädt den kompletten Wiki-Dump neu, liest ihn in eine Sandbox ein, räumt alte
+			Stände auf und zeigt am Ende, was sich bei den Publikationsquellen ändern würde —
+			geschrieben wird erst, was du in der Vorschau anhäkelst. Der Lauf dauert einige Minuten.
+		</p>
+
+		<div class="es-row">
+			<div class="es-row__label">
+				<span class="es-row__name">Wiki-Dump holen und einlesen</span>
+				<span class="es-row__note">Letzter Lauf: 24.08.2026, 21:14 · Dump geholt: 24.08.2026, 20:47</span>
+			</div>
+			<div class="es-row__control">
+				<button class="es-btn es-btn--primary es-btn--wide es-progress" style="--es-progress:0%"><span>📥 Dump holen</span></button>
+			</div>
+		</div>
+
+		<!-- Der laufende Zustand, nur zur Ansicht im Mockup: der Fortschritt sitzt IM Knopf, wie
+		     im Panel heute schon. Eine Leiste darunter schob das Fenster mitten im Klick nach unten. -->
+		<div class="es-row">
+			<div class="es-row__label">
+				<span class="es-row__name" style="color:var(--color-text-muted)">— während des Laufs sieht der Knopf so aus —</span>
+				<span class="es-row__note">Der Fortschritt sitzt im Knopf, den man gerade gedrückt hat; darunter erscheint nichts, was die Seite verschiebt.</span>
+			</div>
+			<div class="es-row__control">
+				<button class="es-btn es-btn--primary es-btn--wide es-progress" style="--es-progress:64%" disabled><span>Phase 4/7: Weiterleitungen (12 480 Seiten)</span></button>
+			</div>
+		</div>
+
+		<div class="es-row">
+			<div class="es-row__label">
+				<span class="es-row__name">Dump-Zugangsdaten</span>
+				<span class="es-row__note">
+					Benutzer <strong>avesmaps-dump</strong> · Passwort gespeichert.
+					Bisher ließen sie sich nur ändern, <em>nachdem</em> ein Lauf daran gescheitert war.
+				</span>
+			</div>
+			<div class="es-row__control">
+				<button class="es-btn">Ändern …</button>
+			</div>
+		</div>
+
+		<div class="es-row">
+			<div class="es-row__label">
+				<span class="es-row__name">Letzter Laufbericht</span>
+				<span class="es-row__note">Unauffällig · 24.08.2026, 21:14 · 0 Selbsttests rot</span>
+			</div>
+			<div class="es-row__control">
+				<button class="es-btn">Bericht öffnen</button>
+			</div>
+		</div>
+	</section>
+
+	<!-- ═══ 2. DARSTELLUNG ══════════════════════════════════════════════════════════════════
+	     Ein app_setting-Schluessel `map_display_settings` (+ _stamp), JSON, nach dem Vorbild von
+	     location_zoom_bands. Die Vorgaben reproduzieren das heutige Bild Ziffer fuer Ziffer. -->
+	<section class="es-section">
+		<h2>Darstellung</h2>
+		<p class="es-section__hint">
+			Was ein Besucher sieht, bevor er etwas anfasst. Alle Werte stehen auf dem heutigen Stand —
+			„Zurücksetzen“ löscht die gespeicherte Zeile wieder, statt eine Kopie zu hinterlassen.
+		</p>
+
+		<div class="es-row">
+			<div class="es-row__label">
+				<span class="es-row__name">Beim Zoomwechsel überblenden</span>
+				<span class="es-row__note">
+					Ortsmarkierungen und Beschriftungen blenden beim Zoomen weich aus und wieder ein,
+					statt hart umzuspringen. Grundkarte, Grenzen, Wege und Kraftlinien sind davon nicht
+					berührt — die skalieren ohnehin mit.
+				</span>
+			</div>
+			<div class="es-row__control">
+				<label class="es-check"><input type="checkbox" checked> an</label>
+			</div>
+		</div>
+
+		<div class="es-row">
+			<div class="es-row__label">
+				<span class="es-row__name">Dauer der Überblendung</span>
+				<span class="es-row__note">Hinaus beim Zoomstart, herein wenn die Stufe steht.</span>
+			</div>
+			<div class="es-row__control">
+				<input class="es-num" type="number" value="100" min="0" max="1000" step="10" aria-label="Dauer hinaus in Millisekunden">
+				<span class="es-unit">ms hinaus</span>
+				<input class="es-num" type="number" value="200" min="0" max="1000" step="10" aria-label="Dauer herein in Millisekunden">
+				<span class="es-unit">ms herein</span>
+			</div>
+		</div>
+
+		<div class="es-row">
+			<div class="es-row__label">
+				<span class="es-row__name">Startzoom</span>
+				<span class="es-row__note">
+					⚠️ Gekoppelt mit „Sichtbar bis Zoom“ des Kontinent-Labels — laufen die beiden
+					auseinander, landet der Start woanders als die Suche nach „Aventurien“.
+				</span>
+			</div>
+			<div class="es-row__control">
+				<input class="es-num" type="number" value="3" min="0" max="7" step="1" aria-label="Startzoom">
+				<span class="es-unit">am Telefon eine Stufe weiter heraus:</span>
+				<input class="es-num" type="number" value="1" min="0" max="3" step="1" aria-label="Abzug am Telefon">
+			</div>
+		</div>
+
+		<div class="es-row">
+			<div class="es-row__label">
+				<span class="es-row__name">Startmittelpunkt</span>
+				<span class="es-row__note">Kartenkoordinaten x / y. Heute die Zeile des Kontinent-Labels.</span>
+			</div>
+			<div class="es-row__control">
+				<input class="es-num es-num--wide" type="number" value="520.5" step="0.01" aria-label="Startmittelpunkt x">
+				<input class="es-num es-num--wide" type="number" value="497.28" step="0.01" aria-label="Startmittelpunkt y">
+			</div>
+		</div>
+
+		<div class="es-row">
+			<div class="es-row__label">
+				<span class="es-row__name">Kartenstil für Besucher</span>
+				<span class="es-row__note">
+					Nur der erste Eindruck: ein geteilter Link mit <code>?mapstyle=</code> und die
+					gespeicherte Wahl eines Editors schlagen ihn.
+				</span>
+			</div>
+			<div class="es-row__control">
+				<select class="es-sel" aria-label="Kartenstil">
+					<option selected>Stylized</option>
+					<option>Original</option>
+				</select>
+			</div>
+		</div>
+
+		<div class="es-savebar">
+			<button class="es-btn es-btn--primary">Speichern</button>
+			<button class="es-btn">Zurücksetzen</button>
+			<span class="es-savebar__spacer"></span>
+			<span class="es-savebar__msg">Alle Werte wie im Code.</span>
+		</div>
+	</section>
+
+	<!-- ═══ 3. AUTOMATIK ════════════════════════════════════════════════════════════════════
+	     Die zwei Schalter, die es serverseitig gibt und die heute NIEMAND umlegen kann. -->
+	<section class="es-section">
+		<h2>Automatik</h2>
+		<p class="es-section__hint">
+			Hintergrundläufe, die fehlende Bilder nachholen. Beide gab es bisher nur im Server —
+			umlegen konnte sie niemand.
+		</p>
+
+		<div class="es-row">
+			<div class="es-row__label">
+				<span class="es-row__name">Karten-Vorschauen automatisch holen</span>
+				<span class="es-row__note">Holt fehlende Stadtplan-Vorschauen nach, sobald die Kartensammlung sie braucht.</span>
+			</div>
+			<div class="es-row__control"><label class="es-check"><input type="checkbox" checked> an</label></div>
+		</div>
+
+		<div class="es-row">
+			<div class="es-row__label">
+				<span class="es-row__name">Literatur-Cover automatisch holen</span>
+				<span class="es-row__note">Holt fehlende Cover nach. Eigene Uploads bleiben unangetastet.</span>
+			</div>
+			<div class="es-row__control"><label class="es-check"><input type="checkbox" checked> an</label></div>
+		</div>
+
+		<div class="es-savebar">
+			<button class="es-btn es-btn--primary">Speichern</button>
+			<span class="es-savebar__spacer"></span>
+			<span class="es-savebar__msg">Beide an.</span>
+		</div>
+	</section>
+
+	<!-- ═══ 4. UEBERSICHT ═══════════════════════════════════════════════════════════════════
+	     🔴 KEIN zweiter Bedienort -- eine AUSKUNFT. Heute muss man vier Editoren oeffnen, um zu
+	     sehen, ob die Wappen an sind. Die Schalter selbst bleiben in Stufe 1, wo sie sind. -->
+	<section class="es-section">
+		<h2>Übersicht — was anderswo geschaltet wird</h2>
+		<p class="es-section__hint">
+			Diese Schalter bleiben in ihren Editoren. Hier stehen sie nur zum <strong>Nachsehen</strong>:
+			ein Blick statt vier geöffneter Editoren.
+		</p>
+
+		<table class="es-table">
+			<thead>
+				<tr><th style="width:52%">Was</th><th style="width:14%">Zustand</th><th>Wo eingestellt</th></tr>
+			</thead>
+			<tbody>
+				<tr><td>Ortsbilder im Frontend</td><td><span class="es-state es-state--on">An</span></td><td class="es-table__where">Ortseditor → Menüband</td></tr>
+				<tr><td>Ortswappen im Frontend</td><td><span class="es-state es-state--on">An</span></td><td class="es-table__where">Ortseditor → Menüband</td></tr>
+				<tr><td>Gebietswappen im Frontend</td><td><span class="es-state es-state--off">Aus</span></td><td class="es-table__where">WikiSync-Monitor</td></tr>
+				<tr><td>Kartensammlung</td><td><span class="es-state es-state--on">An</span></td><td class="es-table__where"><a href="#">Kartensammlung-Editor ↗</a></td></tr>
+				<tr><td>Kartenvorschauen</td><td><span class="es-state es-state--on">An</span></td><td class="es-table__where"><a href="#">Kartensammlung-Editor ↗</a></td></tr>
+				<tr><td>Literatur</td><td><span class="es-state es-state--on">An</span></td><td class="es-table__where"><a href="#">Literatur-Editor ↗</a></td></tr>
+				<tr><td>Literatur-Cover</td><td><span class="es-state es-state--on">An</span></td><td class="es-table__where"><a href="#">Literatur-Editor ↗</a></td></tr>
+				<tr><td>Vorkommen: Flora</td><td><span class="es-state es-state--on">An</span></td><td class="es-table__where">WikiSync-Panel → Vorkommen</td></tr>
+				<tr><td>Vorkommen: Fauna</td><td><span class="es-state es-state--on">An</span></td><td class="es-table__where">WikiSync-Panel → Vorkommen</td></tr>
+				<tr><td>Vorkommen: Spezies</td><td><span class="es-state es-state--on">An</span></td><td class="es-table__where">WikiSync-Panel → Vorkommen</td></tr>
+				<tr><td>Geländeabhängiges Reisen</td><td><span class="es-state es-state--off">Aus</span></td><td class="es-table__where">Landschaften-Editor → Menüband</td></tr>
+				<tr><td>Zoombänder (Ortsklassen)</td><td><span class="es-state">Tafel</span></td><td class="es-table__where">Ortseditor → „Darstellung“</td></tr>
+				<tr><td>Tempowerte (Reisezeiten)</td><td><span class="es-state">Tafel</span></td><td class="es-table__where">Wege-Editor → „Tempowerte“</td></tr>
+			</tbody>
+		</table>
+	</section>
+
+	<!-- ═══ 5. WARTUNG ══════════════════════════════════════════════════════════════════════
+	     Zwei Tueren zum selben Raum wie im Hamburger. Keine zweite Umsetzung. -->
+	<section class="es-section">
+		<h2>Wartung</h2>
+		<div class="es-row">
+			<div class="es-row__label">
+				<span class="es-row__name">Datenbank-Backup</span>
+				<span class="es-row__note">Vollständiger, gzip-gepackter Abzug der ganzen Datenbank.</span>
+			</div>
+			<div class="es-row__control"><button class="es-btn">💾 Öffnen ↗</button></div>
+		</div>
+		<div class="es-row">
+			<div class="es-row__label">
+				<span class="es-row__name">Benutzerverwaltung</span>
+				<span class="es-row__note">Konten, Rollen und Berechtigungen.</span>
+			</div>
+			<div class="es-row__control"><button class="es-btn">Öffnen ↗</button></div>
+		</div>
+	</section>
+
+	<p class="proto-note" style="margin-top:var(--space-24)">
+		<strong>Was dieses Mockup absichtlich NICHT zeigt:</strong>
+		<ul>
+			<li>Die elf Schalter aus der Übersicht als <em>Bedienung</em> — sie bleiben in Stufe 1 in ihren Editoren (Entwurf §2).</li>
+			<li>Einen Notaus für die Besucherzählung — den gibt es heute nicht, er wäre neues Verhalten.</li>
+			<li>Werkstattregler wie <code>AVESMAPS_ROUTE_OFFROAD_DETOUR_ENABLED</code> — deren Antwort ist getroffen.</li>
+			<li>Geheimnisse. Token und Salt bleiben in <code>config.local.php</code>; die Dump-Zugangsdaten sind die eine Ausnahme, weil sie schon heute in der Datenbank liegen.</li>
+		</ul>
+	</p>
+
+</div>
+</body>
+</html>
