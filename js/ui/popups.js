@@ -984,12 +984,25 @@ function labelPopupSubtitle(label, region) {
 	if (!region?.public_id) {
 		return kategorie;
 	}
-	const flaechen = Number(region.area_count || 0);
+	// 💣 „UNBEKANNT" IST NICHT „NULL" (Owner 24.08.2026: „im Standardmodus steht da 0 Flächen, im
+	// Landschaftsmodus 1 Fläche"). `ecosystemRegionOfLabel` gibt ausserhalb des Landschaftsmodus seine
+	// Notfallantwort `{ public_id }` zurueck -- die Zugehoerigkeit steht, aber Name und Flaechenzahl
+	// fehlen, weil die Regionslisten dort nie geladen werden. `Number(undefined || 0)` machte daraus
+	// eine Aussage: „0 Flächen". Dieselbe Fläche zählte damit je nach Ansicht verschieden, und die
+	// falsche Zahl sah aus wie ein Datenfehler.
+	//
+	// 🔴 Fehlt die Zahl, steht sie NICHT da. Ein echtes `area_count: 0` (eine Region, deren Flächen
+	// gelöscht wurden) bleibt dagegen sichtbar -- das ist eine Auskunft, und zwar eine wichtige. Die
+	// beiden sind am `undefined` unterscheidbar, nicht am Wert.
+	// ⚠️ Die Labelzahl ist immer richtig: sie zählt über `labelData`, und das trägt den ganzen Bestand
+	// aus der Kartennutzlast -- unabhängig von jeder Ansicht.
 	const labels = typeof countEcosystemRegionLabels === "function" ? countEcosystemRegionLabels(region.public_id) : 0;
-	const teile = [
-		flaechen === 1 ? "1 Fläche" : flaechen + " Flächen",
-		labels === 1 ? "1 Label" : labels + " Labels",
-	];
+	const teile = [];
+	if (region.area_count !== undefined && region.area_count !== null) {
+		const flaechen = Number(region.area_count) || 0;
+		teile.push(flaechen === 1 ? "1 Fläche" : flaechen + " Flächen");
+	}
+	teile.push(labels === 1 ? "1 Label" : labels + " Labels");
 
 	return kategorie + " · " + teile.join(", ");
 }

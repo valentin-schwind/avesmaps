@@ -716,6 +716,42 @@ function refreshLabelMarkerPopup(entry) {
 	// Flaechen und Labels, und die stehen beim Binden noch gar nicht fest -- die Regionslisten kommen
 	// spaeter. Leaflet ruft die Funktion bei jedem Oeffnen, also zaehlt der Stand von JETZT.
 	entry.marker.bindPopup(() => labelPopupMarkup(entry), { className: "settlement-popup floating-location-popup", minWidth: 320, maxWidth: 400 });
+	// 🔴 UND AUSSERHALB DES LANDSCHAFTSMODUS DIE LISTEN NACHZIEHEN (Owner 24.08.2026). Die Zahl der
+	// Flaechen steht in den REGIONSLISTEN, und die werden nur im Landschaftsmodus geholt -- in der
+	// Standardansicht kannte der Kopf die Zugehoerigkeit, aber nicht die Zahl. Der Zeile fehlte sie
+	// deshalb (labelPopupSubtitle sagt seit heute nichts, statt „0 Flaechen" zu behaupten), und hier
+	// wird sie beschafft.
+	//
+	// ⚠️ NUR FUER EDITOREN, und `canOperateEcosystemLayers` fragt genau das -- IS_EDIT_MODE UND das
+	// Recht. Es fragt NICHT nach der Ansicht, und das ist hier der Punkt: geladen werden darf immer,
+	// geholt wurde bisher nur im Landschaftsmodus.
+	//
+	// 💣 KEINE Schleife: `loadEcosystemRegions` kehrt sofort um, sobald die Ebene im Zwischenspeicher
+	// liegt, und neu gezeichnet wird nur, wenn die Zahl VORHER fehlte und JETZT da ist. Ohne diese
+	// zweite Bedingung setzte jedes Oeffnen den Inhalt neu -- und der Klick auf eine Kachel ginge
+	// zwischen Neubau und Zeigerdruck verloren.
+	entry.marker.on("popupopen", () => {
+		if (typeof canOperateEcosystemLayers !== "function" || !canOperateEcosystemLayers()) {
+			return;
+		}
+		if (typeof ensureEcosystemRegionsLoadedForLabelFilter !== "function") {
+			return;
+		}
+		const vorher = typeof ecosystemRegionOfLabel === "function" ? ecosystemRegionOfLabel(entry.label) : null;
+		if (!vorher || vorher.area_count !== undefined) {
+			return;                                  // nichts zu holen -- die Zahl steht schon
+		}
+		ensureEcosystemRegionsLoadedForLabelFilter().then(() => {
+			const nachher = typeof ecosystemRegionOfLabel === "function" ? ecosystemRegionOfLabel(entry.label) : null;
+			if (!nachher || nachher.area_count === undefined || !entry.marker.isPopupOpen()) {
+				return;
+			}
+			entry.marker.setPopupContent(labelPopupMarkup(entry));
+		}).catch(() => {
+			// 🪤 Still: der Kopf steht bereits da, nur ohne die Flaechenzahl. Eine Fehlermeldung fuer
+			// eine Nebenauskunft waere lauter als ihr Wert -- und das Popup selbst ist nicht kaputt.
+		});
+	});
 }
 
 // Wie viele Beschriftungen haengen an dieser Flaeche? Ueber ALLE Labels gezaehlt, nicht ueber die
