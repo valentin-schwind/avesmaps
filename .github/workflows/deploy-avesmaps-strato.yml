@@ -78,7 +78,16 @@ jobs:
           # abort loudly, which is why a missing extension shows up as FATAL rather than a pass.
           sudo apt-get update -qq
           sudo apt-get install -y --no-install-recommends \
-            php-cli php-mbstring php-curl php-sqlite3 php-gd php-sodium > /dev/null
+            php-cli php-mbstring php-curl php-sqlite3 php-gd > /dev/null
+
+          # 💣 Diese Zeile steht bewusst EINZELN und mit `|| true`. Am 25.08.2026 stand `php-sodium`
+          # in der Pflichtliste darueber -- das Paket gibt es auf ubuntu-24.04 nicht ("E: Unable to
+          # locate package"), apt endete mit 100, und weil GitHub diesen Schritt als `bash -e`
+          # startet, war der Deploy tot, BEVOR ein einziger Test lief. Das `set -uo pipefail` im
+          # Skript hebt das `-e` NICHT auf. Ein fehlendes Zusatzpaket darf den Deploy nicht stoppen:
+          # ohne sodium ueberspringt sich der Discord-Signaturtest selbst (sauber, mit Exit 0).
+          sudo apt-get install -y --no-install-recommends php-sodium > /dev/null 2>&1 || true
+          php -r 'echo "sodium: ", extension_loaded("sodium") ? "da" : "fehlt", PHP_EOL;'
 
           php -v | head -1
           echo "node $(node -v)"
