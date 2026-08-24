@@ -1708,16 +1708,24 @@
 		}
 
 		try {
-			await postEcosystemEdit("update_region", payload);
+			const antwort = await postEcosystemEdit("update_region", payload);
 			// Dieselbe Sofort-Anwendung wie im Beschriftungsdialog (map-features-ecosystem-label-writeback.js):
 			// der Kartenpayload wird nach einem Speichern nicht neu geholt, ohne das aendert sich am Bild
-			// nichts. ⚠️ Einschalten zeigt die Kurve erst nach „Kurven rechnen" -- sie liegt im
-			// Zwischenspeicher des Servers, den nur der Sammellauf fuellt. Ausschalten wirkt sofort.
+			// nichts.
+			// 🔴 MIT DER FRISCH GERECHNETEN LINIE (Owner 24.08.2026). Hier stand: „Einschalten zeigt die
+			// Kurve erst nach ‚Kurven rechnen‘" -- und das war seit dem 23.08. nur noch zur Haelfte wahr.
+			// Gerechnet hat der Server beim Speichern laengst; er gab das Ergebnis blos nicht heraus.
+			// Jetzt reist es mit (`curve_label_line`), und das Einschalten faellt sofort ins Bild --
+			// derselbe Weg und dieselben Schluessel wie beim Menueknopf „Labelkurve aktualisieren".
+			// ⚠️ `curve_label_line` fehlt, wenn der Server nicht gerechnet hat (Kurve aus, keine Flaeche).
+			// Dann bleibt das vierte Argument `undefined` -- und der Anwender laesst eine vorhandene Kurve
+			// stehen, statt sie wegen einer nicht gestellten Frage zu entfernen.
 			if (payload.curve_label !== undefined && typeof avesmapsCurveSettingAufLabelsAnwenden === "function") {
 				avesmapsCurveSettingAufLabelsAnwenden(
 					String(payload.public_id || ""),
 					payload.curve_label === true,
-					payload.curve_label_max
+					antwort?.curve_label_max ?? payload.curve_label_max,
+					antwort?.curve_label_line
 				);
 			}
 			// ⚠️ Geleert, sobald der Stempel gesetzt ist -- sonst nennte das NÄCHSTE Speichern dieselben

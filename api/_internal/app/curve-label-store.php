@@ -87,6 +87,37 @@ function avesmapsCurveLabelApplyToProperties(?string $propertiesJson, ?bool $an,
     ];
 }
 
+// Was von einem Kurven-Nachrechnen in die ANTWORT gehoert -- oder gar nichts.
+//
+// 🔴 WARUM ES DAS GIBT (Owner 24.08.2026: „speichern loest aber nicht automatisch ‚Labelkurve
+// aktualisieren‘ aus"). Gerechnet hat `update_region` seit dem 23.08. schon; die fertige Kurve kam nur
+// nie beim Browser an. Der Kartenpayload wird nach einem Speichern nicht neu geholt -- ohne die Linie
+// in der Antwort bleibt das Bild stehen, und das Einschalten sieht aus wie eine Aktion ohne Wirkung.
+//
+// 🔴 DIESELBEN SCHLUESSEL WIE BEIM MENUEKNOPF `refresh_curve` (`curve_label_line`, `curve_label_max`).
+// Der Browser wendet beide Antworten mit demselben Aufruf an (avesmapsCurveSettingAufLabelsAnwenden);
+// zwei Formen fuer dieselbe Kurve waeren die Stelle, an der die Koordinaten irgendwann auseinander
+// laufen -- die Konvention steht in AGENTS.md §5, und ein zweiter Dreh-Weg hat sie schon einmal
+// gekostet.
+//
+// ⚠️ `null` heisst „es wurde gar nicht gerechnet" (die Einstellung kam nicht mit) und ergibt einen
+// LEEREN Anteil -- nicht etwa eine leere Kurve. Der Unterschied ist tragend: eine mitgeschickte leere
+// Linie hiesse fuer den Browser „diese Region hat keine Kurve", und er nimmt eine bestehende weg.
+//
+// @param array{line?:mixed, max?:mixed, gerechnet?:mixed}|null $ergebnis
+function avesmapsCurveAntwortAnteil(?array $ergebnis): array
+{
+    if ($ergebnis === null) {
+        return [];
+    }
+
+    return [
+        'curve_label_line' => $ergebnis['line'] ?? null,
+        'curve_label_max' => avesmapsCurveClampMaxLabels((int) ($ergebnis['max'] ?? 1)),
+        'curve_gerechnet' => (bool) ($ergebnis['gerechnet'] ?? false),
+    ];
+}
+
 // Der Umstellzustand, aus den Daten statt aus einer Vermutung: eine Region, deren Labels heute
 // gedreht sind, bekommt die Kurve -- und so viele Namen, wie sie Labels hat.
 //

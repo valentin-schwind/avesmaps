@@ -344,4 +344,52 @@ $posKurve = strpos($ecoQuelle, 'avesmapsCurveLabelApplyToProperties(');
 assert($posHerkunft !== false && $posKurve !== false);
 assert($posHerkunft < $posKurve, 'der Kurvenschreiber muss NACH der Feldherkunft stehen -- beide schreiben properties_json');
 
+// ------------------------------------------- die gerechnete Kurve muss BEIM BROWSER ANKOMMEN ---
+//
+// 💣 Owner 24.08.2026: „speichern loest aber nicht automatisch ‚Labelkurve aktualisieren‘ aus".
+// Gerechnet hat update_region seit dem 23.08. schon -- die fertige Kurve kam nur nie heraus: die
+// Antwort trug `region` und `revision`, sonst nichts. Der Kartenpayload wird nach einem Speichern
+// nicht neu geholt, also blieb das Bild stehen. Aus Sicht des Editors war das nicht von „es rechnet
+// gar nicht" zu unterscheiden -- und im Flaechendialog stand genau das als Einschraenkung.
+
+assert(avesmapsCurveAntwortAnteil(null) === [],
+    '🔴 nicht gerechnet heisst SCHWEIGEN, nicht „leere Kurve“');
+
+$anteil = avesmapsCurveAntwortAnteil(['line' => [[1.0, 2.0], [3.0, 4.0]], 'max' => 2, 'gerechnet' => true]);
+assert($anteil['curve_label_line'] === [[1.0, 2.0], [3.0, 4.0]], 'die Linie reist mit');
+assert($anteil['curve_label_max'] === 2, 'und die Zahl der Namen');
+assert($anteil['curve_gerechnet'] === true, 'und die Auskunft, ob ueberhaupt gerechnet wurde');
+
+// 🔴 DIESELBEN SCHLUESSEL WIE BEIM MENUEKNOPF. Der Browser wendet beide Antworten mit demselben
+// Aufruf an; zwei Formen fuer dieselbe Kurve waeren die Stelle, an der die Koordinaten auseinander
+// laufen (AGENTS.md §5). Geprueft gegen den Knopf-Rueckgabewert in ecosystem.php.
+foreach (['curve_label_line', 'curve_label_max'] as $schluessel) {
+    assert(strpos($ecoQuelle, "'{$schluessel}' =>") !== false,
+        "der Menueknopf antwortet mit {$schluessel} -- der Speicherweg muss denselben Namen benutzen");
+    assert(array_key_exists($schluessel, $anteil), "und {$schluessel} steht im Anteil des Speicherwegs");
+}
+
+// Eine unsinnige Zahl wird gedeckelt statt durchgereicht -- derselbe Deckel wie ueberall sonst.
+assert(avesmapsCurveAntwortAnteil(['max' => 99])['curve_label_max'] === 3, 'der Deckel gilt auch hier');
+assert(avesmapsCurveAntwortAnteil([])['curve_label_line'] === null,
+    'ein Ergebnis ohne Linie sagt null -- der Browser laesst dann eine vorhandene Kurve stehen');
+
+// ---- und der Speicherweg gibt ihn auch heraus ------------------------------------------------------
+// 🪤 Ohne Kommentare geprueft: die Begruendung ueber der Fundstelle nennt den Funktionsnamen ebenfalls.
+$ecoOhneKommentare = (string) preg_replace(['~/\*.*?\*/~s', '~//[^\n]*~'], '', $ecoQuelle);
+$updAnfang = strpos($ecoOhneKommentare, 'function avesmapsUpdateEcosystemRegion(');
+assert($updAnfang !== false, 'avesmapsUpdateEcosystemRegion gibt es noch');
+$updEnde = strpos($ecoOhneKommentare, "\nfunction ", $updAnfang + 1);
+$updRumpf = substr($ecoOhneKommentare, $updAnfang, ($updEnde === false ? strlen($ecoOhneKommentare) : $updEnde) - $updAnfang);
+assert(strpos($updRumpf, 'avesmapsCurveAntwortAnteil(') !== false,
+    '💣 das Speichern gibt die gerechnete Kurve heraus -- sonst sieht der Editor keine Wirkung');
+
+// ---- und der Browser reicht sie an den Anwender weiter ----------------------------------------------
+// 💣 Die andere Haelfte: der Server kann die Linie mitschicken, solange der Dialog sie nicht
+// weitergibt, aendert sich am Bild nichts. Genau diese Luecke war der gemeldete Fehler.
+$dialog = (string) file_get_contents(__DIR__ . '/../../../../js/map-features/map-features-ecosystem-properties.js');
+$dialogOhneKommentare = (string) preg_replace(['~/\*.*?\*/~s', '~//[^\n]*~'], '', $dialog);
+assert(strpos($dialogOhneKommentare, 'curve_label_line') !== false,
+    '💣 der Flaechendialog reicht die gerechnete Linie an avesmapsCurveSettingAufLabelsAnwenden weiter');
+
 echo "curve-label-store tests passed\n";

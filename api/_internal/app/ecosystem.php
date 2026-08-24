@@ -3006,15 +3006,28 @@ function avesmapsUpdateEcosystemRegion(PDO $pdo, array $payload, int $userId): a
     // Hauptsache. Bliebe die Kurve aus, holt sie der Sammellauf. Ein Wurf an dieser Stelle machte
     // aus einem gelungenen Speichern einen Fehlschlag -- und der Editor haette seine Aenderung
     // verloren geglaubt, obwohl sie steht.
+    //
+    // 🔴 UND DAS ERGEBNIS REIST MIT (Owner 24.08.2026: „speichern loest aber nicht automatisch
+    // ‚Labelkurve aktualisieren‘ aus"). Gerechnet wurde seit dem 23.08. schon hier -- nur kam die
+    // fertige Kurve nie beim Browser an: die Antwort trug `region` und `revision`, sonst nichts. Der
+    // Kartenpayload wird nach einem Speichern nicht neu geholt, also blieb das Bild stehen, und das
+    // Einschalten sah aus wie eine Aktion, die nichts tut. Genau diese Einschraenkung stand als
+    // ⚠️-Vermerk im Flaechendialog („zeigt die Kurve erst nach ‚Kurven rechnen‘").
+    //
+    // ⭐ In DERSELBEN Form wie beim Menueknopf `refresh_curve` (`curve_label_line`, Kartenkoordinaten
+    // [x, y]) -- der Browser dreht sie mit demselben Leser. Zwei Formen fuer dieselbe Kurve waeren die
+    // Stelle, an der die Vorzeichen irgendwann auseinanderlaufen (AGENTS.md §5).
+    $kurve = null;
     if (array_key_exists('curve_label', $payload) || array_key_exists('curve_label_max', $payload)) {
         try {
-            avesmapsCurveRefreshCacheForRegion($pdo, $publicId);
+            $kurve = avesmapsCurveRefreshCacheForRegion($pdo, $publicId);
         } catch (Throwable $exception) {
             error_log('avesmapsUpdateEcosystemRegion (Kurve nachrechnen): ' . $exception->getMessage());
         }
     }
 
-    return ['region' => avesmapsEcosystemRegionSnapshot($after), 'revision' => $revision];
+    return ['region' => avesmapsEcosystemRegionSnapshot($after), 'revision' => $revision]
+        + avesmapsCurveAntwortAnteil($kurve);
 }
 
 /**
