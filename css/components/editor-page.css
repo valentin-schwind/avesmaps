@@ -134,11 +134,20 @@
    `flex: 0 0 auto` richtig, hier bekommt die Huelle eine volle Gitterspalte und der Knopf darin
    schrumpft auf seine Textbreite. Ergebnis: eine Luecke im Band, vom Owner im Bild markiert
    (23.08.2026). Wer eine Rezeptur abschreibt, muss ihren WIRT mitpruefen. */
+/* 💣 BEIDE Kachelformen, und das ist keine Bequemlichkeit. `.btn2` traegt das Menueband im Orte-
+   und im Territorien-Editor, `.avm-tile` das im Landschaften-Editor -- zwei Namen fuer eine Form,
+   Zeile fuer Zeile gleich, in DIESER Datei (siehe `.avm-tile` weiter unten). Stuende hier nur
+   `.btn2`, schrumpfte der Sammelknopf im Landschaften-Editor auf seine Textbreite und liesse den
+   Rest der Gitterspalte leer -- genau die Luecke, die der Owner am 23.08.2026 im Bild markieren
+   musste, nur eine Kachelform weiter. ⚠️ Die zwei Namen zusammenzulegen waere die richtige
+   Aufraeumung; sie ist NICHT hier passiert, und wer sie angeht, faengt bei diesen zwei Zeilen an. */
 .rb-menu { position: relative; display: flex; }
-.rb-menu > .btn2 { flex: 1 1 auto; width: 100%; }
+.rb-menu > .btn2,
+.rb-menu > .avm-tile { flex: 1 1 auto; width: 100%; }
 /* Der Sammelknopf traegt den Akzentrand des Mockups -- er ist das einzige Element im Band, das ein
    Menue oeffnet, und das darf man ihm ansehen. */
-.rb-menu > .btn2[aria-haspopup] { border-color: var(--color-link); }
+.rb-menu > .btn2[aria-haspopup],
+.rb-menu > .avm-tile[aria-haspopup] { border-color: var(--color-link); }
 /* 💣 --radius-lg (10px), NICHT der --radius-md, den .type-filter__menu vererbt: die Designsprache
    gibt schwebenden Flaechen die groessere Rundung („menus, cards, autocomplete"), Steuerelementen
    die kleinere. Die Regel steht hier und nicht am geteilten Filtermenue -- jenes haengt in mehreren

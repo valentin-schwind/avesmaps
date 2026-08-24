@@ -527,6 +527,15 @@ function sandkastenBauen(dateien, felder, behaelterIds, fetchAntwort, zusatz) {
 			const antwort = fetchAntwort(String(url), rumpf);
 			return Promise.resolve({ ok: antwort.httpOk !== false, status: antwort.status || 200, json: () => Promise.resolve(antwort) });
 		},
+		// ⚠️ Attrappe, kein Verhalten: das Menüband des Landschaften-Editors beobachtet seit dem
+		// 24.08.2026 das `disabled` der vier Rechen-Knöpfe, um in der Unterzeile von „Rechnen ▾" zu
+		// sagen, welcher Lauf läuft (`verdrahteRechnenStand`). Ohne diesen Platzhalter bricht der
+		// Ladepfad hier mit „MutationObserver is not defined", lange bevor die erste Zusicherung
+		// dieses Tests läuft. 🔴 Die Attrappe steht IM TEST, nicht als `typeof`-Wache im Produktions-
+		// code: einen echten Browser-Standard abzufragen, damit ein Sandkasten läuft, hiesse die
+		// Produktionsform gegen den Test zu drehen (AGENTS.md §9, die SQLite/MySQL-Lehre).
+		// Was die Unterzeile WIRKLICH tut, prüft js/pages/__tests__/rechnen-menue-verdrahtung.test.js.
+		MutationObserver: function () { return { observe() {}, disconnect() {} }; },
 	};
 	Object.assign(kasten, zusatz || {});
 	kasten.window = kasten;
@@ -948,7 +957,7 @@ function sandkastenBauen(dateien, felder, behaelterIds, fetchAntwort, zusatz) {
 	// Statuskreis-Bauer (`renderList` ruft ihn je Zeile -- ohne ihn wirft die Liste, und der Klick
 	// unten findet gar keine Zeile mehr). Attrappen dafuer waeren drei weitere Wahrheiten ueber
 	// Dinge, die es fertig gibt.
-	const editorLadeliste = ["js/ui/filter-menu.js", "js/map-features/map-features-ecosystem-naming.js",
+	const editorLadeliste = ["js/ui/ribbon-menu.js", "js/ui/filter-menu.js", "js/map-features/map-features-ecosystem-naming.js",
 		"js/ui/listen-statuskreis.js"]
 		.concat(editorSkripte);
 	const e = sandkastenBauen(editorLadeliste, { ecoDetail: detail, ecoList: liste }, [],

@@ -1,0 +1,301 @@
+<!doctype html>
+<html lang="de" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Das Menüband im Landschaften-Editor aufräumen — Vorschlag 24.08.2026</title>
+<style>
+@font-face {
+	font-family: "Faculty Glyphic";
+	src: url("../fonts/FacultyGlyphic-Regular.woff") format("woff"),
+	     url("../fonts/FacultyGlyphic-Regular.ttf") format("truetype");
+	font-display: swap;
+}
+
+/* ═══ TOKENS — 1:1 aus css/base/tokens.css, hell und dunkel ═══════════════════════════════════ */
+:root {
+	--color-page-bg: #f7f2e8; --color-panel: #fffdf9; --color-panel-soft: #faf6ee;
+	--color-text: #2e271e; --color-text-strong: #3c3327; --color-text-muted: #706557;
+	--color-border: #ddd3c3; --color-border-strong: #cdbfa8;
+	--color-divider: rgba(125, 115, 96, 0.30);
+	--color-button: #5b5548; --color-button-border: #635b4d; --color-button-text: #f6efe1;
+	--color-button-soft: #efe9db; --color-button-soft-text: #564b3b;
+	--color-button-soft-border: #cdbda0; --color-button-soft-hover: #e7ddc9;
+	--color-accent-strong: #9c7f22; --color-link: #8f7326; --color-danger: #9d3a2e;
+	--color-success-soft-border: #a9c07f; --color-success-soft-text: #3c5a1c;
+	--color-warning-soft-border: #ef9f27; --color-warning-soft-text: #854f0b;
+	--color-on-button-muted: rgba(255, 255, 255, 0.8);
+	--color-hover-wash: rgba(191, 160, 58, 0.14);
+	--shadow-panel: 0 8px 24px rgba(0, 0, 0, 0.16);
+	--space-2: 4px; --space-4: 6px; --space-6: 8px; --space-8: 10px;
+	--space-10: 12px; --space-12: 14px; --space-16: 18px; --space-20: 22px;
+	--radius-sm: 5px; --radius-md: 8px; --radius-lg: 10px;
+	--font-size-caption: 11px; --font-size-small: 12px; --font-size-body: 13px;
+	--font-size-reading: 14px; --font-size-subhead: 16px; --font-size-title: 20px;
+	--leading-tight: 1.15; --leading-snug: 1.25; --leading-normal: 1.45;
+	--font-weight-regular: 400; --font-weight-bold: 700;
+	--font-ui: "Faculty Glyphic", "Arial", sans-serif;
+	--avm-ribbon-pad: var(--space-8) var(--space-12);
+	--avm-ribbon-gap: var(--space-4);
+	--avm-control-h: 32px;
+}
+:root[data-theme="dark"] {
+	--color-page-bg: #241f18; --color-panel: #312e26; --color-panel-soft: #37342b;
+	--color-text: #eee7da; --color-text-strong: #f5f0e4; --color-text-muted: #b4a895;
+	--color-border: #514a3c; --color-border-strong: #615a49;
+	--color-divider: rgba(207, 197, 171, 0.24);
+	--color-button: #6b6456; --color-button-border: #7a7361; --color-button-text: #f5ebd7;
+	--color-button-soft: #3a362c; --color-button-soft-text: #eae1cf;
+	--color-button-soft-border: #585142; --color-button-soft-hover: #453f32;
+	--color-accent-strong: #dcc77e; --color-link: #d7c38b; --color-danger: #d27566;
+	--color-success-soft-border: #4d6b3a; --color-success-soft-text: #9cd39a;
+	--color-warning-soft-border: #6d5629; --color-warning-soft-text: #e9c684;
+	--color-hover-wash: rgba(207, 183, 103, 0.18);
+	--shadow-panel: 0 8px 24px rgba(0, 0, 0, 0.45);
+}
+
+* { box-sizing: border-box; }
+body { margin: 0; padding: 26px 22px 80px; background: var(--color-page-bg); color: var(--color-text);
+	font: var(--font-size-reading)/var(--leading-normal) var(--font-ui); }
+.wrap { max-width: 1240px; margin: 0 auto; }
+h1 { font-size: var(--font-size-title); line-height: var(--leading-tight); margin: 0 0 6px; color: var(--color-accent-strong); }
+h2 { font-size: var(--font-size-subhead); margin: 40px 0 4px; color: var(--color-accent-strong); }
+h2 .num { color: var(--color-text-muted); font-weight: var(--font-weight-regular); }
+h3 { font-size: var(--font-size-reading); margin: 22px 0 6px; color: var(--color-text-strong); }
+p.lead { color: var(--color-text-muted); max-width: 86ch; margin: 0 0 14px; }
+.note { color: var(--color-text-muted); font-size: var(--font-size-small); max-width: 86ch; }
+b.hl { color: var(--color-text-strong); }
+code { font-family: ui-monospace, Consolas, monospace; font-size: 12px; color: var(--color-accent-strong); }
+hr { border: 0; border-top: 1px solid var(--color-divider); margin: 34px 0 0; }
+.themebar { display: flex; gap: var(--space-6); align-items: center; margin: 0 0 22px; }
+.themebar button { font: var(--font-size-body)/1 var(--font-ui); padding: var(--space-6) var(--space-10);
+	background: var(--color-button-soft); color: var(--color-button-soft-text);
+	border: 1px solid var(--color-button-soft-border); border-radius: var(--radius-md); cursor: pointer; }
+.themebar button.on { background: var(--color-button); border-color: var(--color-button-border); color: var(--color-button-text); }
+
+/* ═══ Das Menüband des Landschaften-Editors — Bauform aus css/components/editor-page.css ═════ */
+.avm-ribbon-bar { padding: var(--avm-ribbon-pad); background: var(--color-panel);
+	border: 1px solid var(--color-border); border-radius: var(--radius-sm); }
+.avm-ribbon { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr);
+	gap: var(--avm-ribbon-gap); align-items: stretch; }
+.avm-tile { display: flex; flex-direction: column; justify-content: center; align-items: flex-start;
+	text-align: left; min-height: 48px; padding: var(--space-4) var(--space-8); gap: 1px;
+	line-height: var(--leading-tight); cursor: default; font: inherit;
+	color: var(--color-button-soft-text); background: var(--color-button-soft);
+	border: 1px solid var(--color-button-soft-border); border-radius: var(--radius-md); }
+.avm-tile .t1 { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+	font-size: var(--font-size-body); font-weight: var(--font-weight-bold); }
+.avm-tile .t2 { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+	font-size: var(--font-size-caption); color: var(--color-text-muted); }
+.avm-tile--primary { background: var(--color-button); border-color: var(--color-button-border); color: var(--color-button-text); }
+.avm-tile--primary .t2 { color: var(--color-on-button-muted); }
+
+/* Das Sammelmenü — wie es seit dem 24.08.2026 im Orte- und Territorien-Editor steht. */
+.rb-menu { position: relative; display: flex; }
+.rb-menu > .avm-tile { flex: 1 1 auto; width: 100%; }
+.rb-menu > .avm-tile[aria-haspopup] { border-color: var(--color-link); }
+.rb-menu__panel { position: absolute; left: 0; top: calc(100% + var(--space-2)); z-index: 30;
+	width: 320px; min-width: 320px; padding: var(--space-4);
+	background: var(--color-panel); border: 1px solid var(--color-border-strong);
+	border-radius: var(--radius-lg); box-shadow: var(--shadow-panel); }
+.rb-menu__row { display: flex; align-items: center; gap: var(--space-8); padding: var(--space-4);
+	border-radius: var(--radius-sm); }
+.rb-menu__row + .rb-menu__row { border-top: 1px solid var(--color-divider); }
+.rb-menu__row:hover { background: var(--color-hover-wash); }
+.rb-menu__txt { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.rb-menu__txt b { font-size: var(--font-size-small); font-weight: var(--font-weight-bold); color: var(--color-text); }
+.rb-menu__txt span { font-size: var(--font-size-caption); color: var(--color-text-muted); }
+.rb-menu__sw { flex: 0 0 auto; min-width: 62px; min-height: 26px; padding: 2px var(--space-8);
+	font: inherit; font-size: var(--font-size-caption); font-weight: var(--font-weight-bold);
+	text-align: center; cursor: default; color: var(--color-button-soft-text);
+	background: var(--color-button-soft); border: 1px solid var(--color-button-soft-border);
+	border-radius: var(--radius-md); }
+.rb-menu__sw--an  { border-color: var(--color-success-soft-border); color: var(--color-success-soft-text); }
+.rb-menu__sw--aus { border-color: var(--color-warning-soft-border); color: var(--color-warning-soft-text); }
+
+.stage { position: relative; padding-bottom: 210px; }
+.zahl { display: inline-block; font-size: var(--font-size-caption); font-weight: var(--font-weight-bold);
+	padding: 1px var(--space-4); border-radius: var(--radius-sm);
+	border: 1px solid var(--color-border-strong); color: var(--color-text-muted); margin-left: var(--space-6); }
+.zahl--ok { border-color: var(--color-success-soft-border); color: var(--color-success-soft-text); }
+ul.f { max-width: 88ch; padding-left: 20px; }
+ul.f li { margin-bottom: 7px; }
+table.srt { border-collapse: collapse; margin: 10px 0 0; font-size: var(--font-size-small); }
+table.srt th, table.srt td { text-align: left; padding: 5px 14px 5px 0; border-bottom: 1px solid var(--color-divider); vertical-align: top; }
+table.srt th { color: var(--color-accent-strong); font-weight: var(--font-weight-bold); }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<h1>Das Menüband im Landschaften-Editor aufräumen</h1>
+<p class="lead">
+	Vorschlag vom 24.08.2026, aufsetzend auf <code>docs/superpowers/specs/2026-08-24-landschaften-darstellung-design.md</code>
+	§4 — dort stehen nach dem Umbau <b class="hl">sieben</b> Kacheln, „unverändert in der Zahl“.
+	Seit heute gibt es ein Bauteil, das es anders könnte: das Sammelmenü <code>.rb-menu</code> aus
+	dem Orte- und Territorien-Editor.
+</p>
+<div class="themebar">
+	<span class="note">Thema:</span>
+	<button id="btnDark" class="on" type="button">Dunkel</button>
+	<button id="btnLight" type="button">Hell</button>
+</div>
+
+<hr>
+<h2><span class="num">1 ·</span> So sieht es nach dem Darstellung-Entwurf aus <span class="zahl">7 Kacheln</span></h2>
+<p class="note">„Wiki zuweisen“ ist weg, „Darstellung“ ist dazugekommen. <b class="hl">Gemessen an
+	dieser Seite</b>, nicht geschätzt: bei 1400 px Fensterbreite bekommt jede Kachel 173 px und
+	<b class="hl">eine Überschrift plus zwei Unterzeilen</b> werden mit Ellipse gekürzt; bei 1024 px
+	sind es 134 px je Kachel und <b class="hl">vier Überschriften plus zwei Unterzeilen</b>.
+	In allen drei Vorschlägen unten: bei beiden Breiten <b class="hl">keine einzige</b>.</p>
+<div class="avm-ribbon-bar" style="margin-top:12px">
+	<div class="avm-ribbon">
+		<button class="avm-tile avm-tile--primary"><span class="t1">🚨 Syncen</span><span class="t2">Regionen aus dem Wiki-Dump</span></button>
+		<button class="avm-tile"><span class="t1">Zugehörigkeit rechnen</span><span class="t2">noch nicht gerechnet</span></button>
+		<button class="avm-tile"><span class="t1">Höhenraster rechnen</span><span class="t2">noch nicht gerechnet</span></button>
+		<button class="avm-tile"><span class="t1">Wegprofile rechnen</span><span class="t2">noch nicht gerechnet</span></button>
+		<button class="avm-tile"><span class="t1">Geländeabhängiges Reisen</span><span class="t2">Zustand unbekannt</span></button>
+		<button class="avm-tile"><span class="t1">Kurven rechnen</span><span class="t2">noch nicht gerechnet</span></button>
+		<button class="avm-tile"><span class="t1">Darstellung</span><span class="t2">Flächen, Namen, Zoombänder</span></button>
+	</div>
+</div>
+
+<h2><span class="num">2 ·</span> Drei Sorten stecken darin, und nur eine davon ist ein Band</h2>
+<table class="srt">
+	<tr><th>Sorte</th><th>Kacheln</th><th>Was sie gemeinsam haben</th></tr>
+	<tr><td><b class="hl">Die Haupthandlung</b></td><td>🚨 Syncen</td><td>Gefüllt, ganz links, gefährlich — die bleibt, wo sie ist.</td></tr>
+	<tr><td><b class="hl">Rechenläufe</b></td><td>Zugehörigkeit · Höhenraster · Wegprofile · Kurven</td>
+		<td>Alle vier sagen „noch nicht gerechnet“, laufen in Schüben, legen ein Ergebnis ab. Man drückt sie selten und nie hintereinander.</td></tr>
+	<tr><td><b class="hl">Ein Notaus</b></td><td>Geländeabhängiges Reisen</td>
+		<td>Kein Lauf, ein Schalter — und er wirkt <b class="hl">für alle Besucher</b>. Sein Stand muss sichtbar bleiben.</td></tr>
+	<tr><td><b class="hl">Ein Fenster</b></td><td>Darstellung</td><td>Öffnet etwas, rechnet nichts.</td></tr>
+</table>
+<p class="note" style="margin-top:12px">
+	Drei der Rechenläufe hängen zusätzlich <b class="hl">in einer Kette</b>: Höhenraster → Wegprofile →
+	und „Geländeabhängiges Reisen“ ist der Schalter, der genau dieses Ergebnis für die Besucher
+	scharf stellt. Das ist dieselbe Figur wie im Wappen-Menü: <i>zwei Läufe plus der Notaus, der ihr
+	Ergebnis sichtbar macht.</i>
+</p>
+
+<hr>
+<h2><span class="num">3 ·</span> Vorschlag A — „Gelände ▾“ <span class="zahl zahl--ok">5 Kacheln</span> <span class="zahl">Empfehlung</span></h2>
+<p class="note">Die Kette wandert in ein Sammelmenü, genau in der Bauform von „Wappen &amp; Bilder ▾“.
+	Die Unterzeile des Knopfes nennt den Notaus-Stand, damit man ihn nicht aufklappen muss.</p>
+<div class="avm-ribbon-bar stage" style="margin-top:12px">
+	<div class="avm-ribbon">
+		<button class="avm-tile avm-tile--primary"><span class="t1">🚨 Syncen</span><span class="t2">Regionen aus dem Wiki-Dump</span></button>
+		<button class="avm-tile"><span class="t1">Zugehörigkeit rechnen</span><span class="t2">noch nicht gerechnet</span></button>
+		<div class="rb-menu">
+			<button class="avm-tile" aria-haspopup="true"><span class="t1">Gelände ▾</span><span class="t2">Reisen: an · Profile: gerechnet</span></button>
+			<div class="rb-menu__panel">
+				<div class="rb-menu__row"><div class="rb-menu__txt"><b>Höhenraster</b><span>je Gebirgsfläche, im Browser gerechnet</span></div><button class="rb-menu__sw">starten</button></div>
+				<div class="rb-menu__row"><div class="rb-menu__txt"><b>Wegprofile</b><span>Anstieg und Gefälle je Weg</span></div><button class="rb-menu__sw">starten</button></div>
+				<div class="rb-menu__row"><div class="rb-menu__txt"><b>Geländeabhängiges Reisen</b><span>wirkt für alle Besucher</span></div><button class="rb-menu__sw rb-menu__sw--an">An</button></div>
+			</div>
+		</div>
+		<button class="avm-tile"><span class="t1">Kurven rechnen</span><span class="t2">noch nicht gerechnet</span></button>
+		<button class="avm-tile"><span class="t1">Darstellung</span><span class="t2">Flächen, Namen, Zoombänder</span></button>
+	</div>
+</div>
+<p class="note">
+	⭐ Warum diese drei und nicht andere: sie sind <b class="hl">ein Thema und eine Reihenfolge</b>.
+	Wer das Höhenraster rechnet, rechnet danach die Wegprofile, und der Schalter darunter entscheidet,
+	ob das Ergebnis die Besucher erreicht. Ein Menü, das eine Kette zeigt, erklärt sie nebenbei.
+</p>
+
+<h2><span class="num">4 ·</span> Vorschlag B — zusätzlich „Kurven rechnen“ ins Fenster <span class="zahl zahl--ok">4 Kacheln</span></h2>
+<p class="note">Das Fenster „Darstellung“ bekommt laut Entwurf §5 ohnehin einen Reiter mit den zwölf
+	Kurvenfeinheiten. Der Lauf, der die Kurven neu rechnet, gehört dann dorthin — unter die Werte,
+	die er anwendet.</p>
+<div class="avm-ribbon-bar stage" style="margin-top:12px; padding-bottom:210px">
+	<div class="avm-ribbon">
+		<button class="avm-tile avm-tile--primary"><span class="t1">🚨 Syncen</span><span class="t2">Regionen aus dem Wiki-Dump</span></button>
+		<button class="avm-tile"><span class="t1">Zugehörigkeit rechnen</span><span class="t2">noch nicht gerechnet</span></button>
+		<div class="rb-menu">
+			<button class="avm-tile" aria-haspopup="true"><span class="t1">Gelände ▾</span><span class="t2">Reisen: an · Profile: gerechnet</span></button>
+			<div class="rb-menu__panel">
+				<div class="rb-menu__row"><div class="rb-menu__txt"><b>Höhenraster</b><span>je Gebirgsfläche, im Browser gerechnet</span></div><button class="rb-menu__sw">starten</button></div>
+				<div class="rb-menu__row"><div class="rb-menu__txt"><b>Wegprofile</b><span>Anstieg und Gefälle je Weg</span></div><button class="rb-menu__sw">starten</button></div>
+				<div class="rb-menu__row"><div class="rb-menu__txt"><b>Geländeabhängiges Reisen</b><span>wirkt für alle Besucher</span></div><button class="rb-menu__sw rb-menu__sw--an">An</button></div>
+			</div>
+		</div>
+		<button class="avm-tile"><span class="t1">Darstellung</span><span class="t2">Flächen, Namen, Kurven, Zoombänder</span></button>
+	</div>
+</div>
+<p class="note">⚠️ Das ist ein Eingriff in deinen laufenden Entwurf (§4 sagt „sieben, unverändert in
+	der Zahl“) — deshalb getrennt aufgeführt und nicht in A hineingemischt.</p>
+
+<h2><span class="num">5 ·</span> Vorschlag C — „Rechnen ▾“, alles was rechnet <span class="zahl">4 Kacheln</span> <span class="zahl">nicht empfohlen</span></h2>
+<p class="note">Verlockend, weil es am meisten spart. Aber es gruppiert nach <i>Bauform</i>
+	(„sind alles Batch-Läufe“) statt nach <i>Thema</i> — und „Zugehörigkeit“ (Flächen-Verschnitt) hat
+	mit „Kurven“ (Beschriftung) nichts zu tun außer der Wartezeit.</p>
+<div class="avm-ribbon-bar stage" style="margin-top:12px; padding-bottom:250px">
+	<div class="avm-ribbon">
+		<button class="avm-tile avm-tile--primary"><span class="t1">🚨 Syncen</span><span class="t2">Regionen aus dem Wiki-Dump</span></button>
+		<div class="rb-menu">
+			<button class="avm-tile" aria-haspopup="true"><span class="t1">Rechnen ▾</span><span class="t2">1 von 4 gerechnet</span></button>
+			<div class="rb-menu__panel">
+				<div class="rb-menu__row"><div class="rb-menu__txt"><b>Zugehörigkeit</b><span>welche Fläche in welcher liegt</span></div><button class="rb-menu__sw">starten</button></div>
+				<div class="rb-menu__row"><div class="rb-menu__txt"><b>Höhenraster</b><span>je Gebirgsfläche</span></div><button class="rb-menu__sw">starten</button></div>
+				<div class="rb-menu__row"><div class="rb-menu__txt"><b>Wegprofile</b><span>Anstieg und Gefälle je Weg</span></div><button class="rb-menu__sw">starten</button></div>
+				<div class="rb-menu__row"><div class="rb-menu__txt"><b>Kurven</b><span>Beschriftungskurven aller Flächen</span></div><button class="rb-menu__sw">starten</button></div>
+			</div>
+		</div>
+		<button class="avm-tile"><span class="t1">Geländeabhängiges Reisen</span><span class="t2">An — wirkt für alle Besucher</span></button>
+		<button class="avm-tile"><span class="t1">Darstellung</span><span class="t2">Flächen, Namen, Zoombänder</span></button>
+	</div>
+</div>
+<p class="note">Immerhin trägt es eine schöne Unterzeile („1 von 4 gerechnet“). Wenn dir das mehr
+	wert ist als die thematische Ordnung, ist C die Wahl.</p>
+
+<hr>
+<h2><span class="num">6 ·</span> Was das Muster kostet — und wo es nicht trägt</h2>
+<ul class="f">
+	<li><b class="hl">Ein Sammelmenü versteckt einen Zustand.</b> Deshalb trägt der Knopf die
+		Unterzeile mit dem Stand — bei Wappen „Wappen an · Bilder aus“, hier „Reisen: an · Profile:
+		gerechnet“. <b class="hl">Ohne diese Zeile darf kein Notaus in ein Menü.</b></li>
+	<li><b class="hl">Die Haupthandlung gehört nie hinein.</b> „🚨 Syncen“ bleibt gefüllt und außen.</li>
+	<li><b class="hl">Unter drei Einträgen lohnt es nicht.</b> Ein Menü für zwei Zeilen ist ein Klick
+		mehr für nichts — das ist der Grund, warum „Darstellung“ eine Kachel bleibt und kein „Darstellung ▾“ wird.</li>
+	<li><b class="hl">Ein Menü ist kein Ablagefach.</b> Was hineinkommt, muss ein gemeinsames Thema
+		haben, sonst sucht man künftig in zwei Ebenen statt in einer.</li>
+</ul>
+
+<h2><span class="num">7 ·</span> Zwei technische Befunde, die vorher zu klären sind</h2>
+<ul class="f">
+	<li>💣 <b class="hl"><code>.rb-menu</code> kennt heute nur <code>.btn2</code></b> —
+		<code>.rb-menu &gt; .btn2 { width: 100% }</code>. Der Landschaften-Editor baut seine Kacheln
+		aber aus <code>.avm-tile</code>. Ohne eine zweite Zeile im Selektor schrumpft der Sammelknopf
+		auf seine Textbreite und lässt den Rest der Gitterspalte leer — <b class="hl">exakt der
+		Fehler, den du am 23.08. im Bild markieren musstest.</b> Eine Zeile CSS, aber sie muss vorher da sein.</li>
+	<li>⚠️ <b class="hl"><code>.avm-tile</code> und <code>.btn2</code> sind Zeile für Zeile dieselbe
+		Kachel</b> — gleiche Flex-Achse, gleiche 48 px, gleiche Polsterung, gleiches
+		<code>.t1</code>/<code>.t2</code>. Zwei Namen für eine Form, <b class="hl">in derselben
+		Datei</b>. Das ist die Doppelung, die AGENTS.md §11 für Listenzeilen beschreibt, nur eine Etage
+		höher. Sie zusammenzulegen ist <i>nicht</i> Teil dieses Vorschlags — aber wer hier ein Bauteil
+		an beide anschließt, sollte wissen, dass er gerade den zweiten Namen zementiert.</li>
+</ul>
+
+<hr>
+<h2><span class="num">8 ·</span> Empfehlung</h2>
+<p class="lead" style="max-width:88ch">
+	<b class="hl">A</b> — sieben Kacheln auf fünf, gruppiert nach dem einzigen Thema, das im Band
+	wirklich eine Gruppe bildet. <b class="hl">B</b> obendrauf, falls du „Kurven rechnen“ ohnehin ins
+	Fenster „Darstellung“ ziehen willst; das ist aber deine Entscheidung über deinen eigenen Entwurf,
+	nicht meine. <b class="hl">C</b> spart am meisten und ordnet am schlechtesten.
+</p>
+
+</div>
+<script>
+var root = document.documentElement;
+var bD = document.getElementById('btnDark'), bL = document.getElementById('btnLight');
+function setTheme(t) {
+	root.setAttribute('data-theme', t);
+	bD.classList.toggle('on', t === 'dark');
+	bL.classList.toggle('on', t === 'light');
+}
+bD.addEventListener('click', function () { setTheme('dark'); });
+bL.addEventListener('click', function () { setTheme('light'); });
+</script>
+</body>
+</html>
