@@ -723,7 +723,10 @@ function crossingActionsMarkup(name, publicId) {
 // Durch Flaeche ersetzen" (labelPopupMarkup weiter unten). Damit gab es zwei Vokabeln fuer dieselbe
 // Aussage; die Pille ist die des Hauses, also erbt sie den Satz und der fette Vorspann faellt weg.
 // Die Kreuzung daneben hat nie einen solchen Hinweis getragen und bekommt deshalb auch keinen.
-function labelActionsMarkup(publicId, noteMarkup = "") {
+// @param hatFlaeche  traegt dieses Label eine Landschaftsflaeche? Entscheidet ueber die beiden
+//                    Flaechen-Kacheln unten -- die Frage beantwortet der Aufrufer, der die Region
+//                    ohnehin aufgeloest hat.
+function labelActionsMarkup(publicId, noteMarkup = "", { hatFlaeche = false } = {}) {
 	if (!IS_EDIT_MODE || !publicId) {
 		return "";
 	}
@@ -781,6 +784,41 @@ function labelActionsMarkup(publicId, noteMarkup = "") {
 			},
 		}),
 	);
+
+	// ---- die beiden Handgriffe an der FLAECHE unter dem Namen (Owner 24.08.2026) --------------------
+	//
+	// 🔴 NUR WENN ES EINE FLAECHE GIBT. Ein freies Label und ein Gipfel haben keine -- dort waeren beide
+	// Kacheln Knoepfe, die nichts tun koennen, und das sieht aus wie ein Fehler. Die Frage beantwortet
+	// der Aufrufer (labelPopupMarkup kennt die aufgeloeste Region), nicht diese Funktion: sie bekaeme
+	// sonst einen zweiten Weg zur selben Auskunft.
+	//
+	// 🔴 DIESELBEN GESTEN WIE IM KONTEXTMENUE DER FLAECHE, samt ihrer Zeichen -- ⚙ Eigenschaften,
+	// ✎ die Geometrie selbst anfassen. Ein Editor darf nicht zwei Vokabulare fuer dieselbe Handlung
+	// lernen, nur weil sie einmal an der Flaeche und einmal an ihrer Beschriftung haengt.
+	//
+	// ⚠️ Beide wechseln notfalls die ANSICHT (Owner: „hier wechselt die ansicht in die landschaft"):
+	// im Standardmodus sind die Flaechen gar nicht geladen. Das erledigt der Handgriff selbst
+	// (avesmapsLabelFlaechenHandgriff, map-features-labels.js), nicht die Kachel.
+	if (hatFlaeche) {
+		actionButtons.push(
+			popupActionButtonMarkup({
+				label: "Eigenschaften",
+				iconMarkup: popupActionGlyphMarkup("bearbeiten"),
+				attributes: {
+					"data-popup-action": "label-area-properties",
+					"data-public-id": publicId,
+				},
+			}),
+			popupActionButtonMarkup({
+				label: "Fläche bearbeiten",
+				iconMarkup: popupActionGlyphMarkup("verlauf"),
+				attributes: {
+					"data-popup-action": "label-area-geometry",
+					"data-public-id": publicId,
+				},
+			})
+		);
+	}
 
 	return locationPopupEditorBandMarkup(actionButtons, noteMarkup);
 }
@@ -971,7 +1009,7 @@ function labelPopupMarkup(entry) {
 		showType: true,
 		showDescription: false,
 		showWikiLink: false,
-		actionsMarkup: labelActionsMarkup(entry.label.publicId, warnung),
+		actionsMarkup: labelActionsMarkup(entry.label.publicId, warnung, { hatFlaeche: regionPublicId !== "" }),
 	});
 }
 

@@ -1289,6 +1289,24 @@ $(document).on("click", ".location-popup__action-button", function (event) {
 		return;
 	}
 
+	// Die beiden Handgriffe an der FLAECHE unter dem Namen (Owner 24.08.2026). Sie fuehren in dieselben
+	// zwei Werkzeuge wie die gleichnamigen Eintraege im Kontextmenue der Flaeche -- die Aufloesung
+	// Label -> Region -> naechste Flaeche und der noetige Ansichtswechsel stecken in EINER Funktion
+	// (avesmapsLabelFlaechenHandgriff, map-features-labels.js), damit hier kein zweiter Weg entsteht.
+	if (action === "label-area-properties" || action === "label-area-geometry") {
+		const labelEntry = findLabelEntryByPublicId(this.dataset.publicId);
+		if (!labelEntry) {
+			showFeedbackToast("Label konnte nicht gefunden werden.", "warning");
+			return;
+		}
+
+		void avesmapsLabelFlaechenHandgriff(
+			labelEntry.label,
+			action === "label-area-properties" ? "eigenschaften" : "geometrie"
+		);
+		return;
+	}
+
 });
 
 const normalizeLocationSearchName = (name) => {

@@ -731,27 +731,89 @@ function refreshLabelMarkerPopup(entry) {
 	// zweite Bedingung setzte jedes Oeffnen den Inhalt neu -- und der Klick auf eine Kachel ginge
 	// zwischen Neubau und Zeigerdruck verloren.
 	entry.marker.on("popupopen", () => {
-		if (typeof canOperateEcosystemLayers !== "function" || !canOperateEcosystemLayers()) {
-			return;
-		}
-		if (typeof ensureEcosystemRegionsLoadedForLabelFilter !== "function") {
-			return;
-		}
-		const vorher = typeof ecosystemRegionOfLabel === "function" ? ecosystemRegionOfLabel(entry.label) : null;
-		if (!vorher || vorher.area_count !== undefined) {
-			return;                                  // nichts zu holen -- die Zahl steht schon
-		}
-		ensureEcosystemRegionsLoadedForLabelFilter().then(() => {
-			const nachher = typeof ecosystemRegionOfLabel === "function" ? ecosystemRegionOfLabel(entry.label) : null;
-			if (!nachher || nachher.area_count === undefined || !entry.marker.isPopupOpen()) {
-				return;
+		avesmapsLabelMenueFlaechenzahlNachziehen(entry, () => {
+			if (entry.marker.isPopupOpen()) {
+				entry.marker.setPopupContent(labelPopupMarkup(entry));
 			}
-			entry.marker.setPopupContent(labelPopupMarkup(entry));
-		}).catch(() => {
-			// 🪤 Still: der Kopf steht bereits da, nur ohne die Flaechenzahl. Eine Fehlermeldung fuer
-			// eine Nebenauskunft waere lauter als ihr Wert -- und das Popup selbst ist nicht kaputt.
 		});
 	});
+}
+
+// Die Flaechenzahl nachziehen und den Inhalt neu setzen lassen.
+//
+// 🔴 EIGENE FUNKTION, weil es ZWEI Wege ins Kachelmenue gibt: den Marker (gerade Labels) und das
+// freistehende Popup am gemalten Namen (Kurvenlabels, deren Marker der Kurvenriegel abmeldet). Beide
+// brauchen dasselbe Nachladen -- zweimal geschrieben waere es die Stelle, an der einer der beiden es
+// irgendwann nicht mehr tut.
+//
+// @param entry      der Labeleintrag
+// @param neuSetzen  wie der Aufrufer seinen Inhalt ersetzt (Marker-Popup oder freistehendes)
+function avesmapsLabelMenueFlaechenzahlNachziehen(entry, neuSetzen) {
+	if (typeof canOperateEcosystemLayers !== "function" || !canOperateEcosystemLayers()) {
+		return;
+	}
+	if (typeof ensureEcosystemRegionsLoadedForLabelFilter !== "function" || typeof neuSetzen !== "function") {
+		return;
+	}
+	const vorher = typeof ecosystemRegionOfLabel === "function" ? ecosystemRegionOfLabel(entry?.label) : null;
+	if (!vorher || vorher.area_count !== undefined) {
+		return;                                      // nichts zu holen -- die Zahl steht schon
+	}
+	ensureEcosystemRegionsLoadedForLabelFilter().then(() => {
+		const nachher = typeof ecosystemRegionOfLabel === "function" ? ecosystemRegionOfLabel(entry?.label) : null;
+		if (!nachher || nachher.area_count === undefined) {
+			return;
+		}
+		neuSetzen();
+	}).catch(() => {
+		// 🪤 Still: der Kopf steht bereits da, nur ohne die Flaechenzahl. Eine Fehlermeldung fuer
+		// eine Nebenauskunft waere lauter als ihr Wert -- und das Popup selbst ist nicht kaputt.
+	});
+}
+
+// Das Kachelmenue eines Labels OHNE seinen Marker oeffnen (Owner 24.08.2026).
+//
+// 💣 WARUM ES DAS BRAUCHT. Sobald eine Flaeche ihre Kurve traegt, meldet der Kurvenriegel den Marker ab
+// (shouldShowLabelMarker) -- und mit ihm sein Popup, denn das haengt am Marker. Der gemalte Name ist
+// anklickbar (Klick-Register der Canvas), aber er oeffnete nur Hervorhebung und Infopanel: das
+// Kachelmenue, das der Marker getragen haette, gab es fuer Kurvenlabels nirgends. Owner, woertlich:
+// „im standardmodus [kann man] nicht auf kurvenlabels klicken (infopanel geht, aber das floating menue
+// fuer editoren kommt nicht)". Damit war ein Kurvenlabel im Standardmodus ueber KEINEN Weg zu
+// bearbeiten -- dieselbe Klasse Fehler wie bei den verwaisten Aussenhuellen.
+//
+// 🔴 DASSELBE MARKUP und dieselben Optionen wie am Marker (labelPopupMarkup, beide Klassen). Die
+// Kachel-Handler haengen an `data-popup-action` und werden ohnehin delegiert -- ein eigenes, magereres
+// Menue waere ein zweites Vokabular fuer dieselben Gesten.
+//
+// @param entry  der Labeleintrag (aus labelMarkers -- er existiert, nur sein Marker ist abgemeldet)
+// @param latlng wo das Menue stehen soll (die Klickstelle am gemalten Namen)
+// @return true, wenn es geoeffnet wurde
+function avesmapsOeffneLabelKachelmenue(entry, latlng) {
+	if (typeof IS_EDIT_MODE === "undefined" || !IS_EDIT_MODE || !entry?.label) {
+		return false;
+	}
+	if (typeof labelPopupMarkup !== "function" || typeof L === "undefined" || typeof map === "undefined") {
+		return false;
+	}
+	const punkt = latlng || (typeof entry.marker?.getLatLng === "function" ? entry.marker.getLatLng() : null);
+	if (!punkt) {
+		return false;
+	}
+	// Dieselben zwei Klassen wie am Marker: „floating-location-popup" schaltet die Kachel-Optik frei,
+	// „settlement-popup" hebt den 260px-Deckel auf 400 -- ohne die zweite brechen vier Kacheln um.
+	const popup = L.popup({ className: "settlement-popup floating-location-popup", minWidth: 320, maxWidth: 400 })
+		.setLatLng(punkt)
+		.setContent(labelPopupMarkup(entry));
+	popup.openOn(map);
+	avesmapsLabelMenueFlaechenzahlNachziehen(entry, () => {
+		// 🪤 Nur nachtragen, solange DIESES Popup noch offen ist -- sonst reisst ein spaeter
+		// eingetroffenes Nachladen ein inzwischen geschlossenes Menue wieder auf.
+		if (typeof map.hasLayer === "function" && map.hasLayer(popup)) {
+			popup.setContent(labelPopupMarkup(entry));
+		}
+	});
+
+	return true;
 }
 
 // Wie viele Beschriftungen haengen an dieser Flaeche? Ueber ALLE Labels gezaehlt, nicht ueber die
@@ -1381,15 +1443,67 @@ async function selectEcosystemAreaOfLabel(label) {
 	if (typeof isEcosystemLayerModeActive !== "function" || !isEcosystemLayerModeActive()) {
 		return;
 	}
+	const treffer = await avesmapsEcosystemAreaPublicIdOfLabel(label);
+	if (treffer === "" || typeof setSelectedEcosystemArea !== "function") {
+		return;
+	}
+	setSelectedEcosystemArea(treffer);
+}
+
+// Welche FLAECHE ist mit diesem Label gemeint -- und die Ansicht steht danach darauf.
+//
+// 🔴 EIGENE FUNKTION, weil DREI Handgriffe dieselbe Antwort brauchen: die Auswahl beim Label-Klick,
+// „Eigenschaften" und „Fläche bearbeiten" im Kachelmenue (Owner 24.08.2026). Zweimal gerechnet waere
+// es die Stelle, an der die drei irgendwann auf verschiedene Flaechen zeigen -- eine Region traegt
+// mehrere, und welche gemeint ist, entscheidet allein die NAEHE zum Label.
+//
+// 🪤 Die Ebene wechselt MIT. Eine Flaeche der Topographie auszuwaehlen, waehrend die Vegetationsebene
+// aktiv ist, hiesse: markiert, aber unanklickbar und ohne Griffe -- die ruhende Ebene nimmt keine Klicks.
+//
+// 🔴 UND AUS DEM STANDARDMODUS HERAUS ebenfalls (`wechsleAnsicht`). Dort sind gar keine Flaechen
+// geladen (`ecosystemLayers` ist leer), die Naehe-Rechnung fiele also ins Leere. Deshalb erst der
+// Wechsel in die Landschaftsansicht, dann `loadEcosystemAreas()` abwarten, dann rechnen. Genau das
+// meinte der Owner mit „hier wechselt die ansicht in die landschaft".
+//
+// @param label            das Label
+// @param wechsleAnsicht   true = notfalls in den Landschaftsmodus wechseln und Flaechen nachladen
+// @return die public_id der Flaeche, oder "" wenn keine zu finden ist
+async function avesmapsEcosystemAreaPublicIdOfLabel(label, { wechsleAnsicht = false } = {}) {
 	if (typeof loadEcosystemRegions === "function" && typeof ECOSYSTEM_KINDS !== "undefined") {
 		await Promise.all(ECOSYSTEM_KINDS.map((kind) => loadEcosystemRegions(kind)));
 	}
 	const region = typeof ecosystemRegionOfLabel === "function" ? ecosystemRegionOfLabel(label) : null;
 	const regionPublicId = String(region?.public_id || "");
-	if (regionPublicId === "" || typeof ecosystemLayers === "undefined" || !(ecosystemLayers instanceof Map)) {
-		return;
+	if (regionPublicId === "") {
+		return "";
 	}
 
+	// Die Ebene der Region kennt der Auflöser; sie ist die Ansicht, in der ihre Flaechen ueberhaupt
+	// liegen. Ohne geladene Regionsliste steht sie nicht da -- dann bleibt es beim Bestand.
+	const regionKind = String(region?.kind || "");
+	if (wechsleAnsicht && regionKind !== "") {
+		if (typeof setActiveEcosystemLayerKind === "function"
+			&& (typeof getActiveEcosystemLayerKind !== "function" || getActiveEcosystemLayerKind() !== regionKind)) {
+			setActiveEcosystemLayerKind(regionKind);
+		}
+		// Kind VOR dem Modus, wie im Kontextmenue: der Moduswechsel holt die Flaechen der EINGESTELLTEN
+		// Ebene -- andersherum waere es eine Anfrage fuer die alte plus eine Korrektur.
+		if (typeof setSelectedMapLayerMode === "function"
+			&& (typeof getSelectedMapLayerMode !== "function" || getSelectedMapLayerMode() !== "ecosystem")) {
+			setSelectedMapLayerMode("ecosystem");
+		}
+		if (typeof loadEcosystemAreas === "function") {
+			try {
+				await loadEcosystemAreas();
+			} catch (error) {
+				// Die Flaechen fehlen dann eben -- die Pruefung darunter faengt es ab.
+			}
+		}
+	}
+
+	if (typeof ecosystemLayers === "undefined" || !(ecosystemLayers instanceof Map)) {
+		return "";
+	}
 	const punkt = L.latLng(label.coordinates[0], label.coordinates[1]);
 	let treffer = "";
 	let beste = Infinity;
@@ -1406,7 +1520,7 @@ async function selectEcosystemAreaOfLabel(label) {
 		}
 	});
 	if (treffer === "") {
-		return;
+		return "";
 	}
 
 	const kind = String(ecosystemLayers.get(treffer)?._ecosystemArea?.kind || "");
@@ -1414,9 +1528,45 @@ async function selectEcosystemAreaOfLabel(label) {
 		&& kind !== getActiveEcosystemLayerKind()) {
 		setActiveEcosystemLayerKind(kind);
 	}
-	if (typeof setSelectedEcosystemArea === "function") {
-		setSelectedEcosystemArea(treffer);
+
+	return treffer;
+}
+
+// „Eigenschaften" und „Fläche bearbeiten" am Label -- beide fuehren auf die FLAECHE, die unter dem
+// Namen liegt (Owner 24.08.2026). Sie tun genau das, was die gleichnamigen Eintraege im Kontextmenue
+// der Flaeche tun: kein zweiter Weg, sondern derselbe, nur von der Beschriftung aus erreicht.
+//
+// 💣 Ohne Flaeche sagt es das, statt still zu bleiben. Ein Label ohne Landschaftsflaeche gibt es
+// wirklich (freie Labels, Gipfel), und ein Knopf, der nichts tut, sieht aus wie ein Fehler.
+async function avesmapsLabelFlaechenHandgriff(label, was) {
+	const flaeche = await avesmapsEcosystemAreaPublicIdOfLabel(label, { wechsleAnsicht: true });
+	if (flaeche === "") {
+		if (typeof showFeedbackToast === "function") {
+			showFeedbackToast("Zu dieser Beschriftung ist keine Fläche geladen.", "warning");
+		}
+		return;
 	}
+	if (was === "eigenschaften") {
+		// Der EINE Zugang zum Dialog -- er ist privat in seiner Datei und wird ueber das Fenster
+		// herausgereicht (map-features-ecosystem-properties.js). Ein Nachbau waere die zweite Wahrheit.
+		window.AvesmapsEcosystemProperties?.open?.(flaeche);
+		return;
+	}
+	if (typeof openEcosystemGeometryEdit !== "function") {
+		if (typeof showFeedbackToast === "function") {
+			showFeedbackToast("Der Ecken-Editor ist nicht bereit.", "warning");
+		}
+		return;
+	}
+	// 💣 Eine offene Sitzung wird NICHT neu geoeffnet: openEcosystemGeometryEdit schliesst und baut neu
+	// auf, und das wirft den Rueckgaengig-Stapel weg. Dieselbe Bremse wie im Kontextmenue.
+	if (typeof isEcosystemGeometryEditOpen === "function" && isEcosystemGeometryEditOpen(flaeche)) {
+		if (typeof showFeedbackToast === "function") {
+			showFeedbackToast("Diese Fläche ist bereits in Bearbeitung — ihre Ecken liegen schon frei.");
+		}
+		return;
+	}
+	openEcosystemGeometryEdit(flaeche);
 }
 
 async function duplicateLabelEntry(entry) {

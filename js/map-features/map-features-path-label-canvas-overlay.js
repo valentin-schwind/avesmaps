@@ -1025,6 +1025,26 @@
 			if (kurvenTreffer.regionPublicId && typeof setHighlightedEcosystemRegion === "function") {
 				setHighlightedEcosystemRegion(kurvenTreffer.regionPublicId);
 			}
+			// 🔴 DAS KACHELMENUE FUER EDITOREN -- die dritte Haelfte desselben Marker-Klicks (Owner
+			// 24.08.2026: „im standardmodus [kann man] nicht auf kurvenlabels klicken (infopanel geht,
+			// aber das floating menue fuer editoren kommt nicht)").
+			//
+			// 💣 Der abgemeldete Marker trug BEIDES: das Infopanel und sein Popup mit den Kacheln. Hier
+			// stand nur die erste Haelfte -- also war ein Kurvenlabel im Standardmodus ueber KEINEN Weg
+			// mehr zu bearbeiten. Die Zeile darunter holt das Menue nach, mit demselben Markup wie am
+			// Marker (avesmapsOeffneLabelKachelmenue, map-features-labels.js).
+			//
+			// ⚠️ VOR dem Infopanel, aber ohne `return`: beide sollen kommen, so wie beim Marker auch. Das
+			// Menue gehoert dem Editor, das Panel der Auskunft -- sie schliessen sich nicht aus.
+			// 🪤 `findLabelEntryByPublicId` findet den Eintrag, obwohl sein Marker nicht auf der Karte
+			// liegt: `labelMarkers` traegt ihn weiter, abgemeldet ist nur die Ebene.
+			if (kurvenTreffer.label?.publicId && typeof findLabelEntryByPublicId === "function"
+					&& typeof avesmapsOeffneLabelKachelmenue === "function") {
+				const eintrag = findLabelEntryByPublicId(String(kurvenTreffer.label.publicId));
+				if (eintrag) {
+					avesmapsOeffneLabelKachelmenue(eintrag, event.latlng);
+				}
+			}
 			// 🔴 Und das Infopanel -- die zweite, SICHTBARE Haelfte desselben Marker-Klicks
 			// (Name, Typ, Kartensammlung, Literatur). Ohne sie leuchtet bestenfalls eine Flaeche kurz
 			// auf, und bei ruhender Ebene sieht ein Besucher gar nichts.
