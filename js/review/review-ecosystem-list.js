@@ -12,7 +12,8 @@
 //     the host invalidates the DOCUMENT itself, the deploy stamps the CSS/JS it links. Never
 //     ASSET_VERSION -- that governs the dynamically loaded TERRITORY editor assets (AGENTS.md §7).
 //
-// Button and window title read the same words, "Regionen bearbeiten" (spec §2, where the label was
+// Button and window title read the same words, "Landschaften bearbeiten" (spec §2; umbenannt am
+// 24.08.2026 -- 🔴 nur die BESCHRIFTUNG, der Schluessel `ecosystem.editor.title` bleibt. Where the label was
 // already reserved "as soon as it exists").
 window.openAvesmapsEcosystemEditorOverlay = window.openAvesmapsEcosystemEditorOverlay || function openAvesmapsEcosystemEditorOverlay() {
 	const overlayId = "avesmaps-ecosystem-editor-overlay";
@@ -41,7 +42,7 @@ window.openAvesmapsEcosystemEditorOverlay = window.openAvesmapsEcosystemEditorOv
 	// German is the default and stays it; ?lang=en swaps in js/app/i18n-en.js (AGENTS.md §8).
 	const t = (key, german) => (typeof tr === "function" ? tr(key, german) : german);
 	const headingEl = document.createElement("h2");
-	headingEl.textContent = t("ecosystem.editor.title", "Regionen bearbeiten");
+	headingEl.textContent = t("ecosystem.editor.title", "Landschaften bearbeiten");
 	const closeButton = document.createElement("button");
 	closeButton.type = "button";
 	closeButton.className = "avm-editor-dialog__close";

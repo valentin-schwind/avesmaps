@@ -465,12 +465,12 @@ window.AVESMAPS_I18N_EN = {
 	"ecosystem.import.save": "Insert",
 	"ecosystem.import.saving": "Inserting …",
 
-	// --- Landschaften: the seventh list editor (WikiSync -> Regionen -> "Regionen bearbeiten").
+	// --- Landschaften: the seventh list editor (WikiSync -> Regionen -> "Landschaften bearbeiten").
 	//     Button and window title read the same words, so they share one key (spec §2). Only the
 	//     strings on nodes the HOST document builds are resolved through tr() today -- the editor page
 	//     itself is an iframe that does not load js/app/i18n.js, so its own labels are collected here
 	//     and wired when the overlay reaches the iframes (milestone M8). ---
-	"ecosystem.editor.title": "Edit regions",
+	"ecosystem.editor.title": "Edit landscapes",
 	"ecosystem.editor.frameTitle": "Landscape editor",
 	"ecosystem.editor.closeAria": "Close",
 	"ecosystem.editor.ribbon.sync": "🚨 Sync",
