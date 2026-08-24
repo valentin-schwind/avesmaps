@@ -539,16 +539,6 @@
     <span class="t1">🚨 Karten syncen</span>
     <span class="t2" id="ceSyncSub">…</span>
   </button>
-  <!-- 🔴 „Wiki zuweisen": der Massenlauf, der jeder Karte die Wikiseite ihrer PUBLIKATION gibt.
-       Weich/outline, nicht gefüllt (AGENTS.md §12): die Haupthandlung dieses Menübands ist „Karten
-       syncen". Die Zahl steht erst nach dem Klick in `t2` — die Vorschau liest die ganze
-       citymap-Tabelle, und das je Fensteröffnung zu zahlen wäre die Last, vor der §9 warnt, für
-       eine Zahl, die niemand bestellt hat. Deshalb „noch nicht geprüft" statt einer 0, die wie
-       „nichts zu tun" aussähe (wortgleich zum Wege-Editor). -->
-  <button type="button" class="ce-btn2" id="ceAssignAllBtn" title="Verknüpft jede Karte mit der Wikiseite der PUBLIKATION, in der sie abgedruckt ist — nicht mit einem eigenen Artikel der Karte, den gibt es im Wiki fast nie. Zeigt erst, wie viele es wären, und schreibt erst nach Ihrer Bestätigung. Karten, die bereits eine Zuweisung tragen, und solche mit dem Merker „Kein Wiki-Artikel vorhanden“ bleiben unberührt — es wird nichts überschrieben.">
-    <span class="t1">Wiki zuweisen</span>
-    <span class="t2" id="ceAssignAllSub">noch nicht geprüft</span>
-  </button>
   <button type="button" class="ce-btn2" id="ceLinkCheckBtn" title="Prüft NUR die Karten-Links auf Erreichbarkeit — Abenteuer und Quellen bleiben unberührt. Höflich: 600ms Pause je Host.">
     <span class="t1">Links prüfen</span>
     <span class="t2" id="ceLinkCheckSub">…</span>
@@ -645,7 +635,6 @@
 <script src="/js/ui/wiki-assign.js"></script>
 <script src="/js/ui/wiki-assign-karte.js"></script>
 <!-- Der Massenlauf teilt sich seine Abfolge mit dem Wege- und dem Landschaften-Editor. -->
-<script src="/js/ui/wiki-massenzuweisung.js"></script>
 
 <!-- Der Lizenz/Urheber/Kommentar-Bauer, geteilt von allen fünf Lizenz-Dialogen (Phase 4, Aufgabe 1).
      Katalog vor Bauer -- media-license-fields.js liest ihn beim Laden nach (js/ui/media-license-fields.js). -->
@@ -1872,65 +1861,22 @@
     if (label) label.textContent = isBusy ? "Prüft …" : "Links prüfen";
   }
 
-  // ---- „Wiki zuweisen" (Massenlauf) ----
+  // ---- „Wiki zuweisen" ist am 24.08.2026 aus dem Menüband gefallen ----
+  // Owner: der Knopf ist „nicht mehr nötig" — dieselbe Begründung wie im Landschaften-Editor am
+  // selben Tag. Seit dem 16.08.2026 sitzt die Wiki-Zuweisung im geteilten Bauteil in der
+  // Eigenschaften-Spalte (js/ui/wiki-assign.js + …-karte.js) und wird je Karte gemacht; der
+  // Massenlauf war die Erstbefüllung und ist erledigt. Mit der Kachel sind ihr Auslöser
+  // `handleAssignAllClick` und `ceAssignAllBusy` gefallen.
   //
-  // 🔴 ZWEI ANFRAGEN, NIE MEHR: erst die Vorschau (der Server rechnet ohne `dry_run:false` +
-  // `confirm:"apply"` grundsätzlich trocken), dann — und nur nach Zustimmung — der scharfe Lauf.
-  // Kein Nachfassen je Karte, kein Fortschrittspolling: der Endpunkt liest die ganze
-  // citymap-Tabelle, und STRATO ist geteiltes Hosting (AGENTS.md §9).
+  // 🔴 NUR DER AUFRUFER, NICHT DIE MASCHINERIE. Der serverseitige Massenlauf bleibt, und
+  // `js/ui/wiki-massenzuweisung.js` bleibt ebenfalls — es bedient weiterhin den WEGE-Editor. Wer
+  // hier eine Lücke sieht („der Endpunkt hat ja keinen Aufrufer"), liest diesen Absatz: das ist
+  // Absicht, keine vergessene Verdrahtung.
   //
-  // Die Abfolge selbst steht in js/ui/wiki-massenzuweisung.js — dieselbe wie im Wege- und im
-  // Landschaften-Editor. Hier hängen nur Kachel, Statuszeile und das Neuladen daran.
-  let ceAssignAllBusy = false;
-
-  async function handleAssignAllClick() {
-    if (ceAssignAllBusy) return;
-    const tile = document.getElementById("ceAssignAllBtn");
-    const info = document.getElementById("ceAssignAllSub");
-    if (typeof avesmapsWikiMassenlauf !== "function") {
-      ceStatus("Massenlauf nicht geladen (js/ui/wiki-massenzuweisung.js).", true);
-      return;
-    }
-    ceAssignAllBusy = true;
-    if (tile) tile.disabled = true;
-    try {
-      const lauf = await avesmapsWikiMassenlauf("karte", {
-        // 💣 `citymapPost` WIRFT bei `ok !== true` — genau richtig für diese Abfolge: der
-        // Massenlauf darf einen Fehlschlag nie als leeren Bestand lesen. Der Riegel des Servers
-        // (Bauschlüssel gegen Publikation) kommt als 400 mit Text hier heraus.
-        post: (url, koerper) => citymapPost(koerper),
-        frage: (text) => window.confirm(text),
-        melde: (schritt, antwort) => {
-          if (schritt === "pruefen") {
-            if (info) info.textContent = "wird geprüft …";
-            ceStatus("Wiki-Zuweisung: wird geprüft …");
-          } else if (schritt === "leer") {
-            if (info) info.textContent = "nichts offen";
-            ceStatus("Wiki-Zuweisung: keine Karte ohne Zuweisung hat eine Publikationsseite.");
-          } else if (schritt === "vorschau" || schritt === "geschrieben") {
-            if (info) info.textContent = avesmapsWikiMassenlaufKurztext("karte", antwort);
-          } else if (schritt === "schreiben") {
-            ceStatus("Wiki-Zuweisung wird geschrieben …");
-          }
-        },
-      });
-      if (lauf.zustand === "abgebrochen") {
-        ceStatus("Wiki-Zuweisung abgebrochen — nichts geschrieben.");
-        return;
-      }
-      if (lauf.zustand !== "geschrieben") return;
-      ceStatus("Wiki-Zuweisung: " + lauf.geschrieben + " Karten verknüpft.");
-      // 💣 Die offene Karte MUSS neu geladen werden: der Lauf hat womöglich genau ihre
-      // article_*-Spalten gefüllt, und der Kasten daneben zeigte sonst weiter „keine Zuweisung".
-      if (state.selectedId) await selectCitymap(state.selectedId);
-    } catch (e) {
-      if (info) info.textContent = "fehlgeschlagen";
-      ceStatus("Wiki-Zuweisung: " + (e && e.message ? e.message : String(e)), true);
-    } finally {
-      ceAssignAllBusy = false;
-      if (tile) tile.disabled = false;
-    }
-  }
+  // ⚠️ Die Skript-Einbindung von wiki-massenzuweisung.js ist mit der Kachel gefallen — dieses
+  // Dokument ruft nichts daraus mehr auf. Wer den Massenlauf hier je wiederbelebt, braucht das
+  // <script>-Tag zurück; ohne es ist `avesmapsWikiMassenlauf` schlicht nicht da (der Code hatte
+  // dafür eine `typeof`-Wache, die mit ihm gefallen ist).
 
   async function handleLinkCheckClick() {
     if (ceLinkCheckRunning) return;
@@ -2088,7 +2034,6 @@
   document.getElementById("ceEnabledToggle").addEventListener("click", toggleEnabled);
   document.getElementById("cePreviewsToggle").addEventListener("click", togglePreviews);
   document.getElementById("ceSyncBtn").addEventListener("click", handleCeSyncClick);
-  document.getElementById("ceAssignAllBtn").addEventListener("click", handleAssignAllClick);
   document.getElementById("ceLinkCheckBtn").addEventListener("click", handleLinkCheckClick);
   document.getElementById("ceAutogetBtn").addEventListener("click", handleAutogetClick);
 

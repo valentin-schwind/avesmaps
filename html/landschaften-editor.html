@@ -87,7 +87,6 @@
         </div>
       </div>
     </div>
-    <button type="button" class="avm-tile" id="ecoAssignAll" title="Verknüpft alle Karten-Label, deren Name zu einer Wiki-Landschaft passt (Aventurien). Zeigt erst, wie viele es wären, und schreibt erst nach Ihrer Bestätigung. Bereits richtig Verbundene bleiben unberührt; eine abweichende Zuordnung wird überschrieben — auch eine von Hand gesetzte. Passt die Wiki-Art nicht zum Label-Typ, wird übersprungen."><span class="t1">Wiki zuweisen</span><span class="t2" id="ecoAssignAllInfo">noch nicht geprüft</span></button>
     <!-- 🔴 Der Schalter bleibt DRAUSSEN, obwohl er thematisch zu Höhenraster und Wegprofilen gehört:
          er ist kein Lauf, sondern ein Notaus, der für ALLE Besucher wirkt
          (`app_setting['terrain_travel_enabled']`). Ein Notaus, dessen Stand man aufklappen muss, ist
@@ -219,7 +218,6 @@
 <script src="/js/ui/wiki-feld-herkunft.js"></script>
 <!-- Der Massenlauf der Zuweisung (Menübandkachel „Wiki zuweisen"). Eigene Datei, weil dieselbe
      Abfolge -- zeigen, fragen, schreiben -- auch im Wege-Editor hängt und in node geprüft wird. -->
-<script src="/js/ui/wiki-massenzuweisung.js"></script>
 <script>
 "use strict";
 (function () {
@@ -2292,7 +2290,6 @@ function wireRibbon() {
 	// for the SAME ecosystem_revision instead (runRaycast without force), so the common case costs no
 	// clipping and no political-layer fan-out at all.
 	$("ecoRaycast").addEventListener("click", () => { void runRaycast({ force: true }); });
-	$("ecoAssignAll").addEventListener("click", () => { void runAssignAll(); });
 	$("ecoHeightmap").addEventListener("click", () => { void runHeightmaps(); });
 	$("ecoProfiles").addEventListener("click", () => { void runTerrainProfiles(); });
 	$("ecoCurves").addEventListener("click", () => { void runCurveLabels(); });
@@ -2483,79 +2480,20 @@ async function loadWikiRegions() {
 
 // ---- „Wiki zuweisen" (Massenlauf) ------------------------------------------------------------
 //
-// Der Auslöser für `assign_all` -- den es serverseitig seit dem 06.06.2026 gibt und der seither
-// GENAU EINEN Aufrufer hatte: einen Knopf „⛰ Berge zuordnen", fest auf `art:"Berggipfel"` gestellt
-// und einen Tag später wieder aus index.html entfernt (f157b193). Seitdem konnte niemand ihn
-// auslösen, und alles außer Berggipfeln war ohnehin nie gemeint. Daher die Frage des Owners: die
-// wiki_keys stimmen, die ZUWEISUNG war nie ausgeführt worden. Die Art-Einschränkung ist hier
-// gefallen -- Begründung in js/ui/wiki-massenzuweisung.js.
+// ---- „Wiki zuweisen" ist am 24.08.2026 aus dem Menüband gefallen ------------------------------
+// Owner: die Kachel „erfüllt aktuell keine Funktion mehr" (so auch
+// docs/superpowers/specs/2026-08-24-landschaften-darstellung-design.md §2). Seit dem 16.08.2026
+// sitzt die Wiki-Zuweisung im geteilten Bauteil in der Eigenschaften-Spalte (js/ui/wiki-assign.js
+// + …-landschaft.js) und wird je Objekt gemacht; der Massenlauf war die Erstbefüllung und ist
+// erledigt. Mit der Kachel sind ihr Auslöser `runAssignAll` und der lokale POST-Helfer gefallen.
 //
-// 🔴 GEPRÜFT WIRD ERST BEIM KLICK. Die Vorschau liest die ganze Staging-Tabelle und alle Label;
-// das je Fensteröffnung zu zahlen wäre die Last, vor der AGENTS.md §9 warnt, für eine Zahl, die
-// niemand bestellt hat. In `t2` steht bis dahin „noch nicht geprüft" und keine 0 -- eine 0 läse
-// sich wie „nichts zu tun".
-//
-// ⚠️ Der eigene fetch, nicht `ecoPost`: das hier ist eine WIKI-Datei (/api/edit/wiki/regions.php),
-// keine Ökosystem-Aktion. Derselbe Weg, den `loadWikiRegions` darüber schon geht -- nur als POST.
-async function wikiRegionsPost(url, koerper) {
-	const response = await fetch(url, {
-		method: "POST",
-		credentials: "same-origin",
-		headers: { "Content-Type": "application/json", Accept: "application/json" },
-		body: JSON.stringify(koerper),
-	});
-	try {
-		return await response.json();
-	} catch (error) {
-		throw new Error("HTTP " + response.status + " — keine lesbare Antwort.");
-	}
-}
-
-let assignAllBusy = false;
-
-async function runAssignAll() {
-	if (assignAllBusy) { return; }
-	const tile = $("ecoAssignAll");
-	const info = $("ecoAssignAllInfo");
-	assignAllBusy = true;
-	tile.disabled = true;
-	try {
-		const lauf = await avesmapsWikiMassenlauf("landschaft", {
-			post: wikiRegionsPost,
-			frage: (text) => window.confirm(text),
-			melde: (schritt, antwort) => {
-				if (schritt === "pruefen") {
-					info.textContent = "wird geprüft …";
-					setStatus("Wiki-Zuweisung: wird geprüft …");
-				} else if (schritt === "leer") {
-					info.textContent = "nichts offen";
-					flashStatus("Wiki-Zuweisung: kein Label wartet auf eine Wiki-Landschaft.", "ok");
-				} else if (schritt === "vorschau" || schritt === "geschrieben") {
-					info.textContent = avesmapsWikiMassenlaufKurztext("landschaft", antwort);
-				} else if (schritt === "schreiben") {
-					setStatus("Wiki-Zuweisung wird geschrieben …");
-				}
-			},
-		});
-		if (lauf.zustand === "abgebrochen") {
-			flashStatus("Wiki-Zuweisung abgebrochen — nichts geschrieben.");
-		} else if (lauf.zustand === "geschrieben") {
-			flashStatus("Wiki-Zuweisung: " + lauf.geschrieben + " Label verknüpft.", "ok");
-			// 💣 Neu laden: der Lauf schreibt in genau die Label, die in dieser Liste stehen, und
-			// eine Editor-Überlagerung wird beim Wiederöffnen nur eingeblendet, nicht neu geladen.
-			// `keepSelection`: der Lauf entfernt keine Zeile (die Liste matcht über den NAMEN, nicht
-			// über die Zuweisung), also gibt es keinen Grund, den Editor auf „links etwas wählen"
-			// zurückzuwerfen -- dieselbe Wahl wie nach einem Speichern.
-			await loadData({ keepSelection: true });
-		}
-	} catch (error) {
-		info.textContent = "fehlgeschlagen";
-		flashStatus("Wiki-Zuweisung: " + (error && error.message ? error.message : String(error)), "bad");
-	} finally {
-		assignAllBusy = false;
-		tile.disabled = false;
-	}
-}
+// 🔴 NUR DER AUFRUFER, NICHT DIE MASCHINERIE. `assign_all` bleibt serverseitig
+// (/api/edit/wiki/regions.php), und `js/ui/wiki-massenzuweisung.js` bleibt ebenfalls — es bedient
+// weiterhin den WEGE-Editor. Wer hier eine Lücke sieht („der Endpunkt hat ja keinen Aufrufer"),
+// liest diesen Absatz: das ist Absicht, keine vergessene Verdrahtung. Genau davor warnt der
+// Entwurf, denn dieselbe Kachel war schon einmal in diesem Zustand — ein Knopf „⛰ Berge zuordnen"
+// vom 06.06.2026, einen Tag später wieder entfernt (f157b193), und hinterher wusste niemand, ob
+// der Endpunkt tot oder nur unbenutzt war.
 
 // ?demo=1 renders the whole column without a backend or a login -- same device as the powerline
 // editor. It exists because there is NO local database: every DB path is only verifiable live, so

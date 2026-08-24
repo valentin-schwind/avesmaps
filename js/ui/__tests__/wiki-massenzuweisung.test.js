@@ -275,23 +275,52 @@ const KACHEL_ZEICHEN = 34;
 // und NICHTS es anklicken konnte (js/review/review-path-sync.js hatte null Aufrufer). Ein Rezept,
 // das kein Knopf ruft, wiederholt genau das — und alle Zusicherungen darüber blieben grün dabei.
 // Deshalb wird hier am DOKUMENT nachgezählt, statt es anzunehmen.
+// 🔴 UMGEDREHT AM 24.08.2026 FÜR KARTEN UND LANDSCHAFTEN. Hier stand, dass der Karten-Editor die
+// Kachel „Wiki zuweisen“ trägt und den Massenlauf mit der Art „karte“ ruft. Beide Kacheln sind
+// raus (Owner: „nicht mehr nötig“) — seit dem 16.08.2026 sitzt die Wiki-Zuweisung im geteilten
+// Bauteil in der Eigenschaften-Spalte und wird je Objekt gemacht; der Massenlauf war die
+// Erstbefüllung. Was BLEIBT, ist die Zusicherung selbst, nur an ihrem verbliebenen Wirt: der
+// WEGE-Editor. Ein Rezept ohne Auslöser wäre genau der Fehler, den dieses Bauteil beheben sollte,
+// also darf die Prüfung nicht ersatzlos entfallen — sie zieht um.
 {
 	const fs = require("fs");
 	const path = require("path");
-	const editor = fs.readFileSync(
-		path.resolve(__dirname, "..", "..", "..", "html", "citymap-editor.html"), "utf8"
-	);
-	assert.ok(/<script src="\/js\/ui\/wiki-massenzuweisung\.js"/.test(editor),
-		"der Karten-Editor lädt js/ui/wiki-massenzuweisung.js nicht — das Rezept ist unerreichbar");
-	assert.ok(/id="ceAssignAllBtn"/.test(editor), "die Kachel „Wiki zuweisen“ fehlt im Menüband");
-	assert.ok(/id="ceAssignAllSub"/.test(editor), "der Kachel fehlt die Zeile für ihre Zahl");
-	assert.ok(/getElementById\("ceAssignAllBtn"\)\.addEventListener\("click", handleAssignAllClick\)/.test(editor),
-		"die Kachel hat keinen Zuhörer — sie sähe aus wie ein Knopf und täte nichts");
-	assert.ok(/avesmapsWikiMassenlauf\("karte",/.test(editor),
-		"der Karten-Editor ruft den Massenlauf nicht mit der Art „karte“");
-	// ⚠️ Und er liest die Kurzzeile über DIESELBE Art -- ein „weg“ hier zeigte die falschen Wörter.
-	assert.ok(/avesmapsWikiMassenlaufKurztext\("karte",/.test(editor),
-		"die Kachel beschriftet sich über eine andere Art als die, die sie ausführt");
+	const lies = (...teile) => fs.readFileSync(path.resolve(__dirname, "..", "..", "..", ...teile), "utf8");
+
+	// 🔧 UND DAMIT HAT DAS REZEPT DERZEIT GAR KEINEN AUSLÖSER MEHR. Der Wege-Editor hatte seine
+	// Kachel schon am 19.08.2026 verloren; sein Vermerk sagte „das Rezept bleibt, Landschaften- und
+	// Karteneditor rufen es weiter". Seit dem 24.08.2026 tun auch die beiden das nicht mehr — das
+	// Modul js/ui/wiki-massenzuweisung.js ist verwaist, und der serverseitige `assign_all` ist
+	// wieder in genau dem Zustand, dessentwegen dieses Bauteil überhaupt gebaut wurde: vorhanden,
+	// aber von nichts anklickbar. Diesmal ABSICHTLICH (dreimal begründet: die Zuweisung sitzt seit
+	// dem 16.08.2026 im geteilten Bauteil je Objekt, der Massenlauf war die Erstbefüllung).
+	// ⚠️ Deshalb steht hier KEINE Zusicherung „irgendwer ruft es" mehr — sie wäre heute falsch. Und
+	// keine „niemand ruft es" — die bräche, sobald jemand es zu Recht wieder anschliesst. Geprüft
+	// wird nur, dass die zwei Ausbauten VOLLSTÄNDIG sind. Ob Modul und Test bleiben, ist eine
+	// Owner-Entscheidung; bis dahin bleibt das Rezept lauffähig und beschrieben.
+
+	// -- Die zwei, die es nicht mehr tun: restlos, nicht halb -----------------------------------
+	// 💣 Halb entfernt ist schlimmer als gar nicht: eine Kachel ohne Zuhörer sieht aus wie ein Knopf
+	// und tut nichts, ein Zuhörer ohne Kachel ist ein `addEventListener` auf null und nimmt beim
+	// Laden die ganze Seite mit. ⚠️ Geprüft wird der CODE, nicht der Dateiname: der Vermerk, WARUM
+	// die Kachel weg ist, nennt `handleAssignAllClick` und `ceAssignAllBusy` beim Namen — eine
+	// Suche nach dem blossen Bezeichner schlüge auf ihm an (die Kommentar-Falle aus AGENTS.md).
+	const ohneKommentare = (s) => s.replace(/<!--[\s\S]*?-->/g, "").replace(/^\s*\/\/.*$/gm, "");
+	for (const [name, datei, kennungen] of [
+		["Karten-Editor", "citymap-editor.html", ["ceAssignAllBtn", "ceAssignAllSub", "handleAssignAllClick"]],
+		["Landschaften-Editor", "landschaften-editor.html", ["ecoAssignAll", "ecoAssignAllInfo", "runAssignAll"]],
+	]) {
+		const quelle = ohneKommentare(lies("html", datei));
+		for (const kennung of kennungen) {
+			assert.ok(!quelle.includes(kennung),
+				`${name}: „${kennung}“ ist noch da — die Kachel wurde nur halb entfernt`);
+		}
+		assert.ok(!/avesmapsWikiMassenlauf\(/.test(quelle),
+			`${name}: ruft den Massenlauf noch — die Kachel ist weg, der Aufruf nicht`);
+		// ⚠️ Und das <script>-Tag mit: ein Dokument, das nichts daraus ruft, soll es nicht laden.
+		assert.ok(!/<script src="\/js\/ui\/wiki-massenzuweisung\.js"/.test(quelle),
+			`${name}: lädt wiki-massenzuweisung.js, ohne etwas daraus zu rufen`);
+	}
 }
 
 // ── 10) EINE UNBEKANNTE ART SCHEITERT GESCHLOSSEN ─────────────────────────────────────────────

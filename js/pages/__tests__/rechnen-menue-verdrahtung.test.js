@@ -34,14 +34,25 @@ const bandBis = HTML.indexOf("<!-- Statuszeile");
 pruefe(bandVon > -1 && bandBis > bandVon, "das Menüband ist auffindbar");
 const BAND = HTML.slice(bandVon, bandBis).replace(/<!--[\s\S]*?-->/g, "");
 
-// ---- 1. Vier Kacheln im Band, nicht sieben ----------------------------------------------------
-// ⚠️ Gezählt werden die direkten Kinder-Knöpfe plus die Menü-Hülle -- nicht die Knöpfe insgesamt,
-// denn die vier „starten" IM Panel sind auch <button>.
+// ---- 1. Drei Kacheln im Band, nicht sieben ----------------------------------------------------
+// Der Weg dahin, an einem Tag: SIEBEN (Syncen · Zugehörigkeit · Wiki zuweisen · Höhenraster ·
+// Wegprofile · Geländeabhängiges Reisen · Kurven) → VIER, als die vier Läufe ins Sammelmenü zogen
+// → DREI, als „Wiki zuweisen" fiel (Owner: „nicht mehr nötig" -- die Zuweisung sitzt seit dem
+// 16.08.2026 im geteilten Bauteil je Objekt, der Massenlauf war die Erstbefüllung).
+// Übrig: 🚨 Syncen · Rechnen ▾ · Geländeabhängiges Reisen.
+// ⚠️ Gezählt werden die Kacheln des Bandes -- nicht die Knöpfe insgesamt, denn die vier „starten"
+// IM Panel sind auch <button>.
 {
 	const kacheln = (BAND.match(/<button[^>]*class="avm-tile/g) || []).length;
 	const imPanel = (BAND.match(/<button[^>]*class="rb-menu__sw"/g) || []).length;
-	pruefe(kacheln === 4, `DER KERN VON TEIL 1: das Band trägt ${kacheln} Kacheln, erwartet 4`);
+	pruefe(kacheln === 3, `DER KERN VON TEIL 1: das Band trägt ${kacheln} Kacheln, erwartet 3`);
 	pruefe(imPanel === 4, `DER KERN VON TEIL 1: im Menü stehen ${imPanel} Läufe, erwartet 4`);
+	// 💣 Und die Kachel, die gefallen ist, bleibt gefallen -- restlos, nicht halb. Ein Zuhörer ohne
+	// Kachel ist ein `addEventListener` auf null und nimmt beim Laden die ganze Seite mit.
+	const ohneKommentare = HTML.replace(/<!--[\s\S]*?-->/g, "").replace(/^\s*\/\/.*$/gm, "");
+	for (const kennung of ["ecoAssignAll", "runAssignAll", "avesmapsWikiMassenlauf("]) {
+		pruefe(!ohneKommentare.includes(kennung), `„${kennung}" ist wieder da -- „Wiki zuweisen" fiel am 24.08.2026`);
+	}
 }
 
 // ---- 2. Die vier Läufe stehen NICHT mehr als eigene Kacheln -----------------------------------

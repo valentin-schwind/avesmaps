@@ -1194,7 +1194,8 @@ async function assignPathWiki(wikiKey) {
 // Zugewiesen wird seither einzeln, im geteilten Bauteil der Eigenschaften-Spalte -- und weil
 // `assign_to` ohne `single_segment` die ganze Namensgruppe erfasst, ist das für einen Weg
 // dasselbe Werkzeug. Serverseitig ist `assign_all` unverändert da; das Rezept
-// js/ui/wiki-massenzuweisung.js tragen weiterhin der Landschaften- und der Karteneditor.
+// js/ui/wiki-massenzuweisung.js trägt seit dem 24.08.2026 🔧 NIEMAND mehr — an dem Tag sind auch
+// die Kacheln im Landschaften- und im Karteneditor gefallen, aus demselben Grund wie hier.
 
 function findPathSyncRow(wikiKey) {
 	if (!pathSyncData || !wikiKey) {

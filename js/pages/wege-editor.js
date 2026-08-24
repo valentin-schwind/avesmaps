@@ -1945,7 +1945,10 @@
 	// so vieles nicht zugewiesen, obwohl die wiki_keys stimmen". Die Kachel hat das erledigt.
 	//
 	// ⚠️ WAS BLEIBT: `assign_all` in api/edit/wiki/paths.php, das Rezept in
-	// js/ui/wiki-massenzuweisung.js (Landschaften- und Karteneditor rufen es weiter) und die
+	// js/ui/wiki-massenzuweisung.js (🔧 seit 24.08.2026 ohne JEDEN Aufrufer: die Kacheln im
+	// Landschaften- und im Karteneditor sind an dem Tag aus demselben Grund gefallen. Hier stand
+	// bis dahin, die zwei rufen es weiter -- diese Zeile war also 5 Tage lang die letzte, die
+	// behauptete, das Rezept habe noch einen Wirt) und die
 	// Einzelzuweisung in der Eigenschaften-Spalte -- die erfasst ohne `single_segment` ohnehin
 	// die ganze Namensgruppe, ist also fuer einen Weg dasselbe Werkzeug, nur zielgerichtet.
 	// 🪤 Wer hier eine Luecke vermutet: das ist keine. Ein zweiter Auslöser fuer denselben
