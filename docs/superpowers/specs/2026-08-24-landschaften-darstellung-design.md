@@ -201,25 +201,40 @@ Vermerk steht im Code, damit sie niemand „ergänzt".
 Ein ziehbarer Plot, Bauform der Zoombänder: eine Kurve je Art über z0…z8, linear von 4 bis 30 pt.
 Jede Kurve trägt den Ton ihrer eigenen Art.
 
-🔴 **Das Feld „Größe" am einzelnen Label fällt weg** (Owner, erste Sitzung). Die Größe wird global je
-Art und Zoomstufe.
+🔴 **ZURÜCKGENOMMEN AM 24.08.2026, am Tag nach dem Bau.** Hier stand: „Das Feld ‚Größe' am einzelnen
+Label fällt weg — die Größe wird global je Art und Zoomstufe." Das war eine Fehllesung des Auftrags.
+Der Owner, wörtlich: *„bei den schriftgrößen wollte ich den editoren diese nicht von den labels
+wegnehmen, sondern den slider beibehalten und denen den default wert vorschlagen"*.
 
-💣 **DAS FELD BLEIBT ALS `hidden` STEHEN.** Der Payload liest `formData.get("size")`, und OHNE das
-Feld schriebe jedes Speichern eine 0 über den gespeicherten Wert. Das ist wörtlich dieselbe Falle,
-die zwei Zeilen darüber schon für `rotation` dokumentiert ist (`index.html`, Kurvenbeschriftung §8).
-Der Wert ist zugleich der einzige Rückweg, falls die Sache je zurückgebaut wird.
+**Es gilt seither dieselbe Regel wie beim Zoomband: die Tafel RÄT, sie gilt nicht.** Der Wert des
+Labels gewinnt; die Tafel füllt nur die Lücke und steht als Marke unter dem Regler.
 
-⚠️ **Die Vorgabe kann das heutige Bild NICHT Ziffer für Ziffer reproduzieren** — die einzige Stelle
-im ganzen Entwurf, an der die Zoombänder-Regel nicht gilt. Heute trägt jedes Label seine eigene
-Grundgröße (12–50, Vorgabe 18); es gibt keine Kurve je Art, die man abschreiben könnte. Die Vorgabe
-ist die echte Formel aus `getScaledLabelSize` bei Grundgröße 18:
+⭐ Damit ist das Modell **einfacher** als der ursprüngliche Entwurf — eine Regel statt zweier. §6
+führte „Tafel gilt" und „Tafel rät" als bewusst gemischtes Modell; gemischt ist es weiterhin, aber
+die Größe steht jetzt auf der RATENDEN Seite, und `getScaledLabelSize` liest sich wie
+`avesmapsLabelImBand` nebenan.
+
+💣 **Das Feld war zwischenzeitlich ein `hidden`, und genau das hat die Werte gerettet.** Der Payload
+liest `formData.get("size")`; ohne das Feld hätte jedes Speichern eine 0 über den gespeicherten Wert
+geschrieben. Nach der Rücknahme am Livebestand nachgemessen: **938 von 938** Beschriftungen tragen
+ihre eigene Größe, von 12 bis 50 pt — nichts verloren.
+
+⚠️ **Damit ändert sich beim Ausliefern GAR NICHTS an der Karte.** Der ursprüngliche Entwurf sagte das
+Gegenteil voraus („Jedes Label, das heute nicht auf 18 steht, ändert sichtbar seine Größe") — das
+galt für die verworfene Fassung. Da alle 938 einen eigenen Wert tragen, wirkt die Tafel heute auf
+keine einzige; sie ist der Vorschlag für neue. Genau wie beim Zoomband.
+
+Die Vorgabekurve bleibt die echte Formel aus `getScaledLabelSize` bei Grundgröße 18:
 
 | z0 | z1 | z2 | z3 | z4 | z5 | z6 | z7 | z8 |
 |---|---|---|---|---|---|---|---|---|
 | 9 | 11 | 13 | 14 | 16 | 18 | 19 | 21 | 21 |
 
-**Jedes Label, das heute nicht auf 18 steht, ändert beim Ausliefern sichtbar seine Größe.** Das ist
-der Preis dafür, dass die Größe global wird; nachgestellt wird je Art im Fenster.
+🔴 **Der z5-Wert IST die Grundgröße**, und das ist keine Wahl: bei z5 ist der Zoomfaktor genau 1,0
+(`0.5 + 5/5 · 0.5`, kein Tiefzoom-Zuschlag). Deshalb liest die Marke unter dem Regler genau diese
+Stufe (`avesmapsEcosystemDisplayBasisGroesse`). Wer eine andere nimmt, verschiebt jeden Vorschlag um
+den Zoomfaktor jener Stufe — und es fällt nicht auf: die Zahl sieht weiterhin wie eine Schriftgröße
+aus.
 
 💣 **Auswahl schaltet das Ziehen frei.** In der Vorgabestellung sind alle Kurven deckungsgleich —
 zwölf Punkte konkurrieren um denselben Klick, und man müsste „erst alle darüberliegenden
@@ -303,12 +318,22 @@ sichtbar daneben — und an den Enden liegen die interessanten Werte (z0, z7).
 
 | | |
 |---|---|
-| Flächenfarbe, Deckkraft, Namensfarbe, Schriftgröße | **Die Tafel gilt.** Kein **Bedienelement** mehr am einzelnen Label — das Feld `size` bleibt als `hidden` stehen, siehe §5.5. |
-| Sichtbar ab/bis Zoom, Max. Namen, Priorität | **Die Tafel rät.** Der Editor entscheidet, sieht aber die Marke. |
+| Flächenfarbe, Deckkraft, Namensfarbe | **Die Tafel gilt.** Kein Bedienelement am einzelnen Label. |
+| **Schriftgröße**, Sichtbar ab/bis Zoom, Max. Namen, Priorität | **Die Tafel rät.** Der Editor entscheidet, sieht aber die Marke. |
 
-Begründet: Größe und Farbe sollen über die ganze Karte einheitlich sein, sonst sieht sie
-zusammengewürfelt aus. Wo ein Label steht und wann es erscheint, hängt am Einzelfall — das weiß nur
-der Editor, der die Stelle kennt.
+Begründet: **Farbe** soll über die ganze Karte einheitlich sein, sonst sieht sie zusammengewürfelt
+aus. Wo ein Label steht, wann es erscheint und **wie groß es ist**, hängt am Einzelfall — das weiß
+nur der Editor, der die Stelle kennt.
+
+🪤 **Die Schriftgröße stand einen Tag lang in der oberen Zeile**, und die Begründung darüber lautete
+„Größe und Farbe sollen einheitlich sein". Der Owner hat das am 24.08.2026 umgedreht: *„bei den
+schriftgrößen wollte ich den editoren diese nicht von den labels wegnehmen"*. Die Zeile hier ist
+deshalb nicht bloß korrigiert, sondern die Begründung mit ihr — eine Tabelle, deren Zeile sich ändert
+und deren Grund stehen bleibt, ist die nächste Fehllesung.
+
+⭐ Damit sind es **vier ratende Werte gegen drei geltende**, und die vier lesen sich alle gleich:
+eigener Wert gewinnt, Tafel füllt die Lücke, Marke zeigt den Vorschlag. Der ursprüngliche Entwurf
+hielt „Tafel gilt" für die Mehrheit; gebaut ist die Minderheit.
 
 ---
 
@@ -392,6 +417,42 @@ Nicht am Zahlenblatt, sondern am Ablauf (AGENTS.md §9). Vor „fertig" ausgefü
 10. Alles in **hell UND dunkel**.
 
 ⚠️ Was ein Prototyp nicht beantworten kann, wird als offene Frage gemeldet, nicht als bestanden.
+
+---
+
+## §5.8 Nachträge vom 24.08.2026 (nach dem Bau, auf Owner-Zuruf)
+
+🔴 **„Max. Namen" hängt am Haken.** Der Regler ist nur bedienbar, wenn „Kurvenbeschriftung"
+angehakt ist. Zwei Bedingungen verschiedener Art: ohne Fläche gibt es keine Mittelachse, ohne Haken
+keine Kurve, auf der sich Namen verteilen ließen. ⚠️ Der WERT bleibt dabei stehen — ein Regler, der
+beim Sperren auf 1 zurückspringt, verlöre die Einstellung beim blossen Ab- und Wiederanhaken.
+
+🔴 **Quellen für Beschriftungen und Flächen.** Beide bekommen den geteilten Quellen-Editor
+(`mountFeatureSourceEditor`), zusätzlich zum WikiSync.
+
+* **Beschriftung:** kostet KEINE Erweiterung der Freigabeliste. Ein Label ist im Quellensystem seit
+  jeher `entity_type = "region"` mit seiner `map_features.public_id` — die Karte zeichnet seine
+  Quellenzeile längst (`renderFeatureSourceLine` in `map-features-labels.js`, Zuordnung in
+  `api/app/map-features.php`). Es fehlte nur die Oberfläche zum Setzen.
+* **Fläche:** bekommt die Quellen ihrer **REGION**, nicht eigene. Eine Region liegt in vielen
+  Flächen (der Finsterkamm in 57); ihre Angabe gilt für alle. Pro Fläche geführt wäre dieselbe
+  Quelle 57-mal einzutragen und 57-mal zu pflegen — und beim Auseinanderlaufen wüsste niemand,
+  welche gilt. Es ist DIESELBE Liste, die der Landschaften-Editor an der Region zeigt.
+  🔧 Sollen Flächen je einzeln Quellen tragen, ist das die dokumentierte Zwei-Zeilen-Änderung
+  (ein neuer `entity_type` in beiden weissen Listen) — bewusst nicht getan.
+
+💣 Beide Mounts TAUSCHEN ihren Container aus, bevor sie neu mounten. Das Bauteil hängt Zuhörer an
+den Knoten; ohne den Austausch stapeln sie sich bei jedem Öffnen, und ein Klick löst so oft aus, wie
+der Dialog schon offen war. Im Browser nachgemessen: nach drei Öffnungen genau ein Knoten.
+⚠️ Der Flächen-Mount fragt ZUERST nach dem Bauteil, dann nach dem Knoten. Andersherum riss er zwei
+Tests des Flächendialogs mit, deren DOM-Attrappe Ersatzknoten ohne `cloneNode` liefert.
+
+🔴 **Eine Reglerzeile statt zweier.** `label-edit-zoomrow` und `label-edit-sliderrow` waren Zeichen
+für Zeichen dieselbe Rezeptur. Zusammengelegt; die Ausnahme `--wide` bleibt (eine Höhe in Schritt
+ist fünfstellig und wurde in 56 px zu „500" abgeschnitten).
+⚠️ Dabei gefunden: Chrome gibt jedem `input[type=range]` `margin: 2px`, das sich in der Flex-Zeile
+nach aussen addiert — JEDE Reglerzeile lief um genau 2 px über (174 gegen 172). Zwei Pixel sieht man
+nicht, aber sie erzeugen die waagerechte Rollbarkeit, die man dann anderswo sucht.
 
 ---
 
