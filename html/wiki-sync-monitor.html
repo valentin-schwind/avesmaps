@@ -1255,7 +1255,10 @@ function treeAssignedCategory(n){
 // nodeHidden/covTime laufen und nicht ueber matchesTreeFilters (siehe renderTree).
 const TREE_FILTER_SECTIONS = [
   { menuId:'treeSourceFilterMenu', label:'Quelle', kind:'single', state:treeSourceFilter, options:[{value:'wiki',label:'Wiki'},{value:'andere',label:'Andere'},{value:'keine',label:'Keine'}], match:(n,v)=>treeSourceCategory(n)===v },
-  { menuId:'treeCoatFilterMenu', label:'Wappen', kind:'single', state:treeCoatFilter, options:[{value:'ja',label:'ja'},{value:'nein',label:'nein'}], match:(n,v)=>(!!n.coat_of_arms_url)===(v==='ja') },
+  // 💣 has_coat, NICHT coat_of_arms_url: die Adresse ist seit 24.08.2026 „unsere Platte oder
+  // nichts" und beantwortet damit „haben wir eins zum ZEIGEN?". Der Filter fragt aber „ist eins
+  // EINGETRAGEN?" -- dafuer fuehrt der Knoten sein eigenes Feld (sync-monitor-tree.php).
+  { menuId:'treeCoatFilterMenu', label:'Wappen', kind:'single', state:treeCoatFilter, options:[{value:'ja',label:'ja'},{value:'nein',label:'nein'}], match:(n,v)=>(!!n.has_coat)===(v==='ja') },
   { menuId:'treeHierarchyFilterMenu', label:'Hierarchie', kind:'single', state:treeHierarchyFilter, options:[{value:'mit',label:'mit Kindern'},{value:'ohne',label:'ohne Kinder'}], match:(n,v)=>treeHasChildren(n)===(v==='mit') },
   { menuId:'treeAssignedFilterMenu', label:'Zugewiesen', kind:'single', state:treeAssignedFilter, options:[{value:'ja',label:'ja'},{value:'teilweise',label:'teilweise'},{value:'nein',label:'nein'}], match:(n,v)=>treeAssignedCategory(n)===v },
 ];

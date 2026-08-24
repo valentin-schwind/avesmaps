@@ -3,6 +3,24 @@
 declare(strict_types=1);
 
 // avesmapsCoatLokaleKopie -- gibt die Datei von unserer Platte aus statt der Wiki-Adresse.
+//
+// 🔴 AUCH IM EDITOR. Owner 24.08.2026, mit der Konsole des Ortseditors voller 503er:
+// "orte bearbeiten versucht noch immer wappen aus dem wiki zu ziehen ... BAU DAS AUS."
+//
+// 🪤 HIER STAND EINEN TAG LANG DAS GEGENTEIL, und die Begruendung war falsch: der Filter
+// nehme dem Editor die Wappen weg, die "nur ueber den Zwischenspeicher (api/app/coat.php)
+// erreichbar" seien. Es gibt keine solchen Wappen. coat.php beantwortet einen Cache-TREFFER
+// aus $DOCUMENT_ROOT/uploads/wappen/cache/<sha1($url)>.<ext> -- und genau dort, mit genau
+// demselben Schluessel und derselben Endungsliste, schaut avesmapsCoatLokaleKopie nach. Was
+// coat.php ausliefern koennte, findet sie; was sie nicht findet, beantwortet coat.php mit 503.
+// Der Filter verliert also KEIN anzeigbares Bild -- er nimmt nur die toten Anfragen weg und
+// macht aus den ueberlebenden ein statisches /uploads-Bild ohne PHP dazwischen.
+// Festgenagelt in api/_internal/wiki/__tests__/editor-wappen-nur-lokal-test.php, Abschnitt 1 --
+// gegen den QUELLTEXT von coat.php, Endung fuer Endung, nicht gegen eine abgeschriebene Liste.
+//
+// 💣 Das kaputte Bild, das die Ruecknahme ausgeloest hat, war ein anderer Fehler: eine leere
+// Adresse landete als <img src=""> im Markup. Ein Leser, der '' zurueckgibt, braucht auf der
+// anderen Seite einen Platzhalter -- nicht die Wiki-Adresse als Ersatz.
 require_once __DIR__ . '/../coat-url.php';
 
 // Siedlungs-WikiSync-VERBINDUNG (additiv). Verbindet ein Orts-Feature (feature_type=location)
@@ -1536,14 +1554,9 @@ function avesmapsWikiSettlementEditorList(PDO $pdo): array {
         }
 
         $hasCoat = is_array($props['coat'] ?? null) && (string) ($props['coat']['url'] ?? '') !== '';
-        // 🪤 HIER STAND EINEN COMMIT LANG avesmapsCoatLokaleKopie, UND DAS WAR FALSCH. Sie gibt ''
-        // zurueck, wenn ein Bild nicht auf unserer Platte liegt -- im FRONTEND richtig, im EDITOR
-        // aber nicht: dort verschwindet damit jedes Wappen, das nur ueber den Zwischenspeicher
-        // (api/app/coat.php) erreichbar ist. Der Owner sah statt seines Wappens ein kaputtes Bild.
-        // 🔴 Der Editor darf die Wiki-Adresse nennen. Dass daraus keine Wiki-ANFRAGE wird, sichert
-        // der Riegel in coat.php -- nicht das Verschweigen der Adresse. Ein Treffer im
-        // Zwischenspeicher kommt so weiter mit HTTP 200 durch; nur was wirklich fehlt, bleibt leer.
-        $coatUrl = $hasCoat ? (string) ($props['coat']['url'] ?? '') : '';
+        // 🔴 Unsere Platte oder NICHTS -- nie die Wiki-Adresse (Owner 24.08.2026: "BAU DAS AUS").
+        // Die Begruendung samt der widerlegten Gegenrede steht EINMAL, im Kopf dieser Datei.
+        $coatUrl = $hasCoat ? avesmapsCoatLokaleKopie((string) ($props['coat']['url'] ?? '')) : '';
         // Editor-list thumbnail + "Bilder N/10" badge/filter source: coat URL + own-image count
         // (properties.images, uploaded via settlement-images.php). Wiki-only registry rows have no images.
         $imageList = is_array($props['images'] ?? null) ? $props['images'] : [];
@@ -1669,7 +1682,8 @@ function avesmapsWikiSettlementEditorList(PDO $pdo): array {
             // Browser wie ein `false`, und das waere hier zufaellig richtig statt begruendet.
             'wiki_assigned' => false,
             'has_coat' => (string) ($r['coat_url'] ?? '') !== '',
-            'coat_url' => (string) ($r['coat_url'] ?? '') !== '' ? (string) $r['coat_url'] : null,
+            // Gleiche Regel wie oben: unsere Platte oder nichts, nie die Wiki-Adresse.
+            'coat_url' => avesmapsCoatLokaleKopie((string) ($r['coat_url'] ?? '')) ?: null,
             'image_count' => 0,
             'wiki_url' => (string) ($r['wiki_url'] ?? '') !== '' ? (string) $r['wiki_url'] : null,
             'other_source' => null,
@@ -1731,6 +1745,25 @@ function avesmapsWikiSettlementDetail(PDO $pdo, string $publicId): array {
         }
     }
 
+    $properties = avesmapsWikiSyncDecodeJson($row['properties_json'] ?? null);
+    // 🔴 Der Detailkopf ist die DRITTE Wappen-Ausgabe dieses Editors (nach Ortsliste und
+    // Territorienbaum) und war die einzige, die nie gebunden war. Er zeigt zwei Adressen:
+    // die uebernommene (properties.coat.url) und, wenn keine uebernommen ist, die aus dem
+    // Wiki-Nest (wiki_settlement.wappen_url) -- dieselbe Ruckfall-Kette wie im Frontend, wo
+    // map-features.php sie laengst filtert. Beide gehen hier durch dieselbe Regel.
+    // 💣 Nur die AUSGABE, nie die gespeicherte Zeile: `update_point` schreibt benannte Felder,
+    // das Wappen reist ueber settlement-coat-upload.php, und das Bild-URL-Feld des Dialogs geht
+    // leer auf. Der Staging-Wert bleibt damit unberuehrt -- er ist die Information "das Wiki
+    // nennt diese Datei" und wird beim naechsten Abgleich gebraucht.
+    if (is_array($properties)) {
+        if (is_array($properties['coat'] ?? null) && (string) ($properties['coat']['url'] ?? '') !== '') {
+            $properties['coat']['url'] = avesmapsCoatLokaleKopie((string) $properties['coat']['url']);
+        }
+        if (is_array($properties['wiki_settlement'] ?? null) && (string) ($properties['wiki_settlement']['wappen_url'] ?? '') !== '') {
+            $properties['wiki_settlement']['wappen_url'] = avesmapsCoatLokaleKopie((string) $properties['wiki_settlement']['wappen_url']);
+        }
+    }
+
     return [
         'ok' => true,
         'detail' => [
@@ -1744,7 +1777,7 @@ function avesmapsWikiSettlementDetail(PDO $pdo, string $publicId): array {
             'on_map' => $hasPoint,
             'lng' => $lng,
             'lat' => $lat,
-            'properties' => avesmapsWikiSyncDecodeJson($row['properties_json'] ?? null),
+            'properties' => $properties,
         ],
     ];
 }

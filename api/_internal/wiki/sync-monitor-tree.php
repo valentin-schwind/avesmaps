@@ -3,13 +3,16 @@
 declare(strict_types=1);
 
 // avesmapsCoatLokaleKopie -- die Datei von unserer Platte statt der Wiki-Adresse (Owner 23.08.2026).
-// 🪤 HIER STAND EINEN COMMIT LANG avesmapsCoatLokaleKopie AN DEN DREI AUSGABEN, UND DAS WAR
-// FALSCH. Sie gibt '' zurueck, wenn ein Bild nicht bei uns liegt -- im FRONTEND richtig, im
-// EDITOR aber nicht: dort verschwand damit jedes Wappen, das nur ueber den Zwischenspeicher
-// (api/app/coat.php) erreichbar ist, und der Owner sah statt seines Wappens ein kaputtes Bild.
-// 🔴 Der Editor darf die Wiki-Adresse nennen. Dass daraus keine Wiki-Anfrage wird, sichert der
-// Riegel in coat.php -- nicht das Verschweigen der Adresse. Ein Cache-Treffer kommt so weiter
-// mit HTTP 200 durch, und nur was wirklich fehlt, bleibt leer.
+//
+// 🔴 AUCH IM EDITOR, an allen drei Ausgaben dieser Datei. Der Territorienbaum steht in DREI
+// Fenstern (Ortseditor, Sync-Monitor, Review-WikiSync) und traegt EIN Wappen JE ZEILE -- er war
+// am 24.08.2026 der Erzeuger der 503er, die der Owner in der Konsole von "Orte bearbeiten" sah.
+//
+// 🪤 HIER STAND EINEN TAG LANG DAS GEGENTEIL, mit einer falschen Begruendung: der Filter nehme
+// dem Editor die Wappen weg, die "nur ueber den Zwischenspeicher (api/app/coat.php) erreichbar"
+// seien. Es gibt keine solchen Wappen -- coat.php liest denselben Ordner mit demselben
+// sha1-Schluessel, in den diese Funktion schaut. Die vollstaendige Herleitung steht im Kopf von
+// settlements.php, festgenagelt in __tests__/editor-wappen-nur-lokal-test.php (Abschnitt 1).
 require_once __DIR__ . '/../coat-url.php';
 
 // Model tree projection, geometry audit, wiki-rows view, sandbox clear and model
@@ -81,11 +84,15 @@ function avesmapsWikiSyncMonitorModelTree(PDO $pdo): array {
     // aendert den Key nicht -- ein gefuellter Cache liefert dann weiter die alte Form, und die
     // Aenderung wirkt erst, wenn zufaellig jemand das Modell anfasst. Deshalb die Formversion mit
     // im Key: bei jedem neuen Feld hochzaehlen. (2 = public_id kam dazu, 15.08.2026.)
+    // ⚠️ Nicht nur ein neues FELD zaehlt hoch, auch eine geaenderte FORM eines vorhandenen.
+    // (3 = coat_of_arms_url ist seit 24.08.2026 die lokale Kopie statt der Wiki-Adresse. Ohne den
+    // Sprung haetten die Editoren die alte Antwort weiter aus dem Cache bekommen, und der Fix
+    // waere erst gekommen, wenn zufaellig jemand das Modell anfasst -- also unsichtbar geblieben.)
     $cacheKey = '';
     try {
         $cacheKey = (string) ($pdo->query(
             'SELECT CONCAT(
-                \'v2|\',
+                \'v3|\',
                 COALESCE((SELECT MAX(updated_at) FROM ' . AVESMAPS_WIKI_SYNC_MONITOR_MODEL_TABLE . '), \'\'), \'|\',
                 COALESCE((SELECT MAX(synced_at) FROM ' . AVESMAPS_WIKI_SYNC_MONITOR_STAGING_TABLE . '), \'\'), \'|\',
                 COALESCE((SELECT revision FROM map_revision WHERE id = 1), 0), \'|\',
@@ -213,6 +220,13 @@ function avesmapsWikiSyncMonitorModelTree(PDO $pdo): array {
             $d = json_decode((string) ($row['metadata_overrides_json'] ?? ''), true);
             return is_array($d) ? $d : [];
         })();
+        // 🔴 Der Override SCHLAEGT das Staging-Feld (effCoat im Sync-Monitor liest ihn zuerst) --
+        // also gilt hier dieselbe Regel, sonst haette die gebundene Ausgabe unten eine ungebundene
+        // Hintertuer. Im Normalfall steht dort ohnehin unsere eigene Datei; die faellt durch
+        // avesmapsCoatLokaleKopie unveraendert durch, es kostet also nur den Ausnahmefall.
+        if (isset($overrides['coat_of_arms_url']) && is_string($overrides['coat_of_arms_url'])) {
+            $overrides['coat_of_arms_url'] = avesmapsCoatLokaleKopie($overrides['coat_of_arms_url']);
+        }
 
         $nodes[] = [
             'wiki_key' => (string) $row['wiki_key'],
@@ -263,7 +277,17 @@ function avesmapsWikiSyncMonitorModelTree(PDO $pdo): array {
             'has_conflict' => $conflictNames !== [],
             'conflicts' => $conflictNames,
             'aliases' => $aliases,
-            'coat_of_arms_url' => (string) ($row['coat_of_arms_url'] ?? ''),
+            // 🔴 Unsere Platte oder nichts -- nie die Wiki-Adresse in den Browser geben (Kopf).
+            'coat_of_arms_url' => avesmapsCoatLokaleKopie((string) ($row['coat_of_arms_url'] ?? '')),
+            // 💣 ZWEI FRAGEN, ZWEI FELDER -- und das ist hier kein Widerspruch, sondern der Grund
+            // fuer dieses Feld. "Ist ein Wappen EINGETRAGEN?" ist eine redaktionelle Aussage und
+            // beantwortet den Filter "Wappen: ja/nein"; "haben wir eins zum ZEIGEN?" beantwortet
+            // das <img> darueber. Seit die Ausgabe gebunden ist, fallen sie auseinander: ein
+            // Gebiet, dessen Wappen nur als (oft toter) Wiki-Dateiname existiert, ist eingetragen
+            // und trotzdem nicht zeigbar. Ohne dieses Feld haette der Filter still die Bedeutung
+            // gewechselt -- und die Ortsliste nebenan, die ihr eigenes has_coat fuehrt, haette
+            // dieselbe Frage anders beantwortet.
+            'has_coat' => trim((string) ($row['coat_of_arms_url'] ?? '')) !== '',
             'license_status' => (string) ($row['coat_of_arms_license_status'] ?? ''),
             'status' => (string) ($row['status'] ?? ''),
             'capital_name' => (string) ($row['capital_name'] ?? ''),
@@ -454,7 +478,7 @@ function avesmapsWikiSyncMonitorWikiRows(PDO $pdo): array {
             'trade_zone' => (string) $s['trade_zone'],
             'blazon' => (string) $s['blazon'],
             'wiki_url' => (string) $s['wiki_url'],
-            'coat_of_arms_url' => (string) $s['coat_of_arms_url'],
+            'coat_of_arms_url' => avesmapsCoatLokaleKopie((string) $s['coat_of_arms_url']),
             'map_assigned' => $geometryCount > 0,
             'map_geometry_count' => $geometryCount,
         ];
@@ -515,7 +539,7 @@ function avesmapsWikiSyncMonitorWikiRows(PDO $pdo): array {
             'trade_zone' => $ovs('trade_zone'),
             'blazon' => '',
             'wiki_url' => '',
-            'coat_of_arms_url' => $ovs('coat_of_arms_url'),
+            'coat_of_arms_url' => avesmapsCoatLokaleKopie((string) $ovs('coat_of_arms_url')),
             'map_assigned' => $geometryCount > 0,
             'map_geometry_count' => $geometryCount,
             'is_own_node' => true,
