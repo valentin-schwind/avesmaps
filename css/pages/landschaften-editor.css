@@ -135,3 +135,196 @@
 
 .eco-thumb svg { width: 100%; max-width: 200px; height: auto; }
 .eco-thumb path { fill: var(--color-active-wash); stroke: currentColor; stroke-width: 1.5; }
+
+/* ══════════════════════════════════════════════════════════════════════════════════════════════
+   DAS FENSTER „DARSTELLUNG" (Entwurf §5, Prototyp docs/landschaften-darstellung-mockup.html).
+   Kein hartkodierter Farbwert, kein Radius, keine Schrift unter 11px (AGENTS.md §12).
+   Die Huelle (.avm-modal*) steht im geteilten css/components/editor-page.css.
+   ══════════════════════════════════════════════════════════════════════════════════════════════ */
+.dg__lead {
+	margin: 0 0 var(--space-16);
+	color: var(--color-text-muted);
+	font-size: 12px;
+	line-height: 1.6;
+}
+.dg__lead em { color: var(--color-text); font-style: normal; }
+
+/* Reiter: dieselbe Bauform wie .avm-tabs -- ein Grid, das seine Anzahl selbst traegt. */
+.dg-tabs {
+	display: grid;
+	grid-auto-flow: column;
+	grid-auto-columns: minmax(0, 1fr);
+	gap: var(--space-2);
+	margin-bottom: var(--space-16);
+	padding: var(--space-2);
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-md);
+	background: var(--color-panel-soft);
+}
+.dg-tab {
+	min-width: 0;
+	padding: var(--space-6) var(--space-8);
+	border: 1px solid transparent;
+	border-radius: var(--radius-md);
+	background: none;
+	color: var(--color-button-soft-text);
+	cursor: pointer;
+	font: inherit;
+	font-size: 13px;
+}
+.dg-tab:hover { background: var(--color-button-soft-hover); }
+.dg-tab.is-active {
+	border-color: var(--color-border);
+	background: var(--color-button-soft);
+	color: var(--color-text);
+	font-weight: 600;
+}
+
+.dg__section { margin-bottom: var(--space-24); }
+.dg__section[hidden] { display: none; }
+.dg__head {
+	display: flex;
+	align-items: baseline;
+	justify-content: space-between;
+	gap: var(--space-12);
+	margin-bottom: var(--space-8);
+	padding-bottom: var(--space-6);
+	border-bottom: 1px solid var(--color-divider);
+}
+.dg__head h3 {
+	margin: 0;
+	font-family: var(--font-display, var(--font-ui));
+	font-size: 15px;
+	font-weight: 600;
+}
+.dg__src { color: var(--color-text-muted); font-size: 11px; text-align: right; }
+.dg-plot-caption { margin: var(--space-6) 0 0; color: var(--color-text-muted); font-size: 11px; line-height: 1.5; }
+.foot-mark sup { color: var(--color-accent-brown); }
+
+/* ── Die gemeinsame Tabelle: Flaeche UND Name (Owner 23.08.2026) ───────────────────────────── */
+.dt { width: 100%; border-collapse: collapse; }
+.dt th, .dt td { padding: var(--space-4) var(--space-6); text-align: left; vertical-align: middle; }
+.dt thead th {
+	padding-bottom: var(--space-4);
+	border-bottom: 1px solid var(--color-divider);
+	color: var(--color-text-muted);
+	font-size: 11px;
+	font-weight: 600;
+	white-space: nowrap;
+}
+/* Die zwei Gegenstandsbereiche trennt eine LINIE, kein Kasten (§12: Trenner, nicht Rahmen). */
+.dt .dt-sep { border-left: 1px solid var(--color-divider); }
+.dt tbody tr { border-bottom: 1px solid var(--color-divider); }
+.dt tbody tr:last-child { border-bottom: none; }
+.dt tbody tr:hover td { background: var(--color-panel-soft); }
+.dt__art { font-size: 13px; white-space: nowrap; }
+.dt__art .fl-key { display: block; color: var(--color-text-muted); font-size: 11px; }
+.dt__leer { color: var(--color-text-muted); font-size: 12px; text-align: center; }
+
+/* Ist die Deckkraft global, sind die Zeilenregler nicht weg, sondern STUMM -- man sieht weiter,
+   welcher Wert je Art hinterlegt ist, und das Haekchen gibt ihn unveraendert zurueck. */
+.dt tr.is-stumm .fl-range,
+.dt tr.is-stumm .fl-pctnum { opacity: 0.4; }
+
+/* ── Die globale Deckkraft je Ebene ────────────────────────────────────────────────────────── */
+.fl-global {
+	display: grid;
+	align-items: center;
+	gap: var(--space-10);
+	grid-template-columns: 200px 1fr 72px 118px 26px;
+	margin-bottom: var(--space-8);
+	padding: var(--space-6) var(--space-10);
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-md);
+	background: var(--color-panel-soft);
+}
+.fl-global__check { display: inline-flex; align-items: center; gap: var(--space-6); font-size: 12px; }
+.fl-global.is-aus .fl-range,
+.fl-global.is-aus .fl-pctnum,
+.fl-global.is-aus .fl-prev { opacity: 0.4; }
+
+.fl-swatch {
+	width: 30px;
+	height: 22px;
+	padding: 0;
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-md);
+	background: none;
+	cursor: pointer;
+}
+.fl-hex {
+	width: 76px;
+	padding: var(--space-2) var(--space-4);
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-md);
+	background: var(--color-panel-soft);
+	color: var(--color-text);
+	font-family: monospace;
+	font-size: 11px;
+}
+.fl-range { width: 100%; }
+.fl-pctnum {
+	width: 72px;
+	padding: var(--space-2) var(--space-4);
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-md);
+	background: var(--color-panel);
+	color: var(--color-text);
+	font: inherit;
+	font-size: 12px;
+	text-align: right;
+}
+
+/* Der Vorschaustreifen: der echte Ton auf der echten Deckkraft, ueber dem Kartengrund. */
+.fl-prev {
+	position: relative;
+	height: 22px;
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-md);
+	background: var(--color-ecosystem-underground);
+	overflow: hidden;
+}
+.fl-prev__fill { position: absolute; inset: 0; }
+
+/* Das Namensmuster: echter Ton, echte Schrift, auf SEINER Flaeche.
+   🪤 Es stand im Prototyp zuerst auf dem hellen Untergrund-Token -- und fast jede Labelfarbe ist
+   hell. Gemessen lagen alle zwoelf Muster bei Kontrast 1,0-1,25, also unlesbar. Zwei Aenderungen,
+   beide naeher an der Karte: der Grund ist die eigene Flaeche, und der Name bekommt die KONTUR,
+   die der Canvas live zieht -- kein weicher Schatten, der trug fuenf blasse Arten nicht. */
+.fc-probe {
+	display: flex;
+	align-items: center;
+	height: 26px;
+	padding: 0 var(--space-8);
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-md);
+	background: var(--color-ecosystem-underground);
+	overflow: hidden;
+	font-family: "Faculty Glyphic", Georgia, serif;
+	font-size: 14px;
+	letter-spacing: 0.02em;
+	line-height: 1;
+	text-shadow:
+		1px 0 0 var(--color-ecosystem-klima-label-halo),
+		-1px 0 0 var(--color-ecosystem-klima-label-halo),
+		0 1px 0 var(--color-ecosystem-klima-label-halo),
+		0 -1px 0 var(--color-ecosystem-klima-label-halo),
+		1px 1px 0 var(--color-ecosystem-klima-label-halo),
+		-1px -1px 0 var(--color-ecosystem-klima-label-halo),
+		1px -1px 0 var(--color-ecosystem-klima-label-halo),
+		-1px 1px 0 var(--color-ecosystem-klima-label-halo),
+		0 0 3px var(--color-ecosystem-klima-label-halo);
+	white-space: nowrap;
+}
+
+.fl-reset {
+	padding: 0;
+	border: none;
+	background: none;
+	color: var(--color-text-muted);
+	cursor: pointer;
+	font-size: 14px;
+	line-height: 1;
+}
+.fl-reset:hover { color: var(--color-link); }
+.fl-reset[hidden] { display: none; }

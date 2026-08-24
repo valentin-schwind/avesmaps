@@ -1272,3 +1272,82 @@ body.avm-editor-body {
 	font-size: var(--font-size-caption);
 	color: var(--color-text-muted);
 }
+
+/* ══════════════════════════════════════════════════════════════════════════════════════════════
+   DAS EDITORFENSTER (Modal) — geteilt, token-treu, seit 24.08.2026.
+
+   🪤 ES GIBT EINEN AELTEREN ZWILLING: `.modal*` steht INLINE in
+   html/wiki-sync-settlement-editor.html (Zoombaender, Wappen-Upload, Zuordnen-Vorschau). Der
+   benutzt seitenlokale Aliase (`--panel`, `--mut`, `--line2`) und hartkodierte Werte
+   (10px, rgba(0,0,0,.28)) -- also genau das, was §12 verbietet. Er wurde bewusst NICHT
+   hierher verschoben: das haette die Verstoesse mitgenommen und die Dialoge des Orte-Editors
+   umgefaerbt, ohne dass jemand sie ansehen kann (es gibt lokal keine Datenbank und keine Sitzung).
+   🔧 Wer den Orte-Editor das naechste Mal anfasst, zieht ihn hierher um und loescht die Inline-
+   Fassung. Bis dahin sind es ZWEI Rezepturen unter VERSCHIEDENEN Namen -- getrennt, benannt und
+   aufgeschrieben, statt still nebeneinander zu laufen.
+   ⚠️ Deshalb `.avm-modal*` und nicht `.modal*`: gleiche Namen in zwei Blaettern waeren die
+   Kollision, die keiner sieht, bis eine Seite beide laedt.
+   ══════════════════════════════════════════════════════════════════════════════════════════════ */
+.avm-modal {
+	position: fixed;
+	inset: 0;
+	z-index: 100;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: var(--space-16);
+	background: var(--color-scrim-dialog);
+	overflow-y: auto;
+}
+.avm-modal[hidden] { display: none; }
+
+.avm-modal__box {
+	width: 980px;
+	max-width: 96vw;
+	max-height: 92vh;
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-lg);
+	background: var(--color-panel);
+	box-shadow: var(--shadow-panel);
+	color: var(--color-text);
+	display: flex;
+	flex-direction: column;
+	overflow: hidden;
+}
+
+/* Der Titel ist zugleich der Griff zum Verschieben (js/ui/dialog-drag.js), wie im Orte-Editor. */
+.avm-modal__title {
+	padding: var(--space-16) var(--space-20) var(--space-4);
+	color: var(--color-text-strong);
+	cursor: move;
+	font-family: var(--font-display, var(--font-ui));
+	font-size: 20px;
+	user-select: none;
+}
+.avm-modal__sub {
+	padding: 0 var(--space-20) var(--space-12);
+	border-bottom: 1px solid var(--color-divider);
+	color: var(--color-text-muted);
+	font-size: 13px;
+}
+/* ⚠️ NUR der Rumpf scrollt, nicht das ganze Fenster: sonst wandern Titel und Knopfleiste aus dem
+   Bild, und „Speichern" ist bei einer langen Tafel nicht mehr erreichbar. */
+.avm-modal__body {
+	flex: 1 1 auto;
+	padding: var(--space-16) var(--space-20);
+	overflow-y: auto;
+}
+.avm-modal__actions {
+	display: flex;
+	justify-content: flex-end;
+	gap: var(--space-8);
+	padding: var(--space-12) var(--space-20) var(--space-16);
+	border-top: 1px solid var(--color-divider);
+}
+.avm-modal__actions .avm-modal__spacer { margin-right: auto; }
+.avm-modal__msg {
+	margin: 0;
+	min-height: 1.3em;
+	color: var(--color-text-muted);
+	font-size: 12px;
+}

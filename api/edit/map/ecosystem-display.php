@@ -46,6 +46,9 @@ try {
             'display' => $state['display'],
             'stamp' => $state['stamp'],
             'can_save' => $maySave,
+            // 🔴 Die Namensarten kommen aus den DATEN, nicht aus einer zweiten Vokabelliste
+            // (Begruendung bei avesmapsEcosystemDisplayLabelSubtypes).
+            'label_subtypes' => avesmapsEcosystemDisplayLabelSubtypes($pdo),
         ]);
     }
 

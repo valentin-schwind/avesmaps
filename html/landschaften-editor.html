@@ -92,6 +92,7 @@
          (`app_setting['terrain_travel_enabled']`). Ein Notaus, dessen Stand man aufklappen muss, ist
          keiner — dieselbe Regel, die beim Wappen-Menü die Unterzeile erzwingt. -->
     <button type="button" class="avm-tile" id="ecoTerrainTravel" title="Rechnet Anstieg und Gefälle in die Reisezeiten ein — für alle Besucher. AUS heisst Zeile für Zeile die heutigen Zahlen."><span class="t1">Geländeabhängiges Reisen</span><span class="t2" id="ecoTerrainTravelInfo">Zustand unbekannt</span></button>
+    <button type="button" class="avm-tile" id="ecoDisplay" title="Darstellung der LANDSCHAFTEN: Ton und Deckkraft je Flaechenart, Farbe und Schriftgroesse je Namensart, das Zoomband und die Kurvenfeinheiten. Ansehen darf jeder Editor, speichern nur ein Administrator. ⚠️ Nicht zu verwechseln mit „Darstellung“ unter „Orte“ — das sind die Ortsklassen."><span class="t1">Darstellung</span><span class="t2" id="ecoDisplayInfo">Farben, Groessen, Zoombaender</span></button>
     <!-- Die Kachel „Landschaftsmodul" ist am 2026-08-01 mit dem Totmannschalter entfallen (Owner-Auftrag).
          ⚠️ Nicht verwechseln mit „Geländeabhängiges Reisen" darüber: das ist V11s EIGENER Schalter
          (app_setting['terrain_travel_enabled']) und der bleibt. -->
@@ -223,6 +224,59 @@
 <script src="/js/ui/wiki-feld-herkunft.js"></script>
 <!-- Der Massenlauf der Zuweisung (Menübandkachel „Wiki zuweisen"). Eigene Datei, weil dieselbe
      Abfolge -- zeigen, fragen, schreiben -- auch im Wege-Editor hängt und in node geprüft wird. -->
+<!-- ══════════════════════════════════════════════════════════════════════════════════════════
+     DAS FENSTER „DARSTELLUNG" (Entwurf docs/superpowers/specs/2026-08-24-landschaften-darstellung-design.md,
+     Prototyp docs/landschaften-darstellung-mockup.html).
+     🔴 Vier Reiter -- dieselben wie im Editor. Darin EINE Tabelle fuer Flaeche UND Name
+     (Owner 23.08.2026), darunter das Zoomband je Art, der Groessenplot und die Kurvenfeinheiten.
+     🔴 Ansehen darf `edit`, speichern nur `admin`. Der Riegel steht serverseitig; hier wird nur
+     ausgegraut, was ohnehin abgelehnt wuerde.
+     ══════════════════════════════════════════════════════════════════════════════════════════ -->
+<div id="ecoDisplayDialog" class="avm-modal" hidden>
+  <div class="avm-modal__box" role="dialog" aria-modal="true" aria-labelledby="ecoDisplayTitle">
+    <div class="avm-modal__title" id="ecoDisplayTitle">Darstellung</div>
+    <div class="avm-modal__sub">Wie Landschaftsflächen und ihre Namen auf der Karte aussehen.</div>
+    <div class="avm-modal__body">
+      <p class="dg__lead" id="ecoDisplayLead">
+        Oben wählst du die Ebene. <strong>Fläche</strong> gibt jeder Flächenart ihren Ton und ihre
+        Deckkraft, <strong>Name</strong> die Schriftfarbe. <em>Gespeichert ist erst, was der Knopf
+        unten speichert — die Karte zeigt eine Änderung erst nach dem nächsten Laden.</em>
+      </p>
+      <div class="dg-tabs" id="ecoDisplayTabs"></div>
+      <div class="dg__section">
+        <div class="dg__head">
+          <h3 id="ecoDisplayFlTitel">Flächen und Namen — Ton, Deckkraft, Schriftfarbe</h3>
+          <span class="dg__src" id="ecoDisplayFlSrc"></span>
+        </div>
+        <div class="fl-global" id="ecoDisplayGlobal"></div>
+        <table class="dt">
+          <thead>
+            <tr>
+              <th rowspan="2">Art</th>
+              <th colspan="4" class="dt-sep">Fläche</th>
+              <th colspan="2" class="dt-sep">Name</th>
+              <th rowspan="2"></th>
+            </tr>
+            <tr>
+              <th class="dt-sep">Ton</th><th></th><th>Deckkraft</th><th>Vorschau</th>
+              <th class="dt-sep">Farbe</th><th></th>
+            </tr>
+          </thead>
+          <tbody id="ecoDisplayRows"></tbody>
+        </table>
+        <p class="dg-plot-caption" id="ecoDisplayFlNote"></p>
+        <p class="dg-plot-caption foot-mark" id="ecoDisplayFoot"></p>
+      </div>
+      <p class="avm-modal__msg" id="ecoDisplayMsg"></p>
+    </div>
+    <div class="avm-modal__actions">
+      <button type="button" class="btn2 avm-modal__spacer" id="ecoDisplayReset">Auf Vorgabe zurücksetzen</button>
+      <button type="button" class="btn2" id="ecoDisplayClose">Schließen</button>
+      <button type="button" class="btn2 is-primary" id="ecoDisplaySave">Speichern</button>
+    </div>
+  </div>
+</div>
+
 <script>
 "use strict";
 (function () {
@@ -2500,6 +2554,567 @@ async function loadWikiRegions() {
 // vom 06.06.2026, einen Tag später wieder entfernt (f157b193), und hinterher wusste niemand, ob
 // der Endpunkt tot oder nur unbenutzt war.
 
+// ═══════════════════════════════════════════════════════════════════════════════════════════════
+// DAS FENSTER „DARSTELLUNG" (Entwurf §5).
+//
+// 🔴 DIE VORGABEN STEHEN NICHT HIER. Sie kommen aus js/map-features/ecosystem-display.js -- der
+// Datei, gegen die auch die KARTE zeichnet. Eine zweite Tafel im Fenster liefe beim ersten
+// geaenderten Wert auseinander, und der Editor saehe etwas anderes als der Besucher.
+// 🔴 Gespeichert wird nur die ABWEICHUNG, nie eine Kopie der Vorgabe.
+// ═══════════════════════════════════════════════════════════════════════════════════════════════
+
+const ECO_DISPLAY_API = "/api/edit/map/ecosystem-display.php";
+
+// Die vier Ebenen -- Wortlaut wie in der Reiterzeile der Liste darueber.
+const ECO_DISPLAY_EBENEN = [
+	["derographisch", "Derographie"],
+	["vegetation", "Vegetation"],
+	["topographie", "Topographie"],
+	["klima", "Klimazonen"],
+];
+
+let ecoDisplayReiter = "vegetation";
+let ecoDisplayDarfSpeichern = false;
+let ecoDisplayNamensarten = [];
+let ecoDisplayBearbeitet = false;
+// Die Uebersteuerung, wie sie gespeichert wird. Leer = die Vorgabe gilt.
+let ecoDisplayTafel = { flaeche: {}, deckkraft: {}, global: {}, farbe: {}, groesse: {}, vorgabe: {}, kurve: {} };
+// Die Zeilen melden ihren Nachzieher an, damit das globale Haekchen sie alle aktualisieren kann,
+// OHNE die Tabelle neu zu bauen -- ein Neubau naehme dem gerade angefassten Feld den Fokus.
+let ecoDisplayZeilenZeichner = [];
+
+const ecoDisplayKeyFl = (kind, art) => kind + ":" + art;
+
+function ecoDisplayTeil(name) {
+	const teil = ecoDisplayTafel[name];
+	return (teil && typeof teil === "object" && !Array.isArray(teil)) ? teil : {};
+}
+
+/** Der Ton einer Flaeche: Uebersteuerung oder Vorgabe aus dem Stylesheet. */
+function ecoDisplayFlTon(kind, art) {
+	const eigen = ecoDisplayTeil("flaeche")[ecoDisplayKeyFl(kind, art)];
+	if (typeof eigen === "string" && eigen !== "") { return eigen; }
+	return ecoDisplayNormHex(ecoDisplayTokenTon("--color-ecosystem-" + kind + "-" + art.replace(/_/g, "-"))
+		|| ecoDisplayTokenTon("--color-ecosystem-" + kind));
+}
+
+/** Der Ton eines Namens: Uebersteuerung oder die CSS-Sonde -- dieselbe wie im Canvas-Renderer. */
+function ecoDisplayNaTon(art) {
+	const eigen = ecoDisplayTeil("farbe")[art];
+	if (typeof eigen === "string" && eigen !== "") { return eigen; }
+	return ecoDisplaySonde(art).ton;
+}
+
+function ecoDisplayTokenTon(name) {
+	return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+}
+
+function ecoDisplayNormHex(wert) {
+	const t = String(wert || "").trim();
+	if (/^#[0-9a-fA-F]{6}$/.test(t)) { return t.toLowerCase(); }
+	if (/^#[0-9a-fA-F]{3}$/.test(t)) { return "#" + t.slice(1).split("").map((c) => c + c).join("").toLowerCase(); }
+	const m = t.match(/(\d+)[,\s]+(\d+)[,\s]+(\d+)/);
+	if (m) { return "#" + [m[1], m[2], m[3]].map((n) => Number(n).toString(16).padStart(2, "0")).join(""); }
+	return "#888888";
+}
+
+// 🔴 DIESELBE SONDE WIE DER CANVAS-RENDERER (getMapLabelTypeStyle in map-features-labels.js): ein
+// echtes .map-label--<art> ins Dokument haengen und die aufgeloeste Farbe ablesen. Kein Abschreiben,
+// keine zweite Farbtabelle -- die ~20 Toene bleiben in css/features/map-labels.css.
+// ⚠️ Das setzt voraus, dass diese Seite map-labels.css laedt; ohne sie kaeme ueberall derselbe
+// Grundton heraus, und das saehe aus wie ein Datenfehler.
+const _ecoDisplaySonde = {};
+function ecoDisplaySonde(art) {
+	if (_ecoDisplaySonde[art]) { return _ecoDisplaySonde[art]; }
+	const probe = document.createElement("div");
+	probe.className = "map-label map-label--" + art;
+	probe.style.cssText = "position:absolute;left:-9999px;top:-9999px;visibility:hidden;";
+	const span = document.createElement("span");
+	span.textContent = "Mg";
+	probe.appendChild(span);
+	document.body.appendChild(probe);
+	const cs = getComputedStyle(span);
+	_ecoDisplaySonde[art] = { ton: ecoDisplayNormHex(cs.color), gross: cs.textTransform === "uppercase" };
+	document.body.removeChild(probe);
+	return _ecoDisplaySonde[art];
+}
+
+/* 🔴 „Global" heisst FUER DIESE EBENE, und es ist der AUSGANGSZUSTAND -- heute hat die Karte genau
+   das: eine Deckkraft je Ebene (0,16 / 0,72 / 0,72 / 0,30). Das Haekchen an mit dem Wert der Ebene
+   reproduziert also das heutige Bild; erst das Abhaken oeffnet die Werte je Art. */
+function ecoDisplayGlobalAn(kind) {
+	const g = ecoDisplayTeil("global")[kind];
+	return (g && typeof g.an === "boolean") ? g.an : true;
+}
+function ecoDisplayGlobalWert(kind) {
+	const g = ecoDisplayTeil("global")[kind];
+	if (g && typeof g.wert === "number") { return g.wert; }
+	return avesmapsEcosystemDisplayDeckkraft(kind, "");
+}
+
+/** Die Deckkraft, die WIRKT. 💣 Global ueberschreibt den Zeilenwert, es LOESCHT ihn nicht. */
+function ecoDisplayDeckWirkt(kind, art) {
+	if (ecoDisplayGlobalAn(kind)) { return ecoDisplayGlobalWert(kind); }
+	const eigen = ecoDisplayTeil("deckkraft")[ecoDisplayKeyFl(kind, art)];
+	return typeof eigen === "number" ? eigen : avesmapsEcosystemDisplayDeckkraft(kind, art);
+}
+/** Der Wert, den die ZEILE traegt -- auch wenn gerade der globale wirkt. */
+function ecoDisplayDeckZeile(kind, art) {
+	const eigen = ecoDisplayTeil("deckkraft")[ecoDisplayKeyFl(kind, art)];
+	return typeof eigen === "number" ? eigen : avesmapsEcosystemDisplayDeckkraft(kind, art);
+}
+
+/* Die Zeilen der Tabelle: Flaechenarten dieser Ebene, dazu die Namensarten, die keine gleichnamige
+   Flaeche haben.
+   🪤 Die zwei Vokabulare decken sich NICHT: `insel` ist in der Topographie eine Flaeche, sein Name
+   steht unter Derographie; `fluss`, `berggipfel`, `vulkan` und `ebene` haben ueberhaupt keine
+   Flaechenart. Statt das zu glaetten, zeigt die Tabelle die Luecke als „—" -- das ist eine
+   Auskunft, kein Mangel.
+   🔴 Beide Listen kommen vom SERVER: die Flaechenarten aus `regionTypes` (der Seed), die
+   Namensarten aus dem Bestand (`label_subtypes`). Keine dritte Abschrift. */
+function ecoDisplayZeilen(kind) {
+	const fl = typesOfKind(kind);
+	const zeilen = fl.map((t) => ({
+		key: String(t.type_key), label: String(t.label || t.type_key),
+		hatFlaeche: true, hatName: ecoDisplayNamensarten.indexOf(String(t.type_key)) >= 0, ohne: false,
+	}));
+	// 🔧 OFFEN, UND HIER AUSDRUECKLICH GESAGT: `fluss`, `berggipfel`, `vulkan` und `ebene` sind
+	// Namensarten OHNE gleichnamige Flaechenart. Sie erscheinen in diesem Fenster (noch) nicht,
+	// weil es keine Stelle gibt, die sagt, zu welcher Ebene sie gehoeren -- der Entwurf ordnet sie
+	// „inhaltlich" zu, und genau das ist eine Entscheidung, keine Ableitung. Sie zu erfinden waere
+	// ein zweites Vokabular (AGENTS.md §5). Ihre Namensfarbe bleibt bis dahin die aus map-labels.css.
+	// ⚠️ Kein Schweigen: der Fussnotentext unter der Tabelle nennt sie beim Namen.
+	return zeilen;
+}
+
+
+// ---- Reiter -----------------------------------------------------------------------------------
+function ecoDisplayZeichneReiter() {
+	const el = $("ecoDisplayTabs");
+	el.innerHTML = "";
+	ECO_DISPLAY_EBENEN.forEach(([key, label]) => {
+		const b = document.createElement("button");
+		b.type = "button";
+		b.className = "dg-tab" + (key === ecoDisplayReiter ? " is-active" : "");
+		b.textContent = label;
+		b.addEventListener("click", () => { ecoDisplayReiter = key; ecoDisplayZeichne(); });
+		el.appendChild(b);
+	});
+}
+
+// ---- Die globale Deckkraft je Ebene ------------------------------------------------------------
+function ecoDisplayZeichneGlobal() {
+	const bar = $("ecoDisplayGlobal");
+	bar.innerHTML = "";
+	const kind = ecoDisplayReiter;
+
+	const lab = document.createElement("label");
+	lab.className = "fl-global__check";
+	const cb = document.createElement("input");
+	cb.type = "checkbox";
+	cb.disabled = !ecoDisplayDarfSpeichern;
+	lab.append(cb, document.createTextNode("Eine Deckkraft für die ganze Ebene"));
+
+	const rng = document.createElement("input");
+	rng.type = "range"; rng.className = "fl-range";
+	rng.min = "0"; rng.max = "100"; rng.step = "1";
+	rng.setAttribute("aria-label", "Deckkraft für die ganze Ebene");
+
+	const num = document.createElement("input");
+	num.type = "number"; num.className = "fl-pctnum";
+	num.min = "0"; num.max = "100"; num.step = "1";
+	num.setAttribute("aria-label", "Deckkraft für die ganze Ebene in Prozent");
+
+	const prev = document.createElement("div");
+	prev.className = "fl-prev";
+	const fill = document.createElement("div");
+	fill.className = "fl-prev__fill";
+	prev.appendChild(fill);
+
+	const rst = document.createElement("button");
+	rst.type = "button"; rst.className = "fl-reset"; rst.textContent = "↺";
+	rst.title = "Auf die Vorgabe dieser Ebene zurücksetzen";
+
+	function nachziehen(sagen) {
+		const an = ecoDisplayGlobalAn(kind);
+		const w = ecoDisplayGlobalWert(kind);
+		cb.checked = an;
+		rng.value = String(Math.round(w * 100));
+		num.value = Math.round(w * 100);
+		rng.disabled = !an || !ecoDisplayDarfSpeichern;
+		num.disabled = rng.disabled;
+		// Der Streifen zeigt den globalen Wert auf dem Ton der ERSTEN Art dieser Ebene -- ein
+		// neutrales Grau liesse die Deckkraft anders lesen, als sie auf der Karte wirkt.
+		const erste = ecoDisplayZeilen(kind)[0];
+		fill.style.background = erste ? ecoDisplayFlTon(kind, erste.key) : "";
+		fill.style.opacity = String(w);
+		bar.classList.toggle("is-aus", !an);
+		rst.hidden = !ecoDisplayTeil("global")[kind];
+		ecoDisplayZeilenZeichner.forEach((f) => f(false));
+		if (sagen) {
+			ecoDisplayMelde(an
+				? "Ganze Ebene auf " + Math.round(w * 100) + " % — die Werte je Art sind stumm, aber gemerkt."
+				: "Deckkraft je Art — jede Zeile stellt sich selbst.");
+		}
+	}
+
+	const setz = (feld, wert) => {
+		const g = Object.assign(
+			{ an: ecoDisplayGlobalAn(kind), wert: ecoDisplayGlobalWert(kind) },
+			ecoDisplayTeil("global")[kind] || {}
+		);
+		g[feld] = wert;
+		ecoDisplayTafel.global[kind] = g;
+		ecoDisplayBearbeitet = true;
+		nachziehen(true);
+	};
+	cb.addEventListener("change", () => setz("an", cb.checked));
+	rng.addEventListener("input", () => setz("wert", Math.max(0, Math.min(100, Number(rng.value) || 0)) / 100));
+	num.addEventListener("input", () => setz("wert", Math.max(0, Math.min(100, Number(num.value) || 0)) / 100));
+	rst.addEventListener("click", () => {
+		delete ecoDisplayTafel.global[kind];
+		ecoDisplayBearbeitet = true;
+		nachziehen(true);
+	});
+
+	bar.append(lab, rng, num, prev, rst);
+	nachziehen(false);
+}
+
+// ---- Die gemeinsame Tabelle --------------------------------------------------------------------
+const ECO_DISPLAY_BEISPIEL = {
+	derographisch: "Albernia",
+	vegetation: "Farindel",
+	topographie: "Koschgebirge",
+	klima: "Gemäßigte Zone",
+};
+
+function ecoDisplayZeichneTabelle() {
+	const body = $("ecoDisplayRows");
+	body.innerHTML = "";
+	ecoDisplayZeilenZeichner = [];
+	const kind = ecoDisplayReiter;
+	const beispiel = ECO_DISPLAY_BEISPIEL[kind] || "Beispiel";
+
+	$("ecoDisplayFlSrc").textContent =
+		"Vorgabe-Deckkraft dieser Ebene: " + Math.round(avesmapsEcosystemDisplayDeckkraft(kind, "") * 100) + " %";
+
+	// 🪤 EINE LEERE TABELLE SAGT NICHTS -- und sieht genau aus wie „hier gibt es nichts einzustellen".
+	// Der Grund ist aber verschieden: entweder hat die Ebene wirklich keine Flaechenart, oder der
+	// Editor hat seine Daten noch nicht geladen. Beides wird ausgesprochen, nie geschwiegen.
+	const arten = ecoDisplayZeilen(kind);
+	if (arten.length === 0) {
+		const tr = document.createElement("tr");
+		const td = document.createElement("td");
+		td.colSpan = 8;
+		td.className = "dt__leer";
+		td.textContent = (regionTypes && regionTypes.length)
+			? "Diese Ebene hat noch keine Flächenart."
+			: "Die Flächenarten sind noch nicht geladen.";
+		tr.appendChild(td);
+		body.appendChild(tr);
+		return;
+	}
+
+	arten.forEach((z) => {
+		const row = document.createElement("tr");
+
+		const tdArt = document.createElement("td");
+		tdArt.className = "dt__art";
+		const kk = document.createElement("span");
+		kk.className = "fl-key";
+		kk.textContent = z.key;
+		tdArt.append(document.createTextNode(z.label), kk);
+		row.appendChild(tdArt);
+
+		// ---- Fläche ----
+		const sw = document.createElement("input");
+		sw.type = "color"; sw.className = "fl-swatch";
+		sw.setAttribute("aria-label", "Flächenton für " + z.label);
+		const hex = document.createElement("input");
+		hex.type = "text"; hex.className = "fl-hex";
+		hex.setAttribute("aria-label", "Flächen-Farbwert für " + z.label);
+		// 🪤 Regler UND Zahl in DERSELBEN Einheit (Prozent) und mit denselben Grenzen. Ein Regler in
+		// 0..1 neben einem Feld in Prozent klemmt beim ersten Anfassen jeden getippten Wert auf 1 %.
+		const rng = document.createElement("input");
+		rng.type = "range"; rng.className = "fl-range";
+		rng.min = "0"; rng.max = "100"; rng.step = "1";
+		rng.setAttribute("aria-label", "Deckkraft für " + z.label);
+		const pct = document.createElement("input");
+		pct.type = "number"; pct.className = "fl-pctnum";
+		pct.min = "0"; pct.max = "100"; pct.step = "1";
+		pct.setAttribute("aria-label", "Deckkraft für " + z.label + " in Prozent");
+		const prev = document.createElement("div");
+		prev.className = "fl-prev";
+		const fill = document.createElement("div");
+		fill.className = "fl-prev__fill";
+		prev.appendChild(fill);
+
+		const tdSw = document.createElement("td"); tdSw.className = "dt-sep"; tdSw.appendChild(sw);
+		const tdHex = document.createElement("td"); tdHex.appendChild(hex);
+		const tdDeck = document.createElement("td"); tdDeck.append(rng, pct);
+		const tdPrev = document.createElement("td"); tdPrev.appendChild(prev);
+		row.append(tdSw, tdHex, tdDeck, tdPrev);
+
+		// ---- Name ----
+		let nsw = null;
+		let nhex = null;
+		let probe = null;
+		if (z.hatName) {
+			nsw = document.createElement("input");
+			nsw.type = "color"; nsw.className = "fl-swatch";
+			nsw.setAttribute("aria-label", "Namensfarbe für " + z.label);
+			nhex = document.createElement("input");
+			nhex.type = "text"; nhex.className = "fl-hex";
+			nhex.setAttribute("aria-label", "Namens-Farbwert für " + z.label);
+			probe = document.createElement("div");
+			probe.className = "fc-probe";
+			probe.textContent = ecoDisplaySonde(z.key).gross ? beispiel.toUpperCase() : beispiel;
+			const tdN = document.createElement("td"); tdN.className = "dt-sep"; tdN.append(nsw, nhex);
+			const tdP = document.createElement("td"); tdP.appendChild(probe);
+			row.append(tdN, tdP);
+		} else {
+			const td = document.createElement("td");
+			td.colSpan = 2;
+			td.className = "dt__leer dt-sep";
+			// ⚠️ Eine Luecke ist eine AUSKUNFT: diese Flaechenart traegt im Bestand keine
+			// gleichnamige Beschriftung. Bei den Klimazonen ist das sogar die Regel -- dort faerbt
+			// derselbe Wert Band UND Namen (ecosystemAreaColor ist fuer beide die Quelle).
+			td.textContent = kind === "klima" ? "— Ton der Zone —" : "— keine Beschriftung —";
+			row.appendChild(td);
+		}
+
+		const rst = document.createElement("button");
+		rst.type = "button"; rst.className = "fl-reset"; rst.textContent = "↺";
+		rst.title = "Diese Zeile auf Vorgabe zurücksetzen";
+		const tdRst = document.createElement("td"); tdRst.appendChild(rst);
+		row.appendChild(tdRst);
+
+		function nachziehen(sagen) {
+			const ton = ecoDisplayFlTon(kind, z.key);
+			const wirkt = ecoDisplayDeckWirkt(kind, z.key);
+			const zeile = ecoDisplayDeckZeile(kind, z.key);
+			sw.value = ton;
+			hex.value = ton;
+			fill.style.background = ton;
+			fill.style.opacity = String(wirkt);
+			rng.value = String(Math.round(zeile * 100));
+			pct.value = Math.round(zeile * 100);
+			const stumm = ecoDisplayGlobalAn(kind);
+			row.classList.toggle("is-stumm", stumm);
+			rng.disabled = stumm || !ecoDisplayDarfSpeichern;
+			pct.disabled = rng.disabled;
+			sw.disabled = !ecoDisplayDarfSpeichern;
+			hex.disabled = !ecoDisplayDarfSpeichern;
+			rng.title = stumm
+				? "Die Deckkraft ist gerade global — Häkchen oben abnehmen, um je Art zu stellen."
+				: "";
+			pct.title = rng.title;
+			if (z.hatName) {
+				const nton = ecoDisplayNaTon(z.key);
+				nsw.value = nton;
+				nhex.value = nton;
+				probe.style.color = nton;
+				// Der Name liegt auf SEINER Fläche, nicht auf einem erfundenen Grund -- sonst
+				// behauptet das Muster einen Kontrast, den es auf der Karte nicht gibt.
+				probe.style.background = ton;
+				nsw.disabled = !ecoDisplayDarfSpeichern;
+				nhex.disabled = !ecoDisplayDarfSpeichern;
+			}
+			rst.hidden = !ecoDisplayDarfSpeichern
+				|| (ecoDisplayTeil("flaeche")[ecoDisplayKeyFl(kind, z.key)] === undefined
+					&& ecoDisplayTeil("deckkraft")[ecoDisplayKeyFl(kind, z.key)] === undefined
+					&& ecoDisplayTeil("farbe")[z.key] === undefined);
+			if (sagen) {
+				ecoDisplayMelde(z.label + ": " + ton + " · " + Math.round(wirkt * 100) + " %");
+			}
+		}
+		ecoDisplayZeilenZeichner.push(nachziehen);
+
+		const merk = () => { ecoDisplayBearbeitet = true; };
+		sw.addEventListener("input", () => {
+			ecoDisplayTafel.flaeche[ecoDisplayKeyFl(kind, z.key)] = sw.value;
+			merk(); nachziehen(true);
+		});
+		hex.addEventListener("change", () => {
+			const v = hex.value.trim();
+			if (/^#[0-9a-fA-F]{6}$/.test(v)) {
+				ecoDisplayTafel.flaeche[ecoDisplayKeyFl(kind, z.key)] = v.toLowerCase();
+				merk();
+			}
+			nachziehen(true);
+		});
+		const setzDeck = (p) => {
+			ecoDisplayTafel.deckkraft[ecoDisplayKeyFl(kind, z.key)] =
+				Math.max(0, Math.min(100, Number(p) || 0)) / 100;
+			merk(); nachziehen(true);
+		};
+		rng.addEventListener("input", () => setzDeck(rng.value));
+		pct.addEventListener("input", () => setzDeck(pct.value));
+		if (z.hatName) {
+			nsw.addEventListener("input", () => {
+				ecoDisplayTafel.farbe[z.key] = nsw.value;
+				merk(); nachziehen(true);
+			});
+			nhex.addEventListener("change", () => {
+				const v = nhex.value.trim();
+				if (/^#[0-9a-fA-F]{6}$/.test(v)) {
+					ecoDisplayTafel.farbe[z.key] = v.toLowerCase();
+					merk();
+				}
+				nachziehen(true);
+			});
+		}
+		rst.addEventListener("click", () => {
+			delete ecoDisplayTafel.flaeche[ecoDisplayKeyFl(kind, z.key)];
+			delete ecoDisplayTafel.deckkraft[ecoDisplayKeyFl(kind, z.key)];
+			delete ecoDisplayTafel.farbe[z.key];
+			merk(); nachziehen(true);
+		});
+
+		body.appendChild(row);
+		nachziehen(false);
+	});
+
+	$("ecoDisplayFlNote").textContent =
+		"Das Häkchen oben ist der heutige Zustand: die Karte hat EINE Deckkraft je Ebene. Abnehmen "
+		+ "öffnet die Werte je Art; anhaken macht sie stumm, löscht sie aber nicht. „Ruhend = "
+		+ "unsichtbar“ bleibt unangetastet — gestellt wird nur die AKTIVE Ebene.";
+	$("ecoDisplayFoot").innerHTML =
+		"Noch nicht hier einstellbar: <strong>Fluss, Berggipfel, Vulkan, Ebene</strong> — "
+		+ "Namensarten ohne gleichnamige Flächenart. Ihre Farbe kommt weiter aus dem Stylesheet.";
+}
+
+function ecoDisplayMelde(text) {
+	$("ecoDisplayMsg").textContent = text;
+}
+
+function ecoDisplayZeichne() {
+	ecoDisplayZeichneReiter();
+	// ⚠️ Reihenfolge: erst die Zeilen (sie melden ihre Nachzieher an), dann die globale Leiste --
+	// die zieht beim Aufbau alle Zeilen einmal nach, und eine leere Liste zöge nichts nach.
+	ecoDisplayZeichneTabelle();
+	ecoDisplayZeichneGlobal();
+}
+
+// ---- Laden, Speichern, Zurücksetzen ------------------------------------------------------------
+//
+// 🔴 Der Riegel steht SERVERSEITIG. Hier wird nur ausgegraut, was ohnehin abgelehnt würde --
+// `can_save` kommt aus der Antwort, nicht aus einer Vermutung über die eigene Rolle.
+async function ecoDisplayPost(koerper) {
+	const antwort = await fetch(ECO_DISPLAY_API, {
+		method: "POST",
+		credentials: "same-origin",
+		headers: { "Content-Type": "application/json", Accept: "application/json" },
+		body: JSON.stringify(koerper),
+	});
+	let daten = null;
+	try {
+		daten = await antwort.json();
+	} catch (fehler) {
+		// 💣 Ein leerer Rumpf ist die Signatur eines PHP-Fatals, nicht eines Netzfehlers -- und im
+		// Browser liest sich beides gleich. Der Satz sagt, was wirklich los ist.
+		throw new Error("HTTP " + antwort.status + " — keine lesbare Antwort (leerer Rumpf?).");
+	}
+	if (!antwort.ok || daten.ok === false) {
+		throw new Error((daten && daten.error && daten.error.message) || (daten && daten.error) || ("HTTP " + antwort.status));
+	}
+	return daten;
+}
+
+/** Was in die Datenbank geht: NUR die Abweichung, nie eine Kopie der Vorgabe. */
+function ecoDisplayZumSenden() {
+	const raus = {};
+	["flaeche", "deckkraft", "global", "farbe", "groesse", "vorgabe", "kurve"].forEach((feld) => {
+		const teil = ecoDisplayTeil(feld);
+		if (Object.keys(teil).length > 0) {
+			raus[feld] = teil;
+		}
+	});
+	return raus;
+}
+
+async function ecoDisplayOeffnen() {
+	$("ecoDisplayDialog").hidden = false;
+	ecoDisplayMelde("wird geladen …");
+	try {
+		const daten = await ecoDisplayPost({ action: "get" });
+		ecoDisplayDarfSpeichern = daten.can_save === true;
+		ecoDisplayNamensarten = Array.isArray(daten.label_subtypes) ? daten.label_subtypes : [];
+		// ⚠️ Eine leere oder kaputte Tafel ist „nichts übersteuert", kein Fehler.
+		const t = (daten.display && typeof daten.display === "object") ? daten.display : {};
+		ecoDisplayTafel = {
+			flaeche: t.flaeche || {}, deckkraft: t.deckkraft || {}, global: t.global || {},
+			farbe: t.farbe || {}, groesse: t.groesse || {}, vorgabe: t.vorgabe || {}, kurve: t.kurve || {},
+		};
+		ecoDisplayBearbeitet = false;
+		$("ecoDisplaySave").disabled = !ecoDisplayDarfSpeichern;
+		$("ecoDisplayReset").disabled = !ecoDisplayDarfSpeichern;
+		ecoDisplayZeichne();
+		ecoDisplayMelde(ecoDisplayDarfSpeichern
+			? ""
+			: "Nur ansehen — die Darstellung einstellen dürfen Administratoren.");
+	} catch (fehler) {
+		ecoDisplayMelde("Konnte nicht geladen werden: " + (fehler && fehler.message ? fehler.message : String(fehler)));
+	}
+}
+
+function ecoDisplaySchliessen() {
+	// ⚠️ Ungespeichertes fällt weg, und das wird gesagt -- nicht heimlich behalten und beim
+	// nächsten Öffnen als gespeichert ausgeben.
+	if (ecoDisplayBearbeitet && !window.confirm("Es gibt ungespeicherte Änderungen. Fenster trotzdem schließen?")) {
+		return;
+	}
+	$("ecoDisplayDialog").hidden = true;
+}
+
+$("ecoDisplay").addEventListener("click", () => { void ecoDisplayOeffnen(); });
+$("ecoDisplayClose").addEventListener("click", ecoDisplaySchliessen);
+$("ecoDisplayDialog").addEventListener("click", (ereignis) => {
+	if (ereignis.target === $("ecoDisplayDialog")) { ecoDisplaySchliessen(); }
+});
+
+$("ecoDisplaySave").addEventListener("click", async () => {
+	$("ecoDisplaySave").disabled = true;
+	ecoDisplayMelde("wird gespeichert …");
+	try {
+		const daten = await ecoDisplayPost({ action: "save", display: ecoDisplayZumSenden() });
+		ecoDisplayBearbeitet = false;
+		ecoDisplayMelde("Gespeichert. Die Karte zeigt es nach dem nächsten Laden.");
+		if (daten.display && typeof daten.display === "object") {
+			// 🔴 Was der Server zurückgibt, ist die Wahrheit -- er hat geprüft und zurückgelesen.
+			const t = daten.display;
+			ecoDisplayTafel = {
+				flaeche: t.flaeche || {}, deckkraft: t.deckkraft || {}, global: t.global || {},
+				farbe: t.farbe || {}, groesse: t.groesse || {}, vorgabe: t.vorgabe || {}, kurve: t.kurve || {},
+			};
+			ecoDisplayZeichne();
+		}
+	} catch (fehler) {
+		ecoDisplayMelde("Nicht gespeichert: " + (fehler && fehler.message ? fehler.message : String(fehler)));
+	} finally {
+		$("ecoDisplaySave").disabled = !ecoDisplayDarfSpeichern;
+	}
+});
+
+$("ecoDisplayReset").addEventListener("click", async () => {
+	if (!window.confirm("Alle Einstellungen der Darstellung auf die Vorgabe zurücksetzen?")) {
+		return;
+	}
+	ecoDisplayMelde("wird zurückgesetzt …");
+	try {
+		await ecoDisplayPost({ action: "reset" });
+		// 🔴 Zurücksetzen LÖSCHT die Zeile -- danach gilt wieder die Vorgabe aus dem Browser-Modul,
+		// nicht eine Kopie davon in der Datenbank.
+		ecoDisplayTafel = { flaeche: {}, deckkraft: {}, global: {}, farbe: {}, groesse: {}, vorgabe: {}, kurve: {} };
+		ecoDisplayBearbeitet = false;
+		ecoDisplayZeichne();
+		ecoDisplayMelde("Auf Vorgabe zurückgesetzt.");
+	} catch (fehler) {
+		ecoDisplayMelde("Nicht zurückgesetzt: " + (fehler && fehler.message ? fehler.message : String(fehler)));
+	}
+});
+
 // ?demo=1 renders the whole column without a backend or a login -- same device as the powerline
 // editor. It exists because there is NO local database: every DB path is only verifiable live, so
 // the union logic above would otherwise be unmeasurable until it is deployed. One row per case the
@@ -2689,5 +3304,6 @@ if (document.readyState === "loading") { document.addEventListener("DOMContentLo
 
 })();
 </script>
+
 </body>
 </html>

@@ -414,3 +414,39 @@ function avesmapsEcosystemDisplayMedians(PDO $pdo): array
 
     return $raus;
 }
+
+/**
+ * Die vorkommenden Namensarten, aus den DATEN gelesen.
+ *
+ * 🔴 KEINE zweite Vokabelliste. Die 31 Arten stehen heute nur als `<option>` im
+ * Beschriftungsdialog (index.html, #label-edit-subtype) -- eine Abschrift im Editorfenster waere
+ * genau die Divergenz, die dieser Umbau abbaut, und sie liefe beim ersten neuen Subtyp auseinander.
+ * Gefragt wird deshalb der Bestand selbst.
+ *
+ * ⚠️ Damit zeigt das Fenster nur Arten, die WIRKLICH vorkommen. Das ist die richtige Richtung: eine
+ * Art ohne eine einzige Beschriftung hat auch nichts einzustellen -- und sobald die erste angelegt
+ * ist, steht sie von selbst da.
+ *
+ * @return list<string>
+ */
+function avesmapsEcosystemDisplayLabelSubtypes(PDO $pdo): array
+{
+    $statement = $pdo->query(
+        "SELECT DISTINCT feature_subtype FROM map_features
+          WHERE feature_type = 'label' AND is_active = 1 AND feature_subtype <> ''
+          ORDER BY feature_subtype"
+    );
+    if ($statement === false) {
+        return [];
+    }
+
+    $raus = [];
+    foreach ($statement->fetchAll(PDO::FETCH_COLUMN) as $art) {
+        $art = trim((string) $art);
+        if ($art !== '' && preg_match('/^[a-z_]{1,32}$/', $art) === 1) {
+            $raus[] = $art;
+        }
+    }
+
+    return $raus;
+}
