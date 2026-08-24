@@ -152,11 +152,103 @@ let pathSyncBusy = false;
 function pathSyncElement(id) {
 	return document.getElementById(id);
 }
+// 💣 Ein Browser meldet eine gerissene Verbindung OHNE jede Adresse: Firefox sagt „NetworkError
+// when attempting to fetch resource.", Chrome „Failed to fetch". Diese Datei hat dreizehn
+// Anfragestellen -- ohne den Aktionsnamen ist von aussen nicht zu erkennen, welche davon gestorben
+// ist. Genau so stand am 24.08.2026 eine nackte Browsermeldung ueber der Wegeliste, und es kostete
+// eine Ausschluss-Untersuchung, ueberhaupt den Hintergrund-Scan als Urheber zu finden.
+//
+// Zwei Fehlerarten, und die Unterscheidung ist der ganze Punkt:
+//   - TRANSPORT (es kam gar kein HTTP-Ergebnis): traegt `pathSyncTransport = true` und DARF
+//     wiederholt werden -- siehe pathSyncScanSeite.
+//   - RUMPF (HTTP kam, ist aber kein JSON): wird gemeldet, nie wiederholt. Ein Server-Abbruch
+//     wiederholt sich, drei Anlaeufe brauechten nur dreimal so lange fuer dieselbe Meldung.
+//
+// ⚠️ Der Rumpf wird als TEXT gelesen, nicht per `response.json()`: die Verbindung kann NACH den
+// Kopfzeilen reissen -- bei einer Anfrage, die serverseitig 15-25 s laufen darf, ist das der
+// wahrscheinlichere Fall. `response.json()` wirft dort ununterscheidbar von kaputtem JSON, und der
+// Abbruch waere als Transportfehler nicht mehr erkennbar.
+async function pathSyncRequest(url, init, aktion) {
+	let response;
+	let text;
+	try {
+		response = await fetch(url, init);
+		text = await response.text();
+	} catch (error) {
+		const abbruch = new Error(`„${aktion}" hat den Server nicht erreicht – die Verbindung ist abgerissen. (${(error && error.message) || error})`);
+		abbruch.pathSyncTransport = true;
+		throw abbruch;
+	}
+	try {
+		return JSON.parse(text);
+	} catch (parseError) {
+		// 🪤 Ein LEERER Rumpf ist der Fingerabdruck eines PHP-Fatals (29199c67: eine `const` unter
+		// ihrer Benutzung liess group_detail mit null Bytes antworten). Der Browser sagt dazu nur
+		// „Unexpected end of JSON input" und verschweigt Aktion wie Status -- beides steht hier.
+		throw new Error(text.trim() === ""
+			? `„${aktion}" antwortete mit HTTP ${response.status} und einem LEEREN Rumpf (Server-Abbruch).`
+			: `„${aktion}" antwortete mit HTTP ${response.status} und ohne lesbares JSON.`);
+	}
+}
+/** Die Aktion steht beim GET in der Adresse, beim POST im Rumpf -- gemeldet wird sie gleich. */
+function pathSyncAktionAusQuery(query) {
+	const treffer = /[?&]action=([^&]*)/.exec(String(query || ""));
+	return treffer ? decodeURIComponent(treffer[1]) : "unbenannt";
+}
+// 🔴 Beide Helfer liefern den Datensatz weiter, AUCH bei HTTP 401/409 -- sie werfen NICHT auf
+// `response.ok`. Der Endpunkt legt seine Begruendung in den Rumpf („Du bist fuer diese Aktion nicht
+// angemeldet."), und jeder Aufrufer holt sie mit apiErrorMessage heraus. Ein Wurf auf den Status
+// ersetzte diesen lesbaren Satz durch eine Zahl und machte es schlechter, nicht besser.
 function pathSyncPost(body) {
-	return fetch(PATH_SYNC_API_URL, { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }).then((r) => r.json());
+	return pathSyncRequest(
+		PATH_SYNC_API_URL,
+		{ method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) },
+		String((body && body.action) || "unbenannt")
+	);
 }
 function pathSyncGet(query) {
-	return fetch(PATH_SYNC_API_URL + query, { credentials: "same-origin" }).then((r) => r.json());
+	return pathSyncRequest(PATH_SYNC_API_URL + query, { credentials: "same-origin" }, pathSyncAktionAusQuery(query));
+}
+
+// Wie oft EINE Seite eines Cursor-Laufs geholt wird, bevor der Lauf sich geschlagen gibt.
+const PATH_SYNC_SCAN_TRANSPORT_TRIES = 3;
+
+/**
+ * Eine Seite eines Cursor-Laufs holen und einen VERBINDUNGSABBRUCH ueberstehen.
+ *
+ * 💣 Die beiden Laeufe dieser Datei kannten STRATO nur halb: fuer „Server hat sein Zeitbudget
+ * verbraucht" (die Seite kommt zurueck, aber der Cursor rueckt nicht vor) gab es drei Versuche mit
+ * Wartezeit -- fuer eine abgerissene Verbindung gar nichts. Ein einziger Abbruch warf den ganzen
+ * Lauf weg, nach womoeglich Minuten Arbeit. Der Riegel sass auf dem falschen Fehlerfall.
+ *
+ * 💣 Wiederholt wird DIESELBE Seite, nie die naechste: nach einem Abbruch ist unbekannt, ob der
+ * Server sie ueberhaupt bearbeitet hat, und mit `next_cursor` weiterzumachen liesse eine Luecke,
+ * die der Lauf gruen meldet. Beide Laeufe vertragen die Wiederholung, weil der Server jede Seite
+ * aus dem AKTUELLEN Stand neu rechnet: ein bereits uebernommener Fall ist danach weder „clean"
+ * noch „open" (avesmapsWikiPathVerlaufApplyCleanCases) und wird kein zweites Mal geschrieben.
+ *
+ * 🔴 Wiederholt wird NUR der Transportfehler. Alles andere geht sofort durch -- siehe
+ * pathSyncRequest.
+ *
+ * `fortschritt` ist eine Funktion, damit die Meldung die Zaehler im Moment des Abbruchs liest.
+ */
+async function pathSyncScanSeite(anfragen, status, fortschritt) {
+	for (let versuch = 1; ; versuch += 1) {
+		try {
+			return await anfragen();
+		} catch (error) {
+			if (!error || error.pathSyncTransport !== true) {
+				throw error;
+			}
+			if (versuch >= PATH_SYNC_SCAN_TRANSPORT_TRIES) {
+				throw new Error(`Abgebrochen: die Verbindung zum Server riss ${versuch} Mal hintereinander (${fortschritt()}). ${error.message}`);
+			}
+			if (status) {
+				status.textContent = `Verbindung abgerissen, neuer Versuch ${versuch + 1} von ${PATH_SYNC_SCAN_TRANSPORT_TRIES} … (${fortschritt()})`;
+			}
+			await new Promise((resolve) => setTimeout(resolve, 1500 * versuch));
+		}
+	}
 }
 function pathSyncEscapeText(value) {
 	const holder = document.createElement("div");
@@ -750,7 +842,11 @@ async function loadVerlaufCases() {
 		let complete = false;
 		let stallCount = 0;
 		while (!complete) {
-			const page = await pathSyncGet(`?action=verlauf_cases&cursor=${cursor}&limit=50`);
+			const page = await pathSyncScanSeite(
+				() => pathSyncGet(`?action=verlauf_cases&cursor=${cursor}&limit=50`),
+				status,
+				() => `${verlaufCasesScanned} Wege geprüft, ${verlaufCases.length} Fälle`
+			);
 			if (!page || page.ok !== true) {
 				throw new Error(apiErrorMessage(page, "Unerwartete Antwort"));
 			}
@@ -1107,7 +1203,11 @@ async function applyAllCleanVerlaufCases() {
 		let totalFailed = 0;
 		let stallCount = 0;
 		while (!complete) {
-			const page = await pathSyncPost({ action: "apply_verlauf_cases_clean", dry_run: false, confirm: "apply", cursor, limit: 50 });
+			const page = await pathSyncScanSeite(
+				() => pathSyncPost({ action: "apply_verlauf_cases_clean", dry_run: false, confirm: "apply", cursor, limit: 50 }),
+				status,
+				() => `${totalApplied} übernommen`
+			);
 			if (!page || page.ok !== true) {
 				throw new Error(apiErrorMessage(page, "Unerwartete Antwort"));
 			}

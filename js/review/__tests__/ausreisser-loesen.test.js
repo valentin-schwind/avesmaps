@@ -56,6 +56,16 @@ function textKnoten() {
 	};
 }
 
+// 💣 Eine Antwort-Attrappe traegt `text()`, nicht `json()`: review-path-sync.js liest den Rumpf
+// seit 24.08.2026 als TEXT und wertet einen Wurf beim Lesen als abgerissene Verbindung (nur so
+// ist ein Abbruch NACH den Kopfzeilen von kaputtem JSON zu unterscheiden). Eine Attrappe mit
+// `json()` liess loadOutliers hier lautlos in den Transport-Zweig laufen -- die Liste kam leer
+// zurueck, und der Test meldete den fehlenden Knopf statt der falschen Attrappe.
+function antwort(objekt, status = 200) {
+	const text = JSON.stringify(objekt);
+	return { ok: status >= 200 && status < 300, status, text: () => Promise.resolve(text) };
+}
+
 const sandbox = {
 	console, JSON, Math, Date, Number, String, Array, Object, Boolean, Map, Set, Promise,
 	setTimeout, clearTimeout, RegExp, Error,
@@ -79,7 +89,7 @@ const sandbox = {
 		if (!options || options.method !== "POST") {
 			// Der Neu-Lade-Lauf nach der Reparatur.
 			anfragen.push({ body: { get: String(url) }, phase: "ende" });
-			return Promise.resolve({ json: () => Promise.resolve({ ok: true, ways: [], resolved: [], scanned: 0, flagged: 0 }) });
+			return Promise.resolve(antwort({ ok: true, ways: [], resolved: [], scanned: 0, flagged: 0 }));
 		}
 		const body = JSON.parse(options.body);
 		anfragen.push({ body, phase: "start" });
@@ -87,7 +97,7 @@ const sandbox = {
 		// NACH dem ersten losgeht (siehe Pruefung 5).
 		return new Promise((fertig) => setTimeout(() => {
 			anfragen.push({ body, phase: "ende" });
-			fertig({ json: () => Promise.resolve({ ok: true, dry_run: false, applied: 1, generic_name: "Weg-4711", segments_updated: [] }) });
+			fertig(antwort({ ok: true, dry_run: false, applied: 1, generic_name: "Weg-4711", segments_updated: [] }));
 		}, 0));
 	},
 };
@@ -155,9 +165,7 @@ async function fliessen(runden = 30) {
 async function ladeListe(ways) {
 	// loadOutliers() ueber den echten Weg fuettern: eigener fetch nur fuer diesen einen GET.
 	const echterFetch = sandbox.fetch;
-	sandbox.fetch = () => Promise.resolve({
-		json: () => Promise.resolve({ ok: true, ways, resolved: [], scanned: 100, flagged: ways.length }),
-	});
+	sandbox.fetch = () => Promise.resolve(antwort({ ok: true, ways, resolved: [], scanned: 100, flagged: ways.length }));
 	await sandbox.loadOutliers();
 	sandbox.fetch = echterFetch;
 	const liste = { innerHTML: "" };
