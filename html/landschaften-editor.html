@@ -3655,6 +3655,22 @@ function ecoDisplayKurvenwert(feld) {
 	return AVESMAPS_CURVE_LABEL_DEFAULTS[feld];
 }
 
+/**
+ * NUR die Kurvenwerte ins geteilte Modul geben -- damit die Vorschau sie sofort benutzt.
+ *
+ * 💣 UND NUR DIE. Der erste Bau schob die GANZE Arbeitstafel hinein
+ * (avesmapsEcosystemDisplayInstall(ecoDisplayZumSenden())), und damit war das Modul kein
+ * Vorgabengeber mehr, sondern ein Spiegel des Fensters: `ecoDisplayDeckZeile` fragt es nach der
+ * VORGABE einer Art und bekam den gerade getippten Wert zurueck. Sichtbar wurde es erst beim
+ * Zuruecksetzen -- Farbe sprang zurueck, Deckkraft blieb auf 82 %, und der Kurvenwert des Moduls
+ * blieb ueberhaupt stehen. Am 24.08.2026 im Browser gemessen, von keinem Test.
+ * ⚠️ Auf DIESER Seite liest sonst niemand das Modul; auf der Karte waere schon das Installieren
+ * der Kurvenwerte eine Aenderung an dem, was gezeichnet wird.
+ */
+function ecoDisplayInstalliereKurve() {
+	avesmapsEcosystemDisplayInstall({ kurve: ecoDisplayTeil("kurve") });
+}
+
 function ecoDisplaySetzKurvenwert(feld, wert) {
 	const spanne = ECO_DISPLAY_KURVENFELDER[feld];
 	const geklemmt = Math.max(spanne.min, Math.min(spanne.max, Number(wert)));
@@ -3663,7 +3679,7 @@ function ecoDisplaySetzKurvenwert(feld, wert) {
 	ecoDisplayBearbeitet = true;
 	// 💣 Das Modul merkt sich die gemischte Tafel -- ohne Neuinstallation zeichnete die Vorschau
 	// weiter mit dem alten Wert, und der Regler saehe tot aus.
-	avesmapsEcosystemDisplayInstall(ecoDisplayZumSenden());
+	ecoDisplayInstalliereKurve();
 	ecoDisplayZeichneKurvenwerte();
 	ecoDisplayZeichneKurvenVorschau();
 }
@@ -3771,7 +3787,7 @@ function ecoDisplayZeichneKurvenwerte() {
 		rst.addEventListener("click", () => {
 			delete ecoDisplayTafel.kurve[feld];
 			ecoDisplayBearbeitet = true;
-			avesmapsEcosystemDisplayInstall(ecoDisplayZumSenden());
+			ecoDisplayInstalliereKurve();
 			ecoDisplayZeichneKurvenwerte();
 			ecoDisplayZeichneKurvenVorschau();
 		});
@@ -3987,6 +4003,9 @@ async function ecoDisplayOeffnen() {
 			farbe: t.farbe || {}, groesse: t.groesse || {}, vorgabe: t.vorgabe || {}, kurve: t.kurve || {},
 		};
 		ecoDisplayBearbeitet = false;
+		// ⚠️ Auch beim Laden: eine gespeicherte Kurventafel muss die Vorschau sofort tragen,
+		// sonst zeigt sie beim ersten Aufschlagen die Vorgabe statt des eingestellten Werts.
+		ecoDisplayInstalliereKurve();
 		$("ecoDisplaySave").disabled = !ecoDisplayDarfSpeichern;
 		$("ecoDisplayReset").disabled = !ecoDisplayDarfSpeichern;
 		ecoDisplayZeichne();
@@ -4062,6 +4081,9 @@ $("ecoDisplayReset").addEventListener("click", async () => {
 		// 🔴 Zurücksetzen LÖSCHT die Zeile -- danach gilt wieder die Vorgabe aus dem Browser-Modul,
 		// nicht eine Kopie davon in der Datenbank.
 		ecoDisplayTafel = { flaeche: {}, deckkraft: {}, global: {}, farbe: {}, groesse: {}, vorgabe: {}, kurve: {} };
+		// 💣 Und das geteilte Modul MIT. Ohne diese Zeile behielte es die zuletzt getippten
+		// Kurvenwerte, und die Vorschau zeichnete nach dem Zuruecksetzen weiter mit ihnen.
+		ecoDisplayInstalliereKurve();
 		ecoDisplayBearbeitet = false;
 		ecoDisplayZeichne();
 		ecoDisplayMelde("Auf Vorgabe zurückgesetzt.");

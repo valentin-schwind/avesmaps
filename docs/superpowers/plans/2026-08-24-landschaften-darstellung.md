@@ -72,7 +72,7 @@ Sie gelten für **jede** Aufgabe:
 Kachel „Kurven rechnen" ebenso wenig. Zusätzlich liegt **fremde, nicht committete Arbeit** im Baum
 (Politik-, Territorien-, Wappen-Dateien anderer Sitzungen).
 
-- [ ] **Schritt 1: Stand aufnehmen**
+- [x] **Schritt 1: Stand aufnehmen**
 
 ```bash
 git fetch origin
@@ -81,7 +81,7 @@ git rev-list --left-right --count master...origin/master
 git log --oneline master ^origin/master | head -70
 ```
 
-- [ ] **Schritt 2: Dem Owner berichten und seine Entscheidung einholen**
+- [x] **Schritt 2: Dem Owner berichten und seine Entscheidung einholen**
 
 🔴 **Hier wird NICHTS eigenmächtig entschieden.** Die 63 lokalen Commits gehören nicht dieser
 Sitzung. Dem Owner in Klartext berichten: wie viele es sind, von wann, welche Themen — und fragen,
@@ -92,7 +92,7 @@ ob sie hoch sollen oder ob der Ordner auf `origin/master` gezogen wird.
 💣 **Niemals `rebase --autostash`, solange fremde Arbeit im Baum liegt**
 (`rebase-autostash-falsch-bei-fremder-arbeit`).
 
-- [ ] **Schritt 3: Nach der Auflösung gegenprüfen**
+- [x] **Schritt 3: Nach der Auflösung gegenprüfen**
 
 ```bash
 test -f js/map-features/curve-label-fit.js && echo "da" || echo "FEHLT -- Stand noch nicht aktuell"
@@ -117,7 +117,7 @@ Erwartet: „da" und `1` oder mehr.
 **Schnittstellen:**
 - Liefert: nichts an spätere Aufgaben — reine Beschriftung.
 
-- [ ] **Schritt 1: Den fehlschlagenden Test schreiben**
+- [x] **Schritt 1: Den fehlschlagenden Test schreiben**
 
 ```javascript
 const assert = require("assert");
@@ -162,12 +162,12 @@ assert.ok(/Ort/.test(titelZeile[1]), "und der title sagt, dass es um ORTE geht")
 console.log("landschaften-beschriftung: alle Zusicherungen gruen");
 ```
 
-- [ ] **Schritt 2: Lauf zur Gegenprobe**
+- [x] **Schritt 2: Lauf zur Gegenprobe**
 
 Lauf: `node js/review/__tests__/landschaften-beschriftung.test.js`
 Erwartet: FEHLSCHLAG bei „der Knopf heisst „Landschaften bearbeiten““.
 
-- [ ] **Schritt 3: Umbenennen**
+- [x] **Schritt 3: Umbenennen**
 
 In `index.html` beim Knopf `#ecosystem-editor-open`: `<span class="t1">Regionen bearbeiten</span>` →
 `<span class="t1">Landschaften bearbeiten</span>`.
@@ -184,12 +184,12 @@ Landschaften-Fenster ausschließen.
 🔴 **Nichts anderes anfassen.** `seZoomBands`, `zoomBandsState`, `ecosystem.editor.title`,
 Dateinamen: unverändert.
 
-- [ ] **Schritt 4: Lauf zur Bestätigung**
+- [x] **Schritt 4: Lauf zur Bestätigung**
 
 Lauf: `node js/review/__tests__/landschaften-beschriftung.test.js`
 Erwartet: BESTANDEN.
 
-- [ ] **Schritt 5: Committen**
+- [x] **Schritt 5: Committen**
 
 ```bash
 git add index.html html/landschaften-editor.html js/review/review-ecosystem-list.js js/app/i18n-en.js html/wiki-sync-settlement-editor.html js/review/__tests__/landschaften-beschriftung.test.js
@@ -209,7 +209,7 @@ git commit -m "ui(landschaften): der Editor heisst „Landschaften bearbeiten", 
 **Schnittstellen:**
 - Liefert: ein Menüband mit sechs Kacheln (die siebte kommt in Aufgabe 10).
 
-- [ ] **Schritt 1: Die vorhandene Zusicherung umdrehen**
+- [x] **Schritt 1: Die vorhandene Zusicherung umdrehen**
 
 In `js/ui/__tests__/wiki-massenzuweisung.test.js` steht heute:
 ```javascript
@@ -229,12 +229,12 @@ assert.ok(!/id="ecoAssignAll"/.test(landschaften), "die Kachel „Wiki zuweisen�
 assert.ok(!/ecoAssignAllInfo/.test(landschaften), "und ihre Statuszeile ebenso");
 ```
 
-- [ ] **Schritt 2: Lauf zur Gegenprobe**
+- [x] **Schritt 2: Lauf zur Gegenprobe**
 
 Lauf: `node js/ui/__tests__/wiki-massenzuweisung.test.js`
 Erwartet: FEHLSCHLAG — die Kachel steht noch da.
 
-- [ ] **Schritt 3: Entfernen**
+- [x] **Schritt 3: Entfernen**
 
 Aus `html/landschaften-editor.html`: die `<button … id="ecoAssignAll" …>`-Zeile, den
 `$("ecoAssignAll").addEventListener(…)`, und jede Auffrischung von `ecoAssignAllInfo`.
@@ -250,12 +250,12 @@ gehört ein Vermerk:
      js/review/review-region-sync.js). Wer die Luecke „repariert", baut sie wieder auf. -->
 ```
 
-- [ ] **Schritt 4: Lauf zur Bestätigung**
+- [x] **Schritt 4: Lauf zur Bestätigung**
 
 Lauf: `node js/ui/__tests__/wiki-massenzuweisung.test.js`
 Erwartet: BESTANDEN.
 
-- [ ] **Schritt 5: Committen**
+- [x] **Schritt 5: Committen**
 
 ```bash
 git add html/landschaften-editor.html js/ui/__tests__/wiki-massenzuweisung.test.js
@@ -276,7 +276,7 @@ git commit -m "ui(landschaften): die Kachel „Wiki zuweisen" faellt -- die Zuwe
 **Schnittstellen:**
 - Liefert: `POST /api/edit/map/curve-labels-run.php` antwortet ohne `rollout`-Feld.
 
-- [ ] **Schritt 1: Den fehlschlagenden Test schreiben**
+- [x] **Schritt 1: Den fehlschlagenden Test schreiben**
 
 ```php
 <?php
@@ -325,12 +325,12 @@ assert(!str_contains($fenster, 'data.rollout'), 'die Auswertung des Umstelllaufs
 echo "kurvenlauf-recht: alle Zusicherungen gruen\n";
 ```
 
-- [ ] **Schritt 2: Lauf zur Gegenprobe**
+- [x] **Schritt 2: Lauf zur Gegenprobe**
 
 Lauf: `php -d zend.assertions=1 -d assert.exception=1 api/_internal/app/__tests__/kurvenlauf-recht-test.php`
 Erwartet: FEHLSCHLAG bei „der Riegel steht auf `edit`".
 
-- [ ] **Schritt 3: Ändern**
+- [x] **Schritt 3: Ändern**
 
 In `api/edit/map/curve-labels-run.php`:
 - `avesmapsRequireUserWithCapability('admin')` → `avesmapsRequireUserWithCapability('edit')`, und den
@@ -350,12 +350,12 @@ In `api/edit/map/curve-labels-run.php`:
 In `html/landschaften-editor.html`: „Nur Admin; laeuft einige Sekunden." → „Laeuft einige Sekunden."
 und den `data.rollout`-Zweig aus `runCurveLabels()` entfernen.
 
-- [ ] **Schritt 4: Lauf zur Bestätigung**
+- [x] **Schritt 4: Lauf zur Bestätigung**
 
 Lauf: `php -d zend.assertions=1 -d assert.exception=1 api/_internal/app/__tests__/kurvenlauf-recht-test.php`
 Erwartet: BESTANDEN.
 
-- [ ] **Schritt 5: Committen**
+- [x] **Schritt 5: Committen**
 
 ```bash
 git add api/edit/map/curve-labels-run.php html/landschaften-editor.html api/_internal/app/__tests__/kurvenlauf-recht-test.php
@@ -396,7 +396,7 @@ git commit -m "feat(kurvenlabel): „Kurven rechnen" darf jeder Editor -- und de
 }
 ```
 
-- [ ] **Schritt 1: Den fehlschlagenden Test schreiben**
+- [x] **Schritt 1: Den fehlschlagenden Test schreiben**
 
 ```php
 <?php
@@ -482,12 +482,12 @@ assert($nachher['stamp'] !== '', 'der Stempel bleibt und ist neu');
 echo "ecosystem-display: alle Zusicherungen gruen\n";
 ```
 
-- [ ] **Schritt 2: Lauf zur Gegenprobe**
+- [x] **Schritt 2: Lauf zur Gegenprobe**
 
 Lauf: `php -d zend.assertions=1 -d assert.exception=1 -d extension=php_pdo_sqlite.dll api/_internal/app/__tests__/ecosystem-display-test.php`
 Erwartet: FEHLSCHLAG — `require` findet die Datei nicht.
 
-- [ ] **Schritt 3: Die Datei bauen**
+- [x] **Schritt 3: Die Datei bauen**
 
 Bauform **wörtlich** von `api/_internal/app/zoom-bands.php` übernehmen: derselbe Aufbau, dieselben
 Wachen, dieselben Kommentare an denselben Stellen. Abweichungen nur dort, wo der Gegenstand ein
@@ -510,19 +510,19 @@ anderer ist:
 💣 Die Prüfung **normalisiert nicht** — kein Auffüllen, kein Vorwärtsfüllen. Das tut der Browser
 gegen seine eigene Vorgabe.
 
-- [ ] **Schritt 4: Lauf zur Bestätigung**
+- [x] **Schritt 4: Lauf zur Bestätigung**
 
 Lauf: derselbe Befehl wie Schritt 2.
 Erwartet: BESTANDEN, „alle Zusicherungen gruen".
 
-- [ ] **Schritt 5: Die Zusicherungen einzeln mutieren**
+- [x] **Schritt 5: Die Zusicherungen einzeln mutieren**
 
 💣 Von 15 Mutationen des Passungs-Moduls überlebten beim Kurvenlabel-Bau **11** den mitgelieferten
 Test. Also: jede Schranke einzeln aufweichen (`0.0` → `-99.0`, `preg_match` entfernen, die
 Rücklese-Zeile durch `return true` ersetzen) und nachsehen, ob **genau** die zugehörige Zusicherung
 rot wird. Bleibt eine grün, ist sie wertlos und wird geschärft.
 
-- [ ] **Schritt 6: Committen**
+- [x] **Schritt 6: Committen**
 
 ```bash
 git add api/_internal/app/ecosystem-display.php api/_internal/app/__tests__/ecosystem-display-test.php
@@ -550,7 +550,7 @@ git commit -m "feat(landschaften): das Speicherfundament der Darstellungstafel"
     `avesmapsEcosystemDisplayMedians(PDO $pdo): array<string, array{ab:int,bis:int,curveMax:int,prio:int,n:int}>`
     (Schritt 3 zeigt sie vollständig)
 
-- [ ] **Schritt 1: Den fehlschlagenden Test schreiben**
+- [x] **Schritt 1: Den fehlschlagenden Test schreiben**
 
 ```php
 <?php
@@ -614,12 +614,12 @@ assert(str_contains($schreiber, 'ecosystem_display_not_stored'), 'ein Speichern,
 echo "ecosystem-display-endpunkt: alle Zusicherungen gruen\n";
 ```
 
-- [ ] **Schritt 2: Lauf zur Gegenprobe**
+- [x] **Schritt 2: Lauf zur Gegenprobe**
 
 Lauf: `php -d zend.assertions=1 -d assert.exception=1 api/_internal/app/__tests__/ecosystem-display-endpunkt-test.php`
 Erwartet: FEHLSCHLAG bei „api/app/ecosystem-display.php existiert".
 
-- [ ] **Schritt 3: Die zwei Endpunkte bauen**
+- [x] **Schritt 3: Die zwei Endpunkte bauen**
 
 `api/app/ecosystem-display.php`: **Zeile für Zeile** nach `api/app/zoom-bands.php`, mit
 `W/"eco-disp-<stamp>"` als ETag.
@@ -697,12 +697,12 @@ function avesmapsEcosystemDisplayMedians(PDO $pdo): array
 }
 ```
 
-- [ ] **Schritt 4: Lauf zur Bestätigung**
+- [x] **Schritt 4: Lauf zur Bestätigung**
 
 Lauf: derselbe Befehl wie Schritt 2.
 Erwartet: BESTANDEN.
 
-- [ ] **Schritt 5: Committen**
+- [x] **Schritt 5: Committen**
 
 ```bash
 git add api/app/ecosystem-display.php api/edit/map/ecosystem-display.php api/_internal/app/ecosystem-display.php api/_internal/app/__tests__/ecosystem-display-endpunkt-test.php
@@ -736,7 +736,7 @@ git commit -m "feat(landschaften): Leser, Schreiber und Median der Darstellungst
 Aufrufer liest den Token; das Modul entscheidet nur, ob eine Übersteuerung ihn schlägt. Sonst stünde
 jede Farbe zweimal da (Entwurf §8).
 
-- [ ] **Schritt 1: Den fehlschlagenden Test schreiben**
+- [x] **Schritt 1: Den fehlschlagenden Test schreiben**
 
 ```javascript
 const assert = require("assert");
@@ -843,12 +843,12 @@ assert.strictEqual(avesmapsEcosystemDisplayGroesse("wald", 5), 18);
 console.log("ecosystem-display-vorgabe: alle Zusicherungen gruen");
 ```
 
-- [ ] **Schritt 2: Lauf zur Gegenprobe**
+- [x] **Schritt 2: Lauf zur Gegenprobe**
 
 Lauf: `node js/map-features/__tests__/ecosystem-display-vorgabe.test.js`
 Erwartet: FEHLSCHLAG — die Datei fehlt.
 
-- [ ] **Schritt 3: Das Modul bauen**
+- [x] **Schritt 3: Das Modul bauen**
 
 Kopfkommentar nach dem Vorbild von `js/map-features/location-zoom-bands.js`, einschließlich der
 Zeile „🔴 DIESE DATEI IST DIE EINZIGE QUELLE DER VORGABEWERTE".
@@ -867,12 +867,12 @@ const AVESMAPS_ECOSYSTEM_DISPLAY_VISUAL_MAX = 5;
 const AVESMAPS_ECOSYSTEM_DISPLAY_TIEF_SCHRITT = 0.08;
 ```
 
-- [ ] **Schritt 4: Lauf zur Bestätigung**
+- [x] **Schritt 4: Lauf zur Bestätigung**
 
 Lauf: `node js/map-features/__tests__/ecosystem-display-vorgabe.test.js`
 Erwartet: BESTANDEN.
 
-- [ ] **Schritt 5: Das Skript einhängen — und die Verdrahtung PRÜFEN**
+- [x] **Schritt 5: Das Skript einhängen — und die Verdrahtung PRÜFEN**
 
 In `index.html` **vor** `js/map-features/map-features-labels.js`, in
 `html/landschaften-editor.html` vor dem Inline-Skript.
@@ -888,7 +888,7 @@ assert.ok(vorgabe >= 0, "das Modul haengt in index.html");
 assert.ok(vorgabe < labels, "und es laedt VOR map-features-labels.js -- sonst ist es dort undefined");
 ```
 
-- [ ] **Schritt 6: Committen**
+- [x] **Schritt 6: Committen**
 
 ```bash
 git add js/map-features/ecosystem-display.js js/map-features/__tests__/ecosystem-display-vorgabe.test.js index.html html/landschaften-editor.html
@@ -927,7 +927,7 @@ aktive Füllwert kommt jetzt je Pfad.
 }
 ```
 
-- [ ] **Schritt 1: Den fehlschlagenden Test schreiben**
+- [x] **Schritt 1: Den fehlschlagenden Test schreiben**
 
 ```javascript
 const assert = require("assert");
@@ -966,12 +966,12 @@ assert.strictEqual(avesmapsEcosystemDisplayDeckkraft("vegetation", "wald"), 0.72
 console.log("ecosystem-display-flaeche: alle Zusicherungen gruen");
 ```
 
-- [ ] **Schritt 2: Lauf zur Gegenprobe**
+- [x] **Schritt 2: Lauf zur Gegenprobe**
 
 Lauf: `node js/map-features/__tests__/ecosystem-display-flaeche.test.js`
 Erwartet: FEHLSCHLAG bei „ecosystemAreaColor reicht den Token durch das Modul".
 
-- [ ] **Schritt 3: Umbauen**
+- [x] **Schritt 3: Umbauen**
 
 `ecosystemAreaColor(kind, regionType)` behält seine Tokenlogik und gibt das Ergebnis durch
 `avesmapsEcosystemDisplayFlaechenTon(kind, regionType, ton)`.
@@ -989,18 +989,18 @@ fetch("/api/app/ecosystem-display.php", { credentials: "same-origin" })
 	.catch(() => { avesmapsEcosystemDisplayInstall(null); });
 ```
 
-- [ ] **Schritt 4: Lauf zur Bestätigung**
+- [x] **Schritt 4: Lauf zur Bestätigung**
 
 Lauf: `node js/map-features/__tests__/ecosystem-display-flaeche.test.js`
 Erwartet: BESTANDEN.
 
-- [ ] **Schritt 5: Am Bild abnehmen**
+- [x] **Schritt 5: Am Bild abnehmen**
 
 🔴 Nicht am Zahlenblatt. Vorschauserver starten, Karte öffnen, die vier Landschaftsebenen
 durchschalten und **hinsehen**: sieht jede Ebene aus wie vorher? Ein Screenshot je Ebene vor und
 nach dem Umbau.
 
-- [ ] **Schritt 6: Committen**
+- [x] **Schritt 6: Committen**
 
 ```bash
 git add js/map-features/map-features-ecosystem-rendering.js css/features/ecosystem-layer.css js/app/bootstrap.js js/map-features/__tests__/ecosystem-display-flaeche.test.js
@@ -1022,7 +1022,7 @@ und Schreibung; ohne Leeren wirkt eine geänderte Farbe erst nach einem Neuladen
 **Bild**-Zwischenspeicher (`_mapLabelImageCache`), dessen Schlüssel `typeStyle.color` bereits
 enthält — der ist also von selbst richtig.
 
-- [ ] **Schritt 1: Den fehlschlagenden Test schreiben**
+- [x] **Schritt 1: Den fehlschlagenden Test schreiben**
 
 ```javascript
 const assert = require("assert");
@@ -1053,20 +1053,20 @@ assert.ok(/cacheKey = `\$\{displayText\}\|\$\{font\}\|\$\{typeStyle\.color\}/.te
 console.log("ecosystem-display-namensfarbe: alle Zusicherungen gruen");
 ```
 
-- [ ] **Schritt 2: Lauf zur Gegenprobe**
+- [x] **Schritt 2: Lauf zur Gegenprobe**
 
 Lauf: `node js/map-features/__tests__/ecosystem-display-namensfarbe.test.js`
 Erwartet: FEHLSCHLAG bei „getMapLabelTypeStyle fragt das Modul".
 
-- [ ] **Schritt 3: Umbauen**
+- [x] **Schritt 3: Umbauen**
 
 In `getMapLabelTypeStyle`: nach dem Auslesen der Sonde
 `style.color = avesmapsEcosystemDisplayFarbe(labelType, computed.color || "#f5f0d6")`.
 Dazu `avesmapsLeereLabelTypStil()`, die `_mapLabelTypeStyleCache = {}` setzt.
 
-- [ ] **Schritt 4: Lauf zur Bestätigung** — BESTANDEN.
+- [x] **Schritt 4: Lauf zur Bestätigung** — BESTANDEN.
 
-- [ ] **Schritt 5: Committen**
+- [x] **Schritt 5: Committen**
 
 ```bash
 git add js/map-features/map-features-labels.js js/map-features/__tests__/ecosystem-display-namensfarbe.test.js
@@ -1087,7 +1087,7 @@ git commit -m "feat(landschaften): die Namensfarbe kommt aus der Darstellungstaf
 steht, wird anders groß. Das ist gewollt (Entwurf §5.5) — aber es ist **die** Änderung, die der
 Owner sehen muss, bevor irgendetwas anderes geht.
 
-- [ ] **Schritt 1: Den fehlschlagenden Test schreiben**
+- [x] **Schritt 1: Den fehlschlagenden Test schreiben**
 
 ```javascript
 const assert = require("assert");
@@ -1137,9 +1137,9 @@ assert.ok(!/id="label-edit-size-range"/.test(seite), "der Regler dazu ist weg");
 console.log("ecosystem-display-groesse: alle Zusicherungen gruen");
 ```
 
-- [ ] **Schritt 2: Lauf zur Gegenprobe** — FEHLSCHLAG bei „die Groesse kommt aus der Tafel".
+- [x] **Schritt 2: Lauf zur Gegenprobe** — FEHLSCHLAG bei „die Groesse kommt aus der Tafel".
 
-- [ ] **Schritt 3: Umbauen**
+- [x] **Schritt 3: Umbauen**
 
 ```javascript
 function getScaledLabelSize(label) {
@@ -1168,14 +1168,14 @@ const imBand = (ab === null || bis === null)
 	: (bandZoom >= ab && bandZoom <= bis);
 ```
 
-- [ ] **Schritt 4: Lauf zur Bestätigung** — BESTANDEN.
+- [x] **Schritt 4: Lauf zur Bestätigung** — BESTANDEN.
 
-- [ ] **Schritt 5: Ganzes Testfeld + Abnahme am Bild**
+- [x] **Schritt 5: Ganzes Testfeld + Abnahme am Bild**
 
 Beide Testläufe aus „Globale Zusicherungen". Dann die Karte öffnen und **hinsehen**: Zoom 2 bis 7
 durchfahren, Landschaftsnamen ansehen. Screenshots.
 
-- [ ] **Schritt 6: Committen, pushen, Deploy abwarten, Owner fragen**
+- [x] **Schritt 6: Committen, pushen, Deploy abwarten, Owner fragen**
 
 ```bash
 git add js/map-features/map-features-labels.js index.html js/map-features/__tests__/ecosystem-display-groesse.test.js
@@ -1203,7 +1203,7 @@ git commit -m "feat(landschaften): die Schriftgroesse der Landschaftsnamen kommt
 (Editor-Ausschnitt), `.kf-grid`. **Nicht** übernommen wird das Prototyp-Skript als Ganzes — es hat
 keine Endpunkte und keine Rechte.
 
-- [ ] **Schritt 1: Den fehlschlagenden Test schreiben**
+- [x] **Schritt 1: Den fehlschlagenden Test schreiben**
 
 ```javascript
 const assert = require("assert");
@@ -1253,9 +1253,9 @@ assert.ok(/kein eigener Name/.test(editor), "„— kein eigener Name —“ ebe
 console.log("darstellung-fenster: alle Zusicherungen gruen");
 ```
 
-- [ ] **Schritt 2: Lauf zur Gegenprobe** — FEHLSCHLAG.
+- [x] **Schritt 2: Lauf zur Gegenprobe** — FEHLSCHLAG.
 
-- [ ] **Schritt 3: Bauen**
+- [x] **Schritt 3: Bauen**
 
 Kachel `#ecoDisplay` **ganz rechts** ins Menüband (siebte). Fenster als `.modal` mit
 `.modal-box wide`, Reiter, die Tabelle aus §5.1 des Entwurfs, `get` beim Öffnen,
@@ -1286,9 +1286,9 @@ function zeigeAbschnitte(reiter) {
 `landschaften-editor.html` wird über `?v=Date.now()` geholt (`review-ecosystem-list.js`), nicht über
 den Stempellauf. Die geänderten **CSS**-Dateien erreicht der Stempellauf; nichts von Hand.
 
-- [ ] **Schritt 4: Lauf zur Bestätigung** — BESTANDEN.
+- [x] **Schritt 4: Lauf zur Bestätigung** — BESTANDEN.
 
-- [ ] **Schritt 5: Committen**
+- [x] **Schritt 5: Committen**
 
 ```bash
 git add html/landschaften-editor.html css/pages/landschaften-editor.css js/pages/__tests__/darstellung-fenster.test.js
@@ -1301,7 +1301,7 @@ git commit -m "feat(landschaften): das Fenster „Darstellung" -- Huelle, Reiter
 
 **Dateien:** `html/landschaften-editor.html`, Test `js/pages/__tests__/darstellung-global.test.js`
 
-- [ ] **Schritt 1: Test** — die drei Zusicherungen aus dem Prototyp, in reiner Form:
+- [x] **Schritt 1: Test** — die drei Zusicherungen aus dem Prototyp, in reiner Form:
 
 ```javascript
 const assert = require("assert");
@@ -1321,11 +1321,11 @@ assert.strictEqual(wirksameDeckkraft(undefined, undefined, 0.16), 0.16, "Derogra
 console.log("darstellung-global: alle Zusicherungen gruen");
 ```
 
-- [ ] **Schritt 2: Lauf** — FEHLSCHLAG (Datei fehlt) → anlegen → BESTANDEN.
-- [ ] **Schritt 3: Die Leiste bauen** — Häkchen **anfangs an**, mit dem Wert der Ebene; die
+- [x] **Schritt 2: Lauf** — FEHLSCHLAG (Datei fehlt) → anlegen → BESTANDEN.
+- [x] **Schritt 3: Die Leiste bauen** — Häkchen **anfangs an**, mit dem Wert der Ebene; die
   Zeilenregler werden `disabled` und behalten ihren Wert.
-- [ ] **Schritt 4: Am Ablauf abnehmen** — anhaken, abhaken, Wert prüfen.
-- [ ] **Schritt 5: Committen** — `feat(landschaften): eine Deckkraft fuer die ganze Ebene`
+- [x] **Schritt 4: Am Ablauf abnehmen** — anhaken, abhaken, Wert prüfen.
+- [x] **Schritt 5: Committen** — `feat(landschaften): eine Deckkraft fuer die ganze Ebene`
 
 ---
 
@@ -1333,7 +1333,7 @@ console.log("darstellung-global: alle Zusicherungen gruen");
 
 **Dateien:** `html/landschaften-editor.html`, Test `js/pages/__tests__/darstellung-band.test.js`
 
-- [ ] **Schritt 1: Test — die „näheres Ende"-Regel**
+- [x] **Schritt 1: Test — die „näheres Ende"-Regel**
 
 ```javascript
 const assert = require("assert");
@@ -1359,8 +1359,8 @@ assert.deepStrictEqual(bandKlick({ ab: 2, bis: 6 }, 4), { ab: 4, bis: 6 }, "Glei
 console.log("darstellung-band: alle Zusicherungen gruen");
 ```
 
-- [ ] **Schritt 2: Lauf** — FEHLSCHLAG → anlegen → BESTANDEN.
-- [ ] **Schritt 3: Die Tabelle bauen**
+- [x] **Schritt 2: Lauf** — FEHLSCHLAG → anlegen → BESTANDEN.
+- [x] **Schritt 3: Die Tabelle bauen**
 
 💣 **Echte `<table>` mit `table-layout: fixed`.** Als Grid je Zeile richten sich die Stufen nicht
 aneinander aus — jede Zeile rechnet ihre Breiten selbst, und weil „Fluss" kürzer ist als
@@ -1372,9 +1372,9 @@ Knöpfe je Zeile: `z0 … z7`, `aus`, **„Median ermitteln"**, nach dem Messen 
 
 🔴 **Zwei Verben, zwei Knöpfe.** Messen schreibt nichts.
 
-- [ ] **Schritt 4: Ausrichtung messen** — alle Zeilen gleich viele Zellen, alle Stufenspalten gleich
+- [x] **Schritt 4: Ausrichtung messen** — alle Zeilen gleich viele Zellen, alle Stufenspalten gleich
   breit, auch mit genau einer Zeile im „übernehmen"-Zustand.
-- [ ] **Schritt 5: Committen** — `feat(landschaften): das Zoomband je Art, mit Median`
+- [x] **Schritt 5: Committen** — `feat(landschaften): das Zoomband je Art, mit Median`
 
 ---
 
@@ -1382,7 +1382,7 @@ Knöpfe je Zeile: `z0 … z7`, `aus`, **„Median ermitteln"**, nach dem Messen 
 
 **Dateien:** `html/landschaften-editor.html`, Test `js/pages/__tests__/darstellung-plot.test.js`
 
-- [ ] **Schritt 1: Test — Auswahl schaltet das Ziehen frei**
+- [x] **Schritt 1: Test — Auswahl schaltet das Ziehen frei**
 
 ```javascript
 const assert = require("assert");
@@ -1408,12 +1408,12 @@ gleich.forEach((y, i) => { if (i) { assert.ok(y - gleich[i - 1] >= 13, "kein Ueb
 console.log("darstellung-plot: alle Zusicherungen gruen");
 ```
 
-- [ ] **Schritt 2: Lauf** — FEHLSCHLAG → anlegen → BESTANDEN.
-- [ ] **Schritt 3: Den Plot bauen** — aus dem Prototyp: ziehbare Punkte, Auswahl-Riegel,
+- [x] **Schritt 2: Lauf** — FEHLSCHLAG → anlegen → BESTANDEN.
+- [x] **Schritt 3: Den Plot bauen** — aus dem Prototyp: ziehbare Punkte, Auswahl-Riegel,
   aufgefächerte Namen mit Anschlusslinien, `← →` für die Zoomstufe, `↑ ↓` für den Wert. Die Kurve
   läuft **nur durch ihr Band**.
-- [ ] **Schritt 4: Am Ablauf abnehmen** — Art wählen, Punkt ziehen, Band beschneiden.
-- [ ] **Schritt 5: Committen** — `feat(landschaften): der Groessenplot je Art und Zoomstufe`
+- [x] **Schritt 4: Am Ablauf abnehmen** — Art wählen, Punkt ziehen, Band beschneiden.
+- [x] **Schritt 5: Committen** — `feat(landschaften): der Groessenplot je Art und Zoomstufe`
 
 ---
 
@@ -1421,7 +1421,7 @@ console.log("darstellung-plot: alle Zusicherungen gruen");
 
 **Dateien:** `html/landschaften-editor.html`, Test `js/pages/__tests__/darstellung-kurvenwerte.test.js`
 
-- [ ] **Schritt 1: Test**
+- [x] **Schritt 1: Test**
 
 ```javascript
 const assert = require("assert");
@@ -1449,14 +1449,14 @@ assert.ok(!/trackingMaxPerGapEm:\s*0\.6/.test(fenster), "keine abgeschriebene Vo
 console.log("darstellung-kurvenwerte: alle Zusicherungen gruen");
 ```
 
-- [ ] **Schritt 2: Lauf** — FEHLSCHLAG → anlegen → BESTANDEN.
-- [ ] **Schritt 3: Bauen** — die zwölf Bedienelemente plus die Vorschau (Auswahlfeld mit den drei
+- [x] **Schritt 2: Lauf** — FEHLSCHLAG → anlegen → BESTANDEN.
+- [x] **Schritt 3: Bauen** — die zwölf Bedienelemente plus die Vorschau (Auswahlfeld mit den drei
   Gebirgen und drei Wäldern). 🔴 Die Vorschau ruft die **Produktionsmodule**, nicht
   `docs/kurvenlabel-pipeline.js` — die ist der Prototyp.
   ⚠️ Zwei der zwölf wirken in der Vorschau nicht sichtbar (Mindestabstand, Ausweichweg); das sagt
   die Erklärzeile ausdrücklich.
-- [ ] **Schritt 4: Ablauf abnehmen** — jeden Regler bewegen, sehen, dass die Kurve sich ändert.
-- [ ] **Schritt 5: Committen** — `feat(landschaften): die zwoelf Kurvenfeinheiten samt Vorschau`
+- [x] **Schritt 4: Ablauf abnehmen** — jeden Regler bewegen, sehen, dass die Kurve sich ändert.
+- [x] **Schritt 5: Committen** — `feat(landschaften): die zwoelf Kurvenfeinheiten samt Vorschau`
 
 ---
 
@@ -1470,7 +1470,7 @@ console.log("darstellung-kurvenwerte: alle Zusicherungen gruen");
 - Ändern: `css/components/location-report-dialog.css`
 - Test: `js/review/__tests__/label-vorgabemarke.test.js`
 
-- [ ] **Schritt 1: Den fehlschlagenden Test schreiben**
+- [x] **Schritt 1: Den fehlschlagenden Test schreiben**
 
 ```javascript
 const assert = require("assert");
@@ -1509,9 +1509,9 @@ assert.ok(!/aria-label="Groesse"/.test(seite), "und hat kein Bedienelement mehr"
 console.log("label-vorgabemarke: alle Zusicherungen gruen");
 ```
 
-- [ ] **Schritt 2: Lauf zur Gegenprobe** — FEHLSCHLAG.
+- [x] **Schritt 2: Lauf zur Gegenprobe** — FEHLSCHLAG.
 
-- [ ] **Schritt 3: Bauen**
+- [x] **Schritt 3: Bauen**
 
 Das Feld `label-edit-size` wird `type="hidden"`, `label-edit-size-range` und sein `<label>` fallen.
 Jeder der vier Regler bekommt eine Hülle mit einer Marke:
@@ -1542,14 +1542,14 @@ function vorgabeMarkePosition(wert, min, max) {
 Die Vorgaben holt der Dialog über `avesmapsEcosystemDisplayVorgabe(subtype)`; wechselt die **Art**
 im Dialog, wandern die Marken mit.
 
-- [ ] **Schritt 4: Lauf zur Bestätigung** — BESTANDEN.
+- [x] **Schritt 4: Lauf zur Bestätigung** — BESTANDEN.
 
-- [ ] **Schritt 5: Am Ablauf abnehmen**
+- [x] **Schritt 5: Am Ablauf abnehmen**
 
 Ein Label öffnen, die Art wechseln, sehen, dass die Marke springt. **Und:** ein Label speichern,
 das nie angefasst wurde, danach nachsehen, ob seine gespeicherte `size` noch da ist (§5.5).
 
-- [ ] **Schritt 6: Ganzes Testfeld, committen, pushen, halten**
+- [x] **Schritt 6: Ganzes Testfeld, committen, pushen, halten**
 
 ```bash
 git add index.html js/review/review-labels.js css/components/location-report-dialog.css js/review/__tests__/label-vorgabemarke.test.js
@@ -1560,11 +1560,29 @@ git commit -m "feat(landschaften): die Vorgabe steht als Marke auf den Reglern d
 
 ## Nach dem Bauen
 
-- [ ] **Die Abnahme aus Entwurf §10** — zehn echte Handgriffe, hell UND dunkel.
-- [ ] **`docs/refactoring-masterplan.md`** und der Kurvenbeschriftungs-Entwurf: Plan 4 als erledigt
+- [x] **Die Abnahme aus Entwurf §10** — zehn echte Handgriffe, hell UND dunkel.
+- [x] **`docs/refactoring-masterplan.md`** und der Kurvenbeschriftungs-Entwurf: Plan 4 als erledigt
   vermerken.
-- [ ] ⚠️ **Das Handbuch NICHT anfassen.** `html/editor-handbuch.html` gehört der nächtlichen Routine
+- [x] ⚠️ **Das Handbuch NICHT anfassen.** `html/editor-handbuch.html` gehört der nächtlichen Routine
   (AGENTS.md §9). Die Pflicht hier ist ein Commit-Betreff, der die sichtbare Wirkung nennt — das tun
   die Betreffs oben.
 - [ ] 🔧 **Die Medianwerte einmal wirklich messen** und mit dem Owner Art für Art durchgehen
   (Entwurf §11).
+
+### Was am 24.08.2026 NICHT abgenommen werden konnte
+
+⚠️ Ehrlich benannt statt als bestanden verbucht (AGENTS.md §9):
+
+- **Der Median ist nie gegen die echte Datenbank gelaufen.** Der Messweg steht und ist mit einer
+  Fixture geprüft (`kurven-baselines-lesen-test.php`, `ecosystem-display-test.php`), aber die Zahlen
+  aus den rund 900 Beschriftungen hat noch niemand gesehen. Bis dahin darf niemand sie für gemessen
+  halten -- und die Runde, in der der Owner sie Art für Art ansieht, steht aus.
+- **Kein Handgriff lief mit angemeldeter Sitzung.** Alle Abläufe im Browser liefen gegen gestellte
+  Antworten (`?demo=1` plus fetch-Attrappe): das Fenster, die Bandtabelle, der Plot, die
+  Kurvenvorschau, die Vorgabemarken. Was dabei NICHT geprüft ist: der Rechteriegel gegen echte
+  Rollen, das Schreiben in `app_setting` samt Rückleseprobe, und ob der Endpunkt `baselines` gegen
+  MySQL dieselbe Form liefert wie gegen die Fixture.
+- **Die Kurvenvorschau lief nur auf einer gestellten Kurve.** Eine echte Beschriftungskurve aus dem
+  Zwischenspeicher hat sie noch nie gezeichnet -- die Demo-Daten des Editors tragen keine.
+- **`maxTurnDeg` war an der Demokurve nicht sichtbar** (zu flach). Dass er wirkt, ist an einer
+  gebogenen Linie in node belegt, nicht im Fenster gesehen.

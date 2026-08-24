@@ -76,4 +76,44 @@ zustand = { global: { derographisch: { an: true } } };
 assert.strictEqual(gebaut.ecoDisplayGlobalWert("derographisch"), 0.16,
 	"ohne eigene Zahl nimmt global die Vorgabe der Ebene, nicht die einer anderen");
 
+// ---- G. 🪤 DAS FENSTER SCHIEBT NUR DIE KURVENWERTE INS GETEILTE MODUL ---------------------------
+// Die Vorschau der Kurvenfeinheiten braucht sie dort, weil avesmapsCurveLabelFit sie von dort
+// liest. Der erste Bau schob die GANZE Arbeitstafel hinein -- und damit war das Modul kein
+// Vorgabengeber mehr, sondern ein SPIEGEL des Fensters: `ecoDisplayDeckZeile` fragt es nach der
+// VORGABE einer Art und bekam den gerade getippten Wert zurueck.
+//
+// 💣 Sichtbar wurde das erst beim Zuruecksetzen: die Farbe sprang zurueck, die Deckkraft blieb auf
+// 82 % stehen, und der Kurvenwert des Moduls ueberdauerte ueberhaupt. Am 24.08.2026 im Browser
+// gemessen, von keinem Test.
+const vonI = editor.indexOf("function ecoDisplayInstalliereKurve");
+assert.ok(vonI >= 0, "es gibt einen eigenen Installierer");
+const rumpfI = editor.slice(vonI, editor.indexOf(String.fromCharCode(10) + "}", vonI));
+assert.ok(/\{ kurve: ecoDisplayTeil\("kurve"\) \}/.test(rumpfI),
+	"er gibt NUR die Kurvenwerte weiter");
+
+// 🔴 Und sonst installiert NIEMAND -- eine zweite Stelle mit der ganzen Tafel holte den Fehler
+// zurueck. Erlaubt ist genau der Installierer.
+let vonA = editor.indexOf("avesmapsEcosystemDisplayInstall(");
+while (vonA !== -1) {
+	const zeile = editor.slice(editor.lastIndexOf(String.fromCharCode(10), vonA) + 1,
+		editor.indexOf(String.fromCharCode(10), vonA));
+	// 🪤 Ein Kommentar zaehlt nicht: die Begruendung im Installierer NENNT den alten Aufruf, und
+	// ein Test, der ihn trifft, prueft seine eigene Prosa. Vierter Fall derselben Falle in diesem
+	// Umbau -- deshalb steht sie hier ausdruecklich.
+	const getrimmt = zeile.trim();
+	const istKommentar = getrimmt.charAt(0) === "*" || getrimmt.slice(0, 2) === "//";
+	assert.ok(istKommentar || (vonA > vonI && vonA < vonI + rumpfI.length),
+		"avesmapsEcosystemDisplayInstall steht NUR im Installierer, nicht bei: " + zeile.trim());
+	vonA = editor.indexOf("avesmapsEcosystemDisplayInstall(", vonA + 1);
+}
+
+// ---- H. Zuruecksetzen nimmt das Modul MIT --------------------------------------------------------
+const vonR = editor.indexOf('$("ecoDisplayReset").addEventListener');
+assert.ok(vonR >= 0, "der Ruecksetzer steht in der Datei");
+// ⚠️ Bis zur ERFOLGSMELDUNG, nicht bis zum ersten `});` -- `ecoDisplayPost({ action: "reset" });
+// endet selbst darauf und schnitt den Rumpf vor der gesuchten Zeile ab.
+const rumpfR = editor.slice(vonR, editor.indexOf("Auf Vorgabe zur", vonR));
+assert.ok(/ecoDisplayInstalliereKurve\(\)/.test(rumpfR),
+	"nach dem Zuruecksetzen wird das geteilte Modul geleert -- sonst zeichnet die Vorschau weiter");
+
 console.log("darstellung-global: alle Zusicherungen gruen");

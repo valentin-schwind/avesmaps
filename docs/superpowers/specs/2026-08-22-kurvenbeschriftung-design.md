@@ -313,6 +313,28 @@ nimmt davon nichts vorweg.
 
 ### §6.1 Die einstellbaren Werte
 
+> ✅ **Plan 4 ist erledigt — aber nur zur Hälfte, und die andere Hälfte ist hier benannt** (24.08.2026,
+> Entwurf `docs/superpowers/specs/2026-08-24-landschaften-darstellung-design.md` §5.6).
+>
+> Einstellbar sind seither die **elf Werte aus `AVESMAPS_CURVE_LABEL_DEFAULTS`** (`curve-label-fit.js`),
+> im Fenster „Darstellung“ des Landschaften-Editors, mit einer Vorschau auf einer echten Fläche. Sie
+> werden dort aus dem Modul GELESEN, nie abgeschrieben, und wirken bei beiden Verbrauchern (Passung
+> und Ausweichweite).
+>
+> 🔧 **Die ersten fünf Zeilen dieser Tabelle sind NICHT dabei** — Glättung, Begradigung,
+> Randvereinfachung, Stützpunktabstand und „Teilfläche zählt ab“. Sie gehören der
+> **Chordal-Axis des Servers** (`api/_internal/app/curve-labels.php`) und stehen in keiner
+> Browsertafel. Ein Regler dafür wäre ein Regler, der nichts bewirkt — deshalb steht er nicht da,
+> statt still zu scheitern. Wer sie einstellbar machen will, braucht dafür einen eigenen Weg vom
+> Fenster in den Sammellauf.
+>
+> ⚠️ Zwei der elf (**Mindestabstand zweier Namen**, **Ausweichweg**) wirken in der Vorschau nicht
+> sichtbar: sie brauchen einen Fall, den ein einzelner Name auf einer freien Fläche nicht
+> herstellt. Das Fenster sagt es an ihrer Zeile.
+>
+> ⭐ Dazugekommen ist **`calmAnchorWeight`**, das in dieser Tabelle fehlt: es steht in der
+> Codetafel und entscheidet mit, ob bei der Schwarzen Sichel beide Namen an derselben Naht landen.
+
 | Wert | Vorgabe | Wirkung |
 |---|---|---|
 | Glättung | Polynom Grad 3 | Form der Kurve |
