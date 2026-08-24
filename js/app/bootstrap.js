@@ -83,6 +83,14 @@ function getInitialEditMapView() {
  *
  * ⚠️ Nur der direkte `?pin=`-Parameter. Ein `?s=`-Kurzlink löst seine Parameter erst später
  * asynchron auf; dort bleibt es beim bisherigen Weg über `focusMapOnActiveTargets()`.
+ *
+ * 🪤 Diese Datei musste ein zweites Mal angefasst werden, um überhaupt live zu gehen: der Deploy
+ * ihres ersten Commits (`c8238381`) wurde 60 Sekunden später von einem fremden Push ABGEBROCHEN,
+ * und der nachfolgende Lauf lädt nur SEINE geänderten Dateien hoch (`git diff before..sha`).
+ * Ergebnis: der Commit stand in `master`, die Datei auf dem Server war die alte, und `index.html`
+ * forderte weiterhin deren alten `?v=`-Stempel an -- ein in sich stimmiger, aber veralteter Stand,
+ * an dem kein Test und keine SHA-Prüfung etwas gemerkt hätte. Nur eine INHALTSÄNDERUNG heilt das
+ * (AGENTS.md §9). Gemessen wurde es am ausgelieferten Stempel, nicht am Repo.
  */
 function avesmapsInitialViewFromSharePin() {
     try {
