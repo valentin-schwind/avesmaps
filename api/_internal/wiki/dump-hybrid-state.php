@@ -125,6 +125,56 @@ function avesmapsWikiDumpHybridEnsureStateTable(PDO $pdo): void
             KEY idx_hybrid_state_run_pending (run_id, wikitext_found_at, processed_at)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
     );
+
+    // 💣 `CREATE TABLE IF NOT EXISTS` LEGT KEINE SPALTE NACH. Steht die Tabelle schon, tut die
+    // Anweisung darueber GAR NICHTS -- und jede Spalte, die spaeter dazukam, fehlt auf jeder
+    // Installation, die aelter ist als sie. Genau so ist `override_deity` (Discord #54) nie auf dem
+    // Livesystem angekommen: die Tabelle stammt aus der Zeit davor, und der Lauf starb am
+    // 24.08.2026 mit „Unknown column 'override_deity' in 'INSERT INTO'" -- unter einem
+    // „Internal server error.", der den Grund verschwieg.
+    //
+    // ⚠️ MySQL kennt kein `ADD COLUMN IF NOT EXISTS` (MariaDB schon) -- deshalb erst fragen, dann
+    // aendern. `SHOW COLUMNS` kostet nichts und braucht kein information_schema, dessen Sonde
+    // AGENTS.md §10 ausdruecklich als Last auffuehrt. Hausvorbild: editor-activity.php.
+    // 🔴 NUR MySQL. `SHOW COLUMNS` ist MySQL-Sprache; die SQLite-Fixturen der Testlaeufe kennen sie
+    // nicht -- und dort gibt es auch nichts zu heilen, weil die Tabelle im selben Lauf frisch aus
+    // der Definition oben entsteht. ⚠️ Bewusst SO herum: die Produktionsform bleibt unangetastet
+    // und der Test springt ueber einen Schritt, den er nicht braucht. Andersherum -- die Abfrage
+    // SQLite-tauglich verbiegen -- waere die Falle aus AGENTS.md §9, wo ein Test eine
+    // MySQL-Regression erzwungen hat.
+    // ⚠️ Die Treiberfrage selbst muss den Fehlschlag aushalten: die Testlaeufe reichen PDO-
+    // Attrappen herein, die den Elternkonstruktor nie aufrufen -- an denen wirft schon
+    // `getAttribute()`. Ein unbekannter Treiber heisst hier „nichts zu heilen".
+    $treiber = '';
+    try {
+        $treiber = (string) $pdo->getAttribute(PDO::ATTR_DRIVER_NAME);
+    } catch (Throwable) {
+        $treiber = '';
+    }
+
+    if ($treiber !== 'mysql') {
+        return;
+    }
+
+    $nachzuruesten = [
+        'entity_kind' => 'VARCHAR(20) NULL',
+        'override_class' => 'VARCHAR(60) NULL',
+        'override_building_type' => 'VARCHAR(120) NULL',
+        'override_continent' => 'VARCHAR(120) NULL',
+        'override_deity' => 'VARCHAR(120) NULL',
+        'wikitext' => 'MEDIUMTEXT NULL',
+        'wikitext_found_at' => 'DATETIME(3) NULL',
+        'processed_at' => 'DATETIME(3) NULL',
+    ];
+
+    foreach ($nachzuruesten as $spalte => $definition) {
+        $probe = $pdo->query("SHOW COLUMNS FROM wiki_dump_hybrid_state LIKE " . $pdo->quote($spalte));
+        if ($probe !== false && $probe->fetch() !== false) {
+            continue;
+        }
+
+        $pdo->exec("ALTER TABLE wiki_dump_hybrid_state ADD COLUMN {$spalte} {$definition}");
+    }
 }
 
 // ===========================================================================
