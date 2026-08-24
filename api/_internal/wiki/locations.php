@@ -63,39 +63,21 @@ function avesmapsWikiSyncFetchSiedlungenIndexCategories(): array {
     return array_keys(AVESMAPS_WIKI_CATEGORY_TO_CLASS);
 }
 
+// ⭐ Die eine Seite, aus der diese Schleife besteht, steht in sync.php
+// (avesmapsWikiSyncFetchCategoryMemberPage) -- dort, weil settlements.php sie ebenfalls
+// braucht und die beiden Dateien einander nicht laden. Die unterbrechbare Klassen-Phase des
+// Dump-Laufs faehrt denselben Baustein einzeln, statt hier durchzulaufen.
 function avesmapsWikiSyncFetchCategoryMemberTitles(string $categoryName): array {
     $titles = [];
     $continueToken = null;
 
     do {
-        $params = [
-            'action' => 'query',
-            'list' => 'categorymembers',
-            'cmtitle' => 'Kategorie:' . $categoryName,
-            'cmnamespace' => 0,
-            'cmlimit' => 500,
-        ];
-
-        if ($continueToken !== null) {
-            $params['cmcontinue'] = $continueToken;
+        $seite = avesmapsWikiSyncFetchCategoryMemberPage($categoryName, $continueToken, ['cmnamespace' => 0]);
+        foreach ($seite['titles'] as $title) {
+            $titles[$title] = $title;
         }
-
-        $data = avesmapsWikiSyncApiRequest($params);
-        $members = $data['query']['categorymembers'] ?? [];
-
-        if (is_array($members)) {
-            foreach ($members as $member) {
-                $title = trim((string) ($member['title'] ?? ''));
-                if ($title !== '') {
-                    $titles[$title] = $title;
-                }
-            }
-        }
-
-        $continueToken = isset($data['continue']['cmcontinue'])
-            ? (string) $data['continue']['cmcontinue']
-            : null;
-    } while ($continueToken !== null && $continueToken !== '');
+        $continueToken = $seite['continue'];
+    } while ($continueToken !== null);
 
     natcasesort($titles);
     return array_values($titles);

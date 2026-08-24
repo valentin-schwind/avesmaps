@@ -892,6 +892,12 @@ function renderWikiSyncDumpProgress(progress, done) {
 	if (progress && Number(progress.title_aliases_written) > 0) counters.push(`${Number(progress.title_aliases_written)} Aliase`);
 	if (progress && Number(progress.processed_this_step) > 0) counters.push(`${Number(progress.processed_this_step)} verarbeitet`);
 	if (progress && Number(progress.kept) > 0) counters.push(`${Number(progress.kept)} übernommen`);
+	// Die drei Online-Phasen melden `written` und sonst keinen der Zähler oben. Seit sie
+	// fortsetzbar sind (24.08.2026), stehen sie viele Schritte lang auf derselben Phasen-
+	// beschriftung -- bei 20 s Drossel sind das Minuten. Ohne eine Zahl, die sich bewegt,
+	// sieht genau das aus wie ein Hänger, und der Knopf ist der einzige Ort, an dem der
+	// Lauf überhaupt sichtbar ist.
+	if (progress && Number(progress.written) > 0) counters.push(`${Number(progress.written)} geschrieben`);
 	const counterText = counters.length > 0 ? ` (${counters.join(", ")})` : "";
 
 	setWikiSyncButtonState(button, {

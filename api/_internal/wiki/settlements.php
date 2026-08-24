@@ -1029,22 +1029,18 @@ function avesmapsWikiSettlementCollectConnectTargets(PDO $pdo): array {
 // werden. INSERT IGNORE: überschreibt KEINE bestehenden Siedlungs-Einträge. Infobox wird erst beim
 // Zuordnen on-demand geladen.
 // Subkategorien (ns=14) einer Kategorie, Präfix „Kategorie:" entfernt.
+// ⭐ Geht seit 24.08.2026 ueber avesmapsWikiSyncFetchCategoryMemberPage (locations.php) --
+// dieselbe eine Anfrage, die auch die unterbrechbare Bauwerks-Phase des Dump-Laufs benutzt.
+// Diese Schleife hier bleibt am Stueck: sie hat keinen Aufrufer, der Schritte fahren koennte.
 function avesmapsWikiSettlementFetchSubcategories(string $categoryName): array {
     $subcats = [];
     $continue = null;
     do {
-        $params = ['action' => 'query', 'list' => 'categorymembers', 'cmtitle' => 'Kategorie:' . $categoryName, 'cmtype' => 'subcat', 'cmlimit' => 500];
-        if ($continue !== null) {
-            $params['cmcontinue'] = $continue;
+        $seite = avesmapsWikiSyncFetchCategoryMemberPage($categoryName, $continue, ['cmtype' => 'subcat']);
+        foreach ($seite['titles'] as $t) {
+            $subcats[] = avesmapsWikiSyncStripCategoryPrefix($t);
         }
-        $data = avesmapsWikiSyncApiRequest($params);
-        foreach ($data['query']['categorymembers'] ?? [] as $m) {
-            $t = trim((string) ($m['title'] ?? ''));
-            if ($t !== '') {
-                $subcats[] = preg_replace('/^(Kategorie|Category):/u', '', $t) ?? $t;
-            }
-        }
-        $continue = $data['continue']['cmcontinue'] ?? null;
+        $continue = $seite['continue'];
     } while ($continue !== null);
     return $subcats;
 }

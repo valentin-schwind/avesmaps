@@ -392,14 +392,29 @@ function avesmapsWikiDumpHybridComputeContinentMapRows(array $continentMap): arr
  * `INSERT ... ON DUPLICATE KEY UPDATE` per row keyed on
  * `(run_id, normalized_title)` (the table's own UNIQUE KEY, design §3).
  *
- * A NULL override column in the given row does NOT clobber an existing
- * non-NULL value already stored for that title -- `COALESCE(VALUES(col),
- * col)` on every override column, so this function is safe to call multiple
- * times for the SAME title across different fills (class, then building,
- * then continent) and each fill only ever ADDS its own override, never wipes
- * a sibling fill's earlier write. This is what lets the three single-purpose
- * pure computers above merge into one row per title without needing to know
- * about each other's calls or their ordering.
+ * JE SPALTE GEWINNT DER ERSTE SCHREIBER -- `COALESCE(col, VALUES(col))` auf jeder
+ * override-Spalte. Das haelt zweierlei auseinander, was frueher zusammenfiel:
+ *
+ *   (a) QUER ueber die Spalten: ein NULL aus einer Nachbarfuellung ueberbuegelt nie einen
+ *       vorhandenen Wert. Diese Haelfte galt immer -- sie ist der Grund, warum Klassen-,
+ *       Bauwerks-, Kontinent- und Gottheits-Fuellung sich EINE Zeile je Titel teilen koennen,
+ *       ohne voneinander zu wissen.
+ *
+ *   (b) 💣 INNERHALB einer Spalte: seit die Online-Phasen ueber viele Schritte laufen
+ *       (24.08.2026), kann derselbe Titel in ZWEI Schritten aus zwei Kategorien kommen --
+ *       "Feuersturm-Tempel" steht in Steinkreis UND Kultstaette. In EINEM Schritt entdoppelt
+ *       avesmapsWikiDumpCategoryAssembleBuildingMap selbst ("erster Typ gewinnt"); ueber eine
+ *       Schrittgrenze hinweg sieht der Sammler die fruehere Kategorie gar nicht mehr, und der
+ *       Titel kommt ein zweites Mal an. Stuende hier weiter `COALESCE(VALUES(col), col)`,
+ *       gewaenne lautlos der LETZTE Schreiber und die Hausregel "erster Typ gewinnt"
+ *       (settlements.php:943-953) waere still umgedreht.
+ *
+ * ⚠️ Beide Haelften stehen in DERSELBEN Zeile SQL. Wer sie umdreht, dreht (b) um und merkt es
+ * nicht, weil (a) weiter stimmt. Gewacht von test-dump-hybrid-state.php (e5)/(e6).
+ *
+ * 🔴 Dass "erster gewinnt" hier gefahrlos ist, haengt daran, dass jeder Lauf eine EIGENE
+ * run_id bekommt (avesmapsWikiDumpHybridStartRun) und mit leerem stats_json startet: eine
+ * Phase faengt nie bei Cursor 0 gegen eine schon gefuellte Zustandstabelle desselben Laufs an.
  *
  * Calls `avesmapsWikiDumpHybridEnsureStateTable()` first (idempotent), so a
  * caller never needs to remember to call it separately.
@@ -421,10 +436,10 @@ function avesmapsWikiDumpHybridUpsertRows(PDO $pdo, int $runId, array $rows): in
         VALUES
             (:run_id, :normalized_title, :override_class, :override_building_type, :override_continent, :override_deity)
         ON DUPLICATE KEY UPDATE
-            override_class = COALESCE(VALUES(override_class), override_class),
-            override_building_type = COALESCE(VALUES(override_building_type), override_building_type),
-            override_continent = COALESCE(VALUES(override_continent), override_continent),
-            override_deity = COALESCE(VALUES(override_deity), override_deity)'
+            override_class = COALESCE(override_class, VALUES(override_class)),
+            override_building_type = COALESCE(override_building_type, VALUES(override_building_type)),
+            override_continent = COALESCE(override_continent, VALUES(override_continent)),
+            override_deity = COALESCE(override_deity, VALUES(override_deity))'
     );
 
     $written = 0;
@@ -448,62 +463,87 @@ function avesmapsWikiDumpHybridUpsertRows(PDO $pdo, int $runId, array $rows): in
 }
 
 /**
- * FILL (class map): thin wrapper chaining H1's real builder
- * `avesmapsWikiDumpCategoryFetchSettlementClassMap()` (dump-category-layer.php:
- * 202) into the pure row-computer + the DB upsert above. Single-step, mirrors
- * H1's own single-step class-map builder (no cursor -- H1's class map is one
- * call that internally walks all 5 class categories).
+ * FILL (class map, FORTSETZBAR): duenne Huelle um H1's Sammler
+ * `avesmapsWikiDumpCategoryFetchSettlementClassMap()` plus den reinen Zeilenrechner und den
+ * Upsert oben. Sie reicht dessen Cursor/Budget/done-Vertrag unveraendert durch und fuegt ihm
+ * NICHTS hinzu ausser "und schreib, was dieser Schritt gefunden hat" -- genau wie
+ * avesmapsWikiDumpHybridFillContinentMapStep() es seit jeher tut.
  *
- * $categoryMemberFetcher is forwarded to H1's builder unchanged (default: the
- * real reused fetcher; a caller/test may inject a fake to avoid live HTTP,
- * exactly as H1's own test does).
+ * 💣 DER CURSOR HAT ZWEI TEILE, und beide muessen hier durch: $index (welche der 5
+ * Klassen-Kategorien) UND $continueToken (wo INNERHALB dieser Kategorie). Eine Huelle, die
+ * nur den Index weiterreicht, faengt eine grosse Kategorie beim naechsten Schritt von vorn an
+ * -- oder verliert ihren Rest. Siehe avesmapsWikiDumpCategoryFetchCategoryMembersStep().
  *
- * @return array{written: int, titles: list<string>} rows written + the title breadth this fill established
+ * 🪤 HIER STAND EIN GOTTHEITEN-UPSERT, UND ER HAT NIE ETWAS GESCHRIEBEN. Er las
+ * `$result['deities']` -- einen Schluessel, den der Klassen-Sammler nie zurueckgibt; erzeugt
+ * wird die Gottheits-Map von avesmapsWikiDumpCategoryFetchContinentMap(), und der Docblock bei
+ * avesmapsWikiDumpCategoryAssembleDeityMap() sagt auch ausdruecklich, sie haenge "an einer
+ * fortsetzbaren Phase". Sie gehoert also in avesmapsWikiDumpHybridFillContinentMapStep(), wo
+ * sie heute fehlt: `override_deity` wird zurzeit von niemandem gefuellt. Gemessen am
+ * 24.08.2026, BEWUSST NICHT hier mitrepariert -- diese Aenderung soll allein die zwei
+ * Online-Phasen unterbrechbar machen, und der Beweis dafuer ist EIN Klick des Owners.
+ *
+ * @param callable|null $memberPageFetcher Testnaht, unveraendert an H1 weitergereicht
+ * @return array{written: int, titles: list<string>, nextIndex: int, nextContinue: ?string, done: bool}
  */
-function avesmapsWikiDumpHybridFillClassMap(PDO $pdo, int $runId, ?callable $categoryMemberFetcher = null): array
-{
-    $result = avesmapsWikiDumpCategoryFetchSettlementClassMap($categoryMemberFetcher);
+function avesmapsWikiDumpHybridFillClassMapStep(
+    PDO $pdo,
+    int $runId,
+    int $index = 0,
+    ?string $continueToken = null,
+    ?int $callBudget = null,
+    ?callable $memberPageFetcher = null
+): array {
+    $result = avesmapsWikiDumpCategoryFetchSettlementClassMap($index, $continueToken, $callBudget, $memberPageFetcher);
     $classMap = is_array($result['map'] ?? null) ? $result['map'] : [];
 
     $rows = avesmapsWikiDumpHybridComputeClassMapRows($classMap);
     $written = avesmapsWikiDumpHybridUpsertRows($pdo, $runId, $rows);
 
-    // Die Gottheiten aus DERSELBEN Antwort (Discord #54). Eigener Upsert statt eines gemischten
-    // Zeilensatzes: die beiden Maps decken verschiedene Titel ab -- jeder Titel hat einen
-    // Kontinent, nur eine Kultstaette eine Weihung. ⚠️ Die gemeldete Zahl bleibt die der
-    // Kontinent-Zeilen: sie ist das Fortschrittsmass dieser Phase, die Gottheiten sind Beifang.
-    avesmapsWikiDumpHybridUpsertRows($pdo, $runId, avesmapsWikiDumpHybridComputeDeityMapRows(
-        is_array($result['deities'] ?? null) ? $result['deities'] : []
-    ));
-
-    return ['written' => $written, 'titles' => array_column($rows, 'normalized_title')];
+    return [
+        'written' => $written,
+        'titles' => array_column($rows, 'normalized_title'),
+        'nextIndex' => (int) ($result['nextIndex'] ?? $index),
+        'nextContinue' => $result['nextContinue'] ?? null,
+        'done' => (bool) ($result['done'] ?? false),
+    ];
 }
 
 /**
- * FILL (building-type map): thin wrapper chaining H1's real builder
- * `avesmapsWikiDumpCategoryFetchBuildingTypeMap()` (dump-category-layer.php:
- * 276) into the pure row-computer + the DB upsert above. Single-step, mirrors
- * H1's own single-step building-map builder.
+ * FILL (building-type map, FORTSETZBAR): dasselbe eine Ebene weiter -- Huelle um H1's
+ * `avesmapsWikiDumpCategoryFetchBuildingTypeMap()`.
  *
- * $subcategoryFetcher / $categoryMemberFetcher are forwarded to H1's builder
- * unchanged (defaults: the real reused fetchers; a caller/test may inject
- * fakes).
+ * 🔴 $types kommt VON AUSSEN und wird hier nicht geholt. Die Artenliste kostet selbst
+ * Abfragen (avesmapsWikiDumpCategoryFetchBuildingTypes(), Stufe 1 derselben Phase); sie in
+ * jedem Schritt neu zu holen waere nicht nur ein zusaetzlicher Aufruf je Schritt, sondern
+ * gefaehrlich: $index zeigt in genau DIESE Liste, und eine zwischen zwei Schritten
+ * veraenderte Liste verschoebe ihn auf eine andere Art.
  *
- * @return array{written: int, titles: list<string>} rows written + the title breadth this fill established
+ * @param list<string> $types die FERTIGE Artenliste aus Stufe 1
+ * @return array{written: int, titles: list<string>, nextIndex: int, nextContinue: ?string, done: bool}
  */
-function avesmapsWikiDumpHybridFillBuildingMap(
+function avesmapsWikiDumpHybridFillBuildingMapStep(
     PDO $pdo,
     int $runId,
-    ?callable $subcategoryFetcher = null,
-    ?callable $categoryMemberFetcher = null
+    array $types,
+    int $index = 0,
+    ?string $continueToken = null,
+    ?int $callBudget = null,
+    ?callable $memberPageFetcher = null
 ): array {
-    $result = avesmapsWikiDumpCategoryFetchBuildingTypeMap($subcategoryFetcher, $categoryMemberFetcher);
+    $result = avesmapsWikiDumpCategoryFetchBuildingTypeMap($types, $index, $continueToken, $callBudget, $memberPageFetcher);
     $buildingMap = is_array($result['map'] ?? null) ? $result['map'] : [];
 
     $rows = avesmapsWikiDumpHybridComputeBuildingMapRows($buildingMap);
     $written = avesmapsWikiDumpHybridUpsertRows($pdo, $runId, $rows);
 
-    return ['written' => $written, 'titles' => array_column($rows, 'normalized_title')];
+    return [
+        'written' => $written,
+        'titles' => array_column($rows, 'normalized_title'),
+        'nextIndex' => (int) ($result['nextIndex'] ?? $index),
+        'nextContinue' => $result['nextContinue'] ?? null,
+        'done' => (bool) ($result['done'] ?? false),
+    ];
 }
 
 /**

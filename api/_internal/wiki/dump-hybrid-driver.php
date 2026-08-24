@@ -22,8 +22,12 @@ require_once __DIR__ . '/organisation-sync.php';
  * PHASE ORDER (design report §5, one row, sync_type dump_read; the continent map
  * was moved AFTER wikitext_collect by CONTINENT-FIX #1 -- see the ordered-list
  * function's inline note for why):
- *   1. online_class_map     (H1 single-step: avesmapsWikiDumpHybridFillClassMap)
- *   2. online_building_map  (H1 single-step: avesmapsWikiDumpHybridFillBuildingMap)
+ *   1. online_class_map     (RESUMABLE seit 24.08.2026, cursor = stats['class_cursor'] +
+ *                            stats['class_continue']: avesmapsWikiDumpHybridFillClassMapStep)
+ *   2. online_building_map  (RESUMABLE seit 24.08.2026, cursor = stats['building_cursor'] +
+ *                            stats['building_continue'], dazu die Unterstufe
+ *                            stats['building_stage'] + die aufgeloeste stats['building_types']:
+ *                            avesmapsWikiDumpHybridFillBuildingMapStep)
  *   3. wikitext_collect     (RESUMABLE, cursor = stats['wikitext_cursor']:
  *                            avesmapsWikiDumpHybridWikitextCollectStep -- the
  *                            whole-dump scan that ENUMERATES all 5 kinds into the
@@ -37,7 +41,7 @@ require_once __DIR__ . '/organisation-sync.php';
  *                            the FULLY-populated state table via FetchWantedTitles,
  *                            so it covers regions/territories, not just settlements;
  *                            dispatched with an explicit per-step call budget, see
- *                            AVESMAPS_WIKI_DUMP_CONTINENT_MAP_STEP_CALL_BUDGET below)
+ *                            avesmapsWikiDumpOnlineStepCallBudget() below)
  *   6. parse_and_upsert     (RESUMABLE, cursor = stats['parse_cursor'], dryRun=
  *                            TRUE inside read_step: avesmapsWikiDumpHybridParseUpsertStep)
  *   7. completed
@@ -152,55 +156,49 @@ const AVESMAPS_WIKI_DUMP_PHASE_ORGANISATIONS = 'organisations';
 const AVESMAPS_WIKI_DUMP_PHASE_COMPLETED = 'completed';
 
 /**
- * Per-step API-call budget for the online_continent_map phase (PERF FIX: this
- * used to be dispatched with $callBudget=null, i.e. "no limit", so ONE step
- * walked the entire ~9k-title/~450-batch set in a single request -- each batch
- * is one throttled HTTP call at ~600ms usleep (AVESMAPS_WIKI_REQUEST_DELAY_MICROSECONDS,
- * sync.php:11) plus the round-trip, so one step took roughly 4.5 MINUTES,
- * starving the lock's between-step heartbeat (dump-lock.php) for that whole
- * window. avesmapsWikiDumpCategoryFetchContinentMap() (dump-category-layer.php:429)
- * already implements a full cursor/callBudget/done resume contract -- it was
- * simply never driven with a bound. 20 calls/step x ~0.6-0.85s/call (throttle +
- * HTTP) ~= 12-17s, comfortably under AVESMAPS_WIKI_DUMP_STEP_SECONDS (28s) even
- * on a slow STRATO connection, while still making solid per-request progress;
- * the phase resumes across steps via stats['continent_cursor'] exactly like the
- * other resumable phases (wikitext_collect, redirect_aliases, parse_and_upsert).
- */
-const AVESMAPS_WIKI_DUMP_CONTINENT_MAP_STEP_CALL_BUDGET = 20;
-
-/**
- * Wie viel des Schritt-Fensters die Kontinent-Phase verplanen darf. Der Rest ist Luft fuer
+ * Wie viel des Schritt-Fensters eine ONLINE-Phase verplanen darf. Der Rest ist Luft fuer
  * Dump-Zugriff, Datenbank und den Sperr-Heartbeat.
  */
-const AVESMAPS_WIKI_DUMP_CONTINENT_MAP_STEP_SAFETY = 0.8;
+const AVESMAPS_WIKI_DUMP_ONLINE_STEP_SAFETY = 0.8;
 
 /**
- * Grosszuegig geschaetzte Antwortzeit einer Titel-Abfrage, ZUSAETZLICH zur Drossel. Lieber zu
+ * Grosszuegig geschaetzte Antwortzeit EINER Wiki-Abfrage, ZUSAETZLICH zur Drossel. Lieber zu
  * hoch: ein zu grosses Budget sprengt das Schritt-Fenster, ein zu kleines kostet nur einen
  * weiteren Schritt.
  */
-const AVESMAPS_WIKI_DUMP_CONTINENT_MAP_ASSUMED_RESPONSE_SECONDS = 0.6;
+const AVESMAPS_WIKI_DUMP_ONLINE_ASSUMED_RESPONSE_SECONDS = 0.6;
 
 /**
  * Das Schrittbudget in AUFRUFEN -- abgeleitet aus der ZEIT, die ein Schritt haben darf.
  *
+ * 🔴 EINE Funktion fuer ALLE DREI Online-Phasen (online_class_map, online_building_map,
+ * online_continent_map). Sie hiess bis 24.08.2026 …ContinentMapStepCallBudget und galt nur
+ * fuer eine davon -- genau daran ist "Dump holen" an jenem Tag gestorben: die zwei anderen
+ * Phasen hatten ueberhaupt kein Budget und erledigten ihre 12 bzw. 25 Abfragen in EINEM
+ * Schritt. Eine Regel, die einen von drei Erzeugern bindet, ist keine Regel (AGENTS.md).
+ *
  * 💣 ZWEI GROESSEN ZIEHEN DARAN, UND BEIDE HABEN SICH BINNEN EINES TAGES GEAENDERT: ein Aufruf
- * traegt seit der Bot-Anmeldung 500 statt 50 Titel, und er dauert seit der Drosselung auf die
- * vom Wiki empfohlenen 2 Sekunden rund dreimal so lang. Ein festes Budget geht bei jeder dieser
- * Aenderungen kaputt -- egal ob es in Aufrufen zaehlt (frueher 20: waeren jetzt ueber 50
- * Sekunden und damit weit ueber AVESMAPS_WIKI_DUMP_STEP_SECONDS) oder in Titeln (kurzzeitig
- * 1000: dasselbe Ergebnis, nur eine Ecke weiter). Der Schritt verhungert dann mitten drin und
- * nimmt den Sperr-Heartbeat mit.
+ * traegt seit der Bot-Anmeldung 500 statt 50 Titel, und er dauert seit dem Crawl-delay 20 der
+ * Wiki-robots.txt rund dreissigmal so lang. Ein festes Budget geht bei jeder dieser
+ * Aenderungen kaputt -- egal ob es in Aufrufen zaehlt (frueher stand hier eine 20: das waeren
+ * heute ueber 400 Sekunden, weit ueber AVESMAPS_WIKI_DUMP_STEP_SECONDS) oder in Titeln. Der
+ * Schritt verhungert dann mitten drin und nimmt den Sperr-Heartbeat mit -- und wenn der
+ * Webserver vorher aufgibt, kommt der HTTP 502 nicht einmal aus PHP, meldet also nichts.
  *
  * Also wird gerechnet, was ein Aufruf WIRKLICH kostet: Drossel + Jitter-Erwartungswert +
  * geschaetzte Antwortzeit. Das Budget folgt damit jeder kuenftigen Aenderung von selbst.
- * ⭐ Anonym wie als Bot ergibt das dieselbe Wanduhr -- nur traegt der Bot je Aufruf das
+ * Bei 20 s Drossel ergibt das genau EINEN Aufruf je Schritt.
+ * ⭐ Anonym wie als Bot ergibt das dieselbe Wanduhr -- nur traegt der Bot je Titel-Abfrage das
  * Zehnfache an Titeln und ist deshalb nach einem Zehntel der Schritte fertig.
+ *
+ * ⚠️ Die Drossel selbst ist NICHT die Stellschraube: sie ist die Bedingung, unter der uns die
+ * API in der robots.txt ueberhaupt erlaubt ist. Wer sie senkt, um hier Schritte zu sparen,
+ * wirft die Erlaubnis weg.
  */
-function avesmapsWikiDumpContinentMapStepCallBudget(): int {
+function avesmapsWikiDumpOnlineStepCallBudget(): int {
     $sekundenJeAufruf = (AVESMAPS_WIKI_REQUEST_DELAY_MICROSECONDS + 125000) / 1000000
-        + AVESMAPS_WIKI_DUMP_CONTINENT_MAP_ASSUMED_RESPONSE_SECONDS;
-    $fenster = AVESMAPS_WIKI_DUMP_STEP_SECONDS * AVESMAPS_WIKI_DUMP_CONTINENT_MAP_STEP_SAFETY;
+        + AVESMAPS_WIKI_DUMP_ONLINE_ASSUMED_RESPONSE_SECONDS;
+    $fenster = AVESMAPS_WIKI_DUMP_STEP_SECONDS * AVESMAPS_WIKI_DUMP_ONLINE_STEP_SAFETY;
 
     return max(1, (int) floor($fenster / $sekundenJeAufruf));
 }
@@ -264,16 +262,28 @@ function avesmapsWikiDumpHybridPhaseOrder(): array
 
 /**
  * The RESUMABLE phases and the stats_json cursor key each one advances (design
- * report §5 "Resume cursor(s) per phase"). A phase NOT in this map is a
- * single-step transition (online_class_map / online_building_map). The cursor
- * value is always a plain int in stats_json (safe -- never the bulk maps, which
- * live in the state table, per the anti-bloat rule in design §2/§3).
+ * report §5 "Resume cursor(s) per phase"). Seit 24.08.2026 ist JEDE Arbeitsphase hier
+ * eingetragen -- es gibt keine Einschritt-Phase mehr. The cursor value is always a plain int
+ * in stats_json (safe -- never the bulk maps, which live in the state table, per the
+ * anti-bloat rule in design §2/§3).
+ *
+ * 💣 EIN INT REICHT DEN ZWEI KATEGORIE-PHASEN NICHT. Eine Kategorie-Abfrage paginiert selbst
+ * (cmcontinue), der Cursor muss also ZWEI Dinge tragen: welche Kategorie (der int hier) und wo
+ * INNERHALB von ihr (ein String). Der zweite Teil reist im additiven 'stats_patch' des
+ * Schritts -- 'class_continue' bzw. 'building_continue' --, genau wie publication_sources
+ * seine Unterstufe fuehrt. Wer nur den int fuehrt, faengt eine grosse Kategorie beim naechsten
+ * Schritt von vorn an oder verliert ihren Rest; an einer kleinen Fixture faellt das nie auf.
  *
  * @return array<string, string> phase => stats_json cursor key
  */
 function avesmapsWikiDumpHybridResumableCursorKeys(): array
 {
     return [
+        // Welche der 5 Klassen-Kategorien; die Fortsetzung darin steht in 'class_continue'.
+        AVESMAPS_WIKI_DUMP_PHASE_CLASS_MAP => 'class_cursor',
+        // Welche Bauwerksart; Fortsetzung in 'building_continue', Unterstufe in
+        // 'building_stage', die aufgeloeste Artenliste in 'building_types'.
+        AVESMAPS_WIKI_DUMP_PHASE_BUILDING_MAP => 'building_cursor',
         AVESMAPS_WIKI_DUMP_PHASE_CONTINENT_MAP => 'continent_cursor',
         AVESMAPS_WIKI_DUMP_PHASE_REDIRECT_ALIASES => 'dump_cursor', // the existing Pass-A field name
         AVESMAPS_WIKI_DUMP_PHASE_WIKITEXT_COLLECT => 'wikitext_cursor',
@@ -784,6 +794,8 @@ function avesmapsWikiDumpHybridPublicRun(array $run): array
         'completed_at' => (string) ($run['completed_at'] ?? ''),
         'cursor' => isset($cursorKeys[$phase]) ? (int) ($stats[$cursorKeys[$phase]] ?? 0) : 0,
         'cursors' => [
+            'class_cursor' => (int) ($stats['class_cursor'] ?? 0),
+            'building_cursor' => (int) ($stats['building_cursor'] ?? 0),
             'continent_cursor' => (int) ($stats['continent_cursor'] ?? 0),
             'dump_cursor' => (int) ($stats['dump_cursor'] ?? 0),
             'wikitext_cursor' => (int) ($stats['wikitext_cursor'] ?? 0),
@@ -917,6 +929,50 @@ function avesmapsWikiDumpHybridAdvanceReadStep(
 }
 
 /**
+ * PURE: welche der ZWEI Unterstufen der Bauwerks-Phase als naechstes dran ist --
+ * `'types'` (die Liste der Bauwerksarten aufloesen) oder `'members'` (je Art die
+ * Mitglieder holen). Die einzige Phase mit einer Unterstufe; sie hat sie, weil ihre
+ * Arbeitsliste selbst erst von der API kommt und selbst Abfragen kostet.
+ *
+ * 💣 EINE LEERE ARTENLISTE ZAEHLT ALS "NOCH NICHT AUFGELOEST", auch wenn der Marker schon
+ * 'members' sagt. Sonst meldete Stufe 2 mit einer Liste von null Arten sofort done und
+ * uebersprunge saemtliche Bauwerke -- lautlos, mit gruenem Lauf und einer Zahl 0, die genauso
+ * aussieht wie "es gibt eben keine". Die Legacy-Liste sorgt dafuer, dass eine aufgeloeste
+ * Liste nie leer ist, also kann diese Ruecksetzung nicht kreisen.
+ *
+ * Eigene Funktion statt einer Bedingung im Dispatch, damit die Entscheidung geprueft werden
+ * kann, ohne die Phase zu fahren -- der Dispatch selbst braucht dafuer HTTP.
+ *
+ * @param array<string, mixed> $stats die dekodierten stats_json des Laufs
+ * @param list<string>         $types die daraus gelesene Artenliste
+ */
+function avesmapsWikiDumpHybridBuildingStage(array $stats, array $types): string
+{
+    $marker = (string) ($stats['building_stage'] ?? '');
+
+    return ($marker === 'members' && $types !== []) ? 'members' : 'types';
+}
+
+/**
+ * Ein Zeichenketten-Unterzustand aus stats_json, oder null.
+ *
+ * Der Cursor-Vertrag der Transitionsfunktion kennt nur INTs (sie castet hart), und die zwei
+ * Kategorie-Phasen brauchen zusaetzlich einen String: das cmcontinue. Der reist deshalb im
+ * additiven 'stats_patch' -- und wird hier wieder gelesen. Leerstring und fehlender Schluessel
+ * bedeuten dasselbe wie null ("fang die Kategorie von vorne an"), damit ein leer serialisierter
+ * Wert nicht als Fortsetzungs-Token an die API geht.
+ */
+function avesmapsWikiDumpHybridStatsString(array $stats, string $key): ?string
+{
+    $wert = $stats[$key] ?? null;
+    if (!is_string($wert) || $wert === '') {
+        return null;
+    }
+
+    return $wert;
+}
+
+/**
  * Dispatch ONE step of $phase to its real H1/H4a/H4b step fn -- or to an injected
  * fake ($stepFns[$phase], the unit-test seam). A fake receives ($pdo, $ctx) where
  * $ctx carries the phase inputs (runId, cursor, dumpPath, dryRun, titles) and
@@ -952,19 +1008,98 @@ function avesmapsWikiDumpHybridDispatchPhaseStep(
 
     switch ($phase) {
         case AVESMAPS_WIKI_DUMP_PHASE_CLASS_MAP:
-            $r = avesmapsWikiDumpHybridFillClassMap($pdo, $runId);
-            return ['done' => true, 'written' => (int) ($r['written'] ?? 0), 'title_count' => count($r['titles'] ?? [])];
+            // Fortsetzbar seit 24.08.2026: 5 Kategorien, die zusammen rund 12 Abfragen kosten.
+            // Bei 20 s Drossel sind das ~250 s in EINEM Schritt gewesen -- HTTP 502.
+            $r = avesmapsWikiDumpHybridFillClassMapStep(
+                $pdo,
+                $runId,
+                $cursor,
+                avesmapsWikiDumpHybridStatsString($stats, 'class_continue'),
+                avesmapsWikiDumpOnlineStepCallBudget()
+            );
+            return [
+                'done' => (bool) ($r['done'] ?? false),
+                'nextCursor' => (int) ($r['nextIndex'] ?? $cursor),
+                'written' => (int) ($r['written'] ?? 0),
+                'title_count' => count($r['titles'] ?? []),
+                // 💣 Der ZWEITE Cursorteil. Ohne ihn faengt eine grosse Kategorie beim
+                // naechsten Schritt von vorn an -- oder ihr Rest bleibt ungelesen.
+                'stats_patch' => ['class_continue' => $r['nextContinue'] ?? null],
+            ];
 
         case AVESMAPS_WIKI_DUMP_PHASE_BUILDING_MAP:
-            $r = avesmapsWikiDumpHybridFillBuildingMap($pdo, $runId);
-            return ['done' => true, 'written' => (int) ($r['written'] ?? 0), 'title_count' => count($r['titles'] ?? [])];
+            // Fortsetzbar seit 24.08.2026, und als einzige Phase ZWEISTUFIG: erst die LISTE
+            // der Bauwerksarten aufloesen (die kostet selbst Abfragen), dann Art fuer Art die
+            // Mitglieder. Zusammen rund 25 Abfragen -- bei 20 s Drossel ~500 s am Stueck.
+            $arten = [];
+            foreach ((is_array($stats['building_types'] ?? null) ? $stats['building_types'] : []) as $art) {
+                $art = trim((string) $art);
+                if ($art !== '') {
+                    $arten[] = $art;
+                }
+            }
+
+            // STUFE 1 -- die Weiche steht in avesmapsWikiDumpHybridBuildingStage() (pruefbar
+            // ohne HTTP), samt der Begruendung, warum eine leere Liste zurueckwirft.
+            if (avesmapsWikiDumpHybridBuildingStage($stats, $arten) === 'types') {
+                $liste = avesmapsWikiDumpCategoryFetchBuildingTypes(
+                    $arten,
+                    avesmapsWikiDumpHybridStatsString($stats, 'building_continue'),
+                    avesmapsWikiDumpOnlineStepCallBudget()
+                );
+                $aufgeloest = (bool) ($liste['done'] ?? false);
+
+                return [
+                    // Nach Stufe 1 ist die PHASE nie fertig -- die Mitglieder stehen noch aus.
+                    'done' => false,
+                    'nextCursor' => 0,
+                    'stage' => $aufgeloest ? 'members' : 'types',
+                    'title_count' => count($liste['types'] ?? []),
+                    'stats_patch' => [
+                        'building_types' => $liste['types'] ?? [],
+                        'building_continue' => $liste['nextContinue'] ?? null,
+                        'building_stage' => $aufgeloest ? 'members' : 'types',
+                    ],
+                ];
+            }
+
+            // STUFE 2. ⚠️ Beide Stufen teilen sich den Schluessel building_continue -- Stufe 1
+            // fuer die Seiten der Unterkategorien, Stufe 2 fuer die Seiten einer Bauwerksart.
+            // Das geht auf, weil die Weiche erst umlegt, wenn Stufe 1 done meldet, und done
+            // heisst per Vertrag: keine Fortsetzung mehr offen. Stufe 2 startet also immer
+            // mit null. Wer der Weiche je ein anderes Kriterium gibt, braucht zwei Schluessel.
+            $r = avesmapsWikiDumpHybridFillBuildingMapStep(
+                $pdo,
+                $runId,
+                $arten,
+                $cursor,
+                avesmapsWikiDumpHybridStatsString($stats, 'building_continue'),
+                avesmapsWikiDumpOnlineStepCallBudget()
+            );
+            $bauFertig = (bool) ($r['done'] ?? false);
+
+            return [
+                'done' => $bauFertig,
+                'nextCursor' => (int) ($r['nextIndex'] ?? $cursor),
+                'written' => (int) ($r['written'] ?? 0),
+                'title_count' => count($r['titles'] ?? []),
+                'stage' => 'members',
+                'stats_patch' => [
+                    'building_continue' => $r['nextContinue'] ?? null,
+                    // Am Ende die Artenliste wieder aus stats_json nehmen. Sie ist klein (gut
+                    // zwei Dutzend Namen), aber wiki_sync_runs ist genau daran schon einmal auf
+                    // 99 MiB gewachsen: was nur WAEHREND einer Phase gebraucht wird, geht
+                    // danach raus.
+                    'building_types' => $bauFertig ? null : $arten,
+                ],
+            ];
 
         case AVESMAPS_WIKI_DUMP_PHASE_CONTINENT_MAP:
             $titles = avesmapsWikiDumpHybridFetchWantedTitles($pdo, $runId);
             // PERF FIX: an explicit per-step call budget (see the constant's docblock
             // above) so this phase is bounded like every other resumable phase --
             // NOT the ~4.5-minute single-step "process everything" default of null.
-            $r = avesmapsWikiDumpHybridFillContinentMapStep($pdo, $runId, $titles, $cursor, avesmapsWikiDumpContinentMapStepCallBudget());
+            $r = avesmapsWikiDumpHybridFillContinentMapStep($pdo, $runId, $titles, $cursor, avesmapsWikiDumpOnlineStepCallBudget());
             return [
                 'done' => (bool) ($r['done'] ?? false),
                 'nextCursor' => (int) ($r['nextCursor'] ?? $cursor),

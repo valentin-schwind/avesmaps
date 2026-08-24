@@ -109,7 +109,7 @@ const AVESMAPS_WIKI_DUMP_LOCK_ROW_ID = 1;
  *
  * ~180s ~= 6.4 * 28s. Bumped up from a prior 112s (~4 * 28s) after the
  * online_continent_map phase's PERF FIX (dump-hybrid-driver.php,
- * AVESMAPS_WIKI_DUMP_CONTINENT_MAP_STEP_CALL_BUDGET): that phase used to be
+ * avesmapsWikiDumpOnlineStepCallBudget()): that phase used to be
  * dispatched with an unbounded call budget, so a single step could run for
  * ~4.5 minutes with NO heartbeat, which a 112s threshold would (correctly, but
  * dangerously) judge stale mid-run and hand the lock to a second user --

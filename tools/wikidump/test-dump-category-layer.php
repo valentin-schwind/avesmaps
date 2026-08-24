@@ -76,6 +76,11 @@ $requiredFunctions = [
     'avesmapsWikiDumpCategoryFetchBuildingTypeMap',
     'avesmapsWikiDumpCategoryAssembleContinentMap',
     'avesmapsWikiDumpCategoryFetchContinentMap',
+    // Die zwei Online-Phasen sind seit 24.08.2026 fortsetzbar (Uebergabe
+    // docs/superpowers/plans/2026-08-24-dump-phasen-unterbrechbar.md): der gemeinsame
+    // Seitenschritt plus der eigene Aufloeser der Bauwerksarten.
+    'avesmapsWikiDumpCategoryFetchCategoryMembersStep',
+    'avesmapsWikiDumpCategoryFetchBuildingTypes',
 ];
 foreach ($requiredFunctions as $required) {
     if (!function_exists($required)) {
@@ -454,11 +459,11 @@ $check(
 echo "\n-- (e) outer fetch wiring: real category names passed to the fetcher --\n";
 
 $classCategoriesRequested = [];
-$fakeCategoryMemberFetcher = static function (string $categoryName) use (&$classCategoriesRequested): array {
+$fakeCategoryMemberFetcher = static function (string $categoryName, ?string $weiter) use (&$classCategoriesRequested): array {
     $classCategoriesRequested[] = $categoryName;
-    return [];
+    return ['titles' => [], 'continue' => null];
 };
-avesmapsWikiDumpCategoryFetchSettlementClassMap($fakeCategoryMemberFetcher);
+avesmapsWikiDumpCategoryFetchSettlementClassMap(0, null, null, $fakeCategoryMemberFetcher);
 $check(
     '(e1) settlement-class outer fetch walks exactly the 5 real category keys',
     array_keys(AVESMAPS_WIKI_CATEGORY_TO_CLASS),
@@ -468,15 +473,16 @@ $check(
 
 $buildingSubcatFetcherCalls = [];
 $buildingMemberFetcherCalls = [];
-$fakeSubcatFetcher = static function (string $categoryName) use (&$buildingSubcatFetcherCalls): array {
+$fakeSubcatFetcher = static function (string $categoryName, ?string $weiter) use (&$buildingSubcatFetcherCalls): array {
     $buildingSubcatFetcherCalls[] = $categoryName;
-    return ['Wasserburg']; // one live subcat beyond the legacy list
+    return ['titles' => ['Wasserburg'], 'continue' => null]; // one live subcat beyond the legacy list
 };
-$fakeBuildingMemberFetcher = static function (string $categoryName) use (&$buildingMemberFetcherCalls): array {
+$fakeBuildingMemberFetcher = static function (string $categoryName, ?string $weiter) use (&$buildingMemberFetcherCalls): array {
     $buildingMemberFetcherCalls[] = $categoryName;
-    return [];
+    return ['titles' => [], 'continue' => null];
 };
-avesmapsWikiDumpCategoryFetchBuildingTypeMap($fakeSubcatFetcher, $fakeBuildingMemberFetcher);
+$fakeBuildingTypes = avesmapsWikiDumpCategoryFetchBuildingTypes([], null, null, $fakeSubcatFetcher)['types'];
+avesmapsWikiDumpCategoryFetchBuildingTypeMap($fakeBuildingTypes, 0, null, null, $fakeBuildingMemberFetcher);
 $check(
     '(e2) building-type outer fetch lists subcats of exactly "Bauwerk nach Art"',
     ['Bauwerk nach Art'],
@@ -570,13 +576,19 @@ $check(
 
 // And prove it through the REAL assembler, not just by index arithmetic: a page that sits in
 // both categories must come out as the specific one.
-$overlapFetcher = static function (string $categoryName) use ($sharedTitle): array {
-    return in_array($categoryName, ['Steinkreis', "Kultst\u{00E4}tte"], true) ? [$sharedTitle] : [];
+$overlapFetcher = static function (string $categoryName, ?string $weiter) use ($sharedTitle): array {
+    return [
+        'titles' => in_array($categoryName, ['Steinkreis', "Kultst\u{00E4}tte"], true) ? [$sharedTitle] : [],
+        'continue' => null,
+    ];
 };
-$overlapResult = avesmapsWikiDumpCategoryFetchBuildingTypeMap(
-    static fn(string $c): array => [],
-    $overlapFetcher
-);
+$overlapTypes = avesmapsWikiDumpCategoryFetchBuildingTypes(
+    [],
+    null,
+    null,
+    static fn(string $c, ?string $w): array => ['titles' => [], 'continue' => null]
+)['types'];
+$overlapResult = avesmapsWikiDumpCategoryFetchBuildingTypeMap($overlapTypes, 0, null, null, $overlapFetcher);
 $check(
     '(f4) a page in Steinkreis AND Kultstaette is filed as Steinkreis',
     'Steinkreis',
@@ -643,6 +655,214 @@ $check(
     'Aventurien',
     avesmapsWikiDumpCategoryAssembleContinentMap($mockDeityPages)['Drachentempel'] ?? null,
     'Kontinent- und Gottheits-Map lesen dieselbe Antwort -- das ist der ganze Gewinn'
+);
+
+
+// ===========================================================================
+// (h) DER CURSOR DER ZWEI ONLINE-PHASEN (24.08.2026).
+// ---------------------------------------------------------------------------
+// Vorgeschichte: die Wiki-robots.txt gibt AvesmapsWikiSync einen Crawl-delay von 20
+// Sekunden. Damit dauerten die beiden Phasen, die ihre Kategorie-Abfragen in EINEM
+// Schritt erledigten, rund 250 s bzw. 500 s -- der Webserver gab vorher mit HTTP 502 auf
+// (Uebergabe docs/superpowers/plans/2026-08-24-dump-phasen-unterbrechbar.md).
+//
+// 💣 DIE FALLE, DIE DIESER ABSCHNITT BEWACHT: der Cursor muss ZWEI Dinge tragen. Die
+// Kontinent-Phase zaehlt nur Titel; eine Kategorie-Abfrage paginiert dagegen SELBST
+// (cmcontinue). Ein Cursor, der nur "welche Kategorie" merkt, faengt eine grosse
+// Kategorie mitten drin neu an -- oder ueberspringt ihren Rest. Beides faellt an einer
+// kleinen Fixture NIE auf, deshalb paginiert hier genau eine Kategorie ueber drei Seiten.
+// ===========================================================================
+echo "\n-- (h) fortsetzbare Klassen-/Bauwerks-Phase (Cursor = Kategorie + cmcontinue) --\n";
+
+// Eine dreiseitige Kategorie ("Dorf"), alle uebrigen einseitig. Der Fortsetzungs-Token
+// traegt die Seitennummer, damit die Attrappe ohne Zustand auskommt.
+$seitenJeKategorie = [
+    'Dorf' => [
+        ['titles' => ['Auhof', 'Kleines Dorf'], 'continue' => 'Dorf|1'],
+        ['titles' => ['Zweites Dorf'], 'continue' => 'Dorf|2'],
+        ['titles' => ['Drittes Dorf'], 'continue' => null],
+    ],
+    'Kleinstadt' => [['titles' => ['Havena (Kleinstadt)#Lage'], 'continue' => null]],
+    "Mittelgro\u{00DF}e Stadt" => [['titles' => ['Ferdok'], 'continue' => null]],
+    "Gro\u{00DF}stadt" => [['titles' => ['Kuslik'], 'continue' => null]],
+    "Metropole (Siedlungsgr\u{00F6}\u{00DF}e)" => [['titles' => ['Punin'], 'continue' => null]],
+];
+$abgefragt = [];
+$seitenholer = static function (string $kategorie, ?string $weiter) use ($seitenJeKategorie, &$abgefragt): array {
+    $abgefragt[] = $kategorie . '@' . ($weiter ?? '-');
+    $seiten = $seitenJeKategorie[$kategorie] ?? [['titles' => [], 'continue' => null]];
+    $nummer = $weiter === null ? 0 : (int) (explode('|', $weiter)[1] ?? 0);
+    return $seiten[$nummer] ?? ['titles' => [], 'continue' => null];
+};
+
+$schritt1 = avesmapsWikiDumpCategoryFetchSettlementClassMap(0, null, 1, $seitenholer);
+$check(
+    '(h1) Budget 1 verbraucht genau EINE Abfrage',
+    ['Dorf@-'],
+    $abgefragt,
+    'ein Schritt darf bei 20 s Drossel nur einen Aufruf machen -- genau daran ist die Phase zerbrochen'
+);
+$check(
+    '(h2) der Cursor traegt BEIDES: dieselbe Kategorie UND ihre Fortsetzung',
+    [0, 'Dorf|1', false],
+    [$schritt1['nextIndex'], $schritt1['nextContinue'], $schritt1['done']],
+    'nextIndex bleibt auf der unfertigen Kategorie stehen, nextContinue haelt ihr cmcontinue'
+);
+
+$abgefragt = [];
+$schritt2 = avesmapsWikiDumpCategoryFetchSettlementClassMap(
+    $schritt1['nextIndex'],
+    $schritt1['nextContinue'],
+    1,
+    $seitenholer
+);
+$check(
+    '(h3) 💣 das Fortsetzen bleibt IN der Kategorie -- kein Neuanfang, kein Uebersprung',
+    ['Dorf@Dorf|1'],
+    $abgefragt,
+    'ohne den zweiten Cursorteil stuende hier "Dorf@-" (Neuanfang) oder "Kleinstadt@-" (Rest verloren)'
+);
+$check(
+    '(h4) die zweite Seite bringt genau ihre Titel, nicht die der ersten',
+    ['Zweites Dorf'],
+    array_keys($schritt2['map']),
+    'jede Seite wird genau einmal ausgewertet'
+);
+
+// Der ganze Lauf, Schritt fuer Schritt mit Budget 1 -- so faehrt ihn der Treiber live.
+$abgefragt = [];
+$gesammelt = [];
+$index = 0;
+$weiter = null;
+$fertig = false;
+$schritte = 0;
+while (!$fertig && $schritte < 50) {
+    $s = avesmapsWikiDumpCategoryFetchSettlementClassMap($index, $weiter, 1, $seitenholer);
+    foreach ($s['map'] as $titel => $klasse) {
+        $gesammelt[] = $titel . '=' . $klasse;
+    }
+    $index = $s['nextIndex'];
+    $weiter = $s['nextContinue'];
+    $fertig = $s['done'];
+    $schritte++;
+}
+sort($gesammelt);
+$check(
+    '(h5) der Lauf endet, und zwar nach genau einer Abfrage je Seite',
+    [true, 7, 7],
+    [$fertig, $schritte, count($abgefragt)],
+    '3 Seiten Dorf + je 1 der vier uebrigen Kategorien = 7 Abfragen, also 7 Schritte bei Budget 1'
+);
+$check(
+    '(h6) jeder Titel kommt genau EINMAL heraus -- nichts verloren, nichts doppelt',
+    [
+        'Auhof=dorf',
+        'Drittes Dorf=dorf',
+        'Ferdok=stadt',
+        'Havena (Kleinstadt)=kleinstadt',
+        'Kleines Dorf=dorf',
+        'Kuslik=grossstadt',
+        'Punin=metropole',
+        'Zweites Dorf=dorf',
+    ],
+    $gesammelt,
+    'die eigentliche Zusicherung gegen den halb uebersprungenen Kategorie-Rest'
+);
+$check(
+    '(h7) am Ende zeigt der Cursor hinter die letzte Kategorie, ohne Fortsetzung',
+    [count(AVESMAPS_WIKI_CATEGORY_TO_CLASS), null],
+    [$index, $weiter],
+    'done=true heisst: Index = Zahl der Kategorien, kein offener cmcontinue mehr'
+);
+
+// Gegenprobe: OHNE Budget faehrt derselbe Sammler alles in einem Zug -- die Fassung, die
+// live am Gateway starb. Die Zusicherung haelt fest, dass beide dasselbe Ergebnis liefern,
+// der Unterschied also allein in der Zahl der Schritte liegt.
+$abgefragt = [];
+$amStueck = avesmapsWikiDumpCategoryFetchSettlementClassMap(0, null, null, $seitenholer);
+$amStueckFlach = [];
+foreach ($amStueck['map'] as $titel => $klasse) {
+    $amStueckFlach[] = $titel . '=' . $klasse;
+}
+sort($amStueckFlach);
+$check(
+    '(h8) gestueckelt und am Stueck ergeben DIESELBE Karte',
+    $gesammelt,
+    $amStueckFlach,
+    'der Cursor aendert die Schrittzahl, nicht das Ergebnis'
+);
+
+// --- Die Bauwerksarten: ihre LISTE kostet selbst Abfragen und ist deshalb ebenfalls
+//     fortsetzbar. Der Kommentar in avesmapsWikiSettlementFetchSubcategories sagt es
+//     nicht: "Bauwerk nach Art" koennte jederzeit ueber 500 Unterkategorien wachsen,
+//     und zwei Abfragen in einem Schritt sind bei 20 s Drossel schon 40 Sekunden.
+echo "\n-- (h/Bauwerke) die Artenliste ist selbst fortsetzbar --\n";
+
+$subcatSeiten = [
+    ['titles' => ['Kategorie:Wasserburg'], 'continue' => 'sub|1'],
+    ['titles' => ['Kategorie:Leuchtturm'], 'continue' => null],
+];
+$subcatAbfragen = [];
+$subcatHoler = static function (string $kategorie, ?string $weiter) use ($subcatSeiten, &$subcatAbfragen): array {
+    $subcatAbfragen[] = $kategorie . '@' . ($weiter ?? '-');
+    $nummer = $weiter === null ? 0 : (int) (explode('|', $weiter)[1] ?? 0);
+    return $subcatSeiten[$nummer] ?? ['titles' => [], 'continue' => null];
+};
+
+$arten1 = avesmapsWikiDumpCategoryFetchBuildingTypes([], null, 1, $subcatHoler);
+$check(
+    '(h9) die Artenliste bleibt nach einer Seite unfertig und traegt ihre Fortsetzung',
+    [false, 'sub|1', ['Wasserburg']],
+    [$arten1['done'], $arten1['nextContinue'], $arten1['types']],
+    'solange sie unfertig ist, ist "types" der ROHE Zwischenstand -- ohne Legacy-Anhang, ohne Filter'
+);
+
+$arten2 = avesmapsWikiDumpCategoryFetchBuildingTypes(
+    $arten1['types'],
+    $arten1['nextContinue'],
+    1,
+    $subcatHoler
+);
+$check(
+    '(h10) die zweite Seite fragt "Bauwerk nach Art" mit der Fortsetzung, nicht von vorn',
+    ['Bauwerk nach Art@-', 'Bauwerk nach Art@sub|1'],
+    $subcatAbfragen,
+    'dieselbe Falle wie bei den Klassen, eine Ebene hoeher'
+);
+// Erst die FERTIGE Liste traegt Legacy-Anhang und Filter -- in genau der Reihenfolge, in
+// der avesmapsWikiDumpCategoryAssembleBuildingMap "erster Typ gewinnt" auswertet.
+$erwarteteArten = ['Wasserburg', 'Leuchtturm'];
+foreach (AVESMAPS_WIKI_SETTLEMENT_LEGACY_BUILDING_TYPES as $legacy) {
+    if (!in_array($legacy, $erwarteteArten, true)) {
+        $erwarteteArten[] = $legacy;
+    }
+}
+$erwarteteArten = array_values(array_filter(
+    $erwarteteArten,
+    static fn(string $t): bool => !avesmapsWikiSettlementIsExcludedBuildingType($t)
+));
+$check(
+    '(h11) die fertige Liste = Unterkategorien + Legacy-Rest, ohne lineare Infrastruktur',
+    [true, null, $erwarteteArten],
+    [$arten2['done'], $arten2['nextContinue'], $arten2['types']],
+    'derselbe Aufbau wie vor dem Umbau (avesmapsWikiSettlementCrawlBuildings), nur ueber zwei Schritte'
+);
+
+// 💣 Und die Grenze dieses Bauteils, ausdruecklich festgehalten: ueber eine SCHRITTGRENZE
+// hinweg kann der Sammler "erster Typ gewinnt" nicht mehr selbst halten -- er sieht die
+// fruehere Kategorie gar nicht. Diese Zusicherung haelt fest, dass er den Titel wirklich
+// ein zweites Mal meldet; dass trotzdem der ERSTE Typ in der Datenbank stehen bleibt, ist
+// Sache des Upserts und wird in test-dump-hybrid-state.php zugesichert.
+$doppelHoler = static function (string $kategorie, ?string $weiter): array {
+    return ['titles' => ['Feuersturm-Tempel'], 'continue' => null];
+};
+$typA = avesmapsWikiDumpCategoryFetchBuildingTypeMap(['Steinkreis', 'Tempel'], 0, null, 1, $doppelHoler);
+$typB = avesmapsWikiDumpCategoryFetchBuildingTypeMap(['Steinkreis', 'Tempel'], 1, null, 1, $doppelHoler);
+$check(
+    '(h12) ueber die Schrittgrenze meldet der Sammler den Titel ZWEIMAL -- der Upsert entscheidet',
+    ['Steinkreis', 'Tempel'],
+    [$typA['map']['Feuersturm-Tempel'] ?? null, $typB['map']['Feuersturm-Tempel'] ?? null],
+    'in EINEM Schritt gewinnt der erste Typ; ueber Schritte hinweg muss die Spalte den ersten Schreiber behalten'
 );
 
 echo "\n----------------------------------------------------------------\n";

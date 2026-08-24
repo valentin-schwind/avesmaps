@@ -277,20 +277,37 @@ $check(
     'the continent map sources its titles from the fully-populated state table (via FetchWantedTitles), so it MUST run after the whole-dump wikitext_collect scan enumerated all kinds -- otherwise it only covers the H1 settlement/building rows'
 );
 
-// Non-resumable phases always advance on a single step.
-$s1 = avesmapsWikiDumpHybridComputeNextState('online_class_map', [], ['done' => true]);
+// 🔴 Seit 24.08.2026 sind auch die zwei Online-Kategorie-Phasen fortsetzbar: bei 20 s
+// Drossel (Crawl-delay der Wiki-robots.txt) brauchten sie ~250 s bzw. ~500 s in EINEM
+// Schritt und starben am Gateway (HTTP 502). Sie verhalten sich jetzt wie jede andere
+// fortsetzbare Phase: bleiben stehen, solange ihr Schritt nicht done meldet.
+$s1a = avesmapsWikiDumpHybridComputeNextState('online_class_map', ['class_cursor' => 0], ['done' => false, 'nextCursor' => 2]);
 $check(
-    '(A1) online_class_map -> online_building_map (non-resumable, always advances)',
+    '(A1a) online_class_map NICHT fertig -> bleibt stehen und merkt sich die Kategorie',
+    ['online_class_map', false, 2, false],
+    [$s1a['phase'], $s1a['phase_advanced'], $s1a['stats']['class_cursor'], $s1a['done']],
+    'ohne diese Zeile faellt die Phase nach EINEM Schritt weiter und laesst vier Kategorien ungelesen'
+);
+$s1 = avesmapsWikiDumpHybridComputeNextState('online_class_map', ['class_cursor' => 4], ['done' => true, 'nextCursor' => 5]);
+$check(
+    '(A1) online_class_map fertig -> online_building_map',
     ['online_building_map', 'running', 1, false],
     [$s1['phase'], $s1['status'], $s1['progress_current'], $s1['done']],
-    'a single-step phase advances to the next phase and bumps progress to index 1'
+    'erst wenn der Schritt done meldet, geht es weiter -- und die Fortschrittsanzeige rueckt auf Index 1'
 );
-$s2 = avesmapsWikiDumpHybridComputeNextState('online_building_map', [], ['done' => true]);
+$s2a = avesmapsWikiDumpHybridComputeNextState('online_building_map', ['building_cursor' => 0], ['done' => false, 'nextCursor' => 1]);
 $check(
-    '(A2) online_building_map -> wikitext_collect (CONTINENT-FIX: the scan now runs before the continent map)',
+    '(A2a) online_building_map NICHT fertig -> bleibt stehen und merkt sich die Bauwerksart',
+    ['online_building_map', false, 1],
+    [$s2a['phase'], $s2a['phase_advanced'], $s2a['stats']['building_cursor']],
+    'rund 25 Abfragen a 20 s -- die Phase, die am 24.08.2026 am laengsten war'
+);
+$s2 = avesmapsWikiDumpHybridComputeNextState('online_building_map', ['building_cursor' => 24], ['done' => true, 'nextCursor' => 25]);
+$check(
+    '(A2) online_building_map fertig -> wikitext_collect (CONTINENT-FIX: the scan now runs before the continent map)',
     ['wikitext_collect', 2],
     [$s2['phase'], $s2['progress_current']],
-    'second single-step phase advances into the whole-dump wikitext_collect scan (which enumerates all 5 kinds and populates the state table the continent map later reads)'
+    'second phase advances into the whole-dump wikitext_collect scan (which enumerates all 5 kinds and populates the state table the continent map later reads)'
 );
 
 // wikitext_collect (resumable): NOT done -> stay put, persist the wikitext cursor.
@@ -637,19 +654,19 @@ $check(
     'avesmapsWikiSyncUpdateRun is called with the pure transition exact next state'
 );
 
-// A single non-resumable phase advances the run by one phase per advance call.
+// Meldet der Schritt done, rueckt die Phase weiter -- auch die fortsetzbare.
 $classPdo = new FakeDriverPdo($makeRunRow('online_class_map', []));
 $classSteps = [
     'online_class_map' => static function (PDO $pdo, array $ctx): array {
-        return ['done' => true, 'written' => 1234, 'title_count' => 1234];
+        return ['done' => true, 'nextCursor' => 5, 'written' => 1234, 'title_count' => 1234];
     },
 ];
 $classAdvance = avesmapsWikiDumpHybridAdvanceReadStep($classPdo, '11111111-1111-4111-8111-111111111111', '/unused/dump.xml', true, $classSteps);
 $check(
-    '(C6) a non-resumable phase advances one phase per request (class -> building)',
+    '(C6) eine fertig gemeldete Kategorie-Phase gibt an die naechste ab (class -> building)',
     ['online_building_map', false],
     [$classAdvance['phase'], $classAdvance['done']],
-    'online_class_map completes in one step and hands off to online_building_map'
+    'online_class_map meldet done und uebergibt an online_building_map'
 );
 
 // A completed run echoes terminally without dispatching any step.
@@ -681,7 +698,7 @@ $check(
 // with a bound. These checks are HTTP/DB-free (same "no live MySQL" contract
 // as the rest of this file): (c-continent-1) is a STRUCTURAL check (mirrors
 // test-dump-hybrid-state.php's own source-inspection pattern) proving the real
-// dispatch case now passes avesmapsWikiDumpContinentMapStepCallBudget(),
+// dispatch case now passes avesmapsWikiDumpOnlineStepCallBudget(),
 // not null; (c-continent-2..4) prove BEHAVIORALLY, via a fake batch fetcher (no
 // PDO/HTTP) and a ~350-title list sized like the bug report's real scenario,
 // that this budget forces MULTIPLE bounded steps -- never one call that
@@ -704,24 +721,24 @@ $check(
     true,
     str_contains(
         $dispatchSource,
-        'avesmapsWikiDumpHybridFillContinentMapStep($pdo, $runId, $titles, $cursor, avesmapsWikiDumpContinentMapStepCallBudget())'
+        'avesmapsWikiDumpHybridFillContinentMapStep($pdo, $runId, $titles, $cursor, avesmapsWikiDumpOnlineStepCallBudget())'
     ),
     'structural check: the perf bug was $callBudget defaulting to null (unbounded) -- this proves the fix is a real explicit bound, not just a docblock claim'
 );
 // 💣 DIE ZUSICHERUNG, DIE AM 24.08.2026 GEFEHLT HAT: das Budget muss ins SCHRITT-FENSTER passen.
 // Mit der Drossel auf 2 s haetten die alten 20 Aufrufe ueber 50 Sekunden gebraucht -- doppelt so
 // lang wie AVESMAPS_WIKI_DUMP_STEP_SECONDS erlaubt. Eine Obergrenze von 40 haette das durchgewinkt.
-$sekundenJeAufruf = (AVESMAPS_WIKI_REQUEST_DELAY_MICROSECONDS + 125000) / 1000000 + AVESMAPS_WIKI_DUMP_CONTINENT_MAP_ASSUMED_RESPONSE_SECONDS;
+$sekundenJeAufruf = (AVESMAPS_WIKI_REQUEST_DELAY_MICROSECONDS + 125000) / 1000000 + AVESMAPS_WIKI_DUMP_ONLINE_ASSUMED_RESPONSE_SECONDS;
 $check(
     '(c-continent-2a) ein voll ausgeschoepfter Schritt bleibt im Zeitfenster',
     true,
-    avesmapsWikiDumpContinentMapStepCallBudget() * $sekundenJeAufruf < AVESMAPS_WIKI_DUMP_STEP_SECONDS,
+    avesmapsWikiDumpOnlineStepCallBudget() * $sekundenJeAufruf < AVESMAPS_WIKI_DUMP_STEP_SECONDS,
     'Budget x Dauer je Aufruf muss unter AVESMAPS_WIKI_DUMP_STEP_SECONDS bleiben -- sonst verhungert der Schritt und nimmt den Sperr-Heartbeat mit'
 );
 $check(
     '(c-continent-2) the call-budget constant is a small bounded number, not null/unbounded',
     true,
-    is_int(avesmapsWikiDumpContinentMapStepCallBudget()) && avesmapsWikiDumpContinentMapStepCallBudget() > 0 && avesmapsWikiDumpContinentMapStepCallBudget() <= 40,
+    is_int(avesmapsWikiDumpOnlineStepCallBudget()) && avesmapsWikiDumpOnlineStepCallBudget() > 0 && avesmapsWikiDumpOnlineStepCallBudget() <= 40,
     'sanity bound: at ~0.6-0.85s/throttled call (sync.php AVESMAPS_WIKI_REQUEST_DELAY_MICROSECONDS), a step must stay well under the 28s AVESMAPS_WIKI_DUMP_STEP_SECONDS ceiling'
 );
 
@@ -747,12 +764,12 @@ $continentDone = false;
 // Drossel auf den Crawl-delay 20 der Wiki-robots.txt steht, traegt ein Schritt nur noch EINEN
 // Aufruf, und die alte feste 50 liess den Test scheitern, obwohl die Produktion voellig in
 // Ordnung war. Der Test soll den unbegrenzten Schritt fangen, nicht die Schrittgroesse.
-$maxStepsGuard = (int) ceil(count($manyTitles) / (avesmapsWikiDumpContinentMapStepCallBudget() * avesmapsWikiSyncTitleBatchSize())) + 5;
+$maxStepsGuard = (int) ceil(count($manyTitles) / (avesmapsWikiDumpOnlineStepCallBudget() * avesmapsWikiSyncTitleBatchSize())) + 5;
 while (!$continentDone && $continentSteps < $maxStepsGuard) {
     $stepResult = avesmapsWikiDumpCategoryFetchContinentMap(
         $manyTitles,
         $continentCursor,
-        avesmapsWikiDumpContinentMapStepCallBudget(),
+        avesmapsWikiDumpOnlineStepCallBudget(),
         $countingBatchFetcher
     );
     $continentCursor = (int) $stepResult['nextCursor'];
@@ -762,8 +779,8 @@ while (!$continentDone && $continentSteps < $maxStepsGuard) {
     // The core regression check: NO SINGLE STEP may exceed the configured
     // call budget -- this is exactly what "attempts all ~350 in one call" would
     // violate (one step making ~350 calls instead of at most
-    // avesmapsWikiDumpContinentMapStepCallBudget()).
-    $callsThisStepMax = avesmapsWikiDumpContinentMapStepCallBudget();
+    // avesmapsWikiDumpOnlineStepCallBudget()).
+    $callsThisStepMax = avesmapsWikiDumpOnlineStepCallBudget();
     if ($callsMadeTotal > $continentSteps * $callsThisStepMax) {
         break; // fail fast; the assertion below will report the violation
     }
@@ -773,13 +790,185 @@ $check(
     '(c-continent-3) a 7000-title list (350 batches) resumes across MULTIPLE steps, never all-in-one-call',
     true,
     $continentSteps > 1 && $continentDone,
-    "took {$continentSteps} bounded steps (budget=" . avesmapsWikiDumpContinentMapStepCallBudget() . " calls/step) to finish 140 batches -- the pre-fix code (callBudget=null) would have done this in exactly 1 step / 1 call to this fetcher"
+    "took {$continentSteps} bounded steps (budget=" . avesmapsWikiDumpOnlineStepCallBudget() . " calls/step) to finish 140 batches -- the pre-fix code (callBudget=null) would have done this in exactly 1 step / 1 call to this fetcher"
 );
 $check(
     '(c-continent-4) every step stayed within its call budget (no step attempted all ~140 batches)',
     true,
-    $callsMadeTotal <= $continentSteps * avesmapsWikiDumpContinentMapStepCallBudget() && $callsMadeTotal === 140,
+    $callsMadeTotal <= $continentSteps * avesmapsWikiDumpOnlineStepCallBudget() && $callsMadeTotal === 140,
     "{$callsMadeTotal} total fetcher calls across {$continentSteps} steps for 140 batches -- confirms the budget bounds EVERY step, not just the first"
+);
+
+
+// ===========================================================================
+// (C-online) DIE ZWEI KATEGORIE-PHASEN FAHREN AM SELBEN GERECHNETEN BUDGET
+// ---------------------------------------------------------------------------
+// Am 24.08.2026 brach "Dump holen" mit HTTP 502 ab: das Wiki gibt AvesmapsWikiSync in
+// seiner robots.txt einen Crawl-delay von 20 Sekunden, und zwei der Phasen erledigten
+// ihre Kategorie-Abfragen in EINEM Schritt (~12 bzw. ~25 Abfragen, also ~250 s / ~500 s).
+// Der 502 kommt vom Webserver, nicht aus PHP -- deshalb schwieg auch der Abbruch-Melder.
+//
+// 💣 DIE ZAHL DARF NICHT FESTSTEHEN. Genau daran ist es zerbrochen: das alte Budget war
+// eine 20 im Quelltext, und als die Drossel von 0,6 s auf 20 s ging, waren daraus ueber
+// 400 Sekunden je Schritt geworden, ohne dass sich eine Zeile Code geaendert haette.
+// ===========================================================================
+echo "\n-- (C-online) Klassen-/Bauwerks-Phase: gerechnetes Budget, kein fester Wert --\n";
+
+$check(
+    '(c-online-1) alle DREI Online-Phasen fahren dieselbe gerechnete Budgetfunktion',
+    [true, true, true],
+    [
+        str_contains($dispatchSource, 'avesmapsWikiDumpHybridFillClassMapStep(') && str_contains($dispatchSource, 'avesmapsWikiDumpOnlineStepCallBudget()'),
+        str_contains($dispatchSource, 'avesmapsWikiDumpHybridFillBuildingMapStep('),
+        str_contains($dispatchSource, 'avesmapsWikiDumpHybridFillContinentMapStep($pdo, $runId, $titles, $cursor, avesmapsWikiDumpOnlineStepCallBudget())'),
+    ],
+    'eine Regel, die einen von drei Erzeugern bindet, ist keine Regel -- dieselbe Lehre wie bei der Verkehrsmittel-Sperre (AGENTS.md)'
+);
+$check(
+    '(c-online-2) im Quelltext des Treibers steht KEINE feste Aufrufzahl mehr',
+    false,
+    str_contains($hybridDriverSource, 'AVESMAPS_WIKI_DUMP_CONTINENT_MAP_STEP_CALL_BUDGET'),
+    'die abgeschaffte Konstante war die 20, an der die Phase zerbrochen ist -- sie darf auch nicht als toter Wert herumliegen, den jemand "wiederherstellt"'
+);
+
+// Die zwei Phasen brauchen mehr Zustand als eine Zahl: welche Kategorie UND wo darin.
+// Der zweite Teil reist -- wie bei publication_sources -- im additiven 'stats_patch'.
+$klassenPdo = new FakeDriverPdo($makeRunRow('online_class_map', ['class_cursor' => 1, 'class_continue' => 'Dorf|1']));
+$gesehen = [];
+$klassenSchritte = [
+    'online_class_map' => static function (PDO $pdo, array $ctx) use (&$gesehen): array {
+        $gesehen = ['cursor' => $ctx['cursor'], 'continue' => $ctx['stats']['class_continue'] ?? null];
+        return ['done' => false, 'nextCursor' => 1, 'stats_patch' => ['class_continue' => 'Dorf|2']];
+    },
+];
+$klassenLauf = avesmapsWikiDumpHybridAdvanceReadStep($klassenPdo, '11111111-1111-4111-8111-111111111111', '/unused/dump.xml', true, $klassenSchritte);
+$klassenStats = json_decode((string) ($klassenPdo->runUpdates[count($klassenPdo->runUpdates) - 1]['stats_json'] ?? '{}'), true);
+$check(
+    '(c-online-3) 💣 der Schritt bekommt BEIDE Cursorteile und beide werden persistiert',
+    [1, 'Dorf|1', 'online_class_map', 1, 'Dorf|2'],
+    [
+        $gesehen['cursor'],
+        $gesehen['continue'],
+        $klassenLauf['phase'],
+        (int) ($klassenStats['class_cursor'] ?? -1),
+        (string) ($klassenStats['class_continue'] ?? ''),
+    ],
+    'der Index reist im eigenen Cursor-Schluessel, die Fortsetzung im stats_patch -- genau wie publication_sources seine Unterstufe fuehrt'
+);
+
+// Und der ganze Weg der Bauwerks-Phase: erst die Artenliste aufloesen, dann Art fuer Art.
+$bauPdo = new FakeDriverPdo($makeRunRow('online_building_map', []));
+$bauSchritt = avesmapsWikiDumpHybridDispatchPhaseStep(
+    $bauPdo,
+    'online_building_map',
+    7,
+    [],
+    '/unused/dump.xml',
+    true,
+    ['online_building_map' => static function (PDO $pdo, array $ctx): array {
+        return ['done' => false, 'nextCursor' => 0, 'stats_patch' => ['building_stage' => 'members']];
+    }]
+);
+$check(
+    '(c-online-4) die Testnaht der Bauwerks-Phase greift wie bei jeder anderen Phase',
+    ['members', false],
+    [$bauSchritt['stats_patch']['building_stage'] ?? '', $bauSchritt['done']],
+    'die Phase hat zwei Unterstufen (Artenliste, dann Mitglieder) und muss trotzdem einspeisbar bleiben'
+);
+
+// Behavioural: mit dem echten Budget faehrt eine paginierte Kategorie ueber MEHRERE Schritte
+// und verliert dabei nichts -- am Sammler gemessen, ohne PDO und ohne HTTP.
+$seitenJeKategorie = [
+    'Dorf' => [
+        ['titles' => ['A'], 'continue' => 'Dorf|1'],
+        ['titles' => ['B'], 'continue' => 'Dorf|2'],
+        ['titles' => ['C'], 'continue' => null],
+    ],
+];
+$holer = static function (string $kategorie, ?string $weiter) use ($seitenJeKategorie): array {
+    $seiten = $seitenJeKategorie[$kategorie] ?? [['titles' => [], 'continue' => null]];
+    $nummer = $weiter === null ? 0 : (int) (explode('|', $weiter)[1] ?? 0);
+    return $seiten[$nummer] ?? ['titles' => [], 'continue' => null];
+};
+$index = 0;
+$weiter = null;
+$fertig = false;
+$schritte = 0;
+$titel = [];
+$deckel = (int) ceil(7 / max(1, avesmapsWikiDumpOnlineStepCallBudget())) + 5;
+while (!$fertig && $schritte < $deckel) {
+    $s = avesmapsWikiDumpCategoryFetchSettlementClassMap($index, $weiter, avesmapsWikiDumpOnlineStepCallBudget(), $holer);
+    $titel = array_merge($titel, array_keys($s['map']));
+    $index = $s['nextIndex'];
+    $weiter = $s['nextContinue'];
+    $fertig = $s['done'];
+    $schritte++;
+}
+sort($titel);
+$check(
+    '(c-online-5) mit dem ECHTEN Budget laeuft die paginierte Kategorie vollstaendig durch',
+    [true, ['A', 'B', 'C']],
+    [$fertig, $titel],
+    'bei Budget 1 (Drossel 20 s) sind das drei Schritte fuer die drei Seiten -- vorher waren es 60 Sekunden in einem'
+);
+$check(
+    '(c-online-6) ein voll ausgeschoepfter Schritt bleibt im Zeitfenster',
+    true,
+    avesmapsWikiDumpOnlineStepCallBudget() * $sekundenJeAufruf < AVESMAPS_WIKI_DUMP_STEP_SECONDS,
+    'dieselbe Zusicherung wie fuer die Kontinent-Phase, jetzt fuer alle drei -- sie ist der Grund, warum das Budget gerechnet wird'
+);
+
+// ---------------------------------------------------------------------------
+// Die Unterstufen-Weiche der Bauwerks-Phase -- die einzige Phase mit zwei Stufen.
+// ---------------------------------------------------------------------------
+$check(
+    '(c-online-7) frischer Lauf -> erst die Artenliste aufloesen',
+    'types',
+    avesmapsWikiDumpHybridBuildingStage([], []),
+    'ohne Liste gibt es nichts, worueber Stufe 2 laufen koennte'
+);
+$check(
+    '(c-online-8) Marker "members" mit Liste -> die Mitglieder holen',
+    'members',
+    avesmapsWikiDumpHybridBuildingStage(['building_stage' => 'members'], ['Burg', 'Tempel']),
+    'die normale zweite Haelfte der Phase'
+);
+$check(
+    '(c-online-9) 💣 Marker "members", aber LEERE Liste -> zurueck zu Stufe 1',
+    'types',
+    avesmapsWikiDumpHybridBuildingStage(['building_stage' => 'members'], []),
+    'sonst meldet Stufe 2 mit null Arten sofort done und ueberspringt saemtliche Bauwerke -- lautlos, mit gruenem Lauf'
+);
+
+// Und die Verdrahtung im Ganzen: was Stufe 1 in den stats_patch legt, muss die Weiche beim
+// naechsten Schritt wieder finden. Ein Tippfehler im Schluessel liesse die Phase ewig kreisen
+// und faellt an den Einzelpruefungen oben NICHT auf.
+$stufe1 = [
+    'done' => false,
+    'nextCursor' => 0,
+    'stage' => 'members',
+    'stats_patch' => [
+        'building_types' => ['Burg', 'Tempel'],
+        'building_continue' => null,
+        'building_stage' => 'members',
+    ],
+];
+$statsNachStufe1 = [];
+foreach ($stufe1['stats_patch'] as $k => $v) {
+    $statsNachStufe1[$k] = $v;
+}
+$nachStufe1 = avesmapsWikiDumpHybridComputeNextState('online_building_map', $statsNachStufe1, $stufe1);
+$check(
+    '(c-online-10) der Zustand aus Stufe 1 fuehrt beim naechsten Schritt in Stufe 2',
+    ['online_building_map', 'members'],
+    [
+        $nachStufe1['phase'],
+        avesmapsWikiDumpHybridBuildingStage(
+            $nachStufe1['stats'],
+            is_array($nachStufe1['stats']['building_types'] ?? null) ? $nachStufe1['stats']['building_types'] : []
+        ),
+    ],
+    'geschriebener und gelesener Schluessel sind derselbe -- sonst kreist die Phase bis zur Notbremse des Browsers'
 );
 
 // ===========================================================================

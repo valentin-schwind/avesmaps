@@ -121,8 +121,32 @@ require_once __DIR__ . '/deities.php';
  * avesmapsWikiSyncFetchPagesByRequestedTitle when the compare-test is green.
  *
  * ===========================================================================
- * THE RESUMABLE-CURSOR CONTRACT (continent map)
+ * THE RESUMABLE-CURSOR CONTRACT (alle drei Sammler)
  * ===========================================================================
+ * 🔴 SEIT 24.08.2026 HAT JEDER DER DREI SAMMLER EINEN CURSOR -- der Absatz darunter galt bis
+ * dahin nur der Kontinent-Karte, und sein letzter Satz ("die Klassen-/Bauwerks-Karte sind je
+ * eine Handvoll Aufrufe und brauchen keinen Cursor") war der Satz, an dem "Dump holen"
+ * gestorben ist: er stimmte bei 0,6 s Drossel und wurde falsch, als die Wiki-robots.txt
+ * AvesmapsWikiSync einen Crawl-delay von 20 Sekunden gab. Aus "eine Handvoll" wurden ~250 s
+ * (Klassen, ~12 Abfragen) und ~500 s (Bauwerke, ~25 Abfragen) in EINEM Schritt -- der
+ * Webserver gab vorher mit HTTP 502 auf, ausserhalb von PHP und damit ohne jede Meldung.
+ * ⚠️ Die Lehre ist groesser als die Zahl: "das sind nur ein paar Aufrufe" ist eine Aussage
+ * ueber die DROSSEL, nicht ueber den Code -- und die Drossel gehoert nicht uns.
+ *
+ * DIE ZWEI CURSORFORMEN, und sie sind verschieden:
+ *   - Kontinent-Karte: eine ZAHL. Sie bekommt ihre Titelliste fertig herein und zaehlt nur,
+ *     wie viele davon abgearbeitet sind (Absatz unten).
+ *   - Klassen- und Bauwerks-Karte: ZWEI Teile -- welche Kategorie (Index) UND wo innerhalb
+ *     von ihr (das cmcontinue der API). Denn eine Kategorie-Abfrage paginiert selbst. Wer
+ *     nur den Index fuehrt, faengt eine grosse Kategorie im naechsten Schritt von vorn an
+ *     oder verliert ihren Rest -- und an einer kleinen Fixture faellt das nie auf, weil
+ *     kleine Kategorien nicht paginieren. Siehe
+ *     avesmapsWikiDumpCategoryFetchCategoryMembersStep() weiter unten.
+ *
+ * Das Aufrufbudget je Schritt kommt in allen drei Faellen aus derselben gerechneten Funktion
+ * (avesmapsWikiDumpOnlineStepCallBudget(), dump-hybrid-driver.php) -- nie aus einer festen
+ * Zahl im Quelltext: genau eine solche 20 war das alte Budget der Kontinent-Phase.
+ *
  * avesmapsWikiDumpCategoryFetchContinentMap() processes the given title list
  * in batches of AVESMAPS_WIKI_TITLE_BATCH_SIZE (=20, sync.php:8), spending
  * exactly one API call per batch, and stops once it has spent $callBudget API
@@ -132,10 +156,8 @@ require_once __DIR__ . '/deities.php';
  * loop: pass nextCursor back in as $cursor on the next call, and stop once
  * done=true. This mirrors avesmapsWikiDumpRunPassBStep's cursor/pageBudget
  * pattern (dump-entity-scan.php:1348) applied to API-call budget instead of
- * page count, since this is the ONLY one of the three builders that makes
- * many live HTTP calls (approx 450 throttled calls over approx 9k titles,
- * recon section 3/4.4) -- the class/building maps are each a handful of
- * category-crawl calls and need no cursor.
+ * page count. Es ist der Sammler mit den MEISTEN Aufrufen (rund 450 gedrosselte ueber rund
+ * 9k Titel, recon section 3/4.4) -- aber laengst nicht mehr der einzige mit einem Cursor.
  *
  * NOTE (H1 report -- flagged, not silently special-cased): the H1 brief's own
  * test example states "a 45-title list with callBudget=1 (batch 20) returns
@@ -152,7 +174,119 @@ require_once __DIR__ . '/deities.php';
  */
 
 // ===========================================================================
-// (1) SETTLEMENT CLASS MAP
+// (0) DER GEMEINSAME SCHRITTSAMMLER BEIDER KATEGORIE-PHASEN.
+// ===========================================================================
+
+/**
+ * Standard-Seitenholer fuer ARTIKEL einer Kategorie (ns 0) -- der Bauwerks-/Klassen-Fall.
+ * Duenn ueber avesmapsWikiSyncFetchCategoryMemberPage (locations.php), damit die Anfrage nur
+ * an einer Stelle im Haus gebaut wird.
+ *
+ * @return array{titles: list<string>, continue: ?string}
+ */
+function avesmapsWikiDumpCategoryFetchCategoryMemberPage(string $categoryName, ?string $continueToken = null): array {
+    return avesmapsWikiSyncFetchCategoryMemberPage($categoryName, $continueToken, ['cmnamespace' => 0]);
+}
+
+/**
+ * Standard-Seitenholer fuer UNTERKATEGORIEN -- der Aufloeser der Bauwerksarten.
+ * ⚠️ Liefert die Titel roh, mitsamt `Kategorie:`-Praefix; abgestreift wird in
+ * avesmapsWikiDumpCategoryFetchBuildingTypes().
+ *
+ * @return array{titles: list<string>, continue: ?string}
+ */
+function avesmapsWikiDumpCategoryFetchSubcategoryPage(string $categoryName, ?string $continueToken = null): array {
+    return avesmapsWikiSyncFetchCategoryMemberPage($categoryName, $continueToken, ['cmtype' => 'subcat']);
+}
+
+/**
+ * Laeuft eine LISTE von Kategorien Seite fuer Seite ab und gibt zurueck, was in dieses
+ * Aufrufbudget gepasst hat -- der gemeinsame Motor der Klassen- und der Bauwerks-Phase.
+ *
+ * 💣 DER CURSOR TRAEGT ZWEI DINGE, UND DAS IST DER GANZE PUNKT. Die Kontinent-Phase zaehlt
+ * nur Titel und kommt mit einer Zahl aus; eine Kategorie-Abfrage paginiert dagegen SELBST
+ * (cmcontinue). Wer sich nur merkt, WELCHE Kategorie dran war, faengt eine grosse Kategorie
+ * beim naechsten Schritt von vorne an -- oder ueberspringt ihren Rest. Beides faellt an einer
+ * kleinen Fixture nie auf, weil kleine Kategorien nicht paginieren. Deshalb stehen beide
+ * Teile in der SIGNATUR: man kann sie nicht vergessen.
+ *   $index         -- welche Kategorie der Liste (0-basiert)
+ *   $continueToken -- wo INNERHALB dieser Kategorie (das cmcontinue der naechsten Seite)
+ *
+ * Eine Seite = eine API-Abfrage = eine Einheit des Budgets. $callBudget === null heisst
+ * "alles in einem Zug" -- das ist die Fassung, die am 24.08.2026 am Gateway starb, und sie
+ * ist NUR fuer Tests und winzige Listen gedacht; ein Aufrufer in der Produktion uebergibt
+ * immer ein gerechnetes Budget (avesmapsWikiDumpOnlineStepCallBudget()).
+ *
+ * ⚠️ Der Rueckgabewert deckt NUR diesen Schritt ab. Ueber eine Schrittgrenze hinweg kann
+ * dieser Sammler "erster Treffer gewinnt" nicht halten -- er sieht die fruehere Kategorie gar
+ * nicht mehr. Das haelt die Datenbank (avesmapsWikiDumpHybridUpsertRows schreibt je Spalte
+ * nur, was noch leer ist).
+ *
+ * @param list<string>  $categoryNames  die abzulaufenden Kategorienamen, in fester Reihenfolge
+ * @param callable|null $memberPageFetcher (string $kategorie, ?string $weiter): array{titles, continue}
+ * @return array{categoryToTitles: array<string, list<string>>, nextIndex: int, nextContinue: ?string, done: bool, calls: int}
+ */
+function avesmapsWikiDumpCategoryFetchCategoryMembersStep(
+    array $categoryNames,
+    int $index = 0,
+    ?string $continueToken = null,
+    ?int $callBudget = null,
+    ?callable $memberPageFetcher = null
+): array {
+    $memberPageFetcher ??= 'avesmapsWikiDumpCategoryFetchCategoryMemberPage';
+
+    $categoryNames = array_values($categoryNames);
+    $total = count($categoryNames);
+    $index = max(0, min($index, $total));
+    // Hinter der letzten Kategorie kann es keine Fortsetzung mehr geben. Ohne diese Zeile
+    // haelt ein mitgeschleppter Token den Lauf fuer immer unfertig.
+    if ($index >= $total) {
+        $continueToken = null;
+    }
+
+    $categoryToTitles = [];
+    $calls = 0;
+
+    while ($index < $total) {
+        if ($callBudget !== null && $calls >= $callBudget) {
+            break;
+        }
+
+        $categoryName = (string) $categoryNames[$index];
+        $seite = $memberPageFetcher($categoryName, $continueToken);
+        $calls++;
+        if (!is_array($seite)) {
+            $seite = [];
+        }
+
+        $titles = is_array($seite['titles'] ?? null) ? $seite['titles'] : [];
+        foreach ($titles as $title) {
+            $title = trim((string) $title);
+            if ($title !== '') {
+                // Nach KATEGORIE geschluesselt, nicht nach Index: genau diese Form erwarten
+                // die beiden reinen Assembler weiter unten.
+                $categoryToTitles[$categoryName][] = $title;
+            }
+        }
+
+        $weiter = $seite['continue'] ?? null;
+        $continueToken = ($weiter === null || $weiter === '') ? null : (string) $weiter;
+        if ($continueToken === null) {
+            $index++;
+        }
+    }
+
+    return [
+        'categoryToTitles' => $categoryToTitles,
+        'nextIndex' => $index,
+        'nextContinue' => $continueToken,
+        'done' => $index >= $total && $continueToken === null,
+        'calls' => $calls,
+    ];
+}
+
+// ===========================================================================
+// (1) SETTLEMENT CLASS MAP (resumable)
 // ===========================================================================
 
 /**
@@ -194,26 +328,52 @@ function avesmapsWikiDumpCategoryAssembleClassMap(array $categoryToTitles): arra
 }
 
 /**
- * OUTER fetch: walks the 5 real class categories via the reused
- * avesmapsWikiSyncFetchCategoryMemberTitles($categoryName) (locations.php:52-88)
- * and feeds the assembler above. $categoryMemberFetcher defaults to the real
- * fetcher; a caller (this module's own test) may inject a fake to avoid live
- * HTTP -- the injected callable has the exact same
- * `(string $categoryName): array` shape as avesmapsWikiSyncFetchCategoryMemberTitles.
+ * OUTER fetch (FORTSETZBAR seit 24.08.2026): laeuft die 5 echten Klassen-Kategorien
+ * (AVESMAPS_WIKI_CATEGORY_TO_CLASS, ueber avesmapsWikiSyncFetchSiedlungenIndexCategories)
+ * Seite fuer Seite ab und fuettert den Assembler oben mit dem, was in dieses Budget passte.
  *
- * This is a single-step builder (5 category-crawl calls total, each already
- * internally paginated by the reused fetcher) -- no cursor/budget needed,
- * unlike the continent map.
+ * 🔴 Bis dahin war das ein Einschritt-Sammler: 5 Kategorien, jede intern durchpaginiert, in
+ * EINEM Aufruf. Bei 0,6 s Drossel waren das ~7 Sekunden; seit dem Crawl-delay 20 der
+ * Wiki-robots.txt sind es rund 250 -- und der Webserver antwortet vorher mit HTTP 502.
+ * Cursor und Budget liegen deshalb jetzt wie bei der Kontinent-Phase in der Signatur; die
+ * Falle mit dem ZWEITEILIGEN Cursor steht bei
+ * avesmapsWikiDumpCategoryFetchCategoryMembersStep().
+ *
+ * ⚠️ EIN UNTERSCHIED ZUM EINSCHRITT-SAMMLER, und er ist folgenlos: die Titel kommen jetzt in
+ * API-Reihenfolge statt natcase-sortiert (avesmapsWikiSyncFetchCategoryMemberTitles sortiert am
+ * Ende einer ganzen Kategorie -- ueber Schritte hinweg gibt es dieses Ende nicht mehr). Die
+ * Reihenfolge bestimmt nur, in welcher Folge die Zeilen in die Zustandstabelle wandern, und
+ * damit hoechstens, welcher Titel in welchem Stapel der Kontinent-Phase landet -- am Ergebnis
+ * aendert sich nichts. Die Reihenfolge der KATEGORIEN dagegen ist tragend (erster Treffer
+ * gewinnt) und bleibt die von AVESMAPS_WIKI_CATEGORY_TO_CLASS.
+ *
+ * @param callable|null $memberPageFetcher Testnaht: (string $kategorie, ?string $weiter): array{titles, continue}
+ * @return array{map: array<string,string>, titles: list<string>, nextIndex: int, nextContinue: ?string, done: bool, calls: int}
  */
-function avesmapsWikiDumpCategoryFetchSettlementClassMap(?callable $categoryMemberFetcher = null): array {
-    $categoryMemberFetcher ??= 'avesmapsWikiSyncFetchCategoryMemberTitles';
+function avesmapsWikiDumpCategoryFetchSettlementClassMap(
+    int $index = 0,
+    ?string $continueToken = null,
+    ?int $callBudget = null,
+    ?callable $memberPageFetcher = null
+): array {
+    $schritt = avesmapsWikiDumpCategoryFetchCategoryMembersStep(
+        avesmapsWikiSyncFetchSiedlungenIndexCategories(),
+        $index,
+        $continueToken,
+        $callBudget,
+        $memberPageFetcher
+    );
 
-    $categoryToTitles = [];
-    foreach (avesmapsWikiSyncFetchSiedlungenIndexCategories() as $categoryName) {
-        $categoryToTitles[$categoryName] = $categoryMemberFetcher($categoryName);
-    }
+    $karte = avesmapsWikiDumpCategoryAssembleClassMap($schritt['categoryToTitles']);
 
-    return avesmapsWikiDumpCategoryAssembleClassMap($categoryToTitles);
+    return [
+        'map' => $karte['map'],
+        'titles' => $karte['titles'],
+        'nextIndex' => $schritt['nextIndex'],
+        'nextContinue' => $schritt['nextContinue'],
+        'done' => $schritt['done'],
+        'calls' => $schritt['calls'],
+    ];
 }
 
 // ===========================================================================
@@ -251,45 +411,74 @@ function avesmapsWikiDumpCategoryAssembleBuildingMap(array $typeToTitles): array
 }
 
 /**
- * OUTER fetch: mirrors avesmapsWikiSettlementCrawlBuildings (settlements.php:
- * 929-962) up to (but NOT including) its PDO-writing tail -- this builder
- * returns the map only; persistence happens later in H4 via the existing
- * avesmapsWikiSettlementUpsertBuildingRow.
+ * STUFE 1 der Bauwerks-Phase (FORTSETZBAR): die LISTE der Bauwerksarten aufloesen.
  *
- * Steps (identical to the reused crawler):
- *   1. List live subcats of "Bauwerk nach Art" via the reused
- *      avesmapsWikiSettlementFetchSubcategories (settlements.php:887-905).
- *   2. Append any AVESMAPS_WIKI_SETTLEMENT_LEGACY_BUILDING_TYPES
- *      (settlements.php:67-69) not already present (same online catalog is a
- *      superset of the static legacy list, recon 2.2).
- *   3. Filter excluded linear-infrastructure types via the reused
- *      avesmapsWikiSettlementIsExcludedBuildingType (settlements.php:988-992)
- *      -- mirrors avesmapsWikiSettlementBuildingTypes's filter
- *      (settlements.php:969-984), which avesmapsWikiSettlementCrawlBuildings
- *      itself does NOT apply; H1's breadth set should not include
- *      Straße/Reichsstraße/etc., which belong to the separate Wege-WikiSync.
- *   4. For each surviving type, call the reused
- *      avesmapsWikiSyncFetchCategoryMemberTitles($categoryName)
- *      (locations.php:52-88) directly (depth-0 direct members only, same as
- *      avesmapsWikiSettlementCrawlBuildings's depth=0 pass) and feed the
- *      assembler above.
+ * Mirrors avesmapsWikiSettlementCrawlBuildings (settlements.php:929-962) Schritt 1-3:
+ *   1. Die lebenden Unterkategorien von "Bauwerk nach Art" holen.
+ *   2. Jede AVESMAPS_WIKI_SETTLEMENT_LEGACY_BUILDING_TYPES anhaengen, die nicht schon
+ *      dabei ist (der Online-Katalog ist eine Obermenge der statischen Liste, Recon 2.2).
+ *   3. Die lineare Infrastruktur herausfiltern (avesmapsWikiSettlementIsExcludedBuildingType)
+ *      -- Strasse/Reichsstrasse/... gehoeren dem Wege-WikiSync, nicht dieser Breite.
  *
- * $subcategoryFetcher / $categoryMemberFetcher default to the real reused
- * fetchers; a caller may inject fakes (this module's own test does, to prove
- * the real root category "Bauwerk nach Art" + the real legacy type list are
- * used, without live HTTP).
+ * 💣 SCHRITT 2 UND 3 LAUFEN ERST, WENN DIE PAGINIERUNG DURCH IST. Anhaengen und Filtern auf
+ * einem halben Zwischenstand wuerde die REIHENFOLGE der Liste aendern -- und die Reihenfolge
+ * ist bei avesmapsWikiDumpCategoryAssembleBuildingMap die Entscheidung, welcher Typ gewinnt.
+ * Solange `done` false ist, ist `types` deshalb der ROHE Zwischenstand, den der Aufrufer
+ * beim naechsten Schritt unveraendert wieder hereinreicht.
+ *
+ * ⚠️ Heute hat "Bauwerk nach Art" gut zwei Dutzend Unterkategorien, passt also in eine
+ * Abfrage. Das ist ein Bestandswert, keine Zusicherung: bei 500 je Seite und 20 s Drossel
+ * waere die zweite Seite schon der zweite Schritt -- deshalb ist auch diese Stufe fortsetzbar.
+ *
+ * @param list<string>  $collected der rohe Zwischenstand des vorigen Schritts ([] beim ersten)
+ * @param callable|null $subcategoryPageFetcher Testnaht: (string $kategorie, ?string $weiter): array{titles, continue}
+ * @return array{types: list<string>, nextContinue: ?string, done: bool, calls: int}
  */
-function avesmapsWikiDumpCategoryFetchBuildingTypeMap(
-    ?callable $subcategoryFetcher = null,
-    ?callable $categoryMemberFetcher = null
+function avesmapsWikiDumpCategoryFetchBuildingTypes(
+    array $collected = [],
+    ?string $continueToken = null,
+    ?int $callBudget = null,
+    ?callable $subcategoryPageFetcher = null
 ): array {
-    $subcategoryFetcher ??= 'avesmapsWikiSettlementFetchSubcategories';
-    $categoryMemberFetcher ??= 'avesmapsWikiSyncFetchCategoryMemberTitles';
+    $subcategoryPageFetcher ??= 'avesmapsWikiDumpCategoryFetchSubcategoryPage';
 
-    $types = $subcategoryFetcher('Bauwerk nach Art');
-    if (!is_array($types)) {
-        $types = [];
+    $types = [];
+    foreach ($collected as $vorhanden) {
+        $vorhanden = trim((string) $vorhanden);
+        if ($vorhanden !== '' && !in_array($vorhanden, $types, true)) {
+            $types[] = $vorhanden;
+        }
     }
+
+    $calls = 0;
+    $done = false;
+
+    while ($callBudget === null || $calls < $callBudget) {
+        $seite = $subcategoryPageFetcher('Bauwerk nach Art', $continueToken);
+        $calls++;
+        if (!is_array($seite)) {
+            $seite = [];
+        }
+
+        foreach ((is_array($seite['titles'] ?? null) ? $seite['titles'] : []) as $roh) {
+            $art = trim(avesmapsWikiSyncStripCategoryPrefix(trim((string) $roh)));
+            if ($art !== '' && !in_array($art, $types, true)) {
+                $types[] = $art;
+            }
+        }
+
+        $weiter = $seite['continue'] ?? null;
+        $continueToken = ($weiter === null || $weiter === '') ? null : (string) $weiter;
+        if ($continueToken === null) {
+            $done = true;
+            break;
+        }
+    }
+
+    if (!$done) {
+        return ['types' => $types, 'nextContinue' => $continueToken, 'done' => false, 'calls' => $calls];
+    }
+
     foreach (AVESMAPS_WIKI_SETTLEMENT_LEGACY_BUILDING_TYPES as $legacy) {
         if (!in_array($legacy, $types, true)) {
             $types[] = $legacy;
@@ -300,12 +489,51 @@ function avesmapsWikiDumpCategoryFetchBuildingTypeMap(
         static fn(string $t): bool => !avesmapsWikiSettlementIsExcludedBuildingType($t)
     ));
 
-    $typeToTitles = [];
-    foreach ($types as $type) {
-        $typeToTitles[$type] = $categoryMemberFetcher($type);
-    }
+    return ['types' => $types, 'nextContinue' => null, 'done' => true, 'calls' => $calls];
+}
 
-    return avesmapsWikiDumpCategoryAssembleBuildingMap($typeToTitles);
+/**
+ * STUFE 2 der Bauwerks-Phase (FORTSETZBAR): die Mitglieder der aufgeloesten Arten holen.
+ *
+ * Mirrors avesmapsWikiSettlementCrawlBuildings Schritt 4 (depth-0, nur direkte Mitglieder) bis
+ * VOR dessen PDO-Schwanz -- dieser Sammler gibt nur die Karte zurueck; geschrieben wird eine
+ * Ebene hoeher (avesmapsWikiDumpHybridFillBuildingMapStep).
+ *
+ * 🔴 Bis 24.08.2026 lag hier ein Einschritt-Sammler: die Artenliste UND je Art eine Abfrage,
+ * zusammen rund 25 Stueck. Bei 20 s Drossel sind das ~500 Sekunden, also HTTP 502. Die
+ * Artenliste kommt seither aus avesmapsWikiDumpCategoryFetchBuildingTypes() und wird
+ * hereingereicht, statt hier ein zweites Mal geholt zu werden -- sonst verschoebe sich der
+ * Index gegen eine Liste, die sich zwischen zwei Schritten geaendert haben kann.
+ *
+ * @param list<string>  $types die FERTIGE Artenliste aus Stufe 1
+ * @param callable|null $memberPageFetcher Testnaht: (string $kategorie, ?string $weiter): array{titles, continue}
+ * @return array{map: array<string,string>, titles: list<string>, nextIndex: int, nextContinue: ?string, done: bool, calls: int}
+ */
+function avesmapsWikiDumpCategoryFetchBuildingTypeMap(
+    array $types,
+    int $index = 0,
+    ?string $continueToken = null,
+    ?int $callBudget = null,
+    ?callable $memberPageFetcher = null
+): array {
+    $schritt = avesmapsWikiDumpCategoryFetchCategoryMembersStep(
+        $types,
+        $index,
+        $continueToken,
+        $callBudget,
+        $memberPageFetcher
+    );
+
+    $karte = avesmapsWikiDumpCategoryAssembleBuildingMap($schritt['categoryToTitles']);
+
+    return [
+        'map' => $karte['map'],
+        'titles' => $karte['titles'],
+        'nextIndex' => $schritt['nextIndex'],
+        'nextContinue' => $schritt['nextContinue'],
+        'done' => $schritt['done'],
+        'calls' => $schritt['calls'],
+    ];
 }
 
 // ===========================================================================

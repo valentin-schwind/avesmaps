@@ -549,6 +549,79 @@ function avesmapsWikiSyncTitleBatchSize(): int {
     return avesmapsWikiTitleBatchSizeFuerZustand((string) (avesmapsWikiBotZustand()['status'] ?? ''));
 }
 
+/**
+ * EINE Seite `list=categorymembers` -- der kleinste Baustein der Kategorie-Crawls.
+ *
+ * 💣 WARUM ES IHN GIBT: die Sammler, die ihn benutzen (avesmapsWikiSyncFetchCategoryMemberTitles
+ * in locations.php, avesmapsWikiSettlementFetchSubcategories in settlements.php), laufen eine
+ * Kategorie bis zum Ende durch und sind damit NICHT unterbrechbar. Seit die Wiki-robots.txt
+ * AvesmapsWikiSync einen Crawl-delay von 20 Sekunden gibt (siehe
+ * AVESMAPS_WIKI_REQUEST_DELAY_MICROSECONDS oben), ist genau das der Unterschied zwischen
+ * "laeuft" und "HTTP 502": eine Kategorie ueber drei Seiten kostet eine Minute, und der
+ * Webserver gibt vorher auf -- ausserhalb von PHP, also ohne jede Fehlermeldung. Die
+ * Dump-Phasen brauchen deshalb genau EINE Abfrage je Schritt, und das ist diese hier.
+ *
+ * 🔴 ER STEHT IN sync.php UND NICHT BEI EINEM DER ZWEI SAMMLER, weil ihn beide brauchen --
+ * und settlements.php laedt locations.php NICHT (und umgekehrt). Was sie schon immer teilen,
+ * ist diese Datei: beide rufen avesmapsWikiSyncApiRequest() darunter, ohne sie zu requiren.
+ * Ein Baustein in einer der beiden Dateien waere fuer den jeweils anderen Aufrufer ein
+ * "undefined function" -- und zwar erst zur Laufzeit, in genau dem Ladeweg, den kein Test faehrt.
+ *
+ * $extraParams traegt, was den Aufruf ausmacht, und gewinnt gegen die Grundwerte:
+ * `cmnamespace => 0` fuer Artikel, `cmtype => 'subcat'` fuer Unterkategorien.
+ *
+ * ⚠️ Die Titel kommen ROH heraus, mitsamt `Kategorie:`-Praefix -- abstreifen kann nur, wer
+ * weiss, ob er Artikel oder Unterkategorien geholt hat (avesmapsWikiSyncStripCategoryPrefix).
+ *
+ * @return array{titles: list<string>, continue: ?string} continue = das cmcontinue der
+ *         naechsten Seite, oder null wenn die Kategorie zu Ende ist.
+ */
+function avesmapsWikiSyncFetchCategoryMemberPage(
+    string $categoryName,
+    ?string $continueToken = null,
+    array $extraParams = []
+): array {
+    $params = array_merge([
+        'action' => 'query',
+        'list' => 'categorymembers',
+        'cmtitle' => 'Kategorie:' . $categoryName,
+        'cmlimit' => 500,
+    ], $extraParams);
+
+    if ($continueToken !== null && $continueToken !== '') {
+        $params['cmcontinue'] = $continueToken;
+    }
+
+    $data = avesmapsWikiSyncApiRequest($params);
+
+    $titles = [];
+    $members = $data['query']['categorymembers'] ?? [];
+    if (is_array($members)) {
+        foreach ($members as $member) {
+            $title = trim((string) ($member['title'] ?? ''));
+            if ($title !== '') {
+                $titles[] = $title;
+            }
+        }
+    }
+
+    $continue = isset($data['continue']['cmcontinue']) ? (string) $data['continue']['cmcontinue'] : '';
+
+    return [
+        'titles' => $titles,
+        'continue' => $continue === '' ? null : $continue,
+    ];
+}
+
+/**
+ * Das `Kategorie:`/`Category:`-Praefix von einem Kategorietitel abstreifen. Steht neben dem
+ * Seitenholer, weil beide Leser von Unterkategorien (avesmapsWikiSettlementFetchSubcategories
+ * und die Bauwerksarten der Dump-Phase) es brauchen und es sonst zweimal danebenstuende.
+ */
+function avesmapsWikiSyncStripCategoryPrefix(string $title): string {
+    return preg_replace('/^(Kategorie|Category):/u', '', $title) ?? $title;
+}
+
 function avesmapsWikiSyncApiRequest(array $params): array {
     $queryParams = [
         'format' => 'json',

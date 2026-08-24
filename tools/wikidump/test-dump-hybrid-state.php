@@ -93,8 +93,8 @@ $requiredFunctions = [
     'avesmapsWikiDumpHybridComputeBuildingMapRows',
     'avesmapsWikiDumpHybridComputeContinentMapRows',
     'avesmapsWikiDumpHybridUpsertRows',
-    'avesmapsWikiDumpHybridFillClassMap',
-    'avesmapsWikiDumpHybridFillBuildingMap',
+    'avesmapsWikiDumpHybridFillClassMapStep',
+    'avesmapsWikiDumpHybridFillBuildingMapStep',
     'avesmapsWikiDumpHybridFillContinentMapStep',
 ];
 foreach ($requiredFunctions as $required) {
@@ -511,10 +511,94 @@ $check(
     'this is the key avesmapsWikiDumpHybridUpsertRows()\'s ON DUPLICATE KEY UPDATE relies on'
 );
 $check(
-    '(d5) upsert SQL preserves ALL FOUR sibling override columns on merge (COALESCE(VALUES(...), ...))',
+    '(d5) upsert SQL preserves ALL FOUR sibling override columns on merge',
     true,
-    substr_count($hybridStateSourceForDdl, 'COALESCE(VALUES(override_') === 4,
-    'every override_* column must be merge-safe -- a class fill must not wipe an earlier building/continent/deity fill for the same title, and vice versa. Die vierte (override_deity, Discord #54) kam 2026-08-15 dazu: die Gottheit wird in der Kontinent-Phase geschrieben, also NACH der Bauwerks-Phase, und duerfte deren building_type sonst wegwischen'
+    substr_count($hybridStateSourceForDdl, 'COALESCE(override_') === 4,
+    'every override_* column must be merge-safe -- a class fill must not wipe an earlier building/continent/deity fill for the same title, and vice versa. Die vierte (override_deity, Discord #54) kam 2026-08-15 dazu: die Gottheit wird in der Kontinent-Phase geschrieben, also NACH der Bauwerks-Phase, und duerfte deren building_type sonst wegwischen. Die REIHENFOLGE im COALESCE ist seit 24.08.2026 zusaetzlich tragend -- siehe (e5)'
+);
+
+
+// ===========================================================================
+// (e) DIE ZWEI ONLINE-PHASEN SIND FORTSETZBAR (24.08.2026).
+// ---------------------------------------------------------------------------
+// Dieselbe Bauart wie (c): erst STRUKTURELL zeigen, dass die Huelle den Cursor ihres
+// Sammlers unveraendert durchreicht (kein Nachrechnen, kein zweiter Zaehler), dann am
+// Sammler selbst zeigen, was diese Zahlen bedeuten. Ohne PDO, ohne HTTP.
+// ===========================================================================
+echo "\n-- (e) Klassen-/Bauwerks-Phase: Cursor-Durchreiche (kein PDO/HTTP) --\n";
+
+$fillClassSource = '';
+if (preg_match(
+    '/function avesmapsWikiDumpHybridFillClassMapStep\([^)]*\)[^{]*\{(.*?)\n\}\n/s',
+    $hybridStateSource,
+    $m
+) === 1) {
+    $fillClassSource = $m[1];
+}
+$check(
+    '(e1) die Klassen-Huelle ruft den ECHTEN Sammler mit den Argumenten, die sie bekommen hat',
+    true,
+    str_contains(
+        $fillClassSource,
+        'avesmapsWikiDumpCategoryFetchSettlementClassMap($index, $continueToken, $callBudget, $memberPageFetcher)'
+    ),
+    'strukturell: keine nachgebaute Schleife, keine eigene Cursorrechnung -- I8'
+);
+$check(
+    '(e2) 💣 BEIDE Cursorteile werden durchgereicht, nicht nur der Index',
+    [true, true],
+    [
+        (bool) preg_match('/\'nextIndex\'\s*=>\s*\(int\)\s*\(\$result\[\'nextIndex\'\]/', $fillClassSource),
+        (bool) preg_match('/\'nextContinue\'\s*=>\s*\$result\[\'nextContinue\'\]/', $fillClassSource),
+    ],
+    'ein Wrapper, der nur den Index weitergibt, verliert die Fortsetzung mitten in einer grossen Kategorie'
+);
+
+$fillBuildingSource = '';
+if (preg_match(
+    '/function avesmapsWikiDumpHybridFillBuildingMapStep\([^)]*\)[^{]*\{(.*?)\n\}\n/s',
+    $hybridStateSource,
+    $m
+) === 1) {
+    $fillBuildingSource = $m[1];
+}
+$check(
+    '(e3) die Bauwerks-Huelle ruft den ECHTEN Sammler mit der hereingereichten Artenliste',
+    true,
+    str_contains(
+        $fillBuildingSource,
+        'avesmapsWikiDumpCategoryFetchBuildingTypeMap($types, $index, $continueToken, $callBudget, $memberPageFetcher)'
+    ),
+    'die Artenliste kommt von aussen -- sie ein zweites Mal zu holen verschoebe den Index gegen eine andere Liste'
+);
+$check(
+    '(e4) 💣 auch hier BEIDE Cursorteile',
+    [true, true],
+    [
+        (bool) preg_match('/\'nextIndex\'\s*=>\s*\(int\)\s*\(\$result\[\'nextIndex\'\]/', $fillBuildingSource),
+        (bool) preg_match('/\'nextContinue\'\s*=>\s*\$result\[\'nextContinue\'\]/', $fillBuildingSource),
+    ],
+    'dieselbe Falle wie bei den Klassen'
+);
+
+// 💣 UND DIE HAELFTE, DIE DER SAMMLER NICHT HALTEN KANN: "erster Treffer gewinnt" ueber eine
+// SCHRITTGRENZE hinweg. In EINEM Schritt entdoppelt der Assembler selbst; ueber Schritte
+// hinweg sieht er die fruehere Kategorie gar nicht mehr -- der Titel kommt ein zweites Mal
+// heraus (test-dump-category-layer.php, (h12)). Dass trotzdem der ERSTE Typ stehen bleibt,
+// haengt allein an der Reihenfolge im COALESCE: der VORHANDENE Wert steht vorne.
+// Vorher stand VALUES(...) vorne (letzter Schreiber gewinnt) -- solange die Phasen in einem
+// Zug liefen, konnte das nie auffallen, weil es je Spalte nur EINEN Schreibvorgang gab.
+$check(
+    '(e5) 💣 der Upsert behaelt je Spalte den ERSTEN Schreiber (vorhandener Wert vor VALUES)',
+    4,
+    substr_count($hybridStateSourceForDdl, 'COALESCE(override_'),
+    'COALESCE(override_x, VALUES(override_x)): so ueberlebt "erster Typ gewinnt" die Schrittgrenze -- und ein NULL aus einer Nachbarfuellung kann weiterhin nichts ueberbuegeln'
+);
+$check(
+    '(e6) und KEINE Spalte steht mehr auf "letzter Schreiber gewinnt"',
+    0,
+    substr_count($hybridStateSourceForDdl, 'COALESCE(VALUES(override_'),
+    'eine einzige zurueckgedrehte Spalte wuerde genau einen Wert lautlos umdrehen -- den, der ueber zwei Schritte faellt'
 );
 
 // ===========================================================================
