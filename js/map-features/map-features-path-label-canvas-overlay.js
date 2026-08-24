@@ -54,6 +54,25 @@
 	canvas.style.left = "0";
 	canvas.style.transformOrigin = "0 0";
 	canvas.classList.add("leaflet-zoom-animated"); // weiches Mitskalieren während der CSS-Zoom-Animation
+	// 🔴 DECKEL FUER DEN BACKING-STORE DIESER CANVAS -- dieselbe Entscheidung wie bei den Grenznamen
+	// (3477d020, Owner 24.08.2026: „devicePixelRatio - setz das mal runter“, danach: „das sieht so
+	// schön aus“). 1 heisst ein Canvas-Pixel je CSS-Pixel; der Browser streckt das fertige Bild.
+	// 💣 DIESE DATEI LIEST DEN WERT AN ZWEI STELLEN, UND SIE SIND GEKOPPELT: die Canvas-Groesse und
+	// der Halo-Multiplikator (`shadowBlur` zaehlt in GERAETE-Pixeln). Wer nur die Groesse deckelt,
+	// bekommt bei dpr 1,5 einen anderthalbfach zu starken Schein um jeden Wegenamen -- und das sieht
+	// nicht nach einem Fehler aus, sondern nach einer Geschmacksentscheidung. Deshalb EIN Wert.
+	// ⭐ Live vergleichbar ohne Deploy: ?canvasdpr=1.5 stellt den scharfen Stand her (derselbe
+	// Parameter wie bei den Grenzen -- er gilt bewusst fuer beide Schrift-Canvasse).
+	const PATH_LABEL_CANVAS_MAX_DPR = 1;
+	function pfadLabelCanvasDpr() {
+		let deckel = PATH_LABEL_CANVAS_MAX_DPR;
+		try {
+			const roh = new URLSearchParams(window.location.search).get("canvasdpr");
+			const wert = Number(roh);
+			if (roh !== null && Number.isFinite(wert) && wert > 0) { deckel = wert; }
+		} catch (e) { /* ohne Adresszeile bleibt die Vorgabe */ }
+		return Math.min(window.devicePixelRatio || 1, deckel);
+	}
 	map.getPane(PANE).appendChild(canvas);
 	const ctx = canvas.getContext("2d");
 	let canvasTopLeftLatLng = null;
@@ -82,7 +101,7 @@
 			if (halo.glow && halo.blur > 0.01) {
 				ctx.save();
 				ctx.shadowColor = halo.glow;
-				ctx.shadowBlur = halo.blur * (window.devicePixelRatio || 1); // shadowBlur zaehlt in Geraete-Pixeln -> mit dpr nachziehen
+				ctx.shadowBlur = halo.blur * pfadLabelCanvasDpr(); // shadowBlur zaehlt in Geraete-Pixeln -> mit DEMSELBEN dpr nachziehen wie die Canvas-Groesse
 
 				ctx.fillStyle = halo.glow;
 				ctx.fillText(chars[i], 0, 0);
@@ -480,7 +499,7 @@
 		canvasTopLeftLatLng = map.containerPointToLatLng([0, 0]);
 		// HiDPI: Backing-Store in Geräte-Pixeln, CSS-Größe in Layout-Pixeln -> scharf auf Retina/Mobile (dpr 2–3),
 		// unverändert auf Standard-Desktop (dpr 1). Gezeichnet wird weiter in CSS-px (ctx ist mit dpr skaliert).
-		const dpr = window.devicePixelRatio || 1;
+		const dpr = pfadLabelCanvasDpr();
 		const pw = Math.round(size.x * dpr), ph = Math.round(size.y * dpr);
 		if (canvas.width !== pw) canvas.width = pw;
 		if (canvas.height !== ph) canvas.height = ph;
