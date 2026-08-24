@@ -423,6 +423,123 @@ Ein öffentlicher Leser **`GET /api/app/map-display.php`**, gebaut wie `api/app/
 aber sie zählt zum fetch-Fan-out. Sollte sich das je als spürbar erweisen, ist die Zusammenlegung
 mit `zoom-bands.php` die Stelle — nicht ein dritter Endpunkt.
 
+### §5.5 🪤 Die Füllung ist eine ÜBERSTEUERUNG, keine Vorgabe
+
+Owner am 25.08.2026: *„Füllung der Flächen ist nur der Default wert oder? die editoren können die
+transparenz ja ändern."* **Nein — und der Unterschied ist der ganze Punkt.**
+
+Gemessen an `map-features-region-rendering.js:202-207`:
+
+```js
+const activeFillOpacity = (!IS_EDIT_MODE
+    && regionEntry.source === "political_territory"
+    && typeof POLITICAL_FRONTEND_FILL_OPACITY === "number"
+    && Number.isFinite(POLITICAL_FRONTEND_FILL_OPACITY))
+    ? POLITICAL_FRONTEND_FILL_OPACITY      // <- gewinnt IMMER, für JEDES Gebiet
+    : regionEntry.opacity;                 // <- nur im Editor, oder wenn der Wert null ist
+```
+
+* Editoren **setzen** weiterhin eine Deckkraft je Gebiet (live liegen dort 0,33 / 0,5 / 0,75).
+* Sie **sehen** sie auch — aber nur im Editor (`IS_EDIT_MODE`).
+* Ein **Besucher sieht sie nie**: 0,70 überschreibt jede einzelne.
+
+🔴 **Deshalb ist das Bedienelement zweiwertig, kein bloßer Regler:** eine Auswahl
+**„einheitlich (Zahl)" ↔ „je Gebiet"**, wobei „je Gebiet" den gespeicherten Wert auf `null` setzt
+und damit die Editorwerte im Frontend wieder durchlässt. Genau dieser Zustand ist im Code als
+Ausweg vorgesehen (*„auf null setzen -> wieder per-Territorium"*) und heute **über keinen Weg
+erreichbar** — auch nicht über `?fillopacity=`, denn der Parser nimmt nur Zahlen.
+
+⚠️ Ein Regler allein wäre die gefährlichere Bauform: er sähe aus wie eine Vorgabe und wäre eine
+Enteignung. Wer 0,70 auf 0,50 zieht, ändert nicht „die Vorgabe für Gebiete ohne eigenen Wert",
+sondern **alle**.
+
+⭐ Für die Schraffur (`?hatchopacity=`) gilt derselbe Bau — sie folgt im Frontend derselben
+Zahl (`map-features-contested-hatch-overlay.js:121-126`).
+
+### §5.6 🔴 Beschriftung: eine KOLLISIONSMATRIX, nichts Ortsspezifisches
+
+Owner am 25.08.2026: *„nichts ortsspezifisches, es geht mehr insgesamt um ‚kollisionen an/aus‘ …
+oder kollision zwischen Orten – Regionen, Orten – Flüssen/Straßen, Flüssen – Straßen – Regionen
+(ne matrix?)"*
+
+**Es geht.** Und die Bestandsaufnahme sagt genau, in welcher Form.
+
+#### Was heute läuft — vier Klassen in einer festen Rangfolge
+
+| # | Klasse | Quelle | Wie sie ausweicht |
+|---|---|---|---|
+| 1 | **Gebietsnamen** | `regionLabels` (Herrschaftsgebiete) | bis ±40 px in 8 Richtungen; wird **nie** versteckt |
+| 2 | **Landschaftstitel** | `labelMarkers` / `.map-label` (Kontinent, Meer, Landschaft) | feste Landmarke, Prio 1000+ |
+| 3 | **Ortsnamen** | `locationNameLabels` | 12 Nachbarstellen; sonst `is-colliding` (unsichtbar) |
+| 4 | **Wege-/Flussnamen** | Canvas-Overlay | rutscht **nur an der eigenen Linie** (300 px); sonst fällt die Platzierung aus |
+
+Die Klassen laufen in dieser Reihenfolge; jede Stufe reicht ihre belegten Rechtecke an die nächste
+weiter (`publishLabelOccupancy` → `labelOccupancyBlocksGlyphs`). Dazu gibt es **eine
+Selbstprüfung** je Klasse — bei den Wegnamen heißt sie im Code „Kanal A" (`blockedByOwnKind`).
+
+#### 💣 Die Matrix ist DREIECKIG, und das ist keine Bequemlichkeit
+
+Ein Matrixfeld kann nur sagen: **„darf X über Y liegen?"** Es kann **nicht** sagen, wer ausweicht
+— das entscheidet allein die Rangfolge, und die ist **gemessen, nicht gesetzt**: die Umkehrung von
+Ortsnamen und Wegnamen erreicht zwar auch null Überlappungen, blendet aber **503 zusätzliche
+Ortsnamen** aus (444 → 947, Entwurf vom 05.08.2026). Wer „Ortsnamen weichen Gebietsnamen" abschaltet,
+bekommt Überlappung — nicht weichende Gebietsnamen.
+
+Damit hat die Tafel **sechs Paarfelder** (jede spätere Klasse gegen jede frühere) und **vier
+Selbstfelder** auf der Diagonale:
+
+|  | Gebiet | Landschaft | Ort | Weg |
+|---|---|---|---|---|
+| **Gebiet** | ⬦ selbst | — | — | — |
+| **Landschaft** | ✓ | ⬦ selbst | — | — |
+| **Ort** | ✓ | ✓ | ⬦ selbst | — |
+| **Weg** | ✓ | ✓ | ✓ | ⬦ selbst (Kanal A) |
+
+Dazu **ein Hauptschalter „Kollisionen berücksichtigen"** — aus heißt: jedes Label steht an seinem
+Platz und überlappt. Das ist kein Unsinn, sondern das schnellste Diagnosemittel für die Frage
+„liegt mein Label falsch, oder ist es nur weggeblendet?" — genau die Frage, die den Owner am
+28.07.2026 vier duplizierte Labels suchen ließ, von denen alle vier in der Datenbank standen.
+
+#### Wie es gebaut wird
+
+⭐ **Jedes belegte Rechteck bekommt eine Klassenmarke**, und die Blockierprüfung fragt die Matrix,
+statt jedes Rechteck blind zu nehmen. Das ist ein Feld mehr je Eintrag und eine Bedingung mehr in
+`labelOccupancyBlocksGlyphs` bzw. beim Vorbelegen von `acceptedRects` — die Reihenfolge, die
+measure-once-Bauform und die Rangfolge bleiben **unberührt**.
+
+💣 **Nicht die Rangfolge konfigurierbar machen.** Sie ist der teuerste gemessene Wert dieses
+Systems (503 Namen), und sie ist der Perf-Fix von 2026-06-08 (measure-once → rechnen → write-once).
+Eine drehbare Reihenfolge holt beide Probleme zurück.
+
+⚠️ **Die Vorgabe ist: alle zehn Felder an.** Das ist das heutige Verhalten Ziffer für Ziffer.
+
+🔧 **Offen und ehrlich zu nennen:** ob eine halb abgeschaltete Matrix ein *brauchbares* Kartenbild
+ergibt, ist **ungemessen**. Sie ist als Werkzeug gedacht, nicht als Schönheitsregler — und die
+Abnahme muss an der echten Karte stattfinden, nicht an einer Zähltabelle.
+
+### §5.7 Kurvenbeschriftung — die ganze Werkstatt, aber NUR hier
+
+Owner am 25.08.2026: *„die einstellungen können vollständig hierher."*
+
+Damit ziehen alle zwölf Werte aus `2026-08-22-kurvenbeschriftung-design.md` §6.1 in diesen Reiter:
+Glättung, Begradigung, Randvereinfachung, Stützpunktabstand, Mindestgröße einer Teilfläche,
+max. Verdrehung, Kurvenverlängerung, Sperrung über die Fläche, Sperrung je Lücke, Mindestabstand
+zweier Namen, Ausweichweg, Schrift verkleinern.
+
+🔴 **Das widerspricht der Regel vom 22.08.2026 NICHT — es schärft sie.** Dort hieß es: *„später
+will ich, dass die editoren nur 2 optionen haben."* Das Subjekt war der **Editor**, nicht der
+Admin. Die Regel lautet damit genauer:
+
+> **Werkstattregler gehören nicht in den EDITOR. Ihr Zuhause sind die Admin-Einstellungen.**
+
+Vorher gab es dieses Zuhause nicht — deshalb hieß die einzige Alternative „einfrieren". Jetzt gibt
+es beide Enden: der Editor sieht zwei Schalter (an/aus, Anzahl der Labels), der Admin sieht die
+zwölf, mit denen die zwei überhaupt erst richtig eingestellt sind.
+
+⚠️ **Zwei der zwölf sind ausdrücklich ungemessen** — Mindestabstand und Ausweichweg sind „an sechs
+Flächen geraten, nicht an 644 gemessen" und stehen laut jenem Entwurf **genau deshalb** in einer
+einstellbaren Tafel. Sie gehören hierher, nicht in eine Konstante.
+
 ---
 
 ## §6 Reiter „Inhalte" — Automatik

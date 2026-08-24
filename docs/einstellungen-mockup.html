@@ -156,6 +156,21 @@ input[type="number"].es-num, input[type="text"].es-num, select.es-sel {
 .es-table__where { font-size: var(--font-size-caption); color: var(--color-text-muted); }
 .es-table__where a { color: var(--color-link); }
 
+/* ── Die Kollisionsmatrix ───────────────────────────────────────────────────────────────── */
+.es-matrix th[scope="row"] {
+	text-align: left; text-transform: none; letter-spacing: 0;
+	font-size: var(--font-size-body); color: var(--color-text-strong);
+	border-bottom: 1px solid var(--color-border); white-space: nowrap;
+}
+.es-matrix thead th { vertical-align: bottom; }
+.es-matrix tbody td { text-align: center; }
+/* ⚠️ Die leeren Felder der oberen Dreieckshaelfte sind nicht "aus", sondern GIBT ES NICHT --
+   dort stuende die Frage "weicht ein Gebietsname einem Ortsnamen aus", und die beantwortet die
+   Rangfolge, kein Haken. Sie werden deshalb gedaempft und tragen einen Gedankenstrich. */
+.es-matrix .es-na { color: var(--color-text-muted); opacity: .45; }
+.es-rank { margin-left: var(--space-6); font-size: var(--font-size-caption); color: var(--color-text-muted); }
+.es-self { margin-left: var(--space-4); font-size: var(--font-size-caption); color: var(--color-text-muted); }
+
 /* ── Der Fortschritt sitzt IM Knopf, wie ueberall im Haus ───────────────────────────────── */
 .es-progress { position: relative; overflow: hidden; }
 .es-progress::before {
@@ -334,21 +349,37 @@ input[type="number"].es-num, input[type="text"].es-num, select.es-sel {
 				den richtigen Ton zu finden, und seither dort geblieben.
 			</p>
 
+			<!-- 🪤 KEINE VORGABE, SONDERN EINE UEBERSTEUERUNG. Der Owner hielt es am 25.08.2026 fuer
+			     einen Default ("die editoren koennen die transparenz ja aendern") -- gemessen an
+			     map-features-region-rendering.js:202 gewinnt der Wert IMMER, fuer JEDES Gebiet.
+			     Editoren setzen weiter 0,33/0,5/0,75 und sehen sie auch, aber nur im Editor.
+			     Deshalb ist das Bedienelement ZWEIWERTIG: ein blosser Regler saehe aus wie eine
+			     Vorgabe und waere eine Enteignung. -->
 			<div class="es-row">
 				<div class="es-row__label">
 					<span class="es-row__name">Füllung der Flächen</span>
 					<span class="es-row__note">
-						Einheitlich im Frontend; im Editor gilt weiter die Deckkraft je Gebiet.
+						🪤 <strong>Das ist keine Vorgabe, sondern eine Übersteuerung.</strong> Editoren
+						setzen weiter eine Deckkraft je Gebiet (heute 0,33 / 0,5 / 0,75) und sehen sie im
+						Editor — ein <em>Besucher</em> sieht sie nie: dieser Wert überschreibt jede
+						einzelne. „Je Gebiet“ gibt sie im Frontend wieder frei; diesen Zustand sieht der
+						Code vor, und heute kommt niemand an ihn heran.
 						<span class="es-src">?fillopacity=</span>
 					</span>
 				</div>
-				<div class="es-row__control"><input class="es-num" type="number" value="70" min="0" max="100" step="5" aria-label="Füllung"><span class="es-unit">%</span></div>
+				<div class="es-row__control">
+					<select class="es-sel" aria-label="Art der Füllung"><option selected>einheitlich</option><option>je Gebiet</option></select>
+					<input class="es-num" type="number" value="70" min="0" max="100" step="5" aria-label="Füllung"><span class="es-unit">%</span>
+				</div>
 			</div>
 
 			<div class="es-row">
 				<div class="es-row__label">
 					<span class="es-row__name">Schraffur umstrittener Gebiete</span>
-					<span class="es-row__note">Deckkraft der Streifen. <span class="es-src">?hatchopacity=</span></span>
+					<span class="es-row__note">
+						Folgt im Frontend derselben Zahl wie die Füllung — also ebenfalls eine
+						Übersteuerung. <span class="es-src">?hatchopacity=</span>
+					</span>
 				</div>
 				<div class="es-row__control"><input class="es-num" type="number" value="70" min="0" max="100" step="5" aria-label="Schraffur"><span class="es-unit">%</span></div>
 			</div>
@@ -376,31 +407,102 @@ input[type="number"].es-num, input[type="text"].es-num, select.es-sel {
 
 	<!-- ═══ REITER 2 — BESCHRIFTUNG ══════════════════════════════════════════════════════════ -->
 	<div class="es-panel" role="tabpanel" data-panel="beschriftung" hidden>
-		<section class="es-section es-later">
-			<h2>Ortsnamen und Marker <span class="es-later__tag">später</span></h2>
+
+		<!-- 🔴 NICHTS ORTSSPEZIFISCHES (Owner 25.08.2026). Die Zoombaender-Tafel gehoert nicht in
+		     diesen Reiter -- hier geht es um das VERHAELTNIS der Beschriftungsarten zueinander. -->
+		<section class="es-section">
+			<h2>Kollisionen</h2>
 			<p class="es-section__hint">
-				Die Zoombänder-Tafel — sechs Ortsklassen × neun Zoomstufen, dazu Spalt, Repel, Versatz
-				und Max. Drift. Sie hat eine gewachsene, zieh-bedienbare Oberfläche und bleibt vorerst
-				dort. Hier gehört ihr <em>Eingang</em> hin, nicht eine zweite Fassung.
+				Vier Arten von Beschriftung teilen sich die Karte. Sie laufen in einer <strong>festen
+				Rangfolge</strong> — jede weicht denen aus, die vor ihr stehen. Die Tafel sagt,
+				<em>ob</em> ein Paar einander überhaupt beachtet.
 			</p>
+
 			<div class="es-row">
 				<div class="es-row__label">
-					<span class="es-row__name">Zoombänder</span>
-					<span class="es-row__note">Ortseditor → „Darstellung“ <span class="es-src">location_zoom_bands</span></span>
+					<span class="es-row__name">Kollisionen berücksichtigen</span>
+					<span class="es-row__note">
+						Aus heißt: jede Beschriftung steht an ihrem Platz und überlappt. Das schnellste
+						Mittel für die Frage „liegt mein Label falsch — oder ist es nur weggeblendet?“
+					</span>
 				</div>
-				<div class="es-row__control"><button class="es-btn" disabled>Öffnen ↗</button></div>
+				<div class="es-row__control"><label class="es-check"><input type="checkbox" checked id="kollGlobal"> an</label></div>
+			</div>
+
+			<!-- 💣 DREIECKIG, und das ist keine Bequemlichkeit: ein Feld sagt "darf X ueber Y
+			     liegen", nie WER ausweicht -- das entscheidet die Rangfolge. Und die ist gemessen:
+			     Wegnamen vor Ortsnamen erreicht auch null Ueberlappungen, blendet aber 503
+			     zusaetzliche Ortsnamen aus (444 -> 947, Entwurf 05.08.2026). -->
+			<table class="es-table es-matrix">
+				<thead>
+					<tr>
+						<th>weicht aus …</th>
+						<th>Gebiets&shy;namen</th>
+						<th>Land&shy;schafts&shy;titel</th>
+						<th>Orts&shy;namen</th>
+						<th>Wege- u. Fluss&shy;namen</th>
+					</tr>
+				</thead>
+				<tbody>
+					<tr>
+						<th scope="row">Gebietsnamen <span class="es-rank">1.</span></th>
+						<td><label class="es-check"><input type="checkbox" checked aria-label="Gebietsnamen untereinander"><span class="es-self">selbst</span></label></td>
+						<td class="es-na">—</td><td class="es-na">—</td><td class="es-na">—</td>
+					</tr>
+					<tr>
+						<th scope="row">Landschaftstitel <span class="es-rank">2.</span></th>
+						<td><label class="es-check"><input type="checkbox" checked aria-label="Landschaftstitel weichen Gebietsnamen"></label></td>
+						<td><label class="es-check"><input type="checkbox" checked aria-label="Landschaftstitel untereinander"><span class="es-self">selbst</span></label></td>
+						<td class="es-na">—</td><td class="es-na">—</td>
+					</tr>
+					<tr>
+						<th scope="row">Ortsnamen <span class="es-rank">3.</span></th>
+						<td><label class="es-check"><input type="checkbox" checked aria-label="Ortsnamen weichen Gebietsnamen"></label></td>
+						<td><label class="es-check"><input type="checkbox" checked aria-label="Ortsnamen weichen Landschaftstiteln"></label></td>
+						<td><label class="es-check"><input type="checkbox" checked aria-label="Ortsnamen untereinander"><span class="es-self">selbst</span></label></td>
+						<td class="es-na">—</td>
+					</tr>
+					<tr>
+						<th scope="row">Wege- und Flussnamen <span class="es-rank">4.</span></th>
+						<td><label class="es-check"><input type="checkbox" checked aria-label="Wegnamen weichen Gebietsnamen"></label></td>
+						<td><label class="es-check"><input type="checkbox" checked aria-label="Wegnamen weichen Landschaftstiteln"></label></td>
+						<td><label class="es-check"><input type="checkbox" checked aria-label="Wegnamen weichen Ortsnamen"></label></td>
+						<td><label class="es-check"><input type="checkbox" checked aria-label="Wegnamen untereinander"><span class="es-self">selbst</span></label></td>
+					</tr>
+				</tbody>
+			</table>
+
+			<p class="es-section__hint" style="margin-top:var(--space-10)">
+				Die Tafel ist dreieckig, weil ein Feld nur sagen kann <em>ob</em> zwei Arten einander
+				beachten — <strong>nicht wer weicht</strong>. Das entscheidet die Rangfolge, und die ist
+				gemessen: Wegnamen vor Ortsnamen erreicht auch null Überlappungen, blendet aber
+				<strong>503 zusätzliche Ortsnamen</strong> aus. Sie ist deshalb kein Regler.
+			</p>
+			<p class="es-section__hint">
+				Wie ausgewichen wird, ist je Art verschieden und bleibt so:
+				<strong>Gebietsnamen</strong> rücken bis 40 px und verschwinden nie ·
+				<strong>Landschaftstitel</strong> sind feste Landmarken ·
+				<strong>Ortsnamen</strong> haben zwölf Nachbarstellen, sonst werden sie ausgeblendet ·
+				<strong>Wegenamen</strong> rutschen nur an ihrer eigenen Linie entlang, sonst entfallen sie.
+			</p>
+
+			<div class="es-savebar">
+				<button class="es-btn es-btn--primary">Speichern</button>
+				<button class="es-btn">Zurücksetzen</button>
+				<span class="es-savebar__spacer"></span>
+				<span class="es-savebar__msg">Alle zehn Felder an — das heutige Verhalten.</span>
 			</div>
 		</section>
 
 		<section class="es-section">
-			<h2>Kartenlabels</h2>
-			<p class="es-section__hint">Landschafts- und Gebietsnamen — beide Werte gibt es heute nur in der Adresszeile.</p>
+			<h2>Abstände und Umbruch</h2>
+			<p class="es-section__hint">Beide Werte gibt es heute nur in der Adresszeile.</p>
 			<div class="es-row">
 				<div class="es-row__label">
 					<span class="es-row__name">Abstoßung zwischen Labels</span>
 					<span class="es-row__note">
-						Luft um jedes Label vor der Kollisionsprüfung. Passt eines nirgends hin, wird es
-						ausgeblendet statt überlappend stehen zu lassen. <span class="es-src">?labelrepel=</span>
+						Luft um jedes Label vor der Kollisionsprüfung.
+						<span class="es-src">?labelrepel=</span>
 					</span>
 				</div>
 				<div class="es-row__control"><input class="es-num" type="number" value="7" min="0" max="60" step="1" aria-label="Abstoßung"><span class="es-unit">px</span></div>
@@ -414,19 +516,90 @@ input[type="number"].es-num, input[type="text"].es-num, select.es-sel {
 			</div>
 		</section>
 
-		<section class="es-section es-later">
-			<h2>Kurvenbeschriftung <span class="es-later__tag">später</span></h2>
+		<!-- 🔴 VOLLSTAENDIG hierher (Owner 25.08.2026). Das widerspricht der Regel vom 22.08. nicht,
+		     es schaerft sie: Werkstattregler gehoeren nicht in den EDITOR -- ihr Zuhause sind die
+		     Admin-Einstellungen. Vorher gab es dieses Zuhause nicht, deshalb hiess die einzige
+		     Alternative "einfrieren". -->
+		<section class="es-section">
+			<h2>Kurvenbeschriftung</h2>
 			<p class="es-section__hint">
-				Landschaftsnamen folgen der Form ihrer Fläche. Owner-Entscheid vom 22.08.2026: Editoren
-				bekommen genau <strong>zwei</strong> Schalter — an/aus und die Anzahl der Labels. Alles
-				andere (Glättung, Begradigung, Stützpunktabstand …) bleibt Werkstatt und wird
-				eingefroren.
+				Landschaftsnamen folgen der Form ihrer Fläche. Der <strong>Editor</strong> sieht davon
+				zwei Schalter (an/aus, Anzahl der Labels) — hier stehen die zwölf, mit denen diese zwei
+				überhaupt erst richtig eingestellt sind.
 			</p>
+			<div class="es-row">
+				<div class="es-row__label"><span class="es-row__name">Glättung</span><span class="es-row__note">Form der Kurve</span></div>
+				<div class="es-row__control"><select class="es-sel" aria-label="Glättung"><option selected>Polynom Grad 3</option><option>Grad 2</option><option>Grad 4</option></select></div>
+			</div>
+			<div class="es-row">
+				<div class="es-row__label"><span class="es-row__name">Begradigung</span><span class="es-row__note">Mischung Kurve ↔ Sehne</span></div>
+				<div class="es-row__control"><input class="es-num" type="number" value="0" min="0" max="100" step="5"><span class="es-unit">%</span></div>
+			</div>
+			<div class="es-row">
+				<div class="es-row__label"><span class="es-row__name">Randvereinfachung</span><span class="es-row__note">Douglas-Peucker-Toleranz in Karteneinheiten</span></div>
+				<div class="es-row__control"><input class="es-num" type="number" value="1.55" min="0" max="10" step="0.05"></div>
+			</div>
+			<div class="es-row">
+				<div class="es-row__label"><span class="es-row__name">Stützpunktabstand</span><span class="es-row__note">Segmentierung des Randes</span></div>
+				<div class="es-row__control"><input class="es-num" type="number" value="0.30" min="0.05" max="5" step="0.05"></div>
+			</div>
+			<div class="es-row">
+				<div class="es-row__label"><span class="es-row__name">Teilfläche zählt ab</span><span class="es-row__note">welche Lappen die Kurve mitbestimmen</span></div>
+				<div class="es-row__control"><input class="es-num" type="number" value="2" min="0" max="50" step="1"><span class="es-unit">% der Fläche</span></div>
+			</div>
+			<div class="es-row">
+				<div class="es-row__label"><span class="es-row__name">Max. Verdrehung gegen die Sehne</span><span class="es-row__note">Beruhigung</span></div>
+				<div class="es-row__control"><input class="es-num" type="number" value="30" min="0" max="90" step="5"><span class="es-unit">°</span></div>
+			</div>
+			<div class="es-row">
+				<div class="es-row__label"><span class="es-row__name">Kurve verlängern höchstens</span><span class="es-row__note">Passung, Mittel 1</span></div>
+				<div class="es-row__control"><input class="es-num" type="number" value="30" min="0" max="100" step="5"><span class="es-unit">%</span></div>
+			</div>
+			<div class="es-row">
+				<div class="es-row__label"><span class="es-row__name">Sperrung über die Fläche</span><span class="es-row__note">Deckel 50 %</span></div>
+				<div class="es-row__control"><input class="es-num" type="number" value="20" min="0" max="50" step="5"><span class="es-unit">%</span></div>
+			</div>
+			<div class="es-row">
+				<div class="es-row__label"><span class="es-row__name">Sperrung höchstens je Lücke</span><span class="es-row__note">absoluter Deckel</span></div>
+				<div class="es-row__control"><input class="es-num" type="number" value="0.6" min="0" max="3" step="0.1"><span class="es-unit">Schriftgrößen</span></div>
+			</div>
+			<div class="es-row">
+				<div class="es-row__label">
+					<span class="es-row__name">Mindestabstand zweier Namen</span>
+					<span class="es-row__note">⚠️ An sechs Flächen geraten, nicht an 644 gemessen — steht deshalb hier und nicht in einer Konstante.</span>
+				</div>
+				<div class="es-row__control"><input class="es-num" type="number" value="2.0" min="0" max="8" step="0.1"><span class="es-unit">Schriftgrößen</span></div>
+			</div>
+			<div class="es-row">
+				<div class="es-row__label">
+					<span class="es-row__name">Ausweichweg eines Kurvenlabels</span>
+					<span class="es-row__note">⚠️ Ebenfalls geraten, nicht gemessen.</span>
+				</div>
+				<div class="es-row__control"><input class="es-num" type="number" value="6" min="0" max="60" step="1"><span class="es-unit">px</span></div>
+			</div>
+			<div class="es-row">
+				<div class="es-row__label"><span class="es-row__name">Schrift verkleinern, bis es passt</span><span class="es-row__note">Passung, Mittel 2</span></div>
+				<div class="es-row__control"><label class="es-check"><input type="checkbox" checked> an</label></div>
+			</div>
+			<div class="es-savebar">
+				<button class="es-btn es-btn--primary">Speichern</button>
+				<button class="es-btn">Zurücksetzen</button>
+				<span class="es-savebar__spacer"></span>
+				<span class="es-savebar__msg">Alle Werte wie im Entwurf vom 22.08.2026.</span>
+			</div>
 		</section>
 	</div>
 
 	<!-- ═══ REITER 3 — REISEN ════════════════════════════════════════════════════════════════ -->
 	<div class="es-panel" role="tabpanel" data-panel="reisen" hidden>
+		<!-- 🔴 Owner 25.08.2026: "voll wichtige punkte, machen wir spaeter." Nicht unwichtig --
+		     VERTAGT. Der Unterschied gehoert sichtbar in den Reiter, sonst liest sich das
+		     Gedaempfte als "Randthema". -->
+		<p class="proto-note" style="border-left-color:var(--color-accent-brown)">
+			<strong>Wichtig, aber bewusst vertagt</strong> (Owner 25.08.2026). Hier stehen die Zahlen,
+			aus denen jede Entfernung und jede Reisezeit entsteht — sie brauchen eine eigene Abnahme,
+			keine Zeile in einem Sammel-Commit.
+		</p>
 		<section class="es-section es-later">
 			<h2>Weltmaßstab <span class="es-later__tag">später</span></h2>
 			<p class="es-section__hint">
@@ -664,13 +837,17 @@ input[type="number"].es-num, input[type="text"].es-num, select.es-sel {
 	}
 	tabs.forEach(function (t) { t.addEventListener("click", function () { zeige(t.dataset.panel); }); });
 
-	/* Der Zaehler wird GERECHNET, nie geschrieben: bedienbare Zeilen plus die Zeilen der Tabelle
-	   „Was anderswo geschaltet wird". Ein Reiter, der nur Platzhalter traegt, bekommt gar keine
-	   Zahl -- eine "0" laese sich wie ein Fehler, ein leerer Zaehler wie "hier ist noch nichts". */
+	/* Der Zaehler wird GERECHNET, nie geschrieben.
+	   💣 Und er zaehlt nur, was BEDIENBAR ist. Die erste Fassung nahm jede Tabellenzeile mit -- damit
+	   stand an "Inhalte" eine 15, obwohl dort zwei Schalter liegen und dreizehn Zeilen nur ZUM
+	   NACHSEHEN da sind. Eine Zahl, die Auskunft als Bedienung zaehlt, verspricht mehr, als der
+	   Reiter haelt. Die Matrix zaehlt mit, weil ihre Zeilen echte Haken tragen.
+	   Ein Reiter ohne bedienbare Zeile bekommt GAR KEINE Zahl -- eine "0" laese sich wie ein
+	   Fehler, ein leerer Zaehler wie "hier ist noch nichts". */
 	panels.forEach(function (p) {
 		var knopf = document.querySelector('.avm-tab[data-panel="' + p.dataset.panel + '"] .es-tab__count');
 		if (!knopf) { return; }
-		var n = p.querySelectorAll(".es-row").length + p.querySelectorAll(".es-table tbody tr").length;
+		var n = p.querySelectorAll(".es-row").length + p.querySelectorAll(".es-matrix tbody tr").length;
 		knopf.textContent = n > 0 ? String(n) : "";
 		knopf.hidden = n === 0;
 	});
