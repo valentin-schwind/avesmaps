@@ -291,6 +291,7 @@
       <div class="dg__section" id="ecoDisplayBandSection">
         <div class="dg__head">
           <h3>Namen — Zoomband je Art</h3>
+          <button type="button" class="btn2" id="ecoDisplayMedianAlleNehmen" hidden>Alle übernehmen</button>
           <span class="dg__src">Ein Klick zieht das nähere Ende · „aus" heißt: trägt nirgends einen Namen</span>
         </div>
         <div class="dg-scroll"><table class="zb" id="ecoDisplayBand"></table></div>
@@ -3119,6 +3120,26 @@ function ecoDisplaySetzVorgabe(art, teil) {
  * Ein Knopf, der misst UND schreibt, naehme dem Owner die Entscheidung ab, die er gerade erst
  * sichtbar gemacht hat.
  */
+/**
+ * Den Median für ALLE Arten holen -- einmal beim Öffnen, ohne dass jemand drücken muss.
+ *
+ * ⚠️ Kostet EINE Anfrage. Sie liest rund 950 KB `properties_json` (939 Beschriftungen, davon
+ * 527 KB allein die Wiki-Nester) und rechnet vier Mediane je Art -- gemessen am Livebestand
+ * 24.08.2026. Das ist die Größenordnung der Vorkommen-Abfrage (6,7 MB) und weit unter der
+ * Kartennutzlast; für ein Editorfenster, das selten aufgeht, in Ordnung.
+ * 🔴 Und sie SCHREIBT NICHTS -- der Median ist eine Messung, keine Übernahme.
+ */
+async function ecoDisplayMedianAlle() {
+	try {
+		const daten = await ecoDisplayPost({ action: "median" });
+		ecoDisplayMedian = (daten && daten.median && typeof daten.median === "object") ? daten.median : {};
+	} catch (fehler) {
+		// ⚠️ Ein Fehlschlag lässt das Fenster stehen: der Median ist Beiwerk, die Tafel ist die Sache.
+		// Die Knöpfe fallen dann auf „Median ermitteln" zurück und man kann es von Hand versuchen.
+		ecoDisplayMedian = {};
+	}
+}
+
 async function ecoDisplayMedianMessen(art, label) {
 	ecoDisplayMelde("misst, was die Editoren für „" + label + "“ eingestellt haben …");
 	try {
@@ -3164,6 +3185,24 @@ function ecoDisplayMedianBeschriftung(med) {
 	return typeof med.einig === "number" ? spanne + " · " + med.einig + " %" : spanne;
 }
 
+/**
+ * Welche Arten dieser Ebene würde eine Sammelübernahme wirklich bewegen? REIN -- kein DOM.
+ *
+ * 💣 Nur die ABWEICHENDEN. Eine Übernahme, die bei jeder Art einen Wert setzt, macht aus einem
+ * ungesetzten Feld (= „nimm die Vorgabe") eine feste Zahl -- die Tafel sähe danach voll aus, ohne
+ * dass sich etwas geändert hat, und ein späterer Nachmessen-Lauf hätte nichts mehr zu sagen.
+ * ⚠️ Verglichen wird gegen das, was JETZT gilt (`ecoDisplayVorgabe`), nicht gegen den Grundwert:
+ * was der Admin schon von Hand gesetzt hat, gilt als gewollt und wird nicht überfahren.
+ */
+function ecoDisplayMedianAbweichend(arten, median, gilt) {
+	return (arten || []).filter((art) => {
+		const m = median[art];
+		if (!m || typeof m.ab !== "number" || typeof m.bis !== "number") { return false; }
+		const v = gilt(art);
+		return m.ab !== v.ab || m.bis !== v.bis;
+	});
+}
+
 function ecoDisplayZeichneBand() {
 	const kind = ecoDisplayReiter;
 	// 🔴 Klimazonen tragen keinen Namen auf der Karte (Owner 24.08.2026): kein Zoomband, keine
@@ -3175,6 +3214,19 @@ function ecoDisplayZeichneBand() {
 	if (!zeigen) { return; }
 
 	const zeilen = ecoDisplayZeilen(kind).filter((z) => z.hatName);
+
+	// „Alle übernehmen" erscheint nur, wenn es etwas zu übernehmen GIBT -- ein Knopf, der nichts
+	// tut, ist schlimmer als keiner: man drückt ihn und hält das Ausbleiben für einen Fehler.
+	const sammelKnopf = $("ecoDisplayMedianAlleNehmen");
+	const offen = ecoDisplayMedianAbweichend(
+		zeilen.map((z) => z.key), ecoDisplayMedian, ecoDisplayVorgabe);
+	sammelKnopf.hidden = offen.length === 0 || !ecoDisplayDarfSpeichern;
+	sammelKnopf.textContent = offen.length === 1
+		? "Eine Art übernehmen"
+		: "Alle " + offen.length + " übernehmen";
+	sammelKnopf.title = offen.length
+		? "Setzt das Zoomband dieser " + offen.length + " Arten auf den gemessenen Median"
+		: "";
 	if (zeilen.length === 0) {
 		const tr = document.createElement("tr");
 		const td = document.createElement("td");
@@ -4044,6 +4096,12 @@ async function ecoDisplayOeffnen() {
 		// ⚠️ NACH dem ersten Zeichnen und OHNE `await` davor: die Kurven sind Beiwerk der
 		// Vorschau, und das Fenster soll nicht auf sie warten. Kommen sie an, zeichnet sich die
 		// Vorschau allein nach.
+		// ⚠️ Ebenfalls NACH dem ersten Zeichnen und ohne `await`: das Fenster steht sofort, der
+		// Median trägt sich nach. Wer schneller ist als die Anfrage, sieht kurz „Median ermitteln".
+		ecoDisplayMedianAlle().then(() => {
+			if ($("ecoDisplayDialog").hidden) { return; }
+			ecoDisplayZeichneBand();
+		});
 		ecoDisplayHoleKurven().then(() => {
 			if ($("ecoDisplayDialog").hidden) { return; }
 			ecoDisplayZeichneKurvenWahl();
@@ -4070,6 +4128,27 @@ $("ecoDisplay").addEventListener("click", () => { void ecoDisplayOeffnen(); });
 // ⚠️ Der Plot nimmt Tasten nur an, wenn er den Fokus hat -- deshalb haengt der Zuhoerer am SVG
 // (tabindex="0"), nicht am Dokument: ein globaler Zuhoerer fraesse die Pfeiltasten der ganzen Seite.
 $("ecoDisplayPlot").addEventListener("keydown", ecoDisplayPlotTaste);
+// 🔴 EIN Verb je Knopf. „Alle übernehmen" schreibt -- gemessen wird beim Öffnen und je Zeile.
+$("ecoDisplayMedianAlleNehmen").addEventListener("click", () => {
+	const kind = ecoDisplayReiter;
+	const arten = ecoDisplayZeilen(kind).filter((z) => z.hatName).map((z) => z.key);
+	const offen = ecoDisplayMedianAbweichend(arten, ecoDisplayMedian, ecoDisplayVorgabe);
+	if (offen.length === 0) { return; }
+	offen.forEach((art) => {
+		const m = ecoDisplayMedian[art];
+		// ⚠️ NUR das Band. `curveMax` und `prio` bleiben aussen vor: ihr Median IST der Grundwert
+		// (4 Ausreisser in 939 Beschriftungen bei der Prioritaet), und `curve_label_max` misst der
+		// Rechner nur dort, wo eine Kurve existiert.
+		ecoDisplayTafel.vorgabe[art] = Object.assign(ecoDisplayVorgabe(art), { ab: m.ab, bis: m.bis });
+	});
+	ecoDisplayBearbeitet = true;
+	ecoDisplayZeichneBand();
+	ecoDisplayZeichnePlot();
+	ecoDisplayMelde(offen.length === 1
+		? "Eine Art auf den Median gesetzt — noch nicht gespeichert."
+		: offen.length + " Arten auf den Median gesetzt — noch nicht gespeichert.");
+});
+
 $("ecoDisplayKurvenWahl").addEventListener("change", (ev) => {
 	ecoDisplayKurvenWahl = ev.target.value;
 	ecoDisplayZeichneKurvenVorschau();

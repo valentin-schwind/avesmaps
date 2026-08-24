@@ -45,8 +45,44 @@ assert.deepStrictEqual([0, 1, 2, 3, 4, 5, 6, 7, 8].map(alteGroesse), [9, 11, 13,
 	"und das sind die Zahlen, die live gemessen wurden");
 
 // ---- C. Band und die zwei kleinen Vorgaben ----------------------------------------------------
-assert.deepStrictEqual(avesmapsEcosystemDisplayBand("wald"), { ab: 0, bis: 7 },
-	"Vorgabe z0-z7, die heutigen Werte aus index.html");
+// 🔴 SEIT DEM 24.08.2026 IST DIE VORGABE NICHT MEHR UNIFORM. Hier stand `{ ab: 0, bis: 7 }` für
+// jede Art -- am Livebestand gemessen weichen davon **933 von 939** Beschriftungen ab. Ein Wald
+// erscheint typischerweise ab z4, ein Gebirge ab z2, eine Wüstenoase ab z5.
+//
+// ⚠️ Die Umstellung bewegt KEINE bestehende Beschriftung: alle 939 tragen ihr eigenes `min_zoom`,
+// und die fünf ohne `max_zoom` gehören Arten, deren Median dort ohnehin 7 ist. Sie wirkt erst auf
+// Beschriftungen, die von hier an entstehen.
+assert.deepStrictEqual(avesmapsEcosystemDisplayBand("wald"), { ab: 4, bis: 7 },
+	"Wald: der gemessene Median, nicht mehr z0");
+assert.deepStrictEqual(avesmapsEcosystemDisplayBand("gebirge"), { ab: 2, bis: 7 },
+	"Gebirge ab z2");
+assert.deepStrictEqual(avesmapsEcosystemDisplayBand("wuestenoase"), { ab: 5, bis: 7 },
+	"Wüstenoase ab z5 -- alle 9 stehen dort, die einzige Art mit 100 % Einigkeit");
+// 🔴 Und die einzige Art, deren OBERES Ende abweicht: ein Kontinentname verschwindet beim
+// Hineinzoomen. Genau dafür hat eine Landschaftsbeschriftung zwei Enden.
+assert.deepStrictEqual(avesmapsEcosystemDisplayBand("kontinent"), { ab: 0, bis: 3 },
+	"Kontinent bis z3");
+
+// ⚠️ Eine Art OHNE eigene Zeile faellt auf den Grundwert zurueck -- die Tafel ist eine Ergaenzung,
+// kein Ersatz. Ohne diesen Rueckfall haette eine neue Flaechenart gar keine Vorgabe.
+assert.deepStrictEqual(avesmapsEcosystemDisplayBand("gibtesnochnicht"), { ab: 0, bis: 7 },
+	"unbekannte Art: der Grundwert");
+
+// 💣 Die Tafel ist ein SCHNAPPSCHUSS vom 24.08.2026 und veraltet, sobald die Editoren
+// weiterarbeiten. Sie deckt genau die Arten ab, die damals im Bestand vorkamen -- wer sie
+// „aufraeumt", nimmt der Messung ihren einzigen Beleg.
+assert.strictEqual(Object.keys(AVESMAPS_ECOSYSTEM_DISPLAY_VORGABE_JE_ART).length, 28,
+	"28 Arten, so viele trug der Bestand bei der Messung");
+
+// 🔴 NUR das Band. `prio` hatte in 939 Beschriftungen genau 4 Ausreisser -- sein Median IST der
+// Grundwert, ihn je Art einzutragen taeuschte eine Messung vor, die nichts gemessen hat.
+Object.keys(AVESMAPS_ECOSYSTEM_DISPLAY_VORGABE_JE_ART).forEach((art) => {
+	const zeile = AVESMAPS_ECOSYSTEM_DISPLAY_VORGABE_JE_ART[art];
+	Object.keys(zeile).forEach((feld) => {
+		assert.ok(feld === "ab" || feld === "bis",
+			art + " traegt das Feld `" + feld + "` -- die Messung deckt nur `ab` und `bis`");
+	});
+});
 assert.strictEqual(avesmapsEcosystemDisplayVorgabe("wald").curveMax, 1);
 assert.strictEqual(avesmapsEcosystemDisplayVorgabe("wald").prio, 3);
 

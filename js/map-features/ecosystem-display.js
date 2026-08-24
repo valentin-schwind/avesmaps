@@ -51,7 +51,61 @@ const AVESMAPS_ECOSYSTEM_DISPLAY_GROESSE_LIMITS = { min: 4, max: 30 };
 // index.html (min_zoom 0, max_zoom 7, curve_label_max 1, priority 3).
 // ⚠️ Bewusst UNIFORM ueber alle Arten: eine Staffelung je Art hat nie jemand entschieden, und eine
 // geratene Vorgabe saehe aus wie eine getroffene.
+// Die Grundvorgabe -- sie gilt für jede Art, die unten keine eigene Zeile hat.
 const AVESMAPS_ECOSYSTEM_DISPLAY_VORGABE = { ab: 0, bis: 7, curveMax: 1, prio: 3 };
+
+/**
+ * Die Vorgabe JE ART, am Livebestand gemessen (24.08.2026, 939 Beschriftungen in 28 Arten).
+ *
+ * 🔴 Vorher stand hier für alle Arten dasselbe: z0 bis z7. Gemessen weichen davon **933 von 939**
+ * Beschriftungen ab -- die uniforme Vorgabe war für praktisch jede falsch. Ein Wald erscheint
+ * typischerweise ab z4, ein Gebirge ab z2, eine Wüstenoase ab z5.
+ *
+ * ⚠️ DAS BEWEGT HEUTE KEINE EINZIGE BESCHRIFTUNG. Alle 939 tragen ihr eigenes `min_zoom`, und die
+ * fünf ohne `max_zoom` gehören Arten, deren Median dort 7 ist -- also genau der alte Wert. Die
+ * Vorgabe wirkt erst auf Beschriftungen, die von hier an entstehen.
+ *
+ * 💣 Der Kommentar hinter jeder Zeile nennt die EINIGKEIT: bei `wuestenoase` stehen alle 9 auf
+ * z5, bei `graslandschaft` nur ein Drittel. Wer eine Zeile ändert, sieht damit sofort, ob er eine
+ * gefundene Regel anfasst oder eine Zahl, die ohnehin nur ein Drittel trägt.
+ *
+ * ⚠️ NUR `ab` und `bis`. `prio` hat in 939 Beschriftungen genau 4 Ausreisser -- sein Median IST
+ * der Grundwert. Und `curveMax` ist von aussen nicht vollständig messbar (die Nutzlast trägt ihn
+ * nur, wo eine Kurve gerechnet wurde); dafür ist „Median ermitteln" im Fenster die Quelle.
+ *
+ * ⭐ Diese Tafel ist ein SCHNAPPSCHUSS. Sie veraltet, sobald die Editoren weiterarbeiten --
+ * deshalb misst das Fenster beim Öffnen neu und bietet die Übernahme an.
+ */
+const AVESMAPS_ECOSYSTEM_DISPLAY_VORGABE_JE_ART = {
+	auenlandschaft: { ab: 4 },   // 10 Namen, 40 % einig
+	berggipfel: { ab: 4 },   // 69 Namen, 38 % einig
+	ebene: { ab: 3 },   // 2 Namen, 50 % einig
+	fluss: { ab: 4 },   // 21 Namen, 67 % einig
+	flussdelta: { ab: 2 },   // 2 Namen, 50 % einig
+	flussland_flusstal: { ab: 3 },   // 31 Namen, 94 % einig
+	gebirge: { ab: 2 },   // 76 Namen, 87 % einig
+	graslandschaft: { ab: 3 },   // 6 Namen, 33 % einig
+	hochebene: { ab: 3 },   // 3 Namen, 67 % einig
+	huegelland: { ab: 3 },   // 21 Namen, 43 % einig
+	insel: { ab: 2 },   // 103 Namen, 56 % einig
+	inselgruppe: { ab: 2 },   // 5 Namen, 40 % einig
+	kontinent: { bis: 3 },   // 1 Namen, 100 % einig
+	kueste: { ab: 2 },   // 5 Namen, 80 % einig
+	kulturlandschaft: { ab: 5 },   // 8 Namen, 63 % einig
+	meer: { ab: 2 },   // 32 Namen, 78 % einig
+	region: { ab: 2 },   // 125 Namen, 46 % einig
+	see: { ab: 4 },   // 144 Namen, 73 % einig
+	sonstiges: { ab: 4 },   // 1 Namen, 100 % einig
+	steppe: { ab: 2 },   // 10 Namen, 90 % einig
+	suempfe_moore: { ab: 3 },   // 45 Namen, 49 % einig
+	tal: { ab: 2 },   // 29 Namen, 55 % einig
+	tiefebene: { ab: 3 },   // 5 Namen, 80 % einig
+	vulkan: { ab: 3 },   // 4 Namen, 75 % einig
+	wadi: { ab: 5 },   // 4 Namen, 75 % einig
+	wald: { ab: 4 },   // 163 Namen, 67 % einig
+	wueste: { ab: 2 },   // 5 Namen, 60 % einig
+	wuestenoase: { ab: 5 },   // 9 Namen, 100 % einig
+};
 
 // 🔴 Die Karte kennt Stufe 8 nicht (maxZoom: 7 in js/app/bootstrap.js). z8 erbt z7 -- dieselbe
 // Regel wie bei den Zoombaendern.
@@ -205,8 +259,12 @@ function avesmapsEcosystemDisplayGroesse(subtype, zoom) {
 function avesmapsEcosystemDisplayVorgabe(subtype) {
 	const eigen = avesmapsEcosystemDisplayTeil("vorgabe")[String(subtype || "")];
 	const raus = {};
+	const jeArt = AVESMAPS_ECOSYSTEM_DISPLAY_VORGABE_JE_ART[String(subtype || "")] || {};
 	Object.keys(AVESMAPS_ECOSYSTEM_DISPLAY_VORGABE).forEach((feld) => {
-		const wert = eigen && typeof eigen[feld] === "number" ? eigen[feld] : AVESMAPS_ECOSYSTEM_DISPLAY_VORGABE[feld];
+		// Reihenfolge: was der Admin übersteuert hat, dann die gemessene Vorgabe dieser Art, dann
+		// der Grundwert. Die mittlere Stufe ist neu -- vorher gab es nur „übersteuert oder uniform".
+		const wert = (eigen && typeof eigen[feld] === "number") ? eigen[feld]
+			: (typeof jeArt[feld] === "number" ? jeArt[feld] : AVESMAPS_ECOSYSTEM_DISPLAY_VORGABE[feld]);
 		raus[feld] = wert;
 	});
 	return raus;
@@ -264,5 +322,6 @@ function avesmapsLoadEcosystemDisplay() {
 if (typeof globalThis !== "undefined") {
 	globalThis.AVESMAPS_ECOSYSTEM_DISPLAY_DECKKRAFT = AVESMAPS_ECOSYSTEM_DISPLAY_DECKKRAFT;
 	globalThis.AVESMAPS_ECOSYSTEM_DISPLAY_VORGABE = AVESMAPS_ECOSYSTEM_DISPLAY_VORGABE;
+	globalThis.AVESMAPS_ECOSYSTEM_DISPLAY_VORGABE_JE_ART = AVESMAPS_ECOSYSTEM_DISPLAY_VORGABE_JE_ART;
 	globalThis.AVESMAPS_ECOSYSTEM_DISPLAY_BAND_MAX = AVESMAPS_ECOSYSTEM_DISPLAY_BAND_MAX;
 }

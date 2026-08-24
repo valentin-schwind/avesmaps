@@ -141,4 +141,60 @@ const umE = rechner.slice(rechner.lastIndexOf("$unten", vonE), vonE);
 assert.ok(/\$gesammelt\['ab'\]/.test(rechner.slice(vonE - 400, vonE)),
 	"und zwar ueber das UNTERE Bandende, nicht ueber irgendein Feld");
 
+// ---- I. Der Median kommt von SELBST ---------------------------------------------------------------
+// Owner 24.08.2026: „oder du rechnest ihn automatisch, wenns schnell geht". Gemessen: die Abfrage
+// liest rund 950 KB `properties_json` (939 Beschriftungen) -- die Groessenordnung der
+// Vorkommen-Abfrage, weit unter der Kartennutzlast, und das Fenster geht selten auf.
+assert.ok(/async function ecoDisplayMedianAlle\(/.test(editor),
+	"es gibt einen Sammelabruf des Medians");
+const vonA = editor.indexOf("async function ecoDisplayMedianAlle(");
+const rumpfA = editor.slice(vonA, editor.indexOf(String.fromCharCode(10) + "}", vonA));
+assert.ok(/action: "median"/.test(rumpfA), "er fragt die Messung");
+// 🔴 Und er SCHREIBT NICHTS -- der Median ist eine Messung, keine Uebernahme.
+assert.ok(!/ecoDisplayTafel/.test(rumpfA), "das automatische Messen aendert die Tafel nicht");
+assert.ok(!/action: "save"/.test(rumpfA), "und speichert nichts");
+// ⚠️ Er muss beim Oeffnen wirklich angestossen werden -- sonst ist er eine tote Funktion.
+const vonO = editor.indexOf("async function ecoDisplayOeffnen");
+assert.ok(vonO >= 0, "der Oeffner steht in der Datei");
+assert.ok(/ecoDisplayMedianAlle\(\)/.test(editor.slice(vonO, vonO + 4000)),
+	"und wird beim Oeffnen angestossen");
+
+// ---- J. 💣 „Alle uebernehmen" ruehrt nur an, was ABWEICHT ------------------------------------------
+// Eine Uebernahme, die bei jeder Art einen Wert setzt, macht aus einem ungesetzten Feld (= „nimm
+// die Vorgabe") eine feste Zahl. Die Tafel saehe danach voll aus, ohne dass sich etwas geaendert
+// hat -- und ein spaeterer Nachmessen-Lauf haette nichts mehr zu sagen.
+const vonAb = editor.indexOf("function ecoDisplayMedianAbweichend(");
+assert.ok(vonAb >= 0, "die Auswahl steht als reine Funktion da");
+const ecoDisplayMedianAbweichend = new Function(
+	editor.slice(vonAb, editor.indexOf(String.fromCharCode(10) + "}", vonAb) + 2)
+		+ "; return ecoDisplayMedianAbweichend;"
+)();
+
+const gilt = (art) => ({ wald: { ab: 4, bis: 7 }, gebirge: { ab: 2, bis: 7 } })[art] || { ab: 0, bis: 7 };
+const gemessen = {
+	wald: { ab: 4, bis: 7 },        // deckt sich mit der Vorgabe -> nichts zu tun
+	gebirge: { ab: 1, bis: 7 },     // weicht ab
+	tal: { ab: 2, bis: 7 },         // weicht vom Grundwert ab
+};
+assert.deepStrictEqual(
+	ecoDisplayMedianAbweichend(["wald", "gebirge", "tal"], gemessen, gilt), ["gebirge", "tal"],
+	"nur die zwei, bei denen sich wirklich etwas aendert");
+
+// ⚠️ Eine Art OHNE Messung faellt heraus -- ohne diese Wache setzte die Uebernahme `undefined`.
+assert.deepStrictEqual(ecoDisplayMedianAbweichend(["ohnemessung"], gemessen, gilt), [],
+	"was nicht gemessen wurde, wird nicht uebernommen");
+assert.deepStrictEqual(ecoDisplayMedianAbweichend(["kaputt"], { kaputt: { ab: "zwei" } }, gilt), [],
+	"und ein Unwert ebenso wenig");
+
+// 🔴 Verglichen wird gegen das, was JETZT gilt -- nicht gegen den Grundwert. Was der Admin schon
+// von Hand gesetzt hat, ist gewollt und wird nicht ueberfahren.
+const gesetzt = (art) => (art === "gebirge" ? { ab: 1, bis: 7 } : { ab: 0, bis: 7 });
+assert.deepStrictEqual(ecoDisplayMedianAbweichend(["gebirge"], gemessen, gesetzt), [],
+	"ein von Hand gesetzter Wert, der dem Median entspricht, bleibt unangetastet");
+
+// ⚠️ Der Knopf darf nicht dastehen, wenn es nichts zu tun gibt: man drueckt ihn und haelt das
+// Ausbleiben fuer einen Fehler.
+assert.ok(/sammelKnopf\.hidden = offen\.length === 0/.test(editor),
+	"ohne Abweichung ist der Sammelknopf versteckt");
+
 console.log("darstellung-band: alle Zusicherungen gruen");
