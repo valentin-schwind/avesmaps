@@ -537,6 +537,122 @@ function avesmapsWikiBotSitzungSicherstellen(): bool {
 }
 
 /**
+ * DIE ANMELDUNG WIRKLICH VERSUCHEN und sagen, woran sie liegt.
+ *
+ * ⭐ WOZU ES DAS GIBT: avesmapsWikiBotStatusShape() loest bewusst KEINE Anmeldung aus -- es
+ * beantwortet nur "steht etwas in der Konfiguration?". Damit lassen sich die beiden Faelle, die
+ * einen Betreiber wirklich beschaeftigen, nicht unterscheiden: "eingetragen und richtig" gegen
+ * "eingetragen und vom Wiki abgelehnt". Der Grund der Ablehnung lief bisher nur als kurze rote
+ * Zeile durch die Statusanzeige eines laufenden Dumps vorbei -- und wer ihn verpasst, hat nichts.
+ *
+ * 🔴 DAS PASSWORT KOMMT HIER NIE HERAUS -- nur seine LAENGE und ob es die Form eines
+ * MediaWiki-Botpassworts hat (32 Zeichen, nur Kleinbuchstaben und Ziffern). Der BENUTZERNAME
+ * dagegen wird genannt: er ist oeffentlich (das Botkonto steht in "Wiki Aventurica:Roboter/Liste"),
+ * und er ist die haeufigste Fehlerquelle ueberhaupt -- ein Botpasswort verlangt die Form
+ * `Konto@Botname`, nicht das blosse Konto. Ihn zu verschweigen hiesse, die Frage nicht zu
+ * beantworten, fuer die es diese Funktion gibt.
+ *
+ * ⚠️ Der Aufruf KOSTET zwei gedrosselte Fremdanfragen (Token, dann Anmeldung) und dauert damit
+ * bis zu einer Minute. Er gehoert an einen Knopf, nie in eine Statusabfrage, die nebenbei laeuft.
+ *
+ * @return array<string, mixed>
+ */
+function avesmapsWikiBotDiagnose(): array {
+    $zugang = avesmapsWikiBotZugangLesen();
+
+    $befund = [
+        'hinterlegt' => $zugang !== null,
+        'benutzer' => '',
+        'benutzer_hat_at' => false,
+        'passwort_laenge' => 0,
+        'passwort_hat_botform' => false,
+        'status' => 'unversucht',
+        'grund' => '',
+        'urteil' => '',
+    ];
+
+    if ($zugang === null) {
+        $befund['urteil'] = 'In api/config.local.php steht unter "wiki" kein vollstaendiger Zugang: '
+            . 'es braucht BEIDE Felder, bot_username UND bot_password. Ein halber Zugang wird gar '
+            . 'nicht erst versucht.';
+
+        return $befund;
+    }
+
+    $benutzer = (string) $zugang['username'];
+    $passwort = (string) $zugang['password'];
+
+    $befund['benutzer'] = $benutzer;
+    $befund['benutzer_hat_at'] = str_contains($benutzer, '@');
+    $befund['passwort_laenge'] = strlen($passwort);
+    $befund['passwort_hat_botform'] = preg_match('/^[a-z0-9]{32}$/', $passwort) === 1;
+
+    // Die Anmeldung erzwingen: der Zustand ist in einer frischen Anfrage ohnehin "unversucht",
+    // aber ein ausdruecklicher Rueckstellwert macht die Funktion vom Aufrufort unabhaengig.
+    avesmapsWikiBotZustand(['status' => 'unversucht', 'grund' => '', 'cookies' => []]);
+    avesmapsWikiBotSitzungSicherstellen();
+
+    $zustand = avesmapsWikiBotZustand();
+    $befund['status'] = (string) ($zustand['status'] ?? 'unversucht');
+    $befund['grund'] = (string) ($zustand['grund'] ?? '');
+
+    $befund['urteil'] = avesmapsWikiBotDiagnoseUrteil($befund);
+
+    return $befund;
+}
+
+/**
+ * REIN: aus den Befunden EIN Satz, der sagt, was zu tun ist.
+ *
+ * 💣 Die Reihenfolge ist die Aussagekraft: die FORM der Zugangsdaten schlaegt den Grund vom
+ * Wiki. "Incorrect username or password" ist dieselbe Meldung fuer ein falsches Passwort wie
+ * fuer einen Benutzernamen ohne `@Botname` -- die Form wissen wir aber selbst, und sie ist die
+ * haeufigere Ursache. Erst wenn die Form stimmt, ist der Grund vom Wiki die beste Auskunft.
+ *
+ * @param array<string, mixed> $befund
+ */
+function avesmapsWikiBotDiagnoseUrteil(array $befund): string {
+    $status = (string) ($befund['status'] ?? '');
+    $grund = trim((string) ($befund['grund'] ?? ''));
+
+    if ($status === 'bot') {
+        return 'Alles in Ordnung: die Anmeldung steht, der Lauf holt 500 Titel je Anfrage.';
+    }
+
+    if (!(bool) ($befund['benutzer_hat_at'] ?? false)) {
+        return 'Der Benutzername hat kein "@". Ein MediaWiki-Botpasswort verlangt die Form '
+            . 'Konto@Botname -- also z.B. "Avesmaps@Dump", genau wie es Spezial:BotPasswords oben '
+            . 'anzeigt, nachdem das Passwort erzeugt wurde. Nur "Avesmaps" wird immer abgelehnt, '
+            . 'auch wenn das Passwort stimmt.';
+    }
+
+    if (!(bool) ($befund['passwort_hat_botform'] ?? false)) {
+        return 'Das Passwort hat nicht die Form eines Botpassworts (32 Zeichen, nur '
+            . 'Kleinbuchstaben und Ziffern; hinterlegt sind '
+            . (int) ($befund['passwort_laenge'] ?? 0) . '). Wahrscheinlich steht dort das '
+            . 'KONTO-Passwort -- das lehnt MediaWiki fuer die API grundsaetzlich ab. Gebraucht '
+            . 'wird die Zeichenkette, die Spezial:BotPasswords EINMAL nach dem Erzeugen anzeigt.';
+    }
+
+    if ($grund === 'kein Login-Token') {
+        return 'Das Wiki hat schon den Login-Token verweigert -- das liegt NICHT an den '
+            . 'Zugangsdaten, sondern am Zugang zur API selbst (Sperre, Netzfehler oder '
+            . 'Wartung). Das Fehlerprotokoll nennt unter "wiki_bot_login_no_token" den '
+            . 'HTTP-Status.';
+    }
+
+    if ($grund !== '') {
+        return 'Form der Zugangsdaten ist in Ordnung, das Wiki lehnt sie trotzdem ab: "' . $grund
+            . '". Dann bleiben drei Ursachen: das Botpasswort wurde zurueckgezogen (das passiert '
+            . 'automatisch, sobald das KONTO-Passwort geaendert wird), der Botname nach dem "@" '
+            . 'stimmt nicht, oder das Botpasswort traegt eine IP-Beschraenkung, die unsere '
+            . 'Server-Adresse 81.169.144.135 nicht enthaelt.';
+    }
+
+    return 'Die Anmeldung ist gescheitert, ohne dass das Wiki einen Grund genannt hat.';
+}
+
+/**
  * Die Stapelgroesse fuer `titles=`-Abfragen -- und der EINZIGE Ausloeser der Anmeldung.
  *
  * ⭐ Den Login verursacht, wer von ihm profitiert. Eine einzelne Suche im Zuweisungsdialog bleibt

@@ -253,6 +253,15 @@ try {
             avesmapsJsonResponse(200, ['ok' => true, 'synced' => $lastSynced]);
         }
 
+        if ($action === 'bot_check') {
+            // Die Anmeldung WIRKLICH versuchen und sagen, woran sie liegt. Eigene Aktion und
+            // NICHT Teil von 'status': jene laeuft bei jedem Oeffnen des Panels und darf keine
+            // zwei gedrosselten Fremdanfragen kosten (bis zu einer Minute).
+            // ⚠️ Schreibt nichts und nimmt die Pipeline-Sperre nicht -- sie darf waehrend eines
+            // laufenden Dumps aufgerufen werden. Der Lauf wartet dadurch einmalig einen Takt.
+            avesmapsJsonResponse(200, ['ok' => true, 'bot' => avesmapsWikiBotDiagnose()]);
+        }
+
         if ($action !== 'status') {
             avesmapsErrorResponse(400, 'invalid_request', 'Unknown dump action for GET.');
         }
