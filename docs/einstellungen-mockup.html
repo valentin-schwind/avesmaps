@@ -29,7 +29,10 @@
 <!-- 🔴 RELATIVE Pfade, Absicht: eine docs/-Datei, die per file:// geoeffnet wird. Geladen wird die
      ECHTE CSS-Kette der Editorseiten (fonts, tokens, editor-page).
      ⭐ Dadurch steht in dieser Datei KEIN einziger Farbwert und kein einziger Radius -- alles kommt
-     aus css/base/tokens.css. Genau das ist auch der Bauplan fuers echte Fenster (AGENTS.md §12). -->
+     aus css/base/tokens.css. Genau das ist auch der Bauplan fuers echte Fenster (AGENTS.md §12).
+     ⭐ Die Reiter benutzen das HAUSBAUTEIL .avm-tabs/.avm-tab aus editor-page.css -- dieselbe Form
+     wie im Wege-Editor. Kein zweites Reiter-Rezept (AGENTS.md §11, "die Listenzeile: ZWEI ist die
+     Obergrenze"). -->
 <link rel="stylesheet" href="../css/base/fonts.css">
 <link rel="stylesheet" href="../css/base/tokens.css">
 <link rel="stylesheet" href="../css/components/editor-page.css">
@@ -45,18 +48,27 @@
 
 body { background: var(--color-page-bg); color: var(--color-text); font-family: var(--font-ui); margin: 0; }
 
-.es-page { max-width: 900px; margin: 0 auto; padding: var(--space-24) var(--space-16); }
+.es-page { max-width: 940px; margin: 0 auto; padding: var(--space-24) var(--space-16); }
 
 /* ── Kopf ───────────────────────────────────────────────────────────────────────────────── */
 .es-head { display: flex; align-items: baseline; gap: var(--space-12); flex-wrap: wrap; margin-bottom: var(--space-6); }
 .es-head h1 { margin: 0; font-size: var(--font-size-title); font-weight: var(--font-weight-bold); color: var(--color-text-strong); }
 .es-head__back { font-size: var(--font-size-small); color: var(--color-link); text-decoration: none; }
 .es-head__back:hover { color: var(--color-link-hover); text-decoration: underline; }
-.es-lead { margin: 0 0 var(--space-20); font-size: var(--font-size-reading); line-height: 1.5; color: var(--color-text-muted); max-width: 68ch; }
+.es-lead { margin: 0 0 var(--space-16); font-size: var(--font-size-reading); line-height: 1.5; color: var(--color-text-muted); max-width: 68ch; }
+
+/* ── Reiter: das Hausbauteil, nur um den Zaehler ergaenzt ───────────────────────────────── */
+.es-tabs { margin-bottom: var(--space-16); }
+.es-tab__count {
+	margin-left: var(--space-6); padding: 0 var(--space-6);
+	border-radius: var(--radius-md); background: var(--color-pill);
+	color: var(--color-pill-text); font-size: var(--font-size-caption);
+}
+.es-panel[hidden] { display: none; }
 
 /* ── Abschnitt: Gruppierung durch TRENNLINIE, nicht durch gerahmte Kaesten (AGENTS.md §12) ─ */
 .es-section { border-top: 1px solid var(--color-divider); padding-top: var(--space-16); margin-top: var(--space-24); }
-.es-section:first-of-type { border-top: 0; margin-top: 0; }
+.es-section:first-of-type { border-top: 0; margin-top: 0; padding-top: 0; }
 .es-section > h2 {
 	margin: 0 0 var(--space-4); font-size: var(--font-size-subhead);
 	font-weight: var(--font-weight-bold); color: var(--color-text-strong);
@@ -76,8 +88,14 @@ body { background: var(--color-page-bg); color: var(--color-text); font-family: 
 .es-row__name { font-size: var(--font-size-body); color: var(--color-text-strong); }
 .es-row__note { display: block; margin-top: var(--space-2); font-size: var(--font-size-caption); line-height: 1.45; color: var(--color-text-muted); }
 .es-row__control { flex: 0 1 auto; display: flex; align-items: center; gap: var(--space-8); flex-wrap: wrap; }
-.es-btn--wide { max-width: 100%; }
-.es-table { display: block; overflow-x: auto; }
+
+/* Woher der Wert heute kommt -- die Herkunftsmarke. Ein `?param=`, der nur existiert, um einen
+   Wert zu FINDEN, ist der staerkste Kandidat fuer dieses Fenster. */
+.es-src {
+	display: inline-block; margin-left: var(--space-6); padding: 0 var(--space-6);
+	border: 1px solid var(--color-border); border-radius: var(--radius-md);
+	font-size: var(--font-size-caption); color: var(--color-text-muted);
+}
 
 /* ── Bedienelemente ─────────────────────────────────────────────────────────────────────── */
 .es-num { width: 5.5em; }
@@ -105,11 +123,11 @@ input[type="number"].es-num, input[type="text"].es-num, select.es-sel {
 	font-weight: var(--font-weight-bold);
 }
 .es-btn--primary:hover { background: var(--color-button-hover); box-shadow: var(--shadow-button-hover-strong); }
-.es-btn--wide { min-width: 17em; }
+.es-btn--wide { min-width: 17em; max-width: 100%; }
 
 /* ── Speicherleiste JE ABSCHNITT -- die Abschnitte haben verschiedene Ablagen ────────────── */
 .es-savebar {
-	display: flex; align-items: center; gap: var(--space-10);
+	display: flex; align-items: center; gap: var(--space-10); flex-wrap: wrap;
 	margin-top: var(--space-12); padding-top: var(--space-10);
 	border-top: 1px solid var(--color-divider);
 }
@@ -126,7 +144,7 @@ input[type="number"].es-num, input[type="text"].es-num, select.es-sel {
 .es-state--on { border-color: var(--color-success-soft-border); background: var(--color-success-soft); color: var(--color-success-soft-text); }
 .es-state--off { border-color: var(--color-danger-soft-border); background: var(--color-danger-soft); color: var(--color-danger-soft-text); }
 
-.es-table { width: 100%; border-collapse: collapse; }
+.es-table { width: 100%; border-collapse: collapse; display: block; overflow-x: auto; }
 .es-table th {
 	text-align: left; padding: var(--space-6) var(--space-8) var(--space-6) 0;
 	border-bottom: 1px solid var(--color-divider);
@@ -139,14 +157,21 @@ input[type="number"].es-num, input[type="text"].es-num, select.es-sel {
 .es-table__where a { color: var(--color-link); }
 
 /* ── Der Fortschritt sitzt IM Knopf, wie ueberall im Haus ───────────────────────────────── */
-.es-progress {
-	position: relative; overflow: hidden;
-}
+.es-progress { position: relative; overflow: hidden; }
 .es-progress::before {
 	content: ""; position: absolute; inset: 0 auto 0 0; width: var(--es-progress, 0%);
 	background: var(--color-accent-brown-soft); pointer-events: none;
 }
 .es-progress > span { position: relative; }
+
+/* ── „Kommt spaeter" -- ein Abschnitt, der seinen Platz schon zeigt ─────────────────────── */
+.es-later { opacity: .62; }
+.es-later__tag {
+	display: inline-block; margin-left: var(--space-8); padding: 0 var(--space-6);
+	border: 1px dashed var(--color-border-strong); border-radius: var(--radius-md);
+	font-size: var(--font-size-caption); color: var(--color-text-muted);
+	text-transform: none; letter-spacing: 0;
+}
 
 /* ── Nur im Mockup: der Erklaerkasten ───────────────────────────────────────────────────── */
 .proto-note {
@@ -166,8 +191,9 @@ input[type="number"].es-num, input[type="text"].es-num, select.es-sel {
 	<p class="proto-note">
 		<strong>Mockup, noch nichts Gebautes</strong> — Abstimmung 25.08.2026. Entwurf:
 		<code>docs/superpowers/specs/2026-08-25-einstellungen-fenster-design.md</code>.
-		Alle Zahlen unten sind die <strong>heutigen</strong> Werte aus dem Code; die Seite ändert am
-		Betrieb nichts, außer dass „📥 Dump holen“ hierher wandert.
+		Alle Zahlen sind die <strong>heutigen</strong> Werte aus dem Code.
+		Abschnitte mit <span class="es-later__tag">später</span> zeigen nur, wo etwas hingehört —
+		gebaut wird in Stufe 1 nur, was heute <em>nirgends</em> bedienbar ist, plus „Dump holen“.
 	</p>
 
 	<div class="es-head">
@@ -179,244 +205,476 @@ input[type="number"].es-num, input[type="text"].es-num, select.es-sel {
 		Endpunkt dahinter prüft dieselbe Berechtigung noch einmal selbst.
 	</p>
 
-	<!-- ═══ 1. WIKI-DATEN ═══════════════════════════════════════════════════════════════════
-	     Der volle Dump-Lauf zieht aus dem WikiSync-Panel hierher (Entwurf §4). Im eigenen Tab
-	     ist das ein Gewinn: der Lauf dauert Minuten, die Karte daneben bleibt benutzbar. -->
-	<section class="es-section">
-		<h2>Wiki-Daten</h2>
-		<p class="es-section__hint">
-			„Dump holen“ lädt den kompletten Wiki-Dump neu, liest ihn in eine Sandbox ein, räumt alte
-			Stände auf und zeigt am Ende, was sich bei den Publikationsquellen ändern würde —
-			geschrieben wird erst, was du in der Vorschau anhäkelst. Der Lauf dauert einige Minuten.
-		</p>
+	<!-- 🔴 Das HAUSBAUTEIL .avm-tabs/.avm-tab, nicht ein zweites Reiter-Rezept.
+	     Die Zahl sagt, wie viele Einstellungen der Reiter traegt -- sie waechst mit und macht
+	     sichtbar, wo das Fenster schwer wird. -->
+	<div class="avm-tabs es-tabs" role="tablist">
+		<!-- 💣 Der Zaehler steht NICHT im Markup. Beim ersten Bau stand hier eine abgeschriebene Zahl
+		     ("Karte 8"), und der Reiter trug schon in derselben Stunde 9 Zeilen -- eine Zahl, die
+		     ihren eigenen Inhalt behauptet, laeuft von der ersten Aenderung an auseinander
+		     (dieselbe Lehre wie bei der Bilanzzeile der WikiSync-Listen: EIN Erzeuger).
+		     Gefuellt wird er unten aus dem DOM. -->
+		<button type="button" class="avm-tab is-active" role="tab" aria-selected="true" data-panel="karte">Karte<span class="es-tab__count"></span></button>
+		<button type="button" class="avm-tab" role="tab" aria-selected="false" data-panel="beschriftung">Beschriftung<span class="es-tab__count"></span></button>
+		<button type="button" class="avm-tab" role="tab" aria-selected="false" data-panel="reisen">Reisen<span class="es-tab__count"></span></button>
+		<button type="button" class="avm-tab" role="tab" aria-selected="false" data-panel="inhalte">Inhalte<span class="es-tab__count"></span></button>
+		<button type="button" class="avm-tab" role="tab" aria-selected="false" data-panel="wiki">Wiki &amp; Daten<span class="es-tab__count"></span></button>
+		<button type="button" class="avm-tab" role="tab" aria-selected="false" data-panel="gemeinschaft">Gemeinschaft<span class="es-tab__count"></span></button>
+		<button type="button" class="avm-tab" role="tab" aria-selected="false" data-panel="betrieb">Betrieb<span class="es-tab__count"></span></button>
+	</div>
 
-		<div class="es-row">
-			<div class="es-row__label">
-				<span class="es-row__name">Wiki-Dump holen und einlesen</span>
-				<span class="es-row__note">Letzter Lauf: 24.08.2026, 21:14 · Dump geholt: 24.08.2026, 20:47</span>
-			</div>
-			<div class="es-row__control">
-				<button class="es-btn es-btn--primary es-btn--wide es-progress" style="--es-progress:0%"><span>📥 Dump holen</span></button>
-			</div>
-		</div>
+	<!-- ═══════════════════════════════════════════════════════════════════════════════════════
+	     REITER 1 — KARTE
+	     Was ein Besucher sieht, bevor er etwas anfasst. Hier sammeln sich die Werte, die heute
+	     nur ueber die ADRESSZEILE erreichbar sind (?fillopacity=, ?leafbg=, ?hatchopacity=,
+	     ?smoothLines=) -- ein Parameter, der nur existiert, um einen Wert zu finden, ist der
+	     staerkste Kandidat fuer dieses Fenster.
+	     ═══════════════════════════════════════════════════════════════════════════════════════ -->
+	<div class="es-panel" role="tabpanel" data-panel="karte">
 
-		<!-- Der laufende Zustand, nur zur Ansicht im Mockup: der Fortschritt sitzt IM Knopf, wie
-		     im Panel heute schon. Eine Leiste darunter schob das Fenster mitten im Klick nach unten. -->
-		<div class="es-row">
-			<div class="es-row__label">
-				<span class="es-row__name" style="color:var(--color-text-muted)">— während des Laufs sieht der Knopf so aus —</span>
-				<span class="es-row__note">Der Fortschritt sitzt im Knopf, den man gerade gedrückt hat; darunter erscheint nichts, was die Seite verschiebt.</span>
-			</div>
-			<div class="es-row__control">
-				<button class="es-btn es-btn--primary es-btn--wide es-progress" style="--es-progress:64%" disabled><span>Phase 4/7: Weiterleitungen (12 480 Seiten)</span></button>
-			</div>
-		</div>
+		<section class="es-section">
+			<h2>Erster Eindruck</h2>
+			<p class="es-section__hint">Womit die Karte aufgeht, wenn niemand einen Link mit Parametern geschickt hat.</p>
 
-		<div class="es-row">
-			<div class="es-row__label">
-				<span class="es-row__name">Dump-Zugangsdaten</span>
-				<span class="es-row__note">
-					Benutzer <strong>avesmaps-dump</strong> · Passwort gespeichert.
-					Bisher ließen sie sich nur ändern, <em>nachdem</em> ein Lauf daran gescheitert war.
-				</span>
+			<div class="es-row">
+				<div class="es-row__label">
+					<span class="es-row__name">Startzoom</span>
+					<span class="es-row__note">
+						⚠️ Gekoppelt mit „Sichtbar bis Zoom“ des Kontinent-Labels — laufen die beiden
+						auseinander, landet der Start woanders als die Suche nach „Aventurien“.
+						<span class="es-src">bootstrap.js</span>
+					</span>
+				</div>
+				<div class="es-row__control">
+					<input class="es-num" type="number" value="3" min="0" max="7" step="1" aria-label="Startzoom">
+					<span class="es-unit">am Telefon weiter heraus um</span>
+					<input class="es-num" type="number" value="1" min="0" max="3" step="1" aria-label="Abzug am Telefon">
+				</div>
 			</div>
-			<div class="es-row__control">
-				<button class="es-btn">Ändern …</button>
-			</div>
-		</div>
 
-		<div class="es-row">
-			<div class="es-row__label">
-				<span class="es-row__name">Letzter Laufbericht</span>
-				<span class="es-row__note">Unauffällig · 24.08.2026, 21:14 · 0 Selbsttests rot</span>
+			<div class="es-row">
+				<div class="es-row__label">
+					<span class="es-row__name">Startmittelpunkt</span>
+					<span class="es-row__note">Kartenkoordinaten x / y. <span class="es-src">bootstrap.js</span></span>
+				</div>
+				<div class="es-row__control">
+					<input class="es-num es-num--wide" type="number" value="520.5" step="0.01" aria-label="Startmittelpunkt x">
+					<input class="es-num es-num--wide" type="number" value="497.28" step="0.01" aria-label="Startmittelpunkt y">
+				</div>
 			</div>
-			<div class="es-row__control">
-				<button class="es-btn">Bericht öffnen</button>
-			</div>
-		</div>
-	</section>
 
-	<!-- ═══ 2. DARSTELLUNG ══════════════════════════════════════════════════════════════════
-	     Ein app_setting-Schluessel `map_display_settings` (+ _stamp), JSON, nach dem Vorbild von
-	     location_zoom_bands. Die Vorgaben reproduzieren das heutige Bild Ziffer fuer Ziffer. -->
-	<section class="es-section">
-		<h2>Darstellung</h2>
-		<p class="es-section__hint">
-			Was ein Besucher sieht, bevor er etwas anfasst. Alle Werte stehen auf dem heutigen Stand —
-			„Zurücksetzen“ löscht die gespeicherte Zeile wieder, statt eine Kopie zu hinterlassen.
-		</p>
+			<div class="es-row">
+				<div class="es-row__label">
+					<span class="es-row__name">Kartenstil</span>
+					<span class="es-row__note">
+						Nur der erste Eindruck: <code>?mapstyle=</code> und die gespeicherte Wahl eines
+						Editors schlagen ihn. <span class="es-src">?mapstyle=</span>
+					</span>
+				</div>
+				<div class="es-row__control">
+					<select class="es-sel" aria-label="Kartenstil"><option selected>Stylized</option><option>Original</option></select>
+				</div>
+			</div>
 
-		<div class="es-row">
-			<div class="es-row__label">
-				<span class="es-row__name">Beim Zoomwechsel überblenden</span>
-				<span class="es-row__note">
-					Ortsmarkierungen und Beschriftungen blenden beim Zoomen weich aus und wieder ein,
-					statt hart umzuspringen. Grundkarte, Grenzen, Wege und Kraftlinien sind davon nicht
-					berührt — die skalieren ohnehin mit.
-				</span>
+			<div class="es-savebar">
+				<button class="es-btn es-btn--primary">Speichern</button>
+				<button class="es-btn">Zurücksetzen</button>
+				<span class="es-savebar__spacer"></span>
+				<span class="es-savebar__msg">Alle Werte wie im Code.</span>
 			</div>
-			<div class="es-row__control">
-				<label class="es-check"><input type="checkbox" checked> an</label>
-			</div>
-		</div>
+		</section>
 
-		<div class="es-row">
-			<div class="es-row__label">
-				<span class="es-row__name">Dauer der Überblendung</span>
-				<span class="es-row__note">Hinaus beim Zoomstart, herein wenn die Stufe steht.</span>
+		<section class="es-section">
+			<h2>Bewegung</h2>
+			<div class="es-row">
+				<div class="es-row__label">
+					<span class="es-row__name">Beim Zoomwechsel überblenden</span>
+					<span class="es-row__note">
+						Ortsmarkierungen und Beschriftungen blenden weich aus und wieder ein, statt hart
+						umzuspringen. Grundkarte, Grenzen, Wege und Kraftlinien sind nicht berührt — die
+						skalieren ohnehin mit. <span class="es-src">nur im Code</span>
+					</span>
+				</div>
+				<div class="es-row__control">
+					<label class="es-check"><input type="checkbox" checked> an</label>
+					<input class="es-num" type="number" value="100" min="0" max="1000" step="10" aria-label="Dauer hinaus">
+					<span class="es-unit">ms hinaus</span>
+					<input class="es-num" type="number" value="200" min="0" max="1000" step="10" aria-label="Dauer herein">
+					<span class="es-unit">ms herein</span>
+				</div>
 			</div>
-			<div class="es-row__control">
-				<input class="es-num" type="number" value="100" min="0" max="1000" step="10" aria-label="Dauer hinaus in Millisekunden">
-				<span class="es-unit">ms hinaus</span>
-				<input class="es-num" type="number" value="200" min="0" max="1000" step="10" aria-label="Dauer herein in Millisekunden">
-				<span class="es-unit">ms herein</span>
-			</div>
-		</div>
 
-		<div class="es-row">
-			<div class="es-row__label">
-				<span class="es-row__name">Startzoom</span>
-				<span class="es-row__note">
-					⚠️ Gekoppelt mit „Sichtbar bis Zoom“ des Kontinent-Labels — laufen die beiden
-					auseinander, landet der Start woanders als die Suche nach „Aventurien“.
-				</span>
+			<div class="es-row">
+				<div class="es-row__label">
+					<span class="es-row__name">Kraftlinien pulsieren</span>
+					<span class="es-row__note">
+						Die Stränge werden jeden Bildtakt neu gezeichnet (~30 fps). Aus heißt: sie liegen
+						still. <span class="es-src">POWERLINE_RENDER_CONFIG</span>
+					</span>
+				</div>
+				<div class="es-row__control"><label class="es-check"><input type="checkbox" checked> an</label></div>
 			</div>
-			<div class="es-row__control">
-				<input class="es-num" type="number" value="3" min="0" max="7" step="1" aria-label="Startzoom">
-				<span class="es-unit">am Telefon eine Stufe weiter heraus:</span>
-				<input class="es-num" type="number" value="1" min="0" max="3" step="1" aria-label="Abzug am Telefon">
+
+			<div class="es-row">
+				<div class="es-row__label">
+					<span class="es-row__name">Linien glätten</span>
+					<span class="es-row__note">
+						Wege und Routen laufen als weiche Kurve statt als Streckenzug.
+						<span class="es-src">?smoothLines=0</span>
+					</span>
+				</div>
+				<div class="es-row__control"><label class="es-check"><input type="checkbox" checked> an</label></div>
 			</div>
-		</div>
+		</section>
 
-		<div class="es-row">
-			<div class="es-row__label">
-				<span class="es-row__name">Startmittelpunkt</span>
-				<span class="es-row__note">Kartenkoordinaten x / y. Heute die Zeile des Kontinent-Labels.</span>
+		<section class="es-section">
+			<h2>Herrschaftsgebiete</h2>
+			<p class="es-section__hint">
+				Drei Werte, die es heute nur als Adresszeilen-Parameter gibt — angelegt, um beim Bauen
+				den richtigen Ton zu finden, und seither dort geblieben.
+			</p>
+
+			<div class="es-row">
+				<div class="es-row__label">
+					<span class="es-row__name">Füllung der Flächen</span>
+					<span class="es-row__note">
+						Einheitlich im Frontend; im Editor gilt weiter die Deckkraft je Gebiet.
+						<span class="es-src">?fillopacity=</span>
+					</span>
+				</div>
+				<div class="es-row__control"><input class="es-num" type="number" value="70" min="0" max="100" step="5" aria-label="Füllung"><span class="es-unit">%</span></div>
 			</div>
-			<div class="es-row__control">
-				<input class="es-num es-num--wide" type="number" value="520.5" step="0.01" aria-label="Startmittelpunkt x">
-				<input class="es-num es-num--wide" type="number" value="497.28" step="0.01" aria-label="Startmittelpunkt y">
+
+			<div class="es-row">
+				<div class="es-row__label">
+					<span class="es-row__name">Schraffur umstrittener Gebiete</span>
+					<span class="es-row__note">Deckkraft der Streifen. <span class="es-src">?hatchopacity=</span></span>
+				</div>
+				<div class="es-row__control"><input class="es-num" type="number" value="70" min="0" max="100" step="5" aria-label="Schraffur"><span class="es-unit">%</span></div>
 			</div>
-		</div>
 
-		<div class="es-row">
-			<div class="es-row__label">
-				<span class="es-row__name">Kartenstil für Besucher</span>
-				<span class="es-row__note">
-					Nur der erste Eindruck: ein geteilter Link mit <code>?mapstyle=</code> und die
-					gespeicherte Wahl eines Editors schlagen ihn.
-				</span>
+			<div class="es-row">
+				<div class="es-row__label">
+					<span class="es-row__name">Übergeordnete Gebiete füllen ab Zoom</span>
+					<span class="es-row__note">
+						Darunter geben sie die Füllung ganz an ihre Kinder ab. Verhindert Löcher, wo die
+						Zoombänder der Geschwister ungleich stehen. <span class="es-src">?leafbg=</span>
+					</span>
+				</div>
+				<div class="es-row__control"><input class="es-num" type="number" value="4" min="0" max="7" step="1" aria-label="Zoomgrenze"></div>
 			</div>
-			<div class="es-row__control">
-				<select class="es-sel" aria-label="Kartenstil">
-					<option selected>Stylized</option>
-					<option>Original</option>
-				</select>
+		</section>
+
+		<section class="es-section es-later">
+			<h2>Vorgewählte Ebenen <span class="es-later__tag">später</span></h2>
+			<p class="es-section__hint">
+				Welche Haken im Auge-Menü an sind, wenn ein Besucher ankommt — Wege, Labels, Grenzen,
+				Flüsse, die sechs Ortsklassen. Heute stehen sie in <code>DEFAULT_PLANNER_STATE</code>.
+			</p>
+		</section>
+	</div>
+
+	<!-- ═══ REITER 2 — BESCHRIFTUNG ══════════════════════════════════════════════════════════ -->
+	<div class="es-panel" role="tabpanel" data-panel="beschriftung" hidden>
+		<section class="es-section es-later">
+			<h2>Ortsnamen und Marker <span class="es-later__tag">später</span></h2>
+			<p class="es-section__hint">
+				Die Zoombänder-Tafel — sechs Ortsklassen × neun Zoomstufen, dazu Spalt, Repel, Versatz
+				und Max. Drift. Sie hat eine gewachsene, zieh-bedienbare Oberfläche und bleibt vorerst
+				dort. Hier gehört ihr <em>Eingang</em> hin, nicht eine zweite Fassung.
+			</p>
+			<div class="es-row">
+				<div class="es-row__label">
+					<span class="es-row__name">Zoombänder</span>
+					<span class="es-row__note">Ortseditor → „Darstellung“ <span class="es-src">location_zoom_bands</span></span>
+				</div>
+				<div class="es-row__control"><button class="es-btn" disabled>Öffnen ↗</button></div>
 			</div>
-		</div>
+		</section>
 
-		<div class="es-savebar">
-			<button class="es-btn es-btn--primary">Speichern</button>
-			<button class="es-btn">Zurücksetzen</button>
-			<span class="es-savebar__spacer"></span>
-			<span class="es-savebar__msg">Alle Werte wie im Code.</span>
-		</div>
-	</section>
-
-	<!-- ═══ 3. AUTOMATIK ════════════════════════════════════════════════════════════════════
-	     Die zwei Schalter, die es serverseitig gibt und die heute NIEMAND umlegen kann. -->
-	<section class="es-section">
-		<h2>Automatik</h2>
-		<p class="es-section__hint">
-			Hintergrundläufe, die fehlende Bilder nachholen. Beide gab es bisher nur im Server —
-			umlegen konnte sie niemand.
-		</p>
-
-		<div class="es-row">
-			<div class="es-row__label">
-				<span class="es-row__name">Karten-Vorschauen automatisch holen</span>
-				<span class="es-row__note">Holt fehlende Stadtplan-Vorschauen nach, sobald die Kartensammlung sie braucht.</span>
+		<section class="es-section">
+			<h2>Kartenlabels</h2>
+			<p class="es-section__hint">Landschafts- und Gebietsnamen — beide Werte gibt es heute nur in der Adresszeile.</p>
+			<div class="es-row">
+				<div class="es-row__label">
+					<span class="es-row__name">Abstoßung zwischen Labels</span>
+					<span class="es-row__note">
+						Luft um jedes Label vor der Kollisionsprüfung. Passt eines nirgends hin, wird es
+						ausgeblendet statt überlappend stehen zu lassen. <span class="es-src">?labelrepel=</span>
+					</span>
+				</div>
+				<div class="es-row__control"><input class="es-num" type="number" value="7" min="0" max="60" step="1" aria-label="Abstoßung"><span class="es-unit">px</span></div>
 			</div>
-			<div class="es-row__control"><label class="es-check"><input type="checkbox" checked> an</label></div>
-		</div>
-
-		<div class="es-row">
-			<div class="es-row__label">
-				<span class="es-row__name">Literatur-Cover automatisch holen</span>
-				<span class="es-row__note">Holt fehlende Cover nach. Eigene Uploads bleiben unangetastet.</span>
+			<div class="es-row">
+				<div class="es-row__label">
+					<span class="es-row__name">Umbruchbreite der Gebietsnamen</span>
+					<span class="es-row__note">Ab welchem Anteil der Gebietsbreite ein Name umbricht. <span class="es-src">?labelwrap=</span></span>
+				</div>
+				<div class="es-row__control"><input class="es-num" type="number" value="0.9" min="0.1" max="2" step="0.05" aria-label="Umbruchbreite"></div>
 			</div>
-			<div class="es-row__control"><label class="es-check"><input type="checkbox" checked> an</label></div>
-		</div>
+		</section>
 
-		<div class="es-savebar">
-			<button class="es-btn es-btn--primary">Speichern</button>
-			<span class="es-savebar__spacer"></span>
-			<span class="es-savebar__msg">Beide an.</span>
-		</div>
-	</section>
+		<section class="es-section es-later">
+			<h2>Kurvenbeschriftung <span class="es-later__tag">später</span></h2>
+			<p class="es-section__hint">
+				Landschaftsnamen folgen der Form ihrer Fläche. Owner-Entscheid vom 22.08.2026: Editoren
+				bekommen genau <strong>zwei</strong> Schalter — an/aus und die Anzahl der Labels. Alles
+				andere (Glättung, Begradigung, Stützpunktabstand …) bleibt Werkstatt und wird
+				eingefroren.
+			</p>
+		</section>
+	</div>
 
-	<!-- ═══ 4. UEBERSICHT ═══════════════════════════════════════════════════════════════════
-	     🔴 KEIN zweiter Bedienort -- eine AUSKUNFT. Heute muss man vier Editoren oeffnen, um zu
-	     sehen, ob die Wappen an sind. Die Schalter selbst bleiben in Stufe 1, wo sie sind. -->
-	<section class="es-section">
-		<h2>Übersicht — was anderswo geschaltet wird</h2>
-		<p class="es-section__hint">
-			Diese Schalter bleiben in ihren Editoren. Hier stehen sie nur zum <strong>Nachsehen</strong>:
-			ein Blick statt vier geöffneter Editoren.
-		</p>
+	<!-- ═══ REITER 3 — REISEN ════════════════════════════════════════════════════════════════ -->
+	<div class="es-panel" role="tabpanel" data-panel="reisen" hidden>
+		<section class="es-section es-later">
+			<h2>Weltmaßstab <span class="es-later__tag">später</span></h2>
+			<p class="es-section__hint">
+				Die drei Zahlen, aus denen jede Entfernung und jede Dauer entsteht — Streckenfaktor,
+				Zeitfaktor, Meilenumrechnung. 💣 Sie sind der Nenner von allem; wer hier dreht, dreht
+				jede Reisezeit der Karte auf einmal. Genau deshalb gehören sie an eine sichtbare Stelle
+				statt in eine Konstantendatei.
+			</p>
+		</section>
+		<section class="es-section es-later">
+			<h2>Tempowerte und Reisekosten <span class="es-later__tag">später</span></h2>
+			<p class="es-section__hint">
+				Die Geschwindigkeitstafel samt Querfeldein-Aufschlag hat ihre eigene Oberfläche im
+				Wege-Editor. Hier gehört ihr Eingang hin. Die Kostentabellen (Unterkunft, Hufeisen,
+				Stromauf-Faktor) stehen bisher nur im Code.
+			</p>
+		</section>
+		<section class="es-section es-later">
+			<h2>Vorgaben des Routenplaners <span class="es-later__tag">später</span></h2>
+			<p class="es-section__hint">
+				Womit der Planer aufgeht: Verkehrsmittel zu Land / auf dem Fluss / auf See, Unterkunft,
+				Rasttunden, schnellste oder kürzeste Route, Reisebeginn.
+			</p>
+		</section>
+	</div>
 
-		<table class="es-table">
-			<thead>
-				<tr><th style="width:52%">Was</th><th style="width:14%">Zustand</th><th>Wo eingestellt</th></tr>
-			</thead>
-			<tbody>
-				<tr><td>Ortsbilder im Frontend</td><td><span class="es-state es-state--on">An</span></td><td class="es-table__where">Ortseditor → Menüband</td></tr>
-				<tr><td>Ortswappen im Frontend</td><td><span class="es-state es-state--on">An</span></td><td class="es-table__where">Ortseditor → Menüband</td></tr>
-				<tr><td>Gebietswappen im Frontend</td><td><span class="es-state es-state--off">Aus</span></td><td class="es-table__where">WikiSync-Monitor</td></tr>
-				<tr><td>Kartensammlung</td><td><span class="es-state es-state--on">An</span></td><td class="es-table__where"><a href="#">Kartensammlung-Editor ↗</a></td></tr>
-				<tr><td>Kartenvorschauen</td><td><span class="es-state es-state--on">An</span></td><td class="es-table__where"><a href="#">Kartensammlung-Editor ↗</a></td></tr>
-				<tr><td>Literatur</td><td><span class="es-state es-state--on">An</span></td><td class="es-table__where"><a href="#">Literatur-Editor ↗</a></td></tr>
-				<tr><td>Literatur-Cover</td><td><span class="es-state es-state--on">An</span></td><td class="es-table__where"><a href="#">Literatur-Editor ↗</a></td></tr>
-				<tr><td>Vorkommen: Flora</td><td><span class="es-state es-state--on">An</span></td><td class="es-table__where">WikiSync-Panel → Vorkommen</td></tr>
-				<tr><td>Vorkommen: Fauna</td><td><span class="es-state es-state--on">An</span></td><td class="es-table__where">WikiSync-Panel → Vorkommen</td></tr>
-				<tr><td>Vorkommen: Spezies</td><td><span class="es-state es-state--on">An</span></td><td class="es-table__where">WikiSync-Panel → Vorkommen</td></tr>
-				<tr><td>Geländeabhängiges Reisen</td><td><span class="es-state es-state--off">Aus</span></td><td class="es-table__where">Landschaften-Editor → Menüband</td></tr>
-				<tr><td>Zoombänder (Ortsklassen)</td><td><span class="es-state">Tafel</span></td><td class="es-table__where">Ortseditor → „Darstellung“</td></tr>
-				<tr><td>Tempowerte (Reisezeiten)</td><td><span class="es-state">Tafel</span></td><td class="es-table__where">Wege-Editor → „Tempowerte“</td></tr>
-			</tbody>
-		</table>
-	</section>
-
-	<!-- ═══ 5. WARTUNG ══════════════════════════════════════════════════════════════════════
-	     Zwei Tueren zum selben Raum wie im Hamburger. Keine zweite Umsetzung. -->
-	<section class="es-section">
-		<h2>Wartung</h2>
-		<div class="es-row">
-			<div class="es-row__label">
-				<span class="es-row__name">Datenbank-Backup</span>
-				<span class="es-row__note">Vollständiger, gzip-gepackter Abzug der ganzen Datenbank.</span>
+	<!-- ═══ REITER 4 — INHALTE ═══════════════════════════════════════════════════════════════ -->
+	<div class="es-panel" role="tabpanel" data-panel="inhalte" hidden>
+		<section class="es-section">
+			<h2>Automatik</h2>
+			<p class="es-section__hint">
+				Hintergrundläufe, die fehlende Bilder nachholen. Beide gab es bisher nur im Server —
+				umlegen konnte sie <strong>niemand</strong>.
+			</p>
+			<div class="es-row">
+				<div class="es-row__label">
+					<span class="es-row__name">Karten-Vorschauen automatisch holen</span>
+					<span class="es-row__note">Holt fehlende Stadtplan-Vorschauen nach. <span class="es-src">citymap_autoget_enabled</span></span>
+				</div>
+				<div class="es-row__control"><label class="es-check"><input type="checkbox" checked> an</label></div>
 			</div>
-			<div class="es-row__control"><button class="es-btn">💾 Öffnen ↗</button></div>
-		</div>
-		<div class="es-row">
-			<div class="es-row__label">
-				<span class="es-row__name">Benutzerverwaltung</span>
-				<span class="es-row__note">Konten, Rollen und Berechtigungen.</span>
+			<div class="es-row">
+				<div class="es-row__label">
+					<span class="es-row__name">Literatur-Cover automatisch holen</span>
+					<span class="es-row__note">Eigene Uploads bleiben unangetastet. <span class="es-src">adventure_cover_autoget_enabled</span></span>
+				</div>
+				<div class="es-row__control"><label class="es-check"><input type="checkbox" checked> an</label></div>
 			</div>
-			<div class="es-row__control"><button class="es-btn">Öffnen ↗</button></div>
-		</div>
-	</section>
+			<div class="es-savebar">
+				<button class="es-btn es-btn--primary">Speichern</button>
+				<span class="es-savebar__spacer"></span>
+				<span class="es-savebar__msg">Beide an.</span>
+			</div>
+		</section>
+
+		<section class="es-section">
+			<h2>Was anderswo geschaltet wird</h2>
+			<p class="es-section__hint">
+				Diese Schalter bleiben in ihren Editoren. Hier stehen sie zum <strong>Nachsehen</strong>:
+				ein Blick statt vier geöffneter Editoren.
+			</p>
+			<table class="es-table">
+				<thead><tr><th style="width:50%">Was</th><th style="width:14%">Zustand</th><th>Wo eingestellt</th></tr></thead>
+				<tbody>
+					<tr><td>Ortsbilder im Frontend</td><td><span class="es-state es-state--on">An</span></td><td class="es-table__where">Ortseditor → Menüband</td></tr>
+					<tr><td>Ortswappen im Frontend</td><td><span class="es-state es-state--on">An</span></td><td class="es-table__where">Ortseditor → Menüband</td></tr>
+					<tr><td>Gebietswappen im Frontend</td><td><span class="es-state es-state--off">Aus</span></td><td class="es-table__where">WikiSync-Monitor</td></tr>
+					<tr><td>Kartensammlung</td><td><span class="es-state es-state--on">An</span></td><td class="es-table__where"><a href="#">Kartensammlung-Editor ↗</a></td></tr>
+					<tr><td>Kartenvorschauen</td><td><span class="es-state es-state--on">An</span></td><td class="es-table__where"><a href="#">Kartensammlung-Editor ↗</a></td></tr>
+					<tr><td>Literatur</td><td><span class="es-state es-state--on">An</span></td><td class="es-table__where"><a href="#">Literatur-Editor ↗</a></td></tr>
+					<tr><td>Literatur-Cover</td><td><span class="es-state es-state--on">An</span></td><td class="es-table__where"><a href="#">Literatur-Editor ↗</a></td></tr>
+					<tr><td>Vorkommen: Flora</td><td><span class="es-state es-state--on">An</span></td><td class="es-table__where">WikiSync-Panel → Vorkommen</td></tr>
+					<tr><td>Vorkommen: Fauna</td><td><span class="es-state es-state--on">An</span></td><td class="es-table__where">WikiSync-Panel → Vorkommen</td></tr>
+					<tr><td>Vorkommen: Spezies</td><td><span class="es-state es-state--on">An</span></td><td class="es-table__where">WikiSync-Panel → Vorkommen</td></tr>
+					<tr><td>Geländeabhängiges Reisen</td><td><span class="es-state es-state--off">Aus</span></td><td class="es-table__where">Landschaften-Editor → Menüband</td></tr>
+					<tr><td>Zoombänder (Ortsklassen)</td><td><span class="es-state">Tafel</span></td><td class="es-table__where">Ortseditor → „Darstellung“</td></tr>
+					<tr><td>Tempowerte (Reisezeiten)</td><td><span class="es-state">Tafel</span></td><td class="es-table__where">Wege-Editor → „Tempowerte“</td></tr>
+				</tbody>
+			</table>
+		</section>
+	</div>
+
+	<!-- ═══ REITER 5 — WIKI & DATEN ══════════════════════════════════════════════════════════ -->
+	<div class="es-panel" role="tabpanel" data-panel="wiki" hidden>
+		<section class="es-section">
+			<h2>Wiki-Dump</h2>
+			<p class="es-section__hint">
+				„Dump holen“ lädt den kompletten Wiki-Dump neu, liest ihn in eine Sandbox ein, räumt alte
+				Stände auf und zeigt am Ende, was sich bei den Publikationsquellen ändern würde —
+				geschrieben wird erst, was du in der Vorschau anhäkelst. Der Lauf dauert einige Minuten.
+			</p>
+
+			<div class="es-row">
+				<div class="es-row__label">
+					<span class="es-row__name">Wiki-Dump holen und einlesen</span>
+					<span class="es-row__note">Letzter Lauf: 24.08.2026, 21:14 · Dump geholt: 24.08.2026, 20:47</span>
+				</div>
+				<div class="es-row__control">
+					<button class="es-btn es-btn--primary es-btn--wide es-progress" style="--es-progress:0%"><span>📥 Dump holen</span></button>
+				</div>
+			</div>
+
+			<!-- Der laufende Zustand, nur zur Ansicht: der Fortschritt sitzt IM Knopf, wie im Panel
+			     heute schon. Eine Leiste darunter schob das Fenster mitten im Klick nach unten. -->
+			<div class="es-row">
+				<div class="es-row__label">
+					<span class="es-row__name" style="color:var(--color-text-muted)">— während des Laufs —</span>
+					<span class="es-row__note">Der Fortschritt sitzt im Knopf, den man gerade gedrückt hat; darunter erscheint nichts, was die Seite verschiebt.</span>
+				</div>
+				<div class="es-row__control">
+					<button class="es-btn es-btn--primary es-btn--wide es-progress" style="--es-progress:64%" disabled><span>Phase 4/7: Weiterleitungen (12 480 Seiten)</span></button>
+				</div>
+			</div>
+
+			<div class="es-row">
+				<div class="es-row__label">
+					<span class="es-row__name">Dump-Zugangsdaten</span>
+					<span class="es-row__note">
+						Benutzer <strong>avesmaps-dump</strong> · Passwort gespeichert. Bisher ließen sie
+						sich nur ändern, <em>nachdem</em> ein Lauf daran gescheitert war.
+					</span>
+				</div>
+				<div class="es-row__control"><button class="es-btn">Ändern …</button></div>
+			</div>
+
+			<div class="es-row">
+				<div class="es-row__label">
+					<span class="es-row__name">Letzter Laufbericht</span>
+					<span class="es-row__note">Unauffällig · 24.08.2026, 21:14 · 0 Selbsttests rot</span>
+				</div>
+				<div class="es-row__control"><button class="es-btn">Bericht öffnen</button></div>
+			</div>
+		</section>
+	</div>
+
+	<!-- ═══ REITER 6 — GEMEINSCHAFT ══════════════════════════════════════════════════════════ -->
+	<div class="es-panel" role="tabpanel" data-panel="gemeinschaft" hidden>
+		<section class="es-section es-later">
+			<h2>Social Media <span class="es-later__tag">später</span></h2>
+			<p class="es-section__hint">
+				Welche Kanäle scharf sind (Facebook, Instagram, Mastodon, Neuigkeiten), ihr
+				Einrichtungszustand, und ob „Mit KI erstellt“ vorgehakt ist. Der Hub selbst bleibt, wo er
+				ist — hier gehört der <em>Zustand</em> hin.
+			</p>
+		</section>
+		<section class="es-section es-later">
+			<h2>Kontaktformular <span class="es-later__tag">später</span></h2>
+			<p class="es-section__hint">
+				Wie viele Nachrichten eine Stunde (heute 5) und die Spam-Wortliste — beides steht als
+				Konstante im Endpunkt, obwohl es reine Daten sind.
+			</p>
+		</section>
+		<section class="es-section es-later">
+			<h2>Besucherzählung <span class="es-later__tag">später</span></h2>
+			<p class="es-section__hint">
+				⚠️ Einen Schalter dafür gibt es heute <strong>nicht</strong> — das wäre neues Verhalten
+				und deshalb kein Kandidat für Stufe 1. Er steht hier, weil die Stelle sonst niemand
+				findet, wenn er je gebraucht wird.
+			</p>
+		</section>
+	</div>
+
+	<!-- ═══ REITER 7 — BETRIEB ═══════════════════════════════════════════════════════════════ -->
+	<div class="es-panel" role="tabpanel" data-panel="betrieb" hidden>
+		<section class="es-section">
+			<h2>Wartung</h2>
+			<div class="es-row">
+				<div class="es-row__label">
+					<span class="es-row__name">Datenbank-Backup</span>
+					<span class="es-row__note">Vollständiger, gzip-gepackter Abzug der ganzen Datenbank.</span>
+				</div>
+				<div class="es-row__control"><button class="es-btn">💾 Öffnen ↗</button></div>
+			</div>
+			<div class="es-row">
+				<div class="es-row__label">
+					<span class="es-row__name">Benutzerverwaltung</span>
+					<span class="es-row__note">Konten, Rollen und Berechtigungen.</span>
+				</div>
+				<div class="es-row__control"><button class="es-btn">Öffnen ↗</button></div>
+			</div>
+		</section>
+
+		<section class="es-section es-later">
+			<h2>Aufbewahrung <span class="es-later__tag">später</span></h2>
+			<p class="es-section__hint">
+				Wie viele Backups liegen bleiben (heute 3) und wie lang die unsichtbaren Protokolle
+				werden dürfen. 💣 Das ist keine Kosmetik: ein Protokoll ist hier schon einmal auf
+				716 MB gewachsen und hat die Datenbank blockiert.
+			</p>
+		</section>
+
+		<section class="es-section es-later">
+			<h2>Linkprüfer <span class="es-later__tag">später</span></h2>
+			<p class="es-section__hint">
+				Nach wie vielen Tagen eine lebende (7) bzw. tote (14) Verknüpfung erneut geprüft wird und
+				ab wie vielen Fehlschlägen sie als tot gilt (3).
+			</p>
+		</section>
+	</div>
 
 	<p class="proto-note" style="margin-top:var(--space-24)">
-		<strong>Was dieses Mockup absichtlich NICHT zeigt:</strong>
+		<strong>Der Filter, nach dem hier ausgewählt wurde.</strong> Das Projekt hat mehrere hundert
+		Konstanten; fast alle sind <em>Werkstatt</em> — Werte, deren Antwort einmal gefunden und dann
+		getroffen wurde (Zeitüberschreitungen, Höchstlängen, Rasterweiten). Die Frage ist nicht „kann
+		man das ändern“, sondern:
 		<ul>
-			<li>Die elf Schalter aus der Übersicht als <em>Bedienung</em> — sie bleiben in Stufe 1 in ihren Editoren (Entwurf §2).</li>
-			<li>Einen Notaus für die Besucherzählung — den gibt es heute nicht, er wäre neues Verhalten.</li>
-			<li>Werkstattregler wie <code>AVESMAPS_ROUTE_OFFROAD_DETOUR_ENABLED</code> — deren Antwort ist getroffen.</li>
-			<li>Geheimnisse. Token und Salt bleiben in <code>config.local.php</code>; die Dump-Zugangsdaten sind die eine Ausnahme, weil sie schon heute in der Datenbank liegen.</li>
+			<li><strong>Gibt es dafür schon einen <code>?param=</code>?</strong> Ein Parameter, der nur
+				existiert, um einen Wert zu finden, hat nie ein Zuhause bekommen — das sind die fünf im
+				Reiter „Karte“ und „Beschriftung“.</li>
+			<li><strong>Hat der Wert heute gar keine Bedienung, wird aber gelesen?</strong> Die zwei
+				Autoget-Schalter.</li>
+			<li><strong>Ist die Antwort an verschiedenen Tagen verschieden?</strong> Dann gehört sie
+				hierher. Ist sie es nicht, bleibt sie im Code — der Editor bekommt zwei Schalter, nicht
+				die Werkstatt (Owner, 22.08.2026).</li>
 		</ul>
 	</p>
 
 </div>
+
+<script>
+/* Reiterumschaltung. Der Zustand ist eine VARIABLE am Knopf (data-panel), nicht eine Klasse, die
+   erst im naechsten Bild steht -- dieselbe Falle wie beim Anzeige-Menue und bei den Ansichts-
+   Kacheln (AGENTS.md §11). Native <button role="tab">, damit Fokus und Tastatur vom Element
+   kommen. */
+(function () {
+	var tabs = document.querySelectorAll(".avm-tab[data-panel]");
+	var panels = document.querySelectorAll(".es-panel[data-panel]");
+	function zeige(name) {
+		tabs.forEach(function (t) {
+			var aktiv = t.dataset.panel === name;
+			t.classList.toggle("is-active", aktiv);
+			t.setAttribute("aria-selected", aktiv ? "true" : "false");
+		});
+		panels.forEach(function (p) { p.hidden = p.dataset.panel !== name; });
+	}
+	tabs.forEach(function (t) { t.addEventListener("click", function () { zeige(t.dataset.panel); }); });
+
+	/* Der Zaehler wird GERECHNET, nie geschrieben: bedienbare Zeilen plus die Zeilen der Tabelle
+	   „Was anderswo geschaltet wird". Ein Reiter, der nur Platzhalter traegt, bekommt gar keine
+	   Zahl -- eine "0" laese sich wie ein Fehler, ein leerer Zaehler wie "hier ist noch nichts". */
+	panels.forEach(function (p) {
+		var knopf = document.querySelector('.avm-tab[data-panel="' + p.dataset.panel + '"] .es-tab__count');
+		if (!knopf) { return; }
+		var n = p.querySelectorAll(".es-row").length + p.querySelectorAll(".es-table tbody tr").length;
+		knopf.textContent = n > 0 ? String(n) : "";
+		knopf.hidden = n === 0;
+	});
+})();
+</script>
 </body>
 </html>

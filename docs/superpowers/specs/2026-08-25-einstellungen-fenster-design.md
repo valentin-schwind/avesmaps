@@ -8,12 +8,20 @@ Mockup: `docs/einstellungen-mockup.html`.
 ## §0 Kurzfassung
 
 Avesmaps hat **keine Stelle, an der die Konfiguration des Projekts steht**. Elf globale
-Notausschalter liegen verstreut über fünf Oberflächen, zwei sind überhaupt nicht bedienbar, die
-zentralen Darstellungsentscheidungen stehen nur im Code, und „📥 Dump holen" — der Lauf, der die
-ganze Datengrundlage erneuert — sitzt in einem Reiter des WikiSync-Panels.
+Notausschalter liegen verstreut über fünf Oberflächen, zwei sind überhaupt nicht bedienbar, fünf
+Darstellungswerte leben **ausschließlich in der Adresszeile** (§1.5), die übrigen zentralen
+Entscheidungen stehen nur im Code, und „📥 Dump holen" — der Lauf, der die ganze Datengrundlage
+erneuert — sitzt in einem Reiter des WikiSync-Panels.
 
 Dieser Entwurf beschreibt **eine Seite**: `/edit/einstellungen.php`, erreichbar über das
-Drei-Strich-Menü der Edit-Shell, **nur für Admins**, mit fünf Abschnitten.
+Drei-Strich-Menü der Edit-Shell, **nur für Admins**, mit **sieben Reitern** —
+Karte · Beschriftung · Reisen · Inhalte · Wiki & Daten · Gemeinschaft · Betrieb.
+
+⚠️ **Der Bestand ist größer als eine Seite.** Die erste Fassung dieses Entwurfs hatte fünf
+Abschnitte untereinander und deckte einen Bruchteil ab; der Owner hat am 25.08.2026 Reiter
+verlangt, *„ich glaube hier wird noch viel mehr kommen"*. Die Reiter sind deshalb nach **Wirkung**
+geschnitten, nicht nach Herkunft — und ein Reiter, der in Stufe 1 leer bleibt, wird trotzdem
+gezeigt, damit die Frage „wo käme das hin?" eine Antwort hat (§3.4).
 
 🔴 **Am Betrieb ändert sich in Stufe 1 nichts** außer zweierlei: der Menüeintrag taucht für Admins
 auf, und „Dump holen" steht künftig dort statt im Panel. Jeder neue Wert hat als Vorgabe genau das,
@@ -77,6 +85,38 @@ Zentrale Entscheidungen ohne jede Oberfläche:
   `AVESMAPS_DEFAULT_MAP_ZOOM = 3`, am Telefon eine Stufe weiter heraus
   (`js/app/bootstrap.js:23-41`).
 * **Kartenstil** — `MAP_TILE_STYLES` in `js/config.js:562`, Vorgabe `stylized`.
+* **Kraftlinien-Animation** — `POWERLINE_RENDER_CONFIG.animationEnabled` (`js/config.js:715`).
+* **Vorgewählte Ebenen** — `DEFAULT_PLANNER_STATE` (`js/config.js:739`): welche Haken des
+  Auge-Menüs an sind, wenn ein Besucher ankommt, plus die Vorgaben des Routenplaners.
+* **Weltmaßstab** — `DISTANCE_SCALING_FACTOR`, `TIME_SCALE_FACTOR`, `KM_TO_MILES`
+  (`js/config.js:20-22`). 💣 Sie sind der Nenner jeder Entfernung und jeder Dauer.
+* **Reisekosten** — `TRAVEL_COST_*` (`js/config.js:203-238`), Zahlen aus Kodex und Geographia.
+* **Aufbewahrung** — `AVESMAPS_DB_BACKUP_KEEP_FILES = 3`, `AVESMAPS_ECOSYSTEM_AUDIT_KEEP_ROWS = 200`.
+* **Kontaktformular** — `AVESMAPS_CONTACT_RATE_LIMIT_PER_HOUR = 5` und die Spam-Wortliste
+  `AVESMAPS_CONTACT_SPAM_WORDS` (`api/app/contact.php:10-11`) — reine Daten, als Konstante abgelegt.
+* **Linkprüfer** — `AVESMAPS_LINK_RECHECK_ONLINE_DAYS = 7`, `…_DEAD_DAYS = 14`,
+  `AVESMAPS_LINK_DEAD_STREAK = 3`.
+
+### §1.5 🔴 Der wichtigste Fund: die Werte, die nur in der ADRESSZEILE leben
+
+Fünf Darstellungswerte sind heute **ausschließlich** über einen URL-Parameter erreichbar. Sie
+wurden angelegt, um beim Bauen den richtigen Wert zu finden — und sind dort geblieben, weil es
+keinen Ort gab, an den sie danach gehört hätten.
+
+| Parameter | Was er stellt | Vorgabe | Datei |
+|---|---|---|---|
+| `?fillopacity=` | Füllung der Herrschaftsgebiete im Frontend | `0.70` | `js/config.js:320` |
+| `?leafbg=` | ab welchem Zoom übergeordnete Gebiete solide füllen | `4` | `js/config.js:336` |
+| `?hatchopacity=` | Deckkraft der Schraffur umstrittener Gebiete | je Gebiet | `map-features-contested-hatch-overlay.js:34` |
+| `?labelrepel=` | Abstoßung zwischen Kartenlabels | `7` | `map-features-label-collisions.js:37` |
+| `?labelwrap=` | Umbruchbreite der Gebietsnamen | `0.9` | `map-features-region-rendering.js:48` |
+
+Dazu `?smoothLines=0` / `?smoothRoute=0` (Linienglättung) und `?mapstyle=` (Kartenstil).
+
+⭐ **Das ist zugleich das schärfste Auswahlkriterium für dieses Fenster** (§2.1): Ein Parameter,
+der nur existiert, damit jemand einen Wert *sucht*, ist der Beweis, dass der Wert eine Bedienung
+verdient hätte und nie eine bekommen hat. Die Kommentare sagen es wörtlich — „live justierbar via
+`?labelrepel=20`", „zum Finden des Werts, bei dem das Terrain durchscheint".
 
 ---
 
@@ -91,6 +131,23 @@ in diesem Projekt mehrfach teuer geworden (die sieben Rezepturen der Listenzeile
 Fassungen der Wiki-Zuweisung). Ein Umzug ist sauber, ein Spiegel nicht — und ein Umzug von elf
 Schaltern aus fünf Oberflächen ist ein eigenes Vorhaben, das nach AGENTS.md §9 einzeln live gehen
 muss.
+
+### §2.1 Der Filter — warum nicht einfach alles
+
+Das Projekt hat **mehrere hundert** Konstanten. Sie alle anzubieten wäre nicht großzügig, sondern
+das Gegenteil: der Owner hat am 22.08.2026 entschieden, dass *„der Editor nur 2 Optionen"*
+bekommt, während im Mockup zwölf Regler standen — **Werkstattregler gehören ins Mockup, nicht ins
+Produkt.** Ein Wert wandert nur dann hierher, wenn mindestens eines gilt:
+
+1. **Es gibt schon einen `?param=` dafür** (§1.5). Der Parameter *ist* das Eingeständnis, dass der
+   Wert eine Bedienung braucht.
+2. **Der Wert wird gelesen, hat aber keine Bedienung** — die zwei Autoget-Schalter.
+3. **Die Antwort ist an verschiedenen Tagen verschieden** — Aufbewahrungsfristen, Notausschalter,
+   der erste Eindruck der Karte.
+
+Umgekehrt bleibt im Code, was einmal beantwortet wurde: Zeitüberschreitungen, Höchstlängen,
+Rasterweiten, Puffergrößen, die eingefrorenen Code-Flags. **Kein Regler wandert her, nur weil er
+sich verstellen ließe.**
 
 **Draußen, mit Begründung:**
 
@@ -153,21 +210,56 @@ keinen eigenen Zusatz.
 Endpunkts ist der, der schützt. `edit/backup.php` sagt das in seinem eigenen Kopfkommentar, und
 es gilt hier genauso.
 
-### §3.4 Die Form innen
+### §3.4 Die Form innen — SIEBEN REITER
 
-Die Fensterform der Zoombänder, aber als **Seite**: Kopfzeile mit Titel und Rückweg,
-Erklärabsatz, Abschnitte mit Überschrift und Trennlinie, je Abschnitt eine eigene Speicherleiste.
+🔴 **Owner-Entscheid 25.08.2026: Reiter, nicht eine lange Seite** — *„ich glaube hier wird noch
+viel mehr kommen, du hast nur einen Bruchteil."* Die erste Fassung hatte fünf Abschnitte
+untereinander; §1 zeigt, dass das Fenster auf ein Vielfaches zuwächst.
 
-🔴 **Speichern je Abschnitt, nicht einmal unten für alles.** Die fünf Abschnitte haben
-verschiedene Ablagen (ein JSON-Schlüssel, zwei einzelne Schalter, gar keine) und verschiedene
+| Reiter | Was hineingehört | Stufe 1 |
+|---|---|---|
+| **Karte** | Startansicht, Kartenstil, Überblenden, Kraftlinien-Animation, Linienglättung, Territorien-Füllung/Schraffur/Zoomgrenze, vorgewählte Ebenen | ja (ohne Ebenen) |
+| **Beschriftung** | Zoombänder (Eingang), Label-Abstoßung, Umbruchbreite, Kurvenbeschriftung | teilweise |
+| **Reisen** | Weltmaßstab, Tempowerte (Eingang), Reisekosten, Planer-Vorgaben | nein |
+| **Inhalte** | Automatik, plus die Übersicht der Schalter, die anderswo sitzen | ja |
+| **Wiki & Daten** | Dump holen, Zugangsdaten, Laufbericht | ja |
+| **Gemeinschaft** | Social-Kanäle, Kontaktformular, Besucherzählung | nein |
+| **Betrieb** | Backup, Benutzer, Aufbewahrung, Linkprüfer | teilweise |
+
+**Die Ordnung ist nach WIRKUNG geschnitten, nicht nach Herkunft.** „Beim Zoomwechsel überblenden"
+steht in einem Kartenmodul, „Startzoom" in `bootstrap.js`, „Füllung" in `js/config.js` — für den
+Admin ist alles dreies dieselbe Frage: *wie sieht die Karte aus.* Nach Dateien zu gruppieren
+hieße, ihm die Ablage zu erklären statt seine Frage zu beantworten.
+
+⭐ **Das Reiter-Bauteil ist `.avm-tabs`/`.avm-tab` aus `css/components/editor-page.css`** — dasselbe
+wie im Wege-Editor. Kein zweites Reiter-Rezept; dieselbe Regel wie bei der Listenzeile
+(AGENTS.md §11: „zwei ist die Obergrenze").
+
+💣 **Der Zähler am Reiter wird GERECHNET, nie geschrieben.** Im ersten Bau stand dort eine
+abgeschriebene Zahl („Karte 8"), und der Reiter trug in derselben Stunde 9 Zeilen. Eine Zahl, die
+ihren eigenen Inhalt behauptet, läuft von der ersten Änderung an auseinander — dieselbe Lehre wie
+bei der Bilanzzeile der WikiSync-Listen (EIN Erzeuger). Ein Reiter ohne bedienbare Zeile bekommt
+**gar keine** Zahl, keine `0`: eine Null liest sich wie ein Fehler.
+
+💣 **Der Reiterzustand ist eine Variable, keine Klasse.** Am `data-panel` gelesen, nicht an
+`is-active` — dieselbe Falle, die beim Anzeige-Menü und bei den Ansichts-Kacheln zweimal
+zugeschlagen hat: die Klasse steht erst im nächsten Bild.
+
+🔴 **Speichern je ABSCHNITT, nicht je Reiter und nicht einmal für alles.** Die Abschnitte haben
+verschiedene Ablagen (ein JSON-Schlüssel, einzelne Schalter, gar keine) und verschiedene
 Laufzeiten. Ein gemeinsamer Knopf müsste behaupten, all das sei ein Vorgang.
 
 ⚠️ **Gruppierung durch Trennlinie, nicht durch Kästen** (AGENTS.md §12): `--color-divider` plus
 Überschrift. Keine gerahmten Boxen.
 
+⭐ **Ein Reiter, der in Stufe 1 nichts Gebautes trägt, wird trotzdem GEZEIGT** — mit seinen
+Abschnittsüberschriften und einem Satz, was dort hingehört, sichtbar gedämpft und als „später"
+markiert. Ein leerer, aber benannter Platz beantwortet die Frage „wo käme das hin?", und genau die
+stellt sich beim nächsten Wert. Ein Reiter, den es noch nicht gibt, beantwortet sie nicht.
+
 ---
 
-## §4 Abschnitt 1 — Wiki-Daten (der Dump-Umzug)
+## §4 Reiter „Wiki & Daten" — der Dump-Umzug
 
 ### §4.1 Was umzieht
 
@@ -246,7 +338,7 @@ Benutzernamen zurück, und dabei bleibt es. Angezeigt wird der Name plus „Pass
 
 ---
 
-## §5 Abschnitt 2 — Darstellung
+## §5 Reiter „Karte" und „Beschriftung" — die Darstellung
 
 Ein neuer `app_setting`-Schlüssel **`map_display_settings`** (+ `map_display_settings_stamp`),
 JSON, nach dem Vorbild von `location_zoom_bands`.
@@ -333,7 +425,7 @@ mit `zoom-bands.php` die Stelle — nicht ein dritter Endpunkt.
 
 ---
 
-## §6 Abschnitt 3 — Automatik
+## §6 Reiter „Inhalte" — Automatik
 
 Die zwei Schalter aus §1.1, die heute niemand umlegen kann:
 
@@ -352,7 +444,7 @@ bezeugen darf, dass ein Schreibvorgang stattgefunden hat.
 
 ---
 
-## §7 Abschnitt 4 — Übersicht (lesen, nicht schalten)
+## §7 Reiter „Inhalte" — die Übersicht (lesen, nicht schalten)
 
 **Dreizehn Zeilen:** die elf Schalter aus §1.1, die eine Bedienung haben und in ihren Editoren
 bleiben, **plus die zwei Zahlentafeln aus §1.2** (Zoombänder, Tempowerte). Für alle gilt dasselbe:
@@ -383,7 +475,7 @@ Menüband") statt eines Links, der ins Leere führt — ausgenommen die Editoren
 
 ---
 
-## §8 Abschnitt 5 — Wartung
+## §8 Reiter „Betrieb" — Wartung
 
 Zwei Verweise, dieselben Ziele wie im Hamburger: **Datenbank-Backup** (`/edit/backup.php`) und
 **Benutzerverwaltung** (`/admin/`).
@@ -426,15 +518,30 @@ der AGENTS.md warnt, entsteht bei zwei *Bedienungen*, nicht bei zwei Türen zum 
 | `js/app/__tests__/zoom-fade-schalter.test.js` | der Schalter erreicht **beide** Mechanismen |
 | `api/_internal/app/__tests__/map-display-test.php` | Formprüfung, Schranken, Rückleseprobe, `reset` löscht die Zeile |
 | `edit/__tests__/einstellungen-riegel-test.php` | Seite **und** Endpunkt tragen `admin` |
+| `js/pages/__tests__/einstellungen-reiter.test.js` | genau EIN Panel ist sichtbar; der Zähler ist **gerechnet** und stimmt mit dem Inhalt überein; ein leerer Reiter zeigt keine `0` |
+| `js/pages/__tests__/einstellungen-url-parameter.test.js` | jeder Wert aus §1.5 kommt aus der Einstellung, und der `?param=` schlägt sie weiterhin |
 
-⚠️ Vor dem Push läuft das **ganze** Testfeld, nicht nur diese sechs (AGENTS.md §9) — samt der 21
+⚠️ Vor dem Push läuft das **ganze** Testfeld, nicht nur diese acht (AGENTS.md §9) — samt der 21
 `tools/wikidump/test-*.php`, die das übliche Muster nicht findet.
 
 ---
 
 ## §11 Stufen danach (nicht Teil dieses Entwurfs)
 
-* **Stufe 2:** die elf Schalter aus §1.1 wandern wirklich her; die Editorkacheln fallen. Einzeln
+Die Reiter aus §3.4 sind zugleich die Landkarte dafür. Grob nach Nutzen sortiert:
+
+* **Stufe 2 — die Adresszeilen-Werte** (§1.5): Füllung, Schraffur, Zoomgrenze, Abstoßung,
+  Umbruchbreite. Der größte Gewinn je Zeile Arbeit, weil die Leser schon existieren und nur ihre
+  Quelle wechseln.
+* **Stufe 3 — die elf Schalter aus §1.1** wandern wirklich her; die Editorkacheln fallen. Einzeln
   live, mit einem Satz im Commit-Betreff je Schalter.
-* **Stufe 3:** die zwei Zahlentafeln (Zoombänder, Tempowerte) bekommen hier einen Eingang —
-  wahrscheinlich als Verweis, nicht als zweite Oberfläche.
+* **Stufe 4 — Reiter „Reisen"**: Weltmaßstab und Reisekosten. 💣 Der Weltmaßstab ist der Nenner
+  jeder Zahl der Karte; er braucht eine eigene Abnahme, keine Zeile in einem Sammel-Commit.
+* **Stufe 5 — Gemeinschaft und Aufbewahrung**: Kontakt-Ratenbegrenzung, Spam-Wortliste,
+  Backup-Anzahl, Protokollgrenzen, Linkprüfer-Fristen.
+
+⚠️ **Die Reihenfolge ist keine Zusage.** Sie steht hier, damit die Reiter nicht als Versprechen
+gelesen werden: ein Reiter mit „später" sagt „hier wäre der Platz", nicht „das kommt".
+
+🔴 **Zwei Tafeln bleiben, wo sie sind** (Zoombänder, Tempowerte) — sie haben gewachsene,
+zieh-bedienbare Oberflächen. Hier gehört nur ihr Eingang hin, nie eine zweite Fassung.
