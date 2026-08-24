@@ -91,7 +91,7 @@
         </div>
         <div class="rb-menu__row">
           <div class="rb-menu__txt"><b>Kurven</b><span id="ecoCurvesInfo">noch nicht gerechnet</span></div>
-          <button type="button" class="rb-menu__sw" id="ecoCurves" title="Rechnet die Beschriftungskurven aller eingeschalteten Landschaftsflächen neu und legt sie ab. Beim ERSTEN Lauf schaltet er ausserdem jede Fläche ein, deren Name heute von Hand gedreht ist (rund 56). Nur Admin; laeuft einige Sekunden.">starten</button>
+          <button type="button" class="rb-menu__sw" id="ecoCurves" title="Rechnet die Beschriftungskurven aller eingeschalteten Landschaftsflächen neu und legt sie ab. Läuft einige Sekunden.">starten</button>
         </div>
       </div>
     </div>
@@ -1459,14 +1459,11 @@ async function runCurveLabels() {
 		}
 		const sekunden = ((Date.now() - started) / 1000).toFixed(1).replace(".", ",");
 		const teile = [Number(data.regions || 0) + " Flächen mit Kurve"];
-		// Die Kachel IST die Zustandsanzeige (Hausregel). Der Umstelllauf sagt hier, was er getan hat;
-		// beim zweiten Mal sagt er ausdrücklich, dass er sich zurückgehalten hat -- sonst liest sich
-		// „0 neu eingeschaltet" wie ein Fehlschlag.
-		if (data.rollout && data.rollout.ran === true) {
-			teile.push(Number(data.rollout.changed || 0) + " neu eingeschaltet");
-		} else if (data.rollout && data.rollout.reason === "already") {
-			teile.push("Umstellung lief bereits");
-		}
+		// 🪤 Hier stand die Auswertung des UMSTELLLAUFS (`data.rollout`). Den gibt es seit dem
+		// 24.08.2026 nicht mehr -- der Owner hat ihn gedrückt, er hat seine Arbeit getan, und der
+		// Endpunkt schickt das Feld nicht mehr. Der Rebase hat den Leser einmal zurückgebracht:
+		// ein Zweig, der nie wahr werden kann, und genau die Sorte toter Code, die wie eine Bedienung
+		// aussieht. `kurvenlauf-recht-test.php` hat ihn gefangen.
 		info.textContent = teile.join(" · ");
 		// 🪤 Die Vorschau der Kurvenfeinheiten haelt die geholten Kurven fest (ein Abruf je
 		// Seitenaufruf). Nach einem Sammellauf sind sie veraltet -- und eine Vorschau, die die alte

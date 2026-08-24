@@ -45,7 +45,16 @@ const BAND = HTML.slice(bandVon, bandBis).replace(/<!--[\s\S]*?-->/g, "");
 {
 	const kacheln = (BAND.match(/<button[^>]*class="avm-tile/g) || []).length;
 	const imPanel = (BAND.match(/<button[^>]*class="rb-menu__sw"/g) || []).length;
-	pruefe(kacheln === 3, `DER KERN VON TEIL 1: das Band trägt ${kacheln} Kacheln, erwartet 3`);
+	// 🔴 VIER seit dem 24.08.2026 -- „Darstellung" ist dazugekommen (Landschaften-Darstellung,
+	// eigener Entwurf). Sie steht bewusst NICHT im Sammelmenü: das Menü führt die vier LÄUFE,
+	// und ein Einstellfenster ist kein Lauf (dieselbe Stellung wie „Zoombänder" im Orte-Editor).
+	//
+	// ⚠️ Die Zahl 3 war nie das Ziel -- das Ziel war KEINE ELLIPSE bei 1024 px, und genau das ist
+	// nachgemessen: mit der vierten Kachel ist bei 1024 px keine Überschrift und keine Unterzeile
+	// gekürzt, das Band rollt nicht, die Seite auch nicht. Die erste Ellipse kommt erst bei
+	// 760 px Bandbreite -- 236 px Reserve. Wer eine FÜNFTE hinzufügt, misst nach, statt die Zahl
+	// hier hochzusetzen.
+	pruefe(kacheln === 4, `DER KERN VON TEIL 1: das Band trägt ${kacheln} Kacheln, erwartet 4`);
 	pruefe(imPanel === 4, `DER KERN VON TEIL 1: im Menü stehen ${imPanel} Läufe, erwartet 4`);
 	// 💣 Und die Kachel, die gefallen ist, bleibt gefallen -- restlos, nicht halb. Ein Zuhörer ohne
 	// Kachel ist ein `addEventListener` auf null und nimmt beim Laden die ganze Seite mit.

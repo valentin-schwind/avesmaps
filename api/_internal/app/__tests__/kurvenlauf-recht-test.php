@@ -62,6 +62,19 @@ $kachel = [];
 preg_match('/id="ecoCurves"[^>]*title="([^"]*)"/', $fenster, $kachel);
 assert($kachel !== [], 'die Kachel traegt einen title');
 assert(stripos($kachel[1], 'admin') === false, 'der title sagt nicht mehr „Nur Admin"');
-assert(!str_contains($fenster, 'data.rollout'), 'die Auswertung des Umstelllaufs ist weg');
+// 🪤 GEMESSEN WIRD CODE, NICHT PROSA. Die Stelle, an der der Leser stand, trägt jetzt einen
+// Vermerk -- und der NENNT `data.rollout`, damit niemand ihn wieder einbaut. Ein Test, der die
+// blosse Zeichenkette sucht, prüft damit seine eigene Begründung und meldet einen Rückbau, den
+// es nicht gibt. Derselbe Fehler ist in diesem Umbau fünfmal aufgetreten; hier steht er als
+// Warnung für den nächsten.
+$ohneKommentare = preg_replace(
+    ['~/\*[\s\S]*?\*/~', '~^\s*//.*$~m', '~<!--[\s\S]*?-->~'],
+    ' ',
+    $fenster
+);
+assert(
+    !str_contains((string) $ohneKommentare, 'data.rollout'),
+    'die Auswertung des Umstelllaufs ist weg -- ein Zweig, der nie wahr wird, sieht wie eine Bedienung aus'
+);
 
 echo "kurvenlauf-recht: alle Zusicherungen gruen\n";

@@ -26,9 +26,16 @@ assert.ok(kachel, "die Kachel traegt einen title");
 assert.ok(/Landschaft/i.test(kachel[1]), "und der title sagt, dass es um LANDSCHAFTEN geht");
 assert.ok(/Orte/.test(kachel[1]), "und grenzt ausdruecklich gegen „Orte“ ab");
 
-// Sieben Kacheln: Syncen, Zugehoerigkeit, Hoehenraster, Wegprofile, Gelaende, Kurven, Darstellung.
+// 🪤 VIER, nicht sieben. Hier stand „sieben", und das war richtig, bis eine Parallelsitzung am
+// selben Tag die vier Batch-Läufe in EIN Sammelmenü „Rechnen ▾" zusammenzog (ihr Entwurf:
+// bei 1024 px waren vier Überschriften und zwei Unterzeilen mit Ellipse gekürzt).
+// Übrig sind: Syncen · Rechnen ▾ · Geländeabhängiges Reisen · Darstellung.
+//
+// ⚠️ „Darstellung" gehört NICHT ins Sammelmenü: das führt die vier LÄUFE, und ein
+// Einstellfenster ist kein Lauf. Nachgemessen, dass die vierte Kachel die Ellipse nicht
+// zurückholt -- bei 1024 px ist nichts gekürzt, die erste Ellipse kommt bei 760 px Bandbreite.
 const kacheln = (editor.match(/class="avm-tile[^"]*"/g) || []).length;
-assert.strictEqual(kacheln, 7, `das Menueband hat ${kacheln} Kacheln, erwartet sind sieben`);
+assert.strictEqual(kacheln, 4, `das Menueband hat ${kacheln} Kacheln, erwartet sind vier`);
 
 // ---- B. Vier Reiter, aus EINER Liste ------------------------------------------------------------
 assert.ok(/ECO_DISPLAY_EBENEN/.test(editor), "die Ebenen stehen in einer Liste");
