@@ -149,6 +149,72 @@ map.getPane("regionLabelsPane").classList.add("region-labels-pane");
 map.getPane("locationsPane").style.zIndex = 500;
 map.getPane("labelsPane").style.zIndex = 650;
 map.getPane("labelsPane").classList.add("map-labels-pane");
+
+// 🔴 UEBERBLENDUNG FUER DIE SIEDLUNGS- UND LANDSCHAFTSLABELS (Owner 24.08.2026: „mach den rest auch
+// so ... Flusslabels, Wegelabels, Siedlungslabels, Landschaftslabels“). Die ersten beiden liegen auf
+// Canvas und haben ihre zwei Flaechen schon; diese hier sind DOM-Marker mit gerenderten Bild-Icons
+// und lassen sich nicht „tauschen“.
+//
+// 💣 GENAU EINE EIGENSCHAFT MACHT ES TROTZDEM EINFACH: die Label-Panes tragen KEINE eigene
+// Transform. Der Zoom haengt am `_mapPane`, und die Panes sind dessen Kinder. Ein KLON des Panes,
+// als Geschwister danebengelegt, skaliert deshalb waehrend der Zoom-Animation gratis mit -- ohne
+// dass irgendetwas nachgerechnet oder synchron gehalten werden muesste. Der Klon haelt das alte
+// Schriftbild, waehrend das echte Pane neu bestueckt wird; danach blenden beide gegeneinander.
+//
+// ⚠️ NUR `labelsPane`. `regionLabelsPane` (Territoriumsnamen in der politischen Ansicht) bleibt bei
+// der CSS-Blende -- der Owner hat sie ausdruecklich als richtig bezeichnet, und sie stand nicht auf
+// seiner Liste.
+(function ueberblendungDerLabelPane() {
+	const AN = (() => {
+		try { return new URLSearchParams(window.location.search).get("crossfade") !== "0"; }
+		catch (e) { return true; }
+	})();
+	if (!AN) { return; }   // ?crossfade=0 -> die CSS-Blende von frueher, erst aus, dann ein
+	const pane = map.getPane("labelsPane");
+	if (!pane || !pane.parentNode) { return; }
+	const DAUER_MS = 350;   // wie bei den Grenz- und Wegenamen
+	let klon = null;
+	let aufraeumer = null;
+
+	function klonWeg() {
+		if (aufraeumer) { clearTimeout(aufraeumer); aufraeumer = null; }
+		if (klon && klon.parentNode) { klon.parentNode.removeChild(klon); }
+		klon = null;
+	}
+
+	map.on("zoomanim", () => {
+		klonWeg();   // 💣 immer nur EIN Klon -- zwei uebereinander waeren doppelte Schrift
+		klon = pane.cloneNode(true);
+		klon.classList.remove("map-labels-pane");   // sonst greift die CSS-Blende auch auf ihm
+		klon.style.pointerEvents = "none";          // rein bildlich, faengt keine Klicks
+		klon.style.transition = "";
+		klon.style.opacity = "1";
+		pane.parentNode.insertBefore(klon, pane);   // unter dem echten Pane -> neue Schrift kommt darueber
+		pane.style.transition = "";
+		pane.style.opacity = "0";                   // unsichtbar, aber der Klon zeigt dasselbe Bild
+		// 💣 HARTES NETZ, SCHON HIER GESPANNT. Die Blende unten haengt an requestAnimationFrame; feuert
+		// das nie (angehaltene Darstellung), bliebe der Klon fuer immer stehen -- doppelte Schrift auf
+		// der Karte. Nach 2 s verschwindet er in jedem Fall.
+		aufraeumer = setTimeout(() => { pane.style.opacity = "1"; klonWeg(); }, 2000);
+	});
+
+	map.on("zoomend", () => {
+		if (!klon) { return; }
+		// 💣 Zwei Bilder warten, wie bei den Canvas-Ebenen: am zoomend blockiert der Hauptthread
+		// 215-836 ms (live gemessen). Ein dort gestarteter Uebergang verstreicht, ohne dass ein Bild
+		// davon gezeichnet wird, und sieht aus wie ein Sprung.
+		requestAnimationFrame(() => requestAnimationFrame(() => {
+			if (aufraeumer) { clearTimeout(aufraeumer); }
+			pane.style.transition = `opacity ${DAUER_MS}ms ease`;
+			pane.style.opacity = "1";
+			if (klon) {
+				klon.style.transition = `opacity ${DAUER_MS}ms ease`;
+				klon.style.opacity = "0";
+			}
+			aufraeumer = setTimeout(klonWeg, DAUER_MS + 250);
+		}));
+	});
+})();
 // 🔴 Owner-Befund 15.08.2026 (fuenfter Befund, per Bildschirmabzug gemeldet): die gesetzte
 // Markierung (setSharePin, map-features-share-pin.js) landete ohne eigene `pane`-Angabe in
 // Leaflets STANDARD-`markerPane` (600) -- UNTER labelsPane (650). Das Faehnchen verschwand halb
