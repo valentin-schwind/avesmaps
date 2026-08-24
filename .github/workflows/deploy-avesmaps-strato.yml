@@ -68,7 +68,7 @@ jobs:
       # ⚠️ It runs BEFORE the secret check on purpose: a fork push or a workflow_dispatch should
       # fail on broken tests rather than on a missing secret. (There is no pull_request trigger,
       # so it does not fire on PRs at all -- an earlier version of this comment claimed it did.)
-      - name: Run the unit tests
+      - name: Syntax- und Testtor
         shell: bash
         run: |
           set -uo pipefail
@@ -86,6 +86,61 @@ jobs:
           failed=0
           php_ok=0
           js_ok=0
+
+          # ── ZUERST DIE SYNTAX, und erst dann die Tests ────────────────────────────────────────
+          #
+          # 🪤 WARUM ES DIESEN SCHRITT GIBT. Am 19.08.2026 stand `AVESMAPS_PATH_GROUP_DETAIL_MAX`
+          # in einem Endpunkt UNTER dem try-Block, der sie brauchte -- PHP hoistet Funktionen, aber
+          # keine `const` auf Dateiebene. Beim ersten echten Klick lief das in einen Fatal Error,
+          # und ein Fatal antwortet mit einem LEEREN RUMPF: im Browser stand „Unexpected end of
+          # JSON input", was sich wie ein Netzfehler liest und keiner ist. Gefunden hat es der
+          # Owner beim ersten Handgriff, nicht dieses Tor. Am 24.08. dasselbe Muster noch einmal.
+          #
+          # ⚠️ WAS ER FAENGT und was nicht: er faengt jeden Parse- und Compile-Fehler in einer
+          # Datei, die ausgeliefert wird -- also genau die Klasse, die ohne einen einzigen Test
+          # auskommt und trotzdem die Seite leert. Er faengt KEINEN Laufzeitfehler; dafuer braucht
+          # es Rauchtests gegen echte Endpunkte (siehe docs/strukturbefund-2026-08-24.md, Stufe 1).
+          #
+          # ⭐ Er steht HIER und nicht als eigener Schritt, weil php-cli in diesem Schritt bereits
+          # installiert ist -- ein zweiter Schritt kostete ein zweites apt-get von rund 20 Sekunden
+          # fuer eine Pruefung, die selbst 8 dauert.
+          #
+          # 💣 `git ls-files`, nicht `find`: gezaehlt wird, was im Repo steht und damit deployt
+          # werden kann. Ein `find` nimmt Wegwerfdateien eines Laufs mit und laesst das Tor an
+          # etwas scheitern, das nie jemand hochlaedt.
+          echo "--- Syntax ---"
+          php_lint_ok=0
+          while IFS= read -r quelle; do
+            if output="$(php -l "$quelle" 2>&1)"; then
+              php_lint_ok=$((php_lint_ok + 1))
+            else
+              failed=1
+              echo "::error file=${quelle}::PHP-Syntaxfehler"
+              echo "$output" | tail -5
+            fi
+          done < <(git ls-files '*.php')
+
+          # ⚠️ third-party bleibt draussen: Leaflet und jQuery sind fremder, unveraenderter Code.
+          # Ein Befund dort waere keiner ueber uns, und `node --check` liest eine minifizierte
+          # Bibliothek ohnehin anders als der Browser.
+          js_lint_ok=0
+          while IFS= read -r quelle; do
+            case "$quelle" in */third-party/*) continue ;; esac
+            if output="$(node --check "$quelle" 2>&1)"; then
+              js_lint_ok=$((js_lint_ok + 1))
+            else
+              failed=1
+              echo "::error file=${quelle}::JS-Syntaxfehler"
+              echo "$output" | tail -5
+            fi
+          done < <(git ls-files '*.js')
+
+          echo "Syntax: ${php_lint_ok} PHP-Dateien, ${js_lint_ok} JS-Dateien geprueft."
+
+          if [[ "$failed" -ne 0 ]]; then
+            echo "::error title=Syntaxfehler::Nichts wurde hochgeladen. Eine Datei laesst sich nicht einmal einlesen."
+            exit 1
+          fi
 
           # Two conventions, both real: __tests__/*.php under api/ and tools/, and test-*.php
           # directly under tools/{paths,routing,wikidump}. The second set was invisible to the
