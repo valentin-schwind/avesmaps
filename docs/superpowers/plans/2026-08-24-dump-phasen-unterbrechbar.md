@@ -31,6 +31,26 @@
 > 0 Zeilen geschrieben. Die tote Zeile ist weg, der Befund steht als 🪤 an
 > `avesmapsWikiDumpHybridFillClassMapStep()`. Eigene Aufgabe — hier hätte sie den einen Klick,
 > der diese Änderung abnimmt, mehrdeutig gemacht.
+> ✅ **Erledigt am selben Abend von einer eigenen Sitzung** (`6c2cbc37`).
+>
+> 🔴 **NACHTRAG 24.08.2026, spät — die Leitplanke war von der anderen Seite gerissen** (`f0d1838c`).
+> Die Drossel wurde nicht gesenkt, aber umgangen: `avesmapsWikiSyncThrottleWikiRequest` zählte den
+> Abstand in einer **statischen Variablen**, also nur innerhalb eines PHP-Prozesses, und die erste
+> Anfrage je Prozess schlief gar nicht. Solange eine Phase zwölf Abfragen in EINEM Schritt machte,
+> lagen elf Pausen dazwischen; als Schritte sind es zwölf *erste* Anfragen und damit **null**.
+> Aus „zu langsam" (HTTP 502) war „zu schnell" geworden. Der Zeitpunkt liegt seither in
+> `uploads/wiki-drossel/letzte-anfrage` unter einer Sperre, die **während** des Wartens gehalten
+> wird; ein fehlender Vermerk meldet sich (`wiki_drossel_ohne_vermerk`), statt still zurückzufallen.
+> ⭐ Die Lehre steht allgemein in der Erinnerung *unterbrechbar-machen-kann-eine-drossel-abschaffen*:
+> **vor dem Zerlegen einer Schleife fragen, was die Schleife zusammenhielt.**
+>
+> ⏱️ **Damit die Zahlen aus §2 wieder stimmen — und was sie kosten:** ~12 Schritte Klassen und
+> ~26 Bauwerke à 20 s ≈ 13 Minuten. Die Kontinent-Phase kostet **60 s je Schritt**, nicht 20:
+> die Bot-Anmeldung lebt ebenfalls prozesslokal (`avesmapsWikiBotZustand`), wird also in JEDEM
+> Schritt neu versucht und zahlt zwei zusätzliche gedrosselte Anfragen. 🔧 Damit hängt alles an
+> der Anmeldung: steht sie, sind es 18 Schritte ≈ 18 Minuten — scheitert sie, 50 statt 500 Titel
+> je Anfrage, also ~180 Schritte ≈ **3 Stunden**. Die Anmeldung über Schritte hinweg zu halten
+> wäre die nächste lohnende Kürzung (Faktor 3), ist aber nicht gebaut.
 
 **Stand:** 24.08.2026, Abend. **Zustand:** „Dump holen" bricht mit **HTTP 502** ab.
 **Aufgabe:** `online_class_map` und `online_building_map` bekommen einen Cursor.
