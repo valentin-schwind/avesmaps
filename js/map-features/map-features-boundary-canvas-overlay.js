@@ -416,6 +416,10 @@
 	})();
 	labelCanvas.style.setProperty("--border-label-fade-out", TERRITORY_LABEL_FADE_OUT_MS + "ms");
 
+	// Die Easing der Zoom-Animation, wie sie Leaflets eigene Ebenen benutzen. Einmal benannt, weil
+	// sie jetzt an zwei Stellen im selben Inline-String steht wie die Deckkraft.
+	const TERRITORY_ZOOM_TRANSFORM = "transform 250ms cubic-bezier(0,0,0.25,1)";
+
 	// Ob beim letzten redraw wirklich Namen gezeichnet wurden. 🔴 Der Wert wird VOR den vorzeitigen
 	// `return`s in redraw() zurueckgesetzt und erst an der Zeichenstelle gesetzt -- so stimmt die
 	// Blende auch dann, wenn redraw() unterwegs aussteigt (Haken aus, falscher Modus).
@@ -435,6 +439,14 @@
 		requestAnimationFrame(function () {
 			requestAnimationFrame(function () {
 				labelCanvas.style.opacity = grenzLabelsGezeichnet ? "1" : "0";
+				// 🔴 UND DIE LINIEN GLEICH MIT, an DENSELBEN Dauern. Ihre Strichbreite haengt am Zoom
+				// (BOUNDARY_WEAK_OUTER_WIDTH_BY_ZOOM: 3 / 4 / 6 px bei z4 / z5 / z6): waehrend der
+				// Animation skaliert die alte Fassung mit und schnitt am zoomend hart auf die neue um.
+				// ⚠️ Gemeinsame Dauer ist kein Sparen, sondern die Aussage: Grenze und ihr Name gehoeren
+				// zusammen und muessen gemeinsam zurueckkommen. Zwei Werte liefen beim ersten Nachjustieren
+				// auseinander, und dann kaeme der Name vor seiner Linie.
+				canvas.style.transition = TERRITORY_ZOOM_TRANSFORM + ", opacity " + TERRITORY_LABEL_FADE_MS + "ms ease";
+				canvas.style.opacity = "1";
 			});
 		});
 	}
@@ -744,7 +756,8 @@
 			return;
 		}
 		cssZoomActive = true;
-		canvas.style.transition = "transform 250ms cubic-bezier(0,0,0.25,1)";
+		canvas.style.transition = TERRITORY_ZOOM_TRANSFORM + ", opacity " + TERRITORY_LABEL_FADE_OUT_MS + "ms ease-out";
+		canvas.style.opacity = "0";   // erst weg, dann neu zeichnen, dann wieder einblenden
 		const scale = map.getZoomScale(event.zoom);
 		const offset = map._latLngToNewLayerPoint(canvasTopLeftLatLng, event.zoom, event.center);
 		L.DomUtil.setTransform(canvas, offset, scale);
