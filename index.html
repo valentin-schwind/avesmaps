@@ -3193,6 +3193,13 @@
 		     -location-name-labels.js, deren Zeichner die Tafel lesen. Keine eigenen
 		     Abhängigkeiten, die frühe Position kostet also nichts. -->
 		<script src="js/map-features/location-zoom-bands.js"></script>
+		<!-- 🔴 Die Darstellungstafel der Landschaften -- die einzige Quelle ihrer Zahlen-Vorgaben
+		     (Ton/Deckkraft der Flaechen, Farbe/Groesse/Zoomband der Namen). Sie MUSS vor
+		     map-features-labels.js und den Landschaften-Zeichnern stehen: `const` auf Dateiebene
+		     sind in einem klassischen Script nicht gehoistet, spaeter geladen waere sie beim
+		     ersten Zeichnen undefined. Neben location-zoom-bands.js, weil beide dieselbe Rolle
+		     spielen -- die eine fuer Orte, die andere fuer Landschaften. -->
+		<script src="js/map-features/ecosystem-display.js"></script>
 		<!-- Das reine Fundament der Beschriftungs-Platzierung (zwoelf Ausweichstellen, Deckel,
 		     Rechteck-Mathe). Nach location-zoom-bands.js, weil es avesmapsLocationLabelSpacing
 		     liest; vor map-features*.js, deren Loeser es ruft. Dieselbe Datei laedt das Fenster
