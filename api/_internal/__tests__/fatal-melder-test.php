@@ -57,6 +57,22 @@ $pruefe(mb_strlen($langer) < 260, 'eine ellenlange Meldung wird gedeckelt (sie m
 $leer = avesmapsFatalMessage(['type' => E_ERROR]);
 $pruefe(str_contains($leer, 'Grund unbekannt'), 'ohne Meldung steht wenigstens „Grund unbekannt" da, nie eine leere Klammer');
 
+// -------------------------------------------------- GEFANGENE AUSNAHMEN ---
+// 🔴 „Internal server error." ist fuer einen OEFFENTLICHEN Endpunkt richtig -- ein Ausnahmetext
+// verraet Tabellennamen, Pfade und Versionen. Fuer einen faehigkeitsgeschuetzten EDITOR-Endpunkt
+// ist die Abwaegung umgekehrt: dort sitzt jemand, der den Fehler melden soll.
+$ausnahme = avesmapsThrowableMessage(new PDOException('SQLSTATE[42S22]: Unknown column in /mnt/web108/htdocs/api/x.php'), 'wiki-dump');
+$pruefe(str_contains($ausnahme, 'PDOException'), 'die Klasse der Ausnahme steht im Satz -- sie sagt oft schon alles');
+$pruefe(str_contains($ausnahme, 'Unknown column'), 'der Grund steht im Satz');
+$pruefe(str_contains($ausnahme, 'wiki-dump'), 'der Zusammenhang steht im Satz');
+$pruefe(!str_contains($ausnahme, '/mnt/'), 'auch hier bleibt der volle Pfad draussen');
+
+// ⚠️ Und die Vorgabe MUSS schweigsam bleiben: wer den Grund will, muss ihn ausdruecklich
+// anfordern. Sonst leckt der naechste oeffentliche Endpunkt seine Ausnahmen, ohne dass es
+// jemandem auffaellt.
+$quelle = (string) file_get_contents(__DIR__ . '/../bootstrap.php');
+$pruefe(str_contains($quelle, 'bool $grundZeigen = false'), 'der Grund wird nur auf ausdruecklichen Wunsch ausgegeben, nie von selbst');
+
 // --------------------------------------------------------------- DER ABLAUF ---
 // 💣 Das ist die Zusicherung, die zaehlt: ein echter Prozess, ein echter Abbruch, eine echte
 // Antwort. Ohne sie waere nur bewiesen, dass die Formatierung stimmt.

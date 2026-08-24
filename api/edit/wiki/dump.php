@@ -1061,7 +1061,7 @@ try {
     if (isset($pdo, $lockHeldByThisRequest) && $lockHeldByThisRequest) {
         try { avesmapsWikiDumpLockRelease($pdo, $lockUserId); } catch (Throwable) { /* best-effort */ }
     }
-    avesmapsServerErrorResponse($exception, 'wiki-dump');
+    avesmapsServerErrorResponse($exception, 'wiki-dump', true);
 } catch (AvesmapsWikiUnreachableException $error) {
     // Das Wiki hat nicht geantwortet -- ein eigener Fall, kein Serverfehler. Fertig formulierter
     // Satz ohne Interna, 503 weil die Ursache draussen liegt. Begruendung samt Reihenfolge-Falle:
@@ -1073,5 +1073,5 @@ try {
     if (isset($pdo, $lockHeldByThisRequest) && $lockHeldByThisRequest) {
         try { avesmapsWikiDumpLockRelease($pdo, $lockUserId); } catch (Throwable) { /* best-effort */ }
     }
-    avesmapsServerErrorResponse($error, 'wiki-dump');
+    avesmapsServerErrorResponse($error, 'wiki-dump', true);
 }

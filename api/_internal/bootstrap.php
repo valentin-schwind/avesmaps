@@ -448,7 +448,7 @@ function avesmapsRegisterFatalReporter(string $context = ''): void {
  * ⚠️ Gedeckelt und ohne Pfad: die Meldung landet in einem Toast, und der volle Pfad gehoert
  * nicht in eine Antwort an den Browser.
  */
-function avesmapsFatalMessage(array $letzterFehler, string $context = ''): string {
+function avesmapsFatalMessage(array $letzterFehler, string $context = '', string $einleitung = 'Der Server hat abgebrochen'): string {
     $text = trim((string) ($letzterFehler['message'] ?? ''));
 
     // ⚠️ PHPs eigene Fehlertexte tragen VOLLE Pfade und einen mehrzeiligen Stapel mit. Beides
@@ -474,12 +474,37 @@ function avesmapsFatalMessage(array $letzterFehler, string $context = ''): strin
 
     $teile = array_values(array_filter([$context, $text, $ort], static fn(string $t): bool => $t !== ''));
 
-    return 'Der Server hat abgebrochen (' . implode(' · ', $teile) . ').';
+    return $einleitung . ' (' . implode(' · ', $teile) . ').';
 }
 
-function avesmapsServerErrorResponse(Throwable $error, string $context = ''): never {
+/**
+ * REIN: aus einer gefangenen Ausnahme denselben Satz bauen wie aus einem Abbruch.
+ */
+function avesmapsThrowableMessage(Throwable $error, string $context = ''): string {
+    return avesmapsFatalMessage([
+        'message' => $error::class . ': ' . $error->getMessage(),
+        'file' => $error->getFile(),
+        'line' => $error->getLine(),
+    ], $context, 'Der Server ist gescheitert');
+}
+
+/**
+ * 🔴 `$grundZeigen` ist AUSDRUECKLICH, nicht Vorgabe. „Internal server error." ist fuer einen
+ * oeffentlichen Endpunkt die richtige Antwort -- ein Ausnahmetext verraet Tabellennamen, Pfade
+ * und Bibliotheksversionen (AGENTS.md §10 fuehrt genau das als offenen Punkt).
+ *
+ * ⚠️ Fuer einen fähigkeitsgeschuetzten EDITOR-Endpunkt ist die Abwaegung umgekehrt: dort sitzt
+ * ein angemeldeter Mitarbeiter, der den Fehler melden soll, und ein nichtssagendes „Internal
+ * server error." macht seine Meldung wertlos. Am 24.08.2026 hat genau dieser Satz zwei Anlaeufe
+ * gekostet, weil das Serverprotokoll bei STRATO nicht lesbar ist.
+ */
+function avesmapsServerErrorResponse(Throwable $error, string $context = '', bool $grundZeigen = false): never {
     error_log('avesmaps' . ($context !== '' ? ' ' . $context : '') . ': ' . $error->getMessage());
-    avesmapsErrorResponse(500, 'server_error', 'Internal server error.');
+    avesmapsErrorResponse(
+        500,
+        'server_error',
+        $grundZeigen ? avesmapsThrowableMessage($error, $context) : 'Internal server error.'
+    );
 }
 
 // Canonical BF-year formatter (single source of truth; M4 DRY). 9999 = open/never-dissolved
