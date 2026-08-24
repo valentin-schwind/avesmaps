@@ -439,8 +439,27 @@ jobs:
           # Kurz warten: der Upload ist eben erst durch, und PHP mag einen Moment brauchen.
           sleep 20
 
+          # Wie oft der Server ueberhaupt GEANTWORTET hat. Null heisst: wir haben ihn nie erreicht --
+          # das sagt nichts ueber den Deploy und darf deshalb nicht wie ein toter Deploy klingen.
+          antworten=0
           for versuch in 1 2 3; do
-            kopf="$(curl -s -o /tmp/karte.probe -D - -w '%{http_code}' --max-time 180 "$ziel" | tail -1)"
+            # 💣 `|| rc=$?` ist TRAGEND, und zwar doppelt.
+            # (a) Es haelt curls Grund fest: 7 heisst „kein Verbindungsaufbau", 28 „zu langsam", 6 „Name
+            #     nicht aufgeloest". Ohne ihn steht im Protokoll nur eine leere HTTP-Zeile, und der
+            #     naechste Leser haelt einen Netzausfall fuer eine kaputte Karte.
+            # (b) Es haelt den Schritt am Leben. GitHub startet jeden `shell: bash`-Schritt mit
+            #     `bash --noprofile --norc -e -o pipefail`; das `set -uo pipefail` oben kann dieses `-e`
+            #     NICHT abschalten, denn `set` schaltet nur ein (dafuer gaebe es `set +e`). Ohne den
+            #     `||`-Verbund toetet der erste curl-Fehlschlag den Schritt genau hier: die drei Versuche
+            #     laufen nie, die Meldung unten erscheint nie, und der Schritt endet mit 7 statt mit 1.
+            #     Genau so geschah es am 24.08.2026 ZWEIMAL bei kerngesunder Karte (HTTP 200, 19,9 MB) --
+            #     beide Laeufe exakt 20,2 s lang, also das `sleep 20` und sonst nichts.
+            # ⚠️ Wer hier eine weitere Zeile einfuegt, die fehlschlagen darf, braucht denselben Schutz:
+            #    ein `|| …`, ein `if …; then`, oder ein `|| true`. Der Nachbarschritt „Run the unit tests"
+            #    macht es mit `if output="$(…)"; then` -- das ist die Hausform.
+            # Gewacht von tools/__tests__/deploy-kartenprobe.test.js.
+            rc=0
+            kopf="$(curl -s -o /tmp/karte.probe -D - -w '%{http_code}' --max-time 180 "$ziel" | tail -1)" || rc=$?
             anfang="$(head -c 200 /tmp/karte.probe 2>/dev/null || true)"
 
             if [[ "$kopf" == "200" && "$anfang" == *'"ok":true'* ]]; then
@@ -456,9 +475,22 @@ jobs:
               exit 0
             fi
 
-            echo "Versuch $versuch: HTTP $kopf -- $(head -c 160 /tmp/karte.probe 2>/dev/null)"
+            if [[ "$rc" -eq 0 ]]; then
+              antworten=$(( antworten + 1 ))
+              echo "Versuch $versuch: HTTP $kopf -- $(head -c 160 /tmp/karte.probe 2>/dev/null)"
+            else
+              echo "Versuch $versuch: keine Antwort, curl-Exit $rc -- der Host war nicht zu erreichen."
+            fi
             [[ "$versuch" -lt 3 ]] && sleep 25
           done
 
-          echo "::error title=Die Karte ist tot::$ziel antwortet nicht mit ok:true. Die Seite laedt, die Karte bleibt LEER. Der Upload ist bereits erfolgt -- pruefe den letzten Commit und erwaege einen Revert."
+          # 🔴 ZWEI Diagnosen, und der Unterschied ist der ganze Sinn dieser Trennung: hat der Server
+          # NIE geantwortet, ist ueber die Karte NICHTS gemessen -- der Upload ist trotzdem durch, und
+          # ein Revert waere der falsche Reflex. Am 24.08.2026 lief genau dieser Fall zweimal, und die
+          # alte, einzige Meldung empfahl beide Male einen Revert fuer eine kerngesunde Karte.
+          if [[ "$antworten" -eq 0 ]]; then
+            echo "::error title=Karte nicht erreichbar::$ziel war in drei Versuchen nicht zu erreichen (zuletzt curl-Exit $rc). Der Upload ist bereits durch; ob die Karte lebt, ist damit NICHT gemessen -- einmal von Hand abrufen. Ein Revert ist hier der falsche Reflex."
+          else
+            echo "::error title=Die Karte ist tot::$ziel antwortet nicht mit ok:true. Die Seite laedt, die Karte bleibt LEER. Der Upload ist bereits erfolgt -- pruefe den letzten Commit und erwaege einen Revert."
+          fi
           exit 1
