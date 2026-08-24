@@ -115,6 +115,10 @@
 	// eine Antwort auf einen Befund an DIESEM Bild, keine Hausregel. Wer ihn verallgemeinert, macht
 	// aus acht Einzelentscheidungen eine, und das waere eine eigene Entscheidung mit eigenem Blick.
 	// ⭐ Live vergleichbar ohne Deploy: ?canvasdpr=1.5 stellt den scharfen Stand her, ?canvasdpr=2 mehr.
+	// 🔴 UND DIE WEGENAMEN STEHEN BEWUSST ANDERS: PATH_LABEL_CANVAS_MAX_DPR ist Infinity
+	// (path-label-canvas-overlay.js). Owner 24.08.2026: „bei straßen und flüssen sieht canvasdpr=1.5
+	// besser aus, bei den grenzbeschriftungen canvasdpr=1.0“. Zwei Schrift-Canvasse, zwei Vorgaben --
+	// wer sie angleicht, nimmt eine am Bild getroffene Entscheidung zurueck.
 	const TERRITORY_CANVAS_MAX_DPR = 1;
 	const territoryCanvasMaxDpr = (() => {
 		try {

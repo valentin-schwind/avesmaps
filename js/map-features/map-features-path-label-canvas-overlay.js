@@ -54,16 +54,21 @@
 	canvas.style.left = "0";
 	canvas.style.transformOrigin = "0 0";
 	canvas.classList.add("leaflet-zoom-animated"); // weiches Mitskalieren während der CSS-Zoom-Animation
-	// 🔴 DECKEL FUER DEN BACKING-STORE DIESER CANVAS -- dieselbe Entscheidung wie bei den Grenznamen
-	// (3477d020, Owner 24.08.2026: „devicePixelRatio - setz das mal runter“, danach: „das sieht so
-	// schön aus“). 1 heisst ein Canvas-Pixel je CSS-Pixel; der Browser streckt das fertige Bild.
-	// 💣 DIESE DATEI LIEST DEN WERT AN ZWEI STELLEN, UND SIE SIND GEKOPPELT: die Canvas-Groesse und
-	// der Halo-Multiplikator (`shadowBlur` zaehlt in GERAETE-Pixeln). Wer nur die Groesse deckelt,
-	// bekommt bei dpr 1,5 einen anderthalbfach zu starken Schein um jeden Wegenamen -- und das sieht
-	// nicht nach einem Fehler aus, sondern nach einer Geschmacksentscheidung. Deshalb EIN Wert.
-	// ⭐ Live vergleichbar ohne Deploy: ?canvasdpr=1.5 stellt den scharfen Stand her (derselbe
-	// Parameter wie bei den Grenzen -- er gilt bewusst fuer beide Schrift-Canvasse).
-	const PATH_LABEL_CANVAS_MAX_DPR = 1;
+	// 🔴 DIESE CANVAS BLEIBT SCHARF -- UND DAS IST DER UNTERSCHIED ZU DEN GRENZNAMEN.
+	// Owner 24.08.2026, nachdem beide kurzzeitig auf 1 standen: „bei straßen und flüssen sieht
+	// canvasdpr=1.5 besser aus, bei den grenzbeschriftungen canvasdpr=1.0“. Also KEIN Deckel hier,
+	// waehrend die Grenzen-Canvas auf 1 steht (TERRITORY_CANVAS_MAX_DPR, boundary-canvas-overlay).
+	// ⚠️ Zwei Schrift-Canvasse, zwei Vorgaben, und das ist ABSICHT: wer sie „vereinheitlicht“, nimmt
+	// eine Entscheidung zurueck, die am Bild getroffen wurde. Die Wegenamen liegen klein und dicht auf
+	// der Karte und brauchen die Schaerfe; die Gebietsnamen sind gross, gesperrt und halbtransparent
+	// und gewinnen durch das Weichzeichnen.
+	// 💣 DIESE DATEI LIEST DEN WERT TROTZDEM AN ZWEI STELLEN, UND SIE SIND GEKOPPELT: die
+	// Canvas-Groesse und der Halo-Multiplikator (`shadowBlur` zaehlt in GERAETE-Pixeln). Wer hier je
+	// einen Deckel setzt und nur die Groesse bindet, bekommt einen zu starken Schein um jeden
+	// Wegenamen -- und das liest sich nicht als Fehler, sondern als Geschmack. Deshalb EIN Wert.
+	// ⭐ Zum Probieren ohne Deploy: ?canvasdpr=1 zeigt auch die Wegenamen weich (der Parameter gilt
+	// weiterhin fuer BEIDE Schrift-Canvasse -- er ist die Probe, die Vorgaben sind die Entscheidung).
+	const PATH_LABEL_CANVAS_MAX_DPR = Infinity;
 	function pfadLabelCanvasDpr() {
 		let deckel = PATH_LABEL_CANVAS_MAX_DPR;
 		try {
