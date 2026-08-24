@@ -3,11 +3,11 @@
 declare(strict_types=1);
 
 require __DIR__ . '/_assert.php';
-require __DIR__ . '/../../api/_internal/discord/signature.php';
-require __DIR__ . '/../../api/_internal/discord/responses.php';
-require __DIR__ . '/../../api/_internal/discord/faq.php';
-require __DIR__ . '/../../api/_internal/discord/router.php';
-require __DIR__ . '/../../api/_internal/discord/endpoint.php';
+require __DIR__ . '/../signature.php';
+require __DIR__ . '/../responses.php';
+require __DIR__ . '/../faq.php';
+require __DIR__ . '/../router.php';
+require __DIR__ . '/../endpoint.php';
 
 $faq = [];
 $deps = [

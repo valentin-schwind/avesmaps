@@ -78,7 +78,7 @@ jobs:
           # abort loudly, which is why a missing extension shows up as FATAL rather than a pass.
           sudo apt-get update -qq
           sudo apt-get install -y --no-install-recommends \
-            php-cli php-mbstring php-curl php-sqlite3 php-gd > /dev/null
+            php-cli php-mbstring php-curl php-sqlite3 php-gd php-sodium > /dev/null
 
           php -v | head -1
           echo "node $(node -v)"

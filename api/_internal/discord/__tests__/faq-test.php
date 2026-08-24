@@ -3,9 +3,9 @@
 declare(strict_types=1);
 
 require __DIR__ . '/_assert.php';
-require __DIR__ . '/../../api/_internal/discord/faq.php';
+require __DIR__ . '/../faq.php';
 
-$faq = avesmapsDiscordLoadFaq(__DIR__ . '/../../api/discord/faq.de.json');
+$faq = avesmapsDiscordLoadFaq(__DIR__ . '/../../../discord/faq.de.json');
 t_eq(count($faq), 7, '7 entries');
 t_eq($faq[0]['id'], 'was-ist-avesmaps', 'first id');
 $item = avesmapsDiscordFaqById($faq, 'kostenlos');

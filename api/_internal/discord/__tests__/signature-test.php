@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 require __DIR__ . '/_assert.php';
-require __DIR__ . '/../../api/_internal/discord/signature.php';
+require __DIR__ . '/../signature.php';
 
 if (!function_exists('sodium_crypto_sign_keypair')) {
     fwrite(STDOUT, "SKIP: sodium not loaded\n");
