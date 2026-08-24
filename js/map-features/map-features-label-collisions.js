@@ -175,8 +175,24 @@ function getLocationNameLabelOffsets(element, labelRect) {
 	return avesmapsLabelCandidatePlacements(
 		getLocationNameLabelBaseOffset(element),
 		labelRect.width,
-		labelRect.height
+		labelRect.height,
+		undefined,
+		getLocationNameLabelPadX(element)
 	);
+}
+
+// 💣 `labelRect.width` IST DIE BILDBREITE, NICHT DIE TEXTBREITE. Das Namens-<img> trägt links und
+// rechts je `padX` durchsichtige Polsterung (Platz für den Halo). Rechts fällt das nicht auf, weil
+// das Bild um genau diesen Betrag zurückgeschoben wird; beim Seitenwechsel nach links zählte die
+// Polsterung doppelt und der Name stand `2 x padX` zu weit weg (Owner 24.08.2026). Gelesen wird sie
+// aus derselben Variablen, die das `left:calc(...)` des Bildes benutzt -- nicht nachgerechnet.
+// ⚠️ Fehlt sie (Alt-Pfad mit <span>, oder ein Label ohne Bild), ist 0 richtig: dort gibt es keine
+// Polsterung, und die Spiegelung fällt auf die alte Rechnung zurück.
+function getLocationNameLabelPadX(element) {
+	const labelElement = element.querySelector("img");
+	if (!labelElement) { return 0; }
+	const style = window.getComputedStyle(labelElement);
+	return parseFloat(style?.getPropertyValue("--location-label-pad-x")) || 0;
 }
 
 function setLabelElementChosenOffset(element, isLocation, baseOffset, candidate) {

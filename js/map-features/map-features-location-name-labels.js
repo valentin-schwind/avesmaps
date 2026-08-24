@@ -159,11 +159,14 @@ function createLocationNameLabelIcon(entry, zoomLevel = map.getZoom()) {
 	// Horizontal: Text beginnt bei offset.x (links um die Canvas-Polsterung zurück). Vertikal: die
 	// x-Höhen-Mitte des Textes exakt auf die Marker-Mitte legen (top = -anchorY); der vertikale
 	// Basis-Offset entfällt damit (0), die Kollision verschiebt weiterhin über --label-offset-y.
-	const leftAdjust = -image.padX;
+	// 🔴 `--location-label-pad-x` IST DIE POLSTERUNG ALS LESBARER WERT, nicht nur als Zahl im calc.
+	// Der Kollisionslöser braucht sie, um den Namen links richtig zu spiegeln: `labelWidth` ist die
+	// Breite des BILDES, und ohne den Abzug stünde der Name dort um `2 x padX` zu weit vom Punkt
+	// (24.08.2026). Sie steht deshalb im calc UND als Variable -- EINE Quelle, zwei Leser.
 	const topAdjust = -image.anchorY;
 	return L.divIcon({
 		className: `location-name-label location-name-label--${labelType}${ruinedClassName}`,
-		html: `<img src="${image.url}" width="${image.w}" height="${image.h}" alt="${escapeHtml(entry.name)}" style="position:absolute; display:block; pointer-events:none; --location-label-offset-x:${offset.x}px; --location-label-offset-y:0px; left:calc(var(--location-label-offset-x) + var(--label-offset-x, 0px) + ${leftAdjust}px); top:calc(var(--location-label-offset-y) + var(--label-offset-y, 0px) + ${topAdjust}px);">`,
+		html: `<img src="${image.url}" width="${image.w}" height="${image.h}" alt="${escapeHtml(entry.name)}" style="position:absolute; display:block; pointer-events:none; --location-label-offset-x:${offset.x}px; --location-label-offset-y:0px; --location-label-pad-x:${image.padX}px; left:calc(var(--location-label-offset-x) + var(--label-offset-x, 0px) - var(--location-label-pad-x)); top:calc(var(--location-label-offset-y) + var(--label-offset-y, 0px) + ${topAdjust}px);">`,
 		iconSize: [0, 0],
 		iconAnchor: [0, 0],
 	});

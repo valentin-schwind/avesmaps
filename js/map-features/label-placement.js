@@ -105,10 +105,25 @@ function avesmapsLabelBaseOffset(markerAussenradius, labelHoehePx, abstaende) {
 // Stelle über dem Punkt (Anfang 84 px daneben, Entwurf §3), nicht der Seitenwechsel -- §2 desselben
 // Entwurfs schrieb ihn dem Seitenwechsel zu und war damit falsch. `top`/`bottom` behalten deshalb
 // die volle Luftlinie: sie rücken den Namen wirklich vom Punkt weg.
-function avesmapsLabelCandidatePlacements(baseOffset, labelWidth, labelHeight, abstaende) {
+// 💣 `labelPadX` IST DIE DURCHSICHTIGE INNENPOLSTERUNG DES NAMENSBILDES, und ohne sie steht der
+// Name links um `2 x padX` zu weit vom Punkt weg (Owner 24.08.2026: „linksbündig ist - nur mit
+// etwas zu viel abstand auf der rechten seite"). Die Karte rendert den Namen auf ein Canvas und
+// legt rundum Platz für den Halo dazu -- `labelWidth` ist die Breite des BILDES, nicht des Textes
+// (`padX = ceil(fontSizePx * 0.5 + haloExtent)`, rund 10 px bei einem Dorf auf z5).
+// Rechts fällt das nicht auf: dort schiebt `leftAdjust = -padX` das Bild zurück, der sichtbare Text
+// beginnt also genau bei `baseOffset.x`. Links wurde die volle Bildbreite gespiegelt, und die
+// Polsterung zählte doppelt -- einmal als Bildrand, einmal als Abstand.
+// 🔴 DIE REGEL IST SPIEGELUNG DES SICHTBAREN TEXTES: rechts beginnt er bei `baseOffset.x`, links
+// endet er bei `-scaledGap`. Deshalb `-(labelWidth - 2 * padX)`, also die reine Textbreite.
+// ⚠️ Ohne Angabe 0 -- das Vorschaupanel setzt echten Text ohne Polsterung, und beide Aufrufer
+// bleiben damit bei ihrer eigenen Metrik richtig.
+function avesmapsLabelCandidatePlacements(baseOffset, labelWidth, labelHeight, abstaende, labelPadX) {
 	const smallShift = avesmapsLabelSpacingOf(abstaende, "versatz");
 	const scaledGap = Math.max(LOCATION_LABEL_GAP, Math.abs(baseOffset.x));
 	const verticalCenterOffset = -labelHeight / 2;
+	const padX = typeof labelPadX === "number" && Number.isFinite(labelPadX) ? Math.max(0, labelPadX) : 0;
+	// Die sichtbare Textbreite. Bei padX = 0 ist sie die Bildbreite -- die alte Rechnung.
+	const textWidth = Math.max(0, labelWidth - padX * 2);
 
 	return [
 		{ name: "right", dx: baseOffset.x, dy: baseOffset.y },
@@ -116,11 +131,11 @@ function avesmapsLabelCandidatePlacements(baseOffset, labelWidth, labelHeight, a
 		{ name: "right-down", dx: baseOffset.x, dy: baseOffset.y + smallShift },
 		{ name: "top-right", dx: baseOffset.x, dy: baseOffset.y - labelHeight - smallShift },
 		{ name: "bottom-right", dx: baseOffset.x, dy: baseOffset.y + labelHeight + smallShift },
-		{ name: "left", seitenwechsel: true, dx: -labelWidth - scaledGap, dy: baseOffset.y },
-		{ name: "left-up", seitenwechsel: true, dx: -labelWidth - scaledGap, dy: baseOffset.y - smallShift },
-		{ name: "left-down", seitenwechsel: true, dx: -labelWidth - scaledGap, dy: baseOffset.y + smallShift },
-		{ name: "top-left", seitenwechsel: true, dx: -labelWidth - scaledGap, dy: baseOffset.y - labelHeight - smallShift },
-		{ name: "bottom-left", seitenwechsel: true, dx: -labelWidth - scaledGap, dy: baseOffset.y + labelHeight + smallShift },
+		{ name: "left", seitenwechsel: true, dx: -textWidth - scaledGap, dy: baseOffset.y },
+		{ name: "left-up", seitenwechsel: true, dx: -textWidth - scaledGap, dy: baseOffset.y - smallShift },
+		{ name: "left-down", seitenwechsel: true, dx: -textWidth - scaledGap, dy: baseOffset.y + smallShift },
+		{ name: "top-left", seitenwechsel: true, dx: -textWidth - scaledGap, dy: baseOffset.y - labelHeight - smallShift },
+		{ name: "bottom-left", seitenwechsel: true, dx: -textWidth - scaledGap, dy: baseOffset.y + labelHeight + smallShift },
 		{ name: "top", dx: -labelWidth / 2, dy: verticalCenterOffset - labelHeight - smallShift },
 		{ name: "bottom", dx: -labelWidth / 2, dy: verticalCenterOffset + labelHeight + smallShift },
 	].map((stelle) => ({

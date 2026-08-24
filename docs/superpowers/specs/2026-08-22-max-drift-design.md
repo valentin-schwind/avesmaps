@@ -56,6 +56,27 @@ Bei Breite 99, Höhe 22, Spalt 14 und Versatz 8 ergibt das:
 welcher Seite, ist gleichgültig —, sich mittig darüberzuschieben ist teuer. Nur so kann ein
 mittlerer Deckel das eine erlauben und das andere verbieten.
 
+### 2a. Und die Spiegelung braucht die Polsterung des Namensbildes
+
+🪤 **Der erste Live-Blick des Owners:** „linksbündig ist — nur mit etwas zu viel abstand auf der
+rechten seite". Ursache: `labelWidth` ist die Breite des **Bildes**, nicht des Textes. Die Karte
+rendert den Namen auf ein Canvas und legt links wie rechts `padX = ceil(fontSizePx × 0.5 +
+haloExtent)` durchsichtigen Platz für den Halo dazu. Rechts fällt das nicht auf — das Bild wird um
+genau `padX` zurückgeschoben (`leftAdjust`), der sichtbare Text beginnt also bei `baseOffset.x`.
+Links wurde die **volle Bildbreite** gespiegelt, und die Polsterung zählte doppelt:
+
+| Ortsklasse (z5) | padX | Spalt rechts | Spalt links vorher | jetzt |
+|---|---|---|---|---|
+| Dorf | 10 | 12 | **32** | 12 |
+| Stadt | 11 | 18 | **40** | 18 |
+| Metropole | 15 | 23 | **53** | 23 |
+
+🔴 Die Regel heißt deshalb **Spiegelung des sichtbaren Textes**: rechts beginnt er bei
+`baseOffset.x`, links endet er bei `-scaledGap`. `avesmapsLabelCandidatePlacements` nimmt dafür ein
+optionales `labelPadX` (ohne Angabe 0 — das Vorschaupanel setzt echten Text ohne Polsterung).
+💣 Gelesen wird es aus **derselben** CSS-Variablen, die das `left:calc(…)` des Bildes benutzt
+(`--location-label-pad-x`), nicht nachgerechnet — sonst stünde die Formel zweimal da.
+
 ### 2b. Zwei Fehlmessungen, beide teuer — und warum sie hier stehen bleiben
 
 🪤 **Fassung 1 (22.08. früh) zählte nur den senkrechten Anteil.** Damit war auch „mittig über dem

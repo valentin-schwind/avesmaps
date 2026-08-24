@@ -186,4 +186,54 @@ assert.strictEqual(mitUeber[1].drift, 20, "mit Uebersteuerung der mitgegebene We
 assert.strictEqual(avesmapsLocationLabelSpacing("versatz"), 8,
 	"und der globale Zustand bleibt dabei unberuehrt");
 
+// ---- J. Die Polsterung des Namensbildes -- der Name links steht sonst 2 x padX zu weit ----------
+// 💣 `labelWidth` IST DIE BILDBREITE. Das Namens-<img> traegt links und rechts je `padX`
+// durchsichtige Polsterung (Platz fuer den Halo, rund 10 px bei einem Dorf auf z5). Rechts faellt
+// das nicht auf, weil das Bild um genau diesen Betrag zurueckgeschoben wird -- links wurde die
+// volle Bildbreite gespiegelt und die Polsterung zaehlte DOPPELT. Owner 24.08.2026: „linksbuendig
+// ist - nur mit etwas zu viel abstand auf der rechten seite".
+const PAD = 10;
+const basisJ = { x: 14, y: 0 };
+const ohnePad = avesmapsLabelCandidatePlacements(basisJ, BREITE, HOEHE);
+const mitPad = avesmapsLabelCandidatePlacements(basisJ, BREITE, HOEHE, undefined, PAD);
+const stelleJ = (liste, name) => liste.find((s2) => s2.name === name);
+
+// 🔴 DIE REGEL IST SPIEGELUNG DES SICHTBAREN TEXTES, und so wird sie gemessen: rechts beginnt er
+// bei baseOffset.x, links endet er beim selben Abstand auf der anderen Seite.
+const spalt = Math.max(LOCATION_LABEL_GAP, basisJ.x);
+const textbreite = BREITE - PAD * 2;
+assert.strictEqual(stelleJ(mitPad, "left").dx + textbreite, -spalt,
+	"der sichtbare Text endet links genau `scaledGap` vor dem Punkt");
+assert.strictEqual(stelleJ(mitPad, "right").dx, basisJ.x,
+	"und beginnt rechts genau `baseOffset.x` dahinter -- dieselbe Weite, gespiegelt");
+
+// Und die Differenz zur alten Rechnung ist genau die doppelte Polsterung.
+assert.strictEqual(stelleJ(mitPad, "left").dx - stelleJ(ohnePad, "left").dx, PAD * 2,
+	"gegen die alte Rechnung rueckt der Name um 2 x padX naeher an den Punkt");
+["left-up", "left-down", "top-left", "bottom-left"].forEach((name) => {
+	assert.strictEqual(stelleJ(mitPad, name).dx, stelleJ(mitPad, "left").dx,
+		`${name} teilt die Korrektur -- sonst zappelt der Name beim Ausweichen waagerecht`);
+});
+
+// ⚠️ Ohne Angabe bleibt alles wie bisher: das Vorschaupanel setzt echten Text ohne Polsterung.
+assert.strictEqual(stelleJ(ohnePad, "left").dx, -BREITE - spalt, "ohne padX die alte Rechnung");
+assert.strictEqual(avesmapsLabelCandidatePlacements(basisJ, BREITE, HOEHE, undefined, 0)[5].dx,
+	stelleJ(ohnePad, "left").dx, "und padX = 0 ist dasselbe");
+
+// 💣 Der Seitenwechsel bleibt gratis -- die Korrektur darf den Deckel nicht anfassen.
+assert.strictEqual(stelleJ(mitPad, "left").drift, 0, "die Polsterung aendert den Drift nicht");
+
+// 💣 UND DIE VERDRAHTUNG, sonst ist die Rechnung oben folgenlos (Hausregel): der Renderer muss die
+// Polsterung als lesbaren Wert ausgeben, und der Loeser der Karte muss sie holen.
+const renderer = lies("../map-features-location-name-labels.js");
+assert.ok(/--location-label-pad-x:\$\{image\.padX\}px/.test(renderer),
+	"der Renderer gibt padX als CSS-Variable aus");
+assert.ok(/left:calc\(.*var\(--location-label-pad-x\)\)/.test(renderer),
+	"und dasselbe `left:calc` benutzt sie -- EINE Quelle, kein zweiter Zahlenwert daneben");
+const karteJ = lies("../map-features-label-collisions.js");
+assert.ok(/getLocationNameLabelPadX\(element\)/.test(karteJ),
+	"getLocationNameLabelOffsets reicht die Polsterung durch");
+assert.ok(/getPropertyValue\("--location-label-pad-x"\)/.test(karteJ),
+	"und liest sie aus derselben Variablen, statt sie nachzurechnen");
+
 console.log("label-placement: alle Zusicherungen erfuellt");
