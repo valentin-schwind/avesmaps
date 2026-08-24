@@ -124,8 +124,8 @@ function avesmapsMapFeaturesInSettlementPlaces(PDO $pdo): array {
         }
 
         return avesmapsBuildInSettlementPlaceList($registryRows, avesmapsPlaceScopeLoadIndex($pdo));
-    } catch (Throwable) {
-        return [];
+    } catch (Throwable $fehler) {
+        return avesmapsSchlucke($fehler, 'map-features innerorts-register', []);
     }
 }
 
@@ -160,8 +160,11 @@ function avesmapsMapFeaturesCoatFehler(bool $erhoehen = false): int {
 function avesmapsMapFeaturesCoatSicher(callable $aufloesen): string {
     try {
         return (string) $aufloesen();
-    } catch (Throwable) {
+    } catch (Throwable $fehler) {
         avesmapsMapFeaturesCoatFehler(true);
+        // ⚠️ Der Zaehler daneben sagt DASS etwas schiefging, das Protokoll sagt WAS. Beides, weil
+        // der Zaehler in die Antwort reist und die Meldung dort nichts zu suchen hat.
+        avesmapsSchluckProtokoll($fehler, 'map-features wappen');
 
         // '' und nicht der Platzhalter: an dieser Stelle ist unbekannt, ob es ueberhaupt ein
         // Wappen gaebe -- und ein Platzhalter an einem Ort, der nie eines hatte, sieht aus wie
@@ -492,8 +495,8 @@ function avesmapsMapFeaturesRespond(array $payload): never {
 function avesmapsMapFeaturesSettlementImagesEnabled(PDO $pdo): bool {
     try {
         return avesmapsAppSettingGetWithoutDdl($pdo, 'settlement_images_enabled', '1') !== '0';
-    } catch (Throwable) {
-        return true;
+    } catch (Throwable $fehler) {
+        return avesmapsSchlucke($fehler, 'map-features bilder-schalter', true);
     }
 }
 
@@ -516,8 +519,8 @@ function avesmapsMapFeaturesTravelHours(PDO $pdo): array {
         return is_array($values['travel_hours'] ?? null)
             ? $values['travel_hours']
             : avesmapsTravelValuesHoursFallback();
-    } catch (Throwable) {
-        return ['land' => 8.0, 'water' => 12.0, 'night' => 24.0];
+    } catch (Throwable $fehler) {
+        return avesmapsSchlucke($fehler, 'map-features reisestunden', ['land' => 8.0, 'water' => 12.0, 'night' => 24.0]);
     }
 }
 
@@ -682,8 +685,10 @@ function avesmapsDecodeJsonColumn(mixed $value): array {
 
     try {
         $decodedValue = json_decode((string) $value, true, 512, JSON_THROW_ON_ERROR);
-    } catch (JsonException) {
-        return [];
+    } catch (JsonException $fehler) {
+        // ⚠️ Faellt je Zeile an, protokolliert wird trotzdem nur einmal je Prozess (der
+        // Entdopplungsschluessel ist Kontext + Klasse + Fundstelle, nicht die Meldung).
+        return avesmapsSchlucke($fehler, 'map-features properties_json unlesbar', []);
     }
 
     return is_array($decodedValue) ? $decodedValue : [];
@@ -753,6 +758,7 @@ function avesmapsLoadWikiSyncBuildingTypes(PDO $pdo): array {
                 OR (deity IS NOT NULL AND deity <> \'\')'
         );
     } catch (Throwable $error) {
+        avesmapsSchluckProtokoll($error, 'map-features bauwerksarten erster anlauf');
         // 💣 ZWEITER ANLAUF OHNE `deity`. Die Spalte legt nur avesmapsWikiSettlementEnsureSchema an,
         // und die laeuft NUR im Sync-Pfad -- zwischen einem Deploy und dem ersten Dump-Lauf (und auf
         // jeder frischen Installation) gibt es sie nicht. Ohne diesen Rueckfall liefert der Fehler
@@ -766,7 +772,10 @@ function avesmapsLoadWikiSyncBuildingTypes(PDO $pdo): array {
                  WHERE building_type IS NOT NULL AND building_type <> \'\''
             );
         } catch (Throwable $zweiterVersuch) {
-            return [];
+            // 🔴 Hier verliert JEDE Infobox ihren building_type -- aus „Tempel" wird wieder „Dorf".
+            // Der Kommentar oben nennt genau diese Folge; ohne Protokollzeile ordnet sie niemand
+            // einem SELECT zu.
+            return avesmapsSchlucke($zweiterVersuch, 'map-features bauwerksarten zweiter anlauf', []);
         }
     }
     if ($statement === false) {
@@ -825,8 +834,8 @@ function avesmapsLoadSettlementPoliticalContext(PDO $pdo, bool $coatsLocalEnable
                LEFT JOIN political_territory_wiki w ON w.wiki_key = t.wiki_key
               WHERE t.wiki_key IS NOT NULL AND t.wiki_key <> \'\''
         );
-    } catch (Throwable) {
-        return [];
+    } catch (Throwable $fehler) {
+        return avesmapsSchlucke($fehler, 'map-features territorien', []);
     }
     if ($statement === false) {
         return [];
@@ -1037,7 +1046,7 @@ function avesmapsLoadFeatureSourceCatalog(PDO $pdo): array {
             "  )"
         );
     } catch (Throwable $error) {
-        return [];
+        return avesmapsSchlucke($error, 'map-features quellenkatalog', []);
     }
     if ($statement === false) {
         return [];
@@ -1076,7 +1085,7 @@ function avesmapsLoadFeatureSourceRefs(PDO $pdo): array {
         );
         $statement->execute(AVESMAPS_MAP_FEATURES_SOURCE_ENTITY_TYPES);
     } catch (Throwable $error) {
-        return [];
+        return avesmapsSchlucke($error, 'map-features quellenzuordnung', []);
     }
     if ($statement === false) {
         return [];
