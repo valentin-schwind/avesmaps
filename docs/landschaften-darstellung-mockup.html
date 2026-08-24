@@ -1,0 +1,2294 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Darstellung (Landschaften) – Prototyp (Abstimmung, 2026-08-23)</title>
+<script>
+  /* Wie jede Editorseite: gespeicherte Wahl schlaegt OS-Schema, vor dem ersten Anstrich. */
+  (function () {
+    function isDark() {
+      var s = null; try { s = localStorage.getItem("avesmaps-theme"); } catch (e) {}
+      if (s === "dark") { return true; }
+      if (s === "light") { return false; }
+      return !!(window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches);
+    }
+    function apply() {
+      if (isDark()) { document.documentElement.setAttribute("data-theme", "dark"); }
+      else { document.documentElement.removeAttribute("data-theme"); }
+    }
+    apply();
+    if (window.matchMedia) {
+      var mq = window.matchMedia("(prefers-color-scheme: dark)");
+      if (mq.addEventListener) { mq.addEventListener("change", apply); }
+      else if (mq.addListener) { mq.addListener(apply); }
+    }
+  })();
+</script>
+<!-- 🔴 RELATIVE Pfade, Absicht: eine docs/-Datei, die per file:// geoeffnet wird. Geladen wird die
+     ECHTE CSS-Kette der Editorseiten (fonts, tokens, editor-page) -- PLUS map-labels.css, weil dieser
+     Prototyp die heutigen Label-Farben nicht abschreibt, sondern sie mit derselben Sonde ausliest,
+     die der Canvas-Renderer benutzt (getMapLabelTypeStyle in js/map-features/map-features-labels.js).
+     ⭐ Dadurch steht in dieser Datei KEIN einziger Farbwert: Flaechentoene kommen aus tokens.css
+     (--color-ecosystem-*), Namenstoene aus map-labels.css (.map-label--*). Genau das ist auch der
+     Bauplan fuers echte Fenster -- die Vorgabe bleibt im Stylesheet, gespeichert wird nur die
+     Abweichung (AGENTS.md §12). -->
+<link rel="stylesheet" href="../css/base/fonts.css">
+<link rel="stylesheet" href="../css/base/tokens.css">
+<link rel="stylesheet" href="../css/components/editor-page.css">
+<link rel="stylesheet" href="../css/features/map-labels.css">
+<style>
+/* ═══════════════════════════════════════════════════════════════════════════════════════════
+   Kein hartkodierter Farbwert, kein hartkodierter Radius, keine Schrift unter 11px
+   (AGENTS.md §12). Alles unten sind Tokens aus css/base/tokens.css.
+   ═══════════════════════════════════════════════════════════════════════════════════════════ */
+
+.proto-page {
+	max-width: 1040px;
+	margin: 0 auto;
+	padding: var(--space-24) var(--space-16) var(--space-40);
+}
+
+.proto-note {
+	margin: 0 0 var(--space-16);
+	padding: var(--space-10) var(--space-12);
+	border: 1px solid var(--color-border);
+	border-left: 3px solid var(--color-accent-brown);
+	border-radius: var(--radius-md);
+	background: var(--color-panel-soft);
+	color: var(--color-text-muted);
+	font-size: 12px;
+	line-height: 1.5;
+}
+.proto-note strong { color: var(--color-text); }
+
+/* ── Die Fensterhuelle: Form der Zoombaender (modal-box wide) ───────────────────────────── */
+.dg {
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-lg);
+	background: var(--color-panel);
+	box-shadow: var(--shadow-panel);
+	color: var(--color-text);
+}
+.dg__title {
+	padding: var(--space-16) var(--space-20) var(--space-4);
+	font-family: var(--font-display, var(--font-ui));
+	font-size: 20px;
+}
+.dg__sub {
+	padding: 0 var(--space-20) var(--space-12);
+	border-bottom: 1px solid var(--color-divider);
+	color: var(--color-text-muted);
+	font-size: 13px;
+}
+.dg__body { padding: var(--space-16) var(--space-20); }
+
+.dg__lead {
+	margin: 0 0 var(--space-16);
+	color: var(--color-text-muted);
+	font-size: 12px;
+	line-height: 1.6;
+}
+.dg__lead em { color: var(--color-text); font-style: normal; }
+
+/* ── Reiter: dieselbe Bauform wie .avm-tabs im Editor ───────────────────────────────────── */
+.dg-tabs {
+	display: grid;
+	grid-auto-flow: column;
+	grid-auto-columns: minmax(0, 1fr);
+	gap: var(--space-2);
+	margin-bottom: var(--space-16);
+	padding: var(--space-2);
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-md);
+	background: var(--color-panel-soft);
+}
+.dg-tab {
+	min-width: 0;
+	padding: var(--space-6) var(--space-8);
+	border: 1px solid transparent;
+	border-radius: var(--radius-md);
+	background: none;
+	color: var(--color-button-soft-text);
+	cursor: pointer;
+	font: inherit;
+	font-size: 13px;
+}
+.dg-tab:hover { background: var(--color-button-soft-hover); }
+.dg-tab.is-active {
+	border-color: var(--color-border);
+	background: var(--color-button-soft);
+	color: var(--color-text);
+	font-weight: 600;
+}
+
+/* ── Abschnitt ─────────────────────────────────────────────────────────────────────────── */
+.dg__section { margin-bottom: var(--space-24); }
+.dg__section[hidden] { display: none; }
+.dg__head {
+	display: flex;
+	align-items: baseline;
+	justify-content: space-between;
+	gap: var(--space-12);
+	margin-bottom: var(--space-8);
+	padding-bottom: var(--space-6);
+	border-bottom: 1px solid var(--color-divider);
+}
+.dg__head h3 {
+	margin: 0;
+	font-family: var(--font-display, var(--font-ui));
+	font-size: 15px;
+	font-weight: 600;
+}
+.dg__src { color: var(--color-text-muted); font-size: 11px; text-align: right; }
+
+/* ── Zeilenform: geteilt von "Flaechen" und "Namen — Farbe" ─────────────────────────────── */
+/* ── EINE Tabelle fuer Flaeche UND Name (Owner 23.08.2026) ──────────────────────────────────
+   Beide Listen sind je Reiter nach demselben Schluessel geordnet; nebeneinander sieht man, was
+   zusammengehoert -- und wo es NICHT zusammengeht, sagt ein „—“ es sofort. */
+.dt { width: 100%; border-collapse: collapse; }
+.dt th, .dt td {
+	padding: var(--space-4) var(--space-6);
+	border-bottom: 1px solid var(--color-divider);
+	text-align: left;
+	vertical-align: middle;
+}
+.dt thead th {
+	color: var(--color-text-muted);
+	font-size: 11px;
+	font-weight: 600;
+	white-space: nowrap;
+}
+/* Die zwei Gegenstandsbereiche trennt eine senkrechte Linie, kein Kasten (§12: Trenner, nicht Rahmen). */
+.dt .dt-sep { border-left: 1px solid var(--color-divider); }
+.dt tbody tr:last-child td { border-bottom: none; }
+.dt tbody tr:hover td { background: var(--color-panel-soft); }
+.dt__art { font-size: 13px; white-space: nowrap; }
+.dt__art .fl-key { display: block; color: var(--color-text-muted); font-size: 11px; }
+.dt__leer { color: var(--color-text-muted); font-size: 12px; text-align: center; }
+
+/* Ist die Deckkraft global, sind die Zeilenregler nicht weg, sondern STUMM -- man sieht weiter,
+   welcher Wert je Art hinterlegt ist, und das Haekchen gibt ihn unveraendert zurueck. */
+.dt tr.is-stumm .fl-range,
+.dt tr.is-stumm .fl-pctnum { opacity: 0.4; }
+
+/* ── Die globale Deckkraft: eine Zeile ueber der Liste ──────────────────────────────────── */
+.fl-global {
+	display: grid;
+	align-items: center;
+	gap: var(--space-10);
+	grid-template-columns: 178px 1fr 72px 118px 26px;
+	margin-bottom: var(--space-8);
+	padding: var(--space-6) var(--space-10);
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-md);
+	background: var(--color-panel-soft);
+}
+.fl-global__check {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--space-6);
+	font-size: 12px;
+}
+.fl-global.is-aus .fl-range,
+.fl-global.is-aus .fl-pctnum,
+.fl-global.is-aus .fl-prev { opacity: 0.4; }
+
+.fl-pctnum {
+	width: 72px;
+	padding: var(--space-2) var(--space-4);
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-md);
+	background: var(--color-panel);
+	color: var(--color-text);
+	font: inherit;
+	font-size: 12px;
+	text-align: right;
+}
+.fl-swatch {
+	width: 30px;
+	height: 22px;
+	padding: 0;
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-md);
+	background: none;
+	cursor: pointer;
+}
+.fl-hex {
+	width: 76px;
+	padding: var(--space-2) var(--space-4);
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-md);
+	background: var(--color-panel-soft);
+	color: var(--color-text);
+	font-family: monospace;
+	font-size: 11px;
+}
+.fl-range { width: 100%; }
+.fl-pct { color: var(--color-text-muted); font-size: 12px; text-align: right; }
+
+/* Vorschaustreifen: der echte Ton auf der echten Deckkraft, ueber dem Kartengrund. */
+.fl-prev {
+	position: relative;
+	height: 22px;
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-md);
+	background: var(--color-ecosystem-underground);
+	overflow: hidden;
+}
+.fl-prev__fill { position: absolute; inset: 0; }
+
+/* Der Namensmuster-Streifen: echter Ton, echte Schrift.
+   🪤 ER STAND AUF DEM HELLEN UNTERGRUND-TOKEN -- und fast jede Labelfarbe ist hell (Creme, blasses
+   Gruen, Sandgelb). Hell auf hell: der Owner konnte am 23.08.2026 kein einziges Muster lesen.
+   Zwei Aenderungen, beide naeher an der Karte statt bloss kontrastreicher:
+   · Der GRUND ist die Flaeche, auf der der Name wirklich liegt (je Zeile gesetzt) -- damit zeigt das
+     Muster die echte Paarung Flaechenton/Schriftfarbe, statt eine erfundene.
+   · Der HALO kommt dazu. Er ist der Grund, warum ein blasser Name auf blasser Flaeche auf der Karte
+     trotzdem liest; ohne ihn behauptet das Muster ein Kontrastproblem, das es dort nicht gibt.
+   ⚠️ Token, nicht rgba von Hand: --color-ecosystem-klima-label-halo ist der Haus-Halo; sein eigener
+   Kommentar in tokens.css nennt ihn „dieselbe Bauart wie bei den Karten-Labels". Live zeichnet ihn
+   der Canvas-Renderer als Glow, nicht das CSS -- deshalb steht er hier und nicht in map-labels.css
+   (dort ausdruecklich `text-shadow: none`). */
+.fc-probe {
+	display: flex;
+	align-items: center;
+	height: 26px;
+	padding: 0 var(--space-8);
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-md);
+	background: var(--color-ecosystem-underground);
+	overflow: hidden;
+	font-family: "Faculty Glyphic", Georgia, serif;
+	font-size: 14px;
+	letter-spacing: 0.02em;
+	line-height: 1;
+	/* 🪤 EIN WEICHER SCHATTEN REICHT NICHT. Erste Fassung nahm zwei unscharfe Schatten -- gemessen
+	   blieben fuenf blasse Arten bei Kontrast 1,2-1,7 (Steppe, Wueste, Kulturlandschaft,
+	   Graslandschaft, Ebene), also praktisch unlesbar. Der Canvas-Renderer zieht live keine weiche
+	   Wolke, sondern eine echte KONTUR (`strokeWidth = fontSizePx * strokeRatio` in
+	   renderMapLabelToImage) -- deshalb hier ein geschlossener Ring aus acht harten Schatten plus
+	   einem weichen darueber. Das ist die Bauart der Karte, nicht ein Kontrast-Trick fuer dieses
+	   Fenster. ⚠️ Ein Kontrastverhaeltnis misst so einen Ring NICHT; die Zahl bleibt niedrig,
+	   obwohl der Name liest. Wer hier „optimiert", sollte hinsehen statt zu rechnen.
+	   ⭐ EINE Rezeptur, drei Wirte: Tabellenmuster, Vorschau und -- als SVG-Kontur, weil text-shadow
+	   dort nicht traegt -- die Kurvenvorschau. Abgeschrieben waere sie dreimal auseinandergelaufen. */
+	text-shadow:
+		1px 0 0 var(--color-ecosystem-klima-label-halo),
+		-1px 0 0 var(--color-ecosystem-klima-label-halo),
+		0 1px 0 var(--color-ecosystem-klima-label-halo),
+		0 -1px 0 var(--color-ecosystem-klima-label-halo),
+		1px 1px 0 var(--color-ecosystem-klima-label-halo),
+		-1px -1px 0 var(--color-ecosystem-klima-label-halo),
+		1px -1px 0 var(--color-ecosystem-klima-label-halo),
+		-1px 1px 0 var(--color-ecosystem-klima-label-halo),
+		0 0 3px var(--color-ecosystem-klima-label-halo);
+	white-space: nowrap;
+}
+
+.fl-reset {
+	padding: 0;
+	border: none;
+	background: none;
+	color: var(--color-text-muted);
+	cursor: pointer;
+	font-size: 14px;
+	line-height: 1;
+}
+.fl-reset:hover { color: var(--color-link); }
+.fl-reset[hidden] { display: none; }
+
+/* ── Der Groessenplot: Form der Zoombaender ─────────────────────────────────────────────── */
+.dg-plot-wrap {
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-md);
+	background: var(--color-panel-soft);
+}
+.dg-plot { display: block; width: 100%; height: auto; touch-action: none; }
+.dg-plot-caption { margin: var(--space-6) 0 0; color: var(--color-text-muted); font-size: 11px; line-height: 1.5; }
+
+.dg-sel {
+	display: flex;
+	align-items: center;
+	gap: var(--space-10);
+	flex-wrap: wrap;
+	margin-top: var(--space-8);
+	padding: var(--space-6) var(--space-10);
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-md);
+	background: var(--color-panel-soft);
+	font-size: 12px;
+}
+.dg-sel__hint { color: var(--color-text-muted); font-size: 11px; }
+.dg-num {
+	width: 82px;
+	padding: var(--space-2) var(--space-4);
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-md);
+	background: var(--color-panel);
+	color: var(--color-text);
+	font: inherit;
+	font-size: 12px;
+}
+select.dg-num { width: 100%; }
+/* Die zwei Vorgaben, die keine Zoomstufe sind (max. Namen, Prioritaet) -- sie bleiben in der
+   Auswahlzeile, weil eine Leiste ueber 3 bzw. 5 Werte keinen Gewinn braechte. */
+.dg-sel__band { display: inline-flex; align-items: center; gap: var(--space-4); font-size: 12px; }
+.dg-sel__band select.dg-num { width: auto; min-width: 52px; }
+.dg-sel__band[hidden] { display: none; }
+
+/* ── Die Bandleiste je Art (Bauform aus „Orte bearbeiten") ──────────────────────────────────
+   🔴 ECHTE TABELLE mit `table-layout: fixed` (Owner 24.08.2026: „alles eine feste breite").
+   Als Grid je Zeile richteten sich die Stufen NICHT aneinander aus: jede Zeile rechnete ihre
+   Breiten selbst, und weil „Fluss" kuerzer ist als „Flussland/Flusstal", stand z3 der einen ueber
+   z4 der anderen. Erst eine Tabelle teilt EINE Spaltenbreite auf alle Zeilen.
+   ⚠️ Die acht Stufenspalten bekommen bewusst KEINE px-Breite: unter `table-layout: fixed` teilen
+   sich Spalten ohne Angabe den Rest zu GLEICHEN Teilen. Das ist die feste Breite, die gemeint ist
+   -- gleich und ausgerichtet -- und sie bleibt es auch, wenn das Fenster schmaler wird. */
+.dg-legend { margin-top: var(--space-10); overflow-x: auto; }
+.zb { width: 100%; min-width: 660px; border-collapse: collapse; table-layout: fixed; }
+.zb th, .zb td { padding: var(--space-2) var(--space-2); vertical-align: middle; }
+.zb thead th {
+	padding-bottom: var(--space-4);
+	border-bottom: 1px solid var(--color-divider);
+	color: var(--color-text-muted);
+	font-size: 11px;
+	font-weight: 600;
+	text-align: left;
+	white-space: nowrap;
+}
+.zb thead th.zb-mid { text-align: center; }
+.zb tbody tr { border-bottom: 1px solid var(--color-divider); }
+.zb tbody tr:last-child { border-bottom: none; }
+.zb tbody tr.is-active { background: var(--color-panel-soft); }
+/* Feste Breiten fuer alles, was KEINE Zoomstufe ist -- die acht Stufen teilen den Rest. */
+.zb col.zb-c-dash { width: 20px; }
+.zb col.zb-c-name { width: 150px; }
+.zb col.zb-c-aus { width: 46px; }
+.zb col.zb-c-med { width: 124px; }
+.zb col.zb-c-nimm { width: 96px; }
+.zb col.zb-c-rst { width: 26px; }
+.zb-row__dash { display: block; height: 3px; border-radius: 2px; }
+.zb-row__name {
+	padding: 0;
+	border: none;
+	background: none;
+	color: var(--color-text);
+	cursor: pointer;
+	font: inherit;
+	font-size: 12px;
+	overflow: hidden;
+	text-align: left;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+.zb-row__name:hover { color: var(--color-link); }
+.zb-row.is-active .zb-row__name { font-weight: 700; }
+
+/* In der Tabelle fuellt jeder Knopf seine Zelle -- die Ausrichtung macht die Spalte, nicht der Knopf. */
+.zb-cell {
+	width: 100%;
+	padding: var(--space-2) var(--space-2);
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-md);
+	background: none;
+	color: var(--color-text-muted);
+	cursor: pointer;
+	font: inherit;
+	font-size: 11px;
+}
+.zb-cell:hover { background: var(--color-button-soft-hover); color: var(--color-text); }
+/* Innerhalb des Bandes gefuellt -- so liest man die Spanne als STRECKE, nicht als zwei Zahlen. */
+.zb-cell.is-in { background: var(--color-button-soft); color: var(--color-text); }
+.zb-cell.is-end { border-width: 2px; font-weight: 700; }
+.zb-cell--aus { font-style: italic; }
+
+/* Der gemessene Median kommentiert das Band, er konkurriert nicht mit ihm: ein gestrichelter Saum
+   UNTER der Zelle, nicht deren Fuellung. Sonst haette eine Zelle zwei Bedeutungen. */
+.zb-cell.has-median { box-shadow: inset 0 -3px 0 -1px var(--color-text-muted); }
+
+.zb-cell--median { margin-left: var(--space-8); white-space: nowrap; }
+.zb-cell--nimm {
+	border-color: var(--color-accent-brown);
+	color: var(--color-accent-brown);
+	white-space: nowrap;
+}
+.zb-cell--nimm:hover { background: var(--color-button-soft); }
+
+/* ── Vorschau (Flaeche + Name) ──────────────────────────────────────────────────────────── */
+.pv-stage { display: flex; gap: var(--space-4); margin-bottom: var(--space-8); flex-wrap: wrap; }
+.pv-z {
+	padding: var(--space-2) var(--space-8);
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-md);
+	background: var(--color-button-soft);
+	color: var(--color-button-soft-text);
+	cursor: pointer;
+	font: inherit;
+	font-size: 11px;
+}
+.pv-z.is-active { background: var(--color-button); color: var(--color-button-text); font-weight: 600; }
+.pv-canvas {
+	position: relative;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	height: 160px;
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-md);
+	background: var(--color-ecosystem-underground);
+	overflow: hidden;
+}
+.pv-area {
+	position: absolute;
+	left: 12%; right: 12%; top: 12%; bottom: 12%;
+	border-radius: 42% 56% 44% 52%;
+}
+/* Zweiter Wirt des Namensrings (siehe .fc-probe): ohne ihn ist ein blasser Name auf blasser
+   Flaeche auch hier unlesbar -- derselbe Befund, dieselbe Rezeptur. */
+.pv-name {
+	position: relative;
+	font-family: "Faculty Glyphic", Georgia, serif;
+	letter-spacing: 0.02em;
+	line-height: 1;
+	text-shadow:
+		1px 0 0 var(--color-ecosystem-klima-label-halo),
+		-1px 0 0 var(--color-ecosystem-klima-label-halo),
+		0 1px 0 var(--color-ecosystem-klima-label-halo),
+		0 -1px 0 var(--color-ecosystem-klima-label-halo),
+		1px 1px 0 var(--color-ecosystem-klima-label-halo),
+		-1px -1px 0 var(--color-ecosystem-klima-label-halo),
+		1px -1px 0 var(--color-ecosystem-klima-label-halo),
+		-1px 1px 0 var(--color-ecosystem-klima-label-halo),
+		0 0 3px var(--color-ecosystem-klima-label-halo);
+	white-space: nowrap;
+}
+.pv-note { margin: var(--space-6) 0 0; color: var(--color-text-muted); font-size: 11px; }
+
+/* ── „Was der Editor davon sieht": der Beschriftungsdialog mit Vorgabemarken ─────────────── */
+.ed-wrap { display: grid; gap: var(--space-10); }
+.ed-box {
+	max-width: 520px;
+	padding: var(--space-12) var(--space-16);
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-lg);
+	background: var(--color-panel-soft);
+}
+.ed-title { margin-bottom: var(--space-8); font-family: var(--font-display, var(--font-ui)); font-size: 16px; }
+.ed-sub {
+	margin-bottom: var(--space-8);
+	color: var(--color-accent-brown);
+	font-size: 11px;
+	letter-spacing: 0.08em;
+}
+.ed-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-10) var(--space-16); }
+.ed-field { display: grid; gap: var(--space-4); }
+.ed-field__label { font-size: 12px; }
+.ed-field__row { display: grid; align-items: center; gap: var(--space-8); grid-template-columns: 52px 1fr; }
+.ed-num {
+	width: 52px;
+	padding: var(--space-2) var(--space-4);
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-md);
+	background: var(--color-panel);
+	color: var(--color-text);
+	font: inherit;
+	font-size: 12px;
+	text-align: center;
+}
+
+/* 🔴 DIE MARKE. Sie sitzt UNTER dem Balken, nicht darauf: auf dem Balken verdeckt der Regler-Knopf
+   sie genau dann, wenn Wert und Vorgabe uebereinstimmen -- also im haeufigsten Fall.
+   💣 Die Umrechnung Wert -> Position ist NICHT `pct` der Breite: der Knopf hat eine Breite, sein
+   Mittelpunkt wandert nur ueber `100% - knopfbreite`. Ohne die Korrektur steht die Marke an beiden
+   Enden sichtbar daneben -- und genau an den Enden liegen die interessanten Werte (z0, z7). */
+.ed-track { position: relative; padding-bottom: 12px; }
+.ed-track input[type="range"] { width: 100%; margin: 0; }
+.ed-mark {
+	position: absolute;
+	bottom: 0;
+	width: 0;
+	height: 0;
+	border-right: 4px solid transparent;
+	border-bottom: 6px solid var(--color-accent-brown);
+	border-left: 4px solid transparent;
+	transform: translateX(-4px);
+}
+/* 🪤 KEINE Median-Marke im Editor-Ausschnitt. Sie war kurz gebaut und ist am 24.08.2026 gefallen:
+   der Editor sieht die VORGABE, der Median bleibt unser Werkzeug (Begruendung bei setzeMarken). */
+.ed-mark--ist { border-bottom-color: var(--color-link); }
+/* In der Legende steht die Marke frei -- dort braucht sie einen Platz statt einer Position. */
+.ed-legend__item .ed-mark { position: static; display: inline-block; transform: none; }
+.ed-legend { display: flex; flex-wrap: wrap; gap: var(--space-4) var(--space-16); }
+.ed-legend__item { display: inline-flex; align-items: center; gap: var(--space-6); color: var(--color-text-muted); font-size: 11px; }
+.ed-legend__item em { font-style: normal; opacity: 0.8; }
+
+/* ── Kurvenfeinheiten: Vorschau + Werte ─────────────────────────────────────────────────── */
+.kv-bar {
+	display: flex;
+	align-items: center;
+	gap: var(--space-10);
+	flex-wrap: wrap;
+	margin-bottom: var(--space-8);
+}
+.kv-bar select {
+	padding: var(--space-4) var(--space-6);
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-md);
+	background: var(--color-panel-soft);
+	color: var(--color-text);
+	font: inherit;
+	font-size: 12px;
+}
+.kv-bar__info { color: var(--color-text-muted); font-size: 11px; }
+.kv-stage {
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-md);
+	background: var(--color-ecosystem-underground);
+	overflow: hidden;
+}
+.kv-svg { display: block; width: 100%; height: auto; }
+
+.kf-grid {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: var(--space-6) var(--space-20);
+	margin-top: var(--space-12);
+}
+.kf-row {
+	display: grid;
+	align-items: center;
+	gap: var(--space-8);
+	grid-template-columns: 1fr 100px 22px;
+	padding: var(--space-2) 0;
+}
+.kf-row__label { font-size: 12px; }
+.kf-row__label small { display: block; color: var(--color-text-muted); font-size: 11px; }
+.kf-row__label sup { color: var(--color-accent-brown); }
+
+/* ── Fuss ───────────────────────────────────────────────────────────────────────────────── */
+.dg__msg { margin: 0; color: var(--color-text-muted); font-size: 12px; min-height: 1.3em; }
+.dg__actions {
+	display: flex;
+	justify-content: flex-end;
+	gap: var(--space-8);
+	padding: var(--space-12) var(--space-20) var(--space-16);
+	border-top: 1px solid var(--color-divider);
+}
+.dg__actions .spacer { margin-right: auto; }
+
+.foot-mark sup { color: var(--color-accent-brown); }
+</style>
+</head>
+<body class="avm-editor-body">
+<div class="proto-page">
+
+<p class="proto-note">
+	<strong>Prototyp, kein fertiges Fenster.</strong> Er zeigt das neue „Darstellung“ unter
+	<em>Landschaften bearbeiten</em>. Alles ist bedienbar; gespeichert wird nichts.
+	<strong>Die gezeigten Werte sind die echten:</strong> Flaechentoene aus <code>tokens.css</code>,
+	Namenstoene aus <code>map-labels.css</code>, Deckkraft je Ebene aus <code>ecosystem-layer.css</code>,
+	Groessenkurve aus der Formel in <code>map-features-labels.js</code>, und die zwoelf
+	Kurvenfeinheiten aus <code>AVESMAPS_CURVE_LABEL_DEFAULTS</code> in
+	<code>js/map-features/curve-label-fit.js</code> — dieselbe Datei, die live rechnet.
+</p>
+
+<div class="dg">
+	<div class="dg__title">Darstellung</div>
+	<div class="dg__sub">Wie Landschaftsflaechen und ihre Namen auf der Karte aussehen.</div>
+
+	<div class="dg__body">
+		<p class="dg__lead">
+			Oben waehlst du die Ebene. <strong>Flaechen</strong> gibt jeder Flaechenart ihren Ton und ihre
+			Deckkraft. <strong>Namen</strong> regelt Schriftgroesse (je Art und Zoomstufe) und Farbe
+			(je Art, auf allen Stufen gleich) — global fuer alle Labels dieser Art; das Groessenfeld am
+			einzelnen Label faellt damit weg. Ein Punkt im Plot laesst sich nur senkrecht ziehen, seine
+			Zoomstufe steht fest. <em>Gespeichert ist erst, was der Knopf unten speichert — die Karte
+			zeigt eine Aenderung erst nach dem naechsten Laden.</em>
+		</p>
+
+		<div class="dg-tabs" id="dgTabs"></div>
+
+		<!-- ── Flaechen UND Namen: eine Tabelle ────────────────────────────────────────────── -->
+		<div class="dg__section">
+			<div class="dg__head">
+				<!-- ⚠️ Die Ueberschrift folgt dem Reiter: bei den Klimazonen gibt es keine Namensspalten,
+				     und „und Namen" darueberzuschreiben verspricht eine Spalte, die dort „—" ist. -->
+				<h3 id="flTitel">Flaechen und Namen — Ton, Deckkraft, Schriftfarbe</h3>
+				<span class="dg__src" id="flSrc"></span>
+			</div>
+			<div class="fl-global" id="flGlobal"></div>
+			<table class="dt">
+				<thead>
+					<tr>
+						<th rowspan="2">Art</th>
+						<th colspan="4" class="dt-sep">Flaeche</th>
+						<th colspan="2" class="dt-sep">Name</th>
+						<th rowspan="2"></th>
+					</tr>
+					<tr>
+						<th class="dt-sep">Ton</th><th></th><th>Deckkraft</th><th>Vorschau</th>
+						<th class="dt-sep">Farbe</th><th></th>
+					</tr>
+				</thead>
+				<tbody id="flRows"></tbody>
+			</table>
+			<p class="dg-plot-caption" id="flNote"></p>
+			<p class="dg-plot-caption foot-mark" id="fcFoot"></p>
+		</div>
+
+		<!-- ── Namen: Groesse ──────────────────────────────────────────────────────────────── -->
+		<div class="dg__section" id="secSize">
+			<div class="dg__head">
+				<h3>Namen — Zoomband und Schriftgroesse in pt</h3>
+				<span class="dg__src">Vorgabe: sichtbar z0–z7, Kurve bei Grundgroesse&nbsp;18</span>
+			</div>
+			<div class="dg-plot-wrap">
+				<svg class="dg-plot" id="dgPlot" viewBox="0 0 920 420" role="img"
+				     aria-label="Schriftgroesse der Landschaftsnamen je Art und Zoomstufe, editierbar"></svg>
+			</div>
+			<p class="dg-plot-caption">
+				Linear, wie bei den Zoombaendern — die erlaubte Spanne (4 bis 30&nbsp;pt) ist klein genug,
+				dass eine gestauchte Achse nur das Ablesen erschweren wuerde. Jede Kurve traegt den Ton
+				ihrer eigenen Art.
+			</p>
+			<div class="dg-sel">
+				<span>Ausgewaehlter Punkt: <strong id="selSizeLabel">— keiner —</strong></span>
+				<input type="number" class="dg-num" id="selSizeInput" step="0.5" min="4" max="30" disabled>
+				<span>pt</span>
+				<!-- 🔴 „sichtbar ab/bis" stand hier als zwei Auswahlfelder und ist am 24.08.2026 in die
+				     Bandleiste unter dem Plot gewandert (Owner: „wie bei Orte bearbeiten"). Geblieben
+				     sind die zwei Vorgaben, die keine Zoomstufe sind und deshalb keine Leiste haben. -->
+				<span class="dg-sel__band" id="selBand" hidden>
+					· Vorgabe: max. Namen <select id="selCurveMax" class="dg-num" aria-label="Vorgabe maximale Anzahl der Namen"></select>
+					· Prioritaet <select id="selPrio" class="dg-num" aria-label="Vorgabe Prioritaet"></select>
+				</span>
+				<span class="dg-sel__hint" id="selHint"></span>
+			</div>
+			<p class="dg-plot-caption">
+				<strong>Erst die Art wählen, dann ziehen.</strong> In der Vorgabestellung liegen alle Kurven
+				aufeinander — ein Klick träfe immer dieselbe. Wähle die Art unten in der Legende (oder an
+				ihrem Namen rechts am Plot); danach nimmt <em>nur noch sie</em> den Zeiger an, die übrigen
+				werden inert. Nochmal auf dieselbe Art klicken gibt alle wieder frei.
+				<br><strong>Das Zoomband ersetzt „Sichtbar ab/bis Zoom“ am einzelnen Label</strong> — hier
+				steht die Vorgabe je Art. Eine Kurve läuft nur durch ihr Band; außerhalb trägt die Art
+				keinen Namen. ⚠️ Anders als bei den Ortsklassen hat sie <em>zwei</em> Enden: ein
+				Kontinentname soll beim Hineinzoomen verschwinden. z8 erbt z7.
+			</p>
+			<div class="dg-legend" id="dgLegend"></div>
+		</div>
+
+		<!-- ── Was der Editor davon sieht ──────────────────────────────────────────────────── -->
+		<div class="dg__section" id="secEditor">
+			<div class="dg__head">
+				<h3>Was der Editor davon sieht</h3>
+				<span class="dg__src">Ausschnitt aus „Label bearbeiten“ — live an die Werte oben gekoppelt</span>
+			</div>
+			<p class="dg-plot-caption" style="margin-bottom:10px">
+				<strong>Die Regler bleiben, die Vorgabe wird sichtbar.</strong> Jeder Balken traegt eine Marke
+				dort, wo der Vorgabewert dieser Art liegt. Der Editor stellt weiter frei ein — er sieht nur,
+				wovon er abweicht. Aendere oben etwas: die Marke wandert mit.
+			</p>
+			<div class="ed-wrap">
+				<div class="ed-box">
+					<div class="ed-title">Vegetations-Label bearbeiten</div>
+					<div class="ed-sub">DARSTELLUNG</div>
+					<div class="ed-grid" id="edGrid"></div>
+				</div>
+				<div class="ed-legend">
+					<span class="ed-legend__item"><span class="ed-mark ed-mark--soll"></span> Vorgabe aus der Zoombandeinstellung</span>
+					<span class="ed-legend__item"><em>Der Median erscheint hier NICHT — er ist unser Werkzeug, um die Vorgabe festzulegen.</em></span>
+				</div>
+			</div>
+			<p class="dg-plot-caption foot-mark" id="edNote"></p>
+		</div>
+
+		<!-- ── Vorschau ────────────────────────────────────────────────────────────────────── -->
+		<div class="dg__section" id="secVorschau">
+			<div class="dg__head">
+				<h3>Vorschau</h3>
+				<span class="dg__src">echte Flaeche, echter Name — live aus beiden Abschnitten</span>
+			</div>
+			<div class="pv-stage" id="pvStage"></div>
+			<div class="pv-canvas">
+				<div class="pv-area" id="pvArea"></div>
+				<div class="pv-name" id="pvName">Farindel</div>
+			</div>
+			<p class="pv-note" id="pvNote"></p>
+		</div>
+
+		<!-- ── Kurvenfeinheiten ────────────────────────────────────────────────────────────── -->
+		<div class="dg__section" id="secKurven">
+			<div class="dg__head">
+				<h3>Kurvenfeinheiten</h3>
+				<span class="dg__src">gilt fuer ALLE Ebenen, nicht je Reiter</span>
+			</div>
+			<p class="dg-plot-caption" style="margin-bottom:10px">
+				Die zwoelf Werte, nach denen ein Name der Mittelachse seiner Flaeche folgt. Bisher stehen
+				sie fest im Code. Sie wirken nur auf Flaechen, bei denen „Kurvenbeschriftung“ eingeschaltet
+				ist. Die Vorschau rechnet mit ECHTER Geometrie aus der Live-Datenbank.
+			</p>
+			<div class="kv-bar">
+				<label for="kvArea" style="font-size:12px">Vorschau an:</label>
+				<select id="kvArea"></select>
+				<span class="kv-bar__info" id="kvInfo"></span>
+			</div>
+			<div class="kv-stage">
+				<svg class="kv-svg" id="kvSvg" viewBox="0 0 920 340" role="img"
+				     aria-label="Vorschau der Kurvenbeschriftung auf einer echten Flaeche"></svg>
+			</div>
+			<p class="dg-plot-caption foot-mark" id="kvNote"></p>
+			<div class="kf-grid" id="kfGrid"></div>
+		</div>
+
+		<p class="dg__msg" id="dgMsg"></p>
+	</div>
+
+	<div class="dg__actions">
+		<button type="button" class="btn2 spacer" id="btnResetAll">Auf Vorgabe zuruecksetzen</button>
+		<button type="button" class="btn2">Abbrechen</button>
+		<button type="button" class="btn2 is-primary">Speichern</button>
+	</div>
+</div>
+
+<p class="proto-note" style="margin-top:16px">
+	<strong>Rechte wie bei den Zoombaendern:</strong> ansehen darf jeder Editor, speichern nur ein
+	Administrator. Fuer einen Editor stuenden die Bedienelemente gesperrt da und statt „Speichern“ ein
+	Hinweis — genau wie im Zoombaender-Fenster.
+</p>
+
+</div>
+
+<!-- 🔴 DREI ECHTE QUELLEN, keine Abschrift:
+     · kurvenlabel-referenzdaten.js — Geometrien, am 22.08.2026 aus der Live-Datenbank gemessen.
+     · kurvenlabel-pipeline.js      — die Rechenstrecke (Chordal Axis), am 23.08.2026 aus
+                                      docs/kurvenlabel-mockup.html herausgeloest, damit beide
+                                      Prototypen EINE benutzen statt zweier Abschriften.
+     · curve-label-fit.js           — das PRODUKTIONSmodul. Von dort kommen die Vorgabewerte
+       (+ curved-label-layout.js)     (AVESMAPS_CURVE_LABEL_DEFAULTS) und die Beruhigung/Verlaengerung.
+     ⚠️ Live rechnet die Kurve der SERVER (api/_internal/app/curve-labels.php). Die Pipeline hier ist
+     der abgenommene Prototyp desselben Verfahrens, nicht derselbe Code -- Zahlen aus dieser Vorschau
+     sind Anschauung, kein Messwert von der Karte. -->
+<script src="kurvenlabel-referenzdaten.js"></script>
+<script src="kurvenlabel-pipeline.js"></script>
+<script src="../js/map-features/curved-label-layout.js"></script>
+<script src="../js/map-features/curve-label-fit.js"></script>
+<script>
+/* ═══════════════════════════════════════════════════════════════════════════════════════════
+   PROTOTYP-SKRIPT. Gehoert zu dieser Seite, nicht zum echten Fenster — es ist Anschauung, kein
+   Bauplan fuer den Endpunkt (dieselbe Ansage wie im Zoombaender-Prototyp).
+   ═══════════════════════════════════════════════════════════════════════════════════════════ */
+
+const ZOOMS = [0, 1, 2, 3, 4, 5, 6, 7, 8];
+
+const EBENEN = [
+	["derographisch", "Derographie"],
+	["vegetation", "Vegetation"],
+	["topographie", "Topographie"],
+	["klima", "Klimazonen"],
+];
+
+/* Flaechenarten: woertlich AVESMAPS_ECOSYSTEM_REGION_TYPE_SEED (api/_internal/app/ecosystem.php). */
+const FLAECHEN = {
+	derographisch: [["region", "Region"], ["inselgruppe", "Inselgruppe"], ["kontinent", "Kontinent"], ["sonstiges", "Sonstiges"]],
+	topographie: [["gebirge", "Gebirge"], ["see", "See"], ["meer", "Meer"], ["kueste", "Kueste"], ["huegelland", "Huegelland"],
+		["wadi", "Wadi"], ["schlucht", "Schlucht"], ["hochebene", "Hochebene"], ["tiefebene", "Tiefebene"], ["tal", "Tal"],
+		["flussdelta", "Flussdelta"], ["insel", "Insel"]],
+	vegetation: [["wald", "Wald"], ["suempfe_moore", "Suempfe und Moore"], ["steppe", "Steppe"], ["tundra", "Tundra"],
+		["auenlandschaft", "Auenlandschaft"], ["wueste", "Wueste"], ["graslandschaft", "Graslandschaft"],
+		["flussland_flusstal", "Flussland/Flusstal"], ["dschungel", "Dschungel"], ["wuestenoase", "Wuestenoase"],
+		["kulturlandschaft", "Kulturlandschaft"]],
+	klima: [["polar", "Polare Zone"], ["subpolar", "Subpolare Zone"], ["boreal", "Boreale Zone"],
+		["gemaessigt", "Gemaessigte Zone"], ["subtropen_winterfeucht", "Winterfeuchte Subtropen"],
+		["trockene_subtropen", "Subtropische Steppenzone"], ["subtropisch", "Subtropische Wuestenzone"],
+		["tropisch", "Tropische Zone"]],
+};
+
+/* 🔴 DIE HEUTIGE DECKKRAFT DER AKTIVEN EBENE, Ziffer fuer Ziffer aus css/features/ecosystem-layer.css.
+   Sie ist NICHT eine Zahl fuer alle -- Derographie 0,16 · Vegetation/Topographie 0,72 · Klima 0,30. */
+const DECKKRAFT_VORGABE = { derographisch: 0.16, vegetation: 0.72, topographie: 0.72, klima: 0.30 };
+
+/* Namensarten je Reiter -- Vokabular des Beschriftungsdialogs (#label-edit-subtype in index.html).
+   🪤 Vier haben KEINE gleichnamige Flaechenart (°): Fluss, Berggipfel, Vulkan, Ebene. Anzeige-
+   Gruppierung fuer dieses Fenster, kein zweites Vokabular und kein Datenschluessel. */
+const NAMEN = {
+	derographisch: [["region", "Region"], ["kontinent", "Kontinent"], ["insel", "Insel"],
+		["inselgruppe", "Inselgruppe"], ["sonstiges", "Sonstiges"]],
+	topographie: [["gebirge", "Gebirge"], ["see", "See"], ["meer", "Meer"], ["fluss", "Fluss", true],
+		["kueste", "Kueste"], ["huegelland", "Huegelland"], ["wadi", "Wadi"], ["schlucht", "Schlucht"],
+		["hochebene", "Hochebene"], ["tiefebene", "Tiefebene"], ["tal", "Tal"], ["flussdelta", "Flussdelta"],
+		["berggipfel", "Berggipfel", true], ["vulkan", "Vulkan", true]],
+	vegetation: [["wald", "Wald"], ["suempfe_moore", "Suempfe & Moore"], ["steppe", "Steppe"], ["tundra", "Tundra"],
+		["auenlandschaft", "Auenlandschaft"], ["wueste", "Wueste"], ["graslandschaft", "Graslandschaft"],
+		["flussland_flusstal", "Flussland/Flusstal"], ["dschungel", "Dschungel"], ["wuestenoase", "Wuestenoase"],
+		["kulturlandschaft", "Kulturlandschaft"], ["ebene", "Ebene", true]],
+	klima: [],
+};
+
+const BEISPIEL = { derographisch: "Albernia", vegetation: "Farindel", topographie: "Koeschgebirge", klima: "Gemaessigte Zone" };
+
+/* 🔴 DIE HEUTIGE GROESSENKURVE, gerechnet mit der echten Formel aus getScaledLabelSize
+   (js/map-features/map-features-labels.js), Grundgroesse 18. VISUAL_MAX_ZOOM_LEVEL = 5,
+   dazu seit 23.08.2026 der Zuschlag ueber Zoom 5 ("nach unten hin groessere schriftart").
+   ⚠️ Die EINE Stelle, an der die Zoombaender-Regel "die Vorgabe reproduziert das heutige Bild
+   Ziffer fuer Ziffer" nicht ganz gelten kann: heute traegt JEDES Label seine eigene Grundgroesse
+   (12-50, Vorgabe 18). Labels, die nicht auf 18 stehen, aendern sich sichtbar. */
+function vorgabeGroesse(z) {
+	const zoomRatio = Math.max(0, Math.min(1, z / 5));
+	const ueberVisual = Math.max(0, Math.min(2, z - 5));
+	return Math.round(18 * (0.5 + zoomRatio * 0.5) * (1 + ueberVisual * 0.08));
+}
+
+/* 🔴 DIE ZWOELF WERTE. Die Vorgaben kommen, wo es sie gibt, aus dem PRODUKTIONSMODUL
+   (AVESMAPS_CURVE_LABEL_DEFAULTS in js/map-features/curve-label-fit.js) -- nicht abgeschrieben.
+   Die fuenf Formwerte gehoeren der Kurvenrechnung und stehen mit den Zahlen aus Entwurf §6.1.
+   `lebt: false` heisst: dieser Wert wirkt in der Vorschau NICHT sichtbar, weil er einen Fall
+   braucht, den ein einzelner Name auf einer freien Flaeche nicht herstellt. Das ehrlich zu sagen
+   ist besser, als einen Regler zu zeigen, der scheinbar nichts tut. */
+/* 💣 DIE MODULE KOENNEN FEHLEN, und dann darf hier NICHTS geraten werden.
+   `curve-label-fit.js` und `curved-label-layout.js` sind am 23.08.2026 entstanden; ein aelterer
+   Arbeitsstand hat sie nicht, die zwei <script>-Tags liefern dann 404. Ohne diesen Riegel stuenden
+   in allen zwoelf Feldern `undefined`, die Vorschau rechnete mit NaN und saehe aus wie ein Fehler
+   im Verfahren -- statt wie das, was es ist: eine fehlende Datei.
+   🔴 Bewusst KEINE Ersatztabelle. Die zwoelf Vorgaben haben genau eine Quelle
+   (AVESMAPS_CURVE_LABEL_DEFAULTS); eine zweite hier waere die Divergenz, gegen die dieser ganze
+   Abschnitt argumentiert. Fehlt die Quelle, sagt der Abschnitt das und bleibt leer. */
+const MODULE_DA = typeof AVESMAPS_CURVE_LABEL_DEFAULTS === "object"
+	&& typeof curveLabelCalmToChord === "function"
+	&& typeof curveLabelExtend === "function"
+	&& typeof curveLabelLineLength === "function";
+const D = MODULE_DA ? AVESMAPS_CURVE_LABEL_DEFAULTS : {};
+const KURVENWERTE = [
+	{ k: "polyDegree", t: "Glaettung", h: "Form der Kurve", art: "select",
+	  opt: [[2, "Polynom Grad 2"], [3, "Polynom Grad 3"], [4, "Polynom Grad 4"]], vor: 3, lebt: true },
+	{ k: "straighten", t: "Begradigung", h: "Mischung Kurve zu Sehne", art: "num", e: "%", vor: 0, min: 0, max: 100, step: 5, lebt: true },
+	{ k: "simplifyTol", t: "Randvereinfachung", h: "Toleranz in Karteneinheiten", art: "num", vor: 1.55, min: 0, max: 10, step: 0.05, lebt: true },
+	{ k: "spacing", t: "Stuetzpunktabstand", h: "Segmentierung des Randes", art: "num", vor: 0.30, min: 0.05, max: 5, step: 0.05, lebt: true },
+	{ k: "minPartPct", t: "Teilflaeche zaehlt ab", h: "welche Lappen die Kurve mitbestimmen", art: "num", e: "%", vor: 2, min: 0, max: 50, step: 0.5, lebt: true },
+	{ k: "maxTurnDeg", t: "Max. Verdrehung gegen die Sehne", h: "Beruhigung", art: "num", e: "Grad", vor: D.maxTurnDeg, min: 0, max: 90, step: 1, lebt: true },
+	{ k: "extendMaxPct", t: "Kurve verlaengern hoechstens", h: "Passung, Mittel 1", art: "num", e: "%", vor: D.extendMaxPct, min: 0, max: 100, step: 5, lebt: true },
+	{ k: "trackingPct", t: "Sperrung ueber die Flaeche", h: "Deckel 50 %", art: "num", e: "%", vor: D.trackingPct, min: 0, max: 50, step: 1, lebt: true },
+	{ k: "trackingMaxPerGapEm", t: "Sperrung hoechstens je Luecke", h: "absoluter Deckel", art: "num", e: "Schriftgroessen", vor: D.trackingMaxPerGapEm, min: 0, max: 3, step: 0.05, lebt: true },
+	{ k: "minGapEm", t: "Mindestabstand zweier Namen", h: "Kollisionsabbau", art: "num", e: "Schriftgroessen", vor: D.minGapEm, min: 0, max: 8, step: 0.1, lebt: false,
+	  warum: "wirkt erst, wenn eine Flaeche ZWEI Namen traegt" },
+	{ k: "dodgePx", t: "Ausweichweg eines Kurvenlabels", h: "Kollisionsvermeidung", art: "num", e: "px", vor: D.dodgePx, min: 0, max: 40, step: 1, lebt: false,
+	  warum: "wirkt erst bei einer Kollision mit einem fremden Namen" },
+	{ k: "shrink", t: "Schrift verkleinern bis es passt", h: "Passung, Mittel 2", art: "check", vor: true, lebt: true },
+];
+
+/* ── Farben aus dem echten Stylesheet lesen ─────────────────────────────────────────────── */
+const wurzel = getComputedStyle(document.documentElement);
+
+function flaechenTon(kind, key) {
+	const eigen = wurzel.getPropertyValue("--color-ecosystem-" + kind + "-" + key.replace(/_/g, "-")).trim();
+	return normHex(eigen || wurzel.getPropertyValue("--color-ecosystem-" + kind).trim());
+}
+
+/* Dieselbe Sonde wie getMapLabelTypeStyle im Canvas-Renderer. Kein Abschreiben. */
+const _sonde = {};
+function sondiere(art) {
+	if (_sonde[art]) { return _sonde[art]; }
+	const probe = document.createElement("div");
+	probe.className = "map-label map-label--" + art;
+	probe.style.cssText = "position:absolute;left:-9999px;top:-9999px;visibility:hidden;";
+	const span = document.createElement("span");
+	span.textContent = "Mg";
+	probe.appendChild(span);
+	document.body.appendChild(probe);
+	const cs = getComputedStyle(span);
+	_sonde[art] = { ton: rgbZuHex(cs.color), gross: cs.textTransform === "uppercase" };
+	document.body.removeChild(probe);
+	return _sonde[art];
+}
+function namensTon(art) { return sondiere(art).ton; }
+function schreibtGross(art) { return sondiere(art).gross; }
+
+function rgbZuHex(wert) {
+	const m = String(wert).match(/(\d+)[,\s]+(\d+)[,\s]+(\d+)/);
+	if (!m) { return "#ffffff"; }
+	return "#" + [m[1], m[2], m[3]].map((n) => Number(n).toString(16).padStart(2, "0")).join("");
+}
+function normHex(wert) {
+	const s = String(wert || "").trim();
+	if (/^#[0-9a-fA-F]{6}$/.test(s)) { return s.toLowerCase(); }
+	if (/^#[0-9a-fA-F]{3}$/.test(s)) { return "#" + s.slice(1).split("").map((c) => c + c).join("").toLowerCase(); }
+	if (/rgb/i.test(s)) { return rgbZuHex(s); }
+	return "#888888";
+}
+
+/* ── Zustand ────────────────────────────────────────────────────────────────────────────── */
+let reiter = "vegetation";
+let vorschauZoom = 5;
+let selPunkt = null;
+/* 💣 Die Hervorhebung ist NICHT dasselbe wie der gewaehlte Punkt. In der Vorgabestellung haben alle
+   Arten dieselbe Kurve -- sie liegen dann exakt uebereinander, und ein Klick trifft immer die
+   oberste. Ueber die Legende laesst sich eine Art auch dann waehlen; deshalb ein eigener Zustand,
+   der KEINEN Wert bezeichnet und nichts editierbar macht. */
+let selArt = null;
+function hervorArt() { return selPunkt ? selPunkt.art : selArt; }
+let kvIndex = 0;
+
+/* Uebersteuerungen. Leer = Vorgabe gilt -- genau so soll der app_setting-Schluessel aussehen. */
+const ueber = { flaeche: {}, deckkraft: {}, groesse: {}, farbe: {}, band: {}, globalAn: {}, globalWert: {} };
+
+/* 🔴 GLOBALE DECKKRAFT JE EBENE, und sie ist der AUSGANGSZUSTAND -- nicht die Ausnahme.
+   Heute hat die Karte genau das: EINE Deckkraft je Ebene (0,16 / 0,72 / 0,72 / 0,30 aus
+   ecosystem-layer.css). Das Haekchen an mit dem Wert der Ebene reproduziert also das heutige Bild
+   Ziffer fuer Ziffer; erst das Abhaken oeffnet die Werte je Art. Andersherum -- per Art als
+   Ausgangszustand -- muesste die Vorgabe die vier Zahlen auf 33 Arten verteilen und behauptete
+   damit eine Entscheidung, die nie jemand getroffen hat.
+   ⚠️ „Global" heisst hier FUER DIESE EBENE, nicht fuer alle vier. Die vier Vorgaben sagen
+   Verschiedenes (ein derographischer Behaelter bei 0,16 ist Absicht, keine Nachlaessigkeit) --
+   eine Zahl ueber alle vier zoege sie zwangslaeufig zusammen. */
+function globalAn(kind) { return ueber.globalAn[kind] === undefined ? true : ueber.globalAn[kind]; }
+function globalWert(kind) {
+	const v = ueber.globalWert[kind];
+	return v === undefined ? DECKKRAFT_VORGABE[kind] : v;
+}
+const werte = {};   /* die zwoelf Kurvenwerte, live */
+KURVENWERTE.forEach((w) => { werte[w.k] = w.vor; });
+
+const kFl = (k, t) => k + ":" + t;
+const kNa = (a, z) => a + ":" + z;
+
+function flTon(kind, key) { return ueber.flaeche[kFl(kind, key)] || flaechenTon(kind, key); }
+/* Die Deckkraft, die WIRKT. 💣 Der globale Wert ueberschreibt den Zeilenwert, er LOESCHT ihn nicht
+   -- ein Haekchen ist keine Datenaenderung, und wer es wieder abnimmt, bekommt seine Arbeit zurueck. */
+function flDeck(kind, key) {
+	if (globalAn(kind)) { return globalWert(kind); }
+	const v = ueber.deckkraft[kFl(kind, key)];
+	return v === undefined ? DECKKRAFT_VORGABE[kind] : v;
+}
+function naGroesse(art, z) {
+	const v = ueber.groesse[kNa(art, z)];
+	return v === undefined ? vorgabeGroesse(z) : v;
+}
+/* 🔴 Farbe je ART, nicht je Zoomstufe (Owner 23.08.2026: "die farben bleiben gleich"). */
+function naFarbe(art) { return ueber.farbe[art] || namensTon(art); }
+
+/* ── DAS ZOOMBAND JE ART ─────────────────────────────────────────────────────────────────────
+   🔴 Der Ersatz fuer die Zoombaender, wie bei den Siedlungen (Owner 23.08.2026: „im moment geben
+   die editoren die zoombaender vor, aber ich will die default-werte hier editieren koennen").
+
+   💣 EIN UNTERSCHIED ZU DEN SIEDLUNGEN, und er ist tragend: dort gibt es nur eine
+   ERSCHEINUNGSstufe -- was einmal da ist, bleibt bis zMax. Eine Landschaftsbeschriftung hat BEIDE
+   Enden (`min_zoom` UND `max_zoom` im Beschriftungsdialog), und das aus gutem Grund: ein
+   Kontinentname soll beim Hineinzoomen VERSCHWINDEN. Wer das Siedlungsmodell eins zu eins
+   abschreibt, verliert das obere Ende und damit die halbe Aussage.
+
+   ⚠️ Vorgabe 0 bis 7 fuer jede Art -- das sind die heutigen Werte aus dem Beschriftungsdialog
+   (`label-edit-min-zoom` value="0", `label-edit-max-zoom` value="7"). Bewusst keine erfundene
+   Staffelung je Art: die hat nie jemand entschieden, und eine geratene Vorgabe saehe aus wie eine.
+   🔴 z8 ERBT z7 wie bei den Zoombaendern -- die Karte kennt Stufe 8 noch nicht (maxZoom: 7). */
+const BAND_MAX = 7;
+
+/* 🔴 DIE VORGABEN JE ART -- vier Werte, und sie sind NICHT BINDEND (Owner 24.08.2026).
+   Der Editor stellt weiter jedes Label einzeln; diese Tafel erscheint bei ihm nur als MARKE auf dem
+   Reglerbalken („fuer diese Art ist z2 vorgesehen"). Er darf abweichen, er sieht nur, wovon.
+   ⚠️ Deshalb faellt hier -- anders als bei „Groesse" -- KEIN Bedienelement im Beschriftungsdialog
+   weg. Groesse wird global (die Tafel gilt), diese vier bleiben beim Label (die Tafel raet).
+   Die Zahlen sind die heutigen Vorgaben aus index.html: min_zoom 0, max_zoom 7,
+   curve_label_max 1, priority 3. Bewusst keine erfundene Staffelung je Art. */
+const VORGABE = { ab: 0, bis: 7, curveMax: 1, prio: 3 };
+const VORGABE_GRENZEN = {
+	ab: { min: 0, max: BAND_MAX }, bis: { min: 0, max: BAND_MAX },
+	curveMax: { min: 1, max: 3 }, prio: { min: 1, max: 5 },
+};
+
+function naVorgabe(art) {
+	const v = ueber.band[art] || {};
+	const raus = {};
+	Object.keys(VORGABE).forEach((k) => { raus[k] = v[k] === undefined ? VORGABE[k] : v[k]; });
+	return raus;
+}
+function naBand(art) { const v = naVorgabe(art); return { ab: v.ab, bis: v.bis }; }
+
+/* „aus" = die Art traegt nirgends einen Namen. 🔴 Als bis < ab kodiert, nicht als eigener Schalter:
+   ein zweiter Zustand neben den zwei Enden waere eine dritte Wahrheit ueber dieselbe Sache. */
+function bandIstAus(art) { const b = naBand(art); return b.bis < b.ab; }
+
+/* Klick auf eine Stufe der Leiste. 🔴 EIN Klick, ZWEI Enden -- die Regel ist „das naehere Ende
+   wandert". Kein Modus, kein Umschalt-Klick, keine zweite Leiste: bei den Siedlungen setzt ein Klick
+   die eine Erscheinungsstufe, hier zieht er das naechstliegende der beiden Enden auf die Stufe.
+   ⚠️ Bei Gleichstand gewinnt „ab" -- eine Regel muss auch in der Mitte entscheiden, sonst haengt das
+   Ergebnis an Rundung. */
+function bandKlick(art, z) {
+	const v = naVorgabe(art);
+	const neu = Object.assign({}, v);
+	if (v.bis < v.ab) {
+		neu.ab = z; neu.bis = z;               // war aus -> eine einzelne Stufe
+	} else if (z < v.ab) {
+		neu.ab = z;
+	} else if (z > v.bis) {
+		neu.bis = z;
+	} else {
+		if ((z - v.ab) <= (v.bis - z)) { neu.ab = z; } else { neu.bis = z; }
+	}
+	ueber.band[art] = neu;
+	nachBandwechsel(art);
+}
+function bandAus(art) {
+	ueber.band[art] = Object.assign(naVorgabe(art), { ab: 0, bis: -1 });
+	nachBandwechsel(art);
+}
+function nachBandwechsel(art) {
+	if (selPunkt && !naSichtbar(selPunkt.art, selPunkt.z)) { selPunkt = null; }
+	zeichnePlot(); zeichneLegende(); zeichneAuswahl(); zeichneVorschau(); zeichneEditorProbe();
+	const b = naBand(art);
+	melde(art + ": " + (b.bis < b.ab ? "kein Name auf der Karte" : "sichtbar z" + b.ab + "–z" + b.bis));
+}
+/* Sichtbar auf dieser Stufe? z8 faellt auf z7 zurueck, sonst waere die letzte Spalte des Plots
+   immer leer, obwohl die Karte dort gar nicht hinkommt. */
+function naSichtbar(art, z) {
+	const b = naBand(art);
+	const zz = Math.min(z, BAND_MAX);
+	return zz >= b.ab && zz <= b.bis;
+}
+/* 🔧 DER MEDIAN -- die zweite moegliche Quelle einer Marke (Owner 24.08.2026: „wir bestimmen diese
+   defaultwerte oder wir bieten ihnen den median an (oder beides)").
+   🔴 ER IST HIER NICHT ECHT. Ein Median entsteht aus dem LIVEBESTAND (rund 900 Beschriftungen), und
+   diese Datei hat keine Datenbank. Die Zahlen unten sind als BEISPIEL gekennzeichnet und stehen nur,
+   damit die Marke ihre Bauart zeigt -- sie sagen NICHTS ueber den wirklichen Bestand.
+   ⚠️ Wer sie fuer gemessen haelt, trifft eine Entscheidung auf erfundenen Zahlen. Die echte Messung
+   ist EINE Abfrage ueber map_features und gehoert in den Bauplan, nicht in dieses Mockup. */
+const MEDIAN_BEISPIEL = {
+	wald: { ab: 3, bis: 7, curveMax: 1, prio: 3, n: 87 },
+	suempfe_moore: { ab: 3, bis: 7, curveMax: 1, prio: 3, n: 41 },
+	gebirge: { ab: 1, bis: 6, curveMax: 2, prio: 4, n: 63 },
+	region: { ab: 0, bis: 4, curveMax: 1, prio: 4, n: 152 },
+	kontinent: { ab: 0, bis: 2, curveMax: 1, prio: 5, n: 6 },
+	meer: { ab: 0, bis: 5, curveMax: 1, prio: 4, n: 29 },
+};
+
+/* Fuer die uebrigen Arten liegt keine Beispielzahl vor. Statt die Zeile tot zu lassen, liefert ein
+   fester Streuwert aus dem Artnamen etwas Plausibles -- 🔴 er ist AUSDRUECKLICH keine Messung, und
+   jede Stelle, die ihn zeigt, sagt „Beispiel" dazu. Deterministisch aus dem Namen, damit derselbe
+   Knopf zweimal dasselbe liefert; ein Zufallswert saehe beim zweiten Druck nach einem Fehler aus. */
+function streuung(text) {
+	let h = 0;
+	for (let i = 0; i < text.length; i += 1) { h = (h * 31 + text.charCodeAt(i)) >>> 0; }
+	return h;
+}
+function medianErmitteln(art) {
+	if (MEDIAN_BEISPIEL[art]) { return Object.assign({}, MEDIAN_BEISPIEL[art]); }
+	const h = streuung(art);
+	const ab = h % 4;                       // 0..3
+	const bis = Math.min(BAND_MAX, ab + 3 + ((h >> 3) % 4));
+	return { ab, bis, curveMax: 1 + ((h >> 6) % 2), prio: 2 + ((h >> 9) % 3), n: 8 + ((h >> 12) % 120) };
+}
+
+/* 🔴 Der Median ist ERST DA, WENN JEMAND IHN ERMITTELT HAT (Owner 24.08.2026: Knopf je Zeile).
+   Vorher gibt es ihn nicht -- und genau das soll man sehen: die graue Marke im Editor-Ausschnitt
+   erscheint nach dem Messen, nicht davor. Ein Median, der einfach da ist, sieht aus wie eine
+   Einstellung; einer, der gemessen wird, sieht aus wie eine Auskunft. */
+const medianDa = {};
+function naMedian(art) { return medianDa[art] || null; }
+
+/* ── Reiter ─────────────────────────────────────────────────────────────────────────────── */
+const tabsEl = document.getElementById("dgTabs");
+EBENEN.forEach(([key, label]) => {
+	const b = document.createElement("button");
+	b.type = "button";
+	b.className = "dg-tab";
+	b.textContent = label;
+	/* 💣 selArt MUSS mit fallen. Sie ueberlebte den Reiterwechsel und zeigte dann auf eine Art, die
+	   es im neuen Reiter gar nicht gibt -- der Editor-Ausschnitt stand auf „wald", auch unter
+	   Klimazonen, die ueberhaupt keine eigenen Namen tragen. */
+	b.addEventListener("click", () => { reiter = key; selPunkt = null; selArt = null; alles(); });
+	tabsEl.appendChild(b);
+});
+function zeichneTabs() {
+	[...tabsEl.children].forEach((b, i) => b.classList.toggle("is-active", EBENEN[i][0] === reiter));
+}
+
+/* ── Flaechen ───────────────────────────────────────────────────────────────────────────── */
+/* Die Zeilen melden sich hier an, damit das globale Haekchen sie alle nachziehen kann, ohne die
+   Liste neu zu bauen (ein Neubau naehme dem gerade angefassten Feld den Fokus). */
+let zeilenZeichner = [];
+
+/* Was an der Tabelle haengt: der Plot traegt die Namensfarben, die zwei Vorschauen die Flaechen.
+   ⚠️ Bewusst OHNE die Tabelle selbst -- wer gerade in einem Zahlenfeld tippt, verlaere sonst bei
+   jedem Tastendruck den Fokus. Die Zeile zieht sich ueber ihr eigenes `nachziehen` nach. */
+function nachTabelle() {
+	zeichnePlot();
+	zeichneLegende();
+	zeichneVorschau();
+	zeichneKurvenVorschau();
+}
+
+function zeichneGlobal() {
+	const bar = document.getElementById("flGlobal");
+	bar.innerHTML = "";
+	bar.classList.toggle("is-aus", !globalAn(reiter));
+
+	const lab = document.createElement("label");
+	lab.className = "fl-global__check";
+	const cb = document.createElement("input");
+	cb.type = "checkbox";
+	cb.checked = globalAn(reiter);
+	lab.append(cb, document.createTextNode("Eine Deckkraft für die ganze Ebene"));
+
+	const rng = document.createElement("input");
+	rng.type = "range"; rng.className = "fl-range";
+	rng.min = "0"; rng.max = "100"; rng.step = "1";
+	rng.setAttribute("aria-label", "Deckkraft für die ganze Ebene");
+
+	const num = document.createElement("input");
+	num.type = "number"; num.className = "fl-pctnum";
+	num.min = "0"; num.max = "100"; num.step = "1";
+	num.setAttribute("aria-label", "Deckkraft für die ganze Ebene in Prozent");
+
+	const prev = document.createElement("div");
+	prev.className = "fl-prev";
+	const fill = document.createElement("div");
+	fill.className = "fl-prev__fill";
+	prev.appendChild(fill);
+
+	const rst = document.createElement("button");
+	rst.type = "button"; rst.className = "fl-reset";
+	rst.title = "Auf die Vorgabe dieser Ebene zurücksetzen";
+	rst.textContent = "↺";
+
+	function nachziehen(sagen) {
+		const an = globalAn(reiter);
+		const w = globalWert(reiter);
+		cb.checked = an;
+		rng.value = String(Math.round(w * 100));
+		num.value = Math.round(w * 100);
+		rng.disabled = !an;
+		num.disabled = !an;
+		/* Der Streifen zeigt den globalen Wert auf dem Ton der ERSTEN Art dieser Ebene -- ein
+		   neutraler Grauwert liesse die Deckkraft anders lesen, als sie auf der Karte wirkt. */
+		fill.style.background = flTon(reiter, FLAECHEN[reiter][0][0]);
+		fill.style.opacity = String(w);
+		bar.classList.toggle("is-aus", !an);
+		rst.hidden = ueber.globalAn[reiter] === undefined && ueber.globalWert[reiter] === undefined;
+		zeilenZeichner.forEach((f) => f(false));
+		zeichneVorschau();
+		zeichneKurvenVorschau();
+		if (sagen) {
+			melde(an ? "Ganze Ebene auf " + Math.round(w * 100) + " % — die Werte je Art sind stumm, aber gemerkt."
+			         : "Deckkraft je Art — jede Zeile stellt sich selbst.");
+		}
+	}
+
+	cb.addEventListener("change", () => { ueber.globalAn[reiter] = cb.checked; nachziehen(true); });
+	const setzen = (p) => { ueber.globalWert[reiter] = Math.max(0, Math.min(100, Number(p) || 0)) / 100; nachziehen(true); };
+	rng.addEventListener("input", () => setzen(rng.value));
+	num.addEventListener("input", () => setzen(num.value));
+	rst.addEventListener("click", () => {
+		delete ueber.globalAn[reiter];
+		delete ueber.globalWert[reiter];
+		nachziehen(true);
+	});
+
+	bar.append(lab, rng, num, prev, rst);
+	nachziehen(false);
+}
+
+/* Die Zeilen EINER Tabelle: Flaechenarten dieser Ebene, dazu die Namensarten, die keine
+   gleichnamige Flaeche haben. 🪤 Die zwei Vokabulare decken sich NICHT vollstaendig -- `insel` ist
+   in der Topographie eine Flaeche, sein Name steht aber unter Derographie; `fluss`, `berggipfel`,
+   `vulkan` und `ebene` haben ueberhaupt keine Flaechenart. Statt das zu glaetten, zeigt die
+   Tabelle die Luecke als „—“: das ist eine Auskunft, kein Mangel. */
+function tabellenZeilen(kind) {
+	const fl = new Map(FLAECHEN[kind].map(([k, l]) => [k, l]));
+	const na = new Map(NAMEN[kind].map(([k, l, o]) => [k, { label: l, ohne: o }]));
+	const keys = FLAECHEN[kind].map(([k]) => k);
+	NAMEN[kind].forEach(([k]) => { if (!fl.has(k)) { keys.push(k); } });
+	return keys.map((k) => ({
+		key: k,
+		label: fl.get(k) || (na.get(k) ? na.get(k).label : k),
+		hatFlaeche: fl.has(k),
+		hatName: na.has(k),
+		ohne: na.get(k) ? Boolean(na.get(k).ohne) : false,
+	}));
+}
+
+function zeichneFlaechen() {
+	const wrap = document.getElementById("flRows");
+	wrap.innerHTML = "";
+	zeilenZeichner = [];
+	document.getElementById("flSrc").textContent =
+		"Vorgabe-Deckkraft dieser Ebene: " + Math.round(DECKKRAFT_VORGABE[reiter] * 100) + " %";
+
+	tabellenZeilen(reiter).forEach((z) => {
+		const key = z.key, label = z.label;
+		const row = document.createElement("tr");
+
+		const tdArt = document.createElement("td");
+		tdArt.className = "dt__art";
+		const kk = document.createElement("span");
+		kk.className = "fl-key";
+		kk.textContent = key;
+		tdArt.append(document.createTextNode(label + (z.ohne ? "°" : "")), kk);
+		row.appendChild(tdArt);
+
+		/* ── Flaeche: Ton · Hexwert · Deckkraft · Vorschau ─────────────────────────────────── */
+		let sw = null, hex = null, rng = null, pct = null, fill = null;
+		if (z.hatFlaeche) {
+			sw = document.createElement("input");
+			sw.type = "color"; sw.className = "fl-swatch"; sw.setAttribute("aria-label", "Flaechenton fuer " + label);
+
+			hex = document.createElement("input");
+			hex.type = "text"; hex.className = "fl-hex"; hex.setAttribute("aria-label", "Flaechen-Farbwert fuer " + label);
+
+			/* 🪤 Regler UND Zahl teilen dieselben Grenzen und dieselbe Einheit (Prozent, 0-100).
+			   Der Hausfehler waere ein Regler in 0..1 neben einem Feld in Prozent: dann klemmt der
+			   erste Griff an den Regler einen getippten Wert stillschweigend auf 1 %. */
+			rng = document.createElement("input");
+			rng.type = "range"; rng.className = "fl-range";
+			rng.min = "0"; rng.max = "100"; rng.step = "1";
+			rng.setAttribute("aria-label", "Deckkraft fuer " + label);
+
+			pct = document.createElement("input");
+			pct.type = "number"; pct.className = "fl-pctnum";
+			pct.min = "0"; pct.max = "100"; pct.step = "1";
+			pct.setAttribute("aria-label", "Deckkraft fuer " + label + " in Prozent");
+
+			const prev = document.createElement("div");
+			prev.className = "fl-prev";
+			fill = document.createElement("div");
+			fill.className = "fl-prev__fill";
+			prev.appendChild(fill);
+
+			const tdSw = document.createElement("td"); tdSw.className = "dt-sep"; tdSw.appendChild(sw); row.appendChild(tdSw);
+			const tdHex = document.createElement("td"); tdHex.appendChild(hex); row.appendChild(tdHex);
+			const tdDeck = document.createElement("td");
+			tdDeck.style.minWidth = "150px";
+			tdDeck.append(rng, pct);
+			row.appendChild(tdDeck);
+			const tdPrev = document.createElement("td"); tdPrev.style.width = "110px"; tdPrev.appendChild(prev); row.appendChild(tdPrev);
+		} else {
+			const td = document.createElement("td");
+			td.colSpan = 4; td.className = "dt__leer dt-sep";
+			td.textContent = "— keine Flaechenart —";
+			row.appendChild(td);
+		}
+
+		/* ── Name: Farbe · Muster ──────────────────────────────────────────────────────────── */
+		let nsw = null, nhex = null, probe = null;
+		if (z.hatName) {
+			nsw = document.createElement("input");
+			nsw.type = "color"; nsw.className = "fl-swatch"; nsw.setAttribute("aria-label", "Namensfarbe fuer " + label);
+
+			nhex = document.createElement("input");
+			nhex.type = "text"; nhex.className = "fl-hex"; nhex.setAttribute("aria-label", "Namens-Farbwert fuer " + label);
+
+			probe = document.createElement("div");
+			probe.className = "fc-probe";
+			probe.textContent = schreibtGross(key) ? BEISPIEL[reiter].toUpperCase() : BEISPIEL[reiter];
+
+			const tdSw = document.createElement("td"); tdSw.className = "dt-sep"; tdSw.append(nsw, nhex); row.appendChild(tdSw);
+			const tdP = document.createElement("td"); tdP.style.minWidth = "130px"; tdP.appendChild(probe); row.appendChild(tdP);
+		} else {
+			const td = document.createElement("td");
+			td.colSpan = 2; td.className = "dt__leer dt-sep";
+			td.textContent = reiter === "klima" ? "— Ton der Zone —" : "— kein eigener Name —";
+			row.appendChild(td);
+		}
+
+		const tdRst = document.createElement("td");
+		const rst = document.createElement("button");
+		rst.type = "button"; rst.className = "fl-reset";
+		rst.title = "Diese Zeile auf Vorgabe zuruecksetzen";
+		rst.textContent = "↺";
+		tdRst.appendChild(rst);
+		row.appendChild(tdRst);
+
+		function nachziehen(sagen) {
+			let sagt = label + ":";
+			if (z.hatFlaeche) {
+				const ton = flTon(reiter, key);
+				const wirkt = flDeck(reiter, key);
+				/* Die Regler zeigen den EIGENEN Wert der Zeile, auch wenn gerade der globale wirkt --
+				   sonst ueberschriebe das Haekchen beim Ansehen still die hinterlegte Arbeit. */
+				const eigen = ueber.deckkraft[kFl(reiter, key)];
+				const zeile = eigen === undefined ? DECKKRAFT_VORGABE[reiter] : eigen;
+				hex.value = ton;
+				sw.value = ton;
+				fill.style.background = ton;
+				fill.style.opacity = String(wirkt);
+				pct.value = Math.round(zeile * 100);
+				rng.value = String(Math.round(zeile * 100));
+				const stumm = globalAn(reiter);
+				row.classList.toggle("is-stumm", stumm);
+				rng.disabled = stumm;
+				pct.disabled = stumm;
+				rng.title = stumm ? "Die Deckkraft ist gerade global — Haekchen oben abnehmen, um je Art zu stellen." : "";
+				pct.title = rng.title;
+				sagt += " Flaeche " + ton + " / " + Math.round(wirkt * 100) + " %";
+			}
+			if (z.hatName) {
+				const nton = naFarbe(key);
+				nsw.value = nton;
+				nhex.value = nton;
+				probe.style.color = nton;
+				/* Der Name liegt auf SEINER Flaeche, nicht auf einem erfundenen Grund. Ohne eigene
+				   Flaechenart bleibt der Untergrund-Ton aus dem Stylesheet stehen. */
+				if (z.hatFlaeche) { probe.style.background = flTon(reiter, key); }
+				sagt += (z.hatFlaeche ? " ·" : "") + " Name " + nton;
+			}
+			rst.hidden = ueber.flaeche[kFl(reiter, key)] === undefined
+				&& ueber.deckkraft[kFl(reiter, key)] === undefined
+				&& ueber.farbe[key] === undefined;
+			if (sagen) { melde(sagt); }
+		}
+		zeilenZeichner.push(nachziehen);
+
+		if (z.hatFlaeche) {
+			sw.addEventListener("input", () => { ueber.flaeche[kFl(reiter, key)] = sw.value; nachziehen(true); nachTabelle(); });
+			hex.addEventListener("change", () => {
+				const v = hex.value.trim();
+				if (/^#[0-9a-fA-F]{6}$/.test(v)) { ueber.flaeche[kFl(reiter, key)] = v.toLowerCase(); }
+				nachziehen(true); nachTabelle();
+			});
+			const setzen = (prozent) => {
+				ueber.deckkraft[kFl(reiter, key)] = Math.max(0, Math.min(100, Number(prozent) || 0)) / 100;
+				nachziehen(true); nachTabelle();
+			};
+			rng.addEventListener("input", () => setzen(rng.value));
+			pct.addEventListener("input", () => setzen(pct.value));
+		}
+		if (z.hatName) {
+			nsw.addEventListener("input", () => { ueber.farbe[key] = nsw.value; nachziehen(true); nachTabelle(); });
+			nhex.addEventListener("change", () => {
+				const v = nhex.value.trim();
+				if (/^#[0-9a-fA-F]{6}$/.test(v)) { ueber.farbe[key] = v.toLowerCase(); }
+				nachziehen(true); nachTabelle();
+			});
+		}
+		rst.addEventListener("click", () => {
+			delete ueber.flaeche[kFl(reiter, key)];
+			delete ueber.deckkraft[kFl(reiter, key)];
+			delete ueber.farbe[key];
+			nachziehen(true); nachTabelle();
+		});
+
+		wrap.appendChild(row);
+		nachziehen(false);
+	});
+
+	document.getElementById("fcFoot").innerHTML = tabellenZeilen(reiter).some((z) => z.ohne)
+		? "<sup>°</sup> Diese Art hat keine gleichnamige Flaechenart. Sie steht hier im inhaltlich passenden Reiter — eine Gruppierung fuer dieses Fenster, kein Datenschluessel."
+		: "";
+
+	const gemeinsam = " Das Haekchen oben ist der heutige Zustand: die Karte hat EINE Deckkraft je Ebene."
+		+ " Abnehmen oeffnet die Werte je Art; anhaken macht sie stumm, loescht sie aber nicht."
+		+ " „Ruhend = unsichtbar“ bleibt unangetastet — gestellt wird nur die AKTIVE Ebene, sonst laege"
+		+ " ueber „Alle“ wieder das Farbnetz.";
+	document.getElementById("flNote").textContent = (reiter === "klima"
+		? "Bei den Klimazonen faerbt derselbe Wert das Band UND seinen Namen — das ist heute schon so (ecosystemAreaColor ist fuer beide die Quelle). Deshalb hat dieser Reiter keinen Namens-Abschnitt."
+		: "") + gemeinsam;
+}
+
+/* ── Groessenplot ───────────────────────────────────────────────────────────────────────── */
+const PLOT = { w: 920, h: 420, l: 56, r: 132, t: 24, b: 40, min: 4, max: 30 };
+function px(z) { return PLOT.l + (z / 8) * (PLOT.w - PLOT.l - PLOT.r); }
+function py(v) { return PLOT.t + (1 - (v - PLOT.min) / (PLOT.max - PLOT.min)) * (PLOT.h - PLOT.t - PLOT.b); }
+function vonPy(y) {
+	const v = PLOT.min + (1 - (y - PLOT.t) / (PLOT.h - PLOT.t - PLOT.b)) * (PLOT.max - PLOT.min);
+	return Math.max(PLOT.min, Math.min(PLOT.max, Math.round(v * 2) / 2));
+}
+function svgEl(n, attrs) {
+	const e = document.createElementNS("http://www.w3.org/2000/svg", n);
+	Object.entries(attrs || {}).forEach(([k, v]) => e.setAttribute(k, v));
+	return e;
+}
+
+function zeichnePlot() {
+	const svg = document.getElementById("dgPlot");
+	svg.innerHTML = "";
+	const arten = NAMEN[reiter];
+	const rasterTon = wurzel.getPropertyValue("--color-divider").trim() || "#555555";
+	const textTon = wurzel.getPropertyValue("--color-text-muted").trim() || "#999999";
+
+	for (let v = PLOT.min; v <= PLOT.max; v += 2) {
+		svg.appendChild(svgEl("line", { x1: PLOT.l, x2: PLOT.w - PLOT.r, y1: py(v), y2: py(v), stroke: rasterTon, "stroke-width": 0.5 }));
+		if (v % 4 === 0) {
+			const t = svgEl("text", { x: PLOT.l - 8, y: py(v) + 4, fill: textTon, "font-size": 11, "text-anchor": "end" });
+			t.textContent = v;
+			svg.appendChild(t);
+		}
+	}
+	ZOOMS.forEach((z) => {
+		svg.appendChild(svgEl("line", { x1: px(z), x2: px(z), y1: PLOT.t, y2: PLOT.h - PLOT.b, stroke: rasterTon, "stroke-width": 0.5 }));
+		const t = svgEl("text", { x: px(z), y: PLOT.h - PLOT.b + 18, fill: textTon, "font-size": 11, "text-anchor": "middle" });
+		t.textContent = "z" + z;
+		svg.appendChild(t);
+	});
+	const achse = svgEl("text", { x: PLOT.l - 8, y: PLOT.t - 8, fill: textTon, "font-size": 11, "text-anchor": "end" });
+	achse.textContent = "pt";
+	svg.appendChild(achse);
+
+	if (arten.length === 0) {
+		const t = svgEl("text", { x: (PLOT.w - PLOT.r + PLOT.l) / 2, y: PLOT.h / 2, fill: textTon, "font-size": 14, "text-anchor": "middle" });
+		t.textContent = "Klimabaender tragen ihren Namen im Ton ihrer Zone — siehe oben.";
+		svg.appendChild(t);
+		return;
+	}
+
+	const hebe = hervorArt();
+
+	/* 💣 DIE HERVORGEHOBENE ART ZULETZT. Bei gleichen Werten liegen die Kurven aufeinander; wer in
+	   der Zeichenreihenfolge weiter vorn steht, verschwindet sonst unter einer spaeteren. */
+	const reihenfolge = arten.slice().sort((a, b) => (a[0] === hebe ? 1 : 0) - (b[0] === hebe ? 1 : 0));
+
+	reihenfolge.forEach(([art]) => {
+		const ton = naFarbe(art);
+		const aktiv = art === hebe;
+		const deutlich = !hebe || aktiv;
+		/* 🔴 Die Kurve laeuft NUR durch ihr Band. Eine Art, die bei z3 verschwindet, hat bei z4 keine
+		   Schriftgroesse -- eine durchgezogene Linie dorthin behauptete einen Wert, den es nicht gibt
+		   (dieselbe Regel wie `null` in den Zoombaendern der Siedlungen). */
+		const sichtbar = ZOOMS.filter((z) => naSichtbar(art, z));
+		if (sichtbar.length >= 2) {
+			svg.appendChild(svgEl("polyline", {
+				points: sichtbar.map((z) => px(z) + "," + py(naGroesse(art, z))).join(" "),
+				fill: "none", stroke: ton,
+				"stroke-width": aktiv ? 3 : 1.6, "stroke-opacity": deutlich ? 1 : 0.3,
+			}));
+		}
+		/* 💣 DAS EIGENTLICHE BEDIENPROBLEM (Owner 23.08.2026): in der Vorgabestellung sind alle
+		   Kurven deckungsgleich, also konkurrieren zwoelf Punkte um denselben Klick -- „man muss
+		   erst alle darueberliegenden wegschaufeln". Die Loesung ist nicht groesserer Klickradius,
+		   sondern ein RIEGEL: sobald eine Art gewaehlt ist, nimmt NUR sie noch Zeiger an. Gewaehlt
+		   wird ueber ihren Namen (rechts am Plot oder in der Legende) -- die stehen aufgefaechert
+		   und sind immer eindeutig, auch wenn die Linien aufeinanderliegen.
+		   ⚠️ Ohne Auswahl bleibt alles anfassbar; sind die Kurven erst verschieden, ist der Riegel
+		   unnoetig und wuerde nur im Weg stehen. */
+		const inert = hebe && !aktiv;
+		ZOOMS.filter((z) => naSichtbar(art, z)).forEach((z) => {
+			const c = svgEl("circle", {
+				cx: px(z), cy: py(naGroesse(art, z)),
+				r: selPunkt && selPunkt.art === art && selPunkt.z === z ? 7 : (aktiv ? 6 : 4.5),
+				fill: ton, stroke: rasterTon, "stroke-width": 1,
+				"fill-opacity": deutlich ? 1 : 0.3,
+				"pointer-events": inert ? "none" : "auto",
+				style: inert ? "" : "cursor:ns-resize",
+			});
+			if (!inert) {
+				c.addEventListener("pointerdown", (ev) => {
+					ev.preventDefault();
+					/* Ein Griff an einen Punkt waehlt zugleich seine Art -- sonst bliebe der Riegel
+					   auf einer anderen stehen und der naechste Griff ginge ins Leere. */
+					selArt = art;
+					selPunkt = { art, z };
+					ziehen(ev, art, z);
+				});
+			}
+			svg.appendChild(c);
+		});
+	});
+
+	/* ── Die Namen am rechten Rand ───────────────────────────────────────────────────────────
+	   🪤 Sie standen auf der Hoehe ihres z8-Wertes -- und in der VORGABESTELLUNG hat jede Art
+	   dieselbe Kurve, also lagen alle zwoelf exakt aufeinander und waren unlesbar (Owner
+	   23.08.2026: „die namen liegen alle uebereinander"). Ein Diagramm, dessen Beschriftung genau
+	   dann versagt, wenn noch niemand etwas verstellt hat, versagt beim ersten Blick.
+	   Daher: nach Zielhoehe sortieren, mit Mindestabstand auseinanderschieben, am unteren Rand
+	   zurueckfalten -- und eine Anschlusslinie zieht jeden Namen zu seinem Kurvenende. */
+	const ZEILE = 13;
+	const randX = PLOT.w - PLOT.r;
+	/* 🪤 Der Name haengt am LETZTEN SICHTBAREN Wert, nicht stur an z8: eine Art, deren Band bei z3
+	   endet, hat dort gar keinen Punkt -- ihr Name saesse sonst auf einer Hoehe, die zu nichts
+	   gehoert, und seine Anschlusslinie zeigte ins Leere. */
+	const eintraege = arten.map(([art]) => {
+		const letzte = ZOOMS.filter((z) => naSichtbar(art, z));
+		const z = letzte.length ? letzte[letzte.length - 1] : null;
+		return { art, z, ziel: z === null ? PLOT.h - PLOT.b : py(naGroesse(art, z)), ton: naFarbe(art) };
+	}).sort((a, b) => a.ziel - b.ziel);
+
+	let letzte = -Infinity;
+	eintraege.forEach((e) => { e.y = Math.max(e.ziel, letzte + ZEILE); letzte = e.y; });
+	/* Laeuft der Stapel unten hinaus, von unten her zurueckschieben -- sonst stehen die letzten
+	   Namen ausserhalb des Kastens. */
+	const unten = PLOT.h - PLOT.b;
+	if (eintraege.length && eintraege[eintraege.length - 1].y > unten) {
+		let grenze = unten + ZEILE;
+		for (let i = eintraege.length - 1; i >= 0; i -= 1) {
+			eintraege[i].y = Math.min(eintraege[i].y, grenze - ZEILE);
+			grenze = eintraege[i].y;
+		}
+	}
+
+	eintraege.forEach((e) => {
+		const aktiv = e.art === hebe;
+		const klar = !hebe || aktiv;
+		/* Anschlusslinie vom Kurvenende zum Namen -- sie startet dort, wo die Kurve WIRKLICH endet. */
+		const vonX = e.z === null ? randX : px(e.z);
+		if (Math.abs(e.y - e.ziel) > 0.5 || vonX < randX) {
+			svg.appendChild(svgEl("polyline", {
+				points: vonX + "," + e.ziel + " " + (randX + 5) + "," + e.y + " " + (randX + 8) + "," + e.y,
+				fill: "none", stroke: e.ton, "stroke-width": 1,
+				"stroke-opacity": klar ? 0.55 : 0.2, "stroke-dasharray": vonX < randX ? "3 3" : "",
+			}));
+		}
+		const t = svgEl("text", {
+			x: randX + 11, y: e.y + 4, fill: e.ton, "font-size": 11,
+			"fill-opacity": klar ? 1 : (e.z === null ? 0.25 : 0.3),
+			"font-weight": aktiv ? 700 : 400, style: "cursor:pointer",
+		});
+		t.textContent = e.art + (e.z === null ? " (aus)" : "");
+		t.addEventListener("click", () => waehleArt(e.art));
+		svg.appendChild(t);
+	});
+}
+
+function ziehen(startEv, art, z) {
+	const svg = document.getElementById("dgPlot");
+	function auf(ev) {
+		const box = svg.getBoundingClientRect();
+		const y = ((ev.clientY - box.top) / box.height) * PLOT.h;
+		ueber.groesse[kNa(art, z)] = vonPy(y);
+		zeichnePlot(); zeichneAuswahl(); zeichneVorschau();
+	}
+	function ab() {
+		window.removeEventListener("pointermove", auf);
+		window.removeEventListener("pointerup", ab);
+		melde(art + " · Zoom " + z + ": " + naGroesse(art, z) + " pt");
+	}
+	window.addEventListener("pointermove", auf);
+	window.addEventListener("pointerup", ab);
+	auf(startEv);
+}
+
+/* ⭐ Die Legende ist das eigentliche AUSWAHLWERKZEUG, nicht bloss eine Farbtafel: die Namen am
+   Plotrand sind 11 px hoch und stehen dicht: als einzige Trefferflaeche zu klein. Hier ist jede Art
+   ein Knopf in Zeilenhoehe. */
+/* ⭐ DIE BANDLEISTE -- Bauform woertlich aus „Orte bearbeiten" (renderZoomBandLegend /
+   makeZoomBandStageButton in html/wiki-sync-settlement-editor.html). Owner 24.08.2026: „was spricht
+   dagegen es wie bei ‚Orte bearbeiten' zu machen?" -- nichts, und sie ist besser als die zwei
+   Auswahlfelder davor: jede Art zeigt ihr Band OHNE dass man sie erst waehlen muss.
+   💣 EIN Unterschied, und er ist der Grund, warum es keine reine Abschrift ist: bei den Siedlungen
+   setzt ein Klick die eine ERSCHEINUNGSstufe, und die Kurve laeuft von dort bis ans Ende. Eine
+   Landschaftsbeschriftung hat ZWEI Enden -- ein Kontinentname soll beim Hineinzoomen verschwinden.
+   Deshalb faerbt die Leiste den ganzen Bereich, und ein Klick zieht das naehere Ende (bandKlick).
+   ⚠️ Die Zeile hat ZWEI Trefferflaechen mit verschiedener Bedeutung: der NAME waehlt die Art fuer
+   den Groessenplot, eine STUFE stellt das Band. Beide sind eindeutig beschriftet -- ohne das waere
+   es die Sorte Doppelbelegung, an der man rateraten muss. */
+function zeichneLegende() {
+	const el = document.getElementById("dgLegend");
+	el.innerHTML = "";
+	const hebe = hervorArt();
+	if (NAMEN[reiter].length === 0) { return; }
+
+	const tab = document.createElement("table");
+	tab.className = "zb";
+
+	/* Die Spaltenbreiten stehen EINMAL hier, nicht an jeder Zelle -- sonst laufen sie beim naechsten
+	   Knopf auseinander. Die acht Stufenspalten bleiben ohne Angabe und teilen den Rest gleich. */
+	const cg = document.createElement("colgroup");
+	["zb-c-dash", "zb-c-name"].forEach((k) => { const c = document.createElement("col"); c.className = k; cg.appendChild(c); });
+	for (let i = 0; i <= BAND_MAX; i += 1) { cg.appendChild(document.createElement("col")); }
+	["zb-c-aus", "zb-c-med", "zb-c-nimm", "zb-c-rst"].forEach((k) => { const c = document.createElement("col"); c.className = k; cg.appendChild(c); });
+	tab.appendChild(cg);
+
+	const thead = document.createElement("thead");
+	const hr = document.createElement("tr");
+	const th = (text, span, mitte) => {
+		const t = document.createElement("th");
+		t.textContent = text;
+		if (span) { t.colSpan = span; }
+		if (mitte) { t.className = "zb-mid"; }
+		return t;
+	};
+	hr.append(th("", 1), th("Art", 1), th("Sichtbar auf Zoomstufe", BAND_MAX + 1, true),
+		th("", 1), th("Median der Editoren", 2, true), th("", 1));
+	thead.appendChild(hr);
+	tab.appendChild(thead);
+
+	const tbody = document.createElement("tbody");
+	tab.appendChild(tbody);
+	el.appendChild(tab);
+
+	NAMEN[reiter].forEach(([art, label, ohneFlaeche]) => {
+		const row = document.createElement("tr");
+		row.className = art === hebe ? "is-active" : "";
+
+		const tdDash = document.createElement("td");
+		const strich = document.createElement("span");
+		strich.className = "zb-row__dash";
+		strich.style.background = naFarbe(art);
+		tdDash.appendChild(strich);
+
+		const tdName = document.createElement("td");
+		const nameBtn = document.createElement("button");
+		nameBtn.type = "button";
+		nameBtn.className = "zb-row__name";
+		nameBtn.textContent = label + (ohneFlaeche ? "°" : "");
+		nameBtn.title = art === hebe ? "Auswahl aufheben" : "Diese Art im Groessenplot bearbeiten";
+		nameBtn.addEventListener("click", () => waehleArt(art));
+		tdName.appendChild(nameBtn);
+
+		row.append(tdDash, tdName);
+
+		/* Jeder Knopf bekommt seine eigene Zelle -- das ist der ganze Trick an der Ausrichtung. */
+		const leiste = {
+			appendChild(kind) {
+				const td = document.createElement("td");
+				td.appendChild(kind);
+				row.appendChild(td);
+			},
+		};
+		const b = naBand(art);
+		const aus = b.bis < b.ab;
+		const med = naMedian(art);
+		for (let z = 0; z <= BAND_MAX; z += 1) {
+			const cell = document.createElement("button");
+			cell.type = "button";
+			const drin = !aus && z >= b.ab && z <= b.bis;
+			const ende = !aus && (z === b.ab || z === b.bis);
+			/* Der gemessene Median liegt als gestrichelter Streifen UNTER der Zelle -- er konkurriert
+			   nicht mit dem Band, er kommentiert es. */
+			const imMedian = med && z >= med.ab && z <= med.bis;
+			cell.className = "zb-cell" + (drin ? " is-in" : "") + (ende ? " is-end" : "") + (imMedian ? " has-median" : "");
+			cell.textContent = "z" + z;
+			cell.title = (drin ? label + " ist auf z" + z + " sichtbar" : label + " bis z" + z + " ausdehnen")
+				+ (imMedian ? " · liegt im Median der Editoren" : "");
+			if (ende) { cell.style.borderColor = naFarbe(art); cell.style.color = naFarbe(art); }
+			cell.addEventListener("click", () => bandKlick(art, z));
+			leiste.appendChild(cell);
+		}
+		const ausBtn = document.createElement("button");
+		ausBtn.type = "button";
+		ausBtn.className = "zb-cell zb-cell--aus" + (aus ? " is-end" : "");
+		ausBtn.textContent = "aus";
+		ausBtn.title = label + " traegt gar keinen Namen auf der Karte";
+		ausBtn.addEventListener("click", () => bandAus(art));
+		leiste.appendChild(ausBtn);
+
+		/* 🔴 „Median ermitteln" (Owner 24.08.2026), rechts von „aus". Er MISST nur -- uebernommen wird
+		   getrennt, mit einem eigenen Verb. Ein Knopf, der misst UND schreibt, nimmt einem die
+		   Entscheidung ab, die er gerade erst sichtbar gemacht hat. */
+		const medBtn = document.createElement("button");
+		medBtn.type = "button";
+		medBtn.className = "zb-cell zb-cell--median";
+		medBtn.textContent = med ? "Median z" + med.ab + "–z" + med.bis : "Median ermitteln";
+		medBtn.title = med
+			? "Aus " + med.n + " Beschriftungen (Beispielzahl) — nochmal druecken misst neu"
+			: "Ermittelt, was die Editoren fuer „" + label + "“ tatsaechlich eingestellt haben";
+		medBtn.addEventListener("click", () => {
+			medianDa[art] = medianErmitteln(art);
+			const m = medianDa[art];
+			zeichneLegende(); zeichneEditorProbe();
+			melde(label + ": Median z" + m.ab + "–z" + m.bis + " · max. Namen " + m.curveMax
+				+ " · Prioritaet " + m.prio + " — aus " + m.n + " Beschriftungen (Beispielzahl, nicht gemessen).");
+		});
+		leiste.appendChild(medBtn);
+
+		/* Erst wenn ein Median vorliegt, gibt es etwas zu uebernehmen. */
+		if (med) {
+			const nimm = document.createElement("button");
+			nimm.type = "button";
+			nimm.className = "zb-cell zb-cell--nimm";
+			nimm.textContent = "übernehmen";
+			nimm.title = "Die Vorgabe fuer „" + label + "“ auf den Median setzen";
+			nimm.addEventListener("click", () => {
+				ueber.band[art] = Object.assign(naVorgabe(art), {
+					ab: med.ab, bis: med.bis, curveMax: med.curveMax, prio: med.prio,
+				});
+				nachBandwechsel(art);
+			});
+			leiste.appendChild(nimm);
+		} else {
+			/* 💣 LEERE ZELLE, nicht gar keine. Ohne sie haette eine Zeile ohne Median eine Spalte
+			   weniger -- und `table-layout: fixed` schiebt dann alles rechts davon um eine Spalte
+			   nach links. Genau die Ausrichtung, wegen der diese Tabelle ueberhaupt entstanden ist. */
+			row.appendChild(document.createElement("td"));
+		}
+
+		const rst = document.createElement("button");
+		rst.type = "button";
+		rst.className = "fl-reset";
+		rst.textContent = "↺";
+		rst.title = "Band dieser Art auf die Vorgabe zuruecksetzen";
+		rst.hidden = !ueber.band[art];
+		rst.addEventListener("click", () => { delete ueber.band[art]; nachBandwechsel(art); });
+		leiste.appendChild(rst);
+
+		tbody.appendChild(row);
+	});
+}
+
+/* Eine Stelle fuer die Auswahl -- sie wird von der Legende UND vom Namen am Plotrand gerufen.
+   Zweimal geklickt hebt sie auf. 💣 Beim Wechsel faellt selPunkt weg: er zeigte sonst weiter auf
+   eine Art, die gar nicht mehr gewaehlt ist, und das Zahlenfeld editierte unsichtbar die falsche. */
+function waehleArt(art) {
+	const gleich = hervorArt() === art;
+	selPunkt = null;
+	selArt = gleich ? null : art;
+	zeichnePlot();
+	zeichneLegende();
+	zeichneAuswahl();
+	zeichneVorschau();
+	/* Der Editor-Ausschnitt zeigt IMMER die gewaehlte Art -- sonst stellt man oben eine Vorgabe und
+	   sieht unten die Marke einer anderen. */
+	zeichneEditorProbe();
+}
+
+function zeichneAuswahl() {
+	const sl = document.getElementById("selSizeLabel");
+	const si = document.getElementById("selSizeInput");
+	const hint = document.getElementById("selHint");
+
+	/* Die Bandwaehler haengen an der ART, nicht am Punkt -- sie erscheinen also, sobald eine Art
+	   gewaehlt ist, egal ob schon eine Stufe angefasst wurde. */
+	const art = hervorArt();
+	const bandBox = document.getElementById("selBand");
+	bandBox.hidden = !art;
+	if (art) {
+		const v = naVorgabe(art);
+		const fuellen = (id, feld, praefix) => {
+			const sel = document.getElementById(id);
+			const g = VORGABE_GRENZEN[feld];
+			sel.innerHTML = "";
+			for (let i = g.min; i <= g.max; i += 1) {
+				const o = document.createElement("option");
+				o.value = String(i);
+				o.textContent = praefix + i;
+				sel.appendChild(o);
+			}
+			sel.value = String(v[feld]);
+		};
+		fuellen("selCurveMax", "curveMax", "");
+		fuellen("selPrio", "prio", "");
+	}
+	if (selPunkt) {
+		sl.textContent = selPunkt.art + " · Zoom " + selPunkt.z;
+		si.disabled = false;
+		si.value = naGroesse(selPunkt.art, selPunkt.z);
+		hint.textContent = "⌨️ ← → wechselt die Zoomstufe, ↑ ↓ verstellt den Wert (Umschalt: grosser Schritt).";
+	} else if (selArt) {
+		sl.textContent = selArt + " · noch keine Stufe";
+		si.disabled = true;
+		si.value = "";
+		hint.textContent = "⌨️ Nur „" + selArt + "“ nimmt jetzt den Zeiger an. → waehlt die erste Zoomstufe.";
+	} else {
+		sl.textContent = "— keiner —";
+		si.disabled = true;
+		si.value = "";
+		hint.textContent = "Keine Art gewaehlt — alle Punkte sind anfassbar, liegen aber uebereinander.";
+	}
+}
+
+/* 💣 „ab" darf nie hinter „bis" rutschen -- sonst gaebe es eine Art mit leerem Band, und das ist ein
+   ANDERER Zustand („nie sichtbar") als der, den der Benutzer gerade herstellen wollte. Das jeweils
+   andere Ende zieht mit, statt die Eingabe abzulehnen. */
+function setzeBand(feld, wert) {
+	const art = hervorArt();
+	if (!art) { return; }
+	const neu = naVorgabe(art);
+	const g = VORGABE_GRENZEN[feld];
+	neu[feld] = Math.max(g.min, Math.min(g.max, Number(wert) || g.min));
+	if (feld === "ab" && neu.ab > neu.bis) { neu.bis = neu.ab; }
+	if (feld === "bis" && neu.bis < neu.ab) { neu.ab = neu.bis; }
+	ueber.band[art] = neu;
+	/* Zeigt die Auswahl auf eine Stufe, die es jetzt nicht mehr gibt, faellt sie weg -- ein
+	   Zahlenfeld, das einen unsichtbaren Wert editiert, ist schlimmer als keines. */
+	if (selPunkt && !naSichtbar(selPunkt.art, selPunkt.z)) { selPunkt = null; }
+	zeichnePlot(); zeichneLegende(); zeichneAuswahl(); zeichneVorschau(); zeichneEditorProbe();
+	melde(art + ": sichtbar z" + neu.ab + "–z" + neu.bis + " · max. Namen " + neu.curveMax + " · Prioritaet " + neu.prio);
+}
+["selCurveMax:curveMax", "selPrio:prio"].forEach((paar) => {
+	const [id, feld] = paar.split(":");
+	document.getElementById(id).addEventListener("change", (e) => setzeBand(feld, e.target.value));
+});
+
+document.getElementById("selSizeInput").addEventListener("input", (e) => {
+	if (!selPunkt) { return; }
+	ueber.groesse[kNa(selPunkt.art, selPunkt.z)] = Math.max(4, Math.min(30, Number(e.target.value) || 4));
+	zeichnePlot(); zeichneLegende(); zeichneVorschau();
+});
+window.addEventListener("keydown", (e) => {
+	const pfeil = ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].indexOf(e.key) >= 0;
+	if (!pfeil) { return; }
+	if (document.activeElement && /^(INPUT|TEXTAREA|SELECT|BUTTON)$/.test(document.activeElement.tagName)) { return; }
+
+	/* ⭐ Mit gewaehlter Art wandert links/rechts durch die Zoomstufen -- so laesst sich eine ganze
+	   Grundgroessen-Reihe durchstellen, ohne je wieder in den Kurvenstapel treffen zu muessen.
+	   Eine nur hervorgehobene Art (ueber die Legende) bekommt beim ersten Pfeil ihren Punkt. */
+	if (!selPunkt) {
+		if (!selArt) { return; }
+		e.preventDefault();
+		selPunkt = { art: selArt, z: e.key === "ArrowLeft" ? 8 : 0 };
+		zeichnePlot(); zeichneAuswahl();
+		return;
+	}
+	e.preventDefault();
+
+	if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
+		selPunkt = { art: selPunkt.art, z: Math.max(0, Math.min(8, selPunkt.z + (e.key === "ArrowRight" ? 1 : -1))) };
+		zeichnePlot(); zeichneAuswahl();
+		return;
+	}
+
+	const schritt = (e.shiftKey ? 2 : 0.5) * (e.key === "ArrowUp" ? 1 : -1);
+	ueber.groesse[kNa(selPunkt.art, selPunkt.z)] =
+		Math.max(4, Math.min(30, naGroesse(selPunkt.art, selPunkt.z) + schritt));
+	zeichnePlot(); zeichneAuswahl(); zeichneLegende(); zeichneVorschau();
+});
+
+function zeichneNamen() {
+	/* Die Namensfarben stehen seit 23.08.2026 in DERSELBEN Tabelle wie die Flaechen (Owner) --
+	   hier bleibt nur, was der Groessenplot braucht. */
+	zeichnePlot();
+	zeichneLegende();
+	zeichneAuswahl();
+}
+
+/* ── Vorschau (Flaeche + Name) ──────────────────────────────────────────────────────────── */
+function zeichneStage() {
+	const el = document.getElementById("pvStage");
+	el.innerHTML = "";
+	ZOOMS.forEach((z) => {
+		const b = document.createElement("button");
+		b.type = "button";
+		b.className = "pv-z" + (z === vorschauZoom ? " is-active" : "");
+		b.textContent = "Zoom " + z;
+		b.addEventListener("click", () => { vorschauZoom = z; zeichneStage(); zeichneVorschau(); });
+		el.appendChild(b);
+	});
+}
+
+function zeichneVorschau() {
+	const erste = FLAECHEN[reiter][0];
+	const area = document.getElementById("pvArea");
+	area.style.background = flTon(reiter, erste[0]);
+	area.style.opacity = String(flDeck(reiter, erste[0]));
+
+	const arten = NAMEN[reiter];
+	const name = document.getElementById("pvName");
+	const text = BEISPIEL[reiter];
+
+	if (arten.length === 0) {
+		name.textContent = text;
+		name.style.color = flTon(reiter, erste[0]);
+		name.style.fontSize = "18px";
+		document.getElementById("pvNote").textContent =
+			"Flaeche: " + erste[1] + " · der Zonenname traegt denselben Ton wie das Band.";
+		return;
+	}
+
+	/* 🪤 `hervorArt()`, nicht `selPunkt` -- sonst folgt die Vorschau dem gezogenen Punkt, aber nicht
+	   der ueber den Namen gewaehlten Art, und ein Klick auf „dschungel" zeigt weiter „wald". */
+	const art = hervorArt() || arten[0][0];
+	const bd = naBand(art);
+	/* 🔴 Die Vorschau LUEGT NICHT ueber das Band: liegt die gewaehlte Stufe ausserhalb, zeigt sie
+	   keinen verkleinerten Namen, sondern gar keinen -- genau das passiert auf der Karte. */
+	if (!naSichtbar(art, vorschauZoom)) {
+		name.textContent = "";
+		document.getElementById("pvNote").textContent =
+			"Flaeche: " + erste[1] + " · „" + art + "“ traegt auf Zoomstufe " + vorschauZoom
+			+ " keinen Namen — sichtbar z" + bd.ab + " bis z" + bd.bis + ".";
+		return;
+	}
+	name.textContent = schreibtGross(art) ? text.toUpperCase() : text;
+	name.style.color = naFarbe(art);
+	name.style.fontSize = (naGroesse(art, vorschauZoom) * 4 / 3) + "px";
+	document.getElementById("pvNote").textContent =
+		"Flaeche: " + erste[1] + " · Name: " + art + " · Zoomstufe " + vorschauZoom
+		+ " · " + naGroesse(art, vorschauZoom) + " pt · sichtbar z" + bd.ab + " bis z" + bd.bis + ".";
+}
+
+/* ── „Was der Editor davon sieht" ────────────────────────────────────────────────────────────
+   Der Ausschnitt DARSTELLUNG aus dem Beschriftungsdialog, mit den Vorgabemarken auf den Balken.
+   🔴 Er ist die Antwort auf die Frage „wie haengt das zusammen": oben stellt man die Vorgabe je
+   Art, hier sieht der Editor sie -- ohne dass ihm etwas weggenommen wird. */
+const EDITOR_FELDER = [
+	{ feld: "curveMax", label: "Max. Namen", min: 1, max: 3 },
+	{ feld: "ab", label: "Sichtbar ab Zoom", min: 0, max: BAND_MAX },
+	{ feld: "bis", label: "Sichtbar bis Zoom", min: 0, max: BAND_MAX },
+	{ feld: "prio", label: "Prioritaet", min: 1, max: 5 },
+];
+/* Der Zustand des EINEN Beispiel-Labels im Ausschnitt -- was ein Editor gerade eingestellt haette. */
+const editorIst = { curveMax: 1, ab: 3, bis: 7, prio: 3 };
+
+/* 💣 Position des Reglerknopfs, nicht Prozent der Breite. Ein <input type=range> bewegt den
+   Mittelpunkt seines Knopfs nur ueber (Breite - Knopfbreite); die Marke muss dieselbe Rechnung
+   machen, sonst steht sie an den Enden daneben -- und z0 und z7 sind die Enden. */
+function markePos(wert, min, max) {
+	const anteil = max === min ? 0 : (wert - min) / (max - min);
+	return "calc(" + (anteil * 100) + "% + " + (8 - anteil * 16) + "px)";
+}
+
+function zeichneEditorProbe() {
+	const grid = document.getElementById("edGrid");
+	if (!grid) { return; }
+	grid.innerHTML = "";
+	const art = hervorArt() || (NAMEN[reiter][0] && NAMEN[reiter][0][0]);
+	/* Klimazonen tragen keine eigenen Beschriftungen -- dort gibt es diesen Dialog nicht, und ein
+	   Ausschnitt mit Reglern behauptete eine Bedienung, die es nicht gibt. */
+	if (!art) {
+		document.getElementById("edNote").textContent =
+			"Klimabaender tragen keine eigene Beschriftung — fuer sie gibt es diesen Dialog nicht.";
+		return;
+	}
+
+	const soll = naVorgabe(art);
+
+	EDITOR_FELDER.forEach((f) => {
+		const wrap = document.createElement("div");
+		wrap.className = "ed-field";
+		const lab = document.createElement("div");
+		lab.className = "ed-field__label";
+		lab.textContent = f.label;
+
+		const row = document.createElement("div");
+		row.className = "ed-field__row";
+		const num = document.createElement("input");
+		num.type = "number"; num.className = "ed-num";
+		num.min = f.min; num.max = f.max; num.value = editorIst[f.feld];
+		num.setAttribute("aria-label", f.label);
+
+		const track = document.createElement("div");
+		track.className = "ed-track";
+		const rng = document.createElement("input");
+		rng.type = "range"; rng.min = f.min; rng.max = f.max; rng.step = "1";
+		rng.value = editorIst[f.feld];
+		rng.setAttribute("aria-label", f.label);
+		track.appendChild(rng);
+
+		/* 🔴 EINE Marke, und zwar die VORGABE aus der Zoombandeinstellung (Owner 24.08.2026:
+		   „wir ermitteln den median, der wert, den die editoren sehen ist der wert aus der
+		   zoombandeinstellung").
+		   💣 Der Median bleibt in DIESEM Fenster. Er ist das Werkzeug, mit dem wir die Vorgabe
+		   festlegen -- nicht die Auskunft, die der Editor bekommt. Eine zweite Marke bei ihm hiesse
+		   „richte dich nach dem Durchschnitt", und das ist das Gegenteil einer Vorgabe: sie
+		   zementierte den Bestand, statt ihn zu lenken. Hier stand kurz eine graue Median-Marke;
+		   sie ist am selben Tag wieder gefallen. */
+		const setzeMarken = () => {
+			[...track.querySelectorAll(".ed-mark")].forEach((m) => m.remove());
+			const sollWert = soll[f.feld];
+			const m1 = document.createElement("span");
+			m1.className = "ed-mark ed-mark--soll";
+			m1.style.left = markePos(sollWert, f.min, f.max);
+			m1.title = "Vorgabe fuer „" + art + "“: " + sollWert;
+			track.appendChild(m1);
+		};
+		setzeMarken();
+
+		const sync = (v) => {
+			editorIst[f.feld] = Math.max(f.min, Math.min(f.max, Number(v) || f.min));
+			num.value = editorIst[f.feld];
+			rng.value = editorIst[f.feld];
+			setzeMarken();
+			schreibeEdNote(art, soll);
+		};
+		rng.addEventListener("input", () => sync(rng.value));
+		num.addEventListener("input", () => sync(num.value));
+
+		row.append(num, track);
+		wrap.append(lab, row);
+		grid.appendChild(wrap);
+	});
+
+	schreibeEdNote(art, soll);
+}
+
+function schreibeEdNote(art, soll) {
+	const abweichend = EDITOR_FELDER.filter((f) => editorIst[f.feld] !== soll[f.feld]).map((f) => f.label);
+	const el = document.getElementById("edNote");
+	el.innerHTML =
+		"Gezeigt fuer <strong>" + art + "</strong> — waehle oben eine andere Art, und der Ausschnitt folgt. "
+		+ (abweichend.length
+			? "Dieses Label weicht bei <strong>" + abweichend.join("</strong>, <strong>") + "</strong> von der Vorgabe ab. Das ist erlaubt — die Marke sagt es nur."
+			: "Dieses Label steht ueberall auf der Vorgabe.");
+}
+
+/* ── Kurvenfeinheiten: die Vorschau auf echter Geometrie ────────────────────────────────── */
+const K = window.AvesKurve || null;
+const REF = Array.isArray(window.KURVEN_REFERENZ) ? window.KURVEN_REFERENZ : [];
+/* Gebirge zuerst (Owner: "mach ein dropdown mit den gebirgen"), die Waelder danach -- sie liegen
+   in denselben Referenzdaten und zeigen dieselben Werte auf einer ganz anderen Form. */
+const REF_SORT = REF.map((d, i) => ({ d, i }))
+	.sort((a, b) => (a.d.regionType === "gebirge" ? 0 : 1) - (b.d.regionType === "gebirge" ? 0 : 1));
+
+function fuelleAuswahl() {
+	const sel = document.getElementById("kvArea");
+	sel.innerHTML = "";
+	let gruppe = null, letzte = "";
+	REF_SORT.forEach(({ d, i }) => {
+		if (d.regionType !== letzte) {
+			letzte = d.regionType;
+			gruppe = document.createElement("optgroup");
+			gruppe.label = d.regionType === "gebirge" ? "Gebirge" : "Waelder";
+			sel.appendChild(gruppe);
+		}
+		const o = document.createElement("option");
+		o.value = String(i);
+		o.textContent = d.name;
+		gruppe.appendChild(o);
+	});
+	sel.value = String(kvIndex);
+	sel.addEventListener("change", () => { kvIndex = Number(sel.value); zeichneKurvenVorschau(); });
+}
+
+function zeichneKurvenVorschau() {
+	const svg = document.getElementById("kvSvg");
+	const note = document.getElementById("kvNote");
+	const info = document.getElementById("kvInfo");
+	svg.innerHTML = "";
+	if (!K || !REF.length) {
+		note.textContent = "Die Referenzdaten konnten nicht geladen werden (kurvenlabel-referenzdaten.js / kurvenlabel-pipeline.js).";
+		return;
+	}
+	if (!MODULE_DA) {
+		info.textContent = "";
+		note.textContent = "Dieser Abschnitt braucht js/map-features/curve-label-fit.js und curved-label-layout.js."
+			+ " In diesem Arbeitsstand fehlen sie (sie sind am 23.08.2026 entstanden) — die zwoelf Vorgabewerte"
+			+ " stehen dort und werden hier bewusst NICHT nachgebaut. Mit aktuellem Stand erscheinen Vorschau"
+			+ " und Regler von selbst.";
+		return;
+	}
+
+	const W = 920, H = 340, PAD = 26;
+	const d = REF[kvIndex];
+	const textTon = wurzel.getPropertyValue("--color-text-muted").trim() || "#999999";
+
+	let teile, genutzt, res;
+	try {
+		teile = K.geometryParts(d.geoms);
+		const gesamt = teile.reduce((s, t) => s + t.area, 0) || 1;
+		const schwelle = gesamt * (Number(werte.minPartPct) / 100);
+		genutzt = teile.filter((t) => t.area >= schwelle);
+		if (!genutzt.length) { genutzt = [teile[0]]; }
+		res = K.centerlineForRings(genutzt[0].rings, {
+			simplifyTol: Number(werte.simplifyTol),
+			spacing: Number(werte.spacing),
+			mode: "poly",
+			polyDegree: Number(werte.polyDegree),
+			straighten: Number(werte.straighten) / 100,
+			samples: 120,
+		});
+	} catch (e) {
+		note.textContent = "Die Kurvenrechnung ist gescheitert: " + e.message;
+		return;
+	}
+	if (!res || !res.line) {
+		note.textContent = "Mit diesen Werten laesst sich keine Mittelachse bilden — der Rand wurde zu stark vereinfacht.";
+		return;
+	}
+
+	/* Kartenkoordinaten -> Bildschirm. 💣 y waechst auf der Karte nach NORDEN, im SVG nach unten:
+	   beim Zeichnen also spiegeln, sonst steht die Flaeche auf dem Kopf. */
+	let mnx = Infinity, mny = Infinity, mxx = -Infinity, mxy = -Infinity;
+	genutzt.forEach((t) => t.rings.forEach((r) => r.forEach(([x, y]) => {
+		if (x < mnx) mnx = x; if (x > mxx) mxx = x;
+		if (y < mny) mny = y; if (y > mxy) mxy = y;
+	})));
+	const sp = Math.min((W - 2 * PAD) / Math.max(1e-6, mxx - mnx), (H - 2 * PAD) / Math.max(1e-6, mxy - mny));
+	const ox = (W - (mxx - mnx) * sp) / 2, oy = (H - (mxy - mny) * sp) / 2;
+	const SX = (x) => ox + (x - mnx) * sp;
+	const SY = (y) => H - (oy + (y - mny) * sp);
+
+	/* Die Flaeche im echten Ton ihrer Art. */
+	const ton = flTon(d.kind, d.regionType);
+	const deck = flDeck(d.kind, d.regionType);
+	genutzt.forEach((t) => {
+		const dd = t.rings.map((r) => "M" + r.map(([x, y]) => SX(x).toFixed(1) + "," + SY(y).toFixed(1)).join("L") + "Z").join(" ");
+		svg.appendChild(svgEl("path", { d: dd, fill: ton, "fill-opacity": deck, "fill-rule": "evenodd", stroke: ton, "stroke-opacity": 0.9, "stroke-width": 1 }));
+	});
+
+	/* Die Mittelachse: erst beruhigen, dann bei Bedarf verlaengern -- mit dem ECHTEN Modul. */
+	let pts = res.line.map(([x, y]) => ({ x: SX(x), y: SY(y) }));
+	if (typeof curveLabelCalmToChord === "function" && Number(werte.maxTurnDeg) > 0) {
+		pts = curveLabelCalmToChord(pts, Number(werte.maxTurnDeg) * Math.PI / 180);
+	}
+	if (typeof curveLabelReadingOrder === "function") { pts = curveLabelReadingOrder(pts); }
+
+	const label = (d.labels && d.labels[0]) || { text: d.name, subtype: d.regionType };
+	const art = label.subtype || d.regionType;
+	const roh = label.text || d.name;
+	const text = schreibtGross(art) ? roh.toUpperCase() : roh;
+
+	/* Schriftgroesse aus DIESEM Fenster, nicht aus dem Label -- das ist ja der Umbau. */
+	let fs = naGroesse(art, vorschauZoom) * 4 / 3;
+
+	const messen = (groesse, sperrung) => {
+		const t = svgEl("text", { "font-family": '"Faculty Glyphic", Georgia, serif', "font-size": groesse, "letter-spacing": sperrung, visibility: "hidden" });
+		t.textContent = text;
+		svg.appendChild(t);
+		const b = t.getComputedTextLength();
+		svg.removeChild(t);
+		return b;
+	};
+
+	/* Sperrung: Anteil der Flaechenlaenge, gedeckelt je Luecke (beide Werte aus der Tafel). */
+	const luecken = Math.max(1, text.length - 1);
+	/* 🪤 `typeof`, nicht der blanke Bezeichner: ein nicht deklariertes `curveLabelLineLength` wirft
+	   beim blossen LESEN einen ReferenceError -- der haette die ganze Vorschau stumm abgebrochen,
+	   genau in dem Fall, den der Riegel oben erklaeren soll. */
+	let bahn = typeof curveLabelLineLength === "function" ? curveLabelLineLength(pts) : 0;
+	if (!bahn) { bahn = pts.reduce((s, p, i) => i ? s + Math.hypot(p.x - pts[i - 1].x, p.y - pts[i - 1].y) : 0, 0); }
+	let sperr = Math.min(bahn * (Number(werte.trackingPct) / 100), fs * Number(werte.trackingMaxPerGapEm) * luecken) / luecken;
+	if (!(sperr >= 0)) { sperr = 0; }
+
+	let breite = messen(fs, sperr);
+	let verlaengert = 0;
+	if (breite > bahn && typeof curveLabelExtend === "function" && Number(werte.extendMaxPct) > 0) {
+		const ziel = Math.min(breite, bahn * (1 + Number(werte.extendMaxPct) / 100));
+		pts = curveLabelExtend(pts, ziel);
+		verlaengert = Math.round((ziel / bahn - 1) * 100);
+		bahn = ziel;
+	}
+	let verkleinert = 0;
+	if (breite > bahn && werte.shrink) {
+		const minPx = (D.minFontPx || 8);
+		while (breite > bahn && fs > minPx) { fs -= 0.5; breite = messen(fs, sperr); verkleinert += 1; }
+	}
+
+	const pfadId = "kvpfad";
+	const dd = "M" + pts.map((p) => p.x.toFixed(1) + "," + p.y.toFixed(1)).join("L");
+	const defs = svgEl("defs", {});
+	defs.appendChild(svgEl("path", { id: pfadId, d: dd, fill: "none" }));
+	svg.appendChild(defs);
+	svg.appendChild(svgEl("path", { d: dd, fill: "none", stroke: textTon, "stroke-width": 1, "stroke-dasharray": "4 4", "stroke-opacity": 0.7 }));
+
+	/* Dritter Wirt des Namensrings. 💣 Im SVG traegt `text-shadow` nicht zuverlaessig -- hier gibt es
+	   die Kontur echt: `stroke` + `paint-order: stroke`, damit der Ring HINTER der Fuellung liegt und
+	   die Glyphe nicht von innen auffrisst. Das ist zugleich naeher am Canvas als der CSS-Ring. */
+	const haloTon = wurzel.getPropertyValue("--color-ecosystem-klima-label-halo").trim() || "rgba(0,0,0,0.85)";
+	const t = svgEl("text", {
+		"font-family": '"Faculty Glyphic", Georgia, serif', "font-size": fs,
+		"letter-spacing": sperr, fill: naFarbe(art), "text-anchor": "middle",
+		stroke: haloTon, "stroke-width": Math.max(1.5, fs * 0.09), "paint-order": "stroke",
+		"stroke-linejoin": "round",
+	});
+	const tp = svgEl("textPath", { startOffset: "50%" });
+	tp.setAttribute("href", "#" + pfadId);
+	tp.setAttributeNS("http://www.w3.org/1999/xlink", "xlink:href", "#" + pfadId);
+	tp.textContent = text;
+	t.appendChild(tp);
+	svg.appendChild(t);
+
+	info.textContent = teile.length + " Teilflaeche(n), " + genutzt.length + " gezaehlt · Kurve "
+		+ Math.round(bahn) + " px · Name " + Math.round(breite) + " px";
+
+	const tot = KURVENWERTE.filter((w) => !w.lebt).map((w) => w.t);
+	note.innerHTML = "Gestrichelt die gerechnete Mittelachse, darauf der Name. "
+		+ (verlaengert ? "Kurve um " + verlaengert + " % verlaengert. " : "")
+		+ (verkleinert ? "Schrift um " + (verkleinert / 2) + " pt verkleinert, damit der Name passt. " : "")
+		+ "Die Schriftgroesse kommt aus dem Abschnitt „Namen“ (Zoomstufe " + vorschauZoom + "), die Farbe ebenso."
+		+ "<br><sup>°</sup> Ohne sichtbare Wirkung in dieser Vorschau: " + tot.join(" und ") + ".";
+}
+
+/* ── Kurvenfeinheiten: die Bedienelemente ───────────────────────────────────────────────── */
+function zeichneKurvenwerte() {
+	const g = document.getElementById("kfGrid");
+	g.innerHTML = "";
+	/* Ohne die Quelle der Vorgaben keine Regler -- sonst boten sie leere Felder an, und wer einen
+	   davon anfasst, schreibt eine Zahl ohne Bezug. Die Begruendung steht in der Erklaerzeile. */
+	if (!MODULE_DA) { return; }
+	KURVENWERTE.forEach((w) => {
+		const row = document.createElement("div");
+		row.className = "kf-row";
+
+		const l = document.createElement("div");
+		l.className = "kf-row__label";
+		l.append(document.createTextNode(w.t));
+		if (!w.lebt) { const s = document.createElement("sup"); s.textContent = "°"; l.appendChild(s); }
+		const small = document.createElement("small");
+		small.textContent = w.h + (w.e ? " · " + w.e : "") + (w.lebt ? "" : " — " + w.warum);
+		l.appendChild(small);
+
+		let f;
+		if (w.art === "select") {
+			f = document.createElement("select");
+			f.className = "dg-num";
+			w.opt.forEach(([v, t]) => { const o = document.createElement("option"); o.value = String(v); o.textContent = t; f.appendChild(o); });
+			f.value = String(werte[w.k]);
+		} else if (w.art === "check") {
+			f = document.createElement("input");
+			f.type = "checkbox";
+			f.checked = Boolean(werte[w.k]);
+		} else {
+			f = document.createElement("input");
+			f.type = "number";
+			f.className = "dg-num";
+			if (w.min !== undefined) { f.min = w.min; }
+			if (w.max !== undefined) { f.max = w.max; }
+			f.step = w.step || 0.05;
+			f.value = werte[w.k];
+		}
+		f.setAttribute("aria-label", w.t);
+		f.addEventListener("input", () => {
+			werte[w.k] = w.art === "check" ? f.checked : Number(f.value);
+			zeichneKurvenVorschau();
+			melde(w.t + ": " + (w.art === "check" ? (f.checked ? "an" : "aus") : f.value) + (w.e ? " " + w.e : ""));
+		});
+
+		const rst = document.createElement("button");
+		rst.type = "button"; rst.className = "fl-reset"; rst.textContent = "↺";
+		rst.title = "Auf Vorgabe zuruecksetzen";
+		rst.addEventListener("click", () => {
+			werte[w.k] = w.vor;
+			if (w.art === "check") { f.checked = Boolean(w.vor); } else { f.value = w.vor; }
+			zeichneKurvenVorschau();
+			melde(w.t + " auf Vorgabe.");
+		});
+
+		row.append(l, f, rst);
+		g.appendChild(row);
+	});
+}
+
+/* ── Meldung + Alles ────────────────────────────────────────────────────────────────────── */
+let meldeTimer = null;
+function melde(text) {
+	const el = document.getElementById("dgMsg");
+	el.textContent = text;
+	clearTimeout(meldeTimer);
+	meldeTimer = setTimeout(() => { el.textContent = ""; }, 4000);
+}
+
+document.getElementById("btnResetAll").addEventListener("click", () => {
+	["flaeche", "deckkraft", "groesse", "farbe", "band", "globalAn", "globalWert"].forEach((k) => {
+		Object.keys(ueber[k]).forEach((s) => delete ueber[k][s]);
+	});
+	KURVENWERTE.forEach((w) => { werte[w.k] = w.vor; });
+	selPunkt = null;
+	zeichneKurvenwerte();
+	alles();
+	melde("Alles auf Vorgabe. Im echten Fenster LOESCHT das die gespeicherte Zeile, statt eine Kopie der Vorgabe abzulegen.");
+});
+
+/* 🔴 KLIMAZONEN TRAGEN KEINE EIGENE BESCHRIFTUNG (Owner 24.08.2026) -- also faellt alles weg, was
+   an einem Namen haengt: Zoomband und Schriftgroesse, der Editor-Ausschnitt, die Vorschau und die
+   Kurvenfeinheiten. Der Reiter zeigt dann genau das, was es dort gibt: Ton und Deckkraft der acht
+   Baender. Ein Abschnitt, der auf jeder Ebene steht und auf einer nichts bedeutet, ist keine
+   Vollstaendigkeit, sondern eine Falle.
+   ⚠️ Die Kurvenfeinheiten gelten weiter fuer ALLE Ebenen -- sie sind hier nur nicht erreichbar,
+   nicht abgeschaltet. Erreichbar bleiben sie ueber die drei anderen Reiter. */
+function zeigeAbschnitte() {
+	const ohneNamen = NAMEN[reiter].length === 0;
+	["secSize", "secEditor", "secVorschau", "secKurven"].forEach((id) => {
+		const el = document.getElementById(id);
+		if (el) { el.hidden = ohneNamen; }
+	});
+	document.getElementById("flTitel").textContent = ohneNamen
+		? "Flaechen — Ton und Deckkraft"
+		: "Flaechen und Namen — Ton, Deckkraft, Schriftfarbe";
+}
+
+function alles() {
+	zeichneTabs();
+	zeigeAbschnitte();
+	/* ⚠️ Reihenfolge: erst die Zeilen (sie melden ihre Zeichner an), dann die globale Leiste --
+	   die zieht beim Aufbau alle Zeilen einmal nach, und eine leere Liste zoege nichts nach. */
+	zeichneFlaechen();
+	zeichneGlobal();
+	zeichneNamen();
+	zeichneStage();
+	zeichneVorschau();
+	zeichneEditorProbe();
+	zeichneKurvenVorschau();
+}
+
+fuelleAuswahl();
+zeichneKurvenwerte();
+alles();
+</script>
+</body>
+</html>
