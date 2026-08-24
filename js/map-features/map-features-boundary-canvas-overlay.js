@@ -105,7 +105,11 @@
 	function getTerritoryLabelDetail(z) { return territoryLabelByZoom(TERRITORY_LABEL_DETAIL_BY_ZOOM, z, 0.5); }
 	const TERRITORY_LABEL_FONT_FAMILY = '"Faculty Glyphic", Georgia, "Times New Roman", serif'; // wie .map-label
 	const TERRITORY_LABEL_LETTER_SPACING = 3;
-	const TERRITORY_LABEL_ALPHA = 0.9; // weiß, gut deckend
+	const TERRITORY_LABEL_ALPHA = 0.75; // weiß, LEICHT TRANSPARENT -- nicht „gut deckend“ erhöhen:
+	// 0.75 ist der Ursprungswert (54a5ac96) und der, den der Owner am 24.08.2026 zurückverlangt hat.
+	// 4d2771b6 zog ihn auf 0.9 („Grenz-Namen deckender“); der Kommentar drei Zeilen weiter oben sagte
+	// die ganze Zeit weiter „halbtransparent“ -- der Wert und seine Begründung liefen auseinander.
+	// Owner, wörtlich: „die grenznamen waren früher mal bitmap und leicht transparenz“.
 	// Gewicht des mittleren Kontrollpunkts im (rationalen) B-Spline (1 = klassisch, >1 strafft). Global, live tunbar.
 	let TERRITORY_LABEL_SPLINE_WEIGHT = 1;
 
