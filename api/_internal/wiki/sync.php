@@ -31,9 +31,23 @@ const AVESMAPS_WIKI_TITLE_BATCH_SIZE = 50;
 const AVESMAPS_WIKI_TITLE_BATCH_SIZE_BOT = 500;
 const AVESMAPS_WIKI_SEARCH_RESULT_LIMIT = 5;
 const AVESMAPS_WIKI_REQUEST_TIMEOUT_SECONDS = 30;
-const AVESMAPS_WIKI_REQUEST_DELAY_MICROSECONDS = 600000;
+/**
+ * 🔴 ZWEI SEKUNDEN, UND DIE ZAHL IST NICHT UNSERE. Die Bot-Richtlinie des Wiki Aventurica
+ * (Wiki Aventurica:Roboter) empfiehlt woertlich: „Wenn fuer beide Werte 2 gesetzt ist, faehrt
+ * man ganz gut." Die robots.txt nennt fuer `User-agent: *` sogar `Crawl-delay: 20`. Wir standen
+ * bis zum 24.08.2026 auf 0,6 s -- schneller als beides, und das bei einem Wirt, der uns
+ * zwischenzeitlich zweimal gesperrt hatte.
+ *
+ * ⭐ Und es kostet uns nichts: mit `apihighlimits` (500 statt 50 Titel je Anfrage) braucht
+ * derselbe Lauf ein ZEHNTEL der Aufrufe. Zehnmal weniger Anfragen a 2 s gegen zehnmal mehr a
+ * 0,6 s heisst ein DRITTEL der Wanduhr -- wir werden also langsamer je Anfrage und trotzdem
+ * schneller insgesamt, bei einem Zehntel der Last drueben.
+ */
+const AVESMAPS_WIKI_REQUEST_DELAY_MICROSECONDS = 2000000;
 const AVESMAPS_WIKI_REQUEST_RETRY_COUNT = 3;
-const AVESMAPS_WIKI_REQUEST_RETRY_BASE_DELAY_MICROSECONDS = 1200000;
+// Der Wiederholungsabstand bleibt das Doppelte der Drossel -- ein Server, der gerade 429 oder
+// 503 gesagt hat, will mehr Ruhe, nicht dieselbe.
+const AVESMAPS_WIKI_REQUEST_RETRY_BASE_DELAY_MICROSECONDS = 4000000;
 const AVESMAPS_WIKI_LOCK_TTL_SECONDS = 120;
 // 🔴 OWNER-WORTLAUT (20.08.2026). Das ist Produktsprache, keine Fehlermeldung fuer
 // Entwickler -- wer ihn aendert, aendert, was tausende Editoren lesen. Der Grund steht in der
@@ -693,9 +707,37 @@ function avesmapsWikiSyncApiRequest(array $params): array {
     );
 }
 
+/**
+ * 💣 GEDROSSELT WIRD DER ABSTAND ZWISCHEN ZWEI ANFRAGEN -- NICHT JEDE EINZELNE.
+ *
+ * Bis zum 24.08.2026 schlief diese Funktion bedingungslos vor JEDER Anfrage, auch vor der
+ * ersten im Prozess. Bei 0,6 s fiel das niemandem auf; bei den 2 s, die die Bot-Richtlinie
+ * empfiehlt, wartet der Editor im Zuweisungsdialog zwei Sekunden auf eine Suche, die aus einer
+ * einzigen Anfrage besteht -- eine Wartezeit, die dem Wiki NICHTS erspart, weil es davor und
+ * danach ohnehin still war.
+ *
+ * Also: merken, wann die letzte Anfrage lief, und nur die noch fehlende Zeit abwarten. Der
+ * Abstand, den das Wiki sieht, ist derselbe; die Wartezeit, die ein Mensch sieht, faellt weg.
+ * ⚠️ Der Merker gilt je PHP-Prozess -- auf STRATO ist das je Web-Anfrage. Fuer die
+ * Stapelphasen, die die Masse ausmachen, ist das genau richtig: sie laufen der Reihe nach in
+ * EINEM Prozess. Ein zweiter Editor, der gleichzeitig sucht, kommt daran vorbei; das sind
+ * einzelne Anfragen von Menschen, keine Last.
+ */
 function avesmapsWikiSyncThrottleWikiRequest(): void {
+    static $letzteAnfrage = null;
+
     $jitter = random_int(0, 250000);
-    usleep(AVESMAPS_WIKI_REQUEST_DELAY_MICROSECONDS + $jitter);
+    $mindestabstand = AVESMAPS_WIKI_REQUEST_DELAY_MICROSECONDS + $jitter;
+
+    if ($letzteAnfrage !== null) {
+        $vergangen = (int) ((microtime(true) - $letzteAnfrage) * 1000000);
+        $rest = $mindestabstand - $vergangen;
+        if ($rest > 0) {
+            usleep($rest);
+        }
+    }
+
+    $letzteAnfrage = microtime(true);
 }
 
 function avesmapsWikiSyncBackoffWikiRequest(int $attempt): void {

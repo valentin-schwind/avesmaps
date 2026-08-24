@@ -169,27 +169,40 @@ const AVESMAPS_WIKI_DUMP_PHASE_COMPLETED = 'completed';
 const AVESMAPS_WIKI_DUMP_CONTINENT_MAP_STEP_CALL_BUDGET = 20;
 
 /**
- * Wie viele TITEL ein Schritt der Kontinent-Phase schaffen soll. 20 Aufrufe x 50 Titel = 1000 --
- * exakt die Arbeitsmenge, die die Konstante darueber seit dem Perf-Fix beschreibt.
+ * Wie viel des Schritt-Fensters die Kontinent-Phase verplanen darf. Der Rest ist Luft fuer
+ * Dump-Zugriff, Datenbank und den Sperr-Heartbeat.
  */
-const AVESMAPS_WIKI_DUMP_CONTINENT_MAP_STEP_TITLE_BUDGET = 1000;
+const AVESMAPS_WIKI_DUMP_CONTINENT_MAP_STEP_SAFETY = 0.8;
 
 /**
- * Das Schrittbudget in AUFRUFEN -- abgeleitet aus den TITELN, nicht mehr fest verdrahtet.
+ * Grosszuegig geschaetzte Antwortzeit einer Titel-Abfrage, ZUSAETZLICH zur Drossel. Lieber zu
+ * hoch: ein zu grosses Budget sprengt das Schritt-Fenster, ein zu kleines kostet nur einen
+ * weiteren Schritt.
+ */
+const AVESMAPS_WIKI_DUMP_CONTINENT_MAP_ASSUMED_RESPONSE_SECONDS = 0.6;
+
+/**
+ * Das Schrittbudget in AUFRUFEN -- abgeleitet aus der ZEIT, die ein Schritt haben darf.
  *
- * 💣 DAS BUDGET ZAEHLT AUFRUFE, DIE ARBEIT STECKT ABER IN DEN TITELN. Mit der Bot-Anmeldung
- * (sync.php, seit 23.08.2026) traegt EIN Aufruf 500 statt 50 Titel. Bliebe das Budget bei 20
- * Aufrufen, taete ein Schritt das Zehnfache und liefe in die 28 Sekunden aus
- * AVESMAPS_WIKI_DUMP_STEP_SECONDS -- also genau in den Fehler zurueck, den die Konstante darueber
- * behoben hat, nur diesmal ausgeloest von einer Verbesserung an ganz anderer Stelle.
+ * 💣 ZWEI GROESSEN ZIEHEN DARAN, UND BEIDE HABEN SICH BINNEN EINES TAGES GEAENDERT: ein Aufruf
+ * traegt seit der Bot-Anmeldung 500 statt 50 Titel, und er dauert seit der Drosselung auf die
+ * vom Wiki empfohlenen 2 Sekunden rund dreimal so lang. Ein festes Budget geht bei jeder dieser
+ * Aenderungen kaputt -- egal ob es in Aufrufen zaehlt (frueher 20: waeren jetzt ueber 50
+ * Sekunden und damit weit ueber AVESMAPS_WIKI_DUMP_STEP_SECONDS) oder in Titeln (kurzzeitig
+ * 1000: dasselbe Ergebnis, nur eine Ecke weiter). Der Schritt verhungert dann mitten drin und
+ * nimmt den Sperr-Heartbeat mit.
  *
- * Festgehalten wird deshalb die Zahl der TITEL je Schritt; das Aufrufbudget faellt daraus ab:
- * anonym wieder 20, als Bot 2. Gleiche Wanduhr, ein Zehntel der Anfragen.
+ * Also wird gerechnet, was ein Aufruf WIRKLICH kostet: Drossel + Jitter-Erwartungswert +
+ * geschaetzte Antwortzeit. Das Budget folgt damit jeder kuenftigen Aenderung von selbst.
+ * ⭐ Anonym wie als Bot ergibt das dieselbe Wanduhr -- nur traegt der Bot je Aufruf das
+ * Zehnfache an Titeln und ist deshalb nach einem Zehntel der Schritte fertig.
  */
 function avesmapsWikiDumpContinentMapStepCallBudget(): int {
-    $stapel = max(1, avesmapsWikiSyncTitleBatchSize());
+    $sekundenJeAufruf = (AVESMAPS_WIKI_REQUEST_DELAY_MICROSECONDS + 125000) / 1000000
+        + AVESMAPS_WIKI_DUMP_CONTINENT_MAP_ASSUMED_RESPONSE_SECONDS;
+    $fenster = AVESMAPS_WIKI_DUMP_STEP_SECONDS * AVESMAPS_WIKI_DUMP_CONTINENT_MAP_STEP_SAFETY;
 
-    return max(1, (int) ceil(AVESMAPS_WIKI_DUMP_CONTINENT_MAP_STEP_TITLE_BUDGET / $stapel));
+    return max(1, (int) floor($fenster / $sekundenJeAufruf));
 }
 
 /**

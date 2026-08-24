@@ -258,4 +258,23 @@ foreach (['hinterlegt', 'status', 'grund', 'text', 'fehler'] as $feld) {
     $pruefe(array_key_exists($feld, $auskunft), "die Auskunft traegt {$feld}");
 }
 
+// ---------------------------------------------------------------- DROSSEL ---
+// 🔴 Die 2 Sekunden sind die Empfehlung des Wikis selbst (Wiki Aventurica:Roboter), nicht unsere
+// Zahl. Wer sie senkt, senkt sie gegen eine fremde Hausordnung.
+$pruefe(AVESMAPS_WIKI_REQUEST_DELAY_MICROSECONDS >= 2000000, "die Drossel haelt die empfohlenen 2 Sekunden ein");
+$pruefe(AVESMAPS_WIKI_REQUEST_RETRY_BASE_DELAY_MICROSECONDS >= 2 * AVESMAPS_WIKI_REQUEST_DELAY_MICROSECONDS, "nach einem Fehlschlag wird laenger gewartet als im Normalbetrieb");
+
+// 💣 DIE ERSTE ANFRAGE EINES PROZESSES DARF NICHT WARTEN. Sie erspart dem Wiki nichts -- davor
+// war ohnehin still -- und genau sie sitzt im Zuweisungsdialog vor den Augen eines Editors.
+$vorher = microtime(true);
+avesmapsWikiSyncThrottleWikiRequest();
+$ersteDauer = microtime(true) - $vorher;
+$pruefe($ersteDauer < 0.5, sprintf("die erste Anfrage laeuft sofort los (gemessen %.3f s)", $ersteDauer));
+
+// ⚠️ Die ZWEITE muss den Abstand einhalten -- sonst waere die Drossel nur noch Dekoration.
+$vorher = microtime(true);
+avesmapsWikiSyncThrottleWikiRequest();
+$zweiteDauer = microtime(true) - $vorher;
+$pruefe($zweiteDauer >= 1.5, sprintf("die zweite Anfrage haelt den Abstand ein (gemessen %.3f s)", $zweiteDauer));
+
 echo "bot-login-test: {$geprueft} Zusicherungen gruen\n";

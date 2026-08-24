@@ -708,6 +708,16 @@ $check(
     ),
     'structural check: the perf bug was $callBudget defaulting to null (unbounded) -- this proves the fix is a real explicit bound, not just a docblock claim'
 );
+// 💣 DIE ZUSICHERUNG, DIE AM 24.08.2026 GEFEHLT HAT: das Budget muss ins SCHRITT-FENSTER passen.
+// Mit der Drossel auf 2 s haetten die alten 20 Aufrufe ueber 50 Sekunden gebraucht -- doppelt so
+// lang wie AVESMAPS_WIKI_DUMP_STEP_SECONDS erlaubt. Eine Obergrenze von 40 haette das durchgewinkt.
+$sekundenJeAufruf = (AVESMAPS_WIKI_REQUEST_DELAY_MICROSECONDS + 125000) / 1000000 + AVESMAPS_WIKI_DUMP_CONTINENT_MAP_ASSUMED_RESPONSE_SECONDS;
+$check(
+    '(c-continent-2a) ein voll ausgeschoepfter Schritt bleibt im Zeitfenster',
+    true,
+    avesmapsWikiDumpContinentMapStepCallBudget() * $sekundenJeAufruf < AVESMAPS_WIKI_DUMP_STEP_SECONDS,
+    'Budget x Dauer je Aufruf muss unter AVESMAPS_WIKI_DUMP_STEP_SECONDS bleiben -- sonst verhungert der Schritt und nimmt den Sperr-Heartbeat mit'
+);
 $check(
     '(c-continent-2) the call-budget constant is a small bounded number, not null/unbounded',
     true,
