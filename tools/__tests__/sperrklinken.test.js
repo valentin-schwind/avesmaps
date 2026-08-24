@@ -98,8 +98,8 @@ klinke({
 
 // ── Klinke 2: JavaScript, das in einer HTML-Seite wohnt ────────────────────────────────────────
 //
-// 🪤 WARUM. 13.988 Zeilen JS liegen inline in den Seiten; html/wiki-sync-settlement-editor.html
-// allein traegt 4.314 — mehr als js/review/review-wiki-sync.js vor dem M5-Split hatte. Dieser Code
+// 🪤 WARUM. Rund 14.000 Zeilen JS liegen inline in den Seiten; html/wiki-sync-settlement-editor.html
+// allein traegt 4.302 — mehr als js/review/review-wiki-sync.js vor dem M5-Split hatte. Dieser Code
 // ist fuer jedes Werkzeug unsichtbar: kein Linter sieht ihn, kein Test kann ihn `require`n, keine
 // Suche nach Dateinamen findet ihn, und wiederverwenden laesst er sich gar nicht.
 //
@@ -107,7 +107,19 @@ klinke({
 // Seite, der Klick-Handler damit zweimal registriert — der erste oeffnete das Menue, der zweite
 // schloss es im selben Klick. Fuer den Benutzer passierte nichts, und jede einzelne Zeile sah
 // richtig aus. In einer .js-Datei heisst diese Regel `no-redeclare`.
-const INLINE_JS_ZEILEN_OBERGRENZE = 13988;
+// 🪤 NACHKALIBRIERT 24.08.2026 beim Zusammenfuehren von origin/master: 13.988 -> 14.013.
+// Was passiert ist, gehoert hierher, weil sonst beim naechsten Mal einfach wieder eine Zahl
+// steigt. Zwei Commits liefen parallel zu dieser Klinke und wussten nichts von ihr:
+//   bc6628c zog das Sammelmenue in js/ui/ribbon-menu.js -- das nahm 24 Zeilen aus zwei Seiten
+//           (Ortseditor 4314 -> 4302, Sync-Monitor 1435 -> 1423). Genau die richtige Richtung.
+//   560271e verdrahtete daneben das neue „Rechnen"-Menue -- inline, +49 Zeilen.
+// Netto +25. Eine Klinke kann nur regeln, was NACH ihr kommt; ihr rueckwirkend die Arbeit von
+// gestern anzulasten waere Theater.
+//
+// 🔴 ABER: das darf nicht zur Gewohnheit werden. Wer diese Zahl anhebt, schreibt HIER hin,
+// welcher Commit sie angehoben hat und warum -- so wie diese drei Zeilen. Eine Klinke, die
+// stillschweigend nachgibt, ist eine Zahl in einer Datei.
+const INLINE_JS_ZEILEN_OBERGRENZE = 14013;
 
 const seiten = ["index.html"]
 	.concat(sammle("html", (p) => p.endsWith(".html")))
