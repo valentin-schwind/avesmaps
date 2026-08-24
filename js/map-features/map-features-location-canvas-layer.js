@@ -98,6 +98,10 @@ const locationCanvasLayer = {
 	_entries: [],
 	_ready: false,
 	_cursorActive: false,
+	// Liegt gerade eine CSS-Zoom-Animation? Waehrenddessen traegt der Canvas eine Transform, und
+	// _onMove darf sie nicht mit einem setPosition ueberschreiben.
+	_cssZoomActive: false,
+	_topLeftLatLng: null,
 
 	init(map) {
 		if (this._ready || !LOCATION_CANVAS_MARKERS_ENABLED) {
@@ -116,10 +120,22 @@ const locationCanvasLayer = {
 		this._canvas.style.position = "absolute";
 		this._canvas.style.top = "0";
 		this._canvas.style.left = "0";
+		// 🔴 MITSKALIEREN WAEHREND DES ZOOMS (Owner 24.08.2026: „mach den marker-canvas
+		// mitskalieren“). Bis hierher tat dieser Canvas als EINZIGES Overlay nichts waehrend der
+		// Zoom-Animation: die Markierungen standen ~250 ms still, waehrend Kacheln, Grenzen und
+		// Wege unter ihnen skalierten, und sassen erst am zoomend wieder richtig. Eine Blende hat
+		// das seit Juni VERDECKT; seit 5184484e gibt es sie nicht mehr, also wird es behoben statt
+		// verdeckt. Die Klasse aktiviert unter `.leaflet-zoom-anim` Leaflets Transform-Easing.
+		// ⚠️ Der Preis, und er ist der gleiche wie bei Kacheln und Grenzen: die Markierungen haben
+		// feste Pixelgroessen und wachsen waehrend der Animation mit, bevor sie am zoomend auf ihre
+		// Groesse fuer die neue Stufe zurueckspringen. Dafuer bleiben sie auf ihrem Fleck der Karte.
+		this._canvas.classList.add("leaflet-zoom-animated");
+		this._canvas.style.transformOrigin = "0 0";
 		this._ctx = this._canvas.getContext("2d");
 		map.on("moveend zoomend viewreset resize", this._reset, this);
 		map.on("move", this._onMove, this);
 		map.on("zoomstart", this._onZoomStart, this);
+		map.on("zoomanim", this._onZoomAnim, this);
 		map.on("click", this._onClick, this);
 		map.on("mousemove", this._onMouseMove, this);
 		this._reset();
@@ -171,6 +187,12 @@ const locationCanvasLayer = {
 		if (!this._ready) {
 			return;
 		}
+		// 💣 ERST DAS ZOOMFENSTER SCHLIESSEN UND DIE TRANSITION LOESCHEN. Bliebe die
+		// Transform-Transition liegen, animierte jeder Pan die Position nach -- genau die Regression,
+		// die am 24.08.2026 bei den Grenzlinien gemeldet wurde („ziehen 2x nach“). setPosition
+		// direkt darunter setzt die Zoom-Skalierung zurueck.
+		this._cssZoomActive = false;
+		this._canvas.style.transition = "";
 		const size = this._map.getSize();
 		const dpr = window.devicePixelRatio || 1;
 		L.DomUtil.setPosition(this._canvas, this._map.containerPointToLayerPoint([0, 0]).round());
@@ -178,11 +200,15 @@ const locationCanvasLayer = {
 		this._canvas.height = Math.round(size.y * dpr);
 		this._canvas.style.width = `${size.x}px`;
 		this._canvas.style.height = `${size.y}px`;
-		// (Keine Einblendung mehr -- siehe _onZoomStart. Der Canvas bleibt durchgehend sichtbar.)
+		// Bezugspunkt fuer die Zoom-Transform: die Weltkoordinate der linken oberen Canvas-Ecke.
+		this._topLeftLatLng = this._map.containerPointToLatLng([0, 0]);
 		this._redraw();
 	},
 
 	_onMove() {
+		// ⚠️ Waehrend der CSS-Zoom-Animation NICHT eingreifen: setPosition wuerde die Transform
+		// ueberschreiben, die das Mitskalieren traegt.
+		if (this._cssZoomActive) { return; }
 		if (!this._ready) {
 			return;
 		}
@@ -191,19 +217,30 @@ const locationCanvasLayer = {
 	},
 
 	_onZoomStart() {
-		// 🔴 HIER BLENDET NICHTS MEHR. Owner 24.08.2026: „die ortsmarker sollen auch nicht ein- und
-		// ausblenden, weil die stabil erscheinen sollen ... nur labels sollen ein- und ausblenden“.
-		// Bis dahin stand hier seit Juni: transition 100ms ease-out, opacity 0 -- am zoomend blendete
-		// _reset mit 200 ms wieder ein.
-		// ⚠️ WAS DAMIT ZURUECKKEHRT, UND ZWAR ABSICHTLICH: dieser Canvas traegt weder
-		// `leaflet-zoom-animated` noch eine zoomanim-Transform, er skaliert waehrend der Zoom-Animation
-		// also NICHT mit (feste Marker-Pixelgroessen). Die Markierungen stehen die ~250 ms der Animation
-		// lang still, waehrend Kacheln, Grenzen und Wege unter ihnen skalieren, und sitzen erst am
-		// zoomend wieder richtig. Genau dagegen war die Blende da.
-		// 🔧 Wer das beheben will, faded NICHT wieder -- er gibt dem Canvas dieselbe Behandlung wie den
-		// uebrigen Overlays (`leaflet-zoom-animated` + `L.DomUtil.setTransform` im zoomanim), dann klebt
-		// die Markierung waehrend des Zooms an ihrem Ort. Das ist die Bauform, die „stabil“ wirklich
-		// einloest; die Blende hat den Sprung nur verdeckt.
+		// 🔴 HIER BLENDET NICHTS. Owner 24.08.2026: „die ortsmarker sollen auch nicht ein- und ausblenden,
+		// weil die stabil erscheinen sollen ... nur labels sollen ein- und ausblenden“. Bis 5184484e stand
+		// hier eine Ausblendung (100 ms), die den Sprung beim Zoom VERDECKT hat. Behoben wird er jetzt an
+		// der Ursache -- der Canvas skaliert mit, siehe _onZoomAnim.
+		// ⚠️ Der Handler bleibt als benannte Stelle stehen: er ist der Ort, an dem die naechste Person
+		// nach der alten Blende sucht.
+	},
+
+	/**
+	 * Das Mitskalieren waehrend der CSS-Zoom-Animation -- dieselbe Rechnung wie in den uebrigen
+	 * Canvas-Overlays (boundary, contested-hatch, path-labels, river-arrows).
+	 * 💣 `_latLngToNewLayerPoint` ist Leaflet-INTERN und in 1.9.4 vorhanden; ohne den Guard wirft ein
+	 * kuenftiges Leaflet hier bei jedem Zoom, und die Markierungen blieben ganz weg. Ebenso ohne
+	 * `_topLeftLatLng`: das steht erst nach dem ersten _reset, und der zoomanim davor waere ein
+	 * Sprung ins Leere.
+	 */
+	_onZoomAnim(event) {
+		if (!this._ready || !this._topLeftLatLng) { return; }
+		if (typeof this._map._latLngToNewLayerPoint !== "function") { return; }
+		this._cssZoomActive = true;
+		this._canvas.style.transition = "transform 250ms cubic-bezier(0,0,0.25,1)";
+		const scale = this._map.getZoomScale(event.zoom);
+		const offset = this._map._latLngToNewLayerPoint(this._topLeftLatLng, event.zoom, event.center);
+		L.DomUtil.setTransform(this._canvas, offset, scale);
 	},
 
 	_redraw() {
