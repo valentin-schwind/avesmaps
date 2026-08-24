@@ -419,3 +419,74 @@ function avesmapsFormatBfYear(int $year): string {
     }
     return $year < 0 ? (abs($year) . ' v. BF') : ($year . ' BF');
 }
+
+// ── Der Diagnose-Trichter ────────────────────────────────────────────────────────────────────
+//
+// 💣 WOFUER. Ein `catch`, der einen Fehler verschluckt und einen Rueckfall liefert, ist an vielen
+// Stellen dieses Hauses die RICHTIGE Bauform -- auf dem heissesten oeffentlichen Lesepfad soll eine
+// fehlende Spalte nicht die ganze Karte mitnehmen. Falsch ist nur, dass er dabei STUMM ist. Am
+// 24.08.2026 gemessen: 289 von 621 catch-Bloecken unter api/ schreiben nichts, werfen nichts und
+// antworten nicht, bei 26 error_log im ganzen Backend. Was das kostet, steht woertlich in der
+// Revert-Botschaft von 91587cd -- „NICHT DIAGNOSTIZIERT, nur zurueckgebaut": die Karte war fuer
+// jeden Besucher leer, der Deploy war gruen, 505 Tests waren gruen, und der Grund war von aussen
+// nicht zu ermitteln, weil map-features.php ihn in seinem eigenen catch behielt.
+//
+// 🔴 DIE REGEL, DIE DAS HINTERLAESST: ein `catch` antwortet, wirft weiter, oder geht hier durch.
+// Einen vierten Fall gibt es nicht. Wer einen Fehler absichtlich schluckt, sagt hier, WO er ihn
+// geschluckt hat -- dann ist eine Absage ohne Grund wieder von „hier ist nichts" zu unterscheiden.
+//
+// ⚠️ Er aendert das VERHALTEN nicht. Er gibt den Rueckfall zurueck, den der catch ohnehin geliefert
+// haette; ein Aufrufer merkt nichts. Genau deshalb ist er auf dem heissen Pfad einsetzbar.
+//
+// 💣 GEDECKELT, und das ist keine Sparsamkeit. Eine dauerhaft fehlende Spalte ist auf einem
+// meistgerufenen Endpunkt sonst eine Zeile PRO ANFRAGE im geteilten Protokoll von STRATO. Zwei
+// Deckel: derselbe Fall wird je Prozess nur EINMAL geschrieben (Schluessel aus Kontext, Klasse und
+// Fundstelle -- nicht aus der Meldung, die kann eine wechselnde ID tragen), und mehr als
+// AVESMAPS_SCHLUCK_LOG_MAX verschiedene Faelle schreibt ein Prozess gar nicht. Bei PHP-CGI ist ein
+// Prozess ungefaehr eine Anfrage; der erste Fall jeder Art wird also verlaesslich sichtbar, der
+// tausendste nicht noch einmal.
+//
+// ⚠️ `$rueckfall` wird UNVERAENDERT zurueckgegeben, auch `null`. Es gibt hier bewusst keine
+// Umdeutung von „leer" zu „Fehler" -- das waere dieselbe Vermischung, die der Trichter aufloest.
+const AVESMAPS_SCHLUCK_LOG_MAX = 20;
+
+/**
+ * Verschluckt einen Fehler ABSICHTLICH -- und schreibt ihn dabei ins Protokoll.
+ *
+ * Statt:   } catch (Throwable) { return []; }
+ * so:      } catch (Throwable $fehler) { return avesmapsSchlucke($fehler, 'map-features quellen', []); }
+ *
+ * @param string $kontext Kurz, stabil, ohne Nutzerdaten -- er ist der Suchbegriff im Protokoll.
+ */
+function avesmapsSchlucke(Throwable $fehler, string $kontext, mixed $rueckfall = null): mixed {
+    avesmapsSchluckProtokoll($fehler, $kontext);
+
+    return $rueckfall;
+}
+
+/**
+ * Der Schreibteil, getrennt vom Rueckgabeteil -- damit ein `catch`, der seinen Rueckfall selbst
+ * baut (oder gar keinen hat), den Trichter trotzdem benutzen kann, ohne den Wert durchzureichen.
+ */
+function avesmapsSchluckProtokoll(Throwable $fehler, string $kontext): void {
+    static $gesehen = [];
+    static $geschrieben = 0;
+
+    $schluessel = $kontext . '|' . $fehler::class . '|' . $fehler->getFile() . ':' . $fehler->getLine();
+
+    if (isset($gesehen[$schluessel]) || $geschrieben >= AVESMAPS_SCHLUCK_LOG_MAX) {
+        return;
+    }
+
+    $gesehen[$schluessel] = true;
+    $geschrieben++;
+
+    error_log(sprintf(
+        'avesmaps geschluckt [%s]: %s: %s in %s:%d',
+        $kontext,
+        $fehler::class,
+        $fehler->getMessage(),
+        $fehler->getFile(),
+        $fehler->getLine()
+    ));
+}
