@@ -118,34 +118,6 @@ function avesmapsCurveAntwortAnteil(?array $ergebnis): array
     ];
 }
 
-// Der Umstellzustand, aus den Daten statt aus einer Vermutung: eine Region, deren Labels heute
-// gedreht sind, bekommt die Kurve -- und so viele Namen, wie sie Labels hat.
-//
-// 💣 Der Winkel wird MODULO 360 geprueft, nicht auf „ungleich 0". Von den 83 derographischen Labels
-// ist genau eines gedreht: „Weiden" mit 360 Grad -- sichtbar identisch mit 0, numerisch verschieden.
-// Roh geprueft schaltet die Regel dort eine Kurve ein, wo niemand etwas gedreht haben wollte.
-// ⚠️ Dieselbe Normalisierung benutzt der Zeichner heute schon (createLabelIcon in
-// js/map-features/map-features-labels.js) -- zwei Stellen, die denselben Wert verschieden lesen,
-// widersprechen sich frueher oder spaeter sichtbar.
-function avesmapsCurveLabelRolloutFor(array $rotations): array
-{
-    if ($rotations === []) {
-        return ['enabled' => false, 'max_labels' => 1];
-    }
-    $gedreht = false;
-    foreach ($rotations as $r) {
-        if (((((int) $r) % 360) + 360) % 360 !== 0) {
-            $gedreht = true;
-            break;
-        }
-    }
-
-    return [
-        'enabled' => $gedreht,
-        'max_labels' => avesmapsCurveClampMaxLabels(count($rotations)),
-    ];
-}
-
 // Die Kurve an jedes Label haengen, dessen Region eine hat.
 //
 // 🔴 EMITTIERT, NICHT GESPEICHERT -- dieselbe Haltung wie bei
@@ -177,101 +149,19 @@ function avesmapsCurveApplyToFeatures(array &$features, array $byRegion): void
     }
 }
 
-// Der Merker des Umstelllaufs. Eigene Funktion statt einer nackten Konstante -- dieselbe Begruendung
-// wie bei avesmapsCurveCacheKey darunter.
-function avesmapsCurveRolloutKey(): string
-{
-    return 'curve_label_rollout_done';
-}
-
-// DER EINMALIGE UMSTELLLAUF (Entwurf §8.2).
+// 🔴 HIER STAND DER EINMALIGE UMSTELLLAUF -- gefallen am 24.08.2026 (Entwurf §3).
 //
-// 🔴 Owner-Entscheid: „Alle Flaechen, die jetzt ueber eine Rotation != 0 verfuegen sollen automatisch
-// ein Kurvenlabel erhalten.“ Die REGEL steckt in avesmapsCurveLabelRolloutFor (Winkel modulo 360,
-// Anzahl = Zahl der vorhandenen Labels, gedeckelt auf 3); hier steht nur, WORAUF sie laeuft.
+// Drei Funktionen: avesmapsCurveLabelRolloutFor (die Regel: Winkel modulo 360, Anzahl = Zahl der
+// vorhandenen Labels, gedeckelt auf 3), avesmapsCurveRolloutKey (der app_setting-Merker) und
+// avesmapsCurveRolloutFromRotations (der Lauf). Sie schalteten beim ERSTEN Sammellauf jede Flaeche
+// ein, deren Name von Hand gedreht war -- rund 56. Der Owner hat den Knopf gedrueckt, sie haben
+// ihre Arbeit getan.
 //
-// 💣 EINMALIG -- und der Riegel ist ein app_setting-Merker, KEINE Pruefung je Region. Der Grund ist
-// die Ablage selbst: „aus“ ENTFERNT den Schluessel (avesmapsCurveLabelApplyToProperties), „nie
-// entschieden“ ist also von „bewusst abgeschaltet“ nicht zu unterscheiden. Ohne den Merker holte
-// jeder zweite Lauf jede Abschaltung zurueck, die ein Editor seither vorgenommen hat -- und zwar
-// lautlos.
-//
-// 💣 Die Zuordnung Label -> Region kommt aus avesmapsEcosystemReadLabelRegionMap, dem EINEN
-// Aufloeser des Hauses. Sie ist BEIDSEITIG (Zeiger am Label und label_public_id an der Region); eine
-// eigene, einseitige Abfrage haette die zweiten und dritten Labels einer Flaeche uebersehen -- und
-// genau die sind der Grund fuer die Anzahl.
-//
-// ⚠️ `$erzwingen` ist fuer den Fall gedacht, dass der Lauf nachweislich nichts getan hat, nicht fuer
-// den taeglichen Gebrauch.
-//
-// @return array{ran:bool, reason:string, regions:int, changed:int}
-function avesmapsCurveRolloutFromRotations(PDO $pdo, bool $erzwingen = false): array
-{
-    if (!$erzwingen && avesmapsAppSettingGet($pdo, avesmapsCurveRolloutKey(), '') !== '') {
-        return ['ran' => false, 'reason' => 'already', 'regions' => 0, 'changed' => 0];
-    }
-
-    $karte = avesmapsEcosystemReadLabelRegionMap($pdo);
-    $byLabel = is_array($karte['by_label'] ?? null) ? $karte['by_label'] : [];
-    if ($byLabel === []) {
-        // ⚠️ Kein Merker: nichts gefunden heisst hier „die Zuordnung war leer“, nicht „fertig“.
-        return ['ran' => false, 'reason' => 'no_labels', 'regions' => 0, 'changed' => 0];
-    }
-
-    // Die Drehungen je Region einsammeln. Ein Label ohne `rotation` zaehlt als 0 -- es IST ein Label
-    // der Region und geht in die ANZAHL ein, nur nicht in die Entscheidung „gedreht“.
-    $statement = $pdo->query(
-        "SELECT public_id, properties_json FROM map_features
-          WHERE feature_type = 'label' AND is_active = 1"
-    );
-    $rotationsByRegion = [];
-    foreach ($statement === false ? [] : $statement->fetchAll(PDO::FETCH_ASSOC) as $row) {
-        $labelId = (string) $row['public_id'];
-        $regionId = (string) ($byLabel[$labelId] ?? '');
-        if ($regionId === '') {
-            continue;
-        }
-        $properties = json_decode((string) ($row['properties_json'] ?? ''), true);
-        $rotationsByRegion[$regionId][] = is_array($properties) ? (int) ($properties['rotation'] ?? 0) : 0;
-    }
-
-    $regionStatement = $pdo->query(
-        'SELECT public_id, properties_json FROM ecosystem_region WHERE is_active = 1'
-    );
-    $update = $pdo->prepare(
-        'UPDATE ecosystem_region SET properties_json = :p WHERE public_id = :id'
-    );
-    $geaendert = 0;
-    $betroffen = 0;
-    foreach ($regionStatement === false ? [] : $regionStatement->fetchAll(PDO::FETCH_ASSOC) as $row) {
-        $regionId = (string) $row['public_id'];
-        if (!isset($rotationsByRegion[$regionId])) {
-            continue;
-        }
-        $betroffen++;
-        $regel = avesmapsCurveLabelRolloutFor($rotationsByRegion[$regionId]);
-        // 🔴 NUR EINSCHALTEN. Ein „aus“ zu schreiben waere hier sinnlos (der Leser haelt einen
-        // fehlenden Schluessel ohnehin fuer aus) und gefaehrlich, sobald jemand den Lauf erzwingt:
-        // es naehme eine Handentscheidung zurueck, statt sie nur nicht zu setzen.
-        if (!$regel['enabled']) {
-            continue;
-        }
-        $felder = avesmapsCurveLabelApplyToProperties(
-            $row['properties_json'] === null ? null : (string) $row['properties_json'],
-            true,
-            $regel['max_labels']
-        );
-        if ($felder === []) {
-            continue;
-        }
-        $update->execute([':p' => $felder['properties_json'], ':id' => $regionId]);
-        $geaendert++;
-    }
-
-    avesmapsAppSettingSet($pdo, avesmapsCurveRolloutKey(), (string) $geaendert);
-
-    return ['ran' => true, 'reason' => 'ok', 'regions' => $betroffen, 'changed' => $geaendert];
-}
+// 🪤 Ersatzlos, nicht bloss stillgelegt: ein Lauf, der beim ersten Mal etwas anderes tut als beim
+// zweiten, ist auf Dauer eine Falle -- der naechste Leser haelt den toten Zweig fuer aktiv. Genau
+// so sah `refreshRegionBergStatus` ein Jahr lang wie eine Bedienung aus.
+// ⚠️ Der Merker in `app_setting` bleibt in der Datenbank stehen (der Deploy loescht nie); ihn liest
+// nur niemand mehr. Der Ruckweg ist die Git-Historie, nicht toter Code.
 
 // Der Schluessel des Zwischenspeichers. Eigene Funktion statt einer nackten Konstante, damit der
 // Sammellauf (api/edit/map/curve-labels-run.php) und der Leser sich nicht auf zwei Schreibweisen

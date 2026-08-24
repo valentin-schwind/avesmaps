@@ -6,8 +6,11 @@ declare(strict_types=1);
 // Entwurf: docs/superpowers/specs/2026-08-22-kurvenbeschriftung-design.md §7.1
 // Vorbild in Form und Reihenfolge: api/edit/map/zoom-bands.php
 //
-// 🔴 Nur `admin`. Der Lauf rechnet ueber alle Flaechen und schreibt eine Zeile, die JEDE Karte
-// liest -- das ist keine Editorhandlung.
+// 🔴 Fähigkeit `edit` (Owner 23.08.2026: „ich möchte, dass ‚Kurven rechnen' von jedem Editor
+// verwendet werden kann"). Hier stand bis dahin `admin` mit der Begründung, der Lauf schreibe eine
+// Zeile, die JEDE Karte liest. Das stimmt weiterhin -- der Owner hat es abgewogen und entschieden:
+// wer Landschaften bearbeiten darf, darf ihre Namen auch neu ausrichten lassen.
+// ⚠️ Der Lauf bleibt teuer (siehe set_time_limit unten); das Recht ändert nichts an seiner Last.
 // ⚠️ Er laeuft SEKUNDEN, nicht Millisekunden (rund 50 eingeschaltete Regionen mal 165-796 ms je
 // Flaeche, also grob 20 s, im schlechten Fall ueber 40 s -- Details beim set_time_limit unten).
 // Genau deshalb steht er hier und nicht im Lesepfad (AGENTS.md §9, STRATO): der Lesepfad
@@ -47,7 +50,7 @@ try {
     }
 
     // 🔴 Der Riegel steht HIER, nicht nur am ausgegrauten Knopf im Fenster.
-    avesmapsRequireUserWithCapability('admin');
+    avesmapsRequireUserWithCapability('edit');
 
     // ⚠️ Der Lauf braucht SEKUNDEN, nicht Millisekunden: gemessen 165-796 ms je Flaeche, und bei
     // rund 50 eingeschalteten Regionen sind das etwa 20 s. Ohne diese Zeile bricht PHP mitten im
@@ -74,12 +77,14 @@ try {
     $rohRumpf = (string) file_get_contents('php://input');
     $rumpf = $rohRumpf === '' ? [] : (json_decode($rohRumpf, true) ?: []);
 
-    // PHASE 0: der EINMALIGE Umstelllauf (Entwurf §8.2). Er steht VOR der Rechnung, denn er
-    // entscheidet, welche Regionen ueberhaupt eine Kurve bekommen -- danach waere er einen ganzen
-    // Lauf zu spaet. Beim zweiten Aufruf tut er nichts (app_setting-Merker).
-    // 🔴 `force_rollout` ist der Rueckweg, falls der Lauf nachweislich nichts getan hat. Er holt
-    // KEINE Abschaltung zurueck: der Umstelllauf schaltet nur EIN, nie aus.
-    $umstellung = avesmapsCurveRolloutFromRotations($pdo, !empty($rumpf['force_rollout']));
+    // 🔴 KEIN Umstelllauf mehr (24.08.2026, Entwurf §3). Hier stand eine „Phase 0", die beim
+    // ERSTEN Lauf jede Fläche einschaltete, deren Name von Hand gedreht war (rund 56). Der Owner
+    // hat sie gedrückt, sie hat ihre Arbeit getan.
+    // 🪤 Sie ist ersatzlos gefallen, nicht bloß stillgelegt: ein Lauf, der beim ersten Mal etwas
+    // anderes tut als beim zweiten, ist auf Dauer eine Falle -- der nächste Leser hält den toten
+    // Zweig für aktiv, und genau so sah `refreshRegionBergStatus` ein Jahr lang wie eine Bedienung
+    // aus. Der Zustandsmerker in `app_setting` bleibt stehen (der Deploy löscht nie), er wird nur
+    // nicht mehr gelesen.
 
     $ergebnis = avesmapsCurveRebuildCache($pdo);
 
@@ -100,8 +105,6 @@ try {
         'ok' => true,
         'regions' => $ergebnis['regions'],
         'bytes' => $ergebnis['bytes'],
-        // Die Kachel IST die Zustandsanzeige (Hausregel) -- sie kann nur sagen, was hier herauskommt.
-        'rollout' => $umstellung,
     ]);
 } catch (Throwable $e) {
     // ⚠️ Die Meldung des Fehlers geht NICHT nach draussen (AGENTS.md §10, Info-Disclosure), aber

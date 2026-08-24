@@ -41,40 +41,21 @@ assert(avesmapsCurveLabelSettingsFromProperties(['curve_label' => true, 'curve_l
 // ------------------------------------------------------------------ BEFUND 7: DER KLEMMHELFER ---
 // 💣 Derselbe Klemmausdruck stand VIERMAL in curve-label-store.php. avesmapsCurveClampMaxLabels
 // ist jetzt die einzige Stelle, die den Deckel (3) und die Untergrenze (1) kennt -- alle vier
-// Aufrufer (oben, avesmapsCurveLabelRolloutFor, avesmapsCurveBaselinesFromCache,
-// avesmapsCurveBuildCachePayload) sind ueber diese Funktion bereits indirekt mitgeprueft.
+// Aufrufer sind ueber diese Funktion bereits indirekt mitgeprueft.
+// ⚠️ Einer von ihnen (avesmapsCurveLabelRolloutFor) ist am 24.08.2026 mit dem Umstelllauf
+// gefallen; es sind seither drei.
 assert(avesmapsCurveClampMaxLabels(1) === 1);
 assert(avesmapsCurveClampMaxLabels(3) === 3);
 assert(avesmapsCurveClampMaxLabels(0) === 1);
 assert(avesmapsCurveClampMaxLabels(-5) === 1);
 assert(avesmapsCurveClampMaxLabels(9) === 3);
 
-// ------------------------------------------------------------------ DIE UMSTELLREGEL ---
-
-// Rotation 0 ueberall -> bleibt aus. Das sind 601 der 657 Labels; sie duerfen sich am Umstelltag
-// nicht um ein Pixel bewegen.
-assert(avesmapsCurveLabelRolloutFor([0]) === ['enabled' => false, 'max_labels' => 1]);
-assert(avesmapsCurveLabelRolloutFor([0, 0, 0]) === ['enabled' => false, 'max_labels' => 3]);
-
-// Eine echte Drehung schaltet ein.
-assert(avesmapsCurveLabelRolloutFor([326])['enabled'] === true);
-
-// 💣 360 Grad ist sichtbar 0. Genau ein Label im Livebestand hat das: „Weiden", das einzige
-// gedrehte derographische. Roh geprueft bekaeme es eine Kurve, obwohl dort niemand etwas gedreht
-// haben wollte.
-assert(avesmapsCurveLabelRolloutFor([360])['enabled'] === false);
-assert(avesmapsCurveLabelRolloutFor([720])['enabled'] === false);
-assert(avesmapsCurveLabelRolloutFor([-360])['enabled'] === false);
-assert(avesmapsCurveLabelRolloutFor([-90])['enabled'] === true);
-
-// 🔴 Die Anzahl ist „so viele Labels wie vorhanden, hoechstens 3" -- nicht fest 1. Fuenf gedrehte
-// Regionen tragen heute zwei Labels; auf 1 gesetzt verloeren sie einen Namen.
-assert(avesmapsCurveLabelRolloutFor([300, 300]) === ['enabled' => true, 'max_labels' => 2]);
-assert(avesmapsCurveLabelRolloutFor([317, 325]) === ['enabled' => true, 'max_labels' => 2]);
-assert(avesmapsCurveLabelRolloutFor([10, 20, 30, 40]) === ['enabled' => true, 'max_labels' => 3]);
-
-// Eine Region ohne Label ergibt keine Umstellung.
-assert(avesmapsCurveLabelRolloutFor([]) === ['enabled' => false, 'max_labels' => 1]);
+// -------------------------------------------------- DIE UMSTELLREGEL -- GEFALLEN 24.08.2026 ---
+// 🔴 Hier standen 12 Zusicherungen zu avesmapsCurveLabelRolloutFor (Rotation modulo 360, Anzahl
+// gedeckelt auf 3). Die Funktion gibt es nicht mehr: der einmalige Umstelllauf ist ersatzlos
+// entfernt, weil er seine Arbeit getan hat (Entwurf §3, api/_internal/app/curve-label-store.php).
+// ⚠️ Der Vermerk steht hier, damit niemand die Luecke fuer verlorene Abdeckung haelt und die
+// Zusicherungen „wiederherstellt" -- sie haetten kein Subjekt mehr.
 
 // ------------------------------------------------------------------ ANHAENGEN ---
 
