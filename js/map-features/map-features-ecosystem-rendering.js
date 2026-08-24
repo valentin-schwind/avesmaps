@@ -266,12 +266,15 @@ function applyEcosystemSelectionClass(layer) {
 // das Überfahren ungültig und hat es zu sagen. Deshalb steht der Aufruf in syncEcosystemPaneStates und
 // in setLayerPicking -- den zwei Stellen, die Panes umschalten -- und nicht in einem Zeitgeber, der
 // hinterherräumt.
-function closeAllEcosystemAreaTooltips() {
+// ⭐ `ausser` hält EINEN Zettel offen -- den, der gerade aufgeht. Ohne diesen Parameter könnte die
+// Regel „es gibt genau einen Schwebezettel“ (`tooltipopen`, weiter unten) sich nicht selbst ausnehmen
+// und schlösse den soeben geöffneten gleich wieder mit.
+function closeAllEcosystemAreaTooltips(ausser) {
 	if (typeof ecosystemLayers === "undefined" || !(ecosystemLayers instanceof Map)) {
 		return;
 	}
 	ecosystemLayers.forEach((layer) => {
-		if (typeof layer?.closeTooltip === "function") {
+		if (layer !== ausser && typeof layer?.closeTooltip === "function") {
 			layer.closeTooltip();
 		}
 	});
@@ -626,6 +629,63 @@ function ecosystemStapelOrdnung(areas) {
 	return gemessen.map((eintrag) => eintrag.publicId);
 }
 
+// ---- Nur bewegen, was falsch liegt (24.08.2026) -------------------------------------------------
+// Bringt die Pfade in die verlangte Reihenfolge und fasst dabei KEINEN Knoten an, der schon richtig
+// steht. Gibt die Zahl der Bewegungen zurück -- daran erkennt der Aufrufer, ob er das Überfahren
+// zerstört hat. Rein und ohne Leaflet, damit die Regel prüfbar bleibt.
+//
+// 💣 GENAU HIER HING DER DRITTE STEHENGEBLIEBENE SCHWEBEZETTEL (Owner-Screenshot 24.08.2026: drei
+// Zettel gleichzeitig, zwei aus der Derographie, einer aus der Topographie). Die Vorgängerfassung
+// rief `bringToFront()` auf JEDE Fläche, und Leaflets `toFront` hängt den Pfad ans Ende der Gruppe:
+// bei jedem Nachladen wurde also jeder Pfad aus dem DOM gelöst und neu eingehängt, obwohl die
+// Reihenfolge danach dieselbe war. Live gemessen (avesmaps.de, Zoom 3, „Alle“): EIN Schwenk, EIN
+// Lauf, 9 von 10 Pfaden entfernt und wieder angehängt, Reihenfolge unverändert.
+//
+// Ein Element, das unter dem Zeiger aus dem DOM verschwindet, bekommt vom Browser kein `mouseout`
+// mehr -- und ein Leaflet-Tooltip geht von selbst NUR bei `mouseout` zu. Dieselbe Ursache wie am
+// 2026-08-04 (`pointer-events: none` an den Panes) und am 2026-08-23 (`display: none` bei der
+// Isolation), nur der dritte Erzeuger: der, den css/features/ecosystem-layer.css:1358 vorhergesagt
+// hat. Steht die Reihenfolge schon, wird jetzt nichts mehr angefasst.
+//
+// 🪤 Verglichen wird die NACHBARSCHAFT (`nextSibling`), nicht eine nachgebaute Position: in der
+// Gruppe können Knoten liegen, die uns nicht gehören, und ein Index über `children` zählte sie mit.
+function ecosystemPfadeEinsortieren(knoten) {
+	// Je Elternknoten getrennt -- jede Ebene liegt in ihrer eigenen Pane, und `insertBefore` mit einem
+	// Bezugsknoten aus einer fremden Gruppe wäre ein Fehler, kein Sortieren.
+	const nachEltern = new Map();
+	(Array.isArray(knoten) ? knoten : []).forEach((pfad) => {
+		const eltern = pfad?.parentNode;
+		if (!eltern) {
+			return;
+		}
+		if (!nachEltern.has(eltern)) {
+			nachEltern.set(eltern, []);
+		}
+		nachEltern.get(eltern).push(pfad);
+	});
+
+	let bewegungen = 0;
+	nachEltern.forEach((liste, eltern) => {
+		// Von vorn nach hinten: der vorderste Pfad gehört ans Ende der Gruppe, jeder weitere unmittelbar
+		// vor seinen Nachfolger. Wer dort schon liegt, bleibt liegen.
+		let nachfolger = null;
+		for (let i = liste.length - 1; i >= 0; i -= 1) {
+			const pfad = liste[i];
+			if (nachfolger === null) {
+				if (eltern.lastChild !== pfad) {
+					eltern.appendChild(pfad);
+					bewegungen += 1;
+				}
+			} else if (pfad.nextSibling !== nachfolger) {
+				eltern.insertBefore(pfad, nachfolger);
+				bewegungen += 1;
+			}
+			nachfolger = pfad;
+		}
+	});
+	return bewegungen;
+}
+
 // Die berechnete Reihenfolge auf die Karte anwenden. Getrennt von der Regel, weil hier Leaflet ins
 // Spiel kommt und die Regel ohne Karte testbar bleiben soll.
 function applyEcosystemStackingOrder() {
@@ -641,11 +701,28 @@ function applyEcosystemStackingOrder() {
 	// Je Ebene getrennt: die drei Panes sind ohnehin gestapelt (derographisch unten, Topographie oben),
 	// und eine gemeinsame Sortierung über alle drei würde nur innerhalb jeder Pane wirken -- aber die
 	// Reihenfolge dazwischen unnötig durcheinanderbringen.
+	// ⚠️ Die vier Panes zeichnen SVG (die Stilregeln adressieren `> svg path.leaflet-interactive`), der
+	// Pfad IST also der Knoten, den Leaflets `bringToFront` bewegen würde. Eine Fläche ohne Element
+	// hängt nicht in der Karte und lässt sich auch nicht einsortieren -- sie fällt heraus.
+	let bewegungen = 0;
 	ECOSYSTEM_KINDS.forEach((kind) => {
-		ecosystemStapelOrdnung(areas.filter((area) => String(area?.kind || "") === kind)).forEach((publicId) => {
-			ecosystemLayers.get(publicId)?.bringToFront?.();
-		});
+		const pfade = ecosystemStapelOrdnung(areas.filter((area) => String(area?.kind || "") === kind))
+			.map((publicId) => {
+				const layer = ecosystemLayers.get(publicId);
+				return typeof layer?.getElement === "function" ? layer.getElement() : layer?._path;
+			})
+			.filter(Boolean);
+		bewegungen += ecosystemPfadeEinsortieren(pfade);
 	});
+
+	// 🔴 WER PFADE BEWEGT, MACHT DAS ÜBERFAHREN UNGÜLTIG UND HAT ES ZU SAGEN -- dieselbe Reparatur an
+	// derselben Ursache wie in syncEcosystemPaneStates und in wendeIsolationAn.
+	// ⚠️ Und nur DANN: diese Funktion läuft nach jedem Nachladen, also bei jedem Schwenk. Blind
+	// geschlossen nähme sie dem Leser den Zettel unter seinem Zeiger weg, und Leaflet holt ihn erst
+	// zurück, wenn man die Fläche verlässt und neu betritt.
+	if (bewegungen > 0 && typeof closeAllEcosystemAreaTooltips === "function") {
+		closeAllEcosystemAreaTooltips();
+	}
 }
 
 // Selecting is what proves "only the active layer answers" (plan V3.0, step 7). It is deliberately
@@ -749,7 +826,18 @@ function buildEcosystemAreaLayer(area) {
 	layer.on("tooltipopen", () => {
 		if (isEcosystemEditingInProgress() && !window.AvesmapsEcosystemGeometryOps?.isPickingTarget?.()) {
 			layer.closeTooltip();
+			return;
 		}
+		// 🔴 ES GIBT GENAU EINEN SCHWEBEZETTEL (Owner 24.08.2026: „kannst du verhindern, dass die
+		// tooltips im landschaftsmodus mehrfach angezeigt werden“). Ein Zeiger steht über EINER Fläche;
+		// zwei offene Zettel sind deshalb nie eine Auskunft, sondern immer ein Rest -- einer davon gehört
+		// einer Fläche, die ihr `mouseout` nie bekommen hat.
+		//
+		// ⭐ DESHALB STEHT DER RIEGEL HIER UND NICHT BEI DEN ERZEUGERN. Die werden weiterhin einzeln
+		// repariert (drei bisher: `pointer-events: none`, `display: none`, die Stapelreihenfolge) -- aber
+		// css/features/ecosystem-layer.css:1358 sagt den nächsten voraus („a fifth will appear, and
+		// nobody will remember this file“), und diese Zeile fängt auch den, den noch niemand kennt.
+		closeAllEcosystemAreaTooltips(layer);
 	});
 	layer.on("click", (event) => {
 		// 💣 While the drawing tool is running, a click on an existing area is a CORNER, not a
@@ -962,5 +1050,6 @@ if (typeof module !== "undefined" && module.exports) {
 		ecosystemDialogTitle,
 		formatEcosystemAreaTooltip,
 		ecosystemStapelOrdnung,
+		ecosystemPfadeEinsortieren,
 	};
 }
