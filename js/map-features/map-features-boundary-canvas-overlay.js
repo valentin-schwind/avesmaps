@@ -379,16 +379,39 @@
 	// Eine 350-ms-Blende Bild fuer Bild waeren 5-10 Redraws -- die Karte stuende still. Die Deckkraft
 	// EINES Elements animiert dagegen der Compositor, ohne den Hauptthread anzufassen; genau daran
 	// liegt es, dass die Ortsmarkierungen (auch eine Canvas) so weich blenden.
-	const labelCanvas = document.createElement("canvas");
-	labelCanvas.style.position = "absolute";
-	labelCanvas.style.pointerEvents = "none";
-	labelCanvas.style.top = "0";
-	labelCanvas.style.left = "0";
-	labelCanvas.style.transformOrigin = "0 0";
-	labelCanvas.style.opacity = "0";           // startet unsichtbar -> die erste Anzeige ist auch eine Blende
-	labelCanvas.classList.add("leaflet-zoom-animated", "avesmaps-border-label-canvas");
-	map.getPane(PANE).appendChild(labelCanvas); // NACH der Linien-Canvas -> zeichnet darueber
-	const labelCtx = labelCanvas.getContext("2d");
+	// 🔴 ZWEI BESCHRIFTUNGSFLAECHEN, NICHT EINE -- fuer die GLEICHZEITIGE Blende.
+	// Owner 24.08.2026: „du blendest gerade aus und wieder ein, kann man das gleichzeitig?“
+	// 💣 Mit EINER Flaeche ist das unmoeglich: sie verliert ihr altes Bild in dem Moment, in dem sie
+	// das neue zeichnet. Es kann also nur nacheinander gehen. Zwei Flaechen halten das alte und das
+	// neue Bild gleichzeitig -- die eine blendet ab, die andere auf, im selben Zeitfenster.
+	// ⚠️ Sie tauschen nach jeder Ueberblendung die Rollen (kein Kopieren von Bitmaps): gezeichnet wird
+	// immer in die HINTERE, danach werden die Zeiger getauscht. Das spart ein drawImage ueber die
+	// volle Flaeche pro Zoomschritt.
+	function baueLabelFlaeche() {
+		const c = document.createElement("canvas");
+		c.style.position = "absolute";
+		c.style.pointerEvents = "none";
+		c.style.top = "0";
+		c.style.left = "0";
+		c.style.transformOrigin = "0 0";
+		c.style.opacity = "0";           // startet unsichtbar -> die erste Anzeige ist auch eine Blende
+		c.classList.add("leaflet-zoom-animated", "avesmaps-border-label-canvas");
+		map.getPane(PANE).appendChild(c); // NACH der Linien-Canvas -> zeichnet darueber
+		return c;
+	}
+	const labelFlaechen = [baueLabelFlaeche(), baueLabelFlaeche()];
+	let labelVorne = labelFlaechen[0];   // zeigt gerade das gueltige Bild
+	let labelHinten = labelFlaechen[1];  // nimmt beim naechsten Zoom das neue Bild auf
+	// ⭐ Zum Vergleichen ohne Deploy: ?crossfade=0 schaltet auf das alte Nacheinander zurueck
+	// (nur die vordere Flaeche, erst aus, dann ein).
+	const KREUZBLENDE_AN = (() => {
+		try { return new URLSearchParams(window.location.search).get("crossfade") !== "0"; }
+		catch (e) { return true; }
+	})();
+	// Erst nach einem Zoomschritt wird ueberblendet. Ein Pan zeichnet in dieselbe Flaeche weiter --
+	// dort gibt es nichts zu ueberblenden, und ein Rollentausch waere ein Flackern ohne Anlass.
+	let zoomSchrittOffen = false;
+	let labelCtx = labelVorne.getContext("2d");   // Kontext der Flaeche, in die gerade gezeichnet wird
 
 	// Dauer der Blende. ⭐ Live probierbar ohne Deploy: ?labelfade=600 (ms).
 	// ⚠️ Sie steht als CSS-Variable am Element, NICHT als Inline-`transition`: die Zoom-Animation
@@ -403,7 +426,7 @@
 		} catch (e) { /* ohne Adresszeile die Vorgabe */ }
 		return 350;
 	})();
-	labelCanvas.style.setProperty("--border-label-fade", TERRITORY_LABEL_FADE_MS + "ms");
+	labelFlaechen.forEach((c) => c.style.setProperty("--border-label-fade", TERRITORY_LABEL_FADE_MS + "ms"));
 	// Ausblenden beim Zoomschritt. ⚠️ EIGENER Wert und bewusst kuerzer als die 250 ms der
 	// Zoom-Animation: was danach noch sichtbar ist, springt beim Neuzeichnen doch. ?labelfadeout=<ms>.
 	const TERRITORY_LABEL_FADE_OUT_MS = (() => {
@@ -414,7 +437,7 @@
 		} catch (e) { /* ohne Adresszeile die Vorgabe */ }
 		return 120;
 	})();
-	labelCanvas.style.setProperty("--border-label-fade-out", TERRITORY_LABEL_FADE_OUT_MS + "ms");
+	labelFlaechen.forEach((c) => c.style.setProperty("--border-label-fade-out", TERRITORY_LABEL_FADE_OUT_MS + "ms"));
 
 	// Die Easing der Zoom-Animation, wie sie Leaflets eigene Ebenen benutzen. Einmal benannt, weil
 	// sie jetzt an zwei Stellen im selben Inline-String steht wie die Deckkraft.
@@ -438,7 +461,13 @@
 	function blendeNachZeichnung() {
 		requestAnimationFrame(function () {
 			requestAnimationFrame(function () {
-				labelCanvas.style.opacity = grenzLabelsGezeichnet ? "1" : "0";
+				// Die frisch gezeichnete Flaeche auf (oder auf 0, wenn nichts zu zeigen war) ...
+				const ziel = grenzLabelsGezeichnet ? "1" : "0";
+				labelVorne.style.opacity = ziel;
+				// ... und im SELBEN Bild die alte ab. Das ist die ganze Ueberblendung: zwei Uebergaenge,
+				// gleiche Dauer, gleicher Startzeitpunkt. Die alte Flaeche behaelt ihre Zoom-Transform und
+				// steht deshalb noch am richtigen Fleck, waehrend sie verschwindet.
+				if (KREUZBLENDE_AN) { labelHinten.style.opacity = "0"; }
 				// 🔴 NUR DIE NAMEN BLENDEN, DIE LINIEN NICHT. Owner 24.08.2026: „kannst du die grenzen,
 				// strassen und fluesse selber (nicht die labels!) stabil halten? labels sollen schoen ein und
 				// ausblenden“. 🪤 d02eaec4 liess die Linien-Flaeche mitblenden und ging damit zu weit: eine
@@ -597,6 +626,16 @@
 		// dpr. Liefe sie auseinander, staenden die Namen neben ihren Grenzen, und das saehe nach einem
 		// Rechenfehler in der Geometrie aus statt nach zwei Flaechen. Deshalb Zeile fuer Zeile dasselbe,
 		// direkt darunter und aus denselben Variablen.
+		// 🔴 BEIM ZOOM WIRD IN DIE HINTERE FLAECHE GEZEICHNET, sonst in die vordere. Nur so ueberlebt
+		// das alte Bild bis zur Ueberblendung. ⚠️ Die ausgehende Flaeche wird hier BEWUSST nicht
+		// ausgerichtet: sie traegt noch die Zoom-Transform aus dem zoomanim und sitzt damit genau
+		// richtig. Ein setPosition darauf wuerde sie im Moment des Ausblendens verspringen lassen.
+		if (KREUZBLENDE_AN && zoomSchrittOffen) {
+			const tausch = labelVorne; labelVorne = labelHinten; labelHinten = tausch;
+			labelCtx = labelVorne.getContext("2d");
+			zoomSchrittOffen = false;
+		}
+		const labelCanvas = labelVorne;
 		L.DomUtil.setPosition(labelCanvas, topLeft);
 		if (labelCanvas.width !== pw) labelCanvas.width = pw;
 		if (labelCanvas.height !== ph) labelCanvas.height = ph;
@@ -765,7 +804,10 @@
 		// und rutscht erst am zoomend an ihren Platz -- der Fehler saehe aus wie eine falsche Geometrie.
 		// ⚠️ Ihre Transition kommt aus css/features/map-labels.css, NICHT inline: eine Inline-`transition`
 		// wuerde die Blenden-Regel dauerhaft ausloeschen (es ist EINE Eigenschaft, und inline gewinnt).
-		L.DomUtil.setTransform(labelCanvas, offset, scale);
+		// Beide Beschriftungsflaechen mitskalieren -- die vordere zeigt noch das alte Bild und muss am
+		// Kartenfleck kleben bleiben, die hintere bekommt gleich das neue.
+		labelFlaechen.forEach((c) => L.DomUtil.setTransform(c, offset, scale));
+		zoomSchrittOffen = true;
 		// 🔴 UND WEGGEHEN, SOLANGE DER ZOOM LAEUFT. Owner 24.08.2026: „von zoom 6 auf 7 (beide
 		// eingeblendet) springts“. An der Schwelle genuegte das Einblenden; zwischen zwei Stufen, auf
 		// denen die Namen beide Male stehen, wechselt ihr INHALT (Lage, Schriftgroesse) und schneidet
@@ -773,7 +815,10 @@
 		// die Ortsmarkierungen ihr „Plopp“ loswerden (location-canvas-layer.js).
 		// ⚠️ Die Dauer kommt aus der `.leaflet-zoom-anim`-Regel in css/features/map-labels.css; die
 		// Klasse liegt hier bereits (Leaflet setzt sie VOR dem zoomanim-Ereignis), sonst spraenge es.
-		labelCanvas.style.opacity = "0";
+		// 🔴 BEI DER UEBERBLENDUNG WIRD HIER NICHT AUSGEBLENDET. Das alte Bild bleibt stehen und
+		// skaliert mit, bis die neue Flaeche fertig ist -- erst dann laufen beide Uebergaenge zugleich.
+		// Ohne Ueberblendung (?crossfade=0) gilt das alte Nacheinander: erst weg, dann neu, dann rein.
+		if (!KREUZBLENDE_AN) { labelVorne.style.opacity = "0"; }
 	});
 	// flyTo/setView: pro 'zoom'-Frame neu zeichnen (nur wenn KEIN CSS-Zoom läuft -> sonst Transform).
 	map.on("zoom", function () { if (!cssZoomActive) redraw(); });
