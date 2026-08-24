@@ -32,22 +32,29 @@ const AVESMAPS_WIKI_TITLE_BATCH_SIZE_BOT = 500;
 const AVESMAPS_WIKI_SEARCH_RESULT_LIMIT = 5;
 const AVESMAPS_WIKI_REQUEST_TIMEOUT_SECONDS = 30;
 /**
- * 🔴 ZWEI SEKUNDEN, UND DIE ZAHL IST NICHT UNSERE. Die Bot-Richtlinie des Wiki Aventurica
- * (Wiki Aventurica:Roboter) empfiehlt woertlich: „Wenn fuer beide Werte 2 gesetzt ist, faehrt
- * man ganz gut." Die robots.txt nennt fuer `User-agent: *` sogar `Crawl-delay: 20`. Wir standen
- * bis zum 24.08.2026 auf 0,6 s -- schneller als beides, und das bei einem Wirt, der uns
- * zwischenzeitlich zweimal gesperrt hatte.
+ * ZWANZIG SEKUNDEN, UND DIE ZAHL IST NICHT UNSERE, SONDERN IHRE. Das Wiki Aventurica hat uns am
+ * 24.08.2026 einen EIGENEN Abschnitt in seiner robots.txt gegeben:
  *
- * ⭐ Und es kostet uns nichts: mit `apihighlimits` (500 statt 50 Titel je Anfrage) braucht
- * derselbe Lauf ein ZEHNTEL der Aufrufe. Zehnmal weniger Anfragen a 2 s gegen zehnmal mehr a
- * 0,6 s heisst ein DRITTEL der Wanduhr -- wir werden also langsamer je Anfrage und trotzdem
- * schneller insgesamt, bei einem Zehntel der Last drueben.
+ *     User-agent: AvesmapsWikiSync
+ *     Crawl-delay: 20
+ *
+ * Das ist keine Empfehlung mehr (die Bot-Richtlinie nennt 2 s), sondern die Regel, unter der uns
+ * derselbe Abschnitt `/de/api.php` ueberhaupt erst erlaubt -- fuer `User-agent: *` bleibt die API
+ * verboten. Wir waren bis dahin auf 0,6 s.
+ *
+ * DESHALB DARF DER USER-AGENT NICHT MEHR UMBENANNT WERDEN. Genau diese Zeichenkette steht in
+ * ihrer robots.txt; eine neue Version im Namen wuerfe uns zurueck unter `*`, und dort ist die API
+ * gesperrt. Der Name ist ab hier eine Schnittstelle, kein Etikett.
+ *
+ * UND DAMIT IST DIE BOT-ANMELDUNG TRAGEND, NICHT MEHR NUR NUETZLICH: gerechnet an der
+ * Kontinent-Phase (rund 9000 Titel) sind es als Bot 18 Aufrufe = gut 6 Minuten, anonym 180
+ * Aufrufe = ueber eine STUNDE. Wer den Login abschaltet, macht den Dump-Lauf unbenutzbar.
  */
-const AVESMAPS_WIKI_REQUEST_DELAY_MICROSECONDS = 2000000;
+const AVESMAPS_WIKI_REQUEST_DELAY_MICROSECONDS = 20000000;
 const AVESMAPS_WIKI_REQUEST_RETRY_COUNT = 3;
 // Der Wiederholungsabstand bleibt das Doppelte der Drossel -- ein Server, der gerade 429 oder
 // 503 gesagt hat, will mehr Ruhe, nicht dieselbe.
-const AVESMAPS_WIKI_REQUEST_RETRY_BASE_DELAY_MICROSECONDS = 4000000;
+const AVESMAPS_WIKI_REQUEST_RETRY_BASE_DELAY_MICROSECONDS = 40000000;
 const AVESMAPS_WIKI_LOCK_TTL_SECONDS = 120;
 // 🔴 OWNER-WORTLAUT (20.08.2026). Das ist Produktsprache, keine Fehlermeldung fuer
 // Entwickler -- wer ihn aendert, aendert, was tausende Editoren lesen. Der Grund steht in der
@@ -723,11 +730,14 @@ function avesmapsWikiSyncApiRequest(array $params): array {
  * EINEM Prozess. Ein zweiter Editor, der gleichzeitig sucht, kommt daran vorbei; das sind
  * einzelne Anfragen von Menschen, keine Last.
  */
-function avesmapsWikiSyncThrottleWikiRequest(): void {
+function avesmapsWikiSyncThrottleWikiRequest(?int $abstandMikrosekunden = null): void {
     static $letzteAnfrage = null;
 
     $jitter = random_int(0, 250000);
-    $mindestabstand = AVESMAPS_WIKI_REQUEST_DELAY_MICROSECONDS + $jitter;
+    // Der Parameter existiert NUR fuer den Test: ohne ihn muesste der die vollen 20 Sekunden
+    // schlafen, um den Abstand zu messen -- und ein Test, der 20 Sekunden kostet, wird als
+    // erstes wieder herausgenommen. Die Produktion ruft ohne Argument auf.
+    $mindestabstand = ($abstandMikrosekunden ?? AVESMAPS_WIKI_REQUEST_DELAY_MICROSECONDS) + $jitter;
 
     if ($letzteAnfrage !== null) {
         $vergangen = (int) ((microtime(true) - $letzteAnfrage) * 1000000);

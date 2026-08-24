@@ -743,7 +743,11 @@ $countingBatchFetcher = static function (array $batchTitles) use (&$callsMadeTot
 $continentCursor = 0;
 $continentSteps = 0;
 $continentDone = false;
-$maxStepsGuard = 50; // generous upper bound on THIS TEST's own loop, not the production code
+// Die Obergrenze DIESER Schleife folgt dem Budget, statt eine Zahl festzuschreiben: seit die
+// Drossel auf den Crawl-delay 20 der Wiki-robots.txt steht, traegt ein Schritt nur noch EINEN
+// Aufruf, und die alte feste 50 liess den Test scheitern, obwohl die Produktion voellig in
+// Ordnung war. Der Test soll den unbegrenzten Schritt fangen, nicht die Schrittgroesse.
+$maxStepsGuard = (int) ceil(count($manyTitles) / (avesmapsWikiDumpContinentMapStepCallBudget() * avesmapsWikiSyncTitleBatchSize())) + 5;
 while (!$continentDone && $continentSteps < $maxStepsGuard) {
     $stepResult = avesmapsWikiDumpCategoryFetchContinentMap(
         $manyTitles,
