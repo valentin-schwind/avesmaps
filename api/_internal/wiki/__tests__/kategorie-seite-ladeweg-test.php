@@ -55,13 +55,28 @@ $imEigenenProzess = static function (array $dateien, array $funktionen) use ($wu
     }
     file_put_contents($skript, implode("\n", $zeilen) . "\n");
 
-    $befehl = escapeshellarg(PHP_BINARY)
-        . ' -d extension=php_mbstring.dll'
-        . ' ' . escapeshellarg($skript) . ' 2>&1';
+    // 🪤 HIER STAND EIN ` -d extension=php_mbstring.dll`, UND ES HAT DEN DEPLOY GEKOSTET
+    // (24.08.2026). Das lokale Testfeld faehrt unter Windows mit genau diesen Schaltern, der
+    // CI-Lauf aber unter Linux und ganz ohne sie -- dort gibt es keine .dll, PHP schreibt eine
+    // Startwarnung, und die zerlegte die Antwort dieses Unterprozesses. Ein Test, der einen
+    // eigenen PHP-Prozess startet, darf KEINE plattformabhaengigen ini-Schalter festschreiben.
+    // Gebraucht werden sie hier ohnehin nicht: die geladenen Dateien sind reine Deklarationen
+    // (Hauspflicht "side-effect-free on include") und rufen beim Laden kein mb_*.
+    $befehl = escapeshellarg(PHP_BINARY) . ' ' . escapeshellarg($skript);
     $ausgabe = (string) shell_exec($befehl);
     @unlink($skript);
 
-    $entschluesselt = json_decode(trim($ausgabe), true);
+    // Und aus demselben Grund wird die LETZTE Zeile gelesen, die als JSON durchgeht, statt der
+    // ganzen Ausgabe: eine Startwarnung des Kindprozesses landet je nach Plattform auf stdout
+    // und darf diesen Test nicht umwerfen -- er prueft Ladewege, nicht ini-Dateien.
+    $entschluesselt = null;
+    foreach (array_reverse(preg_split('/\R/', trim($ausgabe)) ?: []) as $zeile) {
+        $versuch = json_decode(trim($zeile), true);
+        if (is_array($versuch)) {
+            $entschluesselt = $versuch;
+            break;
+        }
+    }
     if (!is_array($entschluesselt)) {
         fwrite(STDERR, "FATAL: Unterprozess lieferte kein JSON. Ausgabe:\n" . $ausgabe . "\n");
         exit(2);
