@@ -1566,17 +1566,19 @@ git commit -m "feat(landschaften): die Vorgabe steht als Marke auf den Reglern d
 - [x] ⚠️ **Das Handbuch NICHT anfassen.** `html/editor-handbuch.html` gehört der nächtlichen Routine
   (AGENTS.md §9). Die Pflicht hier ist ein Commit-Betreff, der die sichtbare Wirkung nennt — das tun
   die Betreffs oben.
-- [ ] 🔧 **Die Medianwerte einmal wirklich messen** und mit dem Owner Art für Art durchgehen
-  (Entwurf §11).
+- [x] 🔧 **Die Medianwerte einmal wirklich messen** — am 24.08.2026 an 939 Beschriftungen
+  gemessen (Entwurf §11). 🔧 Der Owner-Entscheid je Art steht noch aus; die Messung ersetzt ihn
+  nicht, sie ermöglicht ihn erst.
 
 ### Was am 24.08.2026 NICHT abgenommen werden konnte
 
 ⚠️ Ehrlich benannt statt als bestanden verbucht (AGENTS.md §9):
 
-- **Der Median ist nie gegen die echte Datenbank gelaufen.** Der Messweg steht und ist mit einer
-  Fixture geprüft (`kurven-baselines-lesen-test.php`, `ecosystem-display-test.php`), aber die Zahlen
-  aus den rund 900 Beschriftungen hat noch niemand gesehen. Bis dahin darf niemand sie für gemessen
-  halten -- und die Runde, in der der Owner sie Art für Art ansieht, steht aus.
+- **Der Median lief nie gegen die DATENBANK, wohl aber gegen den Livebestand.** Gemessen wurde am
+  24.08.2026 über die öffentliche Nutzlast (939 Beschriftungen, 28 Arten) — dieselben gespeicherten
+  Werte, aber ein anderer Weg als der des Endpunkts. Für `curve_label_max` reicht dieser Weg
+  nachweislich NICHT (67 von 939), dort ist der Rechner im Fenster die verlässlichere Quelle.
+  Ungeprüft bleibt damit, ob `avesmapsEcosystemDisplayMedians` gegen MySQL dieselben Zahlen liefert.
 - **Kein Handgriff lief mit angemeldeter Sitzung.** Alle Abläufe im Browser liefen gegen gestellte
   Antworten (`?demo=1` plus fetch-Attrappe): das Fenster, die Bandtabelle, der Plot, die
   Kurvenvorschau, die Vorgabemarken. Was dabei NICHT geprüft ist: der Rechteriegel gegen echte

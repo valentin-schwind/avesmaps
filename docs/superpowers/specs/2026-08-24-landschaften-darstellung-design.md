@@ -397,10 +397,36 @@ Nicht am Zahlenblatt, sondern am Ablauf (AGENTS.md §9). Vor „fertig" ausgefü
 
 ## §11 Offene Punkte
 
-* 🔧 **Die echten Medianwerte.** Der Prototyp führt Beispielzahlen und sagt es bei jedem Druck
-  ausdrücklich. Echt wird das mit einer Abfrage über `map_features` (Median von `min_zoom`,
-  `max_zoom`, `curve_label_max`, `priority` je `feature_subtype`, über rund 900 Beschriftungen). Bis
-  dahin darf niemand die Zahlen für gemessen halten.
+* ✅ **Die echten Medianwerte — gemessen am 24.08.2026** an 939 Beschriftungen in 28 Arten, aus
+  einer einzigen Anfrage an `GET /api/app/map-features.php` (kein lokaler Datenbankzugang; der
+  Lesepfad reicht `properties_json` durch und erfindet keine Zoomwerte, die Zahlen sind also die
+  gespeicherten). Entscheidungsvorlage Art für Art als Seite; Messwerkzeug im Scratchpad dieser
+  Sitzung (`median-messen.js`).
+
+  🔴 **Nur EIN Feld trägt eine Aussage, und es ist nicht das, was der Entwurf angenommen hatte.**
+
+  | Feld | gesetzt | weicht von der Vorgabe ab | was das heisst |
+  |---|---|---|---|
+  | `min_zoom` | 939 / 939 | **933** | die uniforme z0-Vorgabe ist für praktisch JEDES Label falsch |
+  | `max_zoom` | 934 / 939 | 23 | das obere Ende hat fast niemand angefasst — **z7 bleibt richtig** |
+  | `priority` | 939 / 939 | **4** | vier Ausreisser im ganzen Bestand; der Median ist dort die Vorgabe selbst |
+  | `curve_label_max` | 67 / 939 | 12 | **von aussen nicht messbar**, siehe unten |
+
+  💣 **`curve_label_max` ist aus der Nutzlast NICHT messbar, und das ist kein Datenmangel, sondern
+  eine Eigenschaft des Lesepfads:** `avesmapsCurveApplyToFeatures` hängt den Schlüssel nur dort an,
+  wo auch eine Kurve gerechnet wurde („Fehlt die Kurve, fehlt der SCHLUESSEL"). Der Rechner im
+  Fenster liest dagegen `properties_json` direkt und sieht jedes Label. **Für dieses eine Feld ist
+  „Median ermitteln" im Fenster die verlässlichere Quelle als jede Messung von aussen.**
+
+  ⚠️ **Ein Median ist nicht überall eine Regel.** Die Einigkeit streut zwischen 33 % und 100 %:
+  `wuestenoase` (9 Namen) steht zu 100 % auf z5, `flussland_flusstal` (31) zu 94 % auf z3,
+  `gebirge` (76) zu 87 % auf z2 — dort ist der Median eine gefundene Regel. Bei `graslandschaft`
+  (33 %), `berggipfel` (38 %) und `auenlandschaft` (40 %) ist er eine Zahl ohne Regel dahinter.
+  Die Zahl allein sagt das nicht; deshalb steht die Einigkeit in der Vorlage neben jedem Wert.
+
+  🔧 **Offen bleibt der Owner-Entscheid je Art** — die Messung ersetzt ihn nicht, sie ermöglicht
+  ihn erst. Und ob die uniforme Vorgabe überhaupt weichen soll: sie zu ändern verschiebt die Karte
+  für jedes Label, das keinen eigenen Wert trägt.
 * 🔧 **„Median für alle Arten ermitteln"** — im Topographie-Reiter sind es 14 Zeilen. Ein Knopf im
   Abschnittskopf wäre eine Kleinigkeit; der Owner hat ihn nicht gefordert.
 * 🔧 **Der Arbeitsordner hinkt hinterher.** Der lokale `master` steht 63 Commits vor und **200 hinter**
