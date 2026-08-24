@@ -674,9 +674,15 @@ function ecosystemPfadeEinsortieren(knoten) {
 		// HINTEN („jeder Pfad unmittelbar vor seinen Nachfolger") ist zwar auch idempotent, kaskadiert
 		// aber, sobald EINE Fläche in die Mitte gehört: der Loader hängt eine neu geladene Fläche ans
 		// Ende der Gruppe, und von dort aus liegt plötzlich jeder Knoten hinter ihrer Sollstelle falsch.
-		// Gemessen: ein Schwenk mit ZWEI nachgeladenen Flächen bewegte **154 von 181** Pfaden -- also
-		// fast wieder alle, und damit war der Schwebezettel unter dem Zeiger weiterhin verloren.
-		// Mit dem Zeiger kostet derselbe Schwenk 2 Bewegungen.
+		// Beide Fassungen an derselben Karte gemessen (avesmaps.de, „Alle", rund 180 Flächen, je EIN
+		// Schwenk): von hinten **112 bewegte Knoten** für 5 nachgeladene Flächen, mit dem Zeiger **6**
+		// für 7. Von hinten war der Schwebezettel unter dem Zeiger also weiterhin verloren.
+		//
+		// 🪤 DIE MESSUNG SELBST HAT EINE FALLE, und ich bin hineingelaufen: ein MutationObserver zählt
+		// die ENTFERNUNGEN des Loaders (Flächen, die aus dem Ausschnitt fallen) genauso wie eine
+		// Umhängung. Getrennt werden sie nur, wenn man die wieder eingehängten Knoten wiedererkennt
+		// (WeakSet über removedNodes). Ohne das kam „154 von 181" heraus -- eine Zahl, die zum Teil
+		// Löschungen war und in der ersten Fassung dieses Kommentars stand.
 		//
 		// 🪤 Fremde Knoten überspringt der Zeiger, statt sich an ihnen aufzuhalten: sie gehören uns
 		// nicht, und sich vor sie zu schieben hiesse, ihre Lage im Stapel stillschweigend zu ändern.

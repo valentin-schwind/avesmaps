@@ -130,9 +130,13 @@ assert.strictEqual(ecosystemPfadeEinsortieren([dA, dB, dC]), 0,
 // 💣 GENAU HIER IST DIE ERSTE FASSUNG DIESES FIXES GESCHEITERT, und sie stand schon live. Sie lief von
 // hinten („jeder Pfad unmittelbar vor seinen Nachfolger") -- idempotent, aber sobald EIN Knoten in der
 // Mitte fehlt, liegt von dort an jeder Knoten hinter seiner Sollstelle, und alle wandern.
-// Live gemessen (avesmaps.de, 24.08.2026): ein Schwenk mit ZWEI nachgeladenen Flächen bewegte
-// **154 von 181** Pfaden. Der Schwebezettel unter dem Zeiger war damit weiterhin verloren -- die
-// Reparatur hatte 181 auf 154 gedrückt und hörte sich trotzdem wie „behoben" an.
+// Live gemessen (avesmaps.de, 24.08.2026, beide Fassungen an derselben Karte, je ein Schwenk):
+// von hinten **112 bewegte Knoten** für 5 nachgeladene Flächen, mit dem Zeiger **6** für 7. Der
+// Schwebezettel unter dem Zeiger war von hinten also weiterhin verloren.
+//
+// 🪤 Die erste Fassung dieses Kommentars sagte „154 von 181" -- gemessen mit einem
+// MutationObserver, der die ENTFERNUNGEN des Loaders mitzählte. Wer Umhängungen zählen will,
+// muss die wieder eingehängten Knoten wiedererkennen (WeakSet), sonst zählt er Löschungen mit.
 //
 // 🔴 Der Loader hängt eine neue Fläche IMMER ans Ende der Gruppe (Leaflet `addTo`), ihre `stack_order`
 // setzt sie aber irgendwohin. Dieser Fall ist deshalb nicht der Sonderfall, sondern der Normalfall
