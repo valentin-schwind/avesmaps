@@ -29,7 +29,18 @@ require __DIR__ . '/../../_internal/bootstrap.php';
 require __DIR__ . '/../../_internal/auth.php';
 require_once __DIR__ . '/../../_internal/map/kartenarchiv.php';
 
-$config = avesmapsLoadApiConfig(avesmapsApiRoot());
+// 💣 IM TRY, wie in den uebrigen zwanzig Endpunkten. Bar aufgerufen wirft
+// avesmapsLoadApiConfig() bei fehlender config.local.php eine RuntimeException auf
+// DATEIEBENE -- unbehandelt, also ein Fatal, und ein Fatal antwortet mit einem LEEREN
+// RUMPF. Der Aufrufer sieht "Unexpected end of JSON input" und sucht den Fehler im Netz.
+// Gefunden vom Rauchtest (tools/rauchtest/) beim allerersten Lauf: fuenf Endpunkte, alle
+// mit 500 und null Bytes. Live faellt es heute nicht auf, weil die Konfiguration da ist --
+// es faellt genau dann auf, wenn sie es einmal nicht ist, und dann ohne jeden Hinweis.
+try {
+    $config = avesmapsLoadApiConfig(avesmapsApiRoot());
+} catch (Throwable $fehler) {
+    avesmapsErrorResponse(503, 'service_unavailable', 'Es wurde keine API-Konfiguration gefunden.');
+}
 if (!avesmapsApplyCorsPolicy($config)) {
     avesmapsErrorResponse(403, 'origin_not_allowed', 'Diese Herkunft darf das Kartenarchiv nicht laden.');
 }
