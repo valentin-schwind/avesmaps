@@ -89,7 +89,11 @@
 	// Siedlungen ausgenommen (zu kleinteilig). Pro Move neu gezeichnet (redraw läuft eh bei jedem moveend/zoom).
 	// Weiß, halbtransparent, KEIN Glow/Schatten. Notausschalter ?borderlabels=0.
 	const TERRITORY_BORDER_LABELS_ENABLED = (() => { try { return new URLSearchParams(window.location.search).get("borderlabels") !== "0"; } catch (e) { return true; } })();
-	const TERRITORY_LABEL_MIN_ZOOM = 4;
+	// 🔴 z5, NICHT z4 (Owner 24.08.2026: „von z4 (0) --> z5 (0.75)“). Bis dahin erschienen die
+	// Namen bei z4 in voller Staerke; jetzt gibt es sie bei z4 gar nicht und sie blenden beim
+	// Schritt auf z5 ein. ⚠️ Die Tabellen darunter behalten ihren z4-Eintrag -- er ist damit tot,
+	// aber er ist der Rueckweg, falls die Schwelle je wieder auf 4 soll.
+	const TERRITORY_LABEL_MIN_ZOOM = 5;
 	const TERRITORY_LABEL_EXCLUDE = /^(Baronie|Junkertum|Vogtei|Rittergut|Freiherrschaft|Reichsstadt|Stadt)\b/i;
 	// PRO ZOOMSTUFE (4/5/6) -- Labels zeigen nur ab Zoom 4. Live tunbar via ?labeltune=1 (Slider mutieren diese
 	// Objekte; OK-Button schreibt den Stand nach window.__avesmapsBorderLabelTuning zum Übernehmen als Default).
@@ -364,6 +368,66 @@
 	map.getPane(PANE).appendChild(canvas);
 	const ctx = canvas.getContext("2d");
 
+	// 🔴 DIE BESCHRIFTUNG BEKOMMT EINE EIGENE CANVAS -- und das ist der ganze Grund fuer diesen Umbau.
+	// Owner 24.08.2026: „ich will, dass die grenzbeschriftungen animiert einblenden von z4 (0) --> z5
+	// (0.75) in ... millisekunden ... halt nicht nur fuer die grenzbeschriftungen sondern fuer alles
+	// auf der karte“. Gemeint ist eine ZEITANIMATION beim Ueberschreiten der Schwelle -- nicht eine
+	// abgestufte Deckkraft je Zoomstufe (das war f6667300, zu Recht zurueckgenommen).
+	// 💣 EINE CANVAS HAT NUR EINE DECKKRAFT. Solange Linien und Namen auf derselben Flaeche liegen,
+	// kann man die Namen nicht blenden, ohne die Linien mitzublenden. Deshalb zwei Flaechen.
+	// 💣 UND NEU ZEICHNEN GEHT NICHT: ein redraw() blockiert live gemessen 52-99 ms (Pan bei z5).
+	// Eine 350-ms-Blende Bild fuer Bild waeren 5-10 Redraws -- die Karte stuende still. Die Deckkraft
+	// EINES Elements animiert dagegen der Compositor, ohne den Hauptthread anzufassen; genau daran
+	// liegt es, dass die Ortsmarkierungen (auch eine Canvas) so weich blenden.
+	const labelCanvas = document.createElement("canvas");
+	labelCanvas.style.position = "absolute";
+	labelCanvas.style.pointerEvents = "none";
+	labelCanvas.style.top = "0";
+	labelCanvas.style.left = "0";
+	labelCanvas.style.transformOrigin = "0 0";
+	labelCanvas.style.opacity = "0";           // startet unsichtbar -> die erste Anzeige ist auch eine Blende
+	labelCanvas.classList.add("leaflet-zoom-animated", "avesmaps-border-label-canvas");
+	map.getPane(PANE).appendChild(labelCanvas); // NACH der Linien-Canvas -> zeichnet darueber
+	const labelCtx = labelCanvas.getContext("2d");
+
+	// Dauer der Blende. ⭐ Live probierbar ohne Deploy: ?labelfade=600 (ms).
+	// ⚠️ Sie steht als CSS-Variable am Element, NICHT als Inline-`transition`: die Zoom-Animation
+	// setzt `style.transition` fuer die Transform, und `transition` ist EINE Eigenschaft -- inline
+	// gesetzt wuerde die eine die andere ausloeschen. Die zwei Regeln in css/features/map-labels.css
+	// trennen das ueber die Spezifitaet: waehrend `.leaflet-zoom-anim` liegt, gewinnt die Transform.
+	const TERRITORY_LABEL_FADE_MS = (() => {
+		try {
+			const roh = new URLSearchParams(window.location.search).get("labelfade");
+			const wert = Number(roh);
+			if (roh !== null && Number.isFinite(wert) && wert >= 0) { return wert; }
+		} catch (e) { /* ohne Adresszeile die Vorgabe */ }
+		return 350;
+	})();
+	labelCanvas.style.setProperty("--border-label-fade", TERRITORY_LABEL_FADE_MS + "ms");
+
+	// Ob beim letzten redraw wirklich Namen gezeichnet wurden. 🔴 Der Wert wird VOR den vorzeitigen
+	// `return`s in redraw() zurueckgesetzt und erst an der Zeichenstelle gesetzt -- so stimmt die
+	// Blende auch dann, wenn redraw() unterwegs aussteigt (Haken aus, falscher Modus).
+	let grenzLabelsGezeichnet = false;
+
+	/**
+	 * Setzt die Blende auf den Stand des letzten redraw -- aber erst, wenn wirklich wieder gezeichnet
+	 * wird.
+	 * 💣 DIE ZWEI requestAnimationFrame SIND TRAGEND, NICHT VORSICHT. Am zoomend blockiert der
+	 * Hauptthread live gemessen 215 ms (Standard) bis 836 ms (Politisch). Ein Uebergang, der dort
+	 * startet, verstreicht vollstaendig, ohne dass ein Bild davon gezeichnet wird -- er ist fertig,
+	 * sobald wieder gezeichnet werden kann, und sieht aus wie ein Sprung. Genau das hat der Owner am
+	 * 24.08.2026 als „blippt und ist dann woanders“ gemeldet. Das erste Bild kommt NACH der
+	 * synchronen Arbeit, das zweite erst, wenn davon etwas auf dem Schirm stand.
+	 */
+	function blendeNachZeichnung() {
+		requestAnimationFrame(function () {
+			requestAnimationFrame(function () {
+				labelCanvas.style.opacity = grenzLabelsGezeichnet ? "1" : "0";
+			});
+		});
+	}
+
 	// LatLng der oberen linken Canvas-Ecke (Container 0,0) beim letzten Redraw — Anker für
 	// die Zoom-Animations-Transform (wie L.ImageOverlay._animateZoom).
 	let canvasTopLeftLatLng = null;
@@ -505,6 +569,21 @@
 		ctx.setTransform(1, 0, 0, 1, 0, 0);
 		ctx.clearRect(0, 0, canvas.width, canvas.height);
 		ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+		// 💣 DIE ZWEITE FLAECHE MUSS IM GLEICHSCHRITT BLEIBEN -- gleiche Lage, gleiche Groesse, gleicher
+		// dpr. Liefe sie auseinander, staenden die Namen neben ihren Grenzen, und das saehe nach einem
+		// Rechenfehler in der Geometrie aus statt nach zwei Flaechen. Deshalb Zeile fuer Zeile dasselbe,
+		// direkt darunter und aus denselben Variablen.
+		L.DomUtil.setPosition(labelCanvas, topLeft);
+		if (labelCanvas.width !== pw) labelCanvas.width = pw;
+		if (labelCanvas.height !== ph) labelCanvas.height = ph;
+		if (labelCanvas.style.width !== size.x + "px") labelCanvas.style.width = size.x + "px";
+		if (labelCanvas.style.height !== size.y + "px") labelCanvas.style.height = size.y + "px";
+		labelCtx.setTransform(1, 0, 0, 1, 0, 0);
+		labelCtx.clearRect(0, 0, labelCanvas.width, labelCanvas.height);
+		labelCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+		// Ab hier gilt: erst wenn unten wirklich gezeichnet wurde, blendet die Flaeche ein.
+		grenzLabelsGezeichnet = false;
+		blendeNachZeichnung();
 
 		// Grenzen (Außen + Innen, OHNE Fuellung/Labels) zeichnen in political/deregraphic/ecosystem.
 		// In "none" ("Nur Karte") bleibt das (geleerte) Canvas leer -> dort gewollt KEINE Grenzen; ohne
@@ -619,7 +698,8 @@
 		// (Political zeigt die Namen schon als normale Labels; deshalb dort nicht.)
 		if (TERRITORY_BORDER_LABELS_ENABLED && currentMapLayerMode === "deregraphic"
 			&& Math.round(Number(map.getZoom())) >= TERRITORY_LABEL_MIN_ZOOM) {
-			drawTerritoryBorderLabels(ctx);
+			drawTerritoryBorderLabels(labelCtx);
+			grenzLabelsGezeichnet = true;
 		}
 	}
 
@@ -657,6 +737,11 @@
 		const scale = map.getZoomScale(event.zoom);
 		const offset = map._latLngToNewLayerPoint(canvasTopLeftLatLng, event.zoom, event.center);
 		L.DomUtil.setTransform(canvas, offset, scale);
+		// 💣 DIE ZWEITE FLAECHE BRAUCHT DIESELBE TRANSFORM, SONST BLEIBT DIE SCHRIFT BEIM ZOOMEN STEHEN
+		// und rutscht erst am zoomend an ihren Platz -- der Fehler saehe aus wie eine falsche Geometrie.
+		// ⚠️ Ihre Transition kommt aus css/features/map-labels.css, NICHT inline: eine Inline-`transition`
+		// wuerde die Blenden-Regel dauerhaft ausloeschen (es ist EINE Eigenschaft, und inline gewinnt).
+		L.DomUtil.setTransform(labelCanvas, offset, scale);
 	});
 	// flyTo/setView: pro 'zoom'-Frame neu zeichnen (nur wenn KEIN CSS-Zoom läuft -> sonst Transform).
 	map.on("zoom", function () { if (!cssZoomActive) redraw(); });

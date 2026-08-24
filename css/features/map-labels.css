@@ -214,6 +214,23 @@ body.edit-mode .map-label img {
 	transform: translate(-50%, -50%);
 }
 
+/* Die Grenzbeschriftung blendet beim Ueberschreiten ihrer Erscheinungsstufe zeitanimiert ein und aus
+   (Owner 24.08.2026: „animiert einblenden von z4 (0) --> z5 (0.75)“). Sie liegt dafuer auf einer
+   EIGENEN Canvas ueber den Grenzlinien -- eine Canvas hat nur eine Deckkraft, und die Linien sollen
+   nicht mitblenden. Die Deckkraft eines einzelnen Elements animiert der Compositor, ohne den
+   Hauptthread anzufassen; neu zu zeichnen waere unbezahlbar (ein redraw kostet gemessen 52-99 ms).
+   💣 ZWEI REGELN, UND DIE ZWEITE IST KEIN VERSEHEN: `transition` ist EINE Eigenschaft. Waehrend der
+   Zoom-Animation braucht die Flaeche die Transform-Transition ihrer Nachbarn (sonst springt sie auf
+   die Endgroesse, statt mitzuskalieren); danach braucht sie die Blende. Die zweite Regel hat die
+   hoehere Spezifitaet und gewinnt genau fuer die Dauer der Zoom-Animation. Beide ueberlappen sich
+   zeitlich nicht: die Blende startet erst zwei Bilder NACH dem zoomend (blendeNachZeichnung). */
+.avesmaps-border-label-canvas {
+	transition: opacity var(--border-label-fade, 350ms) ease;
+}
+.leaflet-zoom-anim .avesmaps-border-label-canvas {
+	transition: transform 250ms cubic-bezier(0, 0, 0.25, 1);
+}
+
 /* Alle Karten-Text-Labels faden waehrend der Leaflet-Zoom-Animation weich aus und nach dem Zoom wieder ein --
    analog zu den Siedlungs-Markern, die beim Zoom nicht mitskalieren und sonst "ploppen". Betrifft beide Label-
    Panes: regionLabelsPane (Herrschaftsgebiet-/Reichsnamen) und labelsPane (Ortsnamen, Landschafts-/Regionsnamen,
