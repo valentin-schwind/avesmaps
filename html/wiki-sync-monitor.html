@@ -425,6 +425,8 @@
      Trichter-Nachimplementierung dieser Seite und die zwei „Zeige nur"-Zeilen. -->
 <script src="/js/ui/wappen-quelle.js"></script>
 <script src="/js/ui/filter-menu.js"></script>
+<!-- Das Sammelmenue im Menueband (Wappen-Knopf) -- abhaengigkeitsfrei wie der Trichter daneben. -->
+<script src="/js/ui/ribbon-menu.js"></script>
 <!-- Verschiebbare Fenster: greift die .modal-title dieser Seite. Die Fenster der Hauptseite bedient
      dieselbe Datei dort; ein iframe braucht seine eigene Kopie, sein Dokument ist ein anderes. -->
 <script src="/js/ui/dialog-drag.js"></script>
@@ -652,21 +654,9 @@ async function toggleCoatSwitch(ev){
 }
 
 // ---- Auf- und Zuklappen ---------------------------------------------------------------------
-// 💣 Der Zustand ist das `hidden`-Attribut des Panels und sonst nichts.
-function setCoatsMenuOpen(open){
-  const panel = $('btnCoatsMenuPanel'), btn = $('btnCoatsMenu');
-  if (!panel || !btn) return;
-  panel.hidden = !open;
-  btn.setAttribute('aria-expanded', open ? 'true' : 'false');
-}
-$('btnCoatsMenu')?.addEventListener('click', (ev) => {
-  ev.stopPropagation();
-  setCoatsMenuOpen($('btnCoatsMenuPanel')?.hidden === true);
-});
-// ⚠️ Der Klick INS Menü darf es nicht zuklappen — sonst schließt jeder Schalterdruck das Menü.
-$('btnCoatsMenuPanel')?.addEventListener('click', (ev) => ev.stopPropagation());
-document.addEventListener('click', () => setCoatsMenuOpen(false));
-document.addEventListener('keydown', (ev) => { if (ev.key === 'Escape') setCoatsMenuOpen(false); });
+// 🔴 EINMAL, in js/ui/ribbon-menu.js -- hier standen dieselben 16 Zeilen wie im Ortseditor, nur mit
+// anderem Präfix. Siehe den Kopf jener Datei; der Zustand bleibt das `hidden` des Panels.
+avesmapsRibbonMenuAttachById('btnCoatsMenu', 'btnCoatsMenuPanel');
 $('btnCoatsLocal')?.addEventListener('click', toggleCoatSwitch);
 $('btnCoatsWiki')?.addEventListener('click', toggleCoatSwitch);
 

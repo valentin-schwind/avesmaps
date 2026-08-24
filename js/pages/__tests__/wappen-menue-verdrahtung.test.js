@@ -117,7 +117,10 @@ for (const [name, html] of BEIDE) {
 	pruefe(/\.controls\s*\{[^}]*grid-auto-columns\s*:\s*minmax\(0\s*,\s*1fr\)/.test(html),
 		`${name}: der Wirt .controls ist noch ein Grid mit gleich breiten Spalten`);
 }
-pruefe(/\.rb-menu\s*>\s*\.btn2\s*\{[^}]*width:\s*100%/.test(CSS),
+// ⚠️ Seit 24.08.2026 nennt die Regel BEIDE Kachelformen (`.btn2` hier, `.avm-tile` im
+// Landschaften-Editor) -- auf `.btn2` folgt also ein Komma, keine Klammer. Der Test prueft
+// weiterhin dasselbe: dass der Knopf seine Gitterspalte fuellt.
+pruefe(/\.rb-menu\s*>\s*\.btn2\s*[,{][^}]*width:\s*100%/.test(CSS),
 	'DER KERN VON TEIL 6: der Knopf in der Huelle fuellt seine Gitterspalte');
 const huelle = CSS.slice(CSS.indexOf('.rb-menu {'), CSS.indexOf('.rb-menu__panel'));
 pruefe(!/flex:\s*0\s+0\s+auto/.test(huelle),
@@ -188,8 +191,17 @@ const KENNUNGEN = [
 for (const [name, html, ids] of KENNUNGEN) {
 	for (const id of ids) {
 		pruefe(html.includes(`id="${id}"`), `${name}: ${id} fehlt im Markup`);
-		pruefe(html.includes(`$('${id}')`) || html.includes(`$("${id}")`),
-			`${name}: ${id} wird im Skript nie nachgeschlagen`);
+		// ⚠️ Zwei Wege zaehlen als „angefasst": der eigene Nachschlag `$('id')` und die Uebergabe an
+		// das geteilte Menue-Bauteil, das seit dem 24.08.2026 die zwei Klapp-Kennungen bekommt
+		// (js/ui/ribbon-menu.js schlaegt sie selbst nach). Der Punkt der Zusicherung ist unveraendert:
+		// keine Kennung, die nur im Markup steht und nie jemand anfasst.
+		// 🪤 Beim Bau stand hier kurz `html.includes('"' + id + '"')` als zweiter Weg -- das trifft
+		// `id="seCoatsMenu"` IM MARKUP und macht die Zusicherung damit trivial wahr, sobald die Zeile
+		// darueber wahr ist. Der Aufruf muss BENANNT werden, sonst prueft der Test sich selbst.
+		const uebergeben = new RegExp('avesmapsRibbonMenuAttachById\\(\\s*[\'"][^\'"]+[\'"]\\s*,\\s*[\'"][^\'"]+[\'"]\\s*\\)')
+			.test(html) && new RegExp('avesmapsRibbonMenuAttachById\\([^)]*[\'"]' + id + '[\'"]').test(html);
+		const angefasst = html.includes(`$('${id}')`) || html.includes(`$("${id}")`) || uebergeben;
+		pruefe(angefasst, `${name}: ${id} wird im Skript nie nachgeschlagen`);
 	}
 	pruefe(!html.includes("$('btnCoatsToggle')") && !html.includes('$("seCoatsToggle")'),
 		`${name}: der entfernte Einzelschalter wird nirgends mehr angefasst`);
@@ -206,16 +218,16 @@ for (const [name, html, ids] of KENNUNGEN) {
 // Verdopplung grundsätzlich nicht sehen; sie braucht eine eigene Zusicherung.
 const EINMALIG = [
 	['Ortseditor', ORTE, [
-		'function setCoatsSwitchStates', 'function setCoatsMenuOpen', 'async function toggleCoatSwitch',
-		'$("seCoatsMenu")?.addEventListener', '$("seCoatsMenuPanel")?.addEventListener',
+		'function setCoatsSwitchStates', 'async function toggleCoatSwitch',
 		'$("seCoatsLocal")?.addEventListener', '$("seCoatsWiki")?.addEventListener',
 		'$("seImagesToggle")?.addEventListener', 'function renderCoatsMenuState',
 		'async function pruefeWappenfelder',
+		'avesmapsRibbonMenuAttachById("seCoatsMenu", "seCoatsMenuPanel")',
 	]],
 	['Territorien-Editor', TERRITORIEN, [
-		'function setCoatsSwitchStates', 'function setCoatsMenuOpen', 'async function toggleCoatSwitch',
-		"$('btnCoatsMenu')?.addEventListener", "$('btnCoatsMenuPanel')?.addEventListener",
+		'function setCoatsSwitchStates', 'async function toggleCoatSwitch',
 		"$('btnCoatsLocal')?.addEventListener", "$('btnCoatsWiki')?.addEventListener",
+		"avesmapsRibbonMenuAttachById('btnCoatsMenu', 'btnCoatsMenuPanel')",
 	]],
 ];
 for (const [name, html, stellen] of EINMALIG) {
@@ -227,11 +239,28 @@ for (const [name, html, stellen] of EINMALIG) {
 	}
 }
 
-// ⚠️ Und die Aussenklick-Wache genau einmal je Dokument: zweimal registriert schliesst sie das
-// Menü, das der andere Handler gerade geöffnet hat.
+// ---- 9c. Das Klappverhalten liegt EINMAL, in js/ui/ribbon-menu.js -----------------------------
+// 🔴 Seit 24.08.2026. Vorher standen dieselben 16 Zeilen in BEIDEN Dokumenten, und der dritte
+// Editor (Landschaften) hätte die dritte Kopie bekommen -- der Weg, den AGENTS.md §11 für die
+// Listenzeilen (sieben Rezepturen) und die Wiki-Zuweisung (sechs Fassungen) schon zweimal
+// beschreibt. Die Einmaligkeit selbst prüft js/ui/__tests__/ribbon-menu.test.js; hier steht nur,
+// dass keiner der beiden Wirte wieder eine eigene Fassung anlegt.
 for (const [name, html] of BEIDE) {
-	const wachen = (html.match(/document\.addEventListener\(['"]click['"], \(\) => setCoatsMenuOpen\(false\)\)/g) || []).length;
-	pruefe(wachen === 1, `${name}: die Aussenklick-Wache ist ${wachen}x registriert, erwartet 1x`);
+	pruefe(!/function setCoatsMenuOpen/.test(html),
+		`${name}: die eigene Klapp-Funktion ist wieder da -- das Verhalten gehört in js/ui/ribbon-menu.js`);
+	pruefe(!/document\.addEventListener\(['"]click['"],\s*\(\)\s*=>\s*setCoatsMenuOpen/.test(html),
+		`${name}: eine eigene Aussenklick-Wache ist wieder da`);
+	// 💣 Und der Aufruf braucht seine Datei. Ein `avesmapsRibbonMenuAttachById(...)` ohne das
+	// <script>-Tag ist ein ReferenceError beim Laden, der die GANZE Seite mitnimmt -- nicht nur das
+	// Menü. ⚠️ Geprüft wird der TAG, nicht der Dateiname: beim Bau meldete eine Prüfung auf
+	// "ribbon-menu.js" Vollzug, weil sie den frisch geschriebenen KOMMENTAR fand (dieselbe Falle,
+	// die dieser Test in seinem eigenen Teil 5 schon einmal hatte).
+	pruefe(html.includes('<script src="/js/ui/ribbon-menu.js"></script>'),
+		`${name}: das <script>-Tag für ribbon-menu.js fehlt -- der Aufruf wäre ein ReferenceError`);
+	const tagBei = html.indexOf('<script src="/js/ui/ribbon-menu.js"></script>');
+	const rufBei = html.indexOf('avesmapsRibbonMenuAttachById(');
+	pruefe(tagBei > -1 && rufBei > tagBei,
+		`${name}: der Aufruf steht VOR dem <script>-Tag -- Ladereihenfolge ist hier ein Vertrag`);
 }
 
 // ---- 10. Die Wappenfeld-Pruefung haengt am Hole-Lauf und fragt, bevor sie schreibt -------------

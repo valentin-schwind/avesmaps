@@ -89,7 +89,7 @@ vm.createContext(kasten);
 // ⚠️ `js/ui/filter-menu.js` steht hier NICHT wegen dieser Aufgabe, sondern weil der inline-Block
 // beim Auswerten `avmRangeStateCreate` ruft (Zeitfilter des Baums). Ohne die Datei bricht der
 // Sandkasten, bevor er die erste Zeile dieses Tests erreicht.
-["js/ui/filter-menu.js",
+["js/ui/ribbon-menu.js", "js/ui/filter-menu.js",
 	"js/ui/wiki-assign-registry.js", "js/ui/wiki-assign-diff.js", "js/ui/wiki-feld-herkunft.js",
 	"js/ui/wiki-assign.js", "js/ui/wiki-assign-ort.js"].forEach((datei) => {
 	vm.runInContext(fs.readFileSync(path.join(wurzel, datei), "utf8"), kasten, { filename: datei });

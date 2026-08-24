@@ -56,12 +56,43 @@
 <div class="avm-ribbon-bar">
   <div class="avm-ribbon">
     <button type="button" class="avm-tile avm-tile--primary" id="ecoSync" data-i18n-title="ecosystem.editor.sync.title" title="Übernimmt die Regionen aus dem zuletzt gelesenen Dump in die Staging-Tabellen (Wave 2 Syncen). Läuft im Hauptfenster; das Ergebnis erscheint hier in der Statuszeile."><span class="t1" data-i18n="ecosystem.editor.ribbon.sync">🚨 Syncen</span><span class="t2" id="ecoSyncInfo" data-i18n="ecosystem.editor.ribbon.syncInfo">Regionen aus dem Wiki-Dump</span></button>
-    <button type="button" class="avm-tile" id="ecoRaycast" data-i18n-title="ecosystem.editor.raycast.title" title="Rechnet, welche Flächen ineinander liegen, in welchem Territorium sie liegen und welche Wege durch sie führen — und speichert das Ergebnis. Gezählt ab 10 % der kleineren der beiden Flächen; gespeichert wird je Richtung der eigene Anteil."><span class="t1" data-i18n="ecosystem.editor.ribbon.raycast">Zugehörigkeit rechnen</span><span class="t2" id="ecoRaycastInfo" data-i18n="ecosystem.editor.ribbon.raycastIdle">noch nicht gerechnet</span></button>
+    <!-- 🔴 „Rechnen ▾" — die vier Batch-Läufe in EINEM Sammelmenü (Owner-Entscheid 24.08.2026,
+         Entwurf C in docs/landschaften-menueband-mockup.html). Vorher standen sie als vier eigene
+         Kacheln im Band; bei 1024 px Fensterbreite waren dadurch vier Überschriften und zwei
+         Unterzeilen mit Ellipse gekürzt (gemessen). Jetzt keine einzige.
+         ⚠️ Die vier behalten ihre Kennungen (`ecoRaycast`, `ecoHeightmap`, `ecoProfiles`,
+         `ecoCurves`) und ihre Info-Spans — das Skript darunter fasst sie unverändert an, inklusive
+         `.disabled` während eines Laufs. Nur ihr Ort und ihre Klasse ändern sich.
+         💣 DREI DER VIER LAUFEN LANGE (Kurven rund 20 s). Ein zugeklapptes Menü nähme dem Editor
+         die Rückmeldung — deshalb sagt die Unterzeile des Sammelknopfs, welcher Lauf gerade läuft
+         (`ecoRunMenuState`, verdrahtet unten). Ohne diese Zeile darf hier nichts hinein. -->
+    <div class="rb-menu">
+      <button type="button" class="avm-tile" id="ecoRunMenu" aria-haspopup="true" aria-expanded="false" title="Die vier Läufe, die dieser Editor anstößt: Zugehörigkeit, Höhenraster, Wegprofile und Beschriftungskurven. Jeder rechnet in Schüben und legt sein Ergebnis ab; keiner wird beim Anzeigen nachgerechnet."><span class="t1">Rechnen ▾</span><span class="t2" id="ecoRunMenuState">vier Läufe</span></button>
+      <div class="rb-menu__panel type-filter__menu" id="ecoRunMenuPanel" hidden>
+        <div class="rb-menu__row">
+          <div class="rb-menu__txt"><b data-i18n="ecosystem.editor.ribbon.raycast">Zugehörigkeit</b><span id="ecoRaycastInfo" data-i18n="ecosystem.editor.ribbon.raycastIdle">noch nicht gerechnet</span></div>
+          <button type="button" class="rb-menu__sw" id="ecoRaycast" data-i18n-title="ecosystem.editor.raycast.title" title="Rechnet, welche Flächen ineinander liegen, in welchem Territorium sie liegen und welche Wege durch sie führen — und speichert das Ergebnis. Gezählt ab 10 % der kleineren der beiden Flächen; gespeichert wird je Richtung der eigene Anteil.">starten</button>
+        </div>
+        <div class="rb-menu__row">
+          <div class="rb-menu__txt"><b>Höhenraster</b><span id="ecoHeightmapInfo">noch nicht gerechnet</span></div>
+          <button type="button" class="rb-menu__sw" id="ecoHeightmap" title="Rechnet je Gebirgsfläche ihr Höhenraster im Browser und speichert es — eine Anfrage je Fläche. Der Pixelwert ist die Höhe in Schritt.">starten</button>
+        </div>
+        <div class="rb-menu__row">
+          <div class="rb-menu__txt"><b>Wegprofile</b><span id="ecoProfilesInfo">noch nicht gerechnet</span></div>
+          <button type="button" class="rb-menu__sw" id="ecoProfiles" title="Leitet aus den gespeicherten Höhenrastern je Weg Anstieg und Gefälle ab. Läuft in Stücken auf dem Server; nichts davon wird beim Routen nachgerechnet.">starten</button>
+        </div>
+        <div class="rb-menu__row">
+          <div class="rb-menu__txt"><b>Kurven</b><span id="ecoCurvesInfo">noch nicht gerechnet</span></div>
+          <button type="button" class="rb-menu__sw" id="ecoCurves" title="Rechnet die Beschriftungskurven aller eingeschalteten Landschaftsflächen neu und legt sie ab. Beim ERSTEN Lauf schaltet er ausserdem jede Fläche ein, deren Name heute von Hand gedreht ist (rund 56). Nur Admin; laeuft einige Sekunden.">starten</button>
+        </div>
+      </div>
+    </div>
     <button type="button" class="avm-tile" id="ecoAssignAll" title="Verknüpft alle Karten-Label, deren Name zu einer Wiki-Landschaft passt (Aventurien). Zeigt erst, wie viele es wären, und schreibt erst nach Ihrer Bestätigung. Bereits richtig Verbundene bleiben unberührt; eine abweichende Zuordnung wird überschrieben — auch eine von Hand gesetzte. Passt die Wiki-Art nicht zum Label-Typ, wird übersprungen."><span class="t1">Wiki zuweisen</span><span class="t2" id="ecoAssignAllInfo">noch nicht geprüft</span></button>
-    <button type="button" class="avm-tile" id="ecoHeightmap" title="Rechnet je Gebirgsfläche ihr Höhenraster im Browser und speichert es — eine Anfrage je Fläche. Der Pixelwert ist die Höhe in Schritt."><span class="t1">Höhenraster rechnen</span><span class="t2" id="ecoHeightmapInfo">noch nicht gerechnet</span></button>
-    <button type="button" class="avm-tile" id="ecoProfiles" title="Leitet aus den gespeicherten Höhenrastern je Weg Anstieg und Gefälle ab. Läuft in Stücken auf dem Server; nichts davon wird beim Routen nachgerechnet."><span class="t1">Wegprofile rechnen</span><span class="t2" id="ecoProfilesInfo">noch nicht gerechnet</span></button>
+    <!-- 🔴 Der Schalter bleibt DRAUSSEN, obwohl er thematisch zu Höhenraster und Wegprofilen gehört:
+         er ist kein Lauf, sondern ein Notaus, der für ALLE Besucher wirkt
+         (`app_setting['terrain_travel_enabled']`). Ein Notaus, dessen Stand man aufklappen muss, ist
+         keiner — dieselbe Regel, die beim Wappen-Menü die Unterzeile erzwingt. -->
     <button type="button" class="avm-tile" id="ecoTerrainTravel" title="Rechnet Anstieg und Gefälle in die Reisezeiten ein — für alle Besucher. AUS heisst Zeile für Zeile die heutigen Zahlen."><span class="t1">Geländeabhängiges Reisen</span><span class="t2" id="ecoTerrainTravelInfo">Zustand unbekannt</span></button>
-    <button type="button" class="avm-tile" id="ecoCurves" title="Rechnet die Beschriftungskurven aller eingeschalteten Landschaftsflächen neu und legt sie ab. Beim ERSTEN Lauf schaltet er ausserdem jede Fläche ein, deren Name heute von Hand gedreht ist (rund 56). Nur Admin; laeuft einige Sekunden."><span class="t1">Kurven rechnen</span><span class="t2" id="ecoCurvesInfo">noch nicht gerechnet</span></button>
     <!-- Die Kachel „Landschaftsmodul" ist am 2026-08-01 mit dem Totmannschalter entfallen (Owner-Auftrag).
          ⚠️ Nicht verwechseln mit „Geländeabhängiges Reisen" darüber: das ist V11s EIGENER Schalter
          (app_setting['terrain_travel_enabled']) und der bleibt. -->
@@ -115,6 +146,8 @@
 <script src="/js/app/i18n-en.js"></script>
 <script src="/js/app/i18n.js"></script>
 <script src="/js/ui/filter-menu.js"></script>
+<!-- Das Sammelmenue im Menueband (Rechnen) -- abhaengigkeitsfrei wie der Trichter darueber. -->
+<script src="/js/ui/ribbon-menu.js"></script>
 <!-- Der geteilte Quellen-Editor. ⚠️ source-autocomplete.js ZUERST: review-feature-sources.js
      verdrahtet die Vorschlagsliste beim Mounten. Beide sind dieselben Dateien, die der Orte- und
      der Kraftlinien-Editor laden -- eine Objektart mehr, keine zweite Umsetzung (AGENTS.md §5). -->
@@ -2265,8 +2298,57 @@ function wireRibbon() {
 	$("ecoCurves").addEventListener("click", () => { void runCurveLabels(); });
 	$("ecoTerrainTravel").addEventListener("click", () => { void toggleTerrainTravel(); });
 
+	// ---- Das Sammelmenü „Rechnen ▾" ------------------------------------------------------------
+	// Auf- und Zuklappen kommt aus js/ui/ribbon-menu.js -- dasselbe Bauteil wie beim Wappen-Menü im
+	// Orte- und Territorien-Editor. Hier steht nur, was DIESES Menü zusätzlich braucht.
+	avesmapsRibbonMenuAttachById("ecoRunMenu", "ecoRunMenuPanel");
+	verdrahteRechnenStand();
+
 	// Hier hing der Totmannschalter (`set_enabled`). Abgeschafft am 2026-08-01: sein Aus-Zustand legte
 	// nicht nur die Ebene still, sondern auch V10 „Führt durch" im Reiseplaner jedes Besuchers.
+}
+
+// ---- Die Unterzeile von „Rechnen ▾" ------------------------------------------------------------
+// 💣 DIESE ZEILE IST DIE BEDINGUNG DAFÜR, DASS DIE VIER LÄUFE ÜBERHAUPT IN EIN MENÜ DÜRFEN. Drei von
+// ihnen laufen lange (Kurven rund 20 s, und der Kommentar an `runCurveLabels` sagt es selbst: „ohne
+// diesen Satz sieht ein Editor eine tote Seite"). Zugeklappt wäre die Rückmeldung weg -- also trägt
+// der Sammelknopf sie. Dieselbe Regel wie beim Wappen-Menü, wo die Unterzeile den Notaus-Stand nennt.
+//
+// ⭐ Gelesen wird `disabled` der vier Knöpfe, nicht ein eigener Zustand: die vier Lauf-Funktionen
+// setzen es ohnehin (`tile.disabled = true` beim Start, `false` im `finally`), und ein zweiter
+// Zustand daneben liefe beim ersten `return` im Fehlerpfad auseinander. Ein `MutationObserver` ist
+// hier das genaue Werkzeug -- er beobachtet die WAHRHEIT statt sie nachzubauen.
+//
+// ⚠️ Was hier bewusst NICHT steht: „N von 4 gerechnet". Das Mockup schlug es vor, aber es gibt
+// keinen solchen Zustand -- die vier Info-Zeilen tragen freien Text („4 Flächen · 12 Territorien",
+// „fehlgeschlagen"), und beim Laden steht bei allen „noch nicht gerechnet", egal was der Server hat.
+// Ein Zähler daraus wäre ein Textvergleich, der bei der nächsten Formulierung lautlos falsch wird.
+const RECHNEN_LAEUFE = [
+	["ecoRaycast", "Zugehörigkeit"],
+	["ecoHeightmap", "Höhenraster"],
+	["ecoProfiles", "Wegprofile"],
+	["ecoCurves", "Kurven"],
+];
+let rechnenZuletzt = "";
+
+function zeigeRechnenStand() {
+	const zeile = $("ecoRunMenuState");
+	if (!zeile) return;
+	const laeuft = RECHNEN_LAEUFE.find(([id]) => $(id)?.disabled === true);
+	if (laeuft) { zeile.textContent = laeuft[1] + " rechnet …"; return; }
+	zeile.textContent = rechnenZuletzt ? "zuletzt: " + rechnenZuletzt : "vier Läufe";
+}
+
+function verdrahteRechnenStand() {
+	for (const [id, name] of RECHNEN_LAEUFE) {
+		const knopf = $(id);
+		if (!knopf) continue;
+		// Merken, WELCHER zuletzt lief -- sichtbar, sobald er fertig ist.
+		knopf.addEventListener("click", () => { rechnenZuletzt = name; });
+		new MutationObserver(zeigeRechnenStand)
+			.observe(knopf, { attributes: true, attributeFilter: ["disabled"] });
+	}
+	zeigeRechnenStand();
 }
 
 // force=true always recomputes (the ribbon tile). Without it a cached answer for the CURRENT
