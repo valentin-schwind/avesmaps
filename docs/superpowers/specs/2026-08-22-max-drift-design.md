@@ -23,41 +23,61 @@ ich begrenzen bis sie verschwinden."
 
 ## 2. Was Drift ist
 
+🔴 **STAND 24.08.2026 — DIESER ABSCHNITT IST DIE DRITTE FASSUNG DES MASSES UND ÜBERSCHREIBT DIE
+ZWEITE.** Owner: „eigentlich habe ich zugelassen dass siedlungen bei der erkennung von kollisionen
+nach links ausweichen dürfen … kannst du das wieder zulassen" — und auf die Rückfrage nach einem
+Schalter: „nein kein weiteres bedienelement, nach links ist automatisch".
+
 **Drift = die Luftlinie von der Normalstellung zur gewählten Ausweichstelle — waagerecht wie
-senkrecht.** Die Normalstellung ist „rechts neben dem Punkt"; sie hat Drift 0 und ist bei jedem
-Deckel erlaubt.
+senkrecht. Mit einer Ausnahme: der Seitenwechsel nach links zahlt nur seinen senkrechten Anteil.**
+Die Normalstellung ist „rechts neben dem Punkt"; sie hat Drift 0 und ist bei jedem Deckel erlaubt.
 
 ```
-drift = hypot(dx - baseOffset.x, dy - baseOffset.y)
+drift = seitenwechsel ? abs(dy - baseOffset.y)
+                      : hypot(dx - baseOffset.x, dy - baseOffset.y)
 ```
 
-🪤 **Das Maß war einen Tag lang falsch, und die Korrektur ist der Kern dieses Entwurfs.** Die erste
-Fassung zählte nur den **senkrechten** Anteil, mit der Begründung, ein Seitenwechsel „klebe ja
-weiter am Punkt, nur auf der anderen Seite". Am Bildschirm stimmt das nicht. Der Owner hat es an
-**„Nordhag (Weiden)"** gezeigt:
-
-| Zoom | Stelle | Was man sieht |
-|---|---|---|
-| z6 | `right` | Name klebt 8 px am Punkt — **„normal"** |
-| z4 | `left` | Name auf der anderen Seite; sein **Anfang** liegt 170 px vom Punkt — **„zu weit weg"** |
-
-Der Seitenwechsel rückt den Namen um seine **eigene Breite** weg. Ein Deckel, der ihn nicht sieht,
-kann das sichtbarste Wegrücken überhaupt nicht verhindern — und genau das war der Grund, warum der
-Regler beim ersten Anlauf für den Owner wieder „nichts tat".
+🔴 **Die Unterscheidung, um die es geht — und die beide Vorfassungen verfehlt haben:** ein Name
+**links** vom Punkt klebt genauso am Punkt wie einer rechts davon. Seine dem Punkt **zugewandte
+Kante** liegt in beiden Fällen `scaledGap` daneben; er ist gespiegelt, nicht abgehoben. Ein Name
+**mittig über** dem Punkt rückt dagegen wirklich weg. Deshalb ist der Seitenwechsel gratis und
+`top`/`bottom` sind es nicht.
 
 Bei Breite 99, Höhe 22, Spalt 14 und Versatz 8 ergibt das:
 
 | Stellen | Drift |
 |---|---|
-| rechts (Normalstellung) | 0 |
-| rechts hoch/runter | 8 (der Versatz) |
-| rechts oben/unten | 30 (Höhe + Versatz) |
+| rechts / **links** (Normalstellung und ihr Spiegel) | **0** |
+| rechts / **links** hoch/runter | 8 (der Versatz) |
+| rechts / **links** oben/unten | 30 (Höhe + Versatz) |
 | mittig unter / über dem Punkt | 66 / 76 |
-| **links (Seitenwechsel)** | **127** — live 78 bis 203, Median 123 |
-| links oben/unten | 130,5 |
 
-🔴 **Die Ordnung ist das eigentliche Versprechen:** senkrechtes Ausweichen ist billig, der
-Seitenwechsel teuer. Nur so kann ein mittlerer Deckel das eine erlauben und das andere verbieten.
+🔴 **Die Ordnung ist das eigentliche Versprechen:** neben dem Punkt zu bleiben ist billig — auf
+welcher Seite, ist gleichgültig —, sich mittig darüberzuschieben ist teuer. Nur so kann ein
+mittlerer Deckel das eine erlauben und das andere verbieten.
+
+### 2b. Zwei Fehlmessungen, beide teuer — und warum sie hier stehen bleiben
+
+🪤 **Fassung 1 (22.08. früh) zählte nur den senkrechten Anteil.** Damit war auch „mittig über dem
+Punkt" gratis, obwohl der Name dort wirklich wegrückt. Widerlegt an **„Nordhag (Weiden)"** — mit
+Deckel 300 stand er mittig über dem Punkt, sein Anfang 84 px daneben (§3).
+
+🪤 **Fassung 2 (22.08. spät) zählte die volle Luftlinie — auch für den Seitenwechsel.** Der
+bezahlte damit die **eigene Namensbreite** (live 78–203 px, Median 123) und war bei jedem
+vernünftigen Deckel gesperrt. Am gespeicherten Stand des Owners (`drift: 25`, live nachgelesen)
+blieben von zwölf Stellen **drei** übrig: rechts und zwei 3-px-Schritte. Namen wie **„Burginum"**
+verschwanden neben ihrem Nachbarn, statt auf die freie Seite zu rücken — und die Vorschau im
+Fenster zeigte konsequenterweise „ausgewichen 0 · ausgeblendet 4".
+
+💣 **Die Falle, die beide teilen: die Zahl im Regler hat ihre Bedeutung unter dem Owner gewechselt.**
+`25` hieß in Fassung 1 „senkrecht höchstens 25 px", in Fassung 2 „gar nichts außer 3 px hoch/runter".
+Niemand hat den gespeicherten Wert angefasst — er stand nur plötzlich für etwas anderes. Wer hier
+das Maß erneut anfasst, muss die **gespeicherten Werte** mitdenken, nicht nur die Vorgabe.
+
+🪤 **Und §2 dieses Entwurfs war selbst falsch:** die obige Fassung-2-Tabelle schrieb den
+Nordhag-Befund der Stelle `left` zu, während §3 als Abnahmefall „steht mittig über dem Punkt"
+nennt. Zwei Absätze desselben Entwurfs, zwei verschiedene Täter — und der Deckel wurde nach dem
+falschen gebaut. **Gegengeprüft wird ein Befund an der Stelle, die ihn wirklich erzeugt hat.**
 Bei **60** bleiben genau die fünf senkrechten Stellen übrig.
 
 🔧 **Offen und bewusst nicht gebaut:** die 79–86 % der Namen, die in der Normalstellung stehen und
@@ -108,6 +128,16 @@ muss **beides**: das Maximum decken und nicht viel darüber hinausreichen.
 
 ⚠️ Der Server führt bewusst **keine Schlüsselliste** und prüft deshalb mit **einer** Schranke, der
 weitesten (0…300). Er prüft die Form, der Browser die Bedeutung.
+
+🔧 **OFFEN SEIT 24.08.2026 — DIE SPANNE PASST NICHT MEHR AUF IHRE WIRKUNG.** Sie stammt vom alten
+Maximum 287, dem Seitenwechsel des längsten Namens; der ist jetzt gratis. Den Ausschlag gibt seither
+die mittige Stelle über dem Punkt, und deren waagerechter Anteil ist **exakt die Hälfte** des alten
+Seitenwechsels (`labelWidth/2 + spalt` gegen `labelWidth + 2 × spalt` — Algebra, nicht geschätzt,
+nachgerechnet in `zoombaender-drift.test.js` Abschnitt D). Das erreichbare Maximum liegt damit bei
+rund **150 px**: die obere Hälfte des Reglerwegs tut nichts — der Befund aus §1 in klein. Verengen
+würde Vorgabe **und** Reglergeometrie sichtbar ändern und gehört deshalb nicht in denselben Live-Gang
+wie der Seitenwechsel (AGENTS.md §9: sichtbare Änderungen einzeln). Bewusst liegen gelassen,
+Owner-Entscheid ausstehend.
 
 ## 5. Das Vorschaupanel — und warum es das Verfahren nicht abschreiben darf
 

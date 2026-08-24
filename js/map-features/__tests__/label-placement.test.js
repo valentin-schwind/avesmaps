@@ -57,12 +57,24 @@ assert.strictEqual(r.belegt.length, 2, "beide Rechtecke sind danach belegt");
 r = avesmapsResolveLabelPlacements([eintrag(0, 0), eintrag(0, 10)], { maxDrift: 30 });
 assert.strictEqual(r.ergebnisse[1].kandidat.name, "bottom-right", "Deckel 30 laesst die Stelle zu (Drift 28)");
 
-r = avesmapsResolveLabelPlacements([eintrag(0, 0), eintrag(0, 10)], { maxDrift: 20 });
+// 💣 UND DIE LINKE SEITE MUSS DAFUER MIT ZUGEHALTEN WERDEN. Seit dem 24.08.2026 kostet der
+// Seitenwechsel nur seinen senkrechten Anteil, „links" hat also Drift 0 und ueberlebt JEDEN Deckel
+// -- ohne diese Vorbelegung wiche das Label dorthin aus, statt zu verschwinden, und der Abschnitt
+// pruefte nicht mehr, was er zu pruefen behauptet.
+const LINKS_ZU = { left: -300, top: -100, right: 0, bottom: 100, width: 300, height: 200 };
+r = avesmapsResolveLabelPlacements([eintrag(0, 0), eintrag(0, 10)], { maxDrift: 20, seedRects: [LINKS_ZU] });
 assert.strictEqual(r.ergebnisse[1].kollidiert, true,
 	"Deckel 20: keine erlaubte Stelle mehr frei -> ausgeblendet, NICHT weiter weg gesetzt");
 assert.strictEqual(r.ergebnisse[1].kandidat.name, "right",
 	"ein ausgeblendetes Label faellt auf die Normalstellung zurueck (Drift 0, immer erlaubt)");
-assert.strictEqual(r.belegt.length, 1, "ein verstecktes Label ist KEIN Hindernis fuer die naechsten");
+assert.strictEqual(r.belegt.length, 2, "ein verstecktes Label ist KEIN Hindernis (nur Sperre + Label 1)");
+
+// 🔴 Und die Gegenprobe zur Vorbelegung: steht links Platz, geht das Label DORTHIN statt zu
+// verschwinden. Das ist die eigentliche Wirkung des Owner-Entscheids vom 24.08.2026.
+r = avesmapsResolveLabelPlacements([eintrag(0, 0), eintrag(0, 10)], { maxDrift: 20 });
+assert.strictEqual(r.ergebnisse[1].kandidat.name, "left",
+	"ohne Sperre weicht es nach links aus -- der Seitenwechsel ueberlebt auch einen engen Deckel");
+assert.strictEqual(r.ergebnisse[1].kollidiert, false, "und bleibt sichtbar");
 
 // 💣 Der Deckel darf die Normalstellung NIE wegschneiden -- sonst haette der Rueckfall ein Loch.
 r = avesmapsResolveLabelPlacements([eintrag(0, 0)], { maxDrift: 0 });

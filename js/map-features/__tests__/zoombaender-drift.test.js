@@ -6,13 +6,22 @@ const vm = require("vm");
 // Der Deckel „Max. Drift" (22.08.2026, Owner: „den maximalen versatz, den ein label zur vermeidung
 // einer kollision geht ... will ich begrenzen bis sie verschwinden").
 //
-// 🔴 DRIFT IST DIE LUFTLINIE VON DER NORMALSTELLUNG zur Ausweichstelle -- waagerecht wie senkrecht.
+// 🔴 DRIFT IST DIE LUFTLINIE VON DER NORMALSTELLUNG zur Ausweichstelle -- waagerecht wie senkrecht,
+// 🔴 MIT EINER AUSNAHME: DER SEITENWECHSEL NACH LINKS ZAHLT NUR SEINEN SENKRECHTEN ANTEIL
+// (Owner 24.08.2026: „nach links ist automatisch" -- kein eigenes Bedienelement).
 //
-// 🪤 EINEN TAG LANG ZÄHLTE NUR DER SENKRECHTE ANTEIL, mit der Begründung, ein Seitenwechsel „klebe
-// ja weiter am Punkt". Am Bildschirm stimmt das nicht: der Owner hat es an „Nordhag (Weiden)"
-// gezeigt -- bei z6 steht der Name rechts am Punkt, bei z4 springt er nach links, und sein Anfang
-// liegt dann 170 px vom Punkt entfernt. Genau das ist das „zu weit weg", das der Regler verhindern
-// soll. Diese Datei nagelt das richtige Maß fest, damit das falsche nicht zurückkommt.
+// 🪤 DIE DATEI HAT DAS MASS SCHON ZWEIMAL FESTGENAGELT, UND BEIDE MALE ZU GROB:
+//   22.08. früh  nur senkrecht  -> auch „mittig über dem Punkt" war gratis, obwohl der Name dort
+//                                  wirklich wegrückt („Nordhag (Weiden)", Anfang 84 px daneben).
+//   22.08. spät  volle Luftlinie -> auch der Seitenwechsel bezahlte die eigene Namensbreite
+//                                  (78-203 px) und war bei jedem vernünftigen Deckel gesperrt.
+// Am gespeicherten Stand (Deckel 25) blieben davon drei von zwölf Stellen übrig: „Burginum"
+// verschwand neben seinem Nachbarn, statt auf die freie Seite zu rücken.
+//
+// 🔴 DIE UNTERSCHEIDUNG, DIE BEIDE FASSUNGEN VERFEHLT HABEN: ein Name LINKS vom Punkt klebt so am
+// Punkt wie einer rechts davon -- seine zugewandte Kante liegt in beiden Fällen `scaledGap`
+// daneben. Ein Name MITTIG ÜBER dem Punkt rückt wirklich weg. Deshalb ist der Seitenwechsel gratis
+// und `top`/`bottom` sind es nicht. Diese Datei nagelt genau diese Trennung fest.
 //
 // Aus der Wurzel des Repos:  node js/map-features/__tests__/zoombaender-drift.test.js
 
@@ -64,48 +73,81 @@ assert.strictEqual(d["right-down"], 8, "kleiner Schritt runter: der Versatz");
 assert.strictEqual(d["top-right"], 30, "eine Zeile hoch: Hoehe + Versatz");
 assert.strictEqual(d["bottom-right"], 30, "eine Zeile runter: Hoehe + Versatz");
 
-// 💣 DER SEITENWECHSEL IST DER GROSSE. Er rueckt den Namen um seine EIGENE BREITE weg -- hier
-// 99 + 2 x 14 = 127. Genau diesen Fall hat der Owner am 22.08.2026 an „Nordhag (Weiden)" gezeigt:
-// bei z6 steht der Name rechts am Punkt („normal"), bei z4 springt er nach links und sein Anfang
-// liegt 170 px vom Punkt entfernt („zu weit weg"). Ein Maß, das nur senkrecht zaehlt, gibt hier 0
-// zurueck und kann das sichtbarste Wegruecken nicht verhindern -- diese Zusicherung haelt das fest.
-assert.strictEqual(d.left, 127, "Seitenwechsel: eigene Breite plus zweimal der Spalt");
-assert.strictEqual(d["left-up"], 127.25, "Seitenwechsel mit kleinem Schritt");
-assert.strictEqual(d["top-left"], 130.5, "Seitenwechsel und eine Zeile hoch");
-assert.ok(d.top > 70 && d.top < 80, `mittig darueber liegt dazwischen (${d.top})`);
-assert.ok(d.bottom > 60 && d.bottom < 70, `mittig darunter liegt dazwischen (${d.bottom})`);
+// 💣 DER SEITENWECHSEL IST GRATIS -- jede Links-Stelle kostet GENAU SO VIEL wie ihre Entsprechung
+// rechts. Das ist die Zusicherung, wegen der „Burginum" wieder neben seinem Punkt steht, statt zu
+// verschwinden: bei Deckel 25 (dem gespeicherten Stand) waere er mit der vollen Luftlinie (127)
+// gesperrt gewesen. Wer die volle Luftlinie zurueckholt, bricht hier vier Zeilen auf einmal.
+assert.strictEqual(d.left, d.right, "Seitenwechsel allein kostet nichts -- wie die Normalstellung");
+assert.strictEqual(d["left-up"], d["right-up"], "Seitenwechsel mit kleinem Schritt: nur der Schritt");
+assert.strictEqual(d["left-down"], d["right-down"], "dasselbe nach unten");
+assert.strictEqual(d["top-left"], d["top-right"], "Seitenwechsel und eine Zeile hoch: nur die Zeile");
+assert.strictEqual(d["bottom-left"], d["bottom-right"], "dasselbe nach unten");
+assert.strictEqual(d.left, 0, "und in Zahlen: der Seitenwechsel ist der Nullpunkt, wie rechts");
 
-// 🔴 UND DIE ORDNUNG IST DAS EIGENTLICHE VERSPRECHEN: senkrechtes Ausweichen ist billig, der
-// Seitenwechsel teuer. Nur so kann ein mittlerer Deckel das eine erlauben und das andere verbieten.
-assert.ok(d["top-right"] < d.bottom && d.bottom < d.left,
-	"Zeile hoch < mittig drunter < Seitenwechsel -- daran haengt der ganze Regler");
+// 💣 UND MITTIG UEBER/UNTER DEM PUNKT IST ES NICHT. Dort rueckt der Name wirklich weg -- das war
+// der Abnahmefall „Nordhag (Weiden)" (Entwurf §3: steht mittig ueber dem Punkt, Anfang 84 px
+// daneben). Diese beiden Stellen tragen weiterhin die volle Luftlinie, waagerecht wie senkrecht.
+assert.ok(d.top > 70 && d.top < 80, `mittig darueber rueckt weg (${d.top})`);
+assert.ok(d.bottom > 60 && d.bottom < 70, `mittig darunter rueckt weg (${d.bottom})`);
 
-// ---- B. Der Drift waechst mit der BREITE, nicht nur mit der Hoehe --------------------------------
-// 💣 Die Umkehrung des alten, falschen Masses: dort war die Breite bedeutungslos.
+// 🔴 UND DIE ORDNUNG IST DAS EIGENTLICHE VERSPRECHEN: neben dem Punkt bleiben ist billig -- auf
+// welcher Seite, ist gleichgueltig --, sich mittig darueberzuschieben ist teuer. Nur so kann ein
+// mittlerer Deckel das eine erlauben und das andere verbieten.
+assert.ok(d["top-left"] < d.bottom && d.bottom < d.top,
+	"Zeile hoch (links wie rechts) < mittig drunter < mittig drueber -- daran haengt der Regler");
+
+// ---- B. Die BREITE zaehlt weiterhin -- aber nur, wo sie den Namen wirklich wegrueckt -------------
+// 💣 Die Grenze zwischen den beiden Maßen, an einem viermal so breiten Namen:
 const breit = getLocationNameLabelOffsets(elementStub, { width: 400, height: 22 });
-assert.strictEqual(breit.find((s2) => s2.name === "left").drift, 428,
-	"ein viermal so breiter Name rueckt beim Seitenwechsel viermal so weit weg");
+assert.strictEqual(breit.find((s2) => s2.name === "left").drift, 0,
+	"auch ein viermal so breiter Name klebt beim Seitenwechsel am Punkt");
+assert.ok(breit.find((s2) => s2.name === "top").drift > 200,
+	"mittig darueber dagegen rueckt er viermal so weit weg");
 assert.strictEqual(breit.find((s2) => s2.name === "right").drift, 0,
 	"seine Normalstellung bleibt der Nullpunkt");
 assert.strictEqual(driftVon(40)["top-right"], 48, "und die Hoehe zaehlt weiterhin (40 + 8)");
 
-// ---- C. Ein mittlerer Deckel trennt genau die beiden Familien -------------------------------------
-const DECKEL = 60;
-const erlaubt = stellen(22).filter((s2) => s2.drift <= DECKEL).map((s2) => s2.name);
-assert.deepStrictEqual(erlaubt, ["right", "right-up", "right-down", "top-right", "bottom-right"],
-	"bei Deckel 60 bleibt das senkrechte Ausweichen, der Seitenwechsel faellt weg");
+// ---- C. Zwei Deckel, zwei verschiedene Familien ---------------------------------------------------
+// 🔴 Der gespeicherte Stand des Owners (25): neben dem Punkt bleiben, beide Seiten, kleiner Schritt.
+const bei25 = stellen(22).filter((s2) => s2.drift <= 25).map((s2) => s2.name);
+assert.deepStrictEqual(bei25, ["right", "right-up", "right-down", "left", "left-up", "left-down"],
+	"bei Deckel 25 stehen beide Seiten offen -- genau das war vom 22. bis 24.08.2026 verloren");
+// Und ein mittlerer Deckel laesst zusaetzlich die Zeilenspruenge zu, sperrt aber die Mitte.
+const bei60 = stellen(22).filter((s2) => s2.drift <= 60).map((s2) => s2.name);
+assert.ok(!bei60.includes("top") && !bei60.includes("bottom"),
+	"bei Deckel 60 bleibt die mittige Stelle ueber/unter dem Punkt gesperrt");
+assert.ok(bei60.includes("top-left") && bei60.includes("bottom-right"),
+	"die Zeilenspruenge sind dann erlaubt -- auf beiden Seiten");
 
 // ---- D. Die Vorgabe darf NICHTS wegschneiden ------------------------------------------------------
-// 💣 Der groesste ueber den Bestand erreichbare Drift ist der Seitenwechsel des laengsten Namens je
-// Ortsklasse in DEREN groesster Schrift: live ueber alle 2882 Namen gemessen 287 px
-// („Firun-Tempel unter dem Haengenden Gletscher"). Die Vorgabe muss darueber liegen.
-const GEMESSENES_MAXIMUM = 287;
+// 💣 SEIT DEM 24.08.2026 IST DER GROESSTE ERREICHBARE DRIFT EIN ANDERER. Er war der Seitenwechsel
+// des laengsten Namens je Ortsklasse in DEREN groesster Schrift -- live ueber alle 2882 Namen
+// gemessen 287 px („Firun-Tempel unter dem Haengenden Gletscher"). Der ist jetzt gratis; den
+// Ausschlag gibt die mittige Stelle ueber dem Punkt.
+//
+// ⭐ IHR WAAGERECHTER ANTEIL IST GENAU DIE HAELFTE DES ALTEN SEITENWECHSELS -- keine Schaetzung,
+// sondern Algebra: der Seitenwechsel rueckt um `labelWidth + 2 x spalt`, die Mitte um
+// `labelWidth / 2 + spalt`. Die naechsten zwei Zeilen rechnen es an zwei Breiten nach, damit die
+// Herleitung nicht bloss als Kommentar dasteht.
+// ⚠️ Gemessen an den dx der Stellen, nicht am Drift: der Drift der Mitte traegt einen senkrechten
+// Anteil mit, den diese Herleitung gar nicht betrifft.
+[99, 400].forEach((w) => {
+	const s = getLocationNameLabelOffsets(elementStub, { width: w, height: 22 });
+	const dxVon = (name) => s.find((x) => x.name === name).dx;
+	const alterSeitenwechsel = Math.abs(dxVon("left") - dxVon("right"));
+	const mitte = Math.abs(dxVon("top") - dxVon("right"));
+	assert.strictEqual(mitte, alterSeitenwechsel / 2,
+		`Breite ${w}: die Mitte rueckt halb so weit wie der alte Seitenwechsel (${mitte} vs ${alterSeitenwechsel / 2})`);
+});
+// Damit liegt das erreichbare Maximum bei rund hypot(287/2, ~41) = 149 px statt 287.
+const GEMESSENES_MAXIMUM = 150;
 assert.ok(VORGABE.abstaende.drift > GEMESSENES_MAXIMUM,
-	`die Vorgabe (${VORGABE.abstaende.drift}) liegt ueber dem gemessenen Maximum (${GEMESSENES_MAXIMUM})`);
-// ⚠️ Und nicht viel darueber: sonst waere der halbe Reglerweg wirkungslos -- genau der Befund, der
-// diesen Umbau ausgeloest hat.
-assert.ok(VORGABE.abstaende.drift < GEMESSENES_MAXIMUM * 1.5,
-	"aber nicht so weit darueber, dass der Regler auf halbem Weg nichts tut");
+	`die Vorgabe (${VORGABE.abstaende.drift}) liegt ueber dem erreichbaren Maximum (${GEMESSENES_MAXIMUM})`);
+// 🔧 UND ZWAR MIT SCHLAG: die Spanne 0-300 stammt vom alten Maximum 287 und deckt jetzt das
+// Doppelte des Erreichbaren -- die obere Haelfte des Reglerwegs tut nichts. Das ist der Befund aus
+// §1 des Entwurfs in klein, aber die Spanne zu verengen aendert Vorgabe UND Reglergeometrie
+// sichtbar und geht deshalb NICHT mit dieser Aenderung zusammen live. Bewusst offen gelassen;
+// hier steht absichtlich KEINE Zusicherung „nicht viel darueber", die waere heute falsch.
 assert.ok(AVESMAPS_LOCATION_LABEL_DRIFT_LIMITS.max >= VORGABE.abstaende.drift,
 	"und die Schranke laesst die Vorgabe ueberhaupt zu");
 

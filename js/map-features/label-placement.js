@@ -90,10 +90,21 @@ function avesmapsLabelBaseOffset(markerAussenradius, labelHoehePx, abstaende) {
 // Luftlinie, waagerecht wie senkrecht. Die Normalstellung („rechts") hat damit Drift 0 und ist bei
 // jedem Deckel erlaubt; sie trägt den Rückfall für ein ausgeblendetes Label.
 //
-// 🪤 DAS MASS WAR EINEN TAG LANG FALSCH: es zählte nur den senkrechten Anteil, weil ein
-// Seitenwechsel „ja weiter am Punkt klebt". Am Bildschirm stimmt das nicht -- gezeigt an „Nordhag
-// (Weiden)": bei z6 klebt der Name 8 px am Punkt, bei z4 springt er nach links und sein Anfang liegt
-// 170 px daneben. Genau das ist das „zu weit weg", das der Deckel verhindern soll.
+// 🔴 MIT EINER AUSNAHME, UND SIE IST DER GANZE UNTERSCHIED ZWISCHEN „daneben" UND „abgehoben":
+// DER SEITENWECHSEL NACH LINKS KOSTET NUR SEINEN SENKRECHTEN ANTEIL (`seitenwechsel: true`,
+// Owner-Entscheid 24.08.2026, automatisch -- ausdrücklich KEIN eigenes Bedienelement). Ein Name
+// links vom Punkt klebt genauso am Punkt wie einer rechts davon: seine dem Punkt zugewandte Kante
+// liegt in BEIDEN Fällen `scaledGap` daneben. Zählte man die volle Luftlinie, bezahlte der
+// Seitenwechsel die EIGENE NAMENSBREITE (live 78 bis 203 px, Median 123) und wäre bei jedem
+// vernünftigen Deckel gesperrt -- gemessen am gespeicherten Stand (Deckel 25) blieben von zwölf
+// Stellen genau drei übrig, und Namen wie „Burginum" verschwanden neben ihrem Nachbarn, statt auf
+// die freie Seite zu rücken.
+//
+// 🪤 GENAU DAS WAR VOM 22. BIS 24.08.2026 DER FALL, und die Begründung dafür steht als Warnung im
+// Entwurf: „Nordhag (Weiden)" rückte weg. Nachgemessen war der Übeltäter dort aber die MITTIGE
+// Stelle über dem Punkt (Anfang 84 px daneben, Entwurf §3), nicht der Seitenwechsel -- §2 desselben
+// Entwurfs schrieb ihn dem Seitenwechsel zu und war damit falsch. `top`/`bottom` behalten deshalb
+// die volle Luftlinie: sie rücken den Namen wirklich vom Punkt weg.
 function avesmapsLabelCandidatePlacements(baseOffset, labelWidth, labelHeight, abstaende) {
 	const smallShift = avesmapsLabelSpacingOf(abstaende, "versatz");
 	const scaledGap = Math.max(LOCATION_LABEL_GAP, Math.abs(baseOffset.x));
@@ -105,16 +116,20 @@ function avesmapsLabelCandidatePlacements(baseOffset, labelWidth, labelHeight, a
 		{ name: "right-down", dx: baseOffset.x, dy: baseOffset.y + smallShift },
 		{ name: "top-right", dx: baseOffset.x, dy: baseOffset.y - labelHeight - smallShift },
 		{ name: "bottom-right", dx: baseOffset.x, dy: baseOffset.y + labelHeight + smallShift },
-		{ name: "left", dx: -labelWidth - scaledGap, dy: baseOffset.y },
-		{ name: "left-up", dx: -labelWidth - scaledGap, dy: baseOffset.y - smallShift },
-		{ name: "left-down", dx: -labelWidth - scaledGap, dy: baseOffset.y + smallShift },
-		{ name: "top-left", dx: -labelWidth - scaledGap, dy: baseOffset.y - labelHeight - smallShift },
-		{ name: "bottom-left", dx: -labelWidth - scaledGap, dy: baseOffset.y + labelHeight + smallShift },
+		{ name: "left", seitenwechsel: true, dx: -labelWidth - scaledGap, dy: baseOffset.y },
+		{ name: "left-up", seitenwechsel: true, dx: -labelWidth - scaledGap, dy: baseOffset.y - smallShift },
+		{ name: "left-down", seitenwechsel: true, dx: -labelWidth - scaledGap, dy: baseOffset.y + smallShift },
+		{ name: "top-left", seitenwechsel: true, dx: -labelWidth - scaledGap, dy: baseOffset.y - labelHeight - smallShift },
+		{ name: "bottom-left", seitenwechsel: true, dx: -labelWidth - scaledGap, dy: baseOffset.y + labelHeight + smallShift },
 		{ name: "top", dx: -labelWidth / 2, dy: verticalCenterOffset - labelHeight - smallShift },
 		{ name: "bottom", dx: -labelWidth / 2, dy: verticalCenterOffset + labelHeight + smallShift },
 	].map((stelle) => ({
 		...stelle,
-		drift: Math.hypot(stelle.dx - baseOffset.x, stelle.dy - baseOffset.y),
+		// Der Seitenwechsel zahlt nur, was er den Namen HOCH oder RUNTER schiebt -- die Breite, um
+		// die er ihn spiegelt, hält ihn nicht weiter vom Punkt weg (siehe Kopfkommentar).
+		drift: stelle.seitenwechsel
+			? Math.abs(stelle.dy - baseOffset.y)
+			: Math.hypot(stelle.dx - baseOffset.x, stelle.dy - baseOffset.y),
 	}));
 }
 

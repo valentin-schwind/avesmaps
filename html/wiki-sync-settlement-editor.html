@@ -677,7 +677,7 @@
         <div class="zb-slider-row">
           <div class="zb-slider-row__head">
             <span class="zb-slider-row__name">Ausweichgrenze</span>
-            <span class="zb-slider-row__desc">Wie weit ein Name höchstens ausweichen darf — darüber verschwindet er.</span>
+            <span class="zb-slider-row__desc">Wie weit ein Name höchstens vom Punkt abheben darf — darüber verschwindet er. Auf die andere Seite des Punktes darf er immer.</span>
           </div>
           <div class="zb-slider-row__control">
             <input type="range" class="zb-range" id="zbDriftRange" min="0" max="300" step="1" aria-label="Ausweichgrenze in px">
@@ -4808,8 +4808,14 @@ function updateZoomBandVorschau() {
 			return;
 		}
 		sicht += 1;
-		if (stelle.drift > 0.01) {
+		// 💣 „AUSGEWICHEN" IST NICHT „DRIFT > 0". Seit dem 24.08.2026 kostet der Seitenwechsel
+		// nur seinen senkrechten Anteil, „links" hat also Drift 0 -- an der Zahl gemessen zählte
+		// ein Name, der sichtbar auf die andere Seite gesprungen ist, als „steht normal", ohne
+		// Markierung und ohne Linie. Gefragt ist, ob er seine Normalstellung verlassen hat, und
+		// das ist die ERSTE Stelle der Liste, nicht der Zahlenwert.
+		if (stelle !== m.kandidaten[0]) {
 			gewichen += 1;
+			// „weitester Drift" bleibt am Deckelmaß -- es ist die Zahl, die der Regler vergleicht.
 			if (stelle.drift > maxDrift) { maxDrift = stelle.drift; }
 			m.kn.name.classList.add("zbv-name--drift");
 			// Die Linie macht sichtbar, WIE WEIT der Name von seinem Punkt weg ist.
