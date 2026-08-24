@@ -816,11 +816,14 @@ echo "\n-- (C-online) Klassen-/Bauwerks-Phase: gerechnetes Budget, kein fester W
 
 $check(
     '(c-online-1) alle DREI Online-Phasen fahren dieselbe gerechnete Budgetfunktion',
-    [true, true, true],
+    [true, true, true, 3],
     [
-        str_contains($dispatchSource, 'avesmapsWikiDumpHybridFillClassMapStep(') && str_contains($dispatchSource, 'avesmapsWikiDumpOnlineStepCallBudget()'),
-        str_contains($dispatchSource, 'avesmapsWikiDumpHybridFillBuildingMapStep('),
+        str_contains($dispatchSource, 'avesmapsWikiDumpHybridFillClassMapStep('),
+        str_contains($dispatchSource, 'avesmapsWikiDumpHybridBuildingMapPhaseStep('),
         str_contains($dispatchSource, 'avesmapsWikiDumpHybridFillContinentMapStep($pdo, $runId, $titles, $cursor, avesmapsWikiDumpOnlineStepCallBudget())'),
+        // Und die Zahl ist die eigentliche Zusicherung: DREI Zweige, DREI Budgets. Wer eine
+        // vierte Online-Phase anbaut und das Budget vergisst, faellt hier auf.
+        substr_count($dispatchSource, 'avesmapsWikiDumpOnlineStepCallBudget()'),
     ],
     'eine Regel, die einen von drei Erzeugern bindet, ist keine Regel -- dieselbe Lehre wie bei der Verkehrsmittel-Sperre (AGENTS.md)'
 );
@@ -969,6 +972,104 @@ $check(
         ),
     ],
     'geschriebener und gelesener Schluessel sind derselbe -- sonst kreist die Phase bis zur Notbremse des Browsers'
+);
+
+// ---------------------------------------------------------------------------
+// Und der ganze WEG der zweistufigen Bauwerks-Phase, mit den echten Bauteilen:
+// avesmapsWikiDumpHybridBuildingMapPhaseStep() ist genau der Rumpf, den der Dispatch
+// fuer diese Phase fahren wuerde -- nur mit eingespeisten Seitenholern statt HTTP und
+// der Attrappen-PDO von oben statt MySQL. Die Frage, die sonst NIEMAND beantwortet:
+// 💣 kommt die Phase ueberhaupt zum Ende? Eine Unterstufe, die nie umlegt, kreist bis zur
+// Notbremse des Browsers (MAX_STEPS = 2000 in review-wiki-sync.js) -- und das sind bei
+// 20 s Drossel mehr als elf Stunden, bevor irgendjemand etwas merkt.
+// ---------------------------------------------------------------------------
+$bauSeiten = [
+    // Die Unterkategorien kommen ueber ZWEI Seiten -- der Fall, den die Fixture sonst nie hat.
+    'Bauwerk nach Art' => [
+        ['titles' => ['Kategorie:Steinkreis'], 'continue' => 'sub|1'],
+        ['titles' => ['Kategorie:Leuchtturm'], 'continue' => null],
+    ],
+    // Und eine der Arten paginiert ebenfalls.
+    'Steinkreis' => [
+        ['titles' => ['Erster Stein'], 'continue' => 'st|1'],
+        ['titles' => ['Zweiter Stein'], 'continue' => null],
+    ],
+    'Leuchtturm' => [['titles' => ['Turm von Havena'], 'continue' => null]],
+];
+$bauHoler = static function (string $kategorie, ?string $weiter) use ($bauSeiten): array {
+    $seiten = $bauSeiten[$kategorie] ?? [['titles' => [], 'continue' => null]];
+    $nummer = $weiter === null ? 0 : (int) (explode('|', $weiter)[1] ?? 0);
+    return $seiten[$nummer] ?? ['titles' => [], 'continue' => null];
+};
+
+$bauPdo2 = new FakeDriverPdo($makeRunRow('online_building_map', []));
+$bauStats = [];
+$bauFertig = false;
+$bauSchritte = 0;
+$bauStufen = [];
+$bauGeschrieben = 0;
+// 🪤 Die erwartete Schrittzahl wird ABGELEITET, nicht hingeschrieben. Der erste Anlauf stand auf
+// einer festen 6 -- und lag falsch, weil die aufgeloeste Artenliste die GANZE Legacy-Liste
+// mittraegt (AVESMAPS_WIKI_SETTLEMENT_LEGACY_BUILDING_TYPES), nicht nur die zwei Unterkategorien
+// der Fixture. Eine feste Zahl haette bei der naechsten Aenderung dieser Liste rot gemeldet,
+// ohne dass am Code etwas falsch waere.
+$bauArten = avesmapsWikiDumpCategoryFetchBuildingTypes([], null, null, $bauHoler)['types'];
+// 2 Schritte fuer die zwei Seiten der Unterkategorien, dann je Art eine Seite -- und
+// "Steinkreis" hat als einzige eine zweite.
+$bauErwarteteSchritte = 2 + count($bauArten) + 1;
+// Der Deckel liegt bewusst darueber und ist trotzdem endlich: er faengt das Kreisen.
+while (!$bauFertig && $bauSchritte < $bauErwarteteSchritte + 20) {
+    $bauStufen[] = avesmapsWikiDumpHybridBuildingStage(
+        $bauStats,
+        is_array($bauStats['building_types'] ?? null) ? $bauStats['building_types'] : []
+    );
+    $ergebnis = avesmapsWikiDumpHybridBuildingMapPhaseStep(
+        $bauPdo2,
+        7,
+        $bauStats,
+        (int) ($bauStats['building_cursor'] ?? 0),
+        1,
+        $bauHoler,
+        $bauHoler
+    );
+    $bauGeschrieben += (int) ($ergebnis['written'] ?? 0);
+    // Der Dispatch mischt den stats_patch VOR der Transition ein -- hier genauso.
+    foreach (($ergebnis['stats_patch'] ?? []) as $k => $v) {
+        $bauStats[$k] = $v;
+    }
+    $naechster = avesmapsWikiDumpHybridComputeNextState('online_building_map', $bauStats, $ergebnis);
+    $bauStats = $naechster['stats'];
+    $bauFertig = (bool) ($ergebnis['done'] ?? false);
+    $bauSchritte++;
+}
+
+$check(
+    '(c-online-11) 💣 die zweistufige Phase kommt zum ENDE, und zwar nach genau einer Abfrage je Seite',
+    [true, $bauErwarteteSchritte],
+    [$bauFertig, $bauSchritte],
+    '2 Seiten Unterkategorien + je eine Seite pro aufgeloester Art + die zweite Seite von "Steinkreis"'
+);
+$check(
+    '(c-online-12) die Unterstufe legt genau EINMAL um: erst types, dann members',
+    array_merge(['types', 'types'], array_fill(0, $bauErwarteteSchritte - 2, 'members')),
+    $bauStufen,
+    'zwei Schritte fuer die zwei Seiten der Artenliste, danach nie wieder zurueck -- ein Zurueckfallen waere das Kreisen'
+);
+$check(
+    '(c-online-13) alle drei Bauwerke wurden geschrieben, keines verloren',
+    3,
+    $bauGeschrieben,
+    'ueber vier Schritte hinweg und ueber eine Seitengrenze innerhalb von "Steinkreis"'
+);
+// 🪤 Geprueft wird "keine Liste mehr", nicht "Schluessel weg": der Schritt setzt ihn auf
+// null, und der Null-Verschmelzungsoperator kann null von abwesend nicht unterscheiden --
+// die erste Fassung dieser Zusicherung verglich deshalb gegen ihren eigenen Rueckfallwert
+// und war blind.
+$check(
+    '(c-online-14) am Ende liegt die Artenliste nicht mehr in stats_json',
+    false,
+    is_array($bauStats['building_types'] ?? null),
+    'was nur WAEHREND einer Phase gebraucht wird, geht danach raus -- wiki_sync_runs ist genau daran schon einmal auf 99 MiB gewachsen'
 );
 
 // ===========================================================================

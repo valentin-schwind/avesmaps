@@ -973,6 +973,100 @@ function avesmapsWikiDumpHybridStatsString(array $stats, string $key): ?string
 }
 
 /**
+ * EIN Schritt der zweistufigen Bauwerks-Phase -- der ganze Rumpf, den der Dispatch fuer
+ * `online_building_map` fahren wuerde.
+ *
+ * ⭐ Eigene Funktion, weil sie sonst NIEMAND ganz durchfahren koennte: der Dispatch kommt nur
+ * ueber HTTP und MySQL an sie heran, und die Frage, die dann offenbliebe, ist die wichtigste --
+ * 💣 KOMMT DIE PHASE ZUM ENDE? Eine Unterstufe, die nie umlegt, kreist bis zur Notbremse des
+ * Browsers (MAX_STEPS = 2000 in review-wiki-sync.js); bei 20 s Drossel sind das ueber elf
+ * Stunden, bevor es irgendwem auffaellt. Mit den zwei eingespeisten Seitenholern faehrt der
+ * Test die echte Weiche, den echten Aufloeser und den echten Sammler in Sekunden durch.
+ *
+ * STUFE 1 loest die LISTE der Bauwerksarten auf (sie kostet selbst Abfragen und paginiert),
+ * STUFE 2 holt je Art die Mitglieder. Die Weiche dazwischen steht in
+ * avesmapsWikiDumpHybridBuildingStage().
+ *
+ * ⚠️ Beide Stufen teilen sich den Schluessel `building_continue` -- Stufe 1 fuer die Seiten der
+ * Unterkategorien, Stufe 2 fuer die Seiten einer Bauwerksart. Das geht auf, weil die Weiche erst
+ * umlegt, wenn Stufe 1 `done` meldet, und done heisst per Vertrag: keine Fortsetzung mehr offen.
+ * Stufe 2 startet also immer mit null. Wer der Weiche je ein anderes Kriterium gibt, braucht
+ * zwei Schluessel.
+ *
+ * @param array<string, mixed> $stats die dekodierten stats_json des Laufs
+ * @param int                  $cursor der Wert aus `building_cursor` (welche Bauwerksart)
+ * @return array<string, mixed> ein Schrittergebnis fuer avesmapsWikiDumpHybridComputeNextState()
+ */
+function avesmapsWikiDumpHybridBuildingMapPhaseStep(
+    PDO $pdo,
+    int $runId,
+    array $stats,
+    int $cursor,
+    ?int $callBudget,
+    ?callable $subcategoryPageFetcher = null,
+    ?callable $memberPageFetcher = null
+): array {
+    $arten = [];
+    foreach ((is_array($stats['building_types'] ?? null) ? $stats['building_types'] : []) as $art) {
+        $art = trim((string) $art);
+        if ($art !== '') {
+            $arten[] = $art;
+        }
+    }
+
+    // STUFE 1.
+    if (avesmapsWikiDumpHybridBuildingStage($stats, $arten) === 'types') {
+        $liste = avesmapsWikiDumpCategoryFetchBuildingTypes(
+            $arten,
+            avesmapsWikiDumpHybridStatsString($stats, 'building_continue'),
+            $callBudget,
+            $subcategoryPageFetcher
+        );
+        $aufgeloest = (bool) ($liste['done'] ?? false);
+
+        return [
+            // Nach Stufe 1 ist die PHASE nie fertig -- die Mitglieder stehen noch aus.
+            'done' => false,
+            'nextCursor' => 0,
+            'stage' => $aufgeloest ? 'members' : 'types',
+            'title_count' => count($liste['types'] ?? []),
+            'stats_patch' => [
+                'building_types' => $liste['types'] ?? [],
+                'building_continue' => $liste['nextContinue'] ?? null,
+                'building_stage' => $aufgeloest ? 'members' : 'types',
+            ],
+        ];
+    }
+
+    // STUFE 2.
+    $r = avesmapsWikiDumpHybridFillBuildingMapStep(
+        $pdo,
+        $runId,
+        $arten,
+        $cursor,
+        avesmapsWikiDumpHybridStatsString($stats, 'building_continue'),
+        $callBudget,
+        $memberPageFetcher
+    );
+    $fertig = (bool) ($r['done'] ?? false);
+
+    return [
+        'done' => $fertig,
+        'nextCursor' => (int) ($r['nextIndex'] ?? $cursor),
+        'written' => (int) ($r['written'] ?? 0),
+        'title_count' => count($r['titles'] ?? []),
+        'stage' => 'members',
+        'stats_patch' => [
+            'building_continue' => $r['nextContinue'] ?? null,
+            // Am Ende die Artenliste wieder aus stats_json nehmen. Sie ist klein (gut zwei
+            // Dutzend Namen), aber wiki_sync_runs ist genau daran schon einmal auf 99 MiB
+            // gewachsen: was nur WAEHREND einer Phase gebraucht wird, geht danach raus.
+            'building_types' => $fertig ? null : $arten,
+        ],
+    ];
+}
+
+/**
  * Dispatch ONE step of $phase to its real H1/H4a/H4b step fn -- or to an injected
  * fake ($stepFns[$phase], the unit-test seam). A fake receives ($pdo, $ctx) where
  * $ctx carries the phase inputs (runId, cursor, dumpPath, dryRun, titles) and
@@ -1031,68 +1125,14 @@ function avesmapsWikiDumpHybridDispatchPhaseStep(
             // Fortsetzbar seit 24.08.2026, und als einzige Phase ZWEISTUFIG: erst die LISTE
             // der Bauwerksarten aufloesen (die kostet selbst Abfragen), dann Art fuer Art die
             // Mitglieder. Zusammen rund 25 Abfragen -- bei 20 s Drossel ~500 s am Stueck.
-            $arten = [];
-            foreach ((is_array($stats['building_types'] ?? null) ? $stats['building_types'] : []) as $art) {
-                $art = trim((string) $art);
-                if ($art !== '') {
-                    $arten[] = $art;
-                }
-            }
-
-            // STUFE 1 -- die Weiche steht in avesmapsWikiDumpHybridBuildingStage() (pruefbar
-            // ohne HTTP), samt der Begruendung, warum eine leere Liste zurueckwirft.
-            if (avesmapsWikiDumpHybridBuildingStage($stats, $arten) === 'types') {
-                $liste = avesmapsWikiDumpCategoryFetchBuildingTypes(
-                    $arten,
-                    avesmapsWikiDumpHybridStatsString($stats, 'building_continue'),
-                    avesmapsWikiDumpOnlineStepCallBudget()
-                );
-                $aufgeloest = (bool) ($liste['done'] ?? false);
-
-                return [
-                    // Nach Stufe 1 ist die PHASE nie fertig -- die Mitglieder stehen noch aus.
-                    'done' => false,
-                    'nextCursor' => 0,
-                    'stage' => $aufgeloest ? 'members' : 'types',
-                    'title_count' => count($liste['types'] ?? []),
-                    'stats_patch' => [
-                        'building_types' => $liste['types'] ?? [],
-                        'building_continue' => $liste['nextContinue'] ?? null,
-                        'building_stage' => $aufgeloest ? 'members' : 'types',
-                    ],
-                ];
-            }
-
-            // STUFE 2. ⚠️ Beide Stufen teilen sich den Schluessel building_continue -- Stufe 1
-            // fuer die Seiten der Unterkategorien, Stufe 2 fuer die Seiten einer Bauwerksart.
-            // Das geht auf, weil die Weiche erst umlegt, wenn Stufe 1 done meldet, und done
-            // heisst per Vertrag: keine Fortsetzung mehr offen. Stufe 2 startet also immer
-            // mit null. Wer der Weiche je ein anderes Kriterium gibt, braucht zwei Schluessel.
-            $r = avesmapsWikiDumpHybridFillBuildingMapStep(
+            // Der Rumpf steht daneben, damit ein Test ihn ohne HTTP ganz durchfahren kann.
+            return avesmapsWikiDumpHybridBuildingMapPhaseStep(
                 $pdo,
                 $runId,
-                $arten,
+                $stats,
                 $cursor,
-                avesmapsWikiDumpHybridStatsString($stats, 'building_continue'),
                 avesmapsWikiDumpOnlineStepCallBudget()
             );
-            $bauFertig = (bool) ($r['done'] ?? false);
-
-            return [
-                'done' => $bauFertig,
-                'nextCursor' => (int) ($r['nextIndex'] ?? $cursor),
-                'written' => (int) ($r['written'] ?? 0),
-                'title_count' => count($r['titles'] ?? []),
-                'stage' => 'members',
-                'stats_patch' => [
-                    'building_continue' => $r['nextContinue'] ?? null,
-                    // Am Ende die Artenliste wieder aus stats_json nehmen. Sie ist klein (gut
-                    // zwei Dutzend Namen), aber wiki_sync_runs ist genau daran schon einmal auf
-                    // 99 MiB gewachsen: was nur WAEHREND einer Phase gebraucht wird, geht
-                    // danach raus.
-                    'building_types' => $bauFertig ? null : $arten,
-                ],
-            ];
 
         case AVESMAPS_WIKI_DUMP_PHASE_CONTINENT_MAP:
             $titles = avesmapsWikiDumpHybridFetchWantedTitles($pdo, $runId);
