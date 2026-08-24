@@ -598,17 +598,29 @@ async function approveOutlier(wikiKey, fingerprint, wayName) {
 	if (!fingerprint) {
 		return;
 	}
-	const result = await pathSyncPost({ action: "approve_outlier", wiki_key: wikiKey, fingerprint, title: wayName });
-	if (!result || result.ok !== true) {
-		const status = pathSyncElement("path-sync-summary");
-		if (status) {
-			status.textContent = "Fehler: " + apiErrorMessage(result, "");
+	const status = pathSyncElement("path-sync-summary");
+	try {
+		const result = await pathSyncPost({ action: "approve_outlier", wiki_key: wikiKey, fingerprint, title: wayName });
+		if (!result || result.ok !== true) {
+			if (status) {
+				status.textContent = "Fehler: " + apiErrorMessage(result, "");
+			}
+			return;
 		}
-		return;
+		outlierLoaded = false;
+		outlierData = null;
+		void loadOutliers();
+	} catch (error) {
+		// 💣 OHNE DIESEN ZWEIG IST DER FEHLSCHLAG UNSICHTBAR. Der Klick-Handler ruft
+		// `void approveOutlier(...)`; ein Wurf wird damit zu einer unbehandelten Promise-Ablehnung,
+		// die nur in der Browser-Konsole landet. Die Statuszeile bliebe unberührt und die Liste
+		// stehen -- der Editor hält „gehört zum Weg" für erledigt, obwohl nichts geschrieben wurde.
+		// Der `!ok`-Zweig oben meldet seit jeher sauber; es fehlte genau der Fall, in dem die
+		// Anfrage gar nicht erst zurückkommt (pathSyncRequest benennt dann Aktion und Abbruch).
+		if (status) {
+			status.textContent = "Fehler: " + (error.message || error);
+		}
 	}
-	outlierLoaded = false;
-	outlierData = null;
-	void loadOutliers();
 }
 
 // „gehört nicht zum Weg": der Streuner verliert seine Wiki-Zuordnung und bekommt einen eigenen
@@ -651,20 +663,34 @@ async function detachOutlier(wikiKey, segmentIds, wayName, ambiguous) {
 	}
 	let geloest = 0;
 	let letzterName = "";
+	const status = pathSyncElement("path-sync-summary");
 	for (const publicId of ids) {
 		// 💣 NACHEINANDER, nicht per Promise.all: clear_assign vergibt dem gelösten Segment einen
 		// neuen generischen Namen und liest den Vorrat dafür FRISCH aus der Datenbank
 		// (avesmapsWikiPathNextGenericName). Zwei gleichzeitige Rufe lesen denselben Vorrat und
 		// vergeben denselben Namen. Die Reihenfolge ist hier Korrektheit, nicht Höflichkeit.
-		const result = await pathSyncPost({
-			action: "clear_assign",
-			public_id: publicId,
-			single_segment: true,
-			dry_run: false,
-			confirm: "apply",
-		});
+		let result;
+		try {
+			result = await pathSyncPost({
+				action: "clear_assign",
+				public_id: publicId,
+				single_segment: true,
+				dry_run: false,
+				confirm: "apply",
+			});
+		} catch (error) {
+			// 💣 EIN VERBINDUNGSABBRUCH KOSTET HIER MEHR ALS EINE MELDUNG. Gefangen wird er aus
+			// demselben Grund, aus dem der `!ok`-Zweig unten `break` statt `return` sagt: was schon
+			// gelöst ist, ist gelöst. Ein Wurf spränge über den Toast UND über das `loadOutliers()`
+			// am Fuß der Funktion -- der Editor sähe die alte Liste, hielte „nichts passiert" für
+			// wahr und löste dasselbe Segment ein zweites Mal. Und weil der Klick-Handler
+			// `void detachOutlier(...)` ruft, stünde der Wurf nirgends als in der Konsole.
+			if (status) {
+				status.textContent = "Fehler: " + (error.message || error);
+			}
+			break;
+		}
 		if (!result || result.ok !== true) {
-			const status = pathSyncElement("path-sync-summary");
 			if (status) {
 				status.textContent = "Fehler: " + apiErrorMessage(result, "Lösen fehlgeschlagen");
 			}
@@ -691,17 +717,24 @@ async function reopenOutlier(fingerprint) {
 	if (!fingerprint) {
 		return;
 	}
-	const result = await pathSyncPost({ action: "reopen_outlier", fingerprint });
-	if (!result || result.ok !== true) {
-		const status = pathSyncElement("path-sync-summary");
-		if (status) {
-			status.textContent = "Fehler: " + apiErrorMessage(result, "");
+	const status = pathSyncElement("path-sync-summary");
+	try {
+		const result = await pathSyncPost({ action: "reopen_outlier", fingerprint });
+		if (!result || result.ok !== true) {
+			if (status) {
+				status.textContent = "Fehler: " + apiErrorMessage(result, "");
+			}
+			return;
 		}
-		return;
+		outlierLoaded = false;
+		outlierData = null;
+		void loadOutliers();
+	} catch (error) {
+		// Dieselbe Regel wie bei approveOutlier daneben -- zwei Verben, ein Riegel.
+		if (status) {
+			status.textContent = "Fehler: " + (error.message || error);
+		}
 	}
-	outlierLoaded = false;
-	outlierData = null;
-	void loadOutliers();
 }
 
 // 🩤 DIE VIER DIAGNOSELISTEN DIESER DATEI TRAGEN KEINEN STATUSKREIS -- Ausreißer, ihre
