@@ -35,6 +35,14 @@
 <link rel="stylesheet" href="/css/base/tokens.css">
 <link rel="stylesheet" href="/css/components/editor-page.css">
 <link rel="stylesheet" href="/css/pages/landschaften-editor.css">
+<!-- 💣 NICHT UNGENUTZT, auch wenn kein `.map-label` im Markup steht: das Fenster „Darstellung"
+     LIEST die ~20 Namenstoene per CSS-Sonde aus diesem Blatt, statt sie abzuschreiben. Ohne den
+     Link misst die Sonde die geerbte Textfarbe, und JEDE Art zeigt denselben falschen Ton --
+     lautlos, denn eine Farbe sieht immer nach einer Farbe aus. Am 24.08.2026 genau so gemessen.
+     ⚠️ Die uebrigen Regeln des Blattes (.location-name-label, .region-label, .leaflet-*) haben auf
+     dieser Seite keinen Wirt -- sie ist ohne Leaflet-Karte. Deshalb genuegt der Link; ein eigenes
+     Farbblatt waere eine zweite Datei ueber dieselbe Sache. -->
+<link rel="stylesheet" href="/css/features/map-labels.css">
 <!-- Der geteilte Quellen-Editor (mountFeatureSourceEditor) samt seiner Vorschlagsliste. Absolute
      Pfade wie bei den Nachbarn: dieses iframe-Dokument wird mit ?v=Date.now() geholt, nicht durch
      den Stempellauf von index.html. -->
@@ -249,6 +257,8 @@
           <span class="dg__src" id="ecoDisplayFlSrc"></span>
         </div>
         <div class="fl-global" id="ecoDisplayGlobal"></div>
+        <div class="dg-scroll"><!-- 💣 BEIDE Tabellen liegen in einem Rollkasten, nicht eine.
+             Bei 560 px rollte sonst der DIALOG statt der Tabelle. -->
         <table class="dt">
           <thead>
             <tr>
@@ -263,9 +273,24 @@
             </tr>
           </thead>
           <tbody id="ecoDisplayRows"></tbody>
-        </table>
+        </table></div>
         <p class="dg-plot-caption" id="ecoDisplayFlNote"></p>
         <p class="dg-plot-caption foot-mark" id="ecoDisplayFoot"></p>
+      </div>
+      <!-- Das Zoomband je Namensart (Entwurf 5.3/5.4). Bauform woertlich aus „Orte bearbeiten"
+           (renderZoomBandLegend / makeZoomBandStageButton) -- mit EINEM Unterschied: dort setzt ein
+           Klick die eine Erscheinungsstufe, hier zieht er das naehere von ZWEI Enden.
+           Klimazonen tragen diesen Abschnitt nicht (Owner 24.08.2026). -->
+      <div class="dg__section" id="ecoDisplayBandSection">
+        <div class="dg__head">
+          <h3>Namen — Zoomband je Art</h3>
+          <span class="dg__src">Ein Klick zieht das nähere Ende · „aus" heißt: trägt nirgends einen Namen</span>
+        </div>
+        <div class="dg-scroll"><table class="zb" id="ecoDisplayBand"></table></div>
+        <p class="dg-plot-caption">
+          Diese Werte sind die <strong>Vorgabe</strong>: Editoren sehen sie als Marke an ihrem Regler
+          und können sie je Beschriftung überschreiben.
+        </p>
       </div>
       <p class="avm-modal__msg" id="ecoDisplayMsg"></p>
     </div>
@@ -2985,6 +3010,231 @@ function ecoDisplayZeichneTabelle() {
 		+ "Namensarten ohne gleichnamige Flächenart. Ihre Farbe kommt weiter aus dem Stylesheet.";
 }
 
+
+// ---- Das Zoomband je Namensart -----------------------------------------------------------------
+//
+// 🔴 EIN Klick, ZWEI Enden. Bei den Siedlungen setzt ein Klick die eine ERSCHEINUNGSstufe und die
+// Kurve laeuft von dort bis ans Ende. Eine Landschaftsbeschriftung hat `min_zoom` UND `max_zoom`,
+// und das aus gutem Grund: ein Kontinentname soll beim Hineinzoomen VERSCHWINDEN. Wer das
+// Siedlungsmodell eins zu eins uebernimmt, verliert das obere Ende und damit die halbe Aussage.
+//
+// 🔴 „aus" ist als `bis < ab` kodiert, nicht als eigener Schalter -- ein dritter Zustand neben den
+// zwei Enden waere eine dritte Wahrheit ueber dieselbe Sache.
+
+const ECO_DISPLAY_BAND_MAX = 7;
+// Der gemessene Median je Art, waehrend das Fenster offen ist. 🔴 Er wird NIE gespeichert und
+// erreicht die Editoren nie -- er ist das Werkzeug, mit dem wir die Vorgabe festlegen.
+let ecoDisplayMedian = {};
+
+/** Die Vorgabe einer Art: Uebersteuerung oder der Wert aus dem geteilten Modul. */
+function ecoDisplayVorgabe(art) {
+	const eigen = ecoDisplayTeil("vorgabe")[art];
+	const grund = (typeof avesmapsEcosystemDisplayVorgabe === "function")
+		? avesmapsEcosystemDisplayVorgabe(art)
+		: { ab: 0, bis: ECO_DISPLAY_BAND_MAX, curveMax: 1, prio: 3 };
+	return Object.assign({}, grund, (eigen && typeof eigen === "object") ? eigen : {});
+}
+
+/**
+ * Das neue Band nach einem Klick auf Stufe `z`. REIN -- kein DOM, kein Zustand.
+ *
+ * ⚠️ Bei Gleichstand gewinnt „ab": eine Regel muss auch in der Mitte entscheiden, sonst haengt das
+ * Ergebnis an Rundung, und derselbe Klick bewegt mal das eine, mal das andere Ende.
+ * 💣 Aus dem „aus"-Zustand wird EINE Stufe, kein ganzes Band -- „zurueck auf z0-z7" waere geraten.
+ */
+function ecoDisplayBandNeu(band, z) {
+	const ab = Number(band.ab);
+	const bis = Number(band.bis);
+	if (!(bis >= ab)) { return { ab: z, bis: z }; }
+	if (z < ab) { return { ab: z, bis: bis }; }
+	if (z > bis) { return { ab: ab, bis: z }; }
+	return ((z - ab) <= (bis - z)) ? { ab: z, bis: bis } : { ab: ab, bis: z };
+}
+
+function ecoDisplaySetzVorgabe(art, teil) {
+	ecoDisplayTafel.vorgabe[art] = Object.assign(ecoDisplayVorgabe(art), teil);
+	ecoDisplayBearbeitet = true;
+	ecoDisplayZeichneBand();
+}
+
+/**
+ * Den Median messen. 🔴 ZWEI VERBEN, ZWEI KNOEPFE -- das hier MISST nur; uebernommen wird getrennt.
+ * Ein Knopf, der misst UND schreibt, naehme dem Owner die Entscheidung ab, die er gerade erst
+ * sichtbar gemacht hat.
+ */
+async function ecoDisplayMedianMessen(art, label) {
+	ecoDisplayMelde("misst, was die Editoren für „" + label + "“ eingestellt haben …");
+	try {
+		const daten = await ecoDisplayPost({ action: "median" });
+		const alle = (daten && daten.median && typeof daten.median === "object") ? daten.median : {};
+		const m = alle[art];
+		if (!m || typeof m.ab !== "number" || typeof m.bis !== "number") {
+			// ⚠️ Kein Schweigen und keine erfundene Zahl: „keine Beschriftung dieser Art" ist eine
+			// Auskunft, kein Fehler -- und sie sagt genau, warum nichts uebernommen werden kann.
+			delete ecoDisplayMedian[art];
+			ecoDisplayZeichneBand();
+			ecoDisplayMelde(label + ": keine Beschriftung dieser Art gefunden — nichts zu messen.");
+			return;
+		}
+		ecoDisplayMedian[art] = m;
+		ecoDisplayZeichneBand();
+		ecoDisplayMelde(label + ": Median z" + m.ab + "–z" + m.bis + " aus " + (m.n || 0) + " Beschriftungen.");
+	} catch (fehler) {
+		ecoDisplayMelde("Messen fehlgeschlagen: " + (fehler && fehler.message ? fehler.message : String(fehler)));
+	}
+}
+
+function ecoDisplayZeichneBand() {
+	const kind = ecoDisplayReiter;
+	// 🔴 Klimazonen tragen keinen Namen auf der Karte (Owner 24.08.2026): kein Zoomband, keine
+	// Schriftgroesse, keine Vorschau, keine Kurvenfeinheiten.
+	const zeigen = kind !== "klima";
+	$("ecoDisplayBandSection").hidden = !zeigen;
+	const tab = $("ecoDisplayBand");
+	tab.innerHTML = "";
+	if (!zeigen) { return; }
+
+	const zeilen = ecoDisplayZeilen(kind).filter((z) => z.hatName);
+	if (zeilen.length === 0) {
+		const tr = document.createElement("tr");
+		const td = document.createElement("td");
+		td.className = "dt__leer";
+		td.textContent = "Keine Art dieser Ebene trägt heute eine Beschriftung.";
+		tr.appendChild(td);
+		tab.appendChild(tr);
+		return;
+	}
+
+	// 💣 Die Spaltenbreiten stehen EINMAL im colgroup, nicht an jeder Zelle -- sonst laufen sie beim
+	// naechsten Knopf auseinander. Die acht Stufenspalten bleiben ohne Angabe und teilen den Rest.
+	const cg = document.createElement("colgroup");
+	["zb-c-dash", "zb-c-name"].forEach((k) => {
+		const c = document.createElement("col"); c.className = k; cg.appendChild(c);
+	});
+	for (let i = 0; i <= ECO_DISPLAY_BAND_MAX; i += 1) { cg.appendChild(document.createElement("col")); }
+	["zb-c-aus", "zb-c-med", "zb-c-nimm", "zb-c-rst"].forEach((k) => {
+		const c = document.createElement("col"); c.className = k; cg.appendChild(c);
+	});
+	tab.appendChild(cg);
+
+	const thead = document.createElement("thead");
+	const hr = document.createElement("tr");
+	const th = (text, span, mitte) => {
+		const t = document.createElement("th");
+		t.textContent = text;
+		if (span) { t.colSpan = span; }
+		if (mitte) { t.className = "zb-mid"; }
+		return t;
+	};
+	hr.append(th("", 1), th("Art", 1), th("Sichtbar auf Zoomstufe", ECO_DISPLAY_BAND_MAX + 1, true),
+		th("", 1), th("Median der Editoren", 2, true), th("", 1));
+	thead.appendChild(hr);
+	tab.appendChild(thead);
+
+	const tbody = document.createElement("tbody");
+	tab.appendChild(tbody);
+
+	zeilen.forEach((z) => {
+		const art = z.key;
+		const row = document.createElement("tr");
+		const v = ecoDisplayVorgabe(art);
+		const aus = !(Number(v.bis) >= Number(v.ab));
+		const med = ecoDisplayMedian[art];
+
+		const tdDash = document.createElement("td");
+		const strich = document.createElement("span");
+		strich.className = "zb-row__dash";
+		strich.style.background = ecoDisplayNaTon(art);
+		tdDash.appendChild(strich);
+
+		const tdName = document.createElement("td");
+		tdName.className = "zb-row__name";
+		tdName.textContent = z.label;
+		row.append(tdDash, tdName);
+
+		// Jeder Knopf bekommt seine EIGENE Zelle -- das ist der ganze Trick an der Ausrichtung.
+		const lege = (kindEl) => {
+			const td = document.createElement("td");
+			td.appendChild(kindEl);
+			row.appendChild(td);
+		};
+
+		for (let s = 0; s <= ECO_DISPLAY_BAND_MAX; s += 1) {
+			const cell = document.createElement("button");
+			cell.type = "button";
+			const drin = !aus && s >= v.ab && s <= v.bis;
+			const ende = !aus && (s === v.ab || s === v.bis);
+			// Der gemessene Median liegt als Saum UNTER der Zelle -- er konkurriert nicht mit dem
+			// Band, er kommentiert es.
+			const imMedian = med && s >= med.ab && s <= med.bis;
+			cell.className = "zb-cell" + (drin ? " is-in" : "") + (ende ? " is-end" : "")
+				+ (imMedian ? " has-median" : "");
+			cell.textContent = "z" + s;
+			cell.title = (drin ? z.label + " ist auf z" + s + " sichtbar" : z.label + " bis z" + s + " ausdehnen")
+				+ (imMedian ? " · liegt im Median der Editoren" : "");
+			if (ende) { cell.style.borderColor = ecoDisplayNaTon(art); cell.style.color = ecoDisplayNaTon(art); }
+			cell.disabled = !ecoDisplayDarfSpeichern;
+			cell.addEventListener("click", () => ecoDisplaySetzVorgabe(art, ecoDisplayBandNeu(v, s)));
+			lege(cell);
+		}
+
+		const ausBtn = document.createElement("button");
+		ausBtn.type = "button";
+		ausBtn.className = "zb-cell zb-cell--aus" + (aus ? " is-end" : "");
+		ausBtn.textContent = "aus";
+		ausBtn.title = z.label + " trägt gar keinen Namen auf der Karte";
+		ausBtn.disabled = !ecoDisplayDarfSpeichern;
+		ausBtn.addEventListener("click", () => ecoDisplaySetzVorgabe(art, { ab: 0, bis: -1 }));
+		lege(ausBtn);
+
+		const medBtn = document.createElement("button");
+		medBtn.type = "button";
+		medBtn.className = "zb-cell zb-cell--median";
+		medBtn.textContent = med ? "Median z" + med.ab + "–z" + med.bis : "Median ermitteln";
+		medBtn.title = med
+			? "Aus " + (med.n || 0) + " Beschriftungen — nochmal drücken misst neu"
+			: "Ermittelt, was die Editoren für „" + z.label + "“ tatsächlich eingestellt haben";
+		medBtn.addEventListener("click", () => ecoDisplayMedianMessen(art, z.label));
+		lege(medBtn);
+
+		if (med && ecoDisplayDarfSpeichern) {
+			const nimm = document.createElement("button");
+			nimm.type = "button";
+			nimm.className = "zb-cell zb-cell--nimm";
+			nimm.textContent = "übernehmen";
+			nimm.title = "Die Vorgabe für „" + z.label + "“ auf den Median setzen";
+			nimm.addEventListener("click", () => {
+				const teil = { ab: med.ab, bis: med.bis };
+				if (typeof med.curveMax === "number") { teil.curveMax = med.curveMax; }
+				if (typeof med.prio === "number") { teil.prio = med.prio; }
+				ecoDisplaySetzVorgabe(art, teil);
+			});
+			lege(nimm);
+		} else {
+			// 💣 LEERE ZELLE, nicht gar keine. Ohne sie hätte eine Zeile ohne Median eine Spalte
+			// weniger -- und `table-layout: fixed` schiebt dann alles rechts davon um eine Spalte
+			// nach links. Genau die Ausrichtung, wegen der das hier eine Tabelle ist und kein Grid
+			// je Zeile.
+			row.appendChild(document.createElement("td"));
+		}
+
+		const rst = document.createElement("button");
+		rst.type = "button";
+		rst.className = "fl-reset";
+		rst.textContent = "↺";
+		rst.title = "Band dieser Art auf die Vorgabe zurücksetzen";
+		rst.hidden = !ecoDisplayTafel.vorgabe[art] || !ecoDisplayDarfSpeichern;
+		rst.addEventListener("click", () => {
+			delete ecoDisplayTafel.vorgabe[art];
+			ecoDisplayBearbeitet = true;
+			ecoDisplayZeichneBand();
+		});
+		lege(rst);
+
+		tbody.appendChild(row);
+	});
+}
+
 function ecoDisplayMelde(text) {
 	$("ecoDisplayMsg").textContent = text;
 }
@@ -2995,6 +3245,7 @@ function ecoDisplayZeichne() {
 	// die zieht beim Aufbau alle Zeilen einmal nach, und eine leere Liste zöge nichts nach.
 	ecoDisplayZeichneTabelle();
 	ecoDisplayZeichneGlobal();
+	ecoDisplayZeichneBand();
 }
 
 // ---- Laden, Speichern, Zurücksetzen ------------------------------------------------------------

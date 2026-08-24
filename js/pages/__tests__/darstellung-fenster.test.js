@@ -67,8 +67,12 @@ const eigeneToene = ohneKommentare.match(/#[0-9a-fA-F]{6}/g) || [];
 assert.deepStrictEqual([...new Set(eigeneToene)], ["#888888"],
 	"im Fenster steht kein Kartenfarbwert -- gefunden: " + [...new Set(eigeneToene)].join(", "));
 assert.ok(/map-label--/.test(editor), "die Namenstoene kommen aus der CSS-Sonde");
-assert.ok(/map-labels\.css/.test(editor),
-	"und dafuer MUSS map-labels.css geladen sein -- sonst kaeme ueberall derselbe Grundton");
+// 🪤 Hier stand `/map-labels\.css/` -- und das traf den KOMMENTAR zwei Zeilen ueber der Sonde, der
+// genau diese Voraussetzung erklaert. Der Test war gruen, das Blatt war nicht geladen, und jede Art
+// zeigte im Fenster denselben falschen Ton (die geerbte Textfarbe). Am 24.08.2026 im Browser
+// gemessen, nicht vom Testfeld. Gesucht wird jetzt das LINK-ELEMENT.
+assert.ok(/<link[^>]+href="\/css\/features\/map-labels\.css"/.test(editor),
+	"map-labels.css ist als Blatt VERLINKT -- sonst misst die Sonde die geerbte Textfarbe");
 
 // ---- G. Der Riegel steht auch im Fenster -------------------------------------------------------
 assert.ok(/can_save/.test(editor), "das Fenster liest can_save");

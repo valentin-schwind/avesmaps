@@ -139,10 +139,44 @@ function ohneKommentare(text) {
 
 for (const datei of aufrufer) {
 	const quelle = ohneKommentare(inhalt.get(datei));
-	// Der Name des Zeichners: die Funktion, in deren Koerper avesmapsWikiFeldStand steht.
-	const zeichner = (quelle.match(/function\s+(\w*[Zz]eichne\w*)\s*\(/g) || [])
-		.map((t) => t.replace(/function\s+/, "").replace(/\s*\($/, ""));
-	if (zeichner.length === 0) { continue; }   // der Literatur-Editor nennt seinen anders
+	// Der Zeichner: eine Funktion, deren NAME sie als Zeichner ausweist UND die den Wiki-Override
+	// wirklich anfasst -- entweder `avesmapsWikiFeldStand` selbst oder den Rechner, der ihn ruft.
+	//
+	// 🪤 Bis zum 24.08.2026 stand hier nur `function\s+(\w*[Zz]eichne\w*)`, und das hatte ZWEI
+	// Loecher, die einander verdeckt haben:
+	//   (1) Es fand nur `function name(`, nie `const name = () =>`. Genau so heissen die Zeichner
+	//       des Landschaften- und des Literatur-Editors (`zeichneWikiAbweichungen`,
+	//       `aeWikiZeichneAbweichungen`) -- die Liste blieb leer, `continue` sprang beide Dateien
+	//       ab, und der Test hat sie NIE geprueft, obwohl er sie zaehlte.
+	//   (2) Es filterte nicht nach dem Rumpf. Als der Landschaften-Editor ein Fenster
+	//       „Darstellung" mit `ecoDisplayZeichneTabelle` und vier Geschwistern bekam, fand die
+	//       Suche ploetzlich fuenf Zeichner -- alle fuer eine ganz andere Sache -- und meldete eine
+	//       fehlende Verdrahtung, die es nie gab.
+	//
+	// ⚠️ Und der Rumpf ALLEIN reicht auch nicht: im Literatur-Editor steht `avesmapsWikiFeldStand`
+	// in `aeWikiStand()`, das nur RECHNET; gezeichnet wird eine Ebene darueber. Deshalb ein
+	// Schritt ueber den Aufruf -- aber nur einer, sonst faengt die Kette die halbe Datei.
+	const stellen = [];
+	const decl = /(?:function\s+(\w+)\s*\(|(?:const|let|var)\s+(\w+)\s*=\s*(?:async\s*)?(?:function\s*)?\()/g;
+	let treffer = decl.exec(quelle);
+	while (treffer !== null) {
+		stellen.push({ name: treffer[1] || treffer[2], von: treffer.index });
+		treffer = decl.exec(quelle);
+	}
+	const rumpf = (i) => quelle.slice(
+		stellen[i].von,
+		i + 1 < stellen.length ? stellen[i + 1].von : quelle.length
+	);
+	// Die Rechner: alles, was den Stand selbst ermittelt.
+	const kern = stellen.map((s, i) => (rumpf(i).includes("avesmapsWikiFeldStand") ? s.name : null))
+		.filter(Boolean);
+	const zeichner = stellen
+		.filter((s, i) => /[Zz]eichne/.test(s.name)
+			&& (rumpf(i).includes("avesmapsWikiFeldStand") || kern.some((k) => rumpf(i).includes(k + "("))))
+		.map((s) => s.name);
+	// ⚠️ Keine Treffer heisst: diese Datei zeichnet den Override nicht ueber eine so benannte
+	// Funktion -- dann kann der Test ueber ihre Verdrahtung nichts sagen und schweigt, statt zu raten.
+	if (zeichner.length === 0) { continue; }
 	// Ohne Regex-Bau aus Fremdtext: jede Stelle, an der ein input/change-Zuhoerer haengt, und die
 	// naechsten 240 Zeichen dahinter -- der Zeichner soll darin vorkommen. Kurz genug, dass ein
 	// zufaelliger Treffer eine andere Handlung betreffen muesste, lang genug fuer einen
