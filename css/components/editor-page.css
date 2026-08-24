@@ -190,8 +190,11 @@
 /* 🔴 KEINE PILLE. Hier stand `border-radius: 999px; min-width: 52px` -- mit einer Begruendung
    darueber, die sich selbst widerlegt: „Zustandsanzeigen, keine Handlungen, also die begruendete
    Ausnahme zu ,no pill shapes'". Es sind <button>, man klickt sie, und sie schalten den Notaus des
-   oeffentlichen Frontends. Sie SIND Handlungen, und es war die einzige Pille im ganzen Editor
-   (Owner-Entscheid 24.08.2026, Entwurf C in docs/wappen-menue-hausform-mockup.html).
+   oeffentlichen Frontends. Sie SIND Handlungen, und es war die einzige Pille an einem
+   BEDIENELEMENT in diesem Blatt (Owner-Entscheid 24.08.2026, Entwurf C in
+   docs/wappen-menue-hausform-mockup.html). ⚠️ `grep 999px` findet noch eine zweite, ganz oben am
+   ::-webkit-scrollbar-thumb -- das ist Browser-Chrome, kein Knopf, und bleibt rund. Wer die Regel
+   nachschlaegt, soll nicht an diesem Fund zweifeln muessen.
    Beide Werte fallen ersatzlos: die Rundung kommt jetzt aus .rb-menu__sw (--radius-md, wie jedes
    Steuerelement im Haus), die Breite ebenfalls von dort (62px statt 52px) -- damit stehen die zwei
    Schalter und das „starten" darunter buendig, was sie als Pille nie taten.
