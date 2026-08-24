@@ -162,14 +162,43 @@ input[type="number"].es-num, input[type="text"].es-num, select.es-sel {
 	font-size: var(--font-size-body); color: var(--color-text-strong);
 	border-bottom: 1px solid var(--color-border); white-space: nowrap;
 }
+/* 💣 Die Kopfzelle muss MITTIG stehen und SYMMETRISCH gepolstert sein, sonst fluchtet der Haken
+   nicht mit seiner Ueberschrift. Zwei Ursachen, beide gemessen (25.08.2026):
+   `.es-table th` ist linksbuendig (richtig fuer die Uebersichtstabelle, falsch hier), und
+   `.es-table td/th` polstern nur RECHTS (`… var(--space-8) … 0`) -- eine einseitige Polsterung
+   verschiebt die Mitte des Inhaltskastens um ihre halbe Breite, hier 5 px. Die letzte Spalte hat
+   `padding-right: 0` und stand deshalb als einzige richtig -- ein Versatz, der in drei von vier
+   Spalten auftritt und in der vierten nicht, sieht wie ein Zufall aus und ist keiner. */
 .es-matrix thead th { vertical-align: bottom; }
+.es-matrix thead th + th { text-align: center; }
 .es-matrix tbody td { text-align: center; }
+.es-matrix thead th + th,
+.es-matrix tbody td { padding-left: var(--space-6); padding-right: var(--space-6); }
 /* ⚠️ Die leeren Felder der oberen Dreieckshaelfte sind nicht "aus", sondern GIBT ES NICHT --
    dort stuende die Frage "weicht ein Gebietsname einem Ortsnamen aus", und die beantwortet die
    Rangfolge, kein Haken. Sie werden deshalb gedaempft und tragen einen Gedankenstrich. */
 .es-matrix .es-na { color: var(--color-text-muted); opacity: .45; }
 .es-rank { margin-left: var(--space-6); font-size: var(--font-size-caption); color: var(--color-text-muted); }
-.es-self { margin-left: var(--space-4); font-size: var(--font-size-caption); color: var(--color-text-muted); }
+
+/* 💣 Der Haken ist das EINZIGE im Feld -- kein Etikett, kein Text daneben. Sonst mittet
+   `text-align:center` das Etikett samt Text, und der Haken verlaesst die Spaltenflucht. */
+.es-matrix tbody input[type="checkbox"] { accent-color: var(--color-check-accent); margin: 0; }
+.es-matrix .es-diag { background: var(--color-panel-soft); }
+
+.es-legend {
+	margin: var(--space-8) 0 0; font-size: var(--font-size-caption);
+	line-height: 1.6; color: var(--color-text-muted);
+}
+.es-legend strong { color: var(--color-text); font-weight: var(--font-weight-regular); }
+.es-legend__key {
+	display: inline-block; min-width: 1.5em; text-align: center;
+	color: var(--color-text-muted);
+}
+.es-legend__key--diag {
+	width: 1.5em; height: 1em; vertical-align: -.15em;
+	background: var(--color-panel-soft); border: 1px solid var(--color-border);
+	border-radius: var(--radius-md);
+}
 
 /* ── Der Fortschritt sitzt IM Knopf, wie ueberall im Haus ───────────────────────────────── */
 .es-progress { position: relative; overflow: hidden; }
@@ -417,6 +446,12 @@ input[type="number"].es-num, input[type="text"].es-num, select.es-sel {
 				Rangfolge</strong> — jede weicht denen aus, die vor ihr stehen. Die Tafel sagt,
 				<em>ob</em> ein Paar einander überhaupt beachtet.
 			</p>
+			<p class="es-section__hint">
+				Sie ist dreieckig, weil ein Feld nur sagen kann <em>ob</em> zwei Arten einander beachten —
+				<strong>nicht wer weicht</strong>. Das entscheidet die Rangfolge, und die ist gemessen:
+				Wegnamen vor Ortsnamen erreicht auch null Überlappungen, blendet aber
+				<strong>503 zusätzliche Ortsnamen</strong> aus. Sie ist deshalb kein Regler.
+			</p>
 
 			<div class="es-row">
 				<div class="es-row__label">
@@ -443,47 +478,52 @@ input[type="number"].es-num, input[type="text"].es-num, select.es-sel {
 						<th>Wege- u. Fluss&shy;namen</th>
 					</tr>
 				</thead>
+				<!-- 💣 IN JEDEM FELD STEHT NUR DER HAKEN. Die erste Fassung schrieb „selbst" neben den
+				     Haken der Diagonale -- damit war die Zelle breiter als ihre Nachbarn, und weil
+				     `text-align:center` das GANZE Etikett mittet, rutschte der Haken aus der
+				     Spaltenflucht (Owner-Screenshot 25.08.2026: „die checkboxes sind verrutscht").
+				     Die Diagonale sagt sich jetzt ueber ihre Flaeche, nicht ueber Text im Feld. -->
 				<tbody>
 					<tr>
 						<th scope="row">Gebietsnamen <span class="es-rank">1.</span></th>
-						<td><label class="es-check"><input type="checkbox" checked aria-label="Gebietsnamen untereinander"><span class="es-self">selbst</span></label></td>
+						<td class="es-diag"><input type="checkbox" checked aria-label="Gebietsnamen untereinander" title="Gebietsnamen untereinander"></td>
 						<td class="es-na">—</td><td class="es-na">—</td><td class="es-na">—</td>
 					</tr>
 					<tr>
 						<th scope="row">Landschaftstitel <span class="es-rank">2.</span></th>
-						<td><label class="es-check"><input type="checkbox" checked aria-label="Landschaftstitel weichen Gebietsnamen"></label></td>
-						<td><label class="es-check"><input type="checkbox" checked aria-label="Landschaftstitel untereinander"><span class="es-self">selbst</span></label></td>
+						<td><input type="checkbox" checked aria-label="Landschaftstitel weichen Gebietsnamen"></td>
+						<td class="es-diag"><input type="checkbox" checked aria-label="Landschaftstitel untereinander" title="Landschaftstitel untereinander"></td>
 						<td class="es-na">—</td><td class="es-na">—</td>
 					</tr>
 					<tr>
 						<th scope="row">Ortsnamen <span class="es-rank">3.</span></th>
-						<td><label class="es-check"><input type="checkbox" checked aria-label="Ortsnamen weichen Gebietsnamen"></label></td>
-						<td><label class="es-check"><input type="checkbox" checked aria-label="Ortsnamen weichen Landschaftstiteln"></label></td>
-						<td><label class="es-check"><input type="checkbox" checked aria-label="Ortsnamen untereinander"><span class="es-self">selbst</span></label></td>
+						<td><input type="checkbox" checked aria-label="Ortsnamen weichen Gebietsnamen"></td>
+						<td><input type="checkbox" checked aria-label="Ortsnamen weichen Landschaftstiteln"></td>
+						<td class="es-diag"><input type="checkbox" checked aria-label="Ortsnamen untereinander" title="Ortsnamen untereinander"></td>
 						<td class="es-na">—</td>
 					</tr>
 					<tr>
 						<th scope="row">Wege- und Flussnamen <span class="es-rank">4.</span></th>
-						<td><label class="es-check"><input type="checkbox" checked aria-label="Wegnamen weichen Gebietsnamen"></label></td>
-						<td><label class="es-check"><input type="checkbox" checked aria-label="Wegnamen weichen Landschaftstiteln"></label></td>
-						<td><label class="es-check"><input type="checkbox" checked aria-label="Wegnamen weichen Ortsnamen"></label></td>
-						<td><label class="es-check"><input type="checkbox" checked aria-label="Wegnamen untereinander"><span class="es-self">selbst</span></label></td>
+						<td><input type="checkbox" checked aria-label="Wegnamen weichen Gebietsnamen"></td>
+						<td><input type="checkbox" checked aria-label="Wegnamen weichen Landschaftstiteln"></td>
+						<td><input type="checkbox" checked aria-label="Wegnamen weichen Ortsnamen"></td>
+						<td class="es-diag"><input type="checkbox" checked aria-label="Wegnamen untereinander" title="Wegnamen untereinander"></td>
 					</tr>
 				</tbody>
 			</table>
 
-			<p class="es-section__hint" style="margin-top:var(--space-10)">
-				Die Tafel ist dreieckig, weil ein Feld nur sagen kann <em>ob</em> zwei Arten einander
-				beachten — <strong>nicht wer weicht</strong>. Das entscheidet die Rangfolge, und die ist
-				gemessen: Wegnamen vor Ortsnamen erreicht auch null Überlappungen, blendet aber
-				<strong>503 zusätzliche Ortsnamen</strong> aus. Sie ist deshalb kein Regler.
-			</p>
-			<p class="es-section__hint">
-				Wie ausgewichen wird, ist je Art verschieden und bleibt so:
+			<!-- ⚠️ Die Legende steht ZWISCHEN Tafel und Speicherleiste, aber klein und einzeilig.
+			     Vorher standen hier zwei volle Absaetze in Lesegroesse -- dadurch sass „Speichern"
+			     einen Bildschirm unter seinen Bedienelementen und las sich, als gehoere es zum Text
+			     (Owner 25.08.2026). Die Begruendung der Dreiecksform ist nach OBEN gewandert, wo sie
+			     das Lesen der Tafel vorbereitet, statt es nachtraeglich zu erklaeren. -->
+			<p class="es-legend">
+				<span class="es-legend__key es-legend__key--diag"></span> die Art gegen sich selbst ·
+				<span class="es-legend__key">—</span> gibt es nicht, das beantwortet die Rangfolge ·
 				<strong>Gebietsnamen</strong> rücken bis 40 px und verschwinden nie ·
 				<strong>Landschaftstitel</strong> sind feste Landmarken ·
 				<strong>Ortsnamen</strong> haben zwölf Nachbarstellen, sonst werden sie ausgeblendet ·
-				<strong>Wegenamen</strong> rutschen nur an ihrer eigenen Linie entlang, sonst entfallen sie.
+				<strong>Wegenamen</strong> rutschen nur an ihrer eigenen Linie, sonst entfallen sie.
 			</p>
 
 			<div class="es-savebar">

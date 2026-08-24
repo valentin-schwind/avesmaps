@@ -517,6 +517,40 @@ Eine drehbare Reihenfolge holt beide Probleme zurück.
 ergibt, ist **ungemessen**. Sie ist als Werkzeug gedacht, nicht als Schönheitsregler — und die
 Abnahme muss an der echten Karte stattfinden, nicht an einer Zähltabelle.
 
+#### 💣 Zwei Fallen der Tafel selbst — beide im Mockup zugeschlagen
+
+Der Owner hat sie am 25.08.2026 an einem Screenshot gesehen, nicht das Werkzeug. Sie stehen hier,
+weil sie beim echten Bau genauso zuschlagen.
+
+**(1) In einem Feld steht NUR der Haken.** Die erste Fassung schrieb „selbst" neben den Haken der
+Diagonale. Damit war die Zelle breiter als ihre Nachbarn, und weil `text-align: center` das
+**ganze Etikett** mittet, verließ der Haken die Spaltenflucht. Die Diagonale sagt sich über ihre
+**Fläche** (`.es-diag`, `--color-panel-soft`) plus eine Legende, nie über Text im Feld.
+
+**(2) Die Kopfzelle muss mittig stehen UND symmetrisch gepolstert sein.** Zwei unabhängige
+Ursachen, beide aus der geteilten `.es-table`:
+* `.es-table th` ist **linksbündig** — richtig für die Übersichtstabelle, falsch für eine Matrix.
+* `.es-table td/th` polstern nur **rechts** (`… var(--space-8) … 0`). Eine einseitige Polsterung
+  verschiebt die Mitte des Inhaltskastens um ihre halbe Breite — hier 5 px.
+
+🪤 **Und die Tarnung:** `td:last-child` hat `padding-right: 0`, war also symmetrisch und stand als
+einzige richtig. Ein Versatz, der in **drei von vier** Spalten auftritt und in der vierten nicht,
+sieht wie ein Zufall aus und ist keiner. Gemessen wird gegen die Mitte des **sichtbaren Textes**
+der Kopfzeile (per `Range`), nicht gegen die Zelle — die Zelle kann mittig sein, während der Text
+in ihr am Rand klebt.
+
+**(3) Die Speicherleiste gehört an ihre Bedienelemente.** Zwischen Tafel und „Speichern" standen
+zwei volle Absätze in Lesegröße; der Knopf saß dadurch weit unter seinen Häkchen und las sich, als
+gehöre er zum Text. Die Begründung der Dreiecksform steht jetzt **oben**, wo sie das Lesen der
+Tafel vorbereitet, statt es nachträglich zu erklären; unter der Tafel bleibt eine einzeilige
+Legende (11 px, die Untergrenze aus §12). Gemessen: 59 px zwischen Tafel und Leiste.
+
+⚠️ **Die allgemeine Lehre, und sie gilt über die Matrix hinaus:** eine geteilte Tabellenklasse
+bringt die Ausrichtung ihres *ersten* Anwendungsfalls mit. `.es-table` wurde für die Übersicht
+gebaut (linksbündig, Text) und in der Matrix zweitverwendet (mittig, Häkchen). Wer eine
+Tabellenklasse teilt, prüft **Ausrichtung und Polsterung** ausdrücklich nach — sie fallen nicht
+auf, solange man nur die Zeilen zählt.
+
 ### §5.7 Kurvenbeschriftung — die ganze Werkstatt, aber NUR hier
 
 Owner am 25.08.2026: *„die einstellungen können vollständig hierher."*
