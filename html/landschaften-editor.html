@@ -3141,6 +3141,29 @@ async function ecoDisplayMedianMessen(art, label) {
 	}
 }
 
+/**
+ * Was auf dem Median-Knopf steht.
+ *
+ * 💣 OHNE das Wort „Median" -- es steht schon in der Spaltenüberschrift, und im Knopf ist es
+ * Wiederholung, die den Platz frisst. Gemessen am 24.08.2026: 106 px sind im Knopf nutzbar,
+ * „Median z2–z6 · 100 %" braucht 110, „z2–z6 · 100 %" nur 69. Die Einigkeit passt also genau
+ * dann hinein, wenn das überflüssige Wort weicht.
+ *
+ * 🔴 Und sie MUSS hinein: „alle 9 stehen auf z5" und „ein Drittel steht auf z3, der Rest
+ * verteilt sich" sahen am Knopf identisch aus, und nur das erste ist eine Regel. Ohne die Zahl
+ * kann niemand unterscheiden, ob er eine gefundene Regel übernimmt oder eine Zufallszahl.
+ *
+ * ⚠️ Fehlt die Einigkeit (ältere Antwort, keine Beschriftung dieser Art), bleibt nur die Spanne --
+ * eine erfundene 100 % wäre schlimmer als keine Zahl.
+ */
+function ecoDisplayMedianBeschriftung(med) {
+	if (!med || typeof med.ab !== "number" || typeof med.bis !== "number") {
+		return "Median ermitteln";
+	}
+	const spanne = "z" + med.ab + "–z" + med.bis;
+	return typeof med.einig === "number" ? spanne + " · " + med.einig + " %" : spanne;
+}
+
 function ecoDisplayZeichneBand() {
 	const kind = ecoDisplayReiter;
 	// 🔴 Klimazonen tragen keinen Namen auf der Karte (Owner 24.08.2026): kein Zoomband, keine
@@ -3247,9 +3270,18 @@ function ecoDisplayZeichneBand() {
 		const medBtn = document.createElement("button");
 		medBtn.type = "button";
 		medBtn.className = "zb-cell zb-cell--median";
-		medBtn.textContent = med ? "Median z" + med.ab + "–z" + med.bis : "Median ermitteln";
+		// 💣 OHNE das Wort „Median" -- es steht schon in der Spaltenüberschrift, und im Knopf ist es
+		// Wiederholung, die den Platz frisst. Gemessen: 106 px sind nutzbar, „Median z2–z6 · 100 %"
+		// braucht 110, „z2–z6 · 100 %" nur 69. Die Einigkeit passt also genau dann hinein, wenn das
+		// überflüssige Wort weicht.
+		// 🔴 Und sie MUSS hinein: „alle 9 stehen auf z5" und „ein Drittel steht auf z3, der Rest
+		// verteilt sich" sahen am Knopf identisch aus -- nur das erste ist eine Regel.
+		medBtn.textContent = ecoDisplayMedianBeschriftung(med);
 		medBtn.title = med
-			? "Aus " + (med.n || 0) + " Beschriftungen — nochmal drücken misst neu"
+			? "Aus " + (med.n || 0) + " Beschriftungen"
+				+ (typeof med.einig === "number"
+					? " · " + med.einig + " % davon stehen auf demselben Wert" : "")
+				+ " — nochmal drücken misst neu"
 			: "Ermittelt, was die Editoren für „" + z.label + "“ tatsächlich eingestellt haben";
 		medBtn.addEventListener("click", () => ecoDisplayMedianMessen(art, z.label));
 		lege(medBtn);

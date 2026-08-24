@@ -399,6 +399,13 @@ function avesmapsEcosystemDisplayMedians(PDO $pdo): array
     $raus = [];
     foreach ($eimer as $art => $gesammelt) {
         $eintrag = ['n' => (int) ($gesammelt['n'] ?? 0)];
+        // Wie einheitlich steht das UNTERE Bandende? In Prozent der Beschriftungen, die den
+        // haeufigsten Wert tragen -- 100 heisst „alle gleich", 33 heisst „ein Drittel".
+        $unten = $gesammelt['ab'] ?? [];
+        if ($unten !== []) {
+            $haeufigkeit = array_count_values($unten);
+            $eintrag['einig'] = (int) round((max($haeufigkeit) / count($unten)) * 100);
+        }
         foreach (array_keys($felder) as $feld) {
             $werte = $gesammelt[$feld] ?? [];
             if ($werte === []) {

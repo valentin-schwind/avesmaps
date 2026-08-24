@@ -98,4 +98,47 @@ assert.ok(/table-layout:\s*fixed/.test(
 	fs.readFileSync(path.join(wurzel, "css/pages/landschaften-editor.css"), "utf8")
 ), "die Bandtabelle liegt auf festen Breiten");
 
+// ---- G. 💣 DER KNOPF SAGT, WIE EINIG DER BESTAND IST ---------------------------------------------
+// Ohne die Zahl sahen „alle 9 stehen auf z5" und „ein Drittel steht auf z3, der Rest verteilt
+// sich" am Knopf identisch aus -- und nur das erste ist eine Regel. Wer den Median dann
+// uebernimmt, weiss nicht, ob er eine gefundene Regel setzt oder eine Zufallszahl.
+//
+// 💣 UND SIE PASST NUR OHNE DAS WORT „MEDIAN". Am 24.08.2026 im Browser gemessen: im Knopf sind
+// 106 px nutzbar, „Median z2–z6 · 100 %" braucht 110, „z2–z6 · 100 %" nur 69. Das Wort steht
+// ohnehin schon in der Spaltenueberschrift.
+const vonB = editor.indexOf("function ecoDisplayMedianBeschriftung(");
+assert.ok(vonB >= 0, "die Knopfbeschriftung steht als eigene Funktion da");
+const ecoDisplayMedianBeschriftung = new Function(
+	editor.slice(vonB, editor.indexOf(String.fromCharCode(10) + "}", vonB) + 2)
+		+ "; return ecoDisplayMedianBeschriftung;"
+)();
+
+assert.strictEqual(ecoDisplayMedianBeschriftung(null), "Median ermitteln",
+	"ungemessen steht das Verb da");
+assert.strictEqual(ecoDisplayMedianBeschriftung({ ab: 2, bis: 6, einig: 100 }), "z2–z6 · 100 %",
+	"gemessen stehen Spanne UND Einigkeit da");
+assert.strictEqual(ecoDisplayMedianBeschriftung({ ab: 3, bis: 7, einig: 43 }), "z3–z7 · 43 %",
+	"auch der uneinige Fall zeigt seine Zahl");
+
+// 🔴 KEIN „Median" mehr im gemessenen Zustand -- genau das Wort war der fehlende Platz.
+assert.ok(ecoDisplayMedianBeschriftung({ ab: 2, bis: 6, einig: 100 }).indexOf("Median") < 0,
+	"das Wort steht in der Spaltenueberschrift, nicht in jeder Zelle");
+
+// ⚠️ Fehlt die Einigkeit, wird keine erfunden -- eine geratene 100 % waere schlimmer als keine Zahl.
+assert.strictEqual(ecoDisplayMedianBeschriftung({ ab: 0, bis: 7 }), "z0–z7",
+	"ohne Einigkeit bleibt nur die Spanne");
+assert.strictEqual(ecoDisplayMedianBeschriftung({ ab: 0, bis: 7, einig: "viel" }), "z0–z7",
+	"und ein Unwert zaehlt als fehlend");
+
+// ---- H. Der Rechner liefert die Einigkeit ueberhaupt --------------------------------------------
+// ⚠️ Gemessen wird `min_zoom`: am oberen Ende weichen live 23 von 939 ab und bei der Prioritaet 4 --
+// dort gaebe es nichts zu unterscheiden, und drei Zahlen im Knopf liest niemand.
+const rechner = fs.readFileSync(path.join(wurzel, "api/_internal/app/ecosystem-display.php"), "utf8");
+assert.ok(/\$eintrag\['einig'\]/.test(rechner), "der Median traegt die Einigkeit bei");
+assert.ok(/array_count_values/.test(rechner), "gezaehlt wird der haeufigste Wert");
+const vonE = rechner.indexOf("$eintrag['einig']");
+const umE = rechner.slice(rechner.lastIndexOf("$unten", vonE), vonE);
+assert.ok(/\$gesammelt\['ab'\]/.test(rechner.slice(vonE - 400, vonE)),
+	"und zwar ueber das UNTERE Bandende, nicht ueber irgendein Feld");
+
 console.log("darstellung-band: alle Zusicherungen gruen");
