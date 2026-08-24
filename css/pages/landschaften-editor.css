@@ -409,3 +409,9 @@
 /* Der Name ist hier eine ZELLE, kein Knopf -- die Auswahl einer Art fuer den Groessenplot kommt
    erst mit dem Plot. Ein `cursor: pointer` ohne Handlung darunter waere ein Versprechen. */
 td.zb-row__name { cursor: default; }
+
+/* Der Groessenplot. ⚠️ `touch-action: none` ist tragend: ohne das faengt der Browser die
+   Zeigerbewegung als Scrollgeste ab, und ein Punkt laesst sich am Finger nicht ziehen.
+   ⚠️ Der Plot traegt `tabindex="0"` -- ohne sichtbaren Fokusring waere die Tastatur unbedienbar. */
+.dg-plot { display: block; width: 100%; min-width: 660px; height: auto; touch-action: none; }
+.dg-plot:focus-visible { outline: 2px solid var(--color-link); outline-offset: 2px; }

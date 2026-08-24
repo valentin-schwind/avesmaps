@@ -292,6 +292,23 @@
           und können sie je Beschriftung überschreiben.
         </p>
       </div>
+      <!-- Der Groessenplot (Entwurf 5.5). Eine Kurve je Namensart ueber neun Zoomstufen.
+           💣 Erst die Art waehlen, dann ziehen -- in der Vorgabestellung liegen alle Kurven
+           aufeinander. Klimazonen tragen ihn nicht. -->
+      <div class="dg__section" id="ecoDisplayPlotSection">
+        <div class="dg__head">
+          <h3>Namen — Schriftgröße in pt</h3>
+          <span class="dg__src">Erst die Art wählen (Name rechts), dann den Punkt ziehen · ← → Stufe, ↑ ↓ Wert</span>
+        </div>
+        <div class="dg-scroll">
+          <svg id="ecoDisplayPlot" class="dg-plot" viewBox="0 0 920 420"
+               role="img" aria-label="Schriftgröße je Art und Zoomstufe" tabindex="0"></svg>
+        </div>
+        <p class="dg-plot-caption">
+          Die Kurve läuft nur durch das Zoomband der Art — wo kein Name steht, gibt es keine Größe.
+          <strong>z8</strong> gibt es auf der Karte noch nicht; der Wert liegt bereit und erbt z7.
+        </p>
+      </div>
       <p class="avm-modal__msg" id="ecoDisplayMsg"></p>
     </div>
     <div class="avm-modal__actions">
@@ -3055,6 +3072,7 @@ function ecoDisplaySetzVorgabe(art, teil) {
 	ecoDisplayTafel.vorgabe[art] = Object.assign(ecoDisplayVorgabe(art), teil);
 	ecoDisplayBearbeitet = true;
 	ecoDisplayZeichneBand();
+	ecoDisplayZeichnePlot();
 }
 
 /**
@@ -3235,6 +3253,323 @@ function ecoDisplayZeichneBand() {
 	});
 }
 
+
+// ---- Der Größenplot ----------------------------------------------------------------------------
+//
+// Eine Kurve je Namensart über die neun Zoomstufen; die Punkte lassen sich ziehen.
+//
+// 💣 DAS EIGENTLICHE BEDIENPROBLEM (Owner 23.08.2026): in der Vorgabestellung sind ALLE Kurven
+// deckungsgleich, also konkurriert ein Dutzend Punkte um denselben Klick -- „man muss erst alle
+// darueberliegenden wegschaufeln". Die Loesung ist NICHT ein groesserer Klickradius (der macht die
+// Ueberdeckung nur breiter), sondern ein RIEGEL: sobald eine Art gewaehlt ist, nimmt nur sie noch
+// Zeiger an. Gewaehlt wird ueber ihren NAMEN -- die stehen aufgefaechert und sind immer eindeutig,
+// auch wenn die Linien aufeinanderliegen.
+
+const ECO_DISPLAY_PLOT = { w: 920, h: 420, l: 56, r: 132, t: 24, b: 40, min: 4, max: 30 };
+// 🔴 NEUN Stufen (z0…z8), nicht acht: die Groessentafel hat neun Zellen, wie bei den Siedlungen.
+// ⚠️ z8 gibt es auf der Karte noch nicht (`maxZoom: 7`); der Wert liegt bereit und erbt z7.
+const ECO_DISPLAY_PLOT_ZOOMS = [0, 1, 2, 3, 4, 5, 6, 7, 8];
+const ECO_DISPLAY_PLOT_ZEILE = 13;
+
+let ecoDisplayGewaehlteArt = null;
+let ecoDisplayGewaehlterPunkt = null;
+
+const ecoDisplayPx = (z) => ECO_DISPLAY_PLOT.l
+	+ (z / 8) * (ECO_DISPLAY_PLOT.w - ECO_DISPLAY_PLOT.l - ECO_DISPLAY_PLOT.r);
+const ecoDisplayPy = (v) => ECO_DISPLAY_PLOT.t
+	+ (1 - (v - ECO_DISPLAY_PLOT.min) / (ECO_DISPLAY_PLOT.max - ECO_DISPLAY_PLOT.min))
+	* (ECO_DISPLAY_PLOT.h - ECO_DISPLAY_PLOT.t - ECO_DISPLAY_PLOT.b);
+function ecoDisplayVonPy(y) {
+	const anteil = 1 - (y - ECO_DISPLAY_PLOT.t) / (ECO_DISPLAY_PLOT.h - ECO_DISPLAY_PLOT.t - ECO_DISPLAY_PLOT.b);
+	const wert = ECO_DISPLAY_PLOT.min + anteil * (ECO_DISPLAY_PLOT.max - ECO_DISPLAY_PLOT.min);
+	return Math.max(ECO_DISPLAY_PLOT.min, Math.min(ECO_DISPLAY_PLOT.max, Math.round(wert)));
+}
+
+function ecoDisplaySvgEl(name, attrs) {
+	const el = document.createElementNS("http://www.w3.org/2000/svg", name);
+	Object.keys(attrs || {}).forEach((k) => el.setAttribute(k, attrs[k]));
+	return el;
+}
+
+/**
+ * Darf dieser Punkt angefasst werden? REIN -- kein DOM.
+ * ⚠️ Ohne Auswahl bleibt alles anfassbar: sind die Kurven erst verschieden, ist der Riegel
+ * unnoetig und stuende nur im Weg. Eine leere Zeichenkette ist KEINE Auswahl -- sonst sperrte ein
+ * zuruecknehmender Klick alles.
+ */
+function ecoDisplayPlotAnfassbar(art, gewaehlt) {
+	if (!gewaehlt) { return true; }
+	return art === gewaehlt;
+}
+
+/**
+ * Namen am Rand auseinanderschieben. REIN.
+ *
+ * 🪤 Sie standen auf der Hoehe ihres letzten Wertes -- und in der VORGABESTELLUNG hat jede Art
+ * dieselbe Kurve, also lagen alle exakt aufeinander (Owner 23.08.2026: „die namen liegen alle
+ * uebereinander"). Ein Diagramm, dessen Beschriftung genau dann versagt, wenn noch niemand etwas
+ * verstellt hat, versagt beim ERSTEN Blick.
+ *
+ * 🔴 Die REIHENFOLGE der Eingabe bleibt: raus[i] gehoert zu rein[i]. Wer die sortierte Liste
+ * zurueckgibt, haengt jeden Namen an die falsche Kurve -- und es sieht trotzdem ordentlich aus.
+ */
+function ecoDisplayPlotFaechere(ziele, abstand) {
+	const sortiert = ziele.map((y, i) => ({ i: i, y: Number(y) })).sort((a, b) => a.y - b.y);
+	let letzte = -Infinity;
+	sortiert.forEach((e) => { e.y = Math.max(e.y, letzte + abstand); letzte = e.y; });
+	// Laeuft der Stapel unten hinaus, von unten her zurueckschieben -- sonst stehen die letzten
+	// Namen ausserhalb des Kastens.
+	const unten = ECO_DISPLAY_PLOT.h - ECO_DISPLAY_PLOT.b;
+	if (sortiert.length && sortiert[sortiert.length - 1].y > unten) {
+		let grenze = unten + abstand;
+		for (let k = sortiert.length - 1; k >= 0; k -= 1) {
+			sortiert[k].y = Math.min(sortiert[k].y, grenze - abstand);
+			grenze = sortiert[k].y;
+		}
+	}
+	const raus = new Array(ziele.length);
+	sortiert.forEach((e) => { raus[e.i] = e.y; });
+	return raus;
+}
+
+/** Die Groesse einer Art auf einer Stufe: Uebersteuerung oder die Vorgabe aus dem Modul. */
+function ecoDisplayGroesse(art, z) {
+	const zeile = ecoDisplayTeil("groesse")[art];
+	if (Array.isArray(zeile) && typeof zeile[z] === "number") { return zeile[z]; }
+	return avesmapsEcosystemDisplayVorgabeGroesse(z);
+}
+
+function ecoDisplaySetzGroesse(art, z, wert) {
+	const alt = ecoDisplayTeil("groesse")[art];
+	const zeile = Array.isArray(alt)
+		? alt.slice()
+		: ECO_DISPLAY_PLOT_ZOOMS.map((s) => avesmapsEcosystemDisplayVorgabeGroesse(s));
+	zeile[z] = wert;
+	ecoDisplayTafel.groesse[art] = zeile;
+	ecoDisplayBearbeitet = true;
+}
+
+/** Traegt die Art auf dieser Stufe ueberhaupt einen Namen? */
+function ecoDisplayPlotSichtbar(art, z) {
+	const v = ecoDisplayVorgabe(art);
+	if (!(Number(v.bis) >= Number(v.ab))) { return false; }
+	// ⚠️ z8 erbt z7 -- die Karte kennt Stufe 8 nicht, das Band endet bei 7.
+	const gemessen = Math.min(z, ECO_DISPLAY_BAND_MAX);
+	return gemessen >= v.ab && gemessen <= v.bis;
+}
+
+/** Die Beschriftung einer Art -- nie der Schluessel in einer Meldung; „huegelland" ist Code. */
+function ecoDisplayArtLabel(art) {
+	const treffer = ecoDisplayZeilen(ecoDisplayReiter).find((z) => z.key === art);
+	return treffer ? treffer.label : art;
+}
+
+function ecoDisplayWaehleArt(art) {
+	ecoDisplayGewaehlteArt = (ecoDisplayGewaehlteArt === art) ? null : art;
+	ecoDisplayGewaehlterPunkt = null;
+	ecoDisplayZeichnePlot();
+	ecoDisplayMelde(ecoDisplayGewaehlteArt
+		? ecoDisplayArtLabel(ecoDisplayGewaehlteArt) + " gewählt — nur ihre Punkte lassen sich jetzt ziehen."
+		: "Auswahl aufgehoben — alle Punkte sind wieder anfassbar.");
+}
+
+function ecoDisplayZiehen(startEv, art, z) {
+	const svg = $("ecoDisplayPlot");
+	function auf(ev) {
+		const box = svg.getBoundingClientRect();
+		// ⚠️ Ueber die gemessene Box gerechnet, nicht ueber feste Pixel: das SVG skaliert mit dem
+		// Fenster, und eine feste Umrechnung liefe beim ersten schmalen Bildschirm auseinander.
+		const y = ((ev.clientY - box.top) / box.height) * ECO_DISPLAY_PLOT.h;
+		ecoDisplaySetzGroesse(art, z, ecoDisplayVonPy(y));
+		ecoDisplayZeichnePlot();
+	}
+	function ab() {
+		window.removeEventListener("pointermove", auf);
+		window.removeEventListener("pointerup", ab);
+		ecoDisplayMelde(ecoDisplayArtLabel(art) + " · Zoom " + z + ": " + ecoDisplayGroesse(art, z) + " pt");
+	}
+	window.addEventListener("pointermove", auf);
+	window.addEventListener("pointerup", ab);
+	auf(startEv);
+}
+
+/**
+ * Tastaturbedienung. ⚠️ Ein Punkt, den man nur ziehen kann, ist fuer den nicht bedienbar, der nicht
+ * ziehen kann -- und der Plot ist die einzige Stelle im Fenster, an der die Groesse gesetzt wird.
+ */
+function ecoDisplayPlotTaste(ev) {
+	const p = ecoDisplayGewaehlterPunkt;
+	if (!p || !ecoDisplayDarfSpeichern) { return; }
+	let behandelt = true;
+	if (ev.key === "ArrowLeft" || ev.key === "ArrowRight") {
+		const richtung = ev.key === "ArrowLeft" ? -1 : 1;
+		let z = p.z + richtung;
+		while (z >= 0 && z <= 8 && !ecoDisplayPlotSichtbar(p.art, z)) { z += richtung; }
+		if (z >= 0 && z <= 8) { ecoDisplayGewaehlterPunkt = { art: p.art, z: z }; }
+	} else if (ev.key === "ArrowUp" || ev.key === "ArrowDown") {
+		const schritt = (ev.key === "ArrowUp" ? 1 : -1) * (ev.shiftKey ? 4 : 1);
+		const neu = Math.max(ECO_DISPLAY_PLOT.min,
+			Math.min(ECO_DISPLAY_PLOT.max, ecoDisplayGroesse(p.art, p.z) + schritt));
+		ecoDisplaySetzGroesse(p.art, p.z, neu);
+		ecoDisplayMelde(ecoDisplayArtLabel(p.art) + " · Zoom " + p.z + ": " + neu + " pt");
+	} else {
+		behandelt = false;
+	}
+	if (behandelt) {
+		ev.preventDefault();
+		ecoDisplayZeichnePlot();
+	}
+}
+
+function ecoDisplayZeichnePlot() {
+	const kind = ecoDisplayReiter;
+	// 🔴 Klimazonen tragen keinen Namen auf der Karte -- kein Plot (Owner 24.08.2026).
+	const zeigen = kind !== "klima";
+	$("ecoDisplayPlotSection").hidden = !zeigen;
+	const svg = $("ecoDisplayPlot");
+	svg.innerHTML = "";
+	if (!zeigen) { return; }
+
+	const arten = ecoDisplayZeilen(kind).filter((z) => z.hatName);
+	const wurzel = getComputedStyle(document.documentElement);
+	// 💣 KEIN Notwert als Hexzahl (AGENTS.md §12): eine abgeschriebene Farbe waere die Divergenz,
+	// die dieser Umbau abbaut, und sie faellt niemandem auf -- eine Farbe sieht immer nach einer
+	// Farbe aus. `currentColor` erbt den Textton und ist damit selbst tokengefuehrt.
+	const rasterTon = wurzel.getPropertyValue("--color-divider").trim() || "currentColor";
+	const textTon = wurzel.getPropertyValue("--color-text-muted").trim() || "currentColor";
+
+	for (let v = ECO_DISPLAY_PLOT.min; v <= ECO_DISPLAY_PLOT.max; v += 2) {
+		svg.appendChild(ecoDisplaySvgEl("line", {
+			x1: ECO_DISPLAY_PLOT.l, x2: ECO_DISPLAY_PLOT.w - ECO_DISPLAY_PLOT.r,
+			y1: ecoDisplayPy(v), y2: ecoDisplayPy(v), stroke: rasterTon, "stroke-width": 0.5,
+		}));
+		if (v % 4 === 0) {
+			const t = ecoDisplaySvgEl("text", {
+				x: ECO_DISPLAY_PLOT.l - 8, y: ecoDisplayPy(v) + 4,
+				fill: textTon, "font-size": 11, "text-anchor": "end",
+			});
+			t.textContent = String(v);
+			svg.appendChild(t);
+		}
+	}
+	ECO_DISPLAY_PLOT_ZOOMS.forEach((z) => {
+		svg.appendChild(ecoDisplaySvgEl("line", {
+			x1: ecoDisplayPx(z), x2: ecoDisplayPx(z),
+			y1: ECO_DISPLAY_PLOT.t, y2: ECO_DISPLAY_PLOT.h - ECO_DISPLAY_PLOT.b,
+			stroke: rasterTon, "stroke-width": 0.5,
+		}));
+		const t = ecoDisplaySvgEl("text", {
+			x: ecoDisplayPx(z), y: ECO_DISPLAY_PLOT.h - ECO_DISPLAY_PLOT.b + 18,
+			fill: textTon, "font-size": 11, "text-anchor": "middle",
+		});
+		t.textContent = "z" + z;
+		svg.appendChild(t);
+	});
+	const achse = ecoDisplaySvgEl("text", {
+		x: ECO_DISPLAY_PLOT.l - 8, y: ECO_DISPLAY_PLOT.t - 8,
+		fill: textTon, "font-size": 11, "text-anchor": "end",
+	});
+	achse.textContent = "pt";
+	svg.appendChild(achse);
+
+	if (arten.length === 0) {
+		const t = ecoDisplaySvgEl("text", {
+			x: (ECO_DISPLAY_PLOT.w - ECO_DISPLAY_PLOT.r + ECO_DISPLAY_PLOT.l) / 2,
+			y: ECO_DISPLAY_PLOT.h / 2, fill: textTon, "font-size": 14, "text-anchor": "middle",
+		});
+		t.textContent = "Keine Art dieser Ebene trägt heute eine Beschriftung.";
+		svg.appendChild(t);
+		return;
+	}
+
+	const hebe = ecoDisplayGewaehlteArt;
+	// 💣 DIE HERVORGEHOBENE ART ZULETZT. Bei gleichen Werten liegen die Kurven aufeinander; wer in
+	// der Zeichenreihenfolge weiter vorn steht, verschwindet sonst unter einer spaeteren.
+	const reihenfolge = arten.slice().sort((a, b) => (a.key === hebe ? 1 : 0) - (b.key === hebe ? 1 : 0));
+
+	reihenfolge.forEach((eintrag) => {
+		const art = eintrag.key;
+		const ton = ecoDisplayNaTon(art);
+		const aktiv = art === hebe;
+		const deutlich = !hebe || aktiv;
+		// 🔴 Die Kurve laeuft NUR durch ihr Band. Eine Art, die bei z3 verschwindet, hat bei z4 keine
+		// Schriftgroesse -- eine durchgezogene Linie dorthin behauptete einen Wert, den es nicht gibt
+		// (dieselbe Regel wie `null` in den Zoombaendern der Siedlungen).
+		const sichtbar = ECO_DISPLAY_PLOT_ZOOMS.filter((z) => ecoDisplayPlotSichtbar(art, z));
+		if (sichtbar.length >= 2) {
+			svg.appendChild(ecoDisplaySvgEl("polyline", {
+				points: sichtbar.map((z) => ecoDisplayPx(z) + "," + ecoDisplayPy(ecoDisplayGroesse(art, z))).join(" "),
+				fill: "none", stroke: ton,
+				"stroke-width": aktiv ? 3 : 1.6, "stroke-opacity": deutlich ? 1 : 0.3,
+			}));
+		}
+		const inert = !ecoDisplayPlotAnfassbar(art, hebe) || !ecoDisplayDarfSpeichern;
+		sichtbar.forEach((z) => {
+			const gewaehlt = ecoDisplayGewaehlterPunkt
+				&& ecoDisplayGewaehlterPunkt.art === art && ecoDisplayGewaehlterPunkt.z === z;
+			const c = ecoDisplaySvgEl("circle", {
+				cx: ecoDisplayPx(z), cy: ecoDisplayPy(ecoDisplayGroesse(art, z)),
+				r: gewaehlt ? 7 : (aktiv ? 6 : 4.5),
+				fill: ton, stroke: rasterTon, "stroke-width": 1,
+				"fill-opacity": deutlich ? 1 : 0.3,
+				"pointer-events": inert ? "none" : "auto",
+			});
+			if (!inert) {
+				c.setAttribute("style", "cursor:ns-resize");
+				c.addEventListener("pointerdown", (ev) => {
+					ev.preventDefault();
+					// Ein Griff an einen Punkt waehlt zugleich seine Art -- sonst bliebe der Riegel
+					// auf einer anderen stehen und der naechste Griff ginge ins Leere.
+					ecoDisplayGewaehlteArt = art;
+					ecoDisplayGewaehlterPunkt = { art: art, z: z };
+					// Damit die Pfeiltasten sofort greifen und nicht erst nach einem Tabulator.
+					svg.focus({ preventScroll: true });
+					ecoDisplayZiehen(ev, art, z);
+				});
+			}
+			svg.appendChild(c);
+		});
+	});
+
+	// ── Die Namen am rechten Rand ────────────────────────────────────────────────────────────────
+	// 🪤 Der Name haengt am LETZTEN SICHTBAREN Wert, nicht stur an z8: eine Art, deren Band bei z3
+	// endet, hat dort gar keinen Punkt -- ihr Name saesse sonst auf einer Hoehe, die zu nichts
+	// gehoert, und seine Anschlusslinie zeigte ins Leere.
+	const randX = ECO_DISPLAY_PLOT.w - ECO_DISPLAY_PLOT.r;
+	const eintraege = arten.map((e) => {
+		const sichtbar = ECO_DISPLAY_PLOT_ZOOMS.filter((z) => ecoDisplayPlotSichtbar(e.key, z));
+		const z = sichtbar.length ? sichtbar[sichtbar.length - 1] : null;
+		return {
+			art: e.key, label: e.label, z: z, ton: ecoDisplayNaTon(e.key),
+			ziel: z === null ? ECO_DISPLAY_PLOT.h - ECO_DISPLAY_PLOT.b : ecoDisplayPy(ecoDisplayGroesse(e.key, z)),
+		};
+	});
+	const hoehen = ecoDisplayPlotFaechere(eintraege.map((e) => e.ziel), ECO_DISPLAY_PLOT_ZEILE);
+	eintraege.forEach((e, i) => { e.y = hoehen[i]; });
+
+	eintraege.forEach((e) => {
+		const aktiv = e.art === hebe;
+		const klar = !hebe || aktiv;
+		const vonX = e.z === null ? randX : ecoDisplayPx(e.z);
+		// Anschlusslinie vom Kurvenende zum Namen -- sie startet dort, wo die Kurve WIRKLICH endet.
+		if (Math.abs(e.y - e.ziel) > 0.5 || vonX < randX) {
+			svg.appendChild(ecoDisplaySvgEl("polyline", {
+				points: vonX + "," + e.ziel + " " + (randX + 5) + "," + e.y + " " + (randX + 8) + "," + e.y,
+				fill: "none", stroke: e.ton, "stroke-width": 1,
+				"stroke-opacity": klar ? 0.55 : 0.2, "stroke-dasharray": vonX < randX ? "3 3" : "",
+			}));
+		}
+		const t = ecoDisplaySvgEl("text", {
+			x: randX + 11, y: e.y + 4, fill: e.ton, "font-size": 11,
+			"fill-opacity": klar ? 1 : (e.z === null ? 0.25 : 0.3),
+			"font-weight": aktiv ? 700 : 400, style: "cursor:pointer",
+		});
+		t.textContent = e.label + (e.z === null ? " (aus)" : "");
+		t.addEventListener("click", () => ecoDisplayWaehleArt(e.art));
+		svg.appendChild(t);
+	});
+}
+
 function ecoDisplayMelde(text) {
 	$("ecoDisplayMsg").textContent = text;
 }
@@ -3246,6 +3581,7 @@ function ecoDisplayZeichne() {
 	ecoDisplayZeichneTabelle();
 	ecoDisplayZeichneGlobal();
 	ecoDisplayZeichneBand();
+	ecoDisplayZeichnePlot();
 }
 
 // ---- Laden, Speichern, Zurücksetzen ------------------------------------------------------------
@@ -3320,6 +3656,10 @@ function ecoDisplaySchliessen() {
 }
 
 $("ecoDisplay").addEventListener("click", () => { void ecoDisplayOeffnen(); });
+// ⚠️ Der Plot nimmt Tasten nur an, wenn er den Fokus hat -- deshalb haengt der Zuhoerer am SVG
+// (tabindex="0"), nicht am Dokument: ein globaler Zuhoerer fraesse die Pfeiltasten der ganzen Seite.
+$("ecoDisplayPlot").addEventListener("keydown", ecoDisplayPlotTaste);
+
 $("ecoDisplayClose").addEventListener("click", ecoDisplaySchliessen);
 $("ecoDisplayDialog").addEventListener("click", (ereignis) => {
 	if (ereignis.target === $("ecoDisplayDialog")) { ecoDisplaySchliessen(); }
