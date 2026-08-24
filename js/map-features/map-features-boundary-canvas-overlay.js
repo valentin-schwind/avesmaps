@@ -105,6 +105,24 @@
 	function getTerritoryLabelDetail(z) { return territoryLabelByZoom(TERRITORY_LABEL_DETAIL_BY_ZOOM, z, 0.5); }
 	const TERRITORY_LABEL_FONT_FAMILY = '"Faculty Glyphic", Georgia, "Times New Roman", serif'; // wie .map-label
 	const TERRITORY_LABEL_LETTER_SPACING = 3;
+	// 🔴 DECKEL FUER DEN BACKING-STORE DIESER CANVAS (Owner 24.08.2026: „devicePixelRatio - setz das mal
+	// runter“). 1 heisst: ein Canvas-Pixel je CSS-Pixel. Auf einem 1,5x- oder 2x-Schirm streckt der
+	// Browser das fertige Bild dann selbst -- das ergibt den weicheren, „bitmapigen“ Eindruck, den der
+	// Owner von frueher kennt, statt der pixelscharfen Schrift von HEAD 5c4a3787.
+	// ⚠️ ES GIBT ACHT CANVASSE, DIE `devicePixelRatio` EINZELN LESEN: diese hier, contested-hatch,
+	// ecosystem-height-render, location-canvas-layer (2x), path-label-canvas-overlay (2x),
+	// river-flow-arrows und route-speed-arrows. Der Deckel gilt NUR fuer die Grenzen-Canvas -- er ist
+	// eine Antwort auf einen Befund an DIESEM Bild, keine Hausregel. Wer ihn verallgemeinert, macht
+	// aus acht Einzelentscheidungen eine, und das waere eine eigene Entscheidung mit eigenem Blick.
+	// ⭐ Live vergleichbar ohne Deploy: ?canvasdpr=1.5 stellt den scharfen Stand her, ?canvasdpr=2 mehr.
+	const TERRITORY_CANVAS_MAX_DPR = 1;
+	const territoryCanvasMaxDpr = (() => {
+		try {
+			const roh = new URLSearchParams(window.location.search).get("canvasdpr");
+			const wert = Number(roh);
+			return (roh !== null && Number.isFinite(wert) && wert > 0) ? wert : TERRITORY_CANVAS_MAX_DPR;
+		} catch (e) { return TERRITORY_CANVAS_MAX_DPR; }
+	})();
 	const TERRITORY_LABEL_ALPHA = 0.75; // weiß, LEICHT TRANSPARENT -- nicht „gut deckend“ erhöhen:
 	// 0.75 ist der Ursprungswert (54a5ac96) und der, den der Owner am 24.08.2026 zurückverlangt hat.
 	// 4d2771b6 zog ihn auf 0.9 („Grenz-Namen deckender“); der Kommentar drei Zeilen weiter oben sagte
@@ -474,7 +492,7 @@
 		canvasTopLeftLatLng = map.containerPointToLatLng([0, 0]);
 		// HiDPI: Backing-Store in Geräte-Pixeln, CSS-Größe in Layout-Pixeln -> scharfe Grenzen/Grenz-Namen auf
 		// Retina/Mobile (dpr 2–3); auf dpr 1 unverändert. Gezeichnet wird weiter in CSS-px (ctx mit dpr skaliert).
-		const dpr = window.devicePixelRatio || 1;
+		const dpr = Math.min(window.devicePixelRatio || 1, territoryCanvasMaxDpr);
 		const pw = Math.round(size.x * dpr), ph = Math.round(size.y * dpr);
 		if (canvas.width !== pw) canvas.width = pw;
 		if (canvas.height !== ph) canvas.height = ph;
