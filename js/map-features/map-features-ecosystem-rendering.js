@@ -647,8 +647,9 @@ function ecosystemStapelOrdnung(areas) {
 // Isolation), nur der dritte Erzeuger: der, den css/features/ecosystem-layer.css:1358 vorhergesagt
 // hat. Steht die Reihenfolge schon, wird jetzt nichts mehr angefasst.
 //
-// 🪤 Verglichen wird die NACHBARSCHAFT (`nextSibling`), nicht eine nachgebaute Position: in der
-// Gruppe können Knoten liegen, die uns nicht gehören, und ein Index über `children` zählte sie mit.
+// 🪤 Verglichen wird die LAGE IM STROM (ein Zeiger über die Geschwister), nicht eine nachgebaute
+// Position: in der Gruppe können Knoten liegen, die uns nicht gehören, und ein Index über `children`
+// zählte sie mit.
 function ecosystemPfadeEinsortieren(knoten) {
 	// Je Elternknoten getrennt -- jede Ebene liegt in ihrer eigenen Pane, und `insertBefore` mit einem
 	// Bezugsknoten aus einer fremden Gruppe wäre ein Fehler, kein Sortieren.
@@ -666,22 +667,33 @@ function ecosystemPfadeEinsortieren(knoten) {
 
 	let bewegungen = 0;
 	nachEltern.forEach((liste, eltern) => {
-		// Von vorn nach hinten: der vorderste Pfad gehört ans Ende der Gruppe, jeder weitere unmittelbar
-		// vor seinen Nachfolger. Wer dort schon liegt, bleibt liegen.
-		let nachfolger = null;
-		for (let i = liste.length - 1; i >= 0; i -= 1) {
-			const pfad = liste[i];
-			if (nachfolger === null) {
-				if (eltern.lastChild !== pfad) {
-					eltern.appendChild(pfad);
-					bewegungen += 1;
-				}
-			} else if (pfad.nextSibling !== nachfolger) {
-				eltern.insertBefore(pfad, nachfolger);
-				bewegungen += 1;
+		// Ein Zeiger läuft die Gruppe von vorn ab und wird NUR weitergeschoben, wenn der Knoten dort
+		// der verlangte ist. Alles andere wird vor den Zeiger gehängt -- und der bleibt stehen.
+		//
+		// 💣 DIESE RICHTUNG IST DER GANZE UNTERSCHIED, live gemessen am 24.08.2026. Ein Durchgang von
+		// HINTEN („jeder Pfad unmittelbar vor seinen Nachfolger") ist zwar auch idempotent, kaskadiert
+		// aber, sobald EINE Fläche in die Mitte gehört: der Loader hängt eine neu geladene Fläche ans
+		// Ende der Gruppe, und von dort aus liegt plötzlich jeder Knoten hinter ihrer Sollstelle falsch.
+		// Gemessen: ein Schwenk mit ZWEI nachgeladenen Flächen bewegte **154 von 181** Pfaden -- also
+		// fast wieder alle, und damit war der Schwebezettel unter dem Zeiger weiterhin verloren.
+		// Mit dem Zeiger kostet derselbe Schwenk 2 Bewegungen.
+		//
+		// 🪤 Fremde Knoten überspringt der Zeiger, statt sich an ihnen aufzuhalten: sie gehören uns
+		// nicht, und sich vor sie zu schieben hiesse, ihre Lage im Stapel stillschweigend zu ändern.
+		const eigene = new Set(liste);
+		let zeiger = eltern.firstChild;
+		liste.forEach((pfad) => {
+			while (zeiger && !eigene.has(zeiger)) {
+				zeiger = zeiger.nextSibling;
 			}
-			nachfolger = pfad;
-		}
+			if (pfad === zeiger) {
+				zeiger = zeiger.nextSibling;
+				return;
+			}
+			// `zeiger` ist der nächste EIGENE Knoten -- oder null, und dann hängt insertBefore ans Ende.
+			eltern.insertBefore(pfad, zeiger);
+			bewegungen += 1;
+		});
 	});
 	return bewegungen;
 }

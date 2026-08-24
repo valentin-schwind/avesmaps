@@ -40,6 +40,9 @@ function gruppe(name) {
 		name,
 		kinder,
 		schreibzugriffe: 0,
+		get firstChild() {
+			return kinder.length > 0 ? kinder[0] : null;
+		},
 		get lastChild() {
 			return kinder.length > 0 ? kinder[kinder.length - 1] : null;
 		},
@@ -50,7 +53,13 @@ function gruppe(name) {
 			g.schreibzugriffe += 1;
 		},
 		insertBefore(knoten, bezug) {
-			if (!bezug || bezug.parentNode !== g) {
+			// `insertBefore(x, null)` hängt im echten DOM ans Ende -- das ist kein Fehler, sondern der
+			// Weg, auf dem der letzte Pfad seinen Platz bekommt.
+			if (bezug === null || bezug === undefined) {
+				g.appendChild(knoten);
+				return;
+			}
+			if (bezug.parentNode !== g) {
 				throw new Error(`NotFoundError: Bezugsknoten liegt nicht in ${name}`);
 			}
 			loese(knoten);
@@ -104,14 +113,43 @@ const [dC, dA, dB] = [knoten("c", durcheinander), knoten("a", durcheinander), kn
 const bewegt = ecosystemPfadeEinsortieren([dA, dB, dC]);
 assert.strictEqual(namen(durcheinander), "a,b,c",
 	"die verlangte Reihenfolge steht -- der vorderste Pfad (letzter der Liste) liegt am Ende der Gruppe");
-assert.strictEqual(bewegt, 1,
-	"⭐ und es kostet EINE Bewegung, nicht drei: a und b lagen schon richtig zueinander");
-assert.strictEqual(durcheinander.schreibzugriffe, 1, "genau ein Schreibzugriff aufs DOM");
+assert.strictEqual(bewegt, 2,
+	"⚠️ zwei Bewegungen, nicht die theoretisch mögliche eine: der Zeiger steht auf c und schiebt a und b "
+		+ "davor, statt c ans Ende zu holen. Das ist der bewusst gezahlte Preis -- optimal ist der Zeiger "
+		+ "für den ALLTAGSFALL (Fall unten), und der kommt bei jedem Schwenk, dieser hier nur, wenn "
+		+ "jemand von Hand eine Region nach vorn holt");
+assert.strictEqual(durcheinander.schreibzugriffe, 2, "und genau so viele Schreibzugriffe aufs DOM");
 
 // Und der zweite Lauf ist ein Nichts. Genau das ist der Alltag: der Loader ruft die Sortierung nach
 // JEDEM Nachladen, also bei jedem Schwenk, meist ohne dass sich etwas geändert hat.
 assert.strictEqual(ecosystemPfadeEinsortieren([dA, dB, dC]), 0,
 	"💣 der zweite Lauf über dieselbe Reihenfolge fasst nichts an (idempotent)");
+
+// ---- Der ALLTAGSFALL: eine nachgeladene Fläche gehört in die MITTE ---------------------------------
+//
+// 💣 GENAU HIER IST DIE ERSTE FASSUNG DIESES FIXES GESCHEITERT, und sie stand schon live. Sie lief von
+// hinten („jeder Pfad unmittelbar vor seinen Nachfolger") -- idempotent, aber sobald EIN Knoten in der
+// Mitte fehlt, liegt von dort an jeder Knoten hinter seiner Sollstelle, und alle wandern.
+// Live gemessen (avesmaps.de, 24.08.2026): ein Schwenk mit ZWEI nachgeladenen Flächen bewegte
+// **154 von 181** Pfaden. Der Schwebezettel unter dem Zeiger war damit weiterhin verloren -- die
+// Reparatur hatte 181 auf 154 gedrückt und hörte sich trotzdem wie „behoben" an.
+//
+// 🔴 Der Loader hängt eine neue Fläche IMMER ans Ende der Gruppe (Leaflet `addTo`), ihre `stack_order`
+// setzt sie aber irgendwohin. Dieser Fall ist deshalb nicht der Sonderfall, sondern der Normalfall
+// jedes Schwenks -- und er muss EINE Bewegung kosten.
+
+const nachgeladen = gruppe("alltag");
+const kette = ["a", "b", "c", "d", "e"].map((n) => knoten(n, nachgeladen));
+const neuling = knoten("neu", nachgeladen); // Leaflet haengt an -- ganz hinten
+assert.strictEqual(namen(nachgeladen), "a,b,c,d,e,neu", "Vorbedingung: der Neuling liegt am Ende");
+
+const kosten = ecosystemPfadeEinsortieren([kette[0], kette[1], neuling, kette[2], kette[3], kette[4]]);
+assert.strictEqual(namen(nachgeladen), "a,b,neu,c,d,e", "der Neuling steht an seiner Sollstelle");
+assert.strictEqual(kosten, 1,
+	"💣 EINE Bewegung -- nur der Neuling. Bewegt sich hier mehr als er, ist der Zettel jeder Fläche "
+		+ "verloren, die bei einem Schwenk zufällig unter dem Zeiger liegt");
+assert.strictEqual(ecosystemPfadeEinsortieren([kette[0], kette[1], neuling, kette[2], kette[3], kette[4]]), 0,
+	"und der nächste Lauf fasst wieder nichts an");
 
 // 🪤 Ein FREMDER Knoten in der Gruppe darf kein Dauerrütteln auslösen. Er bleibt vorn liegen, und
 // unsere Pfade bleiben, wo sie sind -- sonst würde bei jedem Schwenk wieder alles bewegt.
