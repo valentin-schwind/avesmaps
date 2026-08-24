@@ -37,15 +37,24 @@ Sensor ein Mensch mit einem Telefon ist.
 
 ## 2. Die vier strukturellen Ursachen
 
-### 2.1 Fehler werden verschluckt — 289 von 621 catch-Blöcken (46 %)
+### 2.1 Fehler werden verschluckt — 310 von 621 catch-Blöcken (50 %)
 
 ```
-# stumme catch-Blöcke in api/ (kein error_log, kein rethrow, keine Antwort)
-grep -c error_log -r api --include='*.php' | ...   →  26 error_log im GANZEN Backend
+php -d zend.assertions=1 api/_internal/__tests__/stumme-catches-test.php
+→ 310 von 621 stumm (Stand vor dem 24.08.), 26 error_log im GANZEN Backend
 ```
 
 `api/app/map-features.php` — der Endpunkt, dessen Ausfall die Karte für jeden Besucher
-leert — trägt allein **10** davon. `api/_internal/app/lore.php` 13, `citymap-sync.php` 10.
+leert — trug allein **10** davon. `api/_internal/map/features.php` 22, `lore.php` 13,
+`citymap-sync.php` 10.
+
+🪤 **Die erste Messung dieses Berichts sagte 289, und sie war falsch.** Sie zählte mit einem
+Regex, und ein Regex sieht Kommentare als Code — in *beide* Richtungen: ein Beispiel
+`} catch (Throwable) { return []; }` in einem Docblock zählte als stummer Block, und jeder
+catch, dessen **Kommentar** das Wort `throw` oder `error_log` enthielt, galt als behandelt.
+Die token-genaue Zählung (`token_get_all`) liegt bei **310**. Der Bestand ist also 21 Blöcke
+schlechter als zuerst berichtet — und als Sperrklinke hätte die Regex-Fassung genau diese 21
+als Wachstum durchgelassen.
 
 Was das kostet, steht wörtlich in der Revert-Botschaft von `91587cd`:
 
@@ -208,35 +217,45 @@ dort stehen, wo man sie beim Arbeiten *nicht umgehen kann* — im Testfeld, nich
 Vier Stufen, nach Verhältnis von Wirkung zu Risiko sortiert. Stufe 0 und 1 sind für den
 Besucher **unsichtbar** und fallen damit nicht unter die Einzeln-live-Regel (§9).
 
-### Stufe 0 — Sehen, was schiefgeht (unsichtbar, ein Tag)
+### Stufe 0 — Sehen, was schiefgeht ✅ **umgesetzt 24.08.2026**
 
-**0a · Ein Diagnose-Trichter.** Eine Funktion in `api/_internal/bootstrap.php`:
+**0a · Ein Diagnose-Trichter** (`2a80c4b`, `2a50bd3`). Zwei Funktionen in
+`api/_internal/bootstrap.php`:
 
 ```php
-/** Verschluckt einen Fehler ABSICHTLICH -- und schreibt ihn dabei ins Protokoll.
- *  Jeder catch, der nicht antwortet und nicht weiterwirft, geht hier durch. */
-function avesmapsSchlucke(Throwable $fehler, string $kontext, mixed $rueckfall = null): mixed
+} catch (Throwable $fehler) { return avesmapsSchlucke($fehler, 'kontext', []); }
+} catch (Throwable $fehler) { avesmapsSchluckProtokoll($fehler, 'kontext'); … }
 ```
 
-Regel danach: **ein `catch` antwortet, wirft weiter, oder geht durch den Trichter.**
-Kein vierter Fall. Beginnend bei den 10 in `map-features.php` — das ist der Endpunkt,
-dessen Ausfall die Seite leert.
+Regel danach: **ein `catch` antwortet, wirft weiter, oder geht durch den Trichter.** Kein
+vierter Fall. Alle **zehn** Stellen in `map-features.php` sind umgestellt — der Endpunkt hat
+jetzt null stumme catches und liefert dabei exakt dieselben Rückfälle wie vorher.
 
-**0b · Eine Sperrklinke statt einer Zählung.** Ein Test, der die stummen catch-Blöcke
-zählt und rot wird, wenn die Zahl **steigt**. Die 289 müssen nicht heute weg; sie dürfen
-nur nicht 290 werden. Dieselbe Bauform für „Dateien mit direktem `fetch(`" (61) und
-„Inline-JS-Zeilen in HTML" (13.988). Eine Sperrklinke ist billiger als ein Aufräumprojekt
-und wirkt sofort.
+🔴 **In zwei Commits, und das ist tragend.** `bootstrap.php` beschreibt in seinem eigenen
+Kommentar das Fenster: der Deploy lädt Datei für Datei per SFTP, ohne Staging, und STRATOs
+opcache prüft jede Datei einzeln mit 2–4 Minuten Verzug. Ginge ein Aufrufer vor seiner
+Bibliothek live, riefe `map-features.php` minutenlang eine undefinierte Funktion — ein Fatal
+auf dem meistgerufenen Endpunkt, also der Ausfall vom 24.08. noch einmal, diesmal durch das
+Werkzeug gegen ihn. **Erst `2a80c4b` live und den Lauf abwarten, dann `2a50bd3`.**
 
-**0c · Syntaxprüfung ins Deploy-Tor**, vor allem anderen, Laufzeit ~4 Sekunden:
+💣 Zwei Deckel gegen das geteilte Protokoll von STRATO: derselbe Fall einmal je Prozess
+(Schlüssel aus Kontext + Klasse + Fundstelle, **nicht** aus der Meldung — die kann eine
+wechselnde ID tragen), und höchstens 20 verschiedene Fälle je Prozess.
 
-```bash
-find api tools -name '*.php' -print0 | xargs -0 -n1 php -l    # fängt jeden Fatal
-find js -name '*.js' -not -path '*third-party*' -print0 | xargs -0 -n1 node --check
-```
+**0b · Drei Sperrklinken** (`47208f5`). Sie verlangen keine Verbesserung, sie verbieten eine
+Verschlechterung: stumme catches ≤ 300, Dateien mit direktem `fetch(` ≤ 60, Inline-JS-Zeilen
+≤ 13.988. Beide Tests tragen eine **Selbstprobe** („findet der Zähler überhaupt noch etwas?"),
+und die hat sich sofort bezahlt gemacht — die erste Fassung nahm `dirname(__DIR__)` und zählte
+damit nur `api/_internal`: 345 statt 621 Blöcke, grün und wertlos. Sinkt ein Wert, gibt es
+einen **Hinweis statt eines Fehlschlags**; in einem geteilten Arbeitsbaum soll niemandes
+Verbesserung rot sein.
 
-Der `const`-vor-Benutzung-Fatal vom 19.08. („Unexpected end of JSON input", sah aus wie
-ein Netzfehler) wäre hier gefallen — ohne die 147 Zeilen Ersatztest.
+**0c · Syntaxprüfung im Deploy-Tor** (`2d403d3`). Vor jedem Test, 606 PHP- und 535
+JS-Dateien, zusammen rund acht Sekunden — im bestehenden Testschritt, weil php-cli dort schon
+installiert ist. Der `const`-Fatal vom 19.08. wäre hier gefallen.
+
+⚠️ **Was Stufe 0 nicht kann:** einen Laufzeitfehler. Der Ausfall vom 24.08. war syntaktisch
+einwandfrei. Er wäre jetzt *diagnostizierbar* — verhindert wird er erst durch Stufe 1.
 
 ### Stufe 1 — Die zwei blinden Flecken schließen (CI-only, unsichtbar)
 
@@ -273,7 +292,7 @@ zuletzt zwei der drei Fehler saßen.
 🔴 **Das bricht „no build step" nicht.** Ausgeliefert wird weiterhin unveränderter
 Quelltext; `package.json` trägt ausschließlich `devDependencies`, `npm ci` läuft im
 Workflow, `node_modules/` steht nicht in der Deploy-Allowlist. Wenn selbst das nicht
-gewollt ist, ist 0c die Hälfte davon zum Nulltarif.
+gewollt ist, ist 0c bereits gebaut — die Syntaxhälfte davon, zum Nulltarif.
 
 ### Stufe 2 — Das Gedächtnis benutzbar machen (unsichtbar, ein halber Tag)
 
@@ -311,10 +330,13 @@ Nach Wirkung geordnet, jede für sich lieferbar:
 
 ## 5. Empfehlung
 
-**Stufe 0 sofort, Stufe 1 als nächstes.** Zusammen sind das etwa zwei Arbeitstage, sie
-sind für den Besucher unsichtbar, und sie hätten — soweit von hier aus prüfbar — den
-Revert vom 24.08., den Doppel-Handler, den Scope-Fehler und den `const`-Fatal vom 19.08.
-allesamt vor dem Push gefangen.
+**Stufe 0 ist umgesetzt (24.08.2026), Stufe 1 als nächstes.** Zusammen sind sie für den Besucher unsichtbar
+und hätten — soweit von hier aus prüfbar — den Revert vom 24.08., den Doppel-Handler, den
+Scope-Fehler und den `const`-Fatal vom 19.08. allesamt vor dem Push gefangen.
+
+🔴 **Beim Zusammenführen nach `master`:** `2a80c4b` (der Trichter) muss vor `2a50bd3` (seinen
+Aufrufern) deployt sein — siehe Stufe 0a. Ein einzelner Push beider Commits fällt in das
+opcache-Fenster.
 
 Danach Stufe 2, weil sie jede folgende Sitzung billiger macht.
 
