@@ -178,8 +178,7 @@ const locationCanvasLayer = {
 		this._canvas.height = Math.round(size.y * dpr);
 		this._canvas.style.width = `${size.x}px`;
 		this._canvas.style.height = `${size.y}px`;
-		this._canvas.style.transition = "opacity 200ms ease-in";
-		this._canvas.style.opacity = "1";
+		// (Keine Einblendung mehr -- siehe _onZoomStart. Der Canvas bleibt durchgehend sichtbar.)
 		this._redraw();
 	},
 
@@ -192,13 +191,19 @@ const locationCanvasLayer = {
 	},
 
 	_onZoomStart() {
-		// Der Canvas skaliert waehrend der Zoom-Animation nicht mit (feste Marker-Pixelgroessen) -> weich
-		// AUSfaden statt hart ausblenden; am zoomend (_reset) frisch zeichnen und weich EINfaden. Das gleicht
-		// das harte "Plopp" gegen die mitskalierenden Tiles/Grenzen aus.
-		if (this._ready) {
-			this._canvas.style.transition = "opacity 100ms ease-out";
-			this._canvas.style.opacity = "0";
-		}
+		// 🔴 HIER BLENDET NICHTS MEHR. Owner 24.08.2026: „die ortsmarker sollen auch nicht ein- und
+		// ausblenden, weil die stabil erscheinen sollen ... nur labels sollen ein- und ausblenden“.
+		// Bis dahin stand hier seit Juni: transition 100ms ease-out, opacity 0 -- am zoomend blendete
+		// _reset mit 200 ms wieder ein.
+		// ⚠️ WAS DAMIT ZURUECKKEHRT, UND ZWAR ABSICHTLICH: dieser Canvas traegt weder
+		// `leaflet-zoom-animated` noch eine zoomanim-Transform, er skaliert waehrend der Zoom-Animation
+		// also NICHT mit (feste Marker-Pixelgroessen). Die Markierungen stehen die ~250 ms der Animation
+		// lang still, waehrend Kacheln, Grenzen und Wege unter ihnen skalieren, und sitzen erst am
+		// zoomend wieder richtig. Genau dagegen war die Blende da.
+		// 🔧 Wer das beheben will, faded NICHT wieder -- er gibt dem Canvas dieselbe Behandlung wie den
+		// uebrigen Overlays (`leaflet-zoom-animated` + `L.DomUtil.setTransform` im zoomanim), dann klebt
+		// die Markierung waehrend des Zooms an ihrem Ort. Das ist die Bauform, die „stabil“ wirklich
+		// einloest; die Blende hat den Sprung nur verdeckt.
 	},
 
 	_redraw() {

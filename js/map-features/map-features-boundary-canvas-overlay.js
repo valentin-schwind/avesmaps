@@ -439,20 +439,15 @@
 		requestAnimationFrame(function () {
 			requestAnimationFrame(function () {
 				labelCanvas.style.opacity = grenzLabelsGezeichnet ? "1" : "0";
-				// 🔴 UND DIE LINIEN GLEICH MIT, an DENSELBEN Dauern. Ihre Strichbreite haengt am Zoom
-				// (BOUNDARY_WEAK_OUTER_WIDTH_BY_ZOOM: 3 / 4 / 6 px bei z4 / z5 / z6): waehrend der
-				// Animation skaliert die alte Fassung mit und schnitt am zoomend hart auf die neue um.
-				// ⚠️ Gemeinsame Dauer ist kein Sparen, sondern die Aussage: Grenze und ihr Name gehoeren
-				// zusammen und muessen gemeinsam zurueckkommen. Zwei Werte liefen beim ersten Nachjustieren
-				// auseinander, und dann kaeme der Name vor seiner Linie.
-				// 💣 NUR DIE DECKKRAFT, KEINE TRANSFORM. Die Transform-Transition gehoert AUSSCHLIESSLICH in
-				// den zoomanim-Handler. Steht sie auch hier, ueberlebt sie den Zoom und liegt danach
-				// dauerhaft an -- und weil `L.DomUtil.setPosition` die Flaeche per `transform` verschiebt,
-				// animiert dann JEDER Pan die Position nach. Owner 24.08.2026: „wenn ich mit der maus panne,
-				// ziehen die 2x nach“. Genau dagegen loescht der moveend-Handler die Transition -- diese
-				// Einblendung hat den Schutz unterlaufen.
-				canvas.style.transition = "opacity " + TERRITORY_LABEL_FADE_MS + "ms ease";
-				canvas.style.opacity = "1";
+				// 🔴 NUR DIE NAMEN BLENDEN, DIE LINIEN NICHT. Owner 24.08.2026: „kannst du die grenzen,
+				// strassen und fluesse selber (nicht die labels!) stabil halten? labels sollen schoen ein und
+				// ausblenden“. 🪤 d02eaec4 liess die Linien-Flaeche mitblenden und ging damit zu weit: eine
+				// Grenze ist GEOMETRIE, die beim Zoomen stufenlos mitskaliert -- sie soll stehenbleiben wie
+				// Kacheln, Wege und Fluesse. Nur was NICHT mitskaliert (Schrift, Marker) braucht die Blende,
+				// damit sein Umschnitt nicht als Sprung im Bild steht.
+				// ⚠️ Der Preis ist bekannt und gewollt: die Strichbreite springt beim Zoomschritt weiterhin
+				// (BOUNDARY_WEAK_OUTER_WIDTH_BY_ZOOM: 3 / 4 / 6 px bei z4 / z5 / z6). Dem Owner ist das lieber
+				// als eine blinkende Grenze.
 			});
 		});
 	}
@@ -762,8 +757,7 @@
 			return;
 		}
 		cssZoomActive = true;
-		canvas.style.transition = TERRITORY_ZOOM_TRANSFORM + ", opacity " + TERRITORY_LABEL_FADE_OUT_MS + "ms ease-out";
-		canvas.style.opacity = "0";   // erst weg, dann neu zeichnen, dann wieder einblenden
+		canvas.style.transition = TERRITORY_ZOOM_TRANSFORM;   // NUR die Transform -- die Linien blenden nicht
 		const scale = map.getZoomScale(event.zoom);
 		const offset = map._latLngToNewLayerPoint(canvasTopLeftLatLng, event.zoom, event.center);
 		L.DomUtil.setTransform(canvas, offset, scale);
