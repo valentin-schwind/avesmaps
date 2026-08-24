@@ -96,14 +96,6 @@
 	const TERRITORY_LABEL_OFFSET_BY_ZOOM = { 4: 10, 5: 12, 6: 20 };       // px nach innen (Abstand Grenze->Text)
 	const TERRITORY_LABEL_FONT_SIZE_BY_ZOOM = { 4: 9, 5: 11, 6: 16 };     // px Schriftgröße
 	const TERRITORY_LABEL_DETAIL_BY_ZOOM = { 4: 0.8, 5: 0.9, 6: 1 };      // Stützpunkt-Dichte (Anteil 0..1)
-	// 🔴 DER WEICHE BANDRAND (Owner 24.08.2026). Bis hierher schaltete die Beschriftung bei z4 von
-	// NICHTS auf volle 0,75 -- ein harter Schalter. Genau das hat der Owner an den Ortsnamen
-	// beanstandet: „blippt und ist dann woanders“. Was er dagegen als „schoen ein- und ausblenden“
-	// bezeichnet, ist kein Zeitablauf, sondern ein SCHWACHER ANFANG am Rand des Bandes -- so wie die
-	// Ortsmarkierung bei 1,33 px beginnt und die Grenzlinie bei Alpha 0 (BOUNDARY_WEAK_ALPHA_BY_ZOOM).
-	// ⚠️ Die Erscheinungsstufe bleibt z4. Eine Zeile frueher zu zeichnen waere der „richtigere“ Rand,
-	// kostet aber den Kollisionsloeser auf z3 -- das ist eine eigene Entscheidung mit eigenem Blick.
-	const TERRITORY_LABEL_ALPHA_BY_ZOOM = { 4: 0.3, 5: 0.55, 6: 0.75 };   // Deckkraft je Zoomstufe
 	const territoryLabelByZoom = (table, zoomLevel, fallback) => {
 		const z = Math.max(4, Math.min(6, Math.round(Number(zoomLevel))));
 		return table[z] != null ? table[z] : fallback;
@@ -111,11 +103,6 @@
 	function getTerritoryLabelOffset(z) { return territoryLabelByZoom(TERRITORY_LABEL_OFFSET_BY_ZOOM, z, 20); }
 	function getTerritoryLabelFontSize(z) { return territoryLabelByZoom(TERRITORY_LABEL_FONT_SIZE_BY_ZOOM, z, 11); }
 	function getTerritoryLabelDetail(z) { return territoryLabelByZoom(TERRITORY_LABEL_DETAIL_BY_ZOOM, z, 0.5); }
-	// ⚠️ Der Rueckfall zeigt bewusst auf TERRITORY_LABEL_ALPHA (weiter unten deklariert) statt eine 0.75
-	// abzuschreiben -- zwei Zahlen fuer dieselbe Sache laufen auseinander. Zur Laufzeit ungefaehrlich:
-	// er wird erst beim Zeichnen ausgewertet, und `territoryLabelByZoom` klemmt z auf 4..6, wo die
-	// Tabelle vollstaendig ist -- der Rueckfall greift also nur, wenn jemand einen Schluessel entfernt.
-	function getTerritoryLabelAlpha(z) { return territoryLabelByZoom(TERRITORY_LABEL_ALPHA_BY_ZOOM, z, TERRITORY_LABEL_ALPHA); }
 	const TERRITORY_LABEL_FONT_FAMILY = '"Faculty Glyphic", Georgia, "Times New Roman", serif'; // wie .map-label
 	const TERRITORY_LABEL_LETTER_SPACING = 3;
 	// 🔴 DECKEL FUER DEN BACKING-STORE DIESER CANVAS (Owner 24.08.2026: „devicePixelRatio - setz das mal
@@ -256,7 +243,6 @@
 		const territoryFontSize = getTerritoryLabelFontSize(map.getZoom());
 		const territoryOffset = getTerritoryLabelOffset(map.getZoom());
 		const territoryDetail = getTerritoryLabelDetail(map.getZoom());
-		const territoryAlpha = getTerritoryLabelAlpha(map.getZoom());
 		const placed = []; // Liste von Fußabdruck-Punktgruppen bereits gezeichneter Labels
 		// Kollision per FUSSABDRUCK-Abstand: Mindestabstand ~Schrifthöhe zwischen den Textstrecken. Muss kleiner
 		// als 2*TERRITORY_LABEL_OFFSET bleiben, sonst sterben die gespiegelten Nachbarpaare (die liegen ~2*OFFSET
@@ -271,7 +257,7 @@
 		ctx.font = `${territoryFontSize}px ${TERRITORY_LABEL_FONT_FAMILY}`;
 		ctx.textAlign = "center";
 		ctx.textBaseline = "middle";
-		ctx.fillStyle = `rgba(255, 255, 255, ${territoryAlpha})`;
+		ctx.fillStyle = `rgba(255, 255, 255, ${TERRITORY_LABEL_ALPHA})`;
 		labelable.forEach((f) => {
 			const ring = f._labelRing || territoryOuterRing(f);
 			if (!ring || ring.length < 8) return;
@@ -764,7 +750,6 @@
 			slider("Offset (px)", 0, 40, 1, TERRITORY_LABEL_OFFSET_BY_ZOOM[z], (v) => { TERRITORY_LABEL_OFFSET_BY_ZOOM[z] = v; });
 			slider("Schriftgröße (px)", 6, 24, 1, TERRITORY_LABEL_FONT_SIZE_BY_ZOOM[z], (v) => { TERRITORY_LABEL_FONT_SIZE_BY_ZOOM[z] = v; });
 			slider("Stützpunkt-Dichte", 0.05, 1, 0.05, TERRITORY_LABEL_DETAIL_BY_ZOOM[z], (v) => { TERRITORY_LABEL_DETAIL_BY_ZOOM[z] = v; });
-			slider("Deckkraft", 0, 1, 0.05, TERRITORY_LABEL_ALPHA_BY_ZOOM[z], (v) => { TERRITORY_LABEL_ALPHA_BY_ZOOM[z] = v; });
 			slider("Konturbreite Grenze (px)", 0.5, 8, 0.5, BOUNDARY_WEAK_OUTER_WIDTH_BY_ZOOM[z], (v) => { BOUNDARY_WEAK_OUTER_WIDTH_BY_ZOOM[z] = v; });
 			slider("Außengrenze Deckkraft", 0, 1, 0.05, BOUNDARY_WEAK_ALPHA_BY_ZOOM[z], (v) => { BOUNDARY_WEAK_ALPHA_BY_ZOOM[z] = v; });
 			slider("Innengrenze Deckkraft", 0, 1, 0.05, BOUNDARY_WEAK_INNER_ALPHA_BY_ZOOM[z], (v) => { BOUNDARY_WEAK_INNER_ALPHA_BY_ZOOM[z] = v; });
@@ -777,7 +762,6 @@
 				offset: { ...TERRITORY_LABEL_OFFSET_BY_ZOOM },
 				fontSize: { ...TERRITORY_LABEL_FONT_SIZE_BY_ZOOM },
 				detail: { ...TERRITORY_LABEL_DETAIL_BY_ZOOM },
-				alpha: { ...TERRITORY_LABEL_ALPHA_BY_ZOOM },
 				outerWidth: { ...BOUNDARY_WEAK_OUTER_WIDTH_BY_ZOOM },
 				outerAlpha: { ...BOUNDARY_WEAK_ALPHA_BY_ZOOM },
 				innerAlpha: { ...BOUNDARY_WEAK_INNER_ALPHA_BY_ZOOM },
