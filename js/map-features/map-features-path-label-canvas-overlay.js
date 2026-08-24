@@ -47,13 +47,32 @@
 		pane.style.pointerEvents = "none"; // nicht-interaktiv
 	}
 
-	const canvas = document.createElement("canvas");
-	canvas.style.position = "absolute";
-	canvas.style.pointerEvents = "none";
-	canvas.style.top = "0";
-	canvas.style.left = "0";
-	canvas.style.transformOrigin = "0 0";
-	canvas.classList.add("leaflet-zoom-animated"); // weiches Mitskalieren während der CSS-Zoom-Animation
+	// 🔴 ZWEI FLAECHEN FUER DIE GLEICHZEITIGE BLENDE -- dieselbe Bauform wie bei den Grenznamen
+	// (9869d4ae). Owner 24.08.2026: „mach den rest auch so“.
+	// 💣 Mit EINER Flaeche geht nur nacheinander: sie verliert ihr altes Bild in dem Moment, in dem
+	// sie das neue zeichnet. Zwei halten altes und neues zugleich; gezeichnet wird in die HINTERE,
+	// danach tauschen die Zeiger (kein drawImage ueber die volle Flaeche).
+	function baueLabelFlaeche() {
+		const c = document.createElement("canvas");
+		c.style.position = "absolute";
+		c.style.pointerEvents = "none";
+		c.style.top = "0";
+		c.style.left = "0";
+		c.style.transformOrigin = "0 0";   // Skalierung um die obere linke Ecke
+		c.classList.add("leaflet-zoom-animated");   // weiches Mitskalieren waehrend der CSS-Zoom-Animation
+		return c;
+	}
+	const labelFlaechen = [baueLabelFlaeche(), baueLabelFlaeche()];
+	let vorne = labelFlaechen[0];    // zeigt gerade das gueltige Bild
+	let hinten = labelFlaechen[1];   // nimmt beim naechsten Zoom das neue Bild auf
+	// ⭐ Derselbe Schalter wie bei den Grenznamen: ?crossfade=0 -> altes Nacheinander.
+	const KREUZBLENDE_AN = (() => {
+		try { return new URLSearchParams(window.location.search).get("crossfade") !== "0"; }
+		catch (e) { return true; }
+	})();
+	// Getauscht wird NUR nach einem Zoomschritt. Ein Pan zeichnet in dieselbe Flaeche weiter -- dort
+	// gibt es nichts zu ueberblenden, und ein Rollentausch waere ein Flackern ohne Anlass.
+	let zoomSchrittOffen = false;
 	// 🔴 DIESE CANVAS BLEIBT SCHARF -- UND DAS IST DER UNTERSCHIED ZU DEN GRENZNAMEN.
 	// Owner 24.08.2026, nachdem beide kurzzeitig auf 1 standen: „bei straßen und flüssen sieht
 	// canvasdpr=1.5 besser aus, bei den grenzbeschriftungen canvasdpr=1.0“. Also KEIN Deckel hier,
@@ -108,8 +127,14 @@
 				// animiert dann JEDER Pan die Position nach. Owner 24.08.2026: „wenn ich mit der maus panne,
 				// ziehen die 2x nach“. Genau dagegen loescht der moveend-Handler die Transition -- diese
 				// Einblendung hat den Schutz unterlaufen.
-				canvas.style.transition = "opacity " + PATH_LABEL_FADE_IN_MS + "ms ease";
-				canvas.style.opacity = "1";
+				// Die frisch gezeichnete Flaeche auf ...
+				vorne.style.transition = "opacity " + PATH_LABEL_FADE_IN_MS + "ms ease";
+				vorne.style.opacity = "1";
+				// ... und im SELBEN Bild die alte ab: zwei Uebergaenge, gleiche Dauer, gleicher Start.
+				if (KREUZBLENDE_AN) {
+					hinten.style.transition = "opacity " + PATH_LABEL_FADE_IN_MS + "ms ease";
+					hinten.style.opacity = "0";
+				}
 			});
 		});
 	}
@@ -122,8 +147,14 @@
 		} catch (e) { /* ohne Adresszeile bleibt die Vorgabe */ }
 		return Math.min(window.devicePixelRatio || 1, deckel);
 	}
-	map.getPane(PANE).appendChild(canvas);
-	const ctx = canvas.getContext("2d");
+	labelFlaechen.forEach((c) => map.getPane(PANE).appendChild(c));
+	// ⚠️ Startwerte ausdruecklich setzen. Ohne sie stuenden BEIDE Flaechen auf 1, und die erste
+	// Ueberblendung waere halbseitig: das alte Bild blendete ab, das neue erschiene schlagartig.
+	// 🔴 Die vordere startet auf 1, nicht auf 0 -- diese Flaeche ist tragend und bestand schon;
+	// startete sie unsichtbar und ein redraw bliebe je aus, waeren die Wegenamen dauerhaft weg.
+	vorne.style.opacity = "1";
+	hinten.style.opacity = "0";
+	let ctx = vorne.getContext("2d");   // Kontext der Flaeche, in die gerade gezeichnet wird
 	let canvasTopLeftLatLng = null;
 	// Klickbare Way-Labels (Task 16): Platzierungs-Register fuer Kanal A, bei JEDEM redraw() neu
 	// aufgebaut (siehe dort) -- ein Eintrag pro tatsaechlich gezeichneter Label-Platzierung. Bleibt
@@ -549,6 +580,16 @@
 		}
 		const size = map.getSize();
 		const topLeft = map.containerPointToLayerPoint([0, 0]);
+		// 🔴 Nach einem Zoomschritt in die HINTERE Flaeche zeichnen, sonst in die vordere.
+		// ⚠️ Die ausgehende Flaeche wird BEWUSST nicht ausgerichtet: sie traegt noch die Zoom-Transform
+		// aus dem zoomanim und sitzt damit richtig. Ein setPosition liesse sie beim Ausblenden
+		// verspringen.
+		if (KREUZBLENDE_AN && zoomSchrittOffen) {
+			const tausch = vorne; vorne = hinten; hinten = tausch;
+			ctx = vorne.getContext("2d");
+			zoomSchrittOffen = false;
+		}
+		const canvas = vorne;
 		L.DomUtil.setPosition(canvas, topLeft);
 		canvasTopLeftLatLng = map.containerPointToLatLng([0, 0]);
 		// HiDPI: Backing-Store in Geräte-Pixeln, CSS-Größe in Layout-Pixeln -> scharf auf Retina/Mobile (dpr 2–3),
@@ -1100,7 +1141,9 @@
 	let cssZoomActive = false;
 	map.on("moveend zoomend viewreset resize", () => {
 		cssZoomActive = false;
-		canvas.style.transition = "";
+		// Auf BEIDEN Flaechen loeschen -- sonst schleppt die gerade unsichtbare eine Transition mit,
+		// die beim naechsten Rollentausch wirksam wuerde.
+		labelFlaechen.forEach((c) => { c.style.transition = ""; });
 		// Steht fuer dieses Bild schon ein Kollisionspass an, zeichnet DER am Ende (siehe
 		// scheduleLabelCollisionResolution). Selbst zu zeichnen hiesse: zweimal pro Bild, und der erste
 		// Lauf mit den Label-Rechtecken des VORIGEN Bildes. js/app/bootstrap.js meldet seine
@@ -1115,11 +1158,18 @@
 			return;
 		}
 		cssZoomActive = true;
-		canvas.style.transition = PATH_LABEL_ZOOM_TRANSFORM + ", opacity " + PATH_LABEL_FADE_OUT_MS + "ms ease-out";
-		canvas.style.opacity = "0";   // erst weg, dann neu zeichnen, dann wieder einblenden
+		// 🔴 Bei der Ueberblendung wird hier NICHT ausgeblendet: das alte Bild bleibt stehen und
+		// skaliert mit, bis das neue fertig ist. Ohne sie (?crossfade=0) gilt das alte Nacheinander.
+		if (KREUZBLENDE_AN) {
+			labelFlaechen.forEach((c) => { c.style.transition = PATH_LABEL_ZOOM_TRANSFORM; });
+		} else {
+			vorne.style.transition = PATH_LABEL_ZOOM_TRANSFORM + ", opacity " + PATH_LABEL_FADE_OUT_MS + "ms ease-out";
+			vorne.style.opacity = "0";
+		}
+		zoomSchrittOffen = true;
 		const scale = map.getZoomScale(event.zoom);
 		const offset = map._latLngToNewLayerPoint(canvasTopLeftLatLng, event.zoom, event.center);
-		L.DomUtil.setTransform(canvas, offset, scale);
+		labelFlaechen.forEach((c) => L.DomUtil.setTransform(c, offset, scale));
 	});
 	map.on("zoom", function () { if (!cssZoomActive) redraw(); });
 
