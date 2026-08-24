@@ -66,7 +66,45 @@ function getInitialEditMapView() {
     // daneben -- ein Unterschied, den niemand erklaeren koennte.
     return { center: AVESMAPS_DEFAULT_MAP_CENTER, zoom: avesmapsDefaultMapZoom() };
 }
-const avesmapsInitialMapView = getInitialEditMapView();
+/**
+ * Ein geteilter `?pin=`-Link SÄT seinen Punkt als Startansicht -- die Karte geht dort auf, statt
+ * später hinzuspringen (Owner 24.08.2026: „pin setzt übrigens ein pin aber fliegt nicht hin").
+ *
+ * 🪤 Gesprungen wurde durchaus, nur zu spät und unsichtbar: `focusMapOnActiveTargets()` zentriert
+ * den Pin schon immer -- aber erst im `.then()` des Karten-Abrufs, und der lädt rund 20 MB. Bis
+ * dahin steht die Startansicht, und wer den Link öffnet und hinsieht, sieht den Kontinent. Genau
+ * dieselbe Überlegung steht oben schon für den Editor-Ausschnitt: säen statt hinfliegen.
+ *
+ * 💣 DIE ZOOMSTUFE IST MIT `focusMapOnActiveTargets()` GEKOPPELT (map-features.js): jenes rechnet
+ * `max(map.getZoom(), DEFAULT_SHARE_PIN_ZOOM)` und läuft nach dem Abruf über dieselbe Lage. Weil
+ * hier schon mindestens `DEFAULT_SHARE_PIN_ZOOM` steht, ist sein Aufruf dann ein No-op -- die Karte
+ * ruckt nicht nach. Wer eine der beiden Zahlen ändert, ändert die andere mit, sonst kommt der
+ * Sprung zurück, den diese Funktion beseitigt.
+ *
+ * ⚠️ Nur der direkte `?pin=`-Parameter. Ein `?s=`-Kurzlink löst seine Parameter erst später
+ * asynchron auf; dort bleibt es beim bisherigen Weg über `focusMapOnActiveTargets()`.
+ */
+function avesmapsInitialViewFromSharePin() {
+    try {
+        const searchParams = typeof window.avesmapsSearchParams === "function"
+            ? window.avesmapsSearchParams()
+            : new URLSearchParams(window.location.search);
+        const pinLatLng = typeof readSharePinFromUrl === "function" ? readSharePinFromUrl(searchParams) : null;
+        if (!pinLatLng) {
+            return null;
+        }
+        return {
+            center: [pinLatLng.lat, pinLatLng.lng],
+            zoom: Math.max(avesmapsDefaultMapZoom(), DEFAULT_SHARE_PIN_ZOOM),
+        };
+    } catch (error) {
+        // Kaputter Parameter, fehlende Vorbedingung -> die normale Startansicht, ohne Konsolenlärm.
+        return null;
+    }
+}
+// 🔴 Der Pin schlägt den gespeicherten Editor-Ausschnitt: er steht ausdrücklich in der Adresse,
+// der Ausschnitt ist nur der letzte Stand.
+const avesmapsInitialMapView = avesmapsInitialViewFromSharePin() || getInitialEditMapView();
 
 const map = L.map("map", {
     crs: L.CRS.Simple,
