@@ -69,12 +69,59 @@ function avesmapsEcosystemDisplayInstall(stored) {
 	_avesmapsEcosystemDisplayUeber = (stored && typeof stored === "object" && !Array.isArray(stored))
 		? stored
 		: {};
+	_avesmapsEcosystemDisplayKurveCache = null;
 }
 
 /** Ein Abschnitt der Tafel, immer als Objekt. */
 function avesmapsEcosystemDisplayTeil(name) {
 	const teil = _avesmapsEcosystemDisplayUeber[name];
 	return (teil && typeof teil === "object" && !Array.isArray(teil)) ? teil : {};
+}
+
+
+// Die gemerkte Kurventafel, damit nicht jedes Label ein frisches Objekt baut.
+// ⚠️ Ungueltig gemacht wird sie in avesmapsEcosystemDisplayInstall -- die einzige Stelle, an der
+// sich die Uebersteuerung aendern kann.
+let _avesmapsEcosystemDisplayKurveCache = null;
+
+/**
+ * Die Kurvenfeinheiten, wie sie WIRKEN.
+ *
+ * 🔴 Die Vorgaben stehen in AVESMAPS_CURVE_LABEL_DEFAULTS (curve-label-fit.js) und werden hier
+ * NICHT abgeschrieben -- eine zweite Tafel liefe beim ersten geaenderten Wert auseinander, und
+ * gerade diese Zahlen sind an einem Abnahmebild gemessen worden.
+ *
+ * 💣 ZWEI Verbraucher lesen sie, und beide MUESSEN durch diese Funktion gehen: avesmapsCurveLabelFit
+ * (die Passung) und die Ausweichweite in map-features-path-label-canvas-overlay.js. Eine Regel, die
+ * einen von zweien bindet, ist keine Regel -- dieselbe Lehre wie bei der Verkehrsmittel-Sperre.
+ * ⚠️ Hier steht mit Absicht KEINE Zahl, wie viele es sind: eine Zahl liest sich wie eine
+ * vollstaendige Liste, und niemand zaehlt nach.
+ *
+ * ⚠️ Der Zugriff auf die Vorgabetafel steht IM RUMPF, nicht auf Dateiebene: `ecosystem-display.js`
+ * laedt VOR `curve-label-fit.js` (die Ladereihenfolge in index.html ist ein Vertrag), die Konstante
+ * gibt es beim Auswerten dieser Datei also noch gar nicht.
+ */
+function avesmapsEcosystemDisplayKurve() {
+	if (_avesmapsEcosystemDisplayKurveCache) {
+		return _avesmapsEcosystemDisplayKurveCache;
+	}
+	const grund = (typeof AVESMAPS_CURVE_LABEL_DEFAULTS === "object" && AVESMAPS_CURVE_LABEL_DEFAULTS)
+		? AVESMAPS_CURVE_LABEL_DEFAULTS
+		: {};
+	const eigen = avesmapsEcosystemDisplayTeil("kurve");
+	const raus = {};
+	Object.keys(grund).forEach((feld) => { raus[feld] = grund[feld]; });
+	// 🔴 Uebernommen wird nur, was die Vorgabetafel KENNT und was eine endliche Zahl ist. Ein fremder
+	// Schluessel aus der Datenbank darf hier keine neue Stellschraube erfinden, und ein NaN aus einem
+	// halb getippten Eingabefeld darf die Passung nicht in die Irre schicken.
+	Object.keys(eigen).forEach((feld) => {
+		if (Object.prototype.hasOwnProperty.call(grund, feld)
+			&& typeof eigen[feld] === "number" && Number.isFinite(eigen[feld])) {
+			raus[feld] = eigen[feld];
+		}
+	});
+	_avesmapsEcosystemDisplayKurveCache = raus;
+	return raus;
 }
 
 /** Der Schluessel einer Flaechenart: Ebene UND Art, weil `insel` in zweien vorkommt. */

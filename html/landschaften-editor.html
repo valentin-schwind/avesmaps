@@ -161,6 +161,13 @@
      schreibt genau die Vorgaben, gegen die die Karte zeichnet -- eine zweite Abschrift hier
      waere die Divergenz, die dieser Umbau abbaut. -->
 <script src="/js/map-features/ecosystem-display.js"></script>
+<!-- 🔴 Die ECHTE Rechenstrecke der Kurvenbeschriftung. Die Vorschau im Fenster „Darstellung" ruft
+     genau diese Module, nicht docs/kurvenlabel-pipeline.js -- die ist der Prototyp. Eine zweite
+     Fassung zeigte etwas, das die Karte so nie zeichnet (Entwurf §7).
+     ⚠️ Reihenfolge: curved-label-layout.js zuerst, curve-label-fit.js benutzt daraus
+     sliceLabelWindowAt und cumulativeLengths. -->
+<script src="/js/map-features/curved-label-layout.js"></script>
+<script src="/js/map-features/curve-label-fit.js"></script>
 <!-- Der geteilte Quellen-Editor. ⚠️ source-autocomplete.js ZUERST: review-feature-sources.js
      verdrahtet die Vorschlagsliste beim Mounten. Beide sind dieselben Dateien, die der Orte- und
      der Kraftlinien-Editor laden -- eine Objektart mehr, keine zweite Umsetzung (AGENTS.md §5). -->
@@ -308,6 +315,30 @@
           Die Kurve läuft nur durch das Zoomband der Art — wo kein Name steht, gibt es keine Größe.
           <strong>z8</strong> gibt es auf der Karte noch nicht; der Wert liegt bereit und erbt z7.
         </p>
+      </div>
+      <!-- Die Kurvenfeinheiten samt Vorschau (Entwurf 5.6, 7). Die Werte kommen aus
+           AVESMAPS_CURVE_LABEL_DEFAULTS; die Kurve rechnet der SERVER und wird hier nur geholt. -->
+      <div class="dg__section" id="ecoDisplayKurvenSection">
+        <div class="dg__head">
+          <h3>Kurvenfeinheiten</h3>
+          <span class="dg__src">Wie ein Name auf die gerechnete Kurve seiner Fläche eingepasst wird</span>
+        </div>
+        <div class="kv-list" id="ecoDisplayKurvenRows"></div>
+        <div class="kv-preview">
+          <label class="kv-preview__pick">Vorschau an
+            <select id="ecoDisplayKurvenWahl"></select>
+          </label>
+          <div class="dg-scroll">
+            <svg id="ecoDisplayKurvenPlot" class="kv-plot" viewBox="0 0 920 260"
+                 role="img" aria-label="Vorschau der Kurvenbeschriftung"></svg>
+          </div>
+          <p class="dg-plot-caption" id="ecoDisplayKurvenHinweis"></p>
+          <p class="dg-plot-caption">
+            Zwei der Werte <strong>wirken in der Vorschau nicht</strong> sichtbar — Mindestabstand
+            zweier Namen und Ausweichweg. Sie brauchen einen Fall, den ein einzelner Name auf einer
+            freien Fläche nicht herstellt.
+          </p>
+        </div>
       </div>
       <p class="avm-modal__msg" id="ecoDisplayMsg"></p>
     </div>
@@ -1436,6 +1467,11 @@ async function runCurveLabels() {
 			teile.push("Umstellung lief bereits");
 		}
 		info.textContent = teile.join(" · ");
+		// 🪤 Die Vorschau der Kurvenfeinheiten haelt die geholten Kurven fest (ein Abruf je
+		// Seitenaufruf). Nach einem Sammellauf sind sie veraltet -- und eine Vorschau, die die alte
+		// Kurve zeigt, waere schlimmer als keine: sie sieht richtig aus. Also verwerfen; der naechste
+		// Blick ins Fenster holt sie frisch.
+		ecoDisplayKurvenLinien = null;
 		flashStatus("Kurven gerechnet: " + teile.join(" · ") + " · " + sekunden + " s", "ok");
 	} catch (error) {
 		info.textContent = "fehlgeschlagen";
@@ -3072,6 +3108,9 @@ function ecoDisplaySetzVorgabe(art, teil) {
 	ecoDisplayTafel.vorgabe[art] = Object.assign(ecoDisplayVorgabe(art), teil);
 	ecoDisplayBearbeitet = true;
 	ecoDisplayZeichneBand();
+	// ⚠️ Der Plot MUSS mit: die Kurve laeuft nur durch ihr Band, ein beschnittenes Band verkuerzt
+	// sie. Die Kurvenfeinheiten haengen dagegen an keinem Band -- sie hier mitzuzeichnen kostete nur
+	// Zeit und naehme dem gerade getippten Feld den Fokus.
 	ecoDisplayZeichnePlot();
 }
 
@@ -3570,6 +3609,316 @@ function ecoDisplayZeichnePlot() {
 	});
 }
 
+
+// ---- Die Kurvenfeinheiten ----------------------------------------------------------------------
+//
+// 🔴 DIE WERTE KOMMEN AUS AVESMAPS_CURVE_LABEL_DEFAULTS (curve-label-fit.js) und werden hier NICHT
+// abgeschrieben -- eine zweite Tafel liefe beim ersten geaenderten Wert auseinander, und gerade
+// diese Zahlen sind an einem Abnahmebild gemessen worden, nicht geraten.
+//
+// ⚠️ Was hier DOCH steht, ist die Beschriftung samt Spanne: ein Schluessel allein laesst sich nicht
+// zeichnen. Der Test haelt diese Liste gegen die Tafel -- kein Wert ohne Bedienelement, kein
+// Bedienelement ohne Wert.
+//
+// 🔴 Und NUR was diese Tafel kennt. Der Prototyp bot fuenf weitere an (Glaettungsgrad,
+// Randvereinfachung, Stuetzpunktabstand, Teilflaechen-Schwelle, Polynomgrad) -- die gehoeren dem
+// SERVER (api/_internal/app/curve-labels.php), stehen in keiner Browsertafel, und ein Regler dafuer
+// waere ein Regler, der nichts bewirkt.
+const ECO_DISPLAY_KURVENFELDER = {
+	maxTurnDeg: { t: "Max. Verdrehung gegen die Sehne", h: "Beruhigung", e: "Grad", min: 0, max: 90, step: 1 },
+	extendMaxPct: { t: "Kurve verlängern höchstens", h: "Passung, Mittel 1", e: "%", min: 0, max: 100, step: 5 },
+	trackingPct: { t: "Sperrung über die Fläche", h: "Passung, Mittel 3", e: "%", min: 0, max: 100, step: 1 },
+	trackingMaxPct: { t: "Sperrung — Deckel", h: "nie darüber", e: "%", min: 0, max: 100, step: 1 },
+	trackingMaxPerGapEm: { t: "Sperrung höchstens je Lücke", h: "absoluter Deckel", e: "Schriftgrößen", min: 0, max: 3, step: 0.05 },
+	minFontPx: { t: "Schrift nicht kleiner als", h: "Passung, Mittel 2", e: "px", min: 4, max: 30, step: 1 },
+	headroomPct: { t: "Vorhalt", h: "damit nicht jedes Label ins Verlängern läuft", e: "%", min: 0, max: 60, step: 1 },
+	safetyPct: { t: "Sicherheitsrand der Passung", h: "gegen Rundungsfehler", e: "%", min: 0, max: 20, step: 1 },
+	minGapEm: {
+		t: "Mindestabstand zweier Namen", h: "Kollisionsabbau", e: "Schriftgrößen", min: 0, max: 8, step: 0.1,
+		still: "wirkt erst, wenn eine Fläche ZWEI Namen trägt",
+	},
+	dodgePx: {
+		t: "Ausweichweg eines Kurvenlabels", h: "Kollisionsvermeidung", e: "px", min: 0, max: 40, step: 1,
+		still: "wirkt erst bei einer Kollision mit einem fremden Namen",
+	},
+	calmAnchorWeight: { t: "Ankergewicht der Beruhigung", h: "hält die Namen auseinander", e: "", min: 0, max: 8, step: 0.1 },
+};
+
+// Die vom Server gerechneten Kurven, einmal je Fenster geholt. `null` = noch nicht geholt.
+let ecoDisplayKurvenLinien = null;
+let ecoDisplayKurvenWahl = "";
+
+/** Der wirkende Wert eines Kurvenfeldes: Übersteuerung oder die Vorgabe aus dem Modul. */
+function ecoDisplayKurvenwert(feld) {
+	const eigen = ecoDisplayTeil("kurve")[feld];
+	if (typeof eigen === "number" && Number.isFinite(eigen)) { return eigen; }
+	return AVESMAPS_CURVE_LABEL_DEFAULTS[feld];
+}
+
+function ecoDisplaySetzKurvenwert(feld, wert) {
+	const spanne = ECO_DISPLAY_KURVENFELDER[feld];
+	const geklemmt = Math.max(spanne.min, Math.min(spanne.max, Number(wert)));
+	if (!Number.isFinite(geklemmt)) { return; }
+	ecoDisplayTafel.kurve[feld] = geklemmt;
+	ecoDisplayBearbeitet = true;
+	// 💣 Das Modul merkt sich die gemischte Tafel -- ohne Neuinstallation zeichnete die Vorschau
+	// weiter mit dem alten Wert, und der Regler saehe tot aus.
+	avesmapsEcosystemDisplayInstall(ecoDisplayZumSenden());
+	ecoDisplayZeichneKurvenwerte();
+	ecoDisplayZeichneKurvenVorschau();
+}
+
+/**
+ * Die gerechneten Kurven holen. 🔴 VOM SERVER, nie im Browser gerechnet: die Chordal-Axis steht in
+ * api/_internal/app/curve-labels.php, und eine zweite Fassung im Browser zeigte etwas, das die
+ * Karte so nie zeichnet (Entwurf §7).
+ * ⚠️ Die Aktion `baselines` LIEST nur den Zwischenspeicher -- sie loest den teuren Sammellauf nicht
+ * aus (der braucht Sekunden und saettigt auf STRATO die Worker).
+ */
+async function ecoDisplayHoleKurven() {
+	if (ecoDisplayKurvenLinien !== null) { return; }
+	try {
+		const antwort = await fetch("/api/edit/map/curve-labels-run.php", {
+			method: "POST",
+			credentials: "same-origin",
+			headers: { "Content-Type": "application/json", Accept: "application/json" },
+			body: JSON.stringify({ action: "baselines" }),
+		});
+		const daten = await antwort.json();
+		ecoDisplayKurvenLinien = (daten && daten.ok && daten.baselines) ? daten.baselines : {};
+	} catch (fehler) {
+		// ⚠️ Ein Fehlschlag ist „keine Vorschau", kein leerer Erfolg: die Vorschau sagt es an ihrer
+		// Stelle, statt eine leere Fläche zu zeigen, die wie „keine Kurve vorhanden" aussieht.
+		ecoDisplayKurvenLinien = {};
+	}
+}
+
+/**
+ * Die Flächen dieser Ebene, für die eine gerechnete Kurve vorliegt.
+ * ⚠️ Gefragt sind die REGIONEN an den Zeilen, nicht die Zeilen: eine Zeile ist ein Wiki-Eintrag und
+ * kann mehrere Regionen tragen, und die Kurve gehört der Region.
+ */
+function ecoDisplayKurvenAuswahl() {
+	const linien = ecoDisplayKurvenLinien || {};
+	const raus = [];
+	const gesehen = new Set();
+	(rows || []).forEach((zeile) => {
+		(zeile.regions || []).forEach((region) => {
+			const id = String(region.public_id || "");
+			if (id === "" || gesehen.has(id)) { return; }
+			if (String(region.kind || "") !== ecoDisplayReiter) { return; }
+			if (!linien[id]) { return; }
+			gesehen.add(id);
+			raus.push({
+				id: id,
+				name: String(region.name || zeile.name || id),
+				subtype: String(region.region_type || ""),
+			});
+		});
+	});
+	return raus.sort((a, b) => a.name.localeCompare(b.name, "de"));
+}
+
+function ecoDisplayZeichneKurvenwerte() {
+	const kind = ecoDisplayReiter;
+	// 🔴 Klimazonen tragen keinen Namen auf der Karte -- also auch keine Kurvenfeinheiten.
+	const zeigen = kind !== "klima";
+	$("ecoDisplayKurvenSection").hidden = !zeigen;
+	if (!zeigen) { return; }
+
+	const host = $("ecoDisplayKurvenRows");
+	host.innerHTML = "";
+	Object.keys(ECO_DISPLAY_KURVENFELDER).forEach((feld) => {
+		const spanne = ECO_DISPLAY_KURVENFELDER[feld];
+		const vorgabe = AVESMAPS_CURVE_LABEL_DEFAULTS[feld];
+		const wert = ecoDisplayKurvenwert(feld);
+
+		const zeile = document.createElement("div");
+		zeile.className = "kv-row" + (spanne.still ? " kv-row--still" : "");
+
+		const links = document.createElement("div");
+		links.className = "kv-row__label";
+		const titel = document.createElement("span");
+		titel.className = "kv-row__t";
+		titel.textContent = spanne.t;
+		const hinweis = document.createElement("span");
+		hinweis.className = "kv-row__h";
+		// ⚠️ Ein Regler, der in der Vorschau nichts tut, MUSS es sagen -- sonst haelt ihn jemand für
+		// kaputt und dreht ihn immer weiter.
+		hinweis.textContent = spanne.still ? (spanne.h + " · " + spanne.still) : spanne.h;
+		links.append(titel, hinweis);
+
+		const num = document.createElement("input");
+		num.type = "number";
+		num.className = "fl-pctnum";
+		num.min = spanne.min;
+		num.max = spanne.max;
+		num.step = spanne.step;
+		num.value = wert;
+		num.disabled = !ecoDisplayDarfSpeichern;
+		num.addEventListener("input", () => ecoDisplaySetzKurvenwert(feld, num.value));
+
+		const einheit = document.createElement("span");
+		einheit.className = "kv-row__e";
+		einheit.textContent = spanne.e;
+
+		const rst = document.createElement("button");
+		rst.type = "button";
+		rst.className = "fl-reset";
+		rst.textContent = "↺";
+		rst.title = "Auf die Vorgabe zurücksetzen (" + vorgabe + ")";
+		rst.hidden = !(feld in ecoDisplayTeil("kurve")) || !ecoDisplayDarfSpeichern;
+		rst.addEventListener("click", () => {
+			delete ecoDisplayTafel.kurve[feld];
+			ecoDisplayBearbeitet = true;
+			avesmapsEcosystemDisplayInstall(ecoDisplayZumSenden());
+			ecoDisplayZeichneKurvenwerte();
+			ecoDisplayZeichneKurvenVorschau();
+		});
+
+		zeile.append(links, num, einheit, rst);
+		host.appendChild(zeile);
+	});
+}
+
+/**
+ * Die Vorschau: eine ECHTE Kurve vom Server, der Name darauf eingepasst mit den
+ * PRODUKTIONSMODULEN (avesmapsCurveLabelFit + layoutGlyphsAlong) -- nicht mit dem Prototyp aus
+ * docs/kurvenlabel-pipeline.js.
+ */
+/** Das Auswahlfeld der Vorschau. ⚠️ Es wird beim Reiterwechsel neu gebaut -- die Flaechen der
+ *  einen Ebene stehen nicht in der anderen. */
+function ecoDisplayZeichneKurvenWahl() {
+	const sel = $("ecoDisplayKurvenWahl");
+	const auswahl = ecoDisplayKurvenAuswahl();
+	sel.innerHTML = "";
+	if (auswahl.length === 0) {
+		const leer = document.createElement("option");
+		leer.textContent = "—";
+		sel.appendChild(leer);
+		sel.disabled = true;
+		return;
+	}
+	sel.disabled = false;
+	if (!auswahl.some((a) => a.id === ecoDisplayKurvenWahl)) {
+		ecoDisplayKurvenWahl = auswahl[0].id;
+	}
+	auswahl.forEach((a) => {
+		const opt = document.createElement("option");
+		opt.value = a.id;
+		opt.textContent = a.name;
+		opt.selected = a.id === ecoDisplayKurvenWahl;
+		sel.appendChild(opt);
+	});
+}
+
+function ecoDisplayZeichneKurvenVorschau() {
+	const svg = $("ecoDisplayKurvenPlot");
+	const hinweis = $("ecoDisplayKurvenHinweis");
+	svg.innerHTML = "";
+	hinweis.textContent = "";
+
+	const auswahl = ecoDisplayKurvenAuswahl();
+	const treffer = auswahl.find((a) => a.id === ecoDisplayKurvenWahl) || auswahl[0] || null;
+	if (!treffer) {
+		hinweis.textContent = ecoDisplayKurvenLinien === null
+			? "Die gerechneten Kurven werden geholt …"
+			: "Für diese Ebene liegt keine gerechnete Kurve vor — „Kurven rechnen“ im Menüband füllt sie.";
+		return;
+	}
+	const satz = (ecoDisplayKurvenLinien || {})[treffer.id];
+	const linie = (satz && Array.isArray(satz.line)) ? satz.line : null;
+	if (!linie || linie.length < 2) {
+		hinweis.textContent = "Diese Fläche hat keine gerechnete Kurve.";
+		return;
+	}
+
+	// Kartenkoordinaten in die Zeichenfläche legen. ⚠️ EIN Maßstab für x und y, sonst zeigt die
+	// Vorschau eine verzerrte Kurve und jede Winkelregel liest sich falsch.
+	const xs = linie.map((p) => p[0]);
+	const ys = linie.map((p) => p[1]);
+	const minX = Math.min.apply(null, xs);
+	const maxX = Math.max.apply(null, xs);
+	const minY = Math.min.apply(null, ys);
+	const maxY = Math.max.apply(null, ys);
+	const rand = 46;
+	const breite = 920;
+	const hoehe = 260;
+	const skala = Math.min(
+		(breite - 2 * rand) / Math.max(1e-6, maxX - minX),
+		(hoehe - 2 * rand) / Math.max(1e-6, maxY - minY)
+	);
+	// 🔴 y wird GESPIEGELT: auf der Karte wächst y nach Norden, im SVG nach unten. Ohne die
+	// Spiegelung stünde jede Kurve auf dem Kopf, und das fällt bei einer flachen Kurve NICHT auf.
+	const mx = (breite - (maxX - minX) * skala) / 2;
+	const my = (hoehe - (maxY - minY) * skala) / 2;
+	const punkte = linie.map((p) => ({
+		x: mx + (p[0] - minX) * skala,
+		y: hoehe - (my + (p[1] - minY) * skala),
+	}));
+
+	const wurzelStil = getComputedStyle(document.documentElement);
+	const rasterTon = wurzelStil.getPropertyValue("--color-divider").trim() || "currentColor";
+	const ton = ecoDisplayNaTon(treffer.subtype);
+
+	svg.appendChild(ecoDisplaySvgEl("polyline", {
+		points: punkte.map((p) => p.x + "," + p.y).join(" "),
+		fill: "none", stroke: rasterTon, "stroke-width": 1, "stroke-dasharray": "4 4",
+	}));
+
+	// Die Schriftmaße kommen aus einer echten Messung, nicht aus einer Schätzung -- die Passung
+	// entscheidet an ihnen.
+	const groesse = avesmapsEcosystemDisplayGroesse(treffer.subtype, 5);
+	const zeichen = treffer.name.split("");
+	const mess = ecoDisplayMessKontext();
+	mess.font = groesse + "px " + (wurzelStil.getPropertyValue("--font-map-label").trim() || "serif");
+	const breiten = zeichen.map((c) => mess.measureText(c).width);
+
+	const passung = avesmapsCurveLabelFit(punkte, zeichen, breiten, groesse, satz.max || 1);
+	if (!passung || !passung.fenster || passung.fenster.length === 0) {
+		hinweis.textContent = "Mit diesen Werten passt der Name nirgends auf die Kurve.";
+		return;
+	}
+
+	passung.fenster.forEach((fenster) => {
+		const glyphen = layoutGlyphsAlong(fenster.pts, fenster.chars, fenster.widths, fenster.ls, 0, fenster.fontSize);
+		// 💣 Der Glyphensatz heisst {x, y, ang, w, h} -- er traegt WEDER den Buchstaben NOCH ein Feld
+		// namens angle. Der Buchstabe steht in fenster.chars an derselben Stelle, der Winkel heisst
+		// ang und ist im BOGENMASS.
+		// 🪤 Beim ersten Bau stand hier g.char und g.angle: acht leere <text> mit rotate(NaN), also
+		// eine Vorschau, die zeichnete -- nur nichts. Kein Fehler, keine Meldung. Am 24.08.2026 im
+		// Browser gefunden, nicht vom Testfeld.
+		(glyphen || []).forEach((g, i) => {
+			const zeichen = fenster.chars[i];
+			if (zeichen === undefined) { return; }
+			const t = ecoDisplaySvgEl("text", {
+				x: 0, y: 0, fill: ton, "font-size": fenster.fontSize,
+				transform: "translate(" + g.x + "," + g.y + ") rotate(" + (g.ang * 180 / Math.PI) + ")",
+				"text-anchor": "start",
+			});
+			t.textContent = zeichen;
+			svg.appendChild(t);
+		});
+	});
+
+	const teile = [
+		treffer.name,
+		Math.round(passung.fenster[0].fontSize * 10) / 10 + " pt",
+		passung.fenster.length + (passung.fenster.length === 1 ? " Name" : " Namen"),
+	];
+	(passung.hinweise || []).slice(0, 2).forEach((h) => teile.push(h));
+	hinweis.textContent = teile.join(" · ");
+}
+
+// Ein einziger Messkontext für alle Schriftmaße -- ein neues Canvas je Zeichnung wäre Verschwendung.
+let _ecoDisplayMessKontext = null;
+function ecoDisplayMessKontext() {
+	if (!_ecoDisplayMessKontext) {
+		_ecoDisplayMessKontext = document.createElement("canvas").getContext("2d");
+	}
+	return _ecoDisplayMessKontext;
+}
+
 function ecoDisplayMelde(text) {
 	$("ecoDisplayMsg").textContent = text;
 }
@@ -3582,6 +3931,9 @@ function ecoDisplayZeichne() {
 	ecoDisplayZeichneGlobal();
 	ecoDisplayZeichneBand();
 	ecoDisplayZeichnePlot();
+	ecoDisplayZeichneKurvenwerte();
+	ecoDisplayZeichneKurvenWahl();
+	ecoDisplayZeichneKurvenVorschau();
 }
 
 // ---- Laden, Speichern, Zurücksetzen ------------------------------------------------------------
@@ -3638,6 +3990,14 @@ async function ecoDisplayOeffnen() {
 		$("ecoDisplaySave").disabled = !ecoDisplayDarfSpeichern;
 		$("ecoDisplayReset").disabled = !ecoDisplayDarfSpeichern;
 		ecoDisplayZeichne();
+		// ⚠️ NACH dem ersten Zeichnen und OHNE `await` davor: die Kurven sind Beiwerk der
+		// Vorschau, und das Fenster soll nicht auf sie warten. Kommen sie an, zeichnet sich die
+		// Vorschau allein nach.
+		ecoDisplayHoleKurven().then(() => {
+			if ($("ecoDisplayDialog").hidden) { return; }
+			ecoDisplayZeichneKurvenWahl();
+			ecoDisplayZeichneKurvenVorschau();
+		});
 		ecoDisplayMelde(ecoDisplayDarfSpeichern
 			? ""
 			: "Nur ansehen — die Darstellung einstellen dürfen Administratoren.");
@@ -3659,6 +4019,10 @@ $("ecoDisplay").addEventListener("click", () => { void ecoDisplayOeffnen(); });
 // ⚠️ Der Plot nimmt Tasten nur an, wenn er den Fokus hat -- deshalb haengt der Zuhoerer am SVG
 // (tabindex="0"), nicht am Dokument: ein globaler Zuhoerer fraesse die Pfeiltasten der ganzen Seite.
 $("ecoDisplayPlot").addEventListener("keydown", ecoDisplayPlotTaste);
+$("ecoDisplayKurvenWahl").addEventListener("change", (ev) => {
+	ecoDisplayKurvenWahl = ev.target.value;
+	ecoDisplayZeichneKurvenVorschau();
+});
 
 $("ecoDisplayClose").addEventListener("click", ecoDisplaySchliessen);
 $("ecoDisplayDialog").addEventListener("click", (ereignis) => {

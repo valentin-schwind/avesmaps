@@ -222,7 +222,12 @@ function curveLabelWindowsCollide(fenster, minGapEm) {
 // annimmt: Summe(widths) + ls x (chars-1) <= Bogenlaenge von pts. Das ist die Zusicherung, an der
 // „CHWARZE SICHE" haengt -- ein textPath bricht nicht um und staucht nicht, er laesst Buchstaben weg.
 function avesmapsCurveLabelFit(punkte, zeichen, breiten, schriftgroesse, anzahl) {
-	const tafel = AVESMAPS_CURVE_LABEL_DEFAULTS;
+	// 🔴 NICHT die Konstante direkt: das Fenster „Darstellung" darf diese Werte uebersteuern, und
+	// der Leser mischt Vorgabe und Uebersteuerung an EINER Stelle (ecosystem-display.js).
+	// ⚠️ Der Rueckfall gilt Seiten, die das Modul gar nicht laden -- dort bleibt die Vorgabe.
+	const tafel = (typeof avesmapsEcosystemDisplayKurve === "function")
+		? avesmapsEcosystemDisplayKurve()
+		: AVESMAPS_CURVE_LABEL_DEFAULTS;
 	if (!Array.isArray(punkte) || punkte.length < 2) {
 		return null;
 	}

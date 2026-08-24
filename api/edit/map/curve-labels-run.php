@@ -77,6 +77,45 @@ try {
     $rohRumpf = (string) file_get_contents('php://input');
     $rumpf = $rohRumpf === '' ? [] : (json_decode($rohRumpf, true) ?: []);
 
+    // 🔴 EINE REINE LESEAKTION FUER DIE VORSCHAU -- und sie steht VOR dem Sammellauf, weil sie
+    // sonst nie erreicht wuerde.
+    //
+    // Die Vorschau im Fenster „Darstellung" braucht eine ECHTE Beschriftungskurve, um zu zeigen,
+    // was die zwoelf Kurvenfeinheiten anrichten. Sie hier zu holen ist die einzige Form, die keine
+    // zweite Wahrheit erzeugt: die Kurve rechnet der Server (avesmapsCurveRebuildCache), der
+    // Browser passt nur den Text darauf ein (curve-label-fit.js). Wer sie im Browser nachrechnete,
+    // haette eine dritte Chordal-Axis im Projekt -- und die Vorschau zeigte etwas, das die Karte so
+    // nie zeichnet.
+    //
+    // ⚠️ Sie RECHNET NICHTS. avesmapsCurveReadBaselines liest den abgelegten Zwischenspeicher und
+    // zaehlt je Region eine billige Revisionssumme -- derselbe Pfad, den jeder Besucher ueber
+    // map-features.php geht (unter 20 ms gemessen). Die 165-796 ms je Flaeche gelten nur fuer den
+    // Sammellauf darunter.
+    // ⚠️ Deshalb darf sie auch `edit`: sie zeigt genau das, was oeffentlich ohnehin ausgeliefert
+    // wird.
+    if ((string) ($rumpf['action'] ?? '') === 'baselines') {
+        $alle = avesmapsCurveReadBaselines($pdo);
+        $raus = [];
+        foreach ($alle as $regionId => $satz) {
+            $linie = $satz['line'] ?? null;
+            if (!is_array($linie) || count($linie) < 2) {
+                // 🔴 Fehlt die Kurve, fehlt der EINTRAG -- nicht `null`, nicht `[]`. Der Client
+                // unterscheidet „hat keine Kurve" an der Abwesenheit; ein leeres Feld waere eine
+                // leere Kurve, und die zeichnet sich als Nichts statt als Gerade (dieselbe Regel
+                // wie in avesmapsCurveApplyToFeatures).
+                continue;
+            }
+            $raus[(string) $regionId] = [
+                'line' => $linie,
+                // ⚠️ Der Satz heisst `max_labels`, nicht `max` -- `max` ist der Schluessel im ROHEN
+                //    Zwischenspeicher, `max_labels` der im gelesenen Satz. Verwechselt liefert die
+                //    Vorschau stumm ueberall eine 1, und „max. Namen" saehe aus wie ein toter Regler.
+                'max' => (int) ($satz['max_labels'] ?? 1),
+            ];
+        }
+
+        avesmapsJsonResponse(200, ['ok' => true, 'baselines' => $raus]);
+    }
     // 🔴 KEIN Umstelllauf mehr (24.08.2026, Entwurf §3). Hier stand eine „Phase 0", die beim
     // ERSTEN Lauf jede Fläche einschaltete, deren Name von Hand gedreht war (rund 56). Der Owner
     // hat sie gedrückt, sie hat ihre Arbeit getan.

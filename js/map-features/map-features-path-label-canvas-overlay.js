@@ -306,7 +306,12 @@
 	// verschwindet, waere genau die Rangaenderung, die dieser Plan vermeidet. Der Rueckfall ist die
 	// erste geometrisch gueltige Lage, und das ist der Versatz 0.
 	function platziereKurvenfenster(fenster) {
-		const weite = Math.max(0, Number(AVESMAPS_CURVE_LABEL_DEFAULTS.dodgePx) || 0);
+		// 🔴 DER ZWEITE VERBRAUCHER der Kurventafel. Er muss durch denselben Leser wie die Passung --
+		// sonst waere „Ausweichweg" der eine Regler im Fenster, der nichts bewirkt.
+		const kurvenTafel = (typeof avesmapsEcosystemDisplayKurve === "function")
+			? avesmapsEcosystemDisplayKurve()
+			: AVESMAPS_CURVE_LABEL_DEFAULTS;
+		const weite = Math.max(0, Number(kurvenTafel.dodgePx) || 0);
 		const textLaenge = fenster.widths.reduce((summe, w) => summe + w + fenster.ls, 0) - fenster.ls;
 		// 💣 AUSGESCHNITTEN WIRD IN DER LAENGE DES PASSUNGSFENSTERS, nicht in der des Textes. Die
 		// Passung laesst bewusst einen Vorhalt (§4.4) -- schnitte man auf die Textbreite zu, faellt
