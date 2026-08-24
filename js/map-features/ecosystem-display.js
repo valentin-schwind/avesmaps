@@ -256,6 +256,20 @@ function avesmapsEcosystemDisplayGroesse(subtype, zoom) {
  * Die vier Vorgaben einer Art: Zoomband, max. Namen, Prioritaet.
  * 🔴 Sie sind eine EMPFEHLUNG, kein Riegel -- der Editor darf abweichen und sieht nur die Marke.
  */
+/**
+ * Die GRUNDgroesse, die eine Art vorschlaegt -- die eine Zahl, die unter dem Regler des
+ * Beschriftungsdialogs als Marke steht.
+ *
+ * 🔴 Das ist der Wert der Tafel bei ZOOM 5, und das ist keine Wahl: bei z5 ist der Zoomfaktor
+ * der Groessenrechnung genau 1,0 (`0.5 + 5/5 * 0.5`, kein Tiefzoom-Zuschlag). Die Grundgroesse
+ * IST also per Konstruktion der z5-Wert -- in der Vorgabekurve steht dort die historische 18.
+ * ⚠️ Wer hier eine andere Stufe nimmt, verschiebt jeden Vorschlag um den Zoomfaktor jener
+ * Stufe, und das faellt nicht auf: die Zahl sieht weiterhin wie eine Schriftgroesse aus.
+ */
+function avesmapsEcosystemDisplayBasisGroesse(subtype) {
+	return avesmapsEcosystemDisplayGroesse(subtype, AVESMAPS_ECOSYSTEM_DISPLAY_VISUAL_MAX);
+}
+
 function avesmapsEcosystemDisplayVorgabe(subtype) {
 	const eigen = avesmapsEcosystemDisplayTeil("vorgabe")[String(subtype || "")];
 	const raus = {};

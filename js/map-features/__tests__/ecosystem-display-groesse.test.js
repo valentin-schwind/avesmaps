@@ -3,13 +3,19 @@ const fs = require("fs");
 const path = require("path");
 const vm = require("vm");
 
-// 🔴 DIE FEINSTE REGEL DES GANZEN UMBAUS, und sie ist zweigeteilt (Entwurf §5.5 und §6):
+// 🔴 SEIT DEM 24.08.2026 GILT FÜR GRÖSSE UND BAND DIESELBE REGEL: die Tafel RÄT, sie gilt nicht.
 //
-//   GROESSE: die Tafel GILT.  Der eigene Wert des Labels wird nicht mehr gelesen.
-//   BAND:    die Tafel RAET.  Der eigene Wert des Labels gewinnt; die Vorgabe greift nur, wo keiner steht.
+// Einen Tag lang stand hier das Gegenteil („GROESSE: die Tafel GILT, der eigene Wert des Labels
+// wird nicht mehr gelesen"), und das war eine Fehllesung des Auftrags. Der Owner wollte den
+// Editoren den Regler NICHT wegnehmen: „ich wollte den editoren diese nicht von den labels
+// wegnehmen, sondern den slider beibehalten und denen den default wert vorschlagen".
 //
-// 💣 Wer beides gleich behandelt, nimmt den Editoren entweder ihre Baender weg oder laesst die
-// Groesse wirkungslos. Beides ist genau falsch herum, und beides faellt im Betrieb nicht sofort auf.
+// ⭐ Damit ist das Modell einfacher als vorher gedacht -- eine Regel statt zweier. Der Wert des
+// Labels gewinnt; die Tafel füllt nur die Lücke und steht als Marke unter dem Regler.
+//
+// ⚠️ Live tragen 938 von 938 Beschriftungen eine eigene Größe (12-50 pt, gemessen 24.08.2026).
+// Die Tafel wirkt heute also auf KEINE einzige -- sie ist der Vorschlag für neue. Genau wie beim
+// Zoomband, und aus demselben Grund harmlos beim Ausliefern.
 //
 // Aus der Wurzel des Repos:  node js/map-features/__tests__/ecosystem-display-groesse.test.js
 
@@ -22,67 +28,73 @@ const quelle = fs.readFileSync(path.join(__dirname, "../map-features-labels.js")
 // 💣 Die Prosa erklaert hier genau das Gesuchte -- ein Treffer im Kommentar ist kein Beweis.
 const ohneKommentare = quelle.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/[^\n]*$/gm, "");
 
-// ---- A. GROESSE: die Tafel gilt ----------------------------------------------------------------
-const vonG = ohneKommentare.indexOf("function getScaledLabelSize(");
-const bisG = ohneKommentare.indexOf("\n}", vonG);
-const rumpfG = ohneKommentare.slice(vonG, bisG);
+// ---- A. GRÖSSE: der eigene Wert gewinnt -- AUSGEFÜHRT, nicht gelesen ---------------------------
+const vonG = quelle.indexOf("function getScaledLabelSize(");
 assert.ok(vonG >= 0, "getScaledLabelSize steht in der Datei");
-assert.ok(/avesmapsEcosystemDisplayGroesse\(label\.labelType/.test(rumpfG),
-	"die Groesse kommt aus der Tafel, und zwar je ART");
-// 🔴 Der Tafel-Zweig steht ZUERST -- sonst gewinnt die alte Rechnung und der Umbau ist wirkungslos.
-const posTafel = rumpfG.indexOf("avesmapsEcosystemDisplayGroesse");
-const posAlt = rumpfG.indexOf("Number(label.size)");
-assert.ok(posAlt < 0 || posTafel < posAlt,
-	"der Tafel-Zweig steht vor dem Rueckfall -- sonst liest weiter label.size");
+const bisG = quelle.indexOf("\n}", vonG);
+const getScaledLabelSize = new Function(
+	"map", "getVisualZoomLevel", "VISUAL_MAX_ZOOM_LEVEL", "LABEL_SIZE_DEEP_ZOOM_STEP",
+	"avesmapsEcosystemDisplayGroesse",
+	quelle.slice(vonG, bisG + 2) + "; return getScaledLabelSize;"
+)(
+	{ getZoom: () => 5 },
+	(z) => z,
+	5,
+	0.08,
+	avesmapsEcosystemDisplayGroesse
+);
 
-// ---- B. 💣 DAS FELD `size` BLEIBT IM FORMULAR, als hidden --------------------------------------
-// Der Payload liest formData.get("size"); OHNE das Feld schriebe jedes Speichern eine 0 ueber den
-// gemerkten Wert. Genau dieselbe Falle steht zwei Zeilen darueber schon fuer `rotation`.
+// Bei Zoom 5 ist der Faktor genau 1,0 -- die Grundgröße kommt unverändert heraus.
+avesmapsEcosystemDisplayInstall(null);
+assert.strictEqual(getScaledLabelSize({ labelType: "wald", size: 30 }), 30,
+	"der eigene Wert des Labels gewinnt");
+assert.strictEqual(getScaledLabelSize({ labelType: "wald", size: 12 }), 12,
+	"auch ein kleiner");
+
+// 🔴 Und er gewinnt AUCH, wenn die Tafel etwas anderes sagt -- das ist der ganze Punkt.
+// ⚠️ 26, nicht 40: die Tafel nimmt nur 4-30 pt an, darueber faellt ihr Leser auf die Vorgabe
+// zurueck -- der Test maesse dann die Schranke statt der Regel.
+avesmapsEcosystemDisplayInstall({ groesse: { wald: [26, 26, 26, 26, 26, 26, 26, 26, 26] } });
+assert.strictEqual(getScaledLabelSize({ labelType: "wald", size: 30 }), 30,
+	"die Tafel überschreibt den eigenen Wert NICHT");
+
+// ---- B. Ohne eigenen Wert füllt die Tafel die Lücke --------------------------------------------
+assert.strictEqual(getScaledLabelSize({ labelType: "wald", size: null }), 26,
+	"ohne eigene Größe gilt die Tafel");
+assert.strictEqual(getScaledLabelSize({ labelType: "wald" }), 26,
+	"ein fehlendes Feld ebenso");
+// 💣 `Number(null)` ist 0, nicht NaN. Ohne die ausdrückliche Prüfung fiele ein Label ohne Größe auf
+// die Untergrenze statt auf die Tafel -- dieselbe Falle wie beim Zoomband.
+avesmapsEcosystemDisplayInstall(null);
+assert.strictEqual(getScaledLabelSize({ labelType: "wald", size: null }), 18,
+	"und ohne Übersteuerung auf die Vorgabe, nicht auf 10");
+
+// ---- C. 🔴 DER REGLER IST WIEDER DA -------------------------------------------------------------
 const seite = fs.readFileSync(path.join(__dirname, "../../../index.html"), "utf8");
-assert.ok(/id="label-edit-size"[^>]*type="hidden"/.test(seite),
-	"das Groessenfeld steht als hidden im Formular");
+assert.ok(/id="label-edit-size-range"/.test(seite),
+	"der Größenregler steht wieder im Beschriftungsdialog");
+assert.ok(!/id="label-edit-size"[^>]*type="hidden"/.test(seite),
+	"und das Feld ist kein hidden mehr");
 assert.ok(/id="label-edit-size"[^>]*name="size"/.test(seite),
-	"und traegt weiter seinen Namen -- sonst faellt es aus dem Payload");
-assert.ok(!/id="label-edit-size-range"/.test(seite), "der Regler dazu ist weg");
-// ⚠️ Und der Schreibweg liest es weiterhin, sonst waere das hidden Feld sinnlos.
-const dialog = fs.readFileSync(path.join(__dirname, "../../review/review-labels.js"), "utf8");
-assert.ok(/label-edit-size/.test(dialog), "der Dialog liest und schreibt den gemerkten Wert weiter");
+	"es trägt weiter seinen Namen -- sonst fällt es aus dem Payload");
+// ⚠️ Und es trägt wieder seine Spanne, sonst nimmt der Regler jeden Wert an.
+assert.ok(/id="label-edit-size"[^>]*min="12"[^>]*max="50"/.test(seite),
+	"mit der Spanne 12-50, wie vor dem Umbau");
 
-// ---- C. BAND: die Tafel raet -- AUSGEFUEHRT, nicht gelesen ------------------------------------
-// 🪤 Die erste Fassung dieses Abschnitts pruefte den QUELLTEXT (steht `hatEigenesBand` drin, steht
-// es vor der Vorgabe). Eine Mutation, die den eigenen Wert ignoriert -- `hatEigenesBand` durch
-// `false` ersetzt --, blieb dabei GRUEN: der Bezeichner stand ja weiter da. Am 24.08.2026 gemessen.
-// Deshalb ist die Entscheidung jetzt eine reine Funktion, und der Test FUEHRT SIE AUS.
-const vonB = quelle.indexOf("function avesmapsLabelImBand(");
-const bisB = quelle.indexOf("\n}", vonB);
-assert.ok(vonB >= 0, "avesmapsLabelImBand steht als eigene Funktion da");
-const avesmapsLabelImBand = new Function(
-	"avesmapsEcosystemDisplaySichtbar",
-	quelle.slice(vonB, bisB + 2) + "; return avesmapsLabelImBand;"
-)(avesmapsEcosystemDisplaySichtbar);
+// ---- D. Die Marke darunter zeigt die GRUNDgröße --------------------------------------------------
+// 🔴 Der Regler setzt eine Grundgröße, die Tafel führt eine KURVE über neun Zoomstufen. Übersetzt
+// wird das über den z5-Wert: dort ist der Zoomfaktor genau 1,0, die Grundgröße IST also der
+// z5-Eintrag. Wer eine andere Stufe nimmt, verschiebt jeden Vorschlag -- und es fällt nicht auf.
+assert.strictEqual(typeof avesmapsEcosystemDisplayBasisGroesse, "function",
+	"das Modul sagt, welche Grundgröße eine Art vorschlägt");
+assert.strictEqual(avesmapsEcosystemDisplayBasisGroesse("wald"), 18,
+	"ohne Übersteuerung die historische 18");
+avesmapsEcosystemDisplayInstall({ groesse: { wald: [9, 11, 13, 14, 16, 26, 19, 21, 21] } });
+assert.strictEqual(avesmapsEcosystemDisplayBasisGroesse("wald"), 26,
+	"und sonst der z5-Wert der Tafel");
+assert.ok(/id="label-edit-size-marke"/.test(seite), "der Regler trägt eine Vorgabemarke");
 
-// Vorgabe der Tafel: nur z2 bis z4 sichtbar.
-avesmapsEcosystemDisplayInstall({ vorgabe: { wald: { ab: 2, bis: 4 } } });
-
-// 🔴 EIN LABEL MIT EIGENEM BAND GEWINNT -- die Tafel raet nur.
-const mitEigenem = { labelType: "wald", minZoom: 0, maxZoom: 7 };
-assert.strictEqual(avesmapsLabelImBand(mitEigenem, 0), true, "eigenes Band z0-z7: z0 sichtbar");
-assert.strictEqual(avesmapsLabelImBand(mitEigenem, 6), true, "und z6 auch -- die Tafel saehe z6 nicht");
-assert.strictEqual(avesmapsLabelImBand(mitEigenem, 8), false, "ausserhalb des eigenen Bandes nicht");
-
-// Ohne eigenen Wert greift die Vorgabe.
-const ohneEigenes = { labelType: "wald", minZoom: null, maxZoom: null };
-assert.strictEqual(avesmapsLabelImBand(ohneEigenes, 1), false, "ohne eigenes Band gilt die Vorgabe: z1 nicht");
-assert.strictEqual(avesmapsLabelImBand(ohneEigenes, 3), true, "z3 schon");
-assert.strictEqual(avesmapsLabelImBand(ohneEigenes, 6), false, "z6 nicht");
-
-// ⚠️ Und shouldShowLabelMarker benutzt sie auch wirklich -- sonst haette die Funktion keinen Wirt.
-const vonS = ohneKommentare.indexOf("function shouldShowLabelMarker(");
-const bisS = ohneKommentare.indexOf("\n}", vonS);
-assert.ok(/avesmapsLabelImBand\(entry\.label/.test(ohneKommentare.slice(vonS, bisS)),
-	"shouldShowLabelMarker fragt sie");
-
-// ---- D. Ohne Uebersteuerung ist die Kurve die heutige ------------------------------------------
+// ---- E. Ohne Übersteuerung ist die Kurve die heutige ------------------------------------------
 avesmapsEcosystemDisplayInstall(null);
 assert.deepStrictEqual(
 	[0, 1, 2, 3, 4, 5, 6, 7].map((z) => avesmapsEcosystemDisplayGroesse("wald", z)),
@@ -90,9 +102,36 @@ assert.deepStrictEqual(
 	"die Vorgabe ist die heutige Kurve bei Grundgroesse 18"
 );
 
-// ---- E. Die Tafel wirkt je ART ------------------------------------------------------------------
+// ---- F. Die Tafel wirkt je ART ------------------------------------------------------------------
 avesmapsEcosystemDisplayInstall({ groesse: { gebirge: [20, 20, 20, 20, 20, 20, 20, 20, 20] } });
 assert.strictEqual(avesmapsEcosystemDisplayGroesse("gebirge", 3), 20, "die gesetzte Art folgt der Tafel");
 assert.strictEqual(avesmapsEcosystemDisplayGroesse("wald", 3), 14, "eine andere Art bleibt bei der Vorgabe");
+
+// ---- G. BAND: dieselbe Regel, und das ist jetzt der Punkt --------------------------------------
+// ⭐ Größe und Band lesen sich seither gleich. Vorher waren es zwei Regeln, und die Gefahr war, sie
+// zu verwechseln; jetzt gibt es nur noch eine.
+const vonB = quelle.indexOf("function avesmapsLabelImBand(");
+assert.ok(vonB >= 0, "avesmapsLabelImBand steht als eigene Funktion da");
+const bisB = quelle.indexOf("\n}", vonB);
+const avesmapsLabelImBand = new Function(
+	"avesmapsEcosystemDisplaySichtbar",
+	quelle.slice(vonB, bisB + 2) + "; return avesmapsLabelImBand;"
+)(avesmapsEcosystemDisplaySichtbar);
+
+avesmapsEcosystemDisplayInstall({ vorgabe: { wald: { ab: 2, bis: 4 } } });
+const mitEigenem = { labelType: "wald", minZoom: 0, maxZoom: 7 };
+assert.strictEqual(avesmapsLabelImBand(mitEigenem, 0), true, "eigenes Band z0-z7: z0 sichtbar");
+assert.strictEqual(avesmapsLabelImBand(mitEigenem, 6), true, "und z6 auch -- die Tafel saehe z6 nicht");
+assert.strictEqual(avesmapsLabelImBand(mitEigenem, 8), false, "ausserhalb des eigenen Bandes nicht");
+
+const ohneEigenes = { labelType: "wald", minZoom: null, maxZoom: null };
+assert.strictEqual(avesmapsLabelImBand(ohneEigenes, 1), false, "ohne eigenes Band gilt die Vorgabe: z1 nicht");
+assert.strictEqual(avesmapsLabelImBand(ohneEigenes, 3), true, "z3 schon");
+assert.strictEqual(avesmapsLabelImBand(ohneEigenes, 6), false, "z6 nicht");
+
+const vonS = ohneKommentare.indexOf("function shouldShowLabelMarker(");
+const bisS = ohneKommentare.indexOf("\n}", vonS);
+assert.ok(/avesmapsLabelImBand\(entry\.label/.test(ohneKommentare.slice(vonS, bisS)),
+	"shouldShowLabelMarker fragt sie");
 
 console.log("ecosystem-display-groesse: alle Zusicherungen gruen");

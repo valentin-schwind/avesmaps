@@ -415,22 +415,25 @@ function createLabelIcon(label) {
 const LABEL_SIZE_DEEP_ZOOM_STEP = 0.08;
 
 function getScaledLabelSize(label) {
-	// 🔴 DIE TAFEL GILT (Entwurf §5.5, seit 24.08.2026). Die Groesse steht je Art und Zoomstufe in
-	// der Darstellungstafel; `label.size` wird nicht mehr gelesen.
+	// 🔴 DIE TAFEL RAET, SIE GILT NICHT (Owner 24.08.2026, nach einem Tag umgedreht). Kurz stand
+	// hier das Gegenteil -- die Tafel setzte die Groesse und `label.size` wurde nicht gelesen.
+	// Der Owner wollte den Editoren den Regler NICHT wegnehmen, sondern ihnen den Wert
+	// VORSCHLAGEN: „ich wollte den editoren diese nicht von den labels wegnehmen, sondern den
+	// slider beibehalten und denen den default wert vorschlagen".
 	//
-	// 💣 DER WERT BLEIBT TROTZDEM GESPEICHERT -- das Feld steht als `hidden` im Formular. Ohne das
-	// schriebe jedes Speichern eine 0 darueber, und er ist der einzige Rueckweg, falls die Sache je
-	// zurueckgebaut wird (dieselbe Falle, die zwei Zeilen darueber schon fuer `rotation` steht).
-	//
-	// ⚠️ HIER AENDERT SICH DAS BILD: bisher trug jedes Label seine eigene Grundgroesse (12-50,
-	// Vorgabe 18). Jedes Label, das nicht auf 18 stand, wird jetzt anders gross. Das ist der Preis
-	// dafuer, dass die Groesse global wird -- nachgestellt wird je Art im Fenster „Darstellung".
-	// ⭐ Der Rueckfall auf die alte Rechnung bleibt fuer den Fall, dass das Modul nicht geladen ist
-	// (Pruefseiten, ?-Schalter): dann zeichnet die Karte wie vor dem Umbau.
-	if (typeof avesmapsEcosystemDisplayGroesse === "function") {
+	// ⭐ Damit gilt für die Groesse dieselbe Regel wie fuer das Zoomband -- eine Regel statt
+	// zweier, und `avesmapsLabelImBand` nebenan liest sich jetzt wie diese Funktion.
+	// ⚠️ Live tragen 938 von 938 Beschriftungen eine eigene Groesse (12-50 pt, gemessen
+	// 24.08.2026). Die Tafel wirkt also heute nirgends auf der Karte -- sie ist der Vorschlag
+	// fuer neue Beschriftungen und die Marke unter dem Regler. Genau wie beim Zoomband.
+	const eigen = Number(label.size);
+	const hatEigene = label.size !== null && label.size !== undefined && Number.isFinite(eigen);
+	if (!hatEigene && typeof avesmapsEcosystemDisplayGroesse === "function") {
 		return avesmapsEcosystemDisplayGroesse(label.labelType, map.getZoom());
 	}
-	const baseSize = Math.max(10, Math.min(56, Number(label.size) || 18));
+	// 💣 `Number(null)` ist 0, nicht NaN -- ohne die ausdrueckliche Pruefung oben fiele ein Label
+	// ohne Groesse auf die Untergrenze statt auf die Tafel. Dieselbe Falle wie beim Band.
+	const baseSize = Math.max(10, Math.min(56, hatEigene ? eigen : 18));
 	const visualZoomLevel = getVisualZoomLevel(map.getZoom());
 	const zoomRatio = Math.max(0, Math.min(1, visualZoomLevel / VISUAL_MAX_ZOOM_LEVEL));
 	const ueberVisual = Math.max(0, Math.min(2, map.getZoom() - VISUAL_MAX_ZOOM_LEVEL));

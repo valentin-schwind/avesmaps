@@ -2010,7 +2010,7 @@
 							     steht zwei Zeilen weiter unten schon für `rotation`. Der Wert ist zudem
 							     der einzige Rückweg, falls die Sache je zurückgebaut wird -- und der
 							     Deploy löscht nie (AGENTS.md §10). -->
-							<input id="label-edit-size" name="size" type="hidden" value="18" />
+							<label class="location-report-form__field"><span>Größe</span><div class="label-edit-sliderrow"><input id="label-edit-size" name="size" type="number" min="12" max="50" step="1" value="18" /><span class="label-edit-markewrap"><input id="label-edit-size-range" type="range" min="12" max="50" step="1" value="18" aria-label="Größe" /><i class="label-edit-marke" id="label-edit-size-marke" aria-hidden="true" hidden></i></span></div></label>
 							<!-- 🔴 „Rotation" ist als BEDIENELEMENT gefallen (Entwurf §2): der Name laeuft auf der
 							     Mittelachse der Flaeche, nicht mehr in einem von Hand getroffenen Winkel.
 							     💣 DAS FELD BLEIBT ALS HIDDEN STEHEN, und das ist kein vergessener Rest: der

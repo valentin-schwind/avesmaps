@@ -353,6 +353,53 @@ let labelCurveSchnappschuss = null;
 // ⚠️ OHNE FLAECHE KEINE MITTELACHSE. Ein Meer, eine Insel, ein Gipfel traegt kein Polygon, aus dem
 // sich eine Achse rechnen liesse; beide Bedienelemente stehen dann deaktiviert da UND sagen warum.
 // Ein wirkungsloser Schalter ohne Begruendung ist schlimmer als keiner (index.html:2684).
+/**
+ * Darf „Max. Namen" bedient werden? REIN -- kein DOM.
+ *
+ * 🔴 ZWEI Bedingungen, und sie sind verschiedener Art (Owner 24.08.2026):
+ *   - OHNE FLÄCHE gibt es gar keine Mittelachse -- weder Haken noch Zahl sind bedienbar.
+ *   - MIT Fläche, aber Haken AUS: die Zahl sagt „höchstens so viele Namen auf der Kurve", und
+ *     es gibt keine Kurve. Ein Regler, der eine Zahl für etwas Abgeschaltetes stellt, sieht aus
+ *     wie eine Einstellung und ist keine.
+ *
+ * ⚠️ Der WERT bleibt dabei stehen. Ein deaktivierter Regler, der auf 1 zurückspringt, verlöre
+ * die Einstellung beim blossen Ab- und Wiederanhaken -- dieselbe Haltung wie beim globalen
+ * Häkchen der Deckkraft: stumm, aber gemerkt.
+ */
+function labelCurveMaxBedienbar(hatFlaeche, kurveAn) {
+	return Boolean(hatFlaeche) && Boolean(kurveAn);
+}
+
+/** Die zwei Bedienelemente für „Max. Namen" an die Regel hängen. */
+function syncLabelCurveMaxControls() {
+	const haken = document.getElementById("label-edit-curve");
+	const zahl = document.getElementById("label-edit-curve-max");
+	const regler = document.getElementById("label-edit-curve-max-range");
+	const marke = document.getElementById("label-edit-curve-max-marke");
+	if (!haken || !zahl) {
+		return;
+	}
+	// ⚠️ `haken.disabled` trägt hier die Flächenfrage -- sie ist eine Zeile weiter oben schon
+	// entschieden, und sie zweimal zu rechnen liesse die beiden auseinanderlaufen.
+	const bedienbar = labelCurveMaxBedienbar(!haken.disabled, haken.checked);
+	zahl.disabled = !bedienbar;
+	if (regler) {
+		regler.disabled = !bedienbar;
+	}
+	// Die Vorgabemarke gehört zu einem Regler, den man stellen kann. Steht er still, steht sie
+	// nur im Weg.
+	if (marke && !bedienbar) {
+		marke.hidden = true;
+	}
+	const grund = haken.disabled
+		? ""
+		: (haken.checked ? "" : "Erst „Kurvenbeschriftung“ anhaken — ohne Kurve gibt es nichts zu verteilen.");
+	zahl.title = grund;
+	if (regler) {
+		regler.title = grund;
+	}
+}
+
 function syncLabelCurveControls(region) {
 	const haken = document.getElementById("label-edit-curve");
 	const zahl = document.getElementById("label-edit-curve-max");
@@ -384,6 +431,9 @@ function syncLabelCurveControls(region) {
 		if (regler) {
 			regler.value = "1";
 		}
+		// ⚠️ Auch hier -- der Zweig kehrt gleich zurück, und ohne diese Zeile bliebe „Max. Namen"
+		// beim vorigen Label bedienbar stehen.
+		syncLabelCurveMaxControls();
 		return;
 	}
 	const an = region.curve_label === true;
@@ -395,6 +445,8 @@ function syncLabelCurveControls(region) {
 	}
 	labelCurveGeladen = { an, max };
 	labelCurveSchnappschuss = null;   // ein neu geoeffneter Dialog erbt nichts
+	// 🔴 ZULETZT: die Flächenfrage steht jetzt fest, und „Max. Namen" hängt zusätzlich am Haken.
+	syncLabelCurveMaxControls();
 }
 
 // Was dieses Speichern an der Kurveneinstellung NENNT -- oder null, wenn sich nichts bewegt hat.
@@ -526,6 +578,11 @@ function syncLabelHeightRow() {
 // still need a load-order guarantee this file does not have. No focus is moved here -- a `change`
 // handler that grabs focus is how the combobox once stole it from an open dialog.
 document.addEventListener("change", (event) => {
+	// 🔴 Der Haken „Kurvenbeschriftung" schaltet „Max. Namen" frei -- ohne diesen Zuhörer wirkt
+	// die Regel nur beim Öffnen, und wer den Haken setzt, findet die Zahl weiter gesperrt.
+	if (event.target && event.target.id === "label-edit-curve") {
+		syncLabelCurveMaxControls();
+	}
 	if (event.target && event.target.id === "label-edit-type") {
 		syncLabelHeightRow();
 		// 💣 Die Vorgabe haengt an der ART. Ohne diese Zeile zeigte ein Dialog, in dem jemand
@@ -564,6 +621,11 @@ function labelEmptyTypeLabel(kind) {
 // werden von dort gelesen -- eine zweite Angabe hier liefe beim ersten geaenderten Regler
 // auseinander.
 const AVESMAPS_LABEL_VORGABEMARKEN = [
+	// 🔴 Die GROESSE ist wieder dabei (Owner 24.08.2026): der Regler bleibt, die Tafel schlaegt
+	// nur vor. Sie traegt als einzige keinen Feldnamen aus `avesmapsEcosystemDisplayVorgabe`,
+	// sondern ihre eigene Herleitung -- die Vorgabe ist eine KURVE ueber neun Zoomstufen, der
+	// Regler aber eine Grundgroesse. Uebersetzt wird das in avesmapsEcosystemDisplayBasisGroesse.
+	{ regler: "label-edit-size-range", marke: "label-edit-size-marke", basis: true },
 	{ regler: "label-edit-curve-max-range", marke: "label-edit-curve-max-marke", feld: "curveMax" },
 	{ regler: "label-edit-min-zoom", marke: "label-edit-min-zoom-marke", feld: "ab" },
 	{ regler: "label-edit-max-zoom", marke: "label-edit-max-zoom-marke", feld: "bis" },
@@ -605,9 +667,15 @@ function avesmapsLabelZeichneVorgabeMarken() {
 		if (!marke || !regler) {
 			return;
 		}
-		const wert = vorgabe ? Number(vorgabe[eintrag.feld]) : NaN;
+		// ⚠️ Die Groesse kommt aus der Kurve, nicht aus dem Vorgabesatz -- siehe das Register oben.
+		const wert = eintrag.basis
+			? (typeof avesmapsEcosystemDisplayBasisGroesse === "function"
+				? Number(avesmapsEcosystemDisplayBasisGroesse(art)) : NaN)
+			: (vorgabe ? Number(vorgabe[eintrag.feld]) : NaN);
 		// ⚠️ „aus" (bis < ab) ist keine Stellung auf dem Balken -- dort gibt es nichts zu markieren.
-		const aus = vorgabe && Number(vorgabe.bis) < Number(vorgabe.ab);
+		// ⚠️ „aus" (bis < ab) betrifft das BAND. Eine Art ohne Namen auf der Karte hat trotzdem
+		// eine sinnvolle Grundgroesse -- ihre Marke bleibt stehen.
+		const aus = !eintrag.basis && vorgabe && Number(vorgabe.bis) < Number(vorgabe.ab);
 		if (!Number.isFinite(wert) || aus) {
 			marke.hidden = true;
 			return;
