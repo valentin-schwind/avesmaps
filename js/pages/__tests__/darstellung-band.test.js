@@ -78,7 +78,16 @@ assert.ok(!/median/i.test(dialogSeite.slice(
 	dialogSeite.indexOf('id="label-edit-form"') + 6000
 )), "im Beschriftungsdialog steht kein Median");
 const marken = fs.readFileSync(path.join(wurzel, "js/review/review-labels.js"), "utf8");
-assert.ok(!/median/i.test(marken), "und der Dialogcode kennt ihn auch nicht");
+// 🪤 Gemessen wird der CODE, nicht die Prosa: seit der Vorgabemarke steht ueber ihr ein Kommentar,
+// der GENAU DIESE REGEL erklaert und das Wort traegt. Ein Test, der ihn trifft, prueft seine eigene
+// Begruendung -- derselbe Fehler steckte in zwei weiteren Zusicherungen dieses Umbaus.
+const markenOhneKommentare = marken
+	.replace(/\/\*[\s\S]*?\*\//g, " ")
+	.split(String.fromCharCode(10))
+	.map((zeile) => { const s = zeile.indexOf("//"); return s === -1 ? zeile : zeile.slice(0, s); })
+	.join(String.fromCharCode(10));
+assert.ok(!/median/i.test(markenOhneKommentare),
+	"der Beschriftungsdialog rechnet mit keinem Median -- er sieht nur die Vorgabe");
 
 // ---- F. 💣 Die leere Zelle ------------------------------------------------------------------------
 // Eine Zeile OHNE „uebernehmen" braucht trotzdem ihre Zelle: `table-layout: fixed` schiebt sonst

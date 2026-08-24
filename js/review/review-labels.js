@@ -528,6 +528,10 @@ function syncLabelHeightRow() {
 document.addEventListener("change", (event) => {
 	if (event.target && event.target.id === "label-edit-type") {
 		syncLabelHeightRow();
+		// 💣 Die Vorgabe haengt an der ART. Ohne diese Zeile zeigte ein Dialog, in dem jemand
+		// die Art umstellt, weiter die Marken der ALTEN -- und das sieht aus wie eine Vorgabe, die
+		// nicht stimmt.
+		avesmapsLabelZeichneVorgabeMarken();
 	}
 });
 
@@ -542,9 +546,88 @@ function labelEmptyTypeLabel(kind) {
 	return "— keine Art —";
 }
 
+
+// ---- Die Vorgabemarken auf den Reglern ---------------------------------------------------------
+//
+// 🔴 DAS MODELL IST GEMISCHT, und das ist Absicht (Entwurf §6):
+//   Farbe und Groesse gibt die Tafel VOR -- der Editor hat dafuer kein Feld mehr.
+//   Zoomband, max. Namen und Prioritaet RAET sie nur -- er behaelt seinen Regler und sieht die
+//   Vorgabe als Marke darunter.
+//
+// 💣 DER MEDIAN ERREICHT IHN NIE (Owner 24.08.2026: „wir ermitteln den median, der wert, den die
+// editoren sehen ist der wert aus der zoombandeinstellung"). Eine zweite, graue Marke hiesse
+// „richte dich nach dem Durchschnitt" -- das Gegenteil einer Vorgabe: sie zementierte den Bestand,
+// statt ihn zu lenken. Im Prototyp stand eine solche Marke kurzzeitig und ist am selben Tag
+// gefallen. Wer sie „ergaenzt", nimmt der Tafel ihren Sinn.
+
+// Welcher Regler traegt welche Vorgabe. ⚠️ Die Spannen stehen im Markup (min/max am Element) und
+// werden von dort gelesen -- eine zweite Angabe hier liefe beim ersten geaenderten Regler
+// auseinander.
+const AVESMAPS_LABEL_VORGABEMARKEN = [
+	{ regler: "label-edit-curve-max-range", marke: "label-edit-curve-max-marke", feld: "curveMax" },
+	{ regler: "label-edit-min-zoom", marke: "label-edit-min-zoom-marke", feld: "ab" },
+	{ regler: "label-edit-max-zoom", marke: "label-edit-max-zoom-marke", feld: "bis" },
+	{ regler: "label-edit-priority-range", marke: "label-edit-priority-marke", feld: "prio" },
+];
+
+/**
+ * Wo die Marke steht. REIN -- kein DOM.
+ *
+ * 💣 NICHT einfach `anteil * 100%`. Der Reglerknopf hat eine Breite, sein Mittelpunkt wandert nur
+ * ueber (100% - Knopfbreite); bei reinem Prozent steht die Marke an BEIDEN Enden sichtbar daneben
+ * -- und an den Enden liegen die interessanten Werte (z0, z7).
+ * ⚠️ Die 16 px sind die Knopfbreite aus dem Stylesheet. Sie stehen an zwei Stellen; die CSS-Regel
+ * traegt den Vermerk.
+ */
+function avesmapsLabelVorgabeMarkePosition(wert, min, max) {
+	const spanne = Number(max) - Number(min);
+	const anteil = spanne === 0 ? 0 : Math.max(0, Math.min(1, (Number(wert) - Number(min)) / spanne));
+	return "calc(" + (anteil * 100) + "% + " + (8 - anteil * 16) + "px)";
+}
+
+/**
+ * Die vier Marken setzen. ⚠️ Sie wandern mit der ART: die Vorgabe haengt an ihr, und ein Dialog, in
+ * dem jemand die Art umstellt, zeigte sonst weiter die Marken der ALTEN -- das sieht aus wie eine
+ * Vorgabe, die nicht stimmt.
+ */
+function avesmapsLabelZeichneVorgabeMarken() {
+	const art = String(document.getElementById("label-edit-type")?.value || "");
+	// 🔴 Die Vorgabe kommt aus dem geteilten Modul, gegen das auch die Karte zeichnet -- nicht aus
+	// einer zweiten Tafel im Dialog. Fehlt es (eine Seite ohne das Modul), gibt es keine Marke:
+	// eine geratene Marke waere schlimmer als keine.
+	const vorgabe = (typeof avesmapsEcosystemDisplayVorgabe === "function")
+		? avesmapsEcosystemDisplayVorgabe(art)
+		: null;
+
+	AVESMAPS_LABEL_VORGABEMARKEN.forEach((eintrag) => {
+		const marke = document.getElementById(eintrag.marke);
+		const regler = document.getElementById(eintrag.regler);
+		if (!marke || !regler) {
+			return;
+		}
+		const wert = vorgabe ? Number(vorgabe[eintrag.feld]) : NaN;
+		// ⚠️ „aus" (bis < ab) ist keine Stellung auf dem Balken -- dort gibt es nichts zu markieren.
+		const aus = vorgabe && Number(vorgabe.bis) < Number(vorgabe.ab);
+		if (!Number.isFinite(wert) || aus) {
+			marke.hidden = true;
+			return;
+		}
+		marke.hidden = false;
+		marke.style.left = avesmapsLabelVorgabeMarkePosition(
+			wert,
+			Number(regler.min),
+			Number(regler.max)
+		);
+		marke.title = "Vorgabe: " + wert;
+	});
+}
+
 function openLabelEditDialog(options = {}) {
 	resetLabelEditForm();
 	populateLabelEditForm(options);
+	// ⚠️ NACH dem Fuellen: vorher steht im Artwaehler noch die Art des zuletzt geoeffneten
+	// Labels, und die Marken zeigten dessen Vorgabe.
+	avesmapsLabelZeichneVorgabeMarken();
 	setLabelEditDialogOpen(true);
 }
 

@@ -685,3 +685,32 @@
 	outline-offset: 1px;
 	border-radius: var(--radius-sm);
 }
+
+/* ── Die Vorgabemarke auf den Reglern des Beschriftungsdialogs (Entwurf §6) ──────────────────
+   Der Editor sieht, was die Tafel für seine Art empfiehlt -- und darf abweichen. Was die Tafel
+   VORGIBT (Farbe, Größe), hat hier gar kein Feld mehr.
+
+   💣 Die Marke sitzt UNTER dem Balken. Auf dem Balken verdeckt der Reglerknopf sie genau dann,
+   wenn Wert und Vorgabe übereinstimmen -- also im HÄUFIGSTEN Fall. Eine Marke, die im Normalfall
+   unsichtbar ist, ist keine.
+   💣 Die 16px Knopfbreite stehen auch in avesmapsLabelVorgabeMarkePosition (review-labels.js):
+   ein gekoppelter Wert in zwei Dateien. Wer den Regler umstylt, ändert beide. */
+.label-edit-markewrap {
+	position: relative;
+	display: block;
+	flex: 1 1 auto;
+	min-width: 0;
+	padding-bottom: 8px;
+}
+.label-edit-markewrap input[type="range"] { display: block; width: 100%; }
+.label-edit-marke {
+	position: absolute;
+	bottom: 0;
+	width: 0;
+	height: 0;
+	border-right: 4px solid transparent;
+	border-bottom: 6px solid var(--color-accent-brown);
+	border-left: 4px solid transparent;
+	transform: translateX(-4px);
+	pointer-events: none;
+}
