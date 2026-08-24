@@ -312,6 +312,7 @@ function schneide(quelle, kopf) {
 
 const rumpfRiegel = schneide(labelsQuelle, "function shouldShowLabelMarker(");
 const rumpfLeser = schneide(labelsQuelle, "function avesmapsKurvenlabelKandidaten(");
+const rumpfBand = schneide(labelsQuelle, "function avesmapsLabelImBand(");
 
 // --- 2a) Quelltext-Zusicherung: der Riegel steht ZULETZT --------------------------------------------
 // ⚠️ Das ist bewusst eine Aussage ueber den QUELLTEXT und keine getarnte Verhaltensprobe: alle fuenf
@@ -341,7 +342,11 @@ function baueRiegel({ gemalt, ebeneGilt = true }) {
 		"getSelectedMapLayerMode", "isLatLngInRenderBounds", "avesmapsLabelWirdAlsKurveGemalt", "labelMarkers",
 		// Aufgabe 6b: der Riegel fragt seit heute auch nach dem Bearbeiten-Modus.
 		"IS_EDIT_MODE",
-		rumpfRiegel.rumpf + "\n" + rumpfLeser.rumpf
+		// 💣 avesmapsLabelImBand MUSS MIT. Seit dem 24.08.2026 ruft der Riegel diese
+		// Geschwisterfunktion (Groesse gilt, Band raet); ohne sie im Ausschnitt wirft er einen
+		// ReferenceError -- die Falle, die am 22.08.2026 beinahe saemtliche Wegnamen gekostet
+		// haette. Beim Herausloesen zaehlt nicht nur ZUSTAND, sondern auch der Aufruf eines Nachbarn.
+		[rumpfBand.rumpf, rumpfRiegel.rumpf, rumpfLeser.rumpf].join("\n")
 		+ "; return { shouldShowLabelMarker, avesmapsKurvenlabelKandidaten };"
 	);
 }

@@ -2001,7 +2001,16 @@
 						<label class="location-report-form__field" id="label-edit-height-row" hidden><span>H&ouml;he (Schritt)</span><div class="label-edit-sliderrow label-edit-sliderrow--wide"><input id="label-edit-height" name="height_schritt" type="number" min="0" max="20000" step="1" inputmode="numeric" /><input id="label-edit-height-range" type="range" min="0" max="20000" step="50" aria-label="H&ouml;he in Schritt" /></div></label>
 					</div><div class="label-edit-section"><div class="label-edit-section-title">Darstellung</div>
 						<div class="label-edit-grid">
-							<label class="location-report-form__field"><span>Größe</span><div class="label-edit-sliderrow"><input id="label-edit-size" name="size" type="number" min="12" max="50" step="1" value="18" /><input id="label-edit-size-range" type="range" min="12" max="50" step="1" value="18" aria-label="Groesse" /></div></label>
+							<!-- 🔴 „Größe" ist als BEDIENELEMENT gefallen (24.08.2026, Entwurf §5.5): die
+							     Schriftgröße steht seither je Art und Zoomstufe im Fenster „Darstellung"
+							     des Landschaften-Editors und gilt für alle Beschriftungen einer Art.
+							     💣 DAS FELD BLEIBT ALS HIDDEN STEHEN, und das ist kein vergessener Rest:
+							     der Payload liest `formData.get("size")`, und OHNE das Feld schriebe
+							     jedes Speichern eine 0 über den gespeicherten Wert. Genau dieselbe Falle
+							     steht zwei Zeilen weiter unten schon für `rotation`. Der Wert ist zudem
+							     der einzige Rückweg, falls die Sache je zurückgebaut wird -- und der
+							     Deploy löscht nie (AGENTS.md §10). -->
+							<input id="label-edit-size" name="size" type="hidden" value="18" />
 							<!-- 🔴 „Rotation" ist als BEDIENELEMENT gefallen (Entwurf §2): der Name laeuft auf der
 							     Mittelachse der Flaeche, nicht mehr in einem von Hand getroffenen Winkel.
 							     💣 DAS FELD BLEIBT ALS HIDDEN STEHEN, und das ist kein vergessener Rest: der

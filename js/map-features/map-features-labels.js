@@ -415,18 +415,28 @@ function createLabelIcon(label) {
 const LABEL_SIZE_DEEP_ZOOM_STEP = 0.08;
 
 function getScaledLabelSize(label) {
+	// 🔴 DIE TAFEL GILT (Entwurf §5.5, seit 24.08.2026). Die Groesse steht je Art und Zoomstufe in
+	// der Darstellungstafel; `label.size` wird nicht mehr gelesen.
+	//
+	// 💣 DER WERT BLEIBT TROTZDEM GESPEICHERT -- das Feld steht als `hidden` im Formular. Ohne das
+	// schriebe jedes Speichern eine 0 darueber, und er ist der einzige Rueckweg, falls die Sache je
+	// zurueckgebaut wird (dieselbe Falle, die zwei Zeilen darueber schon fuer `rotation` steht).
+	//
+	// ⚠️ HIER AENDERT SICH DAS BILD: bisher trug jedes Label seine eigene Grundgroesse (12-50,
+	// Vorgabe 18). Jedes Label, das nicht auf 18 stand, wird jetzt anders gross. Das ist der Preis
+	// dafuer, dass die Groesse global wird -- nachgestellt wird je Art im Fenster „Darstellung".
+	// ⭐ Der Rueckfall auf die alte Rechnung bleibt fuer den Fall, dass das Modul nicht geladen ist
+	// (Pruefseiten, ?-Schalter): dann zeichnet die Karte wie vor dem Umbau.
+	if (typeof avesmapsEcosystemDisplayGroesse === "function") {
+		return avesmapsEcosystemDisplayGroesse(label.labelType, map.getZoom());
+	}
 	const baseSize = Math.max(10, Math.min(56, Number(label.size) || 18));
 	const visualZoomLevel = getVisualZoomLevel(map.getZoom());
 	const zoomRatio = Math.max(0, Math.min(1, visualZoomLevel / VISUAL_MAX_ZOOM_LEVEL));
-	// 🔴 UEBER ZOOM 5 WAECHST DIE SCHRIFT WEITER (Owner 23.08.2026: „nach unten hin etwas groessere
-	// schriftart"). Der Visual-Zoom klemmt bei VISUAL_MAX_ZOOM_LEVEL = 5; ohne diesen Zusatz sind die
-	// Stufen 5, 6 und 7 fuer Labels ununterscheidbar, und beim Reinzoomen wirkt der Name gegenueber
-	// der wachsenden Karte immer kleiner. Gemessen vorher: 14 / 16 / 18 / 20 / 20 / 20 (Zoom 2..7).
-	// ⚠️ „Etwas": 8 % je Stufe, also hoechstens +17 % bei Zoom 7 (aus 20 wird 22 und 23). Bewusst
-	// KEIN zweiter Skalenbruch -- unterhalb von Zoom 5 aendert sich nichts.
 	const ueberVisual = Math.max(0, Math.min(2, map.getZoom() - VISUAL_MAX_ZOOM_LEVEL));
 	return Math.round(baseSize * (0.5 + zoomRatio * 0.5) * (1 + ueberVisual * LABEL_SIZE_DEEP_ZOOM_STEP));
 }
+
 
 function labelHasWikiRegion(label) {
 	return Boolean(label && label.wikiRegion && label.wikiRegion.wiki_key);
@@ -876,6 +886,38 @@ function isLabelOfActiveEcosystemLayer(label) {
 	return String(label?.ecosystemRegionKind || "") === getActiveEcosystemLayerKind();
 }
 
+// Liegt diese Beschriftung auf dieser Zoomstufe in ihrem Band?
+//
+// 🔴 DIE TAFEL RAET -- und das ist die UMGEKEHRTE Regel zur Groesse (Entwurf §6). Der eigene Wert
+// des Labels gewinnt; die Vorgabe je Art greift nur, wo das Label KEINEN traegt. Weil heute jede
+// Beschriftung min_zoom und max_zoom traegt, aendert sich an der Sichtbarkeit vorerst NICHTS --
+// gewollt: der Editor behaelt seine Entscheidung und sieht die Vorgabe nur als Marke.
+//
+// 💣 Wer das mit der GROESSE gleich behandelt, nimmt den Editoren entweder ihre Baender weg (Tafel
+// gilt) oder laesst die Groesse wirkungslos (Tafel raet). Beides ist genau falsch herum.
+//
+// ⭐ Eigene, REINE Funktion, damit ein Test sie AUSFUEHREN kann. Als Ausdruck mitten in
+// shouldShowLabelMarker liess sie sich nur ueber ihren Quelltext pruefen -- und eine Mutation, die
+// den eigenen Wert ignoriert, blieb dabei gruen (gemessen am 24.08.2026).
+function avesmapsLabelImBand(label, bandZoom) {
+	// 💣 `Number(null)` ist 0, NICHT NaN -- ein Label ohne Band fiele mit `Number.isFinite` allein in
+	// den „hat eigenes Band"-Zweig und waere nur auf z0 sichtbar. Deshalb erst auf null/undefined
+	// pruefen und dann auf Zahl. Der Test hat genau das gefunden.
+	const rohMin = label?.minZoom;
+	const rohMax = label?.maxZoom;
+	const min = Number(rohMin);
+	const max = Number(rohMax);
+	const hatEigenes = rohMin !== null && rohMin !== undefined && Number.isFinite(min)
+		&& rohMax !== null && rohMax !== undefined && Number.isFinite(max);
+	if (hatEigenes) {
+		return bandZoom >= min && bandZoom <= max;
+	}
+	if (typeof avesmapsEcosystemDisplaySichtbar === "function") {
+		return avesmapsEcosystemDisplaySichtbar(label?.labelType, bandZoom);
+	}
+	return bandZoom >= (Number.isFinite(min) ? min : 0) && bandZoom <= (Number.isFinite(max) ? max : 7);
+}
+
 function shouldShowLabelMarker(entry, zoomLevel = map.getZoom(), renderBounds = getMapRenderBounds(), editorOverride = isMapLabelEditorOverrideActive(), mitKurvenriegel = true) {
 	const minZoom = Number(entry.label.minZoom) || 0;
 	const maxZoom = Number.isFinite(Number(entry.label.maxZoom)) ? Number(entry.label.maxZoom) : 7;
@@ -953,9 +995,15 @@ function shouldShowLabelMarker(entry, zoomLevel = map.getZoom(), renderBounds = 
 		return false;
 	}
 
+	// 🔴 DIE TAFEL RAET -- und das ist die UMGEKEHRTE Regel zur Groesse darueber (Entwurf §6).
+	// Der eigene Wert des Labels gewinnt; die Vorgabe je Art greift nur, wo das Label KEINEN traegt.
+	// Weil heute jede Beschriftung min_zoom und max_zoom traegt, aendert sich an der Sichtbarkeit
+	// vorerst NICHTS -- gewollt: der Editor behaelt seine Entscheidung und sieht die Vorgabe nur als
+	// Marke auf seinem Regler.
+	// 💣 Wer beides gleich behandelt, nimmt den Editoren entweder ihre Baender weg (Tafel gilt) oder
+	// laesst die Groesse wirkungslos (Tafel raet). Beides ist genau falsch herum.
 	return (MAP_LABEL_MODES.includes(getSelectedMapLayerMode()) || editorOverride === true)
-		&& bandZoom >= minZoom
-		&& bandZoom <= maxZoom
+		&& avesmapsLabelImBand(entry.label, bandZoom)
 		&& isLatLngInRenderBounds(entry.marker.getLatLng(), renderBounds);
 }
 
