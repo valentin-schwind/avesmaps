@@ -445,7 +445,13 @@
 				// ⚠️ Gemeinsame Dauer ist kein Sparen, sondern die Aussage: Grenze und ihr Name gehoeren
 				// zusammen und muessen gemeinsam zurueckkommen. Zwei Werte liefen beim ersten Nachjustieren
 				// auseinander, und dann kaeme der Name vor seiner Linie.
-				canvas.style.transition = TERRITORY_ZOOM_TRANSFORM + ", opacity " + TERRITORY_LABEL_FADE_MS + "ms ease";
+				// 💣 NUR DIE DECKKRAFT, KEINE TRANSFORM. Die Transform-Transition gehoert AUSSCHLIESSLICH in
+				// den zoomanim-Handler. Steht sie auch hier, ueberlebt sie den Zoom und liegt danach
+				// dauerhaft an -- und weil `L.DomUtil.setPosition` die Flaeche per `transform` verschiebt,
+				// animiert dann JEDER Pan die Position nach. Owner 24.08.2026: „wenn ich mit der maus panne,
+				// ziehen die 2x nach“. Genau dagegen loescht der moveend-Handler die Transition -- diese
+				// Einblendung hat den Schutz unterlaufen.
+				canvas.style.transition = "opacity " + TERRITORY_LABEL_FADE_MS + "ms ease";
 				canvas.style.opacity = "1";
 			});
 		});

@@ -102,7 +102,13 @@
 	function pfadLabelBlendeEin() {
 		requestAnimationFrame(function () {
 			requestAnimationFrame(function () {
-				canvas.style.transition = PATH_LABEL_ZOOM_TRANSFORM + ", opacity " + PATH_LABEL_FADE_IN_MS + "ms ease";
+				// 💣 NUR DIE DECKKRAFT, KEINE TRANSFORM. Die Transform-Transition gehoert AUSSCHLIESSLICH in
+				// den zoomanim-Handler. Steht sie auch hier, ueberlebt sie den Zoom und liegt danach
+				// dauerhaft an -- und weil `L.DomUtil.setPosition` die Flaeche per `transform` verschiebt,
+				// animiert dann JEDER Pan die Position nach. Owner 24.08.2026: „wenn ich mit der maus panne,
+				// ziehen die 2x nach“. Genau dagegen loescht der moveend-Handler die Transition -- diese
+				// Einblendung hat den Schutz unterlaufen.
+				canvas.style.transition = "opacity " + PATH_LABEL_FADE_IN_MS + "ms ease";
 				canvas.style.opacity = "1";
 			});
 		});
