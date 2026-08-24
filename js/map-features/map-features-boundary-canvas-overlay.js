@@ -89,11 +89,11 @@
 	// Siedlungen ausgenommen (zu kleinteilig). Pro Move neu gezeichnet (redraw läuft eh bei jedem moveend/zoom).
 	// Weiß, halbtransparent, KEIN Glow/Schatten. Notausschalter ?borderlabels=0.
 	const TERRITORY_BORDER_LABELS_ENABLED = (() => { try { return new URLSearchParams(window.location.search).get("borderlabels") !== "0"; } catch (e) { return true; } })();
-	// 🔴 z5, NICHT z4 (Owner 24.08.2026: „von z4 (0) --> z5 (0.75)“). Bis dahin erschienen die
-	// Namen bei z4 in voller Staerke; jetzt gibt es sie bei z4 gar nicht und sie blenden beim
-	// Schritt auf z5 ein. ⚠️ Die Tabellen darunter behalten ihren z4-Eintrag -- er ist damit tot,
-	// aber er ist der Rueckweg, falls die Schwelle je wieder auf 4 soll.
-	const TERRITORY_LABEL_MIN_ZOOM = 5;
+	// 🔴 z4 (Owner 24.08.2026: „die grenzbeschriftungen beginnen schon bei zoom 4 :)“).
+	// 🪤 Kurzzeitig stand hier 5, weil die Vorgabe woertlich „von z4 (0) --> z5 (0.75)“ lautete --
+	// gemeint war aber die BLENDE an der Schwelle, nicht das Verschieben der Schwelle selbst. Die
+	// Schwelle liegt bei z4 wie eh und je; geblendet wird jetzt beim Schritt z3 -> z4.
+	const TERRITORY_LABEL_MIN_ZOOM = 4;
 	const TERRITORY_LABEL_EXCLUDE = /^(Baronie|Junkertum|Vogtei|Rittergut|Freiherrschaft|Reichsstadt|Stadt)\b/i;
 	// PRO ZOOMSTUFE (4/5/6) -- Labels zeigen nur ab Zoom 4. Live tunbar via ?labeltune=1 (Slider mutieren diese
 	// Objekte; OK-Button schreibt den Stand nach window.__avesmapsBorderLabelTuning zum Übernehmen als Default).
