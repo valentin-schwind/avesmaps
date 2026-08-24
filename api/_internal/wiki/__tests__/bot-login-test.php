@@ -112,6 +112,9 @@ foreach ([$ohne, $mit] as $zeilen) {
 // erwischt.
 $pruefe(str_contains(AVESMAPS_WIKI_USER_AGENT, 'Avesmaps'), 'der User-Agent nennt uns beim Namen');
 $pruefe(str_contains(AVESMAPS_WIKI_USER_AGENT, 'avesmaps.de'), 'der User-Agent sagt, wo man uns findet');
+// 🔴 Und er nennt eine Kontaktadresse. MediaWikis eigene Bot-Regeln verlangen das, und der
+// Betreiber muss uns erreichen koennen, ohne erst herausfinden zu muessen, wer wir sind.
+$pruefe(str_contains(AVESMAPS_WIKI_USER_AGENT, '@'), 'der User-Agent traegt eine Kontaktadresse');
 
 // ------------------------------------------------------------ LOGIN-ANTWORT ---
 // 💣 MediaWiki antwortet auch bei ABGELEHNTER Anmeldung mit HTTP 200 -- der Befund steht nur im

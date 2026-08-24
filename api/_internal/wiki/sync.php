@@ -16,7 +16,7 @@ const AVESMAPS_WIKI_PAGE_BASE_URL = 'https://de.wiki-aventurica.de/wiki/';
  * schon `AvesmapsDumpBot/1.0` (dump-fetch.php) -- der gemeinsame Teil ist „Avesmaps", damit EINE
  * htaccess-Regel beide erwischt.
  */
-const AVESMAPS_WIKI_USER_AGENT = 'AvesmapsWikiSync/2.0 (+https://avesmaps.de)';
+const AVESMAPS_WIKI_USER_AGENT = 'AvesmapsWikiSync/2.0 (+https://avesmaps.de; info@avesmaps.de)';
 /**
  * Titel je `action=query`-Anfrage. ZWEI Werte, und welcher gilt, entscheidet die ANMELDUNG:
  * 50 ist die Grenze fuer normale Nutzer, 500 die fuer `apihighlimits` -- ein Recht, das in der

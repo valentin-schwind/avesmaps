@@ -615,7 +615,7 @@ function avesmapsWikiDumpFetch(PDO $pdo, bool $forceRefresh = false): array
         CURLOPT_REDIR_PROTOCOLS => CURLPROTO_HTTPS,
         CURLOPT_CONNECTTIMEOUT => AVESMAPS_WIKI_DUMP_CONNECT_TIMEOUT_SECONDS,
         CURLOPT_TIMEOUT => AVESMAPS_WIKI_DUMP_TRANSFER_TIMEOUT_SECONDS,
-        CURLOPT_USERAGENT => 'AvesmapsDumpBot/1.0 (+https://avesmaps.de)',
+        CURLOPT_USERAGENT => 'AvesmapsDumpBot/1.0 (+https://avesmaps.de; info@avesmaps.de)',
         CURLOPT_FAILONERROR => false, // we inspect the status code ourselves
         // 💣 Bei $timeValue = 0 MUSS die Bedingung ganz weg (CURL_TIMECOND_NONE), nicht etwa mit
         // dem Zeitpunkt 0 mitfahren: „seit dem 01.01.1970 geaendert?" ist immer wahr und damit
