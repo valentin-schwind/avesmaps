@@ -259,23 +259,46 @@ einwandfrei. Er wäre jetzt *diagnostizierbar* — verhindert wird er erst durch
 
 ### Stufe 1 — Die zwei blinden Flecken schließen (CI-only, unsichtbar)
 
-**1a · Rauchtests gegen echte Endpunkte.** Die Bauform steht fertig in
-`tools/svg-export/__tests__/endpunkt-ablauf.js`. Sie wird zu `tools/rauchtest/`
-verallgemeinert: `php -S` hochfahren, die ~15 tragenden Endpunkte einmal anfragen,
-prüfen dass die Antwort *die Hülle hat* (`ok`, bei Fehler `error.code`) und **kein 500**
-ist. Kein Datenbestand nötig — der Revert-Fall war ein Fatal, kein Datenfehler.
+**1a · Rauchtests gegen echte Endpunkte** ✅ **umgesetzt 24.08.2026** (`4020907`, `47f49ec`).
+`tools/rauchtest/` fährt einen eigenen `php -S` und fragt **jeden** Endpunkt einmal mit GET an
+— 91 Stück in 0,5 Sekunden. Geprüft wird vierfach: der Rumpf ist nicht leer, kein 404, keine
+ausgelaufene PHP-Meldung im Rumpf, und die Hülle des Vertrags (`ok:true`, oder `ok:false`
+**mit** `error.code`). Er läuft ohne Workflow-Änderung im Tor mit — das Muster
+`tools/**/__tests__/*.test.js` findet ihn von selbst.
 
-⚠️ Das Portproblem, wegen dessen diese Tests draußen stehen, ist seit `894eaa9` weitgehend
-entschärft: `freier-port.js` im selben Verzeichnis lässt sich den Port vom Betriebssystem
-geben, statt ihn zu würfeln. Ein Restrennen zwischen Freigeben und Binden bleibt — die
-Datei sagt das selbst. Die richtige Antwort darauf ist ein Wiederholungsversuch, nicht
-der Ausschluss aus dem Tor: ein Rauchtest, der nur läuft, wenn nichts schiefgeht, ist
-kein Tor.
+🔴 **Die Liste wird entdeckt, nicht gepflegt.** Eine Handliste veraltet beim ersten neuen
+Endpunkt und ist dann grün, weil sie das Neue gar nicht kennt. Genau **eine** dokumentierte
+Ausnahme von der JSON-Hülle: `api/app/coat.php`, ein Bild-Proxy, der in seiner eigenen
+Kopfzeile sagt „Liefert Bild-Bytes (kein JSON)" — auf leeren Rumpf wird er trotzdem geprüft.
+
+🚩 **Sein erster Lauf fand fünf Endpunkte mit HTTP 500 und null Bytes:** die drei unter
+`api/edit/admin/`, `import-geo.php` und `kartenarchiv.php`. Alle fünf riefen
+`avesmapsLoadApiConfig()` **bar** auf Dateiebene, während die übrigen zwanzig ihn im `try`
+haben — ohne `config.local.php` also ein Fatal mit leerem Rumpf. Live fällt das heute nicht
+auf, weil die Konfiguration da ist; es fällt genau dann auf, wenn sie einmal fehlt, und dann
+ohne jeden Hinweis. Repariert in `4020907`, jetzt 503 `service_unavailable` wie überall sonst.
+
+💣 **Was er fängt — und die Grenze gehört dazu:**
+
+| | |
+|---|---|
+| ✔ Parse-Fehler, fehlendes `require`, undefinierte Funktion (der opcache-Fensterfall), `const` nach Benutzung | gemessen: HTTP 500 mit **0 Bytes** — und `php -l` sieht davon nur den ersten |
+| ✔ der halbe Fatal: HTTP 200, gültiges JSON **und** eine Warning davor | fällt sonst niemandem auf, weil die Antwort sich parsen lässt |
+| ✘ ein Laufzeitfehler **innerhalb** des try-Blocks | der Ausfall vom 24.08. lieferte eine saubere Hülle — **diesen Test hätte er nicht gerissen** |
+
+Die letzte Zeile ist eine Korrektur an diesem Bericht: hier stand, 1a hätte den Revert
+gefangen. Hätte er nicht. Dafür braucht es 1b.
 
 **1b · MySQL im Testfeld.** GitHub Actions bietet einen MySQL-Service-Container ohne
-Zusatzkosten. Das schließt die Error-1093-Klasse *und* macht 1a echt. Die 73
-SQLite-Fixtures bleiben, wo sie sind — sie sind schnell und für reine Logik richtig;
-sie hören nur auf, die einzige Wahrheit zu sein.
+Zusatzkosten. Erst damit kann der Rauchtest `ok:true` verlangen statt nur „antwortet
+strukturiert" — und erst dann ist die Klasse geschlossen, an der der 24.08. gescheitert ist.
+Zugleich fällt die Error-1093-Klasse weg. Die 73 SQLite-Fixtures bleiben; sie hören nur auf,
+die einzige Wahrheit zu sein.
+
+⚠️ **Zwei Dinge sind vorher zu prüfen** (stehen auch im Kopf des Rauchtests): ob ein
+Edit-Endpunkt *vor* `avesmapsRequireUserWithCapability` Arbeit verrichtet — dann darf er nicht
+blind angefragt werden —, und ob `api/edit/wiki/dump.php` dabei anfängt, einen 40-MB-Dump zu
+holen.
 
 **1c · ESLint + PHPStan (Stufe 1–2), nur in CI.** Ersetzt die 1.008 Zeilen Ersatz-Linter
 durch eine Konfigurationsdatei und fängt dabei die ganze Klasse statt des Einzelfalls:
@@ -285,14 +308,11 @@ durch eine Konfigurationsdatei und fängt dabei die ganze Klasse statt des Einze
 💣 **Mit einer Einschränkung, und sie ist genau der Punkt aus §2.4:** der Doppel-Handler
 stand in `html/wiki-sync-settlement-editor.html`, also im Inline-JS. Dorthin sieht ESLint
 nur mit `eslint-plugin-html` — oder gar nicht, solange der Code inline bleibt. Die
-Linter-Abdeckung ist damit erst nach Stufe 3.1 vollständig. Bis dahin: das Plugin
-mitnehmen, sonst deckt der Linter 169k Zeilen ab und lässt die 14k stehen, in denen
-zuletzt zwei der drei Fehler saßen.
+Linter-Abdeckung ist damit erst nach Stufe 3.1 vollständig.
 
 🔴 **Das bricht „no build step" nicht.** Ausgeliefert wird weiterhin unveränderter
 Quelltext; `package.json` trägt ausschließlich `devDependencies`, `npm ci` läuft im
-Workflow, `node_modules/` steht nicht in der Deploy-Allowlist. Wenn selbst das nicht
-gewollt ist, ist 0c bereits gebaut — die Syntaxhälfte davon, zum Nulltarif.
+Workflow, `node_modules/` steht nicht in der Deploy-Allowlist.
 
 ### Stufe 2 — Das Gedächtnis benutzbar machen (unsichtbar, ein halber Tag)
 
@@ -330,7 +350,7 @@ Nach Wirkung geordnet, jede für sich lieferbar:
 
 ## 5. Empfehlung
 
-**Stufe 0 ist umgesetzt (24.08.2026), Stufe 1 als nächstes.** Zusammen sind sie für den Besucher unsichtbar
+**Stufe 0 und Stufe 1a sind umgesetzt (24.08.2026). Als nächstes 1b und 1c.** Zusammen sind sie für den Besucher unsichtbar
 und hätten — soweit von hier aus prüfbar — den Revert vom 24.08., den Doppel-Handler, den
 Scope-Fehler und den `const`-Fatal vom 19.08. allesamt vor dem Push gefangen.
 
