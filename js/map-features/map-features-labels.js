@@ -233,7 +233,7 @@ function renderMapLabelToImage(text, fontSizePx, typeStyle, opts) {
 	const peakPad = peakMarker ? Math.ceil(peakGap + peakTriH + 2) : 0;
 
 	// HiDPI: scharfe Label auf Retina/Mobile (dpr 2–3); Cap 2x begrenzt den Speicher (viele gecachte Label-Bilder).
-	const labelHiDpi = Math.min(window.devicePixelRatio || 1, 2);
+	const labelHiDpi = avesmapsCanvasDpr(2);   // eigener 2er-Deckel (Speicher), Telefon-Regel geteilt
 	const cacheKey = `${displayText}|${font}|${typeStyle.color}|${glow || ""}|${glowBlur}|${glowPasses}|${strokeWidth}|${letterSpacing}|${vAnchor}|${labelHiDpi}|${typeStyle.peakMarker ? "peak" : ""}`;
 	const cached = _mapLabelImageCache.get(cacheKey);
 	if (cached) {

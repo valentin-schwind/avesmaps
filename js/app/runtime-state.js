@@ -263,6 +263,59 @@ function avesmapsIsPhoneViewport() {
 // misst die KURZSEITE, also auch die Hoehe, und traefe ein quer gehaltenes Telefon nicht).
 // ⚠️ Wird bei Groessenaenderung und Drehung nachgezogen: ein gedrehtes Telefon bleibt ein Telefon,
 // ein auf Telefonbreite gezogenes Desktopfenster wird keins (der Zeiger bleibt fein).
+// 🔴 DIE EINE REGEL, WIE SCHARF EINE CANVAS ZEICHNET. Owner 24.08.2026, nach einem Blick aufs
+// Telefon: „sicher dass alle gleich scharf sind?“ -- sie waren es nicht. Wege- und Flussnamen sowie
+// die Ortsmarkierungen zeichneten in voller Geraetaufloesung (3x), Siedlungs-, Landschafts- und
+// Grenznamen bei 2x. Auf demselben Bild.
+//
+// 💣 DESHALB STEHT DIE REGEL HIER UND NICHT VIERMAL VERTEILT. Fuenf Zeichenflaechen lesen sie:
+// boundary-canvas-overlay, path-label-canvas-overlay, location-canvas-layer, labels (Bild-Cache)
+// und ueber sie die Grenzbeschriftung. Vier eigene Fassungen liefen beim ersten Nachjustieren
+// auseinander -- genau das war der Befund.
+// ⚠️ Alle fuenf Wirte UND diese Datei werden ausschliesslich von index.html geladen (geprueft
+// 24.08.2026). Ein Editorfenster, das eine der Dateien ohne runtime-state.js einbindet, saehe hier
+// ein undefined -- wer eine hinzufuegt, prueft das.
+//
+// 🔴 AM TELEFON GILT EIN DECKEL VON 2 (Owner-Entscheid 24.08.2026, Variante 2 von zweien). Die
+// verworfene Variante 1 -- volle Geraetaufloesung ueberall -- BLEIBT als Option erhalten: der Owner
+// will sie in die kommenden globalen Einstellungen aufnehmen. Dafuer genuegt es, dieser Variablen
+// `Infinity` zuzuweisen; kein Aufrufer muss angefasst werden.
+// ⚠️ Der Grund fuer den Deckel war NICHT die Schaerfe, sondern der Speicher: die Siedlungs- und
+// Landschaftsnamen werden als Bilder gerendert und zwischengespeichert, und bei 3x ist jedes Bild
+// 2,25-mal so gross. Wer die Option auf `Infinity` stellt, sollte den Bild-Cache mitmessen.
+const AVESMAPS_PHONE_CANVAS_MAX_DPR_VORGABE = 2;
+let avesmapsPhoneCanvasMaxDpr = (() => {
+	try {
+		const roh = new URLSearchParams(window.location.search).get("phonedpr");
+		if (roh === "voll") { return Infinity; }   // die aufbewahrte Variante 1, zum Probieren
+		const wert = Number(roh);
+		if (roh !== null && Number.isFinite(wert) && wert > 0) { return wert; }
+	} catch (error) { /* ohne Adresszeile die Vorgabe */ }
+	return AVESMAPS_PHONE_CANVAS_MAX_DPR_VORGABE;
+})();
+
+/**
+ * Wie viele Canvas-Pixel je CSS-Pixel diese Flaeche zeichnen darf.
+ * @param {number} [deckelZeiger] Eigener Deckel fuer Zeigergeraete. Jede Flaeche entscheidet den
+ *   selbst -- die Grenzen stehen auf 1 (weicher Ton, Owner-Entscheid), die uebrigen auf Infinity.
+ *   Geteilt ist NUR die Telefon-Regel.
+ * ⚠️ Bei JEDEM Zeichnen aufrufen, nie einmal beim Laden merken: ein Telefon wird gedreht, und ein
+ *   Desktopfenster laesst sich auf Telefonbreite ziehen (bleibt aber Zeigergeraet).
+ * ⭐ ?canvasdpr=<zahl> schlaegt alles -- die Probe gewinnt vor jeder Vorgabe.
+ */
+function avesmapsCanvasDpr(deckelZeiger) {
+	const dpr = window.devicePixelRatio || 1;
+	try {
+		const roh = new URLSearchParams(window.location.search).get("canvasdpr");
+		const wert = Number(roh);
+		if (roh !== null && Number.isFinite(wert) && wert > 0) { return Math.min(dpr, wert); }
+	} catch (error) { /* ohne Adresszeile weiter unten */ }
+	const deckel = avesmapsIsPhoneViewport()
+		? avesmapsPhoneCanvasMaxDpr
+		: (typeof deckelZeiger === "number" && deckelZeiger > 0 ? deckelZeiger : Infinity);
+	return Math.min(dpr, deckel);
+}
+
 function avesmapsSyncPhoneViewportClass() {
 	try {
 		document.documentElement.classList.toggle("avesmaps-phone", avesmapsIsPhoneViewport());

@@ -130,7 +130,6 @@
 	// -- das ist kein Ton mehr, das ist Matsch, und zwar auf dem kleinsten Bildschirm, wo Schrift die
 	// Schaerfe am noetigsten hat.
 	const TERRITORY_CANVAS_MAX_DPR = 1;         // Zeigergeraete: der abgenommene weiche Ton
-	const TERRITORY_CANVAS_MAX_DPR_PHONE = 2;   // Telefone: 2x-Geraete unveraendert scharf, 3x noch leicht weich
 	// ⚠️ „Telefon“ hat im Haus GENAU EINE Definition: avesmapsIsPhoneViewport() in
 	// js/app/runtime-state.js (grober Zeiger UND Bildschirm-Kurzseite <= 600 px, damit ein quer
 	// gehaltenes Telefon eins bleibt). Eine zweite Fassung hier -- etwa nur `devicePixelRatio >= 2`
@@ -138,15 +137,8 @@
 	// 💣 PRO REDRAW AUSGEWERTET, nicht einmal beim Laden: ein Telefon wird gedreht, und ein
 	// Desktopfenster laesst sich auf Telefonbreite ziehen (bleibt aber Zeigergeraet). Der frueher hier
 	// stehende Einmal-Wert haette die Drehung nie mitbekommen.
-	function territoryCanvasMaxDpr() {
-		try {
-			const roh = new URLSearchParams(window.location.search).get("canvasdpr");
-			const wert = Number(roh);
-			if (roh !== null && Number.isFinite(wert) && wert > 0) { return wert; }   // Probe schlaegt alles
-		} catch (e) { /* ohne Adresszeile weiter unten */ }
-		const amTelefon = typeof avesmapsIsPhoneViewport === "function" && avesmapsIsPhoneViewport();
-		return amTelefon ? TERRITORY_CANVAS_MAX_DPR_PHONE : TERRITORY_CANVAS_MAX_DPR;
-	}
+	// ⚠️ Die Telefon-Regel steht NICHT hier, sondern EINMAL in js/app/runtime-state.js
+	// (avesmapsCanvasDpr). Hier bleibt nur der eigene Deckel fuer Zeigergeraete.
 	const TERRITORY_LABEL_ALPHA = 0.75; // weiß, LEICHT TRANSPARENT -- nicht „gut deckend“ erhöhen:
 	// 0.75 ist der Ursprungswert (54a5ac96) und der, den der Owner am 24.08.2026 zurückverlangt hat.
 	// 4d2771b6 zog ihn auf 0.9 („Grenz-Namen deckender“); der Kommentar drei Zeilen weiter oben sagte
@@ -629,7 +621,7 @@
 		canvasTopLeftLatLng = map.containerPointToLatLng([0, 0]);
 		// HiDPI: Backing-Store in Geräte-Pixeln, CSS-Größe in Layout-Pixeln -> scharfe Grenzen/Grenz-Namen auf
 		// Retina/Mobile (dpr 2–3); auf dpr 1 unverändert. Gezeichnet wird weiter in CSS-px (ctx mit dpr skaliert).
-		const dpr = Math.min(window.devicePixelRatio || 1, territoryCanvasMaxDpr());
+		const dpr = avesmapsCanvasDpr(TERRITORY_CANVAS_MAX_DPR);
 		const pw = Math.round(size.x * dpr), ph = Math.round(size.y * dpr);
 		if (canvas.width !== pw) canvas.width = pw;
 		if (canvas.height !== ph) canvas.height = ph;

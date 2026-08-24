@@ -138,14 +138,11 @@
 			});
 		});
 	}
+	// ⚠️ Die Telefon-Regel steht EINMAL in js/app/runtime-state.js (avesmapsCanvasDpr). Hier bleibt
+	// nur der eigene Deckel fuer Zeigergeraete -- Infinity, weil der Owner die Wegenamen scharf
+	// wollte (f0fc4f3c). Die Funktion bleibt bestehen, weil ZWEI gekoppelte Leser sie brauchen.
 	function pfadLabelCanvasDpr() {
-		let deckel = PATH_LABEL_CANVAS_MAX_DPR;
-		try {
-			const roh = new URLSearchParams(window.location.search).get("canvasdpr");
-			const wert = Number(roh);
-			if (roh !== null && Number.isFinite(wert) && wert > 0) { deckel = wert; }
-		} catch (e) { /* ohne Adresszeile bleibt die Vorgabe */ }
-		return Math.min(window.devicePixelRatio || 1, deckel);
+		return avesmapsCanvasDpr(PATH_LABEL_CANVAS_MAX_DPR);
 	}
 	labelFlaechen.forEach((c) => map.getPane(PANE).appendChild(c));
 	// ⚠️ Startwerte ausdruecklich setzen. Ohne sie stuenden BEIDE Flaechen auf 1, und die erste

@@ -194,7 +194,7 @@ const locationCanvasLayer = {
 		this._cssZoomActive = false;
 		this._canvas.style.transition = "";
 		const size = this._map.getSize();
-		const dpr = window.devicePixelRatio || 1;
+		const dpr = avesmapsCanvasDpr();   // Telefon-Deckel aus runtime-state.js
 		L.DomUtil.setPosition(this._canvas, this._map.containerPointToLayerPoint([0, 0]).round());
 		this._canvas.width = Math.round(size.x * dpr);
 		this._canvas.height = Math.round(size.y * dpr);
@@ -248,7 +248,7 @@ const locationCanvasLayer = {
 			return;
 		}
 		const ctx = this._ctx;
-		const dpr = window.devicePixelRatio || 1;
+		const dpr = avesmapsCanvasDpr();   // Telefon-Deckel aus runtime-state.js
 		ctx.setTransform(1, 0, 0, 1, 0, 0);
 		ctx.clearRect(0, 0, this._canvas.width, this._canvas.height);
 		ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
