@@ -139,12 +139,18 @@
 /* Der Sammelknopf traegt den Akzentrand des Mockups -- er ist das einzige Element im Band, das ein
    Menue oeffnet, und das darf man ihm ansehen. */
 .rb-menu > .btn2[aria-haspopup] { border-color: var(--color-link); }
+/* 💣 --radius-lg (10px), NICHT der --radius-md, den .type-filter__menu vererbt: die Designsprache
+   gibt schwebenden Flaechen die groessere Rundung („menus, cards, autocomplete"), Steuerelementen
+   die kleinere. Die Regel steht hier und nicht am geteilten Filtermenue -- jenes haengt in mehreren
+   Editoroberflaechen, und die gehen einzeln live (AGENTS.md §9). 🔧 Dass der geteilte Wirt damit
+   noch die falsche Rundung traegt, bleibt offen und ist bewusst nicht mit erledigt. */
 .rb-menu__panel {
 	left: 0;
 	right: auto;
 	width: 320px;
 	min-width: 320px;
 	padding: var(--space-4);
+	border-radius: var(--radius-lg);
 }
 .rb-menu__row {
 	display: flex;
@@ -157,9 +163,11 @@
 .rb-menu__row:hover { background: var(--color-hover-wash); }
 .rb-menu__txt { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
 .rb-menu__txt b { font-size: var(--font-size-small); font-weight: var(--font-weight-bold); color: var(--color-text); }
-/* ⚠️ 11px ist die Untergrenze aus AGENTS.md §12 -- darunter ist die Zeile im Editor nicht mehr
-   lesbar, und genau dieser Fehler ist beim Abschreiben von Listenzeilen schon zweimal gewandert. */
-.rb-menu__txt span { font-size: 11px; color: var(--color-text-muted); }
+/* ⚠️ --font-size-caption IST die 11px-Untergrenze aus AGENTS.md §12 -- hier stand die Zahl selbst,
+   mit genau diesem Kommentar darueber. Ein Kommentar, der einen hartkodierten Wert verteidigt, ist
+   das Zeichen: der Wert war richtig, die Schreibweise nicht (§12 -- nie eine Groesse hartkodieren,
+   wenn es ein Token gibt). Verschiebt jemand die Untergrenze, wandert diese Zeile jetzt mit. */
+.rb-menu__txt span { font-size: var(--font-size-caption); color: var(--color-text-muted); }
 /* Eine Zeilenhandlung ist nie die Haupthandlung der Seite (AGENTS.md §12): weich/outline, nie
    gefuellt -- die Haupthandlung dieses Menuebands heisst „Syncen". */
 .rb-menu__sw {
@@ -179,15 +187,19 @@
 }
 .rb-menu__sw:hover { background: var(--color-button-soft-hover); }
 .rb-menu__sw[disabled] { opacity: .55; cursor: default; }
-/* 🔴 DIE ZWEI SCHALTER SIND ZUSTANDSANZEIGEN, KEINE HANDLUNGEN -- deshalb die Pillenform aus dem
-   Mockup (abgenommen 23.08.2026) und ein FARBRAND statt einer Fuellung: AN gruen, AUS in der
-   Warnfarbe. Der Notaus-Stand soll auffallen, indem er sich unterscheidet.
-   ⚠️ Die Pille ist die begruendete Ausnahme zu „no pill shapes" (AGENTS.md §12): jene Regel gilt
-   Knoepfen, die etwas AUSLOESEN. Die drei Zeilenknoepfe daneben („starten") bleiben eckig, und
-   genau dieser Unterschied trennt Zustand von Handlung.
-   ⚠️ Tokens, keine Hexwerte -- das Mockup schreibt #7d8f4a/#cfe08e direkt hin, was im hellen Thema
-   nicht traegt. --color-success-soft-* und --color-warning-soft-* sind in beiden Themen definiert. */
-.rb-menu__sw--state { border-radius: 999px; min-width: 52px; }
+/* 🔴 KEINE PILLE. Hier stand `border-radius: 999px; min-width: 52px` -- mit einer Begruendung
+   darueber, die sich selbst widerlegt: „Zustandsanzeigen, keine Handlungen, also die begruendete
+   Ausnahme zu ,no pill shapes'". Es sind <button>, man klickt sie, und sie schalten den Notaus des
+   oeffentlichen Frontends. Sie SIND Handlungen, und es war die einzige Pille im ganzen Editor
+   (Owner-Entscheid 24.08.2026, Entwurf C in docs/wappen-menue-hausform-mockup.html).
+   Beide Werte fallen ersatzlos: die Rundung kommt jetzt aus .rb-menu__sw (--radius-md, wie jedes
+   Steuerelement im Haus), die Breite ebenfalls von dort (62px statt 52px) -- damit stehen die zwei
+   Schalter und das „starten" darunter buendig, was sie als Pille nie taten.
+   🔴 Was BLEIBT, ist der FARBRAND statt einer Fuellung: AN gruen, AUS in der Warnfarbe. Der
+   Notaus-Stand soll auffallen, indem er sich unterscheidet -- das war nie die Form, sondern die
+   Farbe. ⚠️ Tokens, keine Hexwerte -- das Mockup vom 23.08. schreibt #7d8f4a/#cfe08e direkt hin,
+   was im hellen Thema nicht traegt; --color-success-soft-* und --color-warning-soft-* sind in
+   beiden Themen definiert. */
 .rb-menu__sw--state[aria-pressed="true"] {
 	border-color: var(--color-success-soft-border);
 	color: var(--color-success-soft-text);

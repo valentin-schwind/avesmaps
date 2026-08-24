@@ -1,0 +1,358 @@
+<!doctype html>
+<html lang="de" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Das Wappen-Menü in der Hausform — Entwurf 24.08.2026</title>
+<style>
+/* Die Schrift des Projekts, aus dem Repo geladen -- damit die Kacheln hier so aussehen wie dort. */
+@font-face {
+	font-family: "Faculty Glyphic";
+	src: url("../fonts/FacultyGlyphic-Regular.woff") format("woff"),
+	     url("../fonts/FacultyGlyphic-Regular.ttf") format("truetype");
+	font-display: swap;
+}
+
+/* ═══ TOKENS — 1:1 aus css/base/tokens.css, hell und dunkel. Nichts hier ist geraten. ══════════ */
+:root {
+	--color-page-bg: #f7f2e8;
+	--color-panel: #fffdf9;
+	--color-panel-soft: #faf6ee;
+	--color-text: #2e271e;
+	--color-text-strong: #3c3327;
+	--color-text-muted: #706557;
+	--color-border: #ddd3c3;
+	--color-border-strong: #cdbfa8;
+	--color-divider: rgba(125, 115, 96, 0.30);
+	--color-button: #5b5548;
+	--color-button-border: #635b4d;
+	--color-button-text: #f6efe1;
+	--color-button-soft: #efe9db;
+	--color-button-soft-text: #564b3b;
+	--color-button-soft-border: #cdbda0;
+	--color-button-soft-hover: #e7ddc9;
+	--color-accent-strong: #9c7f22;
+	--color-link: #8f7326;
+	--color-danger: #9d3a2e;
+	--color-success-soft-border: #a9c07f;
+	--color-success-soft-text: #3c5a1c;
+	--color-warning-soft-border: #ef9f27;
+	--color-warning-soft-text: #854f0b;
+	--color-on-button-muted: rgba(255, 255, 255, 0.8);
+	--color-hover-wash: rgba(191, 160, 58, 0.14);
+	--shadow-panel: 0 8px 24px rgba(0, 0, 0, 0.16);
+
+	--space-2: 4px; --space-4: 6px; --space-6: 8px; --space-8: 10px;
+	--space-10: 12px; --space-12: 14px; --space-16: 18px; --space-20: 22px;
+	--radius-sm: 5px; --radius-md: 8px; --radius-lg: 10px;
+	--font-size-caption: 11px; --font-size-small: 12px; --font-size-body: 13px;
+	--font-size-reading: 14px; --font-size-subhead: 16px; --font-size-title: 20px;
+	--leading-tight: 1.15; --leading-snug: 1.25; --leading-normal: 1.45;
+	--font-weight-regular: 400; --font-weight-bold: 700;
+	--font-ui: "Faculty Glyphic", "Arial", sans-serif;
+
+	--avm-ribbon-pad: var(--space-8) var(--space-12);
+	--avm-ribbon-gap: var(--space-4);
+}
+:root[data-theme="dark"] {
+	--color-page-bg: #241f18;
+	--color-panel: #312e26;
+	--color-panel-soft: #37342b;
+	--color-text: #eee7da;
+	--color-text-strong: #f5f0e4;
+	--color-text-muted: #b4a895;
+	--color-border: #514a3c;
+	--color-border-strong: #615a49;
+	--color-divider: rgba(207, 197, 171, 0.24);
+	--color-button: #6b6456;
+	--color-button-border: #7a7361;
+	--color-button-text: #f5ebd7;
+	--color-button-soft: #3a362c;
+	--color-button-soft-text: #eae1cf;
+	--color-button-soft-border: #585142;
+	--color-button-soft-hover: #453f32;
+	--color-accent-strong: #dcc77e;
+	--color-link: #d7c38b;
+	--color-danger: #d27566;
+	--color-success-soft-border: #4d6b3a;
+	--color-success-soft-text: #9cd39a;
+	--color-warning-soft-border: #6d5629;
+	--color-warning-soft-text: #e9c684;
+	--color-hover-wash: rgba(207, 183, 103, 0.18);
+	--shadow-panel: 0 8px 24px rgba(0, 0, 0, 0.45);
+}
+
+* { box-sizing: border-box; }
+body {
+	margin: 0; padding: 26px 22px 80px;
+	background: var(--color-page-bg); color: var(--color-text);
+	font: var(--font-size-reading)/var(--leading-normal) var(--font-ui);
+}
+.wrap { max-width: 1160px; margin: 0 auto; }
+h1 { font-size: var(--font-size-title); line-height: var(--leading-tight); margin: 0 0 6px; color: var(--color-accent-strong); }
+h2 { font-size: var(--font-size-subhead); margin: 40px 0 4px; color: var(--color-accent-strong); }
+h2 .num { color: var(--color-text-muted); font-weight: var(--font-weight-regular); }
+p.lead { color: var(--color-text-muted); max-width: 82ch; margin: 0 0 14px; }
+.note { color: var(--color-text-muted); font-size: var(--font-size-small); max-width: 82ch; }
+b.hl { color: var(--color-text-strong); }
+hr { border: 0; border-top: 1px solid var(--color-divider); margin: 34px 0 0; }
+
+.themebar { display: flex; gap: var(--space-6); align-items: center; margin: 0 0 22px; }
+.themebar button {
+	font: var(--font-size-body)/1 var(--font-ui); padding: var(--space-6) var(--space-10);
+	background: var(--color-button-soft); color: var(--color-button-soft-text);
+	border: 1px solid var(--color-button-soft-border); border-radius: var(--radius-md); cursor: pointer;
+}
+.themebar button.on { background: var(--color-button); border-color: var(--color-button-border); color: var(--color-button-text); }
+
+/* ═══ DAS MENÜBAND — Bauform wörtlich aus html/wiki-sync-settlement-editor.html ═══════════════ */
+.ribbon-host { background: var(--color-panel); border: 1px solid var(--color-border); border-radius: var(--radius-sm); padding: var(--avm-ribbon-pad); }
+.controls { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: var(--avm-ribbon-gap); align-items: stretch; }
+.btn2 {
+	display: flex; flex-direction: column; justify-content: center; align-items: flex-start;
+	text-align: left; min-height: 48px; padding: var(--space-4) var(--space-8); gap: 1px;
+	line-height: var(--leading-tight); cursor: default;
+	background: var(--color-button-soft); color: var(--color-button-soft-text);
+	border: 1px solid var(--color-button-soft-border); border-radius: var(--radius-md);
+	font: inherit;
+}
+.btn2 .t1 { font-size: var(--font-size-body); font-weight: var(--font-weight-bold); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.btn2 .t2 { font-size: var(--font-size-caption); color: var(--color-text-muted); white-space: nowrap; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+.btn2.primary { background: var(--color-button); border-color: var(--color-button-border); color: var(--color-button-text); }
+.btn2.primary .t2 { color: var(--color-on-button-muted); }
+/* Die vorhandene AUS-Form der Menüband-Kachel — sie trug bis zum 23.08. „Wappen: An/Aus". */
+.btn2.is-off { background: color-mix(in srgb, var(--color-danger) 16%, transparent); border-color: var(--color-danger); }
+.btn2.is-off .t1 { color: var(--color-danger); }
+
+.rb-menu { position: relative; display: flex; }
+.rb-menu > .btn2 { flex: 1 1 auto; width: 100%; }
+.rb-menu > .btn2[aria-haspopup] { border-color: var(--color-link); }
+
+/* Panel-Hülle: die Filtermenü-Optik, die das Panel heute erbt (.type-filter__menu). */
+.panel {
+	position: absolute; left: 0; top: calc(100% + var(--space-2)); z-index: 30;
+	width: 320px; min-width: 320px; padding: var(--space-4);
+	background: var(--color-panel); border: 1px solid var(--color-border-strong);
+	border-radius: var(--radius-md); box-shadow: var(--shadow-panel);
+}
+/* Damit die Entwürfe untereinander lesbar sind, hängen die Panels hier fest offen im Fluss. */
+.stage { position: relative; padding-bottom: 250px; }
+
+/* ── HEUTE: die Zeilenform des Panels (.rb-menu__row) ───────────────────────────────────────── */
+.row { display: flex; align-items: center; gap: var(--space-8); padding: var(--space-4); border-radius: var(--radius-sm); }
+.row + .row { border-top: 1px solid var(--color-divider); }
+.row:hover { background: var(--color-hover-wash); }
+.rtxt { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.rtxt b { font-size: var(--font-size-small); font-weight: var(--font-weight-bold); color: var(--color-text); }
+.rtxt span { font-size: 11px; color: var(--color-text-muted); }
+.sw {
+	flex: 0 0 auto; min-width: 62px; min-height: 26px; padding: 2px var(--space-8);
+	font: inherit; font-size: var(--font-size-caption); font-weight: var(--font-weight-bold);
+	text-align: center; cursor: default;
+	color: var(--color-button-soft-text); background: var(--color-button-soft);
+	border: 1px solid var(--color-button-soft-border); border-radius: var(--radius-md);
+}
+.sw--state { border-radius: 999px; min-width: 52px; }
+.sw--state.on  { border-color: var(--color-success-soft-border); color: var(--color-success-soft-text); }
+.sw--state.off { border-color: var(--color-warning-soft-border); color: var(--color-warning-soft-text); }
+
+/* ── ENTWURF A: das Panel trägt gestapelte Menüband-Kacheln ─────────────────────────────────── */
+.panel--kacheln { display: flex; flex-direction: column; gap: var(--avm-ribbon-gap); }
+.panel--kacheln .btn2 { width: 100%; }
+
+/* ── ENTWURF B: dieselben Kacheln, aber im Raster wie das Band selbst ───────────────────────── */
+.panel--raster { width: 420px; min-width: 420px; display: grid; grid-template-columns: 1fr 1fr; gap: var(--avm-ribbon-gap); }
+
+/* ── ENTWURF C: Zeilen bleiben, nur die Regelverstöße fallen ────────────────────────────────── */
+.panel--c { border-radius: var(--radius-lg); }
+.panel--c .sw--state { border-radius: var(--radius-md); min-width: 62px; }
+.panel--c .rtxt span { font-size: var(--font-size-caption); }
+
+/* ── Befundmarker ───────────────────────────────────────────────────────────────────────────── */
+ul.findings { max-width: 88ch; margin: 10px 0 0; padding-left: 20px; }
+ul.findings li { margin-bottom: 7px; font-size: var(--font-size-reading); }
+ul.findings code { font-family: ui-monospace, Consolas, monospace; font-size: 12px; color: var(--color-accent-strong); }
+.tag { display: inline-block; font-size: var(--font-size-caption); font-weight: var(--font-weight-bold);
+	padding: 1px var(--space-4); border-radius: var(--radius-sm); border: 1px solid var(--color-border-strong);
+	color: var(--color-text-muted); margin-right: var(--space-4); }
+.tag--warn { border-color: var(--color-danger); color: var(--color-danger); }
+.tag--ok { border-color: var(--color-success-soft-border); color: var(--color-success-soft-text); }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<h1>Das Wappen-Menü in der Hausform</h1>
+<p class="lead">
+	Entwurf vom 24.08.2026. Das Menü „Wappen &amp; Bilder ▾“ steht seit dem 23.08. im Menüband von
+	„Orte bearbeiten“ und „Territorien bearbeiten“. Der Knopf ist eine Menüband-Kachel — das
+	aufgeklappte Panel darunter ist es nicht. Diese Seite zeigt den heutigen Stand, benennt, was
+	an ihm nicht die Hausform ist, und stellt drei Entwürfe daneben.
+</p>
+<div class="themebar">
+	<span class="note">Thema:</span>
+	<button id="btnDark" class="on" type="button">Dunkel</button>
+	<button id="btnLight" type="button">Hell</button>
+	<span class="note">— beide müssen tragen (AGENTS.md §12).</span>
+</div>
+
+<hr>
+<h2><span class="num">1 ·</span> So steht es heute</h2>
+<p class="note">Menüband des Ortseditors, das Menü aufgeklappt. Alles unten ist das echte CSS aus
+	<code>css/components/editor-page.css</code>, nicht nachempfunden.</p>
+<div class="ribbon-host stage" style="margin-top:12px">
+	<div class="controls">
+		<button class="btn2 primary"><span class="t1">🚨 Syncen</span><span class="t2">Letzte Sync: 22.08., 19:04</span></button>
+		<button class="btn2 primary"><span class="t1">Orte zuordnen</span><span class="t2">Ray-Cast über alles</span></button>
+		<button class="btn2"><span class="t1">Nur Auswahl anzeigen</span><span class="t2">auf der Karte</span></button>
+		<div class="rb-menu">
+			<button class="btn2" aria-haspopup="true"><span class="t1">Wappen &amp; Bilder ▾</span><span class="t2">Wappen an · Bilder an</span></button>
+			<div class="panel">
+				<div class="row"><div class="rtxt"><b>Lokale Wappen</b><span>eigene Uploads</span></div><button class="sw sw--state on">An</button></div>
+				<div class="row"><div class="rtxt"><b>Wiki-Wappen</b><span>aus dem Wiki, nur gemeinfrei</span></div><button class="sw sw--state on">An</button></div>
+				<div class="row"><div class="rtxt"><b>Ortsbilder</b><span>Titelbilder der Orte — im Editor immer sichtbar</span></div><button class="sw sw--state off">Aus</button></div>
+				<div class="row"><div class="rtxt"><b>Hole Wiki-Wappen</b><span>nur gemeinfreie, auf unseren Server</span></div><button class="sw">starten</button></div>
+			</div>
+		</div>
+		<button class="btn2"><span class="t1">🔗 Links prüfen</span><span class="t2">Quellen der Orte</span></button>
+		<button class="btn2"><span class="t1">Darstellung</span><span class="t2">Zoomlevel aller Orte</span></button>
+	</div>
+</div>
+
+<h2><span class="num">2 ·</span> Was daran nicht die Hausform ist</h2>
+<ul class="findings">
+	<li><span class="tag tag--warn">Pille</span> <b class="hl">Die zwei Zustandsschalter sind
+		<code>border-radius: 999px</code>.</b> <code>docs/design-language.md</code> sagt wörtlich:
+		„No pill / <code>999px</code> shapes anywhere“, AGENTS.md §12 „no pill shapes“. Der Code führt
+		eine Ausnahme ins Feld — „Zustandsanzeigen, keine Handlungen“ —, aber es sind
+		<code>&lt;button&gt;</code>, man klickt sie, und sie schalten den Notaus. Sie <i>sind</i> Handlungen.
+		Es ist die einzige Pille im ganzen Editor.</li>
+	<li><span class="tag tag--warn">Dritte Zeile</span> <b class="hl"><code>.rb-menu__row</code> ist
+		eine neue Listenzeilen-Rezeptur.</b> AGENTS.md §11: es gibt <code>.tree-item</code> und
+		<code>.avm-row</code>, „und das ist die Obergrenze“. Diese Zeile ist weder die eine noch die
+		andere, und ihr Aufbau aus Trennlinie plus Pille kommt sonst nirgends vor.</li>
+	<li><span class="tag tag--warn">11px</span> <b class="hl">Die Unterzeile steht als
+		<code>font-size: 11px</code> im Blatt, nicht als <code>var(--font-size-caption)</code>.</b>
+		Der Wert ist richtig, die Schreibweise nicht — §12: nie eine Größe hartkodieren, wenn es
+		ein Token gibt. Ein Kommentar darüber verteidigt die Zahl; genau das ist das Zeichen.</li>
+	<li><span class="tag">Radius</span> <b class="hl">Das Panel trägt <code>--radius-md</code> (8px).</b>
+		Die Designsprache gibt schwebenden Flächen <code>--radius-lg</code> (10px): „menus, cards,
+		autocomplete“. Das erbt es vom Filtermenü — dort steht derselbe Fehler.</li>
+	<li><span class="tag tag--ok">gut so</span> Der <b class="hl">Doppelbefund im Knopf</b> (die
+		Unterzeile nennt beide Stellungen, ohne dass man aufklappen muss) und der
+		<b class="hl">Akzentrand</b> am einzigen Knopf mit Menü bleiben — beides trägt.</li>
+</ul>
+<p class="note" style="margin-top:12px">
+	Der Kern ist aber keiner dieser vier Punkte, sondern: <b class="hl">das Panel ist die Fortsetzung
+	des Menübands und sieht nicht danach aus.</b> Links vom Knopf stehen Kacheln, unter ihm eine
+	Liste. Und für „ein Schalter im Menüband“ gibt es die Hausform längst — die Kachel
+	<code>.btn2.is-off</code>, die bis vorgestern genau diese zwei Schalter trug.
+</p>
+
+<hr>
+<h2><span class="num">3 ·</span> Entwurf A — das Menü trägt Menüband-Kacheln <span class="tag tag--ok">Empfehlung</span></h2>
+<p class="note">Jede Zeile wird eine Kachel derselben Bauform wie im Band: Titel fett, Unterzeile
+	gedämpft, links, weich/outline, <code>--radius-md</code>. Der Zustand steht im Titel und färbt die
+	Kachel — <code>.is-off</code> gibt es schon und ist genau dafür gebaut. Keine Pille, keine
+	Trennlinien, keine dritte Zeilenrezeptur.</p>
+<div class="ribbon-host stage" style="margin-top:12px">
+	<div class="controls">
+		<button class="btn2 primary"><span class="t1">🚨 Syncen</span><span class="t2">Letzte Sync: 22.08., 19:04</span></button>
+		<button class="btn2 primary"><span class="t1">Orte zuordnen</span><span class="t2">Ray-Cast über alles</span></button>
+		<button class="btn2"><span class="t1">Nur Auswahl anzeigen</span><span class="t2">auf der Karte</span></button>
+		<div class="rb-menu">
+			<button class="btn2" aria-haspopup="true"><span class="t1">Wappen &amp; Bilder ▾</span><span class="t2">Wappen an · Bilder aus</span></button>
+			<div class="panel panel--kacheln">
+				<button class="btn2"><span class="t1">Lokale Wappen: An</span><span class="t2">eigene Uploads</span></button>
+				<button class="btn2"><span class="t1">Wiki-Wappen: An</span><span class="t2">aus dem Wiki, nur gemeinfrei</span></button>
+				<button class="btn2 is-off"><span class="t1">Ortsbilder: Aus</span><span class="t2">im Editor weiter sichtbar</span></button>
+				<button class="btn2"><span class="t1">Hole Wiki-Wappen</span><span class="t2">nur gemeinfreie, auf unseren Server</span></button>
+			</div>
+		</div>
+		<button class="btn2"><span class="t1">🔗 Links prüfen</span><span class="t2">Quellen der Orte</span></button>
+		<button class="btn2"><span class="t1">Darstellung</span><span class="t2">Zoomlevel aller Orte</span></button>
+	</div>
+</div>
+<p class="note">
+	⚠️ Der eine Preis: Schalter und Handlung sehen fast gleich aus — „Hole Wiki-Wappen“ löst etwas
+	aus, die drei darüber schalten nur um. Unterschieden werden sie am <code>: An</code> /
+	<code>: Aus</code> im Titel. Im Band war das nie ein Problem, weil dort dieselbe Mischung stand.
+</p>
+
+<h2><span class="num">4 ·</span> Entwurf B — dieselben Kacheln, im Raster</h2>
+<p class="note">Wie A, aber zweispaltig: das aufgeklappte Menü liest sich als abgeknicktes Stück
+	Band. Braucht 420px statt 320px.</p>
+<div class="ribbon-host stage" style="margin-top:12px; padding-bottom:190px">
+	<div class="controls">
+		<button class="btn2 primary"><span class="t1">🚨 Syncen</span><span class="t2">Letzte Sync: 22.08., 19:04</span></button>
+		<button class="btn2 primary"><span class="t1">Orte zuordnen</span><span class="t2">Ray-Cast über alles</span></button>
+		<button class="btn2"><span class="t1">Nur Auswahl anzeigen</span><span class="t2">auf der Karte</span></button>
+		<div class="rb-menu">
+			<button class="btn2" aria-haspopup="true"><span class="t1">Wappen &amp; Bilder ▾</span><span class="t2">Wappen an · Bilder aus</span></button>
+			<div class="panel panel--kacheln panel--raster">
+				<button class="btn2"><span class="t1">Lokale Wappen: An</span><span class="t2">eigene Uploads</span></button>
+				<button class="btn2"><span class="t1">Wiki-Wappen: An</span><span class="t2">nur gemeinfrei</span></button>
+				<button class="btn2 is-off"><span class="t1">Ortsbilder: Aus</span><span class="t2">im Editor sichtbar</span></button>
+				<button class="btn2"><span class="t1">Hole Wiki-Wappen</span><span class="t2">auf unseren Server</span></button>
+			</div>
+		</div>
+		<button class="btn2"><span class="t1">🔗 Links prüfen</span><span class="t2">Quellen der Orte</span></button>
+		<button class="btn2"><span class="t1">Darstellung</span><span class="t2">Zoomlevel aller Orte</span></button>
+	</div>
+</div>
+<p class="note">⚠️ Die Unterzeilen müssen dafür kürzer werden — „Titelbilder der Orte — im Editor
+	immer sichtbar“ passt in 200px nicht mehr. Kürzen heißt hier weglassen.</p>
+
+<h2><span class="num">5 ·</span> Entwurf C — nur die Regelverstöße fallen</h2>
+<p class="note">Der kleinste Eingriff: die Pille wird eckig (<code>--radius-md</code>), 11px wird zum
+	Token, das Panel bekommt <code>--radius-lg</code>. Die Zeilenform bleibt.</p>
+<div class="ribbon-host stage" style="margin-top:12px; padding-bottom:230px">
+	<div class="controls">
+		<button class="btn2 primary"><span class="t1">🚨 Syncen</span><span class="t2">Letzte Sync: 22.08., 19:04</span></button>
+		<button class="btn2 primary"><span class="t1">Orte zuordnen</span><span class="t2">Ray-Cast über alles</span></button>
+		<button class="btn2"><span class="t1">Nur Auswahl anzeigen</span><span class="t2">auf der Karte</span></button>
+		<div class="rb-menu">
+			<button class="btn2" aria-haspopup="true"><span class="t1">Wappen &amp; Bilder ▾</span><span class="t2">Wappen an · Bilder aus</span></button>
+			<div class="panel panel--c">
+				<div class="row"><div class="rtxt"><b>Lokale Wappen</b><span>eigene Uploads</span></div><button class="sw sw--state on">An</button></div>
+				<div class="row"><div class="rtxt"><b>Wiki-Wappen</b><span>aus dem Wiki, nur gemeinfrei</span></div><button class="sw sw--state on">An</button></div>
+				<div class="row"><div class="rtxt"><b>Ortsbilder</b><span>Titelbilder der Orte — im Editor immer sichtbar</span></div><button class="sw sw--state off">Aus</button></div>
+				<div class="row"><div class="rtxt"><b>Hole Wiki-Wappen</b><span>nur gemeinfreie, auf unseren Server</span></div><button class="sw">starten</button></div>
+			</div>
+		</div>
+		<button class="btn2"><span class="t1">🔗 Links prüfen</span><span class="t2">Quellen der Orte</span></button>
+		<button class="btn2"><span class="t1">Darstellung</span><span class="t2">Zoomlevel aller Orte</span></button>
+	</div>
+</div>
+<p class="note">⚠️ Behebt die vier Einzelbefunde, aber nicht den Kern: das Panel sieht weiter nicht
+	aus wie das Band, an dem es hängt. Und die dritte Zeilenrezeptur bleibt stehen.</p>
+
+<hr>
+<h2><span class="num">6 ·</span> Warum A</h2>
+<p class="lead" style="max-width:88ch">
+	A erfindet nichts. Es nimmt die Kachel, die zwei Felder weiter links schon steht, und stapelt sie —
+	samt ihrer fertigen AUS-Form, die bis zum 23.08. genau diese Schalter trug. Damit fällt die
+	Pille (§12), fällt die dritte Zeilenrezeptur (§11), fällt der hartkodierte Wert, und das Menü
+	liest sich als das, was es ist: der ausgeklappte Teil des Menübands. B ist dasselbe in zwei
+	Spalten und kostet Text; C repariert die Regeln, aber nicht den Eindruck.
+</p>
+<p class="note">
+	Nicht Teil dieses Entwurfs: der Radius des geteilten <code>.type-filter__menu</code>. Er steht in
+	mehreren Editoroberflächen und würde sie alle auf einmal ändern — das ist eine eigene,
+	eigenständig abzunehmende Änderung (AGENTS.md §9: sichtbare Änderungen gehen einzeln live).
+</p>
+
+</div>
+<script>
+var root = document.documentElement;
+var bD = document.getElementById('btnDark'), bL = document.getElementById('btnLight');
+function setTheme(t) {
+	root.setAttribute('data-theme', t);
+	bD.classList.toggle('on', t === 'dark');
+	bL.classList.toggle('on', t === 'light');
+}
+bD.addEventListener('click', function () { setTheme('dark'); });
+bL.addEventListener('click', function () { setTheme('light'); });
+</script>
+</body>
+</html>

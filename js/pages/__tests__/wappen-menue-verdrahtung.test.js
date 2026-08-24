@@ -123,18 +123,41 @@ const huelle = CSS.slice(CSS.indexOf('.rb-menu {'), CSS.indexOf('.rb-menu__panel
 pruefe(!/flex:\s*0\s+0\s+auto/.test(huelle),
 	'die Huelle traegt kein `flex: 0 0 auto` mehr -- das war die Ursache der Luecke');
 
-// ---- 7. Die Optik der zwei Schalter, wie im Mockup --------------------------------------------
-// 🔴 Pillenform mit FARBRAND (gruen AN / Warnfarbe AUS), keine Fuellung. ⚠️ Das ist die begruendete
-// Ausnahme zu „no pill shapes" (AGENTS.md §12): jene Regel gilt Knoepfen, die etwas AUSLOESEN --
-// diese zwei sind Zustandsanzeigen, und die eckigen „starten"/„prüfen" daneben trennen beides.
+// ---- 7. Die Optik der zwei Schalter: FARBE ja, Pille nein -------------------------------------
+// 🔴 UMGEDREHT AM 24.08.2026. Hier stand die Zusicherung „die Schalter sind Pillen wie im Mockup",
+// begruendet mit „Zustandsanzeigen, keine Handlungen". Die Begruendung widerlegt sich selbst: es
+// sind <button>, man klickt sie, und sie schalten den Notaus des oeffentlichen Frontends -- sie
+// SIND Handlungen. Es war die einzige Pille im ganzen Editor, gegen „No pill / 999px shapes
+// anywhere" (docs/design-language.md, AGENTS.md §12). Owner-Entscheid: Entwurf C in
+// docs/wappen-menue-hausform-mockup.html.
+// 💣 Der Test prueft jetzt die ABWESENHEIT -- eine Zusicherung, die eine verbotene Form ausschliesst,
+// muss den ganzen Block sehen, nicht nur die erste Regel: `pille` reicht bis ans Dateiende.
 const pille = CSS.slice(CSS.indexOf('.rb-menu__sw--state'));
-pruefe(/border-radius:\s*999px/.test(pille), 'DER KERN VON TEIL 7: die Schalter sind Pillen wie im Mockup');
+pruefe(!/\.rb-menu__sw--state[^{]*\{[^}]*border-radius:\s*999px/.test(CSS),
+	'DER KERN VON TEIL 7: die Schalter tragen keine Pillenform mehr');
+// ⚠️ Und die Rundung kommt aus dem Basisknopf, statt zu fehlen -- ohne diese Haelfte wuerde auch ein
+// versehentlich entferntes `border-radius` als bestanden durchgehen.
+pruefe(/\.rb-menu__sw\s*\{[^}]*border-radius:\s*var\(--radius-md\)/.test(CSS),
+	'die Schalter runden mit --radius-md wie jedes Steuerelement im Haus');
 pruefe(/aria-pressed="true"\]\s*\{[^}]*--color-success/.test(pille), 'AN traegt die Erfolgsfarbe');
 pruefe(/aria-pressed="false"\]\s*\{[^}]*--color-warning/.test(pille), 'AUS traegt die Warnfarbe');
+// 🔴 Der FARBRAND bleibt die Aussage, nicht die Form: eine Fuellung waere die Haupthandlung der
+// Seite (AGENTS.md §12), und die heisst „Syncen".
+pruefe(!/aria-pressed="true"\]\s*\{[^}]*background/.test(pille),
+	'AN faerbt den Rand, nicht die Flaeche');
 // 💣 Tokens, keine Hexwerte -- das Mockup schreibt #7d8f4a/#cfe08e direkt hin, was im hellen Thema
 // nicht traegt (AGENTS.md §12: nie eine Farbe hartkodieren).
 pruefe(!/#[0-9a-fA-F]{3,6}\b/.test(pille.slice(0, 700)),
 	'die Schalterfarben kommen aus Tokens, nicht als Hexwert aus dem Mockup');
+
+// ---- 7b. Keine hartkodierte Groesse in der Menuezeile ------------------------------------------
+// 💣 Hier stand `font-size: 11px` -- der Wert war richtig (die Untergrenze aus §12), die Schreibweise
+// nicht. Ein Kommentar darueber verteidigte die Zahl; genau das ist das Zeichen. Der Test misst den
+// Zeilenblock, nicht die ganze Datei: anderswo im Blatt darf eine Zahl stehen, hier nicht.
+const zeile = CSS.slice(CSS.indexOf('.rb-menu__txt'), CSS.indexOf('.rb-menu__sw'));
+pruefe(/\.rb-menu__txt span\s*\{[^}]*font-size:\s*var\(--font-size-caption\)/.test(zeile),
+	'die Unterzeile nimmt das Token, nicht die Zahl');
+pruefe(!/font-size:\s*\d/.test(zeile), 'in der Menuezeile steht keine Schriftgroesse als Zahl');
 
 // ---- 8. Das Panel teilt die vorhandene Menue-Optik --------------------------------------------
 // ⚠️ Eine dritte Menue-Rezeptur waere genau die Divergenz, die AGENTS.md fuer Listenzeilen schon
@@ -143,6 +166,13 @@ for (const [name, html] of BEIDE) {
 	pruefe(html.includes('class="rb-menu__panel type-filter__menu"'),
 		`${name}: das Panel benutzt die vorhandene Menue-Optik, statt eine neue zu erfinden`);
 }
+// 💣 ...aber es rundet wie eine schwebende Flaeche, nicht wie ein Steuerelement: --radius-lg (10px)
+// gegen den --radius-md, den .type-filter__menu vererbt (docs/design-language.md: „menus, cards,
+// autocomplete"). Die eigene Regel ueberschreibt den geteilten Wirt bewusst nur hier -- jener haengt
+// in mehreren Editoroberflaechen, und die gehen einzeln live (AGENTS.md §9).
+const panel = CSS.slice(CSS.indexOf('.rb-menu__panel {'), CSS.indexOf('.rb-menu__row {'));
+pruefe(/border-radius:\s*var\(--radius-lg\)/.test(panel),
+	'das Panel rundet mit --radius-lg, nicht mit dem geerbten --radius-md');
 
 // ---- 9. Keine toten Kennungen ------------------------------------------------------------------
 // 💣 Eine Kennung nur im Markup ist ein toter Knopf; eine nur im Skript ist ein `$()` auf null.
