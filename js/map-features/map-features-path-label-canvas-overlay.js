@@ -69,6 +69,44 @@
 	// ⭐ Zum Probieren ohne Deploy: ?canvasdpr=1 zeigt auch die Wegenamen weich (der Parameter gilt
 	// weiterhin fuer BEIDE Schrift-Canvasse -- er ist die Probe, die Vorgaben sind die Entscheidung).
 	const PATH_LABEL_CANVAS_MAX_DPR = Infinity;
+	// 🔴 BLENDEN BEIM ZOOMSCHRITT -- dieselbe Bewegung wie bei den Grenznamen (5ab55dd0) und bei den
+	// Ortsmarkierungen (location-canvas-layer.js, 100 ms raus / 200 ms rein). Owner 24.08.2026:
+	// „perfekt ... jetzt mach die wege- und flussnamen genauso“.
+	// Der Grund ist derselbe: die Beschriftung skaliert nicht mit, ihr Inhalt wechselt beim
+	// Zoomschritt (Lage, Schriftgroesse) und schneidet sonst hart um.
+	// ⚠️ HIER STEHT DIE TRANSITION INLINE, bei den Grenznamen in CSS -- und das ist kein Schlendrian:
+	// der zoomanim-Handler dieser Datei setzt `canvas.style.transition` seit jeher selbst. Eine
+	// CSS-Regel fuer die Deckkraft waere davon ausgeloescht, denn `transition` ist EINE Eigenschaft
+	// und inline gewinnt. Also beide Haelften in denselben Inline-String.
+	const PATH_LABEL_ZOOM_TRANSFORM = "transform 250ms cubic-bezier(0,0,0.25,1)";
+	function pfadLabelDauer(name, vorgabe) {
+		try {
+			const roh = new URLSearchParams(window.location.search).get(name);
+			const wert = Number(roh);
+			if (roh !== null && Number.isFinite(wert) && wert >= 0) { return wert; }
+		} catch (e) { /* ohne Adresszeile die Vorgabe */ }
+		return vorgabe;
+	}
+	// ⚠️ Das Ausblenden ist kuerzer als die 250 ms der Zoom-Animation: was bei deren Ende noch
+	// sichtbar ist, springt beim Neuzeichnen doch. ?wegefadeout=<ms> / ?wegefade=<ms>.
+	const PATH_LABEL_FADE_OUT_MS = pfadLabelDauer("wegefadeout", 120);
+	const PATH_LABEL_FADE_IN_MS = pfadLabelDauer("wegefade", 350);
+
+	/**
+	 * Einblenden -- aber erst, wenn wirklich wieder gezeichnet wird.
+	 * 💣 DIE ZWEI requestAnimationFrame SIND TRAGEND. Am zoomend blockiert der Hauptthread live
+	 * gemessen 215 ms (Standard) bis 836 ms (Politisch). Ein dort gestarteter Uebergang verstreicht
+	 * vollstaendig, ohne dass ein Bild davon gezeichnet wird, und ist fertig, sobald wieder gezeichnet
+	 * werden kann -- er sieht dann aus wie ein Sprung. Genau der Befund „blippt und ist dann woanders“.
+	 */
+	function pfadLabelBlendeEin() {
+		requestAnimationFrame(function () {
+			requestAnimationFrame(function () {
+				canvas.style.transition = PATH_LABEL_ZOOM_TRANSFORM + ", opacity " + PATH_LABEL_FADE_IN_MS + "ms ease";
+				canvas.style.opacity = "1";
+			});
+		});
+	}
 	function pfadLabelCanvasDpr() {
 		let deckel = PATH_LABEL_CANVAS_MAX_DPR;
 		try {
@@ -513,6 +551,7 @@
 		ctx.setTransform(1, 0, 0, 1, 0, 0);
 		ctx.clearRect(0, 0, canvas.width, canvas.height);
 		ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+		pfadLabelBlendeEin();
 
 		ctx.textAlign = "center";
 		ctx.textBaseline = "middle";
@@ -1065,7 +1104,8 @@
 			return;
 		}
 		cssZoomActive = true;
-		canvas.style.transition = "transform 250ms cubic-bezier(0,0,0.25,1)";
+		canvas.style.transition = PATH_LABEL_ZOOM_TRANSFORM + ", opacity " + PATH_LABEL_FADE_OUT_MS + "ms ease-out";
+		canvas.style.opacity = "0";   // erst weg, dann neu zeichnen, dann wieder einblenden
 		const scale = map.getZoomScale(event.zoom);
 		const offset = map._latLngToNewLayerPoint(canvasTopLeftLatLng, event.zoom, event.center);
 		L.DomUtil.setTransform(canvas, offset, scale);
