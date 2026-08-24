@@ -803,15 +803,160 @@ function avesmapsWikiSyncApiRequest(array $params): array {
  * EINEM Prozess. Ein zweiter Editor, der gleichzeitig sucht, kommt daran vorbei; das sind
  * einzelne Anfragen von Menschen, keine Last.
  */
-function avesmapsWikiSyncThrottleWikiRequest(?int $abstandMikrosekunden = null): void {
+/**
+ * Die Sperre fuer den Ablageort des Drossel-Vermerks -- gleiche Bauart wie uploads/db-backups
+ * und uploads/svg-export. 🔴 DIESE KONSTANTE IST DIE QUELLE, es gibt keine Kopie im Repo:
+ * `uploads/` steht nicht in der Deploy-Allowlist, die Sperre kaeme also nie von dort und heilt
+ * sich zur Laufzeit.
+ */
+const AVESMAPS_WIKI_DROSSEL_HTACCESS = "<IfModule mod_authz_core.c>\n    Require all denied\n</IfModule>\n\n"
+    . "<IfModule !mod_authz_core.c>\n    Order allow,deny\n    Deny from all\n</IfModule>\n";
+
+/**
+ * Wo der Zeitpunkt der letzten Wiki-Anfrage vermerkt wird -- oder null, wenn es keinen
+ * schreibbaren Ort gibt.
+ *
+ * 💣 WARUM EINE DATEI UND NICHT EINE VARIABLE: der Abstand muss ueber PROZESSGRENZEN gelten.
+ * Jeder Schritt eines Dump-Laufs ist eine eigene HTTP-Anfrage und damit ein eigener
+ * PHP-Prozess; eine statische Variable faengt in jedem davon bei null an. Solange eine Phase
+ * ihre zwoelf Abfragen in EINEM Schritt machte, lagen elf Pausen dazwischen -- seit sie
+ * unterbrechbar ist, waeren es null. Der Crawl-delay 20 aus der Wiki-robots.txt waere damit
+ * faktisch abgeschafft, ohne dass irgendwo eine Zahl geaendert worden waere.
+ *
+ * 💣 WARUM KEINE DATENBANK: diese Datei muss sich ohne PDO laden und benutzen lassen (das
+ * Testfeld tut genau das). Ein Zeitstempel, den nur bekommt, wer eine Datenbankverbindung
+ * hat, waere in der Haelfte der Aufrufer nicht da.
+ *
+ * ⚠️ Kein schreibbarer Ort = null = Rueckfall auf das alte, prozesslokale Verhalten. Auf dem
+ * Entwicklungsrechner ist das der Normalfall und ausdruecklich KEIN Fehler.
+ */
+function avesmapsWikiSyncDrosselVermerkDatei(): ?string {
+    if (!function_exists('avesmapsApiRoot')) {
+        return null;
+    }
+
+    try {
+        $verzeichnis = dirname(avesmapsApiRoot()) . DIRECTORY_SEPARATOR . 'uploads'
+            . DIRECTORY_SEPARATOR . 'wiki-drossel';
+    } catch (Throwable) {
+        return null;
+    }
+
+    if (!is_dir($verzeichnis) && !@mkdir($verzeichnis, 0775, true) && !is_dir($verzeichnis)) {
+        // 🔴 HIER DARF ES NICHT STILL SEIN. Ohne Vermerk faellt die Drossel auf ihr
+        // prozesslokales Verhalten zurueck -- und weil jeder Schritt ein eigener Prozess ist,
+        // heisst das: gar kein Abstand mehr. Von aussen ist das von "laeuft richtig" nicht zu
+        // unterscheiden, und der Preis waere die Sperre, aus der uns der Betreiber am
+        // 24.08.2026 gerade erst herausgeholt hat.
+        // ⚠️ Genau EINMAL je Prozess, und nur dort, wo es ueberhaupt ein uploads/ geben kann
+        // (avesmapsApiRoot oben) -- auf dem Entwicklungsrechner ist der Rueckfall der Normalfall
+        // und ausdruecklich kein Fehler.
+        static $schonGemeldet = false;
+        if (!$schonGemeldet) {
+            $schonGemeldet = true;
+            avesmapsWikiSyncLogServerError('wiki_drossel_ohne_vermerk', ['verzeichnis' => $verzeichnis]);
+        }
+
+        return null;
+    }
+
+    $sperre = $verzeichnis . DIRECTORY_SEPARATOR . '.htaccess';
+    if (!is_file($sperre) || @file_get_contents($sperre) !== AVESMAPS_WIKI_DROSSEL_HTACCESS) {
+        @file_put_contents($sperre, AVESMAPS_WIKI_DROSSEL_HTACCESS);
+    }
+
+    return $verzeichnis . DIRECTORY_SEPARATOR . 'letzte-anfrage';
+}
+
+/**
+ * Den Abstand ueber die Prozessgrenze hinweg einhalten. Gibt zurueck, ob das gelungen ist --
+ * false heisst "kein schreibbarer Vermerk", und der Aufrufer faellt auf sein prozesslokales
+ * Verhalten zurueck.
+ *
+ * ⭐ Die Sperre wird WAEHREND des Wartens gehalten. Das ist Absicht: zwei gleichzeitige
+ * Aufrufer sollen sich hintereinanderstellen, nicht beide gleichzeitig loswarten und dann
+ * gemeinsam losfeuern.
+ *
+ * 💣 Ein Zeitstempel aus der ZUKUNFT (verstellte Uhr, von Hand angefasste Datei) wird auf den
+ * vollen Abstand gedeckelt -- ohne den Deckel schliefe der naechste Aufruf stundenlang, und
+ * das saehe von aussen aus wie ein haengender Server.
+ */
+function avesmapsWikiSyncDrosselUeberProzessgrenze(int $mindestabstand, ?string $vermerkDatei): bool {
+    if ($vermerkDatei === null) {
+        return false;
+    }
+
+    $griff = @fopen($vermerkDatei, 'c+');
+    if ($griff === false) {
+        return false;
+    }
+
+    if (!@flock($griff, LOCK_EX)) {
+        @fclose($griff);
+        return false;
+    }
+
+    try {
+        $roh = trim((string) @stream_get_contents($griff));
+        $letzte = is_numeric($roh) ? (float) $roh : 0.0;
+
+        if ($letzte > 0.0) {
+            $rest = $mindestabstand - (int) ((microtime(true) - $letzte) * 1000000);
+            if ($rest > 0) {
+                usleep((int) min($rest, $mindestabstand));
+            }
+        }
+
+        @ftruncate($griff, 0);
+        @rewind($griff);
+        @fwrite($griff, sprintf('%.6F', microtime(true)));
+        @fflush($griff);
+    } finally {
+        @flock($griff, LOCK_UN);
+        @fclose($griff);
+    }
+
+    return true;
+}
+
+/**
+ * Der Abstand zwischen zwei Wiki-Anfragen -- der Crawl-delay aus der Wiki-robots.txt.
+ *
+ * 🔴 ER GILT UEBER PROZESSGRENZEN, seit die Dump-Phasen unterbrechbar sind (24.08.2026). Vorher
+ * zaehlte nur die statische Variable unten, und die faengt in jedem PHP-Prozess bei null an:
+ * zwoelf Schritte waren zwoelf erste Anfragen und damit NULL Pausen. Aus "zu langsam"
+ * (HTTP 502) war "zu schneller als erlaubt" geworden -- dieselbe Grenze, nur von der anderen
+ * Seite gerissen.
+ *
+ * ⭐ GEMESSEN 24.08.2026: JEDER Aufrufer der Wiki-API im Haus sitzt in einer Crawl-Bibliothek
+ * (locations/paths/regions/settlements/territories/sync-monitor/dump-category-layer). Es gibt
+ * KEINEN interaktiven Einzelabruf ans lebende Wiki -- die Zuweisungsdialoge suchen in unseren
+ * eigenen Tabellen. Deshalb gilt der dauerhafte Abstand hier ohne Ausnahme; die Unterscheidung
+ * "Massenlauf gegen Einzelabruf" haette heute eine leere zweite Haelfte. ⚠️ Kommt je ein
+ * interaktiver Abruf dazu, ist DAS die Stelle, an der er eine Ausnahme braeuchte -- und die
+ * Entscheidung gehoert dem Owner, nicht dem Code: der Crawl-delay gilt unserem User-Agent,
+ * nicht einzelnen Funktionen.
+ *
+ * Die zwei Parameter existieren NUR fuer den Test: ohne sie muesste der die vollen 20 Sekunden
+ * schlafen und einen echten uploads/-Pfad haben -- ein Test, der 20 Sekunden kostet, wird als
+ * erstes wieder herausgenommen. Die Produktion ruft ohne Argumente auf.
+ */
+function avesmapsWikiSyncThrottleWikiRequest(
+    ?int $abstandMikrosekunden = null,
+    ?string $vermerkDateiFuerTest = null
+): void {
     static $letzteAnfrage = null;
 
     $jitter = random_int(0, 250000);
-    // Der Parameter existiert NUR fuer den Test: ohne ihn muesste der die vollen 20 Sekunden
-    // schlafen, um den Abstand zu messen -- und ein Test, der 20 Sekunden kostet, wird als
-    // erstes wieder herausgenommen. Die Produktion ruft ohne Argument auf.
     $mindestabstand = ($abstandMikrosekunden ?? AVESMAPS_WIKI_REQUEST_DELAY_MICROSECONDS) + $jitter;
 
+    $vermerk = $vermerkDateiFuerTest ?? avesmapsWikiSyncDrosselVermerkDatei();
+    if (avesmapsWikiSyncDrosselUeberProzessgrenze($mindestabstand, $vermerk)) {
+        $letzteAnfrage = microtime(true);
+        return;
+    }
+
+    // Rueckfall ohne schreibbaren Vermerk: das alte, prozesslokale Verhalten.
     if ($letzteAnfrage !== null) {
         $vergangen = (int) ((microtime(true) - $letzteAnfrage) * 1000000);
         $rest = $mindestabstand - $vergangen;
