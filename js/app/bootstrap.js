@@ -287,7 +287,15 @@ map.getPane("tooltipPane").style.zIndex = 875;
 map.getPane("popupPane").style.zIndex = 900;
 
 initializeMapDecorations();
-L.control.zoom({ position: "topright" }).addTo(map);
+const avesmapsZoomControl = L.control.zoom({ position: "topright" }).addTo(map);
+// Die Zoomstufe (Fall #100) -- nur im Editormodus, und IN den Behaelter der +/- Knoepfe gehaengt,
+// nicht als Control daneben: im Editormodus reisst infopanel.css die Knoepfe per `position: fixed`
+// aus Leaflets Ecke und legt sie unten rechts ab. Als Kind folgt die Zahl dieser Verlegung von
+// selbst; als Nachbar bliebe sie oben stehen (gemessen 25.08.2026: 967px Abstand). Begruendung im
+// Kopf von js/ui/zoomstufe-anzeige.js.
+if (IS_EDIT_MODE) {
+    avesmapsZoomstufeAnhaengen(map, avesmapsZoomControl.getContainer());
+}
 map.setMaxBounds(MAP_BOUNDS);
 
 // Die Suchkachel im Knopfbund an der Karte. Sichtbar ist sie nur am groben Zeiger

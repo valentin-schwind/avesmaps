@@ -3583,6 +3583,10 @@
 		<script src="js/ui/spotlight-search-focus.js"></script>
 		<script src="js/app/legal-anchor.js"></script>
 		<script src="js/app/legal-mail.js"></script>
+		<!-- Die Zoomstufe an der Karte (Fall #100). Nur Funktionsdeklarationen, deshalb VOR
+		     bootstrap.js: dort wird sie aufgerufen, und zwar vor L.control.zoom, damit sie ueber
+		     den +/- Knoepfen sitzt. -->
+		<script src="js/ui/zoomstufe-anzeige.js"></script>
 		<script src="js/app/bootstrap.js"></script>
 		<script src="js/review/review-mail.js"></script>
 		<!-- Social-Media-Hub. Haengt zur Laufzeit an window.AvesmapsSession (js/app/session.js) fuer den

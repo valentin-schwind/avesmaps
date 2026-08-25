@@ -1,0 +1,60 @@
+/* Die Zoomstufe ueber den +/- Knoepfen -- nur im Editormodus (Fall #100, 25.08.2026).
+   Entwurf: docs/zoomstufe-mockup.html. Bauteil: js/ui/zoomstufe-anzeige.js. */
+
+.zoomstufe-anzeige {
+	/* 🔴 Sie sitzt IM Behaelter der +/- Knoepfe und schwebt absolut darueber -- nicht als eigenes
+	   Control daneben. Nur so folgt sie der Verlegung, die infopanel.css im Editormodus vornimmt
+	   (`position: fixed`, unten rechts, bei offenem Panel zusaetzlich um die Panelbreite nach
+	   links). Die Alternative waere, jene drei Regeln hier zu spiegeln -- zwei Antworten auf
+	   dieselbe Frage. Messung und Hergang im Kopf von js/ui/zoomstufe-anzeige.js.
+	   ⚠️ Der Bezugsrahmen kommt von `.leaflet-control` (position: relative) bzw. im verlegten Fall
+	   vom `fixed` -- beides traegt das `absolute` hier. */
+	position: absolute;
+	bottom: 100%;
+	left: 50%;
+	transform: translateX(-50%);
+	margin-bottom: 6px;
+
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	/* 🔴 KEIN Kaestchen (Owner 25.08.2026: "mach weiße schrift auf transparentem untergrund") --
+	   kein Hintergrund, kein Rahmen, kein Radius. Nur Schrift. */
+	color: #ffffff;
+	line-height: 1;
+
+	/* 🔴 Der Rueckhalt ist WOERTLICH der aus `.location-name-label span`
+	   (css/features/map-labels.css): weisse Schrift ohne Kasten auf einer hellen Pergamentkarte
+	   ist genau die Aufgabe, die dort seit jeher so geloest wird. Ohne ihn verschwindet die Zahl
+	   ueber hellem Gelaende.
+	   💣 NICHT `.map-label span` abschreiben, obwohl es in derselben Sammelregel steht: dort wird
+	   der Schatten zwei Regeln spaeter wieder auf `none` gesetzt, weil jene Labels als Canvas-<img>
+	   gezeichnet werden und ihre Weichheit vom Canvas kommt. Wer dort nachsieht, findet "kein
+	   Schatten" und haelt ihn hier fuer ueberfluessig.
+	   ⚠️ Deshalb bleibt sie in BEIDEN Themen weiss: sie steht ueber der Karte, und die Karte
+	   wechselt ihre Helligkeit nicht mit dem Thema -- eine Themenfarbe waere hier falsch. */
+	text-shadow:
+		0 1px 1px rgba(0, 0, 0, 0.95),
+		0 0 2px rgba(0, 0, 0, 0.78);
+
+	/* Die Zahl darf keinen Klick abfangen, der der Karte gilt -- sie liegt in Leaflets
+	   Control-Ecke, und die faengt sonst mit. */
+	pointer-events: none;
+	user-select: none;
+}
+
+.zoomstufe-anzeige__zahl {
+	/* tabular-nums, damit die Zahl beim Wechsel 1 -> 7 nicht in der Breite springt. */
+	font-size: 30px;
+	font-weight: 600;
+	font-variant-numeric: tabular-nums;
+}
+
+/* ⚠️ 11px ist die Untergrenze aus AGENTS.md §12 -- nicht darunter, auch wenn es hier "nur" eine
+   Beschriftung ist. Genau so ist die Skala schon einmal beim Abschreiben gefallen. */
+.zoomstufe-anzeige__wort {
+	margin-top: 3px;
+	font-size: 11px;
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+}
