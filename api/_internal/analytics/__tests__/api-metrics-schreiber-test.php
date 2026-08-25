@@ -72,10 +72,29 @@ $quelle = str_replace("\r\n", "\n", (string) file_get_contents(__DIR__ . '/../ap
 $schreiber = substr($quelle, strpos($quelle, 'function avesmapsApiMetricsSchreiben'));
 $schreiber = substr($schreiber, 0, strpos($schreiber, "\n}\n") + 3);
 
-assert(substr_count($schreiber, '->prepare(') === 1, 'genau eine vorbereitete Anweisung');
-assert(substr_count($schreiber, '->execute(') === 1, 'genau eine Ausfuehrung');
+assert(substr_count($schreiber, 'INSERT INTO api_metric') === 1, 'genau EIN Einfuegebefehl fuer alle Zeilen');
 assert(str_contains($schreiber, 'ON DUPLICATE KEY UPDATE'), 'MySQL-Aufwaertszaehlung, nicht wegvereinfacht');
 assert(str_contains($schreiber, 'count = count + 1'), 'jede eingefuegte Zeile traegt count=1');
+
+// --- 💣 KEIN DDL AUF DEM KRITISCHEN PFAD ---------------------------------------------------------
+// Ein `CREATE TABLE IF NOT EXISTS` vor jedem Schreiben waere DDL bei JEDER Anfrage -- genau die
+// Last, die AGENTS.md §10 seit Monaten an territories-endpoint.php auffuehrt. Eine Tafel, die
+// solche Kosten sichtbar machen soll und dabei selbst welche verursacht, waere absurd.
+// Die Tabelle wird deshalb NACHGERUESTET: einmal scheitern, anlegen, einmal wiederholen.
+assert(str_contains($schreiber, 'avesmapsApiMetricsEnsureTable'), 'der Schreiber kann nachruesten');
+$vorDemFang = substr($schreiber, 0, strpos($schreiber, 'catch (Throwable $vielleichtFehltDieTabelle'));
+assert(
+    !str_contains($vorDemFang, 'avesmapsApiMetricsEnsureTable'),
+    'das DDL steht IM Fangzweig, nicht davor'
+);
+
+$abschluss = str_replace("\r\n", "\n", (string) file_get_contents(__DIR__ . '/../../bootstrap.php'));
+$routine = substr($abschluss, strpos($abschluss, 'function avesmapsApiMetricsRegistrieren'));
+$routine = substr($routine, 0, strpos($routine, "\n}\n") + 3);
+assert(
+    !preg_match('/^\s*avesmapsApiMetricsEnsureTable\(/m', $routine),
+    'die Abschlussroutine ruft KEIN DDL'
+);
 
 // 🔴 Und das try/catch ist die Zusicherung, nicht die Bequemlichkeit.
 assert(str_contains($schreiber, 'catch (Throwable'), 'der Schreiber faengt alles');

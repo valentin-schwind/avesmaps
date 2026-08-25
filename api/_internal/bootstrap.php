@@ -705,7 +705,10 @@ function avesmapsApiMetricsRegistrieren(): void {
                 ];
             }
 
-            avesmapsApiMetricsEnsureTable($pdo);
+            // ⚠️ KEIN avesmapsApiMetricsEnsureTable() hier. Das waere ein CREATE TABLE IF NOT
+            // EXISTS bei jeder Anfrage, auf dem kritischen Pfad -- genau die Last, die AGENTS.md
+            // §10 an territories-endpoint.php anprangert. Der Schreiber ruestet die Tabelle nach,
+            // wenn die erste Anweisung an ihr scheitert, und danach nie wieder.
             avesmapsApiMetricsSchreiben($pdo, $zeilen);
             avesmapsApiMetricsAufraeumen($pdo);
         } catch (Throwable $fehler) {

@@ -192,18 +192,36 @@ function avesmapsApiMetricsSchreiben(PDO $pdo, array $zeilen): void {
     }
     try {
         $platzhalter = implode(', ', array_fill(0, count($zeilen), '(UTC_DATE(), ?, ?, ?, 1)'));
-        $anweisung = $pdo->prepare(
-            'INSERT INTO api_metric (day, hour, metric, dimension, count) VALUES '
+        $sql = 'INSERT INTO api_metric (day, hour, metric, dimension, count) VALUES '
             . $platzhalter
-            . ' ON DUPLICATE KEY UPDATE count = count + 1'
-        );
+            . ' ON DUPLICATE KEY UPDATE count = count + 1';
         $werte = [];
         foreach ($zeilen as $zeile) {
             $werte[] = (int) $zeile['hour'];
             $werte[] = substr((string) $zeile['metric'], 0, 40);
             $werte[] = substr((string) $zeile['dimension'], 0, 190);
         }
-        $anweisung->execute($werte);
+
+        try {
+            $anweisung = $pdo->prepare($sql);
+            $anweisung->execute($werte);
+        } catch (Throwable $vielleichtFehltDieTabelle) {
+            // 💣 DIE TABELLE WIRD NACHGERUESTET, NICHT VORSORGLICH GEPRUEFT.
+            //
+            // Der naheliegende Bau waere ein `avesmapsApiMetricsEnsureTable()` vor jedem Schreiben
+            // -- und damit ein `CREATE TABLE IF NOT EXISTS` bei JEDER Anfrage, auf dem kritischen
+            // Pfad. Genau das fuehrt AGENTS.md §10 seit Monaten als Perf-Hotspot von
+            // territories-endpoint.php auf („runs DDL + metadata probes on every request").
+            // Es waere absurd, eine Tafel zu bauen, die solche Kosten sichtbar machen soll, und
+            // dabei genau sie zu verursachen.
+            //
+            // Stattdessen: einmal scheitern lassen, anlegen, einmal wiederholen. Im Normalbetrieb
+            // -- also ab der zweiten Anfrage nach dem Ausrollen -- kostet der Zaehler damit genau
+            // eine Anweisung und kein DDL.
+            avesmapsApiMetricsEnsureTable($pdo);
+            $anweisung = $pdo->prepare($sql);
+            $anweisung->execute($werte);
+        }
     } catch (Throwable $fehler) {
         // Absicht: siehe oben. Dass der Zaehler stumm ist, wird im Panel an `letzte_zaehlung`
         // sichtbar -- nicht daran, dass hier etwas nach aussen dringt.
