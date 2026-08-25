@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Vorgangsanzeige in der Kopfleiste – Entwurf (2026-08-25)</title>
+<script>
+  (function () {
+    function isDark() {
+      var s = null; try { s = localStorage.getItem("avesmaps-theme"); } catch (e) {}
+      if (s === "dark") { return true; }
+      if (s === "light") { return false; }
+      return !!(window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches);
+    }
+    function apply() {
+      if (isDark()) { document.documentElement.setAttribute("data-theme", "dark"); }
+      else { document.documentElement.removeAttribute("data-theme"); }
+    }
+    apply();
+    if (window.matchMedia) {
+      var mq = window.matchMedia("(prefers-color-scheme: dark)");
+      if (mq.addEventListener) { mq.addEventListener("change", apply); }
+      else if (mq.addListener) { mq.addListener(apply); }
+    }
+  })();
+</script>
+<!-- 🔴 Geladen wird die ECHTE Kopfleiste: css/pages/edit.css zieht fonts, tokens, reset, base und
+     scope-hint selbst herein. Die Leiste unten ist damit nicht nachgebaut, sondern dieselbe --
+     alles, was hier neu ist, steht im <style> darunter und nur dort. -->
+<link rel="stylesheet" href="../css/pages/edit.css">
+<style>
+/* ═══════════════════════════════════════════════════════════════════════════════════════════
+   NUR DAS NEUE. Kein hartkodierter Farbwert, kein hartkodierter Radius, nichts unter 11px
+   (AGENTS.md §12).
+   ═══════════════════════════════════════════════════════════════════════════════════════════ */
+
+html { scrollbar-gutter: stable; }
+body { background: var(--color-page-bg); color: var(--color-text); margin: 0; }
+.proto { max-width: 1000px; margin: 0 auto; padding: var(--space-24) var(--space-16); }
+.proto h1 { font-size: var(--font-size-title); margin: 0 0 var(--space-6); color: var(--color-text-strong); }
+.proto h2 {
+	font-size: var(--font-size-subhead); margin: var(--space-24) 0 var(--space-4);
+	color: var(--color-text-strong); border-top: 1px solid var(--color-divider); padding-top: var(--space-16);
+}
+.proto h3 { font-size: var(--font-size-body); margin: var(--space-16) 0 var(--space-6); color: var(--color-text-strong); }
+.proto p { font-size: var(--font-size-small); line-height: 1.55; color: var(--color-text-muted); max-width: 74ch; }
+.proto strong { color: var(--color-text); }
+.proto code { font-size: var(--font-size-caption); }
+.proto ul { font-size: var(--font-size-small); line-height: 1.55; color: var(--color-text-muted); max-width: 74ch; }
+
+.note {
+	margin: 0 0 var(--space-20); padding: var(--space-10) var(--space-12);
+	border: 1px solid var(--color-border); border-left: 3px solid var(--color-accent-brown);
+	border-radius: var(--radius-md); background: var(--color-panel-soft);
+}
+.note--warn { border-left-color: var(--color-danger); }
+
+/* Der Rahmen, in dem eine Leiste vorgefuehrt wird. `container-type` macht ihn zum Bezug fuer die
+   Container-Abfrage unten -- so laesst sich die Telefonbreite ZEIGEN, ohne das Fenster zu
+   verkleinern, und die Regel ist dieselbe, die spaeter live gilt. */
+.buehne {
+	border: 1px solid var(--color-border); border-radius: var(--radius-md);
+	overflow: hidden; margin: var(--space-6) 0 var(--space-16);
+	container-type: inline-size;
+}
+.buehne--telefon { width: 375px; max-width: 100%; }
+.buehne__mass {
+	font-size: var(--font-size-caption); color: var(--color-text-muted);
+	margin: 0 0 var(--space-2);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════════════════════
+   DIE VORGANGSANZEIGE
+   Sie sitzt in .edit-shell__bar LINKS neben dem Drei-Strich-Menue.
+   💣 Sie ist NICHT im Menue, sondern daneben: ein Zustand, der sich aendert, waehrend niemand
+   hinsieht, darf nicht hinter einem Klick liegen. Dieselbe Ueberlegung wie beim Ansage-Streifen
+   der Landschaften-Isolation und beim Zaehler gesperrter Regionen.
+   ═══════════════════════════════════════════════════════════════════════════════════════════ */
+
+/* 💣 DIE LEISTE MUSS IM SELEKTOR STEHEN. `.edit-shell__bar button` in css/pages/edit.css faerbt
+   JEDEN Knopf der Kopfzeile gefuellt-braun ein und hat (0,1,1) -- eine blanke `.vorgang`-Regel
+   (0,1,0) verliert. Der Anzeiger saesse dann als brauner Klotz in der Leiste, statt als ruhige
+   Kachel. Gemessen: Hintergrund rgb(91,85,72) statt --color-panel-soft.
+   🪤 Das ist NICHT neu -- genau diese Falle steht als 💣-Kommentar in edit.css, weil sie „Abmelden"
+   im Drei-Strich-Menue schon einmal erwischt hat. Sie erwischt jeden, der einen zweiten Knopf in
+   diese Leiste haengt, und sie faellt am Zeiger nicht auf: der Klotz sieht aus wie Absicht. */
+.edit-shell__bar .vorgang {
+	display: flex; align-items: center; gap: var(--space-8);
+	min-width: 0;                 /* sonst schrumpft der Text nie und drueckt das Menue hinaus */
+	padding: var(--space-4) var(--space-8);
+	border: 1px solid var(--color-border); border-radius: var(--radius-md);
+	background: var(--color-panel-soft);
+	font-family: var(--font-ui); font-size: var(--font-size-body);
+	color: var(--color-text); cursor: pointer;
+}
+.edit-shell__bar .vorgang:hover { background: var(--color-hover-wash); }
+
+/* Der Ring: ein Kegelverlauf, kein Bild und kein SVG -- er kostet nichts und skaliert mit der
+   Schrift. Der Anteil kommt als --anteil (0..1) vom Treiber. */
+.vorgang__ring {
+	flex: 0 0 auto; width: var(--icon-md); height: var(--icon-md); border-radius: 50%;
+	background: conic-gradient(var(--color-accent-brown) calc(var(--anteil, 0) * 360deg), var(--color-border) 0);
+	position: relative;
+}
+.vorgang__ring::after {
+	content: ""; position: absolute; inset: 3px; border-radius: 50%;
+	background: var(--color-panel);
+}
+/* 🔴 Ein UNBESTIMMTER Fortschritt sieht anders aus als 0 %. Ein Ring, der auf null steht, ist von
+   „haengt" nicht zu unterscheiden -- deshalb dreht er sich, solange keine Zahl da ist. */
+.edit-shell__bar .vorgang[data-zustand="startet"] .vorgang__ring {
+	background: conic-gradient(var(--color-accent-brown) 0 90deg, var(--color-border) 90deg 360deg);
+	animation: vorgang-dreht 1.1s linear infinite;
+}
+@keyframes vorgang-dreht { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) {
+	.edit-shell__bar .vorgang[data-zustand="startet"] .vorgang__ring { animation: none; }
+}
+
+.vorgang__text { display: flex; flex-direction: column; min-width: 0; line-height: 1.25; text-align: left; }
+.vorgang__titel {
+	font-size: var(--font-size-body); color: var(--color-text-strong);
+	overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.vorgang__phase {
+	font-size: var(--font-size-caption); color: var(--color-text-muted);
+	overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.vorgang__zahl {
+	flex: 0 0 auto; min-width: 1.6em; text-align: center;
+	padding: 0 var(--space-4); border-radius: var(--radius-md);
+	background: var(--color-pill); color: var(--color-pill-text);
+	font-size: var(--font-size-caption);
+}
+
+/* Zustaende. 🔴 „fertig" und „fehlgeschlagen" verhalten sich VERSCHIEDEN: fertig verschwindet nach
+   ein paar Sekunden von selbst, fehlgeschlagen bleibt stehen, bis jemand es quittiert. Ein Fehler,
+   der sich selbst wegraeumt, ist ein ungesehener Fehler. */
+.edit-shell__bar .vorgang[data-zustand="fertig"] .vorgang__ring {
+	background: var(--color-success); }
+.edit-shell__bar .vorgang[data-zustand="fehler"] { border-color: var(--color-danger-soft-border); background: var(--color-danger-soft); }
+.edit-shell__bar .vorgang[data-zustand="fehler"] .vorgang__ring { background: var(--color-danger); }
+.edit-shell__bar .vorgang[data-zustand="fehler"] .vorgang__titel { color: var(--color-danger-soft-text); }
+.edit-shell__bar .vorgang[data-zustand="angehalten"] .vorgang__ring { background: conic-gradient(var(--color-text-muted) calc(var(--anteil,0) * 360deg), var(--color-border) 0); }
+
+/* ── MOBIL ──────────────────────────────────────────────────────────────────────────────────
+   💣 Container-Abfrage, keine Medien-Abfrage: die Leiste sitzt in der Huelle, und was zaehlt, ist
+   IHRE Breite, nicht die des Geraets. Am Zeiger kann dieselbe Huelle schmal sein (geteiltes
+   Fenster), am Telefon im Querformat breit.
+   🔴 Der Hamburger bewegt sich NIE. Was schrumpft, schrumpft in dieser Reihenfolge:
+   Nebenzeile -> Phase -> Titel -> nur noch der Ring. */
+@container (max-width: 560px) {
+	.vorgang__phase { display: none; }
+}
+@container (max-width: 440px) {
+	.vorgang__titel { display: none; }
+	.vorgang { padding: var(--space-4); gap: var(--space-4); }
+}
+@container (max-width: 380px) {
+	.edit-shell__bar > div:first-child > span { display: none; }
+}
+
+/* ── DIE VORGANGSLISTE ──────────────────────────────────────────────────────────────────────
+   Dieselbe Bauform wie das Menue daneben: natives <details>, schwebende Liste. */
+.vorgangs-menu { position: relative; }
+.vorgangs-menu > summary { list-style: none; }
+.vorgangs-menu > summary::-webkit-details-marker { display: none; }
+.vorgangs-liste {
+	position: absolute; right: 0; top: calc(100% + var(--space-6)); z-index: 3;
+	width: min(22rem, 90vw);
+	padding: var(--space-8); border: 1px solid var(--color-border);
+	border-radius: var(--radius-lg); background: var(--color-panel);
+	box-shadow: var(--shadow-dialog);
+}
+.vorgangs-liste__zeile {
+	display: flex; align-items: center; gap: var(--space-8);
+	padding: var(--space-8) var(--space-6); border-top: 1px solid var(--color-border);
+}
+.vorgangs-liste__zeile:first-child { border-top: 0; }
+.vorgangs-liste__text { flex: 1 1 auto; min-width: 0; }
+.vorgangs-liste__name { display: block; font-size: var(--font-size-body); color: var(--color-text-strong); }
+.vorgangs-liste__phase { display: block; font-size: var(--font-size-caption); color: var(--color-text-muted); }
+.vorgangs-liste__tat {
+	flex: 0 0 auto; height: var(--avm-control-h); padding: 0 var(--space-10);
+	border: 1px solid var(--color-button-soft-border); border-radius: var(--radius-md);
+	background: var(--color-button-soft); color: var(--color-button-soft-text);
+	font-family: var(--font-ui); font-size: var(--font-size-caption); cursor: pointer;
+}
+.vorgangs-liste__leer { padding: var(--space-10) var(--space-6); font-size: var(--font-size-small); color: var(--color-text-muted); }
+</style>
+</head>
+<body>
+<div class="proto">
+
+	<h1>Vorgangsanzeige in der Kopfleiste</h1>
+	<p><strong>Entwurf, 25.08.2026.</strong> Owner: <em>„Prozesse, die in den Einstellungen angestoßen
+	werden, z. B. Dump holen, sollen nicht davon abhängig sein, ob das Fenster auf oder zu ist.
+	Deswegen will ich irgendwo in einer Statusleiste über Fortschritte informiert werden."</em></p>
+
+	<div class="note note--warn">
+		<p style="margin:0"><strong>🪤 Zuerst der Befund, der den Entwurf begrenzt: es gibt keinen
+		Server-Läufer.</strong> Auf STRATO läuft kein Hintergrundprozess und kein Zeitplan im Haus —
+		<code>api/social/routine-post.php</code> wird von <em>außen</em> mit einem Token angestoßen.
+		Ein Schrittlauf wie „Dump holen“ (bis zu 2000 Teilschritte, je einer pro Anfrage) kommt also
+		nur voran, solange <strong>irgendein Browser ihn treibt</strong>.</p>
+		<p style="margin:var(--space-8) 0 0">Deshalb heißt „unabhängig vom Fenster“ hier genau:
+		<strong>unabhängig vom Einstellungs-Fenster</strong> — nicht unabhängig von jedem Fenster.
+		Was stattdessen geht, steht unten unter „Wer treibt“.</p>
+	</div>
+
+	<h2>1 · Wer treibt — die Hülle, nicht das Fenster</h2>
+	<p>Heute lebt der Lauf in dem Dokument, das ihn gestartet hat. Künftig gehört er der
+	<strong>Edit-Hülle</strong> (<code>edit/index.php</code>) — dem äußeren Dokument, das die
+	Kopfleiste trägt und ohnehin offen ist, solange jemand arbeitet.</p>
+	<ul>
+		<li>Das Einstellungs-Fenster <strong>bittet</strong> nur um einen Lauf und zeigt danach denselben
+			Zustand wie die Leiste. Zumachen ändert nichts.</li>
+		<li>Die <strong>Hülle</strong> fährt die Schrittschleife und zeigt den Fortschritt in der Leiste.</li>
+		<li>Wird die Hülle geschlossen, <strong>hält der Lauf an</strong> — er ist nicht verloren: die
+			Lauf-Zeile und die Sperre mit Herzschlag gibt es schon
+			(<code>avesmapsWikiDumpLockAcquireOrThrow</code>). Beim nächsten Öffnen steht er als
+			<em>angehalten</em> in der Liste und lässt sich fortsetzen.</li>
+	</ul>
+	<p>⚠️ <strong>Genau ein Treiber.</strong> Sind Hülle und Einstellungs-Fenster offen, darf nur einer
+	Schritte schicken. Den Riegel gibt es bereits — der Server antwortet dem zweiten mit
+	<code>409 dump_locked</code>; neu ist nur, dass die Hülle sich vordrängt und das Fenster von
+	vornherein zusieht statt es zu versuchen.</p>
+
+	<h2>2 · Die Leiste — fünf Zustände</h2>
+	<p>Der Anzeiger sitzt <strong>links neben dem Drei-Strich-Menü</strong>, nicht darin.
+	💣 Ein Zustand, der sich ändert, während niemand hinsieht, darf nicht hinter einem Klick liegen —
+	dieselbe Überlegung wie beim Ansage-Streifen der Landschaften-Isolation.</p>
+
+	<h3>Nichts läuft — der Anzeiger ist nicht da</h3>
+	<p class="buehne__mass">Kein leerer Platz, kein „0 Vorgänge“: Abwesenheit ist die Aussage.</p>
+	<div class="buehne">
+		<header class="edit-shell__bar">
+			<div><strong>Avesmaps Edit</strong><span>vali | admin</span></div>
+			<details class="edit-shell__menu"><summary class="edit-shell__menu-button" title="Menü" aria-label="Menü">&#9776;</summary></details>
+		</header>
+	</div>
+
+	<h3>Ein Lauf, mit Zahl</h3>
+	<div class="buehne">
+		<header class="edit-shell__bar">
+			<div><strong>Avesmaps Edit</strong><span>vali | admin</span></div>
+			<div style="display:flex;align-items:center;gap:var(--space-12)">
+				<button class="vorgang" data-zustand="laeuft" style="--anteil:.64" aria-label="Vorgänge: Dump holen, Phase 4 von 7">
+					<span class="vorgang__ring"></span>
+					<span class="vorgang__text"><span class="vorgang__titel">Dump holen</span><span class="vorgang__phase">Phase 4/7 · Weiterleitungen</span></span>
+				</button>
+				<details class="edit-shell__menu"><summary class="edit-shell__menu-button" title="Menü" aria-label="Menü">&#9776;</summary></details>
+			</div>
+		</header>
+	</div>
+
+	<h3>Mehrere Läufe — die Zahl erscheint, der Text nennt den vordersten</h3>
+	<div class="buehne">
+		<header class="edit-shell__bar">
+			<div><strong>Avesmaps Edit</strong><span>vali | admin</span></div>
+			<div style="display:flex;align-items:center;gap:var(--space-12)">
+				<button class="vorgang" data-zustand="laeuft" style="--anteil:.31" aria-label="3 Vorgänge, vorderster: Dump holen">
+					<span class="vorgang__ring"></span>
+					<span class="vorgang__text"><span class="vorgang__titel">Dump holen</span><span class="vorgang__phase">und 2 weitere</span></span>
+					<span class="vorgang__zahl">3</span>
+				</button>
+				<details class="edit-shell__menu"><summary class="edit-shell__menu-button" title="Menü" aria-label="Menü">&#9776;</summary></details>
+			</div>
+		</header>
+	</div>
+
+	<h3>Startet — unbestimmt, deshalb drehend</h3>
+	<p class="buehne__mass">🔴 Ein Ring auf 0 % ist von „hängt“ nicht zu unterscheiden. Solange keine
+	Zahl da ist, dreht er.</p>
+	<div class="buehne">
+		<header class="edit-shell__bar">
+			<div><strong>Avesmaps Edit</strong><span>vali | admin</span></div>
+			<div style="display:flex;align-items:center;gap:var(--space-12)">
+				<button class="vorgang" data-zustand="startet" aria-label="Dump holen wird gestartet">
+					<span class="vorgang__ring"></span>
+					<span class="vorgang__text"><span class="vorgang__titel">Dump holen</span><span class="vorgang__phase">wird gestartet …</span></span>
+				</button>
+				<details class="edit-shell__menu"><summary class="edit-shell__menu-button" title="Menü" aria-label="Menü">&#9776;</summary></details>
+			</div>
+		</header>
+	</div>
+
+	<h3>Fehlgeschlagen — bleibt stehen, bis jemand quittiert</h3>
+	<p class="buehne__mass">🔴 „Fertig“ verschwindet nach ein paar Sekunden von selbst. Ein Fehler
+	nicht: einer, der sich selbst wegräumt, ist ein ungesehener Fehler.</p>
+	<div class="buehne">
+		<header class="edit-shell__bar">
+			<div><strong>Avesmaps Edit</strong><span>vali | admin</span></div>
+			<div style="display:flex;align-items:center;gap:var(--space-12)">
+				<button class="vorgang" data-zustand="fehler" aria-label="Dump holen fehlgeschlagen">
+					<span class="vorgang__ring"></span>
+					<span class="vorgang__text"><span class="vorgang__titel">Dump holen</span><span class="vorgang__phase">Zugangsdaten abgelehnt</span></span>
+				</button>
+				<details class="edit-shell__menu"><summary class="edit-shell__menu-button" title="Menü" aria-label="Menü">&#9776;</summary></details>
+			</div>
+		</header>
+	</div>
+
+	<h2>3 · Am Telefon — der Hamburger bewegt sich nie</h2>
+	<p>💣 <strong>Container-Abfrage, keine Medien-Abfrage.</strong> Was zählt, ist die Breite der
+	<em>Leiste</em>, nicht die des Geräts: dieselbe Hülle kann am Zeiger schmal sein (geteiltes
+	Fenster) und am Telefon im Querformat breit.</p>
+	<p>Geschrumpft wird in fester Reihenfolge — <strong>Nebenzeile → Phase → Titel → nur noch der
+	Ring</strong>. Der Ring bleibt immer, weil er die eigentliche Auskunft trägt; das Menü behält
+	seinen Platz.</p>
+
+	<p class="buehne__mass"><strong>375 px</strong> — Titel und Phase sind weg, Ring und Zahl bleiben.</p>
+	<div class="buehne buehne--telefon">
+		<header class="edit-shell__bar">
+			<div><strong>Avesmaps Edit</strong><span>vali | admin</span></div>
+			<div style="display:flex;align-items:center;gap:var(--space-8)">
+				<button class="vorgang" data-zustand="laeuft" style="--anteil:.31" aria-label="3 Vorgänge, vorderster: Dump holen, Phase 4 von 7">
+					<span class="vorgang__ring"></span>
+					<span class="vorgang__text"><span class="vorgang__titel">Dump holen</span><span class="vorgang__phase">und 2 weitere</span></span>
+					<span class="vorgang__zahl">3</span>
+				</button>
+				<details class="edit-shell__menu"><summary class="edit-shell__menu-button" title="Menü" aria-label="Menü">&#9776;</summary></details>
+			</div>
+		</header>
+	</div>
+
+	<p class="buehne__mass"><strong>500 px</strong> — der Titel ist zurück, die Phase noch nicht.</p>
+	<div class="buehne" style="width:500px;max-width:100%">
+		<header class="edit-shell__bar">
+			<div><strong>Avesmaps Edit</strong><span>vali | admin</span></div>
+			<div style="display:flex;align-items:center;gap:var(--space-8)">
+				<button class="vorgang" data-zustand="laeuft" style="--anteil:.64" aria-label="Dump holen, Phase 4 von 7">
+					<span class="vorgang__ring"></span>
+					<span class="vorgang__text"><span class="vorgang__titel">Dump holen</span><span class="vorgang__phase">Phase 4/7 · Weiterleitungen</span></span>
+				</button>
+				<details class="edit-shell__menu"><summary class="edit-shell__menu-button" title="Menü" aria-label="Menü">&#9776;</summary></details>
+			</div>
+		</header>
+	</div>
+
+	<h2>4 · Die Liste — ein Klick auf den Anzeiger</h2>
+	<p>Natives <code>&lt;details&gt;</code>, dieselbe Bauform wie das Menü daneben: Aufklappen, Fokus
+	und Tastatur kommen vom Element.</p>
+	<div class="buehne" style="padding-bottom:220px">
+		<header class="edit-shell__bar">
+			<div><strong>Avesmaps Edit</strong><span>vali | admin</span></div>
+			<div style="display:flex;align-items:center;gap:var(--space-12)">
+				<details class="vorgangs-menu" open>
+					<summary class="vorgang" data-zustand="laeuft" style="--anteil:.31">
+						<span class="vorgang__ring"></span>
+						<span class="vorgang__text"><span class="vorgang__titel">Dump holen</span><span class="vorgang__phase">und 2 weitere</span></span>
+						<span class="vorgang__zahl">3</span>
+					</summary>
+					<div class="vorgangs-liste">
+						<div class="vorgangs-liste__zeile">
+							<span class="vorgang__ring" style="--anteil:.31"></span>
+							<span class="vorgangs-liste__text"><span class="vorgangs-liste__name">Dump holen</span><span class="vorgangs-liste__phase">Phase 4/7 · Weiterleitungen · 12 480 Seiten</span></span>
+							<button class="vorgangs-liste__tat">Abbrechen</button>
+						</div>
+						<div class="vorgangs-liste__zeile">
+							<span class="vorgang__ring" style="--anteil:.78"></span>
+							<span class="vorgangs-liste__text"><span class="vorgangs-liste__name">Karten-Vorschauen holen</span><span class="vorgangs-liste__phase">418 von 537</span></span>
+							<button class="vorgangs-liste__tat">Abbrechen</button>
+						</div>
+						<div class="vorgangs-liste__zeile">
+							<span class="vorgang__ring" style="--anteil:.5"></span>
+							<span class="vorgangs-liste__text"><span class="vorgangs-liste__name">Links prüfen</span><span class="vorgangs-liste__phase">angehalten — Hülle war geschlossen</span></span>
+							<button class="vorgangs-liste__tat">Fortsetzen</button>
+						</div>
+					</div>
+				</details>
+				<details class="edit-shell__menu"><summary class="edit-shell__menu-button" title="Menü" aria-label="Menü">&#9776;</summary></details>
+			</div>
+		</header>
+	</div>
+
+	<h2>5 · Warum das größer ist als „Dump holen“</h2>
+	<p>Der Dump ist nur der erste. <strong>Neun</strong> lange Läufe stecken heute jeweils in der
+	Seite, die sie gestartet hat, und sterben mit ihr:</p>
+	<ul>
+		<li>Dump holen · Datenbank-Backup · Links prüfen</li>
+		<li>Karten-Vorschauen holen · Literatur-Cover holen</li>
+		<li>Wegprofile rechnen · Höhenraster rechnen · Zugehörigkeit rechnen · Kurven rechnen</li>
+	</ul>
+	<p>Jeder ist eine Schrittschleife mit eigenem Fortschritt, eigener Kachel und eigener
+	Abbruchbehandlung. Die Leiste ist der Ort, an dem sie <strong>ein</strong> Vokabular bekommen —
+	und die Vorgangsliste ist der Rahmen, in den ein zehnter sich einhängt, statt sich einen
+	eigenen zu bauen.</p>
+
+	<div class="note">
+		<p style="margin:0"><strong>Was noch offen ist und vor dem Bau entschieden werden muss:</strong></p>
+		<ul style="margin:var(--space-6) 0 0">
+			<li>Wie das Fenster der Hülle den Startwunsch mitteilt — <code>BroadcastChannel</code>
+				(sofort, aber nur bei offener Hülle) oder eine Zeile in der Datenbank, die die Hülle
+				pollt (überlebt alles, kostet eine Abfrage je Takt).</li>
+			<li>Ob ein Lauf beim Schließen der Hülle <em>angeboten</em> oder <em>automatisch</em>
+				fortgesetzt wird. ⚠️ Automatisch heißt: das bloße Öffnen des Editors startet einen
+				zehnminütigen Lauf, den niemand angefordert hat.</li>
+			<li>Ob die Leiste auch <strong>im Frontend</strong> erscheint (die Karte ohne Hülle) — dort
+				gibt es keine Kopfleiste, und ein Besucher hat damit nichts zu tun.</li>
+		</ul>
+	</div>
+
+</div>
+</body>
+</html>

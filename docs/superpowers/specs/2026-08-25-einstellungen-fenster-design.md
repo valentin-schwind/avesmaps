@@ -346,6 +346,100 @@ Wiki-Zuweisung: das Bauteil kennt keine Objektart.
 AGENTS.md §9 als eigener Commit live, mit einem Satz im Betreff, der sagt, wohin er gewandert ist.
 Sonst sucht ihn am nächsten Tag jemand.
 
+### §4.4b 🔴 Der Lauf gehört der HÜLLE, nicht dem Fenster
+
+Owner am 25.08.2026: *„Prozesse, die in den Einstellungen angestoßen werden, z. B. Dump holen,
+sollen nicht davon abhängig sein, ob das Fenster auf oder zu ist."*
+Entwurf und Mockup: **`docs/vorgangsanzeige-mockup.html`**.
+
+🪤 **Zuerst die Grenze, denn sie bestimmt alles Weitere: es gibt keinen Server-Läufer.** Auf STRATO
+läuft kein Hintergrundprozess und kein Zeitplan im Haus — `api/social/routine-post.php` wird von
+**außen** mit einem Token angestoßen. Ein Schrittlauf wie „Dump holen" (bis zu 2000 Teilschritte,
+je einer pro Anfrage) kommt nur voran, solange **irgendein Browser ihn treibt**.
+
+**„Unabhängig vom Fenster" heißt hier also genau: unabhängig vom EINSTELLUNGS-Fenster.** Das ist
+erreichbar und deckt den gemeldeten Fall vollständig ab. „Unabhängig von jedem Fenster" ist es
+nicht, und dieser Entwurf verspricht es nicht.
+
+Die Lösung ist ein Wechsel des Wirts:
+
+| | heute | künftig |
+|---|---|---|
+| Wer treibt | das Dokument, das gestartet hat | die **Edit-Hülle** (`edit/index.php`) |
+| Fenster zu | Lauf ist tot | Lauf läuft weiter |
+| Hülle zu | — | Lauf **hält an**, ist fortsetzbar |
+| Wo man ihn sieht | im startenden Dokument | in der **Kopfleiste**, immer |
+
+⭐ Die Hülle ist der richtige Wirt, weil sie das äußere Dokument ist, die Kopfleiste trägt und
+ohnehin offen ist, solange jemand arbeitet. Das Einstellungs-Fenster **bittet** nur um einen Lauf
+und zeigt danach denselben Zustand wie die Leiste.
+
+⚠️ **Genau ein Treiber.** Den Riegel gibt es bereits (`avesmapsWikiDumpLockAcquireOrThrow`, der
+Server antwortet dem zweiten mit `409 dump_locked`); neu ist nur, dass die Hülle sich vordrängt und
+das Fenster von vornherein zusieht, statt es zu versuchen und abgewiesen zu werden.
+
+⚠️ **Ein angehaltener Lauf ist nicht verloren** — Lauf-Zeile und Sperre mit Herzschlag existieren.
+Er steht beim nächsten Öffnen als *angehalten* in der Liste.
+
+### §4.4c Die Vorgangsanzeige in der Kopfleiste
+
+Ein Anzeiger **links neben dem Drei-Strich-Menü**, nicht darin.
+
+💣 **Nicht im Menü.** Ein Zustand, der sich ändert, während niemand hinsieht, darf nicht hinter
+einem Klick liegen — dieselbe Überlegung wie beim Ansage-Streifen der Landschaften-Isolation und
+beim Zähler gesperrter Regionen.
+
+* **Nichts läuft → der Anzeiger ist nicht da.** Kein leerer Platz, kein „0 Vorgänge"; Abwesenheit
+  ist die Aussage.
+* 🔴 **Ein unbestimmter Fortschritt sieht anders aus als 0 %** — ein Ring auf null ist von „hängt"
+  nicht zu unterscheiden. Solange keine Zahl da ist, dreht er.
+* 🔴 **„Fertig" und „fehlgeschlagen" verhalten sich VERSCHIEDEN:** fertig verschwindet nach ein paar
+  Sekunden von selbst, fehlgeschlagen bleibt stehen, bis jemand quittiert. Ein Fehler, der sich
+  selbst wegräumt, ist ein ungesehener Fehler.
+* Ein Klick öffnet die Liste — natives `<details>`, dieselbe Bauform wie das Menü daneben.
+
+#### Mobil — der Hamburger bewegt sich nie
+
+💣 **Container-Abfrage, keine Medien-Abfrage.** Was zählt, ist die Breite der **Leiste**, nicht die
+des Geräts: dieselbe Hülle kann am Zeiger schmal sein (geteiltes Fenster) und am Telefon im
+Querformat breit.
+
+Geschrumpft wird in fester Reihenfolge — **Nebenzeile → Phase → Titel → nur noch der Ring.** Der
+Ring bleibt immer, weil er die eigentliche Auskunft trägt.
+
+Gemessen am Mockup: Leiste 962 px → Titel und Phase; 498 px → nur Titel; 373 px → nur Ring und
+Zahl. Der Abstand des Hamburgers zum rechten Rand bleibt in **allen** Stufen 12 px, und bei einem
+echten Fenster von 375 px wie von 320 px läuft weder die Leiste noch die Seite über.
+
+💣 **Die Leiste muss im Selektor stehen.** `.edit-shell__bar button` (`css/pages/edit.css`) färbt
+JEDEN Knopf der Kopfzeile gefüllt-braun ein und hat (0,1,1) — eine blanke `.vorgang`-Regel (0,1,0)
+verliert, und der Anzeiger säße als brauner Klotz in der Leiste.
+🪤 **Das ist nicht neu:** genau diese Falle steht als 💣-Kommentar in `edit.css`, weil sie
+„Abmelden" im Drei-Strich-Menü schon einmal erwischt hat. Sie erwischt jeden, der einen zweiten
+Knopf in diese Leiste hängt — und sie fällt beim Hinsehen nicht auf, der Klotz sieht aus wie
+Absicht. Beim Bau des Mockups hat sie sofort wieder zugeschlagen und wurde nur durch die Messung
+gefunden (`rgb(91,85,72)` statt `--color-panel-soft`).
+
+#### Es ist größer als „Dump holen"
+
+**Neun** lange Läufe stecken heute jeweils in der Seite, die sie gestartet hat, und sterben mit
+ihr: Dump holen · Datenbank-Backup · Links prüfen · Karten-Vorschauen holen · Literatur-Cover
+holen · Wegprofile rechnen · Höhenraster rechnen · Zugehörigkeit rechnen · Kurven rechnen.
+
+Jeder hat eigenen Fortschritt, eigene Kachel, eigene Abbruchbehandlung. Die Leiste ist der Ort, an
+dem sie **ein** Vokabular bekommen — und die Vorgangsliste der Rahmen, in den sich ein zehnter
+einhängt, statt sich einen eigenen zu bauen.
+
+🔧 **Vor dem Bau zu entscheiden:**
+* Wie das Fenster der Hülle den Startwunsch mitteilt — `BroadcastChannel` (sofort, aber nur bei
+  offener Hülle) oder eine Zeile in der Datenbank, die die Hülle pollt (überlebt alles, kostet eine
+  Abfrage je Takt).
+* Ob ein angehaltener Lauf beim Öffnen der Hülle **angeboten** oder **automatisch** fortgesetzt
+  wird. ⚠️ Automatisch heißt: das bloße Öffnen des Editors startet einen zehnminütigen Lauf, den
+  niemand angefordert hat.
+* Ob die Leiste auch im **Frontend** erscheint. Dort gibt es keine Kopfleiste, und ein Besucher hat
+  damit nichts zu tun — vermutlich nein.
+
 ### §4.5 Die Zugangsdaten kommen ans Licht
 
 Heute erscheint der Dialog **nur**, wenn ein Lauf mit HTTP 401 scheitert — man kann die
