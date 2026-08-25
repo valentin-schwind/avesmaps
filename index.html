@@ -1029,12 +1029,15 @@
 				</form>
 			</div>
 		</div>
-		<!-- V6b: Rechtsklick auf eine Fläche -> „Eigenschaften …". Aufbau nach #label-edit-overlay
-		     (:1305), aber OHNE dessen Block „Darstellung": Größe, Rotation, Zoom-Bänder und Priorität
-		     sind Eigenschaften einer BESCHRIFTUNG, nicht einer Fläche (oekosystem-editor-verhalten.md
-		     §12, „Keine Zoom-Bänder"). Schreibt update_region / delete_region — beide seit V2.3 gebaut
-		     und bis hierher ohne Aufrufer.
-		     Overlay-Hülle aus css/components/dialog-overlays.css, ID in allen DREI Selektorlisten. -->
+		<!-- 🔴 HIER STAND DER FLAECHENDIALOG („Eigenschaften …", V6b). Seit dem 25.08.2026 ist er
+		     eine HAELFTE des vereinigten Fensters `#landschaft-dialog-overlay` weiter unten: Flaeche
+		     und Beschriftung werden dort in EINEM Fenster mit drei Reitern bearbeitet, und
+		     „Eigenschaften …" oeffnet es auf dem Reiter „Flaeche".
+		     ⚠️ Seine Element-IDs (`ecosystem-properties-*`) sind unveraendert mitgewandert -- deshalb
+		     arbeitet map-features-ecosystem-properties.js (2075 Zeilen) unveraendert weiter. Vier
+		     Bedienelemente sind dabei GEFALLEN: Name, Art, Nodix und die zwei der Kurvenbeschriftung
+		     standen in BEIDEN Fenstern auf demselben Wert; sie stehen jetzt genau einmal.
+		     Entwurf: docs/superpowers/specs/2026-08-25-landschaft-dialog-vereinigung-design.md -->
 		<div id="ecosystem-simplify-overlay" hidden>
 			<div id="ecosystem-simplify-dialog" class="ecosystem-properties-dialog" role="dialog" aria-modal="true" aria-labelledby="ecosystem-simplify-title" tabindex="-1">
 				<div class="ecosystem-properties-dialog__header">
