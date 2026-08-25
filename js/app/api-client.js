@@ -445,6 +445,42 @@ async function submitWikiSyncLocationAction(action, payload = {}) {
 // be confused with the true dump-fetch rejection (error.code "dump_unauthorized" from
 // avesmapsWikiDumpEnsureDumpPresentOrFail / the fetch_dump branch). Status alone can't
 // tell them apart; only the body's error.code can.
+// Der Fehlertext einer gescheiterten Dump-Aktion -- und die Unterscheidung, die vorher fehlte.
+//
+// 💣 EIN PHP-ABBRUCH ANTWORTET MIT EINEM LEEREN RUMPF. `readJsonResponse` verschluckt jeden
+// Rumpf, der kein JSON ist, restlos -- uebrig blieb "WikiDump-API antwortet mit HTTP 500", also
+// der RUECKFALLTEXT des Clients. Von aussen war damit nicht zu unterscheiden, ob der Server
+// geschwiegen oder etwas gesagt hat. Am 25.08.2026 hat genau das eine halbe Stunde Raten
+// gekostet, waehrend der Server die Klasse, die Datei und die Zeile die ganze Zeit
+// mitgeschickt haette (avesmapsServerErrorResponse mit $grundZeigen).
+//
+// Drei Faelle, drei Saetze:
+//   - der Server hat eine Meldung geschickt -> sie, wortwoertlich
+//   - der Rumpf ist LEER                    -> das ist die Signatur eines PHP-Abbruchs, und das
+//                                              steht auch so da
+//   - der Rumpf ist etwas anderes (HTML)    -> ein Auszug, ohne Markup und gekuerzt
+//
+// ⚠️ Markup wird herausgenommen, weil der Satz per textContent in eine Statuszeile geht, und
+// gekuerzt, weil ein Speicher-Abbruch seitenweise HTML schicken kann.
+function wikiDumpAktionsFehlertext(status, data, rohtext) {
+	const vomServer = apiErrorMessage(data, "");
+	if (vomServer) {
+		return vomServer;
+	}
+
+	const nackt = String(rohtext || "")
+		.replace(/<[^>]*>/g, " ")
+		.replace(/\s+/g, " ")
+		.trim();
+
+	if (!nackt) {
+		return `WikiDump-API antwortet mit HTTP ${status}, und der Rumpf ist leer -- das ist die Signatur eines PHP-Abbruchs. Der Grund steht im Fehlerprotokoll des Servers.`;
+	}
+
+	const auszug = nackt.length > 300 ? `${nackt.slice(0, 300)}…` : nackt;
+	return `WikiDump-API antwortet mit HTTP ${status}. Server: ${auszug}`;
+}
+
 async function submitWikiSyncDumpAction(action, payload = {}) {
 	const response = await fetch(WIKI_SYNC_DUMP_API_URL, {
 		method: "POST",
@@ -458,10 +494,19 @@ async function submitWikiSyncDumpAction(action, payload = {}) {
 			...payload,
 		}),
 	});
-	const data = await readJsonResponse(response, {});
+	// 💣 ERST DEN ROHTEXT, DANN PARSEN -- ein Rumpf laesst sich nur EINMAL lesen. `response.json()`
+	// wirft einen nicht-JSON-Rumpf weg, bevor ihn jemand sehen kann, und genau der traegt bei einem
+	// PHP-Abbruch die einzige Spur.
+	const rohtext = await response.text();
+	let data = {};
+	try {
+		data = rohtext ? JSON.parse(rohtext) : {};
+	} catch (fehler) {
+		data = {};
+	}
 
 	if (!response.ok || data?.ok !== true) {
-		const error = new Error(apiErrorMessage(data, `WikiDump-API antwortet mit HTTP ${response.status}.`));
+		const error = new Error(wikiDumpAktionsFehlertext(response.status, data, rohtext));
 		// Only the true dump-fetch rejection opens the inline credential prompt (O1).
 		// A generic session 401 ("unauthenticated", or no code at all) must fall through
 		// to a normal error instead of wrongly asking for dump credentials.

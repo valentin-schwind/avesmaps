@@ -162,6 +162,47 @@ assert(
     'und er darf auch nicht warnen -- die Unterdrueckung gehoert an die Datei-Aufrufe: ' . trim($ausgabeOhne)
 );
 
+
+// ------------------------------------------- DIE SPERRE WIRD NICHT GEHALTEN ---
+// 💣 Die erste Fassung schlief MIT gehaltener Sperre. Das sieht harmlos aus und ist es nicht:
+// N gleichzeitige Anfragen warten dann nacheinander auf die Sperre, jede belegt dabei einen
+// PHP-Arbeiter, und die Antwortzeit waechst mit N x Abstand. Auf STRATOs geteiltem Hosting ist
+// das die Arbeiter-Saettigung, vor der AGENTS.md warnt -- und zwei Laeufe desselben Benutzers
+// reichen dafuer schon.
+//
+// Geprueft wird die REIHENFOLGE im Quelltext: das Schlafen muss NACH dem Freigeben stehen. Ein
+// Ablauftest koennte das nur mit echter Gleichzeitigkeit zeigen, und die ist in einem
+// Zusicherungstest weder stabil noch schnell.
+$drosselQuelle = str_replace(chr(13), '', (string) file_get_contents($wurzel . '/api/_internal/wiki/sync.php'));
+$rumpf = '';
+if (preg_match(
+    '/function avesmapsWikiSyncDrosselUeberProzessgrenze\([^)]*\)[^{]*\{(.*?)\n\}\n/s',
+    $drosselQuelle,
+    $m
+) === 1) {
+    $rumpf = $m[1];
+}
+assert($rumpf !== '', 'die Drosselfunktion muss im Quelltext auffindbar sein');
+
+$freigabe = strpos($rumpf, 'flock($griff, LOCK_UN)');
+$schlaf = strpos($rumpf, 'usleep(');
+assert($freigabe !== false, 'die Sperre muss ausdruecklich freigegeben werden');
+assert($schlaf !== false, 'und es muss ueberhaupt geschlafen werden');
+assert(
+    $schlaf > $freigabe,
+    '💣 geschlafen wird NACH dem Freigeben der Sperre -- sonst blockiert jeder Wartende einen '
+        . 'PHP-Arbeiter, solange ein anderer schlaeft'
+);
+
+// Und der Platz wird RESERVIERT, nicht erst nach dem Schlafen eingetragen: sonst vergeben zwei
+// gleichzeitige Aufrufer denselben Platz und feuern gemeinsam los.
+$schreiben = strpos($rumpf, 'fwrite(');
+assert($schreiben !== false, 'der Platz muss geschrieben werden');
+assert(
+    $schreiben < $freigabe,
+    'der Platz wird UNTER der Sperre eingetragen -- danach waere er kein Anspruch mehr, sondern eine Notiz'
+);
+
 @unlink($vermerk);
 
-echo "wiki-drossel-prozessgrenze: alle Zusicherungen erfuellt (3 Prozesse + Rueckfall)\n";
+echo "wiki-drossel-prozessgrenze: alle Zusicherungen erfuellt (3 Prozesse + Rueckfall + Sperrdauer)\n";

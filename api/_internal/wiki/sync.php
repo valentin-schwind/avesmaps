@@ -1038,13 +1038,22 @@ function avesmapsWikiSyncDrosselVermerkDatei(): ?string {
  * false heisst "kein schreibbarer Vermerk", und der Aufrufer faellt auf sein prozesslokales
  * Verhalten zurueck.
  *
- * ⭐ Die Sperre wird WAEHREND des Wartens gehalten. Das ist Absicht: zwei gleichzeitige
- * Aufrufer sollen sich hintereinanderstellen, nicht beide gleichzeitig loswarten und dann
- * gemeinsam losfeuern.
+ * ⭐ ES WIRD EIN PLATZ RESERVIERT, NICHT DIE SPERRE GEHALTEN. Der Aufrufer traegt unter der
+ * Sperre ein, WANN er dran ist, gibt sie sofort wieder frei und schlaeft erst danach. Zwei
+ * gleichzeitige Aufrufer bekommen so aufeinanderfolgende Plaetze, ohne einander zu blockieren.
  *
- * 💣 Ein Zeitstempel aus der ZUKUNFT (verstellte Uhr, von Hand angefasste Datei) wird auf den
- * vollen Abstand gedeckelt -- ohne den Deckel schliefe der naechste Aufruf stundenlang, und
- * das saehe von aussen aus wie ein haengender Server.
+ * 💣 DIE ERSTE FASSUNG HIELT DIE SPERRE WAEHREND DES SCHLAFENS (24.08.2026), und das war
+ * gefaehrlicher als es aussah: N gleichzeitige Anfragen warten dann nacheinander AUF DIE SPERRE,
+ * jede belegt dabei einen PHP-Arbeiter, und die Antwortzeit waechst mit N x 20 s. Auf STRATOs
+ * geteiltem Hosting ist das genau die Arbeiter-Saettigung, vor der AGENTS.md warnt -- und ein
+ * Lauf, den der Owner ein zweites Mal startet (die Pipeline-Sperre laesst denselben Benutzer
+ * wieder herein), reicht schon fuer zwei. Reserviert wird in Mikrosekunden, geschlafen ohne
+ * Sperre.
+ *
+ * 💣 Der Deckel ist eine RUNAWAY-Bremse, kein Takt: bei mehreren Wartenden ist ein Platz
+ * berechtigterweise weiter weg als ein einzelner Abstand (der dritte wartet zwei). Gedeckelt
+ * wird deshalb erst beim Fuenffachen -- das faengt eine verstellte Uhr oder eine von Hand
+ * angefasste Datei, ohne die Warteschlange zu zerreissen.
  */
 function avesmapsWikiSyncDrosselUeberProzessgrenze(int $mindestabstand, ?string $vermerkDatei): bool {
     if ($vermerkDatei === null) {
@@ -1061,24 +1070,27 @@ function avesmapsWikiSyncDrosselUeberProzessgrenze(int $mindestabstand, ?string 
         return false;
     }
 
+    $meinPlatz = microtime(true);
     try {
         $roh = trim((string) @stream_get_contents($griff));
-        $letzte = is_numeric($roh) ? (float) $roh : 0.0;
+        $letzter = is_numeric($roh) ? (float) $roh : 0.0;
 
-        if ($letzte > 0.0) {
-            $rest = $mindestabstand - (int) ((microtime(true) - $letzte) * 1000000);
-            if ($rest > 0) {
-                usleep((int) min($rest, $mindestabstand));
-            }
-        }
+        // Mein Platz: entweder jetzt, oder einen vollen Abstand hinter dem letzten vergebenen.
+        $meinPlatz = max(microtime(true), $letzter + ($mindestabstand / 1000000));
 
         @ftruncate($griff, 0);
         @rewind($griff);
-        @fwrite($griff, sprintf('%.6F', microtime(true)));
+        @fwrite($griff, sprintf('%.6F', $meinPlatz));
         @fflush($griff);
     } finally {
+        // Erst freigeben, DANN schlafen -- siehe Docblock.
         @flock($griff, LOCK_UN);
         @fclose($griff);
+    }
+
+    $rest = (int) (($meinPlatz - microtime(true)) * 1000000);
+    if ($rest > 0) {
+        usleep((int) min($rest, $mindestabstand * 5));
     }
 
     return true;
