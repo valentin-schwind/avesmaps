@@ -166,6 +166,7 @@ const AVESMAPS_WIKI_ASSIGN_TEXTE = {
 	keine: "— keine —",
 	artikel: "Artikel",
 	schluessel: "Schlüssel",
+	steckbrief: "Alle Wiki-Angaben",
 	suchen: "Suchen",
 	wikiLink: "Wiki ↗",
 	zuweisen: "Zuweisen",
@@ -280,6 +281,8 @@ const AVESMAPS_WIKI_ASSIGN_SKINS = {
 		syncPfeil: "dt-sync-row__pfeil",
 		syncNeu: "dt-sync-row__neu",
 		syncGrund: "dt-sync-row__grund",
+		klapp: "dt-klapp",
+		klappTitel: "dt-klapp__titel",
 	},
 	// Kartendialoge. Regeln: css/components/region-sync.css.
 	"label-wiki": {
@@ -315,6 +318,8 @@ const AVESMAPS_WIKI_ASSIGN_SKINS = {
 		syncPfeil: "label-wiki-sync-row__pfeil",
 		syncNeu: "label-wiki-sync-row__neu",
 		syncGrund: "label-wiki-sync-row__grund",
+		klapp: "label-wiki-reference__klapp",
+		klappTitel: "label-wiki-reference__klapptitel",
 	},
 };
 
@@ -408,6 +413,8 @@ function avesmapsWikiAssignModell(erklaerung, daten, ui) {
 		aktiveId: "",
 		knoepfe: [],
 		felder: [],
+		// Leere Liste = kein Klappkasten (alle Zeilen offen) -- der Zustand aller uebrigen Objektarten.
+		offen: Array.isArray(e.steckbriefOffen) ? e.steckbriefOffen : [],
 		suchfeld: null,
 		treffer: [],
 		trefferLeerText: "",
@@ -538,16 +545,19 @@ function avesmapsWikiAssignModell(erklaerung, daten, ui) {
 			label: AVESMAPS_WIKI_ASSIGN_TEXTE.artikel,
 			wert: avesmapsWikiAssignText(artikel.name) || avesmapsWikiAssignText(artikel.wiki_url),
 			link: avesmapsWikiAssignSichereUrl(artikel.wiki_url),
+			schluessel: "artikel",
 		}, {
 			label: AVESMAPS_WIKI_ASSIGN_TEXTE.schluessel,
 			wert: avesmapsWikiAssignText(artikel.wiki_key),
 			link: "",
+			schluessel: "wiki_key",
 		}];
 		felder.forEach((feld) => {
 			zeilen.push({
 				label: avesmapsWikiAssignFeldLabel(feld),
 				wert: avesmapsWikiAssignText(werte[feld && feld.wiki]),
 				link: "",
+				schluessel: avesmapsWikiAssignText(feld && feld.wiki),
 			});
 		});
 		// 💣 Leere Felder fallen weg — sie stehen nicht leer da.
@@ -762,9 +772,33 @@ function avesmapsWikiAssignMarkup(modell, skin) {
 			+ avesmapsWikiAssignTrefferListeInhalt(modell, skin)
 			+ "</div>");
 	} else if (modell.felder.length > 0) {
-		teile.push("<" + skin.listeTag + avesmapsWikiAssignKlasse(skin.listeKlasse) + ">"
-			+ modell.felder.map((zeile) => avesmapsWikiAssignFeldMarkup(skin, zeile)).join("")
-			+ "</" + skin.listeTag + ">");
+		// 🔴 DER STECKBRIEF DARF ZUKLAPPEN, und zwar NATIV (`<details>/<summary>`). Nur damit findet
+		// Strg+F den Text einer zugeklappten Zeile und klappt sie selbst auf -- dieselbe Begruendung
+		// wie beim Fenster „Hinweise" (AGENTS.md §11) und bei `.fs-more`.
+		// ⚠️ OPT-IN: ohne `steckbriefOffen` im Register ist `modell.offen` leer, und dann steht alles
+		// offen -- der Zustand aller uebrigen zehn Oberflaechen bleibt Zeile fuer Zeile derselbe.
+		// 💣 Getrennt wird am SCHLUESSEL, nie an der Beschriftung: ein Wortlaut ist uebersetzbar, ein
+		// Schluessel nicht.
+		const offeneListe = modell.offen.length > 0
+			? modell.felder.filter((zeile) => modell.offen.indexOf(zeile.schluessel) !== -1)
+			: modell.felder;
+		const restListe = modell.offen.length > 0
+			? modell.felder.filter((zeile) => modell.offen.indexOf(zeile.schluessel) === -1)
+			: [];
+		const liste = (zeilen) => "<" + skin.listeTag + avesmapsWikiAssignKlasse(skin.listeKlasse) + ">"
+			+ zeilen.map((zeile) => avesmapsWikiAssignFeldMarkup(skin, zeile)).join("")
+			+ "</" + skin.listeTag + ">";
+		// ⚠️ Bleibt nach dem Filtern nichts uebrig, gibt es auch keinen Kasten -- ein Klappknopf, der
+		// nichts verbirgt, kostet eine Zeile und spart keine.
+		if (offeneListe.length > 0) {
+			teile.push(liste(offeneListe));
+		}
+		if (restListe.length > 0) {
+			teile.push("<details" + avesmapsWikiAssignKlasse(skin.klapp) + ">"
+				+ "<summary" + avesmapsWikiAssignKlasse(skin.klappTitel) + ">"
+				+ avesmapsWikiAssignEsc(AVESMAPS_WIKI_ASSIGN_TEXTE.steckbrief) + "</summary>"
+				+ liste(restListe) + "</details>");
+		}
 	}
 
 	if (modell.syncZeilen.length > 0) {

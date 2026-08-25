@@ -63,4 +63,34 @@ assert.strictEqual(treffer, 2,
 assert.ok(/Kurvenbeschriftung“ anhaken/.test(skript),
 	"der gesperrte Regler sagt, was zu tun ist");
 
+// ---- F. 🔴 SEIT 25.08.2026 VERBORGEN, NICHT NUR GESPERRT ---------------------------------------
+// Der Haken steht jetzt unmittelbar UEBER der Zahl und IST damit ihre Begruendung; ein
+// deaktiviertes Bedienelement daneben waere die zweite. Das loest die Fassung vom 24.08. ab.
+// ⚠️ Zusicherung E bleibt trotzdem stehen: der Titel traegt den Fall „angehakt, aber ohne Flaeche",
+// in dem die Zeile sichtbar UND gesperrt ist.
+assert.ok(/label-edit-curve-max-row/.test(rumpfS),
+	"der Sperrer fasst die ZEILE an, nicht nur das Feld");
+assert.ok(/zeile\.hidden = !haken\.checked/.test(rumpfS),
+	"sichtbar genau dann, wenn der Haken sitzt");
+
+// ---- G. Und die Zeile gibt es im Markup, mit Id und von Haus aus verborgen ----------------------
+// 🪤 Ohne `hidden` im Markup stuende sie beim OEFFNEN kurz da und verschwaende erst, wenn der
+// Sperrer laeuft -- ein Flackern, das wie ein Fehler aussieht.
+// ⚠️ Geteilt wird auf dem Zeilenvorschub; index.html ist CRLF, das haengende Wagenrueckende stoert
+// `includes` nicht.
+const markup = fs.readFileSync(path.join(wurzel, "index.html"), "utf8");
+const markupZeilen = markup.split("\n");
+const zeile = markupZeilen.find((z) => z.includes('id="label-edit-curve-max-row"'));
+assert.ok(zeile, "die Zeile traegt eine Id");
+assert.ok(/ hidden[ >]/.test(zeile), "und startet verborgen");
+assert.ok(zeile.includes("Anzahl Kurvenlabel"),
+	"sie heisst „Anzahl Kurvenlabel“ (Owner 25.08.2026), nicht mehr „Max. Namen“");
+
+// ---- H. 💣 Der Haken steht VOR seiner Zahl ------------------------------------------------------
+// Er schaltet sie ein. Stuende er darunter, waere die Zahl da, bevor man weiss, wofuer sie ist.
+const iHaken = markupZeilen.findIndex((z) => z.includes('id="label-edit-curve"') && z.includes("checkbox"));
+const iZahl = markupZeilen.findIndex((z) => z.includes('id="label-edit-curve-max-row"'));
+assert.ok(iHaken > 0 && iZahl > iHaken,
+	"Kurvenbeschriftung steht vor Anzahl Kurvenlabel (Haken " + iHaken + ", Zahl " + iZahl + ")");
+
 console.log("label-maxnamen-riegel: alle Zusicherungen gruen");

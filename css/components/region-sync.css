@@ -466,6 +466,37 @@
 	color: var(--color-placeholder);
 }
 
+/* ── Der zusammengeklappte Wiki-Steckbrief (Owner 25.08.2026) ─────────────────────────────────
+   Offen bleiben Artikel und Art; der Rest steht in einem nativen <details>. Welche Zeilen offen
+   bleiben, sagt das Feldregister (`steckbriefOffen`, js/ui/wiki-assign-registry.js) -- hier steht
+   nur, wie der Kasten aussieht.
+   ⚠️ Kein eigenes Dreieck-Bild: `list-style: none` nimmt das des Browsers weg, und das ▸ kommt
+   als Text davor -- dieselbe Bauform wie bei `.fs-more__toggle` in der Quellenliste. */
+.label-wiki-reference__klapp {
+	margin: 2px 0 0;
+}
+
+.label-wiki-reference__klapptitel {
+	cursor: pointer;
+	font-size: 12px;
+	color: var(--color-link);
+	list-style: none;
+	padding: 3px 0;
+}
+
+.label-wiki-reference__klapptitel::-webkit-details-marker {
+	display: none;
+}
+
+.label-wiki-reference__klapptitel::before {
+	content: "B8 ";
+	color: var(--color-text-muted);
+}
+
+.label-wiki-reference__klapp[open] > .label-wiki-reference__klapptitel::before {
+	content: "BE ";
+}
+
 #label-edit-dialog input[type="text"],
 #label-edit-dialog input[type="number"],
 #label-edit-dialog input[type="search"],

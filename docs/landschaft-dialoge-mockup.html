@@ -1,0 +1,803 @@
+<!doctype html>
+<html lang="de" data-theme="dark">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Entwurf — Landschaftsdialoge: Beschriftung, Fläche, Vereinigung</title>
+
+<!-- Dieses Mockup schreibt KEINE Farbe und keinen Abstand ab: es zieht dieselben Stylesheets, die
+     index.html zieht, in derselben Reihenfolge. Nur so beweisen die „Heute"-Spalten den Ist-Zustand.
+     Über den PHP-Vorschauserver aufrufen (Wurzel = Arbeitsbaum), nicht per file://.
+
+     🪤 FEHLER DER ERSTEN FASSUNG, hier festgehalten damit ihn niemand wiederholt: eine kompakte
+     Spalte hatte `.location-report-form__field` durch eine eigene Klasse ERSETZT. Rahmen, Radius,
+     Polsterung und Schriftgröße der Eingabefelder hängen aber genau an dieser Klasse
+     (css/components/location-report-dialog.css:273) -- die Felder fielen auf den nackten
+     Browserstandard zurück (23 statt 37 px hoch). Die Klasse BLEIBT; die Zeilenform ist ein
+     MODIFIER. -->
+<link rel="stylesheet" href="../css/components/region-sync.css" />
+<link rel="stylesheet" href="../css/features/feature-sources.css" />
+<link rel="stylesheet" href="../css/styles.css" />
+
+<style>
+* { box-sizing: border-box; }
+
+body {
+	margin: 0;
+	background: var(--color-page-bg);
+	color: var(--color-text);
+	font-family: var(--font-ui, "Faculty Glyphic", Arial, sans-serif);
+	font-size: var(--font-size-body, 13px);
+	line-height: 1.5;
+}
+
+.kopf {
+	padding: 14px 20px 0;
+	border-bottom: 1px solid var(--color-divider);
+	background: var(--color-panel);
+	position: sticky;
+	top: 0;
+	z-index: 5;
+}
+
+.kopf h1 {
+	margin: 0 0 4px;
+	font-size: var(--font-size-title);
+	color: var(--color-text-strong);
+	font-weight: 400;
+}
+
+.kopf p { margin: 0 0 10px; max-width: 104ch; color: var(--color-text-muted); font-size: 12px; }
+
+.kopf__leiste { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; padding-bottom: 10px; }
+
+.buehne { display: flex; gap: 28px; align-items: flex-start; padding: 18px 20px 30px; flex-wrap: wrap; }
+
+.spalte__kopf { display: flex; align-items: baseline; gap: 10px; margin-bottom: 8px; }
+
+.spalte__titel {
+	font-size: 12px;
+	font-weight: bold;
+	text-transform: uppercase;
+	letter-spacing: 0.06em;
+	color: var(--color-text-muted);
+}
+
+.spalte__mass { font-size: 12px; color: var(--color-text-strong); }
+.spalte__mass b { color: var(--color-accent-brown); }
+
+/* Die Dialoghüllen. Die IDs gibt es je Dokument nur einmal, deshalb Klassen mit demselben Maß:
+   Beschriftung min(560px) (region-sync.css), Fläche min(420px) (ecosystem-layer.css). */
+.mock-dialog { max-height: none; overflow: visible; }
+.mock-dialog--label { width: 560px; max-width: calc(100vw - 24px); }
+.mock-dialog--flaeche { width: 420px; max-width: calc(100vw - 24px); }
+.mock-dialog--union { width: 560px; max-width: calc(100vw - 24px); }
+
+.mock-dialog input[type="text"],
+.mock-dialog input[type="number"],
+.mock-dialog input[type="search"],
+.mock-dialog select { background: var(--color-panel); }
+
+.mock-marke { position: relative; }
+
+.mock-marke::after {
+	content: "hier kappt die Hülle — alles darunter scrollt";
+	position: absolute;
+	left: 0;
+	right: 0;
+	border-top: 2px dashed var(--color-danger-soft-text);
+	color: var(--color-danger-soft-text);
+	font-size: 11px;
+	padding-top: 2px;
+	pointer-events: none;
+}
+
+.mock-marke--760::after { top: 760px; }
+/* Der Flächendialog kappt nicht bei 760, sondern bei 100 % der Overlay-Höhe -- er bekommt keine Marke. */
+.mock-marke--keine::after { content: none; }
+
+/* ============================================================================================
+   VORGESCHLAGENE REGELN. Sie würden nach css/components/region-sync.css wandern.
+   🔴 Die Abschnitts-Panels BLEIBEN -- sie sind die Hausform dieser Kartendialoge.
+   ============================================================================================ */
+
+/* Beschriftung LINKS statt darüber. Der Modifier kommt ZUSÄTZLICH zu
+   `.location-report-form__field` -- nie an ihrer Stelle. */
+.location-report-form__field--zeile { flex-direction: row; align-items: center; gap: 10px; }
+.location-report-form__field--zeile > span:first-child { flex: 0 0 132px; min-width: 0; }
+.location-report-form__field--zeile > .location-edit-fieldrow,
+.location-report-form__field--zeile > .label-edit-sliderrow { flex: 1 1 auto; min-width: 0; }
+
+/* Ein Haken in der Zeilenform fluchtet mit den Eingabefeldern, nicht mit ihren Beschriftungen. */
+.location-report-form__field--hakenzeile {
+	flex-direction: row;
+	align-items: center;
+	gap: 8px;
+	padding-left: 142px;
+}
+
+.label-klapp { margin: 2px 0 0; }
+
+.label-klapp > summary {
+	cursor: pointer;
+	font-size: 12px;
+	color: var(--color-link);
+	list-style: none;
+	padding: 3px 0;
+}
+
+.label-klapp > summary::-webkit-details-marker { display: none; }
+.label-klapp > summary::before { content: "▸ "; color: var(--color-text-muted); }
+.label-klapp[open] > summary::before { content: "▾ "; }
+
+/* ---- Nur für den Vereinigungs-Entwurf ------------------------------------------------------ */
+
+/* Der gemeinsame Kopf: Name und Art gehören BEIDEN Hälften. Live gemessen tragen 679 von 679
+   Paaren denselben Namen -- heute in zwei Feldern in zwei Fenstern. */
+.union-kopf { margin-bottom: 10px; }
+
+.union-reiter { margin: 0 0 10px; }
+
+.union-tafel[hidden] { display: none; }
+
+/* Die Wahl unter mehreren Beschriftungen einer Fläche. Live betrifft das 13 von 1026 Flächen --
+   selten, aber es ist genau der Fall, für den die 1:N-Beziehung 2026-07-28 beschlossen wurde. */
+.union-labelwahl {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	flex-wrap: wrap;
+	margin-bottom: 8px;
+	padding-bottom: 8px;
+	border-bottom: 1px solid var(--color-divider);
+}
+
+.union-labelwahl__zaehler { font-size: 12px; color: var(--color-text-muted); }
+
+/* Der leere Zustand einer Hälfte. Live: 334 Flächen ohne Beschriftung, 254 Beschriftungen ohne
+   Fläche -- zusammen ein Drittel. Ein Fenster, das ihn nicht kann, ist für ein Drittel falsch. */
+.union-leer {
+	border: 1px dashed var(--color-border);
+	border-radius: var(--radius-md);
+	padding: 14px;
+	text-align: center;
+	color: var(--color-text-muted);
+	font-size: 12px;
+}
+
+.union-leer p { margin: 0 0 10px; }
+
+/* Der Hinweis, dass die Kurvenbeschriftung die freie Platzierung aufhebt. */
+.union-bindung {
+	margin: 6px 0 0;
+	padding: 7px 10px;
+	border-left: 3px solid var(--color-accent);
+	background: var(--color-panel-soft);
+	font-size: 11px;
+	line-height: 1.45;
+	color: var(--color-text-muted);
+	border-radius: var(--radius-sm);
+}
+
+/* ---- Mockup-Beiwerk (kommt NICHT ins Produkt) ---------------------------------------------- */
+.mock-notiz {
+	margin: 0 20px 26px;
+	padding: 10px 14px;
+	border-left: 3px solid var(--color-accent);
+	background: var(--color-panel-soft);
+	font-size: 12px;
+	color: var(--color-text-muted);
+	max-width: 118ch;
+}
+
+.mock-notiz b { color: var(--color-text-strong); }
+.mock-notiz ul { margin: 6px 0 0; padding-left: 18px; }
+.mock-notiz li { margin: 3px 0; }
+
+.mock-tabelle { border-collapse: collapse; margin: 8px 0 0; font-size: 12px; }
+.mock-tabelle td { padding: 2px 14px 2px 0; }
+.mock-tabelle td:last-child { color: var(--color-text-strong); text-align: right; }
+</style>
+</head>
+<body>
+
+<div class="kopf">
+	<h1>Landschaftsdialoge — heute, kompakt, und der Vereinigungs-Entwurf</h1>
+	<p>Alles trägt dieselben Stylesheets wie <code>index.html</code> und dieselben Maße
+	(Beschriftung 560&nbsp;px, Fläche 420&nbsp;px). Vorgabemarken stehen auf einem angenommenen Satz
+	(Größe&nbsp;16, Anzahl&nbsp;2, Zoom&nbsp;1–7, Priorität&nbsp;3), damit man sie sieht.</p>
+	<div class="kopf__leiste">
+		<div class="ecosystem-layer-switch" role="tablist" aria-label="Entwürfe">
+			<button class="ecosystem-layer-switch__tab" type="button" role="tab" data-tafel="beschriftung" aria-selected="true">Beschriftung</button>
+			<button class="ecosystem-layer-switch__tab" type="button" role="tab" data-tafel="flaeche" aria-selected="false">Fläche</button>
+			<button class="ecosystem-layer-switch__tab" type="button" role="tab" data-tafel="union" aria-selected="false">Vereinigung</button>
+		</div>
+		<button type="button" id="themeschalter" class="location-report-form__button location-report-form__button--secondary">Helles Thema</button>
+	</div>
+</div>
+
+<!-- ================================================================================================
+     TAFEL 1 — DIE BESCHRIFTUNG
+     ================================================================================================ -->
+<div class="union-tafel" data-tafel="beschriftung">
+<div class="buehne">
+
+	<div class="spalte">
+		<div class="spalte__kopf">
+			<span class="spalte__titel">Beschriftung — heute</span>
+			<span class="spalte__mass">Höhe: <b id="mass-l-heute">–</b></span>
+		</div>
+		<div class="mock-marke mock-marke--760">
+		<div class="location-report-dialog mock-dialog mock-dialog--label" id="dlg-l-heute">
+			<div class="location-report-dialog__header">
+				<h2>Derographie-Label bearbeiten</h2>
+				<button class="location-report-dialog__close" type="button" aria-label="schließen">×</button>
+			</div>
+			<form class="location-report-form" novalidate>
+				<div class="label-edit-section"><div class="label-edit-section-title">Identität</div>
+					<label class="location-report-form__field"><span>Text *</span><div class="location-edit-fieldrow"><input type="text" value="Nord-Gratenfels" /></div></label>
+					<label class="location-report-form__field"><span>Art *</span><div class="location-edit-fieldrow"><select><option>Region</option></select></div></label>
+				</div>
+				<div class="label-edit-section"><div class="label-edit-section-title">Darstellung</div>
+					<div class="label-edit-grid">
+						<label class="location-report-form__field"><span>Größe</span><div class="label-edit-sliderrow"><input type="number" min="12" max="50" value="18" /><span class="label-edit-markewrap"><input type="range" min="12" max="50" value="18" aria-label="Größe" /><i class="label-edit-marke" data-vorgabe="16"></i></span></div></label>
+						<label class="location-report-form__field location-report-form__field--checkbox"><input type="checkbox" /><span>Kurvenbeschriftung</span></label>
+						<label class="location-report-form__field"><span>Max. Namen</span><div class="label-edit-sliderrow"><input type="number" min="1" max="3" value="1" /><span class="label-edit-markewrap"><input type="range" min="1" max="3" value="1" aria-label="Max. Namen" /><i class="label-edit-marke" data-vorgabe="2"></i></span></div></label>
+						<label class="location-report-form__field"><span>Sichtbar ab Zoom</span><div class="label-edit-sliderrow"><input type="number" min="0" max="7" value="2" /><span class="label-edit-markewrap"><input type="range" min="0" max="7" value="2" aria-label="Sichtbar ab Zoom" /><i class="label-edit-marke" data-vorgabe="1"></i></span></div></label>
+						<label class="location-report-form__field"><span>Sichtbar bis Zoom</span><div class="label-edit-sliderrow"><input type="number" min="0" max="7" value="7" /><span class="label-edit-markewrap"><input type="range" min="0" max="7" value="7" aria-label="Sichtbar bis Zoom" /><i class="label-edit-marke" data-vorgabe="7"></i></span></div></label>
+						<label class="location-report-form__field"><span>Priorität</span><div class="label-edit-sliderrow"><input type="number" min="1" max="5" value="3" /><span class="label-edit-markewrap"><input type="range" min="1" max="5" value="3" aria-label="Priorität" /><i class="label-edit-marke" data-vorgabe="3"></i></span></div></label>
+						<label class="location-report-form__field location-report-form__field--checkbox"><input type="checkbox" /><span>Nodix</span></label>
+					</div>
+				</div>
+				<div class="label-wiki-reference">
+					<div class="label-wiki-reference__head">
+						<span class="label-wiki-reference__title">Wiki-Landschaft</span>
+						<span class="label-wiki-reference__buttons">
+							<button type="button" class="location-report-form__button location-report-form__button--secondary">Ändern</button>
+							<button type="button" class="location-report-form__button location-report-form__button--secondary">Sync</button>
+							<button type="button" class="location-report-form__button location-report-form__button--secondary">Entfernen</button>
+						</span>
+					</div>
+					<dl class="label-wiki-reference__dl">
+						<dt>Artikel</dt><dd><a class="label-wiki-reference__link" href="#">Nord-Gratenfels Wiki ↗</a></dd>
+						<dt>Schlüssel</dt><dd>nord-gratenfels</dd>
+						<dt>Name</dt><dd>Nord-Gratenfels</dd>
+						<dt>Art</dt><dd>Gebirge</dd>
+						<dt>Lage</dt><dd>Nordmarken</dd>
+						<dt>Staat</dt><dd>Mittelreich: Herzogtum Nordmarken: Landgrafschaft Gratenfels</dd>
+						<dt>Kontinent</dt><dd>Aventurien</dd>
+						<dt>Einwohner</dt><dd>9300 davon 200 Zwerge</dd>
+						<dt>Verkehrswege</dt><dd>Tommel</dd>
+					</dl>
+					<div class="label-wiki-reference__hint">Zuweisen und Lösen wirken erst mit „Speichern“.</div>
+				</div>
+				<div class="label-edit-section"><div class="label-edit-section-title">Quellen</div>
+					<p class="location-report-form__status">Quellen wirken <b>sofort</b> — sie brauchen kein „Speichern“.</p>
+					<div class="fs-editor">
+						<div class="fs-hint">Tragt bei Quellen immer den eigentlichen <strong>Veröffentlichungstitel der Quelle</strong> und den Link ein. Achtet darauf, ob es sich um eine offizielle Quelle handelt.</div>
+						<div class="fs-group fs-group--wiki-auto">
+							<div class="fs-group-heading">Aus dem Wiki (automatisch)</div>
+							<div class="fs-col-heads" aria-hidden="true"><span>Titel</span><span>Typ</span><span>Art</span><span>Seiten</span><span></span></div>
+							<div class="fs-row"><a class="fs-row__link" href="#">Am Großen Fluss ↗</a><span class="fs-row__badge">Regionalspielhilfe *</span><span class="fs-row__kind">Ausführlich</span><span class="fs-row__pages">S. 39, 125, 127</span><button type="button" class="fs-row__remove">✕</button></div>
+							<div class="fs-row"><a class="fs-row__link" href="#">Die Flusslande (2023) ↗</a><span class="fs-row__badge">Regionalspielhilfe *</span><span class="fs-row__kind">Ausführlich</span><span class="fs-row__pages">S. 14 ff.</span><button type="button" class="fs-row__remove">✕</button></div>
+							<div class="fs-row"><a class="fs-row__link" href="#">Die Flusslande ↗</a><span class="fs-row__badge">Regionalspielhilfe *</span><span class="fs-row__kind">Ausführlich</span><span class="fs-row__pages">S. 149, 150</span><button type="button" class="fs-row__remove">✕</button></div>
+							<div class="fs-row"><a class="fs-row__link" href="#">Aus der Asche ↗</a><span class="fs-row__badge">Abenteuer *</span><span class="fs-row__kind">Nur Erwähnung</span><span class="fs-row__pages">S. 72</span><button type="button" class="fs-row__remove">✕</button></div>
+							<div class="fs-row"><a class="fs-row__link" href="#">Mysterien der Flusslande ↗</a><span class="fs-row__badge">Regionalspielhilfe *</span><span class="fs-row__kind">Ergänzend</span><span class="fs-row__pages">S. 16</span><button type="button" class="fs-row__remove">✕</button></div>
+							<details class="fs-more"><summary class="fs-more__toggle">eine weitere Quelle</summary><div class="fs-more__rest"><div class="fs-row"><a class="fs-row__link" href="#">Die Streitenden Königreiche ↗</a><span class="fs-row__badge">Regionalspielhilfe *</span><span class="fs-row__kind"></span><span class="fs-row__pages">S. 8</span><button type="button" class="fs-row__remove">✕</button></div></div></details>
+						</div>
+						<div class="fs-row fs-row--add">
+							<input type="text" class="fs-add-url" placeholder="URL">
+							<input type="text" class="fs-add-label" placeholder="Quellenname">
+							<input type="text" class="fs-add-pages" placeholder="Seite(n)">
+							<select class="fs-add-type"><option>Region</option></select>
+							<select class="fs-add-kind"><option>—</option></select>
+							<label class="fs-add-official-label"><input type="checkbox" class="fs-add-official"> offiziell</label>
+							<button type="button" class="fs-row__add">Hinzufügen</button>
+						</div>
+					</div>
+				</div>
+				<div class="location-report-form__actions">
+					<button class="location-report-form__button location-report-form__button--secondary" type="button">Löschen</button>
+					<button class="location-report-form__button location-report-form__button--secondary" type="button">Abbrechen</button>
+					<button class="location-report-form__button location-report-form__button--primary" type="button">Speichern</button>
+				</div>
+			</form>
+		</div>
+		</div>
+	</div>
+
+	<div class="spalte">
+		<div class="spalte__kopf">
+			<span class="spalte__titel">Beschriftung — kompakt</span>
+			<span class="spalte__mass">Höhe: <b id="mass-l-kompakt">–</b></span>
+		</div>
+		<div class="mock-marke mock-marke--760">
+		<div class="location-report-dialog mock-dialog mock-dialog--label" id="dlg-l-kompakt">
+			<div class="location-report-dialog__header">
+				<h2>Derographie-Label bearbeiten</h2>
+				<button class="location-report-dialog__close" type="button" aria-label="schließen">×</button>
+			</div>
+			<form class="location-report-form" novalidate>
+				<div class="label-edit-section"><div class="label-edit-section-title">Eigenschaften</div>
+					<label class="location-report-form__field location-report-form__field--zeile"><span>Text *</span><div class="location-edit-fieldrow"><input type="text" value="Nord-Gratenfels" /></div></label>
+					<label class="location-report-form__field location-report-form__field--zeile"><span>Art *</span><div class="location-edit-fieldrow"><select><option>Region</option></select></div></label>
+					<label class="location-report-form__field location-report-form__field--hakenzeile"><input type="checkbox" /><span>Nodix</span></label>
+				</div>
+				<div class="label-edit-section"><div class="label-edit-section-title">Darstellung</div>
+					<label class="location-report-form__field location-report-form__field--zeile"><span>Größe</span><div class="label-edit-sliderrow"><input type="number" min="12" max="50" value="18" /><span class="label-edit-markewrap"><input type="range" min="12" max="50" value="18" aria-label="Größe" /><i class="label-edit-marke" data-vorgabe="16"></i></span></div></label>
+					<label class="location-report-form__field location-report-form__field--zeile"><span>Priorität</span><div class="label-edit-sliderrow"><input type="number" min="1" max="5" value="3" /><span class="label-edit-markewrap"><input type="range" min="1" max="5" value="3" aria-label="Priorität" /><i class="label-edit-marke" data-vorgabe="3"></i></span></div></label>
+					<label class="location-report-form__field location-report-form__field--zeile"><span>Sichtbar ab Zoom</span><div class="label-edit-sliderrow"><input type="number" min="0" max="7" value="2" /><span class="label-edit-markewrap"><input type="range" min="0" max="7" value="2" aria-label="Sichtbar ab Zoom" /><i class="label-edit-marke" data-vorgabe="1"></i></span></div></label>
+					<label class="location-report-form__field location-report-form__field--zeile"><span>Sichtbar bis Zoom</span><div class="label-edit-sliderrow"><input type="number" min="0" max="7" value="7" /><span class="label-edit-markewrap"><input type="range" min="0" max="7" value="7" aria-label="Sichtbar bis Zoom" /><i class="label-edit-marke" data-vorgabe="7"></i></span></div></label>
+					<label class="location-report-form__field location-report-form__field--hakenzeile"><input type="checkbox" data-kurve="l" /><span>Kurvenbeschriftung</span></label>
+					<label class="location-report-form__field location-report-form__field--zeile" data-anzahl="l" hidden><span>Anzahl Kurvenlabel</span><div class="label-edit-sliderrow"><input type="number" min="1" max="3" value="1" /><span class="label-edit-markewrap"><input type="range" min="1" max="3" value="1" aria-label="Anzahl Kurvenlabel" /><i class="label-edit-marke" data-vorgabe="2"></i></span></div></label>
+				</div>
+				<div class="label-wiki-reference">
+					<div class="label-wiki-reference__head">
+						<span class="label-wiki-reference__title">Wiki-Landschaft</span>
+						<span class="label-wiki-reference__buttons">
+							<button type="button" class="location-report-form__button location-report-form__button--secondary">Ändern</button>
+							<button type="button" class="location-report-form__button location-report-form__button--secondary">Sync</button>
+							<button type="button" class="location-report-form__button location-report-form__button--secondary">Entfernen</button>
+						</span>
+					</div>
+					<dl class="label-wiki-reference__dl">
+						<dt>Artikel</dt><dd><a class="label-wiki-reference__link" href="#">Nord-Gratenfels Wiki ↗</a></dd>
+						<dt>Art</dt><dd>Gebirge · Nordmarken</dd>
+					</dl>
+					<details class="label-klapp"><summary>Alle Wiki-Angaben</summary>
+						<dl class="label-wiki-reference__dl">
+							<dt>Schlüssel</dt><dd>nord-gratenfels</dd>
+							<dt>Name</dt><dd>Nord-Gratenfels</dd>
+							<dt>Staat</dt><dd>Mittelreich: Herzogtum Nordmarken: Landgrafschaft Gratenfels</dd>
+							<dt>Kontinent</dt><dd>Aventurien</dd>
+							<dt>Einwohner</dt><dd>9300 davon 200 Zwerge</dd>
+							<dt>Verkehrswege</dt><dd>Tommel</dd>
+						</dl>
+					</details>
+					<div class="label-wiki-reference__hint">Zuweisen und Lösen wirken erst mit „Speichern“.</div>
+				</div>
+				<div class="label-edit-section"><div class="label-edit-section-title">Quellen</div>
+					<p class="location-report-form__status">Quellen wirken <b>sofort</b> — sie brauchen kein „Speichern“.</p>
+					<div class="fs-editor">
+						<div class="fs-hint">Tragt bei Quellen immer den eigentlichen <strong>Veröffentlichungstitel der Quelle</strong> und den Link ein. Achtet darauf, ob es sich um eine offizielle Quelle handelt.</div>
+						<div class="fs-group fs-group--wiki-auto">
+							<div class="fs-group-heading">Aus dem Wiki (automatisch)</div>
+							<div class="fs-col-heads" aria-hidden="true"><span>Titel</span><span>Typ</span><span>Art</span><span>Seiten</span><span></span></div>
+							<div class="fs-row"><a class="fs-row__link" href="#">Am Großen Fluss ↗</a><span class="fs-row__badge">Regionalspielhilfe *</span><span class="fs-row__kind">Ausführlich</span><span class="fs-row__pages">S. 39, 125, 127</span><button type="button" class="fs-row__remove">✕</button></div>
+							<div class="fs-row"><a class="fs-row__link" href="#">Die Flusslande (2023) ↗</a><span class="fs-row__badge">Regionalspielhilfe *</span><span class="fs-row__kind">Ausführlich</span><span class="fs-row__pages">S. 14 ff.</span><button type="button" class="fs-row__remove">✕</button></div>
+							<div class="fs-row"><a class="fs-row__link" href="#">Die Flusslande ↗</a><span class="fs-row__badge">Regionalspielhilfe *</span><span class="fs-row__kind">Ausführlich</span><span class="fs-row__pages">S. 149, 150</span><button type="button" class="fs-row__remove">✕</button></div>
+							<div class="fs-row"><a class="fs-row__link" href="#">Aus der Asche ↗</a><span class="fs-row__badge">Abenteuer *</span><span class="fs-row__kind">Nur Erwähnung</span><span class="fs-row__pages">S. 72</span><button type="button" class="fs-row__remove">✕</button></div>
+							<div class="fs-row"><a class="fs-row__link" href="#">Mysterien der Flusslande ↗</a><span class="fs-row__badge">Regionalspielhilfe *</span><span class="fs-row__kind">Ergänzend</span><span class="fs-row__pages">S. 16</span><button type="button" class="fs-row__remove">✕</button></div>
+							<details class="fs-more"><summary class="fs-more__toggle">eine weitere Quelle</summary><div class="fs-more__rest"><div class="fs-row"><a class="fs-row__link" href="#">Die Streitenden Königreiche ↗</a><span class="fs-row__badge">Regionalspielhilfe *</span><span class="fs-row__kind"></span><span class="fs-row__pages">S. 8</span><button type="button" class="fs-row__remove">✕</button></div></div></details>
+						</div>
+						<div class="fs-row fs-row--add">
+							<input type="text" class="fs-add-url" placeholder="URL">
+							<input type="text" class="fs-add-label" placeholder="Quellenname">
+							<input type="text" class="fs-add-pages" placeholder="Seite(n)">
+							<select class="fs-add-type"><option>Region</option></select>
+							<select class="fs-add-kind"><option>—</option></select>
+							<label class="fs-add-official-label"><input type="checkbox" class="fs-add-official"> offiziell</label>
+							<button type="button" class="fs-row__add">Hinzufügen</button>
+						</div>
+					</div>
+				</div>
+				<div class="location-report-form__actions">
+					<button class="location-report-form__button location-report-form__button--secondary" type="button">Löschen</button>
+					<button class="location-report-form__button location-report-form__button--secondary" type="button">Abbrechen</button>
+					<button class="location-report-form__button location-report-form__button--primary" type="button">Speichern</button>
+				</div>
+			</form>
+		</div>
+		</div>
+	</div>
+
+</div>
+</div>
+
+<!-- ================================================================================================
+     TAFEL 2 — DIE FLÄCHE
+     ================================================================================================ -->
+<div class="union-tafel" data-tafel="flaeche" hidden>
+<div class="buehne">
+
+	<div class="spalte">
+		<div class="spalte__kopf">
+			<span class="spalte__titel">Fläche — heute</span>
+			<span class="spalte__mass">Höhe: <b id="mass-f-heute">–</b></span>
+		</div>
+		<div class="mock-marke mock-marke--keine">
+		<div class="ecosystem-properties-dialog mock-dialog mock-dialog--flaeche" id="dlg-f-heute">
+			<div class="ecosystem-properties-dialog__header">
+				<h2>Fläche bearbeiten</h2>
+				<button class="ecosystem-properties-dialog__close" type="button" aria-label="schließen">×</button>
+			</div>
+			<form class="ecosystem-properties-dialog__form">
+				<fieldset class="ecosystem-properties-dialog__group">
+					<legend>Identität</legend>
+					<label class="ecosystem-properties-dialog__field"><span>Name *</span><input type="text" value="Nord-Gratenfels" /></label>
+					<label class="ecosystem-properties-dialog__checkbox"><input type="checkbox" /><span>Auto-Name</span></label>
+					<label class="ecosystem-properties-dialog__checkbox"><input type="checkbox" checked /><span>Regionname anzeigen</span></label>
+					<label class="ecosystem-properties-dialog__checkbox"><input type="checkbox" /><span>Nodix</span></label>
+					<label class="ecosystem-properties-dialog__checkbox"><input type="checkbox" /><span>Für Klicks gesperrt</span></label>
+					<label class="ecosystem-properties-dialog__checkbox"><input type="checkbox" /><span>Kurvenbeschriftung</span></label>
+					<label class="ecosystem-properties-dialog__field"><span>Max. Namen</span><input type="number" min="1" max="3" value="1" /></label>
+					<label class="ecosystem-properties-dialog__field"><span>Art</span><select><option>Gebirge</option></select></label>
+					<p class="ecosystem-properties-dialog__areas">1 Fläche, 1 Beschriftung</p>
+				</fieldset>
+				<div class="label-wiki-reference">
+					<div class="label-wiki-reference__head"><span class="label-wiki-reference__title">Gelände</span></div>
+					<div class="ecosystem-properties-dialog__terrain">
+						<label class="ecosystem-properties-dialog__terrainrow"><span>Erhebungen</span><input type="range" min="1" max="24" step="0.1" value="8" /><input class="ecosystem-properties-dialog__terrainnum" type="number" min="1" max="24" step="0.1" value="8" aria-label="Erhebungen" /></label>
+						<label class="ecosystem-properties-dialog__terrainrow"><span>Erosion</span><input type="range" min="0" max="5" step="1" value="2" /><input class="ecosystem-properties-dialog__terrainnum" type="number" min="0" max="5" step="1" value="2" aria-label="Erosion" /></label>
+						<label class="ecosystem-properties-dialog__terrainrow"><span>Maximalhöhe</span><input type="range" min="0" max="20000" step="50" value="4200" /><input class="ecosystem-properties-dialog__terrainnum" type="number" min="0" max="20000" step="50" value="4200" aria-label="Maximalhöhe" /></label>
+						<label class="ecosystem-properties-dialog__terrainrow"><span>Durchschnittshöhe</span><input type="range" min="0" max="20000" step="50" value="1800" /><input class="ecosystem-properties-dialog__terrainnum" type="number" min="0" max="20000" step="50" value="1800" aria-label="Durchschnittshöhe" /></label>
+						<div class="ecosystem-properties-dialog__terrainactions">
+							<button type="button" class="ecosystem-properties-dialog__button">Auf Automatik zurück</button>
+						</div>
+					</div>
+				</div>
+				<div class="label-wiki-reference">
+					<div class="label-wiki-reference__head"><span class="label-wiki-reference__title">Wiki-Landschaft</span>
+						<span class="label-wiki-reference__buttons">
+							<button type="button" class="location-report-form__button location-report-form__button--secondary">Ändern</button>
+							<button type="button" class="location-report-form__button location-report-form__button--secondary">Sync</button>
+						</span>
+					</div>
+					<dl class="label-wiki-reference__dl">
+						<dt>Artikel</dt><dd><a class="label-wiki-reference__link" href="#">Nord-Gratenfels Wiki ↗</a></dd>
+						<dt>Art</dt><dd>Gebirge</dd>
+						<dt>Lage</dt><dd>Nordmarken</dd>
+					</dl>
+				</div>
+				<div class="ecosystem-properties-dialog__group">
+					<div class="ecosystem-properties-dialog__grouptitle">Quellen</div>
+					<p class="ecosystem-properties-dialog__status">Gelten für die ganze Region und wirken <b>sofort</b>.</p>
+					<div class="fs-editor">
+						<div class="fs-group fs-group--wiki-auto">
+							<div class="fs-group-heading">Aus dem Wiki (automatisch)</div>
+							<div class="fs-row"><a class="fs-row__link" href="#">Am Großen Fluss ↗</a><span class="fs-row__badge">Regionalspielhilfe *</span><span class="fs-row__kind">Ausführlich</span><span class="fs-row__pages">S. 39, 125</span><button type="button" class="fs-row__remove">✕</button></div>
+						</div>
+					</div>
+				</div>
+				<div class="ecosystem-properties-dialog__actions">
+					<button class="ecosystem-properties-dialog__button ecosystem-properties-dialog__button--danger" type="button">Löschen</button>
+					<span class="ecosystem-properties-dialog__spacer"></span>
+					<button class="ecosystem-properties-dialog__button" type="button">Abbrechen</button>
+					<button class="ecosystem-properties-dialog__button ecosystem-properties-dialog__button--primary" type="button">Speichern</button>
+				</div>
+			</form>
+		</div>
+		</div>
+	</div>
+
+	<div class="mock-notiz" style="max-width:52ch; margin:26px 0 0">
+		<b>Was am Flächendialog auffällt — noch bevor man ihn kompaktiert:</b>
+		<ul>
+			<li>Er ist ein <b>drittes Fensterrezept</b>: 420&nbsp;px statt 560, <code>--radius-sm</code> statt <code>--radius-lg</code>, eigene Klassenfamilie, eigene Knopfklassen. Neben Beschriftungs- und Ortsdialog die dritte Bauform für dieselbe Aufgabe.</li>
+			<li><b>Sechs Haken untereinander</b> ohne Gruppierung — „Regionname anzeigen", „Nodix" und „Kurvenbeschriftung" gehören der <b>Beschriftung</b>, nicht der Fläche.</li>
+			<li><b>Kurvenbeschriftung und Max. Namen stehen hier UND im Beschriftungsdialog</b> und bedienen denselben Wert. Das steht wörtlich als Warnung im Quelltext.</li>
+			<li>Die <b>Quellen sind eine andere Liste</b> als die im Beschriftungsdialog: hier <code>entity_type=ecosystem</code> an der Region, dort <code>entity_type=region</code> an der Beschriftung. Zwei Listen für ein Ding.</li>
+		</ul>
+	</div>
+
+</div>
+</div>
+
+<!-- ================================================================================================
+     TAFEL 3 — DIE VEREINIGUNG
+     ================================================================================================ -->
+<div class="union-tafel" data-tafel="union" hidden>
+
+<div class="mock-notiz">
+	<b>Live gemessen am 25.08.2026 (eine Anfrage je Endpunkt):</b>
+	<table class="mock-tabelle">
+		<tr><td>Beschriftungen gesamt</td><td>961</td></tr>
+		<tr><td>… davon <b>ohne</b> Fläche (69 Berggipfel, 42 „Region", 38 Wald, 21 Fluss …)</td><td>254 &nbsp;(26 %)</td></tr>
+		<tr><td>Flächen (Regionen) gesamt</td><td>1026</td></tr>
+		<tr><td>… davon <b>ohne</b> Beschriftung</td><td>334 &nbsp;(33 %)</td></tr>
+		<tr><td>… mit genau einer Beschriftung</td><td>679</td></tr>
+		<tr><td>… mit zwei oder drei (Ingvaltal, Yaquirtal …)</td><td>13 &nbsp;(1,3 %)</td></tr>
+		<tr><td>Regionen mit mehr als einer Fläche</td><td>1</td></tr>
+		<tr><td><b>Paare, bei denen Flächenname und Beschriftungstext identisch sind</b></td><td><b>679 von 679 = 100 %</b></td></tr>
+	</table>
+	<p style="margin-top:8px">Ein Datensatz für beides wäre für <b>588 von 1281 Objekten</b> halb leer — und nähme dem Ingvaltal seine drei Beschriftungen. <b>Ein Fenster</b> für beides trifft dagegen genau den Fall, den es 679-mal gibt: dieselbe Sache, zweimal gepflegt.</p>
+</div>
+
+<div class="buehne">
+	<div class="spalte">
+		<div class="spalte__kopf">
+			<span class="spalte__titel">Vereinigung</span>
+			<span class="spalte__mass">Höhe: <b id="mass-u">–</b></span>
+			<span class="spalte__mass">Einstieg:
+				<select id="union-einstieg">
+					<option value="beschriftung">Klick auf die Beschriftung</option>
+					<option value="flaeche">Eigenschaften der Fläche</option>
+				</select>
+			</span>
+			<span class="spalte__mass">Fall:
+				<select id="union-fall">
+					<option value="beides">Fläche mit Beschriftung (679×)</option>
+					<option value="nurflaeche">Fläche ohne Beschriftung (334×)</option>
+					<option value="nurlabel">Beschriftung ohne Fläche (254×)</option>
+					<option value="mehrere">Fläche mit drei Beschriftungen (13×)</option>
+				</select>
+			</span>
+		</div>
+		<div class="mock-marke mock-marke--760">
+		<div class="location-report-dialog mock-dialog mock-dialog--union" id="dlg-u">
+			<div class="location-report-dialog__header">
+				<h2>Landschaft bearbeiten</h2>
+				<button class="location-report-dialog__close" type="button" aria-label="schließen">×</button>
+			</div>
+			<form class="location-report-form" novalidate>
+
+				<!-- Der GEMEINSAME Kopf. Name und Art gehören beiden Hälften; heute stehen sie in zwei
+				     Feldern in zwei Fenstern und tragen live in 679 von 679 Fällen denselben Wert. -->
+				<div class="label-edit-section union-kopf">
+					<label class="location-report-form__field location-report-form__field--zeile"><span>Name *</span><div class="location-edit-fieldrow"><input type="text" value="Nord-Gratenfels" /></div></label>
+					<label class="location-report-form__field location-report-form__field--zeile"><span>Art *</span><div class="location-edit-fieldrow"><select><option>Gebirge</option></select></div></label>
+					<label class="location-report-form__field location-report-form__field--hakenzeile"><input type="checkbox" /><span>Auto-Name</span></label>
+				</div>
+
+				<div class="ecosystem-layer-switch union-reiter" role="tablist" aria-label="Bereich">
+					<button class="ecosystem-layer-switch__tab" type="button" role="tab" data-ureiter="flaeche" aria-selected="true">Fläche</button>
+					<button class="ecosystem-layer-switch__tab" type="button" role="tab" data-ureiter="beschriftung" aria-selected="false">Beschriftung</button>
+					<button class="ecosystem-layer-switch__tab" type="button" role="tab" data-ureiter="wiki" aria-selected="false">Wiki &amp; Quellen</button>
+				</div>
+
+				<!-- ---- Reiter FLÄCHE ---- -->
+				<div data-ubereich="flaeche">
+					<div class="union-leer" data-ufall="nurlabel" hidden>
+						<p>Diese Beschriftung liegt auf keiner Fläche.</p>
+						<label class="location-report-form__field location-report-form__field--zeile" style="text-align:left"><span>Gehört zu</span><div class="location-edit-fieldrow"><select><option>— keine Fläche —</option><option>Nord-Gratenfels</option></select></div></label>
+						<p style="margin-top:10px"><button type="button" class="location-report-form__button location-report-form__button--secondary">Fläche zeichnen</button></p>
+					</div>
+					<div data-ufall="beides nurflaeche mehrere">
+						<div class="label-edit-section">
+							<div class="label-edit-section-title">Fläche</div>
+							<label class="location-report-form__field location-report-form__field--hakenzeile"><input type="checkbox" /><span>Für Klicks gesperrt</span></label>
+						</div>
+						<div class="label-edit-section">
+							<div class="label-edit-section-title">Gelände</div>
+							<label class="location-report-form__field location-report-form__field--zeile"><span>Erhebungen</span><div class="label-edit-sliderrow"><input type="number" min="1" max="24" step="0.1" value="8" /><span class="label-edit-markewrap"><input type="range" min="1" max="24" step="0.1" value="8" aria-label="Erhebungen" /></span></div></label>
+							<label class="location-report-form__field location-report-form__field--zeile"><span>Erosion</span><div class="label-edit-sliderrow"><input type="number" min="0" max="5" value="2" /><span class="label-edit-markewrap"><input type="range" min="0" max="5" value="2" aria-label="Erosion" /></span></div></label>
+							<label class="location-report-form__field location-report-form__field--zeile"><span>Maximalhöhe</span><div class="label-edit-sliderrow label-edit-sliderrow--wide"><input type="number" min="0" max="20000" step="50" value="4200" /><span class="label-edit-markewrap"><input type="range" min="0" max="20000" step="50" value="4200" aria-label="Maximalhöhe" /></span></div></label>
+							<label class="location-report-form__field location-report-form__field--zeile"><span>Durchschnittshöhe</span><div class="label-edit-sliderrow label-edit-sliderrow--wide"><input type="number" min="0" max="20000" step="50" value="1800" /><span class="label-edit-markewrap"><input type="range" min="0" max="20000" step="50" value="1800" aria-label="Durchschnittshöhe" /></span></div></label>
+							<p class="location-report-form__status"><button type="button" class="location-report-form__button location-report-form__button--secondary">Auf Automatik zurück</button></p>
+						</div>
+					</div>
+				</div>
+
+				<!-- ---- Reiter BESCHRIFTUNG ---- -->
+				<div data-ubereich="beschriftung" hidden>
+					<div class="union-leer" data-ufall="nurflaeche" hidden>
+						<p>Diese Fläche trägt keine Beschriftung.</p>
+						<p><button type="button" id="union-label-anlegen" class="location-report-form__button location-report-form__button--primary">Beschriftung anlegen</button></p>
+					</div>
+					<div data-ufall="beides nurlabel mehrere">
+						<!-- Die 1:N-Beziehung bleibt: der Finsterkamm-Entscheid vom 28.07.2026 („im Norden UND
+						     im Süden beschriftet, jede mit eigener Drehung und Position") lebt in 13 Flächen. -->
+						<div class="union-labelwahl" data-ufall="mehrere" hidden>
+							<span class="union-labelwahl__zaehler">Beschriftung</span>
+							<select><option>1 — nördlich (Gratenfels)</option><option>2 — mittig</option><option>3 — südlich (Tommel)</option></select>
+							<button type="button" class="location-report-form__button location-report-form__button--secondary">+ weitere</button>
+							<button type="button" class="location-report-form__button location-report-form__button--secondary">Diese entfernen</button>
+						</div>
+						<p class="location-report-form__status" id="union-angelegt" role="status" hidden>Beschriftung am Punkt der Unzugänglichkeit (505,4 / 511,9) angelegt.</p>
+						<div class="label-edit-section">
+							<div class="label-edit-section-title">Beschriftung</div>
+							<label class="location-report-form__field location-report-form__field--hakenzeile"><input type="checkbox" checked /><span>Auf der Karte anzeigen</span></label>
+							<label class="location-report-form__field location-report-form__field--zeile"><span>Größe</span><div class="label-edit-sliderrow"><input type="number" min="12" max="50" value="18" /><span class="label-edit-markewrap"><input type="range" min="12" max="50" value="18" aria-label="Größe" /><i class="label-edit-marke" data-vorgabe="16"></i></span></div></label>
+							<label class="location-report-form__field location-report-form__field--zeile"><span>Priorität</span><div class="label-edit-sliderrow"><input type="number" min="1" max="5" value="3" /><span class="label-edit-markewrap"><input type="range" min="1" max="5" value="3" aria-label="Priorität" /><i class="label-edit-marke" data-vorgabe="3"></i></span></div></label>
+							<label class="location-report-form__field location-report-form__field--zeile"><span>Sichtbar ab Zoom</span><div class="label-edit-sliderrow"><input type="number" min="0" max="7" value="2" /><span class="label-edit-markewrap"><input type="range" min="0" max="7" value="2" aria-label="Sichtbar ab Zoom" /><i class="label-edit-marke" data-vorgabe="1"></i></span></div></label>
+							<label class="location-report-form__field location-report-form__field--zeile"><span>Sichtbar bis Zoom</span><div class="label-edit-sliderrow"><input type="number" min="0" max="7" value="7" /><span class="label-edit-markewrap"><input type="range" min="0" max="7" value="7" aria-label="Sichtbar bis Zoom" /><i class="label-edit-marke" data-vorgabe="7"></i></span></div></label>
+							<label class="location-report-form__field location-report-form__field--hakenzeile"><input type="checkbox" /><span>Nodix</span></label>
+							<!-- 🔴 DIE AUSNAHME, die der Owner benannt hat: mit Kurvenbeschriftung ist die
+							     Beschriftung an die Fläche GEBUNDEN -- sie läuft auf deren Mittelachse, ihre
+							     eigene Position und Drehung wirken nicht mehr. Ohne den Haken sind beide
+							     Hälften unabhängig platzierbar. -->
+							<label class="location-report-form__field location-report-form__field--hakenzeile"><input type="checkbox" data-kurve="u" /><span>Kurvenbeschriftung</span></label>
+							<label class="location-report-form__field location-report-form__field--zeile" data-anzahl="u" hidden><span>Anzahl Kurvenlabel</span><div class="label-edit-sliderrow"><input type="number" min="1" max="3" value="1" /><span class="label-edit-markewrap"><input type="range" min="1" max="3" value="1" aria-label="Anzahl Kurvenlabel" /><i class="label-edit-marke" data-vorgabe="2"></i></span></div></label>
+							<p class="union-bindung" data-bindung="frei">Die Beschriftung liegt frei auf der Karte und lässt sich unabhängig von der Fläche verschieben.</p>
+							<p class="union-bindung" data-bindung="gebunden" hidden><b>An die Fläche gebunden:</b> die Beschriftung läuft auf der Mittelachse der Fläche. Ihre eigene Position und Drehung wirken nicht mehr.</p>
+						</div>
+					</div>
+				</div>
+
+				<!-- ---- Reiter WIKI & QUELLEN ---- -->
+				<div data-ubereich="wiki" hidden>
+					<div class="label-wiki-reference">
+						<div class="label-wiki-reference__head">
+							<span class="label-wiki-reference__title">Wiki-Landschaft</span>
+							<span class="label-wiki-reference__buttons">
+								<button type="button" class="location-report-form__button location-report-form__button--secondary">Ändern</button>
+								<button type="button" class="location-report-form__button location-report-form__button--secondary">Sync</button>
+								<button type="button" class="location-report-form__button location-report-form__button--secondary">Entfernen</button>
+							</span>
+						</div>
+						<dl class="label-wiki-reference__dl">
+							<dt>Artikel</dt><dd><a class="label-wiki-reference__link" href="#">Nord-Gratenfels Wiki ↗</a></dd>
+							<dt>Art</dt><dd>Gebirge · Nordmarken</dd>
+						</dl>
+						<details class="label-klapp"><summary>Alle Wiki-Angaben</summary>
+							<dl class="label-wiki-reference__dl">
+								<dt>Schlüssel</dt><dd>nord-gratenfels</dd>
+								<dt>Staat</dt><dd>Mittelreich: Herzogtum Nordmarken: Landgrafschaft Gratenfels</dd>
+								<dt>Kontinent</dt><dd>Aventurien</dd>
+								<dt>Einwohner</dt><dd>9300 davon 200 Zwerge</dd>
+								<dt>Verkehrswege</dt><dd>Tommel</dd>
+							</dl>
+						</details>
+						<div class="label-wiki-reference__hint">Zuweisen und Lösen wirken erst mit „Speichern“.</div>
+					</div>
+					<div class="label-edit-section"><div class="label-edit-section-title">Quellen</div>
+						<p class="location-report-form__status">Gelten für die ganze Landschaft — Fläche wie Beschriftung — und wirken <b>sofort</b>.</p>
+						<div class="fs-editor">
+							<div class="fs-hint">Tragt bei Quellen immer den eigentlichen <strong>Veröffentlichungstitel der Quelle</strong> und den Link ein. Achtet darauf, ob es sich um eine offizielle Quelle handelt.</div>
+							<div class="fs-group fs-group--wiki-auto">
+								<div class="fs-group-heading">Aus dem Wiki (automatisch)</div>
+								<div class="fs-col-heads" aria-hidden="true"><span>Titel</span><span>Typ</span><span>Art</span><span>Seiten</span><span></span></div>
+								<div class="fs-row"><a class="fs-row__link" href="#">Am Großen Fluss ↗</a><span class="fs-row__badge">Regionalspielhilfe *</span><span class="fs-row__kind">Ausführlich</span><span class="fs-row__pages">S. 39, 125, 127</span><button type="button" class="fs-row__remove">✕</button></div>
+								<div class="fs-row"><a class="fs-row__link" href="#">Die Flusslande (2023) ↗</a><span class="fs-row__badge">Regionalspielhilfe *</span><span class="fs-row__kind">Ausführlich</span><span class="fs-row__pages">S. 14 ff.</span><button type="button" class="fs-row__remove">✕</button></div>
+								<div class="fs-row"><a class="fs-row__link" href="#">Die Flusslande ↗</a><span class="fs-row__badge">Regionalspielhilfe *</span><span class="fs-row__kind">Ausführlich</span><span class="fs-row__pages">S. 149, 150</span><button type="button" class="fs-row__remove">✕</button></div>
+								<div class="fs-row"><a class="fs-row__link" href="#">Aus der Asche ↗</a><span class="fs-row__badge">Abenteuer *</span><span class="fs-row__kind">Nur Erwähnung</span><span class="fs-row__pages">S. 72</span><button type="button" class="fs-row__remove">✕</button></div>
+								<div class="fs-row"><a class="fs-row__link" href="#">Mysterien der Flusslande ↗</a><span class="fs-row__badge">Regionalspielhilfe *</span><span class="fs-row__kind">Ergänzend</span><span class="fs-row__pages">S. 16</span><button type="button" class="fs-row__remove">✕</button></div>
+								<details class="fs-more"><summary class="fs-more__toggle">eine weitere Quelle</summary><div class="fs-more__rest"><div class="fs-row"><a class="fs-row__link" href="#">Die Streitenden Königreiche ↗</a><span class="fs-row__badge">Regionalspielhilfe *</span><span class="fs-row__kind"></span><span class="fs-row__pages">S. 8</span><button type="button" class="fs-row__remove">✕</button></div></div></details>
+							</div>
+							<div class="fs-row fs-row--add">
+								<input type="text" class="fs-add-url" placeholder="URL">
+								<input type="text" class="fs-add-label" placeholder="Quellenname">
+								<input type="text" class="fs-add-pages" placeholder="Seite(n)">
+								<select class="fs-add-type"><option>Region</option></select>
+								<select class="fs-add-kind"><option>—</option></select>
+								<label class="fs-add-official-label"><input type="checkbox" class="fs-add-official"> offiziell</label>
+								<button type="button" class="fs-row__add">Hinzufügen</button>
+							</div>
+						</div>
+					</div>
+				</div>
+
+				<div class="location-report-form__actions">
+					<button class="location-report-form__button location-report-form__button--secondary" type="button">Löschen</button>
+					<button class="location-report-form__button location-report-form__button--secondary" type="button">Abbrechen</button>
+					<button class="location-report-form__button location-report-form__button--primary" type="button">Speichern</button>
+				</div>
+			</form>
+		</div>
+		</div>
+	</div>
+
+	<div class="mock-notiz" style="max-width:56ch; margin:26px 0 0">
+		<b>Wie der Entwurf die vier Fälle bedient</b>
+		<ul>
+			<li><b>Name und Art stehen oben, einmal.</b> Sie gehören beiden Hälften und sind live in 679 von 679 Fällen ohnehin gleich.</li>
+			<li><b>Drei Reiter statt einer langen Rolle.</b> Sonst wäre die Vereinigung so hoch wie beide Fenster zusammen — genau das Problem, das wir gerade bekämpfen.</li>
+			<li><b>Jede Hälfte kann fehlen</b> und sagt das mit einem Angebot statt mit einem leeren Formular.</li>
+			<li><b>Mehrere Beschriftungen</b> bekommen eine Auswahl im Reiter, keine zweite Fenster­instanz. Die 1:N-Beziehung bleibt, wie du sie 2026-07-28 beschlossen hast.</li>
+			<li><b>Kurvenbeschriftung ist die Ausnahme:</b> mit ihr ist die Beschriftung an die Fläche gebunden, und der Kasten sagt das an Ort und Stelle. Häkchen umlegen, dann siehst du den Wechsel.</li>
+		</ul>
+		<p style="margin-top:8px"><b>Was das NICHT ist:</b> ein zusammengelegter Datensatz. Fläche und Beschriftung bleiben zwei Objekte mit einem Zeiger — sonst verlieren 588 Objekte ihre Hälfte und das Ingvaltal zwei Beschriftungen.</p>
+	</div>
+
+</div>
+</div>
+
+<script>
+// Die Vorgabemarke steht dort, wo sie auch im Produkt stünde: dieselbe Rechnung wie
+// avesmapsLabelVorgabeMarkePosition (js/review/review-labels.js). 16 px ist die Knopfbreite.
+function mockMarkePosition(wert, min, max) {
+	var spanne = Number(max) - Number(min);
+	var anteil = spanne === 0 ? 0 : Math.max(0, Math.min(1, (Number(wert) - Number(min)) / spanne));
+	return "calc(" + (anteil * 100) + "% + " + (8 - anteil * 16) + "px)";
+}
+
+(function () {
+	document.querySelectorAll(".label-edit-marke[data-vorgabe]").forEach(function (marke) {
+		var regler = marke.parentNode.querySelector('input[type="range"]');
+		if (!regler) { return; }
+		marke.style.left = mockMarkePosition(marke.dataset.vorgabe, regler.min, regler.max);
+		marke.title = "Vorgabe: " + marke.dataset.vorgabe;
+	});
+
+	function miss(id, ziel) {
+		var el = document.getElementById(id);
+		var out = document.getElementById(ziel);
+		if (!el || !out) { return; }
+		var h = Math.round(el.getBoundingClientRect().height);
+		out.textContent = h + " px" + (h > 760 ? " (davon " + (h - 760) + " px im Scroll)" : " — passt");
+	}
+	function alles() {
+		miss("dlg-l-heute", "mass-l-heute");
+		miss("dlg-l-kompakt", "mass-l-kompakt");
+		miss("dlg-f-heute", "mass-f-heute");
+		miss("dlg-u", "mass-u");
+	}
+
+	// Die drei Tafeln der Seite.
+	document.querySelectorAll("[data-tafel]").forEach(function (knopf) {
+		if (knopf.tagName !== "BUTTON") { return; }
+		knopf.addEventListener("click", function () {
+			document.querySelectorAll("button[data-tafel]").forEach(function (b) {
+				b.setAttribute("aria-selected", String(b === knopf));
+			});
+			document.querySelectorAll("div.union-tafel[data-tafel]").forEach(function (t) {
+				t.hidden = t.dataset.tafel !== knopf.dataset.tafel;
+			});
+			alles();
+		});
+	});
+
+	// Die drei Reiter IM Vereinigungsfenster.
+	document.querySelectorAll("button[data-ureiter]").forEach(function (knopf) {
+		knopf.addEventListener("click", function () {
+			document.querySelectorAll("button[data-ureiter]").forEach(function (b) {
+				b.setAttribute("aria-selected", String(b === knopf));
+			});
+			document.querySelectorAll("[data-ubereich]").forEach(function (b) {
+				b.hidden = b.dataset.ubereich !== knopf.dataset.ureiter;
+			});
+			alles();
+		});
+	});
+
+	// Die vier Datenlagen. Ein Block zeigt sich, wenn sein `data-ufall` den Fall NENNT.
+	var fall = document.getElementById("union-fall");
+	function setzeFall() {
+		var wert = fall.value;
+		var meldung = document.getElementById("union-angelegt");
+		if (meldung) { meldung.hidden = true; }
+		document.querySelectorAll("[data-ufall]").forEach(function (el) {
+			el.hidden = el.dataset.ufall.split(" ").indexOf(wert) === -1;
+		});
+		alles();
+	}
+	fall.addEventListener("change", setzeFall);
+	setzeFall();
+
+	// Der Einstieg entscheidet, welcher Reiter offen ist.
+	var einstieg = document.getElementById("union-einstieg");
+	function setzeEinstieg() {
+		var ziel = einstieg.value;
+		// Fehlt die gewaehlte Haelfte, oeffnet trotzdem ihr Reiter -- dort steht das Angebot.
+		document.querySelector('button[data-ureiter="' + ziel + '"]').click();
+	}
+	einstieg.addEventListener("change", setzeEinstieg);
+	setzeEinstieg();
+
+	// „Beschriftung anlegen": legt sie am Punkt der Unzugaenglichkeit an und SAGT das.
+	document.getElementById("union-label-anlegen").addEventListener("click", function () {
+		fall.value = "beides";
+		setzeFall();
+		document.getElementById("union-angelegt").hidden = false;
+		alles();
+	});
+
+	// Kurvenbeschriftung: schaltet die Zahl frei UND sagt, dass die freie Platzierung entfällt.
+	document.querySelectorAll("input[data-kurve]").forEach(function (haken) {
+		haken.addEventListener("change", function () {
+			var schluessel = haken.dataset.kurve;
+			var zahl = document.querySelector('[data-anzahl="' + schluessel + '"]');
+			if (zahl) { zahl.hidden = !haken.checked; }
+			if (schluessel === "u") {
+				document.querySelector('[data-bindung="frei"]').hidden = haken.checked;
+				document.querySelector('[data-bindung="gebunden"]').hidden = !haken.checked;
+			}
+			alles();
+		});
+	});
+
+	document.getElementById("themeschalter").addEventListener("click", function (e) {
+		var hell = document.documentElement.dataset.theme === "light";
+		document.documentElement.dataset.theme = hell ? "dark" : "light";
+		e.target.textContent = hell ? "Helles Thema" : "Dunkles Thema";
+		alles();
+	});
+
+	document.querySelectorAll("details").forEach(function (d) { d.addEventListener("toggle", alles); });
+	window.addEventListener("resize", alles);
+	alles();
+}());
+</script>
+
+</body>
+</html>

@@ -333,6 +333,47 @@
 	min-height: 70px;
 }
 
+/* ── Die Zeilenform: Beschriftung LINKS statt darueber ────────────────────────────────────────
+   Sie spart je Feld eine Textzeile und macht den Regler dabei LAENGER, nicht kuerzer -- der
+   Beschriftungsdialog stand bei 1328 px und kappt bei 760 (Owner 25.08.2026).
+
+   💣 EIN MODIFIER, KEIN ERSATZ. `.location-report-form__field` bleibt an jedem Feld stehen: an
+   ihr haengen Rahmen, Radius, Polsterung und Schriftgroesse der Eingabefelder (die Regel ~60
+   Zeilen weiter oben). Der erste Entwurf ersetzte sie durch eine eigene Klasse -- danach war
+   jedes <input> ein nacktes Browserfeld: 23 statt 37 px hoch, grauer Inset-Rahmen, kein Radius.
+   Das sah nicht nur nach Rohformular aus, es taeuschte auch eine Hoehenersparnis vor, die es
+   nicht gab.
+
+   ⚠️ Die Beschriftungsspalte ist FEST (132 px): sie muss „Sichtbar bis Zoom" tragen, und eine
+   mitwachsende Spalte liesse die Regler von Zeile zu Zeile verschieden lang enden. */
+.location-report-form__field--zeile {
+	flex-direction: row;
+	align-items: center;
+	gap: 10px;
+}
+
+.location-report-form__field--zeile > span:first-child {
+	flex: 0 0 132px;
+	min-width: 0;
+}
+
+.location-report-form__field--zeile > .location-edit-fieldrow,
+.location-report-form__field--zeile > .label-edit-sliderrow {
+	flex: 1 1 auto;
+	min-width: 0;
+}
+
+/* Ein Haken in der Zeilenform fluchtet mit den EINGABEFELDERN darueber, nicht mit deren
+   Beschriftungen -- am linken Rand allein gelassen liest er sich wie eine Ueberschrift.
+   ⚠️ 142 px = 132 (Beschriftungsspalte) + 10 (Spalt), damit er nicht neben der Ausrichtung
+   steht, sondern auf ihr. Wer die Spalte oben aendert, aendert diese Zahl mit. */
+.location-report-form__field--hakenzeile {
+	flex-direction: row;
+	align-items: center;
+	gap: 8px;
+	padding-left: 142px;
+}
+
 .location-report-form__field--checkbox {
 	align-items: center;
 	flex-direction: row;

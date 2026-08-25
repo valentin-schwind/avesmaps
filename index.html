@@ -1089,7 +1089,7 @@
 							<span data-i18n="ecosystem.properties.curveLabel">Kurvenbeschriftung</span>
 						</label>
 						<label class="ecosystem-properties-dialog__field">
-							<span data-i18n="ecosystem.properties.curveMax">Max. Namen</span>
+							<span data-i18n="ecosystem.properties.curveMax">Anzahl Kurvenlabel</span>
 							<input id="ecosystem-properties-curve-max" name="curve_label_max" type="number" min="1" max="3" step="1" value="1" />
 						</label>
 						<p id="ecosystem-properties-curvehint" class="ecosystem-properties-dialog__hint" hidden></p>
@@ -1954,15 +1954,15 @@
 					<input id="label-edit-public-id" name="public_id" type="hidden" />
 					<input id="label-edit-lat" name="lat" type="hidden" />
 					<input id="label-edit-lng" name="lng" type="hidden" />
-						<div class="label-edit-section"><div class="label-edit-section-title">Identität</div>
+						<div class="label-edit-section"><div class="label-edit-section-title">Eigenschaften</div>
 					<!-- Der Wiki-Override, Bauform 2: die Zelle hängt sich an die Beschriftung und
 					     bleibt leer, bis labelWikiZeichneAbweichungen sie füllt. Regeln in
 					     css/components/wiki-override.css, hier über css/styles.css. -->
-					<label class="location-report-form__field">
+					<label class="location-report-form__field location-report-form__field--zeile">
 						<span>Text *<span class="wiki-alt" data-label-wiki-alt="text"></span></span>
 						<div class="location-edit-fieldrow"><input id="label-edit-text" name="text" type="text" maxlength="160" required /></div>
 					</label>
-					<label class="location-report-form__field">
+					<label class="location-report-form__field location-report-form__field--zeile">
 						<span>Art *<span class="wiki-alt" data-label-wiki-alt="feature_subtype"></span></span>
 						<div class="location-edit-fieldrow"><select id="label-edit-type" name="feature_subtype" required>
 							<!-- Alphabetisch (Fall #64, 2026-08-07), Umlaut auf seinem Grundbuchstaben: Küste bei K,
@@ -2012,33 +2012,37 @@
 						     🪤 Regler und Zahl teilen dieselben Grenzen (0..20000, die Tippfehler-Klemme des
 						     Servers). Ein engerer Regler klemmte einen getippten Wert beim ersten Anfassen
 						     stillschweigend herunter -- Auflösung ist Kosmetik, eine stille Datenänderung nicht. -->
-						<label class="location-report-form__field" id="label-edit-height-row" hidden><span>H&ouml;he (Schritt)</span><div class="label-edit-sliderrow label-edit-sliderrow--wide"><input id="label-edit-height" name="height_schritt" type="number" min="0" max="20000" step="1" inputmode="numeric" /><input id="label-edit-height-range" type="range" min="0" max="20000" step="50" aria-label="H&ouml;he in Schritt" /></div></label>
+						<label class="location-report-form__field location-report-form__field--zeile" id="label-edit-height-row" hidden><span>H&ouml;he (Schritt)</span><div class="label-edit-sliderrow label-edit-sliderrow--wide"><input id="label-edit-height" name="height_schritt" type="number" min="0" max="20000" step="1" inputmode="numeric" /><input id="label-edit-height-range" type="range" min="0" max="20000" step="50" aria-label="H&ouml;he in Schritt" /></div></label>
+						<label class="location-report-form__field location-report-form__field--checkbox location-report-form__field--hakenzeile"><input id="label-edit-is-nodix" name="is_nodix" type="checkbox" /><span>Nodix</span></label>
 					</div><div class="label-edit-section"><div class="label-edit-section-title">Darstellung</div>
-						<div class="label-edit-grid">
-							<!-- 🪤 HIER STAND EINEN TAG LANG DAS GEGENTEIL: „Größe ist als Bedienelement gefallen".
-							     Das war eine Fehllesung des Auftrags. Der Owner wollte den Editoren den Regler NICHT
-							     wegnehmen, sondern ihnen den Wert VORSCHLAGEN — die Marke darunter tut das.
-							     🔴 Damit gilt für Größe und Zoomband dieselbe Regel: der Wert des Labels gewinnt, die
-							     Tafel füllt nur die Lücke. Eine Regel statt zweier. -->
-							<label class="location-report-form__field"><span>Größe</span><div class="label-edit-sliderrow"><input id="label-edit-size" name="size" type="number" min="12" max="50" step="1" value="18" /><span class="label-edit-markewrap"><input id="label-edit-size-range" type="range" min="12" max="50" step="1" value="18" aria-label="Größe" /><i class="label-edit-marke" id="label-edit-size-marke" aria-hidden="true" hidden></i></span></div></label>
-							<!-- 🔴 „Rotation" ist als BEDIENELEMENT gefallen (Entwurf §2): der Name laeuft auf der
-							     Mittelachse der Flaeche, nicht mehr in einem von Hand getroffenen Winkel.
-							     💣 DAS FELD BLEIBT ALS HIDDEN STEHEN, und das ist kein vergessener Rest: der
-							     Payload liest `formData.get("rotation")`, und OHNE das Feld schriebe jedes
-							     Speichern eine 0 ueber den gespeicherten Winkel. Entwurf §8 verlangt
-							     ausdruecklich, ihn zu erhalten -- er ist der einzige Rueckweg, falls das
-							     Feature je zurueckgebaut wird, und der Deploy loescht nie (AGENTS.md §10). -->
-							<input id="label-edit-rotation" name="rotation" type="hidden" value="0" />
-							<label class="location-report-form__field location-report-form__field--checkbox"><input id="label-edit-curve" name="curve_label" type="checkbox" /><span>Kurvenbeschriftung</span></label>
-							<label class="location-report-form__field"><span>Max. Namen</span><div class="label-edit-sliderrow"><input id="label-edit-curve-max" name="curve_label_max" type="number" min="1" max="3" step="1" value="1" /><span class="label-edit-markewrap"><input id="label-edit-curve-max-range" type="range" min="1" max="3" step="1" value="1" aria-label="Maximale Anzahl der Namen" /><i class="label-edit-marke" id="label-edit-curve-max-marke" aria-hidden="true" hidden></i></span></div></label>
-							<label class="location-report-form__field"><span>Sichtbar ab Zoom</span><div class="label-edit-sliderrow"><input id="label-edit-min-zoom-num" type="number" min="0" max="7" step="1" value="0" aria-label="Sichtbar ab Zoom" /><span class="label-edit-markewrap"><input id="label-edit-min-zoom" name="min_zoom" type="range" min="0" max="7" step="1" value="0" /><i class="label-edit-marke" id="label-edit-min-zoom-marke" aria-hidden="true" hidden></i></span></div></label>
-							<label class="location-report-form__field"><span>Sichtbar bis Zoom</span><div class="label-edit-sliderrow"><input id="label-edit-max-zoom-num" type="number" min="0" max="7" step="1" value="7" aria-label="Sichtbar bis Zoom" /><span class="label-edit-markewrap"><input id="label-edit-max-zoom" name="max_zoom" type="range" min="0" max="7" step="1" value="7" /><i class="label-edit-marke" id="label-edit-max-zoom-marke" aria-hidden="true" hidden></i></span></div></label>
-							<label class="location-report-form__field"><span>Priorität</span><div class="label-edit-sliderrow"><input id="label-edit-priority" name="priority" type="number" min="1" max="5" step="1" value="3" /><span class="label-edit-markewrap"><input id="label-edit-priority-range" type="range" min="1" max="5" step="1" value="3" aria-label="Prioritaet" /><i class="label-edit-marke" id="label-edit-priority-marke" aria-hidden="true" hidden></i></span></div></label>
-							<label class="location-report-form__field location-report-form__field--checkbox"><input id="label-edit-is-nodix" name="is_nodix" type="checkbox" /><span>Nodix</span></label>
-						</div>
-						<!-- ⚠️ Ohne Landschaftsflaeche gibt es keine Mittelachse -- Meere, Inseln und
-						     Gipfel tragen die zwei Bedienelemente deshalb deaktiviert und sagen warum
-						     (Entwurf §2). Gefuellt wird der Satz von review-labels.js. -->
+						<!-- 🪤 HIER STAND EINEN TAG LANG DAS GEGENTEIL: „Größe ist als Bedienelement gefallen".
+						     Das war eine Fehllesung des Auftrags. Der Owner wollte den Editoren den Regler NICHT
+						     wegnehmen, sondern ihnen den Wert VORSCHLAGEN — die Marke darunter tut das.
+						     🔴 Damit gilt für Größe und Zoomband dieselbe Regel: der Wert des Labels gewinnt, die
+						     Tafel füllt nur die Lücke. Eine Regel statt zweier. -->
+						<label class="location-report-form__field location-report-form__field--zeile"><span>Größe</span><div class="label-edit-sliderrow"><input id="label-edit-size" name="size" type="number" min="12" max="50" step="1" value="18" /><span class="label-edit-markewrap"><input id="label-edit-size-range" type="range" min="12" max="50" step="1" value="18" aria-label="Größe" /><i class="label-edit-marke" id="label-edit-size-marke" aria-hidden="true" hidden></i></span></div></label>
+						<!-- 🔴 „Rotation" ist als BEDIENELEMENT gefallen (Entwurf §2): der Name laeuft auf der
+						     Mittelachse der Flaeche, nicht mehr in einem von Hand getroffenen Winkel.
+						     💣 DAS FELD BLEIBT ALS HIDDEN STEHEN, und das ist kein vergessener Rest: der
+						     Payload liest `formData.get("rotation")`, und OHNE das Feld schriebe jedes
+						     Speichern eine 0 ueber den gespeicherten Winkel. Entwurf §8 verlangt
+						     ausdruecklich, ihn zu erhalten -- er ist der einzige Rueckweg, falls das
+						     Feature je zurueckgebaut wird, und der Deploy loescht nie (AGENTS.md §10). -->
+						<input id="label-edit-rotation" name="rotation" type="hidden" value="0" />
+						<label class="location-report-form__field location-report-form__field--zeile"><span>Priorität</span><div class="label-edit-sliderrow"><input id="label-edit-priority" name="priority" type="number" min="1" max="5" step="1" value="3" /><span class="label-edit-markewrap"><input id="label-edit-priority-range" type="range" min="1" max="5" step="1" value="3" aria-label="Prioritaet" /><i class="label-edit-marke" id="label-edit-priority-marke" aria-hidden="true" hidden></i></span></div></label>
+						<label class="location-report-form__field location-report-form__field--zeile"><span>Sichtbar ab Zoom</span><div class="label-edit-sliderrow"><input id="label-edit-min-zoom-num" type="number" min="0" max="7" step="1" value="0" aria-label="Sichtbar ab Zoom" /><span class="label-edit-markewrap"><input id="label-edit-min-zoom" name="min_zoom" type="range" min="0" max="7" step="1" value="0" /><i class="label-edit-marke" id="label-edit-min-zoom-marke" aria-hidden="true" hidden></i></span></div></label>
+						<label class="location-report-form__field location-report-form__field--zeile"><span>Sichtbar bis Zoom</span><div class="label-edit-sliderrow"><input id="label-edit-max-zoom-num" type="number" min="0" max="7" step="1" value="7" aria-label="Sichtbar bis Zoom" /><span class="label-edit-markewrap"><input id="label-edit-max-zoom" name="max_zoom" type="range" min="0" max="7" step="1" value="7" /><i class="label-edit-marke" id="label-edit-max-zoom-marke" aria-hidden="true" hidden></i></span></div></label>
+						<!-- 🔴 DER HAKEN STEHT VOR SEINER ZAHL (Owner 25.08.2026): er schaltet sie ein, und
+						     „Anzahl Kurvenlabel" erscheint nur mit ihm (#label-edit-curve-max-row, gesteuert von
+						     syncLabelCurveMaxControls). 🪤 Bis zum 24.08.2026 stand die Zahl IMMER da und war nur
+						     DEAKTIVIERT, mit einem Titel als Begruendung. Das ist am 25.08. abgeloest worden: der
+						     Haken sitzt jetzt unmittelbar darueber und IST die Begruendung -- ein deaktiviertes
+						     Bedienelement daneben waere die zweite. Der WERT bleibt dabei stehen (siehe dort). -->
+						<label class="location-report-form__field location-report-form__field--checkbox location-report-form__field--hakenzeile"><input id="label-edit-curve" name="curve_label" type="checkbox" /><span>Kurvenbeschriftung</span></label>
+						<label class="location-report-form__field location-report-form__field--zeile" id="label-edit-curve-max-row" hidden><span>Anzahl Kurvenlabel</span><div class="label-edit-sliderrow"><input id="label-edit-curve-max" name="curve_label_max" type="number" min="1" max="3" step="1" value="1" /><span class="label-edit-markewrap"><input id="label-edit-curve-max-range" type="range" min="1" max="3" step="1" value="1" aria-label="Anzahl Kurvenlabel" /><i class="label-edit-marke" id="label-edit-curve-max-marke" aria-hidden="true" hidden></i></span></div></label>
+						<!-- ⚠️ Ohne Landschaftsflaeche gibt es keine Mittelachse -- Meere, Inseln und Gipfel
+						     tragen den HAKEN deshalb deaktiviert und sagen hier warum (Entwurf §2). Die Zahl
+						     darunter ist dann ohnehin verborgen. Gefuellt wird der Satz von review-labels.js. -->
 						<p id="label-edit-curve-hint" class="location-report-form__status" hidden></p>
 					</div><!-- Die Wiki-Zuweisung des LABELS: seit 16.08.2026 dasselbe geteilte Bauteil
 					     (js/ui/wiki-assign.js), Objektart „landschaftslabel", Huelle „label-wiki" --

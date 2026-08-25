@@ -341,6 +341,15 @@ const AVESMAPS_WIKI_ASSIGN_REGISTRY = {
 			{ wiki: "vegetation", karte: "", label: "Vegetation" },
 			{ wiki: "verkehrswege", karte: "", label: "Verkehrswege" },
 		],
+		// 🔴 DER STECKBRIEF KLAPPT ZU (Owner 25.08.2026). Offen bleibt, was beim Zuweisen zaehlt:
+		// der Artikel und die Art. Schluessel, Name, Lage, Staat, Kontinent, Einwohner, Sprache,
+		// Vegetation und Verkehrswege stehen einen Klick tiefer -- gemessen 232 px, von denen rund
+		// 120 verschwinden. Der Beschriftungsdialog steht bei 1270 px und kappt bei 760.
+		// ⚠️ STABILE SCHLUESSEL, keine Beschriftungen: `artikel` ist eine Kopfzeile des Bauteils,
+		// `art` ein Registerfeld darunter. Ein Wortlaut ist uebersetzbar, ein Schluessel nicht.
+		// 💣 Die Angabe ist OPT-IN und steht heute NUR hier -- die uebrigen zehn Oberflaechen zeigen
+		// ihren Steckbrief unveraendert offen.
+		steckbriefOffen: ["artikel", "art"],
 		sync: true, // zwei Kartenziele (text, feature_subtype) -- also ein Knopf
 		// 🔴 ERST MIT „Speichern" -- gemessen am 17.08.2026: `labelWikiAssignZuweisen`/`-Loesen`
 		// (js/review/review-label-wiki.js) setzen `currentLabelWikiRegion`/`labelWikiSchnappschuss`,

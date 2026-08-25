@@ -370,18 +370,35 @@ function labelCurveMaxBedienbar(hatFlaeche, kurveAn) {
 	return Boolean(hatFlaeche) && Boolean(kurveAn);
 }
 
-/** Die zwei Bedienelemente für „Max. Namen" an die Regel hängen. */
+/**
+ * Die zwei Bedienelemente für „Anzahl Kurvenlabel" an die Regel hängen.
+ *
+ * 🔴 SEIT 25.08.2026 wird die Zeile VERBORGEN, nicht nur gesperrt. Bis dahin stand sie immer da
+ * und trug ihre Begründung im `title` -- der Haken lag zwei Zellen weiter im Raster. Jetzt sitzt
+ * er unmittelbar darüber und IST die Begründung; ein deaktiviertes Bedienelement daneben wäre
+ * die zweite. Der `title` bleibt trotzdem gesetzt: er trägt den Fall „angehakt, aber ohne
+ * Fläche", in dem die Zeile sichtbar UND gesperrt ist.
+ *
+ * ⚠️ Verborgen wird die ZEILE (#label-edit-curve-max-row), nie das Feld: `formData` liest ein
+ * `hidden` gesetztes Elternelement weiterhin mit, und genau das soll es -- der Wert bleibt
+ * stehen, wenn jemand den Haken ab- und wieder anhakt.
+ */
 function syncLabelCurveMaxControls() {
 	const haken = document.getElementById("label-edit-curve");
 	const zahl = document.getElementById("label-edit-curve-max");
 	const regler = document.getElementById("label-edit-curve-max-range");
 	const marke = document.getElementById("label-edit-curve-max-marke");
+	const zeile = document.getElementById("label-edit-curve-max-row");
 	if (!haken || !zahl) {
 		return;
 	}
 	// ⚠️ `haken.disabled` trägt hier die Flächenfrage -- sie ist eine Zeile weiter oben schon
 	// entschieden, und sie zweimal zu rechnen liesse die beiden auseinanderlaufen.
 	const bedienbar = labelCurveMaxBedienbar(!haken.disabled, haken.checked);
+	// Ohne Haken gibt es nichts zu verteilen -- dann steht die Zeile gar nicht erst da.
+	if (zeile) {
+		zeile.hidden = !haken.checked;
+	}
 	zahl.disabled = !bedienbar;
 	if (regler) {
 		regler.disabled = !bedienbar;

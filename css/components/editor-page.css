@@ -1082,6 +1082,40 @@ body.avm-editor-body {
 /* 🔴 Der Grund steht IN der Zeile, nicht in einer Fussnote: eine ungehakte Zeile ohne Begruendung
    liest sich wie ein Fehler ("das Wiki sagt nichts -- wuerde die Angabe leeren" bzw. "von Hand
    gesetzt -- wuerde zurueckgedreht", Aufgabe 2). */
+/* Der zusammengeklappte Wiki-Steckbrief im EDITORFENSTER. Heute fuehrt ihn keine Objektart dieser
+   Huelle (nur die Landschaftsbeschriftung im Kartendialog, `steckbriefOffen` im Feldregister) --
+   die Regeln stehen trotzdem hier.
+   💣 Eine Klasse, die das Bauteil ERZEUGEN kann, braucht eine Regel: `wiki-assign-weg.test.js`
+   prueft jede Rolle jeder Huelle gegen das Stylesheet und faellt sonst um. Ohne sie stuende der
+   Kasten beim ersten Opt-In einer Editor-Objektart nackt da -- und niemand wuesste, warum.
+   ⚠️ Zwillingsregeln zu `.label-wiki-reference__klapp*` (css/components/region-sync.css). Die zwei
+   Huellen sind die Obergrenze des Hauses (AGENTS.md §11); wer eine aendert, sieht nach der
+   anderen. */
+.dt-klapp {
+	margin: 2px 0 0;
+}
+
+.dt-klapp__titel {
+	cursor: pointer;
+	font-size: 12px;
+	color: var(--color-link);
+	list-style: none;
+	padding: 3px 0;
+}
+
+.dt-klapp__titel::-webkit-details-marker {
+	display: none;
+}
+
+.dt-klapp__titel::before {
+	content: "B8 ";
+	color: var(--color-text-muted);
+}
+
+.dt-klapp[open] > .dt-klapp__titel::before {
+	content: "BE ";
+}
+
 .dt-sync-row__grund {
 	display: block;
 	font-size: var(--font-size-caption);
