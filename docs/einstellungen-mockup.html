@@ -46,6 +46,14 @@
    SVG, Datenbank-Backup -- sind aus demselben Grund alle eigene Seiten in einem neuen Tab.
    ═══════════════════════════════════════════════════════════════════════════════════════════ */
 
+/* 💣 DER PLATZ DER BILDLAUFLEISTE WIRD FREIGEHALTEN, IMMER. Zwei der sieben Reiter („Wiki &
+   Daten", „Gemeinschaft") sind kürzer als das Fenster -- dort verschwindet die Leiste, die Seite
+   wird 10 px breiter, und beim Reiterwechsel springt ALLES seitwärts. Gemessen: clientWidth 1090
+   gegen 1100. Das ist derselbe Fehler wie ein gerechneter Versatz an den Ansichts-Kacheln: die
+   Kachel muss auf ihrem Fleck bleiben, ohne dass jemand nachrechnet.
+   ⚠️ `scrollbar-gutter` gehört an das SCROLLENDE Element (html), nicht an body -- am body
+   reserviert es einen Streifen im falschen Kasten und wirkt nicht. */
+html { scrollbar-gutter: stable; }
 body { background: var(--color-page-bg); color: var(--color-text); font-family: var(--font-ui); margin: 0; }
 
 .es-page { max-width: 940px; margin: 0 auto; padding: var(--space-24) var(--space-16); }
@@ -133,6 +141,9 @@ input[type="number"].es-num, input[type="text"].es-num, select.es-sel {
 }
 .es-savebar__msg { font-size: var(--font-size-caption); color: var(--color-text-muted); }
 .es-savebar__spacer { flex: 1 1 auto; }
+/* Eine Leiste, die MEHRERE Abschnitte traegt, steht ausserhalb von ihnen und braucht deshalb den
+   Abstand, den sonst der Abschnitt mitbringt. */
+.es-savebar--gruppe { margin-top: var(--space-20); }
 
 /* ── Zustandsabzeichen der Uebersicht ───────────────────────────────────────────────────── */
 .es-state {
@@ -292,7 +303,8 @@ input[type="number"].es-num, input[type="text"].es-num, select.es-sel {
 				<div class="es-row__control">
 					<input class="es-num" type="number" value="3" min="0" max="7" step="1" aria-label="Startzoom">
 					<span class="es-unit">am Telefon weiter heraus um</span>
-					<input class="es-num" type="number" value="1" min="0" max="3" step="1" aria-label="Abzug am Telefon">
+					<input class="es-num" type="number" value="1" min="0" max="3" step="1" aria-label="Abzug am Telefon in Zoomstufen">
+					<span class="es-unit">Stufen</span>
 				</div>
 			</div>
 
@@ -311,20 +323,13 @@ input[type="number"].es-num, input[type="text"].es-num, select.es-sel {
 				<div class="es-row__label">
 					<span class="es-row__name">Kartenstil</span>
 					<span class="es-row__note">
-						Nur der erste Eindruck: <code>?mapstyle=</code> und die gespeicherte Wahl eines
+						Nur der erste Eindruck — ein geteilter Link und die gespeicherte Wahl eines
 						Editors schlagen ihn. <span class="es-src">?mapstyle=</span>
 					</span>
 				</div>
 				<div class="es-row__control">
 					<select class="es-sel" aria-label="Kartenstil"><option selected>Stylized</option><option>Original</option></select>
 				</div>
-			</div>
-
-			<div class="es-savebar">
-				<button class="es-btn es-btn--primary">Speichern</button>
-				<button class="es-btn">Zurücksetzen</button>
-				<span class="es-savebar__spacer"></span>
-				<span class="es-savebar__msg">Alle Werte wie im Code.</span>
 			</div>
 		</section>
 
@@ -424,6 +429,19 @@ input[type="number"].es-num, input[type="text"].es-num, select.es-sel {
 				<div class="es-row__control"><input class="es-num" type="number" value="4" min="0" max="7" step="1" aria-label="Zoomgrenze"></div>
 			</div>
 		</section>
+
+		<!-- 💣 EINE SPEICHERLEISTE JE ABLAGE, NICHT JE ABSCHNITT. Die erste Fassung gab dem obersten
+		     Abschnitt eine Leiste und den beiden darunter keine -- elf Bedienelemente ohne jeden
+		     Speichern-Knopf. Der Denkfehler steckte in der Regel, nicht im Markup: alle drei
+		     Abschnitte liegen in DERSELBEN app_setting-Zeile (map_display_settings), drei Knoepfe
+		     waeren also drei Wege, dasselbe Objekt zu schreiben. Die Leiste sagt darum ausdruecklich,
+		     wie weit sie reicht. -->
+		<div class="es-savebar es-savebar--gruppe">
+			<button class="es-btn es-btn--primary">Speichern</button>
+			<button class="es-btn">Zurücksetzen</button>
+			<span class="es-savebar__spacer"></span>
+			<span class="es-savebar__msg">Speichert alle drei Abschnitte — sie liegen in einer Zeile. Alle Werte wie im Code.</span>
+		</div>
 
 		<section class="es-section es-later">
 			<h2>Vorgewählte Ebenen <span class="es-later__tag">später</span></h2>
@@ -526,12 +544,6 @@ input[type="number"].es-num, input[type="text"].es-num, select.es-sel {
 				<strong>Wegenamen</strong> rutschen nur an ihrer eigenen Linie, sonst entfallen sie.
 			</p>
 
-			<div class="es-savebar">
-				<button class="es-btn es-btn--primary">Speichern</button>
-				<button class="es-btn">Zurücksetzen</button>
-				<span class="es-savebar__spacer"></span>
-				<span class="es-savebar__msg">Alle zehn Felder an — das heutige Verhalten.</span>
-			</div>
 		</section>
 
 		<section class="es-section">
@@ -556,6 +568,15 @@ input[type="number"].es-num, input[type="text"].es-num, select.es-sel {
 			</div>
 		</section>
 
+		<!-- Dieselbe Ablage wie der Kollisions-Abschnitt darueber, also EINE Leiste fuer beide.
+		     Die Kurvenbeschriftung darunter hat ihre EIGENE Zeile und deshalb ihre eigene. -->
+		<div class="es-savebar es-savebar--gruppe">
+			<button class="es-btn es-btn--primary">Speichern</button>
+			<button class="es-btn">Zurücksetzen</button>
+			<span class="es-savebar__spacer"></span>
+			<span class="es-savebar__msg">Speichert Kollisionen und Abstände — alle zehn Felder an, das heutige Verhalten.</span>
+		</div>
+
 		<!-- 🔴 VOLLSTAENDIG hierher (Owner 25.08.2026). Das widerspricht der Regel vom 22.08. nicht,
 		     es schaerft sie: Werkstattregler gehoeren nicht in den EDITOR -- ihr Zuhause sind die
 		     Admin-Einstellungen. Vorher gab es dieses Zuhause nicht, deshalb hiess die einzige
@@ -573,49 +594,49 @@ input[type="number"].es-num, input[type="text"].es-num, select.es-sel {
 			</div>
 			<div class="es-row">
 				<div class="es-row__label"><span class="es-row__name">Begradigung</span><span class="es-row__note">Mischung Kurve ↔ Sehne</span></div>
-				<div class="es-row__control"><input class="es-num" type="number" value="0" min="0" max="100" step="5"><span class="es-unit">%</span></div>
+				<div class="es-row__control"><input class="es-num" type="number" value="0" min="0" max="100" step="5" aria-label="Begradigung in Prozent"><span class="es-unit">%</span></div>
 			</div>
 			<div class="es-row">
 				<div class="es-row__label"><span class="es-row__name">Randvereinfachung</span><span class="es-row__note">Douglas-Peucker-Toleranz in Karteneinheiten</span></div>
-				<div class="es-row__control"><input class="es-num" type="number" value="1.55" min="0" max="10" step="0.05"></div>
+				<div class="es-row__control"><input class="es-num" type="number" value="1.55" min="0" max="10" step="0.05" aria-label="Randvereinfachung"></div>
 			</div>
 			<div class="es-row">
 				<div class="es-row__label"><span class="es-row__name">Stützpunktabstand</span><span class="es-row__note">Segmentierung des Randes</span></div>
-				<div class="es-row__control"><input class="es-num" type="number" value="0.30" min="0.05" max="5" step="0.05"></div>
+				<div class="es-row__control"><input class="es-num" type="number" value="0.30" min="0.05" max="5" step="0.05" aria-label="Stützpunktabstand"></div>
 			</div>
 			<div class="es-row">
 				<div class="es-row__label"><span class="es-row__name">Teilfläche zählt ab</span><span class="es-row__note">welche Lappen die Kurve mitbestimmen</span></div>
-				<div class="es-row__control"><input class="es-num" type="number" value="2" min="0" max="50" step="1"><span class="es-unit">% der Fläche</span></div>
+				<div class="es-row__control"><input class="es-num" type="number" value="2" min="0" max="50" step="1" aria-label="Teilfläche zählt ab, in Prozent"><span class="es-unit">% der Fläche</span></div>
 			</div>
 			<div class="es-row">
 				<div class="es-row__label"><span class="es-row__name">Max. Verdrehung gegen die Sehne</span><span class="es-row__note">Beruhigung</span></div>
-				<div class="es-row__control"><input class="es-num" type="number" value="30" min="0" max="90" step="5"><span class="es-unit">°</span></div>
+				<div class="es-row__control"><input class="es-num" type="number" value="30" min="0" max="90" step="5" aria-label="Maximale Verdrehung gegen die Sehne, in Grad"><span class="es-unit">°</span></div>
 			</div>
 			<div class="es-row">
 				<div class="es-row__label"><span class="es-row__name">Kurve verlängern höchstens</span><span class="es-row__note">Passung, Mittel 1</span></div>
-				<div class="es-row__control"><input class="es-num" type="number" value="30" min="0" max="100" step="5"><span class="es-unit">%</span></div>
+				<div class="es-row__control"><input class="es-num" type="number" value="30" min="0" max="100" step="5" aria-label="Kurve verlängern höchstens, in Prozent"><span class="es-unit">%</span></div>
 			</div>
 			<div class="es-row">
 				<div class="es-row__label"><span class="es-row__name">Sperrung über die Fläche</span><span class="es-row__note">Deckel 50 %</span></div>
-				<div class="es-row__control"><input class="es-num" type="number" value="20" min="0" max="50" step="5"><span class="es-unit">%</span></div>
+				<div class="es-row__control"><input class="es-num" type="number" value="20" min="0" max="50" step="5" aria-label="Sperrung über die Fläche, in Prozent"><span class="es-unit">%</span></div>
 			</div>
 			<div class="es-row">
 				<div class="es-row__label"><span class="es-row__name">Sperrung höchstens je Lücke</span><span class="es-row__note">absoluter Deckel</span></div>
-				<div class="es-row__control"><input class="es-num" type="number" value="0.6" min="0" max="3" step="0.1"><span class="es-unit">Schriftgrößen</span></div>
+				<div class="es-row__control"><input class="es-num" type="number" value="0.6" min="0" max="3" step="0.1" aria-label="Sperrung höchstens je Lücke, in Schriftgrößen"><span class="es-unit">Schriftgrößen</span></div>
 			</div>
 			<div class="es-row">
 				<div class="es-row__label">
 					<span class="es-row__name">Mindestabstand zweier Namen</span>
 					<span class="es-row__note">⚠️ An sechs Flächen geraten, nicht an 644 gemessen — steht deshalb hier und nicht in einer Konstante.</span>
 				</div>
-				<div class="es-row__control"><input class="es-num" type="number" value="2.0" min="0" max="8" step="0.1"><span class="es-unit">Schriftgrößen</span></div>
+				<div class="es-row__control"><input class="es-num" type="number" value="2.0" min="0" max="8" step="0.1" aria-label="Mindestabstand zweier Namen, in Schriftgrößen"><span class="es-unit">Schriftgrößen</span></div>
 			</div>
 			<div class="es-row">
 				<div class="es-row__label">
 					<span class="es-row__name">Ausweichweg eines Kurvenlabels</span>
 					<span class="es-row__note">⚠️ Ebenfalls geraten, nicht gemessen.</span>
 				</div>
-				<div class="es-row__control"><input class="es-num" type="number" value="6" min="0" max="60" step="1"><span class="es-unit">px</span></div>
+				<div class="es-row__control"><input class="es-num" type="number" value="6" min="0" max="60" step="1" aria-label="Ausweichweg eines Kurvenlabels, in Pixeln"><span class="es-unit">px</span></div>
 			</div>
 			<div class="es-row">
 				<div class="es-row__label"><span class="es-row__name">Schrift verkleinern, bis es passt</span><span class="es-row__note">Passung, Mittel 2</span></div>

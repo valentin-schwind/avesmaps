@@ -245,9 +245,28 @@ bei der Bilanzzeile der WikiSync-Listen (EIN Erzeuger). Ein Reiter ohne bedienba
 `is-active` — dieselbe Falle, die beim Anzeige-Menü und bei den Ansichts-Kacheln zweimal
 zugeschlagen hat: die Klasse steht erst im nächsten Bild.
 
-🔴 **Speichern je ABSCHNITT, nicht je Reiter und nicht einmal für alles.** Die Abschnitte haben
-verschiedene Ablagen (ein JSON-Schlüssel, einzelne Schalter, gar keine) und verschiedene
-Laufzeiten. Ein gemeinsamer Knopf müsste behaupten, all das sei ein Vorgang.
+🔴 **Speichern je ABLAGE** — nicht je Reiter, nicht für alles, und **nicht je Abschnitt.**
+
+🪤 Hier stand bis zum 25.08.2026 „je Abschnitt", und die Regel war falsch. Im Mockup führte sie
+direkt zu einem Fehler: der Reiter „Karte" hat drei Abschnitte, die **alle dieselbe**
+`app_setting`-Zeile schreiben (`map_display_settings`) — der oberste bekam eine Leiste, die zwei
+darunter keine, und **elf Bedienelemente hatten keinen Speichern-Knopf.** Drei Leisten wären
+allerdings auch falsch gewesen: drei Wege, dasselbe Objekt zu schreiben.
+
+Die Regel lautet deshalb: **eine Leiste am Ende jeder Gruppe von Abschnitten, die sich eine Zeile
+teilen** — und ihre Meldung sagt ausdrücklich, wie weit sie reicht („Speichert alle drei
+Abschnitte — sie liegen in einer Zeile"). Heute ergibt das:
+
+| Gruppe | Ablage | Leisten |
+|---|---|---|
+| Karte: Erster Eindruck + Bewegung + Herrschaftsgebiete | `map_display_settings` | 1 |
+| Beschriftung: Kollisionen + Abstände | `map_display_settings` | 1 |
+| Beschriftung: Kurvenbeschriftung | eigene Zeile (Entwurf 22.08.) | 1 |
+| Inhalte: Automatik | zwei einzelne Schalter | 1 |
+
+⚠️ **Die Prüfung dazu ist mechanisch und gehört in den Test:** kein Bedienelement darf *unterhalb*
+seiner Leiste stehen, und keine Gruppe mit Bedienelementen darf ohne Leiste sein. Beides lässt sich
+aus dem DOM messen; genau so ist der Fehler gefunden worden.
 
 ⚠️ **Gruppierung durch Trennlinie, nicht durch Kästen** (AGENTS.md §12): `--color-divider` plus
 Überschrift. Keine gerahmten Boxen.
@@ -670,6 +689,7 @@ der AGENTS.md warnt, entsteht bei zwei *Bedienungen*, nicht bei zwei Türen zum 
 | `api/_internal/app/__tests__/map-display-test.php` | Formprüfung, Schranken, Rückleseprobe, `reset` löscht die Zeile |
 | `edit/__tests__/einstellungen-riegel-test.php` | Seite **und** Endpunkt tragen `admin` |
 | `js/pages/__tests__/einstellungen-reiter.test.js` | genau EIN Panel ist sichtbar; der Zähler ist **gerechnet** und stimmt mit dem Inhalt überein; ein leerer Reiter zeigt keine `0` |
+| `js/pages/__tests__/einstellungen-speicherleisten.test.js` | **kein Bedienelement ohne Leiste**, keines unterhalb seiner Leiste, keine zweite Leiste auf derselben Ablage |
 | `js/pages/__tests__/einstellungen-url-parameter.test.js` | jeder Wert aus §1.5 kommt aus der Einstellung, und der `?param=` schlägt sie weiterhin |
 
 ⚠️ Vor dem Push läuft das **ganze** Testfeld, nicht nur diese acht (AGENTS.md §9) — samt der 21
