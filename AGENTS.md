@@ -215,6 +215,17 @@ is the default, English is opt-in. Therefore:
 
 - **OS:** Windows + PowerShell. Watch the CRLF edit trap (prefer single-line
   edits on CRLF files). `.gitattributes` now sets `text=auto` + binary markers.
+  💣 **Und die zweite CRLF-Falle sitzt in den TESTS: hier ist CRLF, im Tor ist LF.** Ein
+  Quelltext-Test, der `\r\n` sucht, ist auf diesem Rechner gruen und in der CI rot -- die
+  Arbeitskopie traegt CRLF, `actions/checkout` legt LF hin. Am 25.08.2026 kostete das **zwei**
+  Deploys: `rumpf.slice(0, rumpf.indexOf("\r\n}") + 3 || rumpf.indexOf("\n}") + 2)` sollte auf LF
+  zurueckfallen und tut es nie -- `+` bindet staerker als `||`, und **`-1 + 3` ist 2, also
+  truthy**. Der Test schnitt seinen Prueftext auf zwei Zeichen zusammen und behauptete, die
+  Verdrahtung fehle. ⭐ Also: in Quelltext-Tests **zeilenendenneutral** suchen (`\n\}`, oder den
+  Text vorher `.replace(/\r\n/g, "\n")`), und einen Rueckfall **nie** ueber `||` auf ein
+  `indexOf`-Ergebnis bauen -- `-1` ueberlebt jede Addition ab +1 als gueltig aussehende Zahl.
+  ⚠️ Gegenprobe vor dem Push, wenn ein Test Quelltext liest: denselben Baum als LF spiegeln
+  (`find js css -type f -exec sed -i 's/\r$//' {} +` auf einer KOPIE) und den Test dort fahren.
 - **Git:** small, verified commits **directly to `master`**; push triggers a
   ~1–2 min auto-deploy. Verify the remote SHA after pushing. Conventional-commit
   prefixes (`feat/fix/chore/docs/perf/refactor`, plus the repo's custom `ui:`). 💣 **A scope word names ONE feature.** `verlauf:` belongs to the paths' wiki-course sync (`path-verlauf.php`, `verlauf_cases`) and **never** to the „Neuigkeiten" window — that one is `neuigkeiten:` or `changelog:`. It was miscommitted twice on 2026-08-08; `git log --grep` and `git grep` cannot tell the two apart afterwards.
@@ -273,7 +284,8 @@ is the default, English is opt-in. Therefore:
   `js/app/__tests__/touch-scale.test.js`, der wörtlich einen Block nur für die Suchkachel
   erwartete — an der Regel war nichts falsch, und fünf Deploys hintereinander fielen aus.
   Wer nur seine eigenen Tests laufen lässt, sieht so etwas nie: die Datei, die bricht,
-  gehört jemand anderem. Der Lauf ist der aus dem Workflow:
+  gehört jemand anderem. Der Lauf -- ⚠️ **das enge Muster, der Workflow faehrt 21 Dateien mehr,
+  siehe unten**:
   `for t in $(find js tools -path '*__tests__*' -name '*.test.js'); do node "$t"; done`
   PHP analog -- 💣 **aber mit den Erweiterungen, sonst luegt der Lauf**:
   `for t in $(find api tools -path '*__tests__*' -name '*-test.php'); do php -d zend.assertions=1 -d assert.exception=1 -d extension=php_mbstring.dll -d extension=php_pdo_sqlite.dll -d extension=php_gd.dll "$t"; done`
@@ -297,11 +309,21 @@ is the default, English is opt-in. Therefore:
   ⭐ **Am sichersten ist ohnehin das Muster des Workflows selbst** (`.github/workflows/
   deploy-avesmaps-strato.yml`), denn nur das entscheidet ueber den Deploy:
   `find api tools \( -path '*__tests__*' -name '*.php' \) -o \( -name 'test-*.php' -not -path '*__tests__*' \)`
-  💣 Und es bleiben zwei Familien, die **KEIN** Lauf faehrt -- gemessen 25.08.2026, beide
-  vorbestehend rot und keine davon dump-nah: **21 `test-*.mjs`** unter `tools/` (7 rot) und
-  **5 `.js`** unter `tools/svg-export/__tests__/`, die nicht auf `.test.js` enden (1 rot,
-  `abzug-pruefen.js`). Wer eines der Muster erweitert, stellt damit sofort das Tor zu --
-  🔧 also erst die roten heilen, dann das Muster ziehen.
+  💣 **Und dieselbe Luecke steht auf der JS-Seite** -- die Zeile oben ist das ENGE Muster, das Tor
+  faehrt mehr: **21 `test-*.mjs`** unter `tools/{paths,routing,wikidump}`. Gemessen 25.08.2026:
+  enges Muster 275 Dateien, Tor 296. Also auch hier das Muster des Workflows nehmen:
+  `find js tools \( -path '*__tests__*' -name '*.test.js' \) -o \( -name 'test-*.mjs' -not -path '*__tests__*' \)`
+  🔴 **Hier stand bis zum 25.08.2026 abends, diese 21 fahre „KEIN Lauf" und 7 davon seien rot.**
+  Beides ist falsch und in dieser Reihenfolge gefaehrlich: das Tor faehrt sie (sein eigenes
+  JS-Muster, `deploy-avesmaps-strato.yml`), und sie sind **alle gruen** -- einzeln nachgemessen,
+  aus dem Wurzelverzeichnis wie aus `tools/paths/`. Der Satz haette den naechsten Leser davon
+  abgehalten, das richtige Muster zu fahren („erst die roten heilen"), obwohl daran nichts zu
+  heilen war.
+  ⚠️ Was bleibt: **5 `.js`** unter `tools/svg-export/__tests__/`, die nicht auf `.test.js` enden,
+  fahren tatsaechlich in keinem Lauf (1 rot, `abzug-pruefen.js`). 🔴 **Das ist ABSICHT, keine
+  Luecke** -- die Endpunkt-Ablaeufe starten einen echten Server, und der Name haelt sie bewusst aus
+  dem Tor heraus, damit ein Portproblem den Deploy nicht anhaelt (§11, SVG-Abzug). Wer das Muster
+  dorthin zieht, hebt diesen Entscheid auf und stellt das Tor zu.
   ⚠️ **Und danach: der Fehlschlag vergiftet den `?v=`-Stempel.** Der nächste grüne Lauf
   hält die nie hochgeladenen Dateien für aktuell — live standen zwei davon auf HTTP 404
   und sechs in alter Fassung, während `index.html` schon die neue anforderte. Nur eine
