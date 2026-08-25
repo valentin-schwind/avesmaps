@@ -109,12 +109,17 @@ ON DUPLICATE KEY UPDATE count = count + VALUES(count);
 -- ============================================================================================
 -- SCHRITT 5 · Nachrechnen. (nur lesend)
 -- ============================================================================================
--- 🔴 DIE EINE ZAHL, DIE STIMMEN MUSS: die Summe je Metrik ist unveraendert. Die Zeilenzahl soll
--- fallen -- das ist der Sinn der Uebung --, aber SUM(count) darf sich um keinen einzigen Zaehler
--- verschieben, sonst hat die Statistik einen Sprung.
+-- 🔴 DIE ZAHL, DIE STIMMEN MUSS: kein Zaehler darf VERSCHWINDEN. Die Zeilenzahl soll fallen --
+-- das ist der Sinn der Uebung --, aber die Summe je Metrik darf nicht nach unten gehen.
 --
--- Erwartung: jede Zeile zeigt `differenz` = 0. Die Spalte `zeilen_vorher` sollte deutlich ueber
--- `zeilen_nachher` liegen; genau diese Ersparnis war der Fehler.
+-- ⚠️ `differenz` ist NICHT zwingend 0, und das ist kein Fehler: zwischen dem Tausch (Schritt 3)
+-- und dieser Abfrage laeuft der Betrieb weiter, und diese frischen Ereignisse stehen bereits in
+-- der neuen Tabelle. Erwartet wird also 0 oder eine KLEINE POSITIVE Zahl in der Groessenordnung
+-- des Verkehrs der letzten Minuten -- vor allem bei `pageview`, `device`, `language`, `referrer`.
+--
+-- 💣 Der Alarm ist eine NEGATIVE Zahl: dann ist beim Zusammenfassen etwas verloren gegangen.
+-- Dann NICHT aufraeumen (Schritt 6 auslassen) -- visitor_metric_alt_20260825 ist in dem Fall die
+-- einzige vollstaendige Fassung, und der Tausch laesst sich mit einem zweiten RENAME zuruecknehmen.
 
 SELECT
     COALESCE(a.metric, n.metric)                      AS metric,
