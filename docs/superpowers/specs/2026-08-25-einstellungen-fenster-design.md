@@ -1,7 +1,15 @@
 # Das Fenster „Einstellungen" — eine zentrale Schaltstelle für Admins
 
 **Stand 25.08.2026.** Entwurf, mit dem Owner am 25.08.2026 abgestimmt.
-Mockup: `docs/einstellungen-mockup.html`.
+Mockups: `docs/einstellungen-mockup.html` (das Fenster) und `docs/vorgangsanzeige-mockup.html`
+(die Kopfleiste).
+
+> 🔴 **GEPARKT — es ist NICHTS gebaut.** Owner am 25.08.2026: *„ok ich werde das Vorhaben zunächst
+> nicht weiterverfolgen, weil ich auf deine Fragen keine Antworten habe."* Die drei offenen Fragen
+> stehen in §4.4b/§4.4c und gesammelt in der Übergabe.
+> **Bevor hier jemand weiterbaut: `docs/superpowers/plans/2026-08-25-einstellungen-fenster-uebergabe.md`
+> lesen.** Sie nennt die drei Fragen, die Entscheidungen, die nicht neu verhandelt werden, und die
+> Fallen, die man nicht zweimal finden muss.
 
 ---
 
