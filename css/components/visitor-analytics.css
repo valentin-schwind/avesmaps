@@ -75,6 +75,28 @@
 .va-chartlegend { display: flex; gap: 16px; justify-content: center; margin-top: 6px; font-size: 11px; color: var(--color-text-muted); }
 .va-chartlegend i.va-legend--dash { background: repeating-linear-gradient(90deg, var(--color-chart-1) 0 5px, transparent 5px 8px); }
 .va-legend__scale { opacity: 0.75; }
+.va-chartlegend i.va-legend--solid { background: var(--color-text-strong); }
+.va-chartlegend i.va-legend--avgdash { background: repeating-linear-gradient(90deg, var(--color-text-strong) 0 4px, transparent 4px 7px); }
+
+/* Verweildauer-Histogramm. Entwurf: docs/superpowers/specs/2026-08-25-verweildauer-design.md
+   💣 EINE Farbe fuer alle Balken, KEINE sequenzielle Leiter -- aus zwei Gruenden. Erstens traegt
+   hier allein die Hoehe die Aussage; eine Farbleiter taeuschte eine zweite vor, die es nicht gibt.
+   Zweitens, und das ist der harte Grund: die Hausleiter --color-accent -> -accent-strong ->
+   -accent-brown ist NICHT themenfest. --color-accent-brown ist hell #7a5a3a (dunkelbraun) und
+   dunkel #c9a97e (helles Tan) -- die Leiter kehrt sich um und ist im Dunkelmodus keine mehr
+   (gemessen: rgb(207,183,103) gegen rgb(201,169,126), kein sichtbarer Unterschied). */
+.va-hist__bar { fill: var(--color-accent-strong); }
+.va-hist__axis { stroke: var(--color-divider); stroke-width: 1; }
+.va-hist__tick { fill: var(--color-text-muted); font-size: 9px; }
+/* Die zwei Striche sind Beschriftung, keine Daten -- darum Tinte statt Gold.
+   💣 Ein Tintenstrich ueber einem goldenen Balken hat im DUNKLEN Thema nur 1,7:1 Kontrast, dort
+   ist die Tinte hell und der Balken auch. Darum liegt unter jedem Strich eine breitere Linie in
+   der Kartenfarbe: die Fassung trennt ihn vom Balken, egal welches Thema laeuft. */
+.va-hist__mark-casing { stroke: var(--color-panel); stroke-width: 4; }
+.va-hist__mark { stroke: var(--color-text-strong); stroke-width: 1.5; }
+.va-hist__mark--avg { stroke-dasharray: 4 3; }
+.va-hist__flag { fill: var(--color-text-strong); font-size: 9.5px; font-weight: 700; }
+.va-note { font-size: 11px; line-height: 1.5; color: var(--color-text-muted); margin-top: 8px; }
 .va-chartlegend i { display: inline-block; width: 12px; height: 3px; border-radius: 2px; margin-right: 5px; vertical-align: middle; }
 .va-pill { font-size: 12px; padding: 5px 11px; border-radius: 999px; border: 1px solid var(--color-border-strong); background: var(--color-panel); color: var(--color-text-muted); cursor: pointer; }
 .va-pill.is-active { background: var(--color-button-soft-text); color: var(--color-panel); border-color: var(--color-button-soft-text); }

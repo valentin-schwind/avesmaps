@@ -218,18 +218,26 @@ function avesmapsVisitorDeviceClass(string $ua): string {
     return 'desktop';
 }
 
-function avesmapsVisitorIncrement(PDO $pdo, string $actorType, string $metric, string $dimension = '', ?int $hour = null): void {
+// $day ist fast immer null und heisst dann "heute". Gesetzt wird er nur von der Verweildauer:
+// ein Besuch, der um 23:58 endet und um 00:14 verbucht wird, gehoert in den VORTAG. Ohne den
+// Parameter waere die Buchung auf den Tag der Aufraeumung datiert -- und die letzte Stunde des
+// Tages waere systematisch leer.
+// ⚠️ Der Wert muss ein UTC-Datum sein, wie UTC_DATE() es liefert; woher der Aufrufer es nimmt,
+// steht bei avesmapsVisitorLadeLiveLauf.
+function avesmapsVisitorIncrement(PDO $pdo, string $actorType, string $metric, string $dimension = '', ?int $hour = null, ?string $day = null, int $um = 1): void {
     $metric = substr(trim($metric), 0, 40);
-    if ($metric === '') {
+    if ($metric === '' || $um < 1) {
         return;
     }
     $dimension = substr(trim($dimension), 0, 190);
     $statement = $pdo->prepare(
         'INSERT INTO visitor_metric (day, hour, actor_type, metric, dimension, count)
-        VALUES (UTC_DATE(), :hour, :actor_type, :metric, :dimension, 1)
-        ON DUPLICATE KEY UPDATE count = count + 1'
+        VALUES (COALESCE(:day, UTC_DATE()), :hour, :actor_type, :metric, :dimension, :um)
+        ON DUPLICATE KEY UPDATE count = count + VALUES(count)'
     );
     $statement->execute([
+        'day' => $day,
+        'um' => $um,
         // 💣 Nie das rohe $hour: ausserhalb des strict mode -- und dieser Server laeuft ausserhalb,
         // siehe die stille Kuerzung von app_setting in AGENTS.md §10 -- macht MySQL aus einem
         // ausdruecklichen NULL in einer NOT-NULL-Spalte stillschweigend eine 0. Die Zeile stuende
@@ -461,42 +469,288 @@ function avesmapsVisitorEnsureLiveTable(PDO $pdo): void {
             visitor_hash CHAR(64) NOT NULL,
             actor_type ENUM('visitor','editor') NOT NULL DEFAULT 'visitor',
             state ENUM('active','reading','hidden') NOT NULL DEFAULT 'reading',
+            first_seen DATETIME NULL,
             last_seen DATETIME NOT NULL,
             PRIMARY KEY (visitor_hash),
             KEY idx_visitor_live_last_seen (last_seen)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
     );
+    // ⚠️ CREATE TABLE IF NOT EXISTS aendert eine VORHANDENE Tabelle nicht -- der Bestand braucht
+    // die Spalte nachtraeglich. Das hier ist der Nachzieher, und er darf hier stehen, obwohl
+    // AGENTS.md §10 DDL auf heissen Pfaden verbietet: diese Funktion laeuft NICHT bei jedem Ping,
+    // sondern nur im Fehlerzweig von heartbeat.php, also einmal nach dem Deploy.
+    //
+    // 🔴 Die Spalte ist NULL-faehig, und das ist Absicht: eine Zeile aus der Zeit VOR dem Umbau
+    // hat keinen bekannten Anfang. Sie mit NOW() zu fuellen machte aus ihr einen Besuch, der
+    // gerade erst begonnen hat; sie mit last_seen zu fuellen einen von null Sekunden. Beides waere
+    // erfunden. NULL heisst "unbekannt", und der Buchhalter laesst solche Zeilen aus.
+    try {
+        $pdo->exec('ALTER TABLE visitor_live ADD COLUMN first_seen DATETIME NULL AFTER state');
+    } catch (PDOException $exception) {
+        // Spalte ist schon da -- der Normalfall ab dem zweiten Lauf.
+    }
 }
 
-function avesmapsVisitorRecordLive(PDO $pdo, string $actorType, string $state): void {
+// --- Verweildauer ------------------------------------------------------------------------------
+// Entwurf: docs/superpowers/specs/2026-08-25-verweildauer-design.md
+//
+// 🔴 Gemessen wird die Zeit mit der Karte IM VORDERGRUND, nicht "der Tab war offen". Das ist keine
+// Wahl, sondern die einzige messbare Groesse: der Ping schweigt bei unsichtbarem Tab, und ein seit
+// gestern im Hintergrund liegender Tab ist von einem geschlossenen nicht zu unterscheiden.
+
+if (!defined('AVESMAPS_VISITOR_DWELL_MAX_SECONDS')) {
+    // 12 Stunden -- die Obergrenze aus dem Owner-Wunsch. Alles darueber faellt in EINEN Korb.
+    define('AVESMAPS_VISITOR_DWELL_MAX_SECONDS', 43200);
+}
+
+/**
+ * Der Korb, in dem ein Besuch dieser Laenge gezaehlt wird: seine Untergrenze in Sekunden,
+ * fuenfstellig mit fuehrenden Nullen.
+ *
+ * 💣 Die Nullen sind tragend, nicht Kosmetik. `dimension` ist VARCHAR; der Leser sortiert die
+ * Koerbe als ZEICHENKETTE, und ohne Auffuellung stuende "1200" vor "300".
+ *
+ * ⭐ Fein gespeichert, grob gezeigt: die Anzeige darf ihre elf Balken spaeter anders schneiden,
+ * ohne die Geschichte neu zu deuten. Und der Median wird aus Koerben interpoliert -- bei
+ * 10-Sekunden-Koerben am kurzen Ende ist er auf zehn Sekunden genau, bei Minutenkoerben waere er
+ * es nur auf eine Minute, und genau dort liegt die Haelfte aller Besuche.
+ *
+ * 🔴 Rein und ohne Datenbank -- dieselbe Trennung wie bei avesmapsVisitorMergeEditorRows. Eine
+ * SQLite-Fixture koennte die Abfragen drumherum nicht ausfuehren, und sie dafuer umzuschreiben
+ * hiesse, den Test gegen die Produktion zu drehen (AGENTS.md §9).
+ */
+function avesmapsVisitorDwellBucket(int $seconds): string {
+    if ($seconds < 0) {
+        $seconds = 0;
+    }
+    if ($seconds >= AVESMAPS_VISITOR_DWELL_MAX_SECONDS) {
+        return (string) AVESMAPS_VISITOR_DWELL_MAX_SECONDS;
+    }
+    if ($seconds < 300) {
+        $unten = intdiv($seconds, 10) * 10;      // bis 5 min: 10-Sekunden-Schritte
+    } elseif ($seconds < 3600) {
+        $unten = intdiv($seconds, 60) * 60;      // bis 60 min: Minutenschritte
+    } else {
+        $unten = intdiv($seconds, 300) * 300;    // bis 12 h: 5-Minuten-Schritte
+    }
+
+    return str_pad((string) $unten, 5, '0', STR_PAD_LEFT);
+}
+
+/**
+ * Die Dauer zwischen zwei MySQL-Zeitstempeln in Sekunden.
+ *
+ * 💣 BEIDE Werte muessen von DERSELBEN Uhr stammen -- deshalb liefert avesmapsVisitorLadeLiveLauf
+ * auch das `jetzt` der Datenbank mit, statt es hier per PHP zu nehmen. Laeuft die DB-Sitzung in
+ * einer anderen Zone als PHP, waere die Differenz sonst um den Zonenversatz falsch, und zwar
+ * lautlos und immer gleich -- der unauffaelligste Fehler, den diese Rechnung haben kann.
+ *
+ * ⚠️ Nie negativ: eine Zeile aus dem Bestand kann einen spaeteren Anfang als Ende tragen.
+ */
+function avesmapsVisitorDauerSekunden(string $von, string $bis): int {
+    $a = strtotime($von);
+    $b = strtotime($bis);
+    if ($a === false || $b === false) {
+        return 0;
+    }
+
+    return max(0, $b - $a);
+}
+
+/**
+ * Die Felder eines laufenden Besuchs -- samt zwei Werten, die die DATENBANK rechnet und nicht PHP.
+ *
+ * 💣 `jetzt` kommt von hier, damit die Dauer aus zwei Zeitstempeln DERSELBEN Uhr entsteht
+ * (siehe avesmapsVisitorDauerSekunden).
+ *
+ * 💣 `utc_tag` ist der UTC-Kalendertag, an dem der Besuch ANFING. `visitor_metric.day` ist UTC
+ * (UTC_DATE()), die Spalte `first_seen` aber steht in der Zonenzeit der DB-Sitzung. Laeuft die auf
+ * Europe/Berlin, ist ein Besuch vom 26. um 01:30 in Wahrheit der 25. um 23:30 UTC -- ein Fenster
+ * von ein bis zwei Stunden je Tag, in dem die Buchung auf dem falschen Tag laege. Der Ausdruck
+ * verschiebt first_seen um genau den Versatz, den die DB selbst zwischen NOW() und UTC_TIMESTAMP()
+ * meldet; er braucht keine Zeitzonentabellen, die auf geteiltem Hosting oft fehlen.
+ */
+const AVESMAPS_VISITOR_LIVE_FELDER =
+    'visitor_hash, actor_type, first_seen, last_seen, NOW() AS jetzt,
+     DATE(TIMESTAMPADD(SECOND, TIMESTAMPDIFF(SECOND, NOW(), UTC_TIMESTAMP()), first_seen)) AS utc_tag';
+
+function avesmapsVisitorLadeLiveLauf(PDO $pdo): ?array {
     $statement = $pdo->prepare(
-        'INSERT INTO visitor_live (visitor_hash, actor_type, state, last_seen)
-        VALUES (:hash, :actor_type, :state, NOW())
+        'SELECT ' . AVESMAPS_VISITOR_LIVE_FELDER . ' FROM visitor_live WHERE visitor_hash = :hash'
+    );
+    $statement->execute(['hash' => avesmapsVisitorDailyHash()]);
+    $row = $statement->fetch(PDO::FETCH_ASSOC);
+
+    return is_array($row) ? $row : null;
+}
+
+/**
+ * DER BUCHHALTER. Schreibt EINEN beendeten Besuch in die Tagesstatistik.
+ *
+ * 💣 Es gibt genau DREI Ausgaenge aus einem Besuch -- der `gone`-Beacon beim Schliessen des Tabs,
+ * der Neustart (ein Ping auf eine Zeile, die laengst kalt ist) und die Aufraeumung. Alle drei
+ * gehen durch DIESE Funktion. Eine Regel, die nur einen von mehreren Erzeugern bindet, ist keine
+ * Regel -- das hat das Projekt am 14.08. (Verkehrsmittel-Sperre in zwei von vier) und am 15.08.
+ * (Ausstiegsregel in einem von vier) je einen Tag gekostet. Der Preis waere hier ein Histogramm,
+ * das je nach Ausgang zaehlt oder nicht, und das sieht aus wie ein Datenmangel, nicht wie ein
+ * Fehler. Gewacht von dwell-buchhalter-test.php, das die Aufrufer im Quelltext zaehlt.
+ *
+ * 🔴 Eine Zeile ohne `first_seen` wird uebersprungen, nicht geraten: sie stammt aus der Zeit vor
+ * dem Umbau, ihr Anfang ist unbekannt, und eine erfundene Dauer ist schlechter als keine.
+ */
+function avesmapsVisitorFinishLiveRun(PDO $pdo, array $lauf, bool $endeIstJetzt = false): void {
+    $anfang = (string) ($lauf['first_seen'] ?? '');
+    if ($anfang === '') {
+        return;
+    }
+    $ende = $endeIstJetzt ? (string) ($lauf['jetzt'] ?? '') : (string) ($lauf['last_seen'] ?? '');
+    if ($ende === '') {
+        return;
+    }
+
+    $sekunden = avesmapsVisitorDauerSekunden($anfang, $ende);
+    $actorType = (string) ($lauf['actor_type'] ?? 'visitor');
+    // ⚠️ Der Tag des ANFANGS, nie der Tag der Buchung -- siehe AVESMAPS_VISITOR_LIVE_FELDER.
+    $tag = (string) ($lauf['utc_tag'] ?? '');
+    $tag = $tag !== '' ? $tag : null;
+
+    // Drei Zeilen: der Korb traegt das Histogramm, die zwei Zaehler den EXAKTEN Durchschnitt.
+    // Aus Koerben liesse sich nur ein genaeherter rechnen, und der stuende dann neben einem
+    // Median, der ohnehin genaehert ist -- zwei Naeherungen, von denen eine vermeidbar war.
+    avesmapsVisitorIncrement($pdo, $actorType, 'dwell', avesmapsVisitorDwellBucket($sekunden), null, $tag);
+    avesmapsVisitorIncrement($pdo, $actorType, 'dwell_sessions', '', null, $tag);
+    if ($sekunden > 0) {
+        avesmapsVisitorIncrement($pdo, $actorType, 'dwell_seconds', '', null, $tag, $sekunden);
+    }
+}
+
+/**
+ * Ist der Besuch dieser Zeile zu Ende, obwohl die Zeile noch steht?
+ *
+ * ⚠️ Gemessen am ANWESENHEITSFENSTER (150 s), nicht an der Aufraeumfrist (15 min): wer nach einer
+ * Pause von mehr als zweieinhalb Minuten wieder pingt, war in der Zwischenzeit nicht da. Ohne diese
+ * Erkennung verschmelzen der Morgen- und der Abendbesuch desselben Anschlusses zu EINEM Besuch von
+ * zwoelf Stunden -- der Tages-Hash ist derselbe.
+ *
+ * ⚠️ Der Preis in die andere Richtung: eine Pause von mehr als 150 s zaehlt als zwei Besuche. Das
+ * ist die kuerzende Richtung, und die ist hier die sichere.
+ */
+function avesmapsVisitorLiveLaufIstAus(array $lauf): bool {
+    $letzte = (string) ($lauf['last_seen'] ?? '');
+    $jetzt = (string) ($lauf['jetzt'] ?? '');
+    if ($letzte === '' || $jetzt === '') {
+        return false;
+    }
+
+    return avesmapsVisitorDauerSekunden($letzte, $jetzt) > AVESMAPS_VISITOR_LIVE_WINDOW_SECONDS;
+}
+
+/**
+ * Ein Ping. Bucht vorher den vorigen Besuch, falls dieser Ping in Wahrheit ein neuer ist.
+ *
+ * 💣 `first_seen` steht NICHT einfach im ON-DUPLICATE-Zweig. Naehme der Upsert es mit, waere jeder
+ * Besuch genau einen Ping lang und das Histogramm haette genau einen Balken -- gefuellt, plausibel
+ * und vollstaendig falsch. Neu gesetzt wird der Anfang nur beim ausdruecklichen Neuanfang; das
+ * COALESCE daneben faengt die Zeilen aus der Zeit vor dieser Spalte.
+ *
+ * ⚠️ Kostet eine zusaetzliche Leseabfrage je Ping (Primaerschluessel). Bewusst NICHT dem Client
+ * ueberlassen ("ich fange neu an"): faellt das Flag aus, verschmelzen zwei Besuche lautlos, und
+ * lautlos falsch ist teurer als ein Indexzugriff.
+ */
+function avesmapsVisitorRecordLive(PDO $pdo, string $actorType, string $state): void {
+    $lauf = avesmapsVisitorLadeLiveLauf($pdo);
+    $neuAnfangen = false;
+    if ($lauf !== null && avesmapsVisitorLiveLaufIstAus($lauf)) {
+        avesmapsVisitorFinishLiveRun($pdo, $lauf);
+        $neuAnfangen = true;
+    }
+
+    $statement = $pdo->prepare(
+        'INSERT INTO visitor_live (visitor_hash, actor_type, state, first_seen, last_seen)
+        VALUES (:hash, :actor_type, :state, NOW(), NOW())
         ON DUPLICATE KEY UPDATE
             actor_type = VALUES(actor_type),
             state = VALUES(state),
+            first_seen = IF(:neu, NOW(), COALESCE(first_seen, NOW())),
             last_seen = VALUES(last_seen)'
     );
     $statement->execute([
         'hash' => avesmapsVisitorDailyHash(),
         'actor_type' => $actorType === 'editor' ? 'editor' : 'visitor',
         'state' => in_array($state, ['active', 'reading', 'hidden'], true) ? $state : 'reading',
+        'neu' => $neuAnfangen ? 1 : 0,
     ]);
 }
 
 // Closing the tab removes the row at once instead of letting it linger for the
 // length of the window -- the difference between "left" and "idle" is worth a
 // beacon on pagehide.
+//
+// 💣 Erst buchen, dann loeschen. Das ist der GENAUE der drei Ausgaenge: hier steht die echte
+// Sekundenzahl bis zum Schliessen, waehrend die anderen beiden auf den letzten Ping abrunden.
 function avesmapsVisitorForgetLive(PDO $pdo): void {
+    $lauf = avesmapsVisitorLadeLiveLauf($pdo);
+    if ($lauf !== null) {
+        avesmapsVisitorFinishLiveRun($pdo, $lauf, true);
+    }
     $statement = $pdo->prepare('DELETE FROM visitor_live WHERE visitor_hash = :hash');
     $statement->execute(['hash' => avesmapsVisitorDailyHash()]);
 }
 
+// 💣 Auch hier: erst buchen, dann loeschen. Diese Funktion loeschte bis zum 26.08.2026 nur -- und
+// sie ist der Ausgang, den die MEISTEN Besuche nehmen, weil ein `pagehide`-Beacon vor allem auf
+// Mobilgeraeten oft nicht mehr abgeht. Wer die Reihenfolge dreht, verliert genau die.
 function avesmapsVisitorPurgeLive(PDO $pdo): void {
+    $kalt = $pdo->query(
+        'SELECT ' . AVESMAPS_VISITOR_LIVE_FELDER . ' FROM visitor_live
+        WHERE last_seen < DATE_SUB(NOW(), INTERVAL ' . AVESMAPS_VISITOR_LIVE_PURGE_MINUTES . ' MINUTE)'
+    )->fetchAll(PDO::FETCH_ASSOC);
+    foreach ($kalt as $lauf) {
+        avesmapsVisitorFinishLiveRun($pdo, $lauf);
+    }
+
     $pdo->exec(
         'DELETE FROM visitor_live
         WHERE last_seen < DATE_SUB(NOW(), INTERVAL ' . AVESMAPS_VISITOR_LIVE_PURGE_MINUTES . ' MINUTE)'
     );
+}
+
+/**
+ * Die Verweildauer eines Zeitraums: die Koerbe fuer das Histogramm, dazu Anzahl und Sekundensumme
+ * fuer den exakten Durchschnitt. Den Median rechnet der Browser aus den Koerben.
+ */
+function avesmapsVisitorReadDwell(PDO $pdo, string $actorType, int $days): array {
+    $days = max(1, min(3660, $days));
+    $actorType = $actorType === 'editor' ? 'editor' : 'visitor';
+
+    $koerbe = $pdo->prepare(
+        "SELECT dimension, SUM(count) AS c FROM visitor_metric
+        WHERE actor_type = :a AND metric = 'dwell' AND dimension <> ''
+            AND day >= DATE_SUB(UTC_DATE(), INTERVAL :d DAY)
+        GROUP BY dimension ORDER BY dimension"
+    );
+    $koerbe->execute(['a' => $actorType, 'd' => $days]);
+
+    $summen = $pdo->prepare(
+        "SELECT metric, SUM(count) AS c FROM visitor_metric
+        WHERE actor_type = :a AND metric IN ('dwell_sessions','dwell_seconds')
+            AND day >= DATE_SUB(UTC_DATE(), INTERVAL :d DAY)
+        GROUP BY metric"
+    );
+    $summen->execute(['a' => $actorType, 'd' => $days]);
+    $gezaehlt = [];
+    foreach ($summen->fetchAll(PDO::FETCH_ASSOC) as $row) {
+        $gezaehlt[(string) $row['metric']] = (int) $row['c'];
+    }
+
+    return [
+        'buckets' => array_map(static function (array $row): array {
+            return ['from_seconds' => (int) $row['dimension'], 'count' => (int) $row['c']];
+        }, $koerbe->fetchAll(PDO::FETCH_ASSOC)),
+        'sessions' => $gezaehlt['dwell_sessions'] ?? 0,
+        'seconds_total' => $gezaehlt['dwell_seconds'] ?? 0,
+        'max_seconds' => AVESMAPS_VISITOR_DWELL_MAX_SECONDS,
+    ];
 }
 
 // Presence snapshot for the Status panel. Editors get a row too (so a signed-in

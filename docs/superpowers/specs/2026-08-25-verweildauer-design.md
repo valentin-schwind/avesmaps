@@ -8,6 +8,9 @@ Mockup: `docs/besucherstatistik-verweildauer-mockup.html` (Abschnitt 2), vom Own
 („Verweildauer perfekt"). Teil 1 desselben Mockups — die Editoren-Linie — ist am 25.08.2026
 getrennt live gegangen (`c300d3e9`).
 
+🔴 **Gebaut am 26.08.2026.** Owner-Entscheid zur einzigen offenen Frage aus §7: „15 minuten sind
+ok" — der Riegel des Anwesenheits-Pings bleibt, wie er ist.
+
 ---
 
 ## 1 · Was gemessen wird, und warum genau das
@@ -181,8 +184,9 @@ Endzeitpunkt; dazu kommt ein Anfangszeitpunkt **derselben** Zeile. Die Aufbewahr
 nicht: die Live-Zeile stirbt weiter nach 15 Minuten, dauerhaft bleibt nur der Tagesaggregat-Zähler,
 und der trägt keine Identität.
 
-🔧 **Owner:** die Aufzählung im Hinweise-Fenster („was wir aggregiert erheben") sollte „Verweildauer"
-mitnennen. Ein Satz, keine neue Rechtsgrundlage.
+✅ **Erledigt beim Bau:** die Aufzählung im Hinweise-Fenster nennt die Verweildauer jetzt mit —
+in **beiden** Sprachen (`index.html` und `js/app/i18n-en.js`). Nur die deutsche Zeile zu ändern
+hätte unter `?lang=en` die alte Liste stehen lassen; genau diese Divergenz meint AGENTS.md §8.
 
 ## 9 · Bauteile
 
@@ -205,3 +209,18 @@ tragendste Zusicherung — **dass alle drei Ausgänge durch denselben Buchhalter
 🔧 Das Ganze ist datenbankgebunden und lokal nicht gegen echte Daten prüfbar — wie beim
 Anwesenheits-Ping 2026-07-20 sieht erst der Owner im Panel, ob die Zahl steht. Der Weg dorthin: nach
 dem Deploy ein paar Minuten die Karte offen lassen, dann Tab schließen, dann im Panel nachsehen.
+
+⚠️ **Was der Bau gegenüber diesem Entwurf geändert hat**, damit es niemand für Absicht hält:
+- Die Körbe wurden **feiner als hier beschrieben**: 10-Sekunden-Schritte unter 5 Minuten (statt
+  einer Minute), weil dort die Hälfte aller Besuche liegt und der Median sonst nur auf eine Minute
+  genau wäre.
+- `first_seen` ist **NULL-fähig**, nicht `NOT NULL`. Eine Zeile aus der Zeit vor dem Umbau hat
+  keinen bekannten Anfang; sie mit `NOW()` oder mit `last_seen` zu füllen wäre beides erfunden.
+  Der Buchhalter überspringt solche Zeilen.
+- Der **UTC-Tag** der Buchung wird aus dem Versatz gerechnet, den die DB zwischen `NOW()` und
+  `UTC_TIMESTAMP()` selbst meldet. `DATE(first_seen)` allein wäre in einer nicht-UTC-Sitzung ein
+  bis zwei Stunden je Tag falsch, und Zeitzonentabellen fehlen auf geteiltem Hosting oft.
+- Die zwei Striche stehen in **Tinte mit einer Fassung darunter**, nicht in Braun. Gemessen: Tinte
+  gegen goldenen Balken hat im dunklen Thema **1,48:1**, mit Fassung **11,9:1**.
+- Die **leere Karte trägt keine Legende** — eine Erklärung für nicht gezeichnete Linien ist
+  Rauschen. Im Abnahmelauf aufgefallen, nicht im Entwurf bedacht.

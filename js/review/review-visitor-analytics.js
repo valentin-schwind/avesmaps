@@ -128,6 +128,161 @@ function vaBars(rows, col) {
 // 💣 `editorsRight` faellt auf die GETEILTE Skala zurueck, wenn es fehlt. Der Schalter ist das
 // Ausnahmeverhalten, nicht die Regel -- ein Aufrufer, der ihn vergisst, bekommt damit ein Bild,
 // das hoechstens langweilig ist, nie eines mit einer zweiten Achse, die niemand beschriftet hat.
+// --- Verweildauer ------------------------------------------------------------------------------
+// Entwurf: docs/superpowers/specs/2026-08-25-verweildauer-design.md
+// Mockup: docs/besucherstatistik-verweildauer-mockup.html (Abschnitt 2)
+//
+// Der Server liefert FEINE Koerbe (10 s / 60 s / 300 s je nach Laenge), gezeigt werden ELF grobe.
+// Die feinen tragen den Median, die groben das Bild -- deshalb wird hier zweimal gerechnet und
+// nicht einmal.
+
+// [Untergrenze, Obergrenze, Beschriftung] in Sekunden. Die letzte Klasse ist offen nach oben.
+const VA_DWELL_KLASSEN = [
+	[0, 60, "<1 min"], [60, 120, "1–2"], [120, 300, "2–5"], [300, 600, "5–10"],
+	[600, 1200, "10–20"], [1200, 2700, "20–45"], [2700, 5400, "45–90"], [5400, 10800, "1,5–3 h"],
+	[10800, 21600, "3–6 h"], [21600, 43200, "6–12 h"], [43200, 86400, ">12 h"],
+];
+
+// 💣 Dieselbe Staffelung wie avesmapsVisitorDwellBucket im PHP -- die zwei Stellen sind gekoppelt.
+// Ohne die Breite laesst sich innerhalb eines Korbs nicht interpolieren, und der Median waere
+// immer die Untergrenze seines Korbs (also bis zu fuenf Minuten zu klein).
+function vaDwellKorbBreite(from) {
+	if (from < 300) { return 10; }
+	if (from < 3600) { return 60; }
+	return 300;
+}
+
+// Der Median aus den feinen Koerben, INNERHALB seines Korbs interpoliert. Aus Klassen ist er nicht
+// exakt zu holen; das ist der uebliche Weg und der Grund, warum die Koerbe fein gespeichert werden.
+function vaDwellMedian(buckets) {
+	const liste = (buckets || []).slice().sort((a, b) => (Number(a.from_seconds) || 0) - (Number(b.from_seconds) || 0));
+	const gesamt = liste.reduce((a, b) => a + (Number(b.count) || 0), 0);
+	if (gesamt === 0) { return null; }
+	let lauf = 0;
+	for (let i = 0; i < liste.length; i++) {
+		const anzahl = Number(liste[i].count) || 0;
+		const von = Number(liste[i].from_seconds) || 0;
+		if (lauf + anzahl >= gesamt / 2) {
+			return von + vaDwellKorbBreite(von) * ((gesamt / 2 - lauf) / anzahl);
+		}
+		lauf += anzahl;
+	}
+	return Number(liste[liste.length - 1].from_seconds) || 0;
+}
+
+// Die feinen Koerbe auf die elf gezeigten Klassen zusammenlegen.
+function vaDwellGruppieren(buckets) {
+	const summen = VA_DWELL_KLASSEN.map(() => 0);
+	(buckets || []).forEach((korb) => {
+		const von = Number(korb.from_seconds) || 0;
+		let index = VA_DWELL_KLASSEN.findIndex((k) => von >= k[0] && von < k[1]);
+		// Alles ab 12 h faellt in die letzte Klasse -- der Server hat dort ohnehin nur einen Korb.
+		if (index < 0) { index = VA_DWELL_KLASSEN.length - 1; }
+		summen[index] += Number(korb.count) || 0;
+	});
+	return summen;
+}
+
+function vaDwellText(sekunden) {
+	if (sekunden === null || !isFinite(sekunden)) { return "—"; }
+	const s = Math.max(0, Math.round(sekunden));
+	if (s < 3600) {
+		return Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0") + " min";
+	}
+	return Math.floor(s / 3600) + ":" + String(Math.round((s % 3600) / 60)).padStart(2, "0") + " h";
+}
+
+function vaDwell(dwell) {
+	const daten = dwell || {};
+	const werte = vaDwellGruppieren(daten.buckets);
+	const gesamt = werte.reduce((a, b) => a + b, 0);
+	if (gesamt === 0) {
+		return '<div class="va-storage">noch keine Daten</div>';
+	}
+	const w = 360, h = 142, padL = 24, padR = 10, padT = 20, padB = 32;
+	const plotW = w - padL - padR, plotH = h - padT - padB;
+	const max = Math.max.apply(null, werte.concat([1]));
+	const slot = plotW / VA_DWELL_KLASSEN.length;
+	const breite = slot * 0.72;
+
+	const balken = werte.map((v, i) => {
+		const hoehe = (v / max) * plotH;
+		const x = padL + i * slot + (slot - breite) / 2;
+		return `<rect x="${x.toFixed(1)}" y="${(padT + plotH - hoehe).toFixed(1)}" width="${breite.toFixed(1)}"`
+			+ ` height="${Math.max(v > 0 ? 1 : 0, hoehe).toFixed(1)}" rx="2" class="va-hist__bar">`
+			+ `<title>${vaEscape(VA_DWELL_KLASSEN[i][2])} — ${v.toLocaleString("de-DE")} Besuche</title></rect>`;
+	}).join("");
+
+	// ⚠️ Zwei Zeilen im Wechsel statt gedrehter Beschriftung: so hat jede Klasse die doppelte
+	// Slotbreite und bleibt waagerecht lesbar. Gedreht passte sie zwar auch, war bei 9 px aber
+	// muehsam zu lesen -- und lesen soll man sie.
+	const beschriftung = VA_DWELL_KLASSEN.map((k, i) => {
+		const x = padL + i * slot + slot / 2;
+		const y = padT + plotH + (i % 2 === 0 ? 12 : 23);
+		return `<text x="${x.toFixed(1)}" y="${y}" text-anchor="middle" class="va-hist__tick">${vaEscape(k[2])}</text>`;
+	}).join("");
+
+	// 💣 Ein Strich sitzt anteilig in SEINER Klasse. Die Achse ist nicht linear in Sekunden -- ein
+	// Median von 2:25 min gehoert auf 14 % der Breite der Klasse "2–5", nicht auf 145/86400 der
+	// Gesamtbreite. Linear gerechnet klebten beide Striche am linken Rand.
+	const xFuer = (sekunden) => {
+		for (let i = 0; i < VA_DWELL_KLASSEN.length; i++) {
+			const von = VA_DWELL_KLASSEN[i][0], bis = VA_DWELL_KLASSEN[i][1];
+			if (sekunden < bis || i === VA_DWELL_KLASSEN.length - 1) {
+				const anteil = Math.max(0, Math.min(1, (sekunden - von) / (bis - von)));
+				return padL + i * slot + anteil * slot;
+			}
+		}
+		return padL + plotW;
+	};
+
+	const median = vaDwellMedian(daten.buckets);
+	const sitzungen = Number(daten.sessions) || 0;
+	const schnitt = sitzungen > 0 ? (Number(daten.seconds_total) || 0) / sitzungen : null;
+
+	// 💣 Unter jedem Strich liegt eine breitere Linie in der Kartenfarbe. Tinte ueber einem goldenen
+	// Balken hat im DUNKLEN Thema nur 1,7:1 Kontrast -- dort ist die Tinte hell und der Balken auch.
+	// Die Fassung trennt ihn in beiden Themen (gemessen 12:1 Tinte gegen Fassung).
+	const strich = (sekunden, klasse, text, oben) => {
+		if (sekunden === null) { return ""; }
+		const x = xFuer(sekunden);
+		const anker = x > padL + plotW * 0.62 ? "end" : "start";
+		const dx = anker === "end" ? -3 : 3;
+		return `<line x1="${x.toFixed(1)}" y1="${padT - 6}" x2="${x.toFixed(1)}" y2="${padT + plotH}" class="va-hist__mark-casing"/>`
+			+ `<line x1="${x.toFixed(1)}" y1="${padT - 6}" x2="${x.toFixed(1)}" y2="${padT + plotH}" class="va-hist__mark ${klasse}"/>`
+			+ `<text x="${(x + dx).toFixed(1)}" y="${oben}" text-anchor="${anker}" class="va-hist__flag">${vaEscape(text)}</text>`;
+	};
+
+	return `<svg viewBox="0 0 ${w} ${h}" width="100%" height="${h}" role="img" aria-label="Verweildauer als Histogramm mit Median und Durchschnitt">`
+		+ `<line x1="${padL}" y1="${padT + plotH}" x2="${w - padR}" y2="${padT + plotH}" class="va-hist__axis"/>`
+		+ `<text x="${padL - 4}" y="${padT + 4}" text-anchor="end" class="va-hist__tick">${max.toLocaleString("de-DE")}</text>`
+		+ balken + beschriftung
+		+ strich(median, "", "Median " + vaDwellText(median), padT - 10)
+		+ strich(schnitt, "va-hist__mark--avg", "Ø " + vaDwellText(schnitt), padT + 6)
+		+ `</svg>`;
+}
+
+function vaDwellKarte(dwell) {
+	const daten = dwell || {};
+	const sitzungen = Number(daten.sessions) || 0;
+	const median = vaDwellMedian(daten.buckets);
+	const schnitt = sitzungen > 0 ? (Number(daten.seconds_total) || 0) / sitzungen : null;
+	const kachel = (label, wert) => `<div class="va-kpi"><div class="va-kpi__label">${label}</div><div class="va-kpi__value">${wert}</div></div>`;
+
+	return `<div class="va-card"><div class="va-card__label">Verweildauer</div>`
+		+ `<div class="va-kpis" style="margin-bottom:10px">`
+		+ kachel("Median", vaDwellText(median)) + kachel("Durchschnitt", vaDwellText(schnitt))
+		+ kachel("Besuche", sitzungen.toLocaleString("de-DE"))
+		+ `</div>${vaDwell(daten)}`
+		// ⚠️ Ohne Besuche gibt es keine zwei Striche -- eine Legende fuer nicht gezeichnete Linien
+		// ist keine Erklaerung, sondern Rauschen. Gemessen im Abnahmelauf, die leere Karte trug sie.
+		+ (sitzungen > 0
+			? `<div class="va-chartlegend"><span><i class="va-legend--solid"></i>Median</span><span><i class="va-legend--avgdash"></i>Durchschnitt</span></div>`
+			: "")
+		+ `<p class="va-note">Zeit mit der Karte im Vordergrund. Ohne Klick, Tastendruck oder Zoom endet die Messung nach 15 Minuten.</p>`
+		+ `</div>`;
+}
+
 function vaDailyHasEditors(daily) {
 	return (daily || []).some((d) => d && d.editors !== undefined && d.editors !== null);
 }
@@ -456,6 +611,7 @@ function renderVisitorDashboard(mount, data) {
 		+ `<div class="va-card"><div class="va-cardhead"><div class="va-card__label">Aktivität über Zeit</div>`
 		+ (hasEditors ? `<label class="va-switch"><input type="checkbox" id="va-editor-scale"${visitorEditorScaleRight ? " checked" : ""}>Editorenskala rechts</label>` : "")
 		+ `</div><div id="va-line-body">${vaLine(m.daily, visitorEditorScaleRight)}${vaLineLegend(hasEditors, visitorEditorScaleRight)}</div></div>`
+		+ vaDwellKarte(data.dwell)
 		+ `<div class="va-card"><div class="va-card__label">Aktivste Zeiten (Ortszeit)</div>${vaHeatmap(m.heatmap)}</div>`
 		+ `<div class="va-card"><div class="va-card__label">Top-Suchbegriffe</div>${vaBars(m.search, "#2a78d6")}</div>`
 		+ `<div class="va-card"><div class="va-card__label">Herkunft</div><div id="visitor-geo-map"></div><div class="va-geo-legend"><span>wenige</span><span class="va-geo-scale"><i style="background:rgba(42,120,214,0.12)"></i><i style="background:rgba(42,120,214,0.38)"></i><i style="background:rgba(42,120,214,0.64)"></i><i style="background:rgba(42,120,214,0.9)"></i></span><span>viele Klicks</span></div><div class="va-geo-clabel">Andere Länder<span class="va-geo-key"><i style="background:#1baf7a"></i>echte<i style="background:#888780"></i>Bots</span></div><div id="visitor-geo-countries"></div></div>`

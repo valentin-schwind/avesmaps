@@ -38,6 +38,8 @@ try {
         'actor' => $actor,
         'days' => $days,
         'metrics' => avesmapsVisitorReadMetrics($pdo, $actor, $days),
+        // Die Verweildauer haengt an derselben Sorte -- beide Unterreiter bekommen ihre eigene.
+        'dwell' => avesmapsVisitorReadDwell($pdo, $actor, $days),
         'storage' => avesmapsVisitorStorageInfo($pdo),
         'activity' => avesmapsVisitorRecentActivity($pdo, 12),
         'geo' => avesmapsVisitorReadGeo($pdo, $days),

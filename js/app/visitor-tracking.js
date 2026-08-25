@@ -141,6 +141,11 @@ function installVisitorPresence() {
 	// the raw input events feed the "active" state alongside trackVisitorEvent().
 	document.addEventListener("pointerdown", () => { visitorLastInteractionAt = Date.now(); }, { passive: true, capture: true });
 	document.addEventListener("keydown", () => { visitorLastInteractionAt = Date.now(); }, { passive: true, capture: true });
+	// 💣 Zoomen mit dem Mausrad war bis zum 26.08.2026 KEINE Bedienung. Wer die Karte zehn Minuten
+	// lang nur so erkundet, galt nach fuenfzehn Minuten als weg -- und das ist genau der Besucher,
+	// dessen Verweildauer interessiert. Ohne diese Zeile misst das Histogramm eine ganze
+	// Bedienungsart weg.
+	document.addEventListener("wheel", () => { visitorLastInteractionAt = Date.now(); }, { passive: true, capture: true });
 	document.addEventListener("visibilitychange", () => {
 		if (document.visibilityState === "hidden") {
 			sendVisitorPresence("hidden");

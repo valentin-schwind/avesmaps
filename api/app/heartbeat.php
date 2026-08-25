@@ -41,7 +41,16 @@ try {
     $pdo = avesmapsCreatePdo($config['database'] ?? []);
 
     if ($state === 'gone') {
-        avesmapsVisitorForgetLive($pdo);
+        // Derselbe Nachruestzweig wie beim Ping unten: seit dem 26.08.2026 liest auch dieser Pfad
+        // die Spalte first_seen, und auf einer Tabelle aus der Zeit davor gibt es sie noch nicht.
+        // Ohne den Zweig verschluckt der aeussere catch die Ausnahme und der genaueste der drei
+        // Ausgaenge buchte nie.
+        try {
+            avesmapsVisitorForgetLive($pdo);
+        } catch (PDOException $exception) {
+            avesmapsVisitorEnsureLiveTable($pdo);
+            avesmapsVisitorForgetLive($pdo);
+        }
         avesmapsJsonResponse(200, ['ok' => true]);
     }
 
