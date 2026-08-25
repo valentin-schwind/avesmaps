@@ -10,6 +10,8 @@ require_once __DIR__ . '/datei-riegel.php';
 // Dieselbe Begruendung eine Zeile hoeher, und derselbe Grund fuer die kleine Datei: die Drossel
 // wohnt NICHT in sync.php, damit auch ein Aufrufer ohne Crawl-Bibliothek sie fragen kann.
 require_once __DIR__ . '/drossel.php';
+// Und der Aufloeser: er macht aus der verbotenen Spezialseite die erlaubte Bildadresse.
+require_once __DIR__ . '/datei-adresse.php';
 
 // Identity / coat-of-arms / field-override apply (editable fields, coat upload,
 // identity & coats preview/apply/revert, capital resolution), split out of
@@ -60,6 +62,22 @@ function avesmapsWikiSyncMonitorHttpGetBinary(string $url): ?array {
     // ⚠️ GEWARTET wird hier, nicht abgewiesen: alle vier Aufrufer sind ausdrueckliche
     // Editor-Handgriffe in gedeckelten Schritten, keine Seitenaufbauten. Der Seitenaufbau ist
     // `coat.php`, und der nimmt deshalb den anderen Zweig.
+    // 🔴 DER ERLAUBTE WEG. `Spezial:Dateipfad` ist die Seite, die uns die robots.txt verbietet
+    // und die uns zweimal die IP-Sperre eingebracht hat. Statt sie zu holen, fragen wir ueber
+    // `api.php` nach der echten Bildadresse unter `/de/images/` -- die steht in keiner
+    // Verbotsliste. Hier zu fragen bindet wieder alle vier Aufrufer auf einmal.
+    // ⚠️ Die Aufloesung kostet eine eigene gedrosselte Anfrage; die Sammellaeufe fragen deshalb
+    // ihren ganzen Stapel VORHER auf einmal, und hier trifft nur noch das Gedaechtnis.
+    if (avesmapsWikiDateiIstSpezialAdresse($url)) {
+        $aufgeloest = avesmapsWikiDateiAdresseAufloesen($url);
+        if ($aufgeloest === '') {
+            // Das Wiki kennt die Datei nicht (oder sie liegt in einem fremden Repository).
+            // 🔴 KEIN Rueckfall auf die Spezialseite -- das waere genau der verbotene Abruf.
+            return null;
+        }
+        $url = $aufgeloest;
+    }
+
     if (avesmapsWikiDrosselGiltFuer($url)) {
         avesmapsWikiSyncThrottleWikiRequest();
     }
@@ -236,7 +254,11 @@ function avesmapsWikiSyncMonitorSaveCoatLocal(PDO $pdo, string $wikiKey): array 
 // Kandidaten fuer die Bulk-Lokalisierung: wiki_keys, deren EFFEKTIVES (Override ?? Staging) Wappen
 // gemeinfrei (public_domain) ist, noch auf wiki-aventurica hotlinkt und noch nicht lokal liegt.
 // Gleiche Quell-/Lizenz-Restriktion wie save_coat_local, nur eben fuer alle auf einmal.
-function avesmapsWikiSyncMonitorPendingLocalizeCoatKeys(PDO $pdo): array {
+// ⚠️ `$adressen` reicht die EFFEKTIVEN Wappen-Adressen mit heraus (wiki_key -> Adresse).
+// Sie stehen hier ohnehin schon fest; der Sammellauf braucht sie fuer den Vorlauf des
+// Aufloesers, und sie ein zweites Mal herzuleiten waere die zweite Wahrheit.
+function avesmapsWikiSyncMonitorPendingLocalizeCoatKeys(PDO $pdo, ?array &$adressen = null): array {
+    $adressen = [];
     avesmapsWikiSyncMonitorEnsureTables($pdo);
     $staging = AVESMAPS_WIKI_SYNC_MONITOR_STAGING_TABLE;
     $model = AVESMAPS_WIKI_SYNC_MONITOR_MODEL_TABLE;
@@ -274,6 +296,7 @@ function avesmapsWikiSyncMonitorPendingLocalizeCoatKeys(PDO $pdo): array {
             continue; // nur Wiki-Aventurica-Quelle (wie save_coat_local)
         }
         $keys[$wikiKey] = true;
+        $adressen[$wikiKey] = $coatUrl;
     }
     $keys = array_keys($keys);
     sort($keys);
@@ -290,8 +313,16 @@ function avesmapsWikiSyncMonitorLocalizeCoats(PDO $pdo, array $options = []): ar
     $sleepMs = max(0, min(3000, (int) ($options['sleep_ms'] ?? AVESMAPS_WIKI_SYNC_MONITOR_SLEEP_MS)));
     @set_time_limit(max(30, $batchLimit * 4 + 20));
 
-    $pending = avesmapsWikiSyncMonitorPendingLocalizeCoatKeys($pdo);
+    $adressen = [];
+    $pending = avesmapsWikiSyncMonitorPendingLocalizeCoatKeys($pdo, $adressen);
     $batch = array_slice($pending, 0, $batchLimit);
+
+    // ⭐ SAMMEL-VORLAUF: alle Adressen dieses Stapels in EINER api.php-Abfrage aufloesen.
+    // Ohne ihn fragt der Bildholer je Bild einzeln nach, und jede Frage kostet einen
+    // vollen Crawl-delay -- der Lauf waere doppelt so lang (zwei Anfragen je Bild statt
+    // einer Abfrage plus je einem Abruf). Es ist eine Abkuerzung, keine Regel: faellt sie
+    // weg, wird es langsam, nicht falsch.
+    avesmapsWikiDateiAdressenAufloesen(array_values(array_intersect_key($adressen, array_flip($batch))));
 
     $localized = 0;
     $skipped = 0;

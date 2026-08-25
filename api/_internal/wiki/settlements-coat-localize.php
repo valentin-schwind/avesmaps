@@ -2,6 +2,11 @@
 
 declare(strict_types=1);
 
+// 🔴 Der Aufloeser: aus der verbotenen Spezialseite wird die erlaubte Bildadresse.
+// Selbst geladen, nicht vom Aufrufer erwartet -- ein fehlendes require waere ein Fatal
+// mit LEEREM Rumpf, im Browser nicht von einem Netzfehler zu unterscheiden.
+require_once __DIR__ . '/datei-adresse.php';
+
 // Localising settlement coats of arms: copy the public-domain ones off wiki-aventurica onto our own
 // server, so the map stops hotlinking them. The territory side has done this since forever
 // (avesmapsWikiSyncMonitorSaveCoatLocal); settlements only ever got the URL written onto the place
@@ -171,6 +176,15 @@ function avesmapsWikiSettlementLocalizeCoats(PDO $pdo, int $limit = 10, int $sle
         return ['ok' => true, 'processed' => 0, 'localized' => 0, 'failed' => 0, 'remaining' => 0,
             'errors' => [], 'counts' => avesmapsWikiSettlementCoatLocalizeCounts($pdo)];
     }
+
+    // ⭐ SAMMEL-VORLAUF: die Adressen dieses Stapels in EINER api.php-Abfrage aufloesen,
+    // bevor der Bildholer sie einzeln braucht. Jede Aufloesung kostet sonst einen eigenen
+    // Crawl-delay, und der Lauf waere doppelt so lang. Abkuerzung, keine Regel -- die Regel
+    // (nie die Spezialseite holen) steht im Bildholer und gilt auch ohne diesen Vorlauf.
+    avesmapsWikiDateiAdressenAufloesen(array_map(
+        static fn(array $eintrag): string => (string) ($eintrag['props']['coat']['url'] ?? ''),
+        $batch
+    ));
 
     $docroot = rtrim((string) ($_SERVER['DOCUMENT_ROOT'] ?? dirname(__DIR__, 3)), '/');
     $dir = $docroot . AVESMAPS_SETTLEMENT_COAT_LOCAL_DIR;

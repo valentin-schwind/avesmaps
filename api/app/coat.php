@@ -100,6 +100,19 @@ function avesmapsCoatFetch(string $url, ?string &$absage = null): array {
         return [null, ''];
     }
 
+    // 🔴 DIE VERBOTENE SEITE WIRD HIER GAR NICHT GEHOLT. `Spezial:Dateipfad` untersagt die
+    // robots.txt jedem Agenten; der erlaubte Weg fuehrt ueber `api.php` zur echten Adresse.
+    // Aufloesen darf dieser Endpunkt sie aber NICHT: das waere eine zweite, wartende Anfrage
+    // mitten in einem Seitenaufbau -- also genau die Arbeiter-Saettigung aus AGENTS.md §10, vor
+    // der schon der Crawl-delay unten ausweicht. Wer ein Wiki-Wappen lokal haben will, startet
+    // den ausdruecklichen Lauf „Hole Wiki-Wappen"; der darf warten und loest im Stapel auf.
+    // ⚠️ Eine bereits AUFGELOESTE Bildadresse (/de/images/…) laeuft normal weiter durch -- nur
+    // der Umweg ueber die Spezialseite faellt weg.
+    if (function_exists('avesmapsWikiDateiIstSpezialAdresse') && avesmapsWikiDateiIstSpezialAdresse($url)) {
+        $absage = 'spezialseite';
+        return [null, ''];
+    }
+
     // 🔴 DER CRAWL-DELAY, und er WARTET NICHT. Dies hier beantwortet einen Seitenaufbau: 20
     // Sekunden Schlaf haelt einen PHP-Arbeiter, und eine Editorliste mit mehreren fehlenden
     // Wappen macht daraus mehrere gleichzeitig -- die Arbeiter-Saettigung aus AGENTS.md §10.
@@ -231,9 +244,18 @@ try {
     // nichts zuschulden kommen lassen. Wer das zusammenwirft, schliesst nach fuenf Abweisungen
     // die Wappen-Drossel global fuer 30 Minuten, ohne dass ein einziges Byte geflossen ist.
     // ⚠️ 503, nicht 502: 502 hiesse „das Gegenueber hat versagt" -- hier hat es niemand gefragt.
+    // ⭐ Die Absage nennt IHREN Grund, nicht irgendeinen. Am 23.08.2026 kostete genau das drei
+    // Tage: ein geriegelter Abruf und ein echter Fehlschlag sahen von aussen gleich aus, und die
+    // Frage „haemmern wir noch?" war nicht zu beantworten. Jetzt sind es drei Gruende, und jeder
+    // steht im Kopf.
     if ($absage !== null) {
-        header('X-Avesmaps-Coat: ' . ($absage === 'crawl_delay' ? 'crawl-delay' : 'geriegelt'));
-        avesmapsCoatFail(503, 'Wappen gerade nicht abrufbar (Crawl-delay des Wikis).');
+        $grund = match ($absage) {
+            'crawl_delay' => ['crawl-delay', 'Wappen gerade nicht abrufbar (Crawl-delay des Wikis).'],
+            'spezialseite' => ['spezialseite', 'Diese Adresse ist die Spezialseite, die die robots.txt verbietet. Das Wappen holt der Lauf „Hole Wiki-Wappen".'],
+            default => ['geriegelt', 'Abrufe bei Wiki Aventurica sind abgeschaltet.'],
+        };
+        header('X-Avesmaps-Coat: ' . $grund[0]);
+        avesmapsCoatFail(503, $grund[1]);
     }
 
     if ($bytes === null) {

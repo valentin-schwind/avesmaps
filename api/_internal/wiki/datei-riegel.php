@@ -130,3 +130,35 @@ function avesmapsWikiAusdruecklicherAbruf(callable $tun) {
         avesmapsWikiLokalisierungLaeuft($vorher);
     }
 }
+
+// ---------------------------------------------------------------------------
+// 🔴 DIE VERBOTENE SEITE HAT EINEN NAMEN, UND DIE FRAGE DANACH WOHNT HIER.
+//
+// Sie steht bei der SPERRE, nicht beim Aufloeser (`datei-adresse.php`): der zieht ueber
+// sync.php die ganze Crawl-Bibliothek nach, und `api/app/coat.php` -- der oeffentliche
+// Endpunkt, der je Wappenbild einmal laeuft -- muss die Frage stellen koennen, ohne dafuer
+// 1800 Zeilen zu laden. Dieselbe Ueberlegung wie bei der Drossel am 25.08.2026.
+// ---------------------------------------------------------------------------
+
+/**
+ * Der Pfadanfang, den die robots.txt verbietet. 🔴 Als Konstante, damit die Frage „ist das die
+ * verbotene Seite?" EINE Antwort hat -- sie wird an drei Stellen gestellt (hier, im Bildholer,
+ * in coat.php).
+ */
+const AVESMAPS_WIKI_SPEZIAL_DATEIPFAD = 'Spezial:Dateipfad/';
+
+/**
+ * PUR: zeigt diese Adresse auf die verbotene Spezialseite UNSERES Wikis?
+ *
+ * 💣 Der Wirt wird MITGEPRUEFT, und zwar ueber das gemeinsame Praedikat. Ohne ihn wuerde eine
+ * fremde Adresse mit demselben Pfad als „unsere Datei" gelesen -- und wir schickten ihren
+ * Dateinamen als Titel an das echte Wiki.
+ */
+function avesmapsWikiDateiIstSpezialAdresse(string $url): bool {
+    $wert = trim($url);
+    if ($wert === '' || !avesmapsWikiDateiIstWikiHost($wert)) {
+        return false;
+    }
+
+    return str_contains($wert, AVESMAPS_WIKI_SPEZIAL_DATEIPFAD);
+}
