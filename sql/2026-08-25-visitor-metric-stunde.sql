@@ -121,8 +121,10 @@ ON DUPLICATE KEY UPDATE count = count + VALUES(count);
 -- Dann NICHT aufraeumen (Schritt 6 auslassen) -- visitor_metric_alt_20260825 ist in dem Fall die
 -- einzige vollstaendige Fassung, und der Tausch laesst sich mit einem zweiten RENAME zuruecknehmen.
 
+-- Sortiert wird nach dem ALARM: negative Differenzen stehen oben. (Der rohe Ausdruck steht im
+-- ORDER BY noch einmal statt des Alias -- Hausregel aus dem Fehler 1247, siehe api-metrics.php.)
 SELECT
-    COALESCE(a.metric, n.metric)                      AS metric,
+    a.metric                                          AS metric,
     a.zeilen                                          AS zeilen_vorher,
     n.zeilen                                          AS zeilen_nachher,
     a.summe                                           AS summe_vorher,
@@ -132,10 +134,16 @@ FROM      (SELECT metric, COUNT(*) AS zeilen, SUM(count) AS summe
            FROM visitor_metric_alt_20260825 GROUP BY metric) a
 LEFT JOIN (SELECT metric, COUNT(*) AS zeilen, SUM(count) AS summe
            FROM visitor_metric GROUP BY metric) n ON n.metric = a.metric
-ORDER BY differenz <> 0 DESC, a.zeilen DESC;
+ORDER BY (COALESCE(n.summe, 0) - COALESCE(a.summe, 0)) < 0 DESC, a.zeilen DESC;
 
--- Und die Gegenprobe auf die Bauform selbst: `Null` muss 0 sein.
-SELECT COUNT(*) AS `Null` FROM visitor_metric WHERE hour IS NULL;
+-- ⚠️ Diese Liste geht vom BESTAND aus (LEFT JOIN ab der alten Tabelle). Eine Metrik, die es erst
+-- nach dem Tausch zum ersten Mal gab, steht daher nicht darin -- fuer den Vergleich richtig so.
+
+-- Und die Gegenprobe auf die Bauform selbst: hat der Tausch ueberhaupt stattgefunden?
+-- Erwartet: Null = NO, Default = 24. Steht dort YES, ist visitor_metric noch die alte Tabelle
+-- (das RENAME aus Schritt 3 ist dann nicht gelaufen) -- Schritt 4 waere in dem Fall ins Leere
+-- gegangen und darf NICHT wiederholt werden, ohne vorher nachzusehen.
+SHOW COLUMNS FROM visitor_metric LIKE 'hour';
 
 
 -- ============================================================================================
