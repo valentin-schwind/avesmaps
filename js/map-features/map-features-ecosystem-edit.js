@@ -1179,7 +1179,7 @@ if (typeof document !== "undefined") {
 		if (typeof isEcosystemLayerModeActive !== "function" || !isEcosystemLayerModeActive()) { return; }
 		if (isEcosystemEditTextTarget(event.target)) { return; }
 		// An open dialog gets to close itself first; Escape means "the innermost thing", not "everything".
-		if (document.getElementById("ecosystem-properties-overlay")?.hidden === false) { return; }
+		if (document.getElementById("landschaft-dialog-overlay")?.hidden === false) { return; }
 		if (typeof getSelectedEcosystemAreaPublicId !== "function" || !getSelectedEcosystemAreaPublicId()) { return; }
 
 		setSelectedEcosystemArea("");

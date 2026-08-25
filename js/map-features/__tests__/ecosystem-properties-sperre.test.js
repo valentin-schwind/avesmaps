@@ -41,12 +41,25 @@ assert.ok(
 // KEINE Zusicherung auf Abwesenheit: wer ihn spaeter wieder haben will, soll ihn ohne roten Test
 // zurueckholen koennen.
 
-// Er steht bei den ANDEREN Haken, nicht irgendwo: Auto-Name · Regionname anzeigen · Nodix · Sperre.
-const nodixStelle = html.indexOf('id="ecosystem-properties-nodix"');
+// 🪤 HIER STAND: „Der Haken gehoert zwischen ‚Nodix' und die Artauswahl." Das galt, solange der
+// Flaechendialog ein eigenes Fenster war. Seit der Vereinigung (25.08.2026) gibt es „Nodix" im
+// Flaechenteil NICHT MEHR -- es war ein Zwilling des Hakens im Beschriftungsteil und bediente
+// denselben Wert. Die Nachbarschaft, an der sich diese Zusicherung festhielt, ist damit weg.
+//
+// 🔴 Was BLEIBT und hier jetzt steht: der Haken gehoert in den Reiter „Flaeche" -- er gilt der
+// REGION und allen ihren Teilflaechen, nicht der Beschriftung. Ein Sperr-Haken im
+// Beschriftungsreiter waere eine Aussage ueber das falsche Objekt.
+const iFlaeche = html.indexOf('data-landschaft-bereich="flaeche"');
+const iBeschriftung = html.indexOf('data-landschaft-bereich="beschriftung"');
 const sperrStelle = html.indexOf('id="ecosystem-properties-locked"');
+assert.ok(iFlaeche > 0 && iBeschriftung > iFlaeche, "die zwei Reiter stehen in dieser Reihenfolge");
+assert.ok(sperrStelle > iFlaeche && sperrStelle < iBeschriftung,
+	'Der Haken steht im Reiter „Fläche" — er gilt der Region, nicht der Beschriftung.');
+
+// ⚠️ Und er steht bei der Artauswahl derselben Haelfte, nicht irgendwo dahinter.
 const artStelle = html.indexOf('id="ecosystem-properties-type"');
-assert.ok(nodixStelle > 0 && sperrStelle > nodixStelle && sperrStelle < artStelle,
-	'Der Haken gehört zwischen „Nodix" und die Artauswahl — zu den übrigen Haken der Identität.');
+assert.ok(artStelle > 0 && sperrStelle < artStelle,
+	'Der Haken steht vor der Artauswahl der Fläche.');
 
 // ---- Der Zugriff ----------------------------------------------------------------------------------
 

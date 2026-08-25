@@ -157,10 +157,31 @@ assert.ok(props.includes("payload.curve_label_max = kurve.curve_label_max"), "cu
 assert.ok(/kurveGeladen = bedienbar \? \{/.test(props), "der gemerkte Stand muss bei Unbedienbarkeit auf null fallen");
 checks += 6;
 
-// Und das Markup der zweiten Oberflaeche.
-assert.ok(html.includes('id="ecosystem-properties-curve"'), "der Haken fehlt im Flaechendialog");
-assert.ok(html.includes('id="ecosystem-properties-curve-max"'), "die Anzahl fehlt im Flaechendialog");
-checks += 2;
+// 🔴 UMGEDREHT AM 25.08.2026: hier stand, dass Haken und Anzahl im FLAECHENDIALOG stehen MUESSEN.
+// Das war richtig, solange es zwei Fenster gab -- derselbe Wert an zwei Oberflaechen, mit der
+// Warnung im Markup, ja keinen dritten Zustand zu erfinden. Seit Flaeche und Beschriftung in EINEM
+// Fenster stehen, waeren es zwei Bedienelemente untereinander fuer einen Wert. Es gibt sie deshalb
+// GENAU EINMAL, im Reiter „Beschriftung".
+//
+// 💣 Die Zusicherung dreht sich damit um: nicht „steht auch dort", sondern „steht NUR EINMAL".
+// Wer die Zwillinge zurueckholt, faellt hier auf.
+assert.strictEqual(html.split('id="ecosystem-properties-curve"').length - 1, 0,
+	"der Zwilling im Flaechenteil ist eingeschmolzen");
+assert.strictEqual(html.split('id="ecosystem-properties-curve-max"').length - 1, 0,
+	"der Anzahl-Zwilling im Flaechenteil ist eingeschmolzen");
+assert.strictEqual(html.split('id="label-edit-curve"').length - 1, 1,
+	"den Haken gibt es genau einmal");
+assert.strictEqual(html.split('id="label-edit-curve-max"').length - 1, 1,
+	"die Anzahl gibt es genau einmal");
+
+// ⭐ Und das Flaechenmodul erreicht sie weiter -- ueber EINE Tabelle statt sechs umgeschriebener
+// Lesestellen. Ohne sie liefe `propertiesElement("curve")` ins Leere, und der Flaechenteil
+// speicherte die Kurveneinstellung stumm nicht mehr.
+assert.ok(/AVESMAPS_ECO_ZWILLINGE/.test(props),
+	"das Flaechenmodul bindet die alten Namen an die verbliebenen Bedienelemente");
+assert.ok(/curve: "label-edit-curve"/.test(props), "der Haken ist gebunden");
+assert.ok(/"curve-max": "label-edit-curve-max"/.test(props), "die Anzahl ist gebunden");
+checks += 7;
 
 // 🔴 Und der LESEWEG: ohne ihn stuende der Haken bei jedem Oeffnen leer da. list_regions ist der
 // einzige Weg, der ihn herausgibt -- die Flaechenzeile des Kartenpayloads traegt ihn nicht.

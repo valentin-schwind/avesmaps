@@ -1035,186 +1035,6 @@
 		     §12, „Keine Zoom-Bänder"). Schreibt update_region / delete_region — beide seit V2.3 gebaut
 		     und bis hierher ohne Aufrufer.
 		     Overlay-Hülle aus css/components/dialog-overlays.css, ID in allen DREI Selektorlisten. -->
-		<div id="ecosystem-properties-overlay" hidden>
-			<div id="ecosystem-properties-dialog" class="ecosystem-properties-dialog" role="dialog" aria-modal="true" aria-labelledby="ecosystem-properties-title" tabindex="-1">
-				<div class="ecosystem-properties-dialog__header">
-					<h2 id="ecosystem-properties-title" data-i18n="ecosystem.properties.dialogTitle">Fläche bearbeiten</h2>
-					<button id="ecosystem-properties-close" class="ecosystem-properties-dialog__close" type="button" aria-label="Dialog schließen" data-i18n-aria-label="ecosystem.properties.closeAria">×</button>
-				</div>
-				<form id="ecosystem-properties-form" class="ecosystem-properties-dialog__form">
-					<fieldset class="ecosystem-properties-dialog__group">
-						<legend data-i18n="ecosystem.properties.identity">Identität</legend>
-						<!-- Der Wiki-Override, Bauform 2 (Beschriftung OBEN): die Zelle haengt sich an die
-						     Beschriftung und bleibt leer, bis ecosystemZeichneWikiAbweichungen sie
-						     fuellt. Regeln in css/components/wiki-override.css, ueber css/styles.css.
-						     💣 `data-i18n` sitzt am INNEREN <span>, nicht am aeusseren: der Uebersetzer
-						     setzt `el.textContent = v` (js/app/i18n.js) und wuerde eine darin
-						     geschachtelte Zelle beim ersten Sprachlauf spurlos ausraeumen. Genau
-						     deshalb traegt die Ort-Fassung darueber gar kein data-i18n. -->
-						<label class="ecosystem-properties-dialog__field">
-							<span><span data-i18n="ecosystem.properties.nameLabel">Name *</span><span class="wiki-alt" data-eco-wiki-alt="name"></span></span>
-							<input id="ecosystem-properties-name" name="name" type="text" maxlength="190" required autocomplete="off" />
-						</label>
-						<!-- Der Haken wird beim Oeffnen ABGELEITET, nicht geladen: passt der Name auf
-						     `<Art>-<Zahl>`, ist er gesetzt und das Feld schreibgeschuetzt; sonst leer und
-						     schreibbar. „Farindel" oeffnet also als echter Name, „Wald-001" als Griff. -->
-						<label class="ecosystem-properties-dialog__checkbox">
-							<input id="ecosystem-properties-autoname" name="autoname" type="checkbox" />
-							<span data-i18n="ecosystem.properties.autoName">Auto-Name</span>
-						</label>
-						<!-- Jede Region HAT ihr Karten-Label (am Point of Inaccessibility); dieser Haken
-						     entscheidet nur, ob es gezeichnet wird. Ausblenden statt löschen, damit Ort,
-						     Größe, Drehung und Zoom-Band beim Wiedereinschalten noch da sind. -->
-						<label class="ecosystem-properties-dialog__checkbox">
-							<input id="ecosystem-properties-showname" name="show_name" type="checkbox" />
-							<span data-i18n="ecosystem.properties.showName">Regionname anzeigen</span>
-						</label>
-						<!-- Nodix: ein Kraftlinien-Knoten. Das Flag sitzt am LABEL der Region, weil eine
-						     Kraftlinie zwei Punkte verbindet und das Label der Punkt der Region ist. -->
-						<label class="ecosystem-properties-dialog__checkbox">
-							<input id="ecosystem-properties-nodix" name="is_nodix" type="checkbox" />
-							<span data-i18n="ecosystem.properties.nodix">Nodix</span>
-						</label>
-						<!-- Die Klick-Sperre (Owner 19.08.2026: „du kannst die eigenschaft auch hier
-						     anbieten"). DERSELBE Schalter wie „Region sperren" im Flächenmenü, nur ein
-						     zweiter Weg dorthin -- kein eigener Zustand.
-						     🔴 Er gilt der REGION, also allen ihren Teilflächen und Multipolygonen.
-						     ⚠️ Die REIHENFOLGE bekommt hier bewusst keinen Platz: ein Haken kann keine
-						     Ordnung ausdrücken, und ein drittes Bedienbild für dieselbe Zahl wäre die
-						     Divergenz, die dieses Haus sonst überall aufräumt. -->
-						<label class="ecosystem-properties-dialog__checkbox">
-							<input id="ecosystem-properties-locked" name="is_locked" type="checkbox" />
-							<span data-i18n="ecosystem.properties.locked">Für Klicks gesperrt</span>
-						</label>
-						<!-- Die Kurvenbeschriftung (Entwurf §2). 🔴 SIE GEHOERT DER REGION: dieselben zwei
-						     Bedienelemente stehen im Beschriftungsdialog (index.html, label-edit-curve), und
-						     beide bedienen denselben Wert. Wer hier einen dritten Zustand erfindet, hat zwei
-						     Wahrheiten ueber dieselbe Region.
-						     ⚠️ Ohne Flaeche gibt es keine Mittelachse -- dann verriegelt, mit Grund. -->
-						<label class="ecosystem-properties-dialog__checkbox">
-							<input id="ecosystem-properties-curve" name="curve_label" type="checkbox" />
-							<span data-i18n="ecosystem.properties.curveLabel">Kurvenbeschriftung</span>
-						</label>
-						<label class="ecosystem-properties-dialog__field">
-							<span data-i18n="ecosystem.properties.curveMax">Anzahl Kurvenlabel</span>
-							<input id="ecosystem-properties-curve-max" name="curve_label_max" type="number" min="1" max="3" step="1" value="1" />
-						</label>
-						<p id="ecosystem-properties-curvehint" class="ecosystem-properties-dialog__hint" hidden></p>
-						<label class="ecosystem-properties-dialog__field">
-							<span><span data-i18n="ecosystem.properties.typeLabel">Art</span><span class="wiki-alt" data-eco-wiki-alt="region_type"></span></span>
-							<!-- Aus ecosystem_region_type DIESER Ebene, nie aus einer Liste im Client. -->
-							<select id="ecosystem-properties-type" name="region_type"></select>
-						</label>
-						<!-- Eine Klimazone ist ABGELEITET (2026-08-03): ihre Fläche entsteht aus den Trennlinien,
-						     und ihre ART sagt, WELCHE der Zonen das ist. Der Server lehnt beides ab
-						     (avesmapsUpdateEcosystemRegion); dieser Satz sagt, WARUM das Auswahlfeld darüber grau
-						     ist -- ohne ihn erfährt der Editor es erst beim Speichern als Fehlermeldung.
-						     🔴 WORTGLEICH mit dem Zwilling im Editorfenster (html/landschaften-editor.html,
-						     regionEditBlock) -- zwei Wortlaute für dieselbe Regel sind eine Divergenz. -->
-						<p id="ecosystem-properties-typehint" class="ecosystem-properties-dialog__hint" data-i18n="ecosystem.properties.typeDerivedHint" hidden>Die Fläche dieser Zone entsteht aus den Trennlinien auf der Karte (Landschaften → Klimazonen). Art und Umriss lassen sich hier nicht ändern.</p>
-						<p id="ecosystem-properties-areas" class="ecosystem-properties-dialog__areas"></p>
-					</fieldset>
-					<!-- Gipfel innerhalb dieser Fläche (V8). Nur bei der Topographie: ein Gipfel im Wald ist
-					     ein Gipfel, kein Wald-Merkmal (oekosystem-editor-leitfaden.md §1.4). Die Zeilen
-					     entstehen zur Laufzeit; jede trägt ihren eigenen Knopf und ihre eigene Statuszeile —
-					     das Muster des Strömungsfaktors bei den Flusswegen (oekosystem-editor-verhalten.md §9). -->
-					<!-- Gelände: die drei Regler DIESER Fläche (V8). Nur bei einer Topographie-Fläche vom Typ
-					     Gebirge -- nur dort entsteht ein Höhenfeld. Leer = abgeleitet wie bisher, und genau
-					     dafür gibt es je Regler ein „Auto"-Kästchen: ohne das liesse sich eine einmal
-					     gesetzte Zahl nicht mehr zurücknehmen. -->
-					<div id="ecosystem-properties-terrain" class="label-wiki-reference" hidden>
-						<div class="label-wiki-reference__head">
-							<span class="label-wiki-reference__title" data-i18n="ecosystem.properties.terrainTitle">Gel&auml;nde</span>
-						</div>
-						<div class="ecosystem-properties-dialog__terrain">
-							<label class="ecosystem-properties-dialog__terrainrow">
-								<span>Erhebungen</span>
-								<input id="ecosystem-properties-grain" type="range" min="1" max="24" step="0.1" />
-								<input id="ecosystem-properties-grain-num" class="ecosystem-properties-dialog__terrainnum" type="number" min="1" max="24" step="0.1" inputmode="decimal" aria-label="Wert eingeben" />
-							</label>
-							<label class="ecosystem-properties-dialog__terrainrow">
-								<span>Erosion</span>
-								<input id="ecosystem-properties-levels" type="range" min="0" max="5" step="1" />
-								<input id="ecosystem-properties-levels-num" class="ecosystem-properties-dialog__terrainnum" type="number" min="0" max="5" step="1" inputmode="decimal" aria-label="Wert eingeben" />
-							</label>
-							<label class="ecosystem-properties-dialog__terrainrow">
-								<span>Maximalh&ouml;he</span>
-								<input id="ecosystem-properties-avgheight" type="range" min="0" max="20000" step="50" />
-								<input id="ecosystem-properties-avgheight-num" class="ecosystem-properties-dialog__terrainnum" type="number" min="0" max="20000" step="50" inputmode="decimal" aria-label="Wert eingeben" />
-							</label>
-							<!-- Die zweite Zahl (V8-Fortsetzung): zusammen mit der Maximalh&ouml;he beschreibt sie die
-							     FORM statt nur der Spitze. Ihre Obergrenze folgt dem Regler dar&uuml;ber, deshalb
-							     steht hier kein festes max — das setzt clampTerrainMean() bei jeder &Auml;nderung. -->
-							<label class="ecosystem-properties-dialog__terrainrow" title="Mittlere H&ouml;he der Fl&auml;che. Zusammen mit der Maximalh&ouml;he ergibt sie die Form: dicht darunter ein Hochplateau, weit darunter zerkl&uuml;ftetes Vorland. &Uuml;ber rund zwei Dritteln der Maximalh&ouml;he nimmt das Gel&auml;nde nichts mehr an — eine Fl&auml;che, die zum Rand hin ausl&auml;uft, kann im Mittel nicht n&auml;her an ihre Spitze heran.">
-								<span>Durchschnittsh&ouml;he</span>
-								<input id="ecosystem-properties-meanheight" type="range" min="0" max="20000" step="50" />
-								<input id="ecosystem-properties-meanheight-num" class="ecosystem-properties-dialog__terrainnum" type="number" min="0" max="20000" step="50" inputmode="decimal" aria-label="Wert eingeben" />
-							</label>
-							<div class="ecosystem-properties-dialog__terrainactions">
-								<button id="ecosystem-properties-terrain-auto" type="button" class="ecosystem-properties-dialog__button">Auf Automatik zur&uuml;ck</button>
-							</div>
-							<p id="ecosystem-properties-terrain-status" class="ecosystem-properties-dialog__status" role="status" hidden></p>
-						</div>
-					</div>
-					<!-- Die Höhenskala (Fall #79, Entwurf
-					     docs/superpowers/specs/2026-08-18-hoehenskala-legende-design.md). Sie steht zwischen
-					     Gelände und Gipfeln, weil sie beide erklärt: den Grauton, den die Regler erzeugen,
-					     und die Höhen, die darunter stehen. Owner-Entscheid 18.08.2026.
-					     🔴 KEINE Einstellung — eine Ablesehilfe. Marken und Beschriftungen entstehen zur
-					     Laufzeit; der Weisspunkt kommt aus dem Zeichner, nie aus einer zweiten Rechnung. -->
-					<div id="ecosystem-properties-heightscale" class="label-wiki-reference" hidden>
-						<div class="label-wiki-reference__head">
-							<span class="label-wiki-reference__title">H&ouml;henskala</span>
-						</div>
-						<div class="ecosystem-properties-dialog__scale">
-							<div id="ecosystem-properties-scale-bar" class="ecosystem-properties-dialog__scalebar"></div>
-							<div id="ecosystem-properties-scale-ticks" class="ecosystem-properties-dialog__scaleticks"></div>
-							<p id="ecosystem-properties-scale-note" class="ecosystem-properties-dialog__scalenote"></p>
-						</div>
-					</div>
-					<div id="ecosystem-properties-peaks" class="label-wiki-reference" hidden>
-						<div class="label-wiki-reference__head">
-							<span class="label-wiki-reference__title" data-i18n="ecosystem.properties.peaksTitle">Gipfel</span>
-						</div>
-						<div id="ecosystem-properties-peaks-list" class="ecosystem-properties-dialog__peaks-list"></div>
-					</div>
-					<!-- Die Wiki-Zuweisung: seit 16.08.2026 das geteilte Bauteil (js/ui/wiki-assign.js),
-					     Objektart „landschaft", Hülle „label-wiki". Hier stand bis dahin ein eigener
-					     Picker samt „Suchen"-Knopf; gesucht wird jetzt beim Tippen, und „Sync" zeigt
-					     erst, was er ändern würde.
-					     💣 Ein BLANKER Behälter, KEIN <div class="label-wiki-reference">: die Hülle
-					     erzeugt das Bauteil selbst. Gäbe man ihm die vorhandene, stünde der Kasten
-					     doppelt geschachtelt da -- Rahmen im Rahmen, Polsterung doppelt (der Hinweis
-					     steht wörtlich im Kopf von js/ui/wiki-assign.js). -->
-					<div id="ecosystem-properties-wiki-host"></div>
-					<!-- 🔴 QUELLEN DER REGION, nicht der einzelnen Fläche. Eine Region liegt auf der Karte in
-					     vielen Flächen (der Finsterkamm in 57); ihre Quellenangabe gilt für alle. Pro Fläche
-					     geführt wäre dieselbe Angabe 57-mal einzutragen und 57-mal zu pflegen -- und beim
-					     Auseinanderlaufen wüsste niemand, welche gilt.
-					     ⚠️ Es ist DIESELBE Quellenliste, die der Landschaften-Editor an der Region zeigt
-					     (entity_type „ecosystem", ecosystem_region.public_id). Wer sie hier ändert, ändert sie
-					     dort -- das ist der Sinn, nicht ein Nebeneffekt.
-					     💣 Ein BLANKER Behälter, wie beim Wiki-Bauteil darüber: die Hülle erzeugt das Bauteil
-					     selbst, eine mitgegebene stünde doppelt geschachtelt da. -->
-					<div class="ecosystem-properties-dialog__group">
-						<div class="ecosystem-properties-dialog__grouptitle">Quellen</div>
-						<p class="ecosystem-properties-dialog__status">Gelten für die ganze Region und wirken <b>sofort</b>.</p>
-						<div id="ecosystem-properties-feature-sources"></div>
-					</div>
-					<p id="ecosystem-properties-status" class="ecosystem-properties-dialog__status" role="status"></p>
-					<p id="ecosystem-properties-error" class="ecosystem-properties-dialog__error" role="alert" hidden></p>
-					<div class="ecosystem-properties-dialog__actions">
-						<button id="ecosystem-properties-delete" class="ecosystem-properties-dialog__button ecosystem-properties-dialog__button--danger" type="button" data-i18n="ecosystem.properties.delete">Löschen</button>
-						<span class="ecosystem-properties-dialog__spacer"></span>
-						<button id="ecosystem-properties-cancel" class="ecosystem-properties-dialog__button" type="button" data-i18n="ecosystem.properties.cancel">Abbrechen</button>
-						<button id="ecosystem-properties-save" class="ecosystem-properties-dialog__button ecosystem-properties-dialog__button--primary" type="submit" data-i18n="ecosystem.properties.save">Speichern</button>
-					</div>
-				</form>
-			</div>
-		</div>
-		<!-- „Fläche vereinfachen": derselbe Fensterbau wie der Eigenschaften-Dialog darüber, damit er
-		     dessen Optik erbt statt eine zweite zu erfinden. Die ID steht in denselben drei Selektorlisten
-		     in dialog-overlays.css — ohne die wäre es kein Fenster, sondern ein Block im Dokumentfluss. -->
 		<div id="ecosystem-simplify-overlay" hidden>
 			<div id="ecosystem-simplify-dialog" class="ecosystem-properties-dialog" role="dialog" aria-modal="true" aria-labelledby="ecosystem-simplify-title" tabindex="-1">
 				<div class="ecosystem-properties-dialog__header">
@@ -2047,6 +1867,124 @@
 								<select id="label-edit-region"></select>
 							</label>
 						</div>
+				<form id="ecosystem-properties-form" class="ecosystem-properties-dialog__form">
+					<fieldset class="ecosystem-properties-dialog__group">
+						<legend data-i18n="ecosystem.properties.identity">Fläche</legend>
+						<!-- Der Wiki-Override, Bauform 2 (Beschriftung OBEN): die Zelle haengt sich an die
+						     Beschriftung und bleibt leer, bis ecosystemZeichneWikiAbweichungen sie
+						     fuellt. Regeln in css/components/wiki-override.css, ueber css/styles.css.
+						     💣 `data-i18n` sitzt am INNEREN <span>, nicht am aeusseren: der Uebersetzer
+						     setzt `el.textContent = v` (js/app/i18n.js) und wuerde eine darin
+						     geschachtelte Zelle beim ersten Sprachlauf spurlos ausraeumen. Genau
+						     deshalb traegt die Ort-Fassung darueber gar kein data-i18n. -->
+						<label class="ecosystem-properties-dialog__field">
+							<span><span data-i18n="ecosystem.properties.nameLabel">Name *</span><span class="wiki-alt" data-eco-wiki-alt="name"></span></span>
+							<input id="ecosystem-properties-name" name="name" type="text" maxlength="190" required autocomplete="off" />
+						</label>
+						<!-- Der Haken wird beim Oeffnen ABGELEITET, nicht geladen: passt der Name auf
+						     `<Art>-<Zahl>`, ist er gesetzt und das Feld schreibgeschuetzt; sonst leer und
+						     schreibbar. „Farindel" oeffnet also als echter Name, „Wald-001" als Griff. -->
+						<label class="ecosystem-properties-dialog__checkbox">
+							<input id="ecosystem-properties-autoname" name="autoname" type="checkbox" />
+							<span data-i18n="ecosystem.properties.autoName">Auto-Name</span>
+						</label>
+						<!-- Die Klick-Sperre (Owner 19.08.2026: „du kannst die eigenschaft auch hier
+						     anbieten"). DERSELBE Schalter wie „Region sperren" im Flächenmenü, nur ein
+						     zweiter Weg dorthin -- kein eigener Zustand.
+						     🔴 Er gilt der REGION, also allen ihren Teilflächen und Multipolygonen.
+						     ⚠️ Die REIHENFOLGE bekommt hier bewusst keinen Platz: ein Haken kann keine
+						     Ordnung ausdrücken, und ein drittes Bedienbild für dieselbe Zahl wäre die
+						     Divergenz, die dieses Haus sonst überall aufräumt. -->
+						<label class="ecosystem-properties-dialog__checkbox">
+							<input id="ecosystem-properties-locked" name="is_locked" type="checkbox" />
+							<span data-i18n="ecosystem.properties.locked">Für Klicks gesperrt</span>
+						</label>
+						<label class="ecosystem-properties-dialog__field">
+							<span><span data-i18n="ecosystem.properties.typeLabel">Art</span><span class="wiki-alt" data-eco-wiki-alt="region_type"></span></span>
+							<!-- Aus ecosystem_region_type DIESER Ebene, nie aus einer Liste im Client. -->
+							<select id="ecosystem-properties-type" name="region_type"></select>
+						</label>
+						<!-- Eine Klimazone ist ABGELEITET (2026-08-03): ihre Fläche entsteht aus den Trennlinien,
+						     und ihre ART sagt, WELCHE der Zonen das ist. Der Server lehnt beides ab
+						     (avesmapsUpdateEcosystemRegion); dieser Satz sagt, WARUM das Auswahlfeld darüber grau
+						     ist -- ohne ihn erfährt der Editor es erst beim Speichern als Fehlermeldung.
+						     🔴 WORTGLEICH mit dem Zwilling im Editorfenster (html/landschaften-editor.html,
+						     regionEditBlock) -- zwei Wortlaute für dieselbe Regel sind eine Divergenz. -->
+						<p id="ecosystem-properties-typehint" class="ecosystem-properties-dialog__hint" data-i18n="ecosystem.properties.typeDerivedHint" hidden>Die Fläche dieser Zone entsteht aus den Trennlinien auf der Karte (Landschaften → Klimazonen). Art und Umriss lassen sich hier nicht ändern.</p>
+						<p id="ecosystem-properties-areas" class="ecosystem-properties-dialog__areas"></p>
+					</fieldset>
+					<!-- Gipfel innerhalb dieser Fläche (V8). Nur bei der Topographie: ein Gipfel im Wald ist
+					     ein Gipfel, kein Wald-Merkmal (oekosystem-editor-leitfaden.md §1.4). Die Zeilen
+					     entstehen zur Laufzeit; jede trägt ihren eigenen Knopf und ihre eigene Statuszeile —
+					     das Muster des Strömungsfaktors bei den Flusswegen (oekosystem-editor-verhalten.md §9). -->
+					<!-- Gelände: die drei Regler DIESER Fläche (V8). Nur bei einer Topographie-Fläche vom Typ
+					     Gebirge -- nur dort entsteht ein Höhenfeld. Leer = abgeleitet wie bisher, und genau
+					     dafür gibt es je Regler ein „Auto"-Kästchen: ohne das liesse sich eine einmal
+					     gesetzte Zahl nicht mehr zurücknehmen. -->
+					<div id="ecosystem-properties-terrain" class="label-wiki-reference" hidden>
+						<div class="label-wiki-reference__head">
+							<span class="label-wiki-reference__title" data-i18n="ecosystem.properties.terrainTitle">Gel&auml;nde</span>
+						</div>
+						<div class="ecosystem-properties-dialog__terrain">
+							<label class="ecosystem-properties-dialog__terrainrow">
+								<span>Erhebungen</span>
+								<input id="ecosystem-properties-grain" type="range" min="1" max="24" step="0.1" />
+								<input id="ecosystem-properties-grain-num" class="ecosystem-properties-dialog__terrainnum" type="number" min="1" max="24" step="0.1" inputmode="decimal" aria-label="Wert eingeben" />
+							</label>
+							<label class="ecosystem-properties-dialog__terrainrow">
+								<span>Erosion</span>
+								<input id="ecosystem-properties-levels" type="range" min="0" max="5" step="1" />
+								<input id="ecosystem-properties-levels-num" class="ecosystem-properties-dialog__terrainnum" type="number" min="0" max="5" step="1" inputmode="decimal" aria-label="Wert eingeben" />
+							</label>
+							<label class="ecosystem-properties-dialog__terrainrow">
+								<span>Maximalh&ouml;he</span>
+								<input id="ecosystem-properties-avgheight" type="range" min="0" max="20000" step="50" />
+								<input id="ecosystem-properties-avgheight-num" class="ecosystem-properties-dialog__terrainnum" type="number" min="0" max="20000" step="50" inputmode="decimal" aria-label="Wert eingeben" />
+							</label>
+							<!-- Die zweite Zahl (V8-Fortsetzung): zusammen mit der Maximalh&ouml;he beschreibt sie die
+							     FORM statt nur der Spitze. Ihre Obergrenze folgt dem Regler dar&uuml;ber, deshalb
+							     steht hier kein festes max — das setzt clampTerrainMean() bei jeder &Auml;nderung. -->
+							<label class="ecosystem-properties-dialog__terrainrow" title="Mittlere H&ouml;he der Fl&auml;che. Zusammen mit der Maximalh&ouml;he ergibt sie die Form: dicht darunter ein Hochplateau, weit darunter zerkl&uuml;ftetes Vorland. &Uuml;ber rund zwei Dritteln der Maximalh&ouml;he nimmt das Gel&auml;nde nichts mehr an — eine Fl&auml;che, die zum Rand hin ausl&auml;uft, kann im Mittel nicht n&auml;her an ihre Spitze heran.">
+								<span>Durchschnittsh&ouml;he</span>
+								<input id="ecosystem-properties-meanheight" type="range" min="0" max="20000" step="50" />
+								<input id="ecosystem-properties-meanheight-num" class="ecosystem-properties-dialog__terrainnum" type="number" min="0" max="20000" step="50" inputmode="decimal" aria-label="Wert eingeben" />
+							</label>
+							<div class="ecosystem-properties-dialog__terrainactions">
+								<button id="ecosystem-properties-terrain-auto" type="button" class="ecosystem-properties-dialog__button">Auf Automatik zur&uuml;ck</button>
+							</div>
+							<p id="ecosystem-properties-terrain-status" class="ecosystem-properties-dialog__status" role="status" hidden></p>
+						</div>
+					</div>
+					<!-- Die Höhenskala (Fall #79, Entwurf
+					     docs/superpowers/specs/2026-08-18-hoehenskala-legende-design.md). Sie steht zwischen
+					     Gelände und Gipfeln, weil sie beide erklärt: den Grauton, den die Regler erzeugen,
+					     und die Höhen, die darunter stehen. Owner-Entscheid 18.08.2026.
+					     🔴 KEINE Einstellung — eine Ablesehilfe. Marken und Beschriftungen entstehen zur
+					     Laufzeit; der Weisspunkt kommt aus dem Zeichner, nie aus einer zweiten Rechnung. -->
+					<div id="ecosystem-properties-heightscale" class="label-wiki-reference" hidden>
+						<div class="label-wiki-reference__head">
+							<span class="label-wiki-reference__title">H&ouml;henskala</span>
+						</div>
+						<div class="ecosystem-properties-dialog__scale">
+							<div id="ecosystem-properties-scale-bar" class="ecosystem-properties-dialog__scalebar"></div>
+							<div id="ecosystem-properties-scale-ticks" class="ecosystem-properties-dialog__scaleticks"></div>
+							<p id="ecosystem-properties-scale-note" class="ecosystem-properties-dialog__scalenote"></p>
+						</div>
+					</div>
+					<div id="ecosystem-properties-peaks" class="label-wiki-reference" hidden>
+						<div class="label-wiki-reference__head">
+							<span class="label-wiki-reference__title" data-i18n="ecosystem.properties.peaksTitle">Gipfel</span>
+						</div>
+						<div id="ecosystem-properties-peaks-list" class="ecosystem-properties-dialog__peaks-list"></div>
+					</div>
+					<p id="ecosystem-properties-error" class="ecosystem-properties-dialog__error" role="alert" hidden></p>
+					<div class="ecosystem-properties-dialog__actions">
+						<button id="ecosystem-properties-delete" class="ecosystem-properties-dialog__button ecosystem-properties-dialog__button--danger" type="button" data-i18n="ecosystem.properties.delete">Löschen</button>
+						<span class="ecosystem-properties-dialog__spacer"></span>
+						<button id="ecosystem-properties-cancel" class="ecosystem-properties-dialog__button" type="button" data-i18n="ecosystem.properties.cancel">Abbrechen</button>
+						<button id="ecosystem-properties-save" class="ecosystem-properties-dialog__button ecosystem-properties-dialog__button--primary" type="submit" data-i18n="ecosystem.properties.save">Speichern</button>
+					</div>
+				</form>
 				</div>
 				<div data-landschaft-bereich="beschriftung" hidden>
 				<form id="label-edit-form" class="location-report-form" novalidate>
@@ -2100,6 +2038,13 @@
 						<button id="label-edit-submit" class="location-report-form__button location-report-form__button--primary" type="submit">Speichern</button>
 					</div>
 				</form>
+						<!-- Jede Region HAT ihr Karten-Label (am Point of Inaccessibility); dieser Haken
+						     entscheidet nur, ob es gezeichnet wird. Ausblenden statt löschen, damit Ort,
+						     Größe, Drehung und Zoom-Band beim Wiedereinschalten noch da sind. -->
+						<label class="ecosystem-properties-dialog__checkbox">
+							<input id="ecosystem-properties-showname" name="show_name" type="checkbox" />
+							<span data-i18n="ecosystem.properties.showName">Auf der Karte anzeigen</span>
+						</label>
 				</div>
 				<div data-landschaft-bereich="wiki" hidden>
 <!-- Die Wiki-Zuweisung des LABELS: seit 16.08.2026 dasselbe geteilte Bauteil
@@ -2140,11 +2085,34 @@
 						     💣 Nicht mit „Andere Quelle" darüber verwechseln: das ist das ALTE Einzelfeld und bleibt
 						     (Owner 2026-07-28). Es zeigt sich nur ohne zugewiesene Wiki-Landschaft; die Quellen hier
 						     sind das geteilte Mehrquellen-System und stehen immer. -->
-						<div class="label-edit-section"><div class="label-edit-section-title">Quellen</div>
+						<div class="label-edit-section"><div class="label-edit-section-title">Quellen der Beschriftung</div>
 							<p class="location-report-form__status">Quellen wirken <b>sofort</b> — sie brauchen kein „Speichern“.</p>
 							<div id="label-edit-feature-sources"></div>
 						</div>
 						<p id="label-edit-carriers" class="location-report-form__status" hidden></p>
+					<!-- Die Wiki-Zuweisung: seit 16.08.2026 das geteilte Bauteil (js/ui/wiki-assign.js),
+					     Objektart „landschaft", Hülle „label-wiki". Hier stand bis dahin ein eigener
+					     Picker samt „Suchen"-Knopf; gesucht wird jetzt beim Tippen, und „Sync" zeigt
+					     erst, was er ändern würde.
+					     💣 Ein BLANKER Behälter, KEIN <div class="label-wiki-reference">: die Hülle
+					     erzeugt das Bauteil selbst. Gäbe man ihm die vorhandene, stünde der Kasten
+					     doppelt geschachtelt da -- Rahmen im Rahmen, Polsterung doppelt (der Hinweis
+					     steht wörtlich im Kopf von js/ui/wiki-assign.js). -->
+					<div id="ecosystem-properties-wiki-host"></div>
+					<!-- 🔴 QUELLEN DER REGION, nicht der einzelnen Fläche. Eine Region liegt auf der Karte in
+					     vielen Flächen (der Finsterkamm in 57); ihre Quellenangabe gilt für alle. Pro Fläche
+					     geführt wäre dieselbe Angabe 57-mal einzutragen und 57-mal zu pflegen -- und beim
+					     Auseinanderlaufen wüsste niemand, welche gilt.
+					     ⚠️ Es ist DIESELBE Quellenliste, die der Landschaften-Editor an der Region zeigt
+					     (entity_type „ecosystem", ecosystem_region.public_id). Wer sie hier ändert, ändert sie
+					     dort -- das ist der Sinn, nicht ein Nebeneffekt.
+					     💣 Ein BLANKER Behälter, wie beim Wiki-Bauteil darüber: die Hülle erzeugt das Bauteil
+					     selbst, eine mitgegebene stünde doppelt geschachtelt da. -->
+					<div class="ecosystem-properties-dialog__group">
+						<div class="ecosystem-properties-dialog__grouptitle">Quellen der Fläche</div>
+						<p class="ecosystem-properties-dialog__status">Gelten für die ganze Region und wirken <b>sofort</b>.</p>
+						<div id="ecosystem-properties-feature-sources"></div>
+					</div>
 				</div>
 				<p id="landschaft-dialog-status" class="location-report-form__status" role="status" aria-live="polite"></p>
 				<div class="location-report-form__actions" hidden>
@@ -2152,6 +2120,7 @@
 					<button id="landschaft-dialog-cancel" class="location-report-form__button location-report-form__button--secondary" type="button">Abbrechen</button>
 					<button id="landschaft-dialog-save" class="location-report-form__button location-report-form__button--primary" type="button">Speichern</button>
 				</div>
+					<p id="ecosystem-properties-status" class="ecosystem-properties-dialog__status" role="status"></p>
 			</div>
 		</div>
 			<div id="region-edit-overlay" hidden>

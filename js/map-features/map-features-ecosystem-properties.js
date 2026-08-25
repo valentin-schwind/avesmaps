@@ -19,7 +19,10 @@
 // 🔴 Keine politische Datei wird aufgerufen (Hauptplan, Regel 1).
 
 (() => {
-	const OVERLAY_ELEMENT_ID = "ecosystem-properties-overlay";
+	// 🔴 SEIT DER VEREINIGUNG (25.08.2026) ist das Fenster das gemeinsame: Flaeche und Beschriftung
+	// stehen in „Landschaft bearbeiten" mit drei Reitern. Dieses Modul besitzt weiter die FELDER des
+	// Flaechen-Reiters -- ihre IDs sind unveraendert mitgewandert --, aber nicht mehr die Huelle.
+	const OVERLAY_ELEMENT_ID = "landschaft-dialog-overlay";
 	const MENU_ACTION = "ecosystem-properties";
 	// Dieselbe Quelle wie der Label-Wiki-Block (review-label-wiki.js:6) -- absolut, weil der Dialog auch
 	// aus Seiten unterhalb von /html/ erreichbar sein muss.
@@ -62,8 +65,30 @@
 	let propertiesBusy = false;
 	let propertiesBound = false;
 
+	// 🔴 DIE VIER ZWILLINGE SIND EINGESCHMOLZEN (Vereinigung, 25.08.2026). Nodix und die zwei
+	// Bedienelemente der Kurvenbeschriftung standen in BEIDEN Fenstern und bedienten denselben
+	// Wert -- der Quelltext warnte woertlich davor („Wer hier einen dritten Zustand erfindet, hat
+	// zwei Wahrheiten ueber dieselbe Region"). Seit Flaeche und Beschriftung in EINEM Fenster
+	// stehen, gaebe es sie zweimal untereinander; es gibt sie deshalb genau einmal, im Reiter
+	// „Beschriftung".
+	//
+	// ⭐ Gebunden wird an EINER Stelle statt an sechs Lesestellen: dieses Modul ruft die Felder
+	// ausschliesslich ueber `propertiesElement`, also genuegt hier eine Tabelle. Sechs
+	// gleichlautende Aenderungen waeren sechs Gelegenheiten, eine zu vergessen.
+	//
+	// ⚠️ `showname` wandert MIT seiner Kennung in den Beschriftungsreiter (dort heisst es „Auf der
+	// Karte anzeigen") -- es ist kein Zwilling, sondern der einzige Schalter der Beschriftung, den
+	// es nur hier gab. Kennung bleibt, Beschriftung wandert.
+	const AVESMAPS_ECO_ZWILLINGE = {
+		nodix: "label-edit-is-nodix",
+		curve: "label-edit-curve",
+		"curve-max": "label-edit-curve-max",
+		curvehint: "label-edit-curve-hint",
+	};
+
 	function propertiesElement(suffix) {
-		return document.getElementById(`ecosystem-properties-${suffix}`);
+		const zwilling = AVESMAPS_ECO_ZWILLINGE[suffix];
+		return document.getElementById(zwilling || `ecosystem-properties-${suffix}`);
 	}
 
 	function escapeText(value) {
@@ -446,7 +471,7 @@
 			avesmapsWikiAssignLandschaftHerkunft(regionFieldOrigins, AVESMAPS_WIKI_ASSIGN_LANDSCHAFT_KARTENFELDER),
 			{ region_type: wikiArtBeschriftungen() }
 		);
-		document.querySelectorAll("#ecosystem-properties-overlay [data-eco-wiki-alt]").forEach((zelle) => {
+		document.querySelectorAll("#landschaft-dialog-overlay [data-eco-wiki-alt]").forEach((zelle) => {
 			const feld = zelle.getAttribute("data-eco-wiki-alt") || "";
 			const s = stand[feld];
 			zelle.replaceChildren();
@@ -666,6 +691,9 @@
 		}
 
 		bindEcosystemPropertiesDialog();
+		if (typeof avesmapsLandschaftDialogReiter === "function") {
+			avesmapsLandschaftDialogReiter("flaeche");
+		}
 		pendingWikiRegion = undefined;
 		wikiSchnappschuss = null;
 		regionKeinArtikel = false;
