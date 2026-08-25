@@ -298,6 +298,47 @@ async function recomputeDerivedBoundaryForTargetSilently(targetPublicId, plan, s
 	return { saved: true };
 }
 
+// Rechnet die uebrigen Ziele des Plans nach: bei "Für alle Unterregionen" den Teilbaum, IMMER die
+// Vorfahren (ancestors_to_refresh). EIN Aufrufweg fuer BEIDE Zweige von
+// generateOrUpdateDerivedBoundaryForTerritory -- eine zweite Fassung mit anderer Reichweite waere
+// genau die Divergenz, aus der der Nostria-Fall entstanden ist.
+// ⚠️ Vorfahren stehen NICHT in plan_nodes (der Plan fuehrt dort nur den Teilbaum). findPlanNode
+// liefert fuer sie null, und isOwnDerivedBoundaryForbidden(null) ist fail OPEN -- genau richtig:
+// "unbekannt" darf an einer Loeschweiche nie "wegwerfen" heissen.
+async function recomputeDerivedBoundaryCascade(plan, territoryPublicId, options = {}) {
+	const applyToSubregions = options.applyToSubregions === true;
+	const cascadeTargets = (Array.isArray(plan?.recompute_targets) ? plan.recompute_targets : [])
+		.map((entry) => String(entry?.territory_public_id || "").trim())
+		.filter((publicId) => publicId && publicId !== territoryPublicId);
+	// "Für alle Unterregionen" + explizit gesetztes Innen-Haekchen -> dessen Wert auf den ganzen
+	// Teilbaum vererben (an ODER aus). Vorfahren (ancestors_to_refresh) bleiben unberuehrt; ohne
+	// explizites Haekchen (z. B. Rechtsklick) wird nichts vererbt.
+	const ancestorSet = new Set((Array.isArray(plan?.ancestors_to_refresh) ? plan.ancestors_to_refresh : [])
+		.map((entry) => String(entry?.territory_public_id || "").trim())
+		.filter(Boolean));
+	const propagateInner = applyToSubregions && typeof options.showInnerBoundaries === "boolean"
+		? options.showInnerBoundaries
+		: null;
+	let cascadeSaved = 0;
+	for (const cascadeTargetPublicId of cascadeTargets) {
+		try {
+			if (isOwnDerivedBoundaryForbidden(findPlanNode(plan, cascadeTargetPublicId))) {
+				// Blatt MIT Eltern -> KEINE eigene Außengrenze (Grenze kommt vom Elterngebiet).
+				// Eine ggf. vorhandene (z. B. durch frühere Kaskade fälschlich erzeugte Enklaven-
+				// Baronie-Außengrenze) deaktivieren, statt sie neu zu berechnen.
+				await politicalTerritoryRepository.deleteDerivedGeometry(cascadeTargetPublicId);
+				continue;
+			}
+			const overrideForTarget = (propagateInner !== null && !ancestorSet.has(cascadeTargetPublicId)) ? propagateInner : null;
+			const cascadeResult = await recomputeDerivedBoundaryForTargetSilently(cascadeTargetPublicId, plan, overrideForTarget);
+			if (cascadeResult && cascadeResult.saved) cascadeSaved += 1;
+		} catch (cascadeError) {
+			console.warn("Kaskaden-Neuberechnung fehlgeschlagen für", cascadeTargetPublicId, cascadeError);
+		}
+	}
+	return cascadeSaved;
+}
+
 async function generateOrUpdateDerivedBoundaryForCurrentEditorRegion() {
 	const territoryPublicId = getDerivedGeometryEditorTerritoryPublicId();
 	if (!territoryPublicId) {
@@ -360,10 +401,28 @@ async function generateOrUpdateDerivedBoundaryForTerritory(territoryPublicId, op
 			try { await politicalTerritoryRepository.deleteDerivedGeometry(territoryPublicId); } catch (cleanupError) { /* unkritisch */ }
 			const enabledCheckbox = document.getElementById("region-edit-derived-geometry-enabled");
 			if (enabledCheckbox) enabledCheckbox.checked = false;
-			setDerivedGeometryEditorBusy(false);
+			// 💣 Die Kaskade laeuft HIER, VOR dem return. Bis zum 25.08.2026 stand sie nur im
+			// Erfolgszweig darunter: ein Rechtsklick auf ein Blatt brach ab, OHNE das Elterngebiet
+			// nachzuziehen -- obwohl der Plan es ausdruecklich als recompute_target/ancestor nennt.
+			// Sichtbar an Koenigreich Nostria: dessen sieben Kinder sind ALLE Blaetter, es gibt kein
+			// Zwischen-Aggregat, auf dem der Klick landen koennte -- seine Huelle stand seit dem
+			// 12.06.2026 still (18,68 Flaecheneinheiten daneben), waehrend das Kaiserreich mit
+			// Grafschaft und Herzogtum dazwischen taeglich nachkam.
+			// ⚠️ setDerivedGeometryEditorBusy(false) stand hier und ist bewusst weg: das finally am
+			// Ende raeumt ohnehin auf, und ein Editor, der waehrend der Kaskade schon frei aussieht,
+			// laedt zum zweiten Klick ein.
+			setDerivedGeometryEditorProgress(55, true);
+			const leafCascadeSaved = await recomputeDerivedBoundaryCascade(plan, territoryPublicId, {
+				applyToSubregions,
+				showInnerBoundaries: options.showInnerBoundaries,
+			});
 			setDerivedGeometryEditorProgress(0, false);
-			setDerivedGeometryEditorStatus("Untergebiete-Blätter brauchen keine eigene Außengrenze – ihre Grenze zeigt das übergeordnete Gebiet.", "info");
-			showFeedbackToast("Dieses Untergebiet hat keine Unterregionen – seine Grenze kommt vom übergeordneten Gebiet.", "info");
+			setDerivedGeometryEditorStatus(leafCascadeSaved > 0
+				? `Untergebiete-Blätter brauchen keine eigene Außengrenze – ${leafCascadeSaved} Übergebiet(e) neu berechnet.`
+				: "Untergebiete-Blätter brauchen keine eigene Außengrenze – ihre Grenze zeigt das übergeordnete Gebiet.", "info");
+			showFeedbackToast(leafCascadeSaved > 0
+				? `Außengrenze des übergeordneten Gebiets aktualisiert (${leafCascadeSaved}).`
+				: "Dieses Untergebiet hat keine Unterregionen – seine Grenze kommt vom übergeordneten Gebiet.", "info");
 			schedulePoliticalTerritoryLayerReload({ immediate: true });
 			return null;
 		}
@@ -412,42 +471,17 @@ async function generateOrUpdateDerivedBoundaryForTerritory(territoryPublicId, op
 		setDerivedGeometryThumbnail(result.geometry);
 		setDerivedGeometryEditorProgress(100, false);
 		setDerivedGeometryEditorStatus(`${result.sourceCount} Unterflächen vereinigt und gespeichert.`, "success");
-		// Kaskade: betroffene Übergebiete (Ancestors) und bei applyToSubregions die
-			// Unterregionen aus dem Plan bottom-up neu berechnen und speichern. So aktualisiert
-			// eine Änderung an einem Kind automatisch die Außengrenze des Elterngebiets.
-			const cascadeTargets = (Array.isArray(plan?.recompute_targets) ? plan.recompute_targets : [])
-				.map((entry) => String(entry?.territory_public_id || "").trim())
-				.filter((publicId) => publicId && publicId !== territoryPublicId);
-			// "Für alle Unterregionen" + explizit gesetztes Innen-Haekchen -> dessen Wert auf
-			// den ganzen Teilbaum vererben (an ODER aus). Vorfahren (ancestors_to_refresh)
-			// bleiben unberuehrt; ohne explizites Haekchen (z. B. Rechtsklick) wird nichts vererbt.
-			const ancestorSet = new Set((Array.isArray(plan?.ancestors_to_refresh) ? plan.ancestors_to_refresh : [])
-				.map((entry) => String(entry?.territory_public_id || "").trim())
-				.filter(Boolean));
-			const propagateInner = applyToSubregions && typeof options.showInnerBoundaries === "boolean"
-				? options.showInnerBoundaries
-				: null;
-			let cascadeSaved = 0;
-			for (const cascadeTargetPublicId of cascadeTargets) {
-				try {
-					if (isOwnDerivedBoundaryForbidden(findPlanNode(plan, cascadeTargetPublicId))) {
-						// Blatt MIT Eltern -> KEINE eigene Außengrenze (Grenze kommt vom Elterngebiet).
-						// Eine ggf. vorhandene (z. B. durch frühere Kaskade fälschlich erzeugte Enklaven-
-						// Baronie-Außengrenze) deaktivieren, statt sie neu zu berechnen.
-						await politicalTerritoryRepository.deleteDerivedGeometry(cascadeTargetPublicId);
-						continue;
-					}
-					const overrideForTarget = (propagateInner !== null && !ancestorSet.has(cascadeTargetPublicId)) ? propagateInner : null;
-					const cascadeResult = await recomputeDerivedBoundaryForTargetSilently(cascadeTargetPublicId, plan, overrideForTarget);
-					if (cascadeResult && cascadeResult.saved) cascadeSaved += 1;
-				} catch (cascadeError) {
-					console.warn("Kaskaden-Neuberechnung fehlgeschlagen für", cascadeTargetPublicId, cascadeError);
-				}
-			}
-			if (cascadeSaved > 0) {
-				setDerivedGeometryEditorStatus(`Außengrenze gespeichert; ${cascadeSaved} Übergebiet(e) automatisch aktualisiert.`, "success");
-			}
-			schedulePoliticalTerritoryLayerReload({ immediate: true });
+		// Kaskade: betroffene Übergebiete (Ancestors) und bei applyToSubregions die Unterregionen
+		// aus dem Plan neu berechnen und speichern. So aktualisiert eine Änderung an einem Kind
+		// automatisch die Außengrenze des Elterngebiets.
+		const cascadeSaved = await recomputeDerivedBoundaryCascade(plan, territoryPublicId, {
+			applyToSubregions,
+			showInnerBoundaries: options.showInnerBoundaries,
+		});
+		if (cascadeSaved > 0) {
+			setDerivedGeometryEditorStatus(`Außengrenze gespeichert; ${cascadeSaved} Übergebiet(e) automatisch aktualisiert.`, "success");
+		}
+		schedulePoliticalTerritoryLayerReload({ immediate: true });
 		void loadChangeLog();
 		showFeedbackToast("Außengrenze erzeugt/aktualisiert.", "success");
 		return saved;
