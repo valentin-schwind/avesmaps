@@ -77,34 +77,37 @@ function apiZaehlstandSatz(letzteZaehlung) {
 // laeuft: er fragt zuerst `app/map-revision` (die billige Sonde) und holt die Nutzlast NUR, wenn
 // sich die Revision bewegt hat (`pollLiveMapUpdates`, js/routing/routing.js). Wer map-features
 // mitzaehlte, erklaerte jede echte Kartenladung zum Takt.
+// ⚠️ Die `zone` steht dabei, weil der Ring den Takt aus seiner Zone HERAUSRECHNET -- sonst waere
+// er doppelt gezaehlt. Sie muss zur Serverregel passen (avesmapsApiMetricsZone: Praefix `app/`
+// bzw. `edit/`); der Test nagelt genau das fest, damit hier keine zweite Zonenregel entsteht.
 const API_TAKT_ENDPUNKTE = {
-	"app/heartbeat": 60,          // js/app/visitor-tracking.js -- jeder offene Besucher-Tab
-	"app/map-revision": 15,       // js/routing/routing.js -- Live-Abgleich, nur im Editiermodus
-	"edit/map/presence": 30,      // js/review/review-panels.js -- jeder offene Editor
-	"edit/reports/locations": 45, // js/review/review-panels.js -- Meldungen-Abfrage
+	"app/heartbeat": { sekunden: 60, zone: "app" },   // visitor-tracking.js -- jeder Besucher-Tab
+	"app/map-revision": { sekunden: 15, zone: "app" }, // routing.js -- Live-Abgleich, nur im Editor
+	"edit/map/presence": { sekunden: 30, zone: "edit" }, // review-panels.js -- jeder offene Editor
+	"edit/reports/locations": { sekunden: 45, zone: "edit" }, // review-panels.js -- Meldungen
 };
 
 /**
- * Anteil der Takt-Anfragen an allen gezaehlten, in Prozent -- oder null, wenn nichts gezaehlt ist.
+ * Wie viele Takt-Anfragen je Zone -- die Grundlage dafuer, sie im Ring herauszurechnen.
  *
  * ⚠️ Gerechnet wird ueber die ENDPUNKTliste, nicht ueber eine eigene Metrik: die Namen stehen
  * ohnehin da, es kostet keine Spalte und keine Schemaaenderung.
+ *
+ * @return {{ zonen: Object, gesamt: number }}
  */
-function apiTaktAnteil(endpunkte) {
-	const zeilen = endpunkte || [];
+function apiTaktJeZone(endpunkte) {
+	const zonen = {};
 	let gesamt = 0;
-	let takt = 0;
-	zeilen.forEach((z) => {
-		const anzahl = Number(z.c) || 0;
-		gesamt += anzahl;
-		if (Object.prototype.hasOwnProperty.call(API_TAKT_ENDPUNKTE, z.dimension)) {
-			takt += anzahl;
+	(endpunkte || []).forEach((z) => {
+		const eintrag = API_TAKT_ENDPUNKTE[z.dimension];
+		if (!eintrag) {
+			return;
 		}
+		const anzahl = Number(z.c) || 0;
+		zonen[eintrag.zone] = (zonen[eintrag.zone] || 0) + anzahl;
+		gesamt += anzahl;
 	});
-	if (gesamt === 0) {
-		return null;
-	}
-	return (takt / gesamt) * 100;
+	return { zonen, gesamt };
 }
 
 function apiEndpunktKarte(endpunkte) {
@@ -145,28 +148,60 @@ function apiFehlerKarte(fehler) {
 // 🔴 Genau vier Farben, weil es genau vier Zonen sind -- vier Reihen ist die gerechnete Grenze der
 // Projektpalette. vaDonut wiederholt sie sonst still (`cols[i % cols.length]`), und Segment 5
 // saehe aus wie Segment 1.
-const API_ZONEN_FARBEN = ["#2a78d6", "#1baf7a", "#b8792c", "#7c4fa6"];
+// 🔴 VIER Farben fuer die vier Zonen -- vier Reihen ist die gerechnete Grenze der Projektpalette.
+//
+// ⭐ Das fuenfte Segment „Takt" bekommt deshalb KEINE fuenfte Farbe, sondern ein GRAU. Das ist
+// kein Notbehelf, sondern die Aussage: der Takt ist keine weitere Art von Nutzung, er ist
+// Grundrauschen. Ein Grau ist die Abwesenheit eines Farbtons, keine Erweiterung der Palette --
+// die Grenze bleibt damit unangetastet.
+const API_ZONEN_FARBEN = ["#2a78d6", "#1baf7a", "#b8792c", "#7c4fa6", "var(--color-text-muted)"];
 const API_ZONEN_NAMEN = {
 	app: "eigene Karte",
 	edit: "Editoren",
 	offen: "offene API",
 	sonstige: "übrige",
 };
+// Die feste Reihenfolge der Segmente. Der Takt steht als Letztes und bekommt damit die graue
+// Farbe -- vaDonut vergibt sie ueber den Index.
+const API_ZONEN_FOLGE = ["app", "edit", "offen", "sonstige"];
 
-function apiZonenKarte(zonen) {
-	const zeilen = (zonen || []).filter((z) => Number(z.c) > 0);
+/**
+ * Der Ring „Wer ruft an" -- vier Zonen plus der Takt als eigenes, graues Segment.
+ *
+ * 💣 DER TAKT WIRD AUS SEINER ZONE HERAUSGERECHNET, nicht danebengelegt. `app/heartbeat` liegt in
+ * der Zone `app`, `edit/map/presence` in `edit`; einfach ein fuenftes Segment anzuhaengen zaehlte
+ * diese Anfragen DOPPELT, und die Summe der Prozente ergaebe ueber 100. Was uebrig bleibt, ist
+ * „eigene Karte OHNE Takt".
+ */
+function apiZonenKarte(zonen, endpunkte) {
+	const takt = apiTaktJeZone(endpunkte);
+
+	const zeilen = [];
+	API_ZONEN_FOLGE.forEach((schluessel) => {
+		const roh = (zonen || []).find((z) => z.dimension === schluessel);
+		// Math.max: eine Zone kann rechnerisch nicht weniger Anfragen haben als ihr Takt -- aber
+		// eine negative Zahl im Ring waere ein stiller Unsinn, kein sichtbarer Fehler.
+		const wert = Math.max(0, (Number(roh && roh.c) || 0) - (takt.zonen[schluessel] || 0));
+		if (wert > 0) {
+			zeilen.push({ dimension: API_ZONEN_NAMEN[schluessel], c: wert });
+		}
+	});
+	if (takt.gesamt > 0) {
+		zeilen.push({ dimension: "Takt", c: takt.gesamt });
+	}
+
 	if (zeilen.length === 0) {
 		return '<div class="va-card"><p class="va-card__label">Wer ruft an</p>'
 			+ '<div class="va-storage">noch keine Daten</div></div>';
 	}
-	// vaDonut liest `r.dimension` als Beschriftung -- die Klarnamen also VOR der Uebergabe setzen,
-	// nicht danach im Markup suchen.
-	const benannt = zeilen.map((z) => ({
-		dimension: API_ZONEN_NAMEN[z.dimension] || z.dimension,
-		c: Number(z.c),
-	}));
+
+	// vaDonut liest `r.dimension` als Beschriftung -- die Klarnamen stehen oben schon drin.
 	return '<div class="va-card"><p class="va-card__label">Wer ruft an</p>'
-		+ vaDonut(benannt, API_ZONEN_FARBEN) + "</div>";
+		+ vaDonut(zeilen, API_ZONEN_FARBEN)
+		+ '<p class="va-storage" style="margin-top:9px"><b style="color:var(--color-button-soft-text)">Takt</b>'
+		+ " = Endpunkte, die von selbst fragen: "
+		+ apiEscape(Object.keys(API_TAKT_ENDPUNKTE).join(" · "))
+		+ ". Aus den Zonen herausgerechnet, nicht dazugezählt.</p></div>";
 }
 
 function apiSpeicherKarte(storage) {
@@ -190,19 +225,20 @@ function renderApiDashboard(mount, data) {
 
 	const hinweis = apiZaehlstandSatz(data && data.letzte_zaehlung);
 
-	// „davon Takt": die Endpunkte, die von selbst fragen. Ohne diese Zeile liest man die
-	// Gesamtzahl als Nutzung, obwohl ein guter Teil davon ein Ping ist.
-	const taktAnteil = apiTaktAnteil(m.endpunkte);
-	const taktZeile = taktAnteil === null
-		? ""
-		: '<div class="va-kpi__trend flat" title="' + apiEscape(Object.keys(API_TAKT_ENDPUNKTE).join(" · "))
-			+ '">davon Takt: ' + taktAnteil.toFixed(taktAnteil < 10 ? 1 : 0).replace(".", ",") + " %</div>";
-
+	// 🪤 HIER STAND „davon Takt: X %" ALS `.va-kpi__trend`, UND SIE WAR GRUEN.
+	//
+	// `.va-kpi__trend` ist im Projekt fest auf `--color-success` gesetzt; den Modifier `.flat`,
+	// mit dem ich sie neutral faerben wollte, gibt es nur im Mockup -- dort hatte ich ihn selbst
+	// definiert. Eine Kennzahl, die gruen leuchtet, liest sich als „gut", und der Takt ist weder
+	// gut noch schlecht. Owner-Entscheid 26.08.2026: raus aus der Kopfzeile, hinein in den Ring.
+	//
+	// ⚠️ Dritter Fall derselben Art in diesem Vorhaben (nach `--color-warn` und `.va-kpi__trend`
+	// selbst): was im Mockup steht, ist nicht automatisch im Projekt vorhanden.
 	mount.innerHTML =
 		(hinweis ? '<div class="va-card"><p class="va-storage">⚠️ ' + hinweis + "</p></div>" : "")
 		+ '<div class="va-kpis">'
 		+ '<div class="va-kpi"><div class="va-kpi__label">Anfragen</div><div class="va-kpi__value">'
-		+ gesamt.toLocaleString("de-DE") + "</div>" + taktZeile + "</div>"
+		+ gesamt.toLocaleString("de-DE") + "</div></div>"
 		+ '<div class="va-kpi"><div class="va-kpi__label">Fehlerquote</div><div class="va-kpi__value">'
 		+ quote + " %</div></div>"
 		+ '<div class="va-kpi"><div class="va-kpi__label">Zeitraum</div><div class="va-kpi__value">'
@@ -214,7 +250,7 @@ function renderApiDashboard(mount, data) {
 		+ '<p class="va-storage" style="margin-top:9px">„leer" = die Antwort ging nie durch den '
 		+ "Trichter. Ein Fatal Error sieht im Browser aus wie ein Netzfehler.</p></div>"
 		+ apiFehlerKarte(m.fehler)
-		+ apiZonenKarte(m.zonen)
+		+ apiZonenKarte(m.zonen, m.endpunkte)
 		+ '<div class="va-card"><p class="va-card__label">Wann die Last liegt (Ortszeit)</p>'
 		+ vaHeatmap(m.stunden || []) + "</div>"
 		+ apiSpeicherKarte(data && data.storage);

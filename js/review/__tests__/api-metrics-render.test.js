@@ -84,7 +84,15 @@ eval([
 	extract("apiKlassenBalken"),
 	extract("apiZaehlstandSatz"),
 	src.match(/const API_TAKT_ENDPUNKTE[\s\S]*?\n\};/)[0],
-	extract("apiTaktAnteil"),
+	extract("apiTaktJeZone"),
+	src.match(/const API_ZONEN_FARBEN[\s\S]*?\];/)[0],
+	src.match(/const API_ZONEN_NAMEN[\s\S]*?\n\};/)[0],
+	src.match(/const API_ZONEN_FOLGE[\s\S]*?\];/)[0],
+	extract("apiZonenKarte"),
+	// vaDonut kommt aus der Nachbardatei -- der Ring wird mit dem ECHTEN Zeichner geprueft,
+	// nicht mit einer Attrappe.
+	(subtabJs.match(/function vaDonut\b[\s\S]*?\n\}/) || [""])[0],
+	(subtabJs.match(/function vaEscape\b[\s\S]*?\n\}/) || [""])[0],
 ].join("\n"));
 
 // --- „davon Takt" -------------------------------------------------------------------------------
@@ -101,9 +109,49 @@ const mitTakt = [
 	{ dimension: "edit/map/presence", c: 30 },
 	{ dimension: "app/map-revision", c: 10 },
 ];
-pruefe(Math.round(apiTaktAnteil(mitTakt)) === 50, "100 von 200 sind Takt -> 50 %");
-pruefe(apiTaktAnteil([]) === null, "ohne Daten kein Prozentwert (und keine erfundene Null)");
-pruefe(apiTaktAnteil([{ dimension: "app/map-features", c: 7 }]) === 0, "ohne Takt sind es 0 %");
+const jeZone = apiTaktJeZone(mitTakt);
+pruefe(jeZone.gesamt === 100, "Takt gesamt: 60 + 30 + 10 = 100");
+pruefe(jeZone.zonen.app === 70, "Takt in der Zone app: heartbeat 60 + map-revision 10");
+pruefe(jeZone.zonen.edit === 30, "Takt in der Zone edit: presence 30");
+pruefe(apiTaktJeZone([]).gesamt === 0, "ohne Daten kein Takt");
+pruefe(apiTaktJeZone([{ dimension: "app/map-features", c: 7 }]).gesamt === 0, "map-features zaehlt nicht mit");
+
+// --- 💣 DER TAKT WIRD HERAUSGERECHNET, NICHT DAZUGEZAEHLT ---------------------------------------
+// Ein fuenftes Segment einfach anzuhaengen zaehlte diese Anfragen DOPPELT (sie liegen ja in den
+// Zonen app/edit), und die Summe der Prozente ergaebe ueber 100.
+const ringZonen = [
+	{ dimension: "app", c: 170 },   // davon 70 Takt -> 100 uebrig
+	{ dimension: "edit", c: 50 },   // davon 30 Takt ->  20 uebrig
+	{ dimension: "offen", c: 80 },
+	{ dimension: "sonstige", c: 0 },
+];
+const ring = apiZonenKarte(ringZonen, mitTakt);
+const prozente = (ring.match(/(\d+)%/g) || []).map((p) => parseInt(p, 10));
+pruefe(prozente.reduce((a, b) => a + b, 0) === 100,
+	"die Prozente summieren sich auf 100 (keine Doppelzaehlung): " + prozente.join("+"));
+pruefe(/eigene Karte 33%/.test(ring), "eigene Karte OHNE Takt: 100 von 300 -> 33 %");
+pruefe(/Editoren 7%/.test(ring), "Editoren OHNE Takt: 20 von 300 -> 7 %");
+pruefe(/offene API 27%/.test(ring), "offene API unveraendert: 80 von 300 -> 27 %");
+pruefe(/Takt 33%/.test(ring), "Takt als eigenes Segment: 100 von 300 -> 33 %");
+pruefe(!/übrige/.test(ring), "eine Zone mit 0 bekommt kein Segment");
+
+// ⭐ Das fuenfte Segment bekommt KEINE fuenfte Farbe, sondern ein Grau -- der Takt ist keine
+// weitere Art von Nutzung, sondern Grundrauschen. Vier Farben bleiben die Palettengrenze.
+// 🪤 Wie oben bei der Takt-Tabelle: ein `const` aus einem eval verlaesst dessen Raum nie.
+const zonenFarben = eval("(" + src.match(/const API_ZONEN_FARBEN\s*=\s*(\[[\s\S]*?\]);/)[1] + ")");
+pruefe(zonenFarben.length === 5 && zonenFarben[4] === "var(--color-text-muted)",
+	"das Takt-Segment ist grau, keine fuenfte Farbe");
+pruefe(zonenFarben.slice(0, 4).every((f) => /^#[0-9a-f]{6}$/i.test(f)),
+	"die vier Zonenfarben bleiben die kategoriale Palette");
+
+// 🪤 Und die gruene Kennzahl oben ist WEG. `.va-kpi__trend` ist im Projekt fest auf
+// --color-success gesetzt; den Modifier `.flat` gibt es nur im Mockup. Eine Kennzahl, die gruen
+// leuchtet, liest sich als „gut" -- und der Takt ist weder gut noch schlecht.
+// 🪤 …und `nurCode`, denn der Kommentar, der diese Regel ERKLAERT, nennt beide Zeichenfolgen.
+// Vierter Fall derselben Art in dieser Datei. Der Helfer stand da; ich habe ihn nur nicht benutzt.
+pruefe(!/davon Takt/.test(nurCode(src)), "keine „davon Takt\"-Zeile mehr in der Kopfzeile");
+pruefe(!/va-kpi__trend/.test(nurCode(src)), "der Renderer benutzt .va-kpi__trend gar nicht");
+pruefe(!/\.va-kpi__trend\.flat/.test(css), "und den Modifier .flat gibt es hier wirklich nicht");
 
 // 💣 `app/map-features` ist KEIN Takt, obwohl der Live-Abgleich alle 15 s laeuft: er fragt zuerst
 // `app/map-revision` und holt die Nutzlast NUR bei geaenderter Revision (pollLiveMapUpdates in
