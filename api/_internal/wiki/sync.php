@@ -224,10 +224,10 @@ function avesmapsWikiSyncUnreachableMessage(int $statusCode, string $rawWarning)
  * Ein Test setzt den Zustand einfach vor: avesmapsWikiBotZustand(['status' => 'bot']).
  */
 function avesmapsWikiBotZustand(?array $neuerZustand = null): array {
-    static $zustand = ['status' => 'unversucht', 'grund' => '', 'grund_code' => '', 'cookies' => []];
+    static $zustand = ['status' => 'unversucht', 'grund' => '', 'grund_code' => '', 'cookies' => [], 'aus_ablage' => false];
 
     if ($neuerZustand !== null) {
-        $zustand = $neuerZustand + ['status' => 'unversucht', 'grund' => '', 'grund_code' => '', 'cookies' => []];
+        $zustand = $neuerZustand + ['status' => 'unversucht', 'grund' => '', 'grund_code' => '', 'cookies' => [], 'aus_ablage' => false];
     }
 
     return $zustand;
@@ -496,6 +496,183 @@ function avesmapsWikiBotZugangLesen(): ?array {
     }
 }
 /**
+ * Wie lange eine gespeicherte Bot-Sitzung wiederverwendet werden darf.
+ *
+ * ⚠️ MediaWiki laesst eine Sitzung in der Voreinstellung eine Stunde leben. 15 Minuten
+ * lassen davon reichlich Sicherheitsabstand und decken einen ganzen Dump-Lauf ab -- die
+ * Kontinent-Phase braucht rund 20. Laenger waere kein Gewinn: der zweite Lauf des Tages
+ * meldet sich ohnehin neu an, und eine abgelaufene Sitzung kostet einen Fehlversuch.
+ */
+const AVESMAPS_WIKI_BOT_SESSION_MAX_AGE = 900;
+
+/**
+ * Die Sperre fuer den Ablageort der Bot-Sitzung -- gleiche Bauart wie uploads/db-backups.
+ * 🔴 DIESE KONSTANTE IST DIE QUELLE, es gibt keine Kopie im Repo.
+ */
+const AVESMAPS_WIKI_BOT_HTACCESS = "<IfModule mod_authz_core.c>\n    Require all denied\n</IfModule>\n\n"
+    . "<IfModule !mod_authz_core.c>\n    Order allow,deny\n    Deny from all\n</IfModule>\n";
+
+/**
+ * Wo die Bot-Sitzung liegt -- oder null, wenn es keinen schreibbaren Ort gibt.
+ *
+ * 💣 WARUM UEBERHAUPT: der Anmeldezustand lebte nur im jeweiligen PHP-Prozess, und jeder
+ * Schritt eines Dump-Laufs ist ein eigener Prozess. Die Kontinent-Phase meldete sich
+ * deshalb in JEDEM ihrer 21 Schritte neu an und zahlte dafuer zwei zusaetzliche
+ * gedrosselte Anfragen -- drei statt einer, also 60 statt 20 Sekunden je Schritt. Gemessen
+ * am 25.08.2026: 14 der 34 Wiki-Minuten eines Laufs gingen fuer nichts drauf.
+ *
+ * 🔴 HIER LIEGEN SITZUNGS-COOKIES. Das Verzeichnis ist per .htaccess gesperrt (dieselbe
+ * Bauart wie uploads/db-backups, wo die Datenbanksicherung samt Passwort-Hashes liegt), und
+ * die Datei bekommt 0600. Ein Cookie ist kein Passwort -- es laeuft ab, und es steht nichts
+ * darin, womit man sich neu anmelden koennte.
+ *
+ * ⚠️ Kein schreibbarer Ort = null = alles wie vorher, also Anmeldung je Prozess. Auf dem
+ * Entwicklungsrechner ist das der Normalfall und ausdruecklich kein Fehler.
+ */
+function avesmapsWikiBotSitzungDatei(): ?string {
+    if (!function_exists('avesmapsApiRoot')) {
+        return null;
+    }
+
+    try {
+        $verzeichnis = dirname(avesmapsApiRoot()) . DIRECTORY_SEPARATOR . 'uploads'
+            . DIRECTORY_SEPARATOR . 'wiki-bot';
+    } catch (Throwable) {
+        return null;
+    }
+
+    if (!is_dir($verzeichnis) && !@mkdir($verzeichnis, 0775, true) && !is_dir($verzeichnis)) {
+        return null;
+    }
+
+    $sperre = $verzeichnis . DIRECTORY_SEPARATOR . '.htaccess';
+    if (!is_file($sperre) || @file_get_contents($sperre) !== AVESMAPS_WIKI_BOT_HTACCESS) {
+        @file_put_contents($sperre, AVESMAPS_WIKI_BOT_HTACCESS);
+    }
+
+    return $verzeichnis . DIRECTORY_SEPARATOR . 'sitzung.json';
+}
+
+/**
+ * REIN: ist ein abgelegter Sitzungssatz noch brauchbar?
+ *
+ * 💣 Ein Satz OHNE Zeitstempel gilt als unbrauchbar, nicht als uralt oder als frisch. Ein
+ * fehlender Zeitstempel ist kein Alter von null -- wer ihn so liest, benutzt eine beliebig
+ * alte Sitzung ewig weiter.
+ *
+ * @param array<string, mixed>|null $satz
+ */
+function avesmapsWikiBotSitzungBrauchbar(?array $satz, float $jetzt): bool {
+    if (!is_array($satz)) {
+        return false;
+    }
+
+    $cookies = $satz['cookies'] ?? null;
+    if (!is_array($cookies) || $cookies === []) {
+        return false;
+    }
+
+    $seit = $satz['seit'] ?? null;
+    if (!is_numeric($seit)) {
+        return false;
+    }
+
+    $alter = $jetzt - (float) $seit;
+
+    // Ein Zeitstempel aus der ZUKUNFT (verstellte Uhr) ist ebenfalls unbrauchbar -- er
+    // machte die Sitzung sonst unbegrenzt haltbar.
+    return $alter >= 0.0 && $alter < AVESMAPS_WIKI_BOT_SESSION_MAX_AGE;
+}
+
+/**
+ * Die abgelegte Bot-Sitzung, oder null. Liest nur; entscheidet nichts ausser Haltbarkeit.
+ *
+ * @return array<string, string>|null die Cookies
+ */
+function avesmapsWikiBotSitzungLaden(): ?array {
+    $datei = avesmapsWikiBotSitzungDatei();
+    if ($datei === null || !is_file($datei)) {
+        return null;
+    }
+
+    $roh = @file_get_contents($datei);
+    if (!is_string($roh) || $roh === '') {
+        return null;
+    }
+
+    try {
+        $satz = json_decode($roh, true, 8, JSON_THROW_ON_ERROR);
+    } catch (JsonException) {
+        return null;
+    }
+
+    if (!avesmapsWikiBotSitzungBrauchbar(is_array($satz) ? $satz : null, microtime(true))) {
+        return null;
+    }
+
+    $cookies = [];
+    foreach ($satz['cookies'] as $name => $wert) {
+        $cookies[(string) $name] = (string) $wert;
+    }
+
+    return $cookies === [] ? null : $cookies;
+}
+
+/** Die frisch erworbene Sitzung ablegen, damit der naechste Schritt sie erbt. */
+function avesmapsWikiBotSitzungSpeichern(array $cookies): void {
+    $datei = avesmapsWikiBotSitzungDatei();
+    if ($datei === null || $cookies === []) {
+        return;
+    }
+
+    try {
+        $roh = json_encode(['cookies' => $cookies, 'seit' => microtime(true)], JSON_THROW_ON_ERROR);
+    } catch (JsonException) {
+        return;
+    }
+
+    if (@file_put_contents($datei, $roh, LOCK_EX) !== false) {
+        @chmod($datei, 0600);
+    }
+}
+
+/** Die abgelegte Sitzung wegwerfen -- nach einer abgelehnten Zusicherung. */
+function avesmapsWikiBotSitzungVergessen(): void {
+    $datei = avesmapsWikiBotSitzungDatei();
+    if ($datei !== null && is_file($datei)) {
+        @unlink($datei);
+    }
+}
+
+/**
+ * Eine aus der Ablage uebernommene Sitzung war abgelaufen: wegwerfen und EINMAL frisch
+ * anmelden. Gibt zurueck, ob danach eine Bot-Sitzung steht.
+ *
+ * 💣 DIESE ZWEITE CHANCE IST DER PREIS DER ABLAGE. Ohne sie wuerde eine abgelaufene Sitzung
+ * jeden Schritt scheitern lassen, und der Lauf braeche mit 'assertuserfailed' ab -- also
+ * genau der Schaden, den das Sparen der Anmeldung vermeiden sollte, nur schlimmer.
+ *
+ * ⚠️ Genau EINMAL je Prozess: sonst kreist ein dauerhaft abgelehnter Zugang zwischen
+ * Anmeldung und Wiederholung.
+ * ⚠️ Und nur fuer eine UEBERNOMMENE Sitzung. Eine soeben frisch erworbene, die trotzdem
+ * abgelehnt wird, ist ein echter Fehler und muss laut werden.
+ */
+function avesmapsWikiBotSitzungErneuern(): bool {
+    static $schonVersucht = false;
+
+    $zustand = avesmapsWikiBotZustand();
+    if ($schonVersucht || empty($zustand['aus_ablage'])) {
+        return false;
+    }
+    $schonVersucht = true;
+
+    avesmapsWikiSyncLogServerError('wiki_bot_sitzung_abgelaufen', []);
+    avesmapsWikiBotSitzungVergessen();
+    avesmapsWikiBotZustand(['status' => 'unversucht', 'grund' => '', 'cookies' => []]);
+
+    return avesmapsWikiBotSitzungSicherstellen();
+}
+/**
  * Meldet den Bot an -- hoechstens einmal je PHP-Prozess. Gibt zurueck, ob eine Bot-Sitzung steht.
  *
  * 🔴 EIN FEHLSCHLAG BRICHT NICHTS AB. Ohne Anmeldung laeuft alles weiter wie vor dem 23.08.2026,
@@ -519,6 +696,16 @@ function avesmapsWikiBotSitzungSicherstellen(): bool {
     if ($zugang === null) {
         avesmapsWikiBotZustand(['status' => 'anonym', 'grund' => 'keine Zugangsdaten hinterlegt']);
         return false;
+    }
+
+    // ⭐ ZUERST DIE ABLAGE. Eine noch haltbare Sitzung aus einem frueheren Schritt spart die
+    // zwei gedrosselten Anfragen der Anmeldung -- in der Kontinent-Phase sind das 40 der 60
+    // Sekunden JE SCHRITT. Sie wird als 'aus_ablage' markiert, damit ein spaeteres
+    // 'assertuserfailed' sie wegwerfen und einmal frisch anmelden kann.
+    $abgelegt = avesmapsWikiBotSitzungLaden();
+    if ($abgelegt !== null) {
+        avesmapsWikiBotZustand(['status' => 'bot', 'grund' => '', 'cookies' => $abgelegt, 'aus_ablage' => true]);
+        return true;
     }
 
     $tokenAntwort = avesmapsWikiSyncApiPost(['action' => 'query', 'meta' => 'tokens', 'type' => 'login'], []);
@@ -551,7 +738,9 @@ function avesmapsWikiBotSitzungSicherstellen(): bool {
         return false;
     }
 
-    avesmapsWikiBotZustand(['status' => 'bot', 'grund' => '', 'cookies' => $loginAntwort['cookies']]);
+    avesmapsWikiBotZustand(['status' => 'bot', 'grund' => '', 'cookies' => $loginAntwort['cookies'], 'aus_ablage' => false]);
+    // Damit der naechste Schritt sie erbt, statt sich noch einmal anzumelden.
+    avesmapsWikiBotSitzungSpeichern($loginAntwort['cookies']);
     return true;
 }
 
@@ -986,6 +1175,17 @@ function avesmapsWikiSyncApiRequest(array $params): array {
         // Beide muessen laut sein: ein stiller leerer Treffer wandert sonst als „das gibt es im
         // Wiki nicht" in unsere Daten, und niemand kann es hinterher noch unterscheiden.
         $fehlercode = (string) ($data['error']['code'] ?? '');
+
+        // 💣 EINE UEBERNOMMENE SITZUNG KANN ABGELAUFEN SEIN, und dann ist das hier kein Fehler,
+        // sondern der erwartete Preis der Ablage: wegwerfen, einmal frisch anmelden, dieselbe
+        // Anfrage wiederholen. Ohne diese zweite Chance liesse eine abgelaufene Sitzung jeden
+        // Schritt scheitern -- genau der Schaden, den das Sparen der Anmeldung vermeiden soll.
+        // ⚠️ Nur bei einer UEBERNOMMENEN Sitzung und nur EINMAL je Prozess (der Riegel steht in
+        // avesmapsWikiBotSitzungErneuern), sonst kreist ein dauerhaft abgelehnter Zugang.
+        if ($fehlercode === 'assertuserfailed' && avesmapsWikiBotSitzungErneuern()) {
+            return avesmapsWikiSyncApiRequest($params);
+        }
+
         if ($fehlercode === 'assertuserfailed' || $fehlercode === 'toomanyvalues') {
             avesmapsWikiSyncLogServerError('wiki_api_' . $fehlercode, [
                 'url' => $url,

@@ -739,7 +739,8 @@ function avesmapsWikiDumpCategoryFetchContinentMap(
     array $titles,
     int $cursor = 0,
     ?int $callBudget = null,
-    ?callable $batchPageFetcher = null
+    ?callable $batchPageFetcher = null,
+    ?int $stapelgroesseFuerTest = null
 ): array {
     $batchPageFetcher ??= 'avesmapsWikiDumpCategoryFetchPageCategoriesReadOnly';
 
@@ -750,7 +751,14 @@ function avesmapsWikiDumpCategoryFetchContinentMap(
     $callsMade = 0;
     // 💣 EINMAL fragen, nicht je Runde: die Stapelgroesse haengt an der Anmeldung, und ein
     // Wechsel mitten im Lauf verschoebe den Cursor gegen die bereits gezaehlten Aufrufe.
-    $stapel = avesmapsWikiSyncTitleBatchSize();
+    //
+    // 🪤 DER LETZTE PARAMETER EXISTIERT NUR FUER TESTS, und er hat einen teuer gelernten Grund
+    // (25.08.2026): avesmapsWikiSyncTitleBatchSize() liefert 50 ohne und 500 MIT Bot-Anmeldung.
+    // Zwei Testdateien rechneten mit der Konstanten 50 -- lokal und im CI (keine Konfiguration,
+    // also anonym) waren sie gruen, auf dem SERVER mit stehender Anmeldung rot. Sie hingen an
+    // der Umgebung, nicht am Code. Ausserdem loest der Aufruf die Anmeldung aus, und ein
+    // Unittest, der sich beim Wiki anmeldet, ist keiner mehr.
+    $stapel = $stapelgroesseFuerTest ?? avesmapsWikiSyncTitleBatchSize();
 
     while ($cursor < $total) {
         if ($callBudget !== null && $callsMade >= $callBudget) {

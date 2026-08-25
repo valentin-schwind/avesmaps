@@ -344,7 +344,12 @@ echo "\n-- (d) resumable cursor (outer fetch, fake batch fetcher, no HTTP) --\n"
 // PARTIAL last batch: e.g. batch=20 -> 50 (20,20,10); batch=50 -> 125 (50,50,25). This preserves
 // the original intent of (d3) not-done-after-one-batch, (d5) one-batch map coverage, and (d8)
 // multi-batch resume, none of which hold if the whole list fits one batch.
-$batchSize = AVESMAPS_WIKI_TITLE_BATCH_SIZE;
+// 🪤 GEPINNT, NICHT GEERBT. Bis zum 25.08.2026 stand hier die Konstante -- und der Code unter
+// Test nimmt avesmapsWikiSyncTitleBatchSize(), also 50 ohne und 500 MIT Bot-Anmeldung. Lokal und
+// im CI (keine Konfiguration, also anonym) stimmten beide zufaellig ueberein; auf dem SERVER
+// wurde aus 125 Titeln ein einziger Stapel, und vier Zusicherungen fielen um. Der Test hing an
+// der Umgebung, nicht am Code. Seither wird die Groesse in den Sammler hineingereicht.
+$batchSize = 50;
 $titleCount = $batchSize * 2 + intdiv($batchSize, 2); // 2.5 batches, half rounded down -> partial last batch
 $mockTitles = [];
 for ($i = 1; $i <= $titleCount; $i++) {
@@ -371,7 +376,7 @@ $expectedSortedTitleKeys = static function (int $from, int $to) use ($mockTitles
 // One API call spends exactly ONE batch (the builder's "stop after $callBudget API calls"
 // contract), so budget=1 from cursor=0 consumes exactly min($batchSize, $titleCount) titles.
 $firstBatchLen = min($batchSize, $titleCount);
-$batch1 = avesmapsWikiDumpCategoryFetchContinentMap($mockTitles, 0, 1, $fakeBatchFetcher);
+$batch1 = avesmapsWikiDumpCategoryFetchContinentMap($mockTitles, 0, 1, $fakeBatchFetcher, $batchSize);
 $check(
     '(d1) callBudget=1: exactly 1 API call made',
     1,
@@ -410,7 +415,7 @@ $check(
 $remainingAfterFirst = $titleCount - $firstBatchLen;
 $expectedResumeBatches = (int) ceil($remainingAfterFirst / $batchSize);
 $batchCallLog = [];
-$batch2 = avesmapsWikiDumpCategoryFetchContinentMap($mockTitles, $batch1['nextCursor'], $expectedResumeBatches + 3, $fakeBatchFetcher);
+$batch2 = avesmapsWikiDumpCategoryFetchContinentMap($mockTitles, $batch1['nextCursor'], $expectedResumeBatches + 3, $fakeBatchFetcher, $batchSize);
 $check(
     '(d6) resuming from one batch in with ample budget: done=true (all covered)',
     true,
@@ -436,7 +441,7 @@ $check(
 // batch-agnostic analogue of the brief's literal "a second call from 40 returns done=true".
 $lastBatchCursor = $batchSize * 2; // start of the partial 3rd batch; ($titleCount - it) < $batchSize remain
 $batchCallLog = [];
-$batchLast = avesmapsWikiDumpCategoryFetchContinentMap($mockTitles, $lastBatchCursor, 1, $fakeBatchFetcher);
+$batchLast = avesmapsWikiDumpCategoryFetchContinentMap($mockTitles, $lastBatchCursor, 1, $fakeBatchFetcher, $batchSize);
 $check(
     '(d9) resuming inside the final partial batch with budget=1 -> done=true',
     true,

@@ -685,15 +685,33 @@ let isWikiSyncDumpRunning = false;
 let lastWikiSyncDumpCredentialsUsername = "";
 let wikiSyncDumpCredentialsResolver = null;
 
-// Human-readable German labels for the 7 work phases (dump-hybrid-driver.php phase constants).
+// Die Beschriftung der elf Arbeitsphasen (die Schlüssel sind die Phasenkonstanten aus
+// dump-hybrid-driver.php).
+//
+// 💣 VIER PHASEN HATTEN GAR KEINE BESCHRIFTUNG und zeigten dem Editor ihren englischen
+// Schlüssel: "adventures", "citymaps", "lore", "organisations". Der Rückfall in
+// renderWikiSyncDumpProgress ist ein blosses "oder der Schlüssel selbst", also fällt so
+// etwas nie auf -- es steht einfach etwas Falsches da, und zwar in der einzigen Zeile, die
+// während eines 40-Minuten-Laufs überhaupt etwas über den Fortschritt sagt. Gewacht von
+// js/review/__tests__/dump-phasen-beschriftung.test.js, das die Liste gegen
+// avesmapsWikiDumpHybridPhaseOrder() im PHP hält.
+//
+// 🔴 JEDE TRÄGT IHRE QUELLE (Owner 25.08.2026): "(Wiki: Online)" heißt, sie fragt das Wiki
+// und zahlt dafür 20 Sekunden je Anfrage -- das sind die drei langsamen. "(Wiki: Dump)"
+// heißt, sie liest nur die heruntergeladene Datei. Ohne diese Angabe steht ein Lauf
+// minutenlang auf derselben Zeile, und niemand kann sehen, ob das teuer oder kaputt ist.
 const WIKI_SYNC_DUMP_PHASE_LABELS = {
-	online_class_map: "Online-Klassen-Karte",
-	online_building_map: "Online-Bauwerks-Karte",
-	online_continent_map: "Online-Kontinent-Karte",
-	redirect_aliases: "Weiterleitungen",
-	wikitext_collect: "Wikitext sammeln",
+	online_class_map: "Ortsgrößen (Wiki: Online)",
+	online_building_map: "Bauwerksarten (Wiki: Online)",
+	wikitext_collect: "Wikitext sammeln (Wiki: Dump)",
+	redirect_aliases: "Weiterleitungen (Wiki: Dump)",
+	publication_sources: "Publikationsquellen (Wiki: Dump)",
+	adventures: "Literatur (Wiki: Dump)",
+	citymaps: "Kartensammlung (Wiki: Dump)",
+	lore: "Natur & Waren (Wiki: Dump)",
+	organisations: "Handelshäuser (Wiki: Dump)",
+	online_continent_map: "Kontinente (Wiki: Online)",
 	parse_and_upsert: "Parsen und schreiben",
-	publication_sources: "Publikationsquellen",
 	completed: "Abgeschlossen",
 };
 

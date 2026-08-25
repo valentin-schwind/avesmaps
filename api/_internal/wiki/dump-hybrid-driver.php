@@ -418,21 +418,34 @@ function avesmapsWikiDumpHybridPhaseMessage(string $phase, bool $completed): str
         return 'Dump-Read abgeschlossen.';
     }
 
+    // ⚠️ Diese Saetze landen in der Spalte `message` der Laufzeile. Was der Editor am Knopf
+    // liest, ist die Liste WIKI_SYNC_DUMP_PHASE_LABELS in js/review/review-wiki-sync.js --
+    // zwei Oberflaechen, zwei Sprachen, kein gemeinsamer Ort. Vollstaendig gehalten werden
+    // muessen trotzdem beide; die Liste drueben wird von einem Test gegen die Phasenreihenfolge
+    // hier geprueft.
     switch ($phase) {
         case AVESMAPS_WIKI_DUMP_PHASE_CLASS_MAP:
-            return 'Online-Klassenkarte wird geladen.';
+            return 'Ortsgroessen werden online geholt.';
         case AVESMAPS_WIKI_DUMP_PHASE_BUILDING_MAP:
-            return 'Online-Bauwerkskarte wird geladen.';
+            return 'Bauwerksarten werden online geholt.';
         case AVESMAPS_WIKI_DUMP_PHASE_CONTINENT_MAP:
-            return 'Online-Kontinentkarte wird geladen.';
+            return 'Kontinente werden online geholt.';
         case AVESMAPS_WIKI_DUMP_PHASE_REDIRECT_ALIASES:
-            return 'Weiterleitungs-Aliase werden aus dem Dump gelesen.';
+            return 'Weiterleitungen werden aus dem Dump gelesen.';
         case AVESMAPS_WIKI_DUMP_PHASE_WIKITEXT_COLLECT:
             return 'Wikitext wird aus dem Dump gesammelt.';
+        case AVESMAPS_WIKI_DUMP_PHASE_PUBLICATION_SOURCES:
+            return 'Publikationsquellen werden aus dem Dump gelesen.';
+        case AVESMAPS_WIKI_DUMP_PHASE_GAME_LITERATURE:
+            return 'Literatur wird aus dem Dump gelesen.';
+        case AVESMAPS_WIKI_DUMP_PHASE_CITYMAPS:
+            return 'Kartensammlung wird aus dem Dump gelesen.';
+        case AVESMAPS_WIKI_DUMP_PHASE_LORE:
+            return 'Natur & Waren werden aus dem Dump gelesen.';
+        case AVESMAPS_WIKI_DUMP_PHASE_ORGANISATIONS:
+            return 'Handelshaeuser werden aus dem Dump gelesen.';
         case AVESMAPS_WIKI_DUMP_PHASE_PARSE_AND_UPSERT:
             return 'Datensaetze werden geparst (Probelauf).';
-        case AVESMAPS_WIKI_DUMP_PHASE_PUBLICATION_SOURCES:
-            return 'Publikationsquellen werden aus dem Dump abgeglichen.';
         default:
             return 'Dump-Read laeuft.';
     }

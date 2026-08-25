@@ -746,7 +746,14 @@ $check(
 // constant + a title count on the order of the bug report's "~350-450 batches"
 // scenario (350 batches x 20 titles/batch = 7000 titles) to show the bound
 // forces a multi-step resume rather than a single unbounded call.
+// 🪤 GEPINNT, NICHT GEERBT (25.08.2026). Hier stand avesmapsWikiSyncTitleBatchSize() -- und die
+// liefert 50 OHNE und 500 MIT Bot-Anmeldung. Lokal und im CI (keine Konfiguration, also anonym)
+// stimmten die erwarteten 140 Stapel; auf dem SERVER mit stehender Anmeldung waren es 14, und
+// die Zusicherung fiel um. Der Test hing an der Umgebung, nicht am Code. Ausserdem loest der
+// Aufruf die Anmeldung aus -- ein Unittest, der sich beim Wiki anmeldet, ist keiner mehr.
+$stapelFuerTest = 50;
 $manyTitles = array_map(static fn(int $i): string => "Titel {$i}", range(1, 7000));
+$erwarteteStapel = (int) ceil(count($manyTitles) / $stapelFuerTest);
 $callsMadeTotal = 0;
 $countingBatchFetcher = static function (array $batchTitles) use (&$callsMadeTotal): array {
     $callsMadeTotal++;
@@ -764,13 +771,14 @@ $continentDone = false;
 // Drossel auf den Crawl-delay 20 der Wiki-robots.txt steht, traegt ein Schritt nur noch EINEN
 // Aufruf, und die alte feste 50 liess den Test scheitern, obwohl die Produktion voellig in
 // Ordnung war. Der Test soll den unbegrenzten Schritt fangen, nicht die Schrittgroesse.
-$maxStepsGuard = (int) ceil(count($manyTitles) / (avesmapsWikiDumpOnlineStepCallBudget() * avesmapsWikiSyncTitleBatchSize())) + 5;
+$maxStepsGuard = (int) ceil($erwarteteStapel / avesmapsWikiDumpOnlineStepCallBudget()) + 5;
 while (!$continentDone && $continentSteps < $maxStepsGuard) {
     $stepResult = avesmapsWikiDumpCategoryFetchContinentMap(
         $manyTitles,
         $continentCursor,
         avesmapsWikiDumpOnlineStepCallBudget(),
-        $countingBatchFetcher
+        $countingBatchFetcher,
+        $stapelFuerTest
     );
     $continentCursor = (int) $stepResult['nextCursor'];
     $continentDone = (bool) $stepResult['done'];
@@ -790,13 +798,13 @@ $check(
     '(c-continent-3) a 7000-title list (350 batches) resumes across MULTIPLE steps, never all-in-one-call',
     true,
     $continentSteps > 1 && $continentDone,
-    "took {$continentSteps} bounded steps (budget=" . avesmapsWikiDumpOnlineStepCallBudget() . " calls/step) to finish 140 batches -- the pre-fix code (callBudget=null) would have done this in exactly 1 step / 1 call to this fetcher"
+    "took {$continentSteps} bounded steps (budget=" . avesmapsWikiDumpOnlineStepCallBudget() . " calls/step) to finish {$erwarteteStapel} batches -- the pre-fix code (callBudget=null) would have done this in exactly 1 step / 1 call to this fetcher"
 );
 $check(
-    '(c-continent-4) every step stayed within its call budget (no step attempted all ~140 batches)',
+    '(c-continent-4) every step stayed within its call budget (no step attempted all batches at once)',
     true,
-    $callsMadeTotal <= $continentSteps * avesmapsWikiDumpOnlineStepCallBudget() && $callsMadeTotal === 140,
-    "{$callsMadeTotal} total fetcher calls across {$continentSteps} steps for 140 batches -- confirms the budget bounds EVERY step, not just the first"
+    $callsMadeTotal <= $continentSteps * avesmapsWikiDumpOnlineStepCallBudget() && $callsMadeTotal === $erwarteteStapel,
+    "{$callsMadeTotal} total fetcher calls across {$continentSteps} steps for {$erwarteteStapel} batches -- confirms the budget bounds EVERY step, not just the first"
 );
 
 
