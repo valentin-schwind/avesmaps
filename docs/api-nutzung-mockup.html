@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Mockup — API-Nutzung im Status-Reiter</title>
+<style>
+/* Tokens aus css/base/tokens.css, hier eingebettet: eine Standalone-Seite bekommt base.css nicht. */
+:root {
+	--color-panel: #fffdf9; --color-panel-soft: #faf6ee; --color-panel-muted: #f1ece1;
+	--color-panel-active: #e7ddc9;
+	--color-text: #2e271e; --color-text-strong: #3c3327; --color-text-muted: #706557;
+	--color-border: #e2d7c3; --color-border-strong: #d9cbb2;
+	--color-divider: rgba(125, 115, 96, 0.30);
+	--color-button: #5b5548; --color-button-text: #f6efe1;
+	--color-button-soft: #efe9db; --color-button-soft-text: #564b3b;
+	--color-button-soft-border: #cdbda0; --color-button-soft-hover: #e7ddc9;
+	--color-link: #8f7326;
+	--color-accent-brown: #7a5a3a;
+	--color-success: #2f7d4f; --color-warn: #9a6b1f; --color-danger: #a33a2c;
+	--radius-md: 8px;
+	--page-bg: #efe7d8;
+	/* Kategoriale Datenpalette — vier Reihen, das ist die gerechnete Grenze der Projektpalette. */
+	--s1: #2a78d6; --s2: #1baf7a; --s3: #b8792c; --s4: #7c4fa6;
+}
+:root[data-theme="dark"] {
+	--color-panel: #312e26; --color-panel-soft: #37342b; --color-panel-muted: #39352b;
+	--color-panel-active: #4c4636;
+	--color-text: #eee7da; --color-text-strong: #f5f0e4; --color-text-muted: #b3a894;
+	--color-border: #4a4436; --color-border-strong: #554d3d;
+	--color-divider: rgba(200, 188, 160, 0.28);
+	--color-button-soft: #45402f; --color-button-soft-text: #e6dcc6;
+	--color-button-soft-border: #5c5340; --color-button-soft-hover: #524a38;
+	--color-link: #d6b559; --color-accent-brown: #c39a6d;
+	--color-success: #63b784; --color-warn: #d3a04a; --color-danger: #e08272;
+	--page-bg: #211f1a;
+	--s1: #5b9de8; --s2: #4cc79a; --s3: #d59a4d; --s4: #a67fd0;
+}
+* { box-sizing: border-box; }
+body { margin: 0; padding: 28px 24px 60px; background: var(--page-bg); color: var(--color-text);
+	font-family: "Segoe UI", system-ui, -apple-system, sans-serif; font-size: 15px; line-height: 1.55; }
+.wrap { max-width: 1320px; margin: 0 auto; }
+h1 { font-size: 25px; margin: 0 0 4px; color: var(--color-text-strong); }
+.sub { color: var(--color-text-muted); font-size: 13.5px; margin: 0 0 22px; }
+h2 { font-size: 18px; margin: 34px 0 10px; color: var(--color-text-strong);
+	border-bottom: 1px solid var(--color-divider); padding-bottom: 6px; }
+p { margin: 0 0 12px; }
+code { font-family: "Cascadia Mono", Consolas, monospace; font-size: .88em;
+	background: var(--color-panel-muted); padding: 1px 5px; border-radius: 4px; }
+.themeswitch { position: fixed; top: 14px; right: 18px; z-index: 9; font-size: 12px;
+	padding: 7px 13px; border-radius: var(--radius-md); cursor: pointer;
+	background: var(--color-button); color: var(--color-button-text); border: none; }
+
+/* ---- Befund-Kasten ---- */
+.findings { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 8px; }
+@media (max-width: 1180px) { .findings { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 900px) { .findings { grid-template-columns: 1fr; } }
+.finding { background: var(--color-panel); border: 1px solid var(--color-border-strong);
+	border-left: 3px solid var(--color-accent-brown); border-radius: var(--radius-md); padding: 12px 14px; }
+.finding b { display: block; font-size: 13.5px; color: var(--color-text-strong); margin-bottom: 4px; }
+.finding span { font-size: 13px; color: var(--color-text-muted); }
+
+/* ---- Layout: Panel + Anmerkungen ---- */
+.stage { display: grid; grid-template-columns: 400px 1fr; gap: 26px; align-items: start; }
+@media (max-width: 900px) { .stage { grid-template-columns: 1fr; } }
+
+/* ---- Das Panel, 400px wie im Editor ---- */
+.panel { width: 400px; max-width: 100%; background: var(--color-panel-soft);
+	border: 1px solid var(--color-border-strong); border-radius: 10px; overflow: hidden;
+	box-shadow: 0 6px 22px rgba(0,0,0,.13); position: sticky; top: 20px; }
+.panel__head { padding: 9px 12px; background: var(--color-panel-muted);
+	border-bottom: 1px solid var(--color-border); font-size: 12px; color: var(--color-text-muted); }
+.status-subtabs { display: flex; gap: 4px; padding: 4px 12px 0; border-bottom: 1px solid var(--color-border); }
+.status-subtab { appearance: none; background: none; border: none; cursor: pointer;
+	font: inherit; font-size: 13px; padding: 8px 10px 7px; color: var(--color-text-muted);
+	border-bottom: 2px solid transparent; margin-bottom: -1px; }
+.status-subtab.is-active { color: var(--color-button-soft-text); font-weight: 700;
+	border-bottom-color: var(--color-accent-brown); }
+.status-subtab.is-new::after { content: "neu"; font-size: 9px; font-weight: 700; margin-left: 5px;
+	background: var(--color-accent-brown); color: #fff; border-radius: 3px; padding: 1px 4px;
+	vertical-align: 2px; letter-spacing: .3px; }
+#visitor-pills { padding: 10px 12px; border-bottom: 1px solid var(--color-border); }
+.va-pills { display: flex; gap: 6px; }
+.va-pill { font-size: 12px; padding: 5px 11px; border-radius: 999px;
+	border: 1px solid var(--color-border-strong); background: var(--color-panel);
+	color: var(--color-text-muted); cursor: pointer; }
+.va-pill.is-active { background: var(--color-button-soft-text); color: var(--color-panel);
+	border-color: var(--color-button-soft-text); }
+#visitor-dashboard { padding: 12px; max-height: 78vh; overflow-y: auto; }
+
+.va-kpis { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 12px; }
+.va-kpi { background: var(--color-panel-soft); border-radius: var(--radius-md); padding: 11px 9px; }
+.va-kpi__label { font-size: 11.5px; color: var(--color-text-muted); }
+.va-kpi__value { font-size: 20px; font-weight: 700; color: var(--color-button-soft-text); line-height: 1.2; }
+.va-kpi__trend { font-size: 11.5px; color: var(--color-success); }
+.va-kpi__trend.bad { color: var(--color-danger); }
+.va-kpi__trend.flat { color: var(--color-text-muted); }
+
+.va-card { background: var(--color-panel); border: 1px solid var(--color-border-strong);
+	border-radius: 12px; padding: 12px 14px; margin-bottom: 10px; position: relative; }
+.va-card__label { font-size: 13px; font-weight: 700; color: var(--color-button-soft-text);
+	margin: 0 0 10px; display: flex; align-items: baseline; gap: 8px; }
+.va-card__note { font-size: 11px; font-weight: 400; color: var(--color-text-muted); margin-left: auto; }
+.stufe { position: absolute; top: -8px; right: 10px; font-size: 9.5px; font-weight: 700;
+	letter-spacing: .4px; padding: 2px 7px; border-radius: 999px; color: #fff; }
+.stufe--1 { background: #2f7d4f; } .stufe--2 { background: #9a6b1f; } .stufe--3 { background: #6b5f8a; }
+
+.va-row { display: flex; align-items: center; gap: 8px; margin: 8px 0; font-size: 13px; }
+.va-row__name { width: 46%; color: var(--color-button-soft-text); white-space: nowrap;
+	overflow: hidden; text-overflow: ellipsis; }
+.va-row__track { flex: 1; height: 8px; background: var(--color-panel-muted);
+	border-radius: 4px; overflow: hidden; }
+/* 💣 display:block ist tragend — auf ein Inline-Element wirkt `width` nicht. Genau daran
+   standen im Besucher-Dashboard monatelang alle acht Balkenlisten leer da. */
+.va-row__fill { display: block; height: 100%; border-radius: 4px; background: var(--s1); }
+.va-row__val { color: var(--color-text-muted); font-size: 12px; min-width: 40px; text-align: right; }
+
+/* Antwortzeiten-Zeile: zwei Werte je Endpunkt (Median als Balken, p95 als Strich) */
+.va-lat { display: flex; align-items: center; gap: 8px; margin: 9px 0; font-size: 13px; }
+.va-lat__name { width: 42%; color: var(--color-button-soft-text); white-space: nowrap;
+	overflow: hidden; text-overflow: ellipsis; }
+.va-lat__track { flex: 1; height: 10px; background: var(--color-panel-muted);
+	border-radius: 5px; position: relative; overflow: hidden; }
+.va-lat__p50 { position: absolute; left: 0; top: 0; bottom: 0; background: var(--s2); border-radius: 5px; }
+.va-lat__p95 { position: absolute; top: -1px; bottom: -1px; width: 2px; background: var(--color-danger); }
+.va-lat__val { color: var(--color-text-muted); font-size: 11.5px; min-width: 64px; text-align: right;
+	font-variant-numeric: tabular-nums; }
+
+/* Statusverteilung als gestapelter Balken */
+.va-stack { display: flex; height: 22px; border-radius: 5px; overflow: hidden; margin: 2px 0 9px; }
+.va-stack i { display: block; height: 100%; }
+.va-legend { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 11.5px; color: var(--color-text-muted); }
+.va-legend span { display: inline-flex; align-items: center; gap: 5px; }
+.va-legend i { width: 9px; height: 9px; border-radius: 2px; display: inline-block; }
+
+/* Zonen-Ring */
+.ring-wrap { display: flex; align-items: center; gap: 14px; }
+.ring-wrap svg { flex: none; }
+.ring-legend { flex: 1; font-size: 12px; min-width: 0; }
+.ring-legend div { display: flex; align-items: center; gap: 6px; margin: 4px 0; color: var(--color-button-soft-text); }
+.ring-legend i { width: 9px; height: 9px; border-radius: 2px; flex: none; }
+.ring-legend b { margin-left: auto; color: var(--color-text-muted); font-weight: 400; }
+
+/* Heatmap */
+.va-heat { display: flex; flex-direction: column; gap: 2px; }
+.va-heat__row { display: flex; gap: 2px; align-items: center; }
+.va-heat__day { flex: 0 0 18px; font-size: 10px; color: var(--color-text-muted); }
+.va-heat__cells { display: flex; gap: 2px; flex: 1; }
+.va-heat__cell { flex: 1; min-width: 0; height: 13px; border-radius: 2px; }
+.va-heat__hour { flex: 1; min-width: 0; font-size: 9px; line-height: 1; text-align: center;
+	white-space: nowrap; color: var(--color-text-muted); }
+.va-heat__hours { margin-bottom: 3px; }
+
+/* Fehler-Feed */
+.va-feed { display: flex; align-items: center; gap: 8px; margin: 7px 0; font-size: 12px; }
+.va-feed__tag { flex: none; font-size: 10px; font-weight: 700;
+	border-radius: 4px; padding: 2px 6px; }
+/* 💣 Die Plakette traegt ihre Schriftfarbe je Thema selbst. --color-warn und --color-danger
+   werden im dunklen Thema HELLER (#d3a04a / #e08272) -- weisse Schrift darauf faellt auf 2,36
+   und 2,76. Die neutrale Plakette geht den anderen Weg: --color-button bleibt in beiden Themen
+   mitteldunkel, dort ist helle Schrift richtig. Eine pauschale Regel bricht also immer eine
+   der beiden Haelften; deshalb drei Klassen statt einer Inline-Farbe. */
+.va-feed__tag--bad { background: var(--color-danger); color: #fff; }
+.va-feed__tag--warn { background: var(--color-warn); color: #fff; }
+.va-feed__tag--neutral { background: var(--color-button); color: var(--color-button-text); }
+:root[data-theme="dark"] .va-feed__tag--bad,
+:root[data-theme="dark"] .va-feed__tag--warn { color: #23201a; }
+.va-feed__label { flex: 1; color: var(--color-button-soft-text); white-space: nowrap;
+	overflow: hidden; text-overflow: ellipsis; }
+.va-feed__meta { flex: none; color: var(--color-text-muted); font-size: 11px; }
+.va-storage { font-size: 12px; color: var(--color-text-muted); }
+
+.va-more { margin-bottom: 10px; }
+.va-more > summary { display: flex; align-items: center; gap: 8px; padding: 11px 14px;
+	font-size: 14px; font-weight: 700; color: var(--color-button-soft-text); cursor: pointer;
+	list-style: none; background: var(--color-panel-muted);
+	border: 1px solid var(--color-border-strong); border-radius: 12px; }
+.va-more > summary::-webkit-details-marker { display: none; }
+.va-more > summary::after { content: "\25B8"; margin-left: auto; color: var(--color-text-muted); font-size: 12px; }
+.va-more[open] > summary::after { content: "\25BE"; }
+.va-more[open] > summary { margin-bottom: 10px; }
+
+/* Abschnittsüberschrift: Trennlinie + Überschrift, kein gerahmter Kasten (§12). */
+.va-sect { display: flex; align-items: center; gap: 9px; margin: 16px 0 9px; }
+.va-sect:first-child { margin-top: 0; }
+.va-sect__t { font-size: 12px; font-weight: 700; letter-spacing: .6px; text-transform: uppercase;
+	color: var(--color-text-muted); white-space: nowrap; }
+.va-sect__l { flex: 1; height: 1px; background: var(--color-divider); }
+
+/* Ausgehend: Ziel + Ampel + Anzahl + Dauer */
+.va-out { display: flex; align-items: center; gap: 8px; margin: 9px 0; font-size: 13px; }
+.va-out__dot { flex: 0 0 auto; width: 8px; height: 8px; border-radius: 50%; background: var(--color-success); }
+.va-out__dot--warn { background: var(--color-warn); }
+.va-out__dot--bad { background: var(--color-danger); }
+.va-out__name { flex: 1; color: var(--color-button-soft-text); white-space: nowrap;
+	overflow: hidden; text-overflow: ellipsis; }
+.va-out__num { flex: none; color: var(--color-text-muted); font-size: 12px;
+	font-variant-numeric: tabular-nums; }
+.va-out__ms { flex: none; width: 52px; text-align: right; color: var(--color-text-muted);
+	font-size: 11.5px; font-variant-numeric: tabular-nums; }
+
+/* ---- Anmerkungsspalte ---- */
+.notes { display: flex; flex-direction: column; gap: 12px; }
+.note { background: var(--color-panel); border: 1px solid var(--color-border-strong);
+	border-radius: var(--radius-md); padding: 13px 15px; }
+.note h3 { margin: 0 0 6px; font-size: 14.5px; color: var(--color-text-strong);
+	display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.note h3 .tag { font-size: 9.5px; font-weight: 700; letter-spacing: .4px; padding: 2px 7px;
+	border-radius: 999px; color: #fff; }
+.note p { margin: 0 0 7px; font-size: 13.3px; color: var(--color-text-muted); }
+.note p:last-child { margin-bottom: 0; }
+.note .kv { font-size: 12.5px; color: var(--color-text-muted); }
+.note .kv b { color: var(--color-button-soft-text); }
+.warn { border-left: 3px solid var(--color-danger); }
+.warn h3 { color: var(--color-danger); }
+
+.tablewrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 13.3px; margin: 6px 0 14px; min-width: 620px; }
+th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--color-divider);
+	vertical-align: top; }
+th { font-size: 12px; text-transform: uppercase; letter-spacing: .5px; color: var(--color-text-muted); font-weight: 700; }
+td.yes { color: var(--color-success); font-weight: 700; }
+td.no { color: var(--color-danger); }
+.rec { background: var(--color-panel-muted); }
+.rec td:first-child::after { content: " ← Empfehlung"; color: var(--color-accent-brown);
+	font-weight: 700; font-size: 11.5px; }
+</style>
+</head>
+<body>
+<button class="themeswitch" onclick="document.documentElement.dataset.theme = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark'">Hell / Dunkel</button>
+<div class="wrap">
+
+<h1>API-Nutzung im Reiter „Status"</h1>
+<p class="sub">Mockup · 25.08.2026 · <b>alle Zahlen sind erfunden</b> · Fläche: Editor → Status → neuer Unterreiter <code>API</code><br>
+Enthält <b>eingehende</b> Nutzung (was der Server aushält) und <b>ausgehende</b> Nutzung (wen wir rufen).
+🔴 Alarme sind hier <b>heraus</b> — sie gehören in die Admin-Einstellungen (Owner 25.08.2026).</p>
+
+<div class="findings">
+	<div class="finding">
+		<b>Es gibt heute keine Daten.</b>
+		<span>Kein Zugriffsprotokoll, keine <code>api_request</code>-Tabelle, kein Zähler. 102 Endpunkte, und keiner sagt, wie oft er gerufen wird. Das hier ist zur Hälfte ein <em>Erhebungs</em>-Feature, nicht nur ein Anzeige-Feature.</span>
+	</div>
+	<div class="finding">
+		<b>Eingehend: genau ein Flaschenhals.</b>
+		<span><code>avesmapsJsonResponse()</code> (<code>bootstrap.php:164</code>) ist die einzige Stelle, durch die eine JSON-Antwort das Haus verlässt — <code>avesmapsErrorResponse</code> ruft sie auf. Ein Zähler dort erfasst alles, ohne 102 Dateien anzufassen.</span>
+	</div>
+	<div class="finding" style="border-left-color:var(--color-danger)">
+		<b>Ausgehend: gar keiner.</b>
+		<span>17 <code>curl_exec</code>-Aufrufe in 12 Dateien, jeder mit eigenem <code>curl_init</code>. Ein Zähler je Aufrufer ist die Vier-Erzeuger-Falle; es braucht einen geteilten Rufer <em>und</em> einen repoweiten Test, der den direkten Weg verbietet.</span>
+	</div>
+	<div class="finding">
+		<b>STRATO zahlt jede Zeile mit.</b>
+		<span>Ein Rohprotokoll je Anfrage ist genau die Last, die §10 als Fragilität führt. Darum Aggregat-Zähler wie bei <code>visitor_metric</code>: ein UPSERT je Anfrage, keine Rohzeilen.</span>
+	</div>
+</div>
+
+<h2>Der Vorschlag im Panel</h2>
+<p>Links das Panel in echter Breite (400 px), rechts die Anmerkung zu jeder Karte. Die Marke am oberen Rand jeder Karte sagt, in welcher Stufe sie käme:
+<span style="color:#2f7d4f;font-weight:700">Stufe 1</span> = fällt aus dem Zähler von selbst ab ·
+<span style="color:#9a6b1f;font-weight:700">Stufe 2</span> = braucht Spalten mehr ·
+<span style="color:#6b5f8a;font-weight:700">Stufe 3</span> = eigene Erhebung, eigener Entscheid.</p>
+
+<div class="stage">
+<!-- ============ PANEL ============ -->
+<div class="panel">
+	<div class="panel__head">Editor · Reiter <b>Status</b></div>
+	<nav class="status-subtabs">
+		<button class="status-subtab" type="button">Besucher</button>
+		<button class="status-subtab" type="button">Editoren</button>
+		<button class="status-subtab is-active is-new" type="button">API</button>
+	</nav>
+	<div id="visitor-pills">
+		<div class="va-pills">
+			<button class="va-pill" type="button">24 h</button>
+			<button class="va-pill is-active" type="button">7 Tage</button>
+			<button class="va-pill" type="button">30 Tage</button>
+			<button class="va-pill" type="button">90 Tage</button>
+		</div>
+	</div>
+	<div id="visitor-dashboard">
+
+		<div class="va-sect"><span class="va-sect__t">Eingehend</span><span class="va-sect__l"></span></div>
+
+		<div class="va-kpis">
+			<div class="va-kpi"><div class="va-kpi__label">Anfragen</div><div class="va-kpi__value">184.203</div><div class="va-kpi__trend">+12 % zur Vorwoche</div></div>
+			<div class="va-kpi"><div class="va-kpi__label">Fehlerquote</div><div class="va-kpi__value">0,7 %</div><div class="va-kpi__trend bad">+0,4 pp</div></div>
+			<div class="va-kpi"><div class="va-kpi__label">Median</div><div class="va-kpi__value">142<span style="font-size:12px"> ms</span></div><div class="va-kpi__trend flat">unverändert</div></div>
+		</div>
+
+		<!-- 1 Endpunkte -->
+		<div class="va-card">
+			<span class="stufe stufe--1">STUFE 1</span>
+			<p class="va-card__label">Meistgerufene Endpunkte<span class="va-card__note">7 Tage</span></p>
+			<div class="va-row"><span class="va-row__name">app/map-features</span><span class="va-row__track"><span class="va-row__fill" style="width:100%"></span></span><span class="va-row__val">61.402</span></div>
+			<div class="va-row"><span class="va-row__name">app/track</span><span class="va-row__track"><span class="va-row__fill" style="width:79%"></span></span><span class="va-row__val">48.510</span></div>
+			<div class="va-row"><span class="va-row__name">app/heartbeat</span><span class="va-row__track"><span class="va-row__fill" style="width:52%"></span></span><span class="va-row__val">31.944</span></div>
+			<div class="va-row"><span class="va-row__name">app/political-territories</span><span class="va-row__track"><span class="va-row__fill" style="width:31%"></span></span><span class="va-row__val">19.077</span></div>
+			<div class="va-row"><span class="va-row__name">route/</span><span class="va-row__track"><span class="va-row__fill" style="width:14%"></span></span><span class="va-row__val">8.612</span></div>
+			<div class="va-row"><span class="va-row__name">app/what-is-here</span><span class="va-row__track"><span class="va-row__fill" style="width:9%"></span></span><span class="va-row__val">5.530</span></div>
+			<div class="va-row"><span class="va-row__name">app/territory-detail</span><span class="va-row__track"><span class="va-row__fill" style="width:6%"></span></span><span class="va-row__val">3.688</span></div>
+			<div class="va-row"><span class="va-row__name">locations/</span><span class="va-row__track"><span class="va-row__fill" style="width:2%"></span></span><span class="va-row__val">1.204</span></div>
+		</div>
+
+		<!-- 2 Antwortzeiten -->
+		<div class="va-card">
+			<span class="stufe stufe--2">STUFE 2</span>
+			<p class="va-card__label">Antwortzeiten<span class="va-card__note">Median · <span style="color:var(--color-danger)">|</span> p95, in ms</span></p>
+			<div class="va-lat"><span class="va-lat__name">political-territories</span><span class="va-lat__track"><i class="va-lat__p50" style="width:34%"></i><i class="va-lat__p95" style="left:88%"></i></span><span class="va-lat__val">610 · 2340</span></div>
+			<div class="va-lat"><span class="va-lat__name">map-features</span><span class="va-lat__track"><i class="va-lat__p50" style="width:26%"></i><i class="va-lat__p95" style="left:58%"></i></span><span class="va-lat__val">470 · 1180</span></div>
+			<div class="va-lat"><span class="va-lat__name">route/</span><span class="va-lat__track"><i class="va-lat__p50" style="width:22%"></i><i class="va-lat__p95" style="left:71%"></i></span><span class="va-lat__val">400 · 1990</span></div>
+			<div class="va-lat"><span class="va-lat__name">what-is-here</span><span class="va-lat__track"><i class="va-lat__p50" style="width:11%"></i><i class="va-lat__p95" style="left:24%"></i></span><span class="va-lat__val">185 · 430</span></div>
+			<div class="va-lat"><span class="va-lat__name">track</span><span class="va-lat__track"><i class="va-lat__p50" style="width:4%"></i><i class="va-lat__p95" style="left:9%"></i></span><span class="va-lat__val">62 · 150</span></div>
+			<div class="va-lat"><span class="va-lat__name">heartbeat</span><span class="va-lat__track"><i class="va-lat__p50" style="width:2%"></i><i class="va-lat__p95" style="left:5%"></i></span><span class="va-lat__val">31 · 88</span></div>
+		</div>
+
+		<!-- 3 Antworten -->
+		<div class="va-card">
+			<span class="stufe stufe--1">STUFE 1</span>
+			<p class="va-card__label">Wie geantwortet wurde</p>
+			<div class="va-stack">
+				<i style="width:96.1%;background:var(--s2)"></i>
+				<i style="width:2.4%;background:var(--s3)"></i>
+				<i style="width:1.2%;background:var(--color-danger)"></i>
+				<i style="width:0.3%;background:#5b5548"></i>
+			</div>
+			<div class="va-legend">
+				<span><i style="background:var(--s2)"></i>2xx&nbsp;177.021</span>
+				<span><i style="background:var(--s3)"></i>4xx&nbsp;4.421</span>
+				<span><i style="background:var(--color-danger)"></i>5xx&nbsp;2.209</span>
+				<span><i style="background:#5b5548"></i>leer&nbsp;552</span>
+			</div>
+			<p class="va-storage" style="margin-top:9px">„leer" = die Antwort ging nie durch <code>avesmapsJsonResponse</code>. Ein Fatal Error sieht im Browser aus wie ein Netzfehler.</p>
+		</div>
+
+		<!-- 4 Fehler -->
+		<div class="va-card">
+			<span class="stufe stufe--1">STUFE 1</span>
+			<p class="va-card__label">Häufigste Fehler</p>
+			<div class="va-feed"><span class="va-feed__tag va-feed__tag--bad">500</span><span class="va-feed__label">edit/wiki/sync · server_error</span><span class="va-feed__meta">1.204×</span></div>
+			<div class="va-feed"><span class="va-feed__tag va-feed__tag--warn">401</span><span class="va-feed__label">edit/map/features · unauthorized</span><span class="va-feed__meta">982×</span></div>
+			<div class="va-feed"><span class="va-feed__tag va-feed__tag--warn">404</span><span class="va-feed__label">app/coat · not_found</span><span class="va-feed__meta">631×</span></div>
+			<div class="va-feed"><span class="va-feed__tag va-feed__tag--neutral">leer</span><span class="va-feed__label">edit/map/paths-editor · Fatal</span><span class="va-feed__meta">552×</span></div>
+			<div class="va-feed"><span class="va-feed__tag va-feed__tag--warn">400</span><span class="va-feed__label">route/ · invalid_request</span><span class="va-feed__meta">318×</span></div>
+		</div>
+
+		<!-- 5 Zonen -->
+		<div class="va-card">
+			<span class="stufe stufe--1">STUFE 1</span>
+			<p class="va-card__label">Wer ruft an</p>
+			<div class="ring-wrap">
+				<svg width="112" height="112" viewBox="0 0 42 42" role="img" aria-label="Anteil der API-Zonen">
+					<circle cx="21" cy="21" r="15.9" fill="none" stroke="var(--color-panel-muted)" stroke-width="6"/>
+					<circle cx="21" cy="21" r="15.9" fill="none" stroke="var(--s1)" stroke-width="6" stroke-dasharray="71 29" stroke-dashoffset="25"/>
+					<circle cx="21" cy="21" r="15.9" fill="none" stroke="var(--s2)" stroke-width="6" stroke-dasharray="18 82" stroke-dashoffset="-46"/>
+					<circle cx="21" cy="21" r="15.9" fill="none" stroke="var(--s3)" stroke-width="6" stroke-dasharray="8 92" stroke-dashoffset="-64"/>
+					<circle cx="21" cy="21" r="15.9" fill="none" stroke="var(--s4)" stroke-width="6" stroke-dasharray="3 97" stroke-dashoffset="-72"/>
+					<text x="21" y="20.4" text-anchor="middle" font-size="5.4" font-weight="700" fill="var(--color-button-soft-text)">184k</text>
+					<text x="21" y="25.6" text-anchor="middle" font-size="4.2" fill="var(--color-text-muted)">Anfragen</text>
+				</svg>
+				<div class="ring-legend">
+					<div><i style="background:var(--s1)"></i>eigene Karte<b>71 %</b></div>
+					<div><i style="background:var(--s2)"></i>Editoren<b>18 %</b></div>
+					<div><i style="background:var(--s3)"></i>offene API<b>8 %</b></div>
+					<div><i style="background:var(--s4)"></i>übrige<b>3 %</b></div>
+				</div>
+			</div>
+			<p class="va-storage" style="margin-top:9px">Genau vier Segmente — die gerechnete Grenze der Projektpalette. <code>app/</code> · <code>edit/</code> · <code>route/</code>+<code>locations/</code> · Rest.</p>
+		</div>
+
+		<!-- 6 Zeiten -->
+		<div class="va-card">
+			<span class="stufe stufe--1">STUFE 1</span>
+			<p class="va-card__label">Wann die Last liegt<span class="va-card__note">Ortszeit</span></p>
+			<div class="va-heat">
+				<div class="va-heat__row va-heat__hours"><span class="va-heat__day"></span><span class="va-heat__cells" id="heat-hours"></span></div>
+				<div id="heat-body"></div>
+			</div>
+			<p class="va-storage" style="margin-top:9px">Sagt, wann ein großer Sync-Lauf niemanden stört.</p>
+		</div>
+
+		<!-- 7 Fremdnutzung -->
+		<details class="va-more">
+			<summary>Fremdnutzung der offenen API</summary>
+			<div class="va-card">
+				<span class="stufe stufe--3">STUFE 3</span>
+				<p class="va-card__label">Woher<span class="va-card__note">nur <code>route/</code> + <code>locations/</code></span></p>
+				<div class="va-row"><span class="va-row__name">avesmaps.de (eigen)</span><span class="va-row__track"><span class="va-row__fill" style="width:100%;background:var(--s2)"></span></span><span class="va-row__val">8.902</span></div>
+				<div class="va-row"><span class="va-row__name">ohne Origin</span><span class="va-row__track"><span class="va-row__fill" style="width:9%;background:var(--s3)"></span></span><span class="va-row__val">804</span></div>
+				<div class="va-row"><span class="va-row__name">orkenspalter.de</span><span class="va-row__track"><span class="va-row__fill" style="width:2%;background:var(--s4)"></span></span><span class="va-row__val">96</span></div>
+				<div class="va-row"><span class="va-row__name">localhost</span><span class="va-row__track"><span class="va-row__fill" style="width:1%;background:var(--s4)"></span></span><span class="va-row__val">14</span></div>
+				<p class="va-storage" style="margin-top:9px">Beantwortet die Frage, die heute niemand beantworten kann: <em>nutzt die offene API überhaupt jemand außer uns?</em></p>
+			</div>
+			<div class="va-card">
+				<span class="stufe stufe--3">STUFE 3</span>
+				<p class="va-card__label">Womit</p>
+				<div class="va-row"><span class="va-row__name">Browser</span><span class="va-row__track"><span class="va-row__fill" style="width:100%;background:var(--s1)"></span></span><span class="va-row__val">9.102</span></div>
+				<div class="va-row"><span class="va-row__name">Skript / curl</span><span class="va-row__track"><span class="va-row__fill" style="width:7%;background:var(--s3)"></span></span><span class="va-row__val">640</span></div>
+				<div class="va-row"><span class="va-row__name">Bot</span><span class="va-row__track"><span class="va-row__fill" style="width:1%;background:var(--s4)"></span></span><span class="va-row__val">74</span></div>
+			</div>
+		</details>
+
+		<!-- ===== AUSGEHEND ===== -->
+		<div class="va-sect"><span class="va-sect__t">Ausgehend</span><span class="va-sect__l"></span></div>
+
+		<div class="va-kpis">
+			<div class="va-kpi"><div class="va-kpi__label">Rufe</div><div class="va-kpi__value">3.907</div><div class="va-kpi__trend flat">7 Tage</div></div>
+			<div class="va-kpi"><div class="va-kpi__label">Fehlschläge</div><div class="va-kpi__value">4,1 %</div><div class="va-kpi__trend bad">+3,8 pp</div></div>
+			<div class="va-kpi"><div class="va-kpi__label">Median</div><div class="va-kpi__value">380<span style="font-size:12px"> ms</span></div><div class="va-kpi__trend flat">unverändert</div></div>
+		</div>
+
+		<!-- 9 Ziele -->
+		<div class="va-card">
+			<span class="stufe stufe--2">STUFE 2</span>
+			<p class="va-card__label">Wen wir rufen<span class="va-card__note">Rufe · Median</span></p>
+			<div class="va-out"><span class="va-out__dot va-out__dot--bad"></span><span class="va-out__name">Wiki Aventurica</span><span class="va-out__num">2.841 · <span style="color:var(--color-danger)">158 ✗</span></span><span class="va-out__ms">24 ms</span></div>
+			<div class="va-out"><span class="va-out__dot"></span><span class="va-out__name">Linkchecker-Ziele</span><span class="va-out__num">804 · 3 ✗</span><span class="va-out__ms">610 ms</span></div>
+			<div class="va-out"><span class="va-out__dot"></span><span class="va-out__name">graph.facebook.com</span><span class="va-out__num">128 · 0 ✗</span><span class="va-out__ms">440 ms</span></div>
+			<div class="va-out"><span class="va-out__dot va-out__dot--warn"></span><span class="va-out__name">graph (Instagram)</span><span class="va-out__num">96 · 4 ✗</span><span class="va-out__ms">1210 ms</span></div>
+			<div class="va-out"><span class="va-out__dot"></span><span class="va-out__name">rollenspiel.social</span><span class="va-out__num">24 · 0 ✗</span><span class="va-out__ms">290 ms</span></div>
+			<div class="va-out"><span class="va-out__dot"></span><span class="va-out__name">discord.com</span><span class="va-out__num">14 · 0 ✗</span><span class="va-out__ms">180 ms</span></div>
+			<p class="va-storage" style="margin-top:9px">💣 <b style="color:var(--color-danger)">Verräterisch sind die 24 ms, nicht die Zahl daneben.</b> Ein Abweisen kommt schneller zurück als eine Antwort — so sieht eine gesperrte Ausgangs-IP aus.</p>
+		</div>
+
+		<!-- 10 Fehlschlagsarten -->
+		<div class="va-card">
+			<span class="stufe stufe--2">STUFE 2</span>
+			<p class="va-card__label">Woran es scheitert</p>
+			<div class="va-feed"><span class="va-feed__tag va-feed__tag--bad">refused</span><span class="va-feed__label">Wiki · Verbindung abgewiesen</span><span class="va-feed__meta">151×</span></div>
+			<div class="va-feed"><span class="va-feed__tag va-feed__tag--warn">timeout</span><span class="va-feed__label">Instagram · Zeitüberschreitung</span><span class="va-feed__meta">4×</span></div>
+			<div class="va-feed"><span class="va-feed__tag va-feed__tag--warn">503</span><span class="va-feed__label">f-shop.de · Dienst nicht verfügbar</span><span class="va-feed__meta">3×</span></div>
+			<div class="va-feed"><span class="va-feed__tag va-feed__tag--warn">404</span><span class="va-feed__label">Wiki · Seite nicht gefunden</span><span class="va-feed__meta">7×</span></div>
+		</div>
+
+		<!-- 11 Speicher -->
+		<div class="va-sect"><span class="va-sect__t">Betrieb</span><span class="va-sect__l"></span></div>
+		<div class="va-card">
+			<span class="stufe stufe--1">STUFE 1</span>
+			<p class="va-card__label">Die Tafel selbst</p>
+			<p class="va-storage"><b style="color:var(--color-button-soft-text)">api_metric</b> · 14.220 Zeilen · 2,1 MB · ältester Eintrag 21.05.2026<br>
+			Älter als 400 Tage wird beim Schreiben still weggeräumt.</p>
+		</div>
+
+	</div>
+</div>
+
+<!-- ============ ANMERKUNGEN ============ -->
+<div class="notes">
+
+	<div class="note">
+		<h3><span class="tag" style="background:#2f7d4f">STUFE 1</span> Sechs Karten aus einem einzigen Zähler</h3>
+		<p>Endpunkte, Antworten, Fehler, Zonen, Zeiten und der Speicher fallen alle aus <em>derselben</em> Aggregatzeile ab — <code>(Tag, Stunde, Endpunkt, Statusklasse) → Anzahl</code>. Eine Tabelle, ein UPSERT je Anfrage, sechs Karten. Genau der Zuschnitt, den <code>visitor_metric</code> schon fährt.</p>
+		<p class="kv"><b>Kosten:</b> ein zusätzlicher UPSERT je API-Anfrage. Der Besucher-Beacon schreibt heute schon fünf bis sieben davon je Aufruf.</p>
+	</div>
+
+	<div class="note warn">
+		<h3>💣 Der Fatal Error geht am Flaschenhals vorbei</h3>
+		<p>Ein <code>const</code> hinter einem <code>try</code>-Block hat am 19.08. den Wege-Editor beim ersten Klick abstürzen lassen — PHP antwortete mit <em>leerem Rumpf</em>, im Browser las es sich als „Unexpected end of JSON input", also wie ein Netzfehler. So eine Antwort geht nie durch <code>avesmapsJsonResponse</code> und wäre in jeder Zählung unsichtbar.</p>
+		<p>Deshalb zählt zusätzlich ein <code>register_shutdown_function</code> mit: hat der Flaschenhals nicht abgeschlossen, ist die Anfrage <b>„leer"</b>. Das ist die vierte Farbe im Balken „Wie geantwortet wurde" — und vermutlich die nützlichste Karte der ganzen Tafel.</p>
+	</div>
+
+	<div class="note">
+		<h3><span class="tag" style="background:#9a6b1f">STUFE 2</span> Antwortzeiten kosten Spalten</h3>
+		<p>Median und p95 sind aus einem reinen Zähler nicht ableitbar. Mit <code>dauer_summe</code> und <code>dauer_max</code> bekommt man Mittelwert und Ausreißer für zwei Spalten mehr; ein echtes p95 braucht Histogramm-Fächer (etwa sieben Grenzen: 50/100/200/500/1000/2000/5000 ms).</p>
+		<p>Der Nutzen ist konkret: AGENTS.md §10 führt <code>territories-endpoint.php</code> seit Monaten als Perf-Hotspot — DDL und Metadaten-Proben vor jedem Cache-Read, plus ein N+1 über die ganze Territorientabelle. Diese Karte wäre das erste Mal, dass die Behauptung eine <em>Zahl</em> hat.</p>
+	</div>
+
+	<div class="note">
+		<h3><span class="tag" style="background:#6b5f8a">STUFE 3</span> Fremdnutzung ist eine eigene Entscheidung</h3>
+		<p>Herkunft und Client-Art sind die einzigen Karten, die etwas über den <em>Anrufer</em> sagen statt über uns. Sie brauchen zwei weitere Dimensionen (Origin, Client-Klasse) und — anders als der Rest — eine Datenschutz-Abwägung.</p>
+		<p>Entschärfbar: Origin nur als <em>Host</em>, nie mit Pfad; Client nur als Klasse (Browser / Skript / Bot), nie der rohe User-Agent. Damit bleibt es Aggregat und fällt unter dieselbe Zusage wie das Besucher-Modul. Trotzdem: eigener Entscheid, nicht mit Stufe 1 mitgenommen.</p>
+	</div>
+
+	<div class="note warn">
+		<h3>💣 Nach draußen gibt es <em>keinen</em> Flaschenhals</h3>
+		<p>Eingehend genügt eine Stelle. Ausgehend sind es <b>17 <code>curl_exec</code>-Aufrufe in 12 Dateien</b> — Wiki-Dump, Wappen-Proxy, Sync-Identität, Linkchecker, Facebook, Instagram, Mastodon, Discord —, jeder mit eigenem <code>curl_init</code>. Es gibt keinen gemeinsamen Rufer.</p>
+		<p>Das ist genau die Falle vom 14.08.: eine Regel, die einen von vier Erzeugern bindet, ist keine Regel. Wer je Aufrufer einen Zähler einbaut, hat beim zwölften vergessen — und die Tafel meldet dann ruhig „0 Fehler bei Mastodon", weil dort niemand zählt.</p>
+		<p>⭐ <b>Deshalb strukturell, nicht durch Disziplin:</b> ein geteilter <code>avesmapsCurlAusfuehren($ch, $ziel)</code> übernimmt das <code>curl_exec</code> und zählt. Die 17 Stellen behalten ihre eigenen curl-Optionen, es ist je Stelle eine Zeile. Und ein <b>repoweiter Test</b> verbietet direktes <code>curl_exec</code> — dieselbe Bauart wie <code>const-vor-benutzung-test.php</code>. Damit kann der achtzehnte Rufer gar nicht erst danebengehen.</p>
+	</div>
+
+	<div class="note">
+		<h3><span class="tag" style="background:#9a6b1f">STUFE 2</span> Was die Ausgangs-Tafel als Erstes sichtbar macht</h3>
+		<p>Das Wiki sperrt STRATOs Ausgangs-IP — ein <code>Connection refused</code> nach <b>24 ms</b>. Das ist kein Netzproblem, das ist ein aktives Abweisen, und es ist von außen nicht zu sehen: der Wappen-Proxy ist heute die einzige Sonde dafür, und man muss ihn von Hand befragen.</p>
+		<p>Auf der Tafel wird daraus eine Zeile, die von selbst auffällt — 💣 <b>und zwar an der auffällig niedrigen Dauer, nicht an der Fehlerzahl.</b> Ein Abweisen kommt schneller zurück als eine Antwort. Ein Median, der plötzlich <em>fällt</em>, ist hier das schlechte Zeichen; deshalb steht die Millisekundenspalte gleichberechtigt neben der Fehlerzahl.</p>
+	</div>
+
+	<div class="note">
+		<h3>🔴 Alarme gehören <em>nicht</em> hierher</h3>
+		<p>Owner-Entscheid 25.08.2026: Schwellwerte und Meldungen sind kein Teil dieser Tafel. Sie sind eine <b>Einstellung</b>, und ihr Zuhause ist das geplante Fenster „Admin-Einstellungen" im Drei-Strich-Menü, Reiter <em>Betrieb</em> — dort liegen sie bei den übrigen Betriebswerten statt verstreut neben ihrer Anzeige.</p>
+		<p>Notiert als <b>Stufe 6</b> in <code>docs/superpowers/specs/2026-08-25-einstellungen-fenster-design.md</code> §11, samt den drei Fallen, die beim Zeichnen aufgefallen sind (kein Läufer auf STRATO · Alarmsturm bei DB-Ausfall · die Discord-Rekursion). Das Vorhaben ist geparkt; die Notiz wartet dort, bis es weitergeht.</p>
+		<p>⚠️ Die Reihenfolge ist ohnehin richtig herum: eine Schwelle braucht einen Normalwert. Diese Tafel muss erst zeigen, was normal <em>ist</em>.</p>
+	</div>
+
+	<div class="note">
+		<h3>Was ich <em>nicht</em> vorschlage</h3>
+		<p><b>Kein Rohprotokoll.</b> Eine Zeile je Anfrage wäre die bequemste Bauform und genau die Last, vor der §10 warnt — bei 184k Anfragen pro Woche.</p>
+		<p><b>Keine Stichprobe für Fehler.</b> Jede n-te Anfrage zu zählen halbiert die Kosten und macht seltene Fehler unsichtbar — also genau das, wofür man die Tafel baut. Wenn gestichprobt wird, dann nur bei den Dauer-Summen, nie bei Zählung und Fehlern.</p>
+		<p><b>Keine Alarme, keine Schwellwerte — hier nicht.</b> Erst sehen, was normal ist; und ihr Platz ist die Einstellungsseite, nicht diese Tafel (siehe rechts).</p>
+	</div>
+
+	<div class="note">
+		<h3>Warum ein eigener Unterreiter</h3>
+		<p>„Besucher" beantwortet <em>wer war da</em>, „Editoren" <em>wer arbeitet</em>. Beides sind Menschen. Die API-Tafel beantwortet <em>was hält der Server aus</em> — dieselbe Fläche, andere Frage. Der Reiter erbt die vorhandene Mechanik unverändert: dieselbe Unterreiter-Leiste, dieselben Zeitraum-Pillen, dieselben <code>.va-*</code>-Karten, dasselbe Nachladen beim ersten Klick.</p>
+		<p class="kv"><b>Neu zu bauen:</b> eine Tabelle, ein Zähler im Flaschenhals, ein Leseendpunkt, ein Renderer. Kein neues Bedienmuster.</p>
+	</div>
+
+</div>
+</div>
+
+<h2>Woher die Zahlen kämen — drei Wege</h2>
+<div class="tablewrap">
+<table>
+<thead><tr><th>Weg</th><th>Kosten je Anfrage</th><th>Sieht Fatal Errors</th><th>Braucht einen Läufer</th><th>Haken</th></tr></thead>
+<tbody>
+<tr class="rec">
+	<td><b>Zähler im Flaschenhals</b><br><span style="color:var(--color-text-muted);font-size:12.5px">UPSERT in <code>avesmapsJsonResponse</code> + <code>register_shutdown_function</code></span></td>
+	<td>1 UPSERT</td>
+	<td class="yes">ja, über den Shutdown-Haken</td>
+	<td class="yes">nein</td>
+	<td>Der Fehlerpfad braucht dann auch eine DB-Verbindung. Ist sie weg, darf das Zählen den eigentlichen Fehler nicht verschlucken — der Zähler bekommt sein eigenes <code>try</code> und schweigt im Zweifel.</td>
+</tr>
+<tr>
+	<td><b>Datei-Puffer + Falten</b><br><span style="color:var(--color-text-muted);font-size:12.5px">Zeile in eine Tagesdatei, später zu Aggregaten gefaltet</span></td>
+	<td>1 Datei-Append</td>
+	<td class="yes">ja</td>
+	<td class="no">ja</td>
+	<td>Auf STRATO gibt es keinen Server-Läufer. Das Falten müsste beim Öffnen des Panels passieren — ein zweites bewegliches Teil, das kaputtgehen kann, während niemand hinsieht.</td>
+</tr>
+<tr>
+	<td><b>Stichprobe</b><br><span style="color:var(--color-text-muted);font-size:12.5px">jede n-te Anfrage zählen, hochrechnen</span></td>
+	<td>~0</td>
+	<td class="no">nein, nicht verlässlich</td>
+	<td class="yes">nein</td>
+	<td>Seltene Ereignisse verschwinden — und die seltenen Ereignisse <em>sind</em> der Zweck. Taugt allenfalls für die Dauer-Summen.</td>
+</tr>
+</tbody>
+</table>
+</div>
+
+<h2>Was das kostet</h2>
+<div class="tablewrap">
+<table>
+<thead><tr><th>Stufe</th><th>Karten</th><th>Neu zu bauen</th></tr></thead>
+<tbody>
+<tr><td><span style="color:#2f7d4f;font-weight:700">Stufe 1</span></td><td>KPI-Zeile, Endpunkte, Antworten, Fehler, Zonen, Zeiten, Speicher</td><td>Tabelle <code>api_metric</code> · Zähler in <code>bootstrap.php</code> · <code>api/app/api-metrics.php</code> · Renderer · Unterreiter</td></tr>
+<tr><td><span style="color:#9a6b1f;font-weight:700">Stufe 2</span></td><td>Antwortzeiten (Median · p95) · <b>Ausgehend</b>: Ziele, Fehlschlagsarten</td><td>zwei Spalten bzw. Histogramm-Fächer · geteilter <code>avesmapsCurlAusfuehren</code> an 17 Stellen · repoweiter Test gegen direktes <code>curl_exec</code></td></tr>
+<tr><td><span style="color:#6b5f8a;font-weight:700">Stufe 3</span></td><td>Fremdnutzung: Woher, Womit</td><td>zwei Dimensionen · Datenschutz-Entscheid · Zeile in der Datenschutzerklärung</td></tr>
+</tbody>
+</table>
+</div>
+
+</div>
+<script>
+// Heatmap-Demo: 7 Zeilen zu 24 Zellen, Montag oben (wie im Besucher-Dashboard).
+(function () {
+	var tage = ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"];
+	var stunden = [0, 3, 6, 9, 12, 15, 18, 21];
+	var kopf = document.getElementById("heat-hours");
+	for (var i = 0; i < 24; i++) {
+		var s = document.createElement("span");
+		s.className = "va-heat__hour";
+		s.textContent = stunden.indexOf(i) >= 0 ? String(i) : "";
+		kopf.appendChild(s);
+	}
+	var koerper = document.getElementById("heat-body");
+	tage.forEach(function (tag, ti) {
+		var zeile = document.createElement("div");
+		zeile.className = "va-heat__row";
+		var name = document.createElement("span");
+		name.className = "va-heat__day";
+		name.textContent = tag;
+		zeile.appendChild(name);
+		var zellen = document.createElement("span");
+		zellen.className = "va-heat__cells";
+		for (var h = 0; h < 24; h++) {
+			// Erfundenes, aber plausibles Muster: abends viel, nachts wenig, Wochenende staerker.
+			var tages = Math.exp(-Math.pow(h - 20, 2) / 26) + 0.35 * Math.exp(-Math.pow(h - 13, 2) / 20);
+			var woche = ti >= 5 ? 1.25 : 1;
+			var w = Math.min(1, tages * woche * (0.85 + 0.3 * Math.sin(ti * 2 + h)));
+			var z = document.createElement("span");
+			z.className = "va-heat__cell";
+			z.style.background = w < 0.05
+				? "var(--color-panel-muted)"
+				: "rgba(122, 90, 58, " + (0.14 + w * 0.8).toFixed(2) + ")";
+			z.title = tag + " " + h + " Uhr";
+			zellen.appendChild(z);
+		}
+		zeile.appendChild(zellen);
+		koerper.appendChild(zeile);
+	});
+})();
+</script>
+</body>
+</html>
