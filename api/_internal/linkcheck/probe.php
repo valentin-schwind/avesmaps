@@ -9,6 +9,12 @@ declare(strict_types=1);
 // requiring this file only defines functions. avesmapsLinkCheckProbe() is the one function that talks to
 // the network -- nothing here touches the database.
 
+// 🔴 Die Wiki-Drossel. Diese Datei bindet sie SELBST, statt sich darauf zu verlassen, dass ein
+// Aufrufer sie schon geladen hat: `probe.php` wird von zwei ganz verschiedenen Seiten benutzt
+// (Linkchecker-Lauf und Wappen-Upload per Bild-URL), und ein ungeladener Drossel-Aufruf waere
+// ein Fatal Error mit LEEREM Rumpf -- im Browser nicht von einem Netzfehler zu unterscheiden.
+require_once __DIR__ . '/../wiki/drossel.php';
+
 const AVESMAPS_LINK_PROBE_TIMEOUT_SECONDS = 15;
 const AVESMAPS_LINK_PROBE_CONNECT_TIMEOUT_SECONDS = 8;
 const AVESMAPS_LINK_PROBE_MAX_REDIRECTS = 5;
@@ -144,8 +150,10 @@ function avesmapsLinkCheckClassifyHost(string $host): string
 }
 
 // Sleep just long enough that this host has not been hit within the last ~600ms. Static per process, so
-// it bounds one check_step / one CLI run. Mirrors avesmapsWikiSyncThrottleWikiRequest (wiki/sync.php:212),
+// it bounds one check_step / one CLI run. Mirrors avesmapsWikiSyncThrottleWikiRequest (wiki/drossel.php),
 // but keyed by host instead of global.
+// ⚠️ UND SIE IST NICHT DIE GANZE BREMSE: fuer wiki-aventurica.de gilt zusaetzlich der Crawl-delay
+// aus deren robots.txt -- gefragt in avesmapsLinkCheckRequest und avesmapsLinkCheckFetchBody.
 function avesmapsLinkCheckThrottleHost(string $host): void
 {
     static $lastRequestAt = [];
@@ -164,6 +172,17 @@ function avesmapsLinkCheckThrottleHost(string $host): void
 // still answers without shipping us a whole page body.
 function avesmapsLinkCheckRequest(string $url, bool $useHead): array
 {
+    // 🔴 DER CRAWL-DELAY DES WIKIS SCHLAEGT DIE HAUSHOEFLICHKEIT. Die 600 ms oben sind UNSERE
+    // Zahl; fuer wiki-aventurica.de stehen 20 Sekunden in ihrer robots.txt, und das ist die
+    // Bedingung, unter der wir sie ueberhaupt abrufen duerfen. Fuer jeden anderen Wirt aendert
+    // sich nichts -- der Linkchecker laeuft ueberwiegend gegen Shops und Verlage.
+    // ⚠️ Er darf hier WARTEN: `avesmapsLinkCheckRunStep` prueft sein Zeitbudget vor jeder Zeile
+    // und hoert auf, statt zu ueberziehen; die uebrigen Zeilen bleiben faellig und kommen im
+    // naechsten Schritt dran.
+    if (avesmapsWikiDrosselGiltFuer($url)) {
+        avesmapsWikiSyncThrottleWikiRequest();
+    }
+
     $ch = curl_init();
     $options = [
         CURLOPT_URL => $url,
@@ -243,6 +262,14 @@ function avesmapsLinkCheckFetchBody(string $url, int $maxBytes, string $accept =
     if (!avesmapsLinkCheckIsProbeableUrl($url) || !function_exists('curl_init')) {
         return $fail();
     }
+    // 🪤 DER ZWEITE, UNSCHEINBARE WIKI-ABRUFER. Diese Funktion sieht nach Linkchecker aus und
+    // ist zugleich der SSRF-geschuetzte Holer des Wappen-Uploads per Bild-URL -- sie laedt also
+    // sehr wohl Bilder von wiki-aventurica.de. Wer nur den offensichtlichen
+    // `avesmapsLinkCheckRequest` bindet, bindet die Haelfte.
+    if (avesmapsWikiDrosselGiltFuer($url)) {
+        avesmapsWikiSyncThrottleWikiRequest();
+    }
+
     $host = (string) (parse_url($url, PHP_URL_HOST) ?: '');
     if (avesmapsLinkCheckClassifyHost($host) !== 'public') {
         return $fail();

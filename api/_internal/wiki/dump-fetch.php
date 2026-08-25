@@ -2,6 +2,9 @@
 
 declare(strict_types=1);
 
+// 🔴 Die Drossel gilt auch dem Dump-Wirt -- `offline.` und `de.` sind DIESELBE IP.
+require_once __DIR__ . '/drossel.php';
+
 /**
  * WikiDump migration -- server-side dump PROCUREMENT (fetch + credential store).
  * ---------------------------------------------------------------------------
@@ -592,7 +595,21 @@ function avesmapsWikiDumpFetch(PDO $pdo, bool $forceRefresh = false): array
     }
 
     // ~39 MB transfer may exceed the default script time limit.
-    @set_time_limit(AVESMAPS_WIKI_DUMP_TRANSFER_TIMEOUT_SECONDS + 60);
+    // ⚠️ Die Drossel unten kann bis zu einen vollen Abstand draufsetzen -- sie steht damit im
+    // Zeitbudget dieses Schritts und nicht daneben.
+    @set_time_limit(AVESMAPS_WIKI_DUMP_TRANSFER_TIMEOUT_SECONDS + 60
+        + (int) (AVESMAPS_WIKI_REQUEST_DELAY_MICROSECONDS / 1000000));
+
+    // 🔴 EIN Abruf je Lauf -- und trotzdem gedrosselt. `offline.wiki-aventurica.de` und
+    // `de.wiki-aventurica.de` zeigen auf DIESELBE IP (20.08.2026 gemessen), und gesperrt wird
+    // eine IP, kein Name. Ein Dump-Abruf, der zufaellig eine Sekunde hinter der letzten
+    // API-Anfrage liegt, ist fuer den Wirt zwei Anfragen ohne Abstand.
+    // ⚠️ Er steht NACH der Cache-Pruefung oben: ein Schritt, der den Dump schon hat, kehrt
+    // vorher um und zahlt hier nichts. Sonst kostete jeder der ~20 Schritte 20 Sekunden fuer
+    // eine Datei, die laengst auf der Platte liegt.
+    if (avesmapsWikiDrosselGiltFuer(AVESMAPS_WIKI_DUMP_URL)) {
+        avesmapsWikiSyncThrottleWikiRequest();
+    }
 
     // Nachfragen statt herunterladen -- siehe avesmapsWikiDumpConditionalTimeValue.
     $timeValue = avesmapsWikiDumpConditionalTimeValue($state['mtime'] ?? null, $forceRefresh);

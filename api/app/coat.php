@@ -19,6 +19,10 @@ require __DIR__ . '/../_internal/bootstrap.php';
 // Drossel ist genau der Zustand, der uns die Wiki-Sperre eingebracht hat. Fehlt sie, geht
 // darum gar nichts mehr nach draussen (siehe unten).
 require_once __DIR__ . '/../_internal/wiki/datei-riegel.php';
+// Die Drossel aus demselben Grund und mit derselben Vorsicht. 🔴 Sie wohnt bewusst NICHT in
+// sync.php: die Crawl-Bibliothek je Wappenbild zu laden waere absurd, und genau deshalb hatte
+// dieser Endpunkt bis zum 25.08.2026 ueberhaupt keine Drossel.
+require_once __DIR__ . '/../_internal/wiki/drossel.php';
 $avesmapsCoatDrosselLib = __DIR__ . '/../_internal/coat-drossel.php';
 if (is_file($avesmapsCoatDrosselLib)) {
     require $avesmapsCoatDrosselLib;
@@ -80,11 +84,36 @@ function avesmapsCoatExtFromType(string $contentType, string $url): ?string {
 }
 
 // Laedt eine Bild-URL serverseitig (cURL, folgt Redirects, nur HTTP/HTTPS). [bytes, content_type] oder [null, ''].
-function avesmapsCoatFetch(string $url): array {
+//
+// 💣 `$absage` SAGT, WARUM ES NICHTS WURDE -- und das ist hier kein Komfort, sondern tragend.
+// Ein Abruf, der an Riegel oder Drossel scheitert, hat NIE EINE ANFRAGE GESTELLT und darf
+// deshalb keinen Grabstein bekommen. Genau diese Verwechslung war der Fehler vom 23.08.2026:
+// der geriegelte Pfad schrieb Grabsteine fuer Adressen, die niemand probiert hatte, und fuenf
+// davon schlossen die Wappen-Drossel global -- kaputt genau dann, wenn die Wappen endlich
+// geholt werden sollen. Ohne diesen Ausgang waere derselbe Fehler mit dem Crawl-delay zurueck.
+function avesmapsCoatFetch(string $url, ?string &$absage = null): array {
+    $absage = null;
+
     // 🔴 DER RIEGEL. Owner 23.08.2026: keine Datei-Abrufe mehr bei Wiki Aventurica.
     if (function_exists('avesmapsWikiDateiAbrufErlaubt') && !avesmapsWikiDateiAbrufErlaubt($url)) {
+        $absage = 'geriegelt';
         return [null, ''];
     }
+
+    // 🔴 DER CRAWL-DELAY, und er WARTET NICHT. Dies hier beantwortet einen Seitenaufbau: 20
+    // Sekunden Schlaf haelt einen PHP-Arbeiter, und eine Editorliste mit mehreren fehlenden
+    // Wappen macht daraus mehrere gleichzeitig -- die Arbeiter-Saettigung aus AGENTS.md §10.
+    // Der Abruf wird deshalb ABGEWIESEN statt verzoegert; nachgeholt wird er vom ausdruecklichen
+    // Lauf „Hole Wiki-Wappen", der warten darf.
+    // ⚠️ FEHLT die Drossel, geht NICHTS raus -- dieselbe Richtung wie beim Dateikopf: ein Proxy
+    // ohne Drossel ist der Zustand, der uns die Sperre eingebracht hat.
+    if (function_exists('avesmapsWikiDrosselGiltFuer') && avesmapsWikiDrosselGiltFuer($url)) {
+        if (!function_exists('avesmapsWikiDrosselPlatzFrei') || !avesmapsWikiDrosselPlatzFrei()) {
+            $absage = 'crawl_delay';
+            return [null, ''];
+        }
+    }
+
     if (!function_exists('curl_init')) {
         return [null, ''];
     }
@@ -194,7 +223,19 @@ try {
     }
     header('X-Avesmaps-Coat: abruf');
 
-    [$bytes, $contentType] = avesmapsCoatFetch($url);
+    $absage = null;
+    [$bytes, $contentType] = avesmapsCoatFetch($url, $absage);
+
+    // 🔴 ABGEWIESEN IST NICHT FEHLGESCHLAGEN, und der Unterschied ist der Grabstein. Hier ging
+    // keine Anfrage nach draussen -- das Wiki hat also nichts versagt, und die Adresse hat sich
+    // nichts zuschulden kommen lassen. Wer das zusammenwirft, schliesst nach fuenf Abweisungen
+    // die Wappen-Drossel global fuer 30 Minuten, ohne dass ein einziges Byte geflossen ist.
+    // ⚠️ 503, nicht 502: 502 hiesse „das Gegenueber hat versagt" -- hier hat es niemand gefragt.
+    if ($absage !== null) {
+        header('X-Avesmaps-Coat: ' . ($absage === 'crawl_delay' ? 'crawl-delay' : 'geriegelt'));
+        avesmapsCoatFail(503, 'Wappen gerade nicht abrufbar (Crawl-delay des Wikis).');
+    }
+
     if ($bytes === null) {
         avesmapsCoatDrosselFehlschlag($dir, $key, $jetzt);
         avesmapsCoatFail(502, 'Wappen konnte nicht geladen werden.');

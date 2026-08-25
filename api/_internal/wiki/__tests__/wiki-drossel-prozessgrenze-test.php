@@ -218,7 +218,12 @@ assert(
 // Geprueft wird die REIHENFOLGE im Quelltext: das Schlafen muss NACH dem Freigeben stehen. Ein
 // Ablauftest koennte das nur mit echter Gleichzeitigkeit zeigen, und die ist in einem
 // Zusicherungstest weder stabil noch schnell.
-$drosselQuelle = str_replace(chr(13), '', (string) file_get_contents($wurzel . '/api/_internal/wiki/sync.php'));
+// 🪤 Seit 25.08.2026 wohnt die Drossel in einer EIGENEN Datei -- damit auch coat.php und der
+// Bildholer sie fragen koennen, ohne die ganze Crawl-Bibliothek zu laden. Der Ablauftest oben
+// laedt weiter sync.php (das zieht drossel.php nach); die QUELLTEXT-Pruefung unten muss die
+// neue Datei lesen, sonst findet sie den Rumpf nicht mehr und meldet einen Fehler, den es
+// nicht gibt.
+$drosselQuelle = str_replace(chr(13), '', (string) file_get_contents($wurzel . '/api/_internal/wiki/drossel.php'));
 $rumpf = '';
 if (preg_match(
     '/function avesmapsWikiSyncDrosselUeberProzessgrenze\([^)]*\)[^{]*\{(.*?)\n\}\n/s',

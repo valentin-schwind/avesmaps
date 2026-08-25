@@ -7,6 +7,9 @@ declare(strict_types=1);
 // avesmapsWikiSyncMonitorHttpGetBinary, waere sie ungeladen, solange jene nicht lief --
 // ein Fatal Error, und ein Fatal antwortet mit LEEREM Rumpf ("Unexpected end of JSON").
 require_once __DIR__ . '/datei-riegel.php';
+// Dieselbe Begruendung eine Zeile hoeher, und derselbe Grund fuer die kleine Datei: die Drossel
+// wohnt NICHT in sync.php, damit auch ein Aufrufer ohne Crawl-Bibliothek sie fragen kann.
+require_once __DIR__ . '/drossel.php';
 
 // Identity / coat-of-arms / field-override apply (editable fields, coat upload,
 // identity & coats preview/apply/revert, capital resolution), split out of
@@ -46,6 +49,19 @@ function avesmapsWikiSyncMonitorHttpGetBinary(string $url): ?array {
     // eine Sperre in nur einem Aufrufer waere keine Sperre (die Lehre vom 14.08.2026).
     if (!avesmapsWikiDateiAbrufErlaubt($url)) {
         return null;
+    }
+
+    // 🔴 UND DIE DROSSEL, AUS DEMSELBEN GRUND AN DERSELBEN STELLE. Der Riegel ist ein NOTAUS,
+    // keine Bremse: er sagt „gar nicht", nicht „langsamer". Solange er zu ist, kommt hier
+    // ohnehin nichts durch -- an dem Tag aber, an dem er fuer die fehlenden Wappen aufgeht,
+    // feuerten diese vier Aufrufer bis zum 25.08.2026 ohne jeden Abstand los. Genau das hat uns
+    // am 20. und 23.08.2026 zweimal die Sperre unserer Ausgangs-IP eingebracht.
+    //
+    // ⚠️ GEWARTET wird hier, nicht abgewiesen: alle vier Aufrufer sind ausdrueckliche
+    // Editor-Handgriffe in gedeckelten Schritten, keine Seitenaufbauten. Der Seitenaufbau ist
+    // `coat.php`, und der nimmt deshalb den anderen Zweig.
+    if (avesmapsWikiDrosselGiltFuer($url)) {
+        avesmapsWikiSyncThrottleWikiRequest();
     }
     if (function_exists('curl_init')) {
         $ch = curl_init($url);
