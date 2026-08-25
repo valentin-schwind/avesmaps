@@ -735,7 +735,25 @@ function avesmapsNormalizeLegacyMapFeatureProperties(array $properties): array {
         }
     }
 
-    foreach ([['wiki_settlement', 'wappen_url'], ['wiki_region', 'image_url'], ['wiki_path', 'image_url']] as [$nest, $feld]) {
+    // 🪤 UND DER VIERTE NEST KAM AM 25.08.2026 DAZU -- an einem Abend, an dem der Owner den Riegel
+    // aufgemacht und „Hole Wiki-Wappen" gestartet hat. Vorher trug `coat.url` nie eine
+    // Wiki-Adresse (dort steht sonst ein eigener Upload oder die lokalisierte Kopie), deshalb
+    // stand er nicht in dieser Liste. Der Lauf schreibt aber ZUERST den Wiki-Stand in
+    // `properties.coat` und holt die Bilder DANACH: dazwischen liegt ein Zustand, in dem der Nest
+    // sehr wohl eine Wiki-Adresse fuehrt. Live gemessen an diesem Abend: 80 Stueck, davon 30
+    // binnen Minuten lokalisiert und 50 stehengeblieben.
+    //
+    // 🔴 Und die stehengebliebenen 50 waren KAPUTTE BILDER: der Browser reicht jede `http(s)`-
+    // Adresse durch coat.php, und coat.php weist eine Spezialseite seit heute ab. Eine Adresse,
+    // die wir selbst nicht abrufen, darf gar nicht erst in den Browser -- „unsere Platte oder
+    // nichts" gilt diesem Nest genauso.
+    //
+    // ⚠️ Die Liste der drei war GEMESSEN (23.08.2026), nicht hergeleitet -- und genau davor warnt
+    // der Absatz darueber selbst: eine Regel, die einen von mehreren Erzeugern bindet, ist keine.
+    // Wer hier einen Nest ergaenzt, prueft, ob sein Leser eine LEERE Adresse vertraegt;
+    // settlementCoatIconMarkup tut es (`if (!coat || !coat.url) return ""`), zeichnet also gar
+    // kein <img> statt eines kaputten. Genau daran ist die Ruecknahme vom 23.08. gescheitert.
+    foreach ([['wiki_settlement', 'wappen_url'], ['wiki_region', 'image_url'], ['wiki_path', 'image_url'], ['coat', 'url']] as [$nest, $feld]) {
         if (is_array($properties[$nest] ?? null) && ($properties[$nest][$feld] ?? '') !== '') {
             $properties[$nest][$feld] = avesmapsCoatLokaleKopie((string) $properties[$nest][$feld]);
         }
