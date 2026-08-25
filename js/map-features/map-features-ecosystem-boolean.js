@@ -20,6 +20,16 @@
 "use strict";
 
 // Die Reihenfolge ist die des Kontextmenüs. „difference" zieht das Ziel von der Quelle ab.
+//
+// 🪤 DIE `label` HIER STEHEN AUF KEINEM KNOPF. Gelesen wird von dieser Liste nur die `operation` —
+// von `ecosystem-boolean.test.js` und sonst nirgends (repoweit geprüft 25.08.2026). Die
+// Beschriftungen, die der Editor tatsächlich sieht, stehen in TARGET_OPERATIONS
+// (map-features-ecosystem-geometry-ops.js) und lauten anders. Wer sie hier „richtigstellt", ändert
+// nichts; wer sie für die Menüzeilen hält, sucht seinen Text an der falschen Stelle.
+//
+// Gewacht von js/map-features/__tests__/ecosystem-boolean.test.js: die Reihenfolge, dass jede
+// behaltende Fassung dieselbe Form rechnet wie ihr Original, und dass die Plausibilitätsprüfung
+// BEIDE Vereinigungen fängt.
 const ECOSYSTEM_BOOLEAN_OPERATIONS = [
 	{ operation: "union", label: "Mit anderer Fläche vereinigen" },
 	{ operation: "union-keep-target", label: "Vereinigen und andere behalten" },

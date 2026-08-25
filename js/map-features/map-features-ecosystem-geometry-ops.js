@@ -44,6 +44,11 @@
 		{ action: "difference-keep-target", label: "Von anderer ausschneiden und andere beibehalten" },
 		{ action: "intersection", label: "Neue von anderer ausschneiden" },
 	];
+	// 🪤 DIESE Beschriftungen stehen auf den Knöpfen -- die gleichnamige Liste in
+	// map-features-ecosystem-boolean.js trägt andere, und die liest niemand ausser ihrem Test.
+	//
+	// Gewacht von js/map-features/__tests__/ecosystem-vereinigen-behalten.test.js: der Eintrag samt
+	// seiner Stelle, die Ebenen-Regel und beide Leser, die Glyphe und die englische Beschriftung.
 
 	// Die Beschriftung, die im „Änderungen"-Fenster über der Geste steht. Sie kommt aus DERSELBEN Liste
 	// wie der Menüeintrag -- der Editor soll dort das Wort wiederfinden, das er angeklickt hat, und nicht

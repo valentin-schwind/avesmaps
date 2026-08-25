@@ -387,7 +387,10 @@ window.AVESMAPS_I18N_EN = {
 	"ecosystem.ctxmenu.move": "Move",
 	"ecosystem.ctxmenu.split": "Split area",
 	"ecosystem.ctxmenu.union": "Merge with another",
-	// The one entry the territory menu has no twin for -- Landschaften only, on purpose.
+	// The one entry the territory menu has no twin for -- Landschaften only, on purpose. The key is
+	// built from the ACTION (`ecosystem.ctxmenu.${action}`), so a missing line here does not break
+	// anything: the entry simply stays German in the middle of an English menu. Guarded by
+	// js/map-features/__tests__/ecosystem-vereinigen-behalten.test.js.
 	"ecosystem.ctxmenu.union-keep-target": "Merge with another and keep the other",
 	"ecosystem.ctxmenu.difference": "Cut out of another",
 	"ecosystem.ctxmenu.difference-keep-target": "Cut out of another and keep the other",

@@ -303,6 +303,10 @@
 	content: "\2295";
 }
 
+/* Gewacht von js/map-features/__tests__/ecosystem-vereinigen-behalten.test.js -- der Test besteht
+   darauf, dass hier ueberhaupt ein `content` steht. Die BREITEN oben kann er nicht pruefen: in Node
+   gibt es keine Schrift, das muss im Browser gemessen werden. */
+
 .map-context-menu__item[data-ecosystem-area-action="difference"]::before {
 	content: "\2212";
 }
