@@ -83,7 +83,42 @@ eval([
 	src.match(/const API_KLASSEN_FARBEN[\s\S]*?\n\};/)[0],
 	extract("apiKlassenBalken"),
 	extract("apiZaehlstandSatz"),
+	src.match(/const API_TAKT_ENDPUNKTE[\s\S]*?\n\};/)[0],
+	extract("apiTaktAnteil"),
 ].join("\n"));
+
+// --- „davon Takt" -------------------------------------------------------------------------------
+// Vier Endpunkte fragen von selbst im Takt; ohne diese Zeile liest man die Gesamtzahl als Nutzung,
+// obwohl ein guter Teil davon ein Ping ist.
+//
+// 🪤 Die Tabelle muss fuer die Zusicherungen HIER noch einmal ausgewertet werden: ein `const` aus
+// einem eval verlaesst dessen Raum NIE (anders als eine Funktionsdeklaration in sloppy mode).
+// Innerhalb des eval sieht apiTaktAnteil sie -- dieser Datei bleibt sie unsichtbar.
+const taktTabelle = eval("(" + src.match(/const API_TAKT_ENDPUNKTE\s*=\s*(\{[\s\S]*?\n\});/)[1] + ")");
+const mitTakt = [
+	{ dimension: "app/map-features", c: 100 },
+	{ dimension: "app/heartbeat", c: 60 },
+	{ dimension: "edit/map/presence", c: 30 },
+	{ dimension: "app/map-revision", c: 10 },
+];
+pruefe(Math.round(apiTaktAnteil(mitTakt)) === 50, "100 von 200 sind Takt -> 50 %");
+pruefe(apiTaktAnteil([]) === null, "ohne Daten kein Prozentwert (und keine erfundene Null)");
+pruefe(apiTaktAnteil([{ dimension: "app/map-features", c: 7 }]) === 0, "ohne Takt sind es 0 %");
+
+// 💣 `app/map-features` ist KEIN Takt, obwohl der Live-Abgleich alle 15 s laeuft: er fragt zuerst
+// `app/map-revision` und holt die Nutzlast NUR bei geaenderter Revision (pollLiveMapUpdates in
+// js/routing/routing.js). Mitgezaehlt erklaerte man jede echte Kartenladung zum Ping.
+pruefe(!Object.prototype.hasOwnProperty.call(taktTabelle, "app/map-features"),
+	"map-features zaehlt NICHT als Takt");
+
+// 🔴 Und jeder gelistete Takt muss im Frontend wirklich ein setInterval haben -- eine Liste, die
+// sich vom Code loest, erfindet Prozentwerte. Geprueft wird gegen die Konstanten, die die
+// Endpunktadressen tragen.
+const configJs = read("js", "config.js");
+Object.keys(taktTabelle).forEach((schluessel) => {
+	const datei = schluessel.replace(/^(app|edit)\//, "") + ".php";
+	pruefe(configJs.includes(datei), "der Takt-Endpunkt „" + schluessel + "“ existiert (" + datei + ")");
+});
 
 // --- Der gestapelte Balken ---------------------------------------------------------------------
 const klassen = [

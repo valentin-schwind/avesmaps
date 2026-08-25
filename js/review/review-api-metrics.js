@@ -66,6 +66,47 @@ function apiZaehlstandSatz(letzteZaehlung) {
 		+ " — seither nichts gezählt. Zählt der Server noch?";
 }
 
+// Die Endpunkte, die von SELBST im Takt fragen -- ohne dass jemand etwas tut.
+//
+// 🔴 HERGELEITET, NICHT GERATEN. Jeder Eintrag steht fuer ein setInterval im Frontend; die
+// Sekundenzahl ist die dort gesetzte. Ein Editor mit offenem Panel erzeugt damit rund 180
+// Anfragen je Stunde, ein blosser Besucher-Tab 60 -- diese fuehren jede Rangliste an und sind
+// trotzdem kaum echte Arbeit.
+//
+// 💣 `app/map-features` gehoert AUSDRUECKLICH NICHT dazu, obwohl der Live-Abgleich alle 15 s
+// laeuft: er fragt zuerst `app/map-revision` (die billige Sonde) und holt die Nutzlast NUR, wenn
+// sich die Revision bewegt hat (`pollLiveMapUpdates`, js/routing/routing.js). Wer map-features
+// mitzaehlte, erklaerte jede echte Kartenladung zum Takt.
+const API_TAKT_ENDPUNKTE = {
+	"app/heartbeat": 60,          // js/app/visitor-tracking.js -- jeder offene Besucher-Tab
+	"app/map-revision": 15,       // js/routing/routing.js -- Live-Abgleich, nur im Editiermodus
+	"edit/map/presence": 30,      // js/review/review-panels.js -- jeder offene Editor
+	"edit/reports/locations": 45, // js/review/review-panels.js -- Meldungen-Abfrage
+};
+
+/**
+ * Anteil der Takt-Anfragen an allen gezaehlten, in Prozent -- oder null, wenn nichts gezaehlt ist.
+ *
+ * ⚠️ Gerechnet wird ueber die ENDPUNKTliste, nicht ueber eine eigene Metrik: die Namen stehen
+ * ohnehin da, es kostet keine Spalte und keine Schemaaenderung.
+ */
+function apiTaktAnteil(endpunkte) {
+	const zeilen = endpunkte || [];
+	let gesamt = 0;
+	let takt = 0;
+	zeilen.forEach((z) => {
+		const anzahl = Number(z.c) || 0;
+		gesamt += anzahl;
+		if (Object.prototype.hasOwnProperty.call(API_TAKT_ENDPUNKTE, z.dimension)) {
+			takt += anzahl;
+		}
+	});
+	if (gesamt === 0) {
+		return null;
+	}
+	return (takt / gesamt) * 100;
+}
+
 function apiEndpunktKarte(endpunkte) {
 	const zeilen = (endpunkte || []).slice(0, 10);
 	if (zeilen.length === 0) {
@@ -149,11 +190,19 @@ function renderApiDashboard(mount, data) {
 
 	const hinweis = apiZaehlstandSatz(data && data.letzte_zaehlung);
 
+	// „davon Takt": die Endpunkte, die von selbst fragen. Ohne diese Zeile liest man die
+	// Gesamtzahl als Nutzung, obwohl ein guter Teil davon ein Ping ist.
+	const taktAnteil = apiTaktAnteil(m.endpunkte);
+	const taktZeile = taktAnteil === null
+		? ""
+		: '<div class="va-kpi__trend flat" title="' + apiEscape(Object.keys(API_TAKT_ENDPUNKTE).join(" · "))
+			+ '">davon Takt: ' + taktAnteil.toFixed(taktAnteil < 10 ? 1 : 0).replace(".", ",") + " %</div>";
+
 	mount.innerHTML =
 		(hinweis ? '<div class="va-card"><p class="va-storage">⚠️ ' + hinweis + "</p></div>" : "")
 		+ '<div class="va-kpis">'
 		+ '<div class="va-kpi"><div class="va-kpi__label">Anfragen</div><div class="va-kpi__value">'
-		+ gesamt.toLocaleString("de-DE") + "</div></div>"
+		+ gesamt.toLocaleString("de-DE") + "</div>" + taktZeile + "</div>"
 		+ '<div class="va-kpi"><div class="va-kpi__label">Fehlerquote</div><div class="va-kpi__value">'
 		+ quote + " %</div></div>"
 		+ '<div class="va-kpi"><div class="va-kpi__label">Zeitraum</div><div class="va-kpi__value">'
