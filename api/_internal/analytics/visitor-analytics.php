@@ -210,6 +210,7 @@ function avesmapsVisitorRecordUnique(PDO $pdo, string $actorType): void {
     }
 }
 
+// Mockup: docs/besucherstatistik-verweildauer-mockup.html.
 // Die dritte Linie des Besucher-Diagramms: WIE VIELE EDITOREN waren an dem Tag da -- Koepfe, nicht
 // Klicks. Das ist dieselbe Groesse wie "Eindeutige" daneben, nur fuer die andere Sorte Mensch, und
 // sie wird seit dem 28.06.2026 ohnehin geschrieben (actor_type='editor', metric='unique'). Gemessen

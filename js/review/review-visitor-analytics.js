@@ -124,6 +124,7 @@ function vaBars(rows, col) {
 	).join("");
 }
 
+// Die drei Kurven des Besucher-Diagramms. Mockup: docs/besucherstatistik-verweildauer-mockup.html.
 // 💣 `editorsRight` faellt auf die GETEILTE Skala zurueck, wenn es fehlt. Der Schalter ist das
 // Ausnahmeverhalten, nicht die Regel -- ein Aufrufer, der ihn vergisst, bekommt damit ein Bild,
 // das hoechstens langweilig ist, nie eines mit einer zweiten Achse, die niemand beschriftet hat.

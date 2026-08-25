@@ -72,7 +72,8 @@
 .va-pill { font-size: 12px; padding: 5px 11px; border-radius: 999px; border: 1px solid var(--color-border-strong); background: var(--color-panel); color: var(--color-text-muted); cursor: pointer; }
 .va-pill.is-active { background: var(--color-button-soft-text); color: var(--color-panel); border-color: var(--color-button-soft-text); }
 .va-kpis { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 12px; }
-/* Vier Kacheln statt drei, sobald die Editorenzahl dabei ist. Bei 400 px Panelbreite bleiben je
+/* Editoren-Linie und ihr Schalter: Mockup docs/besucherstatistik-verweildauer-mockup.html.
+   Vier Kacheln statt drei, sobald die Editorenzahl dabei ist. Bei 400 px Panelbreite bleiben je
    ~66 px Innenbreite -- deshalb die Zahl eine Spur kleiner, sonst reisst ein sechsstelliger Wert
    (Zeitraum "Alles") aus der Kachel. */
 .va-kpis--four { grid-template-columns: repeat(4, 1fr); }
