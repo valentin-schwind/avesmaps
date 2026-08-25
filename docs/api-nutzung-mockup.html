@@ -186,6 +186,12 @@ code { font-family: "Cascadia Mono", Consolas, monospace; font-size: .88em;
 .va-sect__t { font-size: 12px; font-weight: 700; letter-spacing: .6px; text-transform: uppercase;
 	color: var(--color-text-muted); white-space: nowrap; }
 .va-sect__l { flex: 1; height: 1px; background: var(--color-divider); }
+/* Markiert einen Abschnitt, der im Bild steht, aber NICHT gebaut wird -- damit das Mockup
+   nicht als Abnahmeliste gelesen wird (AGENTS.md §9). */
+.va-sect__spaeter { flex: none; font-size: 11px; font-weight: 700; letter-spacing: .3px;
+	text-transform: none; padding: 1px 7px; border-radius: 999px;
+	background: var(--color-panel-muted); color: var(--color-text-muted);
+	border: 1px solid var(--color-border-strong); }
 
 /* Ausgehend: Ziel + Ampel + Anzahl + Dauer */
 .va-out { display: flex; align-items: center; gap: 8px; margin: 9px 0; font-size: 13px; }
@@ -399,8 +405,9 @@ Enthält <b>eingehende</b> Nutzung (was der Server aushält) und <b>ausgehende</
 			</div>
 		</details>
 
-		<!-- ===== AUSGEHEND ===== -->
-		<div class="va-sect"><span class="va-sect__t">Ausgehend</span><span class="va-sect__l"></span></div>
+		<!-- ===== AUSGEHEND -- NICHT Teil des Entwurfs vom 25.08.2026 ===== -->
+		<div class="va-sect"><span class="va-sect__t">Ausgehend</span><span class="va-sect__l"></span><span class="va-sect__spaeter">später</span></div>
+		<p class="va-storage" style="margin:-2px 0 10px">🔴 <b style="color:var(--color-button-soft-text)">Nicht Teil des Entwurfs.</b> Owner 25.08.2026: eingehend zuerst. Diese zwei Karten stehen hier als Bild dessen, was später käme — sie sind <b style="color:var(--color-button-soft-text)">keine Zusage</b> und gehören nicht auf die Abnahmeliste.</p>
 
 		<div class="va-kpis">
 			<div class="va-kpi"><div class="va-kpi__label">Rufe</div><div class="va-kpi__value">3.907</div><div class="va-kpi__trend flat">7 Tage</div></div>
