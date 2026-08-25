@@ -667,7 +667,10 @@ function avesmapsWikiDumpCategoryFetchPageCategoriesReadOnly(array $titles): arr
         return $pagesByRequestedTitle;
     }
 
-    foreach (array_chunk($titles, avesmapsWikiSyncTitleBatchSize()) as $batch) {
+    // Laengenbewusst statt array_chunk: siehe avesmapsWikiSyncNextTitleBatch (HTTP 414).
+    // In der Regel ein einziger Durchgang -- der Aufrufer schneidet bereits passend zu.
+    $stapelgroesse = avesmapsWikiSyncTitleBatchSize();
+    for ($ab = 0; ($batch = avesmapsWikiSyncNextTitleBatch($titles, $ab, $stapelgroesse)) !== []; $ab += count($batch)) {
         $params = [
             'action' => 'query',
             'titles' => implode('|', $batch),
@@ -754,7 +757,12 @@ function avesmapsWikiDumpCategoryFetchContinentMap(
             break;
         }
 
-        $batch = array_slice($titles, $cursor, $stapel);
+        // 💣 NICHT array_slice($titles, $cursor, $stapel): der Stapel ist seit 25.08.2026 auch
+        // durch die URL-LAENGE begrenzt (HTTP 414, siehe avesmapsWikiSyncNextTitleBatch). Wer
+        // hier nach Zahl schneidet und der Holer darunter nach Laenge nachschneidet, macht aus
+        // EINEM budgetierten Aufruf zwei bis drei echte Anfragen -- und das Schrittbudget, das
+        // die Phase ueberhaupt erst unterbrechbar macht, waere wieder eine Luege.
+        $batch = avesmapsWikiSyncNextTitleBatch($titles, $cursor, $stapel);
         if ($batch === []) {
             break;
         }

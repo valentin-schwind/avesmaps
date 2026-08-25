@@ -265,7 +265,11 @@ function avesmapsWikiSyncFetchPagesByRequestedTitle(PDO $pdo, array $titles, boo
         return $pagesByRequestedTitle;
     }
 
-    foreach (array_chunk($titles, avesmapsWikiSyncTitleBatchSize()) as $batch) {
+    // Laengenbewusst statt array_chunk: 500 Titel als Bot sprengen die URL (HTTP 414,
+    // siehe avesmapsWikiSyncNextTitleBatch in sync.php). Betrifft die Wege-, Regionen- und
+    // Territorien-Crawler genauso wie die Dump-Phasen.
+    $stapelgroesse = avesmapsWikiSyncTitleBatchSize();
+    for ($ab = 0; ($batch = avesmapsWikiSyncNextTitleBatch($titles, $ab, $stapelgroesse)) !== []; $ab += count($batch)) {
         $propParts = [];
         if ($includeCategories) {
             $propParts[] = 'categories';

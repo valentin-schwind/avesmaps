@@ -253,6 +253,56 @@ try {
             avesmapsJsonResponse(200, ['ok' => true, 'synced' => $lastSynced]);
         }
 
+        if ($action === 'titles_probe') {
+            // ⭐ EINE Abfrage in der Form, die den Dump am 25.08.2026 mit HTTP 414 gestoppt hat --
+            // statt Stunden zu warten, bis die Kontinent-Phase (Schritt 10 von 11) sie von selbst
+            // erreicht. Genau derselbe Stapelbauer, derselbe Holer, dieselbe Anmeldung.
+            //
+            // 🔴 Sie schreibt NICHTS und nimmt die Pipeline-Sperre nicht: sie darf waehrend eines
+            // laufenden Dumps aufgerufen werden. Kosten: eine gedrosselte Wiki-Anfrage (plus zwei
+            // fuer die Anmeldung), also bis zu einer Minute.
+            $probeTitel = avesmapsWikiDumpTitlesProbeTitel($pdo);
+            $probeStapelgroesse = avesmapsWikiSyncTitleBatchSize();
+            $probeStapel = avesmapsWikiSyncNextTitleBatch($probeTitel, 0, $probeStapelgroesse);
+            $probeLaenge = strlen(rawurlencode(implode('|', $probeStapel)));
+
+            $probeBefund = [
+                'titel_vorrat' => count($probeTitel),
+                'stapelgroesse' => $probeStapelgroesse,
+                'stapel_titel' => count($probeStapel),
+                'kodierte_laenge' => $probeLaenge,
+                'grenze' => AVESMAPS_WIKI_TITLE_QUERY_MAX_ENCODED,
+                'bot' => avesmapsWikiBotStatusShape()['status'] ?? '',
+            ];
+
+            if ($probeStapel === []) {
+                $probeBefund['urteil'] = 'Kein Titelvorrat zum Proben gefunden -- weder aus einem '
+                    . 'Dump-Lauf noch als Ersatz. Das ist ein Fehler der Probe, nicht des Laufs.';
+                avesmapsJsonResponse(200, ['ok' => true, 'probe' => $probeBefund]);
+            }
+
+            try {
+                $probeSeiten = avesmapsWikiDumpCategoryFetchPageCategoriesReadOnly($probeStapel);
+                $probeBefund['seiten_zurueck'] = count($probeSeiten);
+                $probeBefund['urteil'] = $probeSeiten === []
+                    ? 'Die Anfrage lief durch, brachte aber KEINE Seite zurueck. Kein '
+                        . 'Laengenproblem -- eher passen die Titel nicht zum Wiki.'
+                    : 'Alles in Ordnung: ' . count($probeStapel) . ' Titel in einer Anfrage ('
+                        . $probeLaenge . ' Zeichen kodiert), ' . count($probeSeiten)
+                        . ' Seiten zurueck. Die Kontinent-Phase kann so durchlaufen.';
+            } catch (Throwable $probeFehler) {
+                // 💣 Die Ausnahme wird BENANNT, nicht verschluckt: genau das Verschlucken hat den
+                // 414 vier Stunden lang unsichtbar gemacht.
+                $probeBefund['fehler'] = avesmapsThrowableMessage($probeFehler, 'titles-probe');
+                $probeBefund['urteil'] = str_contains($probeBefund['fehler'], '414')
+                    ? 'HTTP 414: die Adresse ist zu lang. Der Stapel muesste kleiner sein -- '
+                        . 'AVESMAPS_WIKI_TITLE_QUERY_MAX_ENCODED senken.'
+                    : 'Die Probe-Anfrage ist gescheitert. Der Grund steht in "fehler".';
+            }
+
+            avesmapsJsonResponse(200, ['ok' => true, 'probe' => $probeBefund]);
+        }
+
         if ($action === 'bot_check') {
             // Die Anmeldung WIRKLICH versuchen und sagen, woran sie liegt. Eigene Aktion und
             // NICHT Teil von 'status': jene laeuft bei jedem Oeffnen des Panels und darf keine

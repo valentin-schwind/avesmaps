@@ -702,6 +702,68 @@ function avesmapsWikiBotDiagnoseUrteil(array $befund): string {
 }
 
 /**
+ * Wie lang der kodierte `titles=`-Wert hoechstens werden darf.
+ *
+ * 💣 APACHE NIMMT 8190 ZEICHEN FUER DIE GANZE ANFRAGEZEILE (`LimitRequestLine`), nicht nur fuer
+ * den einen Parameter. Adresse, action, prop, format und der Rest wollen auch Platz -- 7000
+ * lassen davon reichlich uebrig und liegen trotzdem weit ueber dem, was 50 Titel brauchen.
+ */
+const AVESMAPS_WIKI_TITLE_QUERY_MAX_ENCODED = 7000;
+
+/**
+ * Der naechste Titel-Stapel ab $offset -- begrenzt durch ZWEI Groessen, und die kleinere gewinnt.
+ *
+ * 💣 DAS IST DER FEHLER VOM 25.08.2026, UND ER LAG DIE GANZE ZEIT DA. Gestapelt wurde nur nach
+ * ZAHL (avesmapsWikiSyncTitleBatchSize: 50 anonym, 500 als Bot). Solange die Bot-Anmeldung
+ * scheiterte, waren es 50 Titel, rund 1.000 Zeichen, und alles passte. In der Minute, in der die
+ * Anmeldung repariert war, wurden daraus 500 Titel und ueber 15.000 Zeichen -- das Wiki
+ * antwortete mit **HTTP 414 URI Too Long**, und der ganze Dump stand.
+ *
+ * ⚠️ Die Fehlerklasse ist die eigentliche Lehre: der Fehler wurde nicht durch eine Aenderung an
+ * dieser Stelle ausgeloest, sondern dadurch, dass ein NACHBARTEIL anfing zu funktionieren. So
+ * etwas findet man beim Bauen nie.
+ *
+ * 💣 EIN STAPEL IST NIE LEER, solange noch Titel offen sind -- auch nicht, wenn ein einzelner
+ * Titel die Grenze allein sprengt. Ein leerer Stapel liesse den Cursor des Aufrufers stehen und
+ * die Phase endlos kreisen; ein uebersprungener Titel verloere lautlos einen Ort. Also faehrt so
+ * einer allein, und die Anfrage scheitert dann SICHTBAR.
+ *
+ * ⚠️ Gerechnet wird die KODIERTE Laenge: ein Umlaut wird zu `%C3%BC` (sechs Zeichen statt
+ * einem), das Trennzeichen `|` zu `%7C`. Wer strlen() nimmt, unterschaetzt aventurische Titel
+ * systematisch.
+ *
+ * @param list<string> $titles
+ * @return list<string>
+ */
+function avesmapsWikiSyncNextTitleBatch(array $titles, int $offset, int $maxAnzahl): array {
+    $titles = array_values($titles);
+    $gesamt = count($titles);
+    $offset = max(0, $offset);
+    if ($offset >= $gesamt) {
+        return [];
+    }
+
+    $maxAnzahl = max(1, $maxAnzahl);
+    $stapel = [];
+    $laenge = 0;
+
+    for ($i = $offset; $i < $gesamt && count($stapel) < $maxAnzahl; $i++) {
+        $titel = (string) $titles[$i];
+        // +3 fuer das kodierte Trennzeichen %7C vor jedem weiteren Titel.
+        $kosten = strlen(rawurlencode($titel)) + ($stapel === [] ? 0 : 3);
+
+        if ($stapel !== [] && $laenge + $kosten > AVESMAPS_WIKI_TITLE_QUERY_MAX_ENCODED) {
+            break;
+        }
+
+        $stapel[] = $titel;
+        $laenge += $kosten;
+    }
+
+    return $stapel;
+}
+
+/**
  * Die Stapelgroesse fuer `titles=`-Abfragen -- und der EINZIGE Ausloeser der Anmeldung.
  *
  * ⭐ Den Login verursacht, wer von ihm profitiert. Eine einzelne Suche im Zuweisungsdialog bleibt

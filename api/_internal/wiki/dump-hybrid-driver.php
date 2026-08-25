@@ -701,6 +701,49 @@ function avesmapsWikiDumpHybridRedirectAliasStep(
 // ===========================================================================
 
 /**
+ * Der Titelvorrat fuer die Laengen-Probe (`titles_probe`).
+ *
+ * ⭐ Zuerst die ECHTEN Titel des neuesten Dump-Laufs -- das ist genau die Liste, die die
+ * Kontinent-Phase abfragt, mit ihren echten Laengen und Umlauten. Nur wenn es keinen Lauf gibt,
+ * werden Ersatztitel gebaut: eine Probe, die gar nichts prueft, waere schlimmer als keine.
+ *
+ * ⚠️ Liest ausschliesslich; legt keine Tabelle an, die es nicht schon gibt (der Leser darunter
+ * ruft avesmapsWikiDumpHybridEnsureStateTable, das ist idempotent und ohne Nutzdaten).
+ *
+ * @return list<string>
+ */
+function avesmapsWikiDumpTitlesProbeTitel(PDO $pdo): array {
+    try {
+        $statement = $pdo->prepare(
+            "SELECT id FROM wiki_sync_runs
+             WHERE sync_type = :sync_type
+             ORDER BY id DESC
+             LIMIT 1"
+        );
+        $statement->execute(['sync_type' => AVESMAPS_WIKI_DUMP_READ_SYNC_TYPE]);
+        $runId = (int) $statement->fetchColumn();
+
+        if ($runId > 0) {
+            $titel = avesmapsWikiDumpHybridFetchWantedTitles($pdo, $runId);
+            if ($titel !== []) {
+                return $titel;
+            }
+        }
+    } catch (Throwable) {
+        // Kein Lauf, keine Tabelle -- dann eben Ersatztitel.
+    }
+
+    // Ersatz: aventurisch lang und mit Umlauten, damit die Probe nicht kuerzer ausfaellt als die
+    // Wirklichkeit. Ein Umlaut kostet kodiert sechs Zeichen statt einem.
+    $ersatz = [];
+    for ($i = 1; $i <= 600; $i++) {
+        $ersatz[] = "F\u{00FC}rstentum Kosch, Baronie Nummer {$i} (Beispiel)";
+    }
+
+    return $ersatz;
+}
+
+/**
  * Create a new dump_read run in wiki_sync_runs, seeded at the first work phase.
  * Reuses avesmapsWikiSyncEnsureCoreTables + the same wiki_sync_runs row the
  * online crawler uses (a DIFFERENT sync_type, so the two flows never collide).
