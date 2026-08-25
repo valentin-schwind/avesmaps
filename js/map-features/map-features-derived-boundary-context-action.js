@@ -1,3 +1,84 @@
+// Welche abgeleitete Aussenhuelle umschliesst diesen Punkt? Rein, ohne DOM, ohne Leaflet --
+// deshalb auch aus einem Test heraus pruefbar (__tests__/derived-boundary-ziel-punkt.test.js).
+//
+// 💣 GEPRUEFT WIRD DIE FLAECHE, NIE DAS UMHUELLENDE RECHTECK. Die Rechteck-Fassung hat am
+// 25.08.2026 dreimal das falsche Reich gerechnet: ein Rechtsklick mitten in „Königsland Nostria“
+// (358,4 / 543,2) landete beim „Fürstentum Albernia“, weil dessen Rechteck (x 330-428, y 476-561)
+// KLEINER ist als Nostrias (x 313-443, y 528-623) und den Punkt mitueberdeckt -- Albernias Flaeche
+// liegt dort nicht einmal in der Naehe. Gerechnet wurde daraufhin
+// `Grafschaft Großer Fluss -> Fürstentum Albernia -> Kaiserreich`, waehrend Nostrias Huelle
+// unveraendert stehenblieb; fuer den Editor sah es aus, als taete der Knopf nichts.
+// 🪤 Fuenf Einheiten weiter noerdlich (Seegrafschaft Siebenwind, y 566,6) lag derselbe Klick knapp
+// AUSSERHALB von Albernias Rechteck und traf richtig. Eine Regel, die an der Kante eines FREMDEN
+// Rechtecks umschlaegt, ist keine Regel, sondern Glueckssache -- und genau das macht sie so schwer
+// als Fehler erkennbar.
+// ⚠️ KEIN Rueckfall auf die Rechteck-Suche, wenn der Punkttest nichts findet: „nichts“ ist dann die
+// richtige Antwort. Der Aufrufer nimmt das angeklickte Gebiet, und dessen Blatt-Zweig zieht seine
+// Vorfahren ohnehin nach (territory-derived-geometry-editor.js).
+function avesmapsFindEnclosingDerivedTargetFeature(point, features, clickedTerritoryPublicId) {
+	const pip = (typeof window !== "undefined" && window.AvesmapsPip) || null;
+	if (!point || !Array.isArray(features) || !pip || typeof pip.pointInGeometry !== "function") {
+		return null;
+	}
+
+	const clickedKey = String(clickedTerritoryPublicId || "").trim();
+	let bestes = null;
+	let besteFlaeche = Number.POSITIVE_INFINITY;
+	for (const feature of features) {
+		const properties = feature && feature.properties;
+		if (!properties || properties.is_derived_geometry !== true || !feature.geometry) {
+			continue;
+		}
+		// Das angeklickte Gebiet ist nie sein eigenes Ziel.
+		if (String(properties.territory_public_id || "").trim() === clickedKey) {
+			continue;
+		}
+		if (!pip.pointInGeometry(point, feature.geometry)) {
+			continue;
+		}
+		// Liegen mehrere Huellen uebereinander (Grafschaft in Herzogtum in Reich), gewinnt die
+		// innerste -- und die ist die mit der kleinsten ECHTEN Flaeche.
+		const flaeche = avesmapsDerivedTargetGeometryArea(feature.geometry);
+		if (flaeche < besteFlaeche) {
+			besteFlaeche = flaeche;
+			bestes = feature;
+		}
+	}
+	return bestes;
+}
+
+// Echte Flaeche einer GeoJSON-Flaechengeometrie (Schnuersenkelformel). Loecher zaehlen ab,
+// MultiPolygon zaehlt zusammen. Ohne Geometrie unendlich -- so ein Kandidat gewinnt nie.
+function avesmapsDerivedTargetGeometryArea(geometry) {
+	if (!geometry) {
+		return Number.POSITIVE_INFINITY;
+	}
+	const polygone = geometry.type === "Polygon"
+		? [geometry.coordinates]
+		: (geometry.type === "MultiPolygon" ? geometry.coordinates : null);
+	if (!Array.isArray(polygone)) {
+		return Number.POSITIVE_INFINITY;
+	}
+	let summe = 0;
+	for (const polygon of polygone) {
+		if (!Array.isArray(polygon)) continue;
+		polygon.forEach((ring, index) => {
+			summe += (index === 0 ? 1 : -1) * avesmapsDerivedTargetRingArea(ring);
+		});
+	}
+	return summe;
+}
+
+function avesmapsDerivedTargetRingArea(ring) {
+	if (!Array.isArray(ring) || ring.length < 3) {
+		return 0;
+	}
+	let doppelt = 0;
+	for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+		doppelt += (ring[j][0] * ring[i][1]) - (ring[i][0] * ring[j][1]);
+	}
+	return Math.abs(doppelt) / 2;
+}
 (function initDerivedBoundaryContextAction() {
 	"use strict";
 
@@ -132,28 +213,33 @@
 		)) || null;
 	}
 
+	// Der Klickpunkt ist der ECHTE Rechtsklick (pendingContextMenuLatLng), nicht die Mitte der
+	// angeklickten Flaeche. Bei einer konkaven Flaeche liegt deren Mitte nicht einmal in ihr selbst,
+	// und der Editor hat auf einen Punkt gezeigt, nicht auf einen Schwerpunkt.
+	// ⚠️ Leaflet fuehrt [lat, lng], GeoJSON [x, y] = [lng, lat] -- hier wird bewusst gedreht
+	// (AGENTS.md §5).
+	function readBoundaryActionClickPoint(regionEntry) {
+		const latlng = typeof pendingContextMenuLatLng !== "undefined" && pendingContextMenuLatLng
+			? pendingContextMenuLatLng
+			: null;
+		if (latlng && Number.isFinite(Number(latlng.lat)) && Number.isFinite(Number(latlng.lng))) {
+			return [Number(latlng.lng), Number(latlng.lat)];
+		}
+		// Rueckfall nur, wenn kein Klickpunkt vorliegt (Aufruf aus dem Editor statt von der Karte).
+		const center = getRegionEntryBounds(regionEntry)?.getCenter?.();
+		return center ? [Number(center.lng), Number(center.lat)] : null;
+	}
+
 	function findSmallestEnclosingDerivedRegion(regionEntry) {
-		const bounds = getRegionEntryBounds(regionEntry);
-		const center = bounds?.getCenter?.();
-		if (!bounds || !center) {
+		const point = readBoundaryActionClickPoint(regionEntry);
+		const clickedTerritoryPublicId = String(regionEntry?.territoryPublicId || regionEntry?.publicId || "").trim();
+		const feature = avesmapsFindEnclosingDerivedTargetFeature(point, regionData || [], clickedTerritoryPublicId);
+		if (!feature) {
 			return null;
 		}
-
-		const clickedTerritoryPublicId = String(regionEntry.territoryPublicId || regionEntry.publicId || "").trim();
-		return (regionData || [])
-			.map((feature) => normalizeRegionFeature(feature))
-			.filter((entry) => entry.isDerivedGeometry === true)
-			.map((entry) => {
-				const renderedEntry = findRenderedRegionEntry(entry);
-				const candidateBounds = getRegionEntryBounds(renderedEntry || entry);
-				return { entry: renderedEntry || entry, bounds: candidateBounds, area: calculateBoundsArea(candidateBounds) };
-			})
-			.filter((candidate) => (
-				candidate.bounds
-				&& candidate.bounds.contains(center)
-				&& String(candidate.entry.territoryPublicId || "").trim() !== clickedTerritoryPublicId
-			))
-			.sort((left, right) => left.area - right.area)[0]?.entry || null;
+		// Die gerenderte Fassung tragen Leaflet-Layer und Zustand -- der Aufrufer braucht sie.
+		const entry = normalizeRegionFeature(feature);
+		return findRenderedRegionEntry(entry) || entry;
 	}
 
 	function findRenderedRegionEntry(regionEntry) {
@@ -165,17 +251,6 @@
 				String(entry.geometryPublicId || entry.publicId || "").trim() === geometryPublicId
 				|| String(entry.territoryPublicId || "").trim() === territoryPublicId
 			)) || null;
-	}
-
-	function calculateBoundsArea(bounds) {
-		if (!bounds) {
-			return Number.POSITIVE_INFINITY;
-		}
-		const west = bounds.getWest?.() ?? 0;
-		const east = bounds.getEast?.() ?? 0;
-		const south = bounds.getSouth?.() ?? 0;
-		const north = bounds.getNorth?.() ?? 0;
-		return Math.abs((east - west) * (north - south));
 	}
 
 	async function handleContextAction(event) {
@@ -215,6 +290,10 @@
 		}
 	}
 
+	// Ohne DOM (Node/Test) gibt es nichts zu verdrahten -- die reinen Bauteile oben stehen trotzdem.
+	if (typeof document === "undefined") {
+		return;
+	}
 	if (document.readyState === "loading") {
 		document.addEventListener("DOMContentLoaded", ensureContextMenuButton, { once: true });
 	} else {
@@ -224,3 +303,10 @@
 		void handleContextAction(event);
 	}, true);
 })();
+
+if (typeof module !== "undefined" && module.exports) {
+	module.exports = {
+		avesmapsFindEnclosingDerivedTargetFeature,
+		avesmapsDerivedTargetGeometryArea,
+	};
+}
