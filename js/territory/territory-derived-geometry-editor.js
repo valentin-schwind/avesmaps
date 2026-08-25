@@ -421,7 +421,7 @@ async function generateOrUpdateDerivedBoundaryForTerritory(territoryPublicId, op
 				? `Untergebiete-Blätter brauchen keine eigene Außengrenze – ${leafCascadeSaved} Übergebiet(e) neu berechnet.`
 				: "Untergebiete-Blätter brauchen keine eigene Außengrenze – ihre Grenze zeigt das übergeordnete Gebiet.", "info");
 			showFeedbackToast(leafCascadeSaved > 0
-				? `Außengrenze des übergeordneten Gebiets aktualisiert (${leafCascadeSaved}).`
+				? (leafCascadeSaved === 1 ? "Außengrenze des übergeordneten Gebiets aktualisiert." : `${leafCascadeSaved} übergeordnete Außengrenzen aktualisiert.`)
 				: "Dieses Untergebiet hat keine Unterregionen – seine Grenze kommt vom übergeordneten Gebiet.", "info");
 			schedulePoliticalTerritoryLayerReload({ immediate: true });
 			return null;
