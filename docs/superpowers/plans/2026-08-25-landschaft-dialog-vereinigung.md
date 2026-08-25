@@ -18,6 +18,34 @@ Unterprogramme.
 
 **Entwurf:** `docs/superpowers/specs/2026-08-25-landschaft-dialog-vereinigung-design.md`
 
+---
+
+## ✅ STAND 26.08.2026: ALLE DREI STUFEN SIND LIVE
+
+Alle neun Aufgaben sind gebaut, im Browser durchgeklickt und gepusht. Was beim Bauen ANDERS kam
+als hier geplant — jeweils mit Grund, damit der nächste Leser nicht Plan gegen Code liest:
+
+| Stelle | Plan | Gebaut |
+|---|---|---|
+| **Aufgabe 6** | jeder der fünf Aufrufer NENNT seinen Reiter | der **Trichter** setzt ihn; nur der eine abweichende Weg nennt ihn. Fünf Stellen sind fünf Gelegenheiten, eine zu vergessen |
+| **Aufgabe 3** | Name/Art bleiben zunächst im Flächenreiter | sie zogen direkt in den Kopf (Aufgabe 4) — ein zweiter Umzug wäre Arbeit für nichts gewesen |
+| **Stufe 2** | Datenmigration über zwei `entity_type` | **nichts zu migrieren**: der zweite Kasten war live LEER (0 von 30 Flächen). Nur wegnehmen |
+
+**Drei Fehler, die nur der ABLAUF gefunden hat — das Testfeld war jedes Mal grün:**
+
+1. Die Verdrahtung der gemeinsamen Knopfleiste hing im Öffner der Hülle; die zwei Module gehen
+   daran vorbei. „Abbrechen" und „×" taten nichts. *Eine Regel, die einen von mehreren Erzeugern
+   bindet, ist keine Regel.*
+2. **Falle 10 des Entwurfs ist eingetreten:** die 19 EIGENEN Feldregeln des Fensters zeigten nach
+   dem Umzug auf `#label-edit-dialog` und passten auf nichts — Felder von 29 auf 35 px, Radius von
+   6 auf 8. Ein Selektor, der ins Leere zeigt, ist still.
+3. Eine Tiefenzählung, die Kommentare nur ZEILENWEISE strich, legte zwei Markup-Blöcke außerhalb
+   jedes Reiters ab (ein mehrzeiliger Kommentar trägt `<div class=…>` als Text).
+
+🔧 **Offen und ausdrücklich nicht behauptet:** kein Handgriff lief gegen die echte Datenbank.
+Speichern, Löschen und „Beschriftung anlegen" sind verdrahtet und im Browser durchgeklickt, aber
+ohne angemeldete Sitzung. Der erste echte Speichervorgang ist die Abnahme, die noch aussteht.
+
 ## Globale Zusicherungen
 
 Sie gelten für **jede** Aufgabe:
