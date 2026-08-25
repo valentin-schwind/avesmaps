@@ -324,6 +324,18 @@ is the default, English is opt-in. Therefore:
   Luecke** -- die Endpunkt-Ablaeufe starten einen echten Server, und der Name haelt sie bewusst aus
   dem Tor heraus, damit ein Portproblem den Deploy nicht anhaelt (§11, SVG-Abzug). Wer das Muster
   dorthin zieht, hebt diesen Entscheid auf und stellt das Tor zu.
+  ⭐ **Und der ganze Lauf geht PARALLEL -- 12 s statt rund 4 Minuten** (gemessen 26.08.2026 ueber
+  beide Workflow-Muster: 306 JS- und 308 PHP-Dateien, null rot). Das ist kein Komfort, sondern die
+  Bedingung, unter der man das Tor vor **jedem** Push wirklich faehrt: bei vier Minuten zieht
+  `origin` zwischen Rebase und Push davon, und der Push wird abgelehnt -- an diesem Tag zweimal,
+  woraufhin die Versuchung gross ist, den Lauf beim naechsten Mal zu ueberspringen.
+  `… -print0 | xargs -0 -P 8 -I{} sh -c 'node "{}" >/dev/null 2>&1 || echo "ROT: {}"' > roteliste`
+  💣 **KEIN `2>&1` auf die Ergebnisdatei.** `xargs` schreibt Warnungen nach stderr; landen sie
+  darin, liest ein `[ -s roteliste ]`-Test die Warnung als roten Test und bricht den Push ab,
+  obwohl kein Test rot ist -- am 26.08.2026 einmal passiert und als echter Befund missdeutet.
+  💣 `-n 1` und `-I{}` schliessen sich aus; genau das war die Warnung.
+  ⚠️ Bei einem **unerwarteten** Roten seriell nachfahren, bevor man ihn glaubt: nur der serielle
+  Lauf schliesst aus, dass zwei Tests sich eine Fixture oder einen Port teilen.
   ⚠️ **Und danach: der Fehlschlag vergiftet den `?v=`-Stempel.** Der nächste grüne Lauf
   hält die nie hochgeladenen Dateien für aktuell — live standen zwei davon auf HTTP 404
   und sechs in alter Fassung, während `index.html` schon die neue anforderte. Nur eine
