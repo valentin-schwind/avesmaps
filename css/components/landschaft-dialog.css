@@ -1,0 +1,91 @@
+/* Landschaft bearbeiten — das vereinigte Fenster für Fläche und Beschriftung (Stufe 1).
+ *
+ * 🔴 Die Hülle ist `.location-report-dialog` — dieselbe wie beim Beschriftungsdialog, aus dem
+ *    dieses Fenster hervorgeht. Hier stehen nur die Teile, die es davor nicht gab: der gemeinsame
+ *    Kopf, die Reiterleiste, die leeren Zustände und die Wahl unter mehreren Beschriftungen.
+ * ⚠️ Kein hartkodierter Farbwert, kein Radius (AGENTS.md §12) — und keine Schrift unter 11 px.
+ * Entwurf: docs/superpowers/specs/2026-08-25-landschaft-dialog-vereinigung-design.md
+ */
+
+#landschaft-dialog {
+	/* Dasselbe Maß wie der Beschriftungsdialog, aus dem er hervorgeht (region-sync.css) -- der
+	   Flächendialog stand bei 420 px, und die größere der beiden gewinnt. */
+	width: min(560px, calc(100vw - 24px));
+}
+
+/* Eingaben mit dem Untergrund des Panels -- wie im Beschriftungsdialog. */
+#landschaft-dialog input[type="text"],
+#landschaft-dialog input[type="number"],
+#landschaft-dialog input[type="search"],
+#landschaft-dialog select {
+	background: var(--color-panel);
+}
+
+/* ── Der gemeinsame Kopf ──────────────────────────────────────────────────────────────────────
+   🔴 Name und Art gehören BEIDEN Hälften. Live tragen 679 von 679 Paaren denselben Namen -- heute
+   in zwei Feldern in zwei Fenstern. */
+.landschaft-dialog__kopf {
+	margin-bottom: var(--space-8, 8px);
+}
+
+/* ── Die Reiterleiste ─────────────────────────────────────────────────────────────────────────
+   Sie trägt `.ecosystem-layer-switch`, die Reiterform des Hauses (Landschafts-Ebenen). Hier steht
+   nur der Abstand -- eine zweite Reiterrezeptur wäre die Divergenz, die dieses Haus sonst
+   aufräumt. */
+.landschaft-dialog__reiter {
+	margin: 0 0 var(--space-8, 8px);
+}
+
+/* ── Der leere Zustand einer Hälfte ───────────────────────────────────────────────────────────
+   🔴 EIN Satz, keine Statistik (Owner 25.08.2026: „Reicht"). Live betrifft er ein Drittel jeder
+   Seite: 334 Flächen ohne Beschriftung, 254 Beschriftungen ohne Fläche.
+   ⚠️ Gestrichelt, nicht gefüllt: das ist kein Inhalt, sondern ein Angebot. */
+.landschaft-dialog__leer {
+	border: 1px dashed var(--color-border);
+	border-radius: var(--radius-md);
+	padding: var(--space-14, 14px);
+	text-align: center;
+	color: var(--color-text-muted);
+	font-size: 12px;
+}
+
+.landschaft-dialog__leer p {
+	margin: 0 0 var(--space-10, 10px);
+}
+
+.landschaft-dialog__leer p:last-child {
+	margin-bottom: 0;
+}
+
+/* ── Die Wahl unter mehreren Beschriftungen ───────────────────────────────────────────────────
+   Live betrifft das 13 von 1026 Flächen (Ingvaltal und Yaquirtal je drei) -- selten, aber es ist
+   genau der Fall, für den die 1:N-Beziehung am 28.07.2026 beschlossen wurde. */
+.landschaft-dialog__labelwahl {
+	display: flex;
+	align-items: center;
+	gap: var(--space-8, 8px);
+	flex-wrap: wrap;
+	margin-bottom: var(--space-8, 8px);
+	padding-bottom: var(--space-8, 8px);
+	border-bottom: 1px solid var(--color-divider);
+}
+
+.landschaft-dialog__labelwahl-titel {
+	font-size: 12px;
+	color: var(--color-text-muted);
+}
+
+/* ── Der Satz zur Bindung an die Fläche ───────────────────────────────────────────────────────
+   🔴 Die Kurvenbeschriftung ist die vom Owner benannte Ausnahme: mit ihr läuft der Name auf der
+   Mittelachse der Fläche, und die eigene Position wirkt nicht mehr. Der Satz steht an Ort und
+   Stelle, nicht in einer Hilfe. */
+.landschaft-dialog__bindung {
+	margin: var(--space-6, 6px) 0 0;
+	padding: 7px 10px;
+	border-left: 3px solid var(--color-accent);
+	background: var(--color-panel-soft);
+	border-radius: var(--radius-sm);
+	font-size: 11px;
+	line-height: 1.45;
+	color: var(--color-text-muted);
+}

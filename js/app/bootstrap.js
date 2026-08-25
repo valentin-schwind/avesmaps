@@ -995,7 +995,7 @@ function shouldIgnoreDistanceMeasurementClickTarget(target) {
     }
 
     return Boolean(targetElement.closest(
-        ".leaflet-control, .leaflet-popup, .location-tooltip, .map-context-menu, .measurement-handle-marker, #search, #toggle-button, #review-panel, #review-panel-toggle, #spotlight-search-overlay, #political-territory-editor-overlay, #location-report-overlay, #location-edit-overlay, #wiki-sync-resolve-overlay, #path-edit-overlay, #label-edit-overlay, #region-edit-overlay"
+        ".leaflet-control, .leaflet-popup, .location-tooltip, .map-context-menu, .measurement-handle-marker, #search, #toggle-button, #review-panel, #review-panel-toggle, #spotlight-search-overlay, #political-territory-editor-overlay, #location-report-overlay, #location-edit-overlay, #wiki-sync-resolve-overlay, #path-edit-overlay, #landschaft-dialog-overlay, #label-edit-overlay, #region-edit-overlay"
     ));
 }
 

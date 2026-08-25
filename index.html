@@ -1951,6 +1951,48 @@
 				</form>
 			</div>
 		</div>
+		<!-- Landschaft bearbeiten: EIN Fenster fuer Flaeche und Beschriftung (Stufe 1).
+		     🔴 Owner-GO 25.08.2026. Entwurf docs/superpowers/specs/2026-08-25-landschaft-dialog-
+		     vereinigung-design.md, Bauplan docs/superpowers/plans/2026-08-25-landschaft-dialog-
+		     vereinigung.md, Prototyp docs/landschaft-dialoge-mockup.html (Reiter "Vereinigung").
+		     💣 Das Fenster steht in SECHS Listen, sonst ist es keins: der Klick-Ausnahmeliste in
+		     bootstrap.js, den ZWEI Abfragen in review-core.js und den DREI Selektorlisten in
+		     dialog-overlays.css. Ein Overlay-<div> erbt nichts.
+		     🪤 Und die Pfade stehen hier ABSICHTLICH ohne Verzeichnis: ein voller Pfad in einem
+		     Kommentar wird zum ersten Vorkommen im Rohtext und ueberholt jeden Test, der per
+		     indexOf eine Ladereihenfolge prueft (zoomstufe-anzeige.test.js tut genau das).
+		     🔴 Der Einstieg bestimmt den offenen Reiter und ist ein PARAMETER des Oeffners, nie ein
+		     gemerkter Zustand -- landschaft-dialog.js sagt, warum. -->
+		<div id="landschaft-dialog-overlay" hidden>
+			<div id="landschaft-dialog" class="location-report-dialog" role="dialog" aria-modal="true" aria-labelledby="landschaft-dialog-title" tabindex="-1">
+				<div class="location-report-dialog__header">
+					<h2 id="landschaft-dialog-title">Landschaft bearbeiten</h2>
+					<button id="landschaft-dialog-close" class="location-report-dialog__close" type="button" aria-label="Fenster schließen">×</button>
+				</div>
+				<!-- 🔴 DER KOPF GEHOERT BEIDEN HAELFTEN. Name und Art stehen einmal da und schreiben ueber
+				     die VORHANDENEN Propagationswege in beide Zeilen (renameLinkedEcosystemLabel abwaerts,
+				     ecosystemRegionWriteBackPayload aufwaerts). Live tragen 679 von 679 Paaren denselben
+				     Namen -- heute in zwei Feldern in zwei Fenstern. Gefuellt wird er in Aufgabe 4. -->
+				<div class="label-edit-section landschaft-dialog__kopf" id="landschaft-dialog-kopf"></div>
+				<div class="ecosystem-layer-switch landschaft-dialog__reiter" id="landschaft-dialog-reiter" role="tablist" aria-label="Bereich">
+					<button class="ecosystem-layer-switch__tab" type="button" role="tab" data-landschaft-reiter="flaeche" aria-selected="true">Fläche</button>
+					<button class="ecosystem-layer-switch__tab" type="button" role="tab" data-landschaft-reiter="beschriftung" aria-selected="false">Beschriftung</button>
+					<button class="ecosystem-layer-switch__tab" type="button" role="tab" data-landschaft-reiter="wiki" aria-selected="false">Wiki &amp; Quellen</button>
+				</div>
+				<!-- ⚠️ EIN REITER WIRD NIE GESPERRT, auch wenn seine Haelfte fehlt: dort steht das Angebot
+				     ("Diese Flaeche traegt keine Beschriftung." samt Knopf). Ein gesperrter Reiter verbaerge
+				     genau die Handlung, die gerade fehlt. Gefuellt werden die Bereiche in Aufgabe 2 und 3. -->
+				<div data-landschaft-bereich="flaeche"></div>
+				<div data-landschaft-bereich="beschriftung" hidden></div>
+				<div data-landschaft-bereich="wiki" hidden></div>
+				<p id="landschaft-dialog-status" class="location-report-form__status" role="status" aria-live="polite"></p>
+				<div class="location-report-form__actions">
+					<button id="landschaft-dialog-delete" class="location-report-form__button location-report-form__button--secondary" type="button">Löschen</button>
+					<button id="landschaft-dialog-cancel" class="location-report-form__button location-report-form__button--secondary" type="button">Abbrechen</button>
+					<button id="landschaft-dialog-save" class="location-report-form__button location-report-form__button--primary" type="button">Speichern</button>
+				</div>
+			</div>
+		</div>
 		<div id="label-edit-overlay" hidden>
 			<div id="label-edit-dialog" class="location-report-dialog" role="dialog" aria-modal="true" aria-labelledby="label-edit-title" tabindex="-1">
 				<div class="location-report-dialog__header">
@@ -3402,6 +3444,8 @@
 		<script src="js/ui/ui-controls.js"></script>
 		<script src="js/third-party/polygon-clipping.umd.min.js"></script>
 		<script src="js/third-party/polylabel.js"></script>
+		<!-- Die Huelle des vereinigten Landschaftsfensters. VOR den Modulen, die sie rufen. -->
+		<script src="js/map-features/landschaft-dialog.js"></script>
 		<script src="js/map-features/map-features-labels.js"></script>
 		<!-- Geteilte reine Kraftlinien-Topologie -- muss vor dem Kartenmodul (das an sie delegiert)
 		     und ebenso vom Kraftlinien-Editor-iframe geladen werden (eine Wahrheit, kein zweites Mal). -->
