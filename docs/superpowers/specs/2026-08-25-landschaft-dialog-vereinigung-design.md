@@ -36,10 +36,19 @@ Live am 25.08.2026, je eine Anfrage gegen `api/app/ecosystem-areas.php` und
 | Regionen mit mehr als einer Fläche | 1 |
 | **Paare, bei denen Flächenname und Beschriftungstext identisch sind** | **679 von 679 = 100 %** |
 
-🚩 **Damit ist AGENTS.md §11 an einer Stelle überholt:** dort steht zweimal „der Finsterkamm liegt in
-57 Flächen" als Begründung. Live hat der Finsterkamm **eine** Fläche und **null** Beschriftungen, und
-1025 von 1026 Regionen haben genau eine Fläche. Die Aussage war zum Zeitpunkt ihrer Niederschrift
-wahr; sie ist es nicht mehr. Sie wird mit diesem Vorhaben korrigiert.
+🚩 **Damit sind drei Stellen überholt — und meine erste Fassung dieses Absatzes war es auch.**
+Hier stand, AGENTS.md §11 sage „zweimal: der Finsterkamm liegt in 57 Flächen". Nachgesehen stimmt
+das nicht: AGENTS.md sagt „57 **Einheiten lang** und trägt seinen Namen **zweimal**" — eine Länge
+und eine Labelzahl, nicht eine Flächenzahl. Die Zahl „57 **Flächen**" steht woanders, nämlich
+dreimal: in `index.html`, in `map-features-ecosystem-properties.js` und im Handbuch.
+
+Live gemessen am 25.08.2026 trägt der Finsterkamm **kein einziges** Label und liegt in **einer**
+Fläche; 1025 von 1026 Regionen haben genau eine. Korrigiert werden die zwei Stellen im Code und
+der Halbsatz in AGENTS.md. ⚠️ Das **Handbuch** bleibt unangetastet — es gehört der nächtlichen
+Routine (AGENTS.md §9); der Commit-Betreff nennt die Wirkung, damit sie es findet.
+
+⚠️ Und die Lehre daraus gehört hierher, nicht in eine Fußnote: **eine Zahl in einer Begründung
+altert.** Wer sie zitiert, sollte sie nachmessen — auch (und gerade) wenn sie in AGENTS.md steht.
 
 ---
 

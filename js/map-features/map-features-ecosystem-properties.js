@@ -685,7 +685,11 @@
 	 * Den geteilten Quellen-Editor an die REGION dieser Fläche hängen.
 	 *
 	 * 🔴 An die REGION, nicht an die Fläche. Eine Region liegt auf der Karte in vielen Flächen (der
-	 * Finsterkamm in 57); ihre Quellenangabe gilt für alle. Pro Fläche geführt wäre dieselbe Angabe
+	 * Eine Region liegt auf der Karte in EINER oder mehreren Flächen; ihre Quellenangabe gilt für alle.
+	 * 🚩 Hier stand „der Finsterkamm in 57" -- live gemessen am 25.08.2026 hat er EINE Fläche, und
+	 * 1025 von 1026 Regionen haben genau eine. Die Zahl war einmal wahr und ist es nicht mehr; die
+	 * REGEL bleibt richtig: eine Region KANN mehrere tragen, und dann wäre dieselbe Angabe mehrfach
+	 * zu pflegen -- beim Auseinanderlaufen wüsste niemand, welche gilt.
 	 * 57-mal einzutragen und 57-mal zu pflegen -- und beim Auseinanderlaufen wüsste niemand, welche
 	 * gilt. Es ist DIESELBE Liste, die der Landschaften-Editor an der Region zeigt; wer sie hier
 	 * ändert, ändert sie dort. Das ist der Sinn, kein Nebeneffekt.
