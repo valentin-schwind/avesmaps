@@ -190,7 +190,12 @@ assert.strictEqual(stellen(22)[0].drift, 0, "sie driftet nie -- der Rueckfall is
 
 // ---- G. Verdrahtung im Fenster --------------------------------------------------------------------
 const dialog = fs.readFileSync(path.join(__dirname, "../../../html/wiki-sync-settlement-editor.html"), "utf8");
-assert.ok(/ZOOM_BAND_SPACING_KEYS = \["spalt", "repel", "versatz", "drift"\]/.test(dialog),
+// 🪤 GEPRUEFT WIRD DIE MITGLIEDSCHAFT, NICHT DIE GANZE LISTE. Bis 26.08.2026 stand hier die Liste
+// woertlich ("spalt, repel, versatz, drift") -- der fuenfte Schluessel („kontur", die Markerkontur)
+// liess diesen Test umfallen, obwohl am Drift-Deckel nichts falsch war. Ein Test, der die Nachbarn
+// einer Zeile mitfestnagelt, meldet fremde Aenderungen als eigenen Fehler.
+const spacingKeysZeile = dialog.match(/const ZOOM_BAND_SPACING_KEYS = \[[^\]]*\]/);
+assert.ok(spacingKeysZeile && /"drift"/.test(spacingKeysZeile[0]),
 	"der Schluessel steht in der Liste des Fensters -- Laden, Speichern und Zuruecksetzen laufen darueber");
 ["zbDriftRange", "zbDriftInput", "zbDriftReset"].forEach((id) => {
 	assert.ok(dialog.includes(`id="${id}"`), `${id} steht im Markup`);

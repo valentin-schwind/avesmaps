@@ -149,6 +149,22 @@ assert(avesmapsZoomBandsValidate(['marker' => [], 'label' => [], 'abstaende' => 
 assert(avesmapsZoomBandsValidate(['marker' => [], 'label' => [], 'abstaende' => ['hauptstadt' => 5.0]]) !== null,
     'ein unbekannter Abstands-Schluessel wird angenommen (der Browser ignoriert ihn spaeter)');
 
+// 🔴 26.08.2026 -- „kontur" (die Dicke der weissen Markerkontur, in PROZENT) reist in DEMSELBEN
+// Abschnitt mit. Der Server braucht dafuer KEINE Zeile Code: er prueft die Form, und 0-100 liegt in
+// seiner Spanne 0-150. Genau das steht hier fest -- ohne die Zusicherung faellt es erst auf, wenn
+// jemand die Serverschranke enger zieht und der Regler ab 20 % lautlos nichts mehr speichert.
+$mitKontur = avesmapsZoomBandsValidate(['marker' => [], 'label' => [], 'abstaende' => ['kontur' => 60.0]]);
+assert($mitKontur !== null, 'die Konturbreite kommt durch');
+// 🪤 LOSER VERGLEICH, und das ist kein Schludern: avesmapsZoomBandsValidate schickt die Tafel durch
+// json_encode/json_decode, und dabei wird aus dem float 60.0 der int 60 -- `=== 60.0` ist danach
+// false. Die Zeile darueber mit 10.5 faellt nicht darauf herein, weil eine echte Nachkommastelle
+// float bleibt; die Zusicherung fuer repel nimmt aus demselben Grund `==`.
+assert($mitKontur['abstaende']['kontur'] == 60.0, 'und steht unveraendert drin');
+assert(avesmapsZoomBandsValidate(['marker' => [], 'label' => [], 'abstaende' => ['kontur' => 0.0]]) !== null,
+    '0 % (gar keine Kontur) ist ein gueltiger Wert, keine Ablehnung');
+assert(avesmapsZoomBandsValidate(['marker' => [], 'label' => [], 'abstaende' => ['kontur' => 100.0]]) !== null,
+    '100 % ebenso -- die enge Schranke zieht der Browser (avesmapsLocationLabelSpacingLimits)');
+
 // 8 kB Deckel.
 $rieseTafel = ['marker' => [], 'label' => []];
 for ($i = 0; $i < 500; $i++) {

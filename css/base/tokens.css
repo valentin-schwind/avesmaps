@@ -164,6 +164,19 @@
 	--color-marker-waypoint-core: #2e2119; /* the dark "eye" + outline inside the mark */
 	--color-marker-waypoint-ring: #dcb877; /* the gold ring (map marker only — invisible below ~16px) */
 
+	/* Ortsmarker — der Punkt, den die Karte für jede Siedlung zeichnet: roter Kern in weißer Kontur,
+	   Besondere Stätten in Violett. Gepinnt wie die Wegpunkt-Töne darüber, aus demselben Grund: sie
+	   sitzen auf den IMMER-hellen Kartenkacheln, nicht auf einem Theme-Panel.
+	   💣 Die Vorschau im Fenster „Zoombänder" (html/wiki-sync-settlement-editor.html) zeigt DENSELBEN
+	   Punkt und nimmt dieselben Töne. Ein zweites Rot dort wäre genau die Divergenz, gegen die es
+	   Tokens gibt — und die Vorschau behauptete dann etwas anderes als die Karte.
+	   ⚠️ Der Canvas-Zeichner (js/map-features/map-features-location-canvas-layer.js) führt dieselben
+	   drei Werte als Zeichenketten: er malt auf ein <canvas>, das keine CSS-Variable auflöst. Wer hier
+	   einen Ton ändert, ändert ihn dort mit. */
+	--color-marker-settlement: #cc2f2a;
+	--color-marker-settlement-site: #7a4fd0;
+	--color-marker-settlement-contour: #ffffff;
+
 	/* Review stars — the rating glyphs (infobox summary + write-dialog picker). Warm coat-gold,
 	   not a generic yellow; `-muted` is the empty-star track. */
 	--color-star: #e0a528;

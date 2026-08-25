@@ -10,8 +10,14 @@ function getVisualZoomLevel(zoomLevel = map.getZoom()) {
 // Die Markergröße kommt aus dem Zoomband (js/map-features/location-zoom-bands.js), nicht mehr aus
 // einer geometrischen Kurve. Der Admin stellt den AUSSENDURCHMESSER ein -- das ist die Zahl, die er
 // auf dem Schirm misst; Kern und Kontur werden daraus zurückgerechnet.
-const LOCATION_MARKER_CONTOUR_RATIO = 0.33; // weisse Kontur = 33 % des Kernradius ...
-const LOCATION_MARKER_CONTOUR_MIN = 0.5;    // ... mindestens aber 0.5 px dick
+// 🔴 26.08.2026 -- DER ANTEIL IST EINSTELLBAR (Fenster „Zoombänder", Abschnitt Marker; Owner: „mit
+// dem Punkt wachsen"). Er stand hier als `const LOCATION_MARKER_CONTOUR_RATIO = 0.33` und liegt jetzt
+// im Zoomband (js/map-features/location-zoom-bands.js, Schlüssel `abstaende.kontur`, in PROZENT),
+// die Aufteilung selbst in avesmapsLocationMarkerContourSplit -- EINE Stelle für Karte und Vorschau.
+// ⚠️ Kein Rückfall: getLocationMarkerSize direkt darüber ruft avesmapsLocationZoomBandValue ebenfalls
+// ungeschützt, das Zoomband ist für diese Datei also ohnehin eine harte Voraussetzung. Ein Rückfall
+// bei einem von zwei Werten wäre eine zweite Vorgabezahl, die lautlos gewinnen kann.
+// Bewacht von __tests__/marker-konturbreite.test.js.
 
 // Eine reine Zoomband-Änderung ändert weder Zoomstufe noch Warnring: ohne diese Revision bliebe der
 // alte Radius stehen, bis jemand zoomt. Sie wird von bumpLocationMarkerStyleRevision() erhöht.
@@ -42,13 +48,19 @@ function getLocationMarkerSize(locationType, zoomLevel = map.getZoom()) {
 	return minZoom === null ? 0 : avesmapsLocationZoomBandValue("marker", locationType, minZoom);
 }
 
+function getLocationMarkerContourSplit(locationType, zoomLevel) {
+	return avesmapsLocationMarkerContourSplit(
+		getLocationMarkerSize(locationType, zoomLevel),
+		avesmapsLocationMarkerContourRatio()
+	);
+}
+
 function getLocationMarkerCoreRadius(locationType, zoomLevel = map.getZoom()) {
-	return getLocationMarkerSize(locationType, zoomLevel) / 2 / (1 + LOCATION_MARKER_CONTOUR_RATIO);
+	return getLocationMarkerContourSplit(locationType, zoomLevel).kern;
 }
 
 function getLocationMarkerContourWidth(locationType, zoomLevel = map.getZoom()) {
-	const coreRadius = getLocationMarkerCoreRadius(locationType, zoomLevel);
-	return Math.max(LOCATION_MARKER_CONTOUR_MIN, coreRadius * LOCATION_MARKER_CONTOUR_RATIO);
+	return getLocationMarkerContourSplit(locationType, zoomLevel).kontur;
 }
 
 function getLocationMarkerBorderWidth(locationType, zoomLevel = map.getZoom()) {

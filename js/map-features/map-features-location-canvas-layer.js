@@ -7,6 +7,11 @@
 // Formen/Farben/Groessen aus DENSELBEN Funktionen wie die DOM-Marker (eine Quelle der Wahrheit):
 // Kreis-Familie (#cc2f2a), Staette = violette Raute (#7a4fd0), Metropole = Gold-Akzentring (#e7b04a),
 // weisse Kontur + 1px-Dunkel-Hairline rgba(0,0,0,.55) -- 1:1 zu css/features/location-popups-markers.css.
+// 💣 DIESELBEN DREI TOENE STEHEN SEIT 26.08.2026 ALS TOKEN (--color-marker-settlement,
+// --color-marker-settlement-site, --color-marker-settlement-contour in css/base/tokens.css) und werden
+// von der Marker-CSS und von der Vorschau im Fenster „Zoombänder" von dort gelesen. Hier stehen sie
+// als Zeichenkette, weil ein <canvas> keine CSS-Variable aufloest -- wer einen Ton aendert, aendert
+// beide Stellen. Bewacht von js/map-features/__tests__/marker-konturbreite.test.js.
 
 const LOCATION_CANVAS_MARKERS_ENABLED = (() => {
 	try {

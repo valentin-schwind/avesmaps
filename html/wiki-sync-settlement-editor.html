@@ -367,7 +367,18 @@
      Vorgabe von "spalt") greift nur, bevor das Skript einmal gelaufen ist. */
   .zb-preview-card__mark { display:flex; align-items:center; gap:var(--zb-gap, var(--space-2)); }
   .zb-preview-card__name { font-size:var(--font-size-caption); color:var(--mut); }
-  .zb-dot { display:block; flex:0 0 auto; border-radius:50%; background:var(--color-accent-strong); border:1px solid var(--panel); box-shadow:0 0 0 1px var(--line2); }
+  /* 🔴 DERSELBE PUNKT WIE AUF DER KARTE: roter Kern in weisser Kontur. Bauform 1:1 aus
+     .location-visual-marker__shape (css/features/location-popups-markers.css), Toene aus denselben
+     Tokens -- vorher war es ein einfarbiger Akzentfleck, der von der Kontur, die man hier jetzt
+     einstellt, ueberhaupt nichts zeigte.
+     💣 box-sizing:border-box ist tragend: die Kontur waechst NACH INNEN. Ohne sie waere der Punkt um
+     zweimal die Konturbreite groesser als sein Aussendurchmesser sagt, und der Regler verstellte
+     scheinbar die Groesse aus dem Plot darueber -- genau die Verwechslung, die die Regel „der
+     Aussendurchmesser bleibt der Chef" verhindern soll.
+     ⚠️ Der Saum ist --line2 und NICHT der dunkle Hairline der Karte: dort trennt er weisse Kontur von
+     hellen Kartenkacheln, hier von einer Themekarte, die in beiden Themen andersfarbig ist.
+     --zb-kontur setzt updateZoomBandPreview je Karte. */
+  .zb-dot { display:block; flex:0 0 auto; box-sizing:border-box; border-radius:50%; background:var(--color-marker-settlement); border:var(--zb-kontur, 0px) solid var(--color-marker-settlement-contour); box-shadow:0 0 0 1px var(--line2); }
   .zb-word { display:block; flex:0 0 auto; color:var(--color-text-strong); font-weight:var(--font-weight-bold); line-height:1; white-space:nowrap; }
   .zb-preview-empty { color:var(--color-placeholder); font-size:var(--font-size-small); }
   .zb-preview-note { margin:var(--space-8) 0 0; font-size:var(--font-size-caption); color:var(--mut); max-width:62rem; }
@@ -378,6 +389,10 @@
      Prototyp docs/zoombaender-mockup.html uebernommen (Klassennamen unveraendert). */
   .zb-slider-row { display:flex; flex-wrap:wrap; align-items:center; gap:var(--space-8); padding:var(--space-6) 0; }
   .zb-slider-row + .zb-slider-row { border-top:1px solid var(--color-divider); }
+  /* Die Konturbreite steht als EINZIGE Reglerzeile im Marker-Abschnitt und hat deshalb keinen
+     Vorgaenger, von dem sie ihre Trennlinie erbt -- sie bekommt sie selbst (Gruppierung per Trenner,
+     AGENTS.md §12). */
+  .zb-slider-row--kontur { border-top:1px solid var(--color-divider); margin-top:var(--space-8); }
   .zb-slider-row__head { flex:1 1 14rem; min-width:12rem; }
   .zb-slider-row__name { display:block; font-size:var(--font-size-small); font-weight:var(--font-weight-bold); color:var(--color-text-strong); }
   .zb-slider-row__desc { display:block; font-size:var(--font-size-caption); color:var(--mut); }
@@ -416,8 +431,14 @@
      waren 16 von 24 Namen unlesbar. Das war kein Gedraenge, das war eine falsche Stapelung. */
   .zbv-layer { position:absolute; inset:0; pointer-events:none; }
   .zbv-layer--namen { z-index:2; }
-  .zbv-dot { position:absolute; border-radius:50%; background:var(--color-marker-waypoint);
-    box-sizing:border-box; border:1px solid var(--color-marker-waypoint-core); }
+  /* Derselbe Punkt wie in der Vorschau darueber und auf der Karte. Er trug bis 26.08.2026 die
+     Wegpunkt-Toene -- die gehoeren den Reisemarkierungen, nicht den Ortsmarkern.
+     ⚠️ box-sizing:border-box war hier schon vorher tragend und ist es jetzt doppelt: die Bühne rechnet
+     ihre Namensstellung aus dem Aussendurchmesser (basisOffset), und die darf sich beim Verstellen
+     der Kontur NICHT bewegen. --zbv-kontur setzt updateZoomBandVorschau je Punkt. */
+  .zbv-dot { position:absolute; border-radius:50%; background:var(--color-marker-settlement);
+    box-sizing:border-box; border:var(--zbv-kontur, 0px) solid var(--color-marker-settlement-contour);
+    box-shadow:0 0 0 1px var(--line2); }
   .zbv-name { position:absolute; white-space:nowrap; color:var(--color-text-strong);
     line-height:1.35; pointer-events:none; }
   .zbv-name--drift { color:var(--color-accent-brown); font-weight:var(--font-weight-bold); }
@@ -611,6 +632,24 @@
           <span class="zb-selected__hint">⌨️ Pfeiltasten verstellen den ausgewählten Punkt (Umschalt: großer Schritt) — für Werte, die eine Maus nicht genau trifft.</span>
         </div>
         <div class="zb-legend" id="zbLegendMarker"></div>
+        <!-- Die Konturbreite (26.08.2026, Owner: „mit dem punkt wachsen"). GLOBAL wie die vier
+             Abstände weiter unten -- ein Wert für alle Ortsklassen und Zoomstufen --, steht aber
+             HIER, weil sie den Marker beschreibt und nicht den Namen daneben.
+             🔴 PROZENT, nicht Pixel: der Ring ist ein Anteil des roten Kerns, ein großer Punkt
+             bekommt also einen dicken Ring und ein kleiner einen dünnen. Der Außendurchmesser aus
+             dem Plot darüber bleibt unangetastet; ein dickerer Ring frisst den Kern von innen. -->
+        <div class="zb-slider-row zb-slider-row--kontur">
+          <div class="zb-slider-row__head">
+            <span class="zb-slider-row__name">Konturbreite</span>
+            <span class="zb-slider-row__desc">Wie dick der weiße Ring um den roten Kern ist — als Anteil des Kerns. Der Punkt bleibt so groß, wie er oben eingestellt ist.</span>
+          </div>
+          <div class="zb-slider-row__control">
+            <input type="range" class="zb-range" id="zbKonturRange" min="0" max="100" step="1" aria-label="Konturbreite in Prozent des Kernradius">
+            <input type="number" class="zb-num-input" id="zbKonturInput" min="0" max="100" step="1">
+            <span class="zb-selected__unit">%</span>
+            <button type="button" class="zb-row-reset" id="zbKonturReset">↺</button>
+          </div>
+        </div>
       </div>
       <div class="zb__section">
         <div class="zb__head"><h3>Vorschau</h3><span class="zb__src">echter Punkt, echtes Wort „Gareth" — live aus beiden Plots</span></div>
@@ -4042,7 +4081,18 @@ let zoomBandPlotsCache = null;
 // Die letzten beiden teilen jetzt einen Wortstamm, weil sie dasselbe regeln: das Ausweichen.
 // ⚠️ Umbenannt sind NUR Beschriftungen. Die Schlüssel stehen als Werte in `app_setting`,
 // die Element-Kennungen in Tests -- dieselbe Trennung wie „Neuigkeiten"/`changelog`.
-const ZOOM_BAND_SPACING_KEYS = ["spalt", "repel", "versatz", "drift"];
+// 🔴 26.08.2026 -- „kontur" ist der FÜNFTE und der einzige, der kein Abstand ist: die Dicke der
+// weißen Markerkontur, in Prozent des Kernradius. Er teilt sich die ganze Mechanik (Laden,
+// Speichern, Zurücksetzen, Zählen) mit den vier Abständen, weil die Mechanik in Wahrheit die für
+// GLOBALE EINZELWERTE ist -- was er NICHT teilt, ist die Einheit (siehe zoomBandSpacingUnit) und der
+// Platz im Fenster: seine Zeile steht im Marker-Abschnitt, nicht unter „Abstände".
+const ZOOM_BAND_SPACING_KEYS = ["spalt", "repel", "versatz", "drift", "kontur"];
+
+// 💣 DIE EINHEIT GEHÖRT ZUM SCHLÜSSEL, NICHT ZUM MARKUP. Sie steht auch im Titel des Rücksetzers,
+// und „Konturbreite auf Vorgabe (33 px) zurücksetzen" wäre eine falsche Auskunft über genau die
+// Zahl, die der Admin gleich einstellt -- lautlos falsch, weil 33 px eine plausible Zahl ist.
+const ZOOM_BAND_SPACING_UNIT = { kontur: "%" };
+function zoomBandSpacingUnit(key) { return ZOOM_BAND_SPACING_UNIT[key] || "px"; }
 
 // 🔴 Prüfbefund 1 (Fix-Runde 2): "weicht von der Vorgabe ab" und "ungespeichert" sind ZWEI Aussagen,
 // keine. zoomBandRowEqualsDefault/zoomBandSpacingEqualsDefault messen den Abstand zur VORGABE -- das
@@ -4569,6 +4619,16 @@ function zoomBandRenderFutureNotes() {
 // dort steht das Label RECHTS neben dem Punkt, auf dessen Mitte. `align-items:center` auf der
 // Flex-Reihe (.zb-preview-card__mark) bildet dieselbe Mitte, ohne den Canvas-Grundlinien-Ausgleich
 // der echten Formel nachzubauen.
+// Die Konturbreite eines Punktes im FENSTERZUSTAND -- beide Vorschauen fragen hier.
+// 🔴 SIE RECHNET NICHT SELBST. avesmapsLocationMarkerContourSplit (js/map-features/location-zoom-bands.js)
+// ist derselbe Rechner, den der Kartenzeichner ruft; nur der Anteil kommt hier aus dem Regler statt
+// aus dem angewendeten Band. Eine Abschrift liefe beim ersten Eingriff auseinander.
+function zoomBandKonturBreite(aussenDurchmesser) {
+	const prozent = zoomBandsState.abstaende.kontur;
+	const anteil = ((typeof prozent === "number" && isFinite(prozent)) ? prozent : zoomBandSpacingDefault("kontur")) / 100;
+	return avesmapsLocationMarkerContourSplit(aussenDurchmesser, anteil).kontur;
+}
+
 function updateZoomBandPreview() {
 	const grid = $("seZoomBandsPreviewGrid");
 	if (!grid) { return; }
@@ -4594,7 +4654,14 @@ function updateZoomBandPreview() {
 			dot.className = "zb-dot";
 			dot.style.width = shown + "px";
 			dot.style.height = shown + "px";
-			dot.title = `Marker Ø ${String(zoomBandRound2(d)).replace(".", ",")} px${shown < d ? " (gezeichnet gedeckelt)" : ""}`;
+			// 🔴 Aus DEM Rechner, den auch die Karte ruft (avesmapsLocationMarkerContourSplit) -- und
+			// aus dem FENSTERZUSTAND, nicht aus dem angewendeten Band: der Regler wirkt sofort, die
+			// Karte erst nach dem Speichern.
+			// ⚠️ Gerechnet wird auf dem GEZEICHNETEN Durchmesser: über dem Deckel wäre die Kontur sonst
+			// dicker als der halbe Punkt, den man sieht, und liefe über seinen Rand hinaus.
+			const konturPx = zoomBandKonturBreite(shown);
+			dot.style.setProperty("--zb-kontur", konturPx.toFixed(2) + "px");
+			dot.title = `Marker Ø ${String(zoomBandRound2(d)).replace(".", ",")} px, Kontur ${String(zoomBandRound2(konturPx)).replace(".", ",")} px${shown < d ? " (gezeichnet gedeckelt)" : ""}`;
 			mark.appendChild(dot);
 			if (hasLabel) {
 				const pt = lSt.values[zoomBandPreviewStage];
@@ -4631,6 +4698,8 @@ function zoomBandSpacingEls() {
 		repel: { range: $("zbRepelRange"), input: $("zbRepelInput"), reset: $("zbRepelReset"), name: "Schutzrand" },
 		versatz: { range: $("zbShiftRange"), input: $("zbShiftInput"), reset: $("zbShiftReset"), name: "Ausweichschritt" },
 		drift: { range: $("zbDriftRange"), input: $("zbDriftInput"), reset: $("zbDriftReset"), name: "Ausweichgrenze" },
+		// Steht im MARKER-Abschnitt, nicht unter „Abstände" -- gleiche Mechanik, anderer Platz.
+		kontur: { range: $("zbKonturRange"), input: $("zbKonturInput"), reset: $("zbKonturReset"), name: "Konturbreite" },
 	};
 	ZOOM_BAND_SPACING_KEYS.forEach((key) => {
 		const els = zoomBandSpacingElsCache[key];
@@ -4654,7 +4723,9 @@ function setZoomBandSpacing(key, rawVal) {
 	if (els.input) { els.input.value = String(val); }
 	// KEINE eigene Anschauung (Owner-Entscheid, siehe Bericht) -- ein Aufruf hier bewegte nichts, das
 	// von ihm abhängt.
-	if (key === "spalt") { updateZoomBandPreview(); }
+	// ⚠️ „kontur" muss mit: die Kartenvorschau zeichnet den Ring, den dieser Regler einstellt. Die
+	// Bühne unten hängt an updateZoomBandsMessage und kommt dadurch ohnehin mit.
+	if (key === "spalt" || key === "kontur") { updateZoomBandPreview(); }
 	updateZoomBandsMessage();
 }
 
@@ -4672,7 +4743,7 @@ function renderZoomBandSpacing() {
 		if (rowEls.input) { rowEls.input.value = String(value); rowEls.input.disabled = !zoomBandsDarfSpeichern; }
 		if (rowEls.reset) {
 			rowEls.reset.disabled = !zoomBandsDarfSpeichern;
-			rowEls.reset.title = `${rowEls.name} auf Vorgabe (${zoomBandSpacingDefault(key)} px) zurücksetzen`;
+			rowEls.reset.title = `${rowEls.name} auf Vorgabe (${zoomBandSpacingDefault(key)} ${zoomBandSpacingUnit(key)}) zurücksetzen`;
 		}
 	});
 }
@@ -4788,6 +4859,10 @@ function updateZoomBandVorschau() {
 			kn.dot.style.height = durchmesser.toFixed(1) + "px";
 			kn.dot.style.left = (kn.ort.x - durchmesser / 2) + "px";
 			kn.dot.style.top = (kn.ort.y - durchmesser / 2) + "px";
+			// ⚠️ NUR die Farbe des Punktes ändert sich mit. Breite, Höhe und Lage bleiben, wie sie
+			// sind -- die Kontur wächst nach innen, und `basisOffset` weiter unten rechnet mit
+			// `durchmesser / 2`. Bewegte sie den Aussenrand, wanderten alle Namen mit.
+			kn.dot.style.setProperty("--zbv-kontur", zoomBandKonturBreite(durchmesser).toFixed(2) + "px");
 		}
 		if (pt === null) {
 			kn.name.style.display = "none";
@@ -4886,18 +4961,27 @@ function updateZoomBandsMessage() {
 	});
 	// AUFGABE 8B: die drei Abstaende zaehlen SEPARAT mit -- die Zaehlweise wird ERWEITERT, nicht
 	// ersetzt (siehe Aufgabe-8-Bericht, Bedenken #4).
+	// 💣 „kontur" TEILT DIE MECHANIK, ABER NICHT DAS WORT. Er steht in ZOOM_BAND_SPACING_KEYS, ist aber
+	// kein Abstand -- mitgezählt läse die Zeile „1 Abstand weicht ab", während in Wahrheit die
+	// Markerkontur verstellt ist, und der Admin suchte den Unterschied im falschen Abschnitt.
 	let spacingChanged = 0;
-	ZOOM_BAND_SPACING_KEYS.forEach((key) => { if (!zoomBandSpacingEqualsDefault(key)) { spacingChanged += 1; } });
+	let konturChanged = false;
+	ZOOM_BAND_SPACING_KEYS.forEach((key) => {
+		if (zoomBandSpacingEqualsDefault(key)) { return; }
+		if (key === "kontur") { konturChanged = true; return; }
+		spacingChanged += 1;
+	});
 	const parts = [];
 	if (curveChanged > 0) { parts.push(`${curveChanged} Kurve${curveChanged === 1 ? "" : "n"}`); }
 	// 💣 KEIN "+e": der Plural von "Abstand" trägt einen Umlaut ("Abstände") -- deshalb hier das
 	// ganze Wort, nicht nur die Endung anhängen.
 	if (spacingChanged > 0) { parts.push(`${spacingChanged} ${spacingChanged === 1 ? "Abstand" : "Abstände"}`); }
+	if (konturChanged) { parts.push("die Konturbreite"); }
 	if (parts.length === 0) {
 		msg.textContent = "Keine Änderungen — entspricht der Vorgabe.";
 		return;
 	}
-	const total = curveChanged + spacingChanged;
+	const total = curveChanged + spacingChanged + (konturChanged ? 1 : 0);
 	const abweichungSatz = `${parts.join(", ")} weich${total === 1 ? "t" : "en"} von der Vorgabe ab.`;
 	// 🔴 Prüfbefund 1 (Fix-Runde 2): "weicht von der Vorgabe ab" ist die Messung (gilt auch direkt
 	// nach dem Laden, wenn eine frühere Sitzung schon gespeichert hat) -- "Ungespeichert" ist eine

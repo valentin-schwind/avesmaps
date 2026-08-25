@@ -848,9 +848,9 @@
 .location-visual-marker__shape {
 	display: block;
 	box-sizing: border-box;
-	border-color: #ffffff;
+	border-color: var(--color-marker-settlement-contour);
 	border-style: solid;
-	background: #cc2f2a;
+	background: var(--color-marker-settlement);
 	/* perf: nur kompositierte box-shadow-Ringe, kein drop-shadow-Filter/Blur */
 	box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.55);
 }
@@ -889,7 +889,7 @@
 }
 
 .location-visual-marker__shape--site {
-	background: #7a4fd0;
+	background: var(--color-marker-settlement-site);
 }
 
 /* Metropole: zusaetzlicher Gold-Akzentring (Breite faellt per --accent-ring-width vom JS) */

@@ -43,10 +43,29 @@ const AVESMAPS_LOCATION_LABEL_SPACING_LIMITS = { min: 0, max: 20 };
 // nicht nur im Fenster.
 const AVESMAPS_LOCATION_LABEL_DRIFT_LIMITS = { min: 0, max: 150 };
 
-// Die Schranke eines einzelnen globalen Abstands. Ohne eigenen Eintrag gilt die enge Vorgabe --
-// eine Zeile je Schlüssel, damit ein neuer Abstand nicht stillschweigend die Schranke eines
+// 🔴 26.08.2026 -- „kontur" ist der FÜNFTE globale Wert und der einzige, der kein Abstand ist: er
+// sagt in PROZENT, wie dick die weiße Kontur eines Ortsmarkers im Verhältnis zu seinem roten Kern
+// ist (Owner: „mit dem Punkt wachsen"). Er teilt sich den Speicherabschnitt `abstaende` mit den vier
+// Abständen, weil der Abschnitt in Wahrheit der Eimer für ALLE globalen Einzelwerte ist -- ein Wert
+// je Schlüssel, keine Zeile je Ortsklasse.
+//
+// ⚠️ Umgetauft wird der Abschnitt deshalb NICHT: sein Name steht als Wert in `app_setting`, und ein
+// neuer Name ließe jede gespeicherte Tafel ins Leere greifen (dieselbe Trennung wie
+// „Neuigkeiten"/`changelog`). Der Server prüft ohnehin nur die FORM und führt keine Schlüsselliste,
+// ein neuer Schlüssel kostet ihn also nichts.
+//
+// 💣 EIGENE SCHRANKE, und das ist der Grund, warum es diese Tafel gibt: die Abstände messen PIXEL
+// und gehen bis 20 -- ein Prozentwert, der bei 20 abgeschnitten wird, ließe zwei Drittel des
+// Reglers wirkungslos, ohne dass es irgendwo eine Fehlermeldung gäbe.
+const AVESMAPS_LOCATION_MARKER_CONTOUR_LIMITS = { min: 0, max: 100 };
+
+// Die Schranke eines einzelnen globalen Werts. Ohne eigenen Eintrag gilt die enge Vorgabe --
+// eine Zeile je Schlüssel, damit ein neuer Wert nicht stillschweigend die Schranke eines
 // fremden erbt.
-const AVESMAPS_LOCATION_LABEL_SPACING_LIMITS_BY_KEY = { drift: AVESMAPS_LOCATION_LABEL_DRIFT_LIMITS };
+const AVESMAPS_LOCATION_LABEL_SPACING_LIMITS_BY_KEY = {
+	drift: AVESMAPS_LOCATION_LABEL_DRIFT_LIMITS,
+	kontur: AVESMAPS_LOCATION_MARKER_CONTOUR_LIMITS,
+};
 
 function avesmapsLocationLabelSpacingLimits(key) {
 	return AVESMAPS_LOCATION_LABEL_SPACING_LIMITS_BY_KEY[key] || AVESMAPS_LOCATION_LABEL_SPACING_LIMITS;
@@ -88,7 +107,11 @@ const AVESMAPS_LOCATION_ZOOM_BAND_DEFAULTS = {
 	// 🔴 24.08.2026 von 300 auf 150 gezogen (Owner). Sie ist weiterhin das obere Ende der Spanne und
 	// liegt über dem erreichbaren Drift (rund 145, siehe AVESMAPS_LOCATION_LABEL_DRIFT_LIMITS) --
 	// die Vorgabe schneidet also nach wie vor nichts weg.
-	abstaende: { spalt: 4, repel: 2, versatz: 8, drift: 150 },
+	// 🔴 26.08.2026 -- „kontur" ist der FÜNFTE und der einzige, der kein Abstand ist: die Dicke der
+	// weißen Markerkontur als Anteil des Kernradius, in Prozent. 33 ist die abgeschaffte Konstante
+	// LOCATION_MARKER_CONTOUR_RATIO = 0.33 (war map-features-location-marker-rendering.js), Ziffer
+	// für Ziffer -- beim Ausliefern des Reglers ändert sich am Kartenbild also nichts.
+	abstaende: { spalt: 4, repel: 2, versatz: 8, drift: 150, kontur: 33 },
 };
 
 // Eine Zeile gegen ihre Vorgabe normalisieren.
@@ -193,14 +216,45 @@ function avesmapsLocationZoomBandValue(kind, locationType, zoomLevel) {
 	return row[z];
 }
 
-// AUFGABE 8B -- der Zugriff, den die Zeichner rufen: der wirksame Wert eines globalen Abstands
-// ("spalt" | "repel" | "versatz"), oder die Vorgabe, solange noch nichts geladen/angewendet wurde.
+// AUFGABE 8B -- der Zugriff, den die Zeichner rufen: der wirksame Wert eines globalen Werts
+// ("spalt" | "repel" | "versatz" | "drift" | "kontur"), oder die Vorgabe, solange noch nichts
+// geladen/angewendet wurde.
 function avesmapsLocationLabelSpacing(key) {
 	const abstaende = _avesmapsLocationZoomBands.abstaende;
 	if (abstaende && typeof abstaende[key] === "number") {
 		return abstaende[key];
 	}
 	return AVESMAPS_LOCATION_ZOOM_BAND_DEFAULTS.abstaende[key];
+}
+
+// Der wirksame Kontur-Anteil als BRUCH (0,33), nicht als Prozentzahl -- der Zeichner rechnet damit,
+// und eine Prozentzahl an dieser Stelle wäre ein Faktor 100 daneben, ohne dass irgendetwas wirft.
+// 🔴 EINE Umrechnung, an EINER Stelle: das Fenster zeigt Prozent, weil ein Mensch in Prozent denkt,
+// die Datenbank speichert Prozent, weil sie zeigt, was im Fenster stand -- geteilt wird nur hier.
+function avesmapsLocationMarkerContourRatio() {
+	return avesmapsLocationLabelSpacing("kontur") / 100;
+}
+
+// Ein gewollter Ring ist mindestens einen halben Pixel dick, sonst sieht man ihn nicht mehr.
+const AVESMAPS_MARKER_CONTOUR_MIN_PX = 0.5;
+
+// 🔴 DIE AUFTEILUNG STEHT GENAU EINMAL. Sie zerlegt einen Außendurchmesser in roten Kern und weiße
+// Kontur -- der Kartenzeichner ruft sie mit dem wirksamen Anteil, das Fenster „Zoombänder" mit dem,
+// der gerade im Regler steht (der ist noch nicht angewendet und darf es auch nicht sein, sonst
+// zeichnete die Karte mit, bevor jemand gespeichert hat). Eine Abschrift im Fenster liefe beim
+// ersten Eingriff auseinander, und eine Vorschau, die etwas anderes zeigt als die Karte, ist
+// schlimmer als keine.
+//
+// 💣 BEI ANTEIL 0 GIBT ES KEINE KONTUR. Der Boden hält einen GEWOLLTEN Ring sichtbar; er erzwingt
+// keinen abgeschalteten. Ohne diesen Ausstieg wäre bei 0 % jeder Ort der Karte einen Pixel größer
+// als sein Zoomband sagt.
+function avesmapsLocationMarkerContourSplit(aussenDurchmesser, anteil) {
+	const radius = aussenDurchmesser / 2;
+	if (!(anteil > 0)) {
+		return { kern: radius, kontur: 0 };
+	}
+	const kern = radius / (1 + anteil);
+	return { kern: kern, kontur: Math.max(AVESMAPS_MARKER_CONTOUR_MIN_PX, kern * anteil) };
 }
 
 // Die Erscheinungsstufe: die erste gefüllte Zelle. null = diese Klasse erscheint nirgends.
@@ -241,6 +295,7 @@ if (typeof globalThis !== "undefined") {
 	globalThis.AVESMAPS_ZOOM_BAND_LIMITS = AVESMAPS_ZOOM_BAND_LIMITS;
 	globalThis.AVESMAPS_LOCATION_LABEL_SPACING_LIMITS = AVESMAPS_LOCATION_LABEL_SPACING_LIMITS;
 	globalThis.AVESMAPS_LOCATION_LABEL_DRIFT_LIMITS = AVESMAPS_LOCATION_LABEL_DRIFT_LIMITS;
+	globalThis.AVESMAPS_LOCATION_MARKER_CONTOUR_LIMITS = AVESMAPS_LOCATION_MARKER_CONTOUR_LIMITS;
 	globalThis.AVESMAPS_LOCATION_LABEL_SPACING_LIMITS_BY_KEY = AVESMAPS_LOCATION_LABEL_SPACING_LIMITS_BY_KEY;
 	globalThis.AVESMAPS_LOCATION_ZOOM_BAND_DEFAULTS = AVESMAPS_LOCATION_ZOOM_BAND_DEFAULTS;
 }

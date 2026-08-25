@@ -70,8 +70,12 @@ assert.ok(/\$clean\['abstaende'\]\s*=\s*\$cleanAbstaende/.test(bibliothek),
 	"ein VORHANDENER, wohlgeformter Abschnitt wird uebernommen");
 
 // ---- 4. Die Vorgabewerte stehen an EINER Stelle -- gelesen, nicht in der Seite abgeschrieben -----
-assert.ok(/abstaende:\s*\{\s*spalt:\s*4,\s*repel:\s*2,\s*versatz:\s*8,\s*drift:\s*150\s*\}/.test(vorgabetafel),
-	"die Vorgabewerte (4/2/8, die heutigen Konstanten, plus der Drift-Deckel) stehen in der Vorgabetafel");
+// 🔴 26.08.2026 -- „kontur" (33 %) ist als FUENFTER dazugekommen und ist der einzige, der kein
+// Abstand ist: die Dicke der weissen Markerkontur. Er teilt sich den Speicherabschnitt, weil der in
+// Wahrheit der Eimer fuer alle GLOBALEN Einzelwerte ist; sein Name steht als Wert in `app_setting`
+// und wird deshalb nicht umgetauft. Siehe js/map-features/__tests__/marker-konturbreite.test.js.
+assert.ok(/abstaende:\s*\{\s*spalt:\s*4,\s*repel:\s*2,\s*versatz:\s*8,\s*drift:\s*150,\s*kontur:\s*33\s*\}/.test(vorgabetafel),
+	"die Vorgabewerte (4/2/8, der Drift-Deckel und die Konturbreite) stehen in der Vorgabetafel");
 assert.ok(!/spalt:\s*4/.test(seite) && !/versatz:\s*8/.test(seite),
 	"und die Seite schreibt sie nicht ab");
 assert.ok(/AVESMAPS_LOCATION_ZOOM_BAND_DEFAULTS\.abstaende\[key\]/.test(seite),

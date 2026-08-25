@@ -26,8 +26,14 @@ const VORGABE = AVESMAPS_LOCATION_ZOOM_BAND_DEFAULTS;
 // 🔴 22.08.2026 -- "drift" kam als VIERTER dazu (Deckel auf den senkrechten Spalt zum eigenen
 // Punkt). Er hatte vorher keine Konstante, weil es keinen Deckel gab; 150 liegt ueber jedem
 // erreichbaren Drift und schneidet deshalb nichts weg. Siehe zoombaender-drift.test.js.
-assert.deepStrictEqual(VORGABE.abstaende, { spalt: 4, repel: 2, versatz: 8, drift: 150 },
-	"die Vorgabewerte der Abstaende sind die heutigen Konstanten, unveraendert");
+// 🔴 26.08.2026 -- „kontur" kam als FUENFTER dazu und ist der einzige, der kein Abstand ist: die
+// Dicke der weissen Markerkontur als Anteil des Kernradius, in Prozent. 33 reproduziert die
+// abgeschaffte Konstante LOCATION_MARKER_CONTOUR_RATIO = 0.33 zifferngenau.
+// ⚠️ Der Abschnitt heisst weiterhin „abstaende": sein Name steht als Wert in `app_setting`, und er
+// ist in Wahrheit der Eimer fuer ALLE globalen Einzelwerte. Details und Schranke in
+// js/map-features/__tests__/marker-konturbreite.test.js.
+assert.deepStrictEqual(VORGABE.abstaende, { spalt: 4, repel: 2, versatz: 8, drift: 150, kontur: 33 },
+	"die Vorgabewerte des Abschnitts sind die heutigen Konstanten, unveraendert");
 
 // ---- B. Nichts gespeichert / kaputt = reine Vorgabe ----------------------------------------------
 [null, undefined, "kaputt", 42, [], { abstaende: "kaputt" }, { abstaende: [1, 2, 3] }].forEach((muell) => {
