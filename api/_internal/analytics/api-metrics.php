@@ -170,3 +170,206 @@ function avesmapsApiMetricsEnsureTable(PDO $pdo): void {
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
     );
 }
+
+/**
+ * Schreibt alle Zeilen einer Anfrage in EINER Anweisung.
+ *
+ * 💣 EINE Rundreise, nicht drei. Der Zaehler laeuft am Ende der Anfrage, und auf diesem Server
+ * wartet der Benutzer darauf: `fastcgi_finish_request` gibt es auf STRATO nicht (SAPI cgi-fcgi,
+ * gemessen 24.08.2026), und frueh abschliessen traegt auch sonst nicht (3,07 s statt 0,2 s).
+ *
+ * ⚠️ `count = count + 1` und nicht `count + VALUES(count)`: jede eingefuegte Zeile traegt count=1,
+ * also ist die einfache Form richtig -- und sie kommt ohne das in MySQL 8.0.20 abgekuendigte
+ * VALUES() aus.
+ *
+ * 🔴 Das try/catch ist die Zusicherung, nicht die Bequemlichkeit: diese Funktion darf niemals
+ * werfen. Sie laeuft am Ende JEDER Anfrage, auch einer bereits gescheiterten, und eine Ausnahme
+ * aus ihr wuerde einen echten Fehler ueberschreiben oder eine gesunde Antwort zerstoeren.
+ */
+function avesmapsApiMetricsSchreiben(PDO $pdo, array $zeilen): void {
+    if ($zeilen === []) {
+        return;
+    }
+    try {
+        $platzhalter = implode(', ', array_fill(0, count($zeilen), '(UTC_DATE(), ?, ?, ?, 1)'));
+        $anweisung = $pdo->prepare(
+            'INSERT INTO api_metric (day, hour, metric, dimension, count) VALUES '
+            . $platzhalter
+            . ' ON DUPLICATE KEY UPDATE count = count + 1'
+        );
+        $werte = [];
+        foreach ($zeilen as $zeile) {
+            $werte[] = (int) $zeile['hour'];
+            $werte[] = substr((string) $zeile['metric'], 0, 40);
+            $werte[] = substr((string) $zeile['dimension'], 0, 190);
+        }
+        $anweisung->execute($werte);
+    } catch (Throwable $fehler) {
+        // Absicht: siehe oben. Dass der Zaehler stumm ist, wird im Panel an `letzte_zaehlung`
+        // sichtbar -- nicht daran, dass hier etwas nach aussen dringt.
+    }
+}
+
+/**
+ * Faules Aufraeumen: es gibt keinen Zeitplan-Laeufer auf STRATO.
+ *
+ * ⚠️ Hoechstens einmal am Tag, erkannt an einer Markerzeile in derselben Tabelle -- sonst zahlte
+ * jede Anfrage ein DELETE. Die Markerzeile ist eine gewoehnliche Metrikzeile und faellt beim Lesen
+ * durch den Metrikfilter heraus.
+ *
+ * 💣 MySQL meldet bei INSERT ... ON DUPLICATE KEY UPDATE `rowCount() === 1` fuer „neu eingefuegt"
+ * und `2` fuer „hochgezaehlt". Nur beim ersten Mal am Tag wird also geraeumt.
+ */
+function avesmapsApiMetricsAufraeumen(PDO $pdo): void {
+    try {
+        $marke = $pdo->prepare(
+            "INSERT INTO api_metric (day, hour, metric, dimension, count)
+             VALUES (UTC_DATE(), ?, 'aufraeumen', '', 1)
+             ON DUPLICATE KEY UPDATE count = count + 1"
+        );
+        $marke->execute([AVESMAPS_API_METRICS_KEINE_STUNDE]);
+        if ($marke->rowCount() !== 1) {
+            return;
+        }
+        $pdo->exec(
+            'DELETE FROM api_metric WHERE day < UTC_DATE() - INTERVAL '
+            . AVESMAPS_API_METRICS_AUFBEWAHRUNG_TAGE . ' DAY'
+        );
+    } catch (Throwable $fehler) {
+        // Absicht: dieselbe Regel wie beim Schreiben.
+    }
+}
+
+function avesmapsApiMetricsTageGrenze(mixed $tage): int {
+    $zahl = is_numeric($tage) ? (int) $tage : 1;
+    return max(1, min(AVESMAPS_API_METRICS_AUFBEWAHRUNG_TAGE, $zahl));
+}
+
+/**
+ * Formt die rohen `antwort`-Zeilen (`<endpunkt>|<klasse>`) zu den drei Karten.
+ *
+ * 🔴 Die Zone wird hier ABGELEITET und nicht gespeichert: zwei Speicherorte fuer dieselbe Aussage
+ * laufen auseinander, sobald jemand die Zonenregel aendert und die Altdaten stehen laesst.
+ *
+ * 💣 Geschnitten wird am LETZTEN Trennstrich (strrpos). Ein Endpunktschluessel darf zwar keinen
+ * tragen, aber am ersten zu schneiden hiesse, dass ein einziger Sonderfall die Klasse verlöre --
+ * und der faellt nicht auf, weil die Summen weiterhin stimmen.
+ */
+function avesmapsApiMetricsAufteilen(array $zeilen): array {
+    $endpunkte = [];
+    $klassen = [];
+    $zonen = [];
+
+    foreach ($zeilen as $zeile) {
+        $dimension = (string) ($zeile['dimension'] ?? '');
+        $anzahl = (int) ($zeile['c'] ?? 0);
+        $trenner = strrpos($dimension, '|');
+        if ($trenner === false || $trenner === 0) {
+            continue;
+        }
+        $schluessel = substr($dimension, 0, $trenner);
+        $klasse = substr($dimension, $trenner + 1);
+
+        $endpunkte[$schluessel] = ($endpunkte[$schluessel] ?? 0) + $anzahl;
+        $klassen[$klasse] = ($klassen[$klasse] ?? 0) + $anzahl;
+        $zone = avesmapsApiMetricsZone($schluessel);
+        $zonen[$zone] = ($zonen[$zone] ?? 0) + $anzahl;
+    }
+
+    $alsListe = static function (array $karte): array {
+        arsort($karte);
+        $liste = [];
+        foreach ($karte as $dimension => $anzahl) {
+            $liste[] = ['dimension' => (string) $dimension, 'c' => $anzahl];
+        }
+        return $liste;
+    };
+
+    return [
+        'endpunkte' => $alsListe($endpunkte),
+        'klassen' => $alsListe($klassen),
+        'zonen' => $alsListe($zonen),
+    ];
+}
+
+/**
+ * ⚠️ JEDE Abfrage bekommt ihren EIGENEN catch. Ein gemeinsamer riss beim Besucher-Modul zwei
+ * gesunde Abfragen mit, weil eine dritte einen MySQL-Fehler 1247 warf -- die Karte stand leer da,
+ * obwohl die Daten stimmten.
+ *
+ * 💣 Und deshalb steht in keiner dieser Abfragen ein Aggregat-ALIAS in HAVING oder ORDER BY: genau
+ * das ist Fehler 1247. Wo sortiert wird, steht der rohe SUM()-Ausdruck noch einmal.
+ */
+function avesmapsApiMetricsLesen(PDO $pdo, int $tage): array {
+    $tage = avesmapsApiMetricsTageGrenze($tage);
+    $keineStunde = AVESMAPS_API_METRICS_KEINE_STUNDE;
+
+    $holen = static function (string $sql, array $werte) use ($pdo): array {
+        try {
+            $anweisung = $pdo->prepare($sql);
+            $anweisung->execute($werte);
+            return $anweisung->fetchAll(PDO::FETCH_ASSOC);
+        } catch (Throwable $fehler) {
+            return [];
+        }
+    };
+
+    $antwortZeilen = $holen(
+        "SELECT dimension, SUM(count) AS c FROM api_metric
+         WHERE metric = 'antwort' AND day >= UTC_DATE() - INTERVAL ? DAY
+         GROUP BY dimension
+         ORDER BY SUM(count) DESC
+         LIMIT 400",
+        [$tage]
+    );
+
+    $fehlerZeilen = $holen(
+        "SELECT dimension, SUM(count) AS c FROM api_metric
+         WHERE metric = 'fehler' AND day >= UTC_DATE() - INTERVAL ? DAY
+         GROUP BY dimension
+         ORDER BY SUM(count) DESC
+         LIMIT 20",
+        [$tage]
+    );
+
+    // 💣 DIE SPALTE HEISST `hour` UND DARF NICHT UMBENANNT WERDEN. Der vorhandene Zeichner
+    // vaHeatmapGrid (js/review/review-visitor-analytics.js) liest `r.dow`, `r.hour` und `r.c`.
+    // Ein Alias `hour AS h` waere kein Schoenheitsfehler: `Number(undefined) || 0` ergibt 0, alle
+    // Zellen landeten in Stunde 0, und die Karte zeigte einen soliden Streifen, der auf den ersten
+    // Blick wie ein Befund aussieht statt wie ein Fehler.
+    $stundenZeilen = $holen(
+        "SELECT DAYOFWEEK(day) AS dow, hour, SUM(count) AS c FROM api_metric
+         WHERE metric = 'stunde' AND hour < ? AND day >= UTC_DATE() - INTERVAL ? DAY
+         GROUP BY DAYOFWEEK(day), hour",
+        [$keineStunde, $tage]
+    );
+
+    // 🪤 Der Beleg dafuer, dass ueberhaupt noch gezaehlt wird. Entzieht STRATO bei voller Quote die
+    // Schreibrechte, verschluckt der Schreiber den Fehler pflichtgemaess -- und leere Balken sind
+    // von „keine Anfragen" nicht zu unterscheiden. Das Panel sagt es deshalb ausdruecklich.
+    $letzte = $holen("SELECT MAX(day) AS tag FROM api_metric WHERE metric = 'antwort'", []);
+
+    $aufgeteilt = avesmapsApiMetricsAufteilen($antwortZeilen);
+    $aufgeteilt['fehler'] = $fehlerZeilen;
+    $aufgeteilt['stunden'] = $stundenZeilen;
+    $aufgeteilt['letzte_zaehlung'] = $letzte[0]['tag'] ?? null;
+
+    return $aufgeteilt;
+}
+
+/** Groesse der eigenen Tabelle, fuer die Karte „Die Tafel selbst". */
+function avesmapsApiMetricsSpeicher(PDO $pdo): array {
+    try {
+        // ⚠️ `rows` ist in MySQL 8 ein reserviertes Wort und MUSS in Graviszeichen stehen -- ohne
+        // sie wirft die Abfrage einen Syntaxfehler und reisst den ganzen Lesevorgang mit. Genau so
+        // ist es dem Besucher-Modul einmal ergangen.
+        $zeilen = $pdo->query(
+            "SELECT table_name AS t, table_rows AS `rows`, data_length + index_length AS bytes
+             FROM information_schema.TABLES
+             WHERE table_schema = DATABASE() AND table_name = 'api_metric'"
+        )->fetchAll(PDO::FETCH_ASSOC);
+        return ['tables' => $zeilen];
+    } catch (Throwable $fehler) {
+        return ['tables' => []];
+    }
+}

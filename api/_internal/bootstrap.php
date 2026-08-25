@@ -223,6 +223,16 @@ function avesmapsJsonResponse(int $statusCode, array $payload = []): never {
     http_response_code($statusCode);
     header('Content-Type: application/json; charset=utf-8');
 
+    // 🔴 Der API-Zaehler schreibt NICHT hier, sondern in der Abschlussroutine -- nur so wird auch
+    // die Anfrage gezaehlt, die diese Funktion nie erreicht (Fatal Error, leerer Rumpf). Hier wird
+    // nur hinterlegt, WAS geantwortet wurde. Der Fehlercode steht bereits im Rumpf, den
+    // avesmapsErrorResponse gebaut hat; er muss nicht durchgereicht werden.
+    // Entwurf: docs/superpowers/specs/2026-08-25-api-nutzung-design.md §3.1
+    if (function_exists('avesmapsApiMetricsMerkeAntwort')) {
+        $fehlerCode = $payload['error']['code'] ?? null;
+        avesmapsApiMetricsMerkeAntwort($statusCode, is_string($fehlerCode) ? $fehlerCode : null);
+    }
+
     if ($statusCode !== 204) {
         echo json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR);
     }
@@ -626,4 +636,87 @@ function avesmapsFormatBfYear(int $year): string {
         return 'besteht';
     }
     return $year < 0 ? (abs($year) . ' v. BF') : ($year . ' BF');
+}
+
+// =================================================================================================
+// Der API-Zaehler (eingehend)
+// Entwurf: docs/superpowers/specs/2026-08-25-api-nutzung-design.md
+// =================================================================================================
+
+require_once __DIR__ . '/analytics/api-metrics.php';
+
+/**
+ * Hinterlegt, was geantwortet wurde. Aufgerufen von avesmapsJsonResponse; geschrieben wird erst
+ * in der Abschlussroutine.
+ */
+function avesmapsApiMetricsMerkeAntwort(int $status, ?string $fehlerCode): void {
+    $GLOBALS['avesmapsApiMetricsAntwort'] = ['status' => $status, 'code' => $fehlerCode];
+}
+
+/**
+ * 💣 DER WAECHTER IST PFLICHT. bootstrap.php wird an ueber 50 Stellen mit `require` (nicht
+ * `require_once`) eingebunden. Dass heute nichts doppelt laedt, ist Praxis, keine Zusicherung --
+ * und zwei Registrierungen zaehlten jede Anfrage DOPPELT. Das saehe nach mehr Verkehr aus, nicht
+ * nach einem Fehler, und niemand wuerde es bemerken.
+ *
+ * 🔴 EINE Registrierung, hier unten, unbedingt. Der urspruengliche Bauplan wollte sie an den zwei
+ * Rueckgabestellen von avesmapsLoadApiConfig aufhaengen -- das ist die Mehr-Erzeuger-Falle in
+ * klein: eine dritte Rueckgabestelle haette den Zaehler still stillgelegt. Die Routine holt sich
+ * die Konfiguration stattdessen selbst und entscheidet dort ueber den Notausschalter.
+ */
+function avesmapsApiMetricsRegistrieren(): void {
+    if (defined('AVESMAPS_API_METRICS_REGISTRIERT')) {
+        return;
+    }
+    define('AVESMAPS_API_METRICS_REGISTRIERT', true);
+
+    register_shutdown_function(static function (): void {
+        try {
+            $config = avesmapsLoadApiConfig(avesmapsApiRoot());
+            if (!avesmapsApiMetricsAktiv($config)) {
+                return;
+            }
+
+            $antwort = $GLOBALS['avesmapsApiMetricsAntwort'] ?? null;
+            $abgeschlossen = is_array($antwort);
+
+            $pdo = avesmapsLetzteDatenbankverbindung();
+            $ohneVerbindung = $pdo === null;
+            if ($ohneVerbindung) {
+                // Diese Anfrage hat gar keine Datenbank gebraucht. Selbst eine zu oeffnen ist der
+                // einzige Punkt, an dem der Zaehler etwas kostet, was die Anfrage sonst nicht
+                // gebraucht haette -- deshalb bekommt der Fall eine eigene Dimension und misst
+                // sich selbst, statt geschaetzt zu werden.
+                $pdo = avesmapsCreatePdo($config['database'] ?? []);
+            }
+
+            $zeilen = avesmapsApiMetricsZeilenFuerAnfrage(
+                (string) ($_SERVER['SCRIPT_NAME'] ?? ''),
+                $abgeschlossen ? (int) $antwort['status'] : null,
+                $abgeschlossen,
+                $abgeschlossen ? ($antwort['code'] ?? null) : null,
+                (int) gmdate('G')
+            );
+            if ($ohneVerbindung) {
+                $zeilen[] = [
+                    'metric' => 'antwort',
+                    'dimension' => 'ohne_verbindung|' . ($abgeschlossen ? 'ja' : 'leer'),
+                    'hour' => AVESMAPS_API_METRICS_KEINE_STUNDE,
+                ];
+            }
+
+            avesmapsApiMetricsEnsureTable($pdo);
+            avesmapsApiMetricsSchreiben($pdo, $zeilen);
+            avesmapsApiMetricsAufraeumen($pdo);
+        } catch (Throwable $fehler) {
+            // Die Abschlussroutine darf unter keinen Umstaenden etwas nach aussen tragen.
+        }
+    });
+}
+
+// ⚠️ Nur fuer echte Anfragen. Unter der Kommandozeile -- Tests, Werkzeuge, Wartungsskripte --
+// gibt es keine Anfrage zu zaehlen, und jeder Testlauf zoege sonst einen Verbindungsversuch nach
+// sich, dessen Scheitern zwar geschluckt wuerde, aber Zeit kostet.
+if (PHP_SAPI !== 'cli') {
+    avesmapsApiMetricsRegistrieren();
 }
