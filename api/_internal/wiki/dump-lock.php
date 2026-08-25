@@ -114,12 +114,31 @@ const AVESMAPS_WIKI_DUMP_LOCK_ROW_ID = 1;
  * ~4.5 minutes with NO heartbeat, which a 112s threshold would (correctly, but
  * dangerously) judge stale mid-run and hand the lock to a second user --
  * causing two concurrent runs and silent staging corruption (see the file
- * header's "MULTI-USER" hazard). Every phase is now bounded well under the 28s
- * step deadline, so 112s would already be safe again; 180s adds extra slack for
- * a slow-STRATO step (retries, network jitter) without letting an actually
- * abandoned run block others for more than a few minutes.
+ * header's "MULTI-USER" hazard).
+ *
+ * 💣 UND GENAU DIESE RECHNUNG STIMMTE SEIT DEM 24.08.2026 NICHT MEHR. Sie ging von
+ * "jede Phase bleibt unter 28 Sekunden" aus. Ein Schritt kann laenger:
+ *
+ *     Drossel (Crawl-delay der Wiki-robots.txt)              20 s
+ *     Bot-Anmeldung, falls die Sitzung abgelaufen ist        40 s  (zwei Anfragen)
+ *     Wiederholungsleiter bei drei Serverfehlern            240 s  (40 + 80 + 120)
+ *     ------------------------------------------------------------
+ *     zusammen, ohne Antwortzeiten                          300 s
+ *
+ * 180 Sekunden lagen also MITTEN in einem legitimen Schritt -- und ein zweiter
+ * Reiter desselben Owners haette die Sperre uebernommen und einen konkurrierenden Lauf
+ * gestartet. Das ist woertlich die Gefahr, die der Dateikopf oben beschreibt.
+ *
+ * 🔴 Die Schwelle liegt deshalb jetzt ueber der HARTEN Obergrenze eines Schritts:
+ * avesmapsWikiSyncRelaxLimits() setzt set_time_limit(300), laenger kann ein Schritt
+ * gar nicht laufen, ohne dass PHP ihn abbricht. 420 s lassen darueber noch Luft fuer
+ * den Abbruch selbst und fuer eine langsame Antwort.
+ *
+ * ⚠️ Der Preis ist ehrlich und klein: eine WIRKLICH verwaiste Sperre blockiert jetzt
+ * sieben statt drei Minuten. Bei einem Werkzeug mit einem einzigen Besitzer ist das
+ * nichts gegen zwei gleichzeitige Laeufe, die sich die Staging-Tabellen ueberschreiben.
  */
-const AVESMAPS_WIKI_DUMP_LOCK_STALE_SECONDS = 180;
+const AVESMAPS_WIKI_DUMP_LOCK_STALE_SECONDS = 420;
 
 // ===========================================================================
 // Exception raised on a lost acquire (a second concurrent user).

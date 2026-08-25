@@ -51,7 +51,25 @@ const AVESMAPS_WIKI_REQUEST_TIMEOUT_SECONDS = 30;
  * Aufrufe = ueber eine STUNDE. Wer den Login abschaltet, macht den Dump-Lauf unbenutzbar.
  */
 const AVESMAPS_WIKI_REQUEST_DELAY_MICROSECONDS = 20000000;
-const AVESMAPS_WIKI_REQUEST_RETRY_COUNT = 3;
+/**
+ * 💣 DIE ZAHL DER WIEDERHOLUNGEN IST EINE ZEITGRENZE, KEINE HARTNAECKIGKEIT. Sie stand auf
+ * 3, als die Drossel bei 0,6 s lag. Mit dem Crawl-delay 20 und der doppelten Basis darunter
+ * ergab das eine Leiter von 40 + 80 + 120 = 240 Sekunden -- in EINEM Schritt, ohne
+ * Heartbeat. Zusammen mit Drossel und einer abgelaufenen Bot-Anmeldung waren das 300
+ * Sekunden, also genau die harte Grenze aus avesmapsWikiSyncRelaxLimits(). PHP haette den
+ * Schritt abgebrochen -- und ein Abbruch gibt die Pipeline-Sperre NICHT frei (der
+ * Freigabe-Zweig sitzt in einem catch, das ein Fatal ueberspringt).
+ *
+ * ⚠️ Zwei Wiederholungen sind drei Versuche ueber rund zwei Minuten, jeder ohnehin durch
+ * die Drossel getrennt. Das ist reichlich fuer eine voruebergehende Stoerung; wer mehr
+ * braucht, braucht nicht mehr Geduld, sondern einen zweiten Schritt -- und den gibt es
+ * seit dem 24.08.2026, die Phasen sind fortsetzbar.
+ *
+ * 🔴 Gewacht von sperrfenster-deckt-schritt-test.php: dort wird aus DIESEN Konstanten
+ * gerechnet, ob der laengste moegliche Schritt noch unter die harte Grenze passt und das
+ * Sperrfenster darueber liegt. Wer die Leiter verlaengert, faellt dort auf.
+ */
+const AVESMAPS_WIKI_REQUEST_RETRY_COUNT = 2;
 // Der Wiederholungsabstand bleibt das Doppelte der Drossel -- ein Server, der gerade 429 oder
 // 503 gesagt hat, will mehr Ruhe, nicht dieselbe.
 const AVESMAPS_WIKI_REQUEST_RETRY_BASE_DELAY_MICROSECONDS = 40000000;
