@@ -122,14 +122,26 @@ assert.ok(
 	"und er traegt wirklich einen dunklen Rueckhalt, ist also nicht `none`"
 );
 
-// ---- 3c. Die Schriftuntergrenze ----------------------------------------------------------------
-// 💣 11px ist die Untergrenze aus AGENTS.md §12. Genau dieser Wert ist beim Abschreiben von
-// Listenzeilen schon zweimal auf 10px gerutscht.
+// ---- 3c. Die Schriftgroessen -------------------------------------------------------------------
+// 🔴 Die Beschriftung liegt UNTER der 11px-Untergrenze aus AGENTS.md §12, und das ist ENTSCHIEDEN,
+// nicht passiert: Owner am 25.08.2026 -- "das zoom ist zu groß, machs kleiner", auf Nachfrage
+// "design entscheid für dieses eine UI-element, editor-spezifisch".
+// 🔴 Die Reichweite gehoert zur Entscheidung: DIESES Element, nur im Editormodus, kein
+// Praezedenzfall. Auf einer Listenzeile bleiben 11px die Grenze -- dort ist sie zweimal
+// versehentlich gefallen, und genau davor schuetzt die Regel.
+// 💣 Ein Boden bleibt trotzdem stehen: ohne ihn landet der naechste "etwas kleiner"-Wunsch bei 6px,
+// und dann ist es kein Wort mehr, sondern ein Fleck.
 const wort = regel(css, ".zoomstufe-anzeige__wort");
 const wortGroesse = Number((wort.match(/font-size:\s*(\d+)px/) || [])[1]);
-assert.ok(wortGroesse >= 11, `die Beschriftung steht auf mindestens 11px (ist: ${wortGroesse}px)`);
+assert.ok(wortGroesse >= 9, `die Beschriftung faellt nicht unter 9px (ist: ${wortGroesse}px)`);
 
 const zahl = regel(css, ".zoomstufe-anzeige__zahl");
+const zahlGroesse = Number((zahl.match(/font-size:\s*(\d+)px/) || [])[1]);
+assert.ok(
+	zahlGroesse >= wortGroesse * 2,
+	"die Zahl bleibt das Hauptelement -- mindestens doppelt so gross wie ihre Beschriftung "
+		+ `(Zahl ${zahlGroesse}px, Wort ${wortGroesse}px)`
+);
 assert.ok(
 	/font-variant-numeric:\s*tabular-nums/.test(zahl),
 	"die Ziffern laufen auf fester Breite -- sonst springt die Zahl beim Wechsel 1 -> 7"

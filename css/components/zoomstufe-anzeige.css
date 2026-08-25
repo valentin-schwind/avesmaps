@@ -50,11 +50,20 @@
 	font-variant-numeric: tabular-nums;
 }
 
-/* ⚠️ 11px ist die Untergrenze aus AGENTS.md §12 -- nicht darunter, auch wenn es hier "nur" eine
-   Beschriftung ist. Genau so ist die Skala schon einmal beim Abschreiben gefallen. */
+/* 🔴 9px unterschreitet die 11px-Untergrenze aus AGENTS.md §12. Owner-Entscheid vom 25.08.2026,
+   woertlich: "das zoom ist zu groß, machs kleiner" / "design entscheid für dieses eine UI-element,
+   editor-spezifisch".
+   🔴 Die Reichweite ist damit festgelegt und NICHT verhandelbar: dieses eine Element, nur im
+   Editormodus. Es ist KEIN Praezedenzfall -- wer diesen Wert als Beleg dafuer nimmt, dass 9px
+   "im Haus ueblich" seien, hat die Ausnahme in die Regel verwandelt. Auf einer Listenzeile bleiben
+   11px die Grenze, und genau dort ist sie zweimal versehentlich gefallen.
+   ⚠️ Sie traegt hier, weil dieses Wort nichts zu LESEN gibt: es beschriftet die Ziffer darueber,
+   ist ein einziges immer gleiches Wort, und abgelesen wird die 30px-Ziffer. Kein Inhalt haengt
+   daran, und ein Besucher sieht es nie.
+   ⭐ Das Sperren steigt auf 0.09em mit: kleiner gesetzte Versalien laufen sonst zusammen. */
 .zoomstufe-anzeige__wort {
 	margin-top: 3px;
-	font-size: 11px;
-	letter-spacing: 0.06em;
+	font-size: 9px;
+	letter-spacing: 0.09em;
 	text-transform: uppercase;
 }
