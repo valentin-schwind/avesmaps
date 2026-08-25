@@ -138,6 +138,27 @@ Konstanten als Testzeugen — dieselbe Bauform wie `zoombaender-vorgabe.test.js`
 
 ---
 
+## §5a Nach dem Parken dazugekommen
+
+**25.08.2026 — Alarme und Schwellwerte (Stufe 6).** Aus einem anderen Vorhaben hierher gereicht:
+der API-Nutzungstafel im Editor-Reiter *Status* (Mockup `docs/api-nutzung-mockup.html`). Sie zählt
+eingehende Anfragen und ausgehende Rufe; die Frage war, ob sie auch melden soll.
+
+🔴 **Owner: nein, nicht dort — das ist eine Einstellung.** Aufgenommen als **Stufe 6** in Entwurf
+**§11.1**, Platz vermerkt in **§8** (Reiter „Betrieb"). Vier Regeln, drei Fallen — darunter zwei,
+die dieses Vorhaben schon kennt:
+
+* 💣 **Kein Läufer** (§4 dieser Übergabe). Schwellen werden beim Schreiben ausgewertet und müssen
+  gedeckelt sein, sonst zahlt jede Anfrage die Rechnung.
+* 💣 **Alarmsturm** bei Datenbank-Ausfall: eine Meldung je Vorfall, nicht je Endpunkt.
+* 🪤 **Rekursion beim Zustellweg**: Discord ist selbst ein überwachtes Ziel — ein Alarm über
+  Discord, dass Discord ausgefallen ist, kommt nie an.
+
+⚠️ **Kein Vorziehen.** Stufe 6 setzt die Zähltafel voraus (die es noch nicht gibt) *und* einen
+gemessenen Normalwert. An den drei Fragen aus §2 ändert sich dadurch nichts — der Halt bleibt.
+
+---
+
 ## §6 Kleinkram, der sonst verlorengeht
 
 * `.claude/launch.json` trägt einen Eintrag **`einstellungen-mockup`** (Port 8951, Wurzel `.`).

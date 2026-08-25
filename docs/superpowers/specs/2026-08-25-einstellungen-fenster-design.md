@@ -756,6 +756,10 @@ Zwei Verweise, dieselben Ziele wie im Hamburger: **Datenbank-Backup** (`/edit/ba
 der anderen Registerkarte zurückmüssen. Es sind Verweise, keine zweite Umsetzung — die Gefahr, vor
 der AGENTS.md warnt, entsteht bei zwei *Bedienungen*, nicht bei zwei Türen zum selben Raum.
 
+🔧 **Hier ist später der Platz für die Alarm-Schwellwerte** (Stufe 6, §11.1). Der Reiter bleibt in
+Stufe 1 bei seinen zwei Verweisen — die Notiz steht hier, damit niemand die Schwellwerte neben ihre
+Anzeige baut.
+
 ---
 
 ## §9 Die Fallen, gesammelt
@@ -812,9 +816,58 @@ Die Reiter aus §3.4 sind zugleich die Landkarte dafür. Grob nach Nutzen sortie
   jeder Zahl der Karte; er braucht eine eigene Abnahme, keine Zeile in einem Sammel-Commit.
 * **Stufe 5 — Gemeinschaft und Aufbewahrung**: Kontakt-Ratenbegrenzung, Spam-Wortliste,
   Backup-Anzahl, Protokollgrenzen, Linkprüfer-Fristen.
+* **Stufe 6 — Alarme und Schwellwerte** (Reiter „Betrieb", §8). Nachgetragen 25.08.2026 —
+  Einzelheiten in §11.1.
 
 ⚠️ **Die Reihenfolge ist keine Zusage.** Sie steht hier, damit die Reiter nicht als Versprechen
 gelesen werden: ein Reiter mit „später" sagt „hier wäre der Platz", nicht „das kommt".
 
 🔴 **Zwei Tafeln bleiben, wo sie sind** (Zoombänder, Tempowerte) — sie haben gewachsene,
 zieh-bedienbare Oberflächen. Hier gehört nur ihr Eingang hin, nie eine zweite Fassung.
+
+---
+
+### §11.1 Stufe 6 — Alarme und Schwellwerte
+
+**Nachgetragen am 25.08.2026** aus einem anderen Vorhaben: der API-Nutzungstafel im Editor-Reiter
+*Status* (Mockup `docs/api-nutzung-mockup.html`). Sie zählt eingehende Anfragen und ausgehende Rufe.
+Beim Zeichnen kam die Frage auf, ob sie auch **melden** soll, wenn etwas aus dem Ruder läuft.
+
+🔴 **Owner-Entscheid: nein — nicht dort.** Schwellwerte sind eine *Einstellung*, keine Anzeige. Ihr
+Platz ist dieses Fenster, Reiter **Betrieb** (§8), bei den übrigen Betriebswerten. Die Tafel zeigt
+Zahlen; was ab welcher Zahl passiert, wird hier eingestellt.
+
+⚠️ **Die Reihenfolge ist damit auch sachlich richtig herum:** eine Schwelle braucht einen
+Normalwert. Solange die Tafel nicht misst, was normal *ist*, wäre jede Zahl hier geraten. Stufe 6
+kann deshalb frühestens starten, wenn die Tafel eine Weile gelaufen ist.
+
+**Woran gedacht war** (vier Regeln, je an/aus plus eine Zahl):
+
+| Regel | Zahl |
+|---|---|
+| Ein ausgehendes Ziel schlägt *n*× in Folge fehl | 20 |
+| Fehlerquote eines Endpunkts über dem *n*-fachen seines Normalwerts | 10 |
+| Mehr als *n* leere Antworten am Tag (Fatal Errors) | 50 |
+| p95 eines Endpunkts über *n* ms | 3000 |
+
+**Drei Fallen, alle beim Zeichnen gefunden:**
+
+💣 **Es gibt keinen Läufer** — derselbe Befund wie in §4 dieses Entwurfs und in der Übergabe §4.
+Eine Schwelle kann nicht „alle fünf Minuten" geprüft werden. Sie muss beim **Schreiben** ausgewertet
+werden, und zwar **gedeckelt**: höchstens einmal je Fenster, über eine Markerzeile — dieselbe
+Bauform wie das faule Aufräumen von `visitor_daily_seen`. Ohne Deckel zahlt *jede einzelne Anfrage*
+die Schwellenrechnung, und das ist genau die Last, die AGENTS.md §10 aufführt.
+
+💣 **Der Alarmsturm.** Ein Datenbank-Ausfall macht 100 % Fehler auf **allen** Endpunkten. Ohne
+Zusammenfassung wären das über hundert Meldungen in einer Minute. Es gilt: **eine Meldung je
+Vorfall, nicht je Endpunkt** — und danach Schweigen, bis er sich gelegt hat.
+
+🪤 **Die Rekursion beim Zustellweg.** Der naheliegende Weg nach draußen ist Discord — und
+`discord.com` ist selbst eines der Ziele, die die Tafel überwacht. Ein Alarm „Discord antwortet
+nicht", zugestellt über Discord, kommt nie an. **Der Ausfall eines Zustellwegs muss im Panel
+stehen, nicht nur im Kanal.** Wer die Zustellung baut, braucht deshalb immer eine zweite,
+zustellungsfreie Anzeige — sonst ist der einzige Fall, in dem der Alarm gebraucht wird, genau der,
+in dem er verschwindet.
+
+⚠️ **Voraussetzung:** die Tafel selbst (eingehende und ausgehende Zählung) muss stehen. Ohne sie
+gibt es nichts, worauf eine Schwelle zeigen könnte.
