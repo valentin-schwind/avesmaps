@@ -39,7 +39,27 @@ declare(strict_types=1);
 // KEINE Zeile in `app_setting`: ein DB-Schalter kann leer laufen, stumm gekuerzt werden oder beim
 // Lesen scheitern und faellt dann auf seinen Code-Standard zurueck -- und genau dieser Fehlerfall
 // hat hier die teuerste Richtung. Wer wieder aufmacht, aendert diese Zeile und sieht es im Diff.
-const AVESMAPS_WIKI_DATEI_ABRUF_ERLAUBT = false;
+//
+// 🔴 SEIT 25.08.2026 WIEDER OFFEN (Owner: „mach den riegel auf und starte den lauf"), und das ist
+// KEINE Ruecknahme der Entscheidung vom 23.08. -- die Bedingungen darunter haben sich an drei
+// Stellen geaendert, jede gemessen:
+//
+//   1. Die VERBOTENE SEITE wird gar nicht mehr abgerufen. `Spezial:Dateipfad` war der Grund der
+//      Sperre; seit `datei-adresse.php` fuehrt der Weg ueber `api.php` zur echten Adresse unter
+//      `/de/images/`, und die steht in keiner Verbotsliste -- auch nicht in der von `*`.
+//      `coat.php` weist eine Spezialseite ausdruecklich ab, statt sie zu holen.
+//   2. Die DROSSEL bindet seit `aa8f1801` alle fuenf Abrufer, nicht mehr nur die API. Am 23.08.
+//      war der einzige Schutz vor dem Haemmern dieser Schalter hier.
+//   3. AUS DEM SEITENAUFBAU KOMMT NICHTS MEHR. Live an der Kartennutzlast gemessen (20 MB,
+//      25.08.2026): GENAU EINE Wiki-Bildadresse steht noch darin, und die ist eine Spezialseite,
+//      die abgewiesen wird. Kein `coat`-Feld traegt eine Wiki-Adresse. Der Sturm von 2000+
+//      Anfragen je Seitenaufbau, der die Sperre am Leben hielt, kann strukturell nicht mehr
+//      entstehen.
+//
+// ⚠️ WAS DAMIT NOCH RAUSGEHT, ist genau das Gewollte: der ausdrueckliche Lauf „Hole Wiki-Wappen"
+// und die Einzelaktionen eines Editors -- alle gedrosselt, alle auf dem erlaubten Weg.
+// ⚠️ Und der Rueckweg bleibt eine Zeile: wer hier wieder `false` schreibt, macht sofort zu.
+const AVESMAPS_WIKI_DATEI_ABRUF_ERLAUBT = true;
 
 /**
  * PUR: wird diese URL von wiki-aventurica selbst ausgeliefert?

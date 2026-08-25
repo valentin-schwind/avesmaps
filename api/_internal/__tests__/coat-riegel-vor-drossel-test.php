@@ -113,16 +113,35 @@ assert($cacheTreffer < $riegel,
 // ⚠️ Und die Drossel ebenso: ein Wappen von der Platte kostet das Wiki nichts.
 assert($cacheTreffer < $drossel, 'auch die Drossel steht hinter dem Cache-Treffer');
 
-// ---- 5. Und der Riegel ist wirklich zu ---------------------------------------------------------
+// ---- 5. Und der Riegel TUT, WAS SEIN SCHALTER SAGT ----------------------------------------------
+// 🪤 HIER STAND BIS ZUM 25.08.2026 `=== false`, also „der Riegel ist zu". Das war eine
+// ENTSCHEIDUNG, festgenagelt als waere sie ein Mechanismus -- und als der Owner sie an diesem Tag
+// umdrehte („mach den riegel auf und starte den lauf"), fiel der Test um, ohne dass am Verhalten
+// etwas falsch gewesen waere. Ein Test, der eine Schalterstellung einfriert, meldet jede
+// beabsichtigte Aenderung als Fehler und bringt dem naechsten Leser bei, ihn wegzuklicken.
+//
+// 🔴 Geprueft wird deshalb die KOPPLUNG: die Antwort des Riegels folgt seiner Konstante, in beide
+// Richtungen. Das faengt genau den Fehler, um den es hier geht (eine Weiche, die den Schalter
+// ignoriert) -- und ueberlebt jedes Umlegen.
 require_once dirname(__DIR__) . '/wiki/datei-riegel.php';
 $wikiAdresse = 'https://de.wiki-aventurica.de/wiki/Spezial:Dateipfad/Wappen%20Gareth.png';
 assert(avesmapsWikiDateiIstWikiHost($wikiAdresse) === true, 'die Adresse gilt als Wiki-Host');
-assert(avesmapsWikiDateiAbrufErlaubt($wikiAdresse) === false,
-    'DER KERN VON TEIL 5: der Riegel ist zu');
+assert(
+    avesmapsWikiDateiAbrufErlaubt($wikiAdresse) === AVESMAPS_WIKI_DATEI_ABRUF_ERLAUBT,
+    'DER KERN VON TEIL 5: fuer eine Wiki-Adresse antwortet der Riegel GENAU das, was sein '
+        . 'Schalter sagt -- weder haengengeblieben noch daran vorbei'
+);
 
 // ⚠️ Und er gilt NUR dem Wiki -- eine fremde Adresse darf er nicht mitsperren, sonst faellt mit
-// ihm jede andere Bildquelle aus.
+// ihm jede andere Bildquelle aus. Diese Zusicherung gilt in JEDER Schalterstellung.
 assert(avesmapsWikiDateiAbrufErlaubt('https://upload.wikimedia.org/x.png') === true,
     'fremde Hosts bleiben erlaubt');
+
+// 🔴 UND WAS UNS SCHUETZT, WENN DER SCHALTER OFFEN IST: die verbotene Spezialseite wird nicht
+// geholt, sondern abgewiesen -- unabhaengig vom Riegel. Ohne diese Zeile liest sich Teil 5 seit
+// dem Aufmachen wie „jetzt darf alles raus".
+assert(avesmapsWikiDateiIstSpezialAdresse($wikiAdresse) === true,
+    'die Spezialseite wird als solche erkannt (abgewiesen wird sie in coat.php, siehe '
+    . 'wiki-datei-adresse-test.php Abschnitt 6)');
 
 echo "OK: coat-riegel-vor-drossel-test -- alle Zusicherungen gehalten\n";
