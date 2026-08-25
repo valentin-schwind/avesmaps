@@ -270,7 +270,7 @@ function vaDwellKarte(dwell) {
 	const kachel = (label, wert) => `<div class="va-kpi"><div class="va-kpi__label">${label}</div><div class="va-kpi__value">${wert}</div></div>`;
 
 	return `<div class="va-card"><div class="va-card__label">Verweildauer</div>`
-		+ `<div class="va-kpis" style="margin-bottom:10px">`
+		+ `<div class="va-kpis va-kpis--dauer" style="margin-bottom:10px">`
 		+ kachel("Median", vaDwellText(median)) + kachel("Durchschnitt", vaDwellText(schnitt))
 		+ kachel("Besuche", sitzungen.toLocaleString("de-DE"))
 		+ `</div>${vaDwell(daten)}`

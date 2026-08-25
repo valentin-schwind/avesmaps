@@ -108,6 +108,17 @@
 .va-kpis--four { grid-template-columns: repeat(4, 1fr); }
 .va-kpis--four .va-kpi { padding: 11px 8px; }
 .va-kpis--four .va-kpi__value { font-size: 17px; }
+/* Die Verweildauer-Kacheln tragen eine EINHEIT mit ("0:45 min", "1:30 h"), nicht nur eine Zahl wie
+   die uebrigen. Bei 20 px brach "0:45 min" in der 400 px breiten Saeule auf zwei Zeilen um -- vom
+   Owner an der Live-Seite gemeldet, 26.08.2026. Kleiner statt umbrechend: eine Kennzahl, die ueber
+   zwei Zeilen laeuft, liest sich als zwei. */
+/* ⚠️ Und weniger Polsterung an den Seiten. Am Zeiger (400 px Panel) waere sie egal, am Telefon
+   nicht: dort ist das Panel min(400px, 100vw - 64px), auf einem 360er also 296 px -- und dann
+   schiebt `nowrap` die Kachelreihe ueber die Karte hinaus, weil eine Grid-Spalte mit
+   min-width:auto nicht mehr unter ihren Text schrumpfen kann. Bei 8 px gemessen: passt bei 296,
+   311 und 400 px. */
+.va-kpis--dauer .va-kpi { padding: 11px 8px; }
+.va-kpis--dauer .va-kpi__value { font-size: 15px; white-space: nowrap; }
 .va-kpi { background: var(--color-panel-soft); border-radius: 8px; padding: 11px; }
 .va-kpi__label { font-size: 12px; color: var(--color-text-muted); }
 .va-kpi__value { font-size: 20px; font-weight: 700; color: var(--color-button-soft-text); }

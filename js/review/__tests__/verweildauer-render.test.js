@@ -62,6 +62,7 @@ eval([
 	extract("vaDwellGruppieren"),
 	extract("vaDwellText"),
 	extract("vaDwell"),
+	extract("vaDwellKarte"),
 	// 🪤 Ein `const` verlaesst den eval-Raum nie -- die Tabelle muss ausdruecklich herausgereicht
 	// werden, sonst sehen sie nur die Funktionen und nicht die Pruefungen. Sie abzuschreiben waere
 	// die Alternative, und eine abgeschriebene Tabelle prueft sich selbst.
@@ -206,6 +207,29 @@ check("der Strich selbst ist Tinte, nicht Gold",
 	/\.va-hist__mark\s*\{[^}]*var\(--color-text-strong\)/.test(css));
 check("kein hartkodierter Farbwert in den neuen Regeln (AGENTS.md §12)",
 	!/\.va-hist__[^{]*\{[^}]*#[0-9a-f]{3,8}/i.test(css));
+
+// ---------------------------------------------------------------------------------------------
+// 7. Die Kennzahl-Kacheln der Verweildauer. 🪤 Sie tragen als einzige eine EINHEIT mit ("0:45 min",
+//    "1:30 h") statt einer blanken Zahl -- bei den geerbten 20 px brach "0:45 min" auf zwei Zeilen
+//    um, und eine Kennzahl ueber zwei Zeilen liest sich als zwei. Vom Owner an der Live-Seite
+//    gemeldet, 26.08.2026.
+// ---------------------------------------------------------------------------------------------
+const karte = vaDwellKarte(dwell);
+check("die Dauer-Kacheln haben eine eigene Klasse, statt die geerbte Groesse zu tragen",
+	karte.indexOf("va-kpis va-kpis--dauer") !== -1);
+const dauerRegel = css.match(/\.va-kpis--dauer \.va-kpi__value\s*\{[^}]*\}/);
+check("und dazu eine Regel", !!dauerRegel);
+check("🪤 sie ist KLEINER als die geerbten 20 px",
+	!!dauerRegel && parseFloat((dauerRegel[0].match(/font-size:\s*(\d+)/) || [])[1]) < 20);
+check("und der Wert bricht nicht um", !!dauerRegel && /white-space:\s*nowrap/.test(dauerRegel[0]));
+// 💣 `nowrap` nimmt einer Grid-Spalte die Schrumpffaehigkeit (min-width:auto). Am Telefon ist das
+//    Panel min(400px, 100vw - 64px) -- auf einem 360er also 296 px -- und dann schiebt die
+//    Kachelreihe ueber die Karte hinaus. Die schmalere Polsterung ist der Ausgleich, gemessen bei
+//    296/311/360/400 px. Wer sie entfernt, muss dort neu messen.
+check("💣 die schmalere Seitenpolsterung gehoert dazu -- sonst laeuft die Reihe am Telefon ueber",
+	/\.va-kpis--dauer \.va-kpi\s*\{[^}]*padding:\s*11px 8px/.test(css));
+// Der Grund fuer das alles: in diesen Kacheln steht eine Einheit.
+check("die Werte tragen wirklich eine Einheit", /Median[^<]*<\/div><div class="va-kpi__value">[^<]*(min|h)</.test(karte));
 
 console.log(failed === 0 ? "\nOK -- alle Pruefungen bestanden" : "\n" + failed + " Pruefung(en) fehlgeschlagen");
 process.exit(failed === 0 ? 0 : 1);
