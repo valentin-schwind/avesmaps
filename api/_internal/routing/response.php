@@ -5,6 +5,13 @@ declare(strict_types=1);
 require_once __DIR__ . '/client-graph.php';
 // Der Tempo-Speicher dieser Anfrage -- gefuellt wird er unten, EINMAL, vor dem Graphbau.
 require_once __DIR__ . '/travel-values.php';
+// 💣 NICHT WEGLASSEN, auch wenn hier keine Datumsrechnung steht: `avesmapsRouteDurationFromSegments`
+// leitet die Rastzeit als „Tag minus Reisetag" ab und braucht dafuer
+// AVESMAPS_TRAVEL_CALENDAR_HOURS_PER_DAY. PHP hebt Funktionen hoch, `const` auf Dateiebene aber
+// nicht -- eine fehlende Konstante ist hier ein Fatal Error mit LEEREM Rumpf, und der sieht beim
+// Aufrufer wie ein Netzfehler aus („Unexpected end of JSON input"). Genau das ist am 19.08.2026 im
+// Wege-Editor passiert; `__tests__/const-vor-benutzung-test.php` wacht repoweit darueber.
+require_once __DIR__ . '/travel-calendar.php';
 require_once __DIR__ . '/terrain-read.php';
 // V14 „Hierher reisen": the land check and the cross-country A*. Both are inert unless a request
 // actually carries a map point, so an ordinary route pays for nothing here.
@@ -19,7 +26,6 @@ require_once __DIR__ . '/synthetic-refine.php';
 const AVESMAPS_ROUTE_API_CODE_REVISION = 15;
 
 class AvesmapsRouteLocationNotFoundException extends RuntimeException {}
-class AvesmapsRouteViaNotSupportedException extends RuntimeException {}
 
 /**
  * „Hierher reisen" could not use the clicked point. Carries the machine code, because the three
@@ -187,9 +193,10 @@ function avesmapsBuildMinimalRouteResultFromRequest(array $request, array $confi
 	if ($fromLocation === '' || $toLocation === '') {
 		throw new RuntimeException('Both from and to location names are required.');
 	}
-	if (is_array($via) && count($via) > 0) {
-		throw new AvesmapsRouteViaNotSupportedException('Via is not supported.');
-	}
+	// `via` ist seit dem 25.08.2026 wirklich gebaut (Meldung #92; davor stand hier eine 400 mit
+	// `via_not_supported`, obwohl der Vertrag das Feld in beiden Beispielen zeigte). Die Stationen
+	// werden weiter unten Paar fuer Paar gefahren -- siehe avesmapsFindClientCompatibleRouteLegs.
+	$via = is_array($via) ? array_values(array_filter(array_map('strval', $via), static fn(string $s): bool => trim($s) !== '')) : [];
 
 	$routeMapData = avesmapsLoadRouteMapData($config);
 	$routeNetworkData = avesmapsBuildRouteNetworkData($routeMapData);
@@ -316,7 +323,29 @@ function avesmapsBuildMinimalRouteResultFromRequest(array $request, array $confi
 		);
 	}
 
-	$routeDijkstraResult = avesmapsFindClientCompatibleRoute($clientGraph, $fromLocation, $toLocation, $request);
+	// Die Stationen der Reise: Start, die vorgeschriebenen Zwischenorte, Ziel. Ohne `via` ist das
+	// genau das Paar von frueher, und `avesmapsFindClientCompatibleRouteLegs` faellt dann auf einen
+	// einzigen Dijkstra zurueck -- zeichengleich mit dem alten Aufruf (via-etappen-test.php §1).
+	//
+	// 💣 DIE KARTENPUNKTE STEHEN SCHON DRIN. `$fromLocation`/`$toLocation` sind oben durch die
+	// internen Knotennamen ersetzt worden, falls ein Ende ein angeklickter Kartenpunkt war; die
+	// Stationsliste erbt das und braucht dafuer keine eigene Weiche.
+	$routeStations = array_merge([$fromLocation], $via, [$toLocation]);
+	// 🔴 EIN Aufruf-Bauplan fuer ALLE drei Stellen, an denen gerechnet wird (hier, nach dem
+	// Umweg-Angebot, nach der Sehnen-Verfeinerung). Stuende an einer davon weiter der Paar-Aufruf,
+	// verloere die Reise ihre Zwischenorte genau dann, wenn eine der beiden Nachbesserungen greift
+	// -- die Vier-Erzeuger-Falle vom 14.08.2026 in klein.
+	//
+	// 💣 `use (&$clientGraph)` UND KEINE PFEILFUNKTION. Beide Nachbesserungen unten nehmen den Graphen
+	// als `array &$clientGraph` und AENDERN ihn -- das Umweg-Angebot haengt eine Kante hinein, die
+	// Sehnen-Verfeinerung biegt eine. Eine Pfeilfunktion (`fn() => ...`) bindet ihre Umgebung beim
+	// ANLEGEN und immer als KOPIE; sie haette hier den Graphen von vor der Aenderung eingefroren und
+	// genau die Kante nicht gesehen, derentwegen ueberhaupt neu gerechnet wird. Der alte Code stand
+	// an jeder Stelle einzeln und las die Variable deshalb beilaeufig richtig.
+	$fahreRoute = static function () use (&$clientGraph, $routeStations, $request): array {
+		return avesmapsFindClientCompatibleRouteLegs($clientGraph, $routeStations, $request);
+	};
+	$routeDijkstraResult = $fahreRoute();
 
 	// V14 §5.5: der automatische Umweg-Auslöser. Fährt das gezeichnete Netz einen absurden Bogen,
 	// bekommt der Dijkstra einen A*-Querweg ANGEBOTEN und rechnet noch einmal.
@@ -343,7 +372,7 @@ function avesmapsBuildMinimalRouteResultFromRequest(array $request, array $confi
 		if (!empty($detour['offered'])) {
 			// 🔴 DERSELBE DIJKSTRA, NICHT EIN ZWEITER ZUSAMMENBAU. Er darf die Kante auch teilweise
 			// nehmen (ein Stück Straße, dann quer) -- das wäre dann die richtige Antwort.
-			$routeDijkstraResult = avesmapsFindClientCompatibleRoute($clientGraph, $fromLocation, $toLocation, $request);
+			$routeDijkstraResult = $fahreRoute();
 		}
 	}
 
@@ -358,11 +387,47 @@ function avesmapsBuildMinimalRouteResultFromRequest(array $request, array $confi
 	if (($refine['refined'] ?? 0) > 0) {
 		// Der gebogene Weg ist länger als die Sehne -- also kann eine andere Route jetzt die
 		// günstigere sein. Ohne diesen Lauf wäre die Antwort nur noch fast die beste.
-		$routeDijkstraResult = avesmapsFindClientCompatibleRoute($clientGraph, $fromLocation, $toLocation, $request);
+		$routeDijkstraResult = $fahreRoute();
 	}
 
 	$edgeIds = is_array($routeDijkstraResult['edge_ids'] ?? null) ? $routeDijkstraResult['edge_ids'] : [];
 	$nodeIds = is_array($routeDijkstraResult['node_ids'] ?? null) ? $routeDijkstraResult['node_ids'] : [];
+	// 🔴 MIT der Knotenliste: sie IST die Durchlaufrichtung, und ohne sie meldet jede Etappe die
+	// Speicherrichtung ihres Wegstuecks (Meldung #98). Begruendung im Kopf der Funktion.
+	$routeSegments = avesmapsBuildClientRouteDiagnosticSegments(
+		is_array($routeDijkstraResult['segments'] ?? null) ? $routeDijkstraResult['segments'] : [],
+		$nodeIds
+	);
+	// Meldung #94: die Dauer wird HIER gerechnet und nicht im Antwortbauer -- der Tempo-Speicher ist
+	// an dieser Stelle sicher gefuellt (avesmapsTravelValuesPrime weiter oben), und die eingestellten
+	// Reisetage des Owners gehen sonst still verloren.
+	$routeDuration = avesmapsRouteDurationFromSegments($routeSegments);
+	// Meldung #93: die Luftlinie, die `include_air_distance` seit jeher verspricht.
+	// ⚠️ Sie laeuft ueber die vorgeschriebenen Stationen, nicht von Start zu Ziel: bei einer Reise mit
+	// `via` ist die Strecke „so weit koennte ein Vogel fliegen, wenn er auch dort vorbei muesste".
+	// Ohne `via` ist das genau die Luftlinie zwischen den beiden Enden.
+	$airDistanceUnits = 0.0;
+	$previousStationPoint = null;
+	foreach ($routeStations as $stationName) {
+		$stationPoint = match (true) {
+			$stationName === $fromLocation => $fromPoint,
+			$stationName === $toLocation => $toPoint,
+			default => avesmapsRouteResolveEndpointPoint($locations, (string) $stationName, null),
+		};
+		if ($stationPoint === null) {
+			// Ein Ende ohne Koordinate macht die Summe unbrauchbar -- dann lieber gar keine Zahl als
+			// eine zu kurze. `null` faellt im Antwortbauer heraus.
+			$airDistanceUnits = null;
+			break;
+		}
+		if ($previousStationPoint !== null) {
+			$airDistanceUnits += hypot(
+				$stationPoint['x'] - $previousStationPoint['x'],
+				$stationPoint['y'] - $previousStationPoint['y']
+			);
+		}
+		$previousStationPoint = $stationPoint;
+	}
 	$networkStatistics = is_array($routeNetworkData['statistics'] ?? null) ? $routeNetworkData['statistics'] : [];
 	$graphStatistics = is_array($clientGraph['statistics'] ?? null) ? $clientGraph['statistics'] : [];
 
@@ -371,6 +436,14 @@ function avesmapsBuildMinimalRouteResultFromRequest(array $request, array $confi
 	}
 	if (!isset($clientGraph['graph'][$toLocation])) {
 		throw new AvesmapsRouteLocationNotFoundException(sprintf('Unknown to location: %s', $toLocation));
+	}
+	// ⚠️ Ein unbekannter Zwischenort ist `location_not_found`, nicht „keine Route gefunden" -- sonst
+	// sucht der Aufrufer den Fehler in der Welt statt in seiner Anfrage. Er kostet nichts extra: die
+	// Etappe zu ihm bricht schon im Dijkstra sofort ab, weil der Knoten im Graphen fehlt.
+	foreach ($via as $viaLocation) {
+		if (!isset($clientGraph['graph'][$viaLocation])) {
+			throw new AvesmapsRouteLocationNotFoundException(sprintf('Unknown via location: %s', $viaLocation));
+		}
 	}
 
 	return [
@@ -386,7 +459,15 @@ function avesmapsBuildMinimalRouteResultFromRequest(array $request, array $confi
 			'to_node' => $toLocation,
 			'node_ids' => $nodeIds,
 			'edge_ids' => $edgeIds,
-			'segments' => avesmapsBuildClientRouteDiagnosticSegments(is_array($routeDijkstraResult['segments'] ?? null) ? $routeDijkstraResult['segments'] : []),
+			'segments' => $routeSegments,
+			'duration' => $routeDuration,
+			'air_distance_units' => $airDistanceUnits,
+			// Meldung #95: die Gesamtstrecke stand nirgends -- ein Aufrufer musste die Etappen
+			// summieren, und mit `include_steps: false` haette er sie gar nicht mehr bekommen.
+			'distance_units' => array_sum(array_map(
+				static fn(array $segment): float => (float) ($segment['distance_units'] ?? 0.0),
+				$routeSegments
+			)),
 			'debug_context' => [
 				'api_code_revision' => AVESMAPS_ROUTE_API_CODE_REVISION,
 				'map_revision' => (int) ($routeMapData['revision'] ?? 0),
@@ -442,28 +523,155 @@ function avesmapsBuildMinimalRouteResultFromRequest(array $request, array $confi
 	];
 }
 
-function avesmapsBuildMinimalRouteResponse(array $route): array {
-	$debugContext = is_array($route['debug_context'] ?? null) ? $route['debug_context'] : [];
+/**
+ * PUR: die Dauer einer Reise aus ihren Etappen -- die Antwort auf Meldung #94.
+ *
+ * 💣 `cost` IST DAS DIJKSTRA-GEWICHT UND KEINE ZEIT. Bei `fastest` ist es die Reisestunde mal
+ * `avesmapsTravelValuesWeightFactor` (Kalenderzeit, damit „schnellste" fruehestes ANKOMMEN heisst
+ * und nicht die wenigsten Gehstunden), bei `shortest` schlicht die Strecke; `minimize_transfers`
+ * schlaegt zusaetzlich Umsteigezuschlaege drauf. Wer daraus eine Zeit liest, liest ein Gewicht.
+ * Deshalb rechnet diese Funktion aus den ETAPPEN und nie aus `cost`.
+ *
+ * 🔴 JE ETAPPE MIT IHREM EIGENEN REISETAG. Land 8 Stunden, Wasser 12, der Schnellsegler 24
+ * (travel-values.php, vom Owner im Fenster „Tempowerte" einstellbar). Ein Mittelwert ueber die
+ * ganze Reise waere bei jeder gemischten Land-Fluss-See-Route falsch -- und das ist genau der Fall,
+ * nach dem der Melder gefragt hat.
+ *
+ * ⚠️ EINE Quelle fuer den Reisetag. `rest_hours_per_day` wird daraus ABGELEITET (24 minus Reisetag)
+ * und steht nie als zweite Zahl daneben: sonst laufen die beiden auseinander, sobald jemand die
+ * Tempowerte verstellt, und niemand merkt es.
+ */
+function avesmapsRouteDurationFromSegments(array $segments): array {
+	$travelHours = 0.0;
+	$travelDays = 0.0;
+	foreach ($segments as $segment) {
+		if (!is_array($segment)) {
+			continue;
+		}
+
+		// 💣 `cost_units` IST KEINE STUNDE, auch wenn es sich so liest. Es entsteht als
+		// `distance_units / Tempo` -- und `distance_units` sind KARTENEINHEITEN, das Tempo dagegen
+		// steht in Meilen je Stunde. Eine Karteneinheit ist DREI Meilen
+		// (AVESMAPS_TERRAIN_MEILEN_PER_MAPUNIT, Spiegelbild von DISTANCE_SCALING_FACTOR in
+		// js/config.js), die echte Stunde ist also das Dreifache.
+		// Live gegengerechnet am 25.08.2026 (Gareth -> Perricum, landgebunden): Summe der
+		// `cost_units` 21,004 -- der Reiseplan der Karte zeigt fuer dieselbe Reise 63,0 Stunden, und
+		// er rechnet sie unabhaengig aus der Geometrie (`calculateScaledDistance` mal 3, geteilt
+		// durchs Tempo, js/routing/route-plan.js). Faktor exakt 3,000.
+		// 🪤 Genau diese Einheitenfalle hat am 30.07.2026 schon einmal einen falschen Infobox-Text
+		// oeffentlich gemacht (der 💣 an AVESMAPS_TERRAIN_SCHRITT_PER_MAPUNIT_ROUTE).
+		$hours = (float) ($segment['cost_units'] ?? 0.0) * AVESMAPS_TERRAIN_MEILEN_PER_MAPUNIT;
+		$travelHours += $hours;
+		$hoursPerDay = avesmapsTravelValuesHoursFor((string) ($segment['transport_type'] ?? ''));
+		if ($hoursPerDay > 0.0) {
+			$travelDays += $hours / $hoursPerDay;
+		}
+	}
+
+	$perDay = [
+		'land' => avesmapsTravelValuesHoursFor('groupFoot'),
+		'water' => avesmapsTravelValuesHoursFor('cargoShip'),
+		'night' => avesmapsTravelValuesHoursFor(AVESMAPS_TRAVEL_NIGHT_TRAVEL_TRANSPORT),
+	];
+
 	return [
+		'travel_hours' => $travelHours,
+		'travel_days' => $travelDays,
+		'travel_hours_per_day' => $perDay,
+		'rest_hours_per_day' => array_map(
+			static fn(float $hours): float => AVESMAPS_TRAVEL_CALENDAR_HOURS_PER_DAY - $hours,
+			$perDay
+		),
+	];
+}
+
+/**
+ * Die oeffentliche Antwort auf `POST /api/route/`.
+ *
+ * 🔴 DIE VIER `include_*` UND `debug` SCHALTEN HIER, UND NUR HIER. Bis zum 25.08.2026 wurden sie in
+ * request.php geprueft und danach von keiner Zeile gelesen (Meldung #93): der Aufrufer schaltete
+ * ins Leere und glaubte, geschaltet zu haben. Wer ein fuenftes solches Feld einfuehrt, verdrahtet
+ * es an dieser Stelle -- sonst entsteht dasselbe noch einmal.
+ *
+ * ⚠️ ALLE VORGABEN SIND „an". Ohne Angaben ist die Antwort Zeichen fuer Zeichen die alte, nur um
+ * `duration`, `air_distance_units` und die verdoppelten `node_ids`/`edge_ids` reicher. Ein
+ * zwischengespeicherter alter Client darf daran nicht zerbrechen (AGENTS.md §7).
+ *
+ * 💣 `node_ids` UND `edge_ids` STEHEN ZWEIMAL, UND DAS IST ABSICHT. Sie lagen bisher nur im
+ * Debug-Block, und js/routing/route-engine.js liest sie genau dort. Ein Kompaktmodus, der den Block
+ * wegnimmt, haette der Karte damit die Knotenliste genommen -- also stehen sie zusaetzlich am
+ * Routenobjekt, wo sie hingehoeren. Die Kopie im Debug-Block bleibt, bis kein Client sie mehr liest.
+ */
+function avesmapsBuildMinimalRouteResponse(array $route, array $request = []): array {
+	$debugContext = is_array($route['debug_context'] ?? null) ? $route['debug_context'] : [];
+	// Fehlt das Feld, gilt „an" -- das ist zugleich die Vorgabe des Normalisierers und das Verhalten
+	// von vor dem 25.08.2026.
+	$will = static fn(string $feld): bool => ($request[$feld] ?? true) !== false;
+
+	$response = [
 		'found' => (bool) ($route['found'] ?? false),
 		'from' => (string) ($route['from'] ?? ''),
 		'to' => (string) ($route['to'] ?? ''),
+		// 💣 Das OPTIMIERUNGSGEWICHT, keine Zeit und keine Strecke -- siehe
+		// avesmapsRouteDurationFromSegments und api/README.md. Fuer eine Dauer ist `duration` da.
 		'cost' => (float) ($route['cost'] ?? 0.0),
 		'summary' => [
 			'node_count' => (int) ($route['node_count'] ?? 0),
 			'edge_count' => (int) ($route['edge_count'] ?? 0),
 		],
-		'debug' => [
+		'from_node' => (string) ($route['from_node'] ?? ''),
+		'to_node' => (string) ($route['to_node'] ?? ''),
+		'node_ids' => is_array($route['node_ids'] ?? null) ? $route['node_ids'] : [],
+		'edge_ids' => is_array($route['edge_ids'] ?? null) ? $route['edge_ids'] : [],
+		'distance_units' => (float) ($route['distance_units'] ?? 0.0),
+		// 🔴 DER UMRECHNUNGSFAKTOR REIST MIT, statt dass ihn jeder Aufrufer abschreibt (Meldung #95).
+		// Er ist im Haus schon zweimal vergeben (AVESMAPS_TERRAIN_MEILEN_PER_MAPUNIT hier,
+		// DISTANCE_SCALING_FACTOR in js/config.js) und beide Stellen tragen den 💣 dazu -- ein
+		// dritter, abgeschriebener Wert in fremdem Code waere der, den niemand mitzieht.
+		'miles_per_distance_unit' => AVESMAPS_TERRAIN_MEILEN_PER_MAPUNIT,
+	];
+
+	$duration = is_array($route['duration'] ?? null) ? $route['duration'] : [];
+	if ($duration !== []) {
+		if (!$will('include_rests')) {
+			unset($duration['rest_hours_per_day']);
+		}
+		$response['duration'] = $duration;
+	}
+
+	// ⚠️ `null` heisst „eine Station hatte keine Koordinate" und faellt heraus -- lieber keine Zahl
+	// als eine zu kurze Luftlinie, die wie eine Messung aussieht.
+	if ($will('include_air_distance') && ($route['air_distance_units'] ?? null) !== null) {
+		$response['air_distance_units'] = (float) $route['air_distance_units'];
+	}
+
+	if ($will('debug')) {
+		$response['debug'] = [
 			'api_code_revision' => AVESMAPS_ROUTE_API_CODE_REVISION,
 			'map_revision' => (int) ($debugContext['map_revision'] ?? 0),
 			'network_path_count' => (int) ($debugContext['network_path_count'] ?? 0),
 			'client_graph_path_feature_count' => (int) ($debugContext['client_graph_path_feature_count'] ?? 0),
-			'from_node' => (string) ($route['from_node'] ?? ''),
-			'to_node' => (string) ($route['to_node'] ?? ''),
-			'node_ids' => is_array($route['node_ids'] ?? null) ? $route['node_ids'] : [],
-			'edge_ids' => is_array($route['edge_ids'] ?? null) ? $route['edge_ids'] : [],
+			'from_node' => $response['from_node'],
+			'to_node' => $response['to_node'],
+			'node_ids' => $response['node_ids'],
+			'edge_ids' => $response['edge_ids'],
 			'context' => $debugContext,
-		],
-		'segments' => is_array($route['segments'] ?? null) ? $route['segments'] : [],
-	];
+		];
+	}
+
+	if ($will('include_steps')) {
+		$segments = is_array($route['segments'] ?? null) ? $route['segments'] : [];
+		if (!$will('include_geometry')) {
+			// ⚠️ `coordinate_count` bleibt stehen: es sagt, wie gross die weggelassene Geometrie
+			// waere, und ist genau die Zahl, an der ein Aufrufer entscheidet, ob er sie nachladen
+			// will.
+			$segments = array_map(static function (array $segment): array {
+				unset($segment['geometry']);
+				return $segment;
+			}, $segments);
+		}
+		$response['segments'] = $segments;
+	}
+
+	return $response;
 }

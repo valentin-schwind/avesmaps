@@ -94,4 +94,55 @@ assert(avesmapsIsClientRouteDomainEnabled('Seeweg', $nurLand) === false, 'Seeweg
 assert($nurLand['transports']['river'] === AVESMAPS_ROUTE_DEFAULT_REQUEST['transports']['river'],
     'ein abgeschalteter Fluss aendert die Bootswahl nicht');
 
+// ---- 5. Ein dokumentiertes Feld muss auch WIRKEN -------------------------------------------------
+// 💣 DIE LUECKE, DIE MELDUNG #93 MOEGLICH GEMACHT HAT. Abschnitt 1 prueft „steht das Feld im
+// Vertrag?" -- und genau das war bei `include_geometry`, `include_steps`, `include_rests` und
+// `include_air_distance` erfuellt: sie standen im Dokument, request.php pruefte und normalisierte
+// sie, der Test war gruen. Gelesen hat sie danach KEINE Zeile. Ein Aufrufer schaltete damit ins
+// Leere und glaubte, geschaltet zu haben -- schlimmer als ein fehlendes Feld.
+//
+// ⚠️ Geprueft wird die Richtung „Vertrag -> WIRKUNG": jeder Schluessel muss ausserhalb von
+// request.php irgendwo im Routing-Code vorkommen. Das ist grob (ein Vorkommen ist noch keine
+// richtige Auswertung), faengt aber genau den Fall „gar nicht verdrahtet".
+$wirkungsQuellen = '';
+foreach (array_merge(glob(__DIR__ . '/../*.php'), [__DIR__ . '/../../../route/index.php']) as $datei) {
+    if (basename($datei) === 'request.php') {
+        continue;   // dort steht jedes Feld per Definition -- das ist die Annahme, nicht die Wirkung
+    }
+    $wirkungsQuellen .= (string) file_get_contents($datei);
+}
+
+// 🔴 EINE Ausnahme, und sie ist begruendet, nicht vergessen. `rest_hours_per_day` ist das
+// Gegenstueck des Reisetages (24 minus Reisestunden). Der Reisetag ist aber owner-eingestellt
+// (travel-values.php, Fenster „Tempowerte") und wird in `duration.travel_hours_per_day`
+// herausgegeben; wuerde das Anfragefeld ihn ueberschreiben, stuenden zwei Reisetag-Modelle im
+// System -- genau die Divergenz, die routing.js am 16.08.2026 beseitigt hat. Es wird deshalb
+// angenommen, gegen 0..23,5 geprueft und ausdruecklich NICHT ausgewertet; api/README.md sagt das.
+$ohneWirkung = ['rest_hours_per_day'];
+
+foreach (array_keys(AVESMAPS_ROUTE_DEFAULT_REQUEST) as $feld) {
+    if (in_array($feld, $ohneWirkung, true)) {
+        assert(str_contains($readme, 'does not change the'),
+            'api/README.md sagt, dass `' . $feld . '` die Antwort nicht veraendert');
+        continue;
+    }
+    assert(str_contains($wirkungsQuellen, "'" . $feld . "'"),
+        'Das Anfragefeld `' . $feld . '` wird ausserhalb von request.php nirgends gelesen. '
+        . 'Ein Feld, das der Vertrag zeigt und der Server annimmt, ohne dass es wirkt, ist '
+        . 'schlimmer als ein fehlendes -- siehe Meldung #93.');
+}
+
+// ---- 6. `via` ist gebaut, nicht mehr abgelehnt ---------------------------------------------------
+// 🪤 Bis zum 25.08.2026 zeigte der Vertrag `via` in BEIDEN Beispielanfragen, waehrend der Server
+// jede nicht-leere Liste mit 400 zurueckwies. Abschnitt 1 sah das nie: das Feld war ja dokumentiert.
+// ⚠️ Gesucht wird der CODE, nicht das Wort: die Begruendung in response.php nennt die alte Absage
+// weiterhin, und das soll sie auch -- sie erklaert, warum es sie nicht mehr gibt.
+assert(!str_contains($wirkungsQuellen, 'AvesmapsRouteViaNotSupportedException'),
+    'die Ausnahmeklasse ist raus -- die Bedingung gibt es nicht mehr');
+assert(!str_contains($wirkungsQuellen, "'via_not_supported'"),
+    'und der Fehlercode wird nirgends mehr gesendet');
+$mitVia = avesmapsNormalizeRouteRequest(['from' => 'A', 'to' => 'B', 'via' => ['Hartsteen']]);
+assert($mitVia['via'] === ['Hartsteen'], 'ein Zwischenort ueberlebt die Normalisierung');
+assert(str_contains($readme, 'Intermediate stops'), 'und der Vertrag erklaert ihn');
+
 echo "request-contract-test: all asserts passed\n";

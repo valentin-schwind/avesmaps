@@ -83,8 +83,31 @@ try {
 // ⚠️ Kein `Vary: Accept-Encoding`: diese Antwort geht durch avesmapsJsonResponse und wird von PHP
 // nie selbst komprimiert (anders als map-features.php, das seinen eigenen gzip-Zweig hat). Was
 // mod_deflate daraus macht, traegt Apache selbst ein.
+//
+// 💣 DER ETAG WIRD AUS DER 200 ENTFERNT, UEBERLEBT ABER DIE 304 -- und daraus wird ein Fangschluss.
+// Gemessen am 25.08.2026 (Meldung #96), viermal, mit und ohne gzip:
+//
+//   200  ->  kein `ETag`, kein `Content-Length`, `Transfer-Encoding: chunked`,
+//            `Vary: User-Agent,Accept-Encoding,X-Forwarded-For` (die hinteren zwei setzt der Code nicht)
+//   304  ->  `ETag: W/"loc-1-89628"`, unveraendert durchgereicht
+//
+// Vor STRATOs PHP sitzt also etwas, das Antworten MIT Rumpf anfasst. Der Riegel selbst ist heil:
+// `If-None-Match` kommt beim PHP an und die 304 wird korrekt beantwortet (gegengeprueft mit einem
+// absichtlich falschen Tag -> 200 mit vollem Rumpf). Nur ERFAHREN konnte ein Client den Tag nie:
+// die einzige Antwort, die ihn traegt, bekommt man erst, wenn man ihn schon hat.
+//
+// ⭐ DESHALB EIN ZWEITER KOPF UNTER EIGENEM NAMEN. `X-`-Koepfe ueberleben die 200 nachweislich --
+// `X-Robots-Tag` und `X-Powered-By` standen in derselben Messung da. Ein Client liest den Wert aus
+// `X-Avesmaps-ETag` und schickt ihn unveraendert als `If-None-Match` zurueck; damit funktioniert die
+// bedingte Anfrage vollstaendig, ohne dass wir die Hosting-Schicht aendern muessen. Dasselbe Mittel
+// wie `X-Avesmaps-SHA256` beim SVG-Export.
+// ⚠️ Der echte `ETag` bleibt trotzdem stehen: verschwindet die Zwischenschicht je, ist er sofort
+// wieder der richtige Weg, und ein Zwischenspeicher, der ihn sieht, soll ihn benutzen.
+// 🔴 Beide Koepfe muessen in avesmapsApplyCorsPolicy freigegeben sein, sonst liest ein fremder
+// Browser-Client keinen von beiden.
 function avesmapsSendLocationsCacheHeaders(string $etag): void {
 	header('ETag: ' . $etag);
+	header('X-Avesmaps-ETag: ' . $etag);
 	header('Cache-Control: no-cache, must-revalidate');
 }
 

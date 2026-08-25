@@ -331,7 +331,9 @@ try {
 	$requestPayload = avesmapsReadJsonRequest();
 	$normalizedRequest = avesmapsNormalizeRouteRequest($requestPayload);
 	$routeResult = avesmapsBuildMinimalRouteResultFromRequest($normalizedRequest, $config);
-	$routeResponse = avesmapsBuildMinimalRouteResponse($routeResult['route']);
+	// ⚠️ MIT der Anfrage: `include_geometry`, `include_steps`, `include_rests`,
+	// `include_air_distance` und `debug` schalten im Antwortbauer, und ohne sie schaltet keines.
+	$routeResponse = avesmapsBuildMinimalRouteResponse($routeResult['route'], $normalizedRequest);
 
 	avesmapsJsonResponse(200, [
 		'ok' => true,
@@ -347,8 +349,6 @@ try {
 	}
 
 	avesmapsRouteErrorResponse(400, 'invalid_request', $message);
-} catch (AvesmapsRouteViaNotSupportedException $exception) {
-	avesmapsRouteErrorResponse(400, 'via_not_supported', $exception->getMessage());
 } catch (AvesmapsRouteOffroadPointException $exception) {
 	// 422, not 400: the request was well formed, the WORLD refused it. The machine code
 	// (`point_not_on_land` / `no_exit_node` / `no_offroad_route` / `offroad_transport_not_allowed`)

@@ -115,6 +115,14 @@ function avesmapsApplyCorsPolicy(array $config): bool {
 
     header('Access-Control-Allow-Methods: GET, POST, PATCH, DELETE, OPTIONS');
     header('Access-Control-Allow-Headers: Content-Type, Accept, Authorization, X-Avesmaps-Import-Token');
+    // 💣 OHNE DIESE ZEILE KANN EIN FREMDER BROWSER-CLIENT DEN ETAG NICHT LESEN -- auch dann nicht,
+    // wenn der Server ihn sendet. Ein `fetch()` von einer anderen Herkunft sieht per CORS nur eine
+    // Handvoll Standardkoepfe; alles andere muss ausdruecklich freigegeben werden, sonst gibt
+    // `response.headers.get('ETag')` schlicht `null` zurueck. `GET /api/locations/` ist Teil des
+    // stabilen Vertrags und wird genau von solchen Clients gelesen -- ohne die Freigabe ist die
+    // bedingte Anfrage dort unbenutzbar, ganz unabhaengig davon, was die Hosting-Schicht macht.
+    // ⚠️ Freigeben heisst nur LESEN duerfen, was ohnehin gesendet wird -- kein neuer Inhalt.
+    header('Access-Control-Expose-Headers: ETag, X-Avesmaps-ETag');
     header('Access-Control-Max-Age: 86400');
 
     return true;

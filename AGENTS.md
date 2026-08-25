@@ -385,6 +385,30 @@ is the default, English is opt-in. Therefore:
   loads *after* the generated sheet and blanket-sets `.manual-data-section table {
   table-layout: auto }` — an equal-specificity `table-layout: fixed` in the editor
   sheet is inert, so address such a table through its section.
+- 💣 **Ein `ETag` ueberlebt die 200 NICHT, die 304 schon — und das ist ein Fangschluss.** Gemessen
+  am 25.08.2026 an `GET /api/locations/` (Meldung #96), mit und ohne gzip: die **200** kommt ohne
+  `ETag`, ohne `Content-Length`, chunked und mit einem `Vary: User-Agent,Accept-Encoding,X-Forwarded-For`,
+  das der Code nicht setzt; die **304** traegt ihren `ETag` unveraendert. Vor STRATOs PHP sitzt also
+  etwas, das Antworten MIT Rumpf anfasst. Der Riegel selbst ist heil — `If-None-Match` kommt an, die
+  304 wird korrekt beantwortet, ein falscher Tag liefert weiter 200 —, aber **erfahren** konnte ein
+  Client den Tag nie: die einzige Antwort, die ihn traegt, bekommt man erst, wenn man ihn schon hat.
+  ⭐ Abhilfe ist ein zweiter Kopf unter eigenem Namen (`X-Avesmaps-ETag`), weil `X-`-Koepfe die 200
+  nachweislich ueberleben (`X-Robots-Tag`, `X-Powered-By` standen in derselben Messung da) — dasselbe
+  Mittel wie `X-Avesmaps-SHA256` beim SVG-Export. Der echte `ETag` bleibt daneben stehen.
+  ⚠️ **Und CORS ist die zweite Haelfte:** ohne `Access-Control-Expose-Headers` (jetzt in
+  `avesmapsApplyCorsPolicy`) liest ein fremder Browser-Client **keinen** von beiden — `headers.get()`
+  gibt `null`, so treu der Server auch sendet. Das erklaert die offene Frage aus
+  [[etag-kommt-live-nur-manchmal-an]] zur Haelfte: bei `map-features.php` schwankte es, weil dort mal
+  ein 304 und mal ein 200 gemessen wurde. 🔧 Wer die Zwischenschicht ist, ist weiter unbekannt.
+- 💣 **`segments[].cost_units` der Routing-API ist KEINE Stunde**, und `route.cost` schon gar nicht.
+  `cost_units` entsteht als `distance_units / Tempo` — die Strecke in KARTENEINHEITEN, das Tempo in
+  MEILEN je Stunde —, ist also ein Drittel einer Stunde (eine Karteneinheit sind drei Meilen,
+  `AVESMAPS_TERRAIN_MEILEN_PER_MAPUNIT`). Auf der Landroute Gareth → Perricum stehen deshalb drei
+  verschiedene Zahlen fuer eine Reise: Summe der `cost_units` 21,004, `cost` 31,506 (das
+  kalendergewichtete Dijkstra-Gewicht) und 63,0 Stunden im Reiseplan der Karte, der sie unabhaengig
+  aus der Geometrie rechnet. Seit dem 25.08.2026 liefert die Antwort `duration.travel_hours` /
+  `travel_days`; **daraus** liest man Zeit, nie aus `cost`. Es ist dieselbe Einheitenfalle, die am
+  30.07.2026 einen falschen Infobox-Text oeffentlich gemacht hat.
 - Several edit endpoints leak `getMessage()` to clients (info disclosure,
   milestone M1).
 

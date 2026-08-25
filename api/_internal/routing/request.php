@@ -10,6 +10,11 @@ const AVESMAPS_ROUTE_DEFAULT_REQUEST = [
 	'include_rests' => true,
 	'rest_hours_per_day' => 10.0,
 	'minimize_transfers' => false,
+	// 🔴 „an" ist die Vorgabe, und das ist kein Versehen. `debug: false` ist ein KOMPAKTMODUS zum
+	// Anfordern (Meldung #97), keine Umkehr der Vorgabe: die Karte liest `debug.node_ids`, und ein
+	// zwischengespeicherter alter Client wuerde bei einer gekippten Vorgabe still aufhoeren, Routen
+	// zu zeichnen. Der Block selbst ist ausdruecklich NICHT Teil des stabilen Vertrags.
+	'debug' => true,
 	'transports' => [
 		'land' => 'groupFoot',
 		'river' => 'riverSailer',
@@ -24,6 +29,11 @@ const AVESMAPS_ROUTE_ALLOWED_RIVER_TRANSPORTS = ['riverSailer', 'riverBarge'];
 const AVESMAPS_ROUTE_ALLOWED_SEA_TRANSPORTS = ['cargoShip', 'fastShip', 'galley'];
 const AVESMAPS_ROUTE_REST_HOURS_MIN = 0.0;
 const AVESMAPS_ROUTE_REST_HOURS_MAX = 23.5;
+// ⚠️ Der Deckel fuer `via`. Jeder Zwischenort kostet einen weiteren Dijkstra ueber denselben
+// Graphen; der Graphbau kommt nur einmal, die Suche je Etappe. Ohne Deckel haengt eine Anfrage mit
+// hunderten Stationen am 30-Sekunden-Limit des Endpunkts -- und das ist auf STRATO ein besetzter
+// PHP-Arbeiter, die Last, vor der AGENTS.md §9 warnt.
+const AVESMAPS_ROUTE_MAX_VIA = 10;
 
 function avesmapsNormalizeRouteRequest(array $payload): array {
 	$from = avesmapsRouteNormalizeRequiredString($payload, 'from');
@@ -40,6 +50,7 @@ function avesmapsNormalizeRouteRequest(array $payload): array {
 	$includeRests = avesmapsRouteNormalizeBoolean($payload['include_rests'] ?? AVESMAPS_ROUTE_DEFAULT_REQUEST['include_rests'], 'include_rests');
 	$restHoursPerDay = avesmapsRouteNormalizeRestHours($payload['rest_hours_per_day'] ?? AVESMAPS_ROUTE_DEFAULT_REQUEST['rest_hours_per_day']);
 	$minimizeTransfers = avesmapsRouteNormalizeBoolean($payload['minimize_transfers'] ?? AVESMAPS_ROUTE_DEFAULT_REQUEST['minimize_transfers'], 'minimize_transfers');
+	$debug = avesmapsRouteNormalizeBoolean($payload['debug'] ?? AVESMAPS_ROUTE_DEFAULT_REQUEST['debug'], 'debug');
 	$transports = avesmapsRouteNormalizeTransports($payload['transports'] ?? []);
 	$enabledTransports = avesmapsRouteNormalizeEnabledTransports($payload['enabled_transports'] ?? null);
 	$clientRoute = avesmapsRouteNormalizeClientRoute($payload['client_route'] ?? []);
@@ -61,6 +72,7 @@ function avesmapsNormalizeRouteRequest(array $payload): array {
 		'include_rests' => $includeRests,
 		'rest_hours_per_day' => $restHoursPerDay,
 		'minimize_transfers' => $minimizeTransfers,
+		'debug' => $debug,
 		'transports' => $transports,
 		'enabled_transports' => $enabledTransports,
 		'client_route' => $clientRoute,
@@ -138,9 +150,15 @@ function avesmapsRouteNormalizeVia(mixed $value): array {
 	$normalizedVia = [];
 	foreach ($value as $entry) {
 		$normalizedEntry = avesmapsNormalizeSingleLine((string) $entry, 120);
+		// Eine leere Zeile ist keine Fehleingabe, sondern eine stehengebliebene Wegpunktzeile des
+		// Planers -- sie faellt still heraus und zaehlt deshalb auch nicht gegen den Deckel.
 		if ($normalizedEntry !== '') {
 			$normalizedVia[] = $normalizedEntry;
 		}
+	}
+
+	if (count($normalizedVia) > AVESMAPS_ROUTE_MAX_VIA) {
+		throw new InvalidArgumentException('Invalid field: via allows at most ' . AVESMAPS_ROUTE_MAX_VIA . ' stops.');
 	}
 
 	return array_values($normalizedVia);

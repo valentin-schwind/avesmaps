@@ -1851,10 +1851,107 @@ function avesmapsFindClientCompatibleRoute(array $clientGraph, string $startName
     ];
 }
 
-function avesmapsBuildClientRouteDiagnosticSegments(array $segments): array {
-    return array_map(static function (array $segment, int $index): array {
+/**
+ * Eine Reise ueber MEHRERE vorgeschriebene Stationen -- `POST /api/route/` mit `via` (Meldung #92).
+ *
+ * 🔴 EIN ZWISCHENORT IST EIN ZWANG, KEIN WUNSCH. Gerechnet wird je Paar aufeinanderfolgender
+ * Stationen ein eigener Dijkstra, und die Ergebnisse werden verkettet -- die Reise ist damit
+ * ausdruecklich NICHT die guenstigste von A nach C, sondern die guenstigste von A nach B und von B
+ * nach C. Liegt B abseits, ist die Reise teurer als die freie; das ist der Preis der Regel und in
+ * `__tests__/via-etappen-test.php` festgenagelt, damit ihn niemand „wegoptimiert".
+ *
+ * ⭐ EIN GRAPH, N SUCHLAEUFE. Der teure Teil einer Anfrage ist der Graphbau (die Ladung, die
+ * api/route/index.php mit „62 MB resident, peak 152 MB" beziffert), nicht der Dijkstra. Genau
+ * deshalb gehoert das hierher und nicht in den Client: die Karte faehrt fuer dieselbe Reise heute
+ * eine eigene HTTP-Anfrage je Wegpunktpaar und baut den Graphen jedes Mal neu
+ * (`buildRouteResultFromSelectedLocationsServer`, js/routing/route-engine.js).
+ *
+ * 💣 DIE NAHT DARF DEN KNOTEN NICHT DOPPELN. Der Endknoten einer Etappe und der Anfangsknoten der
+ * naechsten sind derselbe Ort; stuende er zweimal in `node_ids`, verschoebe sich ab dort jede
+ * Zuordnung „Etappe i liegt zwischen node_ids[i] und node_ids[i+1]" um eins -- und mit ihr die
+ * Richtungsbestimmung in avesmapsBuildClientRouteDiagnosticSegments.
+ *
+ * ⚠️ EINE nicht gefundene Etappe macht die GANZE Reise ungefunden. Wer einen Zwischenort nennt,
+ * will dorthin; eine halbe Route waere eine Antwort auf eine Frage, die niemand gestellt hat.
+ *
+ * ⚠️ `minimize_transfers` wirkt INNERHALB einer Etappe. Ein Umstieg genau an einer vorgeschriebenen
+ * Station kostet keinen Zuschlag -- dort steigt man ohnehin aus. Im Vertrag dokumentiert.
+ */
+function avesmapsFindClientCompatibleRouteLegs(array $clientGraph, array $stations, array $request): array {
+    $stations = array_values(array_filter(array_map('strval', $stations), static fn(string $s): bool => $s !== ''));
+    $leer = ['found' => false, 'cost' => 0.0, 'node_ids' => [], 'edge_ids' => [], 'edge_count' => 0, 'segments' => []];
+    if (count($stations) < 2) {
+        return $leer;
+    }
+
+    $nodeIds = [];
+    $edgeIds = [];
+    $segments = [];
+    $cost = 0.0;
+    for ($i = 0, $n = count($stations) - 1; $i < $n; $i++) {
+        $leg = avesmapsFindClientCompatibleRoute($clientGraph, $stations[$i], $stations[$i + 1], $request);
+        if (empty($leg['found'])) {
+            return $leer;
+        }
+
+        $legNodes = is_array($leg['node_ids'] ?? null) ? array_values($leg['node_ids']) : [];
+        // Die Naht: ab der zweiten Etappe faellt der erste Knoten weg -- er ist der letzte der
+        // vorigen. Siehe den 💣 im Kopf.
+        array_push($nodeIds, ...($nodeIds === [] ? $legNodes : array_slice($legNodes, 1)));
+        array_push($edgeIds, ...(is_array($leg['edge_ids'] ?? null) ? $leg['edge_ids'] : []));
+        array_push($segments, ...(is_array($leg['segments'] ?? null) ? $leg['segments'] : []));
+        $cost += (float) ($leg['cost'] ?? 0.0);
+    }
+
+    return [
+        'found' => true,
+        'cost' => $cost,
+        'node_ids' => $nodeIds,
+        'edge_ids' => $edgeIds,
+        'edge_count' => count($edgeIds),
+        'segments' => $segments,
+    ];
+}
+
+/**
+ * Die Etappen einer gefundenen Route, wie die oeffentliche Antwort sie ausgibt.
+ *
+ * 🔴 `$nodeIds` IST DIE DURCHLAUFRICHTUNG, und nur mit ihr steht die Etappe richtig herum.
+ * Ein Verbindungsobjekt haengt unter BEIDEN Richtungen im Graphen und traegt `from`/`to` in der
+ * SPEICHERrichtung des Wegstuecks (avesmapsAddClientCompatiblePathSliceConnection, dort begruendet:
+ * die Kettenwanderung der Verlauf-Ableitung haengt daran). Ohne die Knotenliste meldete eine Reise
+ * Gareth -> Alfenmohn deshalb `from_node: Alfenmohn, to_node: Gareth` -- Meldung #98 vom 25.08.2026,
+ * und ein Client, der daraus eine Reiseanweisung baut, schickt den Leser rueckwaerts.
+ *
+ * ⭐ Gedreht wird HIER und nicht im Graphen: hier ist die Richtung bekannt (Etappe i laeuft von
+ * node_ids[i] nach node_ids[i+1]), und der Graph bleibt, worauf sich die Verlauf-Ableitung stuetzt.
+ *
+ * ⚠️ Ohne `$nodeIds` (Vorgabe) bleibt alles Zeichen fuer Zeichen wie bisher -- das ist der zweite
+ * Aufrufer, `path-verlauf.php`, der `from_node`/`to_node` gar nicht liest.
+ *
+ * 🔴 UND DIE RICHTUNGSABHAENGIGEN WERTE WERDEN NICHT MITGEDREHT. `ascent_schritt`, `descent_schritt`,
+ * die beiden Maximalgefaelle, `terrain_time_factor` und `flow_time_factor` stehen bereits in
+ * Reiserichtung: der Graphbau legt fuer die Gegenrichtung ein EIGENES Objekt ab
+ * (`avesmapsRouteApplyTerrainToConnection(..., $reversed)`). Ein zweiter Tausch hier machte aus dem
+ * Anstieg wieder ein Gefaelle. Gedreht werden ausschliesslich Beschriftung und Geometrie.
+ */
+function avesmapsBuildClientRouteDiagnosticSegments(array $segments, array $nodeIds = []): array {
+    // Nur eine Knotenliste, die zur Etappenzahl passt, ist ein Beweis. Passt sie nicht (ein
+    // abgebrochener Rueckweg, ein fremder Aufrufer), bleibt lieber die Speicherrichtung stehen als
+    // dass irgendetwas falsch herum gedreht wird.
+    $nodeIds = count($nodeIds) === count($segments) + 1 ? array_values($nodeIds) : [];
+
+    return array_map(static function (array $segment, int $index) use ($nodeIds): array {
         $geometry = is_array($segment['geometry'] ?? null) ? $segment['geometry'] : [];
         $coordinates = is_array($geometry['coordinates'] ?? null) ? $geometry['coordinates'] : [];
+        $fromNode = (string) ($segment['from'] ?? '');
+        $toNode = (string) ($segment['to'] ?? '');
+        // Gereist wird von node_ids[i] nach node_ids[i+1]. Steht das gespeicherte ZIEL dort, wo die
+        // Reise anfaengt, wird das Stueck rueckwaerts befahren.
+        if ($nodeIds !== [] && $fromNode !== $nodeIds[$index] && $toNode === $nodeIds[$index]) {
+            [$fromNode, $toNode] = [$toNode, $fromNode];
+            $coordinates = array_reverse($coordinates);
+        }
         // 💣 THE x25 IS A WEIGHT, NOT A DISTANCE. Only the two synthetic producers set this key
         // (component bridge, waypoint anchor); every drawn way and every split slice leaves it at 1,0.
         $costFactor = (float) ($segment['cost_factor'] ?? 1.0);
@@ -1874,8 +1971,9 @@ function avesmapsBuildClientRouteDiagnosticSegments(array $segments): array {
             'path_id' => (string) ($segment['path_id'] ?? ''),
             'feature_id' => (string) ($segment['feature_id'] ?? ''),
             'public_id' => (string) ($segment['public_id'] ?? ''),
-            'from_node' => (string) ($segment['from'] ?? ''),
-            'to_node' => (string) ($segment['to'] ?? ''),
+            // In DURCHLAUFRICHTUNG, sobald die Knotenliste mitkam -- siehe den Kopf dieser Funktion.
+            'from_node' => $fromNode,
+            'to_node' => $toNode,
             'subtype' => (string) ($segment['route_type'] ?? ''),
             'transport_type' => (string) ($segment['transport_option'] ?? ''),
             'distance_units' => $distanceUnits,

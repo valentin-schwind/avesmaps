@@ -43,6 +43,7 @@ Typical full request:
   "include_rests": true,
   "rest_hours_per_day": 10,
   "minimize_transfers": false,
+  "debug": true,
   "enabled_transports": {
     "land": true,
     "river": true,
@@ -82,6 +83,50 @@ distance table (S. 254) describes:
 }
 ```
 
+#### Intermediate stops (`via`)
+
+`via` is an ordered list of place names the route **must** pass through. The journey is
+computed as one leg per consecutive pair of stations (`from` → `via[0]` → … → `to`) on a
+single graph, and the legs are concatenated.
+
+```json
+{ "from": "Gareth", "to": "Perricum", "via": ["Hartsteen"], "optimize": "fastest" }
+```
+
+- **A stop is a constraint, not a preference.** The answer is the cheapest way from A to B
+  and from B to C — not the cheapest way from A to C that happens to pass B. If the stop
+  lies off the direct line, the journey is *more* expensive than without it. That is the
+  point of the field.
+- At most **10** stops per request; more is rejected with `invalid_request`. Every stop
+  costs one further search over the same graph.
+- Empty strings are dropped silently and do not count against the limit.
+- An unknown stop answers `404 location_not_found` naming it, not `found: false`.
+- A leg that cannot be routed makes the **whole** journey `found: false`. There is no
+  partial answer.
+- `minimize_transfers` applies *within* a leg. Changing vehicle exactly at a prescribed
+  stop costs no penalty — the traveller stops there anyway.
+- Until 2026-08-25 a non-empty `via` was rejected with `400 via_not_supported`. That error
+  code no longer exists because the condition no longer exists.
+
+#### Switching parts of the answer on and off
+
+All five default to `true`, so a request that omits them gets the full answer.
+
+| Field | `false` removes |
+|---|---|
+| `include_steps` | the whole `segments` list (the summary and the totals stay) |
+| `include_geometry` | `segments[].geometry` (`coordinate_count` stays, so you can tell what you skipped) |
+| `include_air_distance` | `air_distance_units` |
+| `include_rests` | `duration.rest_hours_per_day` |
+| `debug` | the whole `debug` block — this is the **compact mode** |
+
+⚠️ `rest_hours_per_day` is accepted and validated (0 … 23.5) but **does not change the
+result**. It is the complement of the travel day (`24 − travel hours per day`), and the
+travel day is owner-configured (Tuning window „Tempowerte") and shipped in
+`duration.travel_hours_per_day`. Making the request field authoritative would put a second,
+diverging travel-day model into the system, so it deliberately does not. Read the effective
+values from `duration`; do not derive them from what you sent.
+
 Success:
 
 ```json
@@ -91,11 +136,21 @@ Success:
   "route": {
     "found": true,
     "from": "Gareth",
-    "to": "Tuzak",
-    "cost": 45.659557387792944,
-    "summary": {
-      "node_count": 12,
-      "edge_count": 11
+    "to": "Perricum",
+    "cost": 31.506095790416314,
+    "summary": { "node_count": 19, "edge_count": 18 },
+    "from_node": "Gareth",
+    "to_node": "Perricum",
+    "node_ids": ["Gareth", "Alfenmohn", "…"],
+    "edge_ids": ["path-2696", "path-2654", "…"],
+    "distance_units": 106.4906,
+    "miles_per_distance_unit": 3,
+    "air_distance_units": 83.6981,
+    "duration": {
+      "travel_hours": 63.01,
+      "travel_days": 7.88,
+      "travel_hours_per_day": { "land": 8, "water": 12, "night": 24 },
+      "rest_hours_per_day": { "land": 16, "water": 12, "night": 0 }
     },
     "debug": {},
     "segments": []
@@ -115,6 +170,58 @@ Error:
 }
 ```
 
+#### What the numbers mean
+
+💣 **`cost` is the optimiser's weight. It is not a time, not a distance, and it is not
+meant for display.** With `optimize: "fastest"` it is the travel time weighted into
+*calendar* time (so that "fastest" means *arrives earliest*, not *fewest hours on foot*);
+with `optimize: "shortest"` it is the distance; and `minimize_transfers` adds a change
+penalty on top. It exists so two routes can be ordered, and its absolute value carries no
+unit. Use `duration` for time and `distance_units` for distance.
+
+💣 **`segments[].cost_units` is likewise not an hour**, however much it looks like one. It
+is `distance_units / speed`, where the distance is in map units and the speed is in Meilen
+per hour — so it is a third of an hour. One map unit is three Meilen. This is exactly why
+the sum of `cost_units` (21.004 on the land-only Gareth → Perricum route) and `cost`
+(31.506) and the travel plan's own figure (63.0 hours) are three different numbers for one
+journey. **Take hours from `duration.travel_hours`.**
+
+| Field | Meaning |
+|---|---|
+| `duration.travel_hours` | pure hours in motion, rests excluded |
+| `duration.travel_days` | calendar days: each leg's hours divided by *its* travel day, then summed |
+| `duration.travel_hours_per_day` | the travel day actually used, per domain — the one source for it |
+| `duration.rest_hours_per_day` | `24 −` the above; present only with `include_rests` |
+| `distance_units` | length of the route in **map units** |
+| `miles_per_distance_unit` | multiply by this for Meilen (`3`); shipped so no client hardcodes it |
+| `air_distance_units` | straight line across the prescribed stations, in map units |
+| `node_ids` / `edge_ids` | the traversed nodes and edges, in travel order |
+
+A mixed land/river/sea journey cannot be converted with a single divisor: land travels 8
+hours a day, ships 12, and the Schnellsegler 24. `travel_days` already does this per leg;
+`travel_hours / 8` does not.
+
+#### Segments run in travel direction
+
+Each entry of `segments` describes one leg, and leg *i* runs from `node_ids[i]` to
+`node_ids[i+1]`. `from_node`, `to_node` and `geometry.coordinates` all follow the direction
+travelled, as do the direction-dependent values `ascent_schritt`, `descent_schritt`,
+`max_ascent_gradient`, `max_descent_gradient` and `flow_time_factor`.
+
+⚠️ Before 2026-08-25 `from_node`/`to_node` and the geometry reported the **stored**
+orientation of the underlying way instead, which for roughly half of all legs is the
+opposite of the direction of travel. A client that turned them into travel instructions
+sent the reader backwards. `distance_units`, `cost_units` and the edge identity are
+unaffected — only the orientation changed.
+
+#### The `debug` block
+
+`debug` carries graph statistics, an echo of the normalised request and other diagnostic
+context. **It is not part of the stable contract** and may change or disappear without
+notice. Send `"debug": false` for a compact production answer; everything a client needs to
+render a route — including `node_ids` and `edge_ids` — is available on the route object
+itself.
+
 Supported methods:
 
 ```text
@@ -123,6 +230,31 @@ OPTIONS CORS/preflight
 ```
 
 Some technical diagnostic queries may currently still exist via `GET /api/route/?diagnostic=...`. They are not part of the stable external API contract.
+
+### Coordinates, distances and units
+
+Every coordinate in this API — `coordinates.x`/`coordinates.y` in `/api/locations/`, the
+`from_point`/`to_point` of a routing request, and every position in a segment geometry —
+lives in one flat map coordinate system:
+
+- **Axis order is `[x, y]`**, GeoJSON order. Leaflet's `L.CRS.Simple` wants `[lat, lng]`,
+  which is `[y, x]`; swap once, consciously, at the boundary of your renderer.
+- **Range is `0 … 1024` on both axes**, matching the tile pyramid (zoom `0 … 5`).
+- **The origin `(0, 0)` is the south-west corner.** `y` grows **northwards** — Riva at
+  `y ≈ 790` lies north of Al'Anfa at `y ≈ 152`. (The tile *files* use a negative y,
+  `map_x_-y`; that is a storage detail of the tiles and never appears in the API.)
+- **The projection is the drawn map itself.** There is no geodetic datum, no latitude or
+  longitude: Aventurien is a painted map, and the coordinates index that painting. You
+  cannot align them with a real-world CRS.
+
+**One map unit is three Meilen.** `distance_units` — on the route and on every segment — is
+in map units, so Meilen are `distance_units × 3`. The response ships the factor as
+`miles_per_distance_unit` so a client does not have to hardcode it. A Meile is 1000 Schritt,
+which is what the `ascent_schritt` / `descent_schritt` fields count.
+
+💣 Reading a map unit as one Meile is the standing trap here: it understates every distance
+threefold, and — because a gradient is climb over distance — overstates every slope by the
+same factor. It has already put a wrong sentence in front of readers once.
 
 ### Terrain (V11)
 
@@ -199,6 +331,42 @@ Success:
   ]
 }
 ```
+
+The `coordinates` are in the map coordinate system described under
+[Coordinates, distances and units](#coordinates-distances-and-units): `[x, y]`, `0 … 1024`,
+origin south-west, `y` growing northwards.
+
+#### Conditional requests, and why the `ETag` looks missing
+
+The endpoint answers `If-None-Match` with `304 Not Modified`, which saves the caller the
+full list (about 1 MB gzipped). The validator is a weak ETag over the payload version and
+the map revision, `W/"loc-1-89628"`, and it changes whenever an editor changes the map.
+
+💣 **On a `200` the `ETag` header does not reach the client — on the `304` it does.**
+Something in the hosting layer in front of PHP rewrites responses that carry a body: the
+`200` arrives without `ETag`, without `Content-Length`, chunked, and with a `Vary` this
+application never sets. The `304` passes through untouched. The conditional mechanism
+itself is intact — `If-None-Match` reaches the application and is answered correctly — but
+the only response that carries the validator is the one you can only obtain once you
+already have it.
+
+⭐ **Therefore the same value is also sent as `X-Avesmaps-ETag`**, which survives (as
+`X-Robots-Tag` and `X-Powered-By` demonstrably do). Read the validator from there and send
+it back unchanged in `If-None-Match`:
+
+```bash
+TAG=$(curl -sS -D - -o /dev/null https://avesmaps.de/api/locations/   | tr -d '' | sed -n 's/^X-Avesmaps-ETag: //p')
+
+curl -sS -o /dev/null -w '%{http_code}
+'   -H "If-None-Match: $TAG" https://avesmaps.de/api/locations/
+# 304
+```
+
+The real `ETag` is still sent as well: should the intermediate layer ever stop rewriting,
+it is immediately the correct mechanism again, and any cache that does see it should use
+it. Both headers are listed in `Access-Control-Expose-Headers`, so a cross-origin browser
+client can read them — without that, `response.headers.get(…)` returns `null` however
+faithfully the server sends them.
 
 Supported methods:
 
