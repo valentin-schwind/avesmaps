@@ -35,6 +35,11 @@ const POPUP_ACTION_GLYPHS = {
 	// nichts gemeldet, es gibt also keins abzuschreiben. Bewusst NICHT ⚙: das gehoert den
 	// Eigenschaften, und ein Zeichen mit zwei Bedeutungen ist genau das, was diese Liste verhindert.
 	melden: "⚑",
+	// ↺ die Vokabel fuers Zurueckholen -- dasselbe Zeichen, mit dem der Wiki-Override eine Zeile
+	// auf den gesyncten Stand zurueckstellt (js/ui/wiki-feld-herkunft.js). Bewusst NICHT ✥: das
+	// gehoert dem Verschieben, und ein Zeichen mit zwei Bedeutungen ist genau das, was diese
+	// Liste verhindert.
+	zuruecksetzen: "↺",
 };
 
 function popupActionGlyphMarkup(key) {
@@ -755,6 +760,20 @@ function labelActionsMarkup(publicId, noteMarkup = "", { hatFlaeche = false } = 
 				"data-public-id": publicId,
 			},
 		}),
+		// Der Gegenpart zum Verschieben, deshalb steht er DANEBEN und nicht unten bei den beiden
+		// Flaechen-Handgriffen: zurueckgesetzt wird die BESCHRIFTUNG, nicht die Flaeche.
+		//
+		// 🔴 NUR MIT FLAECHE. Der Punkt, an den zurueckgesetzt wird, ist der Point of Inaccessibility
+		// IHRER Flaeche -- ein freies Label und ein Gipfel haben keine, und ohne sie waere die Kachel
+		// ein Knopf, der nichts tun kann. Dieselbe Frage und dieselbe Antwort wie unten.
+		...(hatFlaeche ? [popupActionButtonMarkup({
+			label: "Position zurücksetzen",
+			iconMarkup: popupActionGlyphMarkup("zuruecksetzen"),
+			attributes: {
+				"data-popup-action": "reset-label-position",
+				"data-public-id": publicId,
+			},
+		})] : []),
 		popupActionButtonMarkup({
 			label: "Bearbeiten",
 			iconMarkup: popupActionGlyphMarkup("bearbeiten"),

@@ -1307,6 +1307,20 @@ $(document).on("click", ".location-popup__action-button", function (event) {
 		return;
 	}
 
+	// „Position zurücksetzen“: die Beschriftung geht an den Point of Inaccessibility ihrer Fläche
+	// zurück. Die ganze Rechnung samt Rückfrage steckt in avesmapsLabelPositionZuruecksetzen
+	// (map-features-labels.js), damit hier kein zweiter Weg entsteht.
+	if (action === "reset-label-position") {
+		const labelEntry = findLabelEntryByPublicId(this.dataset.publicId);
+		if (!labelEntry) {
+			showFeedbackToast("Label konnte nicht gefunden werden.", "warning");
+			return;
+		}
+
+		void avesmapsLabelPositionZuruecksetzen(labelEntry);
+		return;
+	}
+
 });
 
 const normalizeLocationSearchName = (name) => {

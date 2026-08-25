@@ -1569,6 +1569,128 @@ async function avesmapsLabelFlaechenHandgriff(label, was) {
 	openEcosystemGeometryEdit(flaeche);
 }
 
+// ---- „Position zurücksetzen“: zurück an den Point of Inaccessibility --------------------------
+//
+// Owner 25.08.2026: „dass es an den point of inaccesiblity zurückverschoben wird“. Das ist genau der
+// Punkt, den das Anlegen einer Landschaftsfläche vergibt (createEcosystemRegionLabel,
+// map-features-ecosystem-draw.js) -- der mit dem grössten Abstand zu allen Kanten.
+
+// Wie weit eine zurückgesetzte Beschriftung ausweicht, wenn dort schon eine andere derselben Fläche
+// liegt: 20 px nach unten UND nach rechts, wie beim Duplizieren (Owner 25.08.2026). Layer-Punkte,
+// also Bildschirmpixel der aktuellen Zoomstufe -- dieselbe Einheit, in der duplicateLabelEntry
+// seinen Versatz misst.
+const LABEL_ZURUECK_VERSATZ_PX = 20;
+
+// Der Zielpunkt aus der Geometrie, in Leaflet-Ordnung.
+//
+// 💣 GeoJSON speichert [x, y], Leaflet L.CRS.Simple will [lat, lng] = [y, x] -- bewusst gedreht
+// (AGENTS.md §5). Ein vertauschtes Paar sieht nirgends falsch aus; die Beschriftung landet nur
+// woanders auf der Karte.
+// 🪤 Der Rückfall ist `null`, nie ein Paar aus NaN: ein NaN reiste bis in `move_label` durch und
+// schriebe die Beschriftung ins Nirgendwo -- ohne Fehler und ohne Meldung.
+function avesmapsLabelZurueckPoiLatLng(geometry) {
+	const punkt = typeof avesmapsComputeLabelPoint === "function" ? avesmapsComputeLabelPoint(geometry) : null;
+	if (!punkt || !Number.isFinite(punkt.x) || !Number.isFinite(punkt.y)) {
+		return null;
+	}
+
+	return { lat: punkt.y, lng: punkt.x };
+}
+
+// Der freie Platz am Zielpunkt: er selbst, solange dort keine andere Beschriftung derselben Fläche
+// liegt -- sonst je ein Schritt nach rechts unten. Reine Rechnung in Layer-Punkten.
+//
+// 💣 GEDECKELT, und der Deckel ist gerechnet: auf der Schrittdiagonale (28,3 px Abstand) verdeckt
+// ein einzelner belegter Punkt mit seinem 20-px-Radius höchstens ZWEI Kandidaten, also lassen n
+// Nachbarn von 2n+1 Kandidaten mindestens einen frei. Ohne den Deckel drehte sich die Schleife im
+// Klick-Handler eines Popups endlos -- das ist kein Fehler, das ist ein eingefrorener Browser.
+function avesmapsLabelZurueckFreierPunkt(ziel, belegte) {
+	const nachbarn = Array.isArray(belegte) ? belegte : [];
+	const maxSchritte = nachbarn.length * 2;
+	for (let schritt = 0; schritt <= maxSchritte; schritt += 1) {
+		const kandidat = {
+			x: ziel.x + schritt * LABEL_ZURUECK_VERSATZ_PX,
+			y: ziel.y + schritt * LABEL_ZURUECK_VERSATZ_PX,
+		};
+		const belegt = nachbarn.some((punkt) => Math.hypot(punkt.x - kandidat.x, punkt.y - kandidat.y) < LABEL_ZURUECK_VERSATZ_PX);
+		if (!belegt) {
+			return kandidat;
+		}
+	}
+
+	// Unerreichbar nach der Rechnung oben -- ein Rückgabewert gehört trotzdem hin.
+	return ziel;
+}
+
+// Der Handgriff selbst.
+//
+// 🔴 DERSELBE WEG ZUR FLÄCHE wie „Eigenschaften“ und „Fläche bearbeiten“
+// (avesmapsEcosystemAreaPublicIdOfLabel), samt Ansichtswechsel: im Standardmodus ist die Fläche gar
+// nicht geladen, und ohne ihre Geometrie gibt es keinen Punkt zu rechnen. Ein zweiter Weg dorthin
+// wäre die zweite Wahrheit.
+//
+// 🔴 RÜCKFRAGE, SOBALD DIE FLÄCHE MEHR ALS EINE BESCHRIFTUNG TRÄGT (Owner-Entscheid 25.08.2026).
+// Fläche↔Label ist 1:N -- der Finsterkamm trägt einen Namen im Norden und einen im Süden. Setzt man
+// beide zurück, rücken sie auf denselben Punkt, und die Kollisionsauflösung blendet einen davon aus:
+// es sähe aus, als hätte der Knopf nichts getan. Gezählt wird VOR dem Ansichtswechsel, damit die
+// Rückfrage vor der Wirkung steht.
+async function avesmapsLabelPositionZuruecksetzen(entry) {
+	if (!entry) {
+		showFeedbackToast("Label konnte nicht gefunden werden.", "warning");
+		return;
+	}
+
+	// 🪤 Erst die Regionslisten holen -- bei ~124 Bestandslabels steht der Zeiger Label↔Fläche NUR
+	// an der Region. Gecacht, also im Regelfall kein Netzverkehr (wie in duplicateLabelEntry).
+	if (typeof loadEcosystemRegions === "function" && typeof ECOSYSTEM_KINDS !== "undefined") {
+		await Promise.all(ECOSYSTEM_KINDS.map((kind) => loadEcosystemRegions(kind)));
+	}
+	const region = typeof ecosystemRegionOfLabel === "function" ? ecosystemRegionOfLabel(entry.label) : null;
+	const regionPublicId = String(region?.public_id || "");
+	const geschwister = regionPublicId !== "" && typeof countEcosystemRegionLabels === "function"
+		? countEcosystemRegionLabels(regionPublicId)
+		: 0;
+	if (geschwister > 1 && !window.confirm(
+		`Diese Fläche trägt ${geschwister} Beschriftungen. Zurückgesetzt rücken sie dicht zusammen — je ${LABEL_ZURUECK_VERSATZ_PX} px versetzt. Fortfahren?`
+	)) {
+		return;
+	}
+
+	const flaeche = await avesmapsEcosystemAreaPublicIdOfLabel(entry.label, { wechsleAnsicht: true });
+	const geometrie = flaeche !== "" && typeof ecosystemLayers !== "undefined" && ecosystemLayers instanceof Map
+		? ecosystemLayers.get(flaeche)?._ecosystemArea?.geometry
+		: null;
+	const ziel = geometrie ? avesmapsLabelZurueckPoiLatLng(geometrie) : null;
+	if (!ziel) {
+		showFeedbackToast("Zu dieser Beschriftung ist keine Fläche geladen.", "warning");
+		return;
+	}
+
+	// Die anderen Beschriftungen derselben Fläche, in Layer-Punkten: der Versatz gilt in PIXELN, nicht
+	// in Kartenkoordinaten -- dieselbe Einheit wie beim Duplizieren.
+	const belegte = labelData
+		.filter((label) => label !== entry.label
+			&& String(ecosystemRegionOfLabel(label)?.public_id || "") === regionPublicId)
+		.map((label) => map.latLngToLayerPoint(L.latLng(label.coordinates[0], label.coordinates[1])));
+	const poiPunkt = map.latLngToLayerPoint(L.latLng(ziel.lat, ziel.lng));
+	const frei = avesmapsLabelZurueckFreierPunkt(poiPunkt, belegte);
+
+	// 💣 OHNE AUSWEICHEN GENAU DER GERECHNETE PUNKT, nicht der Rückweg durch die Layer-Punkte:
+	// `latLngToLayerPoint` liefert GANZE Pixel. Bei Zoom 4 sind das 1/16 Karteneinheit (live gemessen
+	// am Sichelhag: gerechnet 601,2425 | 569,7005, gespeichert 601,25 | 569,6875), bei Zoom 0 aber eine
+	// GANZE -- die Beschriftung läge dann sichtbar neben ihrem Punkt, je nachdem, wie weit der Editor
+	// gerade herausgezoomt hat. Nur der VERSATZ gehört in Pixel, der Punkt selbst nicht.
+	const latlng = frei.x === poiPunkt.x && frei.y === poiPunkt.y
+		? L.latLng(ziel.lat, ziel.lng)
+		: map.layerPointToLatLng(L.point(frei.x, frei.y));
+
+	// 🪤 Über den GEMEINSAMEN Speicherweg (saveLabelPosition), nicht über einen eigenen Aufruf:
+	// Protokoll, Revision und der sofortige Nachzug auf der Karte hängen alle dort. Wie beim Ziehen
+	// bleibt die Beschriftung bei einem Fehlschlag am neuen Fleck stehen, bis neu geladen wird.
+	entry.marker.setLatLng(latlng);
+	await saveLabelPosition(entry);
+}
+
 async function duplicateLabelEntry(entry) {
 	if (!entry) {
 		showFeedbackToast("Label konnte nicht gefunden werden.", "warning");
