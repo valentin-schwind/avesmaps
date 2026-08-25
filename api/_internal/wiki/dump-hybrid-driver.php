@@ -859,9 +859,70 @@ function avesmapsWikiDumpTitlesProbeTitel(PDO $pdo): array {
  *
  * @return array{ok:bool, run:array<string,mixed>}
  */
+/**
+ * Jeden noch offenen Lesevorgang fuer AUFGEGEBEN erklaeren.
+ *
+ * 💣 EIN ABGEBROCHENER LAUF WURDE BIS ZUM 25.08.2026 NIRGENDS ALS GESCHEITERT MARKIERT --
+ * im ganzen Haus gab es keinen solchen Schreibvorgang. Zwei Folgen, beide unangenehm:
+ *
+ *   1. Er blieb fuer immer 'running'. Der Fortsetzen-Knopf bot dieselbe Leiche beim
+ *      naechsten Mal wieder an, und beim uebernaechsten.
+ *   2. Schlimmer: avesmapsWikiDumpHybridCleanupOldSandboxState schliesst laufende Laeufe
+ *      ausdruecklich von der Loeschung aus (und das zu Recht -- man raeumt keinem
+ *      arbeitenden Lauf die Zeilen weg). Die Zustandszeilen JEDES je abgebrochenen Laufs
+ *      blieben damit DAUERHAFT liegen, samt vollem Wikitext, rund 10.000 Zeilen je Lauf.
+ *      Das ist die Tabellen-Wachstums-Klasse, die dieser Datenbank schon einmal den Atem
+ *      genommen hat.
+ *
+ * ⭐ Der Ort ist mit Bedacht gewaehlt: WER EINEN NEUEN LAUF STARTET, HAT DEN ALTEN
+ * AUFGEGEBEN. Das ist keine Vermutung, sondern die Bedeutung des Handgriffs -- und der
+ * Aufrufer haelt zu diesem Zeitpunkt bereits die Pipeline-Sperre, ein FREMDER Lauf kann
+ * also gar nicht in der Menge sein (ein anderer Halter waere vorher mit 409 abgewiesen
+ * worden).
+ *
+ * ⚠️ Markiert wird nur -- geloescht wird nichts. Die Zeilen holt der bestehende
+ * Aufraeumer ab, sobald der neue Lauf durch ist. So bleibt der alte Stand erhalten,
+ * falls der neue scheitert.
+ *
+ * @return int wie viele Laeufe fuer aufgegeben erklaert wurden
+ */
+function avesmapsWikiDumpHybridMarkiereAufgegebeneLaeufe(PDO $pdo): int
+{
+    try {
+        $statement = $pdo->prepare(
+            "UPDATE wiki_sync_runs
+                SET status = 'failed',
+                    message = :message,
+                    completed_at = CURRENT_TIMESTAMP(3)
+              WHERE sync_type = :sync_type
+                AND status = 'running'"
+        );
+        $statement->execute([
+            'sync_type' => AVESMAPS_WIKI_DUMP_READ_SYNC_TYPE,
+            'message' => 'Aufgegeben: ein neuer Lauf wurde gestartet.',
+        ]);
+
+        return $statement->rowCount();
+    } catch (Throwable $fehler) {
+        // 🔴 Ein Fehler hier darf den neuen Lauf NICHT verhindern -- er ist Aufraeumarbeit,
+        // kein Teil des Auftrags. Aber still darf er auch nicht sein: bleibt das Markieren
+        // aus, waechst die Zustandstabelle unbemerkt weiter.
+        avesmapsWikiSyncLogServerError('wiki_dump_aufgegebene_nicht_markiert', [
+            'grund' => $fehler->getMessage(),
+        ]);
+
+        return 0;
+    }
+}
+
 function avesmapsWikiDumpHybridStartRun(PDO $pdo, ?int $createdBy = null, string $dumpStempel = ''): array
 {
     avesmapsWikiSyncEnsureCoreTables($pdo);
+
+    // Wer einen NEUEN Lauf startet, hat den alten aufgegeben -- sonst bleibt der fuer immer
+    // 'running', wird ewig wieder zum Fortsetzen angeboten, und seine ~10.000
+    // Zustandszeilen bleiben dauerhaft liegen (siehe die Funktion oben).
+    avesmapsWikiDumpHybridMarkiereAufgegebeneLaeufe($pdo);
 
     $publicId = avesmapsWikiSyncUuidV4();
     $order = avesmapsWikiDumpHybridPhaseOrder();

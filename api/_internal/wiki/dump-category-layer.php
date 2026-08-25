@@ -173,6 +173,16 @@ require_once __DIR__ . '/deities.php';
  * batch.
  */
 
+/**
+ * Wie oft die Kategorien EINES Titelstapels hoechstens fortgesetzt werden.
+ *
+ * ⚠️ Eine Notbremse, kein Takt: bei realistischen Stapeln (rund 270 Titel, etwa 6
+ * Kategorien je Seite) wird der Deckel von MediaWiki gar nicht erreicht. Wird er es doch,
+ * ist etwas grundlegend anders als angenommen -- und dann soll der Lauf anhalten, statt
+ * unvollstaendige Kategorien zu uebernehmen.
+ */
+const AVESMAPS_WIKI_CATEGORIES_MAX_FORTSETZUNGEN = 5;
+
 // ===========================================================================
 // (0) DER GEMEINSAME SCHRITTSAMMLER BEIDER KATEGORIE-PHASEN.
 // ===========================================================================
@@ -679,22 +689,99 @@ function avesmapsWikiDumpCategoryFetchPageCategoriesReadOnly(array $titles): arr
             'cllimit' => 'max',
         ];
 
-        $data = avesmapsWikiSyncApiRequest($params);
-        $query = $data['query'] ?? [];
+        // 💣 `cllimit=max` IST EINE GRENZE, KEIN VERSPRECHEN. MediaWiki deckelt
+        // prop=categories bei 500 Kategoriezeilen (5000 mit apihighlimits) ueber die GANZE
+        // Abfrage -- nicht je Seite. Wird der Deckel erreicht, kommt der Rest als
+        // `continue.clcontinue`, und die zuletzt einsortierten Seiten der Antwort haben
+        // dann NULL Kategorien. Bis zum 25.08.2026 wurde die Fortsetzung nie gelesen: aus
+        // 'die Antwort war voll' wurde damit lautlos 'diese Seite hat keine Kategorien',
+        // und daraus 'Kontinent unbekannt'. Von aussen nicht zu unterscheiden.
+        //
+        // ⚠️ In der Regel passiert das nicht -- der Laengendeckel laesst ohnehin nur rund
+        // 270 Titel je Anfrage zu, das sind bei realistischen 6 Kategorien je Seite etwa
+        // 1600 Zeilen gegen 5000. Aber 'in der Regel' ist keine Zusicherung, und der Preis
+        // eines Irrtums ist ein stiller Datenverlust.
+        //
+        // 🔴 Eine Fortsetzung kostet eine WEITERE gedrosselte Anfrage (20 s). Das sprengt
+        // das Aufrufbudget des Schritts -- und das ist der richtige Tausch: lieber ein
+        // Schritt, der laenger dauert, als einer, der schweigend Kontinente verliert. Der
+        // Deckel darunter haelt es endlich, und jede Fortsetzung meldet sich.
+        $query = ['normalized' => [], 'redirects' => [], 'pages' => []];
+        $clcontinue = null;
+        $fortsetzungen = 0;
+
+        do {
+            $anfrage = $params;
+            if ($clcontinue !== null) {
+                $anfrage['clcontinue'] = $clcontinue;
+                $anfrage['continue'] = '||';
+            }
+
+            $data = avesmapsWikiSyncApiRequest($anfrage);
+            $teil = $data['query'] ?? [];
+
+            foreach (['normalized', 'redirects'] as $feld) {
+                foreach (($teil[$feld] ?? []) as $item) {
+                    $query[$feld][] = $item;
+                }
+            }
+
+            // 💣 Die Kategorien einer Seite kommen ueber die Fortsetzungen VERTEILT --
+            // die zweite Antwort bringt dieselbe Seite mit den naechsten Kategorien.
+            // Wer die Seite einfach ersetzt, behaelt nur den letzten Schwung.
+            foreach (($teil['pages'] ?? []) as $page) {
+                $titel = (string) ($page['title'] ?? '');
+                if ($titel === '') {
+                    continue;
+                }
+                if (!isset($query['pages'][$titel])) {
+                    $query['pages'][$titel] = $page;
+                    continue;
+                }
+                foreach (($page['categories'] ?? []) as $kategorie) {
+                    $query['pages'][$titel]['categories'][] = $kategorie;
+                }
+            }
+
+            $clcontinue = isset($data['continue']['clcontinue'])
+                ? (string) $data['continue']['clcontinue']
+                : null;
+
+            if ($clcontinue !== null) {
+                $fortsetzungen++;
+                avesmapsWikiSyncLogServerError('wiki_categories_fortsetzung', [
+                    'titel_im_stapel' => count($batch),
+                    'fortsetzung' => $fortsetzungen,
+                ]);
+            }
+        } while ($clcontinue !== null && $fortsetzungen <= AVESMAPS_WIKI_CATEGORIES_MAX_FORTSETZUNGEN);
+
+        // ⚠️ Der Deckel ist eine Notbremse, kein Takt. Wird er erreicht, FEHLEN Kategorien --
+        // und dann darf es keine leise Zeile im Protokoll sein, sondern ein Abbruch: eine
+        // halb gelesene Antwort wandert sonst als 'Kontinent unbekannt' in die Daten.
+        if ($clcontinue !== null) {
+            throw new AvesmapsWikiUnreachableException(
+                'Die Kategorien eines Titelstapels passten auch nach '
+                    . AVESMAPS_WIKI_CATEGORIES_MAX_FORTSETZUNGEN . ' Fortsetzungen nicht in die '
+                    . 'Antworten. Der Lauf haelt hier an, statt unvollstaendige Kategorien zu '
+                    . 'uebernehmen.'
+            );
+        }
+
         $normalizedTitles = [];
-        foreach (($query['normalized'] ?? []) as $item) {
+        foreach ($query['normalized'] as $item) {
             if (!empty($item['from']) && !empty($item['to'])) {
                 $normalizedTitles[(string) $item['from']] = (string) $item['to'];
             }
         }
         $redirectTitles = [];
-        foreach (($query['redirects'] ?? []) as $item) {
+        foreach ($query['redirects'] as $item) {
             if (!empty($item['from']) && !empty($item['to'])) {
                 $redirectTitles[(string) $item['from']] = (string) $item['to'];
             }
         }
         $pagesByTitle = [];
-        foreach (($query['pages'] ?? []) as $page) {
+        foreach ($query['pages'] as $page) {
             if (!empty($page['title']) && empty($page['missing'])) {
                 $pagesByTitle[(string) $page['title']] = $page;
             }
