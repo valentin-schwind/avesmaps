@@ -93,9 +93,48 @@ function avesmapsBuildApiConfigFromEnvironment(): ?array {
     ];
 }
 
-function avesmapsApplyCorsPolicy(array $config): bool {
+/**
+ * Die CORS-Antwortkoepfe dieses Endpunkts. Rueckgabe `false` heisst „diese Herkunft darf nicht".
+ *
+ * 🔴 `$publicApi` OEFFNET FUER JEDE HERKUNFT, UND ER GEHOERT GENAU ZWEI ENDPUNKTEN:
+ * `POST /api/route/` und `GET /api/locations/` -- dem stabilen oeffentlichen Vertrag (§ oben in
+ * api/README.md). Owner-Entscheid vom 25.08.2026, nach Meldung #96: eine fremde Seite bekam eine
+ * **403**, weil ihre Herkunft nicht in `config.local.php` gelistet ist. Eine „stabile
+ * Entwickler-API", die man aus dem Browser nicht aufrufen kann, ist keine.
+ *
+ * 💣 UND DESHALB JE ENDPUNKT UND NICHT IN DER LISTE. Diese Funktion hat **91** Aufrufer; die
+ * konfigurierte Liste global auf `['*']` zu stellen haette mit einem Zeichen auch `api/edit/**`
+ * (Schreibwege hinter Faehigkeiten), `api/import/**` und `api/diagnostics/**` fuer jede fremde
+ * Webseite lesbar gemacht -- und kein einziger Aufrufer haette anders ausgesehen als vorher.
+ * Gewacht von `_internal/__tests__/cors-oeffentlicher-vertrag-test.php`, das die Liste der
+ * geoeffneten Endpunkte auf genau diese zwei festnagelt.
+ *
+ * 🔴 KEIN `Access-Control-Allow-Credentials`, UND DAS IST DIE SICHERUNG. Bei
+ * `Allow-Origin: *` schickt der Browser grundsaetzlich keine Cookies mit, eine fremde Seite kann
+ * also die angemeldete Sitzung eines Editors nicht benutzen -- ein Aufruf von dort ist immer
+ * anonym und trifft auf dieselbe Antwort wie `curl`. Wer je Anmeldedaten zulassen will, muss im
+ * selben Zug `*` gegen eine echte Herkunftsliste tauschen; beides zusammen macht jede
+ * Editor-Sitzung von jeder Webseite aus fahrbar.
+ *
+ * ⚠️ CORS regelt NUR, ob Browser-JS die Antwort lesen darf. Gegen Abrufe per `curl` hat es nie
+ * geschuetzt und tut es weiterhin nicht -- an der Lastfrage aus AGENTS.md §9 aendert die Oeffnung
+ * also nichts, weder gut noch schlecht.
+ */
+function avesmapsApplyCorsPolicy(array $config, bool $publicApi = false): bool {
     $origin = avesmapsNormalizeCorsOrigin((string) ($_SERVER['HTTP_ORIGIN'] ?? ''));
     if ($origin === '') {
+        return true;
+    }
+
+    if ($publicApi) {
+        // ⚠️ VOR der Liste: ein Endpunkt des oeffentlichen Vertrags darf nicht davon abhaengen, was
+        // in `api/config.local.php` auf dem Server gepflegt ist -- diese Datei liegt nicht im Repo,
+        // und ein leerer Eintrag dort wuerde den Vertrag lautlos wieder schliessen.
+        // 💣 Konstantes `*`, deshalb KEIN `Vary: Origin` -- die Antwort haengt hier nicht von der
+        // Herkunft ab, und ein Vary auf einer immer gleichen Antwort zersplittert nur jeden Cache.
+        header('Access-Control-Allow-Origin: *');
+        avesmapsSendCommonCorsHeaders();
+
         return true;
     }
 
@@ -113,6 +152,19 @@ function avesmapsApplyCorsPolicy(array $config): bool {
         header('Vary: Origin');
     }
 
+    avesmapsSendCommonCorsHeaders();
+
+    return true;
+}
+
+/**
+ * Die Koepfe, die BEIDE Wege durch avesmapsApplyCorsPolicy gemeinsam haben.
+ *
+ * ⚠️ Sie stehen hier und nicht zweimal im Aufrufer: die Freigabeliste unten ist genau die Art Zeile,
+ * die man an einer von zwei Stellen nachzieht und an der anderen vergisst -- und dann liest ein
+ * fremder Client den ETag am oeffentlichen Endpunkt nicht, waehrend er es am App-Endpunkt tut.
+ */
+function avesmapsSendCommonCorsHeaders(): void {
     header('Access-Control-Allow-Methods: GET, POST, PATCH, DELETE, OPTIONS');
     header('Access-Control-Allow-Headers: Content-Type, Accept, Authorization, X-Avesmaps-Import-Token');
     // 💣 OHNE DIESE ZEILE KANN EIN FREMDER BROWSER-CLIENT DEN ETAG NICHT LESEN -- auch dann nicht,
@@ -124,8 +176,6 @@ function avesmapsApplyCorsPolicy(array $config): bool {
     // ⚠️ Freigeben heisst nur LESEN duerfen, was ohnehin gesendet wird -- kein neuer Inhalt.
     header('Access-Control-Expose-Headers: ETag, X-Avesmaps-ETag');
     header('Access-Control-Max-Age: 86400');
-
-    return true;
 }
 
 function avesmapsNormalizeCorsOrigin(string $origin): string {

@@ -13,7 +13,13 @@ require_once __DIR__ . '/../_internal/auth.php';
 try {
 	$config = avesmapsLoadApiConfig(avesmapsApiRoot());
 
-	if (!avesmapsApplyCorsPolicy($config)) {
+	// 🔴 `true` = FUER JEDE HERKUNFT OFFEN. Dieser Endpunkt ist der stabile oeffentliche Vertrag;
+	// eine Entwickler-API, die ein fremder Browser-Client nicht aufrufen darf, ist keine
+	// (Owner-Entscheid 25.08.2026). Die Begruendung samt Sicherung steht bei der Funktion --
+	// kurz: `*` ohne `Allow-Credentials`, der Aufruf ist also immer anonym.
+	// ⚠️ Der `forbidden_origin`-Zweig bleibt stehen und ist NICHT tot: er greift weiter, falls die
+	// Oeffnung hier je zurueckgenommen wird.
+	if (!avesmapsApplyCorsPolicy($config, true)) {
 		avesmapsRouteErrorResponse(403, 'forbidden_origin', 'Diese Herkunft darf den Routing-Endpunkt nicht verwenden.');
 	}
 

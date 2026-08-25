@@ -10,6 +10,15 @@ GET  /api/locations/
 
 Other endpoints are used by the Avesmaps app, the editor, the import workflow, or for diagnostic purposes. They may still change without any stability guarantee.
 
+**Both are open to any origin.** They answer with `Access-Control-Allow-Origin: *`, so a browser
+client on any domain can call them directly — no registration, no allowlist entry. `OPTIONS`
+preflights are answered, and `ETag` / `X-Avesmaps-ETag` are exposed for reading.
+
+⚠️ `*` means **credentials are never sent**: the browser omits cookies, so a call from a foreign
+page is always anonymous and sees exactly what `curl` sees. Every other endpoint — the app-facing
+ones, the editor, import and diagnostics — keeps the configured origin allowlist and answers a
+foreign origin with `403 forbidden_origin`. That is deliberate and not an oversight.
+
 In addition to the REST endpoints, the app's **deep-link URL parameters** are a stable contract for linking into the map by wiki page name: `?siedlung=` / `?staat=` / `?region=` / `?strasse=` / `?fluss=` (value = Wiki Aventurica page name, e.g. `https://avesmaps.de/?strasse=Reichsstraße_1`). The map zooms to the object and highlights it; roads and rivers are highlighted across all of their segments. See the section "Deep links to map objects" in the repository README for details.
 
 ## Routing

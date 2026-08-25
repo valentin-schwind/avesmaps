@@ -16,7 +16,10 @@ const AVESMAPS_LOCATIONS_PAYLOAD_VERSION = 1;
 try {
 	$config = avesmapsLoadApiConfig(avesmapsApiRoot());
 
-	if (!avesmapsApplyCorsPolicy($config)) {
+	// 🔴 `true` = FUER JEDE HERKUNFT OFFEN -- derselbe Entscheid wie beim Routing-Endpunkt, und hier
+	// war er der Anlass: Meldung #96 wollte die bedingte Anfrage nutzen und bekam eine 403, noch
+	// bevor der ETag ueberhaupt zur Sprache kam. Begruendung samt Sicherung bei der Funktion.
+	if (!avesmapsApplyCorsPolicy($config, true)) {
 		avesmapsLocationsErrorResponse(403, 'forbidden_origin', 'Diese Herkunft darf den Locations-Endpunkt nicht verwenden.');
 	}
 
