@@ -1465,6 +1465,14 @@ function avesmapsPoliticalReadOptionalUrl(mixed $value, string $fieldLabel): str
     return avesmapsNormalizeOptionalUrl((string) ($value ?? ''), 500, $fieldLabel);
 }
 
+// 💣 Der Wappen-Link hat seine EIGENE Regel: ein selbst hochgeladenes Wappen liegt unter
+// /uploads/ und traegt kein Schema (Bug #99, 25.08.2026). Die Begruendung steht bei
+// avesmapsNormalizeOptionalCoatUrl in bootstrap.php. Wer hier avesmapsPoliticalReadOptionalUrl
+// benutzt, weist das eigene Wappen wieder ab.
+function avesmapsPoliticalReadOptionalCoatUrl(mixed $value, string $fieldLabel): string {
+    return avesmapsNormalizeOptionalCoatUrl((string) ($value ?? ''), 500, $fieldLabel);
+}
+
 function avesmapsPoliticalExpandTerritoryAliases(array $values): array {
     $aliases = [];
     foreach ($values as $value) {

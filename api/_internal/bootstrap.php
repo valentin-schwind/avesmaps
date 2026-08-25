@@ -291,6 +291,41 @@ function avesmapsNormalizeOptionalUrl(?string $value, int $maxLength, string $fi
     return $normalizedValue;
 }
 
+/**
+ * Wie avesmapsNormalizeOptionalUrl, laesst aber zusaetzlich eine SELBST HOCHGELADENE Datei zu.
+ *
+ * 💣 Bug #99 (25.08.2026): "Territorium kann nicht angelegt werden" -- der Editor bekam
+ * "Der Wappen-Link muss mit http:// oder https:// beginnen", obwohl auf der ganzen Stufe nur
+ * eigene Wappen lagen. Dieselbe Frage hatte zwei Antworten: der Upload erzeugt
+ * '/uploads/wappen/own/<datei>' (settlement-coat-upload.php), und der Leser laesst genau diese
+ * Form als Override sogar ueber Wiki- und Ortswappen gewinnen (avesmapsResolveGatedCoatUrl) --
+ * nur der Schreiber wies sie ab. Verschaerft dadurch, dass die Zuweisung den in der DATENBANK
+ * stehenden Wert der ganzen Kette mitvalidiert: ein Vorfahre mit eigenem Wappen blockierte
+ * damit eine Aktion, die das Wappen gar nicht anfasst.
+ *
+ * ⚠️ Eng bleiben: erlaubt ist der Upload-Ordner, NICHT jeder Pfad mit fuehrendem Schraegstrich.
+ * '//fremde.example/x.png' ist protokollrelativ und fuehrt nach DRAUSSEN -- ein blosses
+ * "beginnt mit /" haette es durchgelassen. '..' faellt aus demselben Grund heraus.
+ */
+function avesmapsNormalizeOptionalCoatUrl(?string $value, int $maxLength, string $fieldLabel): string {
+    $normalizedValue = avesmapsNormalizeSingleLine($value, $maxLength);
+    if ($normalizedValue === '') {
+        return '';
+    }
+
+    if (str_starts_with($normalizedValue, '/uploads/') && !str_contains($normalizedValue, '..')) {
+        return $normalizedValue;
+    }
+
+    if (!preg_match('/^https?:\/\//i', $normalizedValue)) {
+        throw new InvalidArgumentException(
+            "{$fieldLabel} muss mit http:// oder https:// beginnen oder auf eine hochgeladene Datei unter /uploads/ zeigen."
+        );
+    }
+
+    return $normalizedValue;
+}
+
 function avesmapsParseMapCoordinate(mixed $value, string $fieldName): float {
     $normalizedValue = is_string($value) ? str_replace(',', '.', trim($value)) : $value;
     $coordinate = filter_var($normalizedValue, FILTER_VALIDATE_FLOAT);

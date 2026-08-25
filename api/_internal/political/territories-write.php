@@ -160,7 +160,7 @@ function avesmapsPoliticalCreateTerritory(PDO $pdo, array $payload, array $user)
     $maxZoom = avesmapsPoliticalReadOptionalZoom($payload['max_zoom'] ?? null);
     avesmapsPoliticalAssertZoomRange($minZoom, $maxZoom);
     $wikiUrl = avesmapsPoliticalReadOptionalUrl($payload['wiki_url'] ?? '', 'Der Wiki-Aventurica-Link');
-    $coatOfArmsUrl = avesmapsPoliticalReadOptionalUrl($payload['coat_of_arms_url'] ?? '', 'Der Wappen-Link');
+    $coatOfArmsUrl = avesmapsPoliticalReadOptionalCoatUrl($payload['coat_of_arms_url'] ?? '', 'Der Wappen-Link');
     if ($coatOfArmsUrl !== '' && !avesmapsPoliticalIsLikelyCoatOfArmsUrl($coatOfArmsUrl)) {
         $coatOfArmsUrl = '';
     }
@@ -244,7 +244,7 @@ function avesmapsPoliticalUpdateTerritory(PDO $pdo, array $payload, array $user)
     $minZoom = avesmapsPoliticalReadOptionalZoom($payload['min_zoom'] ?? null);
     $maxZoom = avesmapsPoliticalReadOptionalZoom($payload['max_zoom'] ?? null);
     avesmapsPoliticalAssertZoomRange($minZoom, $maxZoom);
-    $coatOfArmsUrl = avesmapsPoliticalReadOptionalUrl($payload['coat_of_arms_url'] ?? $territory['coat_of_arms_url'] ?? '', 'Der Wappen-Link');
+    $coatOfArmsUrl = avesmapsPoliticalReadOptionalCoatUrl($payload['coat_of_arms_url'] ?? $territory['coat_of_arms_url'] ?? '', 'Der Wappen-Link');
     if ($coatOfArmsUrl !== '' && !avesmapsPoliticalIsLikelyCoatOfArmsUrl($coatOfArmsUrl)) {
         $coatOfArmsUrl = '';
     }
@@ -320,7 +320,7 @@ function avesmapsPoliticalSaveWikiNodeSettings(PDO $pdo, array $payload, array $
     $minZoom = avesmapsPoliticalReadOptionalZoom($display['zoomMin'] ?? null);
     $maxZoom = avesmapsPoliticalReadOptionalZoom($display['zoomMax'] ?? null);
     avesmapsPoliticalAssertZoomRange($minZoom, $maxZoom);
-    $coatOfArmsUrl = avesmapsPoliticalReadOptionalUrl($display['coatOfArmsUrl'] ?? '', 'Der Wappen-Link');
+    $coatOfArmsUrl = avesmapsPoliticalReadOptionalCoatUrl($display['coatOfArmsUrl'] ?? '', 'Der Wappen-Link');
     if ($coatOfArmsUrl !== '' && !avesmapsPoliticalIsLikelyCoatOfArmsUrl($coatOfArmsUrl)) {
         $coatOfArmsUrl = '';
     }
@@ -549,7 +549,7 @@ function avesmapsPoliticalEnsureSyntheticTreeTerritory(PDO $pdo, array $node, st
         'status' => avesmapsPoliticalNullableString(avesmapsNormalizeSingleLine((string) ($node['status'] ?? ''), 255)),
         'color' => avesmapsPoliticalColorFromText($name),
         'opacity' => 0.5,
-        'coat_of_arms_url' => avesmapsPoliticalNullableString(avesmapsPoliticalReadOptionalUrl($node['coat_of_arms_url'] ?? '', 'Der Wappen-Link')),
+        'coat_of_arms_url' => avesmapsPoliticalNullableString(avesmapsPoliticalReadOptionalCoatUrl($node['coat_of_arms_url'] ?? '', 'Der Wappen-Link')),
         'wiki_url' => avesmapsPoliticalNullableString(avesmapsPoliticalReadOptionalUrl($node['wiki_url'] ?? '', 'Der Wiki-Aventurica-Link')),
         'valid_label' => avesmapsPoliticalNullableString(avesmapsNormalizeSingleLine((string) ($node['valid_label'] ?? ''), 500)),
         'editor_notes' => avesmapsPoliticalNullableString('Aus Wiki-Hierarchie ohne eigenen Referenzdatensatz erzeugt: ' . $wikiKey),

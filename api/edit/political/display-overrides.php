@@ -96,6 +96,13 @@ if (!function_exists('avesmapsPoliticalReadOptionalUrl')) {
     }
 }
 
+// 💣 Der Wappen-Link hat seine EIGENE Regel (Bug #99) -- siehe avesmapsNormalizeOptionalCoatUrl.
+if (!function_exists('avesmapsPoliticalReadOptionalCoatUrl')) {
+    function avesmapsPoliticalReadOptionalCoatUrl(mixed $value, string $fieldLabel): string {
+        return avesmapsNormalizeOptionalCoatUrl((string) ($value ?? ''), 500, $fieldLabel);
+    }
+}
+
 if (!function_exists('avesmapsPoliticalFetchTerritoryByPublicId')) {
     function avesmapsPoliticalFetchTerritoryByPublicId(PDO $pdo, string $publicId): array {
         $statement = $pdo->prepare(
@@ -453,7 +460,7 @@ function avesmapsPoliticalDisplayOverrideRestoreGlobals(PDO $pdo, array $payload
             'name' => avesmapsPoliticalReadRequiredName($snapshot['name'] ?? '', 'Der Name des Herrschaftsgebiets'),
             'color' => avesmapsPoliticalReadHexColor($snapshot['color'] ?? '#888888'),
             'opacity' => avesmapsPoliticalReadOpacity($snapshot['opacity'] ?? 0.33),
-            'coat_of_arms_url' => avesmapsPoliticalNullableString(avesmapsPoliticalReadOptionalUrl($snapshot['coat_of_arms_url'] ?? '', 'Der Wappen-Link')),
+            'coat_of_arms_url' => avesmapsPoliticalNullableString(avesmapsPoliticalReadOptionalCoatUrl($snapshot['coat_of_arms_url'] ?? '', 'Der Wappen-Link')),
             'min_zoom' => avesmapsPoliticalReadOptionalZoom($snapshot['min_zoom'] ?? null),
             'max_zoom' => avesmapsPoliticalReadOptionalZoom($snapshot['max_zoom'] ?? null),
             'valid_from_bf' => avesmapsPoliticalReadOptionalInt($snapshot['valid_from_bf'] ?? null),

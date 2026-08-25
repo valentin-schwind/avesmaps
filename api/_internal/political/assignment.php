@@ -278,7 +278,7 @@ function avesmapsPoliticalSaveGeometryDisplayOnly(PDO $pdo, array $payload, arra
     }
 
     if (array_key_exists('coatOfArmsUrl', $display)) {
-        $coatOfArmsUrl = avesmapsPoliticalReadOptionalUrl(
+        $coatOfArmsUrl = avesmapsPoliticalReadOptionalCoatUrl(
             $display['coatOfArmsUrl'] ?? '',
             'Der Wappen-Link'
         );
@@ -358,7 +358,11 @@ function avesmapsPoliticalSaveExistingGeometryAssignment(PDO $pdo, array $payloa
 
         $color = avesmapsPoliticalReadHexColor($display['color'] ?? $territory['color'] ?? '#888888');
         $opacity = avesmapsPoliticalReadOpacity($display['opacity'] ?? $territory['opacity'] ?? 0.33);
-        $coatOfArmsUrl = avesmapsPoliticalReadOptionalUrl(
+        // 💣 Der zweite Teil dieses Ausdrucks liest den in der DATENBANK stehenden Wert -- hier
+        // wird also nicht nur eine Eingabe geprueft, sondern der Bestand der ganzen Kette neu
+        // validiert. Mit der reinen http-Regel liess ein einziger Vorfahre mit selbst
+        // hochgeladenem Wappen die ganze Zuweisung scheitern (Bug #99).
+        $coatOfArmsUrl = avesmapsPoliticalReadOptionalCoatUrl(
             $display['coatOfArmsUrl'] ?? $territory['coat_of_arms_url'] ?? '',
             'Der Wappen-Link'
         );
@@ -526,7 +530,11 @@ function avesmapsPoliticalSaveGeometryAssignment(PDO $pdo, array $payload, array
  
         $color = avesmapsPoliticalReadHexColor($display['color'] ?? $territory['color'] ?? '#888888');
         $opacity = avesmapsPoliticalReadOpacity($display['opacity'] ?? $territory['opacity'] ?? 0.33);
-        $coatOfArmsUrl = avesmapsPoliticalReadOptionalUrl(
+        // 💣 Der zweite Teil dieses Ausdrucks liest den in der DATENBANK stehenden Wert -- hier
+        // wird also nicht nur eine Eingabe geprueft, sondern der Bestand der ganzen Kette neu
+        // validiert. Mit der reinen http-Regel liess ein einziger Vorfahre mit selbst
+        // hochgeladenem Wappen die ganze Zuweisung scheitern (Bug #99).
+        $coatOfArmsUrl = avesmapsPoliticalReadOptionalCoatUrl(
             $display['coatOfArmsUrl'] ?? $territory['coat_of_arms_url'] ?? '',
             'Der Wappen-Link'
         );
