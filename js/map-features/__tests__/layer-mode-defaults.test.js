@@ -202,6 +202,38 @@ assert(imEditor.lage().ortsklassenGeschrieben === false,
 assert(imEditor.lage().wege === false,
 	"Editmodus/Landschaften: die Wege gehen aus -- das bleibt Sache des Moduswechsels");
 
+// ---- „Standard" gibt die Wege IMMER zurueck ----------------------------------------------------------
+// 🔴 Owner 26.08.2026: „Die Standard-Ansicht soll -- ob unsichtbar oder nicht -- immer auch wege wieder
+// einblenden."
+//
+// 💣 GEMESSEN WIRD setSelectedMapLayerMode ALLEIN, ohne applyFrontendLayerModeDefaults. Das ist der
+// ganze Punkt: die Wege-Vorgabe stand nur in applyFrontendLayerModeDefaults, und die laeuft allein aus
+// dem Umschalter und aus restorePlannerState -- im Editor steigt sie zusaetzlich ganz vorn aus, bevor
+// sie einen Weg-Haken anfasst. Ein Test, der wie oben `wechsleZu()` benutzt, waere von Anfang an
+// gruen gewesen und haette den gemeldeten Fehler nie gesehen: er faehrt ausgerechnet den einen Weg,
+// auf dem die Regel schon galt.
+const imEditorZurueck = welt({ editor: true, orte: true, wege: true });
+imEditorZurueck.context.setSelectedMapLayerMode("ecosystem");
+imEditorZurueck.context.setSelectedMapLayerMode("deregraphic");
+assert(imEditorZurueck.lage().wege === true,
+	"💣 Editmodus: Landschaften -> Standard blendet die Wege wieder ein (applyFrontendLayerModeDefaults kommt hier nie bis zu ihnen)");
+
+// Und im Frontend derselbe Fall ueber einen Erzeuger ohne Vorgaben-Aufruf -- z.B. der
+// Spotlight-Sprung (js/ui/spotlight-search-focus.js) oder der Routenplaner (js/routing/routing.js).
+const spotlightSprung = welt({ wege: false });
+spotlightSprung.context.setSelectedMapLayerMode("deregraphic");
+assert(spotlightSprung.lage().wege === true,
+	"💣 Frontend: ein Sprung nach Standard ohne applyFrontendLayerModeDefaults blendet die Wege trotzdem ein");
+
+// ⚠️ Die Gegenprobe: die Regel gilt nur, wo die TABELLE die Wege zeigt -- „Politisch" und „Nur Karte"
+// duerfen sie dabei nicht mitgeschenkt bekommen.
+["political", "none", "original", "powerlines", "ecosystem"].forEach((modus) => {
+	const stumm = welt({ wege: false });
+	stumm.context.setSelectedMapLayerMode(modus);
+	assert(stumm.lage().wege === false,
+		`${modus}: setSelectedMapLayerMode schaltet die Wege NICHT von sich aus ein`);
+});
+
 if (failures > 0) {
 	console.error(`layer-mode-defaults.test.js: ${failures} Zusicherung(en) fehlgeschlagen`);
 	process.exit(1);

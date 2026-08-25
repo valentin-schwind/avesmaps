@@ -462,9 +462,13 @@ function ecosystemSetzeAnzeigeHaken(id, soll) {
 // applyEcosystemUndergroundOpacity.
 //
 // ⚠️ Straßen und Grenzen brauchen hier KEINE Erinnerung: beide werden bei jedem Kartenmodus-Wechsel
-// ohnehin neu gesetzt -- die Wege von applyFrontendLayerModeDefaults, die Grenzen von
-// syncEditorDisplayTogglesToMode. Das Verlassen des Modus stellt sie also von selbst richtig, und eine
+// ohnehin neu gesetzt -- die Wege und die Grenzen beide in `setSelectedMapLayerMode`
+// (map-features-display-mode.js). Das Verlassen des Modus stellt sie also von selbst richtig, und eine
 // zweite Erinnerung daneben liefe genau dort auseinander, wo es niemandem auffiele.
+// 💣 Bis 26.08.2026 stand hier „die Wege von applyFrontendLayerModeDefaults" -- und DIE laeuft nur aus
+// dem Umschalter und aus restorePlannerState, im Editor gar nicht bis zu den Wegen. Die Zusicherung
+// galt damit fuer jeden anderen Weg in die Standardansicht nicht: wer aus den Landschaften heraus den
+// Spotlight, den Routenplaner oder eine Editorliste benutzte, stand in „Standard" ohne Wege.
 function syncEcosystemFrontendFeatures() {
 	const profil = ecosystemFrontendProfile();
 	if (!profil) {

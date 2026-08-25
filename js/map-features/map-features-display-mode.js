@@ -313,6 +313,29 @@ function setSelectedMapLayerMode(mode) {
 		$("#togglePaths").prop("checked", false);
 		$("#toggleSeaPaths").prop("checked", false);
 	}
+	// 💣 UND DIE GEGENRICHTUNG: „Standard" BLENDET DIE WEGE IMMER WIEDER EIN -- egal, wer den Modus
+	// setzt, und egal, ob sie gerade aus sind (Owner 26.08.2026: „ob unsichtbar oder nicht").
+	// Die Vorgabe stand laengst in FRONTEND_LAYER_MODE_DEFAULTS, wirkte aber nur dort, wo
+	// applyFrontendLayerModeDefaults ueberhaupt laeuft: im Umschalter (map-features.js) und in
+	// restorePlannerState -- und im Editor steigt sie ganz vorn aus, bevor sie einen Weg-Haken
+	// anfasst. JEDER ANDERE WEG in die Standardansicht ruft nur setSelectedMapLayerMode: der
+	// Spotlight-Sprung (zwei Stellen in js/ui/spotlight-search-focus.js), der Routenplaner
+	// (js/routing/routing.js), der Label-Editor (map-features-labels.js) und der Region-Sync
+	// (js/review/review-region-sync.js) -- dazu das Konfliktzentrum, das den Modus aus seinem Fall
+	// ableitet. Sie alle landeten in „Standard" OHNE Wege, sobald eine Ansicht sie vorher
+	// ausgeschaltet hatte -- und genau das tut „Landschaften": im Editor die Zeilen darueber, im
+	// Frontend syncEcosystemFrontendFeatures. Dessen Kommentar sagt, die Wege wuerden „bei jedem
+	// Kartenmodus-Wechsel ohnehin neu gesetzt"; fuer diese Wege stimmte das nicht.
+	// Dieselbe Lehre wie am 14.08.2026 bei der Verkehrsmittel-Sperre: eine Regel, die einen von
+	// mehreren Erzeugern bindet, ist keine Regel.
+	// ⚠️ Und bewusst OHNE Zahl im Satz -- dort stand erst „zwei von zehn Stellen", und genau eine
+	// solche Zahl liest sich wie eine vollstaendige Liste, nach der niemand mehr weitersucht (die
+	// Falle vom 14.08.2026, „ERZEUGER 1 VON 2").
+	// ⚠️ Gelesen wird die TABELLE, nicht ein zweites hingeschriebenes „deregraphic" -- eine zweite
+	// Fassung von „Standard zeigt Wege" liefe genau dort auseinander, wo es niemandem auffiele.
+	if (FRONTEND_LAYER_MODE_DEFAULTS[normalizedMode]?.wege === true) {
+		$("#togglePaths").prop("checked", true);
+	}
 	syncEditorDisplayTogglesToMode(normalizedMode);
 	syncRegionVisibility();
 	// typeof-Guard, anders als bei den Nachbarn darueber/darunter: die Datei ist NEU. Diese Funktion
