@@ -4872,6 +4872,16 @@ function updateZoomBandVorschau() {
 			return;
 		}
 		kn.name.style.display = "";
+		// 💣 ERST DIE KLASSE ZURÜCKSETZEN, DANN MESSEN -- in DIESER Reihenfolge. „--gone" trägt
+		// `border:1px dashed` + `padding:0 2px` (+6 px breit, +2 px hoch), „--drift" trägt
+		// `font-weight:bold` (breiter, aber keine glatte Zahl). Ein Name, den der VORIGE Lauf so
+		// markiert hat, würde sonst MIT dieser Dekoration gemessen: gemessen 26.08.2026 sprang
+		// „Angbar" bei 20 px Schrift zwischen 74,41 und 80,41 px hin und her und die Zähler unter
+		// der Bühne zwischen „23 sichtbar / 3 ausgewichen" und „24 / 5" -- ohne dass sich
+		// irgendetwas geändert hatte. ⚠️ Der Reset unten in der Schreibphase kommt dafür ZU SPÄT;
+		// er bleibt als Riegel stehen, ersetzt diesen hier aber nicht.
+		// Gewacht von js/pages/__tests__/zoombaender-vorschau-messung.test.js.
+		kn.name.className = "zbv-name";
 		const hoehePx = pt * 4 / 3;
 		kn.name.style.fontSize = hoehePx.toFixed(2) + "px";
 		const rect = kn.name.getBoundingClientRect();
