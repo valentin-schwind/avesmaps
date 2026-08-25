@@ -1964,56 +1964,26 @@
 		     🔴 Der Einstieg bestimmt den offenen Reiter und ist ein PARAMETER des Oeffners, nie ein
 		     gemerkter Zustand -- landschaft-dialog.js sagt, warum. -->
 		<div id="landschaft-dialog-overlay" hidden>
-			<div id="landschaft-dialog" class="location-report-dialog" role="dialog" aria-modal="true" aria-labelledby="landschaft-dialog-title" tabindex="-1">
+			<div id="landschaft-dialog" class="location-report-dialog" role="dialog" aria-modal="true" aria-labelledby="label-edit-title" tabindex="-1">
 				<div class="location-report-dialog__header">
-					<h2 id="landschaft-dialog-title">Landschaft bearbeiten</h2>
+					<h2 id="label-edit-title">Landschaft bearbeiten</h2>
 					<button id="landschaft-dialog-close" class="location-report-dialog__close" type="button" aria-label="Fenster schließen">×</button>
 				</div>
 				<!-- 🔴 DER KOPF GEHOERT BEIDEN HAELFTEN. Name und Art stehen einmal da und schreiben ueber
 				     die VORHANDENEN Propagationswege in beide Zeilen (renameLinkedEcosystemLabel abwaerts,
 				     ecosystemRegionWriteBackPayload aufwaerts). Live tragen 679 von 679 Paaren denselben
 				     Namen -- heute in zwei Feldern in zwei Fenstern. Gefuellt wird er in Aufgabe 4. -->
-				<div class="label-edit-section landschaft-dialog__kopf" id="landschaft-dialog-kopf"></div>
-				<div class="ecosystem-layer-switch landschaft-dialog__reiter" id="landschaft-dialog-reiter" role="tablist" aria-label="Bereich">
-					<button class="ecosystem-layer-switch__tab" type="button" role="tab" data-landschaft-reiter="flaeche" aria-selected="true">Fläche</button>
-					<button class="ecosystem-layer-switch__tab" type="button" role="tab" data-landschaft-reiter="beschriftung" aria-selected="false">Beschriftung</button>
-					<button class="ecosystem-layer-switch__tab" type="button" role="tab" data-landschaft-reiter="wiki" aria-selected="false">Wiki &amp; Quellen</button>
-				</div>
-				<!-- ⚠️ EIN REITER WIRD NIE GESPERRT, auch wenn seine Haelfte fehlt: dort steht das Angebot
-				     ("Diese Flaeche traegt keine Beschriftung." samt Knopf). Ein gesperrter Reiter verbaerge
-				     genau die Handlung, die gerade fehlt. Gefuellt werden die Bereiche in Aufgabe 2 und 3. -->
-				<div data-landschaft-bereich="flaeche"></div>
-				<div data-landschaft-bereich="beschriftung" hidden></div>
-				<div data-landschaft-bereich="wiki" hidden></div>
-				<p id="landschaft-dialog-status" class="location-report-form__status" role="status" aria-live="polite"></p>
-				<div class="location-report-form__actions">
-					<button id="landschaft-dialog-delete" class="location-report-form__button location-report-form__button--secondary" type="button">Löschen</button>
-					<button id="landschaft-dialog-cancel" class="location-report-form__button location-report-form__button--secondary" type="button">Abbrechen</button>
-					<button id="landschaft-dialog-save" class="location-report-form__button location-report-form__button--primary" type="button">Speichern</button>
-				</div>
-			</div>
-		</div>
-		<div id="label-edit-overlay" hidden>
-			<div id="label-edit-dialog" class="location-report-dialog" role="dialog" aria-modal="true" aria-labelledby="label-edit-title" tabindex="-1">
-				<div class="location-report-dialog__header">
-					<h2 id="label-edit-title">Region-Label bearbeiten</h2>
-					<button id="label-edit-close" class="location-report-dialog__close" type="button" aria-label="Labelbearbeitung schließen">×</button>
-				</div>
-				<form id="label-edit-form" class="location-report-form" novalidate>
-					<input id="label-edit-public-id" name="public_id" type="hidden" />
-					<input id="label-edit-lat" name="lat" type="hidden" />
-					<input id="label-edit-lng" name="lng" type="hidden" />
-						<div class="label-edit-section"><div class="label-edit-section-title">Eigenschaften</div>
+				<div class="label-edit-section landschaft-dialog__kopf" id="landschaft-dialog-kopf">
 					<!-- Der Wiki-Override, Bauform 2: die Zelle hängt sich an die Beschriftung und
 					     bleibt leer, bis labelWikiZeichneAbweichungen sie füllt. Regeln in
 					     css/components/wiki-override.css, hier über css/styles.css. -->
 					<label class="location-report-form__field location-report-form__field--zeile">
 						<span>Text *<span class="wiki-alt" data-label-wiki-alt="text"></span></span>
-						<div class="location-edit-fieldrow"><input id="label-edit-text" name="text" type="text" maxlength="160" required /></div>
+						<div class="location-edit-fieldrow"><input id="label-edit-text" name="text" form="label-edit-form" type="text" maxlength="160" required /></div>
 					</label>
 					<label class="location-report-form__field location-report-form__field--zeile">
 						<span>Art *<span class="wiki-alt" data-label-wiki-alt="feature_subtype"></span></span>
-						<div class="location-edit-fieldrow"><select id="label-edit-type" name="feature_subtype" required>
+						<div class="location-edit-fieldrow"><select id="label-edit-type" name="feature_subtype" required form="label-edit-form">
 							<!-- Alphabetisch (Fall #64, 2026-08-07), Umlaut auf seinem Grundbuchstaben: Küste bei K,
 							     Sümpfe bei S, Wüste bei W. Dieselbe Ordnung, die avesmapsEcosystemReadRegionTypes der
 							     eingedampften Ebenen-Liste gibt -- dasselbe Auswahlfeld darf nicht mal so und mal anders
@@ -2055,6 +2025,35 @@
 							<option value="wuestenoase">Wüstenoase</option>
 						</select></div>
 					</label>
+				</div>
+				<div class="ecosystem-layer-switch landschaft-dialog__reiter" id="landschaft-dialog-reiter" role="tablist" aria-label="Bereich">
+					<button class="ecosystem-layer-switch__tab" type="button" role="tab" data-landschaft-reiter="flaeche" aria-selected="true">Fläche</button>
+					<button class="ecosystem-layer-switch__tab" type="button" role="tab" data-landschaft-reiter="beschriftung" aria-selected="false">Beschriftung</button>
+					<button class="ecosystem-layer-switch__tab" type="button" role="tab" data-landschaft-reiter="wiki" aria-selected="false">Wiki &amp; Quellen</button>
+				</div>
+				<!-- ⚠️ EIN REITER WIRD NIE GESPERRT, auch wenn seine Haelfte fehlt: dort steht das Angebot
+				     ("Diese Flaeche traegt keine Beschriftung." samt Knopf). Ein gesperrter Reiter verbaerge
+				     genau die Handlung, die gerade fehlt. Gefuellt werden die Bereiche in Aufgabe 2 und 3. -->
+				<div data-landschaft-bereich="flaeche">
+						<!-- Landschaftsflaeche zuweisen. Bis 2026-07-28 bekam ein Label seinen Zeiger NUR beim
+						     Anlegen einer Regionsbeschriftung oder beim Klonen; ein bestehendes liess sich an
+						     keine Flaeche haengen. Genau daran hingen fuenf Finsterkamm-Labels an nichts und
+						     blendeten sich gegenseitig aus. Die Auswahl fuellt sich aus list_regions -- dieselbe
+						     Liste, aus der der Flaechendialog seine Art-Auswahl zieht. -->
+						<div class="label-edit-section" id="label-edit-region-section" hidden>
+							<div class="label-edit-section-title">Landschaftsfläche</div>
+							<label class="location-report-form__field">
+								<span class="location-report-form__label">Gehört zu</span>
+								<select id="label-edit-region"></select>
+							</label>
+						</div>
+				</div>
+				<div data-landschaft-bereich="beschriftung" hidden>
+				<form id="label-edit-form" class="location-report-form" novalidate>
+					<input id="label-edit-public-id" name="public_id" type="hidden" />
+					<input id="label-edit-lat" name="lat" type="hidden" />
+					<input id="label-edit-lng" name="lng" type="hidden" />
+						<div class="label-edit-section"><div class="label-edit-section-title">Eigenschaften</div>
 						<!-- Sobald die Art „Berggipfel" oder „Vulkan" ist, erscheint diese Zeile mit einem Regler
 						     (Owner 2026-07-28). Zahl UND Regler, wie bei Größe/Rotation/Priorität darunter: die
 						     Spiegelung erledigt der delegierte .label-edit-sliderrow-Handler in review-labels.js.
@@ -2063,7 +2062,7 @@
 						     stillschweigend herunter -- Auflösung ist Kosmetik, eine stille Datenänderung nicht. -->
 						<label class="location-report-form__field location-report-form__field--zeile" id="label-edit-height-row" hidden><span>H&ouml;he (Schritt)</span><div class="label-edit-sliderrow label-edit-sliderrow--wide"><input id="label-edit-height" name="height_schritt" type="number" min="0" max="20000" step="1" inputmode="numeric" /><input id="label-edit-height-range" type="range" min="0" max="20000" step="50" aria-label="H&ouml;he in Schritt" /></div></label>
 						<label class="location-report-form__field location-report-form__field--checkbox location-report-form__field--hakenzeile"><input id="label-edit-is-nodix" name="is_nodix" type="checkbox" /><span>Nodix</span></label>
-					</div><div class="label-edit-section"><div class="label-edit-section-title">Darstellung</div>
+						</div><div class="label-edit-section"><div class="label-edit-section-title">Darstellung</div>
 						<!-- 🪤 HIER STAND EINEN TAG LANG DAS GEGENTEIL: „Größe ist als Bedienelement gefallen".
 						     Das war eine Fehllesung des Auftrags. Der Owner wollte den Editoren den Regler NICHT
 						     wegnehmen, sondern ihnen den Wert VORSCHLAGEN — die Marke darunter tut das.
@@ -2093,7 +2092,17 @@
 						     tragen den HAKEN deshalb deaktiviert und sagen hier warum (Entwurf §2). Die Zahl
 						     darunter ist dann ohnehin verborgen. Gefuellt wird der Satz von review-labels.js. -->
 						<p id="label-edit-curve-hint" class="location-report-form__status" hidden></p>
-					</div><!-- Die Wiki-Zuweisung des LABELS: seit 16.08.2026 dasselbe geteilte Bauteil
+						</div>
+						<p id="label-edit-status" class="location-report-form__status" role="status" aria-live="polite"></p>
+					<div class="location-report-form__actions">
+						<button id="label-edit-delete" class="location-report-form__button location-report-form__button--secondary" type="button">Löschen</button>
+						<button id="label-edit-cancel" class="location-report-form__button location-report-form__button--secondary" type="button">Abbrechen</button>
+						<button id="label-edit-submit" class="location-report-form__button location-report-form__button--primary" type="submit">Speichern</button>
+					</div>
+				</form>
+				</div>
+				<div data-landschaft-bereich="wiki" hidden>
+<!-- Die Wiki-Zuweisung des LABELS: seit 16.08.2026 dasselbe geteilte Bauteil
 					     (js/ui/wiki-assign.js), Objektart „landschaftslabel", Huelle „label-wiki" --
 					     ihr Namensgeber. Hier stand der letzte eigene Picker des Hauses samt einer
 					     zweiten Art-Tabelle, die vom Server abgedriftet war (Kopf von
@@ -2136,25 +2145,13 @@
 							<div id="label-edit-feature-sources"></div>
 						</div>
 						<p id="label-edit-carriers" class="location-report-form__status" hidden></p>
-						<!-- Landschaftsflaeche zuweisen. Bis 2026-07-28 bekam ein Label seinen Zeiger NUR beim
-						     Anlegen einer Regionsbeschriftung oder beim Klonen; ein bestehendes liess sich an
-						     keine Flaeche haengen. Genau daran hingen fuenf Finsterkamm-Labels an nichts und
-						     blendeten sich gegenseitig aus. Die Auswahl fuellt sich aus list_regions -- dieselbe
-						     Liste, aus der der Flaechendialog seine Art-Auswahl zieht. -->
-						<div class="label-edit-section" id="label-edit-region-section" hidden>
-							<div class="label-edit-section-title">Landschaftsfläche</div>
-							<label class="location-report-form__field">
-								<span class="location-report-form__label">Gehört zu</span>
-								<select id="label-edit-region"></select>
-							</label>
-						</div>
-						<p id="label-edit-status" class="location-report-form__status" role="status" aria-live="polite"></p>
-					<div class="location-report-form__actions">
-						<button id="label-edit-delete" class="location-report-form__button location-report-form__button--secondary" type="button">Löschen</button>
-						<button id="label-edit-cancel" class="location-report-form__button location-report-form__button--secondary" type="button">Abbrechen</button>
-						<button id="label-edit-submit" class="location-report-form__button location-report-form__button--primary" type="submit">Speichern</button>
-					</div>
-				</form>
+				</div>
+				<p id="landschaft-dialog-status" class="location-report-form__status" role="status" aria-live="polite"></p>
+				<div class="location-report-form__actions" hidden>
+					<button id="landschaft-dialog-delete" class="location-report-form__button location-report-form__button--secondary" type="button">Löschen</button>
+					<button id="landschaft-dialog-cancel" class="location-report-form__button location-report-form__button--secondary" type="button">Abbrechen</button>
+					<button id="landschaft-dialog-save" class="location-report-form__button location-report-form__button--primary" type="button">Speichern</button>
+				</div>
 			</div>
 		</div>
 			<div id="region-edit-overlay" hidden>

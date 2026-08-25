@@ -76,8 +76,23 @@ function redrawPreviewedLabel(entry) {
 	}
 }
 
+// Welcher Reiter beim naechsten Oeffnen aufgehen soll. 💣 KEIN gemerkter Zustand ueber das
+// Oeffnen hinaus: `openLabelEditDialog` setzt ihn bei JEDEM Aufruf neu und `setLabelEditDialogOpen`
+// liest ihn genau einmal. Ein Merker, der ueberlebt, liesse das zweite Oeffnen auf dem Reiter des
+// ersten landen -- genau die Falle, an der Anzeige-Menue und Ansichts-Kacheln gescheitert sind.
+let labelEditStartReiter = "";
+
 function setLabelEditDialogOpen(isOpen, { resetForm = false } = {}) {
-	$("#label-edit-overlay").prop("hidden", !isOpen);
+	if (typeof avesmapsLandschaftDialogSichtbar === "function") {
+		avesmapsLandschaftDialogSichtbar(isOpen);
+		if (isOpen && typeof avesmapsLandschaftDialogReiter === "function") {
+			// 🔴 Der Einstieg bestimmt den Reiter (Owner 25.08.2026). Wer eine Beschriftung anklickt,
+			// landet auf ihrem Reiter -- nicht auf dem zuletzt offenen.
+			avesmapsLandschaftDialogReiter(labelEditStartReiter || "beschriftung");
+		}
+	} else {
+		$("#label-edit-overlay").prop("hidden", !isOpen);
+	}
 	syncModalDialogBodyState();
 
 	if (isOpen) {
@@ -716,6 +731,9 @@ function avesmapsLabelZeichneVorgabeMarken() {
 }
 
 function openLabelEditDialog(options = {}) {
+	// 🔴 `options.reiter` kommt von den fuenf Aufrufern; ohne Angabe faellt es auf „beschriftung" --
+	// wer diesen Oeffner ruft, meint eine Beschriftung.
+	labelEditStartReiter = String(options.reiter || "beschriftung");
 	resetLabelEditForm();
 	populateLabelEditForm(options);
 	// ⚠️ NACH dem Fuellen: vorher steht im Artwaehler noch die Art des zuletzt geoeffneten
