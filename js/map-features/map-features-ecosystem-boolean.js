@@ -22,6 +22,7 @@
 // Die Reihenfolge ist die des Kontextmenüs. „difference" zieht das Ziel von der Quelle ab.
 const ECOSYSTEM_BOOLEAN_OPERATIONS = [
 	{ operation: "union", label: "Mit anderer Fläche vereinigen" },
+	{ operation: "union-keep-target", label: "Vereinigen und andere behalten" },
 	{ operation: "difference", label: "Von anderer Fläche ausschneiden" },
 	{ operation: "difference-keep-target", label: "Ausschneiden und andere behalten" },
 	{ operation: "intersection", label: "Schnittmenge mit anderer Fläche" },
@@ -29,8 +30,12 @@ const ECOSYSTEM_BOOLEAN_OPERATIONS = [
 
 // 🔴 Vereinigung und einfacher Abzug fressen ihr Ziel: bei der Vereinigung gäbe es die verschmolzene
 // Form sonst zweimal, beim Abzug ist das Ziel die Schablone und meist ein Wegwerf-Umriss.
-// `difference-keep-target` ist die Variante, die den See stehen lässt, aus dem der Wald geschnitten
-// wurde — dieselbe Unterscheidung wie bei den Territorien.
+// Die beiden `-keep-target`-Varianten sind die, die das Ziel als SCHABLONE benutzen und stehen
+// lassen: den See, aus dem der Wald geschnitten wurde, und den, dessen Umriss der Wald sich
+// einverleibt hat — dieselbe Unterscheidung wie bei den Territorien.
+//
+// 💣 Diese Liste zählt auf, was FRISST, nicht was rechnet. Wer eine Operation ergänzt, muss sie hier
+// also nur eintragen, wenn sie ihr Ziel vernichtet — aber in jede Rechnung unten einzeln.
 function ecosystemBooleanConsumesTarget(operation) {
 	return operation === "union" || operation === "difference";
 }
@@ -75,7 +80,7 @@ function assertEcosystemBooleanPlausible(operation, sourceGeometry, targetGeomet
 	if (operation === "intersection" && resultArea - Math.min(sourceArea, targetArea) > epsilon) {
 		throw new Error("Die Schnittmenge ist größer als eine der beiden Flächen.");
 	}
-	if (operation === "union" && resultArea + epsilon < Math.max(sourceArea, targetArea)) {
+	if ((operation === "union" || operation === "union-keep-target") && resultArea + epsilon < Math.max(sourceArea, targetArea)) {
 		throw new Error("Das Verschmelzungs-Ergebnis ist kleiner als eine der Ausgangsflächen.");
 	}
 }
@@ -92,7 +97,7 @@ function ecosystemBooleanGeometry(operation, sourceGeometry, targetGeometry) {
 	const target = ecosystemGeometryToClipping(targetGeometry, "Die Zielfläche");
 
 	let result;
-	if (operation === "union") {
+	if (operation === "union" || operation === "union-keep-target") {
 		result = clipping.union(source, target);
 	} else if (operation === "difference" || operation === "difference-keep-target") {
 		result = clipping.difference(source, target);

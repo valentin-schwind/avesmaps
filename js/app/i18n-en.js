@@ -380,12 +380,15 @@ window.AVESMAPS_I18N_EN = {
 	"ecosystem.ctxmenu.newTopographie": "New topography",
 	// A working point, not an area -- it creates a berggipfel label at the clicked spot (V8).
 	"ecosystem.ctxmenu.newPeak": "Set height point",
-	// --- Landschaften: the seven geometry operations in the area context menu. Same set the territory
-	//     menu offers, on ecosystem_area instead of political_territory_geometry. ---
+	// --- Landschaften: the geometry operations in the area context menu, on ecosystem_area instead of
+	//     political_territory_geometry. The same set the territory menu offers, plus the keeping merge
+	//     below, which the territory menu has no twin for. ---
 	// Wording mirrors the territory menu one for one -- the editors have used that one for months.
 	"ecosystem.ctxmenu.move": "Move",
 	"ecosystem.ctxmenu.split": "Split area",
 	"ecosystem.ctxmenu.union": "Merge with another",
+	// The one entry the territory menu has no twin for -- Landschaften only, on purpose.
+	"ecosystem.ctxmenu.union-keep-target": "Merge with another and keep the other",
 	"ecosystem.ctxmenu.difference": "Cut out of another",
 	"ecosystem.ctxmenu.difference-keep-target": "Cut out of another and keep the other",
 	"ecosystem.ctxmenu.intersection": "Cut a new one out of another",

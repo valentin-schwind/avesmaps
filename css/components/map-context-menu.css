@@ -290,6 +290,19 @@
 	content: "\222A";
 }
 
+/* ⚠️ Der eine Eintrag ohne Zwilling im Herrschaftsgebiete-Menü (Owner 25.08.2026). Das Zeichen bindet
+   ihn trotzdem an die Reihe: ⊕ und ⊖ sind die beiden EINGEKREISTEN, und im Menü sind das genau die
+   beiden Gesten, die die andere Fläche stehen lassen -- das „und andere beibehalten" sieht in beiden
+   Zeilen gleich aus.
+   💣 NICHT ⊎ (U+228E), obwohl es der Vereinigung ähnlicher sieht. Keine der beteiligten Schriften
+   führt die Zeichen selbst, sie kommen alle aus dem Ersatz -- und dort misst ⊎ 8 px, ⊕ und ⊖ je 13
+   (bei 13px/Arial im Browser gemessen, 25.08.2026). ⊎ stünde also sichtbar kleiner neben seinem
+   eigenen Zwilling. Die ::before-Box ist mit 18,85 px breit genug für beide, die BESCHRIFTUNGEN
+   fluchten in jedem Fall -- schief steht nur das Zeichen selbst. */
+.map-context-menu__item[data-ecosystem-area-action="union-keep-target"]::before {
+	content: "\2295";
+}
+
 .map-context-menu__item[data-ecosystem-area-action="difference"]::before {
 	content: "\2212";
 }

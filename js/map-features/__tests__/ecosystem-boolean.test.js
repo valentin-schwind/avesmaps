@@ -95,17 +95,36 @@ assert.throws(() => ecosystemBooleanGeometry("nonsense", box(0, 0, 10, 10), box(
 // ------------------------------------------------------------------------ TARGET CONSUMPTION ---
 // 🔴 Union and plain difference eat their target, mirroring the territories: the merged shape would
 // otherwise exist twice, and a subtraction's target is usually a throwaway stencil. The KEEPING
-// variant is the one that leaves the lake standing after it was cut out of the forest.
+// variants are the ones that leave the lake standing -- after it was cut out of the forest, or after
+// the forest grew to swallow its outline.
 assert.strictEqual(ecosystemBooleanConsumesTarget("union"), true);
 assert.strictEqual(ecosystemBooleanConsumesTarget("intersection"), false);
 assert.strictEqual(ecosystemBooleanConsumesTarget("difference-keep-target"), false);
+assert.strictEqual(ecosystemBooleanConsumesTarget("union-keep-target"), false,
+	"the keeping merge leaves the other area standing");
 assert.deepStrictEqual(ECOSYSTEM_BOOLEAN_OPERATIONS.map((entry) => entry.operation),
-	["union", "difference", "difference-keep-target", "intersection"]);
-// The keeping variant computes exactly the same shape -- only the target's fate differs.
+	["union", "union-keep-target", "difference", "difference-keep-target", "intersection"]);
+// Each keeping variant computes exactly the same shape as its original -- only the target's fate differs.
 assert.deepStrictEqual(
 	ecosystemBooleanGeometry("difference-keep-target", box(0, 0, 100, 100), box(40, 40, 60, 60)),
 	clearing, "difference-keep-target is the same subtraction");
+assert.deepStrictEqual(
+	ecosystemBooleanGeometry("union-keep-target", box(0, 0, 10, 10), box(5, 0, 15, 10)),
+	merged, "union-keep-target is the same merge");
 assert.strictEqual(ecosystemBooleanConsumesTarget("difference"), true, "plain difference eats the cutter");
+
+// 💣 THE PLAUSIBILITY GUARD MUST CATCH THE KEEPING MERGE TOO. It is written as `operation ===
+// "union"`, so a new operation that computes a union without carrying that exact name slips past it
+// in silence -- the house's own "a rule that binds one of several producers is no rule". Faked
+// library on purpose: the real one never shrinks a union, so this asks whether the GUARD is wired,
+// not whether polygon-clipping works.
+const realClipping = global.window.polygonClipping;
+global.window.polygonClipping = { ...realClipping, union: () => box(0, 0, 1, 1).coordinates.map((ring) => [ring]) };
+for (const operation of ["union", "union-keep-target"]) {
+	assert.throws(() => ecosystemBooleanGeometry(operation, box(0, 0, 100, 100), box(50, 50, 150, 150)),
+		/kleiner/i, `${operation} refuses a merge that came back smaller than its inputs`);
+}
+global.window.polygonClipping = realClipping;
 
 // --------------------------------------------------------------------------------- SPLIT ---
 // Two clicks define a line; the line becomes a thin cutter and is subtracted. It only counts as a

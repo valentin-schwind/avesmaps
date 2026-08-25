@@ -1,9 +1,13 @@
 /*
- * Landschaften -- die sieben Geometrie-Operationen im Rechtsklickmenü einer Fläche.
+ * Landschaften -- die Geometrie-Operationen im Rechtsklickmenü einer Fläche.
  *
- * Vereinigen · Ausschneiden · Ausschneiden-und-behalten · Schnittmenge · Zerschneiden · Herauslösen ·
- * Verschieben. Dieselbe Auswahl, die das Territorien-Menü anbietet (index.html:268-278), auf
- * ecosystem_area statt political_territory_geometry.
+ * Vereinigen · Vereinigen-und-behalten · Ausschneiden · Ausschneiden-und-behalten · Schnittmenge ·
+ * Zerschneiden · Herauslösen · Verschieben. Bis auf „Vereinigen-und-behalten" (nur hier, siehe
+ * TARGET_OPERATIONS) dieselbe Auswahl, die das Territorien-Menü anbietet, auf ecosystem_area statt
+ * political_territory_geometry.
+ *
+ * ⚠️ Hier stand eine ZAHL („die sieben Operationen"), und eine Zahl im Kommentar liest sich wie eine
+ * vollständige Liste -- wer eine ergänzt, sucht dann nicht weiter, wo sonst noch mitgezählt wird.
  *
  * 🔴 Die RECHNEREI steht nicht hier, sondern in map-features-ecosystem-boolean.js -- rein, ohne Karte,
  * mit Unit-Test. Diese Datei ist nur die GESTE: wer ist Quelle, wer ist Ziel, was wird gespeichert.
@@ -23,12 +27,19 @@
 
 	// Zwei-Flächen-Operationen: Quelle wählen, Ziel anklicken.
 	//
-	// 🔴 WORTLAUT UND REIHENFOLGE SIND VOM HERRSCHAFTSGEBIETE-MENÜ ABGESCHRIEBEN (index.html:268-278),
-	// nicht neu erfunden: „Von anderem ausschneiden" heisst hier „Von anderer ausschneiden", weil eine
-	// Fläche weiblich ist -- mehr Unterschied gibt es nicht. Die Editoren bedienen jenes Menü seit
-	// Monaten; zwei Vokabulare für dieselbe Geste wäre die eigentliche Zumutung.
+	// 🔴 WORTLAUT UND REIHENFOLGE SIND VOM HERRSCHAFTSGEBIETE-MENÜ ABGESCHRIEBEN
+	// (index.html, `data-region-context-group="mit-anderem"`), nicht neu erfunden: „Von anderem
+	// ausschneiden" heisst hier „Von anderer ausschneiden", weil eine Fläche weiblich ist. Die Editoren
+	// bedienen jenes Menü seit Monaten; zwei Vokabulare für dieselbe Geste wäre die eigentliche Zumutung.
+	//
+	// ⚠️ EINE Geste steht seit 25.08.2026 nur hier: „Mit anderer vereinigen und andere beibehalten"
+	// (Owner-Entscheid, bewusst nur die Landschaften). Das ist KEIN Versehen und keine halbe
+	// Vereinheitlichung, die jemand „zu Ende bringen" müsste — die Territorien dürfen jederzeit
+	// nachziehen, aber das ist ihr eigener Schreibweg (region-boolean-geometry.js, ein anderer
+	// Endpunkt) und wäre eine eigene Sitzung. Die übrigen vier bleiben Zeichen für Zeichen gleich.
 	const TARGET_OPERATIONS = [
 		{ action: "union", label: "Mit anderer vereinigen" },
+		{ action: "union-keep-target", label: "Mit anderer vereinigen und andere beibehalten" },
 		{ action: "difference", label: "Von anderer ausschneiden" },
 		{ action: "difference-keep-target", label: "Von anderer ausschneiden und andere beibehalten" },
 		{ action: "intersection", label: "Neue von anderer ausschneiden" },
@@ -41,6 +52,15 @@
 		const entry = TARGET_OPERATIONS.find((candidate) => candidate.action === operation);
 
 		return entry ? entry.label : String(operation || "Geometrieoperation");
+	}
+
+	// 🔴 DIE EBENEN-REGEL STEHT EINMAL: hier. Zwei Stellen lesen sie -- der Riegel in
+	// completeTargetOperation und der Hinweis, der beim Start im Toast erscheint. Getrennt gepflegt
+	// verspricht der Toast eine Freiheit, die der Riegel eine Sekunde später zurücknimmt; genau das tat
+	// er bis zum 25.08.2026 bei „Mit anderer vereinigen" („auch auf einer anderen Ebene" -- und dann die
+	// Absage). Die Begründung, warum die Vereinigung als einzige gebunden ist, steht am Riegel.
+	function operationMayCrossKinds(operation) {
+		return operation !== "union";
 	}
 
 	// Der laufende Zustand. null = nichts vorgemerkt.
@@ -325,7 +345,13 @@
 		// genau der Fall, für den die Zielwahl geöffnet wurde. VEREINIGEN darf es nicht: das Ergebnis
 		// landet auf der Quelle und trüge deren Art, der See würde also zu Wald -- und die Vereinigung
 		// LÖSCHT ihr Ziel obendrein. Das ist kein Handgriff, den man versehentlich tun können soll.
-		if (operation === "union" && String(source.kind) !== String(target.kind)) {
+		//
+		// 💣 Die Sperre gilt `union` ALLEIN, und `union-keep-target` gehört ausdrücklich NICHT dazu --
+		// aus Symmetrie nachgezogen wäre sie dort falsch. Beide Hälften der Begründung oben entfallen
+		// bei der behaltenden Fassung: das Ziel bleibt stehen und behält damit seine Art, und gelöscht
+		// wird es ohnehin nicht. Sie benutzt die andere Fläche als SCHABLONE, genau wie
+		// `difference-keep-target` -- und über Ebenen hinweg ist das ihr Hauptfall (Owner 25.08.2026).
+		if (!operationMayCrossKinds(operation) && String(source.kind) !== String(target.kind)) {
 			say("Vereinigen geht nur innerhalb einer Ebene — sonst würde die andere Fläche ihre Art verlieren.", "warning");
 			return;
 		}
@@ -731,7 +757,9 @@
 				}
 				bindTargetHighlight();
 				setLayerPicking(true);
-				say("Jetzt die zweite Fläche anklicken — auch auf einer anderen Ebene. ESC bricht ab.", "info");
+				say(operationMayCrossKinds(operation.action)
+					? "Jetzt die zweite Fläche anklicken — auch auf einer anderen Ebene. ESC bricht ab."
+					: "Jetzt die zweite Fläche auf derselben Ebene anklicken. ESC bricht ab.", "info");
 			}, false, "mit-anderer");
 		});
 
