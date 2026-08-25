@@ -30,7 +30,11 @@ const leser = read("api", "_internal", "analytics", "api-metrics.php");
 const ohneBlockKommentare = (text) => text.replace(/\/\*[\s\S]*?\*\//g, "");
 // Nur ganze Kommentarzeilen: ein `//` mitten in einer Zeichenkette (etwa einer URL) bliebe sonst
 // auf der Strecke und riss den Rest der Zeile mit.
-const ohneZeilenKommentare = (text) => text.replace(/^[ \t]*(\/\/|#).*$/gm, "");
+// 🪤 NUR `//`, NIEMALS `#`. Die erste Fassung strich auch Zeilen, die mit `#` beginnen -- gedacht
+// als PHP-Kommentar, in CSS aber ein ID-SELEKTOR. Sie loeschte damit `#api-dashboard` aus dem
+// Stylesheet, und die Zusicherung „der Abschnitt kann scrollen" meldete eine fehlende Regel, die
+// in Wahrheit dastand. Ein Werkzeug, das die Sprache verwechselt, erfindet Befunde.
+const ohneZeilenKommentare = (text) => text.replace(/^[ \t]*\/\/.*$/gm, "");
 const nurCode = (text) => ohneZeilenKommentare(ohneBlockKommentare(text));
 
 let fehler = 0;
@@ -149,6 +153,28 @@ pruefe(/vaDonut\(/.test(src), "apiZonenKarte benutzt den vorhandenen vaDonut");
 pruefe(!/stroke-dasharray/.test(src), "kein zweiter Ring von Hand");
 
 // --- Die Bauteile im CSS ------------------------------------------------------------------------
+// 💣 DER ABSCHNITT MUSS SCROLLEN KOENNEN. `.status-subsection` ist eine Flex-Spalte fester Hoehe;
+// ohne `flex: 1 1 auto` + `min-height: 0` + `overflow-y: auto` laeuft der Inhalt ueber und ist
+// schlicht unerreichbar. Genau so ging der API-Reiter am 25.08.2026 live -- er erbte das Markup
+// des Besucher-Reiters, aber nicht dessen Regel, und der Owner konnte nicht nach unten scrollen.
+// 🪤 Das Pruefgeruest fand es nicht: dort scrollte die Seite selbst. Der Fehler haengt am WIRT.
+//
+// Geprueft wird der geteilte Selektor -- zwei getrennte Regeln liefen beim naechsten Mal wieder
+// auseinander.
+const scrollRegel = (nurCode(css).match(/#visitor-dashboard\s*,\s*\n?#api-dashboard\s*\{[^}]*\}/) || [""])[0];
+pruefe(scrollRegel !== "", "#api-dashboard teilt die Scroll-Regel mit #visitor-dashboard");
+["overflow-y: auto", "min-height: 0", "flex: 1 1 auto"].forEach((teil) => {
+	pruefe(scrollRegel.includes(teil), "die Scroll-Regel traegt „" + teil + "“");
+});
+// Jeder Unterabschnitt in index.html braucht einen Inhalt, der in dieser Regel steht.
+const abschnitte = [...indexHtml.matchAll(/data-status-subsection="([a-z]+)"[\s\S]{0,200}?id="([a-z-]+)"/g)]
+	.map((m) => ({ reiter: m[1], anker: m[2] }));
+abschnitte.forEach((a) => {
+	if (a.anker === "presence-panel-status" || a.anker === "visitor-live") { return; }
+	pruefe(scrollRegel.includes("#" + a.anker) || /visitor-pills/.test(a.anker),
+		"der Abschnitt „" + a.reiter + "“ hat einen scrollenden Inhalt (#" + a.anker + ")");
+});
+
 pruefe(/\.va-stack\b/.test(css), "der gestapelte Balken hat eine Regel");
 pruefe(/\.va-feed__tag--warn\b/.test(css), "die Plakettenklassen sind da");
 pruefe(/\.va-feed__tag--neutral\b/.test(css), "auch die neutrale");

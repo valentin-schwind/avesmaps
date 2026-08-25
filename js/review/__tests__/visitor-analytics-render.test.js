@@ -224,17 +224,32 @@ const cssOhneKommentar = css
 	.split("/*")
 	.map((teil, i) => (i === 0 ? teil : teil.slice(teil.indexOf("*/") + 2)))
 	.join("");
+// 🪤 Findet die Regel ueber ihre SELEKTORLISTE, nicht ueber die Zeichenfolge `<wahl> {`.
+//
+// Die erste Fassung suchte `cssOhneKommentar.indexOf(wahl + " {")` und fand damit nur Regeln mit
+// GENAU EINEM Selektor. Am 25.08.2026 bekam `#visitor-dashboard` einen Partner
+// (`#visitor-dashboard, #api-dashboard { … }`, damit die neue API-Tafel dieselbe Scroll- und
+// Polsterregel erbt und die zwei nicht auseinanderlaufen koennen) -- und dieser Test meldete
+// daraufhin eine fehlende Polsterung, die unveraendert dastand. Der Befund war erfunden, die
+// Regel heil.
 function paddingVon(wahl) {
-	const auf = cssOhneKommentar.indexOf(wahl + " {");
-	if (auf < 0) {
-		return null;
+	for (const stueck of cssOhneKommentar.split("}")) {
+		const klammer = stueck.lastIndexOf("{");
+		if (klammer < 0) {
+			continue;
+		}
+		const selektoren = stueck.slice(0, klammer).split(",").map((s) => s.trim());
+		if (!selektoren.includes(wahl)) {
+			continue;
+		}
+		const rumpf = stueck.slice(klammer);
+		const p = rumpf.indexOf("padding:");
+		if (p < 0) {
+			return null;
+		}
+		return rumpf.slice(p + "padding:".length, rumpf.indexOf(";", p)).trim();
 	}
-	const rumpf = cssOhneKommentar.slice(auf, cssOhneKommentar.indexOf("}", auf));
-	const p = rumpf.indexOf("padding:");
-	if (p < 0) {
-		return null;
-	}
-	return rumpf.slice(p + "padding:".length, rumpf.indexOf(";", p)).trim();
+	return null;
 }
 [
 	[".status-subtabs", "4px 10px 0"],

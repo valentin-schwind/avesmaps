@@ -29,7 +29,14 @@
 .va-live__split { margin-top: 4px; padding-left: 17px; font-size: 12px; color: var(--color-text-muted); }
 #visitor-pills { flex: 0 0 auto; padding: 10px; border-bottom: 1px solid var(--color-border); }
 #visitor-pills:empty { display: none; }
-#visitor-dashboard { flex: 1 1 auto; min-height: 0; overflow-y: auto; overflow-x: hidden; padding: 12px 10px; }
+/* 💣 EIN GETEILTER SELEKTOR, KEINE ZWEITE REGEL. Die Tafel scrollt nur, weil `.status-subsection`
+   eine Flex-Spalte fester Hoehe ist und ihr Inhalt `flex: 1 1 auto` + `min-height: 0` +
+   `overflow-y: auto` traegt. Fehlt das, laeuft der Inhalt einfach ueber und ist unerreichbar --
+   genau so ging der API-Reiter am 25.08.2026 live, weil er das Markup des Besucher-Reiters erbte,
+   aber nicht dessen Regel. ⚠️ Ein Pruefgeruest findet das NICHT, wenn dort die Seite selbst
+   scrollt: der Fehler haengt am Wirt, nicht am Bauteil. */
+#visitor-dashboard,
+#api-dashboard { flex: 1 1 auto; min-height: 0; overflow-y: auto; overflow-x: hidden; padding: 12px 10px; }
 .va-pills { display: flex; gap: 6px; margin-bottom: 0; }
 .va-geo-legend { display: flex; align-items: center; gap: 6px; justify-content: center; margin-top: 8px; font-size: 11px; color: var(--color-text-muted); }
 .va-geo-scale { display: flex; gap: 2px; }
