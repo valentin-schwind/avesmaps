@@ -179,7 +179,12 @@ function avesmapsWikiDumpSyncKindLastSynced(PDO $pdo): array
         $result['adventure'] = avesmapsGameLiteratureLastSynced($pdo);
     }
     // Karten are not a sync_kind either; two labels read this map and they need DIFFERENT answers:
-    //   citymap        -- when "Karten syncen" last completed. The ribbon button asks this.
+    //   citymap        -- when "Karten syncen" last completed, whether or not it found anything. The
+    //                     ribbon button asks this. 🪤 That sentence stood here while it was FALSE:
+    //                     between 2026-08-06 and 08-25 the stamp lived only in the Übernahme, which
+    //                     never runs at zero differences, so the rail sat eight days on an old date
+    //                     while the sync ran daily. Both halves stamp again -- see
+    //                     avesmapsCitymapStampLastSynced.
     //   citymap_staged -- when "Dump holen" last filled the staging catalog. The editor's own sync
     //                     button asks this, because before pressing it the question is "is there
     //                     anything to sync at all?", and "never synced" cannot answer that.

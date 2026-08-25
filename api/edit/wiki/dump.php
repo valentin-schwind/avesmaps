@@ -829,6 +829,8 @@ try {
 
             avesmapsWikiDumpLockHeartbeat($pdo, $lockUserId, 'sync_adventures');
             if ($advDone) {
+                // Same rule, same place as sync_citymaps above -- see the comment there.
+                avesmapsGameLiteratureStampLastSynced($pdo);
                 avesmapsWikiDumpLockRelease($pdo, $lockUserId);
                 $lockHeldByThisRequest = false;
             }
@@ -1034,6 +1036,13 @@ try {
 
             avesmapsWikiDumpLockHeartbeat($pdo, $lockUserId, 'sync_citymaps');
             if ($cmDone) {
+                // 🔴 THE RUN IS WHAT "gesynct" MEANS (owner 2026-08-25). Stamped HERE, in the done
+                // branch, and not inside avesmapsCitymapPlanStep: sync-plan-purity-test.php proves from
+                // that function that the compute half writes into no live table, and app_setting merely
+                // happens not to be on its list. The guarantee is worth more than the convenience.
+                // In the done branch, because a ~530-card run spans several requests -- a stamp per step
+                // would claim "synced" the moment the first one returned.
+                avesmapsCitymapStampLastSynced($pdo);
                 avesmapsWikiDumpLockRelease($pdo, $lockUserId);
                 $lockHeldByThisRequest = false;
             }

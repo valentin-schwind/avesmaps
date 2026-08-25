@@ -2084,6 +2084,18 @@
     }
   }
 
+  // Die „Literatur"-Zelle der Übersichtsleiste im Menüband auffrischen -- sie lebt im ELTERNdokument.
+  // Zwilling von refreshRibbonSyncedRail im Karten-Editor; die Begründung steht dort.
+  // ⚠️ Für den LAUF braucht es das nicht -- startWikiSyncGameLiteratureSync frischt drüben selbst auf.
+  function refreshRibbonSyncedRail() {
+    try {
+      const p = window.parent;
+      if (p && p !== window && typeof p.refreshWikiSyncKindSyncedStatus === "function") {
+        void p.refreshWikiSyncKindSyncedStatus();
+      }
+    } catch (e) { /* kein Elternfenster erreichbar -- die Leiste holt es beim nächsten Laden */ }
+  }
+
   function setAeSyncBusy(isBusy) {
     aeSyncRunning = isBusy;
     const button = document.getElementById("aeSyncBtn");
@@ -2117,6 +2129,7 @@
           await loadList();
           void refreshAeSyncedInfo();
           void refreshAePlanHint();
+          refreshRibbonSyncedRail();
         },
         onClose: () => { void refreshAePlanHint(); },
       });
@@ -2160,6 +2173,7 @@
           await loadList(); // übernommene Abenteuer gehören sofort in die linke Liste
           void refreshAeSyncedInfo();
           void refreshAePlanHint();
+          refreshRibbonSyncedRail();
         },
         onClose: () => { void refreshAePlanHint(); },
       });

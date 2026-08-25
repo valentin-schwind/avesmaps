@@ -1763,6 +1763,22 @@
     }
   }
 
+  // Die „Karten"-Zelle der Übersichtsleiste im Menüband auffrischen -- sie lebt im ELTERNdokument.
+  //
+  // 💣 Nach einer Übernahme steht dort ein neues Datum, und ohne diesen Ruf sieht es der Editor erst
+  // nach einem Neuladen der ganzen Seite. Genau das war die Meldung vom 25.08.2026: hier im Fenster
+  // rückte das Datum vor (das ist aber der DUMP-Zeitpunkt, refreshCeSyncedInfo liest citymap_staged),
+  // in der Leiste dahinter nicht.
+  // ⚠️ Für den LAUF braucht es das nicht -- startWikiSyncCitymapsSync frischt drüben selbst auf.
+  function refreshRibbonSyncedRail() {
+    try {
+      const p = window.parent;
+      if (p && p !== window && typeof p.refreshWikiSyncKindSyncedStatus === "function") {
+        void p.refreshWikiSyncKindSyncedStatus();
+      }
+    } catch (e) { /* kein Elternfenster erreichbar -- die Leiste holt es beim nächsten Laden */ }
+  }
+
   function setCeSyncBusy(isBusy) {
     ceSyncRunning = isBusy;
     const button = document.getElementById("ceSyncBtn");
@@ -1801,6 +1817,7 @@
           await loadList();
           void refreshCeSyncedInfo();
           void refreshCePlanHint();
+          refreshRibbonSyncedRail();
         },
         onClose: () => { void refreshCePlanHint(); },
       });
@@ -1837,6 +1854,7 @@
           await loadList(); // übernommene Karten gehören sofort in die linke Liste
           void refreshCeSyncedInfo();
           void refreshCePlanHint();
+          refreshRibbonSyncedRail();
         },
         onClose: () => { void refreshCePlanHint(); },
       });

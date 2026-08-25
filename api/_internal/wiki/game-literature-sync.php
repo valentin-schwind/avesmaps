@@ -1103,8 +1103,14 @@ function avesmapsGameLiteratureCountCatalog(PDO $pdo): int
  * MAX(synced_at) over origin='wiki' rows, but synced_at is only bumped inside the field-reconcile's
  * `if ($plan['set'] !== [])` guard -- i.e. only when a row actually changes. A repeat/no-op sync
  * (nothing new in the dump) therefore left the label stuck on the old date, reading as "the sync
- * did nothing". Fix mirrors avesmapsCitymapLastSynced exactly: the reconcile stamps a run timestamp
- * on `$done` (whether or not anything changed), and this reads it first.
+ * did nothing". Fix mirrors avesmapsCitymapLastSynced exactly: the run stamps a timestamp when it
+ * finishes (whether or not anything changed), and this reads it first.
+ *
+ * 🪤 That sentence said "the reconcile stamps ... on `$done`" and was FALSE from 2026-08-06 to 08-25:
+ * splitting the sync into compute + apply moved the stamp into the apply half, which never runs at
+ * zero differences. Exactly the bug described above, reintroduced by a refactor while its own
+ * post-mortem stood two lines higher. The stamp is back at the end of the run
+ * (avesmapsGameLiteratureStampLastSynced, called from dump.php's done branch).
  *
  * Fallback to MAX(synced_at) when the setting is empty: a system that synced adventures BEFORE this
  * stamp existed still has row timestamps, so the label shows the real last-change date instead of
@@ -1128,6 +1134,27 @@ function avesmapsGameLiteratureLastSynced(PDO $pdo): ?string
         return $value !== false && $value !== null ? (string) $value : null;
     } catch (Throwable) {
         return null;
+    }
+}
+
+/**
+ * Record "the owner ran the Literatur-Abgleich", now. Twin of avesmapsCitymapStampLastSynced -- read
+ * that docblock for why the RUN stamps and not only the Übernahme (owner 2026-08-25), and for why both
+ * halves may stamp the same row.
+ *
+ * ⚠️ The reader above says this already happens ("the reconcile stamps a run timestamp on `$done`");
+ * it stopped being true on 2026-08-06 when the sync was cut in two, and nothing said so. This function
+ * makes the sentence true again, and sync-lauf-stempel-test.php keeps it that way.
+ */
+function avesmapsGameLiteratureStampLastSynced(PDO $pdo): void
+{
+    if (!function_exists('avesmapsAppSettingSet')) {
+        return;
+    }
+    try {
+        avesmapsAppSettingSet($pdo, AVESMAPS_GAME_LITERATURE_LAST_SYNCED_SETTING, gmdate('Y-m-d H:i:s'));
+    } catch (Throwable) {
+        // Cosmetic; never fail the Abgleich over a timestamp.
     }
 }
 

@@ -2262,6 +2262,10 @@ async function startWikiSyncGameLiteratureSync(options) {
 			: "Keine Unterschiede: der Bestand entspricht dem Dump.";
 		setWikiSyncStatus(note, "success");
 
+		// Wie bei den Karten: der LAUF stempelt „zuletzt gesynct", also frischt die Leiste hier auf --
+		// vor der Vorschau und unabhängig davon, ob jemand etwas übernimmt.
+		void refreshWikiSyncKindSyncedStatus();
+
 		// 🔴 IMMER, auch bei null Unterschieden (Owner 2026-08-07) -- siehe die ausführliche Begründung
 		// beim Quellen-Abgleich weiter oben. Das leere Blatt sagt selbst, dass nichts anders ist.
 		const runId = Number((result && result.run_id) || 0);
@@ -2393,6 +2397,12 @@ async function startWikiSyncCitymapsSync() {
 			: "Keine Unterschiede: der Bestand entspricht dem Dump.";
 		setWikiSyncStatus(note, "success");
 		showFeedbackToast(note, "success");
+
+		// Der Lauf hat gerade „zuletzt gesynct" gestempelt (Owner 25.08.2026: „gesynct is gesynct, egal
+		// ob was übernommen wurde"), also soll die „Karten"-Zelle der Leiste ihr Datum sofort zeigen.
+		// ⚠️ HIER, nicht im Karten-Editor: der ruft diese Funktion über window.parent auf, und die Leiste
+		// lebt in diesem Dokument. Eine Auffrischung drüben müsste durch die Iframe-Grenze zurückgreifen.
+		void refreshWikiSyncKindSyncedStatus();
 
 		// Der Aufrufer (der Karten-Editor) öffnet damit die Vorschau.
 		return { run_id: Number((result && result.run_id) || 0), counts: counts };

@@ -1471,6 +1471,37 @@ function avesmapsCitymapLastSynced(PDO $pdo): ?string
 }
 
 /**
+ * Record "the owner ran the Karten-Abgleich", now.
+ *
+ * 🔴 THE RUN STAMPS, NOT THE ÜBERNAHME (owner 2026-08-25, verbatim: "gesynct is gesynct, egal ob was
+ * übernommen wurde"). Until 2026-08-06 this line sat at the end of the reconcile with exactly that
+ * reasoning written above it -- "which is true the moment the catalog is drained, whether or not
+ * anything changed". Cutting the sync into a compute and an apply half took the stamp along into the
+ * apply half, and that half never runs when there is nothing to apply: the preview deliberately shows
+ * no "Übernehmen" button at zero differences (syncPlanFooterState). So a daily "Karten syncen" that
+ * found nothing left the rail standing on the last Übernahme -- measured live: eight days.
+ *
+ * Both halves stamp, and that is not two owners of one truth: it is the same event at a second
+ * moment. A preview can lie around for days behind "Später", and applying it tomorrow is then the
+ * most recent thing that happened to the maps. Both write gmdate() into the same row, so they cannot
+ * diverge -- only move the value forward.
+ *
+ * ⚠️ Never throws. A missing timestamp is a cosmetic loss; an Abgleich that dies over one is not.
+ * Guarded because a context without the app-setting library must still be able to sync.
+ */
+function avesmapsCitymapStampLastSynced(PDO $pdo): void
+{
+    if (!function_exists('avesmapsAppSettingSet')) {
+        return;
+    }
+    try {
+        avesmapsAppSettingSet($pdo, AVESMAPS_CITYMAP_LAST_SYNCED_SETTING, gmdate('Y-m-d H:i:s'));
+    } catch (Throwable) {
+        // See the docblock: cosmetic.
+    }
+}
+
+/**
  * When the staging catalog was last filled by "Dump holen", or null if never.
  *
  * NB this is the DUMP time, not the reconcile time -- deliberately. Before pressing "Karten syncen"

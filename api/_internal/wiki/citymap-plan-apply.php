@@ -184,13 +184,11 @@ function avesmapsCitymapApplyFinish(PDO $pdo, int $runId, int $userId, ?array $u
 
     // The three closing acts of the former reconcile step, moved here because they mean "something was
     // written" -- and until now, nothing was.
-    if (function_exists('avesmapsAppSettingSet')) {
-        try {
-            avesmapsAppSettingSet($pdo, AVESMAPS_CITYMAP_LAST_SYNCED_SETTING, gmdate('Y-m-d H:i:s'));
-        } catch (Throwable) {
-            // A missing timestamp is a cosmetic loss; it must never fail the Übernahme itself.
-        }
-    }
+    //
+    // ⚠️ The stamp is NO LONGER this half's alone: the RUN stamps too, since 2026-08-25 (owner:
+    // "gesynct is gesynct, egal ob was übernommen wurde"). It stays here for the plan that lay around
+    // behind "Später" and is applied days later -- see avesmapsCitymapStampLastSynced's docblock.
+    avesmapsCitymapStampLastSynced($pdo);
     // Resolve freshly-added wiki place names -> entities. NOT optional and NOT guarded: a silently
     // skipped resolve looks exactly like a successful Übernahme while every new card stays invisible.
     avesmapsResolvePlacesInTable($pdo, 'citymap_place');
