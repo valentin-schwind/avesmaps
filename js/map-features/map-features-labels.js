@@ -1574,6 +1574,10 @@ async function avesmapsLabelFlaechenHandgriff(label, was) {
 // Owner 25.08.2026: „dass es an den point of inaccesiblity zurückverschoben wird“. Das ist genau der
 // Punkt, den das Anlegen einer Landschaftsfläche vergibt (createEcosystemRegionLabel,
 // map-features-ecosystem-draw.js) -- der mit dem grössten Abstand zu allen Kanten.
+//
+// Gewacht von js/map-features/__tests__/label-position-zuruecksetzen.test.js: die beiden reinen
+// Rechnungen einzeln, die Kachel, die Verdrahtung und der Ablauf mit Attrappen fuer Karte,
+// Regionen und Speicherweg.
 
 // Wie weit eine zurückgesetzte Beschriftung ausweicht, wenn dort schon eine andere derselben Fläche
 // liegt: 20 px nach unten UND nach rechts, wie beim Duplizieren (Owner 25.08.2026). Layer-Punkte,

@@ -21,7 +21,12 @@ const path = require("path");
 const vm = require("vm");
 
 const ROOT = path.join(__dirname, "..", "..", "..");
-const lies = (...teile) => fs.readFileSync(path.join(ROOT, ...teile), "utf8");
+
+// 💣 ZEILENENDEN VEREINHEITLICHEN. Das Repo steht unter `text=auto`: auf Windows liegt die Datei
+// mit CRLF im Arbeitsbaum, im Deploy-Tor (Linux) mit LF. Ein Test, der auf "\r\n" sucht, misst
+// deshalb auf dem Entwicklungsrechner etwas anderes als in der CI -- und genau daran ist der erste
+// Anlauf dieses Tests gescheitert: lokal gruen, im Tor rot, Deploy abgebrochen, nichts hochgeladen.
+const lies = (...teile) => fs.readFileSync(path.join(ROOT, ...teile), "utf8").replace(/\r\n/g, "\n");
 const quelle = lies("js", "map-features", "map-features-labels.js");
 
 // Eine benannte Funktion samt allem, was zwischen ihrem Kopf und ihrer schliessenden Klammer steht.
@@ -178,7 +183,14 @@ assert.ok(labels.includes("async function avesmapsLabelPositionZuruecksetzen"), 
 // 🔴 DERSELBE Weg zur Fläche wie die beiden Nachbarkacheln, samt Ansichtswechsel -- im Standardmodus
 // ist die Fläche gar nicht geladen, und ohne ihre Geometrie gibt es keinen Punkt zu rechnen.
 const rumpf = labels.slice(labels.indexOf("async function avesmapsLabelPositionZuruecksetzen"));
-const handgriff = rumpf.slice(0, rumpf.indexOf("\r\n}") + 3 || rumpf.indexOf("\n}") + 2);
+const handgriff = rumpf.slice(0, rumpf.indexOf("\n}") + 2);
+
+// 💣 ERST PRUEFEN, DASS DER AUSSCHNITT UEBERHAUPT EINER IST. Geht der Schnitt daneben, liefert er
+// ein paar Zeichen -- und jede Zusicherung darunter prueft dann nicht den Handgriff, sondern nichts.
+// Die erste Fassung suchte nach "\r\n}" mit `|| "\n}"` als Rueckfall; bei LF ergab `-1 + 3` die 2,
+// und die ist wahr, also kam der Rueckfall nie zum Zug: der "Handgriff" war der String "as".
+assert.ok(handgriff.length > 500 && handgriff.trimEnd().endsWith("}"),
+	`der Ausschnitt ist wirklich der ganze Handgriff (war ${handgriff.length} Zeichen)`);
 assert.ok(/avesmapsEcosystemAreaPublicIdOfLabel\([^)]*wechsleAnsicht: true/.test(handgriff),
 	"💣 über avesmapsEcosystemAreaPublicIdOfLabel mit Ansichtswechsel, kein zweiter Weg zur Fläche");
 

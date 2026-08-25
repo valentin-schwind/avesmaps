@@ -766,6 +766,7 @@ function labelActionsMarkup(publicId, noteMarkup = "", { hatFlaeche = false } = 
 		// 🔴 NUR MIT FLAECHE. Der Punkt, an den zurueckgesetzt wird, ist der Point of Inaccessibility
 		// IHRER Flaeche -- ein freies Label und ein Gipfel haben keine, und ohne sie waere die Kachel
 		// ein Knopf, der nichts tun kann. Dieselbe Frage und dieselbe Antwort wie unten.
+		// Gewacht von js/map-features/__tests__/label-position-zuruecksetzen.test.js.
 		...(hatFlaeche ? [popupActionButtonMarkup({
 			label: "Position zurücksetzen",
 			iconMarkup: popupActionGlyphMarkup("zuruecksetzen"),
