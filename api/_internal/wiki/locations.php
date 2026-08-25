@@ -430,7 +430,13 @@ function avesmapsWikiSyncFetchMissingWikiPlaces(PDO $pdo, array $settlementTitle
     }
 
     $missingPlaces = [];
-    foreach (array_chunk($missingTitles, avesmapsWikiSyncTitleBatchSize()) as $batch) {
+    // ⚠️ Laengenbewusst wie ueberall sonst. Hier waere es heute folgenlos -- der Holer
+    // darunter (avesmapsWikiSyncFetchPagesByRequestedTitle) schneidet ohnehin nach Laenge
+    // nach, dieses Stapeln ist reine Gruppierung. Es steht trotzdem so da, weil die Zeile
+    // sonst zeichengleich mit dem echten 414 in territories.php ist und der naechste
+    // Leser sie abschreibt -- an eine Stelle, die direkt avesmapsWikiSyncApiRequest ruft.
+    $stapelgroesse = avesmapsWikiSyncTitleBatchSize();
+    for ($ab = 0; ($batch = avesmapsWikiSyncNextTitleBatch($missingTitles, $ab, $stapelgroesse)) !== []; $ab += count($batch)) {
         $pages = avesmapsWikiSyncFetchPagesByTitle($pdo, $batch, true, true);
         foreach ($batch as $title) {
             $page = $pages[$title] ?? null;

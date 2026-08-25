@@ -317,8 +317,10 @@ function avesmapsWikiDumpHybridResumableCursorKeys(): array
  * a resumable phase stay put vs advance, and when does the run complete".
  *
  * Contract, per design report §5:
- *   - A NON-resumable phase (online_class_map / online_building_map) ALWAYS
- *     advances to the next phase (its step is one unit of work); progress bumps.
+ *   - 🪤 HIER STAND, online_class_map und online_building_map seien NICHT fortsetzbar und
+ *     ruecken immer weiter. Seit 24.08.2026 ist das Gegenteil richtig: beide haben einen
+ *     Cursor und bleiben stehen, bis ihr Schritt done meldet. Eine nicht fortsetzbare Phase
+ *     gibt es nicht mehr -- faende sie jemand doch, ruecke sie weiter wie hier beschrieben.
  *   - A RESUMABLE phase writes its inner cursor from $stepResult['nextCursor']
  *     (falling back to 'cursor', then the prior value) into its stats key and,
  *     iff $stepResult['done'] is true, advances the phase name + bumps progress;
@@ -726,10 +728,45 @@ function avesmapsWikiDumpHybridRedirectAliasStep(
  *
  * @return array{public_id: string, phase: string, progress_current: int, progress_total: int}|null
  */
-function avesmapsWikiDumpAktiverLeselauf(PDO $pdo): ?array {
+/**
+ * Der Fingerabdruck der Dump-Datei: Groesse und Aenderungszeit.
+ *
+ * 💣 EIN FORTGESETZTER LAUF MUSS DIESELBE DATEI LESEN. Acht der elf Phasen zaehlen
+ * SEITEN in der XML-Datei -- `wikitext_cursor`, `dump_cursor`, `parse_cursor` und die
+ * uebrigen sind Positionen darin, keine Namen. Setzt ein Lauf auf einer ANDEREN Datei
+ * fort, springt er mitten hinein: die ersten 200.000 Seiten des neuen Dumps werden nie
+ * gelesen, der Lauf meldet trotzdem 'abgeschlossen', und cleanup_state erklaert genau
+ * diesen halben Stand zum einzig verbleibenden.
+ *
+ * 🪤 Das ist nicht theoretisch: avesmapsWikiDumpEnsureDumpPresentOrFail laedt bei
+ * FEHLENDER Datei selbst einen frischen Dump herunter. Ohne Fingerabdruck fuehrt der
+ * Fortsetzen-Knopf also geradewegs dorthin.
+ */
+function avesmapsWikiDumpDateiStempel(string $dumpPath): string {
+    if ($dumpPath === '' || !is_file($dumpPath)) {
+        return '';
+    }
+
+    $groesse = @filesize($dumpPath);
+    $zeit = @filemtime($dumpPath);
+
+    return ($groesse === false || $zeit === false) ? '' : $groesse . '@' . $zeit;
+}
+
+/**
+ * Wie alt ein offener Lauf hoechstens sein darf, um noch zum Fortsetzen angeboten zu
+ * werden.
+ *
+ * ⚠️ Ein abgebrochener Lauf wird NIE auf 'failed' gesetzt -- es gibt im ganzen Haus keinen
+ * solchen Schreibvorgang. Ohne Altersgrenze bietet der Knopf deshalb dieselbe Leiche bei
+ * jedem Druck erneut an, unbegrenzt.
+ */
+const AVESMAPS_WIKI_DUMP_FORTSETZEN_MAX_ALTER_SEKUNDEN = 21600; // sechs Stunden
+
+function avesmapsWikiDumpAktiverLeselauf(PDO $pdo, string $dumpStempel = ''): ?array {
     try {
         $statement = $pdo->prepare(
-            "SELECT public_id, phase, progress_current, progress_total, updated_at
+            "SELECT public_id, phase, progress_current, progress_total, updated_at, stats_json
              FROM wiki_sync_runs
              WHERE sync_type = :sync_type AND status = 'running'
              ORDER BY id DESC
@@ -746,12 +783,28 @@ function avesmapsWikiDumpAktiverLeselauf(PDO $pdo): ?array {
         return null;
     }
 
+    // 🔴 NUR DERSELBE DUMP. Ein Lauf ohne Stempel stammt von vor dem 25.08.2026 und gilt
+    // damit als nicht fortsetzbar -- die sichere Richtung: lieber einmal von vorn als
+    // mitten in eine fremde Datei hinein.
+    $stats = avesmapsWikiSyncDecodeJson($zeile['stats_json'] ?? null);
+    $laufStempel = (string) ($stats['dump_stempel'] ?? '');
+    if ($laufStempel === '' || $dumpStempel === '' || $laufStempel !== $dumpStempel) {
+        return null;
+    }
+
+    // Und nur, solange er frisch genug ist -- siehe die Konstante oben.
+    $aktualisiert = strtotime((string) ($zeile['updated_at'] ?? '')) ?: 0;
+    if ($aktualisiert <= 0 || (time() - $aktualisiert) > AVESMAPS_WIKI_DUMP_FORTSETZEN_MAX_ALTER_SEKUNDEN) {
+        return null;
+    }
+
     return [
         'public_id' => (string) $zeile['public_id'],
         'phase' => (string) ($zeile['phase'] ?? ''),
         'progress_current' => (int) ($zeile['progress_current'] ?? 0),
         'progress_total' => (int) ($zeile['progress_total'] ?? 0),
         'updated_at' => (string) ($zeile['updated_at'] ?? ''),
+        'alter_sekunden' => max(0, time() - $aktualisiert),
     ];
 }
 
@@ -806,7 +859,7 @@ function avesmapsWikiDumpTitlesProbeTitel(PDO $pdo): array {
  *
  * @return array{ok:bool, run:array<string,mixed>}
  */
-function avesmapsWikiDumpHybridStartRun(PDO $pdo, ?int $createdBy = null): array
+function avesmapsWikiDumpHybridStartRun(PDO $pdo, ?int $createdBy = null, string $dumpStempel = ''): array
 {
     avesmapsWikiSyncEnsureCoreTables($pdo);
 
@@ -826,7 +879,9 @@ function avesmapsWikiDumpHybridStartRun(PDO $pdo, ?int $createdBy = null): array
         'phase' => AVESMAPS_WIKI_DUMP_PHASE_CLASS_MAP,
         'progress_total' => count($order),
         'message' => avesmapsWikiDumpHybridPhaseMessage(AVESMAPS_WIKI_DUMP_PHASE_CLASS_MAP, false),
-        'stats_json' => avesmapsWikiSyncEncodeJson([]),
+        // Der Fingerabdruck der Datei, an der dieser Lauf haengt -- ohne ihn darf er nicht
+        // fortgesetzt werden (siehe avesmapsWikiDumpDateiStempel).
+        'stats_json' => avesmapsWikiSyncEncodeJson($dumpStempel === '' ? [] : ['dump_stempel' => $dumpStempel]),
         'created_by' => $createdBy,
     ]);
 

@@ -136,6 +136,51 @@ assert(
         . ' s hinter dem zweiten -- der Vermerk wird nicht fortgeschrieben'
 );
 
+
+// ------------------------------------------- 💣 EIN KAPUTTER VERMERK ---
+// Gemessen von einem feindlichen Pruefer am 25.08.2026: ein nicht-numerischer Inhalt wurde zu
+// 0.0, daraus rechnete die Drossel 'darf sofort' -- und meldete dabei ERFOLG, sodass auch der
+// prozesslokale Rueckfall nicht griff. 0,006 s statt der geforderten 0,1. Ein leerer oder
+// zerstoerter Vermerk entsteht auf STRATO von selbst, sobald die Speicherquote einen
+// Schreibvorgang abweist -- also nicht theoretisch.
+file_put_contents($vermerk, 'kaputt');
+$nachKaputt = $einSchrittImEigenenProzess($vermerk);
+assert(
+    $nachKaputt['wartete'] >= $abstandSekunden - 0.05,
+    '💣 ein unlesbarer Vermerk muss einen VOLLEN Abstand erzwingen, gewartet wurden aber '
+        . round($nachKaputt['wartete'], 3) . ' s -- die sichere Richtung ist warten, nicht feuern'
+);
+
+// ------------------------------------------- 💣 EIN PLATZ AUS DER ZUKUNFT ---
+// Ebenfalls gemessen: lag der Vermerk weit vorn, deckelte die alte Fassung die WARTEZEIT gegen
+// jetzt -- und zerriss damit die Staffelung, die sie schuetzen sollte. Ein absurd weit
+// entfernter Platz ist kaputt, nicht Warteschlange, und muss beim LESEN zurueckgesetzt werden.
+file_put_contents($vermerk, sprintf('%.6F', microtime(true) + 3600.0));
+$nachZukunft = $einSchrittImEigenenProzess($vermerk);
+assert(
+    $nachZukunft['wartete'] < 5.0,
+    '💣 ein Platz eine Stunde in der Zukunft darf keinen stundenlangen Schlaf ausloesen, '
+        . 'gewartet wurden ' . round($nachZukunft['wartete'], 3) . ' s'
+);
+assert(
+    $nachZukunft['vermerkt'] < microtime(true) + 60.0,
+    'und der neu vergebene Platz muss wieder in der Naehe von jetzt liegen, nicht in der Zukunft bleiben'
+);
+
+// ------------------------------------------- 🔴 EINE ECHTE WARTESCHLANGE BLEIBT ---
+// ⚠️ Die Gegenprobe zum Deckel, und sie ist die wichtigere: ein Platz, der BERECHTIGT weiter
+// weg liegt (mehrere Wartende), darf NICHT zurueckgesetzt werden. Ein zu knapper Deckel
+// zerreisst die Staffelung -- und dann feuern alle gemeinsam los, also genau das, was die
+// Drossel verhindern soll.
+$echteSchlange = microtime(true) + ($abstandSekunden * 3);
+file_put_contents($vermerk, sprintf('%.6F', $echteSchlange));
+$nachSchlange = $einSchrittImEigenenProzess($vermerk);
+assert(
+    $nachSchlange['vermerkt'] >= $echteSchlange + $abstandSekunden - 0.01,
+    '🔴 ein berechtigt weiter Platz (drei Wartende) muss RESPEKTIERT werden -- der neue Platz '
+        . 'gehoert dahinter, nicht auf jetzt zurueckgesetzt'
+);
+
 // ---------------------------------------------------------------- OHNE ABLAGE ---
 // 🔴 Ein nicht schreibbarer Ort darf NICHTS umwerfen. Auf dem Entwicklungsrechner und im
 // Testfeld gibt es keine Konfiguration und kein uploads/ -- dort faellt die Drossel auf ihr

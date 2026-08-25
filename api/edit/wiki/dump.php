@@ -324,7 +324,15 @@ try {
         $status['bot'] = avesmapsWikiBotStatusShape();
         // Der noch offene Lesevorgang, damit "Dump holen" ihn fortsetzen kann statt bei Null zu
         // beginnen. Reine Leseauskunft, kostet eine indizierte Zeile.
-        $status['aktiver_lauf'] = avesmapsWikiDumpAktiverLeselauf($pdo);
+        // ⚠️ Der Stempel kommt aus der DATEI, nicht aus dem Lauf: nur wenn beide
+        // uebereinstimmen, darf fortgesetzt werden. Hier wird KEIN Dump nachgeladen -- die
+        // Statusabfrage darf nichts holen, also der direkte Pfad statt EnsureDumpPresent.
+        // 🪤 Und derselbe Pfad wie beim Start (die heruntergeladene Datei), sonst
+        // vergleicht man zwei verschiedene Dinge und das Fortsetzen kaeme nie zustande.
+        $status['aktiver_lauf'] = avesmapsWikiDumpAktiverLeselauf(
+            $pdo,
+            avesmapsWikiDumpDateiStempel(avesmapsWikiDumpStoragePath())
+        );
         avesmapsJsonResponse(200, ['ok' => true, 'status' => $status]);
     }
 
@@ -411,7 +419,18 @@ try {
 
             // Create a new dump_read run (the 7-phase state machine's row). The
             // frontend (H4c-f) then loops read_step against the returned run_id.
-            $startResult = avesmapsWikiDumpHybridStartRun($pdo, $lockUserId ?: null);
+            // Der Lauf wird an die Datei gebunden, die er liest -- acht seiner elf Phasen
+            // zaehlen Seiten darin, ein Fortsetzen auf einer anderen Datei liefe mitten hinein.
+            $startResult = avesmapsWikiDumpHybridStartRun(
+                $pdo,
+                $lockUserId ?: null,
+                // 💣 Gestempelt wird die HERUNTERGELADENE Datei (avesmapsWikiDumpStoragePath),
+                // nicht die gerade bevorzugte Lesefassung: avesmapsWikiDumpPreferredReadPath
+                // wechselt je nach Frische zwischen .bz2 und dem entpackten Schnellzugriff.
+                // Ein Stempel, der mitten im Lauf umspringt, verboete das Fortsetzen genau
+                // dann, wenn es richtig waere.
+                avesmapsWikiDumpDateiStempel(avesmapsWikiDumpStoragePath())
+            );
             // Record the run_id on the lock so a stale-takeover diagnostic / the busy
             // message can point at the exact wedged run.
             avesmapsWikiDumpLockHeartbeat($pdo, $lockUserId, 'start_read', (string) ($startResult['run']['public_id'] ?? '') ?: null);

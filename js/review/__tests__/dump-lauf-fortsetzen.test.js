@@ -40,8 +40,8 @@ function schneide(quelle, was, beginn, ende) {
 
 // --- A) der Server liefert den offenen Lauf ---------------------------------
 assert.ok(
-	TREIBER.includes("function avesmapsWikiDumpAktiverLeselauf(PDO $pdo): ?array"),
-	"der Treiber muss den offenen Lesevorgang benennen koennen"
+	TREIBER.includes("function avesmapsWikiDumpAktiverLeselauf(PDO $pdo, string $dumpStempel"),
+	"der Treiber muss den offenen Lesevorgang benennen koennen -- und dabei die Dump-Datei verlangen"
 );
 const leser = schneide(TREIBER, "avesmapsWikiDumpAktiverLeselauf", "function avesmapsWikiDumpAktiverLeselauf(", "\n}");
 assert.ok(
@@ -52,10 +52,55 @@ assert.ok(
 	leser.includes("ORDER BY id DESC") && leser.includes("LIMIT 1"),
 	"und nur der neueste, sonst wird eine Leiche wiederbelebt"
 );
+
+// --- 💣 DERSELBE DUMP, und nur ein frischer Lauf ----------------------------
+// Acht der elf Phasen zaehlen SEITEN in der XML-Datei. Setzt ein Lauf auf einer ANDEREN
+// Datei fort, springt er mitten hinein: die ersten 200.000 Seiten des neuen Dumps werden
+// nie gelesen, der Lauf meldet trotzdem 'abgeschlossen', und cleanup_state erklaert genau
+// diesen halben Stand zum einzig verbleibenden. Das ist nicht theoretisch --
+// avesmapsWikiDumpEnsureDumpPresentOrFail laedt bei fehlender Datei selbst einen frischen
+// Dump herunter.
 assert.ok(
-	ENDPUNKT.includes("$status['aktiver_lauf'] = avesmapsWikiDumpAktiverLeselauf($pdo);"),
+	/laufStempel\s*!==\s*\$dumpStempel/.test(leser) || /\$dumpStempel\s*!==\s*\$laufStempel/.test(leser),
+	"💣 ein Lauf darf nur fortgesetzt werden, wenn er an DIESELBE Dump-Datei gebunden ist"
+);
+assert.ok(
+	/laufStempel\s*===\s*''/.test(leser),
+	"🔴 und ein Lauf OHNE Stempel (von vor dieser Aenderung) gilt als nicht fortsetzbar -- die sichere Richtung ist einmal von vorn, nicht mitten in eine fremde Datei"
+);
+assert.ok(
+	leser.includes("AVESMAPS_WIKI_DUMP_FORTSETZEN_MAX_ALTER_SEKUNDEN"),
+	"⚠️ und nur solange er frisch ist: ein abgebrochener Lauf wird NIE auf failed gesetzt, ohne Altersgrenze bietet der Knopf dieselbe Leiche unbegrenzt wieder an"
+);
+
+// Der Stempel selbst muss die Datei wirklich unterscheiden koennen.
+const stempel = schneide(TREIBER, "avesmapsWikiDumpDateiStempel", "function avesmapsWikiDumpDateiStempel(", "\n}");
+assert.ok(
+	stempel.includes("filesize") && stempel.includes("filemtime"),
+	"der Fingerabdruck braucht Groesse UND Aenderungszeit -- eine allein wiederholt sich zu leicht"
+);
+
+// --- Und der Endpunkt reicht ihn herein, aus der HERUNTERGELADENEN Datei ----
+// 🪤 avesmapsWikiDumpPreferredReadPath wechselt je nach Frische zwischen .bz2 und dem
+// entpackten Schnellzugriff. Ein Stempel daraus spraenge mitten im Lauf um und verboete
+// das Fortsetzen genau dann, wenn es richtig waere.
+assert.ok(
+	ENDPUNKT.includes("$status['aktiver_lauf'] = avesmapsWikiDumpAktiverLeselauf("),
 	"die Statusabfrage muss ihn wirklich mitliefern -- sonst kann der Client nicht danach fragen"
 );
+const statusZweig = ENDPUNKT.slice(
+	ENDPUNKT.indexOf("$status['aktiver_lauf']"),
+	ENDPUNKT.indexOf("$status['aktiver_lauf']") + 600
+);
+assert.ok(
+	statusZweig.includes("avesmapsWikiDumpDateiStempel(avesmapsWikiDumpStoragePath())"),
+	"💣 der Stempel kommt aus der heruntergeladenen Datei, nicht aus der bevorzugten Lesefassung"
+);
+assert.ok(
+	!statusZweig.includes("EnsureDumpPresent"),
+	"🔴 und die Statusabfrage darf dabei KEINEN Dump nachladen -- sie wird bei jedem Oeffnen des Panels gefahren"
+);
+
 
 // --- B) der Client fragt danach und reicht die Kennung weiter ----------------
 const start = schneide(REVIEW, "startWikiSyncDumpRead", "async function startWikiSyncDumpRead()", "\n}");
@@ -63,8 +108,12 @@ assert.ok(
 	start.includes("findeOffenenDumpLauf()"),
 	"startWikiSyncDumpRead muss nach einem offenen Lauf fragen"
 );
+// 🪤 Geprüft wird die EIGENSCHAFT, nicht der Wortlaut. Die erste Fassung verglich die
+// Aufrufzeile wörtlich und fiel um, als der Aufruf einen zweiten Mitfahrer bekam (die
+// Zeitmessung) -- obwohl an der Verdrahtung nichts fehlte. Ein Test, der an einer
+// Formulierung hängt statt an der Tatsache, meldet Arbeit, wo keine ist.
 assert.ok(
-	start.includes('runWikiSyncDumpLoop("read_step", { runId: fortsetzen })'),
+	start.includes('runWikiSyncDumpLoop("read_step"') && /runId:\s*fortsetzen/.test(start),
 	"🪤 und die Kennung WIRKLICH weiterreichen -- ohne sie legt runWikiSyncDumpLoop einen neuen Lauf an, " +
 		"und der ganze Fund waere wirkungslos"
 );

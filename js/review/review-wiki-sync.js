@@ -930,7 +930,10 @@ function renderWikiSyncDumpProgress(progress, done) {
 // then loop the advance action once per step until the response says done. `action` is
 // "read_step" (sandbox) or "apply" (sharp). Returns the final run on success. On a 401
 // (dump_unauthorized) it opens the inline cred-prompt, awaits new credentials, and resumes.
-async function runWikiSyncDumpLoop(action, { runId = null } = {}) {
+// ⏱️ `phasenZeiten` ist ein optionaler SAMMLER, kein Rueckgabewert: die Schleife hat schon
+// einen (die Laufzeile), und ein zweiter haette jeden Aufrufer geaendert. Wer messen will,
+// reicht ein Objekt herein; wer nicht, merkt von alledem nichts.
+async function runWikiSyncDumpLoop(action, { runId = null, phasenZeiten = null } = {}) {
 	let activeRunId = runId;
 	if (!activeRunId) {
 		const startResult = await submitWikiSyncDumpAction("start_read");
@@ -943,6 +946,9 @@ async function runWikiSyncDumpLoop(action, { runId = null } = {}) {
 	let done = false;
 	let safetyCounter = 0;
 	let lastRun = null;
+	// Welche Phase gerade laeuft -- vor dem ersten Schritt unbekannt, danach die aus der
+	// letzten Antwort. Siehe die Begruendung an der Messstelle unten.
+	let phaseVorDemSchritt = null;
 	// Einmal melden, nicht bei jedem der bis zu 2000 Schritte.
 	let gemeldeterBotFehler = "";
 	// The hybrid read can take many bounded steps (wikitext_collect re-walks the dump per
@@ -956,6 +962,7 @@ async function runWikiSyncDumpLoop(action, { runId = null } = {}) {
 		safetyCounter += 1;
 
 		let stepResult;
+		const schrittBegonnen = Date.now();
 		try {
 			stepResult = await submitWikiSyncDumpAction(action, { run_id: activeRunId });
 		} catch (error) {
@@ -979,6 +986,18 @@ async function runWikiSyncDumpLoop(action, { runId = null } = {}) {
 			}
 			throw error;
 		}
+
+		// ⏱️ Die Phase, die diesen Schritt GEFAHREN hat -- nicht die, die danach dran ist.
+		// `stepResult.progress.phase` ist bereits die NAECHSTE, sobald ein Schritt seine Phase
+		// abgeschlossen hat; wer die nimmt, schreibt die Zeit der letzten Runde der falschen
+		// Phase zu. Der Schritt selbst nennt sie in `step.phase` nicht, also merken wir uns,
+		// was VOR dem Schritt dran war.
+		if (phasenZeiten) {
+			const gefahren = phaseVorDemSchritt || stepResult?.progress?.phase || "?";
+			const bisher = phasenZeiten[gefahren] || { ms: 0, schritte: 0 };
+			phasenZeiten[gefahren] = { ms: bisher.ms + (Date.now() - schrittBegonnen), schritte: bisher.schritte + 1 };
+		}
+		phaseVorDemSchritt = stepResult?.progress?.phase || phaseVorDemSchritt;
 
 		lastRun = stepResult.run || lastRun;
 		// 💣 Eine abgelehnte Bot-Anmeldung ist der Fall, der SONST unsichtbar bleibt: der Lauf laeuft
@@ -1041,6 +1060,15 @@ async function startWikiSyncDumpRead() {
 	if (isWikiSyncDumpRunning) {
 		return;
 	}
+	// 💣 DER RIEGEL FAELLT VOR DEM ERSTEN await, NICHT DANACH. Bis zum 25.08.2026 stand
+	// zwischen Pruefung und Setzung nur window.confirm -- synchron und blockierend, ein
+	// zweiter Klick kam nicht dazwischen. Mit der Frage nach einem offenen Lauf liegt dort
+	// jetzt eine Netz-Rundreise: ein Doppelklick liesse zwei Schleifen auf DEMSELBEN Lauf
+	// starten, und die Pipeline-Sperre haelt das nicht auf (sie laesst denselben Benutzer
+	// ausdruecklich wieder herein). Beide schrieben dann abwechselnd ihren veralteten
+	// stats_json-Schnappschuss zurueck -- der Cursor faellt zurueck, der Lauf liest Seiten
+	// doppelt und ueberspringt andere.
+	isWikiSyncDumpRunning = true;
 
 	// 💣 EIN ABBRUCH DARF NICHT DIE GANZE STUNDE KOSTEN. Der Lauf ist laengst fortsetzbar (die
 	// Zeile in wiki_sync_runs traegt Phase und Cursor) -- bis zum 25.08.2026 hat der Knopf davon
@@ -1061,9 +1089,12 @@ async function startWikiSyncDumpRead() {
 	}
 
 	if (!fortsetzen && !window.confirm("Dump holen lädt den kompletten Wiki-Dump neu, holt Weiterleitungen + Kontinente online und zeigt danach, was sich bei den Publikationsquellen ändern würde — geschrieben wird erst, was du in der Vorschau anhäkelst. Das dauert einige Minuten. Jetzt starten?")) {
+		// ⚠️ Abgesagt heisst: den Riegel wieder aufmachen. Er faellt oben VOR der Rueckfrage,
+		// damit ein Doppelklick nicht durchkommt -- also muss jeder Ausstieg ihn zuruecknehmen,
+		// sonst bleibt der Knopf bis zum Neuladen der Seite tot.
+		isWikiSyncDumpRunning = false;
 		return;
 	}
-	isWikiSyncDumpRunning = true;
 
 	// Dump-Report: the numbers this run produced, collected as we go. They exist only here --
 	// the run is client-driven, so nothing else sees all four steps. Written down once at the
@@ -1076,6 +1107,21 @@ async function startWikiSyncDumpRead() {
 		selftests: { total: 0, green: 0, red: 0, failed: [] },
 	};
 	let dumpReportRunId = null;
+	// ⏱️ Owner-Wunsch 25.08.2026: "wie lang hat alles gedauert". Der Bericht kannte Start und
+	// Ende und zeigte beides nicht -- und je Phase wusste er gar nichts, obwohl genau das die
+	// Frage beantwortet, warum ein Lauf 40 Minuten braucht (drei Phasen fragen das Wiki und
+	// zahlen 20 Sekunden je Anfrage, acht lesen nur die Datei).
+	const phasenZeiten = {};
+	const schrittZeiten = {};
+	const laufBegonnen = Date.now();
+	const messe = async (name, arbeit) => {
+		const t0 = Date.now();
+		try {
+			return await arbeit();
+		} finally {
+			schrittZeiten[name] = (schrittZeiten[name] || 0) + (Date.now() - t0);
+		}
+	};
 
 	try {
 		// Step 1/4: server-fetch (re-download from the wiki).
@@ -1084,14 +1130,14 @@ async function startWikiSyncDumpRead() {
 		if (!fortsetzen) {
 			setWikiSyncDumpButtonsDisabled(true, "Lädt Dump herunter...");
 			setWikiSyncStatus("Dump wird vom Wiki heruntergeladen …", "pending");
-			await submitWikiSyncDumpAction("fetch_dump");
+			await messe("fetch_dump", () => submitWikiSyncDumpAction("fetch_dump"));
 			dumpReportDraft.steps.fetch_dump = { ok: true };
 		}
 
 		// Step 2/4: the sandbox-safe scan loop (dryRun=true throughout).
 		setWikiSyncDumpButtonsDisabled(true, "Liest Dump...");
 		setWikiSyncStatus("WikiDump wird gelesen (Sandbox) …", "pending");
-		const readRun = await runWikiSyncDumpLoop("read_step", { runId: fortsetzen });
+		const readRun = await messe("read", () => runWikiSyncDumpLoop("read_step", { runId: fortsetzen, phasenZeiten }));
 		// The run's public id is what save_report keys on. The loop returns the RUN row, and
 		// `progress` is a SIBLING of `run` in the step response, not a child -- so there is no
 		// page count to read here. The counts (by_kind/entries) are derived server-side from the
@@ -1145,6 +1191,14 @@ async function startWikiSyncDumpRead() {
 			skipped_types: (totals.skippedTypes || []).join(", "),
 		};
 		dumpReportDraft.finished_at = new Date().toISOString();
+		// ⚠️ Gemessen wird die WANDUHR des Browsers, nicht die Rechenzeit des Servers. Das ist
+		// hier die richtige Groesse: die Frage lautet "wie lange habe ich gewartet", und die
+		// Antwort besteht zu vier Fuenfteln aus der Drossel des Wikis.
+		dumpReportDraft.zeiten = {
+			gesamt_ms: Date.now() - laufBegonnen,
+			schritte: schrittZeiten,
+			phasen: phasenZeiten,
+		};
 		// Persist the report. BEST-EFFORT on purpose: the run itself already succeeded and is
 		// never rolled back, so a failed save must not turn a good run into a failed one. The
 		// overlay below still shows the numbers it holds in memory either way.
@@ -1408,6 +1462,24 @@ async function avesmapsDumpReportRunTests() {
 // coerced to a number or picked from a fixed label map, no user text reaches innerHTML).
 // `report` is either the draft the dump flow just built, or a stored one loaded from
 // conflicts.php (same shape, plus an optional `delta` map from the server).
+// ⏱️ Eine Dauer, wie ein Mensch sie liest. Unter einer Minute mit einer Nachkommastelle,
+// darueber ohne -- "2.847,3 Sekunden" beantwortet die Frage nicht, die jemand hat.
+function avesmapsDumpReportDauer(ms) {
+	const zahl = Number(ms);
+	if (!Number.isFinite(zahl) || zahl < 0) {
+		return "";
+	}
+	const sekunden = zahl / 1000;
+	if (sekunden < 60) {
+		return sekunden.toLocaleString("de-DE", { maximumFractionDigits: 1 }) + " s";
+	}
+	const minuten = Math.floor(sekunden / 60);
+	if (minuten < 60) {
+		return minuten + " min " + String(Math.round(sekunden % 60)).padStart(2, "0") + " s";
+	}
+	return Math.floor(minuten / 60) + " h " + String(minuten % 60).padStart(2, "0") + " min";
+}
+
 function avesmapsDumpReportRunSectionHtml(report, delta) {
 	if (!report || typeof report !== "object") {
 		return "";
@@ -1444,6 +1516,25 @@ function avesmapsDumpReportRunSectionHtml(report, delta) {
 		}
 		rows.push(`<li><span>${kind}</span><b>${now.toLocaleString("de-DE")}${diffText}</b></li>`);
 	});
+
+	// ⏱️ Die Zeiten, wenn der Lauf welche mitgebracht hat. ⚠️ Ein ARCHIVIERTER Bericht von
+	// vor dem 25.08.2026 hat keine -- dann faellt der Abschnitt ganz weg, statt Nullen zu
+	// zeigen, die nach "ging sofort" aussaehen.
+	const zeiten = report.zeiten || null;
+	if (zeiten && Number(zeiten.gesamt_ms) > 0) {
+		rows.push("<li><span>⏱️ Gesamtdauer</span><b>" + avesmapsDumpReportDauer(zeiten.gesamt_ms) + "</b></li>");
+
+		const phasen = zeiten.phasen || {};
+		Object.keys(phasen)
+			.map((schluessel) => ({ schluessel, ...(phasen[schluessel] || {}) }))
+			.filter((p) => Number(p.ms) > 0)
+			.sort((a, b) => Number(b.ms) - Number(a.ms))
+			.forEach((p) => {
+				const name = WIKI_SYNC_DUMP_PHASE_LABELS[p.schluessel] || p.schluessel;
+				const schritte = Number(p.schritte) > 0 ? " <i>" + Number(p.schritte) + " Schritte</i>" : "";
+				rows.push("<li><span>↳ " + name + "</span><b>" + avesmapsDumpReportDauer(p.ms) + schritte + "</b></li>");
+			});
+	}
 
 	const saveNote = report.save_failed
 		? `<p class="avm-dr-summary">⚠️ Der Bericht konnte nicht gespeichert werden — der Lauf selbst ist davon unberührt.</p>`

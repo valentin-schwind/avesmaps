@@ -1010,6 +1010,32 @@ function avesmapsWikiSyncFetchCategoryMemberPage(
 
     $data = avesmapsWikiSyncApiRequest($params);
 
+    // 💣 EINE FEHLERANTWORT MIT HTTP 200 UEBERSPRINGT SONST EINE GANZE KATEGORIE, LAUTLOS.
+    // MediaWiki liefert Fehler im Rumpf, nicht im Status. Fehlt dadurch der Zweig
+    // query.categorymembers, kaeme hier {titles: [], continue: null} heraus -- und der
+    // Schrittsammler eine Ebene hoeher liest daraus 'Kategorie fertig', rueckt seinen
+    // Cursor weiter und meldet am Ende 'abgeschlossen'. In der Zustandstabelle fehlt dann
+    // der halben Ortsklasse ihr override_class, und das ist hinterher nicht mehr von 'das
+    // gibt es im Wiki nicht' zu unterscheiden.
+    //
+    // 🪤 Erreichbar wurde das durch das FORTSETZEN (25.08.2026): ein cmcontinue, das seit
+    // Stunden in stats_json liegt, beantwortet MediaWiki mit `badcontinue` -- HTTP 200.
+    // avesmapsWikiSyncApiRequest faengt nur assertuserfailed und toomanyvalues ab; jeder
+    // andere Code kam bis hierher durch und sah aus wie eine leere Kategorie.
+    if (isset($data['error'])) {
+        $fehlercode = (string) ($data['error']['code'] ?? 'unbekannt');
+        avesmapsWikiSyncLogServerError('wiki_categorymembers_fehler', [
+            'kategorie' => $categoryName,
+            'code' => $fehlercode,
+            'hatte_fortsetzung' => $continueToken !== null && $continueToken !== '',
+        ]);
+
+        throw new AvesmapsWikiUnreachableException(
+            'Das Wiki hat die Kategorie "' . $categoryName . '" abgelehnt (' . $fehlercode
+                . '). Der Lauf haelt hier an, statt die Kategorie stillschweigend zu ueberspringen.'
+        );
+    }
+
     $titles = [];
     $members = $data['query']['categorymembers'] ?? [];
     if (is_array($members)) {
@@ -1067,7 +1093,16 @@ function avesmapsWikiSyncApiRequest(array $params): array {
         if ($attempt === 0) {
             avesmapsWikiSyncThrottleWikiRequest();
         } else {
+            // 💣 AUCH DER WIEDERHOLVERSUCH RESERVIERT SEINEN PLATZ. Bis 25.08.2026 schlief
+            // hier nur der Backoff und vermerkte NICHTS -- der naechste Prozess las dann
+            // einen Platz von vor 40 Sekunden, rechnete 'darf sofort' und feuerte
+            // unmittelbar hinter dem Wiederholversuch her. Ausgerechnet in dem Moment, in
+            // dem das Wiki gerade 429 oder 503 gesagt hat. Dieselbe Lehre wie ueberall:
+            // eine Regel, die einen von zwei Erzeugern bindet, ist keine Regel.
+            // ⚠️ Kostet fast nichts: der Backoff (40 s und mehr) ist laenger als der
+            // Abstand, die Reservierung wartet also in aller Regel null und schreibt nur.
             avesmapsWikiSyncBackoffWikiRequest($attempt);
+            avesmapsWikiSyncThrottleWikiRequest();
         }
 
         $context = stream_context_create([
@@ -1236,6 +1271,17 @@ function avesmapsWikiSyncApiRequest(array $params): array {
  * `uploads/` steht nicht in der Deploy-Allowlist, die Sperre kaeme also nie von dort und heilt
  * sich zur Laufzeit.
  */
+/**
+ * Wie viele Abstaende ein vermerkter Platz hoechstens in der Zukunft liegen darf, bevor er
+ * als KAPUTT gilt (verstellte Uhr, von Hand angefasste Datei) statt als Warteschlange.
+ *
+ * ⚠️ Grosszuegig, und das mit Absicht: bei echter Gleichzeitigkeit ist ein Platz weit
+ * hinten voellig berechtigt (der zehnte Wartende wartet zehn Abstaende). Zu knapp
+ * gedeckelt zerreisst die Staffelung -- und dann feuern alle gemeinsam los, also genau
+ * das, was die Drossel verhindern soll.
+ */
+const AVESMAPS_WIKI_DROSSEL_MAX_WARTESCHLANGE = 20;
+
 const AVESMAPS_WIKI_DROSSEL_HTACCESS = "<IfModule mod_authz_core.c>\n    Require all denied\n</IfModule>\n\n"
     . "<IfModule !mod_authz_core.c>\n    Order allow,deny\n    Deny from all\n</IfModule>\n";
 
@@ -1312,15 +1358,30 @@ function avesmapsWikiSyncDrosselVermerkDatei(): ?string {
  * wieder herein), reicht schon fuer zwei. Reserviert wird in Mikrosekunden, geschlafen ohne
  * Sperre.
  *
- * 💣 Der Deckel ist eine RUNAWAY-Bremse, kein Takt: bei mehreren Wartenden ist ein Platz
- * berechtigterweise weiter weg als ein einzelner Abstand (der dritte wartet zwei). Gedeckelt
- * wird deshalb erst beim Fuenffachen -- das faengt eine verstellte Uhr oder eine von Hand
- * angefasste Datei, ohne die Warteschlange zu zerreissen.
+ * 💣 GEDECKELT WIRD DER GELESENE PLATZ, NICHT DER SCHLAF. Die erste Fassung deckelte die
+ * Wartezeit gegen JETZT -- und zerriss damit genau die Warteschlange, die sie schuetzen
+ * sollte: lag der Vermerk weit vorn, warteten ALLE Wartenden denselben Deckel ab und
+ * feuerten gemeinsam los. Gemessen 25.08.2026 mit vier gleichzeitigen Prozessen und einem
+ * Vermerk 30 s in der Zukunft: 0,09 s Abstand statt 0,2. Ein absurd weit vorn liegender
+ * Platz ist KAPUTT (verstellte Uhr, Handarbeit), nicht Warteschlange -- er wird beim LESEN
+ * auf jetzt zurueckgesetzt, und danach steht die Staffelung wieder.
+ *
+ * 💣 UND EIN UNLESBARER VERMERK IST NICHT NULL. Die erste Fassung machte aus jedem
+ * nicht-numerischen Inhalt eine 0.0, rechnete `max(jetzt, 0 + Abstand)` = jetzt und feuerte
+ * OHNE Pause -- und meldete dabei Erfolg, sodass auch der prozesslokale Rueckfall nicht
+ * griff. Gemessen: 0,006 s statt der geforderten 0,1. Ein leerer Vermerk entsteht auf
+ * STRATO von selbst, sobald die Speicherquote den Schreibvorgang abweist. Deshalb: FEHLT
+ * die Datei, ist es die erste Anfrage (kein Warten); ist sie DA und unlesbar, wird ein
+ * voller Abstand angenommen -- die sichere Richtung.
  */
 function avesmapsWikiSyncDrosselUeberProzessgrenze(int $mindestabstand, ?string $vermerkDatei): bool {
     if ($vermerkDatei === null) {
         return false;
     }
+
+    // ⚠️ VOR dem Oeffnen: 'c+' legt die Datei an, danach liesse sich 'gab es noch nie eine
+    // Anfrage' nicht mehr von 'der Vermerk wurde zerstoert' unterscheiden.
+    $neuAngelegt = !is_file($vermerkDatei);
 
     $griff = @fopen($vermerkDatei, 'c+');
     if ($griff === false) {
@@ -1332,27 +1393,76 @@ function avesmapsWikiSyncDrosselUeberProzessgrenze(int $mindestabstand, ?string 
         return false;
     }
 
-    $meinPlatz = microtime(true);
+    $abstandSekunden = $mindestabstand / 1000000;
+    $jetzt = microtime(true);
+    $meinPlatz = $jetzt;
+    $geschrieben = false;
+
     try {
         $roh = trim((string) @stream_get_contents($griff));
-        $letzter = is_numeric($roh) ? (float) $roh : 0.0;
+
+        if ($roh === '') {
+            // Leer heisst: es gab noch nie eine Anfrage (oder ein Schreibvorgang ist
+            // gescheitert). Beides behandeln wir gleich vorsichtig NICHT -- die erste
+            // Anfrage darf ohne Warten durch, ein zerstoerter Vermerk nicht. Unterscheiden
+            // laesst sich das hier nicht, also entscheidet die Groesse der Datei: eine
+            // eben erst angelegte ist leer, eine zerstoerte ebenfalls. Wir nehmen die
+            // sichere Richtung und warten einen vollen Abstand, sobald die Datei schon
+            // einmal beschrieben war -- erkennbar daran, dass sie ueberhaupt existiert und
+            // nicht in DIESEM Aufruf entstanden ist.
+            $letzter = $neuAngelegt ? 0.0 : $jetzt;
+        } elseif (is_numeric($roh)) {
+            $letzter = (float) $roh;
+        } else {
+            // Unlesbar: sichere Richtung, voller Abstand.
+            $letzter = $jetzt;
+        }
+
+        // Ein Platz absurd weit in der Zukunft ist kaputt, nicht Warteschlange. Der Deckel
+        // laesst genug Luft fuer echte Gleichzeitigkeit und faengt trotzdem die verstellte
+        // Uhr -- ohne die Staffelung der Wartenden zu zerreissen.
+        $deckel = $jetzt + ($abstandSekunden * AVESMAPS_WIKI_DROSSEL_MAX_WARTESCHLANGE);
+        if ($letzter > $deckel) {
+            $letzter = $jetzt;
+        }
 
         // Mein Platz: entweder jetzt, oder einen vollen Abstand hinter dem letzten vergebenen.
-        $meinPlatz = max(microtime(true), $letzter + ($mindestabstand / 1000000));
+        $meinPlatz = max($jetzt, $letzter + $abstandSekunden);
 
-        @ftruncate($griff, 0);
+        // 💣 ERST SCHREIBEN, DANN KUERZEN -- und den Erfolg pruefen. Die erste Fassung rief
+        // ftruncate() VOR fwrite() und sah dessen Rueckgabewert nie an: scheiterte der
+        // Schreibvorgang (auf STRATO der dokumentierte Quotenfall), blieb die Datei LEER
+        // zurueck, und danach feuerte jeder Prozess ohne jede Pause.
         @rewind($griff);
-        @fwrite($griff, sprintf('%.6F', $meinPlatz));
-        @fflush($griff);
+        $bytes = @fwrite($griff, sprintf('%.6F', $meinPlatz));
+        if ($bytes !== false && $bytes > 0) {
+            @ftruncate($griff, $bytes);
+            @fflush($griff);
+            $geschrieben = true;
+        }
     } finally {
         // Erst freigeben, DANN schlafen -- siehe Docblock.
         @flock($griff, LOCK_UN);
         @fclose($griff);
     }
 
+    if (!$geschrieben) {
+        // 🔴 Konnte der Platz nicht vermerkt werden, ist die prozessuebergreifende Drossel
+        // wirkungslos -- dann muss der prozesslokale Rueckfall greifen, statt hier Erfolg
+        // zu melden. Und es muss laut sein: ein stiller Ausfall ist von 'laeuft richtig'
+        // nicht zu unterscheiden.
+        static $schreibfehlerGemeldet = false;
+        if (!$schreibfehlerGemeldet) {
+            $schreibfehlerGemeldet = true;
+            avesmapsWikiSyncLogServerError('wiki_drossel_vermerk_nicht_schreibbar', ['datei' => $vermerkDatei]);
+        }
+
+        return false;
+    }
+
     $rest = (int) (($meinPlatz - microtime(true)) * 1000000);
     if ($rest > 0) {
-        usleep((int) min($rest, $mindestabstand * 5));
+        usleep($rest);
     }
 
     return true;

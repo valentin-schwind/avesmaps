@@ -861,9 +861,25 @@ function avesmapsWikiSyncEnrichPoliticalTerritoryRowsFromWiki(array $rows): arra
     return $rows;
 }
 
+/**
+ * 💣 DER ZWEITE HTTP 414, gefunden am 25.08.2026 -- und der gefaehrlichere von beiden.
+ *
+ * Gestapelt wurde nur nach ZAHL. Mit stehender Bot-Anmeldung sind das 500 Titel, die
+ * avesmapsWikiSyncApiRequest in eine GET-Adresse schreibt: an echten Gebietstiteln
+ * gemessen 25,6 kodierte Zeichen je Titel, also rund 12.800 -- gegen Apaches 8190.
+ *
+ * 🪤 UND ES WAERE NICHT AUFGEFALLEN. Jeder Aufrufer faengt den Wurf ab und arbeitet mit
+ * LEEREM $contents weiter. Aus "die Adresse war zu lang" wird damit "im Wiki steht
+ * nichts" -- und das wandert als Wahrheit in unsere Daten, wo es hinterher niemand mehr
+ * unterscheiden kann. Genau die Fehlerklasse, vor der sync.php oben warnt.
+ *
+ * ⚠️ Zweite Wirkung derselben Zeile: rvprop=content holt bei 500 Titeln 500 vollstaendige
+ * Wikitexte in EINE Antwort. Anonym waren es 50.
+ */
 function avesmapsWikiSyncFetchPoliticalTerritoryPageContents(array $titles): array {
     $contentsByTitle = [];
-    foreach (array_chunk($titles, avesmapsWikiSyncTitleBatchSize()) as $batch) {
+    $stapelgroesse = avesmapsWikiSyncTitleBatchSize();
+    for ($ab = 0; ($batch = avesmapsWikiSyncNextTitleBatch($titles, $ab, $stapelgroesse)) !== []; $ab += count($batch)) {
         $data = avesmapsWikiSyncApiRequest([
             'action' => 'query',
             'titles' => implode('|', $batch),

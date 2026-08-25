@@ -412,9 +412,19 @@ function avesmapsWikiDumpHybridComputeContinentMapRows(array $continentMap): arr
  * ⚠️ Beide Haelften stehen in DERSELBEN Zeile SQL. Wer sie umdreht, dreht (b) um und merkt es
  * nicht, weil (a) weiter stimmt. Gewacht von test-dump-hybrid-state.php (e5)/(e6).
  *
- * 🔴 Dass "erster gewinnt" hier gefahrlos ist, haengt daran, dass jeder Lauf eine EIGENE
- * run_id bekommt (avesmapsWikiDumpHybridStartRun) und mit leerem stats_json startet: eine
- * Phase faengt nie bei Cursor 0 gegen eine schon gefuellte Zustandstabelle desselben Laufs an.
+ * 🪤 HIER STAND EINE BEGRUENDUNG, DIE SEIT DEM 25.08.2026 NICHT MEHR TRAEGT: "jeder Lauf
+ * bekommt eine EIGENE run_id und startet mit leerem stats_json, eine Phase faengt also nie bei
+ * Cursor 0 gegen eine schon gefuellte Zustandstabelle an". Beides ist ueberholt -- das
+ * Fortsetzen setzt einen Lauf mit DERSELBEN run_id gegen seine bereits gefuellte
+ * Zustandstabelle fort, und Stufe 1 der Bauwerks-Phase setzt building_cursor bei jedem
+ * Schritt auf 0 zurueck.
+ *
+ * 🔴 GEFAHRLOS IST ES TROTZDEM, aber aus einem ANDEREN Grund, und der ist der belastbare: je
+ * Spalte schreibt innerhalb eines Laufs genau EINE Phase (override_class nur die Klassen-,
+ * override_building_type nur die Bauwerks-, override_continent und override_deity nur die
+ * Kontinent-Phase). Ein zweiter Durchlauf derselben Phase schreibt deshalb dieselben Werte
+ * ein zweites Mal, nie fremde. Wer das aendert -- zwei Phasen auf einer Spalte --, hebt die
+ * Zusicherung auf.
  *
  * Calls `avesmapsWikiDumpHybridEnsureStateTable()` first (idempotent), so a
  * caller never needs to remember to call it separately.

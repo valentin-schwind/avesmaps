@@ -160,17 +160,71 @@ $pruefe(
 );
 
 // ------------------------------------------------------------ VERDRAHTUNG ---
-// 💣 Ein gruener Test beweist nichts, wenn die Aufrufstellen weiter die Konstante nehmen: dann
-// faehrt der ganze Bau mit 500er-Recht und 50er-Stapeln.
+// 💣 Ein gruener Test beweist nichts, wenn die Aufrufstellen weiter selbst stapeln.
+//
+// 🪤 DIESE WACHE WAR BIS ZUM 25.08.2026 BLIND, und zwar dreifach -- sie meldete 100
+// Zusicherungen gruen, waehrend zwei Zeilen 500 Titel in eine GET-Adresse schrieben und
+// HTTP 414 ausloesten:
+//   1. Sie suchte die KONSTANTE. Die Gefahr sitzt seit der Bot-Anmeldung auf der
+//      FUNKTION avesmapsWikiSyncTitleBatchSize() -- dieselbe Lehre wie beim
+//      Inventar-Grep der Zoombaender (AGENTS.md §11): ein Muster, das eine
+//      Zugriffssyntax voraussetzt, findet die andere nie.
+//   2. `[^)]*` kann einen Funktionsaufruf mit eigenen Klammern gar nicht ueberspannen.
+//   3. glob('/*.php') sah EINE Ebene -- api/_internal/app/citymaps.php baut ebenfalls
+//      ein titles= und lag ausserhalb.
+//
+// ⚠️ Verboten ist nicht das Stapeln, sondern das Stapeln nach ZAHL ALLEIN. Wer eine
+// titles=-Adresse baut, muss avesmapsWikiSyncNextTitleBatch nehmen: 500 Titel sind rund
+// 12.800 kodierte Zeichen, Apache nimmt 8190.
 $wikiVerzeichnis = __DIR__ . '/..';
+// 🪤 realpath(), und das ist kein Schoenheitsfehler: OHNE ihn heisst die Wurzel woertlich
+// '.../__tests__/../..' -- sie enthaelt also selbst '__tests__', und der Ausschluss unten warf
+// damit JEDE Datei weg. Die Wache war strukturell blind und meldete gruen, was immer dastand.
+// Gefunden am 25.08.2026 durch die Gegenprobe unten, nicht durch Nachdenken.
+$apiVerzeichnis = realpath(__DIR__ . '/../..') ?: (__DIR__ . '/../..');
+$dateien = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($apiVerzeichnis));
 $sünder = [];
-foreach ((array) glob($wikiVerzeichnis . '/*.php') as $datei) {
-    $quelle = (string) file_get_contents((string) $datei);
-    if (preg_match('/array_(chunk|slice)\([^)]*AVESMAPS_WIKI_TITLE_BATCH_SIZE\b/', $quelle) === 1) {
-        $sünder[] = basename((string) $datei);
+foreach ($dateien as $datei) {
+    $pfad = (string) $datei;
+    if (substr($pfad, -4) !== '.php' || str_contains($pfad, '__tests__')) {
+        continue;
+    }
+
+    foreach (explode("\n", (string) file_get_contents($pfad)) as $nummer => $zeile) {
+        // Kommentarzeilen heraus -- die Lehre steht in mehreren Docblocks und ist kein Fund.
+        $nackt = trim($zeile);
+        if ($nackt === '' || str_starts_with($nackt, '//') || str_starts_with($nackt, '*')) {
+            continue;
+        }
+        if (preg_match('/array_(chunk|slice)\s*\(/i', $nackt) !== 1) {
+            continue;
+        }
+        // Der blanke Bezeichner, in BEIDEN Schreibweisen -- Konstante wie Funktion.
+        if (preg_match('/TitleBatchSize|AVESMAPS_WIKI_TITLE_BATCH_SIZE/i', $nackt) === 1) {
+            $sünder[] = basename($pfad) . ':' . ($nummer + 1);
+        }
     }
 }
-$pruefe($sünder === [], 'keine Stapelbildung nimmt die Konstante direkt: ' . implode(', ', $sünder));
+$pruefe(
+    $sünder === [],
+    'keine Stapelbildung zaehlt nur Titel statt auch die URL-Laenge (avesmapsWikiSyncNextTitleBatch): '
+        . implode(', ', $sünder)
+);
+
+// 🪤 Und die Gegenprobe, ohne die die Wache oben wertlos waere: findet ihr Muster den
+// Fehler ueberhaupt, wenn er dasteht? Beide Schreibweisen, beide muessen greifen --
+// die alte Fassung haette hier NUR die erste gefunden.
+foreach ([
+    'foreach (array_chunk($titles, AVESMAPS_WIKI_TITLE_BATCH_SIZE) as $b) {',
+    'foreach (array_chunk($titles, avesmapsWikiSyncTitleBatchSize()) as $b) {',
+    'foreach (array_slice($titles, 0, avesmapsWikiSyncTitleBatchSize()) as $b) {',
+] as $boeseZeile) {
+    $pruefe(
+        preg_match('/array_(chunk|slice)\s*\(/i', $boeseZeile) === 1
+            && preg_match('/TitleBatchSize|AVESMAPS_WIKI_TITLE_BATCH_SIZE/i', $boeseZeile) === 1,
+        'die Wache muss diese Form finden: ' . $boeseZeile
+    );
+}
 
 $syncQuelle = (string) file_get_contents($wikiVerzeichnis . '/sync.php');
 $pruefe(
