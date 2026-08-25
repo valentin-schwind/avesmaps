@@ -701,6 +701,48 @@ function avesmapsWikiDumpHybridRedirectAliasStep(
 // ===========================================================================
 
 /**
+ * Der noch OFFENE Lesevorgang, oder null.
+ *
+ * ⭐ WOZU: "Dump holen" begann bis zum 25.08.2026 immer bei Null. Ein Abbruch in Phase 10 von 11
+ * -- und davon hatten wir an einem Abend drei -- warf damit die ganze vorangegangene Stunde weg.
+ * Der Lauf selbst ist laengst fortsetzbar: die Zeile in wiki_sync_runs traegt Phase und Cursor.
+ * Es fehlte nur die Auskunft, DASS da noch einer offen ist.
+ *
+ * ⚠️ Nur der neueste, und nur mit Status 'running'. Ein abgeschlossener Lauf ist nichts, was man
+ * fortsetzt, und ein aelterer offener waere eine Leiche -- der Sammelknopf raeumt sie ohnehin weg.
+ *
+ * @return array{public_id: string, phase: string, progress_current: int, progress_total: int}|null
+ */
+function avesmapsWikiDumpAktiverLeselauf(PDO $pdo): ?array {
+    try {
+        $statement = $pdo->prepare(
+            "SELECT public_id, phase, progress_current, progress_total, updated_at
+             FROM wiki_sync_runs
+             WHERE sync_type = :sync_type AND status = 'running'
+             ORDER BY id DESC
+             LIMIT 1"
+        );
+        $statement->execute(['sync_type' => AVESMAPS_WIKI_DUMP_READ_SYNC_TYPE]);
+        $zeile = $statement->fetch();
+    } catch (Throwable) {
+        // Keine Tabelle, keine Auskunft -- und ausdruecklich kein Fehler.
+        return null;
+    }
+
+    if (!is_array($zeile) || ($zeile['public_id'] ?? '') === '') {
+        return null;
+    }
+
+    return [
+        'public_id' => (string) $zeile['public_id'],
+        'phase' => (string) ($zeile['phase'] ?? ''),
+        'progress_current' => (int) ($zeile['progress_current'] ?? 0),
+        'progress_total' => (int) ($zeile['progress_total'] ?? 0),
+        'updated_at' => (string) ($zeile['updated_at'] ?? ''),
+    ];
+}
+
+/**
  * Der Titelvorrat fuer die Laengen-Probe (`titles_probe`).
  *
  * ⭐ Zuerst die ECHTEN Titel des neuesten Dump-Laufs -- das ist genau die Liste, die die

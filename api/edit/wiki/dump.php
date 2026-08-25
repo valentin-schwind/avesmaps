@@ -322,6 +322,9 @@ try {
         // ⚠️ Loest KEINE Anmeldung aus -- „hinterlegt" ist eine reine Konfigurationsfrage und
         // kostet keinen einzigen Fremdaufruf.
         $status['bot'] = avesmapsWikiBotStatusShape();
+        // Der noch offene Lesevorgang, damit "Dump holen" ihn fortsetzen kann statt bei Null zu
+        // beginnen. Reine Leseauskunft, kostet eine indizierte Zeile.
+        $status['aktiver_lauf'] = avesmapsWikiDumpAktiverLeselauf($pdo);
         avesmapsJsonResponse(200, ['ok' => true, 'status' => $status]);
     }
 

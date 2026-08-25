@@ -1007,11 +1007,42 @@ async function runWikiSyncDumpLoop(action, { runId = null } = {}) {
 // previous good run -- if any -- is untouched since it is still "the newest
 // completed run" until a NEW run completes). If cleanup fails, the publication
 // reconcile never runs either.
+// Der noch offene Lesevorgang, oder null. Fehler sind hier KEIN Grund abzubrechen: ohne
+// Auskunft beginnt "Dump holen" eben wie bisher bei Null.
+async function findeOffenenDumpLauf() {
+	try {
+		const antwort = await fetchWikiSyncDumpStatus();
+		const offen = antwort?.aktiver_lauf;
+		return offen && typeof offen.public_id === "string" && offen.public_id ? offen : null;
+	} catch (fehler) {
+		return null;
+	}
+}
+
 async function startWikiSyncDumpRead() {
 	if (isWikiSyncDumpRunning) {
 		return;
 	}
-	if (!window.confirm("Dump holen lädt den kompletten Wiki-Dump neu, holt Weiterleitungen + Kontinente online und zeigt danach, was sich bei den Publikationsquellen ändern würde — geschrieben wird erst, was du in der Vorschau anhäkelst. Das dauert einige Minuten. Jetzt starten?")) {
+
+	// 💣 EIN ABBRUCH DARF NICHT DIE GANZE STUNDE KOSTEN. Der Lauf ist laengst fortsetzbar (die
+	// Zeile in wiki_sync_runs traegt Phase und Cursor) -- bis zum 25.08.2026 hat der Knopf davon
+	// nur keinen Gebrauch gemacht und immer einen NEUEN Lauf begonnen. An einem Abend mit drei
+	// Abbruechen in Phase 10 von 11 war das der eigentliche Schaden, nicht der Fehler selbst.
+	const offenerLauf = await findeOffenenDumpLauf();
+	let fortsetzen = null;
+	if (offenerLauf) {
+		const wo = offenerLauf.progress_total > 0
+			? ` (Phase ${Math.min(offenerLauf.progress_current + 1, offenerLauf.progress_total)} von ${offenerLauf.progress_total})`
+			: "";
+		const weiter = window.confirm(
+			`Es ist noch ein Dump-Lauf offen${wo}. Fortsetzen?\n\nAbbrechen startet stattdessen einen NEUEN Lauf von vorn.`
+		);
+		if (weiter) {
+			fortsetzen = offenerLauf.public_id;
+		}
+	}
+
+	if (!fortsetzen && !window.confirm("Dump holen lädt den kompletten Wiki-Dump neu, holt Weiterleitungen + Kontinente online und zeigt danach, was sich bei den Publikationsquellen ändern würde — geschrieben wird erst, was du in der Vorschau anhäkelst. Das dauert einige Minuten. Jetzt starten?")) {
 		return;
 	}
 	isWikiSyncDumpRunning = true;
@@ -1030,15 +1061,19 @@ async function startWikiSyncDumpRead() {
 
 	try {
 		// Step 1/4: server-fetch (re-download from the wiki).
-		setWikiSyncDumpButtonsDisabled(true, "Lädt Dump herunter...");
-		setWikiSyncStatus("Dump wird vom Wiki heruntergeladen …", "pending");
-		await submitWikiSyncDumpAction("fetch_dump");
-		dumpReportDraft.steps.fetch_dump = { ok: true };
+		// ⚠️ Beim FORTSETZEN entfaellt er: die Datei liegt schon da, der Lauf liest bereits aus
+		// ihr, und ein neuer Abruf mitten im Lesen tauschte ihm die Grundlage unter den Fuessen weg.
+		if (!fortsetzen) {
+			setWikiSyncDumpButtonsDisabled(true, "Lädt Dump herunter...");
+			setWikiSyncStatus("Dump wird vom Wiki heruntergeladen …", "pending");
+			await submitWikiSyncDumpAction("fetch_dump");
+			dumpReportDraft.steps.fetch_dump = { ok: true };
+		}
 
 		// Step 2/4: the sandbox-safe scan loop (dryRun=true throughout).
 		setWikiSyncDumpButtonsDisabled(true, "Liest Dump...");
 		setWikiSyncStatus("WikiDump wird gelesen (Sandbox) …", "pending");
-		const readRun = await runWikiSyncDumpLoop("read_step");
+		const readRun = await runWikiSyncDumpLoop("read_step", { runId: fortsetzen });
 		// The run's public id is what save_report keys on. The loop returns the RUN row, and
 		// `progress` is a SIBLING of `run` in the step response, not a child -- so there is no
 		// page count to read here. The counts (by_kind/entries) are derived server-side from the
