@@ -205,9 +205,14 @@
 		if (typeof avesmapsLandschaftDialogHaelfte === "function") {
 			avesmapsLandschaftDialogHaelfte("flaeche", false);
 		}
-		const overlayElement = document.getElementById(OVERLAY_ELEMENT_ID);
-		if (overlayElement) {
-			overlayElement.hidden = true;
+		// 🔴 DURCH DEN TRICHTER, nicht am Overlay vorbei -- dort haengt die Verdrahtung.
+		if (typeof avesmapsLandschaftDialogSichtbar === "function") {
+			avesmapsLandschaftDialogSichtbar(false);
+		} else {
+			const overlayElement = document.getElementById(OVERLAY_ELEMENT_ID);
+			if (overlayElement) {
+				overlayElement.hidden = true;
+			}
 		}
 		// Fenster zu -> Schleier zurück. Er gehört zur Ansicht, nicht zur Bearbeitung.
 		window.AvesmapsEcosystemHeightRender?.setSolid?.(false);
@@ -793,11 +798,22 @@
 		// bleibt sein Platz leer, genauso wie die Artauswahl darüber bis dahin `disabled` ist.
 		propertiesElement("wiki-host")?.replaceChildren?.();
 
-		overlayElement.hidden = false;
+		// 🔴 DURCH DEN TRICHTER: `avesmapsLandschaftDialogSichtbar` verdrahtet beim Oeffnen die drei
+		// Reiter und die gemeinsame Knopfleiste. Wer hier `hidden` selbst setzt, oeffnet ein Fenster,
+		// dessen Bedienelemente allesamt tot sind -- genau das war vom 26.08.2026 morgens bis mittags
+		// der Zustand auf dem Flaechenweg, gemeldet vom Owner.
+		if (typeof avesmapsLandschaftDialogSichtbar === "function") {
+			avesmapsLandschaftDialogSichtbar(true);
+		} else {
+			overlayElement.hidden = false;
+		}
 		// Fall #79: erst jetzt, der Balken braucht seine Breite (siehe renderEcosystemHeightScale).
 		abonniereHoehenskala();
 		renderEcosystemHeightScale(area);
-		document.getElementById("ecosystem-properties-dialog")?.focus();
+		// 🪤 Hier stand `ecosystem-properties-dialog` -- den Koerper gibt es seit der Vereinigung nicht
+		// mehr, der Fokus blieb also auf der Karte, und die Tastaturbedienung des Fensters lief ins
+		// Leere. Still, wie jeder Zugriff auf eine abgeschaffte Kennung.
+		document.getElementById("landschaft-dialog")?.focus();
 		nameInput?.focus();
 		nameInput?.select();
 
