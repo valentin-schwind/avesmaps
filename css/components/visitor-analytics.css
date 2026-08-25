@@ -123,3 +123,32 @@
 .va-more > summary::-webkit-details-marker { display: none; }
 .va-more > summary::after { content: "\25B8"; margin-left: auto; color: var(--color-text-muted); font-size: 12px; }
 .va-more[open] > summary::after { content: "\25BE"; }
+
+/* --- API-Tafel (Entwurf docs/superpowers/specs/2026-08-25-api-nutzung-design.md) --------------
+   Drei Bauteile, im Mockup docs/api-nutzung-mockup.html in hell UND dunkel gemessen. */
+
+/* Die Statusverteilung als ein gestapelter Balken statt vier Zeilen: die Anteile sind extrem
+   ungleich (2xx ueber 95 %), und vier Balken nebeneinander zeigten dreimal fast nichts. */
+.va-stack { display: flex; height: 22px; border-radius: 5px; overflow: hidden; margin: 2px 0 9px; }
+.va-stack i { display: block; height: 100%; }
+.va-legend { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 11.5px; color: var(--color-text-muted); }
+.va-legend span { display: inline-flex; align-items: center; gap: 5px; }
+.va-legend i { width: 9px; height: 9px; border-radius: 2px; display: inline-block; }
+
+/* Die zwei Plaketten der Fehlerliste.
+
+   🪤 DAS TOKEN HEISST `--color-warning`, NICHT `--color-warn`. Die erste Fassung schrieb
+   `--color-warn`, und weil eine undefinierte CSS-Variable die ganze Deklaration ungueltig macht,
+   blieb die Plakette DURCHSICHTIG: weisse Schrift auf der Karte, Kontrast 1,02 -- in hell UND
+   dunkel. Das Mockup hatte den Fehler nicht gefunden, weil es seine Tokens SELBST definierte;
+   dort war `--color-warn` eine Erfindung. Gemessen im Browser gegen die echte tokens.css.
+
+   ⭐ Und beide nehmen ein ENTWORFENES PAAR, keine selbstgebaute Themenausnahme: tokens.css haelt
+   `--color-warning-strong` mit `--color-warning-strong-text` und `--color-button` mit
+   `--color-button-text` zusammen, und beide Paare sind in hell wie dunkel aufeinander abgestimmt.
+   Der erste Versuch drehte die Schriftfarbe stattdessen per `[data-theme="dark"]` von Hand um --
+   das haette beim naechsten Tokenwechsel still auseinanderlaufen koennen. Die zwei Plaketten
+   ziehen bewusst in verschiedene Richtungen (dunkle Tinte auf Gold, helle auf Braun); genau
+   deshalb gibt es zwei Klassen und keine gemeinsame Regel. */
+.va-feed__tag--warn { background: var(--color-warning-strong); color: var(--color-warning-strong-text); }
+.va-feed__tag--neutral { background: var(--color-button); color: var(--color-button-text); }

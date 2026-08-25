@@ -1,7 +1,13 @@
 let statusDashboardLoaded = false;
+let apiDashboardLoaded = false;
+
+// Die drei Unterreiter des Status-Panels. Eine Liste statt einer Kette von Vergleichen: der
+// Klick-Verdrahter unten zwang frueher jeden fremden Namen auf „editoren", und beim dritten Reiter
+// haette genau das ihn stumm gemacht -- der Knopf waere da gewesen und haette nichts getan.
+const STATUS_SUBTABS = ["besucher", "editoren", "api"];
 
 function activateStatusSubtab(name) {
-	const target = name === "besucher" ? "besucher" : "editoren";
+	const target = STATUS_SUBTABS.includes(name) ? name : "editoren";
 	const nav = document.querySelector(".status-subtabs");
 	if (!nav) {
 		return;
@@ -11,6 +17,12 @@ function activateStatusSubtab(name) {
 	if (target === "besucher" && !statusDashboardLoaded) {
 		statusDashboardLoaded = true;
 		void loadVisitorDashboard();
+	}
+	// Beide Tafeln laden faul und genau einmal -- der schwere Lesevorgang gehoert nicht in den
+	// Start des Editiermodus.
+	if (target === "api" && !apiDashboardLoaded) {
+		apiDashboardLoaded = true;
+		void loadApiDashboard();
 	}
 }
 
@@ -36,7 +48,7 @@ function ensureStatusSubtabLoaded() {
 		// Display only. Remembering the tab across a refresh is the cascade table's job now
 		// (REVIEW_TAB_FAMILIES in js/ui/ui-controls.js), which covers all six tab families at once. It used
 		// to be persisted AND restored here too, on the very same storage key -- one key, two writers.
-		activateStatusSubtab(button.dataset.statusSubtab === "besucher" ? "besucher" : "editoren");
+		activateStatusSubtab(button.dataset.statusSubtab);
 	});
 })();
 
@@ -105,7 +117,10 @@ function vaBars(rows, col) {
 	if (items.length === 0) { return '<div class="va-storage">noch keine Daten</div>'; }
 	const max = Math.max.apply(null, items.map((i) => i.val));
 	return items.map((i) =>
-		`<div class="va-row"><span class="va-row__name">${vaEscape(i.name)}</span><span class="va-row__track"><span class="va-row__fill" style="width:${Math.round(i.val / max * 100)}%;background:${col}"></span></span><span class="va-row__val">${i.val}</span></div>`
+		// ⚠️ Tausenderpunkte wie ueberall sonst im Dashboard (vaLine tut es zwei Funktionen weiter
+		// schon). Die Zahl stand bis 25.08.2026 roh da; in der API-Tafel fielen dadurch „61402"
+		// und „177.021" in derselben Ansicht nebeneinander auf. Betrifft alle Balkenlisten.
+		`<div class="va-row"><span class="va-row__name">${vaEscape(i.name)}</span><span class="va-row__track"><span class="va-row__fill" style="width:${Math.round(i.val / max * 100)}%;background:${col}"></span></span><span class="va-row__val">${i.val.toLocaleString("de-DE")}</span></div>`
 	).join("");
 }
 
@@ -280,7 +295,10 @@ function vaDonut(rows, cols) {
 		off += frac;
 	});
 	const leg = items.map((it, i) =>
-		`<div style="display:flex;align-items:center;gap:5px;font-size:11px;color:#8a7355;margin:2px 0"><span style="width:8px;height:8px;border-radius:2px;background:${cols[i % cols.length]}"></span>${vaEscape(it.name)} ${Math.round(it.val / tot * 100)}%</div>`
+		// 🪤 Die Beschriftung stand bis 25.08.2026 auf hartkodiertem #8a7355 -- im dunklen Thema
+		// ergab das 3,01 Kontrast, also unter der Grenze, und zwar in ALLEN Ringen (Geraete,
+		// Kartenansicht, seit heute auch die API-Zonen). Der Token wandert mit dem Thema mit.
+		`<div style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--color-text-muted);margin:2px 0"><span style="width:8px;height:8px;border-radius:2px;background:${cols[i % cols.length]}"></span>${vaEscape(it.name)} ${Math.round(it.val / tot * 100)}%</div>`
 	).join("");
 	return `<div style="display:flex;flex-direction:column;align-items:center;gap:6px"><svg viewBox="0 0 68 68" width="78" height="78" role="img" aria-label="Verteilung"></svg>`.replace("></svg>", ">" + seg + "</svg>") + `<div style="align-self:flex-start">${leg}</div></div>`;
 }

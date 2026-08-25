@@ -767,6 +767,7 @@
 				<nav class="status-subtabs" aria-label="Status-Bereiche">
 					<button class="status-subtab is-active" type="button" data-status-subtab="besucher">Besucher</button>
 					<button class="status-subtab" type="button" data-status-subtab="editoren">Editoren</button>
+					<button class="status-subtab" type="button" data-status-subtab="api">API</button>
 				</nav>
 				<div class="status-subsection" data-status-subsection="editoren">
 					<p id="presence-panel-status" class="review-panel__status" role="status" aria-live="polite">Nutzerstatus wird geladen...</p>
@@ -781,6 +782,12 @@
 					<div id="visitor-live" class="va-live" hidden></div>
 					<div id="visitor-pills"></div>
 					<div id="visitor-dashboard"></div>
+				</div>
+				<!-- Die eingehende API-Nutzung. Dieselbe Mechanik wie „Besucher": derselbe
+				     Unterreiter, dieselben .va-*-Karten, dasselbe faule Nachladen beim ersten
+				     Klick. Entwurf: docs/superpowers/specs/2026-08-25-api-nutzung-design.md -->
+				<div class="status-subsection" data-status-subsection="api">
+					<div id="api-dashboard"></div>
 				</div>
 			</section>
 		</aside>
@@ -3389,6 +3396,9 @@
 		<script src="js/review/review-report-flow.js"></script>
 		<script src="js/review/review-region-util.js"></script>
 		<script src="js/review/review-visitor-analytics.js"></script>
+		<!-- 💣 NACH review-visitor-analytics.js: die API-Tafel benutzt deren vaBars, vaDonut,
+		     vaHeatmap und vaBytes mit. Die Reihenfolge ist ein Vertrag und im Test festgehalten. -->
+		<script src="js/review/review-api-metrics.js"></script>
 		<script src="js/ui/ui-controls.js"></script>
 		<script src="js/third-party/polygon-clipping.umd.min.js"></script>
 		<script src="js/third-party/polylabel.js"></script>
