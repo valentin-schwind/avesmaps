@@ -112,4 +112,16 @@ assert.ok(/id="label-edit-type"[^>]*form="label-edit-form"|form="label-edit-form
 	|| /<select id="label-edit-type"[\s\S]{0,200}form="label-edit-form"/.test(kopf),
 	"die Artauswahl im Kopf gehört zum Beschriftungsformular"); checks++;
 
+// ── H. 🪤 DIE VERDRAHTUNG HÄNGT AM EINEN TRICHTER ────────────────────────────────────────────
+// Sie stand zuerst im Öffner der Hülle -- aber die zwei Module öffnen das Fenster über
+// `avesmapsLandschaftDialogSichtbar(true)` und gehen daran VORBEI. „Abbrechen" und „×" der
+// gemeinsamen Leiste taten deshalb nichts, sobald der Dialog auf dem normalen Weg aufging --
+// gefunden im Ablauf, nicht im Testfeld: alle Zusicherungen waren grün.
+// 🔴 Eine Regel, die einen von mehreren Erzeugern bindet, ist keine Regel.
+const iSichtbar = huelle.indexOf("function avesmapsLandschaftDialogSichtbar(");
+assert.ok(iSichtbar >= 0, "der Trichter steht als eigene Funktion da");
+const rumpfSichtbar = huelle.slice(iSichtbar, iSichtbar + 900);
+assert.ok(rumpfSichtbar.includes("avesmapsLandschaftDialogVerdrahten()"),
+	"verdrahtet wird im Trichter, durch den JEDER Weg geht"); checks++;
+
 console.log("landschaft-dialog-speichern: " + checks + " Zusicherungen gruen");

@@ -410,6 +410,14 @@ function syncLabelCurveMaxControls() {
 	const regler = document.getElementById("label-edit-curve-max-range");
 	const marke = document.getElementById("label-edit-curve-max-marke");
 	const zeile = document.getElementById("label-edit-curve-max-row");
+	// 🔴 DIE BINDUNG AN DIE FLAECHE (Owner 25.08.2026). Ohne Haken liegen Flaeche und Beschriftung
+	// unabhaengig auf der Karte; mit ihm laeuft der Name auf der Mittelachse, und die eigene
+	// Position wirkt nicht mehr. Der Satz haengt am HAKEN, nicht am Reiter -- er beschreibt eine
+	// Wirkung, keine Ansicht.
+	document.querySelectorAll("[data-landschaft-bindung]").forEach((satz) => {
+		const gebunden = satz.dataset.landschaftBindung === "gebunden";
+		satz.hidden = gebunden !== Boolean(haken.checked);
+	});
 	if (!haken || !zahl) {
 		return;
 	}
@@ -736,12 +744,70 @@ function avesmapsLabelZeichneVorgabeMarken() {
 	});
 }
 
+/**
+ * Die Wahl unter mehreren Beschriftungen EINER Flaeche fuellen.
+ *
+ * 🔴 Sie erscheint NUR bei mehreren -- live 13 von 1026 Flaechen. Bei einer einzigen waere ein
+ * Auswahlfeld mit einem Eintrag ein Bedienelement fuer nichts.
+ *
+ * 💣 EIN Wechsel VERWIRFT, was nicht gespeichert ist. Das Fenster fuehrt keine
+ * Aenderungsverfolgung, also wird gefragt, statt zu raten -- lieber eine Rueckfrage zu viel als
+ * eine verlorene Drehung. Der Fall ist selten genug, dass die Frage niemanden ermuedet.
+ *
+ * ⚠️ Gewechselt wird ueber `openLabelEditDialog` -- denselben Weg, den jeder Klick auf eine
+ * Beschriftung geht. Ein zweiter Fuellweg waere die zweite Wahrheit ueber denselben Zustand.
+ */
+function syncLabelEditGeschwisterwahl(labelEntry) {
+	const kasten = document.getElementById("landschaft-dialog-labelwahl");
+	const wahl = document.getElementById("landschaft-dialog-labelwahl-select");
+	if (!kasten || !wahl) {
+		return 0;
+	}
+	const region = String(labelEntry?.label?.ecosystemRegionPublicId || "");
+	const geschwister = (region !== "" && typeof findLabelEntriesByEcosystemRegion === "function")
+		? findLabelEntriesByEcosystemRegion(region)
+		: [];
+	kasten.hidden = geschwister.length < 2;
+	if (geschwister.length < 2) {
+		wahl.innerHTML = "";
+		return geschwister.length;
+	}
+	const offen = String(labelEntry?.label?.publicId || "");
+	wahl.innerHTML = "";
+	geschwister.forEach((eintrag, nummer) => {
+		const option = document.createElement("option");
+		option.value = String(eintrag.label.publicId || "");
+		// ⚠️ Die Nummer ist eine ANZEIGE, keine Adresse -- gewaehlt wird ueber die public_id.
+		option.textContent = (nummer + 1) + " von " + geschwister.length
+			+ " — " + String(eintrag.label.text || "ohne Text");
+		option.selected = option.value === offen;
+		wahl.appendChild(option);
+	});
+	if (wahl.dataset.landschaftVerdrahtet !== "1") {
+		wahl.dataset.landschaftVerdrahtet = "1";
+		wahl.addEventListener("change", () => {
+			const ziel = typeof findLabelEntryByPublicId === "function"
+				? findLabelEntryByPublicId(String(wahl.value || "")) : null;
+			if (!ziel) {
+				return;
+			}
+			if (!window.confirm("Zu dieser Beschriftung wechseln? Ungespeicherte Änderungen an der jetzigen gehen verloren.")) {
+				syncLabelEditGeschwisterwahl(labelEntry);
+				return;
+			}
+			openLabelEditDialog({ labelEntry: ziel, reiter: "beschriftung" });
+		});
+	}
+	return geschwister.length;
+}
+
 function openLabelEditDialog(options = {}) {
 	// 🔴 `options.reiter` kommt von den fuenf Aufrufern; ohne Angabe faellt es auf „beschriftung" --
 	// wer diesen Oeffner ruft, meint eine Beschriftung.
 	labelEditStartReiter = String(options.reiter || "beschriftung");
 	resetLabelEditForm();
 	populateLabelEditForm(options);
+	syncLabelEditGeschwisterwahl(options.labelEntry || null);
 	// ⚠️ NACH dem Fuellen: vorher steht im Artwaehler noch die Art des zuletzt geoeffneten
 	// Labels, und die Marken zeigten dessen Vorgabe.
 	avesmapsLabelZeichneVorgabeMarken();
@@ -834,7 +900,7 @@ function syncLabelPriorityOutput() {
 
 // Zahl+Slider-Reihen (Groesse/Rotation/Prioritaet): Slider aus den Zahlenwerten initialisieren.
 function syncLabelSliderRowsFromNumbers() {
-	document.querySelectorAll("#label-edit-dialog .label-edit-sliderrow").forEach((row) => {
+	document.querySelectorAll("#landschaft-dialog .label-edit-sliderrow").forEach((row) => {
 		const numberInput = row.querySelector('input[type="number"]');
 		const rangeInput = row.querySelector('input[type="range"]');
 		if (numberInput && rangeInput) {

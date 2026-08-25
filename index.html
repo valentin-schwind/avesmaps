@@ -1866,6 +1866,13 @@
 				     ("Diese Flaeche traegt keine Beschriftung." samt Knopf). Ein gesperrter Reiter verbaerge
 				     genau die Handlung, die gerade fehlt. Gefuellt werden die Bereiche in Aufgabe 2 und 3. -->
 				<div data-landschaft-bereich="flaeche">
+						<!-- Der leere Zustand dieser Haelfte. 🔴 EIN Satz, keine Statistik (Owner 25.08.2026:
+						     „Reicht"). Er kommt aus avesmapsLandschaftDialogLeertext -- ein Wortlaut an EINER
+						     Stelle, nicht zwei im Markup, die auseinanderlaufen. -->
+						<div class="landschaft-dialog__leer" data-landschaft-leer hidden>
+							<p data-landschaft-leertext></p>
+							<p class="location-report-form__status">Die Zuordnung steht darunter.</p>
+						</div>
 						<!-- Landschaftsflaeche zuweisen. Bis 2026-07-28 bekam ein Label seinen Zeiger NUR beim
 						     Anlegen einer Regionsbeschriftung oder beim Klonen; ein bestehendes liess sich an
 						     keine Flaeche haengen. Genau daran hingen fuenf Finsterkamm-Labels an nichts und
@@ -1878,7 +1885,7 @@
 								<select id="label-edit-region"></select>
 							</label>
 						</div>
-				<form id="ecosystem-properties-form" class="ecosystem-properties-dialog__form">
+				<form data-landschaft-inhalt id="ecosystem-properties-form" class="ecosystem-properties-dialog__form">
 					<fieldset class="ecosystem-properties-dialog__group">
 						<legend data-i18n="ecosystem.properties.identity">Fläche</legend>
 						<!-- Der Haken wird beim Oeffnen ABGELEITET, nicht geladen: passt der Name auf
@@ -1971,7 +1978,23 @@
 				</form>
 				</div>
 				<div data-landschaft-bereich="beschriftung" hidden>
-				<form id="label-edit-form" class="location-report-form" novalidate>
+						<!-- Der leere Zustand dieser Haelfte. 🔴 EIN Satz, keine Statistik (Owner 25.08.2026:
+						     „Reicht"). Er kommt aus avesmapsLandschaftDialogLeertext -- ein Wortlaut an EINER
+						     Stelle, nicht zwei im Markup, die auseinanderlaufen. -->
+						<div class="landschaft-dialog__leer" data-landschaft-leer hidden>
+							<p data-landschaft-leertext></p>
+							<p><button type="button" id="landschaft-dialog-label-anlegen" class="location-report-form__button location-report-form__button--primary">Beschriftung anlegen</button></p>
+						</div>
+						<!-- Die Wahl unter mehreren Beschriftungen EINER Flaeche. Sie erscheint nur, wenn es
+						     mehrere gibt -- live 13 von 1026 Flaechen (Ingvaltal und Yaquirtal je drei).
+						     🔴 Der KOPF gehoert der REGION: Name und Art wirken auf alle Beschriftungen. Groesse,
+						     Zoom, Prioritaet und Position gehoeren der GEWAEHLTEN allein -- ein zweites Label
+						     existiert gerade deshalb, weil es anders stehen soll. -->
+						<div class="landschaft-dialog__labelwahl" id="landschaft-dialog-labelwahl" hidden>
+							<span class="landschaft-dialog__labelwahl-titel">Beschriftung</span>
+							<select id="landschaft-dialog-labelwahl-select" aria-label="Beschriftung wählen"></select>
+						</div>
+				<form data-landschaft-inhalt id="label-edit-form" class="location-report-form" novalidate>
 					<input id="label-edit-public-id" name="public_id" type="hidden" />
 					<input id="label-edit-lat" name="lat" type="hidden" />
 					<input id="label-edit-lng" name="lng" type="hidden" />
@@ -2014,6 +2037,14 @@
 						     tragen den HAKEN deshalb deaktiviert und sagen hier warum (Entwurf §2). Die Zahl
 						     darunter ist dann ohnehin verborgen. Gefuellt wird der Satz von review-labels.js. -->
 						<p id="label-edit-curve-hint" class="location-report-form__status" hidden></p>
+						<!-- 🔴 DIE AUSNAHME (Owner 25.08.2026): ohne Kurvenbeschriftung liegen Flaeche und
+						     Beschriftung unabhaengig auf der Karte; MIT ihr laeuft der Name auf der Mittelachse der
+						     Flaeche, und die eigene Position wirkt nicht mehr. Der Satz steht an Ort und Stelle --
+						     eine Wirkung, die man sonst erst auf der Karte bemerkt.
+						     ⚠️ Zwei Absaetze, nicht ein umgeschriebener: der Wortlaut steht damit im Markup und nicht
+						     in zwei JS-Zweigen, die auseinanderlaufen koennen. -->
+						<p class="landschaft-dialog__bindung" data-landschaft-bindung="frei">Die Beschriftung liegt frei auf der Karte und lässt sich unabhängig von der Fläche verschieben.</p>
+						<p class="landschaft-dialog__bindung" data-landschaft-bindung="gebunden" hidden><b>An die Fläche gebunden:</b> die Beschriftung läuft auf der Mittelachse der Fläche. Ihre eigene Position und Drehung wirken nicht mehr.</p>
 						</div>
 						<p id="label-edit-status" class="location-report-form__status" role="status" aria-live="polite"></p>
 					<div class="location-report-form__actions" hidden>
@@ -2025,7 +2056,7 @@
 						<!-- Jede Region HAT ihr Karten-Label (am Point of Inaccessibility); dieser Haken
 						     entscheidet nur, ob es gezeichnet wird. Ausblenden statt löschen, damit Ort,
 						     Größe, Drehung und Zoom-Band beim Wiedereinschalten noch da sind. -->
-						<label class="ecosystem-properties-dialog__checkbox">
+						<label data-landschaft-inhalt class="ecosystem-properties-dialog__checkbox">
 							<input id="ecosystem-properties-showname" name="show_name" type="checkbox" />
 							<span data-i18n="ecosystem.properties.showName">Auf der Karte anzeigen</span>
 						</label>

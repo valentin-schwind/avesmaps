@@ -71,7 +71,10 @@ function getLabelEditStatusElement() {
 }
 
 function getLabelEditDialogElement() {
-	return document.getElementById("label-edit-dialog");
+	// 🔴 Seit der Vereinigung (25.08.2026) ist der Dialogkoerper `landschaft-dialog`: Flaeche und
+// Beschriftung stehen in EINEM Fenster. Auf die alte Kennung zeigend faende diese Funktion
+// nichts, und der Fokus bliebe beim Oeffnen auf der Karte -- still, aber falsch.
+	return document.getElementById("landschaft-dialog");
 }
 
 function getRegionEditFormElement() {
@@ -115,7 +118,7 @@ function isPowerlineEditDialogOpen() {
 }
 
 function isLabelEditDialogOpen() {
-	return !$("#landschaft-dialog-overlay").prop("hidden") || !$("#label-edit-overlay").prop("hidden");
+	return !$("#landschaft-dialog-overlay").prop("hidden");
 }
 
 function isRegionEditDialogOpen() {
@@ -127,6 +130,6 @@ function isLocationReportServiceConfigured() {
 }
 
 function syncModalDialogBodyState() {
-	const hasOpenModal = !$("#legal-overlay").prop("hidden") || !$("#changelog-overlay").prop("hidden") || !$("#spotlight-search-overlay").prop("hidden") || !$("#political-territory-editor-overlay").prop("hidden") || !$("#location-report-overlay").prop("hidden") || !$("#location-edit-overlay").prop("hidden") || !$("#wiki-sync-resolve-overlay").prop("hidden") || !$("#wiki-sync-conflicts-overlay").prop("hidden") || !$("#path-edit-overlay").prop("hidden") || !$("#powerline-edit-overlay").prop("hidden") || !$("#landschaft-dialog-overlay").prop("hidden") || !$("#label-edit-overlay").prop("hidden") || !$("#region-edit-overlay").prop("hidden");
+	const hasOpenModal = !$("#legal-overlay").prop("hidden") || !$("#changelog-overlay").prop("hidden") || !$("#spotlight-search-overlay").prop("hidden") || !$("#political-territory-editor-overlay").prop("hidden") || !$("#location-report-overlay").prop("hidden") || !$("#location-edit-overlay").prop("hidden") || !$("#wiki-sync-resolve-overlay").prop("hidden") || !$("#wiki-sync-conflicts-overlay").prop("hidden") || !$("#path-edit-overlay").prop("hidden") || !$("#powerline-edit-overlay").prop("hidden") || !$("#landschaft-dialog-overlay").prop("hidden") || !$("#region-edit-overlay").prop("hidden");
 	$("body").toggleClass("modal-dialog-open", hasOpenModal);
 }

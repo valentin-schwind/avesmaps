@@ -872,6 +872,27 @@ function findLabelEntryByPublicId(publicId) {
 // Server auch im Lesemodus aufgelöst). Der erste Treffer genügt hier: die Beschriftungen einer Region
 // liegen auf derselben Fläche, und wir fliegen nur hin. Ohne Zeiger kein Treffer -- 412 der 589
 // Regionen tragen gar kein Label, und für die gibt es nichts anzufliegen.
+// ALLE Beschriftungen einer Flaeche, in stabiler Reihenfolge.
+//
+// 🔴 Fuer das vereinigte Fenster (25.08.2026): 13 der 1026 Flaechen tragen zwei oder drei
+// Beschriftungen -- das Ingvaltal und das Yaquirtal je drei. Genau dafuer wurde die Beziehung am
+// 28.07.2026 auf 1:N gestellt („der Finsterkamm will im Norden UND im Sueden beschriftet
+// werden, jedes mit eigener Drehung/Position/Groesse").
+//
+// 💣 Sortiert wird nach der `publicId`, nicht nach der Reihenfolge im Bestand: die haengt an der
+// Ladereihenfolge der Nutzlast und rutscht, sobald jemand eine Beschriftung anlegt -- dann
+// zeigte die Auswahl „2 von 3" beim naechsten Oeffnen auf eine andere. Dieselbe Falle wie bei
+// `Kreuzung-N` (AGENTS.md §11).
+function findLabelEntriesByEcosystemRegion(regionPublicId) {
+	const gesucht = String(regionPublicId || "");
+	if (gesucht === "") {
+		return [];
+	}
+	return labelMarkers
+		.filter((entry) => String(entry.label.ecosystemRegionPublicId || "") === gesucht)
+		.sort((a, b) => String(a.label.publicId).localeCompare(String(b.label.publicId)));
+}
+
 function findLabelEntryByEcosystemRegion(regionPublicId) {
 	const gesucht = String(regionPublicId || "");
 	if (gesucht === "") {

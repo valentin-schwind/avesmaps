@@ -85,4 +85,27 @@ const styles = lies("css/styles.css");
 assert.ok(/components\/landschaft-dialog\.css/.test(styles),
 	"css/styles.css importiert das Stylesheet des Fensters"); checks++;
 
+// ── F. 🪤 DIE EIGENEN FELDREGELN DES FENSTERS ZEIGEN AUF SEINE KENNUNG ───────────────────────
+// Das Fenster trägt 19 EIGENE Regeln -- engere Felder (6px/8px statt der geteilten 9px/10px),
+// kleinerer Radius, Reglerfarbe, Abschnittstitel. Sie standen nach dem Umzug auf
+// `#label-edit-dialog` und passten damit auf NICHTS: gemessen sprangen die Felder von 29 auf
+// 35 px und der Radius von 6 auf 8.
+// 💣 Ein Selektor, der ins Leere zeigt, ist STILL -- kein Fehler, keine Warnung, nur ein anderes
+// Aussehen. Gefunden hat es die Messung am gebauten Fenster, nicht das Testfeld.
+// 🪤 Gezählt werden SELEKTOREN, nicht Rohtext: der Vermerk über den Regeln NENNT die alte
+// Kennung, und ein Test, der ihn mitzählt, prüft seine eigene Begründung. Genau derselbe Fehler
+// wie beim Dateipfad im HTML-Kommentar zwei Aufgaben zuvor.
+const ohneKommentare = (text) => text.replace(/\/\*[\s\S]*?\*\//g, " ");
+const regionSync = ohneKommentare(lies("css/components/region-sync.css"));
+assert.strictEqual((regionSync.match(/#label-edit-dialog/g) || []).length, 0,
+	regionSync.split("#label-edit-dialog").length - 1 + " Regeln zeigen noch auf die alte Kennung"); checks++;
+assert.ok((regionSync.match(/#landschaft-dialog/g) || []).length >= 15,
+	"die eigenen Regeln des Fensters zeigen auf seine Kennung"); checks++;
+
+// ⚠️ Und der Dialogkörper, den der Fokus beim Öffnen sucht.
+assert.ok(reviewCore.includes('getElementById("landschaft-dialog")'),
+	"der Fokus findet den Dialogkörper"); checks++;
+assert.ok(!/label-edit-overlay/.test(reviewCore),
+	"das alte Overlay wird nirgends mehr abgefragt"); checks++;
+
 console.log("landschaft-dialog-reiter: " + checks + " Zusicherungen gruen");

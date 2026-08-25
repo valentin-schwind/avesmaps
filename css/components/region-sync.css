@@ -104,7 +104,7 @@
 
 /* 🔴 HIER STANDEN VIER REGELN DES HANDGESCHRIEBENEN WIKI-KASTENS: `__empty` (oben, vor `__dl`),
    `__image`, das Paar `__imagenote`/`__desc` und die Uebersteuerung
-   `#label-edit-dialog .label-wiki-reference__desc` (max-height 116px, eigener Scrollkasten).
+   `#landschaft-dialog .label-wiki-reference__desc` (max-height 116px, eigener Scrollkasten).
    Alle vier gehoerten den sechs Fassungen, die am 16.08.2026 dem geteilten Bauteil gewichen sind
    (js/ui/wiki-assign.js). Der Kasten zeichnet heute Kopf, Feldliste (`__dl`), Link, Haken und
    Hinweis (`__hint`) -- ein Wiki-Bild, seine Bildunterschrift, einen Beschreibungsabsatz und einen
@@ -414,7 +414,13 @@
 
 /* #6 — „Label bearbeiten" optisch an den Territoriumseditor angeglichen:
    Faculty Glyphic, Abschnitts-Titel, parchment-Inputs/Slider. */
-#label-edit-dialog {
+/* 🔴 UMBENANNT AM 25.08.2026: das Fenster heisst seit der Vereinigung `#landschaft-dialog`
+   (Flaeche und Beschriftung in einem, drei Reiter). Die Regeln hier sind die EIGENEN Masse
+   dieses Fensters -- engere Felder als die geteilten aus location-report-dialog.css.
+   🪤 Sie standen nach dem Umzug einen Moment lang auf `#label-edit-dialog` und passten damit
+   auf NICHTS: die Felder sprangen von 29 auf 35 px, der Radius von 6 auf 8. Ein Selektor, der
+   ins Leere zeigt, ist still -- kein Fehler, keine Warnung, nur ein anderes Aussehen. */
+#landschaft-dialog {
 	font-family: "Faculty Glyphic", Arial, sans-serif;
 	/* Mehr Hoehe als der geteilte Dialog-Default (max-height: min(86vh, 760px)): der 760px-Deckel zwingt
 	   den inhaltsreichen Label-Editor (mit Wiki-Landschaft) auf grossen Screens in den Gesamt-Scroll.
@@ -455,13 +461,13 @@
 	border-top: 0;
 }
 
-#label-edit-dialog .location-report-form__field > span {
+#landschaft-dialog .location-report-form__field > span {
 	font-size: 12px;
 	font-weight: 600;
 	color: var(--color-button-soft-text);
 }
 
-#label-edit-dialog .location-report-form__field > span small {
+#landschaft-dialog .location-report-form__field > span small {
 	font-weight: 400;
 	color: var(--color-placeholder);
 }
@@ -497,10 +503,10 @@
 	content: "BE ";
 }
 
-#label-edit-dialog input[type="text"],
-#label-edit-dialog input[type="number"],
-#label-edit-dialog input[type="search"],
-#label-edit-dialog select {
+#landschaft-dialog input[type="text"],
+#landschaft-dialog input[type="number"],
+#landschaft-dialog input[type="search"],
+#landschaft-dialog select {
 	border: 1px solid var(--color-border);
 	border-radius: 6px;
 	background: var(--color-panel);
@@ -509,20 +515,20 @@
 	color: var(--color-text);
 }
 
-#label-edit-dialog input[type="text"]:focus,
-#label-edit-dialog input[type="number"]:focus,
-#label-edit-dialog input[type="search"]:focus,
-#label-edit-dialog select:focus {
+#landschaft-dialog input[type="text"]:focus,
+#landschaft-dialog input[type="number"]:focus,
+#landschaft-dialog input[type="search"]:focus,
+#landschaft-dialog select:focus {
 	outline: none;
 	border-color: var(--color-accent-brown);
 	box-shadow: 0 0 0 2px var(--color-accent-brown-focus);
 }
 
-#label-edit-dialog input[type="range"] {
+#landschaft-dialog input[type="range"] {
 	accent-color: var(--color-accent-brown);
 }
 
-#label-edit-dialog .location-report-form__button--primary {
+#landschaft-dialog .location-report-form__button--primary {
 	font-family: "Faculty Glyphic", Arial, sans-serif;
 }
 
@@ -740,7 +746,7 @@
 }
 
 /* ===== Label-bearbeiten: 2-Spalten-Grid + Zoom (Zahl + Slider) ===== */
-#label-edit-dialog {
+#landschaft-dialog {
 	width: min(560px, calc(100vw - 24px));
 }
 
@@ -819,10 +825,10 @@
 }
 
 /* Eingaben mit weissem Untergrund. */
-#label-edit-dialog input[type="text"],
-#label-edit-dialog input[type="number"],
-#label-edit-dialog input[type="search"],
-#label-edit-dialog select {
+#landschaft-dialog input[type="text"],
+#landschaft-dialog input[type="number"],
+#landschaft-dialog input[type="search"],
+#landschaft-dialog select {
 	background: var(--color-panel);
 }
 

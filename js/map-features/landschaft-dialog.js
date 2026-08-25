@@ -98,6 +98,11 @@ function avesmapsLandschaftDialogSichtbar(offen) {
 	if (!overlay) {
 		return false;
 	}
+	if (offen) {
+		// 🔴 HIER, nicht im Oeffner der Huelle: die zwei Modul-Oeffner rufen nur diese Funktion.
+		// Der Aufruf ist idempotent -- ein zweites Oeffnen haengt keinen zweiten Zuhoerer an.
+		avesmapsLandschaftDialogVerdrahten();
+	}
 	overlay.hidden = !offen;
 	return Boolean(offen);
 }
@@ -120,10 +125,7 @@ function avesmapsLandschaftDialogOffen() {
 function avesmapsLandschaftDialogOeffnen(optionen) {
 	const opt = optionen || {};
 	const reiter = opt.reiter || avesmapsLandschaftDialogStartReiter(opt.einstieg);
-	// 🔴 Verdrahtet wird beim OEFFNEN, nicht beim Laden: die Datei fuehrt auf oberster Ebene
-	// nichts aus (zum Ladezeitpunkt gibt es weder `map` noch `L`), und der Aufruf ist
-	// idempotent -- ein zweites Oeffnen haengt keinen zweiten Zuhoerer an.
-	avesmapsLandschaftDialogVerdrahten();
+	// ⚠️ Verdrahtet wird in `…Sichtbar` -- dem einen Trichter, durch den auch die zwei Module gehen.
 	avesmapsLandschaftDialogSichtbar(true);
 	return avesmapsLandschaftDialogReiter(reiter);
 }
@@ -163,6 +165,62 @@ function avesmapsLandschaftDialogLoeschKnopf(reiter) {
 		}
 	}
 	return text;
+}
+
+/**
+ * Der Satz, den ein Reiter zeigt, dessen Hälfte fehlt. REIN — kein DOM.
+ *
+ * 🔴 EIN Satz, keine Statistik (Owner 25.08.2026: „Reicht"). Live betrifft das ein Drittel jeder
+ * Seite — 334 Flächen ohne Beschriftung, 254 Beschriftungen ohne Fläche (ein Berggipfel ist ein
+ * Punkt und bekommt nie eine). Die Zahlen stehen im Entwurf, nicht im Fenster.
+ *
+ * ⚠️ Der Reiter wird deshalb NIE gesperrt: dort steht das Angebot. Ein gesperrter Reiter verbärge
+ * genau die Handlung, die gerade fehlt.
+ */
+function avesmapsLandschaftDialogLeertext(reiter, stand) {
+	const s = stand || {};
+	if (reiter === "flaeche" && !s.hatFlaeche) {
+		return "Diese Beschriftung liegt auf keiner Fläche.";
+	}
+	if (reiter === "beschriftung" && !s.hatLabel) {
+		return "Diese Fläche trägt keine Beschriftung.";
+	}
+	return "";
+}
+
+/**
+ * Die leeren Zustände beider Reiter nachziehen.
+ *
+ * 💣 Der Inhalt der Hälfte wird VERBORGEN, nicht geleert: seine Felder gehören den zwei Modulen,
+ * und ein geleertes Formular sähe aus wie ein Objekt ohne Werte. Verborgen heißt „gibt es nicht",
+ * leer hieße „ist leer" — das ist ein Unterschied, den ein Editor sofort sieht.
+ */
+function avesmapsLandschaftDialogLagen() {
+	if (typeof document === "undefined") {
+		return {};
+	}
+	const stand = avesmapsLandschaftDialogStand();
+	const gezeigt = {};
+	["flaeche", "beschriftung"].forEach((reiter) => {
+		const bereich = document.querySelector('[data-landschaft-bereich="' + reiter + '"]');
+		if (!bereich) {
+			return;
+		}
+		const text = avesmapsLandschaftDialogLeertext(reiter, stand);
+		const kasten = bereich.querySelector("[data-landschaft-leer]");
+		if (kasten) {
+			kasten.hidden = text === "";
+			const satz = kasten.querySelector("[data-landschaft-leertext]");
+			if (satz && text !== "") {
+				satz.textContent = text;
+			}
+		}
+		bereich.querySelectorAll("[data-landschaft-inhalt]").forEach((teil) => {
+			teil.hidden = text !== "";
+		});
+		gezeigt[reiter] = text;
+	});
+	return gezeigt;
 }
 
 /** Schließen. */
@@ -247,6 +305,10 @@ function avesmapsLandschaftDialogHaelfte(haelfte, ja) {
 		return false;
 	}
 	avesmapsLandschaftDialogGeladen[haelfte] = Boolean(ja);
+	// ⚠️ Die leeren Zustaende haengen an DIESER Stelle, nicht an den Aufrufern: eine Haelfte kann
+	// sich waehrend eines offenen Fensters an- und abmelden (Beschriftung anlegen), und dann muss
+	// der andere Reiter mitziehen, ohne dass jemand daran denkt.
+	avesmapsLandschaftDialogLagen();
 	return avesmapsLandschaftDialogGeladen[haelfte];
 }
 
@@ -319,5 +381,7 @@ if (typeof module !== "undefined" && module.exports) {
 		avesmapsLandschaftDialogSpeichern: avesmapsLandschaftDialogSpeichern,
 		avesmapsLandschaftDialogLoeschText: avesmapsLandschaftDialogLoeschText,
 		avesmapsLandschaftDialogLoeschKnopf: avesmapsLandschaftDialogLoeschKnopf,
+		avesmapsLandschaftDialogLeertext: avesmapsLandschaftDialogLeertext,
+		avesmapsLandschaftDialogLagen: avesmapsLandschaftDialogLagen,
 	};
 }

@@ -143,6 +143,42 @@
 		errorElement.hidden = !message;
 	}
 
+	/**
+	 * Der Flaeche eine Beschriftung geben -- am Punkt der Unzugaenglichkeit.
+	 *
+	 * 🔴 Die MELDUNG nennt den Punkt (Owner 25.08.2026: „du kannst die meldung bringen dass am Punkt
+	 * der Unzugaenglichkeit ... ein label erstellt wurde"). Sie gehoert dem VORGANG: der naechste
+	 * Reiterwechsel oder das Schliessen raeumt sie weg, nicht das Fenster traegt sie dauerhaft.
+	 *
+	 * ⚠️ Sie erscheint NACH dem Anlegen, nicht davor: ein „angelegt" vor der Antwort waere eine
+	 * Behauptung ueber etwas, das noch nicht steht.
+	 */
+	async function legeBeschriftungAn() {
+		const area = currentPropertiesArea();
+		if (!area || typeof createEcosystemRegionLabel !== "function") {
+			return;
+		}
+		const name = String(propertiesElement("name")?.value || area.region_name || "");
+		try {
+			await createEcosystemRegionLabel(
+				String(area.region_public_id || ""),
+				area.geometry,
+				name,
+				true,
+				String(propertiesElement("type")?.value || area.region_type || "")
+			);
+		} catch (fehler) {
+			setPropertiesStatus("Die Beschriftung liess sich nicht anlegen.");
+			return;
+		}
+		const punkt = typeof avesmapsComputeLabelPoint === "function"
+			? avesmapsComputeLabelPoint(area.geometry) : null;
+		const wo = punkt && Number.isFinite(punkt.x) && Number.isFinite(punkt.y)
+			? " (" + punkt.x.toFixed(1).replace(".", ",") + " / " + punkt.y.toFixed(1).replace(".", ",") + ")"
+			: "";
+		setPropertiesStatus("Beschriftung am Punkt der Unzugänglichkeit" + wo + " angelegt.");
+	}
+
 	function setPropertiesStatus(message) {
 		const statusElement = propertiesElement("status");
 		if (statusElement) {
@@ -1968,6 +2004,16 @@
 		}
 
 		propertiesBound = true;
+		// 🔴 „Beschriftung anlegen" im leeren Zustand des Beschriftungs-Reiters (Owner 25.08.2026).
+		// ⭐ Es gibt den Weg schon: `createEcosystemRegionLabel` rechnet den Punkt der
+		// Unzugaenglichkeit aus und schreibt ueber den vorhandenen Erzeuger. Ein zweiter Anlegeweg
+		// waere die zweite Wahrheit -- und er muesste dieselbe Ruecknahme koennen (der Server laesst
+		// eine Region hoechstens EIN primaeres Label tragen).
+		// ⚠️ Der Knopf steht nur da, wenn die Flaeche KEINE Beschriftung hat -- genau der Fall, in dem
+		// der Zeiger frei ist.
+		document.getElementById("landschaft-dialog-label-anlegen")?.addEventListener("click", () => {
+			void legeBeschriftungAn();
+		});
 		propertiesElement("form")?.addEventListener("submit", submitEcosystemPropertiesDialog);
 		propertiesElement("close")?.addEventListener("click", closeEcosystemPropertiesDialog);
 		propertiesElement("cancel")?.addEventListener("click", closeEcosystemPropertiesDialog);
