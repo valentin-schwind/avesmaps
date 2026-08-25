@@ -22,12 +22,53 @@ function avesmapsVisitorAnalyticsEnabled(): bool {
     return AVESMAPS_VISITOR_ANALYTICS_ENABLED === true;
 }
 
+// 💣 DER PLATZHALTER IST TRAGEND, ER IST KEINE KOSMETIK.
+//
+// `hour` steht im UNIQUE-Schluessel uq_visitor_metric und ist bei dreizehn der fuenfzehn Metriken
+// bedeutungslos -- nur `pageview` und `map_load` tragen eine Stunde (siehe $hourly in
+// api/app/track.php). Solange die Spalte NULL-faehig war, griff ON DUPLICATE KEY UPDATE fuer diese
+// Zeilen NIE: nach dem SQL-Standard gelten zwei NULL als VERSCHIEDEN, MySQL erlaubt im
+// UNIQUE-Index beliebig viele davon. Jedes Ereignis legte also eine NEUE Zeile mit count=1 an,
+// statt eine vorhandene hochzuzaehlen.
+//
+// 🪤 Und deshalb fiel es vom 28.06.2026 bis zum 25.08.2026 niemandem auf: der Lesepfad rechnet
+// ohnehin `SUM(count) ... GROUP BY dimension`, die ANGEZEIGTEN ZAHLEN blieben also richtig.
+// Sichtbar war der Fehler allein an der Zeilenzahl -- und die steht ausgerechnet in der Karte
+// "Speicher", wo sie niemand mit dieser Ursache verbindet.
+//
+// Die Zahl ist dieselbe wie bei der Schwestertabelle api_metric
+// (AVESMAPS_API_METRICS_KEINE_STUNDE), und der Test haelt fest, dass sie es bleibt: zwei
+// verschiedene Zahlen fuer dieselbe Aussage waeren beim naechsten gemeinsamen Leser eine Falle.
+const AVESMAPS_VISITOR_KEINE_STUNDE = 24;
+
+/**
+ * Die EINE Naht, an der aus "keine Stunde" der Platzhalter wird.
+ *
+ * 🔴 Sie sitzt IM Schreiber, nicht in seinen Aufrufern -- eine Regel, die nur einen von mehreren
+ * Erzeugern bindet, ist keine Regel (AGENTS.md, die Vier-Erzeuger-Falle).
+ *
+ * ⚠️ Alles ausserhalb von 0..23 wird zum Platzhalter, nicht zu 0. Eine stillschweigende 0 waere
+ * schlimmer als der Fehler, den diese Funktion behebt: sie stuende als MITTERNACHT in der Heatmap
+ * und machte aus zu vielen Zeilen falsche Zahlen.
+ */
+function avesmapsVisitorStunde(?int $hour): int {
+    if ($hour === null || $hour < 0 || $hour > 23) {
+        return AVESMAPS_VISITOR_KEINE_STUNDE;
+    }
+
+    return $hour;
+}
+
 function avesmapsVisitorAnalyticsEnsureTables(PDO $pdo): void {
+    // ⚠️ CREATE TABLE IF NOT EXISTS aendert eine VORHANDENE Tabelle nicht. Diese Form gilt also
+    // fuer Neuinstallationen; der Bestand wird einmalig per sql/2026-08-25-visitor-metric-stunde.sql
+    // nachgezogen. Bewusst KEINE information_schema-Sonde an dieser Stelle: sie laeuft bei jedem
+    // Beacon, und genau diese Last nennt AGENTS.md §10 beim Namen.
     $pdo->exec(
         "CREATE TABLE IF NOT EXISTS visitor_metric (
             id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
             day DATE NOT NULL,
-            hour TINYINT UNSIGNED NULL,
+            hour TINYINT UNSIGNED NOT NULL DEFAULT 24,
             actor_type ENUM('visitor','editor','bot') NOT NULL DEFAULT 'visitor',
             metric VARCHAR(40) NOT NULL,
             dimension VARCHAR(190) NOT NULL DEFAULT '',
@@ -189,7 +230,11 @@ function avesmapsVisitorIncrement(PDO $pdo, string $actorType, string $metric, s
         ON DUPLICATE KEY UPDATE count = count + 1'
     );
     $statement->execute([
-        'hour' => $hour,
+        // 💣 Nie das rohe $hour: ausserhalb des strict mode -- und dieser Server laeuft ausserhalb,
+        // siehe die stille Kuerzung von app_setting in AGENTS.md §10 -- macht MySQL aus einem
+        // ausdruecklichen NULL in einer NOT-NULL-Spalte stillschweigend eine 0. Die Zeile stuende
+        // dann als MITTERNACHT in der Heatmap.
+        'hour' => avesmapsVisitorStunde($hour),
         'actor_type' => $actorType === 'editor' ? 'editor' : 'visitor',
         'metric' => $metric,
         'dimension' => $dimension,
@@ -290,13 +335,18 @@ function avesmapsVisitorReadMetrics(PDO $pdo, string $actorType, int $days): arr
     }
 
     $heat = $pdo->prepare(
+        // ⚠️ `hour < :keine` statt des frueheren `hour IS NOT NULL`: seit der Platzhalter existiert,
+        // gibt es keine NULL mehr, und der alte Filter waere immer wahr. Er faengt beide Bestaende
+        // ab -- eine noch nicht nachgezogene NULL-Zeile faellt ebenfalls heraus, weil jeder
+        // Vergleich mit NULL unbekannt ist. Fuer die Heatmap ist das richtig: sie liest nur
+        // `pageview`, und das trug schon immer eine echte Stunde.
         "SELECT DAYOFWEEK(day) AS dow, hour, SUM(count) AS c
         FROM visitor_metric
-        WHERE actor_type = :a AND metric = 'pageview' AND hour IS NOT NULL
+        WHERE actor_type = :a AND metric = 'pageview' AND hour < :keine
             AND day >= DATE_SUB(UTC_DATE(), INTERVAL :d DAY)
         GROUP BY dow, hour"
     );
-    $heat->execute(['a' => $actorType, 'd' => $days]);
+    $heat->execute(['a' => $actorType, 'd' => $days, 'keine' => AVESMAPS_VISITOR_KEINE_STUNDE]);
 
     $top = static function (string $metric, int $minCount) use ($pdo, $actorType, $days): array {
         $statement = $pdo->prepare(
