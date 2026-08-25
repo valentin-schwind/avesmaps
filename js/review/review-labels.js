@@ -84,6 +84,12 @@ let labelEditStartReiter = "";
 
 function setLabelEditDialogOpen(isOpen, { resetForm = false } = {}) {
 	if (typeof avesmapsLandschaftDialogSichtbar === "function") {
+		// 🔴 Die Haelfte meldet sich SELBST an: nur dieses Modul weiss, ob hinter dem Formular ein
+		// Objekt steht. „Speichern" schickt nur angemeldete Haelften ab -- blind beide zu schicken
+		// legte an einer Flaeche ohne Beschriftung bei jedem Speichern eine neue an.
+		if (typeof avesmapsLandschaftDialogHaelfte === "function") {
+			avesmapsLandschaftDialogHaelfte("beschriftung", isOpen);
+		}
 		avesmapsLandschaftDialogSichtbar(isOpen);
 		if (isOpen && typeof avesmapsLandschaftDialogReiter === "function") {
 			// 🔴 Der Einstieg bestimmt den Reiter (Owner 25.08.2026). Wer eine Beschriftung anklickt,

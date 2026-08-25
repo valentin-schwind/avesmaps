@@ -142,7 +142,11 @@ async function oeffne(kind, regionType) {
 		},
 	});
 	await kontext.window.AvesmapsEcosystemProperties.open("f-1");
-	return { art: element("ecosystem-properties-type"), hinweis: element("ecosystem-properties-typehint") };
+	// 🔴 Die Artauswahl heisst seit dem 25.08.2026 `label-edit-type` und steht im GEMEINSAMEN KOPF:
+	// Flaeche und Beschriftung teilen sie sich (live in 613 von 613 Paaren mit Art identisch).
+	// Das Flaechenmodul erreicht sie ueber AVESMAPS_ECO_ZWILLINGE, sein Code sagt weiter
+	// `propertiesElement("type")` -- die Sperre bei einer Klimazone gilt unveraendert.
+	return { art: element("label-edit-type"), hinweis: element("ecosystem-properties-typehint") };
 }
 
 (async () => {
@@ -220,7 +224,7 @@ async function oeffne(kind, regionType) {
 
 	// Und er steht im Markup UNTER der Artauswahl, nicht irgendwo: eine Erklärung, die über dem
 	// erklärten Feld steht, liest sich als Überschrift der ganzen Gruppe.
-	const artStelle = html.indexOf('id="ecosystem-properties-type"');
+	const artStelle = html.indexOf('id="label-edit-type"');
 	const hinweisStelle = html.indexOf('id="ecosystem-properties-typehint"');
 	const flaechenStelle = html.indexOf('id="ecosystem-properties-areas"');
 	assert.ok(

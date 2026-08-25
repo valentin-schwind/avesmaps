@@ -69,6 +69,7 @@ function avesmapsLandschaftDialogReiter(name) {
 	document.querySelectorAll("[data-landschaft-bereich]").forEach((feld) => {
 		feld.hidden = feld.dataset.landschaftBereich !== ziel;
 	});
+	avesmapsLandschaftDialogLoeschKnopf(ziel);
 	return ziel;
 }
 
@@ -127,6 +128,43 @@ function avesmapsLandschaftDialogOeffnen(optionen) {
 	return avesmapsLandschaftDialogReiter(reiter);
 }
 
+/**
+ * Wie der gemeinsame Löschknopf im offenen Reiter heißt. REIN — kein DOM.
+ *
+ * 💣 „Löschen" bedeutet in den zwei alten Fenstern VERSCHIEDENES: im Flächendialog nimmt es die
+ * Region SAMT ihren Flächen, im Beschriftungsdialog nur die eine Beschriftung. Ein gemeinsamer
+ * Knopf ohne Bezug ist damit die gefährlichste Stelle des ganzen Umbaus — er sieht in beiden
+ * Fällen gleich aus und tut Verschiedenes.
+ *
+ * ⚠️ Im Reiter „Wiki & Quellen" gibt es nichts zu löschen. Der Knopf ist dort VERBORGEN, nicht
+ * gesperrt: ein Löschknopf ohne Bezug ist schlimmer als keiner.
+ */
+function avesmapsLandschaftDialogLoeschText(reiter) {
+	if (reiter === "flaeche") {
+		return "Fläche löschen";
+	}
+	if (reiter === "beschriftung") {
+		return "Beschriftung löschen";
+	}
+	return "";
+}
+
+/** Den Löschknopf an den offenen Reiter hängen. */
+function avesmapsLandschaftDialogLoeschKnopf(reiter) {
+	if (typeof document === "undefined") {
+		return "";
+	}
+	const knopf = document.getElementById("landschaft-dialog-delete");
+	const text = avesmapsLandschaftDialogLoeschText(reiter);
+	if (knopf) {
+		knopf.hidden = text === "";
+		if (text !== "") {
+			knopf.textContent = text;
+		}
+	}
+	return text;
+}
+
 /** Schließen. */
 function avesmapsLandschaftDialogSchliessen() {
 	return avesmapsLandschaftDialogSichtbar(false);
@@ -144,6 +182,35 @@ function avesmapsLandschaftDialogVerdrahten() {
 		return 0;
 	}
 	let neu = 0;
+	// 🔴 Die drei Knoepfe der gemeinsamen Leiste BESITZEN nichts -- sie geben an die Haelfte weiter,
+	// der die Handlung gehoert. Ein eigener Schreibweg neben den zwei vorhandenen waere die dritte
+	// Wahrheit ueber dasselbe Objekt.
+	const einmal = (id, tu) => {
+		const knopf = document.getElementById(id);
+		if (!knopf || knopf.dataset.landschaftVerdrahtet === "1") {
+			return;
+		}
+		knopf.dataset.landschaftVerdrahtet = "1";
+		knopf.addEventListener("click", tu);
+		neu++;
+	};
+	einmal("landschaft-dialog-save", () => { avesmapsLandschaftDialogSpeichern(); });
+	// ⚠️ „Abbrechen" und „×" gehen ueber die ALTEN Knoepfe der geladenen Haelften: an ihnen haengt
+	// mehr als ein Schliessen -- die Beschriftung nimmt dabei ihre Sofortvorschau auf der Karte
+	// zurueck (revertLabelDisplayPreview).
+	const abbrechen = () => {
+		const stand = avesmapsLandschaftDialogStand();
+		if (stand.hatLabel) { document.getElementById("label-edit-cancel")?.click(); }
+		if (stand.hatFlaeche) { document.getElementById("ecosystem-properties-cancel")?.click(); }
+		if (!stand.hatLabel && !stand.hatFlaeche) { avesmapsLandschaftDialogSchliessen(); }
+	};
+	einmal("landschaft-dialog-cancel", abbrechen);
+	einmal("landschaft-dialog-close", abbrechen);
+	einmal("landschaft-dialog-delete", () => {
+		const reiter = avesmapsLandschaftDialogReiterName();
+		if (reiter === "flaeche") { document.getElementById("ecosystem-properties-delete")?.click(); }
+		if (reiter === "beschriftung") { document.getElementById("label-edit-delete")?.click(); }
+	});
 	document.querySelectorAll("[data-landschaft-reiter]").forEach((knopf) => {
 		if (knopf.dataset.landschaftVerdrahtet === "1") {
 			return;
@@ -157,6 +224,84 @@ function avesmapsLandschaftDialogVerdrahten() {
 	return neu;
 }
 
+/* ── Welche Haelfte ist geladen ──────────────────────────────────────────────────────────────
+ *
+ * 🔴 DIE FRAGE ENTSCHEIDET, WAS „Speichern" SCHREIBT -- und sie darf nicht geraten werden.
+ * Beide <form> stehen IMMER im Markup; ob ein Objekt dahintersteht, weiss nur das Modul, dem die
+ * Haelfte gehoert. Es meldet sich deshalb selbst an und ab.
+ *
+ * 💣 WUERDE MAN BEIDE FORMULARE BLIND ABSCHICKEN, legte jedes Speichern an einer Flaeche ohne
+ * Beschriftung eine NEUE an: `buildLabelEditPayload` liest eine leere `public_id` als
+ * `create_label`. Ein Knopf, der beim Speichern etwas anlegt, ist kein Speichern.
+ */
+const avesmapsLandschaftDialogGeladen = { flaeche: false, beschriftung: false };
+
+/**
+ * Eine Haelfte an- oder abmelden. Ruft das Modul, dem sie gehoert.
+ *
+ * @param {string} haelfte "flaeche" | "beschriftung"
+ * @param {boolean} ja
+ */
+function avesmapsLandschaftDialogHaelfte(haelfte, ja) {
+	if (haelfte !== "flaeche" && haelfte !== "beschriftung") {
+		return false;
+	}
+	avesmapsLandschaftDialogGeladen[haelfte] = Boolean(ja);
+	return avesmapsLandschaftDialogGeladen[haelfte];
+}
+
+/** Der Stand beider Haelften -- eine Kopie, damit ihn niemand von aussen verstellt. */
+function avesmapsLandschaftDialogStand() {
+	return {
+		hatFlaeche: avesmapsLandschaftDialogGeladen.flaeche,
+		hatLabel: avesmapsLandschaftDialogGeladen.beschriftung,
+	};
+}
+
+/**
+ * Welche Formulare „Speichern" abschickt. REIN -- kein DOM.
+ *
+ * 🔴 DIE FLAECHE ZUERST. Ihre Aenderung an Name und Art traegt der vorhandene Propagationsweg
+ * ohnehin an die Beschriftung (`renameLinkedEcosystemLabel`); andersherum ueberschriebe die
+ * Beschriftung den frisch gesetzten Regionsnamen wieder.
+ *
+ * ⚠️ Wer nur das Formular des OFFENEN Reiters abschickte, verloere die Aenderung im anderen --
+ * lautlos, weil das Fenster danach zugeht.
+ *
+ * @param {{hatFlaeche: boolean, hatLabel: boolean}} stand
+ * @returns {string[]} die IDs der Formulare, in Reihenfolge
+ */
+function avesmapsLandschaftDialogSpeichernAuftraege(stand) {
+	const s = stand || {};
+	const auftraege = [];
+	if (s.hatFlaeche) {
+		auftraege.push("ecosystem-properties-form");
+	}
+	if (s.hatLabel) {
+		auftraege.push("label-edit-form");
+	}
+	return auftraege;
+}
+
+/** Speichern: die Formulare der geladenen Haelften abschicken, Flaeche zuerst. */
+function avesmapsLandschaftDialogSpeichern() {
+	if (typeof document === "undefined") {
+		return [];
+	}
+	const getan = [];
+	avesmapsLandschaftDialogSpeichernAuftraege(avesmapsLandschaftDialogStand()).forEach((id) => {
+		const formular = document.getElementById(id);
+		// ⚠️ `requestSubmit` und nicht `submit()`: nur ersteres loest das submit-EREIGNIS aus, an dem
+		// beide Module haengen. `submit()` schickt am Zuhoerer vorbei -- und damit an der ganzen
+		// Nutzlast vorbei, die er baut.
+		if (formular && typeof formular.requestSubmit === "function") {
+			formular.requestSubmit();
+			getan.push(id);
+		}
+	});
+	return getan;
+}
+
 if (typeof module !== "undefined" && module.exports) {
 	module.exports = {
 		AVESMAPS_LANDSCHAFT_DIALOG_REITER: AVESMAPS_LANDSCHAFT_DIALOG_REITER,
@@ -168,5 +313,11 @@ if (typeof module !== "undefined" && module.exports) {
 		avesmapsLandschaftDialogOeffnen: avesmapsLandschaftDialogOeffnen,
 		avesmapsLandschaftDialogSchliessen: avesmapsLandschaftDialogSchliessen,
 		avesmapsLandschaftDialogVerdrahten: avesmapsLandschaftDialogVerdrahten,
+		avesmapsLandschaftDialogHaelfte: avesmapsLandschaftDialogHaelfte,
+		avesmapsLandschaftDialogStand: avesmapsLandschaftDialogStand,
+		avesmapsLandschaftDialogSpeichernAuftraege: avesmapsLandschaftDialogSpeichernAuftraege,
+		avesmapsLandschaftDialogSpeichern: avesmapsLandschaftDialogSpeichern,
+		avesmapsLandschaftDialogLoeschText: avesmapsLandschaftDialogLoeschText,
+		avesmapsLandschaftDialogLoeschKnopf: avesmapsLandschaftDialogLoeschKnopf,
 	};
 }

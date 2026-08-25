@@ -23,6 +23,11 @@
 // Run: node js/ui/__tests__/wiki-assign-landschaft.test.js
 "use strict";
 
+// 🔴 NACHGEZOGEN AM 25.08.2026: Name und Art der Flaeche sind in den GEMEINSAMEN KOPF des
+// vereinigten Landschaftsfensters gezogen und heissen dort `label-edit-text` /
+// `label-edit-type`. Das Flaechenmodul erreicht sie ueber AVESMAPS_ECO_ZWILLINGE; sein Code
+// sagt weiter `propertiesElement("name")`. Geprueft wird hier unveraendert, WAS geschrieben
+// wird -- nur die Kennung der Felder hat gewechselt.
 const assert = require("assert");
 const fs = require("fs");
 const path = require("path");
@@ -567,8 +572,8 @@ function sandkastenBauen(dateien, felder, behaelterIds, fetchAntwort, zusatz) {
 		region_type: "", wiki_region_key: null, wiki_url: null, label_public_id: null,
 	};
 	const felder = {
-		"ecosystem-properties-name": scheinFeld("Wald-001"),
-		"ecosystem-properties-type": scheinFeld(""),
+		"label-edit-text": scheinFeld("Wald-001"),
+		"label-edit-type": scheinFeld(""),
 		"ecosystem-properties-autoname": scheinFeld(""),
 		"ecosystem-properties-showname": scheinFeld(""),
 		"ecosystem-properties-nodix": scheinFeld(""),
@@ -645,7 +650,7 @@ function sandkastenBauen(dateien, felder, behaelterIds, fetchAntwort, zusatz) {
 	// ---- Waehlen: der Name wandert SOFORT ins Formular -----------------------------------------
 	host.feuere("click", scheinZiel("data-wa-treffer", "0"));
 	await ruhe();
-	assert.strictEqual(felder["ecosystem-properties-name"].value, "Farindel",
+	assert.strictEqual(felder["label-edit-text"].value, "Farindel",
 		"„Zuweisen“ benennt nicht mehr um -- der Tippfehler bliebe neben dem Wiki-Namen stehen");
 	assert.ok(host.innerHTML.indexOf("Albernia") !== -1,
 		"der Zuweisungskasten zeigt die Wiki-Angaben nicht: " + host.innerHTML);
@@ -664,17 +669,17 @@ function sandkastenBauen(dateien, felder, behaelterIds, fetchAntwort, zusatz) {
 		"die Sync-Vorschau zaehlt falsch (oder die Art steht doch drin, obwohl sie stimmt): " + host.innerHTML);
 	host.feuere("click", scheinZiel("data-wa-aktion", "sync-uebernehmen"));
 	await ruhe();
-	assert.strictEqual(felder["ecosystem-properties-type"].value, "",
+	assert.strictEqual(felder["label-edit-type"].value, "",
 		"die Art wurde uebernommen, obwohl das Auswahlfeld sie gar nicht kennt");
 	zaehl(); zaehl();
 
 	// Mit gefuelltem Auswahlfeld greift dieselbe Uebernahme.
-	felder["ecosystem-properties-type"].options = VEGETATION.map((typ) => ({ value: typ.type_key }));
+	felder["label-edit-type"].options = VEGETATION.map((typ) => ({ value: typ.type_key }));
 	host.feuere("click", scheinZiel("data-wa-aktion", "sync"));
 	await ruhe();
 	host.feuere("click", scheinZiel("data-wa-aktion", "sync-uebernehmen"));
 	await ruhe();
-	assert.strictEqual(felder["ecosystem-properties-type"].value, "wald",
+	assert.strictEqual(felder["label-edit-type"].value, "wald",
 		"die angehakte Art wurde nicht ins Formular uebernommen");
 	zaehl();
 
@@ -682,7 +687,7 @@ function sandkastenBauen(dateien, felder, behaelterIds, fetchAntwort, zusatz) {
 	host.feuere("click", scheinZiel("data-wa-aktion", "entfernen"));
 	await ruhe();
 	assert.ok(host.innerHTML.indexOf("— keine —") !== -1, "„Entfernen“ hat den Kasten nicht geleert: " + host.innerHTML);
-	assert.strictEqual(felder["ecosystem-properties-name"].value, "Farindel",
+	assert.strictEqual(felder["label-edit-text"].value, "Farindel",
 		"„Entfernen“ hat umbenannt -- die Zuweisung zu loesen soll den Namen stehen lassen");
 	zaehl(); zaehl();
 
@@ -767,8 +772,8 @@ function sandkastenBauen(dateien, felder, behaelterIds, fetchAntwort, zusatz) {
 	// NICHT DA, auch nicht bei GESETZTEM Merker (`hakenZeigen` hat dafuer eine eigene Ausnahme), und
 	// ein Speichern laesst den gespeicherten Merker in Ruhe.
 	const felderGesetzt = {
-		"ecosystem-properties-name": scheinFeld("Wald-002"),
-		"ecosystem-properties-type": scheinFeld("wald", VEGETATION.map((typ) => typ.type_key)),
+		"label-edit-text": scheinFeld("Wald-002"),
+		"label-edit-type": scheinFeld("wald", VEGETATION.map((typ) => typ.type_key)),
 	};
 	const kGesetzt = sandkastenBauen(dialogSkripte, felderGesetzt,
 		["ecosystem-properties-wiki-host", "ecosystem-properties-overlay", "ecosystem-properties-form"],
@@ -838,8 +843,8 @@ function sandkastenBauen(dateien, felder, behaelterIds, fetchAntwort, zusatz) {
 	// „Speichern" trotzdem eine leere Zuweisung schreibt.
 	const kFehler = sandkastenBauen(dialogSkripte,
 		{
-			"ecosystem-properties-name": scheinFeld("Farindel"),
-			"ecosystem-properties-type": scheinFeld("wald"),
+			"label-edit-text": scheinFeld("Farindel"),
+			"label-edit-type": scheinFeld("wald"),
 		},
 		["ecosystem-properties-wiki-host", "ecosystem-properties-overlay", "ecosystem-properties-form"],
 		(url) => {

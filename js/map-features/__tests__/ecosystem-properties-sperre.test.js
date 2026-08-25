@@ -56,10 +56,15 @@ assert.ok(iFlaeche > 0 && iBeschriftung > iFlaeche, "die zwei Reiter stehen in d
 assert.ok(sperrStelle > iFlaeche && sperrStelle < iBeschriftung,
 	'Der Haken steht im Reiter „Fläche" — er gilt der Region, nicht der Beschriftung.');
 
-// ⚠️ Und er steht bei der Artauswahl derselben Haelfte, nicht irgendwo dahinter.
-const artStelle = html.indexOf('id="ecosystem-properties-type"');
-assert.ok(artStelle > 0 && sperrStelle < artStelle,
-	'Der Haken steht vor der Artauswahl der Fläche.');
+// 🪤 HIER STAND: „…und er steht vor der Artauswahl der Flaeche." Auch das ist ueberholt --
+// Name und Art sind am 25.08.2026 in den GEMEINSAMEN KOPF gezogen (sie gehoeren beiden
+// Haelften, live in 679 von 679 Paaren identisch). Im Flaechenreiter gibt es keine Artauswahl
+// mehr, an der sich eine Reihenfolge festmachen liesse.
+// 🔴 Was bleibt: er steht VOR dem Gelaende. Die Sperre ist eine Eigenschaft der Flaeche selbst,
+// die Gelaendewerte beschreiben ihre Form -- erst was sie IST, dann wie sie aussieht.
+const gelaendeStelle = html.indexOf('id="ecosystem-properties-terrain"');
+assert.ok(gelaendeStelle > 0 && sperrStelle < gelaendeStelle,
+	'Der Haken steht vor dem Gelände — erst was die Fläche ist, dann wie sie aussieht.');
 
 // ---- Der Zugriff ----------------------------------------------------------------------------------
 

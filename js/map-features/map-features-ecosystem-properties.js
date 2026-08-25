@@ -84,6 +84,15 @@
 		curve: "label-edit-curve",
 		"curve-max": "label-edit-curve-max",
 		curvehint: "label-edit-curve-hint",
+		// 🔴 Name und Art stehen seit Aufgabe 4 im GEMEINSAMEN KOPF und gehoeren beiden Haelften.
+		// Gemessen am 25.08.2026: von 679 Paaren tragen 679 denselben Namen und 613 dieselbe Art;
+		// die 66 Abweichungen sind ausnahmslos „Flaeche ohne Art -> Beschriftung auf dem neutralen
+		// `region`". Kein einziger echter Widerspruch -- ein Feld genuegt.
+		// ⚠️ Das Feld traegt `name="text"` und gehoert per `form`-Attribut zum Beschriftungsformular.
+		// Dieses Modul liest und schreibt `.value` direkt, nicht ueber FormData -- der Umweg stoert es
+		// also nicht.
+		name: "label-edit-text",
+		type: "label-edit-type",
 	};
 
 	function propertiesElement(suffix) {
@@ -157,6 +166,9 @@
 	}
 
 	function closeEcosystemPropertiesDialog() {
+		if (typeof avesmapsLandschaftDialogHaelfte === "function") {
+			avesmapsLandschaftDialogHaelfte("flaeche", false);
+		}
 		const overlayElement = document.getElementById(OVERLAY_ELEMENT_ID);
 		if (overlayElement) {
 			overlayElement.hidden = true;
@@ -691,6 +703,10 @@
 		}
 
 		bindEcosystemPropertiesDialog();
+		// 🔴 Anmelden und Reiter oeffnen -- der Einstieg ist ein Parameter, kein gemerkter Zustand.
+		if (typeof avesmapsLandschaftDialogHaelfte === "function") {
+			avesmapsLandschaftDialogHaelfte("flaeche", true);
+		}
 		if (typeof avesmapsLandschaftDialogReiter === "function") {
 			avesmapsLandschaftDialogReiter("flaeche");
 		}
