@@ -163,6 +163,22 @@ Schlüssel zur Diagnose — Owner: *„in der politischen ansicht faden die labe
 ⚠️ Die Dauer der DOM-Pane-Überblendung (350 ms) steht **fest** in `js/app/bootstrap.js` und hat
 keinen Parameter. Wenn sie je verstellt werden soll, gehört sie in dieselbe Reihe wie die anderen.
 
+## §7a Offener Entwurf: der Zoomschritt aus einem Guss
+
+🔧 **`docs/superpowers/specs/2026-08-26-zoom-uebergang-konsistenz-design.md`** — Owner-Ziel vom
+26.08.2026: eine Kurve und eine Dauer für ALLE Animationen (ease-in-out, 250 ms), alles beginnt bei
+`zoomanim` t = 0, und die Marker-Skalierungen sollen aufeinander abgestimmt werden.
+
+💣 **Der Kernbefund steht dort und nicht hier: die Kurven sind bereits einheitlich, die
+AMPLITUDEN nicht.** Während der Animation skaliert alles um Faktor 2, aber nichts außer den Kacheln
+wächst zwischen zwei Stufen wirklich um 2 — beim Landen schnappt jedes Element um einen anderen
+Betrag zurück, von **+5 % (Marker Gebäude) bis −82 % (Wegename)**. Das ist der Grund für den
+Eindruck „nicht synchron“.
+
+🩤 Und eine Hypothese, die **gemessen und entkräftet** wurde: der fehlende
+`will-change: transform` auf den Canvas-Ebenen ist gegenstandslos — sie tragen `translate3d` und
+werden dadurch ohnehin befördert.
+
 ## §8 Offen
 
 - 🔧 **Vier Canvas-Ebenen ohne Blende:** Schraffur, Höhenmodell, Fluss- und Tempo-Pfeile. Sie zeichneten
