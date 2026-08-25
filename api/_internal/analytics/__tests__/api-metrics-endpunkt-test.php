@@ -72,11 +72,44 @@ assert(!str_contains($quelle, 'getMessage()'), 'keine Ausnahmetexte an den Clien
 // keine Anfragen" nicht zu unterscheiden -- dieselbe Klasse wie die stille app_setting-Kuerzung.
 assert(str_contains($quelle, 'letzte_zaehlung'), 'der Zaehlstand reist mit');
 
-// Syntaktisch heil -- eine Endpunktdatei, die nicht laedt, antwortet mit leerem Rumpf.
+// 🔴 DER ENDPUNKT WIRD AUSGEFUEHRT, NICHT NUR GELESEN -- und das ist die wichtigste Zusicherung
+// dieser Datei.
+//
+// 🪤 Live gemessen am 25.08.2026: der Endpunkt antwortete mit HTTP 500 und LEEREM Rumpf. Ursache
+// war ein `require` der Zaehlbibliothek, die bootstrap.php bereits mit `require_once` geladen
+// hatte -- die Einmal-Liste gilt nur fuer require_once selbst, ein blankes `require` laedt die
+// Datei trotzdem erneut. „Cannot redeclare function avesmapsApiMetricsAktiv()", ein Fatal Error
+// VOR jeder Ausgabe.
+//
+// 💣 `php -l` haette das NIE gefunden: eine Redeklaration ist ein Laufzeitfehler, keine
+// Syntaxfrage. Die vorige Fassung dieses Tests fuhr genau dieses `php -l`, war gruen, und der
+// Endpunkt war trotzdem tot. Ausfuehren ist der einzige Beweis.
+//
+// ⚠️ Ohne config.local.php faellt der Endpunkt in seinen eigenen catch und antwortet mit einem
+// JSON-Fehler. Das ist genau richtig: geprueft wird nicht, WAS er antwortet, sondern DASS er
+// ueberhaupt antwortet.
 $ausgabe = [];
 $code = 0;
-exec('php -l ' . escapeshellarg($pfad) . ' 2>&1', $ausgabe, $code);
-assert($code === 0, 'php -l ist zufrieden: ' . implode(' ', $ausgabe));
+exec('php ' . escapeshellarg($pfad) . ' 2>&1', $ausgabe, $code);
+$rumpf = trim(implode("\n", $ausgabe));
+
+assert($rumpf !== '', 'der Endpunkt antwortet ueberhaupt (leerer Rumpf = Fatal Error)');
+assert(
+    !preg_match('/(Fatal error|Cannot redeclare|Uncaught \w*Error)/i', $rumpf),
+    'kein Fatal Error beim Ausfuehren: ' . substr($rumpf, 0, 200)
+);
+assert(
+    str_contains($rumpf, '{') && str_contains($rumpf, '"ok"'),
+    'die Antwort ist JSON mit einem ok-Feld: ' . substr($rumpf, 0, 200)
+);
+
+// 💣 Und die Ursache selbst festgenagelt: die Bibliothek gehoert bootstrap.php, nicht dem
+// Endpunkt. Ein Nachbarendpunkt, der das Muster von visitor-analytics.php abschreibt, faellt
+// sonst in dieselbe Grube.
+assert(
+    !preg_match('/^\s*require(_once)?[^;]*analytics\/api-metrics\.php/m', $quelle),
+    'der Endpunkt laedt die Zaehlbibliothek NICHT selbst -- bootstrap.php tut es'
+);
 
 // 💣 Und jede Konstante auf Dateiebene stuende VOR dem try -- hier gibt es keine, aber der
 // repoweite const-vor-benutzung-test.php wacht ohnehin darueber.

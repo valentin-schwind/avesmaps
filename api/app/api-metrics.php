@@ -14,7 +14,19 @@ declare(strict_types=1);
 
 require __DIR__ . '/../_internal/bootstrap.php';
 require __DIR__ . '/../_internal/auth.php';
-require __DIR__ . '/../_internal/analytics/api-metrics.php';
+
+// 🪤 HIER STEHT ABSICHTLICH KEIN `require` DER ZAEHLBIBLIOTHEK -- bootstrap.php laedt sie bereits
+// (sie traegt den Zaehler, der an JEDER Anfrage haengt).
+//
+// Der erste Bau schrieb hier `require __DIR__ . '/../_internal/analytics/api-metrics.php';`, wie
+// es die Nachbarendpunkte mit visitor-analytics.php tun. Das ist dort richtig und hier toedlich:
+// 💣 `require_once` in bootstrap.php schuetzt NICHT gegen ein spaeteres blankes `require` derselben
+// Datei -- die Einmal-Liste gilt nur fuer require_once selbst. Die Folge war „Cannot redeclare
+// function avesmapsApiMetricsAktiv()", also ein Fatal Error VOR jeder Ausgabe: HTTP 500 mit
+// LEEREM Rumpf. Live gemessen am 25.08.2026, und ausgerechnet genau die Fehlerklasse, fuer die
+// diese Tafel gebaut wurde.
+// ⚠️ `php -l` findet das nicht -- eine Redeklaration ist ein Laufzeitfehler, keine Syntaxfrage.
+// Der Endpunkt wird deshalb im Test AUSGEFUEHRT, nicht nur gelesen.
 
 try {
     $config = avesmapsLoadApiConfig(avesmapsApiRoot());
