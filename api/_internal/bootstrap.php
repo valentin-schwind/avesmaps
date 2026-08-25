@@ -279,7 +279,7 @@ function avesmapsCreatePdo(array $databaseConfig): PDO {
         default => throw new RuntimeException('Der Datenbank-Treiber wird nicht unterstuetzt.'),
     };
 
-    return new PDO(
+    $verbindung = new PDO(
         $dsn,
         $user,
         $password,
@@ -289,6 +289,25 @@ function avesmapsCreatePdo(array $databaseConfig): PDO {
             PDO::ATTR_EMULATE_PREPARES => false,
         ]
     );
+
+    // Fuer den API-Zaehler am Ende der Anfrage: er sitzt in dieser Datei und haette sonst keine
+    // Verbindung -- eine ZWEITE je Anfrage waere auf dem Shared-Hosting spuerbar.
+    // Siehe docs/superpowers/specs/2026-08-25-api-nutzung-design.md §3.2.
+    $GLOBALS['avesmapsLetztePdo'] = $verbindung;
+
+    return $verbindung;
+}
+
+/**
+ * Die zuletzt von avesmapsCreatePdo erzeugte Verbindung, oder null, wenn diese Anfrage noch keine
+ * gebraucht hat.
+ *
+ * Bewusst „die letzte" und nicht „eine Sammlung": im Haus erzeugt eine Anfrage entweder keine oder
+ * eine Verbindung, und immer auf dieselbe Datenbank.
+ */
+function avesmapsLetzteDatenbankverbindung(): ?PDO {
+    $wert = $GLOBALS['avesmapsLetztePdo'] ?? null;
+    return $wert instanceof PDO ? $wert : null;
 }
 
 function avesmapsGetConfiguredImportApiToken(array $config): string {
