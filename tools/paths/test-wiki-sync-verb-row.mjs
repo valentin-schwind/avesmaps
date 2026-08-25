@@ -59,17 +59,27 @@ function makeNode(id) {
 const host = makeNode("wiki-sync-verbs");
 const sections = {};
 const buttons = {};
-// One section per subject, each holding the button the registry names for it.
-[
-	["locations", "settlement-editor-open"],
-	["territories", "wiki-sync-territories"],
-	["regions", "wiki-sync-sync-region"],
-	["paths", "wiki-sync-sync-path"],
-	["powerlines", "wiki-sync-powerlines-sync"],
-	["adventures", "game-literature-editor-open"],
-	["citymaps", "citymaps-editor-open"],
-	["lore", "wiki-sync-lore-open"],
-].forEach(([subject, buttonId]) => {
+
+// 🪤 HIER STAND EINE ABGESCHRIEBENE LISTE von Subjekt zu Knopf-Id -- und sie war falsch:
+// die Wege trugen dort noch "wiki-sync-sync-path", waehrend die Registry ihnen laengst
+// einen Listeneditor gibt ("path-editor-open"). Der Test fand dann gar keinen Knopf und
+// meldete 0 statt 1. Er lief in KEINEM Tor (test-*.mjs), also blieb das monatelang stehen.
+//
+// 🔴 DIE REGISTRY IST DIE QUELLE, ALSO WIRD SIE GEFRAGT. Eine zweite, hier gepflegte Liste
+// ist genau die Divergenz, die dieser Test verhindern soll -- er prueft ja, dass die Zeile
+// den Knopf zeigt, den die Registry NENNT. Sie abzuschreiben hiesse, ihn gegen sich selbst
+// zu pruefen. Dieselbe Lehre wie bei den Facetten-Ids (Gedaechtnis: ein Assert, der eine
+// Schreibweise RAET, meldet einen Bug, den es nicht gibt).
+const registryContext = vm.createContext({ console });
+vm.runInContext(readFileSync(path.join(repoRoot, "js", "review", "review-subjects.js"), "utf8"), registryContext);
+const subjectKeys = Array.from(vm.runInContext("WIKI_SYNC_SUBJECTS.map((s) => s.key)", registryContext));
+assert.ok(subjectKeys.length >= 8, `die Registry muss alle Subjekte nennen, waren aber ${subjectKeys.length}`);
+
+const buttonIdOf = {};
+subjectKeys.forEach((subject) => {
+	const buttonId = vm.runInContext(`wikiSyncSubjectButtonId(${JSON.stringify(subject)})`, registryContext);
+	assert.ok(buttonId, `die Registry muss fuer ${subject} einen Knopf nennen`);
+	buttonIdOf[subject] = buttonId;
 	const section = makeNode(`section-${subject}`);
 	const button = makeNode(buttonId);
 	section.appendChild(button);
@@ -98,10 +108,10 @@ const select = (key) => {
 {
 	select("locations");
 	assert.equal(host.children.length, 1, "exactly one button belongs in the row");
-	assert.equal(host.children[0].id, "settlement-editor-open");
+	assert.equal(host.children[0].id, buttonIdOf.locations);
 	// The SAME element, not a copy: that is what carries the id, the bindings and the in-button
 	// progress fill that setWikiSyncButtonState writes.
-	assert.equal(host.children[0], buttons["settlement-editor-open"]);
+	assert.equal(host.children[0], buttons[buttonIdOf.locations]);
 	assert.equal(sections.locations.children.length, 0, "and it is no longer in its old tile");
 }
 
@@ -109,7 +119,7 @@ const select = (key) => {
 {
 	select("paths");
 	assert.equal(host.children.length, 1, "the row must never accumulate buttons");
-	assert.equal(host.children[0].id, "wiki-sync-sync-path");
+	assert.equal(host.children[0].id, buttonIdOf.paths);
 	assert.equal(sections.locations.children.length, 1, "the settlement button went home");
 	assert.equal(sections.locations.children[0].id, "settlement-editor-open");
 }

@@ -44,12 +44,35 @@ const resolveRouteSegmentFlowState = new Function(
 	`${extractFunction(nodeSource, "resolveRouteSegmentFlowState")}; return resolveRouteSegmentFlowState;`
 )();
 
+// 🪤 DIE VORGABE STAND HIER ALS 1.5 -- und war seit 3dc64753 falsch. Der Wert ist 2.0, mit
+// Quellenbeleg im Code (S. 129: Kahn 20/40, Segler 30/60). Der Test lief in KEINEM Tor
+// (test-*.mjs) und hielt darum monatelang eine Zahl fest, die das Regelwerk widerlegt hat.
+//
+// 🔴 Und er schreibt sie nicht wieder ab, sondern LIEST SIE AUS DEM SERVER. Die Vorgabe
+// steht zweimal -- AVESMAPS_PATH_FLOW_FACTOR_DEFAULT in PHP und ein Literal im
+// Browser-Zweig -- und die zwei duerfen nicht auseinanderlaufen: dieselbe Route bekaeme
+// sonst je nach Rechenweg zwei verschiedene Zeiten. Genau das prueft dieser Block mit.
+const flowSource = readFileSync(path.join(repoRoot, "api", "_internal", "wiki", "path-flow.php"), "utf8");
+const serverDefaultMatch = /const AVESMAPS_PATH_FLOW_FACTOR_DEFAULT = ([0-9.]+);/.exec(flowSource);
+assert.ok(serverDefaultMatch, "AVESMAPS_PATH_FLOW_FACTOR_DEFAULT muss in path-flow.php stehen");
+const FLOW_DEFAULT = Number(serverDefaultMatch[1]);
+assert.ok(FLOW_DEFAULT >= 1 && FLOW_DEFAULT <= 3, `die Vorgabe muss im erlaubten Band liegen, ist aber ${FLOW_DEFAULT}`);
+// ⚠️ NUMERISCH vergleichen, nicht als Text: der Browser schreibt 2.0, PHP liefert 2 --
+// zeichenweise verglichen faende man einen Unterschied, den es nicht gibt.
+const browserDefaultMatch = /Math\.max\([0-9.]+, rawFactor\)\)\s*:\s*([0-9.]+);/.exec(nodeSource);
+assert.ok(browserDefaultMatch, "der Browser-Zweig muss eine Vorgabe nennen");
+assert.equal(
+	Number(browserDefaultMatch[1]),
+	FLOW_DEFAULT,
+	`der Browser-Zweig muss dieselbe Vorgabe tragen wie der Server -- sonst rechnet dieselbe Route je nach Weg verschieden`,
+);
+
 // --- getRiverFlowTimeFactors ---
 assert.equal(getRiverFlowTimeFactors({ flow: { dir: "forward" } }, "Weg"), null, "non-river ignored");
 assert.equal(getRiverFlowTimeFactors({}, "Flussweg"), null, "missing flow ignored");
 assert.equal(getRiverFlowTimeFactors({ flow: { factor: 2 } }, "Flussweg"), null, "missing dir ignored");
 assert.deepEqual(getRiverFlowTimeFactors({ flow: { dir: "forward" } }, "Flussweg"),
-	{ forwardFactor: 1, backwardFactor: 1.5 }, "forward default");
+	{ forwardFactor: 1, backwardFactor: FLOW_DEFAULT }, "forward default");
 assert.deepEqual(getRiverFlowTimeFactors({ flow: { dir: "reverse", factor: 2 } }, "Flussweg"),
 	{ forwardFactor: 2, backwardFactor: 1 }, "reverse custom factor");
 assert.deepEqual(getRiverFlowTimeFactors({ flow: { dir: "forward", factor: 9 } }, "Flussweg"),
@@ -61,7 +84,7 @@ const riverSegment = (flow) => ({ properties: { flow }, geometry: { coordinates:
 const forwardTraversal = { start: coords[0], end: coords[1] };
 const reverseTraversal = { start: coords[1], end: coords[0] };
 assert.equal(getRouteSegmentUpstreamFactor(riverSegment({ dir: "forward" }), forwardTraversal, "Flussweg"), 1, "downstream forward");
-assert.equal(getRouteSegmentUpstreamFactor(riverSegment({ dir: "forward" }), reverseTraversal, "Flussweg"), 1.5, "upstream default");
+assert.equal(getRouteSegmentUpstreamFactor(riverSegment({ dir: "forward" }), reverseTraversal, "Flussweg"), FLOW_DEFAULT, "upstream default");
 assert.equal(getRouteSegmentUpstreamFactor(riverSegment({ dir: "reverse", factor: 2 }), forwardTraversal, "Flussweg"), 2, "upstream reverse-dir");
 assert.equal(getRouteSegmentUpstreamFactor(riverSegment({ dir: "reverse" }), reverseTraversal, "Flussweg"), 1, "downstream reverse-dir");
 assert.equal(getRouteSegmentUpstreamFactor(riverSegment({ dir: "forward", factor: 9 }), reverseTraversal, "Flussweg"), 3, "clamped");
@@ -97,7 +120,7 @@ assert.equal(
 		reverseTraversal,
 		"Flussweg"
 	),
-	1.5,
+	FLOW_DEFAULT,
 	"falls back to derived factor when flow_time_factor absent"
 );
 assert.equal(
@@ -106,7 +129,7 @@ assert.equal(
 		reverseTraversal,
 		"Flussweg"
 	),
-	1.5,
+	FLOW_DEFAULT,
 	"falls back to derived factor when flow_time_factor is 0 (invalid)"
 );
 assert.equal(
@@ -115,7 +138,7 @@ assert.equal(
 		reverseTraversal,
 		"Flussweg"
 	),
-	1.5,
+	FLOW_DEFAULT,
 	"falls back to derived factor when flow_time_factor is non-numeric"
 );
 

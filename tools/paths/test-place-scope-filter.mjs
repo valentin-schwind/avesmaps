@@ -199,13 +199,48 @@ const waypointSource = readFileSync(path.join(repoRoot, "js", "map-features", "m
 // "Schänke Schnapsfass (Imdal)" -- the SEARCHED object leads, the city follows in brackets.
 // You type the object's name, so it has to be the first thing on the line; the value that
 // gets committed is still the city (owner 2026-07-28).
+// 🪤 HIER STAND DIESE ZEILE ALS LITERAL:
+//     label: `${match.entry.name} (${match.entry.settlement})`, value: match.entry.settlement
+// Die ABSICHT stimmt bis heute -- der Bau nicht mehr. Seit den Verborgenen Orten
+// (15.08.2026) laeuft die Beschriftung durch zwei geteilte Bauer:
+//     waypointSuggestionLabel(waypointInSettlementLabel(name, settlement), entry)
+// Der Test fiel damit um, obwohl am Verhalten nichts falsch war. Er lief in KEINEM Tor
+// (test-*.mjs), also fiel es monatelang niemandem auf.
+//
+// ⚠️ Geprueft wird jetzt die EIGENSCHAFT in drei Stuecken, nicht eine Schreibweise:
+// (a) der Vorschlag committet die STADT, (b) er baut seine Beschriftung durch den
+// geteilten Bauer und gibt ihm Name VOR Stadt, (c) und der Bauer setzt die Stadt in
+// Klammern hinter den Namen. Wer eine der drei aendert, aendert das Verhalten wirklich.
 assert.match(
 	waypointSource,
-	/label: `\$\{match\.entry\.name\} \(\$\{match\.entry\.settlement\}\)`, value: match\.entry\.settlement/,
-	"an in-settlement suggestion must lead with the object but commit the CITY",
+	/value: match\.entry\.settlement/,
+	"an in-settlement suggestion must commit the CITY (the object itself is no graph node)",
 );
-// A plain place must stay a bare string -- that is the untouched behaviour for the 4600 real ones.
-assert.match(waypointSource, /: match\.entry\.name\)\);/, "an ordinary place stays a plain string");
+assert.match(
+	waypointSource,
+	/waypointInSettlementLabel\(match\.entry\.name,\s*match\.entry\.settlement\)/,
+	"...and build its label through the shared builder, object FIRST, city second",
+);
+assert.match(
+	waypointSource,
+	/return `\$\{name\} \(\$\{settlement\}\)`;/,
+	"...whose format is \"Object (City)\" -- you type the object, so it leads the line",
+);
+// 🪤 HIER STAND: "a plain place must stay a bare string". Das war einmal richtig und ist
+// seit dem 30.07.2026 falsch -- und zwar aus einem gemessenen Grund: jQuery UI braucht
+// {label, value}; ein nackter String liess das <li> leer, und leerer Text gilt der
+// Menue-Regel als TRENNLINIE. Der Owner sah „ganz viele striche" statt Greifenau,
+// Greifenberg, Greifenfurt. Der Test hielt also genau den Zustand fest, den ein
+// Fehlerbericht beseitigt hat.
+//
+// ⚠️ Die eigentliche Aussage ist eine andere und gilt weiter: ein GEWOEHNLICHER Ort
+// committet seinen EIGENEN Namen -- nur ein Innerorts-Objekt committet die Stadt, weil es
+// selbst kein Knoten im Routennetz ist. Das steht jetzt da.
+assert.match(
+	waypointSource,
+	/waypointSuggestionLabel\(match\.entry\.name, match\.entry\), value: match\.entry\.name/,
+	"an ordinary place commits its OWN name (only an in-settlement object commits the city)",
+);
 // 💣 If an in-settlement object shares its name with a real map place, the real one wins: it has
 // an actual position, the other only points at a city.
 assert.match(

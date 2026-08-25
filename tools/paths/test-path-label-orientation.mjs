@@ -16,10 +16,25 @@ import assert from "node:assert/strict";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(here, "..", "..");
-const overlaySource = readFileSync(
-	path.join(repoRoot, "js", "map-features", "map-features-path-label-canvas-overlay.js"),
-	"utf8"
-);
+// 🪤 SEIT DEM 22.08.2026 STEHT DIE KURVENMATHEMATIK NICHT MEHR HIER. labelSpanRunsLeftward,
+// buildLabelTurningProfile und findFreePlacement sind aus der IIFE des Overlays nach
+// curved-label-layout.js (und curve-label-fit.js) gezogen -- der Umzug war noetig, weil sie in
+// der IIFE gar nicht ladbar und damit von keinem Test gedeckt waren.
+//
+// 💣 DIESER TEST FIEL DABEI STILL UM, und zwar seit Monaten: er laeuft in KEINEM Tor (weder
+// im Deploy-Muster noch in der AGENTS.md-Zeile -- er heisst test-*.mjs). Ein Test, den kein
+// Lauf faehrt, verrottet nicht langsam, sondern an jeder Stelle gleichzeitig.
+//
+// ⚠️ Gelesen wird jetzt der ZUSAMMENHANG aller drei Dateien, nicht eine davon: welche Datei
+// eine Funktion beherbergt, ist eine Frage der Ordnung und darf einen Test nicht umwerfen.
+// Dass sie ueberhaupt EXISTIERT, prueft extractFunction weiterhin -- und wirft, wenn nicht.
+const overlaySource = [
+	"map-features-path-label-canvas-overlay.js",
+	"curved-label-layout.js",
+	"curve-label-fit.js",
+]
+	.map((datei) => readFileSync(path.join(repoRoot, "js", "map-features", datei), "utf8"))
+	.join("\n");
 
 function extractFunction(source, name) {
 	const startMarker = `function ${name}(`;

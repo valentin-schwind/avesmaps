@@ -116,7 +116,16 @@ jobs:
           done
 
           echo "--- JS ---"
-          for test in $(find js tools -path '*__tests__*' -name '*.test.js' | sort); do
+          # Dieselbe Zweigleisigkeit wie oben bei PHP -- und aus demselben Grund uebersehen:
+          # neben den __tests__/*.test.js liegen 21 test-*.mjs unter tools/{paths,routing}, die
+          # in KEINEM Tor liefen. Am 24.08.2026 waren sieben davon rot, und in KEINEM Fall war
+          # der Code kaputt: sie hielten Literale fest, die das Projekt bewusst geaendert hatte
+          # (Flussfaktor 1.5 -> 2.0, Stunden mit einer statt zwei Nachkommastellen, aus einer
+          # IIFE herausgeloeste Funktionen, ein umbenannter Knopf). Ein Test ausserhalb des Tors
+          # misst nicht die Software, er verrottet -- und meldet dann Fehler, die es nicht gibt.
+          # ⚠️ Die Klammern sind hier genauso tragend wie oben: ohne sie frisst der zweite Zweig
+          # das -name des ersten, und das Tor schrumpft still auf die 21 zusammen.
+          for test in $(find js tools \( -path '*__tests__*' -name '*.test.js' \) -o \( -name 'test-*.mjs' -not -path '*__tests__*' \) | sort); do
             if output="$(node "$test" 2>&1)"; then
               js_ok=$((js_ok + 1))
             else

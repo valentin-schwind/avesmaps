@@ -132,7 +132,19 @@ const html = sandbox.buildRouteLegPopupHtml(leg({ startName: "Elenvina", endName
 assert.ok(html.includes("<dt>von</dt><dd>Elenvina</dd>"), "start is shown");
 assert.ok(html.includes("<dt>bis</dt><dd>Gareth</dd>"), "end is shown");
 assert.ok(html.includes("42,81 Meilen"), "distance is written the German way, like the planner row");
-assert.ok(html.includes("3,46 Stunden (0,14 Tage)"), "travel time carries hours and days, German decimals");
+// 🪤 HIER STANDEN ZWEI NACHKOMMASTELLEN FUER DIE STUNDEN ("3,46"). Der Code schreibt seit
+// jeher EINE -- formatDecimalNumber(travelTime, 1) -- und zwar an BEIDEN Stellen
+// (route-plan.js:451 und :1084), also nicht versehentlich. Die Tage bekommen zwei, die
+// Meilen auch; die Stunde ist die Groesse, bei der eine zweite Stelle nichts mehr sagt.
+// Der Test lief in KEINEM Tor (test-*.mjs) und hielt deshalb monatelang einen Stand fest,
+// den niemand mehr wollte.
+assert.ok(html.includes("3,5 Stunden (0,14 Tage)"), "travel time carries hours and days, German decimals");
+// ⚠️ Und die Regel dahinter ausdruecklich, damit sie nicht "zurueckrepariert" wird:
+// Stunden EINE Stelle, Tage ZWEI.
+assert.ok(
+	!html.includes("3,46 Stunden"),
+	"hours are written with ONE decimal -- a second one adds no information at this scale",
+);
 
 // River flow is noted in the distance, same wording as the planner row.
 const upstream = sandbox.buildRouteLegPopupHtml(leg({ type: "Flussweg", flowState: "upstream" }));
