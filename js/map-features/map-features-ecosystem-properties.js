@@ -700,38 +700,17 @@
 	 * weil ihre Attrappe Ersatzknoten ohne `cloneNode` liefert. Ein Nebenfeature darf den Dialog
 	 * nicht mitreissen.
 	 */
-	function mountEcosystemAreaSources(regionPublicId) {
-		if (typeof mountFeatureSourceEditor !== "function") {
-			return;
-		}
-		const host = document.getElementById("ecosystem-properties-feature-sources");
-		if (!host || typeof host.cloneNode !== "function" || typeof host.replaceWith !== "function") {
-			return;
-		}
-		if (typeof host.__fsDetachAutocomplete === "function") {
-			// ⚠️ Die Vorschlagsliste hängt am DOKUMENT, nicht am Knoten -- sie überlebte den Austausch
-			// sonst als Waise.
-			host.__fsDetachAutocomplete();
-		}
-		// 💣 Der Container wird ERSETZT, bevor neu gemountet wird: das Bauteil hängt Zuhörer an den
-		// Knoten, und ohne den Austausch stapeln sie sich bei jedem Öffnen -- ein Klick löste die
-		// Aktion dann so oft aus, wie der Dialog schon offen war.
-		const frisch = host.cloneNode(false);
-		host.replaceWith(frisch);
-		const schluessel = String(regionPublicId || "");
-		if (schluessel === "") {
-			// ⚠️ Ohne Region kein Editor: eine Fläche ohne `region_public_id` bekäme sonst einen Kasten,
-			// dessen Schreibversuch am leeren Schlüssel scheitert.
-			return;
-		}
-		// ⚠️ Der Schlüssel als GETTER, nicht eingefroren -- dieselbe Vorsicht wie in jedem anderen
-		// Mount des Hauses: ein Dialogwechsel schriebe sonst auf die zuletzt geöffnete Region.
-		void mountFeatureSourceEditor(
-			frisch,
-			"ecosystem",
-			() => schluessel,
-			{ escape: typeof escapeHtml === "function" ? escapeHtml : ((v) => String(v)) }
-		);
+	function mountEcosystemAreaSources() {
+		// 🔴 KEIN Quellen-Mount mehr (26.08.2026). Die Quellen einer Landschaft liegen an ihrer
+		// BESCHRIFTUNG (`entity_type` = „region", `map_features.public_id`) -- dort sind alle 8142
+		// Zeilen, und nur die liest die Karte (renderFeatureSourceLine, map-features-labels.js).
+		// 💣 Der zweite Kasten fuer die Flaeche war live LEER: null von 30 gleichmaessig verteilten
+		// Flaechen trugen eine Quelle, und in der Kartenpayload kommt `ecosystem` unter 6336 Objekten
+		// mit Quellen kein einziges Mal vor. Ein zweiter Kasten, den nie jemand gefuellt hat -- und
+		// dessen Inhalt kein Besucher gesehen haette.
+		// ⚠️ Die Funktion BLEIBT als leere Huelle stehen, statt ihre Aufrufer zu jagen: sie wird an
+		// zwei Stellen gerufen, und ein fehlender Bezeichner waere ein ReferenceError mitten im
+		// Oeffnen. Der `entity_type` bleibt serverseitig freigegeben (der Deploy loescht nie).
 	}
 
 	async function openEcosystemPropertiesDialog(publicId) {

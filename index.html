@@ -2103,7 +2103,7 @@
 						     💣 Nicht mit „Andere Quelle" darüber verwechseln: das ist das ALTE Einzelfeld und bleibt
 						     (Owner 2026-07-28). Es zeigt sich nur ohne zugewiesene Wiki-Landschaft; die Quellen hier
 						     sind das geteilte Mehrquellen-System und stehen immer. -->
-						<div class="label-edit-section"><div class="label-edit-section-title">Quellen der Beschriftung</div>
+						<div class="label-edit-section"><div class="label-edit-section-title">Quellen</div>
 							<p class="location-report-form__status">Quellen wirken <b>sofort</b> — sie brauchen kein „Speichern“.</p>
 							<div id="label-edit-feature-sources"></div>
 						</div>
@@ -2117,24 +2117,17 @@
 					     doppelt geschachtelt da -- Rahmen im Rahmen, Polsterung doppelt (der Hinweis
 					     steht wörtlich im Kopf von js/ui/wiki-assign.js). -->
 					<div id="ecosystem-properties-wiki-host"></div>
-					<!-- 🔴 QUELLEN DER REGION, nicht der einzelnen Fläche. Eine Region liegt auf der Karte in
-					     Eine Region liegt auf der Karte in EINER oder mehreren Flächen; ihre Quellenangabe gilt für alle.
-					     🚩 Hier stand „der Finsterkamm in 57" -- live gemessen am 25.08.2026 hat er EINE Fläche, und
-					     1025 von 1026 Regionen haben genau eine. Die Zahl war einmal wahr und ist es nicht mehr; die
-					     REGEL bleibt richtig: eine Region KANN mehrere tragen, und dann wäre dieselbe Angabe mehrfach
-					     zu pflegen -- beim Auseinanderlaufen wüsste niemand, welche gilt.
-					     geführt wäre dieselbe Angabe 57-mal einzutragen und 57-mal zu pflegen -- und beim
-					     Auseinanderlaufen wüsste niemand, welche gilt.
-					     ⚠️ Es ist DIESELBE Quellenliste, die der Landschaften-Editor an der Region zeigt
-					     (entity_type „ecosystem", ecosystem_region.public_id). Wer sie hier ändert, ändert sie
-					     dort -- das ist der Sinn, nicht ein Nebeneffekt.
-					     💣 Ein BLANKER Behälter, wie beim Wiki-Bauteil darüber: die Hülle erzeugt das Bauteil
-					     selbst, eine mitgegebene stünde doppelt geschachtelt da. -->
-					<div class="ecosystem-properties-dialog__group">
-						<div class="ecosystem-properties-dialog__grouptitle">Quellen der Fläche</div>
-						<p class="ecosystem-properties-dialog__status">Gelten für die ganze Region und wirken <b>sofort</b>.</p>
-						<div id="ecosystem-properties-feature-sources"></div>
-					</div>
+						<!-- 🔴 DIE QUELLEN EINER LANDSCHAFT LIEGEN AN IHRER BESCHRIFTUNG, und nur dort.
+						     Hier stand bis zum 26.08.2026 ein ZWEITER Kasten fuer die Flaeche (`entity_type` =
+						     „ecosystem", `ecosystem_region.public_id`), am 28.07.2026 dazugekommen.
+						     💣 Live gemessen am 26.08.2026: er war LEER. Null von 30 gleichmaessig verteilten
+						     Flaechen trugen eine Quelle, und in der Kartenpayload kommt `ecosystem` unter 6336
+						     Objekten mit Quellen kein einziges Mal vor -- waehrend `region` (die Beschriftung) 637
+						     Objekte und 8142 Zeilen traegt. Ein zweiter Kasten, den nie jemand gefuellt hat.
+						     ⚠️ Und nur die Beschriftungs-Liste LIEST die Karte (renderFeatureSourceLine,
+						     map-features-labels.js). Was im zweiten Kasten gestanden haette, saehe kein Besucher.
+						     🔴 Der `entity_type` bleibt serverseitig freigegeben -- der Deploy loescht nie, und ein
+						     alter Client darf nicht auf einen 400 laufen. Er hat nur keinen Erzeuger mehr. -->
 				</div>
 				<p id="landschaft-dialog-status" class="location-report-form__status" role="status" aria-live="polite"></p>
 				<div class="location-report-form__actions">

@@ -70,7 +70,14 @@ zaehl();
 const MONTAGEN = [
 	["html/wiki-sync-settlement-editor.html", "settlement", 'mountFeatureSourceEditor($("dtFeatureSources"), "settlement", () => selectedPublicId'],
 	["html/wiki-sync-powerline-editor.html", "powerline", 'mountFeatureSourceEditor($("plSources"), "powerline", () => line.anchor'],
-	["html/landschaften-editor.html", "ecosystem", 'mountFeatureSourceEditor(sourceHost, "ecosystem", () => region.public_id'],
+	// 🔴 UMGESTELLT AM 26.08.2026: der Landschaften-Editor montiert die Liste der BESCHRIFTUNG
+	// (`region` + `map_features.public_id`), nicht mehr die der Flaeche (`ecosystem` +
+	// `ecosystem_region.public_id`). Die zweite war live LEER -- null von 30 Flaechen, und in der
+	// Kartenpayload kein Vorkommen unter 6336 Objekten mit Quellen --, waehrend die erste 637
+	// Objekte und 8142 Zeilen traegt. Und nur die erste liest die Karte.
+	// ⚠️ Der Getter reicht bis in die Kennung, wie die Zeilen darueber es verlangen: `labelId`
+	// stammt aus `region.label_public_id` und wird beim Regionswechsel neu gesetzt.
+	["html/landschaften-editor.html", "region", 'mountFeatureSourceEditor(sourceHost, "region", () => labelId'],
 	["html/citymap-editor.html", "citymap", 'mountFeatureSourceEditor(ceSourceHost, "citymap", () => state.selectedId'],
 ];
 
@@ -133,11 +140,18 @@ montagenSammeln("html");
 montagenSammeln("js");
 // 🪤 EIN BODEN, DAMIT EIN KAPUTTES MUSTER NICHT ALS „ALLES GRUEN" DURCHGEHT. Ohne ihn waere der
 // Block hier bei einem Regex-Fehler lautlos leer und beweise gar nichts -- die Probe mit
-// vorbelegtem Treffer, nur andersherum. ZEHN ist der Stand vom 24.08.2026: dazugekommen sind
+// vorbelegtem Treffer, nur andersherum.
+// 🔴 NEUN ist der Stand vom 26.08.2026. Zehn war er am 24.08.; GEFALLEN ist der Mount des
+// Flaechendialogs (`ecosystem`, die public_id der REGION). Seine Liste war live LEER -- null von
+// 30 gleichmaessig verteilten Flaechen trugen eine Quelle, und in der Kartenpayload kommt der
+// Typ unter 6336 Objekten mit Quellen kein einziges Mal vor. Die Quellen einer Landschaft liegen
+// an ihrer BESCHRIFTUNG; nur deren Liste liest die Karte.
+// ⚠️ Wer den Boden senkt, muss sagen WELCHE Stelle wegfiel -- sonst deckt er beim naechsten Mal
+// ein kaputtes Suchmuster zu. Zehn war der Stand vom 24.08.2026: dazugekommen waren
 // der Beschriftungsdialog der Karte (`region`, die public_id des Labels -- die Karte LAS seine
 // Quellen laengst, nur setzen konnte man keine) und der Flaechendialog (`ecosystem`, die
 // public_id der REGION: eine Region liegt in vielen Flaechen, ihre Quelle gilt fuer alle).
-assert.ok(gefundeneMontagen.length >= 10,
+assert.ok(gefundeneMontagen.length >= 9,
 	"Es wurden nur " + gefundeneMontagen.length + " Montagestellen gefunden -- das Suchmuster passt "
 	+ "nicht mehr auf die Aufrufe, und dieser Block prueft dann nichts.");
 zaehl();

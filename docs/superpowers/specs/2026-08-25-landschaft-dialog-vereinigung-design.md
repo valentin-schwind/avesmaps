@@ -212,21 +212,36 @@ existiert und bleibt (`syncLabelCurveControls`).
 
 ## 8. Die Quellen — die eine offene Datenfrage
 
-🔴 **NICHT in dieser Stufe.** Die zwei Listen sind zwei `entity_type` mit zwei Schlüsseln; sie
-zusammenzulegen ist eine **Datenmigration** samt Entscheidung, welcher der beiden gewinnt — und
-`feature_sources` trägt Herkunft (`wiki_publication`/`manual`/`community`) und Grabsteine
-(`status='suppressed'`), die dabei nicht verlorengehen dürfen.
+🔴 **ERLEDIGT AM 26.08.2026 — und anders, als dieser Abschnitt es vorhatte.**
 
-**In Stufe 1** stehen sie im Reiter „Wiki & Quellen" **untereinander, beide beschriftet**:
-„Quellen der Fläche" und „Quellen der Beschriftung". Das ist ehrlicher als eine Liste, die nur die
-Hälfte zeigt.
+Hier stand, die Zusammenlegung sei eine Datenmigration über zwei `entity_type` und gehöre in
+Stufe 2. **Vor dem Bauen gemessen — und die Annahme fiel:**
 
-⚠️ **Kein zweites Quellensystem** (AGENTS.md §5). Die Zusammenlegung heißt später: ein
-`entity_type` gewinnt, die Zeilen des anderen wandern per einmaligem Lauf hinüber, der Verlierer
-bleibt lesbar stehen (der Deploy löscht nie).
+| | |
+|---|---:|
+| Flächen mit `ecosystem`-Quellen (Stichprobe, 30 gleichmäßig verteilt) | **0** |
+| `ecosystem` in der Kartenpayload (6336 Objekte mit Quellen, 5 Typen) | **kommt nicht vor** |
+| Beschriftungen mit `region`-Quellen | **637 Objekte / 8142 Zeilen** |
+
+Der zweite Kasten war **leer**. Er kam am 28.07.2026 dazu und hat nie jemand gefüllt — und sein
+Inhalt hätte auch kein Besucher gesehen: die Karte liest ausschließlich die Liste der
+**Beschriftung** (`renderFeatureSourceLine`, `map-features-labels.js`).
+
+🔴 **Die Regel lautet deshalb: die Quellen einer Landschaft liegen an ihrer BESCHRIFTUNG.** Es gab
+nichts zu migrieren — nur einen zweiten Kasten wegzunehmen. Der `entity_type` `ecosystem` bleibt
+serverseitig freigegeben (der Deploy löscht nie, und ein alter Client darf nicht auf einen 400
+laufen); er hat nur keinen Erzeuger mehr.
+
+⚠️ **Der Preis, offen benannt:** eine Fläche **ohne** Beschriftung kann keine Quellen mehr tragen
+(334 von 1026). Sie konnte es nominell vorher — nur hat es niemand getan, und sichtbar geworden
+wäre es nirgends. Der Landschaften-Editor sagt es dort jetzt hin und verweist auf „Beschriftung
+anlegen".
+
+🪤 **Die Lehre:** die teuerste Aufgabe dieses Vorhabens war in Wahrheit die kleinste — und das
+stellte sich erst heraus, als jemand die Zeilen zählte statt die Struktur zu lesen. Zwei
+`entity_type` sehen im Code nach einer Migration aus; einer davon war eine leere Hülle.
 
 ---
-
 ## 9. Was aus den zwei alten Fenstern wird
 
 🔴 **Die IDs bleiben, die Fenster verschwinden aus der Bedienung.** `#label-edit-overlay` und
@@ -279,10 +294,10 @@ bleibt lesbar stehen (der Deploy löscht nie).
 | Stufe | Inhalt | Ergebnis |
 |---|---|---|
 | **1** | Das Fenster: Kopf, drei Reiter, Einstiege, leere Zustände, Mehrfach-Beschriftungen, Kurven-Bindung. Beide Quellenlisten nebeneinander. | Ein Fenster statt zwei |
-| **2** | Die Quellen zusammenführen (`entity_type`-Entscheidung + einmaliger Lauf) | Eine Quellenliste |
-| **3** | Der Regionen-Block im Landschaften-Editor zieht nach | Eine Bauform überall |
+| **2** ✅ | Die Quellen zusammenführen — **gemessen: nichts zu migrieren**, der zweite Kasten war leer | Eine Quellenliste |
+| **3** ✅ | Der Regionen-Block im Landschaften-Editor zieht nach | Eine Quelle überall |
 
-**Diese Spezifikation beschreibt Stufe 1.**
+**Alle drei Stufen sind am 26.08.2026 live.**
 
 ---
 
