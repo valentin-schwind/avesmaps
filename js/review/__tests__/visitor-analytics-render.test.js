@@ -63,6 +63,8 @@ eval([
 	extractConst("VA_HEAT_HOUR_TICKS"),
 	extract("vaEscape"),
 	extract("vaBars"),
+	extract("vaDailyHasEditors"),
+	extract("vaLineLegend"),
 	extract("vaLine"),
 	extract("vaLocalHourShift"),
 	extract("vaHeatmapGrid"),
@@ -245,6 +247,98 @@ function paddingVon(wahl) {
 		paddingVon(wahl) === erwartet,
 	);
 });
+// ---------------------------------------------------------------------------------------------
+// 5. Die dritte Linie „Editoren" und ihr Schalter „Editorenskala rechts".
+//    Die Daten kommen aus actor_type='editor'/metric='unique' und werden serverseitig NUR dem
+//    Besucher-Diagramm zugemischt (avesmapsVisitorMergeEditorHeads).
+// ---------------------------------------------------------------------------------------------
+const dailyMitEditoren = [
+	{ day: "2026-08-11", views: 240, uniques: 110, routes: 12, editors: 1 },
+	{ day: "2026-08-12", views: 80, uniques: 40, routes: 3, editors: 4 },
+	{ day: "2026-08-13", views: 5, uniques: 5, routes: 0, editors: 0 },
+];
+const yWerte = (svg, klasse) => {
+	const pfad = svg.match(new RegExp('<path d="([^"]+)" class="[^"]*' + klasse + '[^"]*"'));
+	return pfad ? pfad[1].split(/[ML]/).filter(Boolean).map((punkt) => parseFloat(punkt.trim().split(" ")[1])) : null;
+};
+
+const mitSkala = vaLine(dailyMitEditoren, true);
+const geteilt = vaLine(dailyMitEditoren, false);
+const ohneEditoren = vaLine(daily);
+
+check("mit Editorenspalte kommt eine dritte Kurve dazu", mitSkala.indexOf("va-line--editors") !== -1);
+check("💣 ohne Editorenspalte KEINE dritte Kurve -- im Editoren-Reiter waere sie deckungsgleich mit „Eindeutige\"",
+	ohneEditoren.indexOf("va-line--editors") === -1 && ohneEditoren.indexOf("va-axis-right") === -1);
+check("angehakt bekommt die Kurve eine eigene Achse rechts",
+	countOf(mitSkala, "va-axis-right") === 2);
+check("abgehakt gibt es keine zweite Achse", geteilt.indexOf("va-axis-right") === -1);
+
+// Der ganze Zweck des Schalters: auf der geteilten Skala liegt die Kurve platt auf der Nulllinie
+// (4 gegen 240), auf der eigenen nutzt sie die volle Hoehe.
+const edEigene = yWerte(mitSkala, "va-line--editors");
+const edGeteilt = yWerte(geteilt, "va-line--editors");
+check("angehakt nutzt die Editorenkurve die volle Diagrammhoehe",
+	!!edEigene && Math.max.apply(null, edEigene) - Math.min.apply(null, edEigene) > 60);
+check("abgehakt klebt sie auf der Nulllinie -- genau der Grund fuer den Schalter",
+	!!edGeteilt && Math.max.apply(null, edGeteilt) - Math.min.apply(null, edGeteilt) < 5);
+check("die eigene Skala nennt den hoechsten Tageswert, nicht den der Aufrufe",
+	mitSkala.indexOf('class="va-axis-right">4</text>') !== -1);
+check("⚠️ die linke Skala bleibt von den Editoren unberuehrt", mitSkala.indexOf(">240<") !== -1);
+
+// 💣 Auf das FELD geprueft, nicht auf den Wert: `Number(0) || 0` ist 0 und von „keine Spalte"
+// nicht zu unterscheiden. Ein Tag ohne Editor muss trotzdem einen Punkt bekommen.
+check("💣 ein Tag mit NULL Editoren zaehlt als Wert, nicht als fehlende Spalte",
+	vaDailyHasEditors([{ day: "2026-08-13", views: 5, uniques: 5, editors: 0 }]) === true);
+check("erst gar keine Spalte heisst „keine Editorenkurve\"",
+	vaDailyHasEditors([{ day: "2026-08-13", views: 5, uniques: 5 }]) === false
+	&& vaDailyHasEditors([]) === false);
+check("je Tag ein Punkt auf der Editorenkurve", (edEigene || []).length === dailyMitEditoren.length);
+
+check("der Tooltip nennt die Editoren mit", mitSkala.indexOf("Editoren: 4") !== -1);
+check("ohne Editorenspalte steht auch nichts davon im Tooltip", ohneEditoren.indexOf("Editoren:") === -1);
+check("💣 die Mausfelder stehen weiterhin GANZ hinten, auch mit der dritten Kurve",
+	mitSkala.lastIndexOf("<rect") > Math.max(mitSkala.lastIndexOf("<path"), mitSkala.lastIndexOf("<circle")));
+
+check("die Legende nennt die Editoren nur, wenn es sie gibt",
+	vaLineLegend(true, true).indexOf("Editoren") !== -1 && vaLineLegend(false, true).indexOf("Editoren") === -1);
+check("und den Hinweis auf die rechte Skala nur, wenn sie an ist",
+	vaLineLegend(true, true).indexOf("Skala rechts") !== -1 && vaLineLegend(true, false).indexOf("Skala rechts") === -1);
+
+// 💣 Der Schalter sitzt in der KOPFZEILE, der Umschalter zeichnet nur den KOERPER neu. Stuende das
+//    Haekchen im Koerper, wuerfe der erste Klick seinen eigenen Zuhoerer weg -- er wirkte genau
+//    einmal, und das sieht wie ein Aussetzer aus, nicht wie ein Fehler.
+const koerperBau = src.match(/<div id="va-line-body">[\s\S]*?<\/div><\/div>`/);
+check("es gibt einen eigenen Kartenkoerper zum Neuzeichnen", !!koerperBau);
+check("💣 das Haekchen steht NICHT im neu gezeichneten Koerper",
+	!!koerperBau && koerperBau[0].indexOf("va-editor-scale") === -1);
+check("der Umschalter zeichnet den Koerper, nicht die ganze Karte",
+	/vaRenderLineCardBody[\s\S]*?getElementById\("va-line-body"\)/.test(src));
+check("⚠️ der Schalter holt die Statistik nicht neu vom Server",
+	!/vaRenderLineCardBody[\s\S]{0,400}(fetch|loadVisitorDashboard)/.test(src));
+
+// 💣 Editorenkoepfe werden nie aufsummiert -- derselbe Editor kommt an vielen Tagen vor.
+check("💣 die Kachel nimmt den hoechsten Tageswert, nicht die Summe",
+	/editorPeak[\s\S]{0,120}Math\.max/.test(src) && src.indexOf('sum(m.daily, "editors")') === -1);
+check("die Kachel sagt mit „bis\", dass es ein Tageshoechstwert ist", src.indexOf('"bis " + editorPeak') !== -1);
+check("vier Kacheln nur, wenn die Editorenzahl wirklich da ist",
+	src.indexOf('hasEditors ? " va-kpis--four" : ""') !== -1);
+
+// --- CSS ---------------------------------------------------------------------------------------
+const switchRule = css.match(/\.va-switch input\s*\{[^}]*\}/);
+check("es gibt eine Regel fuer das Kaestchen des Schalters", !!switchRule);
+check("💣 accent-color gesetzt -- ohne sie faerbt Windows das Kaestchen BLAU (AGENTS.md §12)",
+	!!switchRule && /accent-color:\s*var\(--color-check-accent\)/.test(switchRule[0]));
+
+const editorLineRule = css.match(/\.va-line--editors\s*\{[^}]*\}/);
+check("es gibt eine Regel fuer die Editorenkurve", !!editorLineRule);
+check("💣 die Kurve traegt eine STRICHART als zweite Kodierung, nicht nur eine Farbe",
+	!!editorLineRule && /stroke-dasharray/.test(editorLineRule[0]));
+check("💣 ihre Farbe steht an einem Token, nicht als Hexwert im Bild",
+	!!editorLineRule && /var\(--color-chart-1\)/.test(editorLineRule[0])
+	&& src.indexOf("va-line--editors\"") !== -1);
+check("die vier Kacheln bekommen eine eigene Regel, statt die Zahl zu ueberlaufen",
+	/\.va-kpis--four\s*\{[^}]*repeat\(4/.test(css));
+check("die Kopfzeile traegt Titel UND Schalter", /\.va-cardhead\s*\{[^}]*display:\s*flex/.test(css));
 
 console.log(failed === 0 ? "\nOK -- alle Pruefungen bestanden" : "\n" + failed + " Pruefung(en) fehlgeschlagen");
 process.exit(failed === 0 ? 0 : 1);

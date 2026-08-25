@@ -42,6 +42,23 @@ function ensureStatusSubtabLoaded() {
 
 let visitorDashboardDays = 30;
 
+// Der Schalter "Editorenskala rechts" aus der Kopfzeile der Karte "Aktivität über Zeit".
+// ⚠️ EIGENER Schlüssel und genau EIN Schreiber -- die Reiter merkt sich die Kaskadentabelle in
+// js/ui/ui-controls.js, und deren Schlüssel hatte hier schon einmal einen zweiten Schreiber.
+const VA_EDITOR_SCALE_KEY = "avesmaps.review.status.editorScaleRight";
+// Vorgabe angehakt: 2 Editoren gegen 240 Aufrufe liegen auf der geteilten Skala platt auf der
+// Nulllinie. Ein unlesbarer Speicher ergibt dieselbe Vorgabe, nicht das Gegenteil.
+let visitorEditorScaleRight = (function () {
+	try {
+		return window.localStorage.getItem(VA_EDITOR_SCALE_KEY) !== "0";
+	} catch (error) {
+		return true;
+	}
+})();
+// Die Tageswerte der zuletzt geladenen Karte. Der Schalter zeichnet damit neu, statt die Statistik
+// ein zweites Mal vom Server zu holen -- ein Klick auf ein Häkchen darf keinen Datenbanklauf kosten.
+let visitorLineDaily = [];
+
 async function loadVisitorDashboard() {
 	const mount = document.getElementById("visitor-dashboard");
 	if (!mount || typeof IS_EDIT_MODE === "undefined" || !IS_EDIT_MODE) {
@@ -92,22 +109,80 @@ function vaBars(rows, col) {
 	).join("");
 }
 
-function vaLine(daily) {
+// 💣 `editorsRight` faellt auf die GETEILTE Skala zurueck, wenn es fehlt. Der Schalter ist das
+// Ausnahmeverhalten, nicht die Regel -- ein Aufrufer, der ihn vergisst, bekommt damit ein Bild,
+// das hoechstens langweilig ist, nie eines mit einer zweiten Achse, die niemand beschriftet hat.
+function vaDailyHasEditors(daily) {
+	return (daily || []).some((d) => d && d.editors !== undefined && d.editors !== null);
+}
+
+function vaLineLegend(hasEditors, rightScale) {
+	return `<div class="va-chartlegend"><span><i style="background:#2a78d6"></i>Aufrufe</span><span><i style="background:#1baf7a"></i>Eindeutige</span>`
+		+ (hasEditors ? `<span><i class="va-legend--dash"></i>Editoren${rightScale ? ` <span class="va-legend__scale">(Skala rechts)</span>` : ""}</span>` : "")
+		+ `</div>`;
+}
+
+// 💣 Nur der KÖRPER der Karte wird neu gezeichnet, nie die Kopfzeile. Das Häkchen sitzt in der
+// Kopfzeile, und wer es beim Umschalten mit ersetzt, wirft den eigenen Zuhörer weg -- der Schalter
+// wirkte dann genau einmal.
+function vaRenderLineCardBody() {
+	const mount = document.getElementById("va-line-body");
+	if (!mount) {
+		return;
+	}
+	const hasEditors = vaDailyHasEditors(visitorLineDaily);
+	mount.innerHTML = vaLine(visitorLineDaily, visitorEditorScaleRight) + vaLineLegend(hasEditors, visitorEditorScaleRight);
+}
+
+function vaWireEditorScaleSwitch() {
+	const box = document.getElementById("va-editor-scale");
+	if (!box) {
+		return;
+	}
+	box.addEventListener("change", () => {
+		visitorEditorScaleRight = box.checked;
+		try {
+			window.localStorage.setItem(VA_EDITOR_SCALE_KEY, visitorEditorScaleRight ? "1" : "0");
+		} catch (error) {
+			/* die Wahl gilt dann nur für diesen Besuch -- kein Grund, den Schalter zu verweigern */
+		}
+		vaRenderLineCardBody();
+	});
+}
+
+function vaLine(daily, editorsRight) {
 	const data = daily || [];
 	const views = data.map((d) => Number(d.views) || 0);
 	const uniq = data.map((d) => Number(d.uniques) || 0);
+	// 💣 Auf das FELD geprueft, nicht auf seinen Wert: `Number(0) || 0` ist 0 und von "gar keine
+	// Editorenspalte" nicht zu unterscheiden. Der Editoren-Reiter bekommt die Spalte vom Server
+	// bewusst nicht (avesmapsVisitorMergeEditorHeads) -- dort darf keine dritte Linie erscheinen,
+	// und ein Tag mit null Editoren im Besucher-Reiter muss trotzdem eine zeichnen.
+	const hasEditors = data.some((d) => d && d.editors !== undefined && d.editors !== null);
+	const ed = data.map((d) => Number(d.editors) || 0);
+	const rightScale = hasEditors && editorsRight === true;
 	const n = Math.max(data.length, 1);
-	const max = Math.max(1, Math.max.apply(null, views.concat(uniq).concat([1])));
-	const w = 360, h = 116, padL = 30, padR = 8, padT = 10, padB = 26;
+	const max = Math.max(1, Math.max.apply(null, views.concat(uniq).concat(rightScale || !hasEditors ? [] : ed).concat([1])));
+	// Die eigene Skala kostet Platz rechts, sonst stuende ihre Zahl ausserhalb des viewBox.
+	const maxEd = Math.max(1, Math.max.apply(null, ed.concat([1])));
+	const w = 360, h = 116, padL = 30, padR = rightScale ? 20 : 8, padT = 10, padB = 26;
 	const plotW = w - padL - padR, plotH = h - padT - padB;
 	const xAt = (i) => padL + (n <= 1 ? plotW / 2 : i * plotW / (n - 1));
 	const yAt = (v) => padT + plotH - (v / max) * plotH;
-	const line = (arr) => arr.map((v, i) => (i ? "L" : "M") + xAt(i).toFixed(1) + " " + yAt(v).toFixed(1)).join(" ");
-	const dots = (arr, color) => arr.map((v, i) => `<circle cx="${xAt(i).toFixed(1)}" cy="${yAt(v).toFixed(1)}" r="2.6" fill="${color}"/>`).join("");
+	const yEd = (v) => padT + plotH - (v / maxEd) * plotH;
+	const yEditors = rightScale ? yEd : yAt;
+	const line = (arr, f) => arr.map((v, i) => (i ? "L" : "M") + xAt(i).toFixed(1) + " " + (f || yAt)(v).toFixed(1)).join(" ");
+	const dots = (arr, color, f) => arr.map((v, i) => `<circle cx="${xAt(i).toFixed(1)}" cy="${(f || yAt)(v).toFixed(1)}" r="2.6" fill="${color}"/>`).join("");
+	const dotsClass = (arr, cls, f) => arr.map((v, i) => `<circle cx="${xAt(i).toFixed(1)}" cy="${(f || yAt)(v).toFixed(1)}" r="2.6" class="${cls}"/>`).join("");
 	const fmtDate = (s) => { const p = String(s).split("-"); return p.length === 3 ? p[2] + "." + p[1] + "." : String(s); };
 	const fmtFullDate = (s) => { const p = String(s).split("-"); return p.length === 3 ? p[2] + "." + p[1] + "." + p[0] : String(s); };
 	const axes = `<line x1="${padL}" y1="${padT}" x2="${padL}" y2="${padT + plotH}" stroke="#e7d8c6" stroke-width="1"/><line x1="${padL}" y1="${padT + plotH}" x2="${w - padR}" y2="${padT + plotH}" stroke="#e7d8c6" stroke-width="1"/>`;
 	const yLabels = `<text x="${padL - 4}" y="${(padT + 4).toFixed(1)}" text-anchor="end" font-size="10" fill="#8a7355">${max.toLocaleString("de-DE")}</text><text x="${padL - 4}" y="${(padT + plotH).toFixed(1)}" text-anchor="end" font-size="10" fill="#8a7355">0</text>`;
+	// Die rechte Skala steht in der Farbe IHRER Kurve -- eine zweite Achse in Grau liesse offen,
+	// welche der drei Linien an ihr haengt.
+	const yRight = rightScale
+		? `<text x="${w - padR + 4}" y="${(padT + 4).toFixed(1)}" text-anchor="start" class="va-axis-right">${maxEd.toLocaleString("de-DE")}</text><text x="${w - padR + 4}" y="${(padT + plotH).toFixed(1)}" text-anchor="start" class="va-axis-right">0</text>`
+		: "";
 	let xLabels = "";
 	if (data.length) {
 		const idxs = data.length <= 5 ? data.map((d, i) => i) : [0, Math.floor((data.length - 1) / 2), data.length - 1];
@@ -126,10 +201,17 @@ function vaLine(daily) {
 		const x1 = Math.min(w - padR, xAt(i) + slot / 2);
 		const label = fmtFullDate(d.day)
 			+ " — Aufrufe: " + (Number(d.views) || 0).toLocaleString("de-DE")
-			+ " · Eindeutige: " + (Number(d.uniques) || 0).toLocaleString("de-DE");
+			+ " · Eindeutige: " + (Number(d.uniques) || 0).toLocaleString("de-DE")
+			+ (hasEditors ? " · Editoren: " + (Number(d.editors) || 0).toLocaleString("de-DE") : "");
 		return `<rect x="${x0.toFixed(1)}" y="${padT}" width="${Math.max(0, x1 - x0).toFixed(1)}" height="${plotH}" fill="transparent"><title>${vaEscape(label)}</title></rect>`;
 	}).join("");
-	return `<svg viewBox="0 0 ${w} ${h}" width="100%" height="${h}" role="img" aria-label="Aufrufe und eindeutige Besucher über Zeit">${axes}${yLabels}${xLabels}<path d="${line(views)}" fill="none" stroke="#2a78d6" stroke-width="2" stroke-linejoin="round"/><path d="${line(uniq)}" fill="none" stroke="#1baf7a" stroke-width="2" stroke-linejoin="round"/>${dots(views, "#2a78d6")}${dots(uniq, "#1baf7a")}${hovers}</svg>`;
+	// ⚠️ Die beiden alten Kurven behalten ihre eingebauten Farben. Die NEUE nimmt eine Klasse und
+	// damit ein Token (AGENTS.md §12) -- die zwei bestehenden Werte hier mitzuziehen waere ein
+	// zweiter, unbestellter Eingriff in ein Bild, das seit Monaten so aussieht.
+	const editorPath = hasEditors ? `<path d="${line(ed, yEditors)}" class="va-line va-line--editors"/>` : "";
+	const editorDots = hasEditors ? dotsClass(ed, "va-dot--editors", yEditors) : "";
+	const aria = hasEditors ? "Aufrufe, eindeutige Besucher und Editoren über Zeit" : "Aufrufe und eindeutige Besucher über Zeit";
+	return `<svg viewBox="0 0 ${w} ${h}" width="100%" height="${h}" role="img" aria-label="${aria}">${axes}${yLabels}${yRight}${xLabels}<path d="${line(views)}" fill="none" stroke="#2a78d6" stroke-width="2" stroke-linejoin="round"/><path d="${line(uniq)}" fill="none" stroke="#1baf7a" stroke-width="2" stroke-linejoin="round"/>${editorPath}${dots(views, "#2a78d6")}${dots(uniq, "#1baf7a")}${editorDots}${hovers}</svg>`;
 }
 
 const VA_HEAT_DAYS = ["So", "Mo", "Di", "Mi", "Do", "Fr", "Sa"];
@@ -326,6 +408,13 @@ function renderVisitorDashboard(mount, data) {
 	const views = sum(m.daily, "views");
 	const uniq = sum(m.daily, "uniques");
 	const routes = sum(m.daily, "routes");
+	// 💣 Editoren werden NICHT aufsummiert. Derselbe Editor kommt an vielen Tagen vor; eine Summe
+	// über 30 Tage zählte ihn dreißigmal und läse sich wie eine Belegschaft. Aus Tagesaggregaten
+	// ist "wie viele verschiedene Editoren im Zeitraum" nicht zu gewinnen -- der höchste Tageswert
+	// ist die Zahl, die wir ehrlich haben, und deshalb steht "bis" davor.
+	const hasEditors = vaDailyHasEditors(m.daily);
+	const editorPeak = (m.daily || []).reduce((a, r) => Math.max(a, Number(r.editors) || 0), 0);
+	visitorLineDaily = m.daily || [];
 	const stoRows = (data.storage && data.storage.tables) || [];
 	const stoBytes = stoRows.reduce((a, t) => a + (Number(t.bytes) || 0), 0);
 	const stoRowsN = stoRows.reduce((a, t) => a + (Number(t.rows) || 0), 0);
@@ -339,12 +428,15 @@ function renderVisitorDashboard(mount, data) {
 	}
 
 	mount.innerHTML =
-		`<div class="va-kpis">`
+		`<div class="va-kpis${hasEditors ? " va-kpis--four" : ""}">`
 		+ `<div class="va-kpi"><div class="va-kpi__label">Aufrufe</div><div class="va-kpi__value">${views.toLocaleString("de-DE")}</div></div>`
 		+ `<div class="va-kpi"><div class="va-kpi__label">Eindeutige</div><div class="va-kpi__value">${uniq.toLocaleString("de-DE")}</div></div>`
+		+ (hasEditors ? `<div class="va-kpi" title="Höchster Tageswert im Zeitraum"><div class="va-kpi__label">Editoren</div><div class="va-kpi__value">${editorPeak > 0 ? "bis " + editorPeak.toLocaleString("de-DE") : "0"}</div></div>` : "")
 		+ `<div class="va-kpi"><div class="va-kpi__label">Routen</div><div class="va-kpi__value">${routes.toLocaleString("de-DE")}</div></div>`
 		+ `</div>`
-		+ `<div class="va-card"><div class="va-card__label">Aktivität über Zeit</div>${vaLine(m.daily)}<div class="va-chartlegend"><span><i style="background:#2a78d6"></i>Aufrufe</span><span><i style="background:#1baf7a"></i>Eindeutige</span></div></div>`
+		+ `<div class="va-card"><div class="va-cardhead"><div class="va-card__label">Aktivität über Zeit</div>`
+		+ (hasEditors ? `<label class="va-switch"><input type="checkbox" id="va-editor-scale"${visitorEditorScaleRight ? " checked" : ""}>Editorenskala rechts</label>` : "")
+		+ `</div><div id="va-line-body">${vaLine(m.daily, visitorEditorScaleRight)}${vaLineLegend(hasEditors, visitorEditorScaleRight)}</div></div>`
 		+ `<div class="va-card"><div class="va-card__label">Aktivste Zeiten (Ortszeit)</div>${vaHeatmap(m.heatmap)}</div>`
 		+ `<div class="va-card"><div class="va-card__label">Top-Suchbegriffe</div>${vaBars(m.search, "#2a78d6")}</div>`
 		+ `<div class="va-card"><div class="va-card__label">Herkunft</div><div id="visitor-geo-map"></div><div class="va-geo-legend"><span>wenige</span><span class="va-geo-scale"><i style="background:rgba(42,120,214,0.12)"></i><i style="background:rgba(42,120,214,0.38)"></i><i style="background:rgba(42,120,214,0.64)"></i><i style="background:rgba(42,120,214,0.9)"></i></span><span>viele Klicks</span></div><div class="va-geo-clabel">Andere Länder<span class="va-geo-key"><i style="background:#1baf7a"></i>echte<i style="background:#888780"></i>Bots</span></div><div id="visitor-geo-countries"></div></div>`
@@ -361,6 +453,8 @@ function renderVisitorDashboard(mount, data) {
 		+ `<div class="va-card"><div class="va-card__label">Anzeige-Optionen</div>${vaBars(vaMapDimensions(m.display_toggle, vaPrettyToggle), "#eda100")}</div>`
 		+ `</details>`
 		+ `<div class="va-card"><div class="va-card__label">Speicher</div><div class="va-storage">Analytics-Tabellen: ${vaBytes(stoBytes)} · ${stoRowsN.toLocaleString("de-DE")} Zeilen<br>Datenbank gesamt: ${vaBytes(data.storage && data.storage.database_bytes)}</div></div>`;
+
+	vaWireEditorScaleSwitch();
 
 	const geo = data.geo || {};
 	const geoMap = document.getElementById("visitor-geo-map");

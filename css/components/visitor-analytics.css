@@ -44,11 +44,40 @@
 .va-geo-track { flex: 1; height: 9px; border-radius: 4px; background: var(--color-panel-muted); overflow: hidden; }
 .va-geo-fill { display: block; height: 100%; border-radius: 4px; }
 .va-geo-val { font-size: 11px; color: var(--color-text-muted); width: 30px; text-align: right; }
+/* Kopfzeile der Karte: Titel links, Schalter rechts. .va-card__label allein ist ein Block und
+   traegt nichts neben sich. */
+.va-cardhead { display: flex; align-items: baseline; gap: 8px; margin: 0 0 10px; }
+.va-cardhead .va-card__label { margin: 0; flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.va-switch { display: inline-flex; align-items: center; gap: 5px; flex: none; white-space: nowrap; font-size: 11px; color: var(--color-text-muted); cursor: pointer; user-select: none; }
+/* ⚠️ Ohne accent-color faerbt der Browser das Kaestchen in seiner Standardfarbe -- unter Windows
+   BLAU, und Blau ist in der Bedienoberflaeche die eine verbotene Farbe (AGENTS.md §12). Dieselbe
+   Zeile steht aus demselben Grund an jedem anderen Kaestchen im Projekt.
+   ⚠️ Im Dunkelmodus ist der Haken GRAU (--color-check-accent = #aaa598), nicht gold. Das ist ein
+   Owner-Entscheid in tokens.css ("das Gold las sich matschig und zu gelb"), kein Fehler hier. */
+.va-switch input { margin: 0; accent-color: var(--color-check-accent); cursor: pointer; }
+
+/* Die dritte Kurve: Editoren. Farbe ueber ein Token, und die STRICHART traegt die Identitaet mit --
+   drei Reihen in einem Bild duerfen sich nie allein durch die Farbe unterscheiden (die gerechnete
+   Grenze der Projektpalette, siehe --color-chart-1..4 in tokens.css). Die gestrichelte Linie sagt
+   ausserdem "andere Groessenordnung", was bei eingeschalteter rechter Skala genau stimmt. */
+.va-line { fill: none; stroke-width: 2; stroke-linejoin: round; }
+.va-line--editors { stroke: var(--color-chart-1); stroke-dasharray: 5 3; }
+.va-dot--editors { fill: var(--color-chart-1); }
+/* Die rechte Achse steht in der Farbe IHRER Kurve -- grau liesse offen, welche der drei an ihr haengt. */
+.va-axis-right { fill: var(--color-chart-1); font-size: 10px; }
 .va-chartlegend { display: flex; gap: 16px; justify-content: center; margin-top: 6px; font-size: 11px; color: var(--color-text-muted); }
+.va-chartlegend i.va-legend--dash { background: repeating-linear-gradient(90deg, var(--color-chart-1) 0 5px, transparent 5px 8px); }
+.va-legend__scale { opacity: 0.75; }
 .va-chartlegend i { display: inline-block; width: 12px; height: 3px; border-radius: 2px; margin-right: 5px; vertical-align: middle; }
 .va-pill { font-size: 12px; padding: 5px 11px; border-radius: 999px; border: 1px solid var(--color-border-strong); background: var(--color-panel); color: var(--color-text-muted); cursor: pointer; }
 .va-pill.is-active { background: var(--color-button-soft-text); color: var(--color-panel); border-color: var(--color-button-soft-text); }
 .va-kpis { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 12px; }
+/* Vier Kacheln statt drei, sobald die Editorenzahl dabei ist. Bei 400 px Panelbreite bleiben je
+   ~66 px Innenbreite -- deshalb die Zahl eine Spur kleiner, sonst reisst ein sechsstelliger Wert
+   (Zeitraum "Alles") aus der Kachel. */
+.va-kpis--four { grid-template-columns: repeat(4, 1fr); }
+.va-kpis--four .va-kpi { padding: 11px 8px; }
+.va-kpis--four .va-kpi__value { font-size: 17px; }
 .va-kpi { background: var(--color-panel-soft); border-radius: 8px; padding: 11px; }
 .va-kpi__label { font-size: 12px; color: var(--color-text-muted); }
 .va-kpi__value { font-size: 20px; font-weight: 700; color: var(--color-button-soft-text); }

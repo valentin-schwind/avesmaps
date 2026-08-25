@@ -210,6 +210,66 @@ function avesmapsVisitorRecordUnique(PDO $pdo, string $actorType): void {
     }
 }
 
+// Die dritte Linie des Besucher-Diagramms: WIE VIELE EDITOREN waren an dem Tag da -- Koepfe, nicht
+// Klicks. Das ist dieselbe Groesse wie "Eindeutige" daneben, nur fuer die andere Sorte Mensch, und
+// sie wird seit dem 28.06.2026 ohnehin geschrieben (actor_type='editor', metric='unique'). Gemessen
+// wird also nichts Neues, nur gelesen.
+//
+// 💣 Sie wird NUR dem Besucher-Diagramm zugemischt. Im Editoren-Reiter liest derselbe Leser mit
+// $actorType='editor', und dort waere `editors` Zeile fuer Zeile identisch mit `uniques`: zwei
+// deckungsgleiche Kurven in einem Bild sind keine Auskunft, sondern ein Fehler, der wie Absicht
+// aussieht. Der Aufrufer entscheidet das oben, damit die Bedingung an EINER Stelle steht.
+//
+// 💣 Die Tage werden VEREINIGT, nicht zugeordnet. Ein Tag, an dem ein Editor da war und kein Gast,
+// hat gar keine Besucherzeile -- wer nur in vorhandene Zeilen einsetzt, laesst diesen Tag aus der
+// Zeitachse fallen, und die Linie springt ueber das Loch hinweg, als waere dort niemand gewesen.
+// Umgekehrt bekommt jeder Besuchertag ohne Editor ausdruecklich die 0, sonst zeichnet der Browser
+// aus einem fehlenden Wert eine Luecke statt einer Null.
+function avesmapsVisitorMergeEditorHeads(PDO $pdo, array $dailyRows, int $days): array {
+    $statement = $pdo->prepare(
+        "SELECT day, SUM(count) AS editors
+        FROM visitor_metric
+        WHERE actor_type = 'editor' AND metric = 'unique'
+            AND day >= DATE_SUB(UTC_DATE(), INTERVAL :d DAY)
+        GROUP BY day"
+    );
+    $statement->execute(['d' => $days]);
+
+    return avesmapsVisitorMergeEditorRows($dailyRows, $statement->fetchAll(PDO::FETCH_ASSOC));
+}
+
+// Die Vereinigung selbst, ohne Datenbank -- damit sie pruefbar ist, ohne die Abfrage fuer einen Test
+// zu verbiegen. ⚠️ Eine SQLite-Fixture koennte `DATE_SUB(UTC_DATE(), INTERVAL :d DAY)` oben nicht
+// ausfuehren, und die Abfrage danach umzuschreiben hiesse, den Test gegen die Produktion zu drehen
+// (AGENTS.md §9, Fehler 1093).
+function avesmapsVisitorMergeEditorRows(array $dailyRows, array $editorRows): array {
+    $byDay = [];
+    foreach ($dailyRows as $row) {
+        $day = (string) ($row['day'] ?? '');
+        if ($day === '') {
+            continue;
+        }
+        // Ausdruecklich die 0, nicht "kein Wert": aus einem fehlenden Feld zeichnet der Browser eine
+        // Luecke, aus der 0 einen Punkt auf der Nulllinie. Nur das zweite ist wahr.
+        $row['editors'] = 0;
+        $byDay[$day] = $row;
+    }
+    foreach ($editorRows as $row) {
+        $day = (string) ($row['day'] ?? '');
+        if ($day === '') {
+            continue;
+        }
+        if (!isset($byDay[$day])) {
+            $byDay[$day] = ['day' => $day, 'views' => 0, 'uniques' => 0, 'routes' => 0, 'editors' => 0];
+        }
+        $byDay[$day]['editors'] = (int) ($row['editors'] ?? 0);
+    }
+    // Nach Tag, nicht nach Eintreffen: die Zeitachse des Diagramms IST diese Reihenfolge.
+    ksort($byDay);
+
+    return array_values($byDay);
+}
+
 function avesmapsVisitorReadMetrics(PDO $pdo, string $actorType, int $days): array {
     $days = max(1, min(3660, $days));
     $actorType = $actorType === 'editor' ? 'editor' : 'visitor';
@@ -223,6 +283,10 @@ function avesmapsVisitorReadMetrics(PDO $pdo, string $actorType, int $days): arr
         GROUP BY day ORDER BY day"
     );
     $daily->execute(['a' => $actorType, 'd' => $days]);
+    $dailyRows = $daily->fetchAll(PDO::FETCH_ASSOC);
+    if ($actorType === 'visitor') {
+        $dailyRows = avesmapsVisitorMergeEditorHeads($pdo, $dailyRows, $days);
+    }
 
     $heat = $pdo->prepare(
         "SELECT DAYOFWEEK(day) AS dow, hour, SUM(count) AS c
@@ -245,7 +309,7 @@ function avesmapsVisitorReadMetrics(PDO $pdo, string $actorType, int $days): arr
     };
 
     return [
-        'daily' => $daily->fetchAll(PDO::FETCH_ASSOC),
+        'daily' => $dailyRows,
         'heatmap' => $heat->fetchAll(PDO::FETCH_ASSOC),
         'search' => $top('search', 1),
         'referrer' => $top('referrer', 1),

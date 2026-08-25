@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Besucherstatistik: Editoren-Linie + Verweildauer – Mockup (Abstimmung, 2026-08-25)</title>
+<script>
+  /* Wie jede Editorseite: gespeicherte Wahl schlaegt OS-Schema, vor dem ersten Anstrich. */
+  (function () {
+    function isDark() {
+      var s = null; try { s = localStorage.getItem("avesmaps-theme"); } catch (e) {}
+      if (s === "dark") { return true; }
+      if (s === "light") { return false; }
+      return !!(window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches);
+    }
+    function apply() {
+      if (isDark()) { document.documentElement.setAttribute("data-theme", "dark"); }
+      else { document.documentElement.removeAttribute("data-theme"); }
+    }
+    apply();
+    if (window.matchMedia) {
+      var mq = window.matchMedia("(prefers-color-scheme: dark)");
+      if (mq.addEventListener) { mq.addEventListener("change", apply); }
+      else if (mq.addListener) { mq.addListener(apply); }
+    }
+  })();
+</script>
+<!-- 🔴 RELATIVE Pfade, und das ist Absicht: eine docs/-Datei, die per file:// geoeffnet wird.
+     Geladen wird die ECHTE CSS-Kette des Statistik-Reiters (index.html), damit das Mockup die
+     tatsaechliche Designsprache zeigt und nicht meine Auslegung davon. -->
+<link rel="stylesheet" href="../css/base/fonts.css">
+<link rel="stylesheet" href="../css/base/tokens.css">
+<link rel="stylesheet" href="../css/base/base.css">
+<link rel="stylesheet" href="../css/components/visitor-analytics.css">
+<style>
+/* ===========================================================================================
+   NUR das Mockup-Geruest (Seite, Spalten, Erklaertexte). Es gehoert NICHT in den Code.
+   Die Vorschlaege fuer css/components/visitor-analytics.css stehen weiter unten, eigens markiert.
+   Kein hartkodierter Farbwert, kein hartkodierter Radius (AGENTS.md §12).
+   =========================================================================================== */
+body { margin: 0; padding: 24px; background: var(--color-panel-muted); color: var(--color-text); }
+.mk-wrap { max-width: 1180px; margin: 0 auto; }
+.mk-h1 { font-size: 22px; font-weight: 700; color: var(--color-text-strong); margin: 0 0 4px; }
+.mk-sub { font-size: 13px; color: var(--color-text-muted); margin: 0 0 22px; }
+.mk-sec { margin: 0 0 34px; }
+.mk-sec__h { font-size: 16px; font-weight: 700; color: var(--color-text-strong); margin: 0 0 4px; padding-bottom: 8px; border-bottom: 1px solid var(--color-divider); }
+.mk-sec__note { font-size: 13px; line-height: 1.55; color: var(--color-text-muted); margin: 10px 0 16px; max-width: 78ch; }
+.mk-sec__note b { color: var(--color-button-soft-text); }
+.mk-cols { display: flex; gap: 22px; flex-wrap: wrap; align-items: flex-start; }
+/* Das echte Panel ist 400 px breit (css/features/review-panel.css). Genau so breit ist die Saeule
+   hier, sonst zeigt ein Mockup Platz, den es im Panel nie gibt. */
+.mk-panel { flex: 0 0 400px; width: 400px; background: var(--color-panel-soft); border: 1px solid var(--color-border-strong); border-radius: 12px; padding: 12px; }
+.mk-panel__cap { font-size: 12px; font-weight: 700; color: var(--color-button-soft-text); margin: 0 0 2px; }
+.mk-panel__why { font-size: 11px; line-height: 1.5; color: var(--color-text-muted); margin: 0 0 12px; }
+.mk-pick { display: inline-block; font-size: 10px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--color-accent-brown-text); background: var(--color-accent-brown); border-radius: 4px; padding: 2px 6px; margin-left: 6px; vertical-align: 2px; }
+.mk-foot { font-size: 13px; line-height: 1.55; color: var(--color-text-muted); border-top: 1px solid var(--color-divider); padding-top: 14px; max-width: 78ch; }
+.mk-foot b { color: var(--color-button-soft-text); }
+
+/* ===========================================================================================
+   VORSCHLAG fuer css/components/visitor-analytics.css -- das ist der Teil, der wirklich neu waere
+   =========================================================================================== */
+
+/* Vier Kennzahlen statt drei. Die bestehende Regel ist repeat(3, 1fr); bei vier Kacheln in einer
+   400-px-Saeule bleiben je ~66 px Innenbreite, deshalb die Zahl eine Spur kleiner -- sonst reisst
+   ein sechsstelliger Wert ("Alles"-Zeitraum) aus der Kachel. */
+.va-kpis--four { grid-template-columns: repeat(4, 1fr); }
+.va-kpis--four .va-kpi { padding: 11px 8px; }
+.va-kpis--four .va-kpi__value { font-size: 17px; }
+
+/* Kopfzeile der Karte: Titel links, Schalter rechts. Der bisherige .va-card__label ist ein
+   reiner Block -- ein Schalter daneben braucht eine Zeile, die beides traegt. */
+.va-cardhead { display: flex; align-items: baseline; gap: 8px; margin: 0 0 10px; }
+.va-cardhead .va-card__label { margin: 0; flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.va-switch { display: inline-flex; align-items: center; gap: 5px; flex: none; white-space: nowrap; font-size: 11px; color: var(--color-text-muted); cursor: pointer; user-select: none; }
+/* ⚠️ Ohne accent-color faerbt Windows das Kaestchen BLAU -- und Blau ist in der Bedienoberflaeche
+   die eine verbotene Farbe (AGENTS.md §12). Dieselbe Zeile steht aus demselben Grund an jedem
+   anderen Kaestchen im Projekt.
+   ⚠️ Und der Haken ist im Dunkelmodus GRAU (#aaa598), nicht gold -- das ist ein Owner-Entscheid
+   in tokens.css ("das Gold las sich matschig und zu gelb"), kein Fehler dieser Karte. */
+.va-switch input { margin: 0; accent-color: var(--color-check-accent); cursor: pointer; }
+
+/* Die dritte Kurve. Farbe NUR ueber Token, und die Strichart traegt die Identitaet mit:
+   drei Reihen in einem Bild duerfen sich nie allein durch die Farbe unterscheiden. */
+.va-line { fill: none; stroke-width: 2; stroke-linejoin: round; }
+.va-line--views { stroke: #2a78d6; }               /* Bestand, unveraendert */
+.va-line--uniques { stroke: #1baf7a; }             /* Bestand, unveraendert */
+.va-line--editors { stroke: var(--color-chart-1); stroke-dasharray: 5 3; }
+.va-dot--editors { fill: var(--color-chart-1); }
+.va-axis-right { fill: var(--color-chart-1); font-size: 10px; }
+.va-chartlegend i.va-legend--dash { background: repeating-linear-gradient(90deg, var(--color-chart-1) 0 5px, transparent 5px 8px); }
+.va-chartlegend i.va-legend--avgdash { background: repeating-linear-gradient(90deg, var(--color-text-strong) 0 4px, transparent 4px 7px); }
+.va-chartlegend i.va-legend--solid { background: var(--color-text-strong); }
+
+/* Verweildauer-Histogramm */
+/* 💣 EINE Farbe fuer alle Balken, KEINE sequenzielle Leiter -- und zwar aus zwei Gruenden.
+   Erstens traegt hier allein die Hoehe die Aussage; eine Farbleiter wuerde eine zweite
+   Bedeutung vortaeuschen, die es nicht gibt. Zweitens, und das ist der harte Grund: die
+   Hausleiter --color-accent -> -accent-strong -> -accent-brown ist NICHT themenfest.
+   --color-accent-brown ist im hellen Thema dunkelbraun (#7a5a3a) und im dunklen ein HELLES
+   Tan (#c9a97e) -- die Leiter kehrt sich um und ist im Dunkelmodus gar keine mehr
+   (gemessen: 207,183,103 -> 201,169,126, kein sichtbarer Unterschied). */
+.va-hist__bar { fill: var(--color-accent-strong); }
+.va-hist__axis { stroke: var(--color-divider); stroke-width: 1; }
+.va-hist__tick { fill: var(--color-text-muted); font-size: 9px; }
+/* Die zwei Striche sind Beschriftung, keine Daten -- darum Tinte statt Gold. Das haelt sie in
+   beiden Themen von den goldenen Balken getrennt, was --color-accent-brown im Dunkelmodus
+   nicht taete.
+   💣 Ein Tintenstrich ueber einem goldenen Balken hat im DUNKLEN Thema nur 1,7:1 Kontrast --
+   dort ist die Tinte hell und der Balken auch. Darum liegt unter jedem Strich eine breitere
+   Linie in der Kartenfarbe: die Fassung trennt ihn vom Balken, egal welches Thema laeuft. */
+.va-hist__mark-casing { stroke: var(--color-panel); stroke-width: 4; }
+.va-hist__mark { stroke: var(--color-text-strong); stroke-width: 1.5; }
+.va-hist__mark--avg { stroke-dasharray: 4 3; }
+.va-hist__flag { fill: var(--color-text-strong); font-size: 9.5px; font-weight: 700; }
+.va-note { font-size: 11px; line-height: 1.5; color: var(--color-text-muted); margin-top: 8px; }
+</style>
+</head>
+<body>
+<div class="mk-wrap">
+
+  <h1 class="mk-h1">Besucherstatistik &mdash; zwei Ergänzungen</h1>
+  <p class="mk-sub">Mockup zur Abstimmung, 25.08.2026 &middot; Reiter <b>Status &rarr; Besucher</b> &middot; Panelbreite 400&nbsp;px, echte Designsprache, echte Token. Alle Zahlen sind Beispielwerte in realistischer Größenordnung, keine Messung.</p>
+
+  <!-- ------------------------------------------------------------------------------------ -->
+  <section class="mk-sec">
+    <h2 class="mk-sec__h">1 &middot; Editoren als dritte Linie</h2>
+    <p class="mk-sec__note">
+      Die Daten dafür liegen seit dem 28.06.2026 in der Datenbank &mdash; jeder Aufruf wird schon
+      heute danach getrennt, ob ein angemeldeter Editor oder ein Gast ihn ausgelöst hat. Es muss
+      also <b>nichts Neues gemessen</b> werden, nur gelesen und gezeichnet, und die Linie hat vom
+      ersten Tag an zwei Monate Vergangenheit.
+      &bdquo;Editoren&ldquo; heißt dabei <b>Köpfe</b> (wie viele verschiedene Editoren waren an dem
+      Tag da), nicht deren Klicks &mdash; das passt zu &bdquo;Eindeutige&ldquo; daneben.
+      Ein Problem hat die dritte Linie: 2 Editoren gegen 240 Aufrufe. Auf derselben Skala liegt sie
+      platt auf dem Boden. Darum ein kleiner Schalter <b>&bdquo;Editorenskala rechts&ldquo;</b> in der
+      Kopfzeile der Karte &mdash; angehakt bekommen die Editoren eine eigene Achse rechts, abgehakt
+      laufen alle drei auf derselben.
+    </p>
+    <div class="mk-cols">
+
+      <div class="mk-panel">
+        <p class="mk-panel__cap">Mit Schalter &mdash; probier ihn aus</p>
+        <p class="mk-panel__why">Angehakt: die Editoren bekommen ihre eigene Skala rechts (bis 4) und laufen gestrichelt in Gold. Abgehakt: alle drei auf derselben Skala &mdash; dann klebt die Editorenlinie auf der Nulllinie, weil 2 gegen 240 steht. Angehakt ist die Vorgabe, und die Wahl merkt sich das Panel.</p>
+        <div class="va-kpis va-kpis--four" id="kpis-a"></div>
+        <div class="va-card">
+          <div class="va-cardhead">
+            <div class="va-card__label">Aktivität über Zeit</div>
+            <label class="va-switch"><input type="checkbox" id="ed-scale" checked>Editorenskala rechts</label>
+          </div>
+          <div id="chart-a"></div>
+          <div class="va-chartlegend" id="legend-a"></div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ------------------------------------------------------------------------------------ -->
+  <section class="mk-sec">
+    <h2 class="mk-sec__h">2 &middot; Verweildauer</h2>
+    <p class="mk-sec__note">
+      Neue Karte, direkt unter &bdquo;Aktivität über Zeit&ldquo;. Die Balken zeigen, wie viele
+      Besuche in welcher Dauerklasse lagen; dazu die zwei Striche, die du wolltest:
+      <b>Median</b> (durchgezogen) und <b>Durchschnitt</b> (gestrichelt). Dass die beiden weit
+      auseinanderliegen, ist der Normalfall und genau der Grund, beide zu zeigen: ein paar sehr
+      lange Besuche ziehen den Durchschnitt hoch, den Median nicht. Hier: die Hälfte aller Besuche
+      ist nach 2:25&nbsp;min vorbei, im Schnitt sind es 9:34&nbsp;min.
+    </p>
+    <div class="mk-cols">
+
+      <div class="mk-panel">
+        <p class="mk-panel__cap">Verweildauer-Karte, 30-Tage-Zeitraum</p>
+        <p class="mk-panel__why">Die Klassen werden nach rechts hin breiter (Minuten &rarr; Stunden), weil sich fast alles unter einer Viertelstunde abspielt. Bei gleich breiten Klassen bis 12&nbsp;h wären zehn von elf Balken leer.</p>
+        <div class="va-card">
+          <div class="va-card__label">Verweildauer</div>
+          <div class="va-kpis" id="kpis-dwell" style="margin-bottom:10px"></div>
+          <div id="chart-dwell"></div>
+          <div class="va-chartlegend">
+            <span><i class="va-legend--solid"></i>Median</span>
+            <span><i class="va-legend--avgdash"></i>Durchschnitt</span>
+          </div>
+          <p class="va-note">Zeit mit der Karte im Vordergrund. Ohne Klick, Tastendruck oder Zoom endet die Messung nach 15&nbsp;Minuten &mdash; wer nur schaut, wird nicht länger gezählt.</p>
+        </div>
+      </div>
+
+      <div class="mk-panel">
+        <p class="mk-panel__cap">Dieselbe Karte in den ersten Tagen</p>
+        <p class="mk-panel__why">Wichtig, weil diese Messung bei null anfängt: die Verweildauer gibt es erst ab dem Tag, an dem sie live geht &mdash; rückwirkend ist sie nicht zu rekonstruieren. So sieht die Karte in der ersten Woche aus.</p>
+        <div class="va-card">
+          <div class="va-card__label">Verweildauer</div>
+          <div class="va-kpis" id="kpis-dwell-thin" style="margin-bottom:10px"></div>
+          <div id="chart-dwell-thin"></div>
+          <div class="va-chartlegend">
+            <span><i class="va-legend--solid"></i>Median</span>
+            <span><i class="va-legend--avgdash"></i>Durchschnitt</span>
+          </div>
+          <p class="va-note">Zeit mit der Karte im Vordergrund. Ohne Klick, Tastendruck oder Zoom endet die Messung nach 15&nbsp;Minuten &mdash; wer nur schaut, wird nicht länger gezählt.</p>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <p class="mk-foot">
+    <b>Offener Tab oder offene Seite?</b> Die Seite meldet sich heute nur, solange ihr Tab im
+    Vordergrund ist &mdash; ein Tab im Hintergrund schweigt (Browser bremsen dort ohnehin jede Uhr).
+    Wir können also sauber <b>&bdquo;Karte vor Augen&ldquo;</b> messen und
+    <b>&bdquo;Tab war irgendwo offen&ldquo;</b> gar nicht, auch nicht mit Aufwand: ein Tab, der seit
+    gestern im Hintergrund liegt, ist von einem geschlossenen nicht zu unterscheiden.
+    Vorschlag: &bdquo;Karte vor Augen&ldquo;. Sonst flöten uns über Nacht offene Tabs die
+    Statistik mit Neun-Stunden-Besuchen voll &mdash; und genau der Median, den du sehen willst,
+    wäre der erste, der davon kippt.
+  </p>
+
+</div>
+
+<script>
+/* -------------------------------------------------------------------------------------------
+   Beispieldaten. Größenordnung realistisch für avesmaps.de, aber erfunden -- nichts hier ist
+   eine Messung.
+   ------------------------------------------------------------------------------------------- */
+const TAGE = [
+  ["2026-07-27", 168,  71, 2], ["2026-07-28", 191,  84, 3], ["2026-07-29", 143,  62, 1],
+  ["2026-07-30", 157,  70, 2], ["2026-07-31", 204,  92, 2], ["2026-08-01", 246, 118, 1],
+  ["2026-08-02", 231, 109, 0], ["2026-08-03", 176,  78, 3], ["2026-08-04", 162,  69, 4],
+  ["2026-08-05", 149,  66, 3], ["2026-08-06", 188,  81, 2], ["2026-08-07", 173,  75, 2],
+  ["2026-08-08", 219, 101, 1], ["2026-08-09", 258, 124, 2], ["2026-08-10", 241, 113, 3],
+  ["2026-08-11", 166,  72, 4], ["2026-08-12", 154,  67, 3], ["2026-08-13", 181,  79, 2],
+  ["2026-08-14", 197,  86, 3], ["2026-08-15", 172,  74, 1], ["2026-08-16", 228, 106, 1],
+  ["2026-08-17", 252, 121, 2], ["2026-08-18", 159,  68, 3], ["2026-08-19", 147,  64, 4],
+  ["2026-08-20", 184,  80, 2], ["2026-08-21", 209,  95, 2], ["2026-08-22", 193,  85, 3],
+  ["2026-08-23", 237, 111, 1], ["2026-08-24", 261, 126, 2], ["2026-08-25", 178,  77, 3]
+].map(function (r) { return { day: r[0], views: r[1], uniques: r[2], editors: r[3] }; });
+
+/* Dauerklassen in Minuten: [von, bis, Beschriftung]. Die letzte ist offen nach oben. */
+const KLASSEN = [
+  [0,   1,    "<1 min"],      [1,   2,   "1-2"],     [2,   5,   "2-5"],
+  [5,   10,   "5-10"],    [10,  20,  "10-20"],   [20,  45,  "20-45"],
+  [45,  90,   "45-90"],   [90,  180, "1,5-3 h"], [180, 360, "3-6 h"],
+  [360, 720,  "6-12 h"],  [720, 1440, ">12 h"]
+];
+const VERTEILUNG       = [700, 360, 505, 306, 201, 112, 44, 19, 8, 3, 1];
+const VERTEILUNG_DUENN = [ 11,   6,   9,   5,   3,   1,  1,  0, 0, 0, 0];
+
+/* --- Kennzahlenkacheln ------------------------------------------------------------------- */
+function nf(n) { return Number(n).toLocaleString("de-DE"); }
+function kachel(label, wert) {
+  return '<div class="va-kpi"><div class="va-kpi__label">' + label + '</div><div class="va-kpi__value">' + wert + '</div></div>';
+}
+function kpiZeile(id) {
+  var views = TAGE.reduce(function (a, d) { return a + d.views; }, 0);
+  var uniq  = TAGE.reduce(function (a, d) { return a + d.uniques; }, 0);
+  /* Editoren-Koepfe sind NICHT die Summe der Tageswerte -- derselbe Editor kommt an vielen Tagen
+     vor, aufaddiert kaeme Unsinn heraus. Die Kachel zeigt den groessten Tageswert ("bis N"). */
+  var edMax = Math.max.apply(null, TAGE.map(function (d) { return d.editors; }));
+  document.getElementById(id).innerHTML =
+      kachel("Aufrufe", nf(views)) + kachel("Eindeutige", nf(uniq))
+    + kachel("Editoren", "bis " + edMax) + kachel("Routen", nf(1284));
+}
+kpiZeile("kpis-a");
+
+/* --- Linienbild (Geometrie 1:1 wie vaLine in review-visitor-analytics.js) ----------------- */
+function linienbild(daten, zweiteAchse) {
+  var views = daten.map(function (d) { return d.views; });
+  var uniq  = daten.map(function (d) { return d.uniques; });
+  var ed    = daten.map(function (d) { return d.editors; });
+  var n = Math.max(daten.length, 1);
+  var maxKandidaten = views.concat(uniq).concat(zweiteAchse ? [] : ed).concat([1]);
+  var max = Math.max.apply(null, maxKandidaten);
+  var maxEd = Math.max.apply(null, ed.concat([1]));
+  var w = 360, h = 116, padL = 30, padR = zweiteAchse ? 20 : 8, padT = 10, padB = 26;
+  var plotW = w - padL - padR, plotH = h - padT - padB;
+  var xAt = function (i) { return padL + (n <= 1 ? plotW / 2 : i * plotW / (n - 1)); };
+  var yAt = function (v) { return padT + plotH - (v / max) * plotH; };
+  var yEd = function (v) { return padT + plotH - (v / maxEd) * plotH; };
+  var pfad = function (arr, f) {
+    return arr.map(function (v, i) { return (i ? "L" : "M") + xAt(i).toFixed(1) + " " + f(v).toFixed(1); }).join(" ");
+  };
+  var punkte = function (arr, f, klasse, farbe) {
+    return arr.map(function (v, i) {
+      return '<circle cx="' + xAt(i).toFixed(1) + '" cy="' + f(v).toFixed(1) + '" r="2.6" class="' + klasse + '"'
+        + (farbe ? ' fill="' + farbe + '"' : "") + "/>";
+    }).join("");
+  };
+  var datum = function (s) { var p = String(s).split("-"); return p[2] + "." + p[1] + "."; };
+  var achsen =
+      '<line x1="' + padL + '" y1="' + padT + '" x2="' + padL + '" y2="' + (padT + plotH) + '" stroke="#e7d8c6" stroke-width="1"/>'
+    + '<line x1="' + padL + '" y1="' + (padT + plotH) + '" x2="' + (w - padR) + '" y2="' + (padT + plotH) + '" stroke="#e7d8c6" stroke-width="1"/>';
+  var yBeschriftung =
+      '<text x="' + (padL - 4) + '" y="' + (padT + 4) + '" text-anchor="end" font-size="10" fill="#8a7355">' + nf(max) + '</text>'
+    + '<text x="' + (padL - 4) + '" y="' + (padT + plotH) + '" text-anchor="end" font-size="10" fill="#8a7355">0</text>';
+  var yRechts = zweiteAchse
+    ? '<text x="' + (w - padR + 4) + '" y="' + (padT + 4) + '" text-anchor="start" class="va-axis-right">' + maxEd + '</text>'
+      + '<text x="' + (w - padR + 4) + '" y="' + (padT + plotH) + '" text-anchor="start" class="va-axis-right">0</text>'
+    : "";
+  var idx = [0, Math.floor((daten.length - 1) / 2), daten.length - 1];
+  var xBeschriftung = idx.map(function (i) {
+    return '<text x="' + xAt(i).toFixed(1) + '" y="' + (h - 8) + '" text-anchor="middle" font-size="10" fill="#8a7355">' + datum(daten[i].day) + '</text>';
+  }).join("");
+  var fEd = zweiteAchse ? yEd : yAt;
+  return '<svg viewBox="0 0 ' + w + ' ' + h + '" width="100%" height="' + h + '" role="img" aria-label="Aufrufe, eindeutige Besucher und Editoren ueber Zeit">'
+    + achsen + yBeschriftung + yRechts + xBeschriftung
+    + '<path d="' + pfad(views, yAt) + '" class="va-line va-line--views"/>'
+    + '<path d="' + pfad(uniq, yAt) + '" class="va-line va-line--uniques"/>'
+    + '<path d="' + pfad(ed, fEd) + '" class="va-line va-line--editors"/>'
+    + punkte(views, yAt, "", "#2a78d6") + punkte(uniq, yAt, "", "#1baf7a")
+    + punkte(ed, fEd, "va-dot--editors", null)
+    + "</svg>";
+}
+/* Der Schalter. Im echten Panel merkt er sich seine Stellung wie der Status-Unterreiter
+   (localStorage "avesmaps.review.status.editorScale") -- hier nur der Ablauf. */
+var edSchalter = document.getElementById("ed-scale");
+function zeichneLinienkarte() {
+  var rechts = edSchalter.checked;
+  document.getElementById("chart-a").innerHTML = linienbild(TAGE, rechts);
+  document.getElementById("legend-a").innerHTML =
+      '<span><i style="background:#2a78d6"></i>Aufrufe</span>'
+    + '<span><i style="background:#1baf7a"></i>Eindeutige</span>'
+    + '<span><i class="va-legend--dash"></i>Editoren'
+    + (rechts ? ' <span style="opacity:.75">(Skala rechts)</span>' : "") + "</span>";
+}
+edSchalter.addEventListener("change", zeichneLinienkarte);
+zeichneLinienkarte();
+
+/* --- Verweildauer ------------------------------------------------------------------------ */
+function dauerText(minuten) {
+  if (minuten < 60) {
+    var m = Math.floor(minuten), s = Math.round((minuten - m) * 60);
+    return m + ":" + String(s).padStart(2, "0") + " min";
+  }
+  var st = Math.floor(minuten / 60), mm = Math.round(minuten - st * 60);
+  return st + ":" + String(mm).padStart(2, "0") + " h";
+}
+/* Der Median wird INNERHALB seiner Klasse interpoliert -- aus Klassen laesst er sich nicht exakt
+   ablesen, und das ist der uebliche und akzeptierte Weg. Der Durchschnitt dagegen kaeme spaeter
+   aus einem eigenen Sekundenzaehler und waere exakt; hier ersatzweise aus den Klassenmitten. */
+function medianAus(werte) {
+  var gesamt = werte.reduce(function (a, b) { return a + b; }, 0);
+  if (gesamt === 0) { return 0; }
+  var lauf = 0;
+  for (var i = 0; i < werte.length; i++) {
+    if (lauf + werte[i] >= gesamt / 2) {
+      var von = KLASSEN[i][0], bis = KLASSEN[i][1];
+      return von + (bis - von) * ((gesamt / 2 - lauf) / werte[i]);
+    }
+    lauf += werte[i];
+  }
+  return KLASSEN[KLASSEN.length - 1][0];
+}
+function schnittAus(werte) {
+  var gesamt = werte.reduce(function (a, b) { return a + b; }, 0);
+  if (gesamt === 0) { return 0; }
+  var summe = werte.reduce(function (a, v, i) { return a + v * (KLASSEN[i][0] + KLASSEN[i][1]) / 2; }, 0);
+  return summe / gesamt;
+}
+function histogramm(werte) {
+  var w = 360, h = 142, padL = 24, padR = 10, padT = 20, padB = 32;
+  var plotW = w - padL - padR, plotH = h - padT - padB;
+  var max = Math.max.apply(null, werte.concat([1]));
+  var slot = plotW / KLASSEN.length;
+  var breite = slot * 0.72;
+  var balken = werte.map(function (v, i) {
+    var hoehe = (v / max) * plotH;
+    var x = padL + i * slot + (slot - breite) / 2;
+    return '<rect x="' + x.toFixed(1) + '" y="' + (padT + plotH - hoehe).toFixed(1) + '" width="' + breite.toFixed(1) + '" '
+      + 'height="' + Math.max(v > 0 ? 1 : 0, hoehe).toFixed(1) + '" rx="2" class="va-hist__bar">'
+      + "<title>" + KLASSEN[i][2] + (i < 7 ? " min" : "") + " -- " + nf(v) + " Besuche</title></rect>";
+  }).join("");
+  /* Zwei Zeilen im Wechsel statt gedrehter Beschriftung: so hat jede Klasse die doppelte
+     Slotbreite und bleibt waagerecht lesbar. Gedreht passte sie zwar auch, war bei 9 px aber
+     muehsam zu lesen -- und lesen soll man sie. */
+  var beschriftung = KLASSEN.map(function (k, i) {
+    var x = padL + i * slot + slot / 2;
+    var y = padT + plotH + (i % 2 === 0 ? 12 : 23);
+    return '<text x="' + x.toFixed(1) + '" y="' + y + '" text-anchor="middle" class="va-hist__tick">' + k[2] + "</text>";
+  }).join("");
+  /* Ein Strich sitzt an der Stelle SEINER Klasse, anteilig -- die Achse ist nicht linear in
+     Minuten, also darf der Strich es auch nicht sein. */
+  var xFuer = function (minuten) {
+    for (var i = 0; i < KLASSEN.length; i++) {
+      var von = KLASSEN[i][0], bis = KLASSEN[i][1];
+      if (minuten < bis || i === KLASSEN.length - 1) {
+        var anteil = Math.max(0, Math.min(1, (minuten - von) / (bis - von)));
+        return padL + i * slot + anteil * slot;
+      }
+    }
+    return padL + plotW;
+  };
+  var gesamt = werte.reduce(function (a, b) { return a + b; }, 0);
+  var med = medianAus(werte), avg = schnittAus(werte);
+  var strich = function (minuten, klasse, text, oben) {
+    if (gesamt === 0) { return ""; }
+    var x = xFuer(minuten);
+    var anker = x > padL + plotW * 0.62 ? "end" : "start";
+    var dx = anker === "end" ? -3 : 3;
+    return '<line x1="' + x.toFixed(1) + '" y1="' + (padT - 6) + '" x2="' + x.toFixed(1) + '" y2="' + (padT + plotH) + '" class="va-hist__mark-casing"/>'
+      + '<line x1="' + x.toFixed(1) + '" y1="' + (padT - 6) + '" x2="' + x.toFixed(1) + '" y2="' + (padT + plotH) + '" class="va-hist__mark ' + klasse + '"/>'
+      + '<text x="' + (x + dx).toFixed(1) + '" y="' + oben + '" text-anchor="' + anker + '" class="va-hist__flag">' + text + "</text>";
+  };
+  var achsen = '<line x1="' + padL + '" y1="' + (padT + plotH) + '" x2="' + (w - padR) + '" y2="' + (padT + plotH) + '" class="va-hist__axis"/>';
+  var yMax = '<text x="' + (padL - 4) + '" y="' + (padT + 4) + '" text-anchor="end" class="va-hist__tick">' + nf(max) + "</text>";
+  return '<svg viewBox="0 0 ' + w + ' ' + h + '" width="100%" height="' + h + '" role="img" aria-label="Verweildauer als Histogramm mit Median und Durchschnitt">'
+    + achsen + yMax + balken + beschriftung
+    + strich(med, "", "Median " + dauerText(med), padT - 10)
+    + strich(avg, "va-hist__mark--avg", "Ø " + dauerText(avg), padT + 6)
+    + "</svg>";
+}
+function dauerKarte(idKpi, idChart, werte) {
+  var gesamt = werte.reduce(function (a, b) { return a + b; }, 0);
+  document.getElementById(idKpi).innerHTML =
+      kachel("Median", gesamt ? dauerText(medianAus(werte)) : "—")
+    + kachel("Durchschnitt", gesamt ? dauerText(schnittAus(werte)) : "—")
+    + kachel("Besuche", nf(gesamt));
+  document.getElementById(idChart).innerHTML = histogramm(werte);
+}
+dauerKarte("kpis-dwell", "chart-dwell", VERTEILUNG);
+dauerKarte("kpis-dwell-thin", "chart-dwell-thin", VERTEILUNG_DUENN);
+</script>
+</body>
+</html>
