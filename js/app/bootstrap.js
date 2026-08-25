@@ -380,6 +380,25 @@ map.on("click", () => {
 // moveend (which would clamp back) fires only after this popupopen handler has run. So while a popup
 // is open we drop maxBounds -> the autoPan is no longer reverted, and we restore the bound as soon
 // as the user moves the map themselves (their move then clamps back naturally) or the popup closes.
+// 💣 WEITE GRENZEN, NIEMALS `null`. `setMaxBounds()` ist die EINZIGE Stelle, die Leaflets moveend-
+// Listener `_panInsideMaxBounds` an- und abhaengt -- wer `options.maxBounds` direkt nullt, laesst den
+// Listener stehen. Der laeuft dann in `panInsideBounds(null)`, und dort faengt ihn nichts:
+// `toLatLngBounds(null)` liefert ein LEERES, aber truthy `LatLngBounds` (der Konstruktor steigt bei
+// falsy Argument aus, ohne `_southWest`/`_northEast` zu setzen), der Guard `if (!bounds)` in
+// `_limitCenter` laesst es durch, und `_getBoundsOffset` projiziert `getNorthEast()` -> `undefined.lng`.
+// Genau das stand hier vom 07.07. bis 25.08.2026 und warf bei JEDEM Popup-autoPan
+// "Cannot read properties of undefined (reading 'lng')".
+// ⚠️ Die Konsolenzeile war dabei der harmlose Teil: Leaflets `fire()` hat kein try/catch, die
+// Listener-Kette bricht am Werfer ab. `_panInsideMaxBounds` steht an Position 3 von 12 -- live
+// gemessen fielen die NEUN dahinter aus, darunter das Kachel-Nachladen (`TileLayer._onMoveEnd`),
+// `syncLocationMarkerVisibility`/`syncLabelVisibility`/`schedulePoliticalTerritoryLayerReload`,
+// `syncPathViewportCulling` und die `redraw`s der Overlays. Der Handler wirkte also nur, WEIL die
+// Exception den Clamp abbrach.
+// ⭐ Weite Grenzen leisten dasselbe ohne Wurf: `_getBoundsOffset` rechnet daraus einen Versatz von 0
+// (`_rebound` gibt bei beidseitig negativem Ergebnis 0), `panInsideBounds` pannt nicht, und der
+// Listener bleibt an seiner Stelle in der Kette. Die Box muss MAP_BOUNDS (0..1024) weit umschliessen --
+// eine knappe Box waere wieder ein Clamp und naehme den autoPan zurueck.
+const POPUP_CLAMP_DISABLED_BOUNDS = L.latLngBounds([-1e6, -1e6], [1e6, 1e6]);
 function keepPopupReadableDespiteMaxBounds(event) {
     const popup = event.popup;
     if (!popup || !popup.options || popup.options.autoPan === false) {
@@ -389,7 +408,7 @@ function keepPopupReadableDespiteMaxBounds(event) {
     if (!savedMaxBounds) {
         return;
     }
-    map.options.maxBounds = null;
+    map.options.maxBounds = POPUP_CLAMP_DISABLED_BOUNDS;
 
     const detach = () => {
         map.off("dragstart", onUserMove);
@@ -431,7 +450,11 @@ function createBaseTileLayer(mapStyle) {
         tileSize: TILE_SIZE,
         maxNativeZoom: tileStyle.maxNativeZoom ?? 5,
         noWrap: true,
-        errorTileUrl: "tiles/loading.jpg",
+        // ⚠️ Der Platzhalter liegt in `img/`, NICHT in `tiles/`: der Deploy hat `paths-ignore: tiles/**`
+        // und traegt `tiles` nicht in seiner Allowlist -- die Datei lag ab 17.05.2026 im Repo und kam nie
+        // auf den Server. Jede fehlgeschlagene Kachel erzeugte damit einen ZWEITEN Fehler (404) statt
+        // eines Platzhalters.
+        errorTileUrl: "img/tile-loading.jpg",
         bounds: MAP_BOUNDS,
         continuousWorld: false,
         // Tile smoothness: do not fetch new tiles DURING the zoom animation (the existing tiles scale and
