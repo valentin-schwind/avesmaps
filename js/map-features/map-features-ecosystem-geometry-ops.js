@@ -32,11 +32,16 @@
 	// ausschneiden" heisst hier „Von anderer ausschneiden", weil eine Fläche weiblich ist. Die Editoren
 	// bedienen jenes Menü seit Monaten; zwei Vokabulare für dieselbe Geste wäre die eigentliche Zumutung.
 	//
-	// ⚠️ EINE Geste steht seit 25.08.2026 nur hier: „Mit anderer vereinigen und andere beibehalten"
-	// (Owner-Entscheid, bewusst nur die Landschaften). Das ist KEIN Versehen und keine halbe
-	// Vereinheitlichung, die jemand „zu Ende bringen" müsste — die Territorien dürfen jederzeit
-	// nachziehen, aber das ist ihr eigener Schreibweg (region-boolean-geometry.js, ein anderer
-	// Endpunkt) und wäre eine eigene Sitzung. Die übrigen vier bleiben Zeichen für Zeichen gleich.
+	// 🔴 EINE Geste steht seit 25.08.2026 nur hier, und sie GEHÖRT nur hierher: „Mit anderer
+	// vereinigen und andere beibehalten". Das ist kein Versehen und keine halbe Vereinheitlichung,
+	// die jemand „zu Ende bringen" müsste.
+	//
+	// Ihr Sinn hängt an den EBENEN. Sie lässt die andere Fläche als Schablone stehen — und stehen
+	// bleiben KANN die nur, weil sie einer anderen Ebene angehört: der Wald wächst um den Umriss des
+	// Berges, der Berg bleibt Berg. Zwei Flächen DERSELBEN Ebene deckungsgleich übereinander sind
+	// kein Ergebnis, das jemand haben will. Die Herrschaftsgebiete haben keine Ebenen, dort wäre die
+	// Geste also sinnlos (Owner 26.08.2026, wörtlich: „bei territorien gibts keine ebenen, da wär
+	// die option sinnlos"). Die übrigen vier bleiben dort Zeichen für Zeichen gleich.
 	const TARGET_OPERATIONS = [
 		{ action: "union", label: "Mit anderer vereinigen" },
 		{ action: "union-keep-target", label: "Mit anderer vereinigen und andere beibehalten" },
