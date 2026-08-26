@@ -112,12 +112,29 @@ danebengelegt, hält das alte Schriftbild, während das echte Pane neu bestückt
 nachzurechnen, nichts synchron zu halten.
 
 🔴 **Hier stand, der Klon „skaliere während der Zoom-Animation gratis mit, weil der Zoom am
-`_mapPane` hängt". Das ist FALSCH und am 26.08.2026 nachgemessen:** `_mapPane` trägt während des
+`_mapPane` hängt". Das war FALSCH und ist am 26.08.2026 nachgemessen:** `_mapPane` trägt während des
 Zooms `translate3d(0px, 0px, 0px)` — **es skaliert überhaupt nicht.** Leaflet zoomt über einen
 `leaflet-proxy` und über die Transform der einzelnen `leaflet-zoom-animated`-Ebenen; ein Pane ohne
-diese Klasse bekommt nichts davon ab. Weder der Klon noch das echte Pane skalieren also mit.
-⚠️ Das ist zugleich die Erklärung für den Owner-Befund *„ortslabels ziehen überhaupt nicht nach"*:
-sie ziehen wirklich nicht nach, und zwar konstruktionsbedingt.
+diese Klasse bekommt nichts davon ab. Der Satz stand vier Wochen da und behauptete das Gegenteil
+dessen, was die Karte tat.
+⚠️ Das war zugleich die Erklärung für den Owner-Befund *„ortslabels ziehen überhaupt nicht nach"* —
+und für den späteren *„es wird das ausgeblendet, was nicht auf der KARTE stabil war, sondern im
+screen"*.
+
+⭐ **Seit 26.08.2026 bekommt der Klon deshalb seine EIGENE Zoom-Transform**, dieselbe, die auch die
+Canvas-Overlays tragen — er klebt beim Ausblenden an der Karte statt am Bildschirm. Owner nach dem
+Ausliefern: *„ortnamen sind jetzt stabil auf der karte!"* Drei Fallen dabei:
+- 💣 **Bezugspunkt ist der URSPRUNG des Layer-Koordinatensystems** (`layerPointToLatLng([0, 0])`),
+  nicht das Kartenzentrum: die Kinder des Klons stehen in Layer-Punkten der Quellstufe, und nur über
+  deren Nullpunkt stimmt die Abbildung auf die Zielstufe.
+- 💣 **`transform-origin: 0 0`** — sonst skaliert der Klon um seine MITTE. Leaflet setzt das sonst
+  über die Klasse `leaflet-zoom-animated`, die ein Pane nicht trägt.
+- 💣 **Transform und Deckkraft in EINER Deklaration** — `transition` ist EINE Eigenschaft; zwei
+  Zuweisungen löschen einander aus, und eines von beidem spränge hart.
+
+🪤 **Die Trennlinie, an der der Owner es gesehen hat, ist Canvas gegen DOM:** *„gebirge machen es
+richtig, die restlichen label kleben noch am bildschirm."* Die Gebirgsnamen sind Kurvenbeschriftungen
+auf einer **Canvas** — die bekommt ihre Transform seit jeher. Alles im **DOM-Pane** bekam keine.
 
 💣 **UND DIE ZWEITE MESSUNG IST DIE WICHTIGERE: Leaflet setzt die Beschriftungen des echten Panes
 schon im `zoomanim` auf ihre ZIELpositionen um.** Gemessen an derselben Beschriftung im selben
