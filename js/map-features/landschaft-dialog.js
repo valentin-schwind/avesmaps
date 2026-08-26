@@ -140,24 +140,37 @@ function avesmapsLandschaftDialogOeffnen(optionen) {
  *
  * ⚠️ Im Reiter „Wiki & Quellen" gibt es nichts zu löschen. Der Knopf ist dort VERBORGEN, nicht
  * gesperrt: ein Löschknopf ohne Bezug ist schlimmer als keiner.
+ *
+ * 💣 UND ER BRAUCHT EINEN GEGENSTAND, nicht nur einen Bezug. Der Reiter sagt, WAS gelöscht würde;
+ * der Stand sagt, ob es das überhaupt gibt. Live gemessen am 26.08.2026: bei einer Fläche ohne
+ * Beschriftung stand „Beschriftung löschen" da und tat auf den Klick lautlos gar nichts -- keine
+ * Rückfrage, keine Anfrage, keine Meldung. Dieselbe Regel wie im dritten Reiter, nur war sie hier
+ * nicht angewandt.
+ *
+ * 🔴 Ohne Stand gilt die sichere Richtung: KEIN Knopf. Ein Aufrufer, der ihn vergisst, soll nichts
+ * anbieten -- nicht auf gut Glück etwas, das es vielleicht nicht gibt.
+ *
+ * @param {string} reiter "flaeche" | "beschriftung" | "wiki"
+ * @param {{hatFlaeche: boolean, hatLabel: boolean}} stand
  */
-function avesmapsLandschaftDialogLoeschText(reiter) {
+function avesmapsLandschaftDialogLoeschText(reiter, stand) {
+	const s = stand || {};
 	if (reiter === "flaeche") {
-		return "Fläche löschen";
+		return s.hatFlaeche ? "Fläche löschen" : "";
 	}
 	if (reiter === "beschriftung") {
-		return "Beschriftung löschen";
+		return s.hatLabel ? "Beschriftung löschen" : "";
 	}
 	return "";
 }
 
-/** Den Löschknopf an den offenen Reiter hängen. */
+/** Den Löschknopf an den offenen Reiter UND den Stand der Hälften hängen. */
 function avesmapsLandschaftDialogLoeschKnopf(reiter) {
 	if (typeof document === "undefined") {
 		return "";
 	}
 	const knopf = document.getElementById("landschaft-dialog-delete");
-	const text = avesmapsLandschaftDialogLoeschText(reiter);
+	const text = avesmapsLandschaftDialogLoeschText(reiter, avesmapsLandschaftDialogStand());
 	if (knopf) {
 		knopf.hidden = text === "";
 		if (text !== "") {
@@ -220,6 +233,11 @@ function avesmapsLandschaftDialogLagen() {
 		});
 		gezeigt[reiter] = text;
 	});
+	// 🔴 Der Löschknopf zieht MIT. Eine Hälfte kann sich waehrend eines offenen Fensters an- und
+	// abmelden („Beschriftung anlegen"), und dann muss der Knopf mitziehen, ohne dass jemand daran
+	// denkt -- derselbe Grund, aus dem die leeren Zustaende an dieser Stelle haengen und nicht an
+	// den Aufrufern. Der offene Reiter wird aus dem DOM gelesen, nie aus einem Merker daneben.
+	avesmapsLandschaftDialogLoeschKnopf(avesmapsLandschaftDialogReiterName());
 	return gezeigt;
 }
 

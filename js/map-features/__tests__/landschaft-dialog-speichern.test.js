@@ -66,14 +66,36 @@ assert.ok(/avesmapsLandschaftDialogHaelfte\("flaeche", true\)/.test(eco),
 assert.ok(/avesmapsLandschaftDialogHaelfte\("flaeche", false\)/.test(eco),
 	"…und beim Schließen wieder ab"); checks++;
 
-// ── E. DER LÖSCHKNOPF HAT EINEN BEZUG ────────────────────────────────────────────────────────
-assert.strictEqual(avesmapsLandschaftDialogLoeschText("flaeche"), "Fläche löschen"); checks++;
-assert.strictEqual(avesmapsLandschaftDialogLoeschText("beschriftung"), "Beschriftung löschen"); checks++;
+// ── E. DER LÖSCHKNOPF HAT EINEN BEZUG — UND EINEN GEGENSTAND ─────────────────────────────────
+// 🔴 Der REITER sagt, was gelöscht würde; der STAND sagt, ob es das überhaupt gibt. Erst beides
+// zusammen ergibt einen Knopf. Live gemessen am 26.08.2026: bei einer Fläche ohne Beschriftung bot
+// das Fenster „Beschriftung löschen" an und tat auf den Klick lautlos NICHTS — keine Rückfrage,
+// keine Anfrage, keine Meldung. Der Quelltext daneben sagt selbst, ein Löschknopf ohne Bezug sei
+// schlimmer als keiner; im Reiter „Wiki & Quellen" wurde die Regel befolgt, in diesen zwei Lagen
+// nicht.
+const beides = { hatFlaeche: true, hatLabel: true };
+assert.strictEqual(avesmapsLandschaftDialogLoeschText("flaeche", beides), "Fläche löschen"); checks++;
+assert.strictEqual(avesmapsLandschaftDialogLoeschText("beschriftung", beides), "Beschriftung löschen"); checks++;
+// 💣 Die fehlende Hälfte verbirgt den Knopf. Das ist der Befund vom 26.08.2026.
+assert.strictEqual(
+	avesmapsLandschaftDialogLoeschText("beschriftung", { hatFlaeche: true, hatLabel: false }), "",
+	"ohne Beschriftung gibt es nichts zu löschen"); checks++;
+assert.strictEqual(
+	avesmapsLandschaftDialogLoeschText("flaeche", { hatFlaeche: false, hatLabel: true }), "",
+	"ohne Fläche gibt es nichts zu löschen"); checks++;
 // ⚠️ Im Reiter „Wiki & Quellen" gibt es nichts zu löschen: leerer Text -> der Knopf ist verborgen.
-assert.strictEqual(avesmapsLandschaftDialogLoeschText("wiki"), ""); checks++;
-assert.strictEqual(avesmapsLandschaftDialogLoeschText(""), ""); checks++;
+assert.strictEqual(avesmapsLandschaftDialogLoeschText("wiki", beides), ""); checks++;
+assert.strictEqual(avesmapsLandschaftDialogLoeschText("", beides), ""); checks++;
+// 🔴 OHNE Stand gilt die sichere Richtung: nichts anbieten. Wer ihn vergisst, bekommt keinen
+// Löschknopf — nicht einen, der auf gut Glück etwas anbietet.
+assert.strictEqual(avesmapsLandschaftDialogLoeschText("flaeche"), "",
+	"ohne Stand kein Löschknopf"); checks++;
 assert.ok(/knopf\.hidden = text === ""/.test(huelle),
 	"leerer Text verbirgt den Knopf, statt ihn zu sperren"); checks++;
+// 🔴 Und er zieht MIT, wenn sich eine Hälfte während des offenen Fensters an- oder abmeldet
+// („Beschriftung anlegen"). Ohne das bliebe seine Beschriftung auf dem Stand des Öffnens stehen.
+assert.ok(/avesmapsLandschaftDialogLoeschKnopf\(avesmapsLandschaftDialogReiterName\(\)\)/.test(huelle),
+	"die Datenlagen ziehen den Löschknopf nach"); checks++;
 
 // ── F. GENAU EINE SICHTBARE KNOPFLEISTE ──────────────────────────────────────────────────────
 // 🔴 Die zwei alten Leisten bleiben im Markup und sind VERBORGEN: an ihren Knöpfen hängen die
