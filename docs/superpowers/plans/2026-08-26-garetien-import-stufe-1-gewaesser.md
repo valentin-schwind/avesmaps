@@ -35,7 +35,13 @@ Diese Werte gelten für **jede** Aufgabe und stammen wörtlich aus dem Entwurf:
   **2000 Einheiten** (3,2 km). (§4)
 - 🔴 **Keine zweite Übernahme-Vorschau und kein zweites Quellensystem.** Die vorhandenen
   bekommen je eine weitere Quelle. (§5, AGENTS.md §5)
-- 🔴 `feature_sources.origin = 'garetien'` für alles aus diesem Import. (§5.3)
+- 🔴 `feature_sources.origin = 'garetien'` und `sources.source_type = 'garetien'` für alles
+  aus diesem Import. (§5.3)
+- 🔴 **Lizenzangabe: „Garetien.de, CC BY-NC-SA 3.0"** (Owner 2026-08-26). 💣 Sie hängt am
+  `source_type`, **nicht** an jedem Objekt — `sources` hat keine Lizenzspalte und bekommt
+  keine. Die Lizenz ist eine Eigenschaft von garetien.de, nicht von jedem einzelnen Bach;
+  sie 289-mal ins `label` zu schreiben wäre die Duplizierung, die das Lore-Quellensystem
+  eine Migration gekostet hat. (§5.3.1)
 - **Einheit:** 1 Wagenhalt-Einheit = 1/1000 Meile; 1 Avesmaps-Karteneinheit = 3 Meilen
   (`AVESMAPS_TERRAIN_MEILEN_PER_MAPUNIT`).
 - **Sprache:** Kommentare, Commit-Betreffe und Doku auf **Deutsch** (AGENTS.md §8).
@@ -905,9 +911,16 @@ $pruefungen += 2;
 assert($e['quellen'] === 1);
 $q = $pdo->query('SELECT * FROM feature_sources')->fetch(PDO::FETCH_ASSOC);
 assert($q['origin'] === 'garetien', 'eigene Herkunft, damit ein spaeterer Lauf sie wiedererkennt');
-$url = $pdo->query('SELECT url FROM sources')->fetchColumn();
-assert(str_contains($url, 'garetien.de'), 'die Quelle zeigt auf den Wiki-Artikel');
-$pruefungen += 3;
+$s = $pdo->query('SELECT * FROM sources')->fetch(PDO::FETCH_ASSOC);
+assert(str_contains($s['url'], 'garetien.de'), 'die Quelle zeigt auf den Wiki-Artikel');
+assert($s['source_type'] === 'garetien', 'daran haengt die Lizenzangabe');
+$pruefungen += 4;
+
+// --- 💣 Die Lizenz steht NICHT im Label. Sie ist eine Eigenschaft von garetien.de und
+// haengt am source_type -- einmal, nicht einmal je Objekt (Entwurf §5.3.1).
+assert(!str_contains($s['label'], 'CC BY'), 'die Lizenz gehoert nicht ins Label jedes Objekts');
+assert($s['label'] !== '', 'das Label traegt den Artikelnamen');
+$pruefungen += 2;
 
 // --- Die Geometrie liegt in UNSEREN Karteneinheiten, nicht in Wagenhalt-Einheiten.
 $geo = json_decode((string) $pdo->query('SELECT geometry_json FROM map_features')->fetchColumn(), true);
@@ -950,7 +963,7 @@ Erwartet: Fehler `Failed opening required '.../garetien-uebernahme.php'`
 
 - [ ] **Schritt 4: Test laufen lassen, Erfolg bestätigen**
 
-Lauf: wie Schritt 2. Erwartet: `OK: 9 Pruefungen`
+Lauf: wie Schritt 2. Erwartet: `OK: 11 Pruefungen`
 
 - [ ] **Schritt 5: Das GANZE Testfeld fahren**
 

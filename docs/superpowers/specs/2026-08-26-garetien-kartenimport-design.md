@@ -141,7 +141,7 @@ gemeinsam gelesen.
 | `Stadt` | `stadt` | |
 | `Markt` | `kleinstadt` | Markt ist bei uns keine eigene Klasse |
 | `Dorf` | `dorf` | |
-| `Binge` | `dorf` | Zwergenstadt; ⚠️ Owner-Entscheid nötig |
+| `Binge` | `dorf` | 🔴 Owner-Entscheid 2026-08-26. ⭐ Der Präzedenzfall stand schon da: von den **13 Bingen führen wir 2** (Finsterkoppen, Antalorgol) — **beide als `dorf`**. 11 kommen dazu. ⚠️ Bei den drei mit LOD 6 (Finsterkoppen, Antalorgol, Xavolosch) untertreibt `dorf` inhaltlich; im Editor jederzeit einzeln hochstufbar |
 | `Burg`, `Pfalz`, `Tempel`, `Kloster`, `Gutshof`, `Gebaeude`, `Akademie`, `Gasthaus`, `Magierturm` | `gebaeude` | |
 | `Stadtviertel` | — | 🔴 **nicht importieren**, wir haben kein Gegenstück |
 | `*Klein` (Detail 1–2) | — | 🔴 **nicht importieren** (siehe §3.6) |
@@ -185,13 +185,28 @@ ist ausdrücklich NICHT Teil dieser Stufe** — sie wird gemessen und berichtet,
 | Ihr Typ | Unsere Art (`kind`/`type_key`) |
 |---|---|
 | `Wald`, `Forst` | `vegetation`/`wald` |
-| `Urwald` | `vegetation`/`dschungel` ⚠️ Owner-Entscheid: oder eigener Wert |
+| `Urwald` | `vegetation`/**`urwald`** — 🔴 **neue Art**, Owner-Entscheid 2026-08-26 |
 | `Gebirge` | `topographie`/`gebirge` |
 | `Huegel` | `topographie`/`huegelland` |
 | `Berg` | `map_features.label` mit `feature_subtype='berggipfel'` (Punkt, keine Fläche) |
-| `Insel` | `topographie`… ⚠️ bei uns `derographisch`/`inselgruppe` **oder** Label `insel` |
+| `Insel` | `topographie`/`insel` — 🔴 **Fläche**, Owner-Entscheid 2026-08-26 |
 | `Kueste` | `topographie`/`kueste` |
 | `Kontinent` | — nicht importieren |
+
+⭐ **`topographie`/`insel` gibt es bereits** (`AVESMAPS_ECOSYSTEM_REGION_TYPE_SEED`,
+Sortierung 120) — es ist genau die Unterscheidung, die der Seed selbst begründet: „a single
+island is a FORM and moved to topographie", die `inselgruppe` dagegen ein benannter Behälter
+unter `derographisch`. Ihre 16 `Insel`-Objekte sind Einzelinseln, also `topographie`/`insel`.
+**Keine neue Art nötig.**
+
+🔴 **`vegetation`/`urwald` ist neu und muss angelegt werden.** Owner: „Du darfst eine neue
+Kategorie machen." Sie kommt in `AVESMAPS_ECOSYSTEM_REGION_TYPE_SEED` neben `wald` und
+`dschungel`. Die Begründung gehört als Kommentar an die Zeile, wie bei `wadi`, `schlucht`
+und `hochebene`: Ein Urwald ist **nicht** dasselbe wie ein Dschungel — der Dschungel ist
+eine Klimaaussage (tropisch), der Urwald eine Aussage über den **Zustand** (nie gerodet).
+Der Wald des tiefsten Reiches liegt nicht in den Tropen. Sie in eine Art zu legen hieße,
+genau diese Unterscheidung einzuebnen. ⚠️ Nur **8 Objekte** tragen sie — die Art startet
+klein, und das ist in Ordnung: `inselgruppe` startete leer.
 
 💣 **`berggipfel` ist ein Stützpunkt des Höhenfelds** (`terrain-store.php` liest
 `is_active=1` + `height_schritt`). Ein importierter Gipfel ohne Höhe verändert das
@@ -337,6 +352,31 @@ ausdrücklich benannte Falle.
 - Für Zeilen **ohne** Artikel (§1.2) gibt es keinen Objektlink; sie bekommen die Sammelquelle
   `https://www.garetien.de` mit dem Label „Garetien, Greifenfurt und Perricum".
 
+### 5.3.1 Die Lizenzangabe
+
+🔴 **Owner-Entscheid 2026-08-26: „Garetien.de, CC BY-NC-SA 3.0".** Das ist der Wortlaut, der
+an den übernommenen Inhalten steht.
+
+💣 **Die Lizenz gehört EINMAL an die Quelle, nicht 289-mal an die Objekte.** `sources` hat
+**keine** Lizenzspalte (`url`, `url_hash`, `label`, `source_type`, `is_official`) — und sie
+bekommt auch keine: Die Lizenz ist eine Eigenschaft von *garetien.de*, nicht von jedem
+einzelnen Bach. Sie in jedes `label` zu schreiben wäre exakt die Duplizierung, die das
+Lore-Quellensystem eine Migration gekostet hat (AGENTS.md §5).
+
+**Stattdessen:**
+- `sources.source_type = 'garetien'` — ein neuer Wert, der die Herkunft benennt.
+- Die Infobox rendert für diesen `source_type` **einmal** den Zusatz
+  „Garetien.de, CC BY-NC-SA 3.0" mit Link auf `https://creativecommons.org/licenses/by-nc-sa/3.0/`,
+  unabhängig davon, wie viele Objekte ihn tragen.
+- Zusätzlich eine Sammelangabe im Fenster **Hinweise** (Abschnitt „Projekt und rechtlicher
+  Status"): „Kartendaten aus *Garetien, Greifenfurt und Perricum* (garetien.de) und dem
+  *KoschWiki* (koschwiki.de), © Volker Strunk / Freundeskreis des phantastischen Briefspiels
+  e.V., CC BY-NC-SA 3.0."
+
+⚠️ Björns Formulierungsvorschlag („Daten aus Garetien, Greifenfurt und Perricum sind
+www.garetien.de entnommen") ist damit erfüllt und übererfüllt: Er hatte die Globalangabe
+angeboten, *weil* er Einzelkennzeichnung für unmöglich hielt. Wir können beides.
+
 ⚠️ `entity_type` muss die Zielart nennen (`path`, `region`, `settlement`) — das ist die
 Zwei-Zeilen-Änderung in `api/edit/map/feature-sources.php` und `api/app/feature-sources.php`,
 falls eine Art noch nicht in der Whitelist steht.
@@ -382,13 +422,23 @@ Retogau-Rekonstruktion belegt (§4) — die Reihenfolge ist eine Risiko-, keine 
 
 ## 8. Offen
 
-- 🔧 **DU (Owner):** Die Lizenz ist CC BY-NC-SA 3.0. Björns Freigabe deckt nichtkommerzielle
-  Nutzung mit Namensnennung, was wir erfüllen. Was **ShareAlike** für unsere offene API
-  (`GET /api/locations/`, `POST /api/route/`) bedeutet, hat niemand ausdrücklich beantwortet.
-  Für Staging und Vorschau ohne Schreibpfad egal — **vor der ersten echten Übernahme** sollte
-  das einmal klar sein, weil Ausbauen teurer ist als Nichteinbauen.
-- 🔧 **Volker:** Die 500er-Grenze (§6) — nur relevant ab Stufe 4.
-- 🔧 **Owner-Entscheide im Mapping:** `Binge` → `dorf`? `Urwald` → `dschungel`? `Insel` →
-  Label oder Fläche? (§3.1, §3.4)
+**Entschieden am 2026-08-26 (Owner):**
+
+- ✅ **Lizenzangabe:** „Garetien.de, CC BY-NC-SA 3.0" — Umsetzung in §5.3.1.
+- ✅ **`Binge` → `dorf`** (§3.1), im Einklang mit den 2 Bingen, die wir schon so führen.
+- ✅ **`Urwald` → neue Art `vegetation`/`urwald`** (§3.4).
+- ✅ **`Insel` → Fläche**, und zwar `topographie`/`insel`, die es schon gibt (§3.4).
+
+**Weiterhin offen:**
+
+- 🔧 **Volker:** Die 500er-Grenze (§6) — nur relevant ab Stufe 4 (Ortschaften).
+- 🔧 **Zu messen in Aufgabe 3:** ob der Abruf **von STRATO aus** überhaupt durchgeht. Wiki
+  Aventurica sperrt unsere Ausgangs-IP (`81.169.144.135`); ob garetien.de das auch tut, ist
+  unbekannt. Eine einzelne Probe, nicht 18. Schlägt sie fehl, läuft der Abruf lokal per CLI.
 - ⚠️ Die Anbindung importierter Flüsse ans Routing-Wegenetz ist bewusst nicht Teil von
   Stufe 1 (§3.3). Sie wird gemessen und berichtet.
+- ⚠️ **ShareAlike und unsere offene API:** Der Owner hat die Lizenz als
+  CC BY-NC-SA 3.0 bestätigt und die Namensnennung festgelegt; Björns Freigabe lautete
+  „verwendbar zu gleichen Bedingungen". Damit ist die Nutzung gedeckt. Was ShareAlike für
+  Dritte bedeutet, die unsere API abrufen, ist eine Frage an die Nutzungsbedingungen der API,
+  nicht an diesen Import — sie gehört in `NOTICE.md`, nicht in den Importer.
