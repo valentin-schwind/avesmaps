@@ -184,6 +184,31 @@ Und der Hauptthread ist beim Zoomstart damit beschäftigt, sämtliche Ebenen zu 
 Blende 100 ms zu spät, steht die alte Schrift beim `zoomend` noch bei 0,4 — und die neue kommt
 darüber. Zwei Bilder mit **verschobenem Inhalt**, beide halb sichtbar: doppelte Schrift.
 
+💣 **UND DIE ZWEITE HÄLFTE, DIE DEN FEHLER ERST ERKLÄRT HAT: `style.transition = ""` schaltet
+keinen Übergang ab.** Es entfernt nur die *inline*-Angabe — danach gilt wieder die CSS-Regel.
+Im Klon-Code stand seit Monaten:
+
+```js
+pane.style.transition = "";   // gemeint war „kein Übergang"
+pane.style.opacity = "0";     // gemeint war „sofort weg"
+```
+
+Das Pane **blendete** also, statt zu springen. 🪤 Fünf Monate lang fiel das nicht auf, weil die
+CSS-Regel `100ms` sagte. Als sie am 26.08.2026 auf die gemeinsame Zoomdauer gezogen wurde, blendete
+das Pane über die **volle** Bewegung — im Gleichschritt mit dem Klon, und damit war jede
+Beschriftung doppelt zu sehen. Gemessen vom Owner:
+
+```
+    0 ms | Klon 1.00 | Pane 1.00   <-- BEIDE SICHTBAR
+  740 ms | Klon 0.96 | Pane 0.96   <-- BEIDE SICHTBAR
+```
+
+🔴 **Die Vereinheitlichung hat den Fehler nicht verursacht, sie hat ihn sichtbar gemacht.** Wer eine
+CSS-Dauer zusammenführt, ändert damit jede Stelle mit, die sich stillschweigend auf ihre alte Kürze
+verlassen hat. ⭐ Vorher `git grep 'style.transition = ""'` im selben Wirkungskreis.
+⚠️ Und ein fester Timer daneben (Sicherheitsnetz, Aufräumer) muss **mit der Dauer wachsen** — die
+feste 2-Sekunden-Frist des Klons feuerte unter `?zoomlupe` mitten in die laufende Bewegung.
+
 ⭐ **Die Regel, die daraus folgt:** wer zwei Übergänge gegeneinander plant, darf nicht mit dem
 Zeitpunkt der *Zuweisung* rechnen. Garantiert ist nur, was man erzwingt. Die ausgehende Ebene wird
 deshalb beim Einblenden **hart auf 0 gesetzt** statt überblendet — ihre Blende hatte sie beim
