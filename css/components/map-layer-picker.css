@@ -58,9 +58,15 @@
 	margin: 0;
 	padding: 5px;
 	display: grid;
-	/* Am Zeiger eine Reihe, am Telefon 2x3 (Owner 11.08.2026). Die Regel darunter bleibt in
-	   beiden Faellen dieselbe: die letzte Zelle ist die aktive und liegt auf der Kachel. */
-	grid-template-columns: repeat(6, auto);
+	/* Am Zeiger EINE Reihe, am schmalen Telefon 3 Spalten (Owner 11.08.2026 / 26.08.2026). Die
+	   Regel darunter bleibt in beiden Faellen dieselbe: die letzte Zelle ist die aktive und liegt
+	   auf der Kachel.
+	   💣 Die Spaltenzahl kommt aus dem JS (--map-layer-spalten), nicht als feste 6. Seit „Original"
+	   ein Untergrund ist, sind es fuenf Ansichten -- eine feste 6 waere ab sofort eine Zahl, die
+	   nichts mehr beschreibt, und beim naechsten Zu- oder Abgang wieder falsch.
+	   ⚠️ Als CSS-Variable, NICHT als Inline-Style: ein Inline-Style schluege die Media Query unten,
+	   und das schmale Telefon bekaeme wieder eine Reihe, die nicht hineinpasst. */
+	grid-template-columns: repeat(var(--map-layer-spalten, 6), auto);
 	gap: 6px;
 	border: 1px solid var(--color-border-strong);
 	border-radius: var(--radius-sm);
@@ -168,9 +174,16 @@
 	}
 }
 
-/* 437px braucht die Reihe. Unterhalb davon bricht sie auf 2x3 (221px) -- eine Form, zwei
-   Aufteilungen, kein zweiter Bauplan. */
-@media (max-width: 560px) {
+/* 🔴 DIE GRENZE IST GERECHNET, NICHT GERATEN (Owner 26.08.2026: „ueberleg dir, ob die auf einem
+   Mobilgeraet nebeneinander passen. bei 6 mach 2x3, aber wenns passt mach in der breit max 1x5").
+   Fuenf Kacheln: 5x66 + 4x6 Spalt + 2x5 Polsterung + 2x1 Rahmen = 366px, dazu 2x12px Kartenrand
+   = 390px Bildschirmbreite. Das ist genau ein iPhone 12/13/14 (390) und jedes uebliche Android
+   (412); das kleinste Geraet (320) bleibt darunter und bekommt 3 Spalten, also 3+2.
+   ⚠️ Hier stand 560px -- eine Zahl aus der Zeit von SECHS Ansichten (die brauchten 438+24=462px).
+   Sie haette fuenf Kacheln auf jedem Telefon umbrechen lassen, obwohl sie auf den meisten passen.
+   💣 Und sie war schon damals zu gross: der Kommentar darueber nannte 437px als Bedarf, die Regel
+   griff aber ab 560. Zwischen 438 und 560 brach sie um, ohne dass es noetig war. */
+@media (max-width: 389px) {
 	.map-layer-picker__menu {
 		grid-template-columns: repeat(3, auto);
 	}

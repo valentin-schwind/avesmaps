@@ -286,7 +286,11 @@ assert.ok(staffelZeilen.every((z) => z.includes(".is-open")),
 assert.ok(/clip-path:\s*none/.test(sparsam[1]),
 	"der Sparsam-Block nimmt den Beschnitt ganz weg -- ihn bloss nicht zu animieren liesse den"
 	+ " Startwert stehen, und das Raster zeigte fuer immer nur seine rechte Kachelbreite");
-const telefon = css.match(/@media\s*\(max-width:\s*560px\)\s*\{([\s\S]*?)\n\}/);
+// 🪤 NICHT an der ZAHL suchen. Hier stand `max-width: 560px` -- ein Wert aus der Zeit von sechs
+// Ansichten. Als die Grenze am 26.08.2026 auf die tatsaechlich noetige Breite rueckte, fiel dieser
+// Test um, obwohl an der Regel nichts falsch war: er hing an der Zahl statt an dem, was sie
+// bewirkt. Gesucht wird deshalb der Block, der auf 3 Spalten umstellt.
+const telefon = css.match(/@media[^{]*\{([\s\S]*?repeat\(3,[\s\S]*?)\n\}/);
 assert.ok(telefon && /clip-path:\s*none/.test(telefon[1]),
 	"am Telefon rollt nichts auf -- der Wisch gibt eine SENKRECHTE Kante frei, und die ist bei 2x3"
 	+ " ein Streifen ueber die volle Hoehe statt der Kachelsilhouette. Die Staffelung traegt dort allein");
@@ -420,3 +424,51 @@ assert.ok(marke,
 	"die Markierung des Gewaehlten haengt an der Zelle, nicht an einer der beiden Stufen");
 assert.ok(!/__grund[^\n]*is-active[^\n]*::before/.test(css),
 	"...und NICHT nur an der Untergrund-Reihe -- dann traefe sie das Hauptmenue nie");
+
+// ---- 17. DER UNTERGRUND WIRKT AUCH FUER BESUCHER (26.08.2026) -----------------------------------
+//
+// 💣 Der change-Handler des #mapStyleSelect trug bis dahin `if (!IS_EDIT_MODE) { this.value =
+// "stylized"; return; }` -- ein Riegel aus der Zeit, als der Kachelstil reine Editor-Sache war.
+// Er setzte jede Wahl eines Besuchers STILL zurueck: das Menue reagierte, die Karte nicht.
+// Von aussen war das nicht von einem kaputten Klick zu unterscheiden -- die Zelle bekam ihren
+// Rahmen, das Menue schloss, und der Untergrund blieb. Genau so gemeldet: „Klicken geht nicht".
+// 🔴 Das Menue waehlt ueber genau diesen Handler. Kommt der Riegel zurueck, ist die zweite Stufe
+// fuer jeden Besucher wirkungslos -- und zwar lautlos.
+const mapFeatures = read("js", "map-features", "map-features.js");
+const stilAnfang = mapFeatures.indexOf("$(\"#mapStyleSelect\").on(\"change\"");
+const stilHandler = mapFeatures.slice(stilAnfang, mapFeatures.indexOf("$(\"#togglePaths\")"));
+assert.ok(stilAnfang > 0 && stilHandler.length > 0,
+	"der change-Handler des #mapStyleSelect ist auffindbar");
+assert.ok(!/!IS_EDIT_MODE[\s\S]{0,120}this\.value\s*=/.test(ohneKommentare(stilHandler)),
+	"er setzt die Wahl eines Besuchers NICHT mehr auf stylized zurueck");
+assert.ok(/setMapStyle\(String\(this\.value/.test(stilHandler),
+	"...sondern setzt sie um");
+
+
+// ---- 18. DIE UMBRUCHGRENZE IST GERECHNET, NICHT GERATEN (26.08.2026) ----------------------------
+//
+// 🔴 Owner: „ueberleg dir, ob die auf einem Mobilgeraet nebeneinander passen. bei 6 mach 2x3,
+// aber wenns passt mach in der breit max 1x5."
+// Fuenf Kacheln brauchen 5x66 + 4x6 Spalt + 2x5 Polsterung + 2x1 Rahmen = 366px, dazu zweimal
+// den 12px-Kartenrand = 390px Bildschirmbreite. Genau ein iPhone 12/13/14 (390) und jedes
+// uebliche Android (412); nur das kleinste Geraet (320) bricht um.
+// 💣 Die Spaltenzahl darf KEINE feste Zahl sein: sie war 6, seit „Original" ein Untergrund ist
+// sind es 5, und beim naechsten Zu- oder Abgang waere sie wieder falsch.
+const spaltenRegel = regel(".map-layer-picker__menu");
+assert.ok(/repeat\(var\(--map-layer-spalten/.test(spaltenRegel),
+	"die Spaltenzahl kommt aus einer Variablen, nicht als feste Zahl im CSS");
+assert.ok(/setProperty\("--map-layer-spalten", String\(alle\.length\)\)/.test(js),
+	"...und das JS setzt sie auf die tatsaechliche Anzahl der Ansichten");
+
+// ⚠️ Als CSS-Variable, nicht als Inline-Style: ein Inline-Style schluege die Media Query, und
+// das schmale Telefon bekaeme eine Reihe, die nicht hineinpasst.
+assert.ok(!/menue\.style\.gridTemplateColumns/.test(js),
+	"die Spaltenzahl wird NICHT als Inline-Style gesetzt -- der schluege die Media Query");
+
+// 💣 Und die Grenze selbst muss zu den fuenf Kacheln passen. Sie stand auf 560px -- einer Zahl
+// aus der Zeit von sechs Ansichten, die fuenf Kacheln auf JEDEM Telefon umbrechen liess.
+const grenze = Number((css.match(/@media\s*\(max-width:\s*(\d+)px\)[^{]*\{[^}]*repeat\(3,/) || [])[1]);
+assert.ok(grenze > 0, "es gibt eine Umbruchgrenze fuer das schmale Telefon");
+assert.ok(grenze < 390 && grenze > 320,
+	"die Grenze liegt zwischen dem kleinsten Geraet (320, bricht um) und dem iPhone 12 (390, passt)"
+	+ " -- gerechnet aus 366px Kastenbreite plus zweimal 12px Kartenrand, nicht geraten");

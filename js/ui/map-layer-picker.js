@@ -304,6 +304,10 @@
 			// siehe css/components/map-layer-picker.css). Wer hier sortiert, verschiebt die Kachel
 			// beim Aufklappen -- genau das, was nicht passieren darf.
 			menue.innerHTML = "";
+			// 💣 Die Spaltenzahl ist die ANZAHL, keine feste 6 (26.08.2026). Als CSS-Variable, nicht
+			// als Inline-Style: ein Inline-Style schluege die Media Query fuer schmale Telefone, und
+			// die Reihe passte dort nicht mehr hinein.
+			menue.style.setProperty("--map-layer-spalten", String(alle.length));
 			alle.forEach(function (a) {
 				if (a.wert !== aktuelle.wert) {
 					menue.appendChild(zelle(a, false, true));

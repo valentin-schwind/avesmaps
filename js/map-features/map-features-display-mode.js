@@ -262,6 +262,30 @@ function avesmapsMapStyleIstSelbstGewaehlt() {
 }
 
 function setSelectedMapLayerMode(mode) {
+	// 🔴 „ORIGINAL" IST SEIT DEM 26.08.2026 KEINE ANSICHT MEHR, SONDERN EIN UNTERGRUND. Sie war nie
+	// etwas anderes als eine nackte Karte auf der alten Basis -- ihre Zeile in
+	// FRONTEND_LAYER_MODE_DEFAULTS ist Zeichen für Zeichen dieselbe wie die von „Nur Karte"
+	// (orte/wege/flussnamen alle aus). Der einzige Unterschied war der Kachelsatz, und der ist
+	// jetzt frei wählbar.
+	//
+	// 💣 Alte geteilte Links tragen `?mapLayerMode=original`, und es gibt viele davon. Sie werden
+	// ÜBERSETZT, nicht verworfen: Ansicht „Nur Karte", Untergrund „original". Ohne diese Zeilen
+	// fielen sie über die Liste unten auf die Standardansicht zurück -- der Empfänger sähe eine
+	// vollständig andere Karte als der Absender, und niemand könnte sagen warum.
+	// ⚠️ `mapStyleHandWahl` MUSS dabei gesetzt werden: der Link HAT den Untergrund gewählt. Ohne
+	// das schriebe der Block weiter unten sofort `stylized` darüber, und die Übersetzung wäre
+	// wirkungslos -- sie sähe im Code richtig aus und täte nichts.
+	// ⚠️ Die Einträge für „original" in den Modus-Tabellen (GESPERRT, FRONTEND_LAYER_MODE_DEFAULTS,
+	// ADD_HERE_BY_MODE) bleiben absichtlich stehen. Sie kosten nichts und fangen jeden Pfad ab, der
+	// den Wert doch noch trägt; eine Tabelle, aus der ein Modus fehlt, erbt die Lage ihres
+	// Vorgängers (der Fehler vom 05.08.2026).
+	if (mode === "original") {
+		if (typeof setMapStyle === "function") {
+			setMapStyle("original");
+		}
+		mapStyleHandWahl = true;
+		mode = "none";
+	}
 	// Diese Liste ist die Stelle, an der ein GETEILTER LINK ankommt: ?mapLayerMode=… läuft über
 	// map-features-layer-state.js (restorePlannerState) hierher, an der Auswahlbox vorbei. Was hier
 	// nicht steht, führt zurück auf die Standardansicht.

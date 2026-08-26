@@ -492,11 +492,28 @@ check("jede geschaltete Ansicht gibt es wirklich in der Auswahlbox", () => {
 	const angeboten = new Set([...indexSource
 		.match(/<select id="mapLayerModeSelect"[\s\S]*?<\/select>/)[0]
 		.matchAll(/<option value="([a-z]+)"/g)].map((m) => m[1]));
-	api.entries.filter((entry) => entry.mode).forEach((entry) => {
-		assert.ok(angeboten.has(entry.mode),
-			`${entry.id} schaltet auf "${entry.mode}" -- das steht nicht in #mapLayerModeSelect`);
+	// 🔴 „original" ist seit dem 26.08.2026 KEINE Ansicht mehr, sondern ein Untergrund. Die Taste O
+	// bleibt trotzdem und tut weiter das Richtige: setSelectedMapLayerMode uebersetzt den Wert in
+	// „Nur Karte" plus Untergrund „original" -- genau das war die Ansicht immer (ihre Zeile in
+	// FRONTEND_LAYER_MODE_DEFAULTS ist Zeichen fuer Zeichen die von „none").
+	// 💣 Die Ausnahme steht NAMENTLICH da und weicht die Regel nicht auf: jede andere Taste muss
+	// weiterhin auf eine echte <option> zeigen, sonst faengt dieser Test einen Tippfehler nie.
+	// ⚠️ Und sie ist an die Uebersetzung gebunden -- faellt die weg, faellt auch diese Ausnahme.
+	const uebersetzt = new Set(["original"]);
+	const displayMode = fs.readFileSync(path.join(ROOT, "js", "map-features",
+		"map-features-display-mode.js"), "utf8");
+	uebersetzt.forEach((wert) => {
+		assert.ok(displayMode.includes('mode === "' + wert + '"'),
+			`"${wert}" hat keine <option> mehr -- dann MUSS setSelectedMapLayerMode ihn uebersetzen,`
+			+ " sonst faellt ein geteilter Link damit auf die Standardansicht zurueck");
 	});
-	assert.strictEqual(api.entries.filter((entry) => entry.mode).length, 6, "sechs Ansichten haben eine Taste");
+	api.entries.filter((entry) => entry.mode).forEach((entry) => {
+		assert.ok(angeboten.has(entry.mode) || uebersetzt.has(entry.mode),
+			`${entry.id} schaltet auf "${entry.mode}" -- das steht weder in #mapLayerModeSelect noch`
+			+ " unter den uebersetzten Werten");
+	});
+	assert.strictEqual(api.entries.filter((entry) => entry.mode).length, 6,
+		"sechs Tasten schalten eine Ansicht -- fuenf Ansichten plus die uebersetzte O");
 });
 
 check("index.html laedt die Datei und haelt den Kasten fuer die Tabelle bereit", () => {

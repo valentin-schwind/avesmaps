@@ -57,10 +57,16 @@ initializeVersionedAssetIcons();
 syncTransportControls();
 syncTransportControl("mapLayerModeSelect");
 $("#mapStyleSelect").on("change", function () {
-	if (!IS_EDIT_MODE) {
-		this.value = "stylized";
-		return;
-	}
+	// 🔴 DER UNTERGRUND IST SEIT DEM 26.08.2026 EINE WAHL FUER JEDEN, nicht mehr nur fuer Editoren
+	// (Entwurf: docs/superpowers/specs/2026-08-26-ansicht-untergrund-kreuzen-design.md).
+	//
+	// 💣 HIER STAND: `if (!IS_EDIT_MODE) { this.value = "stylized"; return; }` -- ein Riegel aus der
+	// Zeit, als der Kachelstil reine Editor-Sache war. Er setzte jede Wahl eines Besuchers STILL
+	// zurueck: das Menue reagierte, die Karte nicht. Genau so gemeldet („Klicken geht nicht"), und
+	// es war von aussen nicht von einem kaputten Klick zu unterscheiden -- die Zelle bekam ihren
+	// Rahmen, das Menue schloss, und der Untergrund blieb.
+	// ⚠️ `persist` ist in setMapStyle ohnehin an IS_EDIT_MODE gebunden: ein Besucher schreibt
+	// nichts in den Editor-Speicher, seine Wahl reist ueber `?mapstyle=` in der Adresse.
 
 	// Eine von Hand gewaehlte Basis ist ab jetzt die Wahrheit -- die Ansicht "Original" darf beim
 	// Verlassen nicht mehr ihre gemerkte Vorgaengerin darueberlegen (Fall #82; `basisVorOriginal`

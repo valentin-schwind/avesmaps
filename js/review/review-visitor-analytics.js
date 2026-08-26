@@ -501,11 +501,26 @@ function vaMapModeLabels() {
 	return labels;
 }
 
-// ⚠️ Ein zurueckgezogener Modus hat keine <option> mehr und faellt auf seinen Schluessel zurueck.
-// Das ist gewollt: ein roher Schluessel ist ehrlicher als eine geratene Beschriftung.
+// 🔴 ZURUECKGEZOGENE Modi. Sie haben keine <option> mehr, tragen aber weiter Daten in der
+// Statistik -- die Zeilen von damals verschwinden ja nicht.
+// ⚠️ Das ist KEIN Widerspruch zur Regel oben („keine zweite Tabelle"): jene galt einer Tabelle, die
+// die AKTUELLEN Modi doppelt und deshalb auseinanderlaufen konnte. Diese hier kann es nicht --
+// was zurueckgezogen ist, aendert sich nicht mehr. Ein Eintrag, der wieder eine <option> bekommt,
+// wird von ihr ueberstimmt (das Select gewinnt, siehe vaPrettyMapMode).
+// 💣 Der Zusatz in Klammern ist tragend: ohne ihn stuende „Original" in der Ansichts-Statistik
+// neben einem Untergrund gleichen Namens, und niemand koennte die beiden auseinanderhalten.
+const VA_ZURUECKGEZOGENE_MODI = {
+	// „Original" war bis zum 26.08.2026 eine Ansicht. Seither ist es ein UNTERGRUND, und die
+	// Ansicht dahinter war ohnehin „Nur Karte" (Entwurf:
+	// docs/superpowers/specs/2026-08-26-ansicht-untergrund-kreuzen-design.md).
+	original: "Original (Ansicht bis 26.08.2026)"
+};
+
+// ⚠️ Ein Modus ohne <option> und ohne Eintrag oben faellt auf seinen Schluessel zurueck. Das ist
+// gewollt: ein roher Schluessel ist ehrlicher als eine geratene Beschriftung.
 function vaPrettyMapMode(slug, labels) {
 	const key = String(slug === null || slug === undefined ? "" : slug);
-	return (labels || vaMapModeLabels())[key] || key;
+	return (labels || vaMapModeLabels())[key] || VA_ZURUECKGEZOGENE_MODI[key] || key;
 }
 
 function vaPrettyToggle(dimension) {

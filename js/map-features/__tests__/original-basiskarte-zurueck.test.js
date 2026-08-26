@@ -125,139 +125,69 @@ function welt({ editor = false, startBasis = "stylized" } = {}) {
 	};
 }
 
-// ---- 1. Der gemeldete Handgriff: Original -> zurueck, in BEIDEN Welten ----------------------------
+// ---- 1. DIE ANSICHT FASST DEN UNTERGRUND NICHT MEHR AN -------------------------------------------
 //
-// 💣 Die fuenf Zielmodi einzeln, jeder aus einer frischen Welt. Gebuendelt ("einmal nach Original,
-// dann durch alle fuenf") waere die erste Rueckkehr die einzige gepruefte -- die uebrigen liefen
-// dann schon auf einer geheilten Basis und koennten gar nicht mehr scheitern.
+// 🔴 Fall #82 („die Originalkarte laesst sich nicht zurueckschalten") hat seinen Gegenstand
+// verloren: der Untergrund ist seit dem 26.08.2026 ein EIGENER Zustand, den man direkt waehlt.
+// Es gibt keinen Hin- und Rueckweg mehr, den eine Ansicht verwalten muesste.
+// 💣 Was bleibt, ist die Zusicherung dagegen: hat jemand den Untergrund gewaehlt, darf KEIN
+// Ansichtswechsel ihn ueberschreiben. Genau das tat der alte Code, und es war der Grund, warum
+// ein geteiltes `?mapstyle=` beim Empfaenger nie ankam.
 [false, true].forEach((editor) => {
 	const wo = editor ? "Editor" : "Frontend";
 	["deregraphic", "political", "powerlines", "ecosystem", "none"].forEach((ziel) => {
 		const w = welt({ editor });
-		w.wechsleZu("original");
-		pruefe(w.basis() === "original", `${wo}/${ziel}: "Original" zeigt die alte Basiskarte`);
+		w.waehleBasisVonHand("original");
 		w.wechsleZu(ziel);
-		pruefe(w.basis() === "stylized",
-			`💣 ${wo}: "Original" -> "${ziel}" gibt die Basiskarte zurueck (war "${w.basis()}").`
-			+ " Genau das war Fall #82: die Ueberlagerungen schalteten, der Kachel-Grund nicht.");
+		pruefe(w.basis() === "original",
+			`${wo}/${ziel}: ein selbst gewaehlter Untergrund ueberlebt den Ansichtswechsel`
+			+ ` (ist "${w.basis()}")`);
 	});
 });
 
-// ---- 2. Und wieder hin: der Weg muss beliebig oft gehen -------------------------------------------
-{
-	const w = welt({ editor: true });
-	for (let runde = 1; runde <= 3; runde += 1) {
-		w.wechsleZu("original");
-		pruefe(w.basis() === "original", `Editor: Runde ${runde} -- "Original" schaltet hin`);
-		w.wechsleZu("deregraphic");
-		pruefe(w.basis() === "stylized", `Editor: Runde ${runde} -- und wieder zurueck`);
-	}
-}
-
-// ---- 3. Eine von Hand gewaehlte Basis bleibt unangetastet -----------------------------------------
+// ---- 2. OHNE Handwahl gilt im Frontend weiter die Vorgabe -----------------------------------------
 //
-// 🔴 Das ist die Zusicherung, die der alte Kommentar versprach und der alte Code nur zur Haelfte
-// hielt. Sie gilt in DREI Lagen, und alle drei sind hier festgenagelt -- ein Rueckweg, der einfach
-// "immer stylized" zurueckgibt, faellt an jeder einzelnen durch.
-{
-	// (a) Die Basis stand schon vor dem Ansichtswechsel auf "old" (der Editor hat sie im
-	//     Anzeige-Menue selbst so gestellt). Dann gibt es nichts zurueckzugeben.
-	const a = welt({ editor: true, startBasis: "original" });
-	a.wechsleZu("original");
-	a.wechsleZu("deregraphic");
-	pruefe(a.basis() === "original",
-		"💣 Editor: eine SCHON von Hand gewaehlte Originalbasis ueberlebt den Ausflug in die Ansicht"
-		+ " \"Original\" -- die Ansicht hat sie nicht ueberschrieben, also gibt sie auch nichts zurueck");
+// ⚠️ Die Gegenprobe zu 1. Ohne sie waere die Zusicherung oben auch dann erfuellt, wenn der Code den
+// Untergrund GRUNDSAETZLICH nicht mehr anfasst -- und dann bekaeme ein Besucher, der nie etwas
+// gewaehlt hat, irgendeinen Kachelsatz statt des vorgesehenen.
+["deregraphic", "political", "none"].forEach((ziel) => {
+	const w = welt({ editor: false, startBasis: "old" });
+	w.wechsleZu(ziel);
+	pruefe(w.basis() === "stylized",
+		`Frontend/${ziel}: ohne eigene Wahl gilt die Vorgabe (ist "${w.basis()}")`);
+});
 
-	// (b) Die Basis wird waehrend der Ansicht "Original" von Hand umgestellt. Ab da ist die
-	//     Handwahl die Wahrheit, die gemerkte Vorgaengerin ist Geschichte.
-	const b = welt({ editor: true });
-	b.wechsleZu("original");
-	b.waehleBasisVonHand("original");
-	b.wechsleZu("deregraphic");
-	pruefe(b.basis() === "original",
-		"💣 Editor: eine WAEHREND der Ansicht \"Original\" von Hand gewaehlte Basis ueberlebt das"
-		+ " Verlassen -- sonst legt der Rueckweg die gemerkte Vorgaengerin darueber");
-
-	// (b2) ZWEIMAL "Original" hintereinander. Das ist kein Kunstfall: `restorePlannerState`
-	//      (map-features-layer-state.js) ruft den Setzer beim Laden, und ein geteilter Link mit
-	//      ?mapLayerMode=original landet auf demselben Modus, auf dem die Sitzung schon steht.
-	// 💣 Beim zweiten Betreten liegt "old" bereits -- wer dann blind merkt, merkt sich "old" und
-	//    gibt beim Verlassen die Originalkarte "zurueck". Der Rueckweg waere gruen und wirkungslos:
-	//    genau der Fehler von vorher, nur einen Aufruf tiefer versteckt.
-	const b2 = welt({ editor: true });
-	b2.wechsleZu("original");
-	b2.wechsleZu("original");
-	b2.wechsleZu("deregraphic");
-	pruefe(b2.basis() === "stylized",
-		"💣 Editor: zweimal \"Original\" hintereinander vergisst die gemerkte Basis NICHT -- gemerkt"
-		+ " wird nur, was die Ansicht wirklich ueberschreibt, nicht was sie selbst hingelegt hat");
-
-	// (c) Der leere Untergrund ("none", js/ui/route-planner-toggle.js). Er ist keine andere
-	//     Kachelmenge, sondern gar keine -- und er muss genauso zurueckkommen.
-	const c = welt({ editor: true, startBasis: "none" });
-	c.wechsleZu("original");
-	pruefe(c.basis() === "original", "Editor/none: \"Original\" schaltet auch von der leeren Basis aus hin");
-	c.wechsleZu("deregraphic");
-	pruefe(c.basis() === "none",
-		"💣 Editor: der leere Untergrund kommt zurueck, nicht \"stylized\" -- ein Rueckweg, der die"
-		+ " Basis erraet statt sie zu merken, macht hier aus \"None\" eine gemalte Karte");
-}
-
-// ---- 4. Das Frontend bleibt Zeile fuer Zeile, wie es war ------------------------------------------
+// ---- 3. „original" wird UEBERSETZT, nicht verworfen ----------------------------------------------
 //
-// ⚠️ Die Reparatur ist EDITOR-ONLY. Im Frontend zwingt jeder Nicht-Original-Modus weiter unbedingt
-// auf "stylized" -- auch aus einer Lage heraus, die der Editor-Zweig respektieren wuerde. Wer das
-// zusammenlegt, aendert das Bild fuer jeden Besucher, und das sieht der Owner einzeln (§9).
-{
-	const f = welt({ editor: false, startBasis: "original" });
-	f.wechsleZu("deregraphic");
-	pruefe(f.basis() === "stylized",
-		"Frontend: ein Nicht-Original-Modus zwingt weiter unbedingt auf \"stylized\" -- unveraendert");
-	pruefe(f.stilRufe[0] === "stylized",
-		"...und zwar ueber setMapStyle, nicht ueber eine gemerkte Basis");
-}
+// 💣 Alte geteilte Links tragen `?mapLayerMode=original`, und es gibt viele davon. Ohne die
+// Uebersetzung fielen sie ueber die allowedModes-Liste auf die Standardansicht zurueck -- der
+// Empfaenger saehe eine voellig andere Karte als der Absender, und niemand koennte sagen warum.
+// 🔴 Ziel ist „Nur Karte" plus Untergrund „original": die Ansicht war nie etwas anderes als eine
+// nackte Karte auf der alten Basis.
+[false, true].forEach((editor) => {
+	const w = welt({ editor });
+	w.wechsleZu("original");
+	pruefe(w.basis() === "original",
+		`${editor ? "Editor" : "Frontend"}: "original" setzt den Untergrund (ist "${w.basis()}")`);
+	pruefe(w.context.$("#mapLayerModeSelect").val() === "none",
+		`${editor ? "Editor" : "Frontend"}: "original" landet in der Ansicht "Nur Karte"`);
+});
 
-// ---- 5. Der Wechsel fasst die Basis NUR wegen "Original" an ---------------------------------------
+// ---- 4. Die Handwahl ist verdrahtet ---------------------------------------------------------------
 //
-// 💣 Im Editor darf ein Wechsel zwischen zwei Nicht-Original-Ansichten die Basis gar nicht
-// beruehren -- weder schreiben noch zurueckgeben. Sonst raeumt der erste Klick im Anzeige-Menue
-// eine Sitzung auf, die nie in "Original" war.
-{
-	const w = welt({ editor: true, startBasis: "none" });
-	w.wechsleZu("political");
-	w.wechsleZu("ecosystem");
-	w.wechsleZu("deregraphic");
-	pruefe(w.stilRufe.length === 0,
-		`Editor: ohne "Original" faellt kein einziger setMapStyle-Ruf (waren ${JSON.stringify(w.stilRufe)})`);
-	pruefe(w.basis() === "none", "...und die Basis steht unveraendert da");
-}
-
-// ---- 6. Die VERDRAHTUNG der Handwahl -------------------------------------------------------------
-//
-// 💣 Fall 3(b) oben ruft `vergissBasisVorOriginal` SELBST -- er beweist damit, dass die Funktion
-// tut, was sie soll, und kein Wort darueber, dass sie im Betrieb je gerufen wird. Genau so entsteht
-// ein gruener Test ueber totem Code. Die eine Stelle, an der ein Editor die Basis von Hand waehlt,
-// ist der change-Handler des #mapStyleSelect in map-features.js -- und sie wird hier gelesen.
-{
-	const handler = fs.readFileSync(path.join(__dirname, "..", "map-features.js"), "utf8");
-	const start = handler.indexOf('$("#mapStyleSelect").on("change"');
-	const ende = handler.indexOf('$("#togglePaths")', start);
-	pruefe(start > 0 && ende > start, "der change-Handler des #mapStyleSelect ist auffindbar");
-	const block = handler.slice(start, ende).replace(/^[ \t]*\/\/.*$/gm, "");
-	pruefe(/vergissBasisVorOriginal\(\)/.test(block),
-		"💣 der change-Handler des #mapStyleSelect vergisst die gemerkte Basis -- ohne diesen Ruf"
-		+ " legt das Verlassen der Ansicht \"Original\" die alte Vorgaengerin ueber eine frische"
-		+ " Handwahl, und Fall 3(b) oben waere ein Test ueber totem Code");
-	pruefe(block.indexOf("vergissBasisVorOriginal") < block.indexOf("setMapStyle("),
-		"...und zwar VOR dem setMapStyle -- danach loeschte er die Erinnerung, die der Ruf selbst"
-		+ " gar nicht mehr setzt, waere also blosse Zierde");
-	pruefe(/vergissBasisVorOriginal/.test(fs.readFileSync(path.join(__dirname, "..", "map-features-display-mode.js"), "utf8")),
-		"...und die Funktion steht dort, wo die Erinnerung liegt");
-}
+// 💣 `vergissBasisVorOriginal` ist der einzige Weg, auf dem eine Handwahl bekannt wird. Ohne den
+// Ruf im change-Handler des #mapStyleSelect (js/map-features/map-features.js) waere jede Wahl beim
+// naechsten Ansichtswechsel wieder weg.
+const handler = fs.readFileSync(path.join(__dirname, "..", "map-features.js"), "utf8");
+const start = handler.indexOf('$("#mapStyleSelect").on("change"');
+const ende = handler.indexOf('$("#togglePaths")');
+pruefe(start > 0 && ende > start, "der change-Handler des #mapStyleSelect ist auffindbar");
+pruefe(handler.slice(start, ende).includes("vergissBasisVorOriginal"),
+	"💣 der change-Handler meldet die Handwahl -- ohne diesen Ruf ueberschreibt der naechste"
+	+ " Ansichtswechsel sie wieder");
 
 if (fehler > 0) {
-	console.error(`original-basiskarte-zurueck.test.js: ${fehler} Zusicherung(en) fehlgeschlagen`);
+	console.error(`${fehler} Zusicherung(en) verletzt.`);
 	process.exit(1);
 }
-console.log("original-basiskarte-zurueck.test.js: all assertions passed");
+console.log("original-basiskarte-zurueck: alle Zusicherungen erfuellt.");

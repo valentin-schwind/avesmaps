@@ -159,7 +159,15 @@ Object.keys(ERWARTUNG).forEach((modus) => {
 	vonNurKarte.wechsleZu(modus);
 	const b = vonNurKarte.lage();
 
-	assert(a.modus === modus && b.modus === modus, `${modus}: der Modus kommt ueberhaupt an`);
+	// 🔴 „original" ist seit dem 26.08.2026 keine Ansicht mehr: setSelectedMapLayerMode uebersetzt
+	// ihn in „none" plus Untergrund „original". Der Modus kommt also unter ANDEREM Namen an --
+	// und das ist die richtige Antwort, nicht eine Ausnahme: die Zeile von „original" in
+	// FRONTEND_LAYER_MODE_DEFAULTS war Zeichen fuer Zeichen die von „none".
+	// ⚠️ Die Pruefungen darunter laufen unveraendert weiter: dasselbe Ziel aus zwei Herkuenften
+	// muss dasselbe Bild ergeben, egal wie das Ziel heisst.
+	const erwarteterModus = modus === "original" ? "none" : modus;
+	assert(a.modus === erwarteterModus && b.modus === erwarteterModus,
+		`${modus}: der Modus kommt ueberhaupt an (erwartet: ${erwarteterModus}, ist: ${a.modus}/${b.modus})`);
 
 	// 💣 Der Kern: dasselbe Ziel, zwei Herkuenfte, EIN Bild.
 	assert(a.wege === b.wege,

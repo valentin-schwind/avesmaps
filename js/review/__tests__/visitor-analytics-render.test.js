@@ -69,6 +69,7 @@ eval([
 	extract("vaLocalHourShift"),
 	extract("vaHeatmapGrid"),
 	extract("vaHeatmap"),
+	extractConst("VA_ZURUECKGEZOGENE_MODI"),
 	extract("vaPrettyMapMode"),
 ].join("\n"));
 
@@ -197,11 +198,12 @@ const optionLabels = {};
 (selectBlock ? selectBlock[0].match(/<option value="[^"]+"[^>]*>[^<]+<\/option>/g) || [] : []).forEach((option) => {
 	optionLabels[option.match(/value="([^"]+)"/)[1]] = option.match(/>([^<]+)<\/option>/)[1].trim();
 });
-check("alle sechs Ansichten sind dort zu holen", Object.keys(optionLabels).length === 6);
+check("alle FUENF Ansichten sind dort zu holen", Object.keys(optionLabels).length === 5);
 check("💣 „ecosystem\" heisst Landschaften, nicht ecosystem",
 	vaPrettyMapMode("ecosystem", optionLabels) === "Landschaften");
-check("💣 „original\" heisst Original",
-	vaPrettyMapMode("original", optionLabels) === "Original");
+check("💣 „original\" ist ZURUECKGEZOGEN und traegt den Zusatz -- sonst staende in der"
+	+ " Ansichts-Statistik derselbe Name wie beim gleichnamigen Untergrund",
+	vaPrettyMapMode("original", optionLabels) === "Original (Ansicht bis 26.08.2026)");
 ["none", "political", "deregraphic", "powerlines"].forEach((slug) => {
 	check("„" + slug + "\" bekommt weiterhin seinen Klarnamen",
 		vaPrettyMapMode(slug, optionLabels) === optionLabels[slug] && optionLabels[slug] !== slug);
