@@ -23,6 +23,85 @@ Deckkraft-Blenden nur noch 75 % der Zoomdauer (62 ms Reserve bei Vorgabe). Der B
 wieder. **Die 75 % sind eine Vermutung über den verspäteten Start, keine Messung — der Startverzug
 ist nie gemessen worden.** Das ist die erste Aufgabe.
 
+## §1a Stand der Folgesitzung (26.08., nachts): der Mechanismus ist GEFUNDEN und behoben — die Messung steht noch aus
+
+🔴 **Der Befund hatte zwei Ursachen, nicht eine — und die größere war kein Wettlauf, sondern eine
+Doppelanmeldung.** `zeichneJetzt()` rief bei JEDEM Zeichnen `pfadLabelBlendeEin()` — auch beim
+Vorabzeichnen im `zoomanim` (der Aufruf stammt vom 24.08., Schritt 4 kam am 26.08. dazu; niemand
+hat die beiden je zusammen angesehen). Deren Doppel-rAF feuerte ~2 Bilder nach dem Zoomstart und
+überschrieb die eben gesetzten Übergänge:
+
+1. `vorne.style.transition = "opacity …"` **ohne** `transform` — eine laufende Transition, deren
+   Eigenschaft aus der Liste fällt, wird vom Browser ABGEBROCHEN (CSS Transitions §3, gilt auch
+   ohne neuen Wert). Die neue Schrift sprang auf ihre Endlage und klebte am **Bildschirm**, während
+   die Karte darunter weiterzoomte — „straßen und flüsse sind wieder kaputt". Die ganze
+   Gegenrechnung (`avesmapsZoomVorabFlaeche`) war damit zur Laufzeit wirkungslos: getestet,
+   gesetzt, zwei Bilder später weggeworfen.
+2. `hinten` wurde hart auf 0 gesetzt — das gestaffelte Ausblenden der alten Schrift (84 ms) war
+   nach ~2 Bildern gekappt.
+
+⚠️ **Nur die Wegenamen.** Die Grenznamen zeichnen im `zoomanim` direkt
+(`drawTerritoryBorderLabels`) und rufen ihre Blende dabei nie — deshalb war dort nichts gemeldet.
+💣 Der Quelltext-Test daneben war gegen seine Mutationen dicht und konnte das nie sehen; gefunden
+hat es Code-Lesen, belegt der neue Prüfstand
+`js/map-features/__tests__/wegenamen-parallelblende-ablauf.test.js` (baut die Leaflet-Reihenfolge
+nach, arbeitet die rAF-Warteschlange als Bilder ab; war vor dem Fix rot mit exakt dem
+Owner-Symptom). **Fix:** das Vorabzeichnen meldet die Blende nicht mehr an
+(`if (!fuerZiel) { pfadLabelBlendeEin(); }`) — wirkt nur unter `?parallelfade=1`, die Vorgabe
+bleibt unverändert AUS.
+
+🔧 **Was der Fix NICHT beantwortet: die Lupe-Asymmetrie von Befund 1.** Der Abbruch aus der
+Doppelanmeldung ist zeitskalen-invariant — er sähe mit und ohne `?zoomlupe` gleich aus. Dass der
+Owner den Unterschied sah, spricht weiterhin für einen ZUSÄTZLICHEN festen Zeitanteil: den
+**Startverzug** der Blende (Hauptthread beim Zoomstart), gegen den die 63 ms Reserve aus
+`54e705e7` geraten sind. **Der ist weiterhin ungemessen** — der Messversuch dieser Sitzung ist an
+der Browser-Pane gescheitert (kompositiert nicht, rAF feuert nie, „pane is currently hidden";
+dieselbe Falle wie §9 der Flächen-Doku). Der fertige Einzeiler für den Owner steht unten.
+
+⚠️ **Offen ist auch die Frage, was Leaflets Aufräumen wirklich abschneidet:** `transition = ""`
+stellt die CSS-Regel wieder her, und ohne Regel gilt `all 0s` — `all` MATCHT weiter, eine laufende
+Deckkraft-Blende bräche dadurch möglicherweise gar nicht ab. Was nachweislich abbricht, ist die
+Transform (der `setPosition` im redraw ändert ihren Wert). Genau das entscheidet das Protokoll:
+eine `cancel`-Zeile für `opacity` um t≈250 = Wettlauf real; nur `end`-Zeilen = die Reserve trägt.
+
+**Der Messblock für den Owner** (Konsole auf `https://avesmaps.de/?parallelfade=1`, dann EIN
+Zoomschritt; Startverzug = ms der ersten `run`-Zeile, Wettlauf = `cancel`-Zeile für `opacity`):
+
+```js
+(() => {
+  const pane = map.getPane("avesmapsPathLabelCanvasPane");
+  if (!pane) { console.warn("[mess] Wegenamen-Pane fehlt"); return; }
+  const ks = Array.from(pane.children).filter(c => c.tagName === "CANVAS");
+  const nam = c => "W" + (ks.indexOf(c) + 1);
+  const dauer = (typeof AVESMAPS_ZOOM_DAUER_MS !== "undefined") ? AVESMAPS_ZOOM_DAUER_MS : 250;
+  let t0 = 0, zeilen = [], bilder = [], scharf = false;
+  let n = 0; const ps = performance.now();
+  (function probe() { n++; if (performance.now() - ps < 300) { requestAnimationFrame(probe); } else {
+    console.info("[mess] " + n + " Bilder/300ms, Tab: " + document.visibilityState
+      + (n < 2 ? " — HINTERGRUNDTAB, Messung ungueltig!" : " — ok. Jetzt EINEN Zoomschritt (Mausrad).")); } })();
+  const ev = e => zeilen.push({ ms: +(performance.now() - t0).toFixed(1),
+    ereignis: e.type.replace("transition", ""), eigenschaft: e.propertyName,
+    flaeche: nam(e.target), deckkraft: getComputedStyle(e.target).opacity });
+  ks.forEach(c => ["transitionrun", "transitionstart", "transitionend", "transitioncancel"]
+    .forEach(t => c.addEventListener(t, ev)));
+  function bild() { if (!scharf) return; const ms = Math.round(performance.now() - t0); const z = { ms };
+    ks.forEach(c => { const s = getComputedStyle(c); let sk = 1;
+      try { sk = new DOMMatrixReadOnly(s.transform === "none" ? "" : s.transform).a; } catch (e) {}
+      z[nam(c)] = s.opacity + " @" + sk.toFixed(2) + "x"; });
+    bilder.push(z);
+    if (ms < dauer + 500) { requestAnimationFrame(bild); } else { scharf = false;
+      console.info("[mess] Ereignisse (ms ab dem Setzen im zoomanim):"); console.table(zeilen);
+      console.info("[mess] Bildprotokoll (Deckkraft @Skalierung je Flaeche):"); console.table(bilder); } }
+  map.on("zoomanim", e => { t0 = performance.now();
+    zeilen = [{ ms: 0, ereignis: "zoomanim (Setzen)", eigenschaft: "-> z" + e.zoom,
+      flaeche: ks.map(c => nam(c) + ": " + (c.style.transition || "leer")).join(" | "), deckkraft: "" }];
+    bilder = []; scharf = true; requestAnimationFrame(bild); });
+  map.on("zoomend", () => zeilen.push({ ms: +(performance.now() - t0).toFixed(1),
+    ereignis: "zoomend (Leaflets Aufraeumen)", eigenschaft: "", flaeche: "", deckkraft: "" }));
+  console.info("[mess] Zuhoerer stehen.");
+})();
+```
+
 ## §2 Was JETZT live ist
 
 Der riskante Teil ist seit `c468ef1c` **in der Vorgabe abgeschaltet**:

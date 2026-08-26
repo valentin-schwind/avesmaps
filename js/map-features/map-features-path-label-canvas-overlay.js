@@ -692,7 +692,18 @@
 		ctx.setTransform(1, 0, 0, 1, 0, 0);
 		ctx.clearRect(0, 0, canvas.width, canvas.height);
 		ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-		pfadLabelBlendeEin();
+		// 💣 BEIM VORABZEICHNEN (fuerZiel) DARF DIE BLENDE NICHT ANGEMELDET WERDEN. Der
+		// zoomanim-Handler setzt seine Uebergaenge unmittelbar NACH diesem Aufruf selbst (Transform-
+		// Glide der Gegenrechnung + gestaffelte Deckkraft). Die Doppel-rAF von pfadLabelBlendeEin
+		// feuerte sonst ~2 Bilder nach dem Zoomstart und ueberschrieb beides: `transition =
+		// "opacity …"` OHNE transform bricht die laufende Transform-Transition ab (Eigenschaft nicht
+		// mehr in der Liste => Abbruch, die neue Schrift springt auf ihre Endlage und klebt am
+		// Bildschirm, waehrend die Karte weiterzoomt), und das harte Nullsetzen der hinteren Flaeche
+		// kappte das gestaffelte Ausblenden der alten Schrift nach zwei Bildern. Owner 26.08.2026:
+		// „strassen und fluesse sind wieder kaputt". Die Grenznamen haben den Fehler nicht -- ihr
+		// zoomanim zeichnet direkt (drawTerritoryBorderLabels), ohne den Blenden-Anmelder.
+		// Gewacht von __tests__/wegenamen-parallelblende-ablauf.test.js.
+		if (!fuerZiel) { pfadLabelBlendeEin(); }
 
 		ctx.textAlign = "center";
 		ctx.textBaseline = "middle";

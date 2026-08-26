@@ -264,6 +264,17 @@ und der Grund, warum „erst ganz raus, dann rein" ruhiger aussieht als eine ech
 - Im Wegenamen-Overlay steht `devicePixelRatio` an **zwei gekoppelten** Stellen: die Canvas-Größe und
   der Halo-Multiplikator (`shadowBlur` zählt in Gerätepixeln). Wer nur die Größe deckelt, bekommt
   einen zu starken Schein um jeden Namen — und das liest sich nicht als Fehler, sondern als Geschmack.
+- 🔴 **Und die dritte Zahlung (26.08., nachts): der Abbruch wirkt auch OHNE neuen Wert.** Eine
+  laufende Transition, deren Eigenschaft aus der `transition`-Liste fällt, wird abgebrochen und
+  springt auf ihren Endwert — auch wenn niemand die Eigenschaft selbst anfasst. Im Wegenamen-Overlay
+  meldete das Vorabzeichnen (`zoomanim`, `?parallelfade=1`) über `zeichneJetzt()` die Doppel-rAF von
+  `pfadLabelBlendeEin()` an; die feuerte ~2 Bilder später, setzte `transition = "opacity …"` und
+  brach damit die Transform-Transition der Gegenrechnung ab — die neue Schrift klebte am Bildschirm,
+  während die Karte weiterzoomte („straßen und flüsse sind wieder kaputt"). ⭐ **Eine geteilte
+  Blendefunktion, die über rAF verzögert feuert, muss wissen, in welchem Kontext sie aufwacht** —
+  seither läuft sie beim Vorabzeichnen nicht (`if (!fuerZiel)`), gewacht von
+  `js/map-features/__tests__/wegenamen-parallelblende-ablauf.test.js` (ein Prüfstand, der die
+  rAF-Warteschlange als Bilder abarbeitet — der Quelltext-Test daneben konnte das nie sehen).
 
 💣 **Die Blende startet zwei `requestAnimationFrame` NACH dem Redraw.** Am `zoomend` blockiert der
 Hauptthread live gemessen 215 ms (Standard), 692 ms (Landschaften), 836 ms (Politisch); bei reinen
