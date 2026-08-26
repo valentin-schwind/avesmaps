@@ -234,9 +234,20 @@
 	white-space: nowrap;
 }
 
+/* 🔴 DER RAND BEIM UEBERFAHREN MUSS AUF JEDEM BILD TRAGEN (Owner 26.08.2026, mit zwei
+   Bildschirmfotos: „mach die mouse over rahmen im oberen menue so wie im unteren").
+   💣 --color-border-strong ist ein mittleres Braungrau und geht auf BEIDEN Grundhelligkeiten
+   unter -- gemessen an der laufenden Seite: 2,22:1 auf hellem Gras, 1,59:1 auf dunklem Wald.
+   Dass es im Ansichtsmenue trotzdem auffiel und im Untergrundmenue nicht, lag allein am Bild:
+   die Ansichts-Symbole sind flaechiger und ruhiger als ein echter Kartenausschnitt.
+   ⭐ --color-text traegt mit 8,88:1 auf dunklem Grund; den hellen deckt der Trennstrich darunter
+   (4,40:1 auf Gras). Erst ZUSAMMEN decken die beiden jede Kachel ab -- genau so funktioniert
+   auch die aktive Zelle, nur mit Gold statt Weiss.
+   ⚠️ Der Rand bleibt NEUTRAL und wird nicht golden: sonst waere „ueberfahren" nicht mehr von
+   „gewaehlt" zu unterscheiden. Weiss gegen Gold ist der Unterschied, den beide brauchen. */
 .map-layer-picker__menu .map-layer-picker__cell:hover .map-layer-picker__thumb,
 .map-layer-picker__menu .map-layer-picker__cell:focus-visible .map-layer-picker__thumb {
-	border-color: var(--color-border-strong);
+	border-color: var(--color-text);
 }
 
 .map-layer-picker__cell:focus-visible {
