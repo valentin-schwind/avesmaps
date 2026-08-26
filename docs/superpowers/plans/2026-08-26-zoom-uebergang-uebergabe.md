@@ -64,8 +64,17 @@ Deckkraft-Blende bräche dadurch möglicherweise gar nicht ab. Was nachweislich 
 Transform (der `setPosition` im redraw ändert ihren Wert). Genau das entscheidet das Protokoll:
 eine `cancel`-Zeile für `opacity` um t≈250 = Wettlauf real; nur `end`-Zeilen = die Reserve trägt.
 
-**Der Messblock für den Owner** (Konsole auf `https://avesmaps.de/?parallelfade=1`, dann EIN
-Zoomschritt; Startverzug = ms der ersten `run`-Zeile, Wettlauf = `cancel`-Zeile für `opacity`):
+🔴 **Nachtrag, noch am selben Abend:** der Owner hat den AUS-Zustand beanstandet
+(„grenzbeschriftungen sind noch nicht im fading integriert — früher waren sie das" und „flüsse und
+straßen sind auch nicht mehr am überblenden"). Die Vorgabe steht seither **wieder auf AN**; der
+Grenznamen-Pfad ist zusätzlich mit einem eigenen Ablauf-Prüfstand belegt
+(`js/map-features/__tests__/grenznamen-parallelblende-ablauf.test.js` — führt Init → redraw →
+zoomanim → Bilder → zoomend wirklich aus). Die Startverzug-Messung unten bleibt sinnvoll, falls im
+Normaltempo wieder ein Schnitt am Zoomende auftaucht.
+
+**Der Messblock für den Owner** (Konsole auf `https://avesmaps.de` — der Parameter ist seit der
+Rückstellung nicht mehr nötig —, dann EIN Zoomschritt; Startverzug = ms der ersten `run`-Zeile,
+Wettlauf = `cancel`-Zeile für `opacity`):
 
 ```js
 (() => {
@@ -114,7 +123,7 @@ Der riskante Teil ist seit `c468ef1c` **in der Vorgabe abgeschaltet**:
 | Der DOM-Klon klebt an der KARTE statt am Bildschirm | ✅ live, vom Owner bestätigt |
 | Doppelte Schrift (drei verschiedene Ursachen) | ✅ behoben |
 | Zeitlupe `?zoomlupe=<1..60>` | ✅ live |
-| **Einblenden** der neuen Schrift während des Zooms (Schritt 3+4) | 🔴 **Vorgabe AUS**, `?parallelfade=1` |
+| **Einblenden** der neuen Schrift während des Zooms (Schritt 3+4) | 🔴 **Vorgabe wieder AN** seit 26.08. nachts (Rückweg `?parallelfade=0`) — sie stand einen Abend auf AUS; nach Fund+Fix der Doppelanmeldung (§1a) und den Owner-Meldungen „grenzbeschriftungen sind noch nicht im fading integriert" / „flüsse und straßen sind auch nicht mehr am überblenden" zurückgestellt |
 
 ⭐ **Der Code für Schritt 3+4 steht vollständig und getestet da** — er ist nur nicht der Vorgabeweg.
 `?parallelfade=1` schaltet ihn in beiden Overlays ein.
