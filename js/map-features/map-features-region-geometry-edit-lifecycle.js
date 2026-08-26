@@ -41,6 +41,9 @@ function clearRegionGeometryEdit() {
 	if (activeRegionGeometryEdit.doubleClickZoomWasEnabled) {
 		map.doubleClickZoom?.enable?.();
 	}
+	if (typeof avesmapsWerkzeugKlickToleranzZuruecknehmen === "function") {
+		avesmapsWerkzeugKlickToleranzZuruecknehmen();
+	}
 	activeRegionGeometryEdit = null;
 }
 
@@ -74,6 +77,11 @@ function startRegionGeometryEdit(regionEntry, editLayer = null) {
 	activeRegionGeometryEdit.doubleClickZoomWasEnabled = Boolean(map.doubleClickZoom?.enabled?.());
 	if (activeRegionGeometryEdit.doubleClickZoomWasEnabled) {
 		map.doubleClickZoom.disable();
+	}
+	// Und ein verwackelter Klick (Strg+Kante, Doppelklick) soll die Ecke setzen, nicht die Karte
+	// schieben -- fuer die Dauer der Sitzung gilt die groessere Klick-Toleranz (map-features.js).
+	if (typeof avesmapsWerkzeugKlickToleranzAnheben === "function") {
+		avesmapsWerkzeugKlickToleranzAnheben();
 	}
 
 	// Kanten der editierten Geometrie sichtbar machen (Vertex-Blau): das Quellpolygon ist

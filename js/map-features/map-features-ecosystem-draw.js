@@ -217,6 +217,11 @@ function startEcosystemAreaDrawing({ startLatLng = null } = {}) {
 	ecosystemDrawPoints = [];
 	ecosystemDrawLastClick = null;
 	map.doubleClickZoom.disable();
+	// Ein verwackelter Klick soll den Punkt setzen, nicht die Karte schieben -- fuer die Dauer des
+	// Zeichnens gilt die groessere Klick-Toleranz (avesmapsWerkzeugKlickToleranzAnheben, map-features.js).
+	if (typeof avesmapsWerkzeugKlickToleranzAnheben === "function") {
+		avesmapsWerkzeugKlickToleranzAnheben();
+	}
 	map.getContainer().classList.add("ecosystem-draw-cursor");
 	// Everything else on the map stays visible but stops taking clicks -- otherwise a click meant as a
 	// corner lands on the river it crosses and never reaches map.on("click"). Same rule the vertex
@@ -250,6 +255,9 @@ function stopEcosystemAreaDrawing() {
 		// die aus einem Doppelklick besteht. Die eine zuständige Stelle entscheidet
 		// (map-features-ecosystem-rendering.js).
 		syncEcosystemDoubleClickZoom?.();
+		if (typeof avesmapsWerkzeugKlickToleranzZuruecknehmen === "function") {
+			avesmapsWerkzeugKlickToleranzZuruecknehmen();
+		}
 		map.getContainer().classList.remove("ecosystem-draw-cursor");
 		syncEcosystemMapEditingClass?.();
 		map.off("click", handleEcosystemDrawClick);

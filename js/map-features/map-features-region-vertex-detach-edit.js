@@ -306,6 +306,9 @@
 			if (activeRegionGeometryEdit.doubleClickZoomWasEnabled) {
 				map.doubleClickZoom?.enable?.();
 			}
+			if (typeof avesmapsWerkzeugKlickToleranzZuruecknehmen === "function") {
+				avesmapsWerkzeugKlickToleranzZuruecknehmen();
+			}
 			activeRegionGeometryEdit = null;
 		};
 

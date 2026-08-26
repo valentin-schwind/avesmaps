@@ -19,6 +19,38 @@ const REGION_LABEL_COLLISION_PADDING = -5;
 const REGION_OVERLAP_SELECTION_TIMEOUT_MS = 3000;
 const REGION_OVERLAP_SELECTION_MAX_PIXEL_DISTANCE = 18;
 const REGION_EDIT_EDGE_HIT_TOLERANCE_PX = 22;
+// Die linke Maustaste ist beim Zeichnen doppelt belegt: Klick = Punkt, Ziehen = Karte schieben.
+// Leaflet wertet einen gedrueckten Klick ab `clickTolerance` (Standard 3) Pixeln MANHATTAN-Bewegung
+// (|dx|+|dy|, Draggable._onMove) als Ziehen -- Map._draggableMoved schluckt dann den Klick, und der
+// Punkt entsteht nie (Owner 26.08.2026: „wird manchmal der Klick als Scrolling interpretiert, aber
+// kein Punkt gesetzt"). Waehrend einer Zeichen-/Bearbeitungssitzung gilt deshalb diese groessere
+// Toleranz; ein gewollter Schwenk bewegt die Maus weit darueber hinaus und funktioniert weiter.
+// 🔴 NUR fuer die Dauer der Sitzung, nie global (dieselbe Owner-Regel wie beim Doppelklick-Zoom):
+// gemerkt beim Anheben, wiederhergestellt beim Zuruecknehmen. Drei Werkzeuge rufen das Paar --
+// Landschaften-Zeichnen, Landschaften-Eckeneditor, Regionen/Territorien-Bearbeitung.
+// ⚠️ `map.dragging._draggable` ist Leaflet-intern; vertretbar, weil js/third-party/leaflet.js auf
+// 1.9.4 gepinnt ist. Der Merker liegt AN der Draggable (kein Modulzustand daneben), dadurch ist
+// doppeltes Anheben idempotent und die Ruecknahme eindeutig.
+const AVESMAPS_WERKZEUG_KLICK_TOLERANZ_PX = 12;
+
+function avesmapsWerkzeugKlickToleranzAnheben() {
+	const ziehwerk = map?.dragging?._draggable;
+	if (!ziehwerk?.options || ziehwerk._avesmapsKlickToleranzVorher !== undefined) {
+		return;
+	}
+	ziehwerk._avesmapsKlickToleranzVorher = ziehwerk.options.clickTolerance;
+	ziehwerk.options.clickTolerance = AVESMAPS_WERKZEUG_KLICK_TOLERANZ_PX;
+}
+
+function avesmapsWerkzeugKlickToleranzZuruecknehmen() {
+	const ziehwerk = map?.dragging?._draggable;
+	if (!ziehwerk?.options || ziehwerk._avesmapsKlickToleranzVorher === undefined) {
+		return;
+	}
+	ziehwerk.options.clickTolerance = ziehwerk._avesmapsKlickToleranzVorher;
+	delete ziehwerk._avesmapsKlickToleranzVorher;
+}
+
 let recentRegionOverlapSelection = null;
 
 $(".location-toggle").on("click", function () {

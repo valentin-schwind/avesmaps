@@ -956,6 +956,11 @@ function openEcosystemGeometryEdit(publicId) {
 		// Otherwise both the opening and the finishing gesture would zoom the map as well. Same reason
 		// the drawing tool switches it off (map-features-ecosystem-draw.js).
 		map.doubleClickZoom.disable();
+		// Und ein verwackelter Strg+Klick auf die Kante soll die Ecke setzen, nicht die Karte
+		// schieben -- fuer die Dauer der Sitzung gilt die groessere Klick-Toleranz (map-features.js).
+		if (typeof avesmapsWerkzeugKlickToleranzAnheben === "function") {
+			avesmapsWerkzeugKlickToleranzAnheben();
+		}
 	}
 
 	applyEcosystemEditClass(layer, true);
@@ -985,6 +990,9 @@ function closeEcosystemGeometryEdit({ flush = true } = {}) {
 		map.off("mousemove", handleEcosystemEditMouseMove);
 		map.off("mouseout", clearEcosystemEditEdgeHover);
 		map.off("dblclick", handleEcosystemEditFinishDoubleClick);
+		if (typeof avesmapsWerkzeugKlickToleranzZuruecknehmen === "function") {
+			avesmapsWerkzeugKlickToleranzZuruecknehmen();
+		}
 	}
 
 	if (flush && JSON.stringify(session.geometry) !== session.savedGeometryJson) {
