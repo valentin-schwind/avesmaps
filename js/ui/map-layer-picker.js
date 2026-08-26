@@ -44,6 +44,32 @@
 		}
 	}
 
+	/**
+	 * Der Ausschnitt, den die Untergrund-Kacheln zeigen: z3 / map_17_-17 -- der Sternknoten Gareth
+	 * mit Strassen, Fluss und Seen, also die Stelle, an der sich die drei Saetze am deutlichsten
+	 * unterscheiden (Old traegt dort seine aufgedruckten Namen).
+	 *
+	 * 🔴 Die Vorschau ist die ECHTE Kachel, kein eigenes Symbol. Damit gibt es nichts, was veralten
+	 * kann: aendert sich ein Kachelsatz, aendert sich die Vorschau mit. Eigene Symbolbilder waeren
+	 * die Falle, vor der tools/layer-tiles/capture.js selbst warnt ("die Icons sind STATISCHE Bilder.
+	 * Aendert sich der Kartenstil, zeigen sie weiter die alte Karte, und niemand bemerkt es").
+	 * 💣 Der ORDNER steht NICHT hier, sondern kommt aus MAP_TILE_STYLES[...].url -- dort ist er
+	 * ohnehin die Wahrheit. Ein zweites "tiles/old" an dieser Stelle liefe beim naechsten Umzug
+	 * auseinander, und zwar lautlos: ein fehlendes Vorschaubild sieht aus wie eine leere Kachel.
+	 */
+	var GRUND_VORSCHAU = { z: 3, x: 17, y: -17 };
+
+	function grundBildUrl(wert) {
+		var stil = typeof MAP_TILE_STYLES !== "undefined" ? MAP_TILE_STYLES[wert] : null;
+		if (!stil || !stil.url) {
+			return "";
+		}
+		return String(stil.url)
+			.replace("{z}", String(GRUND_VORSCHAU.z))
+			.replace("{x}", String(GRUND_VORSCHAU.x))
+			.replace("{y}", String(GRUND_VORSCHAU.y));
+	}
+
 	function ansichten() {
 		// 💣 Die EINZIGE Quelle ist das <select>. Eine zweite Liste hier waere die Divergenz, die
 		// beim naechsten neuen Modus zuschlaegt: die Auswahlbox kennte ihn, die Kacheln nicht.
@@ -63,6 +89,43 @@
 	function aktiveAnsicht() {
 		var select = document.getElementById("mapLayerModeSelect");
 		return select ? String(select.value || "") : "";
+	}
+
+	/**
+	 * Die Untergruende -- die zweite Stufe des Menues (seit 26.08.2026, Entwurf:
+	 * docs/superpowers/specs/2026-08-26-ansicht-untergrund-kreuzen-design.md).
+	 *
+	 * 💣 Dieselbe Regel wie bei den Ansichten: die EINZIGE Quelle ist das <select>. `#mapStyleSelect`
+	 * IST der Zustand -- setMapStyle schreibt seinen Wert, der geteilte Link kommt ueber `?mapstyle=`
+	 * dort an. Eine zweite Liste hier liefe beim naechsten Kachelsatz auseinander.
+	 * 🔴 „Old" sieht nur der Editor (Owner 26.08.2026): der Satz traegt die aufgedruckten Ortsnamen
+	 * und ist als Vorlage fuer die Erfassung gedacht, nicht als Ansicht fuer Besucher.
+	 */
+	function untergruende() {
+		var select = document.getElementById("mapStyleSelect");
+		if (!select) {
+			return [];
+		}
+		var imEditor = typeof IS_EDIT_MODE !== "undefined" && IS_EDIT_MODE;
+		return Array.prototype.map.call(select.options, function (option) {
+			return {
+				wert: option.value,
+				name: (option.textContent || "").trim(),
+				gesperrt: Boolean(option.disabled)
+			};
+		}).filter(function (eintrag) {
+			return imEditor || eintrag.wert !== "old";
+		});
+	}
+
+	function aktiverUntergrund() {
+		var select = document.getElementById("mapStyleSelect");
+		var wert = select ? String(select.value || "") : "";
+		var liste = untergruende();
+		// ⚠️ Ein Wert, den die Rolle nicht sehen darf, faellt auf den ersten erlaubten zurueck --
+		// sonst benennt die Kachel einen Untergrund, den das Menue gar nicht anbietet.
+		var treffer = liste.filter(function (e) { return e.wert === wert; })[0];
+		return treffer || liste[0] || null;
 	}
 
 	function zelle(ansicht, istAktiv, imMenue) {
@@ -97,6 +160,52 @@
 
 		knopf.appendChild(huelle);
 		knopf.appendChild(name);
+
+		// 🔴 DIE ZWEITE ZEILE -- der Untergrund unter dem Ansichtsnamen (26.08.2026).
+		// „Standard · Modern" passt NIE in eine Zeile: die Zelle ist 66px breit, gebunden an das
+		// laengste Ansichtswort. Deshalb zwei Zeilen statt eines Kuerzels.
+		// 💣 Sie bekommen ALLE Zellen, gefuellt nur die aktive -- nur so sind Kachel und aktive
+		// Zelle gleich hoch, und nur dann faellt die Kachel beim Aufklappen auf ihren eigenen Fleck.
+		// Steht die Zeile nur an der Kachel, springt das Menue um ihre Hoehe.
+		// ⚠️ Sichtbar ist sie im offenen Menue ohnehin keine: das CSS blendet sie dort aus, weil man
+		// den Untergrund dann in der zweiten Stufe waehlt und die Auskunft veraltet waere.
+		var zweite = document.createElement("span");
+		zweite.className = "map-layer-picker__label map-layer-picker__label--grund";
+		var grund = istAktiv || !imMenue ? aktiverUntergrund() : null;
+		zweite.textContent = grund ? grund.name : "";
+		if (!zweite.textContent) {
+			zweite.textContent = " ";
+		}
+		knopf.appendChild(zweite);
+		return knopf;
+	}
+
+	/** Eine Zelle der zweiten Stufe. Sie traegt keine zweite Zeile -- sie IST der Untergrund. */
+	function grundZelle(eintrag, istAktiv) {
+		var knopf = document.createElement("button");
+		knopf.type = "button";
+		knopf.className = "map-layer-picker__cell" + (istAktiv ? " is-active" : "");
+		knopf.dataset.grund = eintrag.wert;
+		knopf.setAttribute("role", "radio");
+		knopf.setAttribute("aria-checked", istAktiv ? "true" : "false");
+		knopf.disabled = eintrag.gesperrt;
+
+		var huelle = document.createElement("span");
+		huelle.className = "map-layer-picker__thumb";
+		var bild = document.createElement("img");
+		bild.src = grundBildUrl(eintrag.wert);
+		bild.alt = "";
+		bild.width = 48;
+		bild.height = 48;
+		bild.loading = "lazy";
+		huelle.appendChild(bild);
+
+		var name = document.createElement("span");
+		name.className = "map-layer-picker__label";
+		name.textContent = eintrag.name;
+
+		knopf.appendChild(huelle);
+		knopf.appendChild(name);
 		return knopf;
 	}
 
@@ -105,9 +214,38 @@
 		var knopf = document.getElementById("map-layer-button");
 		var menue = document.getElementById("map-layer-menu");
 		var select = document.getElementById("mapLayerModeSelect");
+		var grundSelect = document.getElementById("mapStyleSelect");
 		if (!huelle || !knopf || !menue || !select) {
 			return;
 		}
+
+		/**
+		 * DIE ZWEITE STUFE -- die Untergrund-Reihe (26.08.2026, Entwurf:
+		 * docs/superpowers/specs/2026-08-26-ansicht-untergrund-kreuzen-design.md).
+		 *
+		 * ⚠️ Sie wird HIER erzeugt und steht nicht im Markup: index.html ist eine vielbefahrene
+		 * Datei, und der Picker baut seinen Inhalt ohnehin selbst. Ein Element mehr im Markup waere
+		 * ein Stueck Zustand, das zwei Dateien teilen muessten.
+		 */
+		var grundReihe = document.createElement("div");
+		grundReihe.className = "map-layer-picker__menu map-layer-picker__grund";
+		grundReihe.setAttribute("role", "radiogroup");
+		grundReihe.setAttribute("aria-label", "Untergrund");
+		grundReihe.hidden = true;
+		huelle.insertBefore(grundReihe, menue);
+
+		// Welche Ansicht zeigt gerade ihre Untergruende? `null` heisst: die zweite Stufe ist zu.
+		var stufeZwei = null;
+		var stufeTimer = null;
+		/**
+		 * 💣 DER ZUSTAND DER ZWEITEN STUFE STEHT HIER, NICHT IN DER KLASSE -- dieselbe Regel wie
+		 * `zustandOffen` beim Hauptmenue, und aus demselben Grund: `is-open` wird erst im NAECHSTEN
+		 * Bild gesetzt, damit die Bewegung ueberhaupt anlaeuft. Wer sie als Zustand liest, bekommt
+		 * genau in diesem Bild `false` -- zwei schnelle Mausbewegungen liessen die Reihe dann
+		 * zweimal auffaechern, statt sie wandern zu lassen.
+		 * ⚠️ Sie wird zusammen mit `hidden` gesetzt, nie danach.
+		 */
+		var stufeZweiOffen = false;
 
 		function zeichne() {
 			var aktiv = aktiveAnsicht();
@@ -144,6 +282,112 @@
 				}
 			});
 			menue.appendChild(zelle(aktuelle, true, true));
+			verdrahteStufeZwei();
+		}
+
+		/**
+		 * Das Ueberfahren einer Ansicht oeffnet ihre Untergruende. 💣 Es wird NICHT neu gezeichnet:
+		 * neue Zellen starten bei opacity 0, ein zeichne() im mouseenter liesse bei JEDER
+		 * Mausbewegung die ganze Reihe samt Staffelung erneut aufblenden. Umgehaengt wird nur die
+		 * Marke.
+		 */
+		function verdrahteStufeZwei() {
+			Array.prototype.forEach.call(menue.querySelectorAll(".map-layer-picker__cell"), function (z) {
+				z.addEventListener("mouseenter", function () {
+					if (!amZeiger || !amZeiger.matches || stufeZwei === z.dataset.mode) {
+						return;
+					}
+					stufeZwei = z.dataset.mode;
+					markiereQuelle();
+					oeffneStufeZwei();
+				});
+			});
+		}
+
+		/** Haengt nur die Marke um -- ohne eine einzige Zelle neu zu bauen. */
+		function markiereQuelle() {
+			Array.prototype.forEach.call(menue.querySelectorAll(".map-layer-picker__cell"), function (z) {
+				z.classList.toggle("is-quelle", z.dataset.mode === stufeZwei);
+			});
+		}
+
+		function zeichneGrundReihe() {
+			var liste = untergruende();
+			var aktiv = aktiverUntergrund();
+			grundReihe.innerHTML = "";
+			// ⚠️ Ohne „aktiv zuletzt": die zweite Stufe hat keine zugeklappte Kachel, auf deren Fleck
+			// etwas liegen muesste -- die Regel der ersten Stufe gilt hier nicht.
+			liste.forEach(function (eintrag) {
+				grundReihe.appendChild(grundZelle(eintrag, Boolean(aktiv) && eintrag.wert === aktiv.wert));
+			});
+			grundReihe.style.gridTemplateColumns = "repeat(" + liste.length + ", auto)";
+		}
+
+		/** Legt die Reihe ueber die Quellzelle -- und klemmt sie am Rand des Bundes. */
+		function positioniereStufeZwei() {
+			var quelle = menue.querySelector('.map-layer-picker__cell[data-mode="' + stufeZwei + '"]');
+			if (!quelle) {
+				return;
+			}
+			var rH = huelle.getBoundingClientRect();
+			var rQ = quelle.getBoundingClientRect();
+			var mitte = rQ.left + rQ.width / 2 - rH.left;
+			var breite = grundReihe.offsetWidth;
+			var links = Math.max(0, Math.min(mitte - breite / 2, rH.width - breite));
+			grundReihe.style.left = Math.round(links) + "px";
+			// 💣 Die Teilung beginnt an der QUELLZELLE, nicht in der Mitte der Reihe: das Untermenue
+			// faehrt sichtbar aus DIESER Ansicht heraus, und genau das sagt, wozu es gehoert.
+			grundReihe.style.setProperty("--map-layer-spalt", Math.round(mitte - links) + "px");
+		}
+
+		/** Faehrt die zweite Stufe heraus -- oder laesst eine offene zur neuen Ansicht hinueberwandern. */
+		function oeffneStufeZwei() {
+			if (!stufeZwei || untergruende().length < 2) {
+				return;
+			}
+			window.clearTimeout(stufeTimer);
+			// 💣 Eine bereits offene Reihe wird NICHT geschlossen und neu aufgefaechert -- sie wandert.
+			// Neu aufklappen sah bei jedem Zellenwechsel aus, als sei etwas kaputt.
+			if (stufeZweiOffen) {
+				positioniereStufeZwei();
+				return;
+			}
+			zeichneGrundReihe();
+			grundReihe.hidden = false;
+			stufeZweiOffen = true;
+			grundReihe.classList.remove("is-open");
+			positioniereStufeZwei();
+			window.requestAnimationFrame(function () {
+				grundReihe.classList.add("is-open");
+			});
+		}
+
+		function schliesseStufeZwei() {
+			window.clearTimeout(stufeTimer);
+			stufeZwei = null;
+			stufeZweiOffen = false;
+			markiereQuelle();
+			grundReihe.classList.remove("is-open");
+			window.setTimeout(function () {
+				if (!stufeZwei) {
+					grundReihe.hidden = true;
+				}
+			}, BLENDE_ZU_MS);
+		}
+
+		/**
+		 * 💣 NICHT SOFORT SCHLIESSEN. Zwischen Ansichtsreihe und Untermenue liegt eine Luecke; wer
+		 * hochfaehrt, ist fuer einen Moment ueber nichts, und ein sofortiges Schliessen naehme die
+		 * Stufe weg, die der Benutzer gerade ansteuert. Zwei Riegel: die Bruecke im CSS schliesst die
+		 * Luecke, dieser Nachlauf faengt alles Uebrige (seitlich vorbei, ruckende Maus). Er ist
+		 * derselbe Wert wie beim Hauptmenue.
+		 */
+		function stufeZweiSpaeterSchliessen() {
+			window.clearTimeout(stufeTimer);
+			if (festgehalten) {
+				return;
+			}
+			stufeTimer = window.setTimeout(schliesseStufeZwei, 260);
 		}
 
 		var blendeTimer = null;
@@ -199,6 +443,9 @@
 			}
 			zustandOffen = false;
 			festgehalten = false;
+			// Mit dem Menue geht auch die zweite Stufe -- sie kann ohne die Ansichtsreihe nicht
+			// bestehen, denn sie haengt an einer ihrer Zellen.
+			schliesseStufeZwei();
 			menue.classList.remove("is-open");
 			knopf.setAttribute("aria-expanded", "false");
 			// 💣 Die Kachel kommt erst NACH der Blende zurueck. Waeren beide gleichzeitig im Fluss,
@@ -238,10 +485,49 @@
 			}
 		}
 
+		/**
+		 * Ein Klick auf einen UNTERGRUND waehlt beides zugleich -- die Ansicht, aus der die zweite
+		 * Stufe herausgefahren ist, und den Untergrund selbst. Das ist der eigentliche Gewinn der
+		 * zweistufigen Form: eine Bewegung fuer eine Kombination.
+		 * 🔴 Und danach geht es zu. Eine getroffene Auswahl schliesst das Menue -- offen
+		 * stehenzubleiben hiesse: die Auswahl ist getroffen, aber das Menue verdeckt die Karte, an
+		 * der man sie gerade pruefen will.
+		 */
+		function waehleGrund(wert) {
+			schwebeGesperrt = true;
+			var ansichtDazu = stufeZwei;
+			if (grundSelect && wert && grundSelect.value !== wert) {
+				// 💣 DERSELBE WEG WIE DIE AUSWAHLBOX, kein zweiter -- ihr change-Handler ruft
+				// setMapStyle samt Merken der Handwahl (vergissBasisVorOriginal). Ein eigenes
+				// setMapStyle hier umginge genau das und liesse die Ansicht den Untergrund wieder
+				// ueberschreiben.
+				grundSelect.value = wert;
+				grundSelect.dispatchEvent(new Event("change", { bubbles: true }));
+			}
+			if (ansichtDazu && ansichtDazu !== aktiveAnsicht()) {
+				select.value = ansichtDazu;
+				select.dispatchEvent(new Event("change", { bubbles: true }));
+			}
+			schliesse();
+		}
+
 		function waehle(modus) {
 			// Nach einer Auswahl steht der Zeiger noch ueber dem Bund. Ohne diesen Riegel klappte
 			// das Menue sofort wieder auf -- er faellt erst, wenn der Zeiger die Huelle verlaesst.
 			schwebeGesperrt = true;
+			// 🔴 EIN KLICK AUF EINE ANSICHT HAELT IHRE ZWEITE STUFE OFFEN -- er waehlt sie NICHT
+			// sofort. Erst der zweite Klick auf dieselbe Ansicht waehlt sie allein, mit dem
+			// eingestellten Untergrund.
+			// ⭐ Daraus faellt das Telefon-Verhalten ab: ohne Ueberfahren ist die zweite Stufe zu,
+			// also OEFFNET der erste Tipp und der zweite waehlt -- dasselbe Modell wie am Zeiger,
+			// kein zweiter Bedienweg.
+			if (modus && modus !== stufeZwei && untergruende().length > 1) {
+				festgehalten = true;
+				stufeZwei = modus;
+				markiereQuelle();
+				oeffneStufeZwei();
+				return;
+			}
 			if (!modus || modus === aktiveAnsicht()) {
 				// Die eingestellte Ansicht noch einmal zu waehlen aendert nichts -- dieser Klick ist
 				// deshalb der HALTE-Klick (siehe `festgehalten`). Ein zweiter auf dieselbe Stelle
@@ -356,6 +642,38 @@
 			}
 			ereignis.stopPropagation();
 			waehle(ziel.dataset.mode);
+		});
+
+		grundReihe.addEventListener("click", function (ereignis) {
+			var ziel = ereignis.target.closest(".map-layer-picker__cell");
+			if (!ziel || ziel.disabled) {
+				return;
+			}
+			ereignis.stopPropagation();
+			waehleGrund(ziel.dataset.grund);
+		});
+
+		// 💣 Die zweite Stufe faellt weg, sobald der Zeiger die Ansichtsreihe verlaesst -- ausser er
+		// geht nach oben in sie hinein. Der Nachlauf (stufeZweiSpaeterSchliessen) und die Bruecke im
+		// CSS tragen zusammen den Weg ueber die Luecke.
+		menue.addEventListener("mouseleave", function (ereignis) {
+			if (grundReihe.contains(ereignis.relatedTarget)) {
+				return;
+			}
+			stufeZweiSpaeterSchliessen();
+		});
+		menue.addEventListener("mouseenter", function () {
+			window.clearTimeout(stufeTimer);
+		});
+		grundReihe.addEventListener("mouseenter", function () {
+			window.clearTimeout(stufeTimer);
+			window.clearTimeout(schwebeTimer);
+		});
+		grundReihe.addEventListener("mouseleave", function (ereignis) {
+			if (menue.contains(ereignis.relatedTarget)) {
+				return;
+			}
+			stufeZweiSpaeterSchliessen();
 		});
 
 		// Pfeiltasten wandern durch die Zellen -- eine Einfachauswahl bedient man so.

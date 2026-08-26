@@ -257,3 +257,127 @@
 	background-color: var(--color-panel);
 	background-image: linear-gradient(var(--color-hover-wash), var(--color-hover-wash));
 }
+
+/* ===== DIE ZWEITE STUFE: die Untergrund-Reihe (26.08.2026) =====================================
+   Entwurf: docs/superpowers/specs/2026-08-26-ansicht-untergrund-kreuzen-design.md
+
+   Sie schwebt UEBER der Ansichtsreihe. Das ist kein Widerspruch zu 'im Fluss, nicht schwebend'
+   weiter oben: jene Regel gilt dem Aufklappen nach UNTEN, wo das Raster die Zoom-Knoepfe verdeckte.
+   Nach oben liegt nur Karte, und das Anzeige-Menue nebenan geht mit `bottom: 100%` denselben Weg. */
+.map-layer-picker {
+	position: relative;
+}
+
+/* 🔴 DIE TEILUNG. Das Untermenue faehrt als EINE Kachelbreite aus der Ansichtszelle heraus und
+   faechert sich in die Untergruende auf. Getragen von `clip-path` -- derselbe Grund wie beim
+   Aufrollen des Hauptrasters: es verschiebt nicht und blendet nicht, und die Zellen darin behalten
+   ihre eigene Staffelung.
+   💣 Die Startbreite ist --map-layer-tile, nie eine abgeschriebene 78: waechst das laengste Wort,
+   waechst die Zelle, und der Spalt begaenne sonst daneben.
+   💣 --map-layer-spalt setzt das JS aus der Lage der Quellzelle -- die Reihe teilt sich GENAU ueber
+   der Ansicht, auf der der Zeiger steht, nicht in ihrer eigenen Mitte. Ohne das saehe man nicht,
+   wozu sie gehoert. */
+.map-layer-picker__grund {
+	position: absolute;
+	bottom: calc(100% + 6px);
+	margin: 0;
+	z-index: 1;
+	--map-layer-spalt: 50%;
+	clip-path: inset(-40px calc(100% - var(--map-layer-spalt) - var(--map-layer-tile) / 2) -40px
+	                 calc(var(--map-layer-spalt) - var(--map-layer-tile) / 2) round var(--radius-sm));
+	transition: clip-path 110ms cubic-bezier(0.4, 0, 1, 1);
+}
+
+/* ⚠️ `left` NUR hier, nicht in der Grundregel: beim ersten Oeffnen soll die Reihe an ihrer Stelle
+   erscheinen, nicht von links hereinfahren. Offen traegt derselbe Wert das Wandern von einer
+   Ansicht zur naechsten -- eine offene Reihe wird nicht geschlossen und neu aufgefaechert. */
+.map-layer-picker__grund.is-open {
+	clip-path: inset(-40px 0 -40px 0 round var(--radius-sm));
+	transition: clip-path 190ms cubic-bezier(0.22, 0.61, 0.36, 1), left 160ms cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+
+/* 💣 DIE LUECKE IST DER FEHLER, NICHT DIE ZEIT. Zwischen Ansichtsreihe und Untermenue liegen 6px;
+   wer hochfaehrt, ist fuer einen Moment ueber NICHTS, und ein mouseleave dort naehme die Stufe weg,
+   die der Benutzer gerade ansteuert. Die Bruecke gehoert zur Unterreihe, ueberdeckt die Luecke und
+   ist unsichtbar -- der Weg nach oben ist damit lueckenlos. Der Nachlauf im JS ist der zweite
+   Riegel, fuer alles Uebrige (seitlich vorbei, ruckende Maus).
+   ⚠️ Sie liegt INNERHALB des clip-path-Ueberhangs (-40px), wird also nicht weggeschnitten. */
+.map-layer-picker__grund::after {
+	content: "";
+	position: absolute;
+	left: 0;
+	right: 0;
+	bottom: -10px;
+	height: 10px;
+}
+
+/* Die Zellen der zweiten Stufe blenden von der Teilungsstelle nach aussen auf. Anders als beim
+   Hauptraster wird von VORN gezaehlt: hier gibt es keine aktive Zelle, die auf dem Fleck der
+   zugeklappten Kachel liegen muesste. */
+.map-layer-picker__grund .map-layer-picker__cell:nth-child(2) { transition-delay: 25ms; }
+.map-layer-picker__grund .map-layer-picker__cell:nth-child(3) { transition-delay: 50ms; }
+.map-layer-picker__grund .map-layer-picker__cell:nth-child(4) { transition-delay: 75ms; }
+
+/* Die Vorschau ist ein Kartenausschnitt, kein Symbol -- er fuellt die Kachel. */
+.map-layer-picker__grund .map-layer-picker__thumb img {
+	object-fit: cover;
+}
+
+/* 🔴 DIESELBE Markierung wie im Hauptmenue, nur lesbar gemacht. Die aktive Zelle traegt schon 2px
+   in --color-link (geteilte Regel). Aber die Untergrund-Kacheln sind ECHTE Kartenausschnitte: auf
+   Gruen, Blau und Braun geht ein goldbrauner Rand unter, waehrend er auf den ruhigeren
+   Ansichts-Symbolen sofort auffaellt.
+   💣 Der helle Strich liegt INNEN, zwischen Bild und Goldrand -- aussen grenzte er die Marke gegen
+   das Panel ab, wo es gar kein Problem gibt; das Problem ist das BILD.
+   💣 Als Pseudo-Element, nicht als inset-Schatten: das Bild fuellt den Thumb ganz aus und deckte
+   einen Innenschatten zu. */
+.map-layer-picker__grund .map-layer-picker__thumb {
+	position: relative;
+}
+.map-layer-picker__grund .map-layer-picker__cell.is-active .map-layer-picker__thumb::before {
+	content: "";
+	position: absolute;
+	inset: 0;
+	z-index: 1;
+	border: 1px solid var(--color-panel);
+	border-radius: inherit;
+	pointer-events: none;
+}
+
+/* Die Ansicht, aus der die zweite Stufe herausfaehrt, ist markiert -- sonst ist nicht zu sehen,
+   wozu die Reihe darueber gehoert. */
+.map-layer-picker__cell.is-quelle .map-layer-picker__thumb {
+	outline: 2px solid var(--color-accent-brown);
+	outline-offset: 1px;
+}
+
+/* ===== Die zweite ZEILE: der Untergrund unter dem Ansichtsnamen ================================
+   💣 Voll deckend, aber in eigener Farbe: --color-link ist im Menue ohnehin die Farbe des
+   Gewaehlten (sie traegt den Rand der aktiven Zelle). Bei halber Deckkraft lag der Kontrast bei
+   2,09:1 -- unter jeder Lesbarkeitsschwelle; mit voller Deckkraft traegt die FARBE den
+   Unterschied, nicht die Blaesse (gemessen 4,45:1 hell, 7,79:1 dunkel). */
+.map-layer-picker__label--grund {
+	color: var(--color-link);
+	margin-top: -3px;
+}
+
+/* 🔴 UND SIE BLENDET AUS, SOBALD DAS MENUE AUFKLAPPT. Im offenen Menue waehlt man den Untergrund in
+   der zweiten Stufe -- die Auskunft in der Zeile waere dort veraltet, kaum dass man hinsieht.
+   ⭐ Es braucht dafuer KEINEN Zustand im JS: die Zeile sitzt in den Menuezellen, und `.is-open`
+   kommt erst im naechsten Bild (das Menue braucht das ohnehin fuer sein Aufrollen). Sie startet
+   also bei 1 und blendet von selbst auf 0 -- der Uebergang faellt gratis ab.
+   ⚠️ Damit loest sich auch die Frage nach den LEEREN Zeilen der uebrigen Ansichten: offen ist die
+   Zeile ueberall unsichtbar, die aktive Zelle bildet keine Ausnahme. Der Platz bleibt reserviert,
+   sonst spraenge die Kachel beim Aufklappen um die Hoehe dieser Zeile. */
+.map-layer-picker__menu .map-layer-picker__label--grund {
+	opacity: 1;
+	transition: opacity 150ms ease;
+}
+.map-layer-picker__menu.is-open .map-layer-picker__label--grund {
+	opacity: 0;
+}
+
+/* Die zweite Stufe traegt selbst keine zweite Zeile -- sie IST der Untergrund. */
+.map-layer-picker__grund .map-layer-picker__label--grund {
+	display: none;
+}

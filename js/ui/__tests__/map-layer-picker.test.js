@@ -238,8 +238,20 @@ assert.ok(aufMs > zuMs,
 const staffelZeilen = css.split(/\r?\n/).filter((z) => /nth-last-child\(\d\)/.test(z));
 assert.strictEqual(staffelZeilen.length, 5,
 	"fuenf Verzoegerungen -- eine je Zelle, die nicht die aktive ist");
-assert.ok(!/nth-child\(\d\)[^}]*transition-delay/.test(css),
-	"...und KEINE von vorn gezaehlt");
+// 🔴 Die Regel gilt dem HAUPTRASTER, nicht der zweiten Stufe (26.08.2026). Dort ist es genau
+// umgekehrt: die Untergrund-Reihe hat keine aktive Zelle, die auf dem Fleck der zugeklappten
+// Kachel liegen muesste -- sie faechert von der Teilungsstelle nach aussen auf und zaehlt deshalb
+// von VORN. Wer beide Regeln in einen Topf wirft, erzwingt in einer der beiden Reihen die falsche
+// Richtung.
+const hauptrasterZeilen = css.split(/\r?\n/).filter((z) => !z.includes("__grund"));
+assert.ok(!/nth-child\(\d\)[^}]*transition-delay/.test(hauptrasterZeilen.join("\n")),
+	"...und KEINE von vorn gezaehlt -- im Hauptraster");
+const grundStaffel = css.split(/\r?\n/).filter((z) => z.includes("__grund") && /nth-child\(\d\)/.test(z));
+assert.ok(grundStaffel.length >= 2,
+	"die zweite Stufe staffelt von VORN -- sie hat keine aktive Zelle an fester Stelle");
+assert.ok(!/__grund[^\n]*nth-last-child/.test(css),
+	"...und NICHT von hinten: das waere die Regel der ersten Stufe, uebertragen auf eine Reihe,"
+	+ " fuer die sie nicht gilt");
 assert.ok(staffelZeilen.every((z) => z.includes(".is-open")),
 	"jede Verzoegerung haengt am `.is-open`-Zweig -- am Grundzustand bremste sie auch das Zuklappen,"
 	+ " und die letzte Zelle haenge der Kachel hinterher, die laengst wieder da ist");
@@ -265,7 +277,11 @@ assert.ok(/var zustandOffen = false/.test(js) && /function offen\(\)\s*\{\s*retu
 assert.ok(!/classList\.contains\("is-open"\)/.test(js),
 	"...und NICHT mehr die Klasse -- sie wird erst im naechsten Bild gesetzt, damit die Bewegung"
 	+ " ueberhaupt anlaeuft; wer sie als Zustand liest, bekommt genau in diesem Bild `false`");
-const schliessen = js.slice(js.indexOf("function schliesse"), js.indexOf("function oeffne"));
+// 🪤 MIT KLAMMER schneiden. `indexOf("function schliesse")` traf ab dem 26.08.2026 die davor
+// stehende `schliesseStufeZwei` -- ein Praefix-Treffer, der den falschen Rumpf herausschnitt und den
+// Test an einer Funktion scheitern liess, die er gar nicht meint. Dieselbe Falle wie bei einem
+// Grep-Muster, das eine Zugriffssyntax voraussetzt: es findet die andere nie.
+const schliessen = js.slice(js.indexOf("function schliesse("), js.indexOf("function oeffne("));
 assert.ok(/if \(!zustandOffen\)/.test(schliessen),
 	"schliesse() steigt am ZUSTAND aus, nicht an `menue.hidden` -- waehrend des Zuklappens ist"
 	+ " `hidden` noch false, ein zweiter Aufruf liefe sonst ein zweites Mal durch");
@@ -302,3 +318,60 @@ assert.ok(/festgehalten = true/.test(knopfKlick),
 	+ " einzige Weg, und dort gibt es kein Ueberfahren, das vorher geoeffnet haette");
 
 console.log("map-layer-picker tests passed");
+
+// ---- 14. DIE ZWEITE STUFE: die Untergrund-Reihe (26.08.2026) ------------------------------------
+//
+// Entwurf: docs/superpowers/specs/2026-08-26-ansicht-untergrund-kreuzen-design.md
+
+// 💣 Die Untergruende kommen aus dem <select>, nicht aus einer zweiten Liste im Picker. Genau so
+// halten es die Ansichten -- eine eigene Liste liefe beim naechsten Kachelsatz auseinander.
+assert.ok(/document\.getElementById\("mapStyleSelect"\)/.test(js),
+	"die Untergruende liest der Picker aus #mapStyleSelect");
+assert.ok(!/\[\s*"old"\s*,\s*"original"|MAP_TILE_STYLES\s*\)\s*\.map/.test(js),
+	"...und baut sich keine eigene Liste der Kachelsaetze");
+
+// 🔴 „Old" sieht nur der Editor.
+assert.ok(/IS_EDIT_MODE[\s\S]{0,200}!==\s*"old"|imEditor \|\| eintrag\.wert !== "old"/.test(js),
+	"der Kachelsatz `old` wird fuer Nicht-Editoren herausgefiltert");
+
+// 💣 Der Ordner steht NICHT im Picker -- die Vorschau baut ihre Adresse aus MAP_TILE_STYLES[].url.
+// Ein zweites "tiles/old" hier liefe beim naechsten Umzug lautlos auseinander: ein fehlendes
+// Vorschaubild sieht aus wie eine leere Kachel.
+assert.ok(/MAP_TILE_STYLES\[wert\]/.test(js),
+	"die Untergrund-Vorschau leitet ihre Adresse aus MAP_TILE_STYLES ab");
+assert.ok(!/["']\.?\/?tiles\//.test(js),
+	"...und schreibt den Kachelordner NICHT selbst hin");
+
+// 💣 Der Zustand der zweiten Stufe steht in einer VARIABLEN, nicht in der Klasse -- dieselbe Regel
+// wie beim Hauptmenue, und aus demselben Grund (die Klasse kommt erst im naechsten Bild).
+assert.ok(/var stufeZweiOffen = false/.test(js),
+	"die zweite Stufe fuehrt ihren Offen-Zustand in einer eigenen Variablen");
+
+// 💣 Eine offene Reihe WANDERT, sie faechert nicht neu auf: sonst klappte sie bei jedem
+// Zellenwechsel komplett neu auf, und das sah aus, als sei etwas kaputt.
+const oeffnenZwei = js.slice(js.indexOf("function oeffneStufeZwei"), js.indexOf("function schliesseStufeZwei"));
+assert.ok(/if \(stufeZweiOffen\)[\s\S]{0,160}return;/.test(oeffnenZwei),
+	"eine bereits offene Untergrund-Reihe wird nur neu positioniert, nicht neu aufgefaechert");
+
+// 💣 Die Luecke zwischen den Stufen braucht ZWEI Riegel: die Bruecke im CSS und den Nachlauf im JS.
+// Ohne sie nimmt ein mouseleave beim Hochfahren die Stufe weg, die der Benutzer gerade ansteuert.
+assert.ok(/__grund::after[\s\S]{0,220}bottom:\s*-\d+px/.test(css),
+	"die Untergrund-Reihe traegt eine unsichtbare Bruecke ueber die Luecke");
+assert.ok(/stufeZweiSpaeterSchliessen[\s\S]{0,400}setTimeout/.test(js),
+	"...und das Schliessen laeuft ueber einen Nachlauf, nicht sofort");
+
+// 🔴 Ein Klick auf einen Untergrund waehlt BEIDES und schliesst. Und er geht ueber die Auswahlbox,
+// nicht ueber ein eigenes setMapStyle -- sonst umginge er das Merken der Handwahl.
+const waehleGrund = js.slice(js.indexOf("function waehleGrund"), js.indexOf("function waehle("));
+assert.ok(/grundSelect\.dispatchEvent/.test(waehleGrund),
+	"die Untergrund-Wahl laeuft ueber den change-Handler der Auswahlbox");
+assert.ok(/select\.value = ansichtDazu/.test(waehleGrund),
+	"...und nimmt die Ansicht mit, aus der die Stufe herausgefahren ist");
+assert.ok(/schliesse\(\);/.test(waehleGrund),
+	"...und schliesst danach: eine getroffene Auswahl laesst das Menue nicht offen stehen");
+
+// 🔴 Die zweite Zeile blendet im offenen Menue aus -- OHNE eigenen Zustand im JS.
+assert.ok(/\.map-layer-picker__menu\.is-open \.map-layer-picker__label--grund[\s\S]{0,80}opacity:\s*0/.test(css),
+	"die Untergrund-Zeile blendet aus, sobald das Menue aufklappt");
+assert.ok(!/label--grund/.test(js.replace(/map-layer-picker__label map-layer-picker__label--grund/g, "")),
+	"...und das JS steuert das nicht: es vergibt die Klasse und sonst nichts");
