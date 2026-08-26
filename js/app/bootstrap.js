@@ -282,6 +282,14 @@ map.getPane("labelsPane").classList.add("map-labels-pane");
 		// davon gezeichnet wird, und sieht aus wie ein Sprung.
 		requestAnimationFrame(() => requestAnimationFrame(() => {
 			if (aufraeumer) { clearTimeout(aufraeumer); }
+			// 💣 DER KLON MUSS WEG, BEVOR DAS ECHTE PANE EINBLENDET -- die Reparatur der doppelten
+			// Schrift vom 26.08.2026 (Owner, per Aufzeichnung belegt: „AVENTURIEN" zweimal, senkrecht
+			// versetzt). Er hat seine Blende beim ZOOMSTART bekommen; laeuft sie dort noch
+			// (verzoegerter Start durch Hauptthread-Last), ueberlappt sein Rest mit der neuen Schrift.
+			// Und weil er die ALTE Beschriftungslage haelt und das Pane die NEUE, sieht man beide.
+			// ⚠️ Nur im parallelen Pfad. Bei ?labelparallel=0 IST die Ueberblendung das Gewollte --
+			// dort faengt das Ausblenden ja erst jetzt an.
+			if (AUSBLENDEN_AB_ZOOMSTART) { klonWeg(); }
 			pane.style.transition = `opacity ${DAUER_MS}ms ${AVESMAPS_ZOOM_KURVE}`;
 			pane.style.opacity = "1";
 			if (klon) {

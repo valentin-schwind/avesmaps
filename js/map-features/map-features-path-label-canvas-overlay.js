@@ -131,9 +131,17 @@
 				vorne.style.transition = "opacity " + PATH_LABEL_FADE_IN_MS + "ms " + AVESMAPS_ZOOM_KURVE;
 				vorne.style.opacity = "1";
 				// ... und im SELBEN Bild die alte ab: zwei Uebergaenge, gleiche Dauer, gleicher Start.
+				// 💣 HART AUF 0, NICHT UEBERBLENDET -- dieselbe Reparatur wie bei den Grenznamen
+				// (26.08.2026, Owner per Aufzeichnung: doppelte Schrift, senkrecht versetzt). Die
+				// hintere Flaeche hat ihre Blende schon beim ZOOMSTART bekommen; laeuft die dort noch
+				// (verzoegerter Start durch Hauptthread-Last), ueberlappt ihr Rest mit der neuen
+				// Schrift, und weil beide an VERSCHIEDENEN Stellen stehen, sieht man beide.
+				// ⚠️ Inline-Transition sofort wieder entfernen -- `transition` ist EINE Eigenschaft.
 				if (KREUZBLENDE_AN) {
-					hinten.style.transition = "opacity " + PATH_LABEL_FADE_IN_MS + "ms " + AVESMAPS_ZOOM_KURVE;
+					hinten.style.transition = "none";
 					hinten.style.opacity = "0";
+					void hinten.offsetWidth;   // Zwischenstand erzwingen, sonst wirkt `none` nicht
+					hinten.style.transition = "";
 				}
 			});
 		});

@@ -89,6 +89,50 @@ const zoomanimBlock = (quelle) => {
 		"Die Pane-Blende liest die gemeinsamen Token nicht.");
 }
 
+// ---- 🔴 DIE AUSGEHENDE EBENE MUSS WEG SEIN, BEVOR DIE NEUE KOMMT -------------------------------
+// 💣 DER BEFUND VOM 26.08.2026, vom Owner per Aufzeichnung belegt: „AVENTURIEN" stand fuer einen
+// Moment ZWEIMAL da, senkrecht versetzt -- einmal in der alten Beschriftungslage, einmal in der
+// neuen. Zwei Ebenen zugleich sichtbar.
+// Die Rechnung sagte, das koenne nicht sein: die alte Flaeche blendet ab t = 0 ueber 250 ms aus,
+// die neue kommt erst nach dem zoomend. Der Fehler in der Rechnung war die ANNAHME, die Blende
+// beginne im selben Augenblick, in dem man sie setzt. Sie beginnt beim naechsten Stilabgleich --
+// und der Hauptthread ist beim Zoomstart mit dem Zeichnen aller Ebenen beschaeftigt. Startet sie
+// 100 ms zu spaet, ist sie beim zoomend noch bei 0,4, und die neue Schrift kommt darueber.
+// ⭐ Deshalb wird die ausgehende Ebene beim Einblenden HART auf 0 gesetzt, nicht ueberblendet.
+for (const [datei, flaeche] of [
+	["js/map-features/map-features-boundary-canvas-overlay.js", "labelHinten"],
+	["js/map-features/map-features-path-label-canvas-overlay.js", "hinten"],
+]) {
+	const quelle = ohneKommentare(lies(datei));
+	const muster = new RegExp(flaeche + "\\.style\\.transition\\s*=\\s*\"none\"[\\s\\S]{0,200}?"
+		+ flaeche + "\\.style\\.opacity\\s*=\\s*\"0\"");
+	assert.ok(muster.test(quelle),
+		"💣 " + datei + ": die ausgehende Flaeche wird beim Einblenden ueberblendet statt hart auf 0 "
+		+ "gesetzt. Laeuft ihre Blende vom Zoomstart noch (verzoegerter Start durch Hauptthread-Last), "
+		+ "ueberlappt sie mit der neuen Schrift -- und weil beide an VERSCHIEDENEN Stellen stehen, "
+		+ "liest sich das als DOPPELTE Beschriftung.");
+	// 💣 Und die Inline-Transition MUSS wieder weg: sonst ist die CSS-Blendenregel dauerhaft tot
+	// (`transition` ist EINE Eigenschaft, und inline gewinnt).
+	const nachher = new RegExp(flaeche + "\\.style\\.opacity\\s*=\\s*\"0\"[\\s\\S]{0,200}?"
+		+ flaeche + "\\.style\\.transition\\s*=\\s*\"\"");
+	assert.ok(nachher.test(quelle),
+		"💣 " + datei + ": die Inline-Transition `none` bleibt stehen und loescht damit die "
+		+ "CSS-Blendenregel dauerhaft aus.");
+	// Und dazwischen der erzwungene Zwischenstand, sonst fasst der Browser beides zusammen.
+	assert.ok(new RegExp("void " + flaeche + "\\.offsetWidth").test(quelle),
+		"💣 " + datei + ": ohne erzwungenen Zwischenstand wirkt das harte Nullsetzen nicht -- der "
+		+ "Browser fasst `transition: none` und die Rueckgabe zusammen.");
+}
+
+// Und beim DOM-Klon dasselbe: er muss WEG sein, bevor das echte Pane einblendet.
+{
+	const bs = ohneKommentare(lies("js/app/bootstrap.js"));
+	const zoomend = bs.slice(bs.indexOf('map.on("zoomend"', bs.indexOf("ueberblendungDerLabelPane")));
+	assert.ok(/AUSBLENDEN_AB_ZOOMSTART[\s\S]{0,80}?klonWeg\(\)/.test(zoomend),
+		"💣 js/app/bootstrap.js: der Klon wird beim Einblenden nicht entfernt. Sein Rest ueberlappt "
+		+ "dann mit der neuen Schrift -- dieselbe doppelte Beschriftung wie bei den Canvas-Ebenen.");
+}
+
 // ---- Und keine der vier Ebenen traegt noch eine eigene Kurve ------------------------------------
 // 🪤 `ease-out` in einer Transform-Transition waere etwas anderes; hier geht es nur um Deckkraft.
 for (const datei of [

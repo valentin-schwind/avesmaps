@@ -482,7 +482,24 @@
 				// ... und im SELBEN Bild die alte ab. Das ist die ganze Ueberblendung: zwei Uebergaenge,
 				// gleiche Dauer, gleicher Startzeitpunkt. Die alte Flaeche behaelt ihre Zoom-Transform und
 				// steht deshalb noch am richtigen Fleck, waehrend sie verschwindet.
-				if (KREUZBLENDE_AN) { labelHinten.style.opacity = "0"; }
+				// 💣 HART AUF 0, NICHT UEBERBLENDET -- und das ist die Reparatur der doppelten Schrift
+				// vom 26.08.2026 (Owner, per Aufzeichnung belegt: „AVENTURIEN" stand zweimal da,
+				// senkrecht versetzt). Die hintere Flaeche hat ihre Blende bereits beim ZOOMSTART
+				// bekommen. Laeuft die dort noch, ueberlappt ihr Rest mit der neuen Schrift -- und weil
+				// beide an VERSCHIEDENEN Stellen stehen, liest sich das als doppelte Beschriftung.
+				// 🪤 Meine Rechnung sagte, das koenne nicht sein: 250 ms Ausblenden ab t = 0, das neue
+				// Bild erst nach dem zoomend. Der Fehler in der Rechnung war die ANNAHME, eine Blende
+				// beginne im Augenblick des Setzens. Sie beginnt beim naechsten Stilabgleich, und der
+				// Hauptthread ist beim Zoomstart mit dem Zeichnen aller Ebenen belegt.
+				// ⚠️ Die Inline-Transition wird SOFORT wieder entfernt: `transition` ist EINE
+				// Eigenschaft, und inline gewinnt -- sie stehenzulassen loeschte die CSS-Blendenregel
+				// aus css/features/map-labels.css dauerhaft aus.
+				if (KREUZBLENDE_AN) {
+					labelHinten.style.transition = "none";
+					labelHinten.style.opacity = "0";
+					void labelHinten.offsetWidth;   // Zwischenstand erzwingen, sonst wirkt `none` nicht
+					labelHinten.style.transition = "";
+				}
 				// 🔴 NUR DIE NAMEN BLENDEN, DIE LINIEN NICHT. Owner 24.08.2026: „kannst du die grenzen,
 				// strassen und fluesse selber (nicht die labels!) stabil halten? labels sollen schoen ein und
 				// ausblenden“. 🪤 d02eaec4 liess die Linien-Flaeche mitblenden und ging damit zu weit: eine
