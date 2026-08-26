@@ -225,6 +225,40 @@ let basisVorOriginal = null;
 // gemerkte Vorgängerin über eine frische Handwahl.
 function vergissBasisVorOriginal() {
 	basisVorOriginal = null;
+	// 🔴 Und ab jetzt ist der Untergrund SELBST GEWAEHLT -- die Ansicht fasst ihn nicht mehr an.
+	mapStyleHandWahl = true;
+}
+
+/**
+ * 🔴 HAT JEMAND DEN UNTERGRUND SELBST GEWAEHLT? Dann ist er ein eigener Zustand, und
+ * setSelectedMapLayerMode laesst ihn in Ruhe (26.08.2026, Entwurf:
+ * docs/superpowers/specs/2026-08-26-ansicht-untergrund-kreuzen-design.md).
+ *
+ * ZWEI Quellen, und beide zaehlen:
+ *   (1) `?mapstyle=` in der Adresse. 💣 Das ist keine Vorgabe, sondern eine Wahl: der Absender
+ *       hatte sie getroffen, und `buildPlannerSearchParams` (map-features-layer-state.js) schreibt
+ *       sie in JEDEN geteilten Link, sobald die Basis nicht `stylized` ist.
+ *   (2) die Handwahl im Anzeige-Menue -- sie laeuft ueber vergissBasisVorOriginal() oben.
+ *
+ * ⚠️ Gelesen wird INITIAL_SEARCH_PARAMS, also die Adresse BEIM LADEN. Die laufende Adresse taugt
+ * nicht: syncPlannerStateToUrl schreibt sie fortlaufend um, und ab dem ersten Moduswechsel stuende
+ * dort ein `mapstyle`, das die Ansicht selbst hineingesetzt hat -- die Frage beantwortete sich dann
+ * mit ihrer eigenen Wirkung.
+ * ⚠️ Kein Memo: die Antwort kann sich nur EINMAL aendern (von nein auf ja), und der teure Teil ist
+ * ein Lesezugriff auf eingefrorene Suchparameter.
+ */
+let mapStyleHandWahl = false;
+
+function avesmapsMapStyleIstSelbstGewaehlt() {
+	if (mapStyleHandWahl) {
+		return true;
+	}
+	try {
+		const wert = INITIAL_SEARCH_PARAMS.get("mapstyle");
+		return Boolean(wert && MAP_TILE_STYLES[wert]);
+	} catch (error) {
+		return false;
+	}
 }
 
 function setSelectedMapLayerMode(mode) {
@@ -246,18 +280,29 @@ function setSelectedMapLayerMode(mode) {
 	$("#mapLayerModeSelect").val(normalizedMode);
 	syncTransportControl("mapLayerModeSelect");
 	// "Original" ist die einzige Derographie-Ansicht mit abweichender Basiskarte: sie zeigt die alte
-	// Karte (Tile-Style "old"). Beim Verlassen kommt die vorherige Basis zurueck -- im Frontend ist
+	// Karte. Beim Verlassen kommt die vorherige Basis zurueck -- im Frontend ist
 	// das immer "stylized", im Edit-Modus genau das, was die Ansicht ueberschrieben hat.
-	if (typeof setMapStyle === "function") {
+	//
+	// 🔴 ES SEI DENN, JEMAND HAT DEN UNTERGRUND SELBST GEWAEHLT (26.08.2026). Dann faellt dieser
+	// ganze Block aus: der Untergrund wird ein eigener Zustand und ist nicht laenger Beifang der
+	// Ansicht (Entwurf: docs/superpowers/specs/2026-08-26-ansicht-untergrund-kreuzen-design.md).
+	// 💣 Der Riegel repariert zugleich einen stillen Fehler: `buildPlannerSearchParams`
+	// (map-features-layer-state.js) SCHREIBT `?mapstyle=` in jeden geteilten Link, sobald die Basis
+	// nicht `stylized` ist -- und dieser Block schrieb ihn beim Laden sofort wieder weg. Der
+	// Empfaenger sah also nie, was der Absender geteilt hatte. Live gemessen am 26.08.2026.
+	if (typeof setMapStyle === "function" && !avesmapsMapStyleIstSelbstGewaehlt()) {
 		if (normalizedMode === "original") {
-			// 💣 Nur merken, was die Ansicht WIRKLICH ueberschreibt. Stand die Basis schon auf "old"
-			// (der Editor hat sie im Anzeige-Menue selbst so gestellt), gibt es nichts zurueckzugeben
-			// -- und ein zweiter Aufruf mit "original" (restorePlannerState) darf die Erinnerung nicht
-			// mit "old" ueberschreiben und sie damit wertlos machen.
-			if (typeof activeMapStyle !== "undefined" && activeMapStyle !== "old") {
+			// 💣 Nur merken, was die Ansicht WIRKLICH ueberschreibt. Stand die Basis schon auf der
+			// alten Karte (der Editor hat sie im Anzeige-Menue selbst so gestellt), gibt es nichts
+			// zurueckzugeben -- und ein zweiter Aufruf mit "original" (restorePlannerState) darf die
+			// Erinnerung nicht ueberschreiben und sie damit wertlos machen.
+			// ⚠️ Sie nimmt seit 26.08.2026 `original` statt `old`: `old` traegt die aufgedruckten
+			// Namen, `original` ist dieselbe Karte ohne sie. Die ANSICHT zeigte immer die
+			// unbeschriftete -- bis zu diesem Tag gab es dafuer nur keinen eigenen Eintrag.
+			if (typeof activeMapStyle !== "undefined" && activeMapStyle !== "original") {
 				basisVorOriginal = activeMapStyle;
 			}
-			setMapStyle("old");
+			setMapStyle("original");
 		} else if (typeof IS_EDIT_MODE === "undefined" || !IS_EDIT_MODE) {
 			// Alle anderen Derographie-Modi nutzen im Frontend IMMER die stylized-Basis. setMapStyle ist
 			// ein No-op, wenn stylized bereits aktiv ist (Guard in bootstrap.js), daher unbedingt sicher.

@@ -6,6 +6,10 @@
 // nicht. Genau dieser Unterschied ist die Fundstelle: die Ueberlagerungen haengen an den
 // sync*-Aufrufen, die Basiskarte an setMapStyle.
 //
+// 🔴 SEIT 26.08.2026 heisst die alte Basis "original", nicht "old": es gibt jetzt DREI Kachelsaetze,
+// und "old" ist der mit den aufgedruckten Namen. Die Ansicht zeigte immer die unbeschriftete --
+// bis dahin gab es dafuer nur keinen eigenen Eintrag. Die Zusicherungen sind unveraendert.
+//
 // 💣 URSACHE: setSelectedMapLayerMode SCHRIEB die Basis beim Betreten ("old"), aber der Zweig, der
 // sie zurueckgibt, hing an `!IS_EDIT_MODE`. Im Editor gab es also einen Hin- und keinen Rueckweg.
 // Der Kommentar daneben begruendete das mit "im Edit-Modus bleibt eine manuell gewaehlte Basis
@@ -131,7 +135,7 @@ function welt({ editor = false, startBasis = "stylized" } = {}) {
 	["deregraphic", "political", "powerlines", "ecosystem", "none"].forEach((ziel) => {
 		const w = welt({ editor });
 		w.wechsleZu("original");
-		pruefe(w.basis() === "old", `${wo}/${ziel}: "Original" zeigt die alte Basiskarte`);
+		pruefe(w.basis() === "original", `${wo}/${ziel}: "Original" zeigt die alte Basiskarte`);
 		w.wechsleZu(ziel);
 		pruefe(w.basis() === "stylized",
 			`💣 ${wo}: "Original" -> "${ziel}" gibt die Basiskarte zurueck (war "${w.basis()}").`
@@ -144,7 +148,7 @@ function welt({ editor = false, startBasis = "stylized" } = {}) {
 	const w = welt({ editor: true });
 	for (let runde = 1; runde <= 3; runde += 1) {
 		w.wechsleZu("original");
-		pruefe(w.basis() === "old", `Editor: Runde ${runde} -- "Original" schaltet hin`);
+		pruefe(w.basis() === "original", `Editor: Runde ${runde} -- "Original" schaltet hin`);
 		w.wechsleZu("deregraphic");
 		pruefe(w.basis() === "stylized", `Editor: Runde ${runde} -- und wieder zurueck`);
 	}
@@ -158,10 +162,10 @@ function welt({ editor = false, startBasis = "stylized" } = {}) {
 {
 	// (a) Die Basis stand schon vor dem Ansichtswechsel auf "old" (der Editor hat sie im
 	//     Anzeige-Menue selbst so gestellt). Dann gibt es nichts zurueckzugeben.
-	const a = welt({ editor: true, startBasis: "old" });
+	const a = welt({ editor: true, startBasis: "original" });
 	a.wechsleZu("original");
 	a.wechsleZu("deregraphic");
-	pruefe(a.basis() === "old",
+	pruefe(a.basis() === "original",
 		"💣 Editor: eine SCHON von Hand gewaehlte Originalbasis ueberlebt den Ausflug in die Ansicht"
 		+ " \"Original\" -- die Ansicht hat sie nicht ueberschrieben, also gibt sie auch nichts zurueck");
 
@@ -169,9 +173,9 @@ function welt({ editor = false, startBasis = "stylized" } = {}) {
 	//     Handwahl die Wahrheit, die gemerkte Vorgaengerin ist Geschichte.
 	const b = welt({ editor: true });
 	b.wechsleZu("original");
-	b.waehleBasisVonHand("old");
+	b.waehleBasisVonHand("original");
 	b.wechsleZu("deregraphic");
-	pruefe(b.basis() === "old",
+	pruefe(b.basis() === "original",
 		"💣 Editor: eine WAEHREND der Ansicht \"Original\" von Hand gewaehlte Basis ueberlebt das"
 		+ " Verlassen -- sonst legt der Rueckweg die gemerkte Vorgaengerin darueber");
 
@@ -193,7 +197,7 @@ function welt({ editor = false, startBasis = "stylized" } = {}) {
 	//     Kachelmenge, sondern gar keine -- und er muss genauso zurueckkommen.
 	const c = welt({ editor: true, startBasis: "none" });
 	c.wechsleZu("original");
-	pruefe(c.basis() === "old", "Editor/none: \"Original\" schaltet auch von der leeren Basis aus hin");
+	pruefe(c.basis() === "original", "Editor/none: \"Original\" schaltet auch von der leeren Basis aus hin");
 	c.wechsleZu("deregraphic");
 	pruefe(c.basis() === "none",
 		"💣 Editor: der leere Untergrund kommt zurueck, nicht \"stylized\" -- ein Rueckweg, der die"
@@ -206,7 +210,7 @@ function welt({ editor = false, startBasis = "stylized" } = {}) {
 // auf "stylized" -- auch aus einer Lage heraus, die der Editor-Zweig respektieren wuerde. Wer das
 // zusammenlegt, aendert das Bild fuer jeden Besucher, und das sieht der Owner einzeln (§9).
 {
-	const f = welt({ editor: false, startBasis: "old" });
+	const f = welt({ editor: false, startBasis: "original" });
 	f.wechsleZu("deregraphic");
 	pruefe(f.basis() === "stylized",
 		"Frontend: ein Nicht-Original-Modus zwingt weiter unbedingt auf \"stylized\" -- unveraendert");

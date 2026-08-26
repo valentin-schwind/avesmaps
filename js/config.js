@@ -579,8 +579,13 @@ const ROUTE_WAYPOINT_MARKER_IMAGES = {
 const ROUTE_WAYPOINT_POPUP_CLOSE_DELAY_MS = 220;
 
 const MAP_TILE_STYLES = {
-	old: { label: "Original", url: "./tiles/original/{z}/map_{x}_{y}.webp" }, // 🔴 Der SCHLUESSEL bleibt `old` -- er steckt in geteilten Links (`?mapstyle=old`) und in `avesmaps.edit.mapStyle`; nur der ORDNER heisst seit 26.08.2026 `tiles/original` (dieselbe Trennung wie „Neuigkeiten"/`changelog`, AGENTS.md §11).
-	stylized: { label: "Stylized", url: "./tiles/stylized/{z}/map_{x}_{y}.webp" },
+	// 🔴 DREI Kachelsaetze, seit 26.08.2026 einzeln waehlbar (Entwurf: docs/superpowers/specs/2026-08-26-ansicht-untergrund-kreuzen-design.md).
+	// `old` traegt die alte Karte MIT aufgedruckten Namen (GARETH, Vierok, Wiesengrund), `original` dieselbe Karte OHNE sie, `stylized` die neu erzeugte.
+	// 💣 Die BESCHRIFTUNGEN wandern, die KENNUNGEN nie: `stylized` heisst „Modern", bleibt aber `stylized` -- der Schluessel steckt im Ordnernamen, in geteilten Links (`?mapstyle=`) und in `avesmaps.edit.mapStyle`. Dieselbe Trennung wie „Neuigkeiten"/`changelog` (AGENTS.md §11).
+	// 🪤 `old` zeigte vom 26.08.2026 morgens bis mittags auf `tiles/original` -- damals war geplant, den alten Satz zu loeschen. Er bleibt (die aufgedruckten Namen sind fuer Editoren die Vorlage), deshalb hat jeder Satz wieder seinen eigenen Ordner.
+	old: { label: "Old", url: "./tiles/old/{z}/map_{x}_{y}.webp" },
+	original: { label: "Original", url: "./tiles/original/{z}/map_{x}_{y}.webp" },
+	stylized: { label: "Modern", url: "./tiles/stylized/{z}/map_{x}_{y}.webp" },
 };
 const MAP_FEATURE_UPDATE_API_URL = window.AVESMAPS_MAP_FEATURE_UPDATE_ENDPOINT || "api/edit/map/features.php";
 const LOCATION_REPORT_REVIEW_API_URL = window.AVESMAPS_LOCATION_REPORT_REVIEW_ENDPOINT || "api/edit/reports/locations.php";
