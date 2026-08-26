@@ -104,9 +104,47 @@ function applyServerTravelHours(data) {
 	feld.setAttribute("value", gesetzt);
 }
 
+/**
+ * Die Tempotabelle aus der Kartennutzlast uebernehmen -- Reisemittel x Wegart in Meilen je Stunde.
+ *
+ * 🔴 EINE QUELLE, DIESELBE LEITUNG WIE DIE REISETAGE DARUEBER. Der Router liest sein Raster ueber
+ * avesmapsTravelValuesRead(): die Konstante, darueber die im Fenster „Tempowerte" gespeicherten
+ * Werte. `SPEED_TABLE` (js/config.js) war bis zum 26.08.2026 eine zweite Behauptung ueber dieselbe
+ * Zahl -- und sie war live auseinander: 5,07 gegen 5,18 fuer die Reisegruppe zu Fuss auf der
+ * Reichsstrasse, 5,95 gegen 6,00 fuer den Flusssegler. Der Reiseplan zeigte dadurch rund 2 %
+ * kuerzere Zeiten, als der Router gerechnet hatte; aufgefallen ist es erst, als jemand die stabile
+ * API gegen die Karte gehalten hat (Meldung #101).
+ *
+ * ⚠️ DIE KONSTANTE BLEIBT -- als Rueckfall, nicht als zweiter Anspruch. Sagt der Server nichts
+ * (alte Nutzlast, ausgefallener Lesevorgang), rechnet die Karte wie vorher. Dieselbe Ausfallart wie
+ * bei den Reisetagen.
+ *
+ * 💣 ZELLE FUER ZELLE, NIE DAS GANZE RASTER. Ein Reisemittel oder eine Wegart, die der Server
+ * nicht nennt, behaelt ihren Wert; ein Schluessel, den es hier nicht gibt, wird NICHT angelegt.
+ * Ein ersetztes Raster liesse den Rest als `undefined` zurueck -- und `SPEED_TABLE[t]?.[type] || 1`
+ * macht daraus klaglos Tempo 1, also eine Reise, die viermal so lange dauert, ohne Fehlermeldung.
+ */
+function applyServerTravelSpeeds(data) {
+	const gesendet = data && data.travel_speeds;
+	if (!gesendet || typeof gesendet !== "object" || Array.isArray(gesendet)) return;
+	if (typeof SPEED_TABLE !== "object" || !SPEED_TABLE) return;
+	Object.keys(SPEED_TABLE).forEach((transport) => {
+		const zeile = gesendet[transport];
+		if (!zeile || typeof zeile !== "object" || Array.isArray(zeile)) return;
+		Object.keys(SPEED_TABLE[transport]).forEach((pathType) => {
+			const wert = Number(zeile[pathType]);
+			if (Number.isFinite(wert) && wert > 0) SPEED_TABLE[transport][pathType] = wert;
+		});
+	});
+}
+
 // Verarbeitung der Locations (GeoJSON Points)
 const prepareLocationData = (data) => {
 	applyServerTravelHours(data);
+	// 💣 HIER, NICHT SPAETER: unter dieser Zeile entsteht `locationData`, und ohne die kann niemand
+	// eine Route rechnen. Damit gibt es kein Wettrennen zwischen der Tempotabelle und der ersten
+	// Reise -- auch nicht bei einem geteilten Link, der sofort eine Route mitbringt.
+	applyServerTravelSpeeds(data);
 	let crossingCount = 1;
 	locationNameLabels.forEach((entry) => map.removeLayer(entry.marker));
 	locationNameLabels = [];

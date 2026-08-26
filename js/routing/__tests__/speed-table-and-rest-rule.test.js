@@ -334,8 +334,16 @@ assert.ok(
 	"api/app/map-features.php schickt `travel_hours` in der Nutzlast mit"
 );
 assert.ok(
-	mapFeatures.includes("avesmapsMapFeaturesTravelHours"),
-	"und liest sie ueber avesmapsMapFeaturesTravelHours() aus demselben Leser wie der Router"
+	mapFeatures.includes("avesmapsMapFeaturesTravelValues"),
+	"und liest sie ueber avesmapsMapFeaturesTravelValues() aus demselben Leser wie der Router"
+);
+// 🔴 Seit dem 26.08.2026 faehrt die TEMPOTABELLE auf derselben Leitung -- sie ist der Zaehler zu
+// den Reisetagen, und die beiden getrennt zu fuehren war genau die Divergenz, die live gemessen
+// wurde (5,07 gegen 5,18). Was sie im Browser TUT, prueft tempowerte-vom-server.test.js; hier steht
+// nur, dass die Leitung liegt.
+assert.ok(
+	mapFeatures.includes("'travel_speeds' =>"),
+	"api/app/map-features.php schickt auch `travel_speeds` mit"
 );
 
 const routingSource = read("js/routing/routing.js");
@@ -343,9 +351,18 @@ assert.ok(
 	routingSource.includes("data.travel_hours"),
 	"js/routing/routing.js liest `travel_hours` aus der Nutzlast"
 );
+// 🪤 MIT SEMIKOLON, UND DAS IST DER GANZE PUNKT. `includes("applyServerTravelHours(data)")` war
+// VAKUUM: die DEFINITIONSZEILE `function applyServerTravelHours(data) {` enthaelt denselben Text,
+// also war die Zusicherung auch dann gruen, wenn den Aufruf niemand mehr machte. Aufgefallen ist
+// es am 26.08.2026 bei einer Mutationsprobe -- der geloeschte Aufruf blieb unbemerkt. Der Aufruf
+// endet auf `;`, die Definition auf `{`.
 assert.ok(
-	routingSource.includes("applyServerTravelHours(data)"),
+	routingSource.includes("applyServerTravelHours(data);"),
 	"und ruft die Uebernahme im Nutzlast-Pfad auf -- eine Funktion ohne Aufrufer waere die stille Haelfte"
+);
+assert.ok(
+	routingSource.includes("applyServerTravelSpeeds(data);"),
+	"und die Tempotabelle ebenso"
 );
 // 🔴 Der Riegel gegen das Ueberschreiben einer Benutzereingabe. Ohne ihn setzt die Kartennutzlast
 // Sekunden nach dem Laden die Wahl des Reisenden zurueck.

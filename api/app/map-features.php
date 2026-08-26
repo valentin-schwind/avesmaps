@@ -31,6 +31,11 @@ require_once __DIR__ . '/../_internal/app/climate-membership.php';
 // and its 20 function names do not collide with the 24 in this file.
 require_once __DIR__ . '/../_internal/app/feature-sources.php';
 
+// Aus demselben Grund ausgelagert wie avesmapsMapFeaturesPublicImageUrls() weiter unten: diese
+// Datei ist ein ENDPUNKT und laesst sich fuer einen Test nicht seiteneffektfrei einbinden. Der
+// Leser der Tempowerte gehoert aber gemessen, nicht im Quelltext gesucht.
+require_once __DIR__ . '/../_internal/app/travel-values.php';
+
 // Bump when the SHAPE of the map-features payload changes (a property added/renamed/removed) WITHOUT a
 // map_revision change. The ETag is revision-based, so cached clients would otherwise keep a stale body
 // via 304 and never see the new field -- exactly what happened when `political` was added. Incrementing
@@ -80,7 +85,13 @@ require_once __DIR__ . '/../_internal/app/feature-sources.php';
 //    unter der alten Achse gefuellt wurde, kann sich der Inhalt aendern, OHNE dass jemand einen
 //    Schalter umlegt -- die Erbschaftsregel wertet einen fehlenden neuen Schluessel aus den alten
 //    aus. Ohne Bump saehe genau er die Umstellung nie.
-const AVESMAPS_MAP_FEATURES_PAYLOAD_VERSION = 16;
+// 17 (2026-08-26): die TEMPOTABELLE reist mit (`travel_speeds`), neben den drei Reisetagen, die
+//    schon seit dem 16.08.2026 mitreisen. Bis dahin trug der Browser sie als feste Zahl in
+//    js/config.js, waehrend der Server zusaetzlich die im Fenster „Tempowerte" gespeicherten Werte
+//    darueberlegte -- live gemessen 5,07 gegen 5,18 fuer die Reisegruppe zu Fuss auf der
+//    Reichsstrasse, 5,95 gegen 6,00 fuer den Flusssegler. Der Reiseplan zeigte damit rund 2 %
+//    kuerzere Zeiten als der Router gerechnet hat.
+const AVESMAPS_MAP_FEATURES_PAYLOAD_VERSION = 17;
 
 // 🔴 Fix-Runde 6 (15.08.2026): the coat-of-arms staging/model table constants AND the two loader/gate
 // functions that used to sit here (avesmapsLoadSettlementCoatGateInputs, avesmapsSettlementTerritoryCoatUrl)
@@ -189,11 +200,16 @@ try {
     $pdo = avesmapsCreatePdo($config['database'] ?? []);
     $revision = avesmapsFetchMapRevision($pdo);
 
+    // 🔴 EINMAL GELESEN, DREIMAL GEBRAUCHT: als ETag-Stempel, als Reisetage und als Tempotabelle.
+    // Ein zweiter Lesevorgang waere eine zweite Antwort auf dieselbe Frage -- und die eine, die in
+    // den ETag geht, muss dieselbe sein wie die, die in der Nutzlast steht.
+    $travelValues = avesmapsMapFeaturesTravelValues($pdo);
+
     // HTTP-Caching (#2): ETag aus Revision + payload-bestimmenden Query-Params (bbox/since_revision).
     // Bei unveraenderten Daten antwortet der Server mit 304 -> der Client nutzt seine Kopie; die teure
     // Query UND der 14-MB-Transfer entfallen komplett. Cache-Control: no-cache = jedes Mal revalidieren,
     // aber 304 statt Vollantwort, solange die Revision gleich bleibt.
-    $etag = avesmapsMapFeaturesETag($revision, $_GET, avesmapsClimateReadStamp($pdo));
+    $etag = avesmapsMapFeaturesETag($revision, $_GET, avesmapsClimateReadStamp($pdo), $travelValues['stamp']);
     header('ETag: ' . $etag);
     header('Cache-Control: no-cache, must-revalidate');
     header('Vary: Accept-Encoding', false);
@@ -295,9 +311,19 @@ try {
         // Markup nimmt. Der Router raste dann nach 8 Stunden, obwohl er mit 10 rechnet -- die
         // Tagesleistung faellt auf 80 %, und keine einzige Zahl sieht dabei falsch aus.
         // ⚠️ EIN app_setting-Lesevorgang je Anfrage, wie der Bild-Notaus daneben. Der Wert wandert
-        // NICHT in map_revision (er aendert kein Kartenobjekt); wer im Fenster speichert, sieht ihn
-        // beim naechsten vollen Laden.
-        'travel_hours' => (object) avesmapsMapFeaturesTravelHours($pdo),
+        // NICHT in map_revision (er aendert kein Kartenobjekt).
+        // 🪤 HIER STAND „wer im Fenster speichert, sieht ihn beim naechsten vollen Laden", und das war
+        // falsch: mit `no-cache, must-revalidate` und unveraendertem ETag IST das naechste volle Laden
+        // ein 304. Seit dem 26.08.2026 geht ein Stempel ueber Reisetage UND Tempotabelle in den ETag.
+        'travel_hours' => (object) $travelValues['hours'],
+        // 🔴 UND DIE TEMPOTABELLE DAZU (26.08.2026). Sie ist der ZAEHLER zu den Reisetagen darueber,
+        // und beide muessen aus derselben Quelle kommen: der Router rechnet mit dem gespeicherten
+        // Raster, der Reiseplan rechnete mit der Konstante in js/config.js. Live gemessen ergab das
+        // rund 2 % zu kurze Zeiten auf der Karte (5,07 gegen 5,18 zu Fuss auf der Reichsstrasse) --
+        // sichtbar erst, als jemand die API gegen die Karte hielt.
+        // ⚠️ Die Konstante im Browser BLEIBT als Rueckfall. Sie ist keine zweite Wahrheit mehr,
+        // sondern die Antwort auf „der Server sagt nichts" -- dieselbe Rolle wie bei den Reisetagen.
+        'travel_speeds' => (object) $travelValues['speeds'],
         // (object) casts force JSON objects (maps) even when empty (`{}` not `[]`); the nested
         // ref lists stay JSON arrays. Keys: catalog by source_id, refs by "<entity_type>:<public_id>".
         'source_catalog' => (object) $sourceCatalog,
@@ -445,13 +471,25 @@ function avesmapsFetchMapRevision(PDO $pdo): int {
 // map_revision. Without this seed a warm client keeps its 304 and goes on showing the previous zone, with
 // nothing in the payload to say why. Same trap the klima layer already paid for once (its seed had to move
 // out of EnsureTables because DDL does not raise a revision either). See avesmapsClimateReadStamp.
-function avesmapsMapFeaturesETag(int $revision, array $queryParams, string $climateStamp = ''): string {
+// 💣 UND $travelStamp GENAUSO WENIG (26.08.2026). Die Nutzlast traegt seit dem 16.08. die drei
+// Reisetage und seit heute die Tempotabelle, und BEIDE aendern kein Kartenobjekt -- das Fenster
+// „Tempowerte" schreibt nur seine `app_setting`-Zeile. Ein warmer Client bekaeme also sein 304 und
+// rechnete unbegrenzt lange mit den alten Werten weiter. Das ist wortwoertlich dieselbe Falle wie
+// beim Klimastempel darueber -- und beim Wappen-Notaus, der sie vier Monate lang unbemerkt trug.
+// ⚠️ Der Kommentar an der Nutzlast sagte bis heute „wer im Fenster speichert, sieht ihn beim
+// naechsten vollen Laden". Das stimmte nicht: mit `no-cache, must-revalidate` und unveraendertem
+// ETag IST das naechste volle Laden ein 304.
+function avesmapsMapFeaturesETag(int $revision, array $queryParams, string $climateStamp = '', string $travelStamp = ''): string {
     // Appended ONLY in edit mode, so the public seed stays byte-identical to what it was before this
     // switch existed -- otherwise every visitor would re-download the whole payload once after the deploy
     // for a marker that changes nothing for them.
     $seed = (string) ($queryParams['since_revision'] ?? '') . '|' . (string) ($queryParams['bbox'] ?? '')
         . (trim((string) ($queryParams['edit_mode'] ?? '')) === '1' ? '|e=1' : '')
-        . '|c=' . $climateStamp;
+        . '|c=' . $climateStamp
+        // ⚠️ Nur anhaengen, wenn es ihn gibt: ein leerer Stempel (Lesevorgang ausgefallen) haelt den
+        // Keim Zeichen fuer Zeichen so, wie er vor dieser Leitung war -- kein Client laedt dann
+        // 21 MB neu, weil einmal eine Einstellung nicht lesbar war.
+        . ($travelStamp !== '' ? '|t=' . $travelStamp : '');
     return 'W/"mf-' . AVESMAPS_MAP_FEATURES_PAYLOAD_VERSION . '-' . $revision . '-' . substr(hash('sha1', $seed), 0, 10) . '"';
 }
 
@@ -497,29 +535,6 @@ function avesmapsMapFeaturesSettlementImagesEnabled(PDO $pdo): bool {
     }
 }
 
-/**
- * Die drei Reisetage fuer den Planer — Land, Wasser, Nachtfahrt.
- *
- * 🔴 EINE QUELLE, ZWEI LESER. Der Router liest sie ueber avesmapsTravelValuesRead(); der Browser
- * bekommt sie hierdurch. Ohne diese Leitung waere `#travelHoursPerDay` eine zweite Wahrheit -- und
- * eine, die genau dann falsch wird, wenn jemand die Werte im Fenster „Tempowerte" verstellt.
- *
- * ⚠️ Fail-open wie der Bild-Notaus darueber: faellt der Lesevorgang aus, kommen die Konstanten
- * zurueck, und der Planer verhaelt sich wie vor der Einstellbarkeit. Eine fehlende Einstellung darf
- * die Kartennutzlast nicht mitreissen.
- */
-function avesmapsMapFeaturesTravelHours(PDO $pdo): array {
-    try {
-        require_once __DIR__ . '/../_internal/routing/travel-values.php';
-        $values = avesmapsTravelValuesRead($pdo);
-
-        return is_array($values['travel_hours'] ?? null)
-            ? $values['travel_hours']
-            : avesmapsTravelValuesHoursFallback();
-    } catch (Throwable) {
-        return ['land' => 8.0, 'water' => 12.0, 'night' => 24.0];
-    }
-}
 
 // avesmapsMapFeaturesPublicImageUrls() zog nach api/_internal/app/coat-display.php um (Phase 3, aus
 // demselben Grund wie avesmapsSettlementCoatIsPublic() daneben: diese Datei ist ein Endpunkt und beim

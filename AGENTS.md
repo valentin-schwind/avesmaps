@@ -465,11 +465,12 @@ is the default, English is opt-in. Therefore:
   er hat die fehlende Haelfte als geprueft ausgewiesen — in Code-Kommentar, Test und `api/README.md`
   gleichzeitig, weil alle drei von derselben Messung abgeschrieben waren. ⭐ Eine Gegenprobe gegen
   eine ANDERE Flaeche (hier: die Karte) ist nur dann ein Beleg, wenn man sie wirklich abliest.
-  ⚠️ **Der Rest der Luecke ist ein EIGENER Befund und offen:** 74,985 (Server) gegen 73,4 (Karte).
-  Die Karte traegt `SPEED_TABLE` als feste Zahl im Browser (js/config.js), der Server legt
-  zusaetzlich die im Fenster „Tempowerte“ gespeicherten Werte darueber. Live gemessen 26.08.2026:
-  Reisegruppe zu Fuss auf der Reichsstrasse **5,07** (Server) gegen **5,18** (Browser), Flusssegler
-  **5,95** gegen **6,00** — rund 2 %, und es waechst mit jeder Verstellung. 🔧 Owner-Entscheid offen.
+  ✅ **Der Rest der Luecke war ein EIGENER Befund und ist seit dem 26.08.2026 geschlossen:** 74,985
+  (Server) gegen 73,4 (Karte). Die Karte trug `SPEED_TABLE` als feste Zahl im Browser (js/config.js),
+  der Server legte zusaetzlich die im Fenster „Tempowerte“ gespeicherten Werte darueber — live
+  gemessen Reisegruppe zu Fuss auf der Reichsstrasse **5,07** gegen **5,18**, Flusssegler **5,95**
+  gegen **6,00**. Owner: „die tempowerte sollen auch fuer die karte gelten“. Siehe den Eintrag
+  „Die Tempowerte gelten auch fuer die Karte“ in §11.
 - Several edit endpoints leak `getMessage()` to clients (info disclosure,
   milestone M1).
 
@@ -547,6 +548,42 @@ Authoritative docs (being translated to English in M8):
 - **Der Längenaufschlag für Querfeldein** (live 15.08.2026, Entwurf `docs/superpowers/specs/2026-08-15-querfeldein-laengenaufschlag-design.md`) — eine Etappe wird mit ihrer eigenen Länge langsamer: `zeit_final = zeit_gemessen × min(deckel, 1 + steigung × meilen)`, Vorgabe **0,6 % je Meile**, Deckel **2,0** (erreicht bei 167 Meilen Luftlinie). Anlass: eine Reise lief 103,28 Meilen querfeldein statt über die Straße, weil das Querfeldein-Tempo am 14.08. um 18:38 von 0,96 auf den GA-Wert 2,30 gezogen wurde. 🔴 **Er misst die LUFTLINIE der Etappe, nicht die gelaufene Strecke** — die Suche ordnet OHNE ihn; hinge er an der gelaufenen Länge, bestrafte er nachträglich genau den Bogen, den der A\* zum Zeitsparen geschlagen hat (gemessen an der Fixture von `offroad-shortest-test.php`: Zeitmodus 14,01 gegen Streckenmodus 12,40 — eine „schnellste“ Etappe, die messbar langsamer war als eine verworfene). An der Luftlinie ist er für ein festes Endpunktpaar eine **Konstante**, und eine Konstante verschiebt kein Minimum. 💣 Er sitzt in `avesmapsOffroadFinishPath`, dem gemeinsamen Abschluss ALLER gerasterten Erzeuger — die Vier-Erzeuger-Falle galt der Sperre VOR dem Suchlauf, der Preis kommt danach und deshalb einmal. 💣 **Nur die Zeit**, `distance` bleibt unangetastet. ⚠️ Der Bezug ist die EINZELNE Etappe: ein kurzes Stück Weg setzt den Aufschlag zurück — Absicht (wer einen Ort berührt, rastet dort) und Owner-Entscheid vom 15.08. Einstellbar im Fenster „Tempowerte“ (Abschnitt „Querfeldein-Aufschlag“, Speicherabschnitt `offroad_ramp`, Rücksetzer `data-section="offroad"`); ⚠️ die GA-Spalte zeigt dort **„—“**, weil die Quelle überhaupt keine längenabhängige Regel kennt. Tests: `offroad-ramp-test.php`.
 - **Flüsse sperren das Gelände** (live 15.08.2026, Entwurf `docs/superpowers/specs/2026-08-15-fluesse-sperren-gelaende-design.md`) — 🔴 `AVESMAPS_ROUTE_WATER_REGION_TYPES` ist `['meer','see']`; ein Fluss ist bei uns keine Fläche, sondern ein **`Flussweg`-WEG**, also eine Linie, und `avesmapsOffroadRasteriseBlocked` rasterte nur Polygone. Der Fluss war nicht schwer zu queren, er war **nicht da** (gemessen: 61,8 Meilen in EINER Etappe quer über die Rakula). Owner-Entscheid: **unpassierbar, Absage statt Furt** — gequert wird nur, wo ein gezeichneter Weg quert, und das wirkt von selbst, weil Wege Graph-Kanten sind und das Gitter nie sehen. 💣 **Jede berührte Zelle UND die Eckzellen**: der Suchlauf geht über acht Nachbarn, und zwischen zwei diagonal benachbarten gesperrten Zellen schlüpft er hindurch, solange die Ecken frei bleiben. 💣 Die **gerade Linie** unter „Kürzeste“ geht am Raster VORBEI (das ist ihr Sinn) und braucht einen eigenen Schnitt-Test gegen die Flusslinien. ⭐ Die Geometrien sind bereits geladen (`$routeNetworkData['paths']`) — keine zweite Abfrage je Route. 🔴 `avesmapsRouteChordCrossesWater` bleibt UNBERÜHRT: sie trägt auch die Reparaturkanten zwischen losen Komponenten, und Flüsse dort zu sperren könnte eine abgetrennte Komponente ohne jede trockene Verbindung zurücklassen. 🔧 **Bäche kommen** (Owner 15.08.2026: „wir werden bald flüsse bauen die überquert werden können“) — die Entscheidung „Wand oder nicht“ steht an **genau einer** Stelle, `avesmapsCollectRouteRiverBarrierLines`; dort fällt der Bach durch eine zusätzliche Bedingung heraus und nirgends sonst. Test: `fluss-sperre-test.php`.
 - **„Schnellste“ heißt Zeit, „Kürzeste“ heißt Meilen — auf DEMSELBEN Weltmodell** (Owner-Entscheid 15.08.2026). Die Wegbindung gilt für beide; die Modi unterscheiden sich nur im Gewicht und in der Form der Geländeetappe (gerade gegen zeitoptimalen Bogen). ⚠️ **Damit heißt „Schnellste“ die schnellste WEGGEBUNDENE Reise, nicht die schnellste überhaupt** — auf der Owner-Route kostet sie 21,02, der aufgegebene frühe Ausstieg kostete 10,10. Gesehen und gewollt. ⭐ Gemessen an vier Routen, ob die zwei Knöpfe noch etwas taugen: Ferdok→Gerrun **12,4 %** Unterschied, zwei andere 0 %, das Kartenpunkt-Paar 0,7 %. Die Modi sind **genau dann gleich, wenn das Netz keine Alternative bietet** — das ist richtig, nicht Rauschen.
+- **Die Tempowerte gelten auch fuer die KARTE, nicht nur fuer den Router** (live 26.08.2026,
+  Owner: „die tempowerte sollen auch für die karte gelten“). Der Router liest sein Raster über
+  `avesmapsTravelValuesRead()` — die Konstante, darüber die im Fenster „Tempowerte“ gespeicherten
+  Werte. Der Browser trug `SPEED_TABLE` (js/config.js) als feste Zahl. 💣 **Zwei Ansprüche auf
+  dieselbe Zahl, und sie waren live auseinander:** 5,07 gegen 5,18 für die Reisegruppe zu Fuß auf
+  der Reichsstraße, 5,95 gegen 6,00 für den Flusssegler — der Reiseplan zeigte rund 2 % kürzere
+  Zeiten, als der Router gerechnet hatte, und aufgefallen ist es erst, als ein Melder die stabile
+  API gegen die Karte hielt (#101). ⭐ **Die Leitung gab es schon:** die drei REISETAGE reisen seit
+  dem 16.08.2026 in der Kartennutzlast mit (`travel_hours` → `applyServerTravelHours`); die
+  Tempotabelle fährt seither auf derselben (`travel_speeds` → `applyServerTravelSpeeds`,
+  js/routing/routing.js). Kein zweiter Endpunkt, kein Wettrennen — der Aufruf steht in
+  `prepareLocationData`, und darunter entsteht erst `locationData`, ohne die niemand eine Route
+  rechnen kann. 🔴 **Die Konstante im Browser BLEIBT** — als Rückfall auf „der Server sagt nichts“,
+  nicht als zweiter Anspruch. 💣 **Übernommen wird ZELLE FÜR ZELLE**, nie das ganze Raster: ein
+  ungenanntes Reisemittel behält seins, ein unbekannter Schlüssel wird NICHT angelegt —
+  `SPEED_TABLE[t]?.[type] || 1` macht aus einer fehlenden Zelle klaglos Tempo 1.
+  💣 **UND DER STEMPEL IST TRAGEND.** Das ETag der Kartennutzlast hängt an `map_revision`, und die
+  Tempowerte ändern kein Kartenobjekt — ohne Stempel bekäme jeder warme Browser sein 304 und
+  rechnete unbegrenzt lange mit den alten Werten weiter. Genau diese Falle hat die Klimaebene schon
+  bezahlt und der Wappen-Notaus vier Monate lang getragen. Der Kommentar an der Nutzlast behauptete
+  bis dahin „wer im Fenster speichert, sieht ihn beim nächsten vollen Laden“ — mit
+  `no-cache, must-revalidate` und unverändertem ETag IST das nächste volle Laden ein 304.
+  ⚠️ Ein LEERER Stempel (Lesevorgang ausgefallen) hält den Keim zeichengleich, damit nicht die
+  halbe Welt 21 MB neu lädt, weil einmal eine Einstellung nicht lesbar war.
+  🪤 **Und eine Zusicherung, die es schon gab, war VAKUUM:**
+  `routingSource.includes("applyServerTravelHours(data)")` traf auch die DEFINITIONSZEILE — der
+  Aufruf hätte gelöscht werden können, ohne dass ein Test rot wird. Gefunden von einer
+  Mutationsprobe; jetzt mit Semikolon. Bauteile: `api/_internal/app/travel-values.php` (ausgelagert,
+  weil `api/app/map-features.php` ein Endpunkt ist und sich nicht einbinden lässt),
+  `applyServerTravelSpeeds` in `js/routing/routing.js`. Tests:
+  `api/_internal/app/__tests__/tempowerte-nutzlast-test.php` (Leser, Stempel, ETag) und
+  `js/routing/__tests__/tempowerte-vom-server.test.js` (Übernahme — und dass die Etappenzeit ihr
+  wirklich folgt). 🔧 **Offen bleiben die übrigen Abschnitte des Fensters:** die Untergrund-Abzüge
+  (`ground_penalties`) liest im Routing **niemand** — weder Server noch Browser; der Browser hat in
+  `js/routing/season-ground.js` eine unabhängige Kopie derselben Zahlen. Der Querfeldein-Aufschlag
+  (`offroad_ramp`) wirkt nur serverseitig; der Reiseplan rechnet ihn nicht nach.
 - **Die Etappe der Anzeige trennt das REISEMITTEL, nicht die Wegart** (live 26.08.2026, Meldung #102).
   `cleanRoutePlanNoiseEntries` (`js/routing/route-plan.js`) sammelt Roh-Etappen bis zum nächsten echten
   Ort — und behielt dabei `type`, `transport` und `flowState` der **ersten**. 💣 Damit erbte eine
