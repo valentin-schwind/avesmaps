@@ -379,8 +379,101 @@ assert.ok(!/\[\s*"old"\s*,\s*"original"|MAP_TILE_STYLES\s*\)\s*\.map/.test(js),
 assert.ok(/MAP_TILE_STYLES\[eintrag\.wert\]/.test(js),
 	"die Untergrund-Liste laesst nur durch, was in MAP_TILE_STYLES steht");
 
-assert.ok(/IS_EDIT_MODE[\s\S]{0,200}!==\s*"old"|imEditor \|\| eintrag\.wert !== "old"/.test(js),
-	"der Kachelsatz `old` wird fuer Nicht-Editoren herausgefiltert");
+// 🔴 UND DAS WIRD AUSGEFUEHRT, NICHT GELESEN.
+// 💣 Hier stand bis zum 26.08.2026 ein Regex auf den Quelltext (`imEditor || eintrag.wert !==
+// "old"`). Der haelt genau so lange, wie die Zeile woertlich dasteht: jede Umformulierung macht
+// ihn rot, ohne dass sich die Regel geaendert haette -- und, teurer, er bliebe GRUEN, wenn jemand
+// `imEditor` weiter oben auf true setzt oder den Filter durch eine zweite Bedingung aushebelt.
+// Live nachmessen laesst sich die Regel nicht: die Sitzung des Owners ist angemeldet, ein echter
+// Besucher braeuchte ein Inkognito-Fenster. Also laeuft die Funktion hier wirklich -- gegen die
+// echten <option> aus index.html und die echte Tabelle aus js/config.js, nicht gegen eine hier
+// erfundene Liste, die beim naechsten Kachelsatz stumm veralten wuerde.
+
+/**
+ * Schneidet einen `{…}`-Block heraus und zaehlt Klammern NUR ausserhalb von Strings.
+ * 💣 Die naive Zaehlung stolpert ueber `MAP_TILE_STYLES`: dessen Adressen tragen `{z}`, `{x}` und
+ * `{y}` mitten im String, und der Block schloesse viel zu frueh.
+ * ⚠️ Zeilenendenneutral -- kein `indexOf("\r\n}")`, das auf diesem Rechner trifft und in der CI
+ * nicht (AGENTS.md §9).
+ */
+function schneideBlock(quelle, ab) {
+	const auf = quelle.indexOf("{", ab);
+	assert.ok(ab >= 0 && auf > 0, "der Block ist auffindbar und beginnt mit einer geschweiften Klammer");
+	let tiefe = 0;
+	let imString = null;
+	for (let i = auf; i < quelle.length; i += 1) {
+		const zeichen = quelle[i];
+		if (imString) {
+			if (zeichen === "\\") { i += 1; } else if (zeichen === imString) { imString = null; }
+			continue;
+		}
+		if (zeichen === "\"" || zeichen === "'" || zeichen === "`") { imString = zeichen; continue; }
+		if (zeichen === "{") { tiefe += 1; } else if (zeichen === "}") {
+			tiefe -= 1;
+			if (tiefe === 0) { return quelle.slice(ab, i + 1); }
+		}
+	}
+	throw new Error("der Block schliesst nicht");
+}
+
+// Die echte Tabelle der Kachelsaetze -- SIE entscheidet mit, was ueberhaupt durchkommt.
+const konfig = ohneKommentare(read("js", "config.js"));
+const stilTabelle = new Function("return " + schneideBlock(konfig, konfig.indexOf("{", konfig.indexOf("MAP_TILE_STYLES"))))();
+assert.deepStrictEqual(Object.keys(stilTabelle).sort(), ["old", "original", "stylized"],
+	"js/config.js fuehrt genau die drei Kachelsaetze -- kommt einer dazu, gehoert er in diesen Test");
+
+// Die echten <option> aus index.html, plus den `none`-Eintrag, den route-planner-toggle.js zur
+// Laufzeit als erstes Kind einhaengt (er steht deshalb NICHT im Markup).
+const stilAb = html.indexOf("id=\"mapStyleSelect\"");
+const stilMarkup = html.slice(stilAb, html.indexOf("</select>", stilAb));
+const ausMarkup = Array.from(stilMarkup.matchAll(/<option value="([^"]+)"[^>]*>([^<]*)</g))
+	.map((treffer) => ({ value: treffer[1], textContent: treffer[2], disabled: false }));
+assert.deepStrictEqual(ausMarkup.map((o) => o.value), ["stylized", "original", "old"],
+	"index.html traegt die drei Kachelsaetze in dieser Reihenfolge");
+const optionen = [{ value: "none", textContent: "Kein Untergrund", disabled: false }].concat(ausMarkup);
+
+const quelltextUntergruende = schneideBlock(js, js.indexOf("function untergruende("));
+function fahreUntergruende(imEditor, quelltext) {
+	const dokument = {
+		getElementById: (id) => (id === "mapStyleSelect" ? { options: optionen } : null)
+	};
+	return new Function("document", "IS_EDIT_MODE", "MAP_TILE_STYLES",
+		(quelltext || quelltextUntergruende) + "\nreturn untergruende();")(dokument, imEditor, stilTabelle);
+}
+
+assert.deepStrictEqual(fahreUntergruende(true).map((e) => e.wert), ["stylized", "original", "old"],
+	"der EDITOR bekommt alle drei Kachelsaetze angeboten");
+assert.deepStrictEqual(fahreUntergruende(false).map((e) => e.wert), ["stylized", "original"],
+	"🔴 der BESUCHER sieht `old` nicht -- der Satz traegt die aufgedruckten Ortsnamen und ist"
+	+ " Vorlage fuer die Erfassung, keine Ansicht (Owner 26.08.2026)");
+assert.deepStrictEqual(fahreUntergruende(undefined).map((e) => e.wert), ["stylized", "original"],
+	"...und ein GAR NICHT gesetztes IS_EDIT_MODE zaehlt als Besucher, nicht als Editor");
+assert.ok(fahreUntergruende(true).every((e) => e.name),
+	"jeder Eintrag traegt seine Beschriftung aus dem <option>");
+assert.ok(fahreUntergruende(true).every((e) => e.wert !== "none"),
+	"💣 und `none` faellt in JEDER Rolle heraus -- er ist die Abwesenheit eines Untergrunds und hat"
+	+ " deshalb kein Vorschaubild; er stand live als leere Kachel in der Reihe (26.08.2026)");
+
+// 💣 DIE GEGENPROBE: haelt die Zusicherung ueberhaupt etwas? Ohne sie waere alles oben auch dann
+// gruen, wenn der Riegel gar nicht mehr griffe -- der haeufigste Weg zu einem Test, der nichts
+// haelt. Er wird hier ausgehebelt, und die Zusicherung MUSS umfallen.
+// 🪤 Die naheliegende Mutation ist die FALSCHE: `imEditor || ` einfach zu loeschen laesst
+// `eintrag.wert !== "old"` stehen und filtert `old` dann fuer ALLE -- der Test bliebe gruen und
+// haette nichts bewiesen. Nachgestellt wird der echte Fehlerfall: der Riegel steht immer offen.
+const ohneRiegel = quelltextUntergruende.replace("imEditor ||", "true ||");
+assert.notStrictEqual(ohneRiegel, quelltextUntergruende,
+	"die Mutationsprobe hat den Riegel wirklich ausgehebelt (sonst prueft sie nichts)");
+assert.deepStrictEqual(fahreUntergruende(false, ohneRiegel).map((e) => e.wert),
+	["stylized", "original", "old"],
+	"bei offenem Riegel saehe ein Besucher `old` -- die Zusicherung darueber haelt also wirklich");
+
+// 💣 Dieselbe Gegenprobe fuer den zweiten Filter: ohne ihn stuende `none` als leere Kachel in der
+// Reihe -- genau der Zustand, der am 26.08.2026 live zu sehen war.
+const ohneStilfilter = quelltextUntergruende.replace("!MAP_TILE_STYLES[eintrag.wert]", "false");
+assert.notStrictEqual(ohneStilfilter, quelltextUntergruende,
+	"die zweite Mutationsprobe hat den Stilfilter wirklich ausgebaut");
+assert.ok(fahreUntergruende(true, ohneStilfilter).some((e) => e.wert === "none"),
+	"ohne den Stilfilter kaeme `none` durch -- die Zusicherung darueber haelt also wirklich");
 
 // 💣 Der Ordner steht NICHT im Picker -- die Vorschau baut ihre Adresse aus MAP_TILE_STYLES[].url.
 // Ein zweites "tiles/old" hier liefe beim naechsten Umzug lautlos auseinander: ein fehlendes
