@@ -130,4 +130,49 @@ $laengste = max(array_map(static fn(array $e): int => strlen($e['geo']), $daten)
 assert($laengste > 3000, "laengste Geometrie {$laengste} Zeichen -- passt in kein VARCHAR(255)");
 $pruefungen++;
 
+// --- 💣 DAS KOSCHWIKI SCHREIBT KOORDINATEN MIT SEMIKOLON, und der Entwurf sagt das nicht.
+// "x;y; x;y" statt "x y, x y" -- gemessen 26.08.2026 an zwei Zeilen der Kosch-Gewaesserseite.
+// Der Fund ist teuer, weil er sich als NICHTS aeussert: die Zeile galt als Verweisliste, eine
+// unaufloesbare Verweisliste ergibt keine Geometrie, und der Angbarer See -- der groesste See
+// des Kosch -- waere ohne jede Fehlermeldung nicht importiert worden. Genau die Klasse Fehler,
+// vor der der Entwurf bei "ok:true mit leerem Inhalt" warnt.
+$p = avesmapsGaretienParseKoordinaten('-192685;63362; -194670;63829; -195603;64996');
+assert(count($p) === 3, 'Semikolon-Schreibweise muss drei Punkte ergeben, ' . count($p) . ' gefunden');
+assert(abs($p[0][0] - (-192685.0)) < 0.001 && abs($p[0][1] - 63362.0) < 0.001);
+assert(abs($p[2][1] - 64996.0) < 0.001, 'auch der letzte Punkt, nicht nur der erste');
+$pruefungen += 3;
+
+// --- Und die Weiche muss sie als Koordinaten erkennen, sonst wird sie gar nicht erst gefragt.
+$e = avesmapsGaretienParseZeile('Meer:Angbarer See;1!14;;-192685;63362; -194670;63829');
+assert($e['geo_art'] === 'koordinaten', 'Semikolon-Koordinaten sind keine Verweisliste');
+assert(count(avesmapsGaretienParseKoordinaten($e['geo'])) === 2, 'das Geometriefeld ueberlebt den Feldtrenner');
+$pruefungen += 2;
+
+// --- 🪤 Die Gegenrichtung: eine echte Verweisliste darf NICHT als Koordinaten durchgehen.
+// Beide Trennzeichen der Verweislisten stehen hier, sonst prueft das nur die Haelfte.
+assert(avesmapsGaretienParseZeile('BaronieflaecheA:Garetien:X!X;6!10;;Raulsmark-Retogau, Vierok-Retogau')['geo_art'] === 'verweise');
+assert(avesmapsGaretienParseZeile('BaronieflaecheA:Garetien:X!X;6!10;;Ahorn 1 / Ahorn 2')['geo_art'] === 'verweise');
+$pruefungen += 2;
+
+// --- Gegenprobe an der echten Kosch-Seite: 43 Zeilen, davon GENAU ZWEI in Semikolonform,
+// und keine einzige, die als Verweisliste liegenbleibt.
+$koschHtml = file_get_contents(__DIR__ . '/fixtures/kosch-gewaesser.html');
+$koschDaten = [];
+foreach (explode("\n", avesmapsGaretienSeitentext($koschHtml)) as $z) {
+    $e = avesmapsGaretienParseZeile($z);
+    if ($e !== null) { $koschDaten[] = $e; }
+}
+assert(count($koschDaten) === 43, 'die Kosch-Gewaesserseite hatte am 26.08.2026 43 Zeilen, jetzt ' . count($koschDaten));
+$semikolon = array_filter($koschDaten, static fn(array $e): bool => str_contains($e['geo'], ';'));
+assert(count($semikolon) === 2, 'zwei Zeilen in Semikolonform, ' . count($semikolon) . ' gefunden');
+foreach ($koschDaten as $e) {
+    assert($e['geo_art'] === 'koordinaten', "'{$e['anzeige']}' gilt als Verweisliste -- ein Gewaesser hat immer Koordinaten");
+    assert(count(avesmapsGaretienParseKoordinaten($e['geo'])) >= 2, "'{$e['anzeige']}' ergibt keine Linie");
+}
+$pruefungen += 3;
+
+// --- Zusammen sind es die 289 Objekte, mit denen der Entwurf rechnet.
+assert(count($daten) + count($koschDaten) === 289, 'Stufe 1 sind 289 Gewaesserobjekte');
+$pruefungen++;
+
 echo "OK: {$pruefungen} Pruefungen\n";

@@ -28,15 +28,33 @@ function avesmapsGaretienParseVerweise(string $geo): array
     return array_values(array_filter(array_map('trim', $teile), static fn(string $s): bool => $s !== ''));
 }
 
-/** "x y, x y, ..." -> [[float, float], ...] */
+/**
+ * Koordinatenliste -> [[float, float], ...]
+ *
+ * 💣 ES GIBT ZWEI SCHREIBWEISEN, und der Entwurf kennt nur eine. GGP schreibt
+ * "x y, x y" (Leerzeichen im Paar, Komma zwischen den Paaren), das KoschWiki bei zwei
+ * Zeilen "x;y; x;y" -- Semikolon an BEIDEN Stellen. Gemessen 26.08.2026: 287 Zeilen in der
+ * ersten Form, 2 in der zweiten (Angbarer See mit 69 Punkten und seine Insel mit 9).
+ *
+ * ⚠️ Und das Semikolon ist ausgerechnet unser FELDtrenner. Es geht nur gut, weil
+ * avesmapsGaretienParseZeile() alles ab Feld 4 wieder zusammensetzt statt beim ersten
+ * Semikolon aufzuhoeren -- wer das "vereinfacht", verliert diese zwei Zeilen erneut.
+ *
+ * ⭐ Deshalb wird hier nicht an Trennzeichen zerlegt, sondern es werden die ZAHLEN der Reihe
+ * nach gelesen und paarweise genommen. Das ist gegen beide Schreibweisen dasselbe Verfahren.
+ * Gegenprobe an den echten Daten: auf allen 287 Zeilen der ersten Form Punkt fuer Punkt
+ * identisch zur zerlegenden Fassung -- ein Zusatz, kein Umbau.
+ */
 function avesmapsGaretienParseKoordinaten(string $geo): array
 {
+    if (preg_match_all('~-?\d+(?:\.\d+)?~', $geo, $treffer) === false) {
+        return [];
+    }
+    $zahlen = $treffer[0];
+    $anzahl = count($zahlen);
     $punkte = [];
-    foreach (explode(',', $geo) as $stueck) {
-        $zahlen = preg_split('~\s+~', trim($stueck)) ?: [];
-        if (count($zahlen) >= 2 && is_numeric($zahlen[0]) && is_numeric($zahlen[1])) {
-            $punkte[] = [(float) $zahlen[0], (float) $zahlen[1]];
-        }
+    for ($i = 0; $i + 1 < $anzahl; $i += 2) {
+        $punkte[] = [(float) $zahlen[$i], (float) $zahlen[$i + 1]];
     }
 
     return $punkte;
@@ -78,7 +96,11 @@ function avesmapsGaretienParseZeile(string $zeile): ?array
         'lodmin' => trim($lodmin),
         'lodmax' => trim($lodmax),
         'extra' => trim($felder[2]),
-        'geo_art' => preg_match('~^\s*-?\d+(\.\d+)?\s+-?\d+~', $geo) === 1 ? 'koordinaten' : 'verweise',
+        // 💣 Das Trennzeichen im Paar ist Leerzeichen ODER Semikolon (siehe
+        // avesmapsGaretienParseKoordinaten). Ohne das ";" hier gelten die zwei
+        // Kosch-Zeilen als Verweisliste, und weil eine unaufloesbare Verweisliste einfach
+        // nichts ergibt, verschwindet der Angbarer See lautlos aus dem Import.
+        'geo_art' => preg_match('~^\s*-?\d+(\.\d+)?[\s;]+-?\d+~', $geo) === 1 ? 'koordinaten' : 'verweise',
         'geo' => $geo,
         'roh' => $zeile,
     ];
