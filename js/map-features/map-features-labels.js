@@ -1401,13 +1401,28 @@ async function deleteLabelEntry(entry, { closeDialog = false } = {}) {
 	// 🔴 Das LETZTE Label einer Landschaftsfläche nimmt die Fläche mit (Owner 2026-07-28, serverseitig
 	// in avesmapsEcosystemCascadeAfterRemoval). Die Rückfrage muss das sagen, bevor sie es tut -- sie
 	// ist die einzige Bremse. Für jedes andere Label bleibt es bei der schlichten Fassung.
+	//
+	// 🪤 ERST DIE REGIONSLISTEN HOLEN -- dieselbe Zeile, die duplicateLabelEntry und
+	// selectEcosystemAreaOfLabel längst tragen; ausgerechnet der eine der drei Wege, der etwas
+	// ZERSTÖRT, ging bis zu den Fällen #80/#81 daran vorbei. `ecosystemRegionsByKind` hält im
+	// Normalfall nur die AKTIVE Ebene, nach jedem Schreibvorgang sogar nur sie allein, und
+	// ausserhalb des Landschaftsmodus gar nichts. Ohne das kennt die Rückfrage weder Namen noch
+	// Flächenzahl -- und bei einem Label ohne eigenen Zeiger (die grosse Mehrheit) nicht einmal,
+	// DASS eine Fläche daran hängt. Gecacht, also im Regelfall kein Netzverkehr.
+	if (typeof loadEcosystemRegions === "function" && typeof ECOSYSTEM_KINDS !== "undefined") {
+		await Promise.all(ECOSYSTEM_KINDS.map((kind) => loadEcosystemRegions(kind)));
+	}
 	const ecoRegion = typeof ecosystemRegionOfLabel === "function" ? ecosystemRegionOfLabel(entry.label) : null;
 	const confirmText = typeof formatEcosystemLabelDeleteConfirmation === "function"
 		? formatEcosystemLabelDeleteConfirmation(
 			entry.label.text,
 			ecoRegion,
 			typeof ecosystemLabelCountOfRegion === "function" ? ecosystemLabelCountOfRegion(ecoRegion?.public_id) : 0,
-			typeof isEcosystemCascadeEnabled === "function" && isEcosystemCascadeEnabled()
+			// 💣 `null`, nicht `false`, wenn es den Leser gar nicht gibt: die Rückfrage behandelt „nie
+			// gehört" wie „eingeschaltet" und beruhigt nur bei einem ausdrücklichen Nein. Die Kurzform
+			// `typeof … === "function" && …()` machte aus einem fehlenden Modul genau so ein
+			// ausdrückliches Nein -- und damit aus der Warnung eine Entwarnung.
+			typeof isEcosystemCascadeEnabled === "function" ? isEcosystemCascadeEnabled() : null
 		)
 		: `${entry.label.text} wirklich löschen?`;
 	if (!window.confirm(confirmText)) {

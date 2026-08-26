@@ -163,21 +163,40 @@ async function ecosystemPushLabelChangesToRegion(label) {
 // löschen nimmt die Fläche mit -- und die Rückfrage lautete bis heute schlicht „X wirklich löschen?".
 // Das ist die einzige Bremse vor einem serverseitigen Kaskadenlöschen; sie muss sagen, was mitgeht.
 //
+// 💣 DREI ZUSTÄNDE, NICHT ZWEI (Fälle #80/#81, Thomas 19.08.2026: „Wenn man auf Label löschen geht,
+// löscht er auch zu gleich die dazugehörige Ebene"). „Kein Landschafts-Label" ist etwas anderes als
+// „gehört zu einer Fläche, deren Zeile gerade nicht geladen ist": `ecosystemRegionOfLabel` liefert im
+// zweiten Fall `{ public_id }` OHNE Namen, und `ecosystemRegionsByKind` hält im Normalfall nur die
+// AKTIVE Ebene -- ausserhalb des Landschaftsmodus gar nichts. Beides als „nichts geht mit" zu lesen
+// hiess: die einzige Bremse vor einem Kaskadenlöschen fiel genau dann weg, wenn der Editor die Ebene
+// der Fläche nicht offen hatte. Dieselbe Fehlerklasse wie `null` als `false` zu lesen -- hier kostet
+// sie gezeichnete Geometrie. Gewacht von __tests__/ecosystem-label-loeschen-bremse.test.js.
+//
 // @param labelText  der Text des Labels
-// @param region     die Regionszeile ({ name, area_count }) oder null für ein Label ohne Fläche
+// @param region     die Regionszeile ({ name, area_count }), `{ public_id }` wenn nur die
+//                   Zugehörigkeit bekannt ist, oder null für ein Label ohne Fläche
 // @param labelCount wie viele Labels die Region insgesamt trägt (dieses eingeschlossen)
+// @param kaskade    true/false vom Server, null wenn unbekannt
 function formatEcosystemLabelDeleteConfirmation(labelText, region, labelCount, kaskade) {
 	const name = String(labelText || "").trim() || "Dieses Label";
 	const kopf = `${name} wirklich löschen?`;
-	if (!region || typeof region.name === "undefined") {
+	const hatZeile = typeof region?.name !== "undefined";
+	const regionId = String(region?.public_id || "").trim();
+	if (!region || (!hatZeile && regionId === "")) {
 		return kopf;                             // kein Landschafts-Label -- die schlichte Rückfrage
 	}
 
-	const regionName = String(region.name || "").trim() || "Ohne Namen";
+	// Leer, solange nur die Kennung bekannt ist. Ein erfundener Platzhalter („Ohne Namen") stünde
+	// dann als Regionsname in der Rückfrage, und der Editor suchte auf der Karte nach etwas, das so
+	// nicht heisst -- die Sätze unten lassen ihn deshalb weg statt ihn zu raten.
+	const regionName = hatZeile ? (String(region.name || "").trim() || "Ohne Namen") : "";
 	const count = Number(labelCount) || 0;
 	if (count > 1) {
 		const rest = count - 1;
-		return [kopf, "", `„${regionName}" behält ${rest === 1 ? "1 weiteres Label" : `${rest} weitere Labels`}.`].join("\n");
+		const wieviele = rest === 1 ? "1 weiteres Label" : `${rest} weitere Labels`;
+		return [kopf, "", regionName !== ""
+			? `„${regionName}" behält ${wieviele}.`
+			: `Die Fläche behält ${wieviele}.`].join("\n");
 	}
 
 	// 🔴 Ab hier geht es um das LETZTE Label. Ob die Fläche dann mitgeht, entscheidet der Server
@@ -188,14 +207,23 @@ function formatEcosystemLabelDeleteConfirmation(labelText, region, labelCount, k
 	// nur die Landschaftsebene.
 	if (kaskade === false) {
 		// 🪤 0 heisst „unbekannt", nicht „keines" -- das Label, um das es geht, zählt selbst mit.
-		return count <= 0
-			? kopf
-			: [kopf, "", `Das ist das LETZTE Label von „${regionName}" — die Fläche bleibt bestehen, dann ohne Namen auf der Karte.`].join("\n");
+		if (count <= 0) {
+			return kopf;
+		}
+		return [kopf, "", regionName !== ""
+			? `Das ist das LETZTE Label von „${regionName}" — die Fläche bleibt bestehen, dann ohne Namen auf der Karte.`
+			: "Das ist das LETZTE Label seiner Fläche — die Fläche bleibt bestehen, dann ohne Namen auf der Karte."].join("\n");
 	}
 
 	// 🪤 Unbekannte Zahl bei eingeschalteter Kaskade: die Folge offenlassen statt sie falsch verneinen.
 	if (count <= 0) {
-		return [kopf, "", `Ist es das letzte Label von „${regionName}", verschwindet die Fläche mit.`].join("\n");
+		return [kopf, "", regionName !== ""
+			? `Ist es das letzte Label von „${regionName}", verschwindet die Fläche mit.`
+			: "Ist es das letzte Label seiner Landschaftsfläche, verschwinden die Region und ihre Flächen mit."].join("\n");
+	}
+
+	if (regionName === "") {
+		return [kopf, "", "Das ist das LETZTE Label seiner Landschaftsfläche — die Region und ihre Flächen verschwinden mit."].join("\n");
 	}
 
 	const areas = Number(region.area_count) || 0;
