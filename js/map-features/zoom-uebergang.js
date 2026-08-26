@@ -9,11 +9,17 @@
 // Owner 26.08.2026, woertlich: „alle sollen diesselbe kubische bezier ease-in-ease out animation
 // von 250 ms bekommen. eine zahl fuer alle animationen."
 //
-// 💣 DIE 250 SIND NICHT FREI. Leaflet zaehlt sie selbst -- `setTimeout(a(this._onZoomTransitionEnd,
+// 💣 LEAFLET ZAEHLT SEINE EIGENE ZAHL MIT, UND SIE IST 250. `setTimeout(a(this._onZoomTransitionEnd,
 // this),250)` in js/third-party/leaflet.js (minifiziert, deshalb nicht auf den ersten Blick zu
-// finden). Eine andere Dauer im CSS liefe an Leaflets eigenem Ende vorbei: die Flaechen saessen
+// finden). Eine andere Dauer bei uns liefe an Leaflets eigenem Ende vorbei: die Flaechen saessen
 // entweder zu frueh oder zu spaet auf ihrem Platz, und der Fehler saehe wie ein Ruckeln aus, nicht
-// wie eine falsche Zahl. Wer sie aendern will, patcht Fremdcode.
+// wie eine falsche Zahl.
+// 🔴 SEIT 27.08.2026 IST UNSERE DAUER 500, NICHT MEHR LEAFLETS 250. Owner, nachdem er die Zeitlupe
+// zum Hinsehen benutzt hatte: „ich habe gesehen dass Zoomlupe=2 etwas angenehmer ist -- kann man
+// das zum default machen?" 2 x 250 = 500. Damit stimmen die zwei Uhren nicht mehr von selbst
+// ueberein, und der Ausgleich unten ist deshalb kein Werkzeug mehr, sondern TRAGEND: er schiebt
+// Leaflets Ende auf unsere Dauer. Fremdcode wird dafuer NICHT gepatcht -- eine Zahl in einer
+// minifizierten Fremddatei waere beim naechsten Leaflet-Update lautlos wieder 250.
 //
 // 🔴 Die Kurve ist ease-in-out und NICHT Leaflets cubic-bezier(0,0,0.25,1) (ein reines ease-out).
 // Das ist eine bewusste Abkehr von Leaflets Vorgabe und gilt ausdruecklich AUCH FUER DIE KACHELN --
@@ -23,7 +29,12 @@
 // Geladen von index.html, VOR allen Zeichenflaechen und vor js/app/bootstrap.js.
 // Bewacht von js/map-features/__tests__/zoom-uebergang.test.js.
 
-const AVESMAPS_ZOOM_DAUER_BASIS_MS = 250;
+const AVESMAPS_ZOOM_DAUER_BASIS_MS = 500;
+
+// Leaflets eigene, fest einkompilierte Zahl -- die Uhr, gegen die wir ausgleichen muessen.
+// 🔴 Sie ist KEINE Einstellung: sie beschreibt Fremdcode. Wer sie aendert, ohne dass Leaflet sich
+// geaendert hat, verschiebt den Ausgleich gegen eine Uhr, die es nicht gibt.
+const AVESMAPS_LEAFLET_ZOOM_ENDE_MS = 250;
 
 // ⭐ DIE ZEITLUPE: ?zoomlupe=<faktor> dehnt den GANZEN Zoomschritt. Owner 26.08.2026, beim Suchen
 // einer doppelten Beschriftung: „wenn du mir einen schalter gibst der die animation auf 5 sekunden
@@ -56,7 +67,11 @@ const AVESMAPS_ZOOM_DAUER_MS = Math.round(AVESMAPS_ZOOM_DAUER_BASIS_MS * AVESMAP
 const AVESMAPS_ZOOM_KURVE_PUNKTE = [0.42, 0, 0.58, 1];
 const AVESMAPS_ZOOM_KURVE = "cubic-bezier(0.42, 0, 0.58, 1)";
 
-if (AVESMAPS_ZOOM_LUPE > 1) {
+// 🔴 DER AUSGLEICH LAEUFT, SOBALD UNSERE DAUER LAENGER IST ALS LEAFLETS EIGENE -- seit dem
+// 27.08.2026 also im Normalbetrieb, nicht mehr nur unter ?zoomlupe. Die Bedingung nennt die
+// zwei Uhren beim Namen, statt einen Parameter abzufragen: sie bleibt richtig, wenn jemand die
+// Basis wieder auf 250 stellt (dann faellt sie von selbst weg) oder Leaflet seine Zahl aendert.
+if (AVESMAPS_ZOOM_DAUER_MS > AVESMAPS_LEAFLET_ZOOM_ENDE_MS) {
 	// Das CSS-Token nachziehen -- es faehrt Leaflets Kachel-/SVG-Transform und die Blenden im CSS.
 	// Inline an :root gewinnt gegen die Regel aus css/features/zoom-uebergang.css.
 	try {
@@ -65,12 +80,14 @@ if (AVESMAPS_ZOOM_LUPE > 1) {
 	// Und Leaflets Aufraeumen um dieselbe Zeit verschieben.
 	try {
 		const echt = L.Map.prototype._onZoomTransitionEnd;
-		const zusatz = AVESMAPS_ZOOM_DAUER_MS - AVESMAPS_ZOOM_DAUER_BASIS_MS;
+		const zusatz = AVESMAPS_ZOOM_DAUER_MS - AVESMAPS_LEAFLET_ZOOM_ENDE_MS;
 		L.Map.prototype._onZoomTransitionEnd = function () {
 			window.setTimeout(() => echt.call(this), zusatz);
 		};
+		// ⚠️ NUR UNTER DER ZEITLUPE MELDEN. Im Normalbetrieb laeuft derselbe Ausgleich, aber dort ist
+		// er kein Befund -- eine Konsolenzeile bei JEDEM Besuch waere Laerm, den niemand liest.
 		// eslint-disable-next-line no-console
-		console.info("[avesmaps] Zoom-Zeitlupe aktiv: Faktor " + AVESMAPS_ZOOM_LUPE
+		if (AVESMAPS_ZOOM_LUPE > 1) console.info("[avesmaps] Zoom-Zeitlupe aktiv: Faktor " + AVESMAPS_ZOOM_LUPE
 			+ " (" + AVESMAPS_ZOOM_DAUER_MS + " ms). ERWARTETE NEBENWIRKUNG: die Kacheln laden erst "
 			+ "am Ende der gedehnten Zeit nach, deshalb steht rund um die alte Ansicht ein grauer "
 			+ "Rahmen. Leaflets _onZoomTransitionEnd stoesst BEIDES an -- das Aufraeumen der "

@@ -1,7 +1,9 @@
 /* Die EINE Kurve und die EINE Dauer des Zoomschritts, als Token -- und die Stelle, an der Leaflets
    eigene Regel ueberschrieben wird.
 
-   🔴 Owner 26.08.2026: eine Kurve und eine Dauer fuer ALLE Zoomanimationen, ease-in-out, 250 ms.
+   🔴 Owner 26.08.2026: eine Kurve und eine Dauer fuer ALLE Zoomanimationen, ease-in-out.
+   🔴 Seit 27.08.2026 sind es 500 ms statt 250 (Owner, nachdem er ?zoomlupe=2 ausprobiert hatte:
+   „etwas angenehmer ... kann man das zum default machen?").
    Das gilt ausdruecklich auch fuer die KACHELN; sonst waere der Guss an der auffaelligsten Flaeche
    gebrochen.
 
@@ -10,9 +12,11 @@
    ist (Spezifitaet 0,2,0) -- bei gleicher Spezifitaet gewinnt die spaetere Regel. Wer leaflet.css
    selbst aendert, verliert die Aenderung beim naechsten Leaflet-Update.
 
-   💣 DIE 250 MS SIND LEAFLETS EIGENE ZAHL: `setTimeout(a(this._onZoomTransitionEnd,this),250)` in
-   js/third-party/leaflet.js (minifiziert). Eine andere Dauer hier liefe an Leaflets Ende vorbei.
-   Nur die Kurve wird getauscht.
+   💣 LEAFLETS EIGENE ZAHL IST 250: `setTimeout(a(this._onZoomTransitionEnd,this),250)` in
+   js/third-party/leaflet.js (minifiziert). Eine andere Dauer hier liefe an Leaflets Ende vorbei --
+   deshalb schiebt js/map-features/zoom-uebergang.js dieses Ende auf unsere 500 ms nach. Die Zahl
+   hier und AVESMAPS_ZOOM_DAUER_BASIS_MS dort sind EIN Wert in zwei Dateien; der Test haelt sie
+   zusammen. Nur die Kurve wird zusaetzlich getauscht.
 
    💣 Die Zwillingsdatei ist js/map-features/zoom-uebergang.js -- beide tragen dieselben Werte, und
    js/map-features/__tests__/zoom-uebergang.test.js haelt sie zusammen. Wer hier eine Zahl aendert,
@@ -23,7 +27,7 @@
    die Blende faellt dann lautlos aus. Auch das prueft der Test. */
 
 :root {
-	--avesmaps-zoom-dauer: 250ms;
+	--avesmaps-zoom-dauer: 500ms;
 	--avesmaps-zoom-kurve: cubic-bezier(0.42, 0, 0.58, 1);
 }
 

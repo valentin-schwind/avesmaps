@@ -28,9 +28,20 @@ const ohneKommentare = (text) => text
 	.replace(/(^|[^:])\/\/[^\n]*/g, "$1");
 
 // ---- Die Kurve ist EINE Kurve -----------------------------------------------------------------
-assert.strictEqual(AVESMAPS_ZOOM_DAUER_BASIS_MS, 250,
-	"💣 250 ist Leaflets eigene Zahl (setTimeout(_onZoomTransitionEnd, 250) in js/third-party/"
-	+ "leaflet.js, minifiziert) -- eine andere Dauer laeuft an Leaflets Ende vorbei.");
+assert.strictEqual(AVESMAPS_ZOOM_DAUER_BASIS_MS, 500,
+	"🔴 Owner 27.08.2026, nachdem er ?zoomlupe=2 zum Hinsehen benutzt hatte: „etwas angenehmer ... "
+	+ "kann man das zum default machen?\" 2 x 250 = 500.");
+// 💣 UND LEAFLET ZAEHLT WEITER SEINE EIGENEN 250. Solange unsere Dauer laenger ist, MUSS der
+// Ausgleich unten Leaflets Ende nachschieben -- sonst raeumt Leaflet mitten in der laufenden
+// Animation auf, und die Flaechen saessen zu frueh auf ihrem Platz.
+assert.strictEqual(AVESMAPS_LEAFLET_ZOOM_ENDE_MS, 250,
+	"Leaflets eigene Zahl ist keine Einstellung -- sie beschreibt Fremdcode.");
+// 🪤 Und DAS ist die Stelle, an der ein Leaflet-Update den Zoom lautlos brechen wuerde: aendert
+// sich die Zahl dort, gleicht unsere Konstante gegen eine Uhr aus, die es nicht mehr gibt.
+assert.ok(/setTimeout\(a\(this\._onZoomTransitionEnd,this\),250\)/
+	.test(lies("js/third-party/leaflet.js")),
+	"💣 Leaflet zaehlt nicht mehr 250 -- AVESMAPS_LEAFLET_ZOOM_ENDE_MS muss nachgezogen werden, "
+	+ "sonst schiebt der Ausgleich um den falschen Betrag.");
 // 🔴 OHNE ?zoomlupe ist die wirksame Dauer zifferngenau die Basis. Die Zeitlupe ist ein Werkzeug
 // zum Hinsehen; sie darf die Karte im Normalbetrieb nicht anfassen.
 assert.strictEqual(AVESMAPS_ZOOM_LUPE, 1, "Ohne Adresszeile darf keine Zeitlupe aktiv sein.");
@@ -42,10 +53,21 @@ assert.strictEqual(AVESMAPS_ZOOM_DAUER_MS, AVESMAPS_ZOOM_DAUER_BASIS_MS,
 	const quelle = ohneKommentare(lies("js/map-features/zoom-uebergang.js"));
 	assert.ok(/_onZoomTransitionEnd/.test(quelle),
 		"💣 Die Zeitlupe dehnt Leaflets Aufraeumen nicht -- nach 250 ms bricht sie ab.");
-	// 🔴 Und ausschliesslich mit gesetztem Parameter: kein Umwickeln im Normalbetrieb.
-	assert.ok(/if \(AVESMAPS_ZOOM_LUPE > 1\)/.test(quelle),
-		"🔴 Die Zeitlupe greift nicht nur unter ihrem Parameter -- sie wuerde die Karte jedes Mal "
-		+ "anfassen.");
+	// 🔴 Der Ausgleich haengt an den zwei UHREN, nicht am Parameter. Bis zum 27.08.2026 stand hier
+	// `if (AVESMAPS_ZOOM_LUPE > 1)`, weil unsere Dauer damals Leaflets eigene WAR und das Umwickeln
+	// im Normalbetrieb nichts zu suchen hatte. Seit die Basis 500 ist, laeuft derselbe Ausgleich
+	// immer -- und die Bedingung muss das sagen, statt einen Parameter zu nennen: so faellt sie von
+	// selbst weg, wenn jemand die Basis wieder auf 250 stellt.
+	assert.ok(/if \(AVESMAPS_ZOOM_DAUER_MS > AVESMAPS_LEAFLET_ZOOM_ENDE_MS\)/.test(quelle),
+		"🔴 Der Ausgleich fragt nicht die zwei Uhren ab -- er haengt an etwas anderem.");
+	// 💣 Und er muss um die DIFFERENZ zu Leaflets Ende schieben, nicht um die zur Basis: seit die
+	// Basis nicht mehr Leaflets Zahl ist, sind das zwei verschiedene Betraege. Mit der alten
+	// Rechnung waere der Ausgleich im Normalbetrieb exakt 0 -- also wirkungslos, und zwar lautlos.
+	assert.ok(/zusatz = AVESMAPS_ZOOM_DAUER_MS - AVESMAPS_LEAFLET_ZOOM_ENDE_MS/.test(quelle),
+		"💣 Der Ausgleich rechnet gegen die falsche Zahl.");
+	// ⚠️ Die Konsolenmeldung bleibt an der Zeitlupe -- sonst schreibt jeder Besuch eine Zeile.
+	assert.ok(/if \(AVESMAPS_ZOOM_LUPE > 1\) console\.info/.test(quelle),
+		"⚠️ Die Zeitlupen-Meldung feuert auch im Normalbetrieb.");
 	assert.ok(/wert >= 1 && wert <= 60/.test(quelle),
 		"⚠️ Der Faktor ist nicht eingegrenzt -- ein Tippfehler legte den Zoom minutenlang lahm.");
 }
@@ -55,9 +77,9 @@ assert.deepStrictEqual(AVESMAPS_ZOOM_KURVE_PUNKTE, [0.42, 0, 0.58, 1],
 	+ "die Punkte die Gegenrechnung der Marker. Laufen sie auseinander, rechnet die Korrektur gegen "
 	+ "eine Kurve, die gar nicht laeuft.");
 assert.strictEqual(avesmapsZoomTransition("transform"),
-	"transform 250ms cubic-bezier(0.42, 0, 0.58, 1)");
+	"transform 500ms cubic-bezier(0.42, 0, 0.58, 1)");
 assert.strictEqual(avesmapsZoomTransition("opacity"),
-	"opacity 250ms cubic-bezier(0.42, 0, 0.58, 1)");
+	"opacity 500ms cubic-bezier(0.42, 0, 0.58, 1)");
 
 // ---- Keine alte Kurve bleibt stehen -----------------------------------------------------------
 // 🔴 DIESE LISTE IST DER PUNKT DES GANZEN TESTS. Wer eine Zeichenflaeche ergaenzt, die beim Zoom
@@ -80,8 +102,13 @@ for (const w of WIRTE) {
 
 // ---- Auch das CSS liest sie, und leaflet.css wird ueberschrieben -------------------------------
 const token = lies("css/features/zoom-uebergang.css");
-assert.ok(/--avesmaps-zoom-dauer:\s*250ms/.test(token),
-	"Das Dauer-Token fehlt oder traegt eine andere Zahl als die JS-Konstante.");
+// 💣 ABGELEITET, NICHT ABGESCHRIEBEN. Hier stand die 250 ein zweites Mal als Literal -- dann haelt
+// der Test nur fest, dass irgendwo 250 steht, und beim naechsten Aendern muss man ihn an ZWEI
+// Stellen nachziehen. Aus der Konstante gerechnet koennen die beiden Dateien nicht mehr
+// auseinanderlaufen, egal welche Zahl jemand waehlt.
+assert.ok(new RegExp("--avesmaps-zoom-dauer:\\s*" + AVESMAPS_ZOOM_DAUER_BASIS_MS + "ms").test(token),
+	"Das Dauer-Token traegt eine andere Zahl als die JS-Konstante ("
+	+ AVESMAPS_ZOOM_DAUER_BASIS_MS + "ms erwartet).");
 assert.ok(/--avesmaps-zoom-kurve:\s*cubic-bezier\(0\.42,\s*0,\s*0\.58,\s*1\)/.test(token),
 	"Das Kurven-Token fehlt oder traegt eine andere Kurve als die JS-Konstante.");
 assert.ok(/\.leaflet-zoom-anim\s+\.leaflet-zoom-animated/.test(token),
