@@ -153,6 +153,19 @@ function applyPlannerStateFromUrl() {
 	if (seaTransport && VALID_TRANSPORT_OPTIONS.sea.has(seaTransport)) {
 		$("#seaTransport").val(seaTransport);
 	}
+
+	// Die Unterbringung (Meldung #103). ⚠️ Ein unbekannter Wert aendert NICHTS -- lieber rechnet ein
+	// getippter Link wie bisher, als dass er eine Unterkunft erfindet; dieselbe Regel wie beim
+	// Reisemonat darueber. Gemessen wird gegen TRAVEL_COST_LODGING_KEYS, also gegen genau die Liste,
+	// aus der die Kostenrechnung ihre Preise nimmt.
+	const lodgingFromParams = String(searchParams.get("lodging") || "").trim();
+	if (lodgingFromParams !== "" && TRAVEL_COST_LODGING_KEYS.includes(lodgingFromParams)) {
+		$("#travelLodging").val(lodgingFromParams);
+	}
+
+	// 💣 DANACH, NICHT DAVOR: syncTransportControls zieht die Kombinationsfelder auf ihren <select>
+	// nach -- und die Unterbringung IST eines davon (ICON_TRANSPORT_SELECT_IDS). Wer sie danach setzt,
+	// bekommt eine Beschriftung, die „Gemeinschaftszimmer" sagt, waehrend gerechnet wird.
 	syncTransportControls();
 
 	resetWaypointInputs(waypointNames);
@@ -333,6 +346,17 @@ function buildPlannerSearchParams() {
 
 	if (restHours !== DEFAULT_PLANNER_STATE.restHours) {
 		searchParams.set("restHours", String(restHours));
+	}
+
+	// 🔴 DIE UNTERBRINGUNG REIST MIT, WEIL SIE GELD KOSTET (Meldung #103). Sie steht im
+	// DEFAULT_PLANNER_STATE, und der Grundsatz daneben gilt fuer sie genauso wie fuer den Reisemonat:
+	// ein geteilter Link muss beim Empfaenger dieselbe Zahl zeigen wie beim Absender. Fuer
+	// Gareth -> Perricum sind das 1 D 2 S gegen 3 D 9 S 3 H -- derselbe Link, zwei Reisekassen.
+	// ⚠️ Die Vorgabe bleibt draußen, wie bei jedem anderen Wert hier: ein Link, der jede Vorgabe
+	// mitschleppt, sieht aus wie eine Entscheidung, die jemand getroffen hat.
+	const lodging = getPlannerLodging();
+	if (lodging !== DEFAULT_PLANNER_STATE.lodging) {
+		searchParams.set("lodging", lodging);
 	}
 
 	// Der Tag reist NUR mit, wenn auch ein Monat gesetzt ist -- ohne Monat rechnet der Planer wie

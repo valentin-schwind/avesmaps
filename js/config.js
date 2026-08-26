@@ -785,6 +785,13 @@ const DEFAULT_PLANNER_STATE = {
 	restHours: 16,
 	// Reisekosten: „bett" ist die Mitte der vier Stufen. Eine Gruppengroesse gibt es NICHT --
 	// gerechnet wird immer je Person (Owner 2026-08-03).
+	// 💣 WAS HIER STEHT UND EINE ANGEZEIGTE ZAHL BEWEGT, MUSS IM TEILEN-LINK MITREISEN -- und zwar
+	// in BEIDE Richtungen: `buildPlannerSearchParams` schreibt, `applyPlannerStateFromUrl` liest
+	// (js/map-features/map-features-layer-state.js). Die Unterbringung tat es bis zum 26.08.2026
+	// nicht (Meldung #103): Absender und Empfaenger sahen fuer DIESELBE Reise 1 D 2 S gegen
+	// 3 D 9 S 3 H. Eine Haelfte allein genuegt nicht -- ein geschriebener Wert, den niemand liest,
+	// ist genau der Zustand, der drei Wochen unbemerkt blieb (Rundreise-Test:
+	// js/map-features/__tests__/teilen-unterbringung.test.js).
 	lodging: "bett",
 	// Reisebeginn. Leerer Monat = „Ohne Jahreszeit — kein Einfluss", und das ist die Vorgabe, nicht
 	// nur Bequemlichkeit: POST /api/route/ ist der stabile oeffentliche Vertrag, und ein geteilter
