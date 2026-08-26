@@ -132,8 +132,15 @@
 	const EINBLENDEN_MS = Math.max(60, BLENDEN_BUDGET_MS - AUSBLENDEN_MS);
 	// ⭐ ?parallelfade=0 stellt den Stand von vorher her: erst zoomen, dann die neue Schrift.
 	const PARALLELBLENDE_AN = (() => {
-		try { return new URLSearchParams(window.location.search).get("parallelfade") !== "0"; }
-		catch (e) { return true; }
+		// 🔴 VORGABE AUS, seit 26.08.2026 abends. Das Einblenden der NEUEN Schrift waehrend der
+		// Bewegung (Schritt 3+4) hat live zweimal hintereinander Befunde erzeugt, die im
+		// Normaltempo auftraten und in der Zeitlupe NICHT -- zuletzt „strassen und fluesse sind
+		// wieder kaputt". Der Verdacht steht auf dem Wettlauf mit Leaflets Aufraeumen; solange er
+		// nicht geklaert ist, bleibt der Vorgabeweg das AUSBLENDEN ab t=0 (das der Owner
+		// ausdruecklich gelobt hat) plus Einblenden danach.
+		// ⭐ ?parallelfade=1 schaltet es zum Weiterarbeiten wieder ein.
+		try { return new URLSearchParams(window.location.search).get("parallelfade") === "1"; }
+		catch (e) { return false; }
 	})();
 	// 💣 Wurde im zoomanim schon fuer die Zielstufe gezeichnet? Der redraw am zoomend laeuft
 	// trotzdem -- er MUSS, denn er richtet die Flaeche fuer die neue Ansicht aus (setPosition,
