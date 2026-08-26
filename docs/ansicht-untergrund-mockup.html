@@ -1,0 +1,1893 @@
+<!doctype html>
+<html lang="de" data-theme="light">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Mockup — Ansicht × Untergrund kreuzen</title>
+<style>
+
+/* ===== base/tokens.css (woertlich kopiert) ===== */
+/* Avesmaps design tokens — the single source of truth for the shared warm,
+   aventurian visual language. Never hardcode a colour, size, radius, spacing, or
+   divider in a component; add or reuse a token here. See docs/design-language.md.
+
+   Palette direction: C ("Heller / Papier") — light neutral parchment, warm
+   taupe-brown controls, restrained coat-gold. No blue anywhere.
+
+   Themes: light is the default (:root). Dark is OPT-IN via
+   :root[data-theme="dark"] — deliberately NOT prefers-color-scheme, because the
+   map tiles are light and auto-dark panels would clash over them. Wiring a
+   toggle is a separate feature; the language only defines the values. */
+
+:root {
+	--font-ui: "Faculty Glyphic", "Arial", sans-serif;
+
+	/* Typography scale — 7 rungs, 11px floor (see "Typography" in the doc) */
+	--font-size-caption: 11px;  /* labels, pills, meta — the floor */
+	--font-size-small: 12px;    /* dense body — the workhorse */
+	--font-size-body: 13px;     /* default controls / body */
+	--font-size-reading: 14px;  /* comfortable reading */
+	--font-size-subhead: 16px;  /* subheaders */
+	--font-size-title: 20px;    /* dialog / panel titles */
+	--font-size-display: 22px;  /* infobox hero name */
+	/* Sperrung der VERSALIEN-Abschnittsueberschriften. Angelegt am 16.08.2026, als die
+	   Wiki-Zuweisung den Wert als weiteren Ort gebraucht haette -- ein Literal mehr baut die
+	   Divergenz ein, die §12 meint.
+	   ⚠️ BEWUSST NICHT MITGEZOGEN sind die Stellen, die den Wert weiterhin literal fuehren; sie
+	   liegen in fremden Oberflaechen, und eine Sammelaenderung an ihnen gehoert nicht in den
+	   Commit einer Objektart:
+	       css/features/ecosystem-layer.css:1034
+	       css/features/mail-inbox.css:52
+	       css/features/review-panel.css:1193
+	       css/pages/admin.css:114
+	   💣 Hier stand eine ZAHL („die uebrigen fuenf"), und sie war falsch: gezaehlt wurden sechs
+	   Fundstellen, von denen dieser Commit ZWEI selbst tokenisiert hat -- die Klammerliste nannte
+	   sogar den Label-Editor, dessen Vorkommen es danach gar nicht mehr gab. Eine Zahl liest sich
+	   wie eine vollstaendige Liste und niemand zaehlt nach (AGENTS.md §11); wer eine Stelle
+	   nachzieht, streicht sie oben. */
+	--letter-spacing-caps: 0.08em;
+	/* Schriftgroesse der EINGABEFELDER -- getrennt von der Lese-Skala oben, weil sie am Finger
+	   auf die iOS-Schwelle springt (siehe den (pointer: coarse)-Block unter diesem :root).
+	   ⚠️ Gilt den FELDERN, nicht ihren Beschriftungen: die Felder haben feste Hoehen, die Schrift
+	   waechst dort nach innen. Beschriftungszeilen mitzuheben machte das Panel hoeher -- und dessen
+	   Hoehenbudget ist eine eigene, groessere Frage. */
+	--font-size-control: var(--font-size-small);
+	/* Schriftgroesse der DROPDOWNS -- eigener Wert, nicht --font-size-control (Owner 11.08.2026:
+	   "alle auf 14px").
+	   💣 Getrennt, weil --font-size-control die iOS-SCHWELLE traegt: unter 16px zoomt Safari beim
+	   Fokus in ein Eingabefeld und kehrt nicht zurueck. Ein gemeinsamer Token auf 14 haette das
+	   Wegpunktfeld und die Zahlenfelder mit unter die Schwelle gezogen -- also genau das
+	   zurueckgeholt, was zwei Commits vorher behoben wurde.
+	   ⚠️ Fuer die nachgebauten Comboboxen ist 14 unbedenklich (<button>, kein Fokus-Zoom). Fuer
+	   die zwei nativen <select> ist es NICHT geprueft -- ob iOS auch dort zoomt, sagt nur ein
+	   echtes Geraet. */
+	--font-size-dropdown: 14px;
+
+	/* Der Pfeil unserer Auswahlfelder. 💣 Als Token, weil ihn ZWEI Stellen brauchen (Meldedialog
+	   und Routenplaner) und ein zweiter Data-URI genau die Divergenz waere, vor der §12 warnt --
+	   zwei Bilder, deren Farbe getrennt altert.
+	   ⚠️ Die Fuellung steht als Hex im Bild, nicht als currentColor: ein background-image kann
+	   currentColor nicht erben. Der Wert ist --color-text-muted. */
+	--avesmaps-select-chevron: url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20width='8'%20height='6'%3E%3Cpath%20d='M0%200l4%205%204-5z'%20fill='%23706557'/%3E%3C/svg%3E");
+	--leading-tight: 1.15;      /* titles / display */
+	--leading-snug: 1.25;       /* controls / labels */
+	--leading-normal: 1.45;     /* reading body */
+	--font-weight-regular: 400;
+	--font-weight-bold: 700;    /* two weights only — no 500 / 600 / 800 */
+
+	/* Surfaces */
+	--color-page-bg: #f3f0e8;        /* app canvas behind the panels */
+	--color-page-bg-deep: #2b2721;   /* deep surround (editor backdrop) */
+	--color-panel: #fffdf9;          /* white card (infobox, route planner) */
+	--color-panel-soft: #faf6ee;     /* softly grouped background */
+	--color-panel-muted: #f1ece1;    /* muted inset (coat frame, wells) */
+	/* The SELECTED row of a list or rail. One step further from the panel than -muted, in the
+	   direction that reads as "pressed" in each theme: darker on light, lighter on dark. -muted
+	   alone was too close to the panel to find the active row at a glance. */
+	--color-panel-active: #e7ddc9;
+
+	/* Text */
+	--color-text: #2e271e;
+	--color-text-strong: #3c3327;    /* titles, emphasised labels */
+	--color-text-muted: #706557;     /* subtitles, captions, meta */
+	--color-placeholder: #9a8f7e;    /* input placeholder — lighter than muted */
+
+	/* Lines */
+	--color-border: #ddd3c3;         /* hairline around controls */
+	--color-border-strong: #cdbfa8;  /* hover / emphasised control edge */
+	--color-divider: rgba(125, 115, 96, 0.30); /* section separator — same everywhere */
+
+	/* Button · primary (filled) — the one main action per surface */
+	--color-button: #5b5548;
+	--color-button-border: #635b4d;
+	--color-button-text: #f6efe1;
+	--color-button-hover: #6a6353;         /* hover — lighter */
+	--color-button-active: #4c473b;        /* pressed — darker */
+
+	/* Button · secondary (soft / outline) — e.g. "Link teilen" */
+	--color-button-soft: #efe9db;
+	--color-button-soft-text: #564b3b;
+	--color-button-soft-border: #cdbda0;
+	--color-button-soft-hover: #e7ddc9;
+	--color-button-soft-active: #ddd1b9;
+
+	/* Accent = coat-of-arms gold; links in warm gold-brown (NEVER blue) */
+	--color-accent: #bfa03a;
+	--color-accent-strong: #9c7f22;
+	--color-link: #8f7326;
+	--color-link-hover: #6f5a1c;
+
+	/* Secondary accent-brown — the WikiSync/label-path-location edit dialogs' own
+	   accent (links, active tabs, focus rings), distinct from the app-wide
+	   --color-accent-strong gold but from the same warm family. */
+	--color-accent-brown: #7a5a3a;
+	--color-accent-brown-hover: #5f4429;
+	--color-accent-brown-soft: #9a7a5a;
+	--color-accent-brown-text: #fff;
+	--color-accent-brown-focus: rgba(122, 90, 58, 0.18);
+
+	/* Pills / tags (e.g. publication sources) */
+	--color-pill: #f3ecd9;
+	--color-pill-border: #d7c7a2;
+	--color-pill-text: #675024;
+
+	--color-danger: #9d3a2e;
+	--color-success: #2f7d3a;             /* status: success (e.g. contact form) */
+	/* Halo around a presence dot (online editor, live visitor count) — the ring that
+	   lifts a 9px dot off the panel without giving it a border. */
+	--color-success-halo: rgba(79, 159, 74, 0.16);
+	--color-muted-halo: rgba(161, 140, 116, 0.16);
+	/* Soft status surfaces — the pale tinted fills for accept/reject buttons and status pills in the
+	   editor (Meldungen, WikiSync). --color-success/-danger above are the solid text colours; these carry
+	   a full bg/border/text set so the buttons follow the theme instead of staying light in dark mode. */
+	--color-success-soft: #eef6e2;
+	--color-success-soft-border: #a9c07f;
+	--color-success-soft-text: #3c5a1c;
+	--color-danger-soft: #fbeae6;
+	--color-danger-soft-border: #d3a79c;
+	--color-danger-soft-text: #8a2d22;
+	/* Link status — the reachability marker behind an external link (linkchecker). "online" reuses the
+	   success green so the two never drift apart; "offline" is a muted warm grey, NOT a red: a link that
+	   has gone is a fact worth noting, not an error the reader can act on. Deliberately not
+	   --color-map-presence*, which is pinned identical in both themes because it sits on the always-light
+	   map tiles — these markers live in panels and must follow the theme. */
+	--color-status-online: var(--color-success);
+	--color-status-offline: #8b8478;
+	/* Status: warning (amber) — the third status colour next to --color-success/--color-danger,
+	   used by the WikiSync + settlement editors (coverage gaps, attribution-required licences,
+	   values diverging from the wiki). --color-warning is the solid text/border/dot value;
+	   -soft* is the pale filled badge (hint boxes, "Lücke" badges); -strong* is the filled
+	   ACTIVE warn chip. */
+	--color-warning: #b8860b;
+	--color-warning-soft: #faeeda;
+	--color-warning-soft-border: #ef9f27;
+	--color-warning-soft-text: #854f0b;
+	--color-warning-strong: #f4c869;
+	--color-warning-strong-text: #4a3300;
+	/* Route waypoints — ONE language across map, route planner and infopanel (Owner): every waypoint is
+	   red, the destination is a teardrop, and the SELECTED one turns gold-yellow. Red means "waypoint",
+	   gold means "selected" — never "which position in the route".
+	   These stay the SAME in both themes on purpose: the same mark appears on the always-light map tiles
+	   and on the dark panels, and it must read as the same thing in both places. */
+	--color-marker-waypoint: #e33b35;      /* heraldic red — matches the red settlement markers */
+	--color-marker-waypoint-core: #2e2119; /* the dark "eye" + outline inside the mark */
+	--color-marker-waypoint-ring: #dcb877; /* the gold ring (map marker only — invisible below ~16px) */
+
+	/* Ortsmarker — der Punkt, den die Karte für jede Siedlung zeichnet: roter Kern in weißer Kontur,
+	   Besondere Stätten in Violett. Gepinnt wie die Wegpunkt-Töne darüber, aus demselben Grund: sie
+	   sitzen auf den IMMER-hellen Kartenkacheln, nicht auf einem Theme-Panel.
+	   💣 Die Vorschau im Fenster „Zoombänder" (html/wiki-sync-settlement-editor.html) zeigt DENSELBEN
+	   Punkt und nimmt dieselben Töne. Ein zweites Rot dort wäre genau die Divergenz, gegen die es
+	   Tokens gibt — und die Vorschau behauptete dann etwas anderes als die Karte.
+	   ⚠️ Der Canvas-Zeichner (js/map-features/map-features-location-canvas-layer.js) führt dieselben
+	   drei Werte als Zeichenketten: er malt auf ein <canvas>, das keine CSS-Variable auflöst. Wer hier
+	   einen Ton ändert, ändert ihn dort mit. */
+	--color-marker-settlement: #cc2f2a;
+	--color-marker-settlement-site: #7a4fd0;
+	--color-marker-settlement-contour: #ffffff;
+
+	/* Review stars — the rating glyphs (infobox summary + write-dialog picker). Warm coat-gold,
+	   not a generic yellow; `-muted` is the empty-star track. */
+	--color-star: #e0a528;
+	--color-star-muted: #d9c7a6;
+
+	/* Active/selected map location — the clicked settlement's marker fills gold-yellow (Owner). Also the
+	   SELECTED route waypoint (see above). The marker sits on the always-light map tiles, so the dark
+	   value stays the same warm gold. */
+	--color-marker-active: #f0b429;
+
+	/* Editor-Markierungswerkzeuge (Discord #25) -- kräftige Warnringe um Marker, je ein Ton pro
+	   Befund: pink = "Unverbunden" (gar keine Anbindung), türkis = "Kreuzungen mit 2 Wegen"
+	   (überflüssiger Knoten). Pinned wie --color-marker-waypoint oben: die Ringe sitzen auf den
+	   IMMER-hellen Kartenkacheln, nicht auf einem Theme-Panel, also kein Dark-Override. */
+	--color-marker-unconnected-ring: #e0559a;
+	--color-marker-sparse-crossing-ring: #0fb9b1;
+	/* Ringstärke, EIN Wert für beide Töne (Owner 14.08.2026: „ruhig dicker", vorher 4 px) — sonst
+	   driften pink und türkis auseinander, sobald jemand nur einen der beiden anfasst.
+	   ⚠️ Das Zeichen der Prüfzeile im Anzeige-Menü wiederholt den Ring als Legende, nimmt diesen Wert
+	   aber NICHT: sein 24er-viewBox schrumpft auf --icon-md, dort ist 7 px die falsche Zahl (und
+	   `var()` löst in `stroke-width` als Attribut ohnehin nicht auf). Es soll gleich aussehen, nicht
+	   gleich groß sein. */
+	--marker-check-ring-width: 7px;
+	/* Discord #43 -- bernstein = "offenes Wegende": ein per Strg vom Ort getrenntes Wegende, das noch
+	   an nichts haengt. Gleiche Begruendung wie oben (helle Kacheln, kein Dark-Override). Bewusst
+	   NICHT --color-accent: das Gold markiert waehrend des Ziehens den Marker, das Bernstein danach
+	   die zurueckgebliebene Luecke -- zwei Zustaende, zwei Toene. */
+	--color-marker-open-path-end-ring: #e8850c;
+	/* Idee #86 -- der Prüfhaken „Offene Wegenden": dieselbe Lücke wie das Bernstein darüber, aber aus
+	   dem GESAMTBESTAND statt aus der eigenen Merkliste, und damit ein Befund statt eines
+	   Arbeitszustands. Trägt die rote LINIE des Weges und den Ring auf seiner Fundstelle -- ein Weg mit
+	   offenem Ende wird beim Routen ganz verworfen, das ist die lauteste Aussage der ganzen Prüfgruppe.
+	   Gepinnt wie die Ringe darüber (helle Kartenkacheln, kein Dark-Override).
+	   💣 Bewusst NICHT --color-marker-waypoint (#e33b35): das Rot gehört den Reise-Wegpunkten, und die
+	   liegen auf derselben Karte. Dieser Ton ist satter und kälter, damit „Befund" und „Wegpunkt" nicht
+	   dieselbe Farbe sprechen.
+	   ⚠️ Wird auch im JS gelesen (map-features-open-path-check.js): Leaflet-Linienfarben können kein
+	   `var()` tragen, weder im Canvas- noch im SVG-Renderer. Wer den Wert ändert, ändert ihn hier --
+	   der Rückfallwert dort ist nur die Notbremse, wenn der Token fehlt. */
+	--color-path-open-end: #e01b24;
+
+	/* „Grenze aus Territorien" (Fall #68) -- die Territoriumsumrisse, solange das Fenster offen ist
+	   (leise), und der Umriss unter dem Zeiger (laut). Gepinnt wie die Ringe darueber: beides liegt auf
+	   den IMMER-hellen Kartenkacheln, ein Dark-Override machte sie dort unsichtbar.
+	   Bewusst NICHT --color-marker-active: das Gold traegt hier schon die Vorschau der GEWAEHLTEN
+	   Vereinigung. „Was ich treffen wuerde" und „was ich gewaehlt habe" duerfen nicht denselben Ton
+	   haben, sonst sagt keiner von beiden noch etwas. */
+	--color-import-outline: #8a7350;
+	--color-import-hover: #b4651a;
+
+	/* "Edit in progress" blue -- the ring of every drag handle on the map (.path-edit-handle-marker__dot
+	   in css/features/path-editor.css, used by the path, region and landscape editors). This is one of
+	   the two documented no-blue EXCEPTIONS in docs/design-language.md: it encodes a STATE, not chrome,
+	   and must not be "corrected" to a warm tone. It is a token so the contour of an area being edited
+	   can say the same thing in the same colour instead of writing the literal a second time. Pinned:
+	   drawn on the always-light map tiles. */
+	--color-edit-handle: #1452f7;
+	/* Dieselbe Ausnahme, eine Stufe leiser: die Unterflächen einer mehrteiligen Landschaftsfläche, die
+	   GERADE NICHT gemeint sind. Die gemeinte trägt --color-edit-handle, die übrigen dieses dunklere
+	   Blau — man sieht damit auf einen Blick, aus wie vielen Stücken die Fläche besteht und welches der
+	   nächste Klick trifft (Owner 2026-07-27). Gepinnt, liegt auf hellen Kacheln. */
+	--color-edit-handle-muted: #0b2a80;
+
+	/* Landschaften (Erprobung), colours per Owner 2026-07-26. All three layers are on at once, so the
+	   tones must stay tellable apart -- but they are not three peers: the derographic layer draws
+	   administrative CONTAINERS (grey, and unfilled while it rests), topography draws relief, and only
+	   vegetation carries real ground cover, which is why it is the one that gets a tone per type
+	   instead of a single colour. Pinned in both themes for the same reason as the marker rings above:
+	   these are painted ON the always-light map tiles, never on a themed panel. */
+	--color-ecosystem-derographisch: #575757; /* neutral grey -- regions, islands, continents */
+	/* Placeholder. The height map (high -> white) replaces this per the concept; until then one
+	   brown-grey stands in for the whole relief layer. */
+	--color-ecosystem-topographie: #7a6c5e;   /* brown-grey -- mountains, hills, coast, sea */
+	/* CONTOURS for those two, markedly darker than their own fill (Owner 2026-07-26). Only these two
+	   have one: vegetation carries a tone per type, and its contour follows that tone -- see
+	   ecosystemAreaColor(). A missing token here means "use the fill colour", which is what keeps the
+	   rule one rule instead of a second table.
+	   ⚠️ The topographic contour is a neutral dark SLATE, not the brown it started as: since that layer
+	   gained a tone per type it has to sit on brown-grey, grey-green, blue, dark blue and turquoise
+	   alike, and a brown line on a sea reads as dirt. One line per LAYER is still the rule -- the point
+	   of the dark contour is "this is where the area ends", and that answer must not change per type. */
+	--color-ecosystem-derographisch-contour: #2e2e2e;
+	--color-ecosystem-topographie-contour: #2b3138;
+	/* Owner 2026-07-29: „die Konturen der Vegetationsflächen dunkler". Bis hierher hatte die Vegetation
+	   als EINZIGE Ebene keinen eigenen Konturton und erbte deshalb ihre Füllfarbe -- ein Waldrand war
+	   waldgrün auf waldgrün und verschwand. Ein dunkles Blattgrün statt des Grau-Blaus der Topographie:
+	   die Kante gehört zur Ebene, nicht zum Fels. */
+	--color-ecosystem-vegetation-contour: #22351c;
+	/* The fallback for a vegetation region with no type set. The per-type tones below win when the
+	   region has one; they are looked up BY RULE from the type_key
+	   (--color-ecosystem-<kind>-<type_key with _ as ->), so a newly seeded type needs a token here
+	   and nothing else -- there is no list of them in the client to keep in sync. */
+	--color-ecosystem-vegetation: #5f7d33;
+	--color-ecosystem-vegetation-wald: #3f6b2c;             /* dense forest */
+	--color-ecosystem-vegetation-suempfe-moore: #2f4a2a;    /* swamp and moor, dark green */
+	--color-ecosystem-vegetation-steppe: #a8bd8a;           /* steppe, pale green */
+	--color-ecosystem-vegetation-tundra: #6f9d94;           /* tundra, blue-green */
+	--color-ecosystem-vegetation-auenlandschaft: #4f9e35;   /* floodplain, vivid green */
+	--color-ecosystem-vegetation-wueste: #e0c74e;           /* desert, yellow */
+	--color-ecosystem-vegetation-graslandschaft: #8fbf6a;   /* grassland, soft green */
+	--color-ecosystem-vegetation-flussland-flusstal: #4a8f6b; /* river land and valley, green with a water cast */
+	--color-ecosystem-vegetation-dschungel: #1e7d32;        /* jungle, deep saturated tropical green */
+	--color-ecosystem-vegetation-wuestenoase: #2fa88c;      /* desert oasis, teal-green -- water in the sand */
+	--color-ecosystem-vegetation-kulturlandschaft: #a9a14c; /* cultivated land, matt olive gold -- ripe grain; duller and darker than the desert yellow so the two never blur, warmer than steppe and grassland */
+
+	/* Topography per type, same rule (Owner 2026-07-27). Until today the whole layer was one brown-grey;
+	   it draws relief AND water, and those two do not share a colour in any map anyone has ever read.
+	   💣 THE BLUES ARE A DELIBERATE, PERMANENT EXCEPTION TO "no blue" (§12) -- do not "correct" them in a
+	   token sweep. The no-blue rule is about UI chrome: panels, controls, links, menus. These are DATA
+	   painted on the map, in the same category as the analytics chart's categorical palette and the
+	   heraldic red of the route markers, and the map's own rivers have been blue all along. A sea drawn
+	   in warm brown would be unreadable to every editor who has ever seen a map. */
+	--color-ecosystem-topographie-gebirge: #7a6c5e;         /* mountains, brown-grey */
+	--color-ecosystem-topographie-huegelland: #7d8f6e;      /* hills, grey-green */
+	--color-ecosystem-topographie-see: #4a86b8;             /* lake, blue */
+	--color-ecosystem-topographie-meer: #2d5f8a;            /* sea, dark blue */
+	--color-ecosystem-topographie-kueste: #3f9e9a;          /* coast, turquoise */
+	--color-ecosystem-topographie-wadi: #9b8a5c;            /* wadi, sand with an olive cast -- a bed that is dry most of the time */
+	--color-ecosystem-topographie-schlucht: #5c5148;        /* gorge, dark rock -- deliberately darker than the mountains: it reads as depth */
+	--color-ecosystem-topographie-hochebene: #9a9b82;       /* plateau, pale grey-green -- high but flat, lighter than the hills */
+	--color-ecosystem-topographie-tiefebene: #6f7a55;       /* lowland, deeper warm olive -- the plateau's counterpart, low and lush */
+	--color-ecosystem-topographie-tal: #6b7266;             /* valley, shaded green-grey -- an incision like the gorge, but wide and walkable */
+	--color-ecosystem-topographie-flussdelta: #5e8f86;      /* river delta, silted teal -- water and deposited land, duller than the coast's turquoise */
+	/* Owner 2026-07-30, the day `insel` moved from derographisch to topographie. 🔴 NOT optional: without
+	   this token ecosystemAreaColor() falls back to --color-ecosystem-topographie, which IS the mountain
+	   brown-grey -- all 251 islands would render as mountains. Sandy beige-olive: reads as LAND against
+	   see (#4a86b8) and meer (#2d5f8a), and stays apart from gebirge (#7a6c5e) and hochebene (#9a9b82). */
+	--color-ecosystem-topographie-insel: #b2a273;           /* island, sandy beige-olive -- dry land ringed by water */
+
+	/* Klimazonen (Owner 2026-08-03). Sieben Bänder von Nord nach Süd, abgeleitet aus sechs
+	   Trennlinien. Bewusst KEINE Grün-Skala: Grün gehört der Vegetation, und die beiden Ebenen müssen
+	   nebeneinander unterscheidbar bleiben. Dies ist eine reine TEMPERATURSKALA -- Eis, blass, neutral,
+	   gold, warm --, die von selbst „oben kalt, unten heiss" liest.
+	   💣 Die Namensregel ist bindend: --color-ecosystem-klima-<type_key mit - statt _>. Fehlt ein Ton,
+	   fällt ecosystemAreaColor() auf --color-ecosystem-klima zurück und alle sieben Bänder sehen gleich
+	   aus -- dieselbe Falle, die bei `insel` 251 Flächen zu Gebirgen gemacht hätte.
+	   Die kühlen Töne sind dieselbe bewusste Ausnahme von „kein Blau" wie See und Meer darüber:
+	   gemalte KARTENDATEN, nicht UI-Chrom (§12). Gepinnt, sie liegen auf den immer hellen Kacheln.
+
+	   💣 HIER STAND EIN ÜBERZÄHLIGES KOMMENTARENDE (seit 2026-08-03, gefunden am 12.08.2026). Der
+	   Absatz darunter war damit kein Kommentar mehr, sondern Text mitten im :root-Block -- und der
+	   CSS-Parser verwirft ab dort bis zum nächsten Semikolon. Verschluckt hat das GENAU EINE Zeile:
+	   `--color-ecosystem-klima`, den Rückfallton, den der Absatz oben als tragend beschreibt. Live
+	   gemessen war er neun Tage lang nicht definiert, während alle sieben Bänder daneben standen.
+	   ⚠️ So etwas fällt nie von selbst auf: Es gibt keine Fehlermeldung, die Datei sieht richtig
+	   aus, und der Fehler zeigt sich erst, wenn ausgerechnet der Rückfall gebraucht wird. Gewacht
+	   wird jetzt von js/app/__tests__/css-comment-balance.test.js.
+
+	   Owner 2026-08-03, zweiter Durchgang: „etwas stärker". Die ganze Rampe eine Stufe kräftiger, und
+	   das kalte Ende am deutlichsten -- #e6eef3 war auf den hellen Kacheln bei jeder Deckkraft fast
+	   unsichtbar, was die Polare Zone praktisch unbeschriftet liess. Die Reihenfolge kalt→warm und der
+	   neutrale Ton in der Mitte bleiben; nur der Kontrast zwischen benachbarten Zonen wächst. */
+	--color-ecosystem-klima: #bfc888;                       /* fallback -- the middle of the ramp */
+	--color-ecosystem-klima-polar: #cfe0eb;                 /* polar, pale ice */
+	--color-ecosystem-klima-subpolar: #a2c3d1;              /* subpolar, ice blue */
+	--color-ecosystem-klima-boreal: #7aada9;                /* boreal, cold teal */
+	--color-ecosystem-klima-gemaessigt: #bfc888;            /* temperate, neutral olive */
+	--color-ecosystem-klima-subtropen-winterfeucht: #dcb857; /* winter-wet subtropics, warm gold */
+	/* Owner 2026-08-03, nachtraeglich zwischen die beiden geschoben. Der Unterschied zur Nachbarin
+	   darueber ist die FEUCHTE, nicht die Temperatur -- deshalb ein entsaettigter Sandton statt einer
+	   weiteren Stufe auf der Warm-Rampe. Er liegt zwischen Gold (#dcb857) und Ocker (#d98f3c) und
+	   unterscheidet sich von beiden durch die Blässe, nicht durch den Farbton: zwischen zwei so nahen
+	   Nachbarn ist das der einzige Platz, der noch frei war. */
+	--color-ecosystem-klima-trockene-subtropen: #cdb083;    /* dry subtropics, dusty sand */
+	--color-ecosystem-klima-subtropisch: #d98f3c;           /* subtropical, orange ochre */
+	--color-ecosystem-klima-tropisch: #c65e2e;              /* tropical, warm terracotta */
+	/* Die Trennlinie. Ein neutrales Dunkel, das auf allen acht Tönen sitzt -- dieselbe Begründung wie
+	   beim topographischen Konturton: wo eine Zone aufhört, ist genau die Auskunft dieser Ebene, und
+	   die darf ihre Farbe nicht je Zone wechseln.
+	   🪤 Der ZONENNAME hatte hier bis 2026-08-05 einen eigenen Ton (--color-ecosystem-klima-label,
+	   #33302b). Er trägt jetzt den Ton SEINER Zone und holt ihn über dieselbe Regel wie die Füllung
+	   ihres Bandes (ecosystemAreaColor) -- je Zone steht der Ton schon oben, ein zweiter wäre die
+	   Kopie, die beim Einschieben einer neunten Zone zurückfiele. */
+	--color-ecosystem-klima-divider: #2b3138;
+	/* Der dunkle Saum hinter dem Zonennamen (Owner 2026-08-05: „vielleicht den halo dunkel machen wie
+	   beim rest"). Bis dahin war es umgekehrt -- dunkle Schrift, heller Saum. Seit der Name den Ton
+	   seiner Zone trägt, geht das nicht mehr: die Rampe reicht von fast weissem Polareis bis zu warmem
+	   Ocker, und ein heller Saum liesse das kalte Ende auf den hellen Kacheln verschwinden. Ein dunkler
+	   trennt alle acht Töne vom Grund -- dieselbe Bauart wie bei den Karten-Labels, deren Halo
+	   ebenfalls rgba(0, 0, 0, 0.85) ist (`glow` in map-features-labels.js), nur als text-shadow statt
+	   im Canvas gezeichnet. Halbtransparent, damit er ein Saum bleibt und kein Kasten. */
+	--color-ecosystem-klima-label-halo: rgba(0, 0, 0, 0.85);
+
+	/* Höhenrampe (V8). Fünf Stufen vom Gebirgsfuss bis zum Firn, aus dem Prototyp
+	   (html/landschaften-modell.html:589) übernommen -- dort standen sie als rohe RGB-Tripel im Code,
+	   was AGENTS.md §12 verbietet. Warme Erdtöne, kein Blau: das Relief ist gemalte Karte, nicht
+	   Datenvisualisierung, und es liegt neben Pergament und Wappengold.
+	   🔴 UMGESTELLT (Owner 2026-07-28): Graustufen auf ABSOLUTER Skala, als Schleier über die
+	   Topographieflächen gelegt -- 0 Schritt schwarz, HEIGHT_WHITE_SCHRITT weiss
+	   (map-features-ecosystem-height-render.js). Vorher war es eine warme Fünf-Farben-Rampe, RELATIV
+	   zum höchsten Gipfel DERSELBEN Fläche.
+	   Der Grund für den Wechsel: relativ skaliert sah ein 2.600er Bergland aus wie ein 5.200er Wall --
+	   die Farbe war innerhalb eines Gebirges lesbar, zwischen zweien aber bedeutungslos. Absolut
+	   skaliert bedeutet ein Grauwert überall dasselbe.
+	   💣 Der Preis steht hier, weil er beim Umstellen bestritten wurde und wieder bestritten werden
+	   wird: je höher der Weisspunkt, desto dunkler und flacher wird ALLES darunter. Bei 15.000 Schritt
+	   und einem Livebestand, dessen Gipfel per Vorgabe auf 5.000 stehen, bleibt der grösste Teil der
+	   Karte im unteren Drittel der Rampe. Das ist die eine Zahl, an der man dreht -- nicht die Farben. */
+	/* 🔴 Der untere Anschlag ist die GRUNDFARBE DER FLÄCHE, nicht Schwarz (Owner 2026-07-28). Damit
+	   ändert sich beim Aktivieren am Gebirgsfuss nichts sichtbar und es entsteht der Eindruck, dass
+	   nur das Höhenmodell dazukommt -- vorher wurde ein warm brauner Zug zu einem dunklen Fleck.
+	   Der Wert spiegelt --color-ecosystem-topographie-gebirge; wer den ändert, ändert auch diesen. */
+	/* 🔴 Die FÜNF Stützstellen des Prototyps (html/landschaften-modell.html:589), auf Owner-Wunsch
+	   2026-07-28 wieder eingesetzt -- dort standen sie als rohe RGB-Tripel im Code, was AGENTS.md §12
+	   verbietet. Warme Erdtöne vom Gebirgsfuss bis zum Firn, kein Blau: das Relief ist gemalte Karte.
+
+	   🔴 FARBE UND DECKKRAFT SIND ZWEI DINGE, und das ist der Kern dieser Fassung. Die Farbe kommt aus
+	   dieser Rampe, die Deckkraft aus derselben Höhe: 0 Schritt = durchsichtig, 5.000 = voll. Am
+	   Gebirgsfuss ist der Schleier deshalb unsichtbar, und welche Farbe dort steht, spielt keine Rolle
+	   -- nach oben hin verdichtet er sich und die Rampe kommt zum Vorschein.
+
+	   Die Abstände sind ungleich, so wie im Prototyp: der Übergang ins Firn sitzt spät (0,8), damit
+	   nicht jeder Mittelhang schon weiss wird. */
+	--color-ecosystem-height-0: #b0be9e;                    /* 0 % -- Fuss, fahles Grün */
+	--color-ecosystem-height-1: #c6be96;                    /* 25 % -- untere Hänge, Sand */
+	--color-ecosystem-height-2: #bea37c;                    /* 55 % -- Mittellage, Braun */
+	--color-ecosystem-height-3: #d6c4b2;                    /* 80 % -- Hochlage, helles Braun */
+	--color-ecosystem-height-4: #f7f3ee;                    /* 100 % -- Firn, fast Weiss */
+	/* Deckkraft des Höhenschleiers. Er liegt ÜBER den Flächenfüllungen (Pane 420 über 250), also
+	   entscheidet dieser Wert, wie viel Regionsfarbe noch durchkommt. */
+	--opacity-ecosystem-height: 0.55;
+	/* Selection contour (Owner 2026-07-26): a SELECTED area is outlined in white, an area whose corners
+	   are open for editing in the handle blue above. Two states, two contours -- the same principle as
+	   the two marker rings further up, and the reason the fill keeps its own tone in both cases: the
+	   colour says "which area", the contour says "what can I do with it". White because it reads on
+	   every one of the ten ground tones below/above it; pinned for the usual reason (light tiles). */
+	--color-ecosystem-selected-outline: #ffffff;
+	/* Das Ziel, über dem die Maus bei einer laufenden booleschen Operation steht. Blasses Gold, damit es
+	   sich von der weissen Auswahlkontur darüber unterscheidet und trotzdem auf allen zehn Grundtönen
+	   liest. Wert übernommen aus der Territorien-Hervorhebung, die ihn hartkodiert im setStyle stehen
+	   hat (map-features-region-pending-highlight.js:16) -- hier steht er einmal als Token, damit die
+	   beiden Ebenen nicht auseinanderlaufen. Gepinnt wie die Nachbarn: liegt auf hellen Kacheln. */
+	--color-ecosystem-target-outline: #fff4a3;
+	/* Und die Flaeche, auf der der Zeiger GERADE steht (Owner 20.08.2026: „das highlight etwas staerker
+	   ... als nur minimal die transparenz der kontur zu veraendern").
+	   💣 BIS DAHIN TRUGEN KANDIDAT UND ZIEL DIESELBE FARBE und unterschieden sich allein in der
+	   Deckkraft (0,55 gegen 1). Das ist der schwaechste Unterschied, den zwei Zustaende haben koennen --
+	   auf zehn verschiedenen Grundtoenen war er stellenweise gar nicht zu sehen. Jetzt ein eigener,
+	   saftiger Ton: das blasse Gold heisst „hier kannst du anfassen", dieser heisst „das hier".
+	   Gepinnt wie die Nachbarn -- liegt auf hellen Kacheln. */
+	--color-ecosystem-target-active: #ffab24;
+	/* Der Schein darum. Er traegt den Unterschied auf dunklen Grundtoenen, wo Farbe allein zu wenig
+	   waere. ⚠️ Ein `filter` aendert das Trefferfeld NICHT -- `pointer-events: stroke` misst an
+	   `stroke-width`, und die bleibt der Token darunter. */
+	--color-ecosystem-target-glow: rgba(255, 171, 36, 0.85);
+	/* 💣 DIE BREITE DES TREFFERBANDES STEHT EINMAL, WEIL SIE ZWEI REGELN TRAEGT (Owner 2026-08-14, 12px).
+	   Waehrend einer booleschen Zielwahl trifft nicht mehr die Fuellung, sondern allein die Kontur
+	   (`pointer-events: stroke`) -- und `stroke` misst sein Trefferfeld an `stroke-width`. Die Zahl ist
+	   damit KEINE Verzierung, sondern der Anfasser selbst: sie steht an der Band-Regel UND an der
+	   Hervorhebung der Flaeche unter dem Zeiger (.ecosystem-area--target). Getrennt gepflegt schrumpfte
+	   das Band im Augenblick des Ueberfahrens auf die alten 5px -- also genau dann, wenn der Zeiger schon
+	   daraufsteht, und der Treffer ginge unter der Hand verloren. Guard: ecosystem-pick-band.test.js. */
+	--ecosystem-pick-band-width: 12px;
+	/* The paper the map is drawn on. The "Untergrund" slider fades the base tiles out towards THIS, so
+	   at 0% the frame looks like no base map at all and the drawn areas stand alone (Owner 2026-07-26).
+	   Pinned white, deliberately NOT --color-panel: this is map surface, not a panel, and in the dark
+	   theme a themed value would fade the tiles into near-black instead of clearing them away. */
+	/* Was hinter den ausgeblassten Kacheln durchscheint. 🔴 NICHT MEHR WEISS (Owner 2026-08-04: „kann man
+	   den Untergrund etwas dunkler ... machen?"). Reines Weiss hinter 25 % Kachel ergab eine fast leere
+	   Seite, auf der auch kräftige Flächenfarben blass wirkten -- der Untergrund nahm ihnen den Kontrast
+	   von unten. Ein warmes Pergamentgrau ist der Ton, gegen den die Landschaftsfarben stehen, statt in
+	   ihm zu verschwinden; es bleibt heller als jede Flächenfarbe und damit Hintergrund. */
+	--color-ecosystem-underground: #d3cec2;
+
+	/* Modal scrim (behind centred dialogs) */
+	--color-scrim: rgba(38, 28, 16, 0.5);
+
+	/* Editor dialog overlays (report/edit/wiki-sync/path/powerline/label/region) — a
+	   darker, denser scrim than --color-scrim above. Pinned: same in both themes. */
+	--color-scrim-dialog: rgba(20, 16, 12, 0.56);
+	/* Full-bleed territory editor overlay — stronger still, paired with backdrop blur. */
+	--color-scrim-editor: rgba(20, 16, 12, 0.6);
+	/* Spotlight search overlay — lighter + blurred, keeps the map visible behind it. */
+	--color-scrim-light: rgba(18, 15, 12, 0.34);
+	/* Spoiler lid on a Kartensammlung card (Spec §3.7). Unlike every scrim above it does not sit BEHIND a
+	   dialog but ON a card, over already-blurred content: dense enough that the title underneath stays
+	   unreadable, light enough to read as a lid rather than a hole. Pinned + its own text colour: it
+	   always covers card content and always carries light text, so a themed --color-text-strong would go
+	   dark-on-dark in the light theme. */
+	--color-scrim-spoiler: rgba(20, 16, 12, 0.62);
+	--color-scrim-spoiler-text: #f4ece0;
+
+	/* ---- Der Startschleier (css/features/loading-bar.css) ----
+	   Liegt ueber der Karte, solange die Klasse `avesmaps-booting` steht (Owner 19.08.2026:
+	   „sollen die kacheln im hintergrund leicht weiss erscheinen"). Entwurf:
+	   docs/superpowers/specs/2026-08-19-startladen-schleier-und-windrose-design.md
+	   🔴 Anders als jeder Scrim darueber ist er NICHT gepinnt: „leicht weiss" beschreibt das helle
+	   Thema, und derselbe Wert ueber der dunklen Karte waere ein Blitz. Der dunkle Gegenwert steht
+	   im data-theme-Block weiter unten -- wer hier etwas aendert, aendert dort mit. */
+	--color-boot-veil: rgba(255, 253, 249, 0.55);
+	/* Die Windrose darin: zwei Haelften je Zacke (die Seekarten-Optik) plus der ruhende Ring und
+	   sein Teilstrichkranz. Das Gold des laufenden Stuecks ist bewusst KEIN eigenes Token -- es ist
+	   --color-accent-strong, das Wappengold, das die Designsprache dafuer schon fuehrt. */
+	--color-boot-ring-ink: #6d5236;
+	--color-boot-ring-pale: #d7c9a8;
+	--color-boot-ring-track: rgba(109, 82, 54, 0.22);
+
+	/* Territory-editor sticky header — translucent panel + backdrop-filter blur
+	   so scrolled content shows through faintly. */
+	--color-panel-translucent: rgba(255, 253, 249, 0.96);
+
+	/* Travel-speed tiers — the functional ampel in the speed-matrix dialog. A data
+	   highlight, not chrome. 💣 THIS ONE IS THEMED (see the dark block below): it was
+	   pinned across both themes until 2026-08-04, and the pale light-theme fills then
+	   stood at 11:1 against the dark dialog — three glaring blocks instead of a tinted
+	   table. The dark set repeats the LIGHT theme's own relationship (fill ~1.5:1 over
+	   its panel), which is what makes it read as the same component. */
+	--color-tier-fast-bg: #d2e5ad;
+	--color-tier-fast-text: #2b5407;
+	--color-tier-mid-bg: #f2ddb0;
+	--color-tier-mid-text: #6b3d07;
+	--color-tier-slow-bg: #f3cfcf;
+	--color-tier-slow-text: #7a1c1c;
+
+	/* Territory-editor "on map" presence indicator (tree/legend swatch ring). A
+	   data highlight (not chrome), deliberately identical in both themes. */
+	--color-map-presence: #6a7f3a;
+
+	/* Der Außendurchmesser des grünen Statuskreises. 💣 Er steht als Token da, weil es DREI
+	   Zeichner gibt und zwei davon nebeneinander im selben Fenster sichtbar sind: die geteilte
+	   Listenregel (css/components/map-status-circle.css) und das Abzeichen `.cov` des
+	   Territorienbaums (html/wiki-sync-settlement-editor.html, html/wiki-sync-monitor.html).
+	   Am 18.08.2026 zeigte der Ortseditor 12px links und 11px in der Mitte -- dieselbe Aussage in
+	   zwei Größen, in einem Blick. `.cov` bringt sein eigenes Markup mit (`.all`/`.own-only`/
+	   `.children-only` statt der `tree-map-status--*`), deshalb bleibt es eine eigene Regel; die
+	   GRÖSSE darf nicht zweimal geraten werden. */
+	--map-status-circle-size: 11px;
+
+	/* Wegarten — die Farbe, in der die KARTE diese Wegart zeichnet (map-features.js, centerColors).
+	   Sie machen die Art-Beschriftung in der Wegeliste zu einer Legende: man sieht dort, wie die
+	   Linie draußen aussieht.
+	   🔴 Es sind NICHT die Kartenwerte selbst. Die sind für eine LINIE auf heller Karte gewählt;
+	   als SCHRIFT auf Pergament fielen sie durch — Wüstenpfad kam auf 2,23 Kontrast, die
+	   Untergrenze für kleine Schrift ist 4,5. Diese Werte sind dieselben Farbtöne, so weit
+	   abgedunkelt, dass 4,6 erreicht ist — gerechnet gegen den GEMESSENEN Grund der Editorseite
+	   (#f3f0e8). 💣 Die erste Fassung rechnete gegen --color-panel-soft (#faf6ee) und landete bei
+	   4,27 bis 4,38: knapp daneben ist hier unbrauchbar, und nur die Messung in der echten Seite
+	   hat es gezeigt.
+	   ⚠️ Reichsstraße, Straße und Weg haben KEIN Token. Ihre Kartenfarben sind Weiß, Grau und
+	   Hellwarm — als Text wären das keine Farben, sondern Rauschen. Sie tragen die kräftige bzw.
+	   die gedämpfte Schriftfarbe.
+	   ⚠️ Blau bei Fluss- und Seeweg ist die Regel, nicht die Ausnahme: docs/design-language.md
+	   („No blue = UI chrome only") erlaubt es ausdrücklich, wo Farbe DATEN kodiert statt
+	   Bedienoberfläche — wie schon bei den Wassertönen der Landschaften-Ebene. */
+	--color-path-pfad: #86654e;
+	--color-path-gebirgspass: #965d52;
+	--color-path-wuestenpfad: #7b6a48;
+	--color-path-flussweg: #3f7191;
+	--color-path-seeweg: #296db9;
+	--color-map-presence-text: #2f6b3a; /* darker text variant of the above, same pinning rule */
+
+	/* Territory-assignment picker (parent-tree/tabs/breadcrumb "active" rows) —
+	   translucent white overlays that sit ONLY on the --color-button solid fill,
+	   never on a page surface. --color-button stays mid-dark in both themes, so
+	   these are deliberately identical in both (no dark override needed). */
+	--color-on-button-muted: rgba(255, 255, 255, 0.8);    /* secondary/meta text on the fill */
+	--color-on-button-hairline: rgba(255, 255, 255, 0.25); /* faint divider/chip-bg on the fill */
+
+	/* Interaction & focus (see "Button states" in the doc) */
+	--color-focus: rgba(191, 160, 58, 0.45);      /* gold focus glow */
+	--focus-ring: 0 0 0 3px var(--color-focus);   /* compose with the element's shadow, don't replace it */
+	--color-hover-wash: rgba(191, 160, 58, 0.14); /* row / option hover */
+	--color-active-wash: rgba(191, 160, 58, 0.24);/* selected row */
+
+	/* ---- Chart series (categorical) -----------------------------------------------------------
+	 * FOUR slots, assigned in fixed order, never cycled. Introduced 2026-08-02 for the way editor's
+	 * „Funktionen anzeigen" window -- the first surface in this project that draws several data
+	 * series at once.
+	 *
+	 * 💣 FOUR IS THE CEILING, AND IT IS A MEASURED ONE. These were not picked by eye: the palette
+	 *    was run through an OKLab/ΔE validator with protanopia, deuteranopia and tritanopia
+	 *    simulation against the real chart surfaces (--color-panel-soft, light and dark). Lightness
+	 *    band, chroma floor, normal-vision separation (ΔE 18,1 light / 15,7 dark) and contrast all
+	 *    pass. The red-green pair does NOT: ΔE 4,8 light and 1,0 dark against a target of 8.
+	 *
+	 * 🔴 That failure cannot be fixed with better hues, and it is the price of AGENTS.md §12's „no
+	 *    blue". Red and green ARE the red-green confusion axis, and the one hue that separates
+	 *    cleanly there is the forbidden one. Seven warm earth tones were tried first and scored
+	 *    worse (ΔE 1,3) -- two of them indistinguishable even with full colour vision.
+	 *
+	 * ⭐ THEREFORE COLOUR NEVER CARRIES IDENTITY ALONE on these charts. Whoever uses these tokens
+	 *    also ships a second encoding -- stroke pattern per series, plus small multiples so that
+	 *    rarely more than four series share one picture. A fifth series is refused, never given an
+	 *    invented fifth hue.
+	 */
+	--color-chart-1: #c9821c;  /* gold-orange */
+	--color-chart-2: #a02a24;  /* brick red   */
+	--color-chart-3: #2f7d3a;  /* leaf green  */
+	--color-chart-4: #6b4a8f;  /* plum        */
+	--color-check-accent: var(--color-accent-strong); /* checkbox/radio checked mark + border */
+	--color-check-fill: var(--color-active-wash);      /* checkbox/radio checked fill */
+	--color-disabled-bg: #ece7dd;
+	--color-disabled-text: #a99f8e;
+	--color-disabled-border: #dcd3c4;
+
+	/* Scrollbars — thin, theme-aware track/thumb (Firefox scrollbar-color + WebKit
+	   pseudo-elements), applied globally in base.css. */
+	--color-scrollbar-thumb: rgba(141, 121, 98, 0.4);
+	--color-scrollbar-thumb-hover: rgba(141, 121, 98, 0.6);
+	--color-scrollbar-track: transparent;
+
+	/* Spacing scale — value-named steps; use a token, never a stray px */
+	/* Owner: alle Spacing-Vars global +2px (mehr Luft überall). Die Namen (2/4/6/…)
+	   bleiben als Skala-Stufen; die WERTE tragen +2. App-weit + reversibel. */
+	--space-2: 4px;
+	--space-4: 6px;
+	--space-6: 8px;
+	--space-8: 10px;
+	--space-10: 12px;
+	--space-12: 14px;
+	--space-16: 18px;
+	--space-20: 22px;
+	--space-24: 26px;
+
+	/* Radius — 3 rungs; the old 4/6/7/9 fold to the nearest (controls → md) */
+	--radius-sm: 5px;   /* mirrored panel shell + tiniest chips */
+	--radius-md: 8px;   /* all controls: buttons, inputs, selects, pills, rows */
+	--radius-lg: 10px;  /* menus, cards, autocomplete */
+
+	/* Hüllenmaße der Editoren (Spec 2026-07-22-editor-designsprache §3.1a). Sie standen bis
+	   2026-08-15 in css/components/editor-page.css und waren damit genau den Editor-SEITEN
+	   vorbehalten. Der Vorkommeneditor ist aber der einzige der fünf, der KEIN iframe ist — er
+	   lebt als Dialog in index.html und lädt editor-page.css nicht. Abschreiben wäre die
+	   Wiederholung des Fehlers, den editor-page.css beendet hat (derselbe Wert an drei Stellen,
+	   dreimal verschieden), also stehen sie hier: tokens.css laden BEIDE Welten. Der Name ist
+	   die Stufe, nicht die Pixelzahl — --space-* trägt global +2px. */
+	--avm-control-h: 32px;                              /* Suchfeld, Eingabe, Auswahl, Knopf */
+	--avm-ribbon-pad: var(--space-8) var(--space-12);   /* 10 / 14 — Menüband */
+	--avm-ribbon-gap: var(--space-4);                   /* 6 */
+	--avm-status-pad: var(--space-4) var(--space-12);   /* 6 / 14 — Statuszeile */
+	--avm-status-min-h: 30px;
+	--avm-col-pad: var(--space-6) var(--space-10);      /* 8 / 12 — jede der drei Spalten */
+	--avm-row-pad: var(--space-2) var(--space-4);       /* 4 / 6 — Listenzeile */
+	--avm-field-label-w: 130px;                         /* Beschriftung links neben dem Feld */
+	/* Die Feldzeile mit Wiki-Override (Entwurf 2026-08-17-wiki-override-fuer-alle-design.md §2.8):
+	   Beschriftung · durchgestrichener Wiki-Stand + ↺ · Eingabefeld.
+	   🔴 DAS EINGABEFELD BEKOMMT MINDESTENS DIE HAELFTE (Owner 17.08.2026), der Wiki-Stand weicht
+	   als Erster -- deshalb steht hier ein Mindestmass fuer das FELD und ein Hoechstmass fuer den
+	   Wiki-Stand, nicht umgekehrt.
+	   💣 Die obere Schranke des clamp() ist tragend: ohne sie fordern die drei Spalten bei schmalem
+	   Fenster mehr als 100 % an und das Raster haengt eine waagerechte Bildlaufleiste an -- bei
+	   300px gemessen. Die 165px sind Beschriftung (130) + zwei Spaltenabstaende (12) + das ↺ samt
+	   Vorabstand (18) + Rest; in der ersten Rechnung war das ↺ schlicht vergessen. */
+	/* 🪤 HIER STANDEN ZWEI TOKEN -- eine Hoechstbreite fuer den Wiki-Stand und ein gerechneter
+	   Mindestplatz fuers Feld (clamp mit 100% - 165px). Beide sind am 17.08.2026 gefallen, und die
+	   Lehre ist groesser als die zwei Zeilen: die Rechnung loeste ein Problem, das die AUFTEILUNG
+	   gar nicht erst hat. Der Owner hat es in einer Zeile gesagt -- „50% | 50%" --, nachdem zwei
+	   gerechnete Fassungen an zwei Oberflaechen danebengegangen waren. Wer einen Mindestwert
+	   ausrechnet, sollte zuerst fragen, ob eine Haelfte reicht. */
+	/* Hoehe der Wiki-Zuweisungs-Trefferliste. 💣 Stand bis 16.08.2026 als nackte 340px an ZWEI
+	   Stellen -- .label-wiki-picker-list (region-sync.css) und der abgeschriebenen .dt-picker-list
+	   (editor-page.css) -- und ein Kommentar behauptete "dieselbe Hoehe". Das gilt genau bis jemand
+	   eine der beiden aendert (AGENTS.md §12: erst das Token, dann benutzen). */
+	--avm-picker-list-max-h: 340px;                     /* Trefferliste der Wiki-Zuweisung */
+
+	/* Divider rhythm — symmetric space above & below a section line (on-scale) */
+	--divider-gap: var(--space-12);       /* reading sections (infobox) */
+	--divider-gap-tight: var(--space-6);  /* dense control groups (route planner) */
+
+	/* Icon sizes — one scale for UI glyphs (sm/md) AND the existing colour
+	   imagery (lg..hero: transport, type toggles, coats) so sizes stop drifting */
+	--icon-sm: 16px;    /* dense inline glyph */
+	--icon-md: 20px;    /* standard UI glyph */
+	--icon-lg: 24px;    /* inline content icon — transport mode */
+	--icon-xl: 46px;    /* map-display type toggle — fills the wider 350px route-planner cell */
+	--icon-2xl: 48px;   /* infobox type icon (coat fallback) */
+	--icon-hero: 130px; /* coat / logo hero */
+
+	/* Die beiden Randlaschen -- „Routenplaner" links (#toggle-button, css/layout/map-layout.css) und
+	   „Info" rechts (.avesmaps-infopanel__handle, css/features/infopanel.css). Sie sind seit jeher
+	   gleich gebaut, standen aber mit denselben drei Zahlen in ZWEI Dateien; das ist die Divergenz
+	   aus AGENTS.md §12, und am Telefon musste sie an beiden Enden zugleich wandern. */
+	--avesmaps-tab-w: 30px;
+	--avesmaps-tab-top: 30px;
+	--avesmaps-tab-h: 140px;
+	/* Der Kantenschatten der Telefon-Lasche: ein schmales dunkles Band an genau der Kante, unter der
+	   sie hervorkommt -- ausdruecklich KEIN Verlauf ueber die volle Breite (Owner 12.08.2026, am
+	   Entwurf entschieden: „nicht ueber die volle breite, sondern dass es so aussieht wenn die lasche
+	   unter dem panel sitzt"). Als fertiges Bild und nicht als Farbe, weil erst die drei Stopps
+	   zusammen die Aussage sind; einzeln waeren es drei Zahlen, die auseinanderlaufen koennen.
+	   ⚠️ Derselbe Wert in hell und dunkel: er verdunkelt den Knopfgrund, statt eine eigene Farbe zu
+	   setzen, und beide Knopfgruende sind warme Brauntoene. */
+	--avesmaps-tab-edge-shade: linear-gradient(90deg, rgba(18, 15, 10, 0.36) 0, rgba(18, 15, 10, 0.17) 5px, rgba(18, 15, 10, 0) 13px);
+
+	/* Der Abstand zum Kartenrand -- EINE Zahl fuer alles, was unten an der Karte klebt: der
+	   Knopfbund („Neuigkeiten"/„Hinweise"), der Zoom darueber und die beiden Panels.
+	   💣 Sie standen vorher als 12 gegen 14 nebeneinander, und man sah es: das Infopanel endete
+	   2px ueber „Hinweise" (Owner 11.08.2026, am Zeiger gemessen 786 gegen 788). Zwei Zahlen, die
+	   dasselbe meinen -- genau der Fall aus AGENTS.md §12. */
+	--avesmaps-edge-gap: 12px;
+	/* Die Panels leiten ihren unteren Rand DARAUS ab, statt ihn zu waehlen. Damit kann das
+	   Infopanel gar nicht mehr neben dem Knopfbund enden, und wer den Kartenrand aendert, aendert
+	   beide. Oben haben sie einen eigenen Wert -- dort steht nichts, mit dem sie fluchten muessten. */
+	--avesmaps-panel-inset-top: 10px;
+	--avesmaps-panel-inset-bottom: var(--avesmaps-edge-gap);
+	/* Die Breite des Routenplaners (#search) -- und seit dem 12.08.2026 auch die des
+	   Anzeige-Menues in der Kartenecke (Owner: „auf dem desktop etwa die breite des
+	   routenplaners"). Bei dieser Breite stehen die sechs Ortsklassen nebeneinander, ohne sich zu
+	   quetschen. Zwei Zahlen, die dasselbe meinen, laufen beim ersten Anfassen auseinander --
+	   derselbe Fall wie --avesmaps-edge-gap darueber. */
+	--avesmaps-planner-width: 350px;
+	/* Eine Sprosse ueber --z-map-panel (1010): ein GEOEFFNETES Menue in der Kartenecke. Es
+	   schwebt seit dem 12.08.2026 ueber der Karte und ueberlappt dabei die Routenplaner-Lasche,
+	   die sonst darueber laege und ihm die erste Zeile abschneidet.
+	   ⚠️ Nur fuer den offenen Zustand gedacht -- der Bund selbst bleibt auf --z-map-ui. */
+	--z-map-menu: 1020;
+
+	/* Elevation */
+	--shadow-panel: 0 8px 24px rgba(0, 0, 0, 0.16);
+	--shadow-dialog: 0 20px 45px rgba(0, 0, 0, 0.38);
+	/* Button hover lift — warm brown drop, one step stronger for the filled main action. Matches the
+	   route-planner buttons (which still inline these values; migrate them to these tokens later). */
+	--shadow-button-hover: 0 4px 10px rgba(52, 41, 32, 0.14);
+	--shadow-button-hover-strong: 0 5px 12px rgba(52, 41, 32, 0.22);
+
+	--z-map-ui: 1000;
+	/* Der Routenplaner liegt UEBER der uebrigen Kartenbedienung (Owner 11.08.2026: "der
+	   routenplaner soll ueber den buttons auf der karte liegen"). Vorher trugen beide
+	   --z-map-ui, und dann entscheidet die Reihenfolge im Markup -- der Knopfbund steht spaeter
+	   und lag deshalb obenauf, mitten im Panelinhalt.
+	   ⚠️ Unter dem Infopanel (1080) und dem Editorpanel (1100): die beiden decken den Planer
+	   weiterhin zu, wenn sie aufgehen. */
+	--z-map-panel: 1010;
+	--z-dialog: 1450;
+	--z-dialog-high: 1460;
+	/* Der aufziehbare Rahmen des Kartenausschnitts (Social-Media-Hub, js/ui/karten-abzug.js).
+	   Ueber --z-dialog-high, weil er das Kartenkontextmenue ueberdecken muss -- und UNTER
+	   --z-editor-overlay, weil ein offener Editor die Karte ohnehin verdeckt und dort nichts
+	   aufzunehmen ist. Der Hub selbst (--z-modal) blendet sich fuer das Ziehen weg. */
+	--z-map-capture: 1470;
+	/* Editor overlays (the iframe tools: territory, settlement, adventure, citymap, wiki-sync).
+	   Above --z-dialog-high so an editor overlay always clears the map context menu sitting there. */
+	--z-editor-overlay: 1500;
+	/* A dialog opened FROM an editor overlay ("Alle anzeigen") — must clear --z-editor-overlay. */
+	--z-dialog-over-editor: 3000;
+	/* Typeahead dropdowns. Must clear --z-editor-overlay: the source autocomplete opens from an
+	   add-row that lives INSIDE the editor overlays. Also carries the route planner's jQuery-UI
+	   menu (.ui-autocomplete), which must out-rank jquery-ui.css's .ui-front (z-index: 100). */
+	--z-autocomplete: 1600;
+	--z-modal: 5000; /* full-screen modal overlay — above --z-autocomplete */
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════════════════════
+   DIE IOS-SCHWELLE — der EINE Ort, an dem die Feldschrift fuer grobe Zeiger steht.
+   💣 Unter 16px faehrt Safari beim Fokus in jedes Feld hinein und kehrt NICHT zurueck -- bei
+   jeder einzelnen Eingabe. 16 ist eine Schwelle, kein Richtwert: 15,5px zoomt noch.
+   🔴 NICHT ueber maximum-scale / user-scalable im Viewport-Meta loesen: das naehme allen das
+   Aufziehen der Karte, und neuere iOS-Fassungen ignorieren es ohnehin.
+   ⚠️ `pointer: coarse` meint den PRIMAEREN Zeiger -- ein Laptop mit Touchscreen und Maus meldet
+   `fine` und bleibt unberuehrt.
+   ═══════════════════════════════════════════════════════════════════════════════════════════ */
+@media (pointer: coarse) {
+	:root {
+		--font-size-control: 16px;
+	}
+}
+
+/* 💣 DER STEMPEL DIESER DATEI WIRD AUS DEM REPO GERECHNET, HOCHGELADEN WIRD NUR DER PUSH-DIFF.
+   Am 11.08.2026 scheiterte der Deploy dieser Datei an einem roten Test -- hochgeladen wurde
+   nichts. Der naechste, erfolgreiche Lauf trug ihren NEUEN Inhaltsstempel ins HTML, ohne sie
+   selbst mitzunehmen: `tokens.css?v=903dace7de` lieferte zweieinhalb Stunden den ALTEN Inhalt,
+   und jeder Browser hat genau den unter dieser Adresse gecacht. Ein spaeterer Voll-Deploy
+   repariert das NICHT -- er laedt die richtige Datei unter dieselbe, laengst vergiftete Adresse.
+   Heilung ist nur eine INHALTSAENDERUNG (neuer Hash = neue Adresse); dieser Absatz ist sie.
+   ⚠️ Merkmal des Falls: der Server liefert mit Cache-Umgehung das Richtige, die Seite zeigt das
+   Falsche, und das HTML ist NICHT veraltet (docs/asset-caching-and-versioning.md).
+
+   Am Telefon laufen die PANELS von Kante zu Kante -- die Randlaschen NICHT.
+   🔴 Das war am 11.08.2026 fuer wenige Stunden anders und ist zurueckgenommen: „von oben nach
+   unten durchgehen" galt dem PANEL, nicht seinem Reiter (Owner, nach dem Ansehen: „das Tab sollte
+   nicht veraendert werden, ich meinte dass das Panel selbst von oben nach unten gehen soll"). Eine
+   Lasche ueber die volle Bildschirmhoehe ist ein 100-dvh-Balken neben der Karte.
+   ⚠️ Seit dem 12.08.2026 ist die Lasche des Planers am Telefon KLEINER als am Zeiger (26x56 statt
+   30x140, Werte unten) und sitzt mittig statt oben -- also das Gegenteil jener Aenderung, nicht sie
+   noch einmal: der Owner hat den kleinen Pfeilgriff am Entwurf abgenommen, weil der beschriftete
+   Balken am Telefon zu viel Karte verdeckt. `--avesmaps-tab-top` gilt dort deshalb nur noch der
+   Info-Lasche (die im Frontend ohnehin weg ist, also praktisch nur dem Edit-Modus).
+   💣 An `html.avesmaps-phone`, NICHT an einer Media-Query: „Telefon" ist in diesem Haus EINE
+   Definition -- avesmapsIsPhoneViewport() (pointer: coarse UND Kurzseite <= 600px) setzt die Klasse,
+   das CSS liest sie. Eine zweite Fassung als Breiten-Query traefe ein quer gehaltenes Telefon nicht
+   und ein Tablet zu viel.
+   ⚠️ Hier stehen nur die WERTE. Beide Laschen lesen sie in ihren eigenen Dateien -- eine Regel, die
+   von hier aus auf `#toggle-button` und `.avesmaps-infopanel__handle` zielte, waere ein dritter Ort,
+   an dem ihre Maße stehen. */
+html.avesmaps-phone {
+	/* Die Panels laufen von Kante zu Kante (Owner 11.08.2026: „im mobile full
+	   height"). Nur SIE -- --avesmaps-edge-gap bleibt bei 12px, sonst klebte der Knopfbund am
+	   Bildschirmrand. Deshalb hat der Panel-Rand einen eigenen Token, statt der Kartenrand-Zahl
+	   direkt zu folgen: am Zeiger ist er von ihr abgeleitet, am Telefon faellt er weg. */
+	--avesmaps-panel-inset-top: 0px;
+	--avesmaps-panel-inset-bottom: 0px;
+
+	/* Die Randlasche ist am Telefon ein kleiner Pfeilgriff statt eines beschrifteten Balkens (Owner
+	   12.08.2026, am Entwurf abgenommen). Nur die MASSE stehen hier; die Form -- Pfeil statt Wort,
+	   mittig statt oben, Kantenschatten -- steht bei der Lasche selbst in css/layout/map-layout.css.
+	   ⚠️ Beide Laschen lesen die Werte. Im Frontend ist die Info-Lasche am Telefon ohnehin weg
+	   (css/features/infopanel.css); im Edit-Modus bleibt sie und traegt ihr Wort auch in der
+	   kleineren Form -- „Info" misst gemessene 24px und passt in die 56. */
+	--avesmaps-tab-w: 26px;
+	--avesmaps-tab-h: 56px;
+}
+
+/* Dark theme — opt-in (set data-theme="dark" on :root). Same warm family,
+   deep parchment-brown canvas, cream text; the gold is lightly desaturated
+   (~12% less than the light gold) so it stays calm on dark instead of shouting. */
+:root[data-theme="dark"] {
+	--color-page-bg: #211f19;
+	--color-page-bg-deep: #181611;
+	--color-panel: #312e26;
+	--color-panel-soft: #37342b;
+	--color-panel-muted: #39352b;
+	/* Lighter than the panel here -- the same "pressed" reading, mirrored for dark. */
+	--color-panel-active: #4c4636;
+
+	--color-text: #eee7da;
+	--color-text-strong: #f5f0e4;
+	--color-text-muted: #b4a895;
+	--color-placeholder: #7b7467;
+
+	--color-border: #514a3c;
+	--color-border-strong: #615a49;
+	--color-divider: rgba(207, 197, 171, 0.24);
+
+	--color-button: #6b6456;
+	--color-button-border: #7a7361;
+	--color-button-text: #f5ebd7;
+	/* Hover geht hier DUNKLER, anders als im hellen Thema. Auf dunklem Grund steht
+	   cremefarbene Schrift auf dem Knopf: ein hellerer Hover senkt den Kontrast, statt
+	   ihn zu heben. Der alte Wert #797264 lag bei 4,03:1 gegen --color-button-text und
+	   damit unter WCAG AA (4,5) -- sichtbar an jeder Sync-Kachel. Jetzt 6,05:1.
+	   Die 1px-Anhebung und der staerkere Schatten tragen das Hover-Signal. */
+	--color-button-hover: #5e5749;
+	/* Muss mitwandern: der bisherige Wert #5d5648 lag praktisch auf dem neuen Hover
+	   und waere nicht mehr davon zu unterscheiden gewesen. Jetzt 7,46:1. */
+	--color-button-active: #4f4a3d;
+
+	--color-button-soft: #3a362c;
+	--color-button-soft-text: #eae1cf;
+	--color-button-soft-border: #585142;
+	--color-button-soft-hover: #453f32;
+	--color-button-soft-active: #4e4739;
+
+	--color-accent: #cfb767;
+	--color-accent-strong: #dcc77e;
+	/* Wegarten im dunklen Thema — dieselben Farbtöne, für den dunklen Panelgrund aufgehellt.
+	   Gemessen 4,7 bis 6,8 (die vorhandene gedämpfte Schrift liegt bei 5,3). */
+	--color-path-pfad: #c79a78;
+	--color-path-gebirgspass: #d99184;
+	--color-path-wuestenpfad: #d8bd85;
+	--color-path-flussweg: #7fc9f0;
+	--color-path-seeweg: #5aa6e0;
+
+	--color-link: #d7c38b;
+	--color-link-hover: #e3d39f;
+
+	--color-accent-brown: #c9a97e;
+	--color-accent-brown-hover: #dcbe97;
+	--color-accent-brown-soft: #a3835c;
+	--color-accent-brown-text: #241d14;
+	--color-accent-brown-focus: rgba(201, 169, 126, 0.25);
+
+	--color-pill: #3b3522;
+	--color-pill-border: #5c5237;
+	--color-pill-text: #e7d7a5;
+
+	--color-danger: #d27566;
+	--color-success: #7cc48a;
+	--color-success-halo: rgba(124, 196, 138, 0.22);
+	--color-muted-halo: rgba(180, 168, 149, 0.20);
+	--color-success-soft: #2c3a24;
+	--color-success-soft-border: #4d6b3a;
+	--color-success-soft-text: #9cd39a;
+	--color-danger-soft: #3f2a26;
+	--color-danger-soft-border: #6b463f;
+	--color-danger-soft-text: #e29c8f;
+	--color-warning: #e0b45c;
+	--color-warning-soft: #3b3122;
+	--color-warning-soft-border: #6d5629;
+	--color-warning-soft-text: #e9c684;
+	--color-warning-strong: #c79a3c;
+	--color-warning-strong-text: #241d14;
+	/* Link status, dark: the muted grey lifts so it stays legible on the deep panel. --color-status-online
+	   needs no override -- it is var(--color-success), which is re-pointed just above. */
+	--color-status-offline: #9a9184;
+	/* No dark override for the waypoint marks (or the --color-marker-*-ring editor marks below) on
+	   purpose -- the SAME mark appears on the always-light map tiles and on the dark panels; a
+	   theme-shifted red would make the planner (or the editor) disagree with the map. */
+
+	--color-panel-translucent: rgba(49, 46, 38, 0.96);
+
+	/* Travel-speed tiers, dark — deep warm fills with a light tint of their own hue, so the
+	   ampel stays readable as green/amber/red without lighting up the dialog. Measured on
+	   --color-panel #312e26: text 6,5–7,4:1 (AA is 4,5) and all three fills sit ~1,5:1 over
+	   the panel, the same modest lift the light theme has. */
+	--color-tier-fast-bg: #3f5326;
+	--color-tier-fast-text: #d3e9ac;
+	--color-tier-mid-bg: #5d4720;
+	--color-tier-mid-text: #f2dcab;
+	--color-tier-slow-bg: #753831;
+	--color-tier-slow-text: #f7d4ce;
+
+	/* Review stars, dark: the gold stays warm; the empty track darkens so it doesn't glare on the
+	   deep panel (a light beige track would read almost as bright as a filled star). */
+	--color-star: #e6b850;
+	--color-star-muted: #6f6552;
+	--color-marker-active: #f0b429;
+
+	--color-focus: rgba(207, 183, 103, 0.5);
+	--color-hover-wash: rgba(207, 183, 103, 0.18);
+	--color-active-wash: rgba(207, 183, 103, 0.30);
+
+	/* Chart series, dark. NOT an automatic lightening of the light steps -- these were re-validated
+	   against the dark chart surface (#37342b) as their own palette. The dark lightness band is
+	   narrower (L 0,48-0,67 vs 0,43-0,77), and the first attempts sat above it. Same ceiling of
+	   four, same obligation to a second encoding. */
+	--color-chart-1: #b58c10;
+	--color-chart-2: #c74a55;
+	--color-chart-3: #2f9647;
+	--color-chart-4: #8f5fc4;
+	/* Checkbox/radio checked, dark: the gold read as muddy + too yellow (owner). Use a
+	   markedly desaturated gold and a solid subtle fill instead of the translucent wash. */
+	--color-check-accent: #aaa598;
+	--color-check-fill: var(--color-panel-soft);
+	--color-disabled-bg: #322f27;
+	--color-disabled-text: #6e685c;
+	--color-disabled-border: #433e33;
+
+	/* Scrollbars, dark: same warm-brown family as --color-text-muted, lightened so the
+	   thumb still shows up against the deep panel. */
+	--color-scrollbar-thumb: rgba(180, 168, 149, 0.35);
+	--color-scrollbar-thumb-hover: rgba(180, 168, 149, 0.55);
+
+	--shadow-panel: 0 8px 24px rgba(0, 0, 0, 0.45);
+	--shadow-dialog: 0 20px 45px rgba(0, 0, 0, 0.6);
+	--shadow-button-hover: 0 4px 10px rgba(0, 0, 0, 0.38);
+	--shadow-button-hover-strong: 0 5px 12px rgba(0, 0, 0, 0.5);
+
+	/* Der Startschleier, dunkel. Kein Weiss ueber der dunklen Karte -- die Begruendung steht im
+	   hellen Block. Die Rose dreht ihre beiden Haelften um: hell wird cremefarben, „dunkel" wird
+	   ein warmes Mittelbraun, damit beide auf dem dunklen Grund lesbar bleiben. */
+	--color-boot-veil: rgba(33, 31, 25, 0.66);
+	--color-boot-ring-ink: #cbb99a;
+	--color-boot-ring-pale: #efe6d2;
+	--color-boot-ring-track: rgba(238, 231, 218, 0.20);
+}
+
+
+/* ===== components/map-layer-picker.css (woertlich kopiert) ===== */
+/* Die Ansichts-Kachel in der Kartenecke. Der Parameter `?layerPanelActive=0` ist der Notausgang,
+   nicht mehr der Einschalter -- sie laeuft seit dem 12.08.2026 fuer jeden Besucher.
+   Entwurf: docs/superpowers/specs/2026-08-11-ansichts-kacheln-design.md
+   Aufklapp-Bewegung: docs/layer-kacheln-animation-mockup.html (Fassung C, Owner 15.08.2026)
+
+   🪤 Diese Datei stand am 15.08.2026 ZWEIMAL im Repo und nicht auf dem Server: beide Male fiel
+   ein Deploy an einem FREMDEN Test aus, und der naechste gruene Lauf trug den neuen ?v=-Stempel
+   ins HTML, ohne die Datei mitzunehmen (AGENTS.md §9). Gemessen wurde es so --
+     curl -s https://avesmaps.de/css/styles.css | grep -o "map-layer-picker.css?v=[0-9a-f]*"
+   und diese Adresse dann gegen die Datei hier gehalten. Nur eine INHALTSAENDERUNG heilt das; ein
+   Voll-Deploy legt die richtige Datei unter dieselbe, vergiftete Adresse.
+
+   Farbe, Kontur, Radius und Schatten kommen NICHT von hier, sondern aus der gemeinsamen Regel
+   der Eckknoepfe in css/components/legal-dialog.css, wo #map-layer-button mit drinsteht. Hier
+   steht nur, was diese Kachel von den Nachbarn unterscheidet -- dieselbe Aufteilung wie bei der
+   Suchkachel. Wer die Werte hierher kopiert, baut die Divergenz ein, die AGENTS.md §12 beschreibt. */
+
+/* Die Huelle traegt beide Zustaende -- immer nur einer ist da. Rechtsbuendig wie der ganze Bund,
+   damit Kachel und Raster dieselbe rechte Kante haben. */
+.map-layer-picker {
+	/* 💣 EINE Zahl, zwei Leser. `--map-layer-cell` ist die Zellenbreite (66px, gebunden an das
+	   laengste Wort „Landschaften"), `--map-layer-tile` die daraus GERECHNETE Silhouette der
+	   zugeklappten Kachel: 66 + 2x5 Polsterung + 2x1 Rahmen = 78. Genau dort setzt das Aufrollen
+	   an. Beides von Hand hinzuschreiben hiesse, dass ein breiteres Wort die Zelle waechst und
+	   der Wisch an der alten Stelle beginnt -- ein Versatz, den niemand sucht, weil er nur
+	   waehrend der Bewegung sichtbar ist. */
+	--map-layer-cell: 66px;
+	--map-layer-tile: calc(var(--map-layer-cell) + 12px);
+	display: flex;
+	flex-direction: column;
+	align-items: flex-end;
+}
+
+.map-layer-picker[hidden] {
+	display: none;
+}
+
+/* 💣 DIE KACHEL DARF SICH BEIM AUFKLAPPEN NICHT BEWEGEN (Owner 11.08.2026), und das steht und
+   faellt mit diesen zwei Zahlen: Kachel und Raster tragen DIESELBE Polsterung (5px) und
+   denselben Rahmen (1px aus der gemeinsamen Regel) und haengen an DERSELBEN Ecke (right/bottom 0).
+   Beide Kaesten enden damit am selben Punkt -- und weil die AKTIVE Ansicht immer die LETZTE Zelle
+   des Rasters ist (map-layer-picker.js), liegt sie zwangslaeufig auf dem Fleck der Kachel.
+   Es wird KEIN Versatz gerechnet. Genau so eine gerechnete Zahl lag am 10.08.2026 um 8px daneben
+   (--avesmaps-corner-stack), als die Eckknoepfe wuchsen und sie stehenblieb.
+   ⚠️ Wer die Polsterung an einer der beiden Stellen aendert, aendert beide. */
+#map-layer-button {
+	display: block;
+	padding: 5px;
+}
+
+/* 💣 IM FLUSS, NICHT SCHWEBEND. Der erste Entwurf liess das Raster ueber der Ecke schweben --
+   und es legte sich beim Aufklappen ueber die Zoom-Knoepfe, die dahinter schlicht verschwanden
+   (Owner 11.08.2026). Im Fluss waechst stattdessen der Bund; der Zoom darueber haengt an dessen
+   GEMESSENER Hoehe (syncMapCornerStack in js/ui/ui-controls.js) und rueckt von allein mit.
+   Am Telefon schiebt das hohe 2x3-Raster ausserdem den Suchknopf nach oben -- gewollt, und
+   ebenfalls ohne eine gerechnete Zahl. */
+.map-layer-picker__menu {
+	margin: 0;
+	padding: 5px;
+	display: grid;
+	/* Am Zeiger eine Reihe, am Telefon 2x3 (Owner 11.08.2026). Die Regel darunter bleibt in
+	   beiden Faellen dieselbe: die letzte Zelle ist die aktive und liegt auf der Kachel. */
+	grid-template-columns: repeat(6, auto);
+	gap: 6px;
+	border: 1px solid var(--color-border-strong);
+	border-radius: var(--radius-sm);
+	background: var(--color-panel);
+	box-shadow: var(--shadow-panel);
+	/* ⚠️ `display` laesst sich nicht ueberblenden -- das Raster wird deshalb erst sichtbar
+	   geschaltet und im naechsten Bild angeblendet (js/ui/map-layer-picker.js). Ohne diesen
+	   Umweg spraenge es ohne Blende ins Bild.
+	   💣 AN DER HUELLE WERDEN `opacity` UND `transform` NICHT ANIMIERT. Beides machte die aktive
+	   Zelle als KIND unweigerlich mit, und ausgerechnet die sitzt auf dem Fleck der zugeklappten
+	   Kachel. Es hat den Fehler ZWEIMAL gegeben: erst als Bewegung (der Knopf „wackelte" beim
+	   Aufklappen, Owner 12.08.2026), dann als Deckkraft (er blinkte weg und wieder her --
+	   gemessen: Kachel `display: none` UND Raster `opacity: 0` im selben Augenblick, der Fleck
+	   also leer, beim Zuklappen sogar 140 ms lang). Diese beiden bleiben deshalb den Zellen
+	   vorbehalten, und die aktive ist von beidem ausgenommen.
+
+	   🔴 DAS AUFROLLEN IST DIE AUSNAHME, UND NUR WEIL `clip-path` KEINS VON BEIDEN IST (Owner
+	   15.08.2026: „C aber auch mit mouse over"). Es verschiebt nichts und blendet nichts -- es
+	   gibt frei. Die aktive Zelle liegt im rechten Ende, das schon im Startwert UNbeschnitten
+	   ist: sie steht vom ersten bis zum letzten Bild unveraendert auf ihrem Fleck, genau wie
+	   bisher. Vorher war der Kasten das einzige, was NICHT animiert war -- und weil er das
+	   Groesste im Bild ist, las sich das Aufklappen trotz Blende als Schnitt (Owner 15.08.2026:
+	   „hat keine richtig animation").
+	   💣 Der Startwert MUSS `--map-layer-tile` sein, nie eine abgeschriebene 78: er ist die
+	   Silhouette der zugeklappten Kachel. Stimmt er nicht, springt der Wisch beim Start.
+	   💣 Die drei negativen Seiten lassen den Schatten heraus (`--shadow-panel` reicht 32px nach
+	   unten). Buendig beschnitten verloere der Kasten seinen Schatten fuer die Dauer der
+	   Bewegung -- und beim Zuklappen kaeme er am Ende schlagartig zurueck.
+	   ⚠️ Zuklappen ist KUERZER als Aufklappen (110 gegen 150 ms), deshalb steht der Uebergang
+	   zweimal da: hier gilt er dem Weg ZU, in `.is-open` dem Weg AUF. Wer ihn nur hier setzt,
+	   bekommt beide Richtungen gleich lang -- und wer ihn nur dort setzt, bekommt gar kein
+	   Zuklappen, sondern einen Sprung. */
+	clip-path: inset(-40px -40px -40px calc(100% - var(--map-layer-tile)) round var(--radius-sm));
+	transition: clip-path 110ms cubic-bezier(0.4, 0, 1, 1);
+}
+
+/* ⚠️ NACH der Grundregel: gleiche Spezifitaet, die spaetere gewinnt. */
+.map-layer-picker__menu.is-open {
+	clip-path: inset(-40px -40px -40px 0 round var(--radius-sm));
+	transition: clip-path 150ms cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+
+/* Die uebrigen fuenf blenden auf und schieben sich herein -- sie kommen ja aus dem Nichts. */
+.map-layer-picker__menu .map-layer-picker__cell {
+	opacity: 0;
+	transform: translateY(4px);
+	transition: opacity 110ms ease, transform 110ms ease;
+}
+
+.map-layer-picker__menu.is-open .map-layer-picker__cell {
+	opacity: 1;
+	transform: none;
+}
+
+/* 💣 GEZAEHLT WIRD VON HINTEN, weil vorn nichts Festes steht: die aktive Ansicht ist immer die
+   LETZTE Zelle, ihre Stelle in der Reihe wechselt aber mit jeder Auswahl (map-layer-picker.js
+   haengt sie zuletzt an, die uebrigen davor in ihrer Reihenfolge). `:nth-last-child(2)` ist
+   damit immer die Nachbarin der Kachel, egal welche Ansicht eingestellt ist -- die Staffelung
+   laeuft von der Kachel nach aussen und nie umgekehrt. Von VORN gezaehlt liefe sie bei „Nur
+   Karte" richtig herum und bei „Landschaften" rueckwaerts.
+   ⚠️ Die Verzoegerung steht NUR am `.is-open`-Zweig: beim Zuklappen gehen alle gemeinsam, sonst
+   haengt die letzte Zelle der Kachel hinterher, die laengst wieder da ist. */
+/* ⚠️ 20 ms Abstand, nicht 40 (Owner 15.08.2026: „die animation ist zu langsam"). Die letzte
+   Zelle beginnt damit nach 100 ms und ist nach 210 fertig -- knapp NACH dem Wisch (150 ms), so
+   dass die Staffelung noch zu sehen ist und nicht laenger dauert als das Aufrollen selbst. */
+.map-layer-picker__menu.is-open .map-layer-picker__cell:nth-last-child(2) { transition-delay: 20ms; }
+.map-layer-picker__menu.is-open .map-layer-picker__cell:nth-last-child(3) { transition-delay: 40ms; }
+.map-layer-picker__menu.is-open .map-layer-picker__cell:nth-last-child(4) { transition-delay: 60ms; }
+.map-layer-picker__menu.is-open .map-layer-picker__cell:nth-last-child(5) { transition-delay: 80ms; }
+.map-layer-picker__menu.is-open .map-layer-picker__cell:nth-last-child(6) { transition-delay: 100ms; }
+
+/* 💣 Die aktive Zelle NIE, in keiner der beiden Eigenschaften. Sie ist dieselbe Stelle wie die
+   zugeklappte Kachel: was sich dort bewegt, liest sich als wackelnder Knopf -- und was dort
+   verschwindet und wiederkommt, als Flackern. Sie steht von der ersten bis zur letzten
+   Millisekunde unveraendert da, und genau das laesst das Ganze wie ein Auffalten aussehen. */
+.map-layer-picker__menu .map-layer-picker__cell.is-active {
+	opacity: 1;
+	transform: none;
+	transition: none;
+}
+
+/* ⚠️ Muss NACH der display-Regel stehen: `[hidden]` allein verliert gegen `display: grid`. */
+.map-layer-picker__menu[hidden] {
+	display: none;
+}
+
+/* ⚠️ Die Deckkraft wird nicht auf 1 gezwungen: das erledigt `.is-open`, und ohne Uebergang ist
+   es ein Sprung statt einer Blende. Genau das will dieser Block. Er nennt deshalb die Zellen
+   (Blende, Bewegung, Staffelung) UND die Huelle (das Aufrollen) -- seit dem 15.08.2026 wird an
+   beiden etwas animiert. */
+@media (prefers-reduced-motion: reduce) {
+	.map-layer-picker__menu .map-layer-picker__cell {
+		transition: none;
+		transform: none;
+	}
+	.map-layer-picker__menu.is-open .map-layer-picker__cell {
+		transition-delay: 0s;
+	}
+	/* ⚠️ Der Beschnitt faellt GANZ weg, er wird nicht bloss nicht animiert: bliebe der Startwert
+	   stehen, zeigte das Raster fuer immer nur seine rechte Kachelbreite. */
+	.map-layer-picker__menu,
+	.map-layer-picker__menu.is-open {
+		clip-path: none;
+		transition: none;
+	}
+}
+
+/* 437px braucht die Reihe. Unterhalb davon bricht sie auf 2x3 (221px) -- eine Form, zwei
+   Aufteilungen, kein zweiter Bauplan. */
+@media (max-width: 560px) {
+	.map-layer-picker__menu {
+		grid-template-columns: repeat(3, auto);
+	}
+	/* 💣 KEIN Aufrollen am Telefon. Der Wisch gibt eine SENKRECHTE Kante frei -- bei EINER Reihe
+	   ist das genau die Kachelsilhouette, bei 2x3 waere es ein Streifen ueber die volle Hoehe,
+	   also beide Zellen der rechten Spalte auf einmal. Er begaenne dann nicht auf der Kachel,
+	   sondern auf ihr UND der Zelle darueber -- und damit faellt der einzige Grund weg, aus dem
+	   er ueberhaupt erlaubt ist. Die Staffelung bleibt und traegt hier allein: sie zaehlt von der
+	   aktiven Zelle rueckwaerts und laeuft im Raster von unten rechts nach oben links, was
+	   dieselbe Bewegung erzaehlt.
+	   ⚠️ Das Ueberfahren gibt es hier ohnehin nicht (`hover: hover` UND `pointer: fine`). */
+	.map-layer-picker__menu,
+	.map-layer-picker__menu.is-open {
+		clip-path: none;
+		transition: none;
+	}
+}
+
+/* Eine Zelle sieht zugeklappt wie aufgeklappt gleich aus -- sonst spraenge das Bild beim Klick. */
+.map-layer-picker__cell {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 3px;
+	/* 66, nicht 60: „Landschaften" ist das laengste der sechs Woerter und wurde bei 60 als
+	   „Landschaft…" abgeschnitten. Die Zahl haengt also am Wort, nicht am Bild (das bleibt 48).
+	   Die Reihe misst damit 438px am Zeiger, das Raster 222px am Telefon -- beides passt.
+	   💣 Der Wert steht als `--map-layer-cell` an der Huelle, weil das Aufrollen ihn mitliest. */
+	width: var(--map-layer-cell);
+	padding: 0;
+	border: 0;
+	background: none;
+	color: var(--color-text-muted);
+	font-family: inherit;
+	font-size: 10px;
+	line-height: 1.15;
+	cursor: pointer;
+}
+
+.map-layer-picker__thumb {
+	display: block;
+	width: 48px;
+	height: 48px;
+	border: 2px solid transparent;
+	border-radius: var(--radius-sm);
+	overflow: hidden;
+}
+
+.map-layer-picker__thumb img {
+	display: block;
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+}
+
+.map-layer-picker__label {
+	display: block;
+	width: 100%;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.map-layer-picker__menu .map-layer-picker__cell:hover .map-layer-picker__thumb,
+.map-layer-picker__menu .map-layer-picker__cell:focus-visible .map-layer-picker__thumb {
+	border-color: var(--color-border-strong);
+}
+
+.map-layer-picker__cell:focus-visible {
+	outline: none;
+}
+
+.map-layer-picker__cell.is-active .map-layer-picker__thumb {
+	border-color: var(--color-link);
+}
+
+.map-layer-picker__cell.is-active .map-layer-picker__label {
+	color: var(--color-link);
+}
+
+/* Aufgeklappt traegt die Kachel denselben Schimmer wie ein ueberfahrener Eckknopf -- sie ist
+   der offene Schalter, nicht ein zweiter Zustand mit eigenem Aussehen. */
+#map-layer-button[aria-expanded="true"] {
+	background-color: var(--color-panel);
+	background-image: linear-gradient(var(--color-hover-wash), var(--color-hover-wash));
+}
+
+
+/* ===== nur fuer dieses Mockup ===== */
+:root {
+	--map-layer-cell: 66px;
+	--map-layer-tile: calc(var(--map-layer-cell) + 12px);
+}
+body {
+	margin: 0;
+	padding: 24px 20px 96px;
+	background: var(--color-page-bg);
+	color: var(--color-text);
+	font-family: var(--font-ui);
+	font-size: var(--font-size-body);
+	line-height: 1.5;
+}
+.mk-kopf { max-width: 1060px; margin: 0 auto 24px; }
+h1 { font-size: var(--font-size-title); margin: 0 0 6px; }
+h2 { font-size: var(--font-size-subhead); margin: 0 0 4px; }
+.mk-lead { max-width: 70ch; margin: 0 0 6px; }
+.mk-dim { color: var(--color-text-muted); font-size: var(--font-size-small); }
+
+.mk-bar { display: flex; gap: 8px; align-items: center; margin: 14px 0 0; flex-wrap: wrap; }
+.mk-btn {
+	font: inherit; font-size: var(--font-size-small);
+	padding: 6px 12px; border-radius: var(--radius-md);
+	border: 1px solid var(--color-button-soft-border); background: var(--color-button-soft);
+	color: var(--color-text); cursor: pointer;
+}
+.mk-btn[aria-pressed="true"] { background: var(--color-button); color: var(--color-button-text); border-color: transparent; }
+
+.mk-karten { max-width: 1060px; margin: 0 auto; display: flex; flex-direction: column; gap: 22px; }
+.mk-karte {
+	background: var(--color-panel); border-radius: var(--radius-md);
+	padding: 18px 20px 20px; border: 1px solid var(--color-divider);
+}
+.mk-karte__kopf { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin-bottom: 2px; }
+.mk-tag {
+	font-size: var(--font-size-caption); padding: 2px 8px; border-radius: var(--radius-sm);
+	background: var(--color-panel-muted); color: var(--color-text-muted);
+}
+.mk-tag--idee { background: var(--color-link); color: var(--color-panel); }
+.mk-tag--tipp { background: var(--color-accent-brown); color: var(--color-panel); }
+
+/* 🔴 Die Buehne bildet die ECHTE Ecke nach: der Bund haengt UNTEN RECHTS und waechst nach oben,
+   genau wie #map-corner-actions (position: fixed, right, bottom, flex-column, align-items: end). */
+.mk-ecke {
+	margin: 14px 0 12px;
+	border-radius: var(--radius-sm);
+	background-size: 256px 256px;
+	min-height: 380px;
+	padding: 14px;
+	display: flex; flex-direction: column;
+	align-items: flex-end;
+	justify-content: flex-end;
+	gap: 6px;
+	position: relative;
+}
+/* Die beiden Verweise unter der Kachel -- sie zeigen, dass der Bund nach OBEN waechst. */
+.mk-ecke__verweise { display: flex; gap: 6px; }
+.mk-ecke__verweise span {
+	background: var(--color-panel); border: 1px solid var(--color-border-strong);
+	border-radius: var(--radius-sm); padding: 5px 10px;
+	font-size: var(--font-size-caption); color: var(--color-text);
+}
+/* Die Telefon-Lage: 375px breit, wie das kleinste uebliche Geraet. Die Buehne bleibt
+   rechtsbuendig, damit der Bund dort steht, wo er auch am Telefon steht. */
+.mk-ecke--telefon { max-width: 375px; margin-left: auto; }
+.mk-ecke__hinweis {
+	position: absolute; left: 14px; top: 14px; max-width: 32ch;
+	background: var(--color-panel-translucent); color: var(--color-text-muted);
+	font-size: var(--font-size-caption); padding: 6px 9px; border-radius: var(--radius-sm);
+}
+
+/* Die zwei Stufen stehen uebereinander: das Ansichts-Raster im Fluss, die Untergrund-Reihe
+   DARUEBER -- wie das Anzeige-Menue nebenan, das ebenfalls mit 'bottom: 100%' nach oben geht. */
+.mk-stufen { position: relative; display: flex; flex-direction: column; align-items: flex-end; }
+
+/* 🔴 DIE TEILUNG. Das Untermenue faehrt als EINE Kachelbreite aus der Ansichtszelle heraus und
+   faechert sich in seine Optionen auf. Getragen von 'clip-path' -- derselbe Grund wie beim
+   Aufrollen des Hauptrasters: es verschiebt nicht und blendet nicht, und die Zellen darin
+   behalten ihre eigene Staffelung.
+   💣 Die Startbreite ist --map-layer-tile (die Silhouette EINER Kachel), nie eine abgeschriebene
+   Zahl -- waechst das laengste Wort, waechst die Zelle, und der Spalt begaenne sonst daneben.
+   💣 Die Mitte des Spalts setzt das JS als --mk-spalt aus der Lage der Quellzelle: die Reihe
+   teilt sich GENAU ueber der Ansicht, auf der der Zeiger steht, nicht in ihrer eigenen Mitte. */
+.mk-unterreihe {
+	position: absolute;
+	bottom: calc(100% + 6px);
+	margin: 0;
+	--mk-spalt: 50%;
+	clip-path: inset(-40px calc(100% - var(--mk-spalt) - var(--map-layer-tile) / 2) -40px
+	                 calc(var(--mk-spalt) - var(--map-layer-tile) / 2) round var(--radius-sm));
+	transition: clip-path 110ms cubic-bezier(0.4, 0, 1, 1);
+}
+.mk-unterreihe.is-open {
+	clip-path: inset(-40px 0 -40px 0 round var(--radius-sm));
+	/* ⚠️ 'left' NUR hier, nicht in der Grundregel: beim ersten Oeffnen soll die Reihe an ihrer
+	   Stelle erscheinen, nicht von links hereinfahren. Offen traegt derselbe Wert das Wandern
+	   von einer Ansicht zur naechsten. */
+	transition: clip-path 190ms cubic-bezier(0.22, 0.61, 0.36, 1), left 160ms cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+/* Die Zellen der zweiten Stufe blenden von der Teilungsstelle nach aussen auf. Anders als beim
+   Hauptraster wird von VORN gezaehlt: hier gibt es keine aktive Zelle, die auf dem Fleck der
+   zugeklappten Kachel liegen muesste. */
+.mk-unterreihe .map-layer-picker__cell { opacity: 0; transform: translateY(3px); transition: opacity 110ms ease, transform 110ms ease; }
+.mk-unterreihe.is-open .map-layer-picker__cell { opacity: 1; transform: none; }
+.mk-unterreihe.is-open .map-layer-picker__cell:nth-child(2) { transition-delay: 25ms; }
+.mk-unterreihe.is-open .map-layer-picker__cell:nth-child(3) { transition-delay: 50ms; }
+.mk-unterreihe.is-open .map-layer-picker__cell:nth-child(4) { transition-delay: 75ms; }
+.mk-unterreihe .map-layer-picker__thumb img { object-fit: cover; }
+
+/* 🔴 DIESELBE Markierung wie im Hauptmenue -- nur lesbar gemacht, keine zweite Formensprache.
+   Die aktive Zelle traegt schon 2px in --color-link (geteilte Regel, greift hier ebenso).
+   Aber die Untergrund-Kacheln sind ECHTE Kartenausschnitte: auf Gruen, Blau und Braun geht ein
+   goldbrauner Rand unter, waehrend er auf den ruhigeren Ansichts-Symbolen sofort auffaellt
+   (Owner 26.08.2026: "markier auch deutlich die auswahl im untermenue").
+   💣 Der helle Ring MUSS zwischen Bild und Goldring liegen, nicht aussen: er trennt die Marke vom
+   Bild. Aussen herum wuerde er sie gegen das Panel abgrenzen, wo es gar kein Problem gibt.
+   ⚠️ 2 + 2 = 4px nach aussen, bei 6px Spalte bleiben 2px Luft zur Nachbarzelle. */
+/* ⚠️ Der Trennstrich liegt INNEN, zwischen Bild und Goldrand -- nicht aussen. Aussen wuerde er
+   die Marke gegen das Panel abgrenzen, wo es gar kein Problem gibt; das Problem ist das BILD.
+   Aufbau jetzt: Bild -> 1px hell -> 2px Gold. Vorher lag ein Gold-Hell-Gold-Aufbau von 6px
+   um die Kachel, und der schob die Marke sichtbar vom Bild weg (Owner 26.08.2026).
+   💣 Als Pseudo-Element, nicht als 'inset'-Schatten: das Bild fuellt den Thumb ganz aus und
+   deckt einen Innenschatten zu. */
+.mk-unterreihe .map-layer-picker__thumb { position: relative; }
+
+/* Der Vektor liegt UEBER dem Untergrund und fuellt die Kachel genau aus. */
+.map-layer-picker__thumb { position: relative; }
+.mk-overlay { position: absolute; inset: 0; width: 100%; height: 100%; display: block; pointer-events: none; }
+.mk-unterreihe .map-layer-picker__cell.is-active .map-layer-picker__thumb::before {
+	content: "";
+	position: absolute;
+	inset: 0;
+	z-index: 1;
+	border: 1px solid var(--color-panel);
+	border-radius: inherit;
+	pointer-events: none;
+}
+/* Und der Name sagt es noch einmal -- fuer den Fall, dass die Kachel selbst goldbraune Stellen
+   hat (Wueste, Steppe), wo auch der Ring nicht sicher traegt. */
+.mk-unterreihe .map-layer-picker__cell.is-active .map-layer-picker__label {
+	color: var(--color-link);
+	font-weight: 600;
+}
+
+/* 💣 DIE LUECKE IST DER FEHLER, NICHT DIE ZEIT. Zwischen Ansichtsreihe und Untermenue liegen
+   6px; wer hochfaehrt, ist fuer einen Moment ueber NICHTS, und ein mouseleave dort nimmt die
+   Stufe weg, die der Benutzer gerade ansteuert (Owner 26.08.2026: "ziemlich empfindlich").
+   Die Bruecke gehoert zur Unterreihe, ueberdeckt die Luecke und ist unsichtbar -- der Weg nach
+   oben ist damit lueckenlos.
+   ⚠️ Sie liegt INNERHALB des clip-path-Ueberhangs (-40px), wird also nicht weggeschnitten. */
+.mk-unterreihe::after {
+	content: "";
+	position: absolute;
+	left: 0; right: 0; bottom: -10px; height: 10px;
+}
+
+/* Die Ansicht, aus der die zweite Stufe herausfaehrt, ist markiert -- sonst ist nicht zu sehen,
+   wozu die Reihe darueber gehoert. */
+.mk-quelle .map-layer-picker__thumb { outline: 2px solid var(--color-accent-brown); outline-offset: 1px; }
+
+/* 🔴 Mehr Luft zwischen Rahmen und Beschriftung (Owner 26.08.2026). Die Zelle ist GETEILT, das
+   gilt also beiden Menues -- so soll es sein, sonst stuenden zwei Abstaende nebeneinander.
+   ⚠️ Im Produktivcode gehoert der Wert in die Regel in css/components/map-layer-picker.css
+   (dort steht heute gap: 3px), nicht als Sonderregel daneben. */
+/* 💣 DIE OPTIK DER ZUGEKLAPPTEN KACHEL HAENGT AN EINER ID -- #map-layer-button, und zwar in ZWEI
+   Dateien: das Innenmass in map-layer-picker.css (display/padding), Farbe, Kontur, Radius und
+   Schatten in der Eckknoepfe-Regel in legal-dialog.css. Ein Mockup, das die KLASSE benutzt, trifft
+   davon nichts: es zeigte den grauen Standard-Button des Browsers, und weil das Padding fehlte,
+   sass die Kachel 10px enger als das Raster und sprang beim Aufklappen (Owner 26.08.2026).
+   Hier als Klasse nachgezogen, mit denselben Werten.
+   🔴 DAS IST ZUGLEICH EIN BEFUND FUER DEN BAU: das Menue soll kuenftig mehrfach vorkommen koennen
+   (Karte, Editoren). Eine ID traegt genau ein Vorkommen -- die Regeln gehoeren an die Klasse,
+   sonst ist das zweite Menue wieder grau.
+   💣 Die 5px sind KEINE freie Zahl: Kachel und Raster tragen dieselbe Polsterung und denselben
+   1px-Rahmen, nur dadurch enden beide an derselben Kante und die aktive Zelle faellt auf den
+   Fleck der Kachel. Wer eine der beiden aendert, aendert beide. */
+.map-layer-picker__tile {
+	display: block;
+	padding: 5px;
+	border: 1px solid var(--color-border-strong);
+	border-radius: var(--radius-sm);
+	background: var(--color-panel);
+	color: var(--color-text);
+	box-shadow: var(--shadow-panel);
+	font: inherit;
+	cursor: pointer;
+}
+/* 💣 UND DER RIEGEL DAZU. 'display: block' schlaegt das hidden-Attribut, also blieb die Kachel
+   beim Aufklappen im Fluss STEHEN und schob das Raster um ihre eigene Hoehe nach oben -- gemessen
+   49px gegen 130px von der Unterkante (Owner 26.08.2026: "wenn ich mit der maus drueber geh,
+   veraendert die grafik ihre position").
+   ⚠️ Im Produktivcode faengt das ein GLOBALER Riegel in css/base/reset.css ([hidden] mit !important).
+   Das Mockup laedt nur tokens.css und map-layer-picker.css -- ohne diese Zeile fehlt er hier.
+   Dieselbe Falle steht als Warnung an .map-layer-picker__menu[hidden] im echten Stylesheet:
+   "Muss NACH der display-Regel stehen: [hidden] allein verliert gegen display: grid." */
+.map-layer-picker__tile[hidden] { display: none; }
+.map-layer-picker__cell { cursor: pointer; gap: 6px; }
+
+/* Die zweite Zeile -- der Untergrund unter dem Ansichtsnamen.
+   🔴 VOLL DECKEND, aber in EIGENER FARBE (Owner 26.08.2026): --color-link ist im Menue ohnehin die
+   Farbe des Gewaehlten (sie traegt den Rand der aktiven Zelle). Damit gehoert die Zeile sichtbar
+   zur Auswahl, statt nur eine blasse Variante des Namens zu sein.
+   ⚠️ Vorher stand hier opacity .5 -- gemessen 2,09:1 im hellen Thema, also unter jeder Lesbarkeits-
+   schwelle. Bei voller Deckkraft traegt die Farbe den Unterschied, nicht die Blaesse. */
+.mk-zweite-zeile {
+	margin-top: -3px;
+	font-size: var(--font-size-caption);
+	color: var(--color-link);
+	opacity: 1;
+}
+
+/* 🔴 UND SIE BLENDET AUS, SOBALD DAS MENUE AUFKLAPPT (Owner 26.08.2026). Das ist nicht nur Optik:
+   im offenen Menue waehlt man den Untergrund in der zweiten Stufe -- die Auskunft in der Zeile
+   waere dort veraltet, kaum dass man hinsieht.
+   ⭐ Es braucht dafuer KEINEN Zustand im JS: die Zeile sitzt in den Menuezellen, und '.is-open'
+   kommt erst im naechsten Bild (das Menue braucht das ohnehin fuer sein Aufrollen). Sie startet
+   also bei 1 und blendet von selbst auf 0 -- der Uebergang faellt gratis ab.
+   ⚠️ Damit loest sich auch die Frage nach den vier LEEREN Zeilen: offen ist die Zeile ueberall
+   unsichtbar, die aktive Zelle bildet keine Ausnahme mehr. Der Platz bleibt reserviert, damit die
+   Kachel beim Aufklappen nicht springt. */
+.map-layer-picker__menu .mk-zweite-zeile {
+	opacity: 1;
+	transition: opacity 150ms ease;
+}
+.map-layer-picker__menu.is-open .mk-zweite-zeile {
+	opacity: 0;
+}
+.mk-gut, .mk-schlecht { margin: 2px 0; padding-left: 20px; position: relative; font-size: var(--font-size-small); }
+.mk-gut::before  { content: "+"; position: absolute; left: 6px; color: var(--color-accent-brown); font-weight: 700; }
+.mk-schlecht::before { content: "−"; position: absolute; left: 6px; color: var(--color-text-muted); font-weight: 700; }
+
+.mk-stand {
+	font-size: var(--font-size-caption); color: var(--color-text-muted);
+	margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--color-divider);
+}
+.mk-stand b { color: var(--color-text); font-weight: 600; }
+
+.mk-grundvergleich { display: flex; gap: 16px; flex-wrap: wrap; margin-top: 12px; }
+.mk-probe { width: 256px; }
+.mk-probe img { width: 256px; height: 256px; display: block; border-radius: var(--radius-sm); }
+.mk-probe figcaption { font-size: var(--font-size-caption); color: var(--color-text-muted); margin-top: 6px; }
+.mk-probe b { color: var(--color-text); }
+.mk-probe--aus { opacity: .5; }
+</style>
+</head>
+<body>
+
+<div class="mk-kopf">
+	<h1>Ansicht × Untergrund — wie es sich anfühlt</h1>
+	<p class="mk-lead">Der Bund hängt <b>unten rechts</b> und wächst nach oben, wie in der echten
+	Kartenecke. Beide Menüs sind bedienbar und benutzen die Zeiten des heutigen Pickers:
+	140 ms bis zum Aufklappen beim Überfahren, 260 ms Nachlauf,
+	Aufrollen per <code>clip-path</code>. <b>Mit der Maus hinfahren</b> — nicht klicken.</p>
+	<div class="mk-bar">
+		<button class="mk-btn" type="button" id="mk-thema" aria-pressed="false">Dunkles Thema</button>
+		<button class="mk-btn" type="button" id="mk-rolle" aria-pressed="false">Rolle: Besucher</button>
+		<button class="mk-btn" type="button" id="mk-langsam" aria-pressed="false">Zeitlupe (4×)</button>
+		<button class="mk-btn" type="button" id="mk-telefon" aria-pressed="false">Telefon (375 px)</button>
+		<span class="mk-dim">„Old“ sieht nur der Editor. Am Telefon trägt allein der Tipp: erster Tipp öffnet, zweiter wählt.</span>
+	</div>
+</div>
+
+<div class="mk-karten">
+
+	<section class="mk-karte" id="mk-e">
+		<div class="mk-karte__kopf"><h2>E — Untermenü fährt nach oben heraus und teilt sich</h2><span class="mk-tag mk-tag--idee">deine Idee</span></div>
+		<p class="mk-lead">Überfahren öffnet die Ansichten. Bleibt der Zeiger auf einer Ansicht,
+		fährt darüber ein Untermenü heraus — es beginnt als <b>eine Kachelbreite genau über dieser
+		Ansicht</b> und teilt sich dann in die Untergründe auf. Ein Klick darin wählt <b>beides</b>.</p>
+		<div class="mk-ecke" data-ecke="e"></div>
+		<p class="mk-gut">Eine Bewegung für eine Kombination: hinfahren, hochfahren, klicken.</p>
+		<p class="mk-gut">Die Teilung sagt selbst, wozu die Reihe gehört — sie kommt sichtbar aus der Ansicht heraus.</p>
+		<p class="mk-gut">Dieselbe Formensprache eine Ebene tiefer: die Kachel faltet sich in die Ansichten, die Ansicht in ihre Untergründe.</p>
+		<p class="mk-gut">Wächst die Zahl der Untergründe, wächst nur die Breite dieser einen Reihe.</p>
+		<p class="mk-schlecht">Ein zweiter Offen-Zustand — daran hing dieses Menü schon zweimal.</p>
+		<p class="mk-schlecht">Am Telefon gibt es kein Überfahren; dort muss ein Tipp auf eine Ansicht sie <i>öffnen</i> statt sie zu <i>wählen</i>.</p>
+		<div class="mk-stand" data-stand="e"></div>
+	</section>
+
+	<section class="mk-karte" id="mk-a">
+		<div class="mk-karte__kopf"><h2>A — Beide Reihen zugleich</h2><span class="mk-tag mk-tag--tipp">zum Vergleich</span></div>
+		<p class="mk-lead">Überfahren öffnet beide Reihen auf einmal. Keine zweite Stufe.</p>
+		<div class="mk-ecke" data-ecke="a"></div>
+		<p class="mk-gut">Nur ein Offen-Zustand, überall dieselbe Geste.</p>
+		<p class="mk-schlecht">Zwei Klicks, wenn beides wechseln soll — und der Kasten ist immer eine Reihe höher.</p>
+		<div class="mk-stand" data-stand="a"></div>
+	</section>
+
+	<section class="mk-karte">
+		<div class="mk-karte__kopf"><h2>Worin sich die Untergründe unterscheiden</h2></div>
+		<p class="mk-lead mk-dim">Dieselbe Stelle der Karte. Das ist der Grund für die Editor-Regel.</p>
+		<div class="mk-grundvergleich" id="mk-proben"></div>
+	</section>
+
+</div>
+
+<script>
+const DATEN = {"ansichten":[{"wert":"deregraphic","name":"Standard","bild":"../icons/layer-tiles/deregraphic.webp","overlay":"<g fill=\"none\" stroke=\"#2b2119\" stroke-opacity=\".45\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M-2 17 C3 16.3 7.5 15.6 11.5 14.5\" stroke-width=\"4.5\"/><path d=\"M11.5 14.5 C9.6 9.9 7 5.2 4.5 0.5\" stroke-width=\"4\"/><path d=\"M11.5 14.5 C12.8 9.4 14 4.4 14.6 -2\" stroke-width=\"3.6\"/><path d=\"M11.5 14.5 C15.2 10.8 19.4 6.2 24 2\" stroke-width=\"3.6\"/><path d=\"M11.5 14.5 C18 16.4 24.4 17.7 30 18 C37 18.4 43 19 50 19.6\" stroke-width=\"5\"/><path d=\"M11.5 14.5 C17.6 20.4 28.4 29.8 40 39 C43 41.4 46 43.8 49.5 46.5\" stroke-width=\"4.5\"/><path d=\"M11.5 14.5 C10.4 21 8.6 27.4 7 34 C6.2 39.4 5.6 44.6 5 50\" stroke-width=\"4\"/><path d=\"M28 30 C27.4 36 26.6 43 26 50\" stroke-width=\"3\"/></g><g fill=\"none\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M-2 17 C3 16.3 7.5 15.6 11.5 14.5\" stroke=\"#efe3cb\" stroke-width=\"2.4\"/><path d=\"M11.5 14.5 C9.6 9.9 7 5.2 4.5 0.5\" stroke=\"#e4d6ba\" stroke-width=\"2\"/><path d=\"M11.5 14.5 C12.8 9.4 14 4.4 14.6 -2\" stroke=\"#e4d6ba\" stroke-width=\"1.8\"/><path d=\"M11.5 14.5 C15.2 10.8 19.4 6.2 24 2\" stroke=\"#d8c8a8\" stroke-width=\"1.8\"/><path d=\"M11.5 14.5 C18 16.4 24.4 17.7 30 18 C37 18.4 43 19 50 19.6\" stroke=\"#fdf8ee\" stroke-width=\"2.8\"/><path d=\"M11.5 14.5 C17.6 20.4 28.4 29.8 40 39 C43 41.4 46 43.8 49.5 46.5\" stroke=\"#efe3cb\" stroke-width=\"2.4\"/><path d=\"M11.5 14.5 C10.4 21 8.6 27.4 7 34 C6.2 39.4 5.6 44.6 5 50\" stroke=\"#e4d6ba\" stroke-width=\"2\"/><path d=\"M28 30 C27.4 36 26.6 43 26 50\" stroke=\"#cbbb9e\" stroke-width=\"1.3\" stroke-dasharray=\"2 2\"/></g><g fill=\"#cc2f2a\" stroke=\"#fff\"><circle cx=\"11.5\" cy=\"14.5\" r=\"3.6\" stroke-width=\"1.5\"/><circle cx=\"7\" cy=\"34\" r=\"2.1\" stroke-width=\"1.2\"/><circle cx=\"24\" cy=\"2\" r=\"1.9\" stroke-width=\"1.1\"/><circle cx=\"30\" cy=\"18\" r=\"1.7\" stroke-width=\"1\"/><circle cx=\"40\" cy=\"39\" r=\"1.7\" stroke-width=\"1\"/><circle cx=\"4.5\" cy=\"0.5\" r=\"1.5\" stroke-width=\"1\"/></g>","grundFilter":"","grundDeckkraft":0},{"wert":"political","name":"Politisch","bild":"../icons/layer-tiles/political.webp","overlay":"<path d=\"M0 0 H25 C23 13 29 19 25 29 L19 48 H0 Z\" fill=\"#a4543f\" fill-opacity=\".8\"/><path d=\"M25 0 H48 V19 C39 17 33 23 25 29 29 19 23 13 25 0 Z\" fill=\"#5b7a8c\" fill-opacity=\".8\"/><path d=\"M25 29 C33 23 39 17 48 19 V48 H19 Z\" fill=\"#8a7f4e\" fill-opacity=\".8\"/><g fill=\"none\" stroke=\"#d3d3d3\"><path d=\"M19 48 L25 29 C33 23 39 17 48 19\" stroke-width=\"2.4\"/><path d=\"M25 0 C23 13 29 19 25 29\" stroke-width=\"2.4\"/><path d=\"M25 29 L19 48\" stroke-width=\"1.2\" stroke-dasharray=\"3 2.5\" stroke-opacity=\".85\"/></g>","grundFilter":"","grundDeckkraft":0},{"wert":"powerlines","name":"Kraftlinien","bild":"../icons/layer-tiles/powerlines.webp","overlay":"<g fill=\"none\" stroke-linecap=\"round\"><g stroke=\"rgba(255,70,90,.42)\" stroke-width=\"6\"><path d=\"M-4 6 L15 17 L34 31 L54 40\"/><path d=\"M15 17 L21 -4\"/><path d=\"M15 17 L-4 27\"/><path d=\"M34 31 L54 20\"/><path d=\"M34 31 L28 52\"/></g><g stroke=\"rgba(255,105,130,.82)\" stroke-width=\"2.8\"><path d=\"M-4 6 L15 17 L34 31 L54 40\"/><path d=\"M15 17 L21 -4\"/><path d=\"M15 17 L-4 27\"/><path d=\"M34 31 L54 20\"/><path d=\"M34 31 L28 52\"/></g><g stroke=\"rgba(255,235,240,1)\" stroke-width=\"1\"><path d=\"M-4 6 L15 17 L34 31 L54 40\"/><path d=\"M15 17 L21 -4\"/><path d=\"M15 17 L-4 27\"/><path d=\"M34 31 L54 20\"/><path d=\"M34 31 L28 52\"/></g></g><g fill=\"rgba(255,70,90,.38)\"><circle cx=\"15\" cy=\"17\" r=\"6.5\"/><circle cx=\"34\" cy=\"31\" r=\"5.5\"/></g><g fill=\"rgba(255,105,130,.9)\"><circle cx=\"15\" cy=\"17\" r=\"3.6\"/><circle cx=\"34\" cy=\"31\" r=\"3\"/></g><g fill=\"rgba(255,235,240,1)\"><circle cx=\"15\" cy=\"17\" r=\"1.7\"/><circle cx=\"34\" cy=\"31\" r=\"1.4\"/></g>","grundFilter":"saturate(0.1) brightness(0.6)","grundDeckkraft":0},{"wert":"ecosystem","name":"Landschaften","bild":"../icons/layer-tiles/ecosystem.webp","overlay":"<path d=\"M0 22 C7 17 12 23 18 19 26 14 33 20 40 15 44 12 46 16 48 14 V30 C43 33 38 27 31 31 24 35 18 29 11 33 6 36 3 31 0 34 Z\" fill=\"#5f7d33\" fill-opacity=\".8\"/><path d=\"M0 34 C3 31 6 36 11 33 18 29 24 35 31 31 38 27 43 33 48 30 V40 C42 43 37 38 30 41 23 44 17 39 10 42 5 44 3 41 0 43 Z\" fill=\"#a8bd8a\" fill-opacity=\".78\"/><g fill=\"#3f6b2c\" fill-opacity=\".85\"><path d=\"M2 3 C6 0 11 1 13 4 15 8 11 11 7 10 3 9 0 6 2 3 Z\"/><path d=\"M30 2 C35 0 40 2 41 6 42 10 37 12 33 10 29 8 27 4 30 2 Z\"/><path d=\"M36 20 C41 18 46 21 46 25 46 29 41 30 38 27 35 25 33 22 36 20 Z\"/><path d=\"M13 24 C17 22 21 24 21 27 21 30 17 31 15 29 12 27 11 25 13 24 Z\"/><path d=\"M22 41 C27 39 32 41 32 45 32 48 27 48 24 47 21 45 20 42 22 41 Z\"/></g><g fill=\"#7a6c5e\" fill-opacity=\".8\"><path d=\"M0 44 C4 40 8 45 13 42 18 39 22 44 26 42 L28 48 H0 Z\"/></g><path d=\"M40 44 C43 41 46 44 48 42 V48 H38 Z\" fill=\"#7d8f6e\" fill-opacity=\".78\"/><g fill=\"#4a86b8\" fill-opacity=\".85\"><path d=\"M0 13 C6 12 10 15 16 15 24 15 32 17 48 18 V21 C32 20 24 18 16 18 10 18 6 16 0 16 Z\"/><ellipse cx=\"20\" cy=\"6\" rx=\"3.4\" ry=\"2\"/><ellipse cx=\"27\" cy=\"9\" rx=\"2.6\" ry=\"1.6\"/></g>","grundFilter":"","grundDeckkraft":0.25},{"wert":"none","name":"Nur Karte","bild":"../icons/layer-tiles/none.webp","overlay":"","grundFilter":"","grundDeckkraft":0}],"untergruende":[{"wert":"old","name":"Old","bild":"../tiles/old/3/map_17_-17.webp","nurEditor":true,"labels":true},{"wert":"original","name":"Original","bild":"../tiles/original/3/map_17_-17.webp","nurEditor":false,"labels":false},{"wert":"stylized","name":"Modern","bild":"../tiles/stylized/3/map_17_-17.webp","nurEditor":false,"labels":false}],"zeiten":{"auf":140,"zu":260,"blende":130}};
+let istEditor = false;
+let zeitlupe = 1;
+let amTelefon = false;
+
+function untergruende() {
+	return DATEN.untergruende.filter((g) => istEditor || !g.nurEditor);
+}
+
+/**
+ * Eine Zelle. 'grundBild' ist der Untergrund, der DARUNTER liegen soll -- bei einer Ansichtszelle
+ * also der gerade gewaehlte Kachelsatz. Traegt der Eintrag ein 'overlay', wird es darueber gelegt.
+ * 🔴 Genau hier steckt die Antwort auf "was sehe ich bei Kraftlinien x Original": die Kachel zeigt
+ * die ECHTE Kreuzung, weil sie sie zusammensetzt statt sie als fertiges Bild zu erwarten.
+ */
+function zelle(eintrag, aktiv, grundBild) {
+	const knopf = document.createElement("button");
+	knopf.type = "button";
+	knopf.className = "map-layer-picker__cell" + (aktiv ? " is-active" : "");
+	knopf.dataset.wert = eintrag.wert;
+	const huelle = document.createElement("span");
+	huelle.className = "map-layer-picker__thumb";
+	const img = document.createElement("img");
+	img.src = grundBild || eintrag.bild; img.alt = ""; img.width = 48; img.height = 48;
+	// 💣 Der Filter gehoert auf das BILD, nicht auf die Zelle: an der Zelle entsaettigte er den
+	// Vektor gleich mit, und die Kraftlinien waeren grau statt rosa -- also genau das Merkmal weg,
+	// das die Ansicht kenntlich macht.
+	if (eintrag.grundFilter) { img.style.filter = eintrag.grundFilter; }
+	// 💣 Abblenden heisst hier: durchscheinen lassen auf den Ausblendton der Ebene, nicht auf das
+	// Panel. Deshalb bekommt die Huelle den Ton als Hintergrund -- ohne ihn schiene die Panelfarbe
+	// durch und der Farbeindruck waere ein anderer als auf der Karte.
+	if (eintrag.grundDeckkraft) {
+		img.style.opacity = String(eintrag.grundDeckkraft);
+		huelle.style.background = "var(--color-ecosystem-underground)";
+	}
+	huelle.appendChild(img);
+	if (eintrag.overlay) {
+		const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+		svg.setAttribute("viewBox", "0 0 48 48");
+		svg.setAttribute("class", "mk-overlay");
+		svg.setAttribute("aria-hidden", "true");
+		svg.innerHTML = eintrag.overlay;
+		huelle.appendChild(svg);
+	}
+	const name = document.createElement("span");
+	name.className = "map-layer-picker__label";
+	name.textContent = eintrag.name;
+	knopf.appendChild(huelle); knopf.appendChild(name);
+	return knopf;
+}
+
+// 💣 Die aktive Zelle steht ZULETZT -- dieselbe Regel wie im echten Picker: nur so faellt sie beim
+// Aufklappen auf den Fleck der zugeklappten Kachel, ohne dass ein Versatz gerechnet wird.
+function aktivZuletzt(liste, aktiv) {
+	return liste.filter((e) => e.wert !== aktiv).concat(liste.filter((e) => e.wert === aktiv));
+}
+
+function baueDemo(art) {
+	const ecke = document.querySelector('[data-ecke="' + art + '"]');
+	const stand = document.querySelector('[data-stand="' + art + '"]');
+	const zustand = { ansicht: "deregraphic", grund: "stylized" };
+	let offen = false, festgehalten = false, schwebeTimer = null, blendeTimer = null, stufeTimer = null, stufeZwei = null;
+
+	const huelle = document.createElement("div");
+	huelle.className = "map-layer-picker";
+	const stufen = document.createElement("div");
+	stufen.className = "mk-stufen";
+	const unterreihe = document.createElement("div");
+	unterreihe.className = "map-layer-picker__menu mk-unterreihe";
+	unterreihe.hidden = true;
+	const menue = document.createElement("div");
+	menue.className = "map-layer-picker__menu";
+	menue.hidden = true;
+	const kachel = document.createElement("button");
+	kachel.type = "button";
+	kachel.className = "map-layer-picker__tile";
+	stufen.appendChild(unterreihe);
+	stufen.appendChild(menue);
+	huelle.appendChild(stufen);
+	huelle.appendChild(kachel);
+
+	const hinweis = document.createElement("p");
+	hinweis.className = "mk-ecke__hinweis";
+	const verweise = document.createElement("div");
+	verweise.className = "mk-ecke__verweise";
+	verweise.innerHTML = "<span>Neuigkeiten</span><span>Hinweise</span>";
+	ecke.appendChild(hinweis);
+	ecke.appendChild(huelle);
+	ecke.appendChild(verweise);
+
+	function zeichneKachel() {
+		const a = DATEN.ansichten.find((x) => x.wert === zustand.ansicht);
+		const g = untergruende().find((x) => x.wert === zustand.grund) || untergruende()[0];
+		kachel.innerHTML = "";
+		const z = zelle(a, false, g.bild);
+		z.tabIndex = -1;
+		// 💣 "Standard · Modern" passt NIE in eine Zeile: die Zelle ist 66px breit, gebunden
+		// an das laengste Ansichtswort. Deshalb ZWEI Zeilen -- Ansicht oben, Untergrund darunter
+		// gedaempft.
+		// 🪤 Die verworfene Alternative war ein Kuerzel (OLD/ORIG/STIL) auf dem Bild. Sie hielt die
+		// Kachel 15px flacher, verlangte aber, dass man drei Kuerzel lernt -- und "ORIG" gegen "OLD"
+		// ist auf den ersten Blick nicht auseinanderzuhalten. Owner 26.08.2026: "kuerzel sind hier
+		// doof". Nicht wieder einfuehren.
+		// ⚠️ Die zweite Zeile bekommen ALLE Zellen, im Raster leer. Nur so bleiben Kachel und aktive
+		// Zelle gleich hoch -- sonst springt die Kachel wieder, und genau das war eben erst behoben.
+		z.querySelector(".map-layer-picker__label").textContent = a.name;
+		const zwei = document.createElement("span");
+		zwei.className = "map-layer-picker__label mk-zweite-zeile";
+		zwei.textContent = g.name;
+		z.appendChild(zwei);
+		kachel.appendChild(z);
+	}
+
+	function zeichneMenue() {
+		menue.innerHTML = "";
+		// ⚠️ Der echte Picker stellt das per Media Query auf repeat(3, auto). Hier steht es im JS,
+		// weil die Buehne nicht der Viewport ist -- die ZAHL ist dieselbe.
+		menue.style.gridTemplateColumns = "repeat(" + (amTelefon ? 3 : DATEN.ansichten.length) + ", auto)";
+		// 🔴 Jede Ansichtszelle zeigt den GEWAEHLTEN Untergrund unter ihrem Vektor -- wechselt der
+		// Untergrund, wechselt das Bild aller fuenf Ansichten mit. Genau das konnte die alte
+		// Aufnahme nicht: sie trug ihren Untergrund eingebrannt.
+		const grund = untergruende().find((x) => x.wert === zustand.grund) || untergruende()[0];
+		aktivZuletzt(DATEN.ansichten, zustand.ansicht).forEach((a) => {
+			const k = zelle(a, a.wert === zustand.ansicht, grund.bild);
+			// Die zweite Zeile tragen ALLE Zellen -- gefuellt nur die aktive, denn sie ist die Kachel
+			// und darf beim Aufklappen ihren Text nicht wechseln. Sichtbar ist sie ohnehin keine:
+			// das CSS blendet sie im offenen Menue aus (.map-layer-picker__menu.is-open).
+			// ⚠️ Der Platz bleibt trotzdem stehen, sonst springt die Kachel.
+			const zweite = document.createElement("span");
+			zweite.className = "map-layer-picker__label mk-zweite-zeile";
+			zweite.innerHTML = a.wert === zustand.ansicht ? "" : "&nbsp;";
+			if (a.wert === zustand.ansicht) { zweite.textContent = grund.name; }
+			k.appendChild(zweite);
+			if (art === "e" && stufeZwei === a.wert) { k.classList.add("mk-quelle"); }
+			if (art === "e") {
+				// 💣 HIER STAND zeichneMenue() -- und das war der Animationsfehler: es warf alle fuenf
+				// Zellen weg und baute sie neu. Neue Zellen starten bei opacity 0, also blendete bei
+				// JEDEM Ueberfahren die ganze Reihe samt Staffelung erneut auf. Umgehaengt wird nur
+				// noch die Marke.
+				k.addEventListener("mouseenter", () => {
+					if (amTelefon || stufeZwei === a.wert) { return; }
+					stufeZwei = a.wert;
+					markiereQuelle();
+					oeffneStufeZwei();
+				});
+			}
+			k.addEventListener("click", () => {
+				festgehalten = true;
+				if (art !== "e") { zustand.ansicht = a.wert; zeichneAlles(); return; }
+				// 🔴 EIN KLICK HAELT DIE ZWEITE STUFE OFFEN (Owner 26.08.2026) -- er waehlt die
+				// Ansicht NICHT sofort. Erst der zweite Klick auf dieselbe Ansicht waehlt sie
+				// allein, mit dem eingestellten Untergrund. Ein Klick auf einen Untergrund waehlt
+				// beides.
+				// ⭐ Und genau daraus faellt das Telefon-Verhalten ab: ohne Ueberfahren ist
+				// stufeZwei anfangs leer, also OEFFNET der erste Tipp und der zweite waehlt --
+				// dasselbe Modell wie am Zeiger, kein zweiter Bedienweg.
+				if (stufeZwei === a.wert) { zustand.ansicht = a.wert; schliesse(); return; }
+				stufeZwei = a.wert;
+				markiereQuelle();
+				oeffneStufeZwei();
+			});
+			menue.appendChild(k);
+		});
+	}
+
+	/** Haengt nur die Marke um -- ohne eine einzige Zelle neu zu bauen. */
+	function markiereQuelle() {
+		menue.querySelectorAll(".map-layer-picker__cell").forEach((z) => {
+			z.classList.toggle("mk-quelle", art === "e" && z.dataset.wert === stufeZwei);
+		});
+	}
+
+	function zeichneUnterreihe() {
+		const liste = untergruende();
+		unterreihe.innerHTML = "";
+		unterreihe.style.gridTemplateColumns = "repeat(" + liste.length + ", auto)";
+		// ⚠️ Ohne aktivZuletzt: die zweite Stufe hat keine Kachel, auf deren Fleck etwas liegen muss.
+		liste.forEach((g) => {
+			const k = zelle(g, g.wert === zustand.grund);
+			k.addEventListener("click", () => {
+				// 🔴 In der zweiten Stufe waehlt ein Klick BEIDES -- das ist ihr eigentlicher Gewinn.
+				if (art === "e" && stufeZwei) { zustand.ansicht = stufeZwei; }
+				zustand.grund = g.wert;
+				// 🔴 UND DANN GEHT ES ZU (Owner 26.08.2026). Eine getroffene Auswahl schliesst das
+				// Menue -- genau wie im heutigen Picker, wo waehle() auf schliesse() endet. Offen
+				// stehenzubleiben hiesse: die Auswahl ist getroffen, aber das Menue verdeckt die
+				// Karte, an der man sie gerade pruefen will.
+				// ⚠️ Erst zeichnen, dann schliessen: die zugeklappte Kachel muss den NEUEN Stand
+				// tragen, sonst zeigt sie fuer die Dauer der Blende noch den alten.
+				zeichneAlles();
+				schliesse();
+			});
+			unterreihe.appendChild(k);
+		});
+	}
+
+	/** Legt die Reihe ueber die Quellzelle -- und klemmt sie am Rand des Bundes. */
+	function positioniereUnterreihe() {
+		const quelle = menue.querySelector('.map-layer-picker__cell[data-wert="' + stufeZwei + '"]');
+		if (!quelle) { return; }
+		const rS = stufen.getBoundingClientRect(), rQ = quelle.getBoundingClientRect();
+		const mitte = rQ.left + rQ.width / 2 - rS.left;
+		const breite = unterreihe.offsetWidth;
+		let links = mitte - breite / 2;
+		links = Math.max(0, Math.min(links, rS.width - breite));
+		unterreihe.style.left = Math.round(links) + "px";
+		unterreihe.style.right = "auto";
+		// 💣 Die Teilung beginnt an der QUELLZELLE, nicht in der Mitte der Reihe.
+		unterreihe.style.setProperty("--mk-spalt", Math.round(mitte - links) + "px");
+	}
+
+	/** Faehrt die zweite Stufe heraus -- oder laesst eine offene zur neuen Ansicht hinueberwandern. */
+	function oeffneStufeZwei() {
+		if (art !== "e" || !stufeZwei) { return; }
+		// 💣 Eine bereits offene Reihe wird NICHT geschlossen und neu aufgefaechert. Genau das sah
+		// kaputt aus: beim Wandern von einer Ansicht zur naechsten klappte sie jedes Mal komplett
+		// neu auf. Offen heisst: nur die Stelle wechselt, und 'left' traegt den Uebergang
+		// (die transition dafuer steht am .is-open-Zweig, damit das ERSTE Setzen springt).
+		const warOffen = !unterreihe.hidden && unterreihe.classList.contains("is-open");
+		if (warOffen) {
+			positioniereUnterreihe();
+			return;
+		}
+		zeichneUnterreihe();
+		unterreihe.hidden = false;
+		unterreihe.classList.remove("is-open");
+		positioniereUnterreihe();
+		window.requestAnimationFrame(() => unterreihe.classList.add("is-open"));
+	}
+
+	function schliesseStufeZwei() {
+		stufeZwei = null;
+		unterreihe.classList.remove("is-open");
+		window.setTimeout(() => { if (!stufeZwei) { unterreihe.hidden = true; } }, DATEN.zeiten.blende * zeitlupe);
+	}
+
+	function oeffne() {
+		window.clearTimeout(blendeTimer);
+		zeichneMenue();
+		offen = true;
+		menue.hidden = false;
+		kachel.hidden = true;
+		if (art === "a") {
+			zeichneUnterreihe();
+			unterreihe.hidden = false;
+			unterreihe.style.left = "auto";
+			unterreihe.style.right = "0";
+			unterreihe.style.setProperty("--mk-spalt", "100%");
+		}
+		window.requestAnimationFrame(() => {
+			menue.classList.add("is-open");
+			if (art === "a") { unterreihe.classList.add("is-open"); }
+		});
+		zeigeStand();
+	}
+
+	function schliesse() {
+		if (!offen) { return; }
+		offen = false; festgehalten = false; stufeZwei = null;
+		menue.classList.remove("is-open");
+		unterreihe.classList.remove("is-open");
+		window.clearTimeout(blendeTimer);
+		blendeTimer = window.setTimeout(() => {
+			menue.hidden = true; unterreihe.hidden = true; kachel.hidden = false;
+		}, DATEN.zeiten.blende * zeitlupe);
+		zeigeStand();
+	}
+
+	huelle.addEventListener("mouseenter", () => {
+		window.clearTimeout(schwebeTimer);
+		// ⚠️ Am Telefon gibt es kein Ueberfahren -- dort traegt allein der Tipp (siehe der
+		// Klick-Handler oben). Im echten Picker macht das 'amZeiger.matches' (pointer: fine).
+		if (amTelefon || offen) { return; }
+		schwebeTimer = window.setTimeout(() => { if (!offen) { oeffne(); } }, DATEN.zeiten.auf * zeitlupe);
+	});
+	huelle.addEventListener("mouseleave", () => {
+		window.clearTimeout(schwebeTimer);
+		if (amTelefon || festgehalten || !offen) { return; }
+		schwebeTimer = window.setTimeout(() => { if (offen) { schliesse(); } }, DATEN.zeiten.zu * zeitlupe);
+	});
+	kachel.addEventListener("click", () => { oeffne(); festgehalten = true; });
+	// Die zweite Stufe faellt weg, sobald der Zeiger die Ansichtsreihe verlaesst -- es sei denn,
+	// er geht nach oben in die zweite Stufe hinein.
+	/**
+	 * Die zweite Stufe faellt NICHT sofort weg. Sie bekommt denselben Nachlauf wie das Hauptmenue
+	 * (SCHWEBE_ZU_MS), und jede Rueckkehr auf Reihe oder Untermenue bricht ihn ab.
+	 * 🔴 Zwei Riegel, nicht einer: die Bruecke im CSS schliesst die Luecke, der Nachlauf faengt
+	 * alles Uebrige (ein Ausscheren ueber den oberen Rand, eine ruckende Maus).
+	 */
+	function stufeZweiSpaeterSchliessen() {
+		window.clearTimeout(stufeTimer);
+		if (festgehalten) { return; }
+		stufeTimer = window.setTimeout(() => {
+			schliesseStufeZwei();
+			// ⚠️ markiereQuelle, NICHT zeichneMenue -- letzteres baute alle Zellen neu und war
+			// genau der Animationsfehler, der hier schon einmal behoben wurde.
+			markiereQuelle();
+		}, DATEN.zeiten.zu * zeitlupe);
+	}
+
+	menue.addEventListener("mouseleave", (e) => {
+		if (art !== "e" || festgehalten) { return; }
+		if (unterreihe.contains(e.relatedTarget)) { return; }
+		stufeZweiSpaeterSchliessen();
+	});
+	menue.addEventListener("mouseenter", () => { window.clearTimeout(stufeTimer); });
+	unterreihe.addEventListener("mouseenter", () => {
+		window.clearTimeout(schwebeTimer);
+		window.clearTimeout(stufeTimer);
+	});
+	unterreihe.addEventListener("mouseleave", (e) => {
+		if (art !== "e" || festgehalten) { return; }
+		if (menue.contains(e.relatedTarget)) { return; }
+		stufeZweiSpaeterSchliessen();
+	});
+
+	function zeigeStand() {
+		const a = DATEN.ansichten.find((x) => x.wert === zustand.ansicht);
+		const g = untergruende().find((x) => x.wert === zustand.grund) || untergruende()[0];
+		const r = (offen ? menue : kachel).getBoundingClientRect();
+		stand.innerHTML = "Gewählt: <b>" + a.name + "</b> auf <b>" + g.name + "</b>"
+			+ " &nbsp;·&nbsp; " + (offen ? "offen" : "zugeklappt")
+			+ " &nbsp;·&nbsp; gemessen: <b>" + Math.round(r.width) + " × " + Math.round(r.height) + " px</b>";
+		hinweis.textContent = offen
+			? "Der Bund ist nach OBEN gewachsen — die Verweise bleiben unten stehen."
+			: "Mit der Maus auf die Kachel unten rechts fahren.";
+	}
+
+	function zeichneAlles() {
+		if (!untergruende().some((g) => g.wert === zustand.grund)) { zustand.grund = untergruende()[0].wert; }
+		zeichneKachel();
+		if (offen) { zeichneMenue(); if (art === "a" || stufeZwei) { zeichneUnterreihe(); } }
+		zeigeStand();
+	}
+
+	zeichneAlles();
+	return zeichneAlles;
+}
+
+const demos = ["e", "a"].map(baueDemo);
+
+function zeichneProben() {
+	const proben = document.getElementById("mk-proben");
+	proben.innerHTML = "";
+	DATEN.untergruende.forEach((g) => {
+		const fig = document.createElement("figure");
+		fig.className = "mk-probe" + (g.nurEditor && !istEditor ? " mk-probe--aus" : "");
+		const img = document.createElement("img");
+		img.src = g.bild; img.alt = "Kachelausschnitt " + g.name;
+		const cap = document.createElement("figcaption");
+		const text = g.labels
+			? "die alte Karte <b>mit aufgedruckten Namen</b> (GARETH, Vierok, Wiesengrund …)"
+			: (g.wert === "original"
+				? "dieselbe alte Karte, <b>ohne</b> Namen — das Update"
+				: "die neu gerenderte Karte, ebenfalls ohne Namen");
+		cap.innerHTML = "<b>" + g.name + "</b> — " + text
+			+ (g.nurEditor ? ' <span style="color:var(--color-accent-brown)">· nur für Editoren</span>' : "");
+		fig.appendChild(img); fig.appendChild(cap);
+		proben.appendChild(fig);
+	});
+}
+zeichneProben();
+
+document.querySelectorAll(".mk-ecke").forEach((e) => {
+	e.style.backgroundImage = "url(" + DATEN.untergruende[2].bild + ")";
+});
+
+document.getElementById("mk-thema").addEventListener("click", (e) => {
+	const dunkel = document.documentElement.getAttribute("data-theme") === "dark";
+	document.documentElement.setAttribute("data-theme", dunkel ? "light" : "dark");
+	e.currentTarget.setAttribute("aria-pressed", dunkel ? "false" : "true");
+	e.currentTarget.textContent = dunkel ? "Dunkles Thema" : "Helles Thema";
+});
+document.getElementById("mk-rolle").addEventListener("click", (e) => {
+	istEditor = !istEditor;
+	e.currentTarget.setAttribute("aria-pressed", istEditor ? "true" : "false");
+	e.currentTarget.textContent = istEditor ? "Rolle: Editor" : "Rolle: Besucher";
+	demos.forEach((neu) => neu());
+	zeichneProben();
+});
+document.getElementById("mk-telefon").addEventListener("click", (e) => {
+	amTelefon = !amTelefon;
+	e.currentTarget.setAttribute("aria-pressed", amTelefon ? "true" : "false");
+	e.currentTarget.textContent = amTelefon ? "Zeiger (breit)" : "Telefon (375 px)";
+	document.querySelectorAll(".mk-ecke").forEach((el) => el.classList.toggle("mk-ecke--telefon", amTelefon));
+	demos.forEach((neu) => neu());
+});
+document.getElementById("mk-langsam").addEventListener("click", (e) => {
+	zeitlupe = zeitlupe === 1 ? 4 : 1;
+	e.currentTarget.setAttribute("aria-pressed", zeitlupe > 1 ? "true" : "false");
+	// Die CSS-Uebergaenge mitziehen -- sonst waeren nur die Wartezeiten langsam, nicht die Bewegung.
+	document.querySelectorAll(".map-layer-picker__menu, .map-layer-picker__cell").forEach((el) => {
+		el.style.transitionDuration = zeitlupe > 1 ? (150 * zeitlupe) + "ms" : "";
+	});
+});
+</script>
+</body>
+</html>
