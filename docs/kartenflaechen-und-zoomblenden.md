@@ -107,11 +107,37 @@ gibt es nichts zu überblenden, und ein Rollentausch wäre ein Flackern ohne Anl
 
 ### §5.2 DOM — ein Klon des Panes
 
-💣 **Genau eine Eigenschaft macht es einfach: die Label-Panes tragen KEINE eigene Transform.** Der
-Zoom hängt am `_mapPane`, und die Panes sind dessen Kinder. Ein Klon des Panes, als Geschwister
-danebengelegt, skaliert während der Zoom-Animation deshalb **gratis** mit — nichts nachzurechnen,
-nichts synchron zu halten. Der Klon hält das alte Schriftbild, während das echte Pane neu bestückt
-wird.
+💣 **Die Label-Panes tragen KEINE eigene Transform.** Ein Klon des Panes, als Geschwister
+danebengelegt, hält das alte Schriftbild, während das echte Pane neu bestückt wird — nichts
+nachzurechnen, nichts synchron zu halten.
+
+🔴 **Hier stand, der Klon „skaliere während der Zoom-Animation gratis mit, weil der Zoom am
+`_mapPane` hängt". Das ist FALSCH und am 26.08.2026 nachgemessen:** `_mapPane` trägt während des
+Zooms `translate3d(0px, 0px, 0px)` — **es skaliert überhaupt nicht.** Leaflet zoomt über einen
+`leaflet-proxy` und über die Transform der einzelnen `leaflet-zoom-animated`-Ebenen; ein Pane ohne
+diese Klasse bekommt nichts davon ab. Weder der Klon noch das echte Pane skalieren also mit.
+⚠️ Das ist zugleich die Erklärung für den Owner-Befund *„ortslabels ziehen überhaupt nicht nach"*:
+sie ziehen wirklich nicht nach, und zwar konstruktionsbedingt.
+
+💣 **UND DIE ZWEITE MESSUNG IST DIE WICHTIGERE: Leaflet setzt die Beschriftungen des echten Panes
+schon im `zoomanim` auf ihre ZIELpositionen um.** Gemessen an derselben Beschriftung im selben
+Augenblick:
+
+| | 1. Beschriftung |
+|---|---|
+| Klon (altes Bild) | `translate3d(1675px, 212px)` |
+| echtes Pane | `translate3d(2290px, -183px)` |
+
+Beide halten **denselben** Beschriftungssatz (227 Stück) — das Pane wird erst am `zoomend` neu
+bestückt. Es sind also zweimal die ALTEN Namen, an zwei verschiedenen Stellen. Der Grund ist
+wieder §8a: Leaflets interner Zustand steht direkt nach dem `zoomanim`-Ereignis auf der Zielstufe,
+und seine Marker positionieren sich daraufhin um.
+
+🔴 **Folge, und sie ist die Ursache jeder doppelten Beschriftung:** jeder Augenblick, in dem Klon
+und Pane **beide** sichtbar sind, zeigt dieselbe Schrift an zwei Stellen. Nicht „alt gegen neu" —
+zweimal alt. Genau das hat der Owner am 26.08.2026 berichtet: *„wenn ich von einer zoomstufe 4 auf 5
+wechsel, wo ein label in 5 verschwindet, seh ichs trotzdem kurz doppelt"* — eine Beschriftung, die
+es auf der Zielstufe gar nicht gibt, **kann** nicht mit ihrer neuen Fassung doppeln.
 
 💣 **Ein hartes Netz, schon im `zoomanim` gespannt.** Die Blende hängt an `requestAnimationFrame`.
 Feuert das nie, bliebe der Klon für immer stehen — und auf der Karte stünde **doppelte Schrift**.
