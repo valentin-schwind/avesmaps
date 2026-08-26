@@ -147,6 +147,7 @@ $ausnahmen = [
     'api/_internal/social/media.php' => 'prueft UNSERE eigene Bildadresse (avesmapsSocialAbsoluteUrl), bevor ein Beitrag rausgeht.',
     'api/_internal/discord/post-message.php' => 'Discord-Bot-API -- fester Wirt discord.com.',
     'api/discord/register-commands.php' => 'meldet die Slash-Befehle bei Discord an -- fester Wirt.',
+    'api/_internal/import/garetien-abruf.php' => 'Exportseiten von garetien.de und koschwiki.de -- zwei feste Wirte aus AVESMAPS_GARETIEN_EBENEN, nie eine Adresse aus dem Anfragerumpf. Erreicht das Wiki Aventurica nicht und teilt dessen Warteschlange bewusst NICHT; die Hoeflichkeitspause gegenueber Volkers Servern steht als eigene Regel IM Abrufer (AVESMAPS_GARETIEN_PAUSE_MIKROSEKUNDEN), damit sie kein Aufrufer ueberspringen kann.',
 ];
 
 $registrierte = array_merge(array_keys($gebunden), array_keys($ausnahmen));

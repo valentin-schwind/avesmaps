@@ -1,0 +1,168 @@
+<?php
+
+declare(strict_types=1);
+
+// POST /api/edit/map/garetien-import.php -- die Exportseiten von garetien.de und koschwiki.de
+// ins Staging bringen. Entwurf: docs/superpowers/specs/2026-08-26-garetien-kartenimport-design.md §5.1
+// Vorbild in Form und Reihenfolge: api/edit/map/zoom-bands.php
+//
+// 🔴 ZWEI GLEICHWERTIGE EINGAENGE (Owner 26.08.2026), und BEIDE tragen denselben Riegel:
+//   `fetch`  -- der Server holt die Seite selbst
+//   `upload` -- die Seite kommt aus dem Browser des Owners
+// 💣 Eine Importquelle, die jeder befuellen kann, ist eine Schreibberechtigung auf die Karte.
+// Deshalb steht `admin` VOR der Weiche und nicht in jedem Zweig einzeln -- ein Zweig, der ihn
+// vergisst, faellt sonst niemandem auf.
+
+require __DIR__ . '/../../_internal/auth.php';
+require_once __DIR__ . '/../../_internal/import/garetien-abruf.php';
+
+/** Eine Ebene der festen Liste anhand von wiki+ebene finden. */
+function avesmapsGaretienEndpunktEbene(string $wiki, string $ebene): ?array
+{
+    foreach (AVESMAPS_GARETIEN_EBENEN as $eintrag) {
+        if ($eintrag['wiki'] === $wiki && $eintrag['ebene'] === $ebene) {
+            return $eintrag;
+        }
+    }
+
+    return null;
+}
+
+try {
+    $config = avesmapsLoadApiConfig(avesmapsApiRoot());
+
+    if (!avesmapsApplyCorsPolicy($config)) {
+        avesmapsErrorResponse(403, 'forbidden_origin', 'Diese Herkunft darf den Import nicht bedienen.');
+    }
+
+    $requestMethod = strtoupper((string) ($_SERVER['REQUEST_METHOD'] ?? 'POST'));
+    if ($requestMethod === 'OPTIONS') {
+        avesmapsJsonResponse(204);
+    }
+    if ($requestMethod !== 'POST') {
+        avesmapsErrorResponse(405, 'method_not_allowed', 'Nur POST ist fuer diesen Endpoint erlaubt.');
+    }
+
+    $user = avesmapsRequireUserWithCapability('admin');
+    $payload = avesmapsReadJsonRequest();
+    $action = avesmapsNormalizeSingleLine((string) ($payload['action'] ?? 'ebenen'), 40);
+
+    // --- Die feste Liste. Braucht keine Datenbank und keinen Abruf.
+    if ($action === 'ebenen') {
+        avesmapsJsonResponse(200, ['ok' => true, 'ebenen' => AVESMAPS_GARETIEN_EBENEN]);
+    }
+
+    // --- EINE Probe: kommt DIESER Server an die Quelle heran?
+    //
+    // ⚠️ Genau eine Seite, nie 18 (Bauplan Aufgabe 3 Schritt 5). Wiki Aventurica sperrt unsere
+    // STRATO-Ausgangs-IP; ob garetien.de das auch tut, war bis dahin ungemessen.
+    //
+    // 💣 Die Adresse kommt aus AVESMAPS_GARETIEN_EBENEN und NIE aus dem Anfragerumpf. Ein
+    // Endpunkt, der eine beliebige URL vom Aufrufer entgegennimmt und abruft, ist ein
+    // SSRF-Werkzeug -- auch mit Admin-Riegel, denn er laeuft dann aus unserem Netz heraus.
+    // Der Aufrufer waehlt aus der Liste, er diktiert sie nicht.
+    if ($action === 'probe') {
+        $wiki = avesmapsNormalizeSingleLine((string) ($payload['wiki'] ?? 'ggp'), 10);
+        $ebene = avesmapsNormalizeSingleLine((string) ($payload['ebene'] ?? 'Gewaesser'), 40);
+        $eintrag = avesmapsGaretienEndpunktEbene($wiki, $ebene);
+        if ($eintrag === null) {
+            avesmapsErrorResponse(400, 'unknown_layer', 'Diese Ebene steht nicht in der Liste.');
+        }
+        // 🔴 Schreibt in KEINE Tabelle, legt keinen Lauf an.
+        avesmapsJsonResponse(200, ['ok' => true, 'probe' => avesmapsGaretienProbe($eintrag['url'])]);
+    }
+
+    $pdo = avesmapsCreatePdo($config['database'] ?? []);
+    avesmapsGaretienEnsureTables($pdo);
+
+    // --- Was liegt im Staging?
+    if ($action === 'runs') {
+        $laeufe = $pdo->query(
+            'SELECT r.id, r.started_at, r.finished_at, r.status, r.note, COUNT(z.id) AS zeilen'
+            . ' FROM garetien_import_run r LEFT JOIN garetien_import_row z ON z.run_id = r.id'
+            . ' GROUP BY r.id, r.started_at, r.finished_at, r.status, r.note'
+            . ' ORDER BY r.id DESC LIMIT 20'
+        )->fetchAll(PDO::FETCH_ASSOC);
+        avesmapsJsonResponse(200, ['ok' => true, 'runs' => $laeufe]);
+    }
+
+    if ($action !== 'fetch' && $action !== 'upload') {
+        avesmapsErrorResponse(400, 'invalid_action', 'Unbekannte Aktion.');
+    }
+
+    // Ein Lauf wird fortgesetzt, wenn er genannt wird -- die 18 Seiten kommen sonst als 18
+    // Laeufe an, und der Abgleich weiss dann nicht, was zusammengehoert.
+    $runId = (int) ($payload['run_id'] ?? 0);
+    if ($runId <= 0) {
+        $runId = avesmapsGaretienStartRun($pdo);
+    }
+
+    // --- Eingang 2: die Seite kommt aus dem Browser.
+    if ($action === 'upload') {
+        $wiki = avesmapsNormalizeSingleLine((string) ($payload['wiki'] ?? ''), 10);
+        $ebene = avesmapsNormalizeSingleLine((string) ($payload['ebene'] ?? ''), 40);
+        if (avesmapsGaretienEndpunktEbene($wiki, $ebene) === null) {
+            avesmapsErrorResponse(400, 'unknown_layer', 'Diese Ebene steht nicht in der Liste.');
+        }
+        $html = (string) ($payload['html'] ?? '');
+        if ($html === '') {
+            avesmapsErrorResponse(400, 'empty_upload', 'Es wurde kein Seiteninhalt mitgeschickt.');
+        }
+        $zeilen = avesmapsGaretienStageSeite($pdo, $runId, $wiki, $ebene, $html);
+        // 🔴 Null Zeilen sind ein FEHLER, keine Nachricht. Eine hochgeladene Datei, die nichts
+        // ergibt, ist fast immer die falsche Datei -- und ein Lauf mit null Zeilen sieht
+        // hinterher genauso aus wie eine leere Quelle.
+        if ($zeilen === 0) {
+            avesmapsErrorResponse(422, 'no_rows', 'Diese Seite ergab keine einzige Datenzeile.');
+        }
+        avesmapsJsonResponse(200, [
+            'ok' => true,
+            'run_id' => $runId,
+            'gestaget' => [['wiki' => $wiki, 'ebene' => $ebene, 'zeilen' => $zeilen]],
+        ]);
+    }
+
+    // --- Eingang 1: der Server holt selbst.
+    //
+    // ⚠️ Die Hoeflichkeitspause steht im Abrufer, nicht hier. Wer sie hier einbaut, hat sie
+    // beim naechsten Aufrufer wieder nicht.
+    $gewaehlt = $payload['ebenen'] ?? [];
+    if (!is_array($gewaehlt) || $gewaehlt === []) {
+        avesmapsErrorResponse(400, 'no_layers', 'Es wurde keine Ebene genannt.');
+    }
+    $gestaget = [];
+    $fehler = [];
+    foreach ($gewaehlt as $bezeichner) {
+        [$wiki, $ebene] = array_pad(explode(':', (string) $bezeichner, 2), 2, '');
+        $eintrag = avesmapsGaretienEndpunktEbene($wiki, $ebene);
+        if ($eintrag === null) {
+            $fehler[] = ['ebene' => (string) $bezeichner, 'grund' => 'unbekannte Ebene'];
+            continue;
+        }
+        try {
+            $html = avesmapsGaretienHoleSeite($eintrag['url']);
+            $zeilen = avesmapsGaretienStageSeite($pdo, $runId, $wiki, $ebene, $html);
+            $gestaget[] = ['wiki' => $wiki, 'ebene' => $ebene, 'zeilen' => $zeilen];
+        } catch (Throwable $abbruch) {
+            // Der Grund gehoert hierher: "der Server kommt nicht an garetien.de heran" ist die
+            // Auskunft, wegen der es den zweiten Eingang gibt.
+            $fehler[] = ['ebene' => $wiki . ':' . $ebene, 'grund' => $abbruch->getMessage()];
+        }
+    }
+    avesmapsGaretienFinishRun(
+        $pdo,
+        $runId,
+        $fehler === [] ? 'done' : 'partial',
+        json_encode(['gestaget' => $gestaget, 'fehler' => $fehler], JSON_UNESCAPED_UNICODE)
+    );
+
+    avesmapsJsonResponse(200, [
+        'ok' => true,
+        'run_id' => $runId,
+        'gestaget' => $gestaget,
+        'fehler' => $fehler,
+    ]);
+} catch (Throwable $error) {
+    // ⚠️ Kein getMessage() nach draussen (AGENTS.md §10, Meilenstein M1).
+    avesmapsErrorResponse(500, 'server_error', 'Der Import konnte nicht verarbeitet werden.');
+}
