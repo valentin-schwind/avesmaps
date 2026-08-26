@@ -21,6 +21,19 @@ const LOCATION_CANVAS_MARKERS_ENABLED = (() => {
 	}
 })();
 
+// ⭐ NOTAUSGANG OHNE DEPLOY: ?markerscale=0 schaltet die Groessen-Gegenrechnung waehrend des Zooms
+// ab und stellt das Verhalten von vor dem 26.08.2026 her -- alles waechst um den vollen
+// Kartenfaktor und springt am zoomend auf seine echte Groesse zurueck. Dasselbe Mittel wie
+// ?crossfade=0 bei den Beschriftungen: damit laesst sich am Bild vergleichen, ohne etwas
+// hochzuladen, und ein Fehlgriff ist ohne Deploy abzustellen.
+const LOCATION_MARKER_ZOOM_SCALE_ENABLED = (() => {
+	try {
+		return new URLSearchParams(window.location.search).get("markerscale") !== "0";
+	} catch (error) {
+		return true;
+	}
+})();
+
 const LOCATION_CANVAS_TYPES = new Set(["metropole", "grossstadt", "stadt", "kleinstadt", "dorf", "gebaeude"]);
 
 // Active/clicked settlement highlight (Owner: the active location's marker fills gold-yellow). The
@@ -107,6 +120,16 @@ const locationCanvasLayer = {
 	// _onMove darf sie nicht mit einem setPosition ueberschreiben.
 	_cssZoomActive: false,
 	_topLeftLatLng: null,
+	// Die je Ortsklasse gerechnete Groessenkorrektur waehrend der Zoom-Animation ({ typ: faktor }).
+	// `null` heisst: keine Animation, zeichne normal.
+	// 💣 Muss in _reset zurueckgesetzt werden, sonst zeichnet jeder spaetere Pan die Marker in einer
+	// Zwischengroesse -- und zwar unauffaellig, weil sie dann einfach dauerhaft ein bisschen falsch
+	// sind statt sichtbar zu springen.
+	_zoomGroessenFaktoren: null,
+	_zoomBildAnforderung: 0,
+	// 💣 DIE EINGEFRORENE BILDSCHIRMLAGE JEDES MARKERS, in QUELL-Koordinaten, aufgenommen im
+	// zoomanim. Ohne sie ist die ganze Gegenrechnung unbrauchbar -- siehe _friereLagenEin().
+	_zoomLagen: null,
 
 	init(map) {
 		if (this._ready || !LOCATION_CANVAS_MARKERS_ENABLED) {
@@ -169,6 +192,11 @@ const locationCanvasLayer = {
 			const leyNode = inPowerlineMode && !!(entry.location && entry.location.isNodix);
 			return {
 				entry,
+				// 💣 Die Ortsklasse muss MIT: die Groessenkorrektur waehrend der Zoom-Animation ist je
+				// Klasse verschieden (Metropole waechst 1,414 je Stufe, Gebaeude 2,106), und _redraw
+				// koennte sie sonst nicht auseinanderhalten. Ein gemeinsamer Faktor waere genau die
+				// Tafel-Loesung, die der Owner am 26.08.2026 verworfen hat.
+				typ: locationType,
 				latLng: entry.marker.getLatLng(),
 				core,
 				contour,
@@ -198,6 +226,14 @@ const locationCanvasLayer = {
 		// direkt darunter setzt die Zoom-Skalierung zurueck.
 		this._cssZoomActive = false;
 		this._canvas.style.transition = "";
+		// 💣 UND DIE GROESSENKORREKTUR MIT. Sie gilt nur waehrend der Animation; bliebe sie stehen,
+		// zeichnete jeder spaetere Pan die Marker in einer Zwischengroesse -- unauffaellig, weil sie
+		// dann dauerhaft ein bisschen falsch sind statt sichtbar zu springen. _reset laeuft an
+		// moveend/zoomend/viewreset/resize und ist damit die einzige Stelle, die alle Ausgaenge deckt.
+		if (this._zoomBildAnforderung) { cancelAnimationFrame(this._zoomBildAnforderung); }
+		this._zoomBildAnforderung = 0;
+		this._zoomGroessenFaktoren = null;
+		this._zoomLagen = null;
 		const size = this._map.getSize();
 		const dpr = avesmapsCanvasDpr();   // Telefon-Deckel aus runtime-state.js
 		L.DomUtil.setPosition(this._canvas, this._map.containerPointToLayerPoint([0, 0]).round());
@@ -246,6 +282,131 @@ const locationCanvasLayer = {
 		const scale = this._map.getZoomScale(event.zoom);
 		const offset = this._map._latLngToNewLayerPoint(this._topLeftLatLng, event.zoom, event.center);
 		L.DomUtil.setTransform(this._canvas, offset, scale);
+		this._starteGroessenGegenrechnung(event.zoom, scale);
+	},
+
+	/**
+	 * 🔴 DIE GEGENRECHNUNG DER MARKERGROESSEN (Owner-Entscheid 26.08.2026, Entwurf §3.1).
+	 *
+	 * Waehrend der Animation wird der Canvas Bild fuer Bild mit korrigierten Groessen neu gezeichnet,
+	 * damit jede Ortsklasse auf ihrer echten Zielgroesse LANDET statt zurueckzuschnappen. Vorher
+	 * wuchs alles um den vollen Kartenfaktor 2 und sprang am zoomend zurueck -- die Metropole um
+	 * -29 %, das Gebaeude um +5 %, und dazwischen jede Klasse um einen anderen Betrag.
+	 *
+	 * ⭐ Das Zeichnen darf hier stehen, weil der Zoom eine CSS-Transform-Transition ist und auf dem
+	 * Compositor laeuft -- Arbeit auf dem Hauptthread haelt die Bewegung nicht an
+	 * (docs/kartenflaechen-und-zoomblenden.md §5). Und es ist billig: gemessen 0,2 ms je redraw
+	 * (Median ueber 25 Laeufe bei 326 Eintraegen, live 26.08.2026; p90 0,4 ms, max 1,2 ms). Der
+	 * Grenzen-Canvas kostet an derselben Stelle 52-99 ms -- dort waere dasselbe Mittel unbezahlbar,
+	 * und deshalb bleibt die Grenzlinien-Breite der eine ungeloeste Ausreisser.
+	 *
+	 * 💣 OHNE cancelAnimationFrame laeuft die Schleife nach einem abgebrochenen Zoom weiter und
+	 * zeichnet gegen eine Animation, die es nicht mehr gibt. Ein zweiter Zoomschritt waehrend des
+	 * ersten (Mausrad zweimal schnell) ist der Normalfall, nicht der Sonderfall.
+	 *
+	 * @param {number} zielZoom Zoomstufe, auf die animiert wird (event.zoom)
+	 * @param {number} massstab map.getZoomScale(zielZoom) -- 2 je Stufe hinein, 0,5 hinaus
+	 */
+	/**
+	 * 💣 DIE BILDSCHIRMLAGE JEDES MARKERS EINFRIEREN -- die Zeile, an der der erste Versuch
+	 * gescheitert ist (Rueckbau b1bd8df7, Owner: „ortsmarkierungen springen wild umher").
+	 *
+	 * Leaflet setzt seinen internen Zustand UNMITTELBAR NACH dem zoomanim-Ereignis auf die
+	 * Zielstufe (js/third-party/leaflet.js, minifiziert):
+	 *     _animateZoom: … this.fire("zoomanim", …), … this._move(center, zoom, void 0, true)
+	 * und `_move` setzt `this._zoom` UND `this._pixelOrigin`. Die 250 ms Animation laufen also mit
+	 * map.getZoom() = ZIEL; nur das Bild interpoliert ueber die CSS-Transform.
+	 *
+	 * Wer waehrend der Animation `latLngToLayerPoint` ruft, bekommt damit ZIEL-Koordinaten --
+	 * waehrend der Canvas die Transform traegt, die QUELL- auf Zielkoordinaten abbildet. Der Inhalt
+	 * wird dann ZWEIMAL transformiert: die Marker fliegen auseinander, und solche, die ausserhalb
+	 * der Zeichenflaeche lagen, werden hereingezogen. Live sah das aus wie „fremde Ortschaften, die
+	 * es auf keiner der beiden Stufen gibt" -- es waren die richtigen an falschen Stellen.
+	 *
+	 * ⭐ Deshalb wird die Lage EINMAL hier genommen, solange die Karte noch auf der Quellstufe
+	 * steht, und waehrend der Animation nur noch abgelesen. Nebenbei ist das billiger: pro Bild
+	 * entfallen alle Projektionen.
+	 * ⚠️ Dieser Aufruf MUSS im zoomanim-Handler stehen, nicht in der Bildschleife -- die laeuft ein
+	 * Bild spaeter, und dann ist der Zustand schon umgestellt.
+	 */
+	_friereLagenEin() {
+		const origin = this._map.containerPointToLayerPoint([0, 0]).round();
+		this._zoomLagen = this._entries.map((item) => {
+			const p = this._map.latLngToLayerPoint(item.latLng);
+			return { x: p.x - origin.x, y: p.y - origin.y };
+		});
+	},
+
+	_starteGroessenGegenrechnung(zielZoom, massstab) {
+		if (!LOCATION_MARKER_ZOOM_SCALE_ENABLED) { return; }   // ?markerscale=0
+		if (typeof avesmapsMarkerZoomSizeFactor !== "function" || typeof avesmapsZoomEasing !== "function") {
+			return;   // zoom-uebergang.js nicht geladen -> Verhalten wie vorher, kein Absturz
+		}
+		if (this._zoomBildAnforderung) { cancelAnimationFrame(this._zoomBildAnforderung); }
+		const vonZoom = this._map.getZoom();
+		// 🔴 ZUERST DIE LAGEN EINFRIEREN, UND ZWAR HIER. Siehe _friereLagenEin() -- eine Zeile
+		// spaeter ist es zu spaet.
+		this._friereLagenEin();
+		// ⚠️ Die Faktoren haengen nur an der Ortsklasse, nicht am einzelnen Marker -- einmal je Klasse
+		// rechnen, nicht einmal je Eintrag. Live sind das sechs Klassen gegen mehrere hundert Marker.
+		const klassen = [];
+		for (const item of this._entries) {
+			if (item.typ && klassen.indexOf(item.typ) === -1) { klassen.push(item.typ); }
+		}
+		const groessen = klassen.map((typ) => ({
+			typ,
+			alt: getLocationMarkerSize(typ, vonZoom),
+			neu: getLocationMarkerSize(typ, zielZoom),
+		}));
+		if (!groessen.length) { return; }
+		// ⚠️ Die groesste gezeichnete Markerhaelfte -- der Massstab dafuer, ob eine Faktoraenderung
+		// ueberhaupt ein Pixel bewegt. Ohne ihn zeichnete die Schleife auch dort neu, wo die Kurve
+		// flach laeuft (Anfang und Ende von ease-in-out) und sich nichts sichtbar aendert.
+		let groesstesR = 0;
+		for (const item of this._entries) {
+			const r = (item.leyNode ? item.leyR : item.core + item.contour + item.accentRing) || 0;
+			if (r > groesstesR) { groesstesR = r; }
+		}
+		const start = performance.now();
+		let letzte = null;
+		const schritt = () => {
+			const t = (performance.now() - start) / AVESMAPS_ZOOM_DAUER_MS;
+			const e = avesmapsZoomEasing(t);
+			const faktoren = {};
+			let groessteAenderung = 0;
+			for (const g of groessen) {
+				faktoren[g.typ] = avesmapsMarkerZoomSizeFactor(g.alt, g.neu, e, massstab);
+				if (letzte) {
+					const d = Math.abs(faktoren[g.typ] - letzte[g.typ]);
+					if (d > groessteAenderung) { groessteAenderung = d; }
+				}
+			}
+			// ⭐ SPARBREMSE: nur zeichnen, wenn sich dadurch mindestens ein halbes Pixel bewegt.
+			// ⚠️ SIE IST VORSORGE, KEINE NOTWENDIGKEIT -- und das ist gemessen, nicht vermutet.
+			// Am 26.08.2026 im zeichnenden Browser des Owners ueber einen echten Zoomschritt:
+			//   ohne Neuzeichnen  Median 16,7 ms, schlechtestes Bild 149,2 ms,  0 Neuzeichnungen
+			//   jedes 4. Bild     Median 16,6 ms, schlechtestes Bild 134,8 ms,  5 Neuzeichnungen
+			//   jedes Bild        Median 16,7 ms, schlechtestes Bild 132,6 ms, 18 Neuzeichnungen
+			// Alle drei sind 60 Bilder/s; das Zeichnen kostet nichts Messbares. Das schlechteste
+			// Bild (~140 ms) ist die Hauptthread-Blockade am zoomend und liegt AUCH OHNE jede
+			// Neuzeichnung an -- sie gehoert nicht hierher.
+			// 🪤 Eine fruehere Messung ergab „0,2 ms je redraw" und war WERTLOS: sie lief in einem
+			// Browsertab im Hintergrund, und der zeichnet nicht. Gemessen wurde damit der
+			// JS-Anteil ohne jede Malarbeit. Wer Malkosten misst, braucht eine sichtbare Ansicht.
+			// 🔴 Das LETZTE Bild wird IMMER gezeichnet (t >= 1): dort sitzt die Landung ohne
+			// Sprung, und genau die ist der Sinn der ganzen Uebung.
+			const letztesBild = t >= 1;
+			if (letztesBild || !letzte || groessteAenderung * groesstesR >= 0.5) {
+				this._zoomGroessenFaktoren = faktoren;
+				this._redraw();
+				letzte = faktoren;
+			}
+			// ⚠️ Der letzte Zustand bleibt STEHEN, bis _reset ihn am zoomend abraeumt. Wer hier auf
+			// null zuruecksetzt, macht aus der beseitigten Landung wieder einen Sprung -- nur zwei
+			// Bilder frueher, und dann sucht ihn niemand mehr hier.
+			this._zoomBildAnforderung = t < 1 ? requestAnimationFrame(schritt) : 0;
+		};
+		this._zoomBildAnforderung = requestAnimationFrame(schritt);
 	},
 
 	_redraw() {
@@ -266,28 +427,53 @@ const locationCanvasLayer = {
 		// per marker) so it follows the theme without hardcoding a hex on the canvas; empty when nothing active.
 		const activeId = typeof activeLocationPublicId !== "undefined" ? activeLocationPublicId : "";
 		const activeGold = activeId ? getLocationMarkerActiveColor() : "";
-		for (const item of this._entries) {
+		// 🔴 Die Groessenkorrektur der laufenden Zoom-Animation (siehe _starteGroessenGegenrechnung).
+		// `null` ausserhalb einer Animation -> Faktor 1 -> exakt das Verhalten von vorher.
+		const zoomFaktoren = this._zoomGroessenFaktoren;
+		// 💣 WAEHREND DER ZOOM-ANIMATION WIRD NICHT PROJIZIERT, SONDERN ABGELESEN. Leaflets interner
+		// Zustand steht dann schon auf der Zielstufe (siehe _friereLagenEin), eine Projektion gaebe
+		// also Ziel-Koordinaten -- und der Canvas traegt die Transform, die Quell- auf
+		// Zielkoordinaten abbildet. Das Ergebnis waere doppelt transformiert.
+		// ⚠️ Laengenabgleich als Riegel: passt der Schnappschuss nicht zu den Eintraegen, wird lieber
+		// gar nicht korrigiert als falsch gezeichnet (die sichere Richtung).
+		const lagen = (this._zoomLagen && this._zoomLagen.length === this._entries.length)
+			? this._zoomLagen : null;
+		for (let i = 0; i < this._entries.length; i++) {
+			const item = this._entries[i];
 			if (item.entry._canvasPromoted) {
 				continue;
 			}
-			const layerPoint = this._map.latLngToLayerPoint(item.latLng);
-			const x = layerPoint.x - origin.x;
-			const y = layerPoint.y - origin.y;
+			let x, y;
+			if (lagen) {
+				x = lagen[i].x;
+				y = lagen[i].y;
+			} else {
+				const layerPoint = this._map.latLngToLayerPoint(item.latLng);
+				x = layerPoint.x - origin.x;
+				y = layerPoint.y - origin.y;
+			}
 			const fill = (activeGold && item.entry.publicId && item.entry.publicId === activeId) ? activeGold : item.fill;
+			// ⚠️ NUR DIE GROESSEN, NICHT DIE LAGE: x/y kommen unveraendert aus der Projektion und
+			// werden von der Canvas-Transform mitskaliert -- das ist richtig so und darf nicht
+			// gegengerechnet werden. Und NICHT die Formentscheidungen (isDiamond/isCapital): die
+			// duerfen waehrend der Animation nicht umspringen.
+			const k = (zoomFaktoren && zoomFaktoren[item.typ]) || 1;
 			if (item.leyNode) {
 				// Leuchtender Kraftlinien-Knoten: weicher Schein -> heller Kern -> pinker Punkt.
+				const leyR = item.leyR * k;
 				ctx.save();
 				ctx.shadowColor = "#ff7da0";
 				ctx.shadowBlur = 16;
-				disc(x, y, item.leyR, "#fff3f7");
+				disc(x, y, leyR, "#fff3f7");
 				ctx.shadowBlur = 8;
-				disc(x, y, item.leyR * 0.92, "#ffd3e0");
+				disc(x, y, leyR * 0.92, "#ffd3e0");
 				ctx.restore();
-				disc(x, y, Math.max(1.5, item.leyR * 0.42), "#ff3d68");
+				disc(x, y, Math.max(1.5, leyR * 0.42), "#ff3d68");
 				continue;
 			}
-			const core = item.core;
-			const outer = core + item.contour; // = Aussenkante der weissen Kontur (markerSize/2)
+			const core = item.core * k;
+			const outer = core + item.contour * k; // = Aussenkante der weissen Kontur (markerSize/2)
+			const accentRing = item.accentRing * k;
 			if (item.isDiamond) {
 				// Besondere Staette: gedrehtes Quadrat (Raute) -- Hairline -> weisse Kontur -> Fuellung.
 				this._square(x, y, outer + 1, "rgba(0, 0, 0, 0.55)");
@@ -297,8 +483,8 @@ const locationCanvasLayer = {
 			}
 			if (item.isCapital) {
 				// Metropole: 1px-Dunkel -> Gold-Band -> 1px-Dunkel (1:1 zum --capital box-shadow-Stapel).
-				disc(x, y, outer + item.accentRing + 1, "rgba(0, 0, 0, 0.35)");
-				disc(x, y, outer + item.accentRing, "#e7b04a");
+				disc(x, y, outer + accentRing + 1, "rgba(0, 0, 0, 0.35)");
+				disc(x, y, outer + accentRing, "#e7b04a");
 			}
 			disc(x, y, outer + 1, "rgba(0, 0, 0, 0.55)");
 			disc(x, y, outer, "#ffffff");
