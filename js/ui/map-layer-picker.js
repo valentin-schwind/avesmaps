@@ -8,6 +8,11 @@
 (function initMapLayerPicker() {
 	"use strict";
 
+	// 🪤 NICHT MEHR IN GEBRAUCH seit dem 26.08.2026: die Ansichten sind Vektoren ueber dem
+	// gewaehlten Untergrund (OVERLAYS weiter unten). Die Bilder in icons/layer-tiles/ bleiben
+	// liegen -- der Deploy loescht nie (AGENTS.md §10), und tools/layer-tiles/capture.js erzeugt
+	// sie weiterhin. Wer sie wieder anschliesst, holt sich das Problem zurueck, das die Vektoren
+	// loesen: eine Aufnahme traegt ihren Untergrund eingebrannt mit.
 	var WURZEL = "icons/layer-tiles/";
 
 	/**
@@ -85,6 +90,161 @@
 			.replace("{x}", String(GRUND_VORSCHAU.x))
 			.replace("{y}", String(GRUND_VORSCHAU.y));
 	}
+
+	/**
+	 * DIE ANSICHTEN SIND VEKTOREN, KEINE AUFNAHMEN (26.08.2026, Entwurf:
+	 * docs/superpowers/specs/2026-08-26-ansicht-untergrund-kreuzen-design.md).
+	 *
+	 * 🔴 Eine Aufnahme traegt ihren Untergrund EINGEBRANNT mit -- also braeuchte jede Kreuzung ein
+	 * eigenes Bild (5x3, spaeter 5x4 ...). Ein Vektor ist untergrundfrei und liegt ueber JEDER
+	 * Kachel: 3 Kacheln + 5 Vektoren decken alle 15 Kombinationen ab. Ein vierter Untergrund kostet
+	 * ein Bild, eine sechste Ansicht einen Vektor.
+	 * ⭐ Und damit entfaellt die Bedingung, dass alle Ansichten denselben Kartenausschnitt zeigen
+	 * muessten -- ein Vektor hat keinen Ort. tools/layer-tiles/capture.js nimmt jede Ansicht an
+	 * einem eigenen Ort auf (Owner 11.08.2026); das bleibt unberuehrt, wird hier aber nicht
+	 * gebraucht.
+	 *
+	 * 💣 Die Farben sind die ECHTEN, nicht erfundene -- jede stammt aus der Stelle, die sie auf der
+	 * Karte zeichnet. Wer sie „aufraeumt", macht die Kachel zu einem Symbol, das etwas anderes
+	 * ankuendigt als die Karte zeigt.
+	 * ⚠️ Die Strassen sind aus der Vorlagekachel NACHGEZEICHNET (z3 / map_17_-17, Sternknoten
+	 * Gareth), Koordinaten aus dem 256er-Bild geteilt durch 5,33. Weil alle drei Untergruende
+	 * denselben Ausschnitt zeigen, DECKT sich der Vektor mit den gemalten Strassen jedes
+	 * Kachelsatzes. Diese Zahlen gehoeren zur VORLAGEKACHEL, nicht zur Ansicht: wechselt der
+	 * Ausschnitt (GRUND_VORSCHAU oben), wandern sie mit.
+	 */
+	const OVERLAYS = {
+		// Ein VERZWEIGTES Netz statt zweier Linien (Owner 26.08.2026): eine Reichsstrasse quer durch,
+		// zwei Abzweige, ein Feldweg -- und die Orte sitzen an den Kreuzungen, wie auf der Karte.
+		// Jede Strasse liegt doppelt: dunkler Unterzug, heller Kern. Genau so zeichnet sie die Karte
+		// (roadsOutline-Pane unter roads-Pane).
+		// 🔴 DIE STRASSEN SIND NACHGEZEICHNET, nicht erfunden (Owner 26.08.2026: "zeichne doch einfach
+		// die strassen aus der grafik nach"). Vorlage ist die Kachel, die alle drei Untergruende zeigen
+		// (z3 / map_17_-17, der Sternknoten Gareth) -- deshalb DECKT sich der Vektor mit dem, was im
+		// Bild darunter ohnehin zu sehen ist, statt daneben zu liegen.
+		// ⚠️ Koordinaten aus dem 256er-Bild geteilt durch 5,33. Wechselt die Vorlagekachel, wandern
+		// diese Zahlen mit -- sie gehoeren zu IHR, nicht zur Ansicht.
+		// 💣 Jede Strasse liegt doppelt: dunkler Unterzug, heller Kern. Genau so zeichnet die Karte sie
+		// (roadsOutline-Pane unter roads-Pane); ohne den Unterzug verschwinden helle Strassen auf
+		// hellem Grund.
+		// 🔴 ALLE STRASSEN SIND KURVEN, und jede MUENDET in einem Ort (Owner 26.08.2026). Deshalb
+		// haben die drei langen Strassen ZWEI Kurvenstuecke: das erste endet auf dem Ortspunkt, das
+		// zweite laeuft von dort weiter aus dem Bild. Eine durchgehende Kurve ginge am Ort vorbei --
+		// sie traefe ihn nur zufaellig, und beim naechsten Nachjustieren nicht mehr.
+		// ⚠️ Die Endpunkte liegen ABSICHTLICH ausserhalb (-2, 50): eine Strasse, die am Kachelrand
+		// aufhoert, sieht aus wie eine Sackgasse.
+		deregraphic:
+			'<g fill="none" stroke="#2b2119" stroke-opacity=".45" stroke-linecap="round" stroke-linejoin="round">' +
+			'<path d="M-2 17 C3 16.3 7.5 15.6 11.5 14.5" stroke-width="4.5"/>' +
+			'<path d="M11.5 14.5 C9.6 9.9 7 5.2 4.5 0.5" stroke-width="4"/>' +
+			'<path d="M11.5 14.5 C12.8 9.4 14 4.4 14.6 -2" stroke-width="3.6"/>' +
+			'<path d="M11.5 14.5 C15.2 10.8 19.4 6.2 24 2" stroke-width="3.6"/>' +
+			'<path d="M11.5 14.5 C18 16.4 24.4 17.7 30 18 C37 18.4 43 19 50 19.6" stroke-width="5"/>' +
+			'<path d="M11.5 14.5 C17.6 20.4 28.4 29.8 40 39 C43 41.4 46 43.8 49.5 46.5" stroke-width="4.5"/>' +
+			'<path d="M11.5 14.5 C10.4 21 8.6 27.4 7 34 C6.2 39.4 5.6 44.6 5 50" stroke-width="4"/>' +
+			'<path d="M28 30 C27.4 36 26.6 43 26 50" stroke-width="3"/></g>' +
+			'<g fill="none" stroke-linecap="round" stroke-linejoin="round">' +
+			'<path d="M-2 17 C3 16.3 7.5 15.6 11.5 14.5" stroke="#efe3cb" stroke-width="2.4"/>' +
+			'<path d="M11.5 14.5 C9.6 9.9 7 5.2 4.5 0.5" stroke="#e4d6ba" stroke-width="2"/>' +
+			'<path d="M11.5 14.5 C12.8 9.4 14 4.4 14.6 -2" stroke="#e4d6ba" stroke-width="1.8"/>' +
+			'<path d="M11.5 14.5 C15.2 10.8 19.4 6.2 24 2" stroke="#d8c8a8" stroke-width="1.8"/>' +
+			'<path d="M11.5 14.5 C18 16.4 24.4 17.7 30 18 C37 18.4 43 19 50 19.6" stroke="#fdf8ee" stroke-width="2.8"/>' +
+			'<path d="M11.5 14.5 C17.6 20.4 28.4 29.8 40 39 C43 41.4 46 43.8 49.5 46.5" stroke="#efe3cb" stroke-width="2.4"/>' +
+			'<path d="M11.5 14.5 C10.4 21 8.6 27.4 7 34 C6.2 39.4 5.6 44.6 5 50" stroke="#e4d6ba" stroke-width="2"/>' +
+			'<path d="M28 30 C27.4 36 26.6 43 26 50" stroke="#cbbb9e" stroke-width="1.3" stroke-dasharray="2 2"/></g>' +
+			'<g fill="#cc2f2a" stroke="#fff">' +
+			'<circle cx="11.5" cy="14.5" r="3.6" stroke-width="1.5"/>' +
+			'<circle cx="7" cy="34" r="2.1" stroke-width="1.2"/>' +
+			'<circle cx="24" cy="2" r="1.9" stroke-width="1.1"/>' +
+			'<circle cx="30" cy="18" r="1.7" stroke-width="1"/>' +
+			'<circle cx="40" cy="39" r="1.7" stroke-width="1"/>' +
+			'<circle cx="4.5" cy="0.5" r="1.5" stroke-width="1"/></g>',
+
+		// Deckender als zuvor (Owner: "etwas mehr deckend") und mit drei Gebieten statt zweier, damit
+		// eine Innengrenze sichtbar wird -- die zeichnet der Layer duenner und gestrichelt.
+		political:
+			'<path d="M0 0 H25 C23 13 29 19 25 29 L19 48 H0 Z" fill="#a4543f" fill-opacity=".8"/>' +
+			'<path d="M25 0 H48 V19 C39 17 33 23 25 29 29 19 23 13 25 0 Z" fill="#5b7a8c" fill-opacity=".8"/>' +
+			'<path d="M25 29 C33 23 39 17 48 19 V48 H19 Z" fill="#8a7f4e" fill-opacity=".8"/>' +
+			'<g fill="none" stroke="#d3d3d3">' +
+			'<path d="M19 48 L25 29 C33 23 39 17 48 19" stroke-width="2.4"/>' +
+			'<path d="M25 0 C23 13 29 19 25 29" stroke-width="2.4"/>' +
+			'<path d="M25 29 L19 48" stroke-width="1.2" stroke-dasharray="3 2.5" stroke-opacity=".85"/></g>',
+
+		// 🔴 ZWEI KNOTEN, und die Straenge WANDERN AUS DEM BILD (Owner 26.08.2026). Ein Netz, das
+		// vollstaendig in 48px passt, sieht aus wie ein Diagramm; Kraftlinien laufen weiter, als man
+		// sieht -- deshalb enden alle Linien ausserhalb des viewBox-Randes.
+		// 💣 DER GLOW IST EIN DREIFACHER STRANG, kein Schatten -- css/features/powerlines.css:
+		//   .powerline--aura  rgba(255, 70, 90, .42)   breit, aussen
+		//   .powerline--mid   rgba(255, 105, 130, .82) mittig
+		//   .powerline--core  rgba(255, 235, 240, 1)   fast weisser Kern
+		// Genau diese drei Lagen, in dieser Reihenfolge. Mit EINER Linie in #ff5f82 (der Zeichenfarbe
+		// aus dem JS) fehlt dem Ganzen das Leuchten, das die Ansicht ausmacht.
+		// ⚠️ Der Untergrund ist dabei entsaettigt (GRUND_FILTER) -- graue Karte, leuchtende Straenge:
+		// das IST das Bild der Kraftlinien-Ansicht.
+		powerlines:
+			'<g fill="none" stroke-linecap="round">' +
+			'<g stroke="rgba(255,70,90,.42)" stroke-width="6">' +
+			'<path d="M-4 6 L15 17 L34 31 L54 40"/><path d="M15 17 L21 -4"/><path d="M15 17 L-4 27"/>' +
+			'<path d="M34 31 L54 20"/><path d="M34 31 L28 52"/></g>' +
+			'<g stroke="rgba(255,105,130,.82)" stroke-width="2.8">' +
+			'<path d="M-4 6 L15 17 L34 31 L54 40"/><path d="M15 17 L21 -4"/><path d="M15 17 L-4 27"/>' +
+			'<path d="M34 31 L54 20"/><path d="M34 31 L28 52"/></g>' +
+			'<g stroke="rgba(255,235,240,1)" stroke-width="1">' +
+			'<path d="M-4 6 L15 17 L34 31 L54 40"/><path d="M15 17 L21 -4"/><path d="M15 17 L-4 27"/>' +
+			'<path d="M34 31 L54 20"/><path d="M34 31 L28 52"/></g></g>' +
+			'<g fill="rgba(255,70,90,.38)"><circle cx="15" cy="17" r="6.5"/><circle cx="34" cy="31" r="5.5"/></g>' +
+			'<g fill="rgba(255,105,130,.9)"><circle cx="15" cy="17" r="3.6"/><circle cx="34" cy="31" r="3"/></g>' +
+			'<g fill="rgba(255,235,240,1)"><circle cx="15" cy="17" r="1.7"/><circle cx="34" cy="31" r="1.4"/></g>',
+
+		// 🔴 VIER FLAECHENARTEN, jede in ihrer echten Farbe (Owner 26.08.2026: "gruen fuer wald, blau
+		// fuer see, braun fuer gebirge"):
+		//   Wald      --color-ecosystem-vegetation-wald      #3f6b2c
+		//   Grasland  --color-ecosystem-vegetation           #5f7d33
+		//   Steppe    --color-ecosystem-vegetation-steppe    #a8bd8a
+		//   See       --color-ecosystem-topographie-see      #4a86b8
+		//   Gebirge   --color-ecosystem-topographie-gebirge  #7a6c5e
+		//   Huegel    --color-ecosystem-topographie-huegelland #7d8f6e
+		// ⚠️ Die Waldflecken liegen dort, wo die Vorlagekachel ihre Waelder hat, und der See auf ihrem
+		// Flusslauf -- dieselbe Regel wie bei den Strassen: nachgezeichnet, nicht danebengelegt.
+		// 💣 Ausgefranste Raender, keine Baender: so liegen die Flaechen auf der Karte.
+		ecosystem:
+			'<path d="M0 22 C7 17 12 23 18 19 26 14 33 20 40 15 44 12 46 16 48 14 V30 C43 33 38 27 31 31 24 35 18 29 11 33 6 36 3 31 0 34 Z" fill="#5f7d33" fill-opacity=".8"/>' +
+			'<path d="M0 34 C3 31 6 36 11 33 18 29 24 35 31 31 38 27 43 33 48 30 V40 C42 43 37 38 30 41 23 44 17 39 10 42 5 44 3 41 0 43 Z" fill="#a8bd8a" fill-opacity=".78"/>' +
+			'<g fill="#3f6b2c" fill-opacity=".85">' +
+			'<path d="M2 3 C6 0 11 1 13 4 15 8 11 11 7 10 3 9 0 6 2 3 Z"/>' +
+			'<path d="M30 2 C35 0 40 2 41 6 42 10 37 12 33 10 29 8 27 4 30 2 Z"/>' +
+			'<path d="M36 20 C41 18 46 21 46 25 46 29 41 30 38 27 35 25 33 22 36 20 Z"/>' +
+			'<path d="M13 24 C17 22 21 24 21 27 21 30 17 31 15 29 12 27 11 25 13 24 Z"/>' +
+			'<path d="M22 41 C27 39 32 41 32 45 32 48 27 48 24 47 21 45 20 42 22 41 Z"/></g>' +
+			'<g fill="#7a6c5e" fill-opacity=".8">' +
+			'<path d="M0 44 C4 40 8 45 13 42 18 39 22 44 26 42 L28 48 H0 Z"/></g>' +
+			'<path d="M40 44 C43 41 46 44 48 42 V48 H38 Z" fill="#7d8f6e" fill-opacity=".78"/>' +
+			'<g fill="#4a86b8" fill-opacity=".85">' +
+			'<path d="M0 13 C6 12 10 15 16 15 24 15 32 17 48 18 V21 C32 20 24 18 16 18 10 18 6 16 0 16 Z"/>' +
+			'<ellipse cx="20" cy="6" rx="3.4" ry="2"/><ellipse cx="27" cy="9" rx="2.6" ry="1.6"/></g>',
+
+		// „Nur Karte" ist LEER, und das ist die Aussage: hier liegt nichts ueber dem Untergrund.
+		none: ""
+	};
+
+	// 🔴 Was die ANSICHT mit dem Untergrund macht -- nicht mit sich selbst. Der Wert ist der echte aus
+	// js/map-features/map-features-powerlines.js bzw. dem Kommentar in tools/layer-tiles/capture.js
+	// ("Die Entsaettigung ist NICHT erfunden: syncPowerlineMapTint faerbt die Grundkarte mit genau
+	// diesen Werten"). Als Filter auf der Untergrund-Schicht stimmt er auf JEDEM Kachelsatz --
+	// eingebrannt in eine Aufnahme galt er nur fuer den einen, auf dem sie entstand.
+	const GRUND_FILTER = {
+		powerlines: "saturate(0.1) brightness(0.6)"
+	};
+
+	// 🔴 Die Landschaften-Ansicht BLENDET den Untergrund ab (Owner 26.08.2026). Der echte Wert fuer
+	// Besucher ist ECOSYSTEM_UNDERGROUND_FRONTEND = 25 (%), nicht 50 -- Editoren haben dafuer einen
+	// Regler. Ausgeblendet wird gegen --color-ecosystem-underground (#d3cec2), NICHT gegen Weiss:
+	// deshalb steht hinter dem Bild eine Flaeche in genau diesem Ton, sonst schiene das Panel durch
+	// und der Farbeindruck waere ein anderer als auf der Karte.
+	const GRUND_DECKKRAFT = {
+		ecosystem: 0.25
+	};
 
 	function ansichten() {
 		// 💣 Die EINZIGE Quelle ist das <select>. Eine zweite Liste hier waere die Divergenz, die
@@ -174,12 +334,36 @@
 		var huelle = document.createElement("span");
 		huelle.className = "map-layer-picker__thumb";
 		var bild = document.createElement("img");
-		bild.src = WURZEL + ansicht.wert + ".webp";
+		// 🔴 UNTER dem Vektor liegt der GEWAEHLTE Untergrund -- wechselt er, wechselt das Bild aller
+		// Ansichten mit. Genau das konnte die alte Aufnahme nicht: sie trug ihren Untergrund
+		// eingebrannt, und „Kraftlinien auf Original" zeigte deshalb Kraftlinien auf Stilisiert.
+		var grund = aktiverUntergrund();
+		bild.src = grund ? grundBildUrl(grund.wert) : "";
 		bild.alt = "";
 		bild.width = 48;
 		bild.height = 48;
 		bild.loading = "lazy";
+		// 💣 Was die ANSICHT mit dem Untergrund macht, gehoert auf das BILD, nicht auf die Zelle: an
+		// der Zelle entsaettigte der Filter den Vektor gleich mit, und die Kraftlinien waeren grau
+		// statt rosa -- also genau das Merkmal weg, das die Ansicht kenntlich macht.
+		if (GRUND_FILTER[ansicht.wert]) {
+			bild.style.filter = GRUND_FILTER[ansicht.wert];
+		}
+		// ⚠️ Abblenden heisst: auf den Ausblendton der Ebene durchscheinen lassen, nicht auf das
+		// Panel -- sonst saehe die Kachel heller aus als die Karte, die sie ankuendigt.
+		if (GRUND_DECKKRAFT[ansicht.wert]) {
+			bild.style.opacity = String(GRUND_DECKKRAFT[ansicht.wert]);
+			huelle.style.background = "var(--color-ecosystem-underground)";
+		}
 		huelle.appendChild(bild);
+		if (OVERLAYS[ansicht.wert]) {
+			var svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+			svg.setAttribute("viewBox", "0 0 48 48");
+			svg.setAttribute("class", "map-layer-picker__vektor");
+			svg.setAttribute("aria-hidden", "true");
+			svg.innerHTML = OVERLAYS[ansicht.wert];
+			huelle.appendChild(svg);
+		}
 
 		var name = document.createElement("span");
 		name.className = "map-layer-picker__label";

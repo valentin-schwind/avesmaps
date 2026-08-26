@@ -114,8 +114,20 @@ assert.ok(/mapLayerModeSelect/.test(js) && /\.options/.test(js),
 		`\`${wort}\` steht NICHT im Picker -- eine zweite Liste der Ansichten waere die Divergenz,`
 		+ " die beim naechsten neuen Modus zuschlaegt");
 });
-assert.ok(!/(powerlines|ecosystem|deregraphic)\s*:/.test(js),
-	"...und auch keine zweite Tabelle der Modus-Schluessel");
+// 🔴 EINE NAMENSLISTE waere die Divergenz -- eine EIGENSCHAFTS-Tabelle ist keine (26.08.2026).
+// Die Vektoren (OVERLAYS) und die beiden Filter ordnen jeder Ansicht etwas ZU; sie zaehlen die
+// Ansichten nicht auf. Der Unterschied ist der Rueckfall: eine neue Ansicht ohne Vektor zeigt
+// einfach den blanken Untergrund -- richtig und unauffaellig. Eine zweite NAMENSLISTE dagegen
+// kennte sie gar nicht, und die Kachel bliebe leer.
+// 💣 Deshalb wird hier nicht die Tabelle verboten, sondern ihr blinder Gebrauch: jeder Zugriff
+// braucht einen Rueckfall.
+["OVERLAYS", "GRUND_FILTER", "GRUND_DECKKRAFT"].forEach((tabelle) => {
+	assert.ok(js.includes(tabelle + "["), `${tabelle} wird ueberhaupt gelesen`);
+	assert.ok(js.includes("if (" + tabelle + "["),
+		`${tabelle} wird nur MIT Rueckfall gelesen -- eine Ansicht ohne Eintrag zeigt den blanken`
+		+ " Untergrund, statt eine leere Kachel zu erzeugen");
+});
+// ...und die KLARNAMEN stehen weiterhin nirgends im Picker (Pruefung oben).
 
 // ---- 6b. Sie laeuft von sich aus, der Parameter ist der NOTAUSGANG -------------------------------
 //
@@ -472,3 +484,28 @@ assert.ok(grenze > 0, "es gibt eine Umbruchgrenze fuer das schmale Telefon");
 assert.ok(grenze < 390 && grenze > 320,
 	"die Grenze liegt zwischen dem kleinsten Geraet (320, bricht um) und dem iPhone 12 (390, passt)"
 	+ " -- gerechnet aus 366px Kastenbreite plus zweimal 12px Kartenrand, nicht geraten");
+
+// ---- 19. DIE ANSICHTEN SIND VEKTOREN UEBER DEM GEWAEHLTEN UNTERGRUND (26.08.2026) ---------------
+//
+// 🔴 Eine Aufnahme traegt ihren Untergrund EINGEBRANNT mit -- „Kraftlinien auf Original" zeigte
+// deshalb Kraftlinien auf Stilisiert. Ein Vektor ist untergrundfrei: 3 Kacheln + 5 Vektoren
+// decken alle 15 Kombinationen ab, und ein vierter Untergrund kostet ein Bild statt fuenf.
+assert.ok(js.includes("grundBildUrl(grund.wert)"),
+	"unter dem Vektor liegt der GEWAEHLTE Untergrund, nicht ein festes Symbolbild");
+assert.ok(!js.includes("WURZEL + ansicht.wert"),
+	"...und die alten Aufnahmen aus icons/layer-tiles/ werden nicht mehr geladen");
+assert.ok(js.includes("createElementNS") && js.includes("map-layer-picker__vektor"),
+	"der Vektor wird als SVG ueber das Bild gelegt");
+
+// 💣 Was die ANSICHT mit dem Untergrund macht, gehoert auf das BILD, nicht auf die Zelle: an der
+// Zelle entsaettigte der Filter den Vektor gleich mit, und die Kraftlinien waeren grau statt
+// rosa -- also genau das Merkmal weg, das die Ansicht kenntlich macht.
+assert.ok(js.includes("bild.style.filter") && !js.includes("knopf.style.filter"),
+	"der Entsaettigungsfilter liegt auf dem Bild, nicht auf der Zelle");
+
+// ⚠️ Der Vektor darf den Klick nicht abfangen, und die Markierung liegt UEBER ihm -- sonst
+// zeichnet er ueber den hellen Trennstrich, und zwar dort, wo er am noetigsten ist.
+assert.ok(/__vektor\s*\{[^}]*pointer-events:\s*none/.test(css),
+	"die Vektorschicht faengt keine Klicks");
+assert.ok(/thumb::before[^{]*\{[^}]*z-index:\s*2/.test(css),
+	"die Markierung liegt ueber dem Vektor");
