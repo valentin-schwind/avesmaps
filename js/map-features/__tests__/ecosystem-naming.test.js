@@ -60,6 +60,21 @@ assert.strictEqual(isEcosystemRegionAutoName("Nebelwald-001", "Wald"), false);
 assert.strictEqual(isEcosystemRegionAutoName("Wald-001", "Steppe"), false);
 assert.strictEqual(isEcosystemRegionAutoName("Fläche-001", ""), true, "the no-Art fallback round-trips");
 
+// 🪤 THE FALLBACK PREFIX IS ALWAYS GENERIC, whatever the Art says. Measured live on 25.08.2026: 36 of
+// the 37 "Fläche-NNN" regions have since been given an Art (18× wald, 10× see, 7× wuestenoase), and
+// against "Wald" the name "Fläche-101" does NOT match `^Wald-\d+$`. They therefore counted as REAL
+// names and kept their map label -- which is the bug this rule was reported for. "Fläche" is not an
+// Art label at all: it is ECOSYSTEM_AUTO_NAME_FALLBACK, produced only by the generator.
+assert.strictEqual(isEcosystemRegionAutoName("Fläche-101", "Wald"), true);
+assert.strictEqual(isEcosystemRegionAutoName("Fläche-007", "See"), true);
+
+// The both-ends anchoring survives it -- the fallback is a whole prefix, never a suffix.
+assert.strictEqual(isEcosystemRegionAutoName("Grüne Fläche-3", "Wald"), false);
+assert.strictEqual(isEcosystemRegionAutoName("Fläche am See", "Wald"), false);
+
+// The display name follows: a leftover "Fläche-101" on a forest reads as "Wald", not as itself.
+assert.strictEqual(ecosystemRegionDisplayName("Fläche-101", "Wald"), "Wald");
+
 // ---------------------------------------------------------------------- THE DISPLAY NAME ---
 // What the infobox will ask for. An auto-name is internal bookkeeping and must never reach a reader:
 // they get the Art instead.
