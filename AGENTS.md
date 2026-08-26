@@ -334,8 +334,22 @@ is the default, English is opt-in. Therefore:
   darin, liest ein `[ -s roteliste ]`-Test die Warnung als roten Test und bricht den Push ab,
   obwohl kein Test rot ist -- am 26.08.2026 einmal passiert und als echter Befund missdeutet.
   💣 `-n 1` und `-I{}` schliessen sich aus; genau das war die Warnung.
+  💣 **UND DIE KLAMMER UM DIE BEIDEN GRUPPEN IST TRAGEND -- ohne sie faehrt der Lauf 21 von 312
+  Dateien und meldet „null rot".** `find js tools \( A \) -o \( B \) -print0` bindet `-print0` NUR
+  an die zweite Gruppe: `find` liest das als `\( A \) -o \( \( B \) -print0 \)`, also wird nur
+  ausgegeben, was auf B passt -- die 21 `test-*.mjs`. Die 291 Dateien aus A laufen NIE.
+  ⚠️ Und es sieht wie ein gruenes Tor aus: die Ergebnisdatei ist leer, der Lauf dauert eine
+  Sekunde, nichts warnt. Am 26.08.2026 dreimal hintereinander so gefahren und geglaubt; aufgefallen
+  ist es erst, als ein Test, der nachweislich rot war, im Lauf nicht auftauchte. Richtig ist die
+  zusaetzliche Klammer um BEIDE Gruppen:
+  `find js tools \( \( -path '*__tests__*' -name '*.test.js' \) -o \( -name 'test-*.mjs' -not -path '*__tests__*' \) \) -print0`
+  ⭐ Die Gegenprobe kostet nichts und beantwortet genau die Frage, die man sich sonst nicht stellt:
+  `… -print0 | tr -dc '\0' | wc -c` muss die Zahl aus `.github/workflows/deploy-avesmaps-strato.yml`
+  ergeben (26.08.2026: 312 JS, 310 PHP). Eine Zahl, die viel zu klein ist, ist der einzige
+  Unterschied zwischen diesem Fehler und einem gruenen Feld.
   ⚠️ Bei einem **unerwarteten** Roten seriell nachfahren, bevor man ihn glaubt: nur der serielle
   Lauf schliesst aus, dass zwei Tests sich eine Fixture oder einen Port teilen.
+  ⚠️ Und bei einem **unerwarteten GRUENEN** ebenso: erst die Dateizahl nachzaehlen, dann glauben.
   ⚠️ **Und danach: der Fehlschlag vergiftet den `?v=`-Stempel.** Der nächste grüne Lauf
   hält die nie hochgeladenen Dateien für aktuell — live standen zwei davon auf HTTP 404
   und sechs in alter Fassung, während `index.html` schon die neue anforderte. Nur eine
