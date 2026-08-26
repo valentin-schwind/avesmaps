@@ -508,10 +508,49 @@ function notifyEditorZoomLevel() {
 	showFeedbackToast(`Zoom-Stufe ${Math.round(map.getZoom())}`, "info");
 }
 
+// 💣 IST DIE KARTE UEBERHAUPT SCHON DA? Diese Frage ist seit dem 27.08.2026 noetig, und sie hat
+// eine Fangfrage in sich.
+//
+// `<div id="map">` (index.html) legt `window.map` an -- HTML-Kennungen werden globale Variablen.
+// Die ECHTE Karte entsteht erst in js/app/bootstrap.js (`const map = L.map("map", …)`), und diese
+// globale lexikalische Bindung existiert erst, wenn bootstrap.js ausgewertet wird. Bis dahin ist
+// `map` also NICHT undefiniert, sondern das DIV. Jede Pruefung der Form `typeof map !== "undefined"`
+// ist hier deshalb wirkungslos -- gefragt werden muss nach `map.getZoom`.
+//
+// 🪤 UND WARUM DAS ERST JETZT AUFFIEL: routing.js laedt VOR bootstrap.js, die Nutzlast brauchte aber
+// bisher 2,1-2,5 s. Bis die Antwort da war, stand die Karte laengst. Am 27.08.2026 kamen zwei
+// Beschleunigungen zusammen -- der Vorabruf im Kopf und der Ganzkoerper-Dateicache -- und die
+// Antwort traf nach 88 ms ein, also VOR bootstrap.js. Ergebnis live: „map.getZoom is not a
+// function", die ganze Hydrierung brach ab, und die Karte blieb ohne Grenzen und ohne Wege.
+// ⭐ Die Lehre ist groesser als die Zeile: eine Beschleunigung kann eine Reihenfolge umdrehen, die
+// vorher nur durch Langsamkeit gehalten wurde. Wer hier etwas schneller macht, prueft die
+// Wettlaeufe mit.
+//
+// ⚠️ DOMContentLoaded ist die harte Zusage: bootstrap.js ist ein gewoehnliches <script src> im
+// Rumpf und laeuft damit waehrend des Parsens, also davor. Kein Nachfragen im Kreis noetig.
+function avesmapsKarteBereit() {
+	const bereit = () => {
+		try {
+			return typeof map !== "undefined" && map !== null && typeof map.getZoom === "function";
+		} catch (fehler) {
+			return false; // die Bindung steht noch im toten Bereich
+		}
+	};
+	if (bereit() || document.readyState !== "loading") {
+		return Promise.resolve();
+	}
+	return new Promise((aufloesen) => {
+		document.addEventListener("DOMContentLoaded", () => aufloesen(), { once: true });
+	});
+}
+
 // Laden und Verarbeiten der GeoJSON-Daten aus SQL.
 const routeDataRequest = loadRouteData();
 
 routeDataRequest
+	// 🔴 ERST die Karte, dann hydrieren. Der Abruf selbst laeuft weiter so frueh wie moeglich -- nur
+	// die VERARBEITUNG wartet. Beides zu verzoegern haette den Vorabruf wieder aufgehoben.
+	.then((data) => avesmapsKarteBereit().then(() => data))
 	.then((data) => {
 		updateMapDataStatus(data);
 		// Multi-source system: stash the shared source catalog + per-entity references from the
