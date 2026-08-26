@@ -57,12 +57,30 @@ const vonE = eco.indexOf("async function openEcosystemPropertiesDialog(");
 assert.ok(vonE >= 0, "den Flächen-Öffner gibt es"); checks++;
 // ⚠️ Kein `indexOf(...) + n || fallback`: `-1 + n` ist ab n=2 truthy und der Rückfall käme nie
 // (AGENTS.md §9). Die Fallunterscheidung steht deshalb ausgeschrieben da.
-const bisE = eco.indexOf("\n\tasync function", vonE + 10);
-const oeffnerE = eco.slice(vonE, bisE > vonE ? bisE : eco.length);
-assert.ok(/findLabelEntriesByEcosystemRegion/.test(oeffnerE),
-	"der Flächen-Öffner sucht die Beschriftungen seiner Region"); checks++;
+// 🪤 Und die Grenze ist die nächste Funktion JEDER Art, nicht die nächste `async function`: die
+// folgt erst 29.820 Zeichen später, der Schnitt umfasste also ein halbes Dutzend fremder
+// Funktionen — und eine Zusicherung darin war grün, ohne irgendetwas zu prüfen. Gemessen:
+// 11.643 statt 29.820 Zeichen.
+const nachE = eco.slice(vonE + 10).match(/\n\t(?:async )?function [A-Za-z]/);
+const oeffnerE = nachE ? eco.slice(vonE, vonE + 10 + nachE.index) : eco.slice(vonE);
+assert.ok(oeffnerE.length < 15000, "der Schnitt trifft den Öffner, nicht den halben Modulrest"); checks++;
 assert.ok(/openLabelEditDialog\(/.test(oeffnerE),
 	"…und lädt die Beschriftungs-Hälfte"); checks++;
+// 💣 BEIDE RICHTUNGEN, wie der Server. `avesmapsEcosystemRegionPublicIdOfLabel` liest den Zeiger AM
+// LABEL (`properties.ecosystem_region_public_id`) UND den an der Region
+// (`ecosystem_region.label_public_id`) -- der Client las nur die erste. Live gemessen am 26.08.2026:
+// 718 Regionen führen ein Label, aber nur 705 Labels tragen den Rückzeiger. Die **14** Regionen
+// dazwischen (darunter „Abagund" und „Siebenwind-Küste") zeigten trotz vorhandener Beschriftung
+// „Diese Fläche trägt keine Beschriftung." — und boten an, eine zweite anzulegen.
+assert.ok(/beschriftungenDerRegion\(/.test(oeffnerE),
+	"…über den EINEN Auflöser, der beide Richtungen kennt"); checks++;
+const vonA = eco.indexOf("function beschriftungenDerRegion(");
+assert.ok(vonA >= 0, "den Auflöser gibt es"); checks++;
+const aufloeser = eco.slice(vonA, vonA + 900);
+assert.ok(/findLabelEntriesByEcosystemRegion/.test(aufloeser),
+	"er liest den Rückzeiger AM LABEL"); checks++;
+assert.ok(/linkedEcosystemLabelEntry/.test(aufloeser),
+	"…und den Zeiger AN DER REGION"); checks++;
 
 // ── C. DER BESCHRIFTUNGS-EINSTIEG HOLT SEINE FLÄCHE ──────────────────────────────────────────
 const labels = lies("js/review/review-labels.js");

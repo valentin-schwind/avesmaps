@@ -736,8 +736,8 @@
 		// Kopffelder, und die Region gewinnt, weil sie danach schreibt. Bis zum 26.08.2026 wurde sie
 		// GAR NICHT geladen -- der Reiter „Beschriftung" behauptete deshalb bei jeder der 716
 		// beschrifteten Flaechen, es gebe keine, und bot „Beschriftung anlegen" an.
-		if (istEinstieg && typeof findLabelEntriesByEcosystemRegion === "function") {
-			const geschwister = findLabelEntriesByEcosystemRegion(String(area.region_public_id || ""));
+		if (istEinstieg) {
+			const geschwister = beschriftungenDerRegion(area);
 			if (geschwister.length > 0 && typeof openLabelEditDialog === "function") {
 				// ⚠️ Der ERSTE der sortierten Liste -- dieselbe Ordnung, die die Geschwisterwahl
 				// aufbaut, damit „1 von 3" auch die ist, die beim Oeffnen dasteht.
@@ -914,6 +914,31 @@
 	// zurückgerollter Namen wäre die schlechtere Antwort als ein Label, das hinterherhinkt.
 	// Das verbundene Label, so wie der Label-Layer es hält -- oder null, wenn die Region keins hat oder
 	// es (noch) nicht geladen ist.
+	/**
+	 * Die Beschriftungen dieser Region -- BEIDE Richtungen, wie der Server.
+	 *
+	 * 💣 `avesmapsEcosystemRegionPublicIdOfLabel` (api/_internal/app/ecosystem.php) liest den Zeiger
+	 * AM LABEL (`properties.ecosystem_region_public_id`) UND den an der Region
+	 * (`ecosystem_region.label_public_id`). Der Client las nur die erste Richtung -- und live
+	 * gemessen am 26.08.2026 fuehren **718** Regionen ein Label, waehrend nur **705** Labels den
+	 * Rueckzeiger tragen. Die **14** dazwischen (darunter „Abagund" und „Siebenwind-Kueste") zeigten
+	 * trotz vorhandener Beschriftung „Diese Flaeche traegt keine Beschriftung." und boten an, eine
+	 * zweite anzulegen -- die der Server dann mit „hat bereits ein primaeres Label" abgelehnt haette.
+	 *
+	 * ⚠️ Die Rueckzeiger-Richtung zuerst: nur sie kennt MEHRERE Beschriftungen einer Flaeche (das
+	 * Ingvaltal traegt drei). Der Zeiger an der Region bezeichnet immer nur die primaere.
+	 */
+	function beschriftungenDerRegion(area) {
+		const perRueckzeiger = typeof findLabelEntriesByEcosystemRegion === "function"
+			? findLabelEntriesByEcosystemRegion(String(area?.region_public_id || ""))
+			: [];
+		if (perRueckzeiger.length > 0) {
+			return perRueckzeiger;
+		}
+		const primaer = linkedEcosystemLabelEntry(area);
+		return primaer ? [primaer] : [];
+	}
+
 	function linkedEcosystemLabelEntry(area) {
 		const labelPublicId = String(area?.label_public_id || "");
 		if (!labelPublicId || typeof findLabelEntryByPublicId !== "function") {
