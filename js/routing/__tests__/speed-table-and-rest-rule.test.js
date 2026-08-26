@@ -64,6 +64,13 @@ global.SPEED_TABLE = literal("SPEED_TABLE");
 // 🔴 Der Reisetag je Transportmittel — vierter Spiegel derselben Regel, gebunden gegen den
 // PHP-Zwilling avesmapsTravelValuesHoursFor() weiter unten. Er ist der Nenner jeder Zelle oben.
 global.TRANSPORT_TRAVEL_HOURS = literal("TRANSPORT_TRAVEL_HOURS");
+// 💣 UND DIE LANDLISTE DAZU, sonst prueft dieser Test einen Zweig, den die App nie nimmt.
+// `avesmapsRouteLegTravelHours` gibt fuer ein LANDmittel den Planertag zurueck und faellt nur ohne
+// diese Liste auf TRANSPORT_TRAVEL_HOURS durch. Solange die Landetappe gar kein Reisemittel trug
+// (bis 26.08.2026, Meldung #102), landete sie mit ihrer WEGART in beiden Faellen beim Planertag --
+// die Luecke war unsichtbar. Seit sie ihr Mittel nennt, ist sie es nicht mehr: ohne diese Zeile
+// rechnete der Test die Gruppe zu Fuss mit 8 Stunden, waehrend die App den Planerwert nimmt.
+global.VALID_TRANSPORT_OPTIONS = literal("VALID_TRANSPORT_OPTIONS");
 global.TIME_SCALE_FACTOR = literal("TIME_SCALE_FACTOR");
 global.KM_TO_MILES = literal("KM_TO_MILES");
 // Reine Kulisse, nicht Gegenstand der Prüfung: der Name der synthetischen Wegart.

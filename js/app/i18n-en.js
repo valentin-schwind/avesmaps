@@ -166,6 +166,7 @@ window.AVESMAPS_I18N_EN = {
 	"planner.leg.in": "in",
 	"planner.leg.exitPoint": "Exit point",
 	"planner.leg.joinPoint": "Junction point",
+	"planner.leg.landingPoint": "Landing",
 	"planner.summary.legCount": "{n} legs",
 	"planner.summary.distance": "Distance",
 	"planner.summary.airDistance": "As the dragon flies",

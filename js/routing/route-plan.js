@@ -624,6 +624,27 @@ function isRoutePlanExplicitWaypoint(name, waypointNameSet) {
 	return normalizedName !== "" && waypointNameSet.has(normalizedName);
 }
 
+// Wasser oder Land? Drei Leser in dieser Datei -- der Aggregations-Zweig, der Grenz-Lauf und die
+// Benennung des Uebergangs. Eine zweite Abschrift waere die naechste Divergenz.
+function isRoutePlanWaterType(type) {
+	return type === "Flussweg" || type === "Seeweg";
+}
+
+// Das Reisemittel einer Anzeige-Etappe.
+//
+// 💣 ES TRENNT DEN GRENZ-LAUF, UND DAS IST MELDUNG #102. Wer das Schiff besteigt, faengt eine neue
+// Etappe an -- `type`, `transport` und `flowState` einer verschmolzenen Etappe sind die der ERSTEN,
+// und genau diese drei Felder lesen die Flusspassage (`type === "Flussweg"`), die Frage nach dem
+// Dach ueber Nacht (`TRAVEL_COST_SHELTER_BY_SUBTYPE`) und der Reisetag der Etappe
+// (`avesmapsRouteLegTravelHours`). Live gemessen: 3,042 Meilen Weg vor dem Anleger machten aus
+// 187,667 Meilen Flussfahrt eine Landetappe -- ohne Flusspassage, mit acht bezahlten Naechten.
+//
+// ⚠️ Die WEGART trennt bewusst NICHT: Reichsstrasse, Strasse und Weg hintereinander sind EIN Marsch
+// bis zur naechsten Stadt, und das ist der Sinn des Grenz-Laufs.
+function routePlanEntryVehicle(entry) {
+	return String(entry?.transport || "");
+}
+
 // Nachbearbeitung der Etappenliste per "Grenz-Lauf": Aufeinanderfolgende Roh-Etappen werden zu
 // einer Anzeige-Etappe gesammelt und erst an der NAECHSTEN echten Stadt geschnitten. Anonyme
 // Kreuzungen/Markierungen sind nur etappeninterne Stuetzpunkte und werden absorbiert; echte
@@ -651,7 +672,12 @@ function cleanRoutePlanNoiseEntries(entries) {
 		// buildRoutePlanEntries nicht wieder verkleben. Land<->Fluss verschmilzt wie bisher.
 		const riverFlowBreak = !!open && open.type === "Flussweg" && entry.type === "Flussweg"
 			&& (open.flowState || null) !== (entry.flowState || null);
-		if (open && (entryIsSynthetic !== openIsSynthetic || riverFlowBreak)) {
+		// 💣 UND EIN WECHSEL DES REISEMITTELS EBENSO (Meldung #102). Hier stand „Land<->Fluss
+		// verschmilzt wie bisher" -- ein Erbstueck aus einer Zeit, in der die Etappenart nur der
+		// Beschriftung diente. Seit dem Kostenmodell (03.08.2026) und dem Reisetag je Etappe
+		// (14.08.2026) rechnen drei Stellen mit ihr, siehe routePlanEntryVehicle.
+		const vehicleBreak = !!open && routePlanEntryVehicle(open) !== routePlanEntryVehicle(entry);
+		if (open && (entryIsSynthetic !== openIsSynthetic || riverFlowBreak || vehicleBreak)) {
 			result.push(open);
 			open = null;
 		}
@@ -714,8 +740,13 @@ function cleanRoutePlanNoiseEntries(entries) {
 		const tailSyntheticBreak = open.type === SYNTHETIC_ROUTE_TYPE
 			&& (!lastEntry || lastEntry.type !== SYNTHETIC_ROUTE_TYPE)
 			&& !tailIsInvisibleOffroad;
+		// 💣 UND DAS REISEMITTEL AUCH HIER. Fuer das Querfeldein wurde diese zweite Stelle am
+		// 01.08.2026 einzeln nachgezogen, nachdem der Fall live aufgetreten war; eine Regel, die nur
+		// die Mitte der Liste bindet, ist keine. Eine Flussfahrt, die an einer Markierung endet,
+		// verschwaende sonst in der Landetappe davor -- mitsamt ihrer Flusspassage.
+		const tailVehicleBreak = !!lastEntry && routePlanEntryVehicle(lastEntry) !== routePlanEntryVehicle(open);
 		const absorbTail = tailIsInvisibleOffroad
-			|| (isRoutePlanMarkerName(open.endName) && !tailRiverFlowBreak && !tailSyntheticBreak);
+			|| (isRoutePlanMarkerName(open.endName) && !tailRiverFlowBreak && !tailSyntheticBreak && !tailVehicleBreak);
 		if (absorbTail && result.length > 0) {
 			const last = result[result.length - 1];
 			last.distance += open.distance;
@@ -757,17 +788,29 @@ function nameRoutePlanTransferPoints(entries) {
 	for (let index = 0; index < result.length - 1; index++) {
 		const current = result[index];
 		const next = result[index + 1];
-		const currentIsOffroad = current.type === SYNTHETIC_ROUTE_TYPE;
-		const nextIsOffroad = next.type === SYNTHETIC_ROUTE_TYPE;
-		if (currentIsOffroad === nextIsOffroad) {
-			continue;
-		}
 		if (!isRoutePlanMarkerName(current.endName)) {
 			continue;
 		}
-		const label = nextIsOffroad
-			? tr("planner.leg.exitPoint", "Abgangspunkt")
-			: tr("planner.leg.joinPoint", "Anschlusspunkt");
+		const currentIsOffroad = current.type === SYNTHETIC_ROUTE_TYPE;
+		const nextIsOffroad = next.type === SYNTHETIC_ROUTE_TYPE;
+		// 🔴 DIE GELAENDE-REGEL ZUERST, UND SIE BLEIBT UNVERAENDERT. Kommt jemand querfeldein an einen
+		// Fluss, ist „Anschlusspunkt" die Auskunft, die es seit dem 15.08.2026 gibt -- die neue Regel
+		// darunter draengt sich nicht davor.
+		let label = "";
+		if (currentIsOffroad !== nextIsOffroad) {
+			label = nextIsOffroad
+				? tr("planner.leg.exitPoint", "Abgangspunkt")
+				: tr("planner.leg.joinPoint", "Anschlusspunkt");
+		} else if (routePlanEntryVehicle(current) !== routePlanEntryVehicle(next)
+			&& (isRoutePlanWaterType(current.type) || isRoutePlanWaterType(next.type))) {
+			// Seit Meldung #102 trennt ein Wechsel des Reisemittels die Etappen -- und ohne einen Namen
+			// hiesse die neue Grenze „Markierung". Die Trennung waere richtig und die Auskunft
+			// schlechter als vorher. Ein Name fuer BEIDE Richtungen: der Anleger ist derselbe Ort, ob
+			// man dort an Bord geht oder von Bord. Gilt auch am Flussmund (Fluss -> See).
+			label = tr("planner.leg.landingPoint", "Anlegestelle");
+		} else {
+			continue;
+		}
 		current.endName = label;
 		next.startName = label;
 	}
@@ -822,7 +865,7 @@ function buildRoutePlanEntries(routeNames, segments) {
 			);
 		}
 
-		const isWaterRoute = type === "Flussweg" || type === "Seeweg";
+		const isWaterRoute = isRoutePlanWaterType(type);
 		const orientation = orientedSegmentEndpoints[index];
 		// Upstream river legs display time * flow.factor (spec §4) -- must match the graph
 		// edge cost or the shown hours would contradict the chosen route. Prefers the
@@ -899,6 +942,12 @@ function buildRoutePlanEntries(routeNames, segments) {
 		flushAggregateEntry();
 		entries.push({
 			type,
+			// 💣 DAS REISEMITTEL GEHOERT AN JEDE ETAPPE, NICHT NUR ANS WASSER-AGGREGAT. Bis zum
+			// 26.08.2026 stand es nur dort; `resolveRouteStepTransport` fiel an Land auf die WEGART
+			// zurueck. Der Reisetag traf damit zufaellig richtig (weder „Weg" noch „groupFoot" stehen in
+			// TRANSPORT_TRAVEL_HOURS, beide ergeben den Planerwert) -- aber der Grenz-Lauf konnte nicht
+			// vergleichen, und eine Regel darf nicht davon abhaengen, dass ein Feld FEHLT.
+			transport,
 			flowState: null,
 			// V14: this leg was computed across country by the A*, so no drawn way exists here. The
 			// note below it says so -- otherwise the plan would promise a road that is not on the map.

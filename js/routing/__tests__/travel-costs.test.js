@@ -172,4 +172,39 @@ assert.strictEqual(avesmapsCountRouteStateBorders(intoTheSea, westEast), 0,
 assert.strictEqual(avesmapsCountRouteStateBorders(straight, []), null,
 	"ohne Gebiete bleibt die Antwort offen, sie wird nicht zu 0");
 
+// ---------------------------------------------------------------------------------------------
+// 5. Was die Kostenrechnung aus der ETAPPENART liest (Meldung #102)
+// ---------------------------------------------------------------------------------------------
+// 💣 DIESE ZWEI ZEILEN SIND DER GRUND, WARUM DER GRENZ-LAUF LAND UND WASSER TRENNEN MUSS.
+// `buildTravelCostRows` zaehlt Flussmeilen an `type === "Flussweg"`, und die Frage nach dem Dach
+// ueber Nacht geht ueber `TRAVEL_COST_SHELTER_BY_SUBTYPE[type]`. Verschmilzt eine kurze Landetappe
+// mit der Flussfahrt dahinter, erbt diese „Weg" -- und beide Rechnungen antworten still falsch.
+// Live gemessen am 26.08.2026 (Gareth -> Perricum): 3,042 Meilen Weg vor dem Anleger, 187,667
+// Meilen Fluss dahinter; angezeigt wurden 8 x Gemeinschaftszimmer und keine Flusspassage.
+// ⭐ Gegenstueck in js/routing/__tests__/land-wasser-etappe-trennen.test.js -- dort steht, dass die
+// zwei Etappen getrennt bleiben; hier steht, WARUM das eine Rechnung und keine Beschriftung ist.
+const gemischteReise = [
+	{ type: "Weg", transport: "groupFoot", distance: 3.042, travelTime: 0.896 },
+	{ type: "Flussweg", transport: "riverSailer", flowState: "downstream", distance: 187.667, travelTime: 37.221 },
+];
+const gemischt = buildTravelCostRows(gemischteReise, { totalHours: 216 }, { stateBorders: 0 });
+const flussZeile = gemischt.rows.find((row) => row.key === "river");
+assert.ok(flussZeile, "die getrennte Flussetappe erzeugt die Zeile Flusspassage");
+assert.ok(flussZeile.heller > 0, "und sie kostet etwas");
+assert.match(flussZeile.note, /187,7/, "ueber ihre eigenen Meilen, nicht ueber die der ganzen Reise");
+assert.ok(gemischt.aboardNights > 0, "und es wird an Bord geschlafen");
+
+// Und derselbe Weg mit verschmolzener Art -- der Zustand VOR der Reparatur. Er steht hier, damit
+// niemand die Trennung fuer Kosmetik haelt: dieselbe Reise, dieselbe Strecke, andere Rechnung.
+const verschmolzen = buildTravelCostRows(
+	[{ type: "Weg", transport: "groupFoot", distance: 190.709, travelTime: 38.117 }],
+	{ totalHours: 216 },
+	{ stateBorders: 0 }
+);
+assert.strictEqual(verschmolzen.rows.find((row) => row.key === "river"), undefined,
+	"als Landetappe getarnt faellt die Flusspassage ersatzlos weg");
+assert.strictEqual(verschmolzen.aboardNights, 0, "und aus den Naechten an Bord werden Wirtshausnaechte");
+assert.ok(verschmolzen.innNights > gemischt.innNights,
+	"die Verschmelzung macht die Reise teurer, nicht nur ungenauer");
+
 console.log("travel-costs.test.js: alle Prüfungen bestanden");
