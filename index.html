@@ -253,10 +253,6 @@
 }
 		</script>
 		<script src="js/app/loading-bar.js"></script>
-		<script src="js/third-party/leaflet.js"></script>
-		<script src="js/third-party/leaflet.textpath.local.js"></script>
-		<script src="js/third-party/jquery-3.6.0.min.js"></script>
-		<script src="js/third-party/jquery-ui.min.js"></script>
 	</head>
 
 	<body>
@@ -3278,6 +3274,24 @@
 			</div>
 		</div>
 
+		<!-- 🔴 DIE VIER FREMDBIBLIOTHEKEN STEHEN HIER UNTEN, NICHT IM KOPF (seit 26.08.2026).
+		     Zusammen ~505 KB roh, und im <head> blockierten sie das Parsen des GESAMTEN Rumpfes --
+		     vor dem ersten Pixel, sogar vor dem Startschleier. Hier unten kostet das nichts: sie
+		     laufen weiterhin vor jedem eigenen Skript, denn runtime-state.js ist das ERSTE
+		     `src`-Skript des Rumpfes und steht direkt darunter.
+		     💣 DIE REIHENFOLGE IST TRAGEND und unveraendert: leaflet legt `L` an, textpath erweitert
+		     `L.Polyline`, jquery legt `$` an, jquery-ui erweitert `$`. Wer eine Zeile verschiebt,
+		     bricht die naechste.
+		     ⭐ Die Vorbedingung ist nachgemessen, nicht vermutet: der Rumpf enthaelt KEIN einziges
+		     Inline-Skript, kein `on…`-Ereignisattribut und keinen `javascript:`-Verweis -- es gibt
+		     also nichts, was `$` oder `L` waehrend des Parsens anfassen koennte. Wer hier je ein
+		     Inline-Skript in den Rumpf setzt, muss es UNTER diesen Block setzen.
+		     ⚠️ loading-bar.js bleibt oben im Kopf -- der Startschleier soll vor allem anderen stehen,
+		     und er braucht weder `$` noch `L` (nachgeprueft). -->
+		<script src="js/third-party/leaflet.js"></script>
+		<script src="js/third-party/leaflet.textpath.local.js"></script>
+		<script src="js/third-party/jquery-3.6.0.min.js"></script>
+		<script src="js/third-party/jquery-ui.min.js"></script>
 		<script src="js/app/runtime-state.js"></script>
 		<script src="js/routing/route-priority-queue.js"></script>
 		<!-- Vor config.js: VISUAL_LINE_CATMULL_ROM_CONFIG uebernimmt samples/tension von hier, damit
