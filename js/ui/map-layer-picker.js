@@ -947,6 +947,21 @@
 		// jQuery .val(), und das feuert nichts. Beobachtet wird deshalb die Beschriftung der
 		// Auswahlbox: syncTransportControl schreibt sie bei JEDEM Wechsel neu. Kein zweiter Zustand,
 		// nur ein Zuhoerer an der Stelle, die sich ohnehin aendert.
+		// 💣 UND DER UNTERGRUND BRAUCHT DENSELBEN ZUHOERER (26.08.2026). Der Beobachter unten horcht
+		// auf die Beschriftung der ANSICHTS-Auswahlbox -- ein reiner Untergrundwechsel aendert die
+		// nicht. Die zugeklappte Kachel behielt dadurch ihr altes Bild UND ihre alte zweite Zeile:
+		// wer von „Kraftlinien" auf „Standard · Original" wechselte, sah weiter Kraftlinien.
+		// Gemeldet als „standard auf original funktioniert nicht -- da kommen kraftlinien".
+		// ⚠️ Am <select> und nicht in waehleGrund(): der Untergrund wechselt auch ueber das
+		// Anzeige-Menue des Editors und ueber setMapStyle. Ein Ruf nur im Kachel-Weg liesse genau
+		// die anderen Wege wieder danebenlaufen -- dieselbe Lehre wie bei den vier Erzeugern der
+		// Querfeldein-Kanten (AGENTS.md §11).
+		if (grundSelect) {
+			grundSelect.addEventListener("change", function () {
+				zeichne();
+			});
+		}
+
 		var beschriftung = document.getElementById("mapLayerModeLabel");
 		if (beschriftung && typeof MutationObserver === "function") {
 			new MutationObserver(function () {

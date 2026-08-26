@@ -509,3 +509,16 @@ assert.ok(/__vektor\s*\{[^}]*pointer-events:\s*none/.test(css),
 	"die Vektorschicht faengt keine Klicks");
 assert.ok(/thumb::before[^{]*\{[^}]*z-index:\s*2/.test(css),
 	"die Markierung liegt ueber dem Vektor");
+
+// ---- 20. DIE KACHEL GEHT AUCH BEIM UNTERGRUND MIT (26.08.2026) ----------------------------------
+//
+// 💣 Gemeldet als „standard auf original funktioniert nicht -- da kommen kraftlinien". Der
+// ZUSTAND war korrekt, die Kachel zeigte nur weiter ihr altes Bild und ihre alte zweite Zeile.
+// Ursache: zeichne() laeuft beim Oeffnen, und der Beobachter horcht auf die Beschriftung der
+// ANSICHTS-Auswahlbox -- ein reiner Untergrundwechsel aendert die nicht.
+// ⚠️ Der Zuhoerer haengt am <select>, nicht in waehleGrund(): der Untergrund wechselt auch ueber
+// das Anzeige-Menue des Editors und ueber setMapStyle. Ein Ruf nur im Kachel-Weg liesse genau
+// die anderen Wege wieder danebenlaufen.
+const grundZuhoerer = js.slice(js.indexOf("if (grundSelect) {"), js.indexOf("var beschriftung"));
+assert.ok(grundZuhoerer.includes("addEventListener(\"change\"") && grundZuhoerer.includes("zeichne()"),
+	"ein Untergrundwechsel zeichnet die Kachel neu -- sonst zeigt sie den vorigen Stand weiter");
