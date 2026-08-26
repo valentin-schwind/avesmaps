@@ -79,7 +79,8 @@ function startRegionGeometryEdit(regionEntry, editLayer = null) {
 		map.doubleClickZoom.disable();
 	}
 	// Und ein verwackelter Klick (Strg+Kante, Doppelklick) soll die Ecke setzen, nicht die Karte
-	// schieben -- fuer die Dauer der Sitzung gilt die groessere Klick-Toleranz (map-features.js).
+	// schieben -- fuer die Dauer der Sitzung gilt die groessere Klick-Toleranz (map-features.js;
+	// gewacht von __tests__/werkzeug-klick-toleranz.test.js, Abschnitt D).
 	if (typeof avesmapsWerkzeugKlickToleranzAnheben === "function") {
 		avesmapsWerkzeugKlickToleranzAnheben();
 	}

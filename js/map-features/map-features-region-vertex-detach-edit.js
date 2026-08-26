@@ -306,6 +306,7 @@
 			if (activeRegionGeometryEdit.doubleClickZoomWasEnabled) {
 				map.doubleClickZoom?.enable?.();
 			}
+			// Gewacht von __tests__/werkzeug-klick-toleranz.test.js, Abschnitt D (Override-Fassung).
 			if (typeof avesmapsWerkzeugKlickToleranzZuruecknehmen === "function") {
 				avesmapsWerkzeugKlickToleranzZuruecknehmen();
 			}

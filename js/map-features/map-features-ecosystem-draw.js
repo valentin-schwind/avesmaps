@@ -218,7 +218,8 @@ function startEcosystemAreaDrawing({ startLatLng = null } = {}) {
 	ecosystemDrawLastClick = null;
 	map.doubleClickZoom.disable();
 	// Ein verwackelter Klick soll den Punkt setzen, nicht die Karte schieben -- fuer die Dauer des
-	// Zeichnens gilt die groessere Klick-Toleranz (avesmapsWerkzeugKlickToleranzAnheben, map-features.js).
+	// Zeichnens gilt die groessere Klick-Toleranz (avesmapsWerkzeugKlickToleranzAnheben,
+	// map-features.js; gewacht von __tests__/werkzeug-klick-toleranz.test.js, Abschnitt B).
 	if (typeof avesmapsWerkzeugKlickToleranzAnheben === "function") {
 		avesmapsWerkzeugKlickToleranzAnheben();
 	}

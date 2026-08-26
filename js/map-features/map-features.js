@@ -31,6 +31,8 @@ const REGION_EDIT_EDGE_HIT_TOLERANCE_PX = 22;
 // ⚠️ `map.dragging._draggable` ist Leaflet-intern; vertretbar, weil js/third-party/leaflet.js auf
 // 1.9.4 gepinnt ist. Der Merker liegt AN der Draggable (kein Modulzustand daneben), dadurch ist
 // doppeltes Anheben idempotent und die Ruecknahme eindeutig.
+// Gewacht von js/map-features/__tests__/werkzeug-klick-toleranz.test.js (faehrt alle drei
+// Werkzeug-Wege zur Laufzeit).
 const AVESMAPS_WERKZEUG_KLICK_TOLERANZ_PX = 12;
 
 function avesmapsWerkzeugKlickToleranzAnheben() {

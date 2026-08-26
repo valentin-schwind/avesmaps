@@ -957,7 +957,8 @@ function openEcosystemGeometryEdit(publicId) {
 		// the drawing tool switches it off (map-features-ecosystem-draw.js).
 		map.doubleClickZoom.disable();
 		// Und ein verwackelter Strg+Klick auf die Kante soll die Ecke setzen, nicht die Karte
-		// schieben -- fuer die Dauer der Sitzung gilt die groessere Klick-Toleranz (map-features.js).
+		// schieben -- fuer die Dauer der Sitzung gilt die groessere Klick-Toleranz (map-features.js;
+		// gewacht von __tests__/werkzeug-klick-toleranz.test.js, Abschnitt C).
 		if (typeof avesmapsWerkzeugKlickToleranzAnheben === "function") {
 			avesmapsWerkzeugKlickToleranzAnheben();
 		}
