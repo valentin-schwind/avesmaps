@@ -45,11 +45,24 @@ const zoomanimBlock = (quelle) => {
 	assert.ok(!/if\s*\(!KREUZBLENDE_AN\)\s*\{\s*labelVorne\.style\.opacity\s*=\s*"0";\s*\}/.test(block),
 		"🔴 Das Ausblenden haengt noch am ?crossfade=0-Zweig -- mit Ueberblendung bleibt die alte "
 		+ "Schrift stehen, und genau das hat der Owner beanstandet.");
-	// 💣 KEINE Inline-Transition hier: sie wuerde die CSS-Blendenregel dauerhaft ausloeschen.
-	assert.ok(!/labelVorne\.style\.transition\s*=/.test(block),
-		"💣 Im zoomanim wird eine Inline-Transition auf die Grenz-Beschriftungsflaeche gesetzt. "
-		+ "`transition` ist EINE Eigenschaft, und inline gewinnt -- damit ist die Blendenregel aus "
-		+ "css/features/map-labels.css dauerhaft tot.");
+	// 💣 DIE AUSBLENDENDE FLAECHE GEHT UEBER DAS CSS, NICHT INLINE. `transition` ist EINE
+	// Eigenschaft und inline gewinnt -- eine Inline-Zuweisung auf ihr loeschte die Blendenregel aus
+	// css/features/map-labels.css dauerhaft aus. Ihre Dauer kommt deshalb ueber die Variable.
+	// 🔴 Hier stand bis zum Bau von Schritt 3 ein PAUSCHALVERBOT jeder Inline-Transition. Das war
+	// fuer den damaligen Entwurf richtig: es gab nur die ausblendende Flaeche. Seit die EINblendende
+	// dazugekommen ist, braucht die eine -- sie traegt Transform UND Deckkraft mit Verzug, und
+	// beides ist per CSS nicht ausdrueckbar. Der Schutz gegen die tote Blendenregel ist seither
+	// nicht mehr das Verbot, sondern das Loeschen im moveend-Handler (unten geprueft).
+	assert.ok(/setProperty\("--border-label-fade-out", AUSBLENDEN_MS \+ "ms"\)/.test(block),
+		"💣 Die Ausblenddauer wird nicht ueber die CSS-Variable gesetzt -- entweder laeuft die "
+		+ "ausblendende Flaeche noch auf der vollen Zoomdauer (dann ueberlappt sie mit dem "
+		+ "Einblenden), oder jemand hat sie auf eine Inline-Transition umgestellt und damit die "
+		+ "CSS-Blendenregel getoetet.");
+	// Und die Reihenfolge: die Dauer MUSS vor dem Start stehen, sonst laeuft die Blende schon.
+	assert.ok(block.indexOf('setProperty("--border-label-fade-out"') < block.indexOf('labelVorne.style.opacity = "0"'),
+		"💣 Die Ausblenddauer wird erst NACH dem Start gesetzt -- die Blende laeuft dann bereits mit "
+		+ "der alten Zahl, und eine Dauer mitten im Uebergang zu aendern ist undefiniertes Verhalten "
+		+ "obendrauf.");
 	assert.ok(/return AVESMAPS_ZOOM_DAUER_MS;/.test(quelle),
 		"Die Ausblenddauer liest nicht die gemeinsame Zahl (stand auf 120).");
 	assert.ok(!/return 350;/.test(quelle), "Die Einblenddauer steht noch auf eigenen 350 ms.");

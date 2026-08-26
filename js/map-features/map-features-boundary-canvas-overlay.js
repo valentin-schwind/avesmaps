@@ -237,7 +237,19 @@
 		return pts;
 	}
 
-	function drawTerritoryBorderLabels(ctx) {
+	/**
+	 * @param {CanvasRenderingContext2D} ctx
+	 * @param {number} [zielZoom] Zoomstufe, FUER DIE gezeichnet werden soll -- nicht die aktuelle.
+	 * @param {object} [zielCenter] Zugehoeriges Zentrum.
+	 * 🔴 DIE VORAUSSETZUNG FUER DEN WECHSEL WAEHREND DES ZOOMS. Damit die neue Schrift schon
+	 * hereinkommen kann, waehrend die Bewegung laeuft, muss sie existieren, bevor die Bewegung
+	 * beginnt -- also fuer eine Stufe gezeichnet werden, auf der die Karte noch gar nicht steht.
+	 * Leaflet gibt sie im zoomanim mit (`event.zoom`, `event.center`).
+	 * ⚠️ Ohne die zwei Parameter verhaelt sich alles wie vorher -- der Pfad fuer Pan und moveend.
+	 */
+	function drawTerritoryBorderLabels(ctx, zielZoom, zielCenter) {
+		const fuerZiel = Number.isFinite(Number(zielZoom)) && !!zielCenter;
+		const zeichenZoom = fuerZiel ? zielZoom : map.getZoom();
 		const size = map.getSize();
 		const rd = Array.isArray(window.regionData) ? window.regionData : (typeof regionData !== "undefined" ? regionData : []);
 		const labelable = rd.filter((f) => f && f.properties && f.properties.is_derived_geometry === true && !TERRITORY_LABEL_EXCLUDE.test(String(f.properties.name || "")));
@@ -246,15 +258,21 @@
 			const rb = (b.geometry.type === "MultiPolygon" ? b.geometry.coordinates[0] : b.geometry.coordinates)[0].length;
 			return rb - ra;
 		});
-		const toPoint = (lng, lat) => map.latLngToContainerPoint(L.latLng(lat, lng));
+		// 💣 `latLngToContainerPoint` liest IMMER den aktuellen Stand. Fuer die Zielstufe muss von
+		// Hand projiziert werden -- das leistet die geteilte, nachgerechnete Zielprojektion aus
+		// js/map-features/zoom-uebergang.js (getestet in __tests__/zoom-vorab-flaeche.test.js).
+		const zielProj = fuerZiel ? avesmapsZoomZielProjektion(map, zielZoom, zielCenter) : null;
+		const toPoint = zielProj
+			? ((lng, lat) => zielProj(L.latLng(lat, lng)))
+			: ((lng, lat) => map.latLngToContainerPoint(L.latLng(lat, lng)));
 		// Peer-Grenzen EINMAL pro Daten-Load markieren (Features nach Reload neu -> _peerVertices undefined).
 		if (labelable.length && labelable[0]._peerVertices === undefined) {
 			computeTerritoryLabelMeta(labelable);
 		}
 		// Pro-Zoom-Werte (Slider via ?labeltune=1).
-		const territoryFontSize = getTerritoryLabelFontSize(map.getZoom());
-		const territoryOffset = getTerritoryLabelOffset(map.getZoom());
-		const territoryDetail = getTerritoryLabelDetail(map.getZoom());
+		const territoryFontSize = getTerritoryLabelFontSize(zeichenZoom);
+		const territoryOffset = getTerritoryLabelOffset(zeichenZoom);
+		const territoryDetail = getTerritoryLabelDetail(zeichenZoom);
 		const placed = []; // Liste von Fußabdruck-Punktgruppen bereits gezeichneter Labels
 		// Kollision per FUSSABDRUCK-Abstand: Mindestabstand ~Schrifthöhe zwischen den Textstrecken. Muss kleiner
 		// als 2*TERRITORY_LABEL_OFFSET bleiben, sonst sterben die gespiegelten Nachbarpaare (die liegen ~2*OFFSET
@@ -423,6 +441,29 @@
 	// Erst nach einem Zoomschritt wird ueberblendet. Ein Pan zeichnet in dieselbe Flaeche weiter --
 	// dort gibt es nichts zu ueberblenden, und ein Rollentausch waere ein Flackern ohne Anlass.
 	let zoomSchrittOffen = false;
+	// ⭐ ?parallelfade=0 stellt den Stand von vorher her: erst zoomen, dann die neue Schrift.
+	const PARALLELBLENDE_AN = (() => {
+		try { return new URLSearchParams(window.location.search).get("parallelfade") !== "0"; }
+		catch (e) { return true; }
+	})();
+	// 💣 Wurde die Beschriftung schon im zoomanim gezeichnet? Dann darf der redraw am zoomend sie
+	// NICHT noch einmal loeschen -- sonst waere die Flaeche unmittelbar nach der Blende leer, und
+	// zwar genau dann, wenn alles fertig aussieht.
+	let labelsVorabGezeichnet = false;
+	// 🔴 Wieviel der Zoomdauer auf das AUSblenden entfaellt; der Rest gehoert dem Einblenden, mit
+	// genau diesem Verzug. 0,45 heisst: ~112 ms raus, ~138 ms rein, kein Ueberlappen.
+	// ⭐ ?labelstaffel=<0..1> zum Vergleichen -- 0 waere die echte Ueberblendung (und damit die
+	// doppelte Schrift), 1 waere „nur raus".
+	const AUSBLENDEN_ANTEIL = (() => {
+		try {
+			const roh = new URLSearchParams(window.location.search).get("labelstaffel");
+			const wert = Number(roh);
+			if (roh !== null && Number.isFinite(wert) && wert >= 0 && wert <= 1) { return wert; }
+		} catch (e) { /* ohne Adresszeile die Vorgabe */ }
+		return 0.45;
+	})();
+	const AUSBLENDEN_MS = Math.max(60, Math.round(AVESMAPS_ZOOM_DAUER_MS * AUSBLENDEN_ANTEIL));
+	const EINBLENDEN_MS = Math.max(60, AVESMAPS_ZOOM_DAUER_MS - AUSBLENDEN_MS);
 	let labelCtx = labelVorne.getContext("2d");   // Kontext der Flaeche, in die gerade gezeichnet wird
 
 	// Dauer der Blende. ⭐ Live probierbar ohne Deploy: ?labelfade=600 (ms).
@@ -673,11 +714,22 @@
 		if (labelCanvas.height !== ph) labelCanvas.height = ph;
 		if (labelCanvas.style.width !== size.x + "px") labelCanvas.style.width = size.x + "px";
 		if (labelCanvas.style.height !== size.y + "px") labelCanvas.style.height = size.y + "px";
-		labelCtx.setTransform(1, 0, 0, 1, 0, 0);
-		labelCtx.clearRect(0, 0, labelCanvas.width, labelCanvas.height);
-		labelCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+		// 💣 EIN VORAB GEZEICHNETES BILD WIRD NICHT GELOESCHT. Bei der parallelen Blende hat der
+		// zoomanim-Block die Beschriftung bereits fuer die Zielstufe gezeichnet; der redraw am
+		// zoomend richtet die Flaeche dann nur noch aus.
+		const labelsSchonDa = labelsVorabGezeichnet;
+		labelsVorabGezeichnet = false;
+		if (!labelsSchonDa) {
+			labelCtx.setTransform(1, 0, 0, 1, 0, 0);
+			labelCtx.clearRect(0, 0, labelCanvas.width, labelCanvas.height);
+			labelCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+		}
 		// Ab hier gilt: erst wenn unten wirklich gezeichnet wurde, blendet die Flaeche ein.
-		grenzLabelsGezeichnet = false;
+		// 💣 ABER NICHT ZURUECKSETZEN, WENN VORAB GEZEICHNET WURDE. Die Flagge steht dann aus dem
+		// zoomanim und sagt bereits die Wahrheit; blind auf false gezogen liesse
+		// blendeNachZeichnung() die eben eingeblendete Schrift sofort wieder auf 0 gehen -- ein
+		// Aufblitzen und Verschwinden genau im Moment des Fertigwerdens.
+		if (!labelsSchonDa) { grenzLabelsGezeichnet = false; }
 		blendeNachZeichnung();
 
 		// Grenzen (Außen + Innen, OHNE Fuellung/Labels) zeichnen in political/deregraphic/ecosystem.
@@ -793,8 +845,10 @@
 		// (Political zeigt die Namen schon als normale Labels; deshalb dort nicht.)
 		if (TERRITORY_BORDER_LABELS_ENABLED && currentMapLayerMode === "deregraphic"
 			&& Math.round(Number(map.getZoom())) >= TERRITORY_LABEL_MIN_ZOOM) {
-			drawTerritoryBorderLabels(labelCtx);
-			grenzLabelsGezeichnet = true;
+			if (!labelsSchonDa) {
+				drawTerritoryBorderLabels(labelCtx);
+				grenzLabelsGezeichnet = true;
+			}
 		}
 	}
 
@@ -819,6 +873,13 @@
 	map.on("moveend zoomend viewreset resize", () => {
 		cssZoomActive = false;
 		canvas.style.transition = "";
+		// 💣 UND AUF BEIDEN BESCHRIFTUNGSFLAECHEN. Seit die parallele Blende ihnen im zoomanim eine
+		// INLINE-Transform-Transition gibt, ueberlebt die den Zoom -- und weil L.DomUtil.setPosition
+		// per transform verschiebt, animiert danach JEDER Pan die Position nach. Owner 24.08.2026:
+		// „wenn ich mit der maus panne, ziehen die 2x nach" (e85b31d1, und noch einmal im
+		// zurueckgebauten Parallel-Versuch ed1e2e93). Auch die gerade UNSICHTBARE Flaeche: sie wird
+		// beim naechsten Rollentausch die sichtbare.
+		labelFlaechen.forEach((c) => { c.style.transition = ""; });
 		redraw();
 		scheduleSettleRedraws();
 	});
@@ -858,8 +919,67 @@
 		// 💣 UND HIER KOMMT KEINE INLINE-TRANSITION HIN. Die Blendenregel steht in
 		// css/features/map-labels.css; `transition` ist EINE Eigenschaft, und inline gewinnt -- eine
 		// Inline-Zuweisung loeschte die CSS-Regel dauerhaft aus. Die Dauer kommt ueber die Variable
-		// `--border-label-fade-out`, die weiter oben gesetzt wird.
+		// `--border-label-fade-out`.
+		// 💣 UND DIE DAUER MUSS VOR DEM START STEHEN. Bei der gestaffelten Blende bekommt das
+		// Ausblenden nur einen ANTEIL der Zoomdauer; wird die Variable erst danach geaendert,
+		// laeuft die Blende bereits mit der alten Zahl -- und eine Dauer mitten im Uebergang zu
+		// aendern ist ein zweites, undefiniertes Verhalten obendrauf.
+		labelVorne.style.setProperty("--border-label-fade-out", AUSBLENDEN_MS + "ms");
 		labelVorne.style.opacity = "0";
+
+		// 🔴 UND HIER KOMMT DIE NEUE SCHRIFT SCHON WAEHREND DER BEWEGUNG HEREIN (Schritt 3).
+		// ⭐ Das Zeichnen darf hier stehen, weil der Zoom eine CSS-Transform-Transition ist und auf
+		// dem Compositor laeuft -- es haelt die Bewegung nicht an. Und es kommt nicht DAZU, es wird
+		// VORGEZOGEN: der redraw am zoomend ueberspringt die Beschriftung dann.
+		if (!PARALLELBLENDE_AN || !hasDerivedData()) { return; }
+		if (!(TERRITORY_BORDER_LABELS_ENABLED
+			&& (typeof getSelectedMapLayerMode === "function" ? getSelectedMapLayerMode() : "") === "deregraphic"
+			&& Math.round(Number(event.zoom)) >= TERRITORY_LABEL_MIN_ZOOM)) { return; }
+		const g = avesmapsZoomVorabFlaeche(map, event.zoom, event.center);
+		if (!g) { return; }   // kuenftiges Leaflet ohne _latLngToNewLayerPoint -> Verhalten wie vorher
+
+		// Rollen tauschen: in die bisher unsichtbare Flaeche kommt das neue Bild.
+		const tausch = labelVorne; labelVorne = labelHinten; labelHinten = tausch;
+		labelCtx = labelVorne.getContext("2d");
+		zoomSchrittOffen = false;   // der Tausch ist hier schon passiert
+
+		const groesse = map.getSize();
+		const dprV = avesmapsCanvasDpr(TERRITORY_CANVAS_MAX_DPR);
+		const pwV = Math.round(groesse.x * dprV), phV = Math.round(groesse.y * dprV);
+		if (labelVorne.width !== pwV) labelVorne.width = pwV;
+		if (labelVorne.height !== phV) labelVorne.height = phV;
+		if (labelVorne.style.width !== groesse.x + "px") labelVorne.style.width = groesse.x + "px";
+		if (labelVorne.style.height !== groesse.y + "px") labelVorne.style.height = groesse.y + "px";
+		labelCtx.setTransform(1, 0, 0, 1, 0, 0);
+		labelCtx.clearRect(0, 0, labelVorne.width, labelVorne.height);
+		labelCtx.setTransform(dprV, 0, 0, dprV, 0, 0);
+		grenzLabelsGezeichnet = false;
+		drawTerritoryBorderLabels(labelCtx, event.zoom, event.center);
+		grenzLabelsGezeichnet = true;
+		labelsVorabGezeichnet = true;
+
+		// 💣 DIE GEGENRECHNUNG -- aus der geteilten, nachgerechneten Funktion, nicht von Hand.
+		// Das neue Bild liegt in ZIEL-Koordinaten, die Karte steht noch auf der alten Stufe. Die
+		// Flaeche startet deshalb dort, wo die kuenftige linke obere Ecke JETZT liegt, auf
+		// 1/Massstab geschrumpft, und animiert von da auf ihren Platz nach dem Zoom.
+		labelVorne.style.transition = "none";
+		L.DomUtil.setTransform(labelVorne, g.start, g.startMassstab);
+		labelVorne.style.opacity = "0";
+		void labelVorne.offsetWidth;   // Zwischenstand erzwingen, sonst gibt es keinen Uebergang
+
+		// 🔴 GESTAFFELT, NICHT UEBERLAPPEND. Der Bauplan sah eine echte Ueberblendung vor -- alt und
+		// neu gleichzeitig. Genau das hat am 26.08.2026 die doppelten Beschriftungen erzeugt (Owner
+		// per Aufzeichnung: „AVENTURIEN" zweimal, senkrecht versetzt), denn zwischen zwei Zoomstufen
+		// hat sich die Lage jeder Beschriftung verschoben. Also: erst raus, dann rein -- beides
+		// INNERHALB der Zoomdauer. Siehe docs/kartenflaechen-und-zoomblenden.md §5a.
+		// ⚠️ Beide Uebergaenge werden im SELBEN Augenblick gesetzt und nur durch `transition-delay`
+		// getrennt. Startet der Stilabgleich verspaetet (Hauptthread beim Zoomstart), verschiebt sich
+		// dadurch BEIDES gleich weit -- die Staffelung bleibt erhalten. Mit zwei getrennt gesetzten
+		// Uebergaengen waere genau das nicht garantiert.
+		labelVorne.style.transition = avesmapsZoomTransition("transform")
+			+ ", opacity " + EINBLENDEN_MS + "ms " + AVESMAPS_ZOOM_KURVE + " " + AUSBLENDEN_MS + "ms";
+		L.DomUtil.setTransform(labelVorne, g.ende, 1);
+		labelVorne.style.opacity = "1";
 	});
 	// flyTo/setView: pro 'zoom'-Frame neu zeichnen (nur wenn KEIN CSS-Zoom läuft -> sonst Transform).
 	map.on("zoom", function () { if (!cssZoomActive) redraw(); });

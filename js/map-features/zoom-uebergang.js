@@ -133,6 +133,70 @@ function avesmapsZoomEasing(t) {
  * @param {number} massstab Kartenfaktor des Schritts (map.getZoomScale(zielZoom)), z.B. 2 oder 0,5
  * @returns {number} Multiplikator auf die gezeichneten Groessen
  */
+/**
+ * Eine Projektion, die fuer eine Zoomstufe rechnet, auf der die Karte NOCH NICHT steht.
+ *
+ * 💣 `latLngToContainerPoint` liest immer den aktuellen Stand. Wer im `zoomanim` das Bild fuer die
+ * ZIELSTUFE zeichnen will -- die Voraussetzung dafuer, dass waehrend des Zooms ueberhaupt etwas
+ * einblenden kann --, muss von Hand projizieren: Weltpunkt bei Zielzoom, minus Weltpunkt des
+ * Zielzentrums, plus halbe Fenstergroesse. Genau die Rechnung, die Leaflet selbst fuer den
+ * aktuellen Zoom macht.
+ * ⚠️ Sie haengt NICHT am Zustand der Karte: einmal geholt, liefert sie dieselben Punkte, auch wenn
+ * Leaflet seinen internen Zoom inzwischen umgestellt hat (und das tut es direkt nach dem
+ * zoomanim-Ereignis -- siehe docs/kartenflaechen-und-zoomblenden.md §8a).
+ *
+ * @param {object} karte Leaflet-Karte
+ * @param {number} zielZoom Zoomstufe, FUER DIE gezeichnet wird
+ * @param {object} zielCenter Zugehoeriges Zentrum (event.center)
+ * @returns {function(object): {x: number, y: number}} latLng -> Containerpunkt der Zielstufe
+ */
+function avesmapsZoomZielProjektion(karte, zielZoom, zielCenter) {
+	const groesse = karte.getSize();
+	const halbe = L.point(groesse.x / 2, groesse.y / 2);
+	const zentrum = karte.project(zielCenter, zielZoom);
+	return (latlng) => karte.project(latlng, zielZoom).subtract(zentrum).add(halbe);
+}
+
+/**
+ * Die GEGENRECHNUNG fuer eine Flaeche, die schon fuer die Zielstufe gezeichnet wurde.
+ *
+ * 💣 DIE RISKANTESTE STELLE DES GANZEN VORHABENS, und der Grund, warum der Vorgaengerversuch
+ * (ed1e2e93) zurueckgebaut wurde -- dort stand sie von Hand geschrieben und war nie gesehen worden.
+ * Das Bild liegt in ZIEL-Koordinaten, die Karte steht aber noch auf der Quellstufe. Die Flaeche
+ * muss deshalb DORT starten, wo die kuenftige linke obere Ecke JETZT liegt, auf `1/massstab`
+ * geschrumpft, und von da auf ihren Platz nach dem Zoom animieren. Sitzt das falsch, gleiten die
+ * Namen aus der falschen Richtung oder in falscher Groesse herein -- und das sieht nur ein Auge.
+ *
+ * ⭐ Deshalb steht sie hier EINMAL statt zweimal von Hand in den beiden Overlays, und
+ * `__tests__/zoom-vorab-flaeche.test.js` rechnet sie an einem Leaflet-Ersatz nach -- einschliesslich
+ * der Probe, dass ein Weltpunkt zu BEIDEN Zeitpunkten am selben sichtbaren Ort sitzt wie bei der
+ * normalen Projektion. Genau die Probe faengt einen Vorzeichenfehler.
+ *
+ * 🔴 Fehlt Leaflets interne `_latLngToNewLayerPoint` (kuenftige Version), wird NICHT geraten,
+ * sondern `null` geliefert: der Aufrufer faellt dann auf das Verhalten ohne Vorabzeichnen zurueck.
+ *
+ * @param {object} karte Leaflet-Karte
+ * @param {number} zielZoom Zielstufe (event.zoom)
+ * @param {object} zielCenter Zielzentrum (event.center)
+ * @returns {?{zielEcke: object, start: object, ende: object, startMassstab: number, massstab: number}}
+ */
+function avesmapsZoomVorabFlaeche(karte, zielZoom, zielCenter) {
+	if (!karte || !zielCenter || !Number.isFinite(Number(zielZoom))) { return null; }
+	if (typeof karte._latLngToNewLayerPoint !== "function" || typeof karte.project !== "function") { return null; }
+	const groesse = karte.getSize();
+	const halbe = L.point(groesse.x / 2, groesse.y / 2);
+	const zielEcke = karte.unproject(karte.project(zielCenter, zielZoom).subtract(halbe), zielZoom);
+	const massstab = karte.getZoomScale(zielZoom);
+	if (!(massstab > 0)) { return null; }
+	return {
+		zielEcke,
+		start: karte.latLngToLayerPoint(zielEcke),
+		ende: karte._latLngToNewLayerPoint(zielEcke, zielZoom, zielCenter),
+		startMassstab: 1 / massstab,
+		massstab,
+	};
+}
+
 function avesmapsMarkerZoomSizeFactor(groesseAlt, groesseNeu, fortschritt, massstab) {
 	const alt = Number(groesseAlt);
 	const neu = Number(groesseNeu);
