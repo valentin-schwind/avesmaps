@@ -218,7 +218,26 @@ map.getPane("labelsPane").classList.add("map-labels-pane");
 	if (!AN) { return; }   // ?crossfade=0 -> die CSS-Blende von frueher, erst aus, dann ein
 	const pane = map.getPane("labelsPane");
 	if (!pane || !pane.parentNode) { return; }
-	const DAUER_MS = 350;   // wie bei den Grenz- und Wegenamen
+	// 🔴 EINE Kurve, EINE Dauer -- aus js/map-features/zoom-uebergang.js. Hier stand bis zum
+	// 26.08.2026 eine eigene 350, und sie war die letzte Blendendauer ohne Anschluss an die
+	// gemeinsame Kurve (docs/kartenflaechen-und-zoomblenden.md §7).
+	const DAUER_MS = AVESMAPS_ZOOM_DAUER_MS;
+	// 🔴 Owner 26.08.2026, woertlich: „koennen wir die stadtlabels nicht ausblenden im moment wo der
+	// zoom beginnt (nicht erst danach)". Ja -- das AUSblenden geht ab t = 0, und genau das tut der
+	// zoomanim-Handler unten.
+	// ⚠️ NUR DAS AUSBLENDEN. Das EINblenden der neuen Namen kann NICHT mitwandern: Leaflet setzt
+	// seinen internen Zustand direkt nach dem zoomanim-Ereignis auf die Zielstufe
+	// (docs/kartenflaechen-und-zoomblenden.md §8a), und ein Leaflet-Marker setzt beim `setIcon`
+	// seine Position ueber genau diese Projektion neu -- waehrend das Pane die
+	// Quelle-auf-Ziel-Transform seines Elternteils traegt. Die neuen Namen wuerden doppelt
+	// transformiert, derselbe Fehler, der am 26.08.2026 die Marker-Gegenrechnung gekostet hat.
+	// Dafuer braeuchte es ein ZWEITES, gegengerechnetes Pane -- ein Umbau, keine Stellschraube.
+	// ⭐ ?labelparallel=0 stellt den Stand von vorher her: der Klon bleibt waehrend des ganzen Zooms
+	// stehen und blendet erst danach. Damit laesst sich am Bild vergleichen, ohne etwas hochzuladen.
+	const AUSBLENDEN_AB_ZOOMSTART = (() => {
+		try { return new URLSearchParams(window.location.search).get("labelparallel") !== "0"; }
+		catch (e) { return true; }
+	})();
 	let klon = null;
 	let aufraeumer = null;
 
@@ -238,6 +257,18 @@ map.getPane("labelsPane").classList.add("map-labels-pane");
 		pane.parentNode.insertBefore(klon, pane);   // unter dem echten Pane -> neue Schrift kommt darueber
 		pane.style.transition = "";
 		pane.style.opacity = "0";                   // unsichtbar, aber der Klon zeigt dasselbe Bild
+
+		// 🔴 UND HIER BEGINNT DAS AUSBLENDEN -- bei t = 0, nicht erst nach dem Zoom.
+		// Der Klon haelt das alte Schriftbild und skaliert gratis mit (er ist ein Kind des
+		// _mapPane); waehrend der Zoom laeuft, verschwindet er auf der gemeinsamen Kurve.
+		if (AUSBLENDEN_AB_ZOOMSTART) {
+			// 💣 OHNE ERZWUNGENEN ZWISCHENSTAND GIBT ES KEINEN UEBERGANG: der Browser fasst
+			// „opacity 1" und „opacity 0" im selben Tick zusammen, und der Klon verschwindet HART.
+			// Dasselbe Mittel wie in den Canvas-Ueberblendungen.
+			void klon.offsetWidth;
+			klon.style.transition = `opacity ${AVESMAPS_ZOOM_DAUER_MS}ms ${AVESMAPS_ZOOM_KURVE}`;
+			klon.style.opacity = "0";
+		}
 		// 💣 HARTES NETZ, SCHON HIER GESPANNT. Die Blende unten haengt an requestAnimationFrame; feuert
 		// das nie (angehaltene Darstellung), bliebe der Klon fuer immer stehen -- doppelte Schrift auf
 		// der Karte. Nach 2 s verschwindet er in jedem Fall.
@@ -251,10 +282,13 @@ map.getPane("labelsPane").classList.add("map-labels-pane");
 		// davon gezeichnet wird, und sieht aus wie ein Sprung.
 		requestAnimationFrame(() => requestAnimationFrame(() => {
 			if (aufraeumer) { clearTimeout(aufraeumer); }
-			pane.style.transition = `opacity ${DAUER_MS}ms ease`;
+			pane.style.transition = `opacity ${DAUER_MS}ms ${AVESMAPS_ZOOM_KURVE}`;
 			pane.style.opacity = "1";
 			if (klon) {
-				klon.style.transition = `opacity ${DAUER_MS}ms ease`;
+				// ⚠️ Bei AUSBLENDEN_AB_ZOOMSTART ist der Klon hier laengst auf 0 -- die Zuweisung
+				// kostet dann nichts. Sie bleibt stehen, weil ?labelparallel=0 genau diesen Pfad
+				// braucht: dort faengt das Ausblenden erst jetzt an.
+				klon.style.transition = `opacity ${DAUER_MS}ms ${AVESMAPS_ZOOM_KURVE}`;
 				klon.style.opacity = "0";
 			}
 			aufraeumer = setTimeout(klonWeg, DAUER_MS + 250);
