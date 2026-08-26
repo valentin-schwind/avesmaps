@@ -82,6 +82,25 @@ assert.ok(/findLabelEntriesByEcosystemRegion/.test(aufloeser),
 assert.ok(/linkedEcosystemLabelEntry/.test(aufloeser),
 	"…und den Zeiger AN DER REGION"); checks++;
 
+// ── B2. „BESCHRIFTUNG ANLEGEN" ZEIGT SIE DANN AUCH ───────────────────────────────────────────
+// 🔴 Der Entwurf verlangt es wörtlich (§5): „nach dem Anlegen erscheint die Meldung … und der
+// Reiter zeigt das Formular". Bis zum 26.08.2026 blieb der Leerzustand samt Knopf stehen — die
+// Beschriftung war angelegt, auf der Karte sichtbar und in der Datenbank, aber das Fenster
+// behauptete weiter, es gebe keine. Ein zweiter Klick legte dann eine ZWEITE an, die der Server
+// ablehnt und der Client wieder zurücknimmt: viel Verkehr für nichts.
+// ⚠️ Über DENSELBEN Auflöser wie der Öffner — eine zweite Fassung liefe beim ersten Sonderfall
+// (mehrere Beschriftungen, fehlender Rückzeiger) auseinander.
+const vonL = eco.indexOf("async function legeBeschriftungAn(");
+assert.ok(vonL >= 0, "den Anleger gibt es"); checks++;
+const nachL = eco.slice(vonL + 10).match(/\n\t(?:async )?function [A-Za-z]/);
+const anleger = nachL ? eco.slice(vonL, vonL + 10 + nachL.index) : eco.slice(vonL);
+assert.ok(/beschriftungenDerRegion\(/.test(anleger),
+	"nach dem Anlegen wird die Beschriftungs-Hälfte geladen"); checks++;
+assert.ok(/openLabelEditDialog\(/.test(anleger),
+	"…über den Öffner der Beschriftung"); checks++;
+assert.ok(/paar: false/.test(anleger),
+	"…ohne Rückruf, der Reiter bleibt wo er ist"); checks++;
+
 // ── C. DER BESCHRIFTUNGS-EINSTIEG HOLT SEINE FLÄCHE ──────────────────────────────────────────
 const labels = lies("js/review/review-labels.js");
 const vonO = labels.indexOf("function openLabelEditDialog(");

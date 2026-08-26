@@ -1995,6 +1995,12 @@
 						<div class="landschaft-dialog__leer" data-landschaft-leer hidden>
 							<p data-landschaft-leertext></p>
 							<p><button type="button" id="landschaft-dialog-label-anlegen" class="location-report-form__button location-report-form__button--primary">Beschriftung anlegen</button></p>
+							<!-- 🔴 DER GRUND ZUM TOTEN KNOPF (Owner 26.08.2026). Eine Flaeche mit Auto-Namen
+							     bekommt keine Beschriftung: „Ein Auto-Name ist interne Buchfuehrung und darf
+							     nie nach aussen dringen" (map-features-ecosystem-naming.js) -- und die
+							     Beschriftung IST das Nachaussendringen. Ein ausgegrauter Knopf OHNE Grund
+							     waere die Sackgasse, an der ein Editor raetselt, was er falsch macht. -->
+							<p class="location-report-form__status" data-landschaft-anlegen-hinweis hidden></p>
 						</div>
 						<!-- Die Wahl unter mehreren Beschriftungen EINER Flaeche. Sie erscheint nur, wenn es
 						     mehrere gibt -- live 13 von 1026 Flaechen (Ingvaltal und Yaquirtal je drei).

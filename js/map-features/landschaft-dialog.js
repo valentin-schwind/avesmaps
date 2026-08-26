@@ -407,6 +407,51 @@ function avesmapsLandschaftDialogWikiKasten(stand) {
 }
 
 /**
+ * Warum diese Flaeche gerade keine Beschriftung bekommen darf. "" heisst „sie darf". REIN.
+ *
+ * 🔴 Owner 26.08.2026: „landschaften die autonamen haben, duerfen keine beschriftung bekommen … bis
+ * auto-name wieder aus ist." Die Begruendung steht seit jeher im Namensmodul: „Ein Auto-Name ist
+ * interne Buchfuehrung und darf nie nach aussen dringen" (`ecosystemRegionDisplayName`) -- und die
+ * Beschriftung IST das Nachaussendringen, sie schreibt den Namen auf die Karte.
+ *
+ * 💣 GESPERRT HEISST: EIN SATZ, nicht bloss ein toter Knopf. Ein ausgegrauter Knopf ohne Grund ist
+ * die Sorte Sackgasse, an der ein Editor raetselt, was er falsch macht -- dieselbe Regel wie beim
+ * Loeschknopf nebenan, der lieber verschwindet, als bezuglos dazustehen.
+ *
+ * ⚠️ Ohne Angabe wird NICHT gesperrt: im Zweifel bleibt die Handlung erreichbar. Eine Sperre, die
+ * aus Unwissen zuschlaegt, nimmt dem Editor eine Moeglichkeit, die er hat.
+ */
+function avesmapsLandschaftDialogAnlegenSperre(autoName) {
+	return autoName === true
+		? "Solange „Auto-Name“ gesetzt ist, bekommt diese Fläche keine Beschriftung — ein Griff wie "
+			+ "„Wald-001“ gehört nicht auf die Karte. Haken entfernen und einen Namen vergeben."
+		: "";
+}
+
+/**
+ * Den Knopf „Beschriftung anlegen" an die Sperre haengen -- Knopf tot, Grund sichtbar.
+ *
+ * @param {boolean} autoName ob der Haken „Auto-Name" gerade gesetzt ist
+ * @returns {string} der gezeigte Satz, "" wenn nichts gesperrt ist
+ */
+function avesmapsLandschaftDialogAnlegenKnopf(autoName) {
+	const satz = avesmapsLandschaftDialogAnlegenSperre(autoName);
+	if (typeof document === "undefined") {
+		return satz;
+	}
+	const knopf = document.getElementById("landschaft-dialog-label-anlegen");
+	if (knopf) {
+		knopf.disabled = satz !== "";
+	}
+	const hinweis = document.querySelector("[data-landschaft-anlegen-hinweis]");
+	if (hinweis) {
+		hinweis.hidden = satz === "";
+		hinweis.textContent = satz;
+	}
+	return satz;
+}
+
+/**
  * Wie das Fenster heisst. Gibt zurueck, was gesetzt wurde -- "" heisst „nicht angefasst".
  *
  * 🪤 `#ecosystem-properties-title` gibt es im vereinigten Fenster NICHT mehr; der Schreibversuch des
@@ -496,6 +541,8 @@ if (typeof module !== "undefined" && module.exports) {
 		avesmapsLandschaftDialogLadeAuftraege: avesmapsLandschaftDialogLadeAuftraege,
 		avesmapsLandschaftDialogWikiKasten: avesmapsLandschaftDialogWikiKasten,
 		avesmapsLandschaftDialogTitel: avesmapsLandschaftDialogTitel,
+		avesmapsLandschaftDialogAnlegenSperre: avesmapsLandschaftDialogAnlegenSperre,
+		avesmapsLandschaftDialogAnlegenKnopf: avesmapsLandschaftDialogAnlegenKnopf,
 		avesmapsLandschaftDialogSpeichernAuftraege: avesmapsLandschaftDialogSpeichernAuftraege,
 		avesmapsLandschaftDialogSpeichern: avesmapsLandschaftDialogSpeichern,
 		avesmapsLandschaftDialogLoeschText: avesmapsLandschaftDialogLoeschText,

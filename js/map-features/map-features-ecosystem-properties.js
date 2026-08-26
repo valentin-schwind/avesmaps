@@ -171,6 +171,16 @@
 			setPropertiesStatus("Die Beschriftung liess sich nicht anlegen.");
 			return;
 		}
+		// 🔴 UND JETZT ZEIGEN, WAS ENTSTANDEN IST (Entwurf §5: „der Reiter zeigt das Formular").
+		// Bis zum 26.08.2026 blieb der Leerzustand samt Knopf stehen -- die Beschriftung lag auf der
+		// Karte und in der Datenbank, aber das Fenster behauptete weiter, es gebe keine. Ein zweiter
+		// Klick legte dann eine ZWEITE an, die der Server ablehnt und der Client zuruecknimmt.
+		// ⚠️ Derselbe Aufloeser wie im Oeffner -- eine zweite Fassung liefe beim ersten Sonderfall
+		// auseinander. `paar: false`, damit der Reiter bleibt, wo der Benutzer gerade steht.
+		const frisch = beschriftungenDerRegion(area);
+		if (frisch.length > 0 && typeof openLabelEditDialog === "function") {
+			openLabelEditDialog({ labelEntry: frisch[frisch.length - 1], paar: false });
+		}
 		const punkt = typeof avesmapsComputeLabelPoint === "function"
 			? avesmapsComputeLabelPoint(area.geometry) : null;
 		const wo = punkt && Number.isFinite(punkt.x) && Number.isFinite(punkt.y)
@@ -660,12 +670,24 @@
 		if (wikiName !== "") {
 			autoNameBox.checked = false;
 			nameInput.readOnly = false;   // der Wiki-Name steht im Feld; „Sync" schreibt ihn hinein
+			// ⚠️ AUCH HIER, vor dem fruehen Ausstieg: eine Wiki-Landschaft besitzt den Namen, also ist
+			// er kein Griff und die Sperre faellt. Ohne diese Zeile bliebe sie vom zuletzt geoeffneten
+			// Gebiet stehen -- genau die Sorte Rest, die dieses Fenster sonst ueberall abraeumt.
+			if (typeof avesmapsLandschaftDialogAnlegenKnopf === "function") {
+				avesmapsLandschaftDialogAnlegenKnopf(false);
+			}
 			return;
 		}
 
 		nameInput.readOnly = autoNameBox.checked;
 		if (autoNameBox.checked && regenerate) {
 			nameInput.value = nextEcosystemRegionAutoName(currentPropertiesArtLabel(), knownRegionNamesForAutoName());
+		}
+		// 🔴 UND DIE BESCHRIFTUNG HAENGT DARAN (Owner 26.08.2026). Hier und nicht an den Aufrufern:
+		// diese eine Stelle zieht den Haken ohnehin beim Oeffnen UND bei jeder Aenderung nach, an den
+		// Aufrufern haengte die Sperre beim ersten vergessenen Pfad schief.
+		if (typeof avesmapsLandschaftDialogAnlegenKnopf === "function") {
+			avesmapsLandschaftDialogAnlegenKnopf(autoNameBox.checked === true);
 		}
 	}
 
