@@ -429,6 +429,58 @@ function avesmapsLandschaftDialogAnlegenSperre(autoName) {
 }
 
 /**
+ * Die Ankuendigung am Haken „Auto-Name": was dieses Speichern kosten wird. REIN + DOM.
+ *
+ * 🔴 Wer anhakt, verliert beim Speichern die Beschriftung. Das gehoert AN DEN HAKEN und nicht in
+ * eine Meldung hinterher -- eine stillschweigend geloeschte Beschriftung vermisst man erst Tage
+ * spaeter auf der Karte. Dieselbe Haltung wie bei den Loeschrueckfragen, die ihre Kaskade nennen.
+ *
+ * ⚠️ Nur beim UEBERGANG. Stand der Haken beim Oeffnen schon, passiert nichts, und dann darf auch
+ * nichts angekuendigt werden -- eine Warnung, die nicht eintritt, lehrt einen, Warnungen zu
+ * uebersehen.
+ *
+ * @param {boolean} vorher der Stand beim Oeffnen
+ * @param {boolean} jetzt  der Stand jetzt
+ * @param {number}  anzahl wie viele Beschriftungen die Flaeche traegt
+ * @returns {string} der gezeigte Satz, "" wenn nichts anzukuendigen ist
+ */
+function avesmapsLandschaftDialogAutoNameWarnung(vorher, jetzt, anzahl) {
+	const zahl = Number(anzahl) || 0;
+	const satz = (avesmapsLandschaftDialogAutoNameEntfernt(vorher, jetzt) && zahl > 0)
+		? (zahl === 1
+			? "Beim Speichern wird die Beschriftung dieser Fläche entfernt — ein Auto-Name gehört nicht auf die Karte."
+			: "Beim Speichern werden " + zahl + " Beschriftungen dieser Fläche entfernt — ein Auto-Name gehört nicht auf die Karte.")
+		: "";
+	if (typeof document !== "undefined") {
+		const kasten = document.querySelector("[data-landschaft-autoname-warnung]");
+		if (kasten) {
+			kasten.hidden = satz === "";
+			kasten.textContent = satz;
+		}
+	}
+	return satz;
+}
+
+/**
+ * Muss dieses Speichern die vorhandenen Beschriftungen entfernen? REIN.
+ *
+ * 🔴 Owner 26.08.2026: „bestehende labels sollen entfernt werden, sofern ‚Auto-Name' angehaekelt
+ * wird." Das ist ein ÜBERGANG, kein Zustand -- „wird angehaekelt" heisst aus→an in DIESEM Fenster.
+ *
+ * 💣 Der Unterschied ist nicht akademisch. Der Haken wird ABGELEITET (er steht genau dann, wenn der
+ * Name die Form `<Art>-<Zahl>` hat), also ist er bei den Flaechen, die schon einen Auto-Namen
+ * tragen, beim OEFFNEN bereits gesetzt. Als Zustand gelesen loeschte dort jedes beilaeufige
+ * „Speichern" die Beschriftung, ohne dass jemand etwas angehakt haette -- eine Zerstoerung als
+ * Nebenwirkung einer unbeteiligten Aenderung.
+ *
+ * @param {boolean} vorher der Stand beim Oeffnen
+ * @param {boolean} jetzt der Stand beim Speichern
+ */
+function avesmapsLandschaftDialogAutoNameEntfernt(vorher, jetzt) {
+	return jetzt === true && vorher !== true;
+}
+
+/**
  * Den Knopf „Beschriftung anlegen" an die Sperre haengen -- Knopf tot, Grund sichtbar.
  *
  * @param {boolean} autoName ob der Haken „Auto-Name" gerade gesetzt ist
@@ -542,6 +594,8 @@ if (typeof module !== "undefined" && module.exports) {
 		avesmapsLandschaftDialogWikiKasten: avesmapsLandschaftDialogWikiKasten,
 		avesmapsLandschaftDialogTitel: avesmapsLandschaftDialogTitel,
 		avesmapsLandschaftDialogAnlegenSperre: avesmapsLandschaftDialogAnlegenSperre,
+		avesmapsLandschaftDialogAutoNameEntfernt: avesmapsLandschaftDialogAutoNameEntfernt,
+		avesmapsLandschaftDialogAutoNameWarnung: avesmapsLandschaftDialogAutoNameWarnung,
 		avesmapsLandschaftDialogAnlegenKnopf: avesmapsLandschaftDialogAnlegenKnopf,
 		avesmapsLandschaftDialogSpeichernAuftraege: avesmapsLandschaftDialogSpeichernAuftraege,
 		avesmapsLandschaftDialogSpeichern: avesmapsLandschaftDialogSpeichern,

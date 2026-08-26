@@ -63,4 +63,54 @@ assert.ok(markup.indexOf('id="landschaft-dialog-label-anlegen"') !== -1,
 assert.ok(markup.indexOf("data-landschaft-anlegen-hinweis") !== -1,
 	"…und den Platz fuer seinen Grund"); checks++;
 
+// ── E. DAS ANHAEKELN ENTFERNT BESTEHENDE BESCHRIFTUNGEN ──────────────────────────────────────
+// 🔴 Owner 26.08.2026: „bestehende labels sollen entfernt werden, sofern 'Auto-Name' angehäkelt
+// wird." Es ist ein ÜBERGANG, kein Zustand: „wird angehäkelt" heisst aus→an in DIESEM Fenster.
+// ⚠️ Der Unterschied ist nicht akademisch. Der Haken wird ABGELEITET, also steht er bei den ~30
+// Flächen, die schon einen Auto-Namen tragen, beim Öffnen bereits an — als Zustand gelesen würde
+// jedes beiläufige „Speichern" dort die Beschriftung löschen, ohne dass jemand etwas angehakt hat.
+const { avesmapsLandschaftDialogAutoNameEntfernt } = require("../landschaft-dialog.js");
+assert.strictEqual(avesmapsLandschaftDialogAutoNameEntfernt(false, true), true,
+	"aus -> an: die Beschriftungen gehen"); checks++;
+assert.strictEqual(avesmapsLandschaftDialogAutoNameEntfernt(true, true), false,
+	"an -> an: es hat niemand angehakt, also wird nichts gelöscht"); checks++;
+assert.strictEqual(avesmapsLandschaftDialogAutoNameEntfernt(true, false), false,
+	"an -> aus: erst recht nicht"); checks++;
+assert.strictEqual(avesmapsLandschaftDialogAutoNameEntfernt(false, false), false); checks++;
+
+// ── F. UND ES IST KASKADENSICHER ─────────────────────────────────────────────────────────────
+// 💣 DIE GEFAEHRLICHSTE STELLE DES GANZEN AUFTRAGS. Das LETZTE Label einer Region nimmt beim
+// Löschen die REGION UND IHRE FLÄCHEN mit (`avesmapsEcosystemCascadeAfterRemoval`) — ein Häkchen
+// dürfte niemals eine Landschaft vernichten.
+// 🔴 Die Kaskade prüft `avesmapsEcosystemRegionPublicIdOfLabel`: erst den Zeiger AM LABEL, dann den
+// AN DER REGION. Sind BEIDE leer, ist die Antwort '' und der Kaskadenblock wird gar nicht betreten.
+// Deshalb drei Phasen in dieser Reihenfolge: Regionszeiger lösen → jeden Rückzeiger lösen → erst
+// dann löschen. Bricht es in Phase 2 ab, stehen freie Beschriftungen da — sichtbar und reparierbar,
+// und nichts Gezeichnetes ist weg.
+const vonR = eco.indexOf("async function entferneBeschriftungenDerRegion(");
+assert.ok(vonR >= 0, "den Entferner gibt es"); checks++;
+const nachR = eco.slice(vonR + 10).match(/\n\t(?:async )?function [A-Za-z]/);
+const entferner = nachR ? eco.slice(vonR, vonR + 10 + nachR.index) : eco.slice(vonR);
+// 🔴 PHASE 1 reist im Rumpf DESSELBEN `update_region`, mit dem das Fenster ohnehin speichert --
+// `ecosystem-properties-sperre.test.js` erlaubt genau EINEN solchen Aufruf, und zwei Schreibwege für
+// dieselbe Zeile laufen beim nächsten Umbau auseinander.
+assert.ok(/payload\.label_public_id = ""/.test(eco),
+	"der Regionszeiger wird im Rumpf des einen update_region gelöst"); checks++;
+const posLoesen = entferner.indexOf('ecosystem_region_public_id: ""');
+const posLoeschen = entferner.indexOf('"delete_feature"');
+assert.ok(posLoesen >= 0, "der Rückzeiger am Label wird gelöst"); checks++;
+assert.ok(posLoeschen >= 0, "und danach wird gelöscht"); checks++;
+assert.ok(posLoesen < posLoeschen,
+	"…und zwar in DIESER Reihenfolge -- sonst reisst die Kaskade die Fläche mit"); checks++;
+// 🔴 Und ALLE Rückzeiger sind gelöst, bevor das ERSTE Label fällt: zwei getrennte Schleifen, nicht
+// eine, die je Label löst und löscht. Bricht es dazwischen ab, stehen freie Beschriftungen da --
+// sichtbar und reparierbar. Nichts Gezeichnetes ist weg.
+assert.strictEqual((entferner.match(/for \(const eintrag of eintraege\)/g) || []).length, 2,
+	"zwei getrennte Durchgänge: erst alle lösen, dann alle löschen"); checks++;
+// 💣 `update_label` schreibt `text` und `feature_subtype` IMMER (Vorgabe '' bzw. 'region'), den
+// Darstellungssatz dagegen nur, wenn er mitkommt. Wer beim Lösen nur die public_id schickt, leert
+// den Beschriftungstext -- kurz bevor er das Label löscht, also unsichtbar, aber im Protokoll.
+assert.ok(/text:/.test(entferner) && /feature_subtype:/.test(entferner),
+	"beim Lösen reisen Text und Art mit, sonst leert update_label sie"); checks++;
+
 console.log("landschaft-dialog-autoname: " + checks + " Zusicherungen gruen");

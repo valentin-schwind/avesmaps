@@ -103,3 +103,21 @@
 	line-height: 1.45;
 	color: var(--color-text-muted);
 }
+
+/* ── Die Ankündigung am Haken „Auto-Name" ─────────────────────────────────────────────────────
+   🔴 Wer anhakt, verliert beim Speichern die Beschriftung dieser Fläche (Owner 26.08.2026). Der
+   Satz steht AM HAKEN, nicht als Meldung hinterher: eine stillschweigend gelöschte Beschriftung
+   vermisst man erst Tage später auf der Karte.
+   ⚠️ Dieselbe Form wie der Satz zur Kurvenbindung darunter -- eine zweite Rezeptur für „hier steht
+   eine Folge, die du kennen musst" wäre die Divergenz, die §12 meint. Nur die Kante ist die
+   warnende statt der ruhigen. */
+.landschaft-dialog__warnung {
+	margin: var(--space-6, 6px) 0 0;
+	padding: 7px 10px;
+	border-left: 3px solid var(--color-warning, var(--color-accent));
+	background: var(--color-panel-soft);
+	border-radius: var(--radius-sm);
+	font-size: 11px;
+	line-height: 1.45;
+	color: var(--color-text-muted);
+}

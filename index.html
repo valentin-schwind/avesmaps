@@ -1852,6 +1852,12 @@
 							<input id="ecosystem-properties-autoname" name="autoname" type="checkbox" />
 							<span data-i18n="ecosystem.properties.autoName">Auto-Name</span>
 						</label>
+						<!-- 🔴 DIE ANKUENDIGUNG, bevor es passiert. Wer „Auto-Name" anhakt, verliert beim
+						     Speichern die Beschriftung dieser Flaeche (Owner 26.08.2026). Eine
+						     stillschweigend geloeschte Beschriftung ist genau die Sorte Nebenwirkung, die
+						     man erst Tage spaeter auf der Karte vermisst -- deshalb steht sie hier, am
+						     Haken, und nicht erst als Meldung hinterher. -->
+						<p class="landschaft-dialog__warnung" data-landschaft-autoname-warnung hidden></p>
 						<!-- Eine Klimazone ist ABGELEITET (2026-08-03): ihre Fläche entsteht aus den Trennlinien,
 						     und ihre ART sagt, WELCHE der Zonen das ist. Der Server lehnt beides ab
 						     (avesmapsUpdateEcosystemRegion); dieser Satz sagt, WARUM das Auswahlfeld darüber grau

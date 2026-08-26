@@ -62,6 +62,9 @@
 	let regionAreaCountLoaded = false;
 	// Der beim Oeffnen vorgefundene Stand der Kurveneinstellung -- `null` heisst „nicht bedienbar“.
 	let kurveGeladen = null;
+	// Und der beim Oeffnen vorgefundene Stand des Auto-Namens. Er entscheidet, ob dieses Speichern
+	// die Beschriftungen entfernt -- „angehaekelt" ist ein UEBERGANG, kein Zustand.
+	let autoNameGeladen = false;
 	let propertiesBusy = false;
 	let propertiesBound = false;
 
@@ -689,6 +692,13 @@
 		if (typeof avesmapsLandschaftDialogAnlegenKnopf === "function") {
 			avesmapsLandschaftDialogAnlegenKnopf(autoNameBox.checked === true);
 		}
+		// 🔴 Und die Ankuendigung am Haken: was dieses Speichern kosten wird, steht DA, nicht in einer
+		// Meldung hinterher.
+		if (typeof avesmapsLandschaftDialogAutoNameWarnung === "function") {
+			avesmapsLandschaftDialogAutoNameWarnung(
+				autoNameGeladen, autoNameBox.checked === true,
+				beschriftungenDerRegion(currentPropertiesArea()).length);
+		}
 	}
 
 	// Die Namen, gegen die die laufende Nummer zählt. Der Regionen-Wähler hält sie ohnehin schon je Ebene;
@@ -918,6 +928,11 @@
 				// „gewollt automatisch" vorzuhaken hiesse, den ersten getippten Namen wieder wegzurechnen.
 				autoNameBox.checked = String(area.region_type || "") !== ""
 					&& isEcosystemRegionAutoName(area.region_name, currentPropertiesArtLabel());
+				// 🔴 DER STAND BEIM OEFFNEN -- hier und nirgends spaeter. Er entscheidet beim Speichern
+				// darueber, ob die vorhandenen Beschriftungen gehen: „angehaekelt" ist ein UEBERGANG,
+				// kein Zustand (avesmapsLandschaftDialogAutoNameEntfernt). Ohne diesen Merker loeschte
+				// jedes beilaeufige Speichern an einer laengst auto-benannten Flaeche ihre Beschriftung.
+				autoNameGeladen = autoNameBox.checked === true;
 				syncPropertiesAutoName();
 			}
 			// 🪤 UND HIER, aus demselben Grund: die Abbildung „Wiki-Art -> Flächenart" braucht das
@@ -959,6 +974,63 @@
 		}
 		const primaer = linkedEcosystemLabelEntry(area);
 		return primaer ? [primaer] : [];
+	}
+
+	/**
+	 * Die Beschriftungen dieser Region entfernen -- KASKADENSICHER.
+	 *
+	 * 💣 DIE GEFAEHRLICHSTE STELLE DIESES FENSTERS. Das LETZTE Label einer Region nimmt beim Loeschen
+	 * die REGION UND IHRE FLAECHEN mit (`avesmapsEcosystemCascadeAfterRemoval`, api/_internal/app/
+	 * ecosystem.php). Ein Haeckchen darf niemals eine gezeichnete Landschaft vernichten.
+	 *
+	 * 🔴 DIE DREI PHASEN SIND DIE GANZE SICHERHEIT. Die Kaskade fragt
+	 * `avesmapsEcosystemRegionPublicIdOfLabel`: erst den Zeiger AM LABEL
+	 * (`properties.ecosystem_region_public_id`), dann den AN DER REGION
+	 * (`ecosystem_region.label_public_id`). Sind BEIDE leer, ist die Antwort '' -- und der
+	 * Kaskadenblock wird gar nicht erst betreten. Also: Regionszeiger loesen, dann JEDEN Rueckzeiger
+	 * loesen, und erst danach loeschen. Wer die Phasen verschraenkt, loescht irgendwann eines, dessen
+	 * Zeiger noch steht.
+	 *
+	 * ⚠️ Bricht es in Phase 2 ab, stehen freie Beschriftungen da -- sichtbar, anklickbar und
+	 * reparierbar. Nichts Gezeichnetes ist weg. Das ist die sichere Richtung.
+	 *
+	 * 💣 `update_label` schreibt `text` und `feature_subtype` IMMER (Vorgabe '' bzw. 'region'), den
+	 * Darstellungssatz dagegen nur, wenn er mitkommt. Wer beim Loesen nur die public_id schickt,
+	 * LEERT den Beschriftungstext -- kurz bevor er das Label loescht, also unsichtbar, aber im
+	 * Protokoll steht dann eine Umbenennung auf "" statt der Wahrheit.
+	 *
+	 * @returns {number} wie viele entfernt wurden
+	 */
+	async function entferneBeschriftungenDerRegion(area) {
+		const eintraege = beschriftungenDerRegion(area);
+		if (eintraege.length === 0 || typeof submitMapFeatureEdit !== "function") {
+			return 0;
+		}
+		// 🔴 PHASE 1 IST SCHON PASSIERT -- sie reist als `label_public_id: ""` im Rumpf DESSELBEN
+		// `update_region`, mit dem dieses Fenster ohnehin speichert. Zwei Schreibwege fuer dieselbe
+		// Zeile laufen beim naechsten Umbau auseinander, und `ecosystem-properties-sperre.test.js`
+		// nagelt genau das fest: es darf GENAU EINEN update_region-Aufruf in diesem Dialog geben.
+		// ⚠️ Diese Funktion setzt den geloesten Regionszeiger deshalb VORAUS. Wer sie von woanders
+		// ruft, muss ihn vorher loesen -- sonst findet die Kaskade die Region ueber ihn und nimmt die
+		// Flaeche mit.
+		// Phase 2: jeder Rueckzeiger AM LABEL.
+		for (const eintrag of eintraege) {
+			await submitMapFeatureEdit({
+				action: "update_label",
+				public_id: String(eintrag.label.publicId || ""),
+				text: String(eintrag.label.text || ""),
+				feature_subtype: String(eintrag.label.labelType || "region"),
+				ecosystem_region_public_id: "",
+			});
+		}
+		// Phase 3: erst jetzt loeschen -- beide Zeiger sind leer, die Kaskade greift nicht.
+		for (const eintrag of eintraege) {
+			await submitMapFeatureEdit({
+				action: "delete_feature",
+				public_id: String(eintrag.label.publicId || ""),
+			});
+		}
+		return eintraege.length;
 	}
 
 	function linkedEcosystemLabelEntry(area) {
@@ -1880,6 +1952,20 @@
 		if (sperrHaken) {
 			payload.is_locked = Boolean(sperrHaken.checked);
 		}
+		// 🔴 „Bestehende labels sollen entfernt werden, sofern ‚Auto-Name' angehaekelt wird" (Owner
+		// 26.08.2026). PHASE 1 der kaskadensicheren Entfernung reist HIER mit, im Rumpf desselben
+		// `update_region` -- ein zweiter Aufruf waere der zweite Schreibweg, den
+		// `ecosystem-properties-sperre.test.js` zu Recht verbietet.
+		// 💣 Der UEBERGANG entscheidet, nicht der Zustand: der Haken wird abgeleitet und steht bei
+		// laengst auto-benannten Flaechen beim Oeffnen schon -- als Zustand gelesen loeschte jedes
+		// beilaeufige Speichern dort die Beschriftung.
+		const beschriftungenGehen = typeof avesmapsLandschaftDialogAutoNameEntfernt === "function"
+			&& avesmapsLandschaftDialogAutoNameEntfernt(
+				autoNameGeladen, propertiesElement("autoname")?.checked === true)
+			&& beschriftungenDerRegion(area).length > 0;
+		if (beschriftungenGehen) {
+			payload.label_public_id = "";
+		}
 		// Nur mitschicken, wenn wirklich daran gedreht wurde: update_region schreibt ausschliesslich die
 		// Felder, die IM Payload stehen (avesmapsEcosystemReadRegionFields), und ein mitgeschicktes
 		// wiki_url='' würde eine bestehende Zuweisung stillschweigend löschen.
@@ -1943,18 +2029,31 @@
 			// Fläche umbenennt, benennt das Label NICHT mit um" -- richtig, solange die beiden nichts
 			// voneinander wussten. Seit eine derographische Region ihr Label automatisch bekommt
 			// (`label_public_id`), wären zwei Namen für dasselbe Ding schlicht ein Fehler.
-			await renameLinkedEcosystemLabel(area, name);
-			// Und die ÜBRIGEN Labels derselben Fläche: das primäre hat die Zeile darüber schon nachgezogen.
-			await applyRegionToLabels(
-				area,
-				name,
-				String(propertiesElement("type")?.value || "") || "region",
-				String(area.label_public_id || "")
-			);
+			// 🔴 ENTWEDER NACHZIEHEN ODER ENTFERNEN, nie beides. Der Name auf Zeilen zu schreiben, die
+			// im naechsten Schritt geloescht werden, ist bestenfalls Verkehr fuer nichts -- und
+			// schlimmstenfalls bricht sein Fehlschlag das Speichern ab, nachdem die Region schon
+			// steht.
+			let entfernt = 0;
+			if (beschriftungenGehen) {
+				entfernt = await entferneBeschriftungenDerRegion(area);
+			} else {
+				await renameLinkedEcosystemLabel(area, name);
+				// Und die ÜBRIGEN Labels derselben Fläche: das primäre hat die Zeile darüber schon nachgezogen.
+				await applyRegionToLabels(
+					area,
+					name,
+					String(propertiesElement("type")?.value || "") || "region",
+					String(area.label_public_id || "")
+				);
+			}
 			closeEcosystemPropertiesDialog();
 			await refreshAfterEcosystemPropertiesWrite();
 			if (typeof showFeedbackToast === "function") {
-				showFeedbackToast(`Region „${name}" gespeichert.`, "success");
+				// 🔴 Was weg ist, wird GESAGT. Eine stillschweigend geloeschte Beschriftung ist genau
+				// die Sorte Nebenwirkung, die man erst Tage spaeter auf der Karte vermisst.
+				showFeedbackToast(entfernt > 0
+					? `Region „${name}" gespeichert — ${entfernt === 1 ? "die Beschriftung wurde" : entfernt + " Beschriftungen wurden"} entfernt (Auto-Name).`
+					: `Region „${name}" gespeichert.`, "success");
 			}
 		} catch (error) {
 			setPropertiesError(error?.message || "Die Region konnte nicht gespeichert werden.");
