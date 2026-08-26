@@ -232,6 +232,28 @@ assert($zipfel['status'] === 'deckt_sich', 'ein einzelner Ausreisser darf das Ur
 assert($zipfel['abstand'] < 1.0, 'der Median liegt bei den vielen nahen Punkten: ' . $zipfel['abstand']);
 $pruefungen += 3;
 
+// --- 🔴 Der GLEICHE NAME an der gleichen Stelle hebt den Ausdehnungsriegel auf. Das ist der
+// Name als BESTAETIGENDES Zusatzsignal -- er entscheidet nichts allein, er rettet nur einen
+// Treffer, den die Geometrie schon gefunden hat. Live gemessen: von 34 geflaggten Faellen
+// tragen 2 denselben Namen ("Pilperbach", "Wirselbach"), und beide sind dasselbe Gewaesser,
+// bei uns nur laenger gezeichnet. Eine Liste mit offensichtlichem Unsinn darin bringt einem
+// Editor bei, sie zu ueberfliegen.
+$gleichnamig = avesmapsGaretienFindeBestand($pdo, [
+    'typ' => 'Bach', 'namensraum' => '', 'artikel' => '', 'anzeige' => 'Langer Strom',
+    'geo_art' => 'koordinaten',
+    'geo' => avesmapsGaretienTestNachWagenhalt(400.0, 400.2) . ', ' . avesmapsGaretienTestNachWagenhalt(402.0, 400.2),
+], avesmapsGaretienMappeTyp('Bach'));
+assert($gleichnamig['treffer_public_id'] === 'lang-999');
+assert($gleichnamig['status'] === 'deckt_sich', 'gleicher Name, gleiche Stelle -> dasselbe Objekt (' . $gleichnamig['grund'] . ')');
+assert($gleichnamig['anlass'] === 'geometrie');
+$pruefungen += 3;
+
+// ⚠️ Und die Gegenprobe steht schon oben: DIESELBE Geometrie mit einem ANDEREN Namen
+// ("Seitenarm des Langen Stroms") bleibt ein Widerspruch. Ohne sie waere nicht zu erkennen, ob
+// hier der Name rettet oder der Riegel gar nicht mehr greift.
+assert($kurz['status'] === 'widerspricht' && $kurz['anlass'] === 'zufluss', 'der Riegel greift weiterhin');
+$pruefungen++;
+
 // --- 🔴 Sammelartikel werden uebersprungen: dort haben wir eigene Daten.
 //
 // 🪤 DER BAUPLAN SUCHTE SIE IM NAMENSRAUM, UND DORT STEHEN SIE NICHT. Gemessen am 26.08.2026:

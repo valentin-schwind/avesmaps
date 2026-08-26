@@ -42,10 +42,30 @@ $pruefungen += 3;
 // Stufe 3. 🪤 Mit "> 0" ueberlebten drei Mutationen: uebersprungene Zeilen doch aufnehmen,
 // deckende doch aufnehmen, und den Ueberspringen-Riegel ganz entfernen -- jedes Mal wurden es
 // MEHR Eintraege, und mehr ist immer noch groesser als null.
-assert($anzahl === 2, 'genau zwei Vorschlaege aus fuenf Quellzeilen, ' . $anzahl . ' gebaut');
+assert($anzahl === 3, 'genau drei Vorschlaege aus sechs Quellzeilen, ' . $anzahl . ' gebaut');
 $namen = $pdo->query('SELECT label FROM sync_plan_item ORDER BY id')->fetchAll(PDO::FETCH_COLUMN);
-assert($namen === ['Gardel (Fluss)', 'Mühlsee (See)'], 'die richtigen zwei: ' . implode(' | ', $namen));
+assert($namen === ['Gardel (Fluss)', 'Mühlsee (See)', 'Seitenarm der Alke (Bach) · liegt auf "Alke"'],
+    'die richtigen drei: ' . implode(' | ', $namen));
 $pruefungen += 2;
+
+// --- 🔴 EIN ZUFLUSS IST EIN NEUES OBJEKT, KEINE AENDERUNG AN UNSEREM FLUSS (Owner 27.08.2026).
+// Live sind das 34 der 37 Widersprueche. Als 'changed' mit unserem Fluss als Ziel wuerde die
+// Uebernahme dessen Geometrie mit der des Seitenarms ueberschreiben -- und 'changed' kommt nach
+// der Hausregel VORANGEHAKT, ein Klick auf "alle uebernehmen" waere destruktiv.
+$seitenarm = $pdo->query("SELECT * FROM sync_plan_item WHERE label LIKE 'Seitenarm%'")->fetch(PDO::FETCH_ASSOC);
+assert($seitenarm !== false, 'der Zufluss steht im Plan');
+assert($seitenarm['change_type'] === 'new', 'er ist NEU, keine Aenderung an der Alke');
+assert((int) $seitenarm['selected'] === 0, 'und er startet UNGEHAKT -- vorangehakt ist nur das Fuellen einer Luecke');
+// 💣 Das entscheidende Feld: ein entity_public_id ist fuer die Uebernahme das ZIEL, nicht eine
+// Bemerkung. Stuende die Alke hier, waere die Zeile trotz 'new' ein Schreibzugriff auf sie.
+assert($seitenarm['entity_public_id'] === null, 'er zeigt auf NICHTS Vorhandenes');
+assert($seitenarm['before_json'] === null, 'und er behauptet auch keinen Vorzustand');
+// Der Grund steht sichtbar in der Beschriftung, nicht nur im JSON.
+assert(str_contains((string) $seitenarm['label'], 'liegt auf'), 'der Grund steht in der Zeile');
+$seitenarmNach = json_decode((string) $seitenarm['after_json'], true);
+assert($seitenarmNach['anlass'] === 'zufluss', 'der Anlass ist ein FELD, kein deutscher Satz');
+assert($seitenarmNach['nachbar'] === 'Alke', 'der Nachbar reist als Angabe mit');
+$pruefungen += 8;
 
 // --- Die Vorschlaege tragen die Kategorien, die die Vorschau kennt.
 $kat = $pdo->query('SELECT DISTINCT change_type FROM sync_plan_item')->fetchAll(PDO::FETCH_COLUMN);

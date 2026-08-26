@@ -41,13 +41,29 @@ function avesmapsGaretienPlanEintrag(array $zeile, array $ziel, array $urteil): 
     $quellenTitel = $wiki === 'kosch' ? 'KoschWiki' : 'Garetien, Greifenfurt und Perricum';
     $seite = ($namensraum !== '' ? $namensraum . ':' : '') . $artikel;
 
+    // 🔴 EIN ZUFLUSS IST EIN NEUES OBJEKT, KEINE AENDERUNG AN UNSEREM FLUSS (Owner 27.08.2026).
+    // 34 der 37 Widersprueche sind Baeche, die auf ihrem Hauptfluss liegen. Als 'changed' mit
+    // unserem Fluss als Ziel wuerde die Uebernahme dessen Geometrie mit der des Seitenarms
+    // ueberschreiben -- und 'changed' kommt nach der Hausregel VORANGEHAKT, ein Klick auf
+    // "alle uebernehmen" waere also destruktiv. Sie sind deshalb 'new', tragen unseren
+    // Nachbarn nur als ANGABE mit (nicht als Ziel!) und starten UNGEHAKT: die Owner-Regel vom
+    // 16.08.2026 -- vorangehakt ist nur das Fuellen einer Luecke, alles andere mit Grund.
+    $zufluss = ($urteil['anlass'] ?? null) === 'zufluss';
+    $istNeu = $urteil['status'] === 'neu' || $zufluss;
+    $nachbar = $urteil['treffer_name'] !== null && $zufluss
+        ? ' · liegt auf "' . $urteil['treffer_name'] . '"'
+        : '';
+
     return [
         'entity_key' => $wiki . ':' . $zeile['ebene'] . ':' . $zeile['typ'] . ':'
             . ($seite !== '' ? $seite : ('#' . $zeile['zeile_nr'])),
-        'entity_public_id' => $urteil['treffer_public_id'],
-        'change_type' => $urteil['status'] === 'neu' ? 'new' : 'changed',
-        'label' => trim((string) ($zeile['anzeige'] ?? '')) . ' (' . $zeile['typ'] . ')',
-        'before' => $urteil['treffer_public_id'] === null ? [] : [
+        // 💣 Beim Zufluss NULL: ein entity_public_id ist fuer die Uebernahme das ZIEL, nicht
+        // eine Bemerkung. Stuende unser Fluss hier, waere die Zeile trotz 'new' wieder ein
+        // Schreibzugriff auf ihn.
+        'entity_public_id' => $zufluss ? null : $urteil['treffer_public_id'],
+        'change_type' => $istNeu ? 'new' : 'changed',
+        'label' => trim((string) ($zeile['anzeige'] ?? '')) . ' (' . $zeile['typ'] . ')' . $nachbar,
+        'before' => ($zufluss || $urteil['treffer_public_id'] === null) ? [] : [
             'public_id' => $urteil['treffer_public_id'],
             'name' => $urteil['treffer_name'],
         ],
@@ -71,8 +87,14 @@ function avesmapsGaretienPlanEintrag(array $zeile, array $ziel, array $urteil): 
                 'origin' => 'garetien',
             ],
             'urteil' => $urteil['grund'],
+            'anlass' => $urteil['anlass'],
+            // Nur eine ANGABE fuer den Menschen, der die Zeile ansieht -- nie ein Ziel.
+            'nachbar' => $zufluss ? $urteil['treffer_name'] : null,
         ],
         'override' => [],
+        // 🔴 Ein Zufluss startet UNGEHAKT, mit dem Grund in der Beschriftung. Alles andere
+        // folgt der Hausregel avesmapsSyncPlanDefaultSelected.
+        'vorwahl_aus' => $zufluss,
     ];
 }
 
@@ -127,6 +149,13 @@ function avesmapsGaretienBaueSyncPlan(PDO $pdo, int $importRunId, int $userId = 
             $eintrag['change_type'],
             (int) ($entscheidungen[$schluessel]['skipped_count'] ?? 0)
         );
+        // 🔴 Die Hausregel kann nur AUS-, nie EINgeschaltet werden. Sie darf einen Zufluss
+        // nicht vorhaken; ein Zufluss darf umgekehrt aber auch nicht anhaken, was sie
+        // ausgehakt hat (zweimal uebersprungen heisst zweimal uebersprungen).
+        if ($eintrag['vorwahl_aus']) {
+            $eintrag['selected'] = 0;
+        }
+        unset($eintrag['vorwahl_aus']);
         avesmapsSyncPlanAddItem($pdo, $runId, $eintrag);
         $anzahl++;
     }
@@ -181,6 +210,10 @@ function avesmapsGaretienPlanTestPdo(): PDO
         ['ggp', 'Gewaesser', 4, 'Fluss', '', 'Nachbarprovinzen', 'Llavari', 'koordinaten', '1 2, 3 4'],
         // uebersprungen: spaetere Stufe
         ['kosch', 'Gewaesser', 5, 'Insel', '', '', 'Im Angbarer See', 'koordinaten', '-193386 52741, -194553 52157, -193386 52741'],
+        // 🔴 Ein ZUFLUSS: liegt auf der Alke, ist aber nur ein Bruchteil ihrer Ausdehnung.
+        // Er ist ein eigenes neues Objekt und darf die Alke nicht anfassen.
+        ['ggp', 'Gewaesser', 6, 'Bach', 'Garetien', 'Seitenarm der Alke', 'Seitenarm der Alke', 'koordinaten',
+         '20000 10300, 20200 10500, 20400 10700'],
     ];
     $ins = $pdo->prepare('INSERT INTO garetien_import_row (run_id, wiki, ebene, zeile_nr, typ, namensraum, artikel, anzeige, lodmin, lodmax, extra, geo_art, geo, roh)
                           VALUES (1,?,?,?,?,?,?,?,\'\',\'\',\'\',?,?,\'\')');

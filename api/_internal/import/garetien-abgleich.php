@@ -390,13 +390,19 @@ const AVESMAPS_GARETIEN_AUSDEHNUNG_MINDESTVERHAELTNIS = 0.75;
  * Namensvergleich meldete "Grosser Fluss" als neu, obwohl wir ihn als "Der Grosse Fluss"
  * fuehren -- und in Volkers eigenem Bestand gibt es "Aehrenfeld" dreimal.
  *
- * @return array{status:string, treffer_public_id:?string, treffer_name:?string, grund:string, abstand:?float}
+ * 🔴 `anlass` ist ein FELD, kein Text. Der Planbauer muss unterscheiden, WARUM etwas
+ * widerspricht -- ein Zufluss ist ein eigenes neues Objekt, ein Artikelwiderspruch eine Frage
+ * an denselben. Wer das aus `grund` herausliest, haengt eine Programmentscheidung an einen
+ * deutschen Satz, den der naechste Leser umformuliert.
+ *
+ * @return array{status:string, anlass:?string, treffer_public_id:?string, treffer_name:?string, grund:string, abstand:?float}
  */
 function avesmapsGaretienFindeBestand(PDO $pdo, array $zeile, ?array $ziel): array
 {
     if ($ziel === null) {
         return [
             'status' => 'uebersprungen',
+            'anlass' => null,
             'treffer_public_id' => null,
             'treffer_name' => null,
             'grund' => (string) (avesmapsGaretienUeberspringGrund($zeile) ?? 'kein Ziel'),
@@ -421,6 +427,7 @@ function avesmapsGaretienFindeBestand(PDO $pdo, array $zeile, ?array $ziel): arr
 
         return [
             'status' => $passt ? 'deckt_sich' : 'widerspricht',
+            'anlass' => $passt ? 'artikel' : 'artikel_widerspruch',
             'treffer_public_id' => $kandidat['public_id'],
             'treffer_name' => $kandidat['name'],
             'grund' => $passt
@@ -434,6 +441,7 @@ function avesmapsGaretienFindeBestand(PDO $pdo, array $zeile, ?array $ziel): arr
     if ($probe === []) {
         return [
             'status' => 'neu',
+            'anlass' => null,
             'treffer_public_id' => null,
             'treffer_name' => null,
             'grund' => 'keine vergleichbare Geometrie in der Quelle',
@@ -467,7 +475,14 @@ function avesmapsGaretienFindeBestand(PDO $pdo, array $zeile, ?array $ziel): arr
         $ihre = avesmapsGaretienAusdehnung($punkte);
         $unsere = avesmapsGaretienAusdehnung($bester['punkte']);
         $verhaeltnis = $unsere > 0.0 ? $ihre / $unsere : 1.0;
-        $vergleichbar = $verhaeltnis >= AVESMAPS_GARETIEN_AUSDEHNUNG_MINDESTVERHAELTNIS;
+        // 🔴 Der gleiche NAME an der gleichen STELLE hebt den Ausdehnungsriegel auf, und das ist
+        // der Name als BESTAETIGENDES Zusatzsignal -- er entscheidet nichts allein, er rettet nur
+        // einen Treffer, den die Geometrie schon gefunden hat. Live gemessen 27.08.2026: von 34
+        // geflaggten Faellen tragen 2 denselben Namen ("Pilperbach", "Wirselbach"), und beide
+        // sind offensichtlich dasselbe Gewaesser -- bei uns nur laenger gezeichnet. Ohne diese
+        // Zeile stuenden sie als "vermutlich ein Zufluss" in der Liste, und eine Liste mit
+        // offensichtlichem Unsinn darin bringt einem Editor bei, sie zu ueberfliegen.
+        $vergleichbar = $verhaeltnis >= AVESMAPS_GARETIEN_AUSDEHNUNG_MINDESTVERHAELTNIS || $gleicherName;
 
         return [
             // 🔴 Nicht vergleichbar heisst NICHT "neu" und NICHT "deckt sich", sondern
@@ -475,6 +490,7 @@ function avesmapsGaretienFindeBestand(PDO $pdo, array $zeile, ?array $ziel): arr
             // vermutlich ein Zufluss. Als "neu" durchgewinkt legten wir eine Dublette an, als
             // "deckt sich" verschwaende der Bach stillschweigend.
             'status' => $vergleichbar ? 'deckt_sich' : 'widerspricht',
+            'anlass' => $vergleichbar ? 'geometrie' : 'zufluss',
             'treffer_public_id' => $bester['public_id'],
             'treffer_name' => $bester['name'],
             'grund' => sprintf(
@@ -493,6 +509,7 @@ function avesmapsGaretienFindeBestand(PDO $pdo, array $zeile, ?array $ziel): arr
 
     return [
         'status' => 'neu',
+        'anlass' => null,
         'treffer_public_id' => null,
         'treffer_name' => $bester === null ? null : $bester['name'],
         'grund' => $bester === null
