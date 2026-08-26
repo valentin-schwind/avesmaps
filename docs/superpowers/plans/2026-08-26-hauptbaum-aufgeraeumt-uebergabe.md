@@ -66,9 +66,15 @@ darum ihr Kartenlabel.
 
     git show geparkt/generische-landschaftsnamen -- js/map-features/__tests__/ecosystem-naming.test.js
 
-⚠️ `sicherung/hauptbaum-master-2026-08-26` und `sicherung/arbeitsbaum-2026-08-26` sind das
-Sicherheitsnetz des Resets, **nur lokal** und inhaltlich redundant (die 3 einzigartigen Commits
-liegen im Parkzweig). Können weg, sobald der Owner es sagt.
+✅ **Die beiden Sicherungen des Resets sind am 26.08.2026 geloescht** — auf Owner-Entscheid, nachdem
+belegt war, dass sie nichts Einzigartiges mehr halten: `sicherung/hauptbaum-master-2026-08-26`
+(Zweig, war `afc1ba8e`) und `sicherung/arbeitsbaum-2026-08-26` (Tag, war `db6fc762`). Der Beleg,
+Stück für Stück: von 97 Commits lagen 90 per patch-id in origin, 4 weitere per Betreff; die
+restlichen 3 sind die Landschaften-Docs, deren vier Dateien **byte-identisch** im Parkzweig liegen.
+Vom Arbeitsbaum-Tag waren 5 der 9 Dateien identisch mit der origin-Spitze, 1 lag im Parkzweig, und
+die 3 übrigen sind **ältere Stände aus origins Historie** (`35ce3f14`, `2c7c7ebb`, `3b79a599`) —
+Reste des abgebrochenen Merges, kein Fund. ⚠️ Beide Objekte bleiben über den reflog noch rund
+90 Tage erreichbar (`git cat-file -t afc1ba8e`).
 
 ## Offen
 
