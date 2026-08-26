@@ -94,7 +94,7 @@ Important: GitHub Pages cannot execute the PHP part itself. Without a separate A
 
 ## URL sharing of the route planner
 
-The planner state (waypoints, route type, display options, transport paths, means of transport, rest times, minimize-transfers) is no longer mirrored into the browser's address bar. To share a configured route or view, use the share button in the route overview: it creates a short link (`?s=<code>`) that restores the full state when opened.
+The planner state (waypoints, route type, display options, transport paths, means of transport, rest times, minimize-transfers, lodging, travel start) is no longer mirrored into the browser's address bar. To share a configured route or view, use the share button in the route overview: it creates a short link (`?s=<code>`) that restores the full state when opened.
 
 Deep links (see below) and `?place=` links keep the address bar exactly as opened. Old links carrying the previous planner query parameters remain supported — all parameters are still read and applied when the page loads.
 
