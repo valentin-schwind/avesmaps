@@ -1066,6 +1066,16 @@
 		// Phase 3: erst jetzt loeschen -- beide Zeiger sind leer, die Kaskade greift nicht.
 		for (const eintrag of eintraege) {
 			const pid = String(eintrag.label.publicId || "");
+			// 🪤 ERST DIE SPERRE FREIGEBEN. `acquireFeatureSoftLock` legt beim Oeffnen einen
+			// `setInterval` an, der sie alle 45 s erneuert, und `activeFeatureLocks` haelt ihn, bis
+			// jemand freigibt. Wird das Label darunter geloescht, laeuft der Wecker weiter und schlaegt
+			// FUER IMMER gegen ein Objekt, das es nicht mehr gibt -- vom Owner am 26.08.2026 aus der
+			// Konsole gemeldet ("Feature-Lock konnte nicht erneuert werden", endlos wiederholt).
+			// ⚠️ VOR dem Loeschen, nicht danach: danach ist die Zeile weg, und `release_lock` liefe
+			// selbst in den 400, den es beseitigen soll.
+			if (typeof releaseFeatureSoftLock === "function") {
+				await releaseFeatureSoftLock(pid);
+			}
 			const rev = revisionen.get(pid);
 			// ⚠️ Nur setzen, wenn wir eine haben: `withExpectedRevision` laesst einen gesetzten Wert in
 			// Ruhe, ersetzt aber `undefined` durch die alte -- ein blind mitgeschicktes `undefined`

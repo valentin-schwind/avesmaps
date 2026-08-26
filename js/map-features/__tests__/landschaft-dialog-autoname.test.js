@@ -144,4 +144,19 @@ assert.ok(/expected_revision/.test(entferner),
 assert.ok(/removeLabelEntryLocally/.test(entferner),
 	"das entfernte Label verlässt auch den Bestand im Browser"); checks++;
 
+// ── J. UND SEINE SPERRE WIRD FREIGEGEBEN ─────────────────────────────────────────────────────
+// 🪤 Vom Owner aus der Konsole gemeldet, endlos wiederholt: „Feature-Lock konnte nicht erneuert
+// werden: Das Kartenobjekt wurde nicht gefunden." `acquireFeatureSoftLock` legt beim Öffnen einen
+// `setInterval` an, der die Sperre alle 45 s erneuert — und `activeFeatureLocks` hält ihn, bis
+// jemand freigibt. Wird das Label darunter gelöscht, läuft der Wecker weiter und schlägt für immer
+// gegen ein Objekt, das es nicht mehr gibt. Ein Fehler, der nie aufhört und nichts kaputt macht, ist
+// der schlechteste: man gewöhnt sich an rote Konsolen.
+// 🔴 VOR dem Löschen freigeben, nicht danach — danach ist die Zeile weg und `release_lock` läuft
+// selbst in den 400, den es beseitigen soll.
+assert.ok(/releaseFeatureSoftLock/.test(entferner),
+	"die Sperre des Labels wird freigegeben"); checks++;
+const posSperre = entferner.indexOf("releaseFeatureSoftLock");
+assert.ok(posSperre >= 0 && posSperre < posLoeschen,
+	"…und zwar VOR dem Löschen"); checks++;
+
 console.log("landschaft-dialog-autoname: " + checks + " Zusicherungen gruen");
