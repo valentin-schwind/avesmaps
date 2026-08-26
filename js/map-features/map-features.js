@@ -354,33 +354,21 @@ function findNearestGraphEndpointToLatLng(latlng, { excludeLocation = null } = {
 function handleEditableRegionDoubleClick(regionEntry, event, editLayer = null) {
 	L.DomEvent.stop(event);
 	startRegionGeometryEdit(regionEntry, editLayer || activeRegionGeometryEdit?.editLayer || regionEntry.layer);
-	const latLngs = getRegionOuterLatLngs(regionEntry);
-	const insertIndex = findNearestRegionSegmentInsertIndex(regionEntry, event.latlng);
-	latLngs.splice(insertIndex, 0, L.latLng(event.latlng));
-	setRegionOuterLatLngs(regionEntry, latLngs);
+	// Die Kante sucht DIESELBE Funktion wie das Toleranz-Tor (regionEditDoubleClickSetsCorner) und
+	// die Strg-Unterteilung -- ueber alle Ringe, Loecher eingeschlossen; hier ohne Schranke, denn AUF
+	// der Flaeche fuegt der Doppelklick immer ein. (Die alte, eigene Suche lief nur ueber Ring 0 und
+	// setzte eine nahe der LOCHKANTE gemeinte Ecke stillschweigend auf den Aussenring.)
+	const edge = findNearestEditedRegionEdge(event.latlng, regionEntry, Infinity);
+	if (!edge) {
+		return;
+	}
+	const latLngs = getRegionOuterLatLngs(regionEntry, edge.ringIndex);
+	latLngs.splice(edge.index + 1, 0, L.latLng(event.latlng));
+	setRegionOuterLatLngs(regionEntry, latLngs, edge.ringIndex);
 	updateRegionLabelPosition(regionEntry);
 	refreshRegionEditHandles();
 	// Eine per Doppelklick eingefuegte Ecke ist Eckenarbeit wie jede andere -- gebuendelt.
 	scheduleRegionGeometrySave(regionEntry);
-}
-
-function findNearestRegionSegmentInsertIndex(regionEntry, latlng) {
-	const latLngs = getRegionOuterLatLngs(regionEntry);
-	const targetPoint = map.latLngToLayerPoint(latlng);
-	let bestIndex = 1;
-	let bestDistance = Infinity;
-	for (let index = 0; index < latLngs.length; index++) {
-		const start = latLngs[index];
-		const end = latLngs[(index + 1) % latLngs.length];
-		const startPoint = map.latLngToLayerPoint(start);
-		const endPoint = map.latLngToLayerPoint(end);
-		const distance = L.LineUtil.pointToSegmentDistance(targetPoint, startPoint, endPoint);
-		if (distance < bestDistance) {
-			bestDistance = distance;
-			bestIndex = index + 1;
-		}
-	}
-	return bestIndex;
 }
 
 async function deletePathFeature(path) {
@@ -581,6 +569,13 @@ function bindRegionPolygonEditEvents(polygon, regionEntry) {
 		if (event.originalEvent?.target?.closest?.(".region-edit-handle-marker")) return;
 		if (activeRegionGeometryEdit?.regionEntry === regionEntry && activeRegionGeometryEdit.editLayer === polygon) {
 			handleEditableRegionDoubleClick(regionEntry, event, polygon);
+			return;
+		}
+		// Laeuft eine Sitzung auf einer ANDEREN Flaeche und sitzt der Doppelklick innerhalb der
+		// Kantentoleranz von DEREN Kante, gewinnt das Punktsetzen: beim Nachziehen einer gemeinsamen
+		// Grenze liegt fast immer der Nachbar unter dem Klick, und ausgerechnet der Klick an der
+		// Kante wechselte sonst die Sitzung (Owner 26.08.2026).
+		if (regionEditDoubleClickSetsCorner(event)) {
 			return;
 		}
 		L.DomEvent.stop(event);

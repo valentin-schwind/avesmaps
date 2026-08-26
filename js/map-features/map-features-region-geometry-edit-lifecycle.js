@@ -35,6 +35,12 @@ function clearRegionGeometryEdit() {
 	}
 
 	activeRegionGeometryEdit.handles.forEach((handle) => map.removeLayer(handle));
+	// Den GEMERKTEN Zoom-Zustand zurueck, nicht enable() -- s. startRegionGeometryEdit. Diese Zeilen
+	// stehen auch in der Laufzeit-Fassung (map-features-region-vertex-detach-edit.js): beide muessen
+	// es tun, weil je nach Ladezeitpunkt beide die installierte sein koennen.
+	if (activeRegionGeometryEdit.doubleClickZoomWasEnabled) {
+		map.doubleClickZoom?.enable?.();
+	}
 	activeRegionGeometryEdit = null;
 }
 
@@ -56,6 +62,19 @@ function startRegionGeometryEdit(regionEntry, editLayer = null) {
 		edgeHighlightLayer: null,
 		originalEdgeStyle: null,
 	};
+
+	// 🔴 Der Doppelklick-Zoom ist NUR fuer die Dauer der Sitzung aus (Owner 26.08.2026: „nicht dass
+	// du den doppelklick insgesamt abstellst - nur beim editieren von flächen"). Waehrend Ecken
+	// gesetzt (Doppelklick auf Flaeche/Kante) und geloescht (Doppelklick auf Griff) werden, ist der
+	// Doppelklick eine Arbeitsgeste -- dieselbe Regel, nach der Landschaften-Editor
+	// (map-features-ecosystem-edit.js) und Wege-Editor (map-features-path-geometry-editing.js) ihn
+	// laengst abschalten; nur dieses Werkzeug liess ihn an, und ein Pixel neben der Kante zoomte die
+	// Karte unter der Hand weg. Gemerkt und beim Schliessen WIEDERHERGESTELLT statt stumpf enable():
+	// war er beim Einstieg schon aus, bleibt er aus.
+	activeRegionGeometryEdit.doubleClickZoomWasEnabled = Boolean(map.doubleClickZoom?.enabled?.());
+	if (activeRegionGeometryEdit.doubleClickZoomWasEnabled) {
+		map.doubleClickZoom.disable();
+	}
 
 	// Kanten der editierten Geometrie sichtbar machen (Vertex-Blau): das Quellpolygon ist
 	// sonst evtl. stroke-hidden (weight 0). Vorher Original-Stil merken zum Zurücksetzen.

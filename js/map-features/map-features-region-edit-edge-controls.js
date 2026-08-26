@@ -11,6 +11,7 @@ function enableRegionEditEdgeControls() {
 	map.on("mousemove", handleRegionEditMouseMove);
 	map.on("mouseout", handleRegionEditMouseOut);
 	map.on("click", handleRegionEditClick);
+	map.on("dblclick", handleRegionEditMapDoubleClick);
 
 	document.addEventListener("keyup", handleRegionEditKeyUp, true);
 }
@@ -25,6 +26,7 @@ function disableRegionEditEdgeControls() {
 	map.off("mousemove", handleRegionEditMouseMove);
 	map.off("mouseout", handleRegionEditMouseOut);
 	map.off("click", handleRegionEditClick);
+	map.off("dblclick", handleRegionEditMapDoubleClick);
 
 	document.removeEventListener("keyup", handleRegionEditKeyUp, true);
 }
@@ -65,6 +67,35 @@ function handleRegionEditClick(event) {
 	L.DomEvent.preventDefault(event.originalEvent);
 
 	subdivideRegionEditHoveredEdge(4);
+}
+
+// Doppelklick NEBEN der bearbeiteten Flaeche: sitzt er innerhalb der Kantentoleranz, setzt er die
+// Ecke -- statt dass die Karte zoomt (der Doppelklick-Zoom ist waehrend der Sitzung ohnehin aus,
+// s. startRegionGeometryEdit) oder, mit einer fremden Flaeche unter dem Klick, die Sitzung wechselt.
+// Beim Nachziehen einer GEMEINSAMEN Grenze liegt fast immer der Nachbar unter dem Klick; vorher
+// entschied die Polygonkante selbst, und ein Pixel ausserhalb tat etwas voellig anderes
+// (Owner 26.08.2026). Zwei Rufer -- der Karten-dblclick hier und der Fremdflaechen-Zweig in
+// map-features.js -- gehen beide durch DIESES Tor, und die Ecke setzt derselbe Erzeuger wie beim
+// Doppelklick auf der Flaeche.
+function regionEditDoubleClickSetsCorner(event) {
+	if (!activeRegionGeometryEdit || !event?.latlng) {
+		return false;
+	}
+	// Strg gehoert der Kanten-Unterteilung (handleRegionEditClick), und ein Griff traegt seinen
+	// eigenen Doppelklick (Ecke loeschen) -- keiner von beiden darf hier ZUSAETZLICH eine Ecke setzen.
+	if (event.originalEvent?.ctrlKey || event.originalEvent?.target?.closest?.(".region-edit-handle-marker")) {
+		return false;
+	}
+	if (!findNearestEditedRegionEdge(event.latlng, activeRegionGeometryEdit.regionEntry)) {
+		return false;
+	}
+
+	handleEditableRegionDoubleClick(activeRegionGeometryEdit.regionEntry, event, activeRegionGeometryEdit.editLayer);
+	return true;
+}
+
+function handleRegionEditMapDoubleClick(event) {
+	regionEditDoubleClickSetsCorner(event);
 }
 
 function updateRegionEditEdgeHoverFromLatLng(latLng) {
@@ -171,7 +202,10 @@ function handleRegionEditEdgeClick(event) {
 	subdivideRegionEditHoveredEdge(4);
 }
 
-function findNearestEditedRegionEdge(latLng, regionEntry) {
+// `maxDistancePx`: das Toleranz-Tor (Strg-Hover, Doppelklick daneben) nutzt die Vorgabe; der
+// Einfuege-Erzeuger in map-features.js ruft mit Infinity, denn AUF der Flaeche gibt es keine
+// Schranke. EINE Suche fuer beide -- eine zweite Fassung derselben Frage driftete auseinander.
+function findNearestEditedRegionEdge(latLng, regionEntry, maxDistancePx = REGION_EDIT_EDGE_HIT_TOLERANCE_PX) {
 	const rings = getPolygonLatLngRings(activeRegionGeometryEdit?.editLayer || regionEntry.layer);
 	const targetPoint = map.latLngToContainerPoint(latLng);
 	let nearest = null;
@@ -190,7 +224,7 @@ function findNearestEditedRegionEdge(latLng, regionEntry) {
 			const projectedPoint = closestPointOnSegment(targetPoint, startPoint, endPoint);
 			const distance = targetPoint.distanceTo(projectedPoint);
 
-			if (distance <= REGION_EDIT_EDGE_HIT_TOLERANCE_PX && (!nearest || distance < nearest.distance)) {
+			if (distance <= maxDistancePx && (!nearest || distance < nearest.distance)) {
 				nearest = {
 					ringIndex,
 					index,

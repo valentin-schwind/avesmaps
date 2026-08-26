@@ -299,6 +299,13 @@
 			}
 
 			activeRegionGeometryEdit.handles.forEach((handle) => map.removeLayer(handle));
+			// Den GEMERKTEN Zoom-Zustand zurueck, nicht enable() -- s. startRegionGeometryEdit
+			// (map-features-region-geometry-edit-lifecycle.js). Wie beim dragstart-Undo gilt: die
+			// Fallback-Fassung dort braucht dieselben Zeilen, weil je nach Ladezeitpunkt beide die
+			// installierte sein koennen.
+			if (activeRegionGeometryEdit.doubleClickZoomWasEnabled) {
+				map.doubleClickZoom?.enable?.();
+			}
 			activeRegionGeometryEdit = null;
 		};
 
