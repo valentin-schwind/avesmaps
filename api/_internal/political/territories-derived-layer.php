@@ -27,6 +27,47 @@ function avesmapsPoliticalLayerCacheTtlSeconds(array $query): int {
     return ((string) ($query['edit_mode'] ?? '0') === '1') ? 15 : 300;
 }
 
+// --- Cache-Kopfzeilen der Ebene: EIN Erzeuger fuer ALLE Ausgabestellen ---------------------------
+//
+// 💣 Die Layer-Antwort verlaesst territories-endpoint.php an DREI Stellen: dem Schnellpfad vor dem
+// PDO, dem zweiten Cache-Treffer dahinter und dem frischen Aufbau. Wer die Kopfzeilen an eine davon
+// schreibt, hat eine Regel gebaut, die zwei von drei Erzeugern nicht bindet -- der Fehler, den dieses
+// Projekt bei den Querfeldein-Kanten und beim Aufraeumen der Geometrien schon zweimal bezahlt hat.
+//
+// ⭐ Der Tag ist der Hash der ausgelieferten Bytes, nicht eines Datenstands. Das ist hier genau
+// richtig, weil der Rumpf eine reine Funktion der Cachedatei ist -- gleiche Datei, gleicher Tag.
+//
+// 🔴 `X-Avesmaps-ETag` steht daneben, weil der echte `ETag` die 200 auf dieser Infrastruktur NICHT
+// ueberlebt: STRATOs Zwischenschicht entfernt ihn aus rumpftragenden PHP-Antworten (gemessen an
+// /api/locations/ am 25.08.2026 und an map-features am 26.08.2026). `X-`-Koepfe ueberleben
+// nachweislich. Freigegeben sind beide in avesmapsApplyCorsPolicy.
+function avesmapsPoliticalLayerETag(string $encodedLayer): string {
+    return 'W/"ptl-' . strlen($encodedLayer) . '-' . substr(sha1($encodedLayer), 0, 12) . '"';
+}
+
+// Wie lange der Browser die Antwort halten darf. 💣 Das ist die RESTLAUFZEIT der Servercachedatei,
+// nicht deren volle Frist: eine 299 s alte Datei mit `max-age=300` auszuliefern hiesse, dass Server-
+// und Browserfrist sich ADDIEREN (bis zu 600 s statt 300). So gerechnet ist die Gesamtveraltung
+// exakt die, die der Server heute schon zusichert -- der Umbau macht sie nicht groesser.
+function avesmapsPoliticalLayerBrowserMaxAge(array $query, ?int $cacheFileMtime): int {
+    $ttl = avesmapsPoliticalLayerCacheTtlSeconds($query);
+    if ($cacheFileMtime === null) {
+        return $ttl; // gerade frisch gebaut
+    }
+    return max(0, $ttl - max(0, time() - $cacheFileMtime));
+}
+
+// Gibt den Tag zurueck, damit der Aufrufer If-None-Match dagegen halten kann.
+function avesmapsPoliticalSendLayerCacheHeaders(string $encodedLayer, int $maxAgeSeconds): string {
+    $etag = avesmapsPoliticalLayerETag($encodedLayer);
+    header('ETag: ' . $etag);
+    header('X-Avesmaps-ETag: ' . $etag);
+    // `private`: die Antwort haengt am Bearbeiten-Modus, sie gehoert in KEINEN geteilten Zwischenspeicher.
+    header('Cache-Control: private, max-age=' . max(0, $maxAgeSeconds));
+    header('Vary: Accept-Encoding', false);
+    return $etag;
+}
+
 function avesmapsPoliticalInvalidateLayerCache(): void {
     $dir = sys_get_temp_dir() . '/avesmaps_layer_cache';
     if (!is_dir($dir)) {

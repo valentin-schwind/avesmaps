@@ -162,9 +162,29 @@ function buildPoliticalTerritoriesParamKey(params) {
 	return parts.join("&");
 }
 
+// Darf der BROWSER diese Antwort behalten? Nur die Ansichts-Ebene, und nur ausserhalb des
+// Bearbeiten-Modus.
+// 🔴 IM ZWEIFEL NEIN. Ist `IS_EDIT_MODE` gar nicht definiert (die Datei koennte irgendwann von einer
+// anderen Seite geladen werden), gilt "Bearbeiten" -- ein zu vorsichtiges Nein kostet eine Anfrage,
+// ein zu grosszuegiges Ja zeigt einem Editor seine eigene Aenderung minutenlang nicht.
+function avesmapsPoliticalLayerBrowserCacheable(params) {
+	const imBearbeitenModus = typeof IS_EDIT_MODE === "undefined" || IS_EDIT_MODE !== false;
+	return params?.action === "layer"
+		&& !imBearbeitenModus
+		&& String(params?.edit_mode ?? "0") !== "1";
+}
+
 // Nach einem Edit aufrufen, damit der naechste Layer-Load garantiert frisch ist (kein stale Cache).
+// 💣 ES SIND ZWEI SPEICHER, UND SIE FALLEN GEMEINSAM. Der geparste Zwischenspeicher im
+// political-territory-loader haelt dieselbe Ebene noch einmal -- fertig geparst. Wer hier nur den
+// einen leert, hat eine Regel gebaut, die einen von zwei Erzeugern bindet; genau daran ist im
+// August 2026 schon die Verkehrsmittel-Sperre und die Ausstiegsregel gescheitert. Der Weiterreicher
+// ist bewusst weich (`typeof`), weil api-client.js VOR dem Loader geladen wird.
 function invalidatePoliticalLayerCache() {
 	POLITICAL_LAYER_CACHE.clear();
+	if (typeof invalidatePoliticalTerritoryLayerParsedCache === "function") {
+		invalidatePoliticalTerritoryLayerParsedCache();
+	}
 }
 
 async function fetchPoliticalTerritories(params = {}) {
@@ -183,14 +203,29 @@ async function fetchPoliticalTerritories(params = {}) {
 
 	const requestPromise = (async () => {
 		const url = new URL(POLITICAL_TERRITORIES_API_URL, window.location.href);
-		url.searchParams.set("_", String(Date.now()));
+		// 🔴 Der Cachebrecher und `no-store` fallen NUR fuer die ANSICHTS-Ebene weg. Bis 26.08.2026
+		// erzwang jede Anfrage einen Volltransfer -- und weil der Zoom ein Anfrageparameter ist, hiess
+		// das ~780 KB je Zoomstufe, jedes Mal (gemessen: 280-330 ms je Zoomschritt allein dafuer).
+		// Seit derselben Aenderung schickt territories-endpoint.php `Cache-Control: private, max-age=`
+		// mit der RESTLAUFZEIT seines eigenen Dateicaches, plus ETag und X-Avesmaps-ETag.
+		// ⚠️ Alles andere behaelt `no-store`: die uebrigen Aktionen (list, geometry_inventory, ...)
+		// senden gar keine Cache-Kopfzeilen, und ohne Kopfzeile darf ein Browser heuristisch behalten.
+		const browserZwischenspeicherErlaubt = avesmapsPoliticalLayerBrowserCacheable(params);
+		if (!browserZwischenspeicherErlaubt) {
+			url.searchParams.set("_", String(Date.now()));
+		}
 		Object.entries(params).forEach(([key, value]) => {
 			if (value !== undefined && value !== null && value !== "") {
 				url.searchParams.set(key, String(value));
 			}
 		});
 
-		const response = await fetchWithRetry(url.toString(), {
+		const response = await fetchWithRetry(url.toString(), browserZwischenspeicherErlaubt ? {
+			credentials: "same-origin",
+			headers: {
+				Accept: "application/json",
+			},
+		} : {
 			cache: "no-store",
 			credentials: "same-origin",
 			headers: {

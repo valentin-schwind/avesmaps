@@ -4,6 +4,27 @@
  */
 
 const politicalTerritoryLayerFetchCache = new Map();
+// 💣 DER GEPARSTE ZWISCHENSPEICHER DER EBENE -- der groesste Einzelposten beim Zoomen.
+// Bis 26.08.2026 wurde die Ebene bei JEDEM Zoomschritt neu geholt (der Zoom ist ein Anfrage-
+// parameter) und die ~3-4-MB-Antwort neu durch den Abfangjaeger geschickt: clone().json(),
+// JSON.stringify, dann noch einmal .json() im Leser. Gemessen 280-330 ms je Zoomschritt in der
+// Standardansicht, rund 1 s in der politischen (dort kommt der Nachbarzoom-Fan-out dazu).
+// Hier liegt das FERTIGE Ergebnis je (Zoom, Jahr, Bearbeiten-Modus) -- ein zweiter Besuch derselben
+// Zoomstufe kostet nichts mehr.
+// 🔴 NUR IM ANSICHTSMODUS. Im Editor bleibt alles wie bisher: dort haengen an derselben Ebene noch
+// Stil-Uebersteuerungen, laufende Geometriebearbeitungen und der 15-s-Servercache, und ein Editor,
+// der seine eigene Aenderung nicht sieht, ist schlimmer als ein langsamer Zoom.
+const politicalTerritoryLayerParsedCache = new Map();
+
+function buildPoliticalTerritoryLayerParsedCacheKey(zoom, yearBf, editMode) {
+	return `z=${zoom}|y=${yearBf}|e=${editMode}`;
+}
+
+// Wird auch von invalidatePoliticalLayerCache (js/app/api-client.js) gerufen -- dort steht, warum
+// beide Speicher gemeinsam fallen muessen.
+function invalidatePoliticalTerritoryLayerParsedCache() {
+	politicalTerritoryLayerParsedCache.clear();
+}
 const politicalTerritoryPendingStyleOverrides = new Map();
 const politicalTerritoryStyleCache = new Map();
 let politicalTerritoryStyleCachePromise = null;
@@ -596,6 +617,8 @@ document.addEventListener("DOMContentLoaded", installPoliticalRegionVisibilityBe
 
 function invalidatePoliticalTerritoryLayerFetchCache() {
 	politicalTerritoryLayerFetchCache.clear();
+	// Der geparste Speicher faellt MIT -- beide halten dieselbe Ebene, nur in verschiedener Reife.
+	invalidatePoliticalTerritoryLayerParsedCache();
 }
 
 function schedulePoliticalTerritoryLayerReload({ immediate = false } = {}) {
@@ -618,7 +641,11 @@ function schedulePoliticalTerritoryLayerReload({ immediate = false } = {}) {
 		if (typeof invalidatePoliticalLayerCache === "function") invalidatePoliticalLayerCache();
 	}
 	// (2) LAZY: in den reinen Grenzen-Modi (deregraphic/powerlines) erst ab Zoom 1 laden. Bei Zoom 0 ist die
-	// Grenzen-Deckkraft 0 (unsichtbar) -> kein Bedarf. Default-Start ist Zoom 0 -> spart den ~10MB-Startblock.
+	// Grenzen-Deckkraft 0 (unsichtbar) -> kein Bedarf.
+	// 🪤 Hier stand bis 26.08.2026 "Default-Start ist Zoom 0 -> spart den ~10MB-Startblock". Das war
+	// tot: der Startzoom ist AVESMAPS_DEFAULT_MAP_ZOOM = 3 (js/app/bootstrap.js, am Telefon 2). Diese
+	// Bedingung greift beim Start also NIE, und die Ebene laeuft bei jedem Besuch mit. Wer eine
+	// Startersparnis sucht, findet sie nicht hier.
 	if (mapLayerMode !== "political" && Math.round(Number(map.getZoom())) < 1) {
 		return;
 	}
@@ -666,12 +693,35 @@ async function loadPoliticalTerritoryLayer() {
 		// Capture the requested zoom ONCE, before any await, so loadedZoom reflects the zoom the data was
 		// fetched for (not a zoom the user changed to during the await -> no stale pan-skip / TOCTOU).
 		const requestedZoom = Math.round(map.getZoom());
-		const response = await fetchPoliticalTerritories({
-			action: "layer",
-			year_bf: politicalTimelineYear,
-			zoom: requestedZoom,
-			edit_mode: IS_EDIT_MODE ? 1 : 0,
-		});
+		const parsedCacheKey = buildPoliticalTerritoryLayerParsedCacheKey(
+			requestedZoom,
+			politicalTimelineYear,
+			IS_EDIT_MODE ? 1 : 0
+		);
+		const darfZwischenspeichern = !IS_EDIT_MODE;
+		const parsedHit = darfZwischenspeichern ? politicalTerritoryLayerParsedCache.get(parsedCacheKey) : null;
+		let response;
+		if (parsedHit && (Date.now() - parsedHit.createdAt) < POLITICAL_TERRITORY_LAYER_PARSED_CACHE_TTL_MS) {
+			response = parsedHit.data;
+		} else {
+			response = await fetchPoliticalTerritories({
+				action: "layer",
+				year_bf: politicalTimelineYear,
+				zoom: requestedZoom,
+				edit_mode: IS_EDIT_MODE ? 1 : 0,
+			});
+			if (darfZwischenspeichern) {
+				// Abgelaufene Eintraege raeumen, damit die Zeitleiste (viele Jahre) den Speicher nicht
+				// unbegrenzt wachsen laesst -- dasselbe Muster wie beim Fan-out-Speicher darueber.
+				const jetzt = Date.now();
+				for (const [key, entry] of politicalTerritoryLayerParsedCache) {
+					if (jetzt - entry.createdAt >= POLITICAL_TERRITORY_LAYER_PARSED_CACHE_TTL_MS) {
+						politicalTerritoryLayerParsedCache.delete(key);
+					}
+				}
+				politicalTerritoryLayerParsedCache.set(parsedCacheKey, { createdAt: jetzt, data: response });
+			}
+		}
 		// Kein Force pro Layer-Load mehr: der 1s-TTL haelt den Style-Cache aktuell,
 		// und frisch gespeicherte Eigenschaften kommen sofort über den Pending-Style-Override.
 		// Das spart im Edit-Modus einen action=list-Komplettabruf bei jedem Zoom/Pan.

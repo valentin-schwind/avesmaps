@@ -49,6 +49,15 @@ try {
         if (is_file($layerFastCacheFile) && (time() - (int) @filemtime($layerFastCacheFile)) < $layerFastCacheTtl) {
             $layerFastCached = @file_get_contents($layerFastCacheFile);
             if (is_string($layerFastCached) && $layerFastCached !== '') {
+                $layerFastEtag = avesmapsPoliticalSendLayerCacheHeaders(
+                    $layerFastCached,
+                    avesmapsPoliticalLayerBrowserMaxAge($_GET, (int) @filemtime($layerFastCacheFile))
+                );
+                $layerFastIfNoneMatch = (string) ($_SERVER['HTTP_IF_NONE_MATCH'] ?? '');
+                if ($layerFastIfNoneMatch !== '' && avesmapsETagMatches($layerFastIfNoneMatch, $layerFastEtag)) {
+                    http_response_code(304);
+                    exit;
+                }
                 http_response_code(200);
                 header('Content-Type: application/json; charset=utf-8');
                 header('X-Avesmaps-Layer-Cache: hit');
@@ -114,6 +123,15 @@ try {
             if (is_file($layerCacheFile) && (time() - (int) @filemtime($layerCacheFile)) < $layerCacheTtl) {
                 $cachedLayer = @file_get_contents($layerCacheFile);
                 if (is_string($cachedLayer) && $cachedLayer !== '') {
+                    $cachedLayerEtag = avesmapsPoliticalSendLayerCacheHeaders(
+                        $cachedLayer,
+                        avesmapsPoliticalLayerBrowserMaxAge($_GET, (int) @filemtime($layerCacheFile))
+                    );
+                    $cachedIfNoneMatch = (string) ($_SERVER['HTTP_IF_NONE_MATCH'] ?? '');
+                    if ($cachedIfNoneMatch !== '' && avesmapsETagMatches($cachedIfNoneMatch, $cachedLayerEtag)) {
+                        http_response_code(304);
+                        exit;
+                    }
                     http_response_code(200);
                     header('Content-Type: application/json; charset=utf-8');
                     header('X-Avesmaps-Layer-Cache: hit');
@@ -140,12 +158,22 @@ try {
                 if (@file_put_contents($tmpLayer, $encodedLayer) !== false) {
                     @rename($tmpLayer, $layerCacheFile);
                 }
+                // 🔴 Die Kopfzeilen gehen mit der ANTWORT hinaus, nie vor der Arbeit. Ein Tag, der
+                // vor dem teuren Aufbau gesetzt wird, reist auch auf der 500, die dieser Aufbau
+                // erzeugen kann -- und ein Client, der den Rumpf darunter ablegt, bekommt spaeter
+                // "deine Kopie ist aktuell" fuer eine Fehlerseite. Dieselbe Lehre steht in
+                // api/_internal/__tests__/etag-shared-test.php.
+                avesmapsPoliticalSendLayerCacheHeaders($encodedLayer, $layerCacheTtl);
                 http_response_code(200);
                 header('Content-Type: application/json; charset=utf-8');
                 header('X-Avesmaps-Layer-Cache: miss');
                 echo $encodedLayer;
                 exit;
             } catch (Throwable $layerCacheError) {
+                // Kodierung fehlgeschlagen -> es gibt keine Bytes zum Hashen. Kein Tag, und
+                // ausdruecklich NICHT zwischenspeicherbar: ohne Kopfzeile duerfte ein Browser die
+                // Antwort heuristisch behalten.
+                header('Cache-Control: no-store');
                 avesmapsJsonResponse(200, $response);
             }
         }
