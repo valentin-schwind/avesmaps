@@ -955,12 +955,24 @@
 			// schon getippt hat, soll das nicht überschrieben bekommen.
 			const autoNameBox = propertiesElement("autoname");
 			if (autoNameBox && nameInput && nameInput.value === String(area.region_name || "")) {
-				// 🔴 Bei einer FRISCHEN Fläche bleibt der Haken aus (Owner 2026-07-28). Sie trägt zwar schon
-				// einen Auto-Namen -- irgendwie muss sie ja heissen --, aber sie hat noch keine Art, und
-				// damit ist der Name nur ein Platzhalter, den der Editor gleich überschreibt. Ihn als
-				// „gewollt automatisch" vorzuhaken hiesse, den ersten getippten Namen wieder wegzurechnen.
-				autoNameBox.checked = String(area.region_type || "") !== ""
-					&& isEcosystemRegionAutoName(area.region_name, currentPropertiesArtLabel());
+				// 🔴 DER GESPEICHERTE MERKER ENTSCHEIDET, der Name ist nur noch der Rückfall
+				// (Owner 26.08.2026: „ja, speicher den haken").
+				//
+				// 💣 Hier stand `String(area.region_type || "") !== "" && isEcosystemRegionAutoName(…)`,
+				// und genau die Art-Bedingung war der Fehler: eine frisch gezeichnete Region hat noch
+				// KEINE Art, der Namensgeber vergibt trotzdem „Fläche-100" (Rückfall-Griff „Fläche").
+				// Anhaken, speichern, wieder aufmachen -- Haken weg. Der NAME war korrekt gespeichert,
+				// nur die Anzeige log. Live betraf das 9 Regionen ohne Art plus jede neu gezeichnete.
+				//
+				// ⚠️ Das Ziel der alten Bedingung -- eine frische Fläche geht NICHT mit gesetztem Haken
+				// (und damit schreibgeschütztem Namensfeld) auf -- erreicht jetzt ein GESPEICHERTES
+				// `false`, das der Zeichner beim Anlegen mitschickt.
+				// 🪤 Und NICHT der fehlende Merker: hier stand genau das, und es war falsch. Der
+				// Zeichner vergibt weiterhin „Fläche-100" (`ecosystemDraftRegionName`), und das ist
+				// die Form `<Griff>-<Zahl>` -- ohne Merker leitete der Name „automatisch" ab und
+				// sperrte das Feld in dem Augenblick, in dem der Editor benennen soll.
+				autoNameBox.checked = avesmapsEcosystemAutoNameAusMerker(
+					area.auto_name, area.region_name, currentPropertiesArtLabel());
 				// 🔴 DER STAND BEIM OEFFNEN -- hier und nirgends spaeter. Er entscheidet beim Speichern
 				// darueber, ob die vorhandenen Beschriftungen gehen: „angehaekelt" ist ein UEBERGANG,
 				// kein Zustand (avesmapsLandschaftDialogAutoNameEntfernt). Ohne diesen Merker loeschte
@@ -2017,6 +2029,13 @@
 		const sperrHaken = propertiesElement("locked");
 		if (sperrHaken) {
 			payload.is_locked = Boolean(sperrHaken.checked);
+		}
+		// 🔴 DER HAKEN WIRD GESPEICHERT (Owner 26.08.2026), nicht mehr aus dem Namen geraten. Auch
+		// `false` reist mit: „ausdrücklich kein Auto-Name" ist ein eigener Zustand, sonst käme eine
+		// Region, die „Wald-001" heisst und deren Haken jemand entfernt hat, angehakt zurück.
+		const autoHaken = propertiesElement("autoname");
+		if (autoHaken) {
+			payload.auto_name = autoHaken.checked === true;
 		}
 		// 🔴 „Bestehende labels sollen entfernt werden, sofern ‚Auto-Name' angehaekelt wird" (Owner
 		// 26.08.2026). PHASE 1 der kaskadensicheren Entfernung reist HIER mit, im Rumpf desselben

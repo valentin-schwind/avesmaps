@@ -1861,6 +1861,68 @@ function avesmapsEcosystemReadBoolean(mixed $value): bool
     return filter_var($value, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) ?? false;
 }
 
+/**
+ * REIN: der gespeicherte Haken „Auto-Name" dieser Regionszeile. DREI Zustaende.
+ *
+ * 🔴 `null` heisst „nie angefasst" -- dann entscheidet im Browser der NAME (Altbestand und frisch
+ * gezeichnete Flaechen). `true`/`false` sind ausdrueckliche Entscheidungen und schlagen den Namen.
+ *
+ * ⚠️ Deshalb wird hier -- anders als beim Nachbarn `wiki_no_article` -- auch `false` GESPEICHERT:
+ * dort sind „entschieden: nein" und „nie entschieden" bedeutungsgleich, hier nicht. Eine Region,
+ * die „Wald-001" heisst und deren Haken jemand bewusst entfernt hat, kaeme sonst beim naechsten
+ * Oeffnen wieder angehakt zurueck.
+ */
+function avesmapsEcosystemRegionAutoName(mixed $propertiesJson): ?bool
+{
+    $properties = json_decode((string) ($propertiesJson ?? ''), true);
+    if (!is_array($properties) || !array_key_exists('auto_name', $properties)) {
+        return null;
+    }
+
+    return (bool) $properties['auto_name'];
+}
+
+/**
+ * REIN: was `update_region` am Auto-Name-Merker zu tun hat. Leeres Ergebnis = nichts zu schreiben.
+ *
+ * 💣 FEHLT `auto_name` IM RUMPF, BLEIBT DER MERKER UNANGETASTET -- dieselbe array_key_exists-Regel
+ * wie beim Nachbarn darunter, und aus demselben Grund: die Partialitaet dieser Funktion IST die
+ * Regel, geschrieben wird nur, was mitgeschickt wurde.
+ *
+ * ⚠️ Gerechnet wird auf den Eigenschaften, die der Rumpf mitbringt, sonst auf den GESPEICHERTEN --
+ * sonst loeschte ein `properties`-Rumpf den Merker still mit.
+ *
+ * 💣 UND DIESE FUNKTION MUSS VOR `avesmapsEcosystemApplyRegionNoArticle` LAUFEN: beide schreiben
+ * `properties_json`, und der zweite liest, was der erste in `$fields` gelegt hat. Andersherum wirft
+ * er das Ergebnis dieser Funktion weg.
+ */
+function avesmapsEcosystemApplyRegionAutoName(array $before, array $payload, array $fields): array
+{
+    if (!array_key_exists('auto_name', $payload)) {
+        return [];
+    }
+    $quelle = array_key_exists('properties_json', $fields)
+        ? $fields['properties_json']
+        : ($before['properties_json'] ?? null);
+    $properties = json_decode((string) ($quelle ?? ''), true);
+    if (!is_array($properties)) {
+        $properties = [];
+    }
+    // 🔴 `null` im Rumpf heisst ausdruecklich „zuruecksetzen auf ableiten" -- der Weg zurueck in den
+    // dritten Zustand. Ohne ihn liesse sich eine einmal getroffene Entscheidung nie mehr aufgeben.
+    if ($payload['auto_name'] === null) {
+        unset($properties['auto_name']);
+    } else {
+        $properties['auto_name'] = avesmapsEcosystemReadBoolean($payload['auto_name']);
+    }
+
+    return [
+        'properties_json' => $properties === []
+            ? null
+            : json_encode($properties, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR),
+    ];
+}
+
 /** REIN: traegt diese Regionszeile den Merker? Eine kaputte oder fehlende Ablage heisst „nein". */
 function avesmapsEcosystemRegionNoArticle(mixed $propertiesJson): bool
 {
@@ -2164,6 +2226,9 @@ function avesmapsListEcosystemRegions(PDO $pdo, array $payload): array
             // brauchen die Antwort, nicht die Ablage, und ein `properties_json` auf der Leitung waere
             // die Einladung, dort noch etwas anderes hineinzuschreiben.
             'wiki_no_article' => avesmapsEcosystemRegionNoArticle($row['properties_json'] ?? null),
+            // 🔴 Die ANTWORT, nie die Ablage -- wie die Zeile darueber. `null` heisst „nie
+            // angefasst", dann entscheidet im Browser der Name.
+            'auto_name' => avesmapsEcosystemRegionAutoName($row['properties_json'] ?? null),
             // Die Feldherkunft, ebenfalls als fertige Antwort (`{name|region_type: wiki|manual}`).
             // 🔴 Ohne sie gaebe es fuer den Wiki-Override der Landschaft keinen LESEWEG: der Server
             // stempelt seit dem 18.08.2026, aber nichts gab die Stempel je heraus -- die braune
@@ -2512,6 +2577,12 @@ function avesmapsCreateEcosystemRegion(PDO $pdo, array $payload, int $userId): a
     // Es gibt genau sieben, und welche das sind, sagt das Vokabular -- eine achte von Hand angelegte
     // haette keine Trennlinie, die sie begrenzt.
     avesmapsClimateAssertNotDerived($fields['kind'], 'create_region');
+    // 💣 DERSELBE ANWENDER WIE IN `update_region` -- BEIDE ERZEUGER, ODER ES IST KEINE REGEL.
+    // Der Zeichner legt eine Flaeche mit dem provisorischen Griff „Flaeche-100" an, und der SIEHT
+    // aus wie ein Auto-Name. Ohne den Merker leitete der Dialog daraus „automatisch" ab, ginge mit
+    // gesetztem Haken auf und haette das Namensfeld gesperrt -- ausgerechnet in dem Augenblick, in
+    // dem der Editor den Namen vergeben soll. Er schickt deshalb ein ausdrueckliches `false` mit.
+    $fields = array_merge($fields, avesmapsEcosystemApplyRegionAutoName([], $payload, $fields));
     if (($fields['region_type'] ?? null) !== null) {
         avesmapsEcosystemAssertRegionType($pdo, $fields['kind'], $fields['region_type']);
     }
@@ -2897,6 +2968,9 @@ function avesmapsUpdateEcosystemRegion(PDO $pdo, array $payload, int $userId): a
     $effectiveWikiUrl = array_key_exists('wiki_url', $fields)
         ? (string) ($fields['wiki_url'] ?? '')
         : (string) ($before['wiki_url'] ?? '');
+    // 💣 DER AUTO-NAME-MERKER ZUERST. Beide Anwender schreiben `properties_json`, und der zweite
+    // liest, was der erste in `$fields` gelegt hat -- andersherum wirft er dessen Ergebnis weg.
+    $fields = array_merge($fields, avesmapsEcosystemApplyRegionAutoName($before, $payload, $fields));
     $fields = array_merge(
         $fields,
         avesmapsEcosystemApplyRegionNoArticle($before, $payload, $fields, $effectiveWikiUrl)

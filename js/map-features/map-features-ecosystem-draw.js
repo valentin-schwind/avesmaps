@@ -319,6 +319,13 @@ async function saveEcosystemAreaRing(ring) {
 			kind,
 			name,
 			region_type: "",
+			// 🔴 AUSDRUECKLICH KEIN AUTO-NAME (Owner 26.08.2026: „autoname is nicht angehaekelt" als
+			// beschriebener Ist-Zustand einer frischen Flaeche).
+			// 💣 Ohne diese Zeile leitet der Dialog den Haken aus dem NAMEN ab -- und `name` ist hier
+			// „Flaeche-100", also genau die Form `<Griff>-<Zahl>`, die als Auto-Name gilt. Die Flaeche
+			// ginge mit gesetztem Haken auf und haette das Namensfeld gesperrt, in dem Augenblick, in
+			// dem der Editor sie benennen soll. Der Griff ist provisorisch, keine Entscheidung.
+			auto_name: false,
 		});
 		const regionPublicId = String(region?.region?.public_id || "");
 		if (!regionPublicId) {
@@ -329,26 +336,24 @@ async function saveEcosystemAreaRing(ring) {
 			geometry_geojson: geometry,
 		});
 		ecosystemPendingAreaRing = null;
-		// 🔴 JEDE Region bekommt automatisch ihr Karten-Label (Owner 2026-07-27) -- am Point of
-		// Inaccessibility, mit denselben Eigenschaften wie jedes andere Label.
+		// 🔴 EINE FRISCH GEZEICHNETE FLAECHE BEKOMMT KEINE BESCHRIFTUNG (Owner 26.08.2026).
 		//
-		// GEZEICHNET wird es von Anfang an, auf allen drei Ebenen (Owner 2026-07-28). Erst war es nur bei
-		// der derographischen sichtbar, aus Sorge um ein volles Kartenbild -- die Sorge war unbegruendet,
-		// weil das Zoom-Band die Menge ohnehin regelt. Der Haken „Regionname anzeigen" im Dialog schaltet
-		// es wieder aus, ohne dass etwas verloren geht.
-		// Art ist beim Zeichnen noch leer -- das Label startet als „region" und zieht nach, sobald im
-		// Dialog eine Art gewählt wird.
-		await createEcosystemRegionLabel(regionPublicId, geometry, name, true, "");
-
-		// 💣 ERST das Label, DANN die Flaechen laden -- diese Reihenfolge ist der ganze Punkt.
-		// Umgekehrt (bis 2026-07-28) baute der Reload die Flaechenzeile, bevor createEcosystemRegionLabel
-		// den label_public_id der Region gesetzt hatte. Der Dialog oeffnete danach auf einem LEEREN Zeiger:
-		// Haken "Regionname anzeigen" aus, Nodix gesperrt -- und beim Speichern legte er ein ZWEITES Label
-		// an, weil ohne Zeiger kein Label zu finden war. Genau so entstanden die Dubletten.
+		// Hier stand bis heute `createEcosystemRegionLabel(regionPublicId, geometry, name, true, "")`
+		// -- „JEDE Region bekommt automatisch ihr Karten-Label" (Owner 27.07.2026). Dieser Entscheid
+		// ist aufgehoben, weil er dem neueren widerspricht: das automatische Label trug den
+		// AUTO-NAMEN als Text („Flaeche-100", spaeter „See-318"), und ein Auto-Name gehoert nicht auf
+		// die Karte -- genau die Regel, die seit heute das Anlegen sperrt. Live standen so **92**
+		// Beschriftungen mit Auto-Namen im Bild.
 		//
-		// Ueber den normalen Lesepfad gerendert, nie aus der Antwort: ein Weg auf die Karte, damit eine
-		// gezeichnete und eine nachgeladene Flaeche nie verschieden aussehen. Abgewartet, weil der
-		// Eigenschaften-Dialog die Flaeche aus der Registry liest, die dieser Reload fuellt.
+		// ⚠️ Die BEWUSSTEN Wege bleiben unangetastet und rufen weiterhin denselben Erzeuger: der
+		// Haken „Regionname anzeigen" im Dialog und „Beschriftung anlegen" im Reiter Beschriftung.
+		// Der Ablauf ist jetzt: zeichnen -> Name und Art vergeben -> Beschriftung anlegen.
+		//
+		// 🪤 Die alte Reihenfolge-Warnung („ERST das Label, DANN die Flaechen laden") ist damit
+		// gegenstandslos: sie schuetzte davor, dass der Reload die Flaechenzeile baut, bevor
+		// `label_public_id` steht. Ohne Label gibt es keinen Zeiger, der zu frueh gelesen werden
+		// koennte. Der Reload bleibt trotzdem VOR dem Dialog -- der liest die Flaeche aus der
+		// Registry, die dieser Reload fuellt.
 		if (typeof loadEcosystemAreas === "function") {
 			await loadEcosystemAreas();
 		}

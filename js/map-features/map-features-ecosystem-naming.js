@@ -73,6 +73,30 @@ function isEcosystemRegionAutoName(name, artLabel) {
 	return ecosystemAutoNamePattern(artLabel).test(trimmed);
 }
 
+// Steht der Haken „Auto-Name"? DREI Zustände, und der dritte ist der Punkt.
+//
+// 💣 DER FEHLER, DEN DAS BEHEBT (Owner 26.08.2026): der Haken wurde nicht gespeichert, sondern aus
+// dem Namen abgeleitet -- mit einer Zusatzbedingung, die der Namensgeber nicht kennt
+// (`region_type !== ""`). Eine frisch gezeichnete Region hat noch keine Art; der Namensgeber stört
+// das nicht (er fällt auf den Griff „Fläche" zurück und vergibt „Fläche-100"), die Ableitung sagte
+// dagegen „keine Art ⇒ niemals automatisch". Anhaken, speichern, wieder aufmachen -- Haken weg.
+//
+// 🔴 Deshalb entscheidet jetzt ein GESPEICHERTER Merker, und der Name ist nur noch der Rückfall:
+//   fehlt (null/undefined) -> nie angefasst: aus dem Namen ableiten (Altbestand, frisch gezeichnet)
+//   true                   -> ausdrücklich automatisch
+//   false                  -> ausdrücklich KEIN Auto-Name, auch wenn der Name danach aussieht
+//
+// ⚠️ Der dritte Zustand ist der Grund, aus dem hier `false` GESPEICHERT wird -- anders als beim
+// Nachbarn `wiki_no_article`, der `false` löscht. Dort sind „entschieden: nein" und „nie
+// entschieden" bedeutungsgleich; hier nicht: eine Region, die „Wald-001" heisst und deren Haken
+// jemand bewusst entfernt hat, käme sonst beim nächsten Öffnen wieder angehakt zurück.
+function avesmapsEcosystemAutoNameAusMerker(merker, name, artLabel) {
+	if (merker === true || merker === false) {
+		return merker;
+	}
+	return isEcosystemRegionAutoName(name, artLabel);
+}
+
 // Was ein Leser sehen soll. Ein Auto-Name ist interne Buchführung und darf nie nach aussen dringen --
 // statt „Wald-001" bekommt er „Wald". Ein namenloser Datensatz ebenso.
 //
@@ -93,6 +117,7 @@ if (typeof module !== "undefined" && module.exports) {
 		ecosystemAutoNamePrefix,
 		nextEcosystemRegionAutoName,
 		isEcosystemRegionAutoName,
+		avesmapsEcosystemAutoNameAusMerker,
 		ecosystemRegionDisplayName,
 	};
 }
