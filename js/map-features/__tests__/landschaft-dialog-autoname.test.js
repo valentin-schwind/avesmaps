@@ -136,4 +136,12 @@ assert.ok(/beschriftungAbgemeldet/.test(eco),
 assert.ok(/expected_revision/.test(entferner),
 	"das Löschen traegt die frische Revision aus der Antwort des Lösens"); checks++;
 
+// ── I. UND DIE LEICHE VERLAESST AUCH DAS CLIENT-MODELL ───────────────────────────────────────
+// 🪤 Ebenfalls live gesehen: die Datenbank war richtig, das Bild nicht. Das Lösen fasst nur den
+// SERVER an — im Browser blieb der Eintrag samt Rückzeiger in `labelMarkers` stehen, und
+// `beschriftungenDerRegion` fand ihn beim nächsten Öffnen wieder. Das Fenster zeigte daraufhin das
+// Formular eines gelöschten Labels (gemessen: es lud a31b8289, das es nicht mehr gab).
+assert.ok(/removeLabelEntryLocally/.test(entferner),
+	"das entfernte Label verlässt auch den Bestand im Browser"); checks++;
+
 console.log("landschaft-dialog-autoname: " + checks + " Zusicherungen gruen");

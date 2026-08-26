@@ -1073,6 +1073,14 @@
 			await submitMapFeatureEdit(rev === undefined
 				? { action: "delete_feature", public_id: pid }
 				: { action: "delete_feature", public_id: pid, expected_revision: rev });
+			// 🪤 UND AUS DEM CLIENT-MODELL NEHMEN. Ohne das bleibt eine Leiche in `labelMarkers`
+			// zurueck, und weil ihr Rueckzeiger dort noch steht (das Loesen hat nur den SERVER
+			// angefasst), findet `beschriftungenDerRegion` sie beim naechsten Oeffnen wieder: das
+			// Fenster zeigte dann das Formular eines geloeschten Labels. Live gesehen am 26.08.2026 --
+			// die Datenbank war richtig, das Bild nicht.
+			if (typeof removeLabelEntryLocally === "function") {
+				removeLabelEntryLocally(eintrag);
+			}
 		}
 		return eintraege.length;
 	}
