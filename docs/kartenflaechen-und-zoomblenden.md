@@ -191,7 +191,61 @@ werden dadurch ohnehin befördert.
 - 🔧 **`regionLabelsPane`** (Territoriumsnamen in der politischen Ansicht) bleibt bei der CSS-Blende.
   Der Owner hat sie ausdrücklich als richtig bezeichnet; sie stand nicht auf der Liste.
 
+## §8a 💣 Leaflet steht während der Animation schon auf der ZIELSTUFE
+
+**Die wichtigste Tatsache für jeden, der während des Zooms zeichnen will.** Aus
+`js/third-party/leaflet.js` (1.9.4, minifiziert):
+
+```
+_animateZoom: … this.fire("zoomanim",{center,zoom,noUpdate}),
+              … this._move(this._animateToCenter, this._animateToZoom, void 0, !0),
+              setTimeout(this._onZoomTransitionEnd, 250)
+```
+
+und `_move` setzt `this._zoom = zoom` **und** `this._pixelOrigin = this._getNewPixelOrigin(center)`.
+
+🔴 **Unmittelbar nachdem `zoomanim` gefeuert hat, ist Leaflets interner Zustand am Ziel.** Die
+250 ms Animation laufen mit `map.getZoom()` = Zielstufe; nur das *Bild* interpoliert über die
+CSS-Transform. Daraus folgt:
+
+- **Im `zoomanim`-Handler selbst** ist `map.getZoom()` noch die Quellstufe — das Ereignis feuert
+  vor `_move`. Das ist das einzige Zeitfenster, in dem man die Quellstufe noch sieht.
+- **Ein `requestAnimationFrame` später** liefert `latLngToLayerPoint` bereits **Ziel**-Koordinaten
+  — während die Canvas-Overlays die Transform tragen, die Quell- auf Zielkoordinaten abbildet.
+  Wer dort zeichnet, transformiert **doppelt**.
+
+💣 Genau daran ist am 26.08.2026 die Marker-Gegenrechnung gescheitert (Rückbau `b1bd8df7`, live
+gemeldet als *„ortsmarkierungen springen wild umher"* und *„zeigt während dem zoom ortschaften an,
+die zwischen den beiden levels überhaupt nicht sichtbar sein sollten"*). Es waren nie fremde
+Ortschaften — es waren die richtigen an der doppelten Entfernung.
+
+⭐ **Zwei gangbare Wege, und sie sind nicht austauschbar:**
+1. **Lage einfrieren** — die Bildschirmlage einmal im `zoomanim` aufnehmen und während der
+   Animation nur ablesen (`_friereLagenEin`, `map-features-location-canvas-layer.js`). Richtig für
+   Flächen, deren Inhalt sich **nicht** neu anordnet; nebenbei billiger, weil pro Bild alle
+   Projektionen entfallen. Gewacht von `js/map-features/__tests__/marker-zoom-koordinaten.test.js`.
+2. **Für die Zielstufe zeichnen und die Fläche gegenrechnen** — nötig, wenn der Inhalt selbst
+   anders wird (Beschriftungen: andere Schriftgröße, andere Lage, andere Kollisionslösung). Braucht
+   Start- *und* Endversatz und ist die riskantere Stelle; Entwurf
+   `docs/superpowers/specs/2026-08-26-zoom-uebergang-konsistenz-design.md` §5.
+
+⚠️ **Das Zeichnen selbst kostet nichts** — im zeichnenden Browser gemessen (26.08.2026, echter
+Zoomschritt): 0 / 5 / 18 Neuzeichnungen des Marker-Canvas ergeben **denselben** Median von 16,7 ms
+je Bild. Das schlechteste Bild (~140 ms) ist die Hauptthread-Blockade am `zoomend` und liegt auch
+ohne jede Neuzeichnung an. Wer eine Bildschleife hier aus Kostengründen scheut, scheut das Falsche.
+
 ## §9 Messfallen — für den nächsten, der hier misst
+
+🪤 **Und die teuerste zuerst, weil sie wie eine Messung aussieht: ein Browsertab im HINTERGRUND
+zeichnet nicht.** `performance.now()` um eine Zeichenfunktion misst dort nur den JS-Anteil — die
+Malarbeit und der Texture-Upload passieren nie. Am 26.08.2026 wurde daraus „0,2 ms je `_redraw()`"
+und eine Designentscheidung; im zeichnenden Browser war die Wahrheit „kostet gar nichts", also
+etwas ganz anderes. Ebenso unbrauchbar sind dort **alle** bildabhängigen Messungen:
+`requestAnimationFrame` feuert nicht, CSS-Übergänge starten nicht, und **`zoomanim` feuert
+überhaupt nicht** — `map.setZoom(4)` bleibt schlicht stehen (nachgemessen).
+⭐ Vor jeder Messung zuerst `document.visibilityState` und einen rAF-Zähler erheben. 0 Bilder
+heißt: jede Zahl über Zeichnen, Layout oder Animation ist ungültig. Statische
+`getComputedStyle`-Werte ohne laufenden Übergang und rein synchrone Rechnungen bleiben gültig.
 
 🪤 Drei Fehlmessungen in einer Sitzung, alle beim Prüfenden, nicht im Code:
 
