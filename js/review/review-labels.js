@@ -91,10 +91,12 @@ function setLabelEditDialogOpen(isOpen, { resetForm = false } = {}) {
 			avesmapsLandschaftDialogHaelfte("beschriftung", isOpen);
 		}
 		avesmapsLandschaftDialogSichtbar(isOpen);
-		if (isOpen && typeof avesmapsLandschaftDialogReiter === "function") {
+		if (isOpen && labelEditStartReiter !== "" && typeof avesmapsLandschaftDialogReiter === "function") {
 			// 🔴 Der Einstieg bestimmt den Reiter (Owner 25.08.2026). Wer eine Beschriftung anklickt,
 			// landet auf ihrem Reiter -- nicht auf dem zuletzt offenen.
-			avesmapsLandschaftDialogReiter(labelEditStartReiter || "beschriftung");
+			// ⚠️ Ein LEERER Merker heisst „nicht anfassen": dann ist dieser Oeffner der Gegenpart, und
+			// der Reiter gehoert dem Einstieg, der ihn gerufen hat.
+			avesmapsLandschaftDialogReiter(labelEditStartReiter);
 		}
 	} else {
 		$("#label-edit-overlay").prop("hidden", !isOpen);
@@ -802,9 +804,15 @@ function syncLabelEditGeschwisterwahl(labelEntry) {
 }
 
 function openLabelEditDialog(options = {}) {
+	// 💣 `paar: false` heisst „ich bin der GEGENPART, ruf mich nicht zurueck". Ohne den Riegel riefen
+	// die zwei Oeffner einander im Kreis. Ausdruecklicher PARAMETER, kein Modulzustand -- ein Merker
+	// daneben ueberlebte das Oeffnen und liesse beim zweiten Aufruf eine Haelfte weg.
+	const istEinstieg = options.paar !== false;
 	// 🔴 `options.reiter` kommt von den fuenf Aufrufern; ohne Angabe faellt es auf „beschriftung" --
 	// wer diesen Oeffner ruft, meint eine Beschriftung.
-	labelEditStartReiter = String(options.reiter || "beschriftung");
+	// ⚠️ Leer heisst „den Reiter NICHT anfassen" -- als Gegenpart gerufen gehoert der offene Reiter
+	// dem anderen Oeffner, sonst spraenge „Eigenschaften …" einer Flaeche auf „Beschriftung".
+	labelEditStartReiter = istEinstieg ? String(options.reiter || "beschriftung") : "";
 	resetLabelEditForm();
 	populateLabelEditForm(options);
 	syncLabelEditGeschwisterwahl(options.labelEntry || null);
@@ -837,6 +845,39 @@ function openLabelEditDialog(options = {}) {
 		);
 	}
 	setLabelEditDialogOpen(true);
+
+	// 🔴 DIE FLAECHE ZULETZT (avesmapsLandschaftDialogLadeAuftraege). Bis zum 26.08.2026 wurde sie
+	// GAR NICHT geladen -- der Reiter „Fläche" behauptete deshalb bei jeder der 703 Beschriftungen
+	// mit Flaeche, sie liege auf keiner, und „Fläche löschen" tat auf den Klick lautlos nichts.
+	//
+	// ⚠️ Die Suche ist ASYNCHRON (`avesmapsEcosystemAreaPublicIdOfLabel` laedt notfalls die
+	// Regionslisten nach), das Oeffnen der Beschriftung darf aber nicht darauf warten -- sonst
+	// flackerte das Fenster. Deshalb nachgereicht; bis dahin steht der Reiter „Fläche" auf seinem
+	// leeren Zustand, was fuer die 254 Beschriftungen ohne Flaeche der Endstand ist.
+	//
+	// 💣 KEIN Ansichtswechsel von hier aus (`wechsleAnsicht` bleibt aus): das Oeffnen eines Dialogs
+	// darf die Karte nicht unter dem Benutzer wegziehen. Liegt die Flaeche in einer anderen Ebene,
+	// bleibt ihre Haelfte leer -- richtig, denn dort ist sie ohnehin nicht bearbeitbar.
+	if (istEinstieg) {
+		void (async () => {
+			const label = options.labelEntry?.label || null;
+			let flaechePublicId = "";
+			if (label && typeof avesmapsEcosystemAreaPublicIdOfLabel === "function") {
+				try {
+					flaechePublicId = String(await avesmapsEcosystemAreaPublicIdOfLabel(label) || "");
+				} catch (fehler) {
+					// 🔴 Im Zweifel KEINE Flaeche: eine geratene waere schlimmer als keine -- das
+					// Speichern schriebe dann auf ein fremdes Objekt.
+					flaechePublicId = "";
+				}
+			}
+			if (flaechePublicId !== "" && typeof window.AvesmapsEcosystemProperties?.open === "function") {
+				await window.AvesmapsEcosystemProperties.open(flaechePublicId, { paar: false });
+			} else if (typeof avesmapsLandschaftDialogHaelfte === "function") {
+				avesmapsLandschaftDialogHaelfte("flaeche", false);
+			}
+		})();
+	}
 }
 
 function syncLabelZoomRangeOutputs(event = null) {

@@ -718,20 +718,43 @@
 		// Oeffnen. Der `entity_type` bleibt serverseitig freigegeben (der Deploy loescht nie).
 	}
 
-	async function openEcosystemPropertiesDialog(publicId) {
+	async function openEcosystemPropertiesDialog(publicId, optionen) {
 		const overlayElement = document.getElementById(OVERLAY_ELEMENT_ID);
 		propertiesSourcePublicId = String(publicId || "");
 		const area = currentPropertiesArea();
 		if (!overlayElement || !area) {
 			return;
 		}
+		// 💣 `paar: false` heisst „ich bin der GEGENPART, ruf mich nicht zurueck". Ohne den Riegel
+		// riefen die zwei Oeffner einander im Kreis. Er ist ein ausdruecklicher PARAMETER und kein
+		// Modulzustand: ein Merker daneben ueberlebte das Oeffnen und liesse beim zweiten Aufruf eine
+		// Haelfte weg -- dieselbe Falle wie beim gemerkten Reiter.
+		const istEinstieg = (optionen || {}).paar !== false;
 
 		bindEcosystemPropertiesDialog();
+		// 🔴 DIE BESCHRIFTUNG ZUERST (avesmapsLandschaftDialogLadeAuftraege): sie schreibt in dieselben
+		// Kopffelder, und die Region gewinnt, weil sie danach schreibt. Bis zum 26.08.2026 wurde sie
+		// GAR NICHT geladen -- der Reiter „Beschriftung" behauptete deshalb bei jeder der 716
+		// beschrifteten Flaechen, es gebe keine, und bot „Beschriftung anlegen" an.
+		if (istEinstieg && typeof findLabelEntriesByEcosystemRegion === "function") {
+			const geschwister = findLabelEntriesByEcosystemRegion(String(area.region_public_id || ""));
+			if (geschwister.length > 0 && typeof openLabelEditDialog === "function") {
+				// ⚠️ Der ERSTE der sortierten Liste -- dieselbe Ordnung, die die Geschwisterwahl
+				// aufbaut, damit „1 von 3" auch die ist, die beim Oeffnen dasteht.
+				openLabelEditDialog({ labelEntry: geschwister[0], paar: false });
+			} else if (typeof avesmapsLandschaftDialogHaelfte === "function") {
+				// 🔴 Keine Beschriftung -> ausdruecklich ABmelden. Sonst bliebe der Stand der zuletzt
+				// geoeffneten Landschaft stehen, und „Speichern" schickte deren Formular mit ab.
+				avesmapsLandschaftDialogHaelfte("beschriftung", false);
+			}
+		}
 		// 🔴 Anmelden und Reiter oeffnen -- der Einstieg ist ein Parameter, kein gemerkter Zustand.
 		if (typeof avesmapsLandschaftDialogHaelfte === "function") {
 			avesmapsLandschaftDialogHaelfte("flaeche", true);
 		}
-		if (typeof avesmapsLandschaftDialogReiter === "function") {
+		// ⚠️ Den Reiter setzt nur der EINSTIEG. Als Gegenpart gerufen, gehoert der offene Reiter dem
+		// anderen Oeffner -- sonst spraenge ein Klick auf eine Beschriftung auf „Fläche".
+		if (istEinstieg && typeof avesmapsLandschaftDialogReiter === "function") {
 			avesmapsLandschaftDialogReiter("flaeche");
 		}
 		pendingWikiRegion = undefined;

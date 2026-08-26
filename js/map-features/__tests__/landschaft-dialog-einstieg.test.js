@@ -32,9 +32,14 @@ assert.strictEqual(avesmapsLandschaftDialogStartReiter("flaeche"), "flaeche"); c
 const labels = lies("js/review/review-labels.js");
 const vonO = labels.indexOf("function openLabelEditDialog(");
 assert.ok(vonO >= 0, "den Öffner gibt es"); checks++;
-const kopfO = labels.slice(vonO, vonO + 700);
-assert.ok(/labelEditStartReiter = String\(options\.reiter \|\| "beschriftung"\)/.test(kopfO),
+const kopfO = labels.slice(vonO, vonO + 1400);
+assert.ok(/labelEditStartReiter = istEinstieg \? String\(options\.reiter \|\| "beschriftung"\) : ""/.test(kopfO),
 	"der Öffner setzt den Reiter selbst, mit „beschriftung\" als Rückfall"); checks++;
+// 🔴 …aber NUR als EINSTIEG. Seit dem 26.08.2026 lädt jeder Öffner auch die andere Hälfte, und der
+// Gegenpart darf den Reiter nicht anfassen — sonst spränge „Eigenschaften …" einer Fläche auf
+// „Beschriftung". Ein LEERER Merker heisst deshalb „nicht anfassen", nicht „nimm den Rückfall".
+assert.ok(/labelEditStartReiter !== "" && typeof avesmapsLandschaftDialogReiter/.test(labels),
+	"ein leerer Merker lässt den Reiter in Ruhe"); checks++;
 
 // 💣 Und der gemerkte Wert wird bei JEDEM Aufruf neu gesetzt. Ein Merker, der über das Öffnen
 // hinaus überlebt, ließe das zweite Öffnen auf dem Reiter des ersten landen — genau die Falle, an

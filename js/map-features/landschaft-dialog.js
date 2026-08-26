@@ -238,6 +238,10 @@ function avesmapsLandschaftDialogLagen() {
 	// denkt -- derselbe Grund, aus dem die leeren Zustaende an dieser Stelle haengen und nicht an
 	// den Aufrufern. Der offene Reiter wird aus dem DOM gelesen, nie aus einem Merker daneben.
 	avesmapsLandschaftDialogLoeschKnopf(avesmapsLandschaftDialogReiterName());
+	// 🔴 Und der dritte Reiter zeigt genau EINEN Zuweisungskasten -- aus demselben Grund an
+	// derselben Stelle: die Haelften melden sich hier an und ab, also entscheidet sich hier, wessen
+	// Kasten gilt.
+	avesmapsLandschaftDialogWikiKasten(stand);
 	return gezeigt;
 }
 
@@ -339,6 +343,60 @@ function avesmapsLandschaftDialogStand() {
 }
 
 /**
+ * In welcher Reihenfolge die zwei Haelften GELADEN werden. REIN -- kein DOM.
+ *
+ * 🔴 DIE BESCHRIFTUNG ZUERST, DIE FLAECHE ZULETZT -- die exakte Umkehrung des Speicherns, und aus
+ * demselben Grund. Der gemeinsame Kopf (Name, Art) und die zwei uebrigen Zwillinge (Nodix,
+ * Kurvenbeschriftung) gehoeren der REGION; beim Laden schreiben beide Haelften in dieselben Felder,
+ * und wer zuletzt schreibt, gewinnt. Lueden wir die Flaeche zuerst, ueberschriebe
+ * `populateLabelEditForm` den Regionsnamen mit dem Labeltext -- bei den 679 gleichnamigen Paaren
+ * faellt das nicht auf, bei einem abweichenden Paar lautlos schon.
+ *
+ * ⚠️ Geladen wird immer, was DA ist -- unabhaengig davon, durch welche Tuer man hereinkam. Der
+ * Einstieg bestimmt nur noch den offenen REITER, nichts sonst.
+ *
+ * @param {{hatFlaeche: boolean, hatLabel: boolean}} vorhanden
+ * @returns {string[]} die Haelften, in Ladereihenfolge
+ */
+function avesmapsLandschaftDialogLadeAuftraege(vorhanden) {
+	const v = vorhanden || {};
+	const auftraege = [];
+	if (v.hatLabel) {
+		auftraege.push("beschriftung");
+	}
+	if (v.hatFlaeche) {
+		auftraege.push("flaeche");
+	}
+	return auftraege;
+}
+
+/**
+ * Welcher Wiki-Zuweisungskasten im dritten Reiter steht. REIN -- gibt nur zurueck, was gelten soll.
+ *
+ * 💣 Der Reiter traegt ZWEI Behaelter: `#label-wiki-assign-host` (Zuweisung der Beschriftung) und
+ * `#ecosystem-properties-wiki-host` (die der Flaeche). Solange nur eine Haelfte lud, stand dort
+ * immer genau einer. Mit beiden Haelften stuenden zwei gleich aussehende Kaesten uebereinander,
+ * und niemand koennte sagen, welcher zaehlt.
+ *
+ * 🔴 ES GEWINNT DIE FLAECHE. `wiki_region_key` liegt an der Region, und die Propagation traegt ihn
+ * an ihre Beschriftungen ABWAERTS (`applyRegionToLabels`) -- die Zuweisung der Beschriftung ist eine
+ * Kopie davon. Ohne Flaeche (live 254 Beschriftungen) ist ihr eigener Kasten der einzige und bleibt.
+ *
+ * @returns {boolean} true, wenn der Kasten der Beschriftung gezeigt wird
+ */
+function avesmapsLandschaftDialogWikiKasten(stand) {
+	const s = stand || {};
+	const zeigeLabelKasten = !s.hatFlaeche;
+	if (typeof document !== "undefined") {
+		const kasten = document.getElementById("label-wiki-assign-host");
+		if (kasten) {
+			kasten.hidden = !zeigeLabelKasten;
+		}
+	}
+	return zeigeLabelKasten;
+}
+
+/**
  * Welche Formulare „Speichern" abschickt. REIN -- kein DOM.
  *
  * 🔴 DIE FLAECHE ZUERST. Ihre Aenderung an Name und Art traegt der vorhandene Propagationsweg
@@ -395,6 +453,8 @@ if (typeof module !== "undefined" && module.exports) {
 		avesmapsLandschaftDialogVerdrahten: avesmapsLandschaftDialogVerdrahten,
 		avesmapsLandschaftDialogHaelfte: avesmapsLandschaftDialogHaelfte,
 		avesmapsLandschaftDialogStand: avesmapsLandschaftDialogStand,
+		avesmapsLandschaftDialogLadeAuftraege: avesmapsLandschaftDialogLadeAuftraege,
+		avesmapsLandschaftDialogWikiKasten: avesmapsLandschaftDialogWikiKasten,
 		avesmapsLandschaftDialogSpeichernAuftraege: avesmapsLandschaftDialogSpeichernAuftraege,
 		avesmapsLandschaftDialogSpeichern: avesmapsLandschaftDialogSpeichern,
 		avesmapsLandschaftDialogLoeschText: avesmapsLandschaftDialogLoeschText,
