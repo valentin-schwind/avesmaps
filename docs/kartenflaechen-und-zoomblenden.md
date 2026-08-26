@@ -301,13 +301,29 @@ Schlüssel zur Diagnose — Owner: *„in der politischen ansicht faden die labe
 | `?markerscale=0` | Ortsmarker: Größen-Gegenrechnung während des Zooms aus | an |
 
 🔴 **Die Dauer und die Kurve sind seit 26.08.2026 EINE Zahl für alles** —
-`AVESMAPS_ZOOM_DAUER_MS` (250) und `AVESMAPS_ZOOM_KURVE` (`cubic-bezier(0.42, 0, 0.58, 1)`, also
+`AVESMAPS_ZOOM_DAUER_MS` und `AVESMAPS_ZOOM_KURVE` (`cubic-bezier(0.42, 0, 0.58, 1)`, also
 `ease-in-out`) in **`js/map-features/zoom-uebergang.js`**, als Token gespiegelt in
 `css/features/zoom-uebergang.css`. Hier stand vorher, die 350 ms des DOM-Klons seien fest und ohne
 Parameter; sie sind ersatzlos gefallen.
 💣 **Die 250 sind nicht frei wählbar**: Leaflet zählt sie selbst
 (`setTimeout(this._onZoomTransitionEnd, 250)` im minifizierten Fremdcode). Eine andere Dauer liefe
 an Leaflets eigenem Ende vorbei.
+🔴 **Seit 27.08.2026 sind es 500 ms, nicht mehr 250** (Owner, nachdem er die Zeitlupe zum Hinsehen
+benutzt hatte: „Zoomlupe=2 ist etwas angenehmer — kann man das zum default machen?"). Damit gehen
+die zwei Uhren auseinander, und **der Ausgleich dafür ist tragend**: `zoom-uebergang.js` schiebt
+Leaflets Ende um die Differenz nach, sonst räumte Leaflet MITTEN in die laufende Bewegung.
+Die Bedingung nennt die zwei Uhren (`AVESMAPS_ZOOM_DAUER_MS > AVESMAPS_LEAFLET_ZOOM_ENDE_MS`)
+statt eines Parameters — so fällt sie von selbst weg, wenn jemand die Basis wieder auf Leaflets
+Zahl stellt.
+🔴 **Fremdcode wird dafür NICHT gepatcht** — eine Zahl in einer minifizierten Fremddatei wäre beim
+nächsten Leaflet-Update lautlos wieder 250. `zoom-uebergang.test.js` hält
+`AVESMAPS_LEAFLET_ZOOM_ENDE_MS` gegen die echte Zeichenfolge in `leaflet.js`; genau dort bräche
+ein Update den Zoom sonst still.
+⚠️ **Erwartete Nebenwirkung:** `_onZoomTransitionEnd` stößt BEIDES an — das Aufräumen UND das
+Nachladen der Kacheln. Wer das eine schiebt, schiebt das andere mit: die Kacheln der neuen Stufe
+kommen 250 ms später, solange steht am Rand ein grauer Saum. Bewusst nicht behoben, weil die
+Trennung Leaflet-Interna nachbauen hieße. Fällt der Saum auf, ist das die Stelle.
+⚠️ **`?zoomlupe=<faktor>` multipliziert die neue Basis** — `?zoomlupe=2` sind seither 1000 ms.
 💣 **Die Kurve stand an ACHT Stellen**, nicht an den fünf, die der Entwurf zählte — Schraffur,
 Fluss- und Tempopfeile fehlten in der Liste. Wer eine Zeichenfläche ergänzt, die beim Zoom
 mitskaliert, trägt sie in `js/map-features/__tests__/zoom-uebergang.test.js` ein; sonst ist sie die
@@ -316,7 +332,8 @@ neunte mit einer eigenen Kurve.
 ## §7a Offener Entwurf: der Zoomschritt aus einem Guss
 
 🔧 **`docs/superpowers/specs/2026-08-26-zoom-uebergang-konsistenz-design.md`** — Owner-Ziel vom
-26.08.2026: eine Kurve und eine Dauer für ALLE Animationen (ease-in-out, 250 ms), alles beginnt bei
+26.08.2026: eine Kurve und eine Dauer für ALLE Animationen (ease-in-out; damals 250 ms, seit dem
+27.08.2026 500), alles beginnt bei
 `zoomanim` t = 0, und die Marker-Skalierungen sollen aufeinander abgestimmt werden.
 
 💣 **Der Kernbefund steht dort und nicht hier: die Kurven sind bereits einheitlich, die
@@ -355,7 +372,7 @@ _animateZoom: … this.fire("zoomanim",{center,zoom,noUpdate}),
 und `_move` setzt `this._zoom = zoom` **und** `this._pixelOrigin = this._getNewPixelOrigin(center)`.
 
 🔴 **Unmittelbar nachdem `zoomanim` gefeuert hat, ist Leaflets interner Zustand am Ziel.** Die
-250 ms Animation laufen mit `map.getZoom()` = Zielstufe; nur das *Bild* interpoliert über die
+ganze Animation läuft mit `map.getZoom()` = Zielstufe; nur das *Bild* interpoliert über die
 CSS-Transform. Daraus folgt:
 
 - **Im `zoomanim`-Handler selbst** ist `map.getZoom()` noch die Quellstufe — das Ereignis feuert
