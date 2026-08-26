@@ -113,4 +113,27 @@ assert.strictEqual((entferner.match(/for \(const eintrag of eintraege\)/g) || []
 assert.ok(/text:/.test(entferner) && /feature_subtype:/.test(entferner),
 	"beim Lösen reisen Text und Art mit, sonst leert update_label sie"); checks++;
 
+// ── G. KEIN ZWEITER SCHREIBER AUF DEMSELBEN LABEL ────────────────────────────────────────────
+// 🪤 IN DER LIVE-ABNAHME AUFGEFALLEN, nicht im Test. Seit das Fenster BEIDE Hälften lädt, schickt
+// „Speichern" beide Formulare ab -- und zwar nebenläufig. Das Beschriftungs-Formular schrieb dabei
+// seinen Rückzeiger WIEDER, mitten in die Entfernung hinein, und das anschliessende `delete_feature`
+// lief in ein 409 („Dieses Kartenobjekt wurde inzwischen geaendert").
+// 🔴 Also wird die Hälfte ABGEMELDET, sobald der Haken sitzt: dann schickt „Speichern" nur noch das
+// Flächen-Formular, und der Reiter zeigt schon vor dem Speichern, was danach gilt. Beim Abhaken
+// kommt sie zurück.
+assert.ok(/avesmapsLandschaftDialogHaelfte\("beschriftung", false\)/.test(sync),
+	"mit gesetztem Haken meldet sich die Beschriftungs-Hälfte ab"); checks++;
+assert.ok(/beschriftungAbgemeldet/.test(eco),
+	"…und der Weg zurück wird gemerkt, statt bei jedem Nachziehen neu zu laden"); checks++;
+
+// ── H. UND DIE REVISION BLEIBT FRISCH ────────────────────────────────────────────────────────
+// 💣 Die zweite Ursache desselben 409: `withExpectedRevision` haengt die LOKAL gemerkte Revision an
+// (map-features-feature-state.js). Das Lösen bumpt sie serverseitig, das Modell im Browser weiss
+// davon nichts -- also traegt das folgende `delete_feature` eine veraltete Nummer und wird zu Recht
+// abgelehnt. Die neue Nummer steht in der Antwort des Lösens und reist ausdrücklich mit.
+// ⚠️ `expected_revision` ausdrücklich mitgeben ist der EINZIGE Weg daran vorbei: withExpectedRevision
+// laesst einen gesetzten Wert in Ruhe, ueberschreibt aber jeden fehlenden mit dem alten.
+assert.ok(/expected_revision/.test(entferner),
+	"das Löschen traegt die frische Revision aus der Antwort des Lösens"); checks++;
+
 console.log("landschaft-dialog-autoname: " + checks + " Zusicherungen gruen");

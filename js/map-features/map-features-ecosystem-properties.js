@@ -65,6 +65,9 @@
 	// Und der beim Oeffnen vorgefundene Stand des Auto-Namens. Er entscheidet, ob dieses Speichern
 	// die Beschriftungen entfernt -- „angehaekelt" ist ein UEBERGANG, kein Zustand.
 	let autoNameGeladen = false;
+	// Ob die Beschriftungs-Haelfte gerade WEGEN des Auto-Namens abgemeldet ist. Nur fuer den Weg
+	// zurueck: ein Neuladen bei jedem Nachziehen wuerfe ungespeicherte Aenderungen am Label weg.
+	let beschriftungAbgemeldet = false;
 	let propertiesBusy = false;
 	let propertiesBound = false;
 
@@ -694,10 +697,33 @@
 		}
 		// 🔴 Und die Ankuendigung am Haken: was dieses Speichern kosten wird, steht DA, nicht in einer
 		// Meldung hinterher.
+		const flaeche = currentPropertiesArea();
+		const gehen = typeof avesmapsLandschaftDialogAutoNameEntfernt === "function"
+			&& avesmapsLandschaftDialogAutoNameEntfernt(autoNameGeladen, autoNameBox.checked === true);
 		if (typeof avesmapsLandschaftDialogAutoNameWarnung === "function") {
 			avesmapsLandschaftDialogAutoNameWarnung(
-				autoNameGeladen, autoNameBox.checked === true,
-				beschriftungenDerRegion(currentPropertiesArea()).length);
+				autoNameGeladen, autoNameBox.checked === true, beschriftungenDerRegion(flaeche).length);
+		}
+		// 🪤 UND DIE HAELFTE MELDET SICH AB, SOLANGE DER HAKEN SITZT -- in der Live-Abnahme gefunden,
+		// nicht im Test. Seit das Fenster beide Haelften laedt, schickt „Speichern" BEIDE Formulare ab,
+		// und zwar nebenlaeufig: das Beschriftungs-Formular schrieb seinen Rueckzeiger mitten in die
+		// Entfernung hinein wieder, und das folgende `delete_feature` lief in ein 409.
+		// ⭐ Abgemeldet loest beides auf einmal: „Speichern" schickt nur noch das Flaechen-Formular, und
+		// der Reiter zeigt schon VOR dem Speichern, was danach gilt (Leerzustand samt gesperrtem
+		// Angebot) -- die Ankuendigung am Haken sagt daneben, dass die vorhandene dabei faellt.
+		if (typeof avesmapsLandschaftDialogHaelfte === "function") {
+			if (gehen && !beschriftungAbgemeldet) {
+				avesmapsLandschaftDialogHaelfte("beschriftung", false);
+				beschriftungAbgemeldet = true;
+			} else if (!gehen && beschriftungAbgemeldet) {
+				// Zurueck: der Haken ist wieder weg, die Beschriftung bleibt. ⚠️ NUR beim Uebergang --
+				// ein Neuladen bei jedem Nachziehen wuerfe ungespeicherte Aenderungen am Label weg.
+				beschriftungAbgemeldet = false;
+				const zurueck = beschriftungenDerRegion(flaeche);
+				if (zurueck.length > 0 && typeof openLabelEditDialog === "function") {
+					openLabelEditDialog({ labelEntry: zurueck[0], paar: false });
+				}
+			}
 		}
 	}
 
@@ -801,6 +827,9 @@
 		regionTypesForKind = [];
 		regionAreaCount = 0;
 		regionAreaCountLoaded = false;
+		// ⚠️ Beim Oeffnen ist nichts wegen des Auto-Namens abgemeldet -- sonst erbte die naechste
+		// Flaeche den Merker der vorigen und liesse ihre Beschriftung ungespeichert liegen.
+		beschriftungAbgemeldet = false;
 		// 💣 VERRIEGELT, BIS `list_regions` DA IST. Die zwei Kurven-Bedienelemente standen sonst
 		// zwischen Oeffnen und Antwort offen und ohne Ausgangswert: wer in dieser Luecke klickte,
 		// erzeugte keine Aenderung gegenueber `kurveGeladen` (das noch `null` war) -- der Rumpf trug
@@ -1014,21 +1043,36 @@
 		// ruft, muss ihn vorher loesen -- sonst findet die Kaskade die Region ueber ihn und nimmt die
 		// Flaeche mit.
 		// Phase 2: jeder Rueckzeiger AM LABEL.
+		// 💣 UND DIE NEUE REVISION MITNEHMEN. `withExpectedRevision` haengt die LOKAL gemerkte Nummer
+		// an (map-features-feature-state.js), und das Loesen bumpt sie serverseitig -- das Modell im
+		// Browser weiss davon nichts. Ohne diesen Uebertrag traegt das folgende `delete_feature` eine
+		// veraltete Nummer und wird mit 409 abgelehnt ("Dieses Kartenobjekt wurde inzwischen
+		// geaendert"). Genau so ist es in der Live-Abnahme am 26.08.2026 passiert.
+		const revisionen = new Map();
 		for (const eintrag of eintraege) {
-			await submitMapFeatureEdit({
+			const pid = String(eintrag.label.publicId || "");
+			const antwort = await submitMapFeatureEdit({
 				action: "update_label",
-				public_id: String(eintrag.label.publicId || ""),
+				public_id: pid,
 				text: String(eintrag.label.text || ""),
 				feature_subtype: String(eintrag.label.labelType || "region"),
 				ecosystem_region_public_id: "",
 			});
+			const rev = antwort?.feature?.properties?.revision ?? antwort?.revision;
+			if (rev !== undefined && rev !== null) {
+				revisionen.set(pid, rev);
+			}
 		}
 		// Phase 3: erst jetzt loeschen -- beide Zeiger sind leer, die Kaskade greift nicht.
 		for (const eintrag of eintraege) {
-			await submitMapFeatureEdit({
-				action: "delete_feature",
-				public_id: String(eintrag.label.publicId || ""),
-			});
+			const pid = String(eintrag.label.publicId || "");
+			const rev = revisionen.get(pid);
+			// ⚠️ Nur setzen, wenn wir eine haben: `withExpectedRevision` laesst einen gesetzten Wert in
+			// Ruhe, ersetzt aber `undefined` durch die alte -- ein blind mitgeschicktes `undefined`
+			// waere also genau der Fehler, den diese Zeilen vermeiden.
+			await submitMapFeatureEdit(rev === undefined
+				? { action: "delete_feature", public_id: pid }
+				: { action: "delete_feature", public_id: pid, expected_revision: rev });
 		}
 		return eintraege.length;
 	}
