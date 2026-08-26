@@ -100,6 +100,32 @@ function avesmapsZoomTransition(eigenschaft) {
 }
 
 /**
+ * Wieviel Zeit die DECKKRAFT-Blenden eines Zoomschritts hoechstens verbrauchen duerfen.
+ *
+ * 💣 SIE MUESSEN VOR LEAFLETS AUFRAEUMEN FERTIG SEIN. Am Ende der Zoomdauer feuert
+ * `_onZoomTransitionEnd`, und daran haengen die moveend/zoomend-Handler der Overlays: sie
+ * loeschen die Transitions und setzen ihre Flaechen neu. Eine Blende, die dann noch laeuft,
+ * wird ABGESCHNITTEN -- der Rest springt in einem Bild. Owner 26.08.2026: „zuerst stabil, dann
+ * ploetzlich sprung auf neues".
+ * 🪤 Und mit ?zoomlupe war es RICHTIG -- weil dort das Aufraeumen mitgedehnt wird. Genau diese
+ * Gegenprobe hat den Wettlauf sichtbar gemacht; ohne sie haette man ewig an der Blende gesucht.
+ *
+ * ⚠️ Null Reserve reicht nicht: eine Blende beginnt beim naechsten STILABGLEICH, nicht bei der
+ * Zuweisung (§5a), und der Hauptthread ist beim Zoomstart mit dem Zeichnen aller Ebenen belegt.
+ * Startet sie 40 ms zu spaet, endet sie 40 ms zu spaet -- also mitten im Aufraeumen.
+ *
+ * 🔴 Die TRANSFORM behaelt die volle Dauer. Sie muss der Karte exakt folgen; liefe sie kuerzer,
+ * eilten die Beschriftungen der Karte sichtbar voraus. Ihr letzter Rest darf abgeschnitten
+ * werden -- am Ende einer ease-in-out-Kurve bewegt sich ohnehin fast nichts mehr.
+ *
+ * @returns {number} Millisekunden, die fuer Aus- UND Einblenden zusammen zur Verfuegung stehen
+ */
+function avesmapsZoomBlendenBudgetMs() {
+	return Math.round(AVESMAPS_ZOOM_DAUER_MS * 0.75);
+}
+
+
+/**
  * Der Wert der Zoomkurve zum Zeitpunkt t -- dieselbe Kurve, die der Compositor faehrt.
  *
  * 💣 EINE CUBIC-BEZIER-KURVE IST NACH DER ZEIT PARAMETRISIERT, NICHT NACH DEM KURVENPARAMETER.

@@ -158,4 +158,22 @@ assert.strictEqual(avesmapsZoomEasing(2), 1);
 assert.strictEqual(avesmapsZoomEasing(NaN), 0);
 assert.strictEqual(avesmapsZoomEasing(undefined), 0);
 
+// ---- 🔴 DAS BLENDEN-BUDGET MUSS KUERZER SEIN ALS DER ZOOM ------------------------------------
+// 💣 Am Ende der Zoomdauer raeumt Leaflet auf (Transitions loeschen, Flaechen neu setzen). Eine
+// Blende, die dann noch laeuft, wird abgeschnitten und ihr Rest springt in EINEM Bild.
+// Owner 26.08.2026: „zuerst stabil, dann ploetzlich sprung auf neues" -- und mit ?zoomlupe war
+// es richtig, weil dort das Aufraeumen mitgedehnt wird. Genau diese Gegenprobe hat den
+// Wettlauf sichtbar gemacht.
+// ⚠️ Null Reserve reicht NICHT: eine Blende beginnt beim naechsten Stilabgleich, nicht bei der
+// Zuweisung -- startet sie 40 ms zu spaet, endet sie 40 ms zu spaet.
+assert.ok(avesmapsZoomBlendenBudgetMs() < AVESMAPS_ZOOM_DAUER_MS,
+	"💣 Die Blenden duerfen die ganze Zoomdauer verbrauchen -- dann schneidet Leaflets Aufraeumen "
+	+ "ihren Rest ab, und der springt in einem Bild.");
+assert.ok(AVESMAPS_ZOOM_DAUER_MS - avesmapsZoomBlendenBudgetMs() >= 40,
+	"⚠️ Die Reserve vor dem Aufraeumen ist kleiner als 40 ms -- so viel kann allein der "
+	+ "verspaetete Start der Blende ausmachen, wenn der Hauptthread beim Zoomstart belegt ist.");
+// Und sie waechst mit der Zeitlupe mit, statt eine feste Zahl zu sein.
+assert.strictEqual(avesmapsZoomBlendenBudgetMs(), Math.round(AVESMAPS_ZOOM_DAUER_MS * 0.75),
+	"Das Budget haengt nicht an der Zoomdauer.");
+
 console.log("zoom-uebergang.test.js: alle Zusicherungen erfuellt");

@@ -122,8 +122,14 @@
 		} catch (e) { /* ohne Adresszeile die Vorgabe */ }
 		return 0.45;
 	})();
-	const AUSBLENDEN_MS = Math.max(60, Math.round(AVESMAPS_ZOOM_DAUER_MS * AUSBLENDEN_ANTEIL));
-	const EINBLENDEN_MS = Math.max(60, AVESMAPS_ZOOM_DAUER_MS - AUSBLENDEN_MS);
+	// 💣 DAS BUDGET IST KUERZER ALS DER ZOOM, und das ist tragend: am Ende der Zoomdauer raeumt
+	// Leaflet auf (Transitions loeschen, Flaeche neu setzen). Eine Blende, die dann noch
+	// laeuft, wird abgeschnitten und ihr Rest springt in einem Bild -- Owner 26.08.2026:
+	// „zuerst stabil, dann ploetzlich sprung auf neues". Mit ?zoomlupe war es richtig, weil
+	// dort das Aufraeumen mitgedehnt wird; genau diese Gegenprobe hat den Wettlauf gezeigt.
+	const BLENDEN_BUDGET_MS = avesmapsZoomBlendenBudgetMs();
+	const AUSBLENDEN_MS = Math.max(60, Math.round(BLENDEN_BUDGET_MS * AUSBLENDEN_ANTEIL));
+	const EINBLENDEN_MS = Math.max(60, BLENDEN_BUDGET_MS - AUSBLENDEN_MS);
 	// ⭐ ?parallelfade=0 stellt den Stand von vorher her: erst zoomen, dann die neue Schrift.
 	const PARALLELBLENDE_AN = (() => {
 		try { return new URLSearchParams(window.location.search).get("parallelfade") !== "0"; }
