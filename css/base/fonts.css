@@ -1,6 +1,14 @@
 @font-face {
 	font-family: "Faculty Glyphic";
-	src: url("../../fonts/FacultyGlyphic-Regular.woff") format("woff"),
+	/* 💣 woff2 ZUERST -- der Browser nimmt das erste Format, das er kann, und woff2 kann jeder
+	   Browser, der diese Karte ueberhaupt darstellt. Die woff bleibt als zweite Zeile stehen
+	   (35.356 statt 26.440 Bytes), die ttf als dritte; beide kosten nichts, solange niemand
+	   sie braucht. 🔴 Die Adresse hier und die im <link rel="preload"> in index.html muessen
+	   ZEICHENGLEICH sein -- der Deploy-Stempler fasst weder die eine noch die andere an
+	   (sein Muster kennt nur js|css|assets mit .js/.css), also passen sie zusammen. Bekaeme
+	   eine der beiden je ein ?v=, laedt der Browser die Schrift ZWEIMAL. */
+	src: url("../../fonts/FacultyGlyphic-Regular.woff2") format("woff2"),
+		 url("../../fonts/FacultyGlyphic-Regular.woff") format("woff"),
 		 url("../../fonts/FacultyGlyphic-Regular.ttf") format("truetype");
 	font-display: swap;
 }

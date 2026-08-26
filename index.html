@@ -46,6 +46,14 @@
 		<meta name="twitter:title" content="Avesmaps – Interaktive Aventurien-Karte" />
 		<meta name="twitter:description" content="Orte finden, Routen planen und Aventurien erkunden." />
 		<meta name="twitter:image" content="https://avesmaps.de/og-image.jpg" />
+		<!-- Die EINZIGE Oberflaechenschrift der Seite. Ohne Vorabruf entdeckt der Browser sie erst
+		     ueber HTML -> styles.css -> base/fonts.css, also nach zwei seriellen Runden -- bis dahin
+		     steht die ganze Oberflaeche in Arial und springt danach um (FOUT, gemessen 26.08.2026).
+		     💣 `crossorigin` ist PFLICHT, auch bei eigener Herkunft: Schriften werden immer im
+		     CORS-Modus geholt, und ein Vorabruf ohne dieses Attribut passt nicht auf die spaetere
+		     Anfrage -- die Schrift kaeme dann ZWEIMAL statt gar nicht zu frueh.
+		     🔴 Die Adresse muss zeichengleich zu der in css/base/fonts.css sein (siehe dort). -->
+		<link rel="preload" as="font" type="font/woff2" href="fonts/FacultyGlyphic-Regular.woff2" crossorigin />
 		<link rel="stylesheet" href="css/third-party/leaflet.css" />
 		<link rel="stylesheet" href="css/third-party/jquery-ui.css" />
 		<link rel="stylesheet" href="css/pages/political-territory-wiki-tree.css" />
