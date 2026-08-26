@@ -22,10 +22,15 @@ declare(strict_types=1);
  * Reisetag des Landes.
  *
  * 💣 UND `cost_units` IST AUCH KEINE STUNDE, was beim Nachrechnen der Meldung erst auffiel: es
- * entsteht als `distance_units / Tempo`, wobei die Strecke in KARTENEINHEITEN steht und das Tempo in
- * MEILEN je Stunde. Eine Karteneinheit ist drei Meilen, die echte Stunde also das Dreifache -- die
- * Karte zeigt fuer dieselbe Live-Route 63,0 Stunden und rechnet sie unabhaengig aus der Geometrie.
- * Abschnitt 6 nagelt beide Umrechnungen fest, damit die Doku nicht von der Rechnung abweicht.
+ * entsteht als `distance_units / Tempo`, und daran sind ZWEI Umrechnungen faellig, nicht eine.
+ * Die Strecke steht in KARTENEINHEITEN (mal drei), und das Tempo ist um AVESMAPS_TRAVEL_TIME_SCALE
+ * UEBERHOEHT (durch 1,19 -- genauer: mal 1,19 auf die Zeit). Abschnitt 6 nagelt BEIDE fest.
+ *
+ * 🪤 MELDUNG #101: die zweite fehlte, und schuld war die Gegenprobe. Hier stand, die Karte zeige
+ * fuer die Live-Route Gareth -> Perricum 63,0 Stunden, der Faktor sei also exakt 3,000. Sie zeigt
+ * 73,4. Nachgemessen am 26.08.2026 an derselben Route: Summe der `cost_units` 21,004, API 63,012 h,
+ * richtig sind 74,985 h. Eine falsche Gegenprobe ist teurer als gar keine -- sie hat die fehlende
+ * Umrechnung als geprueft ausgewiesen.
  *
  *   php -d zend.assertions=1 -d assert.exception=1 api/_internal/routing/__tests__/antwortteile-test.php
  */
@@ -56,6 +61,15 @@ $etappe = static fn(string $von, string $nach, float $stunden, float $strecke): 
     'max_ascent_gradient' => null, 'max_descent_gradient' => null,
 ];
 $etappen = [$etappe('A', 'B', 4.0, 48.0), $etappe('B', 'C', 3.0, 36.0)];
+
+// 💣 ZWEI UMRECHNUNGEN, NICHT EINE (Meldung #101). Karteneinheit -> Meile ist die eine; die andere
+// ist AVESMAPS_TRAVEL_TIME_SCALE, denn JEDE Zahl der Tempotabelle ist um genau diesen Faktor
+// ueberhoeht (`Tagesleistung x mean_G x 1,19 / Reisetag`, travel-values.php). Wer aus so einem
+// Tempo wieder Stunden macht, muss ihn zurueckrechnen -- der Reiseplan der Karte tut das seit jeher
+// (`(segDistance / speedMiles) * TIME_SCALE_FACTOR`, js/routing/route-plan.js).
+assert(AVESMAPS_TRAVEL_TIME_SCALE === 1.19, 'ohne den echten Zeitfaktor prueft dieser Test nichts');
+$echteStunden = static fn(float $costUnits): float
+    => $costUnits * AVESMAPS_TERRAIN_MEILEN_PER_MAPUNIT * AVESMAPS_TRAVEL_TIME_SCALE;
 
 $dauer = avesmapsRouteDurationFromSegments($etappen);
 $route = [
@@ -101,7 +115,7 @@ assert($ohneGeometrie['segments'][0]['distance_units'] === 48.0, 'und die Streck
 $ohneEtappen = $antwort(['include_steps' => false]);
 assert(!array_key_exists('segments', $ohneEtappen), 'die Etappenliste fehlt ganz');
 assert($ohneEtappen['summary']['edge_count'] === 2, 'die Zusammenfassung sagt trotzdem, wie viele es waeren');
-assert($ohneEtappen['duration']['travel_hours'] === 21.0, 'und die Dauer steht auch ohne Etappen');
+assert(abs($ohneEtappen['duration']['travel_hours'] - $echteStunden(7.0)) < 1e-12, 'und die Dauer steht auch ohne Etappen');
 assert($ohneEtappen['distance_units'] === 84.0, 'und die Gesamtstrecke ebenso -- sonst waere sie unerreichbar');
 
 // ---- 4. include_air_distance und include_rests --------------------------------------------------
@@ -124,17 +138,23 @@ assert(isset($voll['node_ids']), 'und im vollen Modus stehen sie an BEIDEN Stell
 assert(strlen(json_encode($kompakt)) < strlen(json_encode($voll)), 'kompakt ist wirklich kleiner');
 
 // ---- 6. Was `cost` ist, und wie ein Client daraus Zeit macht (#94) ------------------------------
-// 💣 DIE EINHEITENFALLE, UND SIE IST DER EIGENTLICHE BEFUND HINTER #94: `cost_units` liest sich wie
-// eine Stunde und ist keine. 7,0 cost_units sind 21,0 echte Reisestunden.
-// ⚠️ Gegengerechnet an der Live-Route Gareth -> Perricum (25.08.2026): Summe der `cost_units`
-// 21,004, waehrend der Reiseplan der Karte 63,0 Stunden zeigt -- und der rechnet unabhaengig aus der
-// Geometrie (`calculateScaledDistance` mal 3, geteilt durchs Tempo). Faktor exakt 3,000.
-assert(abs($dauer['travel_hours'] - 21.0) < 1e-12,
-    'echte Reisestunden = Summe der cost_units MAL ' . AVESMAPS_TERRAIN_MEILEN_PER_MAPUNIT
-    . ', gemeldet: ' . $dauer['travel_hours']);
+// 💣 DIE EINHEITENFALLE, UND SIE IST DER EIGENTLICHE BEFUND HINTER #94 UND #101: `cost_units` liest
+// sich wie eine Stunde und ist keine. 7,0 cost_units sind 24,99 echte Reisestunden -- mal 3 (Meilen
+// je Karteneinheit) UND mal 1,19 (der ueberhoehte Nenner der Tempotabelle).
+// ⚠️ Gegengerechnet an der Live-Route Gareth -> Perricum (26.08.2026): Summe der `cost_units`
+// 21,004; die API meldete 63,012 h, richtig sind 74,985 h. Der Reiseplan der Karte zeigt fuer
+// dieselbe Reise 73,4 h -- die restlichen 2 % sind ein ANDERER Befund (die Karte traegt die
+// Tempotabelle als feste Zahl, der Server liest zusaetzlich die eingestellten Tempowerte).
+assert(abs($dauer['travel_hours'] - $echteStunden(7.0)) < 1e-12,
+    'echte Reisestunden = Summe der cost_units mal ' . AVESMAPS_TERRAIN_MEILEN_PER_MAPUNIT
+    . ' mal ' . AVESMAPS_TRAVEL_TIME_SCALE . ', gemeldet: ' . $dauer['travel_hours']);
 assert(AVESMAPS_TERRAIN_MEILEN_PER_MAPUNIT === 3.0,
-    'eine Karteneinheit ist drei Meilen -- der Faktor, an dem die Rechnung oben haengt');
-assert(abs($dauer['travel_days'] - 21.0 / AVESMAPS_TRAVEL_LAND_HOURS) < 1e-12,
+    'eine Karteneinheit ist drei Meilen -- der eine Faktor, an dem die Rechnung oben haengt');
+// 🪤 Und der Rueckfall, der die Meldung ausgeloest hat: die nackte Verdreifachung ist zu WENIG.
+// Ohne diese Zusicherung sieht ein wieder entfernter Zeitfaktor aus wie eine Vereinfachung.
+assert(abs($dauer['travel_hours'] - 21.0) > 3.9,
+    'die reine Verdreifachung (21,0) ist NICHT die Antwort -- das war Meldung #101');
+assert(abs($dauer['travel_days'] - $echteStunden(7.0) / AVESMAPS_TRAVEL_LAND_HOURS) < 1e-12,
     'Kalendertage = echte Reisestunden / Reisetag des Landes');
 // Und das Verhaeltnis, ueber das der Melder gestolpert ist: `cost` zur Etappensumme wie 12 zu 8.
 assert(abs($route['cost'] / 7.0 - 1.5) < 1e-12,
@@ -155,8 +175,9 @@ foreach (['land', 'water', 'night'] as $bereich) {
 $gemischt = $etappen;
 $gemischt[1]['transport_type'] = 'riverSailer';   // 9 Stunden auf dem Wasser
 $dauerGemischt = avesmapsRouteDurationFromSegments($gemischt);
-assert(abs($dauerGemischt['travel_days'] - (12.0 / 8.0 + 9.0 / 12.0)) < 1e-12,
-    'Kalendertage = 12/8 + 9/12, gemeldet: ' . $dauerGemischt['travel_days']);
-assert(abs($dauerGemischt['travel_hours'] - 21.0) < 1e-12, 'die reinen Reisestunden bleiben 21');
+assert(abs($dauerGemischt['travel_days'] - ($echteStunden(4.0) / 8.0 + $echteStunden(3.0) / 12.0)) < 1e-12,
+    'Kalendertage = 14,28/8 + 10,71/12, gemeldet: ' . $dauerGemischt['travel_days']);
+assert(abs($dauerGemischt['travel_hours'] - $echteStunden(7.0)) < 1e-12,
+    'die reinen Reisestunden bleiben dieselben wie an Land -- der Reisetag aendert nur die TAGE');
 
 fwrite(STDOUT, "OK antwortteile-test\n");

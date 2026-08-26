@@ -537,6 +537,10 @@ function avesmapsBuildMinimalRouteResultFromRequest(array $request, array $confi
  * ganze Reise waere bei jeder gemischten Land-Fluss-See-Route falsch -- und das ist genau der Fall,
  * nach dem der Melder gefragt hat.
  *
+ * 🔴 UND `cost_units` WIRD MIT ZWEI FAKTOREN ZUR STUNDE, nicht mit einem: mal drei (Meilen je
+ * Karteneinheit) und mal AVESMAPS_TRAVEL_TIME_SCALE (die Tempotabelle ist um genau diesen Faktor
+ * ueberhoeht). Die Begruendung samt Messung steht an der Rechenstelle unten -- Meldung #101.
+ *
  * ⚠️ EINE Quelle fuer den Reisetag. `rest_hours_per_day` wird daraus ABGELEITET (24 minus Reisetag)
  * und steht nie als zweite Zahl daneben: sonst laufen die beiden auseinander, sobald jemand die
  * Tempowerte verstellt, und niemand merkt es.
@@ -549,18 +553,31 @@ function avesmapsRouteDurationFromSegments(array $segments): array {
 			continue;
 		}
 
-		// 💣 `cost_units` IST KEINE STUNDE, auch wenn es sich so liest. Es entsteht als
-		// `distance_units / Tempo` -- und `distance_units` sind KARTENEINHEITEN, das Tempo dagegen
-		// steht in Meilen je Stunde. Eine Karteneinheit ist DREI Meilen
-		// (AVESMAPS_TERRAIN_MEILEN_PER_MAPUNIT, Spiegelbild von DISTANCE_SCALING_FACTOR in
-		// js/config.js), die echte Stunde ist also das Dreifache.
-		// Live gegengerechnet am 25.08.2026 (Gareth -> Perricum, landgebunden): Summe der
-		// `cost_units` 21,004 -- der Reiseplan der Karte zeigt fuer dieselbe Reise 63,0 Stunden, und
-		// er rechnet sie unabhaengig aus der Geometrie (`calculateScaledDistance` mal 3, geteilt
-		// durchs Tempo, js/routing/route-plan.js). Faktor exakt 3,000.
-		// 🪤 Genau diese Einheitenfalle hat am 30.07.2026 schon einmal einen falschen Infobox-Text
-		// oeffentlich gemacht (der 💣 an AVESMAPS_TERRAIN_SCHRITT_PER_MAPUNIT_ROUTE).
-		$hours = (float) ($segment['cost_units'] ?? 0.0) * AVESMAPS_TERRAIN_MEILEN_PER_MAPUNIT;
+		// 💣 `cost_units` IST KEINE STUNDE, auch wenn es sich so liest -- UND ES BRAUCHT ZWEI
+		// UMRECHNUNGEN, NICHT EINE. Es entsteht als `distance_units / Tempo`:
+		//
+		//   (1) `distance_units` sind KARTENEINHEITEN, das Tempo steht in Meilen je Stunde. Eine
+		//       Karteneinheit ist DREI Meilen (AVESMAPS_TERRAIN_MEILEN_PER_MAPUNIT, Spiegelbild von
+		//       DISTANCE_SCALING_FACTOR in js/config.js).
+		//   (2) JEDE Zahl der Tempotabelle ist um AVESMAPS_TRAVEL_TIME_SCALE UEBERHOEHT -- sie ist als
+		//       `Tagesleistung x mean_G x 1,19 / Reisetag` gebaut (travel-values.php). Wer aus so einem
+		//       Tempo wieder Stunden macht, muss den Faktor zurueckrechnen; der Reiseplan der Karte tut
+		//       das seit jeher (`(segDistance / speedMiles) * TIME_SCALE_FACTOR`, route-plan.js).
+		//
+		// 🪤 MELDUNG #101, UND SIE IST EIN LEHRSTUECK UEBER GEGENPROBEN. Hier stand bis zum 26.08.2026
+		// nur (1), belegt mit: „Summe der `cost_units` 21,004, der Reiseplan der Karte zeigt 63,0
+		// Stunden, Faktor exakt 3,000". Die Karte zeigt fuer diese Reise 73,4 Stunden. Die Gegenprobe
+		// war falsch -- und weil sie danebenstand, sah die fehlende Umrechnung geprueft aus. Neu
+		// gemessen an derselben Live-Route (Gareth -> Perricum, landgebunden): 21,004 cost_units,
+		// vorher gemeldet 63,012 h, richtig 74,985 h.
+		// ⚠️ Die letzten rund 2 % zwischen 74,985 und den 73,4 der Karte sind ein ZWEITER Befund und
+		// nicht dieser: die Karte traegt die Tempotabelle als feste Zahl im Browser (js/config.js),
+		// der Server legt zusaetzlich die eingestellten Tempowerte darueber (app_setting).
+		// 🪤 Und die Einheitenfalle (1) allein hat am 30.07.2026 schon einmal einen falschen
+		// Infobox-Text oeffentlich gemacht (der 💣 an AVESMAPS_TERRAIN_SCHRITT_PER_MAPUNIT_ROUTE).
+		$hours = (float) ($segment['cost_units'] ?? 0.0)
+			* AVESMAPS_TERRAIN_MEILEN_PER_MAPUNIT
+			* AVESMAPS_TRAVEL_TIME_SCALE;
 		$travelHours += $hours;
 		$hoursPerDay = avesmapsTravelValuesHoursFor((string) ($segment['transport_type'] ?? ''));
 		if ($hoursPerDay > 0.0) {

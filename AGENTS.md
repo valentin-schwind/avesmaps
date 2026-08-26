@@ -449,14 +449,27 @@ is the default, English is opt-in. Therefore:
   [[etag-kommt-live-nur-manchmal-an]] zur Haelfte: bei `map-features.php` schwankte es, weil dort mal
   ein 304 und mal ein 200 gemessen wurde. 🔧 Wer die Zwischenschicht ist, ist weiter unbekannt.
 - 💣 **`segments[].cost_units` der Routing-API ist KEINE Stunde**, und `route.cost` schon gar nicht.
-  `cost_units` entsteht als `distance_units / Tempo` — die Strecke in KARTENEINHEITEN, das Tempo in
-  MEILEN je Stunde —, ist also ein Drittel einer Stunde (eine Karteneinheit sind drei Meilen,
-  `AVESMAPS_TERRAIN_MEILEN_PER_MAPUNIT`). Auf der Landroute Gareth → Perricum stehen deshalb drei
-  verschiedene Zahlen fuer eine Reise: Summe der `cost_units` 21,004, `cost` 31,506 (das
-  kalendergewichtete Dijkstra-Gewicht) und 63,0 Stunden im Reiseplan der Karte, der sie unabhaengig
-  aus der Geometrie rechnet. Seit dem 25.08.2026 liefert die Antwort `duration.travel_hours` /
+  🔴 **UND ES SIND ZWEI UMRECHNUNGEN, NICHT EINE.** `cost_units` entsteht als `distance_units /
+  Tempo`; die Strecke steht in KARTENEINHEITEN (mal drei, `AVESMAPS_TERRAIN_MEILEN_PER_MAPUNIT`) und
+  jedes Tempo unserer Tabelle ist um `AVESMAPS_TRAVEL_TIME_SCALE` (1,19) UEBERHOEHT — es ist als
+  `Tagesleistung × mean_G × 1,19 / Reisetag` gebaut. Echte Stunde = `cost_units × 3 × 1,19`.
+  Auf der Landroute Gareth → Perricum stehen deshalb drei verschiedene Zahlen fuer eine Reise:
+  Summe der `cost_units` 21,004, `cost` 31,506 (das kalendergewichtete Dijkstra-Gewicht) und
+  74,985 Stunden Reisezeit. Seit dem 25.08.2026 liefert die Antwort `duration.travel_hours` /
   `travel_days`; **daraus** liest man Zeit, nie aus `cost`. Es ist dieselbe Einheitenfalle, die am
   30.07.2026 einen falschen Infobox-Text oeffentlich gemacht hat.
+  🪤 **Und die zweite Umrechnung fehlte bis zum 26.08.2026 — wegen einer GEGENPROBE, die niemand
+  nachgemessen hat** (Meldung #101). Hier stand „63,0 Stunden im Reiseplan der Karte, der sie
+  unabhaengig aus der Geometrie rechnet“, Faktor also exakt 3,000. Die Karte zeigt fuer diese Reise
+  **73,4**. Der Satz war die einzige Stelle, an der die Umrechnung ueberhaupt geprueft wurde, und
+  er hat die fehlende Haelfte als geprueft ausgewiesen — in Code-Kommentar, Test und `api/README.md`
+  gleichzeitig, weil alle drei von derselben Messung abgeschrieben waren. ⭐ Eine Gegenprobe gegen
+  eine ANDERE Flaeche (hier: die Karte) ist nur dann ein Beleg, wenn man sie wirklich abliest.
+  ⚠️ **Der Rest der Luecke ist ein EIGENER Befund und offen:** 74,985 (Server) gegen 73,4 (Karte).
+  Die Karte traegt `SPEED_TABLE` als feste Zahl im Browser (js/config.js), der Server legt
+  zusaetzlich die im Fenster „Tempowerte“ gespeicherten Werte darueber. Live gemessen 26.08.2026:
+  Reisegruppe zu Fuss auf der Reichsstrasse **5,07** (Server) gegen **5,18** (Browser), Flusssegler
+  **5,95** gegen **6,00** — rund 2 %, und es waechst mit jeder Verstellung. 🔧 Owner-Entscheid offen.
 - Several edit endpoints leak `getMessage()` to clients (info disclosure,
   milestone M1).
 

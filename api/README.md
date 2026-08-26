@@ -156,8 +156,8 @@ Success:
     "miles_per_distance_unit": 3,
     "air_distance_units": 83.6981,
     "duration": {
-      "travel_hours": 63.01,
-      "travel_days": 7.88,
+      "travel_hours": 74.98,
+      "travel_days": 9.37,
       "travel_hours_per_day": { "land": 8, "water": 12, "night": 24 },
       "rest_hours_per_day": { "land": 16, "water": 12, "night": 0 }
     },
@@ -188,12 +188,17 @@ with `optimize: "shortest"` it is the distance; and `minimize_transfers` adds a 
 penalty on top. It exists so two routes can be ordered, and its absolute value carries no
 unit. Use `duration` for time and `distance_units` for distance.
 
-💣 **`segments[].cost_units` is likewise not an hour**, however much it looks like one. It
-is `distance_units / speed`, where the distance is in map units and the speed is in Meilen
-per hour — so it is a third of an hour. One map unit is three Meilen. This is exactly why
-the sum of `cost_units` (21.004 on the land-only Gareth → Perricum route) and `cost`
-(31.506) and the travel plan's own figure (63.0 hours) are three different numbers for one
-journey. **Take hours from `duration.travel_hours`.**
+💣 **`segments[].cost_units` is likewise not an hour**, however much it looks like one — and
+**two** conversions separate it from one. It is `distance_units / speed`, where the distance is
+in map units (one map unit is three Meilen) *and every speed in our table is inflated by a fixed
+internal factor of 1.19*, because it is built as `day performance × terrain calibration × 1.19 ÷
+travel hours`. Real hours are therefore `cost_units × 3 × 1.19`. This is exactly why the sum of
+`cost_units` (21.004 on the land-only Gareth → Perricum route), `cost` (31.506) and the journey's
+74.98 hours are three different numbers for one trip. **Take hours from `duration.travel_hours`
+— never rebuild them from `cost_units`.**
+
+> Until 2026-08-26 `duration.travel_hours` applied only the map-unit conversion and was short by
+> exactly that 1.19 (reported as case #101). It now carries the complete model.
 
 | Field | Meaning |
 |---|---|
