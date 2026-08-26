@@ -202,6 +202,27 @@
 	vorne.style.opacity = "1";
 	hinten.style.opacity = "0";
 	let ctx = vorne.getContext("2d");   // Kontext der Flaeche, in die gerade gezeichnet wird
+
+	/**
+	 * Rollentausch der zwei Zeichenflaechen.
+	 *
+	 * 💣 ES GAB IHN ZWEIMAL, UND NUR EINER HAT `ctx` MITGEZOGEN. Der Tausch in zeichneJetzt holte
+	 * den Kontext neu, der im zoomanim-Handler nicht -- dort standen nur die drei Zuweisungen.
+	 * Folge: `ctx` blieb an EINER Flaeche kleben, waehrend `vorne`/`hinten` bei jedem Zoomschritt
+	 * tauschten. Gezeichnet wurde also abwechselnd in die vordere und in die HINTERE, unsichtbare
+	 * Flaeche -- und damit verschwanden bei JEDEM ZWEITEN animierten Zoom saemtliche Wege- und
+	 * Flussnamen. Live gemessen am 27.08.2026: die unsichtbare Flaeche trug 36.528 gefuellte
+	 * Bildpunkte, die sichtbare 0.
+	 * ⚠️ Ein Zoom mit `animate:false` nimmt diesen Weg nicht und sah deshalb immer richtig aus --
+	 * wer so prueft, sieht den Fehler nie.
+	 * 🔴 Deshalb: EIN Tauscher. Wer `vorne`/`hinten` von Hand vertauscht, vergisst `ctx` wieder.
+	 */
+	function tauscheLabelFlaechen() {
+		const tausch = vorne;
+		vorne = hinten;
+		hinten = tausch;
+		ctx = vorne.getContext("2d");
+	}
 	let canvasTopLeftLatLng = null;
 	// Klickbare Way-Labels (Task 16): Platzierungs-Register fuer Kanal A, bei JEDEM redraw() neu
 	// aufgebaut (siehe dort) -- ein Eintrag pro tatsaechlich gezeichneter Label-Platzierung. Bleibt
@@ -676,8 +697,7 @@
 		// aus dem zoomanim und sitzt damit richtig. Ein setPosition liesse sie beim Ausblenden
 		// verspringen.
 		if (KREUZBLENDE_AN && zoomSchrittOffen) {
-			const tausch = vorne; vorne = hinten; hinten = tausch;
-			ctx = vorne.getContext("2d");
+			tauscheLabelFlaechen();
 			zoomSchrittOffen = false;
 		}
 		const canvas = vorne;
@@ -1308,7 +1328,9 @@
 		if (!g) { return; }   // kuenftiges Leaflet ohne _latLngToNewLayerPoint -> wie vorher
 
 		// Rollen tauschen: in die bisher unsichtbare Flaeche kommt das neue Bild.
-		const tausch = vorne; vorne = hinten; hinten = tausch;
+		// 🔴 UEBER DEN GEMEINSAMEN TAUSCHER -- hier stand die Vertauschung von Hand, ohne `ctx`
+		// mitzuziehen, und genau das hat jeden zweiten animierten Zoom die Namen kosten lassen.
+		tauscheLabelFlaechen();
 		zoomSchrittOffen = false;   // der Tausch ist hier schon passiert
 		wegeLabelsVorabGezeichnet = true;
 		redraw(event.zoom, event.center);
