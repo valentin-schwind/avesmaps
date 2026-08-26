@@ -291,4 +291,95 @@ const toleranzVon = (mapAttrappe) => mapAttrappe.dragging._draggable.options.cli
 		"die Fallback-Fassung von clear stellt den Standard ebenso her -- je nach Ladezeitpunkt ist sie die installierte");
 }
 
+// ---- E. Wege-Zeichnen (Klick fuer Klick -- ZWEI Starter, EIN End-Trichter) ------------------------
+// „mach das auch für den wege-editor" (Owner 26.08.2026). Beide Starter muessen anheben (eine
+// Regel, die einen von zwei Erzeugern bindet, ist keine), clearPendingPathCreation nimmt zurueck.
+
+{
+	const map = baueMap();
+	const ort = { name: "Testheim", coordinates: { lat: 5, lng: 5 } };
+	const kontext = {
+		console, JSON, Math, Number, String, Boolean, Array, Object, Promise,
+		map,
+		L: {
+			latLng: (a, b) => (typeof a === "object" && a ? { lat: a.lat, lng: a.lng, equals: () => false } : { lat: a, lng: b, equals: () => false }),
+			circleMarker: () => ({ addTo() { return this; } }),
+			polyline: () => ({ addTo() { return this; } }),
+		},
+		pendingPathCreationPreview: null,
+		pendingPathCreationLine: null,
+		pendingPathCreationStart: null,
+		pendingPathCreationPoints: [],
+		clearPendingPowerlineCreation() {},
+		refreshAllLocationMarkerPopups() {},
+		findNearestGraphNodeToLatLng: () => ({ location: ort }),
+		showFeedbackToast() {},
+		avesmapsWerkzeugKlickToleranzAnheben: null,
+		avesmapsWerkzeugKlickToleranzZuruecknehmen: null,
+	};
+	kontext.globalThis = kontext;
+	vm.createContext(kontext);
+	vm.runInContext([
+		`const AVESMAPS_WERKZEUG_KLICK_TOLERANZ_PX = ${SITZUNGSWERT};`,
+		schneideFunktion(mapFeaturesQuelle, "avesmapsWerkzeugKlickToleranzAnheben"),
+		schneideFunktion(mapFeaturesQuelle, "avesmapsWerkzeugKlickToleranzZuruecknehmen"),
+		lies("js/map-features/map-features-path-creation.js"),
+	].join("\n;\n"), kontext);
+
+	kontext.startPathCreationFromLocation(ort);
+	assert.strictEqual(toleranzVon(map), SITZUNGSWERT,
+		"waehrend des Weg-Zeichnens (Start am Ort) gilt die Sitzungstoleranz");
+	kontext.clearPendingPathCreation();
+	assert.strictEqual(toleranzVon(map), LEAFLET_STANDARD, "nach dem Weg-Zeichnen gilt wieder der Standard");
+
+	kontext.startPathCreationAt({ lat: 5, lng: 5 });
+	assert.strictEqual(toleranzVon(map), SITZUNGSWERT,
+		"auch der ZWEITE Starter (Kartenpunkt) hebt an -- beide Erzeuger, eine Regel");
+	kontext.clearPendingPathCreation();
+	assert.strictEqual(toleranzVon(map), LEAFLET_STANDARD);
+
+	// Der End-Trichter laeuft auch DEFENSIV (z. B. vor jedem Sitzungsstart) -- ohne offene Sitzung
+	// darf er nichts veraendern.
+	kontext.clearPendingPathCreation();
+	assert.strictEqual(toleranzVon(map), LEAFLET_STANDARD, "defensiver clear ohne Sitzung ist ein Leerlauf");
+}
+
+// ---- F. Wegverlauf-Bearbeitung (Knoten ziehen, Doppelklick setzt/loescht Knoten) ------------------
+
+{
+	const map = baueMap();
+	const pfadQuelle = lies("js/map-features/map-features-path-geometry-editing.js");
+	const kontext = {
+		console, JSON, Math, Number, String, Boolean, Array, Object, Promise,
+		map,
+		activePathGeometryEdit: null,
+		clearPendingPathCreation() {},
+		acquireFeatureSoftLock: () => Promise.resolve(),
+		releaseFeatureSoftLock: () => Promise.resolve(),
+		getPathPublicId: () => "weg-1",
+		refreshPathEditHandles() {},
+		handleMapDoubleClickWhileEditingPath() {},
+		showFeedbackToast() {},
+		avesmapsWerkzeugKlickToleranzAnheben: null,
+		avesmapsWerkzeugKlickToleranzZuruecknehmen: null,
+	};
+	kontext.globalThis = kontext;
+	vm.createContext(kontext);
+	vm.runInContext([
+		`const AVESMAPS_WERKZEUG_KLICK_TOLERANZ_PX = ${SITZUNGSWERT};`,
+		schneideFunktion(mapFeaturesQuelle, "avesmapsWerkzeugKlickToleranzAnheben"),
+		schneideFunktion(mapFeaturesQuelle, "avesmapsWerkzeugKlickToleranzZuruecknehmen"),
+		schneideFunktion(pfadQuelle, "startPathGeometryEdit"),
+		schneideFunktion(pfadQuelle, "clearPathGeometryEdit"),
+	].join("\n;\n"), kontext);
+
+	kontext.startPathGeometryEdit({ _layerGroup: null, geometry: { coordinates: [] } }, { showToast: false });
+	assert.ok(kontext.activePathGeometryEdit, "Vorbedingung: die Verlaufs-Sitzung ist offen");
+	assert.strictEqual(toleranzVon(map), SITZUNGSWERT, "waehrend der Wegverlauf-Bearbeitung gilt die Sitzungstoleranz");
+	assert.strictEqual(map.doubleClickZoom.enabled(), false, "und der Doppelklick-Zoom ist aus (Bestand, unveraendert)");
+	kontext.clearPathGeometryEdit();
+	assert.strictEqual(toleranzVon(map), LEAFLET_STANDARD, "nach der Wegverlauf-Bearbeitung gilt wieder der Standard");
+	assert.strictEqual(map.doubleClickZoom.enabled(), true, "und der Zoom ist zurueck (Bestand, unveraendert)");
+}
+
 console.log("ok - werkzeug-klick-toleranz");

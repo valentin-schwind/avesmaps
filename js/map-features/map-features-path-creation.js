@@ -13,6 +13,12 @@ function clearPendingPathCreation() {
 	pendingPathCreationStart = null;
 	pendingPathCreationPoints = [];
 	map.off("click", handlePendingPathCreationClick);
+	// Der EINE End-Trichter des Weg-Zeichnens nimmt die Sitzungstoleranz zurueck (map-features.js;
+	// gewacht von __tests__/werkzeug-klick-toleranz.test.js, Abschnitt E). Laeuft er defensiv ohne
+	// offene Sitzung, ist die Ruecknahme ein Leerlauf -- der Merker fehlt dann.
+	if (typeof avesmapsWerkzeugKlickToleranzZuruecknehmen === "function") {
+		avesmapsWerkzeugKlickToleranzZuruecknehmen();
+	}
 	map.getContainer().classList.remove("path-creation-cursor");
 	refreshAllLocationMarkerPopups();
 }
@@ -69,6 +75,11 @@ function startPathCreationAt(latlng) {
 	map.getContainer().classList.add("path-creation-cursor");
 	refreshAllLocationMarkerPopups();
 	map.on("click", handlePendingPathCreationClick);
+	// Ein verwackelter Klick soll den Punkt setzen, nicht die Karte schieben -- fuer die Dauer des
+	// Zeichnens gilt die groessere Klick-Toleranz. Steht in BEIDEN Startern (Owner 26.08.2026).
+	if (typeof avesmapsWerkzeugKlickToleranzAnheben === "function") {
+		avesmapsWerkzeugKlickToleranzAnheben();
+	}
 	showFeedbackToast(`Start: ${pendingPathCreationStart.name}. Punkte setzen, Ort verbinden oder mit Weg abschließen beenden.`, "info");
 }
 
@@ -85,6 +96,10 @@ function startPathCreationFromLocation(location) {
 	map.getContainer().classList.add("path-creation-cursor");
 	refreshAllLocationMarkerPopups();
 	map.on("click", handlePendingPathCreationClick);
+	// Wie in startPathCreationAt: beide Starter heben an, sonst bindet die Regel nur einen von zwei.
+	if (typeof avesmapsWerkzeugKlickToleranzAnheben === "function") {
+		avesmapsWerkzeugKlickToleranzAnheben();
+	}
 	showFeedbackToast(`Start: ${location.name}. Punkte setzen, Ort verbinden oder mit Weg abschließen beenden.`, "info");
 }
 

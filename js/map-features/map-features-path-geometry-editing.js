@@ -24,6 +24,11 @@ function clearPathGeometryEdit() {
 	activePathGeometryEdit.handles.forEach((handle) => map.removeLayer(handle));
 	map.off("dblclick", handleMapDoubleClickWhileEditingPath);
 	map.doubleClickZoom.enable();
+	// Die Sitzungstoleranz geht mit der Sitzung (map-features.js; gewacht von
+	// __tests__/werkzeug-klick-toleranz.test.js, Abschnitt F).
+	if (typeof avesmapsWerkzeugKlickToleranzZuruecknehmen === "function") {
+		avesmapsWerkzeugKlickToleranzZuruecknehmen();
+	}
 	activePathGeometryEdit = null;
 }
 
@@ -302,6 +307,11 @@ function startPathGeometryEdit(path, { showToast = true } = {}) {
 		handles: [],
 	};
 	map.doubleClickZoom.disable();
+	// Und ein verwackelter Klick (Doppelklick auf Linie/Knoten) soll Knotenarbeit sein, nicht die
+	// Karte schieben -- fuer die Dauer der Sitzung gilt die groessere Klick-Toleranz (map-features.js).
+	if (typeof avesmapsWerkzeugKlickToleranzAnheben === "function") {
+		avesmapsWerkzeugKlickToleranzAnheben();
+	}
 	refreshPathEditHandles();
 	map.on("dblclick", handleMapDoubleClickWhileEditingPath);
 	if (showToast) {
