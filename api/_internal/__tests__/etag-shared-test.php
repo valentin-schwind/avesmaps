@@ -166,6 +166,22 @@ assert(
     preg_match("/^require __DIR__ \. '\/\.\.\/_internal\/bootstrap\.php';/m", $mapFeaturesSource) === 1,
     'and it loads bootstrap, which is where the shared one lives'
 );
+// 🔴 UND DER TAG MUSS DEN CLIENT ERREICHEN. Live gemessen (25.08.2026 an /api/locations/,
+// 26.08.2026 an map-features): STRATOs Zwischenschicht entfernt den `ETag` aus rumpftragenden
+// PHP-Antworten. Die einzige Antwort, die ihn traegt, ist die 304 -- und die bekommt man erst, wenn
+// man den Tag schon hat. Ohne den zweiten Kopf unter eigenem Namen ist der ganze 304-Riegel dieses
+// Endpunkts fuer echte Browser unerreichbar, so heil er innen auch sein mag.
+// 💣 Und BEIDE Koepfe muessen DENSELBEN Wert tragen -- zwei Tags, die auseinanderlaufen koennen,
+// waeren schlimmer als einer.
+assert(
+    substr_count($mapFeaturesSource, "header('X-Avesmaps-ETag: ' . \$etag);") === 1,
+    'the map endpoint sends the tag under the X- name too, or no browser can ever learn it'
+);
+assert(
+    substr_count($mapFeaturesSource, "header('ETag: ' . \$etag);") === 1,
+    'and both headers name the same variable -- never a second, separately computed tag'
+);
+
 // 💣 The THIRD copy. api/app/ecosystem-areas.php carried its own mirror, justified by the very reason
 // this move removed ("that one lives inside an endpoint file whose request handler would run on
 // include") -- and its comment pointed at a line that no longer holds the function. Three copies of a

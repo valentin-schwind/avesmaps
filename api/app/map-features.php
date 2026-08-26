@@ -211,6 +211,26 @@ try {
     // aber 304 statt Vollantwort, solange die Revision gleich bleibt.
     $etag = avesmapsMapFeaturesETag($revision, $_GET, avesmapsClimateReadStamp($pdo), $travelValues['stamp']);
     header('ETag: ' . $etag);
+    // 🔴 DERSELBE WERT UNTER EIGENEM NAMEN -- ohne ihn kann ein Browser den Riegel NIE erreichen.
+    // Live gemessen am 26.08.2026: die 200 dieses Endpunkts traegt weder ETag noch Last-Modified;
+    // STRATOs Zwischenschicht entfernt den ETag aus rumpftragenden PHP-Antworten (dieselbe Messung
+    // an /api/locations/ am 25.08.2026). Der 304-Pfad hier ist heil und billig, aber ERFAHREN
+    // konnte ein Client den Tag nie: die einzige Antwort, die ihn traegt, ist die 304 -- und die
+    // bekommt man erst, wenn man den Tag schon hat. `X-`-Koepfe ueberleben die 200 nachweislich;
+    // dasselbe Mittel wie in api/locations/index.php und beim SVG-Abzug. Freigegeben fuer fremde
+    // Browser-Clients ist er in avesmapsApplyCorsPolicy (Access-Control-Expose-Headers).
+    // 💣 UND DIE ZWEITE HAELFTE FEHLT NOCH: der Browser-HTTP-Cache revalidiert nicht ueber
+    // `X-`-Koepfe. Wer den Tag nutzen will, muss Nutzlast und Tag selbst ablegen (IndexedDB) und
+    // `If-None-Match` von Hand setzen -- eine eigene Aufgabe, hier bewusst NICHT gebaut.
+    // 🪤 WER DAS BAUT, MUSS ZUERST DIESE ZEILEN VERSCHIEBEN. Beide Tags gehen heute HINAUS, BEVOR
+    // die teure Nutzlast gebaut ist. Scheitert der Aufbau danach (max_user_connections,
+    // memory_limit, PDO-Timeout), reist der Tag auf der 500 mit -- und ein Client, der den Rumpf
+    // darunter ablegt, bekommt beim naechsten Mal `304: deine Kopie ist aktuell` fuer eine
+    // Fehlerseite. Das heilt nicht von selbst, weil map_revision sich nicht von allein bewegt.
+    // Solange niemand etwas ablegt, ist die Falle nur gestellt, nicht ausgeloest. Das Muster fuer
+    // die Loesung steht fertig in api/locations/index.php (ein Helfer, zweimal gerufen: auf der 304
+    // und auf der 200 NACH dem Aufbau) und ist dort von etag-shared-test.php festgenagelt.
+    header('X-Avesmaps-ETag: ' . $etag);
     header('Cache-Control: no-cache, must-revalidate');
     header('Vary: Accept-Encoding', false);
     $ifNoneMatch = (string) ($_SERVER['HTTP_IF_NONE_MATCH'] ?? '');
