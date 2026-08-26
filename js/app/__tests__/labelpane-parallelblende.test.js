@@ -50,6 +50,37 @@ assert.ok(/offsetWidth|requestAnimationFrame/.test(zoomanimBlock),
 	"💣 Zwischen `opacity = 1` und `opacity = 0` wird kein Zwischenstand erzwungen -- der Browser "
 	+ "fasst beides zusammen, und der Klon verschwindet hart statt auszublenden.");
 
+// ---- 🔴 DER KLON MUSS AN DER KARTE KLEBEN, NICHT AM BILDSCHIRM --------------------------------
+// Owner 26.08.2026, nachdem das Doppel weg war: „es wird das ausgeblendet, was nicht auf der KARTE
+// stabil war, sondern im screen". Die ausblendende Kopie stand still, waehrend die Karte unter ihr
+// skalierte.
+// 💣 Der Grund: ein Label-Pane bekommt vom Zoom NICHTS mit. `_mapPane` traegt waehrend der
+// Animation `translate3d(0,0,0)` -- es skaliert nicht (gemessen, §5.2). Der Klon braucht also
+// seine EIGENE Transform, dieselbe, die auch die Canvas-Overlays bekommen.
+assert.ok(/map\.on\("zoomanim", \(\w+\) =>/.test(quelle),
+	"💣 Der zoomanim-Handler nimmt das Ereignis nicht entgegen -- ohne event.zoom/event.center laesst "
+	+ "sich die Zoom-Transform des Klons nicht rechnen.");
+assert.ok(/_latLngToNewLayerPoint/.test(zoomanimBlock),
+	"🔴 Der Klon bekommt keine Zoom-Transform -- er bleibt am Bildschirm stehen, waehrend die Karte "
+	+ "unter ihm skaliert. Genau das hat der Owner beanstandet.");
+assert.ok(/layerPointToLatLng\(\[0, 0\]\)/.test(zoomanimBlock),
+	"💣 Der Bezugspunkt der Transform ist nicht der Ursprung des Layer-Koordinatensystems. Die "
+	+ "Kinder des Klons stehen in LAYER-Punkten; nur ueber deren Nullpunkt stimmt die Abbildung.");
+// 🪤 Und die Transform muss auch ANGEWANDT werden, nicht nur gerechnet. Eine Mutationsprobe am
+// 26.08.2026 fand genau hier eine Luecke: das Loeschen der setTransform-Zeile liess den Test gruen,
+// weil die Rechnung darueber stehenblieb. Dieselbe Lehre wie bei der Marker-Gegenrechnung.
+assert.ok(/L\.DomUtil\.setTransform\(klon, versatz, massstab\)/.test(zoomanimBlock),
+	"💣 Die Zoom-Transform wird gerechnet, aber nicht auf den Klon gesetzt -- er klebt dann weiter "
+	+ "am Bildschirm, waehrend die Karte unter ihm skaliert.");
+assert.ok(/klon\.style\.transformOrigin = "0 0"/.test(zoomanimBlock),
+	"💣 Ohne `transform-origin: 0 0` skaliert der Klon um seine MITTE. Leaflet setzt das sonst ueber "
+	+ "die Klasse `leaflet-zoom-animated`, die ein Pane nicht traegt.");
+// 💣 Transform UND Deckkraft in EINER Deklaration -- `transition` ist EINE Eigenschaft, zwei
+// Zuweisungen loeschen einander aus.
+assert.ok(/klon\.style\.transition = [^;]*transform[^;]*opacity/.test(zoomanimBlock),
+	"💣 Transform- und Deckkraft-Uebergang stehen nicht in EINER Deklaration -- die zweite Zuweisung "
+	+ "loescht die erste, und eines von beidem springt hart.");
+
 // ---- Die eigene 350 ist weg; alles liest die gemeinsame Quelle ---------------------------------
 assert.ok(!/const\s+DAUER_MS\s*=\s*350/.test(block),
 	"Die eigene 350 steht noch da -- sie war die letzte Blendendauer ohne Anschluss an die "

@@ -247,7 +247,7 @@ map.getPane("labelsPane").classList.add("map-labels-pane");
 		klon = null;
 	}
 
-	map.on("zoomanim", () => {
+	map.on("zoomanim", (ereignis) => {
 		klonWeg();   // 💣 immer nur EIN Klon -- zwei uebereinander waeren doppelte Schrift
 		klon = pane.cloneNode(true);
 		klon.classList.remove("map-labels-pane");   // sonst greift die CSS-Blende auch auf ihm
@@ -270,14 +270,37 @@ map.getPane("labelsPane").classList.add("map-labels-pane");
 		pane.style.transition = "";
 
 		// 🔴 UND HIER BEGINNT DAS AUSBLENDEN -- bei t = 0, nicht erst nach dem Zoom.
-		// Der Klon haelt das alte Schriftbild und skaliert gratis mit (er ist ein Kind des
-		// _mapPane); waehrend der Zoom laeuft, verschwindet er auf der gemeinsamen Kurve.
+		// 🔴 UND DER KLON SKALIERT DABEI MIT. Owner 26.08.2026: „es wird das ausgeblendet, was
+		// nicht auf der KARTE stabil war, sondern im screen" -- die ausblendende Schrift stand
+		// still, waehrend die Karte unter ihr skalierte.
+		// 💣 HIER STAND „skaliert gratis mit (er ist ein Kind des _mapPane)". DAS IST FALSCH und
+		// am 26.08.2026 nachgemessen: `_mapPane` traegt waehrend des Zooms `translate3d(0,0,0)`,
+		// es skaliert ueberhaupt nicht. Leaflet zoomt ueber einen leaflet-proxy und ueber die
+		// Transform der einzelnen `leaflet-zoom-animated`-Ebenen -- ein Pane traegt die Klasse
+		// nicht und bekommt nichts davon ab. Genau deshalb hiess es frueher „ortslabels ziehen
+		// ueberhaupt nicht nach": sie taten es nie.
 		if (AUSBLENDEN_AB_ZOOMSTART) {
 			// 💣 OHNE ERZWUNGENEN ZWISCHENSTAND GIBT ES KEINEN UEBERGANG: der Browser fasst
 			// „opacity 1" und „opacity 0" im selben Tick zusammen, und der Klon verschwindet HART.
-			// Dasselbe Mittel wie in den Canvas-Ueberblendungen.
 			void klon.offsetWidth;
-			klon.style.transition = `opacity ${AVESMAPS_ZOOM_DAUER_MS}ms ${AVESMAPS_ZOOM_KURVE}`;
+			// 💣 TRANSFORM UND DECKKRAFT IN EINER DEKLARATION -- `transition` ist EINE Eigenschaft,
+			// zwei Zuweisungen loeschen einander aus und eines von beidem spraenge hart.
+			klon.style.transition = avesmapsZoomTransition("transform")
+				+ `, opacity ${AVESMAPS_ZOOM_DAUER_MS}ms ${AVESMAPS_ZOOM_KURVE}`;
+			// 💣 `transform-origin: 0 0`, sonst skaliert der Klon um seine MITTE. Leaflet setzt das
+			// sonst ueber die Klasse `leaflet-zoom-animated`, die ein Pane nicht traegt.
+			klon.style.transformOrigin = "0 0";
+			// ⚠️ Bezugspunkt ist der URSPRUNG des Layer-Koordinatensystems: die Kinder des Klons
+			// stehen in Layer-Punkten der QUELLstufe, und nur ueber deren Nullpunkt stimmt die
+			// Abbildung auf die Zielstufe.
+			// 🔴 Fehlt Leaflets interne Methode (kuenftige Version), bleibt es beim reinen
+			// Ausblenden statt falsch zu verschieben -- die sichere Richtung.
+			if (ereignis && typeof map._latLngToNewLayerPoint === "function") {
+				const massstab = map.getZoomScale(ereignis.zoom);
+				const versatz = map._latLngToNewLayerPoint(
+					map.layerPointToLatLng([0, 0]), ereignis.zoom, ereignis.center);
+				L.DomUtil.setTransform(klon, versatz, massstab);
+			}
 			klon.style.opacity = "0";
 		}
 		// 💣 HARTES NETZ, SCHON HIER GESPANNT. Die Blende unten haengt an requestAnimationFrame; feuert
