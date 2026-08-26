@@ -35,6 +35,7 @@ require_once __DIR__ . '/../_internal/app/feature-sources.php';
 // Datei ist ein ENDPUNKT und laesst sich fuer einen Test nicht seiteneffektfrei einbinden. Der
 // Leser der Tempowerte gehoert aber gemessen, nicht im Quelltext gesucht.
 require_once __DIR__ . '/../_internal/app/travel-values.php';
+require_once __DIR__ . '/../_internal/app/map-features-cache.php';
 
 // Bump when the SHAPE of the map-features payload changes (a property added/renamed/removed) WITHOUT a
 // map_revision change. The ETag is revision-based, so cached clients would otherwise keep a stale body
@@ -239,6 +240,28 @@ try {
         exit;
     }
 
+    // ⭐ SCHNELLPFAD: fertige Bytes aus dem Vorrat, statt die ganze Nutzlast neu zu bauen.
+    // Alles ab hier bis avesmapsMapFeaturesRespond() kostet live 2,1-2,5 s -- 14 Loader-Posten,
+    // ein Vollscan ueber wiki_sync_pages, der feature_sources-Join und ~2.000-3.000 is_file().
+    // Der Schluessel ist der ETag von oben; warum der Vorrat trotzdem eine Frist hat und warum
+    // nur die volle Nutzlast hineindarf, steht in api/_internal/app/map-features-cache.php.
+    // 🔴 HIER, nicht vor dem PDO: der Schluessel selbst braucht drei Lesevorgaenge (Revision,
+    // Klima-, Tempostempel). Die sind billig -- teuer ist, was danach kommt.
+    $mapFeaturesCacheEligible = avesmapsMapFeaturesCacheEligible($_GET);
+    if ($mapFeaturesCacheEligible) {
+        $mapFeaturesCached = avesmapsMapFeaturesCacheRead($etag);
+        if ($mapFeaturesCached !== null) {
+            // ⚠️ Abgelegt ist die KOMPRIMIERTE Fassung. Der seltene Client ohne gzip bekommt sie
+            // ausgepackt -- und wenn das Auspacken scheitert (halbe Datei, fremder Inhalt), faellt
+            // der Abruf hier bewusst DURCH auf den vollen Aufbau, statt einen leeren 200 zu senden.
+            $mapFeaturesWillGzip = stripos((string) ($_SERVER['HTTP_ACCEPT_ENCODING'] ?? ''), 'gzip') !== false;
+            $mapFeaturesBody = $mapFeaturesWillGzip ? $mapFeaturesCached : @gzdecode($mapFeaturesCached);
+            if (is_string($mapFeaturesBody) && $mapFeaturesBody !== '') {
+                avesmapsMapFeaturesSendBody($mapFeaturesBody, $mapFeaturesWillGzip, 'hit');
+            }
+        }
+    }
+
     $wikiLocationLinks = avesmapsLoadWikiSyncLocationLinks($pdo);
     $buildingTypes = avesmapsLoadWikiSyncBuildingTypes($pdo);
     // Settlement -> political context: resolve each place's STORED ray-cast territory assignment
@@ -309,7 +332,7 @@ try {
 
     // Kompression (#1): diese Antwort wird vom Server nicht komprimiert (gemessen: content-encoding none)
     // -> hier explizit gzip, wenn der Client es akzeptiert. ~14 MB JSON -> ~1,5-2,5 MB.
-    avesmapsMapFeaturesRespond([
+    avesmapsMapFeaturesRespond($mapFeaturesCacheEligible ? $etag : '', [
         'ok' => true,
         'revision' => $revision,
         // ⚠️ FAIL-OPEN IST NICHT STILL. Wie viele Wappen-Aufloesungen in dieser Antwort
@@ -516,27 +539,49 @@ function avesmapsMapFeaturesETag(int $revision, array $queryParams, string $clim
 // avesmapsETagMatches ist nach api/_internal/bootstrap.php gewandert -- api/locations/ braucht
 // ihn ebenfalls und kann diese Datei nicht einbinden, ohne die ganze Kartenantwort auszufuehren.
 
-// Gibt die GeoJSON-Antwort aus, gzip-komprimiert wenn der Client es akzeptiert (sonst identity).
-// Content-Length passend zur tatsaechlich gesendeten (ggf. komprimierten) Groesse.
-function avesmapsMapFeaturesRespond(array $payload): never {
-    $json = json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR);
+// DER EINE AUSGANG fuer beide Wege -- den frischen Aufbau und den Treffer aus dem Vorrat.
+// 💣 Ein zweiter Ausgang waere eine zweite Stelle, an der Content-Length, Content-Encoding und der
+// Herkunftskopf gesetzt werden; die drei muessen zusammenpassen, und genau solche Trios laufen
+// auseinander. Dieselbe Lehre wie bei den drei Ausgabestellen des Politik-Layers.
+// ⚠️ `Content-Length` zaehlt die WIRKLICH gesendeten Bytes, nicht die des JSON.
+function avesmapsMapFeaturesSendBody(string $body, bool $istGzip, string $herkunft): never {
     http_response_code(200);
     header('Content-Type: application/json; charset=utf-8');
+    // Damit sich der Vorrat live messen laesst, wie beim Politik-Layer (X-Avesmaps-Layer-Cache).
+    header('X-Avesmaps-Payload-Cache: ' . $herkunft);
+    if ($istGzip) {
+        header('Content-Encoding: gzip');
+    }
+    header('Content-Length: ' . strlen($body));
+    echo $body;
+    exit;
+}
 
-    $acceptsGzip = stripos((string) ($_SERVER['HTTP_ACCEPT_ENCODING'] ?? ''), 'gzip') !== false;
-    if ($acceptsGzip && function_exists('gzencode')) {
-        $compressed = gzencode($json, 6);
-        if ($compressed !== false) {
-            header('Content-Encoding: gzip');
-            header('Content-Length: ' . strlen($compressed));
-            echo $compressed;
-            exit;
-        }
+// Gibt die GeoJSON-Antwort aus, gzip-komprimiert wenn der Client es akzeptiert (sonst identity),
+// und legt sie unter ihrem ETag im Vorrat ab.
+//
+// ⚠️ KOMPRIMIERT WIRD JETZT IMMER, nicht nur fuer Clients mit gzip. Nur so faellt beim Aufbau die
+// Fassung ab, die abgelegt werden kann -- sonst haette ein einzelner Client ohne gzip den Vorrat
+// nie gefuellt und alle nach ihm zahlten weiter den vollen Aufbau. Der Preis traegt der seltene
+// Fall (ein gzencode ueber ~20 MB), der Nutzen alle uebrigen.
+//
+// 🔴 `$cacheEtag` ist leer, wenn dieser Abruf nicht abgelegt werden darf (bbox/since_revision).
+// Die Entscheidung faellt EINMAL oben am Schnellpfad und wird hierher gereicht -- nicht hier noch
+// einmal aus `$_GET` gebildet, sonst gaebe es zwei Antworten auf dieselbe Frage.
+function avesmapsMapFeaturesRespond(string $cacheEtag, array $payload): never {
+    $json = json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR);
+    $compressed = function_exists('gzencode') ? gzencode($json, 6) : false;
+
+    if ($compressed !== false && $cacheEtag !== '') {
+        avesmapsMapFeaturesCacheWrite($cacheEtag, $compressed);
     }
 
-    header('Content-Length: ' . strlen($json));
-    echo $json;
-    exit;
+    $acceptsGzip = stripos((string) ($_SERVER['HTTP_ACCEPT_ENCODING'] ?? ''), 'gzip') !== false;
+    if ($acceptsGzip && $compressed !== false) {
+        avesmapsMapFeaturesSendBody($compressed, true, 'miss');
+    }
+
+    avesmapsMapFeaturesSendBody($json, false, 'miss');
 }
 
 // Reads the global settlement-image kill switch (app_setting 'settlement_images_enabled', default ON).
