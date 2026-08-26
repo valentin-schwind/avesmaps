@@ -231,6 +231,13 @@ herein — und **das sieht nur ein Auge**, kein Test.
 - **Ein Canvas ist EIN DOM-Knoten, egal ob es nichts oder vierzig Namen zeichnet.** Wer
   Zeichenflächen per DOM-Zählung inventarisiert, rechnet alles Canvas systematisch klein. ⭐ Pixel
   zählen (`getImageData`), nicht Knoten.
+- 💣 **Der Arbeitsbaum kann WEIT hinter `origin/master` liegen** — mehrere Sitzungen teilen
+  diesen einen Checkout, und am 26.08.2026 stand er 97 Commits davor und 421 dahinter. Wer Dateien
+  daraus liest, liest dann alten Code, ohne dass irgendetwas danach aussieht; ein Verweis auf eine
+  frisch angelegte Datei läuft ins Leere. ⭐ Vor dem ersten Lesen einmal
+  `git fetch && git rev-list --left-right --count HEAD...origin/master` — steht dort nicht `0 0`,
+  dann über einen Worktree von `origin/master` arbeiten oder mit `git show origin/master:<pfad>`
+  lesen.
 - ⚠️ **Und beim Deploy: `gh run list --limit 1` trifft nicht zwingend den eigenen Lauf.** Nach SHA
   filtern; sonst belegt ein fremder grüner Lauf die eigene, noch gar nicht hochgeladene Datei.
 
