@@ -336,7 +336,17 @@
 .map-layer-picker__thumb {
 	position: relative;
 }
-.map-layer-picker__cell.is-active .map-layer-picker__thumb::before {
+/* 🔴 UND DASSELBE BEIM UEBERFAHREN (Owner 26.08.2026: „kannst du diese mouse over rahmen im
+   oberen menue so machen wie den rahmen bei mouse over menue im unteren").
+   💣 Die Hover-Regel war schon vorher fuer BEIDE Stufen dieselbe -- der Unterschied kam vom BILD:
+   der graue Rand geht auf den hellen gruenen Untergrund-Kacheln unter, waehrend er auf den
+   dunkleren Ansichts-Symbolen auffaellt. Es war also nie eine Regel zu aendern, sondern eine
+   Lesbarkeit herzustellen -- genau wie bei der aktiven Zelle.
+   ⚠️ Der Rand bleibt --color-border-strong und wird NICHT golden: sonst waere „ueberfahren" nicht
+   mehr von „gewaehlt" zu unterscheiden. Nur der helle Trennstrich kommt dazu. */
+.map-layer-picker__cell.is-active .map-layer-picker__thumb::before,
+.map-layer-picker__menu .map-layer-picker__cell:hover .map-layer-picker__thumb::before,
+.map-layer-picker__menu .map-layer-picker__cell:focus-visible .map-layer-picker__thumb::before {
 	content: "";
 	position: absolute;
 	inset: 0;
