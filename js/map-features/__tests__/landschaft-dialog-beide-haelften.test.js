@@ -136,5 +136,11 @@ assert.strictEqual(avesmapsLandschaftDialogTitel(undefined), "",
 	"ohne Stand: nichts anfassen"); checks++;
 assert.ok(/avesmapsLandschaftDialogTitel\(stand\)/.test(huelle),
 	"die Datenlagen ziehen den Titel nach"); checks++;
+// 💣 EIN SCHREIBER, SONST EIN RENNEN. Der Titel der Beschriftung wird ZWEISTUFIG gesetzt, und die
+// zweite Stufe kommt nachgereicht (erst dann ist die Ebene bekannt) -- sie überschrieb die Hülle,
+// obwohl die Hülle danach nichts mehr tat. Deshalb fragt der Titelsetzer der Beschriftung ZUERST
+// die Hülle und schweigt, wenn die schon geschrieben hat.
+assert.ok(/avesmapsLandschaftDialogTitel\(avesmapsLandschaftDialogStand\(\)\)/.test(labels),
+	"der Titelsetzer der Beschriftung fragt zuerst die Hülle"); checks++;
 
 console.log("landschaft-dialog-beide-haelften: " + checks + " Zusicherungen gruen");

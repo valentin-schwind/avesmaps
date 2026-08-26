@@ -135,6 +135,17 @@ function setLabelEditDialogTitle(kind, { resolved = false } = {}) {
 	if (!titleElement) {
 		return;
 	}
+	// 💣 EIN SCHREIBER, SONST EIN RENNEN. Liegt eine FLAECHE vor, gehoert der Titel der Huelle: das
+	// Fenster bearbeitet dann eine LANDSCHAFT und nicht bloss ein Label. Die zweite Titelstufe unten
+	// kommt nachgereicht (erst dann ist die Ebene bekannt) und ueberschrieb die Huelle sonst -- der
+	// Flaechen-Einstieg trug seit dem 26.08.2026 „Topographie-Label bearbeiten".
+	// ⚠️ Die Huelle ENTSCHEIDET und SCHREIBT in einem; ein leerer Rueckgabewert heisst „nicht mein
+	// Fall, mach du". So gibt es keine zweite Fassung derselben Regel.
+	if (typeof avesmapsLandschaftDialogTitel === "function"
+		&& typeof avesmapsLandschaftDialogStand === "function"
+		&& avesmapsLandschaftDialogTitel(avesmapsLandschaftDialogStand()) !== "") {
+		return;
+	}
 	if (resolved && String(kind || "") === "") {
 		titleElement.textContent = "Freies Label bearbeiten";
 		return;
