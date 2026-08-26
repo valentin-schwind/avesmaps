@@ -395,10 +395,15 @@ falls eine Art noch nicht in der Whitelist steht.
 - 💣 **Y wird gespiegelt** (§2.3).
 - 🪤 **Rundung ist keine Toleranz** (§4).
 - ⚠️ **Sechs Exportseiten haben exakt 500 Zeilen** (Ortschaften 2–4, Detail 1–2, Kosch
-  Ortschaften 1). Das ist die typische Grenze einer Semantic-MediaWiki-Abfrage. GGP ist in
-  vier Blöcke geteilt, der **Kosch hat nur einen** — es ist offen, ob dort Ortschaften
-  fehlen. 🔧 **Frage an Volker, vor Stufe „Ortschaften".** Für Stufe 1 (Gewässer, 246 und 43
-  Zeilen) ist die Grenze nicht erreicht.
+  Ortschaften 1) — die typische Grenze einer Semantic-MediaWiki-Abfrage. ✅ **Nachgemessen
+  2026-08-26: kein Beleg für stille Kappung.** `ggp_Ortschaften_1` hat **519** Zeilen, und
+  alle 519 tragen einen Artikelnamen, kommen also aus der Abfrage — bei einem harten Limit
+  von 500 wäre das unmöglich. Die 500er sind Volkers eigene Blockung. ⚠️ Ob im Kosch, der
+  nur **einen** Block hat, trotzdem etwas fehlt, ist damit nicht ausgeschlossen, aber es gibt
+  keinen Hinweis darauf; die SVG-Ausgabe (`LoadPart.php`) liefert dort **weniger** (152), und
+  `Ortschaften2` existiert nicht. 🔴 **Keine Frage an Volker nötig** — fehlt später etwas,
+  fällt es im Abgleich auf, und die Daten lassen sich über den Upload-Eingang nachreichen
+  (Owner 2026-08-26).
 
 ---
 
@@ -429,12 +434,14 @@ Retogau-Rekonstruktion belegt (§4) — die Reihenfolge ist eine Risiko-, keine 
 - ✅ **`Urwald` → neue Art `vegetation`/`urwald`** (§3.4).
 - ✅ **`Insel` → Fläche**, und zwar `topographie`/`insel`, die es schon gibt (§3.4).
 
+- ✅ **500er-Grenze:** nachgemessen, kein Beleg für Kappung (§6). Keine Frage an Volker nötig.
+- ✅ **Abrufweg:** zwei gleichwertige Eingänge — Server holt selbst **oder** die Seite wird
+  hochgeladen (Owner 2026-08-26). Damit ist die STRATO-Frage kein Blocker.
+
 **Weiterhin offen:**
 
-- 🔧 **Volker:** Die 500er-Grenze (§6) — nur relevant ab Stufe 4 (Ortschaften).
-- 🔧 **Zu messen in Aufgabe 3:** ob der Abruf **von STRATO aus** überhaupt durchgeht. Wiki
-  Aventurica sperrt unsere Ausgangs-IP (`81.169.144.135`); ob garetien.de das auch tut, ist
-  unbekannt. Eine einzelne Probe, nicht 18. Schlägt sie fehl, läuft der Abruf lokal per CLI.
+- 🔧 **Zu messen in Aufgabe 3:** ob der Abruf von STRATO aus durchgeht — eine einzelne Probe,
+  nicht 18. Nur eine Bequemlichkeitsfrage, siehe oben.
 - ⚠️ Die Anbindung importierter Flüsse ans Routing-Wegenetz ist bewusst nicht Teil von
   Stufe 1 (§3.3). Sie wird gemessen und berichtet.
 - ⚠️ **ShareAlike und unsere offene API:** Der Owner hat die Lizenz als

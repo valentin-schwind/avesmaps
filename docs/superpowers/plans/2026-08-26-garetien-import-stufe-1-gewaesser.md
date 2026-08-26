@@ -593,7 +593,23 @@ Erwartet: Fehler `Failed opening required '.../garetien-abruf.php'`
 - `avesmapsGaretienHoleSeite(string $url): string` — `curl` mit 60 s Zeitlimit, eigener
   User-Agent `Avesmaps-Import/1.0 (+https://avesmaps.de)`, wirft bei HTTP ≠ 200.
 
-⚠️ **Der Abruf ist vom Staging getrennt**, damit der Test ohne Netz läuft.
+🔴 **ZWEI gleichwertige Eingänge, und das ist Absicht** (Owner 2026-08-26: „im Zweifelsfall
+lad ich die sachen von meinem PC zu dir hoch"):
+
+1. **Der Server holt selbst** — `avesmapsGaretienHoleSeite()` → `avesmapsGaretienStageSeite()`.
+2. **Eine Datei wird hochgeladen** — der Endpunkt nimmt das HTML im Rumpf entgegen und gibt
+   es direkt an `avesmapsGaretienStageSeite()`.
+
+⭐ Das kostet fast nichts, weil `avesmapsGaretienStageSeite()` ohnehin **HTML entgegennimmt
+und nicht selbst abruft** — genau so ist es oben geschnitten, damit der Test ohne Netz läuft.
+Der zweite Eingang ist dieselbe Funktion mit einer anderen Quelle davor.
+
+⚠️ Damit ist die STRATO-Frage **kein Blocker mehr**, sondern eine Bequemlichkeit: Kommt der
+Server nicht an garetien.de heran (Wiki Aventurica sperrt unsere Ausgangs-IP
+`81.169.144.135`), wird eben hochgeladen. Der Rest des Plans ändert sich dadurch **nicht**
+— alles ab Aufgabe 4 liest aus dem Staging und weiß nicht, wie die Zeilen dorthin kamen.
+💣 Der Upload-Weg braucht denselben Riegel wie der Abrufweg (Fähigkeit `admin`) — eine
+Importquelle, die jeder befüllen kann, ist eine Schreibberechtigung auf die Karte.
 
 - [ ] **Schritt 4: Test laufen lassen, Erfolg bestätigen**
 
@@ -607,8 +623,8 @@ und wir haben dort um Erlaubnis gefragt. Eine Sekunde Pause zwischen den Seiten.
 🔧 **Zu messen und zu berichten:** ob der Abruf **von STRATO aus** funktioniert. Wiki
 Aventurica sperrt unsere Ausgangs-IP (`81.169.144.135`, siehe Memory
 `wiki-sperrt-stratos-ausgangs-ip`); ob garetien.de das auch tut, ist unbekannt. **Erst eine
-einzelne Probe**, nicht alle 18. Schlägt sie fehl, läuft der Abruf lokal per CLI und die
-Rohzeilen werden hochgeladen — das ändert Aufgabe 3, nicht den Rest des Plans.
+einzelne Probe**, nicht alle 18. Schlägt sie fehl, wird hochgeladen (Eingang 2) — **kein
+Blocker, nur ein anderer Eingang.**
 
 - [ ] **Schritt 6: Einchecken**
 
