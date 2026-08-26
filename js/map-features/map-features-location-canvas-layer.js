@@ -527,7 +527,14 @@ const locationCanvasLayer = {
 			}
 			const containerPoint = this._map.latLngToContainerPoint(item.latLng);
 			const distance = Math.hypot(containerPoint.x - point.x, containerPoint.y - point.y);
-			const hitRadius = item.core * (1 + LOCATION_MARKER_CONTOUR_RATIO) + 3;
+			// 💣 `item.core + item.contour` IST die Aussenkante -- dieselbe Groesse, die _redraw als
+			// `outer` zeichnet. Hier stand bis zum 26.08.2026 `core * (1 + LOCATION_MARKER_CONTOUR_RATIO)`,
+			// und die Konstante war da schon abgeschafft (der Kontur-Anteil ist seither ein Regler in
+			// location-zoom-bands.js): jeder Klick warf einen ReferenceError, und zwar im Klick-ARBITER,
+			// den Wege, Regionen und Territorien als Erstes rufen.
+			// ⭐ Nebenbei richtiger als vorher: der Trefferradius folgt jetzt dem Kontur-Regler, was die
+			// festverdrahtete 0,33 nie tat. Gewacht von __tests__/marker-treffer-radius.test.js.
+			const hitRadius = item.core + item.contour + 3;
 			if (distance <= hitRadius && distance < hitDistance) {
 				hit = item;
 				hitDistance = distance;
@@ -597,7 +604,9 @@ const locationCanvasLayer = {
 			const containerPoint = this._map.latLngToContainerPoint(item.latLng);
 			const dx = containerPoint.x - point.x;
 			const dy = containerPoint.y - point.y;
-			const hitRadius = item.core * (1 + LOCATION_MARKER_CONTOUR_RATIO) + 3;
+			// 💣 Dieselbe Stelle wie im Klick-Arbiter oben, und sie war genauso kaputt -- hier warf es
+			// bei JEDER Mausbewegung ueber der Karte. Aussenkante = core + contour, siehe dort.
+			const hitRadius = item.core + item.contour + 3;
 			if (dx * dx + dy * dy <= hitRadius * hitRadius) {
 				over = true;
 				break;
