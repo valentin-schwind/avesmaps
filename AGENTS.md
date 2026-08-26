@@ -400,6 +400,26 @@ is the default, English is opt-in. Therefore:
 - **`territories-endpoint.php` runs DDL + metadata probes before its cache read**
   on every political-layer request; the derived layer has an N+1 over the full
   territory table. Both are perf hotspots (milestone M6).
+  ✅ **Der Zoom-Teil ist seit 26.08.2026 erledigt** (Perf-Paket 1). Die Ebene wurde bei JEDEM
+  Zoomschritt komplett neu geholt — der Zoom ist ein Anfrageparameter, und der Client erzwang
+  `cache: "no-store"` plus `_=Date.now()`-Cachebrecher; die Antwort trug serverseitig GAR KEINE
+  Cache-Kopfzeile. Gemessen 280–330 ms je Zoomschritt in der Standardansicht, rund 1 s in der
+  politischen. Jetzt drei Riegel:
+  💣 **Die Antwort verlaesst den Endpunkt an DREI Stellen** — Schnellpfad vor dem PDO, zweiter
+  Cache-Treffer dahinter, frischer Aufbau. Alle drei gehen durch `avesmapsPoliticalSendLayerCacheHeaders`;
+  eine Regel, die einen von drei Erzeugern bindet, ist keine Regel.
+  💣 **`max-age` ist die RESTLAUFZEIT der Servercachedatei, nie ihre volle Frist** — sonst addieren
+  sich Server- und Browserfrist (600 s statt 300). ⭐ Und `max-age` ist hier zwingend statt `no-cache`:
+  der `ETag` ueberlebt die 200 nicht (siehe unten), ein Browser koennte also NIE revalidieren.
+  💣 **ZWEI Client-Speicher mit ZWEI Invalidierungswegen:** der 5-s-Zusagenspeicher in
+  `api-client.js` und der geparste Ergebnisspeicher im Loader, je (Zoom, Jahr, Bearbeiten-Modus),
+  300 s. Geleert wird aus dem Loader (`immediate`) UND aus dem api-client (nach einem Schreibvorgang) —
+  **beide leeren beide.** 🔴 Zwischengespeichert wird NUR im Ansichtsmodus, und der Riegel faellt im
+  Zweifel geschlossen aus (`IS_EDIT_MODE` undefiniert = Bearbeiten). Live gemessen: 5 Zoomschritte,
+  2 Abrufe. Tests: `ebenen-cache-kopfzeilen-test.php`, `ebenen-zwischenspeicher.test.js`.
+  🪤 Und der Kommentar „Default-Start ist Zoom 0 -> spart den ~10MB-Startblock“ im Loader war TOT:
+  der Startzoom ist `AVESMAPS_DEFAULT_MAP_ZOOM = 3` (am Telefon 2), die Bedingung greift beim Start
+  also nie. Wer dort eine Startersparnis vermutet, sucht an der falschen Stelle.
 - **Albenhus/Zwerch** display-inheritance anomaly: a save writes resolved displays
   globally onto all ancestors.
 - **Schema is in code, not `sql/`:** ~14 tables exist only as inline PHP DDL;
@@ -448,6 +468,19 @@ is the default, English is opt-in. Therefore:
   gibt `null`, so treu der Server auch sendet. Das erklaert die offene Frage aus
   [[etag-kommt-live-nur-manchmal-an]] zur Haelfte: bei `map-features.php` schwankte es, weil dort mal
   ein 304 und mal ein 200 gemessen wurde. 🔧 Wer die Zwischenschicht ist, ist weiter unbekannt.
+  ✅ **Seit 26.08.2026 tragen ihn auch `GET /api/app/map-features.php` und die politische Ebene**
+  (`territories-endpoint.php`). Bei map-features war das keine Kleinigkeit: der 304-Pfad existierte
+  dort seit Monaten, war aber fuer echte Browser **unerreichbar** — jeder Wiederbesuch zahlte die
+  vollen ~3 MB und die vollen 2,1–2,5 s. Live gegengemessen: die 200 traegt `X-Avesmaps-ETag` und
+  weiterhin KEINEN `ETag`; denselben Wert als `If-None-Match` zurueck ergibt **304, null Bytes**.
+  💣 **Die zweite Haelfte fehlt bewusst noch:** der Browser-HTTP-Cache revalidiert NICHT ueber
+  `X-`-Koepfe. Wer sie baut (Nutzlast + Tag in IndexedDB, `If-None-Match` von Hand), muss ZUERST die
+  zwei `header()`-Zeilen in `map-features.php` hinter den Aufbau der Nutzlast schieben: heute gehen
+  sie davor hinaus und reisen damit auch auf einer 500 mit — ein Client, der den Rumpf darunter
+  ablegt, bekaeme spaeter „deine Kopie ist aktuell“ fuer eine Fehlerseite, und das heilt nicht von
+  selbst. Das Muster steht fertig in `api/locations/index.php` (ein Helfer, zweimal gerufen: auf der
+  304 und auf der 200 NACH dem Aufbau), festgenagelt von `etag-shared-test.php`. Solange niemand
+  etwas ablegt, ist die Falle nur gestellt, nicht ausgeloest — der Warnkommentar steht an der Zeile.
 - 💣 **`segments[].cost_units` der Routing-API ist KEINE Stunde**, und `route.cost` schon gar nicht.
   🔴 **UND ES SIND ZWEI UMRECHNUNGEN, NICHT EINE.** `cost_units` entsteht als `distance_units /
   Tempo`; die Strecke steht in KARTENEINHEITEN (mal drei, `AVESMAPS_TERRAIN_MEILEN_PER_MAPUNIT`) und
