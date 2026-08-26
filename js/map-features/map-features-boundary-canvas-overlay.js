@@ -450,6 +450,9 @@
 		// hier laeuft im Pruefstand __tests__/grenznamen-parallelblende-ablauf.test.js sauber
 		// durch. Der Owner hat den AUS-Zustand noch am selben Abend beanstandet
 		// („grenzbeschriftungen sind noch nicht im fading integriert -- frueher waren sie das").
+		// ⚠️ Nachschub 26.08.2026: der Deploy-Lauf des Vorgabe-Commits (0c5d33a3) wurde vom
+		// naechsten fremden Push verdraengt (§9, abgebrochener Lauf) -- erst der Commit mit dieser
+		// Zeile hat die Datei wirklich hochgeladen. Nur eine Inhaltsaenderung heilt das.
 		try { return new URLSearchParams(window.location.search).get("parallelfade") !== "0"; }
 		catch (e) { return true; }
 	})();

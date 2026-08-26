@@ -138,6 +138,9 @@
 		// von pfadLabelBlendeEin() aus dem Vorabzeichnen (siehe den Kommentar in zeichneJetzt und
 		// __tests__/wegenamen-parallelblende-ablauf.test.js); sie ist behoben, und der Owner hat
 		// den AUS-Zustand („nicht mehr am ueberblenden") noch am selben Abend beanstandet.
+		// ⚠️ Nachschub 26.08.2026: der Deploy-Lauf des Vorgabe-Commits (0c5d33a3) wurde vom
+		// naechsten fremden Push verdraengt (§9, abgebrochener Lauf) -- erst der Commit mit dieser
+		// Zeile hat die Datei wirklich hochgeladen. Nur eine Inhaltsaenderung heilt das.
 		try { return new URLSearchParams(window.location.search).get("parallelfade") !== "0"; }
 		catch (e) { return true; }
 	})();
