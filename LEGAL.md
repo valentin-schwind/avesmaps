@@ -36,7 +36,7 @@ Contributions to these parts are accepted under the same MIT license.
 | map, place, path, region and territory geometry (GeoJSON, database contents, generated data dumps) | derived from DSA map material and community data; **not MIT** |
 | Aventurien names, descriptions, lore and other DSA-related text content | rights held by Ulisses Spiele / the respective authors; **not MIT** |
 | coats of arms and other images fetched from Wiki Aventurica | each file carries its own license on the wiki; **not MIT** |
-| `img/dsa-fanprojekt-logo.png` and any DSA artwork or cover images | usable only under the Ulisses fan guidelines, revocable; **not MIT** |
+| `img/dsa-fanprojekt-logo.png` / `.webp` and any DSA artwork or cover images | usable only under the Ulisses fan guidelines, revocable; **not MIT** |
 | screenshots and example images that show the map (e.g. `img/example.png`) | contain the map material; **not MIT** |
 | trademarks and logos (see "Trademarks") | no license granted |
 

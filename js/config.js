@@ -44,7 +44,7 @@ const MAP_DECORATION_CONFIG = {
 		alt: "Kompassrose",
 	},
 	logo: {
-		src: "img/dsa-fanprojekt-logo.png",
+		src: "img/dsa-fanprojekt-logo.webp",
 		coordinates: [1006, 18],
 		size: [144, 40],
 		anchor: [0, 0],
