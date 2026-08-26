@@ -331,6 +331,12 @@ assert.ok(!/\[\s*"old"\s*,\s*"original"|MAP_TILE_STYLES\s*\)\s*\.map/.test(js),
 	"...und baut sich keine eigene Liste der Kachelsaetze");
 
 // 🔴 „Old" sieht nur der Editor.
+// 💣 NUR echte Kachelsaetze: route-planner-toggle.js haengt `none` (leerer Hintergrund) in
+// dasselbe <select>. Ohne diesen Filter stand er als leere Kachel in der Reihe -- er hat kein
+// Vorschaubild, weil er kein Kachelsatz ist (live gemessen 26.08.2026).
+assert.ok(/MAP_TILE_STYLES\[eintrag\.wert\]/.test(js),
+	"die Untergrund-Liste laesst nur durch, was in MAP_TILE_STYLES steht");
+
 assert.ok(/IS_EDIT_MODE[\s\S]{0,200}!==\s*"old"|imEditor \|\| eintrag\.wert !== "old"/.test(js),
 	"der Kachelsatz `old` wird fuer Nicht-Editoren herausgefiltert");
 

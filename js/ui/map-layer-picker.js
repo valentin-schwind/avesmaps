@@ -114,6 +114,17 @@
 				gesperrt: Boolean(option.disabled)
 			};
 		}).filter(function (eintrag) {
+			// 💣 NUR ECHTE KACHELSAETZE. Das <select> traegt seit jeher einen Eintrag mehr:
+			// js/ui/route-planner-toggle.js haengt `none` („leerer Hintergrund") nachtraeglich als
+			// erstes Kind hinein und wickelt dafuer setMapStyle. `none` ist aber die ABWESENHEIT
+			// eines Untergrunds, kein Untergrund -- er steht folgerichtig nicht in MAP_TILE_STYLES,
+			// hat also auch kein Vorschaubild. Live gemessen am 26.08.2026: er stand als leere
+			// Kachel in der Reihe.
+			// ⭐ Gefiltert wird deshalb gegen MAP_TILE_STYLES, nicht gegen den Namen `none`: das
+			// haelt auch, wenn irgendwann ein weiterer Eintrag von aussen dazukommt.
+			if (typeof MAP_TILE_STYLES === "undefined" || !MAP_TILE_STYLES[eintrag.wert]) {
+				return false;
+			}
 			return imEditor || eintrag.wert !== "old";
 		});
 	}
