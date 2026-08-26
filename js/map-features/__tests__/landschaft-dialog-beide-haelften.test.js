@@ -114,4 +114,27 @@ assert.ok(/label-wiki-assign-host/.test(huelle),
 assert.ok(/avesmapsLandschaftDialogWikiKasten/.test(huelle),
 	"…in einer eigenen, benannten Regel"); checks++;
 
+// ── G. DER TITEL SAGT, WAS DAS FENSTER BEARBEITET ────────────────────────────────────────────
+// 🪤 EINE REGRESSION AUS GENAU DIESEM UMBAU, im Bild gefunden. `#ecosystem-properties-title` gibt es
+// im vereinigten Fenster GAR NICHT mehr — der Schreibversuch des Flächen-Öffners läuft ins Leere,
+// sichtbar ist allein `#label-edit-title`. Solange die Beschriftungs-Hälfte beim Flächen-Einstieg
+// nicht lud, blieb dort die Aufschrift aus dem Markup stehen: „Landschaft bearbeiten". Seit sie
+// IMMER lädt, überschrieb `setLabelEditDialogTitle` sie mit „Topographie-Label bearbeiten" — für ein
+// Fenster, das beide Hälften bearbeitet, eine falsche Auskunft.
+//
+// 🔴 Die Regel teilt sich das Prädikat mit dem Wiki-Kasten: liegt eine FLÄCHE vor, ist es eine
+// Landschaft. Ohne Fläche behält die Beschriftung ihren eigenen, genaueren Titel („Freies Label
+// bearbeiten" sagt etwas über die Zugehörigkeit, das nicht verlorengehen darf).
+const { avesmapsLandschaftDialogTitel } = require("../landschaft-dialog.js");
+assert.strictEqual(avesmapsLandschaftDialogTitel({ hatFlaeche: true, hatLabel: true }),
+	"Landschaft bearbeiten", "beide Hälften: das Fenster bearbeitet eine Landschaft"); checks++;
+assert.strictEqual(avesmapsLandschaftDialogTitel({ hatFlaeche: true, hatLabel: false }),
+	"Landschaft bearbeiten", "nur die Fläche: ebenfalls eine Landschaft"); checks++;
+assert.strictEqual(avesmapsLandschaftDialogTitel({ hatFlaeche: false, hatLabel: true }), "",
+	"nur die Beschriftung: ihren eigenen Titel NICHT anfassen"); checks++;
+assert.strictEqual(avesmapsLandschaftDialogTitel(undefined), "",
+	"ohne Stand: nichts anfassen"); checks++;
+assert.ok(/avesmapsLandschaftDialogTitel\(stand\)/.test(huelle),
+	"die Datenlagen ziehen den Titel nach"); checks++;
+
 console.log("landschaft-dialog-beide-haelften: " + checks + " Zusicherungen gruen");

@@ -242,6 +242,8 @@ function avesmapsLandschaftDialogLagen() {
 	// derselben Stelle: die Haelften melden sich hier an und ab, also entscheidet sich hier, wessen
 	// Kasten gilt.
 	avesmapsLandschaftDialogWikiKasten(stand);
+	// 🔴 Und der Titel sagt, WAS das Fenster bearbeitet -- dasselbe Praedikat, dieselbe Stelle.
+	avesmapsLandschaftDialogTitel(stand);
 	return gezeigt;
 }
 
@@ -397,6 +399,34 @@ function avesmapsLandschaftDialogWikiKasten(stand) {
 }
 
 /**
+ * Wie das Fenster heisst. Gibt zurueck, was gesetzt wurde -- "" heisst „nicht angefasst".
+ *
+ * 🪤 `#ecosystem-properties-title` gibt es im vereinigten Fenster NICHT mehr; der Schreibversuch des
+ * Flaechen-Oeffners laeuft ins Leere, und sichtbar ist allein `#label-edit-title`. Solange die
+ * Beschriftungs-Haelfte beim Flaechen-Einstieg nicht lud, blieb dort die Aufschrift aus dem Markup
+ * stehen. Seit sie IMMER laedt, schriebe `setLabelEditDialogTitle` dort „Topographie-Label
+ * bearbeiten" -- fuer ein Fenster, das BEIDE Haelften bearbeitet, eine falsche Auskunft.
+ *
+ * 🔴 Dasselbe Praedikat wie beim Wiki-Kasten: liegt eine FLAECHE vor, ist es eine Landschaft. Ohne
+ * Flaeche behaelt die Beschriftung ihren eigenen, genaueren Titel -- „Freies Label bearbeiten" ist
+ * eine Aussage ueber die Zugehoerigkeit, die nicht verlorengehen darf.
+ */
+function avesmapsLandschaftDialogTitel(stand) {
+	const s = stand || {};
+	if (!s.hatFlaeche) {
+		return "";
+	}
+	const titel = "Landschaft bearbeiten";
+	if (typeof document !== "undefined") {
+		const kopf = document.getElementById("label-edit-title");
+		if (kopf) {
+			kopf.textContent = titel;
+		}
+	}
+	return titel;
+}
+
+/**
  * Welche Formulare „Speichern" abschickt. REIN -- kein DOM.
  *
  * 🔴 DIE FLAECHE ZUERST. Ihre Aenderung an Name und Art traegt der vorhandene Propagationsweg
@@ -455,6 +485,7 @@ if (typeof module !== "undefined" && module.exports) {
 		avesmapsLandschaftDialogStand: avesmapsLandschaftDialogStand,
 		avesmapsLandschaftDialogLadeAuftraege: avesmapsLandschaftDialogLadeAuftraege,
 		avesmapsLandschaftDialogWikiKasten: avesmapsLandschaftDialogWikiKasten,
+		avesmapsLandschaftDialogTitel: avesmapsLandschaftDialogTitel,
 		avesmapsLandschaftDialogSpeichernAuftraege: avesmapsLandschaftDialogSpeichernAuftraege,
 		avesmapsLandschaftDialogSpeichern: avesmapsLandschaftDialogSpeichern,
 		avesmapsLandschaftDialogLoeschText: avesmapsLandschaftDialogLoeschText,
