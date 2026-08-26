@@ -369,9 +369,13 @@
 	canvas.style.top = "0";
 	canvas.style.left = "0";
 	canvas.style.transformOrigin = "0 0"; // Skalierung während der Zoom-Animation um die obere linke Ecke
-	// Dieselbe Easing wie Leaflets Ebenen: die Klasse aktiviert (unter .leaflet-zoom-anim) die
-	// transition transform 0.25s cubic-bezier(0,0,0.25,1) -> Canvas easet im Gleichschritt mit
-	// Kacheln/Flaechen/SVG-Linien statt sofort auf die Endgroesse zu springen.
+	// Dieselbe Easing wie alle uebrigen Ebenen: die Klasse aktiviert (unter .leaflet-zoom-anim) die
+	// gemeinsame Zoom-Transition -> Canvas easet im Gleichschritt mit Kacheln/Flaechen/SVG-Linien
+	// statt sofort auf die Endgroesse zu springen.
+	// 🔴 Seit 26.08.2026 steht sie in css/features/zoom-uebergang.css und ueberschreibt dort
+	// Leaflets eigene Regel (ease-in-out statt cubic-bezier(0,0,0.25,1)); die Zahlen selbst liegen
+	// in js/map-features/zoom-uebergang.js. Hier stand bis dahin die alte Kurve als Fliesstext --
+	// ein Kommentar, der einen Wert abschreibt, ueberlebt dessen Aenderung nicht.
 	canvas.classList.add("leaflet-zoom-animated");
 	map.getPane(PANE).appendChild(canvas);
 	const ctx = canvas.getContext("2d");
@@ -449,7 +453,7 @@
 
 	// Die Easing der Zoom-Animation, wie sie Leaflets eigene Ebenen benutzen. Einmal benannt, weil
 	// sie jetzt an zwei Stellen im selben Inline-String steht wie die Deckkraft.
-	const TERRITORY_ZOOM_TRANSFORM = "transform 250ms cubic-bezier(0,0,0.25,1)";
+	const TERRITORY_ZOOM_TRANSFORM = avesmapsZoomTransition("transform");
 
 	// Ob beim letzten redraw wirklich Namen gezeichnet wurden. 🔴 Der Wert wird VOR den vorzeitigen
 	// `return`s in redraw() zurueckgesetzt und erst an der Zeichenstelle gesetzt -- so stimmt die

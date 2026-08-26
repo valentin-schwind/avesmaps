@@ -1,0 +1,33 @@
+/* Die EINE Kurve und die EINE Dauer des Zoomschritts, als Token -- und die Stelle, an der Leaflets
+   eigene Regel ueberschrieben wird.
+
+   🔴 Owner 26.08.2026: eine Kurve und eine Dauer fuer ALLE Zoomanimationen, ease-in-out, 250 ms.
+   Das gilt ausdruecklich auch fuer die KACHELN; sonst waere der Guss an der auffaelligsten Flaeche
+   gebrochen.
+
+   💣 leaflet.css IST FREMDCODE und wird nicht editiert, sondern ueberschrieben. Das geht, weil
+   css/styles.css in index.html NACH css/third-party/leaflet.css steht und der Selektor derselbe
+   ist (Spezifitaet 0,2,0) -- bei gleicher Spezifitaet gewinnt die spaetere Regel. Wer leaflet.css
+   selbst aendert, verliert die Aenderung beim naechsten Leaflet-Update.
+
+   💣 DIE 250 MS SIND LEAFLETS EIGENE ZAHL: `setTimeout(a(this._onZoomTransitionEnd,this),250)` in
+   js/third-party/leaflet.js (minifiziert). Eine andere Dauer hier liefe an Leaflets Ende vorbei.
+   Nur die Kurve wird getauscht.
+
+   💣 Die Zwillingsdatei ist js/map-features/zoom-uebergang.js -- beide tragen dieselben Werte, und
+   js/map-features/__tests__/zoom-uebergang.test.js haelt sie zusammen. Wer hier eine Zahl aendert,
+   aendert sie dort mit.
+
+   ⚠️ Diese Datei muss in der @import-Kette von css/styles.css VOR ihren Lesern stehen (heute
+   features/map-labels.css): ein var() ohne Definition macht die GANZE Deklaration ungueltig, und
+   die Blende faellt dann lautlos aus. Auch das prueft der Test. */
+
+:root {
+	--avesmaps-zoom-dauer: 250ms;
+	--avesmaps-zoom-kurve: cubic-bezier(0.42, 0, 0.58, 1);
+}
+
+.leaflet-zoom-anim .leaflet-zoom-animated {
+	-webkit-transition: -webkit-transform var(--avesmaps-zoom-dauer) var(--avesmaps-zoom-kurve);
+	        transition:         transform var(--avesmaps-zoom-dauer) var(--avesmaps-zoom-kurve);
+}

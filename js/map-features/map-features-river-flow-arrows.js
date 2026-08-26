@@ -167,7 +167,7 @@
 			if (!canvasTopLeftLatLng || typeof map._latLngToNewLayerPoint !== "function") {
 				return;
 			}
-			canvas.style.transition = "transform 250ms cubic-bezier(0,0,0.25,1)";
+			canvas.style.transition = avesmapsZoomTransition("transform");
 			const scale = map.getZoomScale(event.zoom);
 			const offset = map._latLngToNewLayerPoint(canvasTopLeftLatLng, event.zoom, event.center);
 			L.DomUtil.setTransform(canvas, offset, scale);

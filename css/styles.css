@@ -53,6 +53,7 @@
 @import url("components/infobox-lid.css");
 @import url("components/infobox-section.css");
 
+@import url("features/zoom-uebergang.css");
 @import url("features/map-decorations.css");
 @import url("features/map-scale-band.css");
 @import url("features/map-labels.css");

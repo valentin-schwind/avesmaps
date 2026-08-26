@@ -97,7 +97,7 @@
 	// der zoomanim-Handler dieser Datei setzt `canvas.style.transition` seit jeher selbst. Eine
 	// CSS-Regel fuer die Deckkraft waere davon ausgeloescht, denn `transition` ist EINE Eigenschaft
 	// und inline gewinnt. Also beide Haelften in denselben Inline-String.
-	const PATH_LABEL_ZOOM_TRANSFORM = "transform 250ms cubic-bezier(0,0,0.25,1)";
+	const PATH_LABEL_ZOOM_TRANSFORM = avesmapsZoomTransition("transform");
 	function pfadLabelDauer(name, vorgabe) {
 		try {
 			const roh = new URLSearchParams(window.location.search).get(name);

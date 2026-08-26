@@ -242,7 +242,7 @@ const locationCanvasLayer = {
 		if (!this._ready || !this._topLeftLatLng) { return; }
 		if (typeof this._map._latLngToNewLayerPoint !== "function") { return; }
 		this._cssZoomActive = true;
-		this._canvas.style.transition = "transform 250ms cubic-bezier(0,0,0.25,1)";
+		this._canvas.style.transition = avesmapsZoomTransition("transform");
 		const scale = this._map.getZoomScale(event.zoom);
 		const offset = this._map._latLngToNewLayerPoint(this._topLeftLatLng, event.zoom, event.center);
 		L.DomUtil.setTransform(this._canvas, offset, scale);

@@ -3278,6 +3278,9 @@
 		     -location-name-labels.js, deren Zeichner die Tafel lesen. Keine eigenen
 		     Abhängigkeiten, die frühe Position kostet also nichts. -->
 		<script src="js/map-features/location-zoom-bands.js"></script>
+		<!-- 🔴 Die EINE Kurve und die EINE Dauer aller Zoomanimationen. Muss VOR jeder Zeichenflaeche
+		     und vor bootstrap.js stehen: `const` auf Dateiebene wird nicht gehoistet. -->
+		<script src="js/map-features/zoom-uebergang.js"></script>
 		<!-- 🔴 Die Darstellungstafel der Landschaften -- die einzige Quelle ihrer Zahlen-Vorgaben
 		     (Ton/Deckkraft der Flaechen, Farbe/Groesse/Zoomband der Namen). Sie MUSS vor
 		     map-features-labels.js und den Landschaften-Zeichnern stehen: `const` auf Dateiebene

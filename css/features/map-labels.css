@@ -236,8 +236,10 @@ body.edit-mode .map-label img {
 	   ⚠️ Die Ausblendung MUSS in DIESER Regel stehen, nicht in der ersten: `transition` ist EINE
 	   Eigenschaft, und waehrend `.leaflet-zoom-anim` liegt, gewinnt diese hier. Stuende die Deckkraft
 	   nur oben, spraenge die Flaeche beim Zoomstart hart auf 0 statt auszublenden.
-	   ⚠️ Kuerzer als die 250 ms der Zoom-Animation, sonst ist sie bei deren Ende noch nicht bei 0. */
-	transition: transform 250ms cubic-bezier(0, 0, 0.25, 1),
+	   ⚠️ Kuerzer als die Dauer der Zoom-Animation, sonst ist sie bei deren Ende noch nicht bei 0.
+	   🔴 Die Transform-Haelfte liest seit 26.08.2026 die gemeinsamen Token aus
+	   css/features/zoom-uebergang.css -- vorher stand hier eine achte Abschrift derselben Kurve. */
+	transition: transform var(--avesmaps-zoom-dauer) var(--avesmaps-zoom-kurve),
 	            opacity var(--border-label-fade-out, 120ms) ease-out;
 }
 
