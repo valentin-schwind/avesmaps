@@ -28,9 +28,27 @@ const ohneKommentare = (text) => text
 	.replace(/(^|[^:])\/\/[^\n]*/g, "$1");
 
 // ---- Die Kurve ist EINE Kurve -----------------------------------------------------------------
-assert.strictEqual(AVESMAPS_ZOOM_DAUER_MS, 250,
+assert.strictEqual(AVESMAPS_ZOOM_DAUER_BASIS_MS, 250,
 	"💣 250 ist Leaflets eigene Zahl (setTimeout(_onZoomTransitionEnd, 250) in js/third-party/"
 	+ "leaflet.js, minifiziert) -- eine andere Dauer laeuft an Leaflets Ende vorbei.");
+// 🔴 OHNE ?zoomlupe ist die wirksame Dauer zifferngenau die Basis. Die Zeitlupe ist ein Werkzeug
+// zum Hinsehen; sie darf die Karte im Normalbetrieb nicht anfassen.
+assert.strictEqual(AVESMAPS_ZOOM_LUPE, 1, "Ohne Adresszeile darf keine Zeitlupe aktiv sein.");
+assert.strictEqual(AVESMAPS_ZOOM_DAUER_MS, AVESMAPS_ZOOM_DAUER_BASIS_MS,
+	"Ohne ?zoomlupe muss die wirksame Dauer die Basis sein.");
+{
+	// 💣 Die Zeitlupe MUSS auch Leaflets eigenes Ende dehnen, sonst ist sie nach 250 ms
+	// abgeschnitten -- und man saehe genau den Teil nicht, den man sucht.
+	const quelle = ohneKommentare(lies("js/map-features/zoom-uebergang.js"));
+	assert.ok(/_onZoomTransitionEnd/.test(quelle),
+		"💣 Die Zeitlupe dehnt Leaflets Aufraeumen nicht -- nach 250 ms bricht sie ab.");
+	// 🔴 Und ausschliesslich mit gesetztem Parameter: kein Umwickeln im Normalbetrieb.
+	assert.ok(/if \(AVESMAPS_ZOOM_LUPE > 1\)/.test(quelle),
+		"🔴 Die Zeitlupe greift nicht nur unter ihrem Parameter -- sie wuerde die Karte jedes Mal "
+		+ "anfassen.");
+	assert.ok(/wert >= 1 && wert <= 60/.test(quelle),
+		"⚠️ Der Faktor ist nicht eingegrenzt -- ein Tippfehler legte den Zoom minutenlang lahm.");
+}
 assert.strictEqual(AVESMAPS_ZOOM_KURVE, "cubic-bezier(0.42, 0, 0.58, 1)");
 assert.deepStrictEqual(AVESMAPS_ZOOM_KURVE_PUNKTE, [0.42, 0, 0.58, 1],
 	"💣 Der String und die Punkte sind ein GEKOPPELTER Wert: der String faehrt die CSS-Uebergaenge, "

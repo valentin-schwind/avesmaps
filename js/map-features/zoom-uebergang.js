@@ -23,9 +23,50 @@
 // Geladen von index.html, VOR allen Zeichenflaechen und vor js/app/bootstrap.js.
 // Bewacht von js/map-features/__tests__/zoom-uebergang.test.js.
 
-const AVESMAPS_ZOOM_DAUER_MS = 250;
+const AVESMAPS_ZOOM_DAUER_BASIS_MS = 250;
+
+// ⭐ DIE ZEITLUPE: ?zoomlupe=<faktor> dehnt den GANZEN Zoomschritt. Owner 26.08.2026, beim Suchen
+// einer doppelten Beschriftung: „wenn du mir einen schalter gibst der die animation auf 5 sekunden
+// streckt kann ichs dir genauer sagen". Ein Werkzeug zum Hinsehen, kein Kartenmerkmal.
+//
+// 💣 SIE MUSS AUCH LEAFLETS EIGENES ENDE DEHNEN, sonst ist sie wertlos. Leaflet zaehlt seine 250 ms
+// selbst (`setTimeout(a(this._onZoomTransitionEnd,this),250)`, minifiziert) und raeumt danach auf:
+// die Overlays loeschen ihre Transitions und setzen ihre Flaechen neu. Ohne Mitdehnen waere die
+// Zeitlupe nach 250 ms abgeschnitten -- man saehe genau den Teil NICHT, den man sucht.
+// Deshalb wird `_onZoomTransitionEnd` umwickelt und um die zusaetzliche Zeit verzoegert.
+// ⚠️ NUR mit gesetztem Parameter. Ohne ihn wird nichts umwickelt, nichts gesetzt, und
+// AVESMAPS_ZOOM_DAUER_MS ist zifferngenau die Basis -- die Karte weiss nichts von diesem Block.
+const AVESMAPS_ZOOM_LUPE = (() => {
+	try {
+		const roh = new URLSearchParams(window.location.search).get("zoomlupe");
+		const wert = Number(roh);
+		if (roh !== null && Number.isFinite(wert) && wert >= 1 && wert <= 60) { return wert; }
+	} catch (e) { /* ohne Adresszeile keine Lupe */ }
+	return 1;
+})();
+
+const AVESMAPS_ZOOM_DAUER_MS = Math.round(AVESMAPS_ZOOM_DAUER_BASIS_MS * AVESMAPS_ZOOM_LUPE);
 const AVESMAPS_ZOOM_KURVE_PUNKTE = [0.42, 0, 0.58, 1];
 const AVESMAPS_ZOOM_KURVE = "cubic-bezier(0.42, 0, 0.58, 1)";
+
+if (AVESMAPS_ZOOM_LUPE > 1) {
+	// Das CSS-Token nachziehen -- es faehrt Leaflets Kachel-/SVG-Transform und die Blenden im CSS.
+	// Inline an :root gewinnt gegen die Regel aus css/features/zoom-uebergang.css.
+	try {
+		document.documentElement.style.setProperty("--avesmaps-zoom-dauer", AVESMAPS_ZOOM_DAUER_MS + "ms");
+	} catch (e) { /* ohne Dokument keine Lupe */ }
+	// Und Leaflets Aufraeumen um dieselbe Zeit verschieben.
+	try {
+		const echt = L.Map.prototype._onZoomTransitionEnd;
+		const zusatz = AVESMAPS_ZOOM_DAUER_MS - AVESMAPS_ZOOM_DAUER_BASIS_MS;
+		L.Map.prototype._onZoomTransitionEnd = function () {
+			window.setTimeout(() => echt.call(this), zusatz);
+		};
+		// eslint-disable-next-line no-console
+		console.info("[avesmaps] Zoom-Zeitlupe aktiv: Faktor " + AVESMAPS_ZOOM_LUPE
+			+ " (" + AVESMAPS_ZOOM_DAUER_MS + " ms). Nur zum Hinsehen -- ?zoomlupe weglassen fuer normal.");
+	} catch (e) { /* ohne Leaflet keine Lupe */ }
+}
 
 // 💣 DER STRING UND DIE PUNKTE SIND EIN GEKOPPELTER WERT: der String faehrt die CSS-Uebergaenge,
 // die Punkte fahren die Gegenrechnung der Ortsmarker. Laufen sie auseinander, rechnet die Korrektur
