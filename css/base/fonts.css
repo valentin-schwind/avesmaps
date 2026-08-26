@@ -1,14 +1,21 @@
 @font-face {
 	font-family: "Faculty Glyphic";
-	/* 💣 woff2 ZUERST -- der Browser nimmt das erste Format, das er kann, und woff2 kann jeder
-	   Browser, der diese Karte ueberhaupt darstellt. Die woff bleibt als zweite Zeile stehen
-	   (35.356 statt 26.440 Bytes), die ttf als dritte; beide kosten nichts, solange niemand
-	   sie braucht. 🔴 Die Adresse hier und die im <link rel="preload"> in index.html muessen
+	/* 🔴 NUR woff2, KEINE Rueckfallformate. Seit 27.08.2026, gemessen statt vermutet: Chrome 148
+	   holt die ersten ZWEI Quellen einer src-Liste, nie die dritte -- vorher also woff (35.356 B)
+	   PLUS ttf (64.928 B), danach woff2 (26.440 B) plus woff. Die Rueckfallzeilen kosteten also
+	   bei JEDEM Kaltbesuch eine zweite Datei, ohne je gebraucht zu werden.
+	   ⚠️ Das ist eine Entscheidung ueber Browser-Unterstuetzung, nicht bloss eine Kuerzung:
+	   ein Browser ohne woff2 bekommt jetzt gar keine Hausschrift mehr, sondern die
+	   Rueckfallkette aus `font-family`. woff2 kann jeder Browser seit 2015 -- und jeder,
+	   der diese Karte (Leaflet, Canvas, moderne Sprachmittel) ueberhaupt darstellt.
+	   Owner-Entscheid 27.08.2026: „Schrift auf woff2 allein kuerzen -> ja".
+	   ⚠️ Die Dateien FacultyGlyphic-Regular.woff und .ttf BLEIBEN im Repo: die ttf ist die
+	   Vorlage, aus der die woff2 erzeugt wurde (fontTools), und die Lizenz liegt daneben.
+	   Sie werden nur nicht mehr angefordert.
+	   🔴 Die Adresse hier und die im <link rel="preload"> in index.html muessen
 	   ZEICHENGLEICH sein -- der Deploy-Stempler fasst weder die eine noch die andere an
 	   (sein Muster kennt nur js|css|assets mit .js/.css), also passen sie zusammen. Bekaeme
 	   eine der beiden je ein ?v=, laedt der Browser die Schrift ZWEIMAL. */
-	src: url("../../fonts/FacultyGlyphic-Regular.woff2") format("woff2"),
-		 url("../../fonts/FacultyGlyphic-Regular.woff") format("woff"),
-		 url("../../fonts/FacultyGlyphic-Regular.ttf") format("truetype");
+	src: url("../../fonts/FacultyGlyphic-Regular.woff2") format("woff2");
 	font-display: swap;
 }
