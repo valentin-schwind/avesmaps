@@ -142,8 +142,34 @@ assert.ok(/hover:\s*hover/.test(schwebe) && /pointer:\s*fine/.test(schwebe),
 	"das Ueberfahren haengt an BEIDEN Merkmalen -- sonst klappt es am Finger beim Tippen auf");
 assert.ok(/mouseenter/.test(schwebe) && /mouseleave/.test(schwebe),
 	"es reagiert auf Betreten UND Verlassen der Huelle");
-assert.ok(/setTimeout[\s\S]{0,200}\d{2,4}\)/.test(schwebe),
+assert.ok(/setTimeout[\s\S]{0,200}(SCHWEBE_(AUF|ZU)_MS|\d{2,4})\)/.test(schwebe),
 	"mit Verzoegerungen -- sofort waere es ein Aufklappen im Vorbeifahren zum Zoom");
+
+// ---- 15. BEIDE STUFEN SCHWEBEN GLEICH (26.08.2026) ----------------------------------------------
+//
+// 🔴 Owner: „kannst du das mouseover von beiden menues gleichmachen?" Die zweite Stufe oeffnete
+// bis dahin SOFORT, waehrend das Hauptmenue 140 ms wartet -- wer ueber die Reihe fuhr, um zu einer
+// anderen Ansicht zu kommen, riss jedes Untermenue auf dem Weg auf.
+// 💣 Und die Zahlen standen DREIMAL einzeln im Code. Zwei Menues mit denselben Zahlen an drei
+// Stellen sind zwei Menues, die beim naechsten Nachjustieren auseinanderlaufen.
+assert.ok(/var SCHWEBE_AUF_MS = \d+;/.test(js) && /var SCHWEBE_ZU_MS = \d+;/.test(js),
+	"die Schwebe-Zeiten haben Namen");
+assert.ok((js.match(/\bSCHWEBE_AUF_MS\b/g) || []).length >= 2,
+	"...und das Aufklappen liest sie in BEIDEN Stufen");
+assert.ok((js.match(/\bSCHWEBE_ZU_MS\b/g) || []).length >= 3,
+	"...das Zuklappen ebenso");
+assert.ok(!/setTimeout\([^)]*,\s*(140|260)\)/.test(js),
+	"...und nirgends steht die Zahl noch einmal roh im Code");
+
+// ⭐ Eine OFFENE Stufe wandert ohne Warten weiter -- die Absicht ist dann erklaert, und ein zweites
+// Warten liesse die Reihe hinter der Maus herhinken.
+assert.ok(/stufeZweiOffen \? 0 : SCHWEBE_AUF_MS/.test(js),
+	"eine offene zweite Stufe wandert sofort, eine geschlossene wartet");
+
+// 💣 Wer die Zelle verlaesst, bevor die Zeit um ist, wollte sie nicht: das wartende Aufklappen
+// muss abgeraeumt werden, sonst faehrt die Stufe heraus, wenn die Maus laengst weiter ist.
+assert.ok(/mouseleave[\s\S]{0,200}clearTimeout\(stufeAufTimer\)/.test(js),
+	"ein wartendes Aufklappen wird beim Verlassen der Zelle abgeraeumt");
 
 // 💣 Beim Ueberfahren wird NICHT fokussiert: ein Fokus ohne Zutun springt mit der Seite zum
 // Element und nimmt der Tastatur ihre Stelle. Nur Klick und Tastatur fokussieren.
@@ -381,3 +407,16 @@ assert.ok(/\.map-layer-picker__menu\.is-open \.map-layer-picker__label--grund[\s
 	"die Untergrund-Zeile blendet aus, sobald das Menue aufklappt");
 assert.ok(!/label--grund/.test(js.replace(/map-layer-picker__label map-layer-picker__label--grund/g, "")),
 	"...und das JS steuert das nicht: es vergibt die Klasse und sonst nichts");
+
+
+// ---- 16. DIE AUSWAHL IST IN BEIDEN STUFEN GLEICH MARKIERT (26.08.2026) --------------------------
+//
+// 🔴 Owner: „und das was gerade selektiert ist auch". Der helle Trennstrich stand zuerst nur an
+// der zweiten Stufe, weil deren Kacheln echte Kartenausschnitte sind. Aber auch die
+// Ansichts-Symbole sind Kartenbilder -- zwei verschieden markierte Auswahlen in EINEM Menue
+// waeren eine Divergenz, kein Feinschliff.
+const marke = css.match(/^\.map-layer-picker__cell\.is-active \.map-layer-picker__thumb::before/m);
+assert.ok(marke,
+	"die Markierung des Gewaehlten haengt an der Zelle, nicht an einer der beiden Stufen");
+assert.ok(!/__grund[^\n]*is-active[^\n]*::before/.test(css),
+	"...und NICHT nur an der Untergrund-Reihe -- dann traefe sie das Hauptmenue nie");

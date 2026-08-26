@@ -22,6 +22,22 @@
 	var BLENDE_ZU_MS = 130;
 
 	/**
+	 * 🔴 DIE SCHWEBE-ZEITEN GELTEN BEIDEN STUFEN (26.08.2026, Owner: „kannst du das mouseover von
+	 * beiden menues gleichmachen?").
+	 *
+	 * 💣 Das Aufklappen wartet, und das ist kein Komfort, sondern der Sinn: wer ueber die Reihe
+	 * faehrt, um zu einer anderen Ansicht zu kommen, reisst sonst jedes Untermenue auf dem Weg auf.
+	 * Die zweite Stufe oeffnete bis hierher SOFORT -- damit flackerte sie beim Durchfahren.
+	 * ⚠️ Die Zahlen standen vorher dreimal einzeln im Code (140 im Hauptmenue, 260 im Hauptmenue,
+	 * 260 in der zweiten Stufe). Zwei Menues mit denselben Zahlen an drei Stellen sind zwei Menues,
+	 * die beim naechsten Nachjustieren auseinanderlaufen.
+	 * ⭐ Eine offene Stufe WANDERT dagegen ohne Verzoegerung zur naechsten Ansicht: die Absicht ist
+	 * dann schon erklaert, und ein zweites Warten liesse die Reihe hinter der Maus herhinken.
+	 */
+	var SCHWEBE_AUF_MS = 140;
+	var SCHWEBE_ZU_MS = 260;
+
+	/**
 	 * 🔴 `?layerPanelActive=0` ist der NOTAUSGANG, nicht mehr der Einschalter. Die Kachel laeuft
 	 * seit dem 12.08.2026 von sich aus (Owner: „geh live mit dem jetzigen"), und mit ihr
 	 * verschwindet die Zeile „Derographie" aus dem Routenplaner. Geht damit etwas schief, holt
@@ -248,6 +264,7 @@
 		// Welche Ansicht zeigt gerade ihre Untergruende? `null` heisst: die zweite Stufe ist zu.
 		var stufeZwei = null;
 		var stufeTimer = null;
+		var stufeAufTimer = null;
 		/**
 		 * 💣 DER ZUSTAND DER ZWEITEN STUFE STEHT HIER, NICHT IN DER KLASSE -- dieselbe Regel wie
 		 * `zustandOffen` beim Hauptmenue, und aus demselben Grund: `is-open` wird erst im NAECHSTEN
@@ -308,9 +325,25 @@
 					if (!amZeiger || !amZeiger.matches || stufeZwei === z.dataset.mode) {
 						return;
 					}
-					stufeZwei = z.dataset.mode;
-					markiereQuelle();
-					oeffneStufeZwei();
+					window.clearTimeout(stufeAufTimer);
+					// 🔴 DIESELBE REGEL WIE BEIM HAUPTMENUE: erst warten, dann aufklappen. Wer ueber
+					// die Reihe faehrt, um zu einer anderen Ansicht zu kommen, reisst sonst jedes
+					// Untermenue auf dem Weg auf.
+					// ⭐ Ist die Stufe schon offen, wandert sie OHNE Warten weiter -- die Absicht ist
+					// dann erklaert, und ein zweites Warten liesse die Reihe hinter der Maus
+					// herhinken. oeffneStufeZwei() unterscheidet die beiden Faelle selbst.
+					var verzoegerung = stufeZweiOffen ? 0 : SCHWEBE_AUF_MS;
+					stufeAufTimer = window.setTimeout(function () {
+						stufeZwei = z.dataset.mode;
+						markiereQuelle();
+						oeffneStufeZwei();
+					}, verzoegerung);
+				});
+				// ⚠️ Wer die Zelle wieder verlaesst, bevor die Zeit um ist, wollte sie nicht --
+				// ohne diese Zeile klappte das Untermenue noch auf, nachdem die Maus laengst weiter
+				// ist. Genau das macht ein Menue unruhig.
+				z.addEventListener("mouseleave", function () {
+					window.clearTimeout(stufeAufTimer);
 				});
 			});
 		}
@@ -375,6 +408,9 @@
 
 		function schliesseStufeZwei() {
 			window.clearTimeout(stufeTimer);
+			// 💣 Auch ein noch WARTENDES Aufklappen abraeumen -- sonst faehrt die Stufe heraus,
+			// nachdem das Menue bereits zugegangen ist.
+			window.clearTimeout(stufeAufTimer);
 			stufeZwei = null;
 			stufeZweiOffen = false;
 			markiereQuelle();
@@ -398,7 +434,7 @@
 			if (festgehalten) {
 				return;
 			}
-			stufeTimer = window.setTimeout(schliesseStufeZwei, 260);
+			stufeTimer = window.setTimeout(schliesseStufeZwei, SCHWEBE_ZU_MS);
 		}
 
 		var blendeTimer = null;
@@ -627,7 +663,7 @@
 			}
 			schwebeTimer = window.setTimeout(function () {
 				if (schwebenErlaubt() && !offen()) { oeffne(false); }
-			}, 140);
+			}, SCHWEBE_AUF_MS);
 		});
 
 		huelle.addEventListener("mouseleave", function () {
@@ -643,7 +679,7 @@
 			}
 			schwebeTimer = window.setTimeout(function () {
 				if (offen()) { schliesse(); }
-			}, 260);
+			}, SCHWEBE_ZU_MS);
 		});
 
 		menue.addEventListener("click", function (ereignis) {
