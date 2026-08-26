@@ -579,7 +579,7 @@ const ROUTE_WAYPOINT_MARKER_IMAGES = {
 const ROUTE_WAYPOINT_POPUP_CLOSE_DELAY_MS = 220;
 
 const MAP_TILE_STYLES = {
-	old: { label: "Original", url: "./tiles/old/{z}/map_{x}_{y}.webp" },
+	old: { label: "Original", url: "./tiles/original/{z}/map_{x}_{y}.webp" }, // 🔴 Der SCHLUESSEL bleibt `old` -- er steckt in geteilten Links (`?mapstyle=old`) und in `avesmaps.edit.mapStyle`; nur der ORDNER heisst seit 26.08.2026 `tiles/original` (dieselbe Trennung wie „Neuigkeiten"/`changelog`, AGENTS.md §11).
 	stylized: { label: "Stylized", url: "./tiles/stylized/{z}/map_{x}_{y}.webp" },
 };
 const MAP_FEATURE_UPDATE_API_URL = window.AVESMAPS_MAP_FEATURE_UPDATE_ENDPOINT || "api/edit/map/features.php";
