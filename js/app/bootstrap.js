@@ -255,8 +255,19 @@ map.getPane("labelsPane").classList.add("map-labels-pane");
 		klon.style.transition = "";
 		klon.style.opacity = "1";
 		pane.parentNode.insertBefore(klon, pane);   // unter dem echten Pane -> neue Schrift kommt darueber
-		pane.style.transition = "";
+		// 💣 HART AUF 0, NICHT UEBERBLENDET -- die Ursache der doppelten Schrift vom 26.08.2026.
+		// `style.transition = ""` heisst NICHT „kein Uebergang", sondern „nimm wieder die
+		// CSS-Regel" -- und die steht seit der Vereinheitlichung auf der vollen Zoomdauer
+		// (vorher 100 ms, weshalb es jahrelang niemand sah). Das Pane blendete dadurch im
+		// GLEICHSCHRITT mit dem Klon, und weil Leaflet seine Marker im zoomanim schon auf die
+		// ZIELpositionen setzt (§8a), zeigten beide dieselben Namen an zwei Stellen: eines
+		// stabil, eines driftend. Vom Owner per Messprotokoll belegt (Klon 1.00 | Pane 1.00).
+		// ⚠️ Der erzwungene Zwischenstand ist tragend, sonst fasst der Browser Setzen und
+		// Ruecknahme zusammen und `none` wirkt nicht.
+		pane.style.transition = "none";
 		pane.style.opacity = "0";                   // unsichtbar, aber der Klon zeigt dasselbe Bild
+		void pane.offsetWidth;
+		pane.style.transition = "";
 
 		// 🔴 UND HIER BEGINNT DAS AUSBLENDEN -- bei t = 0, nicht erst nach dem Zoom.
 		// Der Klon haelt das alte Schriftbild und skaliert gratis mit (er ist ein Kind des
@@ -272,7 +283,9 @@ map.getPane("labelsPane").classList.add("map-labels-pane");
 		// 💣 HARTES NETZ, SCHON HIER GESPANNT. Die Blende unten haengt an requestAnimationFrame; feuert
 		// das nie (angehaltene Darstellung), bliebe der Klon fuer immer stehen -- doppelte Schrift auf
 		// der Karte. Nach 2 s verschwindet er in jedem Fall.
-		aufraeumer = setTimeout(() => { pane.style.opacity = "1"; klonWeg(); }, 2000);
+		// ⚠️ Das Netz waechst mit der Zoomdauer: unter ?zoomlupe feuerte eine feste 2000 mitten in
+		// die laufende Bewegung und machte das Pane sichtbar, waehrend der Klon noch stand.
+		aufraeumer = setTimeout(() => { pane.style.opacity = "1"; klonWeg(); }, AVESMAPS_ZOOM_DAUER_MS + 1750);
 	});
 
 	map.on("zoomend", () => {

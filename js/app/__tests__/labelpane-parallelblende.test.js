@@ -63,10 +63,36 @@ assert.ok(html.indexOf("js/map-features/zoom-uebergang.js") < html.indexOf("js/a
 	"💣 zoom-uebergang.js wird nach bootstrap.js geladen -- der Klon bekaeme 'opacity undefinedms'.");
 
 // ---- Was NICHT verlorengehen darf --------------------------------------------------------------
+// 🔴 DAS ECHTE PANE MUSS HART AUF 0, NICHT UEBERBLENDET -- die Ursache der doppelten Schrift
+// vom 26.08.2026, vom Owner per Messprotokoll belegt:
+//     0 ms | Klon 1.00 | Pane 1.00   <-- BEIDE SICHTBAR
+//   740 ms | Klon 0.96 | Pane 0.96   <-- BEIDE SICHTBAR
+// Beide blendeten im Gleichschritt, beide mit den ALTEN Namen -- der Klon auf den Quell-, das
+// Pane auf den Zielpositionen (Leaflet setzt seine Marker im zoomanim um, §8a). Daher „eines
+// stabil, eines driftet".
+// 💣 DIE FALLE: `style.transition = ""` heisst NICHT „kein Uebergang", sondern „nimm wieder die
+// CSS-Regel". Und die stand seit der Vereinheitlichung auf der vollen Zoomdauer -- vorher auf
+// 100 ms, weshalb es jahrelang niemand sah. Nur `transition = "none"` plus erzwungener
+// Zwischenstand setzt wirklich hart.
+assert.ok(/pane\.style\.transition = "none";[\s\S]{0,120}?pane\.style\.opacity = "0"/.test(quelle),
+	"💣 Das echte Pane wird nicht HART auf 0 gesetzt. Mit `transition = \"\"` uebernimmt die "
+	+ "CSS-Regel, und die laeuft ueber die volle Zoomdauer -- Pane und Klon blenden dann im "
+	+ "Gleichschritt und zeigen dieselben Namen an zwei Stellen.");
+assert.ok(/void pane\.offsetWidth/.test(quelle),
+	"💣 Ohne erzwungenen Zwischenstand wirkt `transition: none` nicht -- der Browser fasst das "
+	+ "Setzen und die Ruecknahme zusammen.");
+
+// ⚠️ Und das Sicherheitsnetz muss mit der Zoomdauer wachsen: mit ?zoomlupe feuerte es mitten in
+// die laufende Bewegung und machte das Pane sichtbar, waehrend der Klon noch da war.
+assert.ok(/AVESMAPS_ZOOM_DAUER_MS \+ 1750/.test(quelle),
+	"⚠️ Das Sicherheitsnetz haengt an einer festen Zahl statt an der Zoomdauer -- unter der "
+	+ "Zeitlupe feuert es mitten in die Bewegung.");
+
 // 💣 Das harte Netz: feuert requestAnimationFrame nie, stuende der Klon fuer immer -- und auf der
 // Karte stuende doppelte Schrift.
-assert.ok(/setTimeout\([\s\S]{0,200}?2000\)/.test(block),
-	"💣 Das 2-Sekunden-Netz gegen den haengenden Klon fehlt.");
+assert.ok(/setTimeout\([\s\S]{0,220}?AVESMAPS_ZOOM_DAUER_MS \+ 1750\)/.test(block),
+	"💣 Das Netz gegen den haengenden Klon fehlt. Es ergibt bei Vorgabedauer weiterhin 2000 ms, "
+	+ "waechst aber jetzt mit -- unter ?zoomlupe feuerte eine feste 2000 mitten in die Bewegung.");
 // 💣 Immer nur EIN Klon -- zwei uebereinander waeren doppelte Schrift.
 assert.ok(block.indexOf("klonWeg()") < block.indexOf("cloneNode"),
 	"💣 Der zoomanim raeumt den vorigen Klon nicht zuerst weg.");
