@@ -261,11 +261,13 @@ function loadRouteDataFromApi() {
 		mapFeaturesUrl.searchParams.set("edit_mode", "1");
 	}
 
-	return fetch(mapFeaturesUrl.toString(), {
-		headers: {
-			Accept: "application/json",
-		},
-	})
+	// 🔴 OHNE EIGENE KOPFZEILEN, UND DAS IST TRAGEND. Diese Anfrage wird im Kopf von index.html per
+	// <link rel="preload" as="fetch"> vorangemeldet; ein `Accept: application/json` hier gegen das
+	// `*/*` des Vorabrufs laesst Chrome den Vorabruf verwerfen -- und dann reisen die ~3 MB ZWEIMAL,
+	// also schlechter als ohne Vorabruf. Serverseitig liest den Kopf niemand (kein HTTP_ACCEPT in
+	// api/), er war reine Hoeflichkeit. Wer hier je wieder eine Kopfzeile ergaenzt, muss den
+	// Vorabruf in index.html mitnehmen -- oder ihn entfernen.
+	return fetch(mapFeaturesUrl.toString())
 		.then((response) => {
 			if (!response.ok) {
 				throw new Error(`Map-Features-API antwortet mit HTTP ${response.status}.`);

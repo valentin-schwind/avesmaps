@@ -21,6 +21,36 @@
 				}
 			} catch (e) {}
 		</script>
+		<script>
+			/* Vorabruf der Kartendaten. `api/app/map-features.php` ist die teuerste Anfrage der Seite
+			   (live 2,1-2,5 s Serverzeit, ~3 MB gzip) und wurde bisher erst von routing.js gestartet --
+			   als Anfrage Nr. ~230 von ~255. Hier angemeldet laeuft die Serverarbeit parallel zum
+			   Herunterladen des ganzen JavaScripts statt danach.
+			   💣 EIN VERFEHLTER VORABRUF WAERE SCHLIMMER ALS GAR KEINER: dann reisen die 3 MB zweimal.
+			   Zwei Bedingungen halten ihn passend, beide tragend:
+			   (1) Im Bearbeiten-Modus haengt routing.js `?edit_mode=1` an -- eine ANDERE Adresse. Deshalb
+			       ist das hier ein Skript und kein festes <link>: bei `?edit=1` wird gar nichts
+			       angemeldet. Die Erkennung ist zeichengleich zu `IS_EDIT_MODE` in js/config.js
+			       (derselbe tolerante `?`->`&`-Ersatz), damit beide dieselbe Antwort geben.
+			   (2) Der Abruf in routing.js schickt KEINE eigenen Kopfzeilen mehr. Ein `Accept:
+			       application/json` dort gegen den unspezifischen Accept des Vorabrufs ist genau die
+			       Ungleichheit, an der Chrome ihn verwirft. Serverseitig liest den Kopf niemand.
+			   ⚠️ `crossorigin` gehoert dazu: `fetch()` laeuft im CORS-Modus mit `credentials:
+			   "same-origin"`, und nur `crossorigin="anonymous"` beschreibt genau das.
+			   ⚠️ Auf einem Rechner, der nicht in SQL_MAP_HOSTS steht, holt niemand die Daten ab und der
+			   Vorabruf ist eine Anfrage umsonst. Die Wirtsliste steht bewusst NICHT ein zweites Mal
+			   hier -- eine zweite Wahrheit dafuer waere teurer als die eine Anfrage in der Werkstatt. */
+			try {
+				if (new URLSearchParams(String(window.location.search || "").replace(/\?/g, "&")).get("edit") !== "1") {
+					var mapFeaturesPreload = document.createElement("link");
+					mapFeaturesPreload.rel = "preload";
+					mapFeaturesPreload.as = "fetch";
+					mapFeaturesPreload.crossOrigin = "anonymous";
+					mapFeaturesPreload.href = "api/app/map-features.php";
+					document.head.appendChild(mapFeaturesPreload);
+				}
+			} catch (e) {}
+		</script>
 		<!-- Declare the icon explicitly instead of relying on the browser's implicit /favicon.ico probe.
 		     That probe is fetched rarely and its RESULT is cached hard -- a single failed request (the site
 		     was behind a maintenance redirect during the 2026-07-24 outage) leaves the tab iconless for a
