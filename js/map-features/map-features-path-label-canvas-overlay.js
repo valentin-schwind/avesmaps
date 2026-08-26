@@ -108,8 +108,8 @@
 	}
 	// ⚠️ Das Ausblenden ist kuerzer als die 250 ms der Zoom-Animation: was bei deren Ende noch
 	// sichtbar ist, springt beim Neuzeichnen doch. ?wegefadeout=<ms> / ?wegefade=<ms>.
-	const PATH_LABEL_FADE_OUT_MS = pfadLabelDauer("wegefadeout", 120);
-	const PATH_LABEL_FADE_IN_MS = pfadLabelDauer("wegefade", 350);
+	const PATH_LABEL_FADE_OUT_MS = pfadLabelDauer("wegefadeout", AVESMAPS_ZOOM_DAUER_MS);
+	const PATH_LABEL_FADE_IN_MS = pfadLabelDauer("wegefade", AVESMAPS_ZOOM_DAUER_MS);
 
 	/**
 	 * Einblenden -- aber erst, wenn wirklich wieder gezeichnet wird.
@@ -128,11 +128,11 @@
 				// ziehen die 2x nach“. Genau dagegen loescht der moveend-Handler die Transition -- diese
 				// Einblendung hat den Schutz unterlaufen.
 				// Die frisch gezeichnete Flaeche auf ...
-				vorne.style.transition = "opacity " + PATH_LABEL_FADE_IN_MS + "ms ease";
+				vorne.style.transition = "opacity " + PATH_LABEL_FADE_IN_MS + "ms " + AVESMAPS_ZOOM_KURVE;
 				vorne.style.opacity = "1";
 				// ... und im SELBEN Bild die alte ab: zwei Uebergaenge, gleiche Dauer, gleicher Start.
 				if (KREUZBLENDE_AN) {
-					hinten.style.transition = "opacity " + PATH_LABEL_FADE_IN_MS + "ms ease";
+					hinten.style.transition = "opacity " + PATH_LABEL_FADE_IN_MS + "ms " + AVESMAPS_ZOOM_KURVE;
 					hinten.style.opacity = "0";
 				}
 			});
@@ -1175,14 +1175,16 @@
 			return;
 		}
 		cssZoomActive = true;
-		// 🔴 Bei der Ueberblendung wird hier NICHT ausgeblendet: das alte Bild bleibt stehen und
-		// skaliert mit, bis das neue fertig ist. Ohne sie (?crossfade=0) gilt das alte Nacheinander.
-		if (KREUZBLENDE_AN) {
-			labelFlaechen.forEach((c) => { c.style.transition = PATH_LABEL_ZOOM_TRANSFORM; });
-		} else {
-			vorne.style.transition = PATH_LABEL_ZOOM_TRANSFORM + ", opacity " + PATH_LABEL_FADE_OUT_MS + "ms ease-out";
-			vorne.style.opacity = "0";
-		}
+		// 🔴 SEIT 26.08.2026 WIRD IMMER AUSGEBLENDET -- auch bei der Ueberblendung, und ab t = 0.
+		// Owner, nachdem die Siedlungsnamen es taten: „das bei allen beschriftungen wenns geht!"
+		// Hier stand vorher „bei der Ueberblendung wird NICHT ausgeblendet": das alte Schriftbild
+		// blieb waehrend des ganzen Zooms stehen und wechselte erst danach.
+		// ⚠️ Das Einblenden der NEUEN Schrift bleibt beim zoomend -- sie existiert vorher noch nicht.
+		// ⚠️ Die hintere Flaeche bekommt NUR die Transform: sie ist unsichtbar und wird gleich zur
+		// vorderen; eine Deckkraft-Transition auf ihr liefe gegen das Einblenden von nachher.
+		hinten.style.transition = PATH_LABEL_ZOOM_TRANSFORM;
+		vorne.style.transition = PATH_LABEL_ZOOM_TRANSFORM + ", opacity " + PATH_LABEL_FADE_OUT_MS + "ms " + AVESMAPS_ZOOM_KURVE;
+		vorne.style.opacity = "0";
 		zoomSchrittOffen = true;
 		const scale = map.getZoomScale(event.zoom);
 		const offset = map._latLngToNewLayerPoint(canvasTopLeftLatLng, event.zoom, event.center);

@@ -252,14 +252,21 @@ body.edit-mode .map-label img {
    Container; am zoomend faellt die Klasse weg -> sanftes Einblenden, sobald die Labels neu positioniert sind.
    (labelsPane enthaelt keine sichtbare Vektor-Geometrie -- die Fuehrungslinien der Wege-/Flussnamen sind
    transparent (opacity 0); die sichtbaren Wege liegen in roadsPane/powerlinesPane und skalieren korrekt mit.) */
+/* 🔴 EINE Kurve, EINE Dauer -- css/features/zoom-uebergang.css. Hier standen bis zum 26.08.2026
+   zwei eigene (200ms ease-in / 100ms ease-out); sie waren die letzten beiden Blenden ohne Anschluss
+   an die gemeinsame Kurve. Das AUSblenden ab `zoomanim` t = 0 leistet die zweite Regel schon immer
+   -- sie laeuft jetzt nur genauso lang wie der Zoom, statt nach 100 ms fertig zu sein.
+   ⚠️ Fuer `.map-labels-pane` ist diese Regel meist inert: der Pane-Klon in js/app/bootstrap.js
+   setzt die Deckkraft INLINE, und inline gewinnt. Sie traegt die Territoriumsnamen
+   (`.region-labels-pane`, kein Klon) und den Rueckfall ?crossfade=0. */
 .region-labels-pane,
 .map-labels-pane {
-	transition: opacity 200ms ease-in;
+	transition: opacity var(--avesmaps-zoom-dauer) var(--avesmaps-zoom-kurve);
 }
 .leaflet-zoom-anim .region-labels-pane,
 .leaflet-zoom-anim .map-labels-pane {
 	opacity: 0;
-	transition: opacity 100ms ease-out;
+	transition: opacity var(--avesmaps-zoom-dauer) var(--avesmaps-zoom-kurve);
 }
 
 .leaflet-tooltip.region-label {

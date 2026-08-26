@@ -436,18 +436,21 @@
 			const wert = Number(roh);
 			if (roh !== null && Number.isFinite(wert) && wert >= 0) { return wert; }
 		} catch (e) { /* ohne Adresszeile die Vorgabe */ }
-		return 350;
+		return AVESMAPS_ZOOM_DAUER_MS;
 	})();
 	labelFlaechen.forEach((c) => c.style.setProperty("--border-label-fade", TERRITORY_LABEL_FADE_MS + "ms"));
-	// Ausblenden beim Zoomschritt. ⚠️ EIGENER Wert und bewusst kuerzer als die 250 ms der
-	// Zoom-Animation: was danach noch sichtbar ist, springt beim Neuzeichnen doch. ?labelfadeout=<ms>.
+	// Ausblenden beim Zoomschritt -- seit 26.08.2026 auf der GEMEINSAMEN Dauer und ab t = 0.
+	// 🔴 Hier stand „EIGENER Wert und bewusst kuerzer als die 250 ms, sonst springt es beim
+	// Neuzeichnen": das galt, solange das Ausblenden erst NACH dem Zoom lief. Seit es bei t = 0
+	// beginnt, endet es genau dann, wenn die Zoomstufe sitzt -- und danach wird ohnehin neu
+	// gezeichnet und eingeblendet. ?labelfadeout=<ms> bleibt als Stellschraube.
 	const TERRITORY_LABEL_FADE_OUT_MS = (() => {
 		try {
 			const roh = new URLSearchParams(window.location.search).get("labelfadeout");
 			const wert = Number(roh);
 			if (roh !== null && Number.isFinite(wert) && wert >= 0) { return wert; }
 		} catch (e) { /* ohne Adresszeile die Vorgabe */ }
-		return 120;
+		return AVESMAPS_ZOOM_DAUER_MS;
 	})();
 	labelFlaechen.forEach((c) => c.style.setProperty("--border-label-fade-out", TERRITORY_LABEL_FADE_OUT_MS + "ms"));
 
@@ -827,10 +830,19 @@
 		// die Ortsmarkierungen ihr „Plopp“ loswerden (location-canvas-layer.js).
 		// ⚠️ Die Dauer kommt aus der `.leaflet-zoom-anim`-Regel in css/features/map-labels.css; die
 		// Klasse liegt hier bereits (Leaflet setzt sie VOR dem zoomanim-Ereignis), sonst spraenge es.
-		// 🔴 BEI DER UEBERBLENDUNG WIRD HIER NICHT AUSGEBLENDET. Das alte Bild bleibt stehen und
-		// skaliert mit, bis die neue Flaeche fertig ist -- erst dann laufen beide Uebergaenge zugleich.
-		// Ohne Ueberblendung (?crossfade=0) gilt das alte Nacheinander: erst weg, dann neu, dann rein.
-		if (!KREUZBLENDE_AN) { labelVorne.style.opacity = "0"; }
+		// 🔴 SEIT 26.08.2026 WIRD IMMER AUSGEBLENDET -- auch bei der Ueberblendung, und ab t = 0.
+		// Owner, nachdem die Siedlungsnamen es taten: „WOW zum erstenmal verschwinden die labels im
+		// augenblick des reinzoomens!!!!! ... das bei allen beschriftungen wenns geht!"
+		// Hier stand vorher `if (!KREUZBLENDE_AN)`: mit Ueberblendung blieb das alte Schriftbild
+		// waehrend des ganzen Zooms stehen und wechselte erst danach.
+		// ⚠️ Das Einblenden der NEUEN Schrift bleibt beim zoomend -- sie existiert vorher noch nicht.
+		// Wer sie mitwandern lassen will, zeichnet im zoomanim fuer die Zielstufe und rechnet die
+		// Flaeche gegen (Entwurf 2026-08-26-zoom-uebergang-konsistenz-design.md §5).
+		// 💣 UND HIER KOMMT KEINE INLINE-TRANSITION HIN. Die Blendenregel steht in
+		// css/features/map-labels.css; `transition` ist EINE Eigenschaft, und inline gewinnt -- eine
+		// Inline-Zuweisung loeschte die CSS-Regel dauerhaft aus. Die Dauer kommt ueber die Variable
+		// `--border-label-fade-out`, die weiter oben gesetzt wird.
+		labelVorne.style.opacity = "0";
 	});
 	// flyTo/setView: pro 'zoom'-Frame neu zeichnen (nur wenn KEIN CSS-Zoom läuft -> sonst Transform).
 	map.on("zoom", function () { if (!cssZoomActive) redraw(); });
