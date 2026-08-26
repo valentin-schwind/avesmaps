@@ -142,6 +142,44 @@ es wie eine Canvas-Fläche vom künftigen Eckpunkt auf `1/scale` starten lassen,
 ⚠️ Bei den **Canvas**-Ebenen (Grenznamen, Wege-/Flussnamen) geht das volle Überblenden dagegen: dort
 wird in eine Fläche gezeichnet, die man als Ganzes gegenrechnen kann.
 
+## §5a 💣 „Blende gesetzt" heißt NICHT „Blende läuft ab jetzt"
+
+**Die Falle, die am 26.08.2026 doppelte Beschriftungen erzeugt hat** — vom Owner per
+Bildschirmaufzeichnung belegt: *„AVENTURIEN"* stand für einen Moment **zweimal** da, senkrecht
+versetzt, einmal in der alten und einmal in der neuen Beschriftungslage.
+
+Die Rechnung dagegen war eindeutig: die ausgehende Ebene blendet ab `zoomanim` t = 0 über 250 ms
+aus, das neue Bild kommt erst nach dem `zoomend` — **kein Überlappen möglich**. Der Fehler steckte
+nicht in der Rechnung, sondern in einer unausgesprochenen Annahme:
+
+> Eine CSS-Blende beginnt **nicht**, wenn man sie setzt, sondern beim nächsten **Stilabgleich**.
+
+Und der Hauptthread ist beim Zoomstart damit beschäftigt, sämtliche Ebenen zu zeichnen. Startet die
+Blende 100 ms zu spät, steht die alte Schrift beim `zoomend` noch bei 0,4 — und die neue kommt
+darüber. Zwei Bilder mit **verschobenem Inhalt**, beide halb sichtbar: doppelte Schrift.
+
+⭐ **Die Regel, die daraus folgt:** wer zwei Übergänge gegeneinander plant, darf nicht mit dem
+Zeitpunkt der *Zuweisung* rechnen. Garantiert ist nur, was man erzwingt. Die ausgehende Ebene wird
+deshalb beim Einblenden **hart auf 0 gesetzt** statt überblendet — ihre Blende hatte sie beim
+Zoomstart; was davon noch läuft, hat dort nichts mehr zu suchen. Drei Stellen, eine Ursache:
+`labelHinten` (Grenznamen), `hinten` (Wegenamen), und der DOM-**Klon** wird entfernt, bevor das
+Pane einblendet.
+
+💣 **Die Inline-Transition muss SOFORT wieder weg.** `transition` ist EINE Eigenschaft und inline
+gewinnt: ein stehengebliebenes `transition: none` löschte die CSS-Blendenregel aus
+`css/features/map-labels.css` **dauerhaft und lautlos** aus — die Beschriftungen blendeten danach
+nie wieder.
+💣 **Und der erzwungene Zwischenstand (`void flaeche.offsetWidth`) dazwischen ist tragend**: ohne
+ihn fasst der Browser `transition: none`, das Nullsetzen und die Rücknahme zu einem Schritt
+zusammen, und das harte Setzen wirkt nicht.
+⚠️ Nur im parallelen Pfad. Bei `?labelparallel=0` / `?crossfade=0` **ist** die Überblendung das
+Gewollte — dort fängt das Ausblenden erst in diesem Moment an.
+
+🪤 **Warum eine Überblendung überhaupt doppelt zeigt:** sie blendet zwei Bilder gegeneinander, und
+zwischen zwei Zoomstufen hat sich die Lage jeder Beschriftung verschoben. Solange beide sichtbar
+sind, sieht man beide Fassungen. Das ist keine Fehlfunktion, sondern die Eigenschaft des Mittels —
+und der Grund, warum „erst ganz raus, dann rein" ruhiger aussieht als eine echte Überblendung.
+
 ## §6 Die drei Fallen, die es zweimal gebraucht hat
 
 💣 **`transition` ist EINE Eigenschaft.** Wer sie setzt, setzt sie ganz.
