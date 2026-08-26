@@ -702,6 +702,11 @@
 	--z-map-panel: 1010;
 	--z-dialog: 1450;
 	--z-dialog-high: 1460;
+	/* Der aufziehbare Rahmen des Kartenausschnitts (Social-Media-Hub, js/ui/karten-abzug.js).
+	   Ueber --z-dialog-high, weil er das Kartenkontextmenue ueberdecken muss -- und UNTER
+	   --z-editor-overlay, weil ein offener Editor die Karte ohnehin verdeckt und dort nichts
+	   aufzunehmen ist. Der Hub selbst (--z-modal) blendet sich fuer das Ziehen weg. */
+	--z-map-capture: 1470;
 	/* Editor overlays (the iframe tools: territory, settlement, adventure, citymap, wiki-sync).
 	   Above --z-dialog-high so an editor overlay always clears the map context menu sitting there. */
 	--z-editor-overlay: 1500;

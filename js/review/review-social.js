@@ -1187,6 +1187,57 @@
 			});
 	}
 
+	// „🗺 Kartenausschnitt" (Entwurf §5): der Hub blendet sich weg, der Editor zieht einen Rahmen auf
+	// der Karte, und was darunter liegt wird das Bild des Beitrags. Gemalt wird in
+	// js/ui/karten-abzug.js -- hier steht nur der Ablauf.
+	function nimmKartenausschnitt(button) {
+		const overlay = el("social-hub-overlay");
+		const host = el("social-media-info");
+		const werkzeug = window.avesmapsKartenAbzug;
+		if (!werkzeug) {
+			// 🔴 Kein stiller Rückfall. Fehlt das Bauteil, ist die Ladereihenfolge in index.html kaputt
+			// -- und ein Knopf, der dann einfach nichts tut, verschleiert genau das. Derselbe Grund wie
+			// beim Weiterreicher der Quellenkürzung (AGENTS.md §11).
+			if (host) { host.textContent = "Die Aufnahme steht nicht bereit (js/ui/karten-abzug.js fehlt)."; }
+			return;
+		}
+
+		// 💣 WEGBLENDEN, NICHT SCHLIESSEN. closeHub() setzt `editingId` und `pendingChannels` zurück:
+		// wer einen Entwurf bearbeitet, hätte danach einen neuen, leeren Beitrag vor sich. Die
+		// Formularwerte selbst überleben, weil das Fenster im DOM stehen bleibt.
+		if (overlay) { overlay.hidden = true; }
+		button.disabled = true;
+
+		function zurueck() {
+			if (overlay) { overlay.hidden = false; }
+			button.disabled = false;
+		}
+
+		werkzeug.rahmenWaehlen()
+			.then(function (rechteck) {
+				// `null` heißt hier „abgebrochen" und ist kein Fehler -- der einzige Ort, an dem das
+				// Bauteil leer auflöst, und deshalb der einzige, der es abfangen darf.
+				if (!rechteck) { return null; }
+				if (host) { host.textContent = "Kartenausschnitt wird aufgenommen …"; }
+				return werkzeug.aufnehmen(rechteck);
+			})
+			.then(function (ergebnis) {
+				zurueck();
+				if (!ergebnis) { return null; }
+				// Ein Name mit Endung, obwohl der Server ihn verwirft und die Bytes selbst schnüffelt:
+				// ohne ihn heißt das Feld im Multipart-Rumpf „blob", und das steht dann in jedem
+				// Fehlerprotokoll, das jemand später liest.
+				return uploadMedia(new File([ergebnis.blob], "kartenausschnitt.jpg",
+					{ type: "image/jpeg" }));
+			})
+			.catch(function (fehler) {
+				zurueck();
+				if (host) {
+					host.textContent = (fehler && fehler.message) || "Die Aufnahme ist fehlgeschlagen.";
+				}
+			});
+	}
+
 	function openHub(post) {
 		const overlay = el("social-hub-overlay");
 		if (!overlay) { return; }
@@ -1396,6 +1447,11 @@
 			file.addEventListener("change", function () {
 				if (file.files && file.files[0]) { uploadMedia(file.files[0]); }
 			});
+		}
+
+		const mapShot = el("social-map-shot");
+		if (mapShot) {
+			mapShot.addEventListener("click", function () { nimmKartenausschnitt(mapShot); });
 		}
 
 		const publishButton = el("social-publish");

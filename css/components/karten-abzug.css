@@ -1,0 +1,97 @@
+/* Der aufziehbare Rahmen für „Kartenausschnitt" im Social-Media-Hub (js/ui/karten-abzug.js).
+ *
+ * 💣 DER SCHLEIER HÄNGT AM RAHMEN, NICHT AN DER SCHICHT. `box-shadow: 0 0 0 9999px` färbt alles
+ * AUSSERHALB des Rahmens ein und lässt seinen Inhalt klar — genau der übliche Screenshot-Look.
+ * Ein Schleier an der Schicht selbst läge auch über dem gewählten Ausschnitt, und man sähe nicht
+ * mehr, was man gerade wählt. Solange kein Rahmen steht, ist die Karte deshalb unverdeckt: der
+ * Editor soll sein Ziel suchen können.
+ *
+ * 🔴 Alle Farben aus css/base/tokens.css (AGENTS.md §12). Ein `#rrggbb` in dieser Datei ist ein
+ * roter Test — js/ui/__tests__/karten-abzug.test.js prüft genau das.
+ */
+
+.kartenabzug-schicht {
+	position: absolute;
+	inset: 0;
+	z-index: var(--z-map-capture);
+	cursor: crosshair;
+	/* Ohne das rollt ein Touch-Gerät die Seite, statt einen Rahmen zu ziehen — der Browser
+	   entscheidet das VOR dem ersten pointermove und lässt sich danach nicht mehr umstimmen. */
+	touch-action: none;
+	user-select: none;
+}
+
+.kartenabzug-rahmen {
+	position: absolute;
+	/* Zwei Konturen, weil die Karte unter dem Rahmen jede Farbe haben kann: Wüste, Meer, Schnee.
+	   Eine einzelne Linie verschwindet auf einer davon zuverlässig. */
+	border: 2px solid var(--color-accent-brown);
+	outline: 1px solid var(--color-panel);
+	outline-offset: -3px;
+	box-shadow: 0 0 0 9999px var(--color-scrim-light);
+	pointer-events: none;
+}
+
+.kartenabzug-masse,
+.kartenabzug-hinweis {
+	position: absolute;
+	padding: 3px 8px;
+	border-radius: var(--radius-md);
+	background: var(--color-panel-translucent);
+	color: var(--color-text);
+	border: 1px solid var(--color-divider);
+	/* 11px ist die Untergrenze des Hauses (AGENTS.md §12) — darunter ist es keine Beschriftung
+	   mehr, sondern eine Zierleiste. */
+	font-size: 11px;
+	line-height: 1.5;
+	white-space: nowrap;
+	pointer-events: none;
+}
+
+/* Solange der Rahmen zu klein ist, sagt die Zeile das — und sagt es in der Warnfarbe, sonst liest
+   sich „Zieh einen größeren Rahmen" wie eine Maßangabe. */
+.kartenabzug-masse--knapp {
+	color: var(--color-text-muted);
+}
+
+.kartenabzug-hinweis {
+	top: 12px;
+	left: 50%;
+	transform: translateX(-50%);
+	box-shadow: var(--shadow-panel);
+}
+
+.kartenabzug-knoepfe {
+	position: absolute;
+	display: flex;
+	gap: 6px;
+	/* Die Schicht darüber fängt Zeiger ab; die Knöpfe müssen sie ausdrücklich wieder annehmen. */
+	pointer-events: auto;
+}
+
+/* Die Knopf-Hierarchie aus §12: die Haupthandlung gefüllt, alles andere weich. */
+.kartenabzug-knopf {
+	font: inherit;
+	font-size: 12px;
+	padding: 5px 11px;
+	border-radius: var(--radius-md);
+	border: 1px solid var(--color-button-soft-border);
+	background: var(--color-button-soft);
+	color: var(--color-button-soft-text);
+	cursor: pointer;
+	box-shadow: var(--shadow-panel);
+}
+
+.kartenabzug-knopf:hover {
+	background: var(--color-button-soft-hover);
+}
+
+.kartenabzug-knopf--haupt {
+	border-color: var(--color-button-border);
+	background: var(--color-button);
+	color: var(--color-button-text);
+}
+
+.kartenabzug-knopf--haupt:hover {
+	background: var(--color-button-hover);
+}

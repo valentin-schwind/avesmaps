@@ -2343,10 +2343,12 @@
 						<label class="social-hub__label">Bild</label>
 						<div class="social-chips">
 							<label class="social-hub__soft social-hub__file">⬆ Eigene Datei<input id="social-file" type="file" accept="image/png,image/jpeg,image/webp"></label>
-							<!-- Sichtbar und abgeschaltet statt versteckt: wer den Hub sieht, soll wissen, was
-							     kommt. Video ist Stufe 3 (Instagram nimmt es nur asynchron an), der
-							     Kartenausschnitt braucht eine eigene Aufnahme fuer Kacheln UND Canvas-Ebenen. -->
-							<button class="social-hub__soft" type="button" disabled title="Kommt spaeter">🗺 Kartenausschnitt</button>
+							<!-- Der Kartenausschnitt ist seit dem 26.08.2026 scharf (Entwurf §5, bis dahin
+							     abgeschaltet): er blendet den Hub weg, laesst einen Rahmen aufziehen und malt
+							     die Karte Schicht fuer Schicht in ein Bild -- js/ui/karten-abzug.js.
+							     Video bleibt sichtbar und abgeschaltet: Stufe 3, Instagram nimmt es nur
+							     asynchron an. Sichtbar statt versteckt, damit wer den Hub sieht weiss, was kommt. -->
+							<button id="social-map-shot" class="social-hub__soft" type="button" title="Rahmen auf der Karte aufziehen">🗺 Kartenausschnitt</button>
 							<button class="social-hub__soft" type="button" disabled title="Kommt in Stufe 3">🎬 Video</button>
 						</div>
 						<div id="social-media-info" class="social-hub__media"></div>
@@ -3656,6 +3658,10 @@
 		<script src="js/ui/zoomstufe-anzeige.js"></script>
 		<script src="js/app/bootstrap.js"></script>
 		<script src="js/review/review-mail.js"></script>
+		<!-- Der Kartenausschnitt fuer den Hub. 💣 MUSS VOR review-social.js stehen: jenes greift beim
+		     Klick auf window.avesmapsKartenAbzug zu und faellt sonst in seinen Fehlerzweig -- dieselbe
+		     Reihenfolgezusage wie bei feature-source-markup.js (AGENTS.md §11, Quellenliste). -->
+		<script src="js/ui/karten-abzug.js"></script>
 		<!-- Social-Media-Hub. Haengt zur Laufzeit an window.AvesmapsSession (js/app/session.js) fuer den
 		     Rechte-Riegel, sonst an nichts -- die Ladereihenfolge hier ist deshalb unkritisch, weil der
 		     Riegel lazy ueber .load() geht und bis dahin geschlossen bleibt. -->
