@@ -18,6 +18,37 @@ vorgezogen, wodurch deren Amplituden-Sprung gar nicht erst sichtbar wird.
 **Entwurf:** `docs/superpowers/specs/2026-08-26-zoom-uebergang-konsistenz-design.md`
 (Vorwissen: `docs/kartenflaechen-und-zoomblenden.md`)
 
+## Stand 26.08.2026 abends
+
+| Aufgabe | Stand |
+|---|---|
+| 1 — Eine Kurve, eine Zahl | ✅ live `a9e5ee4e`, im Browser belegt (`cubic-bezier(0.42, 0, 0.58, 1)` schlägt Leaflets Regel) |
+| 2 — Marker landen ohne Sprung | ✅ live `adce0d70` — **im ersten Anlauf zurückgebaut** (`b1bd8df7`), siehe unten |
+| 3 — Grenznamen parallel | offen |
+| 4 — Wege-/Flussnamen parallel | offen |
+| 5 — Orts-/Landschaftsnamen | 🟡 **halb**: Ausblenden ab t = 0 live (`f058f388`), Einblenden **nicht baubar ohne zweites Pane** |
+| 6 — Doku | laufend |
+
+🔴 **Die Lehre aus dem Rückbau von Aufgabe 2, und sie ändert Aufgabe 3–5:** Leaflet setzt
+`map._zoom` und `_pixelOrigin` **unmittelbar nach** dem `zoomanim`-Ereignis auf die Zielstufe
+(jetzt dokumentiert in `docs/kartenflaechen-und-zoomblenden.md` §8a). Alles, was ein Bild später
+läuft, projiziert bereits in Ziel-Koordinaten — während die Flächen die Quelle-auf-Ziel-Transform
+tragen. Wer dort zeichnet, transformiert **doppelt**. Live sah das aus wie „Ortsmarkierungen
+springen wild umher" und „Ortschaften, die es zwischen den Stufen nicht geben dürfte".
+
+🔴 **Und die Grenze, die Aufgabe 5 halbiert:** DOM-Beschriftungen setzen beim `setIcon` ihre
+Position über genau diese Projektion neu. Das *Einblenden* neuer Namen während der Animation
+bräuchte deshalb ein **zweites, gegengerechnetes Pane** — den Canvas-Weg auf DOM übertragen. Es
+scheitert nicht am Preis (`syncLabelIcons` = 16,2 ms Median). Die Canvas-Ebenen (Aufgaben 3 und 4)
+sind davon **nicht** betroffen: dort wird in eine Fläche gezeichnet, die man als Ganzes
+gegenrechnen kann.
+
+⚠️ **Zwei Messfallen, beide selbst hineingelaufen** (jetzt in `…-zoomblenden.md` §9): ein
+Hintergrundtab zeichnet nicht, dort ist jede Kostenmessung ungültig — und ein Test, der nur
+Quelltext liest, war gegen zwölf Mutationen dicht und hat den echten Fehler nie gesehen. Für
+Aufgabe 3 und 4 gilt daher: **Prüfstand, der die Karte bewegt**, nicht Quelltextsuche
+(Vorlage `js/map-features/__tests__/marker-zoom-koordinaten.test.js`).
+
 ## Globale Regeln
 
 - 💣 **Die Dauer ist 250 ms und ist NICHT frei wählbar.** Leaflet zählt sie selbst:

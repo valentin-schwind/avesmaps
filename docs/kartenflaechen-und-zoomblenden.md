@@ -121,6 +121,27 @@ Nach 2 s verschwindet er in jedem Fall, und das Pane geht auf sichtbar.
 Klasse `map-labels-pane` (sonst griffe die CSS-Blende auch auf ihm) und bekommt
 `pointer-events: none`.
 
+🔴 **Seit 26.08.2026 blendet der Klon ab `zoomanim` t = 0 aus, nicht erst nach dem Zoom.** Owner,
+wörtlich: *„können wir die stadtlabels nicht ausblenden im moment wo der zoom beginnt (nicht erst
+danach)"* — der Befund davor: *„ich zoom rein, alle label bleiben an ihrer stelle, DANN blenden sie
+aus"*. Der Klon skaliert dabei weiter mit; er wird nur zunehmend durchsichtig.
+💣 **Ohne erzwungenen Zwischenstand (`void klon.offsetWidth`) gibt es keinen Übergang** — der
+Browser fasst `opacity 1` und `opacity 0` im selben Tick zusammen, und der Klon verschwindet **hart**.
+Das liest sich wie ein Fehler in der Blende und ist einer im Setzen. ⭐ `?labelparallel=0` stellt den
+Stand von vorher her.
+
+🔴 **Und das EINblenden kann NICHT mitwandern — das ist eine Grenze, keine offene Aufgabe.**
+Ein Leaflet-Marker setzt beim `setIcon` seine Position über `map.latLngToLayerPoint` neu. Während der
+Animation steht Leaflets Zustand schon auf der Zielstufe (§8a), das Pane trägt aber die
+Quelle-auf-Ziel-Transform seines Elternteils — die neuen Namen wären **doppelt transformiert**,
+genau der Fehler, der am 26.08.2026 die Marker-Gegenrechnung gekostet hat. Es scheitert **nicht am
+Preis**: `syncLabelIcons` kostet 16,2 ms im Median (JS-Anteil, an 159 Beschriftungen gemessen).
+⭐ Wer es doch will, braucht ein **zweites, gegengerechnetes Pane**: die neuen Namen dort aufbauen,
+es wie eine Canvas-Fläche vom künftigen Eckpunkt auf `1/scale` starten lassen, einblenden, am
+`zoomend` tauschen. Das ist der Canvas-Weg auf DOM übertragen — ein Umbau, keine Stellschraube.
+⚠️ Bei den **Canvas**-Ebenen (Grenznamen, Wege-/Flussnamen) geht das volle Überblenden dagegen: dort
+wird in eine Fläche gezeichnet, die man als Ganzes gegenrechnen kann.
+
 ## §6 Die drei Fallen, die es zweimal gebraucht hat
 
 💣 **`transition` ist EINE Eigenschaft.** Wer sie setzt, setzt sie ganz.
@@ -159,9 +180,21 @@ Schlüssel zur Diagnose — Owner: *„in der politischen ansicht faden die labe
 | `?phonedpr=voll` / `?phonedpr=<zahl>` | der Telefon-Deckel | 2 |
 | `?borderlabels=0` | Gebietsnamen ganz aus | an |
 | `?labeltune=1` | Panel: Offset, Schriftgröße, Stützpunkt-Dichte je Zoom | — |
+| `?labelparallel=0` | Siedlungs-/Landschaftsnamen: zurück auf „erst zoomen, dann ausblenden" | Ausblenden ab t = 0 |
+| `?markerscale=0` | Ortsmarker: Größen-Gegenrechnung während des Zooms aus | an |
 
-⚠️ Die Dauer der DOM-Pane-Überblendung (350 ms) steht **fest** in `js/app/bootstrap.js` und hat
-keinen Parameter. Wenn sie je verstellt werden soll, gehört sie in dieselbe Reihe wie die anderen.
+🔴 **Die Dauer und die Kurve sind seit 26.08.2026 EINE Zahl für alles** —
+`AVESMAPS_ZOOM_DAUER_MS` (250) und `AVESMAPS_ZOOM_KURVE` (`cubic-bezier(0.42, 0, 0.58, 1)`, also
+`ease-in-out`) in **`js/map-features/zoom-uebergang.js`**, als Token gespiegelt in
+`css/features/zoom-uebergang.css`. Hier stand vorher, die 350 ms des DOM-Klons seien fest und ohne
+Parameter; sie sind ersatzlos gefallen.
+💣 **Die 250 sind nicht frei wählbar**: Leaflet zählt sie selbst
+(`setTimeout(this._onZoomTransitionEnd, 250)` im minifizierten Fremdcode). Eine andere Dauer liefe
+an Leaflets eigenem Ende vorbei.
+💣 **Die Kurve stand an ACHT Stellen**, nicht an den fünf, die der Entwurf zählte — Schraffur,
+Fluss- und Tempopfeile fehlten in der Liste. Wer eine Zeichenfläche ergänzt, die beim Zoom
+mitskaliert, trägt sie in `js/map-features/__tests__/zoom-uebergang.test.js` ein; sonst ist sie die
+neunte mit einer eigenen Kurve.
 
 ## §7a Offener Entwurf: der Zoomschritt aus einem Guss
 
