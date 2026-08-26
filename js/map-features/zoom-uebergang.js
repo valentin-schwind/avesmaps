@@ -34,6 +34,13 @@ const AVESMAPS_ZOOM_DAUER_BASIS_MS = 250;
 // die Overlays loeschen ihre Transitions und setzen ihre Flaechen neu. Ohne Mitdehnen waere die
 // Zeitlupe nach 250 ms abgeschnitten -- man saehe genau den Teil NICHT, den man sucht.
 // Deshalb wird `_onZoomTransitionEnd` umwickelt und um die zusaetzliche Zeit verzoegert.
+// ⚠️ ERWARTETE NEBENWIRKUNG, und sie ist der Preis des Werkzeugs: `_onZoomTransitionEnd`
+// stoesst BEIDES an -- das Aufraeumen der Animation UND das Nachladen der Kacheln. Wer das
+// eine dehnt, dehnt das andere mit; rund um die alte Ansicht steht dann ein grauer Rahmen,
+// bis die gedehnte Zeit um ist (Owner 26.08.2026 als Fehler gemeldet, Gegenprobe ohne
+// Parameter war sauber). 🔴 Hier wird KEINE Kachel-Logik nachgebaut: jede Zeile in einem
+// Diagnosewerkzeug ist eine Zeile, die den echten Zoom brechen kann. Stattdessen sagt es die
+// Konsolenmeldung, damit es niemand ein zweites Mal meldet.
 // ⚠️ NUR mit gesetztem Parameter. Ohne ihn wird nichts umwickelt, nichts gesetzt, und
 // AVESMAPS_ZOOM_DAUER_MS ist zifferngenau die Basis -- die Karte weiss nichts von diesem Block.
 const AVESMAPS_ZOOM_LUPE = (() => {
@@ -64,7 +71,11 @@ if (AVESMAPS_ZOOM_LUPE > 1) {
 		};
 		// eslint-disable-next-line no-console
 		console.info("[avesmaps] Zoom-Zeitlupe aktiv: Faktor " + AVESMAPS_ZOOM_LUPE
-			+ " (" + AVESMAPS_ZOOM_DAUER_MS + " ms). Nur zum Hinsehen -- ?zoomlupe weglassen fuer normal.");
+			+ " (" + AVESMAPS_ZOOM_DAUER_MS + " ms). ERWARTETE NEBENWIRKUNG: die Kacheln laden erst "
+			+ "am Ende der gedehnten Zeit nach, deshalb steht rund um die alte Ansicht ein grauer "
+			+ "Rahmen. Leaflets _onZoomTransitionEnd stoesst BEIDES an -- das Aufraeumen der "
+			+ "Animation UND das Nachladen; wer das eine dehnt, dehnt das andere mit. Kein Fehler "
+			+ "der Karte. ?zoomlupe weglassen fuer den Normalbetrieb.");
 	} catch (e) { /* ohne Leaflet keine Lupe */ }
 }
 

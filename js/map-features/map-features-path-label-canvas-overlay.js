@@ -110,6 +110,33 @@
 	// sichtbar ist, springt beim Neuzeichnen doch. ?wegefadeout=<ms> / ?wegefade=<ms>.
 	const PATH_LABEL_FADE_OUT_MS = pfadLabelDauer("wegefadeout", AVESMAPS_ZOOM_DAUER_MS);
 	const PATH_LABEL_FADE_IN_MS = pfadLabelDauer("wegefade", AVESMAPS_ZOOM_DAUER_MS);
+	// 🔴 GESTAFFELT, NICHT UEBERLAPPEND -- dieselbe Begruendung wie bei den Grenznamen: eine
+	// echte Ueberblendung zeigt beide Schriftbilder zugleich, und weil sich die Lage zwischen
+	// zwei Zoomstufen verschiebt, liest sich das als doppelte Beschriftung (26.08.2026,
+	// docs/kartenflaechen-und-zoomblenden.md §5a). Erst raus, dann rein, beides in der Zoomdauer.
+	const AUSBLENDEN_ANTEIL = (() => {
+		try {
+			const roh = new URLSearchParams(window.location.search).get("labelstaffel");
+			const wert = Number(roh);
+			if (roh !== null && Number.isFinite(wert) && wert >= 0 && wert <= 1) { return wert; }
+		} catch (e) { /* ohne Adresszeile die Vorgabe */ }
+		return 0.45;
+	})();
+	const AUSBLENDEN_MS = Math.max(60, Math.round(AVESMAPS_ZOOM_DAUER_MS * AUSBLENDEN_ANTEIL));
+	const EINBLENDEN_MS = Math.max(60, AVESMAPS_ZOOM_DAUER_MS - AUSBLENDEN_MS);
+	// ⭐ ?parallelfade=0 stellt den Stand von vorher her: erst zoomen, dann die neue Schrift.
+	const PARALLELBLENDE_AN = (() => {
+		try { return new URLSearchParams(window.location.search).get("parallelfade") !== "0"; }
+		catch (e) { return true; }
+	})();
+	// 💣 Wurde im zoomanim schon fuer die Zielstufe gezeichnet? Der redraw am zoomend laeuft
+	// trotzdem -- er MUSS, denn er richtet die Flaeche fuer die neue Ansicht aus (setPosition,
+	// Groesse, dpr). Er zeichnet dabei aber nichts NEU: der Kurvenlabel-Zwischenspeicher ist
+	// bereits fuer die Zielansicht gestempelt (kurvenlabelAnsichtsStempel liest `zeichenZiel`),
+	// also findet er alles fertig vor. Die Flagge sagt das nur an -- sie unterdrueckt nichts,
+	// und genau deshalb steht es hier: eine Flagge, die man fuer eine Sperre haelt, ist
+	// schlimmer als keine.
+	let wegeLabelsVorabGezeichnet = false;
 
 	/**
 	 * Einblenden -- aber erst, wenn wirklich wieder gezeichnet wird.
@@ -284,7 +311,27 @@
 	// je Richtung.
 	const KURVENLABEL_AUSWEICH_SCHRITT_PX = 2;
 
+	// 🔴 DIE EINE PROJEKTIONS-WEICHE DES ZEICHENPFADS. Solange `zeichenZiel` steht, wird fuer eine
+	// Zoomstufe gezeichnet, auf der die Karte NOCH NICHT ist -- die Voraussetzung dafuer, dass die
+	// neuen Namen schon waehrend der Bewegung hereinkommen koennen.
+	// 💣 SIE MUSS DIE EINZIGE SEIN. Vorher projizierte der Zeichner an VIER Stellen direkt ueber
+	// `map.latLngToContainerPoint`, verteilt auf berechneKurvenlabels und redraw. Wer eine
+	// uebersieht, bekommt die Haelfte der Namen auf der alten und die Haelfte auf der neuen Stufe --
+	// und das sieht aus wie ein Kollisionsfehler, nicht wie ein halber Umbau. Bewacht von
+	// __tests__/wegenamen-parallelblende.test.js, das die Fundstellen ZAEHLT.
+	// ⚠️ Modulzustand, aber synchron: redraw() setzt ihn am Anfang und raeumt ihn im finally ab.
+	let zeichenZiel = null;   // { zoom, center } oder null
+	function projiziere(latlng) {
+		if (zeichenZiel && zeichenZiel.proj) { return zeichenZiel.proj(latlng); }
+		return map.latLngToContainerPoint(latlng);
+	}
+
+	// 💣 DER STEMPEL MUSS MITWANDERN. Der Zwischenspeicher legt fertige Kurvenlabels unter diesem
+	// Stempel ab; beim Zeichnen fuer die Zielstufe laege sonst ZIEL-Inhalt unter QUELL-Stempel, und
+	// der naechste Redraw haelt ihn fuer gueltig und malt Namen der falschen Stufe.
+	// ⭐ Andersherum ist es ein Gewinn: der Redraw am zoomend findet die Labels bereits fertig vor.
 	function kurvenlabelAnsichtsStempel() {
+		if (zeichenZiel) { return { zoom: zeichenZiel.zoom, topLeft: zeichenZiel.ecke }; }
 		return { zoom: map.getZoom(), topLeft: map.containerPointToLatLng([0, 0]) };
 	}
 
@@ -413,7 +460,7 @@
 		for (const label of kandidaten) {
 			// 1. Die Kurve in Bildschirmpunkte. label.curveLine ist [lat, lng] -- der Tausch ist
 			//    schon in normalizeLabelFeature passiert und passiert hier NICHT noch einmal.
-			const pts = label.curveLine.map(([lat, lng]) => map.latLngToContainerPoint(L.latLng(lat, lng)));
+			const pts = label.curveLine.map(([lat, lng]) => projiziere(L.latLng(lat, lng)));
 
 			// 2. Schrift und Zeichenbreiten messen. ⚠️ ctx.font MUSS vor dem Messen stehen --
 			//    measureText misst gegen die zuletzt gesetzte Schrift, nicht gegen die gewuenschte.
@@ -571,7 +618,27 @@
 		return Boolean(label) && kurvenlabelAblage.gemalt.has(label);
 	};
 
-	function redraw() {
+	// 🔴 DER UMSCHLAG. Er setzt die Zeichen-Zielstufe, ruft den eigentlichen Zeichner und raeumt
+	// sie im `finally` wieder ab -- auch wenn der Rumpf ueber einen seiner fruehen `return`
+	// aussteigt. Ohne das bliebe `zeichenZiel` stehen, und der naechste ganz normale Redraw
+	// projizierte auf eine Stufe, auf der die Karte laengst nicht mehr ist.
+	// ⚠️ Ein Umbau des 380-Zeilen-Rumpfs auf try/finally waere dieselbe Wirkung mit
+	// dreihundert geaenderten Zeilen gewesen; der Umschlag kostet zehn.
+	function redraw(zielZoom, zielCenter) {
+		const fuerZiel = Number.isFinite(Number(zielZoom)) && !!zielCenter;
+		if (!fuerZiel) { return zeichneJetzt(false); }
+		const g = avesmapsZoomVorabFlaeche(map, zielZoom, zielCenter);
+		if (!g) { return zeichneJetzt(false); }   // kuenftiges Leaflet -> Verhalten wie vorher
+		zeichenZiel = {
+			zoom: zielZoom,
+			center: zielCenter,
+			ecke: g.zielEcke,
+			proj: avesmapsZoomZielProjektion(map, zielZoom, zielCenter),
+		};
+		try { return zeichneJetzt(true); } finally { zeichenZiel = null; }
+	}
+
+	function zeichneJetzt(fuerZiel) {
 		// Klickbare Way-Labels (Task 16): Register IMMER zuerst leeren -- auch wenn redraw() gleich
 		// darunter frueh returnt (Canvas aus, mitten in der CSS-Zoom-Animation, keine pathData). So
 		// bleibt nie eine Klickflaeche eines VORHERIGEN Frames stehen, wenn in diesem Frame gar nichts
@@ -580,7 +647,11 @@
 		// Dasselbe fuer Kanal C, und aus demselben Grund: die drei Ausstiege gleich darunter erreichen
 		// zeichneKurvenlabels() nie, und der setzt das Register sonst als einziger neu.
 		kurvenlabelClickRegister = [];
-		if (!canvasEnabled() || !map.getPane(PANE) || cssZoomActive) {
+		// 💣 `cssZoomActive` sperrt den Zeichner waehrend der Animation -- genau richtig fuer jeden
+		// gewoehnlichen Aufruf, und genau falsch fuer das Vorabzeichnen: das PASSIERT waehrend der
+		// Animation und ist ihr Sinn. Ohne diese Ausnahme stiege Schritt 4 wortlos aus, und die
+		// Flaeche bliebe leer -- ein Fehler, der wie „die Blende tut nichts" aussieht.
+		if (!canvasEnabled() || !map.getPane(PANE) || (cssZoomActive && !fuerZiel)) {
 			return;
 		}
 		const size = map.getSize();
@@ -647,7 +718,7 @@
 			if (!Array.isArray(latlngs) || latlngs.length < 2) {
 				return;
 			}
-			let pts = latlngs.map(([lat, lng]) => map.latLngToContainerPoint(L.latLng(lat, lng)));
+			let pts = latlngs.map(([lat, lng]) => projiziere(L.latLng(lat, lng)));
 			// Off-Screen-Cull über die Bounding-Box der projizierten Punkte (mit Halo-/Schrift-Reserve).
 			let bx1 = Infinity, by1 = Infinity, bx2 = -Infinity, by2 = -Infinity;
 			for (let i = 0; i < pts.length; i += 1) {
@@ -768,7 +839,7 @@
 						if (entry.reversed) {
 							latlngs = latlngs.slice().reverse();
 						}
-						const segPts = latlngs.map(([lat, lng]) => map.latLngToContainerPoint(L.latLng(lat, lng)));
+						const segPts = latlngs.map(([lat, lng]) => projiziere(L.latLng(lat, lng)));
 						if (pts.length && segPts.length) {
 							// Ersten Punkt nur dann überspringen, wenn er den vorigen Kettenpunkt WIRKLICH
 							// dupliziert (exakt/gerundet geteilter Gelenkpunkt, <= 1.5px). An Phase-2-
@@ -909,7 +980,7 @@
 				if (!Array.isArray(ll) || ll.length < 2) {
 					return;
 				}
-				let pts = ll.map((p) => map.latLngToContainerPoint(p));
+				let pts = ll.map((p) => projiziere(p));
 				let bx1 = Infinity, by1 = Infinity, bx2 = -Infinity, by2 = -Infinity;
 				for (let i = 0; i < pts.length; i += 1) {
 					if (pts[i].x < bx1) bx1 = pts[i].x;
@@ -1191,12 +1262,44 @@
 		// ⚠️ Die hintere Flaeche bekommt NUR die Transform: sie ist unsichtbar und wird gleich zur
 		// vorderen; eine Deckkraft-Transition auf ihr liefe gegen das Einblenden von nachher.
 		hinten.style.transition = PATH_LABEL_ZOOM_TRANSFORM;
-		vorne.style.transition = PATH_LABEL_ZOOM_TRANSFORM + ", opacity " + PATH_LABEL_FADE_OUT_MS + "ms " + AVESMAPS_ZOOM_KURVE;
+		// ⚠️ Bei der parallelen Blende bekommt das Ausblenden nur seinen ANTEIL der Zoomdauer --
+		// der Rest gehoert dem Einblenden, mit genau diesem Verzug. Ohne parallele Blende gilt
+		// weiter die volle Dauer bzw. ?wegefadeout.
+		const ausMs = (PARALLELBLENDE_AN && KREUZBLENDE_AN) ? AUSBLENDEN_MS : PATH_LABEL_FADE_OUT_MS;
+		vorne.style.transition = PATH_LABEL_ZOOM_TRANSFORM + ", opacity " + ausMs + "ms " + AVESMAPS_ZOOM_KURVE;
 		vorne.style.opacity = "0";
 		zoomSchrittOffen = true;
 		const scale = map.getZoomScale(event.zoom);
 		const offset = map._latLngToNewLayerPoint(canvasTopLeftLatLng, event.zoom, event.center);
 		labelFlaechen.forEach((c) => L.DomUtil.setTransform(c, offset, scale));
+
+		// 🔴 UND HIER KOMMT DIE NEUE SCHRIFT SCHON WAEHREND DER BEWEGUNG HEREIN (Schritt 4).
+		// ⭐ Zeichnen haelt die Bewegung nicht an: der Zoom ist eine CSS-Transform-Transition und
+		// laeuft auf dem Compositor. Und es kommt nicht DAZU, es wird VORGEZOGEN -- der redraw am
+		// zoomend ueberspringt die Beschriftung dann (wegeLabelsVorabGezeichnet).
+		if (!PARALLELBLENDE_AN || !KREUZBLENDE_AN) { return; }
+		const g = avesmapsZoomVorabFlaeche(map, event.zoom, event.center);
+		if (!g) { return; }   // kuenftiges Leaflet ohne _latLngToNewLayerPoint -> wie vorher
+
+		// Rollen tauschen: in die bisher unsichtbare Flaeche kommt das neue Bild.
+		const tausch = vorne; vorne = hinten; hinten = tausch;
+		zoomSchrittOffen = false;   // der Tausch ist hier schon passiert
+		wegeLabelsVorabGezeichnet = true;
+		redraw(event.zoom, event.center);
+
+		// 💣 DIE GEGENRECHNUNG -- aus der geteilten, nachgerechneten Funktion, nicht von Hand.
+		// Das neue Bild liegt in ZIEL-Koordinaten, die Karte steht noch auf der alten Stufe.
+		vorne.style.transition = "none";
+		L.DomUtil.setTransform(vorne, g.start, g.startMassstab);
+		vorne.style.opacity = "0";
+		void vorne.offsetWidth;   // Zwischenstand erzwingen, sonst gibt es keinen Uebergang
+		// ⚠️ Beide Uebergaenge im SELBEN Augenblick gesetzt, getrennt nur durch transition-delay:
+		// startet der Stilabgleich verspaetet, verschiebt sich BEIDES gleich weit und die
+		// Staffelung bleibt erhalten (§5a).
+		vorne.style.transition = PATH_LABEL_ZOOM_TRANSFORM
+			+ ", opacity " + EINBLENDEN_MS + "ms " + AVESMAPS_ZOOM_KURVE + " " + AUSBLENDEN_MS + "ms";
+		L.DomUtil.setTransform(vorne, g.ende, 1);
+		vorne.style.opacity = "1";
 	});
 	map.on("zoom", function () { if (!cssZoomActive) redraw(); });
 

@@ -34,7 +34,12 @@ const nahe = (a, b, was, toleranz = 1e-6) => assert.ok(Math.abs(a - b) <= tolera
 // drei oben geladenen Modulen.
 const overlayQuelle = fs.readFileSync(hier("map-features-path-label-canvas-overlay.js"), "utf8");
 const kanalVon = overlayQuelle.indexOf("function kurvenlabelFont(");
-const kanalBis = overlayQuelle.indexOf("function redraw()");
+// 🪤 Anker OHNE Klammerinhalt: `redraw` nimmt seit dem 26.08.2026 eine Zielstufe entgegen
+// (`redraw(zielZoom, zielCenter)`), damit die Beschriftungen schon waehrend des Zooms
+// wechseln koennen. Der alte Anker `"function redraw()"` traf danach nichts mehr, und der
+// Test fiel mit „Kanal C steht zwischen kurvenlabelFont und redraw" um -- ein Fehler, der
+// nach einem kaputten Kanal aussieht und nur eine geaenderte Signatur war.
+const kanalBis = overlayQuelle.indexOf("function redraw(");
 assert.ok(kanalVon > 0 && kanalBis > kanalVon, "Kanal C steht zwischen kurvenlabelFont und redraw");
 const kanalC = overlayQuelle.slice(kanalVon, kanalBis);
 
@@ -289,7 +294,10 @@ const schraeg = () => ({ text: "DRACHENSTEINE", labelType: "gebirge", curveMax: 
 // weil gerade keine Wegdaten da sind, waere die Kurve ungemalt UND der Marker abgemeldet -- der Name
 // verschwindet ganz.
 {
-	const redrawVon = overlayQuelle.indexOf("function redraw()");
+	// 🪤 Der ZEICHNER heisst seit dem 26.08.2026 `zeichneJetzt`; `redraw` ist nur noch der
+	// Umschlag, der die Zeichen-Zielstufe setzt und im finally abraeumt. Register und erster
+	// Ausstieg stehen im Zeichner -- die Zusicherung meint unveraendert dieselbe Stelle.
+	const redrawVon = overlayQuelle.indexOf("function zeichneJetzt(");
 	const wegeWache = overlayQuelle.indexOf("if (typeof pathData === \"undefined\"", redrawVon);
 	const wacheEnde = overlayQuelle.indexOf("\t\t}", wegeWache);
 	assert.ok(wegeWache > redrawVon && wacheEnde > wegeWache, "redraw() hat eine Wache gegen fehlende Wegdaten");
@@ -594,7 +602,9 @@ const mitFlaeche = () => Object.assign(waagerecht(), { ecosystemRegionPublicId: 
 	// ⚠️ Quelltext-Zusicherung, und als solche benannt: redraw() steigt vor dem Maler aus (CSS-Zoom,
 	// Canvas aus, keine Pane) -- dann leert es das Register selbst, ganz oben. Ohne echte Leaflet-Karte
 	// laesst sich redraw() nicht ausfuehren, die Stellung aber sehr wohl pruefen.
-	const redrawVon = overlayQuelle.indexOf("function redraw()");
+	// 🪤 Auch hier der ZEICHNER, nicht der Umschlag (siehe oben): Register und erster Ausstieg
+	// stehen seit dem 26.08.2026 in `zeichneJetzt`.
+	const redrawVon = overlayQuelle.indexOf("function zeichneJetzt(");
 	const ersterReturn = overlayQuelle.indexOf("return;", redrawVon);
 	const leeren = overlayQuelle.indexOf("kurvenlabelClickRegister = [];", redrawVon);
 	assert.ok(redrawVon > 0 && ersterReturn > redrawVon, "redraw() hat einen ersten Ausstieg");
