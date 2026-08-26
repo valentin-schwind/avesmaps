@@ -128,6 +128,41 @@ Faktor über neun Stufen ist mit dem heutigen Bild nicht vereinbar**; realistisc
 (z. B. Faktor 2 nur über die Stufen, auf denen alle Klassen sichtbar sind, plus ein gestauchter
 Anlauf). Das gehört vor den Bau entschieden, nicht in ihn hinein.
 
+#### 🔴 ENTSCHIEDEN am 26.08.2026: die Tafel wird NICHT angefasst
+
+Der Absatz darüber hat die Frage richtig gestellt und die Antwort nicht gefunden — sie lautet: **es
+gibt keinen brauchbaren gemeinsamen Faktor.** Durchgerechnet mit je Klasse frei gewähltem Anker
+(also der kleinstmöglichen Bildänderung zu einem gegebenen Faktor):
+
+| gemeinsamer Faktor | Sprung beim Landen | Bildänderung RMS | größte Einzeländerung |
+|---|---|---|---|
+| **2,0** (der einzige ohne Sprung) | 0 % | **53 %** | **+183 %** |
+| 1,8 | −10 % | 32 % | +106 % |
+| 1,7 | −15 % | 25 % | +74 % |
+| **1,61** (rechnerisches Optimum) | −19 % | **22 %** | +49 % |
+
+Bei Faktor 2,0 stünde die Metropole bei z0 auf **2,35 px statt 6,65** und bei z6 auf **150 px statt
+53,2**. Der Grund ist strukturell: die Metropole spannt heute 8× über sechs Stufen, Faktor 2
+verlangt 64×. Und das Optimum bezahlt 22 % Bildänderung, **ohne** den Sprung loszuwerden.
+
+⭐ **Der Ausweg, den dieser Abschnitt nicht kannte: die Amplitude ist auch während der Animation
+korrigierbar.** Der Canvas skaliert um den vollen Kartenfaktor, aber *gezeichnet* wird von uns —
+wird die Markergröße Bild für Bild durch den gerade wirkenden Maßstab geteilt, landet jede Klasse
+exakt auf ihrer echten Zielgröße. Sprung null, Tafel unberührt, ruhendes Bild an jeder Stufe
+identisch. Umsetzung: `avesmapsMarkerZoomSizeFactor` in `js/map-features/zoom-uebergang.js`,
+Bauplan `docs/superpowers/plans/2026-08-26-zoom-uebergang-konsistenz.md` Aufgabe 2.
+
+⚠️ **Warum das nur bei den Markern geht:** eine Canvas-Transform kann Größe und Lage nicht trennen —
+die Positionen *müssen* um den vollen Faktor skalieren. Ein Zeichenvorgang kann es. Deshalb hängt
+die Lösung daran, dass ein Neuzeichnen der Markerfläche billig ist; beim Grenzen-Canvas (52–99 ms je
+`redraw()`) ist sie nicht bezahlbar, und die Grenzlinien-Breite bleibt der offene Ausreißer.
+
+⚠️ **Und warum sie den Owner-Wunsch trotzdem erfüllt:** „exakt aufeinander abstimmen" ist damit in
+der **Animation** erfüllt — alle sechs Klassen bewegen sich auf ihrer eigenen Kurve und landen
+gleichzeitig ohne Sprung. Die *ruhenden* Größenverhältnisse zwischen den Klassen bleiben, wie sie
+sind; sie zu vereinheitlichen wäre die Tafeländerung gewesen, die oben durchgerechnet und verworfen
+ist.
+
 ⚠️ Die Zoombänder sind **Daten, keine Konstanten** — `app_setting` `location_zoom_bands`, ein Admin
 stellt sie im Ortseditor. Die Zahlen oben sind der Livestand vom 24.08.2026. Wer sie ändert, ändert
 sie **dort**, nicht im Code; die Vorgabe steht in `js/map-features/location-zoom-bands.js`.
@@ -214,6 +249,13 @@ herein — und **das sieht nur ein Auge**, kein Test.
    Sprung wirklich beseitigt statt ihn zu verstecken. Reihenfolge nach Ausreißer: Wegename (−82 %),
    Grenzname-Versatz (−67 %), Grenzname-Schrift (−64 %), Grenzlinie (−50 %), Marker-Spreizung.
 4. **z6 → z7 entscheiden** (§3, 🪤). Heute schnappt dort alles um −100 % zurück.
+   🔴 **ENTSCHIEDEN am 26.08.2026: z7 erbt weiter z6.** Der Owner hat gegen eigene z7-Werte
+   entschieden (die hätten die Metropole auf 75 px gebracht und die letzte Stufe punktlastig
+   gemacht). Mit der Gegenrechnung aus §3.1 verschwindet der Sprung dort **von selbst**: der echte
+   Faktor ist 1,0, die Korrektur rechnet auf konstante Größe, und die Marker wachsen von z6 auf z7
+   einfach nicht mehr — nur die Kacheln werden größer. Als Zusicherung festgenagelt in
+   `js/map-features/__tests__/marker-zoom-gegenrechnung.test.js`; ändert der Owner den Entscheid,
+   schlägt dort `z7 erbt nicht mehr z6` an.
 
 ## §7 Messfallen — für den, der das prüft
 
