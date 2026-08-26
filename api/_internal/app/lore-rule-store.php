@@ -267,10 +267,18 @@ function avesmapsLoreRuleDelete(PDO $pdo, int $ruleId, string $entryWikiKey): bo
         foreach ($terms->fetchAll(PDO::FETCH_COLUMN) ?: [] as $termId) {
             $pdo->prepare('DELETE FROM lore_rule_term_type WHERE term_id = :id')->execute(['id' => $termId]);
         }
+        // 🔴 :id UND :id2, beide mit $ruleId belegt -- NICHT zu einem Platzhalter
+        // "vereinfachen": avesmapsCreatePdo (api/_internal/bootstrap.php) setzt
+        // PDO::ATTR_EMULATE_PREPARES => false, und bei nativen Prepared Statements lehnt MySQL
+        // einen doppelt verwendeten benannten Platzhalter mit SQLSTATE[HY093] ab -- das Loeschen
+        // einer Regel waere live nie durchgelaufen. Der SQLite-Test bleibt dabei gruen, weil
+        // SQLite denselben Platzhalter mehrfach erlaubt. Dieselbe Falle und dieselbe Loesung wie
+        // in avesmapsWhatIsHereReadTerritories()/-ReadAreas() (api/_internal/app/what-is-here.php).
+        // Gewacht von api/_internal/app/__tests__/sql-platzhalter-einmalig-test.php.
         $pdo->prepare(
             'DELETE FROM lore_rule_term WHERE rule_id = :id
-               AND rule_id IN (SELECT id FROM lore_rule WHERE id = :id AND entry_wiki_key = :wk)'
-        )->execute(['id' => $ruleId, 'wk' => $entryWikiKey]);
+               AND rule_id IN (SELECT id FROM lore_rule WHERE id = :id2 AND entry_wiki_key = :wk)'
+        )->execute(['id' => $ruleId, 'id2' => $ruleId, 'wk' => $entryWikiKey]);
         $delete = $pdo->prepare('DELETE FROM lore_rule WHERE id = :id AND entry_wiki_key = :wk');
         $delete->execute(['id' => $ruleId, 'wk' => $entryWikiKey]);
 

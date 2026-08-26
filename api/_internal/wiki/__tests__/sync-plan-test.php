@@ -161,10 +161,14 @@ $pdo->exec(
     )"
 );
 $addItem = static function (PDO $pdo, int $runId, string $key, string $type, int $selected, ?string $state): void {
+    // :k und :label getrennt, obwohl beide $key tragen: SQLite erlaubt denselben benannten
+    // Platzhalter mehrfach, MySQL lehnt ihn bei nativen Prepared Statements mit SQLSTATE[HY093]
+    // ab (avesmapsCreatePdo setzt EMULATE_PREPARES => false). Eine Fixture in einer Form, die
+    // live nie laufen wuerde, ist die Vorlage, aus der der naechste Schreibweg abgeschrieben wird.
     $pdo->prepare(
         'INSERT INTO sync_plan_item (run_id, entity_key, change_type, label, selected, apply_state)
-         VALUES (:r, :k, :t, :k, :s, :a)'
-    )->execute(['r' => $runId, 'k' => $key, 't' => $type, 's' => $selected, 'a' => $state]);
+         VALUES (:r, :k, :t, :label, :s, :a)'
+    )->execute(['r' => $runId, 'k' => $key, 't' => $type, 'label' => $key, 's' => $selected, 'a' => $state]);
 };
 $addItem($pdo, 1, 'eigener-knoten:aaa', 'new', 1, 'applied');   // Seite 1, schon abgearbeitet
 $addItem($pdo, 1, 'eigener-knoten:bbb', 'new', 1, null);        // noch offen
