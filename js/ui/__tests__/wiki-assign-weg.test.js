@@ -536,8 +536,19 @@ function regelRumpf(css, selektorZeile) {
 }
 // ⚠️ Zeilenenden vereinheitlichen: die Datei liegt mit CRLF im Baum, der Selektor steht auf zwei
 // Zeilen, und ein `indexOf` mit "\n" faende ihn sonst nie (gruene Probe, die nichts prueft).
-const gemeinsam = ".label-edit-section-title,\n#path-edit-dialog .label-wiki-reference__title";
-const gemeinsameWerte = regelRumpf(regionSyncCss.replace(/\r\n/g, "\n"), gemeinsam);
+// 🪤 Die Selektorliste WÄCHST -- am 26.08.2026 kam `#landschaft-dialog` als dritter Mitnutzer dazu,
+// und die Zusicherung fiel um, obwohl genau das ihr Ziel ist: EINE Regel, viele Nutzer. Sie nennt
+// die Liste deshalb nicht mehr Zeichen fuer Zeichen, sondern findet sie an ihrem ERSTEN Selektor
+// und liest bis zur Klammer.
+// ⚠️ Kommentare vorher raus: sie nennen `.label-edit-section-title` mehrfach, und ein Treffer darin
+// schnitte an der falschen Stelle (dieselbe Falle wie beim Zaehlen in Markup).
+const cssOhneKommentare = regionSyncCss.replace(/\r\n/g, "\n").replace(/\/\*[\s\S]*?\*\//g, "");
+const gemeinsamPos = cssOhneKommentare.indexOf(".label-edit-section-title,");
+assert.ok(gemeinsamPos !== -1, "die gemeinsame Ueberschriften-Regel gibt es"); zaehl();
+const gemeinsam = cssOhneKommentare.slice(gemeinsamPos, cssOhneKommentare.indexOf("{", gemeinsamPos)).trim();
+assert.ok(gemeinsam.indexOf("#path-edit-dialog .label-wiki-reference__title") !== -1,
+	"der Kopf der Wiki-Zuweisung im Weg-Dialog haengt weiter daran"); zaehl();
+const gemeinsameWerte = regelRumpf(cssOhneKommentare, gemeinsam);
 ["font-family", "font-size", "text-transform", "letter-spacing", "color"].forEach((eigenschaft) => {
 	assert.ok(Object.prototype.hasOwnProperty.call(gemeinsameWerte, eigenschaft),
 		"Die gemeinsame Ueberschriften-Regel fuehrt „" + eigenschaft + "“ nicht mehr -- der Kopf der "
@@ -561,7 +572,13 @@ zaehl(); zaehl();
 // ⚠️ Geprueft wird der TOKEN, nicht die Zahl. Eine Zusicherung auf `"400"` machte das spaetere
 // Tokenisieren rot -- sie haette also genau die Aufraeumarbeit bestraft, die §12 verlangt.
 const tokens = fs.readFileSync(path.join(wurzel, "css", "base", "tokens.css"), "utf8");
-const kopfEigen = regelRumpf(regionSyncCss, "#path-edit-dialog .label-wiki-reference__title");
+// 🪤 Auch DIESE Liste waechst (seit 26.08.2026 haengt `#landschaft-dialog` mit drin) -- also
+// ebenfalls am ersten Selektor gefunden statt Zeichen fuer Zeichen genannt. Gesucht wird die
+// Ruecknahme-Regel, also die, die `font-weight` fuehrt.
+const ruecknahmePos = cssOhneKommentare.indexOf("#path-edit-dialog .label-wiki-reference__title,");
+assert.ok(ruecknahmePos !== -1, "die Ruecknahme-Regel fuer das Gewicht gibt es"); zaehl();
+const ruecknahme = cssOhneKommentare.slice(ruecknahmePos, cssOhneKommentare.indexOf("{", ruecknahmePos)).trim();
+const kopfEigen = regelRumpf(cssOhneKommentare, ruecknahme);
 assert.strictEqual(kopfEigen["font-weight"], "var(--font-weight-regular)",
 	"der Kopf traegt wieder das Gewicht 600 aus .label-wiki-reference__title und faellt aus der Rangfolge");
 // Die benutzten Token sind wirklich angelegt, nicht nur benutzt.

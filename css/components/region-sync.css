@@ -200,7 +200,8 @@
    ⭐ DIE SECHS TYPOGRAFISCHEN WERTE STEHEN DESHALB NICHT HIER, sondern EINMAL unten in der
    gemeinsamen Regel mit `.label-edit-section-title`. Hier bleibt nur, was NUR dieser Kopf braucht:
    das Zuruecknehmen von `font-weight: 600` aus `.label-wiki-reference__title`. */
-#path-edit-dialog .label-wiki-reference__title {
+#path-edit-dialog .label-wiki-reference__title,
+#landschaft-dialog .label-wiki-reference__title {
 	font-weight: var(--font-weight-regular);
 }
 
@@ -441,7 +442,8 @@
    `.label-edit-section-title`: er gehoert einer alleinstehenden Ueberschrift. Der Titel im Bauteil
    ist ein Flex-Kind neben den Knoepfen und bekaeme sonst eine Linie mitten in den Kasten. */
 .label-edit-section-title,
-#path-edit-dialog .label-wiki-reference__title {
+#path-edit-dialog .label-wiki-reference__title,
+#landschaft-dialog .label-wiki-reference__title {
 	font-family: var(--font-ui);
 	font-size: var(--font-size-small);
 	text-transform: uppercase;

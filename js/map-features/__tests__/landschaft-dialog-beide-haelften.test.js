@@ -125,11 +125,13 @@ assert.ok(/avesmapsLandschaftDialogWikiKasten/.test(huelle),
 // 🔴 Die Regel teilt sich das Prädikat mit dem Wiki-Kasten: liegt eine FLÄCHE vor, ist es eine
 // Landschaft. Ohne Fläche behält die Beschriftung ihren eigenen, genaueren Titel („Freies Label
 // bearbeiten" sagt etwas über die Zugehörigkeit, das nicht verlorengehen darf).
+// 🔴 Das Wort ist „Region bearbeiten" (Owner 26.08.2026) -- dasselbe, das der Landschaften-Editor
+// daneben benutzt. Es stand einen Tag lang als „Landschaft bearbeiten" da.
 const { avesmapsLandschaftDialogTitel } = require("../landschaft-dialog.js");
 assert.strictEqual(avesmapsLandschaftDialogTitel({ hatFlaeche: true, hatLabel: true }),
-	"Landschaft bearbeiten", "beide Hälften: das Fenster bearbeitet eine Landschaft"); checks++;
+	"Region bearbeiten", "beide Hälften: das Fenster bearbeitet eine Region"); checks++;
 assert.strictEqual(avesmapsLandschaftDialogTitel({ hatFlaeche: true, hatLabel: false }),
-	"Landschaft bearbeiten", "nur die Fläche: ebenfalls eine Landschaft"); checks++;
+	"Region bearbeiten", "nur die Fläche: ebenfalls eine Region"); checks++;
 assert.strictEqual(avesmapsLandschaftDialogTitel({ hatFlaeche: false, hatLabel: true }), "",
 	"nur die Beschriftung: ihren eigenen Titel NICHT anfassen"); checks++;
 assert.strictEqual(avesmapsLandschaftDialogTitel(undefined), "",

@@ -64,7 +64,15 @@ function avesmapsLandschaftDialogReiter(name) {
 		return ziel;
 	}
 	document.querySelectorAll("[data-landschaft-reiter]").forEach((knopf) => {
-		knopf.setAttribute("aria-selected", String(knopf.dataset.landschaftReiter === ziel));
+		const aktiv = knopf.dataset.landschaftReiter === ziel;
+		// 💣 BEIDE, in einem Zug. Die Knoepfe tragen `.ecosystem-layer-switch__tab`, die Reiterform
+		// des Hauses -- und deren aktiver Zustand haengt an `.is-active`. Mit `aria-selected` allein
+		// war der „gehighlightete" Reiter in Wahrheit immer nur der ueberfahrene (`:hover`), und
+		// sobald die Maus wegging, sah das Fenster aus, als sei kein Reiter gewaehlt (Owner
+		// 26.08.2026). Die Ebenenleiste desselben Bauteils setzt seit jeher beides nebeneinander
+		// (map-features-ecosystem-layer-switch.js) -- hier stand nur die Haelfte davon.
+		knopf.classList.toggle("is-active", aktiv);
+		knopf.setAttribute("aria-selected", String(aktiv));
 	});
 	document.querySelectorAll("[data-landschaft-bereich]").forEach((feld) => {
 		feld.hidden = feld.dataset.landschaftBereich !== ziel;
@@ -416,7 +424,9 @@ function avesmapsLandschaftDialogTitel(stand) {
 	if (!s.hatFlaeche) {
 		return "";
 	}
-	const titel = "Landschaft bearbeiten";
+	// 🔴 „Region bearbeiten" (Owner 26.08.2026) -- und es ist auch das Wort, das der
+	// Landschaften-Editor daneben benutzt („2854 Regionen · 1027 gezeichnet").
+	const titel = "Region bearbeiten";
 	if (typeof document !== "undefined") {
 		const kopf = document.getElementById("label-edit-title");
 		if (kopf) {

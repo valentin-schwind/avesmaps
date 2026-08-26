@@ -36,6 +36,20 @@
 	margin: 0 0 var(--space-8, 8px);
 }
 
+/* ── Der Abstand zwischen den Blöcken EINES Reiters ───────────────────────────────────────────
+   🔴 Er gehört dem BEHÄLTER, nicht den Blöcken. „Wiki & Quellen" stapelt vier davon — die
+   Wiki-Zuweisung der Fläche, „Andere Quelle", „Quellen" und den Zuweisungskasten —, und keiner
+   trug einen Aussenrand: sie klebten aneinander (Owner 26.08.2026, „der fehlende abstand zwischen
+   quellen und wiki-landschaft").
+   ⚠️ Am Behälter, weil sonst jeder neue Block seine eigene Regel braucht und der erste, den jemand
+   vergisst, wieder klebt. `gap` wirkt zudem NUR zwischen Geschwistern — kein Rand oben, kein Rand
+   unten, also keine Lücke gegen die Reiterleiste und die Knopfleiste. */
+[data-landschaft-bereich] {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-10, 10px);
+}
+
 /* ── Der leere Zustand einer Hälfte ───────────────────────────────────────────────────────────
    🔴 EIN Satz, keine Statistik (Owner 25.08.2026: „Reicht"). Live betrifft er ein Drittel jeder
    Seite: 334 Flächen ohne Beschriftung, 254 Beschriftungen ohne Fläche.
