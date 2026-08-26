@@ -143,7 +143,7 @@ function setLabelEditDialogTitle(kind, { resolved = false } = {}) {
 	// Fall, mach du". So gibt es keine zweite Fassung derselben Regel.
 	if (typeof avesmapsLandschaftDialogTitel === "function"
 		&& typeof avesmapsLandschaftDialogStand === "function"
-		&& avesmapsLandschaftDialogTitel(avesmapsLandschaftDialogStand()) !== "") {
+		&& avesmapsLandschaftDialogTitel(avesmapsLandschaftDialogStand(), kind) !== "") {
 		return;
 	}
 	if (resolved && String(kind || "") === "") {
@@ -554,8 +554,22 @@ function fillLabelRegionSelect(label, region) {
 	// Ohne geladenes Vokabular gar nicht erst anbieten: eine leere Auswahl, die beim Speichern eine
 	// bestehende Zuweisung löschte, wäre schlimmer als kein Feld.
 	const geladen = kinds.some((kind) => Array.isArray(alle[kind]));
-	section.hidden = !geladen;
-	if (!geladen) {
+	// 🔴 NUR, WENN ES ETWAS ZU TUN GIBT (Owner 26.08.2026: „‚Gehört zu' macht null sinn. die aktuelle
+	// auswahl bezieht sich immer auf die fläche"). Er hat recht: liegt die Beschriftung schon auf einer
+	// Fläche, beantwortet das Feld eine Frage, die beantwortet ist -- und es stand ausgerechnet im
+	// Reiter FLÄCHE, obwohl es der BESCHRIFTUNG gehört. Dort las es sich wie eine Aussage über die
+	// Fläche und nannte bei leerem Stand die erstbeste fremde Region.
+	//
+	// 💣 GANZ WEG GING NICHT: für die 252 Beschriftungen OHNE Fläche ist dieses Feld der EINZIGE Weg,
+	// sie an eine zu hängen -- die zwei anderen Schreiber von `ecosystem_region_public_id` setzen den
+	// Zeiger nur beim Anlegen (createEcosystemRegionLabel) und beim Duplizieren. Der leere Zustand des
+	// Flächen-Reiters weist wörtlich darauf hin: „Die Zuordnung steht darunter."
+	//
+	// ⚠️ Und `buildLabelEditPayload` schickt den Zeiger nur bei SICHTBAREM Feld mit. Verborgen heisst
+	// hier also zugleich: dieses Speichern kann die Zugehörigkeit nicht mehr versehentlich umhängen.
+	const schonZugeordnet = String(region?.public_id || "") !== "";
+	section.hidden = !geladen || schonZugeordnet;
+	if (!geladen || schonZugeordnet) {
 		return;
 	}
 

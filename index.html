@@ -1801,7 +1801,12 @@
 					     bleibt leer, bis labelWikiZeichneAbweichungen sie füllt. Regeln in
 					     css/components/wiki-override.css, hier über css/styles.css. -->
 					<label class="location-report-form__field location-report-form__field--zeile">
-						<span>Text *<span class="wiki-alt" data-label-wiki-alt="text"></span><span class="wiki-alt" data-eco-wiki-alt="name"></span></span>
+						<!-- 🔴 „Name", nicht „Text" (Owner 26.08.2026). Das Feld schreibt `ecosystem_region.name`
+						     und traegt ihn ueber die Propagation in die Beschriftung -- es IST der Name der
+						     Landschaft. „Text" war ein Erbstueck aus dem alten Beschriftungsdialog, wo es
+						     wirklich nur den Labeltext schrieb, und es hat den Owner im Reiter „Flaeche" nach
+						     einem Namensfeld suchen lassen, das es nicht gibt und nicht geben soll. -->
+						<span>Name *<span class="wiki-alt" data-label-wiki-alt="text"></span><span class="wiki-alt" data-eco-wiki-alt="name"></span></span>
 						<div class="location-edit-fieldrow"><input id="label-edit-text" name="text" form="label-edit-form" type="text" maxlength="160" required /></div>
 					</label>
 					<label class="location-report-form__field location-report-form__field--zeile">

@@ -162,24 +162,32 @@ assert.ok(/avesmapsLandschaftDialogWikiKasten/.test(huelle),
 // 🔴 Die Regel teilt sich das Prädikat mit dem Wiki-Kasten: liegt eine FLÄCHE vor, ist es eine
 // Landschaft. Ohne Fläche behält die Beschriftung ihren eigenen, genaueren Titel („Freies Label
 // bearbeiten" sagt etwas über die Zugehörigkeit, das nicht verlorengehen darf).
-// 🔴 Das Wort ist „Region bearbeiten" (Owner 26.08.2026) -- dasselbe, das der Landschaften-Editor
-// daneben benutzt. Es stand einen Tag lang als „Landschaft bearbeiten" da.
+// 🔴 Der Titel nennt die EBENE (Owner 26.08.2026). Der Wortlaut selbst und die Ebenentabelle stehen
+// in landschaft-dialog-form.test.js; hier geht es nur um die LAGE: mit Fläche schreibt die Hülle,
+// ohne Fläche behält die Beschriftung ihren eigenen, genaueren Titel.
+global.ECOSYSTEM_KIND_LABELS = require("../map-features-ecosystem-rendering.js").ECOSYSTEM_KIND_LABELS;
 const { avesmapsLandschaftDialogTitel } = require("../landschaft-dialog.js");
-assert.strictEqual(avesmapsLandschaftDialogTitel({ hatFlaeche: true, hatLabel: true }),
-	"Region bearbeiten", "beide Hälften: das Fenster bearbeitet eine Region"); checks++;
-assert.strictEqual(avesmapsLandschaftDialogTitel({ hatFlaeche: true, hatLabel: false }),
-	"Region bearbeiten", "nur die Fläche: ebenfalls eine Region"); checks++;
-assert.strictEqual(avesmapsLandschaftDialogTitel({ hatFlaeche: false, hatLabel: true }), "",
+assert.ok(avesmapsLandschaftDialogTitel({ hatFlaeche: true, hatLabel: true }, "vegetation") !== "",
+	"beide Hälften: die Hülle schreibt den Titel"); checks++;
+assert.ok(avesmapsLandschaftDialogTitel({ hatFlaeche: true, hatLabel: false }, "vegetation") !== "",
+	"nur die Fläche: ebenso"); checks++;
+assert.strictEqual(avesmapsLandschaftDialogTitel({ hatFlaeche: false, hatLabel: true }, "vegetation"), "",
 	"nur die Beschriftung: ihren eigenen Titel NICHT anfassen"); checks++;
-assert.strictEqual(avesmapsLandschaftDialogTitel(undefined), "",
+assert.strictEqual(avesmapsLandschaftDialogTitel(undefined, "vegetation"), "",
 	"ohne Stand: nichts anfassen"); checks++;
-assert.ok(/avesmapsLandschaftDialogTitel\(stand\)/.test(huelle),
-	"die Datenlagen ziehen den Titel nach"); checks++;
+// 🔴 Den Titel setzt NICHT mehr `avesmapsLandschaftDialogLagen`: er braucht seit dem 26.08.2026 die
+// EBENE, und die kennt nur die Hälfte, der sie gehört. Geschrieben wird er von den zwei Öffnern, die
+// ihren `kind` ohnehin tragen — eine geratene Ebene über einem Fenster, in dem man Geometrie
+// bearbeitet, wäre schlimmer als der Platzhalter aus dem Markup.
+assert.ok(!/avesmapsLandschaftDialogTitel\(stand\)/.test(huelle),
+	"die Datenlagen raten die Ebene NICHT"); checks++;
+assert.ok(/avesmapsLandschaftDialogTitel\(/.test(eco),
+	"der Flächen-Öffner setzt den Titel mit seiner Ebene"); checks++;
 // 💣 EIN SCHREIBER, SONST EIN RENNEN. Der Titel der Beschriftung wird ZWEISTUFIG gesetzt, und die
 // zweite Stufe kommt nachgereicht (erst dann ist die Ebene bekannt) -- sie überschrieb die Hülle,
 // obwohl die Hülle danach nichts mehr tat. Deshalb fragt der Titelsetzer der Beschriftung ZUERST
 // die Hülle und schweigt, wenn die schon geschrieben hat.
-assert.ok(/avesmapsLandschaftDialogTitel\(avesmapsLandschaftDialogStand\(\)\)/.test(labels),
-	"der Titelsetzer der Beschriftung fragt zuerst die Hülle"); checks++;
+assert.ok(/avesmapsLandschaftDialogTitel\(avesmapsLandschaftDialogStand\(\), kind\)/.test(labels),
+	"der Titelsetzer der Beschriftung fragt zuerst die Hülle -- mit SEINER Ebene"); checks++;
 
 console.log("landschaft-dialog-beide-haelften: " + checks + " Zusicherungen gruen");

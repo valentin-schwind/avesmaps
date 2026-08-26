@@ -847,9 +847,13 @@
 		// verklickt: der optisch fast gleiche Dialog daneben bearbeitet das LABEL, nicht die Fläche.
 		// Der Dialog ist seit dem Wegfall des Regionen-Wählers auch der Ort, an dem eine frisch
 		// gezeichnete Fläche ihren Steckbrief bekommt -- da soll oben stehen, worüber man entscheidet.
-		const titleElement = document.getElementById("ecosystem-properties-title");
-		if (titleElement && typeof ecosystemDialogTitle === "function") {
-			titleElement.textContent = ecosystemDialogTitle(area.kind, "flaeche");
+		// 🪤 `#ecosystem-properties-title` gibt es im vereinigten Fenster NICHT mehr -- der Schreibversuch
+		// lief ins Leere, und deshalb ist es monatelang niemandem aufgefallen. Sichtbar ist allein
+		// `#label-edit-title`, und der Titel nennt seit dem 26.08.2026 die EBENE (Owner:
+		// „Derographie/Vegetation/Topographie bearbeiten"). Geschrieben wird er ueber die Huelle, damit
+		// die Regel an EINER Stelle steht -- die Beschriftungs-Haelfte ruft dieselbe Funktion.
+		if (typeof avesmapsLandschaftDialogTitel === "function") {
+			avesmapsLandschaftDialogTitel({ hatFlaeche: true, hatLabel: false }, area.kind);
 		}
 
 		const nameInput = propertiesElement("name");

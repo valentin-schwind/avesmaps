@@ -78,12 +78,61 @@ assert.ok(/\[data-landschaft-bereich\]/.test(stil),
 // ── E. DER TITEL ─────────────────────────────────────────────────────────────────────────────
 // 🔴 Owner 26.08.2026: „Das Fenster soll außerdem 'Region bearbeiten' heißen." Das ist auch das
 // Wort, das der Landschaften-Editor daneben benutzt („2854 Regionen · 1027 gezeichnet").
-assert.ok(/<h2 id="label-edit-title">Region bearbeiten<\/h2>/.test(fenster),
-	"das Markup nennt es „Region bearbeiten\""); checks++;
+// 🔴 Owner 26.08.2026, nach einem Tag mit „Region bearbeiten": „ich will nicht ‚Region bearbeiten'
+// sondern ‚Derographie/Vegetation/Topographie bearbeiten'." Der Titel nennt also die EBENE — und
+// zwar mit dem Wort, das das Haus dafür ohnehin führt (ECOSYSTEM_KIND_LABELS, dieselbe Vokabel wie
+// in der Ebenenleiste und den Gruppenüberschriften der Auswahl).
+// ⚠️ Die ECHTE Ebenentabelle, nicht eine nachgebaute: im Browser teilen sich die zwei Dateien den
+// globalen Raum, unter Node muss man das herstellen. Eine Attrappe hier würde die Zuordnung
+// „vegetation -> Vegetation" gerade NICHT prüfen — sie prüfte dann nur sich selbst.
+global.ECOSYSTEM_KIND_LABELS = require("../map-features-ecosystem-rendering.js").ECOSYSTEM_KIND_LABELS;
 const { avesmapsLandschaftDialogTitel } = require("../landschaft-dialog.js");
-assert.strictEqual(avesmapsLandschaftDialogTitel({ hatFlaeche: true, hatLabel: true }),
-	"Region bearbeiten", "…und die Hülle auch"); checks++;
-assert.strictEqual(avesmapsLandschaftDialogTitel({ hatFlaeche: false, hatLabel: true }), "",
+assert.strictEqual(avesmapsLandschaftDialogTitel({ hatFlaeche: true, hatLabel: true }, "vegetation"),
+	"Vegetation bearbeiten"); checks++;
+assert.strictEqual(avesmapsLandschaftDialogTitel({ hatFlaeche: true, hatLabel: false }, "derographisch"),
+	"Derographie bearbeiten"); checks++;
+assert.strictEqual(avesmapsLandschaftDialogTitel({ hatFlaeche: true, hatLabel: true }, "topographie"),
+	"Topographie bearbeiten"); checks++;
+assert.strictEqual(avesmapsLandschaftDialogTitel({ hatFlaeche: true, hatLabel: true }, "klima"),
+	"Klimazonen bearbeiten"); checks++;
+assert.strictEqual(avesmapsLandschaftDialogTitel({ hatFlaeche: false, hatLabel: true }, "vegetation"), "",
 	"ohne Fläche bleibt der eigene Titel der Beschriftung stehen"); checks++;
+// ⚠️ Ohne bekannte Ebene wird NICHT geraten: lieber der Platzhalter aus dem Markup als eine falsche
+// Ebene über einem Fenster, in dem man Geometrie bearbeitet.
+assert.strictEqual(avesmapsLandschaftDialogTitel({ hatFlaeche: true, hatLabel: true }, ""), "",
+	"ohne Ebene wird der Titel nicht angefasst"); checks++;
+
+// ── F. EIN NAME, UND ER HEISST AUCH SO ───────────────────────────────────────────────────────
+// 🔴 Owner 26.08.2026: er hat im Reiter „Fläche" nach einem Namensfeld gesucht, weil das Feld oben
+// „Text" heisst — das liest sich wie der Text der BESCHRIFTUNG, nicht wie der Name der Landschaft.
+// Es schreibt aber `ecosystem_region.name` (und trägt ihn über die Propagation in die Beschriftung).
+// Das Wort ist ein Erbstück aus dem alten Beschriftungsdialog, wo es wirklich nur den Labeltext
+// schrieb.
+assert.ok(fenster.indexOf(">Name <span") !== -1 || /<span[^>]*>Name\b/.test(fenster),
+	"das Kopffeld heisst „Name\""); checks++;
+assert.ok(fenster.indexOf(">Text <span") === -1,
+	"…und nicht mehr „Text\""); checks++;
+
+// ── G. „GEHÖRT ZU" NUR DA, WO ES ETWAS ZU TUN GIBT ───────────────────────────────────────────
+// 🔴 Owner 26.08.2026: „‚Gehört zu' macht null sinn. die aktuelle auswahl bezieht sich immer auf die
+// fläche." Stimmt — im Normalfall beantwortet das Feld eine Frage, die schon beantwortet ist, und es
+// stand ausgerechnet im Reiter FLÄCHE, obwohl es der BESCHRIFTUNG gehört.
+// 💣 Ganz entfernen ging trotzdem nicht: für die **252** Beschriftungen OHNE Fläche ist es der
+// einzige Weg, sie an eine zu hängen (die anderen zwei Schreiber setzen den Zeiger nur beim Anlegen
+// und beim Duplizieren). Der leere Zustand sagt genau darauf hin: „Die Zuordnung steht darunter."
+// 🔴 Also: sichtbar NUR, wenn die Beschriftung auf keiner Fläche liegt.
+const labels = lies("js/review/review-labels.js");
+const vonF = labels.indexOf("function fillLabelRegionSelect(");
+assert.ok(vonF >= 0, "den Füller gibt es"); checks++;
+// ⚠️ Bis zur nächsten Funktion schneiden, nie auf eine feste Zeichenzahl: 900 reichten, bis die
+// Begründung darüber dazukam — ein zu kurzer Schnitt meldet „fehlt", wo es nur hinter dem Rand liegt.
+const nachF = labels.slice(vonF + 10).match(/\n(?:async )?function [A-Za-z]/);
+const fueller = nachF ? labels.slice(vonF, vonF + 10 + nachF.index) : labels.slice(vonF);
+assert.ok(/section\.hidden = !geladen \|\| /.test(fueller),
+	"der Abschnitt haengt nicht mehr allein am geladenen Vokabular"); checks++;
+// 💣 Und die Nutzlast schickt den Zeiger weiterhin nur bei SICHTBAREM Feld -- das ist der Riegel,
+// der eine Beschriftung nicht versehentlich auf eine fremde Fläche umhängt.
+assert.ok(/!regionSection\.hidden/.test(labels),
+	"der Zeiger reist nur mit, wenn das Feld sichtbar ist"); checks++;
 
 console.log("landschaft-dialog-form: " + checks + " Zusicherungen gruen");

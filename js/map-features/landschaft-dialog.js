@@ -250,8 +250,10 @@ function avesmapsLandschaftDialogLagen() {
 	// derselben Stelle: die Haelften melden sich hier an und ab, also entscheidet sich hier, wessen
 	// Kasten gilt.
 	avesmapsLandschaftDialogWikiKasten(stand);
-	// 🔴 Und der Titel sagt, WAS das Fenster bearbeitet -- dasselbe Praedikat, dieselbe Stelle.
-	avesmapsLandschaftDialogTitel(stand);
+	// ⚠️ Den Titel setzt hier NIEMAND mehr: er braucht die EBENE, und die kennt nur die Haelfte, der
+	// sie gehoert. Geschrieben wird er von `setLabelEditDialogTitle` (die traegt ihren `kind` ohnehin)
+	// und vom Flaechen-Oeffner. Eine geratene Ebene ueber einem Fenster, in dem man Geometrie
+	// bearbeitet, waere schlimmer als ein Platzhalter.
 	return gezeigt;
 }
 
@@ -516,14 +518,25 @@ function avesmapsLandschaftDialogAnlegenKnopf(autoName) {
  * Flaeche behaelt die Beschriftung ihren eigenen, genaueren Titel -- „Freies Label bearbeiten" ist
  * eine Aussage ueber die Zugehoerigkeit, die nicht verlorengehen darf.
  */
-function avesmapsLandschaftDialogTitel(stand) {
+function avesmapsLandschaftDialogTitel(stand, kind) {
 	const s = stand || {};
 	if (!s.hatFlaeche) {
 		return "";
 	}
-	// 🔴 „Region bearbeiten" (Owner 26.08.2026) -- und es ist auch das Wort, das der
-	// Landschaften-Editor daneben benutzt („2854 Regionen · 1027 gezeichnet").
-	const titel = "Region bearbeiten";
+	// 🔴 DER TITEL NENNT DIE EBENE (Owner 26.08.2026, nach einem Tag mit „Region bearbeiten": „ich
+	// will nicht ‚Region bearbeiten' sondern ‚Derographie/Vegetation/Topographie bearbeiten'").
+	// ⭐ Mit dem Wort, das das Haus dafuer ohnehin fuehrt -- `ECOSYSTEM_KIND_LABELS`, dieselbe Vokabel
+	// wie in der Ebenenleiste und in den Gruppenueberschriften der Flaechenauswahl. Eine eigene
+	// Tabelle daneben waere die Divergenz, die §12 meint.
+	// ⚠️ Ohne bekannte Ebene wird NICHT geraten: lieber der Platzhalter aus dem Markup als eine
+	// falsche Ebene ueber einem Fenster, in dem man Geometrie bearbeitet.
+	const ebene = (typeof ECOSYSTEM_KIND_LABELS !== "undefined" && ECOSYSTEM_KIND_LABELS)
+		? String(ECOSYSTEM_KIND_LABELS[String(kind || "")] || "")
+		: "";
+	if (ebene === "") {
+		return "";
+	}
+	const titel = ebene + " bearbeiten";
 	if (typeof document !== "undefined") {
 		const kopf = document.getElementById("label-edit-title");
 		if (kopf) {
