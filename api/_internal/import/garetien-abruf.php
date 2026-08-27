@@ -130,6 +130,27 @@ function avesmapsGaretienFinishRun(PDO $pdo, int $runId, string $status, ?string
 }
 
 /**
+ * Die letzten Laeufe, mit Zeilenzahl. Fuer den Endpunkt-Zweig `runs`.
+ *
+ * 🔴 DIESE FUNKTION IST DER GRUND, WARUM DER ENDPUNKT DIE TABELLENNAMEN NIE NENNEN MUSS --
+ * `garetien_import_run`/`garetien_import_row` duerfen nur innerhalb von `api/_internal/import/`
+ * vorkommen (Auftrag §5.5, Waechter `garetien-abbau-waechter-test.php`). Ein rohes SELECT direkt
+ * im Endpunkt waere genau die Verdrahtung, die den Abbau spaeter Waisen zuruecklassen liesse.
+ */
+function avesmapsGaretienListeLaeufe(PDO $pdo, int $limit = 20): array
+{
+    $stmt = $pdo->prepare(
+        'SELECT r.id, r.started_at, r.finished_at, r.status, r.note, COUNT(z.id) AS zeilen'
+        . ' FROM garetien_import_run r LEFT JOIN garetien_import_row z ON z.run_id = r.id'
+        . ' GROUP BY r.id, r.started_at, r.finished_at, r.status, r.note'
+        . ' ORDER BY r.id DESC LIMIT ' . max(1, $limit)
+    );
+    $stmt->execute();
+
+    return $stmt->fetchAll(PDO::FETCH_ASSOC);
+}
+
+/**
  * Eine Seite ins Staging legen. Nimmt HTML entgegen und ruft NICHT selbst ab -- das ist der
  * Schnitt, an dem die zwei Eingaenge zusammenlaufen. Gibt die Zahl gestagter Zeilen zurueck.
  */

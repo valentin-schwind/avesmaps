@@ -77,14 +77,11 @@ try {
     avesmapsGaretienEnsureTables($pdo);
 
     // --- Was liegt im Staging?
+    //
+    // 🔴 Die Staging-Tabellen werden HIER NICHT genannt -- `avesmapsGaretienListeLaeufe()`
+    // kapselt sie, und die liegt im Importer (Auftrag §5.5: nichts ausserhalb darf sie kennen).
     if ($action === 'runs') {
-        $laeufe = $pdo->query(
-            'SELECT r.id, r.started_at, r.finished_at, r.status, r.note, COUNT(z.id) AS zeilen'
-            . ' FROM garetien_import_run r LEFT JOIN garetien_import_row z ON z.run_id = r.id'
-            . ' GROUP BY r.id, r.started_at, r.finished_at, r.status, r.note'
-            . ' ORDER BY r.id DESC LIMIT 20'
-        )->fetchAll(PDO::FETCH_ASSOC);
-        avesmapsJsonResponse(200, ['ok' => true, 'runs' => $laeufe]);
+        avesmapsJsonResponse(200, ['ok' => true, 'runs' => avesmapsGaretienListeLaeufe($pdo)]);
     }
 
     // --- Der Plan bauen: rechnen, in KEINE Nutztabelle schreiben.
