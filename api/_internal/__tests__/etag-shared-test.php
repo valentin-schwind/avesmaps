@@ -196,4 +196,66 @@ assert(
     'and keeps no second implementation of the rule'
 );
 
+// --- 💣 map-features: der Tag geht mit der ANTWORT hinaus, nie vor der Arbeit --------------------
+//
+// Dieselbe Falle wie bei den Locations oben, nur teurer: der Aufbau dieser Antwort kostet live
+// 2,1-2,5 s, und bis zum 27.08.2026 standen beide Tag-Kopfzeilen DAVOR. avesmapsErrorResponse raeumt
+// keine Kopfzeilen weg -- eine 500 aus max_user_connections, memory_limit oder einem PDO-Timeout
+// truege also denselben gueltigen Tag. Solange kein Client etwas ablegte, war die Falle nur
+// gestellt; seit js/app/kartendaten-speicher.js Nutzlast und Tag wirklich ablegt, waere sie
+// ausgeloest: der naechste Besuch bekaeme 304 -- "deine Kopie ist aktuell" -- fuer eine Fehlerseite.
+// Das heilt NICHT von selbst, weil map_revision sich ohne Bearbeitung nicht bewegt.
+assert(
+    str_contains($mapFeaturesSource, 'function avesmapsMapFeaturesSendCacheHeaders(string $etag): void'),
+    'die Cache-Kopfzeilen gehen durch EINEN Helfer'
+);
+assert(
+    substr_count($mapFeaturesSource, 'avesmapsMapFeaturesSendCacheHeaders($etag);') === 2,
+    'genau zweimal gerufen: auf der 304 und im EINEN Rumpf-Ausgang -- beide muessen denselben Tag nennen'
+);
+// 🔴 Und die header()-Zeilen stehen NUR noch im Helfer. Der steht am Dateiende, also HINTER dem
+// ersten teuren Lader -- ein nackter Kopfzeilenblock oben im Ablauf laege davor.
+$mfLoadAt = strpos($mapFeaturesSource, 'avesmapsLoadWikiSyncLocationLinks($pdo)');
+assert(is_int($mfLoadAt), 'der erste teure Lader ist auffindbar');
+assert(
+    strpos($mapFeaturesSource, "header('ETag: ' . \$etag);") > $mfLoadAt,
+    '💣 Der ETag geht wieder vor dem Aufbau hinaus -- dann traegt ihn auch die 500.'
+);
+assert(
+    strpos($mapFeaturesSource, "header('X-Avesmaps-ETag: ' . \$etag);") > $mfLoadAt,
+    '...und dasselbe gilt fuer den X-Kopf, den der Client wirklich liest'
+);
+// Die 304 nennt den Tag und haelt an -- sie faellt nicht durch und baut die Antwort doch noch.
+assert(
+    preg_match(
+        '/if \(\$ifNoneMatch !== \'\' && avesmapsETagMatches\(\$ifNoneMatch, \$etag\)\) \{\s*\n\s*avesmapsMapFeaturesSendCacheHeaders\(\$etag\);\s*\n\s*http_response_code\(304\);\s*\n\s*exit;/',
+        $mapFeaturesSource
+    ) === 1,
+    'die 304 setzt ihre Kopfzeilen und stoppt'
+);
+// Und der EINE Rumpf-Ausgang setzt sie, bevor irgendetwas hinausgeht -- beide Wege (Vorrats-Treffer
+// und frischer Aufbau) muenden dort.
+assert(
+    preg_match(
+        '/function avesmapsMapFeaturesSendBody\(string \$body, bool \$istGzip, string \$herkunft, string \$etag\): never \{\s*\n\s*http_response_code\(200\);\s*\n\s*avesmapsMapFeaturesSendCacheHeaders\(\$etag\);/',
+        $mapFeaturesSource
+    ) === 1,
+    'der eine Rumpf-Ausgang setzt die Cache-Kopfzeilen, bevor er ausgibt'
+);
+assert(
+    substr_count($mapFeaturesSource, 'function avesmapsMapFeaturesSendBody(') === 1,
+    'und es gibt nur diesen einen Ausgang -- ein zweiter waere eine zweite Stelle, die den Tag setzt'
+);
+// ⚠️ Der Tag reist getrennt von der Ablege-Erlaubnis. Vorher war beides EIN Parameter (leer =
+// nicht ablegbar); mit dem Umzug in den Rumpf-Ausgang haette ein bbox-Abruf damit lautlos GAR KEINE
+// Cache-Kopfzeilen mehr bekommen.
+assert(
+    str_contains($mapFeaturesSource, 'function avesmapsMapFeaturesRespond(string $etag, bool $ablegbar, array $payload): never'),
+    'Tag und Ablege-Erlaubnis sind zwei Werte, nicht einer'
+);
+assert(
+    !str_contains($mapFeaturesSource, '$cacheEtag'),
+    'der alte Doppelzweck-Parameter ist wirklich weg'
+);
+
 echo "etag-shared ok\n";

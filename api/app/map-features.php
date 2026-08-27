@@ -211,31 +211,9 @@ try {
     // Query UND der 14-MB-Transfer entfallen komplett. Cache-Control: no-cache = jedes Mal revalidieren,
     // aber 304 statt Vollantwort, solange die Revision gleich bleibt.
     $etag = avesmapsMapFeaturesETag($revision, $_GET, avesmapsClimateReadStamp($pdo), $travelValues['stamp']);
-    header('ETag: ' . $etag);
-    // 🔴 DERSELBE WERT UNTER EIGENEM NAMEN -- ohne ihn kann ein Browser den Riegel NIE erreichen.
-    // Live gemessen am 26.08.2026: die 200 dieses Endpunkts traegt weder ETag noch Last-Modified;
-    // STRATOs Zwischenschicht entfernt den ETag aus rumpftragenden PHP-Antworten (dieselbe Messung
-    // an /api/locations/ am 25.08.2026). Der 304-Pfad hier ist heil und billig, aber ERFAHREN
-    // konnte ein Client den Tag nie: die einzige Antwort, die ihn traegt, ist die 304 -- und die
-    // bekommt man erst, wenn man den Tag schon hat. `X-`-Koepfe ueberleben die 200 nachweislich;
-    // dasselbe Mittel wie in api/locations/index.php und beim SVG-Abzug. Freigegeben fuer fremde
-    // Browser-Clients ist er in avesmapsApplyCorsPolicy (Access-Control-Expose-Headers).
-    // 💣 UND DIE ZWEITE HAELFTE FEHLT NOCH: der Browser-HTTP-Cache revalidiert nicht ueber
-    // `X-`-Koepfe. Wer den Tag nutzen will, muss Nutzlast und Tag selbst ablegen (IndexedDB) und
-    // `If-None-Match` von Hand setzen -- eine eigene Aufgabe, hier bewusst NICHT gebaut.
-    // 🪤 WER DAS BAUT, MUSS ZUERST DIESE ZEILEN VERSCHIEBEN. Beide Tags gehen heute HINAUS, BEVOR
-    // die teure Nutzlast gebaut ist. Scheitert der Aufbau danach (max_user_connections,
-    // memory_limit, PDO-Timeout), reist der Tag auf der 500 mit -- und ein Client, der den Rumpf
-    // darunter ablegt, bekommt beim naechsten Mal `304: deine Kopie ist aktuell` fuer eine
-    // Fehlerseite. Das heilt nicht von selbst, weil map_revision sich nicht von allein bewegt.
-    // Solange niemand etwas ablegt, ist die Falle nur gestellt, nicht ausgeloest. Das Muster fuer
-    // die Loesung steht fertig in api/locations/index.php (ein Helfer, zweimal gerufen: auf der 304
-    // und auf der 200 NACH dem Aufbau) und ist dort von etag-shared-test.php festgenagelt.
-    header('X-Avesmaps-ETag: ' . $etag);
-    header('Cache-Control: no-cache, must-revalidate');
-    header('Vary: Accept-Encoding', false);
     $ifNoneMatch = (string) ($_SERVER['HTTP_IF_NONE_MATCH'] ?? '');
     if ($ifNoneMatch !== '' && avesmapsETagMatches($ifNoneMatch, $etag)) {
+        avesmapsMapFeaturesSendCacheHeaders($etag);
         http_response_code(304);
         exit;
     }
@@ -257,7 +235,7 @@ try {
             $mapFeaturesWillGzip = stripos((string) ($_SERVER['HTTP_ACCEPT_ENCODING'] ?? ''), 'gzip') !== false;
             $mapFeaturesBody = $mapFeaturesWillGzip ? $mapFeaturesCached : @gzdecode($mapFeaturesCached);
             if (is_string($mapFeaturesBody) && $mapFeaturesBody !== '') {
-                avesmapsMapFeaturesSendBody($mapFeaturesBody, $mapFeaturesWillGzip, 'hit');
+                avesmapsMapFeaturesSendBody($mapFeaturesBody, $mapFeaturesWillGzip, 'hit', $etag);
             }
         }
     }
@@ -332,7 +310,7 @@ try {
 
     // Kompression (#1): diese Antwort wird vom Server nicht komprimiert (gemessen: content-encoding none)
     // -> hier explizit gzip, wenn der Client es akzeptiert. ~14 MB JSON -> ~1,5-2,5 MB.
-    avesmapsMapFeaturesRespond($mapFeaturesCacheEligible ? $etag : '', [
+    avesmapsMapFeaturesRespond($etag, $mapFeaturesCacheEligible, [
         'ok' => true,
         'revision' => $revision,
         // ⚠️ FAIL-OPEN IST NICHT STILL. Wie viele Wappen-Aufloesungen in dieser Antwort
@@ -539,13 +517,43 @@ function avesmapsMapFeaturesETag(int $revision, array $queryParams, string $clim
 // avesmapsETagMatches ist nach api/_internal/bootstrap.php gewandert -- api/locations/ braucht
 // ihn ebenfalls und kann diese Datei nicht einbinden, ohne die ganze Kartenantwort auszufuehren.
 
+// DIE CACHE-KOPFZEILEN DIESER ANTWORT, AN EINER STELLE -- 304 und 200 muessen denselben Tag nennen.
+//
+// 🔴 DERSELBE WERT UNTER ZWEI NAMEN -- ohne den zweiten kann ein Browser den Riegel NIE erreichen.
+// Live gemessen am 26.08.2026: die 200 dieses Endpunkts traegt keinen `ETag`; STRATOs
+// Zwischenschicht entfernt ihn aus rumpftragenden PHP-Antworten (dieselbe Messung an
+// /api/locations/ am 25.08.2026). Der 304-Pfad ist heil und billig, aber ERFAHREN konnte ein
+// Client den Tag nie: die einzige Antwort, die ihn traegt, ist die 304 -- und die bekommt man
+// erst, wenn man den Tag schon hat. `X-`-Koepfe ueberleben die 200 nachweislich; dasselbe Mittel
+// wie in api/locations/index.php und beim SVG-Abzug. Freigegeben fuer fremde Browser-Clients ist
+// er in avesmapsApplyCorsPolicy (Access-Control-Expose-Headers).
+//
+// 💣 UND DIESE ZEILEN GEHEN ERST MIT DER ANTWORT HINAUS, NIE VOR DER ARBEIT. Bis zum 27.08.2026
+// standen sie oben im Ablauf, VOR dem 2,1-2,5-s-Aufbau. Scheitert der danach (max_user_connections,
+// memory_limit, PDO-Timeout), raeumt avesmapsErrorResponse keine Kopfzeilen weg -- die 500 truege
+// denselben gueltigen Tag. Solange niemand etwas ablegte, war die Falle nur gestellt; seit der
+// Client Nutzlast und Tag wirklich ablegt (js/app/kartendaten-speicher.js), waere sie ausgeloest:
+// beim naechsten Mal 304, „deine Kopie ist aktuell", fuer eine Fehlerseite. Das heilt NICHT von
+// selbst, weil map_revision sich ohne Bearbeitung nicht bewegt. Dasselbe Muster und dieselbe
+// Begruendung wie avesmapsSendLocationsCacheHeaders; festgenagelt von etag-shared-test.php.
+//
+// ⚠️ `Vary` haengt an, statt zu ersetzen (zweiter Parameter false) -- der Kopf trug hier noch nie
+// allein Accept-Encoding.
+function avesmapsMapFeaturesSendCacheHeaders(string $etag): void {
+    header('ETag: ' . $etag);
+    header('X-Avesmaps-ETag: ' . $etag);
+    header('Cache-Control: no-cache, must-revalidate');
+    header('Vary: Accept-Encoding', false);
+}
+
 // DER EINE AUSGANG fuer beide Wege -- den frischen Aufbau und den Treffer aus dem Vorrat.
 // 💣 Ein zweiter Ausgang waere eine zweite Stelle, an der Content-Length, Content-Encoding und der
 // Herkunftskopf gesetzt werden; die drei muessen zusammenpassen, und genau solche Trios laufen
 // auseinander. Dieselbe Lehre wie bei den drei Ausgabestellen des Politik-Layers.
 // ⚠️ `Content-Length` zaehlt die WIRKLICH gesendeten Bytes, nicht die des JSON.
-function avesmapsMapFeaturesSendBody(string $body, bool $istGzip, string $herkunft): never {
+function avesmapsMapFeaturesSendBody(string $body, bool $istGzip, string $herkunft, string $etag): never {
     http_response_code(200);
+    avesmapsMapFeaturesSendCacheHeaders($etag);
     header('Content-Type: application/json; charset=utf-8');
     // Damit sich der Vorrat live messen laesst, wie beim Politik-Layer (X-Avesmaps-Layer-Cache).
     header('X-Avesmaps-Payload-Cache: ' . $herkunft);
@@ -565,23 +573,25 @@ function avesmapsMapFeaturesSendBody(string $body, bool $istGzip, string $herkun
 // nie gefuellt und alle nach ihm zahlten weiter den vollen Aufbau. Der Preis traegt der seltene
 // Fall (ein gzencode ueber ~20 MB), der Nutzen alle uebrigen.
 //
-// 🔴 `$cacheEtag` ist leer, wenn dieser Abruf nicht abgelegt werden darf (bbox/since_revision).
-// Die Entscheidung faellt EINMAL oben am Schnellpfad und wird hierher gereicht -- nicht hier noch
+// 🔴 `$ablegbar` sagt, ob dieser Abruf in den Vorrat darf (bbox/since_revision duerfen nicht). Die
+// Entscheidung faellt EINMAL oben am Schnellpfad und wird hierher gereicht -- nicht hier noch
 // einmal aus `$_GET` gebildet, sonst gaebe es zwei Antworten auf dieselbe Frage.
-function avesmapsMapFeaturesRespond(string $cacheEtag, array $payload): never {
+// ⚠️ Der Tag reist daneben und IMMER: er gehoert an jede Antwort, auch an eine, die nicht abgelegt
+// werden darf -- sonst bekaeme ein bbox-Abruf gar keine Cache-Kopfzeilen mehr.
+function avesmapsMapFeaturesRespond(string $etag, bool $ablegbar, array $payload): never {
     $json = json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR);
     $compressed = function_exists('gzencode') ? gzencode($json, 6) : false;
 
-    if ($compressed !== false && $cacheEtag !== '') {
-        avesmapsMapFeaturesCacheWrite($cacheEtag, $compressed);
+    if ($compressed !== false && $ablegbar) {
+        avesmapsMapFeaturesCacheWrite($etag, $compressed);
     }
 
     $acceptsGzip = stripos((string) ($_SERVER['HTTP_ACCEPT_ENCODING'] ?? ''), 'gzip') !== false;
     if ($acceptsGzip && $compressed !== false) {
-        avesmapsMapFeaturesSendBody($compressed, true, 'miss');
+        avesmapsMapFeaturesSendBody($compressed, true, 'miss', $etag);
     }
 
-    avesmapsMapFeaturesSendBody($json, false, 'miss');
+    avesmapsMapFeaturesSendBody($json, false, 'miss', $etag);
 }
 
 // Reads the global settlement-image kill switch (app_setting 'settlement_images_enabled', default ON).

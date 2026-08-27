@@ -32,16 +32,34 @@
 			       ist das hier ein Skript und kein festes <link>: bei `?edit=1` wird gar nichts
 			       angemeldet. Die Erkennung ist zeichengleich zu `IS_EDIT_MODE` in js/config.js
 			       (derselbe tolerante `?`->`&`-Ersatz), damit beide dieselbe Antwort geben.
-			   (2) Der Abruf in routing.js schickt KEINE eigenen Kopfzeilen mehr. Ein `Accept:
+			   (2) Der Abruf in routing.js schickt KEINE eigenen Kopfzeilen -- SOLANGE es keinen
+			       gemerkten Tag gibt. Ein `Accept:
 			       application/json` dort gegen den unspezifischen Accept des Vorabrufs ist genau die
 			       Ungleichheit, an der Chrome ihn verwirft. Serverseitig liest den Kopf niemand.
+			   (3) 💣 UND DESHALB EINE DRITTE BEDINGUNG, die kniffligste von allen: seit dem
+			       27.08.2026 legt der Client Nutzlast und Tag selbst ab
+			       (js/app/kartendaten-speicher.js) und schickt beim naechsten Besuch
+			       `If-None-Match` mit. Diese Anfrage traegt damit eine eigene Kopfzeile und
+			       verfehlt den Vorabruf -- die 3 MB reisten ZWEIMAL, schlechter als vorher.
+			       Liegt also ein Tag in localStorage, wird hier GAR KEIN Vorabruf angemeldet:
+			       die Anfrage wird ohnehin bedingt und antwortet mit 304 und null Bytes. Kein
+			       Tag -> Vorabruf wie bisher. Genau EINE Anfrage an map-features.php in beiden
+			       Faellen, im Netz-Protokoll nachgezaehlt.
+			       🔴 Der Schluessel steht hier ein ZWEITES Mal -- die Entscheidung faellt
+			       synchron, lange bevor ein Skript geladen ist, also kann dieses Skript
+			       AVESMAPS_KARTENDATEN_TAG_SCHLUESSEL nicht lesen. Zeichengleich zu halten ist
+			       Pflicht; festgenagelt von js/app/__tests__/kartendaten-speicher.test.js.
+			       ⚠️ Der Tag wird erst gesetzt, NACHDEM die Nutzlast wirklich liegt -- sonst
+			       unterbliebe hier der Vorabruf fuer eine Kopie, die es gar nicht gibt.
 			   ⚠️ `crossorigin` gehoert dazu: `fetch()` laeuft im CORS-Modus mit `credentials:
 			   "same-origin"`, und nur `crossorigin="anonymous"` beschreibt genau das.
 			   ⚠️ Auf einem Rechner, der nicht in SQL_MAP_HOSTS steht, holt niemand die Daten ab und der
 			   Vorabruf ist eine Anfrage umsonst. Die Wirtsliste steht bewusst NICHT ein zweites Mal
 			   hier -- eine zweite Wahrheit dafuer waere teurer als die eine Anfrage in der Werkstatt. */
 			try {
-				if (new URLSearchParams(String(window.location.search || "").replace(/\?/g, "&")).get("edit") !== "1") {
+				var mapFeaturesWarmerTag = "";
+				try { mapFeaturesWarmerTag = window.localStorage.getItem("avesmaps.kartendaten.etag") || ""; } catch (e) {}
+				if (new URLSearchParams(String(window.location.search || "").replace(/\?/g, "&")).get("edit") !== "1" && !mapFeaturesWarmerTag) {
 					var mapFeaturesPreload = document.createElement("link");
 					mapFeaturesPreload.rel = "preload";
 					mapFeaturesPreload.as = "fetch";
@@ -3380,6 +3398,12 @@
 		<script src="js/ui/popups.js"></script>
 		<script src="js/community/location-reviews.js"></script>
 		<script src="js/app/api-client.js"></script>
+		<!-- Der Ablageort der Kartennutzlast (IndexedDB) samt gemerktem ETag -- die zweite
+		     Haelfte des ETag-Wegs. 🔴 MUSS VOR js/routing/routing.js stehen: dessen
+		     loadRouteDataFromApi() liest den gemerkten Tag beim Auswerten der Datei, um
+		     `If-None-Match` zu setzen. Der Riegel dort ist ein typeof-Test, die Karte laedt
+		     also auch ohne diese Datei -- nur eben jedes Mal voll. -->
+		<script src="js/app/kartendaten-speicher.js"></script>
 		<script src="js/territory/territory-editor-inline-host.js"></script>
 		<!-- Banner + save-button state for the territory claim. Shared with the standalone editor
 		     page, which loads none of the panel machinery. Must come BEFORE territory-editor-link.js,

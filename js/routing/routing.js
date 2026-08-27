@@ -261,33 +261,78 @@ function loadRouteDataFromApi() {
 		mapFeaturesUrl.searchParams.set("edit_mode", "1");
 	}
 
-	// 🔴 OHNE EIGENE KOPFZEILEN, UND DAS IST TRAGEND. Diese Anfrage wird im Kopf von index.html per
-	// <link rel="preload" as="fetch"> vorangemeldet; ein `Accept: application/json` hier gegen das
-	// `*/*` des Vorabrufs laesst Chrome den Vorabruf verwerfen -- und dann reisen die ~3 MB ZWEIMAL,
-	// also schlechter als ohne Vorabruf. Serverseitig liest den Kopf niemand (kein HTTP_ACCEPT in
-	// api/), er war reine Hoeflichkeit. Wer hier je wieder eine Kopfzeile ergaenzt, muss den
-	// Vorabruf in index.html mitnehmen -- oder ihn entfernen.
-	return fetch(mapFeaturesUrl.toString())
-		.then((response) => {
+	// Aus der rohen Antwort wird der Kartenstand. Beide Wege -- frisch geholt und aus dem Speicher
+	// hydriert -- muenden hier, damit „Revision " und `avesmapsSource` nicht zweimal entstehen.
+	const auswerten = (data) => {
+		if (!data || data.type !== "FeatureCollection" || !Array.isArray(data.features)) {
+			throw new Error("Map-Features-API liefert kein gültiges GeoJSON.");
+		}
+
+		data.avesmapsSource = {
+			label: "SQL",
+			revision: data.revision ?? null,
+			featureCount: data.features.length,
+		};
+		return data;
+	};
+
+	// 🔴 DER TAG KOMMT AUS `X-Avesmaps-ETag`, NIE AUS `ETag`. Live gemessen (27.08.2026, mit
+	// `cache: "no-store"`, also wirklich von der Leitung): die 200 dieses Endpunkts traegt keinen
+	// `ETag` -- STRATOs Zwischenschicht entfernt ihn aus jeder Antwort MIT Rumpf. `headers.get("ETag")`
+	// ist hier also `null`, und ein darauf gebauter Riegel waere fuer immer wirkungslos.
+	// 🪤 Und er sieht trotzdem manchmal richtig aus: beantwortet der Browser die Anfrage aus seinem
+	// EIGENEN Cache, steht `ETag` sehr wohl da -- er stammt dann aus einer frueheren 304.
+	const aus200 = (response) =>
+		response.text().then((text) => {
+			const data = auswerten(JSON.parse(text));
+			const tag = response.headers.get("X-Avesmaps-ETag") || "";
+			// ⚠️ Nur die oeffentliche Fassung wird abgelegt (Begruendung in kartendaten-speicher.js),
+			// und erst im Leerlauf -- die Ablage kostet gemessen 37 ms und gehoert nicht zwischen
+			// Antwort und Kartenaufbau.
+			if (tag && !IS_EDIT_MODE && typeof avesmapsKartendatenSpaeterAblegen === "function") {
+				avesmapsKartendatenSpaeterAblegen(tag, text);
+			}
+			return data;
+		});
+
+	// 🔴 OHNE EIGENE KOPFZEILEN, SOLANGE ES KEINEN TAG GIBT, UND DAS IST TRAGEND. Diese Anfrage wird
+	// im Kopf von index.html per <link rel="preload" as="fetch"> vorangemeldet; ein `Accept:
+	// application/json` hier gegen das `*/*` des Vorabrufs laesst Chrome den Vorabruf verwerfen -- und
+	// dann reisen die ~3 MB ZWEIMAL, also schlechter als ohne Vorabruf. Serverseitig liest den Kopf
+	// niemand (kein HTTP_ACCEPT in api/), er war reine Hoeflichkeit.
+	// 💣 UND GENAU DESHALB HAENGEN DIE ZWEI SEITEN ZUSAMMEN: sobald wir `If-None-Match` mitschicken,
+	// verfehlt die Anfrage den Vorabruf. Aufgeloest wird das im KOPF von index.html, nicht hier --
+	// liegt ein Tag in localStorage, meldet das Skript dort gar keinen Vorabruf an (die Anfrage wird
+	// ohnehin bedingt und winzig). Wer hier eine Kopfzeile ergaenzt, muss diese Weiche mitnehmen.
+	const abrufen = (tag) =>
+		fetch(mapFeaturesUrl.toString(), tag ? { headers: { "If-None-Match": tag } } : undefined).then((response) => {
+			if (response.status === 304) {
+				// 💣 Ein 304 OHNE mitgeschickten Tag kann es nicht geben -- und wenn doch, waere der
+				// Rueckfall unten ein Kreis. Der Riegel bricht ihn nach genau einer Runde.
+				if (!tag) {
+					throw new Error("Map-Features-API antwortet mit HTTP 304 ohne bedingte Anfrage.");
+				}
+				return avesmapsKartendatenLesen(tag).then((data) => {
+					if (data) {
+						return auswerten(data);
+					}
+					// Der Tag lag vor, die Nutzlast nicht (Kontingent geraeumt, halber Eintrag). Dann
+					// ist der gemerkte Tag eine Luege: wegwerfen und voll holen.
+					return avesmapsKartendatenVergessen().then(() => abrufen(""));
+				});
+			}
 			if (!response.ok) {
 				throw new Error(`Map-Features-API antwortet mit HTTP ${response.status}.`);
 			}
-
-			return response.json();
-		})
-		.then((data) => {
-			if (!data || data.type !== "FeatureCollection" || !Array.isArray(data.features)) {
-				throw new Error("Map-Features-API liefert kein gültiges GeoJSON.");
-			}
-
-			console.info(`Avesmaps geladen: ${data.features.length} Features, Revision ${data.revision ?? "unbekannt"}.`);
-			data.avesmapsSource = {
-				label: "SQL",
-				revision: data.revision ?? null,
-				featureCount: data.features.length,
-			};
-			return data;
+			return aus200(response);
 		});
+
+	const gemerkterTag = IS_EDIT_MODE || typeof avesmapsKartendatenTagLesen !== "function" ? "" : avesmapsKartendatenTagLesen();
+
+	return abrufen(gemerkterTag).then((data) => {
+		console.info(`Avesmaps geladen: ${data.features.length} Features, Revision ${data.revision ?? "unbekannt"}.`);
+		return data;
+	});
 }
 
 function updateMapDataStatus(data) {
