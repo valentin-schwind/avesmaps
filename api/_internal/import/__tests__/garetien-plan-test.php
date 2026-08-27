@@ -47,8 +47,27 @@ $pruefungen += 3;
 // und mehr ist immer noch groesser als null.
 assert($anzahl === 5, 'genau fuenf Vorschlaege aus sechs Quellzeilen, ' . $anzahl . ' gebaut');
 $namen = $pdo->query('SELECT label FROM sync_plan_item ORDER BY id')->fetchAll(PDO::FETCH_COLUMN);
-assert($namen === ['Alke → Alke', 'Alke → Alke', 'Gardel (Fluss)', 'Mühlsee (See)', 'Seitenarm der Alke (Bach) · liegt auf "Alke"'],
+// 🔴 Review I1: die Beschriftung traegt seither den Anlass (sonst waeren die beiden Alke-Items
+// nicht auseinanderzuhalten -- eines schreibt eine Quelle, das andere bietet nur die Geometrie an).
+assert($namen === ['Alke → Alke · Quelle', 'Alke → Alke · Geometrie', 'Gardel (Fluss)', 'Mühlsee (See)', 'Seitenarm der Alke (Bach) · liegt auf "Alke"'],
     'die richtigen fuenf: ' . implode(' | ', $namen));
+$pruefungen += 2;
+
+// --- 🔴 Review I2: das Geometrie-Item ist IMMER ungehakt -- auch tatsaechlich in der Datenbank,
+// nicht nur im rohen Item vor avesmapsSyncPlanAddItem. avesmapsSyncPlanDefaultSelected('changed', 0)
+// gibt 1 zurueck; das `vorwahl_aus` in avesmapsGaretienErgaenzungsEintraege ist das EINZIGE, was
+// ein vorangehaktes Geometrie-Ersetzen verhindert.
+$geometrieZeilen = [];
+foreach ($pdo->query('SELECT selected, after_json FROM sync_plan_item') as $zeile) {
+    $nachDb = json_decode((string) $zeile['after_json'], true);
+    if (($nachDb['anlass'] ?? null) === 'geometrie') {
+        $geometrieZeilen[] = $zeile;
+    }
+}
+assert(count($geometrieZeilen) === 1,
+    'genau ein Geometrie-Item aus der deckenden Alke, ' . count($geometrieZeilen) . ' gefunden');
+assert((int) $geometrieZeilen[0]['selected'] === 0,
+    'ein Geometrie-Item darf nicht vorangehakt in der Datenbank landen');
 $pruefungen += 2;
 
 // --- 🔴 EIN ZUFLUSS IST EIN NEUES OBJEKT, KEINE AENDERUNG AN UNSEREM FLUSS (Owner 27.08.2026).
@@ -192,6 +211,24 @@ $pruefungen++;
 //
 // 🔴 Es gibt keinen vierten change_type. Es ist ein `changed` mit after.anlass.
 
+// -- 🔴 Review C1: avesmapsGaretienQuellenBestand() darf NICHT nach `status` filtern -- der
+// Hauswert ist 'approved', der einzige andere 'suppressed' ist der Grabstein einer von HAND
+// entfernten Verknuepfung und zaehlt trotzdem als "die Quelle ist erledigt". Und der Schluessel
+// traegt den Zieltyp, weil path UND region denselben public_id-Raum benutzen.
+$pdo->exec("INSERT INTO feature_sources (entity_type, entity_public_id, source_id, status, origin)
+            VALUES ('path', 'quellen-genehmigt', 1, 'approved', 'garetien')");
+$pdo->exec("INSERT INTO feature_sources (entity_type, entity_public_id, source_id, status, origin)
+            VALUES ('path', 'quellen-unterdrueckt', 2, 'suppressed', 'garetien')");
+// Eine fremde Herkunft (nicht 'garetien') darf nicht mitgezaehlt werden.
+$pdo->exec("INSERT INTO feature_sources (entity_type, entity_public_id, source_id, status, origin)
+            VALUES ('path', 'quellen-fremd', 3, 'approved', 'manual')");
+$bestand = avesmapsGaretienQuellenBestand($pdo);
+assert(isset($bestand['path|quellen-genehmigt']), 'eine genehmigte Garetien-Quelle muss im Bestand landen');
+assert(isset($bestand['path|quellen-unterdrueckt']),
+    'eine UNTERDRUECKTE Quelle zaehlt trotzdem -- Grabstein, kein Fehlen');
+assert(!isset($bestand['path|quellen-fremd']), 'eine fremde Herkunft darf nicht mitgezaehlt werden');
+$pruefungen += 3;
+
 // -- Fall A/B: ein NAMENLOSER Abschnitt. Die Luecke wird gefuellt, also vorangehakt.
 $urteilA = ['status' => 'deckt_sich', 'anlass' => 'geometrie', 'treffer_public_id' => 'w-1',
     'treffer_name' => '', 'grund' => 'Geometrie deckt sich', 'abstand' => 0.41,
@@ -211,6 +248,18 @@ assert($luecken[0]['vorwahl_aus'] === false, 'eine Luecke kommt VORANGEHAKT (Own
 assert(array_filter($a, static fn($e) => $e['after']['anlass'] === 'umbenennung') === [],
     'ein LEERER Name wird gefuellt, nicht umbenannt');
 $pruefungen += 7;
+
+// -- 🔴 Review I2: das Geometrie-Item existiert POSITIV -- bislang sicherte kein Test zu, dass es
+// bei einem einzelnen getroffenen Abschnitt wirklich entsteht, geschweige denn dass es ungehakt
+// bleibt. Und Review I1: `after.name` gehoert NUR auf das Item, das den Namen wirklich schreibt.
+$geometrieA = array_values(array_filter($a, static fn($e) => $e['after']['anlass'] === 'geometrie'));
+assert(count($geometrieA) === 1, 'ein einzelner getroffener Abschnitt bekommt sein Geometrie-Angebot');
+assert($geometrieA[0]['vorwahl_aus'] === true, 'ein Geometrie-Item ist IMMER ungehakt');
+assert($geometrieA[0]['entity_public_id'] === 'w-1', 'und zielt auf denselben Abschnitt');
+assert($luecken[0]['after']['name'] === 'Alke', 'das Luecken-Item TRAEGT den Namen -- er ist Teil seiner Luecke');
+assert(!array_key_exists('name', $geometrieA[0]['after']), 'das Geometrie-Item verspricht keinen Namenswechsel');
+assert(count($a) === 2, 'ein einzelner Abschnitt ergibt genau Luecke + Geometrie-Angebot, ' . count($a) . ' gefunden');
+$pruefungen += 6;
 
 // -- Fall C: ihr EINES Objekt laeuft ueber DREI unserer Fluesse.
 // 💣 Der Gardel bekommt NICHTS. Ihn "Natter" zu nennen waere falsch, obwohl er getroffen ist.
@@ -239,7 +288,9 @@ assert($mitName[0]['entity_public_id'] === 'w-6120', 'und zwar der namenlose');
 $natter = array_values(array_filter($c, static fn($e) => $e['entity_public_id'] === 'w-4471'));
 assert(count($natter) === 1 && $natter[0]['after']['felder'] === ['quelle'],
     'ein gleichnamiger Abschnitt bekommt die Quelle -- und sonst nichts');
-$pruefungen += 5;
+// Review I1: ein reines Quellen-Item verspricht keinen Namenswechsel.
+assert(!array_key_exists('name', $natter[0]['after']), 'ein reines Quellen-Item darf keinen Namen versprechen');
+$pruefungen += 6;
 
 // -- Fall D: ihre "Angbarer Reichsstrasse" trifft SECHSMAL unsere "Reichsstrasse 3".
 // Ein Name -> es IST unser Objekt -> die Umbenennung ist eine sinnvolle Frage, aber UNGEHAKT.
@@ -268,15 +319,33 @@ assert(count($nurQuelle) === 6,
 assert($nurQuelle[0]['vorwahl_aus'] === false, 'die Quelle ist eine Luecke und kommt vorangehakt');
 $pruefungen += 7;
 
-// -- Nichts zu ersetzen: gleicher Name, Quelle liegt schon.
+// -- 🔴 Review I1: sechs Abschnitte tragen alle DENSELBEN Namen "Reichsstraße 3" -- ohne Anlass
+// UND Abschnitt in der Beschriftung waeren die sechs Umbenennungs-Items (und die sechs
+// Quellen-Items) im Blatt nicht auseinanderzuhalten.
+assert(count(array_unique(array_map(static fn($e) => $e['label'], $um))) === 6,
+    'sechs Umbenennungs-Items brauchen sechs unterscheidbare Beschriftungen');
+assert(count(array_filter($um, static fn($e) => str_contains((string) $e['label'], 'umbenennen'))) === 6,
+    'jede Umbenennungs-Beschriftung nennt den Anlass');
+assert(count(array_unique(array_map(static fn($e) => $e['label'], $nurQuelle))) === 6,
+    'sechs Quellen-Items brauchen sechs unterscheidbare Beschriftungen');
+// Und: das begleitende Quellen-Item verspricht -- anders als das Umbenennungs-Item -- keinen Namen.
+assert(!array_key_exists('name', $nurQuelle[0]['after']), 'ein Quellen-Item neben der Umbenennung traegt keinen Namen');
+$pruefungen += 4;
+
+// -- Nichts zu ersetzen: gleicher Name, Quelle liegt schon -- NUR das Geometrie-Angebot bleibt.
+// 🔴 Review I2 (nimmt M2 mit): eine leere array_filter-Zusicherung waere auch dann gruen, wenn
+// gar nichts mehr entstuende. Hier wird POSITIV geprueft, was tatsaechlich uebrig bleibt.
 $fertig = avesmapsGaretienErgaenzungsEintraege($zeileC, avesmapsGaretienMappeTyp('Fluss'),
     ['status' => 'deckt_sich', 'anlass' => 'geometrie', 'treffer_public_id' => 'w-4471',
      'treffer_name' => 'Natter', 'grund' => '', 'abstand' => 0.1,
      'abschnitte' => [['public_id' => 'w-4471', 'name' => 'Natter', 'punkte' => 9, 'geometrie' => []]]],
-    ['w-4471' => true]);
-assert(array_filter($fertig, static fn($e) => $e['after']['anlass'] !== 'geometrie') === [],
-    'gleicher Name plus vorhandene Quelle heisst: nichts zu ersetzen');
-$pruefungen++;
+    ['path|w-4471' => true]);
+assert(count($fertig) === 1,
+    'gleicher Name plus vorhandene Quelle heisst: nur das Geometrie-Angebot bleibt, ' . count($fertig) . ' gefunden');
+assert($fertig[0]['after']['anlass'] === 'geometrie', 'das einzige verbleibende Item ist das Geometrie-Angebot');
+assert($fertig[0]['vorwahl_aus'] === true, 'und es ist -- wie jedes Geometrie-Item -- ungehakt');
+assert(!array_key_exists('name', $fertig[0]['after']), 'und es verspricht keinen Namenswechsel');
+$pruefungen += 4;
 
 // -- Der SCHLUESSEL je Item muss eindeutig sein, sonst treffen sich zwei Abschnitte in
 // sync_decision und eine Ablehnung gilt fuer beide.

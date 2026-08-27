@@ -165,20 +165,34 @@ function avesmapsGaretienEinObjekt(array $abschnitte): bool
  * ⚠️ Faellt OFFEN aus: fehlt die Tabelle (frische Installation), gilt "keine Quelle liegt" -- das
  * erzeugt hoechstens ein Item zu viel, und ein Item zu viel ist sichtbar. Ein Item zu WENIG waere
  * eine stillschweigend verlorene Quellenangabe.
+ *
+ * 🔴 RULING R3 (Review C1): KEIN `status`-Filter. Der Hauswert ist `'approved'`, der einzige
+ * andere `'suppressed'` -- der Grabstein einer von HAND entfernten Verknuepfung. Wer ihn
+ * ignoriert, bietet genau das wieder an, was ein Mensch weggenommen hat, und verletzt die
+ * Uebersteuerungs-Sicherheit, die das Haus ueberall verlangt ("manual/suppressed untouched",
+ * AGENTS.md §11 Wiki-Publikations-Quellen). Eine Zeile da = die Quelle ist erledigt, egal in
+ * welchem Zustand. (Der vorherige Wert `'active'` war falsch -- das ist das Vokabular des
+ * Lore-Systems, nicht von `feature_sources`, und lieferte live IMMER die leere Menge.)
+ *
+ * 🔴 Der Schluessel traegt `entity_type`, weil dieser Import `path`- UND `region`-Zeilen
+ * schreibt und `feature_sources` erst ueber (entity_type, entity_public_id, source_id) eindeutig
+ * ist -- eine ueber zwei Typen geteilte public_id laese sich sonst als "Quelle liegt".
+ *
+ * @return array<string,true> "<entity_type>|<entity_public_id>" => true
  */
 function avesmapsGaretienQuellenBestand(PDO $pdo): array
 {
     try {
         $stmt = $pdo->query(
-            "SELECT DISTINCT entity_public_id FROM feature_sources"
-            . " WHERE origin = 'garetien' AND status = 'active'"
+            "SELECT DISTINCT entity_type, entity_public_id FROM feature_sources"
+            . " WHERE origin = 'garetien'"
         );
     } catch (PDOException) {
         return [];
     }
     $raus = [];
-    foreach ($stmt->fetchAll(PDO::FETCH_COLUMN) ?: [] as $id) {
-        $raus[(string) $id] = true;
+    foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) ?: [] as $zeile) {
+        $raus[$zeile['entity_type'] . '|' . (string) $zeile['entity_public_id']] = true;
     }
 
     return $raus;
@@ -199,7 +213,7 @@ function avesmapsGaretienQuellenBestand(PDO $pdo): array
  *
  * REIN -- kein I/O. `$quellen` kommt aus avesmapsGaretienQuellenBestand.
  *
- * @param array<string,true> $quellen entity_public_id => true
+ * @param array<string,true> $quellen "<entity_type>|<entity_public_id>" => true
  * @return list<array>
  */
 function avesmapsGaretienErgaenzungsEintraege(array $zeile, array $ziel, array $urteil, array $quellen): array
@@ -214,13 +228,16 @@ function avesmapsGaretienErgaenzungsEintraege(array $zeile, array $ziel, array $
     // wiederverwendet und nicht abgeschrieben.
     $vorlage = avesmapsGaretienPlanEintrag($zeile, $ziel, $urteil);
     $eintraege = [];
+    $abschnittAnzahl = count($abschnitte);
 
     foreach ($abschnitte as $abschnitt) {
         $publicId = (string) $abschnitt['public_id'];
         $unserName = trim((string) ($abschnitt['name'] ?? ''));
         $nameLeer = $unserName === '';
         $nameGleich = !$nameLeer && avesmapsGaretienNamenAehnlich($ihrName, $unserName);
-        $hatQuelle = isset($quellen[$publicId]);
+        // 🔴 Review C1: der Schluessel traegt den Zieltyp -- derselbe public_id-Raum wird von
+        // path UND region benutzt.
+        $hatQuelle = isset($quellen[$ziel['ziel'] . '|' . $publicId]);
 
         // 1. Das Luecken-Item: nur Leeres wird gefuellt, deshalb VORANGEHAKT.
         $felder = [];
@@ -234,14 +251,14 @@ function avesmapsGaretienErgaenzungsEintraege(array $zeile, array $ziel, array $
         }
         if ($felder !== []) {
             $eintraege[] = avesmapsGaretienAbschnittsEintrag(
-                $vorlage, $abschnitt, 'ergaenzung', $felder, $ihrName, $unserName, false
+                $vorlage, $abschnitt, 'ergaenzung', $felder, $ihrName, $unserName, false, $abschnittAnzahl
             );
         }
 
         // 2. Das Umbenennungs-Item: ein VORHANDENER Name wird ueberschrieben -- nie stillschweigend.
         if (!$nameLeer && !$nameGleich && $einObjekt) {
             $eintraege[] = avesmapsGaretienAbschnittsEintrag(
-                $vorlage, $abschnitt, 'umbenennung', ['name'], $ihrName, $unserName, true
+                $vorlage, $abschnitt, 'umbenennung', ['name'], $ihrName, $unserName, true, $abschnittAnzahl
             );
         }
     }
@@ -252,35 +269,59 @@ function avesmapsGaretienErgaenzungsEintraege(array $zeile, array $ziel, array $
     // Werkzeug anbieten kann -- 34 der 37 Widersprueche sind Baeche, die auf ihrem Hauptfluss
     // liegen; dort ersetzte es die Natter durch ihren Seitenarm, mit gueltiger id und ohne
     // Fehlermeldung. Der Knopf ist dann ausgegraut und sagt, warum.
-    if (count($abschnitte) === 1) {
+    if ($abschnittAnzahl === 1) {
         $eintraege[] = avesmapsGaretienAbschnittsEintrag(
             $vorlage, $abschnitte[0], 'geometrie', ['geometrie'], $ihrName,
-            trim((string) ($abschnitte[0]['name'] ?? '')), true
+            trim((string) ($abschnitte[0]['name'] ?? '')), true, $abschnittAnzahl
         );
     }
 
     return $eintraege;
 }
 
+/** Menschlich lesbarer Anlass, fuer die Beschriftung -- NICHT fuer `after.anlass` (Review I1). */
+const AVESMAPS_GARETIEN_ANLASS_BESCHRIFTUNG = [
+    'ergaenzung' => 'Quelle',
+    'umbenennung' => 'umbenennen',
+    'geometrie' => 'Geometrie',
+];
+
 /**
  * Ein Item fuer EINEN Abschnitt, aus der gemeinsamen Vorlage.
  *
  * 💣 Der `entity_key` traegt den Abschnitt UND den Anlass. Ohne beides teilten sich zwei Items
  * eine Zeile in `sync_decision` -- und eine Ablehnung des Umbenennens naehme die Quelle mit.
+ *
+ * 🔴 Review I1: DIE BESCHRIFTUNG WAR UNTERSCHEIDUNGSLOS. Sechs Reichsstrasse-3-Abschnitte tragen
+ * denselben Namen -- ohne Anlass UND Abschnitt sahen ihr Quellen-Item und ihr Umbenennungs-Item
+ * (und alle sechs Umbenennungs-Items untereinander) identisch aus. Die Beschriftung traegt jetzt
+ * den Anlass, und bei mehreren getroffenen Abschnitten zusaetzlich die public_id.
+ *
+ * 🔴 Review I1: `after.name` bleibt NUR stehen, wenn 'name' wirklich in `felder` liegt -- sonst
+ * behauptet das Blatt (syncPlanDiffMarkup zeigt jedes Feld aus `after`) eine Umbenennung, die gar
+ * nicht ausgefuehrt wird (ein Quellen- oder Geometrie-Item schreibt keinen Namen).
  */
 function avesmapsGaretienAbschnittsEintrag(
     array $vorlage, array $abschnitt, string $anlass, array $felder,
-    string $ihrName, string $unserName, bool $vorwahlAus
+    string $ihrName, string $unserName, bool $vorwahlAus, int $abschnittAnzahl
 ): array {
     $publicId = (string) $abschnitt['public_id'];
     $eintrag = $vorlage;
     $eintrag['entity_key'] = mb_substr($vorlage['entity_key'] . '|' . $anlass . '|' . $publicId, 0, 190, 'UTF-8');
     $eintrag['entity_public_id'] = $publicId;
     $eintrag['change_type'] = 'changed';
-    $eintrag['label'] = $ihrName . ' → ' . ($unserName !== '' ? $unserName : 'ohne Namen');
+    $anlassText = AVESMAPS_GARETIEN_ANLASS_BESCHRIFTUNG[$anlass] ?? $anlass;
+    $abschnittText = $abschnittAnzahl > 1 ? ' (' . $publicId . ')' : '';
+    $eintrag['label'] = $ihrName . ' → ' . ($unserName !== '' ? $unserName : 'ohne Namen')
+        . ' · ' . $anlassText . $abschnittText;
     $eintrag['before'] = ['public_id' => $publicId, 'name' => $unserName];
     $eintrag['after']['anlass'] = $anlass;
     $eintrag['after']['felder'] = $felder;
+    if (!in_array('name', $felder, true)) {
+        // Kein Namenswechsel auf diesem Item -- die Vorlage traegt IHREN Namen in `after.name`
+        // (fuer den Neu-Fall gedacht), und der wuerde hier faelschlich als Umbenennung gelesen.
+        unset($eintrag['after']['name']);
+    }
     $eintrag['after']['abschnitt'] = [
         'public_id' => $publicId,
         'name' => $unserName,
@@ -297,9 +338,12 @@ function avesmapsGaretienAbschnittsEintrag(
 /**
  * Den Plan fuer einen Import-Lauf bauen. Gibt die Zahl der Vorschlaege zurueck.
  *
- * `deckt_sich` erzeugt KEINEN Eintrag -- was wir schon haben, muss niemand ansehen.
- * `uebersprungen` auch nicht, aber der Grund steht im Lauf-Vermerk, damit die Zahl nachpruefbar
- * bleibt: "6 uebersprungen" ohne Grund ist keine Auskunft.
+ * 🔴 Review I3: `deckt_sich` geht seit dem vierten Ausgang (Aufgabe 3) durch
+ * `avesmapsGaretienErgaenzungsEintraege` -- das erzeugt KEINEN Eintrag nur, wenn jeder getroffene
+ * Abschnitt Namen UND Quelle schon traegt (das Geometrie-Item bleibt trotzdem, "immer ungehakt"
+ * gilt unabhaengig davon). `uebersprungen` erzeugt weiterhin keinen Eintrag, aber der Grund steht
+ * im Lauf-Vermerk, damit die Zahl nachpruefbar bleibt: "6 uebersprungen" ohne Grund ist keine
+ * Auskunft.
  */
 function avesmapsGaretienBaueSyncPlan(PDO $pdo, int $importRunId, int $userId = 0): int
 {
@@ -394,6 +438,11 @@ function avesmapsGaretienPlanTestPdo(): PDO
     $pdo->exec('CREATE TABLE map_features (id INTEGER PRIMARY KEY AUTOINCREMENT, public_id TEXT, name TEXT, feature_type TEXT, feature_subtype TEXT, geometry_json TEXT, properties_json TEXT, is_active INT DEFAULT 1)');
     $pdo->exec('CREATE TABLE ecosystem_region (id INTEGER PRIMARY KEY AUTOINCREMENT, public_id TEXT, name TEXT, kind TEXT, region_type TEXT, wiki_url TEXT, label_public_id TEXT, is_active INT DEFAULT 1)');
     $pdo->exec('CREATE TABLE ecosystem_area (id INTEGER PRIMARY KEY AUTOINCREMENT, public_id TEXT, region_id INT, geometry_geojson TEXT, is_active INT DEFAULT 1, is_trial INT DEFAULT 0)');
+    // 🔴 Review C1: eine TESTTABELLE (kein Produktions-DDL, das steht in
+    // api/_internal/app/feature-sources.php), damit avesmapsGaretienQuellenBestand() ihre Abfrage
+    // wirklich AUSFUEHRT statt sie im catch-Zweig zu verschlucken. Bleibt LEER -- ein Test, der
+    // eine hinterlegte Quelle braucht, saet seine eigene Zeile.
+    $pdo->exec('CREATE TABLE feature_sources (id INTEGER PRIMARY KEY AUTOINCREMENT, entity_type TEXT, entity_public_id TEXT, source_id INT, status TEXT DEFAULT \'approved\', origin TEXT DEFAULT \'manual\')');
     avesmapsEnsureSyncPlanTablesSqlite($pdo);
 
     // Ein Bestandsfluss dort, wo die erste Quellzeile landet -- damit "deckt_sich" wirklich
