@@ -147,9 +147,21 @@ werden repariert statt wegdefiniert — Flächen-`public_id` nachschlagen statt 
 die erwartete Revision mitschicken.
 ⚠️ **Für Stufe 4 (Orte, Punkte) gilt: nur „Position behalten oder ersetzen"** — kein
 Geometrie-Ersatz im Sinne einer Linie oder Fläche. Gehört in Stufe 4, nicht hierher.
-🔧 **Weiterhin offen bleibt Entscheidung A oben** (nur bei GENAU EINEM getroffenen Abschnitt):
-der Owner hat die Frage nach der OBJEKTART beantwortet, nicht die nach dem Ziel bei fünf
-getroffenen Abschnitten.
+**A3 · 🔴 ENTSCHIEDEN 27.08.2026 — bei mehreren Abschnitten wird GEZEIGT, nicht geraten.**
+Auf die Frage, was bei fünf getroffenen Abschnitten geschieht, wörtlich: *„wir wollen sehen
+welche abschnitt das sind. wir wollen DEREN objekt und UNSER objekt SEHEN."*
+
+⭐ **Das ist keine neue Anforderung, sondern die Bestätigung der geplanten:** Aufgabe 13 listet
+die getroffenen Abschnitte mit Namen und Deckung, Aufgabe 14 zeichnet **ihre** Geometrie
+goldgelb gestrichelt und legt den goldenen Schein unter **unsere** betroffenen Abschnitte.
+Genau das ist „deren Objekt und unser Objekt sehen".
+
+🔧 **Was daraus folgt:** die Entscheidung, ob „Geometrie ersetzen" bei mehreren Abschnitten
+überhaupt ein Knopf sein soll — und wenn ja, mit welchem Ziel —, fällt **am Bild**, nicht am
+Reissbrett. Bis Aufgabe 14 gebaut ist, bleibt der Knopf dort ausgegraut und nennt den Grund
+(„5 Abschnitte — welchen?"); danach sieht der Owner den Fall und sagt, was er tun soll.
+⚠️ Der Bauplan darf ihn bis dahin **nicht** stillschweigend aktivieren: ein Ersatz ohne
+benennbares Ziel ist die Handlung, die aus der Natter ihren Seitenarm macht.
 
 **C · Darf ein Editor (nicht Admin) übernehmen?**
 Der Knopf ist admin-only (Owner). `sync-plan.php` ist für alle acht Arten `edit`-gegattert.
