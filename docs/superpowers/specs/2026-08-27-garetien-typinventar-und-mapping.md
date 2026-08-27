@@ -414,18 +414,30 @@ Gemessen, welche der acht es schon gibt:
 | `Gutshof` | 365 | ✅ `Gutshof` |
 | `Akademie` | 4 | ✅ `Akademie` |
 | `Binge` | 13 | ✅ `Binge` (zusätzlich zu `settlement_class = dorf`) |
-| **`Burg`** | **471** | 🔴 **fehlt.** `Festung`, `Schloss`, `Ruine` gibt es — eine Burg ist keins davon |
-| **`Gasthaus`** | **75** | 🔴 **fehlt.** Nächstes wäre `Karawanserei`, und das ist etwas anderes |
-| `Pfalz` | 14 | ⚠️ nur `Kaiserpfalz` — eine nicht-kaiserliche Pfalz hat keine Art |
-| `Magierturm` | 2 | ⚠️ `Turm` und `Magierakademie` gibt es; `Magierturm` ist beides nicht |
-| `Stadtviertel` | 22 | 🔴 **fehlt** (Owner 27.08.: neue Kategorie, §1.5) |
+| **`Burg`** | **471** | ✅ **NEU** — `Festung`, `Schloss`, `Ruine` gibt es, eine Burg ist keins davon |
+| **`Gasthaus`** | **75** | ✅ **NEU** — Nächstes wäre `Karawanserei`, und das ist etwas anderes |
+| `Pfalz` | 14 | ✅ **NEU** — es gibt nur `Kaiserpfalz`; eine nicht-kaiserliche Pfalz hatte keine Art |
+| `Magierturm` | 2 | ✅ **NEU** — `Turm` und `Magierakademie` gibt es; `Magierturm` ist beides nicht |
+| `Stadtviertel` | 22 | ✅ **NEU** (§1.5) |
 
-🔧 **Damit ist die Frage klein und konkret:** drei bis fünf Ortsarten anhängen (`Burg`,
-`Gasthaus`, `Stadtviertel`, evtl. `Pfalz`, `Magierturm`) — statt einer Grundsatzfrage über
-Ortsklassen. ⚠️ Neue Arten kommen **ans ENDE** der Liste: die ersten 24 Einträge sind
-byte-genau festgenagelt (`avesmapsPlaceKindLegacyPrefix`), weil der Erste, der einen Titel
-beansprucht, gewinnt — ein neuer Eintrag weiter vorn würde Artikel umklassifizieren, die der
-Dump heute schon einordnet.
+✅ **ENTSCHIEDEN 27.08.2026 vom Owner — alle fünf kommen als neue Ortsarten dazu.** Wörtlich:
+*„Besondere Gebäude/Stätten -> Gasthaus (neu), genauso wie Burg, Pfalz, Magierturm,
+Stadtviertel, …"*
+
+Damit ist es **keine Grundsatzfrage über Ortsklassen**, sondern **fünf Einträge in einer Liste**
+— `AVESMAPS_WIKI_SETTLEMENT_LEGACY_BUILDING_TYPES` in `api/_internal/wiki/place-kinds.php`.
+
+💣 **Neue Arten kommen ans ENDE der Liste, und das ist tragend.** Die ersten 24 Einträge sind
+byte-genau festgenagelt (`avesmapsPlaceKindLegacyPrefix`), weil **der Erste gewinnt, der einen
+Titel beansprucht**: `avesmapsWikiSettlementMatchBuildingType` nimmt die erste passende Kategorie.
+Ein neuer Eintrag weiter vorn würde Artikel umklassifizieren, die der Dump heute schon einordnet
+— ohne dass jemand danach gefragt hat.
+
+⚠️ **Und die Arten wirken nicht nur beim Import.** `building_type` wird aus den **Wiki-Kategorien**
+abgeleitet („Kategoriename == building_type"). Sobald `Burg` in der Liste steht, ordnet der
+nächste Dump-Lauf **jeden** Artikel der Wiki-Kategorie „Burg" so ein — nicht nur die 471 aus
+Garetien. Das ist gewollt und der eigentliche Gewinn, gehört aber gesehen: die Zahl der
+betroffenen Objekte ist grösser als die des Imports.
 
 | Ihre Unterscheidung | Bei uns | Verlust |
 |---|---|---|
