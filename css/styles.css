@@ -51,6 +51,10 @@
    index.html, nicht in einem Editor-iframe, und braucht dieselben Formen. editor-page.css bindet
    dieselbe Datei fuer die sechs Editorseiten -- die Regel steht also genau einmal. */
 @import url("components/editor-body.css");
+/* Das Fenster „Garetien Importer" (Aufgabe 10) -- Hülle, Kopf, Laufzeile, Fuß. Nutzt die Formen
+   aus editor-body.css/editor-row.css darüber. 🔴 Diese Zeile verschwindet mit der Datei beim
+   Abbau des Importers (Auftrag §5.5). */
+@import url("components/garetien-importer.css");
 @import url("components/region-wiki-dialogs.css");
 @import url("components/political-territory-tree.css");
 @import url("components/political-territory-controls.css");

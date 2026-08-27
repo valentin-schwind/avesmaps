@@ -1,0 +1,155 @@
+/* Das Fenster „Garetien Importer" — die Hülle, ihr Kopf, die Laufzeile und der Fuß. Sonst nichts.
+ * 🔴 DIESE DATEI VERSCHWINDET BEIM ABBAU (Auftrag §5.5), samt ihrer einen Zeile in styles.css.
+ *    Deshalb steht hier NUR, was es sonst nirgends gibt: Menüband, Kacheln, Spalten, Reiter,
+ *    Rollkasten und Listenzeile kommen aus editor-body.css und editor-row.css und bleiben.
+ * 🔴 KEIN Scrim, KEIN mittiges Modal (docs/garetien-importer-mockup.html §1, Owner 27.08.2026:
+ *    „ich will eine liste in einem dialog fenster (zum hin und herschieben)"). Die Karte muss
+ *    darunter SICHTBAR und BEDIENBAR bleiben -- deshalb `position: fixed` statt eines Overlays,
+ *    und keine Weichzeichnung/Abdunkelung wie bei .avm-editor-dialog.
+ */
+
+.gi-win {
+	position: fixed;
+	left: var(--space-16);
+	top: var(--space-16);
+	z-index: var(--z-dialog);
+	display: flex;
+	flex-direction: column;
+	width: min(800px, calc(100vw - 2 * var(--space-16)));
+	/* 💣 FESTE Höhe, nicht bloß max-height: der Kasten verteilt seinen Platz auf seine Spalten,
+	   und eine Verteilung braucht eine Bezugsgröße. Mit nur max-height fiel die Liste beim ersten
+	   Wurf auf NULL zusammen — gemessen beim Zeichnen des Mockups, nicht vermutet.
+	   ⚠️ Kleiner als --avm-editor-h: dieses Fenster muss NEBEN der Karte bestehen, nicht statt
+	   ihrer. */
+	height: min(700px, calc(100vh - 2 * var(--space-16)));
+	border: 1px solid var(--color-border-strong);
+	border-radius: var(--radius-sm);      /* Hülle sm, Bedienelemente md — Designsprache */
+	background: var(--color-panel);
+	box-shadow: var(--shadow-dialog);
+	font-size: var(--font-size-body);
+	line-height: var(--leading-snug);
+	color: var(--color-text);
+	overflow: hidden;
+}
+
+.gi-win[hidden] { display: none; }
+
+.gi-win__head {
+	display: flex;
+	align-items: center;
+	gap: var(--space-6);
+	padding: var(--space-6) var(--space-6) var(--space-6) var(--space-10);
+	border-bottom: 1px solid var(--color-border);
+	background: var(--color-panel-soft);
+	cursor: grab;                              /* der ganze Kopf ist der Griff (dialog-drag.js) */
+}
+
+.gi-win__grip {
+	flex: none;
+	letter-spacing: -3px;
+	color: var(--color-text-muted);
+	font-size: var(--font-size-caption);
+	user-select: none;
+}
+
+.gi-win__title {
+	flex: 1 1 auto;
+	min-width: 0;
+	margin: 0;
+	font-size: var(--font-size-subhead);
+	line-height: var(--leading-tight);
+	font-weight: var(--font-weight-bold);
+	color: var(--color-text-strong);
+}
+
+.gi-win__x {
+	flex: none;
+	width: 32px;
+	height: 32px;
+	display: grid;
+	place-items: center;
+	border: 1px solid var(--color-button-soft-border);
+	border-radius: var(--radius-md);
+	background: var(--color-button-soft);
+	color: var(--color-button-soft-text);
+	font: inherit;
+	cursor: pointer;
+}
+
+.gi-win__x:hover { background: var(--color-button-soft-hover); }
+
+/* ---- Die stille Zeile: die Bilanz des LAUFS (Aufgabe 11+ füllt sie). ---------------------- */
+.gi-runline {
+	margin: 0;
+	max-width: none;
+	padding: var(--space-4) var(--space-10);
+	background: var(--color-panel-muted);
+	font-size: var(--font-size-caption);
+	color: var(--color-text-muted);
+}
+
+/* ⚠️ Die rechte Spalte polstert nicht selbst -- das tut die rollende Einzelansicht darin
+   (Aufgabe 11+). Specificity 0,3,0 schlägt die geteilte 0,2,0 aus editor-body.css. */
+.gi-win .avm-col + .avm-col { padding: 0; }
+
+/* ---- Fuß: die EINE gefüllte Handlung des Fensters ----------------------------------------- */
+.gi-foot {
+	flex: none;
+	display: flex;
+	align-items: center;
+	gap: var(--space-6);
+	padding: var(--space-6) var(--space-10);
+	border-top: 1px solid var(--color-border);
+	background: var(--color-panel-soft);
+}
+
+.gi-foot__count {
+	flex: 1 1 auto;
+	min-width: 0;
+	font-size: var(--font-size-caption);
+	color: var(--color-text-muted);
+}
+
+.gi-foot__note {
+	flex: none;
+	margin: 0;
+	max-width: none;
+	padding: 0 var(--space-10) var(--space-6);
+	background: var(--color-panel-soft);
+	font-size: var(--font-size-caption);
+	color: var(--color-text-muted);
+}
+
+/* ---- Der Knopf im Fuß. Scoped auf .gi-win: `.btn`/`.btn--main` sind sonst nirgends in
+   index.html ein Haus-Name (die Editor-IFRAMES definieren ihn je Seite selbst), und diese Datei
+   verschwindet restlos beim Abbau (Auftrag §5.5) -- ein ungescopter globaler Name wäre eine
+   Altlast, die ein späteres Feature unwissentlich träfe. --------------------------------------- */
+.gi-win .btn {
+	min-height: var(--avm-control-h);
+	padding: 0 var(--space-8);
+	border: 1px solid var(--color-button-soft-border);
+	border-radius: var(--radius-md);
+	background: var(--color-button-soft);
+	color: var(--color-button-soft-text);
+	font: inherit;
+	font-size: var(--font-size-small);
+	cursor: pointer;
+}
+
+.gi-win .btn:hover { background: var(--color-button-soft-hover); }
+
+.gi-win .btn--main {
+	background: var(--color-button);
+	border-color: var(--color-button-border);
+	color: var(--color-button-text);
+	font-weight: var(--font-weight-bold);
+}
+
+.gi-win .btn--main:hover { background: var(--color-button-hover); }
+
+.gi-win .btn:disabled {
+	background: var(--color-disabled-bg);
+	border-color: var(--color-disabled-border);
+	color: var(--color-disabled-text);
+	cursor: not-allowed;
+}

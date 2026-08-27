@@ -572,6 +572,15 @@
 					<div class="wiki-sync-dump-solo">
 						<button id="wiki-sync-conflicts-open" class="wiki-sync-panel__start" type="button" title="Öffnet die Konfliktlösung: Fälle, bei denen sich Karte und Wiki Aventurica widersprechen — objektartübergreifend.">⚖️ Konflikte</button>
 					</div>
+					<!-- Der Kartenimport aus garetien.de / koschwiki.de. 🔴 ZUNAECHST NUR FUER ADMINS (Owner
+					     27.08.2026) -- deshalb `hidden`, und sichtbar erst, wenn die Sitzungsauskunft `admin`
+					     bestaetigt (js/review/review-garetien-importer.js). Der Riegel faellt geschlossen aus.
+					     🔴 Der Knopf, das Fenster und sein CSS verschwinden beim Abbau des Importers restlos
+					     (Auftrag §5.5) -- deshalb liegen sie in EIGENEN Dateien und nicht verstreut. -->
+					<div class="wiki-sync-dump-solo">
+						<button id="garetien-importer-open" class="wiki-sync-panel__start" type="button" hidden
+							title="Öffnet den Garetien Importer: die Objekte aus garetien.de und koschwiki.de, Stück für Stück ansehen und entscheiden. Es wird nichts geschrieben, bis du „Angehakte übernehmen" drückst.">🗺️ Garetien Importer</button>
+					</div>
 					<!-- Kraftlinien sat HERE, among the cross-subject actions, only because a sixth
 					     horizontal tab did not fit. It is not cross-subject at all, so it moved down
 					     into its own section (data-wiki-sync-panel-section="powerlines"). -->
@@ -3751,6 +3760,11 @@
 		     Rechte-Riegel, sonst an nichts -- die Ladereihenfolge hier ist deshalb unkritisch, weil der
 		     Riegel lazy ueber .load() geht und bis dahin geschlossen bleibt. -->
 		<script src="js/review/review-social.js"></script>
+		<!-- Das Fenster „Garetien Importer" (Aufgabe 10). Haengt zur Laufzeit an window.AvesmapsSession
+		     (js/app/session.js) fuer den Rechte-Riegel, sonst an nichts -- die Ladereihenfolge hier ist
+		     deshalb unkritisch, weil der Riegel lazy ueber .load() geht und bis dahin geschlossen bleibt.
+		     🔴 Diese Datei verschwindet beim Abbau des Importers restlos (Auftrag §5.5). -->
+		<script src="js/review/review-garetien-importer.js"></script>
 		<script src="js/app/perf-trace.js"></script>
 		<script src="js/ui/route-planner-toggle.js"></script>
 		<script src="js/map-features/map-features-infopanel.js"></script>
@@ -3782,5 +3796,32 @@
 		     darin wäre hinter dem Fenster, das es geöffnet hat. Gefüllt wird er erst auf Klick
 		     (js/review/sync-plan-sheet.js). -->
 		<div class="sync-plan-host" id="wikiSyncPlanHost" hidden></div>
+		<!-- Das Fenster „Garetien Importer". 🔴 KEIN mittiges Modal und KEIN Scrim: der Owner will die
+		     Karte SEHEN, waehrend er die Liste durchgeht („ich will eine liste in einem dialog fenster
+		     (zum hin und herschieben)"). .avm-editor-dialog verdeckt sie vollstaendig -- ein Fenster, das
+		     die Karte freigibt, ist eine andere Sache, nicht eine schlechter eingestellte gleiche.
+		     ⭐ Verschiebbar OHNE eine Zeile Verdrahtung: js/ui/dialog-drag.js sucht nach der FORM
+		     ([role=dialog] > [class*="__head"]), nicht nach einer Namensliste.
+		     🔴 In dieser Aufgabe (10) bleibt das Fenster LEER -- Liste, Filter und Einzelansicht sind
+		     Aufgabe 11 ff. -->
+		<div id="garetien-importer" class="gi-win" role="dialog" aria-label="Garetien Importer" hidden>
+			<div class="gi-win__head">
+				<span class="gi-win__grip" aria-hidden="true">⣿⣿</span>
+				<h2 class="gi-win__title">Garetien Importer</h2>
+				<button class="gi-win__x" type="button" id="garetien-importer-close" aria-label="Schließen">✕</button>
+			</div>
+			<div class="avm-ribbon" id="garetien-ribbon"></div>
+			<p class="gi-runline" id="garetien-runline"></p>
+			<div class="avm-cols avm-cols--2">
+				<div class="avm-col" id="garetien-listcol"></div>
+				<div class="avm-col" id="garetien-detailcol"></div>
+			</div>
+			<div class="gi-foot">
+				<span class="gi-foot__count" id="garetien-foot-count"></span>
+				<button class="btn btn--main" type="button" id="garetien-apply" disabled>Angehakte übernehmen</button>
+			</div>
+			<p class="gi-foot__note">Nichts davon steht in der Karte. „Übernehmen" geht durch die
+				vorhandene Übernahme-Vorschau — zweite Bestätigung, Häppchen zu 40, Protokoll.</p>
+		</div>
 	</body>
 </html>
