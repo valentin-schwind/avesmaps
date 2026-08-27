@@ -661,8 +661,12 @@ function avesmapsGaretienQuellenBestand(PDO $pdo): array
         return [];
     }
     $raus = [];
-    foreach ($stmt->fetchAll(PDO::FETCH_COLUMN) ?: [] as $id) {
-        $raus[(string) $id] = true;
+    // 💣 FETCH_ASSOC, nicht FETCH_COLUMN: die Abfrage liest ZWEI Spalten, und
+    // FETCH_COLUMN liefert nur die erste -- der Schluessel waere dann das blosse `entity_type`
+    // ("path", "region"), also zwei Eintraege fuer den ganzen Bestand. Genau die stille
+    // Leermenge, die Ruling R3 beseitigt hat, nur eine Ebene weiter.
+    foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) ?: [] as $zeile) {
+        $raus[$zeile['entity_type'] . '|' . $zeile['entity_public_id']] = true;
     }
 
     return $raus;
