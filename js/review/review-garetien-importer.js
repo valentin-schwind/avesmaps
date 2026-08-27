@@ -438,6 +438,208 @@
 		});
 	}
 
+	// ---- Aufgabe 12: der Filtertrichter -------------------------------------------------------------
+	//
+	// 🔴 .type-filter ist die Hausform (css/features/review-panel.css), verdrahtet ueber den
+	// GETEILTEN js/ui/filter-menu.js (avmFilterMenuAttach) -- dieselbe Datei, die auch den
+	// "Vorkommen"-Trichter bedient (review-wiki-sync.js). Kein eigenes Menue, keine zweite
+	// Menue-Rezeptur. Das Aufklappen ist KEIN neuer Mechanismus: dieselbe `hidden`-Umschaltung.
+	// 💣 Der Zustand ist das `hidden` des Panels und SONST NICHTS -- avmFilterMenuAttach traegt
+	// keinen zweiten Modulzustand, der auseinanderlaufen kann (dieselbe Lehre wie beim
+	// Anzeige-Menue der Karte und den Ansichts-Kacheln).
+
+	// Sechs Abschnitte (Auftrag §5.2): Ebene · Objekttyp · Urteil · Wiki · Nur zeigen (beides in
+	// EINEM Mehrfachauswahl-Abschnitt, "ungehakt"/"mehrteilig") · Freitext (das Suchfeld aus
+	// Aufgabe 11, ausserhalb der Klappflaeche -- fuer eine Textsuche gibt es keine Optionsliste).
+	const garetienFilterState = {
+		ebene: new Set(),
+		typ: new Set(),
+		urteil: new Set(),
+		wiki: new Set(),
+		nur: new Set(),
+	};
+
+	// Die LANGE Beschriftung des Filters ("Ergänzung — sie wissen mehr", Mockup §4) -- die kurze
+	// Zeilen-Beschriftung aus Aufgabe 11 (AVESMAPS_GARETIEN_URTEIL_ZEILE) ist eine ANDERE Sache
+	// (dort steht sie NEBEN dem Grund, hier steht sie ALLEIN im Trichter und darf erklaeren).
+	const AVESMAPS_GARETIEN_URTEIL_FILTER_LABEL = {
+		neu: "neu",
+		ergaenzung: "Ergänzung — sie wissen mehr",
+		zweifel: "Zweifel",
+		widerspruch: "widerspricht",
+		deckt_sich: "deckt sich",
+		uebersprungen: "übersprungen",
+	};
+
+	function garetienUrteilFilterLabel(wert) {
+		return AVESMAPS_GARETIEN_URTEIL_FILTER_LABEL[wert] || wert;
+	}
+
+	// wiki traegt in den Daten den Datenbank-Code ('ggp'/'kosch', s. garetien-plan.php); ein
+	// Editor liest lieber den Wirt.
+	const AVESMAPS_GARETIEN_WIKI_LABEL = { ggp: "garetien.de", kosch: "koschwiki.de" };
+
+	function garetienWikiLabel(wert) {
+		return AVESMAPS_GARETIEN_WIKI_LABEL[wert] || wert;
+	}
+
+	function garetienNurZeigenLabel(wert) {
+		return wert === "mehrteilig" ? "nur mit mehreren Abschnitten" : "nur ungehakte";
+	}
+
+	// REIN: aus den servergelieferten Facetten (Aufgabe 8, VOR dem Filtern gezaehlt) eine
+	// Optionsliste fuer avmFilterMenuAttach bauen. 💣 Nimmt NUR das entgegen, was uebergeben wird
+	// -- eine Auswahl im Trichter aendert die FACETTEN nicht, sonst faellt nach dem ersten Klick
+	// jeder andere Wert auf 0 und der Trichter laesst sich nicht mehr oeffnen.
+	function garetienFacettenOptionen(facetten, feld, labelFn) {
+		const werte = (facetten && facetten[feld]) || {};
+		return Object.keys(werte).sort().map(function (wert) {
+			return { value: wert, label: labelFn ? labelFn(wert) : wert, count: werte[wert] };
+		});
+	}
+
+	// Die "Nur zeigen"-Optionen tragen KEINE Zahl: der Server liefert dafuer keine Facette
+	// (garetien-liste.php kennt nur ebene/typ/urteil/wiki, Aufgabe 8) -- eine im Browser
+	// nachgerechnete Zahl waere aus einer NUR TEILWEISE geladenen Sicht falsch und damit
+	// schlimmer als gar keine (vgl. "keine zweite Rechnung im Browser", globale-vorgaben.md).
+	function garetienNurZeigenOptionen() {
+		return [
+			{ value: "ungehakt", label: garetienNurZeigenLabel("ungehakt") },
+			{ value: "mehrteilig", label: garetienNurZeigenLabel("mehrteilig") },
+		];
+	}
+
+	let garetienLetzteFacetten = { ebene: {}, typ: {}, urteil: {}, wiki: {} };
+	let garetienFilterRebuild = null; // die rebuild()-Funktion, die avmFilterMenuAttach zurueckgibt
+
+	function garetienFilterSections() {
+		return [
+			{
+				menuId: "garetien-filter-ebene-menu", kind: "multi", state: garetienFilterState.ebene,
+				getOptions: () => garetienFacettenOptionen(garetienLetzteFacetten, "ebene"),
+			},
+			{
+				menuId: "garetien-filter-typ-menu", kind: "multi", state: garetienFilterState.typ,
+				getOptions: () => garetienFacettenOptionen(garetienLetzteFacetten, "typ"),
+			},
+			{
+				menuId: "garetien-filter-urteil-menu", kind: "multi", state: garetienFilterState.urteil,
+				getOptions: () => garetienFacettenOptionen(garetienLetzteFacetten, "urteil", garetienUrteilFilterLabel),
+			},
+			{
+				menuId: "garetien-filter-wiki-menu", kind: "multi", state: garetienFilterState.wiki,
+				getOptions: () => garetienFacettenOptionen(garetienLetzteFacetten, "wiki", garetienWikiLabel),
+			},
+			{
+				menuId: "garetien-filter-nur-menu", kind: "multi", state: garetienFilterState.nur,
+				getOptions: garetienNurZeigenOptionen,
+			},
+		];
+	}
+
+	// REIN: irgendein Abschnitt gewaehlt? Traegt die is-active-Klasse am Umschalt-Knopf (Mockup:
+	// "Filter ▾ (2)" + is-active) -- die Zahl IM Knopf schreibt avmFilterMenuAttach schon selbst.
+	function garetienFilterIstAktiv(zustandDerAbschnitte) {
+		const z = zustandDerAbschnitte || {};
+		return ["ebene", "typ", "urteil", "wiki", "nur"].some((feld) => z[feld] && z[feld].size > 0);
+	}
+
+	const AVESMAPS_GARETIEN_CHIP_TITEL = {
+		ebene: "Ebene", typ: "Objekttyp", urteil: "Urteil", wiki: "Wiki", nur: "Nur zeigen",
+	};
+
+	function garetienChipBeschriftung(feld, wert) {
+		if (feld === "urteil") { return garetienUrteilFilterLabel(wert); }
+		if (feld === "wiki") { return garetienWikiLabel(wert); }
+		if (feld === "nur") { return garetienNurZeigenLabel(wert); }
+		return wert;
+	}
+
+	// REIN: ein Chip je AKTIVEM Abschnitt (nicht je Wert -- "Urteil: neu + Ergänzung" ist EIN
+	// Chip). Sein ✕ traegt `data-chip-feld`, damit es NUR seinen eigenen Abschnitt zurueeknimmt.
+	function garetienChipsMarkup(zustandDerAbschnitte) {
+		const z = zustandDerAbschnitte || {};
+		return ["ebene", "typ", "urteil", "wiki", "nur"].map((feld) => {
+			const menge = z[feld];
+			if (!menge || menge.size === 0) { return ""; }
+			const werte = Array.from(menge).map((wert) => garetienChipBeschriftung(feld, wert));
+			return '<span class="gi-chip">' + avesmapsGaretienEscape(AVESMAPS_GARETIEN_CHIP_TITEL[feld])
+				+ ": " + avesmapsGaretienEscape(werte.join(" + "))
+				+ '<button type="button" data-chip-feld="' + feld + '" aria-label="Filter entfernen">✕</button></span>';
+		}).join("");
+	}
+
+	function garetienChipsRendern() {
+		if (!hasDocument) { return; }
+		const el = document.getElementById("garetien-chips");
+		if (el) { el.innerHTML = garetienChipsMarkup(garetienFilterState); }
+	}
+
+	function garetienFilterToggleAktivKlasse() {
+		if (!hasDocument) { return; }
+		const knopf = document.getElementById("garetien-filter-toggle");
+		if (knopf) { knopf.classList.toggle("is-active", garetienFilterIstAktiv(garetienFilterState)); }
+	}
+
+	// Ein Chip nimmt NUR sein eigenes Feld zurueck (Brief). Einmal verdrahtet (Delegation auf den
+	// nie ersetzten Container), egal wie oft garetienChipsRendern sein innerHTML danach ersetzt.
+	function garetienChipsVerdrahten() {
+		if (!hasDocument) { return; }
+		const el = document.getElementById("garetien-chips");
+		if (!el || el.dataset.giVerdrahtet === "1") { return; }
+		el.dataset.giVerdrahtet = "1";
+		el.addEventListener("click", function (ereignis) {
+			const knopf = ereignis.target.closest ? ereignis.target.closest("[data-chip-feld]") : null;
+			if (!knopf) { return; }
+			const feld = knopf.getAttribute("data-chip-feld");
+			if (garetienFilterState[feld]) { garetienFilterState[feld].clear(); }
+			if (garetienFilterRebuild) { garetienFilterRebuild(); }
+			garetienFilterAnwenden();
+		});
+	}
+
+	// Der applyFilter-Ruf von avmFilterMenuAttach -- jede Aenderung im Trichter landet HIER: die
+	// Sets werden zu den Arrays/Booleans, die action:'liste' erwartet, dann EIN frischer Listenlauf
+	// (Aufgabe 11 ist der EINE Weg, auf dem die Liste sich aendert).
+	function garetienFilterAnwenden() {
+		zustand.filter = zustand.filter || {};
+		zustand.filter.ebene = Array.from(garetienFilterState.ebene);
+		zustand.filter.typ = Array.from(garetienFilterState.typ);
+		zustand.filter.urteil = Array.from(garetienFilterState.urteil);
+		zustand.filter.wiki = Array.from(garetienFilterState.wiki);
+		zustand.filter.nur_ungehakt = garetienFilterState.nur.has("ungehakt");
+		zustand.filter.nur_mehrteilig = garetienFilterState.nur.has("mehrteilig");
+		garetienChipsRendern();
+		garetienFilterToggleAktivKlasse();
+		avesmapsGaretienListeHolen();
+	}
+
+	function garetienFilterMenuVerdrahten() {
+		if (!hasDocument || typeof avmFilterMenuAttach !== "function") { return; }
+		garetienFilterRebuild = avmFilterMenuAttach(
+			"garetien-filter-toggle", "garetien-filter-menu",
+			garetienFilterSections(), garetienFilterAnwenden, "Filter"
+		);
+		garetienChipsVerdrahten();
+	}
+
+	// Von Aufgabe 11 nach jeder frischen liste-Antwort gerufen (defensiv per typeof) -- aktualisiert
+	// die Facetten, die zwei dynamischen Abschnittstitel ("Ebene · 18") und die Optionslisten.
+	function avesmapsGaretienFilterFacettenAktualisieren(facetten) {
+		garetienLetzteFacetten = facetten || { ebene: {}, typ: {}, urteil: {}, wiki: {} };
+		if (!hasDocument) { return; }
+		if (!garetienFilterRebuild) { garetienFilterMenuVerdrahten(); }
+		const ebeneTitel = document.getElementById("garetien-filter-ebene-title");
+		if (ebeneTitel) {
+			ebeneTitel.textContent = "Ebene · " + Object.keys(garetienLetzteFacetten.ebene || {}).length;
+		}
+		const typTitel = document.getElementById("garetien-filter-typ-title");
+		if (typTitel) {
+			typTitel.textContent = "Objekttyp · " + Object.keys(garetienLetzteFacetten.typ || {}).length;
+		}
+		if (garetienFilterRebuild) { garetienFilterRebuild(); }
+	}
+
 	// ---- Verdrahtung + Rechte-Riegel ---------------------------------------------------------------
 
 	function bindFenster() {
@@ -514,6 +716,14 @@
 			avesmapsGaretienListeHolen,
 			avesmapsGaretienListeRendern,
 			garetienListeSkelettMarkup,
+			// Aufgabe 12
+			garetienFilterState,
+			garetienFacettenOptionen,
+			garetienWikiLabel,
+			garetienUrteilFilterLabel,
+			garetienChipsMarkup,
+			garetienFilterIstAktiv,
+			avesmapsGaretienFilterFacettenAktualisieren,
 		};
 	}
 })();
