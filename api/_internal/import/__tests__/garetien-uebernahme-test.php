@@ -445,6 +445,117 @@ assert($vermerk === 'failed', "der Vermerk steht am Item: " . var_export($vermer
 assert((int) $pdo->query('SELECT COUNT(*) FROM map_features')->fetchColumn() === $vorher, 'und nichts wurde geschrieben');
 $pruefungen += 6;
 
+// =================================================================================================
+// 🔴 AUFGABE 4b: DIE VERTAUSCHTEN KOORDINATEN DER IMPORTIERTEN WEGE (Critical, gefunden beim Bau
+// von Aufgabe 4, vom Auftraggeber nachgeprueft und bestaetigt).
+//
+// `avesmapsReadLineStringCoordinates` (api/_internal/map/features.php) liest Element 0 eines
+// Punktpaars als `lat` und gibt `[$lng, $lat]` zurueck -- sie TAUSCHT jedes Paar. Ihr
+// Eingangsvertrag ist damit LEAFLET-Reihenfolge `[lat, lng]`, und fuer ihren Hauptaufrufer (den
+// Kartenzeichner im Editor) ist das richtig. Der Importer liefert aber GEOJSON `[x, y]`
+// (avesmapsGaretienNachAvesmaps, garetien-koordinaten.php) -- jeder per Garetien-Import
+// geschriebene WEG landete deshalb an der Diagonale GESPIEGELT, sowohl beim Anlegen
+// (avesmapsCreatePathFeature) als auch beim Geometrie-Ersetzen (avesmapsUpdatePathFeatureGeometry).
+//
+// 🪤 Und das faellt bei einem Punkt NAHE der Diagonale nicht auf -- ein Tausch von (10,10) bleibt
+// (10,10). Deshalb steht hier ein Punkt WEIT ausserhalb der Diagonale (100/900), und die
+// Erwartung ist ein LITERAL, nie `avesmapsReadLineStringCoordinates(...)` -- das waere
+// `f(x) == f(x)` und fuer JEDES `f` wahr, also blind gegenueber der Reihenfolge.
+//
+// ✅ BEHOBEN durch avesmapsGaretienGeoJsonNachHausvertrag() (garetien-uebernahme.php): sie dreht
+// `[x,y]` VOR dem Aufruf der Hausschreiber nach `[lat,lng]`, DAMIT die Hausfunktion beim
+// Zurueckdrehen wieder `[x,y]` herausgibt. 🔴 DIE HAUSFUNKTION SELBST WIRD NICHT GEAENDERT -- ihr
+// anderer Aufrufer (der Kartenzeichner) steht auf dem heutigen Vertrag.
+
+// --- Der 'new'-Pfad (avesmapsCreatePathFeature).
+$geoJson = [[100.0, 900.0], [110.0, 890.0]];
+$pdo->prepare("INSERT INTO sync_plan_item (run_id, entity_key, entity_public_id, change_type, label, before_json, after_json, override_json, selected)
+               VALUES (?, 'diagonale-weg-test', NULL, 'new', 'Testbach Diagonale', NULL, ?, NULL, 1)")
+    ->execute([$lauf, json_encode([
+        'herkunft' => 'garetien', 'ziel' => 'path', 'subtyp' => 'Flussweg', 'kind' => null,
+        'name' => 'Testbach Diagonale', 'geometry' => ['type' => 'LineString', 'coordinates' => $geoJson],
+        'quelle' => ['url' => 'https://www.garetien.de/testbach', 'label' => 'x', 'source_type' => 'garetien', 'origin' => 'garetien'],
+    ], JSON_UNESCAPED_UNICODE)]);
+$diagonaleWegId = (int) $pdo->lastInsertId();
+$eDiagonaleWeg = avesmapsGaretienUebernehmen($pdo, $lauf, [$diagonaleWegId], ['id' => 7]);
+assert($eDiagonaleWeg['angelegt'] === 1, 'der Testbach wurde nicht angelegt: ' . json_encode($eDiagonaleWeg['fehler'], JSON_UNESCAPED_UNICODE));
+$wegZeile = $pdo->query("SELECT geometry_json FROM map_features WHERE name = 'Testbach Diagonale'")->fetch(PDO::FETCH_ASSOC);
+$gespeichert = json_decode((string) $wegZeile['geometry_json'], true)['coordinates'];
+assert($gespeichert[0][0] == 100.0 && $gespeichert[0][1] == 900.0,
+    'der angelegte Weg liegt gespiegelt: ' . json_encode($gespeichert[0]) . ' statt [100,900]');
+$pruefungen += 2;
+
+// --- Derselbe Punkt ueber den GEOMETRIE-ERSETZEN-Pfad (avesmapsUpdatePathFeatureGeometry) --
+// der zweite der zwei Weg-Schreibpfade. Ein eigener, minimaler Bestandsweg dafuer.
+$idDiagonaleWeg2 = '00000000-0000-4000-8000-000000004242';
+$pdo->prepare('INSERT INTO map_features (public_id, name, feature_type, feature_subtype, geometry_json, properties_json, geometry_type) VALUES (?,?,?,?,?,?,?)')
+    ->execute([$idDiagonaleWeg2, 'Alter Bach', 'path', 'Flussweg',
+        json_encode(['type' => 'LineString', 'coordinates' => [[10.0, 20.0], [11.0, 21.0]]]), '{}', 'LineString']);
+$pdo->prepare("INSERT INTO sync_plan_item (run_id, entity_key, entity_public_id, change_type, label, before_json, after_json, override_json, selected)
+               VALUES (?, 'diagonale-geometrie-test', ?, 'changed', 'Alter Bach -> Geometrie', NULL, ?, NULL, 1)")
+    ->execute([$lauf, $idDiagonaleWeg2, json_encode([
+        'herkunft' => 'garetien', 'anlass' => 'geometrie', 'felder' => ['geometrie'],
+        'ziel' => 'path', 'subtyp' => 'Flussweg', 'geometry' => ['type' => 'LineString', 'coordinates' => $geoJson],
+    ], JSON_UNESCAPED_UNICODE)]);
+$diagonaleGeoId = (int) $pdo->lastInsertId();
+$eDiagonaleGeo = avesmapsGaretienUebernehmen($pdo, $lauf, [$diagonaleGeoId], ['id' => 7]);
+assert($eDiagonaleGeo['angelegt'] === 1, 'die Geometrie wurde nicht uebernommen: ' . json_encode($eDiagonaleGeo['fehler'], JSON_UNESCAPED_UNICODE));
+$wegZeile2 = $pdo->query('SELECT geometry_json FROM map_features WHERE public_id = ' . $pdo->quote($idDiagonaleWeg2))->fetch(PDO::FETCH_ASSOC);
+$gespeichert2 = json_decode((string) $wegZeile2['geometry_json'], true)['coordinates'];
+assert($gespeichert2[0][0] == 100.0 && $gespeichert2[0][1] == 900.0,
+    'die ersetzte Geometrie liegt gespiegelt: ' . json_encode($gespeichert2[0]) . ' statt [100,900]');
+$pruefungen += 2;
+
+// --- ⚠️ ZWEI WAECHTER: die FLAECHE und das LABEL duerfen den neuen Umsetzer NIE bekommen -- sie
+// sind heute korrekt (die Flaeche tauscht gar nicht, das Label bekommt lat/lng GETRENNT). Ohne
+// diese Zusicherungen merkt niemand, wenn ein spaeterer Leser avesmapsGaretienGeoJsonNachHausvertrag
+// versehentlich auch hier einhaengt. Literale, kein zweiter Aufruf einer Hausfunktion.
+// ⚠️ Innerhalb der Kartenbounds 0..1024 (AGENTS.md §1).
+$flaechenRing = [[100.0, 700.0], [300.0, 700.0], [300.0, 900.0], [100.0, 900.0]];
+$pdo->prepare("INSERT INTO sync_plan_item (run_id, entity_key, entity_public_id, change_type, label, before_json, after_json, override_json, selected)
+               VALUES (?, 'diagonale-flaeche-test', NULL, 'new', 'Testsee Diagonale', NULL, ?, NULL, 1)")
+    ->execute([$lauf, json_encode([
+        'herkunft' => 'garetien', 'ziel' => 'region', 'kind' => 'topographie', 'subtyp' => 'see',
+        'name' => 'Testsee Diagonale', 'geometry' => ['type' => 'Polygon', 'coordinates' => [$flaechenRing]],
+        'quelle' => ['url' => 'https://www.garetien.de/testsee', 'label' => 'x', 'source_type' => 'garetien', 'origin' => 'garetien'],
+    ], JSON_UNESCAPED_UNICODE)]);
+$diagonaleFlaecheId = (int) $pdo->lastInsertId();
+$eDiagonaleFlaeche = avesmapsGaretienUebernehmen($pdo, $lauf, [$diagonaleFlaecheId], ['id' => 7]);
+assert($eDiagonaleFlaeche['angelegt'] === 1, 'der Testsee wurde nicht angelegt: ' . json_encode($eDiagonaleFlaeche['fehler'], JSON_UNESCAPED_UNICODE));
+
+$regionDiagonale = $pdo->query("SELECT * FROM ecosystem_region WHERE name = 'Testsee Diagonale'")->fetch(PDO::FETCH_ASSOC);
+$flaecheDiagonale = $pdo->query('SELECT * FROM ecosystem_area WHERE region_id = ' . (int) $regionDiagonale['id'])->fetch(PDO::FETCH_ASSOC);
+$ringDiagonale = json_decode((string) $flaecheDiagonale['geometry_geojson'], true)['coordinates'][0];
+foreach ([[100.0, 700.0], [300.0, 700.0], [300.0, 900.0], [100.0, 900.0]] as $i => $erwarteterFlaechenPunkt) {
+    assert($ringDiagonale[$i] == $erwarteterFlaechenPunkt,
+        "WAECHTER Flaeche: Punkt {$i} liegt gespiegelt: " . json_encode($ringDiagonale[$i]));
+}
+$pruefungen += 5;
+
+// Von Hand gerechnet -- (100+300+300+100)/4=200, (700+700+900+900)/4=800 -- ein Literal, kein
+// zweiter Aufruf von avesmapsGaretienRingMittelpunkt.
+$labelDiagonale = $pdo->query('SELECT * FROM map_features WHERE public_id = '
+    . $pdo->quote((string) $regionDiagonale['label_public_id']))->fetch(PDO::FETCH_ASSOC);
+$labelKoordDiagonale = json_decode((string) $labelDiagonale['geometry_json'], true)['coordinates'];
+assert($labelKoordDiagonale[0] == 200.0 && $labelKoordDiagonale[1] == 800.0,
+    'WAECHTER Label: liegt gespiegelt: ' . json_encode($labelKoordDiagonale) . ' statt [200,800]');
+$pruefungen++;
+
+// --- 🪤 Ein DRITTER Weg-Schreibpfad im Importer waere ungebunden -- und der Fehler kaeme
+// zurueck, ohne dass ein Test rot wird. Gezaehlt wird zur LAUFZEIT der Quelltext, nicht das
+// Verhalten.
+// 💣 Gezaehlt wird der AUFRUF (Name + `(`), nicht jede textliche Erwaehnung -- der Dateikopf
+// nennt beide Hausschreiber schon zweimal in Kommentaren (Zeile 12 und 40), bevor ueberhaupt ein
+// echter Aufruf folgt. Ohne die Klammer im Muster zaehlte die Zusicherung diese Prosa mit und
+// waere fuer JEDE Aenderung an den Kommentaren falsch -- unabhaengig vom echten Code.
+$quelleUebernahme = (string) file_get_contents(__DIR__ . '/../garetien-uebernahme.php');
+$wegSchreiberAnzahl = preg_match_all('~avesmaps(?:CreatePathFeature|UpdatePathFeatureGeometry)\(~', $quelleUebernahme);
+$umsetzerAnzahl = preg_match_all('~avesmapsGaretienGeoJsonNachHausvertrag~', $quelleUebernahme);
+assert($wegSchreiberAnzahl === 2, 'Es gibt jetzt ' . $wegSchreiberAnzahl . ' Weg-Schreibpfade statt zwei.');
+// ⚠️ >=, nicht ===: die Definition der Funktion selbst zaehlt mit.
+assert($umsetzerAnzahl >= $wegSchreiberAnzahl,
+    'Ein Weg-Schreibpfad ruft den Umsetzer nicht -- der importierte Weg landet dort gespiegelt.');
+$pruefungen += 2;
 
 // --- 🔴 DER SCHRITT DER VORSCHAU: er arbeitet in Haeppchen und MUSS zum Ende kommen.
 // 💣 Ein abgelehntes Item ohne Vermerk bleibt „offen" -- und der Schritt laeuft, bis nichts mehr
@@ -650,21 +761,26 @@ $pruefungen += 5;
 // anbieten kann" (Kommentar am Erzeuger, garetien-plan.php). "applied === 1" allein beweist nicht,
 // dass die Koordinaten wirklich geschrieben wurden -- gelesen wird deshalb aus der Datenbank.
 //
-// 🪤 GEFUNDEN BEIM SCHREIBEN DIESES TESTS, NICHT TEIL DIESES AUFTRAGS UND HIER NICHT REPARIERT:
-// `avesmapsUpdatePathFeatureGeometry` (wie `avesmapsCreatePathFeature`) liest sein `coordinates`-
-// Feld ueber die HAUSWEITE `avesmapsReadLineStringCoordinates` (api/_internal/map/features.php) --
-// und die vertauscht JEDES Punktpaar (`[a,b]` -> `[b,a]`), empirisch geprueft:
-// `avesmapsReadLineStringCoordinates([[10,20]]) === [[20,10]]`. `avesmapsGaretienZeilePunkte()`
-// liefert seine Punkte aber in AVESMAPS' EIGENER [x,y]-Ordnung (die Kommentare an
-// AVESMAPS_GARETIEN_MATRIX_* in garetien-koordinaten.php nennen es ausdruecklich X/Y). Jede per
-// Garetien-Import geschriebene Geometrie -- frisch angelegt (Aufgabe 1/3) oder per
-// Geometrie-Ergaenzung (Aufgabe 4) -- landet damit VERMUTLICH mit vertauschten x/y in der
-// Datenbank. Das ist ein moeglicher, ERNSTER, VORBESTEHENDER Fehler ausserhalb der vier Dateien
-// dieser Runde (die Funktion ist hausweit, auch der menschliche Kartenzeichner benutzt sie) und
-// wird hier NICHT repariert -- er wird als eigener Befund gemeldet (siehe Bericht). Diese
-// Zusicherung prueft deshalb bewusst gegen das ECHTE Verhalten der Hausfunktion (sie selbst
-// aufgerufen), nicht gegen eine wuenschenswerte, aber moeglicherweise falsche Erwartung -- sonst
-// waere der Test selbst die naechste Fiktion.
+// 🔴 FUND-PROTOKOLL (Aufgabe 4b, behoben): hier stand bis zu dieser Aufgabe ein bestaetigter,
+// ERNSTER Fehler ausserhalb der vier Dateien der urspruenglichen Aufgabe 4 -- gefunden beim
+// Schreiben DIESES Tests. `avesmapsUpdatePathFeatureGeometry` (wie `avesmapsCreatePathFeature`)
+// liest sein `coordinates`-Feld ueber die HAUSWEITE `avesmapsReadLineStringCoordinates`
+// (api/_internal/map/features.php), und die vertauscht JEDES Punktpaar (`[a,b]` -> `[b,a]`): ihr
+// Eingangsvertrag ist LEAFLET-Reihenfolge `[lat,lng]`, weil ihr Hauptaufrufer der Kartenzeichner
+// im Editor ist. `avesmapsGaretienZeilePunkte()` liefert seine Punkte aber in GEOJSON-Ordnung
+// `[x,y]` -- jede per Garetien-Import geschriebene Geometrie landete deshalb an der Diagonale
+// GESPIEGELT, frisch angelegt (Aufgabe 1/3) wie per Geometrie-Ergaenzung (Aufgabe 4).
+//
+// ✅ BEHOBEN (Aufgabe 4b) durch avesmapsGaretienGeoJsonNachHausvertrag() in
+// garetien-uebernahme.php: sie dreht `[x,y]` VOR dem Aufruf der Hausschreiber nach `[lat,lng]`,
+// DAMIT die Hausfunktion beim Zurueckdrehen wieder `[x,y]` herausgibt. Die Hausfunktion selbst
+// bleibt UNVERAENDERT -- ihr anderer Aufrufer (der Kartenzeichner) steht auf dem heutigen Vertrag.
+//
+// 💣 Die Erwartung unten ist deshalb ein LITERAL, nicht mehr
+// `avesmapsReadLineStringCoordinates($neueKoordinaten)`. Genau dieser Aufruf stand hier nach
+// Aufgabe 4 und war `f(x) == f(x)` -- fuer JEDES `f` wahr und damit blind gegenueber der
+// Reihenfolge; er haette den Fehler nie zeigen koennen. Ein Literal ist die einzige Erwartung,
+// die es kann.
 $neueKoordinaten = [[100.0, 200.0], [150.0, 250.0], [175.0, 260.0]];
 $runId6 = avesmapsSyncPlanStartRun($pdo3, AVESMAPS_GARETIEN_PLAN_KIND, 1, 'test-geometrie');
 avesmapsSyncPlanAddItem($pdo3, $runId6, [
@@ -693,11 +809,11 @@ $pruefungen++;
 $geoNachher = $pdo3->query('SELECT geometry_json FROM map_features WHERE public_id = ' . $pdo3->quote($idFluss))
     ->fetch(PDO::FETCH_ASSOC);
 $koordinaten = json_decode((string) $geoNachher['geometry_json'], true)['coordinates'];
-// Das ECHTE Ergebnis der Hausfunktion, nicht die roh eingegebenen Punkte -- siehe der Fund oben.
+// Die roh eingegebenen Punkte, UNVERAENDERT -- nach dem Fix bleibt GeoJSON-[x,y] erhalten. Ein
+// Literal, keine Ruecktransformation durch die Hausfunktion (siehe das Fund-Protokoll oben).
 // ⚠️ `==`, nicht `===`: glatte Werte (200.0) verlassen die Datenbank ueber JSON als Ganzzahl
-// (200), `avesmapsReadLineStringCoordinates` liefert dieselbe Zahl aber als float -- verschiedene
-// PHP-Typen, derselbe Wert.
-$erwartet = avesmapsReadLineStringCoordinates($neueKoordinaten);
+// (200), unser Literal ist aber float -- verschiedene PHP-Typen, derselbe Wert.
+$erwartet = [[100.0, 200.0], [150.0, 250.0], [175.0, 260.0]];
 assert($koordinaten == $erwartet,
     'die Geometrie in der Datenbank entspricht nicht der neuen: ' . json_encode($koordinaten) . ' erwartet ' . json_encode($erwartet));
 assert($geoNachher['geometry_json'] !== $geoVorher['geometry_json'], 'die alte Geometrie der Alke-Fixture ist noch da');

@@ -85,6 +85,33 @@ function avesmapsGaretienRingMittelpunkt(array $ring): array
 }
 
 /**
+ * GeoJSON `[x, y]` -> die Reihenfolge, die die Hausschreiber erwarten.
+ *
+ * 💣 `avesmapsReadLineStringCoordinates` (api/_internal/map/features.php) liest Element 0 als
+ * `lat` und gibt `[$lng, $lat]` zurueck -- sie TAUSCHT. Ihr Eingangsvertrag ist damit Leaflet-
+ * Reihenfolge `[lat, lng]`, und fuer ihren Hauptaufrufer (den Kartenzeichner im Editor) ist das
+ * richtig. Unsere Punkte kommen aus `avesmapsGaretienNachAvesmaps` und stehen als GeoJSON `[x, y]`
+ * da. Ohne diesen Umsetzer landet jeder importierte Weg an der Diagonale GESPIEGELT.
+ *
+ * 🔴 DIE HAUSFUNKTION WIRD NICHT GEAENDERT. Sie hat andere Aufrufer, die auf dem heutigen
+ * Vertrag stehen -- der Editor schickt Leaflet-Reihenfolge. Wer dort dreht, repariert den Import
+ * und zerbricht das Zeichnen.
+ *
+ * ⚠️ NUR FUER WEGE. Flaechen (`avesmapsEcosystemNormalizeGeometry`) tauschen nicht, und das
+ * Label bekommt `lat`/`lng` ohnehin getrennt uebergeben. Wer diesen Umsetzer dort einhaengt,
+ * baut den Fehler an zwei neuen Stellen ein.
+ */
+function avesmapsGaretienGeoJsonNachHausvertrag(array $punkte): array
+{
+    $raus = [];
+    foreach ($punkte as $punkt) {
+        $raus[] = [(float) $punkt[1], (float) $punkt[0]];
+    }
+
+    return $raus;
+}
+
+/**
  * Die Quelle eines uebernommenen Objekts -- ueber das VORHANDENE System.
  *
  * 💣 DIE LIZENZ GEHOERT EINMAL AN DIE QUELLE, NICHT 289-MAL AN DIE OBJEKTE. `sources` hat keine
@@ -242,7 +269,8 @@ function avesmapsGaretienErgaenzungAnwenden(PDO $pdo, array $nach, string $publi
         if (in_array('geometrie', $felder, true)) {
             avesmapsUpdatePathFeatureGeometry($pdo, [
                 'public_id' => $publicId,
-                'coordinates' => $nach['geometry']['coordinates'],
+                // 💣 GeoJSON [x,y] -> Hausvertrag, siehe avesmapsGaretienGeoJsonNachHausvertrag.
+                'coordinates' => avesmapsGaretienGeoJsonNachHausvertrag((array) $nach['geometry']['coordinates']),
             ], $user);
             $geschrieben++;
         }
@@ -450,7 +478,8 @@ function avesmapsGaretienUebernehmen(PDO $pdo, int $runId, array $itemIds, array
                 $feature = avesmapsCreatePathFeature($pdo, [
                     'name' => (string) $nach['name'],
                     'feature_subtype' => (string) $nach['subtyp'],
-                    'coordinates' => $nach['geometry']['coordinates'],
+                    // 💣 GeoJSON [x,y] -> Hausvertrag, siehe avesmapsGaretienGeoJsonNachHausvertrag.
+                    'coordinates' => avesmapsGaretienGeoJsonNachHausvertrag((array) $nach['geometry']['coordinates']),
                 ], $user);
                 $publicId = avesmapsGaretienPublicIdAus($feature, 'Der Weg');
                 $entityType = 'path';
