@@ -91,6 +91,13 @@ const AVESMAPS_GARETIEN_SAMMELARTIKEL = ['Nachbarprovinzen', 'Raschtulswall'];
 /** Bis hierher gilt "an dieser Stelle liegt schon dasselbe". Startwert, in Karteneinheiten. */
 const AVESMAPS_GARETIEN_TREFFER_EINHEITEN = 2.0;
 
+/**
+ * Die Kartengrenzen, gegen die "hat dieses Objekt ueberhaupt eine Position?" geprueft wird.
+ * Unsere Karte ist 0..1024 (L.CRS.Simple, image bounds). Der Rand ist grosszuegig: verworfen
+ * werden soll die MARKE, nicht ein Kuestenverlauf, der die Kante streift.
+ */
+const AVESMAPS_GARETIEN_KARTE_RAND = 64.0;
+
 /** So viele Punkte der Importlinie werden verglichen -- gleichmaessig verteilt. */
 const AVESMAPS_GARETIEN_PROBEPUNKTE = 16;
 
@@ -98,6 +105,27 @@ const AVESMAPS_GARETIEN_PROBEPUNKTE = 16;
 function avesmapsGaretienMappeTyp(string $typ): ?array
 {
     return AVESMAPS_GARETIEN_TYP_MAP[$typ] ?? null;
+}
+
+/**
+ * Liegt wenigstens EIN Punkt auf der Karte?
+ *
+ * ⚠️ Ein leeres Ergebnis heisst NICHT "nein". Verweis-Objekte (Flaechen aus Grenzzuegen) haben
+ * gar keine eigenen Koordinaten, und ein Riegel, der sie verwirft, naehme Stufe 5 mit.
+ */
+function avesmapsGaretienLiegtAufDerKarte(array $punkte): bool
+{
+    if ($punkte === []) {
+        return true;
+    }
+    foreach ($punkte as [$x, $y]) {
+        if ($x >= -AVESMAPS_GARETIEN_KARTE_RAND && $x <= 1024.0 + AVESMAPS_GARETIEN_KARTE_RAND
+            && $y >= -AVESMAPS_GARETIEN_KARTE_RAND && $y <= 1024.0 + AVESMAPS_GARETIEN_KARTE_RAND) {
+            return true;
+        }
+    }
+
+    return false;
 }
 
 /**
@@ -120,6 +148,16 @@ function avesmapsGaretienUeberspringGrund(array $zeile): ?string
 
     if ($anzeige === '' && $artikel === '') {
         return 'Zeile ohne jeden Namen';
+    }
+
+    // 💣 360 Zeilen haben KEINE Position -- die Marke `2000000 2000000` wird zu (1222 / -115,6).
+    // Alle 360 stehen im Kosch, 359 auf kosch/Ortschaften_1 (72 % dieser Seite). Volkers Ansage
+    // heisst "das Objekt gibt es, auf der Karte liegt es noch nicht". Importiert waeren sie
+    // unsichtbar UND unerreichbar -- nicht einmal von Hand zu reparieren.
+    // ⚠️ DIE KOORDINATE IST DAS SIGNAL, nicht die LOD-Spanne (8 der 360 tragen eine andere,
+    // und 375 platzierte Zeilen tragen `14!14`).
+    if (!avesmapsGaretienLiegtAufDerKarte(avesmapsGaretienZeilePunkte($zeile))) {
+        return 'Keine Position -- die Quelle setzt die Marke "noch nicht auf der Karte"';
     }
 
     if (in_array($typ, AVESMAPS_GARETIEN_OHNE_GEGENSTUECK, true) || str_ends_with($typ, 'Klein')) {

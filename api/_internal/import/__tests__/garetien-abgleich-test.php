@@ -291,6 +291,39 @@ assert(avesmapsGaretienUeberspringGrund(
 ) !== null, 'und der Grund steht dabei');
 $pruefungen += 2;
 
+// ---------------------------------------------------------------------------------------------
+// 💣 360 Zeilen haben KEINE Position: die Marke `2000000 2000000` wird zu (1222 / -115,6) und
+// liegt damit ausserhalb von 0..1024. Alle 360 stehen im Kosch, 359 auf kosch/Ortschaften_1 --
+// 72 % dieser Seite. Heute schriebe der Import sie klaglos; sie waeren unsichtbar UND
+// unerreichbar, also nicht einmal von Hand zu reparieren.
+//
+// ⚠️ DIE KOORDINATE IST DAS SIGNAL, nicht die LOD-Spanne: 8 der 360 tragen eine andere, und 375
+// platzierte Zeilen tragen `14!14`. Wer die Spanne prueft, verwirft 375 gute und behaelt 8 leere.
+$ohne = ['typ' => 'Gasthaus', 'namensraum' => '', 'artikel' => 'Gelber Hund',
+    'anzeige' => 'Gelber Hund', 'lodmin' => '14', 'lodmax' => '14',
+    'geo_art' => 'koordinaten', 'geo' => '2000000 2000000'];
+$grund = avesmapsGaretienUeberspringGrund($ohne);
+assert($grund !== null, 'eine Zeile ohne Position muss uebersprungen werden');
+assert(str_contains($grund, 'Position'), 'der Grund muss die fehlende Position benennen: ' . (string) $grund);
+
+// Dieselbe LOD-Spanne, aber platziert -- die muss durch (375 solche Zeilen gibt es).
+$mit = $ohne;
+$mit['typ'] = 'Dorf';
+$mit['geo'] = '-203183 -59326, -203100 -59300';
+assert(avesmapsGaretienUeberspringGrund($mit) === null || !str_contains(
+    (string) avesmapsGaretienUeberspringGrund($mit), 'Position'),
+    'eine platzierte Zeile mit 14!14 darf NICHT an der Position scheitern');
+
+// ⚠️ Ein Objekt, das nur mit einem Zipfel ueber den Rand ragt, bleibt drin. Verworfen wird nur,
+// was GANZ draussen liegt -- sonst faellt der erste Kuestenverlauf heraus, der die 1024 streift.
+assert(avesmapsGaretienLiegtAufDerKarte([[1030.0, 500.0], [1010.0, 500.0]]) === true,
+    'ein Zipfel ueber dem Rand ist keine fehlende Position');
+assert(avesmapsGaretienLiegtAufDerKarte([[1222.0, -115.6]]) === false,
+    'die Marke selbst liegt nicht auf der Karte');
+assert(avesmapsGaretienLiegtAufDerKarte([]) === true,
+    'ohne Koordinaten entscheidet dieser Riegel NICHT -- ein Verweis-Objekt hat keine eigenen Punkte');
+$pruefungen += 6;
+
 // --- 💣 DER BESTAND WIRD AUS DER GEOMETRIE GERECHNET, NICHT AUS DEN bbox-SPALTEN.
 // map_features traegt min_x/min_y/max_x/max_y. Sie waeren der billige Vorfilter -- und sie
 // stehen unter Verdacht, veraltet zu sein (offener Befund vom 18.08.2026: "Was ist hier?" ist
