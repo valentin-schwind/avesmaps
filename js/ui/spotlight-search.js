@@ -1188,33 +1188,16 @@ function buildSpotlightPowerlineEntries() {
 		}));
 }
 
+// 🔴 Das Vokabular kommt aus js/ui/label-arten.js, nicht mehr aus einer Abschrift hier. Die
+// Abschrift war messbar unvollstaendig: acht Arten fehlten ihr ganz (flussland_flusstal,
+// dschungel, wuestenoase, tiefebene, hochebene, wadi, flussdelta, schlucht), und 70 Beschriftungen
+// hiessen in der Suche deshalb schlicht "Label" -- live gezaehlt am 28.08.2026. "wueste" stand
+// ohne Umlaut da.
+// ⚠️ Der Rueckfall bleibt HIER, und das ist Absicht: eine Suchzeile muss etwas anzeigen, also
+// "Label". Die Infobox hat mit der Wiki-Art eine eigene Kette davor und braucht einen anderen --
+// darum traegt die geteilte Datei das Vokabular, nie die Rueckfall-Politik.
 function getSpotlightLabelTypeLabel(labelType) {
-	const labels = {
-		region: "Region",
-		fluss: "Fluss",
-		meer: "Meer",
-		gebirge: "Gebirge",
-		berggipfel: "Berggipfel",
-		vulkan: "Vulkan",
-		wald: "Wald",
-		steppe: "Steppe",
-		huegelland: "Hügelland",
-		tal: "Tal",
-		tundra: "Tundra",
-		kueste: "Küste",
-		ebene: "Ebene",
-		graslandschaft: "Graslandschaft",
-		auenlandschaft: "Auenlandschaft",
-		kulturlandschaft: "Kulturlandschaft",
-		kontinent: "Kontinent",
-		wueste: "Wueste",
-		suempfe_moore: "Sumpf/Moor",
-		see: "See",
-		insel: "Insel",
-		inselgruppe: "Inselgruppe",
-		sonstiges: "Label",
-	};
-	return tr("spotlight.labelType." + labelType, labels[labelType] || "Label");
+	return tr("spotlight.labelType." + labelType, avesmapsLabelArtName(labelType) || "Label");
 }
 
 function getSpotlightPathTypeLabel(subtype) {

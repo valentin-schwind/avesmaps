@@ -557,15 +557,41 @@ function labelWikiInfoboxMarkup(label, options = {}) {
 // landscape/region label shows identical content whether opened by click or by a ?region= deep-link.
 // wikiParam "region" matches the landscape/region deep-link parameter (js/app/wiki-deeplink.js).
 function buildRegionLabelViewPopupHtml(label) {
-	const art = labelWikiArtPrimary(label.wikiRegion && label.wikiRegion.art) || "Region";
+	// Die ART dieser Beschriftung, in DIESER Reihenfolge:
+	//
+	// 🔴 Die Wiki-Art bleibt VORNE, und das ist kein Zufall: sie ist feiner als unser Vokabular --
+	// „Bucht" statt „Meer", „Halbinsel" statt „Region", „Wasserfall" statt „Fluss", „Ozean",
+	// „Meerenge", „Mischregion". Live gemessen am 28.08.2026 weicht sie bei 264 der 627
+	// zugewiesenen Beschriftungen von unserer eigenen ab; sie zu verdraengen waere dort ein
+	// Informationsverlust.
+	//
+	// 💣 DIE EIGENE ART FUELLT DIE LUECKE -- vorher stand hier die feste Zeichenkette "Region", und
+	// der eigene feature_subtype wurde NIE gefragt. 341 der 983 Beschriftungen sagten deshalb
+	// „Region", obwohl sie Wald, See, Berggipfel oder Vulkan sind (Owner 28.08.2026: „Ceälan ist
+	// ein freies Label (vulkan), wird aber in der infobox als region gezeigt"). Das Wort kommt aus
+	// dem geteilten Vokabular (js/ui/label-arten.js), nicht aus einer fuenften Abschrift hier.
+	//
+	// ⚠️ "Region" bleibt der letzte Rueckfall: eine unbekannte Art ohne Wiki-Zuweisung soll etwas
+	// sagen -- ein leerer Untertitel liest sich wie ein Fehler.
+	const wikiArt = labelWikiArtPrimary(label.wikiRegion && label.wikiRegion.art);
+	const art = wikiArt || avesmapsLabelArtName(label.labelType) || "Region";
+	// 💣 ZWEI WERTE, und ihre Trennung ist tragend: `art` ist der SCHLUESSEL (deutsch, wird in
+	// INFO_HEADER_IMAGE_BY_ART nachgeschlagen), `artText` das ANGEZEIGTE Wort. Unter ?lang=en gaebe
+	// tr() „Volcano" zurueck -- als Schluessel benutzt faende das nichts, und jede Beschriftung
+	// bekaeme wieder das generische region.webp. Eine Wiki-Art hat keine Uebersetzung und geht roh
+	// durch.
+	const artText = wikiArt || tr("spotlight.labelType." + label.labelType, art);
 	const labelName = label.text || (label.wikiRegion && label.wikiRegion.name) || "Region";
 	// Owner: 16:9 header image (by landscape art) + title overlay instead of the headless title.
 	const headerImg = typeof infoHeaderImageMarkup === "function"
-		? infoHeaderImageMarkup(regionHeaderImageBasename(art), labelName, art)
+		? infoHeaderImageMarkup(regionHeaderImageBasename(art), labelName, artText)
 		: "";
 	return locationPopupMarkup({
 		name: labelName,
-		locationTypeLabel: tr("spotlight.labelType." + label.labelType, art),
+		// ⚠️ Derselbe Text wie im Bildkopf. Er wird nur gezeichnet, wenn es KEIN Kopfbild gibt
+		// (locationPopupMarkup ersetzt den Icon-Kopf durch das Bild) -- also auf einer Seite ohne
+		// popups.js. Zwei verschiedene Woerter fuer dieselbe Aussage waeren hier lautlos.
+		locationTypeLabel: artText,
 		headerImageMarkup: headerImg,
 		showHeaderIcon: false,
 		compact: true,
