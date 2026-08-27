@@ -183,18 +183,23 @@ $kandidaten = [
     ['public_id' => 'A', 'name' => 'Natter', 'art' => '', 'props' => '',
      'punkte' => [[0.0, 0.1], [1.0, 0.1]],
      'huelle_min_x' => 0.0, 'huelle_max_x' => 1.0, 'huelle_min_y' => 0.1, 'huelle_max_y' => 0.1],
+    // 🪤 B liegt bei x = 2,5 und NICHT bei 3,0. Bei 3,0 ist der Probepunkt (2,0) exakt gleich
+    // weit von beiden Kandidaten entfernt (1,01 gegen 1,01, bitgleich), und der Gleichstand
+    // faellt ueber die Reihenfolge -- das strikte `<` in der Schleife behaelt den zuerst
+    // gefundenen. Der Test pruefte dann eine Implementierungseigenheit statt der Deckung, und er
+    // kippte, sobald jemand die Schleife umbaut. 2,5 trennt sauber.
     ['public_id' => 'B', 'name' => '', 'art' => '', 'props' => '',
-     'punkte' => [[3.0, 0.1]],
-     'huelle_min_x' => 3.0, 'huelle_max_x' => 3.0, 'huelle_min_y' => 0.1, 'huelle_max_y' => 0.1],
+     'punkte' => [[2.5, 0.1]],
+     'huelle_min_x' => 2.5, 'huelle_max_x' => 2.5, 'huelle_min_y' => 0.1, 'huelle_max_y' => 0.1],
 ];
 $deckung = avesmapsGaretienDeckung($probe, $kandidaten);
 
 assert(isset($deckung['abschnitte']), 'avesmapsGaretienDeckung gibt keine Abschnittsliste heraus');
 assert(count($deckung['abschnitte']) === 2,
     'beide getroffenen Abschnitte gehoeren in die Liste, nicht nur der beste');
-// Absteigend nach Deckung: A deckt zwei Probepunkte, B einen. Punkt (2.0,0) liegt naeher an B.
+// A deckt die zwei linken Probepunkte, B die zwei rechten.
 assert($deckung['abschnitte'][0]['index'] === 0, 'die Liste steht nicht absteigend nach Deckung');
-assert($deckung['abschnitte'][0]['punkte'] === 2, 'A deckt zwei Probepunkte');
+assert($deckung['abschnitte'][0]['punkte'] === 2, 'A deckt die zwei linken Probepunkte');
 assert($deckung['abschnitte'][1]['index'] === 1, 'B fehlt in der Liste');
 assert($deckung['abschnitte'][1]['punkte'] === 2, 'B deckt die zwei rechten Probepunkte');
 // ⚠️ `bester` bleibt, was er war -- die Liste ERGAENZT ihn, sie ersetzt ihn nicht.
