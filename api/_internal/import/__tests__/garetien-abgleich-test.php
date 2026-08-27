@@ -458,7 +458,7 @@ assert(count($urteil['abschnitte'][0]['geometrie']) === 2,
     'die Geometrie des getroffenen Abschnitts muss mitreisen -- sonst liegt der Schein nirgends');
 assert(is_float($urteil['abschnitte'][0]['geometrie'][0][0]),
     'die Geometrie steht in Karteneinheiten als [x,y]-Paare');
-$pruefungen += 7;
+$pruefungen += 8;
 
 // Ein Objekt ohne jeden Nachbarn: LEERE Liste, nie null.
 $fern = $zeile;
@@ -470,22 +470,36 @@ $pruefungen += 2;
 
 // 🪤 Ein Rueckgabeweg ohne `abschnitte` liefert in der Einzelansicht ein leeres "Was bei uns
 // liegt" -- und das ist von "da liegt nichts" nicht zu unterscheiden. Deshalb wird die Anwesenheit
-// des Schluessels an JEDEM Ausgang geprueft, nicht nur an dem, den der Test oben zufaellig nimmt.
+// des Schluessels an JEDEM der FUENF Rueckgabewege geprueft, nicht nur an dem, den der Test oben
+// zufaellig nimmt -- UND per `status`-Zusicherung belegt, dass jede Zeile wirklich den Zweig
+// nimmt, den ihr Kommentar behauptet.
+//
+// 💣 KORREKTUR (Review-Fund 1): die urspruengliche Fassung dieser Schleife setzte in ALLEN vier
+// Zeilen 'artikel' => '' -- `avesmapsGaretienArtikelTrifft` gibt bei leerem Artikel SOFORT
+// `false` zurueck, der Artikel-Zweig (der Kandidat-Singleton-Ruecksprung weiter oben in
+// garetien-abgleich.php) wurde also von KEINER der vier Zeilen je erreicht, obwohl dieser
+// Kommentar "JEDEM Ausgang" behauptete -- genau die Vakuum-Zusicherung, vor der der Bauplan
+// selbst warnt. Die fuenfte Zeile schliesst die Luecke mit dem vorhandenen Artikel-Kandidaten
+// def-456 ("Natter" im Nest, Geometrie weit weg -> Widerspruch); die neue
+// `$erwarteterStatus`-Zusicherung ist der Beleg, dass sie wirklich diesen Zweig nimmt.
 // 💣 Auch hier die Korrektur von oben: die Geo-Werte sind an die VORHANDENE Fixture dieser Datei
 // angepasst ("Der Große Fluss" bei 156000 -600 / 159000 -3600), nicht an "Alke".
 foreach ([
-    ['Insel', '1 2, 3 4'],                                    // uebersprungen (spaetere Stufe)
-    ['Bach', ''],                                             // keine vergleichbare Geometrie
-    ['Strom', '156000 -600, 159000 -3600'],                   // Geometrie deckt sich
-    ['Strom', '900000 -400000, 901000 -401000'],              // neu
-] as [$typ, $geo]) {
+    ['Insel', '', '', '1 2, 3 4', 'uebersprungen'],                            // uebersprungen (spaetere Stufe)
+    ['Bach', '', '', '', 'neu'],                                              // keine vergleichbare Geometrie
+    ['Strom', '', '', '156000 -600, 159000 -3600', 'deckt_sich'],             // Geometrie deckt sich
+    ['Strom', '', '', '900000 -400000, 901000 -401000', 'neu'],               // neu
+    ['Bach', 'Garetien', 'Natter', '20000 10000, 21000 11000', 'widerspricht'], // Artikel-Zweig
+] as [$typ, $namensraum, $artikel, $geo, $erwarteterStatus]) {
     $probeZeile = ['wiki' => 'ggp', 'ebene' => 'Gewaesser', 'zeile_nr' => 9, 'typ' => $typ,
-        'namensraum' => '', 'artikel' => '', 'anzeige' => 'Probe',
+        'namensraum' => $namensraum, 'artikel' => $artikel, 'anzeige' => 'Probe',
         'geo_art' => $geo === '' ? 'verweise' : 'koordinaten', 'geo' => $geo];
     $u = avesmapsGaretienFindeBestand($pdo, $probeZeile, avesmapsGaretienMappeTyp($typ));
+    assert($u['status'] === $erwarteterStatus,
+        'Typ ' . $typ . ' sollte "' . $erwarteterStatus . '" liefern, lieferte "' . $u['status'] . '" (' . $u['grund'] . ')');
     assert(array_key_exists('abschnitte', $u) && is_array($u['abschnitte']),
-        'Rueckgabeweg fuer Typ ' . $typ . ' vergisst `abschnitte`');
-    $pruefungen++;
+        'Rueckgabeweg fuer Typ ' . $typ . ' (' . $erwarteterStatus . ') vergisst `abschnitte`');
+    $pruefungen += 2;
 }
 
 echo "OK: {$pruefungen} Pruefungen\n";
