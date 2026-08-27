@@ -32,13 +32,24 @@ foreach (explode("\0", implode("\n", $roh)) as $pfad) {
 }
 assert(count($verfolgt) > 100, 'die Dateiliste ist unglaubwuerdig kurz: ' . count($verfolgt));
 
-// ⚠️ Nur ausfuehrbarer Code und Markup. Doku DARF die Tabellen nennen -- der Auftrag und dieser
-// Plan tun es auf jeder zweiten Seite, und ein Waechter, der Prosa verbietet, wird abgeschaltet.
+// ⚠️ Nur ausfuehrbarer Code und Markup. Doku DARF die Tabellen nennen -- der Auftrag, der Bauplan
+// und das Mockup tun es auf jeder zweiten Seite, und ein Waechter, der Prosa verbietet, wird
+// abgeschaltet.
+//
+// 🔴 REVIEW-FUND I2 (27.08.2026): die ENDUNG ist dafuer das falsche Kriterium. `docs/
+// garetien-importer-mockup.html` -- das freigegebene Mockup zu genau diesem Vorhaben -- nennt
+// die Tabellennamen mehrfach und traegt `.html`, dieselbe Endung wie echtes Markup im Produkt.
+// `.md` auszunehmen und `.html` nicht ist eine Unterscheidung ohne Unterschied: beide sind Doku,
+// wenn sie unter `docs/` liegen. Solange das Mockup ungetrackt ist, rettet `git ls-files` den
+// Waechter zufaellig -- eingecheckt (und es WIRD eingecheckt) waere er sonst grundlos rot, und
+// ein Waechter, der grundlos rot wird, wird abgeschaltet und fehlt dann, wenn er gebraucht wird.
+// Das richtige Kriterium ist das VERZEICHNIS, nicht die Endung.
+$dokuVerzeichnis = 'docs/';
 $endungen = ['php', 'js', 'mjs', 'css', 'html', 'sql', 'yml', 'yaml'];
 $treffer = [];
 foreach ($verfolgt as $pfad) {
     $normal = str_replace('\\', '/', $pfad);
-    if (str_starts_with($normal, $erlaubt)) {
+    if (str_starts_with($normal, $erlaubt) || str_starts_with($normal, $dokuVerzeichnis)) {
         continue;
     }
     if (!in_array(strtolower(pathinfo($normal, PATHINFO_EXTENSION)), $endungen, true)) {

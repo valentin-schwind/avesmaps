@@ -52,6 +52,25 @@ $gesamt = (int) $pdo->query('SELECT COUNT(*) FROM garetien_import_row')->fetchCo
 assert($gesamt === 4, 'beide Laeufe stehen nebeneinander, ' . $gesamt . ' gefunden');
 $pruefungen++;
 
+// --- 🔴 avesmapsGaretienListeLaeufe() ist neu (Review-Fund I1, 27.08.2026): der Endpunkt
+// api/edit/map/garetien-import.php fragte die Laeufe frueher per rohem SELECT direkt ab, jetzt
+// kapselt diese Funktion das SQL. Ein Quelltextvergleich haette nur belegt, dass das SQL gleich
+// AUSSIEHT -- nicht, dass `fetchAll()` liefert, was der Endpunkt erwartet. Das COUNT() ueber den
+// LEFT JOIN ist genau der Teil, den kein Quelltextvergleich pruefen kann: geprueft wird deshalb
+// ein dritter, LEERER Lauf, damit der LEFT JOIN wirklich als LEFT JOIN belegt ist (ein INNER
+// JOIN liesse diesen Lauf lautlos verschwinden).
+$run3 = avesmapsGaretienStartRun($pdo);
+$laeufe = avesmapsGaretienListeLaeufe($pdo);
+assert(count($laeufe) === 3, 'alle drei Laeufe kommen zurueck, auch der leere: ' . count($laeufe));
+assert(
+    (int) $laeufe[0]['id'] === $run3 && (int) $laeufe[1]['id'] === $run2 && (int) $laeufe[2]['id'] === $runId,
+    'absteigend nach id: ' . implode(',', array_column($laeufe, 'id'))
+);
+assert((int) $laeufe[0]['zeilen'] === 0, 'der leere Lauf zaehlt 0 -- der LEFT JOIN darf ihn nicht verschlucken');
+assert((int) $laeufe[1]['zeilen'] === 2, 'run2 traegt seine zwei gestageten Zeilen');
+assert((int) $laeufe[2]['zeilen'] === 2, 'runId traegt seine zwei gestageten Zeilen');
+$pruefungen += 5;
+
 // --- Alle 18 Ebenen sind eingetragen, mit Adresse.
 assert(count(AVESMAPS_GARETIEN_EBENEN) === 18, 'Volker hat 18 Seiten angelegt');
 $ggp = array_filter(AVESMAPS_GARETIEN_EBENEN, static fn(array $e): bool => $e['wiki'] === 'ggp');
