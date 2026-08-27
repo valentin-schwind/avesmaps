@@ -325,35 +325,30 @@ kommen 250 ms später, solange steht am Rand ein grauer Saum. Bewusst nicht beho
 Trennung Leaflet-Interna nachbauen hieße. Fällt der Saum auf, ist das die Stelle.
 ⚠️ **`?zoomlupe=<faktor>` multipliziert die neue Basis** — `?zoomlupe=2` sind seither 1000 ms.
 
-💣 **UND IN DER `zoomanim`-ZUSTELLUNG DARF NICHTS TEURES STEHEN — auch kein erzwungener
-Stilabgleich.** Eine CSS-Transition beginnt nicht, wenn man sie setzt, sondern beim nächsten
-Stilabgleich. In EINER Zustellung setzen live **157 Zuhörer** ihre Transform: die Kacheln auf
-Platz 4, unsere Canvas-Flächen auf 5–7, der SVG-Renderer mit **Straßen und Flüssen** auf 9–11.
-Ein `void offsetWidth` mittendrin startet damit die Uhr für alle, die vorher gesetzt haben, und
-lässt alle danach erst beim nächsten losgehen; dazu kommt die reine Rechenzeit.
-🔴 Gemessen am 27.08.2026: das Vorabzeichnen der Wegenamen blockierte die Zustellung **25–87 ms**
-(ohne es 13,9 ms). Seit es in einem `queueMicrotask` liegt: **Median 12,8 ms**, also am Boden.
-⚠️ **Der Fehler sieht aus wie eine falsche KURVE, nicht wie ein Nachhinken** — und genau so wurde
-er gemeldet („kann es sein dass die easing curves nicht ganz passen?"). Unter ease-in-out ist der
-Abstand am Anfang null, in der Mitte am größten und am Ende wieder null. Mit `avesmapsZoomEasing`
-gerechnet: 25 ms Versatz = **8,6 %** der Zoomstrecke, 87 ms = **29,4 %**; bei einer LINEAREN Kurve
-wären es konstante 5 % bzw. 17,4 %. Die Kurve verstärkt den Versatz **und** macht ihn ungleichmäßig.
-⭐ Wer so etwas sucht: die Kurven aller Flächen auslesen (sie waren identisch) und dann die
-Zustellung messen — `map.fire` umwickeln und die Dauer von `zoomanim` nehmen.
-🔴 **Was NICHT hinausdarf:** `avesmapsZoomVorabFlaeche`, `map.getZoomScale` und
-`_latLngToNewLayerPoint` bleiben synchron. Direkt hinter dem `fire` läuft Leaflets `_move`, danach
-steht der interne Zustand schon am ZIEL — die Quellstufe wäre weg, Start und Ende der
-Gegenrechnung gleich, und es gäbe gar keine Bewegung mehr.
-⚠️ Ein **Microtask**, kein `requestAnimationFrame`: er läuft noch vor dem nächsten Bild, das
-Vorabzeichnen bleibt also genauso früh.
-💣 Und im Microtask braucht es **zwei** erzwungene Stilabgleiche: der erste trennt Start- und
-Endwert, der zweite startet den eigenen Übergang im selben Augenblick wie alle anderen. Ohne den
-zweiten ist der Versatz nur von den Straßen auf die Beschriftung verschoben.
-✅ **Und die letzte abweichende Kurve ist seit 27.08.2026 weg:** die Grenzbeschriftungen blendeten
-ihre DECKKRAFT mit `ease-out` (`css/features/map-labels.css`) — die Transform-Hälfte war am 26.08.
-auf die Token gezogen worden, die andere nicht. Die DAUER bleibt eigen
-(`--border-label-fade-out`, der Anteil des Ausblendens am Blendenbudget).
-Gewacht von `js/map-features/__tests__/zoomanim-zustellung-frei.test.js`.
+🪤 **EIN VERSUCH, DER MESSBAR BESSER WAR UND SICHTBAR SCHLECHTER — 27.08.2026.** Gemeldet war
+„die straßen/flüsse ziehen manchmal kurz hinter", und die Messung dazu stimmt bis heute: das
+Vorabzeichnen der Wegenamen blockiert die `zoomanim`-**Zustellung** 25–87 ms, und in derselben
+Zustellung setzen **157 Zuhörer** ihre Transform — die Kacheln auf Platz 4, unsere Canvas-Flächen
+auf 5–7, der SVG-Renderer mit **Straßen und Flüssen** auf 9–11. Eine CSS-Transition beginnt beim
+nächsten Stilabgleich, ein `void offsetWidth` mittendrin startet also die Uhr für alle davor.
+Das Verschieben in einen `queueMicrotask` drückte die Zustellung auf Median **12,8 ms** (Boden ohne
+Vorabzeichnen: 13,9 ms) — und machte das Bild **schlechter**: „beim reinzoomen liegen die strassen
+erst vor dann hinter ihrem untergrund pendant", also eine andere BewegungsFORM statt bloßem
+Nachhinken. Zurückgenommen.
+🔴 **Die Lehre ist nicht „geht nicht", sondern: hier zählt die Zahl nicht.** Wer es erneut versucht,
+braucht zuerst einen Browser, in dem er die Bewegung WIRKLICH SIEHT. In einem Hintergrund-Tab läuft
+kein Bild: Transitions stehen auf ihrem Startwert, `map.setZoom()` mit Animation kommt nicht an,
+und jede Messung bestätigt nur die eigene Annahme.
+⚠️ **Und der gemeldete Fehler sieht aus wie eine falsche KURVE, ist aber keiner** — die Kurven
+wurden an allen Flächen ausgelesen und sind identisch. Unter ease-in-out ist ein Start-Versatz am
+Anfang null, in der Mitte am größten und am Ende wieder null; mit `avesmapsZoomEasing` gerechnet
+sind 25 ms Versatz **8,6 %** der Zoomstrecke, 87 ms **29,4 %** (linear wären es konstante 5 bzw.
+17,4 %). „Erst vor, dann hinter" ist dagegen etwas anderes und noch ungeklärt.
+✅ **Was aus dem Versuch BLEIBT:** die letzte abweichende Kurve des Zoomschritts ist weg — die
+Grenzbeschriftungen blendeten ihre DECKKRAFT mit `ease-out` (`css/features/map-labels.css`); die
+Transform-Hälfte war am 26.08. auf die Token gezogen worden, die andere nicht. Die DAUER bleibt
+eigen (`--border-label-fade-out`, der Anteil des Ausblendens am Blendenbudget).
+Gewacht von `js/map-features/__tests__/zoom-kurve-einheitlich.test.js`.
 💣 **Die Kurve stand an ACHT Stellen**, nicht an den fünf, die der Entwurf zählte — Schraffur,
 Fluss- und Tempopfeile fehlten in der Liste. Wer eine Zeichenfläche ergänzt, die beim Zoom
 mitskaliert, trägt sie in `js/map-features/__tests__/zoom-uebergang.test.js` ein; sonst ist sie die

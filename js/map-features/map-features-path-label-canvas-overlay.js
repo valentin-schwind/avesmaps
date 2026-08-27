@@ -1334,51 +1334,33 @@
 		zoomSchrittOffen = false;   // der Tausch ist hier schon passiert
 		wegeLabelsVorabGezeichnet = true;
 
-		// ⭐ AB HIER NICHT MEHR SYNCHRON -- und das ist der ganze Zweck dieses Blocks.
-		//
-		// 💣 EINE CSS-TRANSITION BEGINNT NICHT, WENN MAN SIE SETZT, SONDERN BEIM NAECHSTEN
-		// STILABGLEICH. In EINER zoomanim-Zustellung setzen 157 Zuhoerer ihre Transform: die
-		// Kacheln auf Platz 4, unsere Flaechen auf 5-7, der SVG-Renderer mit STRASSEN UND FLUESSEN
-		// auf 9-11. Das `void offsetWidth` unten erzwingt einen Stilabgleich -- und startet damit
-		// die Uhr fuer alle, die VORHER gesetzt haben (die Kacheln), waehrend alle danach (die
-		// Strassen) erst beim naechsten losgehen. Dazu kam die reine Rechenzeit: gemessen
-		// 27.08.2026 blockierte das Vorabzeichnen die Zustellung 25-87 ms, ohne es 13,9 ms.
-		// Ergebnis live: die Kacheln liefen los, die Strassen hinterher. Owner: „die
-		// strassen/flüsse ziehen manchmal kurz hinter".
-		// ⚠️ Und es SIEHT aus wie eine falsche Kurve, nicht wie ein Nachhinken: unter ease-in-out
-		// ist der Abstand am Anfang null, in der Mitte am groessten und am Ende wieder null.
-		// Gerechnet mit avesmapsZoomEasing: 25 ms Versatz = 8,6 % der Zoomstrecke, 87 ms = 29,4 %.
-		//
-		// 🔴 WAS NICHT VERSCHOBEN WERDEN DARF, STEHT OBEN. `avesmapsZoomVorabFlaeche`,
-		// `map.getZoomScale` und `_latLngToNewLayerPoint` bleiben SYNCHRON: unmittelbar nach der
-		// Zustellung ist Leaflets Zustand schon am Ziel (`_move` laeuft direkt hinter dem `fire`),
-		// und die Quellstufe waere dann nicht mehr zu sehen. Nur das ZEICHNEN und das Anlegen der
-		// Uebergaenge wandern hinaus.
-		// ⚠️ Ein Microtask, KEIN requestAnimationFrame: er laeuft noch vor dem naechsten Bild. Das
-		// Vorabzeichnen bleibt also genauso frueh wie vorher -- es blockiert nur die Zustellung
-		// nicht mehr.
-		const zielFlaeche = vorne;
-		queueMicrotask(() => {
-			redraw(event.zoom, event.center);
+		redraw(event.zoom, event.center);
 
-			// 💣 DIE GEGENRECHNUNG -- aus der geteilten, nachgerechneten Funktion, nicht von Hand.
-			// Das neue Bild liegt in ZIEL-Koordinaten, die Karte steht noch auf der alten Stufe.
-			zielFlaeche.style.transition = "none";
-			L.DomUtil.setTransform(zielFlaeche, g.start, g.startMassstab);
-			zielFlaeche.style.opacity = "0";
-			void zielFlaeche.offsetWidth;   // Zwischenstand erzwingen, sonst gibt es keinen Uebergang
-			// ⚠️ Beide Uebergaenge im SELBEN Augenblick gesetzt, getrennt nur durch transition-delay:
-			// startet der Stilabgleich verspaetet, verschiebt sich BEIDES gleich weit und die
-			// Staffelung bleibt erhalten (§5a).
-			zielFlaeche.style.transition = PATH_LABEL_ZOOM_TRANSFORM
-				+ ", opacity " + EINBLENDEN_MS + "ms " + AVESMAPS_ZOOM_KURVE + " " + AUSBLENDEN_MS + "ms";
-			L.DomUtil.setTransform(zielFlaeche, g.ende, 1);
-			zielFlaeche.style.opacity = "1";
-			// 💣 ZWEITER Stilabgleich, und er ist tragend: ohne ihn beginnt UNSER Uebergang erst im
-			// naechsten Bild, waehrend alle anderen schon beim ersten losgelaufen sind. Der Versatz
-			// waere dann nur von den Strassen auf die Beschriftung verschoben, nicht beseitigt.
-			void zielFlaeche.offsetWidth;
-		});
+		// 💣 DIE GEGENRECHNUNG -- aus der geteilten, nachgerechneten Funktion, nicht von Hand.
+		// Das neue Bild liegt in ZIEL-Koordinaten, die Karte steht noch auf der alten Stufe.
+		vorne.style.transition = "none";
+		L.DomUtil.setTransform(vorne, g.start, g.startMassstab);
+		vorne.style.opacity = "0";
+		void vorne.offsetWidth;   // Zwischenstand erzwingen, sonst gibt es keinen Uebergang
+		// ⚠️ Beide Uebergaenge im SELBEN Augenblick gesetzt, getrennt nur durch transition-delay:
+		// startet der Stilabgleich verspaetet, verschiebt sich BEIDES gleich weit und die
+		// Staffelung bleibt erhalten (§5a).
+		vorne.style.transition = PATH_LABEL_ZOOM_TRANSFORM
+			+ ", opacity " + EINBLENDEN_MS + "ms " + AVESMAPS_ZOOM_KURVE + " " + AUSBLENDEN_MS + "ms";
+		L.DomUtil.setTransform(vorne, g.ende, 1);
+		vorne.style.opacity = "1";
+
+		// 🪤 HIER STAND VOM 27.08.2026 EIN `queueMicrotask` -- ZURUECKGENOMMEN, weil es das Bild
+		// VERSCHLECHTERT hat. Der Gedanke war richtig gemessen: das Vorabzeichnen blockierte die
+		// zoomanim-Zustellung 25-87 ms (danach Median 12,8 ms), und in derselben Zustellung setzen
+		// 157 Zuhoerer ihre Transform -- die Kacheln auf Platz 4, der SVG-Renderer mit Strassen und
+		// Fluessen auf 9-11. Die Zahl wurde besser, das BILD nicht: der Owner sah danach „beim
+		// reinzoomen liegen die strassen erst vor dann hinter ihrem untergrund pendant" -- also eine
+		// andere BewegungsFORM, nicht mehr blosses Nachhinken.
+		// 🔴 Wer es erneut versucht, braucht zuerst einen Browser, in dem er die Bewegung WIRKLICH
+		// SIEHT. In einem Hintergrund-Tab laeuft kein Bild: die Transitions stehen bei ihrem
+		// Startwert, `map.setZoom()` mit Animation kommt gar nicht erst an, und jede Messung
+		// bestaetigt nur die eigene Annahme. Genau daran ist dieser Versuch gescheitert.
 	});
 	map.on("zoom", function () { if (!cssZoomActive) redraw(); });
 
