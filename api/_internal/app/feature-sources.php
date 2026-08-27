@@ -68,6 +68,27 @@ function avesmapsEnsureFeatureSourceTables(PDO $pdo): void
     // Plain index, deliberately NOT unique yet: the key only becomes the identity once step 5 has
     // folded the duplicates away, and today several rows still describe the same work. The UNIQUE
     // is the last step of the migration, not the first.
+    // 🔴 DIE LIZENZ EINER QUELLE, UND WEN SIE NENNEN WILL (Owner 27.08.2026: "quellen fehlt das
+    // lizenz-feld"). Zwei Spalten, nicht eine, weil CC zwei getrennte Dinge verlangt: WAS gilt
+    // (`license`) und WEN man nennt (`attribution`). Ein Freitext fuer beides waere bei 239
+    // Zeilen 239-mal derselbe Satz -- mit Tippfehlern und nicht auswertbar.
+    //
+    // ⚠️ LEER heisst "nicht erfasst", NIE "keine Lizenz". Die 1694 vorhandenen Quellen starten
+    // leer und zeigen wie bisher nichts; wer "keine freie Lizenz" sagen will, sagt es mit dem
+    // Schluessel `unfree`. Die beiden zu verwechseln waere eine Rechtsaussage, die niemand
+    // getroffen hat.
+    //
+    // 💣 Und `license` ist ein SCHLUESSEL, kein Anzeigetext. Der Text steht in
+    // js/ui/feature-source-markup.js -- dieselbe Trennung wie beim source_type, dessen Whitelist
+    // hier steht und dessen Beschriftung dort. Wer den Anzeigetext speichert, kann ihn nie
+    // uebersetzen und nie umformulieren, ohne den Bestand anzufassen.
+    if (!$columnExists($pdo, 'sources', 'license')) {
+        $pdo->exec("ALTER TABLE sources ADD COLUMN license VARCHAR(40) NOT NULL DEFAULT ''");
+    }
+    if (!$columnExists($pdo, 'sources', 'attribution')) {
+        $pdo->exec("ALTER TABLE sources ADD COLUMN attribution VARCHAR(200) NOT NULL DEFAULT ''");
+    }
+
     if (!$columnExists($pdo, 'sources', 'wiki_key')) {
         $pdo->exec(
             'ALTER TABLE sources
@@ -155,7 +176,7 @@ function avesmapsReadFeatureSources(PDO $pdo, string $entityType, string $entity
     // The legacy branch below has always checked is_active; the catalog branch never did. That
     // asymmetry inside one function is what leaked -- both halves now answer for the same element.
     $statement = $pdo->prepare(
-        "SELECT s.url, s.label, s.source_type, s.is_official
+        "SELECT s.url, s.label, s.source_type, s.is_official, s.license, s.attribution
            FROM feature_sources fs
            JOIN sources s ON s.id = fs.source_id
           WHERE fs.entity_type = :t AND fs.entity_public_id = :id AND fs.status = 'approved'"
@@ -168,6 +189,11 @@ function avesmapsReadFeatureSources(PDO $pdo, string $entityType, string $entity
         'label' => (string) $r['label'],
         'type' => (string) $r['source_type'],
         'official' => (int) $r['is_official'] === 1,
+        // ⚠️ Leer heisst "nicht erfasst" und wird als leer weitergereicht, nicht weggelassen:
+        // ein fehlender Schluessel und ein leerer sind fuer den Leser dasselbe, aber nur der
+        // leere sagt, dass die Frage ueberhaupt gestellt wurde.
+        'license' => (string) ($r['license'] ?? ''),
+        'attribution' => (string) ($r['attribution'] ?? ''),
     ], $statement->fetchAll(PDO::FETCH_ASSOC) ?: []);
 
     // Legacy "Andere Quelle": settlement/region/path live in map_features.properties.other_source.
@@ -219,7 +245,7 @@ function avesmapsReadFeatureSourcesByEntityType(PDO $pdo, string $entityType): a
 {
     avesmapsEnsureFeatureSourceTables($pdo);
     $statement = $pdo->prepare(
-        "SELECT fs.entity_public_id, s.url, s.label, s.source_type, s.is_official
+        "SELECT fs.entity_public_id, s.url, s.label, s.source_type, s.is_official, s.license, s.attribution
            FROM feature_sources fs
            JOIN sources s ON s.id = fs.source_id
           WHERE fs.entity_type = :t AND fs.status = 'approved'
@@ -234,6 +260,8 @@ function avesmapsReadFeatureSourcesByEntityType(PDO $pdo, string $entityType): a
             'label' => (string) $row['label'],
             'type' => (string) $row['source_type'],
             'official' => (int) $row['is_official'] === 1,
+            'license' => (string) ($row['license'] ?? ''),
+            'attribution' => (string) ($row['attribution'] ?? ''),
         ];
     }
     return $byEntity;
@@ -245,7 +273,34 @@ function avesmapsReadFeatureSourcesByEntityType(PDO $pdo, string $entityType): a
 // stale one -- without it, a fixed catalog title never reaches the live row (Discord case #33:
 // "Aventurien" stayed put instead of becoming "Aventurien - Das Lexikon des Schwarzen Auges").
 // An EMPTY new label never overwrites a filled one, so a refresh can only ever add information.
-function avesmapsFeatureSourceUpsert(PDO $pdo, string $url, string $label, string $type, bool $official, int $userId, string $wikiKey = '', bool $refreshLabel = false): int
+/**
+ * 🔴 DIE LIZENZSCHLUESSEL, die eine Quelle tragen darf. Leer = nicht erfasst.
+ *
+ * ⚠️ `unfree` ist eine AUSSAGE ("keine freie Lizenz"), leer ist keine. Die beiden zu
+ * verwechseln hiesse, eine Rechtsaussage zu treffen, die niemand getroffen hat.
+ * ⚠️ Die Beschriftungen stehen in js/ui/feature-source-markup.js -- dieselbe Trennung wie beim
+ * source_type, dessen Whitelist hier steht und dessen Anzeigetext dort. Wer hier den Text
+ * speichert, kann ihn nie umformulieren, ohne den Bestand anzufassen.
+ */
+const AVESMAPS_SOURCE_LICENSES = [
+    'cc-by-sa-3.0',
+    'cc-by-nc-sa-3.0',
+    'cc-by-4.0',
+    'cc-by-sa-4.0',
+    'cc0-1.0',
+    'public-domain',
+    'unfree',
+];
+
+/** Ein Lizenzschluessel, oder '' -- ein unbekannter wird zu '' und NICHT zu einem geratenen. */
+function avesmapsNormalizeSourceLicense(mixed $value): string
+{
+    $key = strtolower(trim((string) $value));
+
+    return in_array($key, AVESMAPS_SOURCE_LICENSES, true) ? $key : '';
+}
+
+function avesmapsFeatureSourceUpsert(PDO $pdo, string $url, string $label, string $type, bool $official, int $userId, string $wikiKey = '', bool $refreshLabel = false, string $license = '', string $attribution = ''): int
 {
     // 💣 DIESE LISTE KUERZT LAUTLOS. Was nicht darinsteht, wird zu 'sonstiges' -- kein Fehler,
     // keine Meldung, und der Aufrufer bekommt eine gueltige id zurueck. Wer hier einen neuen Typ
@@ -271,16 +326,25 @@ function avesmapsFeatureSourceUpsert(PDO $pdo, string $url, string $label, strin
     //
     // Fill, never blank: a later caller without a key (an editor adding the same url by hand) must
     // not erase a key the wiki established. Same one-way rule the label refresh follows.
+    // 💣 Lizenz und Namensnennung FUELLEN, nie leeren -- dieselbe Einbahnregel wie beim wiki_key
+    // darueber. Ein spaeterer Aufrufer ohne Angabe (ein Editor, der dieselbe Adresse von Hand
+    // nachtraegt) darf nicht loeschen, was einmal erfasst wurde. Wer sie AENDERN will, tut das im
+    // Quellen-Editor, wo die Aenderung sichtbar ist.
+    $license = avesmapsNormalizeSourceLicense($license);
+    $attribution = avesmapsNormalizeSingleLine($attribution, 200);
     $pdo->prepare(
-        "INSERT INTO sources (url, url_hash, wiki_key, label, source_type, is_official, created_by)
-         VALUES (:u, :h, :wk, :l, :t, :o, :cb)
+        "INSERT INTO sources (url, url_hash, wiki_key, label, source_type, is_official, created_by, license, attribution)
+         VALUES (:u, :h, :wk, :l, :t, :o, :cb, :lic, :attr)
          ON DUPLICATE KEY UPDATE
              label = " . ($refreshLabel ? "IF(VALUES(label) = '', label, VALUES(label))" : "IF(label = '', VALUES(label), label)") . ",
              is_official = VALUES(is_official),
-             wiki_key = IF(VALUES(wiki_key) IS NULL, wiki_key, VALUES(wiki_key))"
+             wiki_key = IF(VALUES(wiki_key) IS NULL, wiki_key, VALUES(wiki_key)),
+             license = IF(VALUES(license) = '', license, VALUES(license)),
+             attribution = IF(VALUES(attribution) = '', attribution, VALUES(attribution))"
     )->execute([
         'u' => $url, 'h' => $hash, 'wk' => $wikiKey !== '' ? $wikiKey : null,
         'l' => $label, 't' => $type, 'o' => $official ? 1 : 0, 'cb' => $userId > 0 ? $userId : null,
+        'lic' => $license, 'attr' => $attribution,
     ]);
     return (int) $pdo->query('SELECT id FROM sources WHERE url_hash = ' . $pdo->quote($hash))->fetchColumn();
 }
@@ -366,7 +430,8 @@ function avesmapsListFeatureSourcesForEdit(PDO $pdo, string $entityType, string 
     avesmapsEnsureFeatureSourceTables($pdo);
     avesmapsFeatureSourcesTakeoverOtherSource($pdo, $entityType, $publicId, $userId);
     $stmt = $pdo->prepare(
-        "SELECT s.id AS source_id, s.url, s.label, s.source_type, s.is_official, fs.origin, fs.reference_kind, fs.pages
+        "SELECT s.id AS source_id, s.url, s.label, s.source_type, s.is_official, s.license, s.attribution,
+                fs.origin, fs.reference_kind, fs.pages
            FROM feature_sources fs JOIN sources s ON s.id = fs.source_id
           WHERE fs.entity_type = :t AND fs.entity_public_id = :id AND fs.status = 'approved'
           ORDER BY s.is_official DESC, s.created_at ASC, s.id ASC"
@@ -383,6 +448,8 @@ function avesmapsListFeatureSourcesForEdit(PDO $pdo, string $entityType, string 
         'type' => (string) $r['source_type'], 'official' => (int) $r['is_official'] === 1,
         'origin' => (string) $r['origin'], 'pages' => (string) ($r['pages'] ?? ''),
         'reference_kind' => (string) ($r['reference_kind'] ?? ''),
+        'license' => (string) ($r['license'] ?? ''),
+        'attribution' => (string) ($r['attribution'] ?? ''),
     ], $stmt->fetchAll(PDO::FETCH_ASSOC) ?: []);
     return [
         'ok' => true,
@@ -448,7 +515,7 @@ function avesmapsFeatureSourcesReadWikiUrl(PDO $pdo, string $entityType, string 
     return is_array($props) ? trim((string) ($props['wiki_url'] ?? '')) : '';
 }
 
-function avesmapsAddFeatureSource(PDO $pdo, string $entityType, string $publicId, string $url, string $label, string $type, bool $official, int $userId, string $pages = '', string $referenceKind = ''): array
+function avesmapsAddFeatureSource(PDO $pdo, string $entityType, string $publicId, string $url, string $label, string $type, bool $official, int $userId, string $pages = '', string $referenceKind = '', string $license = '', string $attribution = ''): array
 {
     avesmapsEnsureFeatureSourceTables($pdo);
     // Publication-link normalization (dedup): if the URL is a Wiki-Aventurica article for a KNOWN
@@ -465,7 +532,9 @@ function avesmapsAddFeatureSource(PDO $pdo, string $entityType, string $publicId
             $upsertWikiKey = (string) ($identity['wiki_key'] ?? '');
         }
     }
-    $sourceId = avesmapsFeatureSourceUpsert($pdo, $upsertUrl, $label, $type, $official, $userId, $upsertWikiKey);
+    // ⚠️ Lizenz und Namensnennung reisen mit -- ohne sie kann ausser dem Import niemand etwas
+    // eintragen, und das Feld waere Zierde (Owner 27.08.2026).
+    $sourceId = avesmapsFeatureSourceUpsert($pdo, $upsertUrl, $label, $type, $official, $userId, $upsertWikiKey, false, $license, $attribution);
     // Manual/community add: origin stays 'manual'. reference_kind is OPTIONAL classification of how the
     // place is covered in this source -- ausfuehrlich/ergaenzend -> the "Offiziell" publication tab,
     // erwaehnung -> the "Erwähnt" tab, empty -> the flat "Quelle(n):" line (buildSourceListMarkup splits

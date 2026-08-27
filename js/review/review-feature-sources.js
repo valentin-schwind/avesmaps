@@ -116,6 +116,32 @@ function featureSourcePagesShorten(pages) {
   return geteilt(pages);
 }
 
+// 🔴 Die Lizenztafel und der Lizenztext kommen aus feature-source-markup.js, wie die
+// Seitenkuerzung darueber und aus demselben Grund: eine Regel, die einen von zwei Erzeugern
+// bindet, ist keine. Die Infobox und dieser Editor zeigen dieselbe Angabe derselben Quelle.
+// 🔴 KEIN stiller Rueckfall auf eine leere Liste: die waere ein Auswahlfeld ohne Auswahl, und
+// niemand saehe, dass die Datei fehlt -- er saehe nur, dass es keine Lizenzen gibt.
+// ⚠️ Nachgeschlagen bei JEDEM Aufruf, nicht einmal beim Laden (siehe featureSourcePagesShorten).
+function featureSourceLicenseTable() {
+  var geteilt = (typeof module !== "undefined" && module.exports)
+    ? require("../ui/feature-source-markup.js").FEATURE_SOURCE_LICENSES
+    : (typeof FEATURE_SOURCE_LICENSES !== "undefined" ? FEATURE_SOURCE_LICENSES : null);
+  if (!geteilt || typeof geteilt !== "object") {
+    throw new Error("feature-source-markup.js fehlt -- sie traegt die Lizenztafel");
+  }
+  return geteilt;
+}
+
+function featureSourceLicenseLine(source) {
+  var geteilt = (typeof module !== "undefined" && module.exports)
+    ? require("../ui/feature-source-markup.js").featureSourceLicenseText
+    : (typeof featureSourceLicenseText === "function" ? featureSourceLicenseText : null);
+  if (typeof geteilt !== "function") {
+    throw new Error("feature-source-markup.js fehlt -- sie traegt die Lizenzangabe");
+  }
+  return geteilt(source);
+}
+
 function renderFeatureSourceRow(source, escape, tr) {
   const officialMark = source.official ? " *" : "";
   // 🔴 Gekuerzt ANGEZEIGT, vollstaendig im Titel. Eine Wiki-Publikation nennt schnell zwoelf
@@ -136,6 +162,13 @@ function renderFeatureSourceRow(source, escape, tr) {
   const kind = source.reference_kind
     ? '<span class="fs-row__kind">' + escape(featureSourceReferenceKindLabel(source.reference_kind)) + "</span>"
     : '<span class="fs-row__kind"></span>';
+  // 💣 Auch hier eine LEERE Zelle statt keiner -- das Raster gibt jeder Zeile dieselbe
+  // Spaltenvorlage. ⚠️ Und leer heisst „nicht erfasst", nie „keine Lizenz": deshalb steht dort
+  // nichts und nicht etwa ein Strich, der wie eine Aussage aussaehe.
+  const lizenz = featureSourceLicenseLine(source);
+  const license = lizenz.text
+    ? '<span class="fs-row__license">' + escape(lizenz.text) + "</span>"
+    : '<span class="fs-row__license"></span>';
   return (
     '<div class="fs-row" data-source-id="' + escape(source.source_id) + '">' +
     '<a class="fs-row__link" href="' + escape(source.url) + '" target="_blank" rel="noopener">' +
@@ -143,6 +176,7 @@ function renderFeatureSourceRow(source, escape, tr) {
     '<span class="fs-row__badge">' + escape(featureSourceTypeLabel(source.type)) + officialMark + "</span>" +
     kind +
     pages +
+    license +
     '<button type="button" class="fs-row__remove" data-remove-source-id="' + escape(source.source_id) + '">✕</button>' +
     "</div>"
   );
@@ -212,6 +246,7 @@ function renderFeatureSourceColumnHeads(anzahl, escape, tr) {
     + kopf("sources.colType", "Typ")
     + kopf("sources.colKind", "Art")
     + kopf("sources.colPages", "Seiten")
+    + kopf("sources.colLicense", "Lizenz")
     + "<span></span>"
     + "</div>";
 }
@@ -252,6 +287,17 @@ function renderFeatureSourceAddRow(escape, tr) {
   const kindOptions = FEATURE_SOURCE_REFERENCE_KINDS.map(
     (kind) => '<option value="' + escape(kind) + '">' + escape(featureSourceReferenceKindLabel(kind)) + "</option>"
   ).join("");
+  // 🔴 Die Lizenz der QUELLE (Owner 27.08.2026: „quellen fehlt das lizenz-feld").
+  // ⚠️ Die leere Auswahl heisst „nicht erfasst" und ist die Vorgabe -- NICHT „keine Lizenz".
+  // Wer das sagen will, waehlt „Keine freie Lizenz". Die beiden gleichzusetzen waere eine
+  // Rechtsaussage, die niemand getroffen hat, und sie stuende an 1694 Quellen.
+  // 💣 Die Liste kommt aus feature-source-markup.js, nicht aus einer Kopie hier: dieselbe Regel
+  // wie bei der Seitenkuerzung -- eine Liste, die einen von zwei Erzeugern bindet, ist keine.
+  const lizenzTafel = featureSourceLicenseTable();
+  const licenseOptions = '<option value="">' + escape(tr("sources.add.licenseNone", "Lizenz …")) + "</option>" +
+    Object.keys(lizenzTafel).map(
+      (key) => '<option value="' + escape(key) + '">' + escape(lizenzTafel[key].label) + "</option>"
+    ).join("");
   return (
     '<div class="fs-row fs-row--add" data-fs-add>' +
     '<input type="text" class="fs-add-url" placeholder="' + escape(tr("sources.add.url", "URL")) + '">' +
@@ -266,6 +312,8 @@ function renderFeatureSourceAddRow(escape, tr) {
     '<input type="text" class="fs-add-pages" placeholder="' + escape(tr("sources.add.pages", "Seite(n)")) + '">' +
     '<select class="fs-add-type">' + options + "</select>" +
     '<select class="fs-add-kind" title="' + escape(tr("sources.add.kind", "Abdeckung: Ausführlich/Ergänzend → Offiziell-Tab, Erwähnung → Erwähnt-Tab, sonst normale Quellenzeile")) + '">' + kindOptions + "</select>" +
+    '<select class="fs-add-license" title="' + escape(tr("sources.add.licenseHint", "Unter welcher Lizenz steht die Quelle? Leer heißt „nicht erfasst“, nicht „keine Lizenz“.")) + '">' + licenseOptions + "</select>" +
+    '<input type="text" class="fs-add-attribution" placeholder="' + escape(tr("sources.add.attribution", "Namensnennung")) + '" title="' + escape(tr("sources.add.attributionHint", "Wen die Lizenz zu nennen verlangt, z. B. „VolkoV / garetien.de“.")) + '">' +
     '<label class="fs-add-official-label">' +
     '<input type="checkbox" class="fs-add-official"> ' + escape(tr("sources.add.official", "offiziell")) +
     "</label>" +
@@ -521,6 +569,8 @@ function mountFeatureSourceEditor(containerEl, entityType, publicIdGetter, opts)
     const kindSelect = containerEl.querySelector(".fs-add-kind");
     const officialInput = containerEl.querySelector(".fs-add-official");
     const pagesInput = containerEl.querySelector(".fs-add-pages");
+    const licenseSelect = containerEl.querySelector(".fs-add-license");
+    const attributionInput = containerEl.querySelector(".fs-add-attribution");
     return {
       url: String((urlInput && urlInput.value) || "").trim(),
       label: String((labelInput && labelInput.value) || "").trim(),
@@ -528,6 +578,11 @@ function mountFeatureSourceEditor(containerEl, entityType, publicIdGetter, opts)
       reference_kind: String((kindSelect && kindSelect.value) || ""),
       is_official: Boolean(officialInput && officialInput.checked),
       pages: String((pagesInput && pagesInput.value) || "").trim(),
+      // ⚠️ Lizenz und Namensnennung beschreiben die QUELLE, nicht diese Verknuepfung -- anders
+      // als `pages` und `reference_kind` daneben. Deshalb reisen sie beim Anlegen mit und beim
+      // Verknuepfen einer bestehenden Quelle NICHT: die traegt ihre eigene schon.
+      license: String((licenseSelect && licenseSelect.value) || ""),
+      attribution: String((attributionInput && attributionInput.value) || "").trim(),
     };
   }
 

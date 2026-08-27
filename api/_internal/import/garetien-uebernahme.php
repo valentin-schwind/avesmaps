@@ -99,13 +99,20 @@ function avesmapsGaretienQuelleAnlegen(PDO $pdo, string $entityType, string $pub
     if ($url === '') {
         return false;
     }
+    // 🔴 Lizenz und Namensnennung kommen aus dem VORSCHLAG, nicht aus einer Konstanten hier.
+    // Sie stehen im Plan, ein Mensch hat sie in der Vorschau gesehen, und sie landen als Daten
+    // an der Quelle -- der Renderer kennt keinen Wirt und keinen Import mehr.
     $sourceId = avesmapsFeatureSourceUpsert(
         $pdo,
         $url,
         (string) ($quelle['label'] ?? $url),
         AVESMAPS_GARETIEN_SOURCE_TYPE,
         false,
-        $userId
+        $userId,
+        '',
+        false,
+        (string) ($quelle['license'] ?? ''),
+        (string) ($quelle['attribution'] ?? '')
     );
     if ($sourceId <= 0) {
         return false;

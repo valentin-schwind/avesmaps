@@ -70,6 +70,60 @@ final class AvesmapsGaretienUebernahmeTestPdo extends PDO
     }
 
     /**
+     * MySQLs `INSERT ... ON DUPLICATE KEY UPDATE` in SQLites `ON CONFLICT ... DO UPDATE`.
+     *
+     * Drei Unterschiede, mehr sind es nicht: der Schluessel muss bei SQLite genannt werden
+     * (er steht in der UNIQUE-Bedingung der Tabelle), `VALUES(x)` heisst `excluded.x`, und
+     * `IF(a, b, c)` heisst `CASE WHEN a THEN b ELSE c END`.
+     *
+     * 💣 Das IF wird KLAMMERWEISE zerlegt und nicht per Regex: `IF(VALUES(label) = '', label,
+     * VALUES(label))` ist verschachtelt, und ein Muster mit `[^,]*` schneidet es an der falschen
+     * Stelle auseinander -- lautlos, mit gueltigem SQL als Ergebnis.
+     */
+    private static function mysqlUpsertNachSqlite(string $query): string
+    {
+        $schluessel = str_contains($query, 'INTO sources')
+            ? '(url_hash)'
+            : '(entity_type, entity_public_id, source_id)';
+        $query = str_replace('ON DUPLICATE KEY UPDATE', 'ON CONFLICT ' . $schluessel . ' DO UPDATE SET', $query);
+        $tabelle = str_contains($query, 'INTO sources') ? 'sources' : 'feature_sources';
+        $query = preg_replace('~VALUES\(([a-z_]+)\)~i', 'excluded.$1', $query) ?? $query;
+
+        // IF(a, b, c) -> CASE WHEN a THEN b ELSE c END, von innen nach aussen.
+        while (($ab = strpos($query, 'IF(')) !== false) {
+            $tiefe = 0;
+            $teile = [];
+            $stueck = '';
+            for ($i = $ab + 3, $n = strlen($query); $i < $n; $i++) {
+                $z = $query[$i];
+                if ($z === '(') { $tiefe++; }
+                if ($z === ')') {
+                    if ($tiefe === 0) { $teile[] = $stueck; break; }
+                    $tiefe--;
+                }
+                if ($z === ',' && $tiefe === 0) { $teile[] = $stueck; $stueck = ''; continue; }
+                $stueck .= $z;
+            }
+            if (count($teile) !== 3) { break; }
+            $ersatz = 'CASE WHEN ' . trim($teile[0]) . ' THEN ' . trim($teile[1]) . ' ELSE ' . trim($teile[2]) . ' END';
+            $query = substr($query, 0, $ab) . $ersatz . substr($query, $i + 1);
+        }
+
+        // Ein nacktes Spaltenwort auf der rechten Seite meint bei MySQL die ALTE Zeile; SQLite
+        // verlangt dafuer den Tabellennamen davor.
+        $teile = explode('DO UPDATE SET', $query, 2);
+        if (count($teile) === 2) {
+            $teile[1] = preg_replace('~(?<![.\w])(label|is_official|wiki_key|license|attribution|origin|status)(?![\w.])~',
+                $tabelle . '.$1', $teile[1]) ?? $teile[1];
+            // Die Zuweisungsziele duerfen den Praefix nicht tragen.
+            $teile[1] = preg_replace('~' . $tabelle . '\.([a-z_]+)(\s*=)~', '$1$2', $teile[1]) ?? $teile[1];
+            $query = $teile[0] . 'DO UPDATE SET' . $teile[1];
+        }
+
+        return $query;
+    }
+
+    /**
      * Eine Schema-Sonde durch "ja, die Spalte gibt es" ersetzen -- MIT ihren Parametern.
      *
      * 🪤 Ein blankes `SELECT 1` reicht NICHT: die Sonden binden `:c` und aehnliches, und PDO
@@ -101,22 +155,14 @@ final class AvesmapsGaretienUebernahmeTestPdo extends PDO
             $query = 'INSERT INTO app_setting (setting_key, setting_value) VALUES (:k, :v)
                       ON CONFLICT(setting_key) DO UPDATE SET setting_value = excluded.setting_value';
         }
-        if (str_contains($query, 'INSERT INTO sources')) {
-            $query = "INSERT INTO sources (url, url_hash, wiki_key, label, source_type, is_official, created_by)
-                      VALUES (:u, :h, :wk, :l, :t, :o, :cb)
-                      ON CONFLICT(url_hash) DO UPDATE SET
-                          label = CASE WHEN sources.label = '' THEN excluded.label ELSE sources.label END,
-                          is_official = excluded.is_official,
-                          wiki_key = COALESCE(excluded.wiki_key, sources.wiki_key)";
-        } elseif (str_contains($query, 'INSERT INTO feature_sources')) {
-            $query = "INSERT INTO feature_sources (entity_type, entity_public_id, source_id, status, created_by, origin, reference_kind, pages, note)
-                      VALUES (:t, :id, :sid, 'approved', :cb, :o, :rk, :pg, :nt)
-                      ON CONFLICT(entity_type, entity_public_id, source_id) DO UPDATE SET
-                          reference_kind = excluded.reference_kind,
-                          pages = excluded.pages,
-                          note = excluded.note,
-                          origin = CASE WHEN excluded.origin = 'manual' OR feature_sources.origin = 'manual' THEN 'manual' ELSE excluded.origin END,
-                          status = CASE WHEN excluded.origin = 'manual' THEN 'approved' ELSE feature_sources.status END";
+        // 🪤 UEBERSETZT, NICHT ABGESCHRIEBEN. Die erste Fassung ersetzte die beiden Anweisungen
+        // durch fertige SQLite-Fassungen -- und beim ersten neuen Feld (license/attribution,
+        // 27.08.2026) band die echte Anweisung zwei Parameter mehr, als die Abschrift nannte:
+        // "column index out of range", ein Fehler, der wie ein Fehler des Quellensystems aussieht
+        // und keiner ist. Eine Naht, die die Produktions-SQL abschreibt, muss bei jeder Aenderung
+        // mitwandern; eine, die sie UEBERSETZT, nicht.
+        if (str_contains($query, 'ON DUPLICATE KEY UPDATE')) {
+            $query = self::mysqlUpsertNachSqlite($query);
         }
 
         return parent::prepare($query, $options);
@@ -180,8 +226,9 @@ function avesmapsGaretienUebernahmeTestPdo(): PDO
     avesmapsEnsureSyncPlanTablesSqlite($pdo);
     // ⚠️ Von Hand, nicht ueber avesmapsEnsureFeatureSourceTables: dessen DDL ist MySQL-eigen und
     // laeuft hier nicht. Dieselbe Loesung wie in feature-source-live-entity-test.php.
-    $pdo->exec('CREATE TABLE sources (id INTEGER PRIMARY KEY AUTOINCREMENT, url TEXT, url_hash TEXT UNIQUE,
-        wiki_key TEXT NULL, label TEXT, source_type TEXT, is_official INTEGER DEFAULT 0, created_by INTEGER NULL)');
+    $pdo->exec("CREATE TABLE sources (id INTEGER PRIMARY KEY AUTOINCREMENT, url TEXT, url_hash TEXT UNIQUE,
+        wiki_key TEXT NULL, label TEXT, source_type TEXT, is_official INTEGER DEFAULT 0, created_by INTEGER NULL,
+        license TEXT NOT NULL DEFAULT '', attribution TEXT NOT NULL DEFAULT '')");
     $pdo->exec("CREATE TABLE feature_sources (id INTEGER PRIMARY KEY AUTOINCREMENT, entity_type TEXT NOT NULL,
         entity_public_id TEXT NOT NULL, source_id INTEGER NOT NULL, status TEXT DEFAULT 'approved',
         created_by INTEGER NULL, origin TEXT DEFAULT 'manual', reference_kind TEXT NULL, pages TEXT NULL,
@@ -247,6 +294,19 @@ assert(str_contains((string) $s['url'], 'garetien.de'), 'die Quelle zeigt auf de
 // denselben Typ, und verschieden ist nur der Name, der genannt werden muss.
 assert($s['source_type'] === 'briefspiel', 'die Kategorie der Quelle: ' . $s['source_type']);
 assert(str_starts_with((string) $s['label'], 'Briefspiel ('), 'und die Beschriftung nennt sie: ' . $s['label']);
+
+// --- 🔴 LIZENZ UND NAMENSNENNUNG STEHEN AN DER QUELLE (Owner 27.08.2026: "quellen fehlt das
+// lizenz-feld"). Zwei Felder, weil CC zwei getrennte Dinge verlangt: WAS gilt und WEN man nennt.
+// 💣 Ohne sie stuenden 239 importierte Objekte ohne Namensnennung auf der Karte -- CC BY-NC-SA
+// verlangt sie an jeder Kopie, und der Renderer erraet sie seit heute nicht mehr aus dem Wirt.
+assert($s['license'] === 'cc-by-nc-sa-3.0', 'die Lizenz steht an der Quelle: ' . var_export($s['license'], true));
+assert($s['attribution'] === 'VolkoV / garetien.de', 'und die Namensnennung: ' . var_export($s['attribution'], true));
+$pruefungen += 2;
+
+// ⚠️ Der SCHLUESSEL wird gespeichert, nie der Anzeigetext -- sonst laesst der sich nie
+// umformulieren, ohne den Bestand anzufassen.
+assert(!str_contains((string) $s['license'], 'CC BY'), 'gespeichert wird der Schluessel, nicht der Text');
+$pruefungen++;
 $pruefungen += 5;
 
 // --- 💣 Die Lizenz steht NICHT im Label. Sie ist eine Eigenschaft von garetien.de und haengt am

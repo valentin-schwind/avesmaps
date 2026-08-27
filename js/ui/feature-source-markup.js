@@ -22,44 +22,51 @@ var FEATURE_SOURCE_MARKUP_TYPE_LABELS = {
   sonstiges: "Sonstiges",
 };
 
-// 🔴 DIE NAMENSNENNUNG DER UEBERNOMMENEN KARTENDATEN (Owner 27.08.2026, woertlich:
-// „VolkoV / garetien.de" fuer die Inhalte aus Garetien und „VolkoV / koschwiki.de").
+// 🔴 DIE LIZENZEN, die eine Quelle tragen kann -- Beschriftung und Adresse.
 //
-// 💣 SIE HAENGT AM WIRT, NICHT AM source_type -- und das ist der Grund, warum hier eine Tabelle
-// steht und keine Konstante. Beide Wikis tragen denselben Typ (`garetien`), weil sie derselbe
-// Import aus derselben Hand unter derselben Lizenz sind; verschieden ist nur der NAME, der
-// genannt werden muss. Ein zweiter source_type dafuer waere eine zweite Whitelist, ein zweiter
-// Renderer-Zweig und beim naechsten Wiki ein dritter -- der Wirt steht ohnehin in jeder Adresse.
+// 💣 SIE SIND DATEN GEWORDEN (Owner 27.08.2026: "quellen fehlt das lizenz-feld"). Bis dahin
+// stand hier eine Wirt-Tabelle: garetien.de -> "VolkoV / garetien.de, CC BY-NC-SA 3.0", fest
+// verdrahtet. Das war fuer zwei Wirte richtig und beim dritten falsch -- jede weitere Quelle
+// haette eine Zeile im Renderer gebraucht, und der Editor haette die Lizenz nirgends eintragen
+// koennen. Jetzt steht sie an der Quelle (`sources.license`, `sources.attribution`), und hier
+// steht nur noch, wie ein Schluessel heisst und wohin er zeigt.
 //
-// 💣 UND SIE STEHT AM EINZELNEN EINTRAG, NIE UNTER DER ZEILE. Das ist dieselbe Regel wie beim
-// Wiki-Aventurica-Hinweis eine Etage tiefer: eine Fussnote unter der ganzen Quellenzeile
-// behauptete die Lizenz auch fuer alles andere, was dort steht -- Publikationen, Briefspiele,
-// eigene Quellen. Die Lizenz verlangt an jeder Kopie ZWEIERLEI: die Namensnennung UND den
-// Lizenzhinweis; beides gehoert an das Stueck, fuer das es gilt.
-var FEATURE_SOURCE_GARETIEN_LICENSE_URL = "https://creativecommons.org/licenses/by-nc-sa/3.0/deed.de";
-var FEATURE_SOURCE_GARETIEN_ATTRIBUTION = {
-  "www.garetien.de": "VolkoV / garetien.de",
-  "garetien.de": "VolkoV / garetien.de",
-  "www.koschwiki.de": "VolkoV / koschwiki.de",
-  "koschwiki.de": "VolkoV / koschwiki.de",
+// ⚠️ Der SCHLUESSEL wird gespeichert, nie der Text: sonst laesst sich die Beschriftung nie
+// umformulieren, ohne den Bestand anzufassen. Dieselbe Trennung wie beim source_type, dessen
+// Whitelist in PHP steht und dessen Beschriftung hier.
+// 🔴 `unfree` hat KEINE Adresse -- es gibt nichts zu verlinken, und ein Link ins Leere waere
+// schlimmer als keiner.
+var FEATURE_SOURCE_LICENSES = {
+  "cc-by-sa-3.0": { label: "CC BY-SA 3.0", url: "https://creativecommons.org/licenses/by-sa/3.0/deed.de" },
+  "cc-by-nc-sa-3.0": { label: "CC BY-NC-SA 3.0", url: "https://creativecommons.org/licenses/by-nc-sa/3.0/deed.de" },
+  "cc-by-4.0": { label: "CC BY 4.0", url: "https://creativecommons.org/licenses/by/4.0/deed.de" },
+  "cc-by-sa-4.0": { label: "CC BY-SA 4.0", url: "https://creativecommons.org/licenses/by-sa/4.0/deed.de" },
+  "cc0-1.0": { label: "CC0 1.0", url: "https://creativecommons.org/publicdomain/zero/1.0/deed.de" },
+  "public-domain": { label: "Gemeinfrei", url: "" },
+  unfree: { label: "Keine freie Lizenz", url: "" },
 };
 
 /**
- * Die Namensnennung zu einer Quellenadresse -- oder "" fuer alles andere.
+ * Die Lizenzangabe einer Quelle als Text -- "" wenn nichts erfasst ist.
  *
- * ⚠️ Ein unbekannter Wirt gibt "" zurueck und KEINEN Rueckfall auf einen der beiden Namen. Eine
- * geratene Namensnennung ist schlimmer als keine: sie schreibt einem Menschen eine Arbeit zu, die
- * er nicht gemacht hat.
+ * ⚠️ LEER IST NICHT "KEINE LIZENZ". Eine Quelle ohne Eintrag zeigt gar nichts; wer "keine freie
+ * Lizenz" sagen will, sagt es mit dem Schluessel `unfree`. Die beiden zu verwechseln waere eine
+ * Rechtsaussage, die niemand getroffen hat -- und sie stuende dann an 1694 Quellen.
+ *
+ * ⚠️ Die Namensnennung allein reicht ebenfalls: eine Quelle darf sagen, wen sie nennt, ohne dass
+ * jemand die Lizenz eingetragen hat. Beides sind getrennte Angaben, weil CC beides getrennt
+ * verlangt -- WAS gilt und WEN man nennt.
  */
-function featureSourceGaretienAttribution(url) {
-  var wirt = "";
-  try {
-    wirt = new URL(String(url || "")).hostname.toLowerCase();
-  } catch (e) {
-    var treffer = /^https?:\/\/([^/?#]+)/i.exec(String(url || ""));
-    wirt = treffer ? treffer[1].toLowerCase() : "";
-  }
-  return FEATURE_SOURCE_GARETIEN_ATTRIBUTION[wirt] || "";
+function featureSourceLicenseText(source) {
+  var s = source || {};
+  var eintrag = FEATURE_SOURCE_LICENSES[String(s.license || "").trim()] || null;
+  var wer = String(s.attribution == null ? "" : s.attribution).trim();
+  if (!eintrag && !wer) { return { text: "", url: "" }; }
+  var teile = [];
+  if (wer) { teile.push(wer); }
+  if (eintrag) { teile.push(eintrag.label); }
+
+  return { text: teile.join(", "), url: eintrag ? eintrag.url : "" };
 }
 
 // Ab wie vielen Einzelseiten eine Angabe gekuerzt wird. 🔴 Owner 24.08.2026: „lange seitenzahl-
@@ -167,19 +174,26 @@ function buildSourceListMarkup(wikiUrl, sources, opts) {
     // 14.08.2026 stand nur die erste Haelfte da.
     items.push(link(wikiUrl, esc(wikiLabel)) + wikiLicenseMarkup());
   }
-  // Die Namensnennung uebernommener Kartendaten -- gebaut wie der Wiki-Lizenzhinweis oben, aus
+  // Lizenz und Namensnennung einer Quelle -- gebaut wie der Wiki-Lizenzhinweis oben, aus
   // demselben Grund und in derselben gedaempften Form.
-  var garetienMarkup = function (s) {
-    var name = featureSourceGaretienAttribution(s.url);
-    if (!name) { return ""; }
+  // 🔴 Sie stehen am EINZELNEN Eintrag, nie unter der Zeile: eine Fussnote unter der ganzen
+  // Quellenzeile behauptete die Lizenz auch fuer alles andere, was dort steht.
+  var lizenzMarkup = function (s) {
+    var l = featureSourceLicenseText(s);
+    if (!l.text) { return ""; }
     // --attrib: sie darf umbrechen, der kurze Wiki-Hinweis nicht (css/features/feature-sources.css).
-    return '<a class="fs-src-lic fs-src-lic--attrib" href="' + esc(FEATURE_SOURCE_GARETIEN_LICENSE_URL) +
-      '" target="_blank" rel="noopener">' + esc(name + ", CC BY-NC-SA 3.0") +
+    // ⚠️ Ohne Adresse ein <span>, kein Link ins Leere -- "Gemeinfrei" und "Keine freie Lizenz"
+    // haben nichts zu verlinken.
+    if (!l.url) {
+      return '<span class="fs-src-lic fs-src-lic--attrib">' + esc(l.text) + "</span>";
+    }
+    return '<a class="fs-src-lic fs-src-lic--attrib" href="' + esc(l.url) +
+      '" target="_blank" rel="noopener">' + esc(l.text) +
       ' <span class="fs-src-ext" aria-hidden="true">↗</span></a>';
   };
   direct.forEach(function (s) {
     var label = esc(s.label || s.url || "");
-    var namensnennung = garetienMarkup(s);
+    var namensnennung = lizenzMarkup(s);
     var meta = typeTag(s.type) + pagesInline(s.pages) + namensnennung;
     var eintrag = s.url
       ? link(s.url, label + star(s.official)) + meta
@@ -273,7 +287,7 @@ function avesmapsSourceTabKeydown(event, tabEl) {
 }
 
 if (typeof module !== "undefined" && module.exports) {
-  module.exports = { buildSourceListMarkup: buildSourceListMarkup, FEATURE_SOURCE_MARKUP_TYPE_LABELS: FEATURE_SOURCE_MARKUP_TYPE_LABELS, featureSourceShortenPages: featureSourceShortenPages, featureSourceGaretienAttribution: featureSourceGaretienAttribution, FEATURE_SOURCE_GARETIEN_LICENSE_URL: FEATURE_SOURCE_GARETIEN_LICENSE_URL };
+  module.exports = { buildSourceListMarkup: buildSourceListMarkup, FEATURE_SOURCE_MARKUP_TYPE_LABELS: FEATURE_SOURCE_MARKUP_TYPE_LABELS, featureSourceShortenPages: featureSourceShortenPages, featureSourceLicenseText: featureSourceLicenseText, FEATURE_SOURCE_LICENSES: FEATURE_SOURCE_LICENSES };
 }
 if (typeof window !== "undefined") {
   window.buildSourceListMarkup = buildSourceListMarkup;

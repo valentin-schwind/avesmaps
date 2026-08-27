@@ -517,7 +517,7 @@
    rechnete jede Zeile für sich, und genau das soll hier aufhören. */
 .fs-row {
 	display: grid;
-	grid-template-columns: minmax(0, 1fr) 104px 104px 74px 22px;
+	grid-template-columns: minmax(0, 1fr) 104px 104px 74px 150px 22px;
 	align-items: center;
 	gap: 8px;
 	padding: 4px 0;
@@ -537,6 +537,17 @@
 	overflow: hidden;
 	text-overflow: ellipsis;
 	white-space: nowrap;
+}
+/* Die Lizenz der Quelle samt Namensnennung ("VolkoV / garetien.de, CC BY-NC-SA 3.0").
+   ⚠️ Sie steht hier nur zum ANSEHEN -- gedaempft wie die uebrigen Beipackangaben, damit sie den
+   Titel nicht ueberstimmt. Geaendert wird sie ueber die Eingabezeile darunter.
+   💣 Der Text ellipsiert am ELEMENT, nicht an der Zelle -- dieselbe Falle wie beim Titel. */
+.fs-row__license {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	color: var(--color-text-muted);
+	font-size: 11px;
 }
 /* Seitenzahlen rechtsbündig und auf gleicher Ziffernbreite -- so liest man eine Spalte davon. */
 .fs-row__pages {
@@ -558,7 +569,7 @@
 /* Die Spaltenüberschrift der Gruppe — sie steht auf demselben Raster wie ihre Zeilen. */
 .fs-col-heads {
 	display: grid;
-	grid-template-columns: minmax(0, 1fr) 104px 104px 74px 22px;
+	grid-template-columns: minmax(0, 1fr) 104px 104px 74px 150px 22px;
 	gap: 8px;
 	padding: 2px 0 4px;
 	border-bottom: 1px solid var(--color-divider);
@@ -577,7 +588,8 @@
 	.fs-row {
 		grid-template-columns: minmax(0, 1fr) 74px 22px;
 	}
-	.fs-row__kind {
+	.fs-row__kind,
+	.fs-row__license {
 		grid-column: 1 / 2;
 	}
 	.fs-col-heads {

@@ -77,7 +77,12 @@ try {
             $official = (bool) ($payload['is_official'] ?? false);
             $pages = trim((string) ($payload['pages'] ?? ''));
             $referenceKind = trim((string) ($payload['reference_kind'] ?? ''));
-            return avesmapsAddFeatureSource($pdo, $entityType, $entityPublicId, $url, $label, $type, $official, $userId, $pages, $referenceKind);
+            // Lizenz und Namensnennung der QUELLE (nicht dieser Verknuepfung) -- der Schluessel
+            // wird in avesmapsFeatureSourceUpsert gegen AVESMAPS_SOURCE_LICENSES geprueft, ein
+            // unbekannter faellt dort auf '' und nicht auf einen geratenen.
+            $license = trim((string) ($payload['license'] ?? ''));
+            $attribution = trim((string) ($payload['attribution'] ?? ''));
+            return avesmapsAddFeatureSource($pdo, $entityType, $entityPublicId, $url, $label, $type, $official, $userId, $pages, $referenceKind, $license, $attribution);
         })(),
         // Instruction 5a: the editor picked an existing catalog row from the typeahead. Separate
         // from 'add' because that action requires a url -- and the rows most worth reusing (wiki

@@ -45,6 +45,10 @@ function avesmapsGaretienPlanEintrag(array $zeile, array $ziel, array $urteil): 
     // herzogtum-weiden.net/…/hzgl-altentrallop. Der Artikelname geht dabei nicht verloren, er
     // steht im Link.
     $quellenTitel = $wiki === 'kosch' ? 'Briefspiel (Kosch)' : 'Briefspiel (Garetien)';
+    // 🔴 Lizenz und Namensnennung reisen als DATEN mit (Owner 27.08.2026), nicht als Regel im
+    // Renderer. Der Wortlaut ist seiner: "VolkoV / garetien.de" fuer die Inhalte aus Garetien,
+    // "VolkoV / koschwiki.de" fuer den Kosch.
+    $namensnennung = $wiki === 'kosch' ? 'VolkoV / koschwiki.de' : 'VolkoV / garetien.de';
     $seite = ($namensraum !== '' ? $namensraum . ':' : '') . $artikel;
 
     // 🔴 EIN ZUFLUSS IST EIN NEUES OBJEKT, KEINE AENDERUNG AN UNSEREM FLUSS (Owner 27.08.2026).
@@ -91,6 +95,8 @@ function avesmapsGaretienPlanEintrag(array $zeile, array $ziel, array $urteil): 
                 'label' => $quellenTitel,
                 'source_type' => 'briefspiel',
                 'origin' => 'garetien',
+                'license' => 'cc-by-nc-sa-3.0',
+                'attribution' => $namensnennung,
             ],
             'urteil' => $urteil['grund'],
             'anlass' => $urteil['anlass'],
