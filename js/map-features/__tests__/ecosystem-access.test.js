@@ -23,7 +23,7 @@ function assert(condition, message) {
 
 // Eine frische Welt je Fall: der gemerkte „Alle"-Wert wird im Modul zwischengespeichert, und zwei Fälle
 // im selben Kontext würden sich gegenseitig die Antwort vorgeben.
-function welt({ modus = "ecosystem", recht = false, editor = true, gemerktAlle = "0" } = {}) {
+function welt({ modus = "ecosystem", recht = false, editor = true, gemerktAlle = "0", ebene = "vegetation" } = {}) {
 	const context = {
 		console,
 		window: { localStorage: { getItem: () => gemerktAlle, setItem: () => {} } },
@@ -34,7 +34,7 @@ function welt({ modus = "ecosystem", recht = false, editor = true, gemerktAlle =
 		// Steht sonst in js/app/runtime-state.js bzw. weiter oben im Modul; hier nur so viel, dass
 		// getActiveEcosystemLayerKind() eine Antwort geben kann.
 		isKnownEcosystemKind: () => true,
-		activeEcosystemLayerKind: "vegetation",
+		activeEcosystemLayerKind: ebene,
 	};
 	context.globalThis = context;
 	vm.createContext(context);
@@ -147,7 +147,7 @@ assert(daneben2.feld.hidden === true, "ausserhalb des Landschaftsmodus ist das F
 // dranstehen." Die Regel wohnt in map-features-labels.js, wird aber von DIESEM Modul beantwortet
 // (welche Ebene ist gewaehlt, und ist es Alle) -- deshalb steht sie hier mit.
 const labelQuelle = fs.readFileSync(path.join(__dirname, "..", "map-features-labels.js"), "utf8");
-function labelWelt({ recht, editor, gemerktAlle, ebene = "vegetation", modus = "ecosystem" }) {
+function labelWelt({ recht, editor, gemerktAlle, ebene = "vegetation", modus = "ecosystem", gipfelModul = true }) {
 	const context = {
 		console,
 		window: { localStorage: { getItem: () => gemerktAlle, setItem: () => {} } },
@@ -158,6 +158,11 @@ function labelWelt({ recht, editor, gemerktAlle, ebene = "vegetation", modus = "
 		isKnownEcosystemKind: () => true,
 		activeEcosystemLayerKind: ebene,
 	};
+	// Das Hoehenmodul haelt die EINE Liste der Gipfel-Subtypen (ECOSYSTEM_PEAK_SUBTYPES). `false`
+	// stellt den Fall nach, dass es fehlt -- dann gilt „kein Gipfel“, also das Verhalten von vorher.
+	if (gipfelModul) {
+		context.isEcosystemPeakSubtype = (typ) => typ === "berggipfel" || typ === "vulkan";
+	}
 	context.globalThis = context;
 	vm.createContext(context);
 	vm.runInContext(source, context);
@@ -186,6 +191,43 @@ assert(inAlle.isLabelOfActiveEcosystemLayer({}), "in Alle steht auch das Ortssch
 const normaleKarte = labelWelt({ recht: false, editor: false, gemerktAlle: "0", modus: "deregraphic" });
 assert(normaleKarte.isLabelOfActiveEcosystemLayer({}),
     "💣 ohne Landschaftsmodus bleibt jede Beschriftung stehen");
+
+// ---- Gipfel in der Topographie: fuer den Editor UND den Besucher (27.08.2026) --------------------
+// 🔴 Ein Berggipfel ist ein freier PUNKT ohne Landschaftsflaeche -- er traegt kein
+// `ecosystem_region_kind` (live gemessen: 0 von 73) und fiel damit durch diesen Filter, obwohl er der
+// ARBEITSPUNKT genau dieser Ebene ist: seine Hoehe baut das Relief. Die Ausnahme gab es schon einmal,
+// aber nur gegen das BLASSMACHEN (isEcosystemLabelMuted); der Sichtbarkeitsfilter kam am 04.08.2026
+// dazu und hat sie wieder zugemacht -- der Gipfel war seither nicht blass, sondern gar nicht da.
+//
+// 💣 DIE FRAGE IST ROLLENFREI. Dieselbe Zeile bedient Editor und Besucher (Owner 27.08.2026: „fuer
+// editoren und normale nutzer"). Wer sie an ein Recht bindet, baut hier die zweite Wahrheit ein, die
+// es an dieser Stelle nie gab -- das Recht entscheidet ueber das ZIEHEN (isEcosystemPeakActive), nie
+// darueber, was man sieht.
+[{ recht: false, editor: false, wer: "Besucher" }, { recht: true, editor: true, wer: "Editor" }].forEach((rolle) => {
+	const inTopo = labelWelt({ recht: rolle.recht, editor: rolle.editor, gemerktAlle: "0", ebene: "topographie" });
+	assert(inTopo.isLabelOfActiveEcosystemLayer({ labelType: "berggipfel" }),
+		`in Topographie steht der Berggipfel dran (${rolle.wer})`);
+	assert(inTopo.isLabelOfActiveEcosystemLayer({ labelType: "vulkan" }),
+		`und der Vulkan auch (${rolle.wer}) -- ECOSYSTEM_PEAK_SUBTYPES kennt beide`);
+	assert(inTopo.isLabelOfActiveEcosystemLayer({ ecosystemRegionKind: "topographie" }),
+		`das Gebirge steht weiterhin dran (${rolle.wer})`);
+	assert(!inTopo.isLabelOfActiveEcosystemLayer({ ecosystemRegionKind: "vegetation", labelType: "wald" }),
+		`🔴 der Wald aber nicht -- die Ausnahme gilt den Gipfeln, nicht allen Fremden (${rolle.wer})`);
+	assert(!inTopo.isLabelOfActiveEcosystemLayer({ labelType: "see" }),
+		`🪤 und ein flaechenloser See auch nicht (${rolle.wer})`);
+});
+
+// 🔴 NUR IN DER TOPOGRAPHIE. Ein Gipfel in der Vegetation waere genau die Stoerung, gegen die dieser
+// Filter gebaut wurde -- er ist dort kein Arbeitspunkt, sondern ein fremder Name ueber dem Wald.
+const gipfelInVeg = labelWelt({ recht: true, editor: true, gemerktAlle: "0", ebene: "vegetation" });
+assert(!gipfelInVeg.isLabelOfActiveEcosystemLayer({ labelType: "berggipfel" }),
+	"💣 in Vegetation bleibt der Berggipfel weg");
+
+// 🪤 Fehlt das Hoehenmodul (die EINE Liste der Gipfel-Subtypen), gilt „kein Gipfel" -- das Verhalten
+// von vorher, kein Wurf. Derselbe Rueckfall wie bei isEcosystemPeakLabel nebenan.
+const ohneHoehenmodul = labelWelt({ recht: true, editor: true, gemerktAlle: "0", ebene: "topographie", gipfelModul: false });
+assert(!ohneHoehenmodul.isLabelOfActiveEcosystemLayer({ labelType: "berggipfel" }),
+	"ohne Hoehenmodul faellt die Ausnahme still aus, statt zu werfen");
 
 // ---- der Untergrund: 25 % fuer den Besucher, sein Regler fuer den Editor ----------------------------
 // 💣 Der Besucher bekommt einen FESTEN Wert, nicht den gespeicherten. Der liegt je Browser, und wer

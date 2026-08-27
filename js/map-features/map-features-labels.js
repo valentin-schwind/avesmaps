@@ -1030,9 +1030,10 @@ function isLabelsWithRegionFilterActive() {
 
 // PUR (und deshalb prüfbar): gehört diese Beschriftung zur gerade gewählten Landschaftsebene?
 //
-// Drei Fälle, und nur der mittlere filtert:
+// Vier Fälle, und nur der letzte filtert:
 //   * gar kein Landschaftsmodus  -> ja (die Regel gilt nicht)
 //   * „Alle"                     -> ja (Owner: „bei Alle darf alles dranstehen")
+//   * Gipfel in der Topographie  -> ja (Owner 27.08.2026, siehe unten)
 //   * eine gewählte Ebene        -> nur, wenn die Fläche dieses Labels zu ihr gehört
 //
 // 🪤 Die Umgebungsfunktionen werden mit `typeof` abgefragt, weil map-features-labels.js VOR
@@ -1048,8 +1049,33 @@ function isLabelOfActiveEcosystemLayer(label) {
 	if (typeof getActiveEcosystemLayerKind !== "function") {
 		return true;
 	}
+	const ebene = getActiveEcosystemLayerKind();
 
-	return String(label?.ecosystemRegionKind || "") === getActiveEcosystemLayerKind();
+	// 🔴 EIN GIPFEL GEHÖRT ZUR TOPOGRAPHIE, AUCH OHNE FLÄCHE (Owner 27.08.2026: „topographie soll für
+	// editoren und normale nutzer berggipfel anzeigen"). Ein Berggipfel ist ein PUNKT und trägt deshalb
+	// nie ein `ecosystem_region_kind` -- live gemessen 0 von 73 --, fiel also durch die Zeile darunter,
+	// obwohl er der ARBEITSPUNKT genau dieser Ebene ist: aus seiner Höhe entsteht das Relief.
+	//
+	// 💣 DIESELBE AUSNAHME STEHT SCHON EINMAL DA, und dass sie hier fehlte, ist die ganze Störung:
+	// isEcosystemLabelMuted nimmt Gipfel in der Topographie vom BLASSMACHEN aus (mit derselben
+	// Begründung), der Sichtbarkeitsfilter kam am 04.08.2026 dazu und hat sie wieder zugemacht. Der
+	// Gipfel war seither nicht blass, sondern gar nicht da -- und damit auch nicht ziehbar, obwohl
+	// syncEcosystemPeakDragging ihn freischaltet. Wer eine der beiden Stellen ändert, prüft die andere.
+	//
+	// 🔴 ROLLENFREI. Diese Zeile fragt kein Recht: Besucher und Editor sehen denselben Gipfel. Das Recht
+	// entscheidet über das ZIEHEN (isEcosystemPeakActive), nie über das Sehen.
+	//
+	// 🪤 Über den `labelType`, nicht über isEcosystemPeakLabel(publicId): jenes scannt `labelData`
+	// linear, und diese Funktion läuft pro Label pro Zoom und pro Move. Welche Subtypen Gipfel sind,
+	// steht weiterhin an EINER Stelle (ECOSYSTEM_PEAK_SUBTYPES: berggipfel + vulkan).
+	// ⚠️ `typeof` wie bei den Nachbarn -- map-features-labels.js lädt vor dem Höhenmodul. Fehlt es,
+	// gilt „kein Gipfel", also das Verhalten von vorher.
+	if (ebene === "topographie" && typeof isEcosystemPeakSubtype === "function"
+		&& isEcosystemPeakSubtype(label?.labelType)) {
+		return true;
+	}
+
+	return String(label?.ecosystemRegionKind || "") === ebene;
 }
 
 // Liegt diese Beschriftung auf dieser Zoomstufe in ihrem Band?
@@ -1061,6 +1087,11 @@ function isLabelOfActiveEcosystemLayer(label) {
 //
 // 💣 Wer das mit der GROESSE gleich behandelt, nimmt den Editoren entweder ihre Baender weg (Tafel
 // gilt) oder laesst die Groesse wirkungslos (Tafel raet). Beides ist genau falsch herum.
+//
+// 🔴 UND GENAU EINE AUSNAHME: BEI GIPFELN GILT DIE TAFEL (Owner 27.08.2026, „berggipfel und vulkane
+// sollen ab Z4 erscheinen“). Als blosse Vorgabe waere die Anweisung wirkungslos gewesen -- live
+// traegt jeder der 73 Gipfel ein eigenes min_zoom, verteilt ueber z2 bis z6. Die Ausnahme MUSS eine
+// bleiben: gaelte sie fuer alle Arten, waere sie der Fehler, vor dem der Absatz darueber warnt.
 //
 // ⭐ Eigene, REINE Funktion, damit ein Test sie AUSFUEHREN kann. Als Ausdruck mitten in
 // shouldShowLabelMarker liess sie sich nur ueber ihren Quelltext pruefen -- und eine Mutation, die
@@ -1075,12 +1106,20 @@ function avesmapsLabelImBand(label, bandZoom) {
 	const max = Number(rohMax);
 	const hatEigenes = rohMin !== null && rohMin !== undefined && Number.isFinite(min)
 		&& rohMax !== null && rohMax !== undefined && Number.isFinite(max);
-	if (hatEigenes) {
+	// 🔴 Ein Gipfel folgt der Tafel, nicht seinem eigenen Band -- die eine Ausnahme, oben begruendet.
+	// ⚠️ `typeof` wie beim Nachbarn darunter: diese Datei laedt vor dem Hoehenmodul, und der Test
+	// schneidet die Funktion allein heraus. Fehlt die Liste, gilt „kein Gipfel“ -- das Verhalten von
+	// vorher, kein Wurf.
+	const istGipfel = typeof isEcosystemPeakSubtype === "function"
+		&& isEcosystemPeakSubtype(label?.labelType);
+	if (hatEigenes && !istGipfel) {
 		return bandZoom >= min && bandZoom <= max;
 	}
 	if (typeof avesmapsEcosystemDisplaySichtbar === "function") {
 		return avesmapsEcosystemDisplaySichtbar(label?.labelType, bandZoom);
 	}
+	// 🪤 Der Notausgang: fehlt auch die Tafel, faellt ein Gipfel auf sein eigenes Band zurueck. Das ist
+	// die sichere Richtung -- lieber ein Name zur falschen Zoomstufe als gar keiner.
 	return bandZoom >= (Number.isFinite(min) ? min : 0) && bandZoom <= (Number.isFinite(max) ? max : 7);
 }
 

@@ -78,7 +78,14 @@ const AVESMAPS_ECOSYSTEM_DISPLAY_VORGABE = { ab: 0, bis: 7, curveMax: 1, prio: 3
  */
 const AVESMAPS_ECOSYSTEM_DISPLAY_VORGABE_JE_ART = {
 	auenlandschaft: { ab: 4 },   // 10 Namen, 40 % einig
-	berggipfel: { ab: 4 },   // 69 Namen, 38 % einig
+	// 🔴 DIESE ZEILE UND `vulkan` SIND KEIN GEMESSENER MEDIAN MEHR, SONDERN EIN OWNER-ENTSCHEID --
+	// UND SIE GELTEN (27.08.2026: „berggipfel und vulkane sollen ab Z4 erscheinen“). Fuer jede andere
+	// Art raet diese Tafel nur; fuer die zwei Gipfelarten schlaegt sie das eigene Band des Labels
+	// (avesmapsLabelImBand). Ohne das waere die Anweisung wirkungslos geblieben: live traegt JEDER
+	// der 73 Gipfel ein eigenes min_zoom (z2: 2, z3: 30, z4: 19, z5: 17, z6: 5).
+	// 💣 Wer hier „Alle uebernehmen“ im Darstellungs-Fenster drueberschreibt, verschiebt damit eine
+	// Entscheidung und nicht bloss eine Marke.
+	berggipfel: { ab: 4 },   // Owner-Entscheid 27.08.2026 (gemessener Median war ebenfalls 4)
 	ebene: { ab: 3 },   // 2 Namen, 50 % einig
 	fluss: { ab: 4 },   // 21 Namen, 67 % einig
 	flussdelta: { ab: 2 },   // 2 Namen, 50 % einig
@@ -100,7 +107,7 @@ const AVESMAPS_ECOSYSTEM_DISPLAY_VORGABE_JE_ART = {
 	suempfe_moore: { ab: 3 },   // 45 Namen, 49 % einig
 	tal: { ab: 2 },   // 29 Namen, 55 % einig
 	tiefebene: { ab: 3 },   // 5 Namen, 80 % einig
-	vulkan: { ab: 3 },   // 4 Namen, 75 % einig
+	vulkan: { ab: 4 },   // Owner-Entscheid 27.08.2026 -- die EINE geaenderte Ziffer (Median war 3)
 	wadi: { ab: 5 },   // 4 Namen, 75 % einig
 	wald: { ab: 4 },   // 163 Namen, 67 % einig
 	wueste: { ab: 2 },   // 5 Namen, 60 % einig

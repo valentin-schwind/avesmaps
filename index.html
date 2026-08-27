@@ -867,8 +867,13 @@
 		</div>
 		<!-- Landschaften (Erprobung), V3.0: sitzt an DERSELBEN Stelle wie der politische Jahres-Schieber
 		     direkt darunter -- beide haengen an ihrem Modus, koennen also nie gleichzeitig da sein, und
-		     es gibt keinen Layoutsprung. Sichtbar nur bei mapLayerMode=ecosystem UND ?edit=1 UND
-		     ?landschaften=1 (drei Tore, siehe map-features-ecosystem-layer-switch.js). -->
+		     es gibt keinen Layoutsprung.
+		     🔴 SICHTBAR AB mapLayerMode=ecosystem -- EIN Tor, nicht drei. Hier stand bis zum 27.08.2026
+		     „UND ?edit=1 UND ?landschaften=1": das galt bis zum 04.08.2026, seither gehoeren die
+		     Ebenen-Kacheln jedem, der die Landschaften ansieht (syncEcosystemControlsVisibility --
+		     `hidden = !shouldShow`). Die drei Tore haelt nur noch der Untergrund-REGLER darin, und der
+		     tote Satz hier hat gekostet: er liess die Gipfel-Stoerung in der Topographie zuerst als
+		     reines Editor-Problem lesen. -->
 		<div id="ecosystem-controls" class="ecosystem-controls" hidden>
 			<!-- Ebenen-Reiter und der Knopf daneben in EINER Zeile. `#ecosystem-controls` ist ein Raster,
 			     in dem jedes Kind eine eigene Zeile bekommt -- ohne diese Hülle sass der Knopf allein

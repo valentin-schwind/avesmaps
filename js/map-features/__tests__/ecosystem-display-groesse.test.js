@@ -113,10 +113,12 @@ assert.strictEqual(avesmapsEcosystemDisplayGroesse("wald", 3), 14, "eine andere 
 const vonB = quelle.indexOf("function avesmapsLabelImBand(");
 assert.ok(vonB >= 0, "avesmapsLabelImBand steht als eigene Funktion da");
 const bisB = quelle.indexOf("\n}", vonB);
+// ⚠️ ZWEI Nachbarn hereinreichen: die Tafel UND die Gipfel-Liste. Ohne die zweite faellt die Funktion
+// in ihren `typeof`-Rueckfall, und die Gipfel-Regel unten waere ungeprueft gruen.
 const avesmapsLabelImBand = new Function(
-	"avesmapsEcosystemDisplaySichtbar",
+	"avesmapsEcosystemDisplaySichtbar", "isEcosystemPeakSubtype",
 	quelle.slice(vonB, bisB + 2) + "; return avesmapsLabelImBand;"
-)(avesmapsEcosystemDisplaySichtbar);
+)(avesmapsEcosystemDisplaySichtbar, (typ) => typ === "berggipfel" || typ === "vulkan");
 
 avesmapsEcosystemDisplayInstall({ vorgabe: { wald: { ab: 2, bis: 4 } } });
 const mitEigenem = { labelType: "wald", minZoom: 0, maxZoom: 7 };
@@ -128,6 +130,37 @@ const ohneEigenes = { labelType: "wald", minZoom: null, maxZoom: null };
 assert.strictEqual(avesmapsLabelImBand(ohneEigenes, 1), false, "ohne eigenes Band gilt die Vorgabe: z1 nicht");
 assert.strictEqual(avesmapsLabelImBand(ohneEigenes, 3), true, "z3 schon");
 assert.strictEqual(avesmapsLabelImBand(ohneEigenes, 6), false, "z6 nicht");
+
+// ---- H. GIPFEL: die Tafel GILT, statt zu raten (Owner 27.08.2026) -------------------------------
+// 🔴 „berggipfel und vulkane sollen ab Z4 erscheinen“ -- und live traegt JEDER der 73 Gipfel ein
+// eigenes min_zoom (z2: 2, z3: 30, z4: 19, z5: 17, z6: 5). Als blosse Vorgabe waere die Anweisung
+// deshalb WIRKUNGSLOS gewesen: die Tafel greift sonst nur, wo ein Label KEIN eigenes Band traegt.
+// Fuer die zwei Gipfelarten -- und nur fuer sie -- schlaegt sie das eigene Band.
+//
+// 💣 DAS IST DIE AUSNAHME VON „DIE TAFEL RAET“, und sie muss eine Ausnahme bleiben: gaelte sie fuer
+// alle Arten, naehme sie den Editoren ihre 939 einzeln gesetzten Baender weg.
+avesmapsEcosystemDisplayInstall(null);
+["berggipfel", "vulkan"].forEach((art) => {
+	const frueh = { labelType: art, minZoom: 2, maxZoom: 7 };
+	assert.strictEqual(avesmapsLabelImBand(frueh, 3), false,
+		`${art}: eigenes z2 zieht ihn NICHT mehr auf z3 vor`);
+	assert.strictEqual(avesmapsLabelImBand(frueh, 4), true, `${art}: ab z4 steht er da`);
+	const spaet = { labelType: art, minZoom: 6, maxZoom: 7 };
+	assert.strictEqual(avesmapsLabelImBand(spaet, 4), true,
+		`🔴 ${art}: eigenes z6 haelt ihn NICHT mehr zurueck -- „ab z4“ heisst ab z4, nicht „fruehestens“`);
+	assert.strictEqual(avesmapsLabelImBand(spaet, 7), true, `${art}: bis z7 bleibt er`);
+});
+
+// ⚠️ Die Uebersteuerung wirkt auch auf sie -- sie stehen nicht ausserhalb der Tafel, sondern folgen
+// ihr enger als alle anderen. Sonst gaebe es die Zahl zweimal.
+avesmapsEcosystemDisplayInstall({ vorgabe: { berggipfel: { ab: 6, bis: 7 } } });
+assert.strictEqual(avesmapsLabelImBand({ labelType: "berggipfel", minZoom: 0, maxZoom: 7 }, 4), false,
+	"eine gesetzte Uebersteuerung schiebt den Gipfel mit");
+avesmapsEcosystemDisplayInstall(null);
+
+// 🪤 Und eine Art, die KEIN Gipfel ist, behaelt ihr eigenes Band -- sonst waere die Ausnahme keine.
+assert.strictEqual(avesmapsLabelImBand({ labelType: "see", minZoom: 0, maxZoom: 7 }, 0), true,
+	"💣 der See folgt weiterhin seinem eigenen Band");
 
 const vonS = ohneKommentare.indexOf("function shouldShowLabelMarker(");
 const bisS = ohneKommentare.indexOf("\n}", vonS);

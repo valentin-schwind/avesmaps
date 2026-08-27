@@ -63,6 +63,17 @@ assert.deepStrictEqual(avesmapsEcosystemDisplayBand("wuestenoase"), { ab: 5, bis
 assert.deepStrictEqual(avesmapsEcosystemDisplayBand("kontinent"), { ab: 0, bis: 3 },
 	"Kontinent bis z3");
 
+// 🔴 DIE ZWEI GIPFEL-ZEILEN SIND KEIN MEDIAN MEHR, SONDERN EIN OWNER-ENTSCHEID -- und sie GELTEN
+// (27.08.2026: „berggipfel und vulkane sollen ab Z4 erscheinen"). Fuer jede andere Art raet diese
+// Tafel nur; fuer Gipfel schlaegt sie das eigene Band des Labels (avesmapsLabelImBand).
+// 💣 Wer hier „Alle uebernehmen" im Darstellungs-Fenster drueberschreibt, verschiebt damit eine
+// Entscheidung und nicht bloss eine Marke. Live gemessen 27.08.2026 lagen die 73 Gipfel auf z2 (2),
+// z3 (30), z4 (19), z5 (17) und z6 (5) -- ein Median haette den Vulkan auf z3 zurueckgezogen.
+assert.deepStrictEqual(avesmapsEcosystemDisplayBand("berggipfel"), { ab: 4, bis: 7 },
+	"Berggipfel ab z4");
+assert.deepStrictEqual(avesmapsEcosystemDisplayBand("vulkan"), { ab: 4, bis: 7 },
+	"🔴 und der Vulkan GENAUSO -- er stand als einziger auf z3 und ist die eine geaenderte Ziffer");
+
 // ⚠️ Eine Art OHNE eigene Zeile faellt auf den Grundwert zurueck -- die Tafel ist eine Ergaenzung,
 // kein Ersatz. Ohne diesen Rueckfall haette eine neue Flaechenart gar keine Vorgabe.
 assert.deepStrictEqual(avesmapsEcosystemDisplayBand("gibtesnochnicht"), { ab: 0, bis: 7 },
