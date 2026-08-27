@@ -231,15 +231,36 @@ Keine eigenen Objekte bei uns — sie sind das **Material**, aus dem die Fläche
 
 ### ⛔ Wird nie importiert (1001)
 
+💣 **NACHGEMESSEN 27.08.2026: die `*Klein`-Typen sind KEINE Stadtkarten — es sind DUBLETTEN.**
+Der Architekturentwurf vermutete „Innenansichten von Städten" (§3.6). Gemessen ist etwas anderes:
+**alle 982** `*Klein`-Objekte tragen einen gleichnamigen Zwilling ohne `Klein` — mit **identischen
+Koordinaten** und **identischer LOD-Spanne**.
+
+| | Klein | Zwilling |
+|---|---|---|
+| „Finster" | `BurgKlein` · LOD 7!14 · `-100573 -269317` | `Burg` · LOD 7!14 · `-100573 -269317` |
+| „Dohlentrutz" | `GebaeudeKlein` · LOD 7!14 · `-98426 -259424` | `Gebaeude` · LOD 7!14 · `-98426 -259424` |
+| „Schwertsleyda" | `GutshofKlein` · LOD 7!14 · `-116693 -257148` | `Gutshof` · LOD 7!14 · `-116693 -257148` |
+
+⭐ Es sind vermutlich zwei Zeichenebenen derselben Objekte in Volkers SVG (ein kleineres Symbol).
+Für uns heisst das: **nicht importieren bleibt richtig — aber aus einem anderen Grund als
+gedacht.** Sie sind keine zusätzliche Information, sondern dieselbe zweimal.
+
+🔴 **Und die Antwort auf „können wir die als Stadtkarten importieren/verlinken": nein.** Eine
+Stadtkarte ist bei uns ein Bild mit eigener Seite (`citymap`, aus Wiki Aventurica). Volkers Daten
+enthalten **kein einziges Bild und keine Kartenseite** — nur denselben Punkt ein zweites Mal.
+⚠️ Die Ortschaften selbst können sehr wohl Stadtkarten haben; die kommen aber aus dem
+WikiSync-Kartenkatalog, nicht aus diesem Import.
+
 | Ihr Typ | Anzahl | Warum |
 |---|---:|---|
-| `BurgKlein` | 385 | Innenansicht einer Stadt — dafür haben wir Stadtkarten |
-| `GutshofKlein` | 314 | dito |
-| `TempelKlein` | 120 | dito |
-| `GebaeudeKlein` | 99 | dito |
-| `KlosterKlein` | 67 | dito |
-| `PfalzKlein` | 12 | dito |
-| `AkademieKlein` | 3 | dito |
+| `BurgKlein` | 385 | Dublette von `Burg`, identische Position |
+| `GutshofKlein` | 314 | Dublette von `Gutshof` |
+| `TempelKlein` | 120 | Dublette von `Tempel` |
+| `GebaeudeKlein` | 99 | Dublette von `Gebaeude` |
+| `KlosterKlein` | 67 | Dublette von `Kloster` |
+| `PfalzKlein` | 12 | Dublette von `Pfalz` |
+| `AkademieKlein` | 3 | Dublette von `Akademie` |
 | `Kontinent` | 1 | kein Gegenstück |
 
 ---
@@ -276,9 +297,37 @@ gibt es keine Wüstenoase und keinen Dschungel.
 
 ### 3.3 Was sie feiner führen als wir
 
+🔴 **KORRIGIERT 27.08.2026 — hier stand, die acht Bauwerksarten gingen verloren. Das war
+falsch.** Der Owner: *„warum? wir haben doch unterkategorien bei ‚Besondere Gebäude/Stätten'."*
+Er hat recht: `settlement_class = 'gebaeude'` ist nur die **Grösse**; die **Art** trägt
+`building_type` (`AVESMAPS_WIKI_SETTLEMENT_LEGACY_BUILDING_TYPES`, `place-kinds.php`) — **108
+Ortsarten**, aus den Wiki-Kategorien abgeleitet („Kategoriename == building_type"). Es geht nichts
+verloren, **solange der Importer `building_type` mitfüllt**.
+
+Gemessen, welche der acht es schon gibt:
+
+| Ihr Typ | Anzahl | Unsere Ortsart |
+|---|---:|---|
+| `Tempel` | 212 | ✅ `Tempel` |
+| `Kloster` | 76 | ✅ `Kloster` |
+| `Gutshof` | 365 | ✅ `Gutshof` |
+| `Akademie` | 4 | ✅ `Akademie` |
+| `Binge` | 13 | ✅ `Binge` (zusätzlich zu `settlement_class = dorf`) |
+| **`Burg`** | **471** | 🔴 **fehlt.** `Festung`, `Schloss`, `Ruine` gibt es — eine Burg ist keins davon |
+| **`Gasthaus`** | **75** | 🔴 **fehlt.** Nächstes wäre `Karawanserei`, und das ist etwas anderes |
+| `Pfalz` | 14 | ⚠️ nur `Kaiserpfalz` — eine nicht-kaiserliche Pfalz hat keine Art |
+| `Magierturm` | 2 | ⚠️ `Turm` und `Magierakademie` gibt es; `Magierturm` ist beides nicht |
+| `Stadtviertel` | 22 | 🔴 **fehlt** (Owner 27.08.: neue Kategorie, §1.5) |
+
+🔧 **Damit ist die Frage klein und konkret:** drei bis fünf Ortsarten anhängen (`Burg`,
+`Gasthaus`, `Stadtviertel`, evtl. `Pfalz`, `Magierturm`) — statt einer Grundsatzfrage über
+Ortsklassen. ⚠️ Neue Arten kommen **ans ENDE** der Liste: die ersten 24 Einträge sind
+byte-genau festgenagelt (`avesmapsPlaceKindLegacyPrefix`), weil der Erste, der einen Titel
+beansprucht, gewinnt — ein neuer Eintrag weiter vorn würde Artikel umklassifizieren, die der
+Dump heute schon einordnet.
+
 | Ihre Unterscheidung | Bei uns | Verlust |
 |---|---|---|
-| `Burg` · `Pfalz` · `Tempel` · `Kloster` · `Gutshof` · `Gasthaus` · `Akademie` · `Magierturm` | alles `gebaeude` | **8 Arten → 1.** 1356 Bauwerke verlieren ihre Art |
 | `Markt` | `kleinstadt` | Markt ist bei uns keine eigene Klasse |
 | `Forst` | `wald` | ein Forst ist ein bewirtschafteter Wald |
 | `Binge` | `dorf` | Owner-Entscheid 26.08., Präzedenz: 2 von 13 führen wir schon so |
