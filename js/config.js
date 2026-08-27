@@ -583,7 +583,13 @@ const MAP_TILE_STYLES = {
 	// `old` traegt die alte Karte MIT aufgedruckten Namen (GARETH, Vierok, Wiesengrund), `original` dieselbe Karte OHNE sie, `stylized` die neu erzeugte.
 	// 💣 Die BESCHRIFTUNGEN wandern, die KENNUNGEN nie: `stylized` heisst „Modern", bleibt aber `stylized` -- der Schluessel steckt im Ordnernamen, in geteilten Links (`?mapstyle=`) und in `avesmaps.edit.mapStyle`. Dieselbe Trennung wie „Neuigkeiten"/`changelog` (AGENTS.md §11).
 	// 🪤 `old` zeigte vom 26.08.2026 morgens bis mittags auf `tiles/original` -- damals war geplant, den alten Satz zu loeschen. Er bleibt (die aufgedruckten Namen sind fuer Editoren die Vorlage), deshalb hat jeder Satz wieder seinen eigenen Ordner.
-	old: { label: "Old", url: "./tiles/old/{z}/map_{x}_{y}.webp" },
+	// 🔴 `ortsnamenImBild` heisst: DIESER Satz traegt die Ortsnamen schon im Bild, die Karte darf sie
+	// also nicht ein zweites Mal darueberzeichnen. Es ist die einzige Eigenschaft, an der ein
+	// Zeichner den Untergrund unterscheiden darf -- wer stattdessen `activeMapStyle !== "stylized"`
+	// fragt, sperrt `original` und `none` gleich mit aus, obwohl die gar nichts aufgedruckt haben
+	// (genau das ist am 27.08.2026 bei „Standard × Original" passiert, siehe
+	// js/map-features/map-features-location-name-labels.js).
+	old: { label: "Old", url: "./tiles/old/{z}/map_{x}_{y}.webp", ortsnamenImBild: true },
 	original: { label: "Original", url: "./tiles/original/{z}/map_{x}_{y}.webp" },
 	stylized: { label: "Modern", url: "./tiles/stylized/{z}/map_{x}_{y}.webp" },
 };

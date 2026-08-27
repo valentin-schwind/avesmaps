@@ -36,7 +36,20 @@ function getLocationNameLabelOffset(labelSize, zoomLevel = map.getZoom(), locati
 // visibilityContext (optional, siehe createLocationVisibilityContext): pro Sync-Lauf EINMAL erhobene
 // Invarianten (Modus, Toggles) statt jQuery-Abfragen pro Label — ohne Kontext bleibt das alte Verhalten.
 function shouldShowLocationNameLabel(entry, zoomLevel = map.getZoom(), visibilityContext = null) {
-	if (activeMapStyle !== "stylized" || isCrossingLocation(entry.location)) {
+	// 💣 GEFRAGT WIRD, OB DER UNTERGRUND SEINE ORTSNAMEN SCHON SELBST TRAEGT -- nicht, ob er
+	// `stylized` heisst. Hier stand `activeMapStyle !== "stylized"`, und das war richtig, solange
+	// „Original" eine eigene ANSICHT ohne Overlays war. Seit dem Kartenfaecher (26.08.2026) ist der
+	// Untergrund frei mit jeder Ansicht kreuzbar, und die Bedingung loeschte bei „Standard ×
+	// Original" saemtliche Ortsnamen -- vom Owner gemeldet, live gemessen: 189 Beschriftungen bei
+	// Modern gegen 86 bei Original, und der Unterschied waren AUSSCHLIESSLICH die 103 Ortsnamen
+	// (Landschafts- und Regionsbeschriftungen standen in beiden Faellen da).
+	// 🔴 NUR `old` traegt sie aufgedruckt (GARETH, Vierok, Wiesengrund); `original` ist dieselbe
+	// Karte OHNE sie. Die Eigenschaft steht bei den Kachelsaetzen in js/config.js, damit der
+	// naechste Satz sie mitbringt, statt hier eine zweite Namensliste entstehen zu lassen.
+	// ⚠️ Ein Untergrund, den die Tabelle nicht kennt -- `none`, also gar kein Bild --, hat nichts
+	// aufgedruckt: dort werden die Namen gezeichnet.
+	const untergrund = typeof MAP_TILE_STYLES !== "undefined" ? MAP_TILE_STYLES[activeMapStyle] : null;
+	if ((untergrund && untergrund.ortsnamenImBild) || isCrossingLocation(entry.location)) {
 		return false;
 	}
 
