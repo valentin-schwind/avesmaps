@@ -14,7 +14,7 @@ mit der Messung vom 26.08.2026 im Architekturentwurf.
 
 ---
 
-## 1. 🔴 Die drei Befunde, die das Mapping ändern
+## 1. 🔴 Die Befunde, die das Mapping ändern
 
 ### 1.1 💣 `Berg` ist bei ihnen eine FLÄCHE, kein Gipfel — 78 von 79
 
@@ -30,18 +30,27 @@ Der Architekturentwurf (§3.4) bildet `Berg` auf `map_features.label` mit
 Beispiele: „Retokuppe" 11 · „Torbelstein" 12 · „Grüne Zwillinge O" 8 · „Wasserburger
 Vorgebirge" 88 · „Schlunder Vorgebirge" 127.
 
-🔴 **Das Mapping des Entwurfs ist damit für 78 von 79 Objekten falsch.** Ein Gipfel ist bei uns
-zusätzlich ein **Stützpunkt des Höhenfelds** (`terrain-store.php` liest `is_active = 1` +
-`height_schritt`) — 78 Flächen als Gipfel einzutragen wäre nicht nur eine falsche Form, es
-verzerrte das Geländemodell.
+✅ **ENTSCHIEDEN 27.08.2026 vom Owner — es bleibt beim `berggipfel`-Label.** Wörtlich: *„Berg
+soll Berggipfel werden (das label mit dem dreieck). unsere kategorie ‚gebirge' erkennt dann
+automatisch berggipfel und rechnet die ins gebirge ein. ohne gebirge sind berggipfel nur labels
+mit position (die kategorie existiert schon)."*
 
-⭐ **Und hier ist die Lücke, nach der der Owner gefragt hat:** wir führen `topographie/gebirge`
-(ein Gebirge**zug**) und `topographie/huegelland` (eine Hügel**landschaft**), aber **keine Art
-für einen einzelnen Berg als Fläche**. Das ist die einzige echte Kategorie-Lücke im ganzen
-Bestand.
+⭐ Damit ist die Messung **kein Widerspruch mehr, sondern eine Umsetzungsanweisung**: die Fläche
+wird auf ihren Mittelpunkt reduziert und als Gipfelmarke gesetzt. Was ein Gipfel *bedeutet*,
+entsteht bei uns aus der Nachbarschaft — liegt er in einem `gebirge`, zählt er dazu; liegt er
+allein, ist er eine Marke mit Position. Eine eigene Fläche `topographie/berg` braucht es nicht,
+und der Import verliert dabei nichts, was wir nutzen würden.
 
-🔧 **Owner-Entscheid nötig:** neue Art `topographie/berg` anlegen (wie `vegetation/urwald` am
-26.08.), oder die 79 auf `gebirge` legen und die Unterscheidung aufgeben?
+💣 **Was daran offen BLEIBT, und zwar für Stufe 3:** ein `berggipfel` ist bei uns zusätzlich ein
+**Stützpunkt des Höhenfelds** (`terrain-store.php` liest `is_active = 1` + `height_schritt`).
+**Volkers Daten tragen keine Höhe.** 79 Gipfel ohne Höhe verändern das Geländemodell nicht — aber
+einer *mit falscher* Höhe schon, und wer sie später von Hand füllt, muss wissen, dass er damit
+das Relief verstellt. Der Architekturentwurf §3.4 nennt das bereits; hier steht die Zahl dazu.
+
+⚠️ **Und die Reduktion ist eine Entscheidung, keine Rechnung:** aus 211 Stützpunkten wird ein
+Punkt. Der Flächenschwerpunkt ist nicht der Gipfel — bei einem hufeisenförmigen Bergzug liegt er
+im Tal. Für 78 kleine Flächen (Median 23 Punkte) ist das vertretbar; wer es genauer will, setzt
+den Punkt im Editor um. Das gehört in den Bauplan von Stufe 3, nicht in diese Tabelle.
 
 ### 1.2 „Vorgebirge" ist kein Typ — es sind vier Objekte mit dem Wort im Namen
 
@@ -69,6 +78,53 @@ Ein eigener Typ wäre eine **fünfte** Art neben gebirge/huegelland/berg und ist
 ⚠️ Beides ist kein Fehler, sondern Volkers Freiheit in der Vorlage — aber ein Importer, der
 je Typ genau eine Geometrieform annimmt, fällt darüber.
 
+### 1.4 🔴 NEU: der Wege-Subtyp `Bach` — 143 Objekte, und er ändert Stufe 1
+
+**Owner 27.08.2026:** *„führe die neue kategorie ‚Bach' ein — das sind wie flusswege, die aber
+nicht befahren werden können."* Und zur Herkunft: *„bach gibts auch als kategorie im wiki
+(`Kategorie:Bach`), die werden wir nachziehen sobald der neue dump da ist."*
+
+⭐ **Das war vorbereitet.** AGENTS.md §11 hält seit dem 15.08.2026 fest: *„🔧 Bäche kommen (Owner:
+‚wir werden bald flüsse bauen die überquert werden können') — die Entscheidung ‚Wand oder nicht'
+steht an **genau einer** Stelle, `avesmapsCollectRouteRiverBarrierLines`; dort fällt der Bach
+durch eine zusätzliche Bedingung heraus und nirgends sonst."* Die schwierigste Frage ist damit
+schon beantwortet, bevor sie gestellt wurde.
+
+💣 **Es ist trotzdem kein Eintrag in einer Tabelle, sondern ein eigenes Stück Arbeit.** Ein neuer
+Wege-Subtyp berührt mindestens:
+
+| Stelle | Was |
+|---|---|
+| `PATH_SUBTYPE_KEYS` (`js/config.js:92`) | der Schlüssel selbst |
+| **`SPEED_TABLE`** | 💣 **dreifach gespiegelt** — `js/config.js`, `AVESMAPS_ROUTE_CLIENT_SPEED_TABLE` (`client-graph.php`), `WP_SPEEDS` (`wege-editor-model.js`). Der Kommentar dort sagt: eine ohne die anderen zu ändern macht `wege-editor-model.test.js` rot — „that is its job" |
+| `avesmapsDefaultTransportDomainForPathSubtype` | welche Verkehrsmittel gelten? „nicht befahrbar" ist **keine** der drei heutigen Domänen (`land`/`river`/`sea`) |
+| `avesmapsCollectRouteRiverBarrierLines` | die EINE Stelle „Wand oder nicht" — ein Bach ist überquerbar, fällt also heraus |
+| `--color-path-*` + Wege-Editor | Farbe und Listendarstellung |
+
+🔧 **Die eine echte Entwurfsfrage:** ein Bach ist weder befahrbar noch begehbar — er ist gar kein
+Reiseweg. Wird er (a) eine vierte Transport-Domäne ohne Verkehrsmittel, oder (b) gar keine
+Graph-Kante, sondern nur eine gezeichnete Linie? ⚠️ (b) ist sauberer für das Routing, ändert aber
+die Annahme „jeder `path` ist eine Kante", auf der der Graphbau steht.
+
+⚠️ **Folge für Stufe 1: 143 der 289 Objekte wandern.** Die Zuordnung `'Bach' => Flussweg` steht
+heute in `AVESMAPS_GARETIEN_TYP_MAP` und ist **gebaut**. Sie zu ändern ist eine Zeile — aber erst,
+wenn der Subtyp existiert. **Bis dahin darf Stufe 1 nicht übernommen werden**, sonst liegen 143
+Bäche als befahrbare Flusswege in der Karte und müssen einzeln umgetragen werden.
+
+### 1.5 🔴 NEU: `Stadtviertel` — 22 Objekte, doch nicht „kein Gegenstück"
+
+**Owner 27.08.2026:** *„Stadtviertel: führe sie als kategorie ein und übernimm deren — aber sie
+sind wie gebäude innerorts."*
+
+Die frühere Einordnung („kein Gegenstück, nicht importieren") ist damit überholt. 22 Objekte,
+alle Punkte, alle in `ggp/Ortschaften_*`.
+
+⚠️ **„wie Gebäude, aber innerorts" ist genau die Unterscheidung, die unsere Ortsklassen heute
+nicht führen** — `gebaeude` sagt nichts darüber, ob etwas in einer Stadt liegt. Ob daraus eine
+eigene `settlement_class` wird oder ein Merker am `gebaeude`, gehört in den Bauplan von Stufe 4.
+⭐ Es hängt an derselben Frage wie die acht Bauwerksarten in §3.3: bekommen unsere Ortsklassen
+eine Unterteilung, oder nicht?
+
 ---
 
 ## 2. Die vollständige Tabelle — alle 64 Typen
@@ -80,7 +136,7 @@ je Typ genau eine Geometrieform annimmt, fällt darüber.
 
 | Ihr Typ | Anzahl | Form | Spanne | → bei uns |
 |---|---:|---|---|---|
-| `Bach` | 143 | Linie | 4-27-327 | `path` / `Flussweg` ✅ |
+| `Bach` | 143 | Linie | 4-27-327 | 🔴 **NEUER Subtyp `Bach`** — Owner 27.08., siehe §1.4 |
 | `See` | 96 | Fläche | 6-13-61 | `topographie/see` + Label ✅ |
 | `Fluss` | 30 | Linie | 10-39-141 | `path` / `Flussweg` ✅ |
 | `Sumpf` | 15 | Fläche | 15-36-93 | `vegetation/suempfe_moore` + Label ✅ |
@@ -103,7 +159,7 @@ je Typ genau eine Geometrieform annimmt, fällt darüber.
 | `Wald` | 442 | Fläche | 6-25-463 | `vegetation/wald` + Label |
 | `Gebirge` | 99 | Fläche | 7-25-97 | `topographie/gebirge` + Label |
 | `Huegel` | 84 | Fläche | 10-56-148 | `topographie/huegelland` + Label |
-| **`Berg`** | **79** | **Fläche** | **1-23-211** | 🔴 **offen — siehe §1.1** |
+| **`Berg`** | **79** | **Fläche** | **1-23-211** | ✅ `map_features.label` / `berggipfel` (Punkt) — Owner 27.08. |
 | `Kueste` | 20 | Linie | 9-93-985 | `topographie/kueste` + Label |
 | `Insel` | 16 | Fläche | 9-32-432 | `topographie/insel` + Label |
 | `Forst` | 8 | Fläche | 1-12-35 | `vegetation/wald` + Label |
@@ -133,7 +189,7 @@ wollen wir nur die position behalten oder ersetzen."*
 | `Akademie` | 4 | `gebaeude` |
 | `Koenigsstadt` | 4 | `grossstadt` |
 | `Magierturm` | 2 | `gebaeude` — ⚠️ nur `kosch/Ortschaften_1` |
-| `Stadtviertel` | 22 | ⛔ kein Gegenstück |
+| `Stadtviertel` | 22 | 🔴 **NEUE Kategorie `stadtviertel`** — wie `gebaeude`, aber innerorts. Owner 27.08. |
 | `Unbekannte Art` | 1 | ⚠️ „Brakenmoor" — laut Artikelname ein Dorf |
 | `Hasengrube!Hasengrube` | 1 | ⚠️ Zeile **ohne Typ**, der Parser liest den Namen als Typ |
 
@@ -173,7 +229,7 @@ Keine eigenen Objekte bei uns — sie sind das **Material**, aus dem die Fläche
 | `Grafschaftsgrenze` | 137 | Linie | 2-6-21 |
 | `Reichsgrenze` | 119 | Linie | 2-10-432 |
 
-### ⛔ Wird nie importiert (1023)
+### ⛔ Wird nie importiert (1001)
 
 | Ihr Typ | Anzahl | Warum |
 |---|---:|---|
@@ -184,7 +240,6 @@ Keine eigenen Objekte bei uns — sie sind das **Material**, aus dem die Fläche
 | `KlosterKlein` | 67 | dito |
 | `PfalzKlein` | 12 | dito |
 | `AkademieKlein` | 3 | dito |
-| `Stadtviertel` | 22 | kein Gegenstück |
 | `Kontinent` | 1 | kein Gegenstück |
 
 ---
@@ -193,14 +248,18 @@ Keine eigenen Objekte bei uns — sie sind das **Material**, aus dem die Fläche
 
 Die Frage des Owners, beantwortet in beide Richtungen.
 
-### 3.1 Was ihnen fehlt und uns fehlt — die eine echte Lücke
+### 3.1 Die neuen Kategorien — alle vier entschieden
 
-**`Berg` als Fläche (79 Objekte).** Wir führen `topographie/gebirge` und
-`topographie/huegelland`; ein einzelner Berg als Fläche hat bei uns keine Art. 🔧 Entscheid
-offen (§1.1). Es ist der **einzige** Typ im ganzen Bestand ohne Gegenstück auf unserer Seite —
-alle übrigen 63 sind entweder zugeordnet, Material oder bewusst ausgeschlossen.
+| Kategorie | Anzahl | Entscheid |
+|---|---:|---|
+| `vegetation/urwald` | 8 | Owner 26.08. — ein Urwald ist nicht dasselbe wie ein Dschungel (Zustand gegen Klima) |
+| `topographie/insel` | 16 | Owner 26.08. — gab es bereits, keine neue Art nötig |
+| **Wege-Subtyp `Bach`** | **143** | Owner 27.08. — wie ein Flussweg, aber nicht befahrbar. §1.4 · 💣 eigenes Stück Arbeit, und Stufe 1 wartet darauf |
+| **`stadtviertel`** | **22** | Owner 27.08. — wie `gebaeude`, aber innerorts. §1.5 |
 
-`Urwald` war die zweite und ist am 26.08. bereits entschieden.
+⭐ `Berg` brauchte **keine** neue Fläche: er wird eine Gipfelmarke, und was er bedeutet, ergibt
+sich aus der Nachbarschaft (§1.1). Damit hat **jeder** der 64 Typen ein Ziel — zugeordnet,
+Material oder bewusst ausgeschlossen.
 
 ### 3.2 Was wir haben und ihre Daten NIE füllen
 
