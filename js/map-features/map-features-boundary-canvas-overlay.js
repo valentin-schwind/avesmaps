@@ -875,8 +875,17 @@
 
 	// Nach Karten-Interaktion lädt der politische Layer debounced+async neu -> ein paar
 	// "settle"-Redraws holen den frischen regionData-Stand nach (unabhängig vom Loader-Hook).
+	// 💣 DREI BLINDE NACHZIEH-ZEICHNUNGEN, und der Handler darueber laeuft am Zoomende ZWEIMAL
+	// (Leaflet feuert `moveend` UND `zoomend`). Macht 2 + 6 = acht Voll-Neuzeichnungen je Zoomschritt,
+	// je 52-99 ms. Hinter `?zoombuendel=1` werden sie gebuendelt und datengetrieben; ohne den
+	// Schalter bleibt alles zeichengleich wie vorher. Siehe js/map-features/zeichen-buendel.js.
+	const zeichneNachzug = avesmapsZeichenNachzugWennNeu(
+		"grenzen-nachzug",
+		redraw,
+		() => (typeof regionData !== "undefined" ? regionData : null)
+	);
 	function scheduleSettleRedraws() {
-		[120, 350, 800].forEach((delay) => window.setTimeout(redraw, delay));
+		[120, 350, 800].forEach((delay) => window.setTimeout(zeichneNachzug, delay));
 	}
 
 	// Zwei Zoom-Mechaniken, unterschiedlich behandelt:
@@ -886,6 +895,9 @@
 	// - flyTo/setView-Animation (Doppelklick, Orts-Fokus): KEIN 'zoomanim', der View wird pro Frame
 	//   real aktualisiert -> bei jedem 'zoom'-Frame neu zeichnen (ohne Transform/Transition).
 	let cssZoomActive = false;
+	// ⚠️ Am Zoomende feuert Leaflet `moveend` UND `zoomend`: dieser Handler laeuft zweimal und
+	// zeichnete bisher zweimal voll. Gebuendelt wird daraus eine Zeichnung im naechsten Bild.
+	const zeichneGebuendelt = avesmapsZeichenGebuendelt("grenzen", redraw);
 	map.on("moveend zoomend viewreset resize", () => {
 		cssZoomActive = false;
 		canvas.style.transition = "";
@@ -896,7 +908,7 @@
 		// zurueckgebauten Parallel-Versuch ed1e2e93). Auch die gerade UNSICHTBARE Flaeche: sie wird
 		// beim naechsten Rollentausch die sichtbare.
 		labelFlaechen.forEach((c) => { c.style.transition = ""; });
-		redraw();
+		zeichneGebuendelt();
 		scheduleSettleRedraws();
 	});
 	// CSS-Zoom: Canvas weich mitskalieren (wie L.ImageOverlay._animateZoom), inkl. passender Easing.

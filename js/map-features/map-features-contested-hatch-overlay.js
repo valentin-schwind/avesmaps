@@ -220,14 +220,23 @@
 	}
 
 	// "settle"-Redraws holen den frischen regionData-Stand nach (analog Grenzen-Overlay).
+	// 💣 Dieselben drei blinden Nachzieh-Zeichnungen wie beim Grenzen-Overlay, und derselbe
+	// Doppelaufruf am Zoomende (`moveend` UND `zoomend`). Hinter `?zoombuendel=1` gebuendelt und
+	// datengetrieben; ohne den Schalter zeichengleich wie vorher (js/map-features/zeichen-buendel.js).
+	const zeichneNachzug = avesmapsZeichenNachzugWennNeu(
+		"schraffur-nachzug",
+		redraw,
+		() => (typeof regionData !== "undefined" ? regionData : null)
+	);
 	function scheduleSettleRedraws() {
-		[120, 350, 800].forEach((delay) => window.setTimeout(redraw, delay));
+		[120, 350, 800].forEach((delay) => window.setTimeout(zeichneNachzug, delay));
 	}
+	const zeichneGebuendelt = avesmapsZeichenGebuendelt("schraffur", redraw);
 
 	map.on("moveend zoomend viewreset resize", () => {
 		cssZoomActive = false;
 		canvas.style.transition = "";
-		redraw();
+		zeichneGebuendelt();
 		scheduleSettleRedraws();
 	});
 	// CSS-Zoom (Buttons/Scroll): Canvas weich mitskalieren statt neu zeichnen.

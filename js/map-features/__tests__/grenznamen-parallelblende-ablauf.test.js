@@ -143,6 +143,12 @@ global.map = karte;
 
 vm.runInThisContext(
 	fs.readFileSync(path.join(__dirname, "../zoom-uebergang.js"), "utf8"), { filename: "zoom-uebergang.js" });
+// 🔴 VOR dem Overlay, genau wie in index.html: es meldet seine Voll-Neuzeichnungen seit dem
+// 27.08.2026 beim Buendler an (js/map-features/zeichen-buendel.js, Versuchsschalter
+// `?zoombuendel=1`). Ohne diese Zeile wirft das Overlay hier `avesmapsZeichenNachzugWennNeu is
+// not defined` -- gefunden vom Lauf ueber das GANZE Testfeld, nicht von den Tests des Umbaus.
+vm.runInThisContext(
+	fs.readFileSync(path.join(__dirname, "../zeichen-buendel.js"), "utf8"), { filename: "zeichen-buendel.js" });
 vm.runInThisContext(
 	fs.readFileSync(path.join(__dirname, "../map-features-boundary-canvas-overlay.js"), "utf8"),
 	{ filename: "map-features-boundary-canvas-overlay.js" });

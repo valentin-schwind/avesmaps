@@ -3661,6 +3661,10 @@
 		<script src="js/map-features/map-features-point-in-polygon.js"></script>
 		<script src="js/map-features/map-features-settlement-territory-assign.js"></script>
 		<script src="js/map-features/map-features-settlement-context-action.js"></script>
+		<!-- 🔴 VOR den Overlays, die ihn benutzen: `const` auf Dateiebene wird nicht gehoistet, ein zu
+		     spaet geladener Buendler stuende dort als `undefined`. Versuchsschalter `?zoombuendel=1`;
+		     ohne ihn reicht er jeden Aufruf unveraendert durch. -->
+		<script src="js/map-features/zeichen-buendel.js"></script>
 		<script src="js/map-features/map-features-boundary-canvas-overlay.js"></script>
 		<script src="js/map-features/map-features-contested-hatch-overlay.js"></script>
 		<script src="js/map-features/map-features-way-labels.js"></script>
