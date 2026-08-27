@@ -117,16 +117,44 @@ gleich(mod.garetienFilterIstAktiv(leererZustand), false);
 gleich(mod.garetienFilterIstAktiv(zweiAktiv), true);
 
 // ---- Keine zweite Rechnung im Browser, kein zweiter Schreibweg (globale-vorgaben.md) -----------
+//
+// 🔴 Review I2 (28.08.2026): ein Quelltexttest darf Kommentare nicht mitlesen -- die Datei selbst
+// erklaert an zwei Stellen in Prosa, dass es "eigene fetch()-Stellen" nicht geben darf, und genau
+// dieser Erklaerungstext enthaelt das Wort "fetch(" drei weitere Male. Ungestrippt zaehlt ein
+// simples \bfetch\(\b also 4 statt 1 und der Test waere von Anfang an rot gewesen (hier live
+// aufgetreten und korrigiert, nicht nur befuerchtet). Kommentare deshalb ZUERST strippen, wie an
+// jeder anderen Quelltextpruefstelle im Haus (AGENTS.md §9).
 
 const fs = require("fs");
-const quelle = fs.readFileSync(path.resolve(__dirname, "..", "review-garetien-importer.js"), "utf8");
+const quelleRoh = fs.readFileSync(path.resolve(__dirname, "..", "review-garetien-importer.js"), "utf8");
+const quelle = quelleRoh
+	.replace(/\/\*[\s\S]*?\*\//g, "")   // Blockkommentare
+	.replace(/\/\/[^\n]*/g, "");        // Zeilenkommentare -- die Datei enthaelt kein "//" in einer
+	                                    // Zeichenkette (kein http://-Literal), also ist das sicher.
+
 assert.ok(!/Math\.sqrt|Math\.hypot/.test(quelle),
 	"ein Abstand im Browser waere die zweite Rechnung, die der Auftrag verbietet");
 checks++;
-const schreibend = quelle.match(/fetch\(\s*["'][^"']*\.php/g) || [];
-schreibend.forEach((treffer) => {
-	assert.ok(/sync-plan\.php|garetien-import\.php/.test(treffer),
-		`Ein zweiter Schreibweg: ${treffer}`);
+
+// Direkt zaehlen statt mustern: `fetch\(\s*["'][^"']*\.php` matcht in der echten Datei NICHTS,
+// weil avesmapsGaretienRufe fetch(pfad, …) mit einer VARIABLEN ruft, nie einem Literal -- ein
+// darauf gebauter forEach liefe null Mal und bestaetigte damit gar nichts.
+const fetchAufrufe = (quelle.match(/\bfetch\(/g) || []).length;
+assert.strictEqual(fetchAufrufe, 1, "Es gibt " + fetchAufrufe + " fetch-Aufrufe statt einem. "
+	+ "Geschrieben wird NUR ueber avesmapsGaretienRufe.");
+checks++;
+
+// Die lesende Adresse (Aufgabe 11) muss als Zeichenkette vorkommen -- und JEDE ".php"-Adresse in
+// der Datei muss eine der zwei erlaubten sein (die schreibende, sync-plan.php, kommt erst mit
+// Aufgabe 15/16 als Literal dazu; bis dahin stand sie nur in den jetzt gestrippten Kommentaren).
+assert.ok(quelle.includes('"/api/edit/map/garetien-import.php"'),
+	"die lesende Adresse /api/edit/map/garetien-import.php fehlt als Zeichenkette");
+checks++;
+const phpAdressen = quelle.match(/["'][^"']*\.php["']/g) || [];
+assert.ok(phpAdressen.length > 0, "die Gegenprobe fuer die .php-Adressen findet selbst gar nichts");
+checks++;
+phpAdressen.forEach((treffer) => {
+	assert.ok(/sync-plan\.php|garetien-import\.php/.test(treffer), `Ein zweiter Schreibweg: ${treffer}`);
 	checks++;
 });
 

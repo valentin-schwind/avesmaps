@@ -178,4 +178,19 @@ wahr(/data-stand="offen"[^>]*>|class="avm-tab is-active"/.test(tabs) && tabs.inc
 // Kein zweiter aktiver Reiter:
 gleich((tabs.match(/is-active/g) || []).length, 1, "genau EIN Reiter ist aktiv");
 
+// ---- Die Fusszeile: BEARBEITUNGSSTAND (Mockup §1), NICHT die Item-Ebene aus `angehakt.*` ------
+// 🔴 Review I1 (28.08.2026): der erste Bau zeigte "X angehakt · Y im Lauf" aus `angehakt.new`/
+// `angehakt.changed` -- das ist Aufgabe 16s Kennzahl (die truncated-Angabe im Uebernahme-Blatt),
+// nicht diese Fusszeile. Das Mockup verlangt fuer #garetien-foot-count wortgleich
+// "<b>14</b> vorgemerkt · <b>3</b> abgelehnt · <b>0</b> übernommen" -- aus a.reiter, derselben
+// Quelle wie die vier Reiter oben.
+wahr(typeof mod.avesmapsGaretienFussZeileMarkup === "function", "avesmapsGaretienFussZeileMarkup fehlt");
+const fusszeile = mod.avesmapsGaretienFussZeileMarkup(
+	{ offen: 259, vorgemerkt: 14, abgelehnt: 3, uebernommen: 0 }
+);
+gleich(fusszeile, "<b>14</b> vorgemerkt · <b>3</b> abgelehnt · <b>0</b> übernommen",
+	"die Fusszeile muss wortgleich mit dem Mockup sein -- vorgemerkt/abgelehnt/uebernommen aus a.reiter");
+wahr(!/angehakt|im Lauf/.test(fusszeile),
+	"die Fusszeile darf NICHT die Item-Ebene aus angehakt.* zeigen -- das ist Aufgabe 16s Kennzahl");
+
 console.log(`garetien-liste-zeile: ${checks} Pruefungen bestanden.`);

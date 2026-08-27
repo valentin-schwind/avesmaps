@@ -190,6 +190,13 @@
 	// Markup taete nichts. Dreiwertig wird deshalb ueber den Marker `data-part` transportiert (wie
 	// im Mockup-Script vorgemacht); avesmapsGaretienListeRendern loest ihn NACH dem Einfuegen ins
 	// DOM per `el.indeterminate = true` ein.
+	//
+	// 🔴 Review M3 (28.08.2026): das Wurzelelement ist bewusst ein `<div>`, kein `<label>` (das
+	// Mockup zeigt `<label class="avm-row">`). Ein `<label>` wuerde einen Klick IRGENDWO in der
+	// Zeile als Klick auf sein eingebettetes `<input>` behandeln -- native HTML-Semantik. Aufgabe
+	// 13 soll aber genau das: eine Zeile anklicken oeffnet die Einzelansicht, OHNE dabei das
+	// Haekchen mitzuschalten. Mit `<label>` koennte ein Editor keine Zeile ansehen, ohne sie im
+	// selben Klick anzuhaken. Wer das zum Mockup "korrigiert", bricht Aufgabe 13 im selben Zug.
 	function garetienZeileMarkup(objekt) {
 		const o = objekt || {};
 		const checkboxZustand = avesmapsGaretienCheckboxZustand(o);
@@ -270,6 +277,19 @@
 			return '<button class="' + klasse + '" type="button" data-stand="' + schluessel + '">'
 				+ avesmapsGaretienEscape(beschriftung) + " (" + Number(r[schluessel] || 0) + ")</button>";
 		}).join("");
+	}
+
+	// 🔴 Review I1 (28.08.2026): die Fusszeile zeigt den BEARBEITUNGSSTAND (Mockup §1 --
+	// "<b>14</b> vorgemerkt · <b>3</b> abgelehnt · <b>0</b> übernommen"), NICHT die Item-Ebene
+	// aus `angehakt.*` -- die ist fuer Aufgabe 16 (die truncated-Angabe im Uebernahme-Blatt)
+	// vorgesehen, nicht fuer dieses Element. `a.reiter` liegt hier schon vor (dieselbe Quelle
+	// wie fuer die vier Reiter oben) -- keine zweite Rechnung noetig.
+	function avesmapsGaretienFussZeileMarkup(reiter) {
+		const r = reiter || {};
+		const zahl = (feld) => Number(r[feld] || 0);
+		return "<b>" + zahl("vorgemerkt") + "</b> vorgemerkt · "
+			+ "<b>" + zahl("abgelehnt") + "</b> abgelehnt · "
+			+ "<b>" + zahl("uebernommen") + "</b> übernommen";
 	}
 
 	// ---- avesmapsGaretienAngehakt (fuer Aufgabe 16) -------------------------------------------------
@@ -394,10 +414,7 @@
 		}
 
 		const fussEl = document.getElementById("garetien-foot-count");
-		if (fussEl) {
-			const angehaktGesamt = avesmapsGaretienAngehaktAus(a, "new") + avesmapsGaretienAngehaktAus(a, "changed");
-			fussEl.textContent = angehaktGesamt + " angehakt · " + Number(a.gesamt || 0) + " im Lauf";
-		}
+		if (fussEl) { fussEl.innerHTML = avesmapsGaretienFussZeileMarkup(a.reiter); }
 
 		// Aufgabe 12 haengt sich hier ein (Facetten des Filtertrichters) -- optional, damit diese
 		// Datei auch OHNE Aufgabe 12 lauffaehig bleibt (typeof wirft nie bei einem unbekannten Namen).
@@ -711,6 +728,7 @@
 			avesmapsGaretienBalanceZeileText,
 			avesmapsGaretienRunlineMarkup,
 			avesmapsGaretienTabsMarkup,
+			avesmapsGaretienFussZeileMarkup,
 			avesmapsGaretienAngehakt,
 			avesmapsGaretienAngehaktAus,
 			avesmapsGaretienListeHolen,
