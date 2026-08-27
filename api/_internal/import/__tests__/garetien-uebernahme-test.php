@@ -194,7 +194,11 @@ function avesmapsGaretienUebernahmeTestPdo(): PDO
 
     // Dieselben Tabellen wie im Planbauer-Pruefstand, plus was die HAUSSCHREIBER brauchen.
     $pdo->exec('CREATE TABLE garetien_import_run (id INTEGER PRIMARY KEY AUTOINCREMENT, started_at TEXT, finished_at TEXT, status TEXT, note TEXT)');
-    $pdo->exec('CREATE TABLE garetien_import_row (id INTEGER PRIMARY KEY AUTOINCREMENT, run_id INT, wiki TEXT, ebene TEXT, zeile_nr INT, typ TEXT, namensraum TEXT, artikel TEXT, anzeige TEXT, lodmin TEXT, lodmax TEXT, extra TEXT, geo_art TEXT, geo TEXT, roh TEXT)');
+    // ⚠️ MIT den nachgeruesteten Urteilsspalten (Aufgabe 6, 27.08.2026) -- der Kopierschritt
+    // weiter unten liest per `SELECT *` aus dem Planbauer-Pruefstand, der sie schon traegt, und
+    // die eigene exec()-Naht schluckt ALTER TABLE (siehe Kommentar oben): das Schema muss sie
+    // deshalb wie die uebrigen nachgeruesteten Spalten von Hand tragen.
+    $pdo->exec('CREATE TABLE garetien_import_row (id INTEGER PRIMARY KEY AUTOINCREMENT, run_id INT, wiki TEXT, ebene TEXT, zeile_nr INT, typ TEXT, namensraum TEXT, artikel TEXT, anzeige TEXT, lodmin TEXT, lodmax TEXT, extra TEXT, geo_art TEXT, geo TEXT, roh TEXT, urteil TEXT DEFAULT \'\', grund TEXT DEFAULT \'\')');
     $pdo->exec('CREATE TABLE map_features (
         id INTEGER PRIMARY KEY AUTOINCREMENT, public_id TEXT, feature_type TEXT, feature_subtype TEXT,
         name TEXT, geometry_type TEXT, geometry_json TEXT, properties_json TEXT, style_json TEXT,

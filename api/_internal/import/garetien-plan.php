@@ -341,6 +341,25 @@ function avesmapsGaretienAbschnittsEintrag(
 }
 
 /**
+ * Das Urteil an die Staging-Zeile -- damit "deckt sich" und "uebersprungen" nach dem Rechnen
+ * noch filterbar sind. Sie erzeugen keinen sync_plan_item, und ohne diese zwei Spalten waere ihr
+ * Grund im Arbeitsspeicher geblieben (Aufgabe 6, 27.08.2026).
+ *
+ * ⚠️ Es steht im STAGING und verschwindet mit ihm (Auftrag §5.5). In sync_plan_item landet
+ * dadurch nichts Zusaetzliches.
+ */
+function avesmapsGaretienSchreibeUrteil(PDO $pdo, int $importRunId, int $zeileNr, string $urteil, string $grund): void
+{
+    $pdo->prepare('UPDATE garetien_import_row SET urteil = :u, grund = :g WHERE run_id = :r AND zeile_nr = :n')
+        ->execute([
+            ':u' => mb_substr($urteil, 0, 20, 'UTF-8'),
+            ':g' => mb_substr($grund, 0, 300, 'UTF-8'),
+            ':r' => $importRunId,
+            ':n' => $zeileNr,
+        ]);
+}
+
+/**
  * Den Plan fuer einen Import-Lauf bauen. Gibt die Zahl der Vorschlaege zurueck.
  *
  * 🔴 Review I3: `deckt_sich` geht seit dem vierten Ausgang (Aufgabe 3) durch
@@ -377,6 +396,9 @@ function avesmapsGaretienBaueSyncPlan(PDO $pdo, int $importRunId, int $userId = 
         $grund = avesmapsGaretienUeberspringGrund($zeile);
         if ($grund !== null) {
             $uebersprungen[$grund] = ($uebersprungen[$grund] ?? 0) + 1;
+            // 💣 Der Uebersprung-Zweig steht VOR dem Abgleich und wird sonst nie erfasst -- das
+            // sind genau die 6, um die es in Aufgabe 6 geht.
+            avesmapsGaretienSchreibeUrteil($pdo, $importRunId, (int) $zeile['zeile_nr'], 'uebersprungen', $grund);
             continue;
         }
         $ziel = avesmapsGaretienMappeTyp((string) $zeile['typ']);
@@ -384,6 +406,10 @@ function avesmapsGaretienBaueSyncPlan(PDO $pdo, int $importRunId, int $userId = 
             continue;   // von avesmapsGaretienUeberspringGrund bereits erfasst
         }
         $urteil = avesmapsGaretienFindeBestand($pdo, $zeile, $ziel);
+        // Das Urteil ueberlebt das Rechnen -- auch "deckt_sich", das seit Aufgabe 3 durch den
+        // vierten Ausgang eigene Items erzeugen KANN, aber nicht MUSS (⚠️ Brief §Aufgabe 6: das
+        // ist kein Widerspruch, sondern derselbe Sachverhalt aus zwei Blickwinkeln).
+        avesmapsGaretienSchreibeUrteil($pdo, $importRunId, (int) $zeile['zeile_nr'], $urteil['status'], $urteil['grund']);
         if ($urteil['status'] === 'uebersprungen') {
             continue;
         }
@@ -440,6 +466,11 @@ function avesmapsGaretienPlanTestPdo(): PDO
     $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
     $pdo->exec('CREATE TABLE garetien_import_run (id INTEGER PRIMARY KEY AUTOINCREMENT, started_at TEXT, finished_at TEXT, status TEXT, note TEXT)');
     $pdo->exec('CREATE TABLE garetien_import_row (id INTEGER PRIMARY KEY AUTOINCREMENT, run_id INT, wiki TEXT, ebene TEXT, zeile_nr INT, typ TEXT, namensraum TEXT, artikel TEXT, anzeige TEXT, lodmin TEXT, lodmax TEXT, extra TEXT, geo_art TEXT, geo TEXT, roh TEXT)');
+    // 🔴 RULING P1: die Tabelle steht hier bewusst OHNE die Urteilsspalten -- wie live vor dem
+    // 27.08.2026. Der Nachzug laeuft ueber denselben ALTER-Weg wie in Produktion, statt die
+    // Spalten hart in dieses CREATE zu schreiben; nur so prueft dieser Pruefstand den echten
+    // Nachzug an einer bestehenden Tabelle, nicht nur seinen Endzustand.
+    avesmapsGaretienEnsureUrteilSpalten($pdo);
     $pdo->exec('CREATE TABLE map_features (id INTEGER PRIMARY KEY AUTOINCREMENT, public_id TEXT, name TEXT, feature_type TEXT, feature_subtype TEXT, geometry_json TEXT, properties_json TEXT, is_active INT DEFAULT 1)');
     $pdo->exec('CREATE TABLE ecosystem_region (id INTEGER PRIMARY KEY AUTOINCREMENT, public_id TEXT, name TEXT, kind TEXT, region_type TEXT, wiki_url TEXT, label_public_id TEXT, is_active INT DEFAULT 1)');
     $pdo->exec('CREATE TABLE ecosystem_area (id INTEGER PRIMARY KEY AUTOINCREMENT, public_id TEXT, region_id INT, geometry_geojson TEXT, is_active INT DEFAULT 1, is_trial INT DEFAULT 0)');

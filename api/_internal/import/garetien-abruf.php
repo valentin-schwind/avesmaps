@@ -102,6 +102,38 @@ function avesmapsGaretienEnsureTables(PDO $pdo): void
         . ' KEY (run_id, artikel)'
         . ') ENGINE=InnoDB DEFAULT CHARSET=utf8mb4'
     );
+    avesmapsGaretienEnsureUrteilSpalten($pdo);
+}
+
+/**
+ * Die zwei Urteilsspalten selbstheilend nachziehen (27.08.2026, Aufgabe 6).
+ *
+ * 💣 Die zwei Spalten kamen SPAETER dazu, und `CREATE TABLE IF NOT EXISTS` legt an einer
+ * bestehenden Tabelle keine Spalte nach. Live steht `garetien_import_row` bereits, also muss der
+ * Nachzug ein ALTER sein.
+ * ⚠️ Kein information_schema-Test davor: genau diese Sonde auf einem haeufigen Pfad ist die
+ * Last, vor der AGENTS.md §10 warnt. Der Duplikat-Fehler ist die Antwort "gibt es schon", und
+ * die kostet einen Round-Trip statt einer Katalogabfrage.
+ *
+ * 🔴 RULING P1 (Auftraggeber, 27.08.2026): eine EIGENE Funktion, nicht im Rumpf von
+ * `avesmapsGaretienEnsureTables` -- die ist MySQL-only (sie wirft unter SQLite an
+ * `ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`). Der `ALTER TABLE ... ADD COLUMN ... DEFAULT ''`
+ * hier ist dagegen PORTABEL und laesst sich dadurch als eigene Funktion wirklich gegen SQLite
+ * fahren und pruefen -- das waere unter `avesmapsGaretienEnsureTables` selbst nie moeglich
+ * gewesen.
+ */
+function avesmapsGaretienEnsureUrteilSpalten(PDO $pdo): void
+{
+    foreach ([
+        "ALTER TABLE garetien_import_row ADD COLUMN urteil VARCHAR(20) NOT NULL DEFAULT ''",
+        "ALTER TABLE garetien_import_row ADD COLUMN grund VARCHAR(300) NOT NULL DEFAULT ''",
+    ] as $sql) {
+        try {
+            $pdo->exec($sql);
+        } catch (PDOException) {
+            // Spalte steht schon -- der Normalfall ab dem zweiten Aufruf.
+        }
+    }
 }
 
 /** Einen neuen Lauf beginnen. Laeufe stehen nebeneinander, keiner ueberschreibt den anderen. */

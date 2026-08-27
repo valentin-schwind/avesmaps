@@ -12,6 +12,7 @@ declare(strict_types=1);
 //           api/_internal/import/__tests__/garetien-staging-test.php
 
 require_once __DIR__ . '/../garetien-abruf.php';
+require_once __DIR__ . '/../garetien-plan.php';
 
 $pruefungen = 0;
 
@@ -137,6 +138,77 @@ foreach (AVESMAPS_GARETIEN_EBENEN as $e) {
     $wirte[(string) parse_url($e['url'], PHP_URL_HOST)] = true;
 }
 assert(array_keys($wirte) === ['www.garetien.de', 'www.koschwiki.de'], 'zwei feste Wirte, ' . implode(', ', array_keys($wirte)));
+$pruefungen++;
+
+// =================================================================================================
+// AUFGABE 6: Urteil und Grund ueberleben das Rechnen (27.08.2026).
+// =================================================================================================
+
+// --- 🔴 DIE ZUSICHERUNG, DIE RULING P1 VERLANGT: der Spalten-Nachzug muss an einer BESTEHENDEN
+// Tabelle wirklich laufen, nicht nur an einer frisch angelegten, die die Spalten schon traegt.
+// Diese Tabelle hier hat GENAU die Form, die live vor dem 27.08.2026 stand -- ohne urteil/grund.
+$bestand = new PDO('sqlite::memory:');
+$bestand->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+$bestand->exec('CREATE TABLE garetien_import_row (id INTEGER PRIMARY KEY AUTOINCREMENT, run_id INT, wiki TEXT, ebene TEXT, zeile_nr INT, typ TEXT, namensraum TEXT, artikel TEXT, anzeige TEXT, lodmin TEXT, lodmax TEXT, extra TEXT, geo_art TEXT, geo TEXT, roh TEXT)');
+$bestand->exec("INSERT INTO garetien_import_row (run_id, wiki, ebene, zeile_nr, typ, geo_art, geo, roh) VALUES (1, 'ggp', 'Gewaesser', 1, 'Bach', 'koordinaten', '1 2', 'Bach:Alke')");
+// Vor dem Nachzug gibt es die Spalten nicht -- ein Zugriff darauf muss scheitern.
+$vorherWirftFehler = false;
+try {
+    $bestand->query('SELECT urteil FROM garetien_import_row')->fetch();
+} catch (PDOException) {
+    $vorherWirftFehler = true;
+}
+assert($vorherWirftFehler, 'die Vorbedingung des Belegs: die Spalte darf VORHER noch nicht da sein');
+$pruefungen++;
+
+avesmapsGaretienEnsureUrteilSpalten($bestand);
+$zeileNachNachzug = $bestand->query('SELECT urteil, grund FROM garetien_import_row WHERE id = 1')->fetch(PDO::FETCH_ASSOC);
+assert($zeileNachNachzug['urteil'] === '', 'die bestehende Zeile bekommt den Vorgabewert, nicht NULL');
+assert($zeileNachNachzug['grund'] === '', 'auch der Grund startet leer, nicht NULL');
+$pruefungen += 2;
+
+// 💣 Ein zweiter Aufruf (der Normalfall ab dem zweiten Prozess-Start) darf NICHT werfen -- der
+// Duplikat-Fehler wird geschluckt, kein information_schema-Vorabtest.
+$zweiterAufrufWirftNicht = true;
+try {
+    avesmapsGaretienEnsureUrteilSpalten($bestand);
+} catch (PDOException) {
+    $zweiterAufrufWirftNicht = false;
+}
+assert($zweiterAufrufWirftNicht, 'der Nachzug ist idempotent -- ein zweiter Aufruf darf nicht werfen');
+$pruefungen++;
+
+// Und die Spalte ist wirklich SCHREIBBAR, nicht nur lesbar.
+$bestand->exec("UPDATE garetien_import_row SET urteil = 'deckt_sich', grund = 'Beleg' WHERE id = 1");
+$geschrieben = $bestand->query('SELECT urteil, grund FROM garetien_import_row WHERE id = 1')->fetch(PDO::FETCH_ASSOC);
+assert($geschrieben['urteil'] === 'deckt_sich' && $geschrieben['grund'] === 'Beleg', 'die nachgezogene Spalte ist beschreibbar');
+$pruefungen++;
+
+// --- Das Urteil ueberlebt das Rechnen. Ohne die zwei Spalten sind die 49 "deckt sich" und die 6
+// "uebersprungen" nach dem Plan-Lauf nicht mehr auffindbar -- sie erzeugen keinen sync_plan_item,
+// und ihr Grund stand nur im Arbeitsspeicher.
+$pdo = avesmapsGaretienPlanTestPdo();
+avesmapsGaretienBaueSyncPlan($pdo, 1, 1);
+
+$urteile = $pdo->query('SELECT zeile_nr, urteil, grund FROM garetien_import_row WHERE run_id = 1 ORDER BY zeile_nr')
+    ->fetchAll(PDO::FETCH_ASSOC);
+$nach = [];
+foreach ($urteile as $u) {
+    $nach[(int) $u['zeile_nr']] = $u;
+}
+assert($nach[1]['urteil'] === 'deckt_sich', 'die Alke deckt sich und muss es auch nachher sagen');
+assert($nach[1]['grund'] !== '', 'ein Urteil ohne Grund ist eine Zahl, die niemand pruefen kann');
+assert($nach[2]['urteil'] === 'neu', 'der Gardel ist neu');
+assert($nach[4]['urteil'] === 'uebersprungen', 'der Sammelartikel ist uebersprungen');
+assert(str_contains($nach[4]['grund'], 'Sammelartikel'), 'der Grund des Ueberspringens fehlt');
+assert($nach[5]['urteil'] === 'uebersprungen', 'die Insel gehoert zu Stufe 3');
+$pruefungen += 6;
+
+// 🔴 Der Plan-Lauf schreibt in KEINE Nutztabelle -- nur in sein EIGENES Staging.
+$vorherFeatures = $pdo->query('SELECT COUNT(*) FROM map_features')->fetchColumn();
+avesmapsGaretienBaueSyncPlan($pdo, 1, 1);
+assert((int) $pdo->query('SELECT COUNT(*) FROM map_features')->fetchColumn() === (int) $vorherFeatures,
+    'das Rechnen hat eine Nutztabelle angefasst');
 $pruefungen++;
 
 echo "OK: {$pruefungen} Pruefungen\n";
