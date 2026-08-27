@@ -369,6 +369,11 @@ function renderMapLabelToImage(text, fontSizePx, typeStyle, opts) {
 }
 
 function createLabelIcon(label) {
+	// 💣 HIER, NICHT IN renderMapLabelToImage. Gezaehlt wird die RASTERUNG EINER BESCHRIFTUNG, und
+	// das ist genau ein Aufruf hier -- eine Canvas plus ein synchrones toDataURL(). Der Bildspeicher
+	// darunter faengt Wiederholungen ab; wer dort zaehlte, bekaeme „Treffer im Speicher" und nicht
+	// „wie viele Beschriftungen hat der Start angefasst". Siehe js/map-features/label-bedarf.js.
+	avesmapsLabelGerastertZaehlen();
 	const safeSize = getScaledLabelSize(label);
 	// 🔴 OHNE KURVENBESCHRIFTUNG IST DER NAME EINE GANZ NORMALE GERADE -- nicht die alte
 	// Handdrehung (Entwurf §4.3). Der gespeicherte Winkel bleibt in der Datenbank stehen (Entwurf
@@ -575,9 +580,34 @@ function buildRegionLabelViewPopupHtml(label) {
 		+ (typeof buildRegionGameLiteratureMarkup === "function" ? buildRegionGameLiteratureMarkup(label) : "");
 }
 
+// Ein leeres Icon fuer eine Beschriftung, die noch nicht gerastert wurde. Wortgleich zum
+// Platzhalter der Siedlungsnamen (createLocationNameLabelEntry) -- nichts zu sehen, keine Ausdehnung.
+//
+// 💣 ER DARF NIE AUF DIE KARTE. Die Kollisionsaufloesung misst RECHTECKE (getCollisionEntries in
+// map-features-label-collisions.js filtert auf `map.hasLayer`), und ein Platzhalter mit den Massen 0
+// verschoebe die Ortsnamen um ihn herum ins Leere. Deshalb rastert `syncLabelMarkerVisibility` das
+// echte Bild VOR dem `addTo(map)` -- ein Marker auf der Karte traegt ausnahmslos sein echtes Icon.
+function avesmapsLabelPlatzhalterIcon() {
+	return L.divIcon({ className: "map-label", html: "", iconSize: [0, 0], iconAnchor: [0, 0] });
+}
+
+// Rastert die Beschriftung und merkt sich die Zoomstufe, mit der es geschah.
+//
+// ⭐ Der Merker ist die Antwort auf eine Frage, die es ohne die Bedarfs-Rasterung nicht gab: eine
+// Beschriftung, die beim Zoomwechsel ausserhalb des Ausschnitts lag, hat `syncLabelIcons` nie
+// angefasst -- kommt sie spaeter durch ein Verschieben herein, traegt sie das Bild der ALTEN Stufe
+// und damit die falsche Groesse. Mit `?labelbedarf=1` wird sie beim Sichtbarwerden neu gerastert.
+function avesmapsLabelIconRastern(entry, zoomLevel) {
+	entry.marker.setIcon(createLabelIcon(entry.label));
+	entry._bedarfIconZoom = zoomLevel;
+}
+
 function createLabelMarkerEntry(label) {
 	const marker = L.marker(label.coordinates, {
-		icon: createLabelIcon(label),
+		// 🔴 PLATZHALTER STATT BILD -- nur mit `?labelbedarf=1`, Vorgabe ist das Rastern wie bisher.
+		// Gerastert wird dann erst, wenn die Beschriftung wirklich sichtbar wird. Begruendung, Messung
+		// und die Reihenfolge-Falle stehen in js/map-features/label-bedarf.js.
+		icon: avesmapsLabelBedarfAktiv() ? avesmapsLabelPlatzhalterIcon() : createLabelIcon(label),
 		draggable: false,
 		// JEDES Label ist anklickbar, nicht nur eins mit Wiki-Zuweisung (Spec §5.2): ohne sie war es im
 		// Lesemodus vollstaendig inert -- kein Popup, kein Panel, nicht einmal ein Trefferziel; der Klick
@@ -674,14 +704,28 @@ function createLabelMarkerEntry(label) {
 		// Ohne labelHasWikiRegion-Gate (Spec §5.2): ein Label ohne Wiki-Zuweisung bekommt dasselbe Panel,
 		// nur ohne die Wiki-Zeilen -- Name, Typ, Kartensammlung und Abenteuer stehen auch ohne Wiki zur
 		// Verfuegung, und genau die waren bisher unerreichbar.
-		const regionLabelPopupHtml = buildRegionLabelViewPopupHtml(label);
+		// 🪤 MIT `?labelbedarf=1` ALS FUNKTION, sonst wie bisher als fertiger Text. Dieses Markup ist
+		// der zweite Startposten neben dem Bild: es entstand fuer JEDE Beschriftung sofort, obwohl es
+		// erst beim Anklicken gebraucht wird -- und der Bearbeiten-Zweig darueber bindet seines
+		// laengst als Funktion (refreshLabelMarkerPopup). Leaflet ruft sie bei jedem Oeffnen, es zaehlt
+		// also der Stand von JETZT statt der vom Startaugenblick.
+		let regionLabelPopupHtml;
+		if (avesmapsLabelBedarfAktiv()) {
+			regionLabelPopupHtml = () => buildRegionLabelViewPopupHtml(label);
+		} else {
+			avesmapsLabelPopupZaehlen();
+			regionLabelPopupHtml = buildRegionLabelViewPopupHtml(label);
+		}
+		// Das Infopanel will einen fertigen Text -- es kennt keine Funktion. Beide Zustaende muenden
+		// deshalb hier zusammen.
+		const regionLabelPopupJetzt = () => (typeof regionLabelPopupHtml === "function" ? regionLabelPopupHtml() : regionLabelPopupHtml);
 		// Infopanel (now the default): route landscape/Wiki-region label info into the right panel
 		// instead of a floating popup -- same as the other feature types. This label-click path had no
 		// panel guard, so regions kept opening as a floating box. Without panel mode the bound popup stays.
 		if (typeof IS_INFOPANEL_MODE !== "undefined" && IS_INFOPANEL_MODE && typeof window.avesmapsShowInfopanel === "function") {
 			marker.on("click", () => {
 				try { map.panTo(label.coordinates); } catch (error) { /* noop */ }
-				window.avesmapsShowInfopanel(regionLabelPopupHtml, label.text || (label.wikiRegion && label.wikiRegion.name) || "");
+				window.avesmapsShowInfopanel(regionLabelPopupJetzt(), label.text || (label.wikiRegion && label.wikiRegion.name) || "");
 			});
 		} else {
 			marker.bindPopup(regionLabelPopupHtml, { className: "settlement-popup", minWidth: 320, maxWidth: 400, autoPan: true });
@@ -1283,6 +1327,13 @@ function syncLabelMarkerVisibility(entry, zoomLevel = map.getZoom(), renderBound
 	const shouldShow = shouldShowLabelMarker(entry, zoomLevel, renderBounds, editorOverride);
 	const isVisible = map.hasLayer(entry.marker);
 	if (shouldShow && !isVisible) {
+		// 🔴 RASTERN VOR DEM `addTo` -- das ist die ganze Bedarfs-Rasterung, und die Reihenfolge ist
+		// tragend: ein Marker auf der Karte muss sein echtes Icon tragen, sonst misst die
+		// Kollisionsaufloesung ein Rechteck der Groesse 0 und schiebt die Ortsnamen daneben ins Leere.
+		// Ohne `?labelbedarf=1` steht hier von vornherein das echte Icon, die Bedingung ist dann falsch.
+		if (avesmapsLabelBedarfAktiv() && entry._bedarfIconZoom !== zoomLevel) {
+			avesmapsLabelIconRastern(entry, zoomLevel);
+		}
 		entry.marker.addTo(map);
 		return;
 	}
@@ -1306,7 +1357,7 @@ function syncLabelIcons() {
 	const editorOverride = isMapLabelEditorOverrideActive();
 	labelMarkers.forEach((entry) => {
 		if (shouldShowLabelMarker(entry, zoomLevel, renderBounds, editorOverride) || map.hasLayer(entry.marker)) {
-			entry.marker.setIcon(createLabelIcon(entry.label));
+			avesmapsLabelIconRastern(entry, zoomLevel);
 		}
 		syncLabelMarkerVisibility(entry, zoomLevel, renderBounds, editorOverride);
 	});
@@ -1314,10 +1365,19 @@ function syncLabelIcons() {
 }
 
 function prepareLabelData(data) {
+	// 💣 DIE DAUER GEHOERT IN DIE BILANZ, IN BEIDEN ZUSTAENDEN. Sonst vergleicht man zwei Messungen,
+	// die verschieden zustande kamen (js/map-features/label-bedarf.js). Live gemessen 26.08.2026:
+	// 1.660 ms in einem 2.788 ms langen Stillstand nach dem Start.
+	const begonnen = (typeof performance !== "undefined" && typeof performance.now === "function") ? performance.now() : 0;
 	labelMarkers.forEach((entry) => map.removeLayer(entry.marker));
 	labelData = data.features.filter((feature) => feature.properties?.feature_type === "label").map(normalizeLabelFeature);
+	// 🔴 VOLLZAEHLIG UND SOFORT, auch mit `?labelbedarf=1`. Gespart wird das BILD und das
+	// POPUP-Markup, nie der Eintrag: `preparePathData` laeuft direkt danach und baut aus genau diesen
+	// labelMarkers den Verlinkungs-Index seiner Weg-Popups (routing.js, map-features-path-item-links.js).
 	labelMarkers = labelData.map(createLabelMarkerEntry);
 	syncLabelVisibility();
+	const beendet = (typeof performance !== "undefined" && typeof performance.now === "function") ? performance.now() : 0;
+	avesmapsLabelStartFesthalten(labelMarkers.length, beendet - begonnen);
 }
 
 function addCreatedLabelFeature(feature) {
@@ -1347,7 +1407,9 @@ function applyLabelFeatureResponse(entry, feature) {
 	}
 	Object.assign(entry.label, label);
 	entry.marker.setLatLng(label.coordinates);
-	entry.marker.setIcon(createLabelIcon(label));
+	// Ueber den gemeinsamen Rasterer, damit der Zoom-Merker der Bedarfs-Rasterung mitwandert -- sonst
+	// hielte eine gerade gespeicherte Beschriftung ihren Stand fuer aelter, als er ist.
+	avesmapsLabelIconRastern(entry, map.getZoom());
 	refreshLabelMarkerPopup(entry);
 	syncLabelMarkerVisibility(entry);
 }

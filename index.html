@@ -3510,6 +3510,10 @@
 		<script src="js/third-party/polylabel.js"></script>
 		<!-- Die Huelle des vereinigten Landschaftsfensters. VOR den Modulen, die sie rufen. -->
 		<script src="js/map-features/landschaft-dialog.js"></script>
+		<!-- 🔴 VOR map-features-labels.js: der Schalter der Bedarfs-Rasterung und ihre Bilanz. `const`
+		     auf Dateiebene wird in einem klassischen Script nicht gehoistet -- spaeter geladen stuende
+		     dort `undefined`, und zwar erst beim ersten Aufbau der Beschriftungen. -->
+		<script src="js/map-features/label-bedarf.js"></script>
 		<script src="js/map-features/map-features-labels.js"></script>
 		<!-- Geteilte reine Kraftlinien-Topologie -- muss vor dem Kartenmodul (das an sie delegiert)
 		     und ebenso vom Kraftlinien-Editor-iframe geladen werden (eine Wahrheit, kein zweites Mal). -->
