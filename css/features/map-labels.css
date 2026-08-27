@@ -238,9 +238,16 @@ body.edit-mode .map-label img {
 	   nur oben, spraenge die Flaeche beim Zoomstart hart auf 0 statt auszublenden.
 	   ⚠️ Kuerzer als die Dauer der Zoom-Animation, sonst ist sie bei deren Ende noch nicht bei 0.
 	   🔴 Die Transform-Haelfte liest seit 26.08.2026 die gemeinsamen Token aus
-	   css/features/zoom-uebergang.css -- vorher stand hier eine achte Abschrift derselben Kurve. */
+	   css/features/zoom-uebergang.css -- vorher stand hier eine achte Abschrift derselben Kurve.
+	   🔴 Und die DECKKRAFT-Haelfte seit 27.08.2026 ebenso. Hier stand `ease-out` -- die einzige
+	   Kurve im ganzen Zoomschritt, die nach der Vereinheitlichung vom 26.08.2026 noch abwich
+	   (nachgemessen an allen Zeichenflaechen: Kacheln, SVG, Marker, Schraffur, Wegenamen tragen
+	   alle cubic-bezier(0.42, 0, 0.58, 1); nur diese Deckkraft nicht). Sie bewegt nichts und war
+	   deshalb nicht die Ursache des Verrutschens -- aber „eine Kurve fuer ALLE Zoomanimationen"
+	   (AGENTS.md §11) stimmte damit schlicht nicht. Die DAUER bleibt eigen: sie ist der Anteil des
+	   Ausblendens am Blendenbudget und kommt aus --border-label-fade-out. */
 	transition: transform var(--avesmaps-zoom-dauer) var(--avesmaps-zoom-kurve),
-	            opacity var(--border-label-fade-out, 120ms) ease-out;
+	            opacity var(--border-label-fade-out, 120ms) var(--avesmaps-zoom-kurve);
 }
 
 /* Alle Karten-Text-Labels faden waehrend der Leaflet-Zoom-Animation weich aus und nach dem Zoom wieder ein --
