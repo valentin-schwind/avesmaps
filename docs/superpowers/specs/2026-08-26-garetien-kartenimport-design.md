@@ -38,6 +38,25 @@ Ebenen Kosch: `Gewaesser Berge Grenzen Waelder Wege Ortschaften_1`
 | Berge | 250 | 12 | Gebirge 99, Hügel 84, Berg 79 |
 | Sonstiges | 36 | — | Insel 16, Küste 20, Kontinent 1 |
 
+> 🔴 **„Ortschaften" ist der Name der SEITE, nicht ihr Inhalt** (nachgezählt 27.08.2026). Von den
+> 2519 Zeilen sind rund **1127 echte Ortschaften** (Dorf 868, Markt 143, Stadt 94, Reichsstadt 18,
+> Königsstadt 4) und rund **1356 einzelne Bauwerke** (Burg 471, Gutshof 365, Tempel 212,
+> Gebäude 137, Kloster 76, Gasthaus 75, Pfalz 14, Akademie 4, Magierturm 2). Dazu 13 Bingen, 22
+> Stadtviertel und eine Zeile mit dem Typ „Unbekannte Art". Wer die 2519 als „Ortschaften"
+> weiterreicht, erzeugt eine falsche Erwartung — genau das ist am 27.08.2026 passiert und dem
+> Owner sofort aufgefallen („aber in garetien sind doch keine 2519 ortschaften").
+>
+> ⚠️ **`Kaiserstadt` kommt in den Daten NICHT vor** — Gareth liegt außerhalb des Gebiets. §3.1
+> nennt den Typ, gemessen sind es null.
+>
+> 💣 **360 Zeilen haben KEINE Position**: sie tragen die Marke `2000000 2000000`, umgerechnet
+> (1222 / −115,6) und damit außerhalb der Karte (0…1024). **Alle 360 stehen im Kosch, null in
+> GGP** — 359 auf `kosch/Ortschaften_1`, also **72 % dieser Seite**. Das ist keine Störung,
+> sondern Volkers Ansage „das Objekt gibt es, auf der Karte liegt es noch nicht", und es erklärt
+> die Beobachtung in §6, dass die SVG-Ausgabe des Kosch nur rund 150 Objekte liefert. ⚠️ Die
+> LOD-Spanne ist KEIN verlässliches zweites Signal (8 der 360 tragen eine andere, und 375 Zeilen
+> mit `14!14` sind sehr wohl platziert) — die Koordinate ist das Signal.
+
 ### 1.1 Das Zeilenformat
 
 ```
