@@ -1,0 +1,231 @@
+/* Der gemeinsame Editor-KOERPER — Menüband, Kacheln, Spalten, Reiter, Rollkasten.
+ * EINE Datei, weil die Formen an ZWEI Orten gebraucht werden.
+ *
+ * 💣 Sie standen bis 2026-08-27 in css/components/editor-page.css, und die laden nur die sechs
+ *    Editor-SEITEN in html/. Das Fenster „Garetien Importer" lebt aber in index.html — es muss
+ *    die laufende Karte freigeben und kann deshalb kein iframe-Editor sein. Ohne diesen Umzug
+ *    hätte es die Formen abschreiben müssen, und genau daraus ist die Divergenz gewachsen, die
+ *    die Vereinheitlichung vom 14.08.2026 beseitigt hat (sieben Zeilenformen, vier Abschriften).
+ *
+ * ⭐ Dieselbe Reise wie --avm-* → tokens.css, .avm-row → editor-row.css, der Statuskreis →
+ *    map-status-circle.css und der Wiki-Override → wiki-override.css. Die fünfte, aus demselben
+ *    Grund. Nicht zurückkopieren.
+ *
+ * 💣 HIER STEHEN DIE ECHTEN TOKENS, nicht die Kurznamen --mut/--line/--panel. Die sind lokale
+ *    Aliase aus editor-page.css und existieren in index.html NICHT; eine ungültige var() macht
+ *    die ganze Deklaration ungültig — der Rollkasten hätte dort still keinen Grund und keinen
+ *    Rahmen. Die Aliase zeigen ohnehin genau auf diese Tokens, für die sechs Editorseiten ändert
+ *    sich also nichts. Gewacht von js/pages/__tests__/editor-body-single-source.test.js.
+ *
+ * ⭐ Was HIER bleibt (host-unabhängig, kein Bezug auf `.avm-editor-body`): Menüband, Kachel,
+ *    Spalten, Rollkasten, Reiter, Zeilen-Badge. Was in editor-page.css BLEIBT: die :root-Aliase,
+ *    `body.avm-editor-body` selbst, die auf `.avm-editor-body` gescopten Knopf-/Feld-Regeln, die
+ *    Statuszeile, die Feldspalte (`.dt-*`), die Speicherleiste, `.rb-menu*` und `.type-filter*` —
+ *    das ist Editor-SEITEN-Sache, das Fenster „Garetien Importer" trägt keine `body.avm-editor-
+ *    body`-Klasse.
+ */
+
+/* ---- Ribbon (Spec §3.3) ---------------------------------------------------------------------
+ * All tiles EXACTLY the same width, full width of the dialog. grid-auto-columns, not flex --
+ * same reason as the columns below.
+ */
+.avm-ribbon-bar {
+	padding: var(--avm-ribbon-pad);
+	background: var(--color-panel);
+	border-bottom: 1px solid var(--color-border);
+}
+
+.avm-ribbon {
+	display: grid;
+	grid-auto-flow: column;
+	grid-auto-columns: minmax(0, 1fr);
+	gap: var(--avm-ribbon-gap);
+	align-items: stretch;
+}
+
+/* Two-line tile: .t1 bold, .t2 muted (Spec §3.3). The second line is where a tile says what it
+   knows -- state belongs IN the button, not next to it. */
+.avm-tile {
+	display: flex;
+	flex-direction: column;
+	justify-content: center;
+	align-items: flex-start;
+	text-align: left;
+	min-height: 48px;
+	padding: var(--space-4) var(--space-8);
+	gap: 1px;
+	line-height: var(--leading-tight);
+}
+
+.avm-tile .t1 {
+	max-width: 100%;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	font-size: var(--font-size-body);
+	font-weight: var(--font-weight-bold);
+}
+
+.avm-tile .t2 {
+	max-width: 100%;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	font-size: var(--font-size-caption);
+	color: var(--color-text-muted);
+}
+
+/* Only the sync tile carries an icon and --primary (owner decision, ribbon session 2026-07-17). */
+.avm-tile--primary {
+	background: var(--color-button);
+	border-color: var(--color-button-border);
+	color: var(--color-button-text);
+}
+
+.avm-tile--primary .t2 { color: var(--color-on-button-muted); }
+
+/* 💣 --primary needs its OWN hover rule, and it MUST stand AFTER the general `button:hover`.
+   Without it the general hover wins with its light ground while the text stays cream: light on
+   light, unreadable. It is invisible without a contrast measurement -- it happened exactly this
+   way when the pattern was built (Spec §3.3). */
+.avm-tile--primary:hover { background: var(--color-button-hover); }
+
+/* A tile that carries state needs a resting look for „on". Same filled treatment as --primary,
+   and -- for the same reason as there -- its own hover rule AFTER the general one. */
+.avm-tile--on {
+	background: var(--color-button);
+	border-color: var(--color-button-border);
+	color: var(--color-button-text);
+}
+
+.avm-tile--on .t2 { color: var(--color-on-button-muted); }
+.avm-tile--on:hover { background: var(--color-button-hover); }
+
+/* ---- Three equal columns (Spec §3.2) --------------------------------------------------------
+ * 💣 grid, NOT flex. `flex: 1 1 0` with box-sizing: border-box was measured twice and was wrong
+ *    twice -- Abenteuer 483/458/458, Karten 459/673/244 -- because a border box cannot shrink
+ *    below its own padding, so the padded column keeps a bigger basis. Grid tracks do not know
+ *    that. The children need min-width/min-height: 0 or a grid item's `auto` minimum pushes the
+ *    track open again.
+ */
+.avm-cols {
+	display: grid;
+	grid-template-columns: repeat(3, minmax(0, 1fr));
+	flex: 1 1 auto;
+	min-height: 0;
+}
+
+/* Zwei Spuren statt drei. Ein MODIFIER, keine zweite Rezeptur: das Fenster „Garetien Importer"
+   hat Liste und Einzelansicht nebeneinander und keine dritte Spalte. */
+.avm-cols--2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+
+.avm-col {
+	display: flex;
+	flex-direction: column;
+	min-width: 0;
+	min-height: 0;
+	overflow: hidden;
+	padding: var(--avm-col-pad);
+}
+
+.avm-col + .avm-col { border-left: 1px solid var(--color-border); }
+
+/* Spec §3.1a rule 1: the column title stands OUTSIDE the scroll area, not `position: sticky`
+   inside it. Sticky works too but needs an opaque ground, bleeding edges and knows the trap from
+   §8.9 (a negative margin-top moves the sticking point). This construction knows none of them. */
+.avm-col__title {
+	margin: 0 0 var(--space-6);
+	font-size: var(--font-size-subhead);
+	line-height: var(--leading-snug);
+	font-weight: var(--font-weight-bold);
+	color: var(--color-accent-strong);
+}
+
+.avm-col__bar {
+	display: flex;
+	align-items: center;
+	gap: var(--space-4);
+	margin-bottom: var(--space-4);
+}
+
+/* The bright framed box the scrolling content sits in -- Spec §3.1d, word-for-word from the
+   settlement editor's #seTree/#seList/#seDetailBody.
+   💣 `border-radius: 6px` is the deliberate hard value, NOT --radius-sm (5) or --radius-md (8).
+      Settlements has carried it forever, Territorien copied it to the pixel in 673413ce, and the
+      owner names both as the model. Word-for-word means: on the same pixel. */
+.avm-scroll {
+	flex: 1 1 auto;
+	min-height: 0;
+	overflow: auto;
+	padding: var(--space-2);
+	background: var(--color-panel);
+	border: 1px solid var(--color-border);
+	border-radius: 6px;
+}
+
+.avm-scroll--pad { padding: var(--space-6) var(--space-10); }
+
+.avm-empty { padding: var(--space-6); color: var(--color-text-muted); }
+.avm-error { padding: var(--space-6); color: var(--color-danger); }
+
+/* ---- Tab strip (Spec §3.1, „[Reiterzeile] optional") ----------------------------------------
+ * Same underline language as every other editor sub-tab row (css/features/review-panel.css:1374
+ * -- Meldungen, WikiSync, Konfliktlösung, Status). Copied onto the token ladder rather than
+ * imported: that file reaches the app hull, not these iframes.
+ */
+.avm-tabs {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--space-12);
+	margin-bottom: var(--space-4);
+	border-bottom: 1px solid var(--color-border);
+}
+
+/* Plain class selectors, exactly as on the seventh editor's page: 0,1,0 beats the element-level
+   button rule in editor-page.css (which `:where()` keeps at 0,0,1). */
+.avm-tab {
+	flex: 0 0 auto;
+	min-height: 0;
+	padding: var(--space-4) 1px;
+	border: 0;
+	border-bottom: 2px solid transparent;
+	border-radius: 0;
+	background: none;
+	appearance: none;
+	-webkit-appearance: none;
+	color: var(--color-text-muted);
+	font: inherit;
+	font-size: var(--font-size-body);
+	line-height: var(--leading-tight);
+	white-space: nowrap;
+}
+
+.avm-tab:hover,
+.avm-tab:focus-visible { background: none; color: var(--color-text-strong); }
+
+.avm-tab.is-active {
+	background: none;
+	color: var(--color-text-strong);
+	font-weight: var(--font-weight-bold);
+	border-bottom-color: var(--color-text-strong);
+}
+
+/* ---- Row badges -----------------------------------------------------------------------------
+ * Spec §3.1b: emphasise the EXCEPTION, not the classification. A classification stays quiet grey;
+ * a real open point gets the warning tone (never --color-danger; red stays with actual errors).
+ */
+.avm-pill {
+	flex: 0 0 auto;
+	padding: 0 var(--space-4);
+	border: 1px solid var(--color-border-strong);
+	border-radius: var(--radius-md);
+	font-size: var(--font-size-caption);
+	font-weight: var(--font-weight-normal, 400);
+	color: var(--color-text-muted);
+	white-space: nowrap;
+}
+
+.avm-pill--unresolved {
+	color: var(--color-warning);
+	border-color: var(--color-warning-soft-border);
+}

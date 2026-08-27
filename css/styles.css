@@ -45,6 +45,12 @@
    Kartendialogen der App UND den Editorfenstern. editor-page.css bindet dieselbe Datei fuer die
    sieben Editorseiten -- die Regel steht also genau einmal. */
 @import url("components/wiki-override.css");
+
+/* Der gemeinsame Editor-KOERPER (Menüband, Kacheln, Spalten, Reiter, Rollkasten). Dieselbe Reise
+   wie die drei Zeilen darueber und aus demselben Grund: das Fenster „Garetien Importer" lebt in
+   index.html, nicht in einem Editor-iframe, und braucht dieselben Formen. editor-page.css bindet
+   dieselbe Datei fuer die sechs Editorseiten -- die Regel steht also genau einmal. */
+@import url("components/editor-body.css");
 @import url("components/region-wiki-dialogs.css");
 @import url("components/political-territory-tree.css");
 @import url("components/political-territory-controls.css");
