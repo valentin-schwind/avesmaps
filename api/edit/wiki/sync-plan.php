@@ -34,6 +34,10 @@ require_once __DIR__ . '/../../_internal/map/features.php';
 // __tests__/sync-plan-endpoint-chain-test.php, which exists for exactly this class of silence.
 require_once __DIR__ . '/../../_internal/wiki/locations-helpers.php';
 require_once __DIR__ . '/../../_internal/app/feature-sources.php';
+// Der Kartenimport aus garetien.de / koschwiki.de -- avesmapsGaretienApplyStep, der Zweig
+// 'garetien' des Uebernahme-Verteilers unten. Ohne dieses require ist der match-Arm ein
+// Fatal Error mit LEEREM Rumpf, und der liest sich im Browser als Netzfehler.
+require_once __DIR__ . '/../../_internal/import/garetien-uebernahme.php';
 require_once __DIR__ . '/../../_internal/app/game-literature-resolve.php';
 require_once __DIR__ . '/../../_internal/app/citymaps.php';
 require_once __DIR__ . '/../../_internal/wiki/publication-parsing.php';
@@ -83,7 +87,7 @@ require_once __DIR__ . '/../../_internal/wiki/territory-plan.php';
 require_once __DIR__ . '/../../_internal/wiki/territory-plan-apply.php';
 
 /** The syncs that have a preview. Grows one entry per session (design §7). */
-const AVESMAPS_SYNC_PLAN_KINDS = ['citymap', 'adventure', 'publication', 'lore', 'lore_rule', 'territory_wiki', 'territory'];
+const AVESMAPS_SYNC_PLAN_KINDS = ['citymap', 'adventure', 'publication', 'lore', 'lore_rule', 'territory_wiki', 'territory', 'garetien'];
 
 /**
  * One plan row, shaped for the component. The JSON columns are decoded HERE so the client never
@@ -264,6 +268,10 @@ try {
                 'lore_rule' => avesmapsLoreRuleApplyStep($pdo, $runId, $userId, $currentUser),
                 'territory_wiki' => avesmapsTerritoryWikiApplyStep($pdo, $runId, $userId, $currentUser),
                 'territory' => avesmapsTerritoryApplyStep($pdo, $runId, $userId, $currentUser),
+                // Der Kartenimport aus garetien.de / koschwiki.de. 🔴 Er laeuft ueber DIESE Tuer und
+                // nicht ueber eine eigene: hier haengen der Einzelflug-Riegel, die zweite
+                // Bestaetigung, das Protokoll und der Fortschritt.
+                'garetien' => avesmapsGaretienApplyStep($pdo, $runId, $userId, $currentUser),
             };
             $done = ($step['done'] ?? false) === true;
 

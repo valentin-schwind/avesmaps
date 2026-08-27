@@ -174,6 +174,51 @@ function avesmapsGaretienFlaecheAnlegen(PDO $pdo, array $nach, array $user, int 
 }
 
 /**
+ * EIN Haeppchen der Uebernahme, fuer die vorhandene Vorschau (api/edit/wiki/sync-plan.php).
+ *
+ * 🔴 DAS IST DIE EINE TUER. Der Endpunkt des Imports hat bewusst KEIN eigenes `apply` mehr: die
+ * Hausttuer traegt den Einzelflug-Riegel, die zweite Bestaetigung fuer Loeschungen, das Protokoll
+ * und den Fortschritt. Zwei Tueren auf denselben Schreibweg waeren zwei Erzeuger, und eine Regel,
+ * die einen von zweien bindet, ist keine.
+ *
+ * ⚠️ Die Form der Rueckgabe gehoert der Vorschau, nicht uns -- `done` beendet die Haeppchenkette,
+ * `remaining` treibt den Fortschritt. Ein `done`, das nie true wird, dreht den Client im Kreis;
+ * deshalb vermerkt die Uebernahme JEDE Zeile, auch die abgelehnte.
+ */
+function avesmapsGaretienApplyStep(PDO $pdo, int $runId, int $userId, ?array $user, ?int $budget = null): array
+{
+    $budget = $budget ?? AVESMAPS_SYNC_PLAN_APPLY_BUDGET;
+    // ⚠️ DDL oben, einmal, VOR jeder Transaktion: MySQL committet eine offene Transaktion, sobald
+    // es DDL sieht.
+    avesmapsEnsureSyncPlanTables($pdo);
+    avesmapsEnsureFeatureSourceTables($pdo);
+
+    $offen = avesmapsSyncPlanPendingItems($pdo, $runId, $budget);
+    $ids = array_map(static fn(array $r): int => (int) $r['id'], $offen);
+    $ergebnis = avesmapsGaretienUebernehmen($pdo, $runId, $ids, is_array($user) ? $user : ['id' => $userId]);
+    $rest = avesmapsSyncPlanPendingCount($pdo, $runId);
+
+    return [
+        // Fertig, wenn nichts mehr offen ist.
+        // 🪤 Hier stand „nicht, wenn dieses Haeppchen leer war" -- als waeren das zwei Dinge. Sind
+        // sie nicht: `$ids` IST die (gedeckelte) Liste der offenen Zeilen, ein leeres Haeppchen
+        // heisst also immer, dass nichts mehr offen ist. Die Mutationsprobe hat den Satz
+        // widerlegt, und er blieb stehen, weil er plausibel klang. Der ECHTE Unterschied ist ein
+        // anderer und kleiner: gezaehlt wird NACH dem Haeppchen, also sieht die Zahl auch, was
+        // inzwischen woanders vermerkt wurde.
+        'done' => $rest === 0,
+        'applied' => $ergebnis['angelegt'],
+        // Ein Import loescht nichts.
+        'deleted' => 0,
+        'stale' => 0,
+        'processed' => count($ids),
+        'remaining' => $rest,
+        'skipped' => count($ergebnis['fehler']),
+        'declined' => 0,
+    ];
+}
+
+/**
  * Die angehakten Vorschlaege eines Vorschau-Laufs uebernehmen.
  *
  * @param list<int> $itemIds Nur diese Items -- alles andere bleibt unberuehrt.
@@ -209,18 +254,23 @@ function avesmapsGaretienUebernehmen(PDO $pdo, int $runId, array $itemIds, array
         }
         $nach = json_decode((string) $item['after_json'], true);
         if (!is_array($nach) || ($nach['herkunft'] ?? '') !== 'garetien') {
+            // 💣 VERMERKEN, nicht nur melden. Ein abgelehntes Item ohne Vermerk bleibt "offen",
+            // und der Uebernahme-Schritt der Vorschau arbeitet in Haeppchen, bis nichts mehr offen
+            // ist -- er kaeme nie zum Ende und der Fortschritt draehte sich im Kreis.
             $fehler[] = ['item' => (int) $item['id'], 'grund' => 'kein Garetien-Vorschlag'];
+            avesmapsSyncPlanMarkItem($pdo, (int) $item['id'], 'failed', 'kein Garetien-Vorschlag');
             continue;
         }
         // 🔴 Nur ANLEGEN. 'changed' heisst hier "Artikel trifft, Geometrie widerspricht" -- das
         // ist eine Frage an einen Menschen, keine Anweisung, unser Objekt zu ueberschreiben.
         // Stufe 1 schreibt an keinem vorhandenen Objekt.
         if ((string) $item['change_type'] !== 'new') {
-            $fehler[] = [
-                'item' => (int) $item['id'],
-                'grund' => 'Stufe 1 legt nur an und aendert nichts Vorhandenes -- "'
-                    . $item['label'] . '" braucht eine Entscheidung von Hand',
-            ];
+            $grund = 'Stufe 1 legt nur an und aendert nichts Vorhandenes -- "'
+                . $item['label'] . '" braucht eine Entscheidung von Hand';
+            $fehler[] = ['item' => (int) $item['id'], 'grund' => $grund];
+            // 💣 Auch hier ein Vermerk -- siehe oben. `stale` und nicht `failed`: es ist nichts
+            // kaputt, die Zeile gehoert nur nicht in diese Stufe.
+            avesmapsSyncPlanMarkItem($pdo, (int) $item['id'], 'stale', mb_substr($grund, 0, 300, 'UTF-8'));
             continue;
         }
 

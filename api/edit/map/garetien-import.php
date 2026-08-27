@@ -102,28 +102,11 @@ try {
         ]);
     }
 
-    // --- Uebernehmen: der EINZIGE Schreibweg, und nur das Angehakte.
-    if ($action === 'apply') {
-        $planRun = (int) ($payload['plan_run_id'] ?? 0);
-        if ($planRun <= 0) {
-            avesmapsErrorResponse(400, 'no_plan', 'Es wurde kein Vorschau-Lauf genannt.');
-        }
-        // 🔴 Die Auswahl kommt aus der DATENBANK, nicht aus dem Anfragerumpf: die Haekchen stehen
-        // in sync_plan_item.selected, und der Client setzt sie ueber die vorhandene Vorschau. Eine
-        // Liste aus dem Rumpf waere ein zweiter Weg, etwas anzuhaken -- und der ginge an jedem
-        // Riegel vorbei, den die Vorschau schon hat.
-        $stmt = $pdo->prepare("SELECT id FROM sync_plan_item WHERE run_id = :r AND selected = 1 AND (apply_state IS NULL OR apply_state <> 'done') ORDER BY id");
-        $stmt->execute([':r' => $planRun]);
-        $itemIds = array_map('intval', $stmt->fetchAll(PDO::FETCH_COLUMN));
-        // 💣 Das selbstheilende DDL steht HIER, nicht in der Bibliothek -- sonst laesst sich die
-        // gegen keine andere Datenbank pruefen als die, fuer die ihr DDL geschrieben ist.
-        avesmapsEnsureFeatureSourceTables($pdo);
-        $ergebnis = avesmapsGaretienUebernehmen($pdo, $planRun, $itemIds, $user);
-        if ($ergebnis['angelegt'] > 0) {
-            avesmapsSyncPlanMarkApplied($pdo, $planRun, (int) ($user['id'] ?? 0));
-        }
-        avesmapsJsonResponse(200, ['ok' => true] + $ergebnis + ['angehakt' => count($itemIds)]);
-    }
+    // 🔴 EIN `apply` GIBT ES HIER NICHT, und das ist Absicht. Uebernommen wird ueber die
+    // vorhandene Vorschau (api/edit/wiki/sync-plan.php, Art 'garetien') -- dort haengen der
+    // Einzelflug-Riegel, die zweite Bestaetigung fuer Loeschungen, das Protokoll und der
+    // Fortschritt in Haeppchen. Eine zweite Tuer auf denselben Schreibweg waere ein zweiter
+    // Erzeuger, und eine Regel, die einen von zweien bindet, ist keine.
 
     if ($action !== 'fetch' && $action !== 'upload') {
         avesmapsErrorResponse(400, 'invalid_action', 'Unbekannte Aktion.');

@@ -40,7 +40,12 @@ final class AvesmapsGaretienUebernahmeTestPdo extends PDO
         // Hand da, und eine zweite Fassung desselben Schemas waere genau die Divergenz, die dieser
         // Test verhindern soll. ⚠️ Faellt dabei eine Tabelle unter den Tisch, schlaegt der Test an
         // seinen Zusicherungen fehl -- nicht an einem stillen Nichts.
-        if (str_contains($statement, 'AUTO_INCREMENT') || str_contains($statement, 'ENGINE=InnoDB')) {
+        // ⚠️ Auch die nachruestenden ALTERs: sie kommen aus derselben selbstheilenden Routine,
+        // und das Schema steht oben von Hand vollstaendig da. `ALTER TABLE ... MODIFY COLUMN` ist
+        // MySQL-eigen und laeuft hier nicht.
+        if (str_contains($statement, 'AUTO_INCREMENT')
+            || str_contains($statement, 'ENGINE=InnoDB')
+            || str_starts_with(ltrim($statement), 'ALTER TABLE')) {
             return 0;
         }
         $statement = str_replace('INSERT IGNORE INTO', 'INSERT OR IGNORE INTO', $statement);
@@ -424,5 +429,61 @@ $vermerk = $pdo->query('SELECT apply_state FROM sync_plan_item WHERE id = ' . $k
 assert($vermerk === 'failed', "der Vermerk steht am Item: " . var_export($vermerk, true));
 assert((int) $pdo->query('SELECT COUNT(*) FROM map_features')->fetchColumn() === $vorher, 'und nichts wurde geschrieben');
 $pruefungen += 6;
+
+
+// --- 🔴 DER SCHRITT DER VORSCHAU: er arbeitet in Haeppchen und MUSS zum Ende kommen.
+// 💣 Ein abgelehntes Item ohne Vermerk bleibt „offen" -- und der Schritt laeuft, bis nichts mehr
+// offen ist. Beim Verdrahten (27.08.2026) vermerkten beide Ablehnungszweige nichts: der
+// Fortschritt haette sich im Kreis gedreht, ohne dass irgendwo ein Fehler stuende.
+// ⚠️ Ein FRISCHER Pruefstand: der oben ist abgearbeitet, und ein Schritt ueber null offene
+// Zeilen prueft nichts. Das ist keine Bequemlichkeit -- die erste Fassung lief gegen den alten
+// Lauf, meldete brav `done` und hatte dabei kein einziges Item angefasst.
+$pdo2 = avesmapsGaretienUebernahmeTestPdo();
+$lauf2 = (int) avesmapsSyncPlanOpenRun($pdo2, AVESMAPS_GARETIEN_PLAN_KIND)['id'];
+// Eine Zeile, die die Uebernahme ABLEHNT -- angehakt und 'changed'. Genau die blieb ohne Vermerk
+// ewig offen, und der Schritt waere nie fertig geworden.
+$pdo2->prepare("UPDATE sync_plan_item SET change_type = 'changed', selected = 1 WHERE run_id = ? AND label LIKE 'Seitenarm%'")
+    ->execute([$lauf2]);
+// Und eine Zeile mit FREMDER Herkunft -- die lehnt die Uebernahme ebenfalls ab, und auch sie
+// braucht ihren Vermerk, sonst bleibt sie offen.
+$pdo2->prepare("INSERT INTO sync_plan_item (run_id, entity_key, entity_public_id, change_type, label, before_json, after_json, override_json, selected)
+                VALUES (?, 'fremd', NULL, 'new', 'Fremder Vorschlag', NULL, ?, NULL, 1)")
+    ->execute([$lauf2, json_encode(['herkunft' => 'woanders', 'ziel' => 'path'], JSON_UNESCAPED_UNICODE)]);
+$offenVorher = (int) $pdo2->query("SELECT COUNT(*) FROM sync_plan_item WHERE run_id = {$lauf2} AND selected = 1 AND apply_state IS NULL")->fetchColumn();
+assert($offenVorher >= 3, 'drei offene Zeilen, davon zwei abzulehnen: ' . $offenVorher);
+$pruefungen++;
+// 💣 Der Fortschritt wird ZWISCHENDURCH geprueft, nicht nur am Ende: am Ende ist `remaining`
+// immer 0, und ein fest verdrahtetes 0 faellt dort nicht auf. Der Client zeigt damit den
+// Fortschritt an -- ein Feld, das nur 0 sagen kann, ist eine Luege in der Form einer Tatsache.
+$erste = avesmapsGaretienApplyStep($pdo2, $lauf2, 7, ['id' => 7], 2);
+assert($erste['processed'] === 2, 'das erste Haeppchen nimmt genau zwei: ' . $erste['processed']);
+assert($erste['remaining'] === $offenVorher - 2, 'und meldet den echten Rest: ' . $erste['remaining']);
+assert($erste['done'] === false, 'es ist noch nicht fertig');
+$pruefungen += 3;
+
+$runden = 1;
+$schritt = $erste;
+while (!$schritt['done'] && $runden < 20) {
+    $schritt = avesmapsGaretienApplyStep($pdo2, $lauf2, 7, ['id' => 7], 2);
+    $runden++;
+}
+assert($schritt['done'] === true, 'der Schritt kommt zum Ende (nach ' . $runden . ' Runden)');
+assert($runden < 20, 'und nicht erst am Deckel dieser Schleife');
+assert($schritt['remaining'] === 0, 'nichts bleibt offen');
+assert($schritt['deleted'] === 0, 'ein Import loescht nichts');
+$pruefungen += 4;
+
+// Und JEDE Zeile traegt danach einen Vermerk -- keine bleibt namenlos liegen.
+$ohneVermerk = (int) $pdo2->query("SELECT COUNT(*) FROM sync_plan_item WHERE run_id = {$lauf2} AND selected = 1 AND apply_state IS NULL")->fetchColumn();
+assert($ohneVermerk === 0, $ohneVermerk . ' Zeilen ohne Vermerk -- die haelt der Schritt fuer offen');
+assert($offenVorher > 0, 'es gab ueberhaupt etwas zu tun, sonst prueft das oben nichts');
+$pruefungen += 2;
+
+// 🔴 Und die Rueckgabe hat die Form, die die Vorschau erwartet -- `done` beendet die Kette,
+// `remaining` treibt den Fortschritt. Ein fehlendes Feld ist dort ein stilles 0.
+foreach (['done', 'applied', 'deleted', 'stale', 'processed', 'remaining', 'skipped', 'declined'] as $feld) {
+    assert(array_key_exists($feld, $schritt), 'die Rueckgabe nennt ' . $feld);
+}
+$pruefungen++;
 
 echo "OK: {$pruefungen} Pruefungen\n";

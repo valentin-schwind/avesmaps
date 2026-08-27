@@ -123,23 +123,25 @@ assert(
     'die Importbibliothek wird mit require_once geladen, nicht blank'
 );
 
-// 🔴 DIE AUSWAHL KOMMT AUS DER DATENBANK, NICHT AUS DEM ANFRAGERUMPF. Die Haekchen stehen in
-// sync_plan_item.selected und werden ueber die vorhandene Vorschau gesetzt. Eine Item-Liste aus
-// dem Rumpf waere ein ZWEITER Weg, etwas anzuhaken -- und der ginge an jedem Riegel vorbei, den
-// die Vorschau schon hat (Loeschbestaetigung, Uebersprung-Zaehler, die dauerhafte Entscheidung).
-// Dieselbe Lehre wie bei der abgerufenen Adresse: der Aufrufer waehlt, er diktiert sie nicht.
-$applyAb = strpos($quelle, "'apply'");
-assert($applyAb !== false, 'es gibt eine apply-Aktion');
-$applyBlock = substr($quelle, $applyAb, 1800);
-assert(str_contains($applyBlock, 'selected = 1'), 'die Auswahl wird aus der Tabelle gelesen');
-assert(preg_match('~avesmapsGaretienUebernehmen\([^;]*\$payload~', $applyBlock) !== 1,
-    'und NIE aus dem Anfragerumpf');
+// 🔴 EIN `apply` GIBT ES HIER NICHT. Uebernommen wird ueber die vorhandene Vorschau
+// (api/edit/wiki/sync-plan.php, Art 'garetien'): dort haengen der Einzelflug-Riegel, die zweite
+// Bestaetigung fuer Loeschungen, das Protokoll und der Fortschritt in Haeppchen. Eine zweite Tuer
+// auf denselben Schreibweg waere ein zweiter Erzeuger, und eine Regel, die einen von zweien
+// bindet, ist keine -- dieselbe Lehre wie bei der Verkehrsmittel-Sperre und der Ausstiegsregel.
+assert(!str_contains($quelle, "'apply'"), 'der Import-Endpunkt hat keine eigene Uebernahme-Tuer');
+assert(!str_contains($quelle, 'avesmapsGaretienUebernehmen'), 'und ruft den Schreibweg nicht selbst');
 
-// 🔴 Und schon Uebernommenes wird uebersprungen -- ein zweiter Klick auf "Uebernehmen" legt
-// nichts doppelt an. Der Riegel steht doppelt (hier und in der Bibliothek), und das ist Absicht:
-// die Abfrage spart die Arbeit, die Bibliothek haelt die Zusicherung.
-assert(str_contains($applyBlock, 'apply_state') && str_contains($applyBlock, "'done'"),
-    'bereits uebernommene Items werden gar nicht erst geladen');
+// 🔴 Und die Vorschau kennt die Art WIRKLICH -- Whitelist, Verteiler-Zweig und das require dazu.
+// 💣 Fehlt das require, ist der match-Arm ein Fatal Error mit LEEREM Rumpf, und der liest sich im
+// Browser als Netzfehler. `php -l` findet das nie: der Arm wird erst zur Laufzeit erreicht.
+$vorschau = str_replace("
+", "
+", (string) file_get_contents(__DIR__ . '/../../../edit/wiki/sync-plan.php'));
+assert(preg_match("~AVESMAPS_SYNC_PLAN_KINDS = \[[^\]]*'garetien'~", $vorschau) === 1,
+    'die Art steht in AVESMAPS_SYNC_PLAN_KINDS');
+assert(str_contains($vorschau, "'garetien' => avesmapsGaretienApplyStep("), 'und der Verteiler kennt sie');
+assert(preg_match('~require_once[^;]*import/garetien-uebernahme\.php~', $vorschau) === 1,
+    'und die Datei mit dem Schritt wird geladen');
 
 // 💣 Und die Uebernahme laeuft NUR ueber die Bibliothek -- kein eigenes INSERT im Endpunkt.
 // Ein zweiter Schreiber auf map_features waere genau der Erzeuger, den keine Regel mehr bindet.
