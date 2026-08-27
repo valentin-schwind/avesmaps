@@ -37,16 +37,34 @@ const styles = ohneZeilenenden(lies("css", "styles.css"));
 const editorPageOhneKommentare = ohneKommentare(editorPage);
 
 // ---- 1. Die Formen stehen GENAU EINMAL -- in editor-body.css, nicht mehr in editor-page.css ----
+// 🔴 NACHGEBESSERT NACH REVIEW (I1): urspruenglich pruefte diese Schleife nur die BASISKLASSE
+// (`^\.avm-tile\s*\{`). Eine Teilkopie, die nur einen Modifier oder Zustand zurueck nach
+// editor-page.css bringt -- `.avm-tile--primary { … }`, `.avm-tab.is-active { … }`,
+// `.avm-pill--unresolved { … }`, `.avm-tab:hover`/`:focus-visible` --, waere fuer den alten Test
+// unsichtbar geblieben, obwohl genau das die Divergenz ist, die dieser Umzug verhindern soll.
+// Das Kopf-Muster laesst deshalb JETZT beliebig viele direkt angehaengte Modifier (`--wort`) und
+// Zustaende (`.klasse`, `:pseudo`) hinter dem Basisnamen zu.
+// ⚠️ Verankert am ZEILENANFANG (`^` mit `m`-Flag) und OHNE Wortgrenzen-Suche quer durch die Datei:
+// `css/components/editor-page.css` benutzt `.avm-tile` weiterhin LEGITIM als zusammengesetzten
+// Selektor (`.rb-menu > .avm-tile { … }`, Menueband-Kacheln) -- das ist keine Neudeklaration,
+// sondern eine Verwendung der schon migrierten Kachel-Form, und die Zeile beginnt nicht mit
+// `.avm-tile`. Eine blosse `\.avm-tile\b`-Suche ohne Zeilenanker haette hier lautlos einen falschen
+// Alarm geschlagen.
+// 💣 Das `--`-Modifier-Muster verlangt ZWEI Bindestriche, damit `.avm-ribbon-bar` (ein
+// zusammengesetzter Name, EIN Bindestrich) nicht als "ribbon" + Modifier "-bar" durchgeht und
+// `.avm-ribbon` nicht faelschlich auf `.avm-ribbon-bar` anschlaegt.
 const gewanderteSelektoren = [
 	".avm-ribbon-bar", ".avm-ribbon", ".avm-tile", ".avm-cols", ".avm-col",
 	".avm-col__title", ".avm-col__bar", ".avm-scroll", ".avm-scroll--pad",
 	".avm-tabs", ".avm-tab", ".avm-empty", ".avm-error", ".avm-pill",
 ];
 for (const sel of gewanderteSelektoren) {
-	const kopf = new RegExp("^" + sel.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "\\s*\\{", "m");
+	const basis = sel.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+	const kopf = new RegExp("^" + basis + "(?:--[\\w-]+|[.:][\\w-]+)*\\s*[{,]", "m");
 	assert.ok(!kopf.test(editorPageOhneKommentare),
-		`${sel} steht wieder in editor-page.css -- daraus wird die naechste Divergenz. Die Regel `
-		+ "gehoert jetzt nach css/components/editor-body.css.");
+		`${sel} (oder ein Modifier/Zustand davon, z. B. --primary/.is-active/:hover) steht wieder `
+		+ "in editor-page.css -- daraus wird die naechste Divergenz. Die Regel gehoert jetzt nach "
+		+ "css/components/editor-body.css.");
 	checks++;
 	assert.ok(kopf.test(ohneKommentare(editorBody)),
 		`${sel} fehlt in css/components/editor-body.css -- das Fenster "Garetien Importer" in `
