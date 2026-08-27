@@ -16,10 +16,27 @@ const ROOT = path.join(__dirname, "..", "..", "..");
 const read = (...parts) => fs.readFileSync(path.join(ROOT, ...parts), "utf8").replace(/\r\n/g, "\n");
 
 // Der Knopf steht unter „Dump holen" und ist NUR fuer Admins da (Owner 27.08.2026).
+//
+// 🪤 REVIEW-FUND F3 (27.08.2026): ein `indexOf("</div>\n\t\t\t\t</div>")`-Anker traf nicht das
+// Ende von `.wiki-sync-dump-central`, sondern eine zufaellige Fundstelle 25.341 Zeichen weiter
+// hinten, mitten im Siedlungen-Markup -- die Zusicherung pruefte damit nur, dass der Knopf
+// IRGENDWO in einem ~25 KB grossen Fenster liegt, das mehrere komplette Editor-Abschnitte
+// umfasst, nicht "im Block unter Dump holen". Die dritte Runde derselben Fehlerklasse in diesem
+// Haus (AGENTS.md §9). Jetzt ein echter Textanker (der naechste Kommentar NACH dem Block) PLUS
+// eine Laengenprobe, die den eigenen Ausschnitt kennt statt ihn blind zu glauben.
 const html = read("index.html");
 assert.ok(html.includes('id="garetien-importer-open"'), "Der Knopf fehlt in index.html.");
-const block = html.slice(html.indexOf('class="wiki-sync-dump-central"'));
-assert.ok(block.slice(0, block.indexOf("</div>\n\t\t\t\t</div>")).includes("garetien-importer-open"),
+const restNachDump = html.slice(html.indexOf('class="wiki-sync-dump-central"'));
+const dumpBlockEnde = restNachDump.indexOf("<!-- Global WikiSync status line");
+assert.ok(dumpBlockEnde > 0,
+	"Der Anker fuer das Ende von \"Dump holen\" (der Kommentar zur globalen WikiSync-Statuszeile) "
+	+ "wurde nicht gefunden -- ist er umbenannt oder verschoben worden?");
+const dumpBlock = restNachDump.slice(0, dumpBlockEnde);
+assert.ok(dumpBlock.length < 5000,
+	`Der geschnittene "Dump holen"-Block ist ${dumpBlock.length} Zeichen lang -- das ist kein `
+	+ "\"Dump holen\"-Block mehr (erwartet: ein paar Tausend Zeichen, nicht zehntausende). Eine "
+	+ "Zusicherung, die ihren eigenen Ausschnitt nicht kennt, ist keine.");
+assert.ok(dumpBlock.includes("garetien-importer-open"),
 	"Der Knopf steht nicht im Block unter „Dump holen\" -- der Owner hat genau dort danach gefragt.");
 assert.ok(/id="garetien-importer-open"[^>]*hidden/.test(html),
 	"Der Knopf muss HIDDEN starten. Der Riegel faellt geschlossen aus: bis die Rechteauskunft da "

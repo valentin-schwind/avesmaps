@@ -4,9 +4,11 @@
 	/*
 	 * Das Fenster „Garetien Importer" — Knopf, Hülle, Liste, Einzelansicht, Handlungen.
 	 *
-	 * 🔴 DIESE DATEI VERSCHWINDET BEIM ABBAU DES IMPORTERS (Auftrag §5.5). Sie kennt deshalb
-	 *    `garetien_import_row` nicht und darf es nie: was diese Tabelle kennt, steht innerhalb von
-	 *    api/_internal/import/. Der Griff für „woher kam das" ist feature_sources.origin.
+	 * 🔴 DIESE DATEI VERSCHWINDET BEIM ABBAU DES IMPORTERS (Auftrag §5.5). Sie kennt deshalb die
+	 *    internen Speichertabellen des Importers nicht und darf sie nie kennen (der Wächtertest
+	 *    api/_internal/import/__tests__/garetien-abbau-waechter-test.php prüft das): was diese
+	 *    Tabellen kennt, steht ausschließlich innerhalb von api/_internal/import/. Der Griff für
+	 *    „woher kam das" ist feature_sources.origin.
 	 * 🔴 SIE RECHNET NICHTS NACH. Urteil, Grund, Geometrie (fertig in Karteneinheiten) und die
 	 *    getroffenen Abschnitte kommen aus after_json. Der Browser wählt aus, blendet ein und
 	 *    schickt Häkchen — er transformiert keine Koordinate und bildet kein Urteil.

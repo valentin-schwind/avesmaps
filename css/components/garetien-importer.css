@@ -10,12 +10,29 @@
 
 .gi-win {
 	position: fixed;
-	left: var(--space-16);
+	/* 🔴 RECHTS NEBEN dem Routenplaner starten, nicht auf ihm. `#search` liegt fest bei `left: 0`
+	   mit `width: var(--avesmaps-planner-width)` (350px, css/layout/map-layout.css) und ist am
+	   Desktop standardmässig offen; ein bei --space-16 startendes 800px-Fenster deckte die ganze
+	   Spalte samt ihrer Ein-/Ausklapp-Lasche `#toggle-button` zu -- der Planer wäre dann bis zum
+	   Schliessen des Fensters nicht einmal wegklappbar. Der Owner will die Karte sehen UND den
+	   Planer behalten (Design-Review 27.08.2026); verschiebbar bleibt die Hülle ohnehin, das ist
+	   nur der Startpunkt. NICHT zentrieren -- das war der Fehler, den dieser Kommentar verhindert.
+	   💣 UND DIE LASCHE SELBST ZÄHLT MIT, NICHT NUR DIE PANELBREITE. Bei offenem Planer steht
+	   `#toggle-button` NICHT bei `left: 0`, sondern rutscht auf `left: var(--avesmaps-planner-width)`
+	   mit eigener `width: var(--avesmaps-tab-w)` (css/layout/map-layout.css) -- sie hängt sichtbar
+	   AN der Panelkante. Nur `--avesmaps-planner-width + --space-16` (368px) gerechnet, überlappte
+	   das Fenster die rechten 12 der 30 Lasche-Pixel (350–380px) — genau der Klickbereich, den der
+	   Owner ausdrücklich frei haben wollte. Nachgemessen mit `getBoundingClientRect()` bei offenem
+	   Planer, nicht angenommen. */
+	left: calc(var(--avesmaps-planner-width) + var(--avesmaps-tab-w) + var(--space-16));
 	top: var(--space-16);
 	z-index: var(--z-dialog);
 	display: flex;
 	flex-direction: column;
-	width: min(800px, calc(100vw - 2 * var(--space-16)));
+	/* ⚠️ Die Breite muss mit dem vollen Versatz (Planer + Lasche + Lücke) mitrechnen, sonst ragt
+	   das Fenster auf schmalen Schirmen rechts über den Viewport hinaus (bei 1400px bleiben 984px
+	   übrig -> 800px zieht; bei 1000px nur noch 584px -- schmaler, aber heil). */
+	width: min(800px, calc(100vw - var(--avesmaps-planner-width) - var(--avesmaps-tab-w) - 2 * var(--space-16)));
 	/* 💣 FESTE Höhe, nicht bloß max-height: der Kasten verteilt seinen Platz auf seine Spalten,
 	   und eine Verteilung braucht eine Bezugsgröße. Mit nur max-height fiel die Liste beim ersten
 	   Wurf auf NULL zusammen — gemessen beim Zeichnen des Mockups, nicht vermutet.

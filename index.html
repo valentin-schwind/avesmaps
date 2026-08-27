@@ -3810,7 +3810,17 @@
 				<h2 class="gi-win__title">Garetien Importer</h2>
 				<button class="gi-win__x" type="button" id="garetien-importer-close" aria-label="Schließen">✕</button>
 			</div>
-			<div class="avm-ribbon" id="garetien-ribbon"></div>
+			<!-- 💣 Das Menueband ist ZWEISTUFIG, und die Stufen teilen sich die Arbeit:
+			     `.avm-ribbon-bar` traegt Hintergrund, Innenpolster und die Trennlinie nach unten,
+			     `.avm-ribbon` NUR das Raster (css/components/editor-body.css). So machen es beide
+			     echten Editoren (html/wege-editor.html:55, html/landschaften-editor.html:64).
+			     🪰 Das Mockup zeigt hier nur EIN `.avm-ribbon` -- es ist eine autarke Datei und hat
+			     sich die Polsterung in dieselbe Regel geschrieben. Wer das abschreibt, bekommt ein
+			     Menueband ohne Grund und ohne Trennlinie, und es faellt erst auf, wenn Kacheln
+			     darinstehen. Dieselbe Falle wie bei der abgeschriebenen Listenzeile (AGENTS.md §11). -->
+			<div class="avm-ribbon-bar">
+				<div class="avm-ribbon" id="garetien-ribbon"></div>
+			</div>
 			<p class="gi-runline" id="garetien-runline"></p>
 			<div class="avm-cols avm-cols--2">
 				<div class="avm-col" id="garetien-listcol"></div>
