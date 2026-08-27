@@ -2474,6 +2474,67 @@ Bildlaufleiste liegen — bei 13 Abschnitten wäre sie es.
 
 **Dateien:** ändern `js/review/review-garetien-importer.js`, `css/components/garetien-importer.css` ·
 Test `js/review/__tests__/garetien-handlungen.test.js`
+· ändern `api/_internal/wiki/sync-plan.php` · Test `api/_internal/wiki/__tests__/sync-plan-decline-changetype-test.php`
+
+#### 🔴 Der Server-Einzeiler, ohne den der Reiter „Abgelehnt" tot bleibt (Ruling R10)
+
+`avesmapsSyncPlanRecordDecline` (`api/_internal/wiki/sync-plan.php:654`) schreibt den
+`change_type` **fest verdrahtet** als `'deleted'`:
+
+```php
+VALUES (:k, :ek, 'deleted', UTC_TIMESTAMP(3), :by)
+```
+
+Der Import erzeugt aber nie eine Löschung — seine Items sind `new` und `changed`. Eine Ablehnung
+landete damit auf einem Schlüssel, den niemand liest, und der Reiter „Abgelehnt" könnte **nie**
+belegt werden.
+
+⭐ **Die Leseseite ist schon fertig und richtig** — nachgemessen, nicht vermutet:
+`api/_internal/import/garetien-liste.php:229` liest `declined_at` je `(entity_key, change_type)`
+und rechnet daraus den Stand `abgelehnt` (`:115`); der Autor von Aufgabe 8 hat die heutige
+Unerreichbarkeit sogar als Kommentar hinterlassen (`:90`). Auch der Datenvertrag trägt es: der
+Primärschlüssel ist `(kind, entity_key, change_type)`, der Join in `avesmapsSyncPlanItems` bindet
+`d.change_type = i.change_type`, und `avesmapsSyncPlanDecisions` liefert `skipped_count` **und**
+`declined_at` je Schlüssel.
+
+**Also genau eine Änderung:**
+
+```php
+function avesmapsSyncPlanRecordDecline(
+    PDO $pdo, string $kind, string $entityKey, int $userId, string $changeType = 'deleted'
+): void
+```
+
+💣 **Die Vorgabe `'deleted'` ist tragend.** Die anderen Arten rufen diese Funktion heute ohne
+fünftes Argument — im Hauptbaum am 28.08.2026 gemessen: `citymap`, `lore`,
+`AVESMAPS_LORE_RULE_PLAN_KIND`, `territory` und `territory_wiki`. Ein Pflichtparameter bräche sie
+alle, und eine andere Vorgabe verschöbe ihre Entscheidungen lautlos auf einen Schlüssel, den ihr
+Lesepfad nicht abfragt. 🪤 Hier stand zuerst „sieben andere Arten" — es sind fünf, und eine Zahl
+liest sich wie eine vollständige Liste. Wer eine ergänzt, ergänzt sie in **dieser** Aufzählung.
+
+⚠️ **Zwei Nachbarn bleiben ausdrücklich UNANGETASTET:**
+- `avesmapsSyncPlanDeclinedKeys` filtert weiter auf `'deleted'`. Sie unterdrückt das
+  Wiedervorschlagen von **Löschungen**; eine abgelehnte Garetien-Zeile soll wiederkommen, wenn die
+  Quelle sich ändert.
+- `avesmapsSyncPlanClearSkip` löscht die `'changed'`-Zeile beim Anwenden **ganz** — also auch eine
+  dort stehende Ablehnung. Das ist richtig: wer ein abgelehntes Objekt doch übernimmt, hebt seine
+  Ablehnung damit auf. 🪤 Es sieht beim Lesen wie ein Fehler aus; deshalb steht der Grund hier.
+
+⭐ **Der Test dazu ist ein Ablauf, kein Maß:** ablehnen mit `change_type='changed'` → die Zeile
+über den echten Lesepfad (`avesmapsSyncPlanDecisions`) wiederfinden → und die Gegenprobe, dass ein
+Aufruf **ohne** fünftes Argument weiterhin `'deleted'` schreibt.
+
+#### 🔴 Die zweite Hälfte von R10: „Offen" kann nie 0 werden
+
+`garetien-liste.php:354` gibt jedem Objekt **ohne Items** den Stand `'offen'` — und Objekte ohne
+Items gibt es immer (`deckt_sich`, `uebersprungen`). Damit stünde im Reiter „Offen" für alle
+Zeiten eine Zahl, und das Abschlusskriterium des Auftrags („die Liste ist abgearbeitet") wäre
+**unerreichbar**.
+
+Entschieden: **„Offen" zählt nur, woran es etwas zu tun gibt.** Ein Objekt, dessen einzige
+mögliche Handlung „Ablehnen" ist, gehört nicht in den Arbeitsvorrat — es steht in der Liste, damit
+die Zahl nachprüfbar bleibt, nicht als Aufgabe. Die Zeile bleibt sichtbar, sie zählt nur nicht
+mehr mit.
 
 - [ ] **Schritt 1: Den fallenden Test schreiben** — die Tabelle oben, Zeile für Zeile:
 
@@ -2501,9 +2562,22 @@ assert.deepStrictEqual(garetienHandlungen({ urteil: "deckt_sich", abschnitte: []
 	.map((k) => k.name), ["ablehnen"]);
 
 // 🔴 EINE Tuer. Jeder Knopf geht durch sync-plan.php -- nirgends sonst wird geschrieben.
-const quelle = fs.readFileSync("js/review/review-garetien-importer.js", "utf8");
-const schreibend = quelle.match(/fetch\(\s*["'][^"']*\.php/g) || [];
-schreibend.forEach((treffer) => {
+//
+// 🪤 KORRIGIERT 28.08.2026. Hier stand `quelle.match(/fetch\(\s*["'][^"']*\.php/g)`, und das ist
+// ein NULLTEST: `avesmapsGaretienRufe` ruft `fetch(pfad, …)` mit einer VARIABLEN, nie einem
+// Literal -- das Muster trifft NICHTS, der forEach laeuft null Mal, und die Zusicherung
+// bestaetigt gar nichts. Genau diese Form ist in Aufgabe 11 live aufgetreten und wurde dort
+// ersetzt; sie stand hier ein zweites Mal.
+// 💣 Und Kommentare muessen VORHER weg: die Moduldatei erklaert das Wort „fetch(" mehrfach in
+// Prosa -- ungestrippt zaehlt der direkte Zaehler 4 statt 1 und ist von Anfang an rot.
+const quelle = fs.readFileSync("js/review/review-garetien-importer.js", "utf8")
+	.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/[^\n]*/g, "");
+assert.strictEqual((quelle.match(/\bfetch\(/g) || []).length, 1,
+	"Geschrieben wird NUR ueber avesmapsGaretienRufe -- ein zweiter fetch( ist ein zweiter Weg.");
+const phpAdressen = quelle.match(/["'][^"']*\.php["']/g) || [];
+// ⚠️ Die Gegenprobe gehoert dazu: ein Filter belegt die DIFFERENZ, nie das Ergebnis.
+assert.ok(phpAdressen.length > 0, "die Gegenprobe findet selbst gar keine .php-Adresse");
+phpAdressen.forEach((treffer) => {
 	assert.ok(/sync-plan\.php|garetien-import\.php/.test(treffer),
 		`Ein zweiter Schreibweg: ${treffer}. Geschrieben wird NUR ueber sync-plan.php mit kind:'garetien'.`);
 });
