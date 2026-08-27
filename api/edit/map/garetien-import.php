@@ -16,6 +16,7 @@ declare(strict_types=1);
 require __DIR__ . '/../../_internal/auth.php';
 require_once __DIR__ . '/../../_internal/import/garetien-abruf.php';
 require_once __DIR__ . '/../../_internal/import/garetien-uebernahme.php';
+require_once __DIR__ . '/../../_internal/import/garetien-liste.php';
 
 /** Eine Ebene der festen Liste anhand von wiki+ebene finden. */
 function avesmapsGaretienEndpunktEbene(string $wiki, string $ebene): ?array
@@ -97,6 +98,29 @@ try {
             'plan_run_id' => (int) ($lauf['id'] ?? 0),
             'vorschlaege' => $anzahl,
         ]);
+    }
+
+    // --- Die Arbeitsliste des Fensters. REIN LESEND.
+    // 🔴 Sie sitzt HIER und nicht an sync-plan.php: sie liest die Staging-Zeilen dieses Imports
+    // (die Zeilen, die gar keinen Vorschlag erzeugen) -- und was die Staging-Tabellen kennt,
+    // steht innerhalb des Importers (Auftrag §5.5). Ein `liste` an sync-plan.php muessten die
+    // anderen sieben Arten mittragen.
+    if ($action === 'liste') {
+        $importRun = (int) ($payload['run_id'] ?? 0);
+        if ($importRun <= 0) {
+            avesmapsErrorResponse(400, 'no_run', 'Es wurde kein Import-Lauf genannt.');
+        }
+        avesmapsJsonResponse(200, avesmapsGaretienArbeitsliste($pdo, $importRun, [
+            'ebene' => (array) ($payload['ebene'] ?? []),
+            'typ' => (array) ($payload['typ'] ?? []),
+            'urteil' => (array) ($payload['urteil'] ?? []),
+            'wiki' => (array) ($payload['wiki'] ?? []),
+            'suche' => avesmapsNormalizeSingleLine((string) ($payload['suche'] ?? ''), 120),
+            'nur_ungehakt' => ($payload['nur_ungehakt'] ?? false) === true,
+            'nur_mehrteilig' => ($payload['nur_mehrteilig'] ?? false) === true,
+            'stand' => avesmapsNormalizeSingleLine((string) ($payload['stand'] ?? 'offen'), 20),
+            'versatz' => max(0, (int) ($payload['versatz'] ?? 0)),
+        ]));
     }
 
     // 🔴 EIN `apply` GIBT ES HIER NICHT, und das ist Absicht. Uebernommen wird ueber die
