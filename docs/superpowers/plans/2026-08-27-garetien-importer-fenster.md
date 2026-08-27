@@ -138,6 +138,19 @@ gibt `openSyncPlanSheet` einen eigenen `post` mit (die Naht ist vorgesehen,
 `counts`/`truncated` aus den Zahlen neu setzt, die die Arbeitsliste ohnehin kennt. `apply` geht
 unverändert durch. Aufgabe 16.
 
+**A2 · 🔴 ENTSCHIEDEN 27.08.2026 vom Owner — „Geometrie ersetzen" gilt für ALLE Formen.**
+Wörtlich: *„geometrie ersetzen muss es für alle geometrien geben — alle formen von flächen UND
+wege/flüsse. ausnahme sind natürlich orte, hier wollen wir nur die position behalten oder
+ersetzen."* Damit ist **Ruling R5 zurückgenommen** (es hatte den Zweig auf Wege beschränkt): das
+Geometrie-Item entsteht für `path` **und** `region`. Die zwei echten Fehler des Region-Zweigs
+werden repariert statt wegdefiniert — Flächen-`public_id` nachschlagen statt der Regions-id, und
+die erwartete Revision mitschicken.
+⚠️ **Für Stufe 4 (Orte, Punkte) gilt: nur „Position behalten oder ersetzen"** — kein
+Geometrie-Ersatz im Sinne einer Linie oder Fläche. Gehört in Stufe 4, nicht hierher.
+🔧 **Weiterhin offen bleibt Entscheidung A oben** (nur bei GENAU EINEM getroffenen Abschnitt):
+der Owner hat die Frage nach der OBJEKTART beantwortet, nicht die nach dem Ziel bei fünf
+getroffenen Abschnitten.
+
 **C · Darf ein Editor (nicht Admin) übernehmen?**
 Der Knopf ist admin-only (Owner). `sync-plan.php` ist für alle acht Arten `edit`-gegattert.
 ⭐ **Empfehlung:** so lassen. Der Riegel sitzt am Fenster; `sync-plan.php` härter zu gattern
