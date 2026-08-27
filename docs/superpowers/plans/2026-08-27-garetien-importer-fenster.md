@@ -2120,6 +2120,52 @@ git commit -m "garetien(fenster): der Filtertrichter mit allen sechs Abschnitten
 
 ---
 
+### Aufgabe 12b: Das Menüband — die zwei Kacheln
+
+🔴 **NACHGETRAGEN 28.08.2026 — eine Lücke des Plans, gemeldet vom Implementierer der
+Aufgaben 11/12.** Der Bauplan liess das Menüband in **keiner** Aufgabe entstehen: Aufgabe 10 baut
+die leere Hülle `#garetien-ribbon`, und keine spätere füllt sie. Damit bleibt
+`zustand.importRunId` für immer `null`, `action:'liste'` läuft in `400 no_run`, und **das Fenster
+könnte nie eine einzige Zeile zeigen.**
+
+**Dateien:** ändern `js/review/review-garetien-importer.js` · Test
+`js/review/__tests__/garetien-menueband.test.js`
+
+Die zwei Kacheln aus dem Mockup §1, als `.avm-tile` im vorhandenen `.avm-ribbon`:
+
+| Kachel | erste Zeile | zweite Zeile (der ZUSTAND) |
+|---|---|---|
+| **Holen & Rechnen** | die Handlung | „Lauf 27.08., 12:04 · 0,35 s" — welcher Lauf gilt, und wie lange sein Rechnen dauerte |
+| **Ebenen** | die Auswahl | „2 von 18 · Gewässer ggp + kosch" |
+
+⭐ **Der Zustand steht IN der Kachel**, nicht daneben — Hausform (`avm-tile .t1`/`.t2`), und die
+Vorbilder heissen „Dump holen — Lauf: 15.08." und „Zugehörigkeit rechnen". Ein Zustand, den man
+aufklappen muss, ist keiner.
+
+**Verdrahtung** — alles über den vorhandenen Endpunkt, **kein neuer**:
+- Beim Öffnen des Fensters: `action:'runs'` → der jüngste Lauf wird `zustand.importRunId`, seine
+  Zeit und Zeilenzahl gehen in die zweite Zeile. **Kein Lauf da** → die Kachel sagt es, und die
+  Liste bleibt leer mit einem Satz statt einer Fehlermeldung.
+- „Holen & Rechnen": `action:'fetch'` mit den gewählten Ebenen, dann `action:'plan'` auf dem
+  entstandenen Lauf, dann die Liste neu holen. ⚠️ **Der Fortschritt gehört in die zweite Zeile**
+  der Kachel (dieselbe Form wie „Kurven rechnet …").
+- „Ebenen": ein `.type-filter`-Menü mit den 18 Ebenen aus `action:'ebenen'` (Mehrfachauswahl,
+  Vorgabe die zwei Gewässerseiten).
+
+💣 **`fetch` und `plan` sind LANGE Läufe** (18 Seiten Abruf, 0,35 s Rechnen je 289 Zeilen). Die
+Kachel muss währenddessen **gesperrt** sein und ihren Stand zeigen — sonst startet ein zweiter
+Klick einen zweiten Lauf, und dann weiss der Abgleich nicht mehr, was zusammengehört.
+
+🔴 **Und der Riegel bleibt, wo er ist:** `fetch`/`plan`/`runs` verlangen `admin`. Der Knopf ist
+ohnehin admin-only; hier wird **nichts** zusätzlich gegattert und nichts aufgeweicht.
+
+- [ ] Test schreiben (die zwei Kacheln existieren, `runs` setzt `importRunId`, ein zweiter Klick
+      während des Laufs löst **keinen** zweiten `fetch` aus) · RED · bauen · GREEN · Abnahme im
+      Browser (beide Kacheln wirklich klicken) · Commit
+      `garetien(fenster): das Menueband -- Lauf holen, rechnen, Ebenen waehlen`
+
+---
+
 ### Aufgabe 13: Die Einzelansicht — das Herzstück
 
 Ein Klick auf eine Zeile zeigt rechts: ihren Namen und Typ · ihren Wiki-Artikel (verlinkt),
