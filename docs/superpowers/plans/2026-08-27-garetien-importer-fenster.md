@@ -245,7 +245,11 @@ Und am Ende, nach dem vorhandenen `arsort($treffer)`:
     // verschiedenen Fluessen; gehakt wird je Abschnitt, nie je Objekt. Ohne diese Zeilen wuerde
     // dieselbe Rechnung im Browser ein zweites Mal gebaut -- die Grenze, die der Auftrag §5.4
     // ausdruecklich zieht.
-    // ⚠️ ERGAENZUNG, KEIN ERSATZ: `bester` bleibt, wo er war. Er hat vier Aufrufer.
+    // ⚠️ ERGAENZUNG, KEIN ERSATZ: `bester` und `abstand` bleiben unangetastet -- sie haben
+    // ihre eigenen Leser.
+    // 💣 Hier stand eine ZAHL ("vier Aufrufer"), und sie war falsch: es ist genau einer.
+    // Eine Zahl im Kommentar liest sich wie eine vollstaendige Liste, und niemand zaehlt nach --
+    // genau daran ist am 14.08.2026 die Verkehrsmittel-Sperre gescheitert (AGENTS.md §11).
     $abschnitte = [];
     foreach ($treffer as $k => $anzahl) {
         $abschnitte[] = ['index' => (int) $k, 'punkte' => (int) $anzahl];
