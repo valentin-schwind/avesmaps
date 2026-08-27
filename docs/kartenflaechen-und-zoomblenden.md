@@ -299,6 +299,36 @@ Schlüssel zur Diagnose — Owner: *„in der politischen ansicht faden die labe
 | `?labeltune=1` | Panel: Offset, Schriftgröße, Stützpunkt-Dichte je Zoom | — |
 | `?labelparallel=0` | Siedlungs-/Landschaftsnamen: zurück auf „erst zoomen, dann ausblenden" | Ausblenden ab t = 0 |
 | `?markerscale=0` | Ortsmarker: Größen-Gegenrechnung während des Zooms aus | an |
+| `?labelbedarf=1` | Regions-/Landschaftsnamen: rastern erst beim Sichtbarwerden | **aus** (Versuch) |
+
+🔬 **`?labelbedarf=1` ist ein VERSUCH, Vorgabe AUS — über die Umstellung entscheidet der Owner.**
+`prepareLabelData` rastert bei der Vorgabe jede Beschriftung sofort (eine Canvas plus ein synchrones
+`toDataURL()`) und baut im Ansichtsmodus zusätzlich jedes Popup-Markup. Mit dem Schalter bekommt eine
+Beschriftung erst einen leeren Platzhalter — dasselbe Muster, das die ~3000 Siedlungsnamen daneben
+längst fahren (`createLocationNameLabelEntry`). **Live gemessen 27.08.2026** (avesmaps.de, Ausschnitt
+1440×900, Startzoom 3):
+
+| | Vorgabe | `?labelbedarf=1` |
+|---|---|---|
+| beim Start gerastert | **982** | **80** |
+| Popups im Voraus gebaut | 982 | 0 |
+| Einträge in `labelMarkers` | 982 | 982 |
+| gezeichnete Beschriftungen | 80 | 80 — **zeichengleich**, Text/Bildmaße/Lage einzeln verglichen |
+
+⭐ Die Bilanz dazu läuft in **beiden** Zuständen: `avesmapsLabelBilanz()` in der Konsole
+(`js/map-features/label-bedarf.js`, Vorbild `avesmapsZeichenBilanz()`). Wer nur den neuen Zustand
+misst, vergleicht zwei Messungen, die verschieden zustande kamen.
+💣 **`labelMarkers` bleibt vollzählig und sofort** — `preparePathData` läuft direkt danach und baut
+aus genau dieser Liste den Verlinkungs-Index seiner Weg-Popups (`map-features-path-item-links.js`).
+Gespart wird das BILD und das POPUP-Markup, nie der Eintrag. Live gegengeprüft: die Index-Signatur
+ist in beiden Zuständen `2889:4968:6034:982`, und „Trollzacken → Goldene Bucht“ bleibt verlinkt.
+💣 **Gerastert wird VOR dem `addTo(map)`** — die Kollisionsauflösung misst Rechtecke, und ein
+Platzhalter mit den Maßen 0 verschöbe die Ortsnamen um ihn herum ins Leere. Ein Marker auf der Karte
+trägt ausnahmslos sein echtes Bild; der Test hält das im Karten-Doppel selbst fest.
+⚠️ **Was die Messung NICHT beantwortet:** sie lief in einem Tab mit `visibilityState: "hidden"`. Die
+absoluten Millisekunden (`prepareLabelData` 17.141 → 1.355 ms) sind dort um rund Faktor 10 gedrosselt
+— belastbar ist das VERHÄLTNIS, nicht der Betrag. Zum Bild selbst sagt die Messung nichts: kein
+Screenshot, keine fps, keine Zoomanimation (§2 und `[[bei-bewegung-zaehlt-nur-das-auge]]`).
 
 🔴 **Die Dauer und die Kurve sind seit 26.08.2026 EINE Zahl für alles** —
 `AVESMAPS_ZOOM_DAUER_MS` und `AVESMAPS_ZOOM_KURVE` (`cubic-bezier(0.42, 0, 0.58, 1)`, also
