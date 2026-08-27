@@ -208,16 +208,35 @@ function avesmapsGaretienErgaenzungAnwenden(PDO $pdo, array $nach, string $publi
         $props = is_array($props) ? $props : [];
 
         if (in_array('name', $felder, true)) {
+            $gewuenschterName = (string) $nach['name'];
             // ⚠️ JEDES Feld des Hausschreibers reist mit seinem ALTEN Wert mit -- siehe oben.
             avesmapsUpdatePathFeatureDetails($pdo, [
                 'public_id' => $publicId,
-                'name' => (string) $nach['name'],
+                'name' => $gewuenschterName,
                 'feature_subtype' => (string) ($vorher['feature_subtype'] ?? 'Flussweg'),
                 'show_label' => (bool) ($props['show_label'] ?? false),
                 'allowed_transports' => $props['allowed_transports'] ?? null,
                 'transport_seasons' => $props['transport_seasons'] ?? null,
                 'other_source' => $props['other_source'] ?? null,
             ], $user);
+            // 🔴 RUECKLESEN, BEVOR DER SCHREIBVORGANG ALS ERLEDIGT GILT -- dieselbe Regel wie an
+            // der stillen MySQL-Kuerzung von `app_setting.setting_value` (AGENTS.md §10): "ein
+            // Schreiber, dessen Wert zaehlt, muss ihn ZURUECKLESEN, bevor er den Schreibvorgang
+            // als erledigt behandelt." `avesmapsUpdatePathFeatureDetails` schiebt den Namen durch
+            // `avesmapsWikiPathEffectiveEditName`: traegt der Weg ein `properties.wiki_path` mit
+            // kanonischem Namen, wird der Garetien-Name VERWORFEN und der Wiki-Name geschrieben --
+            // lautlos, mit gueltiger Antwort. Ohne diese Pruefung waere das Item 'done' und nie
+            // wiederholbar.
+            $tatsaechlich = $pdo->prepare('SELECT name FROM map_features WHERE public_id = :p');
+            $tatsaechlich->execute([':p' => $publicId]);
+            $geschriebenerName = (string) $tatsaechlich->fetchColumn();
+            if ($geschriebenerName !== $gewuenschterName) {
+                throw new RuntimeException(
+                    'Der Name "' . $gewuenschterName . '" wurde nicht uebernommen -- der Weg '
+                    . $publicId . ' traegt einen zugewiesenen Wiki-Artikel und behaelt dessen '
+                    . 'Namen "' . $geschriebenerName . '".'
+                );
+            }
             $geschrieben++;
         }
         if (in_array('geometrie', $felder, true)) {
@@ -237,9 +256,47 @@ function avesmapsGaretienErgaenzungAnwenden(PDO $pdo, array $nach, string $publi
             ], $userId);
             $geschrieben++;
         }
+        // 🔴 RULING R6 (Owner, nach R5): geometrie ersetzen gilt fuer ALLE Formen -- Flaechen
+        // UND Wege/Fluesse. R5 hatte versucht, diesen Zweig fuer Regionen wegzudefinieren; der
+        // Owner widersprach woertlich: "geometrie ersetzen muss es fuer alle geometrien geben --
+        // alle formen von flaechen UND wege/fluesse." Zwei echte Fehler bleiben zu reparieren:
+        //
+        // 💣 FALSCHER ID-RAUM. `entity_public_id` ist hier die REGIONS-public_id
+        // (garetien-abgleich.php waehlt `r.public_id`), aber `avesmapsUpdateEcosystemAreaGeometry`
+        // liest `ecosystem_area WHERE public_id` -- ein anderer id-Raum. Geloest wird das HIER,
+        // im Anwender, nicht im Abgleich: die Regions-ID ist fuer alles andere die richtige (die
+        // Quelle haengt an der Region, `avesmapsUpdateEcosystemRegion` will sie, und der
+        // Quellenbestand aus Aufgabe 3 ist auf `region|<regions-id>` aufgebaut) -- die Flaeche
+        // wird deshalb hier ueber die Region nachgeschlagen.
         if (in_array('geometrie', $felder, true)) {
+            $flaeche = $pdo->prepare(
+                'SELECT a.public_id, a.geometry_revision
+                   FROM ecosystem_area a
+                   JOIN ecosystem_region r ON a.region_id = r.id
+                  WHERE r.public_id = :p AND a.is_active = 1 AND a.is_trial = 0'
+            );
+            $flaeche->execute([':p' => $publicId]);
+            $flaechenZeilen = $flaeche->fetchAll(PDO::FETCH_ASSOC);
+            // 💣 Eine Region kann MEHRERE Flaechen haben -- dann ist "ersetze die Geometrie" so
+            // unwohldefiniert wie bei einem Weg mit mehreren getroffenen Abschnitten (siehe die
+            // Begruendung am Erzeuger in garetien-plan.php). Geraten wird nicht: laut ablehnen,
+            // mit einem lesbaren Grund, statt eine der Flaechen zufaellig zu treffen.
+            if (count($flaechenZeilen) !== 1) {
+                throw new RuntimeException(
+                    'Region ' . $publicId . ' hat ' . count($flaechenZeilen) . ' Flaechen -- welche?'
+                );
+            }
+            // 💣 DIE ERWARTETE REVISION IST HIER EIN WIRKUNGSLOSES SCHLOSS, UND DAS IST
+            // ABSICHTLICH SO: sie ist ein optimistisches Schloss gegen zwei GLEICHZEITIGE
+            // Bearbeiter, wir lesen sie aber UNMITTELBAR VORHER selbst -- sie kann also nie
+            // veraltet sein, wenn wir sie mitschicken. Vertretbar ist das nur, weil die
+            // Uebernahme unter dem Einzelflug-Riegel der Vorschau laeuft
+            // (avesmapsWikiDumpLockAcquireOrThrow, api/edit/wiki/sync-plan.php) -- es schreibt
+            // also ohnehin niemand parallel. Ohne diesen Satz "vereinfacht" der naechste Leser
+            // den Riegel weg.
             avesmapsUpdateEcosystemAreaGeometry($pdo, [
-                'public_id' => $publicId,
+                'public_id' => (string) $flaechenZeilen[0]['public_id'],
+                'expected_revision' => (int) $flaechenZeilen[0]['geometry_revision'],
                 'geometry' => $nach['geometry'],
             ], $userId);
             $geschrieben++;

@@ -269,6 +269,11 @@ function avesmapsGaretienErgaenzungsEintraege(array $zeile, array $ziel, array $
     // Werkzeug anbieten kann -- 34 der 37 Widersprueche sind Baeche, die auf ihrem Hauptfluss
     // liegen; dort ersetzte es die Natter durch ihren Seitenarm, mit gueltiger id und ohne
     // Fehlermeldung. Der Knopf ist dann ausgegraut und sagt, warum.
+    // 🔴 RULING R6 (Owner, nach R5): geometrie ersetzen gilt fuer ALLE Formen -- Flaechen UND
+    // Wege/Fluesse, nicht nur Wege. R5 hatte diesen Zweig fuer Regionen versucht wegzudefinieren;
+    // das war falsch, der Owner will es ausdruecklich. Die zwei echten Fehler des Region-Zweigs
+    // (falscher id-Raum, fehlende erwartete Revision) sind stattdessen im Anwender repariert
+    // (avesmapsGaretienErgaenzungAnwenden, garetien-uebernahme.php).
     if ($abschnittAnzahl === 1) {
         $eintraege[] = avesmapsGaretienAbschnittsEintrag(
             $vorlage, $abschnitte[0], 'geometrie', ['geometrie'], $ihrName,

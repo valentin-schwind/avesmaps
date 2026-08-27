@@ -561,10 +561,28 @@ avesmapsSyncPlanAddItem($pdo3, $runId4, [
     'override' => [], 'selected' => 1,
 ]);
 
+// -- 🔴 Review I3: ein zweites Item im SELBEN Lauf, das die Weiche ABLEHNEN muss (anlass nicht in
+// der Erlaubnisliste) -- nur so unterscheidet die folgende Pruefung wirklich etwas, statt zufaellig
+// bei 0 zu landen.
+avesmapsSyncPlanAddItem($pdo3, $runId4, [
+    'entity_key' => 'ggp:Gewaesser:Bach:Garetien:Widerspruch|widerspruch|' . $idFluss,
+    'entity_public_id' => $idFluss,
+    'change_type' => 'changed',
+    'label' => 'Widerspruch → Alke',
+    'before' => ['public_id' => $idFluss, 'name' => 'Alke'],
+    'after' => ['herkunft' => 'garetien', 'anlass' => 'widerspruch', 'felder' => ['geometrie'],
+        'ziel' => 'path', 'subtyp' => 'Flussweg'],
+    'override' => [], 'selected' => 1,
+]);
+
 $schritt4 = avesmapsGaretienApplyStep($pdo3, $runId4, 1, ['id' => 1, 'username' => 'test']);
 assert($schritt4['done'] === true, 'der Schritt muss fertig werden');
 assert($schritt4['applied'] === 1, 'die Ergaenzung wurde nicht uebernommen: ' . json_encode($schritt4));
-assert($schritt4['stale'] === 0, 'ein changed darf nicht mehr als "Stufe 1 legt nur an" abgelehnt werden');
+// 🔴 Review I3 (Vakuum-Fund): `stale` in der Rueckgabe von avesmapsGaretienApplyStep ist ein
+// FESTES Literal (`'stale' => 0`) und deshalb fuer JEDE Implementierung wahr -- eine Zusicherung
+// darauf prueft nichts. `skipped` (= count($ergebnis['fehler'])) ist das wirklich verdrahtete
+// Signal und zaehlt hier GENAU das eine 'widerspruch'-Item, das die Weiche ablehnen muss.
+assert($schritt4['skipped'] === 1, 'der Widerspruch muss als abgelehnt gezaehlt werden: ' . json_encode($schritt4));
 $pruefungen += 3;
 
 $nachher = $pdo3->query('SELECT name, properties_json FROM map_features WHERE public_id = ' . $pdo3->quote($idFluss))
@@ -588,6 +606,188 @@ $pruefungen += 2;
 $zweiter4 = avesmapsGaretienApplyStep($pdo3, $runId4, 1, ['id' => 1, 'username' => 'test']);
 assert($zweiter4['applied'] === 0, 'ein vermerktes Item darf nicht noch einmal laufen');
 assert($zweiter4['remaining'] === 0, 'und es gilt als erledigt');
+$pruefungen += 2;
+
+// =================================================================================================
+// 🔴 REVIEW I4: EIN ZUGEWIESENER WIKI-NAME DARF DIE UEBERNAHME NICHT STILL GEWINNEN LASSEN.
+// avesmapsUpdatePathFeatureDetails schiebt den Namen durch avesmapsWikiPathEffectiveEditName:
+// traegt der Weg ein properties.wiki_path mit kanonischem Namen, wird der Garetien-Name VERWORFEN
+// und der Wiki-Name geschrieben -- lautlos, mit gueltiger Antwort. Ohne die Ruecklese-Pruefe waere
+// das Item 'done' und nie wiederholbar (AGENTS.md §10: "ein Schreiber, dessen Wert zaehlt, muss
+// ihn ZURUECKLESEN").
+$idWikiWeg = '00000000-0000-4000-8000-000000009999';
+$pdo3->prepare('INSERT INTO map_features (public_id, name, feature_type, feature_subtype, geometry_json, properties_json, geometry_type) VALUES (?,?,?,?,?,?,?)')
+    ->execute([$idWikiWeg, '', 'path', 'Flussweg',
+        json_encode(['type' => 'LineString', 'coordinates' => [[20.0, 20.0], [21.0, 21.0]]]),
+        json_encode(['wiki_path' => ['name' => 'Der Kanonische Name']]), 'LineString']);
+
+$runId8 = avesmapsSyncPlanStartRun($pdo3, AVESMAPS_GARETIEN_PLAN_KIND, 1, 'test-wiki-ueberschreibt');
+avesmapsSyncPlanAddItem($pdo3, $runId8, [
+    'entity_key' => 'ggp:Gewaesser:Bach:Garetien:AndererBach|ergaenzung|' . $idWikiWeg,
+    'entity_public_id' => $idWikiWeg,
+    'change_type' => 'changed',
+    'label' => 'Anderer Bach → ohne Namen',
+    'before' => ['public_id' => $idWikiWeg, 'name' => ''],
+    'after' => ['herkunft' => 'garetien', 'anlass' => 'ergaenzung', 'felder' => ['name'],
+        'ziel' => 'path', 'subtyp' => 'Flussweg', 'name' => 'Anderer Bach'],
+    'override' => [], 'selected' => 1,
+]);
+
+$schritt8 = avesmapsGaretienApplyStep($pdo3, $runId8, 1, ['id' => 1, 'username' => 'test']);
+assert($schritt8['applied'] === 0,
+    'ein wiki-zugewiesener Weg darf den Garetien-Namen nicht still gewinnen lassen: ' . json_encode($schritt8));
+assert($schritt8['skipped'] === 1, 'und der Fehlschlag muss gezaehlt werden: ' . json_encode($schritt8));
+$vermerk8 = $pdo3->query("SELECT apply_state, apply_note FROM sync_plan_item WHERE run_id = {$runId8}")->fetch(PDO::FETCH_ASSOC);
+assert($vermerk8['apply_state'] === 'failed', 'das Item landet als failed, nicht als done: ' . var_export($vermerk8['apply_state'], true));
+assert(str_contains((string) $vermerk8['apply_note'], 'Kanonische'), 'der Vermerk nennt den Wiki-Namen: ' . $vermerk8['apply_note']);
+$nameBleibt = $pdo3->query('SELECT name FROM map_features WHERE public_id = ' . $pdo3->quote($idWikiWeg))->fetchColumn();
+assert($nameBleibt === 'Der Kanonische Name', 'der Name des Weges bleibt der zugewiesene: ' . var_export($nameBleibt, true));
+$pruefungen += 5;
+
+// =================================================================================================
+// 🔴 REVIEW I2 (plan-mandated): 'geometrie' AUF WEGEN WIRKLICH GEPRUEFT. Das ist der Pfad, der
+// bestehende Kartengeometrie UEBERSCHREIBT -- "die schlimmste Handlung, die dieses Werkzeug
+// anbieten kann" (Kommentar am Erzeuger, garetien-plan.php). "applied === 1" allein beweist nicht,
+// dass die Koordinaten wirklich geschrieben wurden -- gelesen wird deshalb aus der Datenbank.
+//
+// 🪤 GEFUNDEN BEIM SCHREIBEN DIESES TESTS, NICHT TEIL DIESES AUFTRAGS UND HIER NICHT REPARIERT:
+// `avesmapsUpdatePathFeatureGeometry` (wie `avesmapsCreatePathFeature`) liest sein `coordinates`-
+// Feld ueber die HAUSWEITE `avesmapsReadLineStringCoordinates` (api/_internal/map/features.php) --
+// und die vertauscht JEDES Punktpaar (`[a,b]` -> `[b,a]`), empirisch geprueft:
+// `avesmapsReadLineStringCoordinates([[10,20]]) === [[20,10]]`. `avesmapsGaretienZeilePunkte()`
+// liefert seine Punkte aber in AVESMAPS' EIGENER [x,y]-Ordnung (die Kommentare an
+// AVESMAPS_GARETIEN_MATRIX_* in garetien-koordinaten.php nennen es ausdruecklich X/Y). Jede per
+// Garetien-Import geschriebene Geometrie -- frisch angelegt (Aufgabe 1/3) oder per
+// Geometrie-Ergaenzung (Aufgabe 4) -- landet damit VERMUTLICH mit vertauschten x/y in der
+// Datenbank. Das ist ein moeglicher, ERNSTER, VORBESTEHENDER Fehler ausserhalb der vier Dateien
+// dieser Runde (die Funktion ist hausweit, auch der menschliche Kartenzeichner benutzt sie) und
+// wird hier NICHT repariert -- er wird als eigener Befund gemeldet (siehe Bericht). Diese
+// Zusicherung prueft deshalb bewusst gegen das ECHTE Verhalten der Hausfunktion (sie selbst
+// aufgerufen), nicht gegen eine wuenschenswerte, aber moeglicherweise falsche Erwartung -- sonst
+// waere der Test selbst die naechste Fiktion.
+$neueKoordinaten = [[100.0, 200.0], [150.0, 250.0], [175.0, 260.0]];
+$runId6 = avesmapsSyncPlanStartRun($pdo3, AVESMAPS_GARETIEN_PLAN_KIND, 1, 'test-geometrie');
+avesmapsSyncPlanAddItem($pdo3, $runId6, [
+    'entity_key' => 'ggp:Gewaesser:Bach:Garetien:Alke|geometrie|' . $idFluss,
+    'entity_public_id' => $idFluss,
+    'change_type' => 'changed',
+    'label' => 'Alke → Alke · Geometrie',
+    'before' => ['public_id' => $idFluss, 'name' => 'Alke'],
+    'after' => ['herkunft' => 'garetien', 'anlass' => 'geometrie', 'felder' => ['geometrie'],
+        'ziel' => 'path', 'subtyp' => 'Flussweg',
+        'geometry' => ['type' => 'LineString', 'coordinates' => $neueKoordinaten],
+        'abschnitt' => ['public_id' => $idFluss, 'name' => 'Alke', 'punkte' => 12, 'geometrie' => []],
+        'quelle' => ['url' => 'https://www.garetien.de/index.php?title=Garetien:Alke',
+            'label' => 'Briefspiel (Garetien)', 'source_type' => 'briefspiel',
+            'origin' => 'garetien', 'license' => 'cc-by-nc-sa-3.0', 'attribution' => 'VolkoV / garetien.de']],
+    'override' => [], 'selected' => 1,
+]);
+
+$geoVorher = $pdo3->query('SELECT geometry_json FROM map_features WHERE public_id = ' . $pdo3->quote($idFluss))
+    ->fetch(PDO::FETCH_ASSOC);
+
+$schritt6 = avesmapsGaretienApplyStep($pdo3, $runId6, 1, ['id' => 1, 'username' => 'test']);
+assert($schritt6['applied'] === 1, 'die Geometrie-Aenderung wurde nicht uebernommen: ' . json_encode($schritt6));
+$pruefungen++;
+
+$geoNachher = $pdo3->query('SELECT geometry_json FROM map_features WHERE public_id = ' . $pdo3->quote($idFluss))
+    ->fetch(PDO::FETCH_ASSOC);
+$koordinaten = json_decode((string) $geoNachher['geometry_json'], true)['coordinates'];
+// Das ECHTE Ergebnis der Hausfunktion, nicht die roh eingegebenen Punkte -- siehe der Fund oben.
+// ⚠️ `==`, nicht `===`: glatte Werte (200.0) verlassen die Datenbank ueber JSON als Ganzzahl
+// (200), `avesmapsReadLineStringCoordinates` liefert dieselbe Zahl aber als float -- verschiedene
+// PHP-Typen, derselbe Wert.
+$erwartet = avesmapsReadLineStringCoordinates($neueKoordinaten);
+assert($koordinaten == $erwartet,
+    'die Geometrie in der Datenbank entspricht nicht der neuen: ' . json_encode($koordinaten) . ' erwartet ' . json_encode($erwartet));
+assert($geoNachher['geometry_json'] !== $geoVorher['geometry_json'], 'die alte Geometrie der Alke-Fixture ist noch da');
+$pruefungen += 2;
+
+// 🪤 M9 (mitgenommen, weil dieser Test ohnehin am done-Riegel vorbeikommt -- kostet nichts): der
+// zweite Aufruf darf das Item nicht noch einmal schreiben, und der Riegel dafuer ist der
+// `apply_state`-Vermerk AM ITEM SELBST, nicht nur die aggregierte Rueckgabe.
+$itemId6 = (int) $pdo3->query("SELECT id FROM sync_plan_item WHERE run_id = {$runId6}")->fetchColumn();
+$vermerk6 = $pdo3->query("SELECT apply_state FROM sync_plan_item WHERE id = {$itemId6}")->fetchColumn();
+assert($vermerk6 === 'done', 'das Item traegt seinen done-Vermerk: ' . var_export($vermerk6, true));
+$zweiter6 = avesmapsGaretienApplyStep($pdo3, $runId6, 1, ['id' => 1, 'username' => 'test']);
+assert($zweiter6['applied'] === 0, 'ein bereits geschriebenes Geometrie-Item darf nicht noch einmal laufen');
+$geoNochmal = $pdo3->query('SELECT geometry_json FROM map_features WHERE public_id = ' . $pdo3->quote($idFluss))
+    ->fetch(PDO::FETCH_ASSOC);
+assert($geoNochmal['geometry_json'] === $geoNachher['geometry_json'], 'und die Geometrie bleibt unveraendert');
+$pruefungen += 3;
+
+// =================================================================================================
+// 🔴 RULING R6 (Owner, nach R5): "geometrie ersetzen muss es fuer alle geometrien geben -- alle
+// formen von flaechen UND wege/fluesse." Der Region-Zweig der Geometrie-Weiche WIRD ALSO
+// AUSGEFUEHRT -- die zwei echten Fehler (falscher id-Raum, fehlende erwartete Revision) sind im
+// Anwender repariert, nicht der Zweig entfernt. Belegt wird das an der Datenbank, nicht nur an
+// `applied === 1` (Review I2, jetzt fuer BEIDE Ziele).
+//
+// 💣 `entity_public_id` einer Region ist die REGIONS-public_id, `ecosystem_area` traegt eine
+// EIGENE public_id -- die Flaeche wird deshalb ueber `region_id` nachgeschlagen, nicht geraten.
+$idSeeRegion = '00000000-0000-4000-8000-000000007001';
+$idSeeFlaeche = '00000000-0000-4000-8000-000000007002';
+$pdo3->exec("INSERT INTO ecosystem_region (public_id, name, kind, region_type, is_active)
+             VALUES ('{$idSeeRegion}', 'Mühlsee', 'topographie', 'see', 1)");
+$seeRegionRowId = (int) $pdo3->lastInsertId();
+$pdo3->prepare('INSERT INTO ecosystem_area (public_id, region_id, geometry_geojson, min_x, min_y, max_x, max_y, geometry_revision, is_trial, is_active)
+                VALUES (?,?,?,?,?,?,?,1,0,1)')
+    ->execute([$idSeeFlaeche, $seeRegionRowId,
+        json_encode(['type' => 'Polygon', 'coordinates' => [[[1.0, 1.0], [2.0, 1.0], [2.0, 2.0], [1.0, 2.0], [1.0, 1.0]]]]),
+        1.0, 1.0, 2.0, 2.0]);
+
+$neueFlaeche = ['type' => 'Polygon', 'coordinates' => [[[10.0, 10.0], [20.0, 10.0], [20.0, 20.0], [10.0, 20.0], [10.0, 10.0]]]];
+$runId7 = avesmapsSyncPlanStartRun($pdo3, AVESMAPS_GARETIEN_PLAN_KIND, 1, 'test-region-geometrie');
+avesmapsSyncPlanAddItem($pdo3, $runId7, [
+    'entity_key' => 'ggp:Gewaesser:See:Garetien:Muehlsee|geometrie|' . $idSeeRegion,
+    'entity_public_id' => $idSeeRegion,
+    'change_type' => 'changed',
+    'label' => 'Mühlsee → Mühlsee · Geometrie',
+    'before' => ['public_id' => $idSeeRegion, 'name' => 'Mühlsee'],
+    'after' => ['herkunft' => 'garetien', 'anlass' => 'geometrie', 'felder' => ['geometrie'],
+        'ziel' => 'region', 'subtyp' => 'see', 'kind' => 'topographie', 'geometry' => $neueFlaeche,
+        'abschnitt' => ['public_id' => $idSeeRegion, 'name' => 'Mühlsee', 'punkte' => 4, 'geometrie' => []],
+        'quelle' => ['url' => 'https://www.garetien.de/index.php?title=Garetien:Muehlsee',
+            'label' => 'Briefspiel (Garetien)', 'source_type' => 'briefspiel',
+            'origin' => 'garetien', 'license' => 'cc-by-nc-sa-3.0', 'attribution' => 'VolkoV / garetien.de']],
+    'override' => [], 'selected' => 1,
+]);
+
+$schritt7 = avesmapsGaretienApplyStep($pdo3, $runId7, 1, ['id' => 1, 'username' => 'test']);
+assert($schritt7['applied'] === 1, 'die Flaechen-Geometrie wurde nicht uebernommen: ' . json_encode($schritt7));
+$pruefungen++;
+
+// -- Belegt an der Datenbank: die FLAECHE (nicht die Region) traegt die neue Geometrie.
+$flaecheNachher = $pdo3->query('SELECT geometry_geojson, geometry_revision FROM ecosystem_area WHERE public_id = '
+    . $pdo3->quote($idSeeFlaeche))->fetch(PDO::FETCH_ASSOC);
+$ringNachher = json_decode((string) $flaecheNachher['geometry_geojson'], true)['coordinates'][0];
+// avesmapsEcosystemNormalizeGeometry schliesst den Ring selbst wieder -- vier Ecken plus Schlusspunkt.
+assert(count($ringNachher) === 5, 'der Ring hat nicht vier Ecken plus Schlusspunkt: ' . json_encode($ringNachher));
+foreach ([[10.0, 10.0], [20.0, 10.0], [20.0, 20.0], [10.0, 20.0]] as $i => $erwarteterPunkt) {
+    assert($ringNachher[$i] == $erwarteterPunkt, "Punkt {$i} der Flaeche stimmt nicht: " . json_encode($ringNachher[$i]));
+}
+assert((int) $flaecheNachher['geometry_revision'] === 2, 'die Revision der Flaeche zaehlt hoch: ' . $flaecheNachher['geometry_revision']);
+// 1 (Ringlaenge) + 4 (die vier Ecken, je eine Zusicherung im foreach) + 1 (Revision) = 6.
+$pruefungen += 6;
+
+// -- 🔴 Review I1 (mitgenommen): eine zweite Flaeche an derselben Region macht "ersetze die
+// Geometrie" so unwohldefiniert wie bei einem Weg mit mehreren getroffenen Abschnitten -- geraten
+// wird nicht, laut abgelehnt mit einem lesbaren Grund.
+$pdo3->prepare('INSERT INTO ecosystem_area (public_id, region_id, geometry_geojson, min_x, min_y, max_x, max_y, geometry_revision, is_trial, is_active)
+                VALUES (?,?,?,?,?,?,?,1,0,1)')
+    ->execute(['00000000-0000-4000-8000-000000007003', $seeRegionRowId,
+        json_encode(['type' => 'Polygon', 'coordinates' => [[[5.0, 5.0], [6.0, 5.0], [6.0, 6.0], [5.0, 5.0]]]]),
+        5.0, 5.0, 6.0, 6.0]);
+$fehlerMehrfach = null;
+try {
+    avesmapsGaretienErgaenzungAnwenden($pdo3, [
+        'ziel' => 'region', 'felder' => ['geometrie'], 'geometry' => $neueFlaeche,
+    ], $idSeeRegion, ['id' => 1]);
+} catch (Throwable $fehler) {
+    $fehlerMehrfach = $fehler;
+}
+assert($fehlerMehrfach !== null, 'zwei Flaechen an einer Region muessen laut abgelehnt werden, nicht geraten');
+assert(str_contains($fehlerMehrfach->getMessage(), 'Flaechen'), 'der Grund nennt die Zahl: ' . $fehlerMehrfach->getMessage());
 $pruefungen += 2;
 
 echo "OK: {$pruefungen} Pruefungen\n";

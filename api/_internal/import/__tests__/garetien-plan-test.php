@@ -347,6 +347,26 @@ assert($fertig[0]['vorwahl_aus'] === true, 'und es ist -- wie jedes Geometrie-It
 assert(!array_key_exists('name', $fertig[0]['after']), 'und es verspricht keinen Namenswechsel');
 $pruefungen += 4;
 
+// -- 🔴 RULING R6 (Owner, nach R5 -- siehe Kommentar am Erzeuger): ein REGION-Ziel bekommt bei
+// GENAU EINEM getroffenen Abschnitt GENAUSO ein Geometrie-Item wie ein Weg. Owner, woertlich:
+// "geometrie ersetzen muss es fuer alle geometrien geben -- alle formen von flaechen UND
+// wege/fluesse." (Die Reparatur der zwei echten Fehler -- falscher id-Raum, fehlende erwartete
+// Revision -- sitzt im Anwender, nicht hier: der Plan-Bauer weiss nichts von ecosystem_area.)
+$urteilSee = ['status' => 'deckt_sich', 'anlass' => 'geometrie', 'treffer_public_id' => 'r-1',
+    'treffer_name' => 'Mühlsee', 'grund' => 'Geometrie deckt sich', 'abstand' => 0.2,
+    'abschnitte' => [['public_id' => 'r-1', 'name' => 'Mühlsee', 'punkte' => 8, 'geometrie' => [[1.0, 1.0]]]]];
+$zeileSee = $zeileA;
+$zeileSee['artikel'] = 'Muehlsee';
+$zeileSee['anzeige'] = 'Mühlsee';
+$see = avesmapsGaretienErgaenzungsEintraege($zeileSee, avesmapsGaretienMappeTyp('See'), $urteilSee, []);
+assert(avesmapsGaretienMappeTyp('See')['ziel'] === 'region', 'die Vorbedingung des Falls: See ist ein Landschafts-Ziel');
+$geometrieSee = array_values(array_filter($see, static fn($e) => $e['after']['anlass'] === 'geometrie'));
+assert(count($geometrieSee) === 1,
+    'ein Landschafts-Ziel bekommt bei genau EINEM getroffenen Abschnitt sein Geometrie-Angebot');
+assert($geometrieSee[0]['entity_public_id'] === 'r-1', 'und zielt auf denselben Abschnitt');
+assert($geometrieSee[0]['vorwahl_aus'] === true, 'auch bei einer Region ist das Geometrie-Item IMMER ungehakt');
+$pruefungen += 3;
+
 // -- Der SCHLUESSEL je Item muss eindeutig sein, sonst treffen sich zwei Abschnitte in
 // sync_decision und eine Ablehnung gilt fuer beide.
 $schluessel = array_map(static fn($e) => $e['entity_key'], $d);
