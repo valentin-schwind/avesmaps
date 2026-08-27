@@ -320,12 +320,16 @@ function avesmapsGaretienKandidaten(PDO $pdo, array $ziel): array
  * ⚠️ Der Median statt des Mittels, damit ein einzelner ueberstehender Zipfel das Urteil nicht
  * kippt (eine Muendung, ein historischer Zeichenfehler -- Volker nennt beides selbst).
  *
- * @return array{abstand:float, bester:?int}
+ * 🔴 Seit dieser Fassung gibt die Funktion zusaetzlich `abschnitte` heraus: die ganze
+ * `$treffer`-Liste, absteigend sortiert, statt nur des einen genannten `bester`. Begruendung
+ * und Reihenfolge-Zusicherung stehen direkt bei ihrer Entstehung, kurz vor dem `return`.
+ *
+ * @return array{abstand:float, bester:?int, abschnitte:list<array{index:int, punkte:int}>}
  */
 function avesmapsGaretienDeckung(array $probe, array $kandidaten): array
 {
     if ($probe === [] || $kandidaten === []) {
-        return ['abstand' => INF, 'bester' => null];
+        return ['abstand' => INF, 'bester' => null, 'abschnitte' => []];
     }
     // Der Huellbox-Vorfilter einmal je Kandidat, nicht je Punkt.
     $naheKandidaten = [];
@@ -335,7 +339,7 @@ function avesmapsGaretienDeckung(array $probe, array $kandidaten): array
         }
     }
     if ($naheKandidaten === []) {
-        return ['abstand' => INF, 'bester' => null];
+        return ['abstand' => INF, 'bester' => null, 'abschnitte' => []];
     }
 
     $abstaende = [];
@@ -363,9 +367,21 @@ function avesmapsGaretienDeckung(array $probe, array $kandidaten): array
     // sehen, nicht eine Liste von achtunddreissig.
     arsort($treffer);
 
+    // 🔴 UND DIE LISTE DAHINTER, weil das Fenster sie braucht (Auftrag §4.1): unsere Fluesse
+    // liegen in ABSCHNITTEN, ihre nicht. Ihre "Natter" trifft fuenf unserer Abschnitte auf DREI
+    // verschiedenen Fluessen; gehakt wird je Abschnitt, nie je Objekt. Ohne diese Zeilen wuerde
+    // dieselbe Rechnung im Browser ein zweites Mal gebaut -- die Grenze, die der Auftrag §5.4
+    // ausdruecklich zieht.
+    // ⚠️ ERGAENZUNG, KEIN ERSATZ: `bester` bleibt, wo er war. Er hat vier Aufrufer.
+    $abschnitte = [];
+    foreach ($treffer as $k => $anzahl) {
+        $abschnitte[] = ['index' => (int) $k, 'punkte' => (int) $anzahl];
+    }
+
     return [
         'abstand' => $abstaende[$mitte],
         'bester' => $treffer === [] ? null : (int) array_key_first($treffer),
+        'abschnitte' => $abschnitte,
     ];
 }
 

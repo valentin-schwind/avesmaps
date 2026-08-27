@@ -398,4 +398,41 @@ $sumpf = avesmapsGaretienFindeBestand($pdo, [
 assert($sumpf['status'] === 'neu', 'ein Moor auf einem See ist nicht derselbe Gegenstand');
 $pruefungen++;
 
+// ---------------------------------------------------------------------------------------------
+// Die Abschnittsliste: ihr EINES Objekt laeuft ueber MEHRERE unserer Abschnitte.
+//
+// 💣 Gemessen am Livebestand: ihre "Natter" trifft fuenf unserer Abschnitte, und die verteilen
+// sich auf DREI verschiedene Fluesse. `bester` allein verschweigt das -- ein Mensch, der nur
+// "Natter" liest, haelt den Fall fuer einteilig und hakt ihn durch.
+$probe = [[0.0, 0.0], [1.0, 0.0], [2.0, 0.0], [3.0, 0.0]];
+$kandidaten = [
+    ['public_id' => 'A', 'name' => 'Natter', 'art' => '', 'props' => '',
+     'punkte' => [[0.0, 0.1], [1.0, 0.1]],
+     'huelle_min_x' => 0.0, 'huelle_max_x' => 1.0, 'huelle_min_y' => 0.1, 'huelle_max_y' => 0.1],
+    // 🪤 B liegt bei x = 2,5 und NICHT bei 3,0. Bei 3,0 ist der Probepunkt (2,0) exakt gleich
+    // weit von beiden Kandidaten entfernt (1,01 gegen 1,01, bitgleich), und der Gleichstand
+    // faellt ueber die Reihenfolge -- das strikte `<` in der Schleife behaelt den zuerst
+    // gefundenen. Der Test pruefte dann eine Implementierungseigenheit statt der Deckung, und er
+    // kippte, sobald jemand die Schleife umbaut. 2,5 trennt sauber.
+    ['public_id' => 'B', 'name' => '', 'art' => '', 'props' => '',
+     'punkte' => [[2.5, 0.1]],
+     'huelle_min_x' => 2.5, 'huelle_max_x' => 2.5, 'huelle_min_y' => 0.1, 'huelle_max_y' => 0.1],
+];
+$deckung = avesmapsGaretienDeckung($probe, $kandidaten);
+
+assert(isset($deckung['abschnitte']), 'avesmapsGaretienDeckung gibt keine Abschnittsliste heraus');
+assert(count($deckung['abschnitte']) === 2,
+    'beide getroffenen Abschnitte gehoeren in die Liste, nicht nur der beste');
+// A deckt die zwei linken Probepunkte, B die zwei rechten.
+assert($deckung['abschnitte'][0]['index'] === 0, 'die Liste steht nicht absteigend nach Deckung');
+assert($deckung['abschnitte'][0]['punkte'] === 2, 'A deckt die zwei linken Probepunkte');
+assert($deckung['abschnitte'][1]['index'] === 1, 'B fehlt in der Liste');
+assert($deckung['abschnitte'][1]['punkte'] === 2, 'B deckt die zwei rechten Probepunkte');
+// ⚠️ `bester` bleibt, was er war -- die Liste ERGAENZT ihn, sie ersetzt ihn nicht.
+assert($deckung['bester'] !== null, 'bester darf durch die Ergaenzung nicht verlorengehen');
+// Nichts in der Naehe: leere Liste, kein null. Ein Aufrufer soll `foreach` schreiben duerfen.
+$leer = avesmapsGaretienDeckung($probe, []);
+assert($leer['abschnitte'] === [], 'ohne Kandidaten muss die Abschnittsliste LEER sein, nicht null');
+$pruefungen += 8;
+
 echo "OK: {$pruefungen} Pruefungen\n";
