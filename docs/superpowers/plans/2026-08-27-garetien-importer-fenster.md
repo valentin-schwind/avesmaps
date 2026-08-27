@@ -486,8 +486,22 @@ diesen ganzen Ausgang benannt hat).
 **Schnittstellen:**
 - Verbraucht: `$urteil['abschnitte']` aus Aufgabe 2.
 - Erzeugt:
-  - `avesmapsGaretienQuellenBestand(PDO $pdo): array<string,true>` — die `entity_public_id` aller
-    aktiven `feature_sources` mit `origin='garetien'`. **Eine Abfrage je Lauf**, nicht je Zeile.
+  - `avesmapsGaretienQuellenBestand(PDO $pdo): array<string,true>` — die Schluessel
+    `entity_type|entity_public_id` aller `feature_sources` mit `origin='garetien'`.
+    **Eine Abfrage je Lauf**, nicht je Zeile.
+    💣 **KEIN `status`-Filter.** Hier stand `status = 'active'` -- das Wort gibt es in
+    `feature_sources` nicht: der Hauswert ist `'approved'` (DDL-Vorgabe), der einzige andere
+    `'suppressed'`. `'active'` ist das Vokabular des LORE-Systems (`lore_entry`, `lore_place`,
+    `lore_rule`), und abgeschrieben haette die Abfrage IMMER leer geliefert -- alle 289 Objekte
+    haetten bei jedem Lauf erneut ein vorangehaktes Quellen-Item bekommen, auch nach dem Import.
+    🔴 Und gefiltert wird auch nicht auf `'approved'`: `'suppressed'` ist der Grabstein
+    einer von HAND entfernten Verknuepfung. Wer ihn ignoriert, bietet genau das wieder an, was
+    ein Mensch weggenommen hat -- die Uebersteuerungs-Sicherheit, die das Haus ueberall verlangt.
+    Eine Zeile da = die Quelle ist erledigt, egal in welchem Zustand.
+    ⚠️ **`entity_type` gehoert in den Schluessel**: `feature_sources` ist ueber
+    `(entity_type, entity_public_id, source_id)` eindeutig, und dieser Import schreibt `path`-
+    UND `region`-Zeilen. Eine ueber zwei Typen geteilte `public_id` laese sich sonst als
+    "Quelle liegt".
   - `avesmapsGaretienErgaenzungsEintraege(array $zeile, array $ziel, array $urteil, array $quellen): list<array>`
     — rein, kein I/O. Liefert die Items nach den vier Regeln oben; jedes hat die Form von
     `avesmapsGaretienPlanEintrag` plus `after.anlass ∈ {ergaenzung, umbenennung, geometrie}`,
@@ -640,8 +654,8 @@ function avesmapsGaretienQuellenBestand(PDO $pdo): array
 {
     try {
         $stmt = $pdo->query(
-            "SELECT DISTINCT entity_public_id FROM feature_sources"
-            . " WHERE origin = 'garetien' AND status = 'active'"
+            "SELECT DISTINCT entity_type, entity_public_id FROM feature_sources"
+            . " WHERE origin = 'garetien'"
         );
     } catch (PDOException) {
         return [];
