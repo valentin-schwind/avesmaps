@@ -544,13 +544,24 @@ $pruefungen++;
 // --- 🪤 Ein DRITTER Weg-Schreibpfad im Importer waere ungebunden -- und der Fehler kaeme
 // zurueck, ohne dass ein Test rot wird. Gezaehlt wird zur LAUFZEIT der Quelltext, nicht das
 // Verhalten.
-// 💣 Gezaehlt wird der AUFRUF (Name + `(`), nicht jede textliche Erwaehnung -- der Dateikopf
-// nennt beide Hausschreiber schon zweimal in Kommentaren (Zeile 12 und 40), bevor ueberhaupt ein
-// echter Aufruf folgt. Ohne die Klammer im Muster zaehlte die Zusicherung diese Prosa mit und
-// waere fuer JEDE Aenderung an den Kommentaren falsch -- unabhaengig vom echten Code.
+// 🪤 KOMMENTARE VOR DEM ZAEHLEN WEGWERFEN. Eine Regex kann ein `avesmapsCreatePathFeature(` in
+// einem Kommentar nicht von einem echten Aufruf unterscheiden -- und in dieser Dateifamilie ist
+// es gelebte Konvention, einen Funktionsnamen in Prosa mit leeren Klammern zu schreiben
+// (garetien-abruf.php:10/12; diese Testdatei selbst tut es zweimal). Ein Kommentar, der die
+// Hausschreiber erwaehnt, machte den Waechter sonst rot, OHNE dass eine Regression vorliegt --
+// und der naechste Leser repariert dann den Kommentar statt des Codes. PHPs Tokenizer macht die
+// Unterscheidung richtig; eine Regex kann sie prinzipiell nicht machen (Review I1). Dasselbe
+// Verfahren benutzt sync-plan-purity-test.php aus genau diesem Grund.
 $quelleUebernahme = (string) file_get_contents(__DIR__ . '/../garetien-uebernahme.php');
-$wegSchreiberAnzahl = preg_match_all('~avesmaps(?:CreatePathFeature|UpdatePathFeatureGeometry)\(~', $quelleUebernahme);
-$umsetzerAnzahl = preg_match_all('~avesmapsGaretienGeoJsonNachHausvertrag~', $quelleUebernahme);
+$nurCodeUebernahme = '';
+foreach (token_get_all($quelleUebernahme) as $token) {
+    if (is_array($token) && in_array($token[0], [T_COMMENT, T_DOC_COMMENT], true)) {
+        continue;
+    }
+    $nurCodeUebernahme .= is_array($token) ? $token[1] : $token;
+}
+$wegSchreiberAnzahl = preg_match_all('~avesmaps(?:CreatePathFeature|UpdatePathFeatureGeometry)\(~', $nurCodeUebernahme);
+$umsetzerAnzahl = preg_match_all('~avesmapsGaretienGeoJsonNachHausvertrag~', $nurCodeUebernahme);
 assert($wegSchreiberAnzahl === 2, 'Es gibt jetzt ' . $wegSchreiberAnzahl . ' Weg-Schreibpfade statt zwei.');
 // ⚠️ >=, nicht ===: die Definition der Funktion selbst zaehlt mit.
 assert($umsetzerAnzahl >= $wegSchreiberAnzahl,
