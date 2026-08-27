@@ -40,6 +40,34 @@ function avesmapsGaretienObjektSchluesselAusZeile(array $zeile): string
 }
 
 /**
+ * Die Wiki-Adresse EINER Staging-Zeile -- der Artikel-Link, oder ohne Artikel die Sammelquelle
+ * (der Wirt allein). REIN -- kein I/O.
+ *
+ * 🔴 DIESELBE LEHRE WIE RULING P6 BEIM OBJEKTSCHLUESSEL (Review I2, 27.08.2026): diese Formel
+ * entsteht HIER und wird von `avesmapsGaretienPlanEintrag` UND der Arbeitsliste des Fensters
+ * benutzt, nicht ein zweites Mal gebaut. Eine zweite Fassung stand kurz in `garetien-liste.php`
+ * und war Zeile fuer Zeile dieselbe Rechnung -- mit dem Preis, dass die zwei Wirt-Literale
+ * zweimal im Repo standen und die `$namensraum:$artikel`-Bildung dreimal (hier, dort, im
+ * Objektschluessel). Eine Aenderung an einem der beiden Wirte haette sonst nur EINE der beiden
+ * Stellen erreicht.
+ */
+function avesmapsGaretienSeitenUrlAusZeile(array $zeile): string
+{
+    $artikel = trim((string) ($zeile['artikel'] ?? ''));
+    $namensraum = trim((string) ($zeile['namensraum'] ?? ''));
+    $wiki = (string) ($zeile['wiki'] ?? 'ggp');
+    $seite = ($namensraum !== '' ? $namensraum . ':' : '') . $artikel;
+    // 🔴 Ohne Artikel gibt es keinen Objektlink, sondern die Sammelquelle (Entwurf §5.3).
+    $wirt = $wiki === 'kosch' ? 'https://www.koschwiki.de' : 'https://www.garetien.de';
+    if ($seite === '') {
+        return $wirt;
+    }
+    $basis = $wiki === 'kosch' ? AVESMAPS_GARETIEN_BASIS_KOSCH : AVESMAPS_GARETIEN_BASIS_GGP;
+
+    return $basis . str_replace(' ', '_', $seite);
+}
+
+/**
  * Aus einer Staging-Zeile und ihrem Urteil einen Vorschlag bauen. REIN -- kein I/O.
  *
  * `after` traegt alles, was die Uebernahme braucht: Zielart, Geometrie IN UNSEREN
@@ -51,25 +79,19 @@ function avesmapsGaretienObjektSchluesselAusZeile(array $zeile): string
 function avesmapsGaretienPlanEintrag(array $zeile, array $ziel, array $urteil): array
 {
     $punkte = avesmapsGaretienZeilePunkte($zeile);
-    $artikel = trim((string) ($zeile['artikel'] ?? ''));
-    $namensraum = trim((string) ($zeile['namensraum'] ?? ''));
     $wiki = (string) ($zeile['wiki'] ?? 'ggp');
 
-    // 🔴 Ohne Artikel gibt es keinen Objektlink, sondern die Sammelquelle (Entwurf §5.3).
-    $basis = $wiki === 'kosch' ? AVESMAPS_GARETIEN_BASIS_KOSCH : AVESMAPS_GARETIEN_BASIS_GGP;
-    $wirt = $wiki === 'kosch' ? 'https://www.koschwiki.de' : 'https://www.garetien.de';
     // 🔴 DIE BESCHRIFTUNG NENNT DAS BRIEFSPIEL, DIE ADRESSE DEN ARTIKEL (Owner 27.08.2026:
     // „wichtig ist auch die kategorie der quelle ... beispiel Briefspiel (Weiden)"). Das ist die
     // Form, die das Haus fuer Briefspielquellen seit langem fuehrt -- „Albernisches Briefspiel"
     // zeigt auf westlande.de/…/Falkenhain, „Briefspiel (Weiden)" auf
     // herzogtum-weiden.net/…/hzgl-altentrallop. Der Artikelname geht dabei nicht verloren, er
-    // steht im Link.
+    // steht im Link (avesmapsGaretienSeitenUrlAusZeile).
     $quellenTitel = $wiki === 'kosch' ? 'Briefspiel (Kosch)' : 'Briefspiel (Garetien)';
     // 🔴 Lizenz und Namensnennung reisen als DATEN mit (Owner 27.08.2026), nicht als Regel im
     // Renderer. Der Wortlaut ist seiner: "VolkoV / garetien.de" fuer die Inhalte aus Garetien,
     // "VolkoV / koschwiki.de" fuer den Kosch.
     $namensnennung = $wiki === 'kosch' ? 'VolkoV / koschwiki.de' : 'VolkoV / garetien.de';
-    $seite = ($namensraum !== '' ? $namensraum . ':' : '') . $artikel;
 
     // 🔴 EIN ZUFLUSS IST EIN NEUES OBJEKT, KEINE AENDERUNG AN UNSEREM FLUSS (Owner 27.08.2026).
     // 34 der 37 Widersprueche sind Baeche, die auf ihrem Hauptfluss liegen. Als 'changed' mit
@@ -113,7 +135,7 @@ function avesmapsGaretienPlanEintrag(array $zeile, array $ziel, array $urteil): 
                 'coordinates' => $ziel['ziel'] === 'path' ? $punkte : [$punkte],
             ],
             'quelle' => [
-                'url' => $seite !== '' ? $basis . str_replace(' ', '_', $seite) : $wirt,
+                'url' => avesmapsGaretienSeitenUrlAusZeile($zeile),
                 'label' => $quellenTitel,
                 'source_type' => 'briefspiel',
                 'origin' => 'garetien',
@@ -347,16 +369,31 @@ function avesmapsGaretienAbschnittsEintrag(
  *
  * ⚠️ Es steht im STAGING und verschwindet mit ihm (Auftrag §5.5). In sync_plan_item landet
  * dadurch nichts Zusaetzliches.
+ *
+ * 🔴 REVIEW C1 (Critical, 27.08.2026): `zeile_nr` ALLEIN ist KEIN Schluessel innerhalb eines
+ * Laufs -- sie beginnt je SEITE neu bei 1 (`avesmapsGaretienStageSeite`, `garetien-abruf.php`),
+ * und der Endpunkt legt ausdruecklich mehrere Seiten in EINEN Lauf. Nachgemessen am echten
+ * Zwei-Seiten-Bestand (ggp + kosch Gewaesser, 289 Zeilen): 43 Zeilennummern sind doppelt
+ * vergeben. Ohne `wiki`+`ebene` im WHERE traf ein UPDATE BEIDE Zeilen mit derselben Nummer --
+ * und item-lose Objekte (Aufgabe 8) lesen ihr urteil/grund AUSSCHLIESSLICH von hier, ein Editor
+ * haette also den Grund einer FREMDEN Zeile vorgelegt bekommen. Der Schluessel ist deshalb
+ * (run_id, wiki, ebene, zeile_nr) -- exakt das Tupel, unter dem `avesmapsGaretienStageSeite`
+ * ihre `zeile_nr` ueberhaupt erst vergibt.
  */
-function avesmapsGaretienSchreibeUrteil(PDO $pdo, int $importRunId, int $zeileNr, string $urteil, string $grund): void
-{
-    $pdo->prepare('UPDATE garetien_import_row SET urteil = :u, grund = :g WHERE run_id = :r AND zeile_nr = :n')
-        ->execute([
-            ':u' => mb_substr($urteil, 0, 20, 'UTF-8'),
-            ':g' => mb_substr($grund, 0, 300, 'UTF-8'),
-            ':r' => $importRunId,
-            ':n' => $zeileNr,
-        ]);
+function avesmapsGaretienSchreibeUrteil(
+    PDO $pdo, int $importRunId, string $wiki, string $ebene, int $zeileNr, string $urteil, string $grund
+): void {
+    $pdo->prepare(
+        'UPDATE garetien_import_row SET urteil = :u, grund = :g'
+        . ' WHERE run_id = :r AND wiki = :w AND ebene = :e AND zeile_nr = :n'
+    )->execute([
+        ':u' => mb_substr($urteil, 0, 20, 'UTF-8'),
+        ':g' => mb_substr($grund, 0, 300, 'UTF-8'),
+        ':r' => $importRunId,
+        ':w' => $wiki,
+        ':e' => $ebene,
+        ':n' => $zeileNr,
+    ]);
 }
 
 /**
@@ -398,7 +435,7 @@ function avesmapsGaretienBaueSyncPlan(PDO $pdo, int $importRunId, int $userId = 
             $uebersprungen[$grund] = ($uebersprungen[$grund] ?? 0) + 1;
             // 💣 Der Uebersprung-Zweig steht VOR dem Abgleich und wird sonst nie erfasst -- das
             // sind genau die 6, um die es in Aufgabe 6 geht.
-            avesmapsGaretienSchreibeUrteil($pdo, $importRunId, (int) $zeile['zeile_nr'], 'uebersprungen', $grund);
+            avesmapsGaretienSchreibeUrteil($pdo, $importRunId, (string) $zeile['wiki'], (string) $zeile['ebene'], (int) $zeile['zeile_nr'], 'uebersprungen', $grund);
             continue;
         }
         $ziel = avesmapsGaretienMappeTyp((string) $zeile['typ']);
@@ -409,7 +446,7 @@ function avesmapsGaretienBaueSyncPlan(PDO $pdo, int $importRunId, int $userId = 
         // Das Urteil ueberlebt das Rechnen -- auch "deckt_sich", das seit Aufgabe 3 durch den
         // vierten Ausgang eigene Items erzeugen KANN, aber nicht MUSS (⚠️ Brief §Aufgabe 6: das
         // ist kein Widerspruch, sondern derselbe Sachverhalt aus zwei Blickwinkeln).
-        avesmapsGaretienSchreibeUrteil($pdo, $importRunId, (int) $zeile['zeile_nr'], $urteil['status'], $urteil['grund']);
+        avesmapsGaretienSchreibeUrteil($pdo, $importRunId, (string) $zeile['wiki'], (string) $zeile['ebene'], (int) $zeile['zeile_nr'], $urteil['status'], $urteil['grund']);
         if ($urteil['status'] === 'uebersprungen') {
             continue;
         }
@@ -498,8 +535,15 @@ function avesmapsGaretienPlanTestPdo(): PDO
         ['ggp', 'Gewaesser', 3, 'See', 'Garetien', 'Muehlsee', 'Mühlsee', 'koordinaten', '1000 -12000, 1800 -12700, 1200 -13400, 1000 -12000'],
         // uebersprungen: Sammelartikel
         ['ggp', 'Gewaesser', 4, 'Fluss', '', 'Nachbarprovinzen', 'Llavari', 'koordinaten', '1 2, 3 4'],
-        // uebersprungen: spaetere Stufe
-        ['kosch', 'Gewaesser', 5, 'Insel', '', '', 'Im Angbarer See', 'koordinaten', '-193386 52741, -194553 52157, -193386 52741'],
+        // uebersprungen: spaetere Stufe. 🔴 Review C1: zeile_nr=1 ist ABSICHT, nicht Zufall --
+        // sie kollidiert mit der Alke (Zeile darueber, ebenfalls zeile_nr=1) ueber ein ANDERES
+        // wiki. Genau das tut die Produktion: avesmapsGaretienStageSeite() startet zeile_nr fuer
+        // JEDE Seite neu bei 1, und ein Lauf traegt mehrere Seiten -- am echten Zwei-Seiten-
+        // Bestand gemessen sind 43 von 289 Zeilennummern doppelt vergeben. Ohne wiki+ebene im
+        // Schluessel von avesmapsGaretienSchreibeUrteil traf ein UPDATE fuer die Alke auch diese
+        // Zeile mit (und umgekehrt) -- garetien-staging-test.php sichert beide Seiten der
+        // Kollision einzeln zu.
+        ['kosch', 'Gewaesser', 1, 'Insel', '', '', 'Im Angbarer See', 'koordinaten', '-193386 52741, -194553 52157, -193386 52741'],
         // 🔴 Ein ZUFLUSS: liegt auf der Alke, ist aber nur ein Bruchteil ihrer Ausdehnung.
         // Er ist ein eigenes neues Objekt und darf die Alke nicht anfassen.
         ['ggp', 'Gewaesser', 6, 'Bach', 'Garetien', 'Seitenarm der Alke', 'Seitenarm der Alke', 'koordinaten',

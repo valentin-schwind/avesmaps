@@ -151,10 +151,120 @@ assert(avesmapsGaretienObjektSchluessel('ggp:Gewaesser:Fluss:Garetien:Gardel')
     === 'ggp:Gewaesser:Fluss:Garetien:Gardel', 'ein einfacher Schluessel ohne Pipe bleibt unveraendert');
 $pruefungen += 2;
 
+// =================================================================================================
+// REVIEW I3: von neun Filterparametern waren nur zwei geprueft (urteil, suche) -- und der
+// ungefiltert-Standardpfad (`stand` fehlend) lag genau dort. Vier weitere werden hier NACHGEHOLT:
+// stand, nur_mehrteilig, nur_ungehakt, versatz -- jeweils mit einer echten DIFFERENZ, nicht nur
+// mit dem nackten Ergebnis.
+//
+// Fuer nur_mehrteilig braucht es ein Objekt mit MEHR als einem Abschnitt -- die sechs
+// Fixture-Objekte haben hoechstens einen. Ein siebtes wird deshalb direkt ueber
+// avesmapsSyncPlanAddItem in denselben offenen Lauf gelegt (zwei Items, zwei Abschnitte,
+// EIN entity_key-Praefix) -- ohne die geteilte Fixture in garetien-plan.php anzufassen.
+// ---------------------------------------------------------------------------------------------
+
+$planRunId = (int) avesmapsSyncPlanOpenRun($pdo, AVESMAPS_GARETIEN_PLAN_KIND)['id'];
+avesmapsSyncPlanAddItem($pdo, $planRunId, [
+    'entity_key' => 'ggp:Gewaesser:Fluss:Garetien:Vielarm|ergaenzung|w-1',
+    'entity_public_id' => 'w-1',
+    'change_type' => 'changed',
+    'label' => 'Vielarm -> Erstling · Quelle',
+    'after' => [
+        // 💣 Diese Zeile hat KEINE Staging-Zeile (sie entsteht nur fuer den Filtertest) -- der
+        // Name muss also aus EINEM Item kommen, sonst waere das Objekt namenlos und die
+        // nur_mehrteilig-Zusicherung liesse sich am Namen nicht festmachen.
+        'typ' => 'Fluss', 'wiki' => 'ggp', 'ebene' => 'Gewaesser', 'anlass' => 'ergaenzung',
+        'felder' => ['name', 'quelle'], 'name' => 'Vielarm',
+        'abschnitt' => ['public_id' => 'w-1', 'name' => 'Erstling', 'punkte' => 4, 'geometrie' => [[1.0, 2.0]]],
+    ],
+    'selected' => 1,
+]);
+avesmapsSyncPlanAddItem($pdo, $planRunId, [
+    'entity_key' => 'ggp:Gewaesser:Fluss:Garetien:Vielarm|ergaenzung|w-2',
+    'entity_public_id' => 'w-2',
+    'change_type' => 'changed',
+    'label' => 'Vielarm -> Zweitling · Quelle',
+    'after' => [
+        'typ' => 'Fluss', 'wiki' => 'ggp', 'ebene' => 'Gewaesser', 'anlass' => 'ergaenzung', 'felder' => ['quelle'],
+        'abschnitt' => ['public_id' => 'w-2', 'name' => 'Zweitling', 'punkte' => 3, 'geometrie' => [[3.0, 4.0]]],
+    ],
+    // Ungehakt -- das ist tragend fuer den nur_ungehakt-Test unten.
+    'selected' => 0,
+]);
+
+$erweitert = avesmapsGaretienArbeitsliste($pdo, 1, []);
+assert($erweitert['gesamt'] === $liste['gesamt'] + 1,
+    'die Vorbedingung: genau EIN neues Objekt (Vielarm), ' . $erweitert['gesamt'] . ' gegen ' . $liste['gesamt']);
+$vielarm = null;
+foreach ($erweitert['objekte'] as $o) {
+    if ($o['name'] === 'Vielarm' || $o['key'] === 'ggp:Gewaesser:Fluss:Garetien:Vielarm') {
+        $vielarm = $o;
+    }
+}
+assert($vielarm !== null, 'Vielarm muss als EIN Objekt mit zwei Abschnitten in der Liste stehen');
+assert(count($vielarm['abschnitte']) === 2, 'Vielarm muss beide Abschnitte tragen: ' . count($vielarm['abschnitte']));
+$pruefungen += 3;
+
+// --- `nur_mehrteilig`: nur Vielarm hat mehr als einen Abschnitt.
+$mehrteilig = avesmapsGaretienArbeitsliste($pdo, 1, ['nur_mehrteilig' => true]);
+assert(count($mehrteilig['objekte']) > 0, 'der Mehrteilig-Filter darf nicht alles wegfiltern');
+assert(count($mehrteilig['objekte']) < count($erweitert['objekte']),
+    'der Mehrteilig-Filter hat gar nichts weggenommen: ' . count($mehrteilig['objekte'])
+    . ' gegen ' . count($erweitert['objekte']));
+assert(count($mehrteilig['objekte']) === 1 && $mehrteilig['objekte'][0]['name'] === 'Vielarm',
+    'genau Vielarm haette mehr als einen Abschnitt bestehen duerfen: '
+    . json_encode(array_column($mehrteilig['objekte'], 'name')));
+$pruefungen += 3;
+
+// --- `nur_ungehakt`: mindestens ein Item nicht angehakt. Vielarm (ein Item ungehakt), Alke (ihr
+// Geometrie-Item ist IMMER ungehakt) und Seitenarm (Zufluss startet ungehakt) muessen durch;
+// Gardel/Muehlsee (voll angehakt) und die item-losen Llavari/Insel muessen herausfallen.
+$ungehakt = avesmapsGaretienArbeitsliste($pdo, 1, ['nur_ungehakt' => true]);
+$ungehaktNamen = array_column($ungehakt['objekte'], 'name');
+assert(count($ungehakt['objekte']) > 0 && count($ungehakt['objekte']) < count($erweitert['objekte']),
+    'der Ungehakt-Filter muss etwas durchlassen UND etwas wegnehmen: '
+    . count($ungehakt['objekte']) . ' gegen ' . count($erweitert['objekte']));
+assert(in_array('Vielarm', $ungehaktNamen, true) && in_array('Alke', $ungehaktNamen, true),
+    'ein Objekt mit mindestens einem ungehakten Item muss durchkommen: ' . json_encode($ungehaktNamen));
+assert(!in_array('Gardel', $ungehaktNamen, true) && !in_array('Muehlsee', $ungehaktNamen, true)
+    && !in_array('Mühlsee', $ungehaktNamen, true),
+    'ein VOLL angehaktes Objekt darf nicht durchkommen: ' . json_encode($ungehaktNamen));
+assert(!in_array('Llavari', $ungehaktNamen, true),
+    'ein Objekt OHNE Item hat kein Haekchen zu setzen und faellt bei nur_ungehakt heraus: '
+    . json_encode($ungehaktNamen));
+$pruefungen += 4;
+
+// --- `stand`: 'offen' laesst nur Objekte OHNE angehaktes/uebernommenes/abgelehntes Item durch.
+$offenGefiltert = avesmapsGaretienArbeitsliste($pdo, 1, ['stand' => 'offen']);
+foreach ($offenGefiltert['objekte'] as $o) {
+    assert($o['stand'] === 'offen', 'der Standfilter laesst ' . $o['stand'] . ' durch');
+}
+assert(count($offenGefiltert['objekte']) > 0 && count($offenGefiltert['objekte']) < count($erweitert['objekte']),
+    'der Standfilter muss etwas durchlassen UND etwas wegnehmen: '
+    . count($offenGefiltert['objekte']) . ' gegen ' . count($erweitert['objekte']));
+// Vielarm traegt ein angehaktes Item (w-1, selected=1) -- "irgendein Item angehakt" siegt vor
+// "offen", Vielarm ist also 'vorgemerkt' und darf hier NICHT stehen.
+assert(!in_array('Vielarm', array_column($offenGefiltert['objekte'], 'name'), true),
+    'Vielarm traegt ein angehaktes Item und ist damit vorgemerkt, nicht offen');
+$pruefungen += 3;
+
+// --- `versatz`: blaettert, ohne die Gesamtzahl zu veraendern.
+$seite0 = avesmapsGaretienArbeitsliste($pdo, 1, ['versatz' => 0]);
+$seite1 = avesmapsGaretienArbeitsliste($pdo, 1, ['versatz' => 1]);
+assert($seite0['gesamt'] === $seite1['gesamt'], 'versatz darf die GESAMTZAHL nicht veraendern');
+assert(count($seite0['objekte']) - count($seite1['objekte']) === 1,
+    'versatz=1 muss genau EIN Objekt weniger liefern als versatz=0: '
+    . count($seite0['objekte']) . ' gegen ' . count($seite1['objekte']));
+assert($seite0['objekte'][0]['key'] !== $seite1['objekte'][0]['key'],
+    'versatz=1 muss wirklich woanders anfangen, nicht denselben Kopf zeigen');
+assert(array_slice($seite0['objekte'], 1) == $seite1['objekte'],
+    'versatz=1 muss exakt der Rest von versatz=0 sein -- keine andere Reihenfolge');
+$pruefungen += 4;
+
 // --- Ein zweiter Bau (derselbe Bestand) veraendert die Zahlen nicht -- kein Seiteneffekt beim
 // wiederholten Lesen.
 $zweitesMal = avesmapsGaretienArbeitsliste($pdo, 1, []);
-assert($zweitesMal['gesamt'] === $liste['gesamt'], 'ein zweites Lesen darf die Zahlen nicht verschieben');
+assert($zweitesMal['gesamt'] === $erweitert['gesamt'], 'ein zweites Lesen darf die Zahlen nicht verschieben');
 $pruefungen++;
 
 echo "OK: {$pruefungen} Pruefungen\n";

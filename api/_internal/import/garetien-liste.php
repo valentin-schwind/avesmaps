@@ -46,26 +46,6 @@ function avesmapsGaretienListeGeometriePunkte(array $geometry): array
 }
 
 /**
- * Der Wiki-Link EINER Staging-Zeile -- fuer Objekte OHNE Item (Aufgabe 6: deckt_sich ohne
- * Ergaenzung, und uebersprungen). Ein Objekt mit Item liest seinen Link aus after.quelle.url;
- * diese kleine Formel deckt nur den Rest ab, der kein `after` hat.
- */
-function avesmapsGaretienListeWikiUrlAusZeile(array $zeile): string
-{
-    $artikel = trim((string) ($zeile['artikel'] ?? ''));
-    $namensraum = trim((string) ($zeile['namensraum'] ?? ''));
-    $wiki = (string) ($zeile['wiki'] ?? 'ggp');
-    $seite = ($namensraum !== '' ? $namensraum . ':' : '') . $artikel;
-    $wirt = $wiki === 'kosch' ? 'https://www.koschwiki.de' : 'https://www.garetien.de';
-    if ($seite === '') {
-        return $wirt;
-    }
-    $basis = $wiki === 'kosch' ? AVESMAPS_GARETIEN_BASIS_KOSCH : AVESMAPS_GARETIEN_BASIS_GGP;
-
-    return $basis . str_replace(' ', '_', $seite);
-}
-
-/**
  * Das FEINERE Urteil je Objekt (Brief Schritt 5). Feiner als der Staging-Wert: eine Zeile mit
  * `urteil='deckt_sich'` und Ergaenzungs-Items heisst hier 'ergaenzung' -- der Staging-Wert sagt,
  * was der Abgleich FAND, dieses Urteil sagt, was zu TUN ist.
@@ -169,6 +149,10 @@ function avesmapsGaretienListeObjektPasstFilter(array $objekt, array $filter): b
     if (($filter['nur_mehrteilig'] ?? false) === true && count($objekt['abschnitte']) <= 1) {
         return false;
     }
+    // ⚠️ Review I3: EIN Objekt OHNE Items faellt hier immer heraus (der `foreach` findet nichts,
+    // `$hatUngehaktes` bleibt `false`) -- vertretbar, weil ein Objekt ohne Item auch kein Haekchen
+    // hat, das ein Editor setzen koennte (weder "deckt sich" ohne Ergaenzung noch "uebersprungen"
+    // haben je ein `sync_plan_item`). Nicht nur im Bericht, sondern hier im Code festgehalten.
     if (($filter['nur_ungehakt'] ?? false) === true) {
         $hatUngehaktes = false;
         foreach ($objekt['items'] as $item) {
@@ -325,7 +309,7 @@ function avesmapsGaretienArbeitsliste(PDO $pdo, int $importRunId, array $filter)
             'grund' => (string) ($zeile['grund'] ?? ($erstesAfter['urteil'] ?? '')),
             'abschnitte' => array_values($abschnitte),
             'geometrie' => avesmapsGaretienListeGeometriePunkte((array) ($erstesAfter['geometry'] ?? [])),
-            'wiki_url' => (string) ($erstesAfter['quelle']['url'] ?? ($zeile !== null ? avesmapsGaretienListeWikiUrlAusZeile($zeile) : '')),
+            'wiki_url' => (string) ($erstesAfter['quelle']['url'] ?? ($zeile !== null ? avesmapsGaretienSeitenUrlAusZeile($zeile) : '')),
             'lodmin' => (string) ($zeile['lodmin'] ?? ''),
             'lodmax' => (string) ($zeile['lodmax'] ?? ''),
             'extra' => (string) ($zeile['extra'] ?? ''),
@@ -362,7 +346,7 @@ function avesmapsGaretienArbeitsliste(PDO $pdo, int $importRunId, array $filter)
             'grund' => (string) ($zeile['grund'] ?? ''),
             'abschnitte' => [],
             'geometrie' => avesmapsGaretienZeilePunkte($zeile),
-            'wiki_url' => avesmapsGaretienListeWikiUrlAusZeile($zeile),
+            'wiki_url' => avesmapsGaretienSeitenUrlAusZeile($zeile),
             'lodmin' => (string) ($zeile['lodmin'] ?? ''),
             'lodmax' => (string) ($zeile['lodmax'] ?? ''),
             'extra' => (string) ($zeile['extra'] ?? ''),

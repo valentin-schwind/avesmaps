@@ -187,22 +187,48 @@ $pruefungen++;
 // --- Das Urteil ueberlebt das Rechnen. Ohne die zwei Spalten sind die 49 "deckt sich" und die 6
 // "uebersprungen" nach dem Plan-Lauf nicht mehr auffindbar -- sie erzeugen keinen sync_plan_item,
 // und ihr Grund stand nur im Arbeitsspeicher.
+//
+// 💣 REVIEW C1 (Critical): `zeile_nr` beginnt je SEITE neu bei 1 (avesmapsGaretienStageSeite),
+// und ein Lauf traegt mehrere Seiten -- also NIE per zeile_nr allein nachschlagen, sondern immer
+// ueber (wiki, ebene, zeile_nr). Die Fixture bildet genau diese Kollision ab: die Alke
+// (ggp/Gewaesser/1) und die Insel (kosch/Gewaesser/1) TEILEN sich die Nummer 1. Ein zeile_nr-
+// keyed Dictionary wie zuvor wuerde diese Kollision lautlos verschlucken (der zweite Treffer
+// ueberschreibt den ersten) -- genau die Blindheit, die Review C1 dem alten Test vorgehalten hat.
+// Nachgeschlagen wird deshalb ab hier explizit ueber wiki+ebene+zeile_nr.
 $pdo = avesmapsGaretienPlanTestPdo();
 avesmapsGaretienBaueSyncPlan($pdo, 1, 1);
 
-$urteile = $pdo->query('SELECT zeile_nr, urteil, grund FROM garetien_import_row WHERE run_id = 1 ORDER BY zeile_nr')
-    ->fetchAll(PDO::FETCH_ASSOC);
-$nach = [];
-foreach ($urteile as $u) {
-    $nach[(int) $u['zeile_nr']] = $u;
-}
-assert($nach[1]['urteil'] === 'deckt_sich', 'die Alke deckt sich und muss es auch nachher sagen');
-assert($nach[1]['grund'] !== '', 'ein Urteil ohne Grund ist eine Zahl, die niemand pruefen kann');
-assert($nach[2]['urteil'] === 'neu', 'der Gardel ist neu');
-assert($nach[4]['urteil'] === 'uebersprungen', 'der Sammelartikel ist uebersprungen');
-assert(str_contains($nach[4]['grund'], 'Sammelartikel'), 'der Grund des Ueberspringens fehlt');
-assert($nach[5]['urteil'] === 'uebersprungen', 'die Insel gehoert zu Stufe 3');
-$pruefungen += 6;
+$zeileSuchen = static function (PDO $pdo, string $wiki, string $ebene, int $zeileNr) {
+    $stmt = $pdo->prepare(
+        'SELECT zeile_nr, urteil, grund FROM garetien_import_row'
+        . ' WHERE run_id = 1 AND wiki = :w AND ebene = :e AND zeile_nr = :n'
+    );
+    $stmt->execute([':w' => $wiki, ':e' => $ebene, ':n' => $zeileNr]);
+
+    return $stmt->fetch(PDO::FETCH_ASSOC);
+};
+
+$alke = $zeileSuchen($pdo, 'ggp', 'Gewaesser', 1);
+$gardel = $zeileSuchen($pdo, 'ggp', 'Gewaesser', 2);
+$llavari = $zeileSuchen($pdo, 'ggp', 'Gewaesser', 4);
+$insel = $zeileSuchen($pdo, 'kosch', 'Gewaesser', 1);
+
+assert($alke['urteil'] === 'deckt_sich', 'die Alke deckt sich und muss es auch nachher sagen');
+assert($alke['grund'] !== '', 'ein Urteil ohne Grund ist eine Zahl, die niemand pruefen kann');
+assert($gardel['urteil'] === 'neu', 'der Gardel ist neu');
+assert($llavari['urteil'] === 'uebersprungen', 'der Sammelartikel ist uebersprungen');
+assert(str_contains($llavari['grund'], 'Sammelartikel'), 'der Grund des Ueberspringens fehlt');
+$pruefungen += 5;
+
+// --- 🔴 DIE EIGENTLICHE ZUSICHERUNG VON REVIEW C1: die Insel teilt sich (wiki, zeile_nr) NICHT
+// mit der Alke -- sie unterscheiden sich nur ueber `wiki`. Ohne wiki+ebene im WHERE von
+// avesmapsGaretienSchreibeUrteil haette EINES der beiden UPDATEs die Zeile des jeweils ANDEREN
+// mitgetroffen (wer zuletzt gerechnet wird, gewinnt) -- ein Editor haette den Grund einer
+// FREMDEN Zeile vorgelegt bekommen. Beide Seiten der Kollision werden hier einzeln belegt.
+assert($insel['urteil'] === 'uebersprungen', 'die Insel gehoert zu Stufe 3 und darf NICHT das Urteil der Alke tragen');
+assert(str_contains($insel['grund'], 'Stufe'), 'der Grund der Insel muss ihr EIGENER sein, nicht der Alke-Grund: ' . $insel['grund']);
+assert($insel['grund'] !== $alke['grund'], 'zwei Zeilen mit derselben Nummer duerfen sich nicht denselben Grund teilen');
+$pruefungen += 3;
 
 // 🔴 Der Plan-Lauf schreibt in KEINE Nutztabelle -- nur in sein EIGENES Staging.
 $vorherFeatures = $pdo->query('SELECT COUNT(*) FROM map_features')->fetchColumn();
