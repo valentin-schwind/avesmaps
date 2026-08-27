@@ -473,14 +473,59 @@ is the default, English is opt-in. Therefore:
   dort seit Monaten, war aber fuer echte Browser **unerreichbar** — jeder Wiederbesuch zahlte die
   vollen ~3 MB und die vollen 2,1–2,5 s. Live gegengemessen: die 200 traegt `X-Avesmaps-ETag` und
   weiterhin KEINEN `ETag`; denselben Wert als `If-None-Match` zurueck ergibt **304, null Bytes**.
-  💣 **Die zweite Haelfte fehlt bewusst noch:** der Browser-HTTP-Cache revalidiert NICHT ueber
-  `X-`-Koepfe. Wer sie baut (Nutzlast + Tag in IndexedDB, `If-None-Match` von Hand), muss ZUERST die
-  zwei `header()`-Zeilen in `map-features.php` hinter den Aufbau der Nutzlast schieben: heute gehen
-  sie davor hinaus und reisen damit auch auf einer 500 mit — ein Client, der den Rumpf darunter
-  ablegt, bekaeme spaeter „deine Kopie ist aktuell“ fuer eine Fehlerseite, und das heilt nicht von
-  selbst. Das Muster steht fertig in `api/locations/index.php` (ein Helfer, zweimal gerufen: auf der
-  304 und auf der 200 NACH dem Aufbau), festgenagelt von `etag-shared-test.php`. Solange niemand
-  etwas ablegt, ist die Falle nur gestellt, nicht ausgeloest — der Warnkommentar steht an der Zeile.
+  ✅ **Und seit 27.08.2026 ist die zweite Haelfte da: der Wiederbesuch zahlt 0 Bytes statt 3 MB.**
+  Der Browser-HTTP-Cache revalidiert NICHT ueber `X-`-Koepfe — also legt der Client Nutzlast und Tag
+  selbst ab (`js/app/kartendaten-speicher.js`, IndexedDB) und setzt `If-None-Match` von Hand. Live
+  gegengemessen: kalt EINE Anfrage → 200, ~3 MB; warm EINE Anfrage → **304, null Bytes** (86,9 ms),
+  Karte baut aus dem Speicher in **101 ms** (24,5 ms IndexedDB + 76,5 ms `JSON.parse`), 12.149
+  Merkmale, dieselbe Revision.
+  💣 **ZUERST mussten die zwei `header()`-Zeilen hinter den Aufbau** — sie gingen davor hinaus und
+  reisten damit auch auf einer 500 mit; ein Client, der den Rumpf darunter ablegt, bekaeme spaeter
+  „deine Kopie ist aktuell“ fuer eine Fehlerseite, und das heilt nicht von selbst. Solange niemand
+  etwas ablegte, war die Falle nur gestellt — mit diesem Umbau waere sie ausgeloest gewesen. Jetzt
+  `avesmapsMapFeaturesSendCacheHeaders`, zweimal gerufen: auf der 304 und im EINEN Rumpf-Ausgang
+  (Vorrats-Treffer wie frischer Aufbau) NACH dem Aufbau — dasselbe Muster wie in
+  `api/locations/index.php`, festgenagelt von `etag-shared-test.php`.
+  💣 **DER KNIFFLIGE TEIL IST DER VORABRUF, und er wird im KOPF geloest, nicht im Abruf.**
+  `index.html` meldet die Anfrage per `<link rel="preload" as="fetch">` an, und ein Vorabruf passt
+  nur bei GLEICHEN Kopfzeilen — deshalb schickt der `fetch` in `routing.js` keine eigenen (der
+  `Accept`-Kopf wurde dafuer entfernt). Ein `If-None-Match` verfehlt ihn also, und dann reisen die
+  3 MB **ZWEIMAL**, schlechter als der Zustand davor. Darum haelt der Tag zusaetzlich in
+  `localStorage` (synchron lesbar), und das Vorabruf-Skript im Kopf entscheidet daraus: Tag da →
+  **gar kein Vorabruf** (die Anfrage wird ohnehin bedingt und winzig), kein Tag → Vorabruf wie
+  bisher. Im Netz-Protokoll nachgezaehlt: in BEIDEN Faellen genau EINE Anfrage.
+  🔴 **Der Schluessel `avesmaps.kartendaten.etag` steht deshalb ZWEIMAL** (Modul und Kopf von
+  `index.html`) — der Kopf entscheidet, bevor irgendein Skript geladen ist. Zeichengleich zu halten
+  ist Pflicht; `kartendaten-speicher.test.js` haelt beide gegeneinander.
+  💣 **Abgelegt wird die ZEICHENKETTE, nicht das geparste Objekt** — gemessen, nicht geraten
+  (20,3 MB / 12.149 Merkmale): Lesen 30,5+77,1=107,6 ms gegen 83,8 ms, Ablegen 37,1 ms gegen
+  67,1 ms. Das Objekt liest sich 24 ms schneller — Rauschen gegen die rund 2 s, die der Umbau spart
+  —, aber die Zeichenkette ist UNVERAENDERLICH und laesst sich gefahrlos in den Leerlauf schieben,
+  waehrend das geparste Objekt noch im selben Zug um `avesmapsSource` erweitert und durch die ganze
+  Hydrierung gereicht wird.
+  💣 **Der Tag in `localStorage` kommt ZULETZT** — erst wenn die Nutzlast wirklich liegt (`oncomplete`,
+  nicht `onsuccess` des `put`: ein volles Kontingent schlaegt als `onabort` zu, nachdem `put` laengst
+  erfolgreich aussah). Sonst unterbliebe der Vorabruf fuer eine Kopie, die es gar nicht gibt — der
+  schlechteste aller Faelle. ⚠️ Und beim Lesen wird der Tag gegengeprueft: `localStorage` und
+  IndexedDB sind zwei Speicher und koennen auseinanderlaufen; ohne den Vergleich haengte eine 304
+  fuer Tag A die Nutzlast von Tag B in die Karte.
+  ⚠️ **Alles faellt offen aus** (kein IndexedDB, volles Kontingent, halber Eintrag, fehlende Datei →
+  normaler Vollabruf), und der Rueckfall bei leerem Speicher fasst GENAU EINMAL nach — eine 304 ohne
+  mitgeschickten Tag wirft, statt im Kreis zu laufen.
+  🔴 **Nur die oeffentliche Fassung.** Im Bearbeiten-Modus wird weder gelesen noch abgelegt: dort holt
+  der Live-Abgleich staendig Deltas, und ein zurueckgehaltener Editor-Stand ist genau die Stoerung
+  („meine Aenderung kommt nicht an“), die dieses Projekt schon mehrfach bezahlt hat.
+  🪤 **Und die Messfalle, die zweimal in die Irre fuehrte:** liest man die Kopfzeilen aus einer
+  Antwort, die der Browser aus seinem EIGENEN Cache beantwortet hat, steht `ETag` sehr wohl da — er
+  stammt dann aus einer frueheren 304, und die 200 sieht faelschlich heil aus. Nur `cache:
+  "no-store"` misst, was wirklich ueber die Leitung kam. Ebenso wertlos ist dort
+  `performance.getEntriesByType("resource")`: der Puffer haelt 250 Eintraege, diese Seite laedt rund
+  255, und die warme Anfrage fiel deshalb komplett heraus („0 Anfragen“, obwohl eine lief). Gezaehlt
+  wird im Netz-Protokoll.
+  Tests: `js/app/__tests__/kartendaten-speicher.test.js` (der Speicher mit gefaelschtem IndexedDB
+  wirklich gefahren, samt der Vorabruf-Weiche aus `index.html`),
+  `js/routing/__tests__/kartendaten-bedingter-abruf.test.js` (`loadRouteDataFromApi` ausgefuehrt:
+  kalt, warm, leerer Speicher, Kreis-Riegel, Bearbeiten-Modus, ohne Speicher).
 - 💣 **`segments[].cost_units` der Routing-API ist KEINE Stunde**, und `route.cost` schon gar nicht.
   🔴 **UND ES SIND ZWEI UMRECHNUNGEN, NICHT EINE.** `cost_units` entsteht als `distance_units /
   Tempo`; die Strecke steht in KARTENEINHEITEN (mal drei, `AVESMAPS_TERRAIN_MEILEN_PER_MAPUNIT`) und
