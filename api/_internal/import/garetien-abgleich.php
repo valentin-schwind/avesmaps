@@ -372,7 +372,11 @@ function avesmapsGaretienDeckung(array $probe, array $kandidaten): array
     // verschiedenen Fluessen; gehakt wird je Abschnitt, nie je Objekt. Ohne diese Zeilen wuerde
     // dieselbe Rechnung im Browser ein zweites Mal gebaut -- die Grenze, die der Auftrag §5.4
     // ausdruecklich zieht.
-    // ⚠️ ERGAENZUNG, KEIN ERSATZ: `bester` bleibt, wo er war. Er hat vier Aufrufer.
+    // ⚠️ ERGAENZUNG, KEIN ERSATZ: `bester` und `abstand` bleiben unangetastet -- sie haben
+    // ihre eigenen Leser.
+    // 💣 Hier stand eine ZAHL ("vier Aufrufer"), und sie war falsch: es ist genau einer.
+    // Eine Zahl im Kommentar liest sich wie eine vollstaendige Liste, und niemand zaehlt nach --
+    // genau daran ist am 14.08.2026 die Verkehrsmittel-Sperre gescheitert (AGENTS.md §11).
     $abschnitte = [];
     foreach ($treffer as $k => $anzahl) {
         $abschnitte[] = ['index' => (int) $k, 'punkte' => (int) $anzahl];
@@ -455,6 +459,62 @@ function avesmapsGaretienAusdehnung(array $punkte): float
 const AVESMAPS_GARETIEN_AUSDEHNUNG_MINDESTVERHAELTNIS = 0.75;
 
 /**
+ * So viele Stuetzpunkte je Abschnitt reisen mit. Sie sind fuer den goldenen SCHEIN unter unserem
+ * Bestand gedacht, nicht fuer eine Vermessung -- und ein Schein braucht die Form, nicht jeden
+ * Knick.
+ *
+ * ⚠️ Die Zahl ist eine NUTZLASTGRENZE, keine Genauigkeitsgrenze. Live gemessen: unsere laengsten
+ * Flussabschnitte tragen dreistellige Stuetzpunktzahlen, und ein Objekt kann 13 Abschnitte
+ * treffen (Der Grosse Fluss). Ungedeckelt waeren das im schlimmsten Fall einige tausend Paare in
+ * EINER after_json -- fuer eine Liste, die 259 solcher Zeilen zeigt.
+ */
+const AVESMAPS_GARETIEN_ABSCHNITT_PUNKTE = 64;
+
+/**
+ * Die getroffenen Abschnitte, wie das Fenster sie braucht: Name (oder leer), Deckung, Geometrie.
+ *
+ * 🔴 KEINE ZWEITE RECHNUNG. Die Indizes kommen aus `avesmapsGaretienDeckung`, die Punkte aus dem
+ * Kandidaten, der ohnehin geladen ist. Hier wird nur umgepackt.
+ */
+function avesmapsGaretienAbschnitte(array $deckung, array $kandidaten): array
+{
+    $raus = [];
+    foreach ($deckung['abschnitte'] ?? [] as $eintrag) {
+        $kandidat = $kandidaten[$eintrag['index']] ?? null;
+        if ($kandidat === null) {
+            continue;
+        }
+        $raus[] = [
+            'public_id' => (string) $kandidat['public_id'],
+            // ⚠️ Ein LEERER Name ist die Auskunft, nicht die Abwesenheit einer Auskunft: 25 von 76
+            // Geometrietreffern trugen bei uns gar keinen Namen. Genau die sind der vierte Ausgang.
+            'name' => (string) ($kandidat['name'] ?? ''),
+            'punkte' => (int) $eintrag['punkte'],
+            'geometrie' => avesmapsGaretienProbepunkteN(
+                $kandidat['punkte'], AVESMAPS_GARETIEN_ABSCHNITT_PUNKTE
+            ),
+        ];
+    }
+
+    return $raus;
+}
+
+/** Gleichmaessig ausgeduennt auf hoechstens `$deckel` Punkte -- die Form von `avesmapsGaretienProbepunkte`, frei waehlbare Zahl. */
+function avesmapsGaretienProbepunkteN(array $punkte, int $deckel): array
+{
+    $anzahl = count($punkte);
+    if ($anzahl <= $deckel || $deckel < 2) {
+        return $punkte;
+    }
+    $raus = [];
+    for ($i = 0; $i < $deckel; $i++) {
+        $raus[] = $punkte[(int) floor($i * ($anzahl - 1) / ($deckel - 1))];
+    }
+
+    return $raus;
+}
+
+/**
  * Der Abgleich einer Staging-Zeile gegen unseren Bestand.
  *
  * Reihenfolge (Entwurf §5.2): Artikelname -> Geometrie -> Name (nie allein).
@@ -468,7 +528,7 @@ const AVESMAPS_GARETIEN_AUSDEHNUNG_MINDESTVERHAELTNIS = 0.75;
  * an denselben. Wer das aus `grund` herausliest, haengt eine Programmentscheidung an einen
  * deutschen Satz, den der naechste Leser umformuliert.
  *
- * @return array{status:string, anlass:?string, treffer_public_id:?string, treffer_name:?string, grund:string, abstand:?float}
+ * @return array{status:string, anlass:?string, treffer_public_id:?string, treffer_name:?string, grund:string, abstand:?float, abschnitte:list<array{public_id:string, name:string, punkte:int, geometrie:array}>}
  */
 function avesmapsGaretienFindeBestand(PDO $pdo, array $zeile, ?array $ziel): array
 {
@@ -480,6 +540,7 @@ function avesmapsGaretienFindeBestand(PDO $pdo, array $zeile, ?array $ziel): arr
             'treffer_name' => null,
             'grund' => (string) (avesmapsGaretienUeberspringGrund($zeile) ?? 'kein Ziel'),
             'abstand' => null,
+            'abschnitte' => [],
         ];
     }
 
@@ -508,6 +569,9 @@ function avesmapsGaretienFindeBestand(PDO $pdo, array $zeile, ?array $ziel): arr
                 : sprintf('Artikel trifft "%s", aber die Geometrie liegt %.2f Einheiten entfernt',
                     $kandidat['name'], $abstand),
             'abstand' => is_finite($abstand) ? $abstand : null,
+            // Der Artikeltreffer wird gegen GENAU DIESEN EINEN Kandidaten gemessen, wie schon
+            // der `abstand` darueber -- keine zweite Deckung ueber den ganzen Bestand.
+            'abschnitte' => avesmapsGaretienAbschnitte(avesmapsGaretienDeckung($probe, [$kandidat]), [$kandidat]),
         ];
     }
 
@@ -519,6 +583,7 @@ function avesmapsGaretienFindeBestand(PDO $pdo, array $zeile, ?array $ziel): arr
             'treffer_name' => null,
             'grund' => 'keine vergleichbare Geometrie in der Quelle',
             'abstand' => null,
+            'abschnitte' => [],
         ];
     }
 
@@ -586,6 +651,7 @@ function avesmapsGaretienFindeBestand(PDO $pdo, array $zeile, ?array $ziel): arr
                         $verhaeltnis * 100.0)
             ),
             'abstand' => $besterAbstand,
+            'abschnitte' => avesmapsGaretienAbschnitte($deckung, $kandidaten),
         ];
     }
 
@@ -599,6 +665,9 @@ function avesmapsGaretienFindeBestand(PDO $pdo, array $zeile, ?array $ziel): arr
             : sprintf('naechstes gleichartiges Objekt "%s" liegt %.2f Einheiten entfernt',
                 $bester['name'], $besterAbstand),
         'abstand' => $bester === null ? null : $besterAbstand,
+        // ⚠️ `$deckung` ist hier noch im Gueltigkeitsbereich -- sie wird VOR der if-Verzweigung
+        // oben gerechnet und deckt auch den Fall ab, in dem kein Kandidat die Schwelle erreicht.
+        'abschnitte' => avesmapsGaretienAbschnitte($deckung, $kandidaten),
     ];
 }
 

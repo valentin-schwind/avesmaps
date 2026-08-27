@@ -435,4 +435,57 @@ $leer = avesmapsGaretienDeckung($probe, []);
 assert($leer['abschnitte'] === [], 'ohne Kandidaten muss die Abschnittsliste LEER sein, nicht null');
 $pruefungen += 8;
 
+// ---------------------------------------------------------------------------------------------
+// Aufgabe 2: `avesmapsGaretienFindeBestand` gibt die getroffenen Abschnitte mit Name UND
+// Geometrie heraus -- was bei uns an derselben Stelle liegt.
+//
+// 💣 KORREKTUR ZUM BAUPLAN: der Bauplan-Testschnipsel ruft `avesmapsGaretienPlanTestPdo()` und
+// erwartet eine Fixture "vorhanden-1"/"Alke". Diese Funktion lebt in garetien-plan.php und ist
+// hier nicht erreichbar -- diese Datei laedt nur garetien-abgleich.php. Geprueft wird deshalb
+// gegen den VORHANDENEN Bestand DIESER Datei (abc-123 "Der Große Fluss", oben eingefuegt), die
+// geprueften EIGENSCHAFTEN sind dieselben wie im Bauplan verlangt.
+avesmapsGaretienKandidatenVergessen();
+$zeile = ['typ' => 'Strom', 'namensraum' => '', 'artikel' => '', 'anzeige' => 'Großer Fluss',
+          'geo_art' => 'koordinaten', 'geo' => '156000 -600, 159000 -3600'];
+$urteil = avesmapsGaretienFindeBestand($pdo, $zeile, avesmapsGaretienMappeTyp('Strom'));
+assert($urteil['status'] === 'deckt_sich', 'die Fixture "Der Große Fluss" muss weiterhin decken');
+assert(isset($urteil['abschnitte']), 'avesmapsGaretienFindeBestand gibt keine Abschnitte heraus');
+assert(count($urteil['abschnitte']) === 1, 'die Fixture hat genau einen Bestandsabschnitt');
+assert($urteil['abschnitte'][0]['public_id'] === 'abc-123', 'die public_id fehlt');
+assert($urteil['abschnitte'][0]['name'] === 'Der Große Fluss', 'der Name des Abschnitts fehlt');
+assert($urteil['abschnitte'][0]['punkte'] > 0, 'die Deckungszahl fehlt');
+assert(count($urteil['abschnitte'][0]['geometrie']) === 2,
+    'die Geometrie des getroffenen Abschnitts muss mitreisen -- sonst liegt der Schein nirgends');
+assert(is_float($urteil['abschnitte'][0]['geometrie'][0][0]),
+    'die Geometrie steht in Karteneinheiten als [x,y]-Paare');
+$pruefungen += 7;
+
+// Ein Objekt ohne jeden Nachbarn: LEERE Liste, nie null.
+$fern = $zeile;
+$fern['geo'] = '900000 -400000, 901000 -401000';
+$fernUrteil = avesmapsGaretienFindeBestand($pdo, $fern, avesmapsGaretienMappeTyp('Strom'));
+assert($fernUrteil['status'] === 'neu', 'weit weg heisst neu');
+assert($fernUrteil['abschnitte'] === [], 'ohne Nachbarn eine leere Liste, kein null');
+$pruefungen += 2;
+
+// 🪤 Ein Rueckgabeweg ohne `abschnitte` liefert in der Einzelansicht ein leeres "Was bei uns
+// liegt" -- und das ist von "da liegt nichts" nicht zu unterscheiden. Deshalb wird die Anwesenheit
+// des Schluessels an JEDEM Ausgang geprueft, nicht nur an dem, den der Test oben zufaellig nimmt.
+// 💣 Auch hier die Korrektur von oben: die Geo-Werte sind an die VORHANDENE Fixture dieser Datei
+// angepasst ("Der Große Fluss" bei 156000 -600 / 159000 -3600), nicht an "Alke".
+foreach ([
+    ['Insel', '1 2, 3 4'],                                    // uebersprungen (spaetere Stufe)
+    ['Bach', ''],                                             // keine vergleichbare Geometrie
+    ['Strom', '156000 -600, 159000 -3600'],                   // Geometrie deckt sich
+    ['Strom', '900000 -400000, 901000 -401000'],              // neu
+] as [$typ, $geo]) {
+    $probeZeile = ['wiki' => 'ggp', 'ebene' => 'Gewaesser', 'zeile_nr' => 9, 'typ' => $typ,
+        'namensraum' => '', 'artikel' => '', 'anzeige' => 'Probe',
+        'geo_art' => $geo === '' ? 'verweise' : 'koordinaten', 'geo' => $geo];
+    $u = avesmapsGaretienFindeBestand($pdo, $probeZeile, avesmapsGaretienMappeTyp($typ));
+    assert(array_key_exists('abschnitte', $u) && is_array($u['abschnitte']),
+        'Rueckgabeweg fuer Typ ' . $typ . ' vergisst `abschnitte`');
+    $pruefungen++;
+}
+
 echo "OK: {$pruefungen} Pruefungen\n";
