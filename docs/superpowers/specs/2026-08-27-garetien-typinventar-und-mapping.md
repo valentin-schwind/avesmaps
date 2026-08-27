@@ -219,17 +219,27 @@ wächst um eine Fläche, die dieselbe Gegend ein zweites Mal beschreibt, und nie
 Karte an. ⚠️ Ein Blatt dagegen (Baronie ohne Junkertümer bei uns) hat gar keine abgeleitete
 Grenze: „die Grenze ist die eigene Quellfläche."
 
-🔴 **Die Regel für den Importer, in einem Satz:** eine Fläche wird nur dann als **eigene**
-Geometrie übernommen, wenn unter ihr **nichts liegt, was sie ableiten könnte** — sonst ist sie
-höchstens ein *Vorschlag zum Ansehen*, nie ein stiller Zusatz.
+🔴 **DIE REGEL, wörtlich vom Owner 27.08.2026:** *„wenn es Junkertum als Unterzweig einer baronie
+gibt, erlaube das einfügen der fläche. wenn es unter einer Baronie kein Unterzweig gibt, erlaube
+das einfügen einer baronie. usw."*
 
-| Ihre Ebene | Bei uns schon vorhanden? | Was der Importer tun soll |
+⭐ In einem Satz und auf jede Ebene verallgemeinert: **die Geometrie gehört auf die UNTERSTE
+Ebene, die es bei uns gibt.** Hat unsere Baronie Junkertümer, nimmt das Junkertum die Fläche; hat
+sie keine, nimmt die Baronie sie. Hat eine Grafschaft keine Baronien, nimmt sie sie selbst. Der
+Importer prüft also nicht die Ebene der Quelle, sondern **ob unter dem Zielknoten ein Unterzweig
+hängt** — dieselbe Frage, die `avesmapsPoliticalCollectDerivedGeometryDescendantIds` ohnehin
+beantwortet. Kein neuer Rechenweg.
+
+| Volkers Fläche | Hat der Zielknoten bei uns Unterzweige? | Geometrie einfügen? |
 |---|---|---|
-| `Junkertumsflaeche` (585) | — (unterste Einheit) | **Eigene Geometrie übernehmen.** Sie ist die Quelle, aus der alles darüber entsteht |
-| `Baronieflaeche` (143) | Junkertümer darunter existieren | **nicht** als eigene Geometrie — die Hülle entsteht daraus |
-| | keine Junkertümer darunter | eigene Geometrie übernehmen (es ist ein Blatt) |
-| `Grafschaftsflaeche` (31) | Baronien darunter existieren | **nicht** als eigene Geometrie |
-| | keine Baronien darunter | eigene Geometrie übernehmen |
+| `Junkertumsflaeche` (585) | (unterste Einheit, per Definition nein) | ✅ ja |
+| `Baronieflaeche` (143) | ja, Junkertümer | ❌ nein — sie entsteht aus ihnen |
+| | nein | ✅ ja, die Baronie ist das Blatt |
+| `Grafschaftsflaeche` (31) | ja, Baronien | ❌ nein |
+| | nein | ✅ ja |
+
+💣 **„Nein" heisst NICHT „verwerfen".** Der Knoten kommt trotzdem — siehe den nächsten Absatz;
+nur seine Fläche bleibt draussen, weil sie sonst der Vereinigung hinzugefügt würde.
 
 #### 🔴 Junkertum als eigener Rang — und die Hierarchie ist ableitbar
 
@@ -263,6 +273,27 @@ Namensheuristik.
 ⚠️ Der zweite Weg (die Zugehörigkeit aus dem Wiki-Artikel) trägt hier **nicht** ohne Weiteres:
 unser WikiSync crawlt **Wiki Aventurica**, Volkers Artikel liegen auf **garetien.de**. Er käme
 nur für die Junkertümer in Frage, die es auf beiden gibt.
+
+🔴 **DER KNOTEN UND DIE FLÄCHE SIND ZWEI VERSCHIEDENE DINGE — und das ist der Kern.** Owner
+27.08.2026: *„trotzdem will man die hierarchie in unserem territoriums editor haben (wenn der
+import kommt)."*
+
+| | |
+|---|---|
+| **Der Knoten** (`political_territory` mit `type='Junkertum'`, `parent_id` = die Baronie) | kommt **immer** — auch dort, wo die Fläche draussen bleibt. Sonst fehlt die Hierarchie im Territorien-Editor, und genau die will der Owner sehen |
+| **Die Fläche** (`political_territory_geometry`) | kommt **nur auf der untersten Ebene**, nach der Regel oben |
+
+⚠️ Wer das zusammenwirft, baut einen der zwei Fehler: entweder fehlen 585 Junkertümer im Baum
+(weil ihre Fläche nicht gebraucht wurde), oder die Aussengrenzen wachsen um doppelt beschriebene
+Flächen. Die Übernahme-Vorschau muss beides **getrennt anhakbar** machen — Knoten und Geometrie
+sind zwei Items, nicht eins.
+
+⭐ **Und daraus fällt der Normalfall von selbst ab:** heute hat unser Bestand unter den Baronien
+meist *keine* Junkertümer. Beim ersten Lauf kommen also 585 Knoten **mit** ihrer Fläche hinein —
+und die Baronien darüber verlieren ihre eigene Geometrie nicht, sie bekommen von da an eine
+abgeleitete, die aus den Junkertümern entsteht. 🔧 Das ist eine **sichtbare Veränderung an
+bestehenden Baronien** und gehört dem Owner vor Stufe 5 vorgelegt, nicht als Nebenwirkung
+mitgeliefert.
 
 🔧 **Offen bleibt die Reihenfolge:** die Zuordnung setzt voraus, dass Volkers Flächen **zuerst
 aufgelöst** sind (Fläche → Grenzzug → Fragment, Entwurf §4). Stufe 5 muss deshalb erst auflösen,
