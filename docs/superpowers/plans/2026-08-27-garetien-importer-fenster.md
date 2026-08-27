@@ -744,16 +744,7 @@ function avesmapsGaretienErgaenzungsEintraege(array $zeile, array $ziel, array $
     // Werkzeug anbieten kann -- 34 der 37 Widersprueche sind Baeche, die auf ihrem Hauptfluss
     // liegen; dort ersetzte es die Natter durch ihren Seitenarm, mit gueltiger id und ohne
     // Fehlermeldung. Der Knopf ist dann ausgegraut und sagt, warum.
-    // 🔴 RULING R5: NUR fuer Wege. Bei einer Landschaftsflaeche ist dieser Zweig doppelt
-    // tot -- `entity_public_id` ist die REGIONS-public_id (garetien-abgleich.php waehlt
-    // `r.public_id`), `avesmapsUpdateEcosystemAreaGeometry` liest aber `ecosystem_area`, ein
-    // anderer id-Raum; und `avesmapsEcosystemReadExpectedRevision` wirft bedingungslos, wenn
-    // keine erwartete Revision mitkommt. Beides scheitert garantiert.
-    // ⚠️ Und es ist nicht bloss ein Fehler, sondern ein Fall, den niemand verlangt hat: die vier
-    // Faelle des Mockups sind alle WEGE. Die Flaeche eines Sees durch ihre zu ersetzen ist eine
-    // eigene Frage mit eigener Messung -- einen ungetesteten Schreibweg auf bestehende Flaechen
-    // dafuer zu bauen ist genau das, was dieser Plan verbietet.
-    if (count($abschnitte) === 1 && ($ziel['ziel'] ?? '') === 'path') {
+    if (count($abschnitte) === 1) {
         $eintraege[] = avesmapsGaretienAbschnittsEintrag(
             $vorlage, $abschnitte[0], 'geometrie', ['geometrie'], $ihrName,
             trim((string) ($abschnitte[0]['name'] ?? '')), true
