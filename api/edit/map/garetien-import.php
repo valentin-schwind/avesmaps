@@ -15,6 +15,7 @@ declare(strict_types=1);
 
 require __DIR__ . '/../../_internal/auth.php';
 require_once __DIR__ . '/../../_internal/import/garetien-abruf.php';
+require_once __DIR__ . '/../../_internal/import/garetien-uebernahme.php';
 
 /** Eine Ebene der festen Liste anhand von wiki+ebene finden. */
 function avesmapsGaretienEndpunktEbene(string $wiki, string $ebene): ?array
@@ -84,6 +85,44 @@ try {
             . ' ORDER BY r.id DESC LIMIT 20'
         )->fetchAll(PDO::FETCH_ASSOC);
         avesmapsJsonResponse(200, ['ok' => true, 'runs' => $laeufe]);
+    }
+
+    // --- Der Plan bauen: rechnen, in KEINE Nutztabelle schreiben.
+    if ($action === 'plan') {
+        $importRun = (int) ($payload['run_id'] ?? 0);
+        if ($importRun <= 0) {
+            avesmapsErrorResponse(400, 'no_run', 'Es wurde kein Import-Lauf genannt.');
+        }
+        $anzahl = avesmapsGaretienBaueSyncPlan($pdo, $importRun, (int) ($user['id'] ?? 0));
+        $lauf = avesmapsSyncPlanOpenRun($pdo, AVESMAPS_GARETIEN_PLAN_KIND);
+        avesmapsJsonResponse(200, [
+            'ok' => true,
+            'plan_run_id' => (int) ($lauf['id'] ?? 0),
+            'vorschlaege' => $anzahl,
+        ]);
+    }
+
+    // --- Uebernehmen: der EINZIGE Schreibweg, und nur das Angehakte.
+    if ($action === 'apply') {
+        $planRun = (int) ($payload['plan_run_id'] ?? 0);
+        if ($planRun <= 0) {
+            avesmapsErrorResponse(400, 'no_plan', 'Es wurde kein Vorschau-Lauf genannt.');
+        }
+        // 🔴 Die Auswahl kommt aus der DATENBANK, nicht aus dem Anfragerumpf: die Haekchen stehen
+        // in sync_plan_item.selected, und der Client setzt sie ueber die vorhandene Vorschau. Eine
+        // Liste aus dem Rumpf waere ein zweiter Weg, etwas anzuhaken -- und der ginge an jedem
+        // Riegel vorbei, den die Vorschau schon hat.
+        $stmt = $pdo->prepare("SELECT id FROM sync_plan_item WHERE run_id = :r AND selected = 1 AND (apply_state IS NULL OR apply_state <> 'done') ORDER BY id");
+        $stmt->execute([':r' => $planRun]);
+        $itemIds = array_map('intval', $stmt->fetchAll(PDO::FETCH_COLUMN));
+        // 💣 Das selbstheilende DDL steht HIER, nicht in der Bibliothek -- sonst laesst sich die
+        // gegen keine andere Datenbank pruefen als die, fuer die ihr DDL geschrieben ist.
+        avesmapsEnsureFeatureSourceTables($pdo);
+        $ergebnis = avesmapsGaretienUebernehmen($pdo, $planRun, $itemIds, $user);
+        if ($ergebnis['angelegt'] > 0) {
+            avesmapsSyncPlanMarkApplied($pdo, $planRun, (int) ($user['id'] ?? 0));
+        }
+        avesmapsJsonResponse(200, ['ok' => true] + $ergebnis + ['angehakt' => count($itemIds)]);
     }
 
     if ($action !== 'fetch' && $action !== 'upload') {

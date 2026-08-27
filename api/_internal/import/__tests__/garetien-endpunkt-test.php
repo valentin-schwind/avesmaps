@@ -123,4 +123,27 @@ assert(
     'die Importbibliothek wird mit require_once geladen, nicht blank'
 );
 
+// 🔴 DIE AUSWAHL KOMMT AUS DER DATENBANK, NICHT AUS DEM ANFRAGERUMPF. Die Haekchen stehen in
+// sync_plan_item.selected und werden ueber die vorhandene Vorschau gesetzt. Eine Item-Liste aus
+// dem Rumpf waere ein ZWEITER Weg, etwas anzuhaken -- und der ginge an jedem Riegel vorbei, den
+// die Vorschau schon hat (Loeschbestaetigung, Uebersprung-Zaehler, die dauerhafte Entscheidung).
+// Dieselbe Lehre wie bei der abgerufenen Adresse: der Aufrufer waehlt, er diktiert sie nicht.
+$applyAb = strpos($quelle, "'apply'");
+assert($applyAb !== false, 'es gibt eine apply-Aktion');
+$applyBlock = substr($quelle, $applyAb, 1800);
+assert(str_contains($applyBlock, 'selected = 1'), 'die Auswahl wird aus der Tabelle gelesen');
+assert(preg_match('~avesmapsGaretienUebernehmen\([^;]*\$payload~', $applyBlock) !== 1,
+    'und NIE aus dem Anfragerumpf');
+
+// 🔴 Und schon Uebernommenes wird uebersprungen -- ein zweiter Klick auf "Uebernehmen" legt
+// nichts doppelt an. Der Riegel steht doppelt (hier und in der Bibliothek), und das ist Absicht:
+// die Abfrage spart die Arbeit, die Bibliothek haelt die Zusicherung.
+assert(str_contains($applyBlock, 'apply_state') && str_contains($applyBlock, "'done'"),
+    'bereits uebernommene Items werden gar nicht erst geladen');
+
+// 💣 Und die Uebernahme laeuft NUR ueber die Bibliothek -- kein eigenes INSERT im Endpunkt.
+// Ein zweiter Schreiber auf map_features waere genau der Erzeuger, den keine Regel mehr bindet.
+assert(!preg_match('~INSERT\s+INTO\s+(map_features|ecosystem_region|ecosystem_area)~i', $quelle),
+    'der Endpunkt schreibt keine Kartenobjekte selbst');
+
 echo "OK: garetien-endpunkt-test\n";
