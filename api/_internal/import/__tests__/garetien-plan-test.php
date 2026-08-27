@@ -36,16 +36,19 @@ assert($vorherFlaechen === (int) $pdo->query('SELECT COUNT(*) FROM ecosystem_are
     'und ecosystem_area auch nicht');
 $pruefungen += 3;
 
-// --- 💣 GEZAEHLT, NICHT NUR "GROESSER NULL". Der Pruefstand hat fuenf Quellzeilen, und
-// GENAU ZWEI davon gehoeren in den Plan: der Gardel und der Muehlsee sind neu. Die Alke deckt
-// sich mit einem Bestandsfluss, "Nachbarprovinzen" ist ein Sammelartikel, die Insel gehoert zu
-// Stufe 3. 🪤 Mit "> 0" ueberlebten drei Mutationen: uebersprungene Zeilen doch aufnehmen,
-// deckende doch aufnehmen, und den Ueberspringen-Riegel ganz entfernen -- jedes Mal wurden es
-// MEHR Eintraege, und mehr ist immer noch groesser als null.
-assert($anzahl === 3, 'genau drei Vorschlaege aus sechs Quellzeilen, ' . $anzahl . ' gebaut');
+// --- 💣 GEZAEHLT, NICHT NUR "GROESSER NULL". Der Pruefstand hat sechs Quellzeilen: Gardel und
+// Muehlsee sind neu, der Seitenarm ist ein Zufluss (eigenes neues Objekt) -- macht drei. Die
+// Alke deckt sich mit einem Bestandsfluss und bringt seit Aufgabe 3 (der vierte Ausgang) selbst
+// ZWEI Eintraege: eine Quellen-Luecke (ihre Quelle liegt bei uns noch nicht) plus ein
+// Geometrie-Angebot (genau EIN Abschnitt getroffen) -- macht fuenf. "Nachbarprovinzen" ist ein
+// Sammelartikel, die Insel gehoert zu Stufe 3. 🪤 Mit "> 0" ueberlebten drei Mutationen:
+// uebersprungene Zeilen doch aufnehmen, deckende ganz verwerfen statt ueber den vierten Ausgang
+// zu fuehren, und den Ueberspringen-Riegel ganz entfernen -- jedes Mal wurden es MEHR Eintraege,
+// und mehr ist immer noch groesser als null.
+assert($anzahl === 5, 'genau fuenf Vorschlaege aus sechs Quellzeilen, ' . $anzahl . ' gebaut');
 $namen = $pdo->query('SELECT label FROM sync_plan_item ORDER BY id')->fetchAll(PDO::FETCH_COLUMN);
-assert($namen === ['Gardel (Fluss)', 'Mühlsee (See)', 'Seitenarm der Alke (Bach) · liegt auf "Alke"'],
-    'die richtigen drei: ' . implode(' | ', $namen));
+assert($namen === ['Alke → Alke', 'Alke → Alke', 'Gardel (Fluss)', 'Mühlsee (See)', 'Seitenarm der Alke (Bach) · liegt auf "Alke"'],
+    'die richtigen fuenf: ' . implode(' | ', $namen));
 $pruefungen += 2;
 
 // --- 🔴 EIN ZUFLUSS IST EIN NEUES OBJEKT, KEINE AENDERUNG AN UNSEREM FLUSS (Owner 27.08.2026).
@@ -182,6 +185,112 @@ foreach (['SYNC_PLAN_KIND_NOUNS', 'SYNC_PLAN_KIND_TITLES', 'SYNC_PLAN_KIND_DELET
 $von = strpos($blatt, 'const SYNC_PLAN_KIND_DELETION');
 $loeschTafel = substr($blatt, $von, (int) strpos($blatt, "\n};", $von) - $von);
 assert(preg_match('~garetien:\s*null~', $loeschTafel) === 1, 'der Import loescht nichts');
+$pruefungen++;
+
+// ---------------------------------------------------------------------------------------------
+// DER VIERTE AUSGANG: "haben wir -- aber sie wissen mehr" (Auftrag §4).
+//
+// 🔴 Es gibt keinen vierten change_type. Es ist ein `changed` mit after.anlass.
+
+// -- Fall A/B: ein NAMENLOSER Abschnitt. Die Luecke wird gefuellt, also vorangehakt.
+$urteilA = ['status' => 'deckt_sich', 'anlass' => 'geometrie', 'treffer_public_id' => 'w-1',
+    'treffer_name' => '', 'grund' => 'Geometrie deckt sich', 'abstand' => 0.41,
+    'abschnitte' => [['public_id' => 'w-1', 'name' => '', 'punkte' => 12, 'geometrie' => [[1.0, 2.0]]]]];
+$zeileA = ['wiki' => 'ggp', 'ebene' => 'Gewaesser', 'zeile_nr' => 1, 'typ' => 'Bach',
+    'namensraum' => 'Garetien', 'artikel' => 'Alke', 'anzeige' => 'Alke',
+    'geo_art' => 'koordinaten', 'geo' => '20000 10000, 21000 11000'];
+$a = avesmapsGaretienErgaenzungsEintraege($zeileA, avesmapsGaretienMappeTyp('Bach'), $urteilA, []);
+
+$luecken = array_values(array_filter($a, static fn($e) => $e['after']['anlass'] === 'ergaenzung'));
+assert(count($luecken) === 1, 'ein namenloser Abschnitt muss GENAU ein Luecken-Item ergeben');
+assert($luecken[0]['change_type'] === 'changed', 'der vierte Ausgang ist ein changed');
+assert($luecken[0]['entity_public_id'] === 'w-1', 'das Ziel ist der ABSCHNITT, nicht das Objekt');
+assert(in_array('name', $luecken[0]['after']['felder'], true), 'der leere Name ist eine Luecke');
+assert(in_array('quelle', $luecken[0]['after']['felder'], true), 'die fehlende Quelle ist eine Luecke');
+assert($luecken[0]['vorwahl_aus'] === false, 'eine Luecke kommt VORANGEHAKT (Owner 16.08.2026)');
+assert(array_filter($a, static fn($e) => $e['after']['anlass'] === 'umbenennung') === [],
+    'ein LEERER Name wird gefuellt, nicht umbenannt');
+$pruefungen += 7;
+
+// -- Fall C: ihr EINES Objekt laeuft ueber DREI unserer Fluesse.
+// 💣 Der Gardel bekommt NICHTS. Ihn "Natter" zu nennen waere falsch, obwohl er getroffen ist.
+$urteilC = ['status' => 'deckt_sich', 'anlass' => 'geometrie', 'treffer_public_id' => 'w-4471',
+    'treffer_name' => 'Natter', 'grund' => 'Geometrie deckt sich', 'abstand' => 0.84,
+    'abschnitte' => [
+        ['public_id' => 'w-4471', 'name' => 'Natter', 'punkte' => 9, 'geometrie' => [[1.0, 1.0]]],
+        ['public_id' => 'w-5008', 'name' => 'Gardel', 'punkte' => 6, 'geometrie' => [[2.0, 2.0]]],
+        ['public_id' => 'w-6120', 'name' => '', 'punkte' => 1, 'geometrie' => [[3.0, 3.0]]],
+    ]];
+$zeileC = $zeileA;
+$zeileC['artikel'] = 'Natter';
+$zeileC['anzeige'] = 'Natter';
+$c = avesmapsGaretienErgaenzungsEintraege($zeileC, avesmapsGaretienMappeTyp('Fluss'), $urteilC, []);
+
+assert(avesmapsGaretienEinObjekt($urteilC['abschnitte']) === false,
+    'drei Fluesse sind nicht EIN Objekt');
+$zielIds = array_map(static fn($e) => $e['entity_public_id'], $c);
+assert(!in_array('w-5008', $zielIds, true),
+    'der Gardel traegt einen FREMDEN Namen und darf kein Angebot bekommen -- ihre Natter laeuft nur darueber');
+$mitName = array_values(array_filter($c,
+    static fn($e) => in_array('name', $e['after']['felder'], true)));
+assert(count($mitName) === 1, 'genau EIN Abschnitt bekommt einen Namen: der namenlose 6120');
+assert($mitName[0]['entity_public_id'] === 'w-6120', 'und zwar der namenlose');
+// Der gleichnamige Abschnitt bekommt die Quelle, aber niemals einen neuen Namen.
+$natter = array_values(array_filter($c, static fn($e) => $e['entity_public_id'] === 'w-4471'));
+assert(count($natter) === 1 && $natter[0]['after']['felder'] === ['quelle'],
+    'ein gleichnamiger Abschnitt bekommt die Quelle -- und sonst nichts');
+$pruefungen += 5;
+
+// -- Fall D: ihre "Angbarer Reichsstrasse" trifft SECHSMAL unsere "Reichsstrasse 3".
+// Ein Name -> es IST unser Objekt -> die Umbenennung ist eine sinnvolle Frage, aber UNGEHAKT.
+$sechs = [];
+foreach (range(2210, 2215) as $nr) {
+    $sechs[] = ['public_id' => 'w-' . $nr, 'name' => 'Reichsstraße 3', 'punkte' => 3, 'geometrie' => [[1.0, 1.0]]];
+}
+$urteilD = ['status' => 'deckt_sich', 'anlass' => 'geometrie', 'treffer_public_id' => 'w-2210',
+    'treffer_name' => 'Reichsstraße 3', 'grund' => 'Geometrie deckt sich', 'abstand' => 0.5,
+    'abschnitte' => $sechs];
+$zeileD = $zeileA;
+$zeileD['artikel'] = 'Angbarer Reichsstraße';
+$zeileD['anzeige'] = 'Angbarer Reichsstraße';
+$d = avesmapsGaretienErgaenzungsEintraege($zeileD, avesmapsGaretienMappeTyp('Bach'), $urteilD, []);
+
+assert(avesmapsGaretienEinObjekt($sechs) === true, 'sechsmal derselbe Name ist EIN Objekt');
+$um = array_values(array_filter($d, static fn($e) => $e['after']['anlass'] === 'umbenennung'));
+assert(count($um) === 6, 'jeder der sechs Abschnitte bekommt sein eigenes Umbenennungs-Item');
+assert($um[0]['vorwahl_aus'] === true,
+    'ein vorhandener Name wird NIE stillschweigend ueberschrieben -- ungehakt');
+assert($um[0]['before']['name'] === 'Reichsstraße 3', 'alt -> neu im Klartext: das alt fehlt');
+assert($um[0]['after']['name'] === 'Angbarer Reichsstraße', 'alt -> neu im Klartext: das neu fehlt');
+$nurQuelle = array_values(array_filter($d, static fn($e) => $e['after']['anlass'] === 'ergaenzung'));
+assert(count($nurQuelle) === 6,
+    'daneben sechs reine Quellen-Items -- das ist der Knopf "Nur Quelle + Artikel (6)"');
+assert($nurQuelle[0]['vorwahl_aus'] === false, 'die Quelle ist eine Luecke und kommt vorangehakt');
+$pruefungen += 7;
+
+// -- Nichts zu ersetzen: gleicher Name, Quelle liegt schon.
+$fertig = avesmapsGaretienErgaenzungsEintraege($zeileC, avesmapsGaretienMappeTyp('Fluss'),
+    ['status' => 'deckt_sich', 'anlass' => 'geometrie', 'treffer_public_id' => 'w-4471',
+     'treffer_name' => 'Natter', 'grund' => '', 'abstand' => 0.1,
+     'abschnitte' => [['public_id' => 'w-4471', 'name' => 'Natter', 'punkte' => 9, 'geometrie' => []]]],
+    ['w-4471' => true]);
+assert(array_filter($fertig, static fn($e) => $e['after']['anlass'] !== 'geometrie') === [],
+    'gleicher Name plus vorhandene Quelle heisst: nichts zu ersetzen');
+$pruefungen++;
+
+// -- Der SCHLUESSEL je Item muss eindeutig sein, sonst treffen sich zwei Abschnitte in
+// sync_decision und eine Ablehnung gilt fuer beide.
+$schluessel = array_map(static fn($e) => $e['entity_key'], $d);
+assert(count(array_unique($schluessel)) === count($schluessel),
+    'zwei Items mit demselben entity_key teilen sich eine Entscheidung');
+$pruefungen++;
+
+// -- 🔴 RULING P6: der Schluessel entsteht in EINER Funktion, und `avesmapsGaretienPlanEintrag`
+// benutzt sie nur -- eine spaetere Aufgabe (die Arbeitsliste des Fensters) baut denselben
+// Schluessel aus einer Staging-Zeile nach und muss auf DASSELBE Ergebnis kommen.
+$plan = avesmapsGaretienPlanEintrag($zeileD, avesmapsGaretienMappeTyp('Bach'), $urteilD);
+assert($plan['entity_key'] === avesmapsGaretienObjektSchluesselAusZeile($zeileD),
+    'der Schluessel aus avesmapsGaretienPlanEintrag muss verhaltensgleich zur ausgelagerten Formel sein');
 $pruefungen++;
 
 echo "OK: {$pruefungen} Pruefungen\n";

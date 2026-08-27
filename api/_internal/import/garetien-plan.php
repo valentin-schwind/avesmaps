@@ -20,6 +20,26 @@ require_once __DIR__ . '/../wiki/sync-plan.php';
 const AVESMAPS_GARETIEN_PLAN_KIND = 'garetien';
 
 /**
+ * Der Objekt-Schluessel EINER Staging-Zeile. REIN -- kein I/O.
+ *
+ * 🔴 RULING P6: diese Formel entsteht HIER und wird von `avesmapsGaretienPlanEintrag` benutzt,
+ * nicht abgeschrieben. Eine spaetere Aufgabe (die Arbeitsliste des Fensters) muss denselben
+ * Schluessel aus einer Staging-Zeile nachbauen koennen, um Vorschlaege und urteilslose Zeilen
+ * demselben Objekt zuzuordnen -- zwei Formeln liefen beim ersten Sonderzeichen auseinander, und
+ * dann stuende dasselbe Objekt zweimal in der Liste.
+ */
+function avesmapsGaretienObjektSchluesselAusZeile(array $zeile): string
+{
+    $artikel = trim((string) ($zeile['artikel'] ?? ''));
+    $namensraum = trim((string) ($zeile['namensraum'] ?? ''));
+    $wiki = (string) ($zeile['wiki'] ?? 'ggp');
+    $seite = ($namensraum !== '' ? $namensraum . ':' : '') . $artikel;
+
+    return $wiki . ':' . $zeile['ebene'] . ':' . $zeile['typ'] . ':'
+        . ($seite !== '' ? $seite : ('#' . $zeile['zeile_nr']));
+}
+
+/**
  * Aus einer Staging-Zeile und ihrem Urteil einen Vorschlag bauen. REIN -- kein I/O.
  *
  * `after` traegt alles, was die Uebernahme braucht: Zielart, Geometrie IN UNSEREN
@@ -65,8 +85,7 @@ function avesmapsGaretienPlanEintrag(array $zeile, array $ziel, array $urteil): 
         : '';
 
     return [
-        'entity_key' => $wiki . ':' . $zeile['ebene'] . ':' . $zeile['typ'] . ':'
-            . ($seite !== '' ? $seite : ('#' . $zeile['zeile_nr'])),
+        'entity_key' => avesmapsGaretienObjektSchluesselAusZeile($zeile),
         // 💣 Beim Zufluss NULL: ein entity_public_id ist fuer die Uebernahme das ZIEL, nicht
         // eine Bemerkung. Stuende unser Fluss hier, waere die Zeile trotz 'new' wieder ein
         // Schreibzugriff auf ihn.
@@ -80,6 +99,9 @@ function avesmapsGaretienPlanEintrag(array $zeile, array $ziel, array $urteil): 
         'after' => [
             'herkunft' => 'garetien',
             'wiki' => $wiki,
+            // ⚠️ Der Filter „Ebene · 18" der spaeteren Arbeitsliste liest DIESES Feld -- sie aus
+            // dem entity_key zurueckzuparsen waere eine zweite Wahrheit ueber dasselbe Feld.
+            'ebene' => $zeile['ebene'],
             'typ' => $zeile['typ'],
             'ziel' => $ziel['ziel'],
             'subtyp' => $ziel['subtyp'],
@@ -111,6 +133,168 @@ function avesmapsGaretienPlanEintrag(array $zeile, array $ziel, array $urteil): 
 }
 
 /**
+ * Laeuft ihr Objekt ueber EINES von uns oder ueber mehrere?
+ *
+ * 💣 DAS IST DER UNTERSCHIED ZWISCHEN GARDEL UND REICHSSTRASSE 3, und ohne ihn ist einer von
+ * beiden falsch. Ihre "Natter" trifft Natter, Gardel und Darpat -- drei Namen, also laeuft ihr
+ * Objekt ueber mehrere unserer; den Gardel "Natter" zu nennen waere falsch. Ihre "Angbarer
+ * Reichsstrasse" trifft sechsmal "Reichsstrasse 3" -- EIN Name, also ist es unser Objekt, und
+ * die Umbenennung ist genau die Frage, die der Owner gestellt hat.
+ *
+ * ⚠️ Leere Namen zaehlen NICHT mit: eine Luecke ist kein zweiter Name. Barun-Ulah traegt seinen
+ * Namen siebenmal und hat eine Luecke -- das ist EIN Objekt.
+ */
+function avesmapsGaretienEinObjekt(array $abschnitte): bool
+{
+    $namen = [];
+    foreach ($abschnitte as $abschnitt) {
+        $name = trim((string) ($abschnitt['name'] ?? ''));
+        if ($name !== '') {
+            $namen[$name] = true;
+        }
+    }
+
+    return count($namen) <= 1;
+}
+
+/**
+ * Welche unserer Objekte tragen die Garetien-Quelle bereits?
+ *
+ * ⚠️ EINE Abfrage je LAUF, nicht je Zeile. 289 Zeilen mit bis zu 13 Abschnitten waeren sonst rund
+ * tausend Einzelabfragen fuer eine Frage, deren Antwort sich waehrend des Rechnens nicht aendert.
+ * ⚠️ Faellt OFFEN aus: fehlt die Tabelle (frische Installation), gilt "keine Quelle liegt" -- das
+ * erzeugt hoechstens ein Item zu viel, und ein Item zu viel ist sichtbar. Ein Item zu WENIG waere
+ * eine stillschweigend verlorene Quellenangabe.
+ */
+function avesmapsGaretienQuellenBestand(PDO $pdo): array
+{
+    try {
+        $stmt = $pdo->query(
+            "SELECT DISTINCT entity_public_id FROM feature_sources"
+            . " WHERE origin = 'garetien' AND status = 'active'"
+        );
+    } catch (PDOException) {
+        return [];
+    }
+    $raus = [];
+    foreach ($stmt->fetchAll(PDO::FETCH_COLUMN) ?: [] as $id) {
+        $raus[(string) $id] = true;
+    }
+
+    return $raus;
+}
+
+/**
+ * DER VIERTE AUSGANG: "haben wir -- aber sie wissen mehr" (Auftrag §4).
+ *
+ * 🔴 KEIN vierter change_type. Es ist ein `changed`; `after.anlass` sagt, welcher Art. Ein
+ * vierter Wert muesste durch sync-plan.php, die drei Gruppen des Blattes und deren Tests wandern
+ * und koennte nichts, was `anlass` nicht kann. ⭐ Und das Blatt stellt ihn schon richtig dar:
+ * syncPlanDiffMarkup zeichnet `-- -> Alke` bzw. `Reichsstrasse 3 -> Angbarer Reichsstrasse` aus
+ * before/after, ohne eine Zeile Aenderung.
+ *
+ * 🔴 EIN ABSCHNITT IST EIN EIGENES ITEM. Gehakt wird je Abschnitt, nie je Objekt -- weil ihr
+ * eines Objekt ueber mehrere unserer Fluesse laufen kann. Eine Abschnittsauswahl in
+ * `override`/`after` waere der zweite Schreibweg, den Auftrag §5.4 verbietet.
+ *
+ * REIN -- kein I/O. `$quellen` kommt aus avesmapsGaretienQuellenBestand.
+ *
+ * @param array<string,true> $quellen entity_public_id => true
+ * @return list<array>
+ */
+function avesmapsGaretienErgaenzungsEintraege(array $zeile, array $ziel, array $urteil, array $quellen): array
+{
+    $abschnitte = $urteil['abschnitte'] ?? [];
+    if ($abschnitte === []) {
+        return [];
+    }
+    $ihrName = trim((string) ($zeile['anzeige'] ?? ''));
+    $einObjekt = avesmapsGaretienEinObjekt($abschnitte);
+    // Der gemeinsame Rumpf (Quelle, Wiki, Beschriftung) steht schon im Neu-Eintrag -- er wird
+    // wiederverwendet und nicht abgeschrieben.
+    $vorlage = avesmapsGaretienPlanEintrag($zeile, $ziel, $urteil);
+    $eintraege = [];
+
+    foreach ($abschnitte as $abschnitt) {
+        $publicId = (string) $abschnitt['public_id'];
+        $unserName = trim((string) ($abschnitt['name'] ?? ''));
+        $nameLeer = $unserName === '';
+        $nameGleich = !$nameLeer && avesmapsGaretienNamenAehnlich($ihrName, $unserName);
+        $hatQuelle = isset($quellen[$publicId]);
+
+        // 1. Das Luecken-Item: nur Leeres wird gefuellt, deshalb VORANGEHAKT.
+        $felder = [];
+        if ($nameLeer) {
+            $felder[] = 'name';
+        }
+        if (!$hatQuelle && ($nameLeer || $nameGleich || $einObjekt)) {
+            // ⚠️ Eine Quelle bekommt nur, wem sie GEHOERT. Der Gardel liegt zufaellig unter ihrer
+            // Natter -- ihre Quelle dort anzuhaengen behauptete, garetien.de beschreibe den Gardel.
+            $felder[] = 'quelle';
+        }
+        if ($felder !== []) {
+            $eintraege[] = avesmapsGaretienAbschnittsEintrag(
+                $vorlage, $abschnitt, 'ergaenzung', $felder, $ihrName, $unserName, false
+            );
+        }
+
+        // 2. Das Umbenennungs-Item: ein VORHANDENER Name wird ueberschrieben -- nie stillschweigend.
+        if (!$nameLeer && !$nameGleich && $einObjekt) {
+            $eintraege[] = avesmapsGaretienAbschnittsEintrag(
+                $vorlage, $abschnitt, 'umbenennung', ['name'], $ihrName, $unserName, true
+            );
+        }
+    }
+
+    // 3. Das Geometrie-Item -- genau eins je Objekt, und nur bei GENAU EINEM getroffenen
+    // Abschnitt. 💣 Bei mehreren hat "ersetze die Geometrie" kein wohldefiniertes Ziel: ihre
+    // Natter trifft fuenf. Und ein pauschales Ersetzen ist die schlimmste Handlung, die dieses
+    // Werkzeug anbieten kann -- 34 der 37 Widersprueche sind Baeche, die auf ihrem Hauptfluss
+    // liegen; dort ersetzte es die Natter durch ihren Seitenarm, mit gueltiger id und ohne
+    // Fehlermeldung. Der Knopf ist dann ausgegraut und sagt, warum.
+    if (count($abschnitte) === 1) {
+        $eintraege[] = avesmapsGaretienAbschnittsEintrag(
+            $vorlage, $abschnitte[0], 'geometrie', ['geometrie'], $ihrName,
+            trim((string) ($abschnitte[0]['name'] ?? '')), true
+        );
+    }
+
+    return $eintraege;
+}
+
+/**
+ * Ein Item fuer EINEN Abschnitt, aus der gemeinsamen Vorlage.
+ *
+ * 💣 Der `entity_key` traegt den Abschnitt UND den Anlass. Ohne beides teilten sich zwei Items
+ * eine Zeile in `sync_decision` -- und eine Ablehnung des Umbenennens naehme die Quelle mit.
+ */
+function avesmapsGaretienAbschnittsEintrag(
+    array $vorlage, array $abschnitt, string $anlass, array $felder,
+    string $ihrName, string $unserName, bool $vorwahlAus
+): array {
+    $publicId = (string) $abschnitt['public_id'];
+    $eintrag = $vorlage;
+    $eintrag['entity_key'] = mb_substr($vorlage['entity_key'] . '|' . $anlass . '|' . $publicId, 0, 190, 'UTF-8');
+    $eintrag['entity_public_id'] = $publicId;
+    $eintrag['change_type'] = 'changed';
+    $eintrag['label'] = $ihrName . ' → ' . ($unserName !== '' ? $unserName : 'ohne Namen');
+    $eintrag['before'] = ['public_id' => $publicId, 'name' => $unserName];
+    $eintrag['after']['anlass'] = $anlass;
+    $eintrag['after']['felder'] = $felder;
+    $eintrag['after']['abschnitt'] = [
+        'public_id' => $publicId,
+        'name' => $unserName,
+        'punkte' => (int) ($abschnitt['punkte'] ?? 0),
+        'geometrie' => $abschnitt['geometrie'] ?? [],
+    ];
+    // ⚠️ `nachbar` gehoert dem Zufluss und hat hier nichts zu suchen.
+    $eintrag['after']['nachbar'] = null;
+    $eintrag['vorwahl_aus'] = $vorwahlAus;
+
+    return $eintrag;
+}
+
+/**
  * Den Plan fuer einen Import-Lauf bauen. Gibt die Zahl der Vorschlaege zurueck.
  *
  * `deckt_sich` erzeugt KEINEN Eintrag -- was wir schon haben, muss niemand ansehen.
@@ -129,6 +313,8 @@ function avesmapsGaretienBaueSyncPlan(PDO $pdo, int $importRunId, int $userId = 
         throw new RuntimeException('Der Vorschau-Lauf konnte nicht angelegt werden.');
     }
     $entscheidungen = avesmapsSyncPlanDecisions($pdo, AVESMAPS_GARETIEN_PLAN_KIND);
+    // EINE Abfrage je Lauf -- der vierte Ausgang fragt sonst je Abschnitt nach.
+    $quellenBestand = avesmapsGaretienQuellenBestand($pdo);
 
     $stmt = $pdo->prepare(
         'SELECT wiki, ebene, zeile_nr, typ, namensraum, artikel, anzeige, lodmin, lodmax, extra, geo_art, geo'
@@ -149,27 +335,34 @@ function avesmapsGaretienBaueSyncPlan(PDO $pdo, int $importRunId, int $userId = 
             continue;   // von avesmapsGaretienUeberspringGrund bereits erfasst
         }
         $urteil = avesmapsGaretienFindeBestand($pdo, $zeile, $ziel);
-        if ($urteil['status'] === 'deckt_sich' || $urteil['status'] === 'uebersprungen') {
+        if ($urteil['status'] === 'uebersprungen') {
             continue;
         }
-        $eintrag = avesmapsGaretienPlanEintrag($zeile, $ziel, $urteil);
-        // 🔴 Die Vorwahl kommt aus der HAUSREGEL, sie wird nicht nachgebaut: 'deleted' nie,
-        // 'changed' faellt beim zweiten Ueberspringen heraus. Ein zweiter Vorwahl-Rechner waere
-        // genau die Divergenz, die diese Anbindung vermeiden soll.
-        $schluessel = avesmapsSyncPlanDecisionKey($eintrag['entity_key'], $eintrag['change_type']);
-        $eintrag['selected'] = avesmapsSyncPlanDefaultSelected(
-            $eintrag['change_type'],
-            (int) ($entscheidungen[$schluessel]['skipped_count'] ?? 0)
-        );
-        // 🔴 Die Hausregel kann nur AUS-, nie EINgeschaltet werden. Sie darf einen Zufluss
-        // nicht vorhaken; ein Zufluss darf umgekehrt aber auch nicht anhaken, was sie
-        // ausgehakt hat (zweimal uebersprungen heisst zweimal uebersprungen).
-        if ($eintrag['vorwahl_aus']) {
-            $eintrag['selected'] = 0;
+        // 🔴 DER VIERTE AUSGANG. `deckt_sich` erzeugte bis zum 27.08.2026 gar nichts -- und genau
+        // dabei gingen ihr Name, ihr Wiki-Artikel und ihre Quelle verloren. 25 von 76
+        // Geometrietreffern trugen bei uns keinen Namen.
+        $eintraege = $urteil['status'] === 'deckt_sich'
+            ? avesmapsGaretienErgaenzungsEintraege($zeile, $ziel, $urteil, $quellenBestand)
+            : [avesmapsGaretienPlanEintrag($zeile, $ziel, $urteil)];
+        foreach ($eintraege as $eintrag) {
+            // 🔴 Die Vorwahl kommt aus der HAUSREGEL, sie wird nicht nachgebaut: 'deleted' nie,
+            // 'changed' faellt beim zweiten Ueberspringen heraus. Ein zweiter Vorwahl-Rechner waere
+            // genau die Divergenz, die diese Anbindung vermeiden soll.
+            $schluessel = avesmapsSyncPlanDecisionKey($eintrag['entity_key'], $eintrag['change_type']);
+            $eintrag['selected'] = avesmapsSyncPlanDefaultSelected(
+                $eintrag['change_type'],
+                (int) ($entscheidungen[$schluessel]['skipped_count'] ?? 0)
+            );
+            // 🔴 Die Hausregel kann nur AUS-, nie EINgeschaltet werden. Sie darf einen Zufluss
+            // nicht vorhaken; ein Zufluss darf umgekehrt aber auch nicht anhaken, was sie
+            // ausgehakt hat (zweimal uebersprungen heisst zweimal uebersprungen).
+            if ($eintrag['vorwahl_aus']) {
+                $eintrag['selected'] = 0;
+            }
+            unset($eintrag['vorwahl_aus']);
+            avesmapsSyncPlanAddItem($pdo, $runId, $eintrag);
+            $anzahl++;
         }
-        unset($eintrag['vorwahl_aus']);
-        avesmapsSyncPlanAddItem($pdo, $runId, $eintrag);
-        $anzahl++;
     }
 
     avesmapsSyncPlanFinishBuild($pdo, $runId);
