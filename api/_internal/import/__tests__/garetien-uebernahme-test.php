@@ -152,6 +152,12 @@ final class AvesmapsGaretienUebernahmeTestPdo extends PDO
         if (str_contains($query, 'information_schema')) {
             return parent::prepare(self::schemaSondeErsatz($query));
         }
+        // 🔴 AUFGABE 4: die Ergaenzung ruft die HAUSSCHREIBER (avesmapsUpdatePathFeatureDetails /
+        // …Geometry), und die pruefen ueber avesmapsAssertFeatureCanBeEdited eine Sperre --
+        // dieselben zwei MySQL-eigenen Anweisungen wie in weg-merker-reichweite-test.php, an der
+        // Treiber-Naht uebersetzt statt die Funktionen nachzubauen.
+        $query = str_replace('FOR UPDATE', '', $query);
+        $query = str_replace('NOW(3)', "datetime('now')", $query);
         // MySQLs `INSERT IGNORE` heisst bei SQLite `INSERT OR IGNORE` -- dieselbe Aussage, andere
         // Schreibweise. Der Seed der Landschaftsarten laeuft vor jedem Schreibvorgang durch.
         $query = str_replace('INSERT IGNORE INTO', 'INSERT OR IGNORE INTO', $query);
@@ -195,6 +201,10 @@ function avesmapsGaretienUebernahmeTestPdo(): PDO
         min_x REAL, min_y REAL, max_x REAL, max_y REAL, sort_order INTEGER DEFAULT 0,
         is_active INTEGER DEFAULT 1, revision INTEGER DEFAULT 1, created_by INTEGER NULL, updated_by INTEGER NULL)');
     $pdo->exec('CREATE TABLE map_revision (id INTEGER PRIMARY KEY, revision INTEGER)');
+    // 🔴 AUFGABE 4: avesmapsAssertFeatureCanBeEdited fragt diese Tabelle bei JEDEM Speichern ab
+    // (avesmapsUpdatePathFeatureDetails/…Geometry) -- leer bleibt sie hier, ein Test, der eine
+    // gehaltene Sperre braucht, saet seine eigene Zeile.
+    $pdo->exec('CREATE TABLE map_feature_locks (public_id TEXT PRIMARY KEY, user_id INTEGER, username TEXT, locked_until TEXT)');
     $pdo->exec('CREATE TABLE map_audit_log (id INTEGER PRIMARY KEY AUTOINCREMENT, feature_id INTEGER NULL,
         action TEXT, actor_user_id INTEGER NULL, before_json TEXT, after_json TEXT,
         created_at TEXT DEFAULT CURRENT_TIMESTAMP, undone_at TEXT NULL, undone_by INTEGER NULL,
@@ -360,15 +370,20 @@ $qr = $pdo->query("SELECT * FROM feature_sources WHERE entity_type = 'region'")-
 assert($qr !== false && $qr['entity_public_id'] === $region['public_id']);
 $pruefungen++;
 
-// --- 🔴 STUFE 1 AENDERT NICHTS VORHANDENES. Ein 'changed'-Item wird ABGELEHNT und der Grund
-// benannt -- nicht stillschweigend uebersprungen und nicht ausgefuehrt. Ein Import, der ein
-// vorhandenes Kartenobjekt ueberschreibt, ist etwas anderes als ein Import.
+// --- 🔴 EIN WIDERSPRUCH BLEIBT DRAUSSEN (Aufgabe 4). Der Seitenarm ist ein ZUFLUSS
+// (after.anlass = 'zufluss', keiner der drei Ausgaenge ergaenzung/umbenennung/geometrie) -- wird
+// er dennoch als 'changed' angeboten, wird er ABGELEHNT und der Grund benannt, nicht
+// stillschweigend uebersprungen und nicht ausgefuehrt. Ein Import, der ein vorhandenes
+// Kartenobjekt ueberschreibt, ist etwas anderes als ein Import.
+// ⚠️ Der Wortlaut des Grundes hat sich mit Aufgabe 4 geaendert (er nennt keine "Stufe 1" mehr,
+// weil es jetzt eine zweite Stufe gibt, die 'changed'-Items sehr wohl ausfuehrt) -- geprueft wird
+// deshalb der neue Text, nicht mehr der alte.
 $pdo->prepare("UPDATE sync_plan_item SET change_type = 'changed' WHERE id = ?")->execute([$seitenarm]);
 $vorher = (int) $pdo->query('SELECT COUNT(*) FROM map_features')->fetchColumn();
 $e4 = avesmapsGaretienUebernehmen($pdo, $lauf, [$seitenarm], ['id' => 7]);
 assert($e4['angelegt'] === 0, 'nichts angelegt');
 assert(count($e4['fehler']) === 1, 'und der Grund steht da');
-assert(str_contains($e4['fehler'][0]['grund'], 'nur an'), $e4['fehler'][0]['grund']);
+assert(str_contains($e4['fehler'][0]['grund'], 'Entscheidung von Hand'), $e4['fehler'][0]['grund']);
 assert((int) $pdo->query('SELECT COUNT(*) FROM map_features')->fetchColumn() === $vorher, 'nichts geschrieben');
 $pruefungen += 4;
 
@@ -485,5 +500,94 @@ foreach (['done', 'applied', 'deleted', 'stale', 'processed', 'remaining', 'skip
     assert(array_key_exists($feld, $schritt), 'die Rueckgabe nennt ' . $feld);
 }
 $pruefungen++;
+
+// =================================================================================================
+// AUFGABE 4: DER VIERTE AUSGANG WIRD AUCH UEBERNOMMEN.
+//
+// 🔴 Ohne sie ist dieser Ausgang tot: `avesmapsGaretienUebernehmen` lehnte bis zum 27.08.2026
+// jedes `change_type !== 'new'` mit "Stufe 1 legt nur an" ab. Ein Editor haekte an, drueckte
+// "Uebernehmen" -- und bekaeme "uebersprungen, weil sich der Stand geaendert hat" fuer etwas, das
+// nie versucht wurde.
+//
+// ⚠️ Ein FRISCHER Pruefstand -- die volle Fassung mit Treiber-Naht und Tabellen
+// (avesmapsGaretienUebernahmeTestPdo), nicht die blanke avesmapsGaretienPlanTestPdo() aus
+// garetien-plan.php: die blanke Fassung kennt weder NOW(3)/FOR UPDATE/ON DUPLICATE KEY noch
+// feature_sources/sources/map_feature_locks -- avesmapsGaretienApplyStep liefe dort schon an
+// avesmapsEnsureFeatureSourceTables auf rohes MySQL-DDL.
+//
+// 🔴 EIN EIGENER, LEERER LAUF (avesmapsSyncPlanStartRun), nicht der von
+// avesmapsGaretienUebernahmeTestPdo() schon mitgebrachte -- der traegt bereits Gardel/Muehlsee/
+// Alke/Seitenarm mit bis zu AVESMAPS_SYNC_PLAN_APPLY_BUDGET (40) offenen Zeilen, und
+// avesmapsGaretienApplyStep raeumt in einem Rutsch alles ab, was in einem Lauf offen ist -- die
+// Zusicherung `applied === 1` prüfte dann eine ganz andere Zahl. avesmapsSyncPlanStartRun stellt
+// die bisherigen Laeufe dieser Art auf 'superseded' und gibt einen frischen, leeren zurueck; der
+// zusaetzliche Eintrag unten ist darin die EINZIGE Zeile.
+//
+// 💣 UND ZWEI WERTE AUS DEM URSPRUENGLICHEN ENTWURF SIND HIER KORRIGIERT, nicht abgeschrieben:
+//   · public_id ist eine ECHTE UUID. avesmapsReadMapFeaturePublicId (in
+//     avesmapsUpdatePathFeatureDetails) verlangt genau das Format (`/^[a-f0-9-]{36}$/i`) und
+//     wirft sonst schon in der allerersten Zeile -- eine sprechende Kurzform wie "w-5112" waere
+//     die FALSCHE Sorte Fehlschlag ("Die Feature-ID ist ungueltig"), nicht der, den dieser Test
+//     zeigen soll.
+//   · Verkehrsmittel und Saisonfenster tragen die ECHTEN Schluessel/Formen
+//     (avesmapsReadAllowedTransports/avesmapsReadTransportSeasons lesen 'riverSailer'/'riverBarge'
+//     fuer die Flusswegdomaene und {from_month,from_day,to_month,to_day} mit echten
+//     Monatsnamen aus AVESMAPS_TRAVEL_CALENDAR_MONTHS) -- ein erfundener Schluessel wie
+//     "flussschiff" oder eine erfundene Form wie {von,bis} wuerde von genau diesen Lesern beim
+//     Zurueckschreiben STILL herausgefiltert. Die teuerste Zusicherung dieser Aufgabe pruefte
+//     dann eine Normalisierungs-Eigenheit statt die Ergaenzung selbst.
+$pdo3 = avesmapsGaretienUebernahmeTestPdo();
+$idFluss = '00000000-0000-4000-8000-000000005112';
+$pdo3->prepare('INSERT INTO map_features (public_id, name, feature_type, feature_subtype, geometry_json, properties_json, geometry_type) VALUES (?,?,?,?,?,?,?)')
+    ->execute([$idFluss, '', 'path', 'Flussweg',
+        json_encode(['type' => 'LineString', 'coordinates' => [[10.0, 10.0], [11.0, 11.0]]]),
+        json_encode(['allowed_transports' => ['riverSailer'], 'transport_seasons' => ['riverSailer' => [
+            'from_month' => 'peraine', 'from_day' => 1, 'to_month' => 'boron', 'to_day' => 30,
+        ]]]), 'LineString']);
+
+$runId4 = avesmapsSyncPlanStartRun($pdo3, AVESMAPS_GARETIEN_PLAN_KIND, 1, 'test');
+avesmapsSyncPlanAddItem($pdo3, $runId4, [
+    'entity_key' => 'ggp:Gewaesser:Bach:Garetien:Alke|ergaenzung|' . $idFluss,
+    'entity_public_id' => $idFluss,
+    'change_type' => 'changed',
+    'label' => 'Alke → ohne Namen',
+    'before' => ['public_id' => $idFluss, 'name' => ''],
+    'after' => ['herkunft' => 'garetien', 'anlass' => 'ergaenzung', 'felder' => ['name', 'quelle'],
+        'ziel' => 'path', 'subtyp' => 'Flussweg', 'name' => 'Alke',
+        'abschnitt' => ['public_id' => $idFluss, 'name' => '', 'punkte' => 12, 'geometrie' => []],
+        'quelle' => ['url' => 'https://www.garetien.de/index.php?title=Garetien:Alke',
+            'label' => 'Briefspiel (Garetien)', 'source_type' => 'briefspiel',
+            'origin' => 'garetien', 'license' => 'cc-by-nc-sa-3.0', 'attribution' => 'VolkoV / garetien.de']],
+    'override' => [], 'selected' => 1,
+]);
+
+$schritt4 = avesmapsGaretienApplyStep($pdo3, $runId4, 1, ['id' => 1, 'username' => 'test']);
+assert($schritt4['done'] === true, 'der Schritt muss fertig werden');
+assert($schritt4['applied'] === 1, 'die Ergaenzung wurde nicht uebernommen: ' . json_encode($schritt4));
+assert($schritt4['stale'] === 0, 'ein changed darf nicht mehr als "Stufe 1 legt nur an" abgelehnt werden');
+$pruefungen += 3;
+
+$nachher = $pdo3->query('SELECT name, properties_json FROM map_features WHERE public_id = ' . $pdo3->quote($idFluss))
+    ->fetch(PDO::FETCH_ASSOC);
+assert($nachher !== false, 'der Fluss steht noch in der Karte');
+assert($nachher['name'] === 'Alke', 'die Luecke wurde nicht gefuellt: ' . var_export($nachher['name'], true));
+$pruefungen += 2;
+
+// 💣 DIE TEUERSTE ZUSICHERUNG DIESER AUFGABE. avesmapsUpdatePathFeatureDetails ist KEIN
+// Teil-Update: mit Vorgabewerten gerufen loescht es Verkehrsmittel und Saisonfenster -- lautlos,
+// mit gueltiger Antwort. Geschrieben wird NUR, was in after.felder steht (hier: name, quelle --
+// NICHT allowed_transports/transport_seasons, obwohl der Hausschreiber beide im Rumpf erwartet).
+$props = json_decode((string) $nachher['properties_json'], true);
+assert(($props['allowed_transports'] ?? []) === ['riverSailer'],
+    'die Uebernahme hat die Verkehrsmittel des Flusswegs veraendert: ' . json_encode($props['allowed_transports'] ?? null));
+assert(isset($props['transport_seasons']['riverSailer']),
+    'die Uebernahme hat die Saisonfenster des Flusswegs geloescht: ' . json_encode($props['transport_seasons'] ?? null));
+$pruefungen += 2;
+
+// Zweimal uebernehmen aendert nichts ein zweites Mal -- das Item traegt bereits seinen Vermerk.
+$zweiter4 = avesmapsGaretienApplyStep($pdo3, $runId4, 1, ['id' => 1, 'username' => 'test']);
+assert($zweiter4['applied'] === 0, 'ein vermerktes Item darf nicht noch einmal laufen');
+assert($zweiter4['remaining'] === 0, 'und es gilt als erledigt');
+$pruefungen += 2;
 
 echo "OK: {$pruefungen} Pruefungen\n";

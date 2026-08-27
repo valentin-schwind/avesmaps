@@ -174,6 +174,90 @@ function avesmapsGaretienFlaecheAnlegen(PDO $pdo, array $nach, array $user, int 
 }
 
 /**
+ * Ein vorhandenes Objekt ERGAENZEN -- und zwar nur in den Feldern, die im Vorschlag stehen.
+ *
+ * 💣 avesmapsUpdatePathFeatureDetails IST KEIN TEIL-UPDATE. Es liest `allowed_transports`,
+ * `transport_seasons`, `show_label` und `feature_subtype` aus dem RUMPF und schreibt sie alle.
+ * Mit Vorgabewerten gerufen loescht es die Verkehrsmittel und die Saisonfenster eines Flusswegs
+ * -- lautlos, mit gueltiger Antwort und gueltiger id. Deshalb wird der aktuelle Stand gelesen und
+ * unveraendert zurueckgegeben; geraten wird nichts.
+ * ⭐ avesmapsUpdateEcosystemRegion hat das Problem NICHT -- es liest nur mitgeschickte Felder
+ * (avesmapsEcosystemReadRegionFields). Die Asymmetrie steht hier, damit sie niemand
+ * "vereinheitlicht".
+ *
+ * 🔴 KEIN EIGENES UPDATE auf map_features oder ecosystem_*. Die Hausschreiber tragen
+ * Transaktion, Revision, Sperrpruefung und Protokoll -- ein eigenes UPDATE waere der zweite
+ * Erzeuger, und eine Regel, die einen von zwei Erzeugern bindet, ist keine.
+ *
+ * @return array{felder:int, quellen:int}
+ */
+function avesmapsGaretienErgaenzungAnwenden(PDO $pdo, array $nach, string $publicId, array $user): array
+{
+    $felder = (array) ($nach['felder'] ?? []);
+    $userId = (int) ($user['id'] ?? 0);
+    $geschrieben = 0;
+
+    if (($nach['ziel'] ?? '') === 'path') {
+        $zeile = $pdo->prepare('SELECT name, feature_subtype, properties_json FROM map_features WHERE public_id = :p');
+        $zeile->execute([':p' => $publicId]);
+        $vorher = $zeile->fetch(PDO::FETCH_ASSOC);
+        if ($vorher === false) {
+            throw new RuntimeException('Der Abschnitt ' . $publicId . ' existiert nicht mehr.');
+        }
+        $props = json_decode((string) ($vorher['properties_json'] ?? '{}'), true);
+        $props = is_array($props) ? $props : [];
+
+        if (in_array('name', $felder, true)) {
+            // ⚠️ JEDES Feld des Hausschreibers reist mit seinem ALTEN Wert mit -- siehe oben.
+            avesmapsUpdatePathFeatureDetails($pdo, [
+                'public_id' => $publicId,
+                'name' => (string) $nach['name'],
+                'feature_subtype' => (string) ($vorher['feature_subtype'] ?? 'Flussweg'),
+                'show_label' => (bool) ($props['show_label'] ?? false),
+                'allowed_transports' => $props['allowed_transports'] ?? null,
+                'transport_seasons' => $props['transport_seasons'] ?? null,
+                'other_source' => $props['other_source'] ?? null,
+            ], $user);
+            $geschrieben++;
+        }
+        if (in_array('geometrie', $felder, true)) {
+            avesmapsUpdatePathFeatureGeometry($pdo, [
+                'public_id' => $publicId,
+                'coordinates' => $nach['geometry']['coordinates'],
+            ], $user);
+            $geschrieben++;
+        }
+        $entityType = 'path';
+    } else {
+        if (in_array('name', $felder, true)) {
+            avesmapsUpdateEcosystemRegion($pdo, [
+                'public_id' => $publicId,
+                'name' => (string) $nach['name'],
+                'auto_name' => false,
+            ], $userId);
+            $geschrieben++;
+        }
+        if (in_array('geometrie', $felder, true)) {
+            avesmapsUpdateEcosystemAreaGeometry($pdo, [
+                'public_id' => $publicId,
+                'geometry' => $nach['geometry'],
+            ], $userId);
+            $geschrieben++;
+        }
+        $entityType = 'region';
+    }
+
+    $quellen = 0;
+    if (in_array('quelle', $felder, true)
+        && avesmapsGaretienQuelleAnlegen($pdo, $entityType, $publicId, (array) ($nach['quelle'] ?? []), $userId)) {
+        $quellen = 1;
+        $geschrieben++;
+    }
+
+    return ['felder' => $geschrieben, 'quellen' => $quellen];
+}
+
+/**
  * EIN Haeppchen der Uebernahme, fuer die vorhandene Vorschau (api/edit/wiki/sync-plan.php).
  *
  * 🔴 DAS IST DIE EINE TUER. Der Endpunkt des Imports hat bewusst KEIN eigenes `apply` mehr: die
@@ -236,7 +320,10 @@ function avesmapsGaretienUebernehmen(PDO $pdo, int $runId, array $itemIds, array
     $userId = (int) ($user['id'] ?? 0);
     $platzhalter = implode(',', array_fill(0, count($itemIds), '?'));
     $stmt = $pdo->prepare(
-        'SELECT id, entity_key, change_type, label, after_json, apply_state'
+        // 🔴 entity_public_id MUSS mit: der vierte Ausgang (change_type 'changed') braucht ihn
+        // als ZIEL fuer avesmapsGaretienErgaenzungAnwenden -- ohne die Spalte in der Liste waere
+        // er hier immer NULL, und jede Ergaenzung schluege auf ein nicht existierendes Objekt fehl.
+        'SELECT id, entity_key, entity_public_id, change_type, label, after_json, apply_state'
         . ' FROM sync_plan_item WHERE run_id = ? AND id IN (' . $platzhalter . ') ORDER BY id'
     );
     $stmt->execute(array_merge([$runId], array_map('intval', $itemIds)));
@@ -261,9 +348,36 @@ function avesmapsGaretienUebernehmen(PDO $pdo, int $runId, array $itemIds, array
             avesmapsSyncPlanMarkItem($pdo, (int) $item['id'], 'failed', 'kein Garetien-Vorschlag');
             continue;
         }
-        // 🔴 Nur ANLEGEN. 'changed' heisst hier "Artikel trifft, Geometrie widerspricht" -- das
-        // ist eine Frage an einen Menschen, keine Anweisung, unser Objekt zu ueberschreiben.
-        // Stufe 1 schreibt an keinem vorhandenen Objekt.
+        $anlass = (string) ($nach['anlass'] ?? '');
+        if ((string) $item['change_type'] === 'changed') {
+            // 🔴 DER VIERTE AUSGANG. Bis zum 27.08.2026 stand hier "Stufe 1 legt nur an und
+            // aendert nichts Vorhandenes" -- richtig, solange es den Ausgang nicht gab, und ab
+            // dann genau die Stelle, an der ein angehaktes Item lautlos als `stale` verschwand.
+            // ⚠️ `widerspruch` bleibt draussen: Artikel trifft, Geometrie nicht -- das ist eine
+            // Frage an einen Menschen und keine Anweisung, unser Objekt zu ueberschreiben.
+            if (!in_array($anlass, ['ergaenzung', 'umbenennung', 'geometrie'], true)) {
+                $grund = '"' . $item['label'] . '" braucht eine Entscheidung von Hand';
+                $fehler[] = ['item' => (int) $item['id'], 'grund' => $grund];
+                avesmapsSyncPlanMarkItem($pdo, (int) $item['id'], 'stale', mb_substr($grund, 0, 300, 'UTF-8'));
+                continue;
+            }
+            try {
+                $ergebnis = avesmapsGaretienErgaenzungAnwenden(
+                    $pdo, $nach, (string) $item['entity_public_id'], $user
+                );
+                $angelegt += $ergebnis['felder'] > 0 ? 1 : 0;
+                $quellen += $ergebnis['quellen'];
+                avesmapsSyncPlanMarkItem($pdo, (int) $item['id'], 'done', (string) $item['entity_public_id']);
+            } catch (Throwable $abbruch) {
+                $fehler[] = ['item' => (int) $item['id'], 'grund' => $abbruch->getMessage()];
+                avesmapsSyncPlanMarkItem($pdo, (int) $item['id'], 'failed', mb_substr($abbruch->getMessage(), 0, 300, 'UTF-8'));
+            }
+            continue;
+        }
+        // 🔴 Nur ANLEGEN, sonst. Stufe 1 schreibt an keinem vorhandenen Objekt -- dieser Zweig
+        // ist heute nur ein Riegel gegen einen change_type, den avesmapsGaretienBaueSyncPlan nie
+        // erzeugt (nur 'new' und 'changed', AGENTS.md: "Kein Löschweg"), aber ein Riegel gegen
+        // das Anlegen ist billiger als eine stillschweigend falsche Aktion.
         if ((string) $item['change_type'] !== 'new') {
             $grund = 'Stufe 1 legt nur an und aendert nichts Vorhandenes -- "'
                 . $item['label'] . '" braucht eine Entscheidung von Hand';
