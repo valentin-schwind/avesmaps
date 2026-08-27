@@ -298,6 +298,23 @@
 	font-size: 11px;
 	white-space: nowrap;
 }
+/* Die Namensnennung der uebernommenen Kartendaten ("VolkoV / garetien.de, CC BY-NC-SA 3.0") ist
+   DREIMAL so lang wie der Wiki-Hinweis darueber -- 198 statt 74 px, gemessen 27.08.2026.
+   💣 Mit dem geerbten `nowrap` laeuft die Quellenzeile am schmalen Telefon aus dem Kasten: bei
+   400 px Infobox passt sie, bei 280 px stehen 317 px Inhalt darin. Die Infobox ist
+   `min(400px, 100vw - 2 * Rand)`, also genau dort schmal, wo niemand hinsieht.
+   ⚠️ Der Umbruch nach dem Komma ist die natuerliche Stelle -- Name, dann Lizenz. Deshalb nur
+   diese eine Angabe umbrechend und nicht `.fs-src-lic` insgesamt: "CC BY-SA 3.0 ↗" soll
+   weiterhin zusammenbleiben, dort ist jeder Umbruch einer zu viel. */
+.fs-src-lic--attrib {
+	white-space: normal;
+}
+/* Haelt einen Eintrag samt seiner Namensnennung zusammen: der Browser bricht ZWISCHEN den
+   Quellen um und erst dann innerhalb einer. Begruendung an der Stelle, die die Klasse setzt
+   (js/ui/feature-source-markup.js). */
+.fs-src-item {
+	display: inline-block;
+}
 /* "Publikationen:" + die Tabs "Offiziell (n)"/"Erwähnt (n)" bleiben in EINER Zeile (Owner-Vorgabe);
    passt es nicht, wird horizontal gescrollt statt umzubrechen. */
 .fs-src-pub {

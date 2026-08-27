@@ -242,7 +242,11 @@ assert($q['origin'] === 'garetien', 'eigene Herkunft, damit ein spaeterer Lauf s
 assert($q['entity_type'] === 'path' && $q['entity_public_id'] === $neu['public_id'], 'sie haengt am richtigen Objekt');
 $s = $pdo->query('SELECT * FROM sources')->fetch(PDO::FETCH_ASSOC);
 assert(str_contains((string) $s['url'], 'garetien.de'), 'die Quelle zeigt auf den Wiki-Artikel');
-assert($s['source_type'] === 'garetien', 'daran haengt die Lizenzangabe');
+// 🔴 BRIEFSPIEL, kein eigener Typ -- garetien.de IST eines, und das Haus fuehrt die Form seit
+// langem. Die Lizenzangabe haengt deshalb am WIRT der Adresse, nicht am Typ: beide Wikis tragen
+// denselben Typ, und verschieden ist nur der Name, der genannt werden muss.
+assert($s['source_type'] === 'briefspiel', 'die Kategorie der Quelle: ' . $s['source_type']);
+assert(str_starts_with((string) $s['label'], 'Briefspiel ('), 'und die Beschriftung nennt sie: ' . $s['label']);
 $pruefungen += 5;
 
 // --- 💣 Die Lizenz steht NICHT im Label. Sie ist eine Eigenschaft von garetien.de und haengt am

@@ -100,7 +100,15 @@ foreach ($pdo->query('SELECT label, after_json FROM sync_plan_item') as $zeile) 
     $nach = json_decode((string) $zeile['after_json'], true);
     assert(is_array($nach), 'after_json ist da: ' . $zeile['label']);
     assert(($nach['herkunft'] ?? null) === 'garetien', 'Herkunft fehlt bei ' . $zeile['label']);
-    assert(($nach['quelle']['source_type'] ?? null) === 'garetien', 'source_type fehlt bei ' . $zeile['label']);
+    // 🔴 Es ist ein BRIEFSPIEL, kein eigener Typ (Owner 27.08.2026). garetien.de und koschwiki.de
+    // sind genau das, und das Haus fuehrt diese Form seit langem -- 96 Briefspiel-Quellen im
+    // Katalog, darunter "Briefspiel (Weiden)" und "Albernisches Briefspiel".
+    assert(($nach['quelle']['source_type'] ?? null) === 'briefspiel', 'source_type fehlt bei ' . $zeile['label']);
+    // Und die Beschriftung nennt das Briefspiel, waehrend die Adresse auf den Artikel zeigt.
+    assert(in_array($nach['quelle']['label'] ?? null, ['Briefspiel (Garetien)', 'Briefspiel (Kosch)'], true),
+        'die Beschriftung nennt das Briefspiel: ' . var_export($nach['quelle']['label'] ?? null, true));
+    assert(str_contains((string) ($nach['quelle']['url'] ?? ''), 'title='),
+        'und die Adresse zeigt auf den Artikel: ' . ($nach['quelle']['url'] ?? ''));
     assert(($nach['quelle']['origin'] ?? null) === 'garetien', 'origin fehlt bei ' . $zeile['label']);
     assert(str_contains((string) ($nach['quelle']['url'] ?? ''), '.de'), 'die Quelle zeigt auf ein Wiki');
 }

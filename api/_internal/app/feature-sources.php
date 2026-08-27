@@ -248,15 +248,19 @@ function avesmapsReadFeatureSourcesByEntityType(PDO $pdo, string $entityType): a
 function avesmapsFeatureSourceUpsert(PDO $pdo, string $url, string $label, string $type, bool $official, int $userId, string $wikiKey = '', bool $refreshLabel = false): int
 {
     // 💣 DIESE LISTE KUERZT LAUTLOS. Was nicht darinsteht, wird zu 'sonstiges' -- kein Fehler,
-    // keine Meldung, und der Aufrufer bekommt eine gueltige id zurueck. Genau daran waere der
-    // Garetien-Import gescheitert: seine Lizenzangabe ("Garetien.de, CC BY-NC-SA 3.0") haengt
-    // am source_type und an nichts sonst (Entwurf 2026-08-26 §5.3.1, sources hat bewusst keine
-    // Lizenzspalte). Ohne diesen Eintrag waeren 239 Objekte als 'sonstiges' eingelaufen und die
-    // Namensnennung waere ersatzlos ausgefallen -- an einem stillen Ersatz, nicht an einem Fehler.
-    // ⚠️ Es gibt eine ZWEITE Liste derselben Werte in api/app/report-location.php:405. Sie
-    // gehoert den Besuchermeldungen und traegt 'garetien' bewusst NICHT: eine Meldung aus dem
-    // Publikum kommt nicht von garetien.de.
-    $allowed = ['regionalspielhilfe', 'abenteuer', 'aventurischer_bote', 'quellenband', 'roman', 'briefspiel', 'regelbuch', 'garetien', 'sonstiges'];
+    // keine Meldung, und der Aufrufer bekommt eine gueltige id zurueck. Wer hier einen neuen Typ
+    // braucht, traegt ihn ein; wer es vergisst, merkt es an nichts.
+    //
+    // 🪤 Der Garetien-Import (27.08.2026) war einen halben Tag lang dabei, genau das zu tun --
+    // ein eigener Typ 'garetien', weil eine Lizenzangabe daran haengen sollte. Er brauchte
+    // keinen: garetien.de und koschwiki.de SIND Briefspiele, und das Haus fuehrt diese Form
+    // laengst ("Briefspiel (Weiden)", "Albernisches Briefspiel" -- 96 solche Quellen im
+    // Katalog). Seine Lizenzangabe haengt seither am WIRT der Adresse, wo sie ohnehin
+    // hingehoert: beide Wikis tragen denselben Typ, verschieden ist nur der Name, der genannt
+    // werden muss. ⭐ Die Lehre ist die allgemeinere: eine neue Kategorie ist erst dann faellig,
+    // wenn die vorhandene die Sache WIRKLICH nicht beschreibt.
+    // ⚠️ Es gibt eine ZWEITE Liste derselben Werte in api/app/report-location.php:405.
+    $allowed = ['regionalspielhilfe', 'abenteuer', 'aventurischer_bote', 'quellenband', 'roman', 'briefspiel', 'regelbuch', 'sonstiges'];
     $type = in_array($type, $allowed, true) ? $type : 'sonstiges';
     // URL-less identity: synthesize the hash from the stable wiki key instead of the (missing) URL.
     $hash = ($url === '' && $wikiKey !== '') ? hash('sha256', 'wikipub:' . $wikiKey) : hash('sha256', $url);

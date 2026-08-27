@@ -22,6 +22,46 @@ var FEATURE_SOURCE_MARKUP_TYPE_LABELS = {
   sonstiges: "Sonstiges",
 };
 
+// 🔴 DIE NAMENSNENNUNG DER UEBERNOMMENEN KARTENDATEN (Owner 27.08.2026, woertlich:
+// „VolkoV / garetien.de" fuer die Inhalte aus Garetien und „VolkoV / koschwiki.de").
+//
+// 💣 SIE HAENGT AM WIRT, NICHT AM source_type -- und das ist der Grund, warum hier eine Tabelle
+// steht und keine Konstante. Beide Wikis tragen denselben Typ (`garetien`), weil sie derselbe
+// Import aus derselben Hand unter derselben Lizenz sind; verschieden ist nur der NAME, der
+// genannt werden muss. Ein zweiter source_type dafuer waere eine zweite Whitelist, ein zweiter
+// Renderer-Zweig und beim naechsten Wiki ein dritter -- der Wirt steht ohnehin in jeder Adresse.
+//
+// 💣 UND SIE STEHT AM EINZELNEN EINTRAG, NIE UNTER DER ZEILE. Das ist dieselbe Regel wie beim
+// Wiki-Aventurica-Hinweis eine Etage tiefer: eine Fussnote unter der ganzen Quellenzeile
+// behauptete die Lizenz auch fuer alles andere, was dort steht -- Publikationen, Briefspiele,
+// eigene Quellen. Die Lizenz verlangt an jeder Kopie ZWEIERLEI: die Namensnennung UND den
+// Lizenzhinweis; beides gehoert an das Stueck, fuer das es gilt.
+var FEATURE_SOURCE_GARETIEN_LICENSE_URL = "https://creativecommons.org/licenses/by-nc-sa/3.0/deed.de";
+var FEATURE_SOURCE_GARETIEN_ATTRIBUTION = {
+  "www.garetien.de": "VolkoV / garetien.de",
+  "garetien.de": "VolkoV / garetien.de",
+  "www.koschwiki.de": "VolkoV / koschwiki.de",
+  "koschwiki.de": "VolkoV / koschwiki.de",
+};
+
+/**
+ * Die Namensnennung zu einer Quellenadresse -- oder "" fuer alles andere.
+ *
+ * ⚠️ Ein unbekannter Wirt gibt "" zurueck und KEINEN Rueckfall auf einen der beiden Namen. Eine
+ * geratene Namensnennung ist schlimmer als keine: sie schreibt einem Menschen eine Arbeit zu, die
+ * er nicht gemacht hat.
+ */
+function featureSourceGaretienAttribution(url) {
+  var wirt = "";
+  try {
+    wirt = new URL(String(url || "")).hostname.toLowerCase();
+  } catch (e) {
+    var treffer = /^https?:\/\/([^/?#]+)/i.exec(String(url || ""));
+    wirt = treffer ? treffer[1].toLowerCase() : "";
+  }
+  return FEATURE_SOURCE_GARETIEN_ATTRIBUTION[wirt] || "";
+}
+
 // Ab wie vielen Einzelseiten eine Angabe gekuerzt wird. 🔴 Owner 24.08.2026: „lange seitenzahl-
 // angaben mit ... abkuerzen (oder 1. seite und dann mit ff.)".
 // ⚠️ DREI bleiben stehen: „S. 91, 92" und „S. 8, 15, 80" liest man in einem Blick, und `ff.` waere
@@ -127,14 +167,31 @@ function buildSourceListMarkup(wikiUrl, sources, opts) {
     // 14.08.2026 stand nur die erste Haelfte da.
     items.push(link(wikiUrl, esc(wikiLabel)) + wikiLicenseMarkup());
   }
+  // Die Namensnennung uebernommener Kartendaten -- gebaut wie der Wiki-Lizenzhinweis oben, aus
+  // demselben Grund und in derselben gedaempften Form.
+  var garetienMarkup = function (s) {
+    var name = featureSourceGaretienAttribution(s.url);
+    if (!name) { return ""; }
+    // --attrib: sie darf umbrechen, der kurze Wiki-Hinweis nicht (css/features/feature-sources.css).
+    return '<a class="fs-src-lic fs-src-lic--attrib" href="' + esc(FEATURE_SOURCE_GARETIEN_LICENSE_URL) +
+      '" target="_blank" rel="noopener">' + esc(name + ", CC BY-NC-SA 3.0") +
+      ' <span class="fs-src-ext" aria-hidden="true">↗</span></a>';
+  };
   direct.forEach(function (s) {
     var label = esc(s.label || s.url || "");
-    var meta = typeTag(s.type) + pagesInline(s.pages);
-    if (s.url) {
-      items.push(link(s.url, label + star(s.official)) + meta);
-    } else {
-      items.push('<span class="fs-src-plain">' + label + star(s.official) + "</span>" + meta);
-    }
+    var namensnennung = garetienMarkup(s);
+    var meta = typeTag(s.type) + pagesInline(s.pages) + namensnennung;
+    var eintrag = s.url
+      ? link(s.url, label + star(s.official)) + meta
+      : '<span class="fs-src-plain">' + label + star(s.official) + "</span>" + meta;
+    // 💣 EINE NAMENSNENNUNG DARF NICHT VON IHRER QUELLE ABREISSEN. Sie ist lang genug, um
+    // umzubrechen -- und dann stand sie im Browser gemessen (27.08.2026) in einer Zeile mit der
+    // NAECHSTEN Quelle: "VolkoV / garetien.de, CC BY-NC-SA 3.0 · Kosch:Bodrin". Wer das liest,
+    // haengt die Lizenz an das falsche Stueck, und damit ist die Namensnennung nicht erfuellt,
+    // sondern irrefuehrend. Als inline-block bricht der Browser ZWISCHEN den Eintraegen um und
+    // erst dann innerhalb eines einzelnen.
+    // ⚠️ Nur der betroffene Eintrag wird eingepackt: alles andere rendert unveraendert weiter.
+    items.push(namensnennung ? '<span class="fs-src-item">' + eintrag + "</span>" : eintrag);
   });
   if (items.length) {
     var lbl = items.length > 1 ? sourceLabelPlural : sourceLabelSingular;
@@ -216,7 +273,7 @@ function avesmapsSourceTabKeydown(event, tabEl) {
 }
 
 if (typeof module !== "undefined" && module.exports) {
-  module.exports = { buildSourceListMarkup: buildSourceListMarkup, FEATURE_SOURCE_MARKUP_TYPE_LABELS: FEATURE_SOURCE_MARKUP_TYPE_LABELS, featureSourceShortenPages: featureSourceShortenPages };
+  module.exports = { buildSourceListMarkup: buildSourceListMarkup, FEATURE_SOURCE_MARKUP_TYPE_LABELS: FEATURE_SOURCE_MARKUP_TYPE_LABELS, featureSourceShortenPages: featureSourceShortenPages, featureSourceGaretienAttribution: featureSourceGaretienAttribution, FEATURE_SOURCE_GARETIEN_LICENSE_URL: FEATURE_SOURCE_GARETIEN_LICENSE_URL };
 }
 if (typeof window !== "undefined") {
   window.buildSourceListMarkup = buildSourceListMarkup;

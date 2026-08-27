@@ -38,7 +38,13 @@ function avesmapsGaretienPlanEintrag(array $zeile, array $ziel, array $urteil): 
     // 🔴 Ohne Artikel gibt es keinen Objektlink, sondern die Sammelquelle (Entwurf §5.3).
     $basis = $wiki === 'kosch' ? AVESMAPS_GARETIEN_BASIS_KOSCH : AVESMAPS_GARETIEN_BASIS_GGP;
     $wirt = $wiki === 'kosch' ? 'https://www.koschwiki.de' : 'https://www.garetien.de';
-    $quellenTitel = $wiki === 'kosch' ? 'KoschWiki' : 'Garetien, Greifenfurt und Perricum';
+    // 🔴 DIE BESCHRIFTUNG NENNT DAS BRIEFSPIEL, DIE ADRESSE DEN ARTIKEL (Owner 27.08.2026:
+    // „wichtig ist auch die kategorie der quelle ... beispiel Briefspiel (Weiden)"). Das ist die
+    // Form, die das Haus fuer Briefspielquellen seit langem fuehrt -- „Albernisches Briefspiel"
+    // zeigt auf westlande.de/…/Falkenhain, „Briefspiel (Weiden)" auf
+    // herzogtum-weiden.net/…/hzgl-altentrallop. Der Artikelname geht dabei nicht verloren, er
+    // steht im Link.
+    $quellenTitel = $wiki === 'kosch' ? 'Briefspiel (Kosch)' : 'Briefspiel (Garetien)';
     $seite = ($namensraum !== '' ? $namensraum . ':' : '') . $artikel;
 
     // 🔴 EIN ZUFLUSS IST EIN NEUES OBJEKT, KEINE AENDERUNG AN UNSEREM FLUSS (Owner 27.08.2026).
@@ -82,8 +88,8 @@ function avesmapsGaretienPlanEintrag(array $zeile, array $ziel, array $urteil): 
             ],
             'quelle' => [
                 'url' => $seite !== '' ? $basis . str_replace(' ', '_', $seite) : $wirt,
-                'label' => $seite !== '' ? $seite : $quellenTitel,
-                'source_type' => 'garetien',
+                'label' => $quellenTitel,
+                'source_type' => 'briefspiel',
                 'origin' => 'garetien',
             ],
             'urteil' => $urteil['grund'],

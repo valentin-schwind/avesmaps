@@ -19,8 +19,18 @@ require_once __DIR__ . '/../map/features.php';
 require_once __DIR__ . '/../app/feature-sources.php';
 require_once __DIR__ . '/../app/ecosystem.php';
 
-/** Die Lizenz haengt am source_type, nicht am Objekt -- siehe avesmapsGaretienQuelleAnlegen. */
-const AVESMAPS_GARETIEN_SOURCE_TYPE = 'garetien';
+// 🔴 ES IST EIN BRIEFSPIEL, KEIN EIGENER TYP (Owner 27.08.2026: „wichtig ist auch die kategorie
+// der quelle ... beispiel Briefspiel (Weiden)"). garetien.de und koschwiki.de sind genau das --
+// Briefspiele --, und das Haus fuehrt diese Form seit langem: die Beschriftung nennt das
+// Briefspiel, die Adresse den Artikel. Live gemessen 27.08.2026: 96 Briefspiel-Quellen im
+// Katalog, darunter „Briefspiel (Weiden)" -> herzogtum-weiden.net und „Albernisches Briefspiel"
+// -> westlande.de. Ein eigener Typ waere eine achte Kategorie fuer etwas, das die siebte schon
+// beschreibt -- und er haette in JEDER Whitelist nachgetragen werden muessen.
+//
+// ⚠️ Die Herkunft bleibt `garetien`: sie ist ein anderes Feld und beantwortet eine andere Frage
+// -- nicht „was fuer eine Quelle ist das", sondern „wer hat diese Zeile geschrieben". Daran
+// erkennt ein spaeterer Lauf seine eigenen Zeilen wieder und laesst Handarbeit stehen.
+const AVESMAPS_GARETIEN_SOURCE_TYPE = 'briefspiel';
 const AVESMAPS_GARETIEN_SOURCE_ORIGIN = 'garetien';
 
 /**
