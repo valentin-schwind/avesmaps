@@ -75,6 +75,28 @@ find js tools \( \( -path '*__tests__*' -name '*.test.js' \) -o \( -name 'test-*
   `… -print0 | tr -dc '\0' | wc -c` muss die Zahl aus
   `.github/workflows/deploy-avesmaps-strato.yml` ergeben. PHP analog, mit den drei Erweiterungen.
 
+### 🔴 DAS TOR VOR DEM ERSTEN ECHTEN IMPORT
+
+Der Plan baut das **Fenster**. Das Fenster zeigt Vorschläge und schreibt nichts, bis jemand
+„Angehakte übernehmen" drückt. **Bauen und Übernehmen sind trennbar — und sie sind hier
+getrennt.**
+
+🔴 **Bevor zum ersten Mal wirklich übernommen wird, müssen diese drei Dinge stehen. Alle drei
+sind ausserhalb dieses Plans, und keines ist optional:**
+
+| | Warum | Zahl |
+|---|---|---|
+| **Der Koordinaten-Fix** (Aufgabe 4b) | importierte Wege landen sonst an der Diagonale gespiegelt | 152 Flusswege in Stufe 1 |
+| **Der Wege-Subtyp `Bach`** (Owner 27.08.) | sonst liegen Bäche als **befahrbare** Flusswege in der Karte und müssen einzeln umgetragen werden | **143 von 289** Objekten der Stufe 1 |
+| **Die fehlenden Ortsarten** (`Burg`, `Gasthaus`, `Stadtviertel`) | sonst verlieren 568 Bauwerke ihre Art — nachträglich Handarbeit an jedem einzelnen | erst ab Stufe 4 |
+
+⚠️ **Die ersten beiden gelten schon für Stufe 1.** Wer das Fenster fertig baut und dann
+„Übernehmen" drückt, ohne sie, richtet genau den Schaden an, gegen den dieses Fenster gebaut
+wurde: Objekte, die falsch in der Karte liegen und einzeln von Hand zu reparieren sind.
+
+⭐ Deshalb steht es hier und nicht in einer Notiz: die Aufgaben 9–16 dürfen **gebaut und
+angesehen** werden, ohne dass die drei stehen. Nur der Knopf, der schreibt, wartet.
+
 ### Gemessene Zahlen — nicht neu herleiten
 
 289 Quellzeilen: **199** neu vorangehakt · **32** ungehakt mit Zweifel · **3** widersprüchlich ·
