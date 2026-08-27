@@ -325,6 +325,28 @@ kommen 250 ms später, solange steht am Rand ein grauer Saum. Bewusst nicht beho
 Trennung Leaflet-Interna nachbauen hieße. Fällt der Saum auf, ist das die Stelle.
 ⚠️ **`?zoomlupe=<faktor>` multipliziert die neue Basis** — `?zoomlupe=2` sind seither 1000 ms.
 
+✅ **SECHZEHN VOLL-NEUZEICHNUNGEN JE ZOOMSCHRITT — seit 27.08.2026 vier.** Grenzen- und
+Schraffur-Overlay hängen beide an `moveend zoomend viewreset resize`, und Leaflet feuert am
+Zoomende **beide**: der Handler lief zweimal, zeichnete zweimal voll und meldete je drei blinde
+Nachzieh-Timer an (120/350/800 ms). Macht 2 + 6 = 8 **je Overlay**, also sechzehn — die „acht" aus
+dem Perf-Bericht war pro Fläche gezählt. Bei 52–99 ms je Zeichnung sind das rund **0,8 s** pro
+Zoomschritt.
+⭐ `js/map-features/zeichen-buendel.js` bündelt sie: der Doppelaufruf wird EINE Zeichnung im
+nächsten Bild, und die drei Timer zeichnen nur noch bei neuem Datenstand. Gemessen (beide Male mit
+demselben Zähler `avesmapsZeichenBilanz()`): **16 → 4**.
+🔴 **Geprüft wird die IDENTITÄT von `regionData`, kein Inhaltsvergleich** — der Loader weist bei
+jedem Laden ein frisches Array zu, die Referenz wechselt also genau dann, wenn neue Daten da sind;
+ein Vergleich über ~1000 Flächen wäre teurer als das Zeichnen, das er spart. Wirft der Datenstand,
+wird im Zweifel GEZEICHNET.
+🔴 **Ohne `requestAnimationFrame` wird sofort gezeichnet** — keine stille Ausweiche, sondern eine
+Fähigkeitsprüfung: ohne nächstes Bild gibt es nichts zu bündeln. Der Fall trifft Test-VMs, nie
+einen Browser; ohne ihn wirft der Bündler dort.
+⚠️ **`?zoombuendel=0` stellt den alten Zustand her und bleibt** — er ist die Vergleichsgrundlage
+für jede spätere Messung an dieser Stelle.
+⭐ Der Weg dorthin ist die Lehre: erst als Versuch hinter `?zoombuendel=1` live (Vorgabe AUS), dann
+der Blick des Owners („das beste was ich bisher gesehen hab"), dann die Vorgabe. Warum das nötig
+war, steht in der Falle darunter.
+
 🪤 **EIN VERSUCH, DER MESSBAR BESSER WAR UND SICHTBAR SCHLECHTER — 27.08.2026.** Gemeldet war
 „die straßen/flüsse ziehen manchmal kurz hinter", und die Messung dazu stimmt bis heute: das
 Vorabzeichnen der Wegenamen blockiert die `zoomanim`-**Zustellung** 25–87 ms, und in derselben

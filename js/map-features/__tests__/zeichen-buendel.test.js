@@ -1,4 +1,4 @@
-// Der Bündler für die Voll-Neuzeichnungen -- Versuchsschalter `?zoombuendel=1`.
+// Der Bündler für die Voll-Neuzeichnungen -- Vorgabe AN, `?zoombuendel=0` zurück.
 //
 // 💣 ACHT VOLL-NEUZEICHNUNGEN JE ZOOMSCHRITT. Grenzen- und Schraffur-Overlay hängen beide an
 // `moveend zoomend viewreset resize`, und Leaflet feuert am Zoomende BEIDE -- der Handler läuft
@@ -10,10 +10,12 @@
 // verschwindet und bei 500 ms stört, ist ein FESTER Betrag Arbeit -- für einen flotten Zoom muss
 // rund eine Sekunde davon aus dem Zoomschritt heraus.
 //
-// 🔴 UND DIE VORGABE IST AUS. Ohne den Schalter muss sich die Karte zeichengleich verhalten wie
-// vorher -- das ist die wichtigste Zusicherung hier. Owner: „probiers unter neuem parameter", und
-// er hatte an diesem Tag zweimal recht damit: eine Zoom-Änderung, die nur gemessen und nicht
-// gesehen wurde, war beide Male schlechter als der Ausgangszustand.
+// 🔴 SEIT DEM 27.08.2026 IST ES DIE VORGABE. Es kam als Versuch hinter `?zoombuendel=1` live --
+// weil an diesem Tag zwei Zoom-Änderungen nach der ZAHL besser und nach dem BILD schlechter waren
+// und der Schalter der Ausweg war (Owner: „probiers unter neuem parameter"). Nach seinem Blick:
+// „das beste was ich bisher gesehen hab".
+// ⚠️ `?zoombuendel=0` muss den ALTEN Zustand exakt herstellen und bleibt deshalb geprüft: er ist
+// die Vergleichsgrundlage für jede spätere Messung an dieser Stelle.
 //
 // Aus der Wurzel des Repos:  node js/map-features/__tests__/zeichen-buendel.test.js
 const assert = require("assert");
@@ -40,29 +42,29 @@ function ladeMit(suche) {
 	return require(modulPfad);
 }
 
-// --- OHNE Schalter: unveraendert und SYNCHRON --------------------------------------------------
+// --- ?zoombuendel=0: der alte Zustand, unveraendert und SYNCHRON -------------------------------
 {
-	const m = ladeMit("");
+	const m = ladeMit("?zoombuendel=0");
 	let laeufe = 0;
 	const zeichne = m.avesmapsZeichenGebuendelt("test", () => { laeufe++; });
 	zeichne(); zeichne(); zeichne();
 	assert.strictEqual(laeufe, 3,
-		"🔴 Ohne `?zoombuendel=1` muss jeder Aufruf sofort zeichnen -- die Vorgabe darf sich nicht "
-		+ "aendern.");
+		"🔴 Mit `?zoombuendel=0` muss jeder Aufruf sofort zeichnen -- das ist der Notausgang auf den "
+		+ "alten Zustand, und er ist die Vergleichsgrundlage.");
 	assert.strictEqual(bildWarteschlange.length, 0,
-		"🔴 Ohne Schalter darf nichts auf das naechste Bild verschoben werden.");
+		"🔴 Mit ?zoombuendel=0 darf nichts auf das naechste Bild verschoben werden.");
 
 	// Und der Nachzug zeichnet ohne Schalter IMMER -- auch bei unveraenderten Daten.
 	const daten = [1, 2, 3];
 	let nachzuege = 0;
 	const nachzug = m.avesmapsZeichenNachzugWennNeu("test-nachzug", () => { nachzuege++; }, () => daten);
 	nachzug(); nachzug(); nachzug();
-	assert.strictEqual(nachzuege, 3, "🔴 Ohne Schalter bleiben die drei blinden Nachzuege blind.");
+	assert.strictEqual(nachzuege, 3, "🔴 Mit ?zoombuendel=0 bleiben die drei blinden Nachzuege blind.");
 }
 
-// --- MIT Schalter: hoechstens EINE Zeichnung je Bild --------------------------------------------
+// --- VORGABE (ohne Parameter): hoechstens EINE Zeichnung je Bild -------------------------------
 {
-	const m = ladeMit("?zoombuendel=1");
+	const m = ladeMit("");
 	let laeufe = 0;
 	const zeichne = m.avesmapsZeichenGebuendelt("test", () => { laeufe++; });
 	// Das ist der Zoomende-Fall: `moveend` UND `zoomend` im selben Bild.
@@ -77,9 +79,9 @@ function ladeMit(suche) {
 	assert.strictEqual(laeufe, 2, "Ein spaeterer Aufruf muss wieder zeichnen (kein Dauer-Riegel).");
 }
 
-// --- MIT Schalter: der Nachzug fragt die DATEN -------------------------------------------------
+// --- VORGABE: der Nachzug fragt die DATEN ------------------------------------------------------
 {
-	const m = ladeMit("?zoombuendel=1");
+	const m = ladeMit("");
 	let stand = ["a"];
 	let laeufe = 0;
 	const nachzug = m.avesmapsZeichenNachzugWennNeu("test-nachzug", () => { laeufe++; }, () => stand);
@@ -104,6 +106,42 @@ function ladeMit(suche) {
 	});
 	nachzug2(); nachzug2();
 	assert.strictEqual(werfer, 2, "⚠️ Ein Wurf beim Datenstand darf nicht zum Schweigen fuehren.");
+}
+
+// --- Ohne „naechstes Bild" wird sofort gezeichnet ----------------------------------------------
+// 🔴 KEINE STILLE AUSWEICHE, SONDERN EINE FAEHIGKEITSPRUEFUNG: gibt es kein
+// `requestAnimationFrame`, gibt es auch kein Bild, in das gebuendelt werden koennte -- dann ist
+// sofort zeichnen die einzig richtige Antwort. In einem echten Browser tritt der Fall nicht ein.
+// 🪤 Gefunden am 27.08.2026 beim Umstellen der Vorgabe, und zwar in einem FREMDEN Test: der fuehrt
+// das Grenzen-Overlay in einer VM aus, deren Fenster-Attrappe kein rAF hat -- „window.
+// requestAnimationFrame is not a function".
+{
+	global.window = { location: { search: "" } };   // Fenster ohne rAF
+	delete require.cache[require.resolve(modulPfad)];
+	const m = require(modulPfad);
+	let laeufe = 0;
+	const zeichne = m.avesmapsZeichenGebuendelt("test-ohne-bild", () => { laeufe++; });
+	zeichne(); zeichne(); zeichne();
+	assert.strictEqual(laeufe, 3,
+		"💣 Ohne requestAnimationFrame muss sofort gezeichnet werden -- sonst wirft der Buendler.");
+}
+
+// --- Ohne lesbare Adresszeile gilt die VORGABE --------------------------------------------------
+// ⚠️ Der Rueckfall im catch. Er war beim Umstellen der Vorgabe zuerst ungeprueft: eine Mutation auf
+// `return false` blieb gruen, weil kein Fall ihn erreichte.
+{
+	global.window = {
+		get location() { throw new Error("keine Adresszeile"); },
+		requestAnimationFrame(fn) { bildWarteschlange.push(fn); return bildWarteschlange.length; },
+	};
+	delete require.cache[require.resolve(modulPfad)];
+	const m = require(modulPfad);
+	let laeufe = 0;
+	const zeichne = m.avesmapsZeichenGebuendelt("test-ohne-adresse", () => { laeufe++; });
+	zeichne(); zeichne();
+	assert.strictEqual(laeufe, 0, "⚠️ Ohne Adresszeile muss die VORGABE gelten -- also buendeln.");
+	bildAusloesen();
+	assert.strictEqual(laeufe, 1, "⚠️ Ohne Adresszeile muss die VORGABE gelten -- also buendeln.");
 }
 
 // --- Die Verdrahtung: beide Overlays benutzen ihn, und er wird VORHER geladen -------------------
@@ -151,4 +189,4 @@ for (const w of [
 		"💣 zeichen-buendel.js wird NACH " + w + " geladen -- dort stuende dann undefined.");
 }
 
-console.log("OK: Buendler aus (Vorgabe) unveraendert, an hoechstens eine Zeichnung je Bild, Nachzug datengetrieben.");
+console.log("OK: Vorgabe buendelt (eine Zeichnung je Bild, Nachzug datengetrieben), ?zoombuendel=0 stellt den alten Zustand her.");
