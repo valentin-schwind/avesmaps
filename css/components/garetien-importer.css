@@ -109,6 +109,74 @@
    (Aufgabe 11+). Specificity 0,3,0 schlägt die geteilte 0,2,0 aus editor-body.css. */
 .gi-win .avm-col + .avm-col { padding: 0; }
 
+/* ---- Aufgabe 11: die Arbeitsliste -- Zeilen, Bilanz, Reiter ------------------------------- *
+ * .avm-row/.avm-tabs/.avm-scroll bleiben unangetastet (editor-row.css/editor-body.css); hier
+ * steht nur, was es sonst nirgends gibt.
+ */
+
+/* Das Häkchen ist NEU an .avm-row (keine der sechs Editorlisten hat eins) -- ein MODIFIER,
+   keine zweite Zeilenrezeptur. Gescoped auf .gi-win, damit diese Datei beim Abbau (§5.5)
+   nichts ausserhalb von sich selbst hinterlässt. */
+.gi-win .avm-row > input[type="checkbox"] {
+	flex: none;
+	margin-top: 2px;
+	width: 14px;
+	height: 14px;
+	accent-color: var(--color-check-accent);
+}
+
+.gi-searchrow {
+	display: flex;
+	gap: var(--space-4);
+	margin-bottom: var(--space-4);
+}
+
+.gi-search {
+	flex: 1 1 auto;
+	min-width: 0;
+	height: var(--avm-control-h);
+	padding: 0 var(--space-6);
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-md);
+	background: var(--color-panel);
+	/* ⚠️ Abweichung vom Mockup: dort stand die EINGABEFARBE auf --color-placeholder, was auch
+	   getippten Text dauerhaft ausgegraut hätte. Getippter Text bekommt die normale Textfarbe,
+	   nur der Platzhalter selbst bleibt gedämpft. */
+	color: var(--color-text);
+	font: inherit;
+	font-size: var(--font-size-small);
+}
+.gi-search::placeholder { color: var(--color-placeholder); }
+
+.gi-chips {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--space-2);
+	margin-bottom: var(--space-4);
+}
+.gi-chips:empty { margin-bottom: 0; }
+
+.gi-balance {
+	margin: 0 0 var(--space-6);
+	max-width: none;
+	font-size: var(--font-size-caption);
+	color: var(--color-text-muted);
+}
+.gi-balance b { color: var(--color-text-strong); }
+.gi-balance .lit { color: var(--color-accent-strong); font-weight: var(--font-weight-bold); }
+
+/* Ein angehaktes Objekt LEUCHTET auf der Karte (Aufgabe 14) -- die Zeile sagt es mit. */
+.lit-dot { color: var(--color-marker-active); font-weight: var(--font-weight-bold); }
+
+/* Das Urteil in der Zeile ist FARBE ALS DATEN, nicht Chrome (Designsprache) -- warme Familie,
+   kein Blau. deckt_sich/uebersprungen teilen sich die gedämpfte Klasse. */
+.u { font-weight: var(--font-weight-bold); }
+.u--neu   { color: var(--color-success); }
+.u--erg   { color: var(--color-accent-strong); }
+.u--zweif { color: var(--color-warning); }
+.u--wider { color: var(--color-danger); }
+.u--deckt { color: var(--color-text-muted); }
+
 /* ---- Fuß: die EINE gefüllte Handlung des Fensters ----------------------------------------- */
 .gi-foot {
 	flex: none;
