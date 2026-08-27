@@ -189,6 +189,10 @@ function syncEcosystemPaneStates() {
 	// die Falle vom 14.08.2026, und ein zusätzlicher Aufruf im Verlassen-Zweig war genau das (er stand
 	// hier kurz und ist wieder weg: syncEcosystemControlsVisibility endet ohnehin auf dieser Funktion).
 	syncEcosystemRiverVisibility();
+	// Und ihre Kontur, aus demselben Trichter: Eintreten, Ebenenwechsel und Verlassen kommen alle drei
+	// hier vorbei. Steht NACH der Sichtbarkeit -- ein Fluss, der gleich ausgeblendet wird, braucht
+	// keinen frischen Stil, und andersherum wäre die Reihenfolge nur zufällig richtig.
+	syncEcosystemFlussKontur();
 	// Und das Ansichtsprofil des Besuchers: Straßen, Grenzen, Ortsklassen, Untergrund samt Kacheln
 	// (23.08.2026). Auch hier gilt: Eintreten, Ebenenwechsel und Verlassen kommen alle drei hier vorbei.
 	// ⚠️ Der Untergrund läuft NICHT von hier, sondern aus syncEcosystemControlsVisibility -- er muss auch
@@ -673,6 +677,46 @@ function syncEcosystemRiverVisibility() {
 	if (typeof syncPathVisibility === "function") {
 		syncPathVisibility();
 	}
+}
+
+// 🔴 UND DIE FLUSSKONTUR NACHZIEHEN (27.08.2026). `avesmapsFlussKonturSichtbar` (map-features.js)
+// beantwortet die Frage richtig -- aber niemand STELLT sie noch einmal, wenn sich der Modus ändert.
+// Live gemessen: beim Betreten der Landschaften rechnete die Regel bereits 0, und die 223
+// gezeichneten Flüsse trugen weiter `stroke-opacity: 1`. Ein Stil, der von einem Zustand abhängt,
+// braucht einen Anstoss, wenn der Zustand wandert.
+//
+// 💣 EIGENE AUFRUFSTELLE, NICHT AN syncEcosystemRiverVisibility ANGEHÄNGT. Jene Funktion hat DREI
+// frühe Ausstiege -- unter anderem `haken.checked === soll`, und genau der greift im häufigsten Fall:
+// wer die Flüsse ohnehin eingeschaltet hat, betritt die Topographie ohne jede Änderung am Haken. Ein
+// Nachzieher in ihrem Rumpf liefe dann nie.
+//
+// ⚠️ NUR BEI ECHTER ÄNDERUNG. Diese Wege laufen bei jedem Ebenenwechsel; ein blindes Setzen zöge
+// jedes Mal über tausend Flüsse neu -- dieselbe Überlegung wie bei ecosystemSetzeAnzeigeHaken.
+// ⚠️ Und über ALLE Flüsse mit gebauten Linien, nicht nur die gerade sichtbaren: eine ausserhalb des
+// Bildes liegende Linie behält sonst ihren alten Stil, bis jemand zufällig dorthin schwenkt.
+// Frisch gebaute erben ihn ohnehin -- createPathLayer endet auf updatePathLayerStyle.
+let ecosystemFlussKonturZuletzt = null;
+
+function syncEcosystemFlussKontur() {
+	if (typeof avesmapsFlussKonturSichtbar !== "function" || typeof updatePathLayerStyle !== "function"
+		|| typeof normalizePathSubtype !== "function"
+		|| typeof pathData === "undefined" || !Array.isArray(pathData)) {
+		return;
+	}
+	const soll = avesmapsFlussKonturSichtbar();
+	if (ecosystemFlussKonturZuletzt === soll) {
+		return;
+	}
+	ecosystemFlussKonturZuletzt = soll;
+	pathData.forEach((path) => {
+		if (!path || !Array.isArray(path._pathLines) || path._pathLines.length === 0) {
+			return;
+		}
+		if (normalizePathSubtype(path.properties?.feature_subtype) !== "Flussweg") {
+			return;
+		}
+		updatePathLayerStyle(path);
+	});
 }
 
 function syncEcosystemUndergroundControl() {

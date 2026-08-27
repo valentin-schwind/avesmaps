@@ -315,6 +315,32 @@ const normalizeNodeName = (name) => {
 
 // (Location & crossing marker editing moved to map-features-location-editing.js - M5 split.)
 
+// 🔴 TRÄGT EIN FLUSS SEINE WEISSE KONTUR? Owner 27.08.2026: „die flüsse in der topographischen
+// ansicht für das front end (nicht im editmode) keine weiße kontur haben (konturen soll dann
+// angezeigt werden wenn auch die pfeilchen angezeigt werden)".
+//
+// 💣 DER ZWEITE SATZ IST DIE REGEL, NICHT DER ERSTE. Die Fliessrichtungs-Pfeile gibt es nur im
+// Editor -- map-features-river-flow-arrows.js steigt in start() bei `!IS_EDIT_MODE` aus. Damit ist
+// die Kontur als WERKZEUG erklärt und nicht als Kartenbild, und sie folgt genau dieser Frage. Wer
+// die Pfeile je für Besucher freigibt, nimmt die Kontur mit -- sonst zerfällt die Zusage
+// stillschweigend (festgenagelt in flusskontur-landschaften.test.js, Abschnitt E).
+//
+// ⚠️ REICHWEITE: der ganze Landschaftsmodus, nicht nur der Reiter „Topographie". Flüsse erscheinen
+// dort ohnehin nur in „Alle" und „Topographie" (ECOSYSTEM_RIVER_KINDS) -- beide zeigen sie über
+// demselben ausgeblassten Untergrund, auf dem die weisse Hülle als dicker Wurm liest. Eine Regel,
+// die nur eine der beiden Ansichten träfe, wäre ein Unterschied, den niemand erklären kann.
+// 🪤 Die gewöhnliche Karte bleibt unberührt: dort ist die weisse Kontur das gewohnte Kartenbild.
+function avesmapsFlussKonturSichtbar() {
+	const imLandschaftsmodus = typeof isEcosystemLayerModeActive === "function"
+		&& isEcosystemLayerModeActive();
+	if (!imLandschaftsmodus) {
+		return true;
+	}
+	// Fällt offen aus: ohne die Auskunft gilt „wie bisher". Lieber eine weisse Linie zu viel als ein
+	// Fluss, der sich vom Untergrund nicht mehr abhebt.
+	return typeof IS_EDIT_MODE === "undefined" || Boolean(IS_EDIT_MODE);
+}
+
 function getPathStyleColors(path) {
 	const pathSubtype = normalizePathSubtype(path.properties?.feature_subtype || path.properties?.name);
 	const simplifiedRender = Math.round(Number(map.getZoom())) <= PATH_RENDER_CONFIG.simplifiedMaxZoom;
@@ -351,6 +377,23 @@ function getPathStyleColors(path) {
 		centerWeight: baseCenterWeight * widthScale,
 		outlineOpacity: outlineOverride != null ? 1 : (simplifiedRender ? PATH_RENDER_CONFIG.simplifiedOutlineOpacity : 1),
 	};
+
+	// 🔴 Der Fluss im Landschaftsmodus: Kontur nur für den, der auch die Pfeilchen bekommt (siehe
+	// avesmapsFlussKonturSichtbar). Nur `Flussweg` -- der `Seeweg` ist kein Fluss und hängt an einem
+	// eigenen Haken.
+	//
+	// 💣 DIE DECKKRAFT, NICHT DIE BREITE. Die Konturlinie ist der Klickfänger des Weges
+	// (`interactive` in createPathLayer, map-features-path-rendering.js); auf Breite 0 gezogen
+	// verlöre der Fluss seine Anfassfläche, und ein Fluss, den man nicht mehr anklicken kann, ist ein
+	// teurerer Fehler als eine weisse Linie.
+	//
+	// 💣 UND SIE STEHT VOR DEM PRÜFHAKEN. Der setzt die Kontur gleich darunter ausdrücklich auf 1
+	// zurück, weil sein Rot ohne sie auf dem Kartenbraun verschwindet. Stünde diese Regel dahinter,
+	// löschte sie den Befund für jeden Fluss -- und ein Prüfhaken, der bei Flüssen nichts zeigt,
+	// liest sich wie „keine offenen Enden" und nicht wie ein Fehler.
+	if (pathSubtype === "Flussweg" && !avesmapsFlussKonturSichtbar()) {
+		style.outlineOpacity = 0;
+	}
 
 	// Prüfhaken „Offene Wegenden" (Idee #86): ein Weg, der weder auf einem Ort noch auf einer Kreuzung
 	// endet, wird von BEIDEN Graphbauern komplett verworfen -- er liegt auf der Karte und ist für die
