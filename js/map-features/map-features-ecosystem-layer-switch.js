@@ -123,13 +123,19 @@ function syncEcosystemPaneStates() {
 		if (!pane) {
 			return;
 		}
-		// In „Alle" ist JEDE Ebene aktiv: sichtbar und anklickbar. Die Hausregel „immer nur eine Ebene
-		// antwortet" (§2) wird hier bewusst ausgesetzt -- ihr Zweck ist, beim ZEICHNEN die Frage „welches
-		// Polygon habe ich erwischt" gar nicht erst entstehen zu lassen, und „Alle" ist der Modus, in dem
-		// man genau diese Überlappungen sehen WILL. Was ein Klick trifft, sagt danach die weisse
+		// In „Alle" ist JEDE gezeichnete Ebene aktiv: sichtbar und anklickbar. Die Hausregel „immer nur
+		// eine Ebene antwortet" (§2) wird hier bewusst ausgesetzt -- ihr Zweck ist, beim ZEICHNEN die Frage
+		// „welches Polygon habe ich erwischt" gar nicht erst entstehen zu lassen, und „Alle" ist der Modus,
+		// in dem man genau diese Überlappungen sehen WILL. Was ein Klick trifft, sagt danach die weisse
 		// Auswahlkontur.
-		pane.classList.toggle("ecosystem-pane--active", showAll || kind === activeKind);
-		pane.classList.toggle("ecosystem-pane--resting", !showAll && kind !== activeKind);
+		//
+		// 💣 GEFRAGT WIRD isEcosystemKindVisible, NICHT `showAll || kind === activeKind` NACHGEBAUT. Genau
+		// das stand hier bis zum 27.08.2026 -- eine zweite Fassung derselben Frage, obwohl der Kommentar
+		// jener Funktion behauptet, diese Stelle lese sie. Die Ausnahme der Klimazonen hätte sie nie
+		// erreicht, und die Bänder wären in „Alle" stehengeblieben, während alles andere sie ausblendet.
+		const kindSichtbar = isEcosystemKindVisible(kind);
+		pane.classList.toggle("ecosystem-pane--active", kindSichtbar);
+		pane.classList.toggle("ecosystem-pane--resting", !kindSichtbar);
 		// Eigene Klasse für „Alle", statt es aus „alle drei sind aktiv" zu erraten: das CSS braucht den
 		// Modus, um die derographischen Flächen dort zurückzunehmen (siehe ecosystem-layer.css).
 		pane.classList.toggle("ecosystem-pane--showall", showAll);
@@ -731,13 +737,35 @@ function isEcosystemShowAllLayers() {
 	return !canOperateEcosystemLayers();
 }
 
+// 🔴 WAS „ALLE" NICHT ZEIGT -- die EINE Liste (Owner 27.08.2026: „klimazonen sollen in ‚Alle‘ nicht
+// angezeigt werden").
+//
+// Die Klimazonen sind das einzige, was hier nicht GEZEICHNET, sondern ABGELEITET ist: sieben
+// kartenbreite Bänder, die quer über alles laufen, was „Alle" eigentlich zeigen soll. Genau darum
+// ging schon der Streit um ihre Füllung -- erst 10 %, dann 16 % („kräftiger"); jetzt gar nicht.
+//
+// 💣 SIE STEHT HIER UND SONST NIRGENDS. Drei Stellen fragen sie -- die Pane-Klassen, der
+// Beschriftungsfilter (map-features-labels.js) und das Klima-Modul selbst --, und ein `kind !==
+// "klima"` an dreien wäre dieselbe Aussage dreimal. Das ist die Falle vom 14.08.2026: eine Regel,
+// die einen von mehreren Erzeugern bindet, ist keine Regel.
+// ⚠️ Und sie gilt NUR für „Alle". Wer die Klimazonen ausdrücklich wählt, bekommt sie -- sonst wäre
+// die Ebene abgeschafft und nicht aus einer Übersicht genommen.
+const ECOSYSTEM_SHOWALL_VERBORGEN = ["klima"];
+
+function isEcosystemKindHiddenInShowAll(kind) {
+	return ECOSYSTEM_SHOWALL_VERBORGEN.includes(String(kind || ""));
+}
+
 // Ist diese Ebene gerade SICHTBAR -- also voll gezeichnet und klickbar, nicht blass und
-// durchlässig? In „Alle" sind es alle drei, sonst nur die Arbeitsebene. Eine Frage, eine Antwort:
-// syncEcosystemPaneStates verteilt daraus die Pane-Klassen, und der Vertex-Snap (V-Snap,
-// map-features-ecosystem-edit.js) nimmt genau dieselbe Menge als Schnappziele. Sonst könnte eine
-// Fläche anziehen, die man gar nicht sieht.
+// durchlässig? In „Alle" sind es alle ausser den oben ausgenommenen, sonst nur die Arbeitsebene.
+// Eine Frage, eine Antwort: syncEcosystemPaneStates verteilt daraus die Pane-Klassen, und der
+// Vertex-Snap (V-Snap, map-features-ecosystem-edit.js) nimmt genau dieselbe Menge als Schnappziele.
+// Sonst könnte eine Fläche anziehen, die man gar nicht sieht.
 function isEcosystemKindVisible(kind) {
-	return isEcosystemShowAllLayers() || kind === getActiveEcosystemLayerKind();
+	if (isEcosystemShowAllLayers()) {
+		return !isEcosystemKindHiddenInShowAll(kind);
+	}
+	return kind === getActiveEcosystemLayerKind();
 }
 
 // Beendet, was auf der Karte gerade in Arbeit ist. Die ANZAHL der Werkzeuge steht hier bewusst nicht:

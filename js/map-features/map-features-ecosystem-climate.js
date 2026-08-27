@@ -147,17 +147,22 @@ function isClimateLayerVisible() {
 	if (!(typeof isEcosystemLayerModeActive === "function" && isEcosystemLayerModeActive())) {
 		return false;
 	}
-	// 🪤 „Alle" ZÄHLT MIT (Owner 2026-08-04). Bis dahin war es ausdrücklich ausgenommen -- die Ebene
-	// nimmt sich dort auf 10 % Füllung zurück, und sieben Namen quer darüber galten als Beiwerk. In der
-	// Praxis war das Gegenteil der Fall: die zurückgenommene Fläche ist ohne ihren Namen eine Färbung,
-	// die man nicht mehr zuordnen kann. Der Name ist die Auskunft der Ebene, gerade wenn die Farbe
-	// leise ist.
+	// 🔴 „ALLE" IST AUSGENOMMEN (Owner 27.08.2026: „klimazonen sollen in ‚Alle‘ nicht angezeigt
+	// werden"). Hier stand seit dem 04.08.2026 das Gegenteil -- „Alle" ZÄHLT MIT --, samt der
+	// Begründung, eine leise Färbung ohne ihren Namen sei nicht mehr zuzuordnen. Der Einwand war
+	// richtig und ist jetzt gegenstandslos: es gibt in „Alle" auch keine Färbung mehr, also auch nichts
+	// mehr zuzuordnen. Die Vorgeschichte steht hier, damit niemand die Zeile als Flüchtigkeitsfehler
+	// „repariert" -- sie ist zweimal bewusst umgedreht worden.
 	//
 	// 💣 Es hängt NICHT am gemerkten Ebenenwert. „Alle" lässt den stehen, und genau deshalb wird er
 	// hier gar nicht erst gefragt -- sonst wären die Namen mal da und mal nicht, je nachdem was zuletzt
 	// gewählt war, und das ist kein Zustand, den man erklären kann.
+	//
+	// ⚠️ Gefragt wird die geteilte Liste, nicht `false` hingeschrieben: dieselbe Ausnahme entscheidet
+	// auch über die Pane-Klassen und den Beschriftungsfilter (ECOSYSTEM_SHOWALL_VERBORGEN).
 	if (typeof isEcosystemShowAllLayers === "function" && isEcosystemShowAllLayers()) {
-		return true;
+		return !(typeof isEcosystemKindHiddenInShowAll === "function"
+			&& isEcosystemKindHiddenInShowAll("klima"));
 	}
 
 	return typeof getActiveEcosystemLayerKind === "function" && getActiveEcosystemLayerKind() === "klima";

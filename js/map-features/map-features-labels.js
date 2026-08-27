@@ -1044,7 +1044,15 @@ function isLabelOfActiveEcosystemLayer(label) {
 		return true;
 	}
 	if (typeof isEcosystemShowAllLayers === "function" && isEcosystemShowAllLayers()) {
-		return true;
+		// 🔴 Ausser den Ebenen, die „Alle" ausnimmt -- heute die Klimazonen (Owner 27.08.2026). Die Liste
+		// steht in map-features-ecosystem-layer-switch.js und wird hier nur gelesen.
+		// 🪤 DIESER ZWEIG HAT HEUTE KEINEN ERZEUGER, und das ist Absicht, kein Versehen: live trägt KEINE
+		// der 980 Beschriftungen ein `ecosystem_region_kind = klima` (gemessen 27.08.2026) -- die
+		// Zonennamen malt das Klima-Modul selbst (drawClimateZoneNames). Er steht trotzdem da, weil eine
+		// Klimaregion jederzeit ein `label_public_id` bekommen kann und der Name dann durch diese
+		// Pipeline käme, an der Ausnahme vorbei. Wer ihn für tot hält, prüft erst die Zahl neu.
+		return !(typeof isEcosystemKindHiddenInShowAll === "function"
+			&& isEcosystemKindHiddenInShowAll(label?.ecosystemRegionKind));
 	}
 	if (typeof getActiveEcosystemLayerKind !== "function") {
 		return true;

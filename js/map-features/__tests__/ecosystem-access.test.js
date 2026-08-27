@@ -93,11 +93,27 @@ const kaputterSpeicher = welt({ recht: true, editor: true, gemerktAlle: "viellei
 assert(!kaputterSpeicher.isEcosystemShowAllLayers(),
 	"ein unbrauchbarer Speicherwert zaehlt nicht als Wahl");
 
-// Und in „Alle" ist jede Ebene sichtbar -- das ist, was es bedeutet.
+// In „Alle" sind die GEZEICHNETEN Ebenen sichtbar -- mit genau einer Ausnahme.
+//
+// 🔴 DIE KLIMAZONEN SIND IN „ALLE" AUSGENOMMEN (Owner 27.08.2026: „klimazonen sollen in ‚Alle‘
+// nicht angezeigt werden"). Sie sind das einzige, was hier nicht GEZEICHNET, sondern ABGELEITET
+// ist: sieben kartenbreite Baender, die quer ueber alles laufen, was der Modus eigentlich zeigen
+// soll. Genau darum ging schon der Streit um ihre Fuellung -- erst 10 %, dann 16 %; jetzt gar nicht.
+//
+// 💣 Hier stand bis dahin „in Alle ist JEDE Ebene sichtbar -- das ist, was es bedeutet". Der Satz
+// war die Begruendung dafuer, die Frage gar nicht erst zu stellen; deshalb steht die Ausnahme jetzt
+// an EINER Stelle (ECOSYSTEM_SHOWALL_VERBORGEN) und nicht als `kind !== "klima"` an dreien.
 const sichtbar = welt({ recht: false, editor: false, gemerktAlle: null });
-["derographisch", "vegetation", "topographie", "klima"].forEach((kind) => {
+["derographisch", "vegetation", "topographie"].forEach((kind) => {
 	assert(sichtbar.isEcosystemKindVisible(kind), `in Alle ist ${kind} sichtbar`);
 });
+assert(!sichtbar.isEcosystemKindVisible("klima"), "🔴 die Klimazonen in Alle NICHT");
+
+// ⚠️ Und die Ausnahme gilt NUR fuer „Alle". Wer die Klimazonen ausdruecklich waehlt, bekommt sie --
+// sonst waere die Ebene abgeschafft und nicht aus einer Uebersicht genommen.
+const klimaGewaehlt = welt({ recht: false, editor: false, gemerktAlle: "0", ebene: "klima" });
+assert(klimaGewaehlt.isEcosystemKindVisible("klima"),
+	"💣 die gewaehlte Klima-Ebene bleibt sichtbar");
 // Waehlt er eine, ist auch nur die eine sichtbar.
 const eineEbene = welt({ recht: false, editor: false, gemerktAlle: "0" });
 assert(eineEbene.isEcosystemKindVisible("vegetation"), "die gewaehlte Ebene ist sichtbar");
@@ -182,10 +198,15 @@ assert(!inVegetation.isLabelOfActiveEcosystemLayer({}),
 	"🪤 und eine Beschriftung ohne Flaeche auch nicht -- nur die, die fuer die Zone gelten");
 
 const inAlle = labelWelt({ recht: false, editor: false, gemerktAlle: "1" });
-["vegetation", "topographie", "klima", "derographisch"].forEach((kind) => {
+["vegetation", "topographie", "derographisch"].forEach((kind) => {
 	assert(inAlle.isLabelOfActiveEcosystemLayer({ ecosystemRegionKind: kind }), `in Alle steht ${kind} dran`);
 });
 assert(inAlle.isLabelOfActiveEcosystemLayer({}), "in Alle steht auch das Ortsschild dran");
+// 🔴 Ausser dem Namen einer Klimazone (Owner 27.08.2026). Er ist die zweite Haelfte derselben
+// Anweisung: eine Ebene, deren Flaeche man nicht zeichnet, deren Namen man aber quer ueber die Karte
+// legt, ist nicht ausgeblendet -- sie ist dann nur noch Schrift ohne Bezug.
+assert(!inAlle.isLabelOfActiveEcosystemLayer({ ecosystemRegionKind: "klima" }),
+	"🔴 der Name der Klimazone in Alle nicht");
 
 // Ausserhalb des Landschaftsmodus gilt die Regel gar nicht -- sonst waere die normale Karte leer.
 const normaleKarte = labelWelt({ recht: false, editor: false, gemerktAlle: "0", modus: "deregraphic" });

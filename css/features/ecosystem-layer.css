@@ -1682,11 +1682,14 @@ body.leaflet-dragging .ecosystem-brush-pan .leaflet-interactive {
 
    10 % statt 30 % (Owner): in „Alle" geht es um die Überlappungen der gezeichneten Ebenen, und sieben
    kartenbreite Bänder darüber färben sonst alles ein. */
-.ecosystem-pane--klima.ecosystem-pane--active.ecosystem-pane--showall {
-	/* 0,16 statt 0,1 (Owner 2026-08-04, „kräftiger"). Sie bleibt die leiseste der vier -- ein Band deckt
-	   die Karte in voller Breite --, aber auf dem dunkleren Untergrund war 0,1 kaum noch zu sehen. */
-	--eco-fill: 0.16;
-}
+/* 🔴 HIER STAND DIE FÜLLUNG DER KLIMABÄNDER IN „ALLE" (erst 0,1, ab 04.08.2026 0,16 -- „kräftiger").
+   Sie ist am 27.08.2026 entfallen, weil die Klimazonen in „Alle" gar nicht mehr erscheinen (Owner:
+   „klimazonen sollen in ‚Alle‘ nicht angezeigt werden"): die Pane trägt dort seither `--resting`
+   statt `--active`, der Selektor könnte also nie wieder passen.
+   ⚠️ Entfernt und nicht bloss stehengelassen -- eine Regel, die auf nichts mehr passt, liest sich
+   beim nächsten Mal wie ein gültiger Wert und schickt die Suche in die falsche Datei. Wer die Bänder
+   je zurückholt, braucht sie wieder: die Entscheidung sitzt in ECOSYSTEM_SHOWALL_VERBORGEN
+   (js/map-features/map-features-ecosystem-layer-switch.js), nicht hier. */
 
 .leaflet-pane.ecosystem-pane--klima.ecosystem-pane--showall > svg path.leaflet-interactive {
 	pointer-events: none;
