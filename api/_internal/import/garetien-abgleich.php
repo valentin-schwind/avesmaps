@@ -33,9 +33,16 @@ const AVESMAPS_GARETIEN_TYP_MAP = [
 
     // Stehende Gewaesser sind bei uns eine FLAECHE plus ein LABEL -- zwei Objekte, und das
     // Label ist das tragende (Entwurf §3.3).
-    'See'   => ['ziel' => 'region', 'subtyp' => 'see',           'kind' => 'topographie'],
-    'Meer'  => ['ziel' => 'region', 'subtyp' => 'meer',          'kind' => 'topographie'],
-    'Sumpf' => ['ziel' => 'region', 'subtyp' => 'suempfe_moore', 'kind' => 'vegetation'],
+    // 💣 `suchen` ist NICHT `subtyp`. Angelegt wird als das, was die Zuordnung sagt -- GESUCHT
+    // wird in der ganzen Verwandtschaft, weil unsere Einordnung von ihrer abweichen darf.
+    // 🔴 Der Fall, der das erzwungen hat: Volker fuehrt den ANGBARER SEE als `Meer` (er ist der
+    // groesste Binnensee des Kosch), wir als `topographie/see`. Nur unter `meer` gesucht, findet
+    // der Abgleich nichts -- und legt ihn ein zweites Mal an, vorangehakt. Gemessen 27.08.2026.
+    // ⚠️ Der Sumpf bleibt allein: ein Moor ist kein See, und wer die Familien zu weit zieht,
+    // erklaert am Ende jede Wasserflaeche zur selben Sache.
+    'See'   => ['ziel' => 'region', 'subtyp' => 'see',           'kind' => 'topographie', 'suchen' => [['topographie', 'see'], ['topographie', 'meer']]],
+    'Meer'  => ['ziel' => 'region', 'subtyp' => 'meer',          'kind' => 'topographie', 'suchen' => [['topographie', 'meer'], ['topographie', 'see']]],
+    'Sumpf' => ['ziel' => 'region', 'subtyp' => 'suempfe_moore', 'kind' => 'vegetation',  'suchen' => [['vegetation', 'suempfe_moore']]],
 
     // Spaetere Stufen, aus Entwurf §3.1-§3.5 -- hier absichtlich NICHT eingetragen, damit die
     // Uebernahme sie nicht anfassen kann:
@@ -234,7 +241,9 @@ function avesmapsGaretienKandidatenVergessen(): void
 function avesmapsGaretienKandidaten(PDO $pdo, array $ziel): array
 {
     $zwischenspeicher = &avesmapsGaretienKandidatenSpeicher();
-    $schluessel = $ziel['ziel'] . '|' . ($ziel['kind'] ?? '') . '|' . $ziel['subtyp'];
+    // Die Verwandtschaft, in der gesucht wird -- ohne Angabe nur die eigene Art.
+    $familie = $ziel['suchen'] ?? [[$ziel['kind'] ?? '', $ziel['subtyp']]];
+    $schluessel = $ziel['ziel'] . '|' . json_encode($familie);
     if (isset($zwischenspeicher[$schluessel])) {
         return $zwischenspeicher[$schluessel];
     }
@@ -249,13 +258,21 @@ function avesmapsGaretienKandidaten(PDO $pdo, array $ziel): array
     } else {
         // ⚠️ Die Flaeche liegt in ecosystem_area, nicht in ecosystem_region -- die Region traegt
         // nur Name und Art. Probeflaechen (`is_trial`) bleiben draussen: sie sind Entwuerfe.
+        // ⚠️ Ueber die ganze Familie: unsere Einordnung darf von ihrer abweichen (Angbarer See).
+        $bedingungen = [];
+        $werte = [];
+        foreach ($familie as $i => [$kind, $typKey]) {
+            $bedingungen[] = '(r.kind = :k' . $i . ' AND r.region_type = :t' . $i . ')';
+            $werte[':k' . $i] = (string) $kind;
+            $werte[':t' . $i] = (string) $typKey;
+        }
         $stmt = $pdo->prepare(
-            'SELECT r.public_id, r.name, a.geometry_geojson AS geo, r.wiki_url AS props'
+            'SELECT r.public_id, r.name, r.region_type, a.geometry_geojson AS geo, r.wiki_url AS props'
             . ' FROM ecosystem_region r JOIN ecosystem_area a ON a.region_id = r.id'
-            . ' WHERE r.kind = :kind AND r.region_type = :subtyp'
+            . ' WHERE (' . implode(' OR ', $bedingungen) . ')'
             . ' AND r.is_active = 1 AND a.is_active = 1 AND a.is_trial = 0'
         );
-        $stmt->execute([':kind' => (string) $ziel['kind'], ':subtyp' => $ziel['subtyp']]);
+        $stmt->execute($werte);
     }
 
     $kandidaten = [];
@@ -269,6 +286,7 @@ function avesmapsGaretienKandidaten(PDO $pdo, array $ziel): array
         $kandidaten[] = [
             'public_id' => (string) $zeile['public_id'],
             'name' => (string) ($zeile['name'] ?? ''),
+            'art' => (string) ($zeile['region_type'] ?? ''),
             'props' => (string) ($zeile['props'] ?? ''),
             'punkte' => $punkte,
             // 🔴 Die Praefixe sind Absicht: diese Huellbox ist GERECHNET. Ohne sie liest sich
@@ -284,32 +302,71 @@ function avesmapsGaretienKandidaten(PDO $pdo, array $ziel): array
 }
 
 /**
- * Wie weit liegt die Importgeometrie von einem Kandidaten weg? Median ueber die Probepunkte.
+ * WIE GUT IST IHR OBJEKT VON UNSEREM BESTAND ABGEDECKT? Median ueber die Probepunkte.
  *
- * ⚠️ GERICHTET: gemessen wird von IHREN Punkten zum naechsten Eckpunkt von UNS -- die Frage ist
- * "ist ihr Objekt bei uns schon abgedeckt". Der Median statt des Mittels, damit ein einzelner
- * ueberstehender Zipfel das Urteil nicht kippt.
+ * 💣 UEBER ALLE KANDIDATEN ZUSAMMEN, NICHT GEGEN JEDEN EINZELN -- und daran ist die erste
+ * Fassung gescheitert. Unsere Fluesse liegen in ABSCHNITTEN: "Der Grosse Fluss" in 38, der
+ * Yaquir in 28, der Mhanadi in 26; 158 der 526 Namensgruppen sind mehrteilig (gemessen
+ * 27.08.2026). Volkers Fassung ist EINE Linie -- ihr Grosser Fluss hat 294 Stuetzpunkte ueber
+ * 296 Karteneinheiten. Gegen einen einzelnen unserer Abschnitte gemessen liegen 15 von 16
+ * Probepunkten weit weg, der Median wird riesig, und das Urteil lautet "neu".
+ *
+ * 🔴 Der Preis waere die schlimmste Dublette gewesen, die dieser Import anrichten kann: die
+ * groessten Fluesse Aventuriens ein zweites Mal auf der Karte -- ausgerechnet die, die wir
+ * ganz sicher schon haben. Und vorangehakt, weil "neu" vorangehakt kommt.
+ *
+ * ⚠️ GERICHTET bleibt es: gemessen wird von IHREN Punkten zum naechsten Eckpunkt von UNS. Die
+ * Frage ist "ist ihr Objekt bei uns schon da", nicht umgekehrt.
+ * ⚠️ Der Median statt des Mittels, damit ein einzelner ueberstehender Zipfel das Urteil nicht
+ * kippt (eine Muendung, ein historischer Zeichenfehler -- Volker nennt beides selbst).
+ *
+ * @return array{abstand:float, bester:?int}
  */
-function avesmapsGaretienAbstandZuKandidat(array $probepunkte, array $kandidat): float
+function avesmapsGaretienDeckung(array $probe, array $kandidaten): array
 {
+    if ($probe === [] || $kandidaten === []) {
+        return ['abstand' => INF, 'bester' => null];
+    }
+    // Der Huellbox-Vorfilter einmal je Kandidat, nicht je Punkt.
+    $naheKandidaten = [];
+    foreach ($kandidaten as $k => $kandidat) {
+        if (avesmapsGaretienHuellenBeruehrenSich($probe, $kandidat)) {
+            $naheKandidaten[$k] = $kandidat;
+        }
+    }
+    if ($naheKandidaten === []) {
+        return ['abstand' => INF, 'bester' => null];
+    }
+
     $abstaende = [];
-    foreach ($probepunkte as [$px, $py]) {
+    $treffer = [];   // wie oft war dieser Kandidat der naechste?
+    foreach ($probe as [$px, $py]) {
         $beste = INF;
-        foreach ($kandidat['punkte'] as [$kx, $ky]) {
-            $d = (($px - $kx) ** 2) + (($py - $ky) ** 2);
-            if ($d < $beste) {
-                $beste = $d;
+        $wer = null;
+        foreach ($naheKandidaten as $k => $kandidat) {
+            foreach ($kandidat['punkte'] as [$kx, $ky]) {
+                $d = (($px - $kx) ** 2) + (($py - $ky) ** 2);
+                if ($d < $beste) {
+                    $beste = $d;
+                    $wer = $k;
+                }
             }
         }
         $abstaende[] = sqrt($beste);
-    }
-    if ($abstaende === []) {
-        return INF;
+        if ($wer !== null) {
+            $treffer[$wer] = ($treffer[$wer] ?? 0) + 1;
+        }
     }
     sort($abstaende);
     $mitte = (int) floor((count($abstaende) - 1) / 2);
+    // Der GENANNTE Treffer ist der, der die meisten Punkte abdeckt -- ein Mensch soll einen Namen
+    // sehen, nicht eine Liste von achtunddreissig.
+    arsort($treffer);
 
-    return $abstaende[$mitte];
+    return [
+        'abstand' => $abstaende[$mitte],
+        'bester' => $treffer === [] ? null : (int) array_key_first($treffer),
+    ];
 }
 
 /**
@@ -419,7 +476,7 @@ function avesmapsGaretienFindeBestand(PDO $pdo, array $zeile, ?array $ziel): arr
         if (!avesmapsGaretienArtikelTrifft($zeile, $kandidat)) {
             continue;
         }
-        $abstand = $probe === [] ? INF : avesmapsGaretienAbstandZuKandidat($probe, $kandidat);
+        $abstand = $probe === [] ? INF : avesmapsGaretienDeckung($probe, [$kandidat])['abstand'];
         // 🔴 Trifft der Artikel, liegt die Geometrie aber woanders, ist das ein WIDERSPRUCH und
         // kein Treffer: derselbe Artikel behauptet zwei Stellen. Das gehoert einem Menschen
         // vorgelegt, nicht stillschweigend entschieden.
@@ -450,19 +507,9 @@ function avesmapsGaretienFindeBestand(PDO $pdo, array $zeile, ?array $ziel): arr
     }
 
     // 2. Die Geometrie -- der Arbeitsweg beim ersten Lauf.
-    $bester = null;
-    $besterAbstand = INF;
-    foreach ($kandidaten as $kandidat) {
-        // Billiger Vorfilter aus der GERECHNETEN Huellbox, nicht aus den gespeicherten Spalten.
-        if (!avesmapsGaretienHuellenBeruehrenSich($probe, $kandidat)) {
-            continue;
-        }
-        $abstand = avesmapsGaretienAbstandZuKandidat($probe, $kandidat);
-        if ($abstand < $besterAbstand) {
-            $besterAbstand = $abstand;
-            $bester = $kandidat;
-        }
-    }
+    $deckung = avesmapsGaretienDeckung($probe, $kandidaten);
+    $besterAbstand = $deckung['abstand'];
+    $bester = $deckung['bester'] === null ? null : $kandidaten[$deckung['bester']];
 
     if ($bester !== null && $besterAbstand <= AVESMAPS_GARETIEN_TREFFER_EINHEITEN) {
         // 3. Der Name -- NUR als Zusatz zur Meldung, nie als Entscheidung.
@@ -472,6 +519,18 @@ function avesmapsGaretienFindeBestand(PDO $pdo, array $zeile, ?array $ziel): arr
         );
 
         // 💣 Die Ausdehnung -- der Riegel gegen den Zufluss auf seinem Hauptfluss.
+        //
+        // 🪤 GEGEN DEN EINEN Kandidaten, der am meisten abdeckt -- und NICHT gegen die Summe
+        // aller beteiligten. Das stand hier einen Moment lang anders, mit der Begruendung, ein
+        // ganzer Fluss saehe gegen ein einzelnes Stueck wie ein Zufluss aus. Das ist falsch
+        // herum gerechnet: gegen ein KURZES Stueck gemessen wird ihr Fluss RELATIV GROSS
+        // (296 gegen 8 ist Verhaeltnis 37), er faellt also gar nicht in den Riegel. Und der
+        // Zufluss faellt weiter hinein (0,7 gegen 31 ist 0,02). Beide Faelle stimmen schon mit
+        // der einfachen Regel.
+        //
+        // ⚠️ Die Summe waere sogar SCHAERFER und haette einen neuen Fehlalarm gebracht: ein
+        // Objekt genau an der Grenze zweier unserer Abschnitte wird gegen BEIDE gehalten, sein
+        // Verhaeltnis halbiert sich, und ein voellig normaler Treffer gilt als Zufluss.
         $ihre = avesmapsGaretienAusdehnung($punkte);
         $unsere = avesmapsGaretienAusdehnung($bester['punkte']);
         $verhaeltnis = $unsere > 0.0 ? $ihre / $unsere : 1.0;
@@ -493,10 +552,17 @@ function avesmapsGaretienFindeBestand(PDO $pdo, array $zeile, ?array $ziel): arr
             'anlass' => $vergleichbar ? 'geometrie' : 'zufluss',
             'treffer_public_id' => $bester['public_id'],
             'treffer_name' => $bester['name'],
+            // ⚠️ Weicht unsere ART von ihrer ab, gehoert das in den Grund. Sonst steht da nur
+            // "gefunden", und niemand sieht, dass ihr `Meer` bei uns ein `see` ist -- die Zeile
+            // saehe aus wie ein Treffer ohne Besonderheit, und die Frage, welche Einordnung
+            // stimmt, wuerde nie gestellt.
             'grund' => sprintf(
-                'Geometrie liegt %.2f Einheiten von "%s"%s%s',
+                'Geometrie liegt %.2f Einheiten von "%s"%s%s%s',
                 $besterAbstand,
                 $bester['name'],
+                ($bester['art'] ?? '') !== '' && $bester['art'] !== $ziel['subtyp']
+                    ? ' [bei uns als ' . $bester['art'] . ', nicht ' . $ziel['subtyp'] . ']'
+                    : '',
                 $gleicherName ? ' (Name passt auch)' : ' (anderer Name)',
                 $vergleichbar
                     ? ''

@@ -315,4 +315,87 @@ $code = $nurCode(str_replace("\r\n", "\n", $abgleichQuelle));
 assert(!preg_match('/\b(min_x|max_x|min_y|max_y)\b/', $code), 'kein Vorfilter ueber die gespeicherten bbox-Spalten');
 $pruefungen++;
 
+
+// --- 💣 UNSERE FLUESSE LIEGEN IN ABSCHNITTEN, IHRE NICHT. Gemessen 27.08.2026 am Livebestand:
+// "Der Grosse Fluss" liegt bei uns in 38 Stuecken, der Yaquir in 28, der Mhanadi in 26; 158 der
+// 526 Namensgruppen sind mehrteilig. Volkers Fassung ist EINE Linie -- ihr Grosser Fluss hat 294
+// Stuetzpunkte ueber 296 Karteneinheiten.
+//
+// 🔴 Gegen einen EINZELNEN unserer Abschnitte gemessen liegen 15 von 16 Probepunkten weit weg,
+// der Median wird riesig, und das Urteil lautet "neu" -- vorangehakt. Der Preis waere die
+// schlimmste Dublette gewesen, die dieser Import anrichten kann: die groessten Fluesse
+// Aventuriens ein zweites Mal auf der Karte, ausgerechnet die, die wir ganz sicher schon haben.
+// Live gemessen war genau das der Fall, bis die Deckung ueber ALLE Kandidaten zusammen ging.
+avesmapsGaretienKandidatenVergessen();
+$stueck = $pdo->prepare('INSERT INTO map_features (public_id, name, feature_type, feature_subtype, geometry_json, properties_json) VALUES (?,?,?,?,?,?)');
+for ($i = 0; $i < 10; $i++) {
+    // Zehn kurze Abschnitte, aneinandergereiht: zusammen 100 Einheiten, jeder einzelne 10.
+    $von = 100.0 + ($i * 10.0);
+    $stueck->execute(['stueck-' . $i, 'Langer Strom', 'path', 'Flussweg',
+        json_encode(['type' => 'LineString', 'coordinates' => [[$von, 900.0], [$von + 5.0, 900.0], [$von + 10.0, 900.0]]]), '{}']);
+}
+// Ihre Fassung: EINE Linie ueber dieselben 100 Einheiten, dicht gestuetzt.
+$ihre = [];
+for ($x = 100.0; $x <= 200.0; $x += 4.0) { $ihre[] = avesmapsGaretienTestNachWagenhalt($x, 900.1); }
+$zerstueckelt = avesmapsGaretienFindeBestand($pdo, [
+    'typ' => 'Strom', 'namensraum' => '', 'artikel' => '', 'anzeige' => 'Langer Strom',
+    'geo_art' => 'koordinaten', 'geo' => implode(', ', $ihre),
+], avesmapsGaretienMappeTyp('Strom'));
+assert($zerstueckelt['status'] === 'deckt_sich',
+    'ein zerstueckelter Bestand deckt ihre ganze Linie ab (' . $zerstueckelt['grund'] . ')');
+// ⚠️ GEMESSEN WIRD ZUM NAECHSTEN STUETZPUNKT, nicht zur Strecke dazwischen. Liegen unsere
+// Stuetzpunkte 5 Einheiten auseinander, ist ein Punkt genau in der Mitte 2,5 entfernt, obwohl er
+// exakt auf der Linie liegt -- hier kommt der Median auf 1,0. Das ist der Grund, warum die
+// Trefferschwelle bei 2,0 steht und nicht bei 0,5; am Livebestand liegt der Median der Treffer
+// bei 0,37, weil die echte Geometrie dichter gestuetzt ist (Median 22 Punkte je Objekt).
+// 🔧 Wer das je verschaerfen will, misst zur STRECKE statt zum Punkt -- und muss die Schwelle
+// dann neu an echten Faellen einstellen, nicht nur die Zahl senken.
+assert($zerstueckelt['abstand'] < AVESMAPS_GARETIEN_TREFFER_EINHEITEN,
+    'und innerhalb der Schwelle: ' . $zerstueckelt['abstand']);
+$pruefungen += 2;
+
+// ⚠️ Und die Ausdehnung wird gegen die SUMME der beteiligten Abschnitte gehalten, nicht gegen
+// einen: gegen ein einzelnes Stueck (10 Einheiten) waere ihre Linie das ZEHNfache, und der
+// Zufluss-Riegel schlaege in die andere Richtung zu -- er verwuerfe einen richtigen Treffer.
+assert($zerstueckelt['anlass'] === 'geometrie', 'kein Zufluss-Verdacht: ' . $zerstueckelt['anlass']);
+$pruefungen++;
+
+// --- 💣 UNSERE EINORDNUNG DARF VON IHRER ABWEICHEN. Volker fuehrt den ANGBARER SEE als `Meer`
+// (er ist der groesste Binnensee des Kosch), wir als `topographie/see`. Nur unter `meer` gesucht,
+// findet der Abgleich nichts -- und legt ihn ein zweites Mal an, vorangehakt. Live gemessen
+// 27.08.2026: genau so stand er in der Vorschau.
+// 🔴 Angelegt wird als das, was die Zuordnung sagt; GESUCHT wird in der Verwandtschaft.
+$pdo->exec('CREATE TABLE ecosystem_region (id INTEGER PRIMARY KEY AUTOINCREMENT, public_id TEXT, name TEXT, kind TEXT, region_type TEXT, wiki_url TEXT, is_active INT DEFAULT 1)');
+$pdo->exec('CREATE TABLE ecosystem_area (id INTEGER PRIMARY KEY AUTOINCREMENT, public_id TEXT, region_id INT, geometry_geojson TEXT, is_active INT DEFAULT 1, is_trial INT DEFAULT 0)');
+$pdo->exec("INSERT INTO ecosystem_region (id, public_id, name, kind, region_type) VALUES (1, 'see-1', 'Angbarer See', 'topographie', 'see')");
+$ring = [];
+foreach ([[300.0, 300.0], [310.0, 300.0], [310.0, 310.0], [300.0, 310.0], [300.0, 300.0]] as $p) { $ring[] = $p; }
+$pdo->prepare('INSERT INTO ecosystem_area (public_id, region_id, geometry_geojson) VALUES (?,1,?)')
+    ->execute(['flaeche-1', json_encode(['type' => 'Polygon', 'coordinates' => [$ring]])]);
+avesmapsGaretienKandidatenVergessen();
+
+$ihrRing = [];
+foreach ([[300.1, 300.1], [310.1, 300.1], [310.1, 310.1], [300.1, 310.1], [300.1, 300.1]] as [$x, $y]) {
+    $ihrRing[] = avesmapsGaretienTestNachWagenhalt($x, $y);
+}
+$meer = avesmapsGaretienFindeBestand($pdo, [
+    'typ' => 'Meer', 'namensraum' => '', 'artikel' => '', 'anzeige' => 'Angbarer See',
+    'geo_art' => 'koordinaten', 'geo' => implode(', ', $ihrRing),
+], avesmapsGaretienMappeTyp('Meer'));
+assert($meer['status'] === 'deckt_sich', 'ihr Meer findet unseren See (' . $meer['grund'] . ')');
+assert($meer['treffer_public_id'] === 'see-1');
+// 🔴 Und der Grund NENNT die Abweichung -- sonst sieht niemand, dass die Einordnung auseinandergeht,
+// und die Frage, welche stimmt, wird nie gestellt.
+assert(str_contains($meer['grund'], 'bei uns als see'), 'die Abweichung steht im Grund: ' . $meer['grund']);
+$pruefungen += 3;
+
+// ⚠️ Die Familie ist nicht beliebig weit: ein Moor ist kein See. Wer sie zu weit zieht, erklaert
+// jede Wasserflaeche zur selben Sache.
+$sumpf = avesmapsGaretienFindeBestand($pdo, [
+    'typ' => 'Sumpf', 'namensraum' => '', 'artikel' => '', 'anzeige' => 'Moor am Angbarer See',
+    'geo_art' => 'koordinaten', 'geo' => implode(', ', $ihrRing),
+], avesmapsGaretienMappeTyp('Sumpf'));
+assert($sumpf['status'] === 'neu', 'ein Moor auf einem See ist nicht derselbe Gegenstand');
+$pruefungen++;
+
 echo "OK: {$pruefungen} Pruefungen\n";
