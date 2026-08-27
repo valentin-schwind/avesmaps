@@ -198,6 +198,76 @@ wollen wir nur die position behalten oder ersetzen."*
 💣 **Die Suffixe A–E sind Farbvarianten, keine Ränge.** Wer sie als fünf Typen liest, legt fünf
 Hierarchiestufen an, die es nicht gibt.
 
+#### 🔴 Diese drei Typen brauchen eine Sonderbehandlung — Owner 27.08.2026
+
+Wörtlich: *„Junkertumsflaeche / Baronieflaeche / Grafschaftsflaeche müssen beim import bzw. bei
+der selektion spezial behandelt werden … weil Grafschaftsflächen sich aus Baronieflächen ableiten
+(usw.) — es sei denn sie haben erstmal keine eigene geometrie … der importer sollte nur
+berücksichtigen, wie die spezielle form einer fläche ist, wenn die z.b. die baronie schon
+existiert."*
+
+**Unser System, nachgelesen** (`territories-derived-geometry.php:150-165`): die abgeleitete
+Außengrenze eines Gebiets ist die Vereinigung aus **seiner eigenen Geometrie UND allen über
+`parent_id` verbundenen Nachfahren** — `array_merge([$targetTerritoryId], $descendantIds)`. Der
+Kommentar dort nennt es die *Dual-Rolle*: „ein Aggregator mit eigener Geometrie nimmt diese mit
+auf; ein Blatt liefert hier nur seine Eigengeometrie."
+
+💣 **Daraus folgt die Falle, und sie ist das Gegenteil von harmlos.** Importiert man Volkers
+Grafschaftsfläche als *eigene* Geometrie, während die Baronien darunter schon existieren, wird sie
+nicht etwa ignoriert und ersetzt auch nichts — sie wird der Vereinigung **hinzugefügt**. Die Hülle
+wächst um eine Fläche, die dieselbe Gegend ein zweites Mal beschreibt, und niemand sieht es der
+Karte an. ⚠️ Ein Blatt dagegen (Baronie ohne Junkertümer bei uns) hat gar keine abgeleitete
+Grenze: „die Grenze ist die eigene Quellfläche."
+
+🔴 **Die Regel für den Importer, in einem Satz:** eine Fläche wird nur dann als **eigene**
+Geometrie übernommen, wenn unter ihr **nichts liegt, was sie ableiten könnte** — sonst ist sie
+höchstens ein *Vorschlag zum Ansehen*, nie ein stiller Zusatz.
+
+| Ihre Ebene | Bei uns schon vorhanden? | Was der Importer tun soll |
+|---|---|---|
+| `Junkertumsflaeche` (585) | — (unterste Einheit) | **Eigene Geometrie übernehmen.** Sie ist die Quelle, aus der alles darüber entsteht |
+| `Baronieflaeche` (143) | Junkertümer darunter existieren | **nicht** als eigene Geometrie — die Hülle entsteht daraus |
+| | keine Junkertümer darunter | eigene Geometrie übernehmen (es ist ein Blatt) |
+| `Grafschaftsflaeche` (31) | Baronien darunter existieren | **nicht** als eigene Geometrie |
+| | keine Baronien darunter | eigene Geometrie übernehmen |
+
+#### 🔴 Junkertum als eigener Rang — und die Hierarchie ist ableitbar
+
+Owner: *„nimm die in die hierarchie und als eigene kategorie mit auf, wenn du die hierarchie
+herausbekommst, weise sie gleich den baronien zu."*
+
+⚠️ **„Junkertum" gibt es in unserem Produktivcode heute nirgends** — gemessen: kein Treffer in
+`api/` oder `js/` ausser einer Label-Ausnahmeliste im Frontend
+(`TERRITORY_LABEL_EXCLUDE`, `map-features-boundary-canvas-overlay.js:97`), die Namen mit
+„Junkertum" von der Grenzbeschriftung ausnimmt. Der Rang ist also als **Namenskonvention**
+bekannt, nicht als geführte Kategorie. `political_territory.type` ist ein freies `VARCHAR` — der
+Rang kostet dort keinen Schemawechsel.
+
+**Gemessen, was Volkers Daten hergeben:**
+
+| | |
+|---|---|
+| `extra` | **alle 759** Flächen tragen `pop=` und `level=` |
+| `level=` | **der Rang des HERRSCHERS, nicht der Elternknoten**: Junker(286) · Herr(127) · Baron(74) · Provinzherr(29) · Graf(29) · Kirche(28) · Kaiser(12) |
+| Wiki-Artikel | **alle 585** Junkertumsflächen haben einen (z. B. `Garetien:Stadt Neu-Gareth`) |
+
+💣 **`level` ist NICHT die Hierarchie.** Eine `Junkertumsflaeche` kann `level=Kaiser` oder
+`level=Kirche` tragen — wer daraus den Elternknoten ableitet, hängt Alt-Gareth unter „Kaiser".
+
+⭐ **Ableitbar ist sie trotzdem, und zwar exakt — geometrisch.** Entwurf §4: Grenzkoordinaten
+setzen sich *immer* aus der kleinsten Einheit zusammen (Junkertum↔Junkertum). Baronie- und
+Junkertumsflächen sind damit aus **denselben Fragmenten** gebaut; eine Junkertumsfläche liegt
+folglich nicht *ungefähr*, sondern **konstruktionsbedingt genau** in ihrer Baroniefläche. Die
+Zuordnung ist ein Punkt-in-Polygon-Test gegen Volkers eigene Baronieflächen — kein Raten, keine
+Namensheuristik.
+⚠️ Der zweite Weg (die Zugehörigkeit aus dem Wiki-Artikel) trägt hier **nicht** ohne Weiteres:
+unser WikiSync crawlt **Wiki Aventurica**, Volkers Artikel liegen auf **garetien.de**. Er käme
+nur für die Junkertümer in Frage, die es auf beiden gibt.
+
+🔧 **Offen bleibt die Reihenfolge:** die Zuordnung setzt voraus, dass Volkers Flächen **zuerst
+aufgelöst** sind (Fläche → Grenzzug → Fragment, Entwurf §4). Stufe 5 muss deshalb erst auflösen,
+dann zuordnen, dann übernehmen — nicht in einem Zug.
+
 | Ihr Typ | Anzahl | Form | → bei uns |
 |---|---:|---|---|
 | `JunkertumsflaecheA` | 162 | Verweise | `political_territory`, Rang Junkertum |
