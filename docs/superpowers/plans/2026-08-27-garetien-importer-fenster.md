@@ -2605,6 +2605,18 @@ eine Zeilenhandlung ist nie die Haupthandlung der Seite. „Ablehnen" trägt `--
 
 🔴 **Die Handlungsleiste ist ANGEHEFTET, nicht im Fluss.** Die Entscheidung darf nie hinter einer
 Bildlaufleiste liegen — bei 13 Abschnitten wäre sie es.
+🔧 **Offener Punkt aus Aufgabe 13b, der HIER entschieden wird: der `widerspruch`-Abschnitt trägt
+„nichts zu ersetzen".** Er erzeugt kein Abschnitts-Item, also fällt er in den `is-full`-Zustand —
+und das steht dann neben „Deckung Median 8,95" und einem Grund, der sagt „die Geometrie liegt
+8.95 Einheiten entfernt". Das liest sich nicht spannungsfrei: „nichts zu ersetzen" klingt nach
+„passt schon", während der Fall gerade **derselbe Artikel an zwei Stellen** ist.
+Eine fünfte Beschriftung (etwa „Geometrie weicht ab") wäre die naheliegende Antwort — sie gehört
+aber **hierher**, weil die Beschriftung zur Knopfleiste passen muss: beim `widerspruch` steht
+„Geometrie ersetzen …" vorn, und ein Abschnitt, an dem angeblich „nichts zu ersetzen" ist, darf
+nicht der sein, dessen Geometrie der oberste Knopf ersetzt.
+⚠️ Der Implementierer der Aufgabe 13b hat das **ausdrücklich nicht eigenmächtig gelöst** — richtig
+so, es ist eine Gestaltungsentscheidung. 🔴 **Owner-Blick, bevor eine fünfte Beschriftung entsteht.**
+
 
 **Dateien:** ändern `js/review/review-garetien-importer.js`, `css/components/garetien-importer.css` ·
 Test `js/review/__tests__/garetien-handlungen.test.js`
