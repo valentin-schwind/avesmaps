@@ -660,10 +660,16 @@ function avesmapsSyncPlanRecordSkip(PDO $pdo, string $kind, string $entityKey, i
  * 💣 DIE VORGABE 'deleted' IST TRAGEND. Die uebrigen Arten rufen diese Funktion OHNE fuenftes
  * Argument -- citymap, lore, lore_rule, territory, territory_wiki. Wer eine ergaenzt, ergaenzt sie
  * in DIESER Aufzaehlung; hier steht bewusst keine blosse Zahl, denn eine Zahl liest sich wie eine
- * vollstaendige Liste. Sie reproduzieren -- der Befehl ist gefahren und liefert GENAU diese fuenf
- * Zeilen, keine Definition, keinen Kommentar, keinen Test:
+ * vollstaendige Liste. Reproduzieren laesst sie sich mit
  *     git grep -n 'avesmapsSyncPlanRecordDecline($pdo, .*, $userId);' -- api
- * (das abschliessende `, $userId);` IST das Kriterium: der Aufruf endet nach dem vierten Argument.)
+ * -- das abschliessende `, $userId);` IST das Kriterium: der Aufruf endet nach dem vierten
+ * Argument.
+ * 🪤 GEFAHREN UND NACHGEZAEHLT: er liefert SIEBEN Zeilen, nicht fuenf -- die fuenf Aufrufer plus
+ * die zwei Kommentarzeilen, die ihn woertlich zitieren (diese hier und ihr Zwilling in
+ * api/_internal/wiki/__tests__/sync-plan-decline-changetype-test.php). Grund: das `.*` im Muster
+ * trifft die im Kommentar stehenden Zeichen `.*` -- DER BEFEHL FINDET SICH SELBST. Das wird hier
+ * benannt statt weggeschaerft: ein Muster, das sich selbst ausschliessen soll, ist die naechste
+ * Falle. Wer zaehlt, zieht die zwei Zeilen ab, die mit `*` oder `//` beginnen.
  * Ein Pflichtparameter braeche sie alle, und eine ANDERE Vorgabe verschoebe ihre Entscheidungen
  * lautlos auf einen Schluessel, den ihr eigener Lesepfad nicht abfragt.
  *

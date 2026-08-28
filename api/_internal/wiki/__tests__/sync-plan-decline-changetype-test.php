@@ -123,9 +123,15 @@ $pruefe(count($entscheidungen) === 1, 'genau EINE Entscheidung, nicht zwei');
 // ---- B. Gegenprobe: OHNE fuenftes Argument bleibt es 'deleted' --------------------------------
 //
 // 💣 Die uebrigen Arten rufen diese Funktion OHNE fuenftes Argument -- citymap, lore, lore_rule,
-// territory, territory_wiki. Diese Aufzaehlung reproduziert (gefahren, liefert genau diese fuenf
-// Zeilen und sonst nichts -- das abschliessende `, $userId);` IST das Kriterium):
+// territory, territory_wiki. Reproduzieren laesst sich die Aufzaehlung mit
 //     git grep -n 'avesmapsSyncPlanRecordDecline($pdo, .*, $userId);' -- api
+// -- das abschliessende `, $userId);` IST das Kriterium: der Aufruf endet nach dem vierten
+// Argument.
+// 🪤 GEFAHREN UND NACHGEZAEHLT: er liefert SIEBEN Zeilen -- die fuenf Aufrufer plus die zwei
+// Kommentarzeilen, die ihn woertlich zitieren (diese hier und ihr Zwilling in sync-plan.php).
+// Das `.*` im Muster trifft die im Kommentar stehenden Zeichen `.*`: der Befehl findet sich
+// selbst. Benannt statt weggeschaerft -- ein Muster, das sich selbst ausschliessen soll, ist die
+// naechste Falle.
 // Eine andere Vorgabe verschoebe ihre Entscheidungen lautlos auf einen Schluessel, den ihr
 // eigener Lesepfad nicht abfragt.
 
