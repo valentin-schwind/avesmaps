@@ -53,6 +53,9 @@
 		auswahl: [],
 		stand: null,
 		filter: {},
+		// Aufgabe 13: der Schluessel des Objekts, dessen Einzelansicht rechts steht -- `null` heisst
+		// „nichts gewaehlt", und dann steht dort der Hinweissatz, kein leerer Kasten.
+		detailKey: null,
 		// Die letzte Antwort von action:'liste' -- avesmapsGaretienAngehakt() liest daraus, denn
 		// `angehakt` zaehlt den GANZEN Lauf (Aufgabe 8), unabhaengig vom aktiven Filter/Reiter.
 		letzteAntwort: null,
@@ -68,6 +71,7 @@
 			auswahl: zustand.auswahl.slice(),
 			stand: zustand.stand,
 			filter: zustand.filter,
+			detailKey: zustand.detailKey,
 		};
 	}
 
@@ -152,6 +156,11 @@
 		// dann die 18 Ebenen im Hintergrund, dann der geltende Lauf.
 		garetienMenuebandSicherstellen();
 		garetienEbenenListeSicherstellen();
+		// Aufgabe 13: der Hinweissatz steht sofort da -- auch ohne Lauf, wo nie eine Liste kommt.
+		// ⚠️ OHNE Argument: dann gilt die zuletzt geholte Liste, und eine Auswahl ueberlebt ein
+		// Zu- und Wiederaufmachen -- genauso wie die Zeilen links stehen bleiben, bis die neue
+		// Liste da ist.
+		garetienDetailRendern();
 		return garetienFensterFuellen(avesmapsGaretienRufe, avesmapsGaretienListeHolen);
 	}
 
@@ -413,6 +422,14 @@
 				avesmapsGaretienListeHolen();
 			});
 		}
+		// Aufgabe 13: EIN Zuhoerer auf dem Listenkasten. Er wird nie ersetzt (nur sein innerHTML),
+		// die Delegation ueberlebt also jeden Listenlauf -- dieselbe Begruendung wie beim Chip-Kasten.
+		const listeEl = document.getElementById("garetien-list");
+		if (listeEl) {
+			listeEl.addEventListener("click", function (ereignis) {
+				garetienListeKlick(ereignis, zustand.objekte);
+			});
+		}
 		const sucheEl = document.getElementById("garetien-search");
 		if (sucheEl) {
 			let entprellTimer = null;
@@ -479,6 +496,17 @@
 
 		const fussEl = document.getElementById("garetien-foot-count");
 		if (fussEl) { fussEl.innerHTML = avesmapsGaretienFussZeileMarkup(a.reiter); }
+
+		// Aufgabe 13: die Auswahl ueberlebt einen Listenlauf -- aber nur, solange ihre Zeile in der
+		// Ansicht steht. Faellt sie durch Filter oder Reiter heraus, faellt auch die Auswahl: eine
+		// Einzelansicht neben einer Liste, in der ihre Zeile gar nicht vorkommt, ist ein Geist -- und
+		// ihre Haekchen zeigten auf etwas, das der Editor nicht sehen kann.
+		const nochDa = objekte.some(function (o) {
+			return o && String(o.key) === String(zustand.detailKey);
+		});
+		if (zustand.detailKey !== null && !nochDa) { zustand.detailKey = null; }
+		garetienDetailRendern(objekte);
+		garetienAuswahlMarkieren();
 
 		// Aufgabe 12 haengt sich hier ein (Facetten des Filtertrichters) -- optional, damit diese
 		// Datei auch OHNE Aufgabe 12 lauffaehig bleibt (typeof wirft nie bei einem unbekannten Namen).
@@ -1091,6 +1119,296 @@
 		return band;
 	}
 
+	// ---- Aufgabe 13: die Einzelansicht -- das Herzstück ------------------------------------------
+	//
+	// Owner 27.08.2026, wörtlich: „wir wollen sehen welche Abschnitte das sind. Wir wollen DEREN
+	// Objekt und UNSER Objekt SEHEN." Genau das steht hier: unsere Abschnitte an derselben Stelle,
+	// jeder mit eigenem Häkchen, jeder mit dem, was an ihm geschähe.
+	//
+	// 🔴 SIE RECHNET NICHTS NACH (Auftrag §5.4). Urteil, Grund, Deckung und die getroffenen
+	// Abschnitte kommen fertig aus action:'liste'; die Lage einer Abschnittszeile kommt aus
+	// `after.felder` und `after.anlass` des Items, nicht aus einem Vergleich im Browser.
+	// 🔴 UND SIE HOLT NICHTS NACH. Alles, was hier steht, steht schon im Objekt der Liste -- ein
+	// zweiter Ruf je angeklickter Zeile wäre bei 289 Zeilen ein Abruf je Blick.
+	//
+	// 🚩 DREI FELDER DES MOCKUPS FEHLEN IN DER ANTWORT VON action:'liste' und werden deshalb hier
+	//    NICHT gezeigt (Serverbefund an Aufgabe 8, nicht an dieser Datei -- der Bericht zu Aufgabe
+	//    13 trägt die Einzelheiten):
+	//      · `after.quelle` (label/attribution/license) -- der Abschnitt „Die Quelle, die mitreist"
+	//        des Mockups. avesmapsGaretienArbeitsliste zieht daraus nur `.url` heraus.
+	//      · `after.subtyp` -- der Kopf zeigt darum „Fluss" statt „Fluss → Flussweg".
+	//      · `namensraum:artikel` -- der Wiki-Link trägt deshalb die feste Beschriftung
+	//        „Wiki-Artikel" und die Adresse im `title`, statt „Garetien:Natter".
+	//    Alle drei aus dem `after` nachzubilden wäre die zweite Wahrheit, die §5.4 verbietet: die
+	//    Wirt-Literale und die `$namensraum:$artikel`-Bildung stehen bewusst an EINER Stelle
+	//    (avesmapsGaretienSeitenUrlAusZeile, Review I2 der Aufgabe 3).
+
+	// REIN: die Items, die zu EINEM Abschnitt gehören und sein Häkchen betreffen.
+	//
+	// 💣 Das Geometrie-Item gehört NICHT dazu. Es hat seinen eigenen Knopf („Geometrie ersetzen …",
+	// Aufgabe 15) und startet immer ungehakt; zählte es mit, stünde die Alke des Mockups (§6a)
+	// DREIWERTIG da, obwohl an ihr nichts halb ist -- sie ist ein einzelner namenloser Abschnitt,
+	// und für jedes Objekt mit genau einem Abschnitt legt garetien-plan.php ein Geometrie-Item an.
+	// Das Häkchen des Abschnitts ist das aus Auftrag §5.3.3: „je Abschnitt ein Häkchen für
+	// ‚Namen übernehmen'".
+	function garetienAbschnittsItems(objekt, publicId) {
+		const items = (objekt && objekt.items) || [];
+		return items.filter(function (item) {
+			const abschnitt = item && item.abschnitt;
+			if (!abschnitt || String(abschnitt.public_id || "") !== String(publicId)) { return false; }
+			return item.anlass === "ergaenzung" || item.anlass === "umbenennung";
+		});
+	}
+
+	// REIN: die Felder, die diese Items zusammen schreiben würden -- als Menge, nicht als Liste.
+	function garetienAbschnittsFelder(items) {
+		const felder = {};
+		(items || []).forEach(function (item) {
+			((item && item.felder) || []).forEach(function (feld) { felder[String(feld)] = true; });
+		});
+		return felder;
+	}
+
+	// REIN: die Lage einer Abschnittszeile -- „nichts" · „ueberschreiben" · „luecke".
+	// 🔴 Sie kommt aus `after.anlass`, nicht aus einem Namensvergleich im Browser: WARUM etwas
+	// überschrieben würde, hat der Abgleich entschieden (garetien-abgleich.php), und ein deutscher
+	// Satz oder ein nachgebauter Namensvergleich wäre die zweite Fassung derselben Entscheidung.
+	function garetienAbschnittsLage(items) {
+		if (!items || items.length === 0) { return "nichts"; }
+		return items.some(function (item) { return item.anlass === "umbenennung"; })
+			? "ueberschreiben"
+			: "luecke";
+	}
+
+	// REIN: was in der Zeile steht. Die vier Lagen aus dem Brief, jede an ihrer Beschriftung
+	// erkennbar -- eine Klasse ohne Text sagt einem Editor nichts.
+	function garetienAbschnittsBeschriftung(lage, felder) {
+		if (lage === "nichts") { return "nichts zu ersetzen"; }
+		if (lage === "ueberschreiben") { return "⚠ Name weicht ab"; }
+		if (felder.name && felder.quelle) { return "Name + Quelle"; }
+		if (felder.name) { return "Name fehlt"; }
+		if (felder.quelle) { return "Quelle fehlt"; }
+		return "offen";
+	}
+
+	// REIN: „1 Punkt" / „9 Punkte" -- und dieselbe Faustregel für die Abschnitte.
+	function garetienAnzahlText(anzahl, einzahl, mehrzahl) {
+		return String(anzahl) + " " + (Number(anzahl) === 1 ? einzahl : mehrzahl);
+	}
+
+	// REIN: wie viele VERSCHIEDENE Objekte von uns liegen unter ihrem einen?
+	//
+	// 🔴 Gleiche Namen sind EIN Objekt (Barun-Ulah trägt seinen Namen siebenmal), ein NAMENLOSER
+	// Abschnitt zählt für sich. Das zweite ist die vorsichtige Richtung und der Grund, warum es
+	// die Einzelansicht gibt: der namenlose 6120 unter ihrer Natter liegt auf dem Darpat -- ihn
+	// stillschweigend zur Natter zu zählen wäre genau der Fehler, den ein Editor hier sehen soll.
+	// ⚠️ Verwandt mit avesmapsGaretienEinObjekt (garetien-plan.php), aber NICHT dieselbe Frage:
+	// dort geht es um „darf umbenannt werden" (nur die benannten zählen), hier um „wie viele
+	// Dinge liegen da" (die namenlosen zählen mit, denn sie sind Dinge).
+	function garetienAbschnittsGruppen(abschnitte) {
+		const namen = {};
+		let ohneNamen = 0;
+		(abschnitte || []).forEach(function (abschnitt) {
+			const name = String((abschnitt && abschnitt.name) || "").trim();
+			if (name === "") { ohneNamen++; } else { namen[name] = true; }
+		});
+		const benannt = Object.keys(namen).length;
+		return { gesamt: benannt + ohneNamen, benannt: benannt, ohneNamen: ohneNamen };
+	}
+
+	// REIN: EINE Abschnittszeile. 🔴 `.gi-seg` ist KEINE dritte Listenrezeptur -- sie steht nicht
+	// in einer Liste von Objekten, sondern INNERHALB der Einzelansicht EINES Objekts, so wie
+	// `.diff` im Übernahme-Blatt innerhalb einer Zeile steht (Mockup §5).
+	// 💣 Das Wurzelelement ist ein `<label>`, wenn etwas anzuhaken ist -- anders als die
+	// Listenzeile, und mit Absicht: hier IST der Zeilenklick der Häkchenklick, es gibt keine
+	// zweite Handlung, die er verdecken könnte.
+	function garetienAbschnittMarkup(objekt, abschnitt) {
+		const a = abschnitt || {};
+		const publicId = String(a.public_id || "");
+		const items = garetienAbschnittsItems(objekt, publicId);
+		const lage = garetienAbschnittsLage(items);
+		const felder = garetienAbschnittsFelder(items);
+		// Dasselbe dreiwertige Häkchen wie in der Listenzeile -- avesmapsGaretienCheckboxZustand
+		// ist die EINE Regel dafür; eine zweite Fassung liefe beim ersten halben Abschnitt
+		// auseinander. `data-part` löst avesmapsGaretienListeRendern nach dem Einfügen ein.
+		const haken = avesmapsGaretienCheckboxZustand({ items: items });
+
+		let hakenAttribute = "";
+		if (haken.checked) { hakenAttribute += " checked"; }
+		if (haken.disabled) { hakenAttribute += " disabled"; }
+		if (haken.dreiwertig) { hakenAttribute += " data-part"; }
+
+		const unserName = String(a.name || "").trim();
+		const nameMarkup = unserName === ""
+			? '<span class="gi-seg__name is-empty">ohne Namen</span>'
+			: '<span class="gi-seg__name">' + avesmapsGaretienEscape(unserName) + "</span>";
+
+		// Der Pfeil steht NUR, wenn wirklich ein Name geschrieben würde. Ohne 'name' in `felder`
+		// behauptete er eine Umbenennung, die gar nicht ausgeführt wird -- dieselbe Falle, die
+		// garetien-plan.php mit `unset($eintrag['after']['name'])` schon einmal geschlossen hat.
+		let kennung = avesmapsGaretienEscape(publicId)
+			+ " · " + garetienAnzahlText(Number(a.punkte || 0), "Punkt", "Punkte");
+		if (felder.name) {
+			kennung += ' · <span class="gi-seg__to">→ „'
+				+ avesmapsGaretienEscape(String((objekt && objekt.name) || "")) + '"</span>';
+		}
+
+		const klassen = "gi-seg" + (lage === "nichts" ? " is-full" : "")
+			+ (lage === "ueberschreiben" ? " is-overwrite" : "");
+		const tag = lage === "nichts" ? "span" : "label";
+		return "<" + tag + ' class="' + klassen + '" data-seg="' + avesmapsGaretienEscape(publicId) + '">'
+			+ '<input type="checkbox"' + hakenAttribute + ">"
+			+ nameMarkup
+			+ '<span class="gi-seg__gap">'
+			+ avesmapsGaretienEscape(garetienAbschnittsBeschriftung(lage, felder)) + "</span>"
+			+ '<span class="gi-seg__id">' + kennung + "</span>"
+			+ "</" + tag + ">";
+	}
+
+	// REIN: die Metazeile. Wiki-Artikel (auswärts) · LOD · Wiki/Ebene · `extra`.
+	// ⚠️ Das ↗ steht NICHT hier, sondern in der CSS-Regel `.gi-detail a[target="_blank"]::after`
+	// -- dieselbe Bauform wie in den Fenstern „Hinweise" und „Neuigkeiten". Von Hand getippt
+	// stünde es doppelt da, sobald jemand die Regel ergänzt.
+	// ⚠️ Die kurzen Codes ggp/kosch stehen hier mit Absicht (so das Mockup): in einer 11px-Zeile
+	// ist kein Platz für „garetien.de", und der Filtertrichter trägt die lange Form.
+	function garetienDetailMetaMarkup(objekt) {
+		const teile = [];
+		const url = String(objekt.wiki_url || "").trim();
+		if (url !== "") {
+			teile.push('<a href="' + avesmapsGaretienEscape(url) + '" target="_blank" rel="noopener"'
+				+ ' title="' + avesmapsGaretienEscape(url) + '">Wiki-Artikel</a>');
+		}
+		const lodVon = String(objekt.lodmin || "").trim();
+		const lodBis = String(objekt.lodmax || "").trim();
+		if (lodVon !== "" || lodBis !== "") {
+			teile.push("LOD " + avesmapsGaretienEscape(lodVon) + "–" + avesmapsGaretienEscape(lodBis));
+		}
+		const herkunft = [String(objekt.wiki || "").trim(), String(objekt.ebene || "").trim()]
+			.filter(function (wert) { return wert !== ""; });
+		if (herkunft.length > 0) {
+			teile.push(avesmapsGaretienEscape(herkunft.join(" / ")));
+		}
+		// 🔴 Ein leeres `extra` wird BENANNT, nicht verschwiegen (so das Mockup): bei politischen
+		// Flächen stehen dort `pop=` und `level=`, und „nichts da" ist dort eine Auskunft.
+		teile.push(String(objekt.extra || "").trim() === ""
+			? "ohne&nbsp;<code>extra</code>"
+			: avesmapsGaretienEscape(String(objekt.extra).trim()));
+		return '<p class="gi-detail__meta">' + teile.join(" · ") + "</p>";
+	}
+
+	// REIN: der 💣-Kasten. Er kommt bei MEHREREN und bei EINEM nicht -- ein Kasten, der immer da
+	// ist, ist keine Warnung mehr, sondern Zier (dieselbe Lehre wie beim Statuskreis, der nur leer
+	// sein kann, AGENTS.md §11).
+	function garetienDetailBombeMarkup(objekt, gruppen) {
+		if (gruppen.gesamt < 2) { return ""; }
+		let text = "💣 Ihr <b>eines</b> Objekt liegt auf <b>" + gruppen.gesamt
+			+ "</b> verschiedenen Objekten von uns — deshalb wird je <b>Abschnitt</b> gehakt, nie"
+			+ " je Objekt.";
+		if (gruppen.ohneNamen > 0) {
+			text += " " + garetienAnzahlText(gruppen.ohneNamen, "davon trägt", "davon tragen")
+				+ " keinen Namen: dass er darunter liegt, macht ihn noch nicht zu ihrem.";
+		}
+		return '<p class="gi-bomb">' + text + "</p>";
+	}
+
+	// REIN: die ganze rechte Spalte. `optionen` ist heute leer und bleibt der Griff, an dem
+	// Aufgabe 14 ihren Knopf „✦ Auf der Karte zeigen" einhängt -- er steht bewusst noch NICHT hier:
+	// ein Knopf, der nichts tut, ist eine sichtbare Störung, und diese Datei geht einzeln live.
+	function garetienDetailMarkup(objekt) {
+		if (!objekt) {
+			return '<div class="gi-detail"><p class="avm-empty">Wähle links eine Zeile — hier steht'
+				+ " dann, was bei uns an derselben Stelle liegt.</p></div>";
+		}
+		const abschnitte = objekt.abschnitte || [];
+		const gruppen = garetienAbschnittsGruppen(abschnitte);
+
+		let kopf = '<div class="gi-detail__head">'
+			+ '<h4 class="gi-detail__name">' + avesmapsGaretienEscape(objekt.name || "") + "</h4>"
+			+ '<span class="gi-detail__kind">' + avesmapsGaretienEscape(objekt.typ || "") + "</span>"
+			+ "</div>";
+		kopf += garetienDetailMetaMarkup(objekt);
+
+		let notiz = garetienAnzahlText(abschnitte.length, "Abschnitt", "Abschnitte");
+		if (gruppen.gesamt >= 2) {
+			notiz += " · " + gruppen.gesamt + " verschiedene Objekte";
+		}
+		let mitte = '<p class="gi-sec">Was bei uns an derselben Stelle liegt'
+			+ '<span class="gi-sec__note">' + notiz + "</span></p>";
+		mitte += abschnitte.length === 0
+			? '<p class="gi-why">Zu diesem Objekt steht kein Abschnitt von uns im Vorschlag.</p>'
+			: abschnitte.map(function (abschnitt) {
+				return garetienAbschnittMarkup(objekt, abschnitt);
+			}).join("");
+		mitte += garetienDetailBombeMarkup(objekt, gruppen);
+
+		// Der Grund kommt fertig vom Server (garetien-abgleich.php baut den Satz). Ohne Grund
+		// steht auch keine Überschrift da -- ein Abschnitt, der nur leer sein kann, lügt.
+		const grund = String(objekt.grund || "").trim();
+		const warum = grund === "" ? "" : '<p class="gi-sec">Der Grund</p><p class="gi-why">'
+			+ avesmapsGaretienEscape(grund) + "</p>";
+
+		return '<div class="gi-detail">' + kopf + mitte + warum + "</div>";
+	}
+
+	// ---- Die Auswahl: die ZEILE öffnet die Ansicht, das HÄKCHEN nicht ------------------------------
+
+	function garetienDetailRendern(objekte) {
+		if (!hasDocument) { return; }
+		const spalte = document.getElementById("garetien-detailcol");
+		if (!spalte) { return; }
+		const liste = objekte || zustand.objekte || [];
+		const gewaehlt = zustand.detailKey === null ? null : (liste.filter(function (o) {
+			return o && String(o.key) === String(zustand.detailKey);
+		})[0] || null);
+		spalte.innerHTML = garetienDetailMarkup(gewaehlt);
+		// Dreiwertig ist eine EIGENSCHAFT, kein Attribut -- erst nach dem Einfügen einlösen, genau
+		// wie in avesmapsGaretienListeRendern.
+		Array.prototype.forEach.call(spalte.querySelectorAll("input[data-part]"), function (feld) {
+			feld.indeterminate = true;
+		});
+	}
+
+	// Die gewählte Zeile wird SICHTBAR markiert -- `.avm-row.is-selected` ist die Hausform
+	// (editor-row.css), kein eigener Zustand daneben.
+	function garetienAuswahlMarkieren() {
+		if (!hasDocument) { return; }
+		const listeEl = document.getElementById("garetien-list");
+		if (!listeEl) { return; }
+		Array.prototype.forEach.call(listeEl.querySelectorAll(".avm-row"), function (zeile) {
+			zeile.classList.toggle("is-selected",
+				zustand.detailKey !== null && zeile.getAttribute("data-key") === zustand.detailKey);
+		});
+	}
+
+	function garetienDetailWaehlen(schluessel, objekte) {
+		zustand.detailKey = schluessel === undefined || schluessel === null || schluessel === ""
+			? null
+			: String(schluessel);
+		garetienDetailRendern(objekte);
+		garetienAuswahlMarkieren();
+		return zustand.detailKey;
+	}
+
+	// 🔴 Der Verteiler nimmt Ereignis UND Objektliste HEREIN -- dieselbe Bauform wie
+	// garetienLaufStarten (Aufgabe 12b), und aus demselben Grund: nur so lässt sich am ERGEBNIS
+	// messen, dass ein Klick auf das Häkchen die Ansicht NICHT umschaltet. Eine Zusicherung, die
+	// bloß behauptet, im Quelltext stehe ein `if`, wäre Vakuum.
+	//
+	// 💣 Das Häkchen gehört Aufgabe 15 und darf die Ansicht nicht mitnehmen. Genau dafür ist die
+	// Listenzeile ein `<div>` und kein `<label>` (Aufgabe 11, Review M3): ein `<label>` machte aus
+	// jedem Zeilenklick einen Häkchenklick, und ein Editor könnte keine Zeile ansehen, ohne sie
+	// im selben Klick anzuhaken.
+	function garetienListeKlick(ereignis, objekte) {
+		const ziel = ereignis && ereignis.target;
+		if (!ziel || typeof ziel.closest !== "function") { return null; }
+		if (ziel.closest('input[type="checkbox"]')) { return null; }
+		const zeile = ziel.closest(".avm-row");
+		if (!zeile) { return null; }
+		const schluessel = zeile.getAttribute("data-key");
+		if (!schluessel) { return null; }
+		return garetienDetailWaehlen(schluessel, objekte);
+	}
+
 	// ---- Verdrahtung + Rechte-Riegel ---------------------------------------------------------------
 
 	function bindFenster() {
@@ -1193,6 +1511,15 @@
 			garetienLaufUebernehmen,
 			garetienFensterFuellen,
 			garetienLaufStarten,
+			// Aufgabe 13
+			garetienDetailMarkup,
+			garetienAbschnittsItems,
+			garetienAbschnittsLage,
+			garetienAbschnittsBeschriftung,
+			garetienAbschnittsGruppen,
+			garetienAbschnittMarkup,
+			garetienDetailWaehlen,
+			garetienListeKlick,
 		};
 	}
 })();
