@@ -150,6 +150,26 @@ function avmFilterMenuAttach(toggleId, panelId, sections, applyFilter, label = "
 		return () => {};
 	}
 
+	// 💣 Ein Umschalt-Element, das seine Beschriftung SELBST trägt, sagt es mit
+	// `data-avm-eigene-beschriftung` -- sonst räumt rebuild() sie beim ersten Aufruf ab. Gebraucht
+	// hat das zuerst das Menüband des Garetien Importers: sein Umschalter ist eine `.avm-tile` mit
+	// `.t1`/`.t2` (der Zustand steht IN der Kachel, Hausform „Status in den Knopf"), und ein
+	// `toggle.innerHTML = …` machte daraus lautlos einen einzeiligen Knopf. Die Alternative wäre
+	// eine zweite Menü-Rezeptur gewesen -- genau das, was diese Datei verhindern soll.
+	// ⚠️ Dann bleiben AUCH `title` und `aria-label` unangetastet -- das Element wird gar nicht mehr
+	// beschriftet, nur noch bedient. Ein Wirt, der seinen Zustand selbst in seiner zweiten Zeile
+	// trägt („2 von 18 · Gewässer ggp + kosch"), hat den besseren Namen als eine angehängte Zahl
+	// aktiver Abschnitte -- und die beiden liefen sonst nebeneinander auseinander („Ebenen (1)").
+	// 🔴 Ohne das Attribut ändert sich für die sechs vorhandenen Trichter kein Zeichen.
+	// 💣 Und die Frage wird DEFENSIV gestellt: drei fremde Tests fahren diese Funktion mit einem
+	// selbstgebauten DOM-Ersatz, dessen Elemente gar kein `hasAttribute` haben
+	// (wege-gruppe-ablauf, ortsliste-auswahl-wandert, ort-wiki-override-form). Ein blankes
+	// `toggle.hasAttribute(…)` warf dort `is not a function` und riss drei Tests um, die mit dem
+	// Garetien Importer nichts zu tun haben -- gefunden vom Lauf über das GANZE Testfeld, nicht
+	// von den eigenen Tests. Fehlt die Methode, gilt der alte Weg: der Trichter beschriftet.
+	const schreibtBeschriftung = !(toggle.hasAttribute
+		&& toggle.hasAttribute("data-avm-eigene-beschriftung"));
+
 	const rebuild = () => {
 		let active = 0;
 		sections.forEach((section) => {
@@ -164,9 +184,11 @@ function avmFilterMenuAttach(toggleId, panelId, sections, applyFilter, label = "
 		});
 		// Zähler in Klammern (Owner 2026-07-23): eine nackte „1" in der schmalen, gedämpften
 		// Zählerschrift ist nur ~3px breit und liest sich wie ein „|" -- „(1)" ist eindeutig eine Zahl.
-		toggle.innerHTML = `${AVM_FILTER_ICON} ${avmFilterEscape(label)}${active > 0 ? ` <span class="type-filter__count">(${active})</span>` : ""} ▾`;
-		toggle.title = active > 0 ? `${label} (${active})` : label;
-		toggle.setAttribute("aria-label", toggle.title);
+		if (schreibtBeschriftung) {
+			toggle.innerHTML = `${AVM_FILTER_ICON} ${avmFilterEscape(label)}${active > 0 ? ` <span class="type-filter__count">(${active})</span>` : ""} ▾`;
+			toggle.title = active > 0 ? `${label} (${active})` : label;
+			toggle.setAttribute("aria-label", toggle.title);
+		}
 	};
 
 	const sectionFor = (element) => sections.find((section) => {

@@ -95,6 +95,61 @@
 
 .gi-win__x:hover { background: var(--color-button-soft-hover); }
 
+/* ---- Aufgabe 12b: das Menüband -------------------------------------------------------------
+ * 💣 `.avm-tile` bringt aus editor-body.css NUR die zweizeilige FORM mit (Flexspalte, .t1/.t2).
+ *    Ihr Aussehen -- Rand, Grund, Radius, Schrift -- kommt dort aus `:where(.avm-editor-body)
+ *    button`, und diese Klasse trägt das Fenster nicht (es lebt in index.html, nicht in einem
+ *    Editor-iframe). Ohne die Regel hier stünden im Menüband zwei nackte Browserknöpfe in der
+ *    Systemschrift. Dieselbe Lage und dieselbe Antwort wie bei `.gi-win .btn` weiter unten;
+ *    die Werte sind Zeichen für Zeichen die des Hauses.
+ * 💣 Und die Spezifität ist tragend: `.type-filter__toggle` (review-panel.css, 0,1,0) steht in
+ *    styles.css NACH editor-body.css und schlüge `.avm-tile` (ebenfalls 0,1,0) -- die Ebenen-
+ *    Kachel bekäme dann eine andere Polsterung und einen anderen Grund als ihre Nachbarin.
+ *    `.gi-win .avm-tile` (0,2,0) gewinnt gegen beide, deshalb steht die Polsterung hier
+ *    ausdrücklich noch einmal da, obwohl sie dieselbe ist. */
+.gi-win .avm-tile {
+	padding: var(--space-4) var(--space-8);
+	border: 1px solid var(--color-button-soft-border);
+	border-radius: var(--radius-md);
+	background: var(--color-button-soft);
+	color: var(--color-button-soft-text);
+	font: inherit;
+	cursor: pointer;
+}
+
+.gi-win .avm-tile:hover { background: var(--color-button-soft-hover); }
+
+/* Die ANZEIGE des Doppelklick-Riegels. Der Riegel selbst ist ein Modulzustand in
+   js/review/review-garetien-importer.js -- eine Weiche, die an einer Klasse hinge, wirkte erst im
+   nächsten Bild (AGENTS.md §11).
+   💣 UND SIE NIMMT NICHT DIE `--color-disabled-*`-Palette, anders als `.gi-win .btn:disabled`
+   darunter. Der Unterschied ist der INHALT: die gesperrte Kachel trägt in ihrer zweiten Zeile den
+   Fortschritt („holt 2 Ebenen …", „rechnet …") -- das ist die einzige Auskunft, die ein Editor
+   während eines Laufs über 18 fremde Seiten bekommt. Auf der Sperrpalette misst diese Zeile 2,12:1
+   (hell) bzw. 2,63:1 (dunkel) und ist damit unlesbar; auf `--color-panel-muted` misst sie 4,83:1
+   bzw. 5,22:1. Der Fußknopf daneben darf die Sperrpalette behalten -- er sagt im gesperrten
+   Zustand nichts, was man lesen müsste.
+   ⚠️ Steht NACH `:hover`: gleiche Spezifität (0,2,1), und Chrome feuert `:hover` auch auf einem
+   gesperrten Knopf. */
+.gi-win .avm-tile:disabled {
+	background: var(--color-panel-muted);
+	border-color: var(--color-border);
+	cursor: progress;
+}
+
+/* Die Ebenen-Kachel IST der Umschalter des geteilten Trichters und steckt deshalb in einer
+   `.type-filter`-Hülle (die trägt das `position: relative`, an dem die Klappfläche hängt). Als
+   Flex-Kind bekäme sie sonst nur ihre Textbreite und ließe den Rest ihrer Rasterspalte leer --
+   dieselbe Lücke wie beim Sammelknopf des Menübands (AGENTS.md §11). */
+.gi-win .avm-ribbon > .type-filter { min-width: 0; }
+.gi-win .avm-ribbon > .type-filter > .avm-tile { flex: 1 1 auto; min-width: 0; }
+
+/* Der Grund des Menübands. Die Hausform setzt hier `--color-panel` -- richtig auf dem dunklen
+   Boden einer Editorseite, unsichtbar in diesem Fenster, dessen eigener Grund schon
+   `--color-panel` ist. Das Mockup (§1, freigegeben) zeigt das weiche Band; `--color-panel-soft`
+   ist derselbe Ton wie der Fensterkopf darüber. */
+.gi-win .avm-ribbon-bar { background: var(--color-panel-soft); }
+
 /* ---- Die stille Zeile: die Bilanz des LAUFS (Aufgabe 11+ füllt sie). ---------------------- */
 .gi-runline {
 	margin: 0;

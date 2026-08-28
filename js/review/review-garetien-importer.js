@@ -27,6 +27,11 @@
 	//   schreibend -- /api/edit/wiki/sync-plan.php (Aufgabe 15/16)
 	// Kein Aufrufer baut sich eine eigene fetch()-Stelle; der Test aus Aufgabe 15 zählt die
 	// fetch(-Vorkommen dieser Datei.
+	//
+	// Die lesende Adresse steht seit Aufgabe 12b EINMAL da: Menüband und Liste rufen denselben
+	// Endpunkt mit verschiedenen `action`, und zwei Zeichenketten für eine Adresse laufen
+	// auseinander, sobald sie jemand verschiebt.
+	const GARETIEN_ENDPUNKT = "/api/edit/map/garetien-import.php";
 
 	// ---- der Rechte-Riegel (unter Test in js/review/__tests__/garetien-fenster-huelle.test.js) ---
 	//
@@ -72,23 +77,68 @@
 		return hasDocument ? document.getElementById("garetien-importer") : null;
 	}
 
+	// Ein Fehler beim Laden der Liste steht IN der Liste, nicht in der Konsole.
+	function garetienListeFehlerZeigen(fehler) {
+		garetienListeSkelettSicherstellen();
+		const listeEl = hasDocument ? document.getElementById("garetien-list") : null;
+		if (listeEl) {
+			listeEl.innerHTML = '<p class="avm-error">'
+				+ avesmapsGaretienEscape((fehler && fehler.message) || "Die Liste konnte nicht geladen werden.")
+				+ "</p>";
+		}
+	}
+
+	// 🔴 EIN SATZ statt einer Fehlermeldung (Aufgabe 12b): „es gibt noch keinen Lauf" ist ein
+	// leerer Zustand, kein Defekt. Die Kachel daneben sagt dasselbe in ihrer zweiten Zeile und
+	// nennt zugleich den Weg heraus -- deshalb steht hier kein zweiter Knopf.
+	function garetienLeeresFensterZeigen() {
+		garetienListeSkelettSicherstellen();
+		if (!hasDocument) { return; }
+		const listeEl = document.getElementById("garetien-list");
+		if (listeEl) {
+			listeEl.innerHTML = '<p class="avm-empty">Noch kein Import-Lauf. „Holen &amp; Rechnen" '
+				+ "im Menüband holt die gewählten Ebenen und rechnet den Abgleich.</p>";
+		}
+		// Die Zahlen der drei Bilanzflächen gehören einem Lauf; ohne Lauf stehen sie leer, statt
+		// eine Null zu behaupten, die niemand gezählt hat.
+		["garetien-runline", "garetien-balance", "garetien-foot-count"].forEach(function (id) {
+			const el = document.getElementById(id);
+			if (el) { el.textContent = ""; }
+		});
+	}
+
+	// Der Füllvorgang beim Öffnen, mit seinen Werkzeugen herein -- aus demselben Grund wie bei
+	// garetienLaufStarten weiter unten: nur so lässt sich am ERGEBNIS zusichern, dass OHNE Lauf
+	// kein `action:'liste'` hinausgeht. Eine Zusicherung, die nur nachsähe, ob ein `if` im
+	// Quelltext steht, wäre Vakuum.
+	function garetienFensterFuellen(rufe, listeHolen) {
+		return garetienLaufUebernehmen(rufe, null).then(function (lauf) {
+			garetienLaufKachelAktualisieren();
+			if (!lauf) {
+				// 🔴 OHNE Lauf wird `action:'liste'` GAR NICHT ERST gerufen. Der Endpunkt antwortet
+				// darauf mit 400 `no_run` -- und eine 400 im Netz-Protokoll ist kein leerer
+				// Zustand, sondern sieht wie ein Defekt aus. Genau das erzeugte der Fensteröffner
+				// bis Aufgabe 12b bei JEDEM Öffnen, weil `importRunId` nie gesetzt wurde.
+				garetienLeeresFensterZeigen();
+				return null;
+			}
+			return listeHolen();
+		}).catch(function (fehler) {
+			garetienLaufKachelAktualisieren();
+			garetienListeFehlerZeigen(fehler);
+			return null;
+		});
+	}
+
 	function avesmapsGaretienFensterOeffnen() {
 		const win = fensterElement();
 		if (win) { win.hidden = false; }
 		zustand.offen = true;
-		// 🔧 Offener Punkt (siehe Bericht): welche Kachel im Menueband `zustand.importRunId` setzt,
-		// ist nicht Teil dieser Aufgabe (9/10 bauten nur die leere Huelle). Ohne einen Lauf antwortet
-		// der Endpunkt mit dem Fehler `no_run` -- abgefangen, damit das Fenster trotzdem eine leere,
-		// erklaerte Liste zeigt statt einer unbehandelten Ablehnung in der Konsole.
-		avesmapsGaretienListeHolen().catch(function (fehler) {
-			garetienListeSkelettSicherstellen();
-			const listeEl = hasDocument ? document.getElementById("garetien-list") : null;
-			if (listeEl) {
-				listeEl.innerHTML = '<p class="avm-error">'
-					+ avesmapsGaretienEscape((fehler && fehler.message) || "Die Liste konnte nicht geladen werden.")
-					+ "</p>";
-			}
-		});
+		// Aufgabe 12b: erst das Menüband (es ist der Schalter des Fensters, nicht seine Zier),
+		// dann die 18 Ebenen im Hintergrund, dann der geltende Lauf.
+		garetienMenuebandSicherstellen();
+		garetienEbenenListeSicherstellen();
+		return garetienFensterFuellen(avesmapsGaretienRufe, avesmapsGaretienListeHolen);
 	}
 
 	function avesmapsGaretienFensterSchliessen() {
@@ -443,7 +493,7 @@
 			nur_mehrteilig: filter.nur_mehrteilig === true,
 			stand: stand,
 		};
-		return avesmapsGaretienRufe("/api/edit/map/garetien-import.php", rumpf).then(function (antwort) {
+		return avesmapsGaretienRufe(GARETIEN_ENDPUNKT, rumpf).then(function (antwort) {
 			zustand.objekte = antwort.objekte || [];
 			zustand.letzteAntwort = antwort;
 			avesmapsGaretienListeRendern(antwort);
@@ -533,7 +583,10 @@
 		return [
 			{
 				menuId: "garetien-filter-ebene-menu", kind: "multi", state: garetienFilterState.ebene,
-				getOptions: () => garetienFacettenOptionen(garetienLetzteFacetten, "ebene"),
+				// 🔴 DIESELBE Beschriftung wie die Ebenen-Kachel im Menueband (Aufgabe 12b). Zwei
+				// Schreibweisen fuer denselben Schluessel -- „Gewaesser" hier, „Gewässer" dort --
+				// waeren in EINEM Fenster genau die Divergenz, vor der AGENTS.md §11 warnt.
+				getOptions: () => garetienFacettenOptionen(garetienLetzteFacetten, "ebene", garetienEbeneLabel),
 			},
 			{
 				menuId: "garetien-filter-typ-menu", kind: "multi", state: garetienFilterState.typ,
@@ -566,6 +619,7 @@
 	};
 
 	function garetienChipBeschriftung(feld, wert) {
+		if (feld === "ebene") { return garetienEbeneLabel(wert); }
 		if (feld === "urteil") { return garetienUrteilFilterLabel(wert); }
 		if (feld === "wiki") { return garetienWikiLabel(wert); }
 		if (feld === "nur") { return garetienNurZeigenLabel(wert); }
@@ -657,6 +711,341 @@
 		if (garetienFilterRebuild) { garetienFilterRebuild(); }
 	}
 
+	// ---- Aufgabe 12b: das Menüband -- die zwei Kacheln ---------------------------------------------
+	//
+	// Ohne diese Hälfte bliebe `zustand.importRunId` für immer `null`, `action:'liste'` liefe in
+	// 400 `no_run`, und das Fenster könnte keine einzige Zeile zeigen. Das Menüband ist der
+	// Schalter, der alles davor Gebaute in Gang setzt.
+	//
+	// 🔴 Der Zustand steht IN der Kachel (`.avm-tile` mit `.t1`/`.t2`, Hausform aus
+	// css/components/editor-body.css) -- Vorbilder „Dump holen — Lauf: 15.08." und „Zugehörigkeit
+	// rechnen". Ein Zustand, den man aufklappen muss, ist keiner.
+	// ⚠️ KEIN `avesmapsRibbonMenuAttach` (js/ui/ribbon-menu.js): das ist das SAMMELmenü für
+	// Kacheln, und seine Hausregel lautet ausdrücklich „nichts unter drei Einträgen" (AGENTS.md
+	// §11). Zwei Kacheln stehen nebeneinander, sie klappen nicht auf.
+
+	// Die 18 Ebenen aus `action:'ebenen'`. Der Bezeichner ist `wiki + ':' + ebene` -- genau die
+	// Form, die `action:'fetch'` entgegennimmt.
+	// ⚠️ Das `url`-Feld der Antwort reist bewusst NICHT mit: die Adresse wählt der Server aus
+	// seiner festen Liste. Ein Endpunkt, der eine Adresse vom Aufrufer annähme, wäre ein
+	// SSRF-Werkzeug -- garetien-import.php schreibt das an seiner `probe` ausdrücklich hin.
+	let garetienAlleEbenen = [];
+	let garetienEbenenGeholt = false;
+	let garetienEbenenRebuild = null;
+
+	// 🔴 Leer heißt ALLE -- dieselbe Lesart wie im geteilten Trichter („leer = alle", der
+	// „Alle"-Haken von avmFilterMenuAttach leert genau diese Menge). Die Vorgabe ist deshalb
+	// ausdrücklich gesetzt: die zwei Gewässerseiten, Stufe 1, das einzige gemessene und
+	// abgenommene Stück des Imports.
+	const garetienEbenenAuswahl = new Set(["ggp:Gewaesser", "kosch:Gewaesser"]);
+
+	// 💣 DER RIEGEL GEGEN DEN ZWEITEN LAUF, und er ist ein MODULZUSTAND -- keine CSS-Klasse und
+	// nicht das `disabled` des Knopfes. Eine an der Klasse gelesene Weiche wirkt nicht, weil die
+	// Klasse erst im nächsten Bild steht; daran sind in diesem Projekt schon das Anzeige-Menü und
+	// die Ansichts-Kachel gescheitert (AGENTS.md §11). Das `disabled` unten ist die ANZEIGE des
+	// Riegels, nie der Riegel.
+	// ⚠️ Warum er zählt: `fetch` holt bis zu 18 fremde Seiten samt Höflichkeitspause, `plan`
+	// rechnet 0,35 s je 289 Zeilen. Startet ein zweiter Klick einen zweiten Import-Lauf, weiß der
+	// Abgleich hinterher nicht mehr, was zusammengehört -- Datenschaden, kein Anzeigefehler.
+	let garetienLaufLaeuft = false;
+	let garetienLetzterLauf = null;    // die Zeile aus `action:'runs'` (id, started_at, zeilen, …)
+	let garetienLaufSchritt = "";      // „holt 2 Ebenen …" / „rechnet …", während es läuft
+	let garetienLaufMeldung = "";      // ein harter Fehler; bleibt bis zum nächsten Versuch stehen
+	let garetienRechenDauerMs = null;  // GEMESSEN, und nur für einen Lauf DIESER Sitzung
+	let garetienEbenenFehler = [];     // `fehler[]` aus `action:'fetch'` -- Ebenen ohne Antwort
+
+	// Die Ebenen-Schlüssel sind stabile Kennungen (`Gewaesser`, `Waelder`, `Ortschaften_1`) und
+	// bleiben es -- sie stecken im Bezeichner `wiki:ebene`, den der Endpunkt entgegennimmt. Nur die
+	// BESCHRIFTUNG wird lesbar gemacht (Mockup §1: „Gewässer ggp + kosch"). Dieselbe Trennung wie
+	// bei ggp/garetien.de eine Ebene weiter oben.
+	const AVESMAPS_GARETIEN_EBENE_LABEL = { Gewaesser: "Gewässer", Waelder: "Wälder" };
+
+	function garetienEbeneLabel(ebene) {
+		const wert = String(ebene === null || ebene === undefined ? "" : ebene);
+		return AVESMAPS_GARETIEN_EBENE_LABEL[wert] || wert.replace(/_/g, " ");
+	}
+
+	function garetienEbenenBezeichner(eintrag) {
+		return String((eintrag && eintrag.wiki) || "") + ":" + String((eintrag && eintrag.ebene) || "");
+	}
+
+	// REIN: welche Bezeichner gehen wirklich an `action:'fetch'`? Leer = alle. Diese EINE Rechnung
+	// füttert den Abruf UND die zweite Zeile der Kachel -- „was wird geholt" und „was steht da"
+	// dürfen nicht zwei Rechnungen sein.
+	// ⚠️ Solange die Ebenenliste noch nicht da ist (oder ihr Abruf scheiterte), gilt die Auswahl
+	// unverändert -- sonst holte ein Klick in dieser Lücke gar nichts und sähe wie ein toter Knopf aus.
+	function garetienGewaehlteBezeichner(auswahl, alleEbenen) {
+		const alle = (alleEbenen || []).map(garetienEbenenBezeichner);
+		const gewaehlt = Array.from(auswahl || []);
+		if (alle.length === 0) { return gewaehlt; }
+		if (gewaehlt.length === 0) { return alle; }
+		// Die Reihenfolge der festen Serverliste, nicht die der Anklickerei.
+		return alle.filter(function (bezeichner) { return gewaehlt.indexOf(bezeichner) !== -1; });
+	}
+
+	// REIN: die zweite Zeile der Ebenen-Kachel. „2 von 18 · Gewässer ggp + kosch" (Mockup §1) --
+	// gruppiert nach EBENE, weil dieselbe Ebene in beiden Wikis der Normalfall ist.
+	// ⚠️ Die kurzen Codes ggp/kosch stehen hier mit Absicht (so das Mockup): in einer 11px-Zeile
+	// ist kein Platz für „garetien.de + koschwiki.de", und der Trichter im Menü daneben trägt die
+	// lange Form. Nicht zu garetienWikiLabel „korrigieren".
+	function garetienEbenenKachelText(bezeichner, alleEbenen) {
+		const alle = alleEbenen || [];
+		const gewaehlt = bezeichner || [];
+		if (alle.length === 0) { return gewaehlt.length + " gewählt"; }
+		if (gewaehlt.length === 0) { return "0 von " + alle.length; }
+		if (gewaehlt.length === alle.length) { return alle.length + " von " + alle.length + " · alle"; }
+		const gruppen = [];
+		alle.forEach(function (eintrag) {
+			if (gewaehlt.indexOf(garetienEbenenBezeichner(eintrag)) === -1) { return; }
+			const treffer = gruppen.filter(function (g) { return g.ebene === eintrag.ebene; })[0];
+			if (treffer) { treffer.wikis.push(eintrag.wiki); }
+			else { gruppen.push({ ebene: eintrag.ebene, wikis: [eintrag.wiki] }); }
+		});
+		return gewaehlt.length + " von " + alle.length + " · "
+			+ gruppen.map(function (g) {
+				return garetienEbeneLabel(g.ebene) + " " + g.wikis.join(" + ");
+			}).join(" · ");
+	}
+
+	// REIN: die 18 Ebenen als Optionsliste für avmFilterMenuAttach. Wert = der Bezeichner, den der
+	// Endpunkt erwartet; Beschriftung = „Gewässer · garetien.de" (im Menü ist Platz für die lange
+	// Form, und dieselbe Wiki-Beschriftung trägt schon der Filtertrichter).
+	function garetienEbenenOptionenAus(alleEbenen) {
+		return (alleEbenen || []).map(function (eintrag) {
+			return {
+				value: garetienEbenenBezeichner(eintrag),
+				label: garetienEbeneLabel(eintrag.ebene) + " · " + garetienWikiLabel(eintrag.wiki),
+			};
+		});
+	}
+
+	// REIN: der Zeitstempel eines Laufs, kurz. „27.08., 12:04" -- mit dem „Lauf " davor ergibt das
+	// die Zeile des Mockups.
+	// 🪤 `started_at`/`finished_at` sind MySQL-DATETIME ohne Zone; `new Date()` liest sie als
+	// LOKALE Zeit. Dieselbe Ungenauigkeit wie bei „Dump holen — Lauf: 15.08." nebenan
+	// (formatWikiSyncDumpRunStatusText) und bewusst gleich gehalten: zwei Angaben, die verschieden
+	// rechnen, wären schlimmer als beide gleich ungenau.
+	function garetienLaufStempel(lauf) {
+		const roh = String((lauf && (lauf.finished_at || lauf.started_at)) || "");
+		if (roh === "") { return "unbekannt"; }
+		const datum = new Date(roh.replace(" ", "T"));
+		if (Number.isNaN(datum.getTime())) { return roh; }
+		return datum.toLocaleString("de-DE", {
+			day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit",
+		});
+	}
+
+	// REIN: die zweite Zeile der Lauf-Kachel. Vier Lagen, in dieser Reihenfolge -- ein harter
+	// Fehler (steht bis zum nächsten Versuch) · es läuft gerade · kein Lauf da · der geltende Lauf.
+	// 🔴 Die Rechendauer kennen wir NUR für einen Lauf dieser Sitzung: `action:'runs'` liefert
+	// keine. Für einen älteren Lauf steht deshalb seine Zeilenzahl da -- auch eine Tatsache, nur
+	// eine andere -- statt einer erfundenen Sekundenzahl. (Der Brief zeigt die Zeile im Zustand
+	// direkt nach einem Lauf; „0,35 s" ist dort das Gemessene, nicht das Gespeicherte.)
+	function garetienLaufKachelText(lage) {
+		const l = lage || {};
+		if (l.meldung) { return String(l.meldung); }
+		if (l.laeuft) { return l.schritt || "läuft …"; }
+		if (!l.lauf) { return "noch kein Lauf"; }
+		const teile = ["Lauf " + garetienLaufStempel(l.lauf)];
+		if (typeof l.dauerMs === "number" && isFinite(l.dauerMs)) {
+			teile.push((l.dauerMs / 1000).toFixed(2).replace(".", ",") + " s");
+		} else {
+			teile.push(Number(l.lauf.zeilen || 0) + " Zeilen");
+		}
+		// Eine Ebene ohne Antwort bricht den Lauf NICHT ab (der Endpunkt sammelt sie in `fehler[]`
+		// und stempelt den Lauf auf 'partial') -- aber sie muss dastehen, sonst hält der Editor
+		// einen halben Lauf für einen ganzen.
+		const fehler = (l.fehler || []).length;
+		if (fehler > 0) {
+			teile.push(fehler + (fehler === 1 ? " Ebene ohne Antwort" : " Ebenen ohne Antwort"));
+		}
+		return teile.join(" · ");
+	}
+
+	// REIN: das Menüband. Zwei Kacheln, gleich breit (`.avm-ribbon` ist ein Raster mit
+	// `grid-auto-columns: minmax(0, 1fr)`).
+	// 💣 Die zweite Kachel IST der Umschalter des geteilten Trichters und trägt deshalb
+	// `data-avm-eigene-beschriftung`: ohne dieses Attribut überschreibt dessen `rebuild()` beim
+	// ERSTEN Aufruf `.t1`/`.t2` mit einer einzeiligen Filterbeschriftung -- die zweizeilige
+	// Kachelform wäre lautlos weg. Die Alternative wäre eine zweite Menü-Rezeptur gewesen.
+	function garetienMenuebandMarkup() {
+		return '<button class="avm-tile" type="button" id="garetien-run-tile">'
+			+ '<span class="t1">Holen &amp; Rechnen</span>'
+			+ '<span class="t2" id="garetien-run-state"></span>'
+			+ "</button>"
+			+ '<div class="type-filter">'
+			+ '<button class="avm-tile type-filter__toggle" type="button" id="garetien-ebenen-toggle"'
+			+ ' data-avm-eigene-beschriftung>'
+			+ '<span class="t1">Ebenen</span>'
+			+ '<span class="t2" id="garetien-ebenen-state"></span>'
+			+ "</button>"
+			+ '<div class="type-filter__menu" id="garetien-ebenen-menu" hidden>'
+			+ '<div id="garetien-ebenen-optionen"></div>'
+			+ "</div>"
+			+ "</div>";
+	}
+
+	function garetienLaufKachelAktualisieren() {
+		if (!hasDocument) { return; }
+		const zeile = document.getElementById("garetien-run-state");
+		if (zeile) {
+			zeile.textContent = garetienLaufKachelText({
+				laeuft: garetienLaufLaeuft,
+				schritt: garetienLaufSchritt,
+				meldung: garetienLaufMeldung,
+				lauf: garetienLetzterLauf,
+				dauerMs: garetienRechenDauerMs,
+				fehler: garetienEbenenFehler,
+			});
+		}
+		const knopf = document.getElementById("garetien-run-tile");
+		// Nur die ANZEIGE des Riegels -- der Riegel selbst ist `garetienLaufLaeuft` (siehe dort).
+		if (knopf) { knopf.disabled = garetienLaufLaeuft; }
+	}
+
+	function garetienEbenenKachelAktualisieren() {
+		if (!hasDocument) { return; }
+		const zeile = document.getElementById("garetien-ebenen-state");
+		if (zeile) {
+			zeile.textContent = garetienEbenenKachelText(
+				garetienGewaehlteBezeichner(garetienEbenenAuswahl, garetienAlleEbenen),
+				garetienAlleEbenen
+			);
+		}
+	}
+
+	// Die feste Ebenenliste, einmal je Sitzung. 🔴 Fällt OFFEN aus: scheitert der Abruf, bleibt die
+	// Vorgabe stehen und „Holen & Rechnen" arbeitet weiter -- nur das Menü ist dann leer. Ein
+	// geschlossener Ausfall hier hieße: der Importer lässt sich gar nicht mehr starten.
+	function garetienEbenenListeSicherstellen() {
+		if (garetienEbenenGeholt) { return Promise.resolve(garetienAlleEbenen); }
+		garetienEbenenGeholt = true;
+		return avesmapsGaretienRufe(GARETIEN_ENDPUNKT, { action: "ebenen" }).then(function (antwort) {
+			garetienAlleEbenen = (antwort.ebenen || []).map(function (eintrag) {
+				return { wiki: eintrag.wiki, ebene: eintrag.ebene };
+			});
+			if (garetienEbenenRebuild) { garetienEbenenRebuild(); }
+			garetienEbenenKachelAktualisieren();
+			return garetienAlleEbenen;
+		}).catch(function () {
+			garetienEbenenGeholt = false;   // ein späterer Versuch darf es noch einmal probieren
+			return garetienAlleEbenen;
+		});
+	}
+
+	// Die Laufliste holen und einen davon übernehmen. `bevorzugt` ist die id, die gerade entstanden
+	// ist (nach „Holen & Rechnen"); ohne sie gilt der jüngste.
+	function garetienLaufUebernehmen(rufe, bevorzugt) {
+		return rufe(GARETIEN_ENDPUNKT, { action: "runs" }).then(function (antwort) {
+			const laeufe = antwort.runs || [];
+			// 🔴 `runs` kommt absteigend nach id (garetien-abruf.php: `ORDER BY r.id DESC`) --
+			// laeufe[0] IST der jüngste. Keine eigene Sortierung im Browser.
+			let gewaehlt = laeufe.length ? laeufe[0] : null;
+			if (bevorzugt) {
+				// ⚠️ Gesucht, nicht `laeufe[0]` geglaubt: ein Abruf über 18 Seiten dauert, und ein
+				// zweiter Admin kann in dieser Zeit einen neueren Lauf angelegt haben. Dann gehörte
+				// der jüngste nicht zu dem, was hier gerade gerechnet wurde.
+				const treffer = laeufe.filter(function (l) {
+					return Number(l.id) === Number(bevorzugt);
+				})[0];
+				if (treffer) { gewaehlt = treffer; }
+			}
+			garetienLetzterLauf = gewaehlt;
+			zustand.importRunId = gewaehlt ? (Number(gewaehlt.id) || null) : null;
+			return gewaehlt;
+		});
+	}
+
+	// 🔴 Der Ablauf nimmt seine Werkzeuge HEREIN (Rufer, Kachelschreiber, Listenauffrischung).
+	// Nicht der Eleganz wegen: nur so lässt sich der Riegel am ERGEBNIS messen -- der Test fährt
+	// ihn mit einem Spion und zählt, wie oft `action:'fetch'` wirklich hinausging (zwei Klicks →
+	// EINS). Eine Zusicherung, die bloß die Anwesenheit eines `if` im Quelltext behauptet, wäre
+	// Vakuum; genau diese Fehlerklasse hat dieses Vorhaben mehrfach bezahlt.
+	function garetienLaufStarten(rufe, ebenen, malen, listeHolen) {
+		// 💣 DER RIEGEL, vor jedem anderen Schritt.
+		if (garetienLaufLaeuft) { return Promise.resolve(null); }
+		garetienLaufLaeuft = true;
+		garetienLaufMeldung = "";
+		garetienEbenenFehler = [];
+		garetienRechenDauerMs = null;
+		garetienLaufSchritt = "holt " + ebenen.length + (ebenen.length === 1 ? " Ebene …" : " Ebenen …");
+		malen();
+		// 🔴 KEIN `run_id` an `fetch`: der Endpunkt SETZT einen genannten Lauf FORT. Ein neues
+		// „Holen & Rechnen" ist ein neuer Lauf, sonst wächst der alte weiter und der Abgleich
+		// mischt zwei Importe. Die gewählten Ebenen werden trotzdem EIN Lauf, weil `fetch` die
+		// ganze Liste in EINEM Ruf entgegennimmt und selbst darüber läuft -- 18 Seiten, ein Lauf.
+		return rufe(GARETIEN_ENDPUNKT, { action: "fetch", ebenen: ebenen })
+			.then(function (antwort) {
+				zustand.importRunId = Number(antwort.run_id) || null;
+				garetienEbenenFehler = antwort.fehler || [];
+				garetienLaufSchritt = "rechnet …";
+				malen();
+				const begonnen = Date.now();
+				return rufe(GARETIEN_ENDPUNKT, { action: "plan", run_id: zustand.importRunId })
+					.then(function (plan) {
+						garetienRechenDauerMs = Date.now() - begonnen;
+						zustand.planRunId = Number(plan.plan_run_id) || null;
+						// Zeitstempel und Zeilenzahl kommen vom SERVER, nicht aus der Browseruhr.
+						return garetienLaufUebernehmen(rufe, zustand.importRunId);
+					})
+					.then(function () { return listeHolen(); });
+			})
+			.catch(function (fehler) {
+				garetienLaufMeldung = (fehler && fehler.message) || "Der Lauf ist fehlgeschlagen.";
+				return null;
+			})
+			// 🔴 Der Riegel geht IMMER wieder auf -- Erfolg wie Fehler, deshalb `finally` und nicht
+			// `then`. Ein Knopf, der nach einem Netzfehler für immer tot ist, ist schlimmer als ein
+			// doppelter Lauf.
+			.finally(function () {
+				garetienLaufLaeuft = false;
+				garetienLaufSchritt = "";
+				malen();
+			});
+	}
+
+	function avesmapsGaretienHolenUndRechnen() {
+		return garetienLaufStarten(
+			avesmapsGaretienRufe,
+			garetienGewaehlteBezeichner(garetienEbenenAuswahl, garetienAlleEbenen),
+			garetienLaufKachelAktualisieren,
+			avesmapsGaretienListeHolen
+		);
+	}
+
+	// Einmalig: Kacheln bauen, Klick und Trichter verdrahten. 💣 Danach wird das `innerHTML` des
+	// Menübands NIE wieder ersetzt -- avmFilterMenuAttach hängt seine Zuhörer an die Knopf- und
+	// Panel-ELEMENTE, und ein Neuaufbau risse sie unter dem Zeiger weg (dieselbe Falle wie beim
+	// Listenskelett aus Aufgabe 11).
+	function garetienMenuebandSicherstellen() {
+		if (!hasDocument) { return null; }
+		const band = document.getElementById("garetien-ribbon");
+		if (!band) { return null; }
+		if (band.dataset.giBand === "1") { return band; }
+		band.innerHTML = garetienMenuebandMarkup();
+		band.dataset.giBand = "1";
+		const laufKnopf = document.getElementById("garetien-run-tile");
+		if (laufKnopf) {
+			laufKnopf.addEventListener("click", function () { avesmapsGaretienHolenUndRechnen(); });
+		}
+		if (typeof avmFilterMenuAttach === "function") {
+			garetienEbenenRebuild = avmFilterMenuAttach(
+				"garetien-ebenen-toggle", "garetien-ebenen-menu",
+				[{
+					menuId: "garetien-ebenen-optionen", kind: "multi", state: garetienEbenenAuswahl,
+					getOptions: function () { return garetienEbenenOptionenAus(garetienAlleEbenen); },
+				}],
+				// ⚠️ Eine Änderung an der Ebenenauswahl holt die LISTE NICHT neu: sie sagt, was der
+				// NÄCHSTE Abruf holt, sie filtert nichts am geltenden Lauf. Wer hier
+				// avesmapsGaretienListeHolen anhängt, baut einen Abruf ohne Wirkung ein.
+				garetienEbenenKachelAktualisieren, "Ebenen"
+			);
+		}
+		garetienLaufKachelAktualisieren();
+		garetienEbenenKachelAktualisieren();
+		return band;
+	}
+
 	// ---- Verdrahtung + Rechte-Riegel ---------------------------------------------------------------
 
 	function bindFenster() {
@@ -709,9 +1098,12 @@
 			schliessen: avesmapsGaretienFensterSchliessen,
 			zustand: avesmapsGaretienFensterZustand,
 			rufe: avesmapsGaretienRufe,
-			// Aufgabe 11: fuer die Konsolen-Bedienung waehrend der Importer noch kein eigenes
-			// Menueband hat (siehe Bericht) -- derselbe Griff, mit dem Stufe 1 heute schon lebt.
+			// Derselbe Griff, mit dem Stufe 1 vor dem Menueband ueber die Konsole bedient wurde --
+			// seit Aufgabe 12b ist er nicht mehr der einzige Weg, aber Aufgabe 13 ff. ruft ihn
+			// nach jeder Handlung (der EINE Weg, auf dem die Liste sich aendert).
 			listeHolen: avesmapsGaretienListeHolen,
+			// Aufgabe 12b: dieselbe Handlung wie die Kachel „Holen & Rechnen".
+			holenUndRechnen: avesmapsGaretienHolenUndRechnen,
 		};
 	}
 
@@ -742,6 +1134,20 @@
 			garetienChipsMarkup,
 			garetienFilterIstAktiv,
 			avesmapsGaretienFilterFacettenAktualisieren,
+			garetienFilterSections,
+			// Aufgabe 12b
+			garetienMenuebandMarkup,
+			garetienEbeneLabel,
+			garetienEbenenBezeichner,
+			garetienGewaehlteBezeichner,
+			garetienEbenenKachelText,
+			garetienEbenenOptionenAus,
+			garetienEbenenAuswahl,
+			garetienLaufStempel,
+			garetienLaufKachelText,
+			garetienLaufUebernehmen,
+			garetienFensterFuellen,
+			garetienLaufStarten,
 		};
 	}
 })();
