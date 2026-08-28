@@ -716,9 +716,12 @@ function createLabelMarkerEntry(label) {
 		if (typeof IS_INFOPANEL_MODE !== "undefined" && IS_INFOPANEL_MODE
 			&& typeof window.avesmapsShowInfopanel === "function"
 			&& typeof buildRegionLabelViewPopupHtml === "function") {
+			// 💣 EIN BAUER, kein fertiger Text: nur so bekommt das Panel einen Anker und laesst sich
+			// auffrischen (avesmapsRefreshInfopanel). Ohne ihn erschien eine Quelle, die der Editor
+			// gerade im Kasten „Quellen" hinzugefuegt hat, erst nach einem erneuten Klick auf das Label.
 			marker.on("popupopen", () => {
 				window.avesmapsShowInfopanel(
-					buildRegionLabelViewPopupHtml(label),
+					() => buildRegionLabelViewPopupHtml(label),
 					label.text || (label.wikiRegion && label.wikiRegion.name) || ""
 				);
 			});
@@ -742,16 +745,26 @@ function createLabelMarkerEntry(label) {
 			avesmapsLabelPopupZaehlen();
 			regionLabelPopupHtml = buildRegionLabelViewPopupHtml(label);
 		}
-		// Das Infopanel will einen fertigen Text -- es kennt keine Funktion. Beide Zustaende muenden
-		// deshalb hier zusammen.
-		const regionLabelPopupJetzt = () => (typeof regionLabelPopupHtml === "function" ? regionLabelPopupHtml() : regionLabelPopupHtml);
 		// Infopanel (now the default): route landscape/Wiki-region label info into the right panel
 		// instead of a floating popup -- same as the other feature types. This label-click path had no
 		// panel guard, so regions kept opening as a floating box. Without panel mode the bound popup stays.
+		//
+		// 💣 DAS PANEL BEKOMMT EINEN BAUER, NIE DEN VORGEBAUTEN TEXT. Zwei Gruende, und der zweite ist
+		// der Grund dieser Aenderung: (1) ein Bauer IST der Anker, an dem avesmapsRefreshInfopanel
+		// haengt -- ohne ihn gibt der Refresh sofort auf, und eine gerade hinzugefuegte Quelle erschien
+		// erst nach einem erneuten Klick; (2) `regionLabelPopupHtml` ist ohne `?labelbedarf=1` ein beim
+		// SEITENSTART gebauter Text -- als Anker eingesetzt zeichnete jeder Refresh treu den Stand vom
+		// Startaugenblick nach und saehe von „nichts hat sich geaendert" nicht zu unterscheiden aus.
+		// ⚠️ Damit bedient der vorgebaute Text nur noch den Rueckfall-Zweig unten (Karte ohne Panel).
+		// Ihn im Panel-Modus gar nicht erst zu bauen waere der naechste Schritt -- er gehoert aber zum
+		// offenen Versuch `?labelbedarf=1` und wird hier bewusst nicht mitentschieden.
 		if (typeof IS_INFOPANEL_MODE !== "undefined" && IS_INFOPANEL_MODE && typeof window.avesmapsShowInfopanel === "function") {
 			marker.on("click", () => {
 				try { map.panTo(label.coordinates); } catch (error) { /* noop */ }
-				window.avesmapsShowInfopanel(regionLabelPopupJetzt(), label.text || (label.wikiRegion && label.wikiRegion.name) || "");
+				window.avesmapsShowInfopanel(
+					() => buildRegionLabelViewPopupHtml(label),
+					label.text || (label.wikiRegion && label.wikiRegion.name) || ""
+				);
 			});
 		} else {
 			marker.bindPopup(regionLabelPopupHtml, { className: "settlement-popup", minWidth: 320, maxWidth: 400, autoPan: true });

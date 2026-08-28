@@ -568,6 +568,18 @@
 		// das laengst etwas anderes zeigt. Inhalte ohne eigenen Anker (die Route) bleiben so bewusst
 		// unaufgefrischt, statt sich in eine fremde Ansicht zurueckzuverwandeln.
 		lastPanelRender = null;
+		// 🔴 EIN BAUER STATT EINES FERTIGEN TEXTES -- und damit hat dieser Inhalt seinen eigenen Anker.
+		// Ein Aufrufer, der nur einen String reicht, kann sein Panel NIE auffrischen: avesmapsRefreshInfopanel
+		// gibt ohne Anker sofort auf. Genau daran haengt die Beschriftung: sie ruft diese Funktion direkt
+		// (nicht ueber eine der Show-*-Funktionen), und eine Quelle, die der Editor gerade hinzugefuegt hat,
+		// erschien deshalb erst, nachdem man das Label noch einmal angeklickt hat.
+		// ⚠️ Der Bauer wird SOFORT gerufen -- er ist der Inhalt, nicht nur die Anweisung, ihn spaeter zu
+		// bauen. Dasselbe Muster, mit dem Leaflet-Popups im Haus gebunden werden (refreshLabelMarkerPopup):
+		// gerufen wird bei jedem Zeichnen, es zaehlt also der Stand von JETZT.
+		var bauer = typeof html === "function" ? html : null;
+		if (bauer) {
+			html = bauer();
+		}
 		if (typeof html === "string" && html.trim() !== "") {
 			body.innerHTML = html;
 			body.scrollTop = 0;
@@ -587,6 +599,19 @@
 				if (typeof IS_EDIT_MODE !== "undefined" && IS_EDIT_MODE && window.avesmapsEdgePanels) {
 					window.avesmapsEdgePanels.activate("info");
 				}
+			}
+			// 💣 NACH dem Fuellen, nicht davor: `lastPanelRender = null` oben entwertet jeden Anker, und
+			// ein hier zu frueh gesetzter waere sofort wieder weg. Dieselbe Reihenfolge wie in
+			// showRegionMarkup -- erst zeigen, dann den Anker setzen.
+			// ⚠️ Und nur bei Inhalt: ein leerer Bauer hat das Panel geleert, und ein Anker darauf liesse
+			// avesmapsRefreshInfopanel spaeter ein leeres Panel neu zeichnen.
+			// 💣 DER ANKER IST NICHT DER BAUER SELBST: der Bauer LIEFERT Markup, der Anker ZEIGT es.
+			// Direkt gesetzt liefe ein Refresh treu durch und schriebe nichts ins Panel -- eine
+			// Auffrischung, die aussieht wie „nichts hat sich geaendert". Genau die Trennung, die
+			// showRegionMarkup daneben schon macht.
+			if (bauer) {
+				var bauerName = activeName;
+				lastPanelRender = function () { window.avesmapsShowInfopanel(bauer, bauerName); };
 			}
 		} else {
 			body.innerHTML = "";

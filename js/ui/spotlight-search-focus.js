@@ -128,7 +128,9 @@ function focusSpotlightLabel(entry) {
 	// parity via the shared buildRegionLabelViewPopupHtml. A label without a wiki region has no infobox.
 	if (typeof labelHasWikiRegion === "function" && labelHasWikiRegion(labelEntry.label)
 		&& typeof window.avesmapsShowInfopanel === "function" && typeof buildRegionLabelViewPopupHtml === "function") {
-		window.avesmapsShowInfopanel(buildRegionLabelViewPopupHtml(labelEntry.label), labelEntry.label.text || "");
+		// 💣 Ein BAUER, kein fertiger Text -- er ist zugleich der Anker fuer avesmapsRefreshInfopanel.
+		// Dieselbe Begruendung wie am Kartenklick (createLabelMarker, map-features-labels.js).
+		window.avesmapsShowInfopanel(() => buildRegionLabelViewPopupHtml(labelEntry.label), labelEntry.label.text || "");
 	}
 }
 

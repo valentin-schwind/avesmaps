@@ -557,6 +557,27 @@ function mountFeatureSourceEditor(containerEl, entityType, publicIdGetter, opts)
     }
     containerEl.innerHTML = renderFeatureSourceEditorHtml(data, opts);
     wireAutocomplete();
+    // 💣 DER EINE TRICHTER -- hier muendet JEDE Aktion des Editors (list, add, add_existing, remove).
+    // Vorher zeichnete er nur sein eigenes Fenster neu, und die Infobox der Karte liest ihre Quellen
+    // aus zwei Fenster-Globals, die AUSSCHLIESSLICH beim Laden der Kartennutzlast geschrieben werden.
+    // Eine gerade hinzugefuegte Quelle war damit bis zum naechsten F5 unsichtbar (Owner 28.08.2026).
+    // Der Helfer dafuer gab es laengst -- mit genau einem Aufrufer, dem Meldungs-Weg fuer Siedlungen.
+    //
+    // 🔴 An DIESER Stelle, nicht an den Klick-Handlern: haengte er dort, waere er beim naechsten
+    // Knopf vergessen. Dieselbe Begruendung wie beim Trichter renderLoreDetail (AGENTS.md §11).
+    //
+    // ⚠️ NICHT im Anlege-Modus: der Puffer vergibt negative Platzhalter-Ids fuer ein Objekt, das es
+    // serverseitig noch gar nicht gibt -- die im Kartenspeicher zeigten auf nichts.
+    if (!pendingStore) {
+      syncFeatureSourcesToClientCache(entityType, publicId, data.sources);
+      // Das offene Infopanel neu zeichnen -- dasselbe, was Kartensammlung, Literatur und Kraftlinien
+      // nach einer Aenderung tun. ⚠️ Nur nach einem SCHREIBvorgang: beim blossen Auflisten hat sich
+      // nichts geaendert, und ein Neuzeichnen waere Arbeit ohne Aussage.
+      const werkzeugFenster = featureSourceKartenfenster();
+      if (action !== "list" && werkzeugFenster && typeof werkzeugFenster.avesmapsRefreshInfopanel === "function") {
+        werkzeugFenster.avesmapsRefreshInfopanel();
+      }
+    }
     // Return the server payload so a caller can react to it (e.g. the "Ort bearbeiten" dialog
     // reads data.revision to refresh its optimistic-locking token after the list's takeover).
     return data;
@@ -746,22 +767,48 @@ async function linkCommunityReportSource(entityPublicId, suggestion) {
   return true;
 }
 
+// Das Fenster, in dem die KARTE liegt -- und damit ihre beiden Quellen-Globals.
+//
+// 💣 Die Editorseiten (html/citymap-editor.html, html/landschaften-editor.html, …) sind
+// eigenstaendige iframe-Dokumente IM Kartenfenster. Ihr eigenes `window` traegt `__sourceCatalog`
+// und `__featureSourceRefs` NICHT -- ein Abgleich dorthin waere eine stille Nulloperation, und die
+// Infobox der Karte bliebe genauso alt wie vorher. Erkannt wird das Kartenfenster daran, dass es
+// die Globals wirklich FUEHRT, nicht daran, dass es ein Elternfenster ist.
+//
+// ⚠️ Der Zugriff auf `window.parent` kann bei fremder Herkunft werfen -- dann gilt das eigene
+// Fenster. Und liegt die Kartennutzlast noch gar nicht (Globals fehlen ueberall), faellt es
+// ebenfalls auf das eigene zurueck: der laufende Ladevorgang bringt den frischen Stand ohnehin mit.
+function featureSourceKartenfenster() {
+  if (typeof window === "undefined") {
+    return null;
+  }
+  try {
+    if (window.parent && window.parent !== window && window.parent.__featureSourceRefs) {
+      return window.parent;
+    }
+  } catch (error) {
+    // fremde Herkunft -> das eigene Fenster
+  }
+  return window;
+}
+
 // Fold an editor feature-source list (each {source_id,url,label,type,official,pages}) into the popup's
 // synchronous source globals so a freshly created/edited feature renders its sources on the next popup
 // open with no map-features reload. Overwrites the entity's ref list with the full server list (the add
 // endpoint returns ALL of the feature's sources), and upserts each into the shared catalog by source_id.
 function syncFeatureSourcesToClientCache(entityType, entityPublicId, editorSources) {
-  if (typeof window === "undefined" || !Array.isArray(editorSources) || !entityPublicId) {
+  const ziel = featureSourceKartenfenster();
+  if (!ziel || !Array.isArray(editorSources) || !entityPublicId) {
     return;
   }
-  window.__sourceCatalog = window.__sourceCatalog || {};
-  window.__featureSourceRefs = window.__featureSourceRefs || {};
+  ziel.__sourceCatalog = ziel.__sourceCatalog || {};
+  ziel.__featureSourceRefs = ziel.__featureSourceRefs || {};
   const refs = [];
   for (const source of editorSources) {
     if (!source || source.source_id === undefined || source.source_id === null) {
       continue;
     }
-    window.__sourceCatalog[source.source_id] = {
+    ziel.__sourceCatalog[source.source_id] = {
       url: source.url || "",
       label: source.label || "",
       official: Boolean(source.official),
@@ -769,7 +816,7 @@ function syncFeatureSourcesToClientCache(entityType, entityPublicId, editorSourc
     };
     refs.push({ source_id: source.source_id, pages: source.pages || "", reference_kind: source.reference_kind || "" });
   }
-  window.__featureSourceRefs[`${entityType}:${entityPublicId}`] = refs;
+  ziel.__featureSourceRefs[`${entityType}:${entityPublicId}`] = refs;
 }
 
 if (typeof window !== "undefined") {
