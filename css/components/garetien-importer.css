@@ -363,11 +363,24 @@
 
 .gi-detail__head { display: flex; align-items: baseline; gap: var(--space-6); }
 
-/* ⚠️ Lange deutsche Komposita brechen an der SILBE, nicht mitten im Wort (Designsprache) --
-   „Angbarer Reichsstraße" und „Zwergenbinge Xorlosch" stehen hier in 16px in einer halben
-   Fensterbreite. */
+/* Lange deutsche Komposita muessen hier brechen: „Angbarer Reichsstraße" und
+   „Zwergenbinge Xorlosch" stehen in 16px in einer halben Fensterbreite.
+   💣 `min-width: 0` IST DIE REGEL, NICHT `overflow-wrap`. Der Kopf ist ein FLEX-KIND, und ein
+      Flex-Kind traegt `min-width: auto` -- es schrumpft nie unter seine min-content-Breite.
+      `overflow-wrap: break-word` senkt die min-content-Breite NICHT (das tun nur `anywhere` und
+      `word-break`), der Bruch kam also gar nicht zustande. Live gemessen mit einem
+      54-Zeichen-Kompositum in einem 344px-Kasten: OHNE die Zeile 428px breit, EINE Zeile, das
+      Typ-Label 159px ausserhalb und 147px waagerechter Ueberlauf in `.gi-detail`; MIT ihr 269px,
+      ZWEI Zeilen, nichts ausserhalb, Ueberlauf 0.
+   🪤 Und es faellt nicht auf, weil dasselbe Wort in einem NICHT-Flex-Kasten einwandfrei bricht --
+      eine Probe an einem MEHRWORTnamen (der ohnehin am Leerzeichen bricht) sieht deshalb heil aus.
+   ⚠️ `hyphens: auto` bleibt stehen, taeuscht aber nicht darueber hinweg: es wirkt hier NICHT.
+      Gemessen bei `lang="de"` -- Hoehe mit und ohne exakt gleich (36,78px); dieses Chrome trennt
+      Deutsch nicht. In Browsern mit Trennwoerterbuch verbessert es den Umbruch; TRAGEN tut ihn
+      die Zeile `min-width: 0`. */
 .gi-detail__name {
 	margin: 0;
+	min-width: 0;
 	font-size: var(--font-size-subhead);
 	line-height: var(--leading-tight);
 	font-weight: var(--font-weight-bold);
@@ -447,7 +460,17 @@
 	accent-color: var(--color-check-accent);
 }
 
-.gi-seg__name { font-weight: var(--font-weight-bold); color: var(--color-text-strong); }
+/* 💣 `anywhere`, nicht `break-word`. Der Rastertrack ist zwar schon durch `minmax(0, 1fr)`
+   gedeckelt -- gemessen heilen hier BEIDE Werte --, aber nur `anywhere` senkt zusaetzlich die
+   min-content-Breite und haengt damit nicht daran, dass der Track gedeckelt BLEIBT. Ohne
+   ueberhaupt einen Wert lief die Zeile bei einem unteilbaren 70-Zeichen-Bezeichner um 105px
+   ueber (live gemessen); mit `anywhere` bricht er auf drei Zeilen, Ueberlauf 0. */
+.gi-seg__name {
+	min-width: 0;
+	overflow-wrap: anywhere;
+	font-weight: var(--font-weight-bold);
+	color: var(--color-text-strong);
+}
 
 .gi-seg__gap {
 	white-space: nowrap;
@@ -461,6 +484,8 @@
    Ellipse, sondern eine zweite Zeile. */
 .gi-seg__id {
 	grid-column: 2 / span 2;
+	min-width: 0;
+	overflow-wrap: anywhere;
 	font-size: var(--font-size-caption);
 	color: var(--color-text-muted);
 }

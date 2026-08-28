@@ -101,7 +101,7 @@ wahr(m2.includes("is-overwrite"), "ein vorhandener Name traegt den Warnton");
 wahr(m2.includes("⚠ Name weicht ab"),
 	"das Ueberschreiben sagt es auch im TEXT, nicht nur in einer Klasse");
 wahr(!m2.includes("Name fehlt"),
-	"ein vorhandener Name „fehlt” nicht -- er wuerde ersetzt");
+	"ein vorhandener Name „fehlt\" nicht -- er wuerde ersetzt");
 wahr(m2.includes("Reichsstraße 3") && m2.includes("Angbarer Reichsstraße"),
 	"alt -> neu steht im Klartext -- nichts wird stillschweigend ueberschrieben");
 wahr(!/is-overwrite[\s\S]{0,200}checked/.test(m2),
@@ -123,9 +123,9 @@ function segFall(abschnitt, items) {
 const luecke = segFall({ public_id: "w-1", name: "", punkte: 12 },
 	[{ id: 1, anlass: "ergaenzung", felder: ["name", "quelle"], selected: 1,
 		abschnitt: { public_id: "w-1", name: "" } }]);
-wahr(luecke.includes("Name + Quelle"), "kein Name + keine Quelle heisst „Name + Quelle”");
+wahr(luecke.includes("Name + Quelle"), "kein Name + keine Quelle heisst „Name + Quelle\"");
 wahr(/gi-seg__name is-empty[^>]*>ohne Namen/.test(luecke),
-	"ein namenloser Abschnitt heisst „ohne Namen” und traegt is-empty");
+	"ein namenloser Abschnitt heisst „ohne Namen\" und traegt is-empty");
 wahr(/<input type="checkbox" checked>/.test(luecke),
 	"das Fuellen einer Luecke startet VORANGEHAKT (Owner 16.08.2026)");
 
@@ -139,10 +139,23 @@ wahr(!nurQuelle.includes("Name + Quelle"),
 // Umbenennung, die gar nicht ausgefuehrt wird -- dieselbe Falle, die garetien-plan.php mit
 // `unset($eintrag['after']['name'])` schon einmal geschlossen hat (Review I1, Aufgabe 3).
 wahr(!nurQuelle.includes("gi-seg__to"),
-	"ohne 'name' in `felder` darf kein „→ neuer Name” dastehen");
+	"ohne 'name' in `felder` darf kein „→ neuer Name\" dastehen");
+
+// Die fuenfte erreichbare Beschriftung, und sie fehlte: `felder: ['name']` OHNE 'quelle'.
+// Erreichbar ueber garetien-plan.php (`$nameLeer && $hatQuelle`) -- die Quelle liegt schon an
+// unserem Abschnitt, nur der Name fehlt. Bis zur Fixrunde stand sie nur NEGATIV im Test
+// (`!m2.includes("Name fehlt")`), also nirgends als eigener Fall.
+const nurName = segFall({ public_id: "w-2b", name: "", punkte: 4 },
+	[{ id: 3, anlass: "ergaenzung", felder: ["name"], selected: 1,
+		abschnitt: { public_id: "w-2b", name: "" } }]);
+wahr(nurName.includes("Name fehlt"), "liegt die Quelle schon, fehlt nur der Name");
+wahr(!nurName.includes("Name + Quelle"),
+	"und dann steht NICHT „Name + Quelle\" da -- die Quelle waere sonst doppelt versprochen");
+wahr(nurName.includes("gi-seg__to"),
+	"ein Namens-Item zeigt sein „→ neuer Name\", auch ohne Quelle");
 
 const nichts = segFall({ public_id: "w-3", name: "Gardel", punkte: 6 }, []);
-wahr(nichts.includes("nichts zu ersetzen"), "ein Abschnitt ohne Item sagt „nichts zu ersetzen”");
+wahr(nichts.includes("nichts zu ersetzen"), "ein Abschnitt ohne Item sagt „nichts zu ersetzen\"");
 wahr(/<input type="checkbox" disabled>/.test(nichts),
 	"ein Abschnitt ohne Item ist nicht anhakbar");
 
@@ -187,9 +200,9 @@ const einObjekt = garetienDetailMarkup({
 wahr(!einObjekt.includes("gi-bomb"),
 	"EIN Abschnitt, EIN Name -- kein 💣-Kasten. Ein Kasten, der immer kommt, ist keine Warnung.");
 wahr(!/verschiedene/.test(einObjekt),
-	"bei einem einzigen Objekt steht auch keine „verschiedene”-Zahl in der Ueberschrift");
+	"bei einem einzigen Objekt steht auch keine „verschiedene\"-Zahl in der Ueberschrift");
 wahr(einObjekt.includes("1 Abschnitt<") || /1 Abschnitt[^e]/.test(einObjekt),
-	"Einzahl: „1 Abschnitt”, nicht „1 Abschnitte”");
+	"Einzahl: „1 Abschnitt\", nicht „1 Abschnitte\"");
 
 // 🔴 Die Gruppenzahl: gleiche Namen sind EIN Objekt, ein NAMENLOSER Abschnitt zaehlt fuer sich.
 // Beides ist gemessen: Barun-Ulah traegt seinen Namen siebenmal (= ein Objekt), und der namenlose
@@ -223,7 +236,7 @@ wahr(garetienDetailMarkup(Object.assign({}, natter, { extra: "pop=1200" })).incl
 wahr(/<a href="https:\/\/www\.garetien\.de[^"]*" target="_blank" rel="noopener"/.test(markup),
 	"der Wiki-Link oeffnet auswaerts, mit rel=noopener");
 wahr(!markup.includes("↗"),
-	"das ↗ gehoert in die CSS-Regel, nicht ins Markup (AGENTS.md §12: „automatisch”)");
+	"das ↗ gehoert in die CSS-Regel, nicht ins Markup (AGENTS.md §12: „automatisch\")");
 // Ohne Adresse gar kein Link -- ein <a href=""> fuehrt auf die Karte zurueck und wirft den Editor
 // aus dem Fenster.
 wahr(!/<a /.test(garetienDetailMarkup(Object.assign({}, natter, { wiki_url: "" }))),
@@ -233,7 +246,7 @@ wahr(!/<a /.test(garetienDetailMarkup(Object.assign({}, natter, { wiki_url: "" }
 
 wahr(markup.includes('Geometrie liegt 0.84 Einheiten von &quot;Natter&quot; (anderer Name)'),
 	"der Grund steht im Klartext da -- escaped, aber ungekuerzt");
-wahr(markup.includes("Der Grund"), "die Ueberschrift „Der Grund” steht da, wenn es einen gibt");
+wahr(markup.includes("Der Grund"), "die Ueberschrift „Der Grund\" steht da, wenn es einen gibt");
 wahr(!garetienDetailMarkup(Object.assign({}, natter, { grund: "" })).includes("Der Grund"),
 	"ohne Grund keine leere Ueberschrift -- ein Abschnitt, der nur leer sein kann, luegt");
 
@@ -320,6 +333,34 @@ wahr(/border-top:\s*1px solid var\(--color-divider\)/.test(secBlock),
 const secOhneTokens = secBlock.replace(/var\(--[a-z0-9-]+\)/g, "T");
 wahr(!/margin[a-z-]*:[^;]*-/.test(secOhneTokens),
 	"kein negativer Seitenrand -- er liefe unter die Bildlaufleiste des Rollkastens");
+
+// 💣 DER KOPF IST EIN FLEX-KIND, und ein Flex-Kind traegt `min-width: auto` -- es schrumpft nie
+// unter seine min-content-Breite. `overflow-wrap: break-word` senkt diese Breite NICHT (das tun
+// nur `anywhere` und `word-break`), der Bruch kam also gar nicht zustande: live gemessen stand ein
+// 54-Zeichen-Kompositum EINZEILIG mit 428px in einem 344px-Kasten, 147px waagerechter Ueberlauf.
+// ⚠️ DIESE ZUSICHERUNG IST NICHT DER BELEG -- Node hat keine Layoutmaschine, sie kann nur die
+// Deklaration sehen. Der Beleg ist die Messung im Bericht (Fixrunde 1: 428px/1 Zeile/147px Ueberlauf
+// ohne, 267px/2 Zeilen/0 mit). Sie steht hier, damit die Zeile nicht wieder verschwindet.
+const nameBlock = (css.match(/\.gi-detail__name\s*\{[^}]*\}/) || [""])[0];
+wahr(nameBlock !== "", "der .gi-detail__name-Block fehlt -- die Gegenprobe misst sonst nichts");
+wahr(/min-width:\s*0/.test(nameBlock),
+	"ohne `min-width: 0` bricht der Kopf NICHT -- overflow-wrap allein reicht am Flex-Kind nicht");
+
+// Dieselbe Familie eine Etage tiefer: die Zellen der Abschnittszeile. Ohne einen Umbruchwert lief
+// ein unteilbarer 70-Zeichen-Bezeichner um 105px ueber (live gemessen).
+// ⚠️ `anywhere`, nicht `break-word`: gemessen heilen hier BEIDE, weil `minmax(0, 1fr)` den Track
+// schon deckelt -- aber nur `anywhere` senkt die min-content-Breite und haengt damit nicht daran,
+// dass der Deckel bleibt. Genau diese Abhaengigkeit war der Fehler eine Etage hoeher.
+// 🪤 Zwei ausgeschriebene Muster statt eines gebauten: `new RegExp("\s*")` liest die
+// Zeichenkette ZUERST als JS-Literal, dort ist `\s` schlicht `s` -- das Muster traf dann nichts
+// und meldete „Block fehlt" (hier live passiert).
+[[".gi-seg__name", /\.gi-seg__name\s*\{[^}]*\}/], [".gi-seg__id", /\.gi-seg__id\s*\{[^}]*\}/]]
+	.forEach(([auswahl, muster]) => {
+		const block = (css.match(muster) || [""])[0];
+		wahr(block !== "", "der " + auswahl + "-Block fehlt -- die Gegenprobe misst sonst nichts");
+		wahr(/overflow-wrap:\s*anywhere/.test(block),
+			auswahl + " braucht `anywhere`, sonst laeuft ein unteilbarer Bezeichner aus der Zeile");
+	});
 
 // Das ↗ steht in der geteilten Regel (Bauform aus legal-dialog.css / changelog-dialog.css).
 wahr(/\.gi-detail a\[target="_blank"\]::after\s*\{[^}]*content:\s*" ↗"/.test(css),
