@@ -2297,6 +2297,126 @@ git commit -m "garetien(fenster): die Einzelansicht -- was bei uns an derselben 
 
 ---
 
+### Aufgabe 13b: Der Server liefert, was die Einzelansicht zeigen soll
+
+🔴 **NACHGETRAGEN 28.08.2026 — zwei Lücken, gemeldet vom Implementierer der Aufgabe 13 und von mir
+am Code nachgeprüft.** Beide sitzen auf dem Server, nicht im Fenster. Der Bauende hat sie
+**gemeldet statt umgangen** — hätte er im Browser nachgerechnet, wäre daraus eine zweite Wahrheit
+geworden (Auftrag §5.5).
+
+**Dateien:** ändern `api/_internal/import/garetien-abruf.php`, `api/_internal/import/garetien-plan.php`,
+`api/_internal/import/garetien-liste.php` · Test `api/_internal/import/__tests__/garetien-abschnitte-vollstaendig-test.php`
+
+---
+
+#### Lücke 1: ein getroffener Abschnitt OHNE Item erreicht den Browser nie
+
+`garetien-liste.php:282-295` baut `objekte[].abschnitte` **allein aus `items`**. Ein Abschnitt, den
+ihr Objekt trifft, der aber kein Item erzeugt, existiert für das Fenster nicht.
+
+💣 **Das trifft genau den Fall, wegen dessen der Owner die Einzelansicht bestellt hat.** Sein
+Beispiel: ihre „Natter" läuft über unsere Natter, den Gardel **und** den Darpat. Der **Gardel**
+trägt einen Namen, der ungleich ist und nicht `einObjekt` — er erzeugt konstruktionsbedingt kein
+Item. Er kommt also nicht an, die Überschrift zählt „2 Abschnitte" statt drei, und **ein
+dreiteiliger Fall sieht wie ein zweiteiliger aus**. Der `is-full`-Zustand aus Aufgabe 13 („nichts
+zu ersetzen") ist damit heute **unerreichbar** — er ist gebaut und getestet, aber tot.
+
+⭐ **Die Liste existiert bereits** — `$urteil['abschnitte']` in `avesmapsGaretienBaueSyncPlan`
+(`garetien-plan.php:243`). Sie wird nur **nirgends gespeichert**: `avesmapsGaretienSchreibeUrteil`
+(`:383`) schreibt `urteil` und `grund`, sonst nichts.
+
+🔴 **Nicht neu rechnen.** Ein zweiter Abgleich im Lesepfad wäre eine zweite Wahrheit über
+„was trifft was" — und er liefe je Zeile der Liste. Die Zahl entsteht **einmal**, beim Planbau.
+
+- [ ] **Schritt 1: Den fallenden Test schreiben**
+
+Der Abnahmefall ist der Owner-Fall, und er muss **am Ergebnis** hängen:
+
+```php
+// 💣 Ihr EINES Objekt laeuft ueber DREI unserer Abschnitte, aber nur ZWEI erzeugen ein Item.
+// Ohne die gespeicherte Trefferliste zeigt das Fenster zwei -- und der Editor haelt den Fall
+// fuer zweiteilig. Genau diese Auskunft ist der Grund fuer die Einzelansicht.
+$objekt = /* das Objekt aus avesmapsGaretienArbeitsliste holen */;
+assert(count($objekt['abschnitte']) === 3,
+    'es kommen ' . count($objekt['abschnitte']) . ' Abschnitte an statt drei -- der ohne Item fehlt');
+$ids = array_column($objekt['abschnitte'], 'public_id');
+assert(in_array('w-5008', $ids, true), 'der getroffene Abschnitt OHNE Item fehlt');
+```
+
+⚠️ **Und die Gegenprobe, die belegt, dass der Test nicht schon vorher grün war:** dieselbe
+Zusicherung gegen einen Bestand **ohne** gespeicherte Liste muss **zwei** ergeben. Ohne sie ist
+nicht belegt, dass die neue Spalte überhaupt etwas bewirkt.
+
+- [ ] **Schritt 2: Test laufen lassen, Fehlschlag bestätigen** — erwartet: „es kommen 2 Abschnitte
+      an statt drei". 🔴 **Sieh diese Ausgabe wirklich.**
+
+- [ ] **Schritt 3: Die Spalte nachziehen**
+
+In `avesmapsGaretienEnsureUrteilSpalten` (`garetien-abruf.php:125`) eine dritte Zeile:
+
+```php
+"ALTER TABLE garetien_import_row ADD COLUMN abschnitte_json MEDIUMTEXT NULL",
+```
+
+💣 **`MEDIUMTEXT`, nicht `VARCHAR`** — AGENTS.md §10: eine stille MySQL-Kürzung ist von „nichts
+wurde je gespeichert" nicht zu unterscheiden. `app_setting.setting_value` war aus genau diesem
+Grund vier Monate lang wirkungslos. Eine Trefferliste mit Geometrie sprengt 255 Zeichen mühelos.
+⚠️ Die Funktion ist **portabel** gehalten (sie läuft gegen SQLite, Ruling P1) — halte sie so.
+
+- [ ] **Schritt 4: Beim Planbau mitschreiben**
+
+`avesmapsGaretienSchreibeUrteil` bekommt einen weiteren Parameter mit **Vorgabe** (`array $abschnitte = []`)
+und schreibt `abschnitte_json`. Gerufen wird sie dort, wo `$urteil['abschnitte']` ohnehin vorliegt.
+💣 **Die Vorgabe ist tragend** — jeder heutige Aufrufer läuft ohne fünftes Argument weiter.
+⚠️ **Nicht `mb_substr` zum Kappen**: die Liste ist JSON, und ein mitten im Zeichen abgeschnittenes
+JSON ist kein JSON mehr. Gekappt wird gar nicht — dafür ist die Spalte `MEDIUMTEXT`.
+
+- [ ] **Schritt 5: Im Leseweg VEREINIGEN, nicht ersetzen**
+
+`garetien-liste.php` liest `abschnitte_json` und vereinigt es mit den aus `items` gewonnenen
+Abschnitten — **über `public_id` entdoppelt**, wie schon heute.
+🔴 **Vereinigen, nicht ersetzen:** der Item-Abschnitt trägt Felder, die die gespeicherte Liste
+nicht hat (er ist der, an dem etwas geschieht). Ein Ersetzen verlöre sie lautlos.
+🔴 **Und der Item-Abschnitt gewinnt bei gleicher `public_id`** — er ist der jüngere und der
+handlungsrelevante.
+⚠️ Ein Bestand **ohne** die Spalte (alte Läufe) muss weiter funktionieren: fehlt oder ist sie
+leer, gilt genau das heutige Verhalten. Fällt offen aus, wirft nie.
+
+---
+
+#### Lücke 2: drei Felder des Mockups reisen nicht mit
+
+`action:'liste'` gibt `after.quelle` nur als `url` weiter (`garetien-liste.php:311`), `after.subtyp`
+und `namensraum:artikel` gar nicht. Folgen in der gebauten Einzelansicht:
+
+| fehlt | was man deshalb nicht sieht |
+|---|---|
+| `after.quelle` (Label, Attribution, Lizenz) | der **ganze Abschnitt „Die Quelle, die mitreist"** — Mockup §3 |
+| `after.subtyp` | der Kopf sagt „Fluss" statt „Fluss → Flussweg", also **nicht, als was wir es anlegen würden** |
+| `namensraum:artikel` | der Link heißt „Wiki-Artikel" statt des echten Artikelnamens |
+
+- [ ] **Schritt 6: Die drei Felder durchreichen** — additiv, im selben `$objekte[$key]`-Aufbau.
+      `namensraum:artikel` wird **nicht neu gebildet**: es gibt dafür bereits eine Regel
+      (`avesmapsGaretienObjektSchluesselAusZeile` / `…SeitenUrlAusZeile`) — **such sie und benutze
+      sie**, sonst steht die Bildung des Schlüssels an zwei Stellen.
+
+- [ ] **Schritt 7: Die Einzelansicht zeigt sie** (`js/review/review-garetien-importer.js`,
+      `css/components/garetien-importer.css`) — der Abschnitt „Die Quelle, die mitreist" nach
+      Mockup §3, der Typ als „Fluss → Flussweg", der Artikelname am Link.
+      🔴 **Der Wiki-Link bleibt auswärts und behält sein `↗`** über die geteilte Hausregel.
+      ⚠️ Fehlt ein Feld (alter Lauf), fällt die Zeile **weg**, sie steht nicht leer da.
+
+- [ ] **Schritt 8: Test laufen lassen, grün bestätigen** — dann das ganze PHP- **und** JS-Feld,
+      mit der Klammer um beide Gruppen und der Dateizahl als Gegenprobe.
+
+- [ ] **Schritt 9: Commit**
+
+```bash
+git commit -m "garetien(liste): jeder getroffene Abschnitt reist mit -- und die Quelle dazu"
+```
+
+---
+
 ### Aufgabe 14: Die Karte — Glow und „Ansicht folgt"
 
 🔴 **Der Glow hängt am HÄKCHEN, nicht am Knopf — und an mehreren gleichzeitig** (Owner
