@@ -452,6 +452,14 @@ function avesmapsGaretienArbeitsliste(PDO $pdo, int $importRunId, array $filter)
             'items' => array_map(static function (array $item): array {
                 return [
                     'id' => $item['id'],
+                    // 🔴 Der `change_type` reist MIT (28.08.2026, Aufgabe 15). Die Knopfleiste der
+                    // Einzelansicht bietet „Neu einfuegen" genau fuer die `new`-Zeilen an, und ohne
+                    // dieses Feld findet sie keine einzige -- der Knopf waere bei allen 231 Neu-
+                    // und 32 Zweifel-Objekten der Stufe 1 dauerhaft ausgegraut.
+                    // 💣 Durchgereicht, nicht hergeleitet: aus `anlass`/`abschnitt` zu erraten,
+                    // welche Zeile die Basiszeile ist, waere eine zweite Fassung der Entscheidung,
+                    // die garetien-plan.php getroffen hat (`$istNeu`).
+                    'change_type' => $item['change_type'],
                     'anlass' => $item['after']['anlass'] ?? null,
                     'felder' => $item['after']['felder'] ?? [],
                     'selected' => $item['selected'],

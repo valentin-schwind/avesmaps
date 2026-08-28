@@ -568,3 +568,62 @@
 }
 
 .gi-bomb b { color: var(--color-warning-soft-text); }
+
+/* ---- Aufgabe 15: die Handlungsleiste ------------------------------------------------------ *
+ *
+ * 🔴 SIE IST ANGEHEFTET, NICHT IM FLUSS. Die Entscheidung darf nie hinter einer Bildlaufleiste
+ *    liegen -- bei 13 Abschnitten waere sie es. Getragen wird das nicht von `position: sticky`,
+ *    sondern von der Bauform daneben: `.avm-col` ist eine Flexspalte mit `overflow: hidden`
+ *    (editor-body.css), `.gi-detail` darin ist `flex: 1 1 auto; overflow: auto`, und diese Leiste
+ *    ist ihr GESCHWISTER mit `flex: none`. Sie steht damit fest am Fuss der Spalte, ohne einen
+ *    deckenden Grund, ohne blutende Kanten und ohne die Falle des verschobenen Klebepunkts.
+ * 💣 Deshalb darf sie im Markup NIE ein Kind von `.gi-detail` werden -- dann rollt sie mit, und
+ *    zwar unsichtbar richtig aussehend: bei kurzen Objekten faellt es gar nicht auf.
+ * 🔴 WEICH/OUTLINE, ALLE. Die EINE gefuellte Handlung des Fensters heisst „Angehakte uebernehmen"
+ *    und steht im Fuss; eine Zeilenhandlung ist nie die Haupthandlung der Seite (AGENTS.md §12).
+ *    `.gi-win .btn` (weiter oben) traegt die weiche Form schon -- hier stehen nur die zwei
+ *    Abwandlungen und der Grundriss.
+ */
+.gi-acts {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--space-2);
+}
+
+.gi-win .avm-col > .gi-acts {
+	flex: none;
+	padding: var(--space-6) var(--space-10);
+	border-top: 1px solid var(--color-divider);
+}
+
+/* „Ablehnen" traegt --color-danger als SCHRIFT, nicht als Fuellung: ein rot gefuellter Knopf in
+   einer Ansicht, deren Haupthandlung im Fuss steht, zoege den Blick auf den Ausgang statt auf die
+   Arbeit. Der Rahmen kommt aus dem weichen Rot-Token, damit er sich vom Nachbarn abhebt. */
+.gi-win .btn--danger {
+	color: var(--color-danger);
+	border-color: var(--color-danger-soft-border);
+}
+
+/* Der ERLEDIGT-Zustand: alle Items dieses Knopfes sind angehakt. 🔴 Der Zustand steht IM Knopf --
+   „Namen ersetzen (1) ✓" --, nicht in einer Zeile daneben. Gruen ist hier DATEN (erledigt), nicht
+   Chrome; dieselbe weiche Erfolgs-Familie wie ueberall im Haus. */
+.gi-win .btn--done {
+	background: var(--color-success-soft);
+	border-color: var(--color-success-soft-border);
+	color: var(--color-success-soft-text);
+	font-weight: var(--font-weight-bold);
+}
+
+/* 💣 Ein ausgegrauter Knopf muss sagen, WARUM -- und zwar sichtbar. Ein `title` allein erscheint
+   nur, wer mit dem Zeiger darauf verweilt, und am Telefon nie. Die Zeile bricht als Flex-Kind mit
+   `flex: 1 0 100%` auf eine eigene Zeile um. */
+.gi-acts__grund {
+	flex: 1 0 100%;
+	margin: var(--space-2) 0 0;
+	max-width: none;
+	overflow-wrap: anywhere;
+	font-size: var(--font-size-caption);
+	color: var(--color-text-muted);
+}
+
+.gi-acts__grund span { display: block; }

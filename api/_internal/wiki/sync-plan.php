@@ -650,14 +650,45 @@ function avesmapsSyncPlanRecordSkip(PDO $pdo, string $kind, string $entityKey, i
 /**
  * "Keep it", permanently. The deletion is never proposed again -- but the row stays a WIKI row
  * (design §2), so everything else about it carries on being maintained.
+ *
+ * 🔴 RULING R10 (28.08.2026): der `change_type` stand hier FEST VERDRAHTET auf 'deleted', und das
+ * machte einen ganzen Reiter unerreichbar. Der Garetien-Importer erzeugt keine Loeschungen -- seine
+ * Zeilen sind 'new' und 'changed' --, eine Ablehnung landete also auf einem Schluessel, den sein
+ * Lesepfad nie abfragt (api/_internal/import/garetien-liste.php liest `declined_at` je
+ * (entity_key, change_type)). Der Reiter „Abgelehnt" konnte deshalb NIE belegt werden.
+ *
+ * 💣 DIE VORGABE 'deleted' IST TRAGEND. Fuenf andere Arten rufen diese Funktion ohne fuenftes
+ * Argument -- nachzuzaehlen mit
+ *     git grep -n "avesmapsSyncPlanRecordDecline(" -- api tools
+ * (die Definition und der Zaehltest in territory-plan-test.php gehoeren nicht dazu). Ein
+ * Pflichtparameter braeche sie alle, und eine ANDERE Vorgabe verschoebe ihre Entscheidungen
+ * lautlos auf einen Schluessel, den ihr eigener Lesepfad nicht abfragt.
+ *
+ * ⚠️ ZWEI NACHBARN BLEIBEN ABSICHTLICH AUF 'deleted':
+ *   · avesmapsSyncPlanDeclinedKeys unterdrueckt das Wiedervorschlagen von LOESCHUNGEN. Eine
+ *     abgelehnte Garetien-Zeile soll wiederkommen, wenn die Quelle sich aendert.
+ *   · avesmapsSyncPlanClearSkip loescht die 'changed'-Zeile beim Anwenden GANZ -- also auch eine
+ *     dort stehende Ablehnung. Das ist richtig: wer ein abgelehntes Objekt doch uebernimmt, hebt
+ *     seine Ablehnung damit auf. 🪤 Es sieht beim Lesen wie ein Fehler aus; deshalb steht der
+ *     Grund hier.
  */
-function avesmapsSyncPlanRecordDecline(PDO $pdo, string $kind, string $entityKey, int $userId): void
-{
+function avesmapsSyncPlanRecordDecline(
+    PDO $pdo,
+    string $kind,
+    string $entityKey,
+    int $userId,
+    string $changeType = 'deleted'
+): void {
     $pdo->prepare(
-        "INSERT INTO sync_decision (kind, entity_key, change_type, declined_at, declined_by)
-         VALUES (:k, :ek, 'deleted', UTC_TIMESTAMP(3), :by)
-         ON DUPLICATE KEY UPDATE declined_at = UTC_TIMESTAMP(3), declined_by = VALUES(declined_by)"
-    )->execute(['k' => $kind, 'ek' => $entityKey, 'by' => $userId > 0 ? $userId : null]);
+        'INSERT INTO sync_decision (kind, entity_key, change_type, declined_at, declined_by)
+         VALUES (:k, :ek, :ct, UTC_TIMESTAMP(3), :by)
+         ON DUPLICATE KEY UPDATE declined_at = UTC_TIMESTAMP(3), declined_by = VALUES(declined_by)'
+    )->execute([
+        'k' => $kind,
+        'ek' => $entityKey,
+        'ct' => $changeType,
+        'by' => $userId > 0 ? $userId : null,
+    ]);
 }
 
 /**
@@ -687,9 +718,23 @@ function avesmapsSyncPlanDeclinedList(PDO $pdo, string $kind, int $limit): array
     return $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
 }
 
-/** Take a decline back: the deletion will be proposed again on the next run. */
-function avesmapsSyncPlanUndecline(PDO $pdo, string $kind, array $entityKeys): int
-{
+/**
+ * Take a decline back: the deletion will be proposed again on the next run.
+ *
+ * 🔴 Der `$changeType` kam am 28.08.2026 mit derselben Vorgabe und aus demselben Grund dazu wie bei
+ * avesmapsSyncPlanRecordDecline (Ruling R10): eine Ablehnung, die auf 'changed'/'new' geschrieben
+ * wurde, laesst sich sonst NICHT zuruecknehmen -- „Wieder vorschlagen" waere ein Knopf, der nichts
+ * tut, und eine Ablehnung ohne Rueckweg ist ein schwarzes Loch (Entwurf §5).
+ * 💣 Die Vorgabe 'deleted' ist tragend: der einzige heutige Aufrufer (der `undecline`-Zweig von
+ * api/edit/wiki/sync-plan.php, Pfad `entity_keys`) bedient die Loeschungs-Vorschau und ruft ohne
+ * viertes Argument.
+ */
+function avesmapsSyncPlanUndecline(
+    PDO $pdo,
+    string $kind,
+    array $entityKeys,
+    string $changeType = 'deleted'
+): int {
     $clean = [];
     foreach ($entityKeys as $key) {
         $value = trim((string) $key);
@@ -702,9 +747,57 @@ function avesmapsSyncPlanUndecline(PDO $pdo, string $kind, array $entityKeys): i
     }
     $placeholders = implode(',', array_fill(0, count($clean), '?'));
     $stmt = $pdo->prepare(
-        "DELETE FROM sync_decision WHERE kind = ? AND change_type = 'deleted' AND entity_key IN (" . $placeholders . ')'
+        'DELETE FROM sync_decision WHERE kind = ? AND change_type = ? AND entity_key IN (' . $placeholders . ')'
     );
-    $stmt->execute(array_merge([$kind], $clean));
+    $stmt->execute(array_merge([$kind, $changeType], $clean));
 
     return $stmt->rowCount();
+}
+
+/**
+ * Die Entscheidungs-Ziele hinter einer Liste von Plan-Zeilen: (entity_key, change_type) je id.
+ *
+ * 🔴 DIE OBERFLAECHE SCHICKT ZEILEN-IDs, NIE SCHLUESSEL. Ein `entity_key` ist ein Interna des
+ * Planbaus -- beim Garetien-Import traegt er Abschnitt UND Anlass (garetien-plan.php,
+ * `<objekt>|<anlass>|<public_id>`) --, und `change_type` muesste der Browser dann auch noch
+ * mitfuehren. Beides durch den Browser reisen zu lassen waere eine zweite Fassung derselben
+ * Bildung; die id hat er ohnehin schon.
+ *
+ * 💣 Gefiltert wird auf den LAUF. Ohne `run_id` im WHERE koennte eine fremde id aus einem anderen
+ * Lauf (oder einer anderen `kind`) eine Entscheidung schreiben, die niemand angefordert hat.
+ * 💣 Entdoppelt: mehrere Zeilen koennen sich denselben (entity_key, change_type) teilen, und die
+ * Aufrufer zaehlen ihre Rueckgabe.
+ *
+ * @param list<int|string> $ids
+ * @return list<array{entity_key:string, change_type:string}>
+ */
+function avesmapsSyncPlanDecisionTargetsForItems(PDO $pdo, int $runId, array $ids): array
+{
+    $clean = [];
+    foreach ($ids as $id) {
+        $value = (int) $id;
+        if ($value > 0) {
+            $clean[$value] = $value;
+        }
+    }
+    if ($runId <= 0 || $clean === []) {
+        return [];
+    }
+    $placeholders = implode(',', array_fill(0, count($clean), '?'));
+    $stmt = $pdo->prepare(
+        'SELECT entity_key, change_type FROM sync_plan_item'
+        . ' WHERE run_id = ? AND id IN (' . $placeholders . ')'
+    );
+    $stmt->execute(array_merge([$runId], array_values($clean)));
+
+    $ziele = [];
+    foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) ?: [] as $zeile) {
+        $schluessel = avesmapsSyncPlanDecisionKey((string) $zeile['entity_key'], (string) $zeile['change_type']);
+        $ziele[$schluessel] = [
+            'entity_key' => (string) $zeile['entity_key'],
+            'change_type' => (string) $zeile['change_type'],
+        ];
+    }
+
+    return array_values($ziele);
 }

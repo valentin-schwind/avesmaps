@@ -310,15 +310,79 @@ try {
             avesmapsJsonResponse(200, ['ok' => true, 'declined' => $list]);
             // no break -- avesmapsJsonResponse exits.
 
+        case 'decline':
+            // 🔴 DIE EINZIGE TUER, DURCH DIE EINE ABLEHNUNG SOFORT GESCHRIEBEN WIRD -- und der
+            // Garetien-Importer ist die erste Art, die sie braucht. Die uebrigen Arten kennen die
+            // Ablehnung nur als NEBENPRODUKT der Uebernahme (eine nicht angehakte LOESCHUNG, siehe
+            // avesmapsCitymapApplyFinish). Dieser Import erzeugt keine Loeschungen: seine Zeilen
+            // sind 'new' und 'changed'. Ohne diesen Ausgang gaebe es fuer „Ablehnen" keinen Weg
+            // und der Reiter „Abgelehnt" bliebe leer (Ruling R10).
+            //
+            // 💣 KEIN ZWEITER ENDPUNKT. Hier haengen Rechteriegel, CORS, JSON und der Kind-Riegel
+            // -- eine eigene Tuer daneben waere die zweite Fassung von all dem.
+            $runId = (int) ($payload['run_id'] ?? 0);
+            $run = $runId > 0 ? avesmapsSyncPlanRunById($pdo, $runId) : null;
+            if ($run === null || (string) $run['kind'] !== $kind) {
+                avesmapsErrorResponse(404, 'not_found', 'This plan does not exist.');
+            }
+            if ((string) $run['state'] !== 'open') {
+                // Die Entscheidungen eines uebernommenen Laufs sind Geschichte, kein Bedienelement.
+                avesmapsErrorResponse(409, 'plan_not_open', 'This plan can no longer be changed.');
+            }
+            $ids = isset($payload['ids']) && is_array($payload['ids'])
+                ? array_slice($payload['ids'], 0, AVESMAPS_SYNC_PLAN_CATEGORY_LIMIT)
+                : [];
+            avesmapsEnsureSyncPlanTables($pdo);
+            $ziele = avesmapsSyncPlanDecisionTargetsForItems($pdo, $runId, $ids);
+            foreach ($ziele as $ziel) {
+                avesmapsSyncPlanRecordDecline($pdo, $kind, $ziel['entity_key'], $userId, $ziel['change_type']);
+            }
+            // 💣 EINE ABGELEHNTE ZEILE WIRD AUCH ABGEHAKT, und das ist keine Bequemlichkeit: der
+            // Lesepfad stellt „abgelehnt" VOR „vorgemerkt" (garetien-liste.php), die Zeile saehe
+            // also abgelehnt aus -- und `apply` schriebe sie trotzdem, weil `selected` in der
+            // Datenbank entscheidet, nicht der Reiter. Genau der Fall „ein Knopf, der schreibt,
+            // bevor der Editor es will".
+            $abgehakt = avesmapsSyncPlanSetSelection($pdo, $runId, $ids, null, 0);
+
+            avesmapsJsonResponse(200, [
+                'ok' => true,
+                'declined' => count($ziele),
+                'unselected' => $abgehakt,
+            ]);
+            // no break -- avesmapsJsonResponse exits.
+
         case 'undecline':
+            // ZWEI Eingaenge, und das ist die Obergrenze:
+            //   `entity_keys` -- die Loeschungs-Vorschau, unveraendert seit Sitzung 1.
+            //   `ids` + `run_id` -- eine Zeile des offenen Laufs, deren change_type der Server
+            //                       nachschlaegt (dieselbe Naht wie bei 'decline' darueber).
             $keys = isset($payload['entity_keys']) && is_array($payload['entity_keys'])
                 ? $payload['entity_keys']
                 : [];
             avesmapsEnsureSyncPlanTables($pdo);
-            avesmapsJsonResponse(200, [
-                'ok' => true,
-                'cleared' => avesmapsSyncPlanUndecline($pdo, $kind, $keys),
-            ]);
+            $geloescht = avesmapsSyncPlanUndecline($pdo, $kind, $keys);
+
+            $ids = isset($payload['ids']) && is_array($payload['ids'])
+                ? array_slice($payload['ids'], 0, AVESMAPS_SYNC_PLAN_CATEGORY_LIMIT)
+                : [];
+            $runId = (int) ($payload['run_id'] ?? 0);
+            if ($ids !== [] && $runId > 0) {
+                $run = avesmapsSyncPlanRunById($pdo, $runId);
+                if ($run === null || (string) $run['kind'] !== $kind) {
+                    avesmapsErrorResponse(404, 'not_found', 'This plan does not exist.');
+                }
+                // ⚠️ Nach `change_type` gebuendelt: die Zeilen EINES Objekts koennen 'new' und
+                // 'changed' mischen, und der Schluessel der Entscheidung traegt beides.
+                $nachArt = [];
+                foreach (avesmapsSyncPlanDecisionTargetsForItems($pdo, $runId, $ids) as $ziel) {
+                    $nachArt[$ziel['change_type']][] = $ziel['entity_key'];
+                }
+                foreach ($nachArt as $art => $artKeys) {
+                    $geloescht += avesmapsSyncPlanUndecline($pdo, $kind, $artKeys, (string) $art);
+                }
+            }
+
+            avesmapsJsonResponse(200, ['ok' => true, 'cleared' => $geloescht]);
             // no break -- avesmapsJsonResponse exits.
 
         default:

@@ -66,6 +66,18 @@ assert(isset($nachName['Gardel']), 'Gardel fehlt in der Liste');
 assert($nachName['Gardel']['urteil'] === 'neu', 'der Gardel ist ein einfacher Neuzugang: ' . $nachName['Gardel']['urteil']);
 $pruefungen += 9;
 
+// --- 🔴 Der `change_type` reist je Item mit (Aufgabe 15). Ohne ihn findet die Knopfleiste der
+// Einzelansicht keine einzige `new`-Zeile, und „Neu einfuegen" waere bei jedem Neuzugang und
+// jedem Zweifel dauerhaft ausgegraut -- also bei 231 + 32 der 289 Objekte der Stufe 1.
+// ⚠️ Gemessen wird an BEIDEN Werten, nicht nur an der Anwesenheit des Schluessels: der Gardel ist
+// ein Neuzugang ('new'), die Items der Alke sind Aenderungen ('changed'). Ein Feld, das ueberall
+// dasselbe stuende, waere von einer festen Zeichenkette nicht zu unterscheiden.
+assert(array_column($nachName['Gardel']['items'], 'change_type') === ['new'],
+    'ein Neuzugang traegt change_type "new"');
+assert(array_unique(array_column($nachName['Alke']['items'], 'change_type')) === ['changed'],
+    'die Ergaenzungs- und Geometrie-Items der Alke tragen "changed"');
+$pruefungen += 2;
+
 // --- Der Filter greift SERVERSEITIG -- der Browser rechnet nichts nach.
 $nurNeu = avesmapsGaretienArbeitsliste($pdo, 1, ['urteil' => ['neu']]);
 foreach ($nurNeu['objekte'] as $o) {

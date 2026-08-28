@@ -33,6 +33,16 @@
 	// auseinander, sobald sie jemand verschiebt.
 	const GARETIEN_ENDPUNKT = "/api/edit/map/garetien-import.php";
 
+	// Die SCHREIBENDE Adresse (Aufgabe 15/16) -- die vorhandene Übernahme-Tür, mit `kind:'garetien'`.
+	// 🔴 EINE TÜR. `api/edit/map/garetien-import.php` hat bewusst kein `apply`; an dieser hier hängen
+	// Rechteriegel, Einzelflug-Sperre, zweite Bestätigung, Häppchen und Protokoll. Ein zweiter
+	// Schreibweg wäre die zweite Fassung von all dem.
+	const GARETIEN_PLAN_ENDPUNKT = "/api/edit/wiki/sync-plan.php";
+
+	// Die `kind`-Kennung dieses Imports in sync_plan_run/-item/sync_decision. Sie steht hier EINMAL;
+	// serverseitig heißt sie AVESMAPS_GARETIEN_PLAN_KIND.
+	const GARETIEN_PLAN_ART = "garetien";
+
 	// ---- der Rechte-Riegel (unter Test in js/review/__tests__/garetien-fenster-huelle.test.js) ---
 	//
 	// 🔴 Fällt GESCHLOSSEN aus: bis die Auskunft da ist — und für immer, wenn sie nie kommt —
@@ -279,7 +289,16 @@
 	// selben Klick anzuhaken. Wer das zum Mockup "korrigiert", bricht Aufgabe 13 im selben Zug.
 	function garetienZeileMarkup(objekt) {
 		const o = objekt || {};
-		const checkboxZustand = avesmapsGaretienCheckboxZustand(o);
+		// 💣 DAS ZEILENHÄKCHEN ZEIGT GENAU DAS, WAS SEIN EIGENER KLICK BEWEGT (Aufgabe 15):
+		// garetienHakenItems, also alles AUSSER dem Geometrie-Item. Zählte das mit, könnte das
+		// Häkchen der Alke NIE voll werden (1 von 2 -- sie trägt ein vorangehaktes Lücken-Item und
+		// ein ungehaktes Geometrie-Item), und ein Klick auf die Zeile merkte lautlos einen
+		// Geometrie-Ersatz vor -- genau die Handlung, die dieses Werkzeug hinter eine Rückfrage
+		// stellt. Ein Häkchen, dessen Anzeige und dessen Klick verschiedene Mengen meinen, ist die
+		// teuerste Art von Bedienelement.
+		// ⚠️ Das Leuchten (✦) zählt weiter ALLE Items -- avesmapsGaretienHatAuswahl ist unberührt:
+		// ein vorgemerkter Geometrie-Ersatz IST eine Vormerkung und gehört auf die Karte.
+		const checkboxZustand = avesmapsGaretienCheckboxZustand({ items: garetienHakenItems(o) });
 		const leuchtet = avesmapsGaretienHatAuswahl(o);
 		const urteilInfo = avesmapsGaretienUrteilInfo(o.urteil);
 
@@ -434,6 +453,11 @@
 		const listeEl = document.getElementById("garetien-list");
 		if (listeEl) {
 			listeEl.addEventListener("click", function (ereignis) {
+				// Aufgabe 15: das HÄKCHEN zuerst -- garetienListeKlick steigt bei einem Häkchen
+				// ohnehin aus (die Zeile öffnet die Ansicht, das Häkchen nicht), aber die
+				// Reihenfolge sagt, welcher der beiden den Klick beanspruchen darf.
+				garetienHakenKlick(ereignis, zustand.objekte, zustand.planRunId,
+					avesmapsGaretienHandlungSenden);
 				garetienListeKlick(ereignis, zustand.objekte);
 			});
 		}
@@ -545,6 +569,16 @@
 		return avesmapsGaretienRufe(GARETIEN_ENDPUNKT, rumpf).then(function (antwort) {
 			zustand.objekte = antwort.objekte || [];
 			zustand.letzteAntwort = antwort;
+			// 💣 HIER, nicht nur in garetienLaufStarten (Aufgabe 12b). Wer das Fenster auf einem
+			// BESTEHENDEN Lauf öffnet, hat nie „Holen & Rechnen" gedrückt -- `planRunId` bliebe
+			// `null`, und jede Handlung aus Aufgabe 15 ginge mit `run_id: null` hinaus und käme als
+			// 404 `not_found` zurück. Die Zahl steht in JEDER Listenantwort (`plan_run_id`,
+			// api/_internal/import/garetien-liste.php); sie hier zu übernehmen kostet eine Zeile.
+			// ⚠️ Der SERVER ist die Wahrheit, auch nach unten: eine zurückbehaltene alte Lauf-Nummer
+			// zeigte nach einem neuen „Holen & Rechnen" auf einen zurückgezogenen Lauf, und der
+			// antwortet mit 409 `plan_not_open` -- eine Fehlermeldung für einen Knopf, der richtig
+			// gedrückt wurde.
+			zustand.planRunId = Number(antwort.plan_run_id) || null;
 			avesmapsGaretienListeRendern(antwort);
 			// Fenster liest §14 defensiv: verschwindet, sobald KarteZeigen (Aufgabe 14) existiert.
 			if (typeof window !== "undefined" && typeof window.avesmapsGaretienKarteZeigen === "function") {
@@ -1307,7 +1341,11 @@
 		const klassen = "gi-seg" + (lage === "nichts" ? " is-full" : "")
 			+ (lage === "ueberschreiben" ? " is-overwrite" : "");
 		const tag = lage === "nichts" ? "span" : "label";
-		return "<" + tag + ' class="' + klassen + '" data-seg="' + avesmapsGaretienEscape(publicId) + '">'
+		// 🔴 Die Zeile trägt ihren `data-key` SELBST (Aufgabe 15) -- dieselbe Bauform wie „✦ Auf der
+		// Karte zeigen". Der Klickverteiler des Häkchens findet sein Objekt damit ohne
+		// `zustand.detailKey`, also ohne eine zweite Buchführung darüber, welche Ansicht offen ist.
+		return "<" + tag + ' class="' + klassen + '" data-seg="' + avesmapsGaretienEscape(publicId) + '"'
+			+ ' data-key="' + avesmapsGaretienEscape((objekt && objekt.key) || "") + '">'
 			+ '<input type="checkbox"' + hakenAttribute + ">"
 			+ nameMarkup
 			+ '<span class="gi-seg__gap">'
@@ -1469,8 +1507,309 @@
 		const warum = grund === "" ? "" : '<p class="gi-sec">Der Grund</p><p class="gi-why">'
 			+ avesmapsGaretienEscape(grund) + "</p>";
 
+		// 🔴 Die Handlungsleiste ist ein GESCHWISTER der rollenden Ansicht, kein Kind (Aufgabe 15,
+		// Mockup §3): `.avm-col` ist eine Flexspalte, `.gi-detail` rollt darin, und `.gi-acts`
+		// steht als `flex: none` darunter fest. Läge sie IM Rollkasten, stünde die Entscheidung bei
+		// 13 Abschnitten hinter der Bildlaufleiste.
 		return '<div class="gi-detail">' + kopf + mitte + warum
-			+ garetienQuellenMarkup(objekt) + "</div>";
+			+ garetienQuellenMarkup(objekt) + "</div>"
+			+ garetienHandlungsMarkup(objekt);
+	}
+
+	// ---- Aufgabe 15: die vier Handlungen ----------------------------------------------------------
+	//
+	// 🔴 „NEU EINFÜGEN" ERSCHEINT NUR, WO BEI UNS NICHTS LIEGT -- UND DAS URTEIL ENTSCHEIDET, NICHT
+	// DIE NACHBARSCHAFT. Der Zufluss liegt auf seinem Hauptfluss und ist trotzdem `new`; 34 der 37
+	// Widersprüche sind genau dieser Fall. Wer statt des Urteils fragt „liegt was in der Nähe",
+	// bietet dort „Ersetzen" an -- und ein pauschales Ersetzen ersetzte die Natter durch ihren
+	// Seitenarm: mit gültiger id und ohne Fehlermeldung.
+	//
+	// 🔴 REIN GERECHNET, DANN VERDRAHTET. garetienHandlungen(objekt) baut die Knopfleiste aus einer
+	// Tafel, garetienHandlungsRumpf den Rumpf, der an die eine Tür geht -- beide ohne DOM und ohne
+	// fetch. Nur so lässt sich am ERGEBNIS messen, welcher Knopf welche Items anhakt; eine
+	// Zusicherung, die bloß behauptet, im Quelltext stehe ein `if`, wäre Vakuum.
+	//
+	// 🔴 ES WIRD NICHTS GESCHRIEBEN. Jede dieser Handlungen setzt ein Häkchen oder einen
+	// Ablehnungsvermerk. In die Karte kommt erst „Angehakte übernehmen" (Aufgabe 16).
+
+	// 🔴 Die Tafel aus dem Brief, Zeile für Zeile. Ein UNBEKANNTES Urteil bekommt nur „Ablehnen" --
+	// die zurückhaltende Richtung: für ein Urteil, das dieser Code nicht kennt, wird keine
+	// schreibende Handlung angeboten.
+	const AVESMAPS_GARETIEN_HANDLUNGEN_JE_URTEIL = {
+		neu: ["neu", "ablehnen"],
+		// Der Nachbar ist der Hauptfluss, ihr Objekt der Seitenarm: ein NEUES Objekt, kein Ersatz.
+		zweifel: ["neu", "ablehnen"],
+		ergaenzung: ["name", "quelle", "geometrie", "ablehnen"],
+		// Ihr Artikel trifft, ihre Geometrie nicht -- die Geometriefrage steht vorn.
+		widerspruch: ["geometrie", "name", "ablehnen"],
+		deckt_sich: ["ablehnen"],
+		uebersprungen: ["ablehnen"],
+	};
+
+	const AVESMAPS_GARETIEN_HANDLUNG_BESCHRIFTUNG = {
+		neu: "Neu einfügen",
+		name: "Namen ersetzen",
+		quelle: "Nur Quelle + Artikel",
+		geometrie: "Geometrie ersetzen …",
+		ablehnen: "Ablehnen",
+		wieder: "Wieder vorschlagen",
+	};
+
+	// Die zwei Knöpfe, die ihre Zahl im Namen tragen. 🔴 „(n)" ist die Zahl der schon ANGEHAKTEN
+	// Items dieses Knopfes, nicht die der möglichen -- so das Mockup §6d, wo „Namen ersetzen (0)"
+	// neben „Nur Quelle + Artikel (6) ✓" steht, obwohl beide dieselben sechs Abschnitte betreffen
+	// (die Umbenennungen starten ungehakt, die Quellen vorangehakt). Der Zustand steht damit IM
+	// Knopf und nicht daneben.
+	const AVESMAPS_GARETIEN_HANDLUNG_MIT_ZAHL = { name: true, quelle: true };
+
+	// 💣 Die Knöpfe, die ein HÄKCHEN setzen -- und nur die dürfen „erledigt" (grün + ✓) werden.
+	// In der Abnahme im Browser trug „Ablehnen" ein ✓ und den grünen Grund, sobald zufällig alle
+	// Items angehakt waren: es las sich als „schon abgelehnt", während in Wahrheit das Gegenteil
+	// galt (alles vorgemerkt). „Erledigt" heißt hier ausschließlich „die Items DIESES Knopfes sind
+	// vorgemerkt" -- eine Ablehnung merkt nichts vor, sie hat gar keinen erledigten Zustand.
+	const AVESMAPS_GARETIEN_HANDLUNG_HAKT_AN = {
+		neu: true, name: true, quelle: true, geometrie: true,
+	};
+
+	function garetienItemAnlass(item) {
+		return String((item && item.anlass) || "");
+	}
+
+	function garetienItemSchreibt(item, feld) {
+		return ((item && item.felder) || []).indexOf(feld) !== -1;
+	}
+
+	// REIN: die Items, die ein HÄKCHEN bewegen darf -- alles außer dem Geometrie-Item.
+	// 💣 Das Geometrie-Item hat seinen eigenen Knopf mit Rückfrage und darf nie über ein Häkchen
+	// gesetzt werden: ein Klick auf eine Listenzeile merkte sonst lautlos einen Geometrie-Ersatz
+	// vor. Dieselbe Grenze zieht garetienAbschnittsItems für die Abschnittszeile -- beide Häkchen
+	// meinen also dieselbe Menge.
+	function garetienHakenItems(objekt) {
+		return ((objekt && objekt.items) || []).filter(function (item) {
+			return garetienItemAnlass(item) !== "geometrie";
+		});
+	}
+
+	// Welche Items gehören zu welchem Knopf?
+	//
+	// 🔴 UNTERSCHIEDEN WIRD AN DER NAMENSSPALTE, nicht am Anlass: „Nur Quelle + Artikel" ist
+	// „dieselbe Handlung wie Namen ersetzen, nur mit abgewählter Namensspalte" (Brief). Ein
+	// Lücken-Item trägt bei uns `felder: ['name','quelle']` -- am Anlass ('ergaenzung') gemessen
+	// landete es unter „Nur Quelle", und der Knopf schriebe den Namen mit, den sein eigener Name
+	// ausschließt. Am `felder` gemessen kommen die zwei Beispiele des Mockups genau so heraus, wie
+	// sie dort stehen: die Alke „Namen ersetzen (1) ✓", die Angbarer Reichsstraße
+	// „Namen ersetzen (0)" + „Nur Quelle + Artikel (6) ✓".
+	// ⚠️ `change_type` reist seit dem 28.08.2026 je Item mit (garetien-liste.php). Fehlt es (eine
+	// ältere Antwort), findet „Neu einfügen" nichts und graut sich mit Grund aus -- die sichere
+	// Richtung.
+	const AVESMAPS_GARETIEN_ITEMS_JE_HANDLUNG = {
+		neu: function (item) { return String((item && item.change_type) || "") === "new"; },
+		name: function (item) { return garetienItemSchreibt(item, "name"); },
+		quelle: function (item) {
+			return garetienItemSchreibt(item, "quelle") && !garetienItemSchreibt(item, "name");
+		},
+		geometrie: function (item) { return garetienItemAnlass(item) === "geometrie"; },
+		ablehnen: function () { return true; },
+		wieder: function () { return true; },
+	};
+
+	// REIN: warum ein Knopf ausgegraut ist -- "" heißt „er ist bedienbar".
+	// 💣 Ein ausgegrauter Knopf muss sagen, warum. Ein Knopf ohne Grund ist von einem kaputten
+	// Knopf nicht zu unterscheiden.
+	function garetienHandlungGrund(name, objekt, items) {
+		const abschnitte = (objekt && objekt.abschnitte) || [];
+		if (name === "geometrie") {
+			// 💣 DIE ZAHL DER ABSCHNITTE ENTSCHEIDET, nicht das Vorhandensein eines Items:
+			// garetien-plan.php legt das Geometrie-Item NUR bei genau EINEM getroffenen Abschnitt
+			// an, weil „ersetze die Geometrie" bei mehreren kein wohldefiniertes Ziel hat -- ihre
+			// Natter trifft fünf.
+			if (abschnitte.length === 0) {
+				return "der Abgleich hat keinen Abschnitt von uns getroffen — es gibt hier keine "
+					+ "Geometrie zu ersetzen";
+			}
+			if (abschnitte.length !== 1) {
+				return "ihr Objekt trifft "
+					+ garetienAnzahlText(abschnitte.length, "Abschnitt", "Abschnitte")
+					+ " von uns — „Geometrie ersetzen\" hätte dann kein Ziel";
+			}
+			return items.length === 0
+				? "dieser Lauf trägt keinen Geometrie-Vorschlag für diesen Abschnitt"
+				: "";
+		}
+		if (items.length > 0) { return ""; }
+		if (name === "neu") {
+			return "dieser Lauf trägt für dieses Objekt keinen Vorschlag „neu anlegen\"";
+		}
+		if (name === "name") {
+			return "an keinem getroffenen Abschnitt würde ein Name geschrieben";
+		}
+		if (name === "quelle") {
+			return "kein Abschnitt, an dem sich Quelle und Artikel OHNE den Namen ergänzen ließen";
+		}
+		// 🔧 „Ablehnen" ohne ein einziges Item: „deckt sich" und „übersprungen" erzeugen keinen
+		// sync_plan_item, und ohne Item gibt es nichts, worauf eine Ablehnung zeigen könnte -- der
+		// Bearbeitungsstand solcher Zeilen kommt gar nicht aus `sync_decision`
+		// (garetien-liste.php gibt ihnen fest `'offen'`). Ein Knopf, der schreibt und nichts
+		// bewirkt, ist schlimmer als ein ausgegrauter, der sagt warum. Das ist die andere Hälfte
+		// von Ruling R10 („Offen kann nie 0 werden"); sie ist eine Entscheidung des Owners und
+		// steht offen -- hier wird deshalb nichts erfunden, sondern benannt.
+		return "dieses Objekt hat gar keinen Vorschlag — es steht in der Liste, damit die Zahl "
+			+ "nachprüfbar bleibt";
+	}
+
+	// REIN: EIN Knopf, mit seinen Items, seiner Zahl und seinem Grund.
+	function garetienHandlungBauen(name, objekt) {
+		const passt = AVESMAPS_GARETIEN_ITEMS_JE_HANDLUNG[name]
+			|| function () { return false; };
+		const items = ((objekt && objekt.items) || []).filter(passt);
+		const ids = items
+			.map(function (item) { return Number(item && item.id); })
+			.filter(function (id) { return id > 0; });
+		const angehakt = items.filter(avesmapsGaretienItemIstAngehakt).length;
+		const grund = garetienHandlungGrund(name, objekt, items);
+		let beschriftung = AVESMAPS_GARETIEN_HANDLUNG_BESCHRIFTUNG[name] || name;
+		if (AVESMAPS_GARETIEN_HANDLUNG_MIT_ZAHL[name]) {
+			beschriftung += " (" + angehakt + ")";
+		}
+
+		return {
+			name: name,
+			beschriftung: beschriftung,
+			// 🔴 „Ablehnen" trägt --color-danger als SCHRIFT, nie als Füllung: die eine gefüllte
+			// Handlung dieses Fensters heißt „Angehakte übernehmen" und steht im Fuß. Eine
+			// Zeilenhandlung ist nie die Haupthandlung der Seite (AGENTS.md §12).
+			ton: name === "ablehnen" ? "danger" : "",
+			ids: ids,
+			angehakt: angehakt,
+			gesamt: items.length,
+			erledigt: AVESMAPS_GARETIEN_HANDLUNG_HAKT_AN[name] === true
+				&& items.length > 0 && angehakt === items.length,
+			disabled: grund !== "",
+			grund: grund,
+		};
+	}
+
+	// REIN: die ganze Knopfleiste EINES Objekts.
+	function garetienHandlungen(objekt) {
+		const o = objekt || {};
+		// 🔴 Eine abgelehnte Zeile hat GENAU EINEN Ausgang zurück. Alles andere daneben zu zeigen
+		// hieße, an einem Objekt weiterzuarbeiten, das aus dem Arbeitsvorrat heraus ist -- und eine
+		// Ablehnung ohne Rückweg wäre ein schwarzes Loch (Entwurf §5).
+		if (String(o.stand || "") === "abgelehnt") {
+			return [garetienHandlungBauen("wieder", o)];
+		}
+		const namen = AVESMAPS_GARETIEN_HANDLUNGEN_JE_URTEIL[String(o.urteil || "")] || ["ablehnen"];
+		return namen.map(function (name) { return garetienHandlungBauen(name, o); });
+	}
+
+	// REIN: die Rückfrage vor „Geometrie ersetzen" -- sie NENNT DIE FOLGE BEIM NAMEN, statt „Sind
+	// Sie sicher?" zu fragen. Was ersetzt würde, steht darin, und dass jetzt noch nichts geschrieben
+	// wird, auch.
+	function garetienGeometrieRueckfrageText(objekt) {
+		const o = objekt || {};
+		const abschnitt = (o.abschnitte || [])[0] || {};
+		const publicId = String(abschnitt.public_id || "");
+		const unser = String(abschnitt.name || "").trim();
+		const punkte = Array.isArray(o.geometrie) ? o.geometrie.length : 0;
+
+		return "Der Verlauf von "
+			+ (unser === "" ? publicId + " (ohne Namen)" : "„" + unser + "\" (" + publicId + ")")
+			+ " wird beim Übernehmen durch den aus " + garetienWikiLabel(String(o.wiki || ""))
+			+ " ersetzt — " + garetienAnzahlText(punkte, "Stützpunkt", "Stützpunkte") + ".\n\n"
+			+ "Jetzt wird nur vorgemerkt. Geschrieben wird erst mit „Angehakte übernehmen\".";
+	}
+
+	// REIN: der Rumpf, den EIN Knopf an die eine Tür schickt -- oder `null`.
+	function garetienHandlungsRumpf(name, objekt, runId) {
+		const knopf = garetienHandlungen(objekt).filter(function (h) { return h.name === name; })[0];
+		if (!knopf || knopf.disabled || knopf.ids.length === 0) { return null; }
+		if (name === "ablehnen" || name === "wieder") {
+			return {
+				action: name === "ablehnen" ? "decline" : "undecline",
+				kind: GARETIEN_PLAN_ART,
+				run_id: runId,
+				ids: knopf.ids,
+			};
+		}
+		// 💣 NUR DIE GEOMETRIE SCHALTET UM. Sie ist die einzige Handlung ohne eigenes Häkchen --
+		// ohne das Umschalten gäbe es keinen Rückweg, und der Ablauf (Mockup §8) sagt ausdrücklich
+		// „rückgängig: ja". Die übrigen Knöpfe haken nur AN; zurückgenommen wird dort an der
+		// Abschnittszeile, die direkt darüber steht.
+		return {
+			action: "select",
+			kind: GARETIEN_PLAN_ART,
+			run_id: runId,
+			ids: knopf.ids,
+			selected: name === "geometrie" ? !knopf.erledigt : true,
+		};
+	}
+
+	// REIN: welche Items bewegt EIN Häkchen -- und in welche Richtung?
+	// 🔴 Die Richtung kommt aus dem SERVERSTAND (`selected`), nie aus `feld.checked`: der Browser
+	// hat das Kästchen beim Klick schon umgeschaltet, und zwei Buchhaltungen laufen beim ersten
+	// Abbruch auseinander. Dreiwertig (halb angehakt) heißt „alle anhaken" -- die aufbauende
+	// Richtung, wie bei jedem dreiwertigen Häkchen.
+	function garetienHakenPlan(objekt, publicId) {
+		const items = (publicId === null || publicId === undefined || publicId === "")
+			? garetienHakenItems(objekt)
+			: garetienAbschnittsItems(objekt, publicId);
+		const ids = items
+			.map(function (item) { return Number(item && item.id); })
+			.filter(function (id) { return id > 0; });
+		if (ids.length === 0) { return null; }
+
+		return { ids: ids, selected: !items.every(avesmapsGaretienItemIstAngehakt) };
+	}
+
+	function garetienHakenRumpf(objekt, publicId, runId) {
+		const plan = garetienHakenPlan(objekt, publicId);
+		if (!plan) { return null; }
+
+		return {
+			action: "select",
+			kind: GARETIEN_PLAN_ART,
+			run_id: runId,
+			ids: plan.ids,
+			selected: plan.selected,
+		};
+	}
+
+	// REIN: die Knopfleiste als Markup. Sie ist ein GESCHWISTER von `.gi-detail`, nicht ihr Kind --
+	// so hängt sie als `flex: none` am Fuß der Spalte, während die Ansicht darüber rollt.
+	// 🔴 ANGEHEFTET, NICHT IM FLUSS: bei 13 Abschnitten läge die Entscheidung sonst hinter der
+	// Bildlaufleiste.
+	function garetienHandlungsMarkup(objekt) {
+		const knoepfe = garetienHandlungen(objekt);
+		if (knoepfe.length === 0) { return ""; }
+		const schluessel = avesmapsGaretienEscape((objekt && objekt.key) || "");
+		const gruende = [];
+		const knopfMarkup = knoepfe.map(function (k) {
+			let klasse = "btn";
+			if (k.ton === "danger") { klasse += " btn--danger"; }
+			if (k.erledigt) { klasse += " btn--done"; }
+			let attribute = ' class="' + klasse + '" type="button"'
+				+ ' data-handlung="' + avesmapsGaretienEscape(k.name) + '"'
+				+ ' data-key="' + schluessel + '"';
+			if (k.disabled) {
+				attribute += ' disabled title="' + avesmapsGaretienEscape(k.grund) + '"';
+				// ⚠️ Ohne die Auslassungspunkte: „Geometrie ersetzen …: ihr Objekt trifft …" liest
+				// sich wie ein abgebrochener Satz. Das „…" gehört auf den Knopf (es kündigt die
+				// Rückfrage an), nicht in einen Satz über ihn.
+				gruende.push(k.beschriftung.replace(/\s*…$/, "") + ": " + k.grund);
+			}
+			return "<button" + attribute + ">" + avesmapsGaretienEscape(k.beschriftung)
+				+ (k.erledigt ? " ✓" : "") + "</button>";
+		}).join("");
+		// ⚠️ Der Grund steht AUCH sichtbar da, nicht nur im `title`: ein Tooltip erscheint nur, wer
+		// mit dem Zeiger darauf verweilt -- und am Telefon gar nicht.
+		const grundZeile = gruende.length === 0 ? ""
+			: '<p class="gi-acts__grund">'
+				+ gruende.map(function (text) {
+					return "<span>" + avesmapsGaretienEscape(text) + "</span>";
+				}).join("")
+				+ "</p>";
+
+		return '<div class="gi-acts">' + knopfMarkup + grundZeile + "</div>";
 	}
 
 	// ---- Die Auswahl: die ZEILE öffnet die Ansicht, das HÄKCHEN nicht ------------------------------
@@ -1556,6 +1895,78 @@
 		return objekt;
 	}
 
+	// ---- Aufgabe 15: die Verdrahtung --------------------------------------------------------------
+
+	// REIN: das Objekt zu einem Schlüssel.
+	function garetienObjektNach(schluessel, objekte) {
+		if (schluessel === null || schluessel === undefined || schluessel === "") { return null; }
+		return (objekte || []).filter(function (o) {
+			return o && String(o.key) === String(schluessel);
+		})[0] || null;
+	}
+
+	// 🔴 Ereignis, Objektliste, Lauf-Nummer UND die Werkzeuge kommen HEREIN -- derselbe Bau wie
+	// garetienLaufStarten und garetienDetailKlick, aus demselben Grund: nur so lässt sich am
+	// ERGEBNIS messen, WAS hinausgeht und WANN gar nichts hinausgeht.
+	//
+	// 💣 Die Rückfrage steht VOR dem Senden und nur beim ANHAKEN. Eine Vormerkung zurückzunehmen
+	// ist die sichere Richtung und fragt niemanden.
+	function garetienHandlungKlick(ereignis, objekte, runId, senden, fragen) {
+		const ziel = ereignis && ereignis.target;
+		if (!ziel || typeof ziel.closest !== "function") { return null; }
+		const knopf = ziel.closest("[data-handlung]");
+		// ⚠️ `disabled` wird hier NOCH EINMAL geprüft: das Attribut ist die Anzeige, nicht der
+		// Riegel -- dieselbe Trennung wie beim Ebenen-Riegel in garetienLaufStarten.
+		if (!knopf || knopf.disabled) { return null; }
+		const objekt = garetienObjektNach(knopf.getAttribute("data-key"), objekte);
+		if (!objekt) { return null; }
+		const name = knopf.getAttribute("data-handlung");
+		const rumpf = garetienHandlungsRumpf(name, objekt, runId);
+		if (!rumpf) { return null; }
+		if (name === "geometrie" && rumpf.selected === true
+			&& !fragen(garetienGeometrieRueckfrageText(objekt))) {
+			return null;
+		}
+		return senden(rumpf);
+	}
+
+	// Der Häkchen-Wechsel -- für die Listenzeile UND die Abschnittszeile. Beide tragen ihren
+	// `data-key` selbst; die Abschnittszeile zusätzlich ihr `data-seg`.
+	function garetienHakenKlick(ereignis, objekte, runId, senden) {
+		const ziel = ereignis && ereignis.target;
+		if (!ziel || typeof ziel.closest !== "function") { return null; }
+		const feld = ziel.closest('input[type="checkbox"]');
+		if (!feld || feld.disabled) { return null; }
+		const traeger = feld.closest("[data-key]");
+		if (!traeger) { return null; }
+		const objekt = garetienObjektNach(traeger.getAttribute("data-key"), objekte);
+		if (!objekt) { return null; }
+		const rumpf = garetienHakenRumpf(objekt, traeger.getAttribute("data-seg"), runId);
+		if (!rumpf) { return null; }
+		return senden(rumpf);
+	}
+
+	// Der EINE Weg hinaus für jede Handlung: durch die Übernahme-Tür, danach die Liste NEU HOLEN.
+	// 💣 IM BROWSER WIRD NICHTS NACHGERECHNET. Der Server ist die Wahrheit über `selected`; zwei
+	// Buchhaltungen laufen beim ersten Abbruch auseinander, und dann zeigt die Zeile ein Häkchen,
+	// das in der Datenbank nicht steht (oder umgekehrt).
+	// ⚠️ Ein Fehlschlag steht IN der Liste, nicht in der Konsole -- und er ersetzt sie bewusst: nach
+	// einem gescheiterten Schreibvorgang ist die Liste auf dem Schirm ohnehin nicht mehr die
+	// Wahrheit, und der Grund gehört an die Stelle, auf die der Editor gerade sieht. Der nächste
+	// Reiter- oder Filterklick holt sie zurück.
+	function avesmapsGaretienHandlungSenden(rumpf) {
+		return avesmapsGaretienRufe(GARETIEN_PLAN_ENDPUNKT, rumpf)
+			.then(function () { return avesmapsGaretienListeHolen(); })
+			.catch(function (fehler) { garetienListeFehlerZeigen(fehler); return null; });
+	}
+
+	function garetienFragen(text) {
+		return typeof window !== "undefined" && typeof window.confirm === "function"
+			? window.confirm(text)
+			// 🔴 Ohne Rückfragemöglichkeit wird NICHT vorgemerkt. Im Zweifel geschieht nichts.
+			: false;
+	}
+
 	// ---- Verdrahtung + Rechte-Riegel ---------------------------------------------------------------
 
 	function bindFenster() {
@@ -1570,6 +1981,13 @@
 		if (detailEl) {
 			detailEl.addEventListener("click", function (ereignis) {
 				garetienDetailKlick(ereignis, zustand.objekte);
+				// Aufgabe 15: die Abschnitts-Häkchen und die Knopfleiste. Alle drei Verteiler
+				// steigen bei einem fremden Ziel sofort aus -- kein `else if`, das beim vierten
+				// Bedienelement stillschweigend das dritte verdeckt.
+				garetienHakenKlick(ereignis, zustand.objekte, zustand.planRunId,
+					avesmapsGaretienHandlungSenden);
+				garetienHandlungKlick(ereignis, zustand.objekte, zustand.planRunId,
+					avesmapsGaretienHandlungSenden, garetienFragen);
 			});
 		}
 	}
@@ -1683,6 +2101,16 @@
 			// Aufgabe 14
 			avesmapsGaretienFensterSchliessen,
 			garetienDetailKlick,
+			// Aufgabe 15
+			garetienHandlungen,
+			garetienHandlungsRumpf,
+			garetienHandlungsMarkup,
+			garetienHakenItems,
+			garetienHakenPlan,
+			garetienHakenRumpf,
+			garetienGeometrieRueckfrageText,
+			garetienHandlungKlick,
+			garetienHakenKlick,
 		};
 	}
 })();
