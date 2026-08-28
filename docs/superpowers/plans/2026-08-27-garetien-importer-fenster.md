@@ -2384,7 +2384,7 @@ leer, gilt genau das heutige Verhalten. Fällt offen aus, wirft nie.
 
 ---
 
-#### Lücke 2: drei Felder des Mockups reisen nicht mit
+#### Lücke 2: Felder des Mockups reisen nicht mit
 
 `action:'liste'` gibt `after.quelle` nur als `url` weiter (`garetien-liste.php:311`), `after.subtyp`
 und `namensraum:artikel` gar nicht. Folgen in der gebauten Einzelansicht:
@@ -2394,8 +2394,22 @@ und `namensraum:artikel` gar nicht. Folgen in der gebauten Einzelansicht:
 | `after.quelle` (Label, Attribution, Lizenz) | der **ganze Abschnitt „Die Quelle, die mitreist"** — Mockup §3 |
 | `after.subtyp` | der Kopf sagt „Fluss" statt „Fluss → Flussweg", also **nicht, als was wir es anlegen würden** |
 | `namensraum:artikel` | der Link heißt „Wiki-Artikel" statt des echten Artikelnamens |
+| Deckungsgrad je Objekt | die Notiz „**Deckung Median 0,84**" unter der Abschnitts-Überschrift |
+| Punktzahl **unseres** Abschnitts | „9 von **16** Punkten" — heute steht nur der Zähler da |
+| Vergleichsbefund je Abschnitt | „**Name gleich**", „**liegt auf Darpat**" |
 
-- [ ] **Schritt 6: Die drei Felder durchreichen** — additiv, im selben `$objekte[$key]`-Aufbau.
+🪤 **Hier stand zuerst „drei Felder", und es sind sechs.** Der Prüfer der Aufgabe 13 hat die
+übrigen gefunden. Eine Zahl liest sich wie eine vollständige Liste — in diesem Vorhaben war sie
+dreimal falsch. Wer ein siebtes Feld braucht, ergänzt es in **dieser** Tabelle.
+
+⭐ **Der Nenner der Punktzahl wäre schon baubar** — `objekt.geometrie` reist als Koordinatenliste
+mit, `.length` ist ein **Ablesen**, keine zweite Rechnung. Der Zähler („9") kommt dagegen aus dem
+Abgleich und muss mitreisen.
+🔴 **Der Deckungsgrad kommt vom SERVER, nie aus dem Browser.** Er ist das Ergebnis des Abgleichs
+(Auftrag: „keine zweite Rechnung im Browser"), und er ist genau die Zahl, an der ein Editor
+ablesen soll, wie sicher der Treffer ist.
+
+- [ ] **Schritt 6: Die Felder der Tabelle durchreichen** — additiv, im selben `$objekte[$key]`-Aufbau.
       `namensraum:artikel` wird **nicht neu gebildet**: es gibt dafür bereits eine Regel
       (`avesmapsGaretienObjektSchluesselAusZeile` / `…SeitenUrlAusZeile`) — **such sie und benutze
       sie**, sonst steht die Bildung des Schlüssels an zwei Stellen.
