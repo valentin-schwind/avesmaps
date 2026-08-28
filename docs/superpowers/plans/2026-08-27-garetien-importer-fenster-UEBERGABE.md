@@ -1,6 +1,6 @@
 # Übergabe: das Fenster „Garetien Importer"
 
-**Stand:** 2026-08-28, nach Aufgabe 12 · **Vorgänger-Sitzung:** Bau der Aufgaben 1–12
+**Stand:** 2026-08-28, nach Aufgabe 13 · **Vorgänger-Sitzung:** Bau der Aufgaben 1–13
 **Bauplan:** `docs/superpowers/plans/2026-08-27-garetien-importer-fenster.md` — **die Wahrheit**
 **Auftrag:** `docs/superpowers/specs/2026-08-27-garetien-importer-fenster-auftrag.md`
 **Mappingtabelle:** `docs/superpowers/specs/2026-08-27-garetien-typinventar-und-mapping.md`
@@ -13,14 +13,15 @@
 
 | | |
 |---|---|
-| **Fertig und LIVE** | Aufgaben 1–12 — die ganze Serverhälfte, die CSS-Extraktion, der Knopf, die Fensterhülle, die Liste mit Bilanz und Reitern, der Filtertrichter. Gepusht bis `d765978f8` |
-| **In Arbeit** | Aufgabe 12b — das Menüband (die zwei Kacheln). **Erst dadurch zeigt das Fenster überhaupt eine Zeile**, siehe §4 |
-| **Offen** | Aufgaben 13–16 (Einzelansicht · Karte · die vier Handlungen · Übernahme) |
+| **Fertig und LIVE** | Aufgaben 1–13 — die ganze Serverhälfte, die CSS-Extraktion, Knopf, Fensterhülle, Menüband, Liste mit Bilanz und Reitern, Filtertrichter und die **Einzelansicht**. Gepusht bis `2d60f5756` |
+| **In Arbeit** | Aufgabe 13b — der Server liefert, was die Einzelansicht zeigen soll (zwei nachgetragene Lücken, siehe §4) |
+| **Offen** | Aufgaben 14–16 (Karte · die vier Handlungen · Übernahme) |
 
-**Was live funktioniert** (nur über die Browser-Konsole, es gibt noch keine Oberfläche):
-Abruf → Staging → Abgleich → Plan → Übernahme. Der **vierte Ausgang** („wir haben es, aber sie
-wissen mehr") ist gebaut, die **Arbeitsliste** (`action:'liste'`) liefert dem künftigen Fenster
-seine Zeilen.
+**Was live funktioniert:** das Fenster steht und ist bedienbar. Der Knopf „Garetien Importer"
+(nur für Admins) öffnet es, das Menüband holt einen Lauf und rechnet, die Liste zeigt ihn mit
+Bilanz, Reitern und Filter, und ein Klick auf eine Zeile zeigt rechts **ihr Objekt und unsere
+Abschnitte darunter**. Der **vierte Ausgang** („wir haben es, aber sie wissen mehr") ist gebaut.
+Es schreibt noch **nichts** — die Handlungen kommen in Aufgabe 15.
 
 ---
 
@@ -73,30 +74,26 @@ Kurzfassung — **jede ist zurückdrehbar**.
 
 ## 4. Was JETZT ansteht
 
-**Aufgabe 12b — das Menüband.** 🔴 **Eine Lücke des Bauplans**, gemeldet vom Implementierer der
-Aufgaben 11/12 und nachgeprüft: keine einzige Aufgabe baute das Menüband. Aufgabe 10 legt die
-leere Hülle `#garetien-ribbon` an, keine spätere füllt sie. Damit bliebe `zustand.importRunId` für
-immer `null`, `action:'liste'` liefe in `400 no_run`, und **das Fenster könnte nie eine Zeile
-zeigen** — alles, was in den Aufgaben 8–12 gebaut wurde, wäre unerreichbar.
+**Aufgabe 13b — der Server liefert, was die Einzelansicht zeigen soll.** 🔴 **Zwei Lücken,
+gemeldet vom Implementierer der Aufgabe 13 und am Code nachgeprüft.** Beide sitzen auf dem
+Server, nicht im Fenster — und dass er sie **gemeldet statt im Browser umgangen** hat, ist genau
+das Verhalten, das die zweite Wahrheit verhindert, vor der der Auftrag §5.5 warnt.
 
-Zwei Kacheln, Hausform (`.avm-tile` mit `.t1`/`.t2`, der Zustand steht IN der Kachel):
+1. **Ein getroffener Abschnitt OHNE Item erreicht den Browser nie.** `objekte[].abschnitte` wird
+   allein aus `items` gebaut. Das trifft **den Owner-Fall**: ihre „Natter" läuft über unsere
+   Natter, den **Gardel** und den Darpat — der Gardel erzeugt konstruktionsbedingt kein Item und
+   fehlt. Ein dreiteiliger Fall sieht damit zweiteilig aus, und der `is-full`-Zustand aus
+   Aufgabe 13 ist gebaut, getestet und **tot**. Die volle Trefferliste existiert beim Planbau
+   (`$urteil['abschnitte']`) und wird verworfen ⇒ neue Spalte `abschnitte_json MEDIUMTEXT`.
+2. **Sechs Felder des Mockups reisen nicht mit** — darunter der ganze Abschnitt „Die Quelle, die
+   mitreist", der Subtyp („Fluss → Flussweg") und der Deckungsgrad.
 
-| Kachel | zweite Zeile |
-|---|---|
-| **Holen & Rechnen** | welcher Lauf gilt und wie lange sein Rechnen dauerte |
-| **Ebenen** | „2 von 18 · Gewässer ggp + kosch" |
+**Danach:** Aufgabe 14 (Karte: Glow und „Ansicht folgt") · 15 (die vier Handlungen) · 16
+(„Angehakte übernehmen" durch das vorhandene Blatt).
 
-💣 **Die eigentliche Aufgabe ist der Doppelklick-Riegel.** `fetch` über 18 Seiten dauert lange,
-`plan` rechnet 0,35 s je 289 Zeilen. Ein zweiter Klick startet sonst einen zweiten Import-Lauf,
-und dann weiß der Abgleich nicht mehr, was zusammengehört — **Datenschaden, kein Anzeigefehler**.
-Der Riegel gehört an einen Zustand im Modul, nie an eine CSS-Klasse (daran ist in diesem Projekt
-schon zweimal etwas gescheitert, AGENTS.md §11), und er muss im Fehlerfall wieder aufgehen.
-
-**Danach:** Aufgaben 13–16 (Einzelansicht · Karte mit Glow und „Ansicht folgt" · die vier
-Handlungen · „Angehakte übernehmen" durch das vorhandene Blatt).
-
-🔧 **Und in Aufgabe 15/16 fällt die Reparatur aus Ruling R10 an** — ohne sie ist das
-Abschlusskriterium des Auftrags unerreichbar (§3).
+🔧 **In Aufgabe 15 fällt zusätzlich die Reparatur aus Ruling R10 an** — der Server-Einzeiler,
+ohne den der Reiter „Abgelehnt" für immer leer bleibt. Er steht mit Begründung und Messung im
+Bauplan; die **Leseseite ist schon fertig und richtig**.
 
 ## 5. Die Fallen, die dieses Vorhaben schon bezahlt hat
 
@@ -134,6 +131,27 @@ Sie sind der eigentliche Wert dieser Übergabe.
   Aufgabe 11 eine ganz andere Kennzahl als das Mockup (`angehakt.*` statt der Aufschlüsselung nach
   Bearbeitungsstand), und beides sah für sich plausibel aus. ⭐ Beim Bauen eines Mockup-Teils die
   **Mockup-Zeile daneben legen**, nicht aus dem Gedächtnis bauen.
+- 🪤 **Eine Zahl im Kommentar liest sich wie eine vollständige Liste**, und niemand zählt nach.
+  In diesem Vorhaben **viermal** falsch: „vier Aufrufer" (es war einer) · „sieben Arten" (fünf) ·
+  „sechs Trichter" (elf — und der Auftraggeber zählte selbst neun, also drei Versuche, drei
+  Zahlen) · „drei fehlende Felder" (sechs). ⭐ **Die Antwort ist nicht die richtige Zahl, sondern
+  gar keine:** schreib die Zusicherung und wie man sie nachprüft, so wie AGENTS.md §11 es an
+  anderer Stelle längst vorschreibt.
+- 🪤 **`overflow-wrap: break-word` senkt die min-content-Breite eines FLEX-Kindes nicht** (nur
+  `anywhere` und `word-break` tun das), also pinnt `min-width: auto` das Kind. In einem
+  Nicht-Flex-Kasten bricht dasselbe Wort einwandfrei — deshalb sieht die Probe richtig aus.
+  Gemessen: das Typ-Label stand 159 px außerhalb seines Kastens.
+- 🪤 **`hyphens: auto` wirkt in diesem Chrome bei `lang="de"` NICHT** (Höhe mit = ohne, zweimal
+  unabhängig gemessen). Wer einen Umbruch damit erklärt, erklärt ihn falsch — meist bricht in
+  Wahrheit ein **Mehrwortname am Leerzeichen**.
+- 🪤 **Der Größenvergleich live gegen lokal ist auf diesem Rechner WERTLOS**: die Arbeitskopie
+  trägt CRLF, der Server LF, jede Datei ist live um **genau ihre Zeilenzahl** kleiner. Das sieht
+  aus wie ein abgebrochener Deploy und ist keiner. ⭐ Zeilenendenneutral messen:
+  `sed 's/\r$//' datei | md5sum` gegen `curl -s URL | sed 's/\r$//' | md5sum`.
+- 🪤 **Der Bericht eines Bauenden kann eine Probe als bestanden ausweisen, die etwas anderes
+  misst.** Zweimal aufgetreten: eine Kontrasttabelle aus den **Mockup**-Tokens statt aus
+  `tokens.css`, und eine Umbruchprobe an einem Mehrwortnamen, die genau den fallenden Fall als
+  geprüft auswies. ⭐ Deshalb rechnet der Prüfer Zahlen **selbst** nach, statt sie zu lesen.
 - ⚠️ **Der Zähler `$pruefungen`** war in **vier von neun** Runden daneben. Immer nachrechnen.
 - ⚠️ **Die Browser-Fläche dieser Sitzung liefert keine Bildschirmfotos.** Messen geht trotzdem
   (`getBoundingClientRect`, `getComputedStyle`, echte `PointerEvent`s). Was nicht geht, wird als
