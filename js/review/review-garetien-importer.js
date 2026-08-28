@@ -2111,6 +2111,11 @@
 			garetienGeometrieRueckfrageText,
 			garetienHandlungKlick,
 			garetienHakenKlick,
+			// 🔴 Exportiert, damit die tragendste Regel dieser Aufgabe eine Zusicherung bekommt:
+			// „nach jedem `select` wird die Liste NEU GEHOLT". Ohne den Export nannte sie keine
+			// einzige Zeile des Testfelds -- eine Pruefung hat ihr `.then` durch `.then(() => null)`
+			// ersetzt und das ganze Feld blieb gruen.
+			avesmapsGaretienHandlungSenden,
 		};
 	}
 })();

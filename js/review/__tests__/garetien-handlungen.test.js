@@ -557,9 +557,57 @@ wahr(!/#[0-9a-fA-F]{3,8}\b/.test(acts.replace(/\/\*[\s\S]*?\*\//g, "")),
 	"keine hartkodierte Farbe -- nur Tokens aus css/base/tokens.css (AGENTS.md §12)");
 wahr(!/\b\d+px\b/.test(acts.replace(/\/\*[\s\S]*?\*\//g, "").replace(/1px solid/g, "")),
 	"keine hartkodierten Abstaende -- nur --space-*/--radius-* (die 1px-Trennlinie ist die Hausform)");
-["--color-danger", "--color-success-soft", "--color-divider", "--font-size-caption"].forEach((token) => {
-	wahr(acts.includes(token), `das Token ${token} fehlt in der Handlungsleiste`);
+["--color-danger-soft-text", "--color-success-soft", "--color-divider", "--font-size-caption"]
+	.forEach((token) => {
+		wahr(acts.includes(token + ")"), `das Token ${token} fehlt in der Handlungsleiste`);
+	});
+
+// 💣 UND DIE MESSUNG, DIE DAS ROTE TOKEN ENTSCHIEDEN HAT -- als Zusicherung, nicht als Notiz.
+// „Ablehnen" traegt Rot als SCHRIFT auf `--color-button-soft`. Mit `--color-danger` sind das im
+// DUNKLEN Thema 3,71:1, unter den 4,5, die AA fuer 12px verlangt -- und im hellen faellt es nicht
+// auf (5,64). Die Zahlen kommen hier aus css/base/tokens.css, nicht aus einer Abschrift.
+// ⚠️ Der Leser ist absichtlich stumpf: die ERSTE Fassung eines Tokens ist die helle (blankes
+// `:root`), die LETZTE die dunkle. Belegt wird das unten dadurch, dass beide sich unterscheiden --
+// ein Leser, der zweimal denselben Wert zieht, misst nur ein Thema doppelt.
+const tokenCss = fs.readFileSync(path.join(WURZEL, "css/base/tokens.css"), "utf8");
+function tokenWerte(name) {
+	// 🪤 Gesplittet, NICHT ueber einen aus einer Zeichenkette gebauten Regex: `"\s*"` in einem
+	// JS-Stringliteral ist `"s*"`, und genau diese Form hat dieses Vorhaben schon einmal bezahlt.
+	// Der Regex unten ist ein LITERAL. ⚠️ Der Doppelpunkt im Splitmuster ist tragend: sonst traefe
+	// `--color-danger` auch `--color-danger-soft-text`.
+	const werte = tokenCss.split(name + ":").slice(1)
+		.map((rest) => (rest.match(/^\s*(#[0-9a-fA-F]{6})/) || [])[1])
+		.filter((wert) => !!wert);
+	return { hell: werte[0], dunkel: werte[werte.length - 1], anzahl: werte.length };
+}
+function leuchtdichte(hex) {
+	const teile = [1, 3, 5].map((i) => parseInt(hex.substr(i, 2), 16) / 255)
+		.map((v) => (v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4)));
+	return 0.2126 * teile[0] + 0.7152 * teile[1] + 0.0722 * teile[2];
+}
+function kontrast(a, b) {
+	const l1 = leuchtdichte(a), l2 = leuchtdichte(b);
+	return Math.round(((Math.max(l1, l2) + 0.05) / (Math.min(l1, l2) + 0.05)) * 100) / 100;
+}
+const grund = tokenWerte("--color-button-soft");
+const weich = tokenWerte("--color-danger-soft-text");
+const hart = tokenWerte("--color-danger");
+// Gegenprobe zuerst: der Leser hat wirklich ZWEI Themen gefunden, nicht zweimal dasselbe.
+[["--color-button-soft", grund], ["--color-danger-soft-text", weich], ["--color-danger", hart]]
+	.forEach(([name, w]) => {
+		wahr(w.anzahl >= 2 && w.hell && w.dunkel && w.hell !== w.dunkel,
+			`der Token-Leser findet fuer ${name} kein helles UND dunkles Paar (${w.hell}/${w.dunkel})`);
+	});
+["hell", "dunkel"].forEach((thema) => {
+	wahr(kontrast(weich[thema], grund[thema]) >= 4.5,
+		`„Ablehnen\" liest sich im ${thema}en Thema nur mit ${kontrast(weich[thema], grund[thema])}:1 `
+		+ "-- AA verlangt 4,5 bei 12px");
 });
+// Und der BELEG, dass die Zusicherung etwas misst: das urspruenglich vorgesehene Token faellt
+// im dunklen Thema durch. Ohne diese Zeile koennte die Schranke jede Farbe durchlassen.
+wahr(kontrast(hart.dunkel, grund.dunkel) < 4.5,
+	"die Gegenprobe: --color-danger faellt im dunklen Thema wirklich durch -- sonst misst die "
+	+ "Schranke darueber nichts");
 
 // 🔴 UND DIE REGEL, DIE DIE LEISTE TRAEGT: `flex: none` an `.avm-col > .gi-acts`. `.avm-col` ist
 // eine Flexspalte mit `overflow: hidden`, `.gi-detail` darin rollt (`flex: 1 1 auto`) -- ohne
@@ -585,29 +633,76 @@ wahr(!/\.gi-win\s+\.avm-col\s*>\s*\.gi-acts\s*\{[^}]*position:\s*sticky/.test(ac
 // ⭐ Gemessen wird am ZUSTAND nach einem echten Lauf von avesmapsGaretienListeHolen, nicht an einer
 // Zeile im Quelltext -- gefaelscht ist nur `fetch`.
 
-const echterFetch = global.fetch;
-const gestellt = [];
-global.fetch = function (pfad, optionen) {
-	gestellt.push({ pfad: String(pfad), rumpf: JSON.parse((optionen && optionen.body) || "{}") });
-	return Promise.resolve({
-		json: () => Promise.resolve({
-			ok: true, plan_run_id: 4711, objekte: [], gesamt: 0,
-			bilanz: {}, reiter: {}, facetten: {}, angehakt: { new: 0, changed: 0 },
-		}),
-	});
-};
+// =================================================================================================
+// L. Nach JEDER Handlung wird die Liste NEU GEHOLT -- die tragendste Regel dieser Aufgabe
+// =================================================================================================
+//
+// 🔴 „Der Server ist die Wahrheit ueber `selected`; zwei Buchhaltungen laufen beim ersten Abbruch
+// auseinander." Diese Regel war bis zum 28.08.2026 die EINZIGE der vier ohne Zusicherung: eine
+// Pruefung ersetzte `.then(() => avesmapsGaretienListeHolen())` durch `.then(() => null)`, und das
+// GANZE JS-Feld blieb gruen. Ausfall in der Wirklichkeit: Haekchen und Reiterzahlen laufen lautlos
+// von der Datenbank weg.
+// ⭐ Gemessen am ERGEBNIS -- an der FOLGE der Anfragen, die wirklich hinausgehen --, nicht an einem
+// Spion auf einer modulinternen Referenz (den sieht der interne Aufrufer ohnehin nicht).
 
-mod.avesmapsGaretienListeHolen().then(function () {
-	global.fetch = echterFetch;
-	gleich(gestellt.length, 1, "die Gegenprobe: es lief wirklich eine Anfrage");
-	gleich(gestellt[0].rumpf.action, "liste", "und zwar die Liste");
+function laufMitGefaelschtemFetch(fn) {
+	const echt = global.fetch;
+	const gestellt = [];
+	global.fetch = function (pfad, optionen) {
+		const rumpf = JSON.parse((optionen && optionen.body) || "{}");
+		gestellt.push({ pfad: String(pfad), rumpf: rumpf });
+		return Promise.resolve({
+			json: () => Promise.resolve({
+				ok: true, plan_run_id: 4711, objekte: [], gesamt: 0, changed: 1,
+				bilanz: {}, reiter: {}, facetten: {}, angehakt: { new: 0, changed: 0 },
+			}),
+		});
+	};
+	return Promise.resolve(fn(gestellt))
+		.then((wert) => { global.fetch = echt; return { gestellt, wert }; })
+		.catch((fehler) => { global.fetch = echt; throw fehler; });
+}
+
+laufMitGefaelschtemFetch(() => mod.avesmapsGaretienListeHolen()).then(function (a) {
+	gleich(a.gestellt.length, 1, "die Gegenprobe: es lief wirklich eine Anfrage");
+	gleich(a.gestellt[0].rumpf.action, "liste", "und zwar die Liste");
 	gleich(mod.avesmapsGaretienFensterZustand().planRunId, 4711,
 		"💣 die Lauf-Nummer der Vorschau kommt aus der Listenantwort -- ohne sie ginge jede "
 		+ "Handlung mit run_id: null hinaus und bekaeme 404 `not_found`");
 
+	// --- Der Sender: EIN `select` hinaus, DANN die Liste -------------------------------------
+	return laufMitGefaelschtemFetch(() => mod.avesmapsGaretienHandlungSenden(
+		{ action: "select", kind: "garetien", run_id: 4711, ids: [11, 12], selected: true }
+	));
+}).then(function (a) {
+	gleich(a.gestellt.length, 2,
+		"💣 EIN `select` loest ZWEI Anfragen aus: den Schreibvorgang und das Neuholen der Liste. "
+		+ "Faellt das Neuholen weg, rechnet der Browser weiter mit seinem eigenen Stand.");
+	tief(a.gestellt.map((r) => r.rumpf.action), ["select", "liste"],
+		"und zwar in dieser Reihenfolge -- erst schreiben, dann lesen");
+	gleich(a.gestellt[0].pfad, "/api/edit/wiki/sync-plan.php",
+		"geschrieben wird durch die Uebernahme-Tuer");
+	gleich(a.gestellt[1].pfad, "/api/edit/map/garetien-import.php",
+		"und gelesen ueber den EINEN Weg, auf dem die Liste sich aendert");
+
+	// --- Und wenn der Schreibvorgang scheitert, wird NICHT nachgeladen ------------------------
+	// ⚠️ Die andere Haelfte derselben Regel: ein Neuholen nach einem Fehlschlag zeigte eine Liste,
+	// die den gescheiterten Klick nicht enthaelt, und uebermalte damit die Fehlermeldung.
+	const echt = global.fetch;
+	const gestellt = [];
+	global.fetch = function (pfad, optionen) {
+		gestellt.push(String(pfad));
+		return Promise.resolve({ json: () => Promise.resolve({ ok: false, error: { message: "nein" } }) });
+	};
+	return mod.avesmapsGaretienHandlungSenden({ action: "select", kind: "garetien", ids: [1] })
+		.then((wert) => { global.fetch = echt; return { gestellt, wert }; });
+}).then(function (a) {
+	gleich(a.gestellt.length, 1,
+		"nach einem gescheiterten Schreibvorgang wird die Liste NICHT nachgeladen");
+	gleich(a.wert, null, "und der Sender loest mit null auf, statt die Ablehnung weiterzureichen");
+
 	console.log(`garetien-handlungen ok -- ${checks} Zusicherungen`);
 }).catch(function (fehler) {
-	global.fetch = echterFetch;
 	console.error(fehler);
 	process.exitCode = 1;
 });

@@ -371,6 +371,14 @@ try {
                 if ($run === null || (string) $run['kind'] !== $kind) {
                     avesmapsErrorResponse(404, 'not_found', 'This plan does not exist.');
                 }
+                // ⚠️ DERSELBE Riegel wie bei 'select' und 'decline'. Er fehlte hier zunaechst, und
+                // eine Asymmetrie zwischen drei Nachbarzweigen liest der naechste Leser als Regel:
+                // die Entscheidungen eines uebernommenen Laufs sind Geschichte, kein Bedienelement.
+                // 🔴 Der `entity_keys`-Pfad darueber kennt ihn NICHT und darf ihn nicht bekommen --
+                // er raeumt Loeschungs-Ablehnungen frueherer Laeufe auf und haengt an gar keinem Lauf.
+                if ((string) $run['state'] !== 'open') {
+                    avesmapsErrorResponse(409, 'plan_not_open', 'This plan can no longer be changed.');
+                }
                 // ⚠️ Nach `change_type` gebuendelt: die Zeilen EINES Objekts koennen 'new' und
                 // 'changed' mischen, und der Schluessel der Entscheidung traegt beides.
                 $nachArt = [];

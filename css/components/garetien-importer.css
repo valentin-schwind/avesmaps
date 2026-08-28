@@ -596,11 +596,17 @@
 	border-top: 1px solid var(--color-divider);
 }
 
-/* „Ablehnen" traegt --color-danger als SCHRIFT, nicht als Fuellung: ein rot gefuellter Knopf in
-   einer Ansicht, deren Haupthandlung im Fuss steht, zoege den Blick auf den Ausgang statt auf die
-   Arbeit. Der Rahmen kommt aus dem weichen Rot-Token, damit er sich vom Nachbarn abhebt. */
+/* „Ablehnen" traegt Rot als SCHRIFT, nicht als Fuellung: ein rot gefuellter Knopf in einer
+   Ansicht, deren Haupthandlung im Fuss steht, zoege den Blick auf den Ausgang statt auf die
+   Arbeit. Der Rahmen kommt aus dem weichen Rot-Token, damit er sich vom Nachbarn abhebt.
+   💣 DAS TOKEN IST `--color-danger-soft-text`, NICHT `--color-danger` -- und das ist ein
+   MESSERGEBNIS, keine Vorliebe. Auf dem weichen Knopfgrund ergibt `--color-danger` im dunklen
+   Thema 3,71:1 und liegt damit unter den 4,5, die AA fuer 12px (--font-size-small) verlangt;
+   `--color-danger-soft-text` ergibt 7,00 hell und 5,38 dunkel. Die Farbe war das Mittel, die
+   Lesbarkeit der Zweck. ⚠️ Wer hier auf `--color-danger` zurueckstellt, nimmt genau diese
+   Messung zurueck -- und im hellen Thema faellt es nicht auf (dort waeren es 5,64). */
 .gi-win .btn--danger {
-	color: var(--color-danger);
+	color: var(--color-danger-soft-text);
 	border-color: var(--color-danger-soft-border);
 }
 

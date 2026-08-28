@@ -657,11 +657,14 @@ function avesmapsSyncPlanRecordSkip(PDO $pdo, string $kind, string $entityKey, i
  * Lesepfad nie abfragt (api/_internal/import/garetien-liste.php liest `declined_at` je
  * (entity_key, change_type)). Der Reiter „Abgelehnt" konnte deshalb NIE belegt werden.
  *
- * 💣 DIE VORGABE 'deleted' IST TRAGEND. Fuenf andere Arten rufen diese Funktion ohne fuenftes
- * Argument -- nachzuzaehlen mit
- *     git grep -n "avesmapsSyncPlanRecordDecline(" -- api tools
- * (die Definition und der Zaehltest in territory-plan-test.php gehoeren nicht dazu). Ein
- * Pflichtparameter braeche sie alle, und eine ANDERE Vorgabe verschoebe ihre Entscheidungen
+ * 💣 DIE VORGABE 'deleted' IST TRAGEND. Die uebrigen Arten rufen diese Funktion OHNE fuenftes
+ * Argument -- citymap, lore, lore_rule, territory, territory_wiki. Wer eine ergaenzt, ergaenzt sie
+ * in DIESER Aufzaehlung; hier steht bewusst keine blosse Zahl, denn eine Zahl liest sich wie eine
+ * vollstaendige Liste. Sie reproduzieren -- der Befehl ist gefahren und liefert GENAU diese fuenf
+ * Zeilen, keine Definition, keinen Kommentar, keinen Test:
+ *     git grep -n 'avesmapsSyncPlanRecordDecline($pdo, .*, $userId);' -- api
+ * (das abschliessende `, $userId);` IST das Kriterium: der Aufruf endet nach dem vierten Argument.)
+ * Ein Pflichtparameter braeche sie alle, und eine ANDERE Vorgabe verschoebe ihre Entscheidungen
  * lautlos auf einen Schluessel, den ihr eigener Lesepfad nicht abfragt.
  *
  * ⚠️ ZWEI NACHBARN BLEIBEN ABSICHTLICH AUF 'deleted':

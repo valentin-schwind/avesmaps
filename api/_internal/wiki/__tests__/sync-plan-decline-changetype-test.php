@@ -122,12 +122,12 @@ $pruefe(count($entscheidungen) === 1, 'genau EINE Entscheidung, nicht zwei');
 
 // ---- B. Gegenprobe: OHNE fuenftes Argument bleibt es 'deleted' --------------------------------
 //
-// 💣 Fuenf andere Arten rufen diese Funktion ohne fuenftes Argument (citymap, lore, lore_rule,
-// territory, territory_wiki). Nachzuzaehlen mit
-//     git grep -n "avesmapsSyncPlanRecordDecline(" -- api tools
-// -- die Definition und der Zaehltest in territory-plan-test.php gehoeren nicht dazu. Eine
-// andere Vorgabe verschoebe ihre Entscheidungen lautlos auf einen Schluessel, den ihr eigener
-// Lesepfad nicht abfragt.
+// 💣 Die uebrigen Arten rufen diese Funktion OHNE fuenftes Argument -- citymap, lore, lore_rule,
+// territory, territory_wiki. Diese Aufzaehlung reproduziert (gefahren, liefert genau diese fuenf
+// Zeilen und sonst nichts -- das abschliessende `, $userId);` IST das Kriterium):
+//     git grep -n 'avesmapsSyncPlanRecordDecline($pdo, .*, $userId);' -- api
+// Eine andere Vorgabe verschoebe ihre Entscheidungen lautlos auf einen Schluessel, den ihr
+// eigener Lesepfad nicht abfragt.
 
 avesmapsSyncPlanRecordDecline($pdo, 'citymap', 'stadtplanindex:havena', 5);
 $citymap = avesmapsSyncPlanDecisions($pdo, 'citymap');

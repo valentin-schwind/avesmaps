@@ -454,8 +454,10 @@ function avesmapsGaretienArbeitsliste(PDO $pdo, int $importRunId, array $filter)
                     'id' => $item['id'],
                     // 🔴 Der `change_type` reist MIT (28.08.2026, Aufgabe 15). Die Knopfleiste der
                     // Einzelansicht bietet „Neu einfuegen" genau fuer die `new`-Zeilen an, und ohne
-                    // dieses Feld findet sie keine einzige -- der Knopf waere bei allen 231 Neu-
-                    // und 32 Zweifel-Objekten der Stufe 1 dauerhaft ausgegraut.
+                    // dieses Feld findet sie keine einzige -- der Knopf waere bei JEDEM Neuzugang
+                    // und JEDEM Zweifel dauerhaft ausgegraut, also bei der grossen Mehrheit der
+                    // Stufe 1. 🪤 Hier stand eine Zahl, und sie war doppelt gezaehlt; die Aufteilung
+                    // steht im Auftrag §3.4 und wird DORT nachgeschlagen, nicht an dieser Abschrift.
                     // 💣 Durchgereicht, nicht hergeleitet: aus `anlass`/`abschnitt` zu erraten,
                     // welche Zeile die Basiszeile ist, waere eine zweite Fassung der Entscheidung,
                     // die garetien-plan.php getroffen hat (`$istNeu`).

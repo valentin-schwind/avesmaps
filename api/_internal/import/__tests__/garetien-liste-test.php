@@ -67,8 +67,10 @@ assert($nachName['Gardel']['urteil'] === 'neu', 'der Gardel ist ein einfacher Ne
 $pruefungen += 9;
 
 // --- 🔴 Der `change_type` reist je Item mit (Aufgabe 15). Ohne ihn findet die Knopfleiste der
-// Einzelansicht keine einzige `new`-Zeile, und „Neu einfuegen" waere bei jedem Neuzugang und
-// jedem Zweifel dauerhaft ausgegraut -- also bei 231 + 32 der 289 Objekte der Stufe 1.
+// Einzelansicht keine einzige `new`-Zeile, und „Neu einfuegen" waere bei JEDEM Neuzugang und
+// JEDEM Zweifel dauerhaft ausgegraut. 🪤 Hier stand dafuer eine Zahl, und sie war doppelt
+// gezaehlt (die 231 SIND schon 199 + 32); die Aufteilung der 289 steht im Auftrag §3.4 und wird
+// dort nachgeschlagen, nicht an einer Abschrift.
 // ⚠️ Gemessen wird an BEIDEN Werten, nicht nur an der Anwesenheit des Schluessels: der Gardel ist
 // ein Neuzugang ('new'), die Items der Alke sind Aenderungen ('changed'). Ein Feld, das ueberall
 // dasselbe stuende, waere von einer festen Zeichenkette nicht zu unterscheiden.
