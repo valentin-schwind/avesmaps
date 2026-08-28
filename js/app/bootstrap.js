@@ -162,9 +162,19 @@ map.getPane("ecosystemPane").style.zIndex = 250;
 // PANE, nicht des Layers. Mit einer gemeinsamen Pane liesse sich "aktiv voll, ruhend blass UND
 // klickdurchlaessig" nur ueber ein Neuaufbauen aller Layer bei jedem Umschalten loesen.
 // ecosystemPane (250) bleibt als reservierter Bandanfang aus V1.3 bestehen und traegt selbst nichts.
-map.getPane("ecosystemPaneDerographisch").style.zIndex = 250;
+// 🔴 DIE REIHENFOLGE IST EINE OWNER-ENTSCHEIDUNG (27.08.2026), von oben nach unten:
+//     Beschriftungen (labelsPane, 650)  >  Derographie  >  Vegetation  >  Topographie
+// Sie stand bis dahin genau andersherum. Der Grund für die Umkehr ist die Hervorhebung: ein Klick
+// auf ein Label hebt seine Fläche hervor, und ein hervorgehobener BEHÄLTER (Kontinent, Provinz)
+// muss über den Landschaften liegen, sonst liegt seine Füllung unter zwei weiteren und ist keine
+// Antwort mehr.
+// 💣 Die Reihenfolge entscheidet auch, WELCHE Fläche einen Klick bekommt -- die oberste. Deshalb
+// ist die Derographie in „Alle" klickdurchlässig gestellt (css/features/ecosystem-layer.css):
+// oben liegen, ohne die Klicks der Landschaften darunter abzufangen. Wer die Zahlen hier ändert,
+// prüft jene Regel mit.
+map.getPane("ecosystemPaneDerographisch").style.zIndex = 252;
 map.getPane("ecosystemPaneVegetation").style.zIndex = 251;
-map.getPane("ecosystemPaneTopographie").style.zIndex = 252;
+map.getPane("ecosystemPaneTopographie").style.zIndex = 250;
 // V-Klima (2026-08-03): die Baender liegen UEBER den drei gezeichneten Ebenen -- sie decken die Karte
 // in voller Breite, unter Vegetation und Topographie waeren sie nicht zu sehen. Ihre Fuellung ist dafuer
 // sehr leicht (css/features/ecosystem-layer.css).

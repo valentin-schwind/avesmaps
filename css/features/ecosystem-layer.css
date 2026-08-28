@@ -1638,6 +1638,45 @@ body.leaflet-dragging .ecosystem-brush-pan .leaflet-interactive {
 	--eco-fill: 0.16;
 }
 
+/* 🔴 IN „ALLE“ IST DIE DEROGRAPHIE UNSICHTBAR UND KLICKDURCHLÄSSIG -- nur ihr LABEL ist anfassbar,
+   und der Klick darauf zeigt die Fläche (Owner 27.08.2026: „nur das label soll klickbar sein und
+   die fläche zeigen, ausserdem kannst du die normale transparenz auf 0% senken, die transparenz
+   wenn das label angeklickt wurde, passt“).
+
+   Sie ist am selben Tag über Vegetation und Topographie gewandert (bootstrap.js). Oben liegen und
+   gleichzeitig sichtbar sein ginge nicht: ihre 41 Behälter -- Kontinente, Inseln, Provinzen --
+   decken die Karte flächendeckend, und ein Hauch über allem ist genau das Farbnetz, das „Alle“
+   nicht sein soll. Oben liegen und Klicks nehmen ginge erst recht nicht: sie fielen alle auf den
+   Behälter, und der Wald darunter wäre unerreichbar.
+
+   💣 DREI KLASSEN, UND DAS IST GERECHNET, NICHT GERATEN. Sie muss DREI Nachbarn treffen, in beide
+   Richtungen -- mit VIER war sie zu stark und hat die Zielwahl (`ecosystem-area--target`, ebenfalls
+   vier) auf ein Kopf-an-Kopf gebracht, das die Reihenfolge im Blatt entschieden haette:
+     * `.ecosystem-pane--active > svg path.leaflet-interactive` (zwei Klassen) trägt die Füllung JE
+       FLÄCHE aus der Darstellungstafel. Wird sie nicht geschlagen, bleibt die Derographie bei ihren
+       0,16 -- und zwar lautlos, denn der Wert steht als `--eco-fill-art` am <path> im JavaScript.
+     * Die HERVORHEBUNG (fünf Klassen) muss ihrerseits DIESE Regel schlagen, sonst zeigt der
+       Label-Klick nichts mehr an -- die eine Geste, für die die Ebene überhaupt nach oben gewandert
+       ist. Deshalb steht hier `fill-opacity` direkt und nicht `--eco-fill`: die Variable käme über
+       die Zwei-Klassen-Regel zur Wirkung und verlöre gegen `--eco-fill-art`.
+     * Die ZIELWAHL einer booleschen Operation (vier Klassen) muss sie ebenfalls schlagen -- sonst
+       verschwände das Ziel, sobald jemand in „Alle“ auf eine derographische Fläche zeigt.
+       ⚠️ `--active` steht deshalb NICHT im Selektor: es wäre die vierte Klasse und brächte genau
+       diesen Gleichstand. Redundant ist es ohnehin -- in „Alle“ ist die derographische Pane immer
+       aktiv, dort ruht nur das Klima.
+   Und `pointer-events` braucht die vier ohnehin: Leaflet setzt `pointer-events: auto` auf
+   `.leaflet-interactive`, dagegen verliert eine einzelne Klasse -- dieselbe Bauart wie bei der
+   Klima-Regel weiter unten.
+
+   ⚠️ NUR IN „ALLE“. In ihrer eigenen Ebene füllt und antwortet die Derographie wie bisher; dort ist
+   sie die Arbeitsfläche und nicht der Hintergrund. Gewacht von
+   js/map-features/__tests__/landschaften-sortierung.test.js, das beide Spezifitäten misst. */
+.ecosystem-pane--derographisch.ecosystem-pane--showall > svg path.leaflet-interactive {
+	fill-opacity: 0;
+	pointer-events: none;
+	cursor: default;
+}
+
 /* 🔴 DIE KLIMA-EBENE NIMMT SICH NOCH STÄRKER ZURÜCK ALS DIE DEROGRAPHISCHE (Owner 2026-08-03). Ein Band
    deckt die GANZE Karte in seiner Höhe -- bei voller Füllung sieht man weder die Kacheln noch irgendeine
    andere Ebene. 0,18 lässt das Gelände durch und macht die Zone trotzdem auf einen Blick lesbar.

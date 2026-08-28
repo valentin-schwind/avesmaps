@@ -57,6 +57,55 @@ assert(context.shouldHighlightEcosystemArea(flaeche("r-aventurien", "derographis
 assert(context.shouldHighlightEcosystemArea(flaeche("r-wald", "vegetation"), "r-wald"), "Vegetation auch");
 assert(context.shouldHighlightEcosystemArea(flaeche("r-gebirge", "topographie"), "r-gebirge"), "Topographie auch");
 
+// ---- WESSEN Hervorhebung darf das Klima-Modul wegräumen? (Owner 27.08.2026) ---------------------
+// 🔴 „nach einer gewissen zeit wird sie wieder de-selektiert ... das verhalten ist bei allen ... bei
+// allen verhindern." Der Grund war KEIN Timer: `clearClimateOverlay()` rief blank
+// `setHighlightedEcosystemRegion("")`, und `drawClimateOverlay()` ruft es als Erstes. Jeder
+// Pane-Sync -- und der kommt auch asynchron, etwa wenn die Rechteauskunft eintrifft -- loeschte
+// damit die Hervorhebung JEDER Ebene. Das sah nach einer Zeitschaltung aus und war eine
+// Aufraeumung, die im falschen Rumpf sass.
+//
+// ⭐ Die Absicht dahinter bleibt gueltig und eng: ein KLIMA-Band darf nicht kraeftig gefaerbt
+// stehenbleiben, wenn seine Beschriftung weggeraeumt wird. Fuer jede andere Ebene raeumt das
+// Klima-Modul nichts weg -- es hat dort nichts zu raeumen.
+// 🪤 DIE MAP MUSS IM vm-KONTEXT ENTSTEHEN. `ecosystemLayers instanceof Map` prueft gegen den
+// Map-Konstruktor DIESES Realms; eine hier draussen gebaute Map besteht den Test nicht, und die
+// Funktion faellt still in ihren Rueckfall -- gruener Aufbau, falsche Messung.
+vm.runInContext(`ecosystemLayers = new Map([
+	["a-1", { _ecosystemArea: { kind: "klima", region_public_id: "r-gemaessigt" } }],
+	["a-2", { _ecosystemArea: { kind: "derographisch", region_public_id: "r-aventurien" } }],
+	["a-3", { _ecosystemArea: { kind: "vegetation", region_public_id: "r-wald" } }],
+]);`, context);
+
+assert(context.ecosystemRegionKind("r-gemaessigt") === "klima", "die Ebene einer Region ist ablesbar");
+assert(context.ecosystemRegionKind("r-aventurien") === "derographisch", "auch die derographische");
+assert(context.ecosystemRegionKind("gibtesnicht") === "", "⚠️ eine unbekannte Region hat keine Ebene");
+
+// Ein KLIMA-Band wird weggeraeumt ...
+context.setHighlightedEcosystemRegion("r-gemaessigt");
+context.clearEcosystemHighlightIfKlima();
+assert(context.effectiveEcosystemRegionId() === "",
+	"das Klimaband gibt seine Hervorhebung ab, wenn seine Beschriftung geht");
+
+// ... eine derographische Flaeche NICHT. Das ist der gemeldete Fall.
+context.setHighlightedEcosystemRegion("r-aventurien");
+context.clearEcosystemHighlightIfKlima();
+assert(context.effectiveEcosystemRegionId() === "r-aventurien",
+	"🔴 Aventurien bleibt hervorgehoben -- das Klima-Modul raeumt nur sein eigenes weg");
+
+context.setHighlightedEcosystemRegion("r-wald");
+context.clearEcosystemHighlightIfKlima();
+assert(context.effectiveEcosystemRegionId() === "r-wald", "eine Vegetationsflaeche genauso");
+
+// 🪤 Und eine Region, die gerade GAR NICHT geladen ist (ausserhalb des Bildausschnitts), gilt nicht
+// als Klima -- im Zweifel STEHENLASSEN. Andersherum verschwaende ein Schwenk die Hervorhebung.
+context.setHighlightedEcosystemRegion("r-nicht-geladen");
+context.clearEcosystemHighlightIfKlima();
+assert(context.effectiveEcosystemRegionId() === "r-nicht-geladen",
+	"💣 eine nicht geladene Region bleibt stehen -- die sichere Richtung");
+
+context.setHighlightedEcosystemRegion("");
+
 // ---- angeklickt und ueberfahren sind ZWEI Zustaende -------------------------------------------------
 // 🔴 Der ueberfahrene ist geliehen: er gewinnt, solange die Maus liegt, und gibt danach an den
 // angeklickten zurueck. Mit einer einzigen Variablen ginge der angeklickte beim ersten Zeigen auf ein

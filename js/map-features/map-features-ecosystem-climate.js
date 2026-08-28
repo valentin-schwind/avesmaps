@@ -191,7 +191,15 @@ function clearClimateOverlay() {
 	// 🪤 Die Hervorhebung sitzt an der FLÄCHE, nicht am Namen -- sie verschwindet also nicht mit den
 	// Namensmarkern. Wer die Ebene wechselt, liesse sonst ein kräftig gefärbtes Band zurück, dessen
 	// Beschriftung weg ist und das niemand mehr loswird.
-	setHighlightedEcosystemRegion("");
+	//
+	// 💣 ABER NUR DAS EIGENE BAND (Owner 27.08.2026). Hier stand ein blankes
+	// `setHighlightedEcosystemRegion("")` -- und weil `drawClimateOverlay()` diese Funktion als Erstes
+	// ruft, löschte JEDER Pane-Sync die Hervorhebung JEDER Ebene. Da ein solcher Sync auch asynchron
+	// kommt (etwa wenn die Rechteauskunft eintrifft), sah es aus wie eine Zeitschaltung: „nach einer
+	// gewissen zeit wird sie wieder de-selektiert". Die Begründung darüber trug nie so weit.
+	if (typeof clearEcosystemHighlightIfKlima === "function") {
+		clearEcosystemHighlightIfKlima();
+	}
 	[...climateLineLayers, ...climateHandleLayers, ...climateNameLayers].forEach((layer) => {
 		if (typeof map !== "undefined" && map && map.hasLayer(layer)) {
 			map.removeLayer(layer);

@@ -325,6 +325,42 @@ function shouldHighlightEcosystemArea(area, regionPublicId) {
 	return String(area.region_public_id || "") === String(regionPublicId);
 }
 
+// Zu welcher Ebene gehört diese Region? Gelesen aus den GELADENEN Flächen -- eine Region trägt ihre
+// Ebene nicht selbst mit sich herum, und ein zweiter Merker daneben liefe beim ersten Umtypisieren
+// auseinander.
+// ⚠️ Eine Region, die gerade nicht geladen ist (ausserhalb des Bildausschnitts), hat hier KEINE
+// Ebene. Das ist die sichere Richtung: der einzige Leser unten räumt dann nichts weg.
+function ecosystemRegionKind(regionPublicId) {
+	const gesucht = String(regionPublicId || "");
+	if (!gesucht || typeof ecosystemLayers === "undefined" || !(ecosystemLayers instanceof Map)) {
+		return "";
+	}
+	let kind = "";
+	ecosystemLayers.forEach((layer) => {
+		const area = layer?._ecosystemArea;
+		if (area && String(area.region_public_id || "") === gesucht) {
+			kind = String(area.kind || "");
+		}
+	});
+	return kind;
+}
+
+// 🔴 DAS KLIMA-MODUL RÄUMT NUR SEIN EIGENES WEG (Owner 27.08.2026: „nach einer gewissen zeit wird
+// sie wieder de-selektiert ... bei allen verhindern").
+//
+// 💣 DER BEFUND WAR KEIN TIMER. `clearClimateOverlay()` rief blank `setHighlightedEcosystemRegion("")`,
+// und `drawClimateOverlay()` ruft es als Erstes -- jeder Pane-Sync löschte damit die Hervorhebung
+// JEDER Ebene. Weil ein solcher Sync auch asynchron kommt (etwa wenn die Rechteauskunft eintrifft),
+// sah es aus, als schalte eine Uhr sie nach einer Weile ab. Eine Aufräumung im falschen Rumpf.
+//
+// ⭐ Die Absicht bleibt und wird eng: ein Klimaband darf nicht kräftig gefärbt stehenbleiben, wenn
+// seine Beschriftung weggeräumt wird. Für jede andere Ebene hat das Klima-Modul nichts zu räumen.
+function clearEcosystemHighlightIfKlima() {
+	if (ecosystemRegionKind(effectiveEcosystemRegionId()) === "klima") {
+		setHighlightedEcosystemRegion("");
+	}
+}
+
 // Zustand als Klasse am <path>, Werte im CSS -- dieselbe Bauart wie applyEcosystemSelectionClass. Ein
 // zweiter Satz Zahlen im JavaScript wäre die zweite Wahrheit über dieselbe Deckkraft.
 function applyEcosystemHighlightClass(layer) {
@@ -716,9 +752,9 @@ function applyEcosystemStackingOrder() {
 			areas.push(layer._ecosystemArea);
 		}
 	});
-	// Je Ebene getrennt: die drei Panes sind ohnehin gestapelt (derographisch unten, Topographie oben),
-	// und eine gemeinsame Sortierung über alle drei würde nur innerhalb jeder Pane wirken -- aber die
-	// Reihenfolge dazwischen unnötig durcheinanderbringen.
+	// Je Ebene getrennt: die drei Panes sind ohnehin gestapelt (seit 27.08.2026 Derographie oben,
+	// Topographie unten), und eine gemeinsame Sortierung über alle drei würde nur innerhalb jeder Pane
+	// wirken -- aber die Reihenfolge dazwischen unnötig durcheinanderbringen.
 	// ⚠️ Die vier Panes zeichnen SVG (die Stilregeln adressieren `> svg path.leaflet-interactive`), der
 	// Pfad IST also der Knoten, den Leaflets `bringToFront` bewegen würde. Eine Fläche ohne Element
 	// hängt nicht in der Karte und lässt sich auch nicht einsortieren -- sie fällt heraus.
