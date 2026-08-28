@@ -160,7 +160,16 @@ function avmFilterMenuAttach(toggleId, panelId, sections, applyFilter, label = "
 	// beschriftet, nur noch bedient. Ein Wirt, der seinen Zustand selbst in seiner zweiten Zeile
 	// trägt („2 von 18 · Gewässer ggp + kosch"), hat den besseren Namen als eine angehängte Zahl
 	// aktiver Abschnitte -- und die beiden liefen sonst nebeneinander auseinander („Ebenen (1)").
-	// 🔴 Ohne das Attribut ändert sich für die sechs vorhandenen Trichter kein Zeichen.
+	// 🔴 Ohne das Attribut ändert sich für JEDEN vorhandenen Trichter kein Zeichen -- der Zweig
+	// wird nur betreten, wenn ein Wirt das Attribut ausdrücklich setzt.
+	// 🪤 UND HIER STEHT BEWUSST KEINE ZAHL. Ein „für die sechs vorhandenen Trichter" stand hier
+	// bis zum 28.08.2026 und war falsch (es sind mehr, eine Aufrufstelle verdrahtet allein zwei);
+	// zwei Schätzungen davor lagen ebenfalls daneben. Eine Zahl liest sich wie eine vollständige
+	// Liste, und niemand zählt nach -- dieselbe Fehlerform, wegen der AGENTS.md §11 bei den
+	// Rauschfiltern des Konfliktzentrums seit dem 20.08.2026 ausdrücklich keine Zahl mehr führt.
+	// ⭐ Nachprüfbar ist die Zusicherung ohne Zählen: `grep -rn "avmFilterMenuAttach(" js/ html/`
+	// (ohne `.claude/worktrees/`) nennt jede Aufrufstelle, und der Lauf über das GANZE Testfeld
+	// fährt sie -- genau er hat die `hasAttribute`-Falle unten gefunden.
 	// 💣 Und die Frage wird DEFENSIV gestellt: drei fremde Tests fahren diese Funktion mit einem
 	// selbstgebauten DOM-Ersatz, dessen Elemente gar kein `hasAttribute` haben
 	// (wege-gruppe-ablauf, ortsliste-auswahl-wandert, ort-wiki-override-form). Ein blankes

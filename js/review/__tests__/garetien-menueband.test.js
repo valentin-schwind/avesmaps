@@ -157,6 +157,10 @@ gleich(mod.garetienEbenenKachelText(["kosch:Waelder", "ggp:Waelder", "ggp:Berge"
 // wahr ist -- die Auswahl steht ja schon fest.
 gleich(mod.garetienEbenenKachelText(zweiGewaesser, []), "2 gewählt");
 
+// Der leere Zustand wird BENANNT, nicht verschwiegen -- er sperrt die Nachbarkachel, und ein
+// gesperrter Knopf ohne Begruendung waere eine Stilllegung statt einer Auskunft.
+gleich(mod.garetienEbenenKachelText([], EBENEN), "0 von 18 · keine gewählt");
+
 // Der Ebenen-Schluessel ist eine stabile Kennung, die Beschriftung ist es nicht.
 gleich(mod.garetienEbeneLabel("Gewaesser"), "Gewässer");
 gleich(mod.garetienEbeneLabel("Waelder"), "Wälder");
@@ -167,8 +171,11 @@ gleich(mod.garetienEbenenBezeichner({ wiki: "ggp", ebene: "Gewaesser" }), "ggp:G
 // ---- 4. Leer heisst ALLE -- dieselbe Rechnung fuettert Abruf UND Kachel -------------------------
 
 wahr(typeof mod.garetienGewaehlteBezeichner === "function", "garetienGewaehlteBezeichner fehlt im Export");
-gleich(mod.garetienGewaehlteBezeichner(new Set(), EBENEN).length, 18,
-	"leere Auswahl heisst ALLE -- dieselbe Lesart wie der „Alle\"-Haken des geteilten Trichters");
+// 🔴 LEER HEISST NICHTS, nicht „alle" (Owner-Entscheid 28.08.2026). Der geteilte Trichter liest
+// leer als „alle" -- hier ist das Menue aber eine AUSWAHL VON ARBEIT, kein Filter, und „alle 18"
+// zoege rund 8300 Zeilen ins Staging, darunter Objektarten, deren Uebernahme-Tor noch fehlt.
+gleich(mod.garetienGewaehlteBezeichner(new Set(), EBENEN).length, 0,
+	"eine leere Auswahl holt NICHTS -- der „Alle\"-Haken des Trichters waehlt hier AB");
 assert.deepStrictEqual(mod.garetienGewaehlteBezeichner(new Set(["kosch:Gewaesser", "ggp:Gewaesser"]), EBENEN),
 	["ggp:Gewaesser", "kosch:Gewaesser"],
 	"die Reihenfolge ist die der Serverliste, nicht die der Anklickerei");
@@ -213,7 +220,16 @@ gleich(mod.garetienLaufKachelText({ lauf: null }), "noch kein Lauf");
 gleich(mod.garetienLaufKachelText({ laeuft: true, schritt: "holt 2 Ebenen …", lauf: LAUF }), "holt 2 Ebenen …",
 	"waehrend es laeuft, gehoert der Fortschritt in die zweite Zeile (dieselbe Form wie „Kurven rechnet …\")");
 gleich(mod.garetienLaufKachelText({ meldung: "Netzwerkfehler", lauf: LAUF }), "Netzwerkfehler",
-	"ein harter Fehler schlaegt alles andere und bleibt bis zum naechsten Versuch stehen");
+	"ein harter Fehler bleibt bis zum naechsten Versuch stehen");
+gleich(mod.garetienLaufKachelText({ ohneEbenen: true, lauf: LAUF }), "keine Ebene gewählt",
+	"der Grund der Sperre steht IN der Kachel -- sonst waere der graue Knopf eine Stilllegung");
+// 🔴 Und er schlaegt eine stehengebliebene Fehlermeldung: die berichtet vom LETZTEN Versuch,
+// die Sperre gilt JETZT und sagt, was zu tun ist.
+gleich(mod.garetienLaufKachelText({ ohneEbenen: true, meldung: "Netzwerkfehler", lauf: LAUF }),
+	"keine Ebene gewählt", "der Grund der Sperre schlaegt die alte Fehlermeldung");
+// ⚠️ Aber NICHT den laufenden Fortschritt (der Fall kann nicht eintreten, und die Reihenfolge
+// soll auch dann stimmen, wenn ihn jemand herbeifuehrt).
+gleich(mod.garetienLaufKachelText({ laeuft: true, schritt: "rechnet …", ohneEbenen: true }), "rechnet …");
 gleich(mod.garetienLaufKachelText({ lauf: LAUF, fehler: [{ ebene: "kosch:Wege" }] }),
 	"Lauf 27.08., 12:04 · 289 Zeilen · 1 Ebene ohne Antwort",
 	"eine Ebene ohne Antwort bricht den Lauf nicht ab, muss aber dastehen");
@@ -267,6 +283,7 @@ mod.garetienFensterFuellen(mitLauf, function () { listeGeholt++; return Promise.
 				gleich(ohneLauf.zaehle("liste"), 0, "und auch nicht ueber einen anderen Weg");
 			});
 	})
+	.then(leereAuswahlProbe)
 	.then(riegelProbe)
 	.then(function () {
 		console.log(`garetien-menueband: ${checks} Pruefungen bestanden.`);
@@ -275,6 +292,41 @@ mod.garetienFensterFuellen(mitLauf, function () { listeGeholt++; return Promise.
 		console.error(fehler && fehler.stack ? fehler.stack : fehler);
 		process.exitCode = 1;
 	});
+
+// ---- 6b. Der zweite Riegel: OHNE gewaehlte Ebene wird NICHTS geholt ---------------------------
+//
+// 🔴 Owner-Entscheid 28.08.2026. Gemessen am ERGEBNIS: es geht KEIN `action:'fetch'` hinaus.
+// Der Riegel sitzt in garetienLaufStarten, nicht nur am `disabled` des Knopfes -- `disabled` ist
+// die Anzeige, und der Endpunkt beantwortete eine leere Liste sonst mit 400 `no_layers`.
+function leereAuswahlProbe() {
+	const leer = spion({
+		fetch: { ok: true, run_id: 99, gestaget: [], fehler: [] },
+		plan: { ok: true, plan_run_id: 99 },
+		runs: { ok: true, runs: LAEUFE },
+	});
+	let gemalt = 0;
+	return mod.garetienLaufStarten(leer, [], function () { gemalt++; }, function () {
+		throw new Error("ohne Ebene darf auch die Liste nicht geholt werden");
+	}).then(function (ergebnis) {
+		gleich(leer.zaehle("fetch"), 0, "ohne gewaehlte Ebene geht KEIN action:'fetch' hinaus");
+		gleich(leer.rufe.length, 0, "und ueberhaupt kein Ruf");
+		gleich(ergebnis, null);
+		wahr(gemalt > 0, "die Kachel wird trotzdem neu geschrieben -- sie muss den Grund nennen");
+		// ⚠️ Er nimmt den Doppelklick-Riegel NICHT: es gibt nichts freizugeben. Ohne diese
+		// Gegenprobe waere ein Riegel, der den Lauf danach fuer immer blockiert, gruen.
+		const danach = spion({
+			fetch: { ok: true, run_id: 9, gestaget: [], fehler: [] },
+			plan: { ok: true, plan_run_id: 5 },
+			runs: { ok: true, runs: LAEUFE },
+		});
+		return mod.garetienLaufStarten(danach, ["ggp:Gewaesser"], function () {}, function () {
+			return Promise.resolve({});
+		}).then(function () {
+			gleich(danach.zaehle("fetch"), 1,
+				"nach einem abgelehnten leeren Lauf muss ein gefuellter sofort gehen");
+		});
+	});
+}
 
 // ---- 7. DER RIEGEL: zwei Klicks waehrend des Laufs -> EIN Import-Lauf ---------------------------
 //

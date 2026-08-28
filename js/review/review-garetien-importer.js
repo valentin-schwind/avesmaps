@@ -96,7 +96,7 @@
 		if (!hasDocument) { return; }
 		const listeEl = document.getElementById("garetien-list");
 		if (listeEl) {
-			listeEl.innerHTML = '<p class="avm-empty">Noch kein Import-Lauf. „Holen &amp; Rechnen" '
+			listeEl.innerHTML = '<p class="avm-empty">Noch kein Import-Lauf. „Holen &amp; Rechnen“ '
 				+ "im Menüband holt die gewählten Ebenen und rechnet den Abgleich.</p>";
 		}
 		// Die Zahlen der drei Bilanzflächen gehören einem Lauf; ohne Lauf stehen sie leer, statt
@@ -111,6 +111,20 @@
 	// garetienLaufStarten weiter unten: nur so lässt sich am ERGEBNIS zusichern, dass OHNE Lauf
 	// kein `action:'liste'` hinausgeht. Eine Zusicherung, die nur nachsähe, ob ein `if` im
 	// Quelltext steht, wäre Vakuum.
+	//
+	// 🪤 WER MITTEN IN EINEM LAUF ZU- UND WIEDER AUFMACHT, löst hier eine überflüssige, rein
+	// LESENDE Runde aus: `runs` liefert den ALTEN Lauf (der neue existiert noch nicht), `liste`
+	// zeigt ihn, und `importRunId` steht kurz auf dem alten Wert. Das ist gewollt so stehen
+	// gelassen und KEIN Fehler -- bitte nicht als einen „finden":
+	//   · Der laufende `plan` bekommt trotzdem die richtige id. `zustand.importRunId = …` und der
+	//     `plan`-Ruf liegen in DEMSELBEN synchronen Block von garetienLaufStarten; dazwischen kann
+	//     nichts einer anderen Aufgabe dazwischenfahren.
+	//   · Am Ende des Laufs setzt garetienLaufUebernehmen(rufe, eigeneId) den Wert ohnehin auf den
+	//     eigenen Lauf zurück -- und zwar gesucht, nicht als „der jüngste".
+	//   · Ein Riegel „während eines Laufs gar nicht füllen" wäre EINE Zeile, aber teurer als der
+	//     Fehler: er ließe ein wiedergeöffnetes Fenster leer stehen, solange der Abruf über 18
+	//     fremde Seiten läuft -- und eine leere Liste ohne Erklärung ist genau die Störung, die
+	//     dieses Fenster vermeiden soll.
 	function garetienFensterFuellen(rufe, listeHolen) {
 		return garetienLaufUebernehmen(rufe, null).then(function (lauf) {
 			garetienLaufKachelAktualisieren();
@@ -733,10 +747,16 @@
 	let garetienEbenenGeholt = false;
 	let garetienEbenenRebuild = null;
 
-	// 🔴 Leer heißt ALLE -- dieselbe Lesart wie im geteilten Trichter („leer = alle", der
-	// „Alle"-Haken von avmFilterMenuAttach leert genau diese Menge). Die Vorgabe ist deshalb
-	// ausdrücklich gesetzt: die zwei Gewässerseiten, Stufe 1, das einzige gemessene und
-	// abgenommene Stück des Imports.
+	// 🔴 LEER HEISST NICHTS -- nicht „alle", obwohl der geteilte Trichter genau das bedeutet
+	// („leer = alle", sein „Alle"-Haken leert diese Menge). Das ist hier bewusst anders, weil das
+	// Menü etwas anderes ist: eine AUSWAHL VON ARBEIT, kein Filter. Wer alles abwählt, sagt
+	// „nichts" -- und „alle 18" zöge rund 8300 Zeilen über 18 Seiten ins Staging, darunter genau
+	// die Objektarten, deren Übernahme-Tor noch gar nicht gebaut ist. Ein Klick, der ungeplant den
+	// halben Bestand stagt, ist die teure Richtung (Owner-Entscheid 28.08.2026).
+	// ⚠️ Der Preis: der „Alle"-Haken wird damit zum ABWÄHLEN. Deshalb ist ein leerer Zustand kein
+	// stiller: „Holen & Rechnen" sperrt und sagt in seiner zweiten Zeile, warum -- ein gesperrter
+	// Knopf MIT Begründung ist eine Auskunft, keine Stilllegung.
+	// Die Vorgabe: die zwei Gewässerseiten, Stufe 1, das einzige gemessene und abgenommene Stück.
 	const garetienEbenenAuswahl = new Set(["ggp:Gewaesser", "kosch:Gewaesser"]);
 
 	// 💣 DER RIEGEL GEGEN DEN ZWEITEN LAUF, und er ist ein MODULZUSTAND -- keine CSS-Klasse und
@@ -769,16 +789,16 @@
 		return String((eintrag && eintrag.wiki) || "") + ":" + String((eintrag && eintrag.ebene) || "");
 	}
 
-	// REIN: welche Bezeichner gehen wirklich an `action:'fetch'`? Leer = alle. Diese EINE Rechnung
-	// füttert den Abruf UND die zweite Zeile der Kachel -- „was wird geholt" und „was steht da"
-	// dürfen nicht zwei Rechnungen sein.
+	// REIN: welche Bezeichner gehen wirklich an `action:'fetch'`? Diese EINE Rechnung füttert den
+	// Abruf UND die zweite Zeile der Kachel -- „was wird geholt" und „was steht da" dürfen nicht
+	// zwei Rechnungen sein.
+	// 🔴 Eine leere Auswahl ergibt eine LEERE Liste (siehe oben) -- kein „also alle".
 	// ⚠️ Solange die Ebenenliste noch nicht da ist (oder ihr Abruf scheiterte), gilt die Auswahl
 	// unverändert -- sonst holte ein Klick in dieser Lücke gar nichts und sähe wie ein toter Knopf aus.
 	function garetienGewaehlteBezeichner(auswahl, alleEbenen) {
 		const alle = (alleEbenen || []).map(garetienEbenenBezeichner);
 		const gewaehlt = Array.from(auswahl || []);
 		if (alle.length === 0) { return gewaehlt; }
-		if (gewaehlt.length === 0) { return alle; }
 		// Die Reihenfolge der festen Serverliste, nicht die der Anklickerei.
 		return alle.filter(function (bezeichner) { return gewaehlt.indexOf(bezeichner) !== -1; });
 	}
@@ -792,7 +812,8 @@
 		const alle = alleEbenen || [];
 		const gewaehlt = bezeichner || [];
 		if (alle.length === 0) { return gewaehlt.length + " gewählt"; }
-		if (gewaehlt.length === 0) { return "0 von " + alle.length; }
+		// 🔴 Der leere Zustand ist erlaubt und wird BENANNT -- er sperrt die Nachbarkachel.
+		if (gewaehlt.length === 0) { return "0 von " + alle.length + " · keine gewählt"; }
 		if (gewaehlt.length === alle.length) { return alle.length + " von " + alle.length + " · alle"; }
 		const gruppen = [];
 		alle.forEach(function (eintrag) {
@@ -843,8 +864,12 @@
 	// direkt nach einem Lauf; „0,35 s" ist dort das Gemessene, nicht das Gespeicherte.)
 	function garetienLaufKachelText(lage) {
 		const l = lage || {};
-		if (l.meldung) { return String(l.meldung); }
 		if (l.laeuft) { return l.schritt || "läuft …"; }
+		// 🔴 Der Grund der Sperre schlägt eine stehengebliebene Fehlermeldung: sie berichtet vom
+		// LETZTEN Versuch, die Sperre gilt JETZT und sagt, was zu tun ist. Ein gesperrter Knopf
+		// ohne Begründung wäre eine Stilllegung -- mit ihr ist er eine Auskunft.
+		if (l.ohneEbenen) { return "keine Ebene gewählt"; }
+		if (l.meldung) { return String(l.meldung); }
 		if (!l.lauf) { return "noch kein Lauf"; }
 		const teile = ["Lauf " + garetienLaufStempel(l.lauf)];
 		if (typeof l.dauerMs === "number" && isFinite(l.dauerMs)) {
@@ -887,11 +912,15 @@
 
 	function garetienLaufKachelAktualisieren() {
 		if (!hasDocument) { return; }
+		// Die Sperre hat ZWEI Gründe, und beide werden aus DERSELBEN Rechnung gelesen wie die
+		// Nachbarkachel -- „was wird geholt" steht nur an einer Stelle.
+		const ohneEbenen = garetienGewaehlteBezeichner(garetienEbenenAuswahl, garetienAlleEbenen).length === 0;
 		const zeile = document.getElementById("garetien-run-state");
 		if (zeile) {
 			zeile.textContent = garetienLaufKachelText({
 				laeuft: garetienLaufLaeuft,
 				schritt: garetienLaufSchritt,
+				ohneEbenen: ohneEbenen,
 				meldung: garetienLaufMeldung,
 				lauf: garetienLetzterLauf,
 				dauerMs: garetienRechenDauerMs,
@@ -899,8 +928,15 @@
 			});
 		}
 		const knopf = document.getElementById("garetien-run-tile");
-		// Nur die ANZEIGE des Riegels -- der Riegel selbst ist `garetienLaufLaeuft` (siehe dort).
-		if (knopf) { knopf.disabled = garetienLaufLaeuft; }
+		// Nur die ANZEIGE der Riegel -- der Doppelklick-Riegel selbst ist `garetienLaufLaeuft`
+		// (siehe dort), und der leere Zustand wird in garetienLaufStarten noch einmal geprüft.
+		if (knopf) { knopf.disabled = garetienLaufLaeuft || ohneEbenen; }
+	}
+
+	// Beide Kacheln in einem Zug -- die Auswahl steuert die eine und sperrt die andere.
+	function garetienMenuebandKachelnAktualisieren() {
+		garetienEbenenKachelAktualisieren();
+		garetienLaufKachelAktualisieren();
 	}
 
 	function garetienEbenenKachelAktualisieren() {
@@ -925,7 +961,8 @@
 				return { wiki: eintrag.wiki, ebene: eintrag.ebene };
 			});
 			if (garetienEbenenRebuild) { garetienEbenenRebuild(); }
-			garetienEbenenKachelAktualisieren();
+			// Beide: mit der Liste entscheidet sich auch, ob die Auswahl überhaupt auf etwas zeigt.
+			garetienMenuebandKachelnAktualisieren();
 			return garetienAlleEbenen;
 		}).catch(function () {
 			garetienEbenenGeholt = false;   // ein späterer Versuch darf es noch einmal probieren
@@ -964,6 +1001,12 @@
 	function garetienLaufStarten(rufe, ebenen, malen, listeHolen) {
 		// 💣 DER RIEGEL, vor jedem anderen Schritt.
 		if (garetienLaufLaeuft) { return Promise.resolve(null); }
+		// 🔴 Und der zweite Riegel: OHNE gewählte Ebene wird nichts geholt. Er steht hier und nicht
+		// nur am `disabled` des Knopfes -- `disabled` ist die Anzeige, nicht der Riegel, und der
+		// Endpunkt beantwortete eine leere Liste sonst mit 400 `no_layers`, was im Netz-Protokoll
+		// wie ein Defekt aussieht statt wie „du hast nichts angehakt".
+		// ⚠️ Er nimmt den Doppelklick-Riegel NICHT: es gibt nichts freizugeben.
+		if (!ebenen || ebenen.length === 0) { malen(); return Promise.resolve(null); }
 		garetienLaufLaeuft = true;
 		garetienLaufMeldung = "";
 		garetienEbenenFehler = [];
@@ -1038,11 +1081,13 @@
 				// ⚠️ Eine Änderung an der Ebenenauswahl holt die LISTE NICHT neu: sie sagt, was der
 				// NÄCHSTE Abruf holt, sie filtert nichts am geltenden Lauf. Wer hier
 				// avesmapsGaretienListeHolen anhängt, baut einen Abruf ohne Wirkung ein.
-				garetienEbenenKachelAktualisieren, "Ebenen"
+				// 💣 Sie zieht aber BEIDE Kacheln nach: die Sperre der Nachbarkachel hängt an
+				// derselben Auswahl, und ein Knopf, der erst beim nächsten Öffnen merkt, dass
+				// nichts mehr angehakt ist, ist genau der Zustand, den dieser Riegel verhindert.
+				garetienMenuebandKachelnAktualisieren, "Ebenen"
 			);
 		}
-		garetienLaufKachelAktualisieren();
-		garetienEbenenKachelAktualisieren();
+		garetienMenuebandKachelnAktualisieren();
 		return band;
 	}
 

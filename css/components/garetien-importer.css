@@ -119,21 +119,40 @@
 
 .gi-win .avm-tile:hover { background: var(--color-button-soft-hover); }
 
-/* Die ANZEIGE des Doppelklick-Riegels. Der Riegel selbst ist ein Modulzustand in
-   js/review/review-garetien-importer.js -- eine Weiche, die an einer Klasse hinge, wirkte erst im
-   nächsten Bild (AGENTS.md §11).
-   💣 UND SIE NIMMT NICHT DIE `--color-disabled-*`-Palette, anders als `.gi-win .btn:disabled`
-   darunter. Der Unterschied ist der INHALT: die gesperrte Kachel trägt in ihrer zweiten Zeile den
-   Fortschritt („holt 2 Ebenen …", „rechnet …") -- das ist die einzige Auskunft, die ein Editor
-   während eines Laufs über 18 fremde Seiten bekommt. Auf der Sperrpalette misst diese Zeile 2,12:1
-   (hell) bzw. 2,63:1 (dunkel) und ist damit unlesbar; auf `--color-panel-muted` misst sie 4,83:1
-   bzw. 5,22:1. Der Fußknopf daneben darf die Sperrpalette behalten -- er sagt im gesperrten
-   Zustand nichts, was man lesen müsste.
+/* Die ANZEIGE der zwei Riegel: der Doppelklick-Riegel und „keine Ebene gewählt". Beide sind
+   Modulzustände in js/review/review-garetien-importer.js -- eine Weiche, die an einer Klasse
+   hinge, wirkte erst im nächsten Bild (AGENTS.md §11).
+   💣 SIE NIMMT WEDER DIE `--color-disabled-*`-PALETTE NOCH DIE HAUSFORM `opacity: .5`, und beides
+   ist gemessen, nicht geschätzt (WCAG-Kontrast aus den Werten in css/base/tokens.css):
+
+       Sperrpalette   hell  .t1 2,12   .t2 4,62      opacity .5   hell  .t1 2,30   .t2 1,96
+                      dunkel .t1 2,42  .t2 5,71                   dunkel .t1 3,60  .t2 2,43
+       DIESE REGEL    hell  .t1 8,38   .t2 5,60
+                      dunkel .t1 10,44 .t2 5,79
+
+   🪤 Und die Zahl, die man dabei falsch abliest: `.avm-tile .t2` setzt seine Farbe SELBST
+   (`color: var(--color-text-muted)`, 0,2,0 in editor-body.css) und erbt eine Sperrfarbe GAR NICHT.
+   Die 2,12 gehört also der Überschrift `.t1`, nicht der Fortschrittszeile -- wer das verwechselt,
+   misst `.t2` = 4,62, hält diesen Kommentar für widerlegt und nimmt die Sonderregel heraus.
+   🔴 Der Grund für die Regel steht trotzdem: eine gesperrte Haupthandlung, deren NAME auf 2,12:1
+   steht, ist unbrauchbar -- und `opacity: .5` (die Hausform aus editor-page.css, die dieses
+   Fenster mangels `.avm-editor-body` gar nicht erreicht) drückte ausgerechnet die
+   Fortschrittszeile auf 1,96, also genau das, was der Benutzer in diesem Moment lesen soll.
+
+   ⭐ Erkennbar wird der Zustand deshalb am RAHMEN und am GRUND, nicht am Text -- zwei Signale, die
+   nichts kosten: die Kachel verliert ihren Knopfgrund und sinkt auf `--color-panel` (den Grund des
+   Fensters, sie sieht also nicht mehr wie ein Knopf aus), und bekommt eine gestrichelte goldene
+   Kante. Gemessen gegen den RUHEZUSTAND: Grund 1,19 (hell) / 1,13 (dunkel), Rand 2,08 / 4,69, und
+   der Rand auf seinem eigenen Grund 3,78 / 8,08.
+   ⚠️ `--color-panel-active` wäre der nächstliegende Griff und ist FALSCH: im hellen Thema ist er
+   zeichengleich mit `--color-button-soft-hover` -- eine freie Kachel unter dem Zeiger sähe dann
+   aus wie eine laufende.
    ⚠️ Steht NACH `:hover`: gleiche Spezifität (0,2,1), und Chrome feuert `:hover` auch auf einem
-   gesperrten Knopf. */
+   gesperrten Knopf.
+   ⚠️ 1px bleibt 1px (border-box) -- der Wechsel auf `dashed` verschiebt nichts. */
 .gi-win .avm-tile:disabled {
-	background: var(--color-panel-muted);
-	border-color: var(--color-border);
+	background: var(--color-panel);
+	border: 1px dashed var(--color-accent-strong);
 	cursor: progress;
 }
 
