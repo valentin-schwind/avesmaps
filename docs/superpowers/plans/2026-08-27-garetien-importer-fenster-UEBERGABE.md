@@ -40,6 +40,63 @@ Beide sind **nicht** Teil des 16-Aufgaben-Plans (Ruling R8). Details in der Mapp
 
 ---
 
+## 2b. 🔧 WAS DER OWNER ENTSCHEIDEN MUSS — drei Befunde, und es ist DERSELBE Fall
+
+Alle drei kommen aus derselben Frage: **wann gilt ein Objekt als erledigt, und was passiert mit
+einem Widerspruch, den man weder ersetzen noch stehenlassen will.** Sie sind gemessen, nicht
+vermutet, und keiner davon ist ein Programmierfehler.
+
+### (1) Die Zeile `widerspruch` der Knopf-Tabelle ist an echten Daten TOT
+
+Der Bauplan sagt für diesen Fall „Die Geometriefrage steht vorn". **Sie lässt sich nicht
+beantworten.** `avesmapsGaretienErgaenzungsEintraege` läuft nur für `status === 'deckt_sich'`;
+ein `widerspricht`-Objekt bekommt genau **ein** Basis-Item (`anlass='artikel_widerspruch'`,
+`change_type='changed'`, **ohne** `felder`). Damit haben „Geometrie ersetzen …" und „Namen
+ersetzen" kein Ziel — beide ausgegraut, mit Grund; bedienbar ist nur „Ablehnen".
+
+Und beim Übernehmen setzt `garetien-uebernahme.php:443` diese Fälle auf `stale` mit *„braucht
+eine Entscheidung von Hand"* — **eine Entscheidung, die dieses Fenster nicht anbietet.**
+
+⚠️ Es sind **3 von 289** Objekten in Stufe 1 — aber sie kommen nach der Hausregel
+**vorangehakt** (`change_type='changed'`).
+🪤 **Warum es niemand sah:** die Testfixture ist `{ urteil: "widerspruch", …, items: [] }` — sie
+prüft die **Reihenfolge** der Knöpfe, nie ihren **bedienbaren Zustand**.
+
+### (2) Im Reiter „Offen" ist ein Häkchen eine EINBAHNTÜR
+
+Gemessen an der Natter: ein Abschnittshäkchen von zweien → Offen 3→2, die Zeile ist weg, die
+rechte Spalte leer, der Glow erloschen. **Und das Häkchen lässt sich dort nicht mehr
+zurücknehmen** — man muss den Reiter wechseln.
+
+🔴 **Kein eigenständiger Defekt.** Die Ursache ist eine Kette aus drei Aufgaben, von denen keine
+für sich falsch ist: ein Objekt gilt als `vorgemerkt`, sobald **ein** Item hakt (Aufgabe 8) · der
+Filter wirft die Zeile **serverseitig** aus dem Reiter · die Einzelansicht hängt an der Zeile
+(Aufgabe 13). Nach dem Neuholen hat der Browser für dieses Objekt **gar keine Daten mehr**; jede
+lokale Reparatur führte entweder die Geisteransicht wieder ein, die Aufgabe 13 ausdrücklich
+verbietet, oder definierte um, was „Offen" heißt.
+
+⭐ Im Reiter **„Vorgemerkt"** läuft derselbe Ablauf einwandfrei (Glow 2→3, Panel bleibt offen).
+
+### (3) Der `widerspruch`-Abschnitt trägt „nichts zu ersetzen"
+
+Er erzeugt kein Abschnitts-Item, fällt also in den `is-full`-Zustand — und das steht neben
+„Deckung Median 8,95" und einem Grund, der sagt „die Geometrie liegt 8.95 Einheiten entfernt".
+„nichts zu ersetzen" klingt nach „passt schon", während der Fall gerade **derselbe Artikel an
+zwei Stellen** ist. Eine fünfte Beschriftung wäre die naheliegende Antwort — sie muss aber zur
+Knopfleiste passen, und die ist Fall (1).
+
+---
+
+**Dazu zwei Kleinigkeiten, die keine Entscheidung brauchen, aber genannt gehören:**
+- 🔧 **R10 (b) („Offen kann nie 0 werden") ist EINE ZEILE**, nicht unmöglich: Filter
+  (`garetien-liste.php:229`) und Reiterzähler (`:531`) sind zwei getrennte Stellen. Bewusst nicht
+  gebaut — kein Test, kein Schritt im Bauplan, und es hängt an derselben Frage wie (2).
+- 🔧 **„liegt auf Darpat" aus Mockup §3 hat in unseren Daten keine Quelle.** Der Satz steht dort
+  an einem namenlosen Abschnitt und nennt den Fluss, zu dem der gehört — diese Beziehung gibt es
+  nicht. Herleiten hieße eine neue Geometrie-Nachbarschaftssuche für **eine Textzeile**.
+
+---
+
 ## 3. Alle Entscheidungen, die ich getroffen habe
 
 Sie stehen vollständig mit Begründung und „was es kostet, wenn falsch" im Ledger. Hier die
