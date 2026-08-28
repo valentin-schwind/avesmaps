@@ -3775,6 +3775,11 @@
 		     deshalb unkritisch, weil der Riegel lazy ueber .load() geht und bis dahin geschlossen bleibt.
 		     🔴 Diese Datei verschwindet beim Abbau des Importers restlos (Auftrag §5.5). -->
 		<script src="js/review/review-garetien-importer.js"></script>
+		<!-- Der goldgelbe Schein des Importers auf der Karte (Aufgabe 14): was angehakt ist, leuchtet.
+		     Die Ladereihenfolge zu review-garetien-importer.js ist unkritisch -- jenes fragt bei JEDEM
+		     Aufruf `typeof window.avesmapsGaretienKarteZeigen === "function"` ab, nicht einmal beim Laden.
+		     🔴 Auch diese Datei verschwindet beim Abbau des Importers restlos (Auftrag §5.5). -->
+		<script src="js/review/review-garetien-karte.js"></script>
 		<script src="js/app/perf-trace.js"></script>
 		<script src="js/ui/route-planner-toggle.js"></script>
 		<script src="js/map-features/map-features-infopanel.js"></script>

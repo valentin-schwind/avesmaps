@@ -412,6 +412,25 @@
    AGENTS.md §12 meint. */
 .gi-detail a[target="_blank"]::after { content: " ↗"; }
 
+/* „✦ Auf der Karte zeigen" (Aufgabe 14). WEICH/OUTLINE, nicht gefuellt: die Haupthandlung dieses
+   Fensters heisst „Angehakte uebernehmen" und steht in der Fusszeile (Designsprache §12,
+   Knopf-Rangfolge). Er bewegt ausserdem nur die ANSICHT -- ein Akzentknopf verspraeche eine
+   Handlung an den Daten. */
+.gi-show {
+	width: 100%;
+	min-height: var(--avm-control-h);
+	margin-bottom: var(--space-6);
+	border: 1px solid var(--color-button-soft-border);
+	border-radius: var(--radius-md);
+	background: var(--color-button-soft);
+	color: var(--color-button-soft-text);
+	font: inherit;
+	font-size: var(--font-size-body);
+	font-weight: var(--font-weight-bold);
+	cursor: pointer;
+}
+.gi-show:hover { background: var(--color-button-soft-hover); }
+
 .gi-sec {
 	margin: 0 0 var(--space-2);
 	max-width: none;

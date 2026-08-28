@@ -164,10 +164,17 @@
 		return garetienFensterFuellen(avesmapsGaretienRufe, avesmapsGaretienListeHolen);
 	}
 
+	// 💣 BEIM SCHLIESSEN WIRD DIE KARTE ABGERAEUMT (Aufgabe 14). Ein zurueckgelassener goldener
+	// Strich auf der oeffentlichen Karte waere der schlimmste Ausfall dieser Ansichtsschicht: der
+	// Besucher saehe goldene Striche ohne jede Erklaerung, und nichts auf der Seite erklaerte sie.
+	// ⚠️ Defensiv wie der Aufruf im Listenlauf -- diese Datei bleibt ohne den Zeichner lauffaehig.
 	function avesmapsGaretienFensterSchliessen() {
 		const win = fensterElement();
 		if (win) { win.hidden = true; }
 		zustand.offen = false;
+		if (typeof window !== "undefined" && typeof window.avesmapsGaretienKarteAus === "function") {
+			window.avesmapsGaretienKarteAus();
+		}
 	}
 
 	// ---- der eine Sender (Auftrag §5.4) -------------------------------------------------------
@@ -1405,9 +1412,13 @@
 			+ " — einmal an der Quelle, nicht an jedem Objekt.</p>";
 	}
 
-	// REIN: die ganze rechte Spalte. `optionen` ist heute leer und bleibt der Griff, an dem
-	// Aufgabe 14 ihren Knopf „✦ Auf der Karte zeigen" einhängt -- er steht bewusst noch NICHT hier:
-	// ein Knopf, der nichts tut, ist eine sichtbare Störung, und diese Datei geht einzeln live.
+	// REIN: die ganze rechte Spalte.
+	//
+	// 🔴 Der Knopf „✦ Auf der Karte zeigen" (Aufgabe 14) trägt seinen `data-key` selbst. Er ist
+	// damit ohne Modulzustand lesbar -- der Klickverteiler braucht weder `zustand.detailKey` noch
+	// eine zweite Buchführung darüber, welche Ansicht gerade offen ist.
+	// ⚠️ Er bewegt AUSSCHLIESSLICH die Ansicht. Das Leuchten hängt am Häkchen (Owner 27.08.2026);
+	// wer ihn drückt, sieht die Karte fliegen und den Glow unverändert.
 	function garetienDetailMarkup(objekt) {
 		if (!objekt) {
 			return '<div class="gi-detail"><p class="avm-empty">Wähle links eine Zeile — hier steht'
@@ -1421,6 +1432,14 @@
 			+ '<span class="gi-detail__kind">' + avesmapsGaretienEscape(garetienTypText(objekt)) + "</span>"
 			+ "</div>";
 		kopf += garetienDetailMetaMarkup(objekt);
+		// ⚠️ Ohne Geometrie gäbe es nichts anzufliegen -- dann steht der Knopf auch nicht da. Ein
+		// Knopf, der nichts tut, ist eine sichtbare Störung (dieselbe Begründung, aus der er bis
+		// Aufgabe 14 ganz fehlte).
+		if (Array.isArray(objekt.geometrie) && objekt.geometrie.length > 0) {
+			kopf += '<button class="gi-show" type="button" data-key="'
+				+ avesmapsGaretienEscape(objekt.key || "") + '">'
+				+ "✦ Auf der Karte zeigen — Ansicht folgt</button>";
+		}
 
 		let notiz = garetienAnzahlText(abschnitte.length, "Abschnitt", "Abschnitte");
 		if (gruppen.gesamt >= 2) {
@@ -1513,12 +1532,45 @@
 		return garetienDetailWaehlen(schluessel, objekte);
 	}
 
+	// 🔴 Derselbe Bau wie garetienListeKlick: Ereignis UND Objektliste kommen HEREIN, damit sich am
+	// ERGEBNIS messen lässt, dass der Knopf GENAU sein Objekt anfliegt -- und dass ein Klick daneben
+	// gar nichts auslöst. Eine Zusicherung, die bloß behauptet, im Quelltext stehe ein `if`, wäre
+	// Vakuum.
+	//
+	// 💣 Er bewegt NUR die Ansicht. Der Glow hängt am Häkchen (Owner 27.08.2026) und wird hier
+	// nicht angefasst -- weder gesetzt noch gelöscht.
+	function garetienDetailKlick(ereignis, objekte) {
+		const ziel = ereignis && ereignis.target;
+		if (!ziel || typeof ziel.closest !== "function") { return null; }
+		const knopf = ziel.closest(".gi-show");
+		if (!knopf) { return null; }
+		const schluessel = knopf.getAttribute("data-key");
+		if (!schluessel) { return null; }
+		const objekt = (objekte || zustand.objekte || []).filter(function (o) {
+			return o && String(o.key) === String(schluessel);
+		})[0] || null;
+		if (!objekt) { return null; }
+		if (typeof window !== "undefined" && typeof window.avesmapsGaretienKarteFliegen === "function") {
+			window.avesmapsGaretienKarteFliegen(objekt);
+		}
+		return objekt;
+	}
+
 	// ---- Verdrahtung + Rechte-Riegel ---------------------------------------------------------------
 
 	function bindFenster() {
 		const schliessenBtn = hasDocument ? document.getElementById("garetien-importer-close") : null;
 		if (schliessenBtn) {
 			schliessenBtn.addEventListener("click", avesmapsGaretienFensterSchliessen);
+		}
+		// EIN Zuhörer auf der Detailspalte, einmal beim Start. Die Spalte selbst steht statisch in
+		// index.html und wird nie ersetzt (nur ihr innerHTML), die Delegation überlebt also jeden
+		// Lauf von garetienDetailRendern -- dieselbe Begründung wie beim Listenkasten.
+		const detailEl = hasDocument ? document.getElementById("garetien-detailcol") : null;
+		if (detailEl) {
+			detailEl.addEventListener("click", function (ereignis) {
+				garetienDetailKlick(ereignis, zustand.objekte);
+			});
 		}
 	}
 
@@ -1628,6 +1680,9 @@
 			garetienAbschnittMarkup,
 			garetienDetailWaehlen,
 			garetienListeKlick,
+			// Aufgabe 14
+			avesmapsGaretienFensterSchliessen,
+			garetienDetailKlick,
 		};
 	}
 })();
