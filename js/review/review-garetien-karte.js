@@ -44,18 +44,31 @@
 	//     Darunter bleibt unser Blau rein und der Hof reines Gold auf Pergament.
 	//   - IHR STRICH IST DER VORSCHLAG und gehoert nach oben, sonst sieht man ihn nicht.
 	//
-	// 🔴 SCHEIN 360. Er muss UNTER `roadsPane` (400) liegen -- das ist die Regel -- und UEBER
-	// `roadsOutlinePane` (350), der weissen Kontur unserer Wege: darunter zeigte sich vom 13px
-	// breiten Schein nur der Rand ausserhalb der 5,4px breiten Kontur, und aus dem Hof wuerde ein
-	// duenner Ring. Belegt ist der Platz so (ausgezaehlt ueber ALLE `style.zIndex`-Zuweisungen
-	// ausserhalb von js/third-party/): 300 Schraffur · 350 roadsOutlinePane UND die Grenz-Canvas ·
-	// 355 regionHoverPane · 400 roadsPane. 356-399 ist frei.
+	// 🔴 SCHEIN 360, STRICH 465. Was diese zwei Zahlen zusichern:
 	//
-	// 🔴 STRICH 465 UND NICHT 460 (der Brief nannte 460). 460 gehoert `measurementPane`
-	// (js/app/bootstrap.js); bei gleichem z-index entscheidet die Einfuegereihenfolge im DOM, und
-	// das ist keine Regel, sondern ein Zufall, der beim naechsten Umbau kippt. Belegt ist der Platz
-	// so: 450 routePane · 455 ecosystemPaneKlimaLines · 460 measurementPane · 470 die Wegenamen
-	// (map-features-path-label-canvas-overlay.js) · 475 regionLabelsPane. 465 ist frei.
+	//   (a) 360 liegt UNTER `roadsPane` -- das ist die Regel des Scheins -- und UEBER
+	//       `roadsOutlinePane`, der weissen Kontur unserer Wege. Darunter zeigte sich vom 13px
+	//       breiten Schein nur der Rand ausserhalb der 5,4px breiten Kontur: aus dem Hof wuerde
+	//       ein duenner Saum.
+	//   (b) 465 ist frei, und 460 ist es NICHT -- die gehoert `measurementPane`
+	//       (js/app/bootstrap.js). Bei gleichem z-index entscheidet die Einfuegereihenfolge im DOM,
+	//       und das ist keine Regel, sondern ein Zufall, der beim naechsten Umbau kippt.
+	//   (c) Beide Zahlen sind sonst UNBELEGT.
+	//
+	// 🪤 HIER STAND EINE AUFZAEHLUNG DER BELEGTEN WERTE, und sie war unvollstaendig: auf 455 liegt
+	// nicht nur `ecosystemPaneKlimaLines`, sondern auch `avesmapsRouteSpeedArrowPane`
+	// (js/routing/route-speed-arrows.js). An der Richtigkeit von 465 aendert das nichts -- aber es
+	// war in diesem Vorhaben die fuenfte Liste, die beim Nachzaehlen kuerzer war als die
+	// Wirklichkeit. Eine Zahl im Kommentar liest sich wie eine vollstaendige Liste, und niemand
+	// zaehlt nach. Deshalb steht hier die ZUSICHERUNG und der Griff, mit dem man sie nachprueft --
+	// nicht ihr Ergebnis (dieselbe Form wie in AGENTS.md §11 an den Rauschfiltern):
+	//
+	//   grep -rn 'style\.zIndex = [0-9]' js/ --include=*.js | grep -v third-party \
+	//     | sed -E 's/^([^:]+):([0-9]+):.*zIndex = ([0-9]+).*/\3 \1:\2/' | sort -n
+	//
+	// ⚠️ Eine Pane kann ihren z-Wert auch anderswo bekommen (CSS, ein anderes Muster); wer die
+	// Zahlen aendert, misst zusaetzlich im Browser nach -- `getComputedStyle` ueber die Kinder von
+	// `map.getPane("mapPane")` gibt die tatsaechliche Stapelung.
 	//
 	// 💣 `getPane` ZUERST, dann erst `createPane` — und nicht umgekehrt. Leaflet 1.9.4 prueft in
 	// `createPane` NICHT, ob es die Pane schon gibt: es legt jedes Mal ein NEUES <div> an und haengt

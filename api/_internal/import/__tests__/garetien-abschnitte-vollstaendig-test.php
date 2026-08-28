@@ -511,4 +511,73 @@ assert(!preg_match('~ADD COLUMN abschnitte_json\s+VARCHAR~i', $abruf),
 assert(str_contains($abruf, 'avesmapsGaretienEnsureUrteilSpalten'),
     'die Gegenprobe findet den gestrippten Quelltext selbst nicht mehr -- der Riegel misst nichts');
 $pruefungen += 3;
+// ---------------------------------------------------------------------------------------------
+// 🔴 `geometrie_typ` MUSS BEIM EMPFAENGER ANKOMMEN -- und zwar mit BEIDEN Werten.
+//
+// Der Zeichner der Karte (js/review/review-garetien-karte.js) entscheidet an diesem Feld, ob er
+// eine Flaeche fuellt oder eine Linie zieht. Ohne es zeichnete er jeden See als gestrichelten
+// Umriss -- 113 der 288 Objekte der Stufe 1 sind Flaechen.
+//
+// 🪤 GENAU DIESE LUECKE IST DER GRUND, WARUM ES AUFGABE 13b GAB: dort waren sechs Felder je fuer
+// sich plausibel gebaut und keines kam beim Empfaenger an; aufgefallen ist es erst zwei Aufgaben
+// spaeter. Ein Feld, das nur EINE Seite kennt, ist kein Feld. Der JS-Test prueft gegen ein von
+// Hand gebautes Objekt und kann das hier nicht sehen -- er belegt die VERARBEITUNG, dieser die
+// LIEFERUNG.
+//
+// 🔴 BEIDE Werte, nicht nur einer: eine Zusicherung, die allein `Polygon` kennt, hielte auch dann,
+// wenn das Feld fest verdrahtet waere. Gemessen wird an der GETEILTEN Fixture, die beide Formen
+// schon enthaelt -- der Muehlsee (`typ` See -> `ziel` region -> Polygon) gegen die Alke (`typ`
+// Bach -> `ziel` path -> LineString).
+$nachSchluessel = [];
+foreach (avesmapsGaretienArbeitsliste($pdo, 1, [])['objekte'] as $eintrag) {
+    $nachSchluessel[$eintrag['key']] = $eintrag;
+}
+// Die VORBEDINGUNG: ohne beide Formen im Pruefstand belegt der Rest nichts.
+assert(isset($nachSchluessel['ggp:Gewaesser:See:Garetien:Muehlsee']),
+    'der Muehlsee fehlt im Pruefstand -- ohne eine Flaeche prueft der Rest nur die halbe Regel');
+assert(isset($nachSchluessel['ggp:Gewaesser:Bach:Garetien:Alke']),
+    'die Alke fehlt im Pruefstand -- ohne eine Linie prueft der Rest nur die halbe Regel');
+$pruefungen += 2;
+
+$muehlsee = $nachSchluessel['ggp:Gewaesser:See:Garetien:Muehlsee'];
+$alke = $nachSchluessel['ggp:Gewaesser:Bach:Garetien:Alke'];
+assert(array_key_exists('geometrie_typ', $muehlsee),
+    'geometrie_typ fehlt in der Arbeitsliste -- der Zeichner kann eine Flaeche dann nicht erkennen');
+assert($muehlsee['geometrie_typ'] === 'Polygon',
+    'eine Flaeche muss als Polygon angekuendigt werden, angekommen ist: '
+    . var_export($muehlsee['geometrie_typ'], true));
+assert($alke['geometrie_typ'] === 'LineString',
+    'eine Linie muss als LineString angekuendigt werden, angekommen ist: '
+    . var_export($alke['geometrie_typ'], true));
+$pruefungen += 3;
+
+// Und der Wert stammt wirklich aus `after.geometry.type` und nicht aus einer zweiten Herleitung:
+// er ist zeichengleich mit dem, was im gespeicherten Plan steht.
+$ausPlan = $pdo->prepare('SELECT after_json FROM sync_plan_item WHERE entity_key LIKE ? LIMIT 1');
+foreach ([['ggp:Gewaesser:See:Garetien:Muehlsee%', 'Polygon'],
+          ['ggp:Gewaesser:Bach:Garetien:Alke%', 'LineString']] as [$muster, $erwartet]) {
+    $ausPlan->execute([$muster]);
+    $after = json_decode((string) $ausPlan->fetchColumn(), true);
+    assert(is_array($after) && ($after['geometry']['type'] ?? null) === $erwartet,
+        'der Plan selbst traegt fuer ' . $muster . ' nicht ' . $erwartet
+        . ' -- dann misst die Zusicherung darueber etwas anderes als ihre Quelle');
+    $pruefungen++;
+}
+
+// ⚠️ Und die dritte Auskunft, die es hier gibt: eine Zeile OHNE Item traegt LEER, weil es dort kein
+// `after` gibt. Das ist richtig und harmlos -- gezeichnet wird nur, was ein Haekchen traegt, und
+// ohne Item gibt es keins. Festgehalten, damit niemand das Feld dort 'repariert'.
+$ohneItem = null;
+foreach ($nachSchluessel as $eintrag) {
+    if ($eintrag['items'] === [] && $ohneItem === null) {
+        $ohneItem = $eintrag;
+    }
+}
+assert($ohneItem !== null,
+    'der Pruefstand hat keine Zeile ohne Item -- dann belegt die Zusicherung darunter nichts');
+assert($ohneItem['geometrie_typ'] === '',
+    'eine Zeile ohne Item hat kein `after` und traegt deshalb LEER: '
+    . var_export($ohneItem['geometrie_typ'], true));
+$pruefungen += 2;
+
 echo "OK: {$pruefungen} Pruefungen\n";
