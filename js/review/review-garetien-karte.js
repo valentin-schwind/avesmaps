@@ -66,6 +66,15 @@
 	//   grep -rn 'style\.zIndex = [0-9]' js/ --include=*.js | grep -v third-party \
 	//     | sed -E 's/^([^:]+):([0-9]+):.*zIndex = ([0-9]+).*/\3 \1:\2/' | sort -n
 	//
+	// 💣 UND DIESER GRIFF FINDET DIE EIGENEN ZWEI NICHT. Er sucht eine ZIFFER hinter `zIndex =`;
+	// hier steht dort eine Variable (`pane.style.zIndex = z`, weiter unten), weil beide Panes durch
+	// dieselbe Funktion gehen. Wer nur ihn faehrt, haelt 360 und 465 fuer frei und vergibt sie ein
+	// zweites Mal -- dieselbe Fehlerform wie ein Suchmuster, das eine Zugriffssyntax voraussetzt
+	// (AGENTS.md §11, Zoombaender: das Inventar-Grep mit Klammer fand die Punktzugriffe nie).
+	// Die Konstanten dazu:
+	//
+	//   grep -rn 'PANE_Z = [0-9]' js/ --include=*.js | grep -v third-party
+	//
 	// ⚠️ Eine Pane kann ihren z-Wert auch anderswo bekommen (CSS, ein anderes Muster); wer die
 	// Zahlen aendert, misst zusaetzlich im Browser nach -- `getComputedStyle` ueber die Kinder von
 	// `map.getPane("mapPane")` gibt die tatsaechliche Stapelung.
