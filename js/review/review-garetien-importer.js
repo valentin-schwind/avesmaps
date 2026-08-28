@@ -1196,6 +1196,37 @@
 		return String(anzahl) + " " + (Number(anzahl) === 1 ? einzahl : mehrzahl);
 	}
 
+	// REIN: eine Zahl in Hausform -- Komma statt Punkt, zwei Nachkommastellen (dieselbe Form wie
+	// die Laufdauer im Menüband). Nichts wird gerechnet, nur geschrieben.
+	function garetienZahlText(wert) {
+		return Number(wert).toFixed(2).replace(".", ",");
+	}
+
+	// REIN: die Punktzahl EINES Abschnitts. Mit bekanntem Nenner „9 von 16 Punkten", ohne ihn
+	// „9 Punkte" -- beide Formen stehen so im Mockup (§3 und §6a).
+	// 🔴 Der Nenner kommt vom SERVER (`objekt.probepunkte`) und wird NICHT aus `objekt.geometrie`
+	// abgelesen: der Abgleich dünnt ihre Stützpunkte auf höchstens AVESMAPS_GARETIEN_PROBEPUNKTE
+	// aus, und ihr Großer Fluss trägt 294 davon -- „9 von 294" wäre schlicht falsch.
+	// ⚠️ 0 heißt „nicht gemessen" (ein Lauf von vor dem Nachzug), nicht „null Punkte": dann fällt
+	// die Angabe weg, statt eine erfundene Zahl zu behaupten.
+	function garetienPunkteText(punkte, nenner) {
+		const gesamt = Number(nenner || 0);
+		return gesamt > 0
+			? String(Number(punkte || 0)) + " von " + gesamt + " Punkten"
+			: garetienAnzahlText(Number(punkte || 0), "Punkt", "Punkte");
+	}
+
+	// REIN: der Kopf-Zusatz „Fluss → Flussweg" -- IHR Typ und die Art, als die WIR es anlegen
+	// würden. Ohne den zweiten Teil sagt der Kopf nicht, was beim Übernehmen entstünde.
+	// ⚠️ Fehlt der Zielsubtyp (ein Objekt ohne Vorschlag, ein Lauf von vor dem Nachzug), steht nur
+	// ihr Typ da -- die Zeile fällt weg, sie steht nicht mit einem leeren Pfeil da.
+	function garetienTypText(objekt) {
+		const ihr = String((objekt && objekt.typ) || "").trim();
+		const unser = String((objekt && objekt.subtyp) || "").trim();
+		if (unser === "" || unser === ihr) { return ihr; }
+		return ihr === "" ? unser : ihr + " → " + unser;
+	}
+
 	// REIN: wie viele VERSCHIEDENE Objekte von uns liegen unter ihrem einen?
 	//
 	// 🔴 Gleiche Namen sind EIN Objekt (Barun-Ulah trägt seinen Namen siebenmal), ein NAMENLOSER
@@ -1247,10 +1278,20 @@
 		// behauptete er eine Umbenennung, die gar nicht ausgeführt wird -- dieselbe Falle, die
 		// garetien-plan.php mit `unset($eintrag['after']['name'])` schon einmal geschlossen hat.
 		let kennung = avesmapsGaretienEscape(publicId)
-			+ " · " + garetienAnzahlText(Number(a.punkte || 0), "Punkt", "Punkte");
+			+ " · " + garetienPunkteText(a.punkte, objekt && objekt.probepunkte);
 		if (felder.name) {
 			kennung += ' · <span class="gi-seg__to">→ „'
 				+ avesmapsGaretienEscape(String((objekt && objekt.name) || "")) + '"</span>';
+		}
+		// Der Vergleichsbefund des Abgleichs. 🔴 Er kommt fertig vom Server (`name_gleich` an der
+		// gespeicherten Trefferliste) und wird hier NICHT nachgerechnet: ob zwei Namen „derselbe"
+		// sind, entscheidet avesmapsGaretienNamenAehnlich -- dieselbe Regel, die über das
+		// Umbenennungs-Item entscheidet. Ein zweiter Vergleich im Browser schriebe „Name gleich"
+		// an eine Zeile, die trotzdem eine Umbenennung anbietet.
+		// ⚠️ NUR bei `true`. `false` ist der Normalfall und stünde sonst an fast jeder Zeile; ein
+		// fehlendes Feld (alter Lauf) ist gar keine Auskunft und darf keine erfinden.
+		if (a.name_gleich === true) {
+			kennung += " · Name gleich";
 		}
 
 		const klassen = "gi-seg" + (lage === "nichts" ? " is-full" : "")
@@ -1275,8 +1316,17 @@
 		const teile = [];
 		const url = String(objekt.wiki_url || "").trim();
 		if (url !== "") {
+			// 🔴 Der Linktext ist der ARTIKELNAME („Garetien:Natter"), nicht das Wort
+			// „Wiki-Artikel" -- so das Mockup §3. Er kommt fertig vom Server: die Bildung
+			// `<Namensraum>:<Artikel>` steht dort an EINER Stelle
+			// (avesmapsGaretienSeitenNameAusZeile), und ihn hier aus der Adresse
+			// zurückzuparsen wäre ihre dritte Fassung.
+			// ⚠️ Ohne Artikelnamen (Sammelquelle ohne Artikel, alter Lauf) bleibt das Wort stehen
+			// -- ein Link ohne Beschriftung wäre schlechter als ein allgemeiner.
+			const seite = String(objekt.seite || "").trim();
 			teile.push('<a href="' + avesmapsGaretienEscape(url) + '" target="_blank" rel="noopener"'
-				+ ' title="' + avesmapsGaretienEscape(url) + '">Wiki-Artikel</a>');
+				+ ' title="' + avesmapsGaretienEscape(url) + '">'
+				+ avesmapsGaretienEscape(seite === "" ? "Wiki-Artikel" : seite) + "</a>");
 		}
 		const lodVon = String(objekt.lodmin || "").trim();
 		const lodBis = String(objekt.lodmax || "").trim();
@@ -1311,6 +1361,47 @@
 		return '<p class="gi-bomb">' + text + "</p>";
 	}
 
+	// Die Lizenzangabe kommt aus js/ui/feature-source-markup.js -- der EINEN Stelle, an der ein
+	// Lizenzschlüssel zu seiner Beschriftung wird („cc-by-nc-sa-3.0" → „CC BY-NC-SA 3.0").
+	// 🔴 KEINE eigene Tafel hier. Die Infobox, der Quellen-Editor und dieses Fenster zeigen
+	// dieselbe Angabe derselben Quelle; eine Regel, die einen von drei Erzeugern bindet, ist keine
+	// (AGENTS.md §11, Quellenliste). `index.html` lädt die Datei vor dieser -- dieselbe
+	// Reihenfolgezusage wie bei den fünf Seiten mit dem Quellen-Editor.
+	// ⚠️ Nachgeschlagen bei JEDEM Aufruf, nicht einmal beim Laden: sonst hält der Verweis eine
+	// Fassung fest, und ein Test, der die geteilte Funktion ersetzt, misst weiter die alte.
+	// 🔴 KEIN stiller Rückfall: fehlt die Datei, wird laut geworfen. Eine Ersatzfassung wäre genau
+	// die zweite Wahrheit, die dieser Umweg vermeidet.
+	// 🪤 Der Name ist ABSICHTLICH ein anderer als der der geteilten Funktion -- ein gleichnamiger
+	// Weiterreicher im globalen Raum ruft sich selbst auf.
+	function garetienLizenzZeile(quelle) {
+		const geteilt = (typeof module !== "undefined" && module.exports)
+			? require("../ui/feature-source-markup.js").featureSourceLicenseText
+			: (typeof featureSourceLicenseText === "function" ? featureSourceLicenseText : null);
+		if (typeof geteilt !== "function") {
+			throw new Error("feature-source-markup.js fehlt -- sie traegt die Lizenzangabe");
+		}
+		return geteilt(quelle || {});
+	}
+
+	// REIN: der Abschnitt „Die Quelle, die mitreist" (Mockup §3).
+	// 🔴 Er zeigt DATEN, keine abgeleitete Regel: Beschriftung, Namensnennung und Lizenzschlüssel
+	// stehen im Vorschlag, weil sie eine Owner-Entscheidung sind. Sie im Browser aus dem
+	// Wiki-Kürzel abzuleiten („kosch ? Briefspiel (Kosch) : …") wäre ihre zweite Fassung.
+	// ⚠️ Fehlt die Quelle ganz (ein Objekt ohne Vorschlag, ein Lauf von vor dem Nachzug), fällt der
+	// ganze Abschnitt WEG -- eine Überschrift über nichts ist keine Auskunft.
+	function garetienQuellenMarkup(objekt) {
+		const quelle = (objekt && objekt.quelle) || {};
+		const label = String(quelle.label || "").trim();
+		const lizenz = garetienLizenzZeile(quelle);
+		if (label === "" && lizenz.text === "") { return ""; }
+		const teile = [];
+		if (label !== "") { teile.push("„" + avesmapsGaretienEscape(label) + "\""); }
+		if (lizenz.text !== "") { teile.push(avesmapsGaretienEscape(lizenz.text)); }
+		return '<p class="gi-sec">Die Quelle, die mitreist</p><p class="gi-why">'
+			+ teile.join(" · ")
+			+ " — einmal an der Quelle, nicht an jedem Objekt.</p>";
+	}
+
 	// REIN: die ganze rechte Spalte. `optionen` ist heute leer und bleibt der Griff, an dem
 	// Aufgabe 14 ihren Knopf „✦ Auf der Karte zeigen" einhängt -- er steht bewusst noch NICHT hier:
 	// ein Knopf, der nichts tut, ist eine sichtbare Störung, und diese Datei geht einzeln live.
@@ -1324,13 +1415,22 @@
 
 		let kopf = '<div class="gi-detail__head">'
 			+ '<h4 class="gi-detail__name">' + avesmapsGaretienEscape(objekt.name || "") + "</h4>"
-			+ '<span class="gi-detail__kind">' + avesmapsGaretienEscape(objekt.typ || "") + "</span>"
+			+ '<span class="gi-detail__kind">' + avesmapsGaretienEscape(garetienTypText(objekt)) + "</span>"
 			+ "</div>";
 		kopf += garetienDetailMetaMarkup(objekt);
 
 		let notiz = garetienAnzahlText(abschnitte.length, "Abschnitt", "Abschnitte");
 		if (gruppen.gesamt >= 2) {
 			notiz += " · " + gruppen.gesamt + " verschiedene Objekte";
+		}
+		// Der Deckungsgrad -- die Zahl, an der ein Editor abliest, wie sicher der Treffer ist.
+		// 🔴 Er kommt vom SERVER: er IST das Ergebnis des Abgleichs (Median über die Probepunkte,
+		// gemessen gegen die Schwelle von 2,0 Karteneinheiten). Im Browser nachgerechnet wäre er
+		// die zweite Wahrheit über „wie gut deckt sich das".
+		// ⚠️ `null` heißt „nicht gemessen" und ist nicht dasselbe wie 0 (= liegt genau darauf) --
+		// deshalb ausdrücklich gegen `null` geprüft und nicht auf Wahrheitswert.
+		if (typeof objekt.deckung === "number" && isFinite(objekt.deckung)) {
+			notiz += " · Deckung Median " + garetienZahlText(objekt.deckung);
 		}
 		let mitte = '<p class="gi-sec">Was bei uns an derselben Stelle liegt'
 			+ '<span class="gi-sec__note">' + notiz + "</span></p>";
@@ -1347,7 +1447,8 @@
 		const warum = grund === "" ? "" : '<p class="gi-sec">Der Grund</p><p class="gi-why">'
 			+ avesmapsGaretienEscape(grund) + "</p>";
 
-		return '<div class="gi-detail">' + kopf + mitte + warum + "</div>";
+		return '<div class="gi-detail">' + kopf + mitte + warum
+			+ garetienQuellenMarkup(objekt) + "</div>";
 	}
 
 	// ---- Die Auswahl: die ZEILE öffnet die Ansicht, das HÄKCHEN nicht ------------------------------
@@ -1513,6 +1614,10 @@
 			garetienLaufStarten,
 			// Aufgabe 13
 			garetienDetailMarkup,
+			// Aufgabe 13b
+			garetienTypText,
+			garetienPunkteText,
+			garetienQuellenMarkup,
 			garetienAbschnittsItems,
 			garetienAbschnittsLage,
 			garetienAbschnittsBeschriftung,

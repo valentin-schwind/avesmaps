@@ -46,6 +46,92 @@ function avesmapsGaretienListeGeometriePunkte(array $geometry): array
 }
 
 /**
+ * Die gespeicherte Trefferauskunft EINER Staging-Zeile: `['deckung' => ?float, 'abschnitte' => [...]]`.
+ * REIN -- kein I/O.
+ *
+ * ⚠️ FAELLT OFFEN AUS und wirft nie. Ein Lauf von vor dem 28.08.2026 traegt die Spalte gar nicht
+ * oder leer; dann gilt genau das Verhalten von davor (die Abschnitte kommen allein aus den Items).
+ * Ein halber oder kaputter Eintrag wird wie "nichts gespeichert" behandelt -- die Liste ist der
+ * Arbeitsplatz eines Editors, und ein Wurf machte sie unbenutzbar, statt eine Zeile aermer zu sein.
+ */
+function avesmapsGaretienListeTrefferAuskunft(mixed $roh): array
+{
+    $leer = ['deckung' => null, 'abschnitte' => []];
+    if (!is_string($roh) || trim($roh) === '') {
+        return $leer;
+    }
+    $daten = json_decode($roh, true);
+    if (!is_array($daten) || !isset($daten['abschnitte']) || !is_array($daten['abschnitte'])) {
+        return $leer;
+    }
+    $deckung = $daten['deckung'] ?? null;
+
+    return [
+        'deckung' => is_numeric($deckung) ? (float) $deckung : null,
+        'abschnitte' => array_values(array_filter(
+            $daten['abschnitte'],
+            static fn(mixed $a): bool => is_array($a) && ($a['public_id'] ?? null) !== null
+        )),
+    ];
+}
+
+/**
+ * Der NENNER der Punktzahl: wie viele Probepunkte ihres Objekts ueberhaupt verglichen wurden.
+ * REIN -- kein I/O.
+ *
+ * 🔴 KEINE ZWEITE RECHNUNG, sondern eine SUMME der schon gerechneten Zahlen: in
+ * `avesmapsGaretienDeckung` zaehlt jeder Probepunkt fuer genau EINEN Abschnitt, die Summe der
+ * Abschnittsdeckungen ist also die Zahl der Probepunkte. Deshalb steht sie nicht ein zweites Mal
+ * in der Datenbank -- eine gespeicherte Zahl neben einer ableitbaren laeuft irgendwann auseinander.
+ * 💣 Gezaehlt wird die GESPEICHERTE Liste, nie die vereinigte: die Item-Abschnitte sind eine
+ * TEILMENGE, und ihre Summe waere ein zu kleiner Nenner ("9 von 10" statt "9 von 16").
+ * ⚠️ 0 heisst "nicht gemessen" (alter Lauf ohne gespeicherte Liste), nicht "null Punkte".
+ */
+function avesmapsGaretienListeProbepunkte(array $gespeichert): int
+{
+    $summe = 0;
+    foreach ($gespeichert as $abschnitt) {
+        $summe += (int) ($abschnitt['punkte'] ?? 0);
+    }
+
+    return $summe;
+}
+
+/**
+ * Die getroffenen Abschnitte EINES Objekts: die gespeicherte Trefferliste des Abgleichs,
+ * VEREINIGT mit denen, die ein Item nennt. REIN -- kein I/O.
+ *
+ * 🔴 VEREINIGEN, NICHT ERSETZEN, und zwar FELDWEISE. Der Item-Abschnitt gewinnt bei gleicher
+ * `public_id` -- er ist der juengere und der handlungsrelevante --, aber Felder, die nur die
+ * gespeicherte Liste kennt (`name_gleich`), ueberleben. Ein pauschales Ersetzen in der einen
+ * Richtung verloere den Namensbefund, in der anderen den Abschnitt ohne Item.
+ * ⚠️ Die REIHENFOLGE ist die des Abgleichs (absteigend nach Deckung, `arsort` in
+ * avesmapsGaretienDeckung) -- ein Editor liest von oben, und der am meisten abdeckende Abschnitt
+ * gehoert dorthin. Was nur ein Item kennt, haengt sich hinten an.
+ *
+ * @param list<array> $gespeichert
+ * @param array<string,array> $ausItems public_id => Abschnitt
+ * @return list<array>
+ */
+function avesmapsGaretienListeAbschnitteVereinen(array $gespeichert, array $ausItems): array
+{
+    $raus = [];
+    foreach ($gespeichert as $abschnitt) {
+        $publicId = (string) $abschnitt['public_id'];
+        $raus[$publicId] = isset($ausItems[$publicId])
+            ? array_merge($abschnitt, $ausItems[$publicId])
+            : $abschnitt;
+    }
+    foreach ($ausItems as $publicId => $abschnitt) {
+        if (!isset($raus[$publicId])) {
+            $raus[$publicId] = $abschnitt;
+        }
+    }
+
+    return array_values($raus);
+}
+
+/**
  * Das FEINERE Urteil je Objekt (Brief Schritt 5). Feiner als der Staging-Wert: eine Zeile mit
  * `urteil='deckt_sich'` und Ergaenzungs-Items heisst hier 'ergaenzung' -- der Staging-Wert sagt,
  * was der Abgleich FAND, dieses Urteil sagt, was zu TUN ist.
@@ -243,11 +329,27 @@ function avesmapsGaretienArbeitsliste(PDO $pdo, int $importRunId, array $filter)
 
     // 3. Die Staging-Zeilen dazuholen. RULING P1 (Aufgabe 6) hat urteil/grund an diese Tabelle
     // gehaengt -- genau die zwei Spalten, die diese Liste fuer die Zeilen OHNE Item braucht.
-    $zeilenStmt = $pdo->prepare(
-        'SELECT wiki, ebene, zeile_nr, typ, namensraum, artikel, anzeige, lodmin, lodmax, extra, geo_art, geo, urteil, grund'
-        . ' FROM garetien_import_row WHERE run_id = :r ORDER BY id'
-    );
-    $zeilenStmt->execute([':r' => $importRunId]);
+    // ⚠️ `abschnitte_json` kam am 28.08.2026 dazu (Aufgabe 13b). Ein Bestand, der die SPALTE noch
+    // nicht traegt, muss weiter funktionieren -- deshalb faellt der Leseweg hier OFFEN aus und
+    // liest dann genau das, was er vorher gelesen hat.
+    // 🔴 KEIN `ALTER TABLE` auf einem Lesepfad: die Liste laeuft bei jedem Filterklick, und genau
+    // diese Last ist die, vor der AGENTS.md §10 warnt. Der Nachzug sitzt im Planbau (Schreibweg).
+    // ⚠️ Der Rueckfall verschluckt keinen echten Datenbankfehler: schlaegt auch er fehl, wirft er.
+    $spalten = 'wiki, ebene, zeile_nr, typ, namensraum, artikel, anzeige, lodmin, lodmax, extra,'
+        . ' geo_art, geo, urteil, grund';
+    $lies = static function (string $auswahl) use ($pdo, $importRunId): PDOStatement {
+        $stmt = $pdo->prepare(
+            'SELECT ' . $auswahl . ' FROM garetien_import_row WHERE run_id = :r ORDER BY id'
+        );
+        $stmt->execute([':r' => $importRunId]);
+
+        return $stmt;
+    };
+    try {
+        $zeilenStmt = $lies($spalten . ', abschnitte_json');
+    } catch (PDOException) {
+        $zeilenStmt = $lies($spalten);
+    }
     $zeilenNachSchluessel = [];
     foreach ($zeilenStmt->fetchAll(PDO::FETCH_ASSOC) as $zeile) {
         // 💣 Derselbe Schluessel wie in garetien-plan.php -- eine zweite Formel liefe beim ersten
@@ -279,13 +381,13 @@ function avesmapsGaretienArbeitsliste(PDO $pdo, int $importRunId, array $filter)
             $name = trim((string) ($zeile['anzeige'] ?? ''));
         }
 
-        $abschnitte = [];
+        $ausItems = [];
         foreach ($items as $item) {
             $abschnitt = $item['after']['abschnitt'] ?? null;
             if (is_array($abschnitt) && ($abschnitt['public_id'] ?? null) !== null) {
                 // Mehrere Items (Luecke, Umbenennung, Geometrie) koennen denselben Abschnitt
                 // nennen -- ueber die public_id entdoppelt, sonst stuende er mehrfach da.
-                $abschnitte[(string) $abschnitt['public_id']] = [
+                $ausItems[(string) $abschnitt['public_id']] = [
                     'public_id' => (string) $abschnitt['public_id'],
                     'name' => (string) ($abschnitt['name'] ?? ''),
                     'punkte' => (int) ($abschnitt['punkte'] ?? 0),
@@ -293,6 +395,10 @@ function avesmapsGaretienArbeitsliste(PDO $pdo, int $importRunId, array $filter)
                 ];
             }
         }
+        // 💣 Ein getroffener Abschnitt, der KEIN Item erzeugt, stuende sonst gar nicht da -- und
+        // der Fall saehe kleiner aus, als er ist (Aufgabe 13b, der Gardel unter ihrer Natter).
+        $treffer = avesmapsGaretienListeTrefferAuskunft($zeile['abschnitte_json'] ?? null);
+        $abschnitte = avesmapsGaretienListeAbschnitteVereinen($treffer['abschnitte'], $ausItems);
 
         $urteilEingaben = [];
         foreach ($items as $item) {
@@ -307,9 +413,24 @@ function avesmapsGaretienArbeitsliste(PDO $pdo, int $importRunId, array $filter)
             'ebene' => (string) ($erstesAfter['ebene'] ?? ($zeile['ebene'] ?? '')),
             'urteil' => avesmapsGaretienListeObjektUrteil($urteilEingaben, (string) ($zeile['urteil'] ?? '')),
             'grund' => (string) ($zeile['grund'] ?? ($erstesAfter['urteil'] ?? '')),
-            'abschnitte' => array_values($abschnitte),
+            'abschnitte' => $abschnitte,
             'geometrie' => avesmapsGaretienListeGeometriePunkte((array) ($erstesAfter['geometry'] ?? [])),
             'wiki_url' => (string) ($erstesAfter['quelle']['url'] ?? ($zeile !== null ? avesmapsGaretienSeitenUrlAusZeile($zeile) : '')),
+            // Die Quelle, die beim Uebernehmen mitreist -- Beschriftung, Namensnennung, Lizenz.
+            // 🔴 DATEN, keine Regel im Renderer: der Wortlaut ist eine Owner-Entscheidung, und ein
+            // Browser, der ihn aus dem Wiki-Kuerzel ableitet, waere ihre zweite Fassung.
+            'quelle' => (array) ($erstesAfter['quelle'] ?? []),
+            // Als WAS wir es anlegen wuerden. Ohne dieses Feld sagt der Kopf nur ihren Typ.
+            'subtyp' => (string) ($erstesAfter['subtyp'] ?? ''),
+            'seite' => $zeile !== null ? avesmapsGaretienSeitenNameAusZeile($zeile) : '',
+            // 🔴 Deckungsgrad und Nenner kommen vom SERVER. Der Deckungsgrad IST das Ergebnis des
+            // Abgleichs; der Nenner ist die Zahl der wirklich verglichenen Probepunkte, und die ist
+            // NICHT ihre Punktzahl -- avesmapsGaretienProbepunkte duennt auf hoechstens
+            // AVESMAPS_GARETIEN_PROBEPUNKTE aus. `geometrie.length` im Browser abzulesen ergaebe bei
+            // ihrem Grossen Fluss "9 von 294".
+            // ⚠️ 0 heisst "nicht gemessen", nicht "null Punkte" -- die Anzeige laesst „von N" dann weg.
+            'deckung' => $treffer['deckung'],
+            'probepunkte' => avesmapsGaretienListeProbepunkte($treffer['abschnitte']),
             'lodmin' => (string) ($zeile['lodmin'] ?? ''),
             'lodmax' => (string) ($zeile['lodmax'] ?? ''),
             'extra' => (string) ($zeile['extra'] ?? ''),
@@ -336,6 +457,10 @@ function avesmapsGaretienArbeitsliste(PDO $pdo, int $importRunId, array $filter)
     // 5. Was jetzt noch in $zeilenNachSchluessel steht, hat KEIN Item -- die Zeilen, um die es in
     // Aufgabe 6 ging ("deckt sich" ohne Ergaenzung, "uebersprungen").
     foreach ($zeilenNachSchluessel as $key => $zeile) {
+        // ⚠️ Auch hier steht die Trefferliste. Ein Objekt, das sich VOLLSTAENDIG deckt (jeder
+        // getroffene Abschnitt traegt Namen UND Quelle), erzeugt kein einziges Item -- und ist
+        // trotzdem genau der Fall, in dem ein Editor sehen will, WORAUF es liegt.
+        $treffer = avesmapsGaretienListeTrefferAuskunft($zeile['abschnitte_json'] ?? null);
         $objekte[$key] = [
             'key' => $key,
             'name' => trim((string) ($zeile['anzeige'] ?? '')),
@@ -344,9 +469,16 @@ function avesmapsGaretienArbeitsliste(PDO $pdo, int $importRunId, array $filter)
             'ebene' => (string) ($zeile['ebene'] ?? ''),
             'urteil' => (string) ($zeile['urteil'] ?? ''),
             'grund' => (string) ($zeile['grund'] ?? ''),
-            'abschnitte' => [],
+            'abschnitte' => $treffer['abschnitte'],
             'geometrie' => avesmapsGaretienZeilePunkte($zeile),
             'wiki_url' => avesmapsGaretienSeitenUrlAusZeile($zeile),
+            // ⚠️ LEER, und das ist die Auskunft: ohne Vorschlag reist auch keine Quelle mit, und
+            // ein Zieltyp waere eine Behauptung ueber etwas, das gar nicht angelegt wird.
+            'quelle' => [],
+            'subtyp' => '',
+            'seite' => avesmapsGaretienSeitenNameAusZeile($zeile),
+            'deckung' => $treffer['deckung'],
+            'probepunkte' => avesmapsGaretienListeProbepunkte($treffer['abschnitte']),
             'lodmin' => (string) ($zeile['lodmin'] ?? ''),
             'lodmax' => (string) ($zeile['lodmax'] ?? ''),
             'extra' => (string) ($zeile['extra'] ?? ''),

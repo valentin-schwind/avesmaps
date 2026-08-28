@@ -20,6 +20,25 @@ require_once __DIR__ . '/../wiki/sync-plan.php';
 const AVESMAPS_GARETIEN_PLAN_KIND = 'garetien';
 
 /**
+ * Der SEITENNAME einer Staging-Zeile: `<Namensraum>:<Artikel>`, ohne Namensraum nur der Artikel,
+ * ohne Artikel leer. REIN -- kein I/O.
+ *
+ * 🔴 DIE FORMEL STEHT AB HIER GENAU EINMAL. Sie stand bis zum 28.08.2026 zweimal woertlich da --
+ * im Objektschluessel und in der Wiki-Adresse darunter --, und die Arbeitsliste des Fensters
+ * braucht sie als drittes fuer den Linktext („Garetien:Natter" statt „Wiki-Artikel"). Drei
+ * Abschriften derselben Bildung laufen beim ersten Sonderzeichen auseinander; dieselbe Lehre wie
+ * RULING P6 unten und wie Review I2, das die zweite Fassung der Wiki-Adresse schon einmal
+ * eingesammelt hat.
+ */
+function avesmapsGaretienSeitenNameAusZeile(array $zeile): string
+{
+    $artikel = trim((string) ($zeile['artikel'] ?? ''));
+    $namensraum = trim((string) ($zeile['namensraum'] ?? ''));
+
+    return ($namensraum !== '' ? $namensraum . ':' : '') . $artikel;
+}
+
+/**
  * Der Objekt-Schluessel EINER Staging-Zeile. REIN -- kein I/O.
  *
  * 🔴 RULING P6: diese Formel entsteht HIER und wird von `avesmapsGaretienPlanEintrag` benutzt,
@@ -30,10 +49,8 @@ const AVESMAPS_GARETIEN_PLAN_KIND = 'garetien';
  */
 function avesmapsGaretienObjektSchluesselAusZeile(array $zeile): string
 {
-    $artikel = trim((string) ($zeile['artikel'] ?? ''));
-    $namensraum = trim((string) ($zeile['namensraum'] ?? ''));
     $wiki = (string) ($zeile['wiki'] ?? 'ggp');
-    $seite = ($namensraum !== '' ? $namensraum . ':' : '') . $artikel;
+    $seite = avesmapsGaretienSeitenNameAusZeile($zeile);
 
     return $wiki . ':' . $zeile['ebene'] . ':' . $zeile['typ'] . ':'
         . ($seite !== '' ? $seite : ('#' . $zeile['zeile_nr']));
@@ -53,10 +70,8 @@ function avesmapsGaretienObjektSchluesselAusZeile(array $zeile): string
  */
 function avesmapsGaretienSeitenUrlAusZeile(array $zeile): string
 {
-    $artikel = trim((string) ($zeile['artikel'] ?? ''));
-    $namensraum = trim((string) ($zeile['namensraum'] ?? ''));
     $wiki = (string) ($zeile['wiki'] ?? 'ggp');
-    $seite = ($namensraum !== '' ? $namensraum . ':' : '') . $artikel;
+    $seite = avesmapsGaretienSeitenNameAusZeile($zeile);
     // 🔴 Ohne Artikel gibt es keinen Objektlink, sondern die Sammelquelle (Entwurf §5.3).
     $wirt = $wiki === 'kosch' ? 'https://www.koschwiki.de' : 'https://www.garetien.de';
     if ($seite === '') {
@@ -381,19 +396,66 @@ function avesmapsGaretienAbschnittsEintrag(
  * ihre `zeile_nr` ueberhaupt erst vergibt.
  */
 function avesmapsGaretienSchreibeUrteil(
-    PDO $pdo, int $importRunId, string $wiki, string $ebene, int $zeileNr, string $urteil, string $grund
+    PDO $pdo, int $importRunId, string $wiki, string $ebene, int $zeileNr, string $urteil, string $grund,
+    array $abschnitte = [], ?float $deckung = null
 ): void {
+    // 💣 Die Vorgabe der zwei letzten Parameter ist TRAGEND: der Uebersprung-Zweig ruft diese
+    // Funktion, bevor es ueberhaupt einen Abgleich gibt, und jeder kuenftige Aufrufer ohne
+    // Trefferauskunft laeuft unveraendert weiter.
+    //
+    // 🔴 EINE Spalte fuer die ganze Trefferauskunft, nicht drei. Liste, Deckungsgrad und die Zahl
+    // der verglichenen Probepunkte entstehen in EINEM Lauf von avesmapsGaretienFindeBestand; drei
+    // Spalten koennten auseinanderlaufen, eine kann es nicht. Der Nenner wird dabei NICHT eigens
+    // gespeichert -- er ist die Summe der Abschnittsdeckungen (jeder Probepunkt zaehlt fuer genau
+    // einen Abschnitt), und eine zweite Zahl fuer dieselbe Summe waere genau die Divergenz.
+    //
+    // ⚠️ NICHT gekappt. Ein mit `mb_substr` beschnittenes JSON ist kein JSON mehr -- der Leser
+    // bekaeme `null` und saehe damit aus wie "der Abgleich fand nichts". Dafuer ist die Spalte
+    // MEDIUMTEXT (avesmapsGaretienEnsureUrteilSpalten).
+    // ⚠️ Nichts zu berichten heisst NULL, nicht `[]`: "vor dem Nachzug gerechnet" und "nichts
+    // getroffen" muessen unterscheidbar bleiben.
+    $treffer = $abschnitte === [] && $deckung === null
+        ? null
+        : json_encode(
+            ['deckung' => $deckung, 'abschnitte' => array_values($abschnitte)],
+            JSON_UNESCAPED_UNICODE
+        );
     $pdo->prepare(
-        'UPDATE garetien_import_row SET urteil = :u, grund = :g'
+        'UPDATE garetien_import_row SET urteil = :u, grund = :g, abschnitte_json = :a'
         . ' WHERE run_id = :r AND wiki = :w AND ebene = :e AND zeile_nr = :n'
     )->execute([
         ':u' => mb_substr($urteil, 0, 20, 'UTF-8'),
         ':g' => mb_substr($grund, 0, 300, 'UTF-8'),
+        ':a' => $treffer === false ? null : $treffer,
         ':r' => $importRunId,
         ':w' => $wiki,
         ':e' => $ebene,
         ':n' => $zeileNr,
     ]);
+}
+
+/**
+ * Der Namensbefund je Abschnitt: heisst unser Abschnitt so wie ihr Objekt? REIN -- kein I/O.
+ *
+ * 🔴 ER GEHOERT ZUR TREFFERLISTE, NICHT ZUM ITEM. Ein Abschnitt ohne Item (der Gardel) hat
+ * trotzdem einen Namensbefund, und die Einzelansicht zeigt ihn -- haengte er am Item, faehlte er
+ * genau dort, wo er am meisten sagt.
+ * 🔴 Er benutzt `avesmapsGaretienNamenAehnlich`, dieselbe Regel, die auch ueber das
+ * Umbenennungs-Item entscheidet. Ein zweiter Namensvergleich waere die zweite Wahrheit darueber,
+ * was "derselbe Name" heisst -- und der Editor saehe "Name gleich" an einer Zeile, die trotzdem
+ * eine Umbenennung anbietet.
+ */
+function avesmapsGaretienAbschnitteMitNamensbefund(array $abschnitte, string $ihrName): array
+{
+    $raus = [];
+    foreach ($abschnitte as $abschnitt) {
+        $unserName = trim((string) ($abschnitt['name'] ?? ''));
+        $abschnitt['name_gleich'] = $unserName !== ''
+            && avesmapsGaretienNamenAehnlich($ihrName, $unserName);
+        $raus[] = $abschnitt;
+    }
+
+    return $raus;
 }
 
 /**
@@ -409,6 +471,12 @@ function avesmapsGaretienSchreibeUrteil(
 function avesmapsGaretienBaueSyncPlan(PDO $pdo, int $importRunId, int $userId = 0): int
 {
     avesmapsEnsureSyncPlanTables($pdo);
+    // 🔴 Die Urteilsspalten VOR dem ersten Schreibvorgang nachziehen. `abschnitte_json` kam am
+    // 28.08.2026 dazu; ein Lauf, der vor dem Nachzug abgerufen wurde, traegt sie noch nicht, und
+    // ohne diese Zeile braeche das erste UPDATE den ganzen Planbau ab. EINMAL je Planbau -- das
+    // ist eine 0,35-s-Handlung, kein haeufiger Pfad (die Last, vor der AGENTS.md §10 warnt,
+    // entstuende erst im Lesepfad, und dort steht sie ausdruecklich nicht).
+    avesmapsGaretienEnsureUrteilSpalten($pdo);
     // 🪤 Der Kandidatenspeicher gilt fuer den ganzen Prozess. Wer im selben Lauf erst uebernimmt
     // und dann neu plant, bekaeme sonst den Stand von vorher.
     avesmapsGaretienKandidatenVergessen();
@@ -446,7 +514,22 @@ function avesmapsGaretienBaueSyncPlan(PDO $pdo, int $importRunId, int $userId = 
         // Das Urteil ueberlebt das Rechnen -- auch "deckt_sich", das seit Aufgabe 3 durch den
         // vierten Ausgang eigene Items erzeugen KANN, aber nicht MUSS (⚠️ Brief §Aufgabe 6: das
         // ist kein Widerspruch, sondern derselbe Sachverhalt aus zwei Blickwinkeln).
-        avesmapsGaretienSchreibeUrteil($pdo, $importRunId, (string) $zeile['wiki'], (string) $zeile['ebene'], (int) $zeile['zeile_nr'], $urteil['status'], $urteil['grund']);
+        // 🔴 DIE GANZE TREFFERLISTE WANDERT MIT, nicht nur der genannte Beste. Ein getroffener
+        // Abschnitt, der kein Item erzeugt, existierte fuer das Fenster sonst gar nicht -- und
+        // genau das ist der Gardel unter ihrer Natter: sein Name ist weder leer noch gleich, und
+        // ihr Objekt laeuft ueber mehrere unserer, also faellt er durch beide Zweige von
+        // avesmapsGaretienErgaenzungsEintraege. Ein dreiteiliger Fall saehe wie ein zweiteiliger
+        // aus (Aufgabe 13b).
+        // 🔴 Die Zahl entsteht HIER, EINMAL. Sie im Lesepfad neu zu rechnen waere eine zweite
+        // Wahrheit ueber "was trifft was" -- und sie liefe je Zeile der Liste.
+        avesmapsGaretienSchreibeUrteil(
+            $pdo, $importRunId, (string) $zeile['wiki'], (string) $zeile['ebene'], (int) $zeile['zeile_nr'],
+            $urteil['status'], $urteil['grund'],
+            avesmapsGaretienAbschnitteMitNamensbefund(
+                (array) ($urteil['abschnitte'] ?? []), trim((string) ($zeile['anzeige'] ?? ''))
+            ),
+            $urteil['abstand'] === null ? null : (float) $urteil['abstand']
+        );
         if ($urteil['status'] === 'uebersprungen') {
             continue;
         }

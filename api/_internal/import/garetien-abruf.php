@@ -106,9 +106,10 @@ function avesmapsGaretienEnsureTables(PDO $pdo): void
 }
 
 /**
- * Die zwei Urteilsspalten selbstheilend nachziehen (27.08.2026, Aufgabe 6).
+ * Die Urteilsspalten selbstheilend nachziehen (27.08.2026, Aufgabe 6; `abschnitte_json` 28.08.2026,
+ * Aufgabe 13b).
  *
- * 💣 Die zwei Spalten kamen SPAETER dazu, und `CREATE TABLE IF NOT EXISTS` legt an einer
+ * 💣 Die Spalten kamen SPAETER dazu, und `CREATE TABLE IF NOT EXISTS` legt an einer
  * bestehenden Tabelle keine Spalte nach. Live steht `garetien_import_row` bereits, also muss der
  * Nachzug ein ALTER sein.
  * ⚠️ Kein information_schema-Test davor: genau diese Sonde auf einem haeufigen Pfad ist die
@@ -127,6 +128,15 @@ function avesmapsGaretienEnsureUrteilSpalten(PDO $pdo): void
     foreach ([
         "ALTER TABLE garetien_import_row ADD COLUMN urteil VARCHAR(20) NOT NULL DEFAULT ''",
         "ALTER TABLE garetien_import_row ADD COLUMN grund VARCHAR(300) NOT NULL DEFAULT ''",
+        // 💣 MEDIUMTEXT, NIE VARCHAR. Hier steht die ganze Trefferliste des Abgleichs samt
+        // Geometrie -- 13 Abschnitte zu bis zu 64 Stuetzpunkten sprengen 255 Zeichen muehelos.
+        // Eine stille MySQL-Kuerzung ist von "nichts wurde je gespeichert" NICHT zu unterscheiden
+        // (AGENTS.md §10: `app_setting.setting_value` war aus genau diesem Grund vier Monate lang
+        // wirkungslos), und ein mitten im Zeichen abgeschnittenes JSON ist kein JSON mehr --
+        // `json_decode` gaebe `null` zurueck, und der Leseweg saehe aus wie "kein Treffer".
+        // 🔴 NULL erlaubt: "diese Zeile wurde vor dem Nachzug gerechnet" ist eine eigene Auskunft
+        // und darf nicht wie "der Abgleich fand nichts" aussehen.
+        'ALTER TABLE garetien_import_row ADD COLUMN abschnitte_json MEDIUMTEXT NULL',
     ] as $sql) {
         try {
             $pdo->exec($sql);

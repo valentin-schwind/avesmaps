@@ -311,6 +311,117 @@ gleich(garetienListeKlick({ target: zielAttrappe("SPAN", null) }, objekte), null
 	"ein Klick neben jede Zeile waehlt nichts aus");
 gleich(garetienListeKlick({ target: null }, objekte), null, "ein Ereignis ohne Ziel faellt durch");
 
+// ---- Aufgabe 13b: die Felder, die der Server seit dem 28.08.2026 mitschickt -------------------
+//
+// 🔴 Alle SECHS kommen fertig aus `action:'liste'`. Der Browser leitet keins davon her -- weder
+// die Lizenzform aus dem Wiki-Kuerzel noch den Artikelnamen aus der Adresse noch den Nenner aus
+// `objekt.geometrie`. Genau diese drei Ableitungen waeren zweite Fassungen (Auftrag §5.4).
+
+const { garetienTypText, garetienPunkteText, garetienQuellenMarkup } = mod;
+
+const voll = {
+	key: "ggp:Gewaesser:Fluss:Garetien:Natter", name: "Natter", typ: "Fluss", subtyp: "Flussweg",
+	seite: "Garetien:Natter", urteil: "ergaenzung", grund: "Geometrie deckt sich",
+	wiki: "ggp", ebene: "Gewaesser", lodmin: "5", lodmax: "14", extra: "",
+	wiki_url: "https://www.garetien.de/index.php?title=Garetien:Natter",
+	quelle: { label: "Briefspiel (Garetien)", attribution: "VolkoV / garetien.de",
+		license: "cc-by-nc-sa-3.0", source_type: "briefspiel" },
+	deckung: 0.84, probepunkte: 16,
+	geometrie: new Array(294).fill([0, 0]),
+	abschnitte: [
+		{ public_id: "w-4471", name: "Natter", punkte: 9, name_gleich: true },
+		{ public_id: "w-5008", name: "Gardel", punkte: 6, name_gleich: false },
+	],
+	items: [{ id: 11, anlass: "ergaenzung", felder: ["quelle"], selected: 1,
+		abschnitt: { public_id: "w-4471", name: "Natter" } }],
+};
+const mv = garetienDetailMarkup(voll);
+
+// 1. Der Kopf sagt, als WAS wir es anlegen wuerden.
+wahr(mv.includes("Fluss → Flussweg"),
+	"der Kopf nennt ihren Typ UND unseren Zielsubtyp -- sonst steht nicht da, was entstuende");
+gleich(garetienTypText({ typ: "Fluss", subtyp: "" }), "Fluss",
+	"ohne Zielsubtyp faellt der Pfeil weg, statt ins Leere zu zeigen");
+gleich(garetienTypText({ typ: "See", subtyp: "See" }), "See",
+	"gleicher Typ auf beiden Seiten wird nicht doppelt geschrieben");
+
+// 2. Der Link traegt den ARTIKELNAMEN, nicht das Wort „Wiki-Artikel".
+wahr(/>Garetien:Natter<\/a>/.test(mv), "der auswaertige Link heisst wie der Artikel");
+wahr(!garetienDetailMarkup(voll).includes(">Wiki-Artikel<"),
+	"mit Artikelnamen darf das allgemeine Wort nicht mehr dastehen");
+// Gegenprobe: OHNE `seite` bleibt das allgemeine Wort -- ein Link ohne Beschriftung waere
+// schlechter als ein allgemeiner (alter Lauf, Sammelquelle ohne Artikel).
+wahr(garetienDetailMarkup(Object.assign({}, voll, { seite: "" })).includes(">Wiki-Artikel<"),
+	"ohne Artikelnamen faellt der Link auf das allgemeine Wort zurueck");
+
+// 3. Der Deckungsgrad in der Notiz -- vom Server, in Hausform mit Komma.
+wahr(mv.includes("Deckung Median 0,84"), "der Deckungsgrad steht unter der Ueberschrift");
+// 🪤 `null` heisst „nicht gemessen" und ist NICHT dasselbe wie 0. Beide Faelle einzeln, sonst
+// belegt die Zeile darueber nur, dass irgendein Text durchkommt.
+wahr(!garetienDetailMarkup(Object.assign({}, voll, { deckung: null })).includes("Deckung Median"),
+	"ohne gemessene Deckung faellt die Angabe weg statt 0,00 zu behaupten");
+wahr(garetienDetailMarkup(Object.assign({}, voll, { deckung: 0 })).includes("Deckung Median 0,00"),
+	"eine Deckung von 0 ist eine Auskunft (liegt genau darauf) und muss dastehen");
+
+// 4. 💣 DER NENNER KOMMT VOM SERVER, NICHT AUS `objekt.geometrie`. Diese Fixture traegt
+// ABSICHTLICH 294 Stuetzpunkte bei 16 Probepunkten -- genau die Spanne ihres Grossen Flusses.
+// Ein Browser, der `geometrie.length` ablaese, schriebe „9 von 294".
+wahr(mv.includes("9 von 16 Punkten"), "die Punktzahl nennt Zaehler UND Nenner");
+wahr(!mv.includes("294"), "der Nenner darf NICHT ihre Stuetzpunktzahl sein");
+gleich(garetienPunkteText(9, 0), "9 Punkte",
+	"ohne bekannten Nenner steht die nackte Zahl da (Mockup §6a), keine erfundene");
+gleich(garetienPunkteText(1, 0), "1 Punkt", "und die Einzahl bleibt Einzahl");
+
+// 5. Der Vergleichsbefund je Abschnitt -- NUR bei `true`.
+wahr(/w-4471[\s\S]{0,200}Name gleich/.test(mv), "der Abschnitt mit gleichem Namen sagt es");
+// 🪤 Eine Zusicherung „hinter w-5008 steht es NICHT" waere hier wertlos: der einzige Treffer
+// steht ohnehin DAVOR, sie waere durch die Reihenfolge wahr und nicht durch die Regel. Gezaehlt
+// wird deshalb -- GENAU EINE der beiden Zeilen traegt den Befund.
+gleich((mv.match(/Name gleich/g) || []).length, 1,
+	"genau EIN Abschnitt traegt den Namensbefund -- der Gardel heisst anders");
+wahr(!garetienDetailMarkup(Object.assign({}, voll, {
+	abschnitte: [{ public_id: "w-4471", name: "Natter", punkte: 9 }],
+})).includes("Name gleich"),
+	"ein fehlendes Feld (alter Lauf) ist keine Auskunft und erfindet keine");
+
+// 6. Der Abschnitt „Die Quelle, die mitreist" -- Mockup §3.
+wahr(mv.includes("Die Quelle, die mitreist"), "der Quellenabschnitt fehlt");
+wahr(mv.includes("Briefspiel (Garetien)") && mv.includes("VolkoV / garetien.de"),
+	"Beschriftung und Namensnennung stehen da");
+// 💣 Die LIZENZFORM kommt aus js/ui/feature-source-markup.js -- der einen Stelle, an der ein
+// Schluessel zu seiner Beschriftung wird. Der Schluessel selbst darf NICHT im Text stehen.
+wahr(mv.includes("CC BY-NC-SA 3.0"), "die Lizenz steht in ihrer Hausbeschriftung");
+wahr(!mv.includes("cc-by-nc-sa-3.0"), "der rohe Lizenzschluessel gehoert nicht in die Anzeige");
+// Und zur LAUFZEIT belegt, dass wirklich die geteilte Fassung ruft: wird sie ersetzt, aendert
+// sich die Anzeige. Ohne diese Probe waere „die Datei ist eingebunden" erfuellt, auch wenn
+// niemand sie ruft (dieselbe Zusicherung wie in quellen-kuerzung-eine-quelle.test.js).
+const geteilteQuelle = require(path.resolve(WURZEL, "js/ui/feature-source-markup.js"));
+const echt = geteilteQuelle.featureSourceLicenseText;
+geteilteQuelle.featureSourceLicenseText = () => ({ text: "SPION", url: "" });
+wahr(garetienDetailMarkup(voll).includes("SPION"),
+	"die Lizenzangabe wird wirklich aus feature-source-markup.js geholt, nicht hier nachgebaut");
+geteilteQuelle.featureSourceLicenseText = echt;
+wahr(garetienDetailMarkup(voll).includes("CC BY-NC-SA 3.0"), "und der Spion ist wieder abgeraeumt");
+// 💣 UND DIE REIHENFOLGE IN index.html IST TRAGEND. Der Weiterreicher wirft LAUT, wenn die
+// geteilte Datei fehlt -- und der Wurf reisst die GANZE Einzelansicht mit (live gemessen: der Kopf
+// blieb leer, die Auswahl war gesetzt, die Konsole nannte den Grund). Dieselbe Reihenfolgezusage,
+// die die fuenf Seiten mit dem Quellen-Editor schon tragen (AGENTS.md §11, Quellenliste).
+// ⚠️ Zeilenendenneutral: die Arbeitskopie traegt CRLF, im Tor liegt LF (AGENTS.md §9).
+const indexHtml = fs.readFileSync(path.join(WURZEL, "index.html"), "utf8").replace(/\r\n/g, "\n");
+const posMarkup = indexHtml.indexOf("js/ui/feature-source-markup.js");
+const posImporter = indexHtml.indexOf("js/review/review-garetien-importer.js\"");
+wahr(posMarkup > -1 && posImporter > -1,
+	"die Gegenprobe findet eines der beiden Skripte in index.html selbst nicht mehr");
+wahr(posMarkup < posImporter,
+	"feature-source-markup.js muss VOR review-garetien-importer.js stehen -- sonst wirft die "
+	+ "Einzelansicht beim ersten Klick und bleibt leer");
+
+// ⚠️ Ohne Quelle faellt der GANZE Abschnitt weg -- eine Ueberschrift ueber nichts ist keine
+// Auskunft (item-lose Objekte tragen keine Quelle).
+gleich(garetienQuellenMarkup({ quelle: {} }), "", "ohne Quelle gibt es den Abschnitt nicht");
+wahr(!garetienDetailMarkup(natter).includes("Die Quelle, die mitreist"),
+	"ein Objekt ohne Quellenfeld zeigt den Abschnitt nicht");
+
 // ---- Das CSS haelt die zwei Fallen, die beim Zeichnen des Mockups gemessen wurden --------------
 
 const cssRoh = fs.readFileSync(path.join(WURZEL, "css/components/garetien-importer.css"), "utf8");
@@ -354,7 +465,12 @@ wahr(/min-width:\s*0/.test(nameBlock),
 // 🪤 Zwei ausgeschriebene Muster statt eines gebauten: `new RegExp("\s*")` liest die
 // Zeichenkette ZUERST als JS-Literal, dort ist `\s` schlicht `s` -- das Muster traf dann nichts
 // und meldete „Block fehlt" (hier live passiert).
-[[".gi-seg__name", /\.gi-seg__name\s*\{[^}]*\}/], [".gi-seg__id", /\.gi-seg__id\s*\{[^}]*\}/]]
+// 💣 Und dieselbe Familie eine Etage HOEHER, seit Aufgabe 13b: in `.gi-why` steht jetzt auch die
+// NAMENSNENNUNG der Quelle, und die ist ein Datenwert (`sources.attribution`), kein Satz. Live
+// gemessen mit 83 Zeichen ohne Leerzeichen: OHNE `overflow-wrap` lief die Ansicht 139px waagerecht
+// ueber, MIT `anywhere` 0 (und die Zeile wuchs von 28 auf 55px, statt auszubrechen).
+[[".gi-seg__name", /\.gi-seg__name\s*\{[^}]*\}/], [".gi-seg__id", /\.gi-seg__id\s*\{[^}]*\}/],
+	[".gi-why", /\.gi-why\s*\{[^}]*\}/]]
 	.forEach(([auswahl, muster]) => {
 		const block = (css.match(muster) || [""])[0];
 		wahr(block !== "", "der " + auswahl + "-Block fehlt -- die Gegenprobe misst sonst nichts");

@@ -504,9 +504,15 @@
    startet ungehakt. Das ist der Unterschied zwischen Luecke fuellen und ersetzen. */
 .gi-seg.is-overwrite .gi-seg__gap { color: var(--color-warning); }
 
+/* 💣 `anywhere` -- dieselbe Falle wie eine Etage tiefer bei `.gi-seg__name`/`.gi-seg__id`, nur
+   spaeter aufgetreten: seit dem 28.08.2026 steht hier auch die NAMENSNENNUNG der Quelle, und die
+   ist ein Datenwert (`sources.attribution`), kein Satz. Live gemessen mit einer 83 Zeichen langen
+   Namensnennung ohne Leerzeichen: OHNE diese Zeile lief die Ansicht 139px waagerecht ueber, MIT
+   ihr 0. ⚠️ Es gilt auch dem GRUND darueber -- der nennt unsere Objektnamen woertlich. */
 .gi-why {
 	margin: var(--space-4) 0 0;
 	max-width: none;
+	overflow-wrap: anywhere;
 	font-size: var(--font-size-caption);
 	color: var(--color-text-muted);
 }

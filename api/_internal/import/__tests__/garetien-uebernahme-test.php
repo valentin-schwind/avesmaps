@@ -198,7 +198,7 @@ function avesmapsGaretienUebernahmeTestPdo(): PDO
     // weiter unten liest per `SELECT *` aus dem Planbauer-Pruefstand, der sie schon traegt, und
     // die eigene exec()-Naht schluckt ALTER TABLE (siehe Kommentar oben): das Schema muss sie
     // deshalb wie die uebrigen nachgeruesteten Spalten von Hand tragen.
-    $pdo->exec('CREATE TABLE garetien_import_row (id INTEGER PRIMARY KEY AUTOINCREMENT, run_id INT, wiki TEXT, ebene TEXT, zeile_nr INT, typ TEXT, namensraum TEXT, artikel TEXT, anzeige TEXT, lodmin TEXT, lodmax TEXT, extra TEXT, geo_art TEXT, geo TEXT, roh TEXT, urteil TEXT DEFAULT \'\', grund TEXT DEFAULT \'\')');
+    $pdo->exec('CREATE TABLE garetien_import_row (id INTEGER PRIMARY KEY AUTOINCREMENT, run_id INT, wiki TEXT, ebene TEXT, zeile_nr INT, typ TEXT, namensraum TEXT, artikel TEXT, anzeige TEXT, lodmin TEXT, lodmax TEXT, extra TEXT, geo_art TEXT, geo TEXT, roh TEXT, urteil TEXT DEFAULT \'\', grund TEXT DEFAULT \'\', abschnitte_json TEXT NULL)');
     $pdo->exec('CREATE TABLE map_features (
         id INTEGER PRIMARY KEY AUTOINCREMENT, public_id TEXT, feature_type TEXT, feature_subtype TEXT,
         name TEXT, geometry_type TEXT, geometry_json TEXT, properties_json TEXT, style_json TEXT,
