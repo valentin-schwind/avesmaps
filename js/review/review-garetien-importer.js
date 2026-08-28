@@ -96,7 +96,7 @@
 		if (!hasDocument) { return; }
 		const listeEl = document.getElementById("garetien-list");
 		if (listeEl) {
-			listeEl.innerHTML = '<p class="avm-empty">Noch kein Import-Lauf. „Holen &amp; Rechnen“ '
+			listeEl.innerHTML = '<p class="avm-empty">Noch kein Import-Lauf. „Holen &amp; Rechnen" '
 				+ "im Menüband holt die gewählten Ebenen und rechnet den Abgleich.</p>";
 		}
 		// Die Zahlen der drei Bilanzflächen gehören einem Lauf; ohne Lauf stehen sie leer, statt
