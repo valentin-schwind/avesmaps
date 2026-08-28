@@ -290,6 +290,19 @@
 	color: var(--color-text-muted);
 }
 
+/* Der Grund, warum „Angehakte übernehmen" gerade nicht geht. SICHTBAR, weil ein `title` an einem
+   deaktivierten Knopf nie erscheint (keine Zeigerereignisse) -- dieselbe Lösung wie im
+   Übernahme-Blatt, wo die Fußzeile den Grund trägt.
+   ⚠️ `flex: none`: die Zählzeile links trägt `flex: 1 1 auto` und schiebt Hinweis und Knopf nach
+   rechts; ein mitwachsender Hinweis nähme ihr genau das ab. */
+.gi-foot__hint {
+	flex: none;
+	font-size: var(--font-size-caption);
+	color: var(--color-text-muted);
+}
+
+.gi-foot__hint[hidden] { display: none; }
+
 .gi-foot__note {
 	flex: none;
 	margin: 0;

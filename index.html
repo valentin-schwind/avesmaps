@@ -3843,10 +3843,23 @@
 			</div>
 			<div class="gi-foot">
 				<span class="gi-foot__count" id="garetien-foot-count"></span>
-				<button class="btn btn--main" type="button" id="garetien-apply" disabled>Angehakte übernehmen</button>
+				<!-- ⚠️ Der Grund für einen gesperrten Knopf steht SICHTBAR daneben, nie in seinem
+				     `title`: ein deaktivierter Knopf bekommt keine Zeigerereignisse, sein Tooltip
+				     erscheint in Chrome also nie. Dasselbe Mittel wie im Übernahme-Blatt, wo der
+				     Grund als Text in der Fußzeile steht. -->
+				<span class="gi-foot__hint" id="garetien-apply-hint" hidden></span>
+				<button class="btn btn--main" type="button" id="garetien-apply" disabled>Angehakte übernehmen (0)</button>
 			</div>
 			<p class="gi-foot__note">Nichts davon steht in der Karte. „Übernehmen" geht durch die
 				vorhandene Übernahme-Vorschau — zweite Bestätigung, Häppchen zu 40, Protokoll.</p>
 		</div>
+		<!-- Der Wirt der Übernahme-Vorschau des Garetien Importers.
+		     ⚠️ AUSSERHALB von .gi-win, und das ist tragend: das Fenster trägt `overflow: hidden` und
+		     ist 800×700 groß — ein Blatt darin wäre abgeschnitten. Der Wirt ist `position: fixed;
+		     inset: 0` auf --z-modal (5000) und legt sich damit über das Fenster (--z-dialog, 1450).
+		     🔴 Ein EIGENER Wirt neben #wikiSyncPlanHost, kein geteilter: das WikiSync-Panel und
+		     dieses Fenster sind zwei Oberflächen, und diese Datei verschwindet restlos beim Abbau
+		     (Auftrag §5.5). Gefüllt wird er erst auf Klick (js/review/sync-plan-sheet.js). -->
+		<div class="sync-plan-host" id="garetien-sheet" hidden></div>
 	</body>
 </html>

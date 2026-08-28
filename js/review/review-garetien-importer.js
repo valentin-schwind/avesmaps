@@ -119,6 +119,8 @@
 			const el = document.getElementById(id);
 			if (el) { el.textContent = ""; }
 		});
+		// Aufgabe 16: ohne Lauf gibt es keine Haekchen -- und damit nichts zu uebernehmen.
+		garetienUebernahmeKnopfSetzen(0);
 	}
 
 	// Der Füllvorgang beim Öffnen, mit seinen Werkzeugen herein -- aus demselben Grund wie bei
@@ -527,6 +529,13 @@
 
 		const fussEl = document.getElementById("garetien-foot-count");
 		if (fussEl) { fussEl.innerHTML = avesmapsGaretienFussZeileMarkup(a.reiter); }
+
+		// Aufgabe 16: der Fussknopf traegt die Zahl der angehakten ITEMS -- dieselbe Zahl, die das
+		// Blatt gleich als Zeilen zeigt. `angehakt` zaehlt den GANZEN Lauf (Aufgabe 8), nie die
+		// gefilterte Sicht: ein Filter blendet Zeilen aus, er hakt keine ab.
+		garetienUebernahmeKnopfSetzen(
+			avesmapsGaretienAngehaktAus(a, "new") + avesmapsGaretienAngehaktAus(a, "changed")
+		);
 
 		// Aufgabe 13: die Auswahl ueberlebt einen Listenlauf -- aber nur, solange ihre Zeile in der
 		// Ansicht steht. Faellt sie durch Filter oder Reiter heraus, faellt auch die Auswahl: eine
@@ -1967,6 +1976,142 @@
 			: false;
 	}
 
+	// ---- Aufgabe 16: „Angehakte uebernehmen" -- durch das VORHANDENE Blatt -----------------------
+	//
+	// 🔴 DIE UEBERNAHME IST js/review/sync-plan-sheet.js, UNVERAENDERT. Zweite Bestaetigung,
+	// Haeppchen zu 40, Protokoll und Fortschritt haengen dort, und sieben andere Objektarten
+	// benutzen dasselbe Blatt. Hier entsteht keine zweite Vorschau; hier wird dem vorhandenen Blatt
+	// ein eigener `post` hereingereicht -- `syncPlanResolvePost` ist genau diese Naht („die eine
+	// Stelle, an der eine zweite Zeilenquelle andockt").
+
+	// REIN: was der Fussknopf sagt und ob er geht.
+	//
+	// 🔴 Gezaehlt werden ITEMS, nicht Objekte. Das Blatt zeigt Items; ein Knopf, der eine andere
+	// Zahl nennt als das Blatt dahinter, ist eine Falschaussage ueber die naechste Handlung. Die
+	// zwei Zahlen sind wirklich verschieden -- ein Objekt kann zwei Items tragen (eine „Ergaenzung"
+	// mit Namens- UND Quellen-Item), und die Fusszeile daneben zaehlt OBJEKTE („14 vorgemerkt").
+	// ⚠️ Der Grund fuer „gesperrt" steht SICHTBAR daneben, nie in einem `title`: ein deaktivierter
+	// Knopf bekommt keine Zeigerereignisse, sein `title` erscheint in Chrome also nie. Dasselbe
+	// Mittel wie im Blatt selbst, wo der Grund als Text in der Fusszeile steht.
+	function garetienUebernahmeKnopfZustand(anzahl) {
+		const n = Math.max(0, Number(anzahl) || 0);
+		return {
+			anzahl: n,
+			beschriftung: "Angehakte übernehmen (" + n + ")",
+			gesperrt: n < 1,
+			hinweis: n > 0
+				? ""
+				: "Nichts angehakt — das Blatt zeigt genau die Häkchen und wäre leer.",
+		};
+	}
+
+	// Die DOM-Haelfte dazu. Sie steht an EINER Stelle, damit Knopf und Hinweis nie auseinanderlaufen.
+	function garetienUebernahmeKnopfSetzen(anzahl) {
+		if (!hasDocument) { return null; }
+		const stand = garetienUebernahmeKnopfZustand(anzahl);
+		const knopf = document.getElementById("garetien-apply");
+		if (knopf) {
+			knopf.textContent = stand.beschriftung;
+			knopf.disabled = stand.gesperrt;
+		}
+		const hinweisEl = document.getElementById("garetien-apply-hint");
+		if (hinweisEl) {
+			hinweisEl.textContent = stand.hinweis;
+			hinweisEl.hidden = stand.hinweis === "";
+		}
+		return stand;
+	}
+
+	// Der Sender fuer das Uebernahme-Blatt.
+	//
+	// ⭐ Beschnitten wird NUR die Antwort auf `get`: das Fenster hat 259 Objekte durchgearbeitet und
+	// 14 angehakt; ein Blatt mit 259 Zeilen waere die Umkehrung des Auftrags („objekt fuer objekt
+	// entscheiden", Mockup §4).
+	//
+	// 🔴 `apply`, `select` und `undecline` gehen UNVERAENDERT durch. Beschnitten wird ausschliesslich
+	// die ANZEIGE -- was uebernommen wird, entscheidet weiterhin `selected` in der Datenbank.
+	//
+	// 💣 `counts` und `truncated` werden MITGEZOGEN. Liesse man die Serverzahlen stehen, meldete das
+	// Blatt „und 245 weitere (sie sind mit ihrem Häkchen gespeichert und werden mit übernommen)" --
+	// fuer 245 Zeilen, die gerade NICHT angehakt sind. Eine Falschaussage ueber eine Uebernahme.
+	//
+	// 💣 `counts[art]` ist die Zahl ALLER angehakten dieser Kategorie (sichtbare + abgeschnittene),
+	// nicht nur der sichtbaren. Das Blatt rechnet seine Fusszeile als
+	// `sichtbar angehakt + truncated.new + truncated.changed` gegen `counts.total`
+	// (syncPlanFooterState, Feld `hidden`) -- mit der sichtbaren Zahl allein stuende dort bei einem
+	// gedeckelten Lauf „223 von 180 werden übernommen". Fuer jeden ungedeckelten Lauf ist das
+	// zeichengleich mit der sichtbaren Zahl; der Unterschied entsteht erst ueber 200 Zeilen je
+	// Kategorie (AVESMAPS_SYNC_PLAN_CATEGORY_LIMIT).
+	//
+	// 💣 Was der Server bei 200 abgeschnitten hat, KANN angehakt sein. Die Zahl kommt deshalb aus
+	// avesmapsGaretienAngehakt() -- das liest die UNGEDECKELTE Arbeitsliste (garetien-liste.php
+	// zaehlt `angehakt` ohne LIMIT ueber den ganzen Lauf) --, nie aus einer Schaetzung.
+	//
+	// ⚠️ `zeile.selected` ist hier ein echter Bool: api/edit/wiki/sync-plan.php baut ihn als
+	// `(int) $row['selected'] === 1`. Die 0/1-ZAHL, gegen die avesmapsGaretienItemIstAngehakt
+	// schuetzt, kommt aus der ANDEREN Antwort (action:'liste').
+	function garetienBlattSender(rumpf) {
+		return avesmapsGaretienRufe(GARETIEN_PLAN_ENDPUNKT, rumpf).then(function (antwort) {
+			if (!rumpf || rumpf.action !== "get" || !antwort || !antwort.items || !antwort.run) {
+				return antwort;
+			}
+			const counts = { new: 0, changed: 0, deleted: 0, total: 0 };
+			const truncated = {};
+			Object.keys(antwort.items).forEach(function (art) {
+				const gehakt = (antwort.items[art] || []).filter(function (zeile) {
+					return zeile && zeile.selected === true;
+				});
+				antwort.items[art] = gehakt;
+				const imLauf = avesmapsGaretienAngehakt(art);
+				// Nie weniger behaupten, als dasteht: waere die Arbeitsliste noch nicht geholt,
+				// stuende `imLauf` auf 0 und das Blatt hielte sich fuer leer (kein Uebernehmen-Knopf).
+				const gesamt = Math.max(gehakt.length, imLauf);
+				counts[art] = gesamt;
+				counts.total += gesamt;
+				truncated[art] = gesamt - gehakt.length;
+			});
+			// ⚠️ `counts.protected_note` faellt dabei weg, und das ist folgenlos: es wird nur im
+			// Loeschzweig von syncPlanGroupMarkup gelesen, und der ist fuer 'garetien' gar nicht
+			// erreichbar (SYNC_PLAN_KIND_DELETIONS.garetien === null -- die Gruppe steigt vorher aus).
+			antwort.run.counts = counts;
+			antwort.truncated = truncated;
+			return antwort;
+		});
+	}
+
+	// Das Blatt aufmachen. Der Oeffner und sein Wirt kommen HEREIN -- derselbe Bau wie bei
+	// garetienFensterFuellen und garetienHandlungKlick, aus demselben Grund: nur so laesst sich am
+	// ERGEBNIS messen, WAS hineingereicht wird.
+	//
+	// 🔴 KEIN STILLER RUECKFALL. Fehlt das Blatt, wird das gesagt -- eine Ersatzfassung waere genau
+	// die zweite Uebernahme-Vorschau, die dieses Vorhaben nicht bauen darf. Der Satz steht IN der
+	// Liste, wie jeder andere Fehler dieses Fensters.
+	function garetienUebernahmeOeffnen(oeffnen, wirt) {
+		if (typeof oeffnen !== "function" || !wirt) {
+			garetienListeFehlerZeigen(new Error(
+				"Die Übernahme-Vorschau (js/review/sync-plan-sheet.js) ist nicht geladen. "
+				+ "Es wurde nichts geschrieben."
+			));
+			return null;
+		}
+
+		return oeffnen({
+			kind: GARETIEN_PLAN_ART,
+			mount: wirt,
+			post: garetienBlattSender,
+			// ⚠️ Nach der Uebernahme MUSS die Arbeitsliste neu geholt werden: die uebernommenen
+			// Zeilen tragen jetzt apply_state='done' und gehoeren in den Reiter „Uebernommen". Ohne
+			// das steht die Liste auf dem Stand von vorher, und der naechste Klick hakt etwas an,
+			// das schon geschrieben ist.
+			onApplied: function () { avesmapsGaretienListeHolen(); },
+			// ⚠️ UND beim blossen Schliessen ebenso -- im Blatt liegen „alle"/„keine" je Gruppe, und
+			// wer dort abhakt und dann „Später" drueckt, hat den Serverstand veraendert, ohne etwas
+			// zu uebernehmen. Nach einer Uebernahme laufen beide; der zweite Abruf ist der Preis
+			// dafuer, dass der „Später"-Weg keinen eigenen Zustand braucht, der auseinanderlaufen kann.
+			onClose: function () { avesmapsGaretienListeHolen(); },
+		});
+	}
+
 	// ---- Verdrahtung + Rechte-Riegel ---------------------------------------------------------------
 
 	function bindFenster() {
@@ -1988,6 +2133,20 @@
 					avesmapsGaretienHandlungSenden);
 				garetienHandlungKlick(ereignis, zustand.objekte, zustand.planRunId,
 					avesmapsGaretienHandlungSenden, garetienFragen);
+			});
+		}
+		// Aufgabe 16: die EINE gefuellte Handlung des Fensters.
+		// ⚠️ `disabled` wird hier NOCH EINMAL geprueft -- das Attribut ist die Anzeige, nicht der
+		// Riegel; dieselbe Trennung wie bei garetienHandlungKlick und beim Ebenen-Riegel.
+		const uebernehmenBtn = hasDocument ? document.getElementById("garetien-apply") : null;
+		if (uebernehmenBtn) {
+			uebernehmenBtn.addEventListener("click", function () {
+				if (uebernehmenBtn.disabled) { return; }
+				const oeffner = (typeof window !== "undefined"
+					&& typeof window.openSyncPlanSheet === "function")
+					? window.openSyncPlanSheet
+					: null;
+				garetienUebernahmeOeffnen(oeffner, document.getElementById("garetien-sheet"));
 			});
 		}
 	}
@@ -2116,6 +2275,11 @@
 			// einzige Zeile des Testfelds -- eine Pruefung hat ihr `.then` durch `.then(() => null)`
 			// ersetzt und das ganze Feld blieb gruen.
 			avesmapsGaretienHandlungSenden,
+			// Aufgabe 16
+			garetienUebernahmeKnopfZustand,
+			garetienUebernahmeKnopfSetzen,
+			garetienBlattSender,
+			garetienUebernahmeOeffnen,
 		};
 	}
 })();
