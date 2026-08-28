@@ -427,7 +427,9 @@ function avesmapsGaretienArbeitsliste(PDO $pdo, int $importRunId, array $filter)
             // Abgleichs; der Nenner ist die Zahl der wirklich verglichenen Probepunkte, und die ist
             // NICHT ihre Punktzahl -- avesmapsGaretienProbepunkte duennt auf hoechstens
             // AVESMAPS_GARETIEN_PROBEPUNKTE aus. `geometrie.length` im Browser abzulesen ergaebe bei
-            // ihrem Grossen Fluss "9 von 294".
+            // ihrem Grossen Fluss "9 von 294" -- die 294 ist NICHT hier gemessen, sie ist die Zahl
+            // aus dem Kopf von avesmapsGaretienDeckung (garetien-abgleich.php, gemessen 27.08.2026);
+            // wer sie nachpruefen will, prueft sie DORT und nicht an dieser Abschrift.
             // ⚠️ 0 heisst "nicht gemessen", nicht "null Punkte" -- die Anzeige laesst „von N" dann weg.
             'deckung' => $treffer['deckung'],
             'probepunkte' => avesmapsGaretienListeProbepunkte($treffer['abschnitte']),

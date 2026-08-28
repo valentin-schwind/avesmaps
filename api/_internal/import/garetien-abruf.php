@@ -134,6 +134,11 @@ function avesmapsGaretienEnsureUrteilSpalten(PDO $pdo): void
         // (AGENTS.md §10: `app_setting.setting_value` war aus genau diesem Grund vier Monate lang
         // wirkungslos), und ein mitten im Zeichen abgeschnittenes JSON ist kein JSON mehr --
         // `json_decode` gaebe `null` zurueck, und der Leseweg saehe aus wie "kein Treffer".
+        // ⚠️ SPEICHERVERBRAUCH, gerechnet und neu: ein Objekt kann 13 Abschnitte treffen, jeder
+        // traegt bis zu AVESMAPS_GARETIEN_ABSCHNITT_PUNKTE (64) Stuetzpunkte -- rund 29 KB je
+        // Zeile im schlimmsten Fall, also bis zu etwa 8 MB je 289-Zeilen-Lauf. Laeufe stehen
+        // nebeneinander (keiner ueberschreibt den anderen), das waechst also mit ihrer Zahl.
+        // Es verschwindet mit dem Staging beim Abbau des Importers (Auftrag §5.5).
         // 🔴 NULL erlaubt: "diese Zeile wurde vor dem Nachzug gerechnet" ist eine eigene Auskunft
         // und darf nicht wie "der Abgleich fand nichts" aussehen.
         'ALTER TABLE garetien_import_row ADD COLUMN abschnitte_json MEDIUMTEXT NULL',

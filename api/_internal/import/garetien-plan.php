@@ -435,6 +435,31 @@ function avesmapsGaretienSchreibeUrteil(
 }
 
 /**
+ * Reist die Trefferauskunft des Abgleichs ueberhaupt mit? REIN -- kein I/O.
+ *
+ * 🔴 GENAU DANN, WENN DER ABGLEICH EIN OBJEKT VON UNS BENANNT HAT -- `treffer_public_id`. Das ist
+ * KEINE Aufzaehlung von Urteilsnamen: eine solche Liste waere bei der naechsten Urteilsart still
+ * falsch, und niemand merkte es. Sie fragt, was der Abgleich BEHAUPTET.
+ *
+ * 💣 DER FALL, DER SIE ERZWUNGEN HAT: `avesmapsGaretienDeckung` filtert die Kandidaten ueber die
+ * HUELLBOX, nicht ueber AVESMAPS_GARETIEN_TREFFER_EINHEITEN. Ein Objekt, dessen Rechteck unseres
+ * ueberlappt, das aber Dutzende Karteneinheiten entfernt liegt, bekam deshalb eine Trefferliste --
+ * und die Einzelansicht schrieb drei einander widersprechende Saetze in EINEN Kasten: "1 Abschnitt
+ * . Deckung Median 42,79" (das Einundzwanzigfache der Schwelle), "nichts zu ersetzen" (liest sich
+ * als "haben wir schon") und darunter den Grund "naechstes gleichartiges Objekt liegt 42.79
+ * Einheiten entfernt". Am Pruefstand gemessen: Fernfluss, Urteil `neu`, 2 Abschnitte.
+ *
+ * 💣 NICHT auf die 2,0-Schwelle filtern. Das naehme dem `widerspricht` seine Abschnitte -- und der
+ * ist gerade der Fall "derselbe Artikel behauptet zwei Stellen", bei dem man die weit entfernte
+ * Stelle SEHEN muss (Fernartikel, 8,95 Einheiten, behaelt sie). Der `zufluss` behaelt seine
+ * ebenfalls (Seitenarm der Alke, 0,18 -- der ist echt).
+ */
+function avesmapsGaretienUrteilNenntTreffer(array $urteil): bool
+{
+    return ($urteil['treffer_public_id'] ?? null) !== null;
+}
+
+/**
  * Der Namensbefund je Abschnitt: heisst unser Abschnitt so wie ihr Objekt? REIN -- kein I/O.
  *
  * 🔴 ER GEHOERT ZUR TREFFERLISTE, NICHT ZUM ITEM. Ein Abschnitt ohne Item (der Gardel) hat
@@ -444,6 +469,16 @@ function avesmapsGaretienSchreibeUrteil(
  * Umbenennungs-Item entscheidet. Ein zweiter Namensvergleich waere die zweite Wahrheit darueber,
  * was "derselbe Name" heisst -- und der Editor saehe "Name gleich" an einer Zeile, die trotzdem
  * eine Umbenennung anbietet.
+ *
+ * 🔧 OFFEN, UND ES IST EINE BEWUSSTE LUECKE: das Mockup (§3, §6a) zeigt neben dem Namensbefund
+ * noch "liegt auf Darpat" -- den Namen des Flusses, zu dem ein NAMENLOSER Abschnitt gehoert.
+ * Diese Beziehung gibt es in unseren Daten nicht: ein map_features-Abschnitt ohne Namen hat kein
+ * uebergeordnetes Objekt und keinen Namensverbund. `after.nachbar` ist es NICHT -- das ist der
+ * Zufluss-Nachbar und am Abschnitts-Item hart `null` (avesmapsGaretienAbschnittsEintrag).
+ * Sie herzuleiten hiesse: eine geometrische Nachbarschaftssuche ueber benannte Abschnitte
+ * derselben Wegart, mit eigenen Schwellen, fuer eine Textzeile -- ein Owner-Entscheid, keine
+ * Auslassung. Wird sie je gebaut, gehoert sie HIERHER (an die Trefferliste, beim Planbau) und
+ * nie in den Browser.
  */
 function avesmapsGaretienAbschnitteMitNamensbefund(array $abschnitte, string $ihrName): array
 {
@@ -522,13 +557,18 @@ function avesmapsGaretienBaueSyncPlan(PDO $pdo, int $importRunId, int $userId = 
         // aus (Aufgabe 13b).
         // 🔴 Die Zahl entsteht HIER, EINMAL. Sie im Lesepfad neu zu rechnen waere eine zweite
         // Wahrheit ueber "was trifft was" -- und sie liefe je Zeile der Liste.
+        // 🔴 ABER NUR, WENN DER ABGLEICH EIN OBJEKT VON UNS BENANNT HAT. Ohne diesen Riegel bekaeme
+        // ein `neu` Phantom-Abschnitte aus dem blossen Huellbox-Vorfilter -- die Begruendung steht
+        // bei avesmapsGaretienUrteilNenntTreffer. Die Auskunft reist GANZ oder GAR NICHT: eine
+        // Deckung ohne Abschnitte stuende als "Deckung Median 42,79" ueber "0 Abschnitte".
+        $nenntTreffer = avesmapsGaretienUrteilNenntTreffer($urteil);
         avesmapsGaretienSchreibeUrteil(
             $pdo, $importRunId, (string) $zeile['wiki'], (string) $zeile['ebene'], (int) $zeile['zeile_nr'],
             $urteil['status'], $urteil['grund'],
-            avesmapsGaretienAbschnitteMitNamensbefund(
+            $nenntTreffer ? avesmapsGaretienAbschnitteMitNamensbefund(
                 (array) ($urteil['abschnitte'] ?? []), trim((string) ($zeile['anzeige'] ?? ''))
-            ),
-            $urteil['abstand'] === null ? null : (float) $urteil['abstand']
+            ) : [],
+            $nenntTreffer && $urteil['abstand'] !== null ? (float) $urteil['abstand'] : null
         );
         if ($urteil['status'] === 'uebersprungen') {
             continue;

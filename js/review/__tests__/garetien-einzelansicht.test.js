@@ -365,6 +365,9 @@ wahr(garetienDetailMarkup(Object.assign({}, voll, { deckung: 0 })).includes("Dec
 
 // 4. 💣 DER NENNER KOMMT VOM SERVER, NICHT AUS `objekt.geometrie`. Diese Fixture traegt
 // ABSICHTLICH 294 Stuetzpunkte bei 16 Probepunkten -- genau die Spanne ihres Grossen Flusses.
+// ⚠️ Die 294 ist eine ABSCHRIFT der Messung im Kopf von avesmapsGaretienDeckung
+// (api/_internal/import/garetien-abgleich.php, live gemessen 27.08.2026), keine eigene Messung.
+// Fuer diesen Test traegt sie nichts als "deutlich mehr als 16" -- jede groessere Zahl taete es.
 // Ein Browser, der `geometrie.length` ablaese, schriebe „9 von 294".
 wahr(mv.includes("9 von 16 Punkten"), "die Punktzahl nennt Zaehler UND Nenner");
 wahr(!mv.includes("294"), "der Nenner darf NICHT ihre Stuetzpunktzahl sein");
@@ -408,7 +411,10 @@ wahr(garetienDetailMarkup(voll).includes("CC BY-NC-SA 3.0"), "und der Spion ist 
 // die die fuenf Seiten mit dem Quellen-Editor schon tragen (AGENTS.md §11, Quellenliste).
 // ⚠️ Zeilenendenneutral: die Arbeitskopie traegt CRLF, im Tor liegt LF (AGENTS.md §9).
 const indexHtml = fs.readFileSync(path.join(WURZEL, "index.html"), "utf8").replace(/\r\n/g, "\n");
-const posMarkup = indexHtml.indexOf("js/ui/feature-source-markup.js");
+// 🪤 MIT `src="` gesucht, nicht nur nach dem Dateinamen: sonst erfuellte schon ein Kommentar,
+// der die Datei erwaehnt, die Zusicherung -- und das `<script>` koennte fehlen. Der Anker fuer
+// den Importer darunter macht es mit dem Anfuehrungszeichen schon richtig.
+const posMarkup = indexHtml.indexOf('src="js/ui/feature-source-markup.js"');
 const posImporter = indexHtml.indexOf("js/review/review-garetien-importer.js\"");
 wahr(posMarkup > -1 && posImporter > -1,
 	"die Gegenprobe findet eines der beiden Skripte in index.html selbst nicht mehr");
@@ -418,6 +424,24 @@ wahr(posMarkup < posImporter,
 
 // ⚠️ Ohne Quelle faellt der GANZE Abschnitt weg -- eine Ueberschrift ueber nichts ist keine
 // Auskunft (item-lose Objekte tragen keine Quelle).
+// 💣 UND DER LAUTE WURF IST DIE ZUSICHERUNG, nicht nur eine Vorsichtsmassnahme. Ein spaeterer,
+// "defensiver" Rueckfall (`|| (() => ({ text: "", url: "" }))`) waere im ganzen Feld GRUEN und
+// liesse die Lizenzzeile still verschwinden -- niemand saehe, dass die geteilte Datei fehlt, nur
+// dass es keine Lizenz gibt. Genau die Bauform, die AGENTS.md §11 fuer die Quellenliste verbietet.
+// ⚠️ Gemessen wird der ABLAUF: die geteilte Funktion wird weggenommen, und der Aufruf MUSS werfen.
+const ohneDatei = geteilteQuelle.featureSourceLicenseText;
+delete geteilteQuelle.featureSourceLicenseText;
+let geworfen = null;
+try { garetienDetailMarkup(voll); } catch (fehler) { geworfen = String(fehler.message || fehler); }
+geteilteQuelle.featureSourceLicenseText = ohneDatei;
+wahr(geworfen !== null,
+	"fehlt feature-source-markup.js, MUSS es einen lauten Fehler geben -- ein stiller Rueckfall"
+	+ " liesse die Lizenzzeile verschwinden, ohne dass es jemand merkt");
+wahr(/feature-source-markup/.test(geworfen || ""),
+	"und der Fehler muss die fehlende Datei NENNEN, sonst sucht der naechste Leser an der falschen"
+	+ " Stelle: " + geworfen);
+wahr(garetienDetailMarkup(voll).includes("CC BY-NC-SA 3.0"),
+	"und nach dem Zuruecklegen baut die Ansicht wieder normal");
 gleich(garetienQuellenMarkup({ quelle: {} }), "", "ohne Quelle gibt es den Abschnitt nicht");
 wahr(!garetienDetailMarkup(natter).includes("Die Quelle, die mitreist"),
 	"ein Objekt ohne Quellenfeld zeigt den Abschnitt nicht");

@@ -1207,6 +1207,9 @@
 	// 🔴 Der Nenner kommt vom SERVER (`objekt.probepunkte`) und wird NICHT aus `objekt.geometrie`
 	// abgelesen: der Abgleich dünnt ihre Stützpunkte auf höchstens AVESMAPS_GARETIEN_PROBEPUNKTE
 	// aus, und ihr Großer Fluss trägt 294 davon -- „9 von 294" wäre schlicht falsch.
+	// ⚠️ Die 294 stammt aus dem Kopf von `avesmapsGaretienDeckung` (api/_internal/import/
+	// garetien-abgleich.php, live gemessen 27.08.2026) und ist hier eine ABSCHRIFT. Sie steht
+	// inzwischen an drei Stellen; nachgeprüft wird sie an der Quelle, nicht an einer Kopie.
 	// ⚠️ 0 heißt „nicht gemessen" (ein Lauf von vor dem Nachzug), nicht „null Punkte": dann fällt
 	// die Angabe weg, statt eine erfundene Zahl zu behaupten.
 	function garetienPunkteText(punkte, nenner) {

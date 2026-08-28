@@ -90,6 +90,53 @@ function garetienTestPruefstand(): PDO
         . " VALUES (1,'ggp','Gewaesser',7,'Fluss','Garetien','Natter','Natter','5','14','','koordinaten',?,'')"
     )->execute([garetienTestNatterGeo()]);
 
+    // ---------------------------------------------------------------------------------------
+    // 🔴 DREI WEITERE URTEILSARTEN, damit die Regel „wann reist die Trefferliste mit?" an JEDER
+    // einzeln geprueft wird und nicht nur am Owner-Fall.
+    //
+    // 💣 Der Huellbox-Vorfilter in avesmapsGaretienDeckung ist KEINE Naehe-Pruefung: er
+    // vergleicht Rechtecke, nicht Abstaende. Ein Objekt, dessen Huelle unsere ueberlappt, das
+    // aber Dutzende Karteneinheiten entfernt liegt, bekommt trotzdem eine Trefferliste.
+    // ---------------------------------------------------------------------------------------
+
+    // (1) FERNFLUSS -- Urteil `neu`. Zwei weit auseinanderliegende Punkte, deren Huelle unseren
+    // Bestand UMSCHLIESST, waehrend jeder einzelne Punkt rund 45 Karteneinheiten entfernt ist.
+    $pdo->prepare(
+        'INSERT INTO garetien_import_row (run_id, wiki, ebene, zeile_nr, typ, namensraum, artikel, anzeige,'
+        . ' lodmin, lodmax, extra, geo_art, geo, roh)'
+        . " VALUES (1,'ggp','Gewaesser',10,'Fluss','Garetien','Fernfluss','Fernfluss','','','','koordinaten',"
+        . "'-100000 100000, 120000 -80000','')"
+    )->execute();
+
+    // (2) NAHARTIKEL -- Urteil `deckt_sich` ueber den ARTIKELNAMEN, nicht ueber die Geometrie.
+    // 🔴 Der Artikel steht in properties_json; avesmapsGaretienArtikelTrifft sucht ihn dort.
+    $nah = [[600000, 600000], [601000, 601000], [602000, 602000]];
+    $pdo->prepare('INSERT INTO map_features (public_id, name, feature_type, feature_subtype, geometry_json, properties_json) VALUES (?,?,?,?,?,?)')
+        ->execute(['w-nah', 'Nahfluss', 'path', 'Flussweg', json_encode(
+            ['type' => 'LineString', 'coordinates' => avesmapsGaretienLinieNachAvesmaps($nah)], JSON_UNESCAPED_UNICODE),
+            '{"wiki_url":"https://www.garetien.de/index.php?title=Garetien:Nahartikel"}']);
+    $pdo->prepare(
+        'INSERT INTO garetien_import_row (run_id, wiki, ebene, zeile_nr, typ, namensraum, artikel, anzeige,'
+        . ' lodmin, lodmax, extra, geo_art, geo, roh)'
+        . " VALUES (1,'ggp','Gewaesser',11,'Fluss','Garetien','Nahartikel','Nahartikel','','','','koordinaten',"
+        . "'600000 600000, 601000 601000, 602000 602000','')"
+    )->execute();
+
+    // (3) FERNARTIKEL -- Urteil `widerspricht`/`artikel_widerspruch`: derselbe Artikel behauptet
+    // ZWEI Stellen. 💣 Genau dieser Fall MUSS seine Abschnitte behalten -- die weit entfernte
+    // Stelle ist das, was ein Editor sehen soll. Eine Filterung auf die 2,0-Schwelle naehme sie ihm.
+    $fern = [[300000, 300000], [301000, 301000]];
+    $pdo->prepare('INSERT INTO map_features (public_id, name, feature_type, feature_subtype, geometry_json, properties_json) VALUES (?,?,?,?,?,?)')
+        ->execute(['w-fern', 'Fernartikelfluss', 'path', 'Flussweg', json_encode(
+            ['type' => 'LineString', 'coordinates' => avesmapsGaretienLinieNachAvesmaps($fern)], JSON_UNESCAPED_UNICODE),
+            '{"wiki_url":"https://www.garetien.de/index.php?title=Garetien:Fernartikel"}']);
+    $pdo->prepare(
+        'INSERT INTO garetien_import_row (run_id, wiki, ebene, zeile_nr, typ, namensraum, artikel, anzeige,'
+        . ' lodmin, lodmax, extra, geo_art, geo, roh)'
+        . " VALUES (1,'ggp','Gewaesser',12,'Fluss','Garetien','Fernartikel','Fernartikel','','','','koordinaten',"
+        . "'280000 280000, 320000 320000','')"
+    )->execute();
+
     return $pdo;
 }
 
@@ -347,4 +394,121 @@ assert($gardel['probepunkte'] === 0 && $gardel['deckung'] === null,
     . json_encode([$gardel['probepunkte'], $gardel['deckung']]));
 $pruefungen += 3;
 
+// ---------------------------------------------------------------------------------------------
+// 🔴 WANN REIST DIE TREFFERLISTE MIT? Genau dann, wenn der Abgleich ein Objekt von uns BENANNT
+// hat (`treffer_public_id`) -- nicht bei jedem Urteil.
+//
+// 💣 DER FEHLER, DEN DAS VERHINDERT: `avesmapsGaretienDeckung` filtert die Kandidaten ueber die
+// HUELLBOX, nicht ueber die Trefferschwelle von 2,0 Karteneinheiten. Ein `neu` bekam dadurch
+// Phantom-Abschnitte, und die Einzelansicht schrieb drei einander widersprechende Saetze in EINEN
+// Kasten: "Deckung Median 42,79", "nichts zu ersetzen" und daneben den Grund "liegt 42.79
+// Einheiten entfernt". Ohne sie steht dort "Zu diesem Objekt steht kein Abschnitt von uns im
+// Vorschlag." -- das ist die richtige Auskunft.
+//
+// 🔴 JEDE Urteilsart einzeln, mit ihrer gemessenen Zahl. Eine Aufzaehlung von Urteilsnamen im
+// Code waere bei der naechsten Urteilsart still falsch; deshalb fragt die Regel, was der Abgleich
+// BEHAUPTET -- und deshalb wird sie hier an allen Arten belegt, die es heute gibt.
+// ---------------------------------------------------------------------------------------------
+$nachSchluessel = [];
+foreach (avesmapsGaretienArbeitsliste($pdo, 1, [])['objekte'] as $o) {
+    $nachSchluessel[$o['key']] = $o;
+}
+
+// (a) `neu` mit ueberlappender Huelle, aber ohne Naehe -- der Fall, um den es geht.
+// Gemessen: OHNE den Riegel 2 Abschnitte / Deckung 42,79 (das Einundzwanzigfache der Schwelle),
+// MIT ihm 0.
+$fern = $nachSchluessel['ggp:Gewaesser:Fluss:Garetien:Fernfluss'] ?? null;
+assert($fern !== null, 'der Fernfluss fehlt im Pruefstand');
+assert($fern['urteil'] === 'neu', 'die Vorbedingung: der Fernfluss ist ein Neuzugang, kein Treffer: ' . $fern['urteil']);
+assert($fern['abschnitte'] === [],
+    'ein `neu` darf KEINE Abschnitte tragen -- die Huellbox ist ein Vorfilter, keine Naehe. Es sind '
+    . count($fern['abschnitte']) . ' (ohne den Riegel 2)');
+assert($fern['deckung'] === null && $fern['probepunkte'] === 0,
+    'ohne benannten Treffer reist auch keine Deckung mit -- eine "Deckung Median 42,79" ueber'
+    . ' "0 Abschnitte" waere derselbe Widerspruch eine Zeile hoeher: '
+    . json_encode([$fern['deckung'], $fern['probepunkte']]));
+$pruefungen += 4;
+
+// (b) 💣 `widerspricht` ueber den ARTIKEL behaelt seine Abschnitte -- und genau daran haette eine
+// Filterung auf die 2,0-Schwelle das Werkzeug kaputtgemacht: derselbe Artikel behauptet zwei
+// Stellen, und die weit entfernte ist das, was ein Editor sehen soll. Gemessen: 1 Abschnitt bei
+// 8,95 Einheiten, mit und ohne Riegel.
+$fernArtikel = $nachSchluessel['ggp:Gewaesser:Fluss:Garetien:Fernartikel'] ?? null;
+assert($fernArtikel !== null, 'der Fernartikel fehlt im Pruefstand');
+assert($fernArtikel['urteil'] === 'widerspruch',
+    'die Vorbedingung: derselbe Artikel behauptet zwei Stellen: ' . $fernArtikel['urteil']);
+assert(count($fernArtikel['abschnitte']) === 1 && $fernArtikel['deckung'] > AVESMAPS_GARETIEN_TREFFER_EINHEITEN,
+    'ein Widerspruch MUSS seine weit entfernte Stelle behalten -- sonst sieht der Editor nicht, worueber'
+    . ' er entscheidet: ' . count($fernArtikel['abschnitte']) . ' Abschnitte bei '
+    . json_encode($fernArtikel['deckung']));
+$pruefungen += 3;
+
+// (c) `zufluss` (in der Liste `zweifel`) behaelt seine ebenfalls -- der Treffer ist echt (0,18).
+$zufluss = $nachSchluessel['ggp:Gewaesser:Bach:Garetien:Seitenarm der Alke'] ?? null;
+assert($zufluss !== null && $zufluss['urteil'] === 'zweifel', 'der Zufluss fehlt oder traegt ein anderes Urteil');
+assert(count($zufluss['abschnitte']) === 1 && $zufluss['deckung'] < 1.0,
+    'ein Zufluss liegt WIRKLICH auf seinem Hauptfluss und behaelt seinen Abschnitt: '
+    . count($zufluss['abschnitte']) . ' bei ' . json_encode($zufluss['deckung']));
+$pruefungen += 2;
+
+// (d) `deckt_sich` ueber den ARTIKEL -- der zweite Zweig, der eine treffer_public_id setzt.
+$nahArtikel = $nachSchluessel['ggp:Gewaesser:Fluss:Garetien:Nahartikel'] ?? null;
+assert($nahArtikel !== null, 'der Nahartikel fehlt im Pruefstand');
+assert(count($nahArtikel['abschnitte']) === 1,
+    'ein Artikeltreffer mit passender Geometrie behaelt seinen Abschnitt: ' . count($nahArtikel['abschnitte']));
+$pruefungen += 2;
+
+// (e) `uebersprungen` hatte nie welche und bekommt auch keine.
+$uebersprungen = $nachSchluessel['ggp:Gewaesser:Fluss:Nachbarprovinzen'] ?? null;
+assert($uebersprungen !== null && $uebersprungen['urteil'] === 'uebersprungen', 'der Sammelartikel fehlt');
+assert($uebersprungen['abschnitte'] === [] && $uebersprungen['deckung'] === null,
+    'eine uebersprungene Zeile wurde nie abgeglichen und traegt nichts');
+$pruefungen += 2;
+
+// 🪤 UND DIE GEGENPROBE GEGEN EINE ZU SCHARFE REGEL: waeren alle Urteilsarten gleich behandelt,
+// stuenden hier ueberall 0 Abschnitte. Belegt wird deshalb die DIFFERENZ -- die Regel nimmt
+// GENAU EINEM Objekt die Liste und laesst die uebrigen unberuehrt.
+$mitAbschnitten = [];
+foreach ($nachSchluessel as $schluessel => $o) {
+    if ($o['abschnitte'] !== []) {
+        $mitAbschnitten[] = $schluessel;
+    }
+}
+assert(count($mitAbschnitten) === 5,
+    'die Regel darf nicht pauschal wirken: Alke, Seitenarm, Natter, Nahartikel und Fernartikel'
+    . ' tragen weiter Abschnitte -- es sind ' . count($mitAbschnitten) . ': '
+    . json_encode($mitAbschnitten, JSON_UNESCAPED_UNICODE));
+$pruefungen++;
+
+// ---------------------------------------------------------------------------------------------
+// 💣 DIE SPALTE MUSS `MEDIUMTEXT` BLEIBEN, und das haelt nur eine Quelltext-Zusicherung fest.
+//
+// Ein spaeteres `VARCHAR(255)` waere unter SQLite UNSICHTBAR (SQLite kennt keine Laengengrenze
+// und dieser Pruefstand bliebe gruen), unter MySQL aber kuerzte es still -- `json_decode` gaebe
+// `null`, der Leseweg faellt offen aus, und der Abschnitt ohne Item fehlte wieder. Das waere
+// Luecke 1 zurueck, ununterscheidbar von "nichts getroffen": genau die Fehlerklasse aus
+// AGENTS.md §10, an der `app_setting.setting_value` vier Monate lang wirkungslos war.
+// ⚠️ Gemessen wird die DDL-Zeile, nicht das Verhalten -- was dieser Test gegen SQLite gar nicht
+// sehen kann, muss er am Quelltext festhalten. Zeilenendenneutral gesucht (AGENTS.md §9).
+// 🪤 Kommentare zuerst strippen: die Datei erklaert in Prosa, WARUM sie MEDIUMTEXT nimmt, und ein
+// ungestrippter Test schluege an seiner eigenen Warnung an.
+$abrufRoh = (string) file_get_contents(__DIR__ . '/../garetien-abruf.php');
+// 🪤 KEINE Zeilenenden-Ersetzung, und keine Zeichenklasse ueber ein Zeilenende: eine solche
+//    Zeichenkette laesst sich in einem erzeugten Quelltext nicht zuverlaessig schreiben (hier
+//    landete beim ersten Versuch eine ECHTE Zeilenschaltung statt der Escape-Folge -- es lief,
+//    war aber nicht lesbar und der naechste Leser haette es "aufgeraeumt").
+//    `//.*` braucht sie gar nicht: `.` ueberschreitet ohne `s` kein Zeilenende, und die
+//    gesuchte Zeichenkette steht ohnehin INNERHALB einer Zeile -- damit ist der Test
+//    zeilenendenneutral, ohne ein Zeilenende zu nennen (AGENTS.md §9).
+$abruf = preg_replace('~//.*~', '', $abrufRoh) ?? '';
+assert(str_contains($abruf, 'ADD COLUMN abschnitte_json MEDIUMTEXT'),
+    'die Spalte abschnitte_json muss MEDIUMTEXT sein -- ein VARCHAR kuerzt unter MySQL still, und'
+    . ' ein halbes JSON ist von "nichts getroffen" nicht zu unterscheiden');
+assert(!preg_match('~ADD COLUMN abschnitte_json\s+VARCHAR~i', $abruf),
+    'abschnitte_json darf kein VARCHAR sein');
+// Gegenprobe, damit die zwei Zeilen kein Nulltest sind: an einer Zeichenkette, die es wirklich
+// gibt, muss dasselbe Vorgehen ANSCHLAGEN -- sonst misst der Riegel eine leergestrippte Datei.
+assert(str_contains($abruf, 'avesmapsGaretienEnsureUrteilSpalten'),
+    'die Gegenprobe findet den gestrippten Quelltext selbst nicht mehr -- der Riegel misst nichts');
+$pruefungen += 3;
 echo "OK: {$pruefungen} Pruefungen\n";
