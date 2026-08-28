@@ -1,6 +1,6 @@
 # Übergabe: das Fenster „Garetien Importer"
 
-**Stand:** 2026-08-28, nach Aufgabe 13 · **Vorgänger-Sitzung:** Bau der Aufgaben 1–13
+**Stand:** 2026-08-28, nach Aufgabe 14 · **Vorgänger-Sitzung:** Bau der Aufgaben 1–14
 **Bauplan:** `docs/superpowers/plans/2026-08-27-garetien-importer-fenster.md` — **die Wahrheit**
 **Auftrag:** `docs/superpowers/specs/2026-08-27-garetien-importer-fenster-auftrag.md`
 **Mappingtabelle:** `docs/superpowers/specs/2026-08-27-garetien-typinventar-und-mapping.md`
@@ -13,9 +13,9 @@
 
 | | |
 |---|---|
-| **Fertig und LIVE** | Aufgaben 1–13 — die ganze Serverhälfte, die CSS-Extraktion, Knopf, Fensterhülle, Menüband, Liste mit Bilanz und Reitern, Filtertrichter und die **Einzelansicht**. Gepusht bis `2d60f5756` |
-| **In Arbeit** | Aufgabe 13b — der Server liefert, was die Einzelansicht zeigen soll (zwei nachgetragene Lücken, siehe §4) |
-| **Offen** | Aufgaben 14–16 (Karte · die vier Handlungen · Übernahme) |
+| **Fertig und LIVE** | Aufgaben 1–14 — die ganze Serverhälfte, Knopf, Fensterhülle, Menüband, Liste, Filtertrichter, **Einzelansicht** und die **Karte** (Glow am Häkchen, mehrere zugleich). Gepusht bis `a43dfb1a9` |
+| **In Arbeit** | Aufgabe 15 — die vier Handlungen (samt dem Server-Einzeiler aus Ruling R10) |
+| **Offen** | Aufgabe 16 — „Angehakte übernehmen" durch das vorhandene Blatt |
 
 **Was live funktioniert:** das Fenster steht und ist bedienbar. Der Knopf „Garetien Importer"
 (nur für Admins) öffnet es, das Menüband holt einen Lauf und rechnet, die Liste zeigt ihn mit
@@ -152,6 +152,22 @@ Sie sind der eigentliche Wert dieser Übergabe.
   misst.** Zweimal aufgetreten: eine Kontrasttabelle aus den **Mockup**-Tokens statt aus
   `tokens.css`, und eine Umbruchprobe an einem Mehrwortnamen, die genau den fallenden Fall als
   geprüft auswies. ⭐ Deshalb rechnet der Prüfer Zahlen **selbst** nach, statt sie zu lesen.
+- 🪤 **Ein Scan-Test und die GETRACKTHEIT — beide Richtungen, und die zweite hat hier einen
+  Critical gekostet.** Der Abbau-Wächter liest `git ls-files`: eine **ungetrackte** Datei ist für
+  ihn unsichtbar, also grün. Nach dem Commit war das Deploy-Tor rot — und ausgerechnet die
+  Zusicherung, die beweist, dass das Kartenmodul die Import-Tabellen *nicht* kennt, trug deren
+  Namen als **Regex-Literal** und war damit der einzige Verstoß.
+  ⭐ **Das Feld NACH dem `git add` fahren, nicht davor.** Und eine solche Nadel zur **Laufzeit**
+  bauen (`new RegExp("garetien" + "_import")`), mit dem Grund als Kommentar.
+  ⚠️ Die Gegenrichtung gilt weiter: ein Test, der das **Dateisystem** scannt, wird von fremden
+  ungetrackten Dateien fälschlich rot.
+- 🪤 **Ein Prüfbefehl in einem Kommentar ist eine Behauptung, bis man ihn fährt.** Der Griff zur
+  Pane-Inventur (`grep 'style\.zIndex = [0-9]'`) fand die **eigenen zwei** Panes nicht — er sucht
+  eine Ziffer, dort steht eine Variable. Wer ihn führe, hielte 360 und 465 für frei und vergäbe
+  sie ein zweites Mal. Dieselbe Form wie das Zoombänder-Inventar aus AGENTS.md §11.
+- 🪤 **Ein `\b` oder `\n` wird beim Erzeugen leicht zum echten Steuerzeichen** (0x08 bzw. Umbruch).
+  Dreimal aufgetreten, zweimal davon beim Auftraggeber selbst. Das Muster trifft dann nie, die
+  Zusicherung ist Vakuum, und es sieht völlig normal aus. ⭐ Gegenprobe: `grep -c $'\x08' datei`.
 - ⚠️ **Der Zähler `$pruefungen`** war in **vier von neun** Runden daneben. Immer nachrechnen.
 - ⚠️ **Die Browser-Fläche dieser Sitzung liefert keine Bildschirmfotos.** Messen geht trotzdem
   (`getBoundingClientRect`, `getComputedStyle`, echte `PointerEvent`s). Was nicht geht, wird als
