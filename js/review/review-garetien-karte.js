@@ -32,13 +32,26 @@
 	 * Die Quelle ist deshalb `item.abschnitt.public_id` der ANGEHAKTEN Items, nie `objekt.abschnitte`.
 	 */
 
-	// ---- Die Pane -----------------------------------------------------------------------------
+	// ---- Die zwei Panes -------------------------------------------------------------------------
 	//
-	// Eine EIGENE Pane, ueber den Wegen (roadsPane 400) und unter den Beschriftungen: der Vorschlag
-	// muss ueber unserer Linie liegen, damit man ihn sieht — und unter den Ortsnamen, damit er die
-	// Karte nicht unlesbar macht.
+	// 🔴 ZWEI, weil die zwei Mittel in verschiedene Richtungen zeigen. Im Mockup §2 ist die
+	// Malreihenfolge: Schein → UNSERE Flusslinie → ihr gestrichelter Strich.
 	//
-	// 🔴 465 UND NICHT 460 (der Brief nannte 460). 460 gehoert `measurementPane`
+	//   - DER SCHEIN IST EINE HERVORHEBUNG UNSERER GEOMETRIE und gehoert deshalb HINTER das, was er
+	//     hervorhebt. Laege er darueber, deckte ein 13px breites Goldband unsere 3px schmale blaue
+	//     Linie zu: aus Flussblau (#6ec6ff) und 55 % Gold mischt sich rgb(182,188,137), ein stumpfes
+	//     Oliv. Sichtbar waere ein goldener Hof mit olivfarbenem KERN genau dort, wo der Fluss liegt.
+	//     Darunter bleibt unser Blau rein und der Hof reines Gold auf Pergament.
+	//   - IHR STRICH IST DER VORSCHLAG und gehoert nach oben, sonst sieht man ihn nicht.
+	//
+	// 🔴 SCHEIN 360. Er muss UNTER `roadsPane` (400) liegen -- das ist die Regel -- und UEBER
+	// `roadsOutlinePane` (350), der weissen Kontur unserer Wege: darunter zeigte sich vom 13px
+	// breiten Schein nur der Rand ausserhalb der 5,4px breiten Kontur, und aus dem Hof wuerde ein
+	// duenner Ring. Belegt ist der Platz so (ausgezaehlt ueber ALLE `style.zIndex`-Zuweisungen
+	// ausserhalb von js/third-party/): 300 Schraffur · 350 roadsOutlinePane UND die Grenz-Canvas ·
+	// 355 regionHoverPane · 400 roadsPane. 356-399 ist frei.
+	//
+	// 🔴 STRICH 465 UND NICHT 460 (der Brief nannte 460). 460 gehoert `measurementPane`
 	// (js/app/bootstrap.js); bei gleichem z-index entscheidet die Einfuegereihenfolge im DOM, und
 	// das ist keine Regel, sondern ein Zufall, der beim naechsten Umbau kippt. Belegt ist der Platz
 	// so: 450 routePane · 455 ecosystemPaneKlimaLines · 460 measurementPane · 470 die Wegenamen
@@ -46,12 +59,15 @@
 	//
 	// 💣 `getPane` ZUERST, dann erst `createPane` — und nicht umgekehrt. Leaflet 1.9.4 prueft in
 	// `createPane` NICHT, ob es die Pane schon gibt: es legt jedes Mal ein NEUES <div> an und haengt
-	// das alte, samt aller darin gezeichneten Ebenen, unerreichbar im DOM ab. Ein zweiter Aufruf
-	// waere also kein Leerlauf, sondern genau die Doppelanmeldung, an der in diesem Haus schon
-	// zweimal etwas gescheitert ist. `getPane` selbst LEGT NICHTS AN und liefert `undefined` —
-	// deshalb die Oder-Verkettung und nicht der blosse Zugriff auf `.style`.
+	// das alte, samt aller darin gezeichneten Ebenen, unerreichbar im DOM ab. Und es ist schlimmer
+	// als „doppelt": `_getPaneRenderer` merkt sich EIN `L.SVG` je Pane-NAMEN, dessen Container im
+	// abgehaengten <div> zurueckbliebe -- die Zeichnung waere danach UNSICHTBAR. `getPane` selbst
+	// LEGT NICHTS AN und liefert `undefined` — deshalb die Oder-Verkettung und nicht der blosse
+	// Zugriff auf `.style`.
 	var AVESMAPS_GARETIEN_PANE = "garetienImportPane";
 	var AVESMAPS_GARETIEN_PANE_Z = 465;
+	var AVESMAPS_GARETIEN_SCHEIN_PANE = "garetienImportScheinPane";
+	var AVESMAPS_GARETIEN_SCHEIN_PANE_Z = 360;
 
 	// ---- Die Masse ----------------------------------------------------------------------------
 	//
@@ -67,6 +83,10 @@
 	var AVESMAPS_GARETIEN_STRICHELUNG = "9 5";
 	var AVESMAPS_GARETIEN_SCHEIN_BREITE = 13;
 	var AVESMAPS_GARETIEN_SCHEIN_DECKKRAFT = 0.55;
+	// Die Fuellung IHRER Flaechen (Mockup §2, Blutmoor: `fill=var(--color-marker-active) opacity=".14"`).
+	// Sehr leicht, damit die Landschaft darunter lesbar bleibt -- dieselbe Zurueckhaltung wie bei den
+	// Klimabaendern (css/features/ecosystem-layer.css).
+	var AVESMAPS_GARETIEN_FLAECHE_DECKKRAFT = 0.14;
 
 	// Sie stehen im `class`-Attribut der erzeugten SVG-Pfade. Nicht Zierde: so laesst sich in der
 	// Abnahme im echten Browser trennen, was Strich und was Schein ist, ohne die Leaflet-Interna
@@ -104,11 +124,13 @@
 		return getComputedStyle(document.documentElement).getPropertyValue("--color-marker-active").trim();
 	}
 
-	function garetienPaneSicherstellen(karte) {
+	// EINE Regel fuer BEIDE Panes -- eine zweite Fassung liefe beim ersten geaenderten Wert
+	// auseinander, und der Riegel „nimmt keine Klicks" muss fuer beide gelten.
+	function garetienPaneSicherstellen(karte, name, z) {
 		if (typeof karte.getPane !== "function" || typeof karte.createPane !== "function") { return null; }
-		var pane = karte.getPane(AVESMAPS_GARETIEN_PANE) || karte.createPane(AVESMAPS_GARETIEN_PANE);
+		var pane = karte.getPane(name) || karte.createPane(name);
 		if (!pane || !pane.style) { return null; }
-		pane.style.zIndex = AVESMAPS_GARETIEN_PANE_Z;
+		pane.style.zIndex = z;
 		// 🔴 Die Zeichnung ist eine AUSKUNFT, kein Bedienelement: sie darf weder Klicks auf unsere
 		// Wege noch das Ziehen der Karte schlucken. `pointer-events` ist eine Eigenschaft der PANE,
 		// nicht der einzelnen Ebene — dieselbe Begruendung wie bei den Landschaften-Panes.
@@ -193,28 +215,40 @@
 	/*
 	 * Die Punkte UNSERES Abschnitts. REIN.
 	 *
-	 * ⚠️ Gelesen wird zuerst `objekt.abschnitte` — dieselbe Liste, die die Einzelansicht zeigt, damit
-	 * Schein und Zeile nicht auseinanderlaufen koennen. `item.abschnitt` ist der Rueckfall; beide
-	 * tragen dieselbe (auf AVESMAPS_GARETIEN_ABSCHNITT_PUNKTE ausgeduennte) Geometrie, und die
-	 * vereinigte Liste in garetien-liste.php laesst den Item-Abschnitt ohnehin gewinnen.
+	 * 🔴 GELESEN WIRD NUR `objekt.abschnitte`, und das ist die EINE Quelle -- dieselbe Liste, die
+	 * auch die Einzelansicht zeigt; so koennen Schein und Zeile nicht auseinanderlaufen.
+	 * 🪤 Hier stand bis zur Pruefung ein Rueckfall auf `item.abschnitt`. Er war TOTER CODE mit einem
+	 * beruhigenden Kommentar darueber: `avesmapsGaretienListeAbschnitteVereinen`
+	 * (api/_internal/import/garetien-liste.php) haengt JEDEN von einem Item genannten Abschnitt an
+	 * die Liste an, und `avesmapsGaretienScheinIds` liest genau dieselben Items -- die zwei Mengen
+	 * fallen zusammen. Eine Mutation `if (treffer === null)` → `if (false)` liess alle Zusicherungen
+	 * gruen, was den Zweig als unerreichbar auswies. Faellt der Abschnitt je doch heraus, ist das
+	 * ein BEFUND am Server und wird gemeldet (garetienGeometrieFehlt) statt still geflickt.
 	 */
 	function garetienAbschnittsPunkte(objekt, publicId) {
-		var o = objekt || {};
 		var treffer = null;
-		(o.abschnitte || []).forEach(function (abschnitt) {
+		(((objekt || {}).abschnitte) || []).forEach(function (abschnitt) {
 			if (treffer === null && abschnitt && String(abschnitt.public_id) === publicId) {
 				treffer = abschnitt;
 			}
 		});
-		if (treffer === null) {
-			(o.items || []).forEach(function (item) {
-				var abschnitt = item && item.abschnitt;
-				if (treffer === null && abschnitt && String(abschnitt.public_id) === publicId) {
-					treffer = abschnitt;
-				}
-			});
-		}
 		return (treffer && treffer.geometrie) || [];
+	}
+
+	/*
+	 * Ist IHR Objekt eine Flaeche? REIN.
+	 *
+	 * 🔴 GEFRAGT WIRD DAS SERVERFELD, NIE `typ`/`subtyp`. Der Typ reist zwar mit, aber ihn
+	 * auszuwerten waere die hartkodierte Typenliste, die Ruling R21 dieses Vorhabens verworfen hat
+	 * ("bei der naechsten Art still falsch, und niemand merkt es"). `geometrie_typ` kommt aus
+	 * `after.geometry.type` und ist die Auskunft des Erzeugers ueber sich selbst.
+	 * ⚠️ Ein LEERES Feld heisst "keine Auskunft" und gilt als Linie -- das ist die zurueckhaltende
+	 * Richtung: ein zu Unrecht gefuellter Umriss ueberdeckte die Karte, ein zu Unrecht ungefuellter
+	 * zeigt nur weniger. Leer ist es bei einem Objekt OHNE Items (dort gibt es kein `after`), und
+	 * genau die werden nie gezeichnet: ohne Item gibt es kein Haekchen.
+	 */
+	function garetienIstFlaeche(objekt) {
+		return String((objekt || {}).geometrie_typ || "") === "Polygon";
 	}
 
 	// ---- Zeichnen ---------------------------------------------------------------------------------
@@ -224,9 +258,11 @@
 	 *
 	 * 💣 IDEMPOTENT: erst alles abraeumen, dann alles neu. Derselbe Aufruf zweimal ergibt dieselben
 	 * Ebenen, nicht die doppelte Menge — der Listenlauf ruft ihn nach JEDEM Neuzeichnen.
-	 * 💣 ERST ALLE SCHEINE, DANN ALLE STRICHE. Innerhalb EINER Pane entscheidet die
-	 * Einfuegereihenfolge, was oben liegt; ein Schein von 13px ueber einem Strich von 3px deckte
-	 * ihn zu, und dann sieht man genau das nicht, worum es geht.
+	 * 🔴 DIE REIHENFOLGE MACHEN DIE PANES, nicht die Einfuegereihenfolge: der Schein liegt in einer
+	 * eigenen Pane UNTER unseren Wegen (360), der Strich in seiner ueber allem (465). Die Trennung
+	 * ist der ganze Punkt -- die Hervorhebung gehoert hinter das, was sie hervorhebt.
+	 * ⚠️ Innerhalb einer Pane entscheidet weiterhin die Einfuegereihenfolge; sie ist hier nur nicht
+	 * mehr tragend, weil in jeder Pane genau eine Sorte liegt.
 	 */
 	function avesmapsGaretienKarteZeigen(objekte, karte) {
 		var k = garetienKarte(karte);
@@ -234,7 +270,8 @@
 		if (!k || !l || typeof l.polyline !== "function" || typeof l.layerGroup !== "function") {
 			return null;
 		}
-		garetienPaneSicherstellen(k);
+		garetienPaneSicherstellen(k, AVESMAPS_GARETIEN_SCHEIN_PANE, AVESMAPS_GARETIEN_SCHEIN_PANE_Z);
+		garetienPaneSicherstellen(k, AVESMAPS_GARETIEN_PANE, AVESMAPS_GARETIEN_PANE_Z);
 
 		if (gruppe === null) { gruppe = l.layerGroup(); }
 		// ⚠️ Nur anhaengen, wenn sie nicht schon dort liegt — sonst laege die Gruppe nach zehn
@@ -253,8 +290,11 @@
 			avesmapsGaretienScheinIds(objekt).forEach(function (publicId) {
 				var punkte = avesmapsGaretienNachLeaflet(garetienAbschnittsPunkte(objekt, publicId));
 				if (punkte.length < 2) { garetienGeometrieFehlt(objekt, publicId); return; }
+				// 🔴 Der Schein ist IMMER ein Strich, auch unter einer Flaeche: er ist der Hof um
+				// unsere Geometrie. Eine gefuellte Flaeche zu 55 % Gold ueberdeckte einen See
+				// vollstaendig -- man saehe die Hervorhebung, aber nicht mehr, was hervorgehoben ist.
 				gruppe.addLayer(l.polyline(punkte, {
-					pane: AVESMAPS_GARETIEN_PANE,
+					pane: AVESMAPS_GARETIEN_SCHEIN_PANE,
 					className: AVESMAPS_GARETIEN_KLASSE_SCHEIN,
 					color: farbe,
 					weight: AVESMAPS_GARETIEN_SCHEIN_BREITE,
@@ -270,7 +310,14 @@
 		liste.forEach(function (objekt) {
 			var punkte = avesmapsGaretienNachLeaflet((objekt || {}).geometrie);
 			if (punkte.length < 2) { garetienGeometrieFehlt(objekt, null); return; }
-			gruppe.addLayer(l.polyline(punkte, {
+			// 🔴 EINE FLAECHE WIRD ALS FLAECHE GEZEICHNET (Mockup §2, Blutmoor: leichte Fuellung
+			// plus gestrichelte Kante). Von den Objekten der Stufe 1 sind 113 von 288 Flaechen --
+			// 96 Seen, 15 Suempfe, 2 Meere. Als blosser Umriss saehe ein See aus wie ein Fluss.
+			// ⚠️ `L.polygon` schliesst den Ring selbst; ein bereits geschlossener Ring (GeoJSON
+			// verlangt ihn) schadet nicht.
+			var flaeche = garetienIstFlaeche(objekt);
+			var bauer = (flaeche && typeof l.polygon === "function") ? l.polygon : l.polyline;
+			gruppe.addLayer(bauer(punkte, {
 				pane: AVESMAPS_GARETIEN_PANE,
 				className: AVESMAPS_GARETIEN_KLASSE_STRICH,
 				color: farbe,
@@ -279,7 +326,9 @@
 				dashArray: AVESMAPS_GARETIEN_STRICHELUNG,
 				lineCap: "round",
 				lineJoin: "round",
-				fill: false,
+				fill: flaeche,
+				fillColor: farbe,
+				fillOpacity: flaeche ? AVESMAPS_GARETIEN_FLAECHE_DECKKRAFT : 0,
 				interactive: false,
 			}));
 		});
@@ -344,11 +393,14 @@
 			avesmapsGaretienNachLeaflet,
 			avesmapsGaretienScheinIds,
 			garetienAbschnittsPunkte,
+			garetienIstFlaeche,
 			avesmapsGaretienKarteZeigen,
 			avesmapsGaretienKarteFliegen,
 			avesmapsGaretienKarteAus,
 			AVESMAPS_GARETIEN_PANE,
 			AVESMAPS_GARETIEN_PANE_Z,
+			AVESMAPS_GARETIEN_SCHEIN_PANE,
+			AVESMAPS_GARETIEN_SCHEIN_PANE_Z,
 		};
 	}
 })();

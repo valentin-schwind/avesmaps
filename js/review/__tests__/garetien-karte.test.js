@@ -82,14 +82,19 @@ function gefaelschteKarte() {
 	};
 }
 
+// `_bauer` haelt fest, OB `L.polygon` oder `L.polyline` gerufen wurde -- eine Flaeche ist bei
+// Leaflet ein anderer Bauer, nicht bloss eine andere Option, und genau das ist die Aussage.
+function gefaelschteEbene(bauer, punkte, optionen) {
+	return {
+		_art: "polyline", _bauer: bauer, _punkte: punkte, _karte: null, options: optionen || {},
+		addTo(k) { k.addLayer(this); return this; },
+		remove() { if (this._karte) { this._karte.removeLayer(this); } return this; },
+	};
+}
+
 global.L = {
-	polyline(punkte, optionen) {
-		return {
-			_art: "polyline", _punkte: punkte, _karte: null, options: optionen || {},
-			addTo(k) { k.addLayer(this); return this; },
-			remove() { if (this._karte) { this._karte.removeLayer(this); } return this; },
-		};
-	},
+	polyline(punkte, optionen) { return gefaelschteEbene("polyline", punkte, optionen); },
+	polygon(punkte, optionen) { return gefaelschteEbene("polygon", punkte, optionen); },
 	layerGroup() {
 		return {
 			_art: "group", _kinder: [], _karte: null,
@@ -285,12 +290,14 @@ striche.forEach((strich) => {
 	gleich(strich.options.opacity, 1, "der Strich ist die Aussage und wird nicht abgeschwaecht");
 });
 
-// Innerhalb EINER Pane entscheidet die Einfuegereihenfolge, was oben liegt. Der Schein gehoert
-// unter den Strich -- daher werden erst alle Scheine, dann alle Striche gelegt.
+// Die Ordnung machen seit Review I1 die PANES (siehe unten). Die Einfuegereihenfolge ist damit
+// nicht mehr tragend -- sie bleibt trotzdem festgenagelt, weil sie innerhalb EINER Pane wieder
+// entscheiden wuerde, sollte jemand die zwei Panes je zusammenlegen.
 const ersterStrich = ebenen.findIndex((s) => s.options.dashArray);
 const letzterSchein = ebenen.map((s) => !s.options.dashArray).lastIndexOf(true);
 wahr(letzterSchein < ersterStrich,
-	"alle Scheine liegen VOR allen Strichen -- sonst deckt der breite Schein den Strich zu");
+	"alle Scheine werden VOR allen Strichen gelegt -- in einer gemeinsamen Pane deckte der breite "
+	+ "Schein sonst den Strich zu");
 
 // Die Farbe kommt aus dem Token, nicht als Zahl aus dem Zeichner.
 ebenen.forEach((schicht) => {
@@ -304,18 +311,40 @@ ebenen.forEach((schicht) => {
 	gleich(schicht.options.interactive, false, "die Zeichnung darf keine Klicks der Karte schlucken");
 });
 
-// Eine EIGENE Pane, ueber den Wegen und unter den Beschriftungen -- und sie schluckt keine Zeiger.
-const pane = karte.getPane("garetienImportPane");
-wahr(pane, "der Zeichner legt keine eigene Pane an");
-gleich(pane.style.pointerEvents, "none", "die Pane selbst darf keine Zeigerereignisse annehmen");
-wahr(Number(pane.style.zIndex) > 400 && Number(pane.style.zIndex) < 470,
-	"die Pane liegt ueber den Wegen (roadsPane 400) und unter den Wegenamen (470) -- gemessen ist "
-	+ pane.style.zIndex);
-gleich(Number(pane.style.zIndex) === 460, false,
+// ZWEI eigene Panes, und ihre Ordnung ist die eigentliche Aussage (Review I1): der Schein ist eine
+// HERVORHEBUNG UNSERER Geometrie und gehoert HINTER das, was er hervorhebt; der Strich ist IHR
+// Vorschlag und gehoert nach oben. Im Mockup §2 ist die Malreihenfolge nachgemessen:
+// Schein -> unsere Flusslinie -> ihr gestrichelter Strich.
+const strichPane = karte.getPane("garetienImportPane");
+const scheinPane = karte.getPane("garetienImportScheinPane");
+wahr(strichPane, "der Zeichner legt keine Pane fuer den Strich an");
+wahr(scheinPane, "der Zeichner legt keine eigene Pane fuer den Schein an");
+gleich(strichPane.style.pointerEvents, "none", "die Strich-Pane darf keine Zeigerereignisse annehmen");
+gleich(scheinPane.style.pointerEvents, "none", "die Schein-Pane darf keine Zeigerereignisse annehmen");
+
+// 💣 UNTER unseren Wegen (roadsPane 400) -- sonst deckt ein 13px breites Goldband unsere 3px
+// schmale blaue Linie zu, und aus dem Flussblau wird in der Mischung ein stumpfes Oliv.
+wahr(Number(scheinPane.style.zIndex) < 400,
+	"der Schein muss UNTER roadsPane (400) liegen, sonst deckt er unsere Linie zu -- gemessen ist "
+	+ scheinPane.style.zIndex);
+// 💣 Und UEBER der weissen Kontur (roadsOutlinePane 350): darunter zeigte sich vom 13px breiten
+// Schein nur der Rand ausserhalb der 5,4px breiten Kontur -- ein duenner Ring statt eines Hofes.
+wahr(Number(scheinPane.style.zIndex) > 355,
+	"der Schein muss UEBER roadsOutlinePane (350) und regionHoverPane (355) liegen -- gemessen ist "
+	+ scheinPane.style.zIndex);
+wahr(Number(strichPane.style.zIndex) > 400 && Number(strichPane.style.zIndex) < 470,
+	"der Strich liegt ueber den Wegen (roadsPane 400) und unter den Wegenamen (470) -- gemessen ist "
+	+ strichPane.style.zIndex);
+gleich(Number(strichPane.style.zIndex) === 460, false,
 	"460 gehoert measurementPane (js/app/bootstrap.js) -- bei gleichem z-index entscheidet die "
 	+ "Einfuegereihenfolge, und das ist keine Regel");
-ebenen.forEach((schicht) => {
-	gleich(schicht.options.pane, "garetienImportPane", "gezeichnet wird in die eigene Pane");
+wahr(Number(scheinPane.style.zIndex) < Number(strichPane.style.zIndex),
+	"der Schein muss unter dem Strich liegen");
+striche.forEach((schicht) => {
+	gleich(schicht.options.pane, "garetienImportPane", "der Strich gehoert in die obere Pane");
+});
+scheine.forEach((schicht) => {
+	gleich(schicht.options.pane, "garetienImportScheinPane", "der Schein gehoert in die untere Pane");
 });
 
 // ---- 4. Der Schein liegt unter dem RICHTIGEN Abschnitt ----------------------------------------
@@ -358,7 +387,7 @@ gleich(karte.ebenen().length, einmal, "ein zweiter Aufruf stapelt Ebenen");
 gleich(karte.paneAufrufe, paneAufrufeVorher,
 	"createPane wurde ein zweites Mal gerufen -- Leaflet legt dann ein NEUES <div> an und die "
 	+ "bisher gezeichneten Ebenen haengen unerreichbar im alten");
-gleich(paneAufrufeVorher, 1, "die Pane wird genau EINMAL angelegt");
+gleich(paneAufrufeVorher, 2, "es sind ZWEI Panes, und jede wird genau EINMAL angelegt");
 
 // Und die Gruppe liegt genau EINMAL auf der Karte, nicht einmal je Aufruf.
 gleich(karte.alles().filter((s) => s._art === "group").length, 1,
@@ -456,12 +485,120 @@ gleich((quelle.match(/\bfetch\(/g) || []).length, 0,
 	"der Zeichner holt nichts nach -- alle Geometrien stehen schon in der Antwort von action:'liste'");
 wahr(!/Math\.sqrt|Math\.hypot/.test(quelle),
 	"ein Abstand im Browser waere die zweite Rechnung, die der Auftrag verbietet");
-wahr(!/garetien_import/.test(quelleRoh),
+// 💣 DIE NADEL WIRD ZUR LAUFZEIT GEBAUT, und das ist keine Kosmetik: der Abbau-Waechter
+// (api/_internal/import/__tests__/garetien-abbau-waechter-test.php) sucht mit `str_contains` in
+// JEDER verfolgten Datei ausserhalb von api/_internal/import/ und docs/ nach genau dieser
+// Zeichenfolge. Ein Regex-LITERAL enthaelt sie -- die Zusicherung, die belegen soll, dass der
+// Zeichner die Speichertabellen nicht kennt, waere selbst der einzige Verstoss und machte das
+// Deploy-Tor rot (hier live passiert, gefunden von der Pruefung).
+// 🪤 Und sie faellt vor dem `git add` NICHT auf: der Waechter liest `git ls-files`, eine
+// ungetrackte Datei ist fuer ihn unsichtbar. Ein Testfeld VOR dem Stagen ist hier gruen und
+// nach dem Commit rot. Wer Quelltext oder Dateilisten prueft, faehrt das Feld NACH dem `git add`.
+const NADEL_SPEICHERTABELLEN = "garetien" + "_import";
+wahr(quelleRoh.indexOf(NADEL_SPEICHERTABELLEN) === -1,
 	"nichts ausserhalb api/_internal/import/ darf die Speichertabellen kennen (Abbau-Waechter)");
+// Gegenprobe, dass die Nadel ueberhaupt etwas finden KANN -- sonst ist die Zeile darueber Vakuum.
+wahr(("x " + NADEL_SPEICHERTABELLEN + "_row y").indexOf(NADEL_SPEICHERTABELLEN) !== -1,
+	"die zur Laufzeit gebaute Nadel trifft nicht einmal sich selbst");
 wahr(!/#[0-9a-fA-F]{3,8}\b/.test(quelle), "keine hartkodierte Farbe -- der Goldton kommt aus dem Token");
 wahr(!/\brgba?\(/.test(quelle), "kein hartkodiertes rgb()/rgba()");
 wahr(quelle.indexOf('getPropertyValue("--color-marker-active")') !== -1,
 	"der Goldton muss aus --color-marker-active kommen (css/base/tokens.css)");
+
+// ---- 11b. Eine FLAECHE wird als Flaeche gezeichnet, eine Linie als Linie -----------------------
+//
+// 🔴 Review I2: `avesmapsGaretienListeGeometriePunkte` (garetien-liste.php) flacht einen Polygon
+// auf seinen aeusseren RING ab -- eine flache Punktliste sieht danach aus wie eine Linie. Ohne die
+// Auskunft des Servers zeichnete die Karte jeden See als gestrichelten Umriss. Von den 288
+// Objekten der Stufe 1 sind 113 Flaechen (96 See, 15 Sumpf, 2 Meer), also 39 %.
+// 🔴 Gefragt wird `geometrie_typ` (= `after.geometry.type`), NIE `typ`/`subtyp`: eine Typenliste
+// im Browser waere die hartkodierte Aufzaehlung, die Ruling R21 verworfen hat.
+
+const { garetienIstFlaeche } = mod;
+wahr(typeof garetienIstFlaeche === "function", "garetienIstFlaeche fehlt im Export");
+gleich(garetienIstFlaeche({ geometrie_typ: "Polygon" }), true, "ein Polygon ist eine Flaeche");
+gleich(garetienIstFlaeche({ geometrie_typ: "LineString" }), false, "ein LineString ist keine Flaeche");
+// ⚠️ Leer heisst "keine Auskunft" und gilt als Linie -- die zurueckhaltende Richtung. Und der Typ
+// wird NICHT aus `typ`/`subtyp` geraten: ein Sumpf ohne `geometrie_typ` bleibt eine Linie.
+gleich(garetienIstFlaeche({ geometrie_typ: "", typ: "Sumpf", subtyp: "suempfe_moore" }), false,
+	"ohne Serverauskunft wird NICHT aus dem Typ geraten");
+gleich(garetienIstFlaeche(null), false, "ohne Objekt keine Flaeche");
+
+const karte4 = gefaelschteKarte();
+const moor = {
+	key: "m", name: "Blutmoor", urteil: "neu", geometrie_typ: "Polygon",
+	geometrie: [[800, 300], [860, 320], [840, 360], [800, 300]],
+	abschnitte: [], items: [{ id: 1, selected: 1 }],
+};
+const bach = {
+	key: "b", name: "Alke", urteil: "ergaenzung", geometrie_typ: "LineString",
+	geometrie: [[500, 60], [520, 80]],
+	abschnitte: [{ public_id: "w-5112", geometrie: [[502, 62], [518, 78]] }],
+	items: [{ id: 2, selected: 1, abschnitt: { public_id: "w-5112" } }],
+};
+avesmapsGaretienKarteZeigen([moor, bach], karte4);
+const moorStrich = karte4.ebenen().filter((e) => e._punkte.length === 4)[0];
+const bachStrich = karte4.ebenen().filter((e) => e.options.dashArray && e._punkte.length === 2)[0];
+wahr(moorStrich && bachStrich, "die zwei Striche sind nicht zu finden");
+gleich(moorStrich._bauer, "polygon", "eine Flaeche wird mit L.polygon gebaut, nicht als Linie");
+gleich(moorStrich.options.fill, true, "eine Flaeche bekommt eine Fuellung (Mockup: Blutmoor)");
+gleich(moorStrich.options.fillColor, GOLD, "die Fuellung kommt aus demselben Token");
+wahr(moorStrich.options.fillOpacity > 0 && moorStrich.options.fillOpacity < 0.3,
+	"die Fuellung ist LEICHT, damit die Landschaft darunter lesbar bleibt -- gemessen "
+	+ moorStrich.options.fillOpacity);
+// Die DIFFERENZ, ohne die die Zeilen darueber nichts filtern: dieselbe Zeichnung fuer eine LINIE.
+gleich(bachStrich._bauer, "polyline", "eine Linie bleibt eine Linie");
+gleich(bachStrich.options.fill, false, "eine Linie bekommt KEINE Fuellung");
+gleich(bachStrich.options.fillOpacity, 0, "eine Linie bekommt keine Fuelldeckkraft");
+// 🔴 Der SCHEIN bleibt immer ein Strich, auch unter einer Flaeche: eine zu 55 % gefuellte Flaeche
+// ueberdeckte einen See vollstaendig -- man saehe die Hervorhebung, aber nicht das Hervorgehobene.
+const bachSchein = karte4.ebenen().filter((e) => !e.options.dashArray)[0];
+gleich(bachSchein._bauer, "polyline", "der Schein ist immer ein Strich");
+gleich(bachSchein.options.fill, false, "der Schein wird nie gefuellt");
+avesmapsGaretienKarteAus(karte4);
+
+// ---- 11c. Fehlt ein Abschnitt in `objekt.abschnitte`, wird er GEMELDET -------------------------
+//
+// 🪤 Review M1: hier stand ein Rueckfall auf `item.abschnitt`, und er war TOTER CODE mit einem
+// beruhigenden Kommentar darueber -- avesmapsGaretienListeAbschnitteVereinen haengt jeden von
+// einem Item genannten Abschnitt an die Liste an, die zwei Mengen fallen also zusammen. Entfernt;
+// gepruefte Zusicherung ist jetzt das VERHALTEN ohne ihn: kein stiller Flick, sondern ein Befund.
+const karte5 = gefaelschteKarte();
+const lueckeMeldungen = [];
+const warnVorher5 = console.warn;
+console.warn = function () { lueckeMeldungen.push(Array.prototype.join.call(arguments, " ")); };
+avesmapsGaretienKarteZeigen([{
+	key: "l", name: "Luecke", urteil: "ergaenzung", geometrie: [[10, 900], [20, 910]],
+	abschnitte: [],
+	items: [{ id: 1, selected: 1, abschnitt: { public_id: "w-88", geometrie: [[1, 2], [3, 4]] } }],
+}], karte5);
+console.warn = warnVorher5;
+gleich(karte5.ebenen().length, 1, "ihr Strich wird gezeichnet, der Schein faellt aus");
+wahr(lueckeMeldungen.length === 1 && lueckeMeldungen[0].indexOf("w-88") !== -1,
+	"ein Abschnitt, der nur am Item haengt, wird GEMELDET statt still nachgeschlagen -- gemeldet "
+	+ "wurde: " + JSON.stringify(lueckeMeldungen));
+avesmapsGaretienKarteAus(karte5);
+
+// ---- 11d. Der Schein hat eine WEICHE Kante ----------------------------------------------------
+//
+// Review M2: im Mockup §2 traegt der Schein `filter=url(#glow)` mit `stdDeviation="7"`. Die Buehne
+// ist 1360px breit bei viewBox 1360, also 1 SVG-Einheit = 1 CSS-Pixel, und der Radius von
+// `drop-shadow` ist das DOPPELTE der Standardabweichung: 14px.
+// 💣 Er steht im CSS und nicht im JavaScript, weil nur dort das Farbtoken benutzbar ist.
+const kartenCss = fs.readFileSync(path.join(WURZEL, "css", "components", "garetien-importer.css"), "utf8");
+const scheinBlock = (kartenCss.match(/\.gi-map-schein\s*\{[^}]*\}/) || [""])[0];
+wahr(scheinBlock !== "", "die Regel fuer .gi-map-schein fehlt -- die Gegenprobe misst sonst nichts");
+wahr(/drop-shadow\(\s*0\s+0\s+14px/.test(scheinBlock),
+	"der Schein braucht die weiche Kante des Mockups (stdDeviation 7 = 14px Radius): " + scheinBlock);
+wahr(/var\(--color-marker-active\)/.test(scheinBlock),
+	"auch der Weichzeichner nimmt seine Farbe aus dem Token");
+// 🪤 `\b` MUSS hier als Wortgrenze stehen. Beim Erzeugen dieser Datei wurde es einmal zu einem
+// echten Rueckschritt-Zeichen (0x08) -- das Muster traf dann NIE, und die Zusicherung war Vakuum.
+// Die Gegenprobe darunter faengt genau das.
+wahr(!/#[0-9a-fA-F]{3,8}\b/.test(scheinBlock) && !/\brgba?\(/.test(scheinBlock),
+	"kein hartkodierter Farbwert im .gi-map-schein-Block");
+wahr(/#[0-9a-fA-F]{3,8}\b/.test(".gi-x { color: #abcdef; }"),
+	"das Farbmuster findet nicht einmal eine echte Farbe -- dann ist die Zeile darueber Vakuum");
 
 // ---- 12. Verdrahtung: die Datei laedt, das Fenster ruft sie ------------------------------------
 //

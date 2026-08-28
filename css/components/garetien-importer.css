@@ -431,6 +431,23 @@
 }
 .gi-show:hover { background: var(--color-button-soft-hover); }
 
+/* ---- Was der Importer auf die KARTE zeichnet (Aufgabe 14) --------------------------------- */
+
+/* 🔴 Der Schein hat im Mockup §2 eine WEICHE Kante, keine harte: dort traegt er
+   `filter=url(#glow)` mit `feGaussianBlur stdDeviation="7"`. Die Umrechnung ist zeichengenau --
+   die Buehne des Mockups ist 1360px breit bei viewBox 1360, also ist 1 SVG-Einheit = 1 CSS-Pixel,
+   und der Radius von `drop-shadow` ist das DOPPELTE der Standardabweichung: 7 → 14px.
+   ⚠️ Das Mockup mischt den Weichzeichner ZWEIMAL uebereinander (`feMerge` mit zwei gleichen
+   Knoten) -- das macht den Hof kraeftiger, nicht breiter. Zwei verkettete `drop-shadow` waeren
+   das Falsche: sie weichzeichnen einander und ergeben sqrt(7²+7²) ≈ 9,9 statt 7, also einen
+   BREITEREN Hof. Gebaut ist deshalb einer -- Breite treu, Kraft eine Spur leichter.
+   💣 Die Farbe MUSS hier aus dem Token kommen: Leaflet-Pfadoptionen nehmen kein `var(--…)`,
+   eine CSS-Regel schon -- deshalb steht der Weichzeichner hier und nicht im JavaScript.
+   🔴 Beide Klassen verschwinden mit dem Importer (Auftrag §5.5); sie stehen darum in DIESER
+   Datei und nicht in einer Kartendatei, die bleibt. */
+.gi-map-schein { filter: drop-shadow(0 0 14px var(--color-marker-active)); }
+
+
 .gi-sec {
 	margin: 0 0 var(--space-2);
 	max-width: none;

@@ -415,6 +415,19 @@ function avesmapsGaretienArbeitsliste(PDO $pdo, int $importRunId, array $filter)
             'grund' => (string) ($zeile['grund'] ?? ($erstesAfter['urteil'] ?? '')),
             'abschnitte' => $abschnitte,
             'geometrie' => avesmapsGaretienListeGeometriePunkte((array) ($erstesAfter['geometry'] ?? [])),
+            // 🔴 IST IHR OBJEKT EINE FLAECHE ODER EINE LINIE? Der Browser kann das sonst nicht
+            // wissen: avesmapsGaretienListeGeometriePunkte flacht einen Polygon auf seinen
+            // AEUSSEREN RING ab, und eine flache Punktliste sieht aus wie eine Linie. Die Karte
+            // zeichnete jeden See als gestrichelten Umriss statt als Flaeche -- 113 der 288
+            // Objekte der Stufe 1 sind Flaechen (96 See, 15 Sumpf, 2 Meer).
+            // 🔴 DURCHGEREICHT, NICHT HERGELEITET: `after.geometry.type` steht seit dem Planbau
+            // da (garetien-plan.php). Aus `typ`/`subtyp` abzuleiten waere die hartkodierte
+            // Typenliste, die Ruling R21 verworfen hat -- im Browser waere es zusaetzlich eine
+            // zweite Wahrheit ueber eine Tabelle, die hier liegt.
+            // ⚠️ `erster === letzter` ist KEIN Ersatz: die Punkte kommen roh aus garetien.de und
+            // werden beim Bau nur in `[$punkte]` gewickelt -- ein unsauber geschlossener Ring ist
+            // moeglich, und dann raet der Browser falsch.
+            'geometrie_typ' => (string) ($erstesAfter['geometry']['type'] ?? ''),
             'wiki_url' => (string) ($erstesAfter['quelle']['url'] ?? ($zeile !== null ? avesmapsGaretienSeitenUrlAusZeile($zeile) : '')),
             // Die Quelle, die beim Uebernehmen mitreist -- Beschriftung, Namensnennung, Lizenz.
             // 🔴 DATEN, keine Regel im Renderer: der Wortlaut ist eine Owner-Entscheidung, und ein
@@ -473,6 +486,11 @@ function avesmapsGaretienArbeitsliste(PDO $pdo, int $importRunId, array $filter)
             'grund' => (string) ($zeile['grund'] ?? ''),
             'abschnitte' => $treffer['abschnitte'],
             'geometrie' => avesmapsGaretienZeilePunkte($zeile),
+            // ⚠️ LEER, und das ist richtig: diese Zeilen haben KEIN Item, also kein `after` und
+            // damit keine Auskunft ueber die Form. Gezeichnet werden sie nie -- die Karte zeigt
+            // nur, was ein Haekchen traegt, und ohne Item gibt es keins. Der Browser faellt bei
+            // leerem Feld auf "Linie" zurueck, die zurueckhaltende Richtung.
+            'geometrie_typ' => '',
             'wiki_url' => avesmapsGaretienSeitenUrlAusZeile($zeile),
             // ⚠️ LEER, und das ist die Auskunft: ohne Vorschlag reist auch keine Quelle mit, und
             // ein Zieltyp waere eine Behauptung ueber etwas, das gar nicht angelegt wird.
