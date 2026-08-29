@@ -144,10 +144,22 @@ function avesmapsGaretienPlanEintrag(array $zeile, array $ziel, array $urteil): 
             'subtyp' => $ziel['subtyp'],
             'kind' => $ziel['kind'],
             'name' => trim((string) ($zeile['anzeige'] ?? '')),
+            // 🔴 Seit 29.08.2026 DREI Geometrieformen, nicht mehr zwei (Entwurf §3.1/§3.4): ein
+            // Ort ('location') oder ein Berggipfel-Label ('label') ist bei uns ein PUNKT, keine
+            // Flaeche und keine Linie -- der einzige Punkt der Quellzeile.
             'geometry' => [
-                'type' => $ziel['ziel'] === 'path' ? 'LineString' : 'Polygon',
-                // Eine Flaeche ist ein RING: die Punktliste liegt eine Ebene tiefer.
-                'coordinates' => $ziel['ziel'] === 'path' ? $punkte : [$punkte],
+                'type' => match ($ziel['ziel']) {
+                    'path' => 'LineString',
+                    'region' => 'Polygon',
+                    default => 'Point',
+                },
+                // Eine Flaeche ist ein RING: die Punktliste liegt eine Ebene tiefer. Ein Punkt
+                // (Ort/Berggipfel) ist ein EINZELNES [x,y]-Paar, GeoJSON-Point-Form.
+                'coordinates' => match ($ziel['ziel']) {
+                    'path' => $punkte,
+                    'region' => [$punkte],
+                    default => $punkte[0] ?? [0.0, 0.0],
+                },
             ],
             'quelle' => [
                 'url' => avesmapsGaretienSeitenUrlAusZeile($zeile),

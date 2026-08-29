@@ -1061,4 +1061,153 @@ $itemWeg = $pdo->query('SELECT apply_state FROM sync_plan_item WHERE id = ' . $d
 assert($itemWeg === 'done', 'das Item bleibt auf "done" stehen, statt lautlos "offen" zu werden');
 $pruefungen += 4;
 
+// ===============================================================================================
+// Aufgabe 12 (2026-08-29): die neuen Ziele 'location' (Ort) und 'label' (Berggipfel) -- ANLEGEN
+// UND ERGAENZEN. Eigener, ISOLIERTER Pruefstand: die bestehenden Zaehler oben (Alke/Gardel/…)
+// duerfen davon unberuehrt bleiben.
+$pdoNeu = avesmapsGaretienUebernahmeTestPdo();
+$laufNeu = (int) avesmapsSyncPlanOpenRun($pdoNeu, AVESMAPS_GARETIEN_PLAN_KIND)['id'];
+
+/** Ein nach()-Rumpf, wie garetien-plan.php ihn fuer 'location'/'label' baut -- hier von Hand. */
+$bauePunktEintrag = static function (string $ziel, string $subtyp, string $name, float $x, float $y): array {
+    return [
+        'entity_key' => 'ggp:Probe:' . $ziel . ':' . $name,
+        'entity_public_id' => null,
+        'change_type' => 'new',
+        'label' => $name . ' (Probe)',
+        'before' => [],
+        'after' => [
+            'herkunft' => 'garetien', 'wiki' => 'ggp', 'ebene' => 'Probe', 'typ' => 'Probe',
+            'ziel' => $ziel, 'subtyp' => $subtyp, 'kind' => null, 'name' => $name,
+            'geometry' => ['type' => 'Point', 'coordinates' => [$x, $y]],
+            'quelle' => ['url' => 'https://www.garetien.de/index.php?title=Garetien:' . $name,
+                'label' => 'Briefspiel (Garetien)', 'license' => 'cc-by-nc-sa-3.0', 'attribution' => 'VolkoV / garetien.de'],
+            'urteil' => 'neu', 'anlass' => null, 'nachbar' => null,
+        ],
+        'override' => [],
+        'selected' => 1,
+    ];
+};
+$itemIdVon = static function (PDO $pdo, string $label): int {
+    $stmt = $pdo->prepare('SELECT id FROM sync_plan_item WHERE label = :l ORDER BY id DESC LIMIT 1');
+    $stmt->execute([':l' => $label]);
+
+    return (int) $stmt->fetchColumn();
+};
+
+// --- Ort: avesmapsCreatePointFeature, entity_type 'settlement'.
+avesmapsSyncPlanAddItem($pdoNeu, $laufNeu, $bauePunktEintrag('location', 'dorf', 'Testdorf Garetien', 500.0, 500.0));
+$ortItemId = $itemIdVon($pdoNeu, 'Testdorf Garetien (Probe)');
+$eOrt = avesmapsGaretienUebernehmen($pdoNeu, $laufNeu, [$ortItemId], ['id' => 7]);
+assert($eOrt['angelegt'] === 1 && $eOrt['fehler'] === [], 'der Ort wird angelegt: ' . json_encode($eOrt, JSON_UNESCAPED_UNICODE));
+$ortZeile = $pdoNeu->query("SELECT public_id, feature_type, feature_subtype, name FROM map_features WHERE name = 'Testdorf Garetien'")->fetch(PDO::FETCH_ASSOC);
+assert($ortZeile !== false, 'der Ort steht in map_features');
+assert($ortZeile['feature_type'] === 'location' && $ortZeile['feature_subtype'] === 'dorf',
+    'feature_type/feature_subtype stimmen: ' . json_encode($ortZeile));
+$pruefungen += 3;
+
+// 🔴 Die Quelle haengt an entity_type='settlement', NICHT 'location' -- das ist die Bindung, die
+// map-features.php:1228 fuer den Infobox-Quellenkasten benutzt.
+$ortQuelle = $pdoNeu->prepare("SELECT COUNT(*) FROM feature_sources WHERE entity_type = 'settlement' AND entity_public_id = ?");
+$ortQuelle->execute([$ortZeile['public_id']]);
+assert((int) $ortQuelle->fetchColumn() === 1, 'die Quelle des Ortes haengt an entity_type=settlement');
+$pruefungen++;
+
+// --- Berggipfel: avesmapsCreateLabelFeature, entity_type 'region' (map-features.php:1228),
+// KEYED AN DER PUBLIC_ID DES LABELS SELBST -- es gibt keine Region dahinter.
+avesmapsSyncPlanAddItem($pdoNeu, $laufNeu, $bauePunktEintrag('label', 'berggipfel', 'Testspitze', 600.0, 600.0));
+$bergItemId = $itemIdVon($pdoNeu, 'Testspitze (Probe)');
+$eBerg = avesmapsGaretienUebernehmen($pdoNeu, $laufNeu, [$bergItemId], ['id' => 7]);
+assert($eBerg['angelegt'] === 1 && $eBerg['fehler'] === [], 'der Gipfel wird angelegt: ' . json_encode($eBerg, JSON_UNESCAPED_UNICODE));
+$bergZeile = $pdoNeu->query("SELECT public_id, feature_type, feature_subtype, name, properties_json FROM map_features WHERE name = 'Testspitze'")->fetch(PDO::FETCH_ASSOC);
+assert($bergZeile !== false, 'der Gipfel steht in map_features');
+assert($bergZeile['feature_type'] === 'label' && $bergZeile['feature_subtype'] === 'berggipfel',
+    'feature_type/feature_subtype stimmen: ' . json_encode($bergZeile));
+$pruefungen += 3;
+
+// 🔴 DIE TRAGENDE ZUSICHERUNG: KEINE ERFUNDENE HOEHE. Ein Gipfel ist ein Stuetzpunkt des
+// Hoehenfelds (terrain-store.php liest is_active=1 + height_schritt); Volkers Daten tragen keine
+// Hoehe, also darf der Schluessel im Nest gar nicht erst auftauchen.
+assert(!str_contains((string) $bergZeile['properties_json'], 'height_schritt'),
+    'kein height_schritt am importierten Gipfel: ' . $bergZeile['properties_json']);
+$pruefungen++;
+
+$bergQuelle = $pdoNeu->prepare("SELECT COUNT(*) FROM feature_sources WHERE entity_type = 'region' AND entity_public_id = ?");
+$bergQuelle->execute([$bergZeile['public_id']]);
+assert((int) $bergQuelle->fetchColumn() === 1, 'die Quelle des Gipfels haengt an seiner EIGENEN public_id unter entity_type=region');
+$pruefungen++;
+
+// --- 💣 DIE ERGAENZUNG DARF KEIN FELD LOESCHEN, DAS SIE NICHT NENNT. avesmapsUpdatePointFeatureDetails
+// ist KEIN Teil-Update (siehe Kommentar am Anwender) -- is_ruined/is_hidden reisen unbedingt mit dem
+// Bestand mit. Ein vorhandener Ort mit is_ruined=true bekommt hier nur eine Namensaenderung.
+$pdoNeu->exec("INSERT INTO map_features (public_id, feature_type, feature_subtype, name, geometry_type, geometry_json, properties_json)
+               VALUES ('00000000-0000-4000-8000-0000000ac0de', 'location', 'dorf', 'Altes Dorf', 'Point',
+                       '{\"type\":\"Point\",\"coordinates\":[10,10]}', '{\"is_ruined\":true,\"place_kind\":\"bruecke\"}')");
+avesmapsSyncPlanAddItem($pdoNeu, $laufNeu, [
+    'entity_key' => 'ggp:Probe:location:Altes-Dorf:ergaenzung',
+    'entity_public_id' => '00000000-0000-4000-8000-0000000ac0de',
+    'change_type' => 'changed',
+    'label' => 'Neuer Name -> Altes Dorf · umbenennen',
+    'before' => ['public_id' => '00000000-0000-4000-8000-0000000ac0de', 'name' => 'Altes Dorf'],
+    'after' => [
+        'herkunft' => 'garetien', 'wiki' => 'ggp', 'ebene' => 'Probe', 'typ' => 'Probe',
+        'ziel' => 'location', 'subtyp' => 'dorf', 'kind' => null, 'name' => 'Neuer Name',
+        'felder' => ['name'], 'anlass' => 'umbenennung',
+        'geometry' => ['type' => 'Point', 'coordinates' => [10.0, 10.0]],
+        'quelle' => [], 'urteil' => 'Test', 'nachbar' => null,
+    ],
+    'override' => [],
+    'selected' => 1,
+]);
+$ergOrtId = $itemIdVon($pdoNeu, 'Neuer Name -> Altes Dorf · umbenennen');
+$eErgOrt = avesmapsGaretienUebernehmen($pdoNeu, $laufNeu, [$ergOrtId], ['id' => 7]);
+assert($eErgOrt['fehler'] === [], 'die Umbenennung des Ortes gelingt: ' . json_encode($eErgOrt, JSON_UNESCAPED_UNICODE));
+$ortNachher = $pdoNeu->query("SELECT name, properties_json FROM map_features WHERE public_id = '00000000-0000-4000-8000-0000000ac0de'")->fetch(PDO::FETCH_ASSOC);
+assert($ortNachher['name'] === 'Neuer Name', 'der neue Name steht: ' . $ortNachher['name']);
+assert(str_contains($ortNachher['properties_json'], '"is_ruined":true'),
+    'is_ruined bleibt erhalten -- die Ergaenzung darf es nicht stillschweigend loeschen: ' . $ortNachher['properties_json']);
+assert(str_contains($ortNachher['properties_json'], 'bruecke'),
+    'place_kind bleibt ebenfalls erhalten: ' . $ortNachher['properties_json']);
+$pruefungen += 3;
+
+// --- Dieselbe Ergaenzung fuer den Berggipfel: Umbenennen darf den Subtyp nicht veraendern.
+$pdoNeu->exec("INSERT INTO map_features (public_id, feature_type, feature_subtype, name, geometry_type, geometry_json, properties_json)
+               VALUES ('00000000-0000-4000-8000-0000000be9fe', 'label', 'berggipfel', 'Alter Gipfel', 'Point',
+                       '{\"type\":\"Point\",\"coordinates\":[20,20]}', '{}')");
+avesmapsSyncPlanAddItem($pdoNeu, $laufNeu, [
+    'entity_key' => 'ggp:Probe:label:Alter-Gipfel:ergaenzung',
+    'entity_public_id' => '00000000-0000-4000-8000-0000000be9fe',
+    'change_type' => 'changed',
+    'label' => 'Neuer Gipfelname -> Alter Gipfel · umbenennen',
+    'before' => ['public_id' => '00000000-0000-4000-8000-0000000be9fe', 'name' => 'Alter Gipfel'],
+    'after' => [
+        'herkunft' => 'garetien', 'wiki' => 'ggp', 'ebene' => 'Probe', 'typ' => 'Probe',
+        'ziel' => 'label', 'subtyp' => 'berggipfel', 'kind' => null, 'name' => 'Neuer Gipfelname',
+        'felder' => ['name'], 'anlass' => 'umbenennung',
+        'geometry' => ['type' => 'Point', 'coordinates' => [20.0, 20.0]],
+        'quelle' => [], 'urteil' => 'Test', 'nachbar' => null,
+    ],
+    'override' => [],
+    'selected' => 1,
+]);
+$ergBergId = $itemIdVon($pdoNeu, 'Neuer Gipfelname -> Alter Gipfel · umbenennen');
+$eErgBerg = avesmapsGaretienUebernehmen($pdoNeu, $laufNeu, [$ergBergId], ['id' => 7]);
+assert($eErgBerg['fehler'] === [], 'die Umbenennung des Gipfels gelingt: ' . json_encode($eErgBerg, JSON_UNESCAPED_UNICODE));
+$bergNachher = $pdoNeu->query("SELECT name, feature_subtype FROM map_features WHERE public_id = '00000000-0000-4000-8000-0000000be9fe'")->fetch(PDO::FETCH_ASSOC);
+assert($bergNachher['name'] === 'Neuer Gipfelname', 'der neue Gipfelname steht: ' . $bergNachher['name']);
+assert($bergNachher['feature_subtype'] === 'berggipfel', 'der Subtyp bleibt berggipfel: ' . $bergNachher['feature_subtype']);
+$pruefungen += 2;
+
+// --- Und die Ruecknahme eines NEU angelegten Ortes: derselbe generische Loeschweg wie beim Weg.
+$rOrt = avesmapsGaretienRuecknahmeAusfuehren($pdoNeu, $laufNeu, [$ortItemId], ['id' => 7]);
+assert($rOrt['zurueckgenommen'] === 1 && $rOrt['fehler'] === [], 'der neu angelegte Ort laesst sich zuruecknehmen: ' . json_encode($rOrt));
+$ortAktivNach = (int) $pdoNeu->query("SELECT is_active FROM map_features WHERE public_id = '" . $ortZeile['public_id'] . "'")->fetchColumn();
+assert($ortAktivNach === 0, 'der Ort ist nach der Ruecknahme still gelegt');
+$pruefungen += 2;
+
+// --- Und ein neu angelegter Berggipfel ebenso.
+$rBerg = avesmapsGaretienRuecknahmeAusfuehren($pdoNeu, $laufNeu, [$bergItemId], ['id' => 7]);
+assert($rBerg['zurueckgenommen'] === 1 && $rBerg['fehler'] === [], 'der neu angelegte Gipfel laesst sich zuruecknehmen: ' . json_encode($rBerg));
+$pruefungen++;
+
 echo "OK: {$pruefungen} Pruefungen\n";

@@ -15,14 +15,16 @@ require_once __DIR__ . '/garetien-koordinaten.php';
  * 🔴 DIE ZUORDNUNG IST DATEN, KEIN `if`-BAUM (Entwurf §3). Sie steht in EINER Tabelle und wird
  * von Abgleich und Uebernahme gemeinsam gelesen; ein Editor kann sie lesen und aendern.
  *
- * `ziel`   -- 'path' (map_features.path) oder 'region' (ecosystem_region + ecosystem_area)
- * `subtyp` -- unser feature_subtype bzw. region_type
+ * `ziel`   -- 'path' (map_features.path) · 'region' (ecosystem_region + ecosystem_area, mit
+ *             tragendem Label) · 'location' (map_features.location, ein Ort) · 'label'
+ *             (map_features.label OHNE Region dahinter, bislang nur der Berggipfel)
+ * `subtyp` -- unser feature_subtype bzw. region_type bzw. settlement_class
  * `kind`   -- nur bei 'region': die Landschaften-Ebene
  *
  * 🔴 Owner 29.08.2026: „Stufen werden weder erklaert noch will ich, dass sie verhindern, dass
- * ich objekte importieren kann." Diese Tabelle waechst deshalb Typ um Typ, so wie Entwurf
- * §3.1-§3.4 sie zulaesst -- ohne interne Stufennummern in den Meldungen (siehe
- * avesmapsGaretienUeberspringGrund unten).
+ * ich objekte importieren kann." Diese Tabelle setzt die Zuordnung aus Entwurf §3.1-§3.4
+ * vollstaendig um -- nur Territorien (§3.5) bleiben draussen, siehe die Begruendung am Ende
+ * dieser Konstante.
  */
 const AVESMAPS_GARETIEN_TYP_MAP = [
     // Fliessgewaesser werden bei uns BEFAHREN: `Flussweg` ist eine Graph-Kante des Routings,
@@ -74,14 +76,38 @@ const AVESMAPS_GARETIEN_TYP_MAP = [
     'Insel'   => ['ziel' => 'region', 'subtyp' => 'insel',      'kind' => 'topographie'],
     'Kueste'  => ['ziel' => 'region', 'subtyp' => 'kueste',     'kind' => 'topographie'],
 
-    // Spaetere Erweiterungen, aus Entwurf §3.1/§3.4/§3.5 -- hier absichtlich NOCH NICHT
-    // eingetragen, damit die Uebernahme sie nicht anfassen kann:
-    //   Berg -> map_features.label mit feature_subtype 'berggipfel' (Punkt, keine Flaeche) --
-    //   💣 ein Gipfel ist ein Stuetzpunkt des Hoehenfelds, und ihre Daten tragen keine Hoehe.
-    //   Kaiserstadt/Koenigsstadt/Reichsstadt/Stadt/Markt/Dorf/Binge/Burg/… -> map_features.location
-    //   Grafschafts-/Baronie-/Junkertumsflaeche[A-E] -> political_territory (eigenes Vorhaben,
-    //   Entwurf §7 -- an political_territory haengen BF-Zeitachse, abgeleitete Aussengrenzen,
-    //   WikiSync und das Konfliktzentrum)
+    // 🔴 Der Berg ist die EINZIGE Ausnahme von "Flaeche + Label": ein einzelner Gipfel ist bei
+    // uns ein PUNKT, kein Umriss (Entwurf §3.4). 💣 `berggipfel` ist ein Stuetzpunkt des
+    // Hoehenfelds (terrain-store.php liest is_active=1 + height_schritt) -- die Uebernahme legt
+    // deshalb bewusst KEINE `height_schritt` an, ihre Daten tragen keine Hoehe.
+    'Berg' => ['ziel' => 'label', 'subtyp' => 'berggipfel', 'kind' => null],
+
+    // Ortschaften (Entwurf §3.1) -- map_features.location, `subtyp` ist unser settlement_class.
+    'Kaiserstadt'  => ['ziel' => 'location', 'subtyp' => 'metropole',  'kind' => null],
+    'Koenigsstadt' => ['ziel' => 'location', 'subtyp' => 'grossstadt', 'kind' => null],
+    'Reichsstadt'  => ['ziel' => 'location', 'subtyp' => 'grossstadt', 'kind' => null],
+    'Stadt'        => ['ziel' => 'location', 'subtyp' => 'stadt',      'kind' => null],
+    'Markt'        => ['ziel' => 'location', 'subtyp' => 'kleinstadt', 'kind' => null],
+    'Dorf'         => ['ziel' => 'location', 'subtyp' => 'dorf',       'kind' => null],
+    // 🔴 Owner-Entscheid 2026-08-26: im Einklang mit den zwei Bingen, die wir schon als `dorf`
+    // fuehren (Finsterkoppen, Antalorgol).
+    'Binge'        => ['ziel' => 'location', 'subtyp' => 'dorf',       'kind' => null],
+    // Einzelne Bauwerke -- bei uns eine Klasse, `gebaeude` (Entwurf §3.1).
+    'Burg'        => ['ziel' => 'location', 'subtyp' => 'gebaeude', 'kind' => null],
+    'Pfalz'       => ['ziel' => 'location', 'subtyp' => 'gebaeude', 'kind' => null],
+    'Tempel'      => ['ziel' => 'location', 'subtyp' => 'gebaeude', 'kind' => null],
+    'Kloster'     => ['ziel' => 'location', 'subtyp' => 'gebaeude', 'kind' => null],
+    'Gutshof'     => ['ziel' => 'location', 'subtyp' => 'gebaeude', 'kind' => null],
+    'Gebaeude'    => ['ziel' => 'location', 'subtyp' => 'gebaeude', 'kind' => null],
+    'Akademie'    => ['ziel' => 'location', 'subtyp' => 'gebaeude', 'kind' => null],
+    'Gasthaus'    => ['ziel' => 'location', 'subtyp' => 'gebaeude', 'kind' => null],
+    'Magierturm'  => ['ziel' => 'location', 'subtyp' => 'gebaeude', 'kind' => null],
+
+    // Politische Flaechen (Entwurf §3.5) -- hier ABSICHTLICH NICHT eingetragen. An
+    // political_territory haengen BF-Zeitachse, abgeleitete Aussengrenzen, WikiSync und das
+    // Konfliktzentrum; ein zweiter Datenlieferant dort ist ein eigenes Vorhaben, kein Anhaengsel
+    // an diesen Import (Entwurf §7). Ihre Typen (Grafschafts-/Baronie-/Junkertumsflaeche[A-E])
+    // fallen deshalb weiterhin unter avesmapsGaretienTypKategorie() === 'unbekannt'.
 ];
 
 /**
@@ -89,22 +115,18 @@ const AVESMAPS_GARETIEN_TYP_MAP = [
  * Entscheidung wie bei AVESMAPS_GARETIEN_OHNE_GEGENSTUECK.
  *
  * 🔴 Owner 29.08.2026: „Stufen werden weder erklaert noch will ich, dass sie verhindern, dass ich
- * objekte importieren kann." Diese Liste traegt deshalb KEINE Stufennummern mehr (frueher der
- * Wert je Typ) -- ein Typ steht hier oder er steht nicht hier, und avesmapsGaretienUeberspringGrund
- * (unten) nennt beim Uebersprung keine Zahl, nur dass wir noch kein Gegenstueck angeschlossen
- * haben.
+ * objekte importieren kann." Alle Typen, die hier bis zum 29.08.2026 mit einer Stufennummer
+ * standen (Wege, Waelder, Berge, Ortschaften), sind jetzt in AVESMAPS_GARETIEN_TYP_MAP
+ * eingetragen -- diese Liste ist deshalb LEER, nicht abgeschafft.
  *
  * ⚠️ SIE BLEIBT BESTEHEN, weil avesmapsGaretienTypKategorie() (unten) ihre dritte Kategorie
  * ('spaetere_stufe') an sie bindet, und diese Funktion ist die EINE Stelle, die auch der
- * Filter-Trichter des Fensters liest (garetien-liste.php).
+ * Filter-Trichter des Fensters liest (garetien-liste.php). Politische Flaechen
+ * (Grafschafts-/Baronie-/Junkertumsflaeche[A-E], Entwurf §3.5) sind bewusst NICHT eingetragen: wir
+ * kennen ihre genauen Typnamen aus den Rohdaten nicht (ungemessen), eine geratene Schreibweise
+ * waere schlimmer als die ehrliche Kategorie 'unbekannt'.
  */
-const AVESMAPS_GARETIEN_SPAETERE_STUFEN = [
-    'Berg',
-    'Kaiserstadt', 'Koenigsstadt', 'Reichsstadt', 'Stadt',
-    'Markt', 'Dorf', 'Binge', 'Burg', 'Pfalz', 'Tempel',
-    'Kloster', 'Gutshof', 'Gebaeude', 'Akademie', 'Gasthaus',
-    'Magierturm',
-];
+const AVESMAPS_GARETIEN_SPAETERE_STUFEN = [];
 
 /** Typen ohne jedes Gegenstueck -- die kommen nie, in keiner Stufe (Entwurf §3.6). */
 const AVESMAPS_GARETIEN_OHNE_GEGENSTUECK = ['Stadtviertel', 'Kontinent', 'Platz'];
@@ -346,13 +368,17 @@ function avesmapsGaretienKandidaten(PDO $pdo, array $ziel): array
         return $zwischenspeicher[$schluessel];
     }
 
-    if ($ziel['ziel'] === 'path') {
+    // 🔴 DREI ZIELE LIEGEN IN map_features, EINES IN ecosystem_region -- `ziel` ist hier direkt
+    // der feature_type-Wert ('path'/'location'/'label'), 'subtyp' der feature_subtype. Ort und
+    // Berggipfel (seit 29.08.2026, Entwurf §3.1/§3.4) teilen sich die Abfrage mit dem Weg statt
+    // eine zweite, fast gleiche danebenzustellen.
+    if (in_array($ziel['ziel'], ['path', 'location', 'label'], true)) {
         $stmt = $pdo->prepare(
             'SELECT public_id, name, geometry_json AS geo, properties_json AS props'
             . ' FROM map_features'
             . ' WHERE feature_type = :typ AND feature_subtype = :subtyp AND is_active = 1'
         );
-        $stmt->execute([':typ' => 'path', ':subtyp' => $ziel['subtyp']]);
+        $stmt->execute([':typ' => $ziel['ziel'], ':subtyp' => $ziel['subtyp']]);
     } else {
         // ⚠️ Die Flaeche liegt in ecosystem_area, nicht in ecosystem_region -- die Region traegt
         // nur Name und Art. Probeflaechen (`is_trial`) bleiben draussen: sie sind Entwuerfe.

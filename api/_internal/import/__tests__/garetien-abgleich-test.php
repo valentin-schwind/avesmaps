@@ -97,21 +97,43 @@ assert(avesmapsGaretienMappeTyp('Huegel') === ['ziel' => 'region', 'subtyp' => '
 assert(avesmapsGaretienMappeTyp('Kueste') === ['ziel' => 'region', 'subtyp' => 'kueste', 'kind' => 'topographie']);
 $pruefungen += 5;
 
+// --- 🔴 Der Berg ist die EINZIGE Punkt-Ausnahme: ein Label OHNE Flaeche dahinter (Entwurf §3.4).
+assert(avesmapsGaretienMappeTyp('Berg') === ['ziel' => 'label', 'subtyp' => 'berggipfel', 'kind' => null]);
+$pruefungen++;
+
+// --- 🔴 Ortschaften (Entwurf §3.1): map_features.location, subtyp ist unser settlement_class.
+assert(avesmapsGaretienMappeTyp('Kaiserstadt')['subtyp'] === 'metropole');
+assert(avesmapsGaretienMappeTyp('Koenigsstadt')['subtyp'] === 'grossstadt');
+assert(avesmapsGaretienMappeTyp('Reichsstadt')['subtyp'] === 'grossstadt');
+assert(avesmapsGaretienMappeTyp('Stadt')['subtyp'] === 'stadt');
+assert(avesmapsGaretienMappeTyp('Markt')['subtyp'] === 'kleinstadt');
+assert(avesmapsGaretienMappeTyp('Dorf')['subtyp'] === 'dorf');
+// 🔴 Owner-Entscheid: Binge -> dorf, im Einklang mit den zwei Bingen, die wir schon so fuehren.
+assert(avesmapsGaretienMappeTyp('Binge')['subtyp'] === 'dorf');
+foreach (['Burg', 'Pfalz', 'Tempel', 'Kloster', 'Gutshof', 'Gebaeude', 'Akademie', 'Gasthaus', 'Magierturm'] as $bauwerk) {
+    assert(avesmapsGaretienMappeTyp($bauwerk) !== null && avesmapsGaretienMappeTyp($bauwerk)['ziel'] === 'location'
+        && avesmapsGaretienMappeTyp($bauwerk)['subtyp'] === 'gebaeude', $bauwerk . ' ist ein gebaeude');
+}
+$pruefungen += 7 + 9;
+
+// --- 🔴 Politische Flaechen (Entwurf §3.5) bleiben draussen -- eigenes Vorhaben, keine Zuordnung.
+assert(avesmapsGaretienMappeTyp('GrafschaftsflaecheA') === null, 'Territorien sind nicht Teil dieses Imports');
+$pruefungen++;
+
 // --- 🔴 UND WAS WIR KENNEN, ABER (NOCH) NICHT ANSCHLIESSEN, WIRD MIT GRUND UEBERSPRUNGEN, nicht
-// stillschweigend. 'Berg' ist der aktuelle Beispielfall (label/berggipfel, Entwurf §3.4, kommt in
-// einer spaeteren Aufgabe dieses Imports). Ein Typ, der einfach fehlt, ist von einem Typ, den wir
-// vergessen haben, nicht zu unterscheiden.
-assert(avesmapsGaretienMappeTyp('Berg') === null, 'Berg ist noch nicht angeschlossen');
-// 🪤 Owner-Meldung 29.08.2026: „Stufen werden weder erklaert noch will ich, dass sie verhindern,
-// dass ich objekte importieren kann." Die Meldung nennt deshalb weder Zahl noch Stufe -- geprueft
-// wird auf das Wort selbst, nicht auf eine bestimmte Ziffer dahinter.
-assert(avesmapsGaretienTypKategorie('Berg') === 'spaetere_stufe',
-    'Berg ist vorgemerkt -- eine ANDERE Kategorie als "ohne_gegenstueck"');
+// stillschweigend. Politische Flaechen sind heute der einzige Fall, und ihre genauen
+// Rohdaten-Typnamen sind ungemessen -- AVESMAPS_GARETIEN_SPAETERE_STUFEN ist deshalb LEER, ein
+// Typ wie 'GrafschaftsflaecheA' faellt auf die dritte, ehrliche Kategorie zurueck.
+assert(AVESMAPS_GARETIEN_SPAETERE_STUFEN === [], 'heute ist jeder frueher vorgemerkte Typ zugeordnet');
+assert(avesmapsGaretienTypKategorie('GrafschaftsflaecheA') === 'unbekannt',
+    'Territorien sind weder zugeordnet noch (mangels bekannter Typnamen) vorgemerkt');
 assert(avesmapsGaretienTypKategorie('Xyz-Voellig-Unbekannt') === 'unbekannt',
-    'weder zugeordnet noch vorgemerkt ist der dritte, eigene Fall');
+    'und ein voellig unbekannter Typ landet in derselben Kategorie');
 $pruefungen += 2;
+// 🪤 Owner-Meldung 29.08.2026: „Stufen werden weder erklaert noch will ich, dass sie verhindern,
+// dass ich objekte importieren kann." Keine Meldung nennt mehr eine Stufe oder eine Zahl.
 assert(!str_contains((string) avesmapsGaretienUeberspringGrund(
-    ['typ' => 'Berg', 'namensraum' => '', 'artikel' => '', 'anzeige' => 'Testgipfel']
+    ['typ' => 'GrafschaftsflaecheA', 'namensraum' => '', 'artikel' => '', 'anzeige' => 'Testflaeche']
 ), 'Stufe'), 'der Grund nennt KEINE Stufe mehr (Owner-Befund 29.08.2026)');
 $pruefungen++;
 

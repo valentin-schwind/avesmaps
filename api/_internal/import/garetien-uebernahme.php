@@ -85,6 +85,23 @@ function avesmapsGaretienRingMittelpunkt(array $ring): array
 }
 
 /**
+ * Ein GeoJSON-Point `[x, y]` -> `['lng' => x, 'lat' => y]`, die Form, die
+ * avesmapsCreatePointFeature/…LabelFeature/avesmapsMovePointFeature/…LabelFeature einzeln
+ * verlangen (Entwurf §3.1/§3.4: Ort und Berggipfel sind bei uns PUNKTE, keine Flaeche/Linie).
+ *
+ * 💣 GETRENNTE lat/lng, UND SIE SIND VERTAUSCHT GEGENUEBER GeoJSON -- dieselbe Falle wie am
+ * Flaechen-Mittelpunkt in avesmapsGaretienFlaecheAnlegen weiter unten (AGENTS.md §5: GeoJSON
+ * [x,y] gegen Leaflet [lat,lng]). `$nach['geometry']['coordinates']` ist ein flaches [x,y]-Paar
+ * (garetien-plan.php baut es fuer 'location'/'label' als `$punkte[0] ?? [0.0, 0.0]`), kein Ring.
+ */
+function avesmapsGaretienPunktAusGeometrie(array $nach): array
+{
+    $punkt = (array) ($nach['geometry']['coordinates'] ?? [0.0, 0.0]);
+
+    return ['lng' => (float) ($punkt[0] ?? 0.0), 'lat' => (float) ($punkt[1] ?? 0.0)];
+}
+
+/**
  * GeoJSON `[x, y]` -> die Reihenfolge, die die Hausschreiber erwarten.
  *
  * 💣 `avesmapsReadLineStringCoordinates` (api/_internal/map/features.php) liest Element 0 als
@@ -275,6 +292,82 @@ function avesmapsGaretienErgaenzungAnwenden(PDO $pdo, array $nach, string $publi
             $geschrieben++;
         }
         $entityType = 'path';
+    } elseif (($nach['ziel'] ?? '') === 'location') {
+        // 🔴 Ortschaften (Entwurf §3.1). 💣 avesmapsUpdatePointFeatureDetails IST GENAUSO WENIG
+        // ein Teil-Update wie avesmapsUpdatePathFeatureDetails oben: is_nodix/is_ruined/
+        // is_hidden/place_kind/description/wiki_url/other_source werden UNBEDINGT aus dem
+        // Rumpf gelesen (`?? false`/`?? ''`/`?? null`) und wuerden ohne den vollstaendigen
+        // aktuellen Bestand lautlos geloescht -- genau die Falle, deren Beleg oben schon steht.
+        // Die drei Wiki-Textfelder (einwohner/lage/oberhaupt) und `wiki_no_article` bleiben
+        // dagegen unangetastet, wenn sie im Rumpf FEHLEN (avesmapsApplyPointWikiFields prueft
+        // `array_key_exists`) -- sie werden deshalb bewusst NICHT mitgeschickt.
+        $zeile = $pdo->prepare('SELECT name, feature_subtype, properties_json FROM map_features WHERE public_id = :p');
+        $zeile->execute([':p' => $publicId]);
+        $vorher = $zeile->fetch(PDO::FETCH_ASSOC);
+        if ($vorher === false) {
+            throw new RuntimeException('Der Ort ' . $publicId . ' existiert nicht mehr.');
+        }
+        $props = json_decode((string) ($vorher['properties_json'] ?? '{}'), true);
+        $props = is_array($props) ? $props : [];
+
+        if (in_array('name', $felder, true)) {
+            avesmapsUpdatePointFeatureDetails($pdo, [
+                'public_id' => $publicId,
+                'name' => (string) $nach['name'],
+                'feature_subtype' => (string) ($vorher['feature_subtype'] ?? 'dorf'),
+                'description' => (string) ($props['description'] ?? ''),
+                'wiki_url' => (string) ($props['wiki_url'] ?? ''),
+                'is_nodix' => (bool) ($props['is_nodix'] ?? false),
+                'is_ruined' => (bool) ($props['is_ruined'] ?? false),
+                'is_hidden' => (bool) ($props['is_hidden'] ?? false),
+                'place_kind' => (string) ($props['place_kind'] ?? ''),
+                'other_source' => $props['other_source'] ?? null,
+            ], $user);
+            $geschrieben++;
+        }
+        if (in_array('geometrie', $felder, true)) {
+            $punkt = avesmapsGaretienPunktAusGeometrie($nach);
+            avesmapsMovePointFeature($pdo, [
+                'public_id' => $publicId,
+                'lng' => $punkt['lng'],
+                'lat' => $punkt['lat'],
+            ], $user);
+            $geschrieben++;
+        }
+        $entityType = 'settlement';
+    } elseif (($nach['ziel'] ?? '') === 'label') {
+        // 🔴 Der Berggipfel (Entwurf §3.4). ⭐ avesmapsUpdateLabelFeature IST ein Teil-Update fuer
+        // alles ausser `text`/`feature_subtype` (beide `array_key_exists`-gated: size, rotation,
+        // is_nodix, is_hidden, wiki_region, other_source, height_schritt, …) -- NUR diese zwei
+        // reisen deshalb mit dem aktuellen Bestand, der Rest bleibt unberuehrt, weil er im Rumpf
+        // gar nicht erst steht.
+        $zeile = $pdo->prepare("SELECT name, feature_subtype FROM map_features WHERE public_id = :p AND feature_type = 'label'");
+        $zeile->execute([':p' => $publicId]);
+        $vorher = $zeile->fetch(PDO::FETCH_ASSOC);
+        if ($vorher === false) {
+            throw new RuntimeException('Der Gipfel ' . $publicId . ' existiert nicht mehr.');
+        }
+
+        if (in_array('name', $felder, true)) {
+            avesmapsUpdateLabelFeature($pdo, [
+                'public_id' => $publicId,
+                'text' => (string) $nach['name'],
+                'feature_subtype' => (string) ($vorher['feature_subtype'] ?? 'berggipfel'),
+            ], $user);
+            $geschrieben++;
+        }
+        if (in_array('geometrie', $felder, true)) {
+            $punkt = avesmapsGaretienPunktAusGeometrie($nach);
+            avesmapsMoveLabelFeature($pdo, [
+                'public_id' => $publicId,
+                'lng' => $punkt['lng'],
+                'lat' => $punkt['lat'],
+            ], $user);
+            $geschrieben++;
+        }
+        // 🔴 Dieselbe Bindung wie beim Anlegen: feature_type 'label' -> entity_type 'region'
+        // (map-features.php:1228), keyed an der public_id des Labels selbst.
+        $entityType = 'region';
     } else {
         if (in_array('name', $felder, true)) {
             avesmapsUpdateEcosystemRegion($pdo, [
@@ -504,7 +597,8 @@ function avesmapsGaretienUebernehmen(PDO $pdo, int $runId, array $itemIds, array
         }
 
         try {
-            if (($nach['ziel'] ?? '') === 'path') {
+            $ziel = (string) ($nach['ziel'] ?? '');
+            if ($ziel === 'path') {
                 $feature = avesmapsCreatePathFeature($pdo, [
                     'name' => (string) $nach['name'],
                     'feature_subtype' => (string) $nach['subtyp'],
@@ -513,6 +607,42 @@ function avesmapsGaretienUebernehmen(PDO $pdo, int $runId, array $itemIds, array
                 ], $user);
                 $publicId = avesmapsGaretienPublicIdAus($feature, 'Der Weg');
                 $entityType = 'path';
+            } elseif ($ziel === 'location') {
+                // Ortschaften (Entwurf §3.1) -- ein Ort ist ein PUNKT, avesmapsCreatePointFeature
+                // setzt feature_type='location' und liest settlement_class aus 'feature_subtype'.
+                $punkt = avesmapsGaretienPunktAusGeometrie($nach);
+                $feature = avesmapsCreatePointFeature($pdo, [
+                    'name' => (string) $nach['name'],
+                    'feature_subtype' => (string) $nach['subtyp'],
+                    'lng' => $punkt['lng'],
+                    'lat' => $punkt['lat'],
+                ], $user);
+                $publicId = avesmapsGaretienPublicIdAus($feature, 'Der Ort');
+                // 🔴 map-features.php:1228 ($entityTypeByFeatureType) bindet feature_type
+                // 'location' an entity_type 'settlement' -- dieselbe Auskunft, an der der
+                // Quellenkasten der Infobox seine Zeilen sucht. Ein anderer Wert liesse die
+                // Quelle unauffindbar im Katalog liegen.
+                $entityType = 'settlement';
+            } elseif ($ziel === 'label') {
+                // 🔴 Der Berggipfel ist die EINZIGE Punkt-Ausnahme: ein Label OHNE Region/Flaeche
+                // dahinter (Entwurf §3.4). 💣 KEINE `height_schritt` -- ein Gipfel ist ein
+                // Stuetzpunkt des Hoehenfelds (terrain-store.php liest is_active=1 +
+                // height_schritt), und Volkers Daten tragen keine Hoehe. Ein erfundener Wert
+                // veraendert das Gelandemodell lautlos falsch; das Feld bleibt deshalb WEG, nicht
+                // auf 0 oder null gesetzt (avesmapsCreateLabelFeature schreibt es nur, wenn der
+                // Schluessel ueberhaupt im Payload steht).
+                $punkt = avesmapsGaretienPunktAusGeometrie($nach);
+                $feature = avesmapsCreateLabelFeature($pdo, [
+                    'text' => (string) $nach['name'],
+                    'feature_subtype' => (string) $nach['subtyp'],
+                    'lng' => $punkt['lng'],
+                    'lat' => $punkt['lat'],
+                ], $user);
+                $publicId = avesmapsGaretienPublicIdAus($feature, 'Der Gipfel');
+                // 🔴 Dieselbe Bindung wie oben: feature_type 'label' -> entity_type 'region'
+                // (map-features.php:1228), KEYED AN DER PUBLIC_ID DES LABELS SELBST -- es gibt
+                // hier keine Region, an die die Quelle stattdessen haengen koennte.
+                $entityType = 'region';
             } else {
                 $ergebnis = avesmapsGaretienFlaecheAnlegen($pdo, $nach, $user, $userId);
                 $publicId = $ergebnis['public_id'];
@@ -619,8 +749,12 @@ function avesmapsGaretienRuecknahmeAusfuehren(PDO $pdo, int $runId, array $itemI
         $ziel = is_array($nach) ? (string) ($nach['ziel'] ?? '') : '';
 
         try {
-            if ($ziel === 'path') {
-                // Strom/Fluss/Bach: EINE map_features-Zeile (avesmapsCreatePathFeature oben).
+            if ($ziel === 'path' || $ziel === 'location' || $ziel === 'label') {
+                // Strom/Fluss/Bach, Reichsstrasse/Strasse/Weg/Pfad, Ortschaften, Berggipfel: je
+                // EINE map_features-Zeile (avesmapsCreatePathFeature/…PointFeature/…LabelFeature
+                // oben) -- derselbe generische Loeschweg fuer alle vier, weil keins davon eine
+                // Kaskade traegt (ein frisch importierter Berggipfel haengt an KEINER Region,
+                // avesmapsGaretienUebernehmen legt ihn nie als `label_public_id` einer Flaeche an).
                 avesmapsDeleteMapFeature($pdo, ['public_id' => $publicId], $user);
             } elseif ($ziel === 'region') {
                 // See/Meer/Sumpf: Label + Region + Flaeche (avesmapsGaretienFlaecheAnlegen oben,
