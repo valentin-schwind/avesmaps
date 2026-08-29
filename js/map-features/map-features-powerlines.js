@@ -7,6 +7,42 @@ function getPowerlineLatLngs(powerline) {
 	return powerline.geometry.coordinates.map(([x, y]) => L.latLng(y, x));
 }
 
+// Der FLUECHTIGE Vorschauwert des Kurven-Reglers: solange der Owner am Schieber zieht, schlaegt er
+// den gespeicherten Wert -- ohne dass irgendetwas geschrieben waere.
+// 🔴 Laufzeit und sonst nichts: kein localStorage, kein URL-Parameter, kein Serverzustand. Wer den
+// Regler abbricht, hat nichts veraendert.
+const avesmapsPowerlineCurveVorschau = { name: null, curve: 0 };
+
+// Die Kurvenform dieser Linie, geklemmt. Entwurf:
+// docs/superpowers/specs/2026-08-29-kraftlinien-kurvenform-design.md
+function getPowerlineCurve(powerline) {
+	const name = String(powerline?.properties?.name || "").trim();
+	if (avesmapsPowerlineCurveVorschau.name !== null
+			&& name !== ""
+			&& name === avesmapsPowerlineCurveVorschau.name) {
+		return avesmapsPowerlineCurveVorschau.curve;
+	}
+	const zahl = Number(powerline?.properties?.curve);
+	if (!Number.isFinite(zahl)) {
+		return 0;
+	}
+	return Math.max(-45, Math.min(45, zahl));
+}
+
+// Die gekruemmte Bahn als LatLng -- fuer die unsichtbare Klick-Linie und die Label-Linie.
+// 💣 GeoJSON speichert [x, y], Leaflet will [lat, lng] = [y, x]. Der reine Helfer rechnet in x/y;
+// hier wird bewusst EINMAL gedreht.
+function getPowerlineCurvedLatLngs(latLngs, curve) {
+	if (!Array.isArray(latLngs) || latLngs.length < 2 || !curve) {
+		return latLngs;
+	}
+	const a = latLngs[0];
+	const b = latLngs[latLngs.length - 1];
+	const schritte = avesmapsPowerlineCurveSteps(curve, POWERLINE_RENDER_CONFIG.segmentCount);
+	return avesmapsPowerlineCurvedPoints(a.lng, a.lat, b.lng, b.lat, curve, schritte)
+		.map((punkt) => L.latLng(punkt.y, punkt.x));
+}
+
 function getPowerlinePublicId(powerline) {
 	return powerline?.properties?.public_id || powerline?.id || "";
 }
@@ -60,7 +96,7 @@ function getPowerlineSpanEndpointIds(powerline) {
 	return { fromPublicId: topology.endpointIds[0], toPublicId: topology.endpointIds[1] };
 }
 
-function createPowerlineStrandLatLngs(latLngs, strandIndex, timeSeconds = 0) {
+function createPowerlineStrandLatLngs(latLngs, strandIndex, timeSeconds = 0, curve = 0) {
 	if (latLngs.length < 2) {
 		return latLngs;
 	}
@@ -74,7 +110,9 @@ function createPowerlineStrandLatLngs(latLngs, strandIndex, timeSeconds = 0) {
 	const ty = dy / length;
 	const nx = -ty;
 	const ny = tx;
-	const segmentCount = Math.max(2, Math.round(POWERLINE_RENDER_CONFIG.segmentCount));
+	// 🔴 Bei curve = 0 ist das EXAKT die heutige Zahl -- die geraden Linien zahlen nichts. Ein Bogen
+	// ueber die heutigen 8 Stuetzpunkte waere ein sichtbares Polygon.
+	const segmentCount = Math.max(2, avesmapsPowerlineCurveSteps(curve, POWERLINE_RENDER_CONFIG.segmentCount));
 	const phase = strandIndex * POWERLINE_RENDER_CONFIG.phaseStep;
 	const normalScale = POWERLINE_RENDER_CONFIG.normalScales[strandIndex % POWERLINE_RENDER_CONFIG.normalScales.length];
 	const waveOffset = POWERLINE_RENDER_CONFIG.waveOffsets[strandIndex % POWERLINE_RENDER_CONFIG.waveOffsets.length];
@@ -102,10 +140,16 @@ function createPowerlineStrandLatLngs(latLngs, strandIndex, timeSeconds = 0) {
 			+ 0.6 * Math.sin(index * 4.1 - timeSeconds * interferenceSpeed * 1.7 + phase)
 		) * envelope * (POWERLINE_RENDER_CONFIG.interferenceAmplitude || 0);
 		const normalOffset = (normalWave + tremorWave + interference + waveOffset * envelope) * normalScale;
+		// ⭐ DIE KURVE: derselbe Normalenversatz wie das Wabern, nur ohne Zeit.
+		// 🔴 NICHT mit normalScale multiplizieren -- das ist der Daempfer der Wabern-Amplituden, die
+		// Kurve steht bereits in Karteneinheiten. Wer sie mitdaempft, bekommt ein Achtel Bogen und
+		// sucht den Fehler in der Formel.
+		const curveOffset = avesmapsPowerlineCurveNormalOffset(curve, t, start.lng, start.lat, end.lng, end.lat);
+		const gesamtOffset = normalOffset + curveOffset;
 
 		points.push(L.latLng(
-			start.lat + dy * t + ny * normalOffset + ty * (tangentWave + tremorTangent),
-			start.lng + dx * t + nx * normalOffset + tx * (tangentWave + tremorTangent)
+			start.lat + dy * t + ny * gesamtOffset + ty * (tangentWave + tremorTangent),
+			start.lng + dx * t + nx * gesamtOffset + tx * (tangentWave + tremorTangent)
 		));
 	}
 
@@ -425,7 +469,13 @@ function refreshPowerlineLayerPopup(powerline) {
 
 function createPowerlineLayer(powerline) {
 	const latLngs = getPowerlineLatLngs(powerline);
-	const labelLine = L.polyline(getReadablePowerlineLabelLatLngCoordinates(latLngs), {
+	// 💣 Die Kurve hat DREI Zeichner: die Straenge, die unsichtbare Klick-Linie und die Label-Linie.
+	// Bliebe die Klick-Linie gerade, laege das Klickziel bei starker Kruemmung im leeren Gelaende
+	// neben der Linie -- und die Kernstraenge sind 1,5 px breit und wabern, sind also ohnehin kaum
+	// treffbar (genau dafuer gibt es die Hit-Linie).
+	const curve = getPowerlineCurve(powerline);
+	const bahn = getPowerlineCurvedLatLngs(latLngs, curve);
+	const labelLine = L.polyline(getReadablePowerlineLabelLatLngCoordinates(bahn), {
 		pane: "labelsPane",
 		color: "transparent",
 		weight: 1,
@@ -437,7 +487,7 @@ function createPowerlineLayer(powerline) {
 	// Breite, unsichtbare Hit-Linie auf der Basisgeometrie: die sichtbaren Straenge sind nur 1,5px
 	// breit und wabern animiert -> kaum treffbar (Forum-Feedback). Die Hit-Linie faengt Klicks
 	// stabil entlang der ganzen Linie ein; die Kern-Straenge bleiben zusaetzlich interaktiv.
-	const hitLine = L.polyline(latLngs, {
+	const hitLine = L.polyline(bahn, {
 		pane: "powerlinesPane",
 		className: "powerline powerline--hit",
 		color: "#000",
@@ -451,7 +501,10 @@ function createPowerlineLayer(powerline) {
 	const layers = [labelLine, hitLine];
 	const interactiveLines = [hitLine];
 	getPowerlineRenderStyles().forEach(({ strandIndex, ...style }) => {
-		const layer = L.polyline(createPowerlineStrandLatLngs(latLngs, strandIndex, powerlineAnimationTimeSeconds), {
+		// ⚠️ Die Straenge bekommen latLngs, NICHT die fertige Bahn: ihr Kurvenversatz muss mit dem
+		// Wabern in EINER Summe stehen. Auf einer schon gebogenen Achse verzerrten sich die
+		// Waber-Amplituden entlang der Kurve.
+		const layer = L.polyline(createPowerlineStrandLatLngs(latLngs, strandIndex, powerlineAnimationTimeSeconds, curve), {
 			pane: "powerlinesPane",
 			color: "#ff5f82",
 			lineCap: "round",
@@ -526,17 +579,22 @@ function refreshPowerlineLayers(timeSeconds = powerlineAnimationTimeSeconds) {
 			return;
 		}
 		const latLngs = getPowerlineLatLngs(powerline);
+		// ⚠️ Auch hier, nicht nur im Aufbau: dieser Pfad setzt die Geometrie JEDEN Frame neu. Fehlte
+		// die Kurve hier, spraenge die Linie im ersten Frame von gebogen auf gerade -- und der
+		// Aufbau-Pfad saehe dabei richtig aus.
+		const curve = getPowerlineCurve(powerline);
+		const bahn = getPowerlineCurvedLatLngs(latLngs, curve);
 		powerline._layerGroup.eachLayer((layer) => {
 			if (layer === powerline._labelLine) {
-				layer.setLatLngs?.(getReadablePowerlineLabelLatLngCoordinates(latLngs));
+				layer.setLatLngs?.(getReadablePowerlineLabelLatLngCoordinates(bahn));
 				return;
 			}
 			if (layer._powerlineHitLine) {
-				layer.setLatLngs?.(latLngs);
+				layer.setLatLngs?.(bahn);
 				return;
 			}
 			const strandIndex = layer._powerlineStrandIndex || 0;
-			layer.setLatLngs?.(createPowerlineStrandLatLngs(latLngs, strandIndex, timeSeconds));
+			layer.setLatLngs?.(createPowerlineStrandLatLngs(latLngs, strandIndex, timeSeconds, curve));
 		});
 		refreshPowerlineLayerText(powerline);
 	});
