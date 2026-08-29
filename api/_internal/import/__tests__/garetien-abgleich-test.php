@@ -56,6 +56,23 @@ assert(avesmapsGaretienMappeTyp('BurgKlein') === null);
 assert(avesmapsGaretienMappeTyp('Kontinent') === null);
 $pruefungen += 3;
 
+// --- 🔴 Owner-Meldung 29.08.2026: der Filter-Trichter des Fensters braucht dieselbe Auskunft wie
+// avesmapsGaretienUeberspringGrund, OHNE die zwei Listen (und die 'Klein'-Regel) im Browser
+// nachzubauen -- avesmapsGaretienTypKategorie ist die EINE Stelle, die beide lesen.
+assert(avesmapsGaretienTypKategorie('Stadtviertel') === 'ohne_gegenstueck',
+    'Stadtviertel steht in der expliziten Liste');
+// 🪤 Vakuum-Zusicherung vermeiden: BurgKlein steht NICHT in der Liste -- die Kategorie muss ueber
+// die 'Klein'-REGEL kommen, sonst prueft die naechste Zeile bloss einen weiteren Listeneintrag.
+assert(!in_array('BurgKlein', AVESMAPS_GARETIEN_OHNE_GEGENSTUECK, true),
+    'Vorbedingung: BurgKlein ist KEIN Listeneintrag');
+assert(avesmapsGaretienTypKategorie('BurgKlein') === 'ohne_gegenstueck',
+    'BurgKlein faellt ueber die "Klein"-Regel in dieselbe Kategorie wie Stadtviertel');
+// Und die Gegenprobe: ein importierbarer Typ traegt KEINE Kategorie -- zwei Werte, gegen
+// Zufallsgleichheit mit dem leeren String.
+assert(avesmapsGaretienTypKategorie('Bach') === '', 'ein importierbarer Typ liefert etwas');
+assert(avesmapsGaretienTypKategorie('Fluss') === '', 'und ein zweiter, damit es kein Zufall ist');
+$pruefungen += 5;
+
 // --- 🔴 UND WAS ZU EINER SPAETEREN STUFE GEHOERT, WIRD MIT GRUND UEBERSPRUNGEN, nicht
 // stillschweigend. Gemessen: auf der Kosch-Gewaesserseite liegt EINE Insel -- der Entwurf
 // ordnet sie topographie/insel zu (§3.4), aber das ist Stufe 3. Ein Typ, der einfach fehlt,
@@ -65,6 +82,11 @@ assert(avesmapsGaretienMappeTyp('Insel') === null, 'Insel gehoert zu Stufe 3, ni
 // unbekannten Typ lautet "weder zugeordnet noch als spaetere Stufe vermerkt" und enthaelt das
 // Wort ebenfalls. Mit dem kurzen Muster ueberlebte die Mutation, die 'Insel' aus der
 // Stufenliste wirft -- der Test haette den Unterschied nie gesehen, den er behauptet zu pruefen.
+assert(avesmapsGaretienTypKategorie('Insel') === 'spaetere_stufe',
+    'Insel gehoert zu einer spaeteren Stufe -- eine ANDERE Kategorie als "ohne_gegenstueck"');
+assert(avesmapsGaretienTypKategorie('Xyz-Voellig-Unbekannt') === 'unbekannt',
+    'weder zugeordnet noch als spaetere Stufe vermerkt ist der dritte, eigene Fall');
+$pruefungen += 2;
 assert(str_contains((string) avesmapsGaretienUeberspringGrund(
     ['typ' => 'Insel', 'namensraum' => '', 'artikel' => '', 'anzeige' => 'Im Angbarer See']
 ), 'Stufe 3'), 'der Grund nennt die Stufe, statt nur "unbekannt" zu sagen');

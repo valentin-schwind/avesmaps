@@ -1063,14 +1063,35 @@
 		return wert === "mehrteilig" ? "nur mit mehreren Abschnitten" : "nur ungehakte";
 	}
 
+	// Owner-Meldung 29.08.2026: Typen, aus denen wir ohnehin nichts holen (Beispiel "BurgKlein" --
+	// Entscheidung "raus damit"), werden im Filter-Trichter blasser dargestellt, damit ein Editor
+	// sieht, dass er dort nichts findet. ZWEI Gruende, servergeliefert aus derselben Tabelle wie
+	// der Zeilen-Riegel (avesmapsGaretienTypKategorie in api/_internal/import/garetien-abgleich.php,
+	// als facetten.typ_kategorie in garetien-liste.php) -- der Browser baut die zwei Listen
+	// (AVESMAPS_GARETIEN_OHNE_GEGENSTUECK / _SPAETERE_STUFEN) NICHT nach (AGENTS.md §5).
+	const AVESMAPS_GARETIEN_TYP_KATEGORIE_TITEL = {
+		ohne_gegenstueck: "Kein Gegenstück bei uns -- wird nicht importiert",
+		spaetere_stufe: "Noch keine Zuordnung bei uns -- kommt erst in einer späteren Stufe",
+		unbekannt: "Unbekannter Typ -- wird nicht importiert",
+	};
+
 	// REIN: aus den servergelieferten Facetten (Aufgabe 8, VOR dem Filtern gezaehlt) eine
 	// Optionsliste fuer avmFilterMenuAttach bauen. 💣 Nimmt NUR das entgegen, was uebergeben wird
 	// -- eine Auswahl im Trichter aendert die FACETTEN nicht, sonst faellt nach dem ersten Klick
 	// jeder andere Wert auf 0 und der Trichter laesst sich nicht mehr oeffnen.
 	function garetienFacettenOptionen(facetten, feld, labelFn) {
 		const werte = (facetten && facetten[feld]) || {};
+		// Nur der Objekttyp-Abschnitt kennt eine Kategorie -- Ebene/Urteil/Wiki bleiben unberuehrt.
+		const kategorien = feld === "typ" ? ((facetten && facetten.typ_kategorie) || {}) : {};
 		return Object.keys(werte).sort().map(function (wert) {
-			return { value: wert, label: labelFn ? labelFn(wert) : wert, count: werte[wert] };
+			const option = { value: wert, label: labelFn ? labelFn(wert) : wert, count: werte[wert] };
+			const kategorie = kategorien[wert] || "";
+			if (kategorie !== "") {
+				option.muted = true;
+				option.title = AVESMAPS_GARETIEN_TYP_KATEGORIE_TITEL[kategorie]
+					|| "Wird nicht importiert";
+			}
+			return option;
 		});
 	}
 
@@ -1085,7 +1106,7 @@
 		];
 	}
 
-	let garetienLetzteFacetten = { ebene: {}, typ: {}, urteil: {}, wiki: {} };
+	let garetienLetzteFacetten = { ebene: {}, typ: {}, urteil: {}, wiki: {}, typ_kategorie: {} };
 	let garetienFilterRebuild = null; // die rebuild()-Funktion, die avmFilterMenuAttach zurueckgibt
 
 	function garetienFilterSections() {
@@ -1206,7 +1227,7 @@
 	// Von Aufgabe 11 nach jeder frischen liste-Antwort gerufen (defensiv per typeof) -- aktualisiert
 	// die Facetten, die zwei dynamischen Abschnittstitel ("Ebene · 18") und die Optionslisten.
 	function avesmapsGaretienFilterFacettenAktualisieren(facetten) {
-		garetienLetzteFacetten = facetten || { ebene: {}, typ: {}, urteil: {}, wiki: {} };
+		garetienLetzteFacetten = facetten || { ebene: {}, typ: {}, urteil: {}, wiki: {}, typ_kategorie: {} };
 		if (!hasDocument) { return; }
 		if (!garetienFilterRebuild) { garetienFilterMenuVerdrahten(); }
 		const ebeneTitel = document.getElementById("garetien-filter-ebene-title");

@@ -89,6 +89,49 @@ gleich(JSON.stringify(vorher), JSON.stringify(nachher),
 	"eine Auswahl darf die FACETTENZAHLEN nicht veraendern -- sonst faellt nach dem ersten Klick jeder andere Wert auf 0");
 mod.garetienFilterState.typ.clear();
 
+// ---- Blasse Optionen: was der Server als "liefert nichts" markiert, wird gedaempft ------------
+//
+// Owner-Meldung 29.08.2026: Typen, aus denen wir ohnehin nichts holen ("BurgKlein" -- Entscheidung
+// "raus damit, das passt") und Typen ohne Zuordnung (unerledigte Arbeit), werden im Filter-Trichter
+// blasser dargestellt, damit ein Editor sieht, dass er dort nichts findet. Die Auskunft kommt VOM
+// SERVER (facetten.typ_kategorie aus garetien-liste.php) -- die zwei serverseitigen Listen
+// (AVESMAPS_GARETIEN_OHNE_GEGENSTUECK / _SPAETERE_STUFEN) und die 'Klein'-Regel werden hier NICHT
+// nachgebaut.
+const facettenMitKategorie = {
+	ebene: { Gewaesser: 289 },
+	typ: { Bach: 143, See: 96, BurgKlein: 5, Insel: 1 },
+	typ_kategorie: { Bach: "", See: "", BurgKlein: "ohne_gegenstueck", Insel: "spaetere_stufe" },
+	urteil: { neu: 199 },
+	wiki: { ggp: 246 },
+};
+const typOptionenMitKategorie = mod.garetienFacettenOptionen(facettenMitKategorie, "typ");
+const bachMitKategorie = typOptionenMitKategorie.find((o) => o.value === "Bach");
+const seeMitKategorie = typOptionenMitKategorie.find((o) => o.value === "See");
+const burgKlein = typOptionenMitKategorie.find((o) => o.value === "BurgKlein");
+const insel = typOptionenMitKategorie.find((o) => o.value === "Insel");
+
+// 🪤 Vakuum-Zusicherung vermeiden: es zaehlt die DIFFERENZ. Zwei importierbare Typen (gegen
+// Zufallsgleichheit) tragen KEIN `muted`, zwei uebersprungene tragen es -- eines davon (BurgKlein)
+// ueber die 'Klein'-REGEL, nicht ueber einen Listeneintrag.
+wahr(!bachMitKategorie.muted, "Bach liefert etwas -- kein `muted`");
+wahr(!seeMitKategorie.muted, "See liefert etwas -- kein `muted`, gegen Zufallsgleichheit mit Bach");
+wahr(burgKlein.muted === true, "BurgKlein liefert nichts -- `muted` muss gesetzt sein");
+wahr(insel.muted === true, "Insel (spaetere Stufe) liefert (noch) nichts -- `muted` muss gesetzt sein");
+
+// Zwei GRUENDE, zwei verschiedene Erklaerungen -- "raus damit" (Entscheidung) und "noch keine
+// Zuordnung" (offene Arbeit) duerfen nicht im selben Topf landen.
+wahr(typeof burgKlein.title === "string" && burgKlein.title !== "", "eine blasse Option braucht eine Erklaerung");
+wahr(typeof insel.title === "string" && insel.title !== "", "auch die zweite blasse Option braucht eine Erklaerung");
+wahr(burgKlein.title !== insel.title, "die zwei Gruende duerfen nicht dieselbe Erklaerung tragen");
+
+// Die Zahl in Klammern bleibt, wie sie ist -- unabhaengig von `muted`.
+gleich(burgKlein.count, 5, "die Zahl neben einer blassen Option bleibt unangetastet");
+
+// `muted` ist eine Auskunft ueber den TYP -- eine Ebene darf nie geblasst werden, nur weil
+// `typ_kategorie` zufaellig im selben Antwortobjekt mitreist.
+const ebeneOptionenMitKategorie = mod.garetienFacettenOptionen(facettenMitKategorie, "ebene", mod.garetienEbeneLabel);
+wahr(!ebeneOptionenMitKategorie.some((o) => o.muted), "nur der Objekttyp-Abschnitt kennt `muted`");
+
 // ---- Chips: einer je aktivem Abschnitt, sein ✕ nimmt NUR ihn zurueck --------------------------
 
 wahr(typeof mod.garetienChipsMarkup === "function", "garetienChipsMarkup fehlt im Export");
@@ -134,6 +177,17 @@ const quelle = quelleRoh
 
 assert.ok(!/Math\.sqrt|Math\.hypot/.test(quelle),
 	"ein Abstand im Browser waere die zweite Rechnung, die der Auftrag verbietet");
+checks++;
+
+// 🔴 Owner-Meldung 29.08.2026: DER SERVER ist die einzige Wahrheit darueber, welcher Objekttyp
+// nichts liefert -- ein Nachbau der zwei Listen (AVESMAPS_GARETIEN_OHNE_GEGENSTUECK,
+// AVESMAPS_GARETIEN_SPAETERE_STUFEN) oder der 'Klein'-Regel im Browser waere die zweite Wahrheit,
+// vor der AGENTS.md §5 warnt -- und zementierte genau den Fehler, den es zu vermeiden gilt.
+assert.ok(!/endsWith\(\s*["']Klein["']\s*\)/.test(quelle),
+	"die 'Klein'-Regel gehoert dem Server (garetien-abgleich.php), nicht dem Browser");
+checks++;
+assert.ok(!/AVESMAPS_GARETIEN_OHNE_GEGENSTUECK|AVESMAPS_GARETIEN_SPAETERE_STUFEN/.test(quelle),
+	"die zwei serverseitigen Listen duerfen im Browser nicht unter ihrem eigenen Namen auftauchen");
 checks++;
 
 // Direkt zaehlen statt mustern: `fetch\(\s*["'][^"']*\.php` matcht in der echten Datei NICHTS,

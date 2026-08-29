@@ -129,6 +129,33 @@ function avesmapsGaretienLiegtAufDerKarte(array $punkte): bool
 }
 
 /**
+ * Liefert dieser TYP grundsaetzlich nichts -- unabhaengig von einer einzelnen Zeile?
+ *
+ * 🔴 DIE EINE STELLE fuer die Typ-Frage: `avesmapsGaretienUeberspringGrund` (unten) UND der
+ * Filter-Trichter des Fensters (garetien-liste.php baut daraus `facetten.typ_kategorie`, Owner-
+ * Meldung 29.08.2026) lesen GENAU DIESE Funktion. Ein Nachbau der zwei Listen
+ * (AVESMAPS_GARETIEN_OHNE_GEGENSTUECK / _SPAETERE_STUFEN) oder der 'Klein'-Regel an einer zweiten
+ * Stelle waere die zweite Wahrheit, vor der AGENTS.md §5 warnt.
+ *
+ * 🔴 ZWEI Gruende, und sie sind verschieden: 'ohne_gegenstueck' ist eine ENTSCHEIDUNG ("raus
+ * damit", Owner 29.08.2026 -- Beispiel BurgKlein), 'spaetere_stufe' ist UNERLEDIGTE ARBEIT.
+ * 'unbekannt' ist der dritte, seltene Fall (weder zugeordnet noch als spaetere Stufe vermerkt).
+ *
+ * @return 'ohne_gegenstueck'|'spaetere_stufe'|'unbekannt'|'' ('' = der Typ liefert etwas, Stufe 1)
+ */
+function avesmapsGaretienTypKategorie(string $typ): string
+{
+    if (in_array($typ, AVESMAPS_GARETIEN_OHNE_GEGENSTUECK, true) || str_ends_with($typ, 'Klein')) {
+        return 'ohne_gegenstueck';
+    }
+    if (avesmapsGaretienMappeTyp($typ) !== null) {
+        return '';
+    }
+
+    return isset(AVESMAPS_GARETIEN_SPAETERE_STUFEN[$typ]) ? 'spaetere_stufe' : 'unbekannt';
+}
+
+/**
  * Warum wird diese Zeile uebersprungen? null = sie wird NICHT uebersprungen.
  *
  * 🔴 Immer mit Grund. "Uebersprungen" ohne Grund ist eine Zahl, die niemand pruefen kann.
@@ -160,16 +187,15 @@ function avesmapsGaretienUeberspringGrund(array $zeile): ?string
         return 'Keine Position -- die Quelle setzt die Marke "noch nicht auf der Karte"';
     }
 
-    if (in_array($typ, AVESMAPS_GARETIEN_OHNE_GEGENSTUECK, true) || str_ends_with($typ, 'Klein')) {
+    $typKategorie = avesmapsGaretienTypKategorie($typ);
+    if ($typKategorie === 'ohne_gegenstueck') {
         return 'Typ "' . $typ . '" hat bei uns kein Gegenstueck';
     }
-
-    if (avesmapsGaretienMappeTyp($typ) === null) {
-        $stufe = AVESMAPS_GARETIEN_SPAETERE_STUFEN[$typ] ?? null;
-
-        return $stufe !== null
-            ? 'Typ "' . $typ . '" gehoert zu Stufe ' . $stufe . ', nicht zu Stufe 1'
-            : 'Typ "' . $typ . '" ist unbekannt -- weder zugeordnet noch als spaetere Stufe vermerkt';
+    if ($typKategorie === 'spaetere_stufe') {
+        return 'Typ "' . $typ . '" gehoert zu Stufe ' . AVESMAPS_GARETIEN_SPAETERE_STUFEN[$typ] . ', nicht zu Stufe 1';
+    }
+    if ($typKategorie === 'unbekannt') {
+        return 'Typ "' . $typ . '" ist unbekannt -- weder zugeordnet noch als spaetere Stufe vermerkt';
     }
 
     return null;

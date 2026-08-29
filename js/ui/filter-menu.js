@@ -72,6 +72,19 @@ function avmRangeIsActive(state) {
 	return avmRangeValue(state).mode !== "off";
 }
 
+// Das oeffnende `<label ...>` EINER Option -- geteilt zwischen Checkbox- und Radio-Abschnitt,
+// damit eine gedaempfte Option (`option.muted`, Owner-Meldung 29.08.2026 zum Garetien Importer:
+// Typen, aus denen der Server ohnehin nichts liefert, werden blasser dargestellt) in BEIDEN
+// Abschnittsarten dieselbe Klasse und denselben `title` bekommt, statt in einer davon lautlos
+// wirkungslos zu bleiben. Die Option bleibt WAEHLBAR -- kein `disabled`, nur die Schrift ist
+// gedaempft (CSS: `.type-filter__opt--muted`, review-panel.css).
+function avmFilterOptLabelOpen(option) {
+	const klasse = option && option.muted ? "type-filter__opt type-filter__opt--muted" : "type-filter__opt";
+	const titel = option && option.title ? ` title="${avmFilterEscape(option.title)}"` : "";
+
+	return `<label class="${klasse}"${titel}>`;
+}
+
 function avmRenderCheckboxSection(menuId, options, state) {
 	const menu = typeof document !== "undefined" ? document.getElementById(menuId) : null;
 	if (!menu) return;
@@ -80,7 +93,7 @@ function avmRenderCheckboxSection(menuId, options, state) {
 	];
 	for (const option of options) {
 		parts.push(
-			`<label class="type-filter__opt"><input type="checkbox" value="${avmFilterEscape(option.value)}"${state.has(option.value) ? " checked" : ""} /><span class="type-filter__label">${avmFilterEscape(option.label)}</span>${option.count != null ? `<span class="type-filter__count">${option.count}</span>` : ""}</label>`
+			`${avmFilterOptLabelOpen(option)}<input type="checkbox" value="${avmFilterEscape(option.value)}"${state.has(option.value) ? " checked" : ""} /><span class="type-filter__label">${avmFilterEscape(option.label)}</span>${option.count != null ? `<span class="type-filter__count">${option.count}</span>` : ""}</label>`
 		);
 	}
 	menu.innerHTML = parts.join("");
@@ -94,7 +107,7 @@ function avmRenderRadioSection(menuId, options, state) {
 	];
 	for (const option of options) {
 		parts.push(
-			`<label class="type-filter__opt"><input type="radio" name="${avmFilterEscape(menuId)}" value="${avmFilterEscape(option.value)}"${state.value === option.value ? " checked" : ""} /><span class="type-filter__label">${avmFilterEscape(option.label)}</span>${option.count != null ? `<span class="type-filter__count">${option.count}</span>` : ""}</label>`
+			`${avmFilterOptLabelOpen(option)}<input type="radio" name="${avmFilterEscape(menuId)}" value="${avmFilterEscape(option.value)}"${state.value === option.value ? " checked" : ""} /><span class="type-filter__label">${avmFilterEscape(option.label)}</span>${option.count != null ? `<span class="type-filter__count">${option.count}</span>` : ""}</label>`
 		);
 	}
 	menu.innerHTML = parts.join("");

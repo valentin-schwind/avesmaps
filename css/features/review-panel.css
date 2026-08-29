@@ -1028,6 +1028,17 @@
 	flex: 1 1 auto;
 	min-width: 0;
 }
+/* Owner-Meldung 29.08.2026 (Garetien Importer): eine Option, aus der der Server ohnehin nichts
+   liefert (facetten.typ_kategorie, avesmapsGaretienTypKategorie), bleibt WAEHLBAR -- nur ihre
+   Schrift ist gedaempft. Kein `disabled`, keine `opacity` an der ganzen Zeile: dasselbe Muster
+   wie `.mlf-option--muted` (media-license-fields.js, "bleibt waehlbar, nur die Schrift ist
+   gedaempft, kein disabled"). Gescoped auf `.type-filter__label`, NICHT auf `.type-filter__opt`
+   selbst -- `.type-filter__count` traegt schon immer `--color-text-muted` und bleibt unangetastet
+   ("die Zahl in Klammern bleibt, wie sie ist"). */
+.type-filter__opt--muted .type-filter__label {
+	color: var(--color-text-muted);
+	font-style: italic;
+}
 .type-filter__count {
 	color: var(--color-text-muted);
 	font-size: 11px;

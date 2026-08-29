@@ -324,7 +324,7 @@ function avesmapsGaretienArbeitsliste(PDO $pdo, int $importRunId, array $filter)
         'objekte' => [],
         'bilanz' => ['neu' => 0, 'ergaenzung' => 0, 'zweifel' => 0, 'widerspruch' => 0, 'deckt_sich' => 0, 'uebersprungen' => 0],
         'reiter' => ['offen' => 0, 'vorgemerkt' => 0, 'abgelehnt' => 0, 'uebernommen' => 0],
-        'facetten' => ['ebene' => [], 'typ' => [], 'urteil' => [], 'wiki' => []],
+        'facetten' => ['ebene' => [], 'typ' => [], 'urteil' => [], 'wiki' => [], 'typ_kategorie' => []],
         'angehakt' => ['new' => 0, 'changed' => 0],
     ];
 
@@ -587,13 +587,25 @@ function avesmapsGaretienArbeitsliste(PDO $pdo, int $importRunId, array $filter)
 
     // 6. Facetten und Bilanz zaehlen den LAUF -- VOR dem Filtern. Sonst faellt nach dem ersten
     // Klick jeder andere Wert auf 0, und der Trichter laesst sich nicht mehr oeffnen.
-    $facetten = ['ebene' => [], 'typ' => [], 'urteil' => [], 'wiki' => []];
+    //
+    // 🔴 `typ_kategorie` ist Owner-Meldung 29.08.2026: der Trichter soll Typen, aus denen ohnehin
+    // nichts zu holen ist ("BurgKlein" -- Entscheidung "raus damit" -- und alles ohne Zuordnung),
+    // blasser darstellen. Die Kategorie kommt aus avesmapsGaretienTypKategorie (garetien-abgleich.php)
+    // -- DERSELBEN Stelle, die auch den Zeilen-Riegel (avesmapsGaretienUeberspringGrund) speist.
+    // Kein Nachbau der zwei Listen im Browser (AGENTS.md §5).
+    $facetten = ['ebene' => [], 'typ' => [], 'urteil' => [], 'wiki' => [], 'typ_kategorie' => []];
     $bilanz = ['neu' => 0, 'ergaenzung' => 0, 'zweifel' => 0, 'widerspruch' => 0, 'deckt_sich' => 0, 'uebersprungen' => 0];
     $reiter = ['offen' => 0, 'vorgemerkt' => 0, 'abgelehnt' => 0, 'uebernommen' => 0];
     foreach ($objekte as $objekt) {
         foreach (['ebene', 'typ', 'urteil', 'wiki'] as $feld) {
             $wert = (string) $objekt[$feld];
             $facetten[$feld][$wert] = ($facetten[$feld][$wert] ?? 0) + 1;
+        }
+        // Reine Funktion des Typs -- fuer denselben Wert immer dasselbe Ergebnis, deshalb reicht
+        // ein Eintrag je Typ (kein Zaehler wie bei den uebrigen Facetten).
+        $typWert = (string) $objekt['typ'];
+        if (!isset($facetten['typ_kategorie'][$typWert])) {
+            $facetten['typ_kategorie'][$typWert] = avesmapsGaretienTypKategorie($typWert);
         }
         if (isset($bilanz[$objekt['urteil']])) {
             $bilanz[$objekt['urteil']]++;

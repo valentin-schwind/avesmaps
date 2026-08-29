@@ -97,6 +97,24 @@ assert(($liste['facetten']['typ']['Bach'] ?? 0) > 0, 'die Typ-Facette fehlt');
 assert(($liste['facetten']['ebene']['Gewaesser'] ?? 0) > 0, 'die Ebenen-Facette fehlt');
 $pruefungen += 3;
 
+// --- 🔴 Owner-Meldung 29.08.2026: der Filter-Trichter soll Typen, aus denen ohnehin nichts zu
+// holen ist, blasser darstellen -- servergeliefert, ohne die zwei Listen im Browser nachzubauen.
+// Die Fixture traegt bereits eine Zeile spaeterer Stufe (die Insel auf der Kosch-Gewaesserseite).
+// 🪤 Vakuum-Zusicherung vermeiden: importierbare Typen muessen eine LEERE, aber VORHANDENE
+// Kategorie tragen -- ein fehlender Schluessel saehe im ?? -Rueckfall genauso aus wie eine
+// leere Kategorie und bewiese damit nichts.
+assert(array_key_exists('Insel', $liste['facetten']['typ_kategorie']),
+    'die Insel muss ueberhaupt in der Kategorie-Facette stehen');
+assert($liste['facetten']['typ_kategorie']['Insel'] === 'spaetere_stufe',
+    'Insel gehoert zu einer spaeteren Stufe: ' . $liste['facetten']['typ_kategorie']['Insel']);
+assert(array_key_exists('Bach', $liste['facetten']['typ_kategorie'])
+    && $liste['facetten']['typ_kategorie']['Bach'] === '',
+    'ein importierbarer Typ traegt eine LEERE Kategorie, keine fehlende');
+assert(array_key_exists('Fluss', $liste['facetten']['typ_kategorie'])
+    && $liste['facetten']['typ_kategorie']['Fluss'] === '',
+    'und ein zweiter importierbarer Typ, gegen Zufallsgleichheit');
+$pruefungen += 4;
+
 // ⚠️ Die Facetten zaehlen den LAUF, nicht die gefilterte Sicht -- sonst faellt beim ersten Klick
 // jeder andere Wert auf 0 und der Trichter laesst sich nicht mehr oeffnen.
 // 🪤 Die Gegenprobe MUSS zeigen, dass der Filter wirklich etwas WEGGENOMMEN hat -- sonst waere
