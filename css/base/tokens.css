@@ -526,6 +526,11 @@
 	--color-path-wuestenpfad: #7b6a48;
 	--color-path-flussweg: #3f7191;
 	--color-path-seeweg: #296db9;
+	/* Bach — vom Flussweg abgeleitet, aber ein EIGENES Token: heller und blasser (H≈206 statt 203,
+	   S≈26% statt 39%), weil ein Bach schmaler ist und den Fluss nicht überschreien soll. Eine
+	   geteilte Farbe mit --color-path-flussweg liefe beim nächsten Umton auseinander. Gemessen
+	   4,66:1 gegen denselben Grund (#f3f0e8) wie die übrigen Wegarten-Tokens oben. */
+	--color-path-bach: #4f6f87;
 	--color-map-presence-text: #2f6b3a; /* darker text variant of the above, same pinning rule */
 
 	/* Territory-assignment picker (parent-tree/tabs/breadcrumb "active" rows) —
@@ -828,6 +833,10 @@ html.avesmaps-phone {
 	--color-path-wuestenpfad: #d8bd85;
 	--color-path-flussweg: #7fc9f0;
 	--color-path-seeweg: #5aa6e0;
+	/* Bach — dieselbe blasse, entsättigte Ableitung wie im hellen Thema (H≈206, S≈28% statt der
+	   satten 79% des Flusswegs), für den dunklen Panelgrund aufgehellt. Gemessen 4,93:1 gegen
+	   --color-panel-soft (#37342b), innerhalb der Spanne der übrigen Wegarten-Tokens oben. */
+	--color-path-bach: #89a7bd;
 
 	--color-link: #d7c38b;
 	--color-link-hover: #e3d39f;

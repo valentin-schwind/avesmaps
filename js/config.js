@@ -89,7 +89,12 @@ const SPARSE_CROSSING_OVERLAY_DISTANCE = 0.02;
 // Editor also oft. Die Zelle MUSS groesser sein als SPARSE_CROSSING_OVERLAY_DISTANCE, sonst reichen
 // die drei mal drei abgefragten Zellen nicht bis an den Suchradius heran.
 const SPARSE_CROSSING_SEGMENT_CELL = 0.5;
-const PATH_SUBTYPE_KEYS = ["Reichsstrasse", "Strasse", "Weg", "Pfad", "Gebirgspass", "Wuestenpfad", "Flussweg", "Seeweg"];
+// 🔴 „Bach" steht ANS ENDE, nicht einsortiert -- die sieben vorhandenen Plaetze sind Bestand
+// (svg-export-build.js zeichnet in dieser Reihenfolge), und ein Einschieben verschoebe jede Liste,
+// die ueber PATH_SUBTYPE_KEYS iteriert. Ein Bach ist "wie ein Flussweg, aber nicht befahrbar"
+// (Owner 27.08.2026) -- siehe avesmapsDefaultTransportDomainForPathSubtype in
+// api/_internal/map/features.php ('Bach' => 'none', keine eigene Transport-Domaene noetig).
+const PATH_SUBTYPE_KEYS = ["Reichsstrasse", "Strasse", "Weg", "Pfad", "Gebirgspass", "Wuestenpfad", "Flussweg", "Seeweg", "Bach"];
 const PATH_ENDPOINT_SNAP_DISTANCE_PX = 18;
 
 // Miles per hour per transport x path subtype. Derived from Geographia Aventurica S. 123 (day

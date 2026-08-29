@@ -190,7 +190,12 @@ function avesmapsReadLocationDescription(mixed $value): string {
 
 function avesmapsReadPathSubtype(mixed $value): string {
     $subtype = avesmapsNormalizeSingleLine((string) ($value ?: 'Weg'), 60);
-    $allowedSubtypes = ['Reichsstrasse', 'Strasse', 'Weg', 'Pfad', 'Gebirgspass', 'Wuestenpfad', 'Flussweg', 'Seeweg'];
+    // 🔴 Diese Liste ist der SCHREIB-Riegel -- ohne 'Bach' hier wirft jeder Versuch, einen Bach
+    // anzulegen oder zu speichern (u.a. der Garetien-Importer, avesmapsCreatePathFeature),
+    // 'Der Wegtyp ist ungueltig.' Sie ist eine EIGENE Kopie von PATH_SUBTYPE_KEYS (js/config.js),
+    // nicht dieselbe Liste -- ein Fund beim Bauen dieser Aufgabe, nicht Teil des urspruenglichen
+    // Auftrags.
+    $allowedSubtypes = ['Reichsstrasse', 'Strasse', 'Weg', 'Pfad', 'Gebirgspass', 'Wuestenpfad', 'Flussweg', 'Seeweg', 'Bach'];
     if (!in_array($subtype, $allowedSubtypes, true)) {
         throw new InvalidArgumentException('Der Wegtyp ist ungueltig.');
     }
@@ -202,6 +207,12 @@ function avesmapsDefaultTransportDomainForPathSubtype(string $subtype): string {
     return match ($subtype) {
         'Flussweg' => 'river',
         'Seeweg' => 'sea',
+        // 🔴 Ein Bach ist "wie ein Flussweg, aber nicht befahrbar" (Owner 27.08.2026) -- 'none' ist
+        // eine bereits gueltige, leere Transport-Domaene (avesmapsAllowedTransportOptionsForDomain
+        // default => []). KEINE neue Domaene, KEIN Eingriff in die Sperrregel der Querfeldein-Wand
+        // (offroad-grid.php) -- die greift ueber avesmapsGetRouteTransportType() === 'river' von
+        // selbst nicht, weil ein Bach dort 'unknown' liefert.
+        'Bach' => 'none',
         default => 'land',
     };
 }
