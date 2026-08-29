@@ -1957,12 +1957,42 @@ function avesmapsApplyPowerlineWikiNoArticle(array $properties, array $payload, 
  * abgelegt (der Linien-Schreibweg loescht den Schluessel), und ein `false` liesse sich spaeter
  * nicht von "nie entschieden" unterscheiden.
  */
+/**
+ * Die Kurvenform einer Kraftlinie: Prozent der Sehne, -45..45, 0 = gerade.
+ *
+ * 🔴 GEKLEMMT, NIE ABGELEHNT. Ein unlesbarer Wert wird 0.0 -- also der Zustand von heute. Eine
+ * Ausnahme waere fuer den Editor von „Server kaputt" nicht zu unterscheiden, und die sichere
+ * Richtung ist hier die gerade Linie.
+ * Entwurf: docs/superpowers/specs/2026-08-29-kraftlinien-kurvenform-design.md Abschnitt 4.
+ */
+function avesmapsReadPowerlineCurve($wert): float {
+    // ⚠️ `is_numeric` allein genuegt und traegt jeden Fall: es weist bool, array, null, Objekt und
+    // "quatsch" gleichermassen ab, ohne zu werfen. Hier stand zuerst eine Typpruefung DAVOR, mit der
+    // Begruendung, `(float) true` waere sonst 1.0 -- das war falsch (is_numeric(true) ist bereits
+    // false), und eine Mutationsprobe am 29.08.2026 zeigte sie als toten Code: ihr Entfernen liess
+    // keinen Test rot werden. Toter Code mit falscher Begruendung ist schlimmer als kein Code.
+    if (!is_numeric($wert)) {
+        return 0.0;
+    }
+    $zahl = (float) $wert;
+    // ⚠️ NAN ueberlebt is_numeric (es IST ein float) und jede Vergleichsoperation -- min/max wuerden
+    // es unveraendert durchreichen. INF dagegen klemmt sauber.
+    if (is_nan($zahl)) {
+        return 0.0;
+    }
+
+    return max(-45.0, min(45.0, $zahl));
+}
+
 function avesmapsPowerlineInheritedLineFields(?array $lineProperties): array {
     $source = is_array($lineProperties) ? $lineProperties : [];
     $inherited = [
         'show_label' => (bool) ($source['show_label'] ?? false),
         'description' => (string) ($source['description'] ?? ''),
         'wiki_url' => (string) ($source['wiki_url'] ?? ''),
+        // Ohne diese Zeile laege ein spaeter angehaengtes Segment kerzengerade zwischen zwei
+        // gebogenen -- die Kurve ist eine Eigenschaft der LINIE, nicht des einzelnen Stuecks.
+        'curve' => avesmapsReadPowerlineCurve($source['curve'] ?? 0),
     ];
     if (!empty($source['wiki_no_article'])) {
         $inherited['wiki_no_article'] = true;
@@ -2052,6 +2082,12 @@ function avesmapsUpdatePowerlineLine(PDO $pdo, array $payload, array $user): arr
     $showLabel = avesmapsReadBoolean($payload['show_label'] ?? false);
     $description = trim((string) ($payload['description'] ?? ''));
     $wikiUrl = trim((string) ($payload['wiki_url'] ?? ''));
+    // Die Kurvenform gilt der GANZEN Linie und wird wie show_label auf alle Segmente geschrieben.
+    // ⚠️ `?? 0` ist hier richtig und bei wiki_no_article eine Zeile weiter falsch, und der
+    // Unterschied ist der ERZEUGER: das Formular schickt curve bei JEDEM Speichern mit (ein
+    // Schieber mit Vorgabewert, kein dritter Zustand), waehrend der Merker nur mitreist, wenn eine
+    // Zuweisung ihn beantwortet hat.
+    $curve = avesmapsReadPowerlineCurve($payload['curve'] ?? 0);
     // 🔴 ABWESENHEIT HEISST „NICHT GEAENDERT" -- seit dem 16.08.2026, und die Zeile ist der Grund,
     // warum das Haekchen „Kein Wiki-Artikel vorhanden" im Kraftlinien-Editor ueberhaupt fallen DURFTE.
     // 🪤 Hier stand `?? false`, und daneben stand die Begruendung dafuer: „die Kraftlinie hat EINEN
@@ -2102,6 +2138,7 @@ function avesmapsUpdatePowerlineLine(PDO $pdo, array $payload, array $user): arr
             $properties['show_label'] = $showLabel;
             $properties['description'] = $description;
             $properties['wiki_url'] = $wikiUrl;
+            $properties['curve'] = $curve;
             // Ohne ausdruecklichen Schluessel gilt, was auf DIESEM Segment steht -- die reine Regel
             // steht in avesmapsApplyPowerlineWikiNoArticle, weil sie hier in einer Transaktion
             // saesse und dort messbar ist.
@@ -2126,6 +2163,7 @@ function avesmapsUpdatePowerlineLine(PDO $pdo, array $payload, array $user): arr
                     'show_label' => $showLabel,
                     'description' => $description,
                     'wiki_url' => $wikiUrl,
+                    'curve' => $curve,
                     'wiki_no_article' => $merker,
                     'properties_json' => $properties,
                     'revision' => $revision,

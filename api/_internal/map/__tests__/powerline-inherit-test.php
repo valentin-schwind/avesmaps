@@ -29,6 +29,7 @@ $voll = avesmapsPowerlineInheritedLineFields([
     'description' => 'Die alte Ader.',
     'wiki_url' => 'https://de.wiki-aventurica.de/wiki/Hexenband',
     'wiki_no_article' => true,
+    'curve' => 26.0,
     // Nichts davon darf mitwandern: das Wiki-Nest gehoert dem Abgleich, die Endpunkte dem Segment.
     'wiki_powerline' => ['wiki_url' => 'https://de.wiki-aventurica.de/wiki/Hexenband'],
     'from_public_id' => 'nodix-a',
@@ -40,9 +41,14 @@ assert($voll['description'] === 'Die alte Ader.');
 assert($voll['wiki_url'] === 'https://de.wiki-aventurica.de/wiki/Hexenband');
 // 💣 Der Mutationstoeter: genau dieses Feld fehlte in beiden Abschriften.
 assert(($voll['wiki_no_article'] ?? null) === true, 'der Merker wandert mit');
+// Die Kurvenform (29.08.2026) -- eine Eigenschaft der LINIE, nicht des einzelnen Stuecks. Ohne sie
+// laege ein spaeter angehaengtes Segment kerzengerade zwischen zwei gebogenen.
+assert($voll['curve'] === 26.0, 'die Kurvenform gehoert in die EINE Erb-Liste');
 
-// 🔴 Und NUR diese vier. Ein Segment, das das Wiki-Nest miterbte, behauptete Wiki-Daten, die zu
-// ihm nie jemand geholt hat; geerbte Endpunkte machten aus dem neuen Segment eine Kopie des alten.
+// 🔴 Und NUR die oben zugesicherten -- hier steht bewusst KEINE Zahl mehr (sie war „vier" und wurde
+// mit der Kurvenform am 29.08.2026 falsch; eine Zahl liest sich wie eine vollstaendige Liste, und
+// niemand zaehlt nach). Ein Segment, das das Wiki-Nest miterbte, behauptete Wiki-Daten, die zu ihm
+// nie jemand geholt hat; geerbte Endpunkte machten aus dem neuen Segment eine Kopie des alten.
 assert(!array_key_exists('wiki_powerline', $voll), 'das Wiki-Nest bleibt beim Abgleich');
 assert(!array_key_exists('from_public_id', $voll) && !array_key_exists('to_public_id', $voll), 'die Endpunkte gehoeren dem Segment');
 assert(!array_key_exists('name', $voll), 'den Namen setzt der Aufrufer, er wird nicht geerbt');
@@ -57,6 +63,9 @@ $ohne = avesmapsPowerlineInheritedLineFields([
 ]);
 assert(!array_key_exists('wiki_no_article', $ohne), 'kein Merker heisst kein Schluessel, nicht false');
 assert($ohne['show_label'] === false && $ohne['description'] === '' && $ohne['wiki_url'] === '');
+// ⚠️ Und die Kurve faellt hier auf GERADE zurueck, nicht auf einen fehlenden Schluessel: sie ist
+// eine Zahl mit einem sinnvollen Nullwert, kein dritter Zustand wie der Merker darueber.
+assert($ohne['curve'] === 0.0, 'ohne Wert erbt ein neues Segment eine gerade Linie');
 
 // Ein falsywertiger Merker zaehlt nicht als gesetzt -- sonst schleppte eine alte Zeile mit
 // `wiki_no_article: false` den Schluessel ewig weiter.

@@ -58,6 +58,11 @@ try {
             'from_public_id' => $from,
             'to_public_id' => $to,
             'show_label' => (bool) ($properties['show_label'] ?? false),
+            // ⚠️ AUSDRUECKLICH, wie show_label darueber und wiki_no_article darunter. Fehlt die
+            // Zeile, saehe der Editor immer 0; und weil das Speichern den Wert IMMER mitschickt,
+            // loeschte der NAECHSTE Speichervorgang die Kurve -- auch eine reine
+            // Beschreibungsaenderung.
+            'curve' => avesmapsReadPowerlineCurve($properties['curve'] ?? 0),
             'description' => (string) ($properties['description'] ?? ''),
             'wiki_url' => (string) ($properties['wiki_url'] ?? ''),
             // 💣 Der dritte Zustand MUSS hier stehen. Diese Projektion ist ausdruecklich, und der
