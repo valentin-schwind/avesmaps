@@ -1206,3 +1206,31 @@ body.avm-editor-body {
 	color: var(--color-text-muted);
 	font-size: 12px;
 }
+
+/* Der Kurvenform-Schieber des Kraftlinien-Editors: Regler und Wert in einer Zeile.
+   Entwurf: docs/superpowers/specs/2026-08-29-kraftlinien-kurvenform-design.md */
+.pl-curve {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+}
+
+.pl-curve input[type="range"] {
+	flex: 1 1 auto;
+	/* Ohne min-width: 0 waechst der Schieber ueber seine Spalte hinaus -- ein Flex-Kind hat als
+	   Vorgabe min-width: auto und schrumpft nicht unter seine Inhaltsbreite. */
+	min-width: 0;
+	accent-color: var(--color-accent-brown);
+}
+
+.pl-curve__val {
+	flex: 0 0 auto;
+	/* Feste Mindestbreite, damit die Zahl beim Ziehen nicht springt (tabular-nums allein reicht
+	   nicht: „+5 %" ist kuerzer als „-45 %"). */
+	min-width: 58px;
+	text-align: right;
+	font-variant-numeric: tabular-nums;
+	color: var(--color-accent-brown);
+	/* Nie unter 11px -- die Untergrenze aus AGENTS.md Abschnitt 12. */
+	font-size: 12px;
+}

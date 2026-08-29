@@ -441,11 +441,21 @@ function wikiListHint() {
 	}
 	return "Ausdrücklich gesetzt, nie geraten. Der Abgleich folgt der Zuweisung, auch wenn die Linie anders heißt.";
 }
+// „+26 %" statt „26" -- eine nackte Zahl an einem Schieber sagt nicht, ob sie Prozent, Grad oder
+// Meilen ist.
+function curveText(wert) {
+	const zahl = Number(wert) || 0;
+	return (zahl > 0 ? "+" : "") + zahl + " %";
+}
+
 function renderDetail() {
 	const host = $("plDetail");
 	const line = lineByName(selectedName);
 	if (!line) { host.innerHTML = '<div class="dt-empty">Links eine Kraftlinie wählen.</div>'; return; }
 	const showLabel = line.segments.some((s) => s.show_label);
+	// 💣 fieldSample, nicht some()/every(): curve ist eine ZAHL. `some((s) => s.curve)` laese eine
+	// gespeicherte 0 als „nicht gesetzt" und eine -0 gleich mit.
+	const curve = Number(fieldSample(line, "curve")) || 0;
 	const description = fieldSample(line, "description");
 	const wikiUrl = fieldSample(line, "wiki_url");
 	const wiki = line.segments.map((s) => s.wiki_powerline).find((w) => w && typeof w === "object") || {};
@@ -468,6 +478,18 @@ function renderDetail() {
 			+ '<div class="pl-hint">Schreibt auf <b>alle ' + line.segments.length + ' Segmente</b>. Exakt gleicher Name wie eine andere Linie ⇒ <b>beide verschmelzen</b>.</div>'
 		+ "</div></div>"
 		+ '<div class="dt-check"><input type="checkbox" id="plShowLabel"' + (showLabel ? " checked" : "") + "><span>Name auf der Karte anzeigen</span></div>"
+		// Die Kurvenform -- ein Wert je Linie, geschrieben auf alle Segmente wie das Haekchen darueber.
+		// 🔴 KEIN eigener dt-grp-Abschnitt: die Abschnittsfolge dieses Fensters ist eine feste
+		// Owner-Liste (16.08.2026), gewacht von editor-abschnittsreihenfolge.test.js. Das hier ist
+		// eine Darstellungsentscheidung wie „Name auf der Karte anzeigen", kein eigener Bereich.
+		+ '<div class="dt-grid"><div class="k">Kurvenform</div><div>'
+			+ '<div class="pl-curve">'
+				+ '<input type="range" id="plCurve" min="-45" max="45" step="1" value="' + curve + '">'
+				+ '<span class="pl-curve__val" id="plCurveVal">' + esc(curveText(curve)) + "</span>"
+			+ "</div>"
+			+ '<div class="pl-hint">Prozent der Sehne. <b>0</b> ist gerade, das Vorzeichen ist die Seite. '
+				+ "Schreibt auf <b>alle " + line.segments.length + " Segmente</b>.</div>"
+		+ "</div></div>"
 		// ---- Eigenschaften ----------------------------------------------------------------------
 		// 🔴 DER KOPF HEISST WEITER „Beschreibung", NICHT „Eigenschaften" (Owner-Entscheid 16.08.2026
 		// bei der Vereinheitlichung der Abschnittsreihenfolge). Er steht an der PLATZ-3-Stelle der
@@ -516,6 +538,9 @@ function renderDetail() {
 			+ '<button id="plDelete">Linie löschen</button>'
 			+ '<button class="is-primary" id="plSave">Speichern</button>'
 		+ "</div>";
+	$("plCurve").addEventListener("input", () => {
+		$("plCurveVal").textContent = curveText($("plCurve").value);
+	});
 	$("plSave").addEventListener("click", saveLine);
 	$("plDelete").addEventListener("click", deleteLine);
 	// Nach dem innerHTML, nie darin: das Bauteil haengt Zuhoerer an seinen Behaelter, und ein
@@ -658,6 +683,10 @@ async function saveLine() {
 		current_name: line.name,
 		new_name: newName,
 		show_label: $("plShowLabel").checked,
+		// 💣 MUSS bei jedem Speichern mit. Der Server liest einen fehlenden Schluessel als 0 -- ein
+		// Speichern ohne diese Zeile LOESCHTE die Kurve, lautlos und von „nie eingestellt" nicht
+		// zu unterscheiden.
+		curve: Number($("plCurve").value),
 		description: $("plDescription").value,
 		// Dieselbe Aktion wie immer; die Adresse kommt aus dem Bauteil statt aus einem Formularfeld.
 		wiki_url: zuweisung.wiki_url,
@@ -963,9 +992,9 @@ function demoData() {
 		N("e1", "Elem-A", "dorf", true), N("e2", "Elem-B", "dorf", true),
 		N("vin", "Vinsalt", "grossstadt", true), N("bel", "Belhanka", "stadt", true),
 	]);
-	const seg = (pid, name, from, to, extra) => Object.assign({ public_id: pid, name, from_public_id: from, to_public_id: to, show_label: false, description: "", wiki_url: "", wiki_powerline: null, revision: 1 }, extra || {});
+	const seg = (pid, name, from, to, extra) => Object.assign({ public_id: pid, name, from_public_id: from, to_public_id: to, show_label: false, curve: 0, description: "", wiki_url: "", wiki_powerline: null, revision: 1 }, extra || {});
 	const segs = [
-		seg("s1", "Konzilslinie", "gareth", "k7", { description: "Verbindet die Konzilsstädte des Mittelreichs.", wiki_url: "https://de.wiki-aventurica.de/wiki/Konzilslinie", wiki_powerline: { staerke: "kontinental", laenge: "ca. 3000 Meilen", regionen: "Kosch · Almada" } }),
+		seg("s1", "Konzilslinie", "gareth", "k7", { curve: 26, description: "Verbindet die Konzilsstädte des Mittelreichs.", wiki_url: "https://de.wiki-aventurica.de/wiki/Konzilslinie", wiki_powerline: { staerke: "kontinental", laenge: "ca. 3000 Meilen", regionen: "Kosch · Almada" } }),
 		seg("s2", "Konzilslinie", "k7", "kuslik"), seg("s3", "Konzilslinie", "kuslik", "punin"),
 		seg("f1", "Fächer der Macht", "k4", "m", { wiki_url: "https://de.wiki-aventurica.de/wiki/Konzilslinie" }), seg("f2", "Fächer der Macht", "k4", "x"), seg("f3", "Fächer der Macht", "k4", "y"), seg("f4", "Fächer der Macht", "k4", "z"),
 		seg("h1", "Hexenband", "a", "b"), seg("h2", "Hexenband", "b", "c"), seg("h3", "Hexenband", "c", "a"),
