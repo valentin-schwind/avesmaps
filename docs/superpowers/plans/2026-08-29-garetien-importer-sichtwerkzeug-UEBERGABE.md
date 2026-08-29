@@ -107,12 +107,39 @@ Ebenen auf einen Klick** (eine Ebene je Anfrage, damit STRATOs Zeitlimit hält; 
 
 | | |
 |---|---|
-| **Zwei Farben, Tooltips, „Zentrieren"** | 🔴 **läuft gerade in einem Subagenten** — prüf zuerst `git log` und `.superpowers/sdd/2026-08-29-tor-bach-und-fuenf-ortsarten/task-sicht-report.md`. Das Token `--color-garetien-unsere` (hell `#b5279b`, dunkel `#f07ad8`) ist **schon gesetzt** und liegt ggf. **ungetrackt** im Baum. |
+| **Zwei Farben, Tooltips, „Zentrieren"** | ✅ **FERTIG UND LIVE** (`a23377069`): *ihre* Fassung gold gestrichelt, *unsere* magenta durchgezogen (`--color-garetien-unsere`), beide mit Tooltip, der Knopf heißt „✦ Zentrieren". 🔧 **Ohne Bericht** — der Agent wurde gestoppt, weil eine parallele Sitzung auf die Datei wartete. Seine zwei offenen Entscheidungen stehen im Code und direkt unter dieser Tabelle. |
 | **Das Tor: `Bach`** | Aufgabe 1 von 6 **fertig und committet** (`da4f0d0ad`): Schlüssel, Domäne `'none'`, Farbtoken. Aufgaben 2–6 offen, Bauplan steht. |
 | **Der Anzeigen-Umbau (§2)** | **nicht angefangen.** Das ist die Hauptarbeit. |
 
+### Die zwei Entscheidungen der Sicht-Arbeit — im Code begründet, hier festgehalten
+
+**(a) Der Schein bleibt — als Hof unter UNSERER Form, in UNSERER Farbe.**
+`.gi-map-schein { filter: drop-shadow(0 0 14px var(--color-garetien-unsere)) }`. Eine dünne Linie
+auf buntem Grund ist sonst nicht auffindbar; der Hof trägt jetzt die Magenta-Aussage mit, statt
+wie früher in Gold gegen die goldene Fremdgeometrie zu stehen.
+
+**(b) `interactive: true` kostet nichts — wegen `pointer-events: stroke`.**
+Ohne `interactive` gibt es keinen Tooltip; mit ihm fängt eine gefüllte Fläche die Zeigerereignisse
+standardmäßig auf ihrer **ganzen Fläche**. Zwei Folgen, beide gelöst:
+- 🔴 Bei einem See liegen ihre und unsere Fläche fast deckungsgleich. Fängt die **Füllung**,
+  gewinnt überall die obere — unsere Fassung wäre im ganzen Überlappungsbereich nicht anzeigbar,
+  **also genau dort nicht, wo man vergleicht**. Mit `stroke` ist jede der zwei Konturen für sich
+  erreichbar.
+- ⭐ Und gratis: das Innere eines Sees bleibt für die Karte darunter **anklickbar**. Eine
+  Import-Überlagerung darf die Landschaft nicht verschlucken, über der sie liegt.
+- 💣 **Die Spezifität ist tragend.** Leaflets eigene Regel
+  `.leaflet-pane > svg path.leaflet-interactive` wiegt (0,2,2) und setzt `pointer-events: auto`;
+  eine schlichte `.gi-map-ihre`-Regel wiegt (0,1,0) und wäre **wirkungslos** — sichtbar würde das
+  erst an einem See, an dem der falsche Tooltip erscheint.
+
+🔧 **Was NICHT abgenommen ist:** der Agent wurde vor seiner Browser-Abnahme gestoppt. Die acht
+Fenstertests sind grün und das ganze Feld ebenfalls (361 JS / 327 PHP, nur der bekannte DNS-Rote) —
+aber **niemand hat die zwei Farben, die zwei Knöpfe und die Tooltips im Browser wirklich gesehen**,
+in hell und dunkel. Das ist der erste Handgriff der nächsten Sitzung.
+
 💣 **Nicht parallel bauen:** Sicht-Arbeit und Anzeigen-Umbau fassen beide
-`js/review/review-garetien-importer.js` an.
+`js/review/review-garetien-importer.js` an. ✅ Die Sicht-Arbeit ist committet und gepusht — die
+Datei ist **frei**.
 
 ---
 
