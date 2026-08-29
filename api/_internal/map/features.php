@@ -1984,6 +1984,41 @@ function avesmapsReadPowerlineCurve($wert): float {
     return max(-45.0, min(45.0, $zahl));
 }
 
+/**
+ * Welche Kurve auf DIESES Segment kommt -- die reine Regel hinter dem Linien-Schreibweg.
+ * Entwurf: docs/superpowers/specs/2026-08-29-kraftlinien-kurvenform-design.md Abschnitt 13.
+ *
+ * 💣 ABWESENHEIT HEISST „NICHT GEAENDERT", und das ist die Umkehrung des Verhaltens vom Vormittag.
+ * Bis dahin las der Schreibweg `$payload['curve'] ?? 0` und schrieb ihn bei JEDEM Speichern auf alle
+ * Segmente. Seit die Kurve je Segment einstellbar ist, schickt der Editor den LINIEN-Wert nur noch,
+ * wenn jemand den Linien-Schieber angefasst hat -- mit `?? 0` machte ein Speichern damit jede
+ * gewollte Ausnahme lautlos platt, auch eine reine Beschreibungsaenderung. Zeichen fuer Zeichen die
+ * wiki_no_article-Falle aus dieser Datei.
+ * ⚠️ Die zwei Haelften gehoeren zusammen: wer hier `?? 0` wiederherstellt, braucht im selben Zug
+ * einen Editor, der den Wert immer sendet.
+ *
+ * 🔴 Rangfolge: `curves[public_id]` (ein einzeln angefasstes Segment) schlaegt `curve` (alle) --
+ * der speziellere Griff ist der juengere Wille. Sagt keiner etwas, bleibt der gespeicherte Wert.
+ *
+ * ⚠️ Steht sie HIER und nicht im Schreibweg, weil sie dort in einer Transaktion saesse und damit
+ * nicht mehr messbar waere -- dasselbe Verhaeltnis wie bei avesmapsApplyPowerlineWikiNoArticle.
+ */
+function avesmapsApplyPowerlineCurve(array $properties, array $payload, string $publicId): array {
+    $karte = $payload['curves'] ?? null;
+    // ⚠️ Eine unbrauchbare Kartenangabe wird IGNORIERT, nicht abgelehnt: ein veralteter
+    // Editor-Stand darf keine ganze Speicherung scheitern lassen.
+    if (is_array($karte) && $publicId !== '' && array_key_exists($publicId, $karte)) {
+        $properties['curve'] = avesmapsReadPowerlineCurve($karte[$publicId]);
+
+        return $properties;
+    }
+    if (array_key_exists('curve', $payload)) {
+        $properties['curve'] = avesmapsReadPowerlineCurve($payload['curve']);
+    }
+
+    return $properties;
+}
+
 function avesmapsPowerlineInheritedLineFields(?array $lineProperties): array {
     $source = is_array($lineProperties) ? $lineProperties : [];
     $inherited = [
@@ -2082,12 +2117,9 @@ function avesmapsUpdatePowerlineLine(PDO $pdo, array $payload, array $user): arr
     $showLabel = avesmapsReadBoolean($payload['show_label'] ?? false);
     $description = trim((string) ($payload['description'] ?? ''));
     $wikiUrl = trim((string) ($payload['wiki_url'] ?? ''));
-    // Die Kurvenform gilt der GANZEN Linie und wird wie show_label auf alle Segmente geschrieben.
-    // ⚠️ `?? 0` ist hier richtig und bei wiki_no_article eine Zeile weiter falsch, und der
-    // Unterschied ist der ERZEUGER: das Formular schickt curve bei JEDEM Speichern mit (ein
-    // Schieber mit Vorgabewert, kein dritter Zustand), waehrend der Merker nur mitreist, wenn eine
-    // Zuweisung ihn beantwortet hat.
-    $curve = avesmapsReadPowerlineCurve($payload['curve'] ?? 0);
+    // 🔴 Die Kurve wird NICHT mehr hier gelesen. Sie ist seit dem 29.08.2026 je Segment
+    // einstellbar, und welcher Wert auf welches Segment kommt, entscheidet die reine Regel
+    // avesmapsApplyPowerlineCurve -- inklusive „nichts gesagt heisst nichts geaendert".
     // 🔴 ABWESENHEIT HEISST „NICHT GEAENDERT" -- seit dem 16.08.2026, und die Zeile ist der Grund,
     // warum das Haekchen „Kein Wiki-Artikel vorhanden" im Kraftlinien-Editor ueberhaupt fallen DURFTE.
     // 🪤 Hier stand `?? false`, und daneben stand die Begruendung dafuer: „die Kraftlinie hat EINEN
@@ -2138,7 +2170,7 @@ function avesmapsUpdatePowerlineLine(PDO $pdo, array $payload, array $user): arr
             $properties['show_label'] = $showLabel;
             $properties['description'] = $description;
             $properties['wiki_url'] = $wikiUrl;
-            $properties['curve'] = $curve;
+            $properties = avesmapsApplyPowerlineCurve($properties, $payload, (string) $row['public_id']);
             // Ohne ausdruecklichen Schluessel gilt, was auf DIESEM Segment steht -- die reine Regel
             // steht in avesmapsApplyPowerlineWikiNoArticle, weil sie hier in einer Transaktion
             // saesse und dort messbar ist.
@@ -2163,7 +2195,7 @@ function avesmapsUpdatePowerlineLine(PDO $pdo, array $payload, array $user): arr
                     'show_label' => $showLabel,
                     'description' => $description,
                     'wiki_url' => $wikiUrl,
-                    'curve' => $curve,
+                    'curve' => $properties['curve'] ?? 0.0,
                     'wiki_no_article' => $merker,
                     'properties_json' => $properties,
                     'revision' => $revision,

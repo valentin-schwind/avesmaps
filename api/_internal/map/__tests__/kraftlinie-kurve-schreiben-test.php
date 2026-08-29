@@ -58,6 +58,49 @@ assert($leer['curve'] === 0.0, 'ohne Wert erbt ein neues Segment eine GERADE Lin
 $wild = avesmapsPowerlineInheritedLineFields(['curve' => 500]);
 assert($wild['curve'] === 45.0);
 
+// ---- 2b. DIE ABWESENHEIT HEISST "NICHT GEAENDERT" (29.08.2026, Entwurf 13.1) ------------------
+// 💣 Bis heute las der Schreibweg `$payload['curve'] ?? 0` und schrieb ihn bei JEDEM Speichern auf
+// alle Segmente. Sobald der Editor ihn nur noch bei Anfassen mitschickt, machte genau dieses `?? 0`
+// jede gewollte Ausnahme lautlos platt -- auch bei einer reinen Beschreibungsaenderung. Zeichen fuer
+// Zeichen die wiki_no_article-Falle aus derselben Datei.
+$vorhanden = ['curve' => 26.0];
+
+// Nichts gesagt -> nichts geaendert.
+assert(avesmapsApplyPowerlineCurve($vorhanden, [], 'seg-1')['curve'] === 26.0,
+    'ohne Angabe im Rumpf muss die gespeicherte Kurve stehenbleiben');
+assert(avesmapsApplyPowerlineCurve($vorhanden, ['description' => 'nur Text'], 'seg-1')['curve'] === 26.0,
+    'eine reine Beschreibungsaenderung darf die Kurve nicht anfassen');
+
+// Der Linienwert setzt ALLE.
+assert(avesmapsApplyPowerlineCurve($vorhanden, ['curve' => -12], 'seg-1')['curve'] === -12.0);
+// ⚠️ Auch die 0 muss durchkommen -- "gerade" ist eine Aussage, kein fehlender Wert.
+assert(avesmapsApplyPowerlineCurve($vorhanden, ['curve' => 0], 'seg-1')['curve'] === 0.0,
+    'eine ausdrueckliche 0 muss geradebiegen, nicht als "nichts gesagt" gelten');
+
+// Der Segmentwert gewinnt ueber den Linienwert -- der speziellere Griff ist der juengere Wille.
+$beides = ['curve' => 5, 'curves' => ['seg-1' => 40, 'seg-2' => -40]];
+assert(avesmapsApplyPowerlineCurve($vorhanden, $beides, 'seg-1')['curve'] === 40.0);
+assert(avesmapsApplyPowerlineCurve($vorhanden, $beides, 'seg-2')['curve'] === -40.0);
+// Ein Segment, das die Karte NICHT nennt, faellt auf den Linienwert zurueck.
+assert(avesmapsApplyPowerlineCurve($vorhanden, $beides, 'seg-3')['curve'] === 5.0);
+// Und ohne Linienwert bleibt es schlicht stehen.
+assert(avesmapsApplyPowerlineCurve($vorhanden, ['curves' => ['seg-1' => 40]], 'seg-3')['curve'] === 26.0,
+    'ein ungenanntes Segment ohne Linienwert bleibt unveraendert');
+
+// Geklemmt wird auch hier.
+assert(avesmapsApplyPowerlineCurve($vorhanden, ['curves' => ['seg-1' => 999]], 'seg-1')['curve'] === 45.0);
+// ⚠️ Eine unbrauchbare Kartenangabe wird IGNORIERT, nicht abgelehnt -- ein veralteter Editor-Stand
+// darf keine ganze Speicherung scheitern lassen.
+assert(avesmapsApplyPowerlineCurve($vorhanden, ['curves' => 'quatsch'], 'seg-1')['curve'] === 26.0);
+assert(avesmapsApplyPowerlineCurve($vorhanden, ['curves' => ['seg-1' => 'quatsch']], 'seg-1')['curve'] === 0.0,
+    'ein unlesbarer Einzelwert wird zu 0 (gerade), nicht zur Ausnahme');
+
+// Und die uebrigen Eigenschaften bleiben unangetastet.
+$mitAnderem = ['curve' => 3.0, 'name' => 'Torweg', 'show_label' => true];
+$danach = avesmapsApplyPowerlineCurve($mitAnderem, ['curve' => 9], 'seg-1');
+assert($danach['name'] === 'Torweg' && $danach['show_label'] === true,
+    'der Kurven-Setzer fasst fremde Eigenschaften an');
+
 // ---- 3. Der Schreibweg liest den Rumpf ueberhaupt --------------------------------------------
 // Der Rumpf von avesmapsUpdatePowerlineLine wird als Quelltext geprueft, weil er eine Transaktion
 // fuehrt und ohne PDO nicht ausfuehrbar ist. Gesucht wird der AUFRUF, nicht das blosse Wort.
@@ -70,10 +113,19 @@ $ohneKommentare = preg_replace('~^\s*//.*$~m', '', (string) $ohneKommentare);
 assert(preg_match('/function avesmapsUpdatePowerlineLine\(.*?\n\}/s', (string) $ohneKommentare, $treffer) === 1,
     'avesmapsUpdatePowerlineLine laesst sich nicht isolieren');
 $rumpf = $treffer[0];
-assert(str_contains($rumpf, 'avesmapsReadPowerlineCurve($payload[\'curve\']'),
-    'der Linien-Schreibweg liest curve nicht aus dem Rumpf');
-assert(str_contains($rumpf, "\$properties['curve'] = "),
-    'der Linien-Schreibweg schreibt curve nicht in die Eigenschaften');
+// 🔴 Der Schreibweg geht durch die REINE Regel oben, statt selbst zu entscheiden -- sonst saesse
+// sie in einer Transaktion und waere nicht messbar (dasselbe Verhaeltnis wie bei
+// avesmapsApplyPowerlineWikiNoArticle daneben).
+// 🪤 Und zwar MIT der public_id des Segments, nicht bloss mit dem Funktionsnamen: eine
+// Zusicherung, die beim Komma endet, trifft auch `..., '')` -- dann wirkte kein einziger
+// Segmentwert, und die Kartenangabe waere stumm wirkungslos. Am 29.08.2026 per Mutationsprobe
+// gefunden.
+assert(str_contains($rumpf, "avesmapsApplyPowerlineCurve(\$properties, \$payload, (string) \$row['public_id'])"),
+    'der Linien-Schreibweg reicht die public_id des Segments nicht an die Kurven-Regel durch');
+// 💣 Und er darf den Wert NICHT mehr selbst mit ?? 0 aus dem Rumpf lesen -- das waere genau die
+// stille Loeschung, gegen die Abschnitt 2b steht.
+assert(!str_contains($rumpf, "avesmapsReadPowerlineCurve(\$payload['curve'] ?? 0)"),
+    'der Schreibweg liest curve wieder mit ?? 0 -- das loescht jede Ausnahme lautlos');
 assert(str_contains($rumpf, "'curve' => "),
     'curve fehlt im Audit-Eintrag -- eine Aenderung ohne Protokoll ist nicht umkehrbar');
 
