@@ -145,4 +145,32 @@ Array.from(new Set(ebenenTokens.concat([karte.AVESMAPS_GARETIEN_SICHT_NEUTRAL.to
 		wahr(tokenDefiniert(token), "Tafel-Token " + token + " steht nicht in css/base/tokens.css");
 	});
 
+// ---- 6. Rot heisst: bei uns liegt etwas, und eine Frage ist offen (Aufgabe 4, Entwurf §4.2) -----
+//
+// 🔴 Genau die drei Urteile, bei denen bei uns etwas an derselben Stelle liegt UND eine Frage offen
+// ist. Eine Kollision betrifft BEIDE Seiten (ihre Form UND unsere) -- diese Probe prueft nur das
+// reine Praedikat; die Verdrahtung beider Hoefe steht in garetien-karte.test.js Abschnitt 11e.
+const kollidiert = karte.avesmapsGaretienKollidiert;
+wahr(typeof kollidiert === "function", "avesmapsGaretienKollidiert fehlt im Export");
+gleich(kollidiert({ urteil: "widerspruch" }), true, "ein Widerspruch gluet rot");
+gleich(kollidiert({ urteil: "zweifel" }), true, "ein Zweifel auch");
+gleich(kollidiert({ urteil: "ergaenzung" }), true, "und eine Ergaenzungsfrage auch");
+
+// 🔴 DIE DIFFERENZ, und sie traegt die Aussage: wo nichts kollidiert, glueht auch nichts.
+gleich(kollidiert({ urteil: "neu" }), false,
+	"bei „neu\" liegt bei uns NICHTS -- ein rotes Gluehen behauptete eine Kollision, die es "
+	+ "nicht gibt");
+gleich(kollidiert({ urteil: "deckt_sich" }), false,
+	"bei „deckt sich\" ist nichts zu entscheiden");
+gleich(kollidiert({ urteil: "uebersprungen" }), false, "und uebersprungen ist keine Kollision");
+gleich(kollidiert({}), false, "ohne Urteil: kein Gluehen (die zurueckhaltende Richtung)");
+gleich(kollidiert(null), false, "und `null` erst recht nicht");
+
+// 💣 Der Wert heisst in den Daten `widerspruch`, NICHT `widerspricht` (task-4-nachtrag.md §4) --
+// diese Verwechslung hat am 29.08.2026 dazu gefuehrt, dass ein ganzer Objekttyp durch alle Filter
+// fiel. Wer den Tippfehler in die Liste schriebe, verloere lautlos jede Kollisionsmeldung dieser Art.
+gleich(kollidiert({ urteil: "widerspricht" }), false,
+	"„widerspricht\" ist NICHT der Datenwert -- die Liste normalisiert, hier steht der normalisierte "
+	+ "Wert");
+
 console.log(`garetien-sicht-tafel: ${checks} Pruefungen bestanden.`);

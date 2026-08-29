@@ -599,6 +599,34 @@
    wieder Gold. */
 .gi-map-schein-ihre { filter: drop-shadow(0 0 14px var(--color-marker-active)); }
 
+/* 🔴 DIE KOLLISION -- ein ZWEITER, roter Hof AUSSEN um den ersten (Entwurf §4.2, Owner
+   29.08.2026: „Kollisionen (oder Ergaenzungsfragen) mit bestehenden koennen durch rotes gluehen
+   ergänzt werden"). Der Fall, den der Owner nannte: der Kraehensee liegt im Import UND bei uns,
+   und beide sollen sichtbar bleiben, waehrend das rote Gluehen sagt „hier ist zu entscheiden".
+   💣 `filter` ist EINE Eigenschaft -- zwei Klassen auf demselben Element stapeln sich NICHT,
+   die SPAETERE Regel gewinnt vollstaendig (task-4-nachtrag.md §1). Ein eigenstaendiges
+   `.gi-map-kollision { filter: … }` NEBEN `.gi-map-schein`/`.gi-map-schein-ihre` loeschte deren
+   Herkunfts-Hof, statt ihn zu ERGAENZEN -- und genau die Herkunftsaussage hat Aufgabe 3 gerade
+   erst in den Hof verlegt.
+   ⭐ Richtig ist deshalb die KOMBINIERTE Regel je Paarung: `drop-shadow` verkettet sich innerhalb
+   EINER Deklaration, also traegt jede Paarung ihren eigenen Herkunfts-Ton PLUS den roten, in
+   einem Aufwasch. Der rote Radius ist GROESSER (21px statt 14px), damit er AUSSEN um den
+   Herkunfts-Hof liegt, statt mit ihm zu verschmelzen.
+   🔴 BEIDE Paarungen, nicht nur eine -- eine Kollision liegt an DERSELBEN Stelle bei UNS und
+   bei IHNEN, und beide Seiten muessen es zeigen (task-4-nachtrag.md: „eine Regel, die einen von
+   zwei Erzeugern bindet, ist keine Regel").
+   ⚠️ Die Spezifitaet macht das Gewinnen ohnehin sicher (zwei Klassen wiegen mehr als eine),
+   trotzdem steht die kombinierte Regel HINTER den zwei einzelnen Klassen -- eine spaetere Regel
+   mit GLEICHER Spezifitaet gewaenne sonst lautlos, und das faellt nur im Browser auf.
+   🔴 Alle Klassen dieser Regelgruppe verschwinden mit dem Importer (Auftrag §5.5); sie stehen
+   darum in DIESER Datei und nicht in einer Kartendatei, die bleibt. */
+.gi-map-schein-ihre.gi-map-kollision {
+	filter: drop-shadow(0 0 14px var(--color-marker-active)) drop-shadow(0 0 21px var(--color-garetien-kollision));
+}
+.gi-map-schein.gi-map-kollision {
+	filter: drop-shadow(0 0 14px var(--color-garetien-unsere)) drop-shadow(0 0 21px var(--color-garetien-kollision));
+}
+
 /* 💣 NUR DIE KONTUR FAENGT DEN ZEIGER, NIE DIE FUELLUNG -- und das ist keine Feinheit, sondern die
    Bedingung dafuer, dass der Tooltip ueberhaupt etwas taugt. Bei einem See liegen IHRE und UNSERE
    Flaeche fast deckungsgleich uebereinander; faengt die Fuellung, gewinnt ueberall die obere

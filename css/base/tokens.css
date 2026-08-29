@@ -198,6 +198,14 @@
 	   nicht zu unterscheiden, und genau die vergleicht man hier am haeufigsten.
 	   🔴 Farbe kodiert hier DATEN, nicht Chrome (AGENTS.md §12 laesst das ausdruecklich zu). */
 	--color-garetien-unsere: #b5279b;
+	/* 🔴 DIE DRITTE FARBE DES GARETIEN-IMPORTERS: die KOLLISION (Owner 29.08.2026 -- „Kollisionen
+	   (oder Ergaenzungsfragen) mit bestehenden koennen durch rotes gluehen ergänzt werden“).
+	   ⚠️ ERGAENZUNG, kein Ersatz: das rote Gluehen liegt als zweiter Hof AUSSEN um das goldene
+	   (ihre Fassung) bzw. magentafarbene (unsere). Wer es statt der Herkunftsfarbe zeichnete,
+	   naehme dem Bild genau die Auskunft, um die es geht.
+	   ⚠️ Nicht --color-path-open-end mitbenutzt, obwohl es derselbe Rotton waere: das heisst
+	   „offenes Wegende“ und liefe beim naechsten Umton auseinander. */
+	--color-garetien-kollision: #d92b2b;
 
 	/* Editor-Markierungswerkzeuge (Discord #25) -- kräftige Warnringe um Marker, je ein Ton pro
 	   Befund: pink = "Unverbunden" (gar keine Anbindung), türkis = "Kreuzungen mit 2 Wegen"
@@ -907,6 +915,9 @@ html.avesmaps-phone {
 	/* Der Zwilling im dunklen Thema: heller und weniger gesaettigt, damit er auf der dunklen
 	   Gelaendefarbe nicht zulaeuft. Siehe die Begruendung im hellen Block. */
 	--color-garetien-unsere: #f07ad8;
+	/* Der Zwilling im dunklen Thema -- heller, damit er auf dem dunklen Untergrund nicht zulaeuft.
+	   Siehe die Begruendung im hellen Block. */
+	--color-garetien-kollision: #ff6b6b;
 
 	--color-focus: rgba(207, 183, 103, 0.5);
 	--color-hover-wash: rgba(207, 183, 103, 0.18);

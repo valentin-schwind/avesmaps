@@ -199,18 +199,30 @@ const SCHEIN = mod.AVESMAPS_GARETIEN_KLASSE_SCHEIN;
 // Aufgabe 3 (RULING R8): der NEUE goldene Hof unter IHRER Form -- eigene Klasse, siehe
 // review-garetien-karte.js und css/components/garetien-importer.css.
 const SCHEIN_IHRE = mod.AVESMAPS_GARETIEN_KLASSE_SCHEIN_IHRE;
+// Aufgabe 4 (Entwurf §4.2): die KOLLISION -- haengt NEBEN einer Hof-Klasse, nie an ihrer Stelle.
+const KOLLISION = mod.AVESMAPS_GARETIEN_KLASSE_KOLLISION;
 const IHRE_PANE = mod.AVESMAPS_GARETIEN_IHRE_PANE;
 const UNSERE_PANE = mod.AVESMAPS_GARETIEN_UNSERE_PANE;
 // Ohne diese Zeilen misst alles darunter „irgendeine Klasse gegen sich selbst".
 wahr(IHRE !== UNSERE && UNSERE !== SCHEIN && IHRE !== SCHEIN
-	&& SCHEIN_IHRE !== IHRE && SCHEIN_IHRE !== UNSERE && SCHEIN_IHRE !== SCHEIN,
-	"die vier Klassennamen muessen verschieden sein, sonst trennt keine Zusicherung darunter etwas");
+	&& SCHEIN_IHRE !== IHRE && SCHEIN_IHRE !== UNSERE && SCHEIN_IHRE !== SCHEIN
+	&& KOLLISION !== IHRE && KOLLISION !== UNSERE && KOLLISION !== SCHEIN && KOLLISION !== SCHEIN_IHRE,
+	"die fuenf Klassennamen muessen verschieden sein, sonst trennt keine Zusicherung darunter etwas");
 wahr(IHRE_PANE !== UNSERE_PANE, "die zwei Panes muessen verschieden heissen");
 wahr(typeof mod.avesmapsGaretienSichtFuer === "function",
 	"avesmapsGaretienSichtFuer fehlt im Export -- Aufgabe 4 braucht ihn");
+wahr(typeof mod.avesmapsGaretienKollidiert === "function",
+	"avesmapsGaretienKollidiert fehlt im Export -- Aufgabe 4 braucht ihn");
+
+// 🔴 SEIT AUFGABE 4 kann eine Ebene ZWEI Klassen tragen (Hof + Kollision, durch Leerzeichen
+// getrennt) -- ein exakter String-Vergleich saehe eine kombinierte Klasse als "fremd" an. Beide
+// Helfer pruefen deshalb, ob die gesuchte Klasse als eigenes WORT im className steht.
+function traegtKlasse(ebene, klasse) {
+	return (String((ebene.options || {}).className || "")).split(/\s+/).indexOf(klasse) !== -1;
+}
 
 function nach(karte, klasse) {
-	return karte.ebenen().filter((e) => e.options.className === klasse);
+	return karte.ebenen().filter((e) => traegtKlasse(e, klasse));
 }
 
 // ---- 1. GeoJSON [x, y] -> Leaflet [lat, lng] = [y, x] -----------------------------------------
@@ -418,15 +430,15 @@ nach(karte, UNSERE).concat(nach(karte, SCHEIN)).forEach((e) => {
 // kommt VOR der Form, sonst deckt ein 13 px breites Band die 3 px schmale Linie zu.
 // 💣 Und zwar ALLE Hoefe vor ALLEN Formen, nicht paarweise: zwei benachbarte Abschnitte desselben
 // Flusses beruehren sich, und der Hof des zweiten laege sonst ueber der Form des ersten.
-const ersterUnserer = ebenen.findIndex((e) => e.options.className === UNSERE);
-const letzterHof = ebenen.map((e) => e.options.className === SCHEIN).lastIndexOf(true);
+const ersterUnserer = ebenen.findIndex((e) => traegtKlasse(e, UNSERE));
+const letzterHof = ebenen.map((e) => traegtKlasse(e, SCHEIN)).lastIndexOf(true);
 wahr(letzterHof < ersterUnserer,
 	"alle Hoefe werden VOR allen Formen gelegt -- sonst deckt der breite Hof die Form zu");
 
 // Aufgabe 3 (RULING R8): dieselbe Regel gilt jetzt auch IHRER Pane -- ihr NEUER Hof muss vor ihrer
 // Form liegen, sonst deckt er sie zu.
-const ersterIhrer = ebenen.findIndex((e) => e.options.className === IHRE);
-const letzterHofIhre = ebenen.map((e) => e.options.className === SCHEIN_IHRE).lastIndexOf(true);
+const ersterIhrer = ebenen.findIndex((e) => traegtKlasse(e, IHRE));
+const letzterHofIhre = ebenen.map((e) => traegtKlasse(e, SCHEIN_IHRE)).lastIndexOf(true);
 wahr(letzterHofIhre < ersterIhrer,
 	"auch IHRE Hoefe werden VOR allen IHREN Formen gelegt");
 gleich(nach(karte, SCHEIN_IHRE).length >= 2 && nach(karte, IHRE).length >= 2, true,
@@ -794,7 +806,7 @@ const tokensCss = fs.readFileSync(path.join(WURZEL, "css", "base", "tokens.css")
 // Probe haette „fehlt im hellen Block" gemeldet und dabei nichts geprueft. Hier live passiert.
 const DUNKEL_AB = tokensCss.search(/^:root\[data-theme="dark"\]\s*\{/m);
 wahr(DUNKEL_AB > 1000, "der dunkle Block ist in tokens.css nicht zu finden -- die Probe misst nichts");
-["--color-marker-active", "--color-garetien-unsere"].forEach((name) => {
+["--color-marker-active", "--color-garetien-unsere", "--color-garetien-kollision"].forEach((name) => {
 	const stellen = [];
 	const muster = new RegExp("^\\s*" + name + "\\s*:", "gm");
 	let treffer = muster.exec(tokensCss);
@@ -1001,6 +1013,136 @@ wahr(zeigerRegel !== "", "die Zeigerregel `pointer-events: stroke` fehlt");
 [IHRE, UNSERE, SCHEIN, SCHEIN_IHRE].forEach((klasse) => {
 	wahr(zeigerRegel.indexOf("." + klasse) !== -1,
 		"die Klasse " + klasse + " kommt aus dem Zeichner und fehlt in der Zeigerregel");
+});
+
+// ---- 11e. Aufgabe 4: das rote Gluehen bei einer Kollision (Entwurf §4.2) ----------------------
+//
+// 🔴 Der Fall, den der Owner nannte: der Kraehensee liegt im Import UND bei uns, und beide sollen
+// sichtbar bleiben, waehrend ein rotes Gluehen sagt "hier ist zu entscheiden". Gemessen wird an
+// DREI Urteilen -- widerspruch (glueht), neu (kein Gluehen, keine unsere Seite), deckt_sich (kein
+// Gluehen, TROTZ beider Seiten) -- weil erst die DIFFERENZ zwischen ihnen belegt, dass die Klasse
+// wirklich am Urteil haengt und nicht an irgendeiner anderen Eigenschaft des Sees.
+const kollisionsSee = {
+	key: "see-widerspruch", name: "Kraehensee (Widerspruch)", urteil: "widerspruch", ebene: "Gewaesser",
+	geometrie_typ: "Polygon", geometrie: [[800, 300], [860, 320], [840, 360], [800, 300]],
+	abschnitte: [{ public_id: "a-w", name: "Kraehensee",
+		geometrie: [[802, 302], [858, 318], [838, 358], [802, 302]] }],
+	items: [{ id: 1, anlass: "widerspruch", selected: 1, abschnitt: { public_id: "a-w" } }],
+};
+const neuerSee = {
+	key: "see-neu", name: "Neuer See", urteil: "neu", ebene: "Gewaesser", geometrie_typ: "Polygon",
+	geometrie: [[600, 500], [660, 520], [640, 560], [600, 500]],
+	abschnitte: [], items: [{ id: 2, anlass: null, selected: 1 }],
+};
+const einigerSee = {
+	key: "see-deckt", name: "Alter See", urteil: "deckt_sich", ebene: "Gewaesser", geometrie_typ: "Polygon",
+	geometrie: [[400, 700], [460, 720], [440, 760], [400, 700]],
+	abschnitte: [{ public_id: "a-d", name: "Alter See",
+		geometrie: [[402, 702], [458, 718], [438, 758], [402, 702]] }],
+	items: [{ id: 3, anlass: "deckt_sich", selected: 1, abschnitt: { public_id: "a-d" } }],
+};
+
+const karte11e = gefaelschteKarte();
+avesmapsGaretienKarteZeigen([kollisionsSee, neuerSee, einigerSee], karte11e);
+
+const hofUnsereKollision = nach(karte11e, SCHEIN).filter((e) => e._punkte[0][1] === 802)[0];
+const hofIhreKollision = nach(karte11e, SCHEIN_IHRE).filter((e) => e._punkte[0][1] === 800)[0];
+wahr(hofUnsereKollision && traegtKlasse(hofUnsereKollision, SCHEIN)
+	&& traegtKlasse(hofUnsereKollision, KOLLISION),
+	"UNSER Hof muss bei einem Widerspruch BEIDE Klassen tragen -- Hof PLUS Kollision");
+wahr(hofIhreKollision && traegtKlasse(hofIhreKollision, SCHEIN_IHRE)
+	&& traegtKlasse(hofIhreKollision, KOLLISION),
+	"und IHR Hof genauso -- eine Kollision betrifft beide Seiten (task-4-nachtrag.md)");
+
+// Die Gegenprobe "neu": es gibt bei uns nichts, also auch keinen unsere-Hof -- und ihr Hof glueht
+// NICHT rot, obwohl derselbe Zeichner denselben See malt.
+gleich(nach(karte11e, SCHEIN).filter((e) => e._punkte[0][1] === 600).length, 0,
+	"ein `neu`-Objekt hat von uns nichts zu zeigen -- kein unsere-Hof, also auch keine Kollision dort");
+const hofIhreNeu = nach(karte11e, SCHEIN_IHRE).filter((e) => e._punkte[0][1] === 600)[0];
+wahr(hofIhreNeu && traegtKlasse(hofIhreNeu, SCHEIN_IHRE) && !traegtKlasse(hofIhreNeu, KOLLISION),
+	"\"neu\" behauptet keine Kollision -- da liegt bei uns nichts");
+
+// Die Gegenprobe "deckt_sich": BEIDE Seiten liegen da, aber es gibt nichts zu entscheiden -- kein
+// Gluehen, obwohl (anders als bei "neu") ein unsere-Hof existiert.
+const hofUnsereEinig = nach(karte11e, SCHEIN).filter((e) => e._punkte[0][1] === 402)[0];
+const hofIhreEinig = nach(karte11e, SCHEIN_IHRE).filter((e) => e._punkte[0][1] === 400)[0];
+wahr(hofUnsereEinig && !traegtKlasse(hofUnsereEinig, KOLLISION),
+	"\"deckt sich\" hat zwar unsere Seite, aber KEINE offene Frage -- kein Gluehen");
+wahr(hofIhreEinig && !traegtKlasse(hofIhreEinig, KOLLISION),
+	"und ihre Seite genauso wenig");
+
+// Die FORM selbst (nicht der Hof) darf NIE die Kollisions-Klasse tragen -- das Gluehen ist ein
+// Hof-Effekt, keine Formeigenschaft.
+[IHRE, UNSERE].forEach((formKlasse) => {
+	karte11e.ebenen().filter((e) => traegtKlasse(e, formKlasse)).forEach((e) => {
+		wahr(!traegtKlasse(e, KOLLISION),
+			"eine FORM darf die Kollisions-Klasse nicht tragen -- das Gluehen sitzt am HOF");
+	});
+});
+avesmapsGaretienKarteAus(karte11e);
+
+// Die zwei kombinierten CSS-Regeln: `drop-shadow` verkettet sich innerhalb EINER Deklaration, das
+// rote Gluehen liegt AUSSEN (groesserer Radius) um das Herkunfts-Gluehen, nicht an dessen Stelle.
+const kollisionUnsereBlock =
+	(kartenCss.match(/\.gi-map-schein\.gi-map-kollision\s*\{[^}]*\}/) || [""])[0];
+const kollisionIhreBlock =
+	(kartenCss.match(/\.gi-map-schein-ihre\.gi-map-kollision\s*\{[^}]*\}/) || [""])[0];
+wahr(kollisionUnsereBlock !== "" && kollisionIhreBlock !== "",
+	"die zwei kombinierten Kollisions-Regeln fehlen -- eine Kollision betrifft BEIDE Seiten");
+[kollisionUnsereBlock, kollisionIhreBlock].forEach((block) => {
+	wahr((block.match(/drop-shadow\(/g) || []).length === 2,
+		"die kombinierte Regel muss GENAU ZWEI verkettete drop-shadow() tragen -- Herkunft PLUS "
+		+ "Kollision, sonst waere eine der beiden Auskuenfte verschwunden: " + block);
+	wahr(/var\(--color-garetien-kollision\)/.test(block),
+		"die kombinierte Regel muss --color-garetien-kollision tragen: " + block);
+	wahr(!/#[0-9a-fA-F]{3,8}\b/.test(block) && !/\brgba?\(/.test(block),
+		"kein hartkodierter Farbwert in der Kollisions-Regel: " + block);
+});
+wahr(/var\(--color-garetien-unsere\)/.test(kollisionUnsereBlock),
+	"unsere Kollisions-Regel muss weiterhin UNSER Token tragen -- Ergaenzung, kein Ersatz: "
+	+ kollisionUnsereBlock);
+wahr(/var\(--color-marker-active\)/.test(kollisionIhreBlock),
+	"ihre Kollisions-Regel muss weiterhin IHR Token tragen -- Ergaenzung, kein Ersatz: "
+	+ kollisionIhreBlock);
+// Der rote Radius muss GROESSER sein als der Herkunfts-Radius, sonst liegt er nicht AUSSEN.
+[kollisionUnsereBlock, kollisionIhreBlock].forEach((block) => {
+	const radien = (block.match(/0\s+0\s+(\d+)px/g) || []).map((s) => Number(s.replace(/\D/g, "")));
+	gleich(radien.length, 2, "genau zwei Radien (Herkunft, Kollision): " + block);
+	wahr(radien[1] > radien[0],
+		"der ZWEITE (rote) Radius muss groesser sein als der erste -- sonst liegt das Gluehen nicht "
+		+ "AUSSEN: " + block);
+});
+
+// 💣 DIE FALLE: eine EIGENSTAENDIGE `.gi-map-kollision { filter: … }`-Regel loeschte die Herkunft
+// statt sie zu ergaenzen (task-4-nachtrag.md §1). Jede Erwaehnung der Klasse im Stylesheet muss
+// deshalb TEIL einer kombinierten Regel sein -- direkt an .gi-map-schein oder .gi-map-schein-ihre
+// angehaengt, nie durch Leerraum, Komma oder Zeilenanfang davon getrennt.
+// ⚠️ Kommentare werden vorher ENTFERNT: der erklaerende Kommentar ueber der Regel nennt genau
+// dieselbe Zeichenfolge als BEISPIEL fuer die verbotene Fassung -- ungefiltert traefe die Probe
+// ihre eigene Warnung.
+const kartenCssOhneKommentare = kartenCss.replace(/\/\*[\s\S]*?\*\//g, "");
+let stelleK = kartenCssOhneKommentare.indexOf(".gi-map-kollision");
+let gefundenK = 0;
+while (stelleK !== -1) {
+	gefundenK++;
+	const davor = kartenCssOhneKommentare.slice(Math.max(0, stelleK - 20), stelleK);
+	wahr(/\.gi-map-schein(-ihre)?$/.test(davor),
+		"jede Erwaehnung von .gi-map-kollision muss TEIL einer kombinierten Regel sein, nie "
+		+ "alleinstehend -- sonst loeschte eine eigene Regel die Herkunftsfarbe: "
+		+ JSON.stringify(davor));
+	stelleK = kartenCssOhneKommentare.indexOf(".gi-map-kollision", stelleK + 1);
+}
+gleich(gefundenK, 2, "die Kollisions-Klasse muss GENAU in den zwei Paarungen vorkommen -- unsere "
+	+ "und ihre, sonst waere eine Seite ungebunden");
+
+// Und keine SPAETERE Regel darf denselben kombinierten Selektor ein zweites Mal deklarieren --
+// sonst gewinnt bei gleicher Spezifitaet die spaetere und die hier geprueften Regeln waeren die
+// Verlierer (Fallen-Hinweis des Auftrags).
+[".gi-map-schein.gi-map-kollision", ".gi-map-schein-ihre.gi-map-kollision"].forEach((selektor) => {
+	const nadel = selektor.replace(/[.]/g, "\\.");
+	const treffer = kartenCssOhneKommentare.match(new RegExp(nadel + "\\s*\\{", "g")) || [];
+	gleich(treffer.length, 1, "der Selektor " + selektor + " darf nur EINMAL deklariert sein, sonst "
+		+ "gewinnt lautlos die spaetere Fassung: " + treffer.length + " Treffer");
 });
 
 // ---- 12. Verdrahtung: die Datei laedt, das Fenster ruft sie ------------------------------------

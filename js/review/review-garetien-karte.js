@@ -160,6 +160,11 @@
 	// gemeinsamer Hof mit `AVESMAPS_GARETIEN_KLASSE_SCHEIN` ginge nicht: dessen Farbe ist an
 	// UNSERE Partei gebunden (Magenta) und muss es bleiben, siehe der Kommentar dort.
 	var AVESMAPS_GARETIEN_KLASSE_SCHEIN_IHRE = "gi-map-schein-ihre";
+	// 🔴 NEU seit Aufgabe 4 (Entwurf §4.2): die KOLLISION -- ein Objekt, bei dem an derselben
+	// Stelle bei UNS etwas liegt UND eine Frage offen ist. Sie haengt NEBEN der Hof-Klasse am
+	// selben Element (Leaflets `className` nimmt mehrere, durch Leerzeichen getrennt) -- eine
+	// eigenstaendige Ebene waere die zweite Bauform fuer denselben Sinn (task-4-nachtrag.md §1).
+	var AVESMAPS_GARETIEN_KLASSE_KOLLISION = "gi-map-kollision";
 
 	// 🔴 DIE FARBEN KOMMEN AUS TOKENS (AGENTS.md §12) — sie stehen nirgends als Zahl in dieser Datei.
 	var AVESMAPS_GARETIEN_TOKEN_IHRE = "--color-marker-active";
@@ -490,6 +495,23 @@
 	}
 
 	/*
+	 * Kollidiert dieses Objekt mit unserem Bestand? REIN, kein DOM, keine Karte (Entwurf §4.2).
+	 *
+	 * 🔴 Genau die drei Urteile, bei denen bei uns etwas an derselben Stelle liegt UND eine Frage
+	 * offen ist. `neu` faellt heraus (da liegt bei uns nichts), `deckt_sich` faellt heraus (da ist
+	 * nichts zu entscheiden), `uebersprungen` faellt heraus (es wurde gar nicht abgeglichen).
+	 * ⚠️ Eine LISTE, kein `if`-Baum: bei der naechsten Urteilsart ist eine Kette still falsch, und
+	 * niemand merkt es (Ruling R21).
+	 * 💣 Der Wert heisst in den Daten `widerspruch`, NICHT `widerspricht` (task-4-nachtrag.md §4)
+	 * -- der Abgleich normalisiert das, hier steht der normalisierte Wert.
+	 */
+	var AVESMAPS_GARETIEN_KOLLISION_URTEILE = ["widerspruch", "zweifel", "ergaenzung"];
+
+	function avesmapsGaretienKollidiert(objekt) {
+		return AVESMAPS_GARETIEN_KOLLISION_URTEILE.indexOf(String((objekt || {}).urteil || "")) !== -1;
+	}
+
+	/*
 	 * Schliesst sich diese Punktliste zu EINEM Ring? REIN.
 	 *
 	 * 💣 DER MULTIPOLYGON-RIEGEL, und er ist gemessen, nicht geraten. UNSERE Flaechen liegen in
@@ -603,6 +625,16 @@
 	}
 
 	/*
+	 * Die Kollisions-Klasse haengt NEBEN der Hof-Klasse, nie an ihrer Stelle (Entwurf §4.2:
+	 * „Ergaenzung, kein Ersatz"). EIN Bauer fuer BEIDE Seiten -- unsere und ihre Paarung binden
+	 * dieselbe Regel (task-4-nachtrag.md §1: „eine Regel, die einen von zwei Erzeugern bindet, ist
+	 * keine Regel").
+	 */
+	function garetienHofKlasse(basisKlasse, kollidiert) {
+		return kollidiert === true ? (basisKlasse + " " + AVESMAPS_GARETIEN_KLASSE_KOLLISION) : basisKlasse;
+	}
+
+	/*
 	 * Die Menge der zu zeigenden Objekte auf die Karte legen.
 	 *
 	 * 💣 IDEMPOTENT: erst alles abraeumen, dann alles neu. Derselbe Aufruf zweimal ergibt dieselben
@@ -652,6 +684,8 @@
 					// 🔴 Eine Flaeche nur dann als Flaeche, wenn die Punktliste sich zu EINEM Ring
 					// schliesst -- siehe garetienRingSchliesst.
 					flaeche: garetienIstFlaeche(objekt) && garetienRingSchliesst(punkte),
+					// Aufgabe 4 (Entwurf §4.2): kollidiert das GANZE Objekt, glueht auch UNSER Hof rot.
+					kollidiert: avesmapsGaretienKollidiert(objekt),
 				});
 			});
 		});
@@ -662,7 +696,7 @@
 		unsere.forEach(function (eintrag) {
 			var hof = garetienForm(l, eintrag.punkte, {
 				pane: AVESMAPS_GARETIEN_UNSERE_PANE,
-				klasse: AVESMAPS_GARETIEN_KLASSE_SCHEIN,
+				klasse: garetienHofKlasse(AVESMAPS_GARETIEN_KLASSE_SCHEIN, eintrag.kollidiert),
 				farbe: farbeUnsere,
 				breite: AVESMAPS_GARETIEN_SCHEIN_BREITE,
 				deckkraft: AVESMAPS_GARETIEN_SCHEIN_DECKKRAFT,
@@ -716,6 +750,8 @@
 				flaeche: sicht.form === "flaeche",
 				farbe: farbe,
 				breite: sicht.breite,
+				// Aufgabe 4 (Entwurf §4.2): kollidiert das GANZE Objekt, glueht auch IHR Hof rot.
+				kollidiert: avesmapsGaretienKollidiert(objekt),
 			});
 		});
 
@@ -726,7 +762,7 @@
 		ihre.forEach(function (eintrag) {
 			var hof = garetienForm(l, eintrag.punkte, {
 				pane: AVESMAPS_GARETIEN_IHRE_PANE,
-				klasse: AVESMAPS_GARETIEN_KLASSE_SCHEIN_IHRE,
+				klasse: garetienHofKlasse(AVESMAPS_GARETIEN_KLASSE_SCHEIN_IHRE, eintrag.kollidiert),
 				farbe: farbeIhre,
 				breite: AVESMAPS_GARETIEN_SCHEIN_BREITE,
 				deckkraft: AVESMAPS_GARETIEN_SCHEIN_DECKKRAFT,
@@ -878,6 +914,8 @@
 		// Aufgabe 3: die Sicht-Tafel -- review-garetien-importer.js liest sie fuer die
 		// Neutral-Meldung der Bilanzzeile (Schritt 5), ohne diese Datei vorauszusetzen.
 		window.avesmapsGaretienSichtFuer = avesmapsGaretienSichtFuer;
+		// Aufgabe 4: kollidiert das Objekt mit unserem Bestand? (Entwurf §4.2)
+		window.avesmapsGaretienKollidiert = avesmapsGaretienKollidiert;
 	}
 
 	if (typeof module !== "undefined" && module.exports) {
@@ -908,6 +946,9 @@
 			avesmapsGaretienSichtFuer,
 			AVESMAPS_GARETIEN_SICHT_EBENE,
 			AVESMAPS_GARETIEN_SICHT_NEUTRAL,
+			// Aufgabe 4: die Kollision (Entwurf §4.2)
+			avesmapsGaretienKollidiert,
+			AVESMAPS_GARETIEN_KLASSE_KOLLISION,
 		};
 	}
 })();
