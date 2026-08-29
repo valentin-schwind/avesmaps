@@ -483,6 +483,17 @@ function avesmapsGaretienArbeitsliste(PDO $pdo, int $importRunId, array $filter)
             'quelle' => (array) ($erstesAfter['quelle'] ?? []),
             // Als WAS wir es anlegen wuerden. Ohne dieses Feld sagt der Kopf nur ihren Typ.
             'subtyp' => (string) ($erstesAfter['subtyp'] ?? ''),
+            // 🔴 FIX-RUNDE 1 ZU AUFGABE 3: OHNE DIESES FELD WIRD AUSGERECHNET EIN SEE UNSICHTBAR.
+            // `garetien-plan.php` schreibt `kind` (topographie/vegetation/null) laengst in `after`
+            // (Zeile ~145, aus AVESMAPS_GARETIEN_TYP_MAP in garetien-abgleich.php) -- bis hierher
+            // wurde es nie an den Client durchgereicht. Die Sicht-Tafel im Browser
+            // (avesmapsGaretienSichtFuer, review-garetien-karte.js) braucht `kind` fuer JEDES
+            // Regions-Ziel (See/Meer/Sumpf), um seine ECHTE Kartenfarbe herzuleiten
+            // (`--color-ecosystem-<kind>-<subtyp>`). Ohne `kind` faellt ein See faelschlich in die
+            // WEG-Ableitung (`--color-path-see`) -- ein Tokenname, den es nicht gibt, und der See
+            // wird lautlos gar nicht gezeichnet. Ein Weg-Ziel (Fluss/Bach/Strom) traegt `kind: null`
+            // und bleibt davon unberuehrt (siehe der Riegel in review-garetien-karte.js).
+            'kind' => (string) ($erstesAfter['kind'] ?? ''),
             'seite' => $zeile !== null ? avesmapsGaretienSeitenNameAusZeile($zeile) : '',
             // 🔴 Deckungsgrad und Nenner kommen vom SERVER. Der Deckungsgrad IST das Ergebnis des
             // Abgleichs; der Nenner ist die Zahl der wirklich verglichenen Probepunkte, und die ist
@@ -560,6 +571,9 @@ function avesmapsGaretienArbeitsliste(PDO $pdo, int $importRunId, array $filter)
             // ein Zieltyp waere eine Behauptung ueber etwas, das gar nicht angelegt wird.
             'quelle' => [],
             'subtyp' => '',
+            // Dieselbe Auskunft wie bei `subtyp`: ohne Item gibt es kein `after` und damit kein
+            // `kind` -- leer ist hier die richtige Aussage, kein Versaeumnis.
+            'kind' => '',
             'seite' => avesmapsGaretienSeitenNameAusZeile($zeile),
             'deckung' => $treffer['deckung'],
             'probepunkte' => avesmapsGaretienListeProbepunkte($treffer['abschnitte']),

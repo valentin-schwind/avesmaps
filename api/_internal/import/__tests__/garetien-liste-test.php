@@ -343,4 +343,69 @@ assert(
 );
 $pruefungen++;
 
+// ---------------------------------------------------------------------------------------------
+// FIX-RUNDE 1 ZU AUFGABE 3 (Sicht-Tafel): `kind` muss in der Nutzlast des Listenbauers ankommen.
+//
+// 🔴 Gemessen wird am ERGEBNIS von avesmapsGaretienArbeitsliste, nicht am Quelltext -- ein
+// `str_contains($quelltext, "'kind'")` waere Vakuum, wenn das Feld irgendwo anders zugewiesen und
+// nie erreicht wuerde. `garetien-plan.php` schreibt `kind` laengst in `after` (Zeile ~145); bis zu
+// diesem Fix kam es nie am Client an, weil `avesmapsGaretienArbeitsliste` es nirgends abgriff --
+// ein See MIT Vorschlag landete deshalb in der Sicht-Tafel im WEG-Zweig und bekam einen
+// Tokennamen, den es nicht gibt (`--color-path-see`): der See wurde lautlos gar nicht gezeichnet.
+// Owners eigenes Beispiel fuer dieses Werkzeug ist der Kraehensee -- deshalb heisst die Fixture so.
+//
+// ⚠️ Dieser Block steht bewusst GANZ AM ENDE: jeder fruehere Abschnitt vergleicht Objektzahlen aus
+// VOR diesem `$planRunId` gezogenen Schnappschuessen (`$erweitert`, `$mehrteilig`, `$ungehakt`,
+// `$offenGefiltert`) gegen eine FRISCHE Abfrage -- ein weiteres Objekt an dieser Stelle liesse
+// genau diese Vorher/Nachher-Vergleiche falsch anschlagen (hier live aufgetreten, deshalb verschoben).
+// ---------------------------------------------------------------------------------------------
+avesmapsSyncPlanAddItem($pdo, $planRunId, [
+    'entity_key' => 'ggp:Gewaesser:See:Garetien:Kraehensee|ergaenzung|a-1',
+    'entity_public_id' => 'a-1',
+    'change_type' => 'changed',
+    'label' => 'Kraehensee · Quelle',
+    'after' => [
+        'typ' => 'See', 'wiki' => 'ggp', 'ebene' => 'Gewaesser', 'anlass' => 'ergaenzung',
+        'felder' => ['quelle'], 'name' => 'Kraehensee',
+        // Genau die Form, die garetien-plan.php fuer ein Regionsziel baut (Zeile ~143-151):
+        // `subtyp`/`kind` aus AVESMAPS_GARETIEN_TYP_MAP['See'], `geometry.type` = 'Polygon'.
+        'subtyp' => 'see', 'kind' => 'topographie',
+        'geometry' => ['type' => 'Polygon', 'coordinates' => [[[1.0, 2.0], [3.0, 4.0], [1.0, 2.0]]]],
+        'abschnitt' => ['public_id' => 'a-1', 'name' => 'Kraehensee', 'punkte' => 4,
+            'geometrie' => [[1.0, 2.0], [3.0, 4.0], [1.0, 2.0]]],
+    ],
+    'selected' => 1,
+]);
+$mitSee = avesmapsGaretienArbeitsliste($pdo, 1, []);
+$kraehensee = null;
+foreach ($mitSee['objekte'] as $o) {
+    if ($o['key'] === 'ggp:Gewaesser:See:Garetien:Kraehensee') {
+        $kraehensee = $o;
+    }
+}
+assert($kraehensee !== null, 'der Kraehensee muss als eigenes Objekt in der Liste stehen');
+assert($kraehensee['kind'] === 'topographie',
+    'ein Regionsziel MIT Vorschlag muss `kind` in der Nutzlast tragen -- ohne dieses Feld faellt '
+    . 'die Sicht-Tafel im Browser auf einen Tokennamen zurueck, den es nicht gibt: '
+    . json_encode($kraehensee['kind'] ?? '(fehlt)'));
+assert($kraehensee['subtyp'] === 'see', 'die Vorbedingung: `subtyp` muss ebenfalls ankommen');
+$pruefungen += 2;
+
+// Die DIFFERENZ: ein Weg-Ziel (Fluss/Bach/Strom) traegt `kind: null` in `after` -- das MUSS als
+// LEERER String ankommen, nicht als das Wort "topographie" von der Fixture darueber. Vielarm
+// (oben, Fluss) traegt in seinen beiden Items gar kein `kind` -- genau der reale Fall (Weg-Ziele
+// haben laut AVESMAPS_GARETIEN_TYP_MAP immer `kind: null`, und ein fehlender Schluessel verhaelt
+// sich beim `?? ''` genauso wie ein expliziter `null`-Wert).
+assert(($vielarm['kind'] ?? '(fehlt ganz)') === '',
+    'ein Weg-Ziel ohne `kind` darf nicht das `kind` eines anderen Objekts erben: '
+    . json_encode($vielarm['kind'] ?? '(fehlt ganz)'));
+$pruefungen++;
+
+// Und ein Objekt OHNE Item (kein `after`) traegt `kind` als leeren String, genau wie `subtyp` --
+// dieselbe Auskunft: „ohne Vorschlag wissen wir nicht, was daraus wuerde".
+assert(($nachName['Llavari']['kind'] ?? '(fehlt ganz)') === '',
+    'ein Objekt ohne Item muss `kind` als leeren String tragen, nicht fehlen lassen: '
+    . json_encode($nachName['Llavari']['kind'] ?? '(fehlt ganz)'));
+$pruefungen++;
+
 echo "OK: {$pruefungen} Pruefungen\n";

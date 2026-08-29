@@ -139,6 +139,9 @@ const MAGENTA = "#b5279b";
 // Fake-Wert Vakuum, weil man es nicht von der alten Farbe unterscheiden koennte.
 const WASSER = "#2f7fae";
 const GEBIRGE = "#7a6c5e";
+// Fix-Runde 1 zu Aufgabe 3: ein SEE-Token, DAMIT die Gegenprobe (ohne `kind`) wirklich einen NICHT
+// gestellten Tokennamen trifft -- `--color-path-see` bleibt absichtlich UNGESTELLT.
+const SEE = "#4a86b8";
 let tokenAbfragen = [];
 // ⚠️ Vollstaendig genug, dass auch review-garetien-importer.js (Abschnitt 12) darin starten kann:
 // dessen `hasDocument` ist ein `typeof document !== "undefined"`, und sein boot() greift dann
@@ -155,6 +158,7 @@ const TOKEN_WERTE = {
 	"--color-garetien-unsere": MAGENTA,
 	"--color-path-flussweg": WASSER,
 	"--color-ecosystem-topographie-gebirge": GEBIRGE,
+	"--color-ecosystem-topographie-see": SEE,
 };
 global.getComputedStyle = function (element) {
 	return {
@@ -615,6 +619,63 @@ wahr(bergForm.options.color !== bergHof.options.color,
 wahr(tokenAbfragen.indexOf("--color-ecosystem-topographie-gebirge") !== -1,
 	"das Gebirgstoken muss wirklich abgefragt worden sein, sonst stuende die Farbe als Zahl da");
 avesmapsGaretienKarteAus(karte3c);
+
+// ---- 7c. Fix-Runde 1 zu Aufgabe 3: `kind` UND der Riegel gegen die stille Unsichtbarkeit --------
+//
+// 🔴 Owners eigenes Beispiel fuer dieses Werkzeug ist der Kraehensee -- ein See, den es im Import
+// UND bei uns gibt, den er nebeneinander sehen will. Ohne `kind` landete er in der Weg-Ableitung
+// (`--color-path-see`, ein Tokenname, den es nicht gibt) und wurde LAUTLOS gar nicht gezeichnet.
+const karte7c = gefaelschteKarte();
+const seeMitKind = {
+	key: "see-mk", name: "Kraehensee", urteil: "ergaenzung", ebene: "Gewaesser",
+	subtyp: "see", kind: "topographie", geometrie_typ: "Polygon",
+	geometrie: [[800, 300], [860, 320], [840, 360], [800, 300]], abschnitte: [], items: [],
+};
+const seeOhneKind = {
+	key: "see-ok", name: "Namenloser See", urteil: "ergaenzung", ebene: "Gewaesser",
+	subtyp: "see", geometrie_typ: "Polygon",
+	geometrie: [[500, 100], [560, 120], [540, 160], [500, 100]], abschnitte: [], items: [],
+};
+const warnungen7c = [];
+const warnVorher7c = console.warn;
+console.warn = function () { warnungen7c.push(Array.prototype.join.call(arguments, " ")); };
+tokenAbfragen = [];
+avesmapsGaretienKarteZeigen([seeMitKind, seeOhneKind], karte7c);
+console.warn = warnVorher7c;
+
+const seeMitKindForm = nach(karte7c, IHRE).filter((e) => e._punkte.length === 4
+	&& e._punkte[0][1] === 800)[0];
+const seeOhneKindForm = nach(karte7c, IHRE).filter((e) => e._punkte.length === 4
+	&& e._punkte[0][1] === 500)[0];
+wahr(seeMitKindForm && seeOhneKindForm, "beide Seen muessen gezeichnet werden -- KEINER darf fehlen");
+
+// Ein See MIT Vorschlag (kind: "topographie", subtyp: "see") ergibt --color-ecosystem-topographie-see.
+gleich(seeMitKindForm.options.color, SEE,
+	"ein See mit Vorschlag muss seine ECHTE Kartenfarbe bekommen, hergeleitet aus kind+subtyp");
+gleich(seeMitKindForm._bauer, "polygon", "ein See ist eine Flaeche");
+wahr(tokenAbfragen.indexOf("--color-ecosystem-topographie-see") !== -1,
+	"das See-Token muss wirklich abgefragt worden sein");
+
+// Die Gegenprobe: OHNE `kind` ergibt der See NICHT MEHR einen unauffindbaren Tokennamen
+// (--color-path-see, gibt es nicht), sondern faellt auf NEUTRAL zurueck -- sichtbar, als Gold-Linie,
+// genau wie eine unbekannte Ebene. 🔴 Und das ist der Unterschied zu einer ECHTEN neutralen Ebene:
+// hier WAERE eine Regel da (die Hauskonvention kennt `kind`+`subtyp`), nur das Token existiert
+// nicht -- die Meldung sagt das, die Bilanzzeile (die nur die pure Sicht-Tafel liest) tut es nicht.
+gleich(seeOhneKindForm.options.color, GOLD,
+	"ohne `kind` faellt der See NICHT auf einen unauffindbaren Tokennamen, sondern auf Gold zurueck");
+gleich(seeOhneKindForm._bauer, "polyline",
+	"und auch die FORM faellt auf den Neutral-Rueckfall zurueck (Linie), nicht nur die Farbe");
+wahr(!!seeOhneKindForm.options.dashArray, "die gestrichelte Kante bleibt auch im Rueckfall bestehen");
+gleich(seeMitKindForm.options.color === seeOhneKindForm.options.color, false,
+	"die DIFFERENZ: mit und ohne `kind` duerfen nicht dieselbe Farbe ergeben");
+
+// Und die Meldung: genau EINE, sie nennt den Seenamen UND den nicht existierenden Tokennamen --
+// sonst ist der Ausfall genauso stumm wie vorher, nur die Karte sieht zufaellig richtig aus.
+gleich(warnungen7c.length, 1, "genau EIN Fehlschlag muss gemeldet werden, nicht der gesunde See mit: "
+	+ JSON.stringify(warnungen7c));
+wahr(warnungen7c[0].indexOf("Namenloser See") !== -1 && warnungen7c[0].indexOf("--color-path-see") !== -1,
+	"die Meldung muss NENNEN, welches Objekt und welcher Tokenname betroffen sind: " + warnungen7c[0]);
+avesmapsGaretienKarteAus(karte7c);
 
 // ---- 8. „✦ Zentrieren" bewegt NUR die Ansicht -------------------------------------------------
 //

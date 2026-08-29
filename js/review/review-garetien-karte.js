@@ -245,6 +245,37 @@
 			+ " — der Server hat sie nicht mitgeschickt (action:'liste').");
 	}
 
+	/*
+	 * Fix-Runde 1 zu Aufgabe 3: ein Riegel gegen die STILLE UNSICHTBARKEIT.
+	 *
+	 * 🔴 DAS TEURE AN DIESEM FEHLER IST NICHT DAS FEHLENDE TOKEN, SONDERN DASS ES AUSSIEHT WIE
+	 * „DA LIEGT NICHTS" -- dieselbe Ununterscheidbarkeit, die „Was ist hier?" in diesem Projekt
+	 * schon einmal gekostet hat (AGENTS.md §11). `avesmapsGaretienSichtFuer` kann das selbst nicht
+	 * pruefen: sie ist REIN (kein DOM), der einzige Ort, an dem ein Tokenname wirklich existiert
+	 * oder eben nicht, ist `getComputedStyle` -- und der ist nur hier, am Zeichenort, verfuegbar.
+	 *
+	 * 🔴 BEIDE Wege aus der Rueckmeldung, nicht nur einer: Sichtbarkeit UND Diagnose sind zwei
+	 * verschiedene Adressaten. Der Owner soll das Objekt trotzdem SEHEN (deshalb der Fall auf
+	 * `AVESMAPS_GARETIEN_SICHT_NEUTRAL` zurueck, dieselbe Form wie eine unbekannte Ebene) -- ein
+	 * Entwickler soll aber auch NACHVOLLZIEHEN koennen, WARUM die Farbe nicht der Ebene entspricht,
+	 * und das leistet nur eine Meldung, die den Tokennamen nennt (`garetienGeometrieFehlt` daneben
+	 * ist das Vorbild). Nur der Fallback allein liesse einen kaputten Tokennamen ununterscheidbar
+	 * von einer echten unbekannten Ebene aussehen; nur die Meldung allein liesse den Besucher
+	 * weiter vor einer Luecke stehen.
+	 * ⚠️ Betrifft NUR den `subtyp`/`kind`-Zweig (dynamisch aus der Hauskonvention gebaut, siehe
+	 * `avesmapsGaretienSichtFuer`) -- die `ebene`-Tafel selbst ist vorab gegen tokens.css geprueft
+	 * (garetien-sicht-tafel.test.js Abschnitt 5) und der Neutral-Rueckfall nimmt ohnehin
+	 * `AVESMAPS_GARETIEN_TOKEN_IHRE`, dasselbe Token wie hier -- ein zirkulaerer Fehlschlag ist
+	 * damit ausgeschlossen, so lange dieses eine Token existiert.
+	 */
+	function garetienSichtTokenFehlt(objekt, token) {
+		if (typeof console === "undefined" || typeof console.warn !== "function") { return; }
+		var name = String((objekt && objekt.name) || (objekt && objekt.key) || "ohne Namen");
+		console.warn("Garetien Importer: die Sicht-Tafel hat fuer \"" + name + "\" den Tokennamen \""
+			+ token + "\" hergeleitet, aber css/base/tokens.css kennt ihn nicht — das Objekt wird "
+			+ "stattdessen neutral (Gold) gezeichnet, statt gar nicht.");
+	}
+
 	// ---- Die reinen Regeln ------------------------------------------------------------------------
 
 	/*
@@ -665,11 +696,22 @@
 			var punkte = avesmapsGaretienNachLeaflet((objekt || {}).geometrie);
 			if (punkte.length === 0) { garetienGeometrieFehlt(objekt, null); return; }
 			var sicht = avesmapsGaretienSichtFuer(objekt);
+			var farbe = garetienTokenFarbe(sicht.token);
+			// 🔴 Fix-Runde 1 zu Aufgabe 3: ein Tokenname, der in tokens.css nicht existiert, darf
+			// nicht lautlos zu einer unsichtbaren Form fuehren -- siehe garetienSichtTokenFehlt.
+			// `sicht.neutral` ist hier IMMER false (der Neutral-Rueckfall selbst nimmt
+			// AVESMAPS_GARETIEN_TOKEN_IHRE, ein Token, das im Haus an vielen Stellen vorausgesetzt
+			// wird), der Riegel greift also nur beim dynamisch hergeleiteten Fall.
+			if (farbe === "" && !sicht.neutral) {
+				garetienSichtTokenFehlt(objekt, sicht.token);
+				sicht = AVESMAPS_GARETIEN_SICHT_NEUTRAL;
+				farbe = farbeIhre;
+			}
 			ihre.push({
 				punkte: punkte,
 				titel: garetienTitelIhre(objekt),
 				flaeche: sicht.form === "flaeche",
-				farbe: garetienTokenFarbe(sicht.token),
+				farbe: farbe,
 				breite: sicht.breite,
 			});
 		});
