@@ -75,7 +75,10 @@ assert(isset($nachName['Alke']), 'die Alke fehlt in der Liste');
 assert($nachName['Alke']['urteil'] === 'ergaenzung',
     'die Alke deckt sich, hat aber Ergaenzungs-Items -- das Fenster zeigt "Ergaenzung", nicht "deckt_sich": '
     . $nachName['Alke']['urteil']);
-assert(count($nachName['Alke']['items']) === 2, 'die Alke traegt ihre zwei Items (Quelle-Luecke + Geometrie): '
+// 🔴 Meldung B (30.08.2026): seither DREI Items -- Quelle-Luecke + Geometrie + das Zusatz-Item
+// ("trotzdem neu anlegen", das JEDE deckt_sich-Zeile jetzt zusaetzlich mitbringt).
+assert(count($nachName['Alke']['items']) === 3,
+    'die Alke traegt ihre drei Items (Quelle-Luecke + Geometrie + Zusatz): '
     . count($nachName['Alke']['items']));
 assert(isset($nachName['Llavari']), 'Llavari fehlt in der Liste');
 assert($nachName['Llavari']['urteil'] === 'uebersprungen',
@@ -97,9 +100,19 @@ $pruefungen += 9;
 // dasselbe stuende, waere von einer festen Zeichenkette nicht zu unterscheiden.
 assert(array_column($nachName['Gardel']['items'], 'change_type') === ['new'],
     'ein Neuzugang traegt change_type "new"');
-assert(array_unique(array_column($nachName['Alke']['items'], 'change_type')) === ['changed'],
-    'die Ergaenzungs- und Geometrie-Items der Alke tragen "changed"');
-$pruefungen += 2;
+// 🔴 Meldung B (30.08.2026): die Alke traegt jetzt BEIDE Kategorien -- ihre Ergaenzungs- und
+// Geometrie-Items sind "changed" (sie aendern etwas Bestehendes), ihr Zusatz-Item ("trotzdem neu
+// anlegen") ist "new" (es legt an, es aendert nichts).
+$alkeTypen = array_unique(array_column($nachName['Alke']['items'], 'change_type'));
+sort($alkeTypen);
+assert($alkeTypen === ['changed', 'new'],
+    'die Ergaenzungs-/Geometrie-Items der Alke tragen "changed", ihr Zusatz-Item "new": '
+    . implode(',', $alkeTypen));
+$alkeZusatz = array_values(array_filter($nachName['Alke']['items'],
+    static fn($i) => $i['anlass'] === 'zusatz'));
+assert(count($alkeZusatz) === 1 && $alkeZusatz[0]['change_type'] === 'new',
+    'genau ein Zusatz-Item, und es ist ein Neuzugang');
+$pruefungen += 3;
 
 // --- Der Filter greift SERVERSEITIG -- der Browser rechnet nichts nach.
 $nurNeu = avesmapsGaretienArbeitsliste($pdo, 1, ['urteil' => ['neu']]);
@@ -192,15 +205,16 @@ foreach ($liste['objekte'] as $o) {
 $pruefungen += 2;
 
 // --- Die Gruppierung ist wirklich eine Gruppierung, nicht nur an einem einzigen Objekt gezeigt:
-// die Alke traegt zwei rohe sync_plan_item-Zeilen (Quelle-Luecke + Geometrie-Angebot) unter
-// EINEM Schluessel -- gezaehlt direkt in der Datenbank, nicht nur an der zusammengefassten Liste.
+// die Alke traegt drei rohe sync_plan_item-Zeilen (Quelle-Luecke + Geometrie-Angebot + seit
+// Meldung B das Zusatz-Item) unter EINEM Schluessel -- gezaehlt direkt in der Datenbank, nicht
+// nur an der zusammengefassten Liste.
 $roheItemZahlAlke = (int) $pdo->query(
     "SELECT COUNT(*) FROM sync_plan_item WHERE entity_key LIKE 'ggp:Gewaesser:Bach:Garetien:Alke%'"
 )->fetchColumn();
-assert($roheItemZahlAlke === 2, 'die Vorbedingung der Gruppierung: zwei rohe Items fuer die Alke, '
+assert($roheItemZahlAlke === 3, 'die Vorbedingung der Gruppierung: drei rohe Items fuer die Alke, '
     . $roheItemZahlAlke . ' gefunden');
 assert(count($nachName['Alke']['items']) === $roheItemZahlAlke,
-    'die Gruppierung muss beide rohen Items unter einem Objekt zusammenfassen');
+    'die Gruppierung muss alle drei rohen Items unter einem Objekt zusammenfassen');
 $pruefungen += 2;
 
 // --- `avesmapsGaretienObjektSchluessel` ist "alles vor dem ersten |" -- an einem Abschnitts-Item

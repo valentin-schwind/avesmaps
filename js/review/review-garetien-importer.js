@@ -2143,11 +2143,18 @@
 	// 🔴 Die Tafel aus dem Brief, Zeile für Zeile. Ein UNBEKANNTES Urteil bekommt nur „Ablehnen" --
 	// die zurückhaltende Richtung: für ein Urteil, das dieser Code nicht kennt, wird keine
 	// schreibende Handlung angeboten.
+	// 🔴 Meldung B (30.08.2026, Owner): „ergaenzung" bekommt jetzt AUCH „neu" -- „bei bestehenden
+	// Fläche, wo er Kollisionen erkannt hat ... kann ich Quelle + Artikel und Geometrie ersetzen
+	// aber die Region nicht 'neu hinzufügen'". garetien-plan.php legt seither IMMER ein
+	// Zusatz-Item (`anlass:'zusatz'`, `change_type:'new'`) neben den Ergänzungs-/Geometrie-Items
+	// an -- dieselbe Prädikat-Funktion (AVESMAPS_GARETIEN_ITEMS_JE_HANDLUNG.neu) findet es, ohne
+	// dass die Prädikate selbst etwas wissen müssten. „neu" steht VOR „ablehnen", aber NACH den
+	// übrigen drei: es ist die begründete AUSNAHME, nicht der Normalfall dieser Zeile.
 	const AVESMAPS_GARETIEN_HANDLUNGEN_JE_URTEIL = {
 		neu: ["neu", "ablehnen"],
 		// Der Nachbar ist der Hauptfluss, ihr Objekt der Seitenarm: ein NEUES Objekt, kein Ersatz.
 		zweifel: ["neu", "ablehnen"],
-		ergaenzung: ["name", "quelle", "geometrie", "ablehnen"],
+		ergaenzung: ["name", "quelle", "geometrie", "neu", "ablehnen"],
 		// Ihr Artikel trifft, ihre Geometrie nicht -- die Geometriefrage steht vorn.
 		widerspruch: ["geometrie", "name", "ablehnen"],
 		deckt_sich: ["ablehnen"],
@@ -2731,7 +2738,41 @@
 	// gesperrt mit „Fügt ein …" stehen bleibt.
 	let garetienEinfuegenLaeuft = false;
 
-	function garetienNeuKlick(ereignis, objekte, runId) {
+	// ---- Meldung B (30.08.2026): "trotzdem neu anlegen" trotz erkannter Kollision -------------
+	//
+	// 🔴 Owner: „bei bestehenden Fläche, wo er Kollisionen erkannt hat ... kann ich Quelle +
+	// Artikel und Geometrie ersetzen aber die Region nicht 'neu hinzufügen'". garetien-plan.php
+	// legt seither IMMER ein Zusatz-Item an (`anlass:'zusatz'`, `change_type:'new'`,
+	// `entity_public_id:null`) -- diese zwei Funktionen erkennen es und fragen nach, BEVOR
+	// garetienNeuKlick es wie jeden anderen Neuzugang behandelt.
+
+	// REIN: ist die "Neu einfügen"-Handlung hier die begründete AUSNAHME „trotzdem, trotz
+	// Kollision", oder der normale Fall (kein Treffer)? Entscheidet das ITEM, nicht das URTEIL --
+	// `anlass==='zusatz'` ist die einzige Quelle dieser Unterscheidung (garetien-plan.php,
+	// avesmapsGaretienErgaenzungsEintraege). Ein urteilsbasierter Riegel liefe auseinander,
+	// sobald ein Objekt trotz 'ergaenzung'-Urteil KEIN legitimes Ergänzungs-Item, aber ein
+	// Zusatz-Item trägt (alle Abschnitte fremd benannt) -- der Riegel muss trotzdem greifen.
+	function garetienNeuIstZusatz(objekt) {
+		return ((objekt && objekt.items) || []).some(function (item) {
+			return item && String(item.change_type || "") === "new" && garetienItemAnlass(item) === "zusatz";
+		});
+	}
+
+	// REIN: die Rückfrage vor „trotzdem neu anlegen" -- sie NENNT, was daneben liegt (Owner:
+	// „sonst legt jemand aus Versehen den zweiten Krähensee an"). Name und Abstand stehen in der
+	// Einzelansicht bereits (`objekt.grund`, vom Abgleich gebaut) -- keine zweite Rechnung dafür.
+	function garetienZusatzRueckfrageText(objekt) {
+		const o = objekt || {};
+		const name = String(o.name || "").trim() || "(ohne Namen)";
+		const grund = String(o.grund || "").trim();
+
+		return "„" + name + "“ wird ZUSÄTZLICH angelegt — der Abgleich hat eine Übereinstimmung "
+			+ "gefunden" + (grund === "" ? "" : " (" + grund + ")") + ". Das bestehende Objekt "
+			+ "bleibt dabei unberührt.\n\n"
+			+ "Jetzt wird nur vorgemerkt. Geschrieben wird erst mit „Angehakte übernehmen“.";
+	}
+
+	function garetienNeuKlick(ereignis, objekte, runId, fragen) {
 		const ziel = ereignis && ereignis.target;
 		if (!ziel || typeof ziel.closest !== "function") { return null; }
 		const knopf = ziel.closest('[data-handlung="neu"]');
@@ -2740,6 +2781,14 @@
 		if (!objekt) { return null; }
 		const rumpf = garetienHandlungsRumpf("neu", objekt, runId);
 		if (!rumpf) { return null; }
+		// 💣 Ein „Nein" zählt trotzdem als GEFUNDEN (`return true`) -- sonst fiele derselbe Klick
+		// zu garetienHandlungKlick durch, das über die geteilte Tür (GARETIEN_PLAN_ENDPUNKT) ein
+		// wirkungsloses, aber unnötiges `select` verschickte, OHNE die Rückfrage noch einmal zu
+		// stellen. Dieselbe Falle wie bei garetienRuecknahmeKlick.
+		if (garetienNeuIstZusatz(objekt)) {
+			const ok = typeof fragen === "function" ? fragen(garetienZusatzRueckfrageText(objekt)) : false;
+			if (!ok) { return true; }
+		}
 		if (garetienEinfuegenLaeuft) { return Promise.resolve(null); }
 
 		garetienEinfuegenLaeuft = true;
@@ -3229,7 +3278,10 @@
 				// garetienHandlungKlick und meldet per Rückgabewert, ob er den Klick übernommen hat --
 				// dann bleibt garetienHandlungKlick für dasselbe Ereignis aus, sonst hätte derselbe
 				// Knopf zwei Erzeuger (AGENTS.md §11).
-				if (garetienNeuKlick(ereignis, zustand.objekte, zustand.planRunId)) { return; }
+				// 🔴 Meldung B (30.08.2026): `garetienFragen` reist seither MIT -- „trotzdem neu
+				// anlegen“ (Zusatz-Item) braucht eine Rückfrage, der normale Neuzugang weiterhin
+				// keine.
+				if (garetienNeuKlick(ereignis, zustand.objekte, zustand.planRunId, garetienFragen)) { return; }
 				// Aufgabe 9: „Zurücknehmen“ -- derselbe Zug wie „Neu einfügen“ darüber, nur über die
 				// EIGENE Tür dieses Fensters statt der geteilten Übernahme-Vorschau (siehe die
 				// Begründung an garetienRuecknahmeSenden).
@@ -3452,6 +3504,9 @@
 			garetienEinfuegenAusfuehren,
 			garetienNeuKlick,
 			garetienFussknopfEinfuegenKlick,
+			// Meldung B (30.08.2026): „trotzdem neu anlegen“ trotz erkannter Kollision
+			garetienNeuIstZusatz,
+			garetienZusatzRueckfrageText,
 			// Aufgabe 9: „Zurücknehmen" -- der eine Löschweg dieses Fensters
 			garetienRuecknahmeItem,
 			garetienRuecknahmeBauen,

@@ -363,6 +363,44 @@ function avesmapsGaretienErgaenzungsEintraege(array $zeile, array $ziel, array $
         }
     }
 
+    // 4. DAS ZUSATZ-ITEM -- „trotzdem neu anlegen", trotz erkannter Kollision (Meldung B,
+    // 30.08.2026, Owner: „bei bestehenden Fläche, wo er Kollisionen erkannt hat ... kann ich
+    // Quelle + Artikel und Geometrie ersetzen aber die Region nicht 'neu hinzufügen'"). Ein
+    // Objekt, das hier ankommt, hat IMMER einen Treffer -- der vierte Ausgang existiert nur fuer
+    // 'deckt_sich' -- und bislang gab es fuer „das ist trotz der Nähe ein EIGENES Objekt" keinen
+    // Weg. Genau EIN Zusatz-Item je Objekt, unabhängig von der Abschnittszahl: es hängt an
+    // KEINEM Abschnitt, es legt etwas DANEBEN an.
+    //
+    // 🔴 Dieselbe Maschinerie wie beim Zufluss (avesmapsGaretienPlanEintrag oben): `change_type`
+    // 'new', `entity_public_id` NULL -- ein Schreibzugriff auf das getroffene Objekt wäre sonst
+    // wieder möglich, obwohl das Ziel gerade ist, es NICHT anzufassen. Die Vorlage ($vorlage)
+    // trägt schon die volle Geometrie/Quelle/Subtyp der Staging-Zeile -- geklont, nicht neu
+    // gebaut, damit „trotzdem neu anlegen" ZEICHENGLEICH dasselbe Objekt anlegt wie ein echter
+    // Neufund derselben Zeile.
+    // 🔴 Owner: „darf niemals vorangehakt sein" -- `vorwahl_aus` bleibt TRUE, ausnahmslos. Der
+    // Normalfall bei einem Treffer ist „das haben wir schon"; eine Dublette anzulegen ist die
+    // begründete Ausnahme, nicht der bequeme Weg (Auftrag: „Keine Dubletten" ist eine der drei
+    // tragenden Anforderungen).
+    // ⚠️ Die Rückfrage davor gehört dem Fenster (garetienZusatzRueckfrageText,
+    // review-garetien-importer.js) -- sie liest `objekt.grund`/`objekt.name`, die in der
+    // Einzelansicht schon stehen, statt hier ein weiteres Feld zu bauen.
+    $zusatz = $vorlage;
+    $zusatz['change_type'] = 'new';
+    // 💣 NULL, nicht der Treffer: sonst wäre es doch ein Schreibzugriff auf das getroffene
+    // Objekt, und „trotzdem neu anlegen" hieße in Wahrheit „unseres überschreiben".
+    $zusatz['entity_public_id'] = null;
+    $zusatz['before'] = [];
+    $trefferName = trim((string) ($urteil['treffer_name'] ?? ''));
+    $zusatz['label'] = $ihrName . ' (' . $zeile['typ'] . ') · trotz Nähe zu '
+        . ($trefferName !== '' ? '"' . $trefferName . '"' : 'einem unbenannten Objekt')
+        . ' zusätzlich anlegen';
+    $zusatz['after']['anlass'] = 'zusatz';
+    // Nur eine ANGABE fuer den Menschen, der die Zeile ansieht -- nie ein Ziel (dieselbe Regel
+    // wie beim Zufluss-Nachbarn oben).
+    $zusatz['after']['nachbar'] = $trefferName !== '' ? $trefferName : null;
+    $zusatz['vorwahl_aus'] = true;
+    $eintraege[] = $zusatz;
+
     return $eintraege;
 }
 

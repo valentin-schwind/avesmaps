@@ -40,17 +40,20 @@ $pruefungen += 3;
 // Muehlsee sind neu, der Seitenarm ist ein Zufluss (eigenes neues Objekt) -- macht drei. Die
 // Alke deckt sich mit einem Bestandsfluss und bringt seit Aufgabe 3 (der vierte Ausgang) selbst
 // ZWEI Eintraege: eine Quellen-Luecke (ihre Quelle liegt bei uns noch nicht) plus ein
-// Geometrie-Angebot (genau EIN Abschnitt getroffen) -- macht fuenf. "Nachbarprovinzen" ist ein
-// Sammelartikel, der Kontinent hat kein Gegenstueck. 🪤 Mit "> 0" ueberlebten drei Mutationen:
-// uebersprungene Zeilen doch aufnehmen, deckende ganz verwerfen statt ueber den vierten Ausgang
-// zu fuehren, und den Ueberspringen-Riegel ganz entfernen -- jedes Mal wurden es MEHR Eintraege,
-// und mehr ist immer noch groesser als null.
-assert($anzahl === 5, 'genau fuenf Vorschlaege aus sechs Quellzeilen, ' . $anzahl . ' gebaut');
+// Geometrie-Angebot (genau EIN Abschnitt getroffen) -- macht fuenf. Seit Meldung B (30.08.2026)
+// bringt JEDE deckt_sich-Zeile zusaetzlich das Zusatz-Item ("trotzdem neu anlegen") mit -- macht
+// sechs. "Nachbarprovinzen" ist ein Sammelartikel, der Kontinent hat kein Gegenstueck.
+// 🪤 Mit "> 0" ueberlebten drei Mutationen: uebersprungene Zeilen doch aufnehmen, deckende ganz
+// verwerfen statt ueber den vierten Ausgang zu fuehren, und den Ueberspringen-Riegel ganz
+// entfernen -- jedes Mal wurden es MEHR Eintraege, und mehr ist immer noch groesser als null.
+assert($anzahl === 6, 'genau sechs Vorschlaege aus sechs Quellzeilen, ' . $anzahl . ' gebaut');
 $namen = $pdo->query('SELECT label FROM sync_plan_item ORDER BY id')->fetchAll(PDO::FETCH_COLUMN);
 // 🔴 Review I1: die Beschriftung traegt seither den Anlass (sonst waeren die beiden Alke-Items
 // nicht auseinanderzuhalten -- eines schreibt eine Quelle, das andere bietet nur die Geometrie an).
-assert($namen === ['Alke → Alke · Quelle', 'Alke → Alke · Geometrie', 'Gardel (Fluss)', 'Mühlsee (See)', 'Seitenarm der Alke (Bach) · liegt auf "Alke"'],
-    'die richtigen fuenf: ' . implode(' | ', $namen));
+assert($namen === ['Alke → Alke · Quelle', 'Alke → Alke · Geometrie',
+    'Alke (Bach) · trotz Nähe zu "Alke" zusätzlich anlegen', 'Gardel (Fluss)', 'Mühlsee (See)',
+    'Seitenarm der Alke (Bach) · liegt auf "Alke"'],
+    'die richtigen sechs: ' . implode(' | ', $namen));
 $pruefungen += 2;
 
 // --- 🔴 Review I2: das Geometrie-Item ist IMMER ungehakt -- auch tatsaechlich in der Datenbank,
@@ -258,8 +261,25 @@ assert($geometrieA[0]['vorwahl_aus'] === true, 'ein Geometrie-Item ist IMMER ung
 assert($geometrieA[0]['entity_public_id'] === 'w-1', 'und zielt auf denselben Abschnitt');
 assert($luecken[0]['after']['name'] === 'Alke', 'das Luecken-Item TRAEGT den Namen -- er ist Teil seiner Luecke');
 assert(!array_key_exists('name', $geometrieA[0]['after']), 'das Geometrie-Item verspricht keinen Namenswechsel');
-assert(count($a) === 2, 'ein einzelner Abschnitt ergibt genau Luecke + Geometrie-Angebot, ' . count($a) . ' gefunden');
-$pruefungen += 6;
+$pruefungen += 5;
+
+// -- Meldung B (30.08.2026): DAS ZUSATZ-ITEM -- "trotzdem neu anlegen", trotz erkannter
+// Kollision. Genau EINS je Objekt, unabhaengig von der Abschnittszahl -- also auch hier bei
+// einem einzelnen getroffenen Abschnitt.
+$zusatzA = array_values(array_filter($a, static fn($e) => $e['after']['anlass'] === 'zusatz'));
+assert(count($zusatzA) === 1, 'genau EIN Zusatz-Item je Objekt, ' . count($zusatzA) . ' gefunden');
+assert($zusatzA[0]['change_type'] === 'new', 'es LEGT AN, es AENDERT nichts');
+assert($zusatzA[0]['entity_public_id'] === null,
+    'und zielt auf NICHTS Vorhandenes -- sonst waere "trotzdem neu" ein Schreibzugriff auf den Treffer');
+assert($zusatzA[0]['before'] === [], 'und behauptet auch keinen Vorzustand');
+assert($zusatzA[0]['vorwahl_aus'] === true, 'es darf NIEMALS vorangehakt sein (Owner-Vorgabe)');
+// Bei Fall A ist der Treffername LEER (namenloser Bestandsfluss) -- die Beschriftung faengt das ab.
+assert(str_contains($zusatzA[0]['label'], 'einem unbenannten Objekt'),
+    'ein leerer Treffername wird lesbar benannt, nicht als leeres „…" ausgegeben');
+assert($zusatzA[0]['after']['nachbar'] === null, 'und der Nachbar bleibt dann ebenfalls leer');
+assert(count($a) === 3,
+    'ein einzelner Abschnitt ergibt genau Luecke + Geometrie-Angebot + Zusatz-Item, ' . count($a) . ' gefunden');
+$pruefungen += 7;
 
 // -- Fall C: ihr EINES Objekt laeuft ueber DREI unserer Fluesse.
 // 💣 Der Gardel bekommt NICHTS. Ihn "Natter" zu nennen waere falsch, obwohl er getroffen ist.
@@ -280,8 +300,10 @@ assert(avesmapsGaretienEinObjekt($urteilC['abschnitte']) === false,
 $zielIds = array_map(static fn($e) => $e['entity_public_id'], $c);
 assert(!in_array('w-5008', $zielIds, true),
     'der Gardel traegt einen FREMDEN Namen und darf kein Angebot bekommen -- ihre Natter laeuft nur darueber');
+// ⚠️ `?? []` ist noetig, seit Meldung B (30.08.2026) das Zusatz-Item ("trotzdem neu anlegen")
+// mitreist -- es traegt gar kein `after.felder` (es schreibt an keinem vorhandenen Ziel).
 $mitName = array_values(array_filter($c,
-    static fn($e) => in_array('name', $e['after']['felder'], true)));
+    static fn($e) => in_array('name', $e['after']['felder'] ?? [], true)));
 assert(count($mitName) === 1, 'genau EIN Abschnitt bekommt einen Namen: der namenlose 6120');
 assert($mitName[0]['entity_public_id'] === 'w-6120', 'und zwar der namenlose');
 // Der gleichnamige Abschnitt bekommt die Quelle, aber niemals einen neuen Namen.
@@ -308,6 +330,15 @@ assert(in_array('w-4471', $geometrieCZiele, true) && in_array('w-6120', $geometr
 assert(!in_array('w-5008', $geometrieCZiele, true),
     'der Gardel bekommt KEIN Geometrie-Angebot -- fremder Name, kein gemeinsames Objekt');
 assert($geometrieC[0]['vorwahl_aus'] === true, 'auch bei mehreren Abschnitten ist jedes Geometrie-Item IMMER ungehakt');
+$pruefungen += 4;
+
+// -- Meldung B (30.08.2026): auch bei DREI getroffenen Abschnitten entsteht das Zusatz-Item nur
+// EIN einziges Mal -- es haengt an keinem Abschnitt, sondern am Objekt.
+$zusatzC = array_values(array_filter($c, static fn($e) => $e['after']['anlass'] === 'zusatz'));
+assert(count($zusatzC) === 1, 'ein Zusatz-Item je Objekt, unabhaengig von der Abschnittszahl, ' . count($zusatzC) . ' gefunden');
+assert($zusatzC[0]['entity_public_id'] === null, 'und weiterhin ohne Ziel');
+assert(str_contains($zusatzC[0]['label'], '"Natter"'), 'die Beschriftung nennt den echten Treffernamen');
+assert($zusatzC[0]['after']['nachbar'] === 'Natter', 'und der Nachbar reist als Angabe mit');
 $pruefungen += 4;
 
 // -- Fall D: ihre "Angbarer Reichsstrasse" trifft SECHSMAL unsere "Reichsstrasse 3".
@@ -360,20 +391,27 @@ assert(count(array_unique(array_map(static fn($e) => $e['label'], $nurQuelle))) 
 assert(!array_key_exists('name', $nurQuelle[0]['after']), 'ein Quellen-Item neben der Umbenennung traegt keinen Namen');
 $pruefungen += 4;
 
-// -- Nichts zu ersetzen: gleicher Name, Quelle liegt schon -- NUR das Geometrie-Angebot bleibt.
-// 🔴 Review I2 (nimmt M2 mit): eine leere array_filter-Zusicherung waere auch dann gruen, wenn
-// gar nichts mehr entstuende. Hier wird POSITIV geprueft, was tatsaechlich uebrig bleibt.
+// -- Nichts zu ersetzen: gleicher Name, Quelle liegt schon -- NUR Geometrie-Angebot + Zusatz-Item
+// bleiben. 🔴 Review I2 (nimmt M2 mit): eine leere array_filter-Zusicherung waere auch dann
+// gruen, wenn gar nichts mehr entstuende. Hier wird POSITIV geprueft, was tatsaechlich uebrig
+// bleibt. 🔴 Meldung B (30.08.2026): das Zusatz-Item bleibt IMMER stehen, auch wenn sonst nichts
+// mehr zu tun ist -- "trotzdem neu anlegen" ist unabhaengig davon, ob Name/Quelle schon passen.
 $fertig = avesmapsGaretienErgaenzungsEintraege($zeileC, avesmapsGaretienMappeTyp('Fluss'),
     ['status' => 'deckt_sich', 'anlass' => 'geometrie', 'treffer_public_id' => 'w-4471',
      'treffer_name' => 'Natter', 'grund' => '', 'abstand' => 0.1,
      'abschnitte' => [['public_id' => 'w-4471', 'name' => 'Natter', 'punkte' => 9, 'geometrie' => []]]],
     ['path|w-4471' => true]);
-assert(count($fertig) === 1,
-    'gleicher Name plus vorhandene Quelle heisst: nur das Geometrie-Angebot bleibt, ' . count($fertig) . ' gefunden');
-assert($fertig[0]['after']['anlass'] === 'geometrie', 'das einzige verbleibende Item ist das Geometrie-Angebot');
-assert($fertig[0]['vorwahl_aus'] === true, 'und es ist -- wie jedes Geometrie-Item -- ungehakt');
-assert(!array_key_exists('name', $fertig[0]['after']), 'und es verspricht keinen Namenswechsel');
-$pruefungen += 4;
+assert(count($fertig) === 2,
+    'gleicher Name plus vorhandene Quelle heisst: nur Geometrie-Angebot + Zusatz-Item bleiben, '
+    . count($fertig) . ' gefunden');
+$geometrieFertig = array_values(array_filter($fertig, static fn($e) => $e['after']['anlass'] === 'geometrie'));
+assert(count($geometrieFertig) === 1, 'genau ein Geometrie-Angebot');
+assert($geometrieFertig[0]['vorwahl_aus'] === true, 'und es ist -- wie jedes Geometrie-Item -- ungehakt');
+assert(!array_key_exists('name', $geometrieFertig[0]['after']), 'und es verspricht keinen Namenswechsel');
+$zusatzFertig = array_values(array_filter($fertig, static fn($e) => $e['after']['anlass'] === 'zusatz'));
+assert(count($zusatzFertig) === 1,
+    'und das Zusatz-Item -- "trotzdem neu anlegen" bleibt auch bei einem restlos passenden Treffer');
+$pruefungen += 5;
 
 // -- 🔴 RULING R6 (Owner, nach R5 -- siehe Kommentar am Erzeuger): ein REGION-Ziel bekommt bei
 // GENAU EINEM getroffenen Abschnitt GENAUSO ein Geometrie-Item wie ein Weg. Owner, woertlich:

@@ -76,9 +76,12 @@ tief(namen({ urteil: "neu", abschnitte: [], items: [{ id: 9, change_type: "new",
 	["neu", "ablehnen"], "„neu\": einfuegen oder ablehnen");
 
 // „Ergaenzung": wir haben es, sie wissen mehr -- mit dem vierten Ausgang.
+// 🔴 Meldung B (30.08.2026, Owner): „neu" steht seither MIT dabei -- „trotzdem neu anlegen" ist
+// die begruendete Ausnahme und steht deshalb VOR „ablehnen", aber NACH den drei uebrigen.
 tief(namen({ urteil: "ergaenzung", abschnitte: [{ public_id: "w-1", name: "x" }], items: [] }),
-	["name", "quelle", "geometrie", "ablehnen"],
-	"bei der Ergaenzung steht „Namen ersetzen\" vorn, und „Nur Quelle + Artikel\" daneben");
+	["name", "quelle", "geometrie", "neu", "ablehnen"],
+	"bei der Ergaenzung steht „Namen ersetzen\" vorn, „Nur Quelle + Artikel\" daneben, „neu\" "
+	+ "als begruendete Ausnahme vor „ablehnen\"");
 
 // „widerspricht": ihr Artikel trifft, ihre Geometrie nicht -- die GEOMETRIEFRAGE steht vorn.
 tief(namen({ urteil: "widerspruch", abschnitte: [{ public_id: "w-1", name: "x" }], items: [] }),
@@ -229,11 +232,13 @@ wahr(/keinen Abschnitt von uns getroffen/.test(
 // gesehen hat. 🪤 Genau diese Form -- eine Schleife, deren Fixture den Zweig nie erreicht -- hat
 // dieses Vorhaben schon bezahlt.
 // Aufgeschluesselt, damit die Zahl nachrechenbar bleibt statt abgeschrieben zu werden:
-// fuenf 4 (name/quelle/geometrie/ablehnen, alle ohne Item bzw. ohne Ziel) · ohneGeoItem 2
-// (quelle/geometrie) · deckt_sich 1 (ablehnen) · neu-ohne-Item 2 (neu/ablehnen) = 9.
+// 🔴 Meldung B (30.08.2026): "ergaenzung" traegt seither auch "neu" -- ohne ein 'new'-Item ist
+// das ein FUENFTER/DRITTER ausgegrauter Knopf bei fuenf/ohneGeoItem.
+// fuenf 5 (name/quelle/geometrie/neu/ablehnen, alle ohne Item bzw. ohne Ziel) · ohneGeoItem 3
+// (quelle/geometrie/neu) · deckt_sich 1 (ablehnen) · neu-ohne-Item 2 (neu/ablehnen) = 11.
 tief([fuenf, ohneGeoItem, { urteil: "deckt_sich", abschnitte: [], items: [] },
 	{ urteil: "neu", abschnitte: [], items: [] }]
-	.map((o) => garetienHandlungen(o).filter((k) => k.disabled).length), [4, 2, 1, 2],
+	.map((o) => garetienHandlungen(o).filter((k) => k.disabled).length), [5, 3, 1, 2],
 	"die Schleife hat bei JEDEM der vier Objekte ausgegraute Knoepfe gesehen");
 
 // =================================================================================================
@@ -858,6 +863,10 @@ laufMitGefaelschtemFetch(() => mod.avesmapsGaretienListeHolen()).then(function (
 
 	return pruefeNeuKlick();
 }).then(function () {
+	// Meldung B (30.08.2026): dieselbe Kette, aus demselben Grund -- auch dieser Lauf manipuliert
+	// `global.fetch`.
+	return pruefeNeuKlickZusatz();
+}).then(function () {
 	// 🔴 Angehängt an DIESELBE Kette, nicht als eigenständige IIFE nebenher: beide manipulieren
 	// `global.fetch`, und ein zweiter, unabhängig gestarteter Umtausch liefe der noch offenen Kette
 	// mit dem FALSCHEN "echt"-Wert ins Gehege -- derselbe Fehlerklasse wie das geteilte `/tmp` bei
@@ -943,6 +952,84 @@ async function pruefeNeuKlick() {
 	gleich(gestellt[0].rumpf.action, "select", "erst wird angehakt");
 	gleich(gestellt[1].rumpf.action, "apply",
 		"🔴 die tragende Zusicherung: „Neu einfügen\" schickt apply, nicht bloss ein zweites select");
+}
+
+// 🔴 Meldung B (30.08.2026, Owner): „trotzdem neu anlegen" trotz erkannter Kollision -- dieselbe
+// Verdrahtung wie oben (garetienNeuKlick), aber mit einer Rückfrage DAVOR, weil das Ziel-Item
+// diesmal `anlass:'zusatz'` trägt statt ein genuiner Neuzugang zu sein.
+async function pruefeNeuKlickZusatz() {
+	const kollision = {
+		key: "k-kollision", urteil: "ergaenzung", name: "Krähensee", wiki: "ggp",
+		grund: 'Geometrie liegt 0.42 Einheiten von "Krähensee" (anderer Name)',
+		abschnitte: [{ public_id: "r-1", name: "Krähensee alt" }],
+		items: [
+			{ id: 900, anlass: "ergaenzung", felder: ["quelle"], change_type: "changed", selected: 1,
+				abschnitt: { public_id: "r-1", name: "Krähensee alt" } },
+			{ id: 901, anlass: "zusatz", felder: [], change_type: "new", selected: 0 },
+		],
+	};
+
+	wahr(mod.garetienNeuIstZusatz(kollision) === true,
+		"ein Zusatz-Item macht 'Neu einfügen' zur begründeten Ausnahme");
+	wahr(mod.garetienNeuIstZusatz(einer) === false,
+		"ohne Zusatz-Item ist es der normale Fall -- keine Rückfrage nötig");
+	wahr(mod.garetienNeuIstZusatz(zufluss) === false,
+		"ein GENUINER Neuzugang (kein Treffer) ist ebenfalls KEIN Zusatz-Item");
+
+	gleich(knopf(kollision, "neu").disabled, false, "die Kollision bekommt trotzdem 'Neu einfügen'");
+	tief(knopf(kollision, "neu").ids, [901], "und zwar genau das Zusatz-Item, nicht die Ergänzung");
+
+	const zusatzFrage = mod.garetienZusatzRueckfrageText(kollision);
+	wahr(zusatzFrage.includes("Krähensee"), "die Rückfrage nennt den Namen");
+	wahr(zusatzFrage.includes("0.42 Einheiten"), "und den Grund aus dem Abgleich (Name+Abstand)");
+	wahr(zusatzFrage.includes("ZUSÄTZLICH"), "und sagt ausdrücklich, dass ANGELEGT statt ersetzt wird");
+	wahr(zusatzFrage.includes("Jetzt wird nur vorgemerkt"), "und dass jetzt noch nichts geschrieben wird");
+
+	// 💣 OHNE BESTÄTIGUNG PASSIERT NICHTS -- und der Klick gilt trotzdem als BEHANDELT (return
+	// true), sonst fiele er zu garetienHandlungKlick durch (dieselbe Falle wie bei
+	// garetienRuecknahmeKlick, siehe deren Begründung).
+	const gefragtNein = [];
+	const neinM = (text) => { gefragtNein.push(text); return false; };
+	const zielNein = neuZiel(kollision.key);
+	gleich(mod.garetienNeuKlick({ target: zielNein }, [kollision], 7, neinM), true,
+		"„Nein\" in der Rückfrage gilt als BEHANDELT -- kein Fallthrough zu garetienHandlungKlick");
+	gleich(gefragtNein.length, 1, "gefragt wurde");
+	gleich(zielNein.disabled, undefined, "und der Knopf wird NICHT gesperrt -- es lief ja nichts");
+
+	// Ohne `fragen`-Funktion überhaupt (ein Verdrahtungsfehler): dieselbe sichere Richtung wie
+	// garetienFragen selbst -- im Zweifel geschieht nichts.
+	gleich(mod.garetienNeuKlick({ target: neuZiel(kollision.key) }, [kollision], 7), true,
+		"ohne 'fragen'-Funktion wird ABGELEHNT, nicht durchgewunken");
+
+	// „Ja": danach läuft DIESELBE echte Sequenz wie beim normalen Neuzugang (select, apply,
+	// liste, liste) -- die Rückfrage ändert nichts an DEM, was am Ende geschrieben wird, nur OB.
+	const echtesFetch = global.fetch;
+	const gestellt = [];
+	global.fetch = function (pfad, optionen) {
+		const rumpf = JSON.parse((optionen && optionen.body) || "{}");
+		gestellt.push({ pfad: String(pfad), rumpf: rumpf });
+		let roh;
+		if (rumpf.action === "apply") {
+			roh = { ok: true, done: true, applied: 1, deleted: 0, stale: 0, processed: 1,
+				remaining: 0, skipped: 0, declined: 0 };
+		} else if (rumpf.action === "liste" && rumpf.stand === "uebernommen") {
+			roh = { ok: true, objekte: [] };
+		} else {
+			roh = { ok: true, plan_run_id: 7, gesamt: 0, objekte: [], bilanz: {}, reiter: {}, facetten: {} };
+		}
+		return Promise.resolve({ json: () => Promise.resolve(roh) });
+	};
+	const gefragtJa = [];
+	const jaM = (text) => { gefragtJa.push(text); return true; };
+	const lauf = mod.garetienNeuKlick({ target: neuZiel(kollision.key) }, [kollision], 7, jaM);
+	wahr(lauf && typeof lauf.then === "function",
+		"bei „Ja\" liefert der Klick eine Promise zurück -- er wird wirklich ausgeführt");
+	await lauf;
+	global.fetch = echtesFetch;
+	gleich(gefragtJa.length, 1, "genau EINMAL gefragt");
+	tief(gestellt.map((a) => a.rumpf.action), ["select", "apply", "liste", "liste"],
+		"nach der Bestätigung läuft dieselbe echte Sequenz wie beim normalen Neuzugang");
+	tief(gestellt[0].rumpf.ids, [901], "…mit genau der id des Zusatz-Items, nicht der Ergänzung");
 }
 
 // =================================================================================================
