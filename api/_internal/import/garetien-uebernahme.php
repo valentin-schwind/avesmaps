@@ -439,6 +439,10 @@ function avesmapsGaretienErgaenzungAnwenden(PDO $pdo, array $nach, string $publi
             // korrigierte Begruendung oben. $publicId ist hier absichtlich die Regions-id (fuer
             // avesmapsUpdateEcosystemRegion und die Flaechen-Suche richtig); fuer die
             // Quellen-Verknuepfung wird deshalb ihr Label nachgeschlagen.
+            // ⭐ DIESELBE Bindung entscheidet auch den BESTANDSCHECK beim Planbau
+            // (avesmapsGaretienErgaenzungsEintraege, garetien-plan.php) -- dort reist die
+            // Label-id als DATEN mit statt eines eigenen Nachschlags (die Funktion ist REIN).
+            // Aendert sich diese Bindung, muss die dortige Umschaltung mitziehen.
             $labelDerRegion = $pdo->prepare('SELECT label_public_id FROM ecosystem_region WHERE public_id = :p');
             $labelDerRegion->execute([':p' => $publicId]);
             $labelId = trim((string) $labelDerRegion->fetchColumn());

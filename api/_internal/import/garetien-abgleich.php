@@ -384,8 +384,15 @@ function avesmapsGaretienKandidaten(PDO $pdo, array $ziel): array
             $werte[':k' . $i] = (string) $kind;
             $werte[':t' . $i] = (string) $typKey;
         }
+        // 🔴 `r.label_public_id` reist mit, obwohl hier niemand danach sucht: die Quelle einer
+        // Flaeche haengt an ihrer BESCHRIFTUNG, nicht an der Region (map-features.php:1228,
+        // dieselbe Bindung wie beim Schreiben in avesmapsGaretienErgaenzungAnwenden,
+        // garetien-uebernahme.php). avesmapsGaretienErgaenzungsEintraege (garetien-plan.php)
+        // braucht die Label-id fuer den Bestandscheck, ist aber REIN -- sie kann sie nicht selbst
+        // nachschlagen. Sie wird deshalb HIER mitgeladen, wo die Region ohnehin gelesen wird, und
+        // reist unten via avesmapsGaretienAbschnitte als Daten weiter.
         $stmt = $pdo->prepare(
-            'SELECT r.public_id, r.name, r.region_type, a.geometry_geojson AS geo, r.wiki_url AS props'
+            'SELECT r.public_id, r.name, r.region_type, r.label_public_id, a.geometry_geojson AS geo, r.wiki_url AS props'
             . ' FROM ecosystem_region r JOIN ecosystem_area a ON a.region_id = r.id'
             . ' WHERE (' . implode(' OR ', $bedingungen) . ')'
             . ' AND r.is_active = 1 AND a.is_active = 1 AND a.is_trial = 0'
@@ -406,6 +413,9 @@ function avesmapsGaretienKandidaten(PDO $pdo, array $ziel): array
             'name' => (string) ($zeile['name'] ?? ''),
             'art' => (string) ($zeile['region_type'] ?? ''),
             'props' => (string) ($zeile['props'] ?? ''),
+            // Nur bei einem Flaechen-Kandidaten gesetzt (die path/location/label-Abfrage kennt
+            // keine Spalte dieses Namens) -- siehe die Begruendung an der SELECT-Klausel oben.
+            'label_public_id' => (string) ($zeile['label_public_id'] ?? ''),
             'punkte' => $punkte,
             // 🔴 Die Praefixe sind Absicht: diese Huellbox ist GERECHNET. Ohne sie liest sich
             // der Vergleich unten wie ein Zugriff auf die gespeicherten Spalten min_x/max_x --
@@ -611,6 +621,11 @@ function avesmapsGaretienAbschnitte(array $deckung, array $kandidaten): array
             'geometrie' => avesmapsGaretienProbepunkteN(
                 $kandidat['punkte'], AVESMAPS_GARETIEN_ABSCHNITT_PUNKTE
             ),
+            // 🔴 Nur bei einer Flaeche nicht-leer (siehe avesmapsGaretienKandidaten). Der
+            // Bestandscheck in garetien-plan.php (avesmapsGaretienErgaenzungsEintraege) benutzt
+            // sie als Quellen-Schluessel statt der Regions-id -- dieselbe Bindung wie beim
+            // Schreiben (garetien-uebernahme.php, avesmapsGaretienErgaenzungAnwenden).
+            'label_public_id' => (string) ($kandidat['label_public_id'] ?? ''),
         ];
     }
 

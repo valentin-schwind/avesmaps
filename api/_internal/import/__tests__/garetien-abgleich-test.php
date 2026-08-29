@@ -467,7 +467,11 @@ $pruefungen++;
 // findet der Abgleich nichts -- und legt ihn ein zweites Mal an, vorangehakt. Live gemessen
 // 27.08.2026: genau so stand er in der Vorschau.
 // 🔴 Angelegt wird als das, was die Zuordnung sagt; GESUCHT wird in der Verwandtschaft.
-$pdo->exec('CREATE TABLE ecosystem_region (id INTEGER PRIMARY KEY AUTOINCREMENT, public_id TEXT, name TEXT, kind TEXT, region_type TEXT, wiki_url TEXT, is_active INT DEFAULT 1)');
+// 🔴 MIT label_public_id (seit Aufgabe 14): avesmapsGaretienKandidaten laedt sie fuer JEDE
+// Flaeche mit -- der Bestandscheck des Planbaus braucht sie, weil die Quelle einer Flaeche an
+// ihrer Beschriftung haengt, nicht an der Region (garetien-plan.php). Ohne die Spalte wirft
+// SQLite hier "no such column: r.label_public_id".
+$pdo->exec('CREATE TABLE ecosystem_region (id INTEGER PRIMARY KEY AUTOINCREMENT, public_id TEXT, name TEXT, kind TEXT, region_type TEXT, wiki_url TEXT, label_public_id TEXT, is_active INT DEFAULT 1)');
 $pdo->exec('CREATE TABLE ecosystem_area (id INTEGER PRIMARY KEY AUTOINCREMENT, public_id TEXT, region_id INT, geometry_geojson TEXT, is_active INT DEFAULT 1, is_trial INT DEFAULT 0)');
 $pdo->exec("INSERT INTO ecosystem_region (id, public_id, name, kind, region_type) VALUES (1, 'see-1', 'Angbarer See', 'topographie', 'see')");
 $ring = [];

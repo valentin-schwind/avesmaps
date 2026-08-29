@@ -367,6 +367,76 @@ assert($geometrieSee[0]['entity_public_id'] === 'r-1', 'und zielt auf denselben 
 assert($geometrieSee[0]['vorwahl_aus'] === true, 'auch bei einer Region ist das Geometrie-Item IMMER ungehakt');
 $pruefungen += 3;
 
+// ---------------------------------------------------------------------------------------------
+// AUFGABE 14: DER BESTANDSCHECK EINER FLAECHE MUSS DIE LABEL-ID PRUEFEN, NICHT DIE REGIONS-ID.
+//
+// Seit 367895a38 haengt die Quelle einer Landschaftsflaeche an ihrer BESCHRIFTUNG
+// (map-features.php:1228, 'label' -> 'region', gekeyt an der public_id des LABELS), und
+// avesmapsGaretienQuellenBestand liest `feature_sources` entsprechend. `$abschnitt['public_id']`
+// ist bei einem Flaechenziel aber die REGIONS-id (avesmapsGaretienKandidaten waehlt
+// `r.public_id`) -- vor dieser Reparatur verglich der Bestandscheck also dauerhaft die falsche
+// id gegen den Bestand, und $hatQuelle war fuer jede Flaeche IMMER false.
+//
+// 🪤 Regions-id und Label-id sind hier ABSICHTLICH verschieden ('r-9' gegen 'lbl-9') -- mit
+// gleichen ids haette der urspruengliche Fehler diesen Test unbemerkt ueberlebt.
+$urteilSeeMitLabel = ['status' => 'deckt_sich', 'anlass' => 'geometrie', 'treffer_public_id' => 'r-9',
+    'treffer_name' => 'Mühlsee', 'grund' => 'Geometrie deckt sich', 'abstand' => 0.2,
+    'abschnitte' => [['public_id' => 'r-9', 'name' => 'Mühlsee', 'punkte' => 8,
+        'geometrie' => [[1.0, 1.0]], 'label_public_id' => 'lbl-9']]];
+
+// Die Quelle liegt bereits -- unter der LABEL-id, wie sie beim Schreiben angehaengt wird
+// (avesmapsGaretienErgaenzungAnwenden, garetien-uebernahme.php).
+$flaecheMitQuelle = avesmapsGaretienErgaenzungsEintraege(
+    $zeileSee, avesmapsGaretienMappeTyp('See'), $urteilSeeMitLabel, ['region|lbl-9' => true]
+);
+$lueckeMitQuelle = array_values(array_filter($flaecheMitQuelle,
+    static fn($e) => $e['after']['anlass'] === 'ergaenzung' && in_array('quelle', $e['after']['felder'], true)));
+assert($lueckeMitQuelle === [],
+    'eine Flaeche, deren Quelle am Label haengt, wird NICHT erneut als "Quelle fehlt" angeboten');
+// Das Geometrie-Angebot ist vom Quellen-Bestand unabhaengig und bleibt bestehen.
+assert(count(array_filter($flaecheMitQuelle, static fn($e) => $e['after']['anlass'] === 'geometrie')) === 1,
+    'das Geometrie-Angebot bleibt davon unberuehrt');
+$pruefungen += 2;
+
+// Dieselbe Flaeche, aber die Quelle liegt (im Bestand) gar nicht -- die Luecke wird angeboten.
+$flaecheOhneQuelle = avesmapsGaretienErgaenzungsEintraege(
+    $zeileSee, avesmapsGaretienMappeTyp('See'), $urteilSeeMitLabel, []
+);
+$lueckeOhneQuelle = array_values(array_filter($flaecheOhneQuelle,
+    static fn($e) => $e['after']['anlass'] === 'ergaenzung' && in_array('quelle', $e['after']['felder'], true)));
+assert(count($lueckeOhneQuelle) === 1, 'eine Flaeche OHNE Quelle wird angeboten');
+$pruefungen++;
+
+// Gegenprobe zur Falle: der Bestand unter der REGIONS-id (der alte, falsche Schluessel) darf die
+// Luecke nicht schliessen -- sonst pruefte dieser Test nur sich selbst.
+$flaecheMitFalscherId = avesmapsGaretienErgaenzungsEintraege(
+    $zeileSee, avesmapsGaretienMappeTyp('See'), $urteilSeeMitLabel, ['region|r-9' => true]
+);
+$lueckeBeiFalscherId = array_values(array_filter($flaecheMitFalscherId,
+    static fn($e) => $e['after']['anlass'] === 'ergaenzung' && in_array('quelle', $e['after']['felder'], true)));
+assert(count($lueckeBeiFalscherId) === 1,
+    'ein Bestand unter der Regions-id (statt der Label-id) schliesst die Luecke NICHT -- sonst waere der Test blind');
+$pruefungen++;
+
+// -- Gegenprobe: fuer WEG und ORT bleibt es beim ALTEN Verhalten -- der Schluessel ist weiterhin
+// die eigene public_id des Abschnitts, keine Label-Umschaltung. Der Weg-Fall steht schon oben
+// ($fertig, Zeile "Nichts zu ersetzen"); hier zusaetzlich ein ORT, mit derselben Form.
+$urteilOrtMitQuelle = ['status' => 'deckt_sich', 'anlass' => 'geometrie', 'treffer_public_id' => 'o-1',
+    'treffer_name' => 'Alkwelt', 'grund' => 'Geometrie deckt sich', 'abstand' => 0.1,
+    'abschnitte' => [['public_id' => 'o-1', 'name' => 'Alkwelt', 'punkte' => 1, 'geometrie' => [[1.0, 1.0]]]]];
+$zeileOrt = $zeileA;
+$zeileOrt['typ'] = 'Dorf';
+$zeileOrt['artikel'] = 'Alkwelt';
+$zeileOrt['anzeige'] = 'Alkwelt';
+assert(avesmapsGaretienMappeTyp('Dorf')['ziel'] === 'location', 'die Vorbedingung des Falls: Dorf ist ein Ort-Ziel');
+$ortMitQuelle = avesmapsGaretienErgaenzungsEintraege(
+    $zeileOrt, avesmapsGaretienMappeTyp('Dorf'), $urteilOrtMitQuelle, ['location|o-1' => true]
+);
+$lueckeOrt = array_values(array_filter($ortMitQuelle,
+    static fn($e) => $e['after']['anlass'] === 'ergaenzung' && in_array('quelle', $e['after']['felder'], true)));
+assert($lueckeOrt === [], 'ein Ort, dessen Quelle unter seiner EIGENEN public_id liegt, bleibt unveraendert -- wie vor der Reparatur');
+$pruefungen += 2;
+
 // -- Der SCHLUESSEL je Item muss eindeutig sein, sonst treffen sich zwei Abschnitte in
 // sync_decision und eine Ablehnung gilt fuer beide.
 $schluessel = array_map(static fn($e) => $e['entity_key'], $d);

@@ -286,7 +286,24 @@ function avesmapsGaretienErgaenzungsEintraege(array $zeile, array $ziel, array $
         $nameGleich = !$nameLeer && avesmapsGaretienNamenAehnlich($ihrName, $unserName);
         // 🔴 Review C1: der Schluessel traegt den Zieltyp -- derselbe public_id-Raum wird von
         // path UND region benutzt.
-        $hatQuelle = isset($quellen[$ziel['ziel'] . '|' . $publicId]);
+        //
+        // 🔴 KORRIGIERT (Aufgabe 14, nach 367895a38): bei einer FLAECHE ist $publicId die
+        // Regions-id (avesmapsGaretienKandidaten waehlt `r.public_id`) -- die Quelle haengt aber
+        // an der BESCHRIFTUNG, nicht an der Region (map-features.php:1228, dieselbe Bindung wie
+        // beim Schreiben in avesmapsGaretienErgaenzungAnwenden, garetien-uebernahme.php). Ohne
+        // diese Umschaltung war $hatQuelle fuer jede Flaeche dauerhaft false, und der Abgleich
+        // bot ihre Quelle bei jedem Lauf erneut an, auch wenn sie laengst haengt.
+        // Die Label-id reist als DATEN mit ($abschnitt['label_public_id'], gesetzt in
+        // garetien-abgleich.php) -- diese Funktion bleibt REIN und schlaegt nichts selbst nach.
+        $quellenSchluesselId = $ziel['ziel'] === 'region'
+            ? (string) ($abschnitt['label_public_id'] ?? '')
+            : $publicId;
+        // ⚠️ Fehlt die Label-id (sollte bei einer von uns angelegten Flaeche nicht vorkommen),
+        // gilt OFFEN "keine Quelle liegt" -- das erzeugt hoechstens ein Item zu viel
+        // (Bedienungs-Rauschen), nie eines zu wenig (eine stillschweigend verlorene
+        // Quellenangabe), dieselbe Richtung wie an avesmapsGaretienQuellenBestand begruendet.
+        $hatQuelle = $quellenSchluesselId !== ''
+            && isset($quellen[$ziel['ziel'] . '|' . $quellenSchluesselId]);
 
         // 1. Das Luecken-Item: nur Leeres wird gefuellt, deshalb VORANGEHAKT.
         $felder = [];
