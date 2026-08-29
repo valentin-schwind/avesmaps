@@ -1,6 +1,6 @@
 # Übergabe: das Fenster „Garetien Importer"
 
-**Stand:** 2026-08-28, nach Aufgabe 14 · **Vorgänger-Sitzung:** Bau der Aufgaben 1–14
+**Stand:** 2026-08-29, ALLE AUFGABEN FERTIG · **Vorgänger-Sitzung:** Bau der Aufgaben 1–16
 **Bauplan:** `docs/superpowers/plans/2026-08-27-garetien-importer-fenster.md` — **die Wahrheit**
 **Auftrag:** `docs/superpowers/specs/2026-08-27-garetien-importer-fenster-auftrag.md`
 **Mappingtabelle:** `docs/superpowers/specs/2026-08-27-garetien-typinventar-und-mapping.md`
@@ -13,15 +13,19 @@
 
 | | |
 |---|---|
-| **Fertig und LIVE** | Aufgaben 1–14 — die ganze Serverhälfte, Knopf, Fensterhülle, Menüband, Liste, Filtertrichter, **Einzelansicht** und die **Karte** (Glow am Häkchen, mehrere zugleich). Gepusht bis `a43dfb1a9` |
-| **In Arbeit** | Aufgabe 15 — die vier Handlungen (samt dem Server-Einzeiler aus Ruling R10) |
-| **Offen** | Aufgabe 16 — „Angehakte übernehmen" durch das vorhandene Blatt |
+| **Fertig und LIVE** | **Alle 18 Aufgaben** (1–16 plus die nachgetragenen 12b und 13b). Gepusht bis `bf7dff3ef`, jede Datei live gegengemessen |
+| **Offen** | die drei Owner-Entscheidungen (§2b) · das Tor vor dem ersten echten Import (§2) · der Ablauf mit angemeldeter Sitzung |
 
-**Was live funktioniert:** das Fenster steht und ist bedienbar. Der Knopf „Garetien Importer"
-(nur für Admins) öffnet es, das Menüband holt einen Lauf und rechnet, die Liste zeigt ihn mit
-Bilanz, Reitern und Filter, und ein Klick auf eine Zeile zeigt rechts **ihr Objekt und unsere
-Abschnitte darunter**. Der **vierte Ausgang** („wir haben es, aber sie wissen mehr") ist gebaut.
-Es schreibt noch **nichts** — die Handlungen kommen in Aufgabe 15.
+**Was live funktioniert:** das ganze Fenster. Der Knopf „Garetien Importer" (nur für Admins)
+öffnet es, das Menüband holt einen Lauf und rechnet, die Liste zeigt ihn mit Bilanz, Reitern und
+Filter, ein Klick auf eine Zeile zeigt rechts **ihr Objekt und unsere Abschnitte darunter**, das
+Häkchen lässt die Auswahl **auf der Karte wachsen**, die vier Handlungen merken vor oder lehnen
+ab — und „Angehakte übernehmen" geht durch das **vorhandene** Übernahme-Blatt, beliebig oft.
+
+🔴 **Aber es hat noch nie gegen die echte Datenbank gearbeitet.** Kein einziger Handgriff dieses
+Imports lief mit angemeldeter Sitzung; alle Abnahmen liefen gegen gemockte Endpunkte. Damit ist
+insbesondere **ungeprüft, ob die Quelle (CC BY-NC-SA 3.0, Namensnennung „VolkoV / garetien.de")
+am übernommenen Objekt wirklich dransteht** — der einzige Punkt mit Rechtsfolge.
 
 ---
 
@@ -131,26 +135,21 @@ Kurzfassung — **jede ist zurückdrehbar**.
 
 ## 4. Was JETZT ansteht
 
-**Aufgabe 13b — der Server liefert, was die Einzelansicht zeigen soll.** 🔴 **Zwei Lücken,
-gemeldet vom Implementierer der Aufgabe 13 und am Code nachgeprüft.** Beide sitzen auf dem
-Server, nicht im Fenster — und dass er sie **gemeldet statt im Browser umgangen** hat, ist genau
-das Verhalten, das die zweite Wahrheit verhindert, vor der der Auftrag §5.5 warnt.
+**Der Bau ist fertig. Was fehlt, ist Wirklichkeit.**
 
-1. **Ein getroffener Abschnitt OHNE Item erreicht den Browser nie.** `objekte[].abschnitte` wird
-   allein aus `items` gebaut. Das trifft **den Owner-Fall**: ihre „Natter" läuft über unsere
-   Natter, den **Gardel** und den Darpat — der Gardel erzeugt konstruktionsbedingt kein Item und
-   fehlt. Ein dreiteiliger Fall sieht damit zweiteilig aus, und der `is-full`-Zustand aus
-   Aufgabe 13 ist gebaut, getestet und **tot**. Die volle Trefferliste existiert beim Planbau
-   (`$urteil['abschnitte']`) und wird verworfen ⇒ neue Spalte `abschnitte_json MEDIUMTEXT`.
-2. **Sechs Felder des Mockups reisen nicht mit** — darunter der ganze Abschnitt „Die Quelle, die
-   mitreist", der Subtyp („Fluss → Flussweg") und der Deckungsgrad.
-
-**Danach:** Aufgabe 14 (Karte: Glow und „Ansicht folgt") · 15 (die vier Handlungen) · 16
-(„Angehakte übernehmen" durch das vorhandene Blatt).
-
-🔧 **In Aufgabe 15 fällt zusätzlich die Reparatur aus Ruling R10 an** — der Server-Einzeiler,
-ohne den der Reiter „Abgelehnt" für immer leer bleibt. Er steht mit Begründung und Messung im
-Bauplan; die **Leseseite ist schon fertig und richtig**.
+1. 🔴 **Der Ablauf mit angemeldeter Sitzung**, ein Objekt, von Hand: Lauf holen · rechnen · eine
+   Zeile anklicken · anhaken · Glow sehen · übernehmen · **auf der Karte nachsehen, ob die Quelle
+   wirklich dransteht**. Das ist der einzige Schritt mit Rechtsfolge und der einzige, den keine
+   Sitzung dieses Vorhabens je gefahren hat.
+2. 🔴 **Die drei Owner-Entscheidungen** (§2b) — sie hängen zusammen und sind vor dem ersten
+   echten Import zu treffen, weil sie die Bedeutung von „erledigt" festlegen.
+3. 🔴 **Das Tor** (§2): der Wege-Subtyp `Bach` (**143 von 289** Objekten der Stufe 1) und die
+   fünf neuen Ortsarten. Ohne sie lägen Bäche als **befahrbare** Flusswege in der Karte.
+4. 🔧 **Ein Blick über ALLE Aufgaben zusammen.** Jede einzelne hatte ihre Prüfung, ihre Fix-Runde
+   und ihre Nachprüfung — ein abschließender Gesamt-Review über die 18 Aufgaben hinweg steht aus
+   (das Wochenlimit der Subagenten war erreicht). ⭐ Er hat einen konkreten Anlass: die drei
+   Owner-Befunde sind genau so ein **aufgabenübergreifender** Fall — jede der Aufgaben 8, 13 und
+   15 ist für sich richtig, und zusammen ergeben sie eine Einbahntür.
 
 ## 5. Die Fallen, die dieses Vorhaben schon bezahlt hat
 
@@ -225,6 +224,23 @@ Sie sind der eigentliche Wert dieser Übergabe.
 - 🪤 **Ein `\b` oder `\n` wird beim Erzeugen leicht zum echten Steuerzeichen** (0x08 bzw. Umbruch).
   Dreimal aufgetreten, zweimal davon beim Auftraggeber selbst. Das Muster trifft dann nie, die
   Zusicherung ist Vakuum, und es sieht völlig normal aus. ⭐ Gegenprobe: `grep -c $'\x08' datei`.
+- 🪤 **Ein Prüfbefehl in einem Kommentar ist eine Behauptung, bis man ihn fährt** — **dreimal**
+  falsch gewesen: ein Pane-Griff, der die eigenen zwei Panes nicht fand (er suchte eine Ziffer,
+  dort stand eine Variable) · eine Ausnahme, die eine Datei herausnahm, die in der Ausgabe gar
+  nicht vorkam · und einer, der **sich selbst fand**, weil sein `.*` die Zeichen `.*` im
+  zitierenden Kommentar traf. ⭐ Fahren und die Zeilen zählen, bevor man aufschreibt, was er liefert.
+- 🪤 **Ein Abnahme-Mock, der Treue behauptet und an der einen kritischen Stelle nachgiebiger ist,
+  verschiebt den Fund auf die Live-Sitzung.** Aufgetreten in Aufgabe 16: die Prüfseite trug den
+  Kommentar „Wie garetien-liste.php" und filterte dann `apply_state !== "done"` — was es
+  serverseitig nicht gibt. Deshalb sah der zweite Durchgang beim Bauenden grün aus.
+- 🪤 **Eine reine Hälfte kann vollständig geprüft sein, während die DOM-Hälfte daneben nackt
+  ist.** In Aufgabe 16 waren **fünf** Mutationen des Fußknopfs grün — darunter eine, nach der er
+  für immer bei „(0)" gesperrt bliebe: das Merkmal tot, das Feld grün. ⭐ Das Mittel dagegen liegt
+  im Haus: ein gefälschtes `global.document` **vor** dem `require` (`garetien-karte.test.js`).
+- 🪤 **Ein Escape im Werkzeug wird zum Steuerzeichen im Quelltext.** Dreimal aufgetreten: aus
+  `\n` wurde ein echter Zeilenumbruch, aus `\b` ein **0x08**, und `"\s*"` in einem
+  JS-Stringliteral ist schlicht `"s*"`. Jedes Mal traf das Muster nichts und die Zusicherung war
+  Vakuum. ⭐ Gegenprobe: `grep -c $'\x08'` und die Zeilenbilanz.
 - ⚠️ **Der Zähler `$pruefungen`** war in **vier von neun** Runden daneben. Immer nachrechnen.
 - ⚠️ **Die Browser-Fläche dieser Sitzung liefert keine Bildschirmfotos.** Messen geht trotzdem
   (`getBoundingClientRect`, `getComputedStyle`, echte `PointerEvent`s). Was nicht geht, wird als
