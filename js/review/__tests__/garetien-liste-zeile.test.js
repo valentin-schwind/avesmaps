@@ -227,8 +227,9 @@ gleich((skelett.match(/<div/g) || []).length, (skelett.match(/<\/div>/g) || []).
 	+ "erste offene Element alle folgenden Geschwister");
 checks++;
 
-// Und die Wirkung, an der Struktur gemessen: SECHS Geschwister auf der obersten Ebene (Aufgabe 2
-// haengt `.gi-anzeigebar` mit den zwei Anzeige-Knoepfen zwischen die Suchzeile und die Chips).
+// Und die Wirkung, an der Struktur gemessen: SIEBEN Geschwister auf der obersten Ebene (Aufgabe 2
+// haengt `.gi-anzeigebar` mit den zwei Anzeige-Knoepfen zwischen die Suchzeile und die Chips;
+// RULING R7, Fix-Runde 1, haengt davor zusaetzlich den Hinweis `.gi-anzeigehinweis` an).
 // ⚠️ Ein winziger Parser statt einer DOM-Nachbildung -- er zaehlt nur die Verschachtelungstiefe,
 // und genau die war der Fehler.
 function obersteEbene(html) {
@@ -249,8 +250,8 @@ function obersteEbene(html) {
 	return raus;
 }
 const oben = obersteEbene(skelett);
-gleich(oben.join(","), "avm-tabs,gi-searchrow,gi-anzeigebar,gi-chips,gi-balance,avm-scroll",
-	"die linke Spalte hat SECHS Geschwister in dieser Reihenfolge -- stehen Chips, Bilanz oder "
+gleich(oben.join(","), "avm-tabs,gi-searchrow,gi-anzeigehinweis,gi-anzeigebar,gi-chips,gi-balance,avm-scroll",
+	"die linke Spalte hat SIEBEN Geschwister in dieser Reihenfolge -- stehen Chips, Bilanz oder "
 	+ "Liste IN der `.gi-searchrow`, legt deren `display: flex` sie nebeneinander");
 checks++;
 

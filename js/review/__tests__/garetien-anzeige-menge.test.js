@@ -77,17 +77,16 @@ tief(modul.AVESMAPS_GARETIEN_SERVER_STAENDE, ["offen", "abgelehnt", "uebernommen
 
 // ---- 7. Das Haekchen ist ein MARKER und schreibt NICHTS ----------------------------------------
 //
-// 🔴 Gemessen an der DIFFERENZ: ein Klick auf das Haekchen darf keinen Netzaufruf ausloesen. Der
-// Sender wird deshalb durch einen Spion ersetzt, der mitzaehlt.
-let gesendet = 0;
-const spion = function () { gesendet++; return Promise.resolve({}); };
-
+// 🔴 KORRIGIERT (Fix-Runde 1, Punkt 2): hier stand ein Spion, der nie verdrahtet wurde --
+// `avesmapsGaretienMarkierungUmschalten` hat gar keinen `senden`-Parameter, also blieb
+// `gleich(gesendet, 0, …)` gruen, egal was die Funktion tut (Vakuum-Zusicherung). Die ECHTE Probe
+// braucht den Klickverteiler `garetienHakenKlick` mit einem wirklich verdrahteten Spion -- die
+// steht bereits in `js/review/__tests__/garetien-handlungen.test.js`, Abschnitt "Das Haekchen"
+// (RULING R6), und deckt zusaetzlich den zweiten Aufrufer (Abschnittshaekchen) mit ab. Hier bleibt
+// nur, was diese Datei WIRKLICH pruefen kann: `avesmapsGaretienMarkierungUmschalten` toggelt.
 modul.avesmapsGaretienAnzeigeLeeren();
 gleich(modul.avesmapsGaretienMarkierungUmschalten("ggp:Berge:7"), true, "erster Klick markiert");
 gleich(modul.avesmapsGaretienMarkierungUmschalten("ggp:Berge:7"), false, "zweiter Klick nimmt zurueck");
-gleich(gesendet, 0,
-	"ein Haekchenklick schreibt NICHTS auf den Server -- er verschiebt die Zeile nicht und "
-	+ "veraendert `selected` nicht (Owner: „Markieren aendert nichts\")");
 
 // ---- 8. „Markierte anzeigen" legt sie dazu und laesst sie markiert ------------------------------
 modul.avesmapsGaretienMarkierungUmschalten("ggp:Berge:7");

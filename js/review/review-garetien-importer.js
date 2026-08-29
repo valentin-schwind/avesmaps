@@ -528,6 +528,12 @@
 			// ihr eigenes Markup -- niemand hat ihn GEPARST und die Kinder gezaehlt. Genau dafuer gibt
 			// es jetzt die Zusicherung in garetien-liste-zeile.test.js.
 			+ "</div>"   // .gi-searchrow
+			// RULING R7 (Fix-Runde 1): auf dem Reiter „Anzeigen" wirken Suche und Filtertrichter
+			// NICHT (Entwurf §3.1) -- das muss ERKENNBAR sein, nicht nur wahr. Steht standardmaessig
+			// `hidden`; garetienAnzeigeFilterSperreSetzen() schaltet Text UND die `disabled`-Sperre
+			// von Suchfeld/Filterknopf gemeinsam (siehe dort).
+			+ '<p class="gi-anzeigehinweis" id="garetien-anzeige-hinweis" hidden>Der Reiter zeigt, '
+			+ "was auf der Karte liegt — hier wird nicht gefiltert.</p>"
 			// Aufgabe 2: die zwei Anzeige-Knoepfe. Beide WEICH (`.btn`, kein `--main`) -- die
 			// Haupthandlung der Seite ist „Holen & Rechnen" im Menueband, und eine Zeilen-/
 			// Listenhandlung ist nie die Haupthandlung (AGENTS.md §12).
@@ -611,6 +617,34 @@
 		}
 	}
 
+	// RULING R7 (Fix-Runde 1): auf dem Reiter „Anzeigen" wirken Suche und Filtertrichter nicht
+	// (Entwurf §3.1) -- das muss ERKENNBAR sein. Gesperrt werden Suchfeld UND Filterknopf per
+	// `disabled` (nicht nur ein `title`: ein deaktiviertes Element bekommt in Chrome keine
+	// Zeigerereignisse und zeigt seinen `title` nie -- dasselbe Mittel wie beim gesperrten
+	// Fussknopf), der Grund steht SICHTBAR daneben (`.gi-anzeigehinweis`).
+	// ⚠️ Aufgerufen bei JEDEM Render, nicht nur beim Reiterwechsel: beide Renderwege (der echte
+	// Serverabruf UND der „Anzeigen"-Zweig aus avesmapsGaretienListeHolen, RULING R5) muenden in
+	// avesmapsGaretienListeRendern -- eine Regel, die nur einen von beiden bindet, ist keine Regel.
+	// Damit ist auch der Rueckweg gesichert: ein Reiterwechsel ZURUECK auf einen Server-Reiter
+	// rendert erneut und gibt beide Elemente sicher wieder frei.
+	function garetienAnzeigeFilterSperreSetzen() {
+		if (!hasDocument) { return; }
+		const gesperrt = zustand.stand === "anzeigen";
+		const sucheEl = document.getElementById("garetien-search");
+		if (sucheEl) { sucheEl.disabled = gesperrt; }
+		const filterToggleEl = document.getElementById("garetien-filter-toggle");
+		if (filterToggleEl) { filterToggleEl.disabled = gesperrt; }
+		// Der Zustand des Trichter-Panels ist ausschliesslich sein `hidden` (kein zweiter
+		// Modulzustand daneben, s.o. bei Aufgabe 12) -- ein zufaellig offenes Panel schliesst also
+		// mit, sobald gesperrt wird.
+		if (gesperrt) {
+			const filterMenuEl = document.getElementById("garetien-filter-menu");
+			if (filterMenuEl) { filterMenuEl.hidden = true; }
+		}
+		const hinweisEl = document.getElementById("garetien-anzeige-hinweis");
+		if (hinweisEl) { hinweisEl.hidden = !gesperrt; }
+	}
+
 	function garetienListeSkelettSicherstellen() {
 		if (!hasDocument) { return null; }
 		const listcol = document.getElementById("garetien-listcol");
@@ -638,6 +672,10 @@
 
 		const tabsEl = document.getElementById("garetien-tabs");
 		if (tabsEl) { tabsEl.innerHTML = avesmapsGaretienTabsMarkup(a.reiter, zustand.stand); }
+
+		// RULING R7: Suche/Filtertrichter sperren + sichtbar begruenden, wenn der Reiter
+		// „Anzeigen" aktiv ist -- und bei jedem anderen Reiter wieder freigeben.
+		garetienAnzeigeFilterSperreSetzen();
 
 		const listeEl = document.getElementById("garetien-list");
 		if (listeEl) {
@@ -2282,14 +2320,21 @@
 	// Der Häkchen-Wechsel -- für die Listenzeile UND die Abschnittszeile. Beide tragen ihren
 	// `data-key` selbst; die Abschnittszeile zusätzlich ihr `data-seg`.
 	//
-	// 🔴 Aufgabe 2 (Entwurf §3.2): das Häkchen ist ein reiner MARKER und schreibt NICHTS mehr --
-	// „Markieren ändert nichts" (Owner 29.08.2026). Es bewegt keine Items und ruft `senden` nicht
-	// mehr; `objekte`/`runId`/`senden` bleiben in der Signatur, weil beide Verdrahtungsstellen
-	// (Liste UND Einzelansicht) diese vier Argumente ohnehin schon reichen -- derselbe Bau wie
-	// `garetienHandlungKlick`/`garetienDetailKlick` daneben.
-	// 💣 `garetienHakenRumpf`/`garetienHakenPlan`/`garetienHakenItems` bleiben unangetastet stehen:
-	// Aufgabe 5 braucht sie für den Fußknopf „Alle angezeigten einfügen" -- sie sind nur aus DIESEM
-	// Klickpfad entfernt.
+	// 🔴 RULING R6 (Fix-Runde 1, Aufgabe 2): ZWEI AUFRUFER, ZWEI VERSCHIEDENE FRAGEN -- diese
+	// Funktion wird von BEIDEN Verdrahtungsstellen gerufen (dem Listenkasten in
+	// `garetienListeSkelettVerdrahten` UND der Detailspalte in der Fensterverdrahtung weiter
+	// unten), und die zwei Häkchen beantworten NICHT dieselbe Frage:
+	//   - ZEILENHÄKCHEN (kein `data-seg`) = „markiere für die ANZEIGE" -- Entwurf §3.2 spricht
+	//     AUSDRÜCKLICH nur von diesem Häkchen. Client-seitig, schreibt nichts (Owner: „Markieren
+	//     ändert nichts").
+	//   - ABSCHNITTSHÄKCHEN (trägt `data-seg`, aus `garetienAbschnittMarkup`) = „welche Items
+	//     werden ÜBERNOMMEN" (Namen ersetzen / Geometrie ersetzen) -- UNVERÄNDERT ein Schreibweg:
+	//     `selected` auf dem Server, danach die Liste neu holen (`avesmapsGaretienHandlungSenden`).
+	// 💣 Diese Notiz existiert, weil ihr Fehlen den Fehler erzeugt hat: der erste Bau von Aufgabe 2
+	// baute nur das Zeilenhäkchen um und traf damit -- ohne es zu bemerken -- auch den zweiten
+	// Aufrufer, weil beide durch DIESELBE Funktion laufen. „Eine Regel, die einen von zwei
+	// Erzeugern bindet, ist keine Regel" (AGENTS.md), hier zum wiederholten Mal.
+	// Die Weiche ist `data-seg`: nur die Abschnittszeile trägt es.
 	function garetienHakenKlick(ereignis, objekte, runId, senden) {
 		const ziel = ereignis && ereignis.target;
 		if (!ziel || typeof ziel.closest !== "function") { return null; }
@@ -2297,6 +2342,16 @@
 		if (!feld || feld.disabled) { return null; }
 		const traeger = feld.closest("[data-key]");
 		if (!traeger) { return null; }
+		const segment = traeger.getAttribute("data-seg");
+		if (segment !== null) {
+			// Abschnittshäkchen: unverändert der alte Schreibweg -- `zustand.markiert` bleibt
+			// unberührt.
+			const objekt = garetienObjektNach(traeger.getAttribute("data-key"), objekte);
+			if (!objekt) { return null; }
+			const rumpf = garetienHakenRumpf(objekt, segment, runId);
+			if (!rumpf) { return null; }
+			return senden(rumpf);
+		}
 		const schluessel = traeger.getAttribute("data-key");
 		if (!schluessel) { return null; }
 		return avesmapsGaretienMarkierungUmschalten(schluessel);
@@ -2567,6 +2622,8 @@
 			avesmapsGaretienMarkierteAnzeigen,
 			// RULING R5 (Aufgabe 2, Luecke im Plan): der Reiter „Anzeigen" baut seine Antwort selbst
 			garetienAnzeigenAntwortBauen,
+			// RULING R7 (Fix-Runde 1): Suche/Filtertrichter sperren + sichtbar begruenden
+			garetienAnzeigeFilterSperreSetzen,
 			// Aufgabe 11
 			garetienZeileMarkup,
 			avesmapsGaretienCheckboxZustand,

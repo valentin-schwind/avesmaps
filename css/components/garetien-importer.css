@@ -252,6 +252,26 @@
 }
 .gi-search::placeholder { color: var(--color-placeholder); }
 
+/* RULING R7 (Fix-Runde 1): auf dem Reiter „Anzeigen" gesperrt, mit derselben Palette wie der
+   gesperrte Fussknopf (`.gi-win .btn:disabled` weiter unten) -- eine dritte, eigene
+   Disabled-Fassung waere Divergenz. */
+.gi-win .gi-search:disabled,
+.gi-win .type-filter__toggle:disabled {
+	background: var(--color-disabled-bg);
+	border-color: var(--color-disabled-border);
+	color: var(--color-disabled-text);
+	cursor: not-allowed;
+}
+
+/* RULING R7 (Fix-Runde 1): der SICHTBARE Grund, warum Suche/Filter gerade nichts tun -- steht
+   NEBEN den gesperrten Elementen, nicht nur in einem `title` (der erscheint bei `disabled`
+   ohnehin nie, und in Chrome bekommt ein deaktiviertes Element gar keine Zeigerereignisse mehr). */
+.gi-anzeigehinweis {
+	margin: 0 0 var(--space-4);
+	font-size: var(--font-size-caption);
+	color: var(--color-text-muted);
+}
+
 /* Aufgabe 2: die zwei Anzeige-Knoepfe. Beide WEICH (`.btn`, kein `--main`): die Haupthandlung der
    Seite ist „Holen & Rechnen" im Menueband, und eine Zeilen-/Listenhandlung ist nie die
    Haupthandlung (AGENTS.md §12). */

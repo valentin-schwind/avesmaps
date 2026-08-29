@@ -408,14 +408,17 @@ gleich(garetienHandlungKlick({ target: handlungsZiel("name", "gibtesnicht") }, o
 	null, "und ein unbekannter Schluessel auch nicht");
 gleich(garetienHandlungKlick({}, objekte, 7, senden, jaSagen), null, "ein Ereignis ohne Ziel ebenso");
 
-// ---- Das Haekchen ist seit Aufgabe 2 ein reiner MARKER (Entwurf §3.2) --------------------------
+// ---- Das Haekchen -- ZWEI AUFRUFER, ZWEI VERSCHIEDENE FRAGEN (RULING R6, Fix-Runde 1) ----------
 //
-// 🔴 „Markieren aendert nichts" (Owner 29.08.2026): der Klickverteiler schreibt nicht mehr, er
-// toggelt nur noch `zustand.markiert` -- ueber DENSELBEN Objekt-Schluessel, ob der Klick von der
-// Listenzeile oder von einer Abschnittszeile (`data-seg`) kommt. `objekte`/`runId`/`senden` bleiben
-// in der Signatur (dieselbe Bauform wie garetienHandlungKlick/garetienDetailKlick daneben), aber
-// `senden` wird nie mehr gerufen -- gemessen an der DIFFERENZ (der Spion bleibt leer), nicht am
-// Quelltext.
+// 🔴 Das ZEILENHAEKCHEN (kein `data-seg`) ist seit Aufgabe 2 ein reiner MARKER (Entwurf §3.2,
+// Owner: „Markieren aendert nichts") -- client-seitig, schreibt nichts.
+// 🔴 Das ABSCHNITTSHAEKCHEN (traegt `data-seg`, aus garetienAbschnittMarkup) beantwortet eine
+// ANDERE Frage -- „welche Items werden UEBERNOMMEN" -- und bleibt UNVERAENDERT ein Schreibweg:
+// `selected` auf dem Server, danach `senden`. Beide Faelle laufen durch DIESELBE Funktion
+// (`garetienHakenKlick`, zwei Verdrahtungsstellen: Listenkasten UND Einzelansicht) -- der erste
+// Bau von Aufgabe 2 hatte nur den einen Fall im Kopf und traf damit, ohne es zu merken, auch den
+// anderen. Diese Sektion faehrt beide Pfade durch GENAU DEN Verteiler, den der Klick wirklich
+// nimmt.
 
 function hakenZiel(key, seg, options) {
 	const feld = Object.assign({ passt: ['input[type="checkbox"]'], attribute: {} }, options || {});
@@ -426,16 +429,16 @@ function hakenZiel(key, seg, options) {
 	return kette([feld, traeger]);
 }
 
+// -- Zeilenhaekchen (kein data-seg): markiert, schickt nichts ------------------------------------
 gesendet = [];
 gleich(garetienHakenKlick({ target: hakenZiel(strasse.key, null) }, objekte, 7, senden), true,
 	"ein Klick auf das Zeilenhaekchen markiert -- er schickt NICHTS mehr");
-gleich(gesendet.length, 0, "der Sender wird beim Haekchenklick nicht mehr gerufen");
+gleich(gesendet.length, 0, "der Sender wird beim Zeilenhaekchen nicht mehr gerufen");
 gleich(mod.avesmapsGaretienMarkierungHat(strasse.key), true, "und der Markierungsstand traegt es");
 
 gesendet = [];
-gleich(garetienHakenKlick({ target: hakenZiel(strasse.key, "w-2213") }, objekte, 7, senden), false,
-	"ein Abschnittshaekchen bewegt DIESELBE Menge wie das Zeilenhaekchen -- denselben "
-	+ "Objekt-Schluessel, ob mit oder ohne `data-seg` -- und nimmt hier die Markierung zurueck");
+gleich(garetienHakenKlick({ target: hakenZiel(strasse.key, null) }, objekte, 7, senden), false,
+	"ein zweiter Klick auf DASSELBE Zeilenhaekchen nimmt die Markierung zurueck");
 gleich(gesendet.length, 0, "wieder: nichts gesendet");
 
 gesendet = [];
@@ -452,6 +455,40 @@ gleich(garetienHakenKlick({ target: hakenZiel(deckt.key, null, { disabled: true 
 gleich(gesendet.length, 0, "nichts davon ging hinaus");
 gleich(garetienHakenKlick({ target: kette([{ passt: [], attribute: {} }]) }, objekte, 7, senden), null,
 	"ein Klick neben ein Haekchen tut nichts");
+
+// -- Abschnittshaekchen (mit data-seg): sendet UNVERAENDERT, ruehrt die Markierung nicht an -------
+//
+// 🔴 Der Review fand: kein bestehender Test fuhr diesen kombinierten Pfad -- die
+// Handlungen-Tests benutzen synthetische DOM-Stubs (wie hier), aber niemand hatte den Fall MIT
+// `data-seg` durch GENAU DIESEN Verteiler (garetienHakenKlick) geschickt. Das hier ist dieser Fall.
+const vorMarkierung = mod.avesmapsGaretienMarkierungHat(strasse.key);
+gesendet = [];
+gleich(garetienHakenKlick({ target: hakenZiel(strasse.key, "w-2213") }, objekte, 7, senden), "gesendet",
+	"ein Klick auf ein Abschnittshaekchen sendet weiterhin -- er ist KEIN Marker");
+gleich(gesendet.length, 1, "und zwar genau einmal");
+tief(gesendet[0], { action: "select", kind: "garetien", run_id: 7, ids: [103, 203], selected: true },
+	"mit den Items GENAU dieses Abschnitts, durch dieselbe Tuer wie zuvor (garetienHakenRumpf)");
+gleich(mod.avesmapsGaretienMarkierungHat(strasse.key), vorMarkierung,
+	"und die Markierung des Objekts bleibt UNBERUEHRT -- das Abschnittshaekchen ist kein Marker");
+
+// Gegenprobe: DASSELBE Objekt, aber OHNE `data-seg` -- markiert, sendet nichts. Die Weiche haengt
+// wirklich am Attribut, nicht am Objekt.
+gesendet = [];
+gleich(garetienHakenKlick({ target: hakenZiel(strasse.key, null) }, objekte, 7, senden), !vorMarkierung,
+	"dasselbe Objekt OHNE `data-seg` nimmt den MARKER-Pfad -- die Weiche haengt am Attribut, nicht "
+	+ "am Objekt");
+gleich(gesendet.length, 0, "und hier wird, wie beim Zeilenhaekchen, nichts gesendet");
+
+// Und ein Abschnittshaekchen an einem UNBEKANNTEN Abschnitt sendet nichts (garetienHakenRumpf gibt
+// null zurueck) -- und ruehrt die Markierung ebenfalls nicht an.
+const vorMarkierungEiner = mod.avesmapsGaretienMarkierungHat(einer.key);
+gesendet = [];
+gleich(garetienHakenKlick({ target: hakenZiel(einer.key, "w-9999") }, objekte, 7, senden), null,
+	"ein unbekannter Abschnitt sendet nichts");
+gleich(gesendet.length, 0, "wirklich nichts");
+gleich(mod.avesmapsGaretienMarkierungHat(einer.key), vorMarkierungEiner,
+	"und die Markierung bleibt unberuehrt -- auch im Fehlschlagfall ist das Abschnittshaekchen "
+	+ "kein Marker");
 
 // =================================================================================================
 // H. Das Markup: angeheftet, weich, mit sichtbarem Grund
