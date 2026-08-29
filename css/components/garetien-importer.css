@@ -527,6 +527,11 @@
    gefuellte Haupthandlung in der Fusszeile. */
 .gi-sicht {
 	display: flex;
+	/* Owner-Meldung 29.08.2026: „Avesmaps" bekommt eine Sperre samt sichtbarem Grund
+	   (`.gi-sicht__grund`) -- der Grund bricht als Flex-Kind mit `flex: 1 0 100%` auf eine eigene
+	   Zeile um, dieselbe Bauform wie `.gi-acts` neben dem Grund der Handlungsknoepfe. Ohne den
+	   Umbruch hier stuende der Grund gequetscht neben den zwei Knoepfen. */
+	flex-wrap: wrap;
 	gap: var(--space-2);
 	margin-bottom: var(--space-6);
 }
@@ -571,6 +576,29 @@
 	background: transparent;
 }
 .gi-sicht__knopf[aria-pressed="false"] .gi-sicht__fleck { background: transparent; }
+
+/* 💣 Owner-Meldung 29.08.2026: „Avesmaps" ist nur bedienbar, wenn in der Anzeige-Menge wirklich
+   unsere Geometrie liegt -- dieselbe Sperrpalette wie der gesperrte Fussknopf und die Filtersperre
+   im Reiter „Anzeigen" (`.gi-win .btn:disabled` weiter oben), eine dritte, eigene Fassung waere
+   Divergenz. Steht NACH `[aria-pressed="false"]`: gleiche Spezifitaet (zwei Klassen je Regel), die
+   SPAETERE gewinnt -- ein gesperrter UND ausgeblendeter Knopf soll als GESPERRT lesbar sein, das
+   ist die staerkere Aussage ueber ihn. */
+.gi-sicht__knopf:disabled {
+	background: var(--color-disabled-bg);
+	border-color: var(--color-disabled-border);
+	color: var(--color-disabled-text);
+	cursor: not-allowed;
+}
+
+/* Der Grund steht SICHTBAR daneben, nie nur im `title` -- ein `disabled`-Element bekommt in Chrome
+   keine Zeigerereignisse mehr und zeigt seinen `title` deshalb nie. Dieselbe Form wie
+   `.gi-acts__grund`. */
+.gi-sicht__grund {
+	flex: 1 0 100%;
+	margin: var(--space-2) 0 0;
+	font-size: var(--font-size-caption);
+	color: var(--color-text-muted);
+}
 
 /* ---- Was der Importer auf die KARTE zeichnet (Aufgabe 14) --------------------------------- */
 

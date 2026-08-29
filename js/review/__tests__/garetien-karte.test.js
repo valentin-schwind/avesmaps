@@ -1413,4 +1413,148 @@ delete global.avesmapsListBalanceText;
 importer.avesmapsGaretienAnzeigeLeeren();
 importer.garetienDetailWaehlen(null, []);
 
+// ---- 15. Owner-Meldung 29.08.2026: „Avesmaps" ist nur bedienbar, wenn wirklich unsere Geometrie
+// in der Anzeige-Menge liegt -----------------------------------------------------------------
+//
+// „Die zwei Togglebutton 'Garetien' und 'Avesmaps' sind super. 'Avesmaps' soll aber nur aktiviert
+// sein, wenn was in der Nähe desselben Typs gefunden wurde." Gemessen wird an derselben Rechnung,
+// aus der die magenta Geometrie entsteht (`avesmapsGaretienUnsereIds`) -- ueber die GANZE
+// Anzeige-Menge, nicht ueber das einzelne geoeffnete Objekt.
+wahr(typeof importer.garetienUnsereVorhanden === "function", "garetienUnsereVorhanden fehlt im Export");
+wahr(typeof importer.AVESMAPS_GARETIEN_SICHT_GESPERRT_GRUND === "string"
+	&& importer.AVESMAPS_GARETIEN_SICHT_GESPERRT_GRUND !== "",
+	"der sichtbare Sperrgrund fehlt im Export");
+
+// `garetienUnsereVorhanden` braucht `window.avesmapsGaretienUnsereIds` -- denselben Namen, den der
+// Zeichner global anbietet.
+global.window.avesmapsGaretienUnsereIds = avesmapsGaretienUnsereIds;
+
+// Die reine Rechnung zuerst, ganz ohne DOM.
+wahr(importer.garetienUnsereVorhanden([natter]) === true,
+	"natter aendert einen Abschnitt von uns (w-6120) -- die Menge zaehlt als 'unsere vorhanden'");
+gleich(importer.garetienUnsereVorhanden([blutmoor]), false,
+	"blutmoor ist Urteil 'neu' und nennt keinen Abschnitt -- die Menge ist leer");
+gleich(importer.garetienUnsereVorhanden([blutmoor, natter]), true,
+	"DIE DIFFERENZ: schon EIN Objekt der Menge mit eigenen Abschnitten genuegt -- gemessen wird die "
+	+ "ganze Anzeige-Menge, nicht nur ein einzelnes Objekt");
+gleich(importer.garetienUnsereVorhanden([]), false, "eine leere Menge hat nichts von uns");
+gleich(importer.garetienUnsereVorhanden(null), false, "ohne Menge liegt nichts da");
+delete global.window.avesmapsGaretienUnsereIds;
+gleich(importer.garetienUnsereVorhanden([natter]), false,
+	"ohne den Zeichner (Editorseiten ohne Karte) gibt es keine Auskunft ueber 'gezeichnet' -- dann "
+	+ "bleibt der Knopf gesperrt, statt eine unbelegte Behauptung aufzustellen");
+global.window.avesmapsGaretienUnsereIds = avesmapsGaretienUnsereIds;
+
+// Die reine Markup-Ebene: `garetienDetailMarkup` bekommt die Sperre HEREIN (drittes Argument), sie
+// rechnet sie nicht selbst -- pruefbar ganz ohne DOM.
+function unsereKnopf(markup) {
+	const treffer = markup.match(/<button[^>]*data-sicht="unsere"[^>]*>/);
+	return treffer ? treffer[0] : "";
+}
+function ihreKnopf(markup) {
+	const treffer = markup.match(/<button[^>]*data-sicht="ihre"[^>]*>/);
+	return treffer ? treffer[0] : "";
+}
+
+const gesperrtMarkup = importer.garetienDetailMarkup(natter, null, false);
+wahr(/\bdisabled\b/.test(unsereKnopf(gesperrtMarkup)),
+	"'Avesmaps' muss `disabled` tragen, wenn nichts von uns vorhanden ist: " + gesperrtMarkup);
+wahr(!/\bdisabled\b/.test(ihreKnopf(gesperrtMarkup)),
+	"'Garetien' bleibt UNBERUEHRT -- in der Anzeige liegt ihre Geometrie immer: " + gesperrtMarkup);
+wahr(gesperrtMarkup.indexOf('class="gi-sicht__grund"') !== -1
+	&& gesperrtMarkup.indexOf(importer.AVESMAPS_GARETIEN_SICHT_GESPERRT_GRUND) !== -1,
+	"der Grund muss SICHTBAR danebenstehen, nicht nur im title (der erscheint bei `disabled` nie): "
+	+ gesperrtMarkup);
+
+const freiMarkup = importer.garetienDetailMarkup(natter, null, true);
+wahr(!/\bdisabled\b/.test(unsereKnopf(freiMarkup)),
+	"mit unserer Geometrie in der Anzeige-Menge darf 'Avesmaps' NICHT gesperrt sein: " + freiMarkup);
+wahr(freiMarkup.indexOf("gi-sicht__grund") === -1,
+	"ohne Sperre gibt es auch keinen Grund zu zeigen: " + freiMarkup);
+
+// Der An/Aus-Stand ('aria-pressed') ist von der Sperre UNBERUEHRT -- er kommt aus `sicht`, die
+// Sperre aus `unsereVorhanden`; zwei unabhaengige Werte.
+const gesperrtAusKnopf = unsereKnopf(
+	importer.garetienDetailMarkup(natter, { ihre: true, unsere: false }, false));
+wahr(/\bdisabled\b/.test(gesperrtAusKnopf) && /aria-pressed="false"/.test(gesperrtAusKnopf),
+	"ein gesperrter Knopf behaelt seinen gemessenen An/Aus-Stand: " + gesperrtAusKnopf);
+
+// ---- Und jetzt die ECHTE Verdrahtung: garetienDetailWaehlen -> avesmapsGaretienListeRendern -> ---
+// garetienDetailRendern, mit derselben reichhaltigen Attrappe wie Abschnitt 13/14 (eigene Instanz,
+// damit dieser Abschnitt von keinem anderen abhaengt und keiner von ihm).
+const getElementByIdVorher15 = global.document.getElementById;
+const elementRegister15 = new Map();
+function attrappe15(id) {
+	if (!elementRegister15.has(id)) {
+		elementRegister15.set(id, {
+			id, innerHTML: "", textContent: "", dataset: {}, style: {}, hidden: false, disabled: false,
+			classList: { add() {}, remove() {}, toggle() {} },
+			addEventListener() {}, removeEventListener() {},
+			querySelectorAll() { return []; },
+			getAttribute() { return null; }, setAttribute() {},
+		});
+	}
+	return elementRegister15.get(id);
+}
+global.document.getElementById = function (id) { return attrappe15(id); };
+global.avesmapsListBalanceText =
+	require(path.resolve(__dirname, "..", "review-list-balance.js")).avesmapsListBalanceText;
+
+// Derselbe gemessene An/Aus-Stand ('unsere' aus) gilt fuer ALLE drei Renderlaeufe unten -- so lässt
+// sich zeigen, dass eine Sperre daran nichts aendert.
+global.window.avesmapsGaretienKarteSicht = function () { return { ihre: true, unsere: false }; };
+
+importer.avesmapsGaretienAnzeigeLeeren();
+importer.garetienDetailWaehlen(null, []);
+
+// Fall 1 (Zusicherung): die Anzeige-Menge traegt EIN Objekt mit eigenen Abschnitten (natter) NEBEN
+// einem ohne (blutmoor) -- geoeffnet ist BLUTMOOR selbst, das keinen einzigen Abschnitt nennt.
+// Gemessen wird trotzdem die GANZE Menge, nicht das geoeffnete Objekt allein: der Knopf bleibt frei.
+importer.avesmapsGaretienAnzeigeHinzufuegen([blutmoor, natter]);
+importer.garetienDetailWaehlen(blutmoor.key, [blutmoor, natter]);
+importer.avesmapsGaretienListeRendern(
+	{ objekte: [blutmoor, natter], reiter: {}, gesamt: 2, bilanz: {}, facetten: {} });
+const knopfFrei = unsereKnopf(attrappe15("garetien-detailcol").innerHTML);
+wahr(knopfFrei !== "" && !/\bdisabled\b/.test(knopfFrei) && /aria-pressed="false"/.test(knopfFrei),
+	"natter liegt in der Anzeige-Menge -- 'Avesmaps' bleibt bedienbar, obwohl das GEOEFFNETE Objekt "
+	+ "(blutmoor) selbst nichts von uns nennt: " + knopfFrei);
+
+// Fall 2, die DIFFERENZ: dieselbe Steuerung, jetzt OHNE natter in der Anzeige-Menge -- der Knopf
+// muss wirklich UMSCHALTEN, nicht in 'frei' kleben bleiben.
+importer.avesmapsGaretienAnzeigeLeeren();
+importer.avesmapsGaretienAnzeigeHinzufuegen([blutmoor]);
+importer.garetienDetailWaehlen(blutmoor.key, [blutmoor]);
+importer.avesmapsGaretienListeRendern({ objekte: [blutmoor], reiter: {}, gesamt: 1, bilanz: {}, facetten: {} });
+const detailGesperrt = attrappe15("garetien-detailcol").innerHTML;
+const knopfGesperrt = unsereKnopf(detailGesperrt);
+wahr(knopfGesperrt !== "" && /\bdisabled\b/.test(knopfGesperrt),
+	"ohne natter in der Anzeige-Menge muss 'Avesmaps' gesperrt sein: " + knopfGesperrt);
+wahr(detailGesperrt.indexOf('class="gi-sicht__grund"') !== -1
+	&& detailGesperrt.indexOf(importer.AVESMAPS_GARETIEN_SICHT_GESPERRT_GRUND) !== -1,
+	"der Grund muss in DIESER echten Verdrahtung sichtbar dastehen, nicht nur in der reinen "
+	+ "Markup-Probe weiter oben: " + detailGesperrt);
+wahr(/aria-pressed="false"/.test(knopfGesperrt),
+	"ein gesperrter Knopf behaelt seinen gemessenen An/Aus-Stand: " + knopfGesperrt);
+
+// Fall 3: natter kommt zurueck -- die Steuerung wechselt ein ZWEITES Mal (nicht nur einmal), und
+// derselbe An/Aus-Stand ('aus') ueberlebt die Sperre unveraendert.
+importer.avesmapsGaretienAnzeigeHinzufuegen([natter]);
+importer.garetienDetailWaehlen(blutmoor.key, [blutmoor, natter]);
+importer.avesmapsGaretienListeRendern(
+	{ objekte: [blutmoor, natter], reiter: {}, gesamt: 2, bilanz: {}, facetten: {} });
+const knopfWiederFrei = unsereKnopf(attrappe15("garetien-detailcol").innerHTML);
+wahr(!/\bdisabled\b/.test(knopfWiederFrei),
+	"nach der Rueckkehr von natter in die Anzeige-Menge ist 'Avesmaps' wieder frei: " + knopfWiederFrei);
+wahr(/aria-pressed="false"/.test(knopfWiederFrei),
+	"UND sein An/Aus-Stand ist derselbe geblieben -- eine Sperre ist keine Abschaltung: "
+	+ knopfWiederFrei);
+
+// Aufraeumen.
+global.document.getElementById = getElementByIdVorher15;
+delete global.avesmapsListBalanceText;
+delete global.window.avesmapsGaretienKarteSicht;
+delete global.window.avesmapsGaretienUnsereIds;
+importer.avesmapsGaretienAnzeigeLeeren();
+importer.garetienDetailWaehlen(null, []);
+
 console.log(`garetien-karte: ${checks} Pruefungen bestanden.`);

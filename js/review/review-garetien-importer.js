@@ -1838,6 +1838,36 @@
 	const AVESMAPS_GARETIEN_PARTEI_IHRE = "Garetien";
 	const AVESMAPS_GARETIEN_PARTEI_UNSERE = "Avesmaps";
 
+	// Owner-Meldung 29.08.2026: „Avesmaps soll aber nur aktiviert sein, wenn was in der Naehe
+	// desselben Typs gefunden wurde." -- der sichtbare Grund fuer den gesperrten Knopf. Sitzt neben
+	// dem Knopf (`.gi-sicht__grund`), nicht nur im `title`: ein `disabled`-Element bekommt in Chrome
+	// keine Zeigerereignisse mehr und zeigt seinen `title` deshalb nie -- dasselbe Mittel wie beim
+	// gesperrten Fussknopf (`garetienUebernahmeKnopfZustand`) und der Filtersperre im Reiter
+	// „Anzeigen" (`garetienAnzeigeFilterSperreSetzen`).
+	const AVESMAPS_GARETIEN_SICHT_GESPERRT_GRUND = "Hier liegt nichts von uns.";
+
+	/*
+	 * Liegt in der uebergebenen Menge IRGENDWO unsere Geometrie? REIN -- kein DOM, keine Karte.
+	 *
+	 * 🔴 GEMESSEN WIRD AN DERSELBEN RECHNUNG, AUS DER DIE MAGENTA GEOMETRIE ENTSTEHT -- nicht an
+	 * einer zweiten. `window.avesmapsGaretienUnsereIds` (review-garetien-karte.js) ist die Funktion,
+	 * die auch beim Zeichnen entscheidet, welche unserer Abschnitte auf die Karte kommen; eine
+	 * eigene Rechnung ueber `objekt.abschnitte` oder das Urteil liefe beim naechsten Sonderfall
+	 * auseinander -- genau die Fehlerklasse, die dieses Vorhaben laut Auftrag heute schon zweimal
+	 * gekostet hat (RULING R2/R7, task-6-report.md).
+	 * ⚠️ Fehlt der Zeichner (Editorseiten ohne Karte), gibt es keine Auskunft ueber „gezeichnet" --
+	 * dann bleibt der Knopf gesperrt, statt eine unbelegte Behauptung aufzustellen. Dieselbe
+	 * zurueckhaltende Richtung wie bei `garetienNeutraleObjekte` nebenan.
+	 */
+	function garetienUnsereVorhanden(liste) {
+		if (typeof window === "undefined" || typeof window.avesmapsGaretienUnsereIds !== "function") {
+			return false;
+		}
+		return (liste || []).some(function (o) {
+			return o && window.avesmapsGaretienUnsereIds(o).length > 0;
+		});
+	}
+
 	/*
 	 * REIN: die zwei farbigen Sicht-Knöpfe (Owner 29.08.2026: „mach zwei farbige knöpfe und jeder
 	 * der knöpfe zeigt in seiner farbe seine fläche an oder blendet sie aus. Dann kann man direkt
@@ -1852,21 +1882,41 @@
 	 * ⚠️ Die Farbe sitzt auf dem FLECK, nicht auf der Schrift: farbige Schrift auf dem weichen
 	 * Knopfgrund erreicht bei Gold (#f0b429) im hellen Thema keinen lesbaren Kontrast, ein 10px
 	 * großer Fleck daneben braucht keinen.
+	 * 🔴 NEU seit der Owner-Meldung 29.08.2026: `gesperrt` ist UNABHÄNGIG von `an` -- eine Sperre ist
+	 * keine Abschaltung. `aria-pressed` bleibt der gemessene An/Aus-Stand der Pane und wird von der
+	 * Sperre nicht berührt; ein gesperrter und wieder freigegebener Knopf hat seinen Stand deshalb
+	 * automatisch behalten, ohne dass hier etwas dafür gemerkt werden muss.
 	 */
-	function garetienSichtKnopfMarkup(seite, text, an) {
+	function garetienSichtKnopfMarkup(seite, text, an, gesperrt) {
+		const deaktiviert = gesperrt === true;
+		const titel = deaktiviert
+			? AVESMAPS_GARETIEN_SICHT_GESPERRT_GRUND
+			: (text + "-Geometrie auf der Karte ein- oder ausblenden");
 		return '<button class="gi-sicht__knopf gi-sicht__knopf--' + seite + '" type="button"'
 			+ ' data-sicht="' + seite + '" aria-pressed="' + (an ? "true" : "false") + '"'
-			+ ' title="' + avesmapsGaretienEscape(text)
-			+ '-Geometrie auf der Karte ein- oder ausblenden">'
+			+ (deaktiviert ? " disabled" : "")
+			+ ' title="' + avesmapsGaretienEscape(titel) + '">'
 			+ '<span class="gi-sicht__fleck" aria-hidden="true"></span>'
 			+ avesmapsGaretienEscape(text) + "</button>";
 	}
 
-	function garetienSichtLeisteMarkup(sicht) {
+	/*
+	 * 🔴 „GARETIEN" BLEIBT UNBERÜHRT (Owner-Meldung 29.08.2026, Auftrag §„Was heute ist"): in der
+	 * Anzeige liegt ihre Geometrie immer, sonst stünde die Zeile gar nicht in der Anzeige-Menge --
+	 * nur „Avesmaps" bekommt die Sperre.
+	 */
+	function garetienSichtLeisteMarkup(sicht, unsereVorhanden) {
 		const s = sicht || {};
+		const unsereGesperrt = unsereVorhanden === false;
+		const grundMarkup = unsereGesperrt
+			? '<p class="gi-sicht__grund">' + avesmapsGaretienEscape(AVESMAPS_GARETIEN_SICHT_GESPERRT_GRUND)
+				+ "</p>"
+			: "";
 		return '<div class="gi-sicht">'
-			+ garetienSichtKnopfMarkup("ihre", AVESMAPS_GARETIEN_PARTEI_IHRE, s.ihre !== false)
-			+ garetienSichtKnopfMarkup("unsere", AVESMAPS_GARETIEN_PARTEI_UNSERE, s.unsere !== false)
+			+ garetienSichtKnopfMarkup("ihre", AVESMAPS_GARETIEN_PARTEI_IHRE, s.ihre !== false, false)
+			+ garetienSichtKnopfMarkup("unsere", AVESMAPS_GARETIEN_PARTEI_UNSERE, s.unsere !== false,
+				unsereGesperrt)
+			+ grundMarkup
 			+ "</div>";
 	}
 
@@ -1881,7 +1931,13 @@
 	// Genau das verlangt der Owner („Dann darf die Kamera zu dem Objekt fliegen, das Objekt muss
 	// leuchten"), und genau das leistet er zusammen mit jener Zeile. Ein zweiter Zeichenbefehl hier
 	// wäre die zweite Regel darüber, was auf der Karte liegt.
-	function garetienDetailMarkup(objekt, sicht) {
+	// 🔴 `unsereVorhanden` fehlt in den meisten bestehenden Aufrufen (Tests, die nur EIN Objekt
+	// kennen) -- ohne Angabe fällt diese Funktion auf `garetienUnsereVorhanden([objekt])` zurück,
+	// dieselbe Regel, nur ohne die übrige Anzeige-Menge. Der echte Aufrufer (`garetienDetailRendern`)
+	// übergibt stattdessen IMMER die tatsächlich gezeichnete Menge (`avesmapsGaretienAufDerKarte`),
+	// weil genau die -- und nicht das einzelne geöffnete Objekt -- entscheidet, was auf der Karte
+	// liegt (Owner-Meldung 29.08.2026: „nur aktiviert, wenn was in der Nähe … gefunden wurde").
+	function garetienDetailMarkup(objekt, sicht, unsereVorhanden) {
 		if (!objekt) {
 			return '<div class="gi-detail"><p class="avm-empty">Wähle links eine Zeile — hier steht'
 				+ " dann, was bei uns an derselben Stelle liegt.</p></div>";
@@ -1905,7 +1961,9 @@
 			kopf += '<button class="gi-show" type="button" data-key="'
 				+ avesmapsGaretienEscape(objekt.key || "") + '">'
 				+ "✦ Zentrieren</button>";
-			kopf += garetienSichtLeisteMarkup(sicht);
+			kopf += garetienSichtLeisteMarkup(sicht, unsereVorhanden === undefined
+				? garetienUnsereVorhanden([objekt])
+				: unsereVorhanden);
 		}
 
 		let notiz = garetienAnzahlText(abschnitte.length, "Abschnitt", "Abschnitte");
@@ -2259,7 +2317,15 @@
 			&& typeof window.avesmapsGaretienKarteSicht === "function")
 			? window.avesmapsGaretienKarteSicht()
 			: null;
-		spalte.innerHTML = garetienDetailMarkup(gewaehlt, sicht);
+		// 🔴 Owner-Meldung 29.08.2026: „Avesmaps" ist nur bedienbar, wenn in der Menge, die
+		// TATSÄCHLICH auf der Karte liegt, wirklich unsere Geometrie steckt -- DIESELBE Menge, die
+		// `window.avesmapsGaretienKarteZeigen` bekommt (`avesmapsGaretienAufDerKarte`), nicht
+		// `objekte` allein (der aktive Reiter) und nicht `avesmapsGaretienAnzeigeListe()` allein (die
+		// vergisst das angeklickte, noch nicht angezeigte Objekt). Wird bei JEDEM Aufbau dieser
+		// Spalte neu gemessen, nicht nur beim ersten Öffnen -- „Markierte anzeigen" und „Anzeige
+		// leeren" ändern diese Menge, ohne das angeklickte Objekt zu wechseln.
+		const unsereVorhanden = garetienUnsereVorhanden(avesmapsGaretienAufDerKarte(objekte));
+		spalte.innerHTML = garetienDetailMarkup(gewaehlt, sicht, unsereVorhanden);
 		// Dreiwertig ist eine EIGENSCHAFT, kein Attribut -- erst nach dem Einfügen einlösen, genau
 		// wie in avesmapsGaretienListeRendern.
 		Array.prototype.forEach.call(spalte.querySelectorAll("input[data-part]"), function (feld) {
@@ -2332,6 +2398,12 @@
 		// dann darf der Knopf es auch nicht behaupten.
 		const sichtKnopf = ziel.closest("[data-sicht]");
 		if (sichtKnopf) {
+			// ⚠️ `disabled` wird hier NOCH EINMAL geprüft: das Attribut ist die Anzeige, nicht der
+			// Riegel -- dieselbe Trennung wie beim Handlungsknopf (`garetienHandlungKlick`) und beim
+			// Häkchen (`garetienHakenKlick`). „Avesmaps" ohne unsere Geometrie in der Anzeige-Menge
+			// darf auch dann nichts umschalten, wenn ihn ein Test oder ein synthetisches Ereignis
+			// direkt anklickt, statt ihn dem echten Browser zu überlassen.
+			if (sichtKnopf.disabled) { return null; }
 			const seite = sichtKnopf.getAttribute("data-sicht");
 			if (typeof window === "undefined"
 				|| typeof window.avesmapsGaretienKarteUmschalten !== "function") {
@@ -2870,6 +2942,10 @@
 			garetienSichtLeisteMarkup,
 			AVESMAPS_GARETIEN_PARTEI_IHRE,
 			AVESMAPS_GARETIEN_PARTEI_UNSERE,
+			// Owner-Meldung 29.08.2026: „Avesmaps" ist nur bedienbar, wenn unsere Geometrie in der
+			// Anzeige-Menge liegt.
+			garetienUnsereVorhanden,
+			AVESMAPS_GARETIEN_SICHT_GESPERRT_GRUND,
 			// Aufgabe 15
 			garetienHandlungen,
 			garetienHandlungsRumpf,
