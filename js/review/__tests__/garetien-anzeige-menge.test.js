@@ -143,4 +143,170 @@ gleich(
 );
 delete global.avesmapsListBalanceText;
 
-console.log(`garetien-anzeige-menge: ${checks} Pruefungen bestanden.`);
+// ---- 10. Der Fussknopf sagt EHRLICH, wie viele einen Vorschlag haben ---------------------------
+//
+// 🔴 7930 der 8213 Objekte haben keinen. Ein Knopf, der „244 einfuegen" verspricht und 37 einfuegt,
+// ist eine Falschaussage ueber die naechste Handlung.
+const stand = modul.garetienUebernahmeKnopfZustand([mitVorschlag, ohneVorschlag, ohneVorschlag]);
+gleich(stand.beschriftung, "Alle angezeigten einfügen (1 von 3)",
+	"1 von 3 -- nur `mitVorschlag` traegt ein Item");
+gleich(stand.gesperrt, false, "mit mindestens einem Vorschlag ist der Knopf bedienbar");
+
+const leer = modul.garetienUebernahmeKnopfZustand([ohneVorschlag]);
+gleich(leer.gesperrt, true, "ohne einen einzigen Vorschlag ist nichts einzufuegen");
+gleich(leer.hinweis !== "", true,
+	"und der Grund steht SICHTBAR daneben, nie in einem `title` -- ein gesperrter Knopf bekommt "
+	+ "in Chrome keine Zeigerereignisse und zeigt seinen `title` deshalb nie");
+
+gleich(modul.garetienUebernahmeKnopfZustand([]).beschriftung,
+	"Alle angezeigten einfügen (0 von 0)", "die leere Anzeige nennt zwei Nullen, keine Ausnahme");
+
+// =================================================================================================
+// 11. Nachtrag RULING R11 -- der Endpunkt kappt eine laengere id-Liste STILLSCHWEIGEND bei 200
+// =================================================================================================
+//
+// `api/edit/wiki/sync-plan.php:218` macht `array_slice($payload['ids'], 0,
+// AVESMAPS_SYNC_PLAN_CATEGORY_LIMIT)` -- ohne Fehler, ohne Hinweis. Der Fussknopf ist der ERSTE
+// Aufrufer dieses Fensters, der ueberhaupt viele ids auf einmal schickt (bisher: eine je Klick).
+// 🔴 Gemessen wird deshalb die ANZAHL der Aufrufe und die GROESSE jedes Haeppchens -- eine
+// Zusicherung, die bei vielen ids nur prueft, DASS gesendet wurde, ist Vakuum.
+
+function idsObjekt(key, ids, schonAngehakt) {
+	return {
+		key: key,
+		items: ids.map(function (id) { return { id: id, selected: schonAngehakt ? 1 : 0 }; }),
+	};
+}
+
+function idsObjektGemischt(key, eintraege) {
+	return {
+		key: key,
+		items: eintraege.map(function (e) { return { id: e.id, selected: e.selected ? 1 : 0 }; }),
+	};
+}
+
+// ---- 11a. garetienIdsInHaeppchen -- die reine Aufteilung ----------------------------------------
+gleich(modul.garetienIdsInHaeppchen([]).length, 0, "leere Liste -> keine Haeppchen");
+tief(modul.garetienIdsInHaeppchen([1, 2, 3]), [[1, 2, 3]],
+	"unter der Grenze -> EIN Haeppchen mit allen ids");
+{
+	const ids200 = Array.from({ length: 200 }, (_, i) => i + 1);
+	tief(modul.garetienIdsInHaeppchen(ids200), [ids200], "GENAU 200 -> immer noch ein Haeppchen");
+	const ids201 = ids200.concat([201]);
+	const haeppchen201 = modul.garetienIdsInHaeppchen(ids201);
+	gleich(haeppchen201.length, 2, "201 ids -> ZWEI Haeppchen");
+	gleich(haeppchen201[0].length, 200, "das erste traegt genau die Grenze");
+	tief(haeppchen201[1], [201], "und der Rest liegt im zweiten");
+}
+
+// ---- 11b. garetienAnzeigeAnhakenIds -- wer traegt ueberhaupt eine id bei? -----------------------
+{
+	const gemischt = idsObjektGemischt("ggp:gemischt:1", [{ id: 920, selected: true }, { id: 921, selected: false }]);
+	tief(modul.garetienAnzeigeAnhakenIds([gemischt]), [920, 921],
+		"ein Objekt mit MINDESTENS einem offenen Item liefert ALLE seine ids -- auch die schon "
+		+ "angehakten, denn der Fussknopf haengt an, er nimmt nichts weg");
+
+	const schonVoll = idsObjekt("ggp:voll:1", [930, 931], true);
+	tief(modul.garetienAnzeigeAnhakenIds([schonVoll]), [],
+		"ein Objekt, dessen Items schon VOLLSTAENDIG angehakt sind, liefert KEINE ids -- nichts "
+		+ "zu tun -- `garetienHakenPlan` gaebe dort die Toggle-Richtung ALLES-AB zurueck, und "
+		+ "genau die darf der Fussknopf nie senden)");
+
+	tief(modul.garetienAnzeigeAnhakenIds([ohneVorschlag]), [], "ein Objekt ohne jedes Item traegt nichts bei");
+
+	const teil = idsObjekt("ggp:teil:1", [940, 941], false);
+	tief(modul.garetienAnzeigeAnhakenIds([schonVoll, teil, ohneVorschlag]), [940, 941],
+		"gemischt: nur das Objekt mit offenen Items traegt bei, in EINFUEGE-Reihenfolge");
+}
+
+// ---- 11c. garetienFussknopfKlick -- der ganze Ablauf, mit einem Spion statt echtem Netz ---------
+async function pruefeFussknopfHaeppchen() {
+	// Gegenprobe: UNTER der Grenze -> GENAU EIN Aufruf, alle ids in einem Haeppchen. Nur die
+	// DIFFERENZ zum naechsten Block belegt die Haeppchen-Regel wirklich.
+	{
+		const angezeigte = [];
+		for (let i = 1; i <= 50; i++) { angezeigte.push(idsObjekt("g:" + i, [i], false)); }
+		angezeigte.push(ohneVorschlag); // traegt kein Item -- muss folgenlos bleiben
+
+		const gestellt = [];
+		const senden = function (rumpf) { gestellt.push(rumpf); return Promise.resolve({ ok: true }); };
+		let geoeffnet = 0;
+		const ok = await modul.garetienFussknopfKlick(angezeigte, 4711, senden, function () { geoeffnet++; });
+
+		gleich(ok, true, "kein Abbruch");
+		gleich(gestellt.length, 1, "50 ids liegen UNTER der Grenze von 200 -- GENAU ein Aufruf");
+		gleich(gestellt[0].ids.length, 50, "und das eine Haeppchen traegt alle 50 ids");
+		gleich(gestellt[0].action, "select", "mit der Aktion, die der Server erwartet");
+		gleich(gestellt[0].kind, "garetien", "und der kind-Kennung dieses Imports");
+		gleich(gestellt[0].run_id, 4711, "und der hereingereichten Lauf-Nummer");
+		gleich(gestellt[0].selected, true, "der Fussknopf HAENGT AN, er toggelt nie ab");
+		gleich(geoeffnet, 1, "und danach oeffnet sich das Blatt -- genau einmal");
+	}
+
+	// Die DIFFERENZ: UEBER der Grenze -> ZWEI Haeppchen (200 + 10), SEQUENZIELL, nie parallel.
+	{
+		const angezeigte = [];
+		for (let i = 1; i <= 210; i++) { angezeigte.push(idsObjekt("h:" + i, [i], false)); }
+
+		const sequenz = [];
+		const senden = function (rumpf) {
+			sequenz.push("start:" + rumpf.ids.length);
+			return new Promise(function (resolve) {
+				setTimeout(function () {
+					sequenz.push("ende:" + rumpf.ids.length);
+					resolve({ ok: true });
+				}, 0);
+			});
+		};
+		let geoeffnet = 0;
+		const ok = await modul.garetienFussknopfKlick(angezeigte, 1, senden, function () { geoeffnet++; });
+
+		gleich(ok, true, "beide Haeppchen kommen an");
+		tief(sequenz, ["start:200", "ende:200", "start:10", "ende:10"],
+			"💣 210 ids -> 200 + 10, und das ZWEITE Haeppchen startet erst, NACHDEM das erste "
+			+ "fertig ist (nicht `start:200,start:10,…`) -- STRATO wird nie mit zwei parallelen "
+			+ "Anfragen auf denselben Lauf getroffen");
+		gleich(geoeffnet, 1, "und das Blatt geht danach genau einmal auf");
+	}
+
+	// Abbruch: scheitert ein Haeppchen, wird das naechste NIE gesendet und das Blatt NIE geoeffnet.
+	{
+		const angezeigte = [];
+		for (let i = 1; i <= 210; i++) { angezeigte.push(idsObjekt("k:" + i, [i], false)); }
+
+		const gestellt = [];
+		const senden = function (rumpf) {
+			gestellt.push(rumpf);
+			// avesmapsGaretienHandlungSenden faengt jeden Fehlschlag ab und meldet ihn als `null`
+			// (der Fehler steht dann schon in der Liste) -- genau dieser Vertrag wird hier
+			// nachgestellt.
+			return Promise.resolve(null);
+		};
+		let geoeffnet = 0;
+		const ok = await modul.garetienFussknopfKlick(angezeigte, 1, senden, function () { geoeffnet++; });
+
+		gleich(ok, false, "ein gescheitertes Haeppchen bricht die Kette ab");
+		gleich(gestellt.length, 1, "das ZWEITE Haeppchen wird NIE gesendet");
+		gleich(geoeffnet, 0,
+			"und das Blatt geht NICHT auf -- eine Vorschau ueber einen halb geschriebenen Stand "
+			+ "waere eine Falschaussage");
+	}
+
+	// Nichts anzuhaken (alles schon angehakt, oder gar kein Vorschlag): keine Anfrage -- das Blatt
+	// geht trotzdem auf, mit dem vorhandenen Stand.
+	{
+		const senden = function () { throw new Error("darf hier nie gerufen werden"); };
+		let geoeffnet = 0;
+		const ok = await modul.garetienFussknopfKlick([ohneVorschlag], 1, senden, function () { geoeffnet++; });
+
+		gleich(ok, true, "nichts zu tun ist kein Abbruch");
+		gleich(geoeffnet, 1, "das Blatt oeffnet sich trotzdem -- mit dem vorhandenen Stand");
+	}
+}
+
+pruefeFussknopfHaeppchen().then(function () {
+	console.log(`garetien-anzeige-menge: ${checks} Pruefungen bestanden.`);
+}).catch(function (fehler) {
+	console.error(fehler);
+	process.exitCode = 1;
+});

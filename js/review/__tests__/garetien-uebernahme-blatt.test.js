@@ -361,25 +361,32 @@ mitFetch(
 
 
 // =================================================================================================
-// D. Der Fussknopf -- die Zahl, die er traegt, und der Grund, wenn er nicht geht
+// D. Der Fussknopf -- „n von m", und der Grund, wenn er nicht geht
 // =================================================================================================
 //
-// 🔴 Gezaehlt werden ITEMS, nicht Objekte: das Blatt zeigt Items, und ein Knopf, der eine andere
-// Zahl nennt als das Blatt dahinter, ist eine Falschaussage ueber die naechste Handlung.
+// 🔴 SEIT AUFGABE 5 (29.08.2026, Entwurf §3.3) NIMMT DER KNOPF DIE ANZEIGE-LISTE, KEINE ZAHL MEHR:
+// „Alle angezeigten einfügen (n von m)" ersetzt „Angehakte übernehmen (n)". n zaehlt die
+// angezeigten Objekte MIT mindestens einem Item, m die ganze Anzeige -- „Nur Angezeigtes kann
+// uebernommen werden" (Owner). Die ausfuehrliche Pruefung dieser Regel (samt der Haeppchen-Regel
+// aus dem Nachtrag zu Aufgabe 5) steht in garetien-anzeige-menge.test.js; hier nur die Gegenprobe
+// gegen das ECHTE Blatt daneben.
 
-const knopfLeer = garetienUebernahmeKnopfZustand(0);
-const knopfVoll = garetienUebernahmeKnopfZustand(14);
-gleich(knopfVoll.beschriftung, "Angehakte übernehmen (14)",
-	"der Knopf traegt die Zahl (Mockup §1: „Angehakte übernehmen (14)\")");
-gleich(knopfVoll.gesperrt, false, "und ist offen, solange etwas angehakt ist");
+const mitItem = { key: "ggp:Gewaesser:1", items: [{ id: 1, selected: 0 }] };
+const ohneItem = { key: "ggp:Berge:7", items: [] };
+
+const knopfLeer = garetienUebernahmeKnopfZustand([ohneItem]);
+const knopfVoll = garetienUebernahmeKnopfZustand([mitItem, mitItem, ohneItem]);
+gleich(knopfVoll.beschriftung, "Alle angezeigten einfügen (2 von 3)",
+	"der Knopf traegt „n von m\" -- zwei der drei Angezeigten haben ein Item");
+gleich(knopfVoll.gesperrt, false, "und ist offen, solange mindestens ein Vorschlag angezeigt wird");
 gleich(knopfLeer.gesperrt, true,
-	"🔴 nichts angehakt ⇒ gesperrt. Ein Blatt mit null Zeilen ist eine Sackgasse: das echte Blatt "
-	+ "haette dort nicht einmal einen Uebernehmen-Knopf.");
-gleich(knopfLeer.beschriftung, "Angehakte übernehmen (0)", "und sagt die Null auch");
+	"🔴 kein Vorschlag unter den Angezeigten ⇒ gesperrt. Ein Blatt mit null Zeilen ist eine "
+	+ "Sackgasse: das echte Blatt haette dort nicht einmal einen Uebernehmen-Knopf.");
+gleich(knopfLeer.beschriftung, "Alle angezeigten einfügen (0 von 1)", "und sagt die Null auch");
 wahr(knopfLeer.hinweis.length > 0, "… und sagt WARUM");
 gleich(knopfVoll.hinweis, "",
-	"die Gegenprobe: bei etwas Angehaktem steht KEIN Hinweis da -- sonst waere er Zierrat statt "
-	+ "eines Grundes");
+	"die Gegenprobe: bei mindestens einem Vorschlag steht KEIN Hinweis da -- sonst waere er "
+	+ "Zierrat statt eines Grundes");
 // Die Gegenprobe zur Sperre: das echte Blatt bestaetigt sie. Bei null Haekchen gibt es dort
 // keinen Uebernehmen-Knopf, und der andere heisst „Schliessen".
 const blattLeer = blattFuss({ kind: "garetien", total: 0, selected: 0, deletions: 0 });
@@ -388,12 +395,14 @@ gleich(blattLeer.applyVisible, false,
 	+ "dorthin schon im Fenster gesperrt");
 gleich(blattLeer.closeLabel, "Schließen", "und sein anderer Knopf heisst dann „Schließen\"");
 
-// Negative oder unsinnige Eingaben fallen auf 0 -- die sichere Richtung.
-gleich(garetienUebernahmeKnopfZustand(-3).gesperrt, true, "eine negative Zahl sperrt");
+// Eine leere oder fehlende Anzeige faellt auf „0 von 0" -- die sichere Richtung.
+gleich(garetienUebernahmeKnopfZustand([]).gesperrt, true, "eine leere Anzeige sperrt");
 gleich(garetienUebernahmeKnopfZustand(undefined).anzahl, 0, "und eine fehlende ebenso");
+gleich(garetienUebernahmeKnopfZustand(undefined).beschriftung, "Alle angezeigten einfügen (0 von 0)",
+	"…und nennt zwei Nullen, keine Ausnahme");
 
 // Ohne `document` fasst die DOM-Haelfte nichts an und wirft nicht.
-gleich(garetienUebernahmeKnopfSetzen(5), null,
+gleich(garetienUebernahmeKnopfSetzen([mitItem]), null,
 	"ohne document tut die DOM-Haelfte nichts -- diese Datei muss unter Node ladbar bleiben");
 
 // =================================================================================================

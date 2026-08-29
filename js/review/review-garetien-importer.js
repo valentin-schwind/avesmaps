@@ -194,8 +194,8 @@
 			const el = document.getElementById(id);
 			if (el) { el.textContent = ""; }
 		});
-		// Aufgabe 16: ohne Lauf gibt es keine Haekchen -- und damit nichts zu uebernehmen.
-		garetienUebernahmeKnopfSetzen(0);
+		// Aufgabe 16/5: ohne Lauf gibt es keine Anzeige -- und damit nichts einzufuegen.
+		garetienUebernahmeKnopfSetzen(avesmapsGaretienAnzeigeListe());
 	}
 
 	// Der Füllvorgang beim Öffnen, mit seinen Werkzeugen herein -- aus demselben Grund wie bei
@@ -756,12 +756,11 @@
 		const fussEl = document.getElementById("garetien-foot-count");
 		if (fussEl) { fussEl.innerHTML = avesmapsGaretienFussZeileMarkup(a.reiter); }
 
-		// Aufgabe 16: der Fussknopf traegt die Zahl der angehakten ITEMS -- dieselbe Zahl, die das
-		// Blatt gleich als Zeilen zeigt. `angehakt` zaehlt den GANZEN Lauf (Aufgabe 8), nie die
-		// gefilterte Sicht: ein Filter blendet Zeilen aus, er hakt keine ab.
-		garetienUebernahmeKnopfSetzen(
-			avesmapsGaretienAngehaktAus(a, "new") + avesmapsGaretienAngehaktAus(a, "changed")
-		);
+		// Aufgabe 5: der Fussknopf traegt „n von m" der ANZEIGE-MENGE, nicht mehr die Zahl der
+		// angehakten Items -- „Nur angezeigte koennen uebernommen werden" (Owner). Die Anzeige ist
+		// filterunabhaengig (Entwurf §3.1), deshalb wird hier NICHT `objekte` (die gefilterte Sicht)
+		// gereicht, sondern dieselbe Menge, die auch auf der Karte liegt.
+		garetienUebernahmeKnopfSetzen(avesmapsGaretienAnzeigeListe());
 
 		// Aufgabe 13: die Auswahl ueberlebt einen Listenlauf -- aber nur, solange ihre Zeile in der
 		// Ansicht steht. Faellt sie durch Filter oder Reiter heraus, faellt auch die Auswahl: eine
@@ -2438,29 +2437,38 @@
 
 	// REIN: was der Fussknopf sagt und ob er geht.
 	//
-	// 🔴 Gezaehlt werden ITEMS, nicht Objekte. Das Blatt zeigt Items; ein Knopf, der eine andere
-	// Zahl nennt als das Blatt dahinter, ist eine Falschaussage ueber die naechste Handlung. Die
-	// zwei Zahlen sind wirklich verschieden -- ein Objekt kann zwei Items tragen (eine „Ergaenzung"
-	// mit Namens- UND Quellen-Item), und die Fusszeile daneben zaehlt OBJEKTE („14 vorgemerkt").
+	// 🔴 ER NIMMT DIE ANZEIGE-MENGE, NICHT MEHR EINE ZAHL (Aufgabe 5, 29.08.2026). „Nur angezeigte
+	// koennen uebernommen werden" (Owner) -- Anzeige ist die Vorstufe, nicht der Ersatz.
+	// 🔴 UND ER SAGT „n von m". Von 8213 Objekten haben 7930 keinen Vorschlag; sie duerfen
+	// angezeigt werden (das ist der ganze Sinn dieses Werkzeugs), aber eingefuegt werden kann nur,
+	// was ein Item hat. Ein Knopf, der „244 einfuegen" verspricht und 37 einfuegt, ist eine
+	// Falschaussage ueber die naechste Handlung.
 	// ⚠️ Der Grund fuer „gesperrt" steht SICHTBAR daneben, nie in einem `title`: ein deaktivierter
 	// Knopf bekommt keine Zeigerereignisse, sein `title` erscheint in Chrome also nie. Dasselbe
 	// Mittel wie im Blatt selbst, wo der Grund als Text in der Fusszeile steht.
-	function garetienUebernahmeKnopfZustand(anzahl) {
-		const n = Math.max(0, Number(anzahl) || 0);
+	function garetienUebernahmeKnopfZustand(angezeigte) {
+		const liste = angezeigte || [];
+		const mitVorschlag = liste.filter(function (o) {
+			return o && Array.isArray(o.items) && o.items.length > 0;
+		}).length;
 		return {
-			anzahl: n,
-			beschriftung: "Angehakte übernehmen (" + n + ")",
-			gesperrt: n < 1,
-			hinweis: n > 0
+			anzahl: mitVorschlag,
+			gesamt: liste.length,
+			beschriftung: "Alle angezeigten einfügen (" + mitVorschlag + " von " + liste.length + ")",
+			gesperrt: mitVorschlag < 1,
+			hinweis: mitVorschlag > 0
 				? ""
-				: "Nichts angehakt — das Blatt zeigt genau die Häkchen und wäre leer.",
+				: (liste.length === 0
+					? "Nichts angezeigt — leg links etwas auf die Karte."
+					: "Keines der angezeigten Objekte hat einen Vorschlag — sie gehören zu Stufen, "
+						+ "für die es noch keine Zuordnung gibt."),
 		};
 	}
 
 	// Die DOM-Haelfte dazu. Sie steht an EINER Stelle, damit Knopf und Hinweis nie auseinanderlaufen.
-	function garetienUebernahmeKnopfSetzen(anzahl) {
+	function garetienUebernahmeKnopfSetzen(angezeigte) {
 		if (!hasDocument) { return null; }
-		const stand = garetienUebernahmeKnopfZustand(anzahl);
+		const stand = garetienUebernahmeKnopfZustand(angezeigte);
 		const knopf = document.getElementById("garetien-apply");
 		if (knopf) {
 			knopf.textContent = stand.beschriftung;
@@ -2472,6 +2480,74 @@
 			hinweisEl.hidden = stand.hinweis === "";
 		}
 		return stand;
+	}
+
+	// ---- Der Fussknopf haengt an, in Haeppchen (Aufgabe 5, Nachtrag RULING R11) -------------------
+	//
+	// 🔴 DER ENDPUNKT KAPPT EINE LAENGERE id-LISTE STILLSCHWEIGEND. `api/edit/wiki/sync-plan.php:218`
+	// macht `array_slice($payload['ids'], 0, AVESMAPS_SYNC_PLAN_CATEGORY_LIMIT)` -- ohne Fehler, ohne
+	// Hinweis. Bis zu diesem Knopf schickte die Oberflaeche je Klick GENAU EINE id (der Kommentar
+	// daneben sagt das woertlich); dieser Fussknopf ist der ERSTE Aufrufer, der viele auf einmal
+	// sendet, und muss deshalb selbst in Haeppchen zerlegen.
+	// 💣 `changed` aus der Antwort ist KEIN Kappungs-Melder -- es ist ein `rowCount()` und zaehlt
+	// Zeilen NICHT mit, die den Wert schon hatten. Der Riegel steht deshalb hier, nicht am Ergebnis.
+	const GARETIEN_ANHAKEN_HAEPPCHEN = 200; // = AVESMAPS_SYNC_PLAN_CATEGORY_LIMIT (sync-plan.php)
+
+	// REIN: alle Item-IDs der angezeigten Objekte, die noch etwas zum Anhaken haben.
+	//
+	// ⭐ Wiederverwendet `garetienHakenPlan` (Aufgabe 2/15) je Objekt: sie liefert schon `ids` +
+	// `selected` ueber die Toggle-Regel des Zeilenhaekchens. Ein Objekt, dessen Items schon
+	// VOLLSTAENDIG angehakt sind, liefert dort `selected: false` (die Toggle-Richtung „alles ab") --
+	// genau das ist der Grund, warum nur `plan.selected === true` uebernommen wird: dieser Knopf
+	// haengt an, er nimmt nie etwas zurueck.
+	function garetienAnzeigeAnhakenIds(angezeigte) {
+		const ids = [];
+		(angezeigte || []).forEach(function (objekt) {
+			const plan = garetienHakenPlan(objekt, null);
+			if (plan && plan.selected === true) {
+				ids.push.apply(ids, plan.ids);
+			}
+		});
+		return ids;
+	}
+
+	// REIN: eine id-Liste in Haeppchen zu hoechstens GARETIEN_ANHAKEN_HAEPPCHEN.
+	// 🪤 Gezaehlt werden hier die IDS, nicht die Objekte -- ein Objekt kann zwei Items tragen (eine
+	// „Ergaenzung" mit Namens- UND Quellen-Item), und die Grenze von 200 gilt dem Endpunkt-Rumpf.
+	function garetienIdsInHaeppchen(ids) {
+		const haeppchen = [];
+		for (let i = 0; i < ids.length; i += GARETIEN_ANHAKEN_HAEPPCHEN) {
+			haeppchen.push(ids.slice(i, i + GARETIEN_ANHAKEN_HAEPPCHEN));
+		}
+		return haeppchen;
+	}
+
+	// Der Fussknopf selbst: haengt die Items der angezeigten Objekte an -- SEQUENZIELL, ein Haeppchen
+	// nach dem anderen, nie parallel (AGENTS.md: STRATO nie mit vielen Anfragen auf einmal treffen)
+	// -- und oeffnet danach das vorhandene Uebernahme-Blatt.
+	//
+	// 🔴 Anzeige-Liste, Lauf-Nummer, Sender UND Oeffner kommen HEREIN -- derselbe Bau wie
+	// garetienHandlungKlick und garetienLaufStarten, aus demselben Grund: nur so laesst sich am
+	// ERGEBNIS messen, WIEVIELE Anfragen hinausgehen, WIE GROSS jedes Haeppchen ist und WANN das
+	// Blatt aufgeht -- ohne echtes Netz und ohne echtes DOM.
+	// 🔴 Bricht ein Haeppchen ab (`senden` meldet `null` -- der Fehler steht dann schon in der
+	// Liste, avesmapsGaretienHandlungSenden faengt ihn dort ab), oeffnet sich das Blatt NICHT: eine
+	// Uebernahme-Vorschau ueber einen halb geschriebenen Stand waere eine Falschaussage.
+	// ⭐ Gibt es nichts anzuhaken (alle Items der Anzeige sind schon angehakt), bleibt `haeppchen`
+	// leer -- kein Netzruf, das Blatt oeffnet sich sofort mit dem vorhandenen Stand.
+	function garetienFussknopfKlick(angezeigte, runId, senden, oeffnen) {
+		const haeppchen = garetienIdsInHaeppchen(garetienAnzeigeAnhakenIds(angezeigte));
+		return haeppchen.reduce(function (kette, ids) {
+			return kette.then(function (ok) {
+				if (!ok) { return false; }
+				return senden({
+					action: "select", kind: GARETIEN_PLAN_ART, run_id: runId, ids: ids, selected: true,
+				}).then(function (antwort) { return antwort !== null; });
+			});
+		}, Promise.resolve(true)).then(function (ok) {
+			if (ok) { oeffnen(); }
+			return ok;
+		});
 	}
 
 	// Der Sender fuer das Uebernahme-Blatt.
@@ -2594,11 +2670,14 @@
 		if (uebernehmenBtn) {
 			uebernehmenBtn.addEventListener("click", function () {
 				if (uebernehmenBtn.disabled) { return; }
-				const oeffner = (typeof window !== "undefined"
-					&& typeof window.openSyncPlanSheet === "function")
-					? window.openSyncPlanSheet
-					: null;
-				garetienUebernahmeOeffnen(oeffner, document.getElementById("garetien-sheet"));
+				garetienFussknopfKlick(avesmapsGaretienAnzeigeListe(), zustand.planRunId,
+					avesmapsGaretienHandlungSenden, function () {
+						const oeffner = (typeof window !== "undefined"
+							&& typeof window.openSyncPlanSheet === "function")
+							? window.openSyncPlanSheet
+							: null;
+						garetienUebernahmeOeffnen(oeffner, document.getElementById("garetien-sheet"));
+					});
 			});
 		}
 	}
@@ -2756,6 +2835,10 @@
 			garetienUebernahmeKnopfSetzen,
 			garetienBlattSender,
 			garetienUebernahmeOeffnen,
+			// Aufgabe 5: der Fussknopf haengt an, in Haeppchen -- Nachtrag RULING R11
+			garetienAnzeigeAnhakenIds,
+			garetienIdsInHaeppchen,
+			garetienFussknopfKlick,
 		};
 	}
 })();
