@@ -432,7 +432,15 @@
 			+ '<p class="type-filter__section-title">Nur zeigen</p>'
 			+ '<div id="garetien-filter-nur-menu"></div>'
 			+ "</div>"
-			+ "</div>"
+			+ "</div>"   // .type-filter
+			// 💣 UND DIESES HIER SCHLIESST DIE `.gi-searchrow`. Es fehlte bis zum 29.08.2026, und der
+			// Browser hat den Rest der Spalte deshalb IN die Suchzeile gehaengt -- die ist
+			// `display: flex` (eine Reihe), also standen Chips, Bilanz und die ganze Liste
+			// NEBENEINANDER statt untereinander. Owner-Meldung: „irgendwas ist komisch/verrutscht".
+			// 🪤 Kein Test hat es gesehen: alle pruefen den Skelett-STRING (`includes`) oder bauen sich
+			// ihr eigenes Markup -- niemand hat ihn GEPARST und die Kinder gezaehlt. Genau dafuer gibt
+			// es jetzt die Zusicherung in garetien-liste-zeile.test.js.
+			+ "</div>"   // .gi-searchrow
 			+ '<div class="gi-chips" id="garetien-chips"></div>'
 			+ '<p class="gi-balance" id="garetien-balance"></p>'
 			+ '<div class="avm-scroll gi-list" id="garetien-list"></div>';

@@ -193,4 +193,51 @@ gleich(fusszeile, "<b>14</b> vorgemerkt · <b>3</b> abgelehnt · <b>0</b> übern
 wahr(!/angehakt|im Lauf/.test(fusszeile),
 	"die Fusszeile darf NICHT die Item-Ebene aus angehakt.* zeigen -- das ist Aufgabe 16s Kennzahl");
 
+
+// ---- Das Skelett der linken Spalte: GEPARST, nicht durchsucht ---------------------------------
+//
+// 🔴 WARUM ES DIESEN ABSCHNITT GIBT. Am 29.08.2026 fehlte in `garetienListeSkelettMarkup` EIN
+// `</div>` -- das der `.gi-searchrow`. Der Browser haengte daraufhin Chips, Bilanz und die ganze
+// Liste IN die Suchzeile, und die ist `display: flex` (eine Reihe): alles stand NEBENEINANDER
+// statt untereinander. Der Owner sah es sofort („irgendwas ist komisch/verrutscht"), live
+// gemessen: die Spalte hatte ZWEI Kinder statt fuenf, und `.gi-searchrow` war 527px hoch.
+//
+// 🪤 KEIN Test hat es gesehen, und der Grund ist die Lehre: alle pruefen den Skelett-STRING
+// (`includes("gi-balance")` und dergleichen) oder bauen sich im Pruefstand ihr EIGENES,
+// wohlgeformtes Markup. Ein `includes` findet ein Element auch dann, wenn es drei Ebenen zu tief
+// haengt. Gemessen wird deshalb die STRUKTUR: die Zahl der Kinder und wo jedes sitzt.
+const skelett = mod.garetienListeSkelettMarkup();
+
+// 💣 Die Ausgeglichenheit zuerst -- sie ist die Ursache, alles andere ist ihre Wirkung.
+gleich((skelett.match(/<div/g) || []).length, (skelett.match(/<\/div>/g) || []).length,
+	"das Skelett muss ausgeglichen sein: jedes <div> braucht sein </div>, sonst verschluckt das "
+	+ "erste offene Element alle folgenden Geschwister");
+checks++;
+
+// Und die Wirkung, an der Struktur gemessen: fuenf Geschwister auf der obersten Ebene.
+// ⚠️ Ein winziger Parser statt einer DOM-Nachbildung -- er zaehlt nur die Verschachtelungstiefe,
+// und genau die war der Fehler.
+function obersteEbene(html) {
+	const raus = [];
+	let tiefe = 0;
+	const muster = /<(\/?)(div|p|input|button)\b([^>]*)>/g;
+	let treffer;
+	while ((treffer = muster.exec(html)) !== null) {
+		const zu = treffer[1] === "/";
+		const leer = treffer[2] === "input" || /\/>$/.test(treffer[0]);
+		if (!zu && tiefe === 0) {
+			const klasse = /class="([^"]*)"/.exec(treffer[3]);
+			raus.push(klasse ? klasse[1].split(" ")[0] : treffer[2]);
+		}
+		if (leer) { continue; }
+		tiefe += zu ? -1 : 1;
+	}
+	return raus;
+}
+const oben = obersteEbene(skelett);
+gleich(oben.join(","), "avm-tabs,gi-searchrow,gi-chips,gi-balance,avm-scroll",
+	"die linke Spalte hat FUENF Geschwister in dieser Reihenfolge -- stehen Chips, Bilanz oder "
+	+ "Liste IN der `.gi-searchrow`, legt deren `display: flex` sie nebeneinander");
+checks++;
+
 console.log(`garetien-liste-zeile: ${checks} Pruefungen bestanden.`);

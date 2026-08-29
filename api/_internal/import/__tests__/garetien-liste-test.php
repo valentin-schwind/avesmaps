@@ -281,4 +281,43 @@ $zweitesMal = avesmapsGaretienArbeitsliste($pdo, 1, []);
 assert($zweitesMal['gesamt'] === $erweitert['gesamt'], 'ein zweites Lesen darf die Zahlen nicht verschieben');
 $pruefungen++;
 
+
+// ---------------------------------------------------------------------------------------------
+// 💣 DIE LAUFZEILE UND DIE REITER MUESSEN DIESELBEN OBJEKTE ZAEHLEN.
+//
+// Beide entstehen in DERSELBEN Schleife, beide hinter einem `isset(...)`-Riegel -- ein Urteil
+// ohne Bilanz-Eimer faellt also aus der Laufzeile heraus und bleibt in den Reitern stehen.
+// Genau das ist am 29.08.2026 live passiert: der Abgleich schreibt `widerspricht`, die Eimer
+// heissen `widerspruch`. Der Owner sah „239 Zeilen" ueber Reitern, die zusammen 288 ergaben.
+//
+// ⚠️ Gemessen wird die BILANZ GEGEN DIE REITER, nicht ein einzelner Wert. Eine Zusicherung auf
+// „widerspruch === 1" haette den naechsten Schreibfehler in einem anderen Eimer nicht gesehen.
+$widerspruchZeile = [
+    'run_id' => 1, 'wiki' => 'ggp', 'ebene' => 'Gewaesser', 'zeile_nr' => 901,
+    'typ' => 'Fluss', 'namensraum' => 'Fluss', 'artikel' => 'Streitwasser', 'anzeige' => 'Streitwasser',
+    'lodmin' => '4', 'lodmax' => '14', 'extra' => '', 'geo_art' => 'line',
+    'geo' => '100 200 110 210', 'roh' => '', 'urteil' => 'widerspricht',
+    'grund' => 'Artikel trifft, aber die Geometrie liegt woanders',
+];
+$spalten = implode(', ', array_keys($widerspruchZeile));
+$platz = ':' . implode(', :', array_keys($widerspruchZeile));
+$pdo->prepare("INSERT INTO garetien_import_row ({$spalten}) VALUES ({$platz})")->execute($widerspruchZeile);
+
+$mitWiderspruch = avesmapsGaretienArbeitsliste($pdo, 1, []);
+$bilanzSumme = array_sum($mitWiderspruch['bilanz']);
+$reiterSumme = array_sum($mitWiderspruch['reiter']);
+assert(
+    $bilanzSumme === $reiterSumme,
+    'die Laufzeile zaehlt ' . $bilanzSumme . ' Objekte, die Reiter ' . $reiterSumme
+    . ' -- ein Urteil ohne Bilanz-Eimer faellt aus der Laufzeile heraus'
+);
+$pruefungen++;
+
+assert(
+    $mitWiderspruch['bilanz']['widerspruch'] >= 1,
+    'die Staging-Schreibweise `widerspricht` muss als `widerspruch` ankommen, sonst ist das Objekt '
+    . 'in Bilanz, Filter UND Zeilenbeschriftung unsichtbar'
+);
+$pruefungen++;
+
 echo "OK: {$pruefungen} Pruefungen\n";

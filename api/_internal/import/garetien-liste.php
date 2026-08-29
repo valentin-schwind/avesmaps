@@ -142,6 +142,27 @@ function avesmapsGaretienListeAbschnitteVereinen(array $gespeichert, array $ausI
  */
 function avesmapsGaretienListeObjektUrteil(array $items, string $stagingUrteil): string
 {
+    // 💣 DER ABGLEICH SCHREIBT `widerspricht`, ALLES ANDERE HEISST `widerspruch`.
+    // `avesmapsGaretienUrteil` gibt `'status' => 'widerspricht'` zurueck (garetien-abgleich.php,
+    // zwei Stellen) und das landet so in `garetien_import_row.urteil`. Die Bilanz-Eimer, die
+    // Facetten des Urteil-Filters und die Zeilenbeschriftung im Fenster heissen dagegen alle
+    // `widerspruch` -- der Item-Pfad unten liefert genau das.
+    //
+    // Ein Objekt OHNE Items faellt auf den Staging-Wert zurueck und war damit UEBERALL unsichtbar:
+    // `isset($bilanz[...])` schlug fehl (die Laufzeile zaehlte weniger Objekte, als die Reiter
+    // zusammen ergaben), `avesmapsGaretienUrteilInfo` fand keine Beschriftung, und der
+    // Urteil-Filter konnte es nicht auswaehlen. Live gemeldet vom Owner am 29.08.2026:
+    // Laufzeile „239 Zeilen" gegen Reiter 77 + 211 = 288.
+    //
+    // 🔴 Normalisiert wird HIER, nicht im Abgleich: der Wert steht schon in der Datenbank, und ein
+    // umbenannter Erzeuger liesse jeden vorhandenen Lauf kaputt zurueck. Der Lesepfad hat genau
+    // einen Eingang fuer den Staging-Wert -- diesen.
+    // ⚠️ Und er steht VOR dem Kurzschluss `$items === []`, sonst greift er genau im Fall nicht,
+    // fuer den es ihn gibt.
+    if ($stagingUrteil === 'widerspricht') {
+        $stagingUrteil = 'widerspruch';
+    }
+
     if ($items === []) {
         return $stagingUrteil;
     }
@@ -492,7 +513,13 @@ function avesmapsGaretienArbeitsliste(PDO $pdo, int $importRunId, array $filter)
             'typ' => (string) ($zeile['typ'] ?? ''),
             'wiki' => (string) ($zeile['wiki'] ?? ''),
             'ebene' => (string) ($zeile['ebene'] ?? ''),
-            'urteil' => (string) ($zeile['urteil'] ?? ''),
+            // 🔴 DURCH DIESELBE NORMALISIERUNG wie oben -- `widerspricht` aus dem Abgleich
+            // heisst hier `widerspruch`. 🪤 DIES IST DIE ZWEITE STELLE, an der ein Urteil in
+            // die Liste eintritt (die erste ist der Item-Pfad). Beim ersten Reparaturversuch
+            // am 29.08.2026 war nur die andere gebunden, und der Fehler blieb genau fuer die
+            // Objekte OHNE Item stehen -- also fuer die, um die es ging. Eine Regel, die einen
+            // von zwei Erzeugern bindet, ist keine Regel (AGENTS.md §11).
+            'urteil' => avesmapsGaretienListeObjektUrteil([], (string) ($zeile['urteil'] ?? '')),
             'grund' => (string) ($zeile['grund'] ?? ''),
             'abschnitte' => $treffer['abschnitte'],
             'geometrie' => avesmapsGaretienZeilePunkte($zeile),
