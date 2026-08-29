@@ -337,13 +337,26 @@ const voll = {
 };
 const mv = garetienDetailMarkup(voll);
 
-// 1. Der Kopf sagt, als WAS wir es anlegen wuerden.
-wahr(mv.includes("Fluss → Flussweg"),
-	"der Kopf nennt ihren Typ UND unseren Zielsubtyp -- sonst steht nicht da, was entstuende");
+// 1. Der Kopf sagt, als WAS wir es anlegen wuerden -- UND wessen Vokabular welche Seite spricht
+// (Owner-Meldung 30.08.2026: bei "Gebirge → gebirge" sieht man dem Pfeil sonst nicht an, was
+// welche Seite meint).
+wahr(mv.includes("Fluss (garetien.de) → Flussweg (Avesmaps)"),
+	"der Kopf nennt ihren Typ samt IHRER Quelle UND unseren Zielsubtyp samt UNSEREM Namen -- sonst "
+	+ "steht nicht da, was entstuende, und nicht, wessen Vokabular welche Seite spricht");
 gleich(garetienTypText({ typ: "Fluss", subtyp: "" }), "Fluss",
-	"ohne Zielsubtyp faellt der Pfeil weg, statt ins Leere zu zeigen");
+	"ohne Zielsubtyp faellt der Pfeil weg, statt ins Leere zu zeigen -- und ohne Pfeil auch keine "
+	+ "Klammer: ein leeres \"(Avesmaps)\" darf nie stehenbleiben");
 gleich(garetienTypText({ typ: "See", subtyp: "See" }), "See",
-	"gleicher Typ auf beiden Seiten wird nicht doppelt geschrieben");
+	"gleicher Typ auf beiden Seiten wird nicht doppelt geschrieben, auch nicht mit Klammern");
+// Die Quelle ist NICHT immer "Garetien": kosch-Objekte tragen koschwiki.de, sonst stuende bei
+// jedem von ihnen die falsche Quelle da (Owner-Meldung 30.08.2026).
+gleich(garetienTypText({ typ: "Gebirge", subtyp: "gebirge", wiki: "kosch" }),
+	"Gebirge (koschwiki.de) → gebirge (Avesmaps)",
+	"koschwiki.de-Objekte tragen ihre EIGENE Quelle, nicht ein festgeschriebenes \"Garetien\"");
+gleich(garetienTypText({ typ: "Gebirge", subtyp: "gebirge", wiki: "ggp" }),
+	"Gebirge (garetien.de) → gebirge (Avesmaps)",
+	"…und ggp-Objekte ihre -- derselbe Wechsel wie bei Fluss/Natter oben, nur mit einem Buchstaben "
+	+ "Unterschied zwischen ihrem Typ und unserem Zielsubtyp");
 
 // 2. Der Link traegt den ARTIKELNAMEN, nicht das Wort „Wiki-Artikel".
 wahr(/>Garetien:Natter<\/a>/.test(mv), "der auswaertige Link heisst wie der Artikel");

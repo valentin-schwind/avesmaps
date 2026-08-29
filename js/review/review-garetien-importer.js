@@ -1742,15 +1742,25 @@
 			: garetienAnzahlText(Number(punkte || 0), "Punkt", "Punkte");
 	}
 
-	// REIN: der Kopf-Zusatz „Fluss → Flussweg" -- IHR Typ und die Art, als die WIR es anlegen
-	// würden. Ohne den zweiten Teil sagt der Kopf nicht, was beim Übernehmen entstünde.
-	// ⚠️ Fehlt der Zielsubtyp (ein Objekt ohne Vorschlag, ein Lauf von vor dem Nachzug), steht nur
-	// ihr Typ da -- die Zeile fällt weg, sie steht nicht mit einem leeren Pfeil da.
+	// REIN: der Kopf-Zusatz „Gebirge (garetien.de) → gebirge (Avesmaps)" -- IHR Typ samt IHRER
+	// Quelle, und die Art, als die WIR es anlegen würden, samt UNSEREM Namen. Ohne die zwei
+	// Klammern sagt der Pfeil nicht, wessen Vokabular welche Seite spricht -- bei "Gebirge →
+	// gebirge" unterscheiden sich die beiden nur durch einen Großbuchstaben (Owner-Meldung
+	// 30.08.2026).
+	// ⚠️ Die Quelle ist NICHT immer "Garetien" -- die Objekte kommen aus ZWEI Wikis (`objekt.wiki`:
+	// 'ggp'/'kosch'), und `garetienWikiLabel()` übersetzt das schon in "garetien.de"/"koschwiki.de".
+	// Ein festgeschriebenes "Garetien" stünde bei jedem Kosch-Objekt falsch da.
+	// ⚠️ Fehlt der Zielsubtyp (ein Objekt ohne Vorschlag, ein Lauf von vor dem Nachzug) oder ist er
+	// mit ihrem Typ identisch, steht nur ihr Typ da -- UNBESCHRIFTET: ohne Pfeil gibt es nichts zu
+	// unterscheiden, und ein leeres „(Avesmaps)" darf nie stehenbleiben.
 	function garetienTypText(objekt) {
 		const ihr = String((objekt && objekt.typ) || "").trim();
 		const unser = String((objekt && objekt.subtyp) || "").trim();
 		if (unser === "" || unser === ihr) { return ihr; }
-		return ihr === "" ? unser : ihr + " → " + unser;
+		if (ihr === "") { return unser; }
+		const quelle = garetienWikiLabel(String((objekt && objekt.wiki) || ""));
+		const ihrBeschriftet = quelle === "" ? ihr : ihr + " (" + quelle + ")";
+		return ihrBeschriftet + " → " + unser + " (" + AVESMAPS_GARETIEN_PARTEI_UNSERE + ")";
 	}
 
 	// REIN: wie viele VERSCHIEDENE Objekte von uns liegen unter ihrem einen?
