@@ -458,14 +458,14 @@
    AGENTS.md §12 meint. */
 .gi-detail a[target="_blank"]::after { content: " ↗"; }
 
-/* „✦ Auf der Karte zeigen" (Aufgabe 14). WEICH/OUTLINE, nicht gefuellt: die Haupthandlung dieses
+/* „✦ Zentrieren" (Aufgabe 14). WEICH/OUTLINE, nicht gefuellt: die Haupthandlung dieses
    Fensters heisst „Angehakte uebernehmen" und steht in der Fusszeile (Designsprache §12,
    Knopf-Rangfolge). Er bewegt ausserdem nur die ANSICHT -- ein Akzentknopf verspraeche eine
    Handlung an den Daten. */
 .gi-show {
 	width: 100%;
 	min-height: var(--avm-control-h);
-	margin-bottom: var(--space-6);
+	margin-bottom: var(--space-2);
 	border: 1px solid var(--color-button-soft-border);
 	border-radius: var(--radius-md);
 	background: var(--color-button-soft);
@@ -476,6 +476,65 @@
 	cursor: pointer;
 }
 .gi-show:hover { background: var(--color-button-soft-hover); }
+
+/* ---- Die zwei Sicht-Knoepfe (Aufgabe 14b) -------------------------------------------------- */
+
+/* 🔴 Jeder Knopf traegt SEINE Farbe sichtbar, sonst weiss niemand, welcher welcher ist -- und
+   genau das war der Befund des Owners („ich weiss aber nicht, ob das die Garetien-Geometrie oder
+   unsere eigene ist"). Die Farbe sitzt auf dem FLECK, nicht auf der Schrift: Gold (#f0b429) auf dem
+   weichen Knopfgrund erreicht im hellen Thema keinen lesbaren Kontrast, ein Fleck daneben braucht
+   keinen.
+   🔴 Farbe kodiert hier DATEN, nicht Chrome -- AGENTS.md §12 laesst das ausdruecklich zu, und die
+   zwei Toene sind dieselben zwei Tokens, mit denen die Karte zeichnet. Kein dritter Wert.
+   ⚠️ WEICH/OUTLINE wie der Knopf darueber: eine Anzeigeeinstellung ist keine Handlung an den Daten.
+   Die Farbe steckt im Fleck, nicht im Knopfgrund -- zwei gefuellte Farbknoepfe uebertoenten die
+   gefuellte Haupthandlung in der Fusszeile. */
+.gi-sicht {
+	display: flex;
+	gap: var(--space-2);
+	margin-bottom: var(--space-6);
+}
+
+.gi-sicht__knopf {
+	flex: 1 1 0;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: var(--space-2);
+	min-height: var(--avm-control-h);
+	border: 1px solid var(--color-button-soft-border);
+	border-radius: var(--radius-md);
+	background: var(--color-button-soft);
+	color: var(--color-button-soft-text);
+	font: inherit;
+	font-size: var(--font-size-body);
+	font-weight: var(--font-weight-bold);
+	cursor: pointer;
+}
+.gi-sicht__knopf:hover { background: var(--color-button-soft-hover); }
+
+.gi-sicht__fleck {
+	width: 10px;
+	height: 10px;
+	flex: none;
+	border-radius: 50%;
+	border: 1px solid var(--gi-sicht-farbe);
+	background: var(--gi-sicht-farbe);
+}
+
+.gi-sicht__knopf--ihre { --gi-sicht-farbe: var(--color-marker-active); }
+.gi-sicht__knopf--unsere { --gi-sicht-farbe: var(--color-garetien-unsere); }
+
+/* 💣 DER AUS-ZUSTAND HAENGT AN `aria-pressed` UND AN NICHTS SONST -- keine zweite Klasse daneben,
+   die auseinanderlaufen kann. Der Klickverteiler setzt genau dieses Attribut nach, diese Regel
+   liest genau dieses Attribut.
+   ⚠️ Der Fleck wird HOHL statt zu verschwinden: eine leere Stelle liest sich als Ladefehler, ein
+   Ring als „ausgeschaltet". */
+.gi-sicht__knopf[aria-pressed="false"] {
+	color: var(--color-text-muted);
+	background: transparent;
+}
+.gi-sicht__knopf[aria-pressed="false"] .gi-sicht__fleck { background: transparent; }
 
 /* ---- Was der Importer auf die KARTE zeichnet (Aufgabe 14) --------------------------------- */
 
@@ -489,9 +548,32 @@
    BREITEREN Hof. Gebaut ist deshalb einer -- Breite treu, Kraft eine Spur leichter.
    💣 Die Farbe MUSS hier aus dem Token kommen: Leaflet-Pfadoptionen nehmen kein `var(--…)`,
    eine CSS-Regel schon -- deshalb steht der Weichzeichner hier und nicht im JavaScript.
-   🔴 Beide Klassen verschwinden mit dem Importer (Auftrag §5.5); sie stehen darum in DIESER
+   🔴 UND SIE IST SEIT DEM 29.08.2026 MAGENTA, nicht mehr Gold: der Hof gehoert seither UNSERER
+   Partei (er liegt unter unserer durchgezogenen Magenta-Form, nicht mehr unter unserer blauen
+   Flusslinie). Ein goldener Hof unter einer Magenta-Linie behauptete wieder das Gegenteil der Form
+   -- genau die Verwechslung, die diese Fassung beseitigt.
+   🔴 Alle drei Klassen verschwinden mit dem Importer (Auftrag §5.5); sie stehen darum in DIESER
    Datei und nicht in einer Kartendatei, die bleibt. */
-.gi-map-schein { filter: drop-shadow(0 0 14px var(--color-marker-active)); }
+.gi-map-schein { filter: drop-shadow(0 0 14px var(--color-garetien-unsere)); }
+
+/* 💣 NUR DIE KONTUR FAENGT DEN ZEIGER, NIE DIE FUELLUNG -- und das ist keine Feinheit, sondern die
+   Bedingung dafuer, dass der Tooltip ueberhaupt etwas taugt. Bei einem See liegen IHRE und UNSERE
+   Flaeche fast deckungsgleich uebereinander; faengt die Fuellung, gewinnt ueberall die obere
+   (ihre), und unsere Fassung waere im gesamten Ueberlappungsbereich nicht mehr anzeigbar -- also
+   genau dort nicht, wo man vergleicht. Mit `stroke` ist jede der zwei Konturen fuer sich
+   erreichbar.
+   ⭐ Der zweite Gewinn faellt gratis ab: das Innere eines Sees bleibt fuer die Karte darunter
+   anklickbar. Eine Import-Ueberlagerung darf nicht die Landschaft verschlucken, ueber der sie liegt.
+   💣 DIE SPEZIFITAET IST TRAGEND. Leaflets eigene Regel `.leaflet-pane > svg path.leaflet-interactive`
+   (leaflet.css) setzt `pointer-events: auto` und wiegt (0,2,2); eine schlichte `.gi-map-ihre`-Regel
+   waegt (0,1,0) und waere WIRKUNGSLOS -- sichtbar wuerde das erst an einem See, an dem der falsche
+   Tooltip erscheint. Deshalb dieselbe Kette plus die eigene Klasse: (0,3,2).
+   ⚠️ Fuer Linien und Ringe ist die Regel folgenlos (sie tragen `fill: none`, dort trifft `auto`
+   ohnehin nur die Kontur) -- sie steht trotzdem fuer alle drei Klassen, damit die Zusicherung eine
+   Regel ist und keine Aufzaehlung von Faellen. */
+.leaflet-pane > svg path.leaflet-interactive.gi-map-ihre,
+.leaflet-pane > svg path.leaflet-interactive.gi-map-unsere,
+.leaflet-pane > svg path.leaflet-interactive.gi-map-schein { pointer-events: stroke; }
 
 
 .gi-sec {

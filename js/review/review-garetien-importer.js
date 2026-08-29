@@ -1548,14 +1548,65 @@
 			+ " — einmal an der Quelle, nicht an jedem Objekt.</p>";
 	}
 
+	/*
+	 * Die zwei Parteinamen auf den Sicht-Knöpfen.
+	 *
+	 * 💣 SIE STEHEN EIN ZWEITES MAL IN js/review/review-garetien-karte.js, in jedem Tooltip. Das ist
+	 * ein GEKOPPELTER WERT in zwei Dateien und kein Versehen: dieses Fenster läuft auch auf Seiten
+	 * ohne Karte (die Editorfenster laden den Zeichner nicht) und darf ihn nicht voraussetzen, und
+	 * der Zeichner wird im Test allein geladen und kann dieses Fenster nicht voraussetzen. Ein
+	 * Rückfall in eine der beiden Richtungen wäre genau die stille Divergenz, die ein gekoppelter
+	 * Wert vermeiden soll — der Knopf hieße „Garetien" und der Tooltip etwas anderes, und der ganze
+	 * Zweck dieser Aufgabe („welche Form gehört wem") wäre wieder offen. Zusammengehalten werden sie
+	 * von js/review/__tests__/garetien-karte.test.js, das beide Exporte gegeneinander hält.
+	 */
+	const AVESMAPS_GARETIEN_PARTEI_IHRE = "Garetien";
+	const AVESMAPS_GARETIEN_PARTEI_UNSERE = "Avesmaps";
+
+	/*
+	 * REIN: die zwei farbigen Sicht-Knöpfe (Owner 29.08.2026: „mach zwei farbige knöpfe und jeder
+	 * der knöpfe zeigt in seiner farbe seine fläche an oder blendet sie aus. Dann kann man direkt
+	 * vergleichen was besser ist").
+	 *
+	 * 🔴 BEIDE STARTEN AN. `sicht` ist die GEMESSENE Auskunft des Zeichners (`display` der zwei
+	 * Panes); fehlt sie — kein Zeichner, keine Karte —, gilt „an". `!== false` und nicht `=== true`:
+	 * ein fehlendes Feld darf nicht als „aus" gelesen werden.
+	 * 🔴 DER ZUSTAND STEHT NUR IN `aria-pressed`, in keiner zweiten Klasse. Der Klickverteiler setzt
+	 * genau dieses eine Attribut nach, das CSS liest genau dieses eine — zwei Knöpfe für einen
+	 * Zustand wären die Divergenz, an der im Haus schon das Anzeige-Menü der Karte gescheitert ist.
+	 * ⚠️ Die Farbe sitzt auf dem FLECK, nicht auf der Schrift: farbige Schrift auf dem weichen
+	 * Knopfgrund erreicht bei Gold (#f0b429) im hellen Thema keinen lesbaren Kontrast, ein 10px
+	 * großer Fleck daneben braucht keinen.
+	 */
+	function garetienSichtKnopfMarkup(seite, text, an) {
+		return '<button class="gi-sicht__knopf gi-sicht__knopf--' + seite + '" type="button"'
+			+ ' data-sicht="' + seite + '" aria-pressed="' + (an ? "true" : "false") + '"'
+			+ ' title="' + avesmapsGaretienEscape(text)
+			+ '-Geometrie auf der Karte ein- oder ausblenden">'
+			+ '<span class="gi-sicht__fleck" aria-hidden="true"></span>'
+			+ avesmapsGaretienEscape(text) + "</button>";
+	}
+
+	function garetienSichtLeisteMarkup(sicht) {
+		const s = sicht || {};
+		return '<div class="gi-sicht">'
+			+ garetienSichtKnopfMarkup("ihre", AVESMAPS_GARETIEN_PARTEI_IHRE, s.ihre !== false)
+			+ garetienSichtKnopfMarkup("unsere", AVESMAPS_GARETIEN_PARTEI_UNSERE, s.unsere !== false)
+			+ "</div>";
+	}
+
 	// REIN: die ganze rechte Spalte.
 	//
-	// 🔴 Der Knopf „✦ Auf der Karte zeigen" (Aufgabe 14) trägt seinen `data-key` selbst. Er ist
+	// 🔴 Der Knopf „✦ Zentrieren" (Aufgabe 14) trägt seinen `data-key` selbst. Er ist
 	// damit ohne Modulzustand lesbar -- der Klickverteiler braucht weder `zustand.detailKey` noch
 	// eine zweite Buchführung darüber, welche Ansicht gerade offen ist.
-	// ⚠️ Er bewegt AUSSCHLIESSLICH die Ansicht. Das Leuchten hängt am Häkchen (Owner 27.08.2026);
-	// wer ihn drückt, sieht die Karte fliegen und den Glow unverändert.
-	function garetienDetailMarkup(objekt) {
+	// 🔴 Er hieß bis zum 29.08.2026 „✦ Auf der Karte zeigen — Ansicht folgt". Der Name war eine
+	// Lüge geworden: seit `avesmapsGaretienAufDerKarte` das ANGEKLICKTE Objekt mitzeichnet, LIEGT es
+	// schon auf der Karte, wenn dieser Knopf sichtbar ist — er bewegt nur noch die Ansicht dorthin.
+	// Genau das verlangt der Owner („Dann darf die Kamera zu dem Objekt fliegen, das Objekt muss
+	// leuchten"), und genau das leistet er zusammen mit jener Zeile. Ein zweiter Zeichenbefehl hier
+	// wäre die zweite Regel darüber, was auf der Karte liegt.
+	function garetienDetailMarkup(objekt, sicht) {
 		if (!objekt) {
 			return '<div class="gi-detail"><p class="avm-empty">Wähle links eine Zeile — hier steht'
 				+ " dann, was bei uns an derselben Stelle liegt.</p></div>";
@@ -1571,10 +1622,15 @@
 		// ⚠️ Ohne Geometrie gäbe es nichts anzufliegen -- dann steht der Knopf auch nicht da. Ein
 		// Knopf, der nichts tut, ist eine sichtbare Störung (dieselbe Begründung, aus der er bis
 		// Aufgabe 14 ganz fehlte).
+		// 🔴 Und die zwei Sicht-Knöpfe stehen unter DERSELBEN Bedingung: sie schalten, was auf der
+		// Karte liegt, und ohne Geometrie liegt von diesem Objekt nichts dort. Ein Bedienelement,
+		// das an der geöffneten Zeile nichts bewirkt, ist genau die sichtbare Störung, aus der der
+		// Knopf darüber schon einmal weggelassen wurde.
 		if (Array.isArray(objekt.geometrie) && objekt.geometrie.length > 0) {
 			kopf += '<button class="gi-show" type="button" data-key="'
 				+ avesmapsGaretienEscape(objekt.key || "") + '">'
-				+ "✦ Auf der Karte zeigen — Ansicht folgt</button>";
+				+ "✦ Zentrieren</button>";
+			kopf += garetienSichtLeisteMarkup(sicht);
 		}
 
 		let notiz = garetienAnzahlText(abschnitte.length, "Abschnitt", "Abschnitte");
@@ -1920,7 +1976,15 @@
 		const gewaehlt = zustand.detailKey === null ? null : (liste.filter(function (o) {
 			return o && String(o.key) === String(zustand.detailKey);
 		})[0] || null);
-		spalte.innerHTML = garetienDetailMarkup(gewaehlt);
+		// 🔴 Der Stand der zwei Sicht-Knöpfe wird beim Rendern GEMESSEN, nicht gemerkt: er steht im
+		// `display` der zwei Karten-Panes, und diese Spalte wird bei jedem Zeilenklick neu gebaut.
+		// Ein Modulzustand daneben liefe beim ersten Fenster-Schließen auseinander (dort setzt
+		// `avesmapsGaretienKarteAus` beide wieder auf sichtbar).
+		const sicht = (typeof window !== "undefined"
+			&& typeof window.avesmapsGaretienKarteSicht === "function")
+			? window.avesmapsGaretienKarteSicht()
+			: null;
+		spalte.innerHTML = garetienDetailMarkup(gewaehlt, sicht);
 		// Dreiwertig ist eine EIGENSCHAFT, kein Attribut -- erst nach dem Einfügen einlösen, genau
 		// wie in avesmapsGaretienListeRendern.
 		Array.prototype.forEach.call(spalte.querySelectorAll("input[data-part]"), function (feld) {
@@ -1988,6 +2052,20 @@
 	function garetienDetailKlick(ereignis, objekte) {
 		const ziel = ereignis && ereignis.target;
 		if (!ziel || typeof ziel.closest !== "function") { return null; }
+		// Die zwei Sicht-Knöpfe. 🔴 `aria-pressed` wird aus dem ZURÜCKGEGEBENEN Stand nachgezogen,
+		// nicht aus dem Klick: ohne Karte (Editorseiten) hat der Zeichner nichts umgeschaltet, und
+		// dann darf der Knopf es auch nicht behaupten.
+		const sichtKnopf = ziel.closest("[data-sicht]");
+		if (sichtKnopf) {
+			const seite = sichtKnopf.getAttribute("data-sicht");
+			if (typeof window === "undefined"
+				|| typeof window.avesmapsGaretienKarteUmschalten !== "function") {
+				return null;
+			}
+			const stand = window.avesmapsGaretienKarteUmschalten(seite) || {};
+			sichtKnopf.setAttribute("aria-pressed", stand[seite] === false ? "false" : "true");
+			return stand;
+		}
 		const knopf = ziel.closest(".gi-show");
 		if (!knopf) { return null; }
 		const schluessel = knopf.getAttribute("data-key");
@@ -2359,6 +2437,12 @@
 			// Aufgabe 14
 			avesmapsGaretienFensterSchliessen,
 			garetienDetailKlick,
+			// Aufgabe 14b: die zwei Sicht-Knoepfe. 🔴 Die zwei Parteinamen sind exportiert, damit
+			// der Test sie gegen die Fassung in review-garetien-karte.js halten kann -- sie sind
+			// ein gekoppelter Wert in zwei Dateien (Begruendung an ihrer Definition).
+			garetienSichtLeisteMarkup,
+			AVESMAPS_GARETIEN_PARTEI_IHRE,
+			AVESMAPS_GARETIEN_PARTEI_UNSERE,
 			// Aufgabe 15
 			garetienHandlungen,
 			garetienHandlungsRumpf,

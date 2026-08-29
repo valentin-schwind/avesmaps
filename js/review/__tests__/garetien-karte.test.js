@@ -1,4 +1,5 @@
-// Aufgabe 14 des Garetien Importers -- die Karte: was angehakt ist, leuchtet.
+// Aufgabe 14 des Garetien Importers -- die Karte: was gezeigt wird, leuchtet, und man sieht,
+// WESSEN Fassung es ist.
 // Auftrag: docs/superpowers/specs/2026-08-27-garetien-importer-fenster-auftrag.md §5.5
 // Brief:   .superpowers/sdd/2026-08-27-garetien-importer-fenster/task-14-brief.md
 // Mockup:  docs/garetien-importer-mockup.html §2
@@ -9,7 +10,7 @@
 // gelesen. Der Zeichner nimmt seine Karte HEREIN (dieselbe Bauform wie js/ui/karten-abzug.js), und
 // `L` liest er zur Laufzeit aus dem globalen Raum; beides laesst sich in Node stellen. Gemessen
 // wird deshalb ueberall am ERGEBNIS: welche Ebenen liegen danach auf der Karte, mit welchen
-// Punkten, in welcher Reihenfolge.
+// Punkten, in welcher Farbe, in welcher Reihenfolge.
 // 🪤 Die Fehlerklasse dieses Vorhabens ist die VAKUUM-Zusicherung. Jede Zahl hier ist deshalb aus
 // der Fixture herleitbar und im Kommentar hergeleitet, und jeder Filter wird an der DIFFERENZ
 // gemessen (was faellt weg) statt an einem Vorhandensein.
@@ -82,11 +83,16 @@ function gefaelschteKarte() {
 	};
 }
 
-// `_bauer` haelt fest, OB `L.polygon` oder `L.polyline` gerufen wurde -- eine Flaeche ist bei
-// Leaflet ein anderer Bauer, nicht bloss eine andere Option, und genau das ist die Aussage.
+// `_bauer` haelt fest, OB `L.polygon`, `L.polyline` oder `L.circleMarker` gerufen wurde -- eine
+// Flaeche ist bei Leaflet ein anderer Bauer, nicht bloss eine andere Option, und genau das ist die
+// Aussage. `_tooltip` haelt fest, WAS `bindTooltip` bekommen hat: der Tooltip ist die zweite
+// Haelfte dieser Aufgabe („dass ich seh welches objekt welchs ist"), und im DOM waere er nicht
+// messbar -- ein Leaflet-Tooltip bleibt nach dem Schliessen noch rund 400 ms als Leiche stehen.
 function gefaelschteEbene(bauer, punkte, optionen) {
 	return {
-		_art: "polyline", _bauer: bauer, _punkte: punkte, _karte: null, options: optionen || {},
+		_art: "polyline", _bauer: bauer, _punkte: punkte, _karte: null, _tooltip: null,
+		options: optionen || {},
+		bindTooltip(text, opt) { this._tooltip = { text: text, optionen: opt || {} }; return this; },
 		addTo(k) { k.addLayer(this); return this; },
 		remove() { if (this._karte) { this._karte.removeLayer(this); } return this; },
 	};
@@ -121,10 +127,13 @@ global.L = {
 	latLngBounds(punkte) { return { _punkte: punkte }; },
 };
 
-// Der Goldton kommt aus dem Token, nie als Zahl aus dieser Datei (AGENTS.md §12). Leaflet-
-// Pfadoptionen nehmen kein `var()`, also wird er ausgelesen -- hier gestellt, damit die Zusicherung
-// darunter beweist, dass wirklich DIESER Weg genommen wird.
+// Die zwei Farben kommen aus Tokens, nie als Zahl aus dem Zeichner (AGENTS.md §12). Leaflet-
+// Pfadoptionen nehmen kein `var()`, sie werden also ausgelesen -- hier gestellt, damit die
+// Zusicherungen darunter beweisen, dass wirklich DIESER Weg genommen wird.
+// 🔴 ZWEI verschiedene Werte, und der Test haelt sie gegeneinander: waeren sie gleich, koennte
+// „ihre ist Gold und unsere Magenta" nichts belegen -- das ist die Vakuum-Falle dieser Aufgabe.
 const GOLD = "#f0b429";
+const MAGENTA = "#b5279b";
 let tokenAbfragen = [];
 // ⚠️ Vollstaendig genug, dass auch review-garetien-importer.js (Abschnitt 12) darin starten kann:
 // dessen `hasDocument` ist ein `typeof document !== "undefined"`, und sein boot() greift dann
@@ -136,11 +145,13 @@ global.document = {
 	addEventListener() {},
 	querySelectorAll() { return []; },
 };
+const TOKEN_WERTE = { "--color-marker-active": GOLD, "--color-garetien-unsere": MAGENTA };
 global.getComputedStyle = function (element) {
 	return {
 		getPropertyValue(name) {
 			tokenAbfragen.push(name);
-			return element === global.document.documentElement && name === "--color-marker-active" ? GOLD : "";
+			if (element !== global.document.documentElement) { return ""; }
+			return TOKEN_WERTE[name] || "";
 		},
 	};
 };
@@ -148,17 +159,39 @@ global.getComputedStyle = function (element) {
 const mod = require(path.resolve(__dirname, "..", "review-garetien-karte.js"));
 const {
 	avesmapsGaretienNachLeaflet,
-	avesmapsGaretienScheinIds,
+	avesmapsGaretienUnsereIds,
+	garetienRingSchliesst,
+	garetienTitelIhre,
+	garetienTitelUnsere,
 	avesmapsGaretienKarteZeigen,
 	avesmapsGaretienKarteFliegen,
+	avesmapsGaretienKarteSicht,
+	avesmapsGaretienKarteUmschalten,
 	avesmapsGaretienKarteAus,
 } = mod;
 
 wahr(typeof avesmapsGaretienNachLeaflet === "function", "avesmapsGaretienNachLeaflet fehlt im Export");
-wahr(typeof avesmapsGaretienScheinIds === "function", "avesmapsGaretienScheinIds fehlt im Export");
+wahr(typeof avesmapsGaretienUnsereIds === "function", "avesmapsGaretienUnsereIds fehlt im Export");
 wahr(typeof avesmapsGaretienKarteZeigen === "function", "avesmapsGaretienKarteZeigen fehlt im Export");
 wahr(typeof avesmapsGaretienKarteFliegen === "function", "avesmapsGaretienKarteFliegen fehlt im Export");
 wahr(typeof avesmapsGaretienKarteAus === "function", "avesmapsGaretienKarteAus fehlt im Export");
+wahr(typeof avesmapsGaretienKarteSicht === "function", "avesmapsGaretienKarteSicht fehlt im Export");
+wahr(typeof avesmapsGaretienKarteUmschalten === "function",
+	"avesmapsGaretienKarteUmschalten fehlt im Export");
+
+const IHRE = mod.AVESMAPS_GARETIEN_KLASSE_IHRE;
+const UNSERE = mod.AVESMAPS_GARETIEN_KLASSE_UNSERE;
+const SCHEIN = mod.AVESMAPS_GARETIEN_KLASSE_SCHEIN;
+const IHRE_PANE = mod.AVESMAPS_GARETIEN_IHRE_PANE;
+const UNSERE_PANE = mod.AVESMAPS_GARETIEN_UNSERE_PANE;
+// Ohne diese drei Zeilen misst alles darunter „irgendeine Klasse gegen sich selbst".
+wahr(IHRE !== UNSERE && UNSERE !== SCHEIN && IHRE !== SCHEIN,
+	"die drei Klassennamen muessen verschieden sein, sonst trennt keine Zusicherung darunter etwas");
+wahr(IHRE_PANE !== UNSERE_PANE, "die zwei Panes muessen verschieden heissen");
+
+function nach(karte, klasse) {
+	return karte.ebenen().filter((e) => e.options.className === klasse);
+}
 
 // ---- 1. GeoJSON [x, y] -> Leaflet [lat, lng] = [y, x] -----------------------------------------
 //
@@ -186,16 +219,17 @@ tief(avesmapsGaretienNachLeaflet(null), [], "ohne Punkte kommt eine leere Liste 
 tief(avesmapsGaretienNachLeaflet([[1, 2], [3], ["a", "b"], [4, 5]]), [[2, 1], [5, 4]],
 	"halbe und unzahlige Punkte fallen heraus, die gueltigen bleiben in ihrer Reihenfolge");
 
-// ---- 2. Der Schein gehoert NUR den Abschnitten, die das Haekchen wirklich aendert -------------
+// ---- 2. Gezeichnet werden NUR die Abschnitte, die das Haekchen wirklich aendert ---------------
 //
 // 💣 Ihre Natter laeuft ueber fuenf unserer Abschnitte; geaendert wird EINER. Der ganzen Kette
-// einen Schein zu geben behauptete, alle fuenf wuerden umbenannt -- genau der Fehler, den die
+// eine Magenta-Form zu geben behauptete, alle fuenf wuerden umbenannt -- genau der Fehler, den die
 // Einzelansicht aus Aufgabe 13 verhindern soll. Quelle ist deshalb `item.abschnitt.public_id` der
 // ANGEHAKTEN Items, nie `objekt.abschnitte`.
 const natter = {
 	key: "ggp:Gewaesser:Fluss:Natter",
 	name: "Natter",
 	urteil: "ergaenzung",
+	geometrie_typ: "LineString",
 	// Weit ab der Diagonale, und je Abschnitt anders -- nur so belegt der Vergleich unten, dass
 	// wirklich w-6120 und nicht irgendein Abschnitt gezeichnet wurde.
 	geometrie: [[100, 700], [110, 720], [120, 760]],
@@ -209,55 +243,55 @@ const natter = {
 		{ id: 11, anlass: "ergaenzung", selected: 0, abschnitt: { public_id: "w-4471" } },
 	],
 };
-tief(avesmapsGaretienScheinIds(natter), ["w-6120"],
-	"Der Schein gehoert NUR den Abschnitten, die das Haekchen aendert. Der ganzen Kette einen zu "
-	+ "geben behauptet, alle fuenf wuerden umbenannt.");
+tief(avesmapsGaretienUnsereIds(natter), ["w-6120"],
+	"Gezeichnet gehoeren NUR die Abschnitte, die das Haekchen aendert. Der ganzen Kette eine Form "
+	+ "zu geben behauptet, alle fuenf wuerden umbenannt.");
 
 // Die DIFFERENZ, ohne die der Filter Vakuum waere: mit beiden Haken sind es zwei, und die
 // Reihenfolge ist die der Items.
 const natterBeide = JSON.parse(JSON.stringify(natter));
 natterBeide.items[1].selected = 1;
-tief(avesmapsGaretienScheinIds(natterBeide), ["w-6120", "w-4471"],
-	"mit zwei Haken glimmen zwei Abschnitte -- sonst filtert die Zeile darueber gar nicht");
+tief(avesmapsGaretienUnsereIds(natterBeide), ["w-6120", "w-4471"],
+	"mit zwei Haken liegen zwei Abschnitte da -- sonst filtert die Zeile darueber gar nicht");
 
 // `selected` kommt vom Server als 0/1-ZAHL, nie als Bool (garetien-liste.php: `(int) $roh[...]`).
 // Ein `=== true` laese live „nichts angehakt" -- dieselbe Falle, die die Wiki-Zuweisung bezahlt hat.
-tief(avesmapsGaretienScheinIds({ items: [{ id: 1, selected: 1, abschnitt: { public_id: "w-1" } }] }),
+tief(avesmapsGaretienUnsereIds({ items: [{ id: 1, selected: 1, abschnitt: { public_id: "w-1" } }] }),
 	["w-1"], "`selected` ist eine ZAHL -- ein Vergleich auf `=== true` sieht live nie ein Haekchen");
-tief(avesmapsGaretienScheinIds({ items: [{ id: 1, selected: 0, abschnitt: { public_id: "w-1" } }] }),
-	[], "ohne Haken glimmt nichts");
+tief(avesmapsGaretienUnsereIds({ items: [{ id: 1, selected: 0, abschnitt: { public_id: "w-1" } }] }),
+	[], "ohne Haken liegt nichts da");
 
 // Mehrere Items koennen denselben Abschnitt nennen (Luecke + Umbenennung + Geometrie) -- er
-// bekommt EINEN Schein, nicht drei uebereinander.
-tief(avesmapsGaretienScheinIds({ items: [
+// bekommt EINE Form, nicht drei uebereinander.
+tief(avesmapsGaretienUnsereIds({ items: [
 	{ id: 1, selected: 1, abschnitt: { public_id: "w-9" } },
 	{ id: 2, selected: 1, abschnitt: { public_id: "w-9" } },
-] }), ["w-9"], "derselbe Abschnitt zweimal genannt ergibt EINEN Schein");
+] }), ["w-9"], "derselbe Abschnitt zweimal genannt ergibt EINE Form");
 
 // Ein Item ohne Abschnitt (reines Quellen-Item am Neu-Fall) nennt nichts -- und darf auch nichts
 // erfinden.
-tief(avesmapsGaretienScheinIds({ urteil: "neu", abschnitte: [], items: [{ id: 1, selected: 1 }] }),
-	[], "ein neues Objekt hat nichts zu beleuchten");
-tief(avesmapsGaretienScheinIds(null), [], "ohne Objekt glimmt nichts");
-tief(avesmapsGaretienScheinIds({ items: [] }), [], "ohne Items glimmt nichts");
+tief(avesmapsGaretienUnsereIds({ urteil: "neu", abschnitte: [], items: [{ id: 1, selected: 1 }] }),
+	[], "ein neues Objekt hat von uns nichts zu zeigen");
+tief(avesmapsGaretienUnsereIds(null), [], "ohne Objekt liegt nichts da");
+tief(avesmapsGaretienUnsereIds({ items: [] }), [], "ohne Items liegt nichts da");
 
-// ---- 3. Zeichnen: zwei Mittel, und der Schein liegt UNTER dem Strich --------------------------
+// ---- 3. Zeichnen: ZWEI FARBEN, und jede Partei in ihrer eigenen Pane --------------------------
 //
 // Die Zahlen unten sind aus DIESEN drei Objekten hergeleitet, nicht abgeschrieben:
-//   natter   -> 1 Strich (ihre Geometrie) + 1 Schein (w-6120)
-//   alke     -> 1 Strich                  + 1 Schein (w-5112)
-//   blutmoor -> 1 Strich                  + 0 Scheine (Urteil `neu`: bei uns liegt dort nichts,
+//   natter   -> 1 ihre Form + 1 unsere Form + 1 Hof (w-6120)
+//   alke     -> 1 ihre Form + 1 unsere Form + 1 Hof (w-5112)
+//   blutmoor -> 1 ihre Form + 0            + 0        (Urteil `neu`: bei uns liegt dort nichts,
 //               also nennt kein Item einen Abschnitt -- garetien-plan.php gibt einem `neu` gar
 //               keine Trefferliste mit, avesmapsGaretienUrteilNenntTreffer)
-// macht 3 Striche und 2 Scheine.
+// macht 3 ihre, 2 unsere, 2 Hoefe = 7 Ebenen.
 const alke = {
-	key: "ggp:Gewaesser:Bach:Alke", name: "Alke", urteil: "ergaenzung",
+	key: "ggp:Gewaesser:Bach:Alke", name: "Alke", urteil: "ergaenzung", geometrie_typ: "LineString",
 	geometrie: [[500, 60], [520, 80]],
 	abschnitte: [{ public_id: "w-5112", name: "", punkte: 12, geometrie: [[502, 62], [518, 78]] }],
 	items: [{ id: 21, anlass: "ergaenzung", selected: 1, abschnitt: { public_id: "w-5112" } }],
 };
 const blutmoor = {
-	key: "ggp:Gewaesser:Sumpf:Blutmoor", name: "Blutmoor", urteil: "neu",
+	key: "ggp:Gewaesser:Sumpf:Blutmoor", name: "Blutmoor", urteil: "neu", geometrie_typ: "Polygon",
 	geometrie: [[800, 300], [860, 320], [840, 360], [800, 300]],
 	abschnitte: [],
 	items: [{ id: 31, anlass: null, selected: 1 }],
@@ -268,97 +302,127 @@ tokenAbfragen = [];
 avesmapsGaretienKarteZeigen([natter, blutmoor, alke], karte);
 
 const ebenen = karte.ebenen();
-gleich(ebenen.length, 5,
-	"drei gestrichelte Geometrien plus ZWEI Scheine -- nur das Blutmoor ist `neu` und hat nichts "
-	+ "zu beleuchten");
+gleich(ebenen.length, 7,
+	"drei ihrer Geometrien, zwei von uns und zwei Hoefe -- nur das Blutmoor ist `neu` und hat von "
+	+ "uns nichts zu zeigen");
+gleich(nach(karte, IHRE).length, 3, "jedes gezeigte Objekt bekommt seine gestrichelte Geometrie");
+gleich(nach(karte, UNSERE).length, 2, "nur natter und alke aendern einen Abschnitt von uns");
+gleich(nach(karte, SCHEIN).length, 2, "und jede unserer Formen bekommt genau EINEN Hof");
 
-const striche = ebenen.filter((s) => s.options.dashArray);
-const scheine = ebenen.filter((s) => !s.options.dashArray);
-gleich(striche.length, 3, "jedes angehakte Objekt bekommt seine gestrichelte Geometrie");
-gleich(scheine.length, 2, "nur natter und alke aendern einen Abschnitt von uns");
-
-// 💣 Zwei Mittel, nicht eins: ihre Linie liegt oft GENAU auf unserer (Median 1,24 Meilen bei
-// 3072 Meilen Kartenbreite). Ein durchgezogener goldener Strich waere optisch ein ERSATZ unserer
-// Linie -- gestrichelt sagt „so wuerde es liegen", der breite blasse Schein darunter sagt „das
-// hier von uns aendert sich".
-scheine.forEach((schein) => {
-	wahr(!schein.options.dashArray, "der Schein ist durchgezogen, nicht gestrichelt");
-	wahr(schein.options.weight > striche[0].options.weight,
-		"der Schein muss BREITER sein als der Strich, sonst ist er kein Schein");
-	wahr(schein.options.opacity < 1, "der Schein ist halbdurchsichtig, sonst deckt er unsere Linie zu");
+// 🔴 DIE TRAGENDSTE ZUSICHERUNG DIESER AUFGABE, und sie misst die DIFFERENZ in EINER Probe: ihre
+// Formen tragen die eine Farbe, unsere die andere. Owner 29.08.2026: „ich weiss aber nicht, ob das
+// die Garetien-Geometrie oder unsere eigene ist. voellig unklar."
+nach(karte, IHRE).forEach((e) => {
+	gleich(e.options.color, GOLD, "IHRE Geometrie ist Gold (--color-marker-active)");
 });
-striche.forEach((strich) => {
-	gleich(strich.options.opacity, 1, "der Strich ist die Aussage und wird nicht abgeschwaecht");
+nach(karte, UNSERE).concat(nach(karte, SCHEIN)).forEach((e) => {
+	gleich(e.options.color, MAGENTA, "UNSERE Geometrie ist Magenta (--color-garetien-unsere)");
 });
+wahr(GOLD !== MAGENTA,
+	"die zwei gestellten Tokenwerte sind gleich -- dann belegen die zwei Zeilen darueber nichts");
+wahr(tokenAbfragen.indexOf("--color-marker-active") !== -1
+	&& tokenAbfragen.indexOf("--color-garetien-unsere") !== -1,
+	"beide Tokens muessen abgefragt werden -- sonst steht mindestens eine Farbe irgendwo als Zahl");
 
-// Die Ordnung machen seit Review I1 die PANES (siehe unten). Die Einfuegereihenfolge ist damit
-// nicht mehr tragend -- sie bleibt trotzdem festgenagelt, weil sie innerhalb EINER Pane wieder
-// entscheiden wuerde, sollte jemand die zwei Panes je zusammenlegen.
-const ersterStrich = ebenen.findIndex((s) => s.options.dashArray);
-const letzterSchein = ebenen.map((s) => !s.options.dashArray).lastIndexOf(true);
-wahr(letzterSchein < ersterStrich,
-	"alle Scheine werden VOR allen Strichen gelegt -- in einer gemeinsamen Pane deckte der breite "
-	+ "Schein sonst den Strich zu");
-
-// Die Farbe kommt aus dem Token, nicht als Zahl aus dem Zeichner.
-ebenen.forEach((schicht) => {
-	gleich(schicht.options.color, GOLD, "die Goldfarbe kommt aus --color-marker-active");
+// 💣 Die Strichelung ist die ZWEITE, unabhaengige Aussage: „Vorschlag" gegen „liegt schon da".
+nach(karte, IHRE).forEach((e) => {
+	wahr(!!e.options.dashArray, "ihre Fassung ist GESTRICHELT -- sie steht noch nicht bei uns");
 });
-wahr(tokenAbfragen.indexOf("--color-marker-active") !== -1,
-	"das Token wurde gar nicht erst abgefragt -- dann steht die Farbe irgendwo als Zahl");
-
-// Nichts davon nimmt Klicks: die Karte darunter bleibt bedienbar.
-ebenen.forEach((schicht) => {
-	gleich(schicht.options.interactive, false, "die Zeichnung darf keine Klicks der Karte schlucken");
+nach(karte, UNSERE).forEach((e) => {
+	wahr(!e.options.dashArray, "unsere Fassung ist DURCHGEZOGEN -- sie liegt schon da");
+	gleich(e.options.opacity, 1, "unsere Form ist die Aussage und wird nicht abgeschwaecht");
+});
+nach(karte, SCHEIN).forEach((schein) => {
+	wahr(!schein.options.dashArray, "der Hof ist durchgezogen, nicht gestrichelt");
+	wahr(schein.options.weight > nach(karte, UNSERE)[0].options.weight,
+		"der Hof muss BREITER sein als die Form darin, sonst ist er kein Hof");
+	wahr(schein.options.opacity < 1, "der Hof ist halbdurchsichtig, sonst deckt er die Form zu");
 });
 
-// ZWEI eigene Panes, und ihre Ordnung ist die eigentliche Aussage (Review I1): der Schein ist eine
-// HERVORHEBUNG UNSERER Geometrie und gehoert HINTER das, was er hervorhebt; der Strich ist IHR
-// Vorschlag und gehoert nach oben. Im Mockup §2 ist die Malreihenfolge nachgemessen:
-// Schein -> unsere Flusslinie -> ihr gestrichelter Strich.
-const strichPane = karte.getPane("garetienImportPane");
-const scheinPane = karte.getPane("garetienImportScheinPane");
-wahr(strichPane, "der Zeichner legt keine Pane fuer den Strich an");
-wahr(scheinPane, "der Zeichner legt keine eigene Pane fuer den Schein an");
-gleich(strichPane.style.pointerEvents, "none", "die Strich-Pane darf keine Zeigerereignisse annehmen");
-gleich(scheinPane.style.pointerEvents, "none", "die Schein-Pane darf keine Zeigerereignisse annehmen");
+// 🔴 IHR STRICH LIEGT OBEN. Ihre Linie liegt oft genau auf unserer; ihre Strichelung „9 5" laesst
+// in 5 von 14 Pixeln unsere Farbe durch. Andersherum -- unsere DURCHGEZOGENE Linie oben -- waere
+// von ihrem Vorschlag nichts mehr zu sehen.
+const zIhre = Number(karte.getPane(IHRE_PANE).style.zIndex);
+const zUnsere = Number(karte.getPane(UNSERE_PANE).style.zIndex);
+wahr(zUnsere < zIhre, "ihre Pane muss UEBER unserer liegen -- gemessen " + zUnsere + " / " + zIhre);
 
-// 💣 UNTER unseren Wegen (roadsPane 400) -- sonst deckt ein 13px breites Goldband unsere 3px
-// schmale blaue Linie zu, und aus dem Flussblau wird in der Mischung ein stumpfes Oliv.
-wahr(Number(scheinPane.style.zIndex) < 400,
-	"der Schein muss UNTER roadsPane (400) liegen, sonst deckt er unsere Linie zu -- gemessen ist "
-	+ scheinPane.style.zIndex);
-// 💣 Und UEBER der weissen Kontur (roadsOutlinePane 350): darunter zeigte sich vom 13px breiten
-// Schein nur der Rand ausserhalb der 5,4px breiten Kontur -- ein duenner Ring statt eines Hofes.
-wahr(Number(scheinPane.style.zIndex) > 355,
-	"der Schein muss UEBER roadsOutlinePane (350) und regionHoverPane (355) liegen -- gemessen ist "
-	+ scheinPane.style.zIndex);
-wahr(Number(strichPane.style.zIndex) > 400 && Number(strichPane.style.zIndex) < 470,
-	"der Strich liegt ueber den Wegen (roadsPane 400) und unter den Wegenamen (470) -- gemessen ist "
-	+ strichPane.style.zIndex);
-gleich(Number(strichPane.style.zIndex) === 460, false,
+// 💣 BEIDE UEBER `roadsPane` (400). Das ist die Aenderung vom 29.08.2026: unsere Magenta-Linie ist
+// 3 px breit wie unsere eigene Flusslinie (PATH_CENTER_WEIGHTS.Flussweg = 3). Laege sie darunter,
+// zeichnete unser eigenes Blau sich vollstaendig darueber -- die neue Farbe waere genau dort
+// unsichtbar, wo man sie braucht.
+wahr(zUnsere > 400,
+	"unsere Form muss UEBER roadsPane (400) liegen, sonst deckt unsere eigene Flusslinie sie zu "
+	+ "-- gemessen " + zUnsere);
+wahr(zIhre < 470,
+	"beide bleiben UNTER den Wegenamen (470) und den Ortsmarkierungen (500) -- gemessen " + zIhre);
+gleich(zUnsere === 460 || zIhre === 460, false,
 	"460 gehoert measurementPane (js/app/bootstrap.js) -- bei gleichem z-index entscheidet die "
 	+ "Einfuegereihenfolge, und das ist keine Regel");
-wahr(Number(scheinPane.style.zIndex) < Number(strichPane.style.zIndex),
-	"der Schein muss unter dem Strich liegen");
-striche.forEach((schicht) => {
-	gleich(schicht.options.pane, "garetienImportPane", "der Strich gehoert in die obere Pane");
-});
-scheine.forEach((schicht) => {
-	gleich(schicht.options.pane, "garetienImportScheinPane", "der Schein gehoert in die untere Pane");
+gleich(karte.getPane(IHRE_PANE).style.pointerEvents, "none",
+	"die Pane selbst darf keine Zeigerereignisse annehmen -- nur die Formen darin");
+gleich(karte.getPane(UNSERE_PANE).style.pointerEvents, "none",
+	"die Pane selbst darf keine Zeigerereignisse annehmen -- nur die Formen darin");
+nach(karte, IHRE).forEach((e) => gleich(e.options.pane, IHRE_PANE, "ihre Form gehoert in ihre Pane"));
+nach(karte, UNSERE).concat(nach(karte, SCHEIN)).forEach((e) => {
+	gleich(e.options.pane, UNSERE_PANE, "unsere Form und ihr Hof gehoeren in unsere Pane");
 });
 
-// ---- 4. Der Schein liegt unter dem RICHTIGEN Abschnitt ----------------------------------------
+// Innerhalb UNSERER Pane entscheidet die Einfuegereihenfolge, und dort ist sie tragend: der Hof
+// kommt VOR der Form, sonst deckt ein 13 px breites Band die 3 px schmale Linie zu.
+// 💣 Und zwar ALLE Hoefe vor ALLEN Formen, nicht paarweise: zwei benachbarte Abschnitte desselben
+// Flusses beruehren sich, und der Hof des zweiten laege sonst ueber der Form des ersten.
+const ersterUnserer = ebenen.findIndex((e) => e.options.className === UNSERE);
+const letzterHof = ebenen.map((e) => e.options.className === SCHEIN).lastIndexOf(true);
+wahr(letzterHof < ersterUnserer,
+	"alle Hoefe werden VOR allen Formen gelegt -- sonst deckt der breite Hof die Form zu");
+// Die DIFFERENZ, ohne die die Zeile darueber auch bei EINEM Abschnitt hielte: es sind zwei, und
+// beide Hoefe liegen vor beiden Formen.
+gleich(nach(karte, SCHEIN).length >= 2 && nach(karte, UNSERE).length >= 2, true,
+	"mit nur einem Abschnitt belegt die Reihenfolge-Zusicherung darueber nichts");
+
+// ---- 3b. Der Tooltip: WESSEN Fassung und WELCHES Objekt ---------------------------------------
 //
-// 💣 Die scharfe Probe: nicht „es gibt einen Schein", sondern „er hat die Punkte von w-6120 und
-// NICHT die von w-4471". Ohne diesen Vergleich waere Abschnitt 2 oben halb blind.
-const natterSchein = scheine.filter((s) => s._punkte.length === 2 && s._punkte[0][1] === 101)[0];
-wahr(natterSchein, "der Schein der Natter ist nicht zu finden");
-tief(natterSchein._punkte, [[702, 101], [758, 119]],
-	"der Schein traegt die getauschten Punkte von w-6120 -- nicht die von w-4471 ([[900,300],...])");
+// 🔴 Owner 29.08.2026: „dass ich seh welches objekt welchs ist". Gemessen wird, was `bindTooltip`
+// bekommen hat -- im DOM waere es nicht messbar: ein Leaflet-Tooltip bleibt nach dem Schliessen
+// rund 400 ms als Leiche stehen, `.leaflet-tooltip` zu zaehlen luegt also.
+ebenen.forEach((e) => {
+	gleich(e.options.interactive, true,
+		"ohne `interactive` gibt es keinen Tooltip -- und der ist der halbe Auftrag");
+	wahr(e._tooltip && typeof e._tooltip.text === "string" && e._tooltip.text !== "",
+		"jede gezeichnete Form braucht ihren Tooltip");
+	gleich(e._tooltip.optionen.sticky, true,
+		"der Tooltip folgt dem Zeiger -- an einer langen Flusslinie stuende er sonst an deren "
+		+ "Mittelpunkt, oft weit weg von der Stelle, auf die man zeigt");
+});
+const titelIhre = nach(karte, IHRE).map((e) => e._tooltip.text).sort();
+tief(titelIhre, ["Garetien: Alke", "Garetien: Blutmoor", "Garetien: Natter"],
+	"ihre Tooltips nennen die Partei und ihren Namen");
+// 🔴 UNSERE Seite nennt UNSEREN Namen, nicht ihren -- das ist der Unterschied, um den es geht.
+tief(nach(karte, UNSERE).map((e) => e._tooltip.text).sort(),
+	["Avesmaps: ohne Namen (w-5112)", "Avesmaps: ohne Namen (w-6120)"],
+	"unsere Tooltips nennen unseren Abschnitt samt public_id -- 25 von 76 Geometrietreffern tragen "
+	+ "bei uns gar keinen Namen");
+// Die DIFFERENZ: ein Abschnitt MIT eigenem Namen nennt genau diesen -- und eben NICHT ihren.
+// (Ihre „Natter" laeuft ueber unseren „Gardel"; ein Tooltip, der beidesmal „Natter" saegte,
+// beantwortete genau die Frage nicht, fuer die er da ist.)
+gleich(garetienTitelUnsere(natter, "w-5008"), "Avesmaps: Gardel (w-5008)",
+	"unser Tooltip nennt UNSEREN Namen");
+gleich(garetienTitelIhre(natter), "Garetien: Natter", "ihr Tooltip nennt IHREN Namen");
+wahr(garetienTitelUnsere(natter, "w-5008").indexOf("Natter") === -1,
+	"unser Tooltip darf ihren Namen nicht tragen -- sonst sagt er nichts ueber unsere Seite");
 
-const natterStrich = striche.filter((s) => s._punkte.length === 3)[0];
-tief(natterStrich._punkte, [[700, 100], [720, 110], [760, 120]],
+// ---- 4. Unsere Form liegt auf dem RICHTIGEN Abschnitt ----------------------------------------
+//
+// 💣 Die scharfe Probe: nicht „es gibt eine Form", sondern „sie hat die Punkte von w-6120 und
+// NICHT die von w-4471". Ohne diesen Vergleich waere Abschnitt 2 oben halb blind.
+const natterUnsere = nach(karte, UNSERE).filter((s) => s._punkte.length === 2
+	&& s._punkte[0][1] === 101)[0];
+wahr(natterUnsere, "unsere Form der Natter ist nicht zu finden");
+tief(natterUnsere._punkte, [[702, 101], [758, 119]],
+	"sie traegt die getauschten Punkte von w-6120 -- nicht die von w-4471 ([[900,300],...])");
+
+const natterIhre = nach(karte, IHRE).filter((s) => s._punkte.length === 3)[0];
+tief(natterIhre._punkte, [[700, 100], [720, 110], [760, 120]],
 	"ihre Geometrie wird getauscht gezeichnet");
 
 // ---- 5. Das Erloeschen, und dass es keine Leichen zuruecklaesst -------------------------------
@@ -369,11 +433,11 @@ gleich(karte.ebenen().length, 0, "das Erloeschen laesst Leichen zurueck");
 // Und die Menge WAECHST und SCHRUMPFT mit den Haken -- der Kern der Owner-Entscheidung vom
 // 27.08.2026: „man hakt sich durch die Liste und sieht die Auswahl auf der Karte wachsen".
 avesmapsGaretienKarteZeigen([natter], karte);
-gleich(karte.ebenen().length, 2, "ein Objekt: sein Strich und sein einer Schein");
+gleich(karte.ebenen().length, 3, "ein Objekt: ihre Form, unsere Form und deren Hof");
 avesmapsGaretienKarteZeigen([natter, alke], karte);
-gleich(karte.ebenen().length, 4, "zwei Objekte: die Menge waechst");
+gleich(karte.ebenen().length, 6, "zwei Objekte: die Menge waechst");
 avesmapsGaretienKarteZeigen([alke], karte);
-gleich(karte.ebenen().length, 2, "ein Haken weg: nur dessen Zeichnung verschwindet");
+gleich(karte.ebenen().length, 3, "ein Haken weg: nur dessen Zeichnung verschwindet");
 
 // ---- 6. Idempotent: derselbe Aufruf zweimal ergibt dieselben Ebenen ---------------------------
 //
@@ -394,13 +458,50 @@ gleich(paneAufrufeVorher, 2, "es sind ZWEI Panes, und jede wird genau EINMAL ang
 gleich(karte.alles().filter((s) => s._art === "group").length, 1,
 	"die Ebenengruppe wurde mehrfach auf die Karte gelegt");
 
-// ---- 7. Fenster zu -> die Karte ist sauber ----------------------------------------------------
+// ---- 6b. Die zwei Sicht-Knoepfe: EIN Zustand, und der steht im `display` der Panes ------------
 //
-// 💣 Ein zurueckgelassener goldener Strich auf der oeffentlichen Karte waere der schlimmste
-// Ausfall dieser Aufgabe: der Besucher saehe goldene Striche ohne jede Erklaerung.
+// 🔴 Owner 29.08.2026: „mach zwei farbige knöpfe und jeder der knöpfe zeigt in seiner farbe seine
+// fläche an oder blendet sie aus. Dann kann man direkt vergleichen was besser ist." — und BEIDE
+// starten AN.
+tief(avesmapsGaretienKarteSicht(karte), { ihre: true, unsere: true },
+	"beide Parteien starten sichtbar");
+tief(avesmapsGaretienKarteUmschalten("ihre", karte), { ihre: false, unsere: true },
+	"„Garetien\" aus: nur ihre Partei verschwindet");
+gleich(karte.getPane(IHRE_PANE).style.display, "none",
+	"ausgeblendet heisst `display: none` an der Pane -- daran und an nichts sonst haengt der Zustand");
+gleich(karte.getPane(UNSERE_PANE).style.display, undefined,
+	"unsere Pane darf davon nicht beruehrt werden -- sonst schaltet ein Knopf beide");
+tief(avesmapsGaretienKarteUmschalten("unsere", karte), { ihre: false, unsere: false },
+	"beide aus: der zweite Knopf schaltet den zweiten");
+tief(avesmapsGaretienKarteUmschalten("ihre", karte), { ihre: true, unsere: false },
+	"und wieder an -- der Knopf schaltet, er blendet nicht nur aus");
+
+// 💣 EIN UNBEKANNTER NAME SCHALTET NICHTS. Ohne diesen Riegel blendete ein Tippfehler im
+// `data-sicht`-Attribut die falsche Partei aus, und der Knopf saehe dabei richtig aus.
+tief(avesmapsGaretienKarteUmschalten("quatsch", karte), { ihre: true, unsere: false },
+	"ein unbekannter Name darf nichts umschalten");
+tief(avesmapsGaretienKarteUmschalten(undefined, karte), { ihre: true, unsere: false },
+	"und `undefined` erst recht nicht");
+
+// 💣 UND EIN NEUZEICHNEN DARF DEN ZUSTAND NICHT ZURUECKNEHMEN. `garetienPaneSicherstellen` laeuft
+// bei JEDEM Zeichnen und setzt z-index und pointer-events neu -- fasste es dabei `display` an,
+// waere jede Ausblendung beim naechsten Haekchen wieder weg.
+avesmapsGaretienKarteZeigen([natter, alke], karte);
+tief(avesmapsGaretienKarteSicht(karte), { ihre: true, unsere: false },
+	"ein Neuzeichnen darf eine ausgeblendete Partei nicht wieder einblenden");
+
+// ---- 7. Fenster zu -> die Karte ist sauber UND die Sicht zurueckgesetzt -----------------------
+//
+// 💣 Ein zurueckgelassener Strich auf der oeffentlichen Karte waere der schlimmste Ausfall dieser
+// Aufgabe: der Besucher saehe farbige Striche ohne jede Erklaerung.
+// 💣 Und die zweite Haelfte: bliebe eine Partei ueber das Schliessen hinaus ausgeblendet, zeigte
+// die Karte beim naechsten Oeffnen nur eine Farbe -- waehrend beide Knoepfe „an" saegen, denn die
+// Knoepfe lesen genau diesen Zustand. „Beide starten AN" ist eine Owner-Vorgabe.
 avesmapsGaretienKarteAus(karte);
 gleich(karte.ebenen().length, 0, "nach dem Schliessen darf nichts liegenbleiben");
 gleich(karte.alles().length, 0, "auch die Ebenengruppe selbst muss von der Karte herunter");
+tief(avesmapsGaretienKarteSicht(karte), { ihre: true, unsere: true },
+	"das Schliessen setzt beide Parteien wieder auf sichtbar");
 
 // Zweimal abraeumen ist kein Fehler (das Fenster laesst sich zweimal schliessen).
 avesmapsGaretienKarteAus(karte);
@@ -409,11 +510,15 @@ gleich(karte.ebenen().length, 0, "zweimal abraeumen darf nicht werfen");
 // Und danach zeichnet es wieder -- der Zustand ist die Gruppe, kein Schalter daneben, der haengen
 // bleiben koennte.
 avesmapsGaretienKarteZeigen([alke], karte);
-gleich(karte.ebenen().length, 2, "nach dem Abraeumen muss ein neues Zeichnen wieder ankommen");
+gleich(karte.ebenen().length, 3, "nach dem Abraeumen muss ein neues Zeichnen wieder ankommen");
 avesmapsGaretienKarteAus(karte);
 
-// ---- 8. „Auf der Karte zeigen" bewegt NUR die Ansicht -----------------------------------------
-
+// ---- 8. „✦ Zentrieren" bewegt NUR die Ansicht -------------------------------------------------
+//
+// 🔴 Das ANGEKLICKTE Objekt liegt ohnehin schon auf der Karte (avesmapsGaretienAufDerKarte in
+// review-garetien-importer.js, gewacht von garetien-einzelansicht.test.js) -- der Knopf steht ja in
+// dessen Einzelansicht. Ein zweiter Zeichenbefehl hier waere die zweite Regel darueber, was auf der
+// Karte liegt; gemessen wird deshalb, dass er die Zeichnung NICHT anfasst.
 const karte2 = gefaelschteKarte();
 avesmapsGaretienKarteZeigen([natter, alke], karte2);
 const vorFlug = karte2.ebenen().length;
@@ -448,7 +553,7 @@ const meldungen = [];
 const echtesWarn = console.warn;
 console.warn = function () { meldungen.push(Array.prototype.join.call(arguments, " ")); };
 const ohneAbschnittsGeometrie = {
-	key: "x", name: "Ohne", urteil: "ergaenzung",
+	key: "x", name: "Ohne", urteil: "ergaenzung", geometrie_typ: "LineString",
 	geometrie: [[10, 900], [20, 910]],
 	abschnitte: [{ public_id: "w-77", name: "", punkte: 3, geometrie: [] }],
 	items: [{ id: 1, selected: 1, abschnitt: { public_id: "w-77" } }],
@@ -456,7 +561,7 @@ const ohneAbschnittsGeometrie = {
 avesmapsGaretienKarteZeigen([ohneAbschnittsGeometrie], karte3);
 console.warn = echtesWarn;
 gleich(karte3.ebenen().length, 1,
-	"ihre Geometrie wird trotzdem gezeichnet -- nur der Schein faellt aus");
+	"ihre Geometrie wird trotzdem gezeichnet -- nur unsere Seite faellt aus");
 wahr(meldungen.length === 1 && meldungen[0].indexOf("w-77") !== -1,
 	"die fehlende Abschnittsgeometrie muss gemeldet werden, sonst sieht der Ausfall aus wie "
 	+ "„da liegt nichts\". Gemeldet wurde: " + JSON.stringify(meldungen));
@@ -472,6 +577,11 @@ gleich(avesmapsGaretienKarteZeigen([natter], gefaelschteKarte()), null, "ohne Le
 gleich(avesmapsGaretienKarteFliegen(natter, gefaelschteKarte()), null, "ohne Leaflet: kein Wurf");
 global.L = echtesL;
 gleich(avesmapsGaretienKarteZeigen([natter], null), null, "ohne Karte: kein Wurf");
+// Und die zwei Knoepfe ebenso: ohne Karte sagen sie „beide an" und schalten nichts.
+tief(avesmapsGaretienKarteSicht(null), { ihre: true, unsere: true },
+	"ohne Karte gilt der Startzustand -- beide an");
+tief(avesmapsGaretienKarteUmschalten("ihre", null), { ihre: true, unsere: true },
+	"ohne Karte darf ein Knopf nichts behaupten, was er nicht getan hat");
 
 // ---- 11. Der Zeichner rechnet nichts und ruft niemanden --------------------------------------
 //
@@ -501,10 +611,33 @@ wahr(quelleRoh.indexOf(NADEL_SPEICHERTABELLEN) === -1,
 // Gegenprobe, dass die Nadel ueberhaupt etwas finden KANN -- sonst ist die Zeile darueber Vakuum.
 wahr(("x " + NADEL_SPEICHERTABELLEN + "_row y").indexOf(NADEL_SPEICHERTABELLEN) !== -1,
 	"die zur Laufzeit gebaute Nadel trifft nicht einmal sich selbst");
-wahr(!/#[0-9a-fA-F]{3,8}\b/.test(quelle), "keine hartkodierte Farbe -- der Goldton kommt aus dem Token");
+wahr(!/#[0-9a-fA-F]{3,8}\b/.test(quelle), "keine hartkodierte Farbe -- beide Toene kommen aus Tokens");
 wahr(!/\brgba?\(/.test(quelle), "kein hartkodiertes rgb()/rgba()");
-wahr(quelle.indexOf('getPropertyValue("--color-marker-active")') !== -1,
-	"der Goldton muss aus --color-marker-active kommen (css/base/tokens.css)");
+wahr(quelle.indexOf('"--color-marker-active"') !== -1,
+	"ihr Goldton muss aus --color-marker-active kommen (css/base/tokens.css)");
+wahr(quelle.indexOf('"--color-garetien-unsere"') !== -1,
+	"unser Magenta muss aus --color-garetien-unsere kommen (css/base/tokens.css)");
+// Und die zwei Tokens muessen im Stylesheet auch WIRKLICH stehen -- ein Tokenname, den es nicht
+// gibt, macht `var()` ungueltig und faellt erst im Browser auf.
+const tokensCss = fs.readFileSync(path.join(WURZEL, "css", "base", "tokens.css"), "utf8");
+// 🔴 HELL UND DUNKEL. Ein Token, das nur im hellen Block steht, erbt im dunklen Thema den hellen
+// Wert -- Magenta #b5279b auf dunklem Gelaende laeuft zu, und die halbe Aufgabe waere dort blind.
+// Gemessen wird an der STELLE: mindestens eine Definition vor und eine nach dem Beginn des
+// dunklen Blocks. Blosses Zaehlen taugt nicht -- `--color-marker-active` steht dreimal da (hell,
+// Telefon, dunkel), und eine feste Zahl waere beim naechsten Zusatz falsch.
+// 🪤 Gesucht wird die REGEL am Zeilenanfang, nicht der blosse Name: `:root[data-theme="dark"]`
+// steht schon im Kopfkommentar der Datei (Zeichen 455), und danach liegt JEDE Definition -- die
+// Probe haette „fehlt im hellen Block" gemeldet und dabei nichts geprueft. Hier live passiert.
+const DUNKEL_AB = tokensCss.search(/^:root\[data-theme="dark"\]\s*\{/m);
+wahr(DUNKEL_AB > 1000, "der dunkle Block ist in tokens.css nicht zu finden -- die Probe misst nichts");
+["--color-marker-active", "--color-garetien-unsere"].forEach((name) => {
+	const stellen = [];
+	const muster = new RegExp("^\\s*" + name + "\\s*:", "gm");
+	let treffer = muster.exec(tokensCss);
+	while (treffer !== null) { stellen.push(treffer.index); treffer = muster.exec(tokensCss); }
+	wahr(stellen.some((i) => i < DUNKEL_AB), name + " fehlt im hellen Block von tokens.css");
+	wahr(stellen.some((i) => i > DUNKEL_AB), name + " fehlt im dunklen Block von tokens.css");
+});
 
 // ---- 11b. Eine FLAECHE wird als Flaeche gezeichnet, eine Linie als Linie -----------------------
 //
@@ -534,29 +667,87 @@ const moor = {
 const bach = {
 	key: "b", name: "Alke", urteil: "ergaenzung", geometrie_typ: "LineString",
 	geometrie: [[500, 60], [520, 80]],
-	abschnitte: [{ public_id: "w-5112", geometrie: [[502, 62], [518, 78]] }],
+	abschnitte: [{ public_id: "w-5112", name: "", geometrie: [[502, 62], [518, 78]] }],
 	items: [{ id: 2, selected: 1, abschnitt: { public_id: "w-5112" } }],
 };
 avesmapsGaretienKarteZeigen([moor, bach], karte4);
-const moorStrich = karte4.ebenen().filter((e) => e._punkte.length === 4)[0];
-const bachStrich = karte4.ebenen().filter((e) => e.options.dashArray && e._punkte.length === 2)[0];
-wahr(moorStrich && bachStrich, "die zwei Striche sind nicht zu finden");
-gleich(moorStrich._bauer, "polygon", "eine Flaeche wird mit L.polygon gebaut, nicht als Linie");
-gleich(moorStrich.options.fill, true, "eine Flaeche bekommt eine Fuellung (Mockup: Blutmoor)");
-gleich(moorStrich.options.fillColor, GOLD, "die Fuellung kommt aus demselben Token");
-wahr(moorStrich.options.fillOpacity > 0 && moorStrich.options.fillOpacity < 0.3,
+const moorIhre = nach(karte4, IHRE).filter((e) => e._punkte.length === 4)[0];
+const bachIhre = nach(karte4, IHRE).filter((e) => e._punkte.length === 2)[0];
+wahr(moorIhre && bachIhre, "die zwei ihrer Formen sind nicht zu finden");
+gleich(moorIhre._bauer, "polygon", "eine Flaeche wird mit L.polygon gebaut, nicht als Linie");
+gleich(moorIhre.options.fill, true, "eine Flaeche bekommt eine Fuellung (Mockup: Blutmoor)");
+gleich(moorIhre.options.fillColor, GOLD, "die Fuellung kommt aus demselben Token wie ihre Kante");
+wahr(moorIhre.options.fillOpacity > 0 && moorIhre.options.fillOpacity < 0.3,
 	"die Fuellung ist LEICHT, damit die Landschaft darunter lesbar bleibt -- gemessen "
-	+ moorStrich.options.fillOpacity);
+	+ moorIhre.options.fillOpacity);
 // Die DIFFERENZ, ohne die die Zeilen darueber nichts filtern: dieselbe Zeichnung fuer eine LINIE.
-gleich(bachStrich._bauer, "polyline", "eine Linie bleibt eine Linie");
-gleich(bachStrich.options.fill, false, "eine Linie bekommt KEINE Fuellung");
-gleich(bachStrich.options.fillOpacity, 0, "eine Linie bekommt keine Fuelldeckkraft");
-// 🔴 Der SCHEIN bleibt immer ein Strich, auch unter einer Flaeche: eine zu 55 % gefuellte Flaeche
+gleich(bachIhre._bauer, "polyline", "eine Linie bleibt eine Linie");
+gleich(bachIhre.options.fill, false, "eine Linie bekommt KEINE Fuellung");
+gleich(bachIhre.options.fillOpacity, 0, "eine Linie bekommt keine Fuelldeckkraft");
+// 🔴 Der HOF bleibt immer ein Strich, auch unter einer Flaeche: eine zu 55 % gefuellte Flaeche
 // ueberdeckte einen See vollstaendig -- man saehe die Hervorhebung, aber nicht das Hervorgehobene.
-const bachSchein = karte4.ebenen().filter((e) => !e.options.dashArray)[0];
-gleich(bachSchein._bauer, "polyline", "der Schein ist immer ein Strich");
-gleich(bachSchein.options.fill, false, "der Schein wird nie gefuellt");
+const bachHof = nach(karte4, SCHEIN)[0];
+gleich(bachHof._bauer, "polyline", "der Hof ist immer ein Strich");
+gleich(bachHof.options.fill, false, "der Hof wird nie gefuellt");
 avesmapsGaretienKarteAus(karte4);
+
+// ---- 11b2. UNSERE Flaeche: nur ein geschlossener Ring wird zur Flaeche ------------------------
+//
+// 💣 DER MULTIPOLYGON-RIEGEL. Unsere Flaechen liegen in `ecosystem_area.geometry_geojson` und
+// duerfen Polygon ODER MultiPolygon sein, mit Loechern. Auf dem Weg ins Fenster verlieren sie ihre
+// Ringstruktur: `avesmapsGaretienGeoJsonPunkte` sammelt ALLE Ringe in EINE flache Liste,
+// `avesmapsGaretienProbepunkteN` duennt sie auf 64 Punkte aus. Als `L.polygon` gezeichnet ergaebe
+// das bei mehreren Ringen eine Schleife, die zwischen den Teilen springt -- bei einem See mit 224
+// Teilen ein Gespinst statt einer Flaeche.
+// ⭐ Der Schlusstest trennt beide Faelle EXAKT, gemessen am Livebestand (ecosystem-areas.php,
+// 29.08.2026, see + meer + suempfe_moore): 281 von 281 einringigen Flaechen schliessen, 0 von 105
+// mehrringigen schliessen. Null Fehlurteile in beide Richtungen.
+wahr(typeof garetienRingSchliesst === "function", "garetienRingSchliesst fehlt im Export");
+gleich(garetienRingSchliesst([[1, 2], [3, 4], [5, 6], [1, 2]]), true,
+	"ein geschlossener Ring schliesst");
+gleich(garetienRingSchliesst([[1, 2], [3, 4], [5, 6], [7, 8]]), false,
+	"eine Verkettung mehrerer Ringe endet auf dem Anfang des LETZTEN Rings, nicht des ersten");
+gleich(garetienRingSchliesst([[1, 2], [3, 4], [1, 2]]), false,
+	"drei Punkte koennen kein Ring sein -- ein Dreieck traegt vier (der erste steht am Ende noch einmal)");
+gleich(garetienRingSchliesst([]), false, "nichts schliesst nicht");
+gleich(garetienRingSchliesst(null), false, "und `null` erst recht nicht");
+
+// Und jetzt am ERGEBNIS, in EINER Probe, mit der DIFFERENZ: zwei Seen, beide `Polygon`, beide mit
+// einem Abschnitt von uns -- der eine ein Ring, der andere zwei aneinandergehaengte.
+const karte5 = gefaelschteKarte();
+const seeEinRing = {
+	key: "see1", name: "Kraehensee", urteil: "ergaenzung", geometrie_typ: "Polygon",
+	geometrie: [[800, 300], [860, 320], [840, 360], [800, 300]],
+	abschnitte: [{ public_id: "a-1", name: "Kraehensee",
+		geometrie: [[802, 302], [858, 318], [838, 358], [802, 302]] }],
+	items: [{ id: 1, selected: 1, abschnitt: { public_id: "a-1" } }],
+};
+const seeZweiRinge = {
+	key: "see2", name: "Inselsee", urteil: "ergaenzung", geometrie_typ: "Polygon",
+	geometrie: [[700, 200], [720, 210], [710, 230], [700, 200]],
+	abschnitte: [{ public_id: "a-2", name: "Inselsee", geometrie: [
+		[701, 201], [719, 209], [709, 229], [701, 201],
+		[601, 101], [619, 109], [609, 129], [601, 101],
+	] }],
+	items: [{ id: 2, selected: 1, abschnitt: { public_id: "a-2" } }],
+};
+avesmapsGaretienKarteZeigen([seeEinRing, seeZweiRinge], karte5);
+const unsereEin = nach(karte5, UNSERE).filter((e) => e._punkte.length === 4)[0];
+const unsereZwei = nach(karte5, UNSERE).filter((e) => e._punkte.length === 8)[0];
+wahr(unsereEin && unsereZwei, "unsere zwei Formen sind nicht zu finden");
+gleich(unsereEin._bauer, "polygon",
+	"unsere einringige Flaeche wird als FLAECHE gezeichnet -- das ist der Auftrag");
+gleich(unsereEin.options.fill, true, "und sie bekommt ihre leichte Fuellung");
+gleich(unsereEin.options.fillColor, MAGENTA, "in UNSERER Farbe, nicht in ihrer");
+gleich(unsereZwei._bauer, "polyline",
+	"unsere mehrringige Flaeche bleibt ein Umriss -- als Polygon waere es ein Gespinst zwischen "
+	+ "den Teilen");
+gleich(unsereZwei.options.fill, false, "und sie bekommt keine Fuellung");
+// Die Gegenprobe, die belegt, dass hier wirklich der SCHLUSSTEST entscheidet und nicht der Typ:
+// beide Objekte sind `Polygon`, und IHRE Formen sind deshalb beide Flaechen.
+gleich(nach(karte5, IHRE).filter((e) => e._bauer === "polygon").length, 2,
+	"beide sind `Polygon` -- ihre Formen sind beide Flaechen; nur unsere Seite unterscheidet");
+avesmapsGaretienKarteAus(karte5);
 
 // ---- 11c. Fehlt ein Abschnitt in `objekt.abschnitte`, wird er GEMELDET -------------------------
 //
@@ -564,7 +755,7 @@ avesmapsGaretienKarteAus(karte4);
 // beruhigenden Kommentar darueber -- avesmapsGaretienListeAbschnitteVereinen haengt jeden von
 // einem Item genannten Abschnitt an die Liste an, die zwei Mengen fallen also zusammen. Entfernt;
 // gepruefte Zusicherung ist jetzt das VERHALTEN ohne ihn: kein stiller Flick, sondern ein Befund.
-const karte5 = gefaelschteKarte();
+const karte6 = gefaelschteKarte();
 const lueckeMeldungen = [];
 const warnVorher5 = console.warn;
 console.warn = function () { lueckeMeldungen.push(Array.prototype.join.call(arguments, " ")); };
@@ -572,27 +763,31 @@ avesmapsGaretienKarteZeigen([{
 	key: "l", name: "Luecke", urteil: "ergaenzung", geometrie: [[10, 900], [20, 910]],
 	abschnitte: [],
 	items: [{ id: 1, selected: 1, abschnitt: { public_id: "w-88", geometrie: [[1, 2], [3, 4]] } }],
-}], karte5);
+}], karte6);
 console.warn = warnVorher5;
-gleich(karte5.ebenen().length, 1, "ihr Strich wird gezeichnet, der Schein faellt aus");
+gleich(karte6.ebenen().length, 1, "ihre Form wird gezeichnet, unsere faellt aus");
 wahr(lueckeMeldungen.length === 1 && lueckeMeldungen[0].indexOf("w-88") !== -1,
 	"ein Abschnitt, der nur am Item haengt, wird GEMELDET statt still nachgeschlagen -- gemeldet "
 	+ "wurde: " + JSON.stringify(lueckeMeldungen));
-avesmapsGaretienKarteAus(karte5);
+avesmapsGaretienKarteAus(karte6);
 
-// ---- 11d. Der Schein hat eine WEICHE Kante ----------------------------------------------------
+// ---- 11d. Der Hof hat eine WEICHE Kante -- und sie ist MAGENTA --------------------------------
 //
-// Review M2: im Mockup §2 traegt der Schein `filter=url(#glow)` mit `stdDeviation="7"`. Die Buehne
+// Review M2: im Mockup §2 traegt der Hof `filter=url(#glow)` mit `stdDeviation="7"`. Die Buehne
 // ist 1360px breit bei viewBox 1360, also 1 SVG-Einheit = 1 CSS-Pixel, und der Radius von
 // `drop-shadow` ist das DOPPELTE der Standardabweichung: 14px.
 // 💣 Er steht im CSS und nicht im JavaScript, weil nur dort das Farbtoken benutzbar ist.
+// 🔴 Und er ist seit dem 29.08.2026 MAGENTA: der Hof gehoert UNSERER Partei. Ein goldener Hof unter
+// einer Magenta-Linie behauptete wieder das Gegenteil der Form.
 const kartenCss = fs.readFileSync(path.join(WURZEL, "css", "components", "garetien-importer.css"), "utf8");
 const scheinBlock = (kartenCss.match(/\.gi-map-schein\s*\{[^}]*\}/) || [""])[0];
 wahr(scheinBlock !== "", "die Regel fuer .gi-map-schein fehlt -- die Gegenprobe misst sonst nichts");
 wahr(/drop-shadow\(\s*0\s+0\s+14px/.test(scheinBlock),
-	"der Schein braucht die weiche Kante des Mockups (stdDeviation 7 = 14px Radius): " + scheinBlock);
-wahr(/var\(--color-marker-active\)/.test(scheinBlock),
-	"auch der Weichzeichner nimmt seine Farbe aus dem Token");
+	"der Hof braucht die weiche Kante des Mockups (stdDeviation 7 = 14px Radius): " + scheinBlock);
+wahr(/var\(--color-garetien-unsere\)/.test(scheinBlock),
+	"auch der Weichzeichner nimmt UNSERE Farbe aus dem Token: " + scheinBlock);
+wahr(!/var\(--color-marker-active\)/.test(scheinBlock),
+	"und nicht mehr ihr Gold -- sonst gehoert der Hof optisch der falschen Partei: " + scheinBlock);
 // 🪤 `\b` MUSS hier als Wortgrenze stehen. Beim Erzeugen dieser Datei wurde es einmal zu einem
 // echten Rueckschritt-Zeichen (0x08) -- das Muster traf dann NIE, und die Zusicherung war Vakuum.
 // Die Gegenprobe darunter faengt genau das.
@@ -600,6 +795,26 @@ wahr(!/#[0-9a-fA-F]{3,8}\b/.test(scheinBlock) && !/\brgba?\(/.test(scheinBlock),
 	"kein hartkodierter Farbwert im .gi-map-schein-Block");
 wahr(/#[0-9a-fA-F]{3,8}\b/.test(".gi-x { color: #abcdef; }"),
 	"das Farbmuster findet nicht einmal eine echte Farbe -- dann ist die Zeile darueber Vakuum");
+
+// 💣 NUR DIE KONTUR FAENGT DEN ZEIGER. Bei einem See liegen ihre und unsere Flaeche fast
+// deckungsgleich uebereinander; faengt die FUELLUNG, gewinnt ueberall die obere (ihre), und unsere
+// Fassung waere im ganzen Ueberlappungsbereich nicht mehr anzeigbar -- also genau dort nicht, wo man
+// vergleicht. Zusaetzlich bliebe das Innere eines Sees fuer die Karte darunter unklickbar.
+// 💣 DIE SPEZIFITAET IST TRAGEND: Leaflets `.leaflet-pane > svg path.leaflet-interactive` waegt
+// (0,2,2) und setzt `pointer-events: auto`. Eine schlichte `.gi-map-ihre`-Regel waege (0,1,0) und
+// waere wirkungslos.
+const zeigerRegel = (kartenCss.match(/[^}]*pointer-events:\s*stroke[^}]*\}/) || [""])[0];
+wahr(zeigerRegel !== "", "die Zeigerregel `pointer-events: stroke` fehlt");
+[".gi-map-ihre", ".gi-map-unsere", ".gi-map-schein"].forEach((klasse) => {
+	wahr(zeigerRegel.indexOf("path.leaflet-interactive" + klasse) !== -1,
+		"die Zeigerregel muss " + klasse + " MIT der Leaflet-Kette nennen, sonst ueberstimmt "
+		+ "leaflet.css sie lautlos: " + zeigerRegel);
+});
+// Und die drei Klassen im CSS sind wirklich die drei, die der Zeichner vergibt.
+[IHRE, UNSERE, SCHEIN].forEach((klasse) => {
+	wahr(zeigerRegel.indexOf("." + klasse) !== -1,
+		"die Klasse " + klasse + " kommt aus dem Zeichner und fehlt in der Zeigerregel");
+});
 
 // ---- 12. Verdrahtung: die Datei laedt, das Fenster ruft sie ------------------------------------
 //
@@ -617,25 +832,61 @@ let ausGerufen = 0;
 global.window.avesmapsGaretienKarteAus = function () { ausGerufen++; };
 importer.avesmapsGaretienFensterSchliessen();
 gleich(ausGerufen, 1,
-	"beim Schliessen des Fensters muss die Karte abgeraeumt werden -- sonst bleibt der goldene "
+	"beim Schliessen des Fensters muss die Karte abgeraeumt werden -- sonst bleibt der farbige "
 	+ "Strich fuer jeden Besucher liegen");
+
+// 💣 DER GEKOPPELTE WERT: die zwei Parteinamen stehen in ZWEI Dateien -- im Zeichner (Tooltip) und
+// im Fenster (Knopfbeschriftung). Keine der beiden darf die andere voraussetzen (das Fenster laeuft
+// ohne Karte, der Zeichner wird im Test allein geladen), also haelt der Test sie zusammen. Ohne
+// diese Zeile hiesse der Knopf „Garetien" und der Tooltip irgendwann anders -- und die Frage
+// „welche Form gehoert wem" waere wieder offen.
+gleich(importer.AVESMAPS_GARETIEN_PARTEI_IHRE, mod.AVESMAPS_GARETIEN_PARTEI_IHRE,
+	"Knopf und Tooltip muessen dieselbe Partei gleich nennen");
+gleich(importer.AVESMAPS_GARETIEN_PARTEI_UNSERE, mod.AVESMAPS_GARETIEN_PARTEI_UNSERE,
+	"Knopf und Tooltip muessen dieselbe Partei gleich nennen");
+wahr(mod.AVESMAPS_GARETIEN_PARTEI_IHRE !== mod.AVESMAPS_GARETIEN_PARTEI_UNSERE,
+	"waeren die zwei Parteinamen gleich, belegten die zwei Zeilen darueber nichts");
 
 // Der Knopf steht in der Einzelansicht und nennt sein Objekt selbst.
 const detailMarkup = importer.garetienDetailMarkup(natter);
 // 🪤 Das gerade Schlusszeichen der Hausform „…" muss in einer doppelt gequoteten Zeichenkette
 // ESCAPED werden -- sonst endet sie dort, und die Datei ist syntaktisch kaputt (hier live passiert).
-wahr(detailMarkup.indexOf('class="gi-show"') !== -1, "der Knopf „Auf der Karte zeigen\" fehlt");
+wahr(detailMarkup.indexOf('class="gi-show"') !== -1, "der Knopf „Zentrieren\" fehlt");
+wahr(detailMarkup.indexOf("✦ Zentrieren") !== -1,
+	"der Knopf heisst seit dem 29.08.2026 „Zentrieren\" -- „Auf der Karte zeigen\" war eine Luege "
+	+ "geworden, seit das angeklickte Objekt ohnehin gezeichnet wird");
+wahr(detailMarkup.indexOf("Auf der Karte zeigen") === -1,
+	"die alte Beschriftung darf nicht daneben stehenbleiben");
 wahr(detailMarkup.indexOf('data-key="ggp:Gewaesser:Fluss:Natter"') !== -1,
 	"der Knopf muss sein Objekt selbst nennen -- sonst braeuchte der Verteiler einen Modulzustand");
 
-// Die DIFFERENZ: ohne Geometrie gibt es nichts anzufliegen, also steht der Knopf auch nicht da.
-// Ein Knopf, der nichts tut, ist eine sichtbare Stoerung.
+// Die zwei Sicht-Knoepfe, und BEIDE starten AN (Owner-Vorgabe).
+wahr(detailMarkup.indexOf('data-sicht="ihre"') !== -1
+	&& detailMarkup.indexOf('data-sicht="unsere"') !== -1,
+	"die zwei Sicht-Knoepfe fehlen in der Einzelansicht");
+gleich((detailMarkup.match(/aria-pressed="true"/g) || []).length, 2,
+	"ohne uebergebenen Stand starten BEIDE Knoepfe an");
+wahr(detailMarkup.indexOf(">" + importer.AVESMAPS_GARETIEN_PARTEI_IHRE + "<") !== -1
+	&& detailMarkup.indexOf(">" + importer.AVESMAPS_GARETIEN_PARTEI_UNSERE + "<") !== -1,
+	"jeder Knopf traegt seinen Parteinamen als Beschriftung");
+// Die DIFFERENZ: ein ausgeblendeter Stand kommt auch an den Knoepfen an -- sonst zeigte der Knopf
+// „an", waehrend die Karte die Partei verbirgt.
+const markupAus = importer.garetienDetailMarkup(natter, { ihre: false, unsere: true });
+wahr(/data-sicht="ihre" aria-pressed="false"/.test(markupAus),
+	"ein ausgeblendeter Stand muss am Knopf ankommen: " + markupAus);
+wahr(/data-sicht="unsere" aria-pressed="true"/.test(markupAus),
+	"und der andere Knopf bleibt davon unberuehrt");
+
+// Die DIFFERENZ: ohne Geometrie gibt es nichts anzufliegen und nichts umzuschalten, also stehen
+// die drei Knoepfe auch nicht da. Ein Knopf, der nichts tut, ist eine sichtbare Stoerung.
 const ohneGeometrie = importer.garetienDetailMarkup({ key: "k", name: "N", abschnitte: [], items: [] });
 wahr(ohneGeometrie.indexOf("gi-show") === -1,
 	"ohne Geometrie darf der Knopf nicht dastehen -- sonst filtert die Zeile darueber gar nicht");
+wahr(ohneGeometrie.indexOf("data-sicht") === -1,
+	"und die zwei Sicht-Knoepfe ebensowenig");
 
 // Sein Aussehen kommt aus Tokens, wie alles in diesem Fenster (AGENTS.md §12).
-const css = fs.readFileSync(path.join(WURZEL, "css", "components", "garetien-importer.css"), "utf8");
+const css = kartenCss;
 const showBlock = (css.match(/\.gi-show\s*\{[^}]*\}/) || [""])[0];
 wahr(showBlock !== "", "der .gi-show-Block fehlt -- die Gegenprobe misst sonst nichts");
 wahr(!/#[0-9a-fA-F]{3,8}\b/.test(showBlock) && !/\brgba?\(/.test(showBlock),
@@ -643,8 +894,23 @@ wahr(!/#[0-9a-fA-F]{3,8}\b/.test(showBlock) && !/\brgba?\(/.test(showBlock),
 wahr(/var\(--color-button-soft\)/.test(showBlock),
 	"eine Zeilen-/Nebenhandlung ist WEICH, nicht gefuellt -- die Haupthandlung heisst „Angehakte "
 	+ "uebernehmen\" und steht in der Fusszeile");
+// Und die zwei Farbflecke nehmen GENAU die zwei Kartentokens -- kein dritter Wert daneben.
+const sichtCss = css.slice(css.indexOf(".gi-sicht"));
+wahr(/\.gi-sicht__knopf--ihre\s*\{[^}]*var\(--color-marker-active\)/.test(sichtCss),
+	"der Knopf „Garetien\" muss ihr Gold-Token tragen");
+wahr(/\.gi-sicht__knopf--unsere\s*\{[^}]*var\(--color-garetien-unsere\)/.test(sichtCss),
+	"der Knopf „Avesmaps\" muss unser Magenta-Token tragen");
+const fleckBlock = (css.match(/\.gi-sicht__fleck\s*\{[^}]*\}/) || [""])[0];
+wahr(fleckBlock !== "" && !/#[0-9a-fA-F]{3,8}\b/.test(fleckBlock) && !/\brgba?\(/.test(fleckBlock),
+	"kein hartkodierter Farbwert am Farbfleck: " + fleckBlock);
+// 🔴 Nichts unter 11px (AGENTS.md §12). Die Knopfschrift erbt `--font-size-body` (13px); gemessen
+// wird, dass NIRGENDS im Sicht-Block eine kleinere feste Groesse steht.
+((sichtCss.match(/font-size:\s*(\d+)px/g) || [])).forEach((treffer) => {
+	wahr(Number(treffer.replace(/\D/g, "")) >= 11,
+		"nichts unter 11px (AGENTS.md §12) -- gefunden: " + treffer);
+});
 
-// Und der Knopf „Auf der Karte zeigen" fliegt das Objekt an, das er nennt.
+// Und der Knopf „✦ Zentrieren" fliegt das Objekt an, das er nennt.
 let geflogen = null;
 global.window.avesmapsGaretienKarteFliegen = function (objekt) { geflogen = objekt; };
 const ereignis = {
@@ -660,38 +926,27 @@ geflogen = null;
 importer.garetienDetailKlick({ target: { closest: () => null } }, [natter]);
 gleich(geflogen, null, "ein Klick neben den Knopf darf keinen Flug ausloesen");
 
-
-// ---- Ein PUNKT wird gezeichnet, nicht verschluckt --------------------------------------------
-//
-// 🔴 Owner-Meldung 29.08.2026: „Warum kann ich die nicht sehen?" bei den Ortschaften. Hier stand
-// `if (punkte.length < 2) return;` -- ein Objekt mit genau EINER Koordinate galt als „Geometrie
-// fehlt". Der Knopf „Auf der Karte zeigen" flog korrekt hin und zeigte NICHTS.
-// 💣 In Stufe 1 faellt es nicht auf: Gewaesser sind Linien und Flaechen, kein einziger Punkt.
-// Punkte kommen mit den Ortschaften, den Berggipfeln und den Bauwerken -- also mit dem groessten
-// Teil des Bestands.
-const karte9 = gefaelschteKarte();
-const ortschaft = { key: "o1", name: "Ebersbach", typ: "Dorf", urteil: "neu",
-	geometrie: [[512, 480]], geometrie_typ: "Point", abschnitte: [], items: [] };
-avesmapsGaretienKarteZeigen([ortschaft], karte9);
-const ringe = karte9.ebenen().filter((e) => e._bauer === "circleMarker");
-gleich(ringe.length, 1, "eine Ortschaft ist EIN Punkt und muss trotzdem gezeichnet werden");
-checks++;
-gleich(ringe[0]._punkte[0].join(","), "480,512",
-	"der Punkt reist als GeoJSON [x,y] und muss als Leaflet [lat,lng] ankommen -- getauscht");
-checks++;
-wahr(!!ringe[0].options.dashArray,
-	"der Ring traegt DIESELBE Strichelung wie eine Linie -- die Aussage, dass es IHRE Fassung ist, "
-	+ "haengt an der gestrichelten Kante, nicht an der Form");
-checks++;
-gleich(ringe[0].options.fill, false,
-	"der Ring ist UNgefuellt, sonst deckt er den Ort darunter zu");
-checks++;
-// Die DIFFERENZ: ein Objekt ganz OHNE Geometrie wird weiterhin nicht gezeichnet.
-const karte10 = gefaelschteKarte();
-avesmapsGaretienKarteZeigen([{ key: "o2", name: "Nirgends", urteil: "neu", geometrie: [], abschnitte: [], items: [] }], karte10);
-gleich(karte10.ebenen().length, 0, "ohne jede Koordinate wird nichts gezeichnet");
-checks++;
-avesmapsGaretienKarteAus(karte9);
-avesmapsGaretienKarteAus(karte10);
+// Und ein Klick auf einen Sicht-Knopf schaltet die genannte Partei -- am ERGEBNIS gemessen, ueber
+// den echten Verteiler, samt der Rueckmeldung an `aria-pressed`.
+let umgeschaltet = [];
+let gesetzt = null;
+global.window.avesmapsGaretienKarteUmschalten = function (seite) {
+	umgeschaltet.push(seite);
+	return { ihre: seite !== "ihre", unsere: true };
+};
+const sichtZiel = {
+	getAttribute: (n) => (n === "data-sicht" ? "ihre" : null),
+	setAttribute: (n, w) => { gesetzt = n + "=" + w; },
+};
+importer.garetienDetailKlick({
+	target: { closest: (auswahl) => (auswahl === "[data-sicht]" ? sichtZiel : null) },
+}, [natter]);
+tief(umgeschaltet, ["ihre"], "der Sicht-Knopf muss GENAU seine Partei umschalten");
+gleich(gesetzt, 'aria-pressed=false',
+	"und der Knopf zieht seinen Stand aus der ANTWORT nach, nicht aus dem Klick");
+// Die DIFFERENZ: ein Klick auf den Zentrieren-Knopf schaltet KEINE Partei um.
+umgeschaltet = [];
+importer.garetienDetailKlick(ereignis, [natter]);
+tief(umgeschaltet, [], "der Zentrieren-Knopf darf keine Partei umschalten");
 
 console.log(`garetien-karte: ${checks} Pruefungen bestanden.`);

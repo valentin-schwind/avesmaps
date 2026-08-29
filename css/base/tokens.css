@@ -186,6 +186,18 @@
 	   SELECTED route waypoint (see above). The marker sits on the always-light map tiles, so the dark
 	   value stays the same warm gold. */
 	--color-marker-active: #f0b429;
+	/* 🔴 DIE ZWEITE FARBE DES GARETIEN-IMPORTERS: UNSERE Geometrie (Owner 29.08.2026 -- „mach zwei
+	   farbige Knoepfe und jeder der Knoepfe zeigt in seiner Farbe seine Flaeche an oder blendet
+	   sie aus. Dann kann man direkt vergleichen was besser ist").
+	   IHRE Geometrie behaelt `--color-marker-active` (Gold) -- deshalb steht hier nur EIN neues
+	   Token und keine Kopie des Goldwertes: zwei Namen fuer dieselbe Farbe laufen beim naechsten
+	   Umton auseinander.
+	   ⚠️ Magenta gewaehlt, weil die Karte alles andere schon traegt: Gruen (Gelaende), Braun/Tan
+	   (Wege), Hellblau (Gewaesser), Rot (Ortsmarken) und jetzt Gold (ihre Fassung). Magenta ist
+	   der einzige Ton, der gegen ALLE fuenf steht. Kein Blau -- das waere von unseren Gewaessern
+	   nicht zu unterscheiden, und genau die vergleicht man hier am haeufigsten.
+	   🔴 Farbe kodiert hier DATEN, nicht Chrome (AGENTS.md §12 laesst das ausdruecklich zu). */
+	--color-garetien-unsere: #b5279b;
 
 	/* Editor-Markierungswerkzeuge (Discord #25) -- kräftige Warnringe um Marker, je ein Ton pro
 	   Befund: pink = "Unverbunden" (gar keine Anbindung), türkis = "Kreuzungen mit 2 Wegen"
@@ -892,6 +904,9 @@ html.avesmaps-phone {
 	--color-star: #e6b850;
 	--color-star-muted: #6f6552;
 	--color-marker-active: #f0b429;
+	/* Der Zwilling im dunklen Thema: heller und weniger gesaettigt, damit er auf der dunklen
+	   Gelaendefarbe nicht zulaeuft. Siehe die Begruendung im hellen Block. */
+	--color-garetien-unsere: #f07ad8;
 
 	--color-focus: rgba(207, 183, 103, 0.5);
 	--color-hover-wash: rgba(207, 183, 103, 0.18);

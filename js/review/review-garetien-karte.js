@@ -2,7 +2,7 @@
 	"use strict";
 
 	/*
-	 * Der goldgelbe Schein des Garetien Importers — was angehakt ist, leuchtet auf der Karte.
+	 * Was der Garetien Importer auf die Karte zeichnet — ZWEI FARBEN, eine je Partei.
 	 *
 	 * 🔴 VERSCHWINDET BEIM ABBAU (Auftrag §5.5) — eigene Datei, ein <script> in index.html, kein
 	 *    Aufrufer ausserhalb des Importer-Fensters. Sie kennt die internen Speichertabellen des
@@ -15,49 +15,69 @@
 	 *    Geometrie, wird das GEMELDET (console.warn) — ein stiller Ausfall saehe aus wie „da liegt
 	 *    eben nichts", und ein eigenes fetch() waere der zweite Netzweg, den der Auftrag verbietet.
 	 *
-	 * 🔴 DER GLOW HAENGT AM HAEKCHEN, nicht an der Einzelansicht (Owner 27.08.2026): man hakt sich
-	 * durch die Liste und sieht die Auswahl auf der Karte WACHSEN. „Auf der Karte zeigen" bewegt
-	 * ausschliesslich die Ansicht.
+	 * 🔴 DER GLOW HAENGT AM HAEKCHEN (Owner 27.08.2026) — und zusaetzlich am ANGEKLICKTEN Objekt
+	 * (Owner 29.08.2026, `avesmapsGaretienAufDerKarte` in review-garetien-importer.js). Was gezeichnet
+	 * wird, entscheidet also der Aufrufer; diese Datei bekommt eine fertige Liste.
 	 *
-	 * 💣 ZWEI MITTEL, NICHT EINS (Mockup §2). Ihre Linie liegt oft GENAU auf unserer — Median
-	 * 1,24 Meilen bei 3072 Meilen Kartenbreite. Ein durchgezogener goldener Strich waere optisch
-	 * ein ERSATZ unserer Linie, und genau das ist es nicht:
-	 *   - ihre Geometrie: goldgelb GESTRICHELT  („so wuerde es liegen, es steht noch nicht bei uns")
-	 *   - unsere betroffenen Abschnitte: ein breiter, halbdurchsichtiger SCHEIN darunter
-	 *     („das hier von uns aendert sich, wenn du das Haekchen stehen laesst")
+	 * 💣 ZWEI FARBEN, NICHT EINE — UND DAS IST DER GANZE SINN DIESER FASSUNG. Bis zum 29.08.2026
+	 * waren beide Parteien GOLD: ihre Geometrie als gestrichelter Strich, unsere als breiter goldener
+	 * Hof darunter. Auf einer Flaeche (Kraehensee) lagen damit zwei goldene Formen uebereinander.
+	 * Owner, woertlich: „ich weiss aber nicht, ob das die Garetien-Geometrie oder unsere eigene ist.
+	 * voellig unklar." Seither:
+	 *   - IHRE Geometrie: GOLD (`--color-marker-active`), GESTRICHELT
+	 *     („so wuerde es liegen, es steht noch nicht bei uns")
+	 *   - UNSERE Geometrie: MAGENTA (`--color-garetien-unsere`), DURCHGEZOGEN
+	 *     („das liegt schon da") — als ECHTE FORM, nicht mehr nur als Hof
+	 * 🔴 Die Strichelung ist damit die zweite, unabhaengige Aussage: sie sagt „Vorschlag", nicht
+	 * „ihre". Wer sie auf unsere Form uebertraegt, nimmt der Farbe ihre Arbeit wieder ab.
+	 * 🔴 Farbe kodiert hier DATEN, nicht Chrome — AGENTS.md §12 laesst das ausdruecklich zu.
 	 *
-	 * 💣 DER SCHEIN SITZT NUR UNTER DEN ABSCHNITTEN, DIE DAS HAEKCHEN WIRKLICH AENDERT. Bei ihrer
-	 * Natter ist das einer von fuenf. Der ganzen Kette einen Schein zu geben behauptete, alle fuenf
-	 * wuerden umbenannt — genau der Fehler, den die Einzelansicht aus Aufgabe 13 verhindern soll.
-	 * Die Quelle ist deshalb `item.abschnitt.public_id` der ANGEHAKTEN Items, nie `objekt.abschnitte`.
+	 * 🔴 IHR STRICH LIEGT OBEN, UNSERER DARUNTER, und das ist gerechnet, nicht Geschmack: ihre Linie
+	 * liegt oft GENAU auf unserer (Median 1,24 Meilen bei 3072 Meilen Kartenbreite = 0,413
+	 * Karteneinheiten; bei L.CRS.Simple sind das 2^z Pixel, also 3,3 px bei Zoom 3 und 13,2 px bei
+	 * Zoom 5). Bei den Zoomstufen, auf denen ein langes Objekt ganz ins Bild passt, decken sich die
+	 * zwei 3 px breiten Striche also. Ihre Strichelung ist „9 5": von 14 Pixeln Lauflaenge deckt sie
+	 * 9 zu, in den restlichen 5 scheint unsere Farbe durch. Andersherum — unsere DURCHGEZOGENE Linie
+	 * oben — waere ihre gestrichelte vollstaendig verdeckt, und man saehe von ihrem Vorschlag nichts.
+	 *
+	 * 💣 DER HOF BLEIBT, ALS HOF UNTER UNSERER MAGENTA-FORM. Er ist das einzige Mittel, das unsere
+	 * Anwesenheit AUCH DORT zeigt, wo ihr Strich sie zudeckt — und das sind bei deckungsgleicher Lage
+	 * rund 64 % der Lauflaenge (9 von 14). Ohne ihn ist unsere Linie unter ihrer eine gepunktete
+	 * Ahnung. Er ist jetzt MAGENTA statt Gold, sonst behauptete die Farbe wieder das Gegenteil der
+	 * Form.
+	 * ⚠️ Seine alte Begruendung („die Hervorhebung gehoert HINTER das, was sie hervorhebt") gilt
+	 * unveraendert — nur ist das, was er hervorhebt, seit dieser Fassung unsere MAGENTA-FORM und
+	 * nicht mehr unsere blaue Flusslinie auf der Karte. Deshalb ist er mit ihr in EINE Pane gewandert
+	 * und liegt dort als erster Eintrag darunter.
 	 */
 
 	// ---- Die zwei Panes -------------------------------------------------------------------------
 	//
-	// 🔴 ZWEI, weil die zwei Mittel in verschiedene Richtungen zeigen. Im Mockup §2 ist die
-	// Malreihenfolge: Schein → UNSERE Flusslinie → ihr gestrichelter Strich.
+	// 🔴 EINE PANE JE PARTEI, und das ist zugleich der ZUSTAND der zwei Sicht-Knoepfe: sichtbar
+	// heisst `display: ""`, ausgeblendet `display: "none"`. Kein Schalter daneben, der auseinander-
+	// laufen kann — dieselbe Bauform wie das `hidden` des Sammelmenues (AGENTS.md §11) und aus
+	// demselben Grund: an genau so einem zweiten Zustand sind das Anzeige-Menue der Karte und die
+	// Ansichts-Kacheln schon gescheitert.
 	//
-	//   - DER SCHEIN IST EINE HERVORHEBUNG UNSERER GEOMETRIE und gehoert deshalb HINTER das, was er
-	//     hervorhebt. Laege er darueber, deckte ein 13px breites Goldband unsere 3px schmale blaue
-	//     Linie zu: aus Flussblau (#6ec6ff) und 55 % Gold mischt sich rgb(182,188,137), ein stumpfes
-	//     Oliv. Sichtbar waere ein goldener Hof mit olivfarbenem KERN genau dort, wo der Fluss liegt.
-	//     Darunter bleibt unser Blau rein und der Hof reines Gold auf Pergament.
-	//   - IHR STRICH IST DER VORSCHLAG und gehoert nach oben, sonst sieht man ihn nicht.
+	// 🔴 UNSERE 462, IHRE 465. Was diese zwei Zahlen zusichern:
 	//
-	// 🔴 SCHEIN 360, STRICH 465. Was diese zwei Zahlen zusichern:
-	//
-	//   (a) 360 liegt UNTER `roadsPane` -- das ist die Regel des Scheins -- und UEBER
-	//       `roadsOutlinePane`, der weissen Kontur unserer Wege. Darunter zeigte sich vom 13px
-	//       breiten Schein nur der Rand ausserhalb der 5,4px breiten Kontur: aus dem Hof wuerde
-	//       ein duenner Saum.
-	//   (b) 465 ist frei, und 460 ist es NICHT -- die gehoert `measurementPane`
+	//   (a) BEIDE liegen UEBER `roadsPane` (400). Das ist die Aenderung vom 29.08.2026 und sie ist
+	//       tragend: unsere Magenta-Linie ist 3 px breit, und laege sie wie der alte Hof bei 360,
+	//       zeichnete unsere EIGENE, gleich breite Flusslinie (PATH_CENTER_WEIGHTS.Flussweg = 3)
+	//       sich vollstaendig darueber — die neue Farbe waere unsichtbar, und zwar genau dort, wo
+	//       man sie braucht. Ein Hof darf unter dem liegen, was er hervorhebt; eine eigene Aussage
+	//       nicht.
+	//   (b) 462 < 465, damit ihr gestrichelter Strich oben liegt (siehe Kopf).
+	//   (c) Beide Zahlen sind sonst UNBELEGT, und 460 ist es NICHT — die gehoert `measurementPane`
 	//       (js/app/bootstrap.js). Bei gleichem z-index entscheidet die Einfuegereihenfolge im DOM,
 	//       und das ist keine Regel, sondern ein Zufall, der beim naechsten Umbau kippt.
-	//   (c) Beide Zahlen sind sonst UNBELEGT.
+	//   (d) Beide bleiben UNTER 470 (`map-features-path-label-canvas-overlay.js`) und damit unter
+	//       den Wegenamen und den Ortsmarkierungen (500) — eine Import-Ueberlagerung verdeckt die
+	//       Beschriftung der Karte nicht.
 	//
 	// 🪤 HIER STAND EINE AUFZAEHLUNG DER BELEGTEN WERTE, und sie war unvollstaendig: auf 455 liegt
 	// nicht nur `ecosystemPaneKlimaLines`, sondern auch `avesmapsRouteSpeedArrowPane`
-	// (js/routing/route-speed-arrows.js). An der Richtigkeit von 465 aendert das nichts -- aber es
+	// (js/routing/route-speed-arrows.js). An der Richtigkeit der Zahlen aendert das nichts -- aber es
 	// war in diesem Vorhaben die fuenfte Liste, die beim Nachzaehlen kuerzer war als die
 	// Wirklichkeit. Eine Zahl im Kommentar liest sich wie eine vollstaendige Liste, und niemand
 	// zaehlt nach. Deshalb steht hier die ZUSICHERUNG und der Griff, mit dem man sie nachprueft --
@@ -68,7 +88,7 @@
 	//
 	// 💣 UND DIESER GRIFF FINDET DIE EIGENEN ZWEI NICHT. Er sucht eine ZIFFER hinter `zIndex =`;
 	// hier steht dort eine Variable (`pane.style.zIndex = z`, weiter unten), weil beide Panes durch
-	// dieselbe Funktion gehen. Wer nur ihn faehrt, haelt 360 und 465 fuer frei und vergibt sie ein
+	// dieselbe Funktion gehen. Wer nur ihn faehrt, haelt 462 und 465 fuer frei und vergibt sie ein
 	// zweites Mal -- dieselbe Fehlerform wie ein Suchmuster, das eine Zugriffssyntax voraussetzt
 	// (AGENTS.md §11, Zoombaender: das Inventar-Grep mit Klammer fand die Punktzugriffe nie).
 	// Die Konstanten dazu:
@@ -86,21 +106,21 @@
 	// abgehaengten <div> zurueckbliebe -- die Zeichnung waere danach UNSICHTBAR. `getPane` selbst
 	// LEGT NICHTS AN und liefert `undefined` — deshalb die Oder-Verkettung und nicht der blosse
 	// Zugriff auf `.style`.
-	var AVESMAPS_GARETIEN_PANE = "garetienImportPane";
-	var AVESMAPS_GARETIEN_PANE_Z = 465;
-	var AVESMAPS_GARETIEN_SCHEIN_PANE = "garetienImportScheinPane";
-	var AVESMAPS_GARETIEN_SCHEIN_PANE_Z = 360;
+	// ⚠️ Und `garetienPaneSicherstellen` fasst `display` NIE an: das ist der Sichtzustand, und ein
+	// Neuzeichnen darf eine ausgeblendete Partei nicht wieder einblenden.
+	var AVESMAPS_GARETIEN_IHRE_PANE = "garetienImportIhrePane";
+	var AVESMAPS_GARETIEN_IHRE_PANE_Z = 465;
+	var AVESMAPS_GARETIEN_UNSERE_PANE = "garetienImportUnserePane";
+	var AVESMAPS_GARETIEN_UNSERE_PANE_Z = 462;
 
 	// ---- Die Masse ----------------------------------------------------------------------------
 	//
 	// Aus dem freigegebenen Mockup (docs/garetien-importer-mockup.html §2, dort als SVG in
 	// Bildschirm-Pixeln gezeichnet — dieselbe Einheit, in der Leaflet `weight` misst).
-	// ⚠️ Der Schein muss deutlich breiter sein als unsere Linie darunter: ein `Flussweg` zeichnet
+	// ⚠️ Der Hof muss deutlich breiter sein als die Linie darin: ein `Flussweg` zeichnet
 	// mit `PATH_CENTER_WEIGHTS.Flussweg = 3` (js/config.js) plus Kontur. Kein Token: `tokens.css`
 	// fuehrt keine Strichbreiten fuer Kartengeometrie, jede Kartenebene im Haus haelt ihre eigene
 	// Zahl (map-features.js, ecosystem-*.js). Fuer FARBEN gilt das Gegenteil — siehe unten.
-	// 🔧 OFFEN FUER DEN OWNER: die Deckkraft des Scheins ueber einer blauen Flusslinie ist die eine
-	// Zahl, die nur das Auge beantwortet.
 	var AVESMAPS_GARETIEN_STRICH_BREITE = 3;
 	var AVESMAPS_GARETIEN_STRICHELUNG = "9 5";
 	// Der Radius eines Punktobjekts (Ortschaft, Berggipfel, Bauwerk). Gross genug, um neben einer
@@ -108,16 +128,43 @@
 	var AVESMAPS_GARETIEN_PUNKT_RADIUS = 8;
 	var AVESMAPS_GARETIEN_SCHEIN_BREITE = 13;
 	var AVESMAPS_GARETIEN_SCHEIN_DECKKRAFT = 0.55;
-	// Die Fuellung IHRER Flaechen (Mockup §2, Blutmoor: `fill=var(--color-marker-active) opacity=".14"`).
+	// Die Fuellung einer Flaeche (Mockup §2, Blutmoor: `fill=var(--color-marker-active) opacity=".14"`).
 	// Sehr leicht, damit die Landschaft darunter lesbar bleibt -- dieselbe Zurueckhaltung wie bei den
-	// Klimabaendern (css/features/ecosystem-layer.css).
+	// Klimabaendern (css/features/ecosystem-layer.css). Beide Parteien nehmen denselben Wert: bei
+	// zwei uebereinanderliegenden Seen ist die Ueberlappung dann sichtbar kraeftiger, und genau das
+	// ist die Auskunft „hier sind sie sich einig".
 	var AVESMAPS_GARETIEN_FLAECHE_DECKKRAFT = 0.14;
 
 	// Sie stehen im `class`-Attribut der erzeugten SVG-Pfade. Nicht Zierde: so laesst sich in der
-	// Abnahme im echten Browser trennen, was Strich und was Schein ist, ohne die Leaflet-Interna
-	// anzufassen.
-	var AVESMAPS_GARETIEN_KLASSE_STRICH = "gi-map-strich";
+	// Abnahme im echten Browser trennen, wessen Form welche ist, ohne die Leaflet-Interna
+	// anzufassen -- und die Klasse traegt zusaetzlich die Zeigerregel
+	// (css/components/garetien-importer.css).
+	var AVESMAPS_GARETIEN_KLASSE_IHRE = "gi-map-ihre";
+	var AVESMAPS_GARETIEN_KLASSE_UNSERE = "gi-map-unsere";
 	var AVESMAPS_GARETIEN_KLASSE_SCHEIN = "gi-map-schein";
+
+	// 🔴 DIE FARBEN KOMMEN AUS TOKENS (AGENTS.md §12) — sie stehen nirgends als Zahl in dieser Datei.
+	var AVESMAPS_GARETIEN_TOKEN_IHRE = "--color-marker-active";
+	var AVESMAPS_GARETIEN_TOKEN_UNSERE = "--color-garetien-unsere";
+
+	/*
+	 * Die zwei Parteinamen — sie stehen in JEDEM Tooltip vorn, und das ist ihr Zweck (Owner
+	 * 29.08.2026: „dass ich seh welches objekt welchs ist").
+	 *
+	 * 💣 SIE STEHEN EIN ZWEITES MAL IN review-garetien-importer.js, auf den zwei Sicht-Knoepfen.
+	 * Das ist ein GEKOPPELTER WERT in zwei Dateien und kein Versehen: der Importer laeuft auch auf
+	 * Seiten ohne Karte (die Editorfenster laden diese Datei nicht), er darf sie also nicht
+	 * voraussetzen, und diese Datei wird im Test allein geladen, kann also den Importer nicht
+	 * voraussetzen. Ein Rueckfall in eine der beiden Richtungen waere genau die stille Divergenz,
+	 * die ein gekoppelter Wert vermeiden soll. Zusammengehalten werden sie von
+	 * js/review/__tests__/garetien-karte.test.js, das beide Exporte gegeneinander haelt.
+	 * ⚠️ „Garetien" ist hier die PARTEI (der Name des Fensters), nicht die Website: die Zeilen kommen
+	 * aus garetien.de UND koschwiki.de. Welche Seite es je Objekt war, steht in `objekt.wiki` und
+	 * wird im Importer beschriftet (AVESMAPS_GARETIEN_WIKI_LABEL) — diese Tabelle wird hier bewusst
+	 * NICHT kopiert.
+	 */
+	var AVESMAPS_GARETIEN_PARTEI_IHRE = "Garetien";
+	var AVESMAPS_GARETIEN_PARTEI_UNSERE = "Avesmaps";
 
 	// 💣 DIE EBENENGRUPPE IST DER ZUSTAND — kein Schalter, keine Liste, kein „ist offen" daneben,
 	// das auseinanderlaufen koennte. Gezeichnet wird immer: erst alles abraeumen, dann alles neu.
@@ -138,27 +185,32 @@
 		return typeof L !== "undefined" && L ? L : null;
 	}
 
-	// 🔴 DIE FARBE KOMMT AUS DEM TOKEN (AGENTS.md §12) — sie steht nirgends als Zahl in dieser Datei.
 	// ⚠️ Leaflet-Pfadoptionen nehmen kein `var(--…)`, der Wert wird deshalb ausgelesen; dasselbe
 	// Mittel wie in map-features-ecosystem-draw.js und -simplify.js.
 	// ⚠️ Und KEIN abgeschriebener Rueckfall: eine hartkodierte Ersatzfarbe waere genau die zweite
 	// Fassung, die das Token verhindern soll. Fehlt das Token, faellt die Farbe leer aus und der
 	// Fehler ist sichtbar, statt in einer veraltenden Kopie zu ueberleben.
-	function garetienGoldton() {
+	function garetienTokenFarbe(name) {
 		if (typeof document === "undefined" || typeof getComputedStyle !== "function") { return ""; }
-		return getComputedStyle(document.documentElement).getPropertyValue("--color-marker-active").trim();
+		return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 	}
 
 	// EINE Regel fuer BEIDE Panes -- eine zweite Fassung liefe beim ersten geaenderten Wert
 	// auseinander, und der Riegel „nimmt keine Klicks" muss fuer beide gelten.
 	function garetienPaneSicherstellen(karte, name, z) {
-		if (typeof karte.getPane !== "function" || typeof karte.createPane !== "function") { return null; }
+		if (!karte || typeof karte.getPane !== "function" || typeof karte.createPane !== "function") {
+			return null;
+		}
 		var pane = karte.getPane(name) || karte.createPane(name);
 		if (!pane || !pane.style) { return null; }
 		pane.style.zIndex = z;
-		// 🔴 Die Zeichnung ist eine AUSKUNFT, kein Bedienelement: sie darf weder Klicks auf unsere
-		// Wege noch das Ziehen der Karte schlucken. `pointer-events` ist eine Eigenschaft der PANE,
-		// nicht der einzelnen Ebene — dieselbe Begruendung wie bei den Landschaften-Panes.
+		// 🔴 DIE PANE NIMMT KEINE ZEIGEREREIGNISSE — die einzelnen Formen darin schon.
+		// `pointer-events: none` an einem Element verhindert NICHT, dass ein Nachkomme mit einem
+		// eigenen Wert Ziel wird (so ausdruecklich in CSS UI festgelegt). Die leeren Flaechen der
+		// Pane bleiben damit durchlaessig — Ziehen und Zoomen der Karte, ein Rechtsklick auf „Was
+		// ist hier?", ein Klick auf eine Ortsmarkierung: alles unveraendert. Nur die 3 px breite
+		// KONTUR einer gezeichneten Form faengt den Zeiger, und genau die braucht der Tooltip.
+		// ⚠️ `display` wird hier NIE angefasst: das ist der Zustand der zwei Sicht-Knoepfe.
 		pane.style.pointerEvents = "none";
 		return pane;
 	}
@@ -202,7 +254,7 @@
 	}
 
 	/*
-	 * Die public_ids, die gluehen duerfen. REIN — kein DOM, keine Karte.
+	 * Die public_ids UNSERER Abschnitte, die gezeichnet werden duerfen. REIN — kein DOM, keine Karte.
 	 *
 	 * 🔴 GEFRAGT WIRD, WAS DAS HAEKCHEN AENDERT, NICHT WAS DER ABGLEICH GETROFFEN HAT. Deshalb
 	 * `items[].abschnitt.public_id` der angehakten Items und nicht `objekt.abschnitte` — jene Liste
@@ -219,9 +271,11 @@
 	 * 💣 `selected` kommt vom Server als 0/1-ZAHL (`(int) $roh['selected']` in garetien-liste.php),
 	 * nie als Bool. Ein `=== true` laese live ausnahmslos „nichts angehakt".
 	 * ⚠️ Entdoppelt: mehrere Items (Luecke, Umbenennung, Geometrie) koennen denselben Abschnitt
-	 * nennen — er bekommt EINEN Schein, nicht drei uebereinander.
+	 * nennen — er bekommt EINE Form, nicht drei uebereinander.
+	 * 🪤 Sie hiess bis zum 29.08.2026 `avesmapsGaretienScheinIds`. „Schein" heisst seither nur noch
+	 * der Hof; entschieden wird hier, welche unserer Abschnitte ueberhaupt auf die Karte kommen.
 	 */
-	function avesmapsGaretienScheinIds(objekt) {
+	function avesmapsGaretienUnsereIds(objekt) {
 		var raus = [];
 		var gesehen = {};
 		(((objekt || {}).items) || []).forEach(function (item) {
@@ -238,25 +292,30 @@
 	}
 
 	/*
-	 * Die Punkte UNSERES Abschnitts. REIN.
+	 * UNSER Abschnitt zu einer public_id. REIN.
 	 *
 	 * 🔴 GELESEN WIRD NUR `objekt.abschnitte`, und das ist die EINE Quelle -- dieselbe Liste, die
-	 * auch die Einzelansicht zeigt; so koennen Schein und Zeile nicht auseinanderlaufen.
+	 * auch die Einzelansicht zeigt; so koennen Karte und Zeile nicht auseinanderlaufen.
 	 * 🪤 Hier stand bis zur Pruefung ein Rueckfall auf `item.abschnitt`. Er war TOTER CODE mit einem
 	 * beruhigenden Kommentar darueber: `avesmapsGaretienListeAbschnitteVereinen`
 	 * (api/_internal/import/garetien-liste.php) haengt JEDEN von einem Item genannten Abschnitt an
-	 * die Liste an, und `avesmapsGaretienScheinIds` liest genau dieselben Items -- die zwei Mengen
+	 * die Liste an, und `avesmapsGaretienUnsereIds` liest genau dieselben Items -- die zwei Mengen
 	 * fallen zusammen. Eine Mutation `if (treffer === null)` → `if (false)` liess alle Zusicherungen
 	 * gruen, was den Zweig als unerreichbar auswies. Faellt der Abschnitt je doch heraus, ist das
 	 * ein BEFUND am Server und wird gemeldet (garetienGeometrieFehlt) statt still geflickt.
 	 */
-	function garetienAbschnittsPunkte(objekt, publicId) {
+	function garetienAbschnitt(objekt, publicId) {
 		var treffer = null;
 		(((objekt || {}).abschnitte) || []).forEach(function (abschnitt) {
 			if (treffer === null && abschnitt && String(abschnitt.public_id) === publicId) {
 				treffer = abschnitt;
 			}
 		});
+		return treffer;
+	}
+
+	function garetienAbschnittsPunkte(objekt, publicId) {
+		var treffer = garetienAbschnitt(objekt, publicId);
 		return (treffer && treffer.geometrie) || [];
 	}
 
@@ -271,23 +330,138 @@
 	 * Richtung: ein zu Unrecht gefuellter Umriss ueberdeckte die Karte, ein zu Unrecht ungefuellter
 	 * zeigt nur weniger. Leer ist es bei einem Objekt OHNE Items (dort gibt es kein `after`), und
 	 * genau die werden nie gezeichnet: ohne Item gibt es kein Haekchen.
+	 * 🔴 UND ES GILT FUER BEIDE PARTEIEN. `ziel` entscheidet in garetien-abgleich.php ueber beides:
+	 * `ziel: 'path'` heisst ihre Geometrie ist ein LineString UND unser Kandidat ein `map_features`-
+	 * Weg; `ziel: 'region'` heisst ihre ist ein Polygon UND unser Kandidat eine `ecosystem_area`.
+	 * Ein eigenes Feld fuer unsere Seite gibt es deshalb nicht — und braucht es nicht.
 	 */
 	function garetienIstFlaeche(objekt) {
 		return String((objekt || {}).geometrie_typ || "") === "Polygon";
 	}
 
+	/*
+	 * Schliesst sich diese Punktliste zu EINEM Ring? REIN.
+	 *
+	 * 💣 DER MULTIPOLYGON-RIEGEL, und er ist gemessen, nicht geraten. UNSERE Flaechen liegen in
+	 * `ecosystem_area.geometry_geojson` und duerfen Polygon ODER MultiPolygon sein, mit Loechern
+	 * (api/_internal/app/ecosystem.php prueft genau das). Auf dem Weg ins Fenster verlieren sie ihre
+	 * Ringstruktur zweimal: `avesmapsGaretienGeoJsonPunkte` (garetien-abgleich.php) sammelt ALLE
+	 * Ringe in EINE flache Punktliste, und `avesmapsGaretienProbepunkteN` duennt sie auf 64 Punkte
+	 * aus. Was hier ankommt, ist eine flache Liste ohne jede Auskunft darueber, ob sie ein Ring war.
+	 * 💣 Sie als `L.polygon` zu zeichnen ergaebe bei mehreren Ringen EINE Schleife, die zwischen den
+	 * Teilen hin und her springt — bei einem See mit 224 Teilen ein Gespinst statt einer Flaeche.
+	 * ⭐ Der Schlusstest trennt beide Faelle EXAKT, und das ist am Livebestand nachgemessen
+	 * (GET /api/app/ecosystem-areas.php, 29.08.2026, die drei Familien der Stufe 1 — see, meer,
+	 * suempfe_moore): von 281 einringigen Flaechen schliesst der 64er-Abzug 281, von 105
+	 * mehrringigen schliesst er 0. Null Fehlurteile in beide Richtungen. Der Grund ist strukturell:
+	 * ein GeoJSON-Ring ist geschlossen (erster Punkt = letzter), und `ProbepunkteN` behaelt Index 0
+	 * und Index n-1; eine Verkettung mehrerer Ringe endet dagegen auf dem Anfang des LETZTEN Rings.
+	 * 🔴 GILT NUR FUER UNSERE SEITE. IHRE Punktliste kommt roh aus garetien.de und wird beim Planbau
+	 * nur in `[$punkte]` gewickelt — ein unsauber geschlossener Ring ist dort moeglich, und deshalb
+	 * entscheidet bei ihnen `geometrie_typ` und niemals dieser Test (der Kommentar an
+	 * `'geometrie_typ'` in garetien-liste.php sagt genau das).
+	 * 🔧 OFFEN: 28 der 105 mehrringigen Flaechen tragen hoechstens 64 Punkte, ihre Ringgrenzen
+	 * ueberleben das Ausduennen also und liessen sich zurueckgewinnen. Bewusst nicht gebaut — eine
+	 * zweite Regel fuer 7 % der Flaechen, waehrend die ehrliche Loesung ein Feld am Server ist
+	 * (die Ringe selbst statt einer flachen Liste), das ein neues „Holen & Rechnen" braucht.
+	 */
+	function garetienRingSchliesst(punkte) {
+		var n = (punkte || []).length;
+		if (n < 4) { return false; }
+		return punkte[0][0] === punkte[n - 1][0] && punkte[0][1] === punkte[n - 1][1];
+	}
+
+	/*
+	 * Der Tooltip-Text. REIN.
+	 *
+	 * 🔴 DIE PARTEI STEHT VORN — das ist der ganze Zweck (Owner 29.08.2026: „dass ich seh welches
+	 * objekt welchs ist").
+	 * 🔴 UNSERE Seite nennt UNSEREN Namen, nicht ihren. Das ist der Unterschied, um den es geht:
+	 * ihre „Natter" laeuft ueber unseren „Gardel". Ein Tooltip, der beidesmal ihren Namen zeigte,
+	 * beantwortete genau die Frage nicht, fuer die er da ist.
+	 * ⚠️ Die public_id steht IMMER dabei, nicht nur bei leerem Namen: 25 von 76 Geometrietreffern
+	 * trugen bei uns gar keinen Namen (garetien-abgleich.php), und „Avesmaps: ohne Namen" allein
+	 * benennt nichts, was ein Editor nachschlagen koennte.
+	 */
+	function garetienTitelIhre(objekt) {
+		return AVESMAPS_GARETIEN_PARTEI_IHRE + ": "
+			+ String((objekt && objekt.name) || "ohne Namen");
+	}
+
+	function garetienTitelUnsere(objekt, publicId) {
+		var abschnitt = garetienAbschnitt(objekt, publicId);
+		var name = String((abschnitt && abschnitt.name) || "").trim();
+		return AVESMAPS_GARETIEN_PARTEI_UNSERE + ": " + (name === "" ? "ohne Namen" : name)
+			+ " (" + publicId + ")";
+	}
+
 	// ---- Zeichnen ---------------------------------------------------------------------------------
 
 	/*
-	 * Die Menge der ANGEHAKTEN Objekte auf die Karte legen.
+	 * EINE Form bauen — Punkt, Linie oder Flaeche, in der Farbe und Strichelung ihrer Partei.
+	 *
+	 * 🔴 EIN BAUER FUER BEIDE PARTEIEN. Zwei Fassungen liefen beim ersten geaenderten Mass
+	 * auseinander, und der Sinn dieser Aufgabe ist, dass die zwei Formen sich NUR in Farbe und
+	 * Strichelung unterscheiden — die Form selbst muss dieselbe Regel sein.
+	 * 🔴 EIN PUNKT IST EIN RING, KEINE LINIE (Owner-Meldung 29.08.2026: „warum kann ich die nicht
+	 * sehen?" bei den Ortschaften). Hier stand einmal `if (punkte.length < 2) return;` -- ein Objekt
+	 * mit genau EINER Koordinate galt als „Geometrie fehlt" und wurde nie gezeichnet. `L.polyline`
+	 * mit einem Punkt zeichnet auch nichts: eine Linie ohne zweiten Punkt hat keine Ausdehnung.
+	 * 💣 Und es faellt in Stufe 1 nicht auf: Gewaesser sind Linien und Flaechen, kein einziger Punkt.
+	 * Punkte kommen mit den Ortschaften, den Berggipfeln und den Bauwerken -- also mit dem groessten
+	 * Teil des Bestands (rund 2519 Zeilen allein auf den zwei Ortschaftsseiten, gegen 289
+	 * Gewaesserzeilen).
+	 * ⚠️ `L.polygon` schliesst den Ring selbst; ein bereits geschlossener Ring schadet nicht.
+	 * 🔴 `interactive: true` — ohne das gibt es keinen Tooltip. Was das kostet, steht an
+	 * `garetienPaneSicherstellen` und an der Zeigerregel in css/components/garetien-importer.css.
+	 */
+	function garetienForm(l, punkte, opt) {
+		var basis = {
+			pane: opt.pane,
+			className: opt.klasse,
+			color: opt.farbe,
+			weight: opt.breite,
+			opacity: opt.deckkraft,
+			lineCap: "round",
+			lineJoin: "round",
+			interactive: true,
+		};
+		if (opt.strichelung) { basis.dashArray = opt.strichelung; }
+		var ebene = null;
+		if (punkte.length === 1) {
+			if (typeof l.circleMarker !== "function") { return null; }
+			basis.radius = AVESMAPS_GARETIEN_PUNKT_RADIUS;
+			// Ungefuellt, damit der Ring den Ort darunter nicht zudeckt.
+			basis.fill = false;
+			basis.fillOpacity = 0;
+			ebene = l.circleMarker(punkte[0], basis);
+		} else {
+			basis.fill = opt.flaeche === true;
+			basis.fillColor = opt.farbe;
+			basis.fillOpacity = opt.flaeche === true ? AVESMAPS_GARETIEN_FLAECHE_DECKKRAFT : 0;
+			var bauer = (opt.flaeche === true && typeof l.polygon === "function")
+				? l.polygon
+				: l.polyline;
+			ebene = bauer(punkte, basis);
+		}
+		if (ebene && opt.titel && typeof ebene.bindTooltip === "function") {
+			// `sticky` laesst den Tooltip dem Zeiger folgen -- an einer langen Flusslinie stuende er
+			// sonst an deren Mittelpunkt, oft weit weg von der Stelle, auf die man zeigt.
+			ebene.bindTooltip(opt.titel, { sticky: true, direction: "top" });
+		}
+		return ebene;
+	}
+
+	/*
+	 * Die Menge der zu zeigenden Objekte auf die Karte legen.
 	 *
 	 * 💣 IDEMPOTENT: erst alles abraeumen, dann alles neu. Derselbe Aufruf zweimal ergibt dieselben
 	 * Ebenen, nicht die doppelte Menge — der Listenlauf ruft ihn nach JEDEM Neuzeichnen.
-	 * 🔴 DIE REIHENFOLGE MACHEN DIE PANES, nicht die Einfuegereihenfolge: der Schein liegt in einer
-	 * eigenen Pane UNTER unseren Wegen (360), der Strich in seiner ueber allem (465). Die Trennung
-	 * ist der ganze Punkt -- die Hervorhebung gehoert hinter das, was sie hervorhebt.
-	 * ⚠️ Innerhalb einer Pane entscheidet weiterhin die Einfuegereihenfolge; sie ist hier nur nicht
-	 * mehr tragend, weil in jeder Pane genau eine Sorte liegt.
+	 * 🔴 DIE REIHENFOLGE MACHEN DIE PANES: unsere Partei liegt in ihrer eigenen (462), ihre in ihrer
+	 * (465). Innerhalb UNSERER Pane entscheidet die Einfuegereihenfolge, und dort ist sie tragend:
+	 * der Hof kommt VOR der Form, sonst deckt ein 13 px breites Band die 3 px schmale Linie zu.
+	 * ⚠️ Der Sichtzustand wird hier NICHT gesetzt: er steht im `display` der Panes und ueberlebt
+	 * jedes Neuzeichnen (siehe avesmapsGaretienKarteUmschalten).
 	 */
 	function avesmapsGaretienKarteZeigen(objekte, karte) {
 		var k = garetienKarte(karte);
@@ -295,8 +469,8 @@
 		if (!k || !l || typeof l.polyline !== "function" || typeof l.layerGroup !== "function") {
 			return null;
 		}
-		garetienPaneSicherstellen(k, AVESMAPS_GARETIEN_SCHEIN_PANE, AVESMAPS_GARETIEN_SCHEIN_PANE_Z);
-		garetienPaneSicherstellen(k, AVESMAPS_GARETIEN_PANE, AVESMAPS_GARETIEN_PANE_Z);
+		garetienPaneSicherstellen(k, AVESMAPS_GARETIEN_UNSERE_PANE, AVESMAPS_GARETIEN_UNSERE_PANE_Z);
+		garetienPaneSicherstellen(k, AVESMAPS_GARETIEN_IHRE_PANE, AVESMAPS_GARETIEN_IHRE_PANE_Z);
 
 		if (gruppe === null) { gruppe = l.layerGroup(); }
 		// ⚠️ Nur anhaengen, wenn sie nicht schon dort liegt — sonst laege die Gruppe nach zehn
@@ -309,94 +483,93 @@
 		gruppe.clearLayers();
 
 		var liste = objekte || [];
-		var farbe = garetienGoldton();
+		var farbeIhre = garetienTokenFarbe(AVESMAPS_GARETIEN_TOKEN_IHRE);
+		var farbeUnsere = garetienTokenFarbe(AVESMAPS_GARETIEN_TOKEN_UNSERE);
 
+		// 💣 ERST SAMMELN, DANN IN ZWEI DURCHGAENGEN ZEICHNEN -- Hof und Form je Abschnitt direkt
+		// hintereinander zu legen reicht NICHT: der Hof des zweiten Objekts laege dann ueber der
+		// Form des ersten, und zwei benachbarte Abschnitte desselben Flusses beruehren sich
+		// naturgemaess. In EINER Pane entscheidet die Einfuegereihenfolge, also gehoeren ALLE Hoefe
+		// vor ALLE Formen.
+		var unsere = [];
 		liste.forEach(function (objekt) {
-			avesmapsGaretienScheinIds(objekt).forEach(function (publicId) {
+			avesmapsGaretienUnsereIds(objekt).forEach(function (publicId) {
 				var punkte = avesmapsGaretienNachLeaflet(garetienAbschnittsPunkte(objekt, publicId));
-				if (punkte.length < 2) { garetienGeometrieFehlt(objekt, publicId); return; }
-				// 🔴 Der Schein ist IMMER ein Strich, auch unter einer Flaeche: er ist der Hof um
-				// unsere Geometrie. Eine gefuellte Flaeche zu 55 % Gold ueberdeckte einen See
-				// vollstaendig -- man saehe die Hervorhebung, aber nicht mehr, was hervorgehoben ist.
-				gruppe.addLayer(l.polyline(punkte, {
-					pane: AVESMAPS_GARETIEN_SCHEIN_PANE,
-					className: AVESMAPS_GARETIEN_KLASSE_SCHEIN,
-					color: farbe,
-					weight: AVESMAPS_GARETIEN_SCHEIN_BREITE,
-					opacity: AVESMAPS_GARETIEN_SCHEIN_DECKKRAFT,
-					lineCap: "round",
-					lineJoin: "round",
-					fill: false,
-					interactive: false,
-				}));
+				if (punkte.length === 0) { garetienGeometrieFehlt(objekt, publicId); return; }
+				unsere.push({
+					punkte: punkte,
+					titel: garetienTitelUnsere(objekt, publicId),
+					// 🔴 Eine Flaeche nur dann als Flaeche, wenn die Punktliste sich zu EINEM Ring
+					// schliesst -- siehe garetienRingSchliesst.
+					flaeche: garetienIstFlaeche(objekt) && garetienRingSchliesst(punkte),
+				});
 			});
+		});
+
+		// 🔴 Der Hof ist IMMER ein Strich, auch unter einer Flaeche: eine gefuellte Flaeche zu 55 %
+		// ueberdeckte einen See vollstaendig -- man saehe die Hervorhebung, aber nicht mehr, was
+		// hervorgehoben ist.
+		unsere.forEach(function (eintrag) {
+			var hof = garetienForm(l, eintrag.punkte, {
+				pane: AVESMAPS_GARETIEN_UNSERE_PANE,
+				klasse: AVESMAPS_GARETIEN_KLASSE_SCHEIN,
+				farbe: farbeUnsere,
+				breite: AVESMAPS_GARETIEN_SCHEIN_BREITE,
+				deckkraft: AVESMAPS_GARETIEN_SCHEIN_DECKKRAFT,
+				flaeche: false,
+				strichelung: null,
+				titel: eintrag.titel,
+			});
+			if (hof) { gruppe.addLayer(hof); }
+		});
+
+		// 🔴 UNSERE FORM: dieselbe Gestalt wie ihre, aber MAGENTA und DURCHGEZOGEN.
+		unsere.forEach(function (eintrag) {
+			var form = garetienForm(l, eintrag.punkte, {
+				pane: AVESMAPS_GARETIEN_UNSERE_PANE,
+				klasse: AVESMAPS_GARETIEN_KLASSE_UNSERE,
+				farbe: farbeUnsere,
+				breite: AVESMAPS_GARETIEN_STRICH_BREITE,
+				deckkraft: 1,
+				flaeche: eintrag.flaeche,
+				strichelung: null,
+				titel: eintrag.titel,
+			});
+			if (form) { gruppe.addLayer(form); }
 		});
 
 		liste.forEach(function (objekt) {
 			var punkte = avesmapsGaretienNachLeaflet((objekt || {}).geometrie);
 			if (punkte.length === 0) { garetienGeometrieFehlt(objekt, null); return; }
-
-			// 🔴 EIN PUNKT IST EIN RING, KEINE LINIE (Owner-Meldung 29.08.2026: „warum kann ich die
-			// nicht sehen?" bei den Ortschaften). Hier stand `if (punkte.length < 2) return;` -- ein
-			// Objekt mit genau EINER Koordinate galt als „Geometrie fehlt" und wurde nie gezeichnet.
-			// `L.polyline` mit einem Punkt zeichnet auch nichts: eine Linie ohne zweiten Punkt hat
-			// keine Ausdehnung. Der Knopf „Auf der Karte zeigen" flog dann korrekt hin und zeigte
-			// NICHTS -- von einem kaputten Knopf nicht zu unterscheiden.
-			// 💣 Und es faellt in Stufe 1 nicht auf: Gewaesser sind Linien und Flaechen, kein
-			// einziger Punkt. Punkte kommen mit den Ortschaften, den Berggipfeln und den Bauwerken --
-			// also mit dem groessten Teil des Bestands (rund 2519 Zeilen allein auf den zwei
-			// Ortschaftsseiten, gegen 289 Gewaesserzeilen).
-			// ⚠️ Der Ring traegt DIESELBE Strichelung wie eine Linie: die Aussage „das ist IHRE
-			// Fassung, sie steht noch nicht bei uns" haengt an der gestrichelten Kante, nicht an der
-			// Form. Ungefuellt, damit er den Ort darunter nicht zudeckt.
-			if (punkte.length === 1) {
-				if (typeof l.circleMarker !== "function") { return; }
-				gruppe.addLayer(l.circleMarker(punkte[0], {
-					pane: AVESMAPS_GARETIEN_PANE,
-					className: AVESMAPS_GARETIEN_KLASSE_STRICH,
-					radius: AVESMAPS_GARETIEN_PUNKT_RADIUS,
-					color: farbe,
-					weight: AVESMAPS_GARETIEN_STRICH_BREITE,
-					opacity: 1,
-					dashArray: AVESMAPS_GARETIEN_STRICHELUNG,
-					fill: false,
-					interactive: false,
-				}));
-				return;
-			}
-			// 🔴 EINE FLAECHE WIRD ALS FLAECHE GEZEICHNET (Mockup §2, Blutmoor: leichte Fuellung
-			// plus gestrichelte Kante). Von den Objekten der Stufe 1 sind 113 von 288 Flaechen --
-			// 96 Seen, 15 Suempfe, 2 Meere. Als blosser Umriss saehe ein See aus wie ein Fluss.
-			// ⚠️ `L.polygon` schliesst den Ring selbst; ein bereits geschlossener Ring (GeoJSON
-			// verlangt ihn) schadet nicht.
-			var flaeche = garetienIstFlaeche(objekt);
-			var bauer = (flaeche && typeof l.polygon === "function") ? l.polygon : l.polyline;
-			gruppe.addLayer(bauer(punkte, {
-				pane: AVESMAPS_GARETIEN_PANE,
-				className: AVESMAPS_GARETIEN_KLASSE_STRICH,
-				color: farbe,
-				weight: AVESMAPS_GARETIEN_STRICH_BREITE,
-				opacity: 1,
-				dashArray: AVESMAPS_GARETIEN_STRICHELUNG,
-				lineCap: "round",
-				lineJoin: "round",
-				fill: flaeche,
-				fillColor: farbe,
-				fillOpacity: flaeche ? AVESMAPS_GARETIEN_FLAECHE_DECKKRAFT : 0,
-				interactive: false,
-			}));
+			// 🔴 IHRE FORM: GOLD und GESTRICHELT. Die Strichelung sagt „das ist ihre Fassung, sie
+			// steht noch nicht bei uns" -- sie haengt an der Kante, nicht an der Form, und ein Ring
+			// traegt sie deshalb genauso wie eine Linie.
+			var form = garetienForm(l, punkte, {
+				pane: AVESMAPS_GARETIEN_IHRE_PANE,
+				klasse: AVESMAPS_GARETIEN_KLASSE_IHRE,
+				farbe: farbeIhre,
+				breite: AVESMAPS_GARETIEN_STRICH_BREITE,
+				deckkraft: 1,
+				flaeche: garetienIstFlaeche(objekt),
+				strichelung: AVESMAPS_GARETIEN_STRICHELUNG,
+				titel: garetienTitelIhre(objekt),
+			});
+			if (form) { gruppe.addLayer(form); }
 		});
 
 		return gruppe;
 	}
 
 	/*
-	 * „Auf der Karte zeigen" — NUR die Ansicht.
+	 * „✦ Zentrieren" — die Ansicht fliegt auf ihr Objekt.
 	 *
-	 * 🔴 Der Glow haengt am Haekchen und wird hier nicht angefasst (Owner 27.08.2026).
+	 * 🔴 UND DAS OBJEKT LEUCHTET DABEI, ohne dass hier etwas dafuer getan wird: seit dem 29.08.2026
+	 * zeichnet `avesmapsGaretienAufDerKarte` (review-garetien-importer.js) das ANGEKLICKTE Objekt
+	 * mit, und die Einzelansicht — in der dieser Knopf steht — ist nur offen, wenn es angeklickt ist.
+	 * Ein zweiter Zeichenbefehl hier waere die zweite Regel darueber, was auf der Karte liegt.
 	 * ⚠️ Angeflogen wird IHRE Geometrie, nicht zusaetzlich unsere getroffenen Abschnitte: der Knopf
 	 * steht in der Ansicht ihres Objekts, und ein Kasten, der die Haekchen mitliest, veraenderte den
-	 * Bildausschnitt beim Anhaken — dann bewegt der Knopf eben doch mehr als die Ansicht.
+	 * Bildausschnitt beim Anhaken.
 	 * 🪤 MESSFALLE: in der Browser-Flaeche wirft JEDER Leaflet-Flug NaN — ein Artefakt der Flaeche,
 	 * kein Fehler hier. Die Kontrollprobe ist `fitBounds` an derselben Stelle; im echten Browser
 	 * fliegt es.
@@ -414,16 +587,78 @@
 		return kasten;
 	}
 
+	// ---- Die zwei Sicht-Knoepfe -------------------------------------------------------------------
+
+	function garetienPaneSichtbar(karte, name) {
+		var pane = (karte && typeof karte.getPane === "function") ? karte.getPane(name) : null;
+		return !(pane && pane.style && pane.style.display === "none");
+	}
+
+	/*
+	 * Was liegt gerade auf der Karte? — DER ZUSTAND WIRD GELESEN, NICHT GEFUEHRT.
+	 *
+	 * 🔴 Die Auskunft kommt aus dem `display` der zwei Panes und aus sonst nichts. Ein Modulzustand
+	 * daneben waere die zweite Wahrheit, an der im Haus schon das Anzeige-Menue der Karte und die
+	 * Ansichts-Kacheln gescheitert sind.
+	 * ⚠️ Ohne Karte und vor dem ersten Zeichnen gibt es keine Pane — dann sind beide Parteien
+	 * sichtbar, und das ist der Startzustand, den der Owner verlangt hat („Beide starten AN").
+	 */
+	function avesmapsGaretienKarteSicht(karte) {
+		var k = garetienKarte(karte);
+		return {
+			ihre: k === null ? true : garetienPaneSichtbar(k, AVESMAPS_GARETIEN_IHRE_PANE),
+			unsere: k === null ? true : garetienPaneSichtbar(k, AVESMAPS_GARETIEN_UNSERE_PANE),
+		};
+	}
+
+	/*
+	 * Eine Partei ein- oder ausblenden.
+	 *
+	 * 💣 EIN UNBEKANNTER NAME SCHALTET NICHTS. Ohne diesen Riegel blendete ein Tippfehler im
+	 * `data-sicht`-Attribut die falsche Partei aus, und der Knopf saehe dabei richtig aus.
+	 * ⚠️ Zurueckgegeben wird der GEMESSENE Zustand, nicht der erwartete: der Knopf beschriftet sich
+	 * daraus, und ohne Karte (Editorseiten) hat er dann nichts umgeschaltet und behauptet es auch
+	 * nicht.
+	 */
+	function avesmapsGaretienKarteUmschalten(seite, karte) {
+		var k = garetienKarte(karte);
+		var name = null;
+		var z = 0;
+		if (seite === "ihre") {
+			name = AVESMAPS_GARETIEN_IHRE_PANE;
+			z = AVESMAPS_GARETIEN_IHRE_PANE_Z;
+		}
+		if (seite === "unsere") {
+			name = AVESMAPS_GARETIEN_UNSERE_PANE;
+			z = AVESMAPS_GARETIEN_UNSERE_PANE_Z;
+		}
+		if (k === null || name === null) { return avesmapsGaretienKarteSicht(k); }
+		var pane = garetienPaneSicherstellen(k, name, z);
+		if (pane) { pane.style.display = pane.style.display === "none" ? "" : "none"; }
+		return avesmapsGaretienKarteSicht(k);
+	}
+
 	/*
 	 * Alles weg — das Fenster ist zu.
 	 *
-	 * 💣 Ein zurueckgelassener goldener Strich auf der oeffentlichen Karte waere der schlimmste
-	 * Ausfall dieser Aufgabe: der Besucher saehe goldene Striche ohne jede Erklaerung.
-	 * ⚠️ Die Pane bleibt stehen, und das ist richtig: ein leeres <div> zeichnet nichts, Leaflet hat
+	 * 💣 Ein zurueckgelassener Strich auf der oeffentlichen Karte waere der schlimmste Ausfall
+	 * dieser Aufgabe: der Besucher saehe farbige Striche ohne jede Erklaerung.
+	 * 💣 UND DIE SICHT WIRD ZURUECKGESETZT. Ohne das bliebe eine ausgeblendete Partei ueber das
+	 * Schliessen hinaus versteckt — beim naechsten Oeffnen zeigte die Karte nur eine Farbe, die
+	 * Knoepfe saehen richtig aus, und niemand haette einen Anhaltspunkt. „Beide starten AN" ist eine
+	 * Owner-Vorgabe und muss deshalb an der Stelle stehen, an der eine Sitzung endet.
+	 * ⚠️ Die Panes bleiben stehen, und das ist richtig: ein leeres <div> zeichnet nichts, Leaflet hat
 	 * kein oeffentliches `removePane`, und ein spaeteres `createPane` legte ohnehin ein neues an
 	 * (siehe oben). Sauber heisst „keine Geometrie mehr", nicht „kein Knoten mehr".
 	 */
-	function avesmapsGaretienKarteAus() {
+	function avesmapsGaretienKarteAus(karte) {
+		var k = garetienKarte(karte);
+		if (k !== null && typeof k.getPane === "function") {
+			[AVESMAPS_GARETIEN_IHRE_PANE, AVESMAPS_GARETIEN_UNSERE_PANE].forEach(function (name) {
+				var pane = k.getPane(name);
+				if (pane && pane.style) { pane.style.display = ""; }
+			});
+		}
 		if (gruppe !== null) {
 			if (typeof gruppe.clearLayers === "function") { gruppe.clearLayers(); }
 			if (typeof gruppe.remove === "function") { gruppe.remove(); }
@@ -433,28 +668,40 @@
 	}
 
 	if (typeof window !== "undefined") {
-		// 🔴 Vier Namen im globalen Raum, so wie das Fenster sie sucht (`typeof … === "function"`).
+		// 🔴 Namen im globalen Raum, so wie das Fenster sie sucht (`typeof … === "function"`).
 		// Kein Sammelobjekt: review-garetien-importer.js fragt jeden einzeln ab und bleibt damit
 		// ohne diese Datei lauffaehig — der Importer laeuft auch auf Seiten ohne Karte.
 		window.avesmapsGaretienKarteZeigen = avesmapsGaretienKarteZeigen;
 		window.avesmapsGaretienKarteFliegen = avesmapsGaretienKarteFliegen;
 		window.avesmapsGaretienKarteAus = avesmapsGaretienKarteAus;
-		window.avesmapsGaretienScheinIds = avesmapsGaretienScheinIds;
+		window.avesmapsGaretienKarteSicht = avesmapsGaretienKarteSicht;
+		window.avesmapsGaretienKarteUmschalten = avesmapsGaretienKarteUmschalten;
+		window.avesmapsGaretienUnsereIds = avesmapsGaretienUnsereIds;
 	}
 
 	if (typeof module !== "undefined" && module.exports) {
 		module.exports = {
 			avesmapsGaretienNachLeaflet,
-			avesmapsGaretienScheinIds,
+			avesmapsGaretienUnsereIds,
 			garetienAbschnittsPunkte,
 			garetienIstFlaeche,
+			garetienRingSchliesst,
+			garetienTitelIhre,
+			garetienTitelUnsere,
 			avesmapsGaretienKarteZeigen,
 			avesmapsGaretienKarteFliegen,
+			avesmapsGaretienKarteSicht,
+			avesmapsGaretienKarteUmschalten,
 			avesmapsGaretienKarteAus,
-			AVESMAPS_GARETIEN_PANE,
-			AVESMAPS_GARETIEN_PANE_Z,
-			AVESMAPS_GARETIEN_SCHEIN_PANE,
-			AVESMAPS_GARETIEN_SCHEIN_PANE_Z,
+			AVESMAPS_GARETIEN_IHRE_PANE,
+			AVESMAPS_GARETIEN_IHRE_PANE_Z,
+			AVESMAPS_GARETIEN_UNSERE_PANE,
+			AVESMAPS_GARETIEN_UNSERE_PANE_Z,
+			AVESMAPS_GARETIEN_KLASSE_IHRE,
+			AVESMAPS_GARETIEN_KLASSE_UNSERE,
+			AVESMAPS_GARETIEN_KLASSE_SCHEIN,
+			AVESMAPS_GARETIEN_PARTEI_IHRE,
+			AVESMAPS_GARETIEN_PARTEI_UNSERE,
 		};
 	}
 })();
