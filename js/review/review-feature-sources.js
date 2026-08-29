@@ -280,9 +280,16 @@ function renderFeatureSourcePendingGroup(pendingSources, escape, tr) {
 }
 
 function renderFeatureSourceAddRow(escape, tr) {
-  const options = FEATURE_SOURCE_TYPES.map(
-    (type) => '<option value="' + escape(type) + '">' + escape(featureSourceTypeLabel(type)) + "</option>"
-  ).join("");
+  // 🔴 Der erste Eintrag ist LEER und damit vorausgewaehlt: „Art …" heisst „keine Aussage".
+  // 💣 Ohne ihn stand 'regionalspielhilfe' vorausgewaehlt da -- die erste Art der Liste --, und
+  // wer die Auswahl nie anfasste, legte eine Behauptung an, die er nie getroffen hat. Genau so kam
+  // „Briefspiel Rommilyser Mark" als Regionalspielhilfe in den Katalog (Meldung #105, Nottel,
+  // 29.08.2026). Dieselbe Form wie bei der Lizenz daneben; der Server macht daraus beim ANLEGEN
+  // 'sonstiges' und laesst eine bereits bekannte Quelle unberuehrt.
+  const options = '<option value="">' + escape(tr("sources.add.typeNone", "Art …")) + "</option>" +
+    FEATURE_SOURCE_TYPES.map(
+      (type) => '<option value="' + escape(type) + '">' + escape(featureSourceTypeLabel(type)) + "</option>"
+    ).join("");
   // Coverage classification -> which publication tab the source lands in (empty = flat line).
   const kindOptions = FEATURE_SOURCE_REFERENCE_KINDS.map(
     (kind) => '<option value="' + escape(kind) + '">' + escape(featureSourceReferenceKindLabel(kind)) + "</option>"
@@ -583,6 +590,22 @@ function mountFeatureSourceEditor(containerEl, entityType, publicIdGetter, opts)
     return data;
   }
 
+  // Sagt, was der Klick am GETEILTEN Katalog geaendert hat. Eine richtiggestellte Art gilt
+  // ueberall, wo die Quelle zitiert wird; das gehoert gesagt, nicht bemerkt -- und es ist die
+  // Gegenprobe zur stillen Nicht-Aenderung, aus der #105 entstand.
+  function zeigeUmtypung(daten) {
+    const umtyp = daten && daten.retyped;
+    if (!umtyp) {
+      return;
+    }
+    showAddRowNote(
+      tr("sources.add.retyped", "Art von „{label}“ auf „{to}“ geändert (war „{from}“) — das gilt überall, wo diese Quelle steht.")
+        .replace("{label}", String(umtyp.label || ""))
+        .replace("{to}", featureSourceTypeLabel(umtyp.to))
+        .replace("{from}", featureSourceTypeLabel(umtyp.from))
+    );
+  }
+
   function readAddRowValues() {
     const urlInput = containerEl.querySelector(".fs-add-url");
     const labelInput = containerEl.querySelector(".fs-add-label");
@@ -592,10 +615,18 @@ function mountFeatureSourceEditor(containerEl, entityType, publicIdGetter, opts)
     const pagesInput = containerEl.querySelector(".fs-add-pages");
     const licenseSelect = containerEl.querySelector(".fs-add-license");
     const attributionInput = containerEl.querySelector(".fs-add-attribution");
+    // '' = niemand hat eine Art gewaehlt. Der fruehere Rueckfall auf "sonstiges" machte aus dem
+    // Nichtstun eine Aussage -- dieselbe Falle wie die Vorauswahl im Feld selbst.
+    const gewaehlteArt = String((typeSelect && typeSelect.value) || "");
     return {
       url: String((urlInput && urlInput.value) || "").trim(),
       label: String((labelInput && labelInput.value) || "").trim(),
-      source_type: String((typeSelect && typeSelect.value) || "sonstiges"),
+      source_type: gewaehlteArt,
+      // 🔴 EIGENER Schluessel statt eines Rueckschlusses aus dem Wert. Der Server stellt die Art
+      // einer BEKANNTEN Quelle nur danach richtig; ein alter, zwischengespeicherter Client kennt ihn
+      // nicht und kann darum keine katalogweit geteilte Zeile umschreiben, obwohl er die
+      // vorausgewaehlte erste Art mitschickt.
+      source_type_chosen: gewaehlteArt !== "",
       reference_kind: String((kindSelect && kindSelect.value) || ""),
       is_official: Boolean(officialInput && officialInput.checked),
       pages: String((pagesInput && pagesInput.value) || "").trim(),
@@ -626,18 +657,23 @@ function mountFeatureSourceEditor(containerEl, entityType, publicIdGetter, opts)
       // coverage still travel -- those describe this link, not the work.
       if (pickedSourceId > 0) {
         // The buffer has no catalog to look the row up in, so in create mode the display fields
-        // travel too. Over the wire the payload stays byte-identical to before -- the server
-        // resolves the row by id and never saw these keys.
-        await renderFromServer("add_existing", Object.assign(
+        // travel too. Over the wire the server resolves the row by id.
+        // 🔴 Die AUSDRUECKLICHE Wahl der Art reist auch hier mit: wer den Titel tippt und den
+        // Treffer waehlt, meint dasselbe wie einer, der die Adresse eintraegt. Eine Regel, die
+        // einen von zwei Erzeugern bindet, ist keine Regel (AGENTS.md §11).
+        const daten = await renderFromServer("add_existing", Object.assign(
           {
             source_id: pickedSourceId,
             pages: values.pages,
             reference_kind: values.reference_kind,
+            source_type: values.source_type,
+            source_type_chosen: values.source_type_chosen,
           },
           pendingStore
-            ? { url: values.url, label: values.label, source_type: values.source_type, is_official: values.is_official }
+            ? { url: values.url, label: values.label, is_official: values.is_official }
             : {}
         ));
+        zeigeUmtypung(daten);
         return;
       }
       // Die URL bleibt Pflicht -- der Katalog erkennt Dubletten über den URL-Hash, ohne Link
@@ -656,7 +692,7 @@ function mountFeatureSourceEditor(containerEl, entityType, publicIdGetter, opts)
         }
         return;
       }
-      await renderFromServer("add", values);
+      zeigeUmtypung(await renderFromServer("add", values));
     }
   });
 

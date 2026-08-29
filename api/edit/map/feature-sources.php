@@ -73,7 +73,15 @@ try {
                 avesmapsErrorResponse(400, 'invalid_request', 'url ist erforderlich.');
             }
             $label = (string) ($payload['label'] ?? '');
-            $type = (string) ($payload['source_type'] ?? 'sonstiges');
+            // '' heisst „keine Aussage" -- beim Anlegen wird daraus 'sonstiges', eine bekannte
+            // Quelle bleibt unberuehrt (avesmapsNormalizeSourceType).
+            $type = (string) ($payload['source_type'] ?? '');
+            // 🔴 „Der Benutzer hat die Art AUSDRUECKLICH gewaehlt" -- ein eigener Schluessel, kein
+            // Rueckschluss aus dem Wert. Ein alter, noch zwischengespeicherter Client schickt die
+            // vorausgewaehlte erste Art ('regionalspielhilfe') mit, ohne dass jemand sie gewaehlt hat;
+            // wer aus „Wert vorhanden" auf „gewaehlt" schloesse, liesse ausgerechnet diesen Client
+            // fremde Katalogzeilen umschreiben. Er kennt den Schluessel nicht und aendert nichts.
+            $artGewaehlt = ($payload['source_type_chosen'] ?? false) === true;
             $official = (bool) ($payload['is_official'] ?? false);
             $pages = trim((string) ($payload['pages'] ?? ''));
             $referenceKind = trim((string) ($payload['reference_kind'] ?? ''));
@@ -82,7 +90,7 @@ try {
             // unbekannter faellt dort auf '' und nicht auf einen geratenen.
             $license = trim((string) ($payload['license'] ?? ''));
             $attribution = trim((string) ($payload['attribution'] ?? ''));
-            return avesmapsAddFeatureSource($pdo, $entityType, $entityPublicId, $url, $label, $type, $official, $userId, $pages, $referenceKind, $license, $attribution);
+            return avesmapsAddFeatureSource($pdo, $entityType, $entityPublicId, $url, $label, $type, $official, $userId, $pages, $referenceKind, $license, $attribution, $artGewaehlt);
         })(),
         // Instruction 5a: the editor picked an existing catalog row from the typeahead. Separate
         // from 'add' because that action requires a url -- and the rows most worth reusing (wiki
@@ -94,7 +102,12 @@ try {
             }
             $pages = trim((string) ($payload['pages'] ?? ''));
             $referenceKind = trim((string) ($payload['reference_kind'] ?? ''));
-            return avesmapsLinkExistingFeatureSource($pdo, $entityType, $entityPublicId, $sourceId, $userId, $pages, $referenceKind);
+            // Dieselbe Erlaubnis wie beim Anlegen: nur eine ausdrueckliche Wahl stellt die Art
+            // einer bestehenden Katalogzeile richtig, alles andere verknuepft nur.
+            $type = ($payload['source_type_chosen'] ?? false) === true
+                ? (string) ($payload['source_type'] ?? '')
+                : '';
+            return avesmapsLinkExistingFeatureSource($pdo, $entityType, $entityPublicId, $sourceId, $userId, $pages, $referenceKind, $type);
         })(),
         'remove' => (static function () use ($pdo, $entityType, $entityPublicId, $payload, $userId): array {
             $sourceId = (int) ($payload['source_id'] ?? 0);

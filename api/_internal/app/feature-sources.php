@@ -300,11 +300,88 @@ function avesmapsNormalizeSourceLicense(mixed $value): string
     return in_array($key, AVESMAPS_SOURCE_LICENSES, true) ? $key : '';
 }
 
-function avesmapsFeatureSourceUpsert(PDO $pdo, string $url, string $label, string $type, bool $official, int $userId, string $wikiKey = '', bool $refreshLabel = false, string $license = '', string $attribution = ''): int
+/**
+ * 🔴 DIE ACHT QUELLENARTEN -- und '' heisst „keine Aussage".
+ *
+ * 💣 Genau dieser leere Zustand fehlte, und daran haengt Meldung #105 (Nottel, 29.08.2026:
+ * „Die Auswahl des Typs einer Quellenangabe wird auf ‚Regionalspielhilfe' gestellt, unabhaengig
+ * von der Wahl des Benutzers"). Die Eingabezeile hatte keinen leeren Eintrag, also stand die
+ * ERSTE Art vorausgewaehlt -- und die erste ist 'regionalspielhilfe'. Wer die Auswahl nie
+ * anfasste, legte damit eine Behauptung an, die er nie getroffen hat; so kam „Briefspiel
+ * Rommilyser Mark" (Quelle 1322115, live gemessen 29.08.2026) als Regionalspielhilfe in den
+ * Katalog. Seither traegt die Zeile „Art …" und schickt '' -- eine Wahl ist erst eine Wahl,
+ * wenn jemand sie trifft.
+ *
+ * ⚠️ Es gibt eine ZWEITE Liste derselben Werte in api/app/report-location.php:405 -- der Weg
+ * der Gemeinschaftsmeldung, der diese Datei nicht laedt.
+ */
+const AVESMAPS_SOURCE_TYPES = [
+    'regionalspielhilfe',
+    'abenteuer',
+    'aventurischer_bote',
+    'quellenband',
+    'roman',
+    'briefspiel',
+    'regelbuch',
+    'sonstiges',
+];
+
+/** Eine Quellenart, oder '' fuer „keine Aussage" -- dieselbe Form wie beim Lizenzschluessel. */
+function avesmapsNormalizeSourceType(mixed $value): string
 {
-    // 💣 DIESE LISTE KUERZT LAUTLOS. Was nicht darinsteht, wird zu 'sonstiges' -- kein Fehler,
+    $key = strtolower(trim((string) $value));
+
+    return in_array($key, AVESMAPS_SOURCE_TYPES, true) ? $key : '';
+}
+
+/**
+ * Darf diese Wahl eine BEREITS BEKANNTE Katalogzeile umtypen?
+ *
+ * Zwei Bedingungen, und beide muessen stehen: der Aufrufer darf es ($callerMayRetype), UND die
+ * Art ist ausdruecklich gewaehlt. Eine leere Wahl ist keine Aussage und aendert nie etwas --
+ * ohne diese zweite Haelfte wuerde die Vorauswahl eines Formulars zur Behauptung, was genau der
+ * Fehler ist, aus dem Meldung #105 entstand.
+ */
+function avesmapsSourceRetypeAllowed(mixed $type, bool $callerMayRetype): bool
+{
+    return $callerMayRetype && avesmapsNormalizeSourceType($type) !== '';
+}
+
+/**
+ * Die IDENTITAET einer Quelle: der Hash, unter dem der Katalog sie kennt. EINE Regel, zwei Leser
+ * -- der Upsert und der Blick darauf, was vorher dastand. Eine zweite Fassung dieser Zeile waere
+ * die Divergenz, die den Katalog spaltet.
+ */
+function avesmapsFeatureSourceHash(string $url, string $wikiKey = ''): string
+{
+    // URL-less identity: synthesize the hash from the stable wiki key instead of the (missing) URL.
+    return ($url === '' && $wikiKey !== '') ? hash('sha256', 'wikipub:' . $wikiKey) : hash('sha256', $url);
+}
+
+/**
+ * Der ON-DUPLICATE-Teil des Katalog-Upserts als Text -- damit die EINE Entscheidung darin
+ * pruefbar ist: wer darf eine bereits bekannte Zeile umschreiben?
+ *
+ * 🔴 `source_type = source_type` ist die Vorgabe und ein bewusster Leerlauf. Ein Aufrufer, der
+ * nur verknuepfen will -- Wiki-Abgleich, Import, angenommene Gemeinschaftsmeldung -- aendert die
+ * Art einer bekannten Quelle NIE. Nur die Eingabezeile des Editors setzt $retype, und auch sie
+ * nur mit einer ausdruecklichen Wahl.
+ */
+function avesmapsSourceUpsertOnDuplicateSql(bool $refreshLabel, bool $retype): string
+{
+    return "label = " . ($refreshLabel ? "IF(VALUES(label) = '', label, VALUES(label))" : "IF(label = '', VALUES(label), label)") . ",
+             is_official = VALUES(is_official),
+             source_type = " . ($retype ? 'VALUES(source_type)' : 'source_type') . ",
+             wiki_key = IF(VALUES(wiki_key) IS NULL, wiki_key, VALUES(wiki_key)),
+             license = IF(VALUES(license) = '', license, VALUES(license)),
+             attribution = IF(VALUES(attribution) = '', attribution, VALUES(attribution))";
+}
+
+function avesmapsFeatureSourceUpsert(PDO $pdo, string $url, string $label, string $type, bool $official, int $userId, string $wikiKey = '', bool $refreshLabel = false, string $license = '', string $attribution = '', bool $retype = false): int
+{
+    // 💣 DIESE LISTE KUERZTE LAUTLOS. Was nicht darinsteht, wird zu 'sonstiges' -- kein Fehler,
     // keine Meldung, und der Aufrufer bekommt eine gueltige id zurueck. Wer hier einen neuen Typ
-    // braucht, traegt ihn ein; wer es vergisst, merkt es an nichts.
+    // braucht, traegt ihn in AVESMAPS_SOURCE_TYPES ein; wer es vergisst, merkt es an nichts.
     //
     // 🪤 Der Garetien-Import (27.08.2026) war einen halben Tag lang dabei, genau das zu tun --
     // ein eigener Typ 'garetien', weil eine Lizenzangabe daran haengen sollte. Er brauchte
@@ -315,10 +392,12 @@ function avesmapsFeatureSourceUpsert(PDO $pdo, string $url, string $label, strin
     // werden muss. ⭐ Die Lehre ist die allgemeinere: eine neue Kategorie ist erst dann faellig,
     // wenn die vorhandene die Sache WIRKLICH nicht beschreibt.
     // ⚠️ Es gibt eine ZWEITE Liste derselben Werte in api/app/report-location.php:405.
-    $allowed = ['regionalspielhilfe', 'abenteuer', 'aventurischer_bote', 'quellenband', 'roman', 'briefspiel', 'regelbuch', 'sonstiges'];
-    $type = in_array($type, $allowed, true) ? $type : 'sonstiges';
-    // URL-less identity: synthesize the hash from the stable wiki key instead of the (missing) URL.
-    $hash = ($url === '' && $wikiKey !== '') ? hash('sha256', 'wikipub:' . $wikiKey) : hash('sha256', $url);
+    $gewaehlteArt = avesmapsNormalizeSourceType($type); // '' = keine Aussage
+    // 🔴 NUR eine ausdrueckliche Wahl darf eine bestehende Zeile umtypen.
+    $retype = avesmapsSourceRetypeAllowed($type, $retype);
+    // Beim ANLEGEN braucht die Spalte trotzdem einen Wert; „keine Aussage" ist dort 'sonstiges'.
+    $type = $gewaehlteArt !== '' ? $gewaehlteArt : 'sonstiges';
+    $hash = avesmapsFeatureSourceHash($url, $wikiKey);
     // Step 2: the key is no longer just a hash ingredient -- it is STORED. Until now it was
     // computed here and thrown away because the column did not exist, which is the whole gap
     // section 1 of the instruction describes. Both wiki syncs already pass it, so they need no
@@ -336,11 +415,7 @@ function avesmapsFeatureSourceUpsert(PDO $pdo, string $url, string $label, strin
         "INSERT INTO sources (url, url_hash, wiki_key, label, source_type, is_official, created_by, license, attribution)
          VALUES (:u, :h, :wk, :l, :t, :o, :cb, :lic, :attr)
          ON DUPLICATE KEY UPDATE
-             label = " . ($refreshLabel ? "IF(VALUES(label) = '', label, VALUES(label))" : "IF(label = '', VALUES(label), label)") . ",
-             is_official = VALUES(is_official),
-             wiki_key = IF(VALUES(wiki_key) IS NULL, wiki_key, VALUES(wiki_key)),
-             license = IF(VALUES(license) = '', license, VALUES(license)),
-             attribution = IF(VALUES(attribution) = '', attribution, VALUES(attribution))"
+             " . avesmapsSourceUpsertOnDuplicateSql($refreshLabel, $retype)
     )->execute([
         'u' => $url, 'h' => $hash, 'wk' => $wikiKey !== '' ? $wikiKey : null,
         'l' => $label, 't' => $type, 'o' => $official ? 1 : 0, 'cb' => $userId > 0 ? $userId : null,
@@ -515,7 +590,17 @@ function avesmapsFeatureSourcesReadWikiUrl(PDO $pdo, string $entityType, string 
     return is_array($props) ? trim((string) ($props['wiki_url'] ?? '')) : '';
 }
 
-function avesmapsAddFeatureSource(PDO $pdo, string $entityType, string $publicId, string $url, string $label, string $type, bool $official, int $userId, string $pages = '', string $referenceKind = '', string $license = '', string $attribution = ''): array
+/**
+ * $retype = „diese Wahl der Art gilt auch fuer eine BEREITS BEKANNTE Quelle" -- und die Vorgabe
+ * ist nein.
+ *
+ * 🔴 Die Erlaubnis haengt am AUFRUFER, nicht am Wert. Genau EIN Aufrufer setzt sie: die
+ * Eingabezeile des Quellen-Editors (api/edit/map/feature-sources.php), wo ein angemeldeter Editor
+ * die Art ausdruecklich waehlt. Die angenommene Gemeinschaftsmeldung (api/edit/reports/locations.php)
+ * setzt sie NICHT -- deren Art kommt aus einem fremden Formular und darf keine katalogweit
+ * geteilte Zeile umschreiben.
+ */
+function avesmapsAddFeatureSource(PDO $pdo, string $entityType, string $publicId, string $url, string $label, string $type, bool $official, int $userId, string $pages = '', string $referenceKind = '', string $license = '', string $attribution = '', bool $retype = false): array
 {
     avesmapsEnsureFeatureSourceTables($pdo);
     // Publication-link normalization (dedup): if the URL is a Wiki-Aventurica article for a KNOWN
@@ -532,9 +617,20 @@ function avesmapsAddFeatureSource(PDO $pdo, string $entityType, string $publicId
             $upsertWikiKey = (string) ($identity['wiki_key'] ?? '');
         }
     }
+    // 🔴 Was VORHER dastand -- gelesen, BEVOR der Upsert es ueberschreibt, damit die Antwort die
+    // Korrektur benennen kann. Eine stille Aenderung an einer katalogweit geteilten Zeile waere
+    // dieselbe Falle wie die stille Nicht-Aenderung davor, nur in die andere Richtung.
+    // ⚠️ Kein try/catch darum: die Tabellen stehen (avesmapsEnsureFeatureSourceTables lief oben),
+    // und ein geschluckter SQL-Fehler saehe hier exakt aus wie „die Art war schon richtig".
+    $vorherigeArt = '';
+    if ($retype) {
+        $vorher = $pdo->prepare('SELECT source_type FROM sources WHERE url_hash = :h LIMIT 1');
+        $vorher->execute(['h' => avesmapsFeatureSourceHash($upsertUrl, $upsertWikiKey)]);
+        $vorherigeArt = (string) ($vorher->fetchColumn() ?: '');
+    }
     // ⚠️ Lizenz und Namensnennung reisen mit -- ohne sie kann ausser dem Import niemand etwas
     // eintragen, und das Feld waere Zierde (Owner 27.08.2026).
-    $sourceId = avesmapsFeatureSourceUpsert($pdo, $upsertUrl, $label, $type, $official, $userId, $upsertWikiKey, false, $license, $attribution);
+    $sourceId = avesmapsFeatureSourceUpsert($pdo, $upsertUrl, $label, $type, $official, $userId, $upsertWikiKey, false, $license, $attribution, $retype);
     // Manual/community add: origin stays 'manual'. reference_kind is OPTIONAL classification of how the
     // place is covered in this source -- ausfuehrlich/ergaenzend -> the "Offiziell" publication tab,
     // erwaehnung -> the "Erwähnt" tab, empty -> the flat "Quelle(n):" line (buildSourceListMarkup splits
@@ -559,7 +655,21 @@ function avesmapsAddFeatureSource(PDO $pdo, string $entityType, string $publicId
     // The trailing list-for-edit's takeover only bumps when it consolidates a legacy other_source,
     // which in the normal editor flow already happened during the initial `list` -> single bump here.
     avesmapsNextMapRevision($pdo);
-    return avesmapsListFeatureSourcesForEdit($pdo, $entityType, $publicId, $userId); // Takeover passiert hier drin
+    $antwort = avesmapsListFeatureSourcesForEdit($pdo, $entityType, $publicId, $userId); // Takeover passiert hier drin
+    // Die Korrektur wird BENANNT. Der Editor soll sehen, dass er soeben eine Zeile geaendert hat,
+    // die ueberall zitiert wird -- und ohne diese Rueckmeldung waere die Aenderung genauso still
+    // wie die verschluckte Wahl davor.
+    $neueArt = avesmapsNormalizeSourceType($type);
+    if ($retype && $neueArt !== '' && $vorherigeArt !== '' && $vorherigeArt !== $neueArt) {
+        $antwort['retyped'] = [
+            'source_id' => $sourceId,
+            'from' => $vorherigeArt,
+            'to' => $neueArt,
+            'label' => $label,
+        ];
+    }
+
+    return $antwort;
 }
 
 // Removing a link is a SUPPRESSION for a wiki-derived row and a hard DELETE for everything else.
@@ -612,7 +722,15 @@ function avesmapsRemoveFeatureSource(PDO $pdo, string $entityType, string $publi
 //
 // origin='manual' is the same contract as the editor add path: manual wins, and re-picking a
 // previously suppressed source makes it visible again rather than silently staying hidden.
-function avesmapsLinkExistingFeatureSource(PDO $pdo, string $entityType, string $publicId, int $sourceId, int $userId, string $pages = '', string $referenceKind = ''): array
+/**
+ * $type ist die ausdrueckliche Wahl der Art aus derselben Eingabezeile, oder '' fuer „keine".
+ *
+ * 🔴 Die ZWEITE Tuer zum selben Katalogsatz. Wer eine bestehende Quelle aus der Vorschlagsliste
+ * waehlt und dabei ihre Art richtigstellt, meint dasselbe wie einer, der sie ueber die URL
+ * eintraegt. Eine Regel, die einen von zwei Erzeugern bindet, ist keine Regel (AGENTS.md §11) --
+ * und ohne diese Haelfte bliebe #105 fuer jeden bestehen, der den Titel tippt statt die Adresse.
+ */
+function avesmapsLinkExistingFeatureSource(PDO $pdo, string $entityType, string $publicId, int $sourceId, int $userId, string $pages = '', string $referenceKind = '', string $type = ''): array
 {
     avesmapsEnsureFeatureSourceTables($pdo);
 
@@ -622,6 +740,26 @@ function avesmapsLinkExistingFeatureSource(PDO $pdo, string $entityType, string 
     $exists->execute(['id' => $sourceId]);
     if ((int) $exists->fetchColumn() === 0) {
         throw new InvalidArgumentException('Diese Quelle gibt es nicht (mehr).');
+    }
+
+    // Die Art richtigstellen, falls eine ausdrueckliche Wahl vorliegt und sie abweicht.
+    $gewaehlteArt = avesmapsNormalizeSourceType($type);
+    $umgetypt = null;
+    if ($gewaehlteArt !== '') {
+        $art = $pdo->prepare('SELECT source_type, label FROM sources WHERE id = :id LIMIT 1');
+        $art->execute(['id' => $sourceId]);
+        $zeile = $art->fetch(PDO::FETCH_ASSOC) ?: [];
+        $vorherigeArt = (string) ($zeile['source_type'] ?? '');
+        if ($vorherigeArt !== '' && $vorherigeArt !== $gewaehlteArt) {
+            $pdo->prepare('UPDATE sources SET source_type = :t WHERE id = :id')
+                ->execute(['t' => $gewaehlteArt, 'id' => $sourceId]);
+            $umgetypt = [
+                'source_id' => $sourceId,
+                'from' => $vorherigeArt,
+                'to' => $gewaehlteArt,
+                'label' => (string) ($zeile['label'] ?? ''),
+            ];
+        }
     }
 
     $allowedKinds = ['ausfuehrlich', 'ergaenzend', 'erwaehnung'];
@@ -643,7 +781,12 @@ function avesmapsLinkExistingFeatureSource(PDO $pdo, string $entityType, string 
     }
     // Same cache invalidation as the add path: the element's rendered source list changed.
     avesmapsNextMapRevision($pdo);
-    return avesmapsListFeatureSourcesForEdit($pdo, $entityType, $publicId, $userId);
+    $antwort = avesmapsListFeatureSourcesForEdit($pdo, $entityType, $publicId, $userId);
+    if ($umgetypt !== null) {
+        $antwort['retyped'] = $umgetypt;
+    }
+
+    return $antwort;
 }
 
 // The wiki key of a source, self-healing: reads the column, and when that is empty derives the key
