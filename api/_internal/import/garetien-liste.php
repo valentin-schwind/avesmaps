@@ -34,12 +34,33 @@ function avesmapsGaretienObjektSchluessel(string $entityKey): string
     return $pos === false ? $entityKey : substr($entityKey, 0, $pos);
 }
 
-/** Die AEUSSERE Punktliste einer after.geometry -- LineString flach, Polygon sein erster Ring. */
+/**
+ * Der VERTRAG dieser Funktion: sie liefert IMMER eine Liste von [x,y]-Paaren -- nie ein
+ * einzelnes Paar, nie eine tiefere Ebene. Drei Eingabeformen (garetien-plan.php, Entwurf
+ * §3.1/§3.4):
+ * - LineString: `coordinates` ist bereits die Punktliste -- unveraendert durchgereicht.
+ * - Polygon: `coordinates` ist eine Liste von Ringen; der AEUSSERE Ring (Index 0) ist die
+ *   gesuchte Punktliste.
+ * - Point: `coordinates` ist ein EINZELNES [x,y]-Paar (GeoJSON-Point-Form), seit
+ *   29.08.2026 die dritte Form (Ort/Berggipfel-Label). Sie wird hier in eine Liste MIT
+ *   GENAU EINEM Paar gewickelt.
+ *
+ * 🔴 Dieser dritte Fall fehlte bis zum 30.08.2026 -- ohne ihn lieferte diese Funktion fuer
+ * einen Point das nackte Paar `[x, y]` zurueck, und `avesmapsGaretienNachLeaflet`
+ * (js/review/review-garetien-karte.js) iteriert darueber wie ueber eine Punktliste: jede
+ * der beiden ZAHLEN x und y wurde einzeln als „Punkt" gelesen, hatte kein `.length` und
+ * fiel durch deren `< 2`-Riegel -- das Ergebnis war eine leere Punktliste, gemeldet als
+ * „keine Geometrie fuer das Objekt".
+ */
 function avesmapsGaretienListeGeometriePunkte(array $geometry): array
 {
     $koordinaten = $geometry['coordinates'] ?? [];
-    if (($geometry['type'] ?? '') === 'Polygon') {
+    $typ = $geometry['type'] ?? '';
+    if ($typ === 'Polygon') {
         return (array) ($koordinaten[0] ?? []);
+    }
+    if ($typ === 'Point') {
+        return $koordinaten === [] ? [] : [$koordinaten];
     }
 
     return (array) $koordinaten;

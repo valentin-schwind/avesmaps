@@ -13,6 +13,27 @@ require_once __DIR__ . '/../garetien-liste.php';
 
 $pruefungen = 0;
 
+// ---------------------------------------------------------------------------------------------
+// avesmapsGaretienListeGeometriePunkte ist eine REINE Funktion (kein PDO) -- ihr Vertrag: IMMER
+// eine Liste von [x,y]-Paaren. Fehlermeldung vom 30.08.2026: ein Point lieferte das nackte Paar
+// zurueck statt einer Liste MIT einem Paar, und der Browser hielt die beiden Zahlen x und y fuer
+// zwei einzelne Punkte ohne `.length` -- "keine Geometrie fuer das Objekt".
+assert(
+    avesmapsGaretienListeGeometriePunkte(['type' => 'Point', 'coordinates' => [5.0, 7.0]]) === [[5.0, 7.0]],
+    'ein Point mit [x,y] muss eine Liste MIT EINEM Paar ergeben, nicht das nackte Paar'
+);
+assert(
+    avesmapsGaretienListeGeometriePunkte(['type' => 'LineString', 'coordinates' => [[1.0, 2.0], [3.0, 4.0]]])
+        === [[1.0, 2.0], [3.0, 4.0]],
+    'ein LineString muss unveraendert durchgereicht werden (Gegenprobe: der Fix darf ihn nicht veraendern)'
+);
+assert(
+    avesmapsGaretienListeGeometriePunkte(['type' => 'Polygon', 'coordinates' => [[[1.0, 2.0], [3.0, 4.0], [1.0, 2.0]]]])
+        === [[1.0, 2.0], [3.0, 4.0], [1.0, 2.0]],
+    'ein Polygon muss weiterhin seinen AEUSSEREN Ring liefern (Gegenprobe: der Fix darf ihn nicht veraendern)'
+);
+$pruefungen += 3;
+
 // --- Kein offener Lauf -> eine LEERE, aber GUELTIGE Antwort. Kein Fehler: das ist der
 // Normalfall vor dem ersten Rechnen (Brief Schritt 1).
 $leererPdo = avesmapsGaretienPlanTestPdo();

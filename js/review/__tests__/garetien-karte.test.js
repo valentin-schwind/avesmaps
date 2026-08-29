@@ -719,6 +719,35 @@ gleich(karte2.fluege.length, 1, "ein Objekt ohne Geometrie darf keinen Flug ausl
 gleich(stummeMeldungen.length, 1, "auch der ausgefallene Flug wird gemeldet, nicht verschluckt");
 avesmapsGaretienKarteAus(karte2);
 
+// 🪤 Regression 30.08.2026 (Owner-Meldung, Finsterkoppen): ein ORT/Berggipfel ist bei uns ein
+// GeoJSON-Point, und `avesmapsGaretienListeGeometriePunkte` (garetien-liste.php) muss sein
+// EINZELNES [x,y]-Paar in eine Liste MIT EINEM Paar wickeln. Eine reine PHP-Formpruefung sah
+// dabei richtig aus ("ein Paar ist ein Paar") und haette den echten Fehler nicht gefangen: erst
+// hier, am ECHTEN Zeichner, faellt auf, dass ein nacktes Paar ohne umschliessende Liste bei
+// avesmapsGaretienNachLeaflet als zwei einzelne Zahlen OHNE `.length` durchfaellt und eine leere
+// Punktliste ergibt -- „keine Geometrie fuer das Objekt".
+const karte2b = gefaelschteKarte();
+const finsterkoppen = {
+	key: "ggp:Berge:Berg:Finsterkoppen", name: "Finsterkoppen", urteil: "neu", ebene: "Berge",
+	geometrie_typ: "Point",
+	// Die server-richtige Form NACH dem Fix: eine Liste MIT EINEM [x,y]-Paar, nicht das nackte Paar.
+	geometrie: [[505, 510]],
+	abschnitte: [],
+	items: [{ id: 41, anlass: null, selected: 1 }],
+};
+const flugMeldungen = [];
+const flugWarnVorher = console.warn;
+console.warn = function () { flugMeldungen.push(Array.prototype.join.call(arguments, " ")); };
+avesmapsGaretienKarteFliegen(finsterkoppen, karte2b);
+console.warn = flugWarnVorher;
+gleich(flugMeldungen.length, 0,
+	"ein Punktobjekt mit EINEM [x,y]-Paar in einer Liste darf NICHT als „keine Geometrie“ gemeldet "
+	+ "werden: " + JSON.stringify(flugMeldungen));
+gleich(karte2b.fluege.length, 1, "ein Punktobjekt muss die Karte trotzdem anfliegen");
+tief(karte2b.fluege[0].kasten._punkte, [[510, 505]],
+	"EIN getauschtes Leaflet-Paar muss herauskommen -- die Falle war das server-seitig nackte "
+	+ "Paar ohne umschliessende Liste");
+
 // ---- 9. Fehlt eine Geometrie, wird sie GEMELDET -----------------------------------------------
 //
 // 🔴 Entscheidung des Auftraggebers: kein zweiter Abruf. Alle Geometrien stehen in der Antwort
