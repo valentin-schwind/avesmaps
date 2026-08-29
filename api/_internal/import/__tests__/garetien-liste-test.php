@@ -118,17 +118,22 @@ assert(isset($liste['reiter']['offen'], $liste['reiter']['vorgemerkt'],
     $liste['reiter']['abgelehnt'], $liste['reiter']['uebernommen']), 'die vier Reiter fehlen');
 assert($liste['reiter']['uebernommen'] === 0, 'noch wurde nichts uebernommen');
 // 🪤 Eine Zusicherung, die nur "isset" prueft, ist auch dann gruen, wenn kein einziges Objekt
-// je einen Reiter erreicht -- deshalb wird hier eine ECHTE Verteilung belegt: die Summe der
-// vier Reiter muss der Gesamtzahl der (ungefilterten) Objekte entsprechen, und mindestens zwei
-// verschiedene Reiter muessen tatsaechlich belegt sein (Alke/Gardel/Muehlsee sind vorangehakt
-// und daher 'vorgemerkt', Seitenarm/Llavari/Insel sind 'offen').
-$reiterSumme = $liste['reiter']['offen'] + $liste['reiter']['vorgemerkt']
-    + $liste['reiter']['abgelehnt'] + $liste['reiter']['uebernommen'];
+// je einen Reiter erreicht -- deshalb wird hier eine ECHTE Verteilung belegt.
+// 🔴 RULING R1 (Aufgabe 1, 29.08.2026): `vorgemerkt` ist seit dem Entfernen des `selected`-Zweigs
+// aus avesmapsGaretienListeObjektStand KEIN Bearbeitungsstand mehr -- ein Haekchen ist eine
+// Markierung, kein Stand (Owner: „Markieren aendert nichts"). Die Zahl bleibt in der Fusszeile,
+// aber sie ist seither eine EIGENE, sich mit den drei echten Staenden UEBERLAPPENDE Zaehlung
+// (avesmapsGaretienListeObjektHatVormerkung): ein angehaktes, aber sonst offenes Objekt zaehlt zu
+// BEIDEM. Die Summenprobe gilt deshalb nur noch den drei echten, sich gegenseitig
+// ausschliessenden Staenden.
+$reiterSumme = $liste['reiter']['offen'] + $liste['reiter']['abgelehnt'] + $liste['reiter']['uebernommen'];
 assert($reiterSumme === count($liste['objekte']),
-    'die Reiter muessen zusammen alle Objekte der ungefilterten Liste zaehlen: '
+    'offen+abgelehnt+uebernommen muessen zusammen alle Objekte der ungefilterten Liste zaehlen: '
     . $reiterSumme . ' gegen ' . count($liste['objekte']));
 assert($liste['reiter']['offen'] > 0 && $liste['reiter']['vorgemerkt'] > 0,
-    'sowohl offen als auch vorgemerkt muessen in der Fixture wirklich vorkommen');
+    'sowohl offen als auch die Vormerkungs-Zahl muessen in der Fixture wirklich vorkommen -- '
+    . 'Alke/Gardel/Muehlsee sind vorangehakt und zaehlen zu "vorgemerkt", OHNE deshalb aus '
+    . '"offen" herauszufallen');
 $pruefungen += 4;
 
 // --- 🔴 KEINE Deckelung bei 200 -- das ist der ganze Zweck dieser Liste.
@@ -138,7 +143,9 @@ $pruefungen++;
 // --- Jedes Objekt traegt sein Urteil und seinen Bearbeitungsstand aus der geschlossenen Liste
 // gueltiger Werte -- kein erfundener fuenfter/fuenfter Wert.
 $gueltigeUrteile = ['neu', 'ergaenzung', 'zweifel', 'widerspruch', 'deckt_sich', 'uebersprungen'];
-$gueltigeStaende = ['offen', 'vorgemerkt', 'abgelehnt', 'uebernommen'];
+// 🔴 OHNE 'vorgemerkt': RULING R1 -- avesmapsGaretienListeObjektStand gibt diesen Wert seit
+// Aufgabe 1 nie mehr zurueck, er ist nur noch eine EIGENE Zaehlung neben dem Stand.
+$gueltigeStaende = ['offen', 'abgelehnt', 'uebernommen'];
 foreach ($liste['objekte'] as $o) {
     assert(in_array($o['urteil'], $gueltigeUrteile, true), 'unbekanntes Urteil: ' . $o['urteil']);
     assert(in_array($o['stand'], $gueltigeStaende, true), 'unbekannter Stand: ' . $o['stand']);
@@ -248,7 +255,17 @@ assert(!in_array('Llavari', $ungehaktNamen, true),
     . json_encode($ungehaktNamen));
 $pruefungen += 4;
 
-// --- `stand`: 'offen' laesst nur Objekte OHNE angehaktes/uebernommenes/abgelehntes Item durch.
+// --- `stand`: 'offen' laesst nur Objekte OHNE uebernommenes/abgelehntes Item durch.
+//
+// 🔴 RULING R1 (Aufgabe 1, 29.08.2026): ein angehaktes Item verschiebt den Stand NICHT mehr --
+// „Markieren aendert nichts" (Owner). Ohne eine ECHTE Uebernahme haette dieser Standfilter an
+// der Fixture nichts mehr auszuschliessen: alle sieben Objekte waeren 'offen'. Die Alke bekommt
+// deshalb direkt ein `apply_state='done'` (der echte Uebernahme-Weg ist Aufgabe 15/16;
+// avesmapsGaretienListeObjektStand liest nur das Feld, der direkte Weg genuegt hier).
+$pdo->exec(
+    "UPDATE sync_plan_item SET apply_state = 'done'"
+    . " WHERE entity_key LIKE 'ggp:Gewaesser:Bach:Garetien:Alke%'"
+);
 $offenGefiltert = avesmapsGaretienArbeitsliste($pdo, 1, ['stand' => 'offen']);
 foreach ($offenGefiltert['objekte'] as $o) {
     assert($o['stand'] === 'offen', 'der Standfilter laesst ' . $o['stand'] . ' durch');
@@ -256,10 +273,12 @@ foreach ($offenGefiltert['objekte'] as $o) {
 assert(count($offenGefiltert['objekte']) > 0 && count($offenGefiltert['objekte']) < count($erweitert['objekte']),
     'der Standfilter muss etwas durchlassen UND etwas wegnehmen: '
     . count($offenGefiltert['objekte']) . ' gegen ' . count($erweitert['objekte']));
-// Vielarm traegt ein angehaktes Item (w-1, selected=1) -- "irgendein Item angehakt" siegt vor
-// "offen", Vielarm ist also 'vorgemerkt' und darf hier NICHT stehen.
-assert(!in_array('Vielarm', array_column($offenGefiltert['objekte'], 'name'), true),
-    'Vielarm traegt ein angehaktes Item und ist damit vorgemerkt, nicht offen');
+assert(!in_array('Alke', array_column($offenGefiltert['objekte'], 'name'), true),
+    'die uebernommene Alke darf im Offen-Filter nicht mehr auftauchen');
+// Die DIFFERENZ zur alten Fassung dieses Tests: Vielarm traegt ein angehaktes Item (w-1,
+// selected=1), bleibt aber 'offen' -- ein Haekchen ist eine Markierung, kein Stand.
+assert(in_array('Vielarm', array_column($offenGefiltert['objekte'], 'name'), true),
+    'Vielarm traegt ein angehaktes Item, bleibt aber offen (Owner: „Markieren aendert nichts")');
 $pruefungen += 3;
 
 // --- `versatz`: blaettert, ohne die Gesamtzahl zu veraendern.
@@ -305,7 +324,11 @@ $pdo->prepare("INSERT INTO garetien_import_row ({$spalten}) VALUES ({$platz})")-
 
 $mitWiderspruch = avesmapsGaretienArbeitsliste($pdo, 1, []);
 $bilanzSumme = array_sum($mitWiderspruch['bilanz']);
-$reiterSumme = array_sum($mitWiderspruch['reiter']);
+// 🔴 OHNE 'vorgemerkt': RULING R1 macht sie zu einer sich UEBERLAPPENDEN Zaehlung (siehe oben) --
+// sie in diese Summe mitzunehmen zaehlte jedes angehakte, aber sonst offene Objekt DOPPELT und
+// liesse die Probe falsch anschlagen, obwohl kein Urteil fehlt.
+$reiterSumme = $mitWiderspruch['reiter']['offen'] + $mitWiderspruch['reiter']['abgelehnt']
+    + $mitWiderspruch['reiter']['uebernommen'];
 assert(
     $bilanzSumme === $reiterSumme,
     'die Laufzeile zaehlt ' . $bilanzSumme . ' Objekte, die Reiter ' . $reiterSumme

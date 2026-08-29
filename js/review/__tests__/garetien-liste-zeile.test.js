@@ -169,7 +169,10 @@ wahr(typeof mod.avesmapsGaretienTabsMarkup === "function", "avesmapsGaretienTabs
 const tabs = mod.avesmapsGaretienTabsMarkup(
 	{ offen: 259, vorgemerkt: 14, abgelehnt: 3, uebernommen: 0 }, "offen"
 );
-["Offen", "Vorgemerkt", "Abgelehnt", "Übernommen"].forEach((label) => {
+// 🔴 RULING R1 (Aufgabe 1, 29.08.2026): „Vorgemerkt" ist an dieser Stelle durch „Anzeigen"
+// ersetzt -- die client-seitige Anzeige-Menge (garetien-anzeige-menge.test.js), nicht mehr ein
+// aus `selected` abgeleiteter Bearbeitungsstand.
+["Offen", "Anzeigen", "Abgelehnt", "Übernommen"].forEach((label) => {
 	wahr(tabs.includes(label), `Reiter "${label}" fehlt`);
 });
 wahr(tabs.includes("avm-tab"), "die Reiter muessen .avm-tab tragen (Hausform, editor-body.css)");

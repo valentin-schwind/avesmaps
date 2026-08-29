@@ -69,7 +69,49 @@
 		// Die letzte Antwort von action:'liste' -- avesmapsGaretienAngehakt() liest daraus, denn
 		// `angehakt` zaehlt den GANZEN Lauf (Aufgabe 8), unabhaengig vom aktiven Filter/Reiter.
 		letzteAntwort: null,
+		// 🔴 DIE ANZEIGE-MENGE GEHOERT DEM FENSTER, NICHT DEM VORSCHLAG (Entwurf §3).
+		// Bis zum 29.08.2026 hing „liegt auf der Karte" an `items[].selected` -- und 7930 der 8213
+		// Objekte haben ueberhaupt kein Item. Sie konnten damit NIE angezeigt werden; kein
+		// Umbenennen einer Beschriftung haette das geaendert.
+		// ⚠️ Gemerkt wird das OBJEKT, nicht sein Schluessel: der Server liefert je Abruf nur die
+		// gefilterte Seite, ein Schluessel allein waere nach dem naechsten Filterwechsel nicht mehr
+		// aufloesbar.
+		// 🔴 Eine `Map` und nicht ein Objekt: sie haelt die Einfuegereihenfolge zu, und ein
+		// Objektschluessel wie „constructor" kann ihr nichts anhaben.
+		anzeige: new Map(),
 	};
+
+	// ---- Die Anzeige-Menge ------------------------------------------------------------------------
+	//
+	// 🔴 CLIENT-SEITIG, und das ist eine Bedingung, keine Bequemlichkeit: eine Server-Tabelle dafuer
+	// waere eine dritte Import-Tabelle und verstiesse gegen die Abbau-Regel (Auftrag §5.5).
+	// Sie ist ein Arbeitsmittel der Sitzung und ueberlebt das Schliessen des Fensters nicht --
+	// gewollt.
+
+	function avesmapsGaretienAnzeigeHinzufuegen(objekte) {
+		(objekte || []).forEach(function (o) {
+			if (!o || o.key === undefined || o.key === null || o.key === "") { return; }
+			// ⚠️ Ein bereits liegendes Objekt wird ERSETZT, nicht uebersprungen: die frischere
+			// Fassung kommt aus der letzten Serverantwort und kann ein geaendertes Urteil tragen.
+			// Die Reihenfolge bleibt trotzdem die des ERSTEN Einfuegens -- `Map.set` auf einen
+			// vorhandenen Schluessel sortiert nicht um.
+			zustand.anzeige.set(String(o.key), o);
+		});
+		return zustand.anzeige.size;
+	}
+
+	function avesmapsGaretienAnzeigeLeeren() {
+		zustand.anzeige.clear();
+		return zustand.anzeige.size;
+	}
+
+	function avesmapsGaretienAnzeigeListe() {
+		return Array.from(zustand.anzeige.values());
+	}
+
+	function avesmapsGaretienAnzeigeHat(schluessel) {
+		return zustand.anzeige.has(String(schluessel));
+	}
 
 	function avesmapsGaretienFensterZustand() {
 		// Eine Kopie -- Aufrufer sollen den internen Zustand nicht direkt mutieren können.
@@ -82,6 +124,9 @@
 			stand: zustand.stand,
 			filter: zustand.filter,
 			detailKey: zustand.detailKey,
+			// Aufgabe 1: eine frische Liste aus der Anzeige-Menge, kein Griff auf die Map selbst --
+			// dieselbe Kopie-Zusage wie bei `objekte`/`auswahl` oben.
+			anzeige: avesmapsGaretienAnzeigeListe(),
 		};
 	}
 
@@ -361,12 +406,22 @@
 		return avesmapsListBalanceText("Objekte", sichtbar, gesamt, "Objekten");
 	}
 
-	// 🔴 Die Reiter zeigen den BEARBEITUNGSSTAND, nicht das Urteil: Offen · Vorgemerkt · Abgelehnt ·
+	// 🔴 Die Reiter zeigen den BEARBEITUNGSSTAND, nicht das Urteil: Offen · Anzeigen · Abgelehnt ·
 	// Uebernommen. .avm-tabs/.avm-tab sind Hausform (editor-body.css) -- die aktive Unterstreichung
 	// ist dort --color-text-strong; das Mockup zeichnet golden, aber die Hausform gewinnt.
+	//
+	// 🔴 VIER REITER, ABER NUR DREI SERVERSTAENDE. „Anzeigen" ist die client-seitige Menge
+	// (Entwurf §3.1) -- der Server kennt den Wert nicht und wird danach nie gefragt.
+	// 🔴 `vorgemerkt` ist aus der Leiter heraus (29.08.2026): es war ein SERVERstand, abgeleitet
+	// aus `selected`, und deshalb sprang eine Zeile beim Anhaken aus „Offen" heraus und war dort
+	// nicht mehr abhakbar. Owner: „Markieren aendert nichts."
+	// ⚠️ Die ZAHL „14 vorgemerkt" bleibt in der Fusszeile -- sie ist weiter wahr, sie ist nur kein
+	// Reiter mehr.
+	const AVESMAPS_GARETIEN_SERVER_STAENDE = ["offen", "abgelehnt", "uebernommen"];
+
 	const AVESMAPS_GARETIEN_REITER = [
 		["offen", "Offen"],
-		["vorgemerkt", "Vorgemerkt"],
+		["anzeigen", "Anzeigen"],
 		["abgelehnt", "Abgelehnt"],
 		["uebernommen", "Übernommen"],
 	];
@@ -375,8 +430,13 @@
 		const r = reiter || {};
 		return AVESMAPS_GARETIEN_REITER.map(([schluessel, beschriftung]) => {
 			const klasse = "avm-tab" + (schluessel === aktiverStand ? " is-active" : "");
+			// 🔴 Die Zahl des Reiters „Anzeigen" kommt aus der MENGE. Sie aus `reiter.anzeigen` zu
+			// lesen waere eine zweite Wahrheit ueber etwas, das der Server gar nicht kennt.
+			const zahl = schluessel === "anzeigen"
+				? zustand.anzeige.size
+				: Number(r[schluessel] || 0);
 			return '<button class="' + klasse + '" type="button" data-stand="' + schluessel + '">'
-				+ avesmapsGaretienEscape(beschriftung) + " (" + Number(r[schluessel] || 0) + ")</button>";
+				+ avesmapsGaretienEscape(beschriftung) + " (" + zahl + ")</button>";
 		}).join("");
 	}
 
@@ -2384,6 +2444,12 @@
 			avesmapsGaretienDarfOeffnen,
 			avesmapsGaretienFensterZustand,
 			avesmapsGaretienRufe,
+			// Aufgabe 1: die Anzeige-Menge -- gehoert dem Fenster, nicht dem Vorschlag (Entwurf §3).
+			avesmapsGaretienAnzeigeHinzufuegen,
+			avesmapsGaretienAnzeigeLeeren,
+			avesmapsGaretienAnzeigeListe,
+			avesmapsGaretienAnzeigeHat,
+			AVESMAPS_GARETIEN_SERVER_STAENDE,
 			// Aufgabe 11
 			garetienZeileMarkup,
 			avesmapsGaretienCheckboxZustand,

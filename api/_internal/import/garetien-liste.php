@@ -221,13 +221,40 @@ function avesmapsGaretienListeObjektStand(array $items): string
     if ($alleAbgelehnt) {
         return 'abgelehnt';
     }
+    // 🔴 HIER STAND BIS ZUM 29.08.2026 EIN ZWEIG `selected === 1 ⇒ 'vorgemerkt'`.
+    // Er machte aus dem Haekchen eine EINBAHNTUER: die Zeile sprang beim Anhaken aus „Offen"
+    // heraus in einen Reiter, in dem sie nicht mehr abhakbar war. Owner 29.08.2026:
+    // „Markieren aendert nichts." Das Haekchen ist seither ein client-seitiger Marker
+    // (Entwurf §3.2), und die Anzeige ist eine eigene Menge im Fenster (§3).
+    // ⚠️ Die ZAHL bleibt: `reiter.vorgemerkt` wird weiter gezaehlt (siehe
+    // avesmapsGaretienListeObjektHatVormerkung) und steht in der Fusszeile
+    // („14 vorgemerkt · 3 abgelehnt · 0 uebernommen"). Sie ist kein Stand mehr, aber sie ist wahr.
+
+    return 'offen';
+}
+
+/**
+ * Traegt irgendein Item dieses Objekts ein Haekchen (`selected === 1`)? REIN -- kein I/O.
+ *
+ * 🔴 RULING R1 (Aufgabe 1, 29.08.2026): die Fusszeile zaehlt weiterhin „N vorgemerkt" -- diese
+ * Zahl ist aber seit dem Entfernen des `vorgemerkt`-Zweigs oben KEIN Bearbeitungsstand mehr, den
+ * man aus `$objekt['stand']` ablesen koennte. Sie bekommt deshalb eine EIGENE Rechnung statt der
+ * gemeinsamen `$reiter[$objekt['stand']]++` in avesmapsGaretienArbeitsliste -- ein Haekchen ist
+ * eine Markierung, kein Stand, und beide Fragen ("welcher Stand?" / "ist etwas angehakt?") duerfen
+ * unabhaengig voneinander wahr sein. Ein bereits uebernommenes Objekt etwa traegt in aller Regel
+ * ebenfalls ein angehaktes Item und zaehlt hier BEWUSST mit.
+ *
+ * @param list<array{selected:int}> $items
+ */
+function avesmapsGaretienListeObjektHatVormerkung(array $items): bool
+{
     foreach ($items as $item) {
         if ((int) $item['selected'] === 1) {
-            return 'vorgemerkt';
+            return true;
         }
     }
 
-    return 'offen';
+    return false;
 }
 
 /**
@@ -559,6 +586,12 @@ function avesmapsGaretienArbeitsliste(PDO $pdo, int $importRunId, array $filter)
         }
         if (isset($reiter[$objekt['stand']])) {
             $reiter[$objekt['stand']]++;
+        }
+        // RULING R1: `vorgemerkt` zaehlt NICHT aus `$objekt['stand']` -- der liefert diesen Wert
+        // seit Aufgabe 1 nie mehr (avesmapsGaretienListeObjektStand). Sie ist die einzige der vier
+        // Reiterzahlen mit einer EIGENEN Rechnung, siehe avesmapsGaretienListeObjektHatVormerkung.
+        if (avesmapsGaretienListeObjektHatVormerkung($objekt['items'])) {
+            $reiter['vorgemerkt']++;
         }
     }
 
