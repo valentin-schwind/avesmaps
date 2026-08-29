@@ -225,8 +225,10 @@ $pruefungen += 5;
 // avesmapsGaretienSchreibeUrteil haette EINES der beiden UPDATEs die Zeile des jeweils ANDEREN
 // mitgetroffen (wer zuletzt gerechnet wird, gewinnt) -- ein Editor haette den Grund einer
 // FREMDEN Zeile vorgelegt bekommen. Beide Seiten der Kollision werden hier einzeln belegt.
-assert($insel['urteil'] === 'uebersprungen', 'die Insel gehoert zu Stufe 3 und darf NICHT das Urteil der Alke tragen');
-assert(str_contains($insel['grund'], 'Stufe'), 'der Grund der Insel muss ihr EIGENER sein, nicht der Alke-Grund: ' . $insel['grund']);
+assert($insel['urteil'] === 'uebersprungen', 'die Insel ist noch nicht angeschlossen und darf NICHT das Urteil der Alke tragen');
+// 🔴 Owner-Meldung 29.08.2026: der Grund nennt keine Stufe mehr -- geprueft wird auf ihren
+// eigenen Typnamen, nicht auf ein Wort, das die alte Formulierung zufaellig auch enthielt.
+assert(str_contains($insel['grund'], 'Insel'), 'der Grund der Insel muss ihr EIGENER sein, nicht der Alke-Grund: ' . $insel['grund']);
 assert($insel['grund'] !== $alke['grund'], 'zwei Zeilen mit derselben Nummer duerfen sich nicht denselben Grund teilen');
 $pruefungen += 3;
 

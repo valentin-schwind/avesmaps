@@ -50,6 +50,14 @@ assert(avesmapsGaretienMappeTyp('See')['kind'] === 'topographie');
 assert(avesmapsGaretienMappeTyp('Sumpf')['subtyp'] === 'suempfe_moore');
 $pruefungen += 7;
 
+// --- 🔴 Owner-Meldung 29.08.2026 (Aufgabe 12, Wege): Reichsstrasse/Strasse/Weg/Pfad heissen exakt
+// wie unsere PATH_SUBTYPE_KEYS (js/config.js), keine Uebersetzung noetig.
+assert(avesmapsGaretienMappeTyp('Reichsstrasse') === ['ziel' => 'path', 'subtyp' => 'Reichsstrasse', 'kind' => null]);
+assert(avesmapsGaretienMappeTyp('Strasse') === ['ziel' => 'path', 'subtyp' => 'Strasse', 'kind' => null]);
+assert(avesmapsGaretienMappeTyp('Weg') === ['ziel' => 'path', 'subtyp' => 'Weg', 'kind' => null]);
+assert(avesmapsGaretienMappeTyp('Pfad') === ['ziel' => 'path', 'subtyp' => 'Pfad', 'kind' => null]);
+$pruefungen += 4;
+
 // --- 🔴 Was kein Gegenstueck hat, wird NICHT geraten, sondern uebersprungen.
 assert(avesmapsGaretienMappeTyp('Stadtviertel') === null);
 assert(avesmapsGaretienMappeTyp('BurgKlein') === null);
@@ -73,24 +81,23 @@ assert(avesmapsGaretienTypKategorie('Bach') === '', 'ein importierbarer Typ lief
 assert(avesmapsGaretienTypKategorie('Fluss') === '', 'und ein zweiter, damit es kein Zufall ist');
 $pruefungen += 5;
 
-// --- 🔴 UND WAS ZU EINER SPAETEREN STUFE GEHOERT, WIRD MIT GRUND UEBERSPRUNGEN, nicht
-// stillschweigend. Gemessen: auf der Kosch-Gewaesserseite liegt EINE Insel -- der Entwurf
-// ordnet sie topographie/insel zu (§3.4), aber das ist Stufe 3. Ein Typ, der einfach fehlt,
-// ist von einem Typ, den wir vergessen haben, nicht zu unterscheiden.
-assert(avesmapsGaretienMappeTyp('Insel') === null, 'Insel gehoert zu Stufe 3, nicht zu Stufe 1');
-// 🪤 Auf 'Stufe 3' geprueft, NICHT auf 'Stufe': der Rueckfalltext fuer einen voellig
-// unbekannten Typ lautet "weder zugeordnet noch als spaetere Stufe vermerkt" und enthaelt das
-// Wort ebenfalls. Mit dem kurzen Muster ueberlebte die Mutation, die 'Insel' aus der
-// Stufenliste wirft -- der Test haette den Unterschied nie gesehen, den er behauptet zu pruefen.
+// --- 🔴 UND WAS WIR KENNEN, ABER (NOCH) NICHT ANSCHLIESSEN, WIRD MIT GRUND UEBERSPRUNGEN, nicht
+// stillschweigend. Gemessen: auf der Kosch-Gewaesserseite liegt EINE Insel -- eine spaetere
+// Erweiterung dieses Imports (Entwurf §3.4). Ein Typ, der einfach fehlt, ist von einem Typ, den
+// wir vergessen haben, nicht zu unterscheiden.
+assert(avesmapsGaretienMappeTyp('Insel') === null, 'Insel ist noch nicht angeschlossen');
+// 🪤 Owner-Meldung 29.08.2026: „Stufen werden weder erklaert noch will ich, dass sie verhindern,
+// dass ich objekte importieren kann." Die Meldung nennt deshalb weder Zahl noch Stufe -- geprueft
+// wird auf das Wort selbst, nicht auf eine bestimmte Ziffer dahinter.
 assert(avesmapsGaretienTypKategorie('Insel') === 'spaetere_stufe',
-    'Insel gehoert zu einer spaeteren Stufe -- eine ANDERE Kategorie als "ohne_gegenstueck"');
+    'Insel ist vorgemerkt -- eine ANDERE Kategorie als "ohne_gegenstueck"');
 assert(avesmapsGaretienTypKategorie('Xyz-Voellig-Unbekannt') === 'unbekannt',
-    'weder zugeordnet noch als spaetere Stufe vermerkt ist der dritte, eigene Fall');
+    'weder zugeordnet noch vorgemerkt ist der dritte, eigene Fall');
 $pruefungen += 2;
-assert(str_contains((string) avesmapsGaretienUeberspringGrund(
+assert(!str_contains((string) avesmapsGaretienUeberspringGrund(
     ['typ' => 'Insel', 'namensraum' => '', 'artikel' => '', 'anzeige' => 'Im Angbarer See']
-), 'Stufe 3'), 'der Grund nennt die Stufe, statt nur "unbekannt" zu sagen');
-$pruefungen += 2;
+), 'Stufe'), 'der Grund nennt KEINE Stufe mehr (Owner-Befund 29.08.2026)');
+$pruefungen++;
 
 $pdo = new PDO('sqlite::memory:');
 $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);

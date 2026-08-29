@@ -15,18 +15,19 @@ require_once __DIR__ . '/garetien-koordinaten.php';
  * 🔴 DIE ZUORDNUNG IST DATEN, KEIN `if`-BAUM (Entwurf §3). Sie steht in EINER Tabelle und wird
  * von Abgleich und Uebernahme gemeinsam gelesen; ein Editor kann sie lesen und aendern.
  *
- * `ziel`   -- 'path' (map_features) oder 'region' (ecosystem_region + ecosystem_area)
+ * `ziel`   -- 'path' (map_features.path) oder 'region' (ecosystem_region + ecosystem_area)
  * `subtyp` -- unser feature_subtype bzw. region_type
  * `kind`   -- nur bei 'region': die Landschaften-Ebene
  *
- * ⚠️ STUFE 1 SIND NUR DIE GEWAESSER. Die uebrigen Zeilen des Entwurfs stehen als Kommentar
- * darunter -- sie gehoeren in ihre eigene Stufe und werden bis dahin mit GRUND uebersprungen,
- * nicht stillschweigend verschluckt.
+ * 🔴 Owner 29.08.2026: „Stufen werden weder erklaert noch will ich, dass sie verhindern, dass
+ * ich objekte importieren kann." Diese Tabelle waechst deshalb Typ um Typ, so wie Entwurf
+ * §3.1-§3.4 sie zulaesst -- ohne interne Stufennummern in den Meldungen (siehe
+ * avesmapsGaretienUeberspringGrund unten).
  */
 const AVESMAPS_GARETIEN_TYP_MAP = [
     // Fliessgewaesser werden bei uns BEFAHREN: `Flussweg` ist eine Graph-Kante des Routings,
-    // kein Dekor (Entwurf §3.3). Die Anbindung ans Wegenetz ist ausdruecklich nicht Teil von
-    // Stufe 1 -- sie wird gemessen und berichtet.
+    // kein Dekor (Entwurf §3.3). Die Anbindung ans Wegenetz ist ausdruecklich nicht Teil dieses
+    // Imports -- sie wird gemessen und berichtet, nicht gebaut.
     'Strom' => ['ziel' => 'path',   'subtyp' => 'Flussweg',      'kind' => null],
     'Fluss' => ['ziel' => 'path',   'subtyp' => 'Flussweg',      'kind' => null],
     'Bach'  => ['ziel' => 'path',   'subtyp' => 'Flussweg',      'kind' => null],
@@ -44,35 +45,53 @@ const AVESMAPS_GARETIEN_TYP_MAP = [
     'Meer'  => ['ziel' => 'region', 'subtyp' => 'meer',          'kind' => 'topographie', 'suchen' => [['topographie', 'meer'], ['topographie', 'see']]],
     'Sumpf' => ['ziel' => 'region', 'subtyp' => 'suempfe_moore', 'kind' => 'vegetation',  'suchen' => [['vegetation', 'suempfe_moore']]],
 
-    // Spaetere Stufen, aus Entwurf §3.1-§3.5 -- hier absichtlich NICHT eingetragen, damit die
-    // Uebernahme sie nicht anfassen kann:
-    //   Stufe 2  Reichsstrasse/Strasse/Weg/Pfad -> map_features.path (greift ins Routing)
-    //   Stufe 3  Wald/Forst -> vegetation/wald · Urwald -> vegetation/urwald (NEUE Art)
-    //            Gebirge -> topographie/gebirge · Huegel -> topographie/huegelland
-    //            Insel -> topographie/insel · Kueste -> topographie/kueste
-    //            Berg -> map_features.label mit feature_subtype 'berggipfel' (Punkt, keine
-    //            Flaeche) -- 💣 ein Gipfel ist ein Stuetzpunkt des Hoehenfelds, und ihre Daten
-    //            tragen keine Hoehe.
-    //   Stufe 4  Kaiserstadt/Koenigsstadt/Reichsstadt/Stadt/Markt/Dorf/Binge/Burg/…
-    //   Stufe 5  Grafschafts-/Baronie-/Junkertumsflaeche[A-E] -> political_territory
+    // Wege (Entwurf §3.2) -- ihre vier Typen heissen exakt wie unsere PATH_SUBTYPE_KEYS
+    // (js/config.js), keine Uebersetzung noetig. 💣 Ein Weg ist eine Kante im Routing-Graphen:
+    // anders als ein Bach (Transport-Domaene 'none') bekommt eine Strasse per
+    // avesmapsDefaultTransportDomainForPathSubtype() die Domaene 'land' und ist damit ab dem
+    // ersten Klick fuer JEDEN Reisenden nutzbar. Auch hier gilt Entwurf §3.3 sinngemaess: die
+    // Anbindung ans bestehende Netz (Kreuzungs-Splits, Komponentenbruecken) wird NICHT gebaut,
+    // nur gemessen und berichtet.
+    'Reichsstrasse' => ['ziel' => 'path', 'subtyp' => 'Reichsstrasse', 'kind' => null],
+    'Strasse'       => ['ziel' => 'path', 'subtyp' => 'Strasse',       'kind' => null],
+    'Weg'           => ['ziel' => 'path', 'subtyp' => 'Weg',           'kind' => null],
+    'Pfad'          => ['ziel' => 'path', 'subtyp' => 'Pfad',          'kind' => null],
+
+    // Spaetere Erweiterungen, aus Entwurf §3.1/§3.4/§3.5 -- hier absichtlich NOCH NICHT
+    // eingetragen, damit die Uebernahme sie nicht anfassen kann:
+    //   Wald/Forst -> vegetation/wald · Urwald -> vegetation/urwald (NEUE Art)
+    //   Gebirge -> topographie/gebirge · Huegel -> topographie/huegelland
+    //   Insel -> topographie/insel · Kueste -> topographie/kueste
+    //   Berg -> map_features.label mit feature_subtype 'berggipfel' (Punkt, keine Flaeche) --
+    //   💣 ein Gipfel ist ein Stuetzpunkt des Hoehenfelds, und ihre Daten tragen keine Hoehe.
+    //   Kaiserstadt/Koenigsstadt/Reichsstadt/Stadt/Markt/Dorf/Binge/Burg/… -> map_features.location
+    //   Grafschafts-/Baronie-/Junkertumsflaeche[A-E] -> political_territory (eigenes Vorhaben,
+    //   Entwurf §7 -- an political_territory haengen BF-Zeitachse, abgeleitete Aussengrenzen,
+    //   WikiSync und das Konfliktzentrum)
 ];
 
 /**
- * Zu welcher Stufe gehoert ein Typ, den Stufe 1 nicht nimmt? Nur fuer den GRUND.
+ * Typen, die wir kennen und bewusst (noch) nicht anschliessen -- UNERLEDIGTE ARBEIT, keine
+ * Entscheidung wie bei AVESMAPS_GARETIEN_OHNE_GEGENSTUECK.
  *
- * 💣 Ein Typ, der einfach fehlt, ist von einem Typ, den wir vergessen haben, nicht zu
- * unterscheiden. Der Unterschied gehoert in die Meldung, sonst sucht der naechste Leser einen
- * Fehler, wo eine Entscheidung steht.
+ * 🔴 Owner 29.08.2026: „Stufen werden weder erklaert noch will ich, dass sie verhindern, dass ich
+ * objekte importieren kann." Diese Liste traegt deshalb KEINE Stufennummern mehr (frueher der
+ * Wert je Typ) -- ein Typ steht hier oder er steht nicht hier, und avesmapsGaretienUeberspringGrund
+ * (unten) nennt beim Uebersprung keine Zahl, nur dass wir noch kein Gegenstueck angeschlossen
+ * haben.
+ *
+ * ⚠️ SIE BLEIBT BESTEHEN, weil avesmapsGaretienTypKategorie() (unten) ihre dritte Kategorie
+ * ('spaetere_stufe') an sie bindet, und diese Funktion ist die EINE Stelle, die auch der
+ * Filter-Trichter des Fensters liest (garetien-liste.php).
  */
 const AVESMAPS_GARETIEN_SPAETERE_STUFEN = [
-    'Reichsstrasse' => 2, 'Strasse' => 2, 'Weg' => 2, 'Pfad' => 2,
-    'Wald' => 3, 'Forst' => 3, 'Urwald' => 3,
-    'Gebirge' => 3, 'Huegel' => 3, 'Berg' => 3,
-    'Insel' => 3, 'Kueste' => 3,
-    'Kaiserstadt' => 4, 'Koenigsstadt' => 4, 'Reichsstadt' => 4, 'Stadt' => 4,
-    'Markt' => 4, 'Dorf' => 4, 'Binge' => 4, 'Burg' => 4, 'Pfalz' => 4, 'Tempel' => 4,
-    'Kloster' => 4, 'Gutshof' => 4, 'Gebaeude' => 4, 'Akademie' => 4, 'Gasthaus' => 4,
-    'Magierturm' => 4,
+    'Wald', 'Forst', 'Urwald',
+    'Gebirge', 'Huegel', 'Berg',
+    'Insel', 'Kueste',
+    'Kaiserstadt', 'Koenigsstadt', 'Reichsstadt', 'Stadt',
+    'Markt', 'Dorf', 'Binge', 'Burg', 'Pfalz', 'Tempel',
+    'Kloster', 'Gutshof', 'Gebaeude', 'Akademie', 'Gasthaus',
+    'Magierturm',
 ];
 
 /** Typen ohne jedes Gegenstueck -- die kommen nie, in keiner Stufe (Entwurf §3.6). */
@@ -141,7 +160,7 @@ function avesmapsGaretienLiegtAufDerKarte(array $punkte): bool
  * damit", Owner 29.08.2026 -- Beispiel BurgKlein), 'spaetere_stufe' ist UNERLEDIGTE ARBEIT.
  * 'unbekannt' ist der dritte, seltene Fall (weder zugeordnet noch als spaetere Stufe vermerkt).
  *
- * @return 'ohne_gegenstueck'|'spaetere_stufe'|'unbekannt'|'' ('' = der Typ liefert etwas, Stufe 1)
+ * @return 'ohne_gegenstueck'|'spaetere_stufe'|'unbekannt'|'' ('' = der Typ liefert etwas)
  */
 function avesmapsGaretienTypKategorie(string $typ): string
 {
@@ -152,7 +171,7 @@ function avesmapsGaretienTypKategorie(string $typ): string
         return '';
     }
 
-    return isset(AVESMAPS_GARETIEN_SPAETERE_STUFEN[$typ]) ? 'spaetere_stufe' : 'unbekannt';
+    return in_array($typ, AVESMAPS_GARETIEN_SPAETERE_STUFEN, true) ? 'spaetere_stufe' : 'unbekannt';
 }
 
 /**
@@ -187,15 +206,18 @@ function avesmapsGaretienUeberspringGrund(array $zeile): ?string
         return 'Keine Position -- die Quelle setzt die Marke "noch nicht auf der Karte"';
     }
 
+    // 🔴 Owner 29.08.2026: „Stufen werden weder erklaert noch will ich, dass sie verhindern, dass
+    // ich objekte importieren kann." Keine der drei Meldungen nennt eine Stufe oder eine Zahl --
+    // ein Editor liest, WAS fehlt, nicht WANN es angeblich kommt.
     $typKategorie = avesmapsGaretienTypKategorie($typ);
     if ($typKategorie === 'ohne_gegenstueck') {
         return 'Typ "' . $typ . '" hat bei uns kein Gegenstueck';
     }
     if ($typKategorie === 'spaetere_stufe') {
-        return 'Typ "' . $typ . '" gehoert zu Stufe ' . AVESMAPS_GARETIEN_SPAETERE_STUFEN[$typ] . ', nicht zu Stufe 1';
+        return 'Fuer "' . $typ . '" gibt es bei uns noch kein Gegenstueck';
     }
     if ($typKategorie === 'unbekannt') {
-        return 'Typ "' . $typ . '" ist unbekannt -- weder zugeordnet noch als spaetere Stufe vermerkt';
+        return 'Typ "' . $typ . '" ist unbekannt -- weder zugeordnet noch vorgemerkt';
     }
 
     return null;
