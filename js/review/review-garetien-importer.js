@@ -142,6 +142,43 @@
 		});
 	}
 
+	// ---- Aufgabe 8: nach dem Einfuegen -- nur was WIRKLICH uebernommen wurde, verlaesst die Anzeige
+	//
+	// ⚠️ „Nur was uebernommen wurde, verlaesst die Anzeige" (Brief) -- die uebrigen (ohne Vorschlag,
+	// oder deren Uebernahme scheiterte: `stale`/`failed`) bleiben liegen, sonst verschwindet dem
+	// Editor die Karte unter der Hand, ohne dass etwas passiert waere.
+	//
+	// 🔴 GEPRUEFT WIRD GEGEN DEN SERVER, NIE VERMUTET: `apply` meldet nur AGGREGIERTE Zahlen (wie
+	// viele insgesamt geschrieben wurden), nie WELCHE Objekte es waren -- und ein anderswo bereits
+	// vorgemerktes Item koennte mitgelaufen sein. Ob EIN bestimmtes Objekt jetzt „uebernommen"
+	// steht, sagt deshalb nur der Server.
+	//
+	// 🔴 EIN GEZIELTER, EINMALIGER Nachlese-Ruf auf den Server-Reiter „uebernommen" -- unabhaengig
+	// vom gerade aktiven UI-Reiter, damit ein Editor auf „Offen" nicht deshalb die Karte verliert.
+	// ⚠️ Und OHNE Schleife: fuer diesen Import passen alle moeglichen Uebernahmen (heute hoechstens
+	// 283 -- nur ein Objekt MIT Vorschlag kann je uebernommen werden) in eine einzige Seite
+	// (AVESMAPS_GARETIEN_LISTE_MAX = 500). Ein zweiter Ruf mit `versatz` waere hier genau die
+	// Endpunktschleife, vor der AGENTS.md warnt (der Endpunkt liest das GANZE Laufinventar neu ein).
+	function avesmapsGaretienAnzeigeNachEinfuegenBereinigen(rufe, runId) {
+		return rufe(GARETIEN_ENDPUNKT, {
+			action: "liste", run_id: runId, stand: "uebernommen",
+			ebene: [], typ: [], urteil: [], wiki: [], suche: "",
+			nur_ungehakt: false, nur_mehrteilig: false,
+		}).then(function (antwort) {
+			avesmapsGaretienAnzeigeAuffrischen((antwort && antwort.objekte) || []);
+			let entfernt = 0;
+			Array.from(zustand.anzeige.entries()).forEach(function (eintrag) {
+				const schluessel = eintrag[0];
+				const objekt = eintrag[1];
+				if (objekt && objekt.stand === "uebernommen") {
+					zustand.anzeige.delete(schluessel);
+					entfernt++;
+				}
+			});
+			return entfernt;
+		});
+	}
+
 	// ---- Die Markierung: ein reiner MARKER, kein Schreibweg (Aufgabe 2, Entwurf §3.2) --------------
 	//
 	// 🔴 „Markieren aendert nichts" (Owner 29.08.2026). Sie schreibt nicht, sie verschiebt keine
@@ -2462,6 +2499,59 @@
 		return senden(rumpf);
 	}
 
+	// ---- Aufgabe 8: „Neu einfügen" ist ein Erzeuger der EINEN Einfüge-Funktion weiter unten --------
+	// Brief: .superpowers/sdd/2026-08-29-garetien-importer-sichtwerkzeug/task-8-brief.md
+	//
+	// 🔴 EIN EIGENER VERTEILER, kein sechster Parameter an garetienHandlungKlick: die vier übrigen
+	// Handlungen (Namen ersetzen/Nur Quelle/Geometrie ersetzen/Ablehnen/Wieder vorschlagen) bleiben
+	// unverändert reines Vormerken -- der Brief nennt nur „Neu einfügen" und den Fußknopf als
+	// Schreibwege, die WIRKLICH übernehmen. Er steht VOR garetienHandlungKlick in der Verdrahtung
+	// (bindFenster) und meldet per Rückgabewert, ob er den Klick übernommen hat -- dann bleibt
+	// garetienHandlungKlick für dasselbe Ereignis aus, sonst hätte derselbe Knopf zwei Erzeuger.
+	//
+	// 💣 DER RIEGEL IST EIN MODULZUSTAND (`garetienEinfuegenLaeuft`), nicht nur `knopf.disabled` --
+	// dieselbe Regel wie bei `garetienLaufLaeuft` weiter oben: eine an einem Attribut gelesene
+	// Weiche wirkt nicht, weil es erst im nächsten Bild steht (AGENTS.md §11). Er gilt für BEIDE
+	// Einfüge-Knöpfe dieses Fensters -- „Neu einfügen" und „Alle angezeigten einfügen" schreiben
+	// über dieselbe, einzeln vergebene Server-Sperre und dürfen sich deshalb nie überlappen.
+	// 🔴 EIN FEHLER MITTENDRIN WIRFT UND WIRD BENANNT -- garetienEinfuegenAusfuehren gibt ihn nie
+	// als Erfolg aus; der `catch` hier zeigt ihn IN der Liste (derselbe Fehlerweg wie überall sonst
+	// in diesem Fenster) und zeichnet die Handlungsleiste neu, damit der Knopf nicht für immer
+	// gesperrt mit „Fügt ein …" stehen bleibt.
+	let garetienEinfuegenLaeuft = false;
+
+	function garetienNeuKlick(ereignis, objekte, runId) {
+		const ziel = ereignis && ereignis.target;
+		if (!ziel || typeof ziel.closest !== "function") { return null; }
+		const knopf = ziel.closest('[data-handlung="neu"]');
+		if (!knopf || knopf.disabled) { return null; }
+		const objekt = garetienObjektNach(knopf.getAttribute("data-key"), objekte);
+		if (!objekt) { return null; }
+		const rumpf = garetienHandlungsRumpf("neu", objekt, runId);
+		if (!rumpf) { return null; }
+		if (garetienEinfuegenLaeuft) { return Promise.resolve(null); }
+
+		garetienEinfuegenLaeuft = true;
+		knopf.disabled = true;
+		knopf.textContent = "Fügt ein …";
+
+		return garetienEinfuegenAusfuehren(rumpf.ids, runId, avesmapsGaretienRufe)
+			.then(function () {
+				return avesmapsGaretienAnzeigeNachEinfuegenBereinigen(avesmapsGaretienRufe, runId);
+			})
+			.then(function () { return avesmapsGaretienListeHolen(); })
+			.then(function (ergebnis) {
+				garetienEinfuegenLaeuft = false;
+				return ergebnis;
+			})
+			.catch(function (fehler) {
+				garetienEinfuegenLaeuft = false;
+				garetienListeFehlerZeigen(fehler);
+				garetienDetailRendern(zustand.objekte);
+				return null;
+			});
+	}
+
 	// Der Häkchen-Wechsel -- für die Listenzeile UND die Abschnittszeile. Beide tragen ihren
 	// `data-key` selbst; die Abschnittszeile zusätzlich ihr `data-seg`.
 	//
@@ -2524,6 +2614,13 @@
 	}
 
 	// ---- Aufgabe 16: „Angehakte uebernehmen" -- durch das VORHANDENE Blatt -----------------------
+	//
+	// 🔴 SEIT AUFGABE 8 OEFFNET KEIN KNOPF DIESES FENSTERS DAS BLATT MEHR (Brief: „kommt eine neue
+	// seite, anstatt alle angezeigten einzufuegen" -- genau das war der Fehler). „Neu einfuegen"
+	// und der Fussknopf schreiben seither SELBST, ueber garetienNeuKlick/garetienFussknopfEinfuegenKlick
+	// und die gemeinsame garetienEinfuegenAusfuehren. Die Funktionen unten (garetienBlattSender,
+	// garetienUebernahmeOeffnen) UND der Wirt #garetien-sheet bleiben unangetastet im Code stehen --
+	// Brief: „nicht loeschen, ohne dass jemand die Entscheidung dazu getroffen hat".
 	//
 	// 🔴 DIE UEBERNAHME IST js/review/sync-plan-sheet.js, UNVERAENDERT. Zweite Bestaetigung,
 	// Haeppchen zu 40, Protokoll und Fortschritt haengen dort, und sieben andere Objektarten
@@ -2627,32 +2724,126 @@
 		return haeppchen;
 	}
 
-	// Der Fussknopf selbst: haengt die Items der angezeigten Objekte an -- SEQUENZIELL, ein Haeppchen
-	// nach dem anderen, nie parallel (AGENTS.md: STRATO nie mit vielen Anfragen auf einmal treffen)
-	// -- und oeffnet danach das vorhandene Uebernahme-Blatt.
+	// ---- Aufgabe 8: „Neu einfügen" und „Alle angezeigten einfügen" schreiben WIRKLICH --------------
+	// Brief: .superpowers/sdd/2026-08-29-garetien-importer-sichtwerkzeug/task-8-brief.md
 	//
-	// 🔴 Anzeige-Liste, Lauf-Nummer, Sender UND Oeffner kommen HEREIN -- derselbe Bau wie
-	// garetienHandlungKlick und garetienLaufStarten, aus demselben Grund: nur so laesst sich am
-	// ERGEBNIS messen, WIEVIELE Anfragen hinausgehen, WIE GROSS jedes Haeppchen ist und WANN das
-	// Blatt aufgeht -- ohne echtes Netz und ohne echtes DOM.
-	// 🔴 Bricht ein Haeppchen ab (`senden` meldet `null` -- der Fehler steht dann schon in der
-	// Liste, avesmapsGaretienHandlungSenden faengt ihn dort ab), oeffnet sich das Blatt NICHT: eine
-	// Uebernahme-Vorschau ueber einen halb geschriebenen Stand waere eine Falschaussage.
-	// ⭐ Gibt es nichts anzuhaken (alle Items der Anzeige sind schon angehakt), bleibt `haeppchen`
-	// leer -- kein Netzruf, das Blatt oeffnet sich sofort mit dem vorhandenen Stand.
-	function garetienFussknopfKlick(angezeigte, runId, senden, oeffnen) {
-		const haeppchen = garetienIdsInHaeppchen(garetienAnzeigeAnhakenIds(angezeigte));
-		return haeppchen.reduce(function (kette, ids) {
-			return kette.then(function (ok) {
-				if (!ok) { return false; }
-				return senden({
-					action: "select", kind: GARETIEN_PLAN_ART, run_id: runId, ids: ids, selected: true,
-				}).then(function (antwort) { return antwort !== null; });
+	// 🔴 BEIDE KNÖPFE SIND ZWEI ERZEUGER DERSELBEN HANDLUNG (Brief) -- „ein Objekt einfügen" heißt
+	// immer: seine Item-ids anhaken (`select`, in Häppchen), dann `apply` SEQUENZIELL rufen, bis der
+	// Server `done` meldet. Beide gehen deshalb durch GENAU DIESE Funktion, nicht durch zwei
+	// ähnliche -- „eine Regel, die einen von zwei Erzeugern bindet, ist keine Regel" (AGENTS.md).
+	//
+	// 💣 KEIN `avesmapsGaretienHandlungSenden` HIER. Er hängt an JEDEN Ruf ein `action:'liste'` --
+	// und dieser Endpunkt liest das GANZE Laufinventar (8213 Zeilen) neu ein (AGENTS.md: STRATO nie
+	// mit einer Schleife auf einen teuren Endpunkt treffen). Bei bis zu `ids.length / 200` Häppchen
+	// UND bis zu `remaining / 40` Übernahme-Schritten wäre das genau die verbotene Schleife. Der
+	// Aufrufer holt die Liste stattdessen EINMAL, ganz am Ende (siehe die zwei Klickverteiler).
+	//
+	// 💣 `apply` nimmt die EINZELN VERGEBENE Pipeline-Sperre (avesmapsWikiDumpLockAcquireOrThrow) --
+	// zwei gleichzeitige Aufrufe schlagen fehl. SEQUENZIELL, NIE PARALLEL, wie beim Anhaken.
+	//
+	// 🔴 EIN FEHLER MITTENDRIN WIRFT UND WIRD NICHT VERSCHLUCKT -- weder beim Anhaken noch beim
+	// Übernehmen. `rufe(pfad, rumpf)` ist derselbe Vertrag wie `avesmapsGaretienRufe`: es löst mit
+	// der geparsten Antwort auf, oder es wirft. Es gibt hier keinen eigenen try/catch, der einen
+	// Fehlschlag in ein „false" übersetzen könnte -- die Kette bricht von selbst ab.
+	function garetienEinfuegenAusfuehren(ids, runId, rufe, fortschritt) {
+		const sauber = (ids || []).map(Number).filter(function (id) { return id > 0; });
+		const gesamt = sauber.length;
+		function melden(fertig) {
+			if (typeof fortschritt === "function") { fortschritt(fertig, gesamt); }
+		}
+		melden(0);
+
+		// ⚠️ KEIN Rückfall auf "gesamt === 0 -> nichts tun": ein bereits VOLLSTÄNDIG angehaktes
+		// Objekt braucht keine neue Markierung (`sauber` ist dann leer), steht aber trotzdem als
+		// echter Vorschlag in der Datenbank und MUSS `apply` erreichen -- sonst bliebe eine frühere
+		// Vormerkung (z.B. ein "Namen ersetzen"-Klick) für immer nur vorgemerkt. Der Aufrufer
+		// entscheidet, OB diese Funktion überhaupt gerufen wird (garetienFussknopfKlick unten prüft
+		// `hatVorschlag`, garetienNeuKlick prüft ein gültiges `rumpf`); hier wird nur das Anhaken
+		// übersprungen, wenn nichts NEU anzuhaken ist -- `apply` läuft immer.
+		const haeppchen = garetienIdsInHaeppchen(sauber);
+		return haeppchen.reduce(function (kette, teil) {
+			return kette.then(function () {
+				return rufe(GARETIEN_PLAN_ENDPUNKT, {
+					action: "select", kind: GARETIEN_PLAN_ART, run_id: runId, ids: teil, selected: true,
+				});
 			});
-		}, Promise.resolve(true)).then(function (ok) {
-			if (ok) { oeffnen(); }
-			return ok;
+		}, Promise.resolve()).then(function () {
+			const summe = { applied: 0, deleted: 0, stale: 0, skipped: 0, declined: 0 };
+			let verarbeitet = 0;
+			let iterationen = 0;
+			// 💣 DER DECKEL gegen eine Endlosschleife bei einem Server, der nie `done` meldet --
+			// dieselbe Größenordnung wie im vorhandenen Blatt (sync-plan-sheet.js, guard > 4000).
+			const DECKEL = 4000;
+			function schritt() {
+				iterationen++;
+				if (iterationen > DECKEL) {
+					throw new Error("Die Übernahme wurde nach zu vielen Teilschritten angehalten.");
+				}
+				return rufe(GARETIEN_PLAN_ENDPUNKT,
+					{ action: "apply", kind: GARETIEN_PLAN_ART, run_id: runId }
+				).then(function (antwort) {
+					["applied", "deleted", "stale", "skipped", "declined"].forEach(function (feld) {
+						summe[feld] += Number((antwort && antwort[feld]) || 0);
+					});
+					verarbeitet = Math.min(gesamt, verarbeitet + Number((antwort && antwort.processed) || 0));
+					melden(verarbeitet);
+					if (antwort && antwort.done === true) { return summe; }
+					return schritt();
+				});
+			}
+			return schritt();
 		});
+	}
+
+	// Der Fußknopf: dieselbe Funktion, mit der Anzeige-Menge als Item-Quelle (Aufgabe 5 lieferte
+	// `garetienAnzeigeAnhakenIds`, Aufgabe 8 führt sie wirklich aus statt nur anzuhaken).
+	//
+	// 🔴 DER RÜCKFALL "nichts zu tun" GEHÖRT HIERHIN, NICHT IN garetienEinfuegenAusfuehren: er
+	// fragt, ob IRGENDEIN angezeigtes Objekt überhaupt einen Vorschlag trägt (`garetienHakenItems`
+	// -- dieselbe Zählung wie garetienUebernahmeKnopfZustand) -- nicht, ob `garetienAnzeigeAnhakenIds`
+	// etwas NEUES anzuhaken hätte. Ein Objekt, dessen Items schon VOLLSTÄNDIG angehakt sind (z.B.
+	// von einem früheren "Namen ersetzen"-Klick), liefert dort KEINE ids -- trägt aber trotzdem
+	// einen echten, noch nicht übernommenen Vorschlag in der Datenbank.
+	function garetienFussknopfKlick(angezeigte, runId, rufe, fortschritt) {
+		const liste = angezeigte || [];
+		const hatVorschlag = liste.some(function (o) { return o && garetienHakenItems(o).length > 0; });
+		if (!hatVorschlag) {
+			return Promise.resolve({ applied: 0, deleted: 0, stale: 0, skipped: 0, declined: 0 });
+		}
+		return garetienEinfuegenAusfuehren(garetienAnzeigeAnhakenIds(liste), runId, rufe, fortschritt);
+	}
+
+	// Die DOM-Hälfte des Fußknopfs: sperrt sich, trägt seinen Stand IN der Beschriftung, und
+	// bereinigt danach die Anzeige (Aufgabe 8) -- außerhalb der reinen Kette oben, weil sie echtes
+	// DOM und den Modulzustand (`zustand`, `garetienEinfuegenLaeuft`) anfasst, derselbe Schnitt wie
+	// bei garetienLaufStarten/garetienLaufKachelAktualisieren.
+	function garetienFussknopfEinfuegenKlick(runId) {
+		if (garetienEinfuegenLaeuft) { return Promise.resolve(null); }
+		garetienEinfuegenLaeuft = true;
+		const angezeigte = avesmapsGaretienAnzeigeListe();
+		const knopf = hasDocument ? document.getElementById("garetien-apply") : null;
+		if (knopf) { knopf.disabled = true; }
+		function fortschritt(fertig, gesamt) {
+			if (!knopf) { return; }
+			knopf.textContent = gesamt > 0
+				? "Fügt ein … " + fertig + " von " + gesamt
+				: "Fügt ein …";
+		}
+		return garetienFussknopfKlick(angezeigte, runId, avesmapsGaretienRufe, fortschritt)
+			.then(function () {
+				return avesmapsGaretienAnzeigeNachEinfuegenBereinigen(avesmapsGaretienRufe, runId);
+			})
+			.then(function () { return avesmapsGaretienListeHolen(); })
+			.then(function (ergebnis) {
+				garetienEinfuegenLaeuft = false;
+				return ergebnis;
+			})
+			.catch(function (fehler) {
+				garetienEinfuegenLaeuft = false;
+				garetienListeFehlerZeigen(fehler);
+				garetienUebernahmeKnopfSetzen(avesmapsGaretienAnzeigeListe());
+				return null;
+			});
 	}
 
 	// Der Sender fuer das Uebernahme-Blatt.
@@ -2764,6 +2955,11 @@
 				// Bedienelement stillschweigend das dritte verdeckt.
 				garetienHakenKlick(ereignis, zustand.objekte, zustand.planRunId,
 					avesmapsGaretienHandlungSenden);
+				// Aufgabe 8: „Neu einfügen“ schreibt wirklich (garetienNeuKlick). Er steht VOR
+				// garetienHandlungKlick und meldet per Rückgabewert, ob er den Klick übernommen hat --
+				// dann bleibt garetienHandlungKlick für dasselbe Ereignis aus, sonst hätte derselbe
+				// Knopf zwei Erzeuger (AGENTS.md §11).
+				if (garetienNeuKlick(ereignis, zustand.objekte, zustand.planRunId)) { return; }
 				garetienHandlungKlick(ereignis, zustand.objekte, zustand.planRunId,
 					avesmapsGaretienHandlungSenden, garetienFragen);
 			});
@@ -2793,16 +2989,12 @@
 		// Riegel; dieselbe Trennung wie bei garetienHandlungKlick und beim Ebenen-Riegel.
 		const uebernehmenBtn = hasDocument ? document.getElementById("garetien-apply") : null;
 		if (uebernehmenBtn) {
+			// Aufgabe 8: der Fußknopf öffnet die Übernahme-Vorschau NICHT mehr -- er schreibt selbst,
+			// über garetienFussknopfEinfuegenKlick (dieselbe Einfüge-Funktion wie „Neu einfügen“).
+			// garetienUebernahmeOeffnen/#garetien-sheet bleiben unangetastet im Code stehen (Brief).
 			uebernehmenBtn.addEventListener("click", function () {
 				if (uebernehmenBtn.disabled) { return; }
-				garetienFussknopfKlick(avesmapsGaretienAnzeigeListe(), zustand.planRunId,
-					avesmapsGaretienHandlungSenden, function () {
-						const oeffner = (typeof window !== "undefined"
-							&& typeof window.openSyncPlanSheet === "function")
-							? window.openSyncPlanSheet
-							: null;
-						garetienUebernahmeOeffnen(oeffner, document.getElementById("garetien-sheet"));
-					});
+				garetienFussknopfEinfuegenKlick(zustand.planRunId);
 			});
 		}
 	}
@@ -2970,6 +3162,11 @@
 			garetienAnzeigeAnhakenIds,
 			garetienIdsInHaeppchen,
 			garetienFussknopfKlick,
+			// Aufgabe 8: „Neu einfügen“ und „Alle angezeigten einfügen“ schreiben wirklich
+			avesmapsGaretienAnzeigeNachEinfuegenBereinigen,
+			garetienEinfuegenAusfuehren,
+			garetienNeuKlick,
+			garetienFussknopfEinfuegenKlick,
 		};
 	}
 })();

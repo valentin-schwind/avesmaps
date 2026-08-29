@@ -83,7 +83,10 @@ function macheElement(id) {
 }
 
 const ELEMENTE = {};
-["garetien-apply", "garetien-apply-hint", "garetien-listcol", "garetien-sheet"]
+// 🔴 Aufgabe 8: „garetien-list" kam dazu -- garetienListeFehlerZeigen schreibt DORTHIN (nicht in
+// die Spalte „garetien-listcol" selbst), und ohne einen eigenen Eintrag faende die gefaelschte
+// getElementById()-Weiche es nie, egal was die Spalte als String-innerHTML traegt.
+["garetien-apply", "garetien-apply-hint", "garetien-listcol", "garetien-list", "garetien-sheet"]
 	.forEach((id) => { ELEMENTE[id] = macheElement(id); });
 
 global.document = {
@@ -104,6 +107,7 @@ const {
 	avesmapsGaretienAnzeigeLeeren,
 	avesmapsGaretienAnzeigeHinzufuegen,
 	avesmapsGaretienAnzeigeListe,
+	avesmapsGaretienAnzeigeHat,
 } = mod;
 
 const KNOPF = ELEMENTE["garetien-apply"];
@@ -204,105 +208,171 @@ gleich(KNOPF.textContent, "Alle angezeigten einfügen (0 von 0)",
 gleich(KNOPF.disabled, true, "…und bleibt deshalb gesperrt");
 
 // =================================================================================================
-// D. Die Klick-Verdrahtung -- der Knopf sendet ZUERST, dann oeffnet er
+// D. Aufgabe 8: der Fussknopf SCHREIBT WIRKLICH -- kein Blatt mehr, sondern select DANN apply
 // =================================================================================================
 //
-// 🔴 Sie steht in bindFenster und lief beim `require` (readyState „complete"). Ohne sie tut der
-// Knopf nichts, und keine reine Funktion merkt es.
+// 🔴 Bis zum 29.08.2026 endete ein Klick nach dem Anhaken in `openSyncPlanSheet(...)`. Owner:
+// „kommt eine neue seite, anstatt alle angezeigten einzufuegen" -- der Knopf fuegte nicht ein.
+// Seither ruft er, ueber garetienFussknopfEinfuegenKlick, SELBST `select` und danach `apply`,
+// bereinigt die Anzeige und holt die Liste einmal neu -- ohne je ein Blatt zu oeffnen.
+//
+// Brief: .superpowers/sdd/2026-08-29-garetien-importer-sichtwerkzeug/task-8-brief.md
 
 wahr((KNOPF._hoerer.click || []).length === 1,
 	"💣 GENAU EIN Klick-Zuhoerer am Fussknopf. Zwei waeren die Doppelanmeldung aus AGENTS.md §11 "
 	+ "(der erste oeffnet, der zweite schliesst im selben Klick) -- keiner heisst, der Knopf tut "
 	+ "nichts.");
 
-const gesehen = [];
-global.window.openSyncPlanSheet = function (optionen) { gesehen.push(optionen); return "auf"; };
+const LISTE_EL = ELEMENTE["garetien-list"];
 
-async function pruefeKlickVerdrahtung() {
-	// D1: Erst im GESPERRTEN Zustand (den Abschnitt C hinterlassen hat): es darf nichts geschehen.
+/** Ein gefaelschtes `fetch`, das jede Anfrage protokolliert und `antworten(pfad,rumpf)` befragt. */
+function machFetch(antworten) {
+	const angefragt = [];
+	return {
+		angefragt: angefragt,
+		fn: function (pfad, optionen) {
+			const rumpf = JSON.parse((optionen && optionen.body) || "{}");
+			angefragt.push({ pfad: String(pfad), rumpf: rumpf });
+			return Promise.resolve({ json: function () {
+				return Promise.resolve(antworten(pfad, rumpf, angefragt.length));
+			} });
+		},
+	};
+}
+
+/** Eine gewoehnliche, leere `liste`-Antwort -- genug, damit avesmapsGaretienListeRendern durchlaeuft. */
+function listeAntwortLeer() {
+	return { ok: true, plan_run_id: 4711, gesamt: 0, objekte: [], bilanz: {}, reiter: {}, facetten: {} };
+}
+
+async function pruefeFussknopfSchreibtWirklich() {
+	// D1: GESPERRT (der Zustand, den Abschnitt C hinterlassen hat) -- kein einziger Netzruf.
+	const echtesFetchD1 = global.fetch;
+	global.fetch = function () { throw new Error("D1 darf KEIN fetch ausloesen -- der Knopf ist gesperrt"); };
 	KNOPF.klick();
 	await tick();
-	gleich(gesehen.length, 0,
-		"⚠️ ein Klick auf den gesperrten Knopf oeffnet nichts -- `disabled` ist die Anzeige, der "
-		+ "Riegel steht noch einmal im Zuhoerer");
+	global.fetch = echtesFetchD1;
 
-	// D2: Offen, aber mit einem Objekt, dessen einziges Item schon VOLLSTAENDIG angehakt ist --
-	// nichts zu senden. Dieser Fall bleibt bewusst OHNE `fetch`: er beweist, dass „nichts zu tun"
-	// keinen Netzruf braucht und das Blatt trotzdem aufgeht.
+	// D2: ein Objekt, dessen EINZIGES Item schon VOLLSTAENDIG angehakt ist. 🔴 DIE DIFFERENZ ZUM
+	// ALTEN VERHALTEN: vorher loeste das GAR KEIN fetch aus (es oeffnete nur das Blatt). Jetzt MUSS
+	// trotzdem `apply` gerufen werden -- sonst bliebe eine fruehere Vormerkung (z.B. aus einem
+	// „Namen ersetzen"-Klick anderswo) fuer immer nur vorgemerkt und nie wirklich uebernommen.
 	avesmapsGaretienAnzeigeLeeren();
 	avesmapsGaretienAnzeigeHinzufuegen([mitVorschlagVoll]);
 	garetienUebernahmeKnopfSetzen(avesmapsGaretienAnzeigeListe());
-	gleich(KNOPF.disabled, false, "die Anzeige traegt jetzt einen Vorschlag -- offen");
+	gleich(KNOPF.disabled, false, "die Anzeige traegt einen Vorschlag -- offen");
 
+	const d2 = machFetch(function (pfad, rumpf) {
+		if (rumpf.action === "apply") {
+			return { ok: true, done: true, applied: 1, deleted: 0, stale: 0, processed: 1,
+				remaining: 0, skipped: 0, declined: 0 };
+		}
+		if (rumpf.action === "liste" && rumpf.stand === "uebernommen") {
+			return { ok: true, objekte: [Object.assign({}, mitVorschlagVoll, { stand: "uebernommen" })] };
+		}
+		return listeAntwortLeer();
+	});
 	const echtesFetchD2 = global.fetch;
-	global.fetch = function () { throw new Error("D2 darf KEIN fetch ausloesen -- nichts ist offen"); };
+	global.fetch = d2.fn;
 	KNOPF.klick();
 	await tick();
 	global.fetch = echtesFetchD2;
 
-	gleich(gesehen.length, 1,
-		"der offene Knopf oeffnet das Blatt -- auch ohne etwas zu senden, denn das einzige Item "
-		+ "war schon angehakt");
-	gleich(gesehen[0].kind, "garetien", "mit der `kind`-Kennung dieses Imports");
-	gleich(gesehen[0].mount, ELEMENTE["garetien-sheet"],
-		"⚠️ und mit dem Wirt #garetien-sheet -- er liegt in index.html AUSSERHALB von .gi-win, das "
-		+ "`overflow: hidden` traegt");
-	wahr(typeof gesehen[0].post === "function", "samt dem beschneidenden Sender");
-	wahr(typeof gesehen[0].onApplied === "function" && typeof gesehen[0].onClose === "function",
-		"und den zwei Rueckrufen, die die Arbeitsliste nachholen");
+	tief(d2.angefragt.map(function (a) { return a.rumpf.action; }), ["apply", "liste", "liste"],
+		"🔴 KEIN `select` (nichts ist NEU anzuhaken), aber `apply` geht trotzdem hinaus -- genau die "
+		+ "Differenz zum alten Verhalten");
+	gleich(d2.angefragt[0].pfad, "/api/edit/wiki/sync-plan.php", "…durch die eine Uebernahme-Tuer");
+	gleich(d2.angefragt[1].rumpf.stand, "uebernommen",
+		"…dann die gezielte Nachlese, WELCHE Objekte jetzt wirklich uebernommen sind");
+	gleich(avesmapsGaretienAnzeigeHat(mitVorschlagVoll.key), false,
+		"und das jetzt bestaetigt uebernommene Objekt hat die Anzeige verlassen");
 
-	// D3: Offen, mit einem WIRKLICH offenen Vorschlag -- jetzt MUSS gesendet werden, BEVOR das
-	// Blatt aufgeht. Ein gefaelschtes `fetch` steht fuer den Sender aus Aufgabe 2
-	// (avesmapsGaretienHandlungSenden), der wirklich POSTet und danach die Liste neu holt.
+	// D3: ein WIRKLICH offener Vorschlag -- select, DANN apply, DANN die zwei Lesevorgaenge.
 	avesmapsGaretienAnzeigeLeeren();
 	avesmapsGaretienAnzeigeHinzufuegen([mitVorschlagOffen]);
 	garetienUebernahmeKnopfSetzen(avesmapsGaretienAnzeigeListe());
 	gleich(KNOPF.disabled, false, "…und wieder offen, jetzt mit einem UNGEHAKTEN Vorschlag");
 
-	const angefragt = [];
+	const d3 = machFetch(function (pfad, rumpf) {
+		if (rumpf.action === "apply") {
+			return { ok: true, done: true, applied: 1, deleted: 0, stale: 0, processed: 1,
+				remaining: 0, skipped: 0, declined: 0 };
+		}
+		if (rumpf.action === "liste" && rumpf.stand === "uebernommen") {
+			return { ok: true, objekte: [Object.assign({}, mitVorschlagOffen, { stand: "uebernommen" })] };
+		}
+		return listeAntwortLeer();
+	});
 	const echtesFetchD3 = global.fetch;
-	global.fetch = function (pfad, optionen) {
-		const rumpf = JSON.parse((optionen && optionen.body) || "{}");
-		angefragt.push({ pfad: String(pfad), rumpf: rumpf });
-		return Promise.resolve({
-			json: () => Promise.resolve({
-				ok: true, objekte: [], gesamt: 0, bilanz: {}, reiter: {}, facetten: {},
-			}),
-		});
-	};
-	const vorGesehen = gesehen.length;
+	global.fetch = d3.fn;
 	KNOPF.klick();
 	await tick();
 	global.fetch = echtesFetchD3;
 
-	gleich(angefragt.length, 2,
-		"💣 ZWEI Anfragen -- ERST der `select`-Ruf (das Anhaken), DANN der Listenlauf, den "
-		+ "avesmapsGaretienHandlungSenden danach ohnehin ausloest");
-	gleich(angefragt[0].pfad, "/api/edit/wiki/sync-plan.php", "die schreibende Adresse zuerst");
-	gleich(angefragt[0].rumpf.action, "select", "…mit der Aktion, die der Server erwartet");
-	gleich(angefragt[0].rumpf.kind, "garetien", "…und der kind-Kennung dieses Imports");
-	tief(angefragt[0].rumpf.ids, [501], "…mit genau der id des offenen Items");
-	gleich(angefragt[0].rumpf.selected, true, "der Fussknopf HAENGT AN, er toggelt nie ab");
-	gleich(angefragt[1].pfad, "/api/edit/map/garetien-import.php",
-		"die lesende Adresse danach -- der EINE Weg hinaus fuer jede Handlung (avesmapsGaretienHandlungSenden)");
-	gleich(angefragt[1].rumpf.action, "liste", "…die Arbeitsliste wird neu geholt");
-	gleich(gesehen.length, vorGesehen + 1, "und erst NACH beidem geht das Blatt auf");
+	tief(d3.angefragt.map(function (a) { return a.rumpf.action; }), ["select", "apply", "liste", "liste"],
+		"💣 VIER Anfragen in dieser Reihenfolge: anhaken, WIRKLICH uebernehmen, die gezielte "
+		+ "Nachlese, dann die gewoehnliche Listenaktualisierung");
+	tief(d3.angefragt[0].rumpf.ids, [501], "…mit genau der id des offenen Items");
+	gleich(d3.angefragt[0].rumpf.selected, true, "der Fussknopf HAENGT AN, er toggelt nie ab");
+	gleich(d3.angefragt[1].rumpf.action, "apply",
+		"🔴 die tragende Zusicherung dieser Aufgabe: NACH dem Anhaken kommt `apply`, nicht bloss "
+		+ "eine weitere Vormerkung");
+	gleich(d3.angefragt[3].rumpf.stand, "offen", "…und die Listenaktualisierung liest den aktiven Reiter");
 
-	// D4: Fehlt das geteilte Blatt, wird nichts erfunden -- der Fehler steht in der Liste. Wieder
-	// im netzfreien D2-Fall (nichts zu senden), damit dieser Test keinen `fetch` braucht.
-	delete global.window.openSyncPlanSheet;
+	// D4: Ein Fehler MITTENDRIN (schon beim Anhaken) bricht ab, steht IN der Liste und entsperrt
+	// den Knopf wieder -- er darf nie als Erfolg durchgehen (Brief).
 	avesmapsGaretienAnzeigeLeeren();
-	avesmapsGaretienAnzeigeHinzufuegen([mitVorschlagVoll]);
+	avesmapsGaretienAnzeigeHinzufuegen([mitVorschlagOffen]);
 	garetienUebernahmeKnopfSetzen(avesmapsGaretienAnzeigeListe());
-	const vorherD4 = gesehen.length;
+
+	const d4 = machFetch(function (pfad, rumpf) {
+		if (rumpf.action === "select") { return { ok: false, error: { message: "dump_locked" } }; }
+		throw new Error("D4 darf nach dem gescheiterten select NICHTS weiter senden");
+	});
+	const echtesFetchD4 = global.fetch;
+	global.fetch = d4.fn;
 	KNOPF.klick();
 	await tick();
-	gleich(gesehen.length, vorherD4,
-		"ohne js/review/sync-plan-sheet.js oeffnet sich keine Ersatzfassung -- das waere genau die "
-		+ "zweite Uebernahme-Vorschau, die dieses Vorhaben nicht bauen darf");
+	global.fetch = echtesFetchD4;
+
+	gleich(d4.angefragt.length, 1, "🔴 ein Fehler mittendrin bricht die Kette ab -- kein `apply` danach");
+	wahr(LISTE_EL.innerHTML.indexOf("dump_locked") !== -1,
+		"und der Fehler steht IN der Liste -- er darf nie als Erfolg durchgehen");
+	gleich(KNOPF.disabled, false, "…und der Knopf wird wieder freigegeben, nicht fuer immer gesperrt");
+
+	// D5: WAEHREND ein Lauf laeuft, startet ein zweiter Klick KEINE zweite Sequenz. Der erste Klick
+	// sperrt den Knopf SYNCHRON (noch bevor die erste Antwort da ist) -- der zweite Klick trifft
+	// deshalb schon in der Verdrahtung auf `uebernehmenBtn.disabled` und ruft die Einfuege-Funktion
+	// gar nicht erst auf.
+	avesmapsGaretienAnzeigeLeeren();
+	avesmapsGaretienAnzeigeHinzufuegen([mitVorschlagOffen]);
+	garetienUebernahmeKnopfSetzen(avesmapsGaretienAnzeigeListe());
+
+	const d5 = machFetch(function (pfad, rumpf) {
+		if (rumpf.action === "apply") {
+			return { ok: true, done: true, applied: 1, deleted: 0, stale: 0, processed: 1,
+				remaining: 0, skipped: 0, declined: 0 };
+		}
+		return listeAntwortLeer();
+	});
+	const echtesFetchD5 = global.fetch;
+	global.fetch = d5.fn;
+
+	KNOPF.klick();
+	gleich(KNOPF.disabled, true,
+		"🔴 der erste Klick sperrt den Knopf SYNCHRON -- noch bevor irgendeine Antwort da ist");
+	KNOPF.klick();   // ein zweiter Klick, WAEHREND der erste noch laeuft
+	await tick();
+	await tick();
+	global.fetch = echtesFetchD5;
+
+	gleich(d5.angefragt.filter(function (a) { return a.rumpf.action === "select"; }).length, 1,
+		"genau EIN `select` ueber die ganze Sequenz -- der zweite Klick hat keinen zweiten ausgeloest");
+	gleich(d5.angefragt.filter(function (a) { return a.rumpf.action === "apply"; }).length, 1,
+		"und genau EIN `apply` -- kein zweiter, parallel gestarteter Uebernahme-Lauf");
 }
 
-pruefeKlickVerdrahtung().then(function () {
+pruefeFussknopfSchreibtWirklich().then(function () {
 	console.log(`garetien-fussknopf-dom ok -- ${checks} Zusicherungen`);
 }).catch(function (fehler) {
 	console.error(fehler);

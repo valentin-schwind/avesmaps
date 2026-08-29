@@ -586,17 +586,26 @@ wahr(!/garetien-import\.php[\s\S]{0,400}action["']?\s*:\s*["']apply/.test(quelle
 // Eine Ablehnung ist umkehrbar: „Wieder vorschlagen" steht schon im Blatt (data-undecline).
 wahr(quelle.includes("undecline"), "eine Ablehnung ohne Rueckweg ist ein schwarzes Loch");
 
-// 🔴 Und NICHTS in dieser Datei nennt `apply` -- das ist Aufgabe 16, hinter der zweiten
-// Bestaetigung des Blattes. „Im Zweifel vormerken, nie schreiben."
-// 🪤 Gesucht wird das blanke ZEICHENKETTEN-LITERAL, nicht `action: "apply"`: die drei Aktionen
-// dieser Datei stehen teils in einem Bedingungsausdruck (`name === "ablehnen" ? "decline" :
-// "undecline"`), und ein Muster, das ein `action:` davor verlangt, faende genau die nicht --
-// es waere gruen, weil es die falsche Form sucht.
-wahr(!/["']apply["']/.test(quelle),
-	"💣 Aufgabe 15 merkt vor. Geschrieben wird erst durch das Uebernahme-Blatt (Aufgabe 16).");
-// Gegenprobe zur Zeile darueber: dasselbe Muster MUSS an den Aktionen anschlagen, die es gibt --
-// inklusive der zwei, die in einem Bedingungsausdruck stehen.
-["select", "liste", "decline", "undecline"].forEach((aktion) => {
+// 🔴 REVISION 29.08.2026 (Aufgabe 8): DIESE DATEI NENNT `apply` JETZT SEHR WOHL. Bis Aufgabe 15
+// merkte sie nur vor -- „apply" kam erst durch das Uebernahme-Blatt (Aufgabe 16). Der Owner fand
+// genau das kaputt: „kommt eine neue seite, anstatt alle angezeigten einzufuegen" -- der Knopf
+// fuegte nicht ein. Seit Aufgabe 8
+// (.superpowers/sdd/2026-08-29-garetien-importer-sichtwerkzeug/task-8-brief.md) rufen „Neu
+// einfügen" (garetienNeuKlick) und der Fussknopf (garetienFussknopfEinfuegenKlick) selbst
+// `action: "apply"` -- ueber die gemeinsame garetienEinfuegenAusfuehren, NIE ueber einen zweiten
+// fetch( (siehe die Zusicherung oben: genau EIN fetch( in der ganzen Datei -- avesmapsGaretienRufe
+// bleibt die einzige Tuer, `apply` geht durch dieselbe Tuer wie alles andere).
+// 🪤 Gesucht wird das blanke ZEICHENKETTEN-LITERAL: die Aktionen dieser Datei stehen teils in
+// einem Bedingungsausdruck (`name === "ablehnen" ? "decline" : "undecline"`), und ein Muster, das
+// ein `action:` davor verlangt, faende die nicht -- es waere fuer die falschen Gruende gruen.
+wahr(/["']apply["']/.test(quelle),
+	"🔴 seit Aufgabe 8 schreibt diese Datei WIRKLICH -- „apply\" MUSS hier stehen, sonst fuegt "
+	+ "keiner der beiden Knoepfe je etwas ein");
+// Und die uebrigen vier Handlungen (Namen ersetzen/Nur Quelle/Geometrie ersetzen/Ablehnen/Wieder
+// vorschlagen) bleiben UNVERAENDERT reines Vormerken -- garetienHandlungsRumpf (Abschnitt D oben)
+// baut fuer sie weiterhin nur `select`/`decline`/`undecline`, nie `apply`. Die Gegenprobe: dasselbe
+// Muster MUSS an ALLEN fuenf Aktionen anschlagen, die es in dieser Datei gibt.
+["select", "liste", "decline", "undecline", "apply"].forEach((aktion) => {
 	wahr(new RegExp('["\']' + aktion + '["\']').test(quelle),
 		`die Gegenprobe: „${aktion}\" findet dasselbe Muster sehr wohl`);
 });
@@ -756,8 +765,85 @@ laufMitGefaelschtemFetch(() => mod.avesmapsGaretienListeHolen()).then(function (
 		"nach einem gescheiterten Schreibvorgang wird die Liste NICHT nachgeladen");
 	gleich(a.wert, null, "und der Sender loest mit null auf, statt die Ablehnung weiterzureichen");
 
+	return pruefeNeuKlick();
+}).then(function () {
 	console.log(`garetien-handlungen ok -- ${checks} Zusicherungen`);
 }).catch(function (fehler) {
 	console.error(fehler);
 	process.exitCode = 1;
 });
+
+// =================================================================================================
+// M. Aufgabe 8: „Neu einfügen" schreibt WIRKLICH -- garetienNeuKlick als eigener Verteiler
+// =================================================================================================
+//
+// Brief: .superpowers/sdd/2026-08-29-garetien-importer-sichtwerkzeug/task-8-brief.md
+//
+// 🔴 EIN EIGENER VERTEILER, kein sechster Parameter an garetienHandlungKlick (Begruendung an
+// seiner Definition). Er wird VOR garetienHandlungKlick gerufen (bindFenster) und meldet per
+// Rueckgabewert (eine Promise, oder `null`), ob er den Klick uebernommen hat.
+
+function neuZiel(key, options) {
+	return kette([Object.assign({
+		passt: ['[data-handlung="neu"]', "[data-handlung]", "[data-key]"],
+		attribute: { "data-handlung": "neu", "data-key": key },
+	}, options || {})]);
+}
+
+async function pruefeNeuKlick() {
+	const objekteM = [zufluss]; // urteil "zweifel" -> traegt "neu" (Abschnitt A)
+
+	// Ein fremdes Ziel (kein `data-handlung="neu"`) -- der Verteiler steigt aus, OHNE etwas zu tun.
+	gleich(mod.garetienNeuKlick({ target: kette([{ passt: [], attribute: {} }]) }, objekteM, 7), null,
+		"ein Klick neben den Knopf tut nichts");
+	gleich(mod.garetienNeuKlick({ target: handlungsZiel("name", strasse.key) }, objekteM, 7), null,
+		"und ein ANDERER Handlungsknopf (hier: „Namen ersetzen\") auch nicht -- nur „neu\" gehoert ihm");
+
+	// Ein gesperrter Knopf tut nichts.
+	gleich(mod.garetienNeuKlick({ target: neuZiel(zufluss.key, { disabled: true }) }, objekteM, 7), null,
+		"ein disabled-Knopf loest nichts aus");
+
+	// Ein Objekt ohne "neu"-Item -- garetienHandlungsRumpf liefert null, der Verteiler tut nichts.
+	gleich(mod.garetienNeuKlick({ target: neuZiel(deckt.key) }, [deckt], 7), null,
+		"ohne einen Vorschlag „neu einfügen\" gibt es nichts zu senden");
+
+	// Der ECHTE Fall: select, DANN WIRKLICH apply, DANN die Bereinigung, DANN die Listenaktualisierung.
+	const echtesFetch = global.fetch;
+	const gestellt = [];
+	global.fetch = function (pfad, optionen) {
+		const rumpf = JSON.parse((optionen && optionen.body) || "{}");
+		gestellt.push({ pfad: String(pfad), rumpf: rumpf });
+		let roh;
+		if (rumpf.action === "apply") {
+			roh = { ok: true, done: true, applied: 1, deleted: 0, stale: 0, processed: 1,
+				remaining: 0, skipped: 0, declined: 0 };
+		} else if (rumpf.action === "liste" && rumpf.stand === "uebernommen") {
+			roh = { ok: true, objekte: [] };
+		} else {
+			roh = { ok: true, plan_run_id: 7, gesamt: 0, objekte: [], bilanz: {}, reiter: {}, facetten: {} };
+		}
+		return Promise.resolve({ json: () => Promise.resolve(roh) });
+	};
+
+	const knopfM = neuZiel(zufluss.key);
+	const erste = mod.garetienNeuKlick({ target: knopfM }, objekteM, 7);
+	wahr(erste && typeof erste.then === "function",
+		"der Klick liefert eine Promise zurueck -- er wird wirklich ausgefuehrt");
+	gleich(knopfM.disabled, true, "der Knopf sperrt sich SOFORT, synchron");
+	gleich(knopfM.textContent, "Fügt ein …", "und traegt seinen Stand in der eigenen Beschriftung");
+
+	// 🔴 Ein zweiter Klick, WAEHREND der erste noch laeuft -- er darf KEINE zweite Sequenz starten.
+	const zweite = mod.garetienNeuKlick({ target: neuZiel(zufluss.key) }, objekteM, 7);
+	gleich(await zweite, null, "ein zweiter Klick waehrend des Laufens loest nichts aus");
+
+	await erste;
+	global.fetch = echtesFetch;
+
+	tief(gestellt.map((a) => a.rumpf.action), ["select", "apply", "liste", "liste"],
+		"🔴 select, dann WIRKLICH apply, dann die gezielte Nachlese, dann die Listenaktualisierung "
+		+ "-- und NICHTS Zusaetzliches vom zweiten Klick");
+	tief(gestellt[0].rumpf.ids, [1], "…mit genau der id des \"neu\"-Items");
+	gleich(gestellt[0].rumpf.action, "select", "erst wird angehakt");
+	gleich(gestellt[1].rumpf.action, "apply",
+		"🔴 die tragende Zusicherung: „Neu einfügen\" schickt apply, nicht bloss ein zweites select");
+}

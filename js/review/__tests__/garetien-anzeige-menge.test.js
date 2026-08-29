@@ -330,92 +330,195 @@ tief(modul.garetienIdsInHaeppchen([1, 2, 3]), [[1, 2, 3]],
 
 modul.avesmapsGaretienAnzeigeLeeren();
 
-// ---- 11c. garetienFussknopfKlick -- der ganze Ablauf, mit einem Spion statt echtem Netz ---------
+// =================================================================================================
+// 13. Aufgabe 8: garetienFussknopfKlick schreibt WIRKLICH -- anhaken, DANN uebernehmen
+// =================================================================================================
+//
+// 🔴 Bis zum 29.08.2026 endete der Fussknopf nach dem Anhaken in einem `oeffnen()`-Aufruf (er
+// oeffnete die Uebernahme-Vorschau). Owner: „kommt eine neue seite, anstatt alle angezeigten
+// einzufuegen" -- der Knopf fuegte nicht ein. Seither ruft garetienFussknopfKlick (ueber die
+// gemeinsame garetienEinfuegenAusfuehren) nach dem Anhaken SELBST `action:'apply'`, sequenziell,
+// bis der Server `done` meldet -- kein drittes Argument `oeffnen` mehr, `senden` wird zu `rufe`
+// (derselbe Vertrag wie avesmapsGaretienRufe: loest mit der Antwort auf, oder wirft).
 async function pruefeFussknopfHaeppchen() {
-	// Gegenprobe: UNTER der Grenze -> GENAU EIN Aufruf, alle ids in einem Haeppchen. Nur die
-	// DIFFERENZ zum naechsten Block belegt die Haeppchen-Regel wirklich.
+	// Gegenprobe: UNTER der Anhak-Grenze -> GENAU EIN Select-Haeppchen, DANN ein erledigender
+	// apply-Schritt. Die Zusicherung misst die DIFFERENZ zum Vorher: es geht wirklich `apply`
+	// hinaus, nicht bloss ein zweites `select`.
 	{
 		const angezeigte = [];
 		for (let i = 1; i <= 50; i++) { angezeigte.push(idsObjekt("g:" + i, [i], false)); }
 		angezeigte.push(ohneVorschlag); // traegt kein Item -- muss folgenlos bleiben
 
 		const gestellt = [];
-		const senden = function (rumpf) { gestellt.push(rumpf); return Promise.resolve({ ok: true }); };
-		let geoeffnet = 0;
-		const ok = await modul.garetienFussknopfKlick(angezeigte, 4711, senden, function () { geoeffnet++; });
+		const rufe = function (pfad, rumpf) {
+			gestellt.push({ pfad: pfad, rumpf: rumpf });
+			if (rumpf.action === "apply") {
+				return Promise.resolve({
+					ok: true, done: true, applied: 50, deleted: 0, stale: 0, processed: 50,
+					remaining: 0, skipped: 0, declined: 0,
+				});
+			}
+			return Promise.resolve({ ok: true, changed: rumpf.ids.length });
+		};
+		const summe = await modul.garetienFussknopfKlick(angezeigte, 4711, rufe);
 
-		gleich(ok, true, "kein Abbruch");
-		gleich(gestellt.length, 1, "50 ids liegen UNTER der Grenze von 200 -- GENAU ein Aufruf");
-		gleich(gestellt[0].ids.length, 50, "und das eine Haeppchen traegt alle 50 ids");
-		gleich(gestellt[0].action, "select", "mit der Aktion, die der Server erwartet");
-		gleich(gestellt[0].kind, "garetien", "und der kind-Kennung dieses Imports");
-		gleich(gestellt[0].run_id, 4711, "und der hereingereichten Lauf-Nummer");
-		gleich(gestellt[0].selected, true, "der Fussknopf HAENGT AN, er toggelt nie ab");
-		gleich(geoeffnet, 1, "und danach oeffnet sich das Blatt -- genau einmal");
+		gleich(gestellt.length, 2, "50 ids -> EIN select-Haeppchen, DANN EIN apply-Schritt");
+		gleich(gestellt[0].pfad, "/api/edit/wiki/sync-plan.php", "beide gehen durch die EINE Tuer");
+		gleich(gestellt[0].rumpf.action, "select", "erst wird angehakt");
+		gleich(gestellt[0].rumpf.ids.length, 50, "und das eine Haeppchen traegt alle 50 ids");
+		gleich(gestellt[0].rumpf.kind, "garetien", "mit der kind-Kennung dieses Imports");
+		gleich(gestellt[0].rumpf.selected, true, "der Fussknopf HAENGT AN, er toggelt nie ab");
+		gleich(gestellt[1].rumpf.action, "apply",
+			"🔴 DIE DIFFERENZ: danach wird WIRKLICH uebernommen, nicht nur vorgemerkt");
+		gleich(gestellt[1].rumpf.run_id, 4711, "mit der hereingereichten Lauf-Nummer");
+		gleich(summe.applied, 50, "und die Summe zaehlt die Uebernahme, nicht das Anhaken");
 	}
 
-	// Die DIFFERENZ: UEBER der Grenze -> ZWEI Haeppchen (200 + 10), SEQUENZIELL, nie parallel.
+	// Die DIFFERENZ: UEBER der Anhak-Grenze -> ZWEI Select-Haeppchen (200 + 10), SEQUENZIELL.
 	{
 		const angezeigte = [];
 		for (let i = 1; i <= 210; i++) { angezeigte.push(idsObjekt("h:" + i, [i], false)); }
 
 		const sequenz = [];
-		const senden = function (rumpf) {
-			sequenz.push("start:" + rumpf.ids.length);
-			return new Promise(function (resolve) {
-				setTimeout(function () {
-					sequenz.push("ende:" + rumpf.ids.length);
-					resolve({ ok: true });
-				}, 0);
+		const rufe = function (pfad, rumpf) {
+			if (rumpf.action === "select") {
+				sequenz.push("start:" + rumpf.ids.length);
+				return new Promise(function (resolve) {
+					setTimeout(function () {
+						sequenz.push("ende:" + rumpf.ids.length);
+						resolve({ ok: true });
+					}, 0);
+				});
+			}
+			return Promise.resolve({
+				ok: true, done: true, applied: 210, deleted: 0, stale: 0, processed: 210,
+				remaining: 0, skipped: 0, declined: 0,
 			});
 		};
-		let geoeffnet = 0;
-		const ok = await modul.garetienFussknopfKlick(angezeigte, 1, senden, function () { geoeffnet++; });
+		const summe = await modul.garetienFussknopfKlick(angezeigte, 1, rufe);
 
-		gleich(ok, true, "beide Haeppchen kommen an");
 		tief(sequenz, ["start:200", "ende:200", "start:10", "ende:10"],
 			"💣 210 ids -> 200 + 10, und das ZWEITE Haeppchen startet erst, NACHDEM das erste "
 			+ "fertig ist (nicht `start:200,start:10,…`) -- STRATO wird nie mit zwei parallelen "
 			+ "Anfragen auf denselben Lauf getroffen");
-		gleich(geoeffnet, 1, "und das Blatt geht danach genau einmal auf");
+		gleich(summe.applied, 210, "und danach steht die Uebernahme wirklich da");
 	}
 
-	// Abbruch: scheitert ein Haeppchen, wird das naechste NIE gesendet und das Blatt NIE geoeffnet.
+	// SEQUENZIELL gilt auch fuer `apply` SELBST: der Server meldet zweimal `done:false`, und kein
+	// zweiter apply-Aufruf darf starten, bevor der vorige geantwortet hat -- gemessen mit einem
+	// Spion, der Start UND Ende protokolliert (Brief).
+	{
+		const angezeigte = [idsObjekt("m:1", [1], false)];
+		const sequenz = [];
+		let gleichzeitig = 0;
+		const rufe = function (pfad, rumpf) {
+			if (rumpf.action === "select") { return Promise.resolve({ ok: true }); }
+			gleichzeitig++;
+			wahr(gleichzeitig === 1,
+				"💣 zwei GLEICHZEITIGE apply-Aufrufe -- STRATOs Einzelflug-Sperre wuerde den "
+				+ "zweiten ablehnen");
+			sequenz.push("start");
+			return new Promise(function (resolve) {
+				setTimeout(function () {
+					sequenz.push("ende");
+					gleichzeitig--;
+					const fertig = sequenz.filter(function (s) { return s === "ende"; }).length >= 3;
+					resolve({
+						ok: true, done: fertig, applied: fertig ? 1 : 0, deleted: 0, stale: 0,
+						processed: fertig ? 1 : 0, remaining: fertig ? 0 : 1, skipped: 0, declined: 0,
+					});
+				}, 0);
+			});
+		};
+		const fortschrittLog = [];
+		const summe = await modul.garetienFussknopfKlick(angezeigte, 1, rufe,
+			function (fertig, gesamt) { fortschrittLog.push([fertig, gesamt]); });
+
+		tief(sequenz, ["start", "ende", "start", "ende", "start", "ende"],
+			"🔴 drei apply-Schritte, jeder startet erst NACH dem Ende des vorigen");
+		gleich(summe.applied, 1, "und die Summe zaehlt richtig zusammen, ueber alle Teilschritte");
+		tief(fortschrittLog[0], [0, 1], "der Fortschritt beginnt bei 0 von 1");
+		tief(fortschrittLog[fortschrittLog.length - 1], [1, 1], "…und endet bei 1 von 1");
+	}
+
+	// Abbruch: scheitert das Anhaken, wird das zweite Haeppchen NIE gesendet, `apply` erst recht
+	// nicht -- und der Fehler geht als ABLEHNUNG nach oben durch, nicht als `false`/`null`.
 	{
 		const angezeigte = [];
 		for (let i = 1; i <= 210; i++) { angezeigte.push(idsObjekt("k:" + i, [i], false)); }
 
 		const gestellt = [];
-		const senden = function (rumpf) {
+		const rufe = function (pfad, rumpf) {
 			gestellt.push(rumpf);
-			// avesmapsGaretienHandlungSenden faengt jeden Fehlschlag ab und meldet ihn als `null`
-			// (der Fehler steht dann schon in der Liste) -- genau dieser Vertrag wird hier
-			// nachgestellt.
-			return Promise.resolve(null);
+			if (rumpf.action === "select" && gestellt.length === 1) {
+				// derselbe Vertrag wie avesmapsGaretienRufe: ein Fehlschlag WIRFT.
+				return Promise.reject(new Error("dump_locked"));
+			}
+			return Promise.resolve({
+				ok: true, done: true, applied: 0, deleted: 0, stale: 0, processed: 0,
+				remaining: 0, skipped: 0, declined: 0,
+			});
 		};
-		let geoeffnet = 0;
-		const ok = await modul.garetienFussknopfKlick(angezeigte, 1, senden, function () { geoeffnet++; });
+		let fehler = null;
+		await modul.garetienFussknopfKlick(angezeigte, 1, rufe).catch(function (e) { fehler = e; });
 
-		gleich(ok, false, "ein gescheitertes Haeppchen bricht die Kette ab");
-		gleich(gestellt.length, 1, "das ZWEITE Haeppchen wird NIE gesendet");
-		gleich(geoeffnet, 0,
-			"und das Blatt geht NICHT auf -- eine Vorschau ueber einen halb geschriebenen Stand "
-			+ "waere eine Falschaussage");
+		wahr(fehler instanceof Error && fehler.message === "dump_locked",
+			"🔴 ein Fehler mittendrin bricht ab und wird NICHT verschluckt -- er darf nie als "
+			+ "Erfolg durchgehen");
+		gleich(gestellt.length, 1, "das ZWEITE Haeppchen wird NIE gesendet, `apply` erst recht nicht");
 	}
 
-	// Nichts anzuhaken (alles schon angehakt, oder gar kein Vorschlag): keine Anfrage -- das Blatt
-	// geht trotzdem auf, mit dem vorhandenen Stand.
+	// Nichts anzuhaken (alles schon angehakt, oder gar kein Vorschlag): kein Netzruf, kein `apply`.
 	{
-		const senden = function () { throw new Error("darf hier nie gerufen werden"); };
-		let geoeffnet = 0;
-		const ok = await modul.garetienFussknopfKlick([ohneVorschlag], 1, senden, function () { geoeffnet++; });
-
-		gleich(ok, true, "nichts zu tun ist kein Abbruch");
-		gleich(geoeffnet, 1, "das Blatt oeffnet sich trotzdem -- mit dem vorhandenen Stand");
+		const rufe = function () { throw new Error("darf hier nie gerufen werden"); };
+		const summe = await modul.garetienFussknopfKlick([ohneVorschlag], 1, rufe);
+		gleich(summe.applied, 0, "nichts zu tun ist kein Fehler -- und loest keinen Netzruf aus");
 	}
 }
 
+// =================================================================================================
+// 14. Aufgabe 8: avesmapsGaretienAnzeigeNachEinfuegenBereinigen -- nur Uebernommenes verlaesst die Anzeige
+// =================================================================================================
+//
+// ⚠️ „Nur was uebernommen wurde, verlaesst die Anzeige" (Brief) -- gemessen gegen einen gezielten
+// Nachlese-Ruf auf den Server-Reiter „uebernommen", NICHT gegen eine Vermutung im Browser: `apply`
+// selbst nennt nie, WELCHE Objekte es waren.
+async function pruefeAnzeigeBereinigen() {
+	const uebernommen = { key: "ggp:See:1", name: "Krähensee", items: [{ id: 1, selected: 0 }] };
+	const nochOffen = { key: "ggp:Fluss:2", name: "Alter Bach", items: [{ id: 2, selected: 0 }] };
+	const ohneVorschlagBleibt = { key: "ggp:Berge:9", name: "Fernberg", items: [] };
+
+	modul.avesmapsGaretienAnzeigeLeeren();
+	modul.avesmapsGaretienAnzeigeHinzufuegen([uebernommen, nochOffen, ohneVorschlagBleibt]);
+
+	const gestellt = [];
+	const rufe = function (pfad, rumpf) {
+		gestellt.push({ pfad: pfad, rumpf: rumpf });
+		return Promise.resolve({
+			ok: true,
+			objekte: [Object.assign({}, uebernommen, { stand: "uebernommen" })],
+		});
+	};
+	const entfernt = await modul.avesmapsGaretienAnzeigeNachEinfuegenBereinigen(rufe, 4711);
+
+	gleich(gestellt.length, 1, "EIN gezielter Nachlese-Ruf -- keine Schleife ueber mehrere Seiten");
+	gleich(gestellt[0].pfad, "/api/edit/map/garetien-import.php", "gegen die lesende Adresse");
+	gleich(gestellt[0].rumpf.action, "liste", "als gewoehnlicher Listenabruf");
+	gleich(gestellt[0].rumpf.stand, "uebernommen",
+		"🔴 gezielt auf den Reiter uebernommen -- unabhaengig vom gerade aktiven UI-Reiter");
+	gleich(gestellt[0].rumpf.run_id, 4711, "mit der hereingereichten Lauf-Nummer");
+	gleich(entfernt, 1, "genau EIN Objekt wurde als uebernommen bestaetigt und entfernt");
+	gleich(modul.avesmapsGaretienAnzeigeHat("ggp:See:1"), false,
+		"das bestaetigt uebernommene Objekt hat die Anzeige verlassen");
+	gleich(modul.avesmapsGaretienAnzeigeHat("ggp:Fluss:2"), true,
+		"ein noch offenes Objekt bleibt liegen -- der Server hat es nicht als uebernommen genannt");
+	gleich(modul.avesmapsGaretienAnzeigeHat("ggp:Berge:9"), true,
+		"und ein Objekt OHNE Vorschlag bleibt erst recht liegen -- es konnte nie uebernommen werden");
+}
+
 pruefeFussknopfHaeppchen().then(function () {
+	return pruefeAnzeigeBereinigen();
+}).then(function () {
 	console.log(`garetien-anzeige-menge: ${checks} Pruefungen bestanden.`);
 }).catch(function (fehler) {
 	console.error(fehler);
