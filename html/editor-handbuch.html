@@ -202,7 +202,7 @@
 <body>
 	<div class="hb-topbar">
 		<span class="hb-topbar__title">Avesmaps · Editor-Handbuch</span>
-		<span class="hb-topbar__meta">Stand: 28.08.2026</span>
+		<span class="hb-topbar__meta">Stand: 30.08.2026</span>
 		<div class="hb-topbar__actions">
 			<button type="button" class="theme-toggle-btn" aria-label="Auf dunkles Design umschalten" title="Design umschalten (hell/dunkel)">
 				<svg class="theme-toggle-ico theme-toggle-ico--sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4.2" /><g stroke-width="1.9" stroke-linecap="round"><line x1="12" y1="2" x2="12" y2="4.4" /><line x1="12" y1="19.6" x2="12" y2="22" /><line x1="2" y1="12" x2="4.4" y2="12" /><line x1="19.6" y1="12" x2="22" y2="12" /><line x1="4.9" y1="4.9" x2="6.6" y2="6.6" /><line x1="17.4" y1="17.4" x2="19.1" y2="19.1" /><line x1="4.9" y1="19.1" x2="6.6" y2="17.4" /><line x1="17.4" y1="6.6" x2="19.1" y2="4.9" /></g></svg>
@@ -697,6 +697,7 @@
 				<div class="hb-note hb-warn"><strong>Ein einfacher Klick wählt nur aus — die Ecken kommen erst auf Ansage.</strong> Dorthin führen zwei Wege, und beide tun genau dasselbe: <strong>Rechtsklick auf die Fläche → „Fläche bearbeiten"</strong> (der sichtbare) oder <strong>Doppelklick auf die Fläche</strong> (der schnelle). Danach ziehst du die Ecken ganz normal. Bei den <a href="#territorien">Territorien</a> ist das anders, dort genügt die Auswahl; wer von dort kommt, sucht hier zunächst vergeblich. Ein Doppelklick <em>neben</em> die Fläche beendet das Ecken-Bearbeiten wieder. Liegen die Ecken schon frei, sagt der Menüeintrag das und tut sonst nichts — so bleibt dir <kbd>Strg</kbd>+<kbd>Z</kbd> erhalten.</div>
 				<h5>Die vier Ebenen</h5>
 				<p>Oben auf der Karte steht der Ebenen-Schalter: <strong>Alle · Derographie · Vegetation · Topographie · Klimazonen</strong>. Immer nur <em>eine</em> Ebene nimmt Klicks entgegen — die, die dort ausgewählt ist. <strong>In „Alle" kannst du nicht bearbeiten.</strong> Wähl erst eine Ebene. Anklicken und Auswählen gehen dort, aber Flächenmenü, Ecken-Editor, „Neue Fläche" und <kbd>Strg</kbd>+<kbd>Z</kbd> fallen weg. Umschalten lädt nichts neu und wirft nichts weg.</p>
+				<div class="hb-note hb-tip"><strong>„Alle" zeigt nicht alles.</strong> Die <strong>Klimazonen</strong> bleiben dort ganz aus — ihre kartenbreiten Bänder legten sich sonst über alles andere. Die <strong>Derographie</strong> liegt ohne Füllung obenauf und nimmt keine Klicks; anfassbar ist dort nur ihr <em>Name</em>, der ihre Fläche zeigt. So kommst du an Wald und Gebirge darunter heran.</div>
 				<table class="hb-table">
 					<tr><th>Ebene</th><th>Was hineingehört</th></tr>
 					<tr><td><strong>Vegetation</strong></td><td>Wälder, Steppen, Sümpfe, Wüsten — der Bewuchs. Hier liegt die meiste Arbeit, deshalb ist sie vorausgewählt.</td></tr>
@@ -802,15 +803,24 @@
 
 				<h3 id="kraftlinien" class="hb-sub">Kraftlinien</h3>
 				<p class="hb-path"><strong>Auf der Karte:</strong> Kartenmodus „Kraftlinien" wählen → Linksklick auf die Linie → „Bearbeiten" / „Kraftlinie löschen" &nbsp;·&nbsp; <strong>Anlegen:</strong> Linksklick auf einen Nodix-Ort → „Neue Kraftlinie" → zweiten Nodix anklicken &nbsp;·&nbsp; <strong>Liste:</strong> Editor → WikiSync → Kraftlinien → „Bearbeiten"</p>
-				<p>Eine Kraftlinie verbindet immer zwei <strong>Nodix</strong>-Punkte. <strong>„Bearbeiten"</strong> öffnet den eigenen <strong>Kraftlinien-Editor</strong> mit drei Spalten — der Liste, den <em>Eigenschaften</em> (<strong>Name</strong>, <strong>„Name auf der Karte anzeigen"</strong>, <strong>Wiki-Artikel</strong>, <strong>Beschreibung</strong>, <strong>Quellen</strong>) und den <em>Nodices</em>, wo die Knotenpunkte der Linie stehen; bei einem durchgehenden Strang sortierst du sie dort mit <strong>▲▼</strong> um.</p>
+				<p>Eine Kraftlinie verbindet immer zwei <strong>Nodix</strong>-Punkte. <strong>„Bearbeiten"</strong> öffnet den eigenen <strong>Kraftlinien-Editor</strong> mit drei Spalten — der Liste, den <em>Eigenschaften</em> (<strong>Name</strong>, <strong>„Name auf der Karte anzeigen"</strong>, <strong>Wiki-Artikel</strong>, <strong>Beschreibung</strong>, <strong>Quellen</strong>) und den <em>Nodices</em>, wo die Knotenpunkte der Linie stehen; bei einem durchgehenden Strang sortierst du sie dort mit <strong>▲▼</strong> um und stellst rechts an jeder Kante die <a href="#kraftlinien-kurve">Kurvenform</a> ein.</p>
 				<ul>
 					<li><strong>Wiki-Artikel</strong> — der <a href="#v-wiki">Zuweisungskasten</a>, ohne „Sync": eine Kraftlinien-Infobox füllt kein Kartenfeld. Er wird <em>ausdrücklich</em> gesetzt; anders als bei Orten rät die Karte hier nichts, leer bleibt leer. Das ist Absicht — eine Kraftlinie, die zufällig wie eine Siedlung heißt, soll nicht deren Artikel erben.</li>
 					<li><strong>Quellen</strong> — derselbe Quellen-Block wie bei Orten und Wegen, mit Autocomplete über den gemeinsamen Quellenkatalog.</li>
 				</ul>
+				<h4 id="kraftlinien-kurve" class="hb-sub2">Die Kurvenform</h4>
+				<p>Ein Segment muss nicht gerade laufen. Die Kurve gehört <strong>dem einzelnen Segment</strong>: Der Wert ist ein Prozentsatz der Sehne, <strong>0</strong> ist gerade, das Vorzeichen bestimmt die Seite. Einen Regler für die ganze Linie gibt es nicht — eine Linie aus sechzehn Segmenten stellst du Kante für Kante ein.</p>
+				<p>Zwei Wege führen hin:</p>
+				<ul class="hb-steps">
+					<li><strong>Im Editor</strong> — der kleine Regler rechts an jeder Kante in der Spalte <em>Nodices</em>.</li>
+					<li><strong>Auf der Karte</strong> — der Knopf <strong>„Kurve auf der Karte einstellen"</strong>. Der Editor blendet sich weg, die Karte schaltet auf die Ansicht <em>Kraftlinien</em>, und ein Schieber legt sich darüber. <strong>Ein Klick auf die Karte wählt das Segment</strong>, das du gerade einstellst. <strong>„Fertig"</strong> holt Editor und vorherige Ansicht zurück.</li>
+				</ul>
+				<div class="hb-note hb-warn"><strong>Die Kurve ist erst nach „Speichern" gespeichert.</strong> Was du beim Ziehen auf der Karte siehst, ist eine Vorschau. Schließt du den Editor vorher, ist sie weg.</div>
+				<div class="hb-note hb-tip"><strong>Dieser Editor verdeckt die Karte nicht.</strong> Anders als die übrigen steht er durchsichtig davor — die Karte bleibt daneben sichtbar und bedienbar. Geschlossen wird er über das <strong>✕</strong> im Kopf; ein Klick daneben trifft die Karte.</div>
 				<div class="hb-note hb-tip"><strong>Eine Kraftlinie besteht aus vielen Segmenten.</strong> Was auf der Karte wie <em>eine</em> Linie aussieht, sind in Wirklichkeit viele kurze Stücke von Nodix zu Nodix — die Basiliuslinie etwa aus vierzehn. Zusammengehalten werden sie <strong>allein durch den Namen</strong>. In der Infobox steht deshalb unter „Verbindet" die Spanne der <em>ganzen</em> Linie, nicht die des angeklickten Stücks; reine Kreuzungen an den Enden werden übersprungen.</div>
-				<div class="hb-note hb-warn"><strong>Einen Nodix-Ort, an dem eine Kraftlinie hängt, kannst du nicht löschen.</strong> Der Versuch wird abgelehnt, nicht bloß nachgefragt — die Meldung nennt die Zahl der Abschnitte und die Linien beim Namen (<em>„… trägt noch 3 Kraftlinien-Abschnitte (Konzilslinie, Nelkra-Linie). Bitte zuerst die Kraftlinie lösen."</em>). Das gilt genauso für Kreuzungen. Lös also erst die Kraftlinie, dann den Punkt. Früher lief das Löschen wortlos durch und ließ Abschnitte zurück, die ins Leere zeigten.</div>
+				<div class="hb-note hb-warn"><strong>Einen Nodix-Ort, an dem eine Kraftlinie hängt, kannst du nicht löschen.</strong> Der Versuch wird abgelehnt, nicht bloß nachgefragt — die Meldung nennt die Zahl der Abschnitte und die Linien beim Namen (<em>„… trägt noch 3 Kraftlinien-Abschnitte (Konzilslinie, Nelkra-Linie). Bitte zuerst die Kraftlinie lösen."</em>). Das gilt genauso für Kreuzungen. Lös also erst die Kraftlinie, dann den Punkt.</div>
 				<div class="hb-note hb-tip"><strong>Schreibweise zählt doppelt.</strong> Weil der Name das einzige Band ist, zerlegt ein Tippfehler eine Linie in zwei: „Elementare Hexagramm" neben „Elementares Hexagramm" ergibt zwei getrennte Ketten und zwei falsche Angaben — und der Wiki-Abgleich unten findet den Artikel dann nur für die richtig geschriebene Hälfte. Beim Umbenennen also alle Segmente derselben Linie gleich schreiben.</div>
-				<p>Nicht jede Kraftlinie ist ein Strang. Von 61 Namen auf der Karte sind 54 durchgehende Linien, sechs verzweigen sich (die <em>Yaquirlinie</em> hat sechs Enden) und eine ist ein geschlossener Ring. Die Infobox zeigt deshalb je nach Form <strong>„Verbindet"</strong> (die Enden), <strong>„Verläuft über"</strong> (die benannten Punkte dazwischen) und <strong>„Abschnitte"</strong>.</p>
+				<p>Nicht jede Kraftlinie ist ein durchgehender Strang — manche verzweigen sich, eine ist ein geschlossener Ring. Die Infobox zeigt deshalb je nach Form <strong>„Verbindet"</strong> (die Enden), <strong>„Verläuft über"</strong> (die benannten Punkte dazwischen) und <strong>„Abschnitte"</strong>.</p>
 
 				<h4 class="hb-sub2">Angaben aus dem Wiki holen</h4>
 				<p class="hb-path"><strong>Editor → WikiSync → Kraftlinien → „Bearbeiten" → im Editor „⚡ Kraftlinien syncen"</strong></p>
@@ -1373,7 +1383,7 @@
 				<p>Es gibt <strong>keinen Entwurfsmodus</strong>. Klickst du „Speichern", sehen es alle Besucher im selben Moment. Das klingt gefährlicher, als es ist: Jede Änderung steht mit deinem Namen im Reiter <a href="#aenderungen">Änderungen</a> und lässt sich von dort zurücknehmen. Trotzdem gilt Regel zwei — kleine Schritte, danach kurz hinschauen.</p>
 
 				<h3 id="v-graph" class="hb-sub">Das Wegenetz ist ein Graph</h3>
-				<p>Für die Reiseplanung ist die Karte kein Bild, sondern ein Netz aus Punkten und Kanten. Ein Weg verbindet ausschließlich das, was an seinen <em>beiden Endpunkten</em> liegt. Zwei Linien, die sich optisch kreuzen, sind für die Routenberechnung zwei Linien, die einander nicht berühren — deshalb die fünf Regeln unter <a href="#wege">Korrekte Wegzeichnung</a>. Sie sind keine Kosmetik: Wer sie verletzt, macht Orte unerreichbar.</p>
+				<p>Für die Reiseplanung ist die Karte kein Bild, sondern ein Netz aus Punkten und Kanten. Ein Weg verbindet ausschließlich das, was an seinen <em>beiden Endpunkten</em> liegt. Zwei Linien, die sich optisch kreuzen, sind für die Routenberechnung zwei Linien, die einander nicht berühren — deshalb die fünf Regeln unter <a href="#wege">Korrekte Wegzeichnung</a>. Wer sie verletzt, macht Orte unerreichbar.</p>
 
 				<h3 id="v-hierarchie" class="hb-sub">Die Gebiets-Hierarchie</h3>
 				<p>Herrschaftsgebiete hängen ineinander: ein Kaiserreich enthält Königreiche und Grafschaften, eine Grafschaft enthält Baronien. Diese Beziehung wird nicht gezeichnet, sondern zugeordnet — daraus ergeben sich Beschriftungen, die Breadcrumb im Infopanel und die abgeleiteten Außengrenzen.</p>
@@ -1463,9 +1473,9 @@
 						</g>
 					</svg>
 				</div>
-				<p>Die waagerechten Bänder sagen, <strong>ab wann ein Gebiet auf der Karte erscheint</strong>. Ganz herausgezoomt siehst du nur das Kaiserreich; je weiter du hineinzoomst, desto feiner wird die Einteilung, bis ganz unten die Baronien dazukommen. So bleibt die Karte auf jeder Stufe lesbar, statt alle Ebenen übereinanderzustapeln.</p>
-				<p><strong>Die Bänder richten sich nach der Tiefe des Astes, nicht nach dem Rang.</strong> Im Bild siehst du das an den drei Grafschaften: Die beiden links stehen in einem vier Ebenen tiefen Ast und bekommen darum <strong>Zoom 5</strong>. Die rechte hängt direkt am Kaiserreich — ihr Ast ist nur drei Ebenen tief, also rückt sie bis auf <strong>Zoom 3–4</strong> vor, auf dieselbe Stufe wie das Königreich nebenan, obwohl sie einen Rang darunter steht. Ihre Baronien erscheinen entsprechend früher (<strong>Zoom 5–6</strong>) als die des tiefen Astes, die erst bei Zoom 6 dazukommen.</p>
-				<p>Diese Standardwerte vergibt der Editor automatisch, gestaffelt nach der Anzahl Ebenen im Ast:</p>
+				<p>Die waagerechten Bänder sagen, <strong>ab wann ein Gebiet auf der Karte erscheint</strong>. Ganz herausgezoomt siehst du nur das Kaiserreich; je weiter du hineinzoomst, desto feiner wird die Einteilung, bis ganz unten die Baronien dazukommen.</p>
+				<p><strong>Die Bänder richten sich nach der Tiefe des Astes, nicht nach dem Rang.</strong> Im Bild: Die beiden linken Grafschaften stehen in einem vier Ebenen tiefen Ast und bekommen <strong>Zoom 5</strong>. Die rechte hängt direkt am Kaiserreich, ihr Ast ist nur drei Ebenen tief — sie rückt auf <strong>Zoom 3–4</strong> vor, neben das Königreich, obwohl sie einen Rang darunter steht. Ihre Baronien erscheinen dadurch eine Stufe früher (<strong>Zoom 5–6</strong>).</p>
+				<p>Der Editor vergibt die Bänder automatisch, gestaffelt nach der Tiefe des Astes:</p>
 				<table class="hb-table">
 					<tr><th>Ebenen im Ast</th><th>Bänder von oben nach unten</th></tr>
 					<tr><td>1</td><td>0–6</td></tr>
@@ -1475,8 +1485,8 @@
 					<tr><td>5</td><td>0–2 · 3–4 · 5–5 · 5–5 · 6–6</td></tr>
 					<tr><td>6 und mehr</td><td>0–2 · 3–4 · 5–5 · … · 5–5 · 6–6 — <em>jede weitere Zwischenebene bekommt ebenfalls 5–5</em></td></tr>
 				</table>
-				<div class="hb-note hb-tip"><strong>Bis zu vier Ebenen schließen die Bänder lückenlos aneinander an</strong> — 0–2, 3–4, 5, 6. Ein Gebiet beginnt dort genau eine Zoomstufe nach dem Ende seines Elternteils, und bei einem flachen Ast bleibt keine Zoomstufe leer: das Band des Kindes wächst einfach nach oben. <strong>Ab fünf Ebenen geht das nicht mehr auf</strong>, denn die Karte hat nur sieben Zoomstufen: Dann teilen sich <em>alle</em> Zwischenebenen dasselbe Band 5, und nur die unterste bekommt Zoom 6. Zwei Ränge erscheinen dort gleichzeitig — das ist kein Fehler, sondern das Ende des Vorrats.</div>
-				<div class="hb-note hb-warn"><strong>Deine eigenen Zoomwerte überleben keinen erneuten Zuordnungslauf.</strong> Du kannst die Werte pro Gebiet überschreiben, und die Tabelle ist nur der Vorschlag des Editors — aber sobald jemand im Wiki-Baum <em>irgendein</em> Gebiet dieser Kette neu zuordnet, setzt der Server die Zoomwerte für <strong>jedes</strong> Gebiet der Kette wieder auf die Vorgabe. Wenn eine von Hand gesetzte Stufe wichtig ist, prüf sie nach so einem Lauf noch einmal nach.</div>
+				<div class="hb-note hb-tip"><strong>Bis zu vier Ebenen schließen die Bänder lückenlos aneinander an</strong> — 0–2, 3–4, 5, 6. Ein Gebiet beginnt genau eine Zoomstufe nach dem Ende seines Elternteils. <strong>Ab fünf Ebenen reicht der Vorrat nicht</strong>: Die Karte hat nur sieben Zoomstufen, also teilen sich <em>alle</em> Zwischenebenen das Band 5, und nur die unterste bekommt Zoom 6. Dass dort zwei Ränge gleichzeitig erscheinen, ist kein Fehler.</div>
+				<div class="hb-note hb-warn"><strong>Deine eigenen Zoomwerte überleben keinen erneuten Zuordnungslauf.</strong> Die Tabelle ist nur der Vorschlag des Editors, und du kannst jeden Wert überschreiben. Ordnet aber jemand im Wiki-Baum <em>irgendein</em> Gebiet dieser Kette neu zu, setzt der Server die Zoomwerte für <strong>jedes</strong> Gebiet der Kette auf die Vorgabe zurück. Prüf eine von Hand gesetzte Stufe danach noch einmal nach.</div>
 				<p>Zwei Begriffe, die dazugehören: Die <strong>Gültigkeit</strong> eines Gebiets steht in BF-Jahren („Bosparans Fall"), wobei <code>9999</code> heißt „bis heute nicht aufgelöst". Und <strong>umstrittene Gebiete</strong> — solche, die mehrere beanspruchen — erscheinen als Schraffur statt als Fläche.</p>
 
 				<h3 id="v-quellen" class="hb-sub">Quellen</h3>
@@ -1486,7 +1496,7 @@
 					<li><strong>Von Hand</strong> — von dir eingetragen, mit URL, Name, Seitenangabe und Typ.</li>
 					<li><strong>Aus der Community</strong> — vorgeschlagen und von dir freigegeben.</li>
 				</ul>
-				<div class="hb-note hb-tip"><strong>Entfernen heißt unterdrücken, nicht löschen.</strong> Nimmst du eine Wiki-Quelle weg, merkt sich das System das und setzt sie beim nächsten Sync nicht wieder ein. Fügst du sie von Hand wieder hinzu, lebt sie wieder auf. Deine Entscheidungen überleben also jeden Abgleich — das ist der Sinn der Sache.</div>
+				<div class="hb-note hb-tip"><strong>Entfernen heißt unterdrücken, nicht löschen.</strong> Nimmst du eine Wiki-Quelle weg, setzt der nächste Sync sie nicht wieder ein. Fügst du sie von Hand wieder hinzu, lebt sie wieder auf.</div>
 				<h4>Die Eingabezeile</h4>
 				<figure class="hb-shot">
 					<img src="screenshots/14-quellen-editor.png" width="520" alt="Der Bereich Quellen mit bestehenden Quellenzeilen samt Typ- und Abdeckungsschild und darunter der Eingabezeile aus URL, Quellenname, Seiten, Typ, Abdeckung und offiziell" />
@@ -1494,7 +1504,8 @@
 				</figure>
 				<p>Eine neue Quelle trägst du in einer Zeile ein: <strong>URL</strong>, <strong>Quellenname</strong>, <strong>Seite(n)</strong>, der <strong>Typ</strong>, die <strong>Abdeckung</strong>, die <strong>Lizenz</strong>, die <strong>Namensnennung</strong> und das Häkchen <strong>offiziell</strong> — dann <strong>„Hinzufügen"</strong>. Beim Quellennamen gehört der <em>Veröffentlichungstitel</em> hinein, nicht eine Umschreibung.</p>
 				<p><strong>Lizenz</strong> und <strong>Namensnennung</strong> sind zwei getrennte Angaben: was gilt, und wen man nennen muss. Zur Auswahl stehen CC BY-SA 3.0, CC BY-NC-SA 3.0, CC BY 4.0, CC BY-SA 4.0, CC0 1.0, <em>Gemeinfrei</em> und <em>Keine freie Lizenz</em>. In die Namensnennung kommt, wen die Lizenz zu nennen verlangt — etwa <em>VolkoV / garetien.de</em>. Beide stehen beim Leser an der Quelle in der Infobox.</p>
-				<div class="hb-note hb-tip"><strong>Ein leeres Lizenzfeld heißt „nicht erfasst", nicht „keine Lizenz".</strong> Wer sagen will, dass eine Quelle unfrei ist, wählt <em>Keine freie Lizenz</em>. Eine bestehende Quelle lässt sich noch nicht umschreiben: Um Lizenz oder Namensnennung nachzutragen, leg sie mit <em>derselben URL</em> noch einmal an — leere Felder werden gefüllt, vorhandene nicht überschrieben.</div>
+				<div class="hb-note hb-tip"><strong>Leer heißt „nicht erfasst", nicht „keine Lizenz".</strong> <em>Art</em> und <em>Lizenz</em> stehen anfangs auf keinem Wert, und ein leeres Feld behauptet nichts. Wer sagen will, dass eine Quelle unfrei ist, wählt <em>Keine freie Lizenz</em>.</div>
+				<div class="hb-note hb-tip"><strong>Korrigieren geht über dieselbe URL.</strong> Trag die Quelle noch einmal ein. Deine Wahl bei <em>Art</em> ersetzt dann den alten Wert — überall, wo die Quelle zitiert wird, und die Zeile meldet dir die Änderung. <em>Lizenz</em> und <em>Namensnennung</em> werden nur gefüllt, nie überschrieben.</div>
 				<div class="hb-note hb-tip"><strong>Beim Anlegen trägst du Quellen sofort mit ein.</strong> Ein Ort, den du gerade erst anlegst, hat noch keine Kennung, an der eine Quelle hängen könnte. Der Block sammelt sie deshalb unter <em>„Wird beim Anlegen übernommen"</em> und hängt sie an, sobald du gespeichert hast — Autocomplete und ✕ funktionieren dabei wie gewohnt.</div>
 
 				<h4>Die Abdeckung entscheidet, wo die Quelle landet</h4>
@@ -1505,15 +1516,15 @@
 					<tr><td><strong>Ausführlich</strong> / <strong>Ergänzend</strong></td><td>Im Reiter <strong>„Offiziell"</strong> unter „Publikationen:".</td></tr>
 					<tr><td><strong>Nur Erwähnung</strong></td><td>Im Reiter <strong>„Erwähnt"</strong> — für Werke, die den Ort bloß nennen.</td></tr>
 				</table>
-				<p>Ein Reiter ohne Einträge wird gar nicht erst angezeigt. Die Zahl dahinter — „Offiziell (3)" — ist einfach die Anzahl.</p>
+				<p>Ein Reiter ohne Einträge erscheint nicht; die Zahl dahinter — „Offiziell (3)" — ist die Anzahl.</p>
 
 				<h4>Das Autocomplete</h4>
 				<p>Tippst du zwei Zeichen in den Quellennamen, schlägt der <em>Quellenkatalog</em> bereits erfasste Werke vor, mit Typ und „an <em>n</em> Orten". <strong>Nimm den Vorschlag</strong> — so steht dasselbe Buch nicht zehnmal unterschiedlich geschrieben herum.</p>
-				<div class="hb-note hb-tip"><strong>Ein übernommener Vorschlag überschreibt Name, URL, Typ und „offiziell"</strong> und markiert die Zeile als <em>„bestehende Quelle"</em>; der Cursor springt weiter zu „Seite(n)", denn nur die Seitenzahl und die Abdeckung gehören zu <em>dieser</em> Verknüpfung — alles andere beschreibt das Werk. Tippst du danach wieder in „URL" oder „Quellenname", ist die Auswahl aufgehoben und du legst eine neue Quelle an. Das ist der häufigste Weg, versehentlich eine Dublette zu erzeugen.</div>
-				<div class="hb-note hb-tip"><strong>Die Zeile „… als neue Quelle anlegen"</strong> am Ende der Vorschlagsliste legt nichts an — sie schließt nur die Liste, damit du normal weitertippen kannst.</div>
+				<div class="hb-note hb-tip"><strong>Ein übernommener Vorschlag überschreibt Name, URL, Typ und „offiziell"</strong> und markiert die Zeile als <em>„bestehende Quelle"</em>; der Cursor springt weiter zu „Seite(n)". Tippst du danach wieder in „URL" oder „Quellenname", ist die Auswahl aufgehoben und du legst eine neue Quelle an. Das ist der häufigste Weg, versehentlich eine Dublette zu erzeugen.</div>
+				<div class="hb-note hb-tip"><strong>Die Zeile „… als neue Quelle anlegen"</strong> am Ende der Vorschlagsliste legt nichts an — sie schließt nur die Liste.</div>
 
 				<h3 id="v-lizenzen" class="hb-sub">Bilder &amp; Lizenzen</h3>
-				<p>Avesmaps ist ein nicht-kommerzielles Fan-Projekt. Bei Bildern hört der Spaß trotzdem auf, deshalb ist die Regel streng und im Zweifel restriktiv. Alle fünf Stellen, an denen ein Bild hereinkommt — <strong>Ortswappen</strong>, <strong>Gebietswappen</strong>, <strong>Ortsbilder</strong>, <strong>Kartenvorschauen</strong> und <strong>Literatur-Cover</strong> —, fragen dasselbe: <em>Lizenz</em>, <em>Urheber</em> und einen <em>Kommentar</em> (Quelle oder KI-Auftrag). Wer hochgeladen hat und wann, vermerkt der Dialog von selbst.</p>
+				<p>Bei Bildern ist die Regel streng und im Zweifel restriktiv. Alle fünf Stellen, an denen ein Bild hereinkommt — <strong>Ortswappen</strong>, <strong>Gebietswappen</strong>, <strong>Ortsbilder</strong>, <strong>Kartenvorschauen</strong> und <strong>Literatur-Cover</strong> —, fragen dasselbe: <em>Lizenz</em>, <em>Urheber</em> und einen <em>Kommentar</em> (Quelle oder KI-Auftrag). Wer hochgeladen hat und wann, vermerkt der Dialog von selbst.</p>
 				<p>Die Einstufung entscheidet, ob das Bild öffentlich erscheint — im Editor siehst du es immer:</p>
 				<table class="hb-table">
 					<tr><th>Einstufung</th><th>Öffentlich?</th></tr>
@@ -1526,7 +1537,7 @@
 					<tr><td><strong>Unbekannt/Sonstiges</strong></td><td><strong>nein</strong> — Herkunft ungeklärt</td></tr>
 				</table>
 				<div class="hb-note hb-tip"><strong>Trag auch ein, was nicht erscheinen darf.</strong> „Unbekannt/Sonstiges" heißt <em>nicht</em> „darf nicht gewählt werden" — die Angabe wird gespeichert, nur eben nicht ausgeliefert. Ein leer gelassenes Feld sagt dagegen nichts, und der nächste Bearbeiter fängt bei null an.</div>
-				<p>Ein Weg steht dabei immer offen: <strong>selbst KI-generierte Bilder</strong>. Sie werden gemeinfrei und dürfen öffentlich erscheinen — wie du sie erzeugst und hochlädst, steht samt erprobtem Grundbaustein für den Auftrag unter <a href="#siedlungen">Orte</a> bei den Bildern.</p>
+				<p><strong>Selbst KI-generierte Bilder</strong> sind immer ein Ausweg: Sie gelten als gemeinfrei und erscheinen öffentlich. Wie du sie erzeugst und hochlädst, steht mit einem erprobten Auftragstext unter <a href="#siedlungen">Orte</a>.</p>
 				<div class="hb-note hb-warn"><strong>„Das Bild wird nicht angezeigt" ist meistens kein Fehler.</strong> Es ist fast immer die Lizenz — oder ein Schalter (siehe unten). Bevor du einen Bug meldest, schau in beides.</div>
 
 				<h3 id="v-spoiler" class="hb-sub">Spoiler</h3>
