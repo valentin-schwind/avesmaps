@@ -563,6 +563,40 @@
 		}
 	}
 
+	/*
+	 * Was auf der Karte liegen soll: die ANGEHAKTEN -- und das ANGEKLICKTE dazu.
+	 *
+	 * 🔴 DAS ANGEKLICKTE FEHLTE, und das war ein Fehler des Auftrags, nicht des Baus. Mein Brief
+	 * zu Aufgabe 14 sagte „der Glow haengt am HAEKCHEN, nicht am Knopf" -- richtig fuer den
+	 * SCHEIN unter unseren Abschnitten, aber ich habe daraus faelschlich auch IHRE gestrichelte
+	 * Geometrie an das Haekchen gebunden. Das freigegebene Mockup sagt das Gegenteil und nennt
+	 * beide Faelle nebeneinander (docs/garetien-importer-mockup.html §2):
+	 *   „Natter -- das ANGEKLICKTE Objekt: gestrichelt, benannt, die Ansicht folgt ihm."
+	 *   „Alke -- angehakt, aber nicht angeklickt: gestrichelt, ohne Namensschild."
+	 *
+	 * 💣 Und die Folge war die schlimmste Sorte: fuer ein UEBERSPRUNGENES Objekt gibt es gar kein
+	 * Haekchen -- also war seine Geometrie auf KEINE Weise sichtbar zu machen. „Auf der Karte
+	 * zeigen" flog korrekt hin und zeigte nichts. Owner-Meldung 29.08.2026, am Beispiel „Perz":
+	 * „ich seh nur UNSER perz, das perz von garetien.de seh ich nicht".
+	 * ⚠️ Genau diese Objekte sind der haeufigste Fall: 7930 von 8213 sind uebersprungen.
+	 *
+	 * REIN gegen den Modulzustand, damit der Test sie ohne DOM fahren kann.
+	 * ⚠️ Entdoppelt ueber den Schluessel: das angeklickte Objekt ist oft auch angehakt, und zweimal
+	 * gezeichnet ergaebe einen doppelt so kraeftigen Strich.
+	 */
+	function avesmapsGaretienAufDerKarte(objekte) {
+		// ⚠️ Die Liste wird HEREINGEREICHT, mit dem Modulzustand als Rueckfall -- dieselbe Bauform
+		// wie `garetienListeKlick` und aus demselben Grund: nur so laesst sich am ERGEBNIS messen,
+		// was auf der Karte landet, ohne vorher eine ganze Liste rendern zu muessen.
+		const liste = objekte || zustand.objekte || [];
+		const raus = liste.filter(avesmapsGaretienHatAuswahl);
+		if (zustand.detailKey === null) { return raus; }
+		const schonDrin = raus.some(function (o) { return o && String(o.key) === String(zustand.detailKey); });
+		if (schonDrin) { return raus; }
+		const angeklickt = liste.filter(function (o) { return o && String(o.key) === String(zustand.detailKey); })[0];
+		return angeklickt ? raus.concat([angeklickt]) : raus;
+	}
+
 	// Der EINE Weg, auf dem die Liste sich aendert (Brief). Holt action:'liste' mit dem aktuellen
 	// Filter und dem aktuellen Reiter, schreibt Liste/Bilanz/Reiter/Fusszeile neu und ruft
 	// avesmapsGaretienKarteZeigen (Aufgabe 14) mit den angehakten Objekten. 🔴 Der Server ist die
@@ -599,7 +633,7 @@
 			avesmapsGaretienListeRendern(antwort);
 			// Fenster liest §14 defensiv: verschwindet, sobald KarteZeigen (Aufgabe 14) existiert.
 			if (typeof window !== "undefined" && typeof window.avesmapsGaretienKarteZeigen === "function") {
-				window.avesmapsGaretienKarteZeigen(zustand.objekte.filter(avesmapsGaretienHatAuswahl));
+				window.avesmapsGaretienKarteZeigen(avesmapsGaretienAufDerKarte());
 			}
 			return antwort;
 		});
@@ -1912,6 +1946,15 @@
 			: String(schluessel);
 		garetienDetailRendern(objekte);
 		garetienAuswahlMarkieren();
+		// 🔴 UND DIE KARTE. Das angeklickte Objekt wird gezeichnet, nicht nur angeflogen -- ohne
+		// diese Zeile ist ein UEBERSPRUNGENES Objekt auf keine Weise sichtbar zu machen, denn es
+		// hat gar kein Haekchen (Owner-Meldung 29.08.2026, Beispiel „Perz").
+		// ⚠️ Hier und nicht in `avesmapsGaretienListeHolen`: ein Zeilenklick fragt den Server
+		// nicht, er ist reine Anzeige. Ohne den Ruf hier bliebe die Karte bis zur naechsten
+		// Serverantwort auf dem vorigen Stand.
+		if (typeof window !== "undefined" && typeof window.avesmapsGaretienKarteZeigen === "function") {
+			window.avesmapsGaretienKarteZeigen(avesmapsGaretienAufDerKarte(objekte));
+		}
 		return zustand.detailKey;
 	}
 
@@ -2267,6 +2310,7 @@
 			garetienZeileMarkup,
 			avesmapsGaretienCheckboxZustand,
 			avesmapsGaretienHatAuswahl,
+			avesmapsGaretienAufDerKarte,
 			avesmapsGaretienUrteilInfo,
 			avesmapsGaretienBalanceZeileText,
 			avesmapsGaretienRunlineMarkup,

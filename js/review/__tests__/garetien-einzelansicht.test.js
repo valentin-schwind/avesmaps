@@ -519,4 +519,58 @@ schriftgroessen.forEach((zeile) => {
 	wahr(/var\(--font-size-/.test(zeile), "Schriftgroessen kommen aus Tokens: " + zeile);
 });
 
+
+// ---- Das ANGEKLICKTE Objekt liegt auf der Karte, auch OHNE Haekchen --------------------------
+//
+// 🔴 Owner-Meldung 29.08.2026 am Beispiel „Perz": „ich seh nur UNSER perz, das perz von
+// garetien.de seh ich nicht, wenn ich auf karte anzeigen klicke".
+// 💣 Die Ursache war ein Fehler des AUFTRAGS, nicht des Baus: der Brief zu Aufgabe 14 band IHRE
+// gestrichelte Geometrie ans HAEKCHEN. Das freigegebene Mockup §2 nennt beide Faelle nebeneinander:
+//   „Natter -- das ANGEKLICKTE Objekt: gestrichelt, benannt, die Ansicht folgt ihm."
+//   „Alke -- angehakt, aber nicht angeklickt: gestrichelt, ohne Namensschild."
+// ⚠️ Und die Folge traf den HAEUFIGSTEN Fall: ein uebersprungenes Objekt hat gar kein Haekchen --
+// 7930 von 8213 sind uebersprungen. Seine Geometrie war auf KEINE Weise sichtbar zu machen.
+//
+// Gemessen wird am ERGEBNIS von avesmapsGaretienAufDerKarte, ueber den echten Klickweg getrieben.
+wahr(typeof mod.avesmapsGaretienAufDerKarte === "function",
+	"avesmapsGaretienAufDerKarte fehlt im Export");
+checks++;
+
+const perz = { key: "perz", name: "Perz", typ: "Stadt", urteil: "uebersprungen",
+	grund: "Sammelartikel", geometrie: [[512, 480]], abschnitte: [], items: [] };
+const gehakt = { key: "gehakt", name: "Alke", typ: "Bach", urteil: "neu",
+	geometrie: [[100, 200], [110, 210]], abschnitte: [],
+	items: [{ id: 1, selected: 1, change_type: "new" }] };
+const kartenObjekte = [perz, gehakt];
+
+// Vorher: nur das Angehakte.
+garetienListeKlick({ target: zielAttrappe("SPAN", null) }, kartenObjekte);
+// Ohne Auswahl liegt GENAU das Angehakte da -- die Ausgangslage, gegen die der Klick misst.
+gleich(mod.avesmapsGaretienAufDerKarte(kartenObjekte).map((o) => o.key).join(","), "gehakt",
+	"ohne angeklickte Zeile liegt nur das Angehakte auf der Karte");
+checks++;
+
+// Jetzt Perz anklicken -- es hat KEIN Haekchen und trotzdem muss es dabei sein.
+garetienListeKlick({ target: zielAttrappe("SPAN", "perz") }, kartenObjekte);
+const nachKlick = mod.avesmapsGaretienAufDerKarte(kartenObjekte).map((o) => o.key);
+wahr(nachKlick.indexOf("perz") !== -1,
+	"das ANGEKLICKTE Objekt gehoert auf die Karte, auch wenn es kein Haekchen hat -- sonst ist "
+	+ "ein uebersprungenes Objekt (7930 von 8213) auf keine Weise sichtbar");
+checks++;
+
+// 🔴 DIE GEGENPROBE, ohne die die Zeile darueber nichts filtert: ein NICHT angeklicktes und NICHT
+// angehaktes Objekt bleibt draussen.
+const drittes = { key: "drittes", name: "Fern", urteil: "uebersprungen", geometrie: [[1, 1]], abschnitte: [], items: [] };
+garetienListeKlick({ target: zielAttrappe("SPAN", "perz") }, [perz, gehakt, drittes]);
+gleich(mod.avesmapsGaretienAufDerKarte(kartenObjekte).map((o) => o.key).indexOf("drittes"), -1,
+	"ein weder angeklicktes noch angehaktes Objekt bleibt von der Karte weg");
+checks++;
+
+// ⚠️ Und es wird nicht DOPPELT gezeichnet, wenn das Angeklickte auch angehakt ist.
+garetienListeKlick({ target: zielAttrappe("SPAN", "gehakt") }, kartenObjekte);
+const doppelt = mod.avesmapsGaretienAufDerKarte(kartenObjekte).map((o) => o.key);
+gleich(doppelt.filter((k) => k === "gehakt").length, 1,
+	"das angeklickte UND angehakte Objekt steht genau einmal auf der Karte");
+checks++;
+
 console.log(`garetien-einzelansicht: ${checks} Pruefungen bestanden.`);
