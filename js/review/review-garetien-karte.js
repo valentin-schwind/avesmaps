@@ -699,9 +699,12 @@
 			var farbe = garetienTokenFarbe(sicht.token);
 			// 🔴 Fix-Runde 1 zu Aufgabe 3: ein Tokenname, der in tokens.css nicht existiert, darf
 			// nicht lautlos zu einer unsichtbaren Form fuehren -- siehe garetienSichtTokenFehlt.
-			// `sicht.neutral` ist hier IMMER false (der Neutral-Rueckfall selbst nimmt
-			// AVESMAPS_GARETIEN_TOKEN_IHRE, ein Token, das im Haus an vielen Stellen vorausgesetzt
-			// wird), der Riegel greift also nur beim dynamisch hergeleiteten Fall.
+			// 🔧 Fix-Runde 2: `!sicht.neutral` deckt STRUKTURELL beide nicht-neutralen Zweige ab --
+			// den dynamisch aus `subtyp`/`kind` hergeleiteten TOKEN ebenso wie einen Treffer in
+			// AVESMAPS_GARETIEN_SICHT_EBENE. Dass der Riegel in der PRAXIS heute nur den ersten
+			// je auslöst, liegt nicht an dieser Bedingung, sondern daran, dass jeder Tafel-Token
+			// vorab gegen tokens.css geprueft ist (garetien-sicht-tafel.test.js Abschnitt 5) -- ein
+			// kaputter Tafel-Eintrag wuerde denselben Riegel genauso treffen.
 			if (farbe === "" && !sicht.neutral) {
 				garetienSichtTokenFehlt(objekt, sicht.token);
 				sicht = AVESMAPS_GARETIEN_SICHT_NEUTRAL;

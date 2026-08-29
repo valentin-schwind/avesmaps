@@ -1195,4 +1195,80 @@ gleich(importer.garetienNeutralHinweisMarkup([neutralesObjekt]), "",
 	"und die Meldung bleibt leer, statt zu werfen");
 global.window.avesmapsGaretienSichtFuer = mod.avesmapsGaretienSichtFuer;
 
+// ---- 14. Fix-Runde 2 zu Aufgabe 3: die Meldung MUSS dieselbe Menge zaehlen wie die Karte zeichnet
+//
+// 🔴 Review-Befund: `avesmapsGaretienListeRendern` fuetterte die Neutral-Meldung aus
+// `avesmapsGaretienAnzeigeListe()`, waehrend JEDER Kartenaufruf laengst `avesmapsGaretienAufDerKarte()`
+// zeichnet -- und die ist um das ANGEKLICKTE, aber (noch) nicht in die Anzeige uebernommene Objekt
+// erweitert (seit `b45bc5cfa`, Owner-Beispiel „Perz"). Eine Zeile mit Ebene Wege/Grenzen/Sonstiges
+// anklicken (immer neutral, RULING R3) und dann etwas re-rendern, das dieselbe Listenansicht neu
+// zeichnet (z. B. ein anderes Haekchen) -- die Karte zeigt das Objekt golden, die alte Meldung
+// schwieg. Diese Probe faehrt den ECHTEN `avesmapsGaretienListeRendern`-Pfad, nicht nur die reinen
+// Helfer aus Abschnitt 13 -- nur so ist die WIRING selbst geprueft, nicht bloss ihre Bausteine.
+//
+// ⚠️ Dafuer braucht es eine reichhaltigere `document`-Faelschung als der Rest dieser Datei (die
+// echte Karten-Faelschung lebt in `global.L`, nicht in `global.document`): eine generische
+// Element-Attrappe, damit `garetienListeSkelettSicherstellen` nicht sofort `null` zurueckgibt und
+// die Funktion frueh verlaesst. Bewusst NUR fuer diesen Abschnitt eingesetzt (gesichert/wiederhergestellt),
+// damit kein anderer Test in dieser Datei sich auf ein weiterhin `null` lieferndes `getElementById`
+// verlassen muss.
+const getElementByIdVorher14 = global.document.getElementById;
+const elementRegister14 = new Map();
+function attrappe14(id) {
+	if (!elementRegister14.has(id)) {
+		elementRegister14.set(id, {
+			id, innerHTML: "", textContent: "", dataset: {}, style: {}, hidden: false, disabled: false,
+			classList: { add() {}, remove() {}, toggle() {} },
+			addEventListener() {}, removeEventListener() {},
+			querySelectorAll() { return []; },
+			getAttribute() { return null; }, setAttribute() {},
+		});
+	}
+	return elementRegister14.get(id);
+}
+global.document.getElementById = function (id) { return attrappe14(id); };
+// Der geteilte Erzeuger der Bilanzzeile -- ohne ihn wirft `avesmapsGaretienBalanceZeileText` einen
+// ReferenceError (er ruft `avesmapsListBalanceText` als BLOSSEN globalen Namen, kein `window.…`).
+// Dasselbe Muster wie in `garetien-anzeige-menge.test.js`.
+global.avesmapsListBalanceText =
+	require(path.resolve(__dirname, "..", "review-list-balance.js")).avesmapsListBalanceText;
+
+importer.avesmapsGaretienAnzeigeLeeren();
+importer.garetienDetailWaehlen(null, []);
+importer.avesmapsGaretienAnzeigeHinzufuegen([alke]);
+const neutralerKlick = {
+	key: "klick-neutral", name: "Kometensturz", urteil: "ergaenzung", ebene: "Sternenhimmel",
+	typ: "Komet", items: [], abschnitte: [],
+};
+const antwort14 = { objekte: [alke, neutralerKlick], reiter: {}, gesamt: 2, bilanz: {}, facetten: {} };
+
+// Angeklickt, aber (noch) nicht in die Anzeige uebernommen -- genau der Fall aus der Rueckmeldung.
+importer.garetienDetailWaehlen(neutralerKlick.key, antwort14.objekte);
+importer.avesmapsGaretienListeRendern(antwort14);
+const balanceMitKlick = attrappe14("garetien-balance").innerHTML;
+wahr(balanceMitKlick.indexOf('class="gi-neutral"') !== -1
+	&& balanceMitKlick.indexOf("1 neutral gezeichnet") !== -1
+	&& balanceMitKlick.indexOf("Sternenhimmel") !== -1,
+	"das angeklickte, neutrale Objekt muss in der ECHTEN Bilanzzeile auftauchen: " + balanceMitKlick);
+
+// Die Gegenprobe: dieselbe Lage, aber NICHTS angeklickt -- die Zahl MUSS sich aendern (0 statt 1),
+// sonst waere die Zusicherung oben Vakuum (dieselbe Zahl in beiden Faellen bewiese nichts).
+importer.garetienDetailWaehlen(null, antwort14.objekte);
+importer.avesmapsGaretienListeRendern(antwort14);
+const balanceOhneKlick = attrappe14("garetien-balance").innerHTML;
+wahr(balanceOhneKlick.indexOf("gi-neutral") === -1,
+	"ohne Anklicken darf KEIN neutrales Objekt gemeldet werden (Alke hat eine eigene Sicht-Regel): "
+	+ balanceOhneKlick);
+wahr(balanceMitKlick !== balanceOhneKlick,
+	"die DIFFERENZ selbst: mit und ohne angeklicktes neutrales Objekt muss sich die Meldung "
+	+ "unterscheiden, sonst wurde nichts wirklich gemessen");
+
+// Aufraeumen -- kein anderer Abschnitt dieser Datei darf sich auf die reichhaltige Attrappe
+// verlassen (der Rest der Datei geht von einem `document` aus, dessen `getElementById` immer
+// `null` liefert).
+global.document.getElementById = getElementByIdVorher14;
+delete global.avesmapsListBalanceText;
+importer.avesmapsGaretienAnzeigeLeeren();
+importer.garetienDetailWaehlen(null, []);
+
 console.log(`garetien-karte: ${checks} Pruefungen bestanden.`);

@@ -734,14 +734,23 @@
 			// Suche/Filter -- reiter[stand] zaehlt genau das (Aufgabe 8, VOR dem Filtern gezaehlt).
 			const basisDesReiters = (a.reiter && a.reiter[zustand.stand]) || 0;
 			const leuchtenAnzahl = objekte.filter(avesmapsGaretienHatAuswahl).length;
-			// Aufgabe 3: die Neutral-Meldung zaehlt die ANZEIGE-MENGE (was WIRKLICH auf der Karte
-			// liegt), nicht `objekte` (die aktuelle Listenansicht) -- dieselbe Quelle wie
-			// avesmapsGaretienAufDerKarte.
+			// Fix-Runde 2 zu Aufgabe 3: die Neutral-Meldung MUSS `avesmapsGaretienAufDerKarte(objekte)`
+			// lesen, NICHT `avesmapsGaretienAnzeigeListe()` -- obwohl Letztere die naheliegendere
+			// Wahl scheint ("die Anzeige-Menge ist doch, was angezeigt wird"). Sie ist es nicht mehr:
+			// seit `b45bc5cfa` (Owner-Beispiel „Perz") zeichnet JEDER Kartenaufruf
+			// `avesmapsGaretienAufDerKarte()`, und die traegt zusaetzlich das ANGEKLICKTE, aber noch
+			// nicht angezeigte Objekt (siehe deren Kommentar). Die zwei Mengen unterscheiden sich also
+			// um genau EIN Objekt -- und das ist ausgerechnet das, auf das der Editor gerade schaut.
+			// Mit `avesmapsGaretienAnzeigeListe()` liesse sich eine Ebene Wege/Grenzen/Sonstiges
+			// anklicken (die per RULING R3/R9 immer neutral sind) und die Bilanzzeile bliebe stumm,
+			// waehrend die Karte das Objekt sichtbar golden zeichnet -- die Meldung behauptete "nichts
+			// ist neutral", genau waehrend der Editor auf ein neutrales Objekt blickt. Derselbe Zug
+			// wie in `garetienAnzeigeNeuZeichnen` (oben): DIE Menge, die tatsaechlich gezeichnet wird.
 			balanceEl.innerHTML = avesmapsGaretienBalanceZeileText(a.gesamt, basisDesReiters)
 				+ (leuchtenAnzahl > 0
 					? ' · <span class="lit">✦ ' + leuchtenAnzahl + " leuchten</span>"
 					: "")
-				+ garetienNeutralHinweisMarkup(avesmapsGaretienAnzeigeListe());
+				+ garetienNeutralHinweisMarkup(avesmapsGaretienAufDerKarte(objekte));
 		}
 
 		const fussEl = document.getElementById("garetien-foot-count");
