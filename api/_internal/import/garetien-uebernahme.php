@@ -240,6 +240,12 @@ function avesmapsGaretienErgaenzungAnwenden(PDO $pdo, array $nach, string $publi
     $felder = (array) ($nach['felder'] ?? []);
     $userId = (int) ($user['id'] ?? 0);
     $geschrieben = 0;
+    // 🔴 ZWEI PUBLIC-IDS, dieselbe Trennung wie im Anlegen (avesmapsGaretienUebernehmen): $publicId
+    // ist das ZIEL des Update-Aufrufs -- bei einer Flaeche die REGION, die avesmapsUpdateEcosystemRegion
+    // / …AreaGeometry auch tatsaechlich brauchen. $quellePublicId ist der ID-Raum, in dem die Karte
+    // Quellen NACHSCHLAEGT (map-features.php:1228, 'label' -> 'region', gekeyt an der public_id des
+    // LABELS) -- fuer Weg/Ort/Gipfel identisch mit $publicId, bei der Flaeche NICHT (siehe unten).
+    $quellePublicId = $publicId;
 
     if (($nach['ziel'] ?? '') === 'path') {
         $zeile = $pdo->prepare('SELECT name, feature_subtype, properties_json FROM map_features WHERE public_id = :p');
@@ -385,10 +391,15 @@ function avesmapsGaretienErgaenzungAnwenden(PDO $pdo, array $nach, string $publi
         // 💣 FALSCHER ID-RAUM. `entity_public_id` ist hier die REGIONS-public_id
         // (garetien-abgleich.php waehlt `r.public_id`), aber `avesmapsUpdateEcosystemAreaGeometry`
         // liest `ecosystem_area WHERE public_id` -- ein anderer id-Raum. Geloest wird das HIER,
-        // im Anwender, nicht im Abgleich: die Regions-ID ist fuer alles andere die richtige (die
-        // Quelle haengt an der Region, `avesmapsUpdateEcosystemRegion` will sie, und der
-        // Quellenbestand aus Aufgabe 3 ist auf `region|<regions-id>` aufgebaut) -- die Flaeche
-        // wird deshalb hier ueber die Region nachgeschlagen.
+        // im Anwender, nicht im Abgleich: die Regions-ID ist fuer alles andere die richtige
+        // (`avesmapsUpdateEcosystemRegion` will sie) -- die Flaeche wird deshalb hier ueber die
+        // Region nachgeschlagen.
+        // 🔴 KORRIGIERT (Aufgabe 13): hier stand "die Quelle haengt an der Region" -- das ist
+        // FALSCH und war der Rechtsfolgenfehler dieser Aufgabe. map-features.php:1228 bindet
+        // entity_type 'region' an feature_type 'label', keyed an der public_id des LABELS, nicht
+        // der Region -- dieselbe Bindung wie beim 'label'-Zweig oben und beim Anlegen
+        // (avesmapsGaretienFlaecheAnlegen). Die Quellen-Verknuepfung schlaegt deshalb weiter unten
+        // das Label der Region eigens nach ($quellePublicId), statt $publicId zu benutzen.
         if (in_array('geometrie', $felder, true)) {
             $flaeche = $pdo->prepare(
                 'SELECT a.public_id, a.geometry_revision
@@ -423,11 +434,24 @@ function avesmapsGaretienErgaenzungAnwenden(PDO $pdo, array $nach, string $publi
             $geschrieben++;
         }
         $entityType = 'region';
+        if (in_array('quelle', $felder, true)) {
+            // 💣 DIE QUELLE HAENGT AN DER BESCHRIFTUNG, NICHT AN DER REGION -- siehe die
+            // korrigierte Begruendung oben. $publicId ist hier absichtlich die Regions-id (fuer
+            // avesmapsUpdateEcosystemRegion und die Flaechen-Suche richtig); fuer die
+            // Quellen-Verknuepfung wird deshalb ihr Label nachgeschlagen.
+            $labelDerRegion = $pdo->prepare('SELECT label_public_id FROM ecosystem_region WHERE public_id = :p');
+            $labelDerRegion->execute([':p' => $publicId]);
+            $labelId = trim((string) $labelDerRegion->fetchColumn());
+            if ($labelId === '') {
+                throw new RuntimeException('Region ' . $publicId . ' hat kein Label -- keine Quelle anhaengbar.');
+            }
+            $quellePublicId = $labelId;
+        }
     }
 
     $quellen = 0;
     if (in_array('quelle', $felder, true)
-        && avesmapsGaretienQuelleAnlegen($pdo, $entityType, $publicId, (array) ($nach['quelle'] ?? []), $userId)) {
+        && avesmapsGaretienQuelleAnlegen($pdo, $entityType, $quellePublicId, (array) ($nach['quelle'] ?? []), $userId)) {
         $quellen = 1;
         $geschrieben++;
     }
@@ -598,6 +622,14 @@ function avesmapsGaretienUebernehmen(PDO $pdo, int $runId, array $itemIds, array
 
         try {
             $ziel = (string) ($nach['ziel'] ?? '');
+            // 🔴 ZWEI PUBLIC-IDS, NICHT EINE. $publicId ist das angelegte Objekt (steht als
+            // Vermerk im Item, und bei einer Flaeche ist das die REGION -- die Ruecknahme loescht
+            // darueber via avesmapsDeleteEcosystemRegion). $quellePublicId ist der ID-Raum, in dem
+            // die Karte Quellen NACHSCHLAEGT (map-features.php:1228,
+            // $entityTypeByFeatureType['label'] = 'region', keyed an der public_id des LABELS,
+            // nicht der Region) -- fuer Weg/Ort/Gipfel sind beide gleich, nur bei der Flaeche
+            // (See/Meer/Sumpf/…) laufen sie auseinander.
+            $quellePublicId = null;
             if ($ziel === 'path') {
                 $feature = avesmapsCreatePathFeature($pdo, [
                     'name' => (string) $nach['name'],
@@ -607,6 +639,7 @@ function avesmapsGaretienUebernehmen(PDO $pdo, int $runId, array $itemIds, array
                 ], $user);
                 $publicId = avesmapsGaretienPublicIdAus($feature, 'Der Weg');
                 $entityType = 'path';
+                $quellePublicId = $publicId;
             } elseif ($ziel === 'location') {
                 // Ortschaften (Entwurf §3.1) -- ein Ort ist ein PUNKT, avesmapsCreatePointFeature
                 // setzt feature_type='location' und liest settlement_class aus 'feature_subtype'.
@@ -623,6 +656,7 @@ function avesmapsGaretienUebernehmen(PDO $pdo, int $runId, array $itemIds, array
                 // Quellenkasten der Infobox seine Zeilen sucht. Ein anderer Wert liesse die
                 // Quelle unauffindbar im Katalog liegen.
                 $entityType = 'settlement';
+                $quellePublicId = $publicId;
             } elseif ($ziel === 'label') {
                 // 🔴 Der Berggipfel ist die EINZIGE Punkt-Ausnahme: ein Label OHNE Region/Flaeche
                 // dahinter (Entwurf §3.4). 💣 KEINE `height_schritt` -- ein Gipfel ist ein
@@ -643,13 +677,22 @@ function avesmapsGaretienUebernehmen(PDO $pdo, int $runId, array $itemIds, array
                 // (map-features.php:1228), KEYED AN DER PUBLIC_ID DES LABELS SELBST -- es gibt
                 // hier keine Region, an die die Quelle stattdessen haengen koennte.
                 $entityType = 'region';
+                $quellePublicId = $publicId;
             } else {
                 $ergebnis = avesmapsGaretienFlaecheAnlegen($pdo, $nach, $user, $userId);
                 $publicId = $ergebnis['public_id'];
                 $entityType = $ergebnis['entity_type'];
+                // 💣 HIER laufen $publicId (Region, fuer den Item-Vermerk/die Ruecknahme) und die
+                // Quellen-id auseinander: die Quelle haengt an der BESCHRIFTUNG
+                // ($ergebnis['label_public_id']), nicht an der Region -- siehe die Begruendung an
+                // avesmapsGaretienFlaecheAnlegen und die Bindung im 'label'-Zweig oben. Wer hier
+                // $publicId einsetzt, verknuepft die Quelle in einem ID-Raum, den die Karte nie
+                // ausliest (AGENTS.md §11: "die Quellen einer Landschaft liegen … an ihrer
+                // BESCHRIFTUNG").
+                $quellePublicId = $ergebnis['label_public_id'];
             }
             $angelegt++;
-            if (avesmapsGaretienQuelleAnlegen($pdo, $entityType, $publicId, (array) ($nach['quelle'] ?? []), $userId)) {
+            if (avesmapsGaretienQuelleAnlegen($pdo, $entityType, $quellePublicId, (array) ($nach['quelle'] ?? []), $userId)) {
                 $quellen++;
             }
             avesmapsGaretienItemAbschliessen($pdo, (int) $item['id'], 'done', $publicId);

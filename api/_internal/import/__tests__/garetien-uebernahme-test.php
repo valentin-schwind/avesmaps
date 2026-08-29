@@ -369,10 +369,19 @@ $flaeche = $pdo->query('SELECT * FROM ecosystem_area')->fetch(PDO::FETCH_ASSOC);
 assert($flaeche !== false && (int) $flaeche['region_id'] === (int) $region['id'], 'die Flaeche haengt an der Region');
 $pruefungen += 8;
 
-// --- Und die Quelle der Flaeche haengt an der REGION, nicht am Label.
+// --- 🔴 AUFGABE 13 (Rechtsfolgenfehler): die Quelle der Flaeche haengt an der BESCHRIFTUNG,
+// NICHT an der Region -- dieselbe Bindung, mit der map-features.php:1228 Quellen fuer die Karte
+// nachschlaegt (entity_type 'region' ist an feature_type 'label' gebunden, gekeyt an dessen
+// public_id). Region und Label sind in dieser Fixture zwei verschiedene Zeilen mit verschiedenen
+// public_ids -- ohne diese Zusicherung wuerde die naechste Zeile nichts pruefen, wenn beide ids
+// je zufaellig gleich waeren.
+assert($region['public_id'] !== $label['public_id'], 'Region und Label muessen verschiedene ids tragen, sonst prueft dies nichts');
 $qr = $pdo->query("SELECT * FROM feature_sources WHERE entity_type = 'region'")->fetch(PDO::FETCH_ASSOC);
-assert($qr !== false && $qr['entity_public_id'] === $region['public_id']);
-$pruefungen++;
+assert($qr !== false && $qr['entity_public_id'] === $label['public_id'],
+    'die Quelle muss an der Beschriftung haengen -- gefunden: ' . var_export($qr['entity_public_id'] ?? null, true));
+assert($qr['entity_public_id'] !== $region['public_id'],
+    'und NICHT im ID-Raum der Region -- genau das war der Fehler (AGENTS.md §11: "die Quellen einer Landschaft liegen an ihrer BESCHRIFTUNG")');
+$pruefungen += 3;
 
 // --- 🔴 EIN WIDERSPRUCH BLEIBT DRAUSSEN (Aufgabe 4). Der Seitenarm ist ein ZUFLUSS
 // (after.anlass = 'zufluss', keiner der drei Ausgaenge ergaenzung/umbenennung/geometrie) -- wird
@@ -947,6 +956,68 @@ try {
 }
 assert($fehlerMehrfach !== null, 'zwei Flaechen an einer Region muessen laut abgelehnt werden, nicht geraten');
 assert(str_contains($fehlerMehrfach->getMessage(), 'Flaechen'), 'der Grund nennt die Zahl: ' . $fehlerMehrfach->getMessage());
+$pruefungen += 2;
+
+// =================================================================================================
+// 🔴 AUFGABE 13 (RECHTSFOLGENFEHLER): DIESELBE BINDUNG GILT AUCH FUER DIE ERGAENZUNG EINER
+// BESTEHENDEN FLAECHE ('changed'/anlass=ergaenzung), NICHT NUR FUERS ANLEGEN. Der 'region'-Zweig
+// von avesmapsGaretienErgaenzungAnwenden verknuepfte die Quelle bislang mit der REGIONS-public_id,
+// obwohl die Karte Quellen fuer entity_type 'region' an der public_id des LABELS nachschlaegt
+// (map-features.php:1228; AGENTS.md §11: "die Quellen einer Landschaft liegen ... an ihrer
+// BESCHRIFTUNG"). Eine eigene Region+Label-Fixture, damit der frueher fehlende Nachschlag
+// (`label_public_id` der Region) wirklich gebraucht wird -- die Fixture bei Review I1 traegt
+// bewusst KEIN Label und wuerde die neue RuntimeException nur zufaellig ausloesen.
+$idMoorLabel = '00000000-0000-4000-8000-000000007101';
+$idMoorRegion = '00000000-0000-4000-8000-000000007102';
+$pdo3->prepare('INSERT INTO map_features (public_id, name, feature_type, feature_subtype, geometry_json, properties_json, geometry_type) VALUES (?,?,?,?,?,?,?)')
+    ->execute([$idMoorLabel, 'Testmoor', 'label', 'suempfe_moore',
+        json_encode(['type' => 'Point', 'coordinates' => [50.0, 60.0]]), '{}', 'Point']);
+$pdo3->exec("INSERT INTO ecosystem_region (public_id, name, kind, region_type, label_public_id, is_active)
+             VALUES ('{$idMoorRegion}', 'Testmoor', 'vegetation', 'suempfe_moore', '{$idMoorLabel}', 1)");
+
+$runId9 = avesmapsSyncPlanStartRun($pdo3, AVESMAPS_GARETIEN_PLAN_KIND, 1, 'test-region-quelle');
+avesmapsSyncPlanAddItem($pdo3, $runId9, [
+    'entity_key' => 'ggp:Gewaesser:Moor:Garetien:Testmoor|ergaenzung|' . $idMoorRegion,
+    'entity_public_id' => $idMoorRegion,
+    'change_type' => 'changed',
+    'label' => 'Testmoor → Testmoor · Quelle',
+    'before' => ['public_id' => $idMoorRegion, 'name' => 'Testmoor'],
+    'after' => ['herkunft' => 'garetien', 'anlass' => 'ergaenzung', 'felder' => ['quelle'],
+        'ziel' => 'region', 'subtyp' => 'suempfe_moore', 'kind' => 'vegetation',
+        'abschnitt' => ['public_id' => $idMoorRegion, 'name' => 'Testmoor', 'punkte' => 1, 'geometrie' => []],
+        'quelle' => ['url' => 'https://www.garetien.de/index.php?title=Garetien:Testmoor',
+            'label' => 'Briefspiel (Garetien)', 'source_type' => 'briefspiel',
+            'origin' => 'garetien', 'license' => 'cc-by-nc-sa-3.0', 'attribution' => 'VolkoV / garetien.de']],
+    'override' => [], 'selected' => 1,
+]);
+$schrittMoor = avesmapsGaretienApplyStep($pdo3, $runId9, 1, ['id' => 1, 'username' => 'test']);
+assert($schrittMoor['applied'] === 1, 'die Moor-Quelle wurde nicht uebernommen: ' . json_encode($schrittMoor));
+$pruefungen++;
+
+$moorQuelleRichtig = $pdo3->query("SELECT * FROM feature_sources WHERE entity_type = 'region' AND entity_public_id = "
+    . $pdo3->quote($idMoorLabel))->fetch(PDO::FETCH_ASSOC);
+assert($moorQuelleRichtig !== false, 'die Quelle muss unter der Label-id des Moors stehen, nicht der Regions-id');
+$moorQuelleFalsch = (int) $pdo3->query("SELECT COUNT(*) FROM feature_sources WHERE entity_type = 'region' AND entity_public_id = "
+    . $pdo3->quote($idMoorRegion))->fetchColumn();
+assert($moorQuelleFalsch === 0, 'keine Quelle darf im ID-Raum der Region liegen -- genau das war der Fehler');
+$pruefungen += 2;
+
+// 💣 UND EIN LABELLOSES OBJEKT WIRD LAUT ABGELEHNT, NICHT MIT EINER FALSCHEN ID VERKNUEPFT --
+// dieselbe "lieber laut als falsch"-Regel wie bei der Mehrfach-Flaechen-Ablehnung oben.
+$idWaisenRegion = '00000000-0000-4000-8000-000000007103';
+$pdo3->exec("INSERT INTO ecosystem_region (public_id, name, kind, region_type, is_active)
+             VALUES ('{$idWaisenRegion}', 'Waisenmoor', 'vegetation', 'suempfe_moore', 1)");
+$fehlerLabellos = null;
+try {
+    avesmapsGaretienErgaenzungAnwenden($pdo3, [
+        'ziel' => 'region', 'felder' => ['quelle'],
+        'quelle' => ['url' => 'https://www.garetien.de/index.php?title=Garetien:Waisenmoor', 'label' => 'x'],
+    ], $idWaisenRegion, ['id' => 1]);
+} catch (Throwable $fehler) {
+    $fehlerLabellos = $fehler;
+}
+assert($fehlerLabellos !== null, 'eine Region ohne Label darf keine Quelle bekommen -- lieber laut als falsch verknuepft');
+assert(str_contains($fehlerLabellos->getMessage(), 'kein Label'), 'der Grund nennt das fehlende Label: ' . $fehlerLabellos->getMessage());
 $pruefungen += 2;
 
 // =================================================================================================
