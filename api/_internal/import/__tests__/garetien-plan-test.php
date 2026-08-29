@@ -41,7 +41,7 @@ $pruefungen += 3;
 // Alke deckt sich mit einem Bestandsfluss und bringt seit Aufgabe 3 (der vierte Ausgang) selbst
 // ZWEI Eintraege: eine Quellen-Luecke (ihre Quelle liegt bei uns noch nicht) plus ein
 // Geometrie-Angebot (genau EIN Abschnitt getroffen) -- macht fuenf. "Nachbarprovinzen" ist ein
-// Sammelartikel, die Insel gehoert zu Stufe 3. 🪤 Mit "> 0" ueberlebten drei Mutationen:
+// Sammelartikel, der Kontinent hat kein Gegenstueck. 🪤 Mit "> 0" ueberlebten drei Mutationen:
 // uebersprungene Zeilen doch aufnehmen, deckende ganz verwerfen statt ueber den vierten Ausgang
 // zu fuehren, und den Ueberspringen-Riegel ganz entfernen -- jedes Mal wurden es MEHR Eintraege,
 // und mehr ist immer noch groesser als null.

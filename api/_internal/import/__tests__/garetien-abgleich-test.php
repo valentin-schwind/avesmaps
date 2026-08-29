@@ -81,21 +81,37 @@ assert(avesmapsGaretienTypKategorie('Bach') === '', 'ein importierbarer Typ lief
 assert(avesmapsGaretienTypKategorie('Fluss') === '', 'und ein zweiter, damit es kein Zufall ist');
 $pruefungen += 5;
 
+// --- 🔴 Owner-Meldung 29.08.2026 (Aufgabe 12, Waelder): Insel ist jetzt ZUGEORDNET, nicht mehr
+// uebersprungen -- Entwurf §3.4, `topographie/insel`, die es schon gibt.
+assert(avesmapsGaretienMappeTyp('Insel') !== null, 'Insel ist jetzt zugeordnet (Entwurf §3.4)');
+assert(avesmapsGaretienMappeTyp('Insel') === ['ziel' => 'region', 'subtyp' => 'insel', 'kind' => 'topographie']);
+assert(avesmapsGaretienTypKategorie('Insel') === '', 'Insel liefert jetzt etwas, keine Kategorie mehr');
+$pruefungen += 3;
+
+assert(avesmapsGaretienMappeTyp('Wald') === ['ziel' => 'region', 'subtyp' => 'wald', 'kind' => 'vegetation']);
+assert(avesmapsGaretienMappeTyp('Forst') === ['ziel' => 'region', 'subtyp' => 'wald', 'kind' => 'vegetation']);
+// 🔴 NEUE ART: Urwald != Wald, sonst wuerde die Zustandsaussage (nie gerodet) eingeebnet.
+assert(avesmapsGaretienMappeTyp('Urwald') === ['ziel' => 'region', 'subtyp' => 'urwald', 'kind' => 'vegetation']);
+assert(avesmapsGaretienMappeTyp('Gebirge') === ['ziel' => 'region', 'subtyp' => 'gebirge', 'kind' => 'topographie']);
+assert(avesmapsGaretienMappeTyp('Huegel') === ['ziel' => 'region', 'subtyp' => 'huegelland', 'kind' => 'topographie']);
+assert(avesmapsGaretienMappeTyp('Kueste') === ['ziel' => 'region', 'subtyp' => 'kueste', 'kind' => 'topographie']);
+$pruefungen += 5;
+
 // --- 🔴 UND WAS WIR KENNEN, ABER (NOCH) NICHT ANSCHLIESSEN, WIRD MIT GRUND UEBERSPRUNGEN, nicht
-// stillschweigend. Gemessen: auf der Kosch-Gewaesserseite liegt EINE Insel -- eine spaetere
-// Erweiterung dieses Imports (Entwurf §3.4). Ein Typ, der einfach fehlt, ist von einem Typ, den
-// wir vergessen haben, nicht zu unterscheiden.
-assert(avesmapsGaretienMappeTyp('Insel') === null, 'Insel ist noch nicht angeschlossen');
+// stillschweigend. 'Berg' ist der aktuelle Beispielfall (label/berggipfel, Entwurf §3.4, kommt in
+// einer spaeteren Aufgabe dieses Imports). Ein Typ, der einfach fehlt, ist von einem Typ, den wir
+// vergessen haben, nicht zu unterscheiden.
+assert(avesmapsGaretienMappeTyp('Berg') === null, 'Berg ist noch nicht angeschlossen');
 // 🪤 Owner-Meldung 29.08.2026: „Stufen werden weder erklaert noch will ich, dass sie verhindern,
 // dass ich objekte importieren kann." Die Meldung nennt deshalb weder Zahl noch Stufe -- geprueft
 // wird auf das Wort selbst, nicht auf eine bestimmte Ziffer dahinter.
-assert(avesmapsGaretienTypKategorie('Insel') === 'spaetere_stufe',
-    'Insel ist vorgemerkt -- eine ANDERE Kategorie als "ohne_gegenstueck"');
+assert(avesmapsGaretienTypKategorie('Berg') === 'spaetere_stufe',
+    'Berg ist vorgemerkt -- eine ANDERE Kategorie als "ohne_gegenstueck"');
 assert(avesmapsGaretienTypKategorie('Xyz-Voellig-Unbekannt') === 'unbekannt',
     'weder zugeordnet noch vorgemerkt ist der dritte, eigene Fall');
 $pruefungen += 2;
 assert(!str_contains((string) avesmapsGaretienUeberspringGrund(
-    ['typ' => 'Insel', 'namensraum' => '', 'artikel' => '', 'anzeige' => 'Im Angbarer See']
+    ['typ' => 'Berg', 'namensraum' => '', 'artikel' => '', 'anzeige' => 'Testgipfel']
 ), 'Stufe'), 'der Grund nennt KEINE Stufe mehr (Owner-Befund 29.08.2026)');
 $pruefungen++;
 
@@ -547,7 +563,9 @@ $pruefungen += 2;
 // 💣 Auch hier die Korrektur von oben: die Geo-Werte sind an die VORHANDENE Fixture dieser Datei
 // angepasst ("Der Große Fluss" bei 156000 -600 / 159000 -3600), nicht an "Alke".
 foreach ([
-    ['Insel', '', '', '1 2, 3 4', 'uebersprungen'],                            // uebersprungen (spaetere Stufe)
+    // 🔴 'Kontinent' statt 'Insel': Insel ist seit 29.08.2026 zugeordnet (siehe oben), Kontinent
+    // bleibt in AVESMAPS_GARETIEN_OHNE_GEGENSTUECK und liefert weiterhin verlaesslich 'uebersprungen'.
+    ['Kontinent', '', '', '1 2, 3 4', 'uebersprungen'],                       // uebersprungen (kein Gegenstueck)
     ['Bach', '', '', '', 'neu'],                                              // keine vergleichbare Geometrie
     ['Strom', '', '', '156000 -600, 159000 -3600', 'deckt_sich'],             // Geometrie deckt sich
     ['Strom', '', '', '900000 -400000, 901000 -401000', 'neu'],               // neu

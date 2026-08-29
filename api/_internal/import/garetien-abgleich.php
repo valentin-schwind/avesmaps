@@ -57,11 +57,25 @@ const AVESMAPS_GARETIEN_TYP_MAP = [
     'Weg'           => ['ziel' => 'path', 'subtyp' => 'Weg',           'kind' => null],
     'Pfad'          => ['ziel' => 'path', 'subtyp' => 'Pfad',          'kind' => null],
 
+    // Waelder (Entwurf §3.4) -- FLAECHE plus LABEL, wie die Gewaesserflaechen oben.
+    'Wald'  => ['ziel' => 'region', 'subtyp' => 'wald',   'kind' => 'vegetation'],
+    'Forst' => ['ziel' => 'region', 'subtyp' => 'wald',   'kind' => 'vegetation'],
+    // 🔴 NEUE ART, Owner-Entscheid 2026-08-26: ein Urwald ist NICHT dasselbe wie ein Dschungel --
+    // der Dschungel ist eine Klimaaussage (tropisch), der Urwald eine Aussage ueber den ZUSTAND
+    // (nie gerodet). Begruendung an der Art selbst: AVESMAPS_ECOSYSTEM_REGION_TYPE_SEED
+    // (api/_internal/app/ecosystem.php).
+    'Urwald' => ['ziel' => 'region', 'subtyp' => 'urwald', 'kind' => 'vegetation'],
+
+    // Berge und Gelaendeformen (Entwurf §3.4) -- alle vier Arten gibt es bei uns schon
+    // (`topographie/insel` und `/kueste`/`/huegelland`/`/gebirge`, nachgemessen), keine neue
+    // Art noetig.
+    'Gebirge' => ['ziel' => 'region', 'subtyp' => 'gebirge',    'kind' => 'topographie'],
+    'Huegel'  => ['ziel' => 'region', 'subtyp' => 'huegelland', 'kind' => 'topographie'],
+    'Insel'   => ['ziel' => 'region', 'subtyp' => 'insel',      'kind' => 'topographie'],
+    'Kueste'  => ['ziel' => 'region', 'subtyp' => 'kueste',     'kind' => 'topographie'],
+
     // Spaetere Erweiterungen, aus Entwurf §3.1/§3.4/§3.5 -- hier absichtlich NOCH NICHT
     // eingetragen, damit die Uebernahme sie nicht anfassen kann:
-    //   Wald/Forst -> vegetation/wald · Urwald -> vegetation/urwald (NEUE Art)
-    //   Gebirge -> topographie/gebirge · Huegel -> topographie/huegelland
-    //   Insel -> topographie/insel · Kueste -> topographie/kueste
     //   Berg -> map_features.label mit feature_subtype 'berggipfel' (Punkt, keine Flaeche) --
     //   💣 ein Gipfel ist ein Stuetzpunkt des Hoehenfelds, und ihre Daten tragen keine Hoehe.
     //   Kaiserstadt/Koenigsstadt/Reichsstadt/Stadt/Markt/Dorf/Binge/Burg/… -> map_features.location
@@ -85,9 +99,7 @@ const AVESMAPS_GARETIEN_TYP_MAP = [
  * Filter-Trichter des Fensters liest (garetien-liste.php).
  */
 const AVESMAPS_GARETIEN_SPAETERE_STUFEN = [
-    'Wald', 'Forst', 'Urwald',
-    'Gebirge', 'Huegel', 'Berg',
-    'Insel', 'Kueste',
+    'Berg',
     'Kaiserstadt', 'Koenigsstadt', 'Reichsstadt', 'Stadt',
     'Markt', 'Dorf', 'Binge', 'Burg', 'Pfalz', 'Tempel',
     'Kloster', 'Gutshof', 'Gebaeude', 'Akademie', 'Gasthaus',

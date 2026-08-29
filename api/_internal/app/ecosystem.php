@@ -169,6 +169,12 @@ const AVESMAPS_ECOSYSTEM_REGION_TYPE_SEED = [
     ['topographie', 'insel', 'Insel', 120],
 
     ['vegetation', 'wald', 'Wald', 10],
+    // Owner 2026-08-29 (Garetien-Import, Entwurf §3.4): ein Urwald ist NICHT dasselbe wie ein
+    // Dschungel -- der Dschungel ist eine Klimaaussage (tropisch), der Urwald eine Aussage ueber
+    // den ZUSTAND (nie gerodet). Der Wald des tiefsten Reiches liegt nicht in den Tropen; beide
+    // in eine Art zu legen hiesse, genau diese Unterscheidung einzuebnen.
+    // ⚠️ Startet klein (8 importierte Objekte gemessen) -- wie `inselgruppe` leer startete.
+    ['vegetation', 'urwald', 'Urwald', 15],
     ['vegetation', 'suempfe_moore', 'Sümpfe und Moore', 20],
     ['vegetation', 'steppe', 'Steppe', 30],
     ['vegetation', 'tundra', 'Tundra', 40],

@@ -216,13 +216,16 @@ $spalte = static function (PDO $pdo): array {
     return $werte;
 };
 
-// --- C1. Saat -> Migration: die einundzwanzig bekommen ihren Wert, alles andere bleibt NULL.
+// --- C1. Saat -> Migration: die zweiundzwanzig bekommen ihren Wert, alles andere bleibt NULL.
 $pdo = $frischeAnlage();
 $plan = avesmapsTravelValuesPlanFromDatabase($pdo);
 assert($plan !== null, 'auf einer gesaeten Tabelle findet die Migration ihre Arten');
 $geschrieben = avesmapsTravelValuesWriteLandscapeFactors($pdo, $plan['factors']);
 // 21 seit dem 16.08.2026: die Kulturlandschaft kam als elfte Vegetationsart dazu (Idee #77).
-assert($geschrieben === 21, "einundzwanzig Zeilen geschrieben, bekommen: $geschrieben");
+// 22 seit dem 29.08.2026: „Urwald" kam als zwoelfte Vegetationsart dazu (Garetien-Import, Entwurf
+// §3.4) -- ohne eigenen GA-Wert, sie bekommt hier den rechnerischen Rueckfall (offroad_factor 1,00
+// aus dem Test-Seed oben -> Faktor = Basis).
+assert($geschrieben === 22, "zweiundzwanzig Zeilen geschrieben, bekommen: $geschrieben");
 
 $nachher = $spalte($pdo);
 assert($nah((float) $nachher['suempfe_moore'], 0.100, 0.0005), 'Sumpf 0,100: ' . $nachher['suempfe_moore']);
@@ -507,10 +510,11 @@ $liste = avesmapsTravelValuesReadLandscapes($pdoH);
 $nachSchluessel = [];
 foreach ($liste as $zeile) { $nachSchluessel[$zeile['type_key']] = $zeile; }
 
-// --- H1. Einundzwanzig Arten, jede mit dem, was die Zeile anzeigen soll.
-// 21 seit dem 16.08.2026 (Kulturlandschaft, Idee #77). Die Liste kommt aus der Datenbank, eine neue
-// Art steht also ohne eine Zeile Code im Fenster -- genau deshalb wandert die Zahl hier mit.
-assert(count($liste) === 21, 'einundzwanzig Landschaftsarten im Fenster: ' . count($liste));
+// --- H1. Zweiundzwanzig Arten, jede mit dem, was die Zeile anzeigen soll.
+// 21 seit dem 16.08.2026 (Kulturlandschaft, Idee #77), 22 seit dem 29.08.2026 (Urwald,
+// Garetien-Import, Entwurf §3.4). Die Liste kommt aus der Datenbank, eine neue Art steht also ohne
+// eine Zeile Code im Fenster -- genau deshalb wandert die Zahl hier mit.
+assert(count($liste) === 22, 'zweiundzwanzig Landschaftsarten im Fenster: ' . count($liste));
 foreach (['kind', 'type_key', 'label', 'factor', 'source', 'area_count'] as $feld) {
     assert(array_key_exists($feld, $liste[0]), "jede Zeile traegt `$feld`");
 }

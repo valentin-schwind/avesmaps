@@ -658,15 +658,18 @@ function avesmapsGaretienPlanTestPdo(): PDO
         ['ggp', 'Gewaesser', 3, 'See', 'Garetien', 'Muehlsee', 'Mühlsee', 'koordinaten', '1000 -12000, 1800 -12700, 1200 -13400, 1000 -12000'],
         // uebersprungen: Sammelartikel
         ['ggp', 'Gewaesser', 4, 'Fluss', '', 'Nachbarprovinzen', 'Llavari', 'koordinaten', '1 2, 3 4'],
-        // uebersprungen: spaetere Stufe. 🔴 Review C1: zeile_nr=1 ist ABSICHT, nicht Zufall --
-        // sie kollidiert mit der Alke (Zeile darueber, ebenfalls zeile_nr=1) ueber ein ANDERES
+        // uebersprungen: Typ ohne Gegenstueck. 🔴 Review C1: zeile_nr=1 ist ABSICHT, nicht Zufall
+        // -- sie kollidiert mit der Alke (Zeile darueber, ebenfalls zeile_nr=1) ueber ein ANDERES
         // wiki. Genau das tut die Produktion: avesmapsGaretienStageSeite() startet zeile_nr fuer
         // JEDE Seite neu bei 1, und ein Lauf traegt mehrere Seiten -- am echten Zwei-Seiten-
         // Bestand gemessen sind 43 von 289 Zeilennummern doppelt vergeben. Ohne wiki+ebene im
         // Schluessel von avesmapsGaretienSchreibeUrteil traf ein UPDATE fuer die Alke auch diese
         // Zeile mit (und umgekehrt) -- garetien-staging-test.php sichert beide Seiten der
         // Kollision einzeln zu.
-        ['kosch', 'Gewaesser', 1, 'Insel', '', '', 'Im Angbarer See', 'koordinaten', '-193386 52741, -194553 52157, -193386 52741'],
+        // 🔴 'Kontinent' statt 'Insel' seit 29.08.2026 (Aufgabe 12): Insel ist jetzt zugeordnet
+        // (Entwurf §3.4, `topographie/insel`), Kontinent bleibt in
+        // AVESMAPS_GARETIEN_OHNE_GEGENSTUECK und liefert weiterhin verlaesslich 'uebersprungen'.
+        ['kosch', 'Gewaesser', 1, 'Kontinent', '', '', 'Aventurien', 'koordinaten', '-193386 52741, -194553 52157, -193386 52741'],
         // 🔴 Ein ZUFLUSS: liegt auf der Alke, ist aber nur ein Bruchteil ihrer Ausdehnung.
         // Er ist ein eigenes neues Objekt und darf die Alke nicht anfassen.
         ['ggp', 'Gewaesser', 6, 'Bach', 'Garetien', 'Seitenarm der Alke', 'Seitenarm der Alke', 'koordinaten',

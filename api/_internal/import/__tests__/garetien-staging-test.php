@@ -191,10 +191,13 @@ $pruefungen++;
 // 💣 REVIEW C1 (Critical): `zeile_nr` beginnt je SEITE neu bei 1 (avesmapsGaretienStageSeite),
 // und ein Lauf traegt mehrere Seiten -- also NIE per zeile_nr allein nachschlagen, sondern immer
 // ueber (wiki, ebene, zeile_nr). Die Fixture bildet genau diese Kollision ab: die Alke
-// (ggp/Gewaesser/1) und die Insel (kosch/Gewaesser/1) TEILEN sich die Nummer 1. Ein zeile_nr-
+// (ggp/Gewaesser/1) und der Kontinent (kosch/Gewaesser/1) TEILEN sich die Nummer 1. Ein zeile_nr-
 // keyed Dictionary wie zuvor wuerde diese Kollision lautlos verschlucken (der zweite Treffer
 // ueberschreibt den ersten) -- genau die Blindheit, die Review C1 dem alten Test vorgehalten hat.
 // Nachgeschlagen wird deshalb ab hier explizit ueber wiki+ebene+zeile_nr.
+// 🔴 Die Fixture-Zeile hiess bis zum 29.08.2026 'Insel' -- seither ist Insel zugeordnet (Entwurf
+// §3.4) und daher hier durch 'Kontinent' ersetzt (garetien-plan.php), das weiterhin
+// verlaesslich uebersprungen wird (AVESMAPS_GARETIEN_OHNE_GEGENSTUECK).
 $pdo = avesmapsGaretienPlanTestPdo();
 avesmapsGaretienBaueSyncPlan($pdo, 1, 1);
 
@@ -211,7 +214,7 @@ $zeileSuchen = static function (PDO $pdo, string $wiki, string $ebene, int $zeil
 $alke = $zeileSuchen($pdo, 'ggp', 'Gewaesser', 1);
 $gardel = $zeileSuchen($pdo, 'ggp', 'Gewaesser', 2);
 $llavari = $zeileSuchen($pdo, 'ggp', 'Gewaesser', 4);
-$insel = $zeileSuchen($pdo, 'kosch', 'Gewaesser', 1);
+$kontinent = $zeileSuchen($pdo, 'kosch', 'Gewaesser', 1);
 
 assert($alke['urteil'] === 'deckt_sich', 'die Alke deckt sich und muss es auch nachher sagen');
 assert($alke['grund'] !== '', 'ein Urteil ohne Grund ist eine Zahl, die niemand pruefen kann');
@@ -220,16 +223,16 @@ assert($llavari['urteil'] === 'uebersprungen', 'der Sammelartikel ist uebersprun
 assert(str_contains($llavari['grund'], 'Sammelartikel'), 'der Grund des Ueberspringens fehlt');
 $pruefungen += 5;
 
-// --- 🔴 DIE EIGENTLICHE ZUSICHERUNG VON REVIEW C1: die Insel teilt sich (wiki, zeile_nr) NICHT
-// mit der Alke -- sie unterscheiden sich nur ueber `wiki`. Ohne wiki+ebene im WHERE von
+// --- 🔴 DIE EIGENTLICHE ZUSICHERUNG VON REVIEW C1: der Kontinent teilt sich (wiki, zeile_nr)
+// NICHT mit der Alke -- sie unterscheiden sich nur ueber `wiki`. Ohne wiki+ebene im WHERE von
 // avesmapsGaretienSchreibeUrteil haette EINES der beiden UPDATEs die Zeile des jeweils ANDEREN
 // mitgetroffen (wer zuletzt gerechnet wird, gewinnt) -- ein Editor haette den Grund einer
 // FREMDEN Zeile vorgelegt bekommen. Beide Seiten der Kollision werden hier einzeln belegt.
-assert($insel['urteil'] === 'uebersprungen', 'die Insel ist noch nicht angeschlossen und darf NICHT das Urteil der Alke tragen');
+assert($kontinent['urteil'] === 'uebersprungen', 'der Kontinent hat kein Gegenstueck und darf NICHT das Urteil der Alke tragen');
 // 🔴 Owner-Meldung 29.08.2026: der Grund nennt keine Stufe mehr -- geprueft wird auf ihren
 // eigenen Typnamen, nicht auf ein Wort, das die alte Formulierung zufaellig auch enthielt.
-assert(str_contains($insel['grund'], 'Insel'), 'der Grund der Insel muss ihr EIGENER sein, nicht der Alke-Grund: ' . $insel['grund']);
-assert($insel['grund'] !== $alke['grund'], 'zwei Zeilen mit derselben Nummer duerfen sich nicht denselben Grund teilen');
+assert(str_contains($kontinent['grund'], 'Kontinent'), 'der Grund des Kontinents muss ihr EIGENER sein, nicht der Alke-Grund: ' . $kontinent['grund']);
+assert($kontinent['grund'] !== $alke['grund'], 'zwei Zeilen mit derselben Nummer duerfen sich nicht denselben Grund teilen');
 $pruefungen += 3;
 
 // 🔴 Der Plan-Lauf schreibt in KEINE Nutztabelle -- nur in sein EIGENES Staging.
