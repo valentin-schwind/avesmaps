@@ -466,27 +466,17 @@ function wikiListHint() {
 	}
 	return "Ausdrücklich gesetzt, nie geraten. Der Abgleich folgt der Zuweisung, auch wenn die Linie anders heißt.";
 }
-// Der Entwurfsstand der Kurven, bis „Speichern" gedrueckt wird.
-// 🔴 curveDraft haelt NUR die einzeln angefassten Segmente (public_id -> Zahl), und
-// curveLineTouched sagt, ob der LINIEN-Schieber angefasst wurde. Beides zusammen ist die Regel
-// „geschrieben wird nur, was jemand angefasst hat" (Entwurf 13.1, Muster der Weg-Ebene):
-// 💣 der Server liest die Abwesenheit von `curve` seit dem 29.08.2026 als „nicht geaendert" --
-// ginge der Linienwert immer mit, setzte jedes Speichern alle Segmente wieder gleich und machte
-// jede gewollte Ausnahme lautlos platt.
+// Der Entwurfsstand der Kurven, bis „Speichern" gedrueckt wird: public_id -> Zahl, und darin
+// stehen NUR die angefassten Segmente.
+// 🔴 EINEN LINIEN-SCHIEBER GIBT ES NICHT MEHR (Owner 29.08.2026: „die kurvenform bei
+// ‚eigenschaften' brauchen wir nicht mehr, wenn die segmente einzeln eingestellt werden koennen").
+// Die Kurve ist damit ausschliesslich eine Eigenschaft des einzelnen Segments.
+// ⚠️ Der Preis ist benannt und in Kauf genommen: eine Linie mit vielen Segmenten (Basiliuslinie:
+// 16) wird Kante fuer Kante eingestellt, es gibt keinen Griff mehr fuer alle auf einmal.
+// 💣 Die Regel „geschrieben wird nur, was jemand angefasst hat" bleibt und ist jetzt das EINZIGE,
+// was zaehlt: der Server liest die Abwesenheit als „nicht geaendert" (avesmapsApplyPowerlineCurve).
+// Ohne sie machte ein Speichern der Beschreibung jede Kurve platt.
 let curveDraft = {};
-let curveLineTouched = false;
-
-// Was am LINIEN-Schieber steht: der gemeinsame Wert, oder „gemischt".
-// ⚠️ Gerechnet wird ueber die Segmente inklusive der Entwuerfe -- wer eine Kante verstellt, sieht
-// oben sofort „gemischt", nicht erst nach dem Speichern.
-function curveOfLine(line) {
-	// ⚠️ Ueber DIESELBE Rangfolge wie die Einzelanzeige (curveOfSegment) -- zwei Rechnungen fuer
-	// denselben Wert liefen beim ersten Zug auseinander.
-	const werte = line.segments.map(curveOfSegment);
-	if (werte.length === 0) { return { einheitlich: true, wert: 0 }; }
-	const erster = werte[0];
-	return { einheitlich: werte.every((w) => w === erster), wert: erster };
-}
 
 // Der aktuelle Wert EINES Segments.
 // 🔴 DIESE RANGFOLGE SPIEGELT DEN SERVER (avesmapsApplyPowerlineCurve): einzeln angefasst schlaegt
@@ -498,13 +488,7 @@ function curveOfLine(line) {
 // angezeigt war es falsch.
 function curveOfSegment(seg) {
 	const entwurf = curveDraft[seg.public_id];
-	if (entwurf !== undefined) {
-		return Number(entwurf) || 0;
-	}
-	if (curveLineTouched) {
-		return Number($("plCurve") && $("plCurve").value) || 0;
-	}
-	return Number(seg.curve) || 0;
+	return Number(entwurf !== undefined ? entwurf : seg.curve) || 0;
 }
 
 // Das Segment zwischen zwei benachbarten Nodices einer Kette -- die Richtung ist dabei egal.
@@ -537,11 +521,6 @@ function renderDetail() {
 	const line = lineByName(selectedName);
 	if (!line) { host.innerHTML = '<div class="dt-empty">Links eine Kraftlinie wählen.</div>'; return; }
 	const showLabel = line.segments.some((s) => s.show_label);
-	// 💣 Nicht fieldSample: eine Linie kann seit dem 29.08.2026 UNEINIGE Segmente haben, und
-	// fieldSample nimmt den erstbesten Wert -- der Linien-Schieber behauptete dann einen Wert, den
-	// nur ein Teil der Segmente traegt, und ein Speichern machte die Ausnahmen platt.
-	const linienKurve = curveOfLine(line);
-	const curve = linienKurve.wert;
 	const description = fieldSample(line, "description");
 	const wikiUrl = fieldSample(line, "wiki_url");
 	const wiki = line.segments.map((s) => s.wiki_powerline).find((w) => w && typeof w === "object") || {};
@@ -564,20 +543,16 @@ function renderDetail() {
 			+ '<div class="pl-hint">Schreibt auf <b>alle ' + line.segments.length + ' Segmente</b>. Exakt gleicher Name wie eine andere Linie ⇒ <b>beide verschmelzen</b>.</div>'
 		+ "</div></div>"
 		+ '<div class="dt-check"><input type="checkbox" id="plShowLabel"' + (showLabel ? " checked" : "") + "><span>Name auf der Karte anzeigen</span></div>"
-		// Die Kurvenform -- ein Wert je Linie, geschrieben auf alle Segmente wie das Haekchen darueber.
+		// 🔴 HIER STAND EIN SCHIEBER FUER DIE GANZE LINIE -- er ist am 29.08.2026 gefallen, sobald die
+		// Segmente einzeln einstellbar waren (Owner: „brauchen wir nicht mehr"). Was bleibt, ist der
+		// Weg auf die Karte: dort sieht man, welches Stueck am Berg vorbei soll, und stellt genau
+		// dieses ein. Die Zahlen selbst stehen rechts an jeder Kante.
 		// 🔴 KEIN eigener dt-grp-Abschnitt: die Abschnittsfolge dieses Fensters ist eine feste
-		// Owner-Liste (16.08.2026), gewacht von editor-abschnittsreihenfolge.test.js. Das hier ist
-		// eine Darstellungsentscheidung wie „Name auf der Karte anzeigen", kein eigener Bereich.
+		// Owner-Liste (16.08.2026), gewacht von editor-abschnittsreihenfolge.test.js.
 		+ '<div class="dt-grid"><div class="k">Kurvenform</div><div>'
-			+ '<div class="pl-curve">'
-				+ '<input type="range" id="plCurve" min="-45" max="45" step="1" value="' + curve + '">'
-				+ '<span class="pl-curve__val" id="plCurveVal">'
-					+ (linienKurve.einheitlich ? esc(curveText(curve)) : "gemischt") + "</span>"
-			+ "</div>"
 			+ '<button type="button" class="btn2" id="plCurveOnMap">Kurve auf der Karte einstellen</button>'
-			+ '<div class="pl-hint">Prozent der Sehne. <b>0</b> ist gerade, das Vorzeichen ist die Seite. '
-				+ "Setzt <b>alle " + line.segments.length + " Segmente</b> auf einen Wert; einzeln geht es "
-				+ "rechts an jeder Kante.</div>"
+			+ '<div class="pl-hint">Prozent der Sehne, <b>je Segment</b> — die Regler stehen rechts an '
+				+ "jeder Kante. <b>0</b> ist gerade, das Vorzeichen ist die Seite.</div>"
 		+ "</div></div>"
 		// ---- Eigenschaften ----------------------------------------------------------------------
 		// 🔴 DER KOPF HEISST WEITER „Beschreibung", NICHT „Eigenschaften" (Owner-Entscheid 16.08.2026
@@ -627,21 +602,20 @@ function renderDetail() {
 			+ '<button id="plDelete">Linie löschen</button>'
 			+ '<button class="is-primary" id="plSave">Speichern</button>'
 		+ "</div>";
-	$("plCurve").addEventListener("input", () => {
-		// 🔴 Der Linien-Schieber SETZT ALLE -- also verfallen die einzeln angefassten Segmente.
-		// Sie stehenzulassen hiesse, dass der Benutzer oben zieht und unten nichts passiert.
-		curveLineTouched = true;
-		curveDraft = {};
-		$("plCurveVal").textContent = curveText($("plCurve").value);
-		renderNodes();
-	});
 	$("plCurveOnMap").addEventListener("click", () => {
 		const line = lineByName(selectedName);
 		// 🔴 Kein stiller Leerlauf: ohne das Hauptfenster (Editor direkt aufgerufen, Skript nicht
 		// geladen, Deploy-Fehlschlag) muss der Knopf SAGEN, dass er nichts tut -- ein toter Knopf
 		// sieht aus wie ein kaputter, und davon hat dieses Fenster schon einen (plMapFilter).
 		const start = window.parent && window.parent.avesmapsPowerlineCurveEditStart;
-		if (!line || typeof start !== "function" || !start(line.name, Number($("plCurve").value) || 0)) {
+		// Der Kartenregler bekommt die SEGMENTE mit ihrem aktuellen Entwurfsstand -- dort wird eines
+		// angeklickt und einzeln gebogen, wie hier an der Kante.
+		const segmente = line ? line.segments.map((seg) => ({
+			public_id: seg.public_id,
+			curve: curveOfSegment(seg),
+			label: nodeName(seg.from_public_id) + " — " + nodeName(seg.to_public_id),
+		})) : [];
+		if (!line || typeof start !== "function" || !start(line.name, segmente)) {
 			setSaveMsg("Auf der Karte einstellen geht nur aus der Karte heraus.", "bad");
 		}
 	});
@@ -758,18 +732,6 @@ function mountWikiAssign(line) {
 		syncUebernehmen: () => {},
 	});
 }
-// Die Anzeige am LINIEN-Schieber neu setzen, ohne das ganze Formular zu bauen (das risse die
-// Wiki-Zuweisung und den Quellen-Editor mit ab).
-function renderLineCurveValue() {
-	const line = lineByName(selectedName);
-	const feld = $("plCurve");
-	const anzeige = $("plCurveVal");
-	if (!line || !feld || !anzeige) { return; }
-	const stand = curveOfLine(line);
-	feld.value = String(stand.wert);
-	anzeige.textContent = stand.einheitlich ? curveText(stand.wert) : "gemischt";
-}
-
 function setSaveMsg(text, cls) {
 	const el = $("plSaveMsg"); if (!el) { return; }
 	// ⚠️ `avm-savebar__msg`, nicht mehr `dt-msg`: die Meldung sitzt seit 16.08.2026 IN der
@@ -816,15 +778,14 @@ async function saveLine() {
 		rumpf.wiki_no_article = zuweisung.kein_artikel === true;
 	}
 	// 🔴 DIE KURVE REIST NUR MIT, WENN JEMAND SIE ANGEFASST HAT (Entwurf Abschnitt 13.1). Der Server
-	// liest die Abwesenheit von `curve` als „nicht geaendert" (avesmapsApplyPowerlineCurve); ginge
-	// der Linienwert bedingungslos mit, setzte JEDES Speichern alle Segmente wieder gleich und
-	// machte jede einzeln eingestellte Kante lautlos platt -- auch bei einer reinen
-	// Beschreibungsaenderung.
+	// liest die Abwesenheit als „nicht geaendert" (avesmapsApplyPowerlineCurve); ginge sie
+	// bedingungslos mit, machte JEDES Speichern -- auch eine reine Beschreibungsaenderung -- die
+	// eingestellten Kurven platt.
 	// 💣 Die andere Haelfte steht im Server (array_key_exists statt `?? 0`). Die zwei gehoeren
 	// zusammen und duerfen nicht einzeln zurueckgedreht werden.
-	if (curveLineTouched) {
-		rumpf.curve = Number($("plCurve").value) || 0;
-	}
+	// ⚠️ `curve` (der Griff fuer ALLE) wird von diesem Editor seit dem 29.08.2026 nicht mehr
+	// geschickt -- den Schieber dafuer gibt es nicht mehr. Der Server kann es weiterhin, weil die
+	// Vererbung an neue Segmente denselben Weg nimmt.
 	if (Object.keys(curveDraft).length > 0) {
 		rumpf.curves = curveDraft;
 	}
@@ -835,7 +796,6 @@ async function saveLine() {
 		// ⚠️ Erst NACH dem erfolgreichen Schreiben leeren: bei einem Fehlschlag bleibt der Entwurf
 		// stehen, damit ein zweiter Versuch nicht bei null anfaengt.
 		curveDraft = {};
-		curveLineTouched = false;
 		await reload(newName);
 		setSaveMsg(merged ? "Gespeichert – mit „" + newName + "“ verschmolzen." : "Gespeichert – auf alle Segmente geschrieben.", "ok");
 	} catch (e) {
@@ -942,10 +902,6 @@ function wireNodeActions(line) {
 			curveDraft[pid] = Number(schieber.value) || 0;
 			const anzeige = schieber.parentNode.querySelector(".pl-curve-seg__val");
 			if (anzeige) { anzeige.textContent = curveText(curveDraft[pid]); }
-			// 💣 Der Linien-Schieber muss mitgehen: sobald ein Segment ausschert, steht oben
-			// „gemischt". Ohne das behauptet er weiter einen Wert, den nur ein Teil der Segmente
-			// traegt -- und der naechste Griff daran macht die Ausnahme platt.
-			renderLineCurveValue();
 		});
 	});
 	$("plNodes").querySelectorAll("[data-move-up]").forEach((b) => b.addEventListener("click", () => moveNode(parseInt(b.getAttribute("data-move-up"), 10), -1)));
@@ -1173,19 +1129,17 @@ function boot() {
 		if (event.origin !== location.origin) { return; }
 		// Das Ergebnis des Kurven-Reglers auf der Karte. ⚠️ Nur ins Formular, NICHT speichern -- das
 		// bleibt beim Knopf „Speichern", wie bei jedem anderen Feld dieses Fensters.
-		const kurve = event.data && event.data.avesmapsPowerlineCurveResult;
-		if (typeof kurve === "number" && $("plCurve")) {
-			$("plCurve").value = String(kurve);
-			// 💣 UND curveLineTouched MUSS mit. Seit die Kurve je Segment einstellbar ist, reist der
-			// Linienwert nur noch mit, wenn jemand ihn angefasst hat -- ein Zug auf der KARTE ist so
-			// ein Anfassen. Ohne diese Zeile stellt man die Kurve auf der Karte ein, drueckt
-			// „Speichern", und der Server bekommt nichts: von „hat nicht funktioniert" nicht zu
-			// unterscheiden. Genau die Falle, gegen die array_key_exists im Server steht.
-			curveLineTouched = true;
-			// Der Kartenregler setzt die GANZE Linie -- also verfallen die einzeln angefassten
-			// Segmente, wie beim Linien-Schieber daneben.
-			curveDraft = {};
-			$("plCurveVal").textContent = curveText(kurve);
+		// Was auf der Karte eingestellt wurde: eine Karte public_id -> Wert.
+		// 💣 Die Werte wandern in denselben ENTWURF wie die Kantenregler -- damit gilt fuer sie
+		// dieselbe Regel „nur Angefasstes reist mit", und ein Zug auf der Karte ist so ein
+		// Anfassen. Ohne das stellte man die Kurve auf der Karte ein, drueckte „Speichern", und der
+		// Server bekaeme nichts: von „hat nicht funktioniert" nicht zu unterscheiden.
+		const kurven = event.data && event.data.avesmapsPowerlineCurveResult;
+		if (kurven && typeof kurven === "object") {
+			Object.keys(kurven).forEach((pid) => {
+				const wert = Number(kurven[pid]);
+				if (Number.isFinite(wert)) { curveDraft[pid] = wert; }
+			});
 			renderNodes();
 			return;
 		}

@@ -52,67 +52,89 @@ global.window = { addEventListener() {}, removeEventListener() {} };
 const abs = path.join(__dirname, "..", "kraftlinie-kurve-regler.js");
 vm.runInThisContext(fs.readFileSync(abs, "utf8"), { filename: abs });
 
-// ---- 1. Er zeigt den uebergebenen Wert ------------------------------------------------------
+// ---- 1. Er zeigt das erste Stueck und dessen Wert ------------------------------------------
+const SEG = [
+	{ public_id: "s1", curve: 26, label: "Kreuzung-4 — Nadoret" },
+	{ public_id: "s2", curve: -30, label: "Kreuzung-4 — Mendena" },
+	{ public_id: "s3", curve: 0, label: "Kreuzung-4 — Riva" },
+];
 const gesehen = [];
-let fertigWert = null;
+const gewaehlt = [];
+let fertigWerte = null;
 const regler = avesmapsKurveReglerZeigen({
-	name: "Torweg",
-	curve: 26,
-	aufAenderung: (w) => gesehen.push(w),
-	aufFertig: (w) => { fertigWert = w; },
+	name: "Fächer der Macht",
+	segmente: SEG,
+	aufAenderung: (pid, w) => gesehen.push([pid, w]),
+	aufWahl: (pid) => gewaehlt.push(pid),
+	aufFertig: (w) => { fertigWerte = w; },
 });
 const eingabe = document.getElementById("avm-kurve-regler-eingabe");
 assert.ok(eingabe, "der Regler hat kein Eingabeelement gebaut");
 assert.strictEqual(eingabe.type, "range");
-assert.strictEqual(String(eingabe.value), "26", "der uebergebene Wert steht nicht im Schieber");
+assert.strictEqual(String(eingabe.value), "26", "der Wert des ERSTEN Stuecks steht nicht im Schieber");
 assert.strictEqual(eingabe.getAttribute("min"), "-45");
 assert.strictEqual(eingabe.getAttribute("max"), "45");
 
-// ---- 2. Der Name der Linie steht dran -------------------------------------------------------
-// ⚠️ Ohne ihn weiss der Owner bei 62 Linien nicht, welche er gerade biegt.
+// ---- 2. Linie UND Stueck stehen dran --------------------------------------------------------
+// ⚠️ Ohne den Namen des STUECKS weiss man bei vier gleich aussehenden Kanten nicht, welche man biegt.
 const alleTexte = sucheAlle(body, "DIV").map((e) => e.textContent).join(" | ");
-assert.ok(alleTexte.includes("Torweg"), "der Regler nennt die Linie nicht");
+assert.ok(alleTexte.includes("Fächer der Macht"), "der Regler nennt die Linie nicht");
+assert.ok(alleTexte.includes("Nadoret"), "der Regler nennt das gewaehlte Stueck nicht");
 
-// ---- 3. Jeder Zug meldet sich ---------------------------------------------------------------
+// ---- 3. Jeder Zug meldet sich MIT der Kennung des Stuecks -----------------------------------
 eingabe.value = "-12";
 eingabe.feuere("input", {});
-assert.deepStrictEqual(gesehen, [-12], "aufAenderung feuert nicht oder liefert keine ZAHL");
-eingabe.value = "40";
-eingabe.feuere("input", {});
-assert.deepStrictEqual(gesehen, [-12, 40]);
-// 💣 Eine ZAHL, keine Zeichenkette: der Empfaenger rechnet damit, und "40" + 1 waere "401".
-gesehen.forEach((w) => assert.strictEqual(typeof w, "number", "aufAenderung liefert keine Zahl"));
+assert.deepStrictEqual(gesehen, [["s1", -12]], "aufAenderung meldet nicht (public_id, Zahl)");
+assert.strictEqual(typeof gesehen[0][1], "number", "aufAenderung liefert keine Zahl");
 
 // ---- 4. Die Anzeige wandert mit --------------------------------------------------------------
 const wertFeld = sucheAlle(body, ".avm-kurve-regler__wert")[0];
-assert.ok(wertFeld, "es gibt keine Wertanzeige");
-assert.strictEqual(wertFeld.textContent, "+40 %", "die Anzeige folgt dem Zug nicht (Vorzeichen/Einheit)");
+assert.strictEqual(wertFeld.textContent, "-12 %", "die Anzeige folgt dem Zug nicht");
 
-// ---- 5. „Fertig" meldet EINMAL und raeumt auf ------------------------------------------------
+// ---- 5. Ein anderes Stueck waehlen -----------------------------------------------------------
+// 💣 Der Schieber muss auf DESSEN Wert springen. Bliebe er stehen, verstellte der naechste Zug das
+// neue Stueck auf den Wert des alten -- und niemand haette das angeordnet.
+const stuecke = sucheAlle(body, ".avm-kurve-regler__stueck");
+assert.strictEqual(stuecke.length, 3, "es gibt keine Wahl zwischen den Stuecken");
+stuecke[1].feuere("click", {});
+assert.deepStrictEqual(gewaehlt, ["s2"], "die Wahl wird nicht gemeldet");
+assert.strictEqual(String(document.getElementById("avm-kurve-regler-eingabe").value), "-30",
+	"der Schieber springt nicht auf den Wert des neu gewaehlten Stuecks");
+assert.ok(sucheAlle(body, "DIV").map((e) => e.textContent).join(" | ").includes("Mendena"),
+	"der Kopf nennt weiter das alte Stueck");
+
+// ---- 6. Der Zug am ERSTEN Stueck ist nicht verloren -----------------------------------------
+// 💣 Der Regler haelt die Werte selbst; wer zwischen Stuecken hin und her wechselt, darf nichts
+// verlieren. Ohne das waere die Wahl eine Falle statt einer Hilfe.
+stuecke[0].feuere("click", {});
+assert.strictEqual(String(document.getElementById("avm-kurve-regler-eingabe").value), "-12",
+	"der zuvor eingestellte Wert des ersten Stuecks ist verloren");
+
+// ---- 7. „Fertig" meldet ALLE Werte auf einmal und raeumt auf ---------------------------------
 const fertig = document.getElementById("avm-kurve-regler-fertig");
 assert.ok(fertig, "es gibt keinen Fertig-Knopf");
 fertig.feuere("click", {});
-assert.strictEqual(fertigWert, 40, "aufFertig bekommt nicht den zuletzt eingestellten Wert");
+assert.deepStrictEqual(fertigWerte, { s1: -12, s2: -30, s3: 0 },
+	"aufFertig meldet nicht den Stand ALLER Stuecke");
 assert.strictEqual(document.getElementById("avm-kurve-regler-eingabe"), null,
 	"der Regler raeumt sich beim Fertig nicht ab");
-// Ein zweiter Klick auf denselben (schon entfernten) Knopf darf NICHT ein zweites Mal melden.
-fertigWert = null;
+// Ein zweiter Klick darf NICHT ein zweites Mal melden.
+fertigWerte = null;
 fertig.feuere("click", {});
-assert.strictEqual(fertigWert, null, "aufFertig feuert ein zweites Mal -- der Editor kaeme doppelt zurueck");
+assert.strictEqual(fertigWerte, null, "aufFertig feuert ein zweites Mal -- der Editor kaeme doppelt zurueck");
 
-// ---- 6. zerstoeren() ist mehrfach gefahrlos --------------------------------------------------
-// 💣 Sonst wirft ein zweiter Aufruf (Fertig + Escape kurz hintereinander) und laesst den Editor
-// weggeblendet zurueck -- der Owner saehe eine leere Karte und haette keinen Weg zurueck.
+// ---- 8. zerstoeren() ist mehrfach gefahrlos --------------------------------------------------
 regler.zerstoeren();
 regler.zerstoeren();
 
-// ---- 7. Ein zweiter Aufruf ersetzt den ersten, statt zwei Regler zu stapeln -----------------
-// 💣 Die Doppelanmeldung, die das Sammelmenue im Menueband schon einmal gekostet hat: zwei Regler
-// uebereinander, der obere sichtbar, der untere schreibt weiter mit.
+// ---- 9. Ein zweiter Aufruf ersetzt den ersten, statt zwei Regler zu stapeln -----------------
+// 💣 Die Doppelanmeldung, die das Sammelmenue im Menueband schon einmal gekostet hat.
 const a = [];
 const b = [];
-avesmapsKurveReglerZeigen({ name: "A", curve: 0, aufAenderung: (w) => a.push(w), aufFertig() {} });
-avesmapsKurveReglerZeigen({ name: "B", curve: 0, aufAenderung: (w) => b.push(w), aufFertig() {} });
+avesmapsKurveReglerZeigen({ name: "A", segmente: [{ public_id: "a1", curve: 0, label: "A" }],
+	aufAenderung: (p, w) => a.push(w), aufFertig() {} });
+avesmapsKurveReglerZeigen({ name: "B", segmente: [{ public_id: "b1", curve: 0, label: "B" }],
+	aufAenderung: (p, w) => b.push(w), aufFertig() {} });
 assert.strictEqual(document.querySelectorAll("#avm-kurve-regler-eingabe").length, 1,
 	"ein zweiter Aufruf hat einen ZWEITEN Regler gestapelt");
 const zweite = document.getElementById("avm-kurve-regler-eingabe");
@@ -121,14 +143,19 @@ zweite.feuere("input", {});
 assert.deepStrictEqual(b, [7], "der zweite Regler meldet nicht");
 assert.deepStrictEqual(a, [], "der ERSTE Regler schreibt noch mit -- er wurde nicht abgeraeumt");
 
-// ---- 8. Unbrauchbare Werte fallen offen aus --------------------------------------------------
-avesmapsKurveReglerZeigen({ name: "C", curve: undefined, aufAenderung() {}, aufFertig() {} });
-assert.strictEqual(document.getElementById("avm-kurve-regler-eingabe").value, "0",
-	"ohne Wert muss der Regler auf 0 stehen, nicht auf NaN");
-// Und ohne Rueckrufe darf er nicht werfen (ein Aufrufer, der nur zeigen will).
-const stumm = avesmapsKurveReglerZeigen({ name: "D", curve: 10 });
-document.getElementById("avm-kurve-regler-eingabe").feuere("input", {});
-document.getElementById("avm-kurve-regler-fertig").feuere("click", {});
-stumm.zerstoeren();
+// ---- 10. Ein EINZIGES Stueck bekommt keine Wahlliste ----------------------------------------
+// ⚠️ Ein Waehler fuer eine einzige Moeglichkeit ist ein Klick fuer nichts -- und die meisten
+// Kraftlinien sind einsegmentig.
+assert.strictEqual(sucheAlle(body, ".avm-kurve-regler__stueck").length, 0,
+	"bei einem einzigen Stueck steht trotzdem eine Wahlliste da");
 
-console.log("OK: Kurven-Regler -- Wert, Meldung je Zug, Anzeige, Fertig, Zerstoeren, kein Stapeln.");
+// ---- 11. Ohne Stuecke faellt er offen aus ---------------------------------------------------
+// 🔴 Kein Wurf: eine Linie ohne lesbare Segmente ist ein Datenproblem, kein Grund, die Karte
+// stehenzulassen -- der Schieber ist dann schlicht gesperrt.
+const leer = avesmapsKurveReglerZeigen({ name: "Leer", segmente: [], aufFertig() {} });
+assert.strictEqual(document.getElementById("avm-kurve-regler-eingabe").disabled, true,
+	"ohne Stuecke muss der Schieber gesperrt sein");
+document.getElementById("avm-kurve-regler-eingabe").feuere("input", {});
+leer.zerstoeren();
+
+console.log("OK: Kurven-Regler -- Stueckwahl, Wert je Stueck, Fertig meldet alle, kein Stapeln.");

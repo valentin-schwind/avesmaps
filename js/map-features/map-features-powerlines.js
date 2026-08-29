@@ -7,20 +7,26 @@ function getPowerlineLatLngs(powerline) {
 	return powerline.geometry.coordinates.map(([x, y]) => L.latLng(y, x));
 }
 
-// Der FLUECHTIGE Vorschauwert des Kurven-Reglers: solange der Owner am Schieber zieht, schlaegt er
+// Der FLUECHTIGE Vorschaustand des Kurven-Reglers: solange am Schieber gezogen wird, schlaegt er
 // den gespeicherten Wert -- ohne dass irgendetwas geschrieben waere.
 // 🔴 Laufzeit und sonst nichts: kein localStorage, kein URL-Parameter, kein Serverzustand. Wer den
 // Regler abbricht, hat nichts veraendert.
-const avesmapsPowerlineCurveVorschau = { name: null, curve: 0 };
+// 🔴 JE SEGMENT, nicht je Linie (29.08.2026): `werte` ist eine Karte public_id -> Zahl. Hier stand
+// vorher ein einzelner Wert am Linien-NAMEN -- das ging nicht mehr, sobald die vier Kanten des
+// „Faechers der Macht" verschiedene Kurven tragen sollten.
+// `aktiv` haelt das gerade gewaehlte Stueck, damit die Karte es hervorheben kann.
+const avesmapsPowerlineCurveVorschau = { werte: null, aktiv: null };
 
 // Die Kurvenform dieser Linie, geklemmt. Entwurf:
 // docs/superpowers/specs/2026-08-29-kraftlinien-kurvenform-design.md
 function getPowerlineCurve(powerline) {
-	const name = String(powerline?.properties?.name || "").trim();
-	if (avesmapsPowerlineCurveVorschau.name !== null
-			&& name !== ""
-			&& name === avesmapsPowerlineCurveVorschau.name) {
-		return avesmapsPowerlineCurveVorschau.curve;
+	const vorschau = avesmapsPowerlineCurveVorschau.werte;
+	const publicId = String(powerline?.properties?.public_id || powerline?.id || "");
+	if (vorschau && publicId !== "" && Object.prototype.hasOwnProperty.call(vorschau, publicId)) {
+		const gezogen = Number(vorschau[publicId]);
+		if (Number.isFinite(gezogen)) {
+			return Math.max(-45, Math.min(45, gezogen));
+		}
 	}
 	const zahl = Number(powerline?.properties?.curve);
 	if (!Number.isFinite(zahl)) {
@@ -584,7 +590,18 @@ function refreshPowerlineLayers(timeSeconds = powerlineAnimationTimeSeconds) {
 		// Aufbau-Pfad saehe dabei richtig aus.
 		const curve = getPowerlineCurve(powerline);
 		const bahn = getPowerlineCurvedLatLngs(latLngs, curve);
+		// 🔴 Das gerade gewaehlte Stueck hebt sich hervor (Entwurf 13.3) -- ohne das weiss niemand,
+		// welche der vier gleich aussehenden Kanten am Regler haengt. Die Klasse wandert direkt an
+		// den SVG-Pfad, weil die Schichten beim Waehlen NICHT neu gebaut werden (nur ihre Geometrie
+		// wird gesetzt) und ein Neuaufbau je Klick die Animation zerrisse.
+		const istAktiv = avesmapsPowerlineCurveVorschau.aktiv !== null
+			&& String(powerline?.properties?.public_id || powerline?.id || "") === avesmapsPowerlineCurveVorschau.aktiv;
 		powerline._layerGroup.eachLayer((layer) => {
+			// ⚠️ Auch das ENTFERNEN muss jeden Frame laufen: sonst bliebe die Hervorhebung am zuletzt
+			// gewaehlten Stueck kleben, wenn man ein anderes waehlt.
+			if (layer._path && layer._path.classList) {
+				layer._path.classList.toggle("powerline--kurve-aktiv", istAktiv);
+			}
 			if (layer === powerline._labelLine) {
 				layer.setLatLngs?.(getReadablePowerlineLabelLatLngCoordinates(bahn));
 				return;

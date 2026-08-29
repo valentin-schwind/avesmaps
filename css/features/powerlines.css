@@ -38,3 +38,12 @@
 .powerline--strike-4 {
 	animation-delay: -1.35s;
 }
+
+/* Das Stueck, das gerade am Kurven-Regler haengt (js/ui/kraftlinie-kurve-regler.js).
+   🔴 Nur waehrend des Einstellens auf der Karte gesetzt und jeden Frame neu entschieden -- eine
+   haengengebliebene Hervorhebung waere schlimmer als keine, weil sie auf das falsche Stueck zeigte.
+   ⚠️ Kein Farbwechsel: die Kraftlinien-Farbe traegt Bedeutung (sie ist die Ader selbst). Die
+   Hervorhebung arbeitet mit Helligkeit und einem Schein, damit die Linie erkennbar dieselbe bleibt. */
+.powerline--kurve-aktiv {
+	filter: brightness(1.6) drop-shadow(0 0 6px rgba(255, 235, 240, 0.9));
+}

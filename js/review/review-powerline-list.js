@@ -67,7 +67,7 @@ window.openAvesmapsPowerlineEditorOverlay = window.openAvesmapsPowerlineEditorOv
 // waere ein leerer neuer Stand. Dasselbe Hausmuster wie beim Social-Hub, der sich fuers
 // Kartenausschnitt-Ziehen wegblendet statt zu schliessen.
 window.avesmapsPowerlineCurveEditStart = window.avesmapsPowerlineCurveEditStart
-	|| function avesmapsPowerlineCurveEditStart(name, curve) {
+	|| function avesmapsPowerlineCurveEditStart(name, segmente) {
 	const overlay = document.getElementById("avesmaps-powerline-editor-overlay");
 	if (!overlay || typeof avesmapsKurveReglerZeigen !== "function") {
 		// 🔴 Kein stiller Leerlauf: der Aufrufer muss erfahren, dass nichts passiert ist, damit er
@@ -75,7 +75,8 @@ window.avesmapsPowerlineCurveEditStart = window.avesmapsPowerlineCurveEditStart
 		return false;
 	}
 	const linienName = String(name || "").trim();
-	if (linienName === "") {
+	const stuecke = Array.isArray(segmente) ? segmente.filter((s) => s && s.public_id) : [];
+	if (linienName === "" || stuecke.length === 0) {
 		return false;
 	}
 
@@ -96,29 +97,69 @@ window.avesmapsPowerlineCurveEditStart = window.avesmapsPowerlineCurveEditStart
 	};
 	setzeModus("powerlines");
 
+	// 🔴 Das Overlay wird WEGGEBLENDET, nicht geschlossen. Der Editor darin haelt seinen
+	// ungespeicherten Formularstand; ein Neuaufbau des iframes waere ein leerer neuer Stand.
+	// Dasselbe Hausmuster wie beim Social-Hub, der sich fuers Kartenausschnitt-Ziehen wegblendet.
 	overlay.hidden = true;
 	document.body.style.overflow = "";
 
 	const zeichneNeu = () => {
 		if (typeof refreshPowerlineLayers === "function") { refreshPowerlineLayers(); }
 	};
-	avesmapsPowerlineCurveVorschau.name = linienName;
-	avesmapsPowerlineCurveVorschau.curve = Number(curve) || 0;
+	const werte = {};
+	stuecke.forEach((st) => { werte[st.public_id] = Number(st.curve) || 0; });
+	avesmapsPowerlineCurveVorschau.werte = werte;
+	avesmapsPowerlineCurveVorschau.aktiv = stuecke[0].public_id;
 	zeichneNeu();
 
-	avesmapsKurveReglerZeigen({
+	// 💣 EIN KLICK AUF DER KARTE WAEHLT DAS STUECK (Owner 29.08.2026) -- das ist der Grund, hier
+	// einzustellen statt im Editor. Der Handler haengt am Kartencontainer und faengt Klicks auf die
+	// Kraftlinien-Ebenen ab; er wird beim „Fertig" wieder abgemeldet, sonst bliebe er fuer immer
+	// liegen und stoerte den normalen Klick-Schiedsrichter.
+	let steuerung = null;
+	const beiKartenklick = (event) => {
+		const treffer = event && event.target && event.target.closest
+			? event.target.closest(".powerline")
+			: null;
+		if (!treffer) { return; }
+		// Die angeklickte Linie ueber ihre Leaflet-Schicht finden -- nur Stuecke DIESER Linie zaehlen.
+		const getroffen = (typeof powerlineData !== "undefined" ? powerlineData : []).find((pl) => {
+			const gruppe = pl && pl._layerGroup;
+			if (!gruppe) { return false; }
+			let ja = false;
+			gruppe.eachLayer((schicht) => {
+				if (schicht._path === treffer || (schicht._path && schicht._path === treffer)) { ja = true; }
+			});
+			return ja;
+		});
+		const pid = getroffen && String(getroffen.properties?.public_id || getroffen.id || "");
+		if (pid && steuerung && typeof steuerung.waehle === "function"
+				&& Object.prototype.hasOwnProperty.call(werte, pid)) {
+			steuerung.waehle(pid);
+		}
+	};
+	const karteEl = (typeof map !== "undefined" && map && map.getContainer) ? map.getContainer() : null;
+	if (karteEl) { karteEl.addEventListener("click", beiKartenklick, true); }
+
+	steuerung = avesmapsKurveReglerZeigen({
 		name: linienName,
-		curve: Number(curve) || 0,
-		aufAenderung: (wert) => {
-			avesmapsPowerlineCurveVorschau.curve = wert;
+		segmente: stuecke,
+		aktiv: stuecke[0].public_id,
+		aufWahl: (pid) => {
+			avesmapsPowerlineCurveVorschau.aktiv = pid;
 			zeichneNeu();
 		},
-		aufFertig: (wert) => {
+		aufAenderung: (pid, wert) => {
+			werte[pid] = wert;
+			zeichneNeu();
+		},
+		aufFertig: (ergebnis) => {
 			// 🔴 Die Vorschau wird IMMER zurueckgenommen, auch wenn gleich gespeichert wird: sie ist
 			// ein fluechtiger Zustand, und einer, der ueber das Fenster hinaus lebt, ist genau die
 			// Stoerung („meine Aenderung kommt nicht an"), die dieses Projekt schon bezahlt hat.
-			avesmapsPowerlineCurveVorschau.name = null;
-			avesmapsPowerlineCurveVorschau.curve = 0;
+			avesmapsPowerlineCurveVorschau.werte = null;
+			avesmapsPowerlineCurveVorschau.aktiv = null;
+			if (karteEl) { karteEl.removeEventListener("click", beiKartenklick, true); }
 			setzeModus(vorherigerModus);
 			overlay.hidden = false;
 			document.body.style.overflow = "hidden";
@@ -126,7 +167,7 @@ window.avesmapsPowerlineCurveEditStart = window.avesmapsPowerlineCurveEditStart
 			const frame = overlay.querySelector("iframe");
 			if (frame && frame.contentWindow) {
 				try {
-					frame.contentWindow.postMessage({ avesmapsPowerlineCurveResult: wert }, location.origin);
+					frame.contentWindow.postMessage({ avesmapsPowerlineCurveResult: ergebnis }, location.origin);
 				} catch (e) { /* noop */ }
 			}
 		},

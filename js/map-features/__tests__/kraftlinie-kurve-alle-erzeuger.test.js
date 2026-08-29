@@ -174,13 +174,20 @@ kern.forEach((strang, i) => {
 		`Kernstrang ${i} verliert die Kurve im Takt -- refreshPowerlineLayers reicht sie nicht durch`);
 });
 
-// ---- 7. Der fluechtige Vorschauwert schlaegt den gespeicherten (fuer Aufgabe 5) -------------
-avesmapsPowerlineCurveVorschau.name = "Torweg";
-avesmapsPowerlineCurveVorschau.curve = -40;
+// ---- 7. Der fluechtige Vorschauwert schlaegt den gespeicherten ------------------------------
+// 🔴 JE SEGMENT, nicht je Linie (29.08.2026): die vier Kanten des „Faechers der Macht" sollen
+// verschiedene Kurven tragen koennen, also ist die Vorschau eine Karte public_id -> Zahl.
+avesmapsPowerlineCurveVorschau.werte = { "pl-1": -40 };
 assert.strictEqual(getPowerlineCurve(linie), -40, "die Vorschau muss den gespeicherten Wert schlagen");
-avesmapsPowerlineCurveVorschau.name = "Eine andere Linie";
-assert.strictEqual(getPowerlineCurve(linie), 30, "die Vorschau gilt NUR ihrer eigenen Linie");
-avesmapsPowerlineCurveVorschau.name = null;
+avesmapsPowerlineCurveVorschau.werte = { "ein-anderes-segment": -40 };
+assert.strictEqual(getPowerlineCurve(linie), 30, "die Vorschau gilt NUR ihrem eigenen Segment");
+// ⚠️ Eine ausdrueckliche 0 in der Vorschau muss geradebiegen -- sie ist eine Aussage, kein Fehlen.
+avesmapsPowerlineCurveVorschau.werte = { "pl-1": 0 };
+assert.strictEqual(getPowerlineCurve(linie), 0, "eine Vorschau-0 muss geradebiegen");
+// Und Unbrauchbares faellt auf den gespeicherten Stand zurueck, statt NaN in die Geometrie zu tragen.
+avesmapsPowerlineCurveVorschau.werte = { "pl-1": "quatsch" };
+assert.strictEqual(getPowerlineCurve(linie), 30, "ein unlesbarer Vorschauwert darf nicht durchrutschen");
+avesmapsPowerlineCurveVorschau.werte = null;
 assert.strictEqual(getPowerlineCurve(linie), 30, "ohne Vorschau gilt der gespeicherte Wert");
 
 console.log("OK: Kraftlinien-Kurve -- Straenge, Klick-Linie, Label-Linie, Takt, Vorschau.");
