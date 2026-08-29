@@ -1234,3 +1234,34 @@ body.avm-editor-body {
 	/* Nie unter 11px -- die Untergrenze aus AGENTS.md Abschnitt 12. */
 	font-size: 12px;
 }
+
+/* Der Kurven-Schieber EINES Segments -- an der Kante (verzweigt/Ring) und an der Verbindung
+   zwischen zwei Nodices (Strang). Klein, weil er je Zeile einmal vorkommt und die Zeile nicht
+   dominieren darf: die Haupthandlung dieser Spalte ist die Struktur der Linie, nicht die Kurve. */
+.pl-curve-seg {
+	display: inline-flex;
+	align-items: center;
+	justify-content: flex-end;
+	gap: 6px;
+	/* Feste Gesamtbreite, damit der Block in der Kantenliste (Raster) und an der Verbindung
+	   (Strang) exakt dieselbe Spalte einnimmt -- sonst steht der Schieber in den zwei Ansichten
+	   verschieden weit rechts. Der Wert kommt aus --pl-curve-col, damit es EINE Zahl bleibt. */
+	width: var(--pl-curve-col, 124px);
+	flex: 0 0 auto;
+	min-width: 0;
+}
+
+.pl-curve-seg input[type="range"] {
+	width: 74px;
+	min-width: 0;
+	accent-color: var(--color-accent-brown);
+}
+
+.pl-curve-seg__val {
+	min-width: 44px;
+	text-align: right;
+	font-variant-numeric: tabular-nums;
+	color: var(--color-accent-brown);
+	/* 11px ist die Untergrenze aus AGENTS.md Abschnitt 12 -- nicht darunter. */
+	font-size: 11px;
+}

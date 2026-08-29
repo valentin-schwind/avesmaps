@@ -104,6 +104,9 @@
 
   /* Nodices-Spalte (Domänenbegriff für die Knotenpunkte einer Kraftlinie) */
   .pl-topo-note { font-size:11px; color:var(--mut); background:var(--color-panel-soft); border:1px solid var(--line); border-left:3px solid var(--color-accent); border-radius:6px; padding:6px 9px; margin-bottom:8px; }
+  /* Die Breite der Kurven-Spalte -- EIN Wert, den Kantenliste und Verbindung teilen. Stuenden
+     hier zwei Zahlen, liefen die zwei Ansichten beim ersten Nachjustieren auseinander. */
+  :root { --pl-curve-col: 124px; }
   .pl-end-label { font-size:var(--font-size-caption); color:var(--color-accent-strong); text-transform:uppercase; letter-spacing:.04em; margin:0 0 3px 2px; font-weight:bold; }
   .pl-node { display:flex; align-items:center; gap:7px; padding:6px 8px; background:var(--panel); border:1px solid var(--line); border-radius:var(--radius-md); box-shadow:0 1px 2px rgba(0,0,0,.06); }
   .pl-node.is-end { border-color:var(--color-accent); }
@@ -113,14 +116,36 @@
   .pl-icon-btn:hover { background:var(--color-hover-wash); }
   .pl-icon-btn.del:hover { color:var(--bad); border-color:var(--bad); }
   .pl-icon-btn:disabled { opacity:.3; cursor:default; }
-  .pl-conn { width:2px; height:12px; background:var(--line2); margin:0 0 0 16px; }
+  /* 🔴 Die Verbindung zwischen zwei Nodices IST optisch das Segment und traegt seit dem
+     29.08.2026 dessen Kurven-Schieber -- ein 2px-Strich konnte ihn nicht fassen. Der Strich
+     bleibt als linker Rand erhalten, damit die Kette weiter als Kette lesbar ist.
+     ⚠️ Die Regel steht HIER und nicht in editor-page.css: dort stuende eine zweite mit
+     gleicher Spezifitaet, und dieser <style>-Block kommt spaeter -- die Datei-Regel waere
+     lautlos wirkungslos. */
+  .pl-conn { min-height:12px; margin:0 0 0 16px; border-left:2px solid var(--line2);
+    /* ⚠️ 9px rechts = 8px Polsterung + 1px Rahmen der .pl-node darueber. Ohne sie sitzt der
+       Schieber der Verbindung 9px weiter rechts als die Knoepfe der Nodix-Zeilen, und die
+       Kette liest sich nicht mehr als Tabelle (gemessen 29.08.2026). */
+    padding-left:10px; padding-right:9px; display:flex; align-items:center; justify-content:flex-end; }
   .pl-reorder-bar { display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin:0 0 8px; padding:6px 9px; background:var(--color-active-wash); border:1px solid var(--color-accent); border-radius:6px; }
   .pl-reorder-lead { font-size:11px; font-weight:bold; color:var(--color-accent-strong); margin-right:auto; }
   .pl-reorder-bar button { min-height:26px; padding:0 10px; font-size:12px; }
-  .pl-edge { display:flex; align-items:center; gap:7px; padding:5px 8px; background:var(--soft); border:1px solid var(--line); border-radius:var(--radius-md); margin-bottom:5px; font-size:12px; }
+  /* 🔴 TABELLENFORM MIT FESTEN SPALTEN (Owner 29.08.2026). Mit Flex verschob jeder Name die
+     Position aller folgenden Elemente -- bei „Kreuzung-4 — Nadoret" gegen „Kreuzung-4 — Festum"
+     stand jeder Schieber woanders. Das Raster ist je Zeile DASSELBE, also stehen Schieber, Wert
+     und Knoepfe untereinander.
+     💣 Die zwei Namensspalten sind minmax(0,1fr) und NICHT auto: eine auto-Spalte waechst mit
+     ihrem laengsten Inhalt, und genau das ist der Flattersatz, der hier weg soll. Die 0 als
+     Untergrenze ist tragend -- ohne sie schrumpft eine Grid-Spalte nicht unter ihren Inhalt,
+     und das Ellipsieren daneben bliebe wirkungslos. */
+  .pl-edge { display:grid; grid-template-columns:minmax(0,1fr) auto minmax(0,1fr) var(--pl-curve-col) 22px 22px;
+    align-items:center; gap:7px; padding:5px 8px; background:var(--soft); border:1px solid var(--line);
+    border-radius:var(--radius-md); margin-bottom:5px; font-size:12px; }
   .pl-edge .a { font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .pl-edge .arw { color:var(--mut); flex:0 0 auto; }
-  .pl-edge .pl-icon-btn { margin-left:auto; }
+  /* ⚠️ KEIN margin-left:auto mehr -- das war der Flex-Trick fuer „ganz rechts" und schoebe im
+     Raster die Knoepfe aus ihrer Spalte. Die Spalte selbst steht jetzt fest. */
+  .pl-edge .pl-icon-btn { margin-left:0; }
   .pl-add { margin-top:10px; }
   .pl-add-toggle { width:100%; text-align:center; border:1.5px dashed var(--line2); border-radius:6px; padding:8px; color:var(--mut); background:transparent; }
   .pl-add-toggle:hover { border-color:var(--color-accent); color:var(--color-accent-strong); }
@@ -441,6 +466,65 @@ function wikiListHint() {
 	}
 	return "Ausdrücklich gesetzt, nie geraten. Der Abgleich folgt der Zuweisung, auch wenn die Linie anders heißt.";
 }
+// Der Entwurfsstand der Kurven, bis „Speichern" gedrueckt wird.
+// 🔴 curveDraft haelt NUR die einzeln angefassten Segmente (public_id -> Zahl), und
+// curveLineTouched sagt, ob der LINIEN-Schieber angefasst wurde. Beides zusammen ist die Regel
+// „geschrieben wird nur, was jemand angefasst hat" (Entwurf 13.1, Muster der Weg-Ebene):
+// 💣 der Server liest die Abwesenheit von `curve` seit dem 29.08.2026 als „nicht geaendert" --
+// ginge der Linienwert immer mit, setzte jedes Speichern alle Segmente wieder gleich und machte
+// jede gewollte Ausnahme lautlos platt.
+let curveDraft = {};
+let curveLineTouched = false;
+
+// Was am LINIEN-Schieber steht: der gemeinsame Wert, oder „gemischt".
+// ⚠️ Gerechnet wird ueber die Segmente inklusive der Entwuerfe -- wer eine Kante verstellt, sieht
+// oben sofort „gemischt", nicht erst nach dem Speichern.
+function curveOfLine(line) {
+	// ⚠️ Ueber DIESELBE Rangfolge wie die Einzelanzeige (curveOfSegment) -- zwei Rechnungen fuer
+	// denselben Wert liefen beim ersten Zug auseinander.
+	const werte = line.segments.map(curveOfSegment);
+	if (werte.length === 0) { return { einheitlich: true, wert: 0 }; }
+	const erster = werte[0];
+	return { einheitlich: werte.every((w) => w === erster), wert: erster };
+}
+
+// Der aktuelle Wert EINES Segments.
+// 🔴 DIESE RANGFOLGE SPIEGELT DEN SERVER (avesmapsApplyPowerlineCurve): einzeln angefasst schlaegt
+// „alle", und „alle" schlaegt den gespeicherten Stand. Laufen die zwei auseinander, zeigt der
+// Editor etwas anderes an, als er speichert.
+// 💣 Der mittlere Fall hat beim Bau gefehlt, und nur der Ablauf im Browser hat es gezeigt (alle
+// Quelltext-Tests waren gruen): nach einem Zug am Linien-Schieber stand oben „-20 %", waehrend die
+// vier Segment-Schieber weiter ihre alten Werte zeigten -- gespeichert haette der Server richtig,
+// angezeigt war es falsch.
+function curveOfSegment(seg) {
+	const entwurf = curveDraft[seg.public_id];
+	if (entwurf !== undefined) {
+		return Number(entwurf) || 0;
+	}
+	if (curveLineTouched) {
+		return Number($("plCurve") && $("plCurve").value) || 0;
+	}
+	return Number(seg.curve) || 0;
+}
+
+// Das Segment zwischen zwei benachbarten Nodices einer Kette -- die Richtung ist dabei egal.
+function segmentBetween(line, pidA, pidB) {
+	return line.segments.find((seg) =>
+		(seg.from_public_id === pidA && seg.to_public_id === pidB)
+		|| (seg.from_public_id === pidB && seg.to_public_id === pidA)) || null;
+}
+
+// Der kleine Schieber an einer Kante bzw. an einer Verbindung.
+function curveSegMarkup(seg) {
+	if (!seg) { return ""; }
+	const wert = curveOfSegment(seg);
+	return '<span class="pl-curve-seg">'
+		+ '<input type="range" min="-45" max="45" step="1" value="' + wert + '"'
+		+ ' title="Kurvenform dieses Segments" aria-label="Kurvenform dieses Segments"'
+		+ ' data-curve-seg="' + esc(seg.public_id) + '">'
+		+ '<span class="pl-curve-seg__val">' + esc(curveText(wert)) + "</span></span>";
+}
+
 // „+26 %" statt „26" -- eine nackte Zahl an einem Schieber sagt nicht, ob sie Prozent, Grad oder
 // Meilen ist.
 function curveText(wert) {
@@ -453,9 +537,11 @@ function renderDetail() {
 	const line = lineByName(selectedName);
 	if (!line) { host.innerHTML = '<div class="dt-empty">Links eine Kraftlinie wählen.</div>'; return; }
 	const showLabel = line.segments.some((s) => s.show_label);
-	// 💣 fieldSample, nicht some()/every(): curve ist eine ZAHL. `some((s) => s.curve)` laese eine
-	// gespeicherte 0 als „nicht gesetzt" und eine -0 gleich mit.
-	const curve = Number(fieldSample(line, "curve")) || 0;
+	// 💣 Nicht fieldSample: eine Linie kann seit dem 29.08.2026 UNEINIGE Segmente haben, und
+	// fieldSample nimmt den erstbesten Wert -- der Linien-Schieber behauptete dann einen Wert, den
+	// nur ein Teil der Segmente traegt, und ein Speichern machte die Ausnahmen platt.
+	const linienKurve = curveOfLine(line);
+	const curve = linienKurve.wert;
 	const description = fieldSample(line, "description");
 	const wikiUrl = fieldSample(line, "wiki_url");
 	const wiki = line.segments.map((s) => s.wiki_powerline).find((w) => w && typeof w === "object") || {};
@@ -485,11 +571,13 @@ function renderDetail() {
 		+ '<div class="dt-grid"><div class="k">Kurvenform</div><div>'
 			+ '<div class="pl-curve">'
 				+ '<input type="range" id="plCurve" min="-45" max="45" step="1" value="' + curve + '">'
-				+ '<span class="pl-curve__val" id="plCurveVal">' + esc(curveText(curve)) + "</span>"
+				+ '<span class="pl-curve__val" id="plCurveVal">'
+					+ (linienKurve.einheitlich ? esc(curveText(curve)) : "gemischt") + "</span>"
 			+ "</div>"
 			+ '<button type="button" class="btn2" id="plCurveOnMap">Kurve auf der Karte einstellen</button>'
 			+ '<div class="pl-hint">Prozent der Sehne. <b>0</b> ist gerade, das Vorzeichen ist die Seite. '
-				+ "Schreibt auf <b>alle " + line.segments.length + " Segmente</b>.</div>"
+				+ "Setzt <b>alle " + line.segments.length + " Segmente</b> auf einen Wert; einzeln geht es "
+				+ "rechts an jeder Kante.</div>"
 		+ "</div></div>"
 		// ---- Eigenschaften ----------------------------------------------------------------------
 		// 🔴 DER KOPF HEISST WEITER „Beschreibung", NICHT „Eigenschaften" (Owner-Entscheid 16.08.2026
@@ -540,7 +628,12 @@ function renderDetail() {
 			+ '<button class="is-primary" id="plSave">Speichern</button>'
 		+ "</div>";
 	$("plCurve").addEventListener("input", () => {
+		// 🔴 Der Linien-Schieber SETZT ALLE -- also verfallen die einzeln angefassten Segmente.
+		// Sie stehenzulassen hiesse, dass der Benutzer oben zieht und unten nichts passiert.
+		curveLineTouched = true;
+		curveDraft = {};
 		$("plCurveVal").textContent = curveText($("plCurve").value);
+		renderNodes();
 	});
 	$("plCurveOnMap").addEventListener("click", () => {
 		const line = lineByName(selectedName);
@@ -665,6 +758,18 @@ function mountWikiAssign(line) {
 		syncUebernehmen: () => {},
 	});
 }
+// Die Anzeige am LINIEN-Schieber neu setzen, ohne das ganze Formular zu bauen (das risse die
+// Wiki-Zuweisung und den Quellen-Editor mit ab).
+function renderLineCurveValue() {
+	const line = lineByName(selectedName);
+	const feld = $("plCurve");
+	const anzeige = $("plCurveVal");
+	if (!line || !feld || !anzeige) { return; }
+	const stand = curveOfLine(line);
+	feld.value = String(stand.wert);
+	anzeige.textContent = stand.einheitlich ? curveText(stand.wert) : "gemischt";
+}
+
 function setSaveMsg(text, cls) {
 	const el = $("plSaveMsg"); if (!el) { return; }
 	// ⚠️ `avm-savebar__msg`, nicht mehr `dt-msg`: die Meldung sitzt seit 16.08.2026 IN der
@@ -694,10 +799,6 @@ async function saveLine() {
 		current_name: line.name,
 		new_name: newName,
 		show_label: $("plShowLabel").checked,
-		// 💣 MUSS bei jedem Speichern mit. Der Server liest einen fehlenden Schluessel als 0 -- ein
-		// Speichern ohne diese Zeile LOESCHTE die Kurve, lautlos und von „nie eingestellt" nicht
-		// zu unterscheiden.
-		curve: Number($("plCurve").value),
 		description: $("plDescription").value,
 		// Dieselbe Aktion wie immer; die Adresse kommt aus dem Bauteil statt aus einem Formularfeld.
 		wiki_url: zuweisung.wiki_url,
@@ -714,10 +815,27 @@ async function saveLine() {
 	if (zuweisung.kein_artikel_geaendert === true) {
 		rumpf.wiki_no_article = zuweisung.kein_artikel === true;
 	}
+	// 🔴 DIE KURVE REIST NUR MIT, WENN JEMAND SIE ANGEFASST HAT (Entwurf Abschnitt 13.1). Der Server
+	// liest die Abwesenheit von `curve` als „nicht geaendert" (avesmapsApplyPowerlineCurve); ginge
+	// der Linienwert bedingungslos mit, setzte JEDES Speichern alle Segmente wieder gleich und
+	// machte jede einzeln eingestellte Kante lautlos platt -- auch bei einer reinen
+	// Beschreibungsaenderung.
+	// 💣 Die andere Haelfte steht im Server (array_key_exists statt `?? 0`). Die zwei gehoeren
+	// zusammen und duerfen nicht einzeln zurueckgedreht werden.
+	if (curveLineTouched) {
+		rumpf.curve = Number($("plCurve").value) || 0;
+	}
+	if (Object.keys(curveDraft).length > 0) {
+		rumpf.curves = curveDraft;
+	}
 	setSaveMsg("Speichert…", "");
 	try {
 		await mapFeaturesEditPost(rumpf);
 		const merged = newName !== line.name && lines.some((l) => l.name === newName);
+		// ⚠️ Erst NACH dem erfolgreichen Schreiben leeren: bei einem Fehlschlag bleibt der Entwurf
+		// stehen, damit ein zweiter Versuch nicht bei null anfaengt.
+		curveDraft = {};
+		curveLineTouched = false;
 		await reload(newName);
 		setSaveMsg(merged ? "Gespeichert – mit „" + newName + "“ verschmolzen." : "Gespeichert – auf alle Segmente geschrieben.", "ok");
 	} catch (e) {
@@ -778,7 +896,12 @@ function renderNodes() {
 				+ flyBtn(pid)
 				+ '<button class="pl-icon-btn del" title="Nodix entfernen" data-remove-node="' + esc(pid) + '">✕</button>'
 				+ "</div>";
-			if (i < chain.length - 1) { html += '<div class="pl-conn"></div>'; }
+			// Die Verbindung IST optisch das Segment -- hier haengt sein eigener Schieber
+			// (Entwurf Abschnitt 13.1). Fehlt das Segment (Kette und Segmentliste uneinig), bleibt
+			// die Verbindung wie bisher leer, statt einen Regler ohne Ziel zu zeigen.
+			if (i < chain.length - 1) {
+				html += '<div class="pl-conn">' + curveSegMarkup(segmentBetween(line, pid, chain[i + 1])) + "</div>";
+			}
 		});
 	} else {
 		const note = t.isRing ? "Geschlossener Ring · " + line.segments.length + " Segmente · keine Enden"
@@ -786,6 +909,7 @@ function renderNodes() {
 		html += '<div class="pl-topo-note">' + note + " ✕ entfernt eine Kante.</div>";
 		line.segments.forEach((seg) => {
 			html += '<div class="pl-edge"><span class="a">' + esc(nodeName(seg.from_public_id)) + '</span><span class="arw">—</span><span class="a">' + esc(nodeName(seg.to_public_id)) + "</span>"
+				+ curveSegMarkup(seg)
 				+ flyBtn(seg.from_public_id)
 				+ '<button class="pl-icon-btn del" title="Kante entfernen" data-remove-seg="' + esc(seg.public_id) + '">✕</button></div>';
 		});
@@ -810,6 +934,20 @@ function wireNodeActions(line) {
 	$("plNodes").querySelectorAll("[data-fly]").forEach((b) => b.addEventListener("click", () => flyToNode(b.getAttribute("data-fly"))));
 	$("plNodes").querySelectorAll("[data-remove-node]").forEach((b) => b.addEventListener("click", () => removeNode(b.getAttribute("data-remove-node"))));
 	$("plNodes").querySelectorAll("[data-remove-seg]").forEach((b) => b.addEventListener("click", () => removeSegment(b.getAttribute("data-remove-seg"))));
+	// Die Kurven-Schieber der einzelnen Segmente. ⚠️ Nur der ENTWURF wandert -- gespeichert wird
+	// weiterhin mit „Speichern", wie bei jedem anderen Feld dieses Fensters.
+	$("plNodes").querySelectorAll("[data-curve-seg]").forEach((schieber) => {
+		schieber.addEventListener("input", () => {
+			const pid = schieber.getAttribute("data-curve-seg");
+			curveDraft[pid] = Number(schieber.value) || 0;
+			const anzeige = schieber.parentNode.querySelector(".pl-curve-seg__val");
+			if (anzeige) { anzeige.textContent = curveText(curveDraft[pid]); }
+			// 💣 Der Linien-Schieber muss mitgehen: sobald ein Segment ausschert, steht oben
+			// „gemischt". Ohne das behauptet er weiter einen Wert, den nur ein Teil der Segmente
+			// traegt -- und der naechste Griff daran macht die Ausnahme platt.
+			renderLineCurveValue();
+		});
+	});
 	$("plNodes").querySelectorAll("[data-move-up]").forEach((b) => b.addEventListener("click", () => moveNode(parseInt(b.getAttribute("data-move-up"), 10), -1)));
 	$("plNodes").querySelectorAll("[data-move-down]").forEach((b) => b.addEventListener("click", () => moveNode(parseInt(b.getAttribute("data-move-down"), 10), 1)));
 	const reorderSave = $("plReorderSave");
@@ -1007,7 +1145,7 @@ function demoData() {
 	const segs = [
 		seg("s1", "Konzilslinie", "gareth", "k7", { curve: 26, description: "Verbindet die Konzilsstädte des Mittelreichs.", wiki_url: "https://de.wiki-aventurica.de/wiki/Konzilslinie", wiki_powerline: { staerke: "kontinental", laenge: "ca. 3000 Meilen", regionen: "Kosch · Almada" } }),
 		seg("s2", "Konzilslinie", "k7", "kuslik"), seg("s3", "Konzilslinie", "kuslik", "punin"),
-		seg("f1", "Fächer der Macht", "k4", "m", { wiki_url: "https://de.wiki-aventurica.de/wiki/Konzilslinie" }), seg("f2", "Fächer der Macht", "k4", "x"), seg("f3", "Fächer der Macht", "k4", "y"), seg("f4", "Fächer der Macht", "k4", "z"),
+		seg("f1", "Fächer der Macht", "k4", "m", { wiki_url: "https://de.wiki-aventurica.de/wiki/Konzilslinie" }), seg("f2", "Fächer der Macht", "k4", "x", { curve: -30 }), seg("f3", "Fächer der Macht", "k4", "y", { curve: 12 }), seg("f4", "Fächer der Macht", "k4", "z"),
 		seg("h1", "Hexenband", "a", "b"), seg("h2", "Hexenband", "b", "c"), seg("h3", "Hexenband", "c", "a"),
 		seg("d1", "Elementares Hexagramm", "e1", "e2"), seg("d2", "Elementare Hexagramm", "e1", "e2"),
 		seg("u1", "Septima - https://de.wiki-aventurica.de/wiki/Septima", "vin", "bel"),
@@ -1038,7 +1176,17 @@ function boot() {
 		const kurve = event.data && event.data.avesmapsPowerlineCurveResult;
 		if (typeof kurve === "number" && $("plCurve")) {
 			$("plCurve").value = String(kurve);
+			// 💣 UND curveLineTouched MUSS mit. Seit die Kurve je Segment einstellbar ist, reist der
+			// Linienwert nur noch mit, wenn jemand ihn angefasst hat -- ein Zug auf der KARTE ist so
+			// ein Anfassen. Ohne diese Zeile stellt man die Kurve auf der Karte ein, drueckt
+			// „Speichern", und der Server bekommt nichts: von „hat nicht funktioniert" nicht zu
+			// unterscheiden. Genau die Falle, gegen die array_key_exists im Server steht.
+			curveLineTouched = true;
+			// Der Kartenregler setzt die GANZE Linie -- also verfallen die einzeln angefassten
+			// Segmente, wie beim Linien-Schieber daneben.
+			curveDraft = {};
 			$("plCurveVal").textContent = curveText(kurve);
+			renderNodes();
 			return;
 		}
 		const name = event.data && event.data.avesmapsPowerlineSelect;
