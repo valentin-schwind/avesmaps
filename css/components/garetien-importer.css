@@ -328,16 +328,15 @@
 .u--deckt { color: var(--color-text-muted); }
 
 /* ---- Fuß: die EINE gefüllte Handlung des Fensters, plus die drei weichen Anzeige-Knoepfe --- *
- * 🔴 Seit 29.08.2026 (Owner-Meldung) traegt dieser Fuss SIEBEN Kinder statt drei: Zaehlzeile,
- *    Hinweis, „Alle markieren" (Aufgabe 10) samt eigenem Hinweis, „Markierte anzeigen", „Anzeige
- *    leeren", „Alle angezeigten einfuegen". Die drei Knoepfe haben KEIN eigenes `min-width: 0` wie
- *    `.gi-foot__count` -- sie duerfen nicht unter ihre Textbreite schrumpfen (ein abgeschnittenes
- *    „Markierte an…" waere schlimmer als ein Zeilenumbruch). `flex-wrap` faengt deshalb die
- *    Fensteruntergrenze (`min-width: 480px`, weiter oben) ab: reicht die Breite nicht fuer alle
- *    Kinder in einer Zeile, weicht das Zaehlzeile/Hinweis-Paar zuerst (es hat `min-width: 0`/kann
- *    seinen Text brechen), zuletzt der Hauptknopf allein in die naechste Zeile -- KEIN Abschneiden,
- *    `.gi-win` traegt `overflow: hidden`. Beim Start-Mass (800px) und den meisten Zuggroessen
- *    bleibt es bei EINER Zeile mit dem Hauptknopf am rechten Rand. */
+ * 🔴 Seit 30.08.2026 (Owner-Meldung: die Zaehlzeile ist „inkonsistent mit allen anderen Zahlen")
+ *    traegt dieser Fuss SECHS Kinder statt sieben: „Alle markieren" (Aufgabe 10) samt eigenem
+ *    Hinweis, „Markierte anzeigen", „Anzeige leeren", „Alle angezeigten einfuegen" samt EIGENEM
+ *    Hinweis dahinter -- die Zaehlzeile (#garetien-foot-count) und ihr vorangestellter Hinweis sind
+ *    restlos weg. Die drei linken Knoepfe haben kein eigenes `min-width: 0` -- sie duerfen nicht
+ *    unter ihre Textbreite schrumpfen (ein abgeschnittenes „Markierte an…" waere schlimmer als ein
+ *    Zeilenumbruch). `flex-wrap` faengt die Fensteruntergrenze (`min-width: 480px`, weiter oben) ab:
+ *    reicht die Breite nicht fuer alle Kinder in einer Zeile, weicht der Hauptknopf samt seinem
+ *    Hinweis in die naechste Zeile -- KEIN Abschneiden, `.gi-win` traegt `overflow: hidden`. */
 .gi-foot {
 	flex: none;
 	display: flex;
@@ -349,18 +348,25 @@
 	background: var(--color-panel-soft);
 }
 
-.gi-foot__count {
-	flex: 1 1 auto;
-	min-width: 0;
-	font-size: var(--font-size-caption);
-	color: var(--color-text-muted);
+/* Die Haupthandlung sitzt rechts -- vorher besorgte das die jetzt entfernte Zaehlzeile links, als
+   wachsender Platzhalter, der den Rest der Zeile vor sich herschob. `.gi-foot__main` (Hinweis +
+   Hauptknopf, gemeinsam) uebernimmt diese Rolle jetzt ueber einen automatischen linken Rand.
+   💣 Der Rand haengt am WIRT, nicht am Knopf selbst: der Wirt bleibt immer gerendert, waehrend
+   sein Hinweis meist `hidden` ist -- am Knopf allein risse ein sichtbarer Hinweis eine Luecke
+   zwischen sich und den weit nach rechts gesprungenen Knopf auf. */
+.gi-foot__main {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--space-6);
+	margin-left: auto;
 }
 
-/* Der Grund, warum „Angehakte übernehmen" gerade nicht geht. SICHTBAR, weil ein `title` an einem
-   deaktivierten Knopf nie erscheint (keine Zeigerereignisse) -- dieselbe Lösung wie im
-   Übernahme-Blatt, wo die Fußzeile den Grund trägt.
-   ⚠️ `flex: none`: die Zählzeile links trägt `flex: 1 1 auto` und schiebt Hinweis und Knopf nach
-   rechts; ein mitwachsender Hinweis nähme ihr genau das ab. */
+/* Der Grund, warum ein Knopf gerade nicht geht -- „Alle markieren" oder „Angehakte übernehmen".
+   SICHTBAR, weil ein `title` an einem deaktivierten Knopf nie erscheint (keine Zeigerereignisse) --
+   dieselbe Lösung wie im Übernahme-Blatt, wo die Fußzeile den Grund trägt.
+   🔴 Steht seit 30.08.2026 DIREKT VOR seinem Knopf, in `.gi-foot__main` -- vorher stand der Hinweis
+   zu „Angehakte übernehmen" ganz vorn, neben der jetzt entfernten Zählzeile, und sah wie deren Rest
+   aus statt zu seinem Knopf zu gehören. */
 .gi-foot__hint {
 	flex: none;
 	font-size: var(--font-size-caption);

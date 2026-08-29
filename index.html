@@ -3849,12 +3849,10 @@
 				<div class="avm-col" id="garetien-detailcol"></div>
 			</div>
 			<div class="gi-foot">
-				<span class="gi-foot__count" id="garetien-foot-count"></span>
-				<!-- ⚠️ Der Grund für einen gesperrten Knopf steht SICHTBAR daneben, nie in seinem
-				     `title`: ein deaktivierter Knopf bekommt keine Zeigerereignisse, sein Tooltip
-				     erscheint in Chrome also nie. Dasselbe Mittel wie im Übernahme-Blatt, wo der
-				     Grund als Text in der Fußzeile steht. -->
-				<span class="gi-foot__hint" id="garetien-apply-hint" hidden></span>
+				<!-- 🔴 Die Zählzeile („X vorgemerkt · Y abgelehnt · Z übernommen", #garetien-foot-count)
+				     ist am 30.08.2026 restlos entfernt (Owner: „inkonsistent mit allen anderen Zahlen").
+				     Sie zählte einen SERVERstand, der seit Aufgabe 1 (Markieren ist ein reiner Marker,
+				     kein Bearbeitungsstand mehr) nichts mehr über das Fenster aussagte. -->
 				<!-- 🔴 Umgezogen 29.08.2026 (Owner-Meldung): „Markierte anzeigen" und „Anzeige leeren"
 				     standen vorher oben im Listenskelett (.gi-anzeigebar) -- jetzt hier, links von der
 				     Haupthandlung. Beide WEICH (`.btn`, kein `--main`): die Haupthandlung des Fensters
@@ -3868,7 +3866,22 @@
 				<span class="gi-foot__hint" id="garetien-mark-all-hint" hidden></span>
 				<button class="btn" type="button" id="garetien-mark-show">Markierte anzeigen</button>
 				<button class="btn" type="button" id="garetien-anzeige-clear">Anzeige leeren</button>
-				<button class="btn btn--main" type="button" id="garetien-apply" disabled>Angehakte übernehmen (0)</button>
+				<!-- 🔴 Umgehängt 30.08.2026, seit die Zählzeile links (die den Hinweis bisher physisch
+				     an den Anfang der Zeile geschoben hat) weg ist: der Grund für den gesperrten
+				     Hauptknopf steht jetzt DIREKT VOR ihm, in einem gemeinsamen Wirt -- man liest ihn,
+				     bevor man den grauen Knopf sucht (garetien-uebernahme-blatt.test.js), und er sitzt
+				     sichtbar neben seinem Knopf statt wie ein Rest der gelöschten Zeile auszusehen.
+				     SICHTBAR, nie nur im `title`: ein deaktivierter Knopf bekommt keine Zeigerereignisse,
+				     sein Tooltip erscheint in Chrome also nie. Dasselbe Mittel wie im Übernahme-Blatt,
+				     wo der Grund als Text in der Fußzeile steht.
+				     💣 Der Wirt (`.gi-foot__main`), nicht der Knopf, trägt den automatischen linken
+				     Rand: er bleibt immer gerendert, während sein Hinweis meist `hidden` ist -- am Knopf
+				     allein risse ein sichtbarer Hinweis eine Lücke zwischen sich und den weit nach
+				     rechts gesprungenen Knopf auf. -->
+				<span class="gi-foot__main">
+					<span class="gi-foot__hint" id="garetien-apply-hint" hidden></span>
+					<button class="btn btn--main" type="button" id="garetien-apply" disabled>Angehakte übernehmen (0)</button>
+				</span>
 			</div>
 			<p class="gi-foot__note">Nichts davon steht in der Karte. „Übernehmen" geht durch die
 				vorhandene Übernahme-Vorschau — zweite Bestätigung, Häppchen zu 40, Protokoll.</p>

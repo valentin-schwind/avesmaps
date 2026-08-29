@@ -309,9 +309,9 @@
 			listeEl.innerHTML = '<p class="avm-empty">Noch kein Import-Lauf. „Holen &amp; Rechnen" '
 				+ "im Menüband holt die gewählten Ebenen und rechnet den Abgleich.</p>";
 		}
-		// Die Zahlen der drei Bilanzflächen gehören einem Lauf; ohne Lauf stehen sie leer, statt
+		// Die Zahlen der zwei Bilanzflächen gehören einem Lauf; ohne Lauf stehen sie leer, statt
 		// eine Null zu behaupten, die niemand gezählt hat.
-		["garetien-runline", "garetien-balance", "garetien-foot-count"].forEach(function (id) {
+		["garetien-runline", "garetien-balance"].forEach(function (id) {
 			const el = document.getElementById(id);
 			if (el) { el.textContent = ""; }
 		});
@@ -565,8 +565,9 @@
 	// 🔴 `vorgemerkt` ist aus der Leiter heraus (29.08.2026): es war ein SERVERstand, abgeleitet
 	// aus `selected`, und deshalb sprang eine Zeile beim Anhaken aus „Offen" heraus und war dort
 	// nicht mehr abhakbar. Owner: „Markieren aendert nichts."
-	// ⚠️ Die ZAHL „14 vorgemerkt" bleibt in der Fusszeile -- sie ist weiter wahr, sie ist nur kein
-	// Reiter mehr.
+	// 🔴 Die ZAHL „14 vorgemerkt" stand danach noch in der Fusszeile, obwohl sie dort niemand mehr
+	// abbilden konnte -- Owner (30.08.2026): sie ist „inkonsistent mit allen anderen Zahlen" und
+	// ist mit `avesmapsGaretienFussZeileMarkup` restlos entfernt (kein Reiter, keine Fusszeile mehr).
 	const AVESMAPS_GARETIEN_SERVER_STAENDE = ["offen", "abgelehnt", "uebernommen"];
 
 	const AVESMAPS_GARETIEN_REITER = [
@@ -588,19 +589,6 @@
 			return '<button class="' + klasse + '" type="button" data-stand="' + schluessel + '">'
 				+ avesmapsGaretienEscape(beschriftung) + " (" + zahl + ")</button>";
 		}).join("");
-	}
-
-	// 🔴 Review I1 (28.08.2026): die Fusszeile zeigt den BEARBEITUNGSSTAND (Mockup §1 --
-	// "<b>14</b> vorgemerkt · <b>3</b> abgelehnt · <b>0</b> übernommen"), NICHT die Item-Ebene
-	// aus `angehakt.*` -- die ist fuer Aufgabe 16 (die truncated-Angabe im Uebernahme-Blatt)
-	// vorgesehen, nicht fuer dieses Element. `a.reiter` liegt hier schon vor (dieselbe Quelle
-	// wie fuer die vier Reiter oben) -- keine zweite Rechnung noetig.
-	function avesmapsGaretienFussZeileMarkup(reiter) {
-		const r = reiter || {};
-		const zahl = (feld) => Number(r[feld] || 0);
-		return "<b>" + zahl("vorgemerkt") + "</b> vorgemerkt · "
-			+ "<b>" + zahl("abgelehnt") + "</b> abgelehnt · "
-			+ "<b>" + zahl("uebernommen") + "</b> übernommen";
 	}
 
 	// ---- avesmapsGaretienAngehakt (fuer Aufgabe 16) -------------------------------------------------
@@ -873,9 +861,6 @@
 					: "")
 				+ garetienNeutralHinweisMarkup(avesmapsGaretienAufDerKarte(objekte));
 		}
-
-		const fussEl = document.getElementById("garetien-foot-count");
-		if (fussEl) { fussEl.innerHTML = avesmapsGaretienFussZeileMarkup(a.reiter); }
 
 		// Aufgabe 5: der Fussknopf traegt „n von m" der ANZEIGE-MENGE, nicht mehr die Zahl der
 		// angehakten Items -- „Nur angezeigte koennen uebernommen werden" (Owner). Die Anzeige ist
@@ -3289,7 +3274,6 @@
 			avesmapsGaretienBalanceZeileText,
 			avesmapsGaretienRunlineMarkup,
 			avesmapsGaretienTabsMarkup,
-			avesmapsGaretienFussZeileMarkup,
 			avesmapsGaretienAngehakt,
 			avesmapsGaretienAngehaktAus,
 			avesmapsGaretienListeHolen,

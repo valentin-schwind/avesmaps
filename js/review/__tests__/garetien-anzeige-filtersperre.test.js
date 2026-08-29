@@ -56,7 +56,7 @@ function macheElement(id) {
 const ELEMENTE = {};
 ["garetien-listcol", "garetien-tabs", "garetien-list", "garetien-runline", "garetien-search",
 	"garetien-filter-toggle", "garetien-filter-menu", "garetien-anzeige-hinweis",
-	"garetien-balance", "garetien-foot-count", "garetien-detailcol"]
+	"garetien-balance", "garetien-detailcol"]
 	.forEach((id) => { ELEMENTE[id] = macheElement(id); });
 
 global.document = {
