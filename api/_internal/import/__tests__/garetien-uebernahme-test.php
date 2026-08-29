@@ -620,6 +620,34 @@ assert($ohneVermerk === 0, $ohneVermerk . ' Zeilen ohne Vermerk -- die haelt der
 assert($offenVorher > 0, 'es gab ueberhaupt etwas zu tun, sonst prueft das oben nichts');
 $pruefungen += 2;
 
+// 🔴 UND KEINE VERMERKTE ZEILE BEHAELT IHR HAEKCHEN (Aufgabe 16, Fund der Pruefung).
+// 💣 Das ist NICHT dasselbe wie die Zeile darueber. Dort steht `AND apply_state IS NULL` --
+// die Frage war „traegt jede Zeile einen Vermerk". Hier steht sie NICHT: die Frage ist, ob eine
+// vermerkte Zeile ihr `selected = 1` behaelt. Genau die faellt aus der ersten Zaehlung heraus,
+// und genau die zaehlt `angehakt` in garetien-liste.php weiter mit -- der Fussknopf des
+// Fensters versprraeche sie beim naechsten Durchgang erneut („2 von 2 werden uebernommen",
+// danach „1 uebernommen"), und der Editor bekaeme sie NICHT weg:
+// avesmapsSyncPlanSetSelection traegt selbst `AND apply_state IS NULL`.
+// ⚠️ Der Lauf bleibt bei diesem Import bewusst OFFEN (avesmapsGaretienApplyStep schliesst ihn
+// nicht) -- die sieben anderen Objektarten sehen den Fall nie, weil ihr `get` danach
+// `run: null` liefert.
+$nochAngehakt = (int) $pdo2->query(
+    "SELECT COUNT(*) FROM sync_plan_item WHERE run_id = {$lauf2} AND selected = 1"
+)->fetchColumn();
+assert($nochAngehakt === 0, $nochAngehakt . ' vermerkte Zeilen tragen noch ihr Haekchen -- der Fussknopf verspricht sie erneut');
+$pruefungen++;
+
+// Die Gegenprobe: die Zusicherung darueber misst wirklich BEIDE Zweige. Es gab in diesem Lauf
+// sowohl geschriebene (`done`) als auch abgelehnte Zeilen (`stale`/`failed`) -- eine Regel, die
+// nur `done` abhakt, liesse die anderen als Geisterzeilen stehen.
+$staende = $pdo2->query(
+    "SELECT apply_state, COUNT(*) AS n FROM sync_plan_item WHERE run_id = {$lauf2} GROUP BY apply_state"
+)->fetchAll(PDO::FETCH_KEY_PAIR);
+assert((int) ($staende['done'] ?? 0) > 0, 'kein einziges Item wurde geschrieben -- dann prueft das oben nur den Ablehnzweig');
+assert((int) ($staende['stale'] ?? 0) + (int) ($staende['failed'] ?? 0) > 0,
+    'kein einziges Item wurde abgelehnt -- dann prueft das oben nur den Schreibzweig');
+$pruefungen += 2;
+
 // 🔴 Und die Rueckgabe hat die Form, die die Vorschau erwartet -- `done` beendet die Kette,
 // `remaining` treibt den Fortschritt. Ein fehlendes Feld ist dort ein stilles 0.
 foreach (['done', 'applied', 'deleted', 'stale', 'processed', 'remaining', 'skipped', 'declined'] as $feld) {

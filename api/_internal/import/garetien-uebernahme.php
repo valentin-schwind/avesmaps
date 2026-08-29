@@ -388,6 +388,36 @@ function avesmapsGaretienApplyStep(PDO $pdo, int $runId, int $userId, ?array $us
 }
 
 /**
+ * Ein Item abschliessen: Vermerk setzen UND das Haekchen wegnehmen.
+ *
+ * 🔴 DIE ZWEITE HAELFTE IST TRAGEND, und sie ist dieselbe Regel wie bei 'decline' zwei Faelle
+ * weiter im selben Endpunkt (api/edit/wiki/sync-plan.php): dort wird eine abgelehnte Zeile
+ * ausdruecklich mit abgehakt, weil sie sonst „abgelehnt aussaehe -- und `apply` schriebe sie
+ * trotzdem". Hier ist es die Gegenrichtung desselben Auseinanderlaufens.
+ *
+ * 💣 Ein vermerktes Item ist fuer JEDEN weiteren Schritt tot: `avesmapsSyncPlanPendingItems`
+ * verlangt `apply_state IS NULL`, geschrieben wird es also nie wieder -- und
+ * `avesmapsSyncPlanSetSelection` verlangt DASSELBE, der Editor bekommt sein Haekchen also auch
+ * nicht mehr weg. Bliebe `selected = 1` stehen, zaehlte der Fussknopf des Fensters die Zeile
+ * weiter mit und das Uebernahme-Blatt versprraeche sie erneut („2 von 2 werden uebernommen",
+ * danach „1 uebernommen") -- genau die Falschaussage ueber eine Uebernahme, gegen die das
+ * Beschneiden der Blattanzeige gebaut wurde. Und sie waere unentfernbar bis zum naechsten
+ * Plan-Lauf.
+ *
+ * 🔴 ALLE Vermerke gehen hier durch, nicht nur `done`. `stale` und `failed` machen die Zeile
+ * genauso tot -- eine Regel, die einen von mehreren Erzeugern bindet, ist keine Regel
+ * (AGENTS.md §11, die Verkehrsmittel-Sperre).
+ *
+ * ⚠️ Der Riegel `apply_state IS NULL` in `avesmapsSyncPlanSetSelection` wirkt nicht gegen uns:
+ * hier wird direkt geschrieben, in derselben Reihenfolge wie der Vermerk.
+ */
+function avesmapsGaretienItemAbschliessen(PDO $pdo, int $itemId, string $applyState, string $note = ''): void
+{
+    avesmapsSyncPlanMarkItem($pdo, $itemId, $applyState, $note);
+    $pdo->prepare('UPDATE sync_plan_item SET selected = 0 WHERE id = :id')->execute(['id' => $itemId]);
+}
+
+/**
  * Die angehakten Vorschlaege eines Vorschau-Laufs uebernehmen.
  *
  * @param list<int> $itemIds Nur diese Items -- alles andere bleibt unberuehrt.
@@ -430,7 +460,7 @@ function avesmapsGaretienUebernehmen(PDO $pdo, int $runId, array $itemIds, array
             // und der Uebernahme-Schritt der Vorschau arbeitet in Haeppchen, bis nichts mehr offen
             // ist -- er kaeme nie zum Ende und der Fortschritt draehte sich im Kreis.
             $fehler[] = ['item' => (int) $item['id'], 'grund' => 'kein Garetien-Vorschlag'];
-            avesmapsSyncPlanMarkItem($pdo, (int) $item['id'], 'failed', 'kein Garetien-Vorschlag');
+            avesmapsGaretienItemAbschliessen($pdo, (int) $item['id'], 'failed', 'kein Garetien-Vorschlag');
             continue;
         }
         $anlass = (string) ($nach['anlass'] ?? '');
@@ -443,7 +473,7 @@ function avesmapsGaretienUebernehmen(PDO $pdo, int $runId, array $itemIds, array
             if (!in_array($anlass, ['ergaenzung', 'umbenennung', 'geometrie'], true)) {
                 $grund = '"' . $item['label'] . '" braucht eine Entscheidung von Hand';
                 $fehler[] = ['item' => (int) $item['id'], 'grund' => $grund];
-                avesmapsSyncPlanMarkItem($pdo, (int) $item['id'], 'stale', mb_substr($grund, 0, 300, 'UTF-8'));
+                avesmapsGaretienItemAbschliessen($pdo, (int) $item['id'], 'stale', mb_substr($grund, 0, 300, 'UTF-8'));
                 continue;
             }
             try {
@@ -452,10 +482,10 @@ function avesmapsGaretienUebernehmen(PDO $pdo, int $runId, array $itemIds, array
                 );
                 $angelegt += $ergebnis['felder'] > 0 ? 1 : 0;
                 $quellen += $ergebnis['quellen'];
-                avesmapsSyncPlanMarkItem($pdo, (int) $item['id'], 'done', (string) $item['entity_public_id']);
+                avesmapsGaretienItemAbschliessen($pdo, (int) $item['id'], 'done', (string) $item['entity_public_id']);
             } catch (Throwable $abbruch) {
                 $fehler[] = ['item' => (int) $item['id'], 'grund' => $abbruch->getMessage()];
-                avesmapsSyncPlanMarkItem($pdo, (int) $item['id'], 'failed', mb_substr($abbruch->getMessage(), 0, 300, 'UTF-8'));
+                avesmapsGaretienItemAbschliessen($pdo, (int) $item['id'], 'failed', mb_substr($abbruch->getMessage(), 0, 300, 'UTF-8'));
             }
             continue;
         }
@@ -469,7 +499,7 @@ function avesmapsGaretienUebernehmen(PDO $pdo, int $runId, array $itemIds, array
             $fehler[] = ['item' => (int) $item['id'], 'grund' => $grund];
             // 💣 Auch hier ein Vermerk -- siehe oben. `stale` und nicht `failed`: es ist nichts
             // kaputt, die Zeile gehoert nur nicht in diese Stufe.
-            avesmapsSyncPlanMarkItem($pdo, (int) $item['id'], 'stale', mb_substr($grund, 0, 300, 'UTF-8'));
+            avesmapsGaretienItemAbschliessen($pdo, (int) $item['id'], 'stale', mb_substr($grund, 0, 300, 'UTF-8'));
             continue;
         }
 
@@ -492,13 +522,13 @@ function avesmapsGaretienUebernehmen(PDO $pdo, int $runId, array $itemIds, array
             if (avesmapsGaretienQuelleAnlegen($pdo, $entityType, $publicId, (array) ($nach['quelle'] ?? []), $userId)) {
                 $quellen++;
             }
-            avesmapsSyncPlanMarkItem($pdo, (int) $item['id'], 'done', $publicId);
+            avesmapsGaretienItemAbschliessen($pdo, (int) $item['id'], 'done', $publicId);
         } catch (Throwable $abbruch) {
             // 🔴 Ein Fehlschlag bei EINEM Objekt haelt die uebrigen nicht auf, aber er wird
             // benannt. Ein stiller Ueberspringer waere von "wurde angelegt" nicht zu
             // unterscheiden -- und die Zahl im Ergebnis waere eine Behauptung.
             $fehler[] = ['item' => (int) $item['id'], 'grund' => $abbruch->getMessage()];
-            avesmapsSyncPlanMarkItem($pdo, (int) $item['id'], 'failed', mb_substr($abbruch->getMessage(), 0, 300, 'UTF-8'));
+            avesmapsGaretienItemAbschliessen($pdo, (int) $item['id'], 'failed', mb_substr($abbruch->getMessage(), 0, 300, 'UTF-8'));
         }
     }
 
