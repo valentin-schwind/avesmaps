@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Kraftlinien – Kurvenform (Mockup)</title>
+<style>
+/* ⚠️ WERKSTATT-MOCKUP. Die Farben stehen hier LITERAL, weil die Kraftlinien-Farben auch im
+   Produktivcode literal sind (css/features/powerlines.css kennt keine Tokens). Es wird hier
+   ABSICHTLICH kein Tokenname erfunden -- ein erfundener var() faellt erst im Produktivcode auf. */
+:root { color-scheme: dark; }
+body {
+	margin: 0; padding: 24px 28px 60px;
+	background: #17110d; color: #e8ddd0;
+	font: 15px/1.55 "Segoe UI", system-ui, sans-serif;
+}
+h1 { font-size: 24px; margin: 0 0 6px; color: #e8c98a; font-weight: 600; }
+h2 { font-size: 17px; margin: 34px 0 10px; color: #e8c98a; font-weight: 600;
+	border-bottom: 1px solid rgba(232,201,138,.25); padding-bottom: 6px; }
+h3 { font-size: 14px; margin: 0 0 8px; color: #d9c49a; font-weight: 600; }
+p { max-width: 78ch; margin: 8px 0; }
+.lead { color: #bcae9d; }
+code { background: rgba(255,255,255,.07); padding: 1px 5px; border-radius: 4px; font-size: 13px; }
+.stage { background: #0d0a08; border: 1px solid rgba(232,201,138,.22); border-radius: 8px;
+	padding: 0; overflow: hidden; margin-top: 14px; }
+.stage svg { display: block; width: 100%; height: 420px; background:
+	radial-gradient(ellipse at 50% 40%, #241a14 0%, #0d0a08 78%); }
+.panel { background: rgba(255,255,255,.04); border: 1px solid rgba(232,201,138,.18);
+	border-radius: 8px; padding: 14px 16px; margin-top: 14px; }
+.panel--editor { border-color: rgba(120,220,150,.45); background: rgba(120,220,150,.06); }
+.panel--editor h3 { color: #96dcae; }
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 14px; }
+.row { display: flex; align-items: center; gap: 10px; margin: 7px 0; flex-wrap: wrap; }
+.row label { min-width: 190px; font-size: 13px; color: #bcae9d; }
+input[type=range] { flex: 1 1 180px; min-width: 140px; accent-color: #e8c98a; }
+.val { min-width: 70px; text-align: right; font-variant-numeric: tabular-nums;
+	color: #e8c98a; font-size: 13px; }
+.seg { display: inline-flex; border: 1px solid rgba(232,201,138,.35); border-radius: 6px;
+	overflow: hidden; }
+.seg button { background: transparent; border: 0; color: #bcae9d; padding: 6px 13px;
+	font: inherit; font-size: 13px; cursor: pointer; }
+.seg button[aria-pressed=true] { background: rgba(232,201,138,.9); color: #17110d; font-weight: 600; }
+.cmp { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-top: 12px; }
+.cmp figure { margin: 0; background: #0d0a08; border: 1px solid rgba(232,201,138,.18);
+	border-radius: 8px; overflow: hidden; }
+.cmp figcaption { padding: 8px 11px 11px; font-size: 12.5px; color: #bcae9d; }
+.cmp figcaption b { color: #e8ddd0; display: block; font-size: 13.5px; margin-bottom: 3px; }
+.note { border-left: 3px solid #e8c98a; padding: 4px 0 4px 12px; margin: 12px 0;
+	color: #cbbda9; font-size: 13.5px; max-width: 78ch; }
+.note--warn { border-left-color: #e07a5f; }
+table { border-collapse: collapse; margin-top: 10px; font-size: 13.5px; }
+th, td { text-align: left; padding: 5px 16px 5px 0; border-bottom: 1px solid rgba(255,255,255,.08); }
+th { color: #d9c49a; font-weight: 600; }
+td.n { font-variant-numeric: tabular-nums; text-align: right; padding-right: 24px; }
+.tag { display: inline-block; font-size: 11px; letter-spacing: .04em; text-transform: uppercase;
+	padding: 2px 7px; border-radius: 4px; background: rgba(232,201,138,.18); color: #e8c98a; }
+.tag--ed { background: rgba(120,220,150,.18); color: #96dcae; }
+</style>
+</head>
+<body>
+
+<h1>Kraftlinien: Kurvenform</h1>
+<p class="lead">Mockup zum Entwurf. Die Stränge unten rechnen die <b>echte</b> Formel aus
+<code>createPowerlineStrandLatLngs</code> (js/map-features/map-features-powerlines.js:63) mit den
+echten Werten aus <code>POWERLINE_RENDER_CONFIG</code> (js/config.js:752) — Wabern, Zittern,
+Störung und 30-fps-Takt inbegriffen. Neu ist allein der <b>Kurven-Summand</b>.</p>
+
+<p>Heute nimmt der Zeichner aus der Geometrie nur <b>ersten und letzten Punkt</b> und interpoliert
+linear. Eine Kraftlinie <i>kann</i> deshalb nichts anderes sein als eine Strecke. Die Kurve ist
+strukturell dieselbe Rechnung wie das Wabern: ein Versatz entlang der Normalen — nur ohne Zeit.</p>
+
+<h2>Werkstatt <span class="tag">nicht das, was der Editor sieht</span></h2>
+
+<div class="stage">
+	<svg id="buehne" viewBox="0 0 900 460" preserveAspectRatio="xMidYMid meet"></svg>
+</div>
+
+<div class="panel">
+	<div class="grid">
+		<div>
+			<h3>Die eine Editor-Entscheidung</h3>
+			<div class="row">
+				<label for="rKurve">Kurvenform (% der Sehne)</label>
+				<input type="range" id="rKurve" min="-45" max="45" step="1" value="26">
+				<span class="val" id="vKurve">+26 %</span>
+			</div>
+			<div class="row">
+				<label>Kurvenart</label>
+				<span class="seg" id="segArt">
+					<button data-art="sinus" aria-pressed="true">Sinus-Glocke</button>
+					<button data-art="bogen" aria-pressed="false">Kreisbogen</button>
+					<button data-art="parabel" aria-pressed="false">Parabel</button>
+					<button data-art="glatt" aria-pressed="false">Glatte Glocke</button>
+				</span>
+			</div>
+		</div>
+		<div>
+			<h3>Werkstattregler (werden eingefroren)</h3>
+			<div class="row">
+				<label for="rStuetz">Stützpunkte je Segment</label>
+				<input type="range" id="rStuetz" min="4" max="48" step="1" value="8">
+				<span class="val" id="vStuetz">8</span>
+			</div>
+			<div class="row">
+				<label for="rLaenge">Segmentlänge (Karteneinheiten)</label>
+				<input type="range" id="rLaenge" min="4" max="60" step="1" value="20">
+				<span class="val" id="vLaenge">20</span>
+			</div>
+			<div class="row">
+				<label for="rNodices">Nodices der Linie</label>
+				<input type="range" id="rNodices" min="2" max="5" step="1" value="2">
+				<span class="val" id="vNodices">2</span>
+			</div>
+		</div>
+	</div>
+	<div class="note">Die <b>Segmentlänge</b> ist kein Spielregler: das Wabern rechnet in
+	<b>absoluten Karteneinheiten</b> (Amplitude ≈ 1 Einheit), die Kurve in <b>Prozent der Sehne</b>.
+	Zieh die Länge auf 5 — das Wabern frisst die Kurve. Zieh sie auf 60 — die Kurve dominiert.
+	Genau deshalb muss der Entwurf sagen, welche der beiden Einheiten die Kurve nimmt.</div>
+</div>
+
+<div class="panel panel--editor">
+	<h3>Was der Editor später sieht <span class="tag tag--ed">Produkt</span></h3>
+	<p style="margin-top:2px">Ein Schieber unter „Name auf der Karte anzeigen“, dazu der Knopf, der
+	den Editor wegblendet und die Linie frei auf der Karte biegen lässt. <b>Sonst nichts</b> —
+	Kurvenart und Stützpunktzahl sind hier entschieden, nicht dort.</p>
+	<div style="max-width:430px;background:rgba(0,0,0,.3);border:1px solid rgba(255,255,255,.12);
+		border-radius:6px;padding:12px 14px;margin-top:10px">
+		<div style="display:flex;justify-content:space-between;font-size:13px;color:#bcae9d">
+			<span>Kurvenform</span><span id="edVal" style="color:#e8c98a">+26 %</span></div>
+		<input type="range" id="edKurve" min="-45" max="45" step="1" value="26" style="width:100%;margin:8px 0 4px">
+		<div style="display:flex;justify-content:space-between;font-size:11.5px;color:#8d8175">
+			<span>◀ links</span><span>gerade</span><span>rechts ▶</span></div>
+		<button style="margin-top:10px;background:rgba(232,201,138,.14);border:1px solid rgba(232,201,138,.5);
+			color:#e8c98a;border-radius:6px;padding:7px 12px;font:inherit;font-size:13px;cursor:pointer">
+			Kurve auf der Karte einstellen</button>
+	</div>
+</div>
+
+<h2>Die drei Kurvenarten im Vergleich</h2>
+<p>Alle vier laufen unten mit demselben Wert. Bei schwacher Krümmung sind sie kaum zu unterscheiden. Der Unterschied entsteht bei starken
+Bögen — und dein Torweg-Bogen ist stark (grob am Bild abgegriffen, nicht nachgemessen: rund
+<b>ein Viertel</b> der Sehne).</p>
+
+<div class="cmp">
+	<figure><svg id="c1" viewBox="0 0 300 300" style="width:100%;height:210px"></svg>
+		<figcaption><b>Sinus-Glocke</b> <code>h·sin(πt)</code><br>
+		Anlaufsteigung <code>π·h/L</code> — die <i>flachste</i> der drei bogigen Formen, also der
+		kleinste Knick am Nodix. Dieselbe Hüllkurve, die das Wabern schon benutzt.</figcaption></figure>
+	<figure><svg id="c2" viewBox="0 0 300 300" style="width:100%;height:210px"></svg>
+		<figcaption><b>Kreisbogen</b><br>
+		Krümmung überall gleich, <i>steilster</i> Anlauf. Am nächsten an deinem gemalten Bogen — bei
+		mehreren Segmenten aber der sichtbarste Knick am Nodix.</figcaption></figure>
+	<figure><svg id="c3" viewBox="0 0 300 300" style="width:100%;height:210px"></svg>
+		<figcaption><b>Parabel</b> <code>4h·t(1−t)</code><br>
+		Die quadratische Bézier, Anlaufsteigung <code>4h/L</code> — zwischen den beiden. Billigste
+		Rechnung, bis rund 30 % kaum vom Kreisbogen zu unterscheiden.</figcaption></figure>
+	<figure><svg id="c4" viewBox="0 0 300 300" style="width:100%;height:210px"></svg>
+		<figcaption><b>Glatte Glocke</b> <code>h·sin²(πt)</code><br>
+		Die <i>einzige knickfreie</i>: Anlaufsteigung exakt <b>null</b>, sie geht tangential aus der
+		Sehne heraus. Bei mehrsegmentigen Linien eine durchlaufende Welle statt einer Girlande —
+		dafür ein schmalerer, weniger „gezeichneter“ Bauch.</figcaption></figure>
+</div>
+
+<h2>Der Preis: Stützpunkte</h2>
+<p>Heute stehen <code>segmentCount: 8</code> Stützpunkte je Segment. Für eine <b>Gerade</b> reicht
+das (die 8 Punkte tragen nur das Wabern). Ein <b>Bogen</b> über 8 Punkte ist ein sichtbares
+Achteck. Zieh oben „Stützpunkte“ auf 4 und die Kurve auf 40 % — das ist der Fehler, den man nicht
+mehr wegdiskutiert.</p>
+
+<table>
+	<tr><th>Zustand</th><th class="n">Punkte/Frame</th><th>Rechnung</th></tr>
+	<tr><td>heute (alle gerade, 8)</td><td class="n">13 365</td>
+		<td>165 Segmente × 9 Polylinien × 9 Punkte</td></tr>
+	<tr><td>alle Linien auf 24</td><td class="n">37 125</td><td>×2,8 — für nichts, die meisten sind gerade</td></tr>
+	<tr><td>nur gekrümmte skalieren</td><td class="n">≈ 14 500</td>
+		<td>Stützpunkte wachsen mit |Krümmung|, gerade Linien bleiben bei 8</td></tr>
+</table>
+<div class="note note--warn">Der dritte Weg ist der Entwurfsvorschlag: <code>segmentCount</code> wird
+aus der Krümmung abgeleitet statt fest gesetzt. Eine gerade Linie kostet dann exakt so viel wie
+heute — und die 62 Linien sind heute <b>alle</b> gerade.</div>
+
+<h2>Was hier bewusst NICHT steht</h2>
+<p>Die Falle, die der Entwurf tragen muss: <b>welche Seite ist „+“?</b> Die Normale hängt an der
+Speicherrichtung des Segments (<code>from_public_id</code> → <code>to_public_id</code>) — und die
+Nodices lassen sich im Editor mit ▲▼ umsortieren. Wer die Reihenfolge dreht, klappt jeden Bogen
+dieser Linie auf die andere Seite, ohne dass jemand die Kurve angefasst hätte.</p>
+
+<script>
+"use strict";
+// ── Die echten Werte aus js/config.js:752 (POWERLINE_RENDER_CONFIG) ──────────────────────────
+const CFG = {
+	strandCount: 3, segmentCount: 8,
+	normalScales: [0.125, 0.125, 0.125, 0.125],
+	waveOffsets: [-2, 2, 2, 2],
+	phaseStep: 1.73,
+	tremorNormalAmplitude: 2.1, tremorTangentAmplitude: 0.3,
+	tremorNormalSpeed: 0.85, tremorTangentSpeed: 0.65,
+	tremorNormalFrequency: 0.38, tremorTangentFrequency: 0.29,
+	tremorPhaseMultiplier: 2.4,
+	interferenceAmplitude: 1.6, interferenceSpeed: 2.4,
+	frameIntervalMs: 33,
+};
+// Die drei Ebenen je Strang, echt aus css/features/powerlines.css.
+const LAYERS = [
+	{ w: 10,  o: 0.34, c: "rgba(255, 70, 90, 0.42)" },
+	{ w: 4.6, o: 0.72, c: "rgba(255, 105, 130, 0.82)" },
+	{ w: 1.5, o: 0.98, c: "rgba(255, 235, 240, 1)" },
+];
+
+// ── Die Kurve: der einzige neue Summand ─────────────────────────────────────────────────────
+// h = Bogenhoehe in KARTENEINHEITEN, t = 0..1 entlang der Sehne, L = Sehnenlaenge.
+function kurvenVersatz(art, t, h, L) {
+	if (h === 0) { return 0; }
+	if (art === "sinus")   { return h * Math.sin(Math.PI * t); }
+	if (art === "parabel") { return 4 * h * t * (1 - t); }
+	// Die EINZIGE knickfreie: Ableitung 2*pi*h*sin(pi t)*cos(pi t) ist bei t=0 und t=1 exakt NULL,
+	// die Kurve laeuft also tangential zur Sehne in den Nodix. Preis: schmalerer Bauch.
+	if (art === "glatt")   { const q = Math.sin(Math.PI * t); return h * q * q; }
+	// Kreisbogen durch beide Endpunkte mit Scheitelhoehe h.
+	const a = Math.abs(h);
+	const R = (a * a + (L / 2) * (L / 2)) / (2 * a);
+	const x = L * (t - 0.5);
+	const y = Math.sqrt(Math.max(0, R * R - x * x)) - (R - a);
+	return Math.sign(h) * y;
+}
+
+// ── Der echte Strangbauer, 1:1 aus map-features-powerlines.js:63, plus dem Kurven-Summanden ──
+// Arbeitet hier in Karteneinheiten (x,y), auf der Karte in (lng,lat) -- dieselbe Rechnung.
+function strang(p0, p1, strandIndex, t0, art, hEinheiten, stuetz) {
+	const dx = p1.x - p0.x, dy = p1.y - p0.y;
+	const L = Math.hypot(dx, dy) || 1;
+	const tx = dx / L, ty = dy / L;
+	const nx = -ty, ny = tx;
+	const n = Math.max(2, Math.round(stuetz));
+	const phase = strandIndex * CFG.phaseStep;
+	const normalScale = CFG.normalScales[strandIndex % CFG.normalScales.length];
+	const waveOffset = CFG.waveOffsets[strandIndex % CFG.waveOffsets.length];
+	const pts = [];
+	for (let i = 0; i <= n; i++) {
+		const t = i / n;
+		const envelope = Math.sin(Math.PI * t);
+		const normalWave = Math.sin(i * 0.62 + phase) * envelope * 4.5;
+		const tangentWave = Math.sin(i * 1.17 + phase) * envelope * 0.8;
+		const tremorWave = Math.sin(t0 * CFG.tremorNormalSpeed + i * CFG.tremorNormalFrequency
+			+ phase * CFG.tremorPhaseMultiplier) * envelope * CFG.tremorNormalAmplitude;
+		const tremorTangent = Math.sin(t0 * CFG.tremorTangentSpeed + i * CFG.tremorTangentFrequency
+			+ phase) * envelope * CFG.tremorTangentAmplitude;
+		const interference = (Math.sin(i * 2.6 + t0 * CFG.interferenceSpeed + phase * 3.3)
+			+ 0.6 * Math.sin(i * 4.1 - t0 * CFG.interferenceSpeed * 1.7 + phase))
+			* envelope * CFG.interferenceAmplitude;
+		const wabern = (normalWave + tremorWave + interference + waveOffset * envelope) * normalScale;
+		// ⭐ DER NEUE SUMMAND: die Kurve addiert sich auf denselben Normalenversatz.
+		const kurve = kurvenVersatz(art, t, hEinheiten, L);
+		const off = wabern + kurve;
+		pts.push([
+			p0.x + dx * t + nx * off + tx * (tangentWave + tremorTangent),
+			p0.y + dy * t + ny * off + ty * (tangentWave + tremorTangent),
+		]);
+	}
+	return pts;
+}
+
+const NS = "http://www.w3.org/2000/svg";
+function el(name, attrs) {
+	const e = document.createElementNS(NS, name);
+	for (const k in attrs) { e.setAttribute(k, attrs[k]); }
+	return e;
+}
+function d(pts, sx, sy, ox, oy) {
+	return pts.map((p, i) => (i ? "L" : "M") + (ox + p[0] * sx).toFixed(2)
+		+ " " + (oy + p[1] * sy).toFixed(2)).join(" ");
+}
+
+// ── Zustand ─────────────────────────────────────────────────────────────────────────────────
+const S = { kurve: 26, art: "sinus", stuetz: 8, laenge: 20, nodices: 2 };
+const buehne = document.getElementById("buehne");
+
+function zeichneBuehne(t0) {
+	while (buehne.firstChild) { buehne.removeChild(buehne.firstChild); }
+	// Die Kette liegt in Karteneinheiten; der Massstab bringt sie auf 760 px Breite.
+	const segLen = S.laenge;
+	const n = S.nodices - 1;                       // Segmentzahl
+	const gesamt = segLen * n;
+	const px = 760 / gesamt;                        // px je Karteneinheit
+	// Die Buehne haelt den Bogen mittig: bei starker Kruemmung liefe er sonst aus dem viewBox.
+	const hVoraus = (S.kurve / 100) * segLen * px;
+	const ox = 70, oy = 230 - hVoraus / 2;
+	const knoten = [];
+	for (let i = 0; i < S.nodices; i++) { knoten.push({ x: i * segLen, y: 0 }); }
+	const h = (S.kurve / 100) * segLen;             // Bogenhoehe in Karteneinheiten
+
+	// Die unsichtbare Klick-Linie muss der Kurve folgen -- hier sichtbar gemacht.
+	for (let s = 0; s < n; s++) {
+		const bahn = [];
+		for (let i = 0; i <= 40; i++) {
+			const t = i / 40;
+			const p0 = knoten[s], p1 = knoten[s + 1];
+			const dx = p1.x - p0.x, dy = p1.y - p0.y, L = Math.hypot(dx, dy) || 1;
+			const off = kurvenVersatz(S.art, t, h, L);
+			bahn.push([p0.x + dx * t + (-dy / L) * off, p0.y + dy * t + (dx / L) * off]);
+		}
+		buehne.appendChild(el("path", { d: d(bahn, px, px, ox, oy), fill: "none",
+			stroke: "rgba(232,201,138,.28)", "stroke-width": 22, "stroke-linecap": "round" }));
+	}
+
+	for (let s = 0; s < n; s++) {
+		for (let k = 0; k < CFG.strandCount; k++) {
+			const pts = strang(knoten[s], knoten[s + 1], k, t0, S.art, h, S.stuetz);
+			LAYERS.forEach((l) => {
+				buehne.appendChild(el("path", { d: d(pts, px, px, ox, oy), fill: "none",
+					stroke: l.c, "stroke-width": l.w, opacity: l.o,
+					"stroke-linecap": "round", "stroke-linejoin": "round" }));
+			});
+		}
+	}
+	knoten.forEach((k, i) => {
+		buehne.appendChild(el("circle", { cx: ox + k.x * px, cy: oy + k.y * px, r: 5,
+			fill: "#0d0a08", stroke: "#e8c98a", "stroke-width": 2 }));
+		const txt = el("text", { x: ox + k.x * px, y: oy + 24, fill: "#8d8175",
+			"font-size": 11.5, "text-anchor": "middle" });
+		txt.textContent = i === 0 ? "from" : (i === S.nodices - 1 ? "to" : "Nodix");
+		buehne.appendChild(txt);
+	});
+	const info = el("text", { x: 70, y: 34, fill: "#8d8175", "font-size": 12.5 });
+	info.textContent = "Sehne " + segLen + " Einheiten · Bogenhöhe " + h.toFixed(2)
+		+ " Einheiten · Wabern ≈ 1,0 Einheiten · " + (S.stuetz + 1) + " Punkte je Strang";
+	buehne.appendChild(info);
+}
+
+function zeichneVergleich(id, art, t0) {
+	const svg = document.getElementById(id);
+	while (svg.firstChild) { svg.removeChild(svg.firstChild); }
+	const p0 = { x: 0, y: 0 }, p1 = { x: 20, y: 0 };
+	const h = (S.kurve / 100) * 20;
+	const px = 250 / 20, ox = 25, oy = 150;
+	for (let k = 0; k < CFG.strandCount; k++) {
+		const pts = strang(p0, p1, k, t0, art, h, Math.max(S.stuetz, 16));
+		LAYERS.forEach((l) => {
+			svg.appendChild(el("path", { d: d(pts, px, px, ox, oy), fill: "none",
+				stroke: l.c, "stroke-width": l.w, opacity: l.o,
+				"stroke-linecap": "round", "stroke-linejoin": "round" }));
+		});
+	}
+	[p0, p1].forEach((k) => svg.appendChild(el("circle", { cx: ox + k.x * px, cy: oy, r: 4,
+		fill: "#0d0a08", stroke: "#e8c98a", "stroke-width": 2 })));
+}
+
+// ── Regler ──────────────────────────────────────────────────────────────────────────────────
+function fmt(v) { return (v > 0 ? "+" : "") + v + " %"; }
+const rKurve = document.getElementById("rKurve"), edKurve = document.getElementById("edKurve");
+function setKurve(v) {
+	S.kurve = v;
+	rKurve.value = v; edKurve.value = v;
+	document.getElementById("vKurve").textContent = fmt(v);
+	document.getElementById("edVal").textContent = fmt(v);
+}
+rKurve.addEventListener("input", () => setKurve(Number(rKurve.value)));
+edKurve.addEventListener("input", () => setKurve(Number(edKurve.value)));
+document.getElementById("rStuetz").addEventListener("input", (e) => {
+	S.stuetz = Number(e.target.value);
+	document.getElementById("vStuetz").textContent = S.stuetz;
+});
+document.getElementById("rLaenge").addEventListener("input", (e) => {
+	S.laenge = Number(e.target.value);
+	document.getElementById("vLaenge").textContent = S.laenge;
+});
+document.getElementById("rNodices").addEventListener("input", (e) => {
+	S.nodices = Number(e.target.value);
+	document.getElementById("vNodices").textContent = S.nodices;
+});
+document.getElementById("segArt").addEventListener("click", (e) => {
+	const b = e.target.closest("button[data-art]");
+	if (!b) { return; }
+	S.art = b.dataset.art;
+	[...e.currentTarget.querySelectorAll("button")].forEach((x) =>
+		x.setAttribute("aria-pressed", String(x === b)));
+});
+
+// ── 30-fps-Takt wie im Produktivcode (frameIntervalMs: 33) ──────────────────────────────────
+let last = 0, t0 = 0;
+function tick(ms) {
+	if (!last) { last = ms; }
+	if (ms - last >= CFG.frameIntervalMs) {
+		t0 += (ms - last) / 1000;
+		last = ms;
+		zeichneBuehne(t0);
+		zeichneVergleich("c1", "sinus", t0);
+		zeichneVergleich("c2", "bogen", t0);
+		zeichneVergleich("c3", "parabel", t0);
+		zeichneVergleich("c4", "glatt", t0);
+	}
+	requestAnimationFrame(tick);
+}
+setKurve(26);
+requestAnimationFrame(tick);
+</script>
+</body>
+</html>
