@@ -129,6 +129,33 @@ try {
     // Fortschritt in Haeppchen. Eine zweite Tuer auf denselben Schreibweg waere ein zweiter
     // Erzeuger, und eine Regel, die einen von zweien bindet, ist keine.
 
+    // --- Aufgabe 9: die Ruecknahme -- der EINE Loeschweg dieses Fensters, und er geht bewusst
+    // NICHT durch api/edit/wiki/sync-plan.php: jene Tuer ist mit sieben anderen Objektarten
+    // geteilt und ueberlebt den Abbau dieses Importers (Auftrag §5.5) -- ein Loeschweg dort bliebe
+    // als Waise stehen. Die ganze Logik (avesmapsGaretienRuecknahmeAusfuehren) liegt deshalb
+    // innerhalb von api/_internal/import/ und verschwindet mit ihm.
+    if ($action === 'ruecknahme') {
+        $planRunId = (int) ($payload['run_id'] ?? 0);
+        $lauf = $planRunId > 0 ? avesmapsSyncPlanRunById($pdo, $planRunId) : null;
+        if ($lauf === null || (string) $lauf['kind'] !== AVESMAPS_GARETIEN_PLAN_KIND) {
+            avesmapsErrorResponse(404, 'not_found', 'Dieser Vorschau-Lauf existiert nicht.');
+        }
+        if ((string) $lauf['state'] !== 'open') {
+            avesmapsErrorResponse(409, 'plan_not_open', 'Dieser Lauf laesst sich nicht mehr aendern.');
+        }
+        $ids = array_map('intval', (array) ($payload['ids'] ?? []));
+        $ids = array_values(array_filter($ids, static fn(int $id): bool => $id > 0));
+        if ($ids === []) {
+            avesmapsErrorResponse(400, 'no_ids', 'Es wurde keine Zeile genannt.');
+        }
+        $ergebnis = avesmapsGaretienRuecknahmeAusfuehren($pdo, $planRunId, $ids, $user);
+        avesmapsJsonResponse(200, [
+            'ok' => true,
+            'zurueckgenommen' => $ergebnis['zurueckgenommen'],
+            'fehler' => $ergebnis['fehler'],
+        ]);
+    }
+
     if ($action !== 'fetch' && $action !== 'upload') {
         avesmapsErrorResponse(400, 'invalid_action', 'Unbekannte Aktion.');
     }

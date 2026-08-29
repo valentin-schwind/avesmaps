@@ -39,6 +39,8 @@ const {
 	garetienHakenItems, garetienHakenPlan, garetienHakenRumpf,
 	garetienGeometrieRueckfrageText, garetienHandlungKlick, garetienHakenKlick,
 	garetienDetailMarkup,
+	// Aufgabe 9
+	garetienRuecknahmeRueckfrageText, garetienRuecknahmeKlick,
 } = mod;
 
 [["garetienHandlungen", garetienHandlungen], ["garetienHandlungsRumpf", garetienHandlungsRumpf],
@@ -767,6 +769,12 @@ laufMitGefaelschtemFetch(() => mod.avesmapsGaretienListeHolen()).then(function (
 
 	return pruefeNeuKlick();
 }).then(function () {
+	// 🔴 Angehängt an DIESELBE Kette, nicht als eigenständige IIFE nebenher: beide manipulieren
+	// `global.fetch`, und ein zweiter, unabhängig gestarteter Umtausch liefe der noch offenen Kette
+	// mit dem FALSCHEN "echt"-Wert ins Gehege -- derselbe Fehlerklasse wie das geteilte `/tmp` bei
+	// parallelen Sitzungen, nur hier im selben Prozess.
+	return pruefeRuecknahmeSenden();
+}).then(function () {
 	console.log(`garetien-handlungen ok -- ${checks} Zusicherungen`);
 }).catch(function (fehler) {
 	console.error(fehler);
@@ -846,4 +854,155 @@ async function pruefeNeuKlick() {
 	gleich(gestellt[0].rumpf.action, "select", "erst wird angehakt");
 	gleich(gestellt[1].rumpf.action, "apply",
 		"🔴 die tragende Zusicherung: „Neu einfügen\" schickt apply, nicht bloss ein zweites select");
+}
+
+// =================================================================================================
+// N. Aufgabe 9: „Zurücknehmen" -- ein übernommenes Objekt wieder von der Karte holen
+// =================================================================================================
+//
+// Brief: .superpowers/sdd/2026-08-29-garetien-importer-sichtwerkzeug/task-9-brief.md
+//
+// 🔴 Owner-Entscheid 1: ein 'changed'-Objekt bekommt GAR KEINE Rücknahme -- kein Knopf, ein
+// sichtbarer Grund an seiner Stelle. Nur ein 'new'-Item hat wirklich ein Objekt ANGELEGT.
+
+const wegUebernommen = {
+	key: "gi9:weg", name: "Gardel", urteil: "neu", stand: "uebernommen", geometrie_typ: "LineString",
+	items: [{ id: 501, change_type: "new", apply_state: "done", selected: 0 }],
+};
+const flaecheUebernommen = {
+	key: "gi9:see", name: "Mühlsee", urteil: "neu", stand: "uebernommen", geometrie_typ: "Polygon",
+	items: [{ id: 502, change_type: "new", apply_state: "done", selected: 0 }],
+};
+const changedUebernommen = {
+	key: "gi9:changed", name: "Alke", urteil: "ergaenzung", stand: "uebernommen", geometrie_typ: "LineString",
+	items: [{ id: 503, change_type: "changed", apply_state: "done", anlass: "geometrie",
+		felder: ["geometrie"], selected: 0 }],
+};
+
+// ---- N.1 Die Tafel: 'new' bekommt einen bedienbaren Knopf, 'changed' gar keinen ------------------
+tief(namen(wegUebernommen), ["ruecknahme"], "ein übernommenes 'new'-Objekt hat GENAU eine Handlung");
+gleich(knopf(wegUebernommen, "ruecknahme").disabled, false, "und sie ist bedienbar");
+tief(knopf(wegUebernommen, "ruecknahme").ids, [501], "mit der id GENAU dieses 'new'-Items");
+
+tief(namen(changedUebernommen), ["ruecknahme"],
+	"auch ein übernommenes 'changed'-Objekt zeigt die eine Handlung -- als GRUND, nicht als Knopf");
+gleich(knopf(changedUebernommen, "ruecknahme").disabled, true,
+	"🔴 OWNER-ENTSCHEID 1: ein 'changed'-Objekt bekommt GAR KEINE Rücknahme");
+gleich(knopf(changedUebernommen, "ruecknahme").grund, "Verändert ein bestehendes Objekt — nicht rücknehmbar.",
+	"und der Grund ist genau der aus dem Brief");
+tief(knopf(changedUebernommen, "ruecknahme").ids, [], "und schickt deshalb auch keine id");
+
+// Die Flaeche sieht auf der Tafel genauso aus wie der Weg -- der Unterschied liegt im Markup/Text.
+gleich(knopf(flaecheUebernommen, "ruecknahme").disabled, false, "die Flaeche ist ebenso bedienbar");
+tief(knopf(flaecheUebernommen, "ruecknahme").ids, [502], "mit ihrer eigenen id");
+
+// ---- N.2 Das Markup: ein Knopf für 'new', GAR KEIN Knopf für 'changed' ---------------------------
+const markupWeg = garetienHandlungsMarkup(wegUebernommen);
+wahr(/data-handlung="ruecknahme"/.test(markupWeg), "der Weg bekommt einen echten Knopf");
+wahr(/<button[^>]*btn--danger[^>]*data-handlung="ruecknahme"/.test(markupWeg),
+	"„Zurücknehmen\" trägt --color-danger als Schrift, wie „Ablehnen\"");
+wahr(/>Zurücknehmen</.test(markupWeg), "mit der Beschriftung aus dem Brief");
+
+const markupChanged = garetienHandlungsMarkup(changedUebernommen);
+wahr(!/<button/.test(markupChanged),
+	"🔴 „Kein Knopf, sondern ein sichtbarer Grund an seiner Stelle\" -- hier steht wirklich KEIN <button>");
+wahr(/gi-acts__grund/.test(markupChanged) && /nicht rücknehmbar/.test(markupChanged),
+	"und der Grund steht trotzdem sichtbar da, nicht nur als Behauptung");
+
+// ---- N.3 Die Rückfrage nennt die Folge beim Namen (Owner-Entscheid 2) ----------------------------
+const frageWeg = garetienRuecknahmeRueckfrageText(wegUebernommen);
+wahr(frageWeg.includes("Gardel"), "die Rückfrage nennt das Objekt beim Namen");
+wahr(frageWeg.includes("zurück nach „Offen“"), "und dass es danach wieder offen ist");
+wahr(frageWeg.includes("Änderungen, die seither"),
+	"🔴 Owner-Entscheid 2: spätere Bearbeitungen gehen ausdrücklich mit -- die Rückfrage sagt es");
+wahr(!frageWeg.includes("Landschaftsregion"), "ein Weg nennt keine Landschaftsregion");
+
+const frageFlaeche = garetienRuecknahmeRueckfrageText(flaecheUebernommen);
+wahr(frageFlaeche.includes("Beschriftung") && frageFlaeche.includes("Landschaftsregion")
+	&& frageFlaeche.includes("Fläche"),
+	"🪤 MISS DIE DIFFERENZ, NICHT NUR IRGENDEINEN TEXT: bei einer Fläche werden alle drei Zeilen "
+	+ "namentlich genannt (Brief) -- Beschriftung, Region UND Fläche");
+wahr(frageFlaeche.includes("Mühlsee"), "und beim Namen");
+
+// ---- N.4 Der Klickverteiler -- gemessen am ERGEBNIS ----------------------------------------------
+function ruecknahmeZiel(key, options) {
+	return kette([Object.assign({
+		passt: ['[data-handlung="ruecknahme"]', "[data-handlung]", "[data-key]"],
+		attribute: { "data-handlung": "ruecknahme", "data-key": key },
+	}, options || {})]);
+}
+
+const objekteN = [wegUebernommen, flaecheUebernommen, changedUebernommen];
+
+// 💣 OHNE BESTÄTIGUNG PASSIERT NICHTS -- und der Klick gilt trotzdem als "übernommen" (er darf
+// nicht weiter zu garetienHandlungKlick durchfallen, siehe die Begründung an der Definition).
+gesendet = []; gefragt = [];
+let ruecknahmeGesendet = [];
+const ruecknahmeSenden = (itemId, runId) => { ruecknahmeGesendet.push([itemId, runId]); return "gesendet-r"; };
+gleich(garetienRuecknahmeKlick({ target: ruecknahmeZiel(wegUebernommen.key) }, objekteN, 7,
+	ruecknahmeSenden, neinSagen), true, "„Nein\" in der Rückfrage lässt den Klick als „übernommen\" gelten");
+gleich(ruecknahmeGesendet.length, 0, "und schickt NICHTS -- ohne Bestätigung passiert nichts");
+gleich(gefragt.length, 1, "gefragt wurde trotzdem");
+
+ruecknahmeGesendet = []; gefragt = [];
+const ergebnisJa = garetienRuecknahmeKlick({ target: ruecknahmeZiel(wegUebernommen.key) }, objekteN, 7,
+	ruecknahmeSenden, jaSagen);
+gleich(ergebnisJa, "gesendet-r", "„Ja\" ruft den Sender und reicht sein Ergebnis durch");
+tief(ruecknahmeGesendet, [[501, 7]], "mit der id des Items UND der Lauf-Nummer");
+wahr(gefragt[0].includes("Gardel"), "gefragt wurde mit der echten Rückfrage, nicht mit „Sind Sie sicher?\"");
+
+// Ein 'changed'-Objekt hat gar kein 'new'-Item -- der Verteiler findet keins und tut nichts.
+ruecknahmeGesendet = []; gefragt = [];
+gleich(garetienRuecknahmeKlick({ target: ruecknahmeZiel(changedUebernommen.key) }, objekteN, 7,
+	ruecknahmeSenden, jaSagen), null, "ohne ein 'new'-Item gibt es nichts zurückzunehmen");
+gleich(ruecknahmeGesendet.length, 0, "wirklich nichts gesendet");
+gleich(gefragt.length, 0, "und auch nicht gefragt -- der Verteiler bricht vorher ab");
+
+// Ein gesperrter Knopf (DOM-Attribut) tut nichts -- dieselbe Trennung wie bei allen anderen Knöpfen.
+ruecknahmeGesendet = [];
+gleich(garetienRuecknahmeKlick(
+	{ target: ruecknahmeZiel(wegUebernommen.key, { disabled: true }) }, objekteN, 7, ruecknahmeSenden, jaSagen
+), null, "ein disabled-Knopf löst nichts aus");
+gleich(ruecknahmeGesendet.length, 0, "nichts gesendet");
+
+// Ein Klick auf einen ANDEREN Handlungsknopf gehört diesem Verteiler nicht.
+gleich(garetienRuecknahmeKlick({ target: handlungsZiel("ablehnen", deckt.key) }, objekte, 7,
+	ruecknahmeSenden, jaSagen), null, "ein anderer Knopf (hier: „Ablehnen\") ist nicht seine Sache");
+// Und ein Klick daneben ebenfalls nicht.
+gleich(garetienRuecknahmeKlick({ target: kette([{ passt: [], attribute: {} }]) }, objekteN, 7,
+	ruecknahmeSenden, jaSagen), null, "ein Klick neben die Knopfleiste tut nichts");
+gleich(garetienRuecknahmeKlick({}, objekteN, 7, ruecknahmeSenden, jaSagen), null,
+	"ein Ereignis ohne Ziel ebenso");
+
+// ---- N.5 Der Sender geht über die EIGENE Tür (GARETIEN_ENDPUNKT), NIE über sync-plan.php ---------
+//
+// 🔴 Dieselbe Begründung wie am Sender selbst: die Rücknahme darf nach dem Abbau dieses Fensters
+// keine Waise in der geteilten Übernahme-Tür hinterlassen (Auftrag §5.5).
+//
+// 🔴 ANGEHÄNGT AN DIE VORHANDENE KETTE (siehe deren Ende), NICHT als eigenständige IIFE: beide
+// manipulieren `global.fetch`, und ein zweiter, unabhängig gestarteter Umtausch liefe der noch
+// offenen Kette mit dem falschen "echt"-Wert ins Gehege.
+async function pruefeRuecknahmeSenden() {
+	const echtesFetch = global.fetch;
+	const gestellt = [];
+	global.fetch = function (pfad, optionen) {
+		const rumpf = JSON.parse((optionen && optionen.body) || "{}");
+		gestellt.push({ pfad: String(pfad), rumpf: rumpf });
+		if (rumpf.action === "ruecknahme") {
+			return Promise.resolve({ json: () => Promise.resolve({ ok: true, zurueckgenommen: 1, fehler: [] }) });
+		}
+		return Promise.resolve({
+			json: () => Promise.resolve({ ok: true, plan_run_id: 7, gesamt: 0, objekte: [], bilanz: {}, reiter: {}, facetten: {} }),
+		});
+	};
+	await mod.garetienRuecknahmeSenden(501, 7);
+	global.fetch = echtesFetch;
+
+	gleich(gestellt.length, 2, "der Sender ruft ruecknahme, DANN holt er die Liste neu");
+	gleich(gestellt[0].pfad, "/api/edit/map/garetien-import.php",
+		"🔴 NICHT sync-plan.php -- die eigene Tür dieses Fensters");
+	gleich(gestellt[0].rumpf.action, "ruecknahme", "mit der Aktion 'ruecknahme'");
+	tief(gestellt[0].rumpf.ids, [501], "und der id des Items");
+	gleich(gestellt[0].rumpf.run_id, 7, "und der Lauf-Nummer");
+	gleich(gestellt[1].rumpf.action, "liste", "danach wird die Liste neu geholt, wie bei jeder Handlung");
 }

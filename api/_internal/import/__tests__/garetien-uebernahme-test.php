@@ -949,4 +949,116 @@ assert($fehlerMehrfach !== null, 'zwei Flaechen an einer Region muessen laut abg
 assert(str_contains($fehlerMehrfach->getMessage(), 'Flaechen'), 'der Grund nennt die Zahl: ' . $fehlerMehrfach->getMessage());
 $pruefungen += 2;
 
+// =================================================================================================
+// AUFGABE 9: DIE RUECKNAHME -- ein uebernommenes Objekt wieder von der Karte holen.
+// Brief: .superpowers/sdd/2026-08-29-garetien-importer-sichtwerkzeug/task-9-brief.md
+//
+// 🪤 MISS DIE DIFFERENZ, NICHT NUR "WURDE GELOESCHT" (Brief). Bei einem Weg verschwindet EINE
+// aktive Zeile, bei einer Flaeche DREI (Label + Region + Flaeche) -- ueber DREI verschiedene
+// Tabellen. Eine Zusicherung, die nur prueft, dass irgendetwas weg ist, prueft nichts.
+//
+// Weiterverwendet wird der urspruengliche $pdo/$lauf von ganz oben: dort stehen der Gardel (Weg,
+// 'new', 'done') und der Muehlsee (Flaeche, 'new', 'done') schon fertig uebernommen.
+
+// --- Der Weg (Gardel): EINE aktive map_features-Zeile verschwindet.
+$mfAktivVorher = (int) $pdo->query('SELECT COUNT(*) FROM map_features WHERE is_active = 1')->fetchColumn();
+$rGardel = avesmapsGaretienRuecknahmeAusfuehren($pdo, $lauf, [$gardel], ['id' => 7]);
+assert($rGardel['zurueckgenommen'] === 1, 'der Gardel wurde nicht zurueckgenommen: ' . json_encode($rGardel['fehler'], JSON_UNESCAPED_UNICODE));
+assert($rGardel['fehler'] === [], 'ohne Fehler: ' . json_encode($rGardel['fehler'], JSON_UNESCAPED_UNICODE));
+$mfAktivNachher = (int) $pdo->query('SELECT COUNT(*) FROM map_features WHERE is_active = 1')->fetchColumn();
+assert($mfAktivNachher === $mfAktivVorher - 1,
+    'genau EINE aktive Zeile muss verschwinden, es waren ' . ($mfAktivVorher - $mfAktivNachher));
+$gardelAktiv = $pdo->query('SELECT is_active FROM map_features WHERE public_id = '
+    . $pdo->quote((string) $neu['public_id']))->fetchColumn();
+assert((int) $gardelAktiv === 0, 'der Gardel selbst muss deaktiviert sein');
+$pruefungen += 3;
+
+// Das Item faellt zurueck auf 'offen': apply_state NULL, selected = 1 -- der Stand UNMITTELBAR VOR
+// dem Klick auf „Neu einfuegen" (nur selected=1 landet ueberhaupt in avesmapsSyncPlanPendingItems).
+$itemGardel = $pdo->query('SELECT apply_state, selected FROM sync_plan_item WHERE id = ' . $gardel)->fetch(PDO::FETCH_ASSOC);
+assert($itemGardel['apply_state'] === null, 'apply_state muss wieder leer sein: ' . var_export($itemGardel['apply_state'], true));
+assert((int) $itemGardel['selected'] === 1, 'selected muss wieder 1 sein, wie vor der Uebernahme');
+$pruefungen += 2;
+
+// --- Die Flaeche (Muehlsee): DREI aktive Zeilen verschwinden -- das Label (map_features), die
+// Region UND die Flaeche (ecosystem_region/ecosystem_area). avesmapsDeleteEcosystemRegion nimmt
+// alle drei in EINER Transaktion, nicht der allgemeine Feature-Loeschweg mit seinem
+// `refuse_ecosystem_cascade`-Riegel (AGENTS.md §11, Konfliktzentrum, label.duplicate) -- der ist
+// gebaut, um genau diese Kaskade beim Loeschen EINER Beschriftung zu VERHINDERN.
+$mfAktivVorher2 = (int) $pdo->query('SELECT COUNT(*) FROM map_features WHERE is_active = 1')->fetchColumn();
+$regionAktivVorher = (int) $pdo->query('SELECT COUNT(*) FROM ecosystem_region WHERE is_active = 1')->fetchColumn();
+$flaecheAktivVorher = (int) $pdo->query('SELECT COUNT(*) FROM ecosystem_area WHERE is_active = 1')->fetchColumn();
+$rMuehlsee = avesmapsGaretienRuecknahmeAusfuehren($pdo, $lauf, [$muehlsee], ['id' => 7]);
+assert($rMuehlsee['zurueckgenommen'] === 1, 'der Muehlsee wurde nicht zurueckgenommen: ' . json_encode($rMuehlsee['fehler'], JSON_UNESCAPED_UNICODE));
+assert($rMuehlsee['fehler'] === [], 'ohne Fehler: ' . json_encode($rMuehlsee['fehler'], JSON_UNESCAPED_UNICODE));
+$pruefungen += 2;
+
+$mfAktivNachher2 = (int) $pdo->query('SELECT COUNT(*) FROM map_features WHERE is_active = 1')->fetchColumn();
+$regionAktivNachher = (int) $pdo->query('SELECT COUNT(*) FROM ecosystem_region WHERE is_active = 1')->fetchColumn();
+$flaecheAktivNachher = (int) $pdo->query('SELECT COUNT(*) FROM ecosystem_area WHERE is_active = 1')->fetchColumn();
+assert($mfAktivNachher2 === $mfAktivVorher2 - 1,
+    'das Label muss verschwinden, es waren ' . ($mfAktivVorher2 - $mfAktivNachher2) . ' Zeilen');
+assert($regionAktivNachher === $regionAktivVorher - 1,
+    'die Region muss verschwinden, es waren ' . ($regionAktivVorher - $regionAktivNachher) . ' Zeilen');
+assert($flaecheAktivNachher === $flaecheAktivVorher - 1,
+    'die Flaeche muss verschwinden, es waren ' . ($flaecheAktivVorher - $flaecheAktivNachher) . ' Zeilen');
+$pruefungen += 3;
+
+// Und zwar genau DIESES Label, DIESE Region, DIESE Flaeche -- nicht irgendeine.
+$labelAktiv = $pdo->query('SELECT is_active FROM map_features WHERE public_id = '
+    . $pdo->quote((string) $label['public_id']))->fetchColumn();
+$regionAktiv = $pdo->query('SELECT is_active FROM ecosystem_region WHERE public_id = '
+    . $pdo->quote((string) $region['public_id']))->fetchColumn();
+$flaecheAktiv = $pdo->query('SELECT is_active FROM ecosystem_area WHERE public_id = '
+    . $pdo->quote((string) $flaeche['public_id']))->fetchColumn();
+assert((int) $labelAktiv === 0, 'genau dieses Label muss deaktiviert sein');
+assert((int) $regionAktiv === 0, 'genau diese Region muss deaktiviert sein');
+assert((int) $flaecheAktiv === 0, 'genau diese Flaeche muss deaktiviert sein');
+$pruefungen += 3;
+
+$itemMuehlsee = $pdo->query('SELECT apply_state, selected FROM sync_plan_item WHERE id = ' . $muehlsee)->fetch(PDO::FETCH_ASSOC);
+assert($itemMuehlsee['apply_state'] === null, 'apply_state der Flaeche muss wieder leer sein');
+assert((int) $itemMuehlsee['selected'] === 1, 'selected der Flaeche muss wieder 1 sein');
+$pruefungen += 2;
+
+// --- 🔴 OWNER-ENTSCHEID 1 (29.08.2026): ein 'changed'-Item bekommt GAR KEINE Ruecknahme -- auch
+// nicht, wenn es erfolgreich uebernommen wurde. $diagonaleGeoId ist genau so ein Fall
+// (change_type='changed', anlass='geometrie', apply_state='done' seit der Geometrie-Uebernahme
+// weiter oben) -- es hat ein BESTEHENDES Objekt veraendert, nicht eines angelegt.
+$geoVorRuecknahme = $pdo->query('SELECT geometry_json FROM map_features WHERE public_id = '
+    . $pdo->quote($idDiagonaleWeg2))->fetch(PDO::FETCH_ASSOC);
+$rChanged = avesmapsGaretienRuecknahmeAusfuehren($pdo, $lauf, [$diagonaleGeoId], ['id' => 7]);
+assert($rChanged['zurueckgenommen'] === 0, 'ein "changed"-Item darf nicht zurueckgenommen werden koennen');
+assert(count($rChanged['fehler']) === 1, 'und der Grund steht im Ergebnis: ' . json_encode($rChanged));
+assert(str_contains($rChanged['fehler'][0]['grund'], 'nicht ruecknehmbar'), $rChanged['fehler'][0]['grund']);
+$pruefungen += 3;
+
+// Und es bleibt WIRKLICH unangetastet: weder das Kartenobjekt noch der Item-Vermerk aendern sich.
+$geoNachRuecknahme = $pdo->query('SELECT geometry_json, is_active FROM map_features WHERE public_id = '
+    . $pdo->quote($idDiagonaleWeg2))->fetch(PDO::FETCH_ASSOC);
+assert((int) $geoNachRuecknahme['is_active'] === 1, 'ein "changed"-Objekt bleibt aktiv');
+assert($geoNachRuecknahme['geometry_json'] === $geoVorRuecknahme['geometry_json'], 'und seine Geometrie bleibt unveraendert');
+$itemChanged = $pdo->query('SELECT apply_state FROM sync_plan_item WHERE id = ' . $diagonaleGeoId)->fetchColumn();
+assert($itemChanged === 'done', 'sein Vermerk bleibt "done": ' . var_export($itemChanged, true));
+$pruefungen += 3;
+
+// --- Eine leere Auswahl nimmt NICHTS zurueck. Sie ist kein "alles".
+$rLeer = avesmapsGaretienRuecknahmeAusfuehren($pdo, $lauf, [], ['id' => 7]);
+assert($rLeer['zurueckgenommen'] === 0 && $rLeer['fehler'] === [], 'eine leere Auswahl bleibt wirkungslos');
+$pruefungen++;
+
+// --- 💣 EIN OBJEKT, DAS SCHON WEG IST, WIRFT LAUT -- statt eine halbe Ruecknahme vorzutaeuschen
+// ("eine halb zurueckgenommene Flaeche ist schlimmer als gar keine Ruecknahme", Brief). Der
+// Testbach (aus dem Diagonale-Waechter weiter oben, 'new', 'done') wird von AUSSEN entfernt (als
+// haette ein Editor ihn zwischendurch geloescht) -- die Ruecknahme darauf muss das SAGEN, nicht
+// stillschweigend als erledigt durchgehen.
+$pdo->exec("UPDATE map_features SET is_active = 0 WHERE name = 'Testbach Diagonale'");
+$rWeg = avesmapsGaretienRuecknahmeAusfuehren($pdo, $lauf, [$diagonaleWegId], ['id' => 7]);
+assert($rWeg['zurueckgenommen'] === 0, 'ein bereits fehlendes Objekt darf nicht als zurueckgenommen zaehlen');
+assert(count($rWeg['fehler']) === 1, 'und der Fehlschlag steht im Ergebnis: ' . json_encode($rWeg));
+assert((string) $rWeg['fehler'][0]['grund'] !== '', 'mit einem Grund');
+$itemWeg = $pdo->query('SELECT apply_state FROM sync_plan_item WHERE id = ' . $diagonaleWegId)->fetchColumn();
+assert($itemWeg === 'done', 'das Item bleibt auf "done" stehen, statt lautlos "offen" zu werden');
+$pruefungen += 4;
+
 echo "OK: {$pruefungen} Pruefungen\n";

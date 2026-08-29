@@ -534,3 +534,121 @@ function avesmapsGaretienUebernehmen(PDO $pdo, int $runId, array $itemIds, array
 
     return ['angelegt' => $angelegt, 'quellen' => $quellen, 'fehler' => $fehler];
 }
+
+/**
+ * Die Ruecknahme: umkehren, was EINE Uebernahme angelegt hat -- das Item faellt zurueck auf
+ * 'offen'. Aufgabe 9 (.superpowers/sdd/2026-08-29-garetien-importer-sichtwerkzeug/task-9-brief.md).
+ *
+ * 🔴 DIE EINZIGE STELLE DES FENSTERS, DIE ETWAS AUS UNSERER DATENBANK ENTFERNT -- und sie lebt
+ * deshalb VOLLSTAENDIG hier (api/_internal/import/) und im Fenster
+ * (js/review/review-garetien-importer.js). Der Auftrag (§5.5) verbietet einen Loeschweg in einer
+ * geteilten Oberflaeche, weil er nach dem Abbau des Importers als Waise zurueckbliebe -- die
+ * Begruendung ist die Waise, nicht das Loeschen (Owner 29.08.2026: „solang der importer nicht
+ * zurueckgebaut wurde"). Kein Griff auf api/edit/wiki/sync-plan.php (die geteilte Tuer fuer acht
+ * Objektarten) und nichts in api/app/. Verschwindet restlos mit dem Abbau
+ * (garetien-abbau-waechter-test.php).
+ *
+ * 🔴 OWNER-ENTSCHEID 1 (29.08.2026): ein 'changed'-Item bekommt GAR KEINE Ruecknahme -- es hat ein
+ * BESTEHENDES Objekt veraendert, das uns schon vor dem Import gehoerte, und sein Loeschen waere
+ * Datenverlust an fremder Arbeit. Ein echtes Zuruecksetzen ist ausserdem gar nicht moeglich: `before`
+ * traegt nur `public_id`/`name` (garetien-plan.php), keine Geometrie. Das Fenster bietet fuer solche
+ * Objekte schon keinen Knopf an; der Riegel steht hier ein zweites Mal, weil eine Sperre nur im
+ * Browser keine ist.
+ *
+ * 🔴 OWNER-ENTSCHEID 2 (29.08.2026): eine nachtraegliche Bearbeitung SPERRT die Ruecknahme NICHT --
+ * kein Zeitstempel-Vergleich, keine neue Zustandshaltung. Die Rueckfrage im Fenster nennt das beim
+ * Namen; hier wird deshalb bewusst KEIN `expected_revision` mitgeschickt.
+ *
+ * 💣 EIN FEHLER MITTENDRIN WIRFT UND WIRD BENANNT -- das Item bleibt dann unangetastet auf 'done'
+ * stehen ("eine halb zurueckgenommene Flaeche ist schlimmer als gar keine Ruecknahme"). Sowohl
+ * avesmapsDeleteMapFeature als auch avesmapsDeleteEcosystemRegion laufen selbst je in EINER eigenen
+ * Transaktion -- ein Abbruch dort rollt sich selbst zurueck und hinterlaesst nie eine HALB
+ * geloeschte Flaeche (Region ohne Label, oder umgekehrt). Der Item-Vermerk unten laeuft deshalb NUR
+ * im Erfolgsfall.
+ *
+ * @param list<int> $itemIds
+ * @return array{zurueckgenommen:int, fehler:list<array{item:int, grund:string}>}
+ */
+function avesmapsGaretienRuecknahmeAusfuehren(PDO $pdo, int $runId, array $itemIds, array $user): array
+{
+    if ($itemIds === []) {
+        return ['zurueckgenommen' => 0, 'fehler' => []];
+    }
+    // ⚠️ avesmapsDeleteMapFeature fragt map_feature_locks direkt ab, ohne die Tabelle selbst
+    // sicherzustellen (nur avesmapsAcquireMapFeatureLock tut das) -- und dieser Endpunkt laeuft
+    // NICHT durch den Editor-Dispatcher, der das sonst uebernimmt (api/edit/map/features.php).
+    // Idempotent, kostet also nichts, wenn sie schon da ist.
+    avesmapsEnsureMapFeatureLocksTable($pdo);
+
+    $platzhalter = implode(',', array_fill(0, count($itemIds), '?'));
+    $stmt = $pdo->prepare(
+        'SELECT id, change_type, after_json, apply_state, apply_note'
+        . ' FROM sync_plan_item WHERE run_id = ? AND id IN (' . $platzhalter . ') ORDER BY id'
+    );
+    $stmt->execute(array_merge([$runId], array_map('intval', $itemIds)));
+
+    $zurueckgenommen = 0;
+    $fehler = [];
+    foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $item) {
+        $itemId = (int) $item['id'];
+
+        // OWNER-ENTSCHEID 1: nur ein 'new'-Item hat wirklich etwas ANGELEGT (der 'changed'-Zweig
+        // von avesmapsGaretienUebernehmen AENDERT ein bestehendes Objekt ueber
+        // avesmapsGaretienErgaenzungAnwenden, legt aber nie eine Zeile an).
+        if ((string) $item['change_type'] !== 'new') {
+            $fehler[] = ['item' => $itemId, 'grund' => 'veraendert ein bestehendes Objekt -- nicht ruecknehmbar'];
+            continue;
+        }
+        if ((string) ($item['apply_state'] ?? '') !== 'done') {
+            $fehler[] = ['item' => $itemId, 'grund' => 'dieses Item wurde nie uebernommen'];
+            continue;
+        }
+        // 💣 DIE ANGELEGTE public_id STEHT IM VERMERK, NICHT IN entity_public_id. Bei einem echten
+        // 'new'-Item ist entity_public_id von Anfang an NULL (garetien-plan.php: es gibt vor der
+        // Uebernahme noch kein Ziel) und bleibt es -- avesmapsGaretienItemAbschliessen($pdo, id,
+        // 'done', $publicId) schreibt die FRISCH ANGELEGTE public_id als `$note` in `apply_note`
+        // (avesmapsSyncPlanMarkItem), genau an der Stelle, an der avesmapsGaretienUebernehmen sie
+        // fuer den 'new'-Zweig uebergibt. Wer stattdessen entity_public_id liest, findet dort fuer
+        // JEDES 'new'-Item eine leere Spalte.
+        $publicId = trim((string) ($item['apply_note'] ?? ''));
+        if ($publicId === '') {
+            $fehler[] = ['item' => $itemId, 'grund' => 'keine angelegte public_id hinterlegt'];
+            continue;
+        }
+        $nach = json_decode((string) $item['after_json'], true);
+        $ziel = is_array($nach) ? (string) ($nach['ziel'] ?? '') : '';
+
+        try {
+            if ($ziel === 'path') {
+                // Strom/Fluss/Bach: EINE map_features-Zeile (avesmapsCreatePathFeature oben).
+                avesmapsDeleteMapFeature($pdo, ['public_id' => $publicId], $user);
+            } elseif ($ziel === 'region') {
+                // See/Meer/Sumpf: Label + Region + Flaeche (avesmapsGaretienFlaecheAnlegen oben,
+                // in genau dieser Reihenfolge angelegt). avesmapsDeleteEcosystemRegion (api/_internal/
+                // app/ecosystem.php) nimmt die Flaeche(n) UND alle Labels der Region in EINER
+                // Transaktion mit -- das ist die UMGEKEHRTE Reihenfolge in EINER Funktion, nicht der
+                // allgemeine Feature-Loeschweg mit seinem `refuse_ecosystem_cascade`-Riegel: der ist
+                // gebaut, um die Kaskade beim Loeschen EINER Beschriftung zu VERHINDERN (AGENTS.md
+                // §11, Konfliktzentrum, Regel label.duplicate); hier wird sie gewollt und
+                // vollstaendig ausgefuehrt.
+                avesmapsDeleteEcosystemRegion($pdo, ['public_id' => $publicId], (int) ($user['id'] ?? 0));
+            } else {
+                throw new RuntimeException('unbekanntes Ziel "' . $ziel . '" -- keine Ruecknahme moeglich');
+            }
+
+            // Zurueck auf 'offen': derselbe Riegel, den avesmapsSyncPlanPendingItems verlangt
+            // (apply_state IS NULL) -- und `selected = 1`, der Stand UNMITTELBAR VOR dem Klick auf
+            // „Neu einfuegen" (der Vorschlag stand vorangehakt da, sonst waere er nie uebernommen
+            // worden -- avesmapsSyncPlanPendingItems verlangt selected=1). „Ruecknahme" heisst:
+            // zurueck in GENAU diesen Stand, nicht in einen neuen.
+            $pdo->prepare(
+                'UPDATE sync_plan_item SET apply_state = NULL, apply_note = NULL, selected = 1 WHERE id = :id'
+            )->execute(['id' => $itemId]);
+            $zurueckgenommen++;
+        } catch (Throwable $abbruch) {
+            $fehler[] = ['item' => $itemId, 'grund' => $abbruch->getMessage()];
+        }
+    }
+
+    return ['zurueckgenommen' => $zurueckgenommen, 'fehler' => $fehler];
+}

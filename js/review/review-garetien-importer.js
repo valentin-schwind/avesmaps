@@ -2213,6 +2213,38 @@
 		};
 	}
 
+	// ---- Aufgabe 9: „Zurücknehmen" -- der EINE Löschweg dieses Fensters ---------------------------
+	// Brief: .superpowers/sdd/2026-08-29-garetien-importer-sichtwerkzeug/task-9-brief.md
+	//
+	// 🔴 NUR EIN 'new'-ITEM HAT WIRKLICH ETWAS ANGELEGT. Ein 'changed'-Item hat ein BESTEHENDES
+	// Objekt verändert (Namen ersetzen/Nur Quelle/Geometrie ersetzen) -- das gehörte uns schon vor
+	// dem Import, und sein Löschen wäre Datenverlust an fremder Arbeit (Owner-Entscheid 1). Der
+	// Server prüft dasselbe ein zweites Mal (avesmapsGaretienRuecknahmeAusfuehren) -- eine Sperre
+	// nur im Browser ist keine.
+	function garetienRuecknahmeItem(objekt) {
+		return ((objekt && objekt.items) || []).filter(function (item) {
+			return item && String(item.change_type || "") === "new" && item.apply_state === "done";
+		})[0] || null;
+	}
+
+	// REIN: die EINE Rücknahme-Zeile eines übernommenen Objekts -- ein Knopf (das 'new'-Item ist
+	// da), oder ein Grund an seiner Stelle (Owner-Entscheid 1: „Kein Knopf, sondern ein sichtbarer
+	// Grund" -- kein AUSGEGRAUTER Knopf, der eine grundsätzliche Möglichkeit behauptete).
+	function garetienRuecknahmeBauen(objekt) {
+		const item = garetienRuecknahmeItem(objekt);
+		if (!item) {
+			return {
+				name: "ruecknahme", beschriftung: "Zurücknehmen", ton: "danger",
+				ids: [], angehakt: 0, gesamt: 0, erledigt: false, disabled: true,
+				grund: "Verändert ein bestehendes Objekt — nicht rücknehmbar.",
+			};
+		}
+		return {
+			name: "ruecknahme", beschriftung: "Zurücknehmen", ton: "danger",
+			ids: [item.id], angehakt: 0, gesamt: 1, erledigt: false, disabled: false, grund: "",
+		};
+	}
+
 	// REIN: die ganze Knopfleiste EINES Objekts.
 	function garetienHandlungen(objekt) {
 		const o = objekt || {};
@@ -2221,6 +2253,12 @@
 		// Ablehnung ohne Rückweg wäre ein schwarzes Loch (Entwurf §5).
 		if (String(o.stand || "") === "abgelehnt") {
 			return [garetienHandlungBauen("wieder", o)];
+		}
+		// Aufgabe 9: ein übernommenes Objekt bekommt STATT der urteilsabhängigen Knöpfe die eine
+		// Rücknahme-Zeile -- ein 'changed'-Objekt (kein "neu"-Item) zeigt dabei gar keinen Knopf,
+		// nur den Grund (garetienRuecknahmeBauen).
+		if (String(o.stand || "") === "uebernommen") {
+			return [garetienRuecknahmeBauen(o)];
 		}
 		const namen = AVESMAPS_GARETIEN_HANDLUNGEN_JE_URTEIL[String(o.urteil || "")] || ["ablehnen"];
 		return namen.map(function (name) { return garetienHandlungBauen(name, o); });
@@ -2308,6 +2346,14 @@
 		const schluessel = avesmapsGaretienEscape((objekt && objekt.key) || "");
 		const gruende = [];
 		const knopfMarkup = knoepfe.map(function (k) {
+			// Aufgabe 9 (Owner-Entscheid 1): ein 'changed'-Objekt bekommt an dieser Stelle GAR
+			// KEINEN Knopf, nur den sichtbaren Grund -- anders als bei den übrigen Handlungen, deren
+			// Sperre nur den AKTUELLEN Zustand betrifft (ein ausgegrauter Knopf würde hier eine
+			// grundsätzliche Möglichkeit behaupten, die es für dieses Objekt nicht gibt).
+			if (k.name === "ruecknahme" && k.disabled) {
+				gruende.push(k.grund);
+				return "";
+			}
 			let klasse = "btn";
 			if (k.ton === "danger") { klasse += " btn--danger"; }
 			if (k.erledigt) { klasse += " btn--done"; }
@@ -2550,6 +2596,65 @@
 				garetienDetailRendern(zustand.objekte);
 				return null;
 			});
+	}
+
+	// ---- Aufgabe 9: „Zurücknehmen" -- der EINE Löschweg dieses Fensters, EINE eigene Tür ----------
+	// Brief: .superpowers/sdd/2026-08-29-garetien-importer-sichtwerkzeug/task-9-brief.md
+	//
+	// 🔴 GEHT NICHT DURCH avesmapsGaretienHandlungSenden/GARETIEN_PLAN_ENDPUNKT. Jene Tür ist die
+	// geteilte Übernahme-Vorschau für ACHT Objektarten (Auftrag §5.4) -- ein Löschweg DORT bliebe
+	// nach dem Abbau dieses Fensters (§5.5) als Waise stehen, denn sync-plan.php kennt diesen Import
+	// gar nicht und überlebt ihn. Die Rücknahme geht deshalb über die EIGENE Tür dieses Fensters
+	// (GARETIEN_ENDPUNKT, `action: 'ruecknahme'`), deren Gegenstück ausschließlich innerhalb von
+	// api/_internal/import/ liegt (avesmapsGaretienRuecknahmeAusfuehren, garetien-uebernahme.php)
+	// und mit diesem Fenster verschwindet.
+	function garetienRuecknahmeSenden(itemId, runId) {
+		return avesmapsGaretienRufe(GARETIEN_ENDPUNKT, {
+			action: "ruecknahme", run_id: runId, ids: [itemId],
+		}).then(function () { return avesmapsGaretienListeHolen(); })
+			.catch(function (fehler) { garetienListeFehlerZeigen(fehler); return null; });
+	}
+
+	// REIN: die Rückfrage vor „Zurücknehmen" -- sie NENNT DIE FOLGE BEIM NAMEN (Owner-Entscheid 2):
+	// was verschwindet (bei einer Fläche alle drei Zeilen namentlich), dass spätere Bearbeitungen
+	// mitgehen, und dass das Objekt danach wieder offen ist. Der Wortlaut ist hier die eigentliche
+	// Sicherung, kein Riegel im Code.
+	function garetienRuecknahmeRueckfrageText(objekt) {
+		const o = objekt || {};
+		const name = String(o.name || "").trim() || "(ohne Namen)";
+		const istFlaeche = String(o.geometrie_typ || "") === "Polygon";
+		const was = istFlaeche
+			? "die Beschriftung „" + name + "“, die Landschaftsregion „" + name + "“ und ihre gezeichnete Fläche"
+			: "das Kartenobjekt „" + name + "“";
+
+		return "„" + name + "“ wird aus unserer Karte entfernt — das nimmt " + was + " mit, "
+			+ "einschließlich aller Änderungen, die seither daran vorgenommen wurden.\n\n"
+			+ "Das Objekt fällt danach zurück nach „Offen“. Fortfahren?";
+	}
+
+	// 🔴 Derselbe Bau wie garetienNeuKlick/garetienDetailKlick: Ereignis, Objektliste, Lauf-Nummer
+	// UND die Werkzeuge kommen HEREIN, damit sich am ERGEBNIS messen lässt, WAS hinausgeht und WANN
+	// gar nichts hinausgeht.
+	//
+	// 💣 OHNE BESTÄTIGUNG PASSIERT NICHTS (Brief) -- `fragen` liefert ohne `window.confirm` `false`
+	// (garetienFragen), das ist Absicht. Ein „Nein“ zählt trotzdem als GEFUNDEN: sonst fiele
+	// derselbe Klick weiter zu garetienHandlungKlick durch, das über die GETEILTE Tür
+	// (GARETIEN_PLAN_ENDPUNKT) ein wirkungsloses, aber unnötiges `select` verschickte -- zwei
+	// Erzeuger für denselben Knopf (AGENTS.md §11).
+	function garetienRuecknahmeKlick(ereignis, objekte, runId, senden, fragen) {
+		const ziel = ereignis && ereignis.target;
+		if (!ziel || typeof ziel.closest !== "function") { return null; }
+		const knopf = ziel.closest('[data-handlung="ruecknahme"]');
+		if (!knopf || knopf.disabled) { return null; }
+		const objekt = garetienObjektNach(knopf.getAttribute("data-key"), objekte);
+		if (!objekt) { return null; }
+		const item = garetienRuecknahmeItem(objekt);
+		if (!item) { return null; }
+		if (!fragen(garetienRuecknahmeRueckfrageText(objekt))) { return true; }
+
+		knopf.disabled = true;
+		knopf.textContent = "Nimmt zurück …";
+		return senden(item.id, runId);
 	}
 
 	// Der Häkchen-Wechsel -- für die Listenzeile UND die Abschnittszeile. Beide tragen ihren
@@ -2960,6 +3065,11 @@
 				// dann bleibt garetienHandlungKlick für dasselbe Ereignis aus, sonst hätte derselbe
 				// Knopf zwei Erzeuger (AGENTS.md §11).
 				if (garetienNeuKlick(ereignis, zustand.objekte, zustand.planRunId)) { return; }
+				// Aufgabe 9: „Zurücknehmen“ -- derselbe Zug wie „Neu einfügen“ darüber, nur über die
+				// EIGENE Tür dieses Fensters statt der geteilten Übernahme-Vorschau (siehe die
+				// Begründung an garetienRuecknahmeSenden).
+				if (garetienRuecknahmeKlick(ereignis, zustand.objekte, zustand.planRunId,
+					garetienRuecknahmeSenden, garetienFragen)) { return; }
 				garetienHandlungKlick(ereignis, zustand.objekte, zustand.planRunId,
 					avesmapsGaretienHandlungSenden, garetienFragen);
 			});
@@ -3167,6 +3277,12 @@
 			garetienEinfuegenAusfuehren,
 			garetienNeuKlick,
 			garetienFussknopfEinfuegenKlick,
+			// Aufgabe 9: „Zurücknehmen" -- der eine Löschweg dieses Fensters
+			garetienRuecknahmeItem,
+			garetienRuecknahmeBauen,
+			garetienRuecknahmeRueckfrageText,
+			garetienRuecknahmeKlick,
+			garetienRuecknahmeSenden,
 		};
 	}
 })();
