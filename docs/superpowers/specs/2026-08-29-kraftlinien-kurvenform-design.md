@@ -54,8 +54,15 @@ Linie** — die Linie schwänge an ihnen vorbei. Ein Nodix ist ein Ort; eine Kra
 eigenen Knoten verfehlt, ist falsch, nicht hübsch. Dazu hätten verzweigte Linien (6 Stück) und der
 Ring (Hexenband) gar keine zwei Enden, über die sich ein Bogen spannen ließe.
 
-⚠️ Ein Wert **je Segment** wurde ebenfalls verworfen: die Nodices-Spalte des Editors listet Nodices,
-keine Segmente — es gäbe keine Bedienfläche dafür, und die Basiliuslinie hätte 16 Regler.
+🔴 **NACHTRAG 29.08.2026, SPÄTER AM TAG: „je Segment" kommt DOCH — siehe §13.** Hier stand, ein Wert
+je Segment sei verworfen, weil die Nodices-Spalte Nodices liste und keine Segmente, es gäbe also
+keine Bedienfläche. **Die Begründung war zur Hälfte falsch, und die falsche Hälfte trug die
+Entscheidung.** Bei einer verzweigten Linie und beim Ring rendert der Editor längst eine
+**Kantenliste** — eine `.pl-edge`-Zeile je Segment (`renderNodes`,
+`html/wiki-sync-powerline-editor.html`). Beim Strang liegt zwischen zwei Nodices ein
+`.pl-conn`-Element, das optisch genau das Segment ist. Die Fläche war die ganze Zeit da; ich hatte
+nur den Strang-Fall angesehen. Der zweite Einwand (die Basiliuslinie hätte 16 Regler) bleibt gültig
+und wird in §13 beantwortet, statt die Sache zu verhindern.
 
 ---
 
@@ -287,3 +294,76 @@ der Gegenprobe auf die Dateizahl (AGENTS.md §9).
   Konstante.
 - 🔧 **Verzweigte Linien und der Ring** (7 von 61 Namen, Stand 22.07.2026) bekommen die Kurve wie
   alle anderen; ob das Bild dort taugt, ist ungeprüft — siehe den benannten Preis in §7.
+
+---
+
+## 13. Nachtrag: die Kurve je Segment (29.08.2026, nach dem ersten Live-Gang)
+
+Owner, nach dem Blick auf den Editor: *„macht es vielleicht sinn die kurvenform pro segment
+einzustellen"* — gesagt vor der Linie **„Fächer der Macht"** (4 Enden, 4 Segmente, alle von
+Kreuzung-4 zu Nadoret / Mendena / Riva / Festum).
+
+🔴 **Das ist genau der Fall, den §7 als Preis benannt und in Kauf genommen hat.** Vier Kanten
+strahlen sternförmig weg, sie zeigen in vier verschiedene Richtungen, und die kanonische Regel
+(West→Ost) legt ihre Bögen deshalb auf willkürlich verschiedene Seiten. Ein gemeinsamer Wert kann
+dort nicht richtig sein — der Preis ist zu hoch, und die Entscheidung kippt.
+
+⭐ **Der Bau ist zur Hälfte schon da.** `curve` liegt in `properties_json` **je Segment**, und
+`getPowerlineCurve` bekommt ein Segment übergeben — die Karte kann verschiedene Werte längst
+zeichnen. Der Linien-Schreibweg schreibt heute bloß überall denselben Wert. Es ist **keine
+Migration**, nur ein zweiter Schreibpfad und eine Bedienfläche.
+
+### 13.1 Die Regel: Linie UND Segment, nach dem Muster der Weg-Ebene
+
+Das Hausmuster steht schon (AGENTS.md §11, „Die WEG-EBENE des Wege-Editors", live 19.08.2026):
+ein Weg liegt in Abschnitten, die Weg-Zeile gilt für alle, ein uneiniges Feld steht auf
+„gemischt", und **geschrieben wird nur, was jemand angefasst hat**.
+
+- Der **Linien-Schieber bleibt** und setzt alle Segmente auf einmal. Ohne ihn wäre die
+  Basiliuslinie mit 16 Segmenten unbedienbar — das ist der gültige Teil des alten Einwands.
+- **Jede Kante bekommt ihren eigenen Schieber**: in der Kantenliste (verzweigt / Ring) je
+  `.pl-edge`, beim Strang an der Verbindung zwischen zwei Nodices.
+- Sind die Segmente **uneinig**, steht der Linien-Schieber auf **„gemischt"** und schreibt nur,
+  wenn jemand ihn anfasst.
+
+💣 **DIE TRAGENDE REGEL, und sie kehrt das heutige Verhalten um: ABWESENHEIT heißt „nicht
+geändert".** Der Server liest `curve` heute als `$payload['curve'] ?? 0` und schreibt ihn bei jedem
+Speichern auf alle Segmente. Sobald der Editor ihn nur noch bei Anfassen mitschickt, machte genau
+dieses `?? 0` **jede** gewollte Ausnahme lautlos platt — und zwar auch bei einer reinen
+Beschreibungsänderung. Das ist Zeichen für Zeichen die `wiki_no_article`-Falle aus derselben Datei,
+und die Antwort ist dieselbe: `array_key_exists('curve', $payload)`.
+⚠️ Die zwei Hälften gehören zusammen und dürfen nicht einzeln zurückgedreht werden: wer im Server
+`?? 0` wiederherstellt, braucht im selben Zug einen Editor, der den Wert immer sendet.
+
+### 13.2 Der Schreibweg
+
+`update_powerline_line` nimmt zwei neue, **unabhängige** Angaben entgegen:
+
+| Feld | Bedeutung | wann geschickt |
+|---|---|---|
+| `curve` | „setze **alle** Segmente auf diesen Wert" | nur wenn der Linien-Schieber angefasst wurde |
+| `curves` | `{ "<public_id>": <zahl>, … }` — einzelne Segmente | nur die angefassten Kanten |
+
+🔴 **`curves` gewinnt über `curve`**, wenn beide für dasselbe Segment etwas sagen: der speziellere
+Griff ist der jüngere Wille. Fehlt beides, bleibt jedes Segment, wie es war.
+⚠️ Eine `public_id` in `curves`, die nicht zur Namensgruppe gehört, wird **ignoriert**, nicht
+abgelehnt — sonst kann ein veralteter Editor-Stand eine ganze Speicherung scheitern lassen.
+
+### 13.3 Auf der Karte
+
+🔴 **Ein Klick wählt das Segment** (Owner 29.08.2026). Im Einstell-Modus hebt sich das angeklickte
+Stück hervor, der Regler nennt es (`Kreuzung-4 — Nadoret`) und biegt nur dieses; ein Knopf „alle"
+setzt weiterhin die ganze Linie. Das ist der Grund, überhaupt auf der Karte einzustellen: dort
+sieht man, welches Stück am Berg vorbei soll.
+
+💣 **Die Vorschau hängt heute am Linien-NAMEN** (`avesmapsPowerlineCurveVorschau.name`) und muss auf
+eine **Segment-Kennung** umgestellt werden. Der Name bleibt als zweiter Fall bestehen — er ist
+genau der „alle"-Griff.
+
+### 13.4 Was NICHT geändert wird
+
+- **Die kanonische Richtung bleibt** (§7). Sie trägt weiterhin das Umsortieren; dass man die Seite
+  jetzt je Segment sehen und einstellen kann, macht sie nicht überflüssig — ein umsortiertes
+  Segment würde sonst weiterhin still umklappen.
+- **Kein neues Feld, keine Migration.** `properties.curve` steht schon je Segment.
+- **Die Kurvenart bleibt die Parabel**, die Stützpunktzahl bleibt abgeleitet.
