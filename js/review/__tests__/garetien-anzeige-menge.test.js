@@ -254,6 +254,82 @@ tief(modul.garetienIdsInHaeppchen([1, 2, 3]), [[1, 2, 3]],
 		"gemischt: nur das Objekt mit offenen Items traegt bei, in EINFUEGE-Reihenfolge");
 }
 
+// =================================================================================================
+// 12. Regression 29.08.2026 (Owner-Meldung): die Anzeige-Menge wird nach einer frischen Antwort
+// AUFGEFRISCHT, nie entfernt
+// =================================================================================================
+//
+// Diagnose: `zustand.anzeige.set(...)` wurde bis dahin AUSSCHLIESSLICH aus
+// `avesmapsGaretienAnzeigeHinzufuegen` gerufen. Eine Handlung ("Neu einfuegen", "Namen ersetzen",
+// ein Abschnittshaekchen) ging an den Server, `avesmapsGaretienHandlungSenden` holte die Liste neu
+// -- aber die KOPIEN in `zustand.anzeige` blieben auf dem alten Stand. Weder das ✦ noch der ✓ am
+// Handlungsknopf noch die Einzelansicht aenderten sich: der Knopf tat scheinbar nichts.
+//
+// 🔴 Gemessen wird die DIFFERENZ, in EINEM Aufruf von `avesmapsGaretienListeRendern` (dem
+// gemeinsamen Punkt beider Renderwege) -- OHNE beide Faelle zusammen waere die Zusicherung wertlos:
+{
+	const veraltet = {
+		key: "ggp:Fluss:9", name: "Alter Bach", typ: "Fluss", items: [{ id: 9001, selected: 0 }],
+	};
+	const bleibtDraussen = { key: "ggp:Berge:99", name: "Fern-Berg", typ: "Berg", items: [] };
+
+	modul.avesmapsGaretienAnzeigeLeeren();
+	modul.avesmapsGaretienAnzeigeHinzufuegen([veraltet, bleibtDraussen]);
+
+	// Die "frische Serverantwort" traegt eine GEAENDERTE Fassung von `veraltet` (selected jetzt 1)
+	// und NICHT `bleibtDraussen` -- genau die Lage nach einem gefilterten/seitenweisen Abruf
+	// (`AVESMAPS_GARETIEN_LISTE_MAX`).
+	const frischeFassung = {
+		key: "ggp:Fluss:9", name: "Alter Bach", typ: "Fluss", items: [{ id: 9001, selected: 1 }],
+	};
+	modul.avesmapsGaretienListeRendern({
+		objekte: [frischeFassung],
+		reiter: { offen: 1, abgelehnt: 0, uebernommen: 0 },
+		bilanz: {},
+		gesamt: 1,
+	});
+
+	gleich(modul.avesmapsGaretienAnzeigeHat("ggp:Fluss:9"), true,
+		"das Objekt bleibt in der Anzeige -- Auffrischen ERSETZT, es entfernt nicht");
+	gleich(
+		modul.avesmapsGaretienAnzeigeListe().filter((o) => o.key === "ggp:Fluss:9")[0].items[0].selected,
+		1,
+		"…und traegt jetzt den NEUEN Wert aus der Serverantwort -- die alte Kopie mit selected:0 ist weg"
+	);
+	tief(
+		modul.avesmapsGaretienAnzeigeListe().map((o) => o.key).sort(),
+		["ggp:Berge:99", "ggp:Fluss:9"],
+		"und das Objekt, das die Antwort NICHT nennt (`bleibtDraussen`), liegt UNVERAENDERT weiter "
+		+ "drin -- eine gefilterte/seitenweise Antwort darf die Anzeige nie leeren"
+	);
+	gleich(
+		modul.avesmapsGaretienAnzeigeListe().filter((o) => o.key === "ggp:Berge:99")[0],
+		bleibtDraussen,
+		"…und zwar als DIESELBE Referenz, unangetastet"
+	);
+}
+
+// Die DIFFERENZ zum zweiten Renderweg: der Reiter „Anzeigen" baut seine „Antwort" aus der Menge
+// SELBST nach (`garetienAnzeigenAntwortBauen`) -- ein Aufruf von `avesmapsGaretienListeRendern`
+// darueber darf die Menge weder leeren noch sonst veraendern, er ist ein wirkungsloser Nachschlag
+// auf sich selbst. 🔴 Eine Regel, die nur einen von zwei Renderwegen bindet, ist keine Regel --
+// genau das ist in diesem Umbau heute schon zweimal passiert (RULING R2, R7).
+{
+	const objekt = {
+		key: "ggp:See:1", name: "Kraehensee", typ: "See", items: [{ id: 1, selected: 0 }],
+	};
+	modul.avesmapsGaretienAnzeigeLeeren();
+	modul.avesmapsGaretienAnzeigeHinzufuegen([objekt]);
+	const anzeigenAntwort = modul.garetienAnzeigenAntwortBauen({ reiter: {}, bilanz: {} });
+	modul.avesmapsGaretienListeRendern(anzeigenAntwort);
+	gleich(modul.avesmapsGaretienAnzeigeHat("ggp:See:1"), true,
+		"der 'Anzeigen'-Zweig (er baut seine Antwort aus der Menge selbst) laesst die Menge "
+		+ "unangetastet");
+	gleich(modul.avesmapsGaretienAnzeigeListe().length, 1, "und nichts verschwindet dabei");
+}
+
+modul.avesmapsGaretienAnzeigeLeeren();
+
 // ---- 11c. garetienFussknopfKlick -- der ganze Ablauf, mit einem Spion statt echtem Netz ---------
 async function pruefeFussknopfHaeppchen() {
 	// Gegenprobe: UNTER der Grenze -> GENAU EIN Aufruf, alle ids in einem Haeppchen. Nur die

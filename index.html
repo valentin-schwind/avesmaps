@@ -3848,6 +3848,14 @@
 				     erscheint in Chrome also nie. Dasselbe Mittel wie im Übernahme-Blatt, wo der
 				     Grund als Text in der Fußzeile steht. -->
 				<span class="gi-foot__hint" id="garetien-apply-hint" hidden></span>
+				<!-- 🔴 Umgezogen 29.08.2026 (Owner-Meldung): „Markierte anzeigen" und „Anzeige leeren"
+				     standen vorher oben im Listenskelett (.gi-anzeigebar) -- jetzt hier, links von der
+				     Haupthandlung. Beide WEICH (`.btn`, kein `--main`): die Haupthandlung des Fensters
+				     bleibt „Alle angezeigten einfügen" (AGENTS.md §12). Verdrahtet in bindFenster()
+				     (js/review/review-garetien-importer.js), nicht mehr in garetienListeSkelettVerdrahten
+				     -- diese zwei Knöpfe stehen von Anfang an statisch hier, wie #garetien-apply selbst. -->
+				<button class="btn" type="button" id="garetien-mark-show">Markierte anzeigen</button>
+				<button class="btn" type="button" id="garetien-anzeige-clear">Anzeige leeren</button>
 				<button class="btn btn--main" type="button" id="garetien-apply" disabled>Angehakte übernehmen (0)</button>
 			</div>
 			<p class="gi-foot__note">Nichts davon steht in der Karte. „Übernehmen" geht durch die

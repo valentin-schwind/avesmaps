@@ -227,9 +227,14 @@ gleich((skelett.match(/<div/g) || []).length, (skelett.match(/<\/div>/g) || []).
 	+ "erste offene Element alle folgenden Geschwister");
 checks++;
 
-// Und die Wirkung, an der Struktur gemessen: SIEBEN Geschwister auf der obersten Ebene (Aufgabe 2
-// haengt `.gi-anzeigebar` mit den zwei Anzeige-Knoepfen zwischen die Suchzeile und die Chips;
-// RULING R7, Fix-Runde 1, haengt davor zusaetzlich den Hinweis `.gi-anzeigehinweis` an).
+// Und die Wirkung, an der Struktur gemessen: SECHS Geschwister auf der obersten Ebene (RULING R7,
+// Fix-Runde 1, haengt den Hinweis `.gi-anzeigehinweis` zwischen Suchzeile und Chips an).
+// 🔴 Regression 29.08.2026 (Owner-Meldung): `.gi-anzeigebar` mit den zwei Anzeige-Knoepfen stand
+// hier vorher an SIEBTER Stelle (zwischen Hinweis und Chips) -- sie ist jetzt aus dem Skelett
+// verschwunden, weil die zwei Knoepfe in die Fusszeile umgezogen sind (statisch in index.html,
+// `.gi-foot`, links von „Alle angezeigten einfuegen"). Ihre IDs (garetien-mark-show,
+// garetien-anzeige-clear) bleiben unveraendert, nur ihre Verdrahtung wanderte von
+// garetienListeSkelettVerdrahten() nach bindFenster().
 // ⚠️ Ein winziger Parser statt einer DOM-Nachbildung -- er zaehlt nur die Verschachtelungstiefe,
 // und genau die war der Fehler.
 function obersteEbene(html) {
@@ -250,9 +255,18 @@ function obersteEbene(html) {
 	return raus;
 }
 const oben = obersteEbene(skelett);
-gleich(oben.join(","), "avm-tabs,gi-searchrow,gi-anzeigehinweis,gi-anzeigebar,gi-chips,gi-balance,avm-scroll",
-	"die linke Spalte hat SIEBEN Geschwister in dieser Reihenfolge -- stehen Chips, Bilanz oder "
+gleich(oben.join(","), "avm-tabs,gi-searchrow,gi-anzeigehinweis,gi-chips,gi-balance,avm-scroll",
+	"die linke Spalte hat SECHS Geschwister in dieser Reihenfolge -- stehen Chips, Bilanz oder "
 	+ "Liste IN der `.gi-searchrow`, legt deren `display: flex` sie nebeneinander");
 checks++;
+
+// Und die DIFFERENZ zur Regression: die zwei Anzeige-Knoepfe stehen NICHT MEHR in diesem Skelett --
+// sie sind in die Fusszeile umgezogen (index.html, `.gi-foot`) und werden dort statisch geladen.
+wahr(!skelett.includes("gi-anzeigebar"),
+	"'.gi-anzeigebar' darf nicht mehr im dynamischen Skelett stehen -- die zwei Knoepfe leben jetzt "
+	+ "im Fuss von index.html");
+wahr(!skelett.includes('id="garetien-mark-show"') && !skelett.includes('id="garetien-anzeige-clear"'),
+	"die zwei Anzeige-Knoepfe duerfen nicht ZWEIMAL entstehen -- einmal hier UND einmal in "
+	+ "index.html waere eine Doppelanmeldung mit zwei Klick-Zuhoerern (AGENTS.md §11)");
 
 console.log(`garetien-liste-zeile: ${checks} Pruefungen bestanden.`);

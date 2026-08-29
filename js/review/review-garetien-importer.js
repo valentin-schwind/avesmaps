@@ -116,6 +116,32 @@
 		return zustand.anzeige.has(String(schluessel));
 	}
 
+	// ---- Regression 29.08.2026 (Owner-Meldung): die Anzeige-Menge nach einem Schreibvorgang AUFFRISCHEN
+	//
+	// 🔴 BIS DAHIN GAB ES DAFUER GAR KEINEN ERZEUGER. `zustand.anzeige.set(...)` wurde
+	// ausschliesslich aus avesmapsGaretienAnzeigeHinzufuegen gerufen -- eine Handlung ("Neu
+	// einfuegen", "Namen ersetzen", ein Abschnittshaekchen) ging an den Server,
+	// avesmapsGaretienHandlungSenden holte die Liste neu, aber die KOPIEN in zustand.anzeige blieben
+	// auf dem alten Stand. Weder das ✦ noch der ✓ am Handlungsknopf noch die Einzelansicht aenderten
+	// sich -- der Knopf tat scheinbar nichts.
+	//
+	// 🔴 AUFGEFRISCHT, NIE ENTFERNT. Die Serverantwort ist gefiltert und seitenweise
+	// (AVESMAPS_GARETIEN_LISTE_MAX); die Anzeige-Menge ist ausdruecklich filter- und
+	// seitenunabhaengig (Entwurf §3, §3.1). Ein Objekt, das in einer Antwort nicht vorkommt, faellt
+	// deshalb NICHT heraus -- nur wer WIRKLICH in der Antwort steht, bekommt seine frische Fassung.
+	// Wer die Menge an der Antwort ausrichtete, leerte dem Editor beim naechsten Filterklick die Karte.
+	//
+	// REIN: kein DOM. Deshalb ruft avesmapsGaretienListeRendern diese Funktion VOR seiner
+	// hasDocument-Weiche auf -- sonst liefe die ganze Regel unter Node (also im Testfeld) nie, und
+	// sie deckte auch nur einen von zwei Renderwegen ab, wenn sie irgendwo dahinter stuende.
+	function avesmapsGaretienAnzeigeAuffrischen(objekte) {
+		(objekte || []).forEach(function (o) {
+			if (!o || o.key === undefined || o.key === null || o.key === "") { return; }
+			const schluessel = String(o.key);
+			if (zustand.anzeige.has(schluessel)) { zustand.anzeige.set(schluessel, o); }
+		});
+	}
+
 	// ---- Die Markierung: ein reiner MARKER, kein Schreibweg (Aufgabe 2, Entwurf §3.2) --------------
 	//
 	// 🔴 „Markieren aendert nichts" (Owner 29.08.2026). Sie schreibt nicht, sie verschiebt keine
@@ -534,13 +560,12 @@
 			// von Suchfeld/Filterknopf gemeinsam (siehe dort).
 			+ '<p class="gi-anzeigehinweis" id="garetien-anzeige-hinweis" hidden>Der Reiter zeigt, '
 			+ "was auf der Karte liegt — hier wird nicht gefiltert.</p>"
-			// Aufgabe 2: die zwei Anzeige-Knoepfe. Beide WEICH (`.btn`, kein `--main`) -- die
-			// Haupthandlung der Seite ist „Holen & Rechnen" im Menueband, und eine Zeilen-/
-			// Listenhandlung ist nie die Haupthandlung (AGENTS.md §12).
-			+ '<div class="gi-anzeigebar">'
-			+ '<button class="btn" type="button" id="garetien-mark-show">Markierte anzeigen</button>'
-			+ '<button class="btn" type="button" id="garetien-anzeige-clear">Anzeige leeren</button>'
-			+ "</div>"
+			// 🔴 Die zwei Anzeige-Knoepfe („Markierte anzeigen", „Anzeige leeren") stehen seit
+			// 29.08.2026 NICHT mehr hier -- Owner-Meldung: sie gehoeren in die Fusszeile, links von
+			// „Alle angezeigten einfuegen". Sie stehen jetzt STATISCH in index.html (.gi-foot, vor
+			// #garetien-apply) und werden in bindFenster() verdrahtet (dieselbe Stelle wie der
+			// Fussknopf selbst) -- nicht mehr hier, wo nur einmalig gebautes, dynamisches Skelett
+			// entsteht. Die IDs (garetien-mark-show, garetien-anzeige-clear) sind unveraendert.
 			+ '<div class="gi-chips" id="garetien-chips"></div>'
 			+ '<p class="gi-balance" id="garetien-balance"></p>'
 			+ '<div class="avm-scroll gi-list" id="garetien-list"></div>';
@@ -599,22 +624,11 @@
 				entprellTimer = setTimeout(function () { avesmapsGaretienListeHolen(); }, 250);
 			});
 		}
-		// Aufgabe 2: die zwei Anzeige-Knoepfe -- jeder ruft seinen reinen Zug, danach zeichnet
-		// garetienAnzeigeNeuZeichnen Liste und Karte neu.
-		const markZeigenBtn = document.getElementById("garetien-mark-show");
-		if (markZeigenBtn) {
-			markZeigenBtn.addEventListener("click", function () {
-				avesmapsGaretienMarkierteAnzeigen(zustand.objekte);
-				garetienAnzeigeNeuZeichnen();
-			});
-		}
-		const anzeigeLeerenBtn = document.getElementById("garetien-anzeige-clear");
-		if (anzeigeLeerenBtn) {
-			anzeigeLeerenBtn.addEventListener("click", function () {
-				avesmapsGaretienAnzeigeLeeren();
-				garetienAnzeigeNeuZeichnen();
-			});
-		}
+		// 🔴 Die zwei Anzeige-Knoepfe werden NICHT MEHR hier verdrahtet -- sie stehen seit
+		// 29.08.2026 statisch in index.html (.gi-foot) und nicht mehr in diesem dynamisch gebauten
+		// Skelett. Ihre Verdrahtung steht jetzt in bindFenster(), zusammen mit den uebrigen
+		// statischen Fussknoepfen (derselbe Grund: ein Element, das schon beim Laden im DOM steht,
+		// wird beim BOOT verdrahtet, nicht bei jedem Aufbau dieser Spalte).
 	}
 
 	// RULING R7 (Fix-Runde 1): auf dem Reiter „Anzeigen" wirken Suche und Filtertrichter nicht
@@ -698,11 +712,21 @@
 	// action:'liste'-Antwort. 🔴 Rechnet nichts nach -- Urteil/Grund/Geometrie stehen schon fertig
 	// in der Antwort.
 	function avesmapsGaretienListeRendern(antwort) {
+		const a = antwort || {};
+		const objekte = a.objekte || [];
+
+		// Regression 29.08.2026: JEDE frische Antwort frischt passende Eintraege der Anzeige-Menge
+		// auf -- VOR der hasDocument-Weiche, damit BEIDE Renderwege sie bekommen: der echte
+		// Serverabruf (avesmapsGaretienListeHolen, `stand !== "anzeigen"`) UND der „Anzeigen"-Zweig
+		// (garetienAnzeigenAntwortBauen baut seine "Antwort" aus derselben Menge nach -- dort ist der
+		// Aufruf ein wirkungsloser, aber unschaedlicher Nachschlag auf sich selbst). Eine Regel, die
+		// nur einen von zwei Erzeugern bindet, ist keine Regel; genau das ist in diesem Umbau heute
+		// schon zweimal passiert (RULING R2, R7).
+		avesmapsGaretienAnzeigeAuffrischen(objekte);
+
 		if (!hasDocument) { return; }
 		const listcol = garetienListeSkelettSicherstellen();
 		if (!listcol) { return; }
-		const a = antwort || {};
-		const objekte = a.objekte || [];
 
 		const runlineEl = document.getElementById("garetien-runline");
 		if (runlineEl) { runlineEl.innerHTML = avesmapsGaretienRunlineMarkup(a.bilanz); }
@@ -2672,6 +2696,26 @@
 					avesmapsGaretienHandlungSenden, garetienFragen);
 			});
 		}
+		// 🔴 Die zwei Anzeige-Knoepfe -- seit 29.08.2026 hier statt in garetienListeSkelettVerdrahten,
+		// weil sie seit derselben Meldung statisch im Fuss von index.html stehen (.gi-foot, links von
+		// „Alle angezeigten einfuegen") statt im dynamisch gebauten Listen-Skelett. EIN Zuhoerer je
+		// Knopf, einmal beim Start -- dieselbe Begruendung wie beim Fussknopf gleich darunter: ein
+		// Element, das schon beim Laden im DOM steht, wird beim BOOT verdrahtet. Jeder Knopf ruft
+		// seinen reinen Zug, danach zeichnet garetienAnzeigeNeuZeichnen Liste und Karte neu.
+		const markZeigenBtn = hasDocument ? document.getElementById("garetien-mark-show") : null;
+		if (markZeigenBtn) {
+			markZeigenBtn.addEventListener("click", function () {
+				avesmapsGaretienMarkierteAnzeigen(zustand.objekte);
+				garetienAnzeigeNeuZeichnen();
+			});
+		}
+		const anzeigeLeerenBtn = hasDocument ? document.getElementById("garetien-anzeige-clear") : null;
+		if (anzeigeLeerenBtn) {
+			anzeigeLeerenBtn.addEventListener("click", function () {
+				avesmapsGaretienAnzeigeLeeren();
+				garetienAnzeigeNeuZeichnen();
+			});
+		}
 		// Aufgabe 16: die EINE gefuellte Handlung des Fensters.
 		// ⚠️ `disabled` wird hier NOCH EINMAL geprueft -- das Attribut ist die Anzeige, nicht der
 		// Riegel; dieselbe Trennung wie bei garetienHandlungKlick und beim Ebenen-Riegel.
@@ -2753,6 +2797,8 @@
 			avesmapsGaretienAnzeigeLeeren,
 			avesmapsGaretienAnzeigeListe,
 			avesmapsGaretienAnzeigeHat,
+			// Regression 29.08.2026: die Anzeige-Menge nach einem Schreibvorgang auffrischen, nie entfernen.
+			avesmapsGaretienAnzeigeAuffrischen,
 			AVESMAPS_GARETIEN_SERVER_STAENDE,
 			// Aufgabe 2: das Haekchen ist ein reiner Marker (Entwurf §3.2)
 			avesmapsGaretienMarkierungUmschalten,
