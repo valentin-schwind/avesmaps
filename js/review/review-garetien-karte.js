@@ -24,13 +24,25 @@
 	 * Hof darunter. Auf einer Flaeche (Kraehensee) lagen damit zwei goldene Formen uebereinander.
 	 * Owner, woertlich: „ich weiss aber nicht, ob das die Garetien-Geometrie oder unsere eigene ist.
 	 * voellig unklar." Seither:
-	 *   - IHRE Geometrie: GOLD (`--color-marker-active`), GESTRICHELT
-	 *     („so wuerde es liegen, es steht noch nicht bei uns")
+	 *   - IHRE Geometrie: GESTRICHELT („so wuerde es liegen, es steht noch nicht bei uns")
 	 *   - UNSERE Geometrie: MAGENTA (`--color-garetien-unsere`), DURCHGEZOGEN
 	 *     („das liegt schon da") — als ECHTE FORM, nicht mehr nur als Hof
 	 * 🔴 Die Strichelung ist damit die zweite, unabhaengige Aussage: sie sagt „Vorschlag", nicht
 	 * „ihre". Wer sie auf unsere Form uebertraegt, nimmt der Farbe ihre Arbeit wieder ab.
 	 * 🔴 Farbe kodiert hier DATEN, nicht Chrome — AGENTS.md §12 laesst das ausdruecklich zu.
+	 *
+	 * 🔴 UND SEIT AUFGABE 3 (RULING R8, Entwurf §4.1, task-3-nachtrag.md §1) IST IHRE FORM NICHT
+	 * MEHR GOLD: sie „tut so, als laege sie schon auf der Karte" und traegt ihre ECHTE Kartenfarbe,
+	 * -form (Punkt/Linie/Flaeche) und -breite aus der SICHT-TAFEL (avesmapsGaretienSichtFuer,
+	 * geschluesselt auf `ebene`, mit `subtyp`/`kind` als feinerer Vorrang, wenn ein Vorschlag
+	 * vorliegt). Owner woertlich: „Ideal waer wenn der import das eigentliche objekt bereits anzeigt
+	 * (farblich und von der groesse aber gelb leuchtend) und 'so tut', als sei es auf der Karte."
+	 * Das GELBE LEUCHTEN ist seither ein EIGENER, NEUER goldener Hof unter ihrer Form
+	 * (AVESMAPS_GARETIEN_KLASSE_SCHEIN_IHRE) — dieselbe Rolle, die der magentafarbene Hof schon
+	 * fuer unsere Seite spielt: die Herkunft bleibt lesbar, auch wenn die Form selbst nicht mehr
+	 * golden ist. Kennt die Sicht-Tafel eine Ebene nicht, faellt die Form auf Gold + Linie zurueck
+	 * (AVESMAPS_GARETIEN_SICHT_NEUTRAL) — dann liegen Hof UND Form beide golden uebereinander, und
+	 * das ist das Bild von VOR dieser Aufgabe.
 	 *
 	 * 🔴 IHR STRICH LIEGT OBEN, UNSERER DARUNTER, und das ist gerechnet, nicht Geschmack: ihre Linie
 	 * liegt oft GENAU auf unserer (Median 1,24 Meilen bei 3072 Meilen Kartenbreite = 0,413
@@ -142,6 +154,12 @@
 	var AVESMAPS_GARETIEN_KLASSE_IHRE = "gi-map-ihre";
 	var AVESMAPS_GARETIEN_KLASSE_UNSERE = "gi-map-unsere";
 	var AVESMAPS_GARETIEN_KLASSE_SCHEIN = "gi-map-schein";
+	// 🔴 NEU seit RULING R8 (task-3-nachtrag.md §1): IHRE Form traegt seither ihre ECHTE
+	// Kartenfarbe (Sicht-Tafel) statt immer Gold -- der Hof haelt die Herkunft trotzdem lesbar
+	// und braucht deshalb eine EIGENE Klasse mit einem EIGENEN (goldenen) Weichzeichner. Ein
+	// gemeinsamer Hof mit `AVESMAPS_GARETIEN_KLASSE_SCHEIN` ginge nicht: dessen Farbe ist an
+	// UNSERE Partei gebunden (Magenta) und muss es bleiben, siehe der Kommentar dort.
+	var AVESMAPS_GARETIEN_KLASSE_SCHEIN_IHRE = "gi-map-schein-ihre";
 
 	// 🔴 DIE FARBEN KOMMEN AUS TOKENS (AGENTS.md §12) — sie stehen nirgends als Zahl in dieser Datei.
 	var AVESMAPS_GARETIEN_TOKEN_IHRE = "--color-marker-active";
@@ -337,6 +355,107 @@
 	 */
 	function garetienIstFlaeche(objekt) {
 		return String((objekt || {}).geometrie_typ || "") === "Polygon";
+	}
+
+	/*
+	 * 🔴 DIE SICHT-TAFEL (Entwurf §4.1, Aufgabe 3): wie ein importiertes Objekt AUSSIEHT, wenn es
+	 * (noch) keinen Vorschlag traegt. Sie sagt NIE, was daraus wird -- ein Eintrag hier legt nichts
+	 * an und aendert keine Zuordnung. Das ist der Unterschied zu AVESMAPS_GARETIEN_TYP_MAP
+	 * (api/_internal/import/garetien-abgleich.php), und er ist der Grund, warum diese Tafel Ruling
+	 * R21 nicht verletzt: R21 verbot eine hartkodierte Typenliste, die SEMANTIK entscheidet. Hier
+	 * entscheidet nichts, hier wird gezeichnet.
+	 *
+	 * 🔴 GESCHLUESSELT AUF `ebene`, NICHT AUF `typ`:
+	 *   · `ebene` traegt JEDES Objekt, aus einem festen Katalog (AVESMAPS_GARETIEN_EBENEN,
+	 *     api/_internal/import/garetien-abruf.php) -- wer die genaue Zahl der moeglichen Werte
+	 *     braucht, zaehlt sie DORT nach, statt einer Zahl hier zu glauben (AGENTS.md §9: eine Zahl
+	 *     im Kommentar liest sich wie eine vollstaendige Liste und veraltet lautlos).
+	 *   · `typ` traegt viele verschiedene Werte, von denen nur ein Teil einem Kartenziel zugeordnet
+	 *     ist (Uebergabe §7.4). Eine Tafel darauf waere weitgehend geraten und muesste bei jedem
+	 *     neuen Quelltyp nachgezogen werden.
+	 * ⚠️ Grob, aber immer richtig: „Gewaesser" ist Wasser, auch wenn der einzelne Eintrag ein
+	 * Wasserfall ist. Wer es feiner braucht, gibt dem Objekt einen Vorschlag -- dann gewinnt
+	 * ohnehin die Server-Auskunft (Stufe 1 der Ordnung unten).
+	 *
+	 * 🔴 `Wege`, `Grenzen` UND `Sonstiges` FEHLEN, UND DAS IST ABSICHT (RULING R3,
+	 * task-3-nachtrag.md §3). Fuer Wege und Grenzen gibt es KEIN Kartentoken -- tokens.css sagt an
+	 * ihrer Stelle ausdruecklich, dass Reichsstrasse/Strasse/Weg als TEXTFARBE Rauschen waeren, und
+	 * eine Karten-KONTUR braucht dieselbe Farbe erst recht nicht; `Sonstiges` ist der Sammeltopf
+	 * ohne eigene Bedeutung. Alle drei fallen deshalb auf AVESMAPS_GARETIEN_SICHT_NEUTRAL zurueck
+	 * -- und die Bilanzzeile meldet das (Schritt 5), statt es zu verschweigen.
+	 * 💣 VOR JEDEM NEUEN EINTRAG: `grep -c -- "<token>:" css/base/tokens.css` muss >= 1 sein. Ein
+	 * Tokenname, den es nicht gibt, liefert bei `garetienTokenFarbe` "" zurueck -- die Form
+	 * verschwindet dann lautlos, kein Fehler, kein Warnhinweis.
+	 */
+	var AVESMAPS_GARETIEN_SICHT_EBENE = {
+		Gewaesser:     { form: "linie",   token: "--color-path-flussweg",                breite: 3 },
+		Berge:         { form: "punkt",   token: "--color-ecosystem-topographie-gebirge", breite: 3 },
+		Waelder:       { form: "flaeche", token: "--color-ecosystem-vegetation-wald",     breite: 2 },
+		Ortschaften_1: { form: "punkt",   token: "--color-marker-settlement",             breite: 3 },
+		Ortschaften_2: { form: "punkt",   token: "--color-marker-settlement",             breite: 3 },
+		Ortschaften_3: { form: "punkt",   token: "--color-marker-settlement",             breite: 3 },
+		Ortschaften_4: { form: "punkt",   token: "--color-marker-settlement",             breite: 3 },
+		Detail_1:      { form: "punkt",   token: "--color-marker-settlement",             breite: 3 },
+		Detail_2:      { form: "punkt",   token: "--color-marker-settlement",             breite: 3 },
+	};
+
+	// Der Rueckfall. 🔴 Er ist das BILD VOR DIESER AUFGABE -- wer die Tafel entfernt, bekommt genau
+	// diesen Stand zurueck, nicht eine leere Karte. Derselbe Goldton wie
+	// AVESMAPS_GARETIEN_TOKEN_IHRE, absichtlich ueber die Konstante bezogen statt als zweites
+	// Zeichenkettenliteral -- zwei Literale mit demselben Tokennamen liefen beim naechsten Umton
+	// auseinander.
+	var AVESMAPS_GARETIEN_SICHT_NEUTRAL = { form: "linie", token: AVESMAPS_GARETIEN_TOKEN_IHRE, breite: 3 };
+
+	/*
+	 * Die Sicht fuer EIN Objekt: Form, Farbtoken, Breite -- und ob geraten wurde. REIN, kein DOM,
+	 * keine Karte (Entwurf §4.1).
+	 *
+	 * 🔴 EINE ORDNUNG, KEINE AUSWAHL -- dieselbe Bauform wie die Art-Regel der Landschaft
+	 * (AGENTS.md §11): erst die Server-Auskunft (`subtyp`), dann die Tafel (`ebene`), dann neutral.
+	 * ⚠️ Der Tokenname wird bei einem Vorschlag nach der HAUSKONVENTION hergeleitet
+	 * (`--color-ecosystem-<kind>-<subtyp mit _ als ->`, css/base/tokens.css:282) -- eine zweite
+	 * Tabelle, die dieselbe Abbildung noch einmal auflistet, liefe beim ersten neuen Typ
+	 * auseinander. Ein WEG-Ziel (Fluss/Bach/Strom) traegt kein `kind` und leitet stattdessen aus
+	 * `--color-path-<subtyp klein geschrieben>` her.
+	 * ⚠️ `neutral: true` heisst NICHT „falsch gezeichnet" -- es heisst „nach der zurueckhaltenden
+	 * Regel gezeichnet, weil es (noch) keine eigene gibt". Das ist die Information, die Schritt 5
+	 * an die Bilanzzeile weiterreicht.
+	 */
+	function avesmapsGaretienSichtFuer(objekt) {
+		var o = objekt || {};
+		var kind = String(o.kind || "");
+		var subtyp = String(o.subtyp || "");
+		var geoTyp = String(o.geometrie_typ || "");
+
+		if (subtyp !== "") {
+			var token = kind !== ""
+				? "--color-ecosystem-" + kind + "-" + subtyp.replace(/_/g, "-")
+				: "--color-path-" + subtyp.toLowerCase();
+			return {
+				form: geoTyp === "Polygon" ? "flaeche" : "linie",
+				token: token,
+				breite: 3,
+				neutral: false,
+			};
+		}
+
+		var eintrag = AVESMAPS_GARETIEN_SICHT_EBENE[String(o.ebene || "")];
+		if (!eintrag) {
+			return {
+				form: AVESMAPS_GARETIEN_SICHT_NEUTRAL.form,
+				token: AVESMAPS_GARETIEN_SICHT_NEUTRAL.token,
+				breite: AVESMAPS_GARETIEN_SICHT_NEUTRAL.breite,
+				neutral: true,
+			};
+		}
+		// ⚠️ `geometrie_typ` schlaegt die Tafel auch hier, falls es doch einmal gefuellt ist -- es
+		// ist die Auskunft des Erzeugers, die Tafel ist nur die Faustregel.
+		return {
+			form: geoTyp === "Polygon" ? "flaeche" : eintrag.form,
+			token: eintrag.token,
+			breite: eintrag.breite,
+			neutral: false,
+		};
 	}
 
 	/*
@@ -538,21 +657,55 @@
 			if (form) { gruppe.addLayer(form); }
 		});
 
+		// 🔴 IHRE SEITE SAMMELT GENAUSO (RULING R8, task-3-nachtrag.md §1): der Hof des naechsten
+		// Objekts darf nicht ueber die Form des vorigen geraten, deshalb ALLE ihre Hoefe vor ALLEN
+		// ihren Formen -- derselbe Grund wie oben bei „unsere".
+		var ihre = [];
 		liste.forEach(function (objekt) {
 			var punkte = avesmapsGaretienNachLeaflet((objekt || {}).geometrie);
 			if (punkte.length === 0) { garetienGeometrieFehlt(objekt, null); return; }
-			// 🔴 IHRE FORM: GOLD und GESTRICHELT. Die Strichelung sagt „das ist ihre Fassung, sie
-			// steht noch nicht bei uns" -- sie haengt an der Kante, nicht an der Form, und ein Ring
-			// traegt sie deshalb genauso wie eine Linie.
-			var form = garetienForm(l, punkte, {
+			var sicht = avesmapsGaretienSichtFuer(objekt);
+			ihre.push({
+				punkte: punkte,
+				titel: garetienTitelIhre(objekt),
+				flaeche: sicht.form === "flaeche",
+				farbe: garetienTokenFarbe(sicht.token),
+				breite: sicht.breite,
+			});
+		});
+
+		// 🔴 IHR HOF: GOLD, NEU seit RULING R8. Die Form darueber traegt seither ihre ECHTE
+		// Kartenfarbe (Sicht-Tafel) statt immer Gold -- der Hof haelt die Herkunft trotzdem lesbar:
+		// „das ist ihr Vorschlag" bleibt sichtbar, auch wenn die Form selbst nicht mehr golden ist.
+		// Wie bei „unsere" IMMER ein Strich, auch unter einer Flaeche.
+		ihre.forEach(function (eintrag) {
+			var hof = garetienForm(l, eintrag.punkte, {
+				pane: AVESMAPS_GARETIEN_IHRE_PANE,
+				klasse: AVESMAPS_GARETIEN_KLASSE_SCHEIN_IHRE,
+				farbe: farbeIhre,
+				breite: AVESMAPS_GARETIEN_SCHEIN_BREITE,
+				deckkraft: AVESMAPS_GARETIEN_SCHEIN_DECKKRAFT,
+				flaeche: false,
+				strichelung: null,
+				titel: eintrag.titel,
+			});
+			if (hof) { gruppe.addLayer(hof); }
+		});
+
+		// 🔴 IHRE FORM: die ECHTE Kartenform, -farbe und -breite aus der Sicht-Tafel (Entwurf §4.1).
+		// Die Strichelung BLEIBT -- sie haengt an der Kante, nicht an der Farbe, und sagt weiterhin
+		// „das ist ihre Fassung, sie steht noch nicht bei uns"; ein Ring traegt sie deshalb genauso
+		// wie eine Linie.
+		ihre.forEach(function (eintrag) {
+			var form = garetienForm(l, eintrag.punkte, {
 				pane: AVESMAPS_GARETIEN_IHRE_PANE,
 				klasse: AVESMAPS_GARETIEN_KLASSE_IHRE,
-				farbe: farbeIhre,
-				breite: AVESMAPS_GARETIEN_STRICH_BREITE,
+				farbe: eintrag.farbe,
+				breite: eintrag.breite,
 				deckkraft: 1,
-				flaeche: garetienIstFlaeche(objekt),
+				flaeche: eintrag.flaeche,
 				strichelung: AVESMAPS_GARETIEN_STRICHELUNG,
-				titel: garetienTitelIhre(objekt),
+				titel: eintrag.titel,
 			});
 			if (form) { gruppe.addLayer(form); }
 		});
@@ -677,6 +830,9 @@
 		window.avesmapsGaretienKarteSicht = avesmapsGaretienKarteSicht;
 		window.avesmapsGaretienKarteUmschalten = avesmapsGaretienKarteUmschalten;
 		window.avesmapsGaretienUnsereIds = avesmapsGaretienUnsereIds;
+		// Aufgabe 3: die Sicht-Tafel -- review-garetien-importer.js liest sie fuer die
+		// Neutral-Meldung der Bilanzzeile (Schritt 5), ohne diese Datei vorauszusetzen.
+		window.avesmapsGaretienSichtFuer = avesmapsGaretienSichtFuer;
 	}
 
 	if (typeof module !== "undefined" && module.exports) {
@@ -700,8 +856,13 @@
 			AVESMAPS_GARETIEN_KLASSE_IHRE,
 			AVESMAPS_GARETIEN_KLASSE_UNSERE,
 			AVESMAPS_GARETIEN_KLASSE_SCHEIN,
+			AVESMAPS_GARETIEN_KLASSE_SCHEIN_IHRE,
 			AVESMAPS_GARETIEN_PARTEI_IHRE,
 			AVESMAPS_GARETIEN_PARTEI_UNSERE,
+			// Aufgabe 3: die Sicht-Tafel (Entwurf §4.1)
+			avesmapsGaretienSichtFuer,
+			AVESMAPS_GARETIEN_SICHT_EBENE,
+			AVESMAPS_GARETIEN_SICHT_NEUTRAL,
 		};
 	}
 })();

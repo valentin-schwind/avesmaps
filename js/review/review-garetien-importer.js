@@ -657,6 +657,43 @@
 		return listcol;
 	}
 
+	/*
+	 * Aufgabe 3 (Sicht-Tafel, Entwurf §4.1): welche Objekte der Anzeige-Menge OHNE eigene Sicht-Regel
+	 * gezeichnet werden. REIN -- kein DOM.
+	 *
+	 * 🔴 `avesmapsGaretienSichtFuer` kommt aus dem globalen Raum (review-garetien-karte.js), genauso
+	 * wie die uebrigen Kartenfunktionen, die diese Datei aufruft (`avesmapsGaretienKarteZeigen` &co.):
+	 * diese Datei laeuft auch auf Seiten ohne Karte und darf die andere nicht voraussetzen. Fehlt sie,
+	 * kommt eine leere Liste heraus statt eines Wurfs.
+	 */
+	function garetienNeutraleObjekte(liste) {
+		if (typeof window === "undefined" || typeof window.avesmapsGaretienSichtFuer !== "function") {
+			return [];
+		}
+		return (liste || []).filter(function (o) {
+			return o && window.avesmapsGaretienSichtFuer(o).neutral;
+		});
+	}
+
+	/*
+	 * Die Neutral-Meldung der Bilanzzeile. REIN -- kein DOM.
+	 *
+	 * ⭐ Der Rueckfall wird GEMELDET, nicht verschwiegen (Entwurf §4.1). Ein stiller Rueckfall saehe
+	 * aus wie „so sieht das Objekt eben aus"; genannt ist er die Arbeitsliste fuer die Sicht-Tafel.
+	 * Dieselbe Regel wie „ein Pruefhaken zeigt seine Funde".
+	 * ⚠️ Die Ebenen werden ENTDOPPELT (`Set`) und zusammen genannt -- eine Zeile je Ebene würde die
+	 * Bilanz sprengen, sobald mehr als eine Ebene ohne Regel auf der Karte liegt.
+	 */
+	function garetienNeutralHinweisMarkup(liste) {
+		const neutrale = garetienNeutraleObjekte(liste);
+		if (neutrale.length === 0) { return ""; }
+		const ebenen = Array.from(new Set(neutrale.map(function (o) {
+			return String((o && o.ebene) || "?");
+		})));
+		return ' · <span class="gi-neutral">' + neutrale.length + " neutral gezeichnet · Ebene "
+			+ avesmapsGaretienEscape(ebenen.join(", ")) + " hat keine Sicht-Regel</span>";
+	}
+
 	// Schreibt Liste, (Filter-)Bilanz, Reiterzahlen und Fusszeile aus einer frischen
 	// action:'liste'-Antwort. 🔴 Rechnet nichts nach -- Urteil/Grund/Geometrie stehen schon fertig
 	// in der Antwort.
@@ -697,10 +734,14 @@
 			// Suche/Filter -- reiter[stand] zaehlt genau das (Aufgabe 8, VOR dem Filtern gezaehlt).
 			const basisDesReiters = (a.reiter && a.reiter[zustand.stand]) || 0;
 			const leuchtenAnzahl = objekte.filter(avesmapsGaretienHatAuswahl).length;
+			// Aufgabe 3: die Neutral-Meldung zaehlt die ANZEIGE-MENGE (was WIRKLICH auf der Karte
+			// liegt), nicht `objekte` (die aktuelle Listenansicht) -- dieselbe Quelle wie
+			// avesmapsGaretienAufDerKarte.
 			balanceEl.innerHTML = avesmapsGaretienBalanceZeileText(a.gesamt, basisDesReiters)
 				+ (leuchtenAnzahl > 0
 					? ' · <span class="lit">✦ ' + leuchtenAnzahl + " leuchten</span>"
-					: "");
+					: "")
+				+ garetienNeutralHinweisMarkup(avesmapsGaretienAnzeigeListe());
 		}
 
 		const fussEl = document.getElementById("garetien-foot-count");
@@ -2639,6 +2680,9 @@
 			avesmapsGaretienListeHolen,
 			avesmapsGaretienListeRendern,
 			garetienListeSkelettMarkup,
+			// Aufgabe 3 (Sicht-Tafel): die Neutral-Meldung der Bilanzzeile
+			garetienNeutraleObjekte,
+			garetienNeutralHinweisMarkup,
 			// Aufgabe 12
 			garetienFilterState,
 			garetienFacettenOptionen,

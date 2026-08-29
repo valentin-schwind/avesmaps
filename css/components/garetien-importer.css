@@ -318,6 +318,11 @@
 }
 .gi-balance b { color: var(--color-text-strong); }
 .gi-balance .lit { color: var(--color-accent-strong); font-weight: var(--font-weight-bold); }
+/* Aufgabe 3 (Sicht-Tafel, Entwurf §4.1): eine Ebene ohne eigene Sicht-Regel MELDET sich hier --
+   ein stiller Rueckfall saehe aus wie „so sieht das Objekt eben aus". Keine eigene Farbe: es ist
+   ein Hinweis, keine Warnung, und erbt darum die gedaempfte Farbe von `.gi-balance`; kursiv als
+   einziger Unterschied zum Rest der Zeile. */
+.gi-balance .gi-neutral { font-style: italic; }
 
 /* Ein angehaktes Objekt LEUCHTET auf der Karte (Aufgabe 14) -- die Zeile sagt es mit. */
 .lit-dot { color: var(--color-marker-active); font-weight: var(--font-weight-bold); }
@@ -581,9 +586,18 @@
    Partei (er liegt unter unserer durchgezogenen Magenta-Form, nicht mehr unter unserer blauen
    Flusslinie). Ein goldener Hof unter einer Magenta-Linie behauptete wieder das Gegenteil der Form
    -- genau die Verwechslung, die diese Fassung beseitigt.
-   🔴 Alle drei Klassen verschwinden mit dem Importer (Auftrag §5.5); sie stehen darum in DIESER
-   Datei und nicht in einer Kartendatei, die bleibt. */
+   🔴 Alle Klassen dieser Regelgruppe verschwinden mit dem Importer (Auftrag §5.5); sie stehen darum
+   in DIESER Datei und nicht in einer Kartendatei, die bleibt. */
 .gi-map-schein { filter: drop-shadow(0 0 14px var(--color-garetien-unsere)); }
+
+/* 🔴 IHR Hof ist seit Aufgabe 3 (RULING R8, task-3-nachtrag.md §1) GOLD -- eine EIGENE Klasse, kein
+   Teilen mit `.gi-map-schein` oben. Seit dieser Aufgabe traegt IHRE Form ihre ECHTE Kartenfarbe
+   (Sicht-Tafel, review-garetien-karte.js) statt immer Gold; der Hof haelt die Herkunft trotzdem
+   lesbar -- „das ist ihr Vorschlag, gelb leuchtend" (Owner-Zitat siehe review-garetien-karte.js).
+   Ein gemeinsamer Filter mit `.gi-map-schein` ginge nicht: dessen Farbe ist an UNSERE Partei
+   (Magenta) gebunden und muss es bleiben -- sonst behauptete der Hof unter unserer Form ploetzlich
+   wieder Gold. */
+.gi-map-schein-ihre { filter: drop-shadow(0 0 14px var(--color-marker-active)); }
 
 /* 💣 NUR DIE KONTUR FAENGT DEN ZEIGER, NIE DIE FUELLUNG -- und das ist keine Feinheit, sondern die
    Bedingung dafuer, dass der Tooltip ueberhaupt etwas taugt. Bei einem See liegen IHRE und UNSERE
@@ -598,11 +612,12 @@
    waegt (0,1,0) und waere WIRKUNGSLOS -- sichtbar wuerde das erst an einem See, an dem der falsche
    Tooltip erscheint. Deshalb dieselbe Kette plus die eigene Klasse: (0,3,2).
    ⚠️ Fuer Linien und Ringe ist die Regel folgenlos (sie tragen `fill: none`, dort trifft `auto`
-   ohnehin nur die Kontur) -- sie steht trotzdem fuer alle drei Klassen, damit die Zusicherung eine
+   ohnehin nur die Kontur) -- sie steht trotzdem fuer alle vier Klassen, damit die Zusicherung eine
    Regel ist und keine Aufzaehlung von Faellen. */
 .leaflet-pane > svg path.leaflet-interactive.gi-map-ihre,
 .leaflet-pane > svg path.leaflet-interactive.gi-map-unsere,
-.leaflet-pane > svg path.leaflet-interactive.gi-map-schein { pointer-events: stroke; }
+.leaflet-pane > svg path.leaflet-interactive.gi-map-schein,
+.leaflet-pane > svg path.leaflet-interactive.gi-map-schein-ihre { pointer-events: stroke; }
 
 
 .gi-sec {
