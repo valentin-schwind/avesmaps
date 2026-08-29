@@ -487,6 +487,7 @@ function renderDetail() {
 				+ '<input type="range" id="plCurve" min="-45" max="45" step="1" value="' + curve + '">'
 				+ '<span class="pl-curve__val" id="plCurveVal">' + esc(curveText(curve)) + "</span>"
 			+ "</div>"
+			+ '<button type="button" class="btn2" id="plCurveOnMap">Kurve auf der Karte einstellen</button>'
 			+ '<div class="pl-hint">Prozent der Sehne. <b>0</b> ist gerade, das Vorzeichen ist die Seite. '
 				+ "Schreibt auf <b>alle " + line.segments.length + " Segmente</b>.</div>"
 		+ "</div></div>"
@@ -540,6 +541,16 @@ function renderDetail() {
 		+ "</div>";
 	$("plCurve").addEventListener("input", () => {
 		$("plCurveVal").textContent = curveText($("plCurve").value);
+	});
+	$("plCurveOnMap").addEventListener("click", () => {
+		const line = lineByName(selectedName);
+		// 🔴 Kein stiller Leerlauf: ohne das Hauptfenster (Editor direkt aufgerufen, Skript nicht
+		// geladen, Deploy-Fehlschlag) muss der Knopf SAGEN, dass er nichts tut -- ein toter Knopf
+		// sieht aus wie ein kaputter, und davon hat dieses Fenster schon einen (plMapFilter).
+		const start = window.parent && window.parent.avesmapsPowerlineCurveEditStart;
+		if (!line || typeof start !== "function" || !start(line.name, Number($("plCurve").value) || 0)) {
+			setSaveMsg("Auf der Karte einstellen geht nur aus der Karte heraus.", "bad");
+		}
 	});
 	$("plSave").addEventListener("click", saveLine);
 	$("plDelete").addEventListener("click", deleteLine);
@@ -1022,6 +1033,14 @@ function boot() {
 	// list is already loaded, jump right away.
 	window.addEventListener("message", (event) => {
 		if (event.origin !== location.origin) { return; }
+		// Das Ergebnis des Kurven-Reglers auf der Karte. ⚠️ Nur ins Formular, NICHT speichern -- das
+		// bleibt beim Knopf „Speichern", wie bei jedem anderen Feld dieses Fensters.
+		const kurve = event.data && event.data.avesmapsPowerlineCurveResult;
+		if (typeof kurve === "number" && $("plCurve")) {
+			$("plCurve").value = String(kurve);
+			$("plCurveVal").textContent = curveText(kurve);
+			return;
+		}
 		const name = event.data && event.data.avesmapsPowerlineSelect;
 		if (!name) { return; }
 		pendingSelectName = String(name);

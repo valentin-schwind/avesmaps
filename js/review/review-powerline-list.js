@@ -57,6 +57,83 @@ window.openAvesmapsPowerlineEditorOverlay = window.openAvesmapsPowerlineEditorOv
 	document.body.style.overflow = "hidden";
 };
 
+// Der Editor bittet das Hauptfenster, die Kurve einer Linie auf der KARTE einstellen zu lassen.
+// Hier und nicht im iframe, weil nur das Hauptfenster die Karte und die Kraftlinien-Ebenen haelt --
+// dasselbe Verhaeltnis wie bei avesmapsFlyToLocationPublicId darunter.
+// Entwurf: docs/superpowers/specs/2026-08-29-kraftlinien-kurvenform-design.md Abschnitt 8.
+//
+// 🔴 Das Overlay wird WEGGEBLENDET, nicht geschlossen. closeOverlay() setzt zwar nur `hidden`, aber
+// der Editor darin haelt seinen ungespeicherten Formularstand; ein spaeterer Neuaufbau des iframes
+// waere ein leerer neuer Stand. Dasselbe Hausmuster wie beim Social-Hub, der sich fuers
+// Kartenausschnitt-Ziehen wegblendet statt zu schliessen.
+window.avesmapsPowerlineCurveEditStart = window.avesmapsPowerlineCurveEditStart
+	|| function avesmapsPowerlineCurveEditStart(name, curve) {
+	const overlay = document.getElementById("avesmaps-powerline-editor-overlay");
+	if (!overlay || typeof avesmapsKurveReglerZeigen !== "function") {
+		// 🔴 Kein stiller Leerlauf: der Aufrufer muss erfahren, dass nichts passiert ist, damit er
+		// es SAGEN kann. Ein Knopf, der nichts tut, ist von einem kaputten nicht zu unterscheiden.
+		return false;
+	}
+	const linienName = String(name || "").trim();
+	if (linienName === "") {
+		return false;
+	}
+
+	// ⚠️ Die Kraftlinien-Ebenen liegen nur im Modus „Kraftlinien" auf der Karte, und nur dort laeuft
+	// ihre Animation (syncPowerlineVisibility). Steht die Karte anders, wird umgeschaltet -- und am
+	// Ende zurueck, sonst nimmt der Regler dem Owner nebenbei seine Ansicht weg.
+	// 💣 Das Element heisst `#mapLayerModeSelect` und wird per jQuery gelesen
+	// (getSelectedMapLayerMode, js/map-features/map-features-display-mode.js) -- NICHT
+	// `#mapStyleSelect`, das ist der UNTERGRUND (Old/Original/Modern). Und die Aenderung muss ueber
+	// jQuery laufen: die Karte haengt an `.trigger("change")`, ein natives dispatchEvent erreicht
+	// die jQuery-Handler nicht.
+	const vorherigerModus = (typeof getSelectedMapLayerMode === "function") ? getSelectedMapLayerMode() : null;
+	const setzeModus = (modus) => {
+		if (modus === null || typeof $ !== "function") { return; }
+		const feld = $("#mapLayerModeSelect");
+		if (!feld.length || String(feld.val()) === modus) { return; }
+		feld.val(modus).trigger("change");
+	};
+	setzeModus("powerlines");
+
+	overlay.hidden = true;
+	document.body.style.overflow = "";
+
+	const zeichneNeu = () => {
+		if (typeof refreshPowerlineLayers === "function") { refreshPowerlineLayers(); }
+	};
+	avesmapsPowerlineCurveVorschau.name = linienName;
+	avesmapsPowerlineCurveVorschau.curve = Number(curve) || 0;
+	zeichneNeu();
+
+	avesmapsKurveReglerZeigen({
+		name: linienName,
+		curve: Number(curve) || 0,
+		aufAenderung: (wert) => {
+			avesmapsPowerlineCurveVorschau.curve = wert;
+			zeichneNeu();
+		},
+		aufFertig: (wert) => {
+			// 🔴 Die Vorschau wird IMMER zurueckgenommen, auch wenn gleich gespeichert wird: sie ist
+			// ein fluechtiger Zustand, und einer, der ueber das Fenster hinaus lebt, ist genau die
+			// Stoerung („meine Aenderung kommt nicht an"), die dieses Projekt schon bezahlt hat.
+			avesmapsPowerlineCurveVorschau.name = null;
+			avesmapsPowerlineCurveVorschau.curve = 0;
+			setzeModus(vorherigerModus);
+			overlay.hidden = false;
+			document.body.style.overflow = "hidden";
+			zeichneNeu();
+			const frame = overlay.querySelector("iframe");
+			if (frame && frame.contentWindow) {
+				try {
+					frame.contentWindow.postMessage({ avesmapsPowerlineCurveResult: wert }, location.origin);
+				} catch (e) { /* noop */ }
+			}
+		},
+	});
+	return true;
+};
+
 // The editor iframe asks the parent to fly the live map to a node ("◎ auf Karte zeigen" in the
 // Knoten column). Kept here rather than in the iframe because only the parent holds the map + marker
 // index. No-op if the map is not ready or the node is not on the map.

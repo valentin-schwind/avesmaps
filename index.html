@@ -3766,6 +3766,10 @@
 		     Klick auf window.avesmapsKartenAbzug zu und faellt sonst in seinen Fehlerzweig -- dieselbe
 		     Reihenfolgezusage wie bei feature-source-markup.js (AGENTS.md §11, Quellenliste). -->
 		<script src="js/ui/karten-abzug.js"></script>
+		<!-- Der schwebende Kurven-Regler der Kraftlinien. Abhängigkeitsfrei; gerufen wird er von
+		     avesmapsPowerlineCurveEditStart (js/review/review-powerline-list.js), wenn der
+		     Kraftlinien-Editor sich zum Einstellen wegblendet. -->
+		<script src="js/ui/kraftlinie-kurve-regler.js"></script>
 		<!-- Social-Media-Hub. Haengt zur Laufzeit an window.AvesmapsSession (js/app/session.js) fuer den
 		     Rechte-Riegel, sonst an nichts -- die Ladereihenfolge hier ist deshalb unkritisch, weil der
 		     Riegel lazy ueber .load() geht und bis dahin geschlossen bleibt. -->

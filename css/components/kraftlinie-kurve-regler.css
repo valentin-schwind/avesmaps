@@ -1,0 +1,78 @@
+/* Der schwebende Kurven-Regler ueber der Karte (js/ui/kraftlinie-kurve-regler.js).
+   Entwurf: docs/superpowers/specs/2026-08-29-kraftlinien-kurvenform-design.md Abschnitt 8.
+
+   Er erscheint, wenn sich der Kraftlinien-Editor wegblendet, und verschwindet mit „Fertig". */
+.avm-kurve-regler {
+	position: fixed;
+	left: 50%;
+	bottom: 28px;
+	transform: translateX(-50%);
+	/* Ueber der Karte und ueber Leaflets eigenen Steuerelementen (die liegen bei 1000), aber unter
+	   dem Editor-Overlay -- das ist waehrenddessen ohnehin weggeblendet. */
+	z-index: 1200;
+	display: grid;
+	gap: 8px;
+	min-width: 320px;
+	/* Am Telefon darf er nicht ueber den Rand hinauswachsen. */
+	max-width: min(520px, calc(100vw - 32px));
+	padding: 14px 16px;
+	background: var(--color-panel);
+	border: 1px solid var(--color-divider);
+	border-radius: var(--radius-md);
+	box-shadow: 0 10px 28px rgba(0, 0, 0, 0.45);
+	color: var(--color-text);
+}
+
+.avm-kurve-regler__kopf {
+	font-size: 13px;
+	color: var(--color-accent-brown);
+}
+
+.avm-kurve-regler__zeile {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+}
+
+.avm-kurve-regler__schieber {
+	flex: 1 1 auto;
+	/* Ohne min-width: 0 waechst der Schieber ueber seinen Kasten hinaus -- ein Flex-Kind hat als
+	   Vorgabe min-width: auto und schrumpft nicht unter seine Inhaltsbreite. */
+	min-width: 0;
+	accent-color: var(--color-accent-brown);
+}
+
+.avm-kurve-regler__wert {
+	flex: 0 0 auto;
+	/* Feste Mindestbreite, damit die Zahl beim Ziehen nicht springt: „+5 %" ist kuerzer als „-45 %",
+	   und tabular-nums allein gleicht nur die Ziffern aus, nicht das Vorzeichen. */
+	min-width: 62px;
+	text-align: right;
+	font-variant-numeric: tabular-nums;
+	font-size: 13px;
+	color: var(--color-accent-brown);
+}
+
+/* Die Haupthandlung dieses Reglers -- gefuellt, wie AGENTS.md Abschnitt 12 es fuer sie vorsieht.
+   Alles andere hier ist Anzeige, es gibt also keinen weichen Knopf daneben. */
+.avm-kurve-regler__fertig {
+	justify-self: end;
+	padding: 7px 16px;
+	background: var(--color-button);
+	border: 1px solid var(--color-button-border);
+	border-radius: var(--radius-md);
+	color: var(--color-button-text);
+	font: inherit;
+	font-size: 13px;
+	cursor: pointer;
+}
+
+.avm-kurve-regler__fertig:hover {
+	background: var(--color-button-hover);
+}
+
+.avm-kurve-regler__hinweis {
+	/* 11px ist die Untergrenze aus AGENTS.md Abschnitt 12 -- nicht darunter. */
+	font-size: 11px;
+	color: var(--color-text-muted);
+}
