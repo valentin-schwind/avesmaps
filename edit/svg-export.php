@@ -491,9 +491,13 @@ $renderNode = static function (array $node, string $parentPath, int $depth) use 
              ⚠️ Diese Datei ruft von sich aus NICHTS ab (siehe ihren Kopf); den Abruf macht
              svg-export-page.js über /api/app/zoom-bands.php. -->
         <script src="../js/map-features/location-zoom-bands.js?v=20260822-svgexport-17"></script>
-        <script src="../js/pages/svg-export-build.js?v=20260823-svgexport-19"></script>
-        <script src="../js/pages/svg-export-farben.js?v=20260823-svgexport-19"></script>
-        <script src="../js/pages/svg-export-page.js?v=20260823-svgexport-19"></script>
+        <!-- ⚠️ ZUERST: svg-export-build.js zeichnet die Kurvenform der Kraftlinien mit der
+             GETEILTEN Regel (avesmapsPowerlineCurvedPoints) -- dieselbe, die die Karte fährt.
+             Fehlt sie, wirft der Abzug laut, statt die Linien still gerade zu zeichnen. -->
+        <script src="../js/map-features/powerline-topology.js?v=20260829-svgexport-20"></script>
+        <script src="../js/pages/svg-export-build.js?v=20260829-svgexport-20"></script>
+        <script src="../js/pages/svg-export-farben.js?v=20260829-svgexport-20"></script>
+        <script src="../js/pages/svg-export-page.js?v=20260829-svgexport-20"></script>
     <?php endif; ?>
 </body>
 

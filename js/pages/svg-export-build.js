@@ -938,6 +938,49 @@ function svgxWayLayer(options) {
 	return { parts: stuecke, count: anzahl, layerId: "layer-wege", groups: gruppen };
 }
 
+// Die gekruemmte Bahn einer Kraftlinie in GeoJSON-Koordinaten ([x, y]) -- fuer den Abzug.
+// ⭐ Rechnet NICHT selbst: dieselbe Regel wie auf der Karte (js/map-features/powerline-topology.js),
+// sonst waere der Abzug eine zweite Wahrheit ueber die Form der Linie.
+// ⚠️ Wie der Kartenzeichner spannen erster und letzter Punkt die Sehne, alles dazwischen faellt
+// weg -- createPowerlineStrandLatLngs tut genau das, und ein Abzug, der mehr zeigt als die Karte,
+// waere kein Abzug.
+// 🔴 Faellt der geteilte Helfer aus (nicht geladen), kommt die Linie GERADE heraus statt gar nicht:
+// ein Abzug ohne Kraftlinien waere der schlechtere Fehler.
+// 💣 ZWEI LADEWEGE, und der zweite ist beim Bau fast durchgerutscht. Im Browser teilen sich beide
+// Dateien den globalen Raum; unter NODE wird diese Datei allein `require`t (der naechtliche
+// Abzug-Laeufer, tools/svg-export/abzug-bauen.js), und dort gibt es keinen globalen Helfer.
+// Gemessen am 29.08.2026: der Node-Weg lieferte die Kraftlinien STILL gerade -- der Routine-Abzug
+// haette nie eine Kurve gezeigt, und niemand haette es bemerkt.
+// 🔴 KEIN stiller Rueckfall auf „gerade": das ist genau die Ausfallart, die diese Luecke so lange
+// unsichtbar gemacht haette. Fehlt der Helfer, wird laut geworfen.
+// ⚠️ Nachgeschlagen wird bei JEDEM Aufruf, nicht einmal beim Laden -- sonst haelt diese Datei eine
+// Fassung fest, und ein Test, der die geteilte ersetzt, misst weiter die alte.
+function svgxPowerlineCurveHelfer() {
+	if (typeof avesmapsPowerlineCurvedPoints === "function" && typeof avesmapsPowerlineCurveSteps === "function") {
+		return { punkte: avesmapsPowerlineCurvedPoints, schritte: avesmapsPowerlineCurveSteps };
+	}
+	if (typeof require === "function") {
+		const geteilt = require("../map-features/powerline-topology.js");
+		if (typeof geteilt.avesmapsPowerlineCurvedPoints === "function") {
+			return { punkte: geteilt.avesmapsPowerlineCurvedPoints, schritte: geteilt.avesmapsPowerlineCurveSteps };
+		}
+	}
+	throw new Error("js/map-features/powerline-topology.js fehlt -- ohne sie kann der Abzug die "
+		+ "Kurvenform der Kraftlinien nicht zeichnen.");
+}
+
+function svgxPowerlineCurvedCoordinates(coordinates, curve) {
+	const roh = Array.isArray(coordinates) ? coordinates : [];
+	if (!curve || roh.length < 2) {
+		return roh;
+	}
+	const helfer = svgxPowerlineCurveHelfer();
+	const a = roh[0];
+	const b = roh[roh.length - 1];
+	return helfer.punkte(a[0], a[1], b[0], b[1], curve, helfer.schritte(curve, 8))
+		.map((punkt) => [punkt.x, punkt.y]);
+}
+
 function svgxPowerlineLayer(options) {
 	const o = options || {};
 	const linien = svgxAsFeatures(o.features).filter(
@@ -957,7 +1000,7 @@ function svgxPowerlineLayer(options) {
 			+ svgxSem2(o.semantics, o.typen, Object.assign({ kind: "kraftlinie", name: name,
 			id: (f.properties && f.properties.public_id) || "" },
 			svgxContextFor(f.geometry, o.context)))
-			+ ` d="${svgxPathData(f.geometry.coordinates)}">`
+			+ ` d="${svgxPathData(svgxPowerlineCurvedCoordinates(f.geometry.coordinates, Number(f.properties.curve) || 0))}">`
 			+ `<title>${svgxEscapeText(name)}</title></path>\n`);
 	});
 	stuecke.push(svgxGroupClose());
