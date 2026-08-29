@@ -161,6 +161,41 @@ gleich(leer.hinweis !== "", true,
 gleich(modul.garetienUebernahmeKnopfZustand([]).beschriftung,
 	"Alle angezeigten einfügen (0 von 0)", "die leere Anzeige nennt zwei Nullen, keine Ausnahme");
 
+// ---- 10b. Fix-Runde 1: ein Objekt mit NUR einem Geometrie-Item zaehlt NICHT als "mit Vorschlag" -
+//
+// 🔴 Befund der Review, belegt am bestehenden Testfeld
+// (`api/_internal/import/__tests__/garetien-plan-test.php:339-345` baut genau diesen Fall: Urteil
+// `deckt_sich`, Name und Quelle stimmen schon, es bleibt nur das Geometrie-Item uebrig).
+// `garetienHakenItems` schliesst das Geometrie-Item grundsaetzlich vom Haekchen-Pfad aus (eigener
+// Knopf mit Rueckfrage) -- ein Objekt mit AUSSCHLIESSLICH einem solchen Item liefert deshalb ueber
+// `garetienAnzeigeAnhakenIds` NIE eine id. Zaehlte `n` trotzdem roh ueber `items.length`, verspraeche
+// der Knopf ein Einfuegen, das beim Klick nichts sendet -- dieselbe Falschaussage eine Stelle
+// kleiner. Gemessen wird die DIFFERENZ: der Geometrie-Fall zaehlt nicht, ein gewoehnliches Item
+// daneben zaehlt doch -- in EINER Anzeige-Menge, damit die Zahl wirklich zwischen beiden unterscheidet.
+const nurGeometrie = {
+	key: "ggp:Geo:1", name: "Alte Furt", typ: "Weg",
+	items: [{ id: 601, anlass: "geometrie", selected: 0 }],
+};
+const standGeometrie = modul.garetienUebernahmeKnopfZustand([nurGeometrie]);
+gleich(standGeometrie.anzahl, 0,
+	"ein Objekt mit AUSSCHLIESSLICH einem Geometrie-Item zaehlt NICHT als „mit Vorschlag\" -- fuer "
+	+ "es gibt es kein Haekchen, das je etwas anhaken koennte");
+gleich(standGeometrie.gesperrt, true, "…und ist deshalb allein genommen gesperrt");
+
+const standGemischt = modul.garetienUebernahmeKnopfZustand([nurGeometrie, mitVorschlag]);
+gleich(standGemischt.beschriftung, "Alle angezeigten einfügen (1 von 2)",
+	"die Gegenprobe in DERSELBEN Anzeige-Menge: `mitVorschlag` (ein gewoehnliches Item) zaehlt "
+	+ "weiterhin, `nurGeometrie` weiterhin nicht -- 1 von 2, nicht 2 von 2");
+
+// Und von der ANDEREN Seite bestaetigt: `garetienAnzeigeAnhakenIds` (die Funktion, die die
+// tatsaechlich zu sendenden ids baut) liefert fuer `nurGeometrie` NIE eine id, waehrend ein
+// gewoehnliches, noch offenes Item danebem sehr wohl beitraegt -- genau die Uebereinstimmung, die
+// Fix-Runde 1 zwischen Anzeige-Zahl und Anhak-Menge verlangt.
+const mitOffenemItem = { key: "ggp:Offen:1", items: [{ id: 701, selected: 0 }] };
+tief(modul.garetienAnzeigeAnhakenIds([nurGeometrie, mitOffenemItem]), [701],
+	"nur das gewoehnliche offene Item traegt eine id bei, das Geometrie-Item NIE -- dieselbe "
+	+ "Filterung wie in `n`");
+
 // =================================================================================================
 // 11. Nachtrag RULING R11 -- der Endpunkt kappt eine laengere id-Liste STILLSCHWEIGEND bei 200
 // =================================================================================================

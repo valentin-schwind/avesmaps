@@ -2446,10 +2446,19 @@
 	// ⚠️ Der Grund fuer „gesperrt" steht SICHTBAR daneben, nie in einem `title`: ein deaktivierter
 	// Knopf bekommt keine Zeigerereignisse, sein `title` erscheint in Chrome also nie. Dasselbe
 	// Mittel wie im Blatt selbst, wo der Grund als Text in der Fusszeile steht.
+	// 💣 FIX-RUNDE 1: `n` wird ueber `garetienHakenItems(o)` gezaehlt, NICHT ueber rohes
+	// `o.items.length`. Ein Objekt, dessen EINZIGES Item ein Geometrie-Item ist (Urteil
+	// `deckt_sich`, Name und Quelle stimmen schon -- `api/_internal/import/__tests__/
+	// garetien-plan-test.php:339-345` baut genau so einen Fall), zaehlte sonst als „mit Vorschlag",
+	// obwohl `garetienAnzeigeAnhakenIds` fuer es NIE eine id liefert: `garetienHakenItems` schliesst
+	// das Geometrie-Item vom Haekchen-Pfad grundsaetzlich aus (eigener Knopf mit Rueckfrage). Die
+	// ANZEIGE-Zahl und die ANHAK-Menge muessen ueber dieselbe Filterung laufen, sonst laufen sie
+	// auseinander -- „beide Haekchen meinen also dieselbe Menge" steht schon als Regel an
+	// `garetienHakenItems` selbst; hier ist die Doppelung zum zweiten Mal aufgetreten.
 	function garetienUebernahmeKnopfZustand(angezeigte) {
 		const liste = angezeigte || [];
 		const mitVorschlag = liste.filter(function (o) {
-			return o && Array.isArray(o.items) && o.items.length > 0;
+			return o && garetienHakenItems(o).length > 0;
 		}).length;
 		return {
 			anzahl: mitVorschlag,
