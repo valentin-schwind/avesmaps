@@ -152,11 +152,55 @@ for (const zelle of ["fs-row__kind", "fs-row__pages"]) {
 		"auch ohne Wert steht die Zelle da: " + zelle);
 }
 
-// ⚠️ Die Eingabezeile ist von diesem Raster AUSGENOMMEN -- sie hat acht Zellen statt fuenf und
+// ⚠️ Die Eingabezeile ist von diesem Raster AUSGENOMMEN -- sie hat neun Zellen statt sechs und
 // verschob die Seitenspalte sonst um 113 px (gemessen 24.08.2026: 771 gegen 658).
-const addRegel = regelVon(".fs-row--add");
+//
+// 💣 UND HIER STAND EINE ZUSICHERUNG IM VAKUUM. Sie las `display: flex` aus der Regel und war
+// zufrieden -- aber `.fs-row { display: grid }` steht WEITER UNTEN in derselben Datei und ist gleich
+// spezifisch (0,1,0); bei Gleichstand gewinnt die spaetere. Die Deklaration stand also da und galt
+// nicht: die Eingabezeile lief vom 24.08. bis zum 29.08.2026 als RASTER, ihre Bedienelemente flossen
+// in sechs Spalten, die Lizenzauswahl landete in der 22px-Spalte des Entfernen-Knopfs (Meldung #104,
+// live gemessen). Geprueft wird deshalb, WER den Gleichstand gewinnt, nicht dass die Zeile dasteht.
+const addSelektor = (/^(\.fs-row)?\.fs-row--add \{/m.exec(stil) || [])[0];
+assert.ok(addSelektor, "die Eingabezeile hat eine eigene Regel am Zeilenanfang");
+const addRegel = stil.slice(stil.indexOf(addSelektor), stil.indexOf("}", stil.indexOf(addSelektor)));
 assert.ok(/display:\s*flex/.test(addRegel),
 	"die Eingabezeile bleibt eine Flex-Zeile, sonst zerreisst sie das Raster");
+// Klassen zaehlen = Spezifitaet vergleichen (beide Selektoren sind reine Klassenketten).
+const klassen = (sel) => (sel.match(/\.[\w-]+/g) || []).length;
+const rowRegelStart = stil.search(/^\.fs-row \{/m);
+const addRegelStart = stil.indexOf(addSelektor);
+assert.ok(
+	klassen(addSelektor) > klassen(".fs-row ") || addRegelStart > rowRegelStart,
+	"die Regel der Eingabezeile SETZT SICH DURCH gegen `.fs-row { display: grid }` -- entweder"
+	+ " spezifischer oder spaeter, sonst ist ihr `display: flex` wirkungslos");
+
+// 💣 Und die Auswahlfelder der Eingabezeile werden ueber `select` gebunden, nicht einzeln
+// aufgezaehlt. `.fs-add-license` kam am 27.08.2026 dazu, stand in der Aufzaehlung nicht und zeichnete
+// daneben in Browser-Vorgabe (19 px hoch gegen 27, 13,3 px Schrift gegen 12; live gemessen 29.08.).
+// Eine Regel, die zwei von drei Auswahlfeldern bindet, ist keine Regel.
+const addZeile = kontext.renderFeatureSourceEditorHtml({ sources: [], wiki_url: "" }, { escape: esc });
+const auswahlfelder = (addZeile.match(/<select class="/g) || []).length;
+assert.ok(auswahlfelder >= 3, "die Eingabezeile traegt mehrere Auswahlfelder, gefunden: " + auswahlfelder);
+assert.ok(/\.fs-row--add select[,\s]/.test(stil),
+	"die Optik der Eingabefelder bindet ALLE Auswahlfelder ueber `select` -- sonst faellt das naechste"
+	+ " neue Feld genauso durch wie `.fs-add-license`");
+
+// ---- F2. Der schmale Kasten misst den KASTEN, nicht das Fenster (Meldung #104) --------------------
+// 🔴 Das Widget haengt in Behaeltern, die mit der Fensterbreite nichts zu tun haben: der Dialog
+// „Ort bearbeiten" gibt ihm 500 px, waehrend der Bildschirm 1600 traegt. Eine Media Query feuert dort
+// nie, und die feste Spaltenliste liess dem Titel 6 px -- der Link war UNSICHTBAR, nicht gekuerzt.
+assert.ok(/container-type:\s*inline-size/.test(regelVon(".fs-editor")),
+	"`.fs-editor` ist der Messkasten -- ohne `container-type` greift keine `@container`-Regel");
+const schmal = /@container[^{]*\(max-width:\s*(\d+)px\)\s*\{/.exec(stil);
+assert.ok(schmal, "der schmale Fall haengt an einer @container-Regel");
+// ⚠️ Die Schwelle muss ueber der Summe der festen Spalten liegen (494 px), sonst ist sie wirkungslos.
+assert.ok(Number(schmal[1]) > 494,
+	"die Schwelle liegt ueber den 494 px fester Spalten, gefunden: " + schmal[1]);
+// 💣 KEINE zweite Wahrheit daneben: eine Media Query mit anderen Massen auf derselben Vorlage
+// gewaenne bei schmalem Fenster und widerspraeche der Container-Regel.
+assert.ok(!/@media[^{]*max-width[^{]*\{[\s\S]{0,400}?grid-template-columns/.test(stil),
+	"die alte Media Query ist WEG -- zwei Riegel mit verschiedenen Massen sind zwei Wahrheiten");
 
 // ---- G. Lange Seitenangaben (Owner: „mit ... abkuerzen (oder 1. seite und dann mit ff.)") ---------
 // 🔴 `ff.` statt `…`: es sagt AUS, was es meint. Die volle Angabe geht nicht verloren, sie steht im

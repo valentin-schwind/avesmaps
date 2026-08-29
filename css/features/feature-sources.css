@@ -7,6 +7,10 @@
 	display: flex;
 	flex-direction: column;
 	gap: 2px;
+	/* 🔴 Der Messkasten der Liste: der schmale Fall haengt am KASTEN, nicht am Fenster
+	   (@container fs-liste, ganz unten -- die Begruendung steht dort). */
+	container-type: inline-size;
+	container-name: fs-liste;
 }
 .fs-hint {
 	font-size: 11px;
@@ -133,15 +137,24 @@
 	background: transparent;
 	border-color: var(--color-danger-soft-border);
 }
-/* 🔴 DIE EINGABEZEILE GEHOERT NICHT INS SPALTENRASTER. Sie traegt acht Bedienelemente (Adresse,
-   Titel, Seiten, Typ, Art, „offiziell", Hinzufuegen) und keine vier Datenspalten -- in die
-   Fuenf-Spalten-Vorlage gezwungen rutschten drei davon in fremde Spalten und die Datenzeilen
-   darueber standen nicht mehr untereinander. Am 24.08.2026 genau so gemessen: die Seitenspalte
-   lag an zwei verschiedenen Stellen (771 und 658 px).
+/* 🔴 DIE EINGABEZEILE GEHOERT NICHT INS SPALTENRASTER. Sie traegt neun Bedienelemente (Adresse,
+   Titel, Seiten, Typ, Art, Lizenz, Namensnennung, „offiziell", Hinzufuegen) und keine sechs
+   Datenspalten -- in die Spaltenvorlage gezwungen rutschten sie in fremde Spalten und die
+   Datenzeilen darueber standen nicht mehr untereinander. Am 24.08.2026 genau so gemessen: die
+   Seitenspalte lag an zwei verschiedenen Stellen (771 und 658 px).
    ⚠️ Sie behaelt deshalb ihren Umbruchsatz -- das ist kein vergessener Rest, sondern die Ausnahme.
    💣 `display: flex` steht hier AUSDRUECKLICH: sie hat es frueher von `.fs-row` geerbt, und das ist
-   seit dem Spaltenraster ein `grid`. Ohne diese Zeile faellt sie auf das Raster zurueck. */
-.fs-row--add {
+   seit dem Spaltenraster ein `grid`. Ohne diese Zeile faellt sie auf das Raster zurueck.
+   💣 UND SIE MUSS `.fs-row.fs-row--add` HEISSEN, sonst ist genau diese Zeile WIRKUNGSLOS.
+   `.fs-row { display: grid }` steht WEITER UNTEN in derselben Datei und ist gleich spezifisch
+   (0,1,0) -- bei Gleichstand gewinnt die spaetere. Die Absicht stand also seit dem 24.08.2026
+   richtig da und galt trotzdem nicht: die Eingabezeile lief als RASTER, ihre neun Bedienelemente
+   flossen in sechs Spalten, und die Lizenzauswahl landete in der 22px-Spalte des Entfernen-Knopfs.
+   Live gemessen 29.08.2026 (Meldung #104): `display` der Eingabezeile war `grid`, die Auswahl
+   22 px breit, der URL-Kasten im Dialog "Ort bearbeiten" 6 px. Gewacht von
+   js/review/__tests__/quellenliste-klappen.test.js -- der prueft jetzt, WER den Gleichstand
+   gewinnt, nicht nur, dass die Deklaration dasteht. */
+.fs-row.fs-row--add {
 	display: flex;
 	align-items: center;
 	flex-wrap: wrap;
@@ -161,10 +174,22 @@
 .fs-add-pages {
 	flex: 0 1 80px;
 }
+/* Die zwei Felder vom 27.08.2026 nehmen am Umbruchsatz teil wie ihre Nachbarn. Ohne Angabe stand
+   die Namensnennung auf der Vorgabebreite eines Textfeldes (194 px, gemessen) und schob den
+   Hinzufuegen-Knopf allein auf eine dritte Zeile. */
+.fs-add-license {
+	flex: 0 1 150px;
+}
+.fs-add-attribution {
+	flex: 1 1 140px;
+}
+/* 💣 `select`, nicht die Klassen einzeln: `.fs-add-license` kam am 27.08.2026 dazu und stand
+   in der Liste nicht -- sie zeichnete daneben in Browser-Vorgabe (19 px hoch gegen 27, 13,3 px
+   Schrift gegen 12; live gemessen 29.08.2026). Eine Regel, die zwei von drei Auswahlfeldern
+   bindet, ist keine Regel, und das naechste Feld faellt genauso durch. */
 .fs-row--add input[type="text"],
 .fs-row--add input[type="url"],
-.fs-add-type,
-.fs-add-kind {
+.fs-row--add select {
 	background: var(--color-panel-soft);
 	border: 1px solid var(--color-border);
 	border-radius: 5px;
@@ -583,14 +608,36 @@
 	text-align: right;
 }
 
-/* Auf schmalen Fenstern bricht das Raster auf zwei Zeilen um, statt die Titel zu zerquetschen. */
-@media (max-width: 560px) {
+/* ── Der schmale Kasten: Titel auf eigener Zeile ───────────────────────────────────
+
+   🔴 DER RIEGEL MISST DEN KASTEN, NICHT DAS FENSTER. Hier stand eine Media Query bei 560 px,
+   und die feuerte auf keinem Arbeitsplatz: das Widget haengt in Behaeltern, die mit der
+   Fensterbreite nichts zu tun haben -- der Dialog "Ort bearbeiten" gibt ihm 500 px, waehrend der
+   Bildschirm 1600 traegt. Die feste Spaltenliste (104+104+74+150+22 plus 5x8 Abstand = 494 px)
+   liess dem Titel dort genau 6 px: der Link war nicht gekuerzt, sondern UNSICHTBAR, und daneben
+   standen die Beipackangaben als Striche. Genau so gemeldet (Meldung #104, "manche Felder sieht
+   man nur als Striche und den Link ueberhaupt nicht") und am 29.08.2026 live nachgemessen:
+   Raster `6px 104px 104px 74px 150px 22px` im Dialog gegen `196px ...` in der Editorspalte -- bei
+   1600 px Fensterbreite in BEIDEN Faellen.
+
+   🔴 DIE SPALTEN BLEIBEN AUSGERICHTET, nur der Titel zieht nach oben. Die Versuchung ist,
+   im schmalen Fall auf inhaltsbreite Spalten (`auto`) auszuweichen -- gemessen ergibt das je Zeile
+   andere Spaltenraender (59 / 111 / 102 px fuer denselben Typ-Marker), also genau den Flattersatz,
+   den das Spaltenraster am 24.08.2026 abgeschafft hat. Die Masse bleiben deshalb fest; beweglich
+   ist allein die Lizenzspalte.
+   ⚠️ Damit ist die Zeile zweizeilig (47 statt 28 px). Das ist der Preis und er ist gewollt:
+   der Titel IST die Zeile, alles andere ist Beipack.
+
+   ⚠️ `@container` ersetzt die Media Query, statt neben ihr zu stehen -- zwei Riegel mit
+   verschiedenen Massen auf derselben Vorlage waeren zwei Wahrheiten. Bei schmalem FENSTER ist der
+   Kasten ohnehin schmal, der Fall ist also mit abgedeckt. */
+@container fs-liste (max-width: 640px) {
 	.fs-row {
-		grid-template-columns: minmax(0, 1fr) 74px 22px;
+		grid-template-columns: 104px 104px 74px minmax(0, 1fr) 22px;
+		row-gap: 2px;
 	}
-	.fs-row__kind,
-	.fs-row__license {
-		grid-column: 1 / 2;
+	.fs-row__link {
+		grid-column: 1 / -1;
 	}
 	.fs-col-heads {
 		display: none;
