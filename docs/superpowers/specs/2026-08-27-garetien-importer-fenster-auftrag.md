@@ -10,6 +10,9 @@ live**).
 > darin sind **live gemessen**, nicht geschätzt — wo eine Zahl aus einer fremden Quelle stammt,
 > steht es dabei.
 
+> ✅ **Das Mockup liegt vor** (27.08.2026): `docs/garetien-importer-mockup.html`. Die Entscheide,
+> die dabei gefallen sind, stehen in §7; die neue Abbau-Bedingung in **§5.5**.
+
 ---
 
 ## 1. Was der Owner will, wörtlich
@@ -26,12 +29,20 @@ live**).
 > präsentierst die liste mit filter und möglichkeit sich das ding auf der karte anzuzeigen BEVOR
 > es dauerhaft bei uns gespeichert wird."
 
-Daraus die drei tragenden Anforderungen:
+> „die garetien db (tabelle - sofern du eine machst) darf später nie fest verdrahtet werden, ziel
+> ist, dass der garetien import irgendwann abgeschlossen ist und alles verschwindet. ab dann kann
+> man weder einfügen noch rückgängig machen"
+
+> „nichts soll so gebaut werden, dass es nicht entfernt werden kann"
+
+Daraus die vier tragenden Anforderungen:
 
 1. **Sehen, bevor gespeichert wird.** Ein Klick auf eine Zeile zeigt das Objekt auf der Karte —
    ohne dass irgendetwas in eine Nutztabelle geschrieben wird.
 2. **Objekt für Objekt entscheiden**, nicht in Gruppen. Die Liste wird durchgearbeitet.
 3. **Keine Dubletten, aber Ergänzungen übernehmen.** Das ist kein Ja/Nein je Objekt — siehe §4.
+4. **Alles am Import ist auf Abbau gebaut.** Der Vorgang hat ein Ende, und danach verschwindet er
+   restlos — siehe §5.5.
 
 ---
 
@@ -269,7 +280,73 @@ Ein Klick auf eine Zeile zeigt:
 - 🔴 **Keine zweite Übernahme-Vorschau.** Die Liste liest `sync_plan_item`; wenn die vorhandene
   Bauform (`js/review/sync-plan-sheet.js`) reicht, wird sie benutzt und nicht nachgebaut.
 - 🔴 **Keine zweite Rechnung im Browser.** Urteil, Geometrie und Grund kommen fertig vom Server.
+- 🔴 **Nichts, was sich nicht wieder entfernen lässt** — §5.5.
 - ⚠️ **Kein blaues Chrome** (AGENTS.md §12). Blau ist erlaubt, wo Farbe DATEN kodiert.
+
+### 5.5 🔴 Der Importer ist ein Gerüst — er wird wieder abgebaut
+
+**Owner-Entscheid 27.08.2026, wörtlich:** *„nichts soll so gebaut werden, dass es nicht entfernt
+werden kann."*
+
+Das ist keine Aufräumnotiz für später, sondern eine Bedingung an den Bau **heute**. Ein Gerüst,
+das man erst am Ende abbauen will, ist am Ende festgewachsen — die Verdrahtung entsteht beiläufig,
+in einer Abkürzung, die im Moment vernünftig aussieht.
+
+🔴 **Die Regel: nichts außerhalb von `api/_internal/import/` darf `garetien_import_row` oder
+`garetien_import_run` kennen.** Kein Fremdschlüssel, kein `JOIN`, kein Filter, keine Anzeige, kein
+Test einer Nutzoberfläche.
+
+✅ **Heute eingehalten**, gemessen 27.08.2026: die beiden Tabellen kommen in genau **fünf** Dateien
+vor — `garetien-abruf.php`, `garetien-plan.php`, dem Endpunkt `api/edit/map/garetien-import.php`
+und zwei eigenen Tests. Kein Treffer in `api/app/`, `js/` oder einer anderen Oberfläche.
+
+**Was beim Abbau verschwindet:**
+
+| | |
+|---|---|
+| `garetien_import_row` · `garetien_import_run` | Zwischenlager eines abgeschlossenen Vorgangs |
+| die sechs Dateien in `api/_internal/import/` | Parser, Koordinaten, Abruf, Abgleich, Plan, Übernahme |
+| `api/edit/map/garetien-import.php` | der Endpunkt — er hatte nie ein eigenes `apply`, nimmt also keinen Schreibweg mit |
+| `'garetien'` aus `AVESMAPS_SYNC_PLAN_KINDS` + der Verteiler-Zweig | ein Eintrag in einer Liste und ein Zweig; die anderen sieben Arten merken nichts |
+| Knopf, Fenster, dessen CSS | die Oberfläche |
+
+**Was bleibt:**
+
+| | |
+|---|---|
+| die übernommenen Objekte | ab dann normale Flüsse, Flächen und Orte — bearbeitet wie alles andere |
+| `sources.license` + `sources.attribution` | 💣 siehe unten |
+| `feature_sources.origin = 'garetien'` | ein gespeicherter Wert an einem bleibenden Objekt; der richtige Griff für jede spätere Frage „woher kam das" |
+| `vegetation/urwald` · `topographie/insel` | Arten im Seed, keine Importteile |
+
+💣 **Die Namensnennung darf nicht am Importer hängen.** CC BY-NC-SA 3.0 verlangt die Nennung
+**dauerhaft** — der Import ist irgendwann fertig, die Pflicht nicht. Stünde die Lizenzanzeige im
+Importer, nähme sein Abbau die Namensnennung von rund 289 Objekten mit, lautlos: kein
+Schönheitsfehler, sondern ein Lizenzbruch.
+
+✅ **Nachgeprüft 27.08.2026 — bereits richtig gebaut, an zwei Stellen, beide außerhalb:**
+`license` und `attribution` sind Spalten auf `sources` (`api/_internal/app/feature-sources.php`),
+gerendert von `js/ui/feature-source-markup.js`, das den Schlüssel `cc-by-nc-sa-3.0` schon kennt;
+die Sammelangabe steht als `legal.garetien.body` in `js/app/i18n-*.js` (Fenster **Hinweise**).
+Beide gehören dem **Quellensystem**, nicht dem Import. Der Importer *schreibt* die Werte einmal
+beim Übernehmen — als Daten, die mitreisen. ⭐ Genau dafür wurden die zwei Felder am 27.08.2026
+getrennt: *welche* Lizenz und *wen* man nennt.
+
+**Folgen für den Bau:**
+
+- **Kein Griff über die Staging-Tabelle.** Ein späterer Filter „nur Garetien-Objekte" nimmt
+  `feature_sources.origin` — nie `garetien_import_row`. Der eine Griff überlebt den Abbau, der
+  andere *ist* der Abbau.
+- 🔴 **Kein Löschweg**, auch nicht „nur fürs Aufräumen". Ein Werkzeug, das Garetien-Objekte wieder
+  entfernen kann, wäre genau diese Verdrahtung — und bliebe nach dem Abbau als Waise zurück. Damit
+  ist die Grenze des „rückgängig" endgültig gezogen: bis zum Übernehmen ja, danach nie.
+- 🔧 **Ein Wächter-Test**, zwei Zeilen: alles außerhalb von `api/_internal/import/` nach
+  `garetien_import` durchsuchen und null Treffer erwarten. Dasselbe Muster wie
+  `editor-row-single-source.test.js` und `sync-plan-purity-test.php` — das Haus führt solche
+  Wächter bereits, und dieser kostet nichts.
+- **Der Abschluss ist ablesbar.** Die Reiter des Fensters (Offen / Vorgemerkt / Abgelehnt /
+  Übernommen) summieren sich über alle 18 Ebenen. Steht „Offen" auf null, ist der Vorgang fertig —
+  gezählt, nicht gefühlt. Das ist der Moment für den Abbau.
 
 ---
 
@@ -308,6 +385,13 @@ nicht noch einmal bezahlen.
 | Flüsse werden als `Flussweg` angelegt, **Routing-Anbindung später** | 27.08.2026 |
 | Umbenennen unserer namenlosen Objekte: **ja**, aber der Fall wird angesehen (§4.1) | 27.08.2026 |
 | Sichtbare Änderungen gehen **einzeln** live | AGENTS.md §9 |
+| **Verschiebbares** Fenster über der laufenden Karte, kein mittiges Modal | 27.08.2026 (Mockup) |
+| Das **Häkchen** erzeugt den goldgelben Glow, nicht erst ein Knopf — und mehrere zugleich | 27.08.2026 (Mockup) |
+| „Neu einfügen" **nur**, wo bei uns nichts liegt; sonst heißt die Handlung „Ersetzen" | 27.08.2026 (Mockup) |
+| „Ersetzen" bleibt **zweigeteilt**: *Namen ersetzen* · *Geometrie ersetzen* | 27.08.2026 (Mockup) |
+| **Vormerken statt schreiben**; „Angehakte übernehmen" läuft **beliebig oft** (Probelauf) | 27.08.2026 (Mockup) |
+| Eine Listenzeile = **ihr** Objekt; die Abschnitte haken einzeln in der Einzelansicht | 27.08.2026 (Mockup) |
+| 🔴 **Nichts wird so gebaut, dass es nicht entfernt werden kann** (§5.5) | 27.08.2026 (Mockup) |
 
 ---
 
@@ -327,6 +411,16 @@ nicht noch einmal bezahlen.
    dann füllt der Upsert die leeren Felder.
 6. **Der Ablauf im Browser mit angemeldeter Sitzung** ist nie gelaufen — kein Handgriff lief je
    gegen die echte Datenbank.
+7. **Die Abschnittsliste wird gezählt und weggeworfen.** ⭐ `avesmapsGaretienDeckung()`
+   (`garetien-abgleich.php:325`) führt `$treffer[$k]` — wie viele Probepunkte jeder Kandidat
+   abdeckt — und gibt nur `bester` heraus („ein Mensch soll einen Namen sehen, nicht eine Liste
+   von achtunddreissig"). §4.1 braucht genau diese Liste: `public_id`, Name (oder leer),
+   Punktzahl. **Eine Rückgabe mehr, keine zweite Rechnung.**
+8. **Das Urteil überlebt das Rechnen nicht.** §5.2 verlangt „deckt sich" und „übersprungen" als
+   Filterwerte — diese Zeilen erzeugen aber keinen `sync_plan_item`, und
+   `garetien_import_row` hat keine Urteilsspalte. Zwei Spalten (`urteil`, `grund`) machen die 49
+   und die 6 sichtbar, ohne dass Zusätzliches in `sync_plan_item` landet. ⚠️ Sie gehören in die
+   Staging-Tabelle und verschwinden mit ihr (§5.5).
 
 ---
 
@@ -338,3 +432,5 @@ nicht noch einmal bezahlen.
   AGENTS.md §11 sagt: es gibt ZWEI Rezepturen und das ist die Obergrenze
 - `js/review/sync-plan-sheet.js` — das Bauteil, das die Vorschau zeichnet
 - `docs/design-language.md` — vor jeder CSS-Arbeit lesen
+- **`docs/garetien-importer-mockup.html` — das Mockup zu diesem Auftrag** (27.08.2026); es zeigt
+  das Fenster über der Karte, die Einzelansicht in vier Fällen und die Abbau-Bedingung aus §5.5
