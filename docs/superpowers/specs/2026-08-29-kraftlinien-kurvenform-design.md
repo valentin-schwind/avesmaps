@@ -319,8 +319,14 @@ Das Hausmuster steht schon (AGENTS.md §11, „Die WEG-EBENE des Wege-Editors", 
 ein Weg liegt in Abschnitten, die Weg-Zeile gilt für alle, ein uneiniges Feld steht auf
 „gemischt", und **geschrieben wird nur, was jemand angefasst hat**.
 
-- Der **Linien-Schieber bleibt** und setzt alle Segmente auf einmal. Ohne ihn wäre die
-  Basiliuslinie mit 16 Segmenten unbedienbar — das ist der gültige Teil des alten Einwands.
+- ~~Der **Linien-Schieber bleibt** und setzt alle Segmente auf einmal.~~
+  🔴 **GEFALLEN, noch am selben Tag** (Owner: *„die kurvenform bei ‚eigenschaften' brauchen wir
+  nicht mehr, wenn die segmente einzeln eingestellt werden können"*). Sobald jede Kante ihren
+  eigenen Regler hatte, war er die zweite Art, dieselbe Zahl zu setzen. Der Einwand
+  „Basiliuslinie = 16 Regler" wurde vorgebracht und **verworfen** — das ist eine Entscheidung, kein
+  Versehen; wer sie umdreht, baut den Schieber wieder ein, nicht die Begründung.
+  ⚠️ Damit fällt auch der Zustand **„gemischt"**: er beschrieb den Linien-Schieber, und ohne ihn
+  gibt es keinen Wert mehr, der uneinig sein könnte.
 - **Jede Kante bekommt ihren eigenen Schieber**: in der Kantenliste (verzweigt / Ring) je
   `.pl-edge`, beim Strang an der Verbindung zwischen zwei Nodices.
 - Sind die Segmente **uneinig**, steht der Linien-Schieber auf **„gemischt"** und schreibt nur,
@@ -356,9 +362,14 @@ Stück hervor, der Regler nennt es (`Kreuzung-4 — Nadoret`) und biegt nur dies
 setzt weiterhin die ganze Linie. Das ist der Grund, überhaupt auf der Karte einzustellen: dort
 sieht man, welches Stück am Berg vorbei soll.
 
-💣 **Die Vorschau hängt heute am Linien-NAMEN** (`avesmapsPowerlineCurveVorschau.name`) und muss auf
-eine **Segment-Kennung** umgestellt werden. Der Name bleibt als zweiter Fall bestehen — er ist
-genau der „alle"-Griff.
+💣 **Die Vorschau hing am Linien-NAMEN** (`avesmapsPowerlineCurveVorschau.name`) und ist auf eine
+**Karte `public_id` → Zahl** umgestellt (`…​.werte`, dazu `…​.aktiv` für die Hervorhebung).
+🔴 Der Name blieb NICHT als zweiter Fall stehen: mit dem Linien-Schieber ist auch der „alle"-Griff
+gefallen, und ein zweiter Weg, den niemand mehr auslöst, ist toter Zustand.
+
+⚠️ **Ungeprüft:** die Klick-Wahl vergleicht das angeklickte SVG-Element mit `schicht._path` der
+Leaflet-Schichten — eine Annahme über Leaflets Interna, die nie gegen die echte Karte gelaufen ist.
+Trägt sie nicht, bleibt die Stückliste im Regler als zweiter Weg; unbedienbar wird nichts.
 
 ### 13.4 Was NICHT geändert wird
 
