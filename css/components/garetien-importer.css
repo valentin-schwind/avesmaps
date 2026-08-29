@@ -375,19 +375,6 @@
 
 .gi-foot__hint[hidden] { display: none; }
 
-.gi-foot__note {
-	flex: none;
-	margin: 0;
-	max-width: none;
-	/* ⚠️ Rechts mehr Luft als links: dort sitzt der native Zieh-Anfasser (rund 16px), und er
-	   liegt UEBER dem Text. Ohne den Zuschlag laeuft die letzte Zeile unter das Dreieck --
-	   gemessen an der laengsten Fassung dieses Satzes. */
-	padding: 0 var(--space-20) var(--space-6) var(--space-10);
-	background: var(--color-panel-soft);
-	font-size: var(--font-size-caption);
-	color: var(--color-text-muted);
-}
-
 /* ---- Der Knopf im Fuß. Scoped auf .gi-win: `.btn`/`.btn--main` sind sonst nirgends in
    index.html ein Haus-Name (die Editor-IFRAMES definieren ihn je Seite selbst), und diese Datei
    verschwindet restlos beim Abbau (Auftrag §5.5) -- ein ungescopter globaler Name wäre eine
