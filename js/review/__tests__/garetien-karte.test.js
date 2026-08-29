@@ -95,6 +95,7 @@ function gefaelschteEbene(bauer, punkte, optionen) {
 global.L = {
 	polyline(punkte, optionen) { return gefaelschteEbene("polyline", punkte, optionen); },
 	polygon(punkte, optionen) { return gefaelschteEbene("polygon", punkte, optionen); },
+	circleMarker(punkt, optionen) { return gefaelschteEbene("circleMarker", [punkt], optionen); },
 	layerGroup() {
 		return {
 			_art: "group", _kinder: [], _karte: null,
@@ -658,5 +659,39 @@ gleich(geflogen, natter, "der Knopf muss GENAU sein Objekt anfliegen");
 geflogen = null;
 importer.garetienDetailKlick({ target: { closest: () => null } }, [natter]);
 gleich(geflogen, null, "ein Klick neben den Knopf darf keinen Flug ausloesen");
+
+
+// ---- Ein PUNKT wird gezeichnet, nicht verschluckt --------------------------------------------
+//
+// 🔴 Owner-Meldung 29.08.2026: „Warum kann ich die nicht sehen?" bei den Ortschaften. Hier stand
+// `if (punkte.length < 2) return;` -- ein Objekt mit genau EINER Koordinate galt als „Geometrie
+// fehlt". Der Knopf „Auf der Karte zeigen" flog korrekt hin und zeigte NICHTS.
+// 💣 In Stufe 1 faellt es nicht auf: Gewaesser sind Linien und Flaechen, kein einziger Punkt.
+// Punkte kommen mit den Ortschaften, den Berggipfeln und den Bauwerken -- also mit dem groessten
+// Teil des Bestands.
+const karte9 = gefaelschteKarte();
+const ortschaft = { key: "o1", name: "Ebersbach", typ: "Dorf", urteil: "neu",
+	geometrie: [[512, 480]], geometrie_typ: "Point", abschnitte: [], items: [] };
+avesmapsGaretienKarteZeigen([ortschaft], karte9);
+const ringe = karte9.ebenen().filter((e) => e._bauer === "circleMarker");
+gleich(ringe.length, 1, "eine Ortschaft ist EIN Punkt und muss trotzdem gezeichnet werden");
+checks++;
+gleich(ringe[0]._punkte[0].join(","), "480,512",
+	"der Punkt reist als GeoJSON [x,y] und muss als Leaflet [lat,lng] ankommen -- getauscht");
+checks++;
+wahr(!!ringe[0].options.dashArray,
+	"der Ring traegt DIESELBE Strichelung wie eine Linie -- die Aussage, dass es IHRE Fassung ist, "
+	+ "haengt an der gestrichelten Kante, nicht an der Form");
+checks++;
+gleich(ringe[0].options.fill, false,
+	"der Ring ist UNgefuellt, sonst deckt er den Ort darunter zu");
+checks++;
+// Die DIFFERENZ: ein Objekt ganz OHNE Geometrie wird weiterhin nicht gezeichnet.
+const karte10 = gefaelschteKarte();
+avesmapsGaretienKarteZeigen([{ key: "o2", name: "Nirgends", urteil: "neu", geometrie: [], abschnitte: [], items: [] }], karte10);
+gleich(karte10.ebenen().length, 0, "ohne jede Koordinate wird nichts gezeichnet");
+checks++;
+avesmapsGaretienKarteAus(karte9);
+avesmapsGaretienKarteAus(karte10);
 
 console.log(`garetien-karte: ${checks} Pruefungen bestanden.`);

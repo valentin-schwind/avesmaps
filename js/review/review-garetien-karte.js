@@ -103,6 +103,9 @@
 	// Zahl, die nur das Auge beantwortet.
 	var AVESMAPS_GARETIEN_STRICH_BREITE = 3;
 	var AVESMAPS_GARETIEN_STRICHELUNG = "9 5";
+	// Der Radius eines Punktobjekts (Ortschaft, Berggipfel, Bauwerk). Gross genug, um neben einer
+	// Ortsmarkierung als eigener Ring lesbar zu sein, klein genug, um sie nicht zuzudecken.
+	var AVESMAPS_GARETIEN_PUNKT_RADIUS = 8;
 	var AVESMAPS_GARETIEN_SCHEIN_BREITE = 13;
 	var AVESMAPS_GARETIEN_SCHEIN_DECKKRAFT = 0.55;
 	// Die Fuellung IHRER Flaechen (Mockup §2, Blutmoor: `fill=var(--color-marker-active) opacity=".14"`).
@@ -331,7 +334,36 @@
 
 		liste.forEach(function (objekt) {
 			var punkte = avesmapsGaretienNachLeaflet((objekt || {}).geometrie);
-			if (punkte.length < 2) { garetienGeometrieFehlt(objekt, null); return; }
+			if (punkte.length === 0) { garetienGeometrieFehlt(objekt, null); return; }
+
+			// 🔴 EIN PUNKT IST EIN RING, KEINE LINIE (Owner-Meldung 29.08.2026: „warum kann ich die
+			// nicht sehen?" bei den Ortschaften). Hier stand `if (punkte.length < 2) return;` -- ein
+			// Objekt mit genau EINER Koordinate galt als „Geometrie fehlt" und wurde nie gezeichnet.
+			// `L.polyline` mit einem Punkt zeichnet auch nichts: eine Linie ohne zweiten Punkt hat
+			// keine Ausdehnung. Der Knopf „Auf der Karte zeigen" flog dann korrekt hin und zeigte
+			// NICHTS -- von einem kaputten Knopf nicht zu unterscheiden.
+			// 💣 Und es faellt in Stufe 1 nicht auf: Gewaesser sind Linien und Flaechen, kein
+			// einziger Punkt. Punkte kommen mit den Ortschaften, den Berggipfeln und den Bauwerken --
+			// also mit dem groessten Teil des Bestands (rund 2519 Zeilen allein auf den zwei
+			// Ortschaftsseiten, gegen 289 Gewaesserzeilen).
+			// ⚠️ Der Ring traegt DIESELBE Strichelung wie eine Linie: die Aussage „das ist IHRE
+			// Fassung, sie steht noch nicht bei uns" haengt an der gestrichelten Kante, nicht an der
+			// Form. Ungefuellt, damit er den Ort darunter nicht zudeckt.
+			if (punkte.length === 1) {
+				if (typeof l.circleMarker !== "function") { return; }
+				gruppe.addLayer(l.circleMarker(punkte[0], {
+					pane: AVESMAPS_GARETIEN_PANE,
+					className: AVESMAPS_GARETIEN_KLASSE_STRICH,
+					radius: AVESMAPS_GARETIEN_PUNKT_RADIUS,
+					color: farbe,
+					weight: AVESMAPS_GARETIEN_STRICH_BREITE,
+					opacity: 1,
+					dashArray: AVESMAPS_GARETIEN_STRICHELUNG,
+					fill: false,
+					interactive: false,
+				}));
+				return;
+			}
 			// 🔴 EINE FLAECHE WIRD ALS FLAECHE GEZEICHNET (Mockup §2, Blutmoor: leichte Fuellung
 			// plus gestrichelte Kante). Von den Objekten der Stufe 1 sind 113 von 288 Flaechen --
 			// 96 Seen, 15 Suempfe, 2 Meere. Als blosser Umriss saehe ein See aus wie ein Fluss.

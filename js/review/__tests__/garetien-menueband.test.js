@@ -157,9 +157,12 @@ gleich(mod.garetienEbenenKachelText(["kosch:Waelder", "ggp:Waelder", "ggp:Berge"
 // wahr ist -- die Auswahl steht ja schon fest.
 gleich(mod.garetienEbenenKachelText(zweiGewaesser, []), "2 gewählt");
 
-// Der leere Zustand wird BENANNT, nicht verschwiegen -- er sperrt die Nachbarkachel, und ein
-// gesperrter Knopf ohne Begruendung waere eine Stilllegung statt einer Auskunft.
-gleich(mod.garetienEbenenKachelText([], EBENEN), "0 von 18 · keine gewählt");
+// 🔴 LEER HEISST ALLE (Owner 29.08.2026). Hier stand die Gegenregel, und sie war ein
+// Fehlentscheid des Auftraggebers: weil der geteilte Trichter mit seinem „Alle\"-Haken die
+// Menge LEERT, hiess ein Klick auf „Alle\" in Wahrheit „keine einzige\" -- und der
+// Nachbarknopf war danach gesperrt. Alle 18 waren nur durch achtzehn einzelne Haken erreichbar.
+gleich(mod.garetienEbenenKachelText([], EBENEN), "18 von 18 · alle",
+	"die Kachel muss den leeren Zustand als ALLE benennen -- „0 von 18\" liest sich wie ein toter Knopf");
 
 // Der Ebenen-Schluessel ist eine stabile Kennung, die Beschriftung ist es nicht.
 gleich(mod.garetienEbeneLabel("Gewaesser"), "Gewässer");
@@ -171,11 +174,11 @@ gleich(mod.garetienEbenenBezeichner({ wiki: "ggp", ebene: "Gewaesser" }), "ggp:G
 // ---- 4. Leer heisst ALLE -- dieselbe Rechnung fuettert Abruf UND Kachel -------------------------
 
 wahr(typeof mod.garetienGewaehlteBezeichner === "function", "garetienGewaehlteBezeichner fehlt im Export");
-// 🔴 LEER HEISST NICHTS, nicht „alle" (Owner-Entscheid 28.08.2026). Der geteilte Trichter liest
-// leer als „alle" -- hier ist das Menue aber eine AUSWAHL VON ARBEIT, kein Filter, und „alle 18"
-// zoege rund 8300 Zeilen ins Staging, darunter Objektarten, deren Uebernahme-Tor noch fehlt.
-gleich(mod.garetienGewaehlteBezeichner(new Set(), EBENEN).length, 0,
-	"eine leere Auswahl holt NICHTS -- der „Alle\"-Haken des Trichters waehlt hier AB");
+// 🔴 LEER HEISST ALLE -- die Hausform des geteilten Trichters, ohne Sonderfall.
+// ⚠️ Das Tor gegen falsche Objektarten (Wege-Subtyp `Bach`, die fuenf neuen Ortsarten) haengt
+// am UEBERNEHMEN, nicht am Holen: Staging und Plan schreiben in keine Nutztabelle.
+gleich(mod.garetienGewaehlteBezeichner(new Set(), EBENEN).length, EBENEN.length,
+	"eine leere Auswahl holt ALLE -- sonst waere der „Alle\"-Haken des Trichters ein Abwaehlen");
 assert.deepStrictEqual(mod.garetienGewaehlteBezeichner(new Set(["kosch:Gewaesser", "ggp:Gewaesser"]), EBENEN),
 	["ggp:Gewaesser", "kosch:Gewaesser"],
 	"die Reihenfolge ist die der Serverliste, nicht die der Anklickerei");
@@ -184,8 +187,11 @@ assert.deepStrictEqual(mod.garetienGewaehlteBezeichner(new Set(["ggp:Gewaesser"]
 	"ohne geladene Ebenenliste gilt die Auswahl unveraendert -- sonst holte ein Klick in dieser Luecke nichts");
 checks++;
 
-// Die Vorgabe des Moduls selbst: die zwei Gewaesserseiten (Stufe 1, das einzige abgenommene Stueck).
-assert.deepStrictEqual(Array.from(mod.garetienEbenenAuswahl).sort(), ["ggp:Gewaesser", "kosch:Gewaesser"]);
+// 🔴 Die Vorgabe des Moduls ist LEER -- und leer heisst ALLE. Vorher standen hier die zwei
+// Gewaesserseiten; das hiess, dass ein Editor jede weitere Ebene einzeln anhaken und erneut
+// „Holen & Rechnen\" druecken musste (Owner-Meldung 29.08.2026).
+gleich(mod.garetienEbenenAuswahl.size, 0,
+	"die Vorgabe ist die leere Menge -- garetienGewaehlteBezeichner macht daraus alle 18");
 checks++;
 
 // Im Menue ist Platz fuer die lange Wiki-Form -- und es ist DIESELBE wie im Filtertrichter.
@@ -335,7 +341,10 @@ function leereAuswahlProbe() {
 // Lauf daneben laesst den Abgleich nicht mehr wissen, was zusammengehoert.
 // ⭐ Gegenprobe von Hand gefahren (Bericht): mit herausgenommenem Riegel zaehlt derselbe Spion 2.
 function riegelProbe() {
-	let fetchAufloesen = null;
+	// ⚠️ SEIT DEM REIHUM-ABRUF (29.08.2026) haengt nicht EIN `fetch`, sondern je Ebene einer --
+	// und der zweite startet erst, wenn der erste aufgeloest ist. Die Probe sammelt deshalb die
+	// Aufloeser und gibt sie der Reihe nach frei.
+	const wartende = [];
 	// ⚠️ Die Laufliste traegt hier einen FREMDEN, juengeren Lauf an erster Stelle -- ein zweiter
 	// Admin kann waehrend eines Abrufs ueber 18 Seiten einen anlegen. Uebernommen werden muss
 	// trotzdem der eigene (id 9): sonst zeigte die Liste hinterher einen anderen Import an als den,
@@ -343,7 +352,7 @@ function riegelProbe() {
 	// der eigenen id eine Zusicherung ueber einen Zweig, den die Vorlage nie erreicht.
 	const FREMDER = { id: 12, started_at: "2026-08-27 12:05:00", finished_at: "2026-08-27 12:05:30", status: "done", zeilen: 3 };
 	const langsam = spion({
-		fetch: function () { return new Promise(function (aufloesen) { fetchAufloesen = aufloesen; }); },
+		fetch: function () { return new Promise(function (aufloesen) { wartende.push(aufloesen); }); },
 		plan: { ok: true, plan_run_id: 5, vorschlaege: 199 },
 		runs: { ok: true, runs: [FREMDER].concat(LAEUFE) },
 	});
@@ -354,13 +363,27 @@ function riegelProbe() {
 	const ersterKlick = mod.garetienLaufStarten(langsam, ["ggp:Gewaesser", "kosch:Gewaesser"], malen, listeHolen);
 	// Der zweite Klick faellt mitten in den laufenden Abruf -- genau der Doppelklick, um den es geht.
 	const zweiterKlick = mod.garetienLaufStarten(langsam, ["ggp:Gewaesser", "kosch:Gewaesser"], malen, listeHolen);
-	gleich(langsam.zaehle("fetch"), 1,
-		"ZWEI Klicks waehrend des Laufs duerfen GENAU EINEN action:'fetch' ausloesen");
 
-	fetchAufloesen({ ok: true, run_id: 9, gestaget: [{ wiki: "ggp", ebene: "Gewaesser", zeilen: 246 }], fehler: [] });
-
-	return Promise.all([ersterKlick, zweiterKlick]).then(function () {
-		gleich(langsam.zaehle("fetch"), 1, "auch nach dem Ende bleibt es bei EINEM Abruf");
+	// 💣 Gemessen wird NACH einem Tick: der erste Ruf geht seit dem Reihum-Abruf aus einem `.then`
+	// hinaus, ist also nicht mehr synchron da. Die Aussage bleibt dieselbe -- zwei Klicks, EIN Ruf.
+	const pumpe = function () { return new Promise(function (a) { setTimeout(a, 0); }); };
+	return pumpe().then(function () {
+		gleich(langsam.zaehle("fetch"), 1,
+			"ZWEI Klicks waehrend des Laufs duerfen GENAU EINEN action:'fetch' ausloesen");
+		// Jetzt die Ebenen der Reihe nach freigeben, bis der Lauf durch ist.
+		const weiter = function (rest) {
+			if (rest <= 0) { return Promise.resolve(); }
+			while (wartende.length) {
+				wartende.shift()({ ok: true, run_id: 9, gestaget: [{ wiki: "ggp", ebene: "Gewaesser", zeilen: 246 }], fehler: [] });
+			}
+			return pumpe().then(function () { return weiter(rest - 1); });
+		};
+		return weiter(8);
+	}).then(function () {
+		return Promise.all([ersterKlick, zweiterKlick]);
+	}).then(function () {
+		gleich(langsam.zaehle("fetch"), 2,
+			"zwei gewaehlte Ebenen ergeben ZWEI Abrufe -- aber nur EINEN Lauf, siehe die run_id unten");
 		gleich(langsam.zaehle("plan"), 1, "und bei EINEM Rechenlauf");
 		gleich(listeGeholtImLauf, 1, "die Liste wird nach dem Lauf genau einmal neu geholt");
 		gleich(mod.avesmapsGaretienFensterZustand().importRunId, 9,
@@ -370,10 +393,19 @@ function riegelProbe() {
 		// 🔴 KEIN run_id an `fetch`: der Endpunkt SETZT einen genannten Lauf fort, ein neues
 		// „Holen & Rechnen" ist ein neuer Lauf. Sonst waechst der alte weiter und der Abgleich
 		// mischt zwei Importe.
-		const fetchRumpf = langsam.rufe.filter(function (r) { return r.action === "fetch"; })[0];
-		gleich(fetchRumpf.run_id, undefined, "ein neues „Holen & Rechnen\" nennt KEINEN Lauf");
-		assert.deepStrictEqual(fetchRumpf.ebenen, ["ggp:Gewaesser", "kosch:Gewaesser"],
-			"die gewaehlten Ebenen reisen als Bezeichnerliste mit -- alle in EINEM Ruf, also EIN Lauf");
+		// 🔴 EINE EBENE JE ANFRAGE (Owner 29.08.2026). Der Abrufer haelt eine Sekunde Pause je
+		// Seite -- alle 18 in EINEM Ruf waeren ueber 18 s und liefen auf STRATO in
+		// `max_execution_time`. Es bleibt trotzdem EIN Lauf: der ERSTE Ruf nennt keinen,
+		// jeder weitere nennt den zurueckgegebenen.
+		const fetchRufe = langsam.rufe.filter(function (r) { return r.action === "fetch"; });
+		gleich(fetchRufe.length, 2, "zwei gewaehlte Ebenen ergeben ZWEI Abrufe, nicht einen");
+		gleich(fetchRufe[0].run_id, undefined, "der erste Ruf legt den Lauf an und nennt keinen");
+		assert.deepStrictEqual(fetchRufe.map(function (r) { return r.ebenen; }),
+			[["ggp:Gewaesser"], ["kosch:Gewaesser"]],
+			"jeder Ruf traegt GENAU EINE Ebene, in der Reihenfolge der Serverliste");
+		wahr(fetchRufe[1].run_id > 0,
+			"der zweite Ruf SETZT den Lauf fort -- ohne `run_id` waeren aus 18 Seiten 18 Laeufe, "
+			+ "und der Abgleich wuesste nicht mehr, was zusammengehoert");
 		checks++;
 
 		// 🔴 Und der Riegel geht wieder auf: der naechste Klick muss laufen. Ohne diese Zusicherung

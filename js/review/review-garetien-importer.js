@@ -843,7 +843,10 @@
 	// stiller: „Holen & Rechnen" sperrt und sagt in seiner zweiten Zeile, warum -- ein gesperrter
 	// Knopf MIT Begründung ist eine Auskunft, keine Stilllegung.
 	// Die Vorgabe: die zwei Gewässerseiten, Stufe 1, das einzige gemessene und abgenommene Stück.
-	const garetienEbenenAuswahl = new Set(["ggp:Gewaesser", "kosch:Gewaesser"]);
+	// 🔴 LEER = ALLE 18 (Owner 29.08.2026). Vorher standen hier die zwei Gewaesserseiten, weil
+	// Stufe 1 die einzige gemessene war -- das hiess aber, dass ein Editor jede weitere Ebene
+	// einzeln anhaken und erneut „Holen & Rechnen" druecken musste.
+	const garetienEbenenAuswahl = new Set();
 
 	// 💣 DER RIEGEL GEGEN DEN ZWEITEN LAUF, und er ist ein MODULZUSTAND -- keine CSS-Klasse und
 	// nicht das `disabled` des Knopfes. Eine an der Klasse gelesene Weiche wirkt nicht, weil die
@@ -885,6 +888,16 @@
 		const alle = (alleEbenen || []).map(garetienEbenenBezeichner);
 		const gewaehlt = Array.from(auswahl || []);
 		if (alle.length === 0) { return gewaehlt; }
+		// 🔴 LEER HEISST ALLE (Owner 29.08.2026: „Waere es nicht praktischer 'Alle' zu holen
+		// und immer anzuzeigen?"). Hier stand das Gegenteil, und es war MEIN Fehlentscheid:
+		// „leer heisst nichts" sperrte den Nachbarknopf -- und weil der geteilte Trichter mit
+		// seinem „Alle"-Haken die Menge LEERT, hiess ein Klick auf „Alle" in Wahrheit „keine
+		// einzige". Alle 18 waren nur durch achtzehn einzelne Haken erreichbar.
+		// ⭐ Mit der Hausform des Trichters (leer = kein Filter = alles) verschwindet der
+		// Sonderfall ganz: der Knopf ist nie gesperrt, und „Alle" tut, was draufsteht.
+		// ⚠️ Das Tor gegen falsche Objektarten (Wege-Subtyp `Bach`, die fuenf neuen Ortsarten)
+		// haengt am UEBERNEHMEN, nicht am Holen: Staging und Plan schreiben in keine Nutztabelle.
+		if (gewaehlt.length === 0) { return alle; }
 		// Die Reihenfolge der festen Serverliste, nicht die der Anklickerei.
 		return alle.filter(function (bezeichner) { return gewaehlt.indexOf(bezeichner) !== -1; });
 	}
@@ -898,8 +911,9 @@
 		const alle = alleEbenen || [];
 		const gewaehlt = bezeichner || [];
 		if (alle.length === 0) { return gewaehlt.length + " gewählt"; }
-		// 🔴 Der leere Zustand ist erlaubt und wird BENANNT -- er sperrt die Nachbarkachel.
-		if (gewaehlt.length === 0) { return "0 von " + alle.length + " · keine gewählt"; }
+		// 🔴 Leer heisst ALLE (siehe garetienGewaehlteBezeichner) -- die Kachel sagt es auch so,
+		// sonst laese man „0 von 18" und hielte den Knopf fuer tot.
+		if (gewaehlt.length === 0) { return alle.length + " von " + alle.length + " · alle"; }
 		if (gewaehlt.length === alle.length) { return alle.length + " von " + alle.length + " · alle"; }
 		const gruppen = [];
 		alle.forEach(function (eintrag) {
@@ -1099,14 +1113,47 @@
 		garetienRechenDauerMs = null;
 		garetienLaufSchritt = "holt " + ebenen.length + (ebenen.length === 1 ? " Ebene …" : " Ebenen …");
 		malen();
-		// 🔴 KEIN `run_id` an `fetch`: der Endpunkt SETZT einen genannten Lauf FORT. Ein neues
-		// „Holen & Rechnen" ist ein neuer Lauf, sonst wächst der alte weiter und der Abgleich
-		// mischt zwei Importe. Die gewählten Ebenen werden trotzdem EIN Lauf, weil `fetch` die
-		// ganze Liste in EINEM Ruf entgegennimmt und selbst darüber läuft -- 18 Seiten, ein Lauf.
-		return rufe(GARETIEN_ENDPUNKT, { action: "fetch", ebenen: ebenen })
-			.then(function (antwort) {
-				zustand.importRunId = Number(antwort.run_id) || null;
-				garetienEbenenFehler = antwort.fehler || [];
+		// 🔴 EINE EBENE JE ANFRAGE, nicht alle in einer. Der Abrufer haelt eine Hoeflichkeitspause
+		// von einer Sekunde je Seite (AVESMAPS_GARETIEN_PAUSE_MIKROSEKUNDEN) -- alle 18 in EINEM
+		// Ruf waeren rund 18 s Pause plus Abruf plus Rechnen und liefen auf STRATO in
+		// `max_execution_time`. Der Endpunkt SETZT einen genannten Lauf fort (`run_id` im Rumpf),
+		// die 18 Seiten werden also trotzdem EIN Lauf.
+		// ⚠️ Der erste Ruf geht OHNE `run_id` -- er legt den Lauf an. Jeder weitere nennt ihn.
+		// 💣 Ein Fehlschlag einer Ebene haelt die uebrigen NICHT auf: der Server macht es innerhalb
+		// einer Anfrage genauso (`$fehler[]` statt Abbruch), und ein Lauf, der an Seite 7 von 18
+		// stirbt, waere schlechter als einer mit sieben Meldungen.
+		// 💣 EIGENE Variable, NICHT `zustand.importRunId`. Die traegt noch den Lauf des letzten
+		// Klicks -- laese der erste Ruf daraus, setzte ein neues „Holen & Rechnen" den ALTEN Lauf
+		// fort, und der Abgleich mischte zwei Importe. Genau davor warnte der Kommentar, der hier
+		// vor dem Reihum-Umbau stand; der Test hat es gefangen (`9 !== undefined`).
+		let laufId = null;
+		return ebenen.reduce(function (kette, bezeichner, nr) {
+			return kette.then(function () {
+				garetienLaufSchritt = "holt " + (nr + 1) + " von " + ebenen.length + " …";
+				malen();
+				const rumpf = { action: "fetch", ebenen: [bezeichner] };
+				if (laufId) { rumpf.run_id = laufId; }
+				return rufe(GARETIEN_ENDPUNKT, rumpf)
+					.then(function (antwort) {
+						laufId = Number(antwort.run_id) || laufId;
+						zustand.importRunId = laufId;
+						garetienEbenenFehler = garetienEbenenFehler.concat(antwort.fehler || []);
+					})
+					.catch(function (fehler) {
+						garetienEbenenFehler = garetienEbenenFehler.concat([
+							{ ebene: bezeichner, grund: (fehler && fehler.message) || "Abruf fehlgeschlagen" },
+						]);
+					});
+			});
+		}, Promise.resolve())
+			.then(function () {
+				// 🔴 Kein einziger Lauf zustande gekommen -> nicht weiterrechnen. `plan` ohne
+				// `run_id` antwortet mit 400 `no_run`, und das saehe im Netz-Protokoll wie ein
+				// Defekt aus statt wie „alle 18 Seiten waren nicht erreichbar".
+				if (!laufId) {
+					garetienLaufMeldung = "Keine einzige Ebene konnte geholt werden.";
+					return null;
+				}
 				garetienLaufSchritt = "rechnet …";
 				malen();
 				const begonnen = Date.now();
