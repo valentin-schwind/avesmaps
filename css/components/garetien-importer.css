@@ -327,17 +327,17 @@
 .u--wider { color: var(--color-danger); }
 .u--deckt { color: var(--color-text-muted); }
 
-/* ---- Fuß: die EINE gefüllte Handlung des Fensters, plus die zwei weichen Anzeige-Knoepfe --- *
- * 🔴 Seit 29.08.2026 (Owner-Meldung) traegt dieser Fuss FUENF Kinder statt drei: Zaehlzeile,
- *    Hinweis, „Markierte anzeigen", „Anzeige leeren", „Alle angezeigten einfuegen". Die zwei
- *    neuen Knoepfe haben KEIN eigenes `min-width: 0` wie `.gi-foot__count` -- sie duerfen nicht
- *    unter ihre Textbreite schrumpfen (ein abgeschnittenes „Markierte an…" waere schlimmer als
- *    ein Zeilenumbruch). `flex-wrap` faengt deshalb die Fensteruntergrenze (`min-width: 480px`,
- *    weiter oben) ab: reicht die Breite nicht fuer alle fuenf Kinder in einer Zeile, weicht das
- *    Zaehlzeile/Hinweis-Paar zuerst (es hat `min-width: 0`/kann seinen Text brechen), zuletzt der
- *    Hauptknopf allein in die naechste Zeile -- KEIN Abschneiden, `.gi-win` traegt `overflow:
- *    hidden`. Beim Start-Mass (800px) und den meisten Zuggroessen bleibt es bei EINER Zeile mit
- *    dem Hauptknopf am rechten Rand. */
+/* ---- Fuß: die EINE gefüllte Handlung des Fensters, plus die drei weichen Anzeige-Knoepfe --- *
+ * 🔴 Seit 29.08.2026 (Owner-Meldung) traegt dieser Fuss SIEBEN Kinder statt drei: Zaehlzeile,
+ *    Hinweis, „Alle markieren" (Aufgabe 10) samt eigenem Hinweis, „Markierte anzeigen", „Anzeige
+ *    leeren", „Alle angezeigten einfuegen". Die drei Knoepfe haben KEIN eigenes `min-width: 0` wie
+ *    `.gi-foot__count` -- sie duerfen nicht unter ihre Textbreite schrumpfen (ein abgeschnittenes
+ *    „Markierte an…" waere schlimmer als ein Zeilenumbruch). `flex-wrap` faengt deshalb die
+ *    Fensteruntergrenze (`min-width: 480px`, weiter oben) ab: reicht die Breite nicht fuer alle
+ *    Kinder in einer Zeile, weicht das Zaehlzeile/Hinweis-Paar zuerst (es hat `min-width: 0`/kann
+ *    seinen Text brechen), zuletzt der Hauptknopf allein in die naechste Zeile -- KEIN Abschneiden,
+ *    `.gi-win` traegt `overflow: hidden`. Beim Start-Mass (800px) und den meisten Zuggroessen
+ *    bleibt es bei EINER Zeile mit dem Hauptknopf am rechten Rand. */
 .gi-foot {
 	flex: none;
 	display: flex;

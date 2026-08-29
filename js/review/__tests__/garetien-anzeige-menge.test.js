@@ -516,6 +516,60 @@ async function pruefeAnzeigeBereinigen() {
 		"und ein Objekt OHNE Vorschlag bleibt erst recht liegen -- es konnte nie uebernommen werden");
 }
 
+// =================================================================================================
+// 15. Aufgabe 10: „Alle markieren" -- markiert alle Zeilen der AKTUELLEN Liste, ergaenzt statt ersetzt
+// =================================================================================================
+//
+// Brief: .superpowers/sdd/2026-08-29-garetien-importer-sichtwerkzeug/task-9-brief.md (Aufgabe 10)
+{
+	const a = { key: "gi10:a", name: "A", items: [] };
+	const b = { key: "gi10:b", name: "B", items: [] };
+	const c = { key: "gi10:c", name: "C", items: [] };
+	// Eine bereits markierte Zeile aus einer ANDEREN Ansicht -- sie darf nicht verloren gehen.
+	modul.avesmapsGaretienMarkierungUmschalten("gi10:vorher");
+	gleich(modul.avesmapsGaretienMarkierungHat("gi10:vorher"), true,
+		"die Fixture steht wirklich markiert da");
+
+	// ---- Miss die DIFFERENZ: eine Liste mit drei Zeilen markiert genau diese drei ----------------
+	gleich(modul.avesmapsGaretienAlleMarkieren([a, b, c]), 3,
+		"drei bislang unmarkierte Zeilen -- alle drei werden neu markiert");
+	[a, b, c].forEach((o) => gleich(modul.avesmapsGaretienMarkierungHat(o.key), true,
+		`${o.key} muss nach „Alle markieren\" markiert sein`));
+
+	// ---- Er ERGAENZT, er ERSETZT NICHT: die vorher markierte Zeile bleibt markiert ---------------
+	gleich(modul.avesmapsGaretienMarkierungHat("gi10:vorher"), true,
+		"eine vorher markierte Zeile aus einer anderen Filteransicht bleibt markiert");
+
+	// ---- Ein zweiter Aufruf ueber dieselbe Liste markiert nichts NEU -------------------------------
+	gleich(modul.avesmapsGaretienAlleMarkieren([a, b, c]), 0,
+		"schon markierte Zeilen werden beim zweiten Aufruf nicht noch einmal gezaehlt");
+
+	// ---- Eine leere/fehlende Liste markiert nichts -------------------------------------------------
+	gleich(modul.avesmapsGaretienAlleMarkieren([]), 0, "eine leere Liste markiert nichts");
+	gleich(modul.avesmapsGaretienAlleMarkieren(), 0, "und auch ganz ohne Argument passiert nichts");
+
+	// ---- Ein Objekt ohne Schluessel wird uebersprungen, nicht geworfen -----------------------------
+	gleich(modul.avesmapsGaretienAlleMarkieren([{ name: "ohne key" }, null, undefined]), 0,
+		"ein Objekt ohne Schluessel bricht nichts und markiert auch nichts");
+
+	// ---- Der Knopf-Zustand: Beschriftung traegt die Zahl der GERENDERTEN Zeilen -------------------
+	const standDrei = modul.garetienAlleMarkierenZustand([a, b, c], "offen");
+	gleich(standDrei.beschriftung, "Alle markieren (3)", "die Zahl der gerenderten Zeilen steht im Knopf");
+	gleich(standDrei.gesperrt, false, "auf dem Reiter „Offen\" ist er bedienbar");
+	gleich(standDrei.hinweis, "", "und ohne Hinweis");
+
+	// ---- Im Reiter „Anzeigen" ist er sinnlos und gesperrt, mit sichtbarem Grund --------------------
+	const standAnzeigen = modul.garetienAlleMarkierenZustand([a, b, c], "anzeigen");
+	gleich(standAnzeigen.gesperrt, true, "auf „Anzeigen\" ist er gesperrt -- dort liegt ohnehin alles");
+	wahr(standAnzeigen.hinweis.length > 0, "und der Grund steht sichtbar da, wie bei Suche/Filter");
+
+	// ---- Eine leere gerenderte Liste sperrt ihn ebenfalls, mit eigenem Grund -----------------------
+	const standLeer = modul.garetienAlleMarkierenZustand([], "offen");
+	gleich(standLeer.gesperrt, true, "nichts in der Liste -- nichts zu markieren");
+	wahr(standLeer.hinweis.length > 0, "und auch das steht sichtbar da");
+	gleich(standLeer.beschriftung, "Alle markieren (0)", "und die Zahl sagt es ebenfalls");
+}
+
 pruefeFussknopfHaeppchen().then(function () {
 	return pruefeAnzeigeBereinigen();
 }).then(function () {

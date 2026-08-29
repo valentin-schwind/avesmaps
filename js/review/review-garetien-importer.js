@@ -206,6 +206,64 @@
 		return liste.length;
 	}
 
+	// ---- Aufgabe 10: „Alle markieren" -- markiert ALLE Zeilen der AKTUELLEN (gerenderten) Liste ---
+	// Owner 29.08.2026: „einen button, namens 'Alle markieren', der alle in der aktuellen liste
+	// markiert". „Aktuelle Liste" heißt: was WIRKLICH gerendert ist -- gedeckelt auf
+	// AVESMAPS_GARETIEN_LISTE_MAX und gefiltert (Brief) --, nicht der ganze Lauf.
+	//
+	// 🔴 ER ERGÄNZT, ER ERSETZT NICHT (Brief): schon markierte Zeilen anderer Filteransichten
+	// bleiben markiert -- derselbe Zug wie avesmapsGaretienAnzeigeHinzufuegen, nur auf dem anderen
+	// Set. Ein `zustand.markiert = new Set(...)` verlöre beim Filterwechsel die Auswahl.
+	function avesmapsGaretienAlleMarkieren(objekte) {
+		let markiert = 0;
+		(objekte || []).forEach(function (o) {
+			if (!o || o.key === undefined || o.key === null || o.key === "") { return; }
+			const s = String(o.key);
+			if (!zustand.markiert.has(s)) { markiert++; }
+			zustand.markiert.add(s);
+		});
+		return markiert;
+	}
+
+	// REIN: Beschriftung + Sperre des Knopfes „Alle markieren" -- er trägt die Zahl der GERENDERTEN
+	// Zeilen (Brief: „trägt seine Zahl, wie der Fußknopf sein 'n von m'"), nie die des ganzen Laufs.
+	// 🔴 Im Reiter „Anzeigen" ist er sinnlos (dort liegt ohnehin alles auf der Karte) -- gesperrt,
+	// mit sichtbarem Grund, wie Suche und Filtertrichter dort schon gesperrt sind (RULING R7).
+	function garetienAlleMarkierenZustand(objekte, stand) {
+		const liste = objekte || [];
+		const aufAnzeigenReiter = stand === "anzeigen";
+		let hinweis = "";
+		if (aufAnzeigenReiter) {
+			hinweis = "Der Reiter zeigt, was schon auf der Karte liegt — hier gibt es nichts zu markieren.";
+		} else if (liste.length === 0) {
+			hinweis = "Keine Zeile in dieser Ansicht.";
+		}
+		return {
+			anzahl: liste.length,
+			beschriftung: "Alle markieren (" + liste.length + ")",
+			gesperrt: aufAnzeigenReiter || liste.length === 0,
+			hinweis: hinweis,
+		};
+	}
+
+	// Die DOM-Hälfte dazu -- dieselbe Aufteilung wie beim Fußknopf (garetienUebernahmeKnopfSetzen):
+	// Knopf und Hinweis werden an EINER Stelle gesetzt, damit sie nie auseinanderlaufen.
+	function garetienAlleMarkierenKnopfSetzen(objekte) {
+		if (!hasDocument) { return null; }
+		const stand = garetienAlleMarkierenZustand(objekte, zustand.stand);
+		const knopf = document.getElementById("garetien-mark-all");
+		if (knopf) {
+			knopf.textContent = stand.beschriftung;
+			knopf.disabled = stand.gesperrt;
+		}
+		const hinweisEl = document.getElementById("garetien-mark-all-hint");
+		if (hinweisEl) {
+			hinweisEl.textContent = stand.hinweis;
+			hinweisEl.hidden = stand.hinweis === "";
+		}
+		return stand;
+	}
+
 	function avesmapsGaretienFensterZustand() {
 		// Eine Kopie -- Aufrufer sollen den internen Zustand nicht direkt mutieren können.
 		return {
@@ -259,6 +317,8 @@
 		});
 		// Aufgabe 16/5: ohne Lauf gibt es keine Anzeige -- und damit nichts einzufuegen.
 		garetienUebernahmeKnopfSetzen(avesmapsGaretienAnzeigeListe());
+		// Aufgabe 10: ohne Lauf gibt es auch keine gerenderte Zeile -- und damit nichts zu markieren.
+		garetienAlleMarkierenKnopfSetzen([]);
 	}
 
 	// Der Füllvorgang beim Öffnen, mit seinen Werkzeugen herein -- aus demselben Grund wie bei
@@ -822,6 +882,9 @@
 		// filterunabhaengig (Entwurf §3.1), deshalb wird hier NICHT `objekte` (die gefilterte Sicht)
 		// gereicht, sondern dieselbe Menge, die auch auf der Karte liegt.
 		garetienUebernahmeKnopfSetzen(avesmapsGaretienAnzeigeListe());
+		// Aufgabe 10: „Alle markieren" traegt dagegen die Zahl der GERENDERTEN Zeilen -- `objekte`
+		// ist genau die aktuelle (gefilterte, gedeckelte) Ansicht, nicht die Anzeige-Menge.
+		garetienAlleMarkierenKnopfSetzen(objekte);
 
 		// Aufgabe 13: die Auswahl ueberlebt einen Listenlauf -- aber nur, solange ihre Zeile in der
 		// Ansicht steht. Faellt sie durch Filter oder Reiter heraus, faellt auch die Auswahl: eine
@@ -3080,6 +3143,17 @@
 		// Knopf, einmal beim Start -- dieselbe Begruendung wie beim Fussknopf gleich darunter: ein
 		// Element, das schon beim Laden im DOM steht, wird beim BOOT verdrahtet. Jeder Knopf ruft
 		// seinen reinen Zug, danach zeichnet garetienAnzeigeNeuZeichnen Liste und Karte neu.
+		// Aufgabe 10: „Alle markieren" -- derselbe Zug wie die zwei Knoepfe darunter (reine
+		// Markierung, danach garetienAnzeigeNeuZeichnen), aber mit den GERENDERTEN Zeilen
+		// (`zustand.objekte`) statt der Anzeige-Menge oder einer Item-Auswahl.
+		const markAlleBtn = hasDocument ? document.getElementById("garetien-mark-all") : null;
+		if (markAlleBtn) {
+			markAlleBtn.addEventListener("click", function () {
+				if (markAlleBtn.disabled) { return; }
+				avesmapsGaretienAlleMarkieren(zustand.objekte);
+				garetienAnzeigeNeuZeichnen();
+			});
+		}
 		const markZeigenBtn = hasDocument ? document.getElementById("garetien-mark-show") : null;
 		if (markZeigenBtn) {
 			markZeigenBtn.addEventListener("click", function () {
@@ -3283,6 +3357,10 @@
 			garetienRuecknahmeRueckfrageText,
 			garetienRuecknahmeKlick,
 			garetienRuecknahmeSenden,
+			// Aufgabe 10: „Alle markieren"
+			avesmapsGaretienAlleMarkieren,
+			garetienAlleMarkierenZustand,
+			garetienAlleMarkierenKnopfSetzen,
 		};
 	}
 })();

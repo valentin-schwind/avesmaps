@@ -3858,6 +3858,11 @@
 				     bleibt „Alle angezeigten einfügen" (AGENTS.md §12). Verdrahtet in bindFenster()
 				     (js/review/review-garetien-importer.js), nicht mehr in garetienListeSkelettVerdrahten
 				     -- diese zwei Knöpfe stehen von Anfang an statisch hier, wie #garetien-apply selbst. -->
+				<!-- Aufgabe 10 (Owner 29.08.2026): „Alle markieren" markiert alle Zeilen der aktuellen
+				     Liste -- links von den beiden Knöpfen darüber, ebenso WEICH. Sein Grund (Reiter
+				     „Anzeigen", oder eine leere Liste) steht SICHTBAR daneben, nie nur im `title`. -->
+				<button class="btn" type="button" id="garetien-mark-all">Alle markieren</button>
+				<span class="gi-foot__hint" id="garetien-mark-all-hint" hidden></span>
 				<button class="btn" type="button" id="garetien-mark-show">Markierte anzeigen</button>
 				<button class="btn" type="button" id="garetien-anzeige-clear">Anzeige leeren</button>
 				<button class="btn btn--main" type="button" id="garetien-apply" disabled>Angehakte übernehmen (0)</button>
