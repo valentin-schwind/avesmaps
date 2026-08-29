@@ -75,4 +75,73 @@ wahr(!modul.AVESMAPS_GARETIEN_SERVER_STAENDE.includes("anzeigen"),
 tief(modul.AVESMAPS_GARETIEN_SERVER_STAENDE, ["offen", "abgelehnt", "uebernommen"],
 	"und `vorgemerkt` ist aus der Leiter heraus -- sonst springt die Zeile beim Anhaken");
 
+// ---- 7. Das Haekchen ist ein MARKER und schreibt NICHTS ----------------------------------------
+//
+// 🔴 Gemessen an der DIFFERENZ: ein Klick auf das Haekchen darf keinen Netzaufruf ausloesen. Der
+// Sender wird deshalb durch einen Spion ersetzt, der mitzaehlt.
+let gesendet = 0;
+const spion = function () { gesendet++; return Promise.resolve({}); };
+
+modul.avesmapsGaretienAnzeigeLeeren();
+gleich(modul.avesmapsGaretienMarkierungUmschalten("ggp:Berge:7"), true, "erster Klick markiert");
+gleich(modul.avesmapsGaretienMarkierungUmschalten("ggp:Berge:7"), false, "zweiter Klick nimmt zurueck");
+gleich(gesendet, 0,
+	"ein Haekchenklick schreibt NICHTS auf den Server -- er verschiebt die Zeile nicht und "
+	+ "veraendert `selected` nicht (Owner: „Markieren aendert nichts\")");
+
+// ---- 8. „Markierte anzeigen" legt sie dazu und laesst sie markiert ------------------------------
+modul.avesmapsGaretienMarkierungUmschalten("ggp:Berge:7");
+gleich(modul.avesmapsGaretienMarkierteAnzeigen([ohneVorschlag, mitVorschlag]), 1,
+	"nur das MARKIERTE kommt in die Anzeige, nicht die ganze Liste");
+gleich(modul.avesmapsGaretienAnzeigeHat("ggp:Berge:7"), true, "und es liegt drin");
+gleich(modul.avesmapsGaretienMarkierungHat("ggp:Berge:7"), true,
+	"es bleibt markiert und bleibt in „Offen\" -- „sie sind ja immer noch offen\"");
+
+// ---- 9. Die Karte zeigt die ANZEIGE, nicht mehr die Haekchen -----------------------------------
+//
+// 🔴 DIE TRAGENDE ZUSICHERUNG DES GANZEN VORHABENS. Vorher las `avesmapsGaretienAufDerKarte`
+// `items[].selected`; ein Objekt ohne Item war damit auf KEINE Weise sichtbar zu machen.
+const aufDerKarte = modul.avesmapsGaretienAufDerKarte([mitVorschlag, ohneVorschlag]);
+tief(aufDerKarte.map((o) => o.key), ["ggp:Berge:7"],
+	"auf der Karte liegt die ANZEIGE-MENGE -- das angehakte `mitVorschlag` liegt NICHT dort, "
+	+ "obwohl sein Item `selected: 1` traegt");
+
+// =================================================================================================
+// 10. RULING R5 (Luecke im Plan): der Reiter „Anzeigen" baut seine Antwort selbst -- ohne Server
+// =================================================================================================
+//
+// Kein Server-Feld heisst „anzeigen" (Abschnitt 6 oben) -- ein `stand: "anzeigen"` waere ein
+// Filter auf einen Wert, den der Server nie liefert, und die Liste bliebe fuer immer leer.
+// avesmapsGaretienListeHolen() nimmt bei diesem Reiter deshalb einen ZWEITEN Weg:
+// garetienAnzeigenAntwortBauen() baut die "Antwort" aus der Anzeige-Menge nach, OHNE zu filtern --
+// Suche und Filtertrichter wirken nur auf die drei Server-Reiter (Entwurf §3.1).
+modul.avesmapsGaretienAnzeigeLeeren();
+modul.avesmapsGaretienAnzeigeHinzufuegen([ohneVorschlag, mitVorschlag]);
+const anzeigenAntwort = modul.garetienAnzeigenAntwortBauen({
+	reiter: { offen: 259, abgelehnt: 3, uebernommen: 0 },
+	bilanz: { neu: 5 },
+});
+tief(anzeigenAntwort.objekte.map((o) => o.key), ["ggp:Berge:7", "ggp:Gewaesser:1"],
+	"die Antwort traegt GENAU die Anzeige-Menge, ungefiltert");
+gleich(anzeigenAntwort.gesamt, 2, "gesamt ist die Groesse der Menge, nicht die eines Servers");
+gleich(anzeigenAntwort.reiter.anzeigen, 2,
+	"der Reiterwert ist derselbe wie gesamt -- die Bilanzzeile zeigt dann „N Objekte\", nie "
+	+ "„N von M\"");
+gleich(anzeigenAntwort.reiter.offen, 259,
+	"die uebrigen Reiterzahlen bleiben aus der letzten echten Serverantwort erhalten");
+gleich(anzeigenAntwort.bilanz.neu, 5, "und die Laufbilanz ebenso -- „Anzeigen\" hat keine eigene");
+
+// avesmapsGaretienBalanceZeileText ruft den GETEILTEN Erzeuger (js/review/review-list-balance.js)
+// als globalen Namen -- derselbe Vertrag wie bei den acht WikiSync-Listen. Die ECHTE Fassung wird
+// geladen (kein Spion): hier zaehlt das tatsaechliche Ergebnis, nicht nur dass irgendetwas gerufen
+// wurde.
+global.avesmapsListBalanceText =
+	require(path.resolve(__dirname, "..", "review-list-balance.js")).avesmapsListBalanceText;
+gleich(
+	modul.avesmapsGaretienBalanceZeileText(anzeigenAntwort.gesamt, anzeigenAntwort.reiter.anzeigen),
+	"2 Objekte",
+	"und die Bilanzzeile nennt schlicht die Zahl -- kein „von M\", weil „Anzeigen\" nie filtert"
+);
+delete global.avesmapsListBalanceText;
+
 console.log(`garetien-anzeige-menge: ${checks} Pruefungen bestanden.`);

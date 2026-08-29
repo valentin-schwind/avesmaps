@@ -296,16 +296,20 @@ tief(garetienHakenRumpf(strasse, "w-2213", 7),
 	{ action: "select", kind: "garetien", run_id: 7, ids: [103, 203], selected: true },
 	"der Rumpf des Abschnittshaekchens geht durch dieselbe Tuer wie alles andere");
 
-// 🔴 Die ANZEIGE der Zeile muss dieselbe Menge meinen wie ihr Klick. Ein Haekchen, dessen Zustand
-// und dessen Wirkung verschiedene Mengen meinen, ist die teuerste Art von Bedienelement: an der
-// Alke koennte es sonst NIE voll werden (1 von 2) -- und ein Klick auf die Zeile merkte lautlos
-// einen Geometrie-Ersatz vor.
-wahr(/<input type="checkbox" checked>/.test(mod.garetienZeileMarkup(einer)),
-	"die Zeile der Alke steht VOLL angehakt da, obwohl ihr Geometrie-Item ungehakt ist");
-wahr(!/data-part/.test(mod.garetienZeileMarkup(einer)),
-	"und eben NICHT dreiwertig -- das Geometrie-Item zaehlt im Haekchen nicht mit");
-// ⚠️ Das Leuchten zaehlt weiter ALLE Items: ein vorgemerkter Geometrie-Ersatz IST eine Vormerkung
-// und gehoert auf die Karte.
+// 🔴 Aufgabe 2 (29.08.2026): die ZEILE zeigt seither die MARKIERUNG (`zustand.markiert`), nicht
+// mehr den Item-Zustand -- „Markieren aendert nichts" (Owner). garetienHakenItems/-Plan/-Rumpf
+// bleiben oben UNVERAENDERT als reine Rechnung stehen (Aufgabe 5 braucht sie fuer den Fussknopf
+// „Alle angezeigten einfuegen"), aber die Zeile selbst liest sie nicht mehr: ihr Haekchen kennt
+// nur noch an/aus, kein Item-Mix.
+wahr(/<input type="checkbox" checked>/.test(mod.garetienZeileMarkup(einer, true)),
+	"markiert -> die Zeile der Alke steht angehakt da");
+wahr(!/checked/.test(mod.garetienZeileMarkup(einer, false)),
+	"unmarkiert -> unangehakt -- UNABHAENGIG davon, dass ihr Luecken-Item fuer sich allein voll "
+	+ "angehakt waere");
+wahr(!/data-part/.test(mod.garetienZeileMarkup(einer, true)),
+	"und nie mehr dreiwertig -- das Geometrie-Item hat mit dem Haekchen der Zeile nichts mehr zu tun");
+// ⚠️ Das Leuchten zaehlt weiter ALLE Items und ist UNABHAENGIG von der Markierung: ein
+// vorgemerkter Geometrie-Ersatz IST eine Vormerkung und gehoert auf die Karte, markiert oder nicht.
 gleich(mod.avesmapsGaretienHatAuswahl({ items: [{ id: 1, anlass: "geometrie", selected: 1 }] }), true,
 	"ein angehaktes Geometrie-Item laesst das Objekt leuchten");
 
@@ -404,7 +408,14 @@ gleich(garetienHandlungKlick({ target: handlungsZiel("name", "gibtesnicht") }, o
 	null, "und ein unbekannter Schluessel auch nicht");
 gleich(garetienHandlungKlick({}, objekte, 7, senden, jaSagen), null, "ein Ereignis ohne Ziel ebenso");
 
-// ---- Das Haekchen ------------------------------------------------------------------------------
+// ---- Das Haekchen ist seit Aufgabe 2 ein reiner MARKER (Entwurf §3.2) --------------------------
+//
+// 🔴 „Markieren aendert nichts" (Owner 29.08.2026): der Klickverteiler schreibt nicht mehr, er
+// toggelt nur noch `zustand.markiert` -- ueber DENSELBEN Objekt-Schluessel, ob der Klick von der
+// Listenzeile oder von einer Abschnittszeile (`data-seg`) kommt. `objekte`/`runId`/`senden` bleiben
+// in der Signatur (dieselbe Bauform wie garetienHandlungKlick/garetienDetailKlick daneben), aber
+// `senden` wird nie mehr gerufen -- gemessen an der DIFFERENZ (der Spion bleibt leer), nicht am
+// Quelltext.
 
 function hakenZiel(key, seg, options) {
 	const feld = Object.assign({ passt: ['input[type="checkbox"]'], attribute: {} }, options || {});
@@ -416,21 +427,28 @@ function hakenZiel(key, seg, options) {
 }
 
 gesendet = [];
-gleich(garetienHakenKlick({ target: hakenZiel(strasse.key, null) }, objekte, 7, senden), "gesendet",
-	"ein Klick auf das Zeilenhaekchen schickt");
-tief(gesendet[0], { action: "select", kind: "garetien", run_id: 7,
-	ids: [101, 201, 102, 202, 103, 203, 104, 204, 105, 205, 106, 206], selected: true },
-	"halb angehakt -> alle zwoelf anhaken, durch dieselbe Tuer");
+gleich(garetienHakenKlick({ target: hakenZiel(strasse.key, null) }, objekte, 7, senden), true,
+	"ein Klick auf das Zeilenhaekchen markiert -- er schickt NICHTS mehr");
+gleich(gesendet.length, 0, "der Sender wird beim Haekchenklick nicht mehr gerufen");
+gleich(mod.avesmapsGaretienMarkierungHat(strasse.key), true, "und der Markierungsstand traegt es");
 
 gesendet = [];
-garetienHakenKlick({ target: hakenZiel(strasse.key, "w-2213") }, objekte, 7, senden);
-tief(gesendet[0].ids, [103, 203], "ein Abschnittshaekchen bewegt nur seinen Abschnitt");
+gleich(garetienHakenKlick({ target: hakenZiel(strasse.key, "w-2213") }, objekte, 7, senden), false,
+	"ein Abschnittshaekchen bewegt DIESELBE Menge wie das Zeilenhaekchen -- denselben "
+	+ "Objekt-Schluessel, ob mit oder ohne `data-seg` -- und nimmt hier die Markierung zurueck");
+gleich(gesendet.length, 0, "wieder: nichts gesendet");
+
+gesendet = [];
+gleich(garetienHakenKlick({ target: hakenZiel(deckt.key, null) }, objekte, 7, senden), true,
+	"🔴 DIE TRAGENDE DIFFERENZ: auch ein Objekt OHNE jedes Item (`deckt`, `items: []`) laesst sich "
+	+ "markieren -- das war der Konstruktionsfehler, den Aufgabe 2 behebt: 7930 von 8213 Objekten "
+	+ "haben ueberhaupt kein Item und konnten vorher nie ein Haekchen tragen");
+gleich(gesendet.length, 0, "und wieder nichts gesendet");
 
 gesendet = [];
 gleich(garetienHakenKlick({ target: hakenZiel(deckt.key, null, { disabled: true }) }, objekte, 7, senden),
-	null, "ein gesperrtes Haekchen schickt nichts");
-gleich(garetienHakenKlick({ target: hakenZiel(deckt.key, null) }, objekte, 7, senden), null,
-	"und ein Objekt ohne Items auch nicht");
+	null, "ein gesperrtes Haekchen-ELEMENT markiert nichts -- die Anzeige-Sperre bleibt bestehen, "
+	+ "unabhaengig vom Item-Zustand");
 gleich(gesendet.length, 0, "nichts davon ging hinaus");
 gleich(garetienHakenKlick({ target: kette([{ passt: [], attribute: {} }]) }, objekte, 7, senden), null,
 	"ein Klick neben ein Haekchen tut nichts");

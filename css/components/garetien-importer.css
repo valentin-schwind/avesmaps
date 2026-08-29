@@ -252,6 +252,15 @@
 }
 .gi-search::placeholder { color: var(--color-placeholder); }
 
+/* Aufgabe 2: die zwei Anzeige-Knoepfe. Beide WEICH (`.btn`, kein `--main`): die Haupthandlung der
+   Seite ist „Holen & Rechnen" im Menueband, und eine Zeilen-/Listenhandlung ist nie die
+   Haupthandlung (AGENTS.md §12). */
+.gi-anzeigebar {
+	display: flex;
+	gap: var(--space-6);
+	margin-bottom: var(--space-6);
+}
+
 .gi-chips {
 	display: flex;
 	flex-wrap: wrap;

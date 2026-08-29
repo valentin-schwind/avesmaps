@@ -104,34 +104,44 @@ gleich(ohneItems.disabled, true, "ohne Items -> deaktiviertes Haekchen");
 gleich(ohneItems.checked, false);
 gleich(ohneItems.dreiwertig, false);
 
-// Und im MARKUP: die drei Zustaende muessen als Attribut/Marker auftauchen.
-// 💣 `indeterminate` ist eine JS-EIGENSCHAFT, kein HTML-Attribut -- ein `indeterminate=""` im
-// Markup taete nichts. Der dreiwertige Zustand kommt deshalb ueber einen MARKER (`data-part`,
-// wie im Mockup-Script vorgemacht), den die Renderfunktion nach dem Einfuegen ins DOM per
-// `el.indeterminate = true` einloest.
-wahr(/<input type="checkbox"[^>]*\bdisabled\b/.test(
-	garetienZeileMarkup(Object.assign({}, basis, { urteil: "deckt_sich", items: [] }))
-), "ohne Items muss das Haekchen im Markup disabled sein");
-wahr(/<input type="checkbox"[^>]*\bdata-part\b/.test(garetienZeileMarkup(fuenfAbschnitteZweiAngehakt)),
-	"dreiwertig muss ueber einen Marker (data-part) erkennbar sein, NICHT ueber ein indeterminate-Attribut");
-wahr(!/<input type="checkbox"[^>]*\bdata-part\b/.test(
-	garetienZeileMarkup(Object.assign({}, basis, { items: [{ id: 1, selected: 1 }] }))
-), "voll angehakt darf KEINEN dreiwertig-Marker tragen");
-wahr(/<input type="checkbox"[^>]*\bchecked\b/.test(
-	garetienZeileMarkup(Object.assign({}, basis, { items: [{ id: 1, selected: 1 }] }))
-), "voll angehakt -> checked im Markup");
-wahr(!/<input type="checkbox"[^>]*\bchecked\b/.test(
-	garetienZeileMarkup(Object.assign({}, basis, { items: [{ id: 1, selected: 0 }] }))
-), "keins angehakt -> KEIN checked im Markup");
+// ---- Aufgabe 2 (29.08.2026): das Haekchen der ZEILE wird zum reinen MARKER ----------------------
+// 🔴 RULING (Aufgabe 2, Entwurf §3.2): `checked` kommt jetzt aus einem zweiten Argument (dem
+// Markierungsstand aus `zustand.markiert`), NICHT mehr aus dem Item-Zustand -- „Markieren aendert
+// nichts" (Owner 29.08.2026). Damit faellt weg, was hier VORHER stand: KEIN `disabled` mehr (ein
+// Objekt OHNE Items -- 7930 von 8213, Entwurf §3 -- muss sich GENAUSO markieren lassen wie eines
+// mit Vorschlag) und KEIN dreiwertiger Zustand mehr (Markieren ist ein Bool, kein Item-Mix).
+// `garetienZeileMarkup` bleibt dabei REIN: der Markierungsstand wird als zweites Argument
+// hereingereicht, nicht aus dem Modulzustand gelesen.
+wahr(/<input type="checkbox" checked>/.test(garetienZeileMarkup(basis, true)),
+	"markiert -> checked im Markup");
+wahr(!/checked/.test(garetienZeileMarkup(basis, false)),
+	"unmarkiert -> kein checked im Markup, UNABHAENGIG vom Item-Zustand");
+// Die DIFFERENZ zur alten Regel: genau das Objekt, das vorher deaktiviert war (kein Item), ist
+// jetzt anhakbar -- das war der Konstruktionsfehler, den Aufgabe 2 behebt.
+wahr(!/<input type="checkbox"[^>]*\bdisabled\b/.test(
+	garetienZeileMarkup(Object.assign({}, basis, { urteil: "deckt_sich", items: [] }), false)
+), "auch OHNE Items bleibt das Haekchen bedienbar -- genau diese 7930 von 8213 Objekte hatten "
+	+ "vorher gar keine Chance auf ein Haekchen");
+wahr(/<input type="checkbox" checked>/.test(
+	garetienZeileMarkup(Object.assign({}, basis, { urteil: "deckt_sich", items: [] }), true)
+), "und genau so ein Objekt laesst sich auch wirklich markieren");
+[true, false].forEach((markiert) => {
+	wahr(!/data-part/.test(garetienZeileMarkup(fuenfAbschnitteZweiAngehakt, markiert)),
+		`kein dreiwertiger Zustand mehr (markiert=${markiert}) -- Markieren kennt nur an/aus, `
+		+ "kein Item-Mix");
+});
 
 // avesmapsGaretienHatAuswahl treibt das ✦ ("leuchtet") -- schon EIN angehaktes Item genuegt,
-// auch bei einem sonst dreiwertigen Objekt.
+// auch bei einem sonst dreiwertigen Objekt. ⚠️ UNVERAENDERT und UNABHAENGIG von der Markierung:
+// ein vorgemerkter Geometrie-Ersatz IST eine Vormerkung und gehoert auf die Karte, markiert oder
+// nicht (Aufgabe 2).
 gleich(avesmapsGaretienHatAuswahl(fuenfAbschnitteZweiAngehakt), true, "2 von 5 angehakt -> leuchtet");
 gleich(avesmapsGaretienHatAuswahl(Object.assign({}, basis, { items: [{ id: 1, selected: 0 }] })), false);
-wahr(garetienZeileMarkup(fuenfAbschnitteZweiAngehakt).includes("lit-dot"),
-	"ein Objekt mit >=1 angehaktem Item traegt das ✦ hinter dem Namen");
-wahr(!garetienZeileMarkup(Object.assign({}, basis, { items: [{ id: 1, selected: 0 }] })).includes("lit-dot"),
-	"ohne Auswahl darf kein ✦ stehen");
+wahr(garetienZeileMarkup(fuenfAbschnitteZweiAngehakt, false).includes("lit-dot"),
+	"ein Objekt mit >=1 angehaktem Item traegt das ✦ hinter dem Namen -- auch UNMARKIERT");
+wahr(!garetienZeileMarkup(Object.assign({}, basis, { items: [{ id: 1, selected: 0 }] }), true)
+	.includes("lit-dot"),
+	"ohne Auswahl darf kein ✦ stehen -- auch MARKIERT nicht");
 
 // ---- Die Bilanz ruft avesmapsListBalanceText WIRKLICH auf (Spion) -----------------------------
 // 🔴 js/review/review-list-balance.js ist der EINE Erzeuger -- nicht nachbauen. Ein Test, der nur
@@ -217,7 +227,8 @@ gleich((skelett.match(/<div/g) || []).length, (skelett.match(/<\/div>/g) || []).
 	+ "erste offene Element alle folgenden Geschwister");
 checks++;
 
-// Und die Wirkung, an der Struktur gemessen: fuenf Geschwister auf der obersten Ebene.
+// Und die Wirkung, an der Struktur gemessen: SECHS Geschwister auf der obersten Ebene (Aufgabe 2
+// haengt `.gi-anzeigebar` mit den zwei Anzeige-Knoepfen zwischen die Suchzeile und die Chips).
 // ⚠️ Ein winziger Parser statt einer DOM-Nachbildung -- er zaehlt nur die Verschachtelungstiefe,
 // und genau die war der Fehler.
 function obersteEbene(html) {
@@ -238,8 +249,8 @@ function obersteEbene(html) {
 	return raus;
 }
 const oben = obersteEbene(skelett);
-gleich(oben.join(","), "avm-tabs,gi-searchrow,gi-chips,gi-balance,avm-scroll",
-	"die linke Spalte hat FUENF Geschwister in dieser Reihenfolge -- stehen Chips, Bilanz oder "
+gleich(oben.join(","), "avm-tabs,gi-searchrow,gi-anzeigebar,gi-chips,gi-balance,avm-scroll",
+	"die linke Spalte hat SECHS Geschwister in dieser Reihenfolge -- stehen Chips, Bilanz oder "
 	+ "Liste IN der `.gi-searchrow`, legt deren `display: flex` sie nebeneinander");
 checks++;
 
