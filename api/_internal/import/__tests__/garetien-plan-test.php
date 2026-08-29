@@ -285,12 +285,30 @@ $mitName = array_values(array_filter($c,
 assert(count($mitName) === 1, 'genau EIN Abschnitt bekommt einen Namen: der namenlose 6120');
 assert($mitName[0]['entity_public_id'] === 'w-6120', 'und zwar der namenlose');
 // Der gleichnamige Abschnitt bekommt die Quelle, aber niemals einen neuen Namen.
-$natter = array_values(array_filter($c, static fn($e) => $e['entity_public_id'] === 'w-4471'));
+// 🔴 Meldung A (30.08.2026): 'w-4471' traegt seither ZWEI Items (Quelle + Geometrie) -- der
+// Filter braucht deshalb den Anlass, sonst faengt er beide statt der Quellen-Ergaenzung allein.
+$natter = array_values(array_filter($c,
+    static fn($e) => $e['entity_public_id'] === 'w-4471' && $e['after']['anlass'] === 'ergaenzung'));
 assert(count($natter) === 1 && $natter[0]['after']['felder'] === ['quelle'],
     'ein gleichnamiger Abschnitt bekommt die Quelle -- und sonst nichts');
 // Review I1: ein reines Quellen-Item verspricht keinen Namenswechsel.
 assert(!array_key_exists('name', $natter[0]['after']), 'ein reines Quellen-Item darf keinen Namen versprechen');
 $pruefungen += 6;
+
+// -- Meldung A (30.08.2026): das Geometrie-Item entsteht jetzt JE LEGITIMEM Abschnitt, nicht mehr
+// nur bei genau einem Treffer insgesamt. Natter (gleicher Name) und der namenlose 6120 (Luecke)
+// sind legitim und bekommen je ein Geometrie-Angebot; der Gardel (fremder Name, kein gemeinsames
+// Objekt) bleibt aussen vor -- dieselbe Ausschlussregel wie bei Luecke/Umbenennung.
+$geometrieC = array_values(array_filter($c, static fn($e) => $e['after']['anlass'] === 'geometrie'));
+$geometrieCZiele = array_map(static fn($e) => $e['entity_public_id'], $geometrieC);
+assert(count($geometrieC) === 2,
+    'Natter und der namenlose Abschnitt bekommen je ein Geometrie-Angebot, ' . count($geometrieC) . ' gefunden');
+assert(in_array('w-4471', $geometrieCZiele, true) && in_array('w-6120', $geometrieCZiele, true),
+    'die zwei Geometrie-Angebote zielen auf Natter und den namenlosen Abschnitt');
+assert(!in_array('w-5008', $geometrieCZiele, true),
+    'der Gardel bekommt KEIN Geometrie-Angebot -- fremder Name, kein gemeinsames Objekt');
+assert($geometrieC[0]['vorwahl_aus'] === true, 'auch bei mehreren Abschnitten ist jedes Geometrie-Item IMMER ungehakt');
+$pruefungen += 4;
 
 // -- Fall D: ihre "Angbarer Reichsstrasse" trifft SECHSMAL unsere "Reichsstrasse 3".
 // Ein Name -> es IST unser Objekt -> die Umbenennung ist eine sinnvolle Frage, aber UNGEHAKT.
@@ -318,6 +336,16 @@ assert(count($nurQuelle) === 6,
     'daneben sechs reine Quellen-Items -- das ist der Knopf "Nur Quelle + Artikel (6)"');
 assert($nurQuelle[0]['vorwahl_aus'] === false, 'die Quelle ist eine Luecke und kommt vorangehakt');
 $pruefungen += 7;
+
+// -- Meldung A (30.08.2026): alle sechs Abschnitte teilen EINEN Namen ($einObjekt), sind also
+// alle legitim -- jeder bekommt jetzt sein eigenes Geometrie-Angebot.
+$geometrieD = array_values(array_filter($d, static fn($e) => $e['after']['anlass'] === 'geometrie'));
+assert(count($geometrieD) === 6, 'jeder der sechs Abschnitte bekommt sein eigenes Geometrie-Angebot');
+assert(count(array_unique(array_map(static fn($e) => $e['entity_public_id'], $geometrieD))) === 6,
+    'und zwar sechs VERSCHIEDENE Ziele');
+assert(count(array_unique(array_map(static fn($e) => $e['label'], $geometrieD))) === 6,
+    'sechs Geometrie-Items brauchen sechs unterscheidbare Beschriftungen');
+$pruefungen += 3;
 
 // -- 🔴 Review I1: sechs Abschnitte tragen alle DENSELBEN Namen "Reichsstraße 3" -- ohne Anlass
 // UND Abschnitt in der Beschriftung waeren die sechs Umbenennungs-Items (und die sechs

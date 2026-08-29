@@ -1668,12 +1668,14 @@
 
 	// REIN: die Items, die zu EINEM Abschnitt gehören und sein Häkchen betreffen.
 	//
-	// 💣 Das Geometrie-Item gehört NICHT dazu. Es hat seinen eigenen Knopf („Geometrie ersetzen …",
-	// Aufgabe 15) und startet immer ungehakt; zählte es mit, stünde die Alke des Mockups (§6a)
-	// DREIWERTIG da, obwohl an ihr nichts halb ist -- sie ist ein einzelner namenloser Abschnitt,
-	// und für jedes Objekt mit genau einem Abschnitt legt garetien-plan.php ein Geometrie-Item an.
-	// Das Häkchen des Abschnitts ist das aus Auftrag §5.3.3: „je Abschnitt ein Häkchen für
-	// ‚Namen übernehmen'".
+	// 💣 Das Geometrie-Item gehört NICHT dazu. Es hat seinen eigenen Knopf („Ausgewählte Segmente
+	// ersetzen …", Aufgabe 15, umbenannt in Meldung A 30.08.2026) und startet immer ungehakt;
+	// zählte es mit, stünde die Alke des Mockups (§6a) DREIWERTIG da, obwohl an ihr nichts halb
+	// ist -- sie ist ein einzelner namenloser Abschnitt, und garetien-plan.php legt für jeden
+	// LEGITIMEN Abschnitt ein eigenes Geometrie-Item an. Das Häkchen des Abschnitts ist das aus
+	// Auftrag §5.3.3: „je Abschnitt ein Häkchen für ‚Namen übernehmen'" -- UND es ist seit
+	// Meldung A zugleich die Auswahl für „Ausgewählte Segmente ersetzen"
+	// (garetienAngehakteAbschnittIds liest dieselbe Menge).
 	function garetienAbschnittsItems(objekt, publicId) {
 		const items = (objekt && objekt.items) || [];
 		return items.filter(function (item) {
@@ -2152,21 +2154,35 @@
 		uebersprungen: ["ablehnen"],
 	};
 
+	// 🔴 Meldung A (30.08.2026, Owner): „Ausgewählte Segmente ersetzen" statt „Geometrie ersetzen
+	// …" -- Owner-Wortlaut. Die Auslassungspunkte, die die Rückfrage ankündigen, stehen seither
+	// NICHT mehr in dieser Tafel (sie kämen sonst VOR der Zahl zu stehen, „…(3)" statt „(3) …"),
+	// sondern in AVESMAPS_GARETIEN_HANDLUNG_MIT_RUECKFRAGE weiter unten, die sie ans Ende hängt --
+	// NACH der Zahl.
 	const AVESMAPS_GARETIEN_HANDLUNG_BESCHRIFTUNG = {
 		neu: "Neu einfügen",
 		name: "Namen ersetzen",
 		quelle: "Nur Quelle + Artikel",
-		geometrie: "Geometrie ersetzen …",
+		geometrie: "Ausgewählte Segmente ersetzen",
 		ablehnen: "Ablehnen",
 		wieder: "Wieder vorschlagen",
 	};
 
-	// Die zwei Knöpfe, die ihre Zahl im Namen tragen. 🔴 „(n)" ist die Zahl der schon ANGEHAKTEN
+	// Die Knöpfe, die ihre Zahl im Namen tragen. 🔴 „(n)" ist die Zahl der schon ANGEHAKTEN
 	// Items dieses Knopfes, nicht die der möglichen -- so das Mockup §6d, wo „Namen ersetzen (0)"
 	// neben „Nur Quelle + Artikel (6) ✓" steht, obwohl beide dieselben sechs Abschnitte betreffen
 	// (die Umbenennungen starten ungehakt, die Quellen vorangehakt). Der Zustand steht damit IM
 	// Knopf und nicht daneben.
-	const AVESMAPS_GARETIEN_HANDLUNG_MIT_ZAHL = { name: true, quelle: true };
+	// 🔴 Meldung A (30.08.2026): „geometrie" ist jetzt DABEI -- seit die Handlung auf beliebig
+	// viele angehakte Abschnitte zugleich wirkt, ist „welche der Angebote sind schon vorgemerkt"
+	// dieselbe Frage wie bei „Namen ersetzen"/„Nur Quelle + Artikel".
+	const AVESMAPS_GARETIEN_HANDLUNG_MIT_ZAHL = { name: true, quelle: true, geometrie: true };
+
+	// Handlungen, die vor dem Senden eine Rückfrage zeigen, tragen „…" als Ankündigung -- immer
+	// GANZ am Ende des Knopftexts, also NACH einer eventuellen Zahl (AVESMAPS_GARETIEN_HANDLUNG_
+	// MIT_ZAHL). Eine eigene Tafel, weil die Auslassungspunkte sonst Teil der Beschriftung selbst
+	// sein müssten und dann vor der Zahl stünden.
+	const AVESMAPS_GARETIEN_HANDLUNG_MIT_RUECKFRAGE = { geometrie: true };
 
 	// 💣 Die Knöpfe, die ein HÄKCHEN setzen -- und nur die dürfen „erledigt" (grün + ✓) werden.
 	// In der Abnahme im Browser trug „Ablehnen" ein ✓ und den grünen Grund, sobald zufällig alle
@@ -2183,6 +2199,28 @@
 
 	function garetienItemSchreibt(item, feld) {
 		return ((item && item.felder) || []).indexOf(feld) !== -1;
+	}
+
+	// REIN: welche Abschnitte sind angehakt -- ihr Häkchen (dieselbe Menge, die
+	// garetienAbschnittsItems/avesmapsGaretienCheckboxZustand der Abschnittszeile zugrunde legen)
+	// steht auf VOLL, nicht auf „halb" oder „aus". Ein Abschnitt OHNE Item (Lage „nichts", das
+	// Häkchen ist dort disabled) zählt nie mit -- er kann gar nicht angehakt werden.
+	//
+	// 🔴 Meldung A (30.08.2026, Owner): „Ausgewählte Segmente ersetzen" (vormals „Geometrie
+	// ersetzen …") wirkt auf GENAU diese Menge. Der Owner widerspricht damit der alten Regel
+	// („bei mehreren getroffenen Abschnitten hat Ersetzen kein Ziel") ausdrücklich: die
+	// Einzelansicht zeigt jeden Abschnitt einzeln mit Häkchen, und „die angehakten SIND das
+	// Ziel" (Owner-Wortlaut). Keine zweite Auswahl daneben -- dieselbe Fläche, die der Editor
+	// ohnehin schon als Häkchen vor sich sieht.
+	function garetienAngehakteAbschnittIds(objekt) {
+		const abschnitte = (objekt && objekt.abschnitte) || [];
+		return abschnitte
+			.filter(function (abschnitt) {
+				const publicId = String((abschnitt && abschnitt.public_id) || "");
+				const items = garetienAbschnittsItems(objekt, publicId);
+				return items.length > 0 && items.every(avesmapsGaretienItemIstAngehakt);
+			})
+			.map(function (abschnitt) { return String((abschnitt && abschnitt.public_id) || ""); });
 	}
 
 	// REIN: die Items, die ein HÄKCHEN bewegen darf -- alles außer dem Geometrie-Item.
@@ -2214,7 +2252,17 @@
 		quelle: function (item) {
 			return garetienItemSchreibt(item, "quelle") && !garetienItemSchreibt(item, "name");
 		},
-		geometrie: function (item) { return garetienItemAnlass(item) === "geometrie"; },
+		// 🔴 Meldung A (30.08.2026): NICHT mehr jedes Geometrie-Item des Objekts -- nur die, deren
+		// EIGENER Abschnitt angehakt ist (garetienAngehakteAbschnittIds). Ein Abschnitt ohne
+		// Häkchen darf seine Geometrie nicht verlieren, nur weil ein ANDERER Abschnitt desselben
+		// Objekts angehakt wurde. ⚠️ Zweiter Parameter `objekt` -- garetienHandlungBauen reicht
+		// ihn ausdrücklich durch, alle übrigen Prädikate ignorieren ihn einfach.
+		geometrie: function (item, objekt) {
+			if (garetienItemAnlass(item) !== "geometrie") { return false; }
+			const angehakt = garetienAngehakteAbschnittIds(objekt);
+			const publicId = String((item && item.abschnitt && item.abschnitt.public_id) || "");
+			return angehakt.indexOf(publicId) !== -1;
+		},
 		ablehnen: function () { return true; },
 		wieder: function () { return true; },
 	};
@@ -2225,21 +2273,21 @@
 	function garetienHandlungGrund(name, objekt, items) {
 		const abschnitte = (objekt && objekt.abschnitte) || [];
 		if (name === "geometrie") {
-			// 💣 DIE ZAHL DER ABSCHNITTE ENTSCHEIDET, nicht das Vorhandensein eines Items:
-			// garetien-plan.php legt das Geometrie-Item NUR bei genau EINEM getroffenen Abschnitt
-			// an, weil „ersetze die Geometrie" bei mehreren kein wohldefiniertes Ziel hat -- ihre
-			// Natter trifft fünf.
+			// 🔴 Meldung A (30.08.2026, Owner): NICHT MEHR DIE ZAHL DER GETROFFENEN ABSCHNITTE
+			// ENTSCHEIDET -- OB WELCHE ANGEHAKT SIND. Bis dahin stand hier "die Zahl der Abschnitte
+			// entscheidet", mit der Begründung, „ersetze die Geometrie" habe bei mehreren kein
+			// wohldefiniertes Ziel. Der Owner widerspricht: die angehakten Abschnitte SIND das
+			// Ziel, egal wie viele insgesamt getroffen wurden.
 			if (abschnitte.length === 0) {
 				return "der Abgleich hat keinen Abschnitt von uns getroffen — es gibt hier keine "
 					+ "Geometrie zu ersetzen";
 			}
-			if (abschnitte.length !== 1) {
-				return "ihr Objekt trifft "
-					+ garetienAnzahlText(abschnitte.length, "Abschnitt", "Abschnitte")
-					+ " von uns — „Geometrie ersetzen\" hätte dann kein Ziel";
+			if (garetienAngehakteAbschnittIds(objekt).length === 0) {
+				return "kein Abschnitt ist angehakt — „Ausgewählte Segmente ersetzen\" hätte dann "
+					+ "kein Ziel";
 			}
 			return items.length === 0
-				? "dieser Lauf trägt keinen Geometrie-Vorschlag für diesen Abschnitt"
+				? "dieser Lauf trägt keinen Geometrie-Vorschlag für die angehakten Abschnitte"
 				: "";
 		}
 		if (items.length > 0) { return ""; }
@@ -2267,7 +2315,11 @@
 	function garetienHandlungBauen(name, objekt) {
 		const passt = AVESMAPS_GARETIEN_ITEMS_JE_HANDLUNG[name]
 			|| function () { return false; };
-		const items = ((objekt && objekt.items) || []).filter(passt);
+		// ⚠️ `objekt` reist als ZWEITES Argument mit -- nur „geometrie" braucht es (welche
+		// Abschnitte sind angehakt), die übrigen Prädikate ignorieren es einfach.
+		const items = ((objekt && objekt.items) || []).filter(function (item) {
+			return passt(item, objekt);
+		});
 		const ids = items
 			.map(function (item) { return Number(item && item.id); })
 			.filter(function (id) { return id > 0; });
@@ -2276,6 +2328,9 @@
 		let beschriftung = AVESMAPS_GARETIEN_HANDLUNG_BESCHRIFTUNG[name] || name;
 		if (AVESMAPS_GARETIEN_HANDLUNG_MIT_ZAHL[name]) {
 			beschriftung += " (" + angehakt + ")";
+		}
+		if (AVESMAPS_GARETIEN_HANDLUNG_MIT_RUECKFRAGE[name]) {
+			beschriftung += " …";
 		}
 
 		return {
@@ -2346,20 +2401,48 @@
 		return namen.map(function (name) { return garetienHandlungBauen(name, o); });
 	}
 
-	// REIN: die Rückfrage vor „Geometrie ersetzen" -- sie NENNT DIE FOLGE BEIM NAMEN, statt „Sind
-	// Sie sicher?" zu fragen. Was ersetzt würde, steht darin, und dass jetzt noch nichts geschrieben
-	// wird, auch.
+	// REIN: die Rückfrage vor „Ausgewählte Segmente ersetzen" -- sie NENNT DIE FOLGE BEIM NAMEN,
+	// statt „Sind Sie sicher?" zu fragen. Was ersetzt würde, steht darin, und dass jetzt noch
+	// nichts geschrieben wird, auch.
+	//
+	// 🔴 Meldung A (30.08.2026, Owner): SEIT MEHRERE ABSCHNITTE ZUGLEICH ANGEHAKT SEIN KÖNNEN,
+	// NENNT SIE DEREN ZAHL -- „abschnitte[0]" war das ganze Bild nur, solange „ersetzen" auf
+	// maximal einen Abschnitt wirken konnte. Betroffen sind GENAU die angehakten
+	// (garetienAngehakteAbschnittIds), nicht alle getroffenen.
 	function garetienGeometrieRueckfrageText(objekt) {
 		const o = objekt || {};
-		const abschnitt = (o.abschnitte || [])[0] || {};
-		const publicId = String(abschnitt.public_id || "");
-		const unser = String(abschnitt.name || "").trim();
+		const angehaktIds = garetienAngehakteAbschnittIds(o);
+		const betroffene = (o.abschnitte || []).filter(function (abschnitt) {
+			return angehaktIds.indexOf(String((abschnitt && abschnitt.public_id) || "")) !== -1;
+		});
 		const punkte = Array.isArray(o.geometrie) ? o.geometrie.length : 0;
+		const folge = "wird beim Übernehmen durch den aus " + garetienWikiLabel(String(o.wiki || ""))
+			+ " ersetzt — " + garetienAnzahlText(punkte, "Stützpunkt", "Stützpunkte") + ".";
 
-		return "Der Verlauf von "
-			+ (unser === "" ? publicId + " (ohne Namen)" : "„" + unser + "\" (" + publicId + ")")
-			+ " wird beim Übernehmen durch den aus " + garetienWikiLabel(String(o.wiki || ""))
-			+ " ersetzt — " + garetienAnzahlText(punkte, "Stützpunkt", "Stützpunkte") + ".\n\n"
+		// Der Regelfall: EIN angehakter Abschnitt -- derselbe Wortlaut wie vor Meldung A. Ein
+		// leeres `betroffene` (sollte der Knopf gar nicht erst anbieten) fällt auf den ersten
+		// getroffenen Abschnitt zurück, statt eine leere Rückfrage zu zeigen.
+		if (betroffene.length <= 1) {
+			const abschnitt = betroffene[0] || (o.abschnitte || [])[0] || {};
+			const publicId = String(abschnitt.public_id || "");
+			const unser = String(abschnitt.name || "").trim();
+			return "Der Verlauf von "
+				+ (unser === "" ? publicId + " (ohne Namen)" : "„" + unser + "\" (" + publicId + ")")
+				+ " " + folge + "\n\n"
+				+ "Jetzt wird nur vorgemerkt. Geschrieben wird erst mit „Angehakte übernehmen\".";
+		}
+
+		// 💣 MEHRERE Abschnitte bekommen DENSELBEN Verlauf -- avesmapsGaretienAbschnittsEintrag
+		// ändert `after.geometry` nicht (garetien-plan.php). Genau deshalb nennt die Rückfrage
+		// jeden betroffenen Abschnitt beim Namen, statt nur eine Zahl zu zeigen.
+		const namen = betroffene.map(function (abschnitt) {
+			const publicId = String((abschnitt && abschnitt.public_id) || "");
+			const unser = String((abschnitt && abschnitt.name) || "").trim();
+			return unser === "" ? publicId + " (ohne Namen)" : "„" + unser + "\" (" + publicId + ")";
+		}).join(", ");
+
+		return "Der Verlauf von " + garetienAnzahlText(betroffene.length, "Abschnitt", "Abschnitte")
+			+ " (" + namen + ") " + folge + "\n\n"
 			+ "Jetzt wird nur vorgemerkt. Geschrieben wird erst mit „Angehakte übernehmen\".";
 	}
 
@@ -2444,9 +2527,9 @@
 				+ ' data-key="' + schluessel + '"';
 			if (k.disabled) {
 				attribute += ' disabled title="' + avesmapsGaretienEscape(k.grund) + '"';
-				// ⚠️ Ohne die Auslassungspunkte: „Geometrie ersetzen …: ihr Objekt trifft …" liest
-				// sich wie ein abgebrochener Satz. Das „…" gehört auf den Knopf (es kündigt die
-				// Rückfrage an), nicht in einen Satz über ihn.
+				// ⚠️ Ohne die Auslassungspunkte: „Ausgewählte Segmente ersetzen (0) …: kein
+				// Abschnitt ist angehakt …" liest sich wie ein abgebrochener Satz. Das „…" gehört
+				// auf den Knopf (es kündigt die Rückfrage an), nicht in einen Satz über ihn.
 				gruende.push(k.beschriftung.replace(/\s*…$/, "") + ": " + k.grund);
 			}
 			return "<button" + attribute + ">" + avesmapsGaretienEscape(k.beschriftung)

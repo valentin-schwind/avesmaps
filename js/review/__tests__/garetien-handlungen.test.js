@@ -102,40 +102,114 @@ tief(namen({ abschnitte: [], items: [] }), ["ablehnen"], "und ein fehlendes Urte
 // B. Der ausgegraute Knopf sagt, WARUM
 // =================================================================================================
 
-// „Geometrie ersetzen" ist bei mehreren Abschnitten AUSGEGRAUT: garetien-plan.php legt das
-// Geometrie-Item nur bei GENAU EINEM getroffenen Abschnitt an, weil „ersetzen" sonst kein
-// wohldefiniertes Ziel hat.
+// 🔴 Meldung A (30.08.2026, Owner): „Geometrie ersetzen" (jetzt „Ausgewählte Segmente ersetzen")
+// ist NICHT MEHR bei mehreren getroffenen Abschnitten pauschal ausgegraut -- garetien-plan.php
+// legt seit dieser Meldung ein Geometrie-Item JE LEGITIMEM Abschnitt an, und die Handlung wirkt
+// auf GENAU die ANGEHAKTEN. Ohne ein angehaktes Häkchen hat sie trotzdem kein Ziel.
 const fuenf = {
 	key: "k", urteil: "ergaenzung",
 	abschnitte: [1, 2, 3, 4, 5].map((n) => ({ public_id: "w-" + n, name: "x" })), items: [],
 };
 const geo = knopf(fuenf, "geometrie");
-wahr(geo && geo.disabled === true, "bei fuenf Abschnitten hat „ersetze die Geometrie\" kein Ziel");
-wahr(/5 Abschnitte/.test(geo.grund), "ein ausgegrauter Knopf muss sagen, warum");
+wahr(geo && geo.disabled === true, "fuenf Abschnitte, aber KEINER angehakt -- kein Ziel");
+wahr(/kein Abschnitt ist angehakt/.test(geo.grund), "ein ausgegrauter Knopf muss sagen, warum");
+wahr(!/5 Abschnitte/.test(geo.grund),
+	"💣 die alte Begruendung (Anzahl statt Auswahl) darf nicht wiederkehren");
 
-// Die Gegenprobe: bei GENAU EINEM Abschnitt mit Geometrie-Item ist er bedienbar. Ohne sie belegte
-// die Zeile darueber nur, dass irgendetwas ausgegraut ist.
+// Die Gegenprobe: bei GENAU EINEM angehakten Abschnitt mit Geometrie-Item ist er bedienbar. Ohne
+// sie belegte die Zeile darueber nur, dass irgendetwas ausgegraut ist.
+//
+// 🔴 Meldung A: JEDES Item traegt jetzt `abschnitt` (wie es garetien-liste.php live tut,
+// `item.after.abschnitt`) -- garetienAngehakteAbschnittIds braucht es, um ein Geometrie-Item
+// seinem Abschnitt zuzuordnen.
 const einer = {
 	key: "k", urteil: "ergaenzung", wiki: "ggp",
 	abschnitte: [{ public_id: "w-5112", name: "", punkte: 12 }],
 	geometrie: [[1, 2], [3, 4], [5, 6]],
 	items: [
-		{ id: 21, anlass: "ergaenzung", felder: ["name", "quelle"], change_type: "changed", selected: 1 },
-		{ id: 22, anlass: "geometrie", felder: ["geometrie"], change_type: "changed", selected: 0 },
+		{ id: 21, anlass: "ergaenzung", felder: ["name", "quelle"], change_type: "changed", selected: 1,
+			abschnitt: { public_id: "w-5112", name: "" } },
+		{ id: 22, anlass: "geometrie", felder: ["geometrie"], change_type: "changed", selected: 0,
+			abschnitt: { public_id: "w-5112", name: "" } },
 	],
 };
 gleich(knopf(einer, "geometrie").disabled, false,
-	"EIN getroffener Abschnitt mit Geometrie-Vorschlag -- der Knopf ist bedienbar");
+	"EIN angehakter Abschnitt mit Geometrie-Vorschlag -- der Knopf ist bedienbar");
 gleich(knopf(einer, "geometrie").grund, "", "und dann steht kein Grund da");
 
-// Ein Abschnitt, aber KEIN Geometrie-Item (ein Lauf von vor dem Nachzug): ausgegraut, mit einem
-// ANDEREN Grund -- „ihr Objekt trifft 1 Abschnitt" waere hier eine Luege.
+// Ein Abschnitt ist angehakt, aber KEIN Geometrie-Item liegt vor (ein Lauf von vor dem Nachzug):
+// ausgegraut, mit einem ANDEREN Grund -- „kein Abschnitt ist angehakt" waere hier eine Luege.
 const ohneGeoItem = Object.assign({}, einer, { items: [einer.items[0]] });
 gleich(knopf(ohneGeoItem, "geometrie").disabled, true, "ohne Geometrie-Vorschlag ist er aus");
 wahr(/Geometrie-Vorschlag/.test(knopf(ohneGeoItem, "geometrie").grund),
-	"und der Grund nennt den fehlenden Vorschlag, nicht die Abschnittszahl");
-wahr(!/trifft 1 Abschnitt/.test(knopf(ohneGeoItem, "geometrie").grund),
-	"die zwei Gruende duerfen nicht ineinander rutschen");
+	"und der Grund nennt den fehlenden Vorschlag, nicht die Abschnittsauswahl");
+wahr(!/kein Abschnitt ist angehakt/.test(knopf(ohneGeoItem, "geometrie").grund),
+	"die zwei Gruende duerfen nicht ineinander rutschen -- hier IST ja etwas angehakt");
+
+// =================================================================================================
+// B2. Die DIFFERENZ: kein Haekchen -> gesperrt · N Haekchen -> wirkt auf GENAU diese N
+// =================================================================================================
+//
+// 🔴 Das ist der Kern von Meldung A: der Owner widerspricht der alten Regel ausdruecklich -- „die
+// angehakten Haekchen SIND das Ziel". Fuenf Abschnitte, von denen ZWEI angehakt sind (ihr
+// Quellen-Item ist voll selektiert) -- der Knopf muss GENAU deren zwei Geometrie-Items nennen,
+// nicht alle fuenf und nicht null.
+function garetienTestAbschnitt(nummer, quelleAngehakt) {
+	const publicId = "w-mehr-" + nummer;
+	const basis = { public_id: publicId, name: "x" };
+	return {
+		abschnitt: basis,
+		items: [
+			{ id: 8000 + nummer, anlass: "ergaenzung", felder: ["quelle"], change_type: "changed",
+				selected: quelleAngehakt ? 1 : 0, abschnitt: basis },
+			{ id: 9000 + nummer, anlass: "geometrie", felder: ["geometrie"], change_type: "changed",
+				selected: 0, abschnitt: basis },
+		],
+	};
+}
+const fuenfTeileKeinsAngehakt = [1, 2, 3, 4, 5].map((n) => garetienTestAbschnitt(n, false));
+const fuenfObjektBasis = {
+	key: "k-mehr", urteil: "ergaenzung", wiki: "ggp",
+	abschnitte: fuenfTeileKeinsAngehakt.map((t) => t.abschnitt),
+};
+function garetienTestObjektMit(teile) {
+	return Object.assign({}, fuenfObjektBasis, {
+		items: teile.map((t) => t.items).reduce((a, b) => a.concat(b), []),
+	});
+}
+
+const keinsAngehakt = garetienTestObjektMit(fuenfTeileKeinsAngehakt);
+gleich(knopf(keinsAngehakt, "geometrie").disabled, true,
+	"fuenf Abschnitte, echte Geometrie-Items -- aber KEINER angehakt: immer noch kein Ziel");
+tief(knopf(keinsAngehakt, "geometrie").ids, [], "und wirklich KEIN Item wird angeboten");
+
+const zweiAngehakt = garetienTestObjektMit(
+	fuenfTeileKeinsAngehakt.map((t, i) => (i === 0 || i === 1
+		? garetienTestAbschnitt(i + 1, true)
+		: t))
+);
+const geoZwei = knopf(zweiAngehakt, "geometrie");
+gleich(geoZwei.disabled, false, "ZWEI angehakte Abschnitte -- die Handlung hat ein Ziel");
+gleich(geoZwei.grund, "", "und dann steht kein Grund da");
+tief(geoZwei.ids.slice().sort(function (a, b) { return a - b; }), [9001, 9002],
+	"und sie wirkt auf GENAU die zwei angehakten Abschnitte -- nicht auf alle fuenf getroffenen");
+gleich(geoZwei.beschriftung, "Ausgewählte Segmente ersetzen (0) …",
+	"„(0)\": keines der zwei Ziel-Items ist SELBST schon vorgemerkt -- die Zahl zaehlt Vormerkungen, "
+	+ "nicht Ziel-Abschnitte");
+
+// Ein DRITTER Abschnitt kommt dazu -- die Menge waechst mit, es ist keine feste Zweierregel.
+const dreiAngehakt = garetienTestObjektMit(
+	fuenfTeileKeinsAngehakt.map((t, i) => (i === 0 || i === 1 || i === 2
+		? garetienTestAbschnitt(i + 1, true)
+		: t))
+);
+tief(knopf(dreiAngehakt, "geometrie").ids.slice().sort(function (a, b) { return a - b; }),
+	[9001, 9002, 9003],
+	"DREI angehakte Abschnitte -> die Handlung wirkt auf genau drei Geometrie-Items");
+
+// Und die Gegenprobe zur Rumpf-Seite: der Rumpf schickt GENAU diese Ziel-Ids hinaus.
+tief(garetienHandlungsRumpf("geometrie", zweiAngehakt, 7).ids.slice().sort(function (a, b) { return a - b; }),
+	[9001, 9002], "der Rumpf traegt dieselbe Menge wie der Knopf, kein Nachbau daneben");
 
 // Und OHNE getroffenen Abschnitt wieder ein dritter Grund.
 wahr(/keinen Abschnitt von uns getroffen/.test(
@@ -228,7 +302,7 @@ gleich(garetienHandlungsRumpf("name", strasse, 7).selected, true, "sie HAKEN AN"
 // 💣 Ein ausgegrauter Knopf schickt NICHTS. Der Riegel steht in der Rechnung, nicht am `disabled`
 // des Markups -- `disabled` ist die Anzeige.
 gleich(garetienHandlungsRumpf("geometrie", fuenf, 7), null,
-	"„Geometrie ersetzen\" bei fuenf Abschnitten schickt gar nichts");
+	"„Ausgewählte Segmente ersetzen\" ohne angehakten Abschnitt schickt gar nichts");
 gleich(garetienHandlungsRumpf("quelle", einer, 7), null, "und ein leerer vierter Ausgang auch nicht");
 // 🔴 Und ein Knopf, den dieses Urteil GAR NICHT anbietet, ist ebenfalls kein Schreibweg.
 gleich(garetienHandlungsRumpf("geometrie", zufluss, 7), null,
@@ -330,6 +404,19 @@ wahr(garetienGeometrieRueckfrageText(Object.assign({}, einer, { wiki: "kosch" })
 	"der Wirt kommt aus garetienWikiLabel, nicht aus einer zweiten Tafel");
 wahr(garetienGeometrieRueckfrageText(einer).includes("ohne Namen"),
 	"ein namenloser Abschnitt wird auch in der Rueckfrage so genannt");
+
+// 🔴 Meldung A (30.08.2026, Owner): SEIT MEHRERE ABSCHNITTE ZUGLEICH ANGEHAKT SEIN KOENNEN, NENNT
+// DIE RUECKFRAGE DEREN ZAHL -- "abschnitte[0]" war das ganze Bild nur, solange hoechstens einer
+// angehakt sein konnte. ⚠️ Sie muss auch sagen, dass ALLE denselben Verlauf bekommen -- sonst
+// liest sich die Rueckfrage wie eine Aufteilung, die es nicht gibt.
+const frageZwei = garetienGeometrieRueckfrageText(zweiAngehakt);
+wahr(/2 Abschnitte/.test(frageZwei), "die Rueckfrage nennt die ZAHL der betroffenen Abschnitte");
+wahr(frageZwei.includes("w-mehr-1") && frageZwei.includes("w-mehr-2"),
+	"und nennt BEIDE angehakten Abschnitte beim Namen");
+wahr(!frageZwei.includes("w-mehr-3"),
+	"der dritte, NICHT angehakte Abschnitt wird nicht genannt");
+wahr(frageZwei.includes("Jetzt wird nur vorgemerkt"),
+	"dieselbe Zusicherung gilt auch bei mehreren angehakten Abschnitten");
 
 // =================================================================================================
 // G. Die Klickverteiler -- gemessen am ERGEBNIS
@@ -526,18 +613,20 @@ wahr(!/data-handlung="name"[^>]*btn--done/.test(leiste) && !/Namen ersetzen \(0\
 	"ein nicht erledigter Knopf traegt weder die Klasse noch das Haken-Zeichen");
 
 const leisteAus = garetienHandlungsMarkup(fuenf);
-wahr(/disabled title="[^"]*5 Abschnitte/.test(leisteAus),
+wahr(/disabled title="[^"]*kein Abschnitt ist angehakt/.test(leisteAus),
 	"ein ausgegrauter Knopf traegt seinen Grund im title");
-wahr(/gi-acts__grund/.test(leisteAus) && />Geometrie ersetzen: [^<]*5 Abschnitte/.test(leisteAus),
+wahr(/gi-acts__grund/.test(leisteAus)
+	&& />Ausgewählte Segmente ersetzen \(0\): [^<]*kein Abschnitt ist angehakt/.test(leisteAus),
 	"💣 und SICHTBAR daneben -- ein title erscheint nur beim Verweilen, am Telefon nie");
 // Die DIFFERENZ: der Zufluss hat NUR bedienbare Knoepfe (neu + ablehnen), und dann steht auch
-// keine Grundzeile da. ⚠️ Die Reichsstrasse taugt dafuer NICHT -- sie trifft sechs Abschnitte, ihr
-// „Geometrie ersetzen" ist also sehr wohl ausgegraut.
-// ⚠️ Der sichtbare Grund traegt die Auslassungspunkte des Knopfes NICHT mit -- „Geometrie
-// ersetzen …: ihr Objekt trifft …" liest sich wie ein abgebrochener Satz.
-wahr(/>Geometrie ersetzen: /.test(leisteAus),
+// keine Grundzeile da. ⚠️ Die Reichsstrasse taugt dafuer NICHT -- keiner ihrer sechs Abschnitte
+// ist VOLLSTAENDIG angehakt (die Umbenennung steht ungehakt neben der vorangehakten Quelle), ihr
+// „Ausgewählte Segmente ersetzen" ist also sehr wohl ausgegraut.
+// ⚠️ Der sichtbare Grund traegt die Auslassungspunkte des Knopfes NICHT mit -- „Ausgewählte
+// Segmente ersetzen (0) …: kein Abschnitt ist angehakt …" liest sich wie ein abgebrochener Satz.
+wahr(/>Ausgewählte Segmente ersetzen \(0\): /.test(leisteAus),
 	"der sichtbare Grund nennt den Knopf ohne seine Auslassungspunkte");
-wahr(/Geometrie ersetzen …</.test(leisteAus),
+wahr(/Ausgewählte Segmente ersetzen \(0\) …</.test(leisteAus),
 	"die Gegenprobe: auf dem KNOPF stehen sie weiterhin -- sie kuendigen die Rueckfrage an");
 
 wahr(garetienHandlungen(zufluss).every((k) => !k.disabled),

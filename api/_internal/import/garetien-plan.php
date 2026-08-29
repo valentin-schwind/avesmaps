@@ -284,6 +284,12 @@ function avesmapsGaretienErgaenzungsEintraege(array $zeile, array $ziel, array $
         $unserName = trim((string) ($abschnitt['name'] ?? ''));
         $nameLeer = $unserName === '';
         $nameGleich = !$nameLeer && avesmapsGaretienNamenAehnlich($ihrName, $unserName);
+        // 🔴 „Legitim" ist derselbe Massstab, der ueber Luecke und Umbenennung entscheidet: nur
+        // ein Abschnitt, der WIRKLICH zu ihrem Objekt gehoert (Luecke, Namensgleichheit, oder das
+        // ganze Treffer-Objekt IST eins), darf ueberhaupt etwas von ihnen annehmen. Er entscheidet
+        // seit Meldung A (30.08.2026, Owner) auch ueber das Geometrie-Item -- der Gardel unter
+        // ihrer Natter bleibt aussen vor, auch wenn er getroffen ist.
+        $legitim = $nameLeer || $nameGleich || $einObjekt;
         // 🔴 Review C1: der Schluessel traegt den Zieltyp -- derselbe public_id-Raum wird von
         // path UND region benutzt.
         //
@@ -310,7 +316,7 @@ function avesmapsGaretienErgaenzungsEintraege(array $zeile, array $ziel, array $
         if ($nameLeer) {
             $felder[] = 'name';
         }
-        if (!$hatQuelle && ($nameLeer || $nameGleich || $einObjekt)) {
+        if (!$hatQuelle && $legitim) {
             // ⚠️ Eine Quelle bekommt nur, wem sie GEHOERT. Der Gardel liegt zufaellig unter ihrer
             // Natter -- ihre Quelle dort anzuhaengen behauptete, garetien.de beschreibe den Gardel.
             $felder[] = 'quelle';
@@ -327,24 +333,34 @@ function avesmapsGaretienErgaenzungsEintraege(array $zeile, array $ziel, array $
                 $vorlage, $abschnitt, 'umbenennung', ['name'], $ihrName, $unserName, true, $abschnittAnzahl
             );
         }
-    }
 
-    // 3. Das Geometrie-Item -- genau eins je Objekt, und nur bei GENAU EINEM getroffenen
-    // Abschnitt. 💣 Bei mehreren hat "ersetze die Geometrie" kein wohldefiniertes Ziel: ihre
-    // Natter trifft fuenf. Und ein pauschales Ersetzen ist die schlimmste Handlung, die dieses
-    // Werkzeug anbieten kann -- 34 der 37 Widersprueche sind Baeche, die auf ihrem Hauptfluss
-    // liegen; dort ersetzte es die Natter durch ihren Seitenarm, mit gueltiger id und ohne
-    // Fehlermeldung. Der Knopf ist dann ausgegraut und sagt, warum.
-    // 🔴 RULING R6 (Owner, nach R5): geometrie ersetzen gilt fuer ALLE Formen -- Flaechen UND
-    // Wege/Fluesse, nicht nur Wege. R5 hatte diesen Zweig fuer Regionen versucht wegzudefinieren;
-    // das war falsch, der Owner will es ausdruecklich. Die zwei echten Fehler des Region-Zweigs
-    // (falscher id-Raum, fehlende erwartete Revision) sind stattdessen im Anwender repariert
-    // (avesmapsGaretienErgaenzungAnwenden, garetien-uebernahme.php).
-    if ($abschnittAnzahl === 1) {
-        $eintraege[] = avesmapsGaretienAbschnittsEintrag(
-            $vorlage, $abschnitte[0], 'geometrie', ['geometrie'], $ihrName,
-            trim((string) ($abschnitte[0]['name'] ?? '')), true, $abschnittAnzahl
-        );
+        // 3. Das Geometrie-Item -- EIN Item JE LEGITIMEM Abschnitt (Owner-Meldung 30.08.2026,
+        // Meldung A). 🔴 GEAENDERT: bis dahin stand hier "genau eins je Objekt, nur bei GENAU
+        // EINEM getroffenen Abschnitt", mit der Begruendung, "ersetze die Geometrie" habe bei
+        // mehreren kein wohldefiniertes Ziel. Der Owner widerspricht dem ausdruecklich: die
+        // Einzelansicht zeigt jeden Abschnitt einzeln mit Haekchen, und die angehakten SIND das
+        // Ziel -- dieselbe Form, in der Luecken- und Umbenennungs-Items oben schon laengst je
+        // Abschnitt einzeln entstehen. avesmapsGaretienErgaenzungAnwenden verarbeitet jedes Item
+        // ohnehin EINZELN (ein `entity_public_id` je Aufruf, in der Schleife von
+        // avesmapsGaretienUebernehmen) -- ein Item je Abschnitt ist also keine neue Form, nur eine,
+        // die bisher hier kuenstlich auf einen einzigen Abschnitt begrenzt war.
+        // 💣 JEDER ausgewaehlte Abschnitt bekommt DIESELBE (ihre) Geometrie als Ersatz --
+        // avesmapsGaretienAbschnittsEintrag aendert `after.geometry` nicht, es bleibt die aus der
+        // Vorlage. Werden mehrere Abschnitte zugleich angehakt, bekommen alle denselben Verlauf;
+        // das Fenster nennt dem Editor deshalb VOR dem Uebernehmen, wie viele Abschnitte betroffen
+        // sind (garetienGeometrieRueckfrageText, review-garetien-importer.js).
+        // 🔴 NUR LEGITIME Abschnitte -- der Gardel (fremder Name, kein gemeinsames Objekt) bekommt
+        // weiterhin KEIN Geometrie-Angebot, genau wie er keine Luecke/Umbenennung bekommt: ihn
+        // "Natter" zu nennen waere falsch, seine Geometrie durch die Natter zu ersetzen ebenso.
+        // 🔴 RULING R6 (Owner, nach R5) bleibt in Kraft: geometrie ersetzen gilt fuer ALLE Formen
+        // -- Flaechen UND Wege/Fluesse. Die zwei echten Fehler des Region-Zweigs (falscher
+        // id-Raum, fehlende erwartete Revision) bleiben im Anwender repariert
+        // (avesmapsGaretienErgaenzungAnwenden, garetien-uebernahme.php).
+        if ($legitim) {
+            $eintraege[] = avesmapsGaretienAbschnittsEintrag(
+                $vorlage, $abschnitt, 'geometrie', ['geometrie'], $ihrName, $unserName, true, $abschnittAnzahl
+            );
+        }
     }
 
     return $eintraege;
