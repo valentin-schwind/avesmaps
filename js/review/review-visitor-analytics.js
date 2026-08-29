@@ -442,6 +442,13 @@ function vaHeatmap(rows) {
 
 function vaDonut(rows, cols) {
 	const items = (rows || []).map((r) => ({ name: r.dimension, val: Number(r.c) || 0 }));
+	// 💣 Ohne diese Zeile zeichnet ein leerer Ring einen unsichtbaren Kreis ohne ein Wort dazu -- ein
+	// weisser Kasten, den niemand von einem kaputten Bauteil unterscheiden kann. Die Balkenlisten
+	// daneben sagen seit jeher „noch keine Daten"; seit dem 29.08.2026 gibt es zwei Ringe, die genau
+	// so anfangen (Untergrund und Landschaften-Ebene werden erst seit dann gezaehlt).
+	if (items.length === 0) {
+		return '<div class="va-storage">noch keine Daten</div>';
+	}
 	const tot = items.reduce((a, i) => a + i.val, 0) || 1;
 	const r = 26, c = 2 * Math.PI * r;
 	let off = 0, seg = "";
@@ -484,21 +491,55 @@ const VA_TOGGLE_LABELS = {
 	togglePaths: "Wege", toggleRivers: "Flüsse", toggleSeaPaths: "Seewege", toggleCrossings: "Kreuzungen", toggleNodix: "Nodices"
 };
 
-// 💣 Die sechs Ansichten stehen NUR in den <option> von #mapLayerModeSelect -- das <select> ist der
-// Zustand, die Ansichts-Kachel liest es ebenfalls dort (AGENTS.md §11). Hier stand bis 2026-08-13
-// eine zweite Tabelle, und sie ist genau so auseinandergelaufen, wie die Regel es verhindern soll:
-// sie kannte vier der sechs, also erschienen „original" und „ecosystem" mit ihrem internen
-// Schluessel in der Statistik. Das Dashboard laeuft im selben Dokument wie das <select>.
-function vaMapModeLabels() {
+// 💣 Die Beschriftungen der drei Karten-Ringe kommen aus dem DOM, nie aus einer Tabelle hier. Das
+// Dashboard laeuft im selben Dokument wie die Bedienelemente, es kann sie also einfach lesen. Hier
+// stand bis 2026-08-13 eine zweite Tabelle fuer die Ansichten, und sie ist genau so
+// auseinandergelaufen, wie die Regel es verhindern soll: sie kannte vier der sechs Werte, also
+// erschienen „original" und „ecosystem" mit ihrem internen Schluessel in der Statistik.
+// ⭐ EIN Leser fuer alle drei. Drei abgeschriebene Fassungen waeren die Doppelung, die dieses
+// Projekt bei den Listenzeilen (sieben Rezepturen) und der Wiki-Zuweisung (sechs Fassungen) schon
+// zweimal bezahlt hat -- und der dritte Ring waere die dritte Kopie gewesen.
+function vaDomLabels(selector, wertVon) {
 	const labels = {};
-	document.querySelectorAll("#mapLayerModeSelect option").forEach((option) => {
-		const value = String(option.value || "");
-		const text = String(option.textContent || "").trim();
+	document.querySelectorAll(selector).forEach((element) => {
+		const value = String(wertVon(element) || "");
+		const text = String(element.textContent || "").trim();
 		if (value !== "" && text !== "") {
 			labels[value] = text;
 		}
 	});
 	return labels;
+}
+
+// Die fuenf Ansichten stehen NUR in den <option> von #mapLayerModeSelect -- das <select> ist der
+// Zustand, der Kartenfaecher liest es ebenfalls dort (AGENTS.md §11).
+function vaMapModeLabels() {
+	return vaDomLabels("#mapLayerModeSelect option", (option) => option.value);
+}
+
+// Die drei Untergruende (Modern / Original / Old) stehen in den <option> von #mapStyleSelect --
+// dieselbe Regel, dieselbe Begruendung: setMapStyle schreibt seinen Wert dorthin, der geteilte Link
+// kommt ueber `?mapstyle=` dort an.
+// ⚠️ js/ui/route-planner-toggle.js haengt zusaetzlich ein `none` („leerer Hintergrund") hinein. Es
+// wird nie gezaehlt -- setMapStyle schreibt `.value` ohne `change` --, und kaeme es je vor, traegt
+// es wenigstens seine eigene Beschriftung statt einer geratenen.
+function vaMapStyleLabels() {
+	return vaDomLabels("#mapStyleSelect option", (option) => option.value);
+}
+
+// Die Landschaften-Ebenen stehen als Reiter im Bund #ecosystem-layer-switch.
+// 💣 „Alle" traegt BEWUSST kein data-ecosystem-kind (index.html sagt warum: es ist ein Anzeige-Flag
+// neben der Ebene, kein fuenfter Wert von ihr). Fuer die Statistik ist es trotzdem eine echte Wahl
+// und bekommt hier den Schluessel `alle` -- liesse man sie weg, waeren die Prozente der uebrigen
+// vier falsch.
+// ⚠️ Gelesen wird INNERHALB des Bundes: syncEcosystemLayerSwitchControls stempelt jedes
+// [data-ecosystem-kind] im GANZEN Dokument, und was heute nur diese vier Reiter sind, kann morgen
+// eine Kachel woanders mitmeinen.
+function vaEcoKindLabels() {
+	return Object.assign(
+		vaDomLabels("#ecosystem-layer-switch [data-ecosystem-kind]", (tab) => tab.dataset.ecosystemKind),
+		vaDomLabels("#ecosystem-layer-switch [data-ecosystem-show-all]", () => "alle")
+	);
 }
 
 // 🔴 ZURUECKGEZOGENE Modi. Sie haben keine <option> mehr, tragen aber weiter Daten in der
@@ -523,6 +564,22 @@ function vaPrettyMapMode(slug, labels) {
 	return (labels || vaMapModeLabels())[key] || VA_ZURUECKGEZOGENE_MODI[key] || key;
 }
 
+// 💣 KEIN Blick in VA_ZURUECKGEZOGENE_MODI. Die Tabelle gehoert den ANSICHTEN: sie macht aus
+// `original` „Original (Ansicht bis 26.08.2026)", damit man die alte Ansicht vom gleichnamigen
+// Untergrund unterscheiden kann. Hier waere derselbe Griff genau verkehrt herum -- der Untergrund
+// „Original" heisst Original, und der Zusatz behauptete, es haette ihn seit dem 26.08.2026 nicht
+// mehr gegeben. Es ist dieselbe Verwechslung wie damals, nur in die andere Richtung.
+function vaPrettyMapStyle(slug, labels) {
+	const key = String(slug === null || slug === undefined ? "" : slug);
+	return (labels || vaMapStyleLabels())[key] || key;
+}
+
+// Wie oben: die Ansichts-Tabelle bleibt aussen vor. Zurueckgezogen ist hier bisher nichts.
+function vaPrettyEcoKind(slug, labels) {
+	const key = String(slug === null || slug === undefined ? "" : slug);
+	return (labels || vaEcoKindLabels())[key] || key;
+}
+
 function vaPrettyToggle(dimension) {
 	const parts = String(dimension || "").split(":");
 	const label = VA_TOGGLE_LABELS[parts[0]] || parts[0] || "";
@@ -531,8 +588,11 @@ function vaPrettyToggle(dimension) {
 	return label;
 }
 
-function vaMapDimensions(rows, mapper) {
-	return (rows || []).map((r) => ({ dimension: mapper(r.dimension), c: r.c }));
+// ⚠️ `labels` wird durchgereicht, damit der Ring das DOM EINMAL liest und nicht einmal je Scheibe.
+// Ohne den dritten Wert schlaegt jeder vaPretty* selbst nach -- das bleibt gueltig (vaPrettyToggle
+// kennt gar keine Beschriftungen aus dem DOM und nimmt ihn folgenlos entgegen).
+function vaMapDimensions(rows, mapper, labels) {
+	return (rows || []).map((r) => ({ dimension: mapper(r.dimension, labels), c: r.c }));
 }
 
 const VA_COUNTRY_LABELS = { AT: "Österreich", CH: "Schweiz", NL: "Niederlande", FR: "Frankreich", GB: "Großbritannien", US: "USA", IT: "Italien", ES: "Spanien", BE: "Belgien", PL: "Polen", CZ: "Tschechien", DK: "Dänemark", SE: "Schweden", NO: "Norwegen", FI: "Finnland", LU: "Luxemburg", LI: "Liechtenstein", PT: "Portugal", IE: "Irland", GR: "Griechenland", HU: "Ungarn", RO: "Rumänien", RU: "Russland", UA: "Ukraine", TR: "Türkei", CA: "Kanada", AU: "Australien", JP: "Japan", CN: "China", IN: "Indien", BR: "Brasilien", SK: "Slowakei", SI: "Slowenien", HR: "Kroatien", BG: "Bulgarien", RS: "Serbien", EE: "Estland", LV: "Lettland", LT: "Litauen" };
@@ -632,7 +692,15 @@ function renderVisitorDashboard(mount, data) {
 		+ `<div class="va-card"><div class="va-card__label">Herkunft</div><div id="visitor-geo-map"></div><div class="va-geo-legend"><span>wenige</span><span class="va-geo-scale"><i style="background:rgba(42,120,214,0.12)"></i><i style="background:rgba(42,120,214,0.38)"></i><i style="background:rgba(42,120,214,0.64)"></i><i style="background:rgba(42,120,214,0.9)"></i></span><span>viele Klicks</span></div><div class="va-geo-clabel">Andere Länder<span class="va-geo-key"><i style="background:#1baf7a"></i>echte<i style="background:#888780"></i>Bots</span></div><div id="visitor-geo-countries"></div></div>`
 		+ `<div class="va-card"><div class="va-card__label">Referrer</div>${vaBars(m.referrer, "#4a3aa7")}</div>`
 		+ `<div class="va-two"><div class="va-card"><div class="va-card__label">Geräte</div>${vaDonut(m.device, ["#2a78d6", "#1baf7a", "#eda100"])}</div>`
-		+ `<div class="va-card"><div class="va-card__label">Kartenansicht</div>${vaDonut(vaMapDimensions(m.map_mode, vaPrettyMapMode), ["#2a78d6", "#4a3aa7", "#eda100", "#888780"])}</div></div>`
+		+ `<div class="va-card"><div class="va-card__label">Kartenansicht</div>${vaDonut(vaMapDimensions(m.map_mode, vaPrettyMapMode, vaMapModeLabels()), ["#2a78d6", "#4a3aa7", "#eda100", "#888780"])}</div></div>`
+		// Untergrund und Landschaften-Ebene stehen NEBEN der Ansicht, nicht darin: seit dem 26.08.2026
+		// ist die Ansicht eine eigene Wahl neben dem Untergrund (AGENTS.md §11, „Der Kartenfaecher"),
+		// und die Ebene ist die dritte. ⚠️ Drei Ringe in einer Zeile waeren im Panel zu schmal --
+		// deshalb eine zweite .va-two-Zeile darunter, kein neues Raster.
+		// ⚠️ Die Farben sind die Palette DIESER Datei, keine neuen Hexwerte: alle fuenf stehen schon
+		// in den Ringen und Balken darueber. §12 erlaubt Blau, wo es DATEN kodiert und nicht Rahmenwerk.
+		+ `<div class="va-two"><div class="va-card"><div class="va-card__label">Untergrund</div>${vaDonut(vaMapDimensions(m.map_style, vaPrettyMapStyle, vaMapStyleLabels()), ["#2a78d6", "#eda100", "#888780"])}</div>`
+		+ `<div class="va-card"><div class="va-card__label">Landschaften-Ebene</div>${vaDonut(vaMapDimensions(m.eco_kind, vaPrettyEcoKind, vaEcoKindLabels()), ["#888780", "#1baf7a", "#4a3aa7", "#eda100", "#2a78d6"])}</div></div>`
 		+ `<div class="va-card"><div class="va-card__label">Beliebteste Routen</div>${vaBars(m.route, "#1baf7a")}</div>`
 		+ `<div class="va-card"><div class="va-card__label">Beliebte Orte</div>${vaBars(m.route_waypoint, "#1baf7a")}</div>`
 		+ `<div class="va-card"><div class="va-card__label">Letzte Aktivität</div>${vaFeed(data.activity)}</div>`

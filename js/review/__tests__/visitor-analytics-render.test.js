@@ -39,8 +39,35 @@ function extractConst(name) {
 	return match[0];
 }
 
-// vaEscape geht ueber das DOM. Der Stub kann genau das eine, was die Funktion braucht -- er ist
-// bewusst kein halbes DOM: was er nicht kann, soll auffallen, nicht durchrutschen.
+// Das Markup, aus dem die drei Ringe ihre Beschriftungen holen. Gelesen wird das ECHTE index.html,
+// nicht nachgebaute Knoepfe: genau daran haengt der Wert dieses Tests -- wird dort eine <option>
+// oder ein Reiter umbenannt, muss es hier auffallen.
+const optionenVon = (id) => {
+	const block = indexHtml.match(new RegExp('<select id="' + id + '"[\\s\\S]*?</select>'));
+	return ((block ? block[0] : "").match(/<option [^>]*>[^<]*<\/option>/g) || []).map((option) => ({
+		value: (option.match(/value="([^"]*)"/) || ["", ""])[1],
+		textContent: option.replace(/<[^>]*>/g, "").trim(),
+		dataset: {},
+	}));
+};
+const ebenenReiter = (() => {
+	const start = indexHtml.indexOf('<div id="ecosystem-layer-switch"');
+	const ende = start === -1 ? -1 : indexHtml.indexOf("</div>", start);
+	const block = start === -1 || ende === -1 ? "" : indexHtml.slice(start, ende);
+	return (block.match(/<button [^>]*class="ecosystem-layer-switch__tab"[^>]*>[^<]*<\/button>/g) || []).map((tab) => ({
+		value: "",
+		textContent: tab.replace(/<[^>]*>/g, "").trim(),
+		dataset: {
+			ecosystemKind: (tab.match(/data-ecosystem-kind="([^"]*)"/) || [])[1],
+			ecosystemShowAll: (tab.match(/data-ecosystem-show-all="([^"]*)"/) || [])[1],
+		},
+	}));
+})();
+
+// vaEscape geht ueber das DOM, die Beschriftungs-Leser gehen ueber querySelectorAll. Der Stub kann
+// genau das, was die Funktionen brauchen -- er ist bewusst kein halbes DOM: was er nicht kann, soll
+// auffallen, nicht durchrutschen. 🔴 Ein unbekannter Selektor WIRFT: ein stiller leerer Treffer
+// saehe aus wie „es gibt keine Beschriftungen", also wie ein bestandener Test ueber nichts.
 global.document = {
 	createElement() {
 		let value = "";
@@ -50,6 +77,17 @@ global.document = {
 				return value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 			},
 		};
+	},
+	querySelectorAll(selektor) {
+		if (selektor === "#mapLayerModeSelect option") { return optionenVon("mapLayerModeSelect"); }
+		if (selektor === "#mapStyleSelect option") { return optionenVon("mapStyleSelect"); }
+		if (selektor === "#ecosystem-layer-switch [data-ecosystem-kind]") {
+			return ebenenReiter.filter((tab) => tab.dataset.ecosystemKind);
+		}
+		if (selektor === "#ecosystem-layer-switch [data-ecosystem-show-all]") {
+			return ebenenReiter.filter((tab) => tab.dataset.ecosystemShowAll);
+		}
+		throw new Error("Der Stub kennt den Selektor nicht: " + selektor);
 	},
 };
 
@@ -69,8 +107,15 @@ eval([
 	extract("vaLocalHourShift"),
 	extract("vaHeatmapGrid"),
 	extract("vaHeatmap"),
+	extract("vaDonut"),
+	extract("vaDomLabels"),
+	extract("vaMapModeLabels"),
+	extract("vaMapStyleLabels"),
+	extract("vaEcoKindLabels"),
 	extractConst("VA_ZURUECKGEZOGENE_MODI"),
 	extract("vaPrettyMapMode"),
+	extract("vaPrettyMapStyle"),
+	extract("vaPrettyEcoKind"),
 ].join("\n"));
 
 let failed = 0;
@@ -189,7 +234,14 @@ check("keine rohe Farbe mehr in den Beschriftungen -- die stehen jetzt an Tokens
 check("💣 keine zweite Beschriftungstabelle im Dashboard",
 	src.indexOf("VA_MAP_MODE_LABELS") === -1);
 check("die Beschriftungen kommen aus dem <select>",
-	/querySelectorAll\(\s*["']#mapLayerModeSelect option["']\s*\)/.test(src));
+	/vaDomLabels\(\s*["']#mapLayerModeSelect option["']/.test(src));
+check("⭐ und zwar ueber EINEN Leser fuer alle drei Ringe -- drei abgeschriebene Fassungen waeren"
+	+ " die Doppelung, die dieses Projekt bei den Listenzeilen schon zweimal bezahlt hat",
+	countOf(src, "function vaDomLabels") === 1
+	&& ["vaMapModeLabels", "vaMapStyleLabels", "vaEcoKindLabels"].every((name) => {
+		const koerper = extract(name);
+		return koerper.indexOf("vaDomLabels(") !== -1 && koerper.indexOf("querySelectorAll") === -1;
+	}));
 
 const selectBlock = indexHtml.match(/<select id="mapLayerModeSelect"[\s\S]*?<\/select>/);
 check("#mapLayerModeSelect steht im selben Dokument wie das Dashboard", !!selectBlock);
@@ -212,6 +264,60 @@ check("⚠️ ein zurueckgezogener Modus faellt auf seinen Schluessel zurueck, s
 	vaPrettyMapMode("hexgrid", optionLabels) === "hexgrid");
 check("ein leerer Wert bleibt leer, statt „undefined\" zu drucken",
 	vaPrettyMapMode(null, optionLabels) === "" && vaPrettyMapMode(undefined, optionLabels) === "");
+
+// ---------------------------------------------------------------------------------------------
+// 4b. Der UNTERGRUND -- Modern / Original / Old, seit dem 26.08.2026 eine eigene Wahl neben der
+//     Ansicht (AGENTS.md §11, „Der Kartenfaecher").
+// ---------------------------------------------------------------------------------------------
+const stilLabels = vaMapStyleLabels();
+check("die Untergruende kommen aus #mapStyleSelect, nicht aus einer Tabelle hier",
+	stilLabels.stylized === "Modern" && stilLabels.original === "Original" && stilLabels.old === "Old");
+check("💣 der Untergrund „original\" heisst schlicht „Original\" -- er schaut NICHT in"
+	+ " VA_ZURUECKGEZOGENE_MODI. Die Tabelle gehoert den ANSICHTEN, und ihr Zusatz behauptete hier,"
+	+ " es haette den Untergrund ab dem 26.08.2026 nicht mehr gegeben",
+	vaPrettyMapStyle("original", stilLabels) === "Original"
+	&& extract("vaPrettyMapStyle").indexOf("VA_ZURUECKGEZOGENE_MODI") === -1);
+check("⚠️ ein unbekannter Untergrund faellt auf seinen Schluessel zurueck, statt geraten zu werden",
+	vaPrettyMapStyle("sepia", stilLabels) === "sepia");
+
+// ---------------------------------------------------------------------------------------------
+// 4c. Die LANDSCHAFTEN-EBENE. 💣 „Alle" traegt bewusst kein data-ecosystem-kind (es ist ein
+//     Anzeige-Flag neben der Ebene, kein fuenfter Wert von ihr) -- fuer die Statistik ist es
+//     trotzdem eine echte Wahl und braucht deshalb seine eigene Beschriftung.
+// ---------------------------------------------------------------------------------------------
+const ebenenLabels = vaEcoKindLabels();
+check("alle VIER Ebenen sind aus dem Reiterbund zu holen",
+	ebenenLabels.derographisch === "Derographie" && ebenenLabels.vegetation === "Vegetation"
+	&& ebenenLabels.topographie === "Topographie" && ebenenLabels.klima === "Klimazonen");
+check("💣 und „alle\" dazu -- der Reiter traegt kein data-ecosystem-kind und faele sonst heraus",
+	vaPrettyEcoKind("alle", ebenenLabels) === "Alle");
+check("💣 „klima\" heisst Klimazonen, nicht klima", vaPrettyEcoKind("klima", ebenenLabels) === "Klimazonen");
+check("⚠️ eine unbekannte Ebene faellt auf ihren Schluessel zurueck",
+	vaPrettyEcoKind("boden", ebenenLabels) === "boden");
+check("💣 auch die Ebene schaut nicht in die Ansichts-Tabelle",
+	extract("vaPrettyEcoKind").indexOf("VA_ZURUECKGEZOGENE_MODI") === -1);
+
+// ---------------------------------------------------------------------------------------------
+// 4d. Beide neuen Ringe starten LEER -- gezaehlt wird erst ab dem Tag, an dem sie live gehen.
+//     💣 vaDonut zeichnete bei leeren Daten einen unsichtbaren Ring ohne ein Wort dazu: ein weisser
+//     Kasten, den niemand von einem kaputten Bauteil unterscheiden kann. Die Balkenlisten daneben
+//     sagen seit jeher „noch keine Daten".
+// ---------------------------------------------------------------------------------------------
+check("ein leerer Ring sagt, dass er leer ist", vaDonut([], ["#2a78d6"]).indexOf("noch keine Daten") !== -1);
+check("ein gefuellter Ring zeichnet weiterhin seine Scheiben",
+	vaDonut([{ dimension: "Modern", c: 3 }, { dimension: "Original", c: 1 }], ["#2a78d6", "#eda100"])
+		.indexOf("Modern 75%") !== -1);
+
+// ---------------------------------------------------------------------------------------------
+// 4e. Die Verdrahtung im Bild. Ein Ring, den niemand zeichnet, ist kein Ring.
+// ---------------------------------------------------------------------------------------------
+check("der Untergrund-Ring steht im Bild und liest m.map_style",
+	/va-card__label">Untergrund<[\s\S]{0,200}?vaMapDimensions\(m\.map_style, vaPrettyMapStyle/.test(src));
+check("der Ebenen-Ring steht im Bild und liest m.eco_kind",
+	/va-card__label">Landschaften-Ebene<[\s\S]{0,200}?vaMapDimensions\(m\.eco_kind, vaPrettyEcoKind/.test(src));
+check("⚠️ die beiden neuen stehen in einer ZWEITEN .va-two-Zeile -- drei Ringe nebeneinander waeren"
+	+ " im Panel zu schmal, und ein neues Raster braucht es dafuer nicht",
+	countOf(src, 'class="va-two"') === 2);
 
 // ---- Die seitliche Kante des Reiters „Status" -------------------------------------------------
 // 🔴 10px ist die HAUSNUMMER des Editorpanels (`.wiki-sync-panel__tabs { margin: 10px 10px 8px }`,

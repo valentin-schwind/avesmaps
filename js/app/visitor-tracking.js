@@ -70,6 +70,47 @@ function installVisitorTrackingHooks() {
 		jq("#mapLayerModeSelect").on("change", function () {
 			trackVisitorEvent("map_mode", String(jq(this).val() || ""));
 		});
+		// Der UNTERGRUND -- Modern / Original / Old. Seit dem 26.08.2026 eine eigene Wahl NEBEN der
+		// Ansicht (AGENTS.md §11, „Der Kartenfaecher"); bis dahin gab es ihn als Wahl gar nicht --
+		// „Original" war eine ANSICHT und kam ueber #mapLayerModeSelect herein. Gezaehlt hat ihn nie
+		// jemand, die Ansichts-Statistik hat ihn also mit dem 26.08.2026 einfach verloren.
+		// ⚠️ Der Kartenfaecher setzt den Wert und schickt ein natives, blubberndes `change`
+		// (waehleGrund in js/ui/map-layer-picker.js) -- der jQuery-Haken faengt beides, natives und
+		// jQuery-getriggertes. setMapStyle dagegen schreibt `.value` OHNE Ereignis; ein
+		// Wiederherstellen aus `?mapstyle=` oder aus dem Speicher zaehlt damit nicht mit, und das ist
+		// gewollt: gezaehlt wird das UMSCHALTEN, nicht der Startzustand -- genau wie eine Zeile hoeher.
+		jq("#mapStyleSelect").on("change", function () {
+			trackVisitorEvent("map_style", String(jq(this).val() || ""));
+		});
+		// Die LANDSCHAFTEN-EBENE -- Alle / Derographie / Vegetation / Topographie / Klimazonen. Sie
+		// gehoert jedem, der die Landschaften ansieht, nicht nur dem Editor (Owner 2026-08-04).
+		// 💣 Der Reiterbund kennt kein `change`, er ist eine Reihe <button>. Gelesen wird deshalb wie
+		// bei den Ortsklassen unten der RESULTIERENDE Zustand im naechsten Tick, und zwar aus dem DOM
+		// (`.is-active`, gesetzt von syncEcosystemLayerSwitchControls) statt aus fremden Funktionen.
+		// 💣 NUR BEI AENDERUNG. Ein zweiter Klick auf die schon aktive Kachel und jeder Pfeiltastendruck
+		// im Bund feuern sonst mit und blaehen genau die Scheibe auf, die ohnehin vorne liegt.
+		// ⚠️ `keydown` gehoert dazu: der Bund ist ein Tablist mit Pfeiltasten-Navigation
+		// (handleEcosystemLayerSwitchKeydown), ohne ihn zaehlte nur die Maus.
+		// ⚠️ Der Selektor bleibt INNERHALB des Bundes: syncEcosystemLayerSwitchControls stempelt jedes
+		// [data-ecosystem-kind] im GANZEN Dokument, eine Kachel woanders traegt also dieselbe Klasse.
+		let letzteEbene = "";
+		jq("#ecosystem-layer-switch").on("click keydown", function () {
+			window.setTimeout(function () {
+				const reiter = document.querySelector("#ecosystem-layer-switch .ecosystem-layer-switch__tab.is-active");
+				if (!reiter) {
+					return;
+				}
+				// „Alle" traegt BEWUSST kein data-ecosystem-kind (index.html): es ist ein Anzeige-Flag
+				// neben der Ebene, kein fuenfter Wert von ihr. Fuer die Statistik ist es trotzdem eine
+				// echte Wahl -- liesse man sie weg, waeren die Prozente der uebrigen vier falsch.
+				const ebene = reiter.dataset.ecosystemShowAll ? "alle" : String(reiter.dataset.ecosystemKind || "");
+				if (ebene === "" || ebene === letzteEbene) {
+					return;
+				}
+				letzteEbene = ebene;
+				trackVisitorEvent("eco_kind", ebene);
+			}, 0);
+		});
 		// ⚠️ This file sat on the server in its OLD form on 2026-08-12 (after five failed deploys),
 		// so the tracking really did stop counting for a while — the very failure the comment below
 		// describes. Only a content change heals a poisoned asset stamp.

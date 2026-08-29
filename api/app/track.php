@@ -49,7 +49,7 @@ try {
         avesmapsVisitorIncrement($pdo, $actorType, 'region', $geo['region']);
     }
 
-    $allowed = ['pageview', 'map_load', 'search', 'route', 'route_waypoint', 'transport', 'route_option', 'map_mode', 'display_toggle'];
+    $allowed = ['pageview', 'map_load', 'search', 'route', 'route_waypoint', 'transport', 'route_option', 'map_mode', 'map_style', 'eco_kind', 'display_toggle'];
     $hourly = ['pageview', 'map_load'];
     foreach (array_slice($events, 0, 100) as $event) {
         if (!is_array($event)) {

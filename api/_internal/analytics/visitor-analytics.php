@@ -374,6 +374,12 @@ function avesmapsVisitorReadMetrics(PDO $pdo, string $actorType, int $days): arr
         'referrer' => $top('referrer', 1),
         'device' => $top('device', 1),
         'map_mode' => $top('map_mode', 1),
+        // Der Untergrund und die Landschaften-Ebene stehen NEBEN der Ansicht, nicht darin: seit dem
+        // 26.08.2026 ist „Original" keine Ansicht mehr, sondern ein Untergrund (AGENTS.md §11,
+        // „Der Kartenfaecher"). Gezaehlt werden beide erst seit dem 29.08.2026 -- rueckwirkend gibt
+        // es dazu nichts, und ein leerer Ring ist hier die Wahrheit, kein Fehler.
+        'map_style' => $top('map_style', 1),
+        'eco_kind' => $top('eco_kind', 1),
         'route' => $top('route', 3),
         'route_waypoint' => $top('route_waypoint', 3),
         'transport' => $top('transport', 1),
