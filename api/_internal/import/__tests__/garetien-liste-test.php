@@ -99,21 +99,21 @@ $pruefungen += 3;
 
 // --- 🔴 Owner-Meldung 29.08.2026: der Filter-Trichter soll Typen, aus denen ohnehin nichts zu
 // holen ist, blasser darstellen -- servergeliefert, ohne die zwei Listen im Browser nachzubauen.
-// Die Fixture traegt bereits eine Zeile spaeterer Stufe (die Insel auf der Kosch-Gewaesserseite).
 // 🪤 Vakuum-Zusicherung vermeiden: importierbare Typen muessen eine LEERE, aber VORHANDENE
 // Kategorie tragen -- ein fehlender Schluessel saehe im ?? -Rueckfall genauso aus wie eine
 // leere Kategorie und bewiese damit nichts.
-assert(array_key_exists('Insel', $liste['facetten']['typ_kategorie']),
-    'die Insel muss ueberhaupt in der Kategorie-Facette stehen');
-assert($liste['facetten']['typ_kategorie']['Insel'] === 'spaetere_stufe',
-    'Insel gehoert zu einer spaeteren Stufe: ' . $liste['facetten']['typ_kategorie']['Insel']);
+// 🔴 Die Insel ist seit der vollstaendigen Zuordnung (Aufgabe 12, Waelder) KEIN Beispiel fuer
+// "uebersprungen" mehr -- sie ist jetzt `topographie/insel` und liefert etwas, wie Bach/Fluss.
+// Die Gegenprobe gegen einen WIRKLICH uebersprungenen Typ folgt weiter unten, GANZ AM ENDE der
+// Datei (derselbe Grund wie beim Kraehensee-Block dort: ein neues Objekt an dieser Stelle liesse
+// die Vorher/Nachher-Vergleiche der folgenden Abschnitte falsch anschlagen).
 assert(array_key_exists('Bach', $liste['facetten']['typ_kategorie'])
     && $liste['facetten']['typ_kategorie']['Bach'] === '',
     'ein importierbarer Typ traegt eine LEERE Kategorie, keine fehlende');
 assert(array_key_exists('Fluss', $liste['facetten']['typ_kategorie'])
     && $liste['facetten']['typ_kategorie']['Fluss'] === '',
     'und ein zweiter importierbarer Typ, gegen Zufallsgleichheit');
-$pruefungen += 4;
+$pruefungen += 2;
 
 // ⚠️ Die Facetten zaehlen den LAUF, nicht die gefilterte Sicht -- sonst faellt beim ersten Klick
 // jeder andere Wert auf 0 und der Trichter laesst sich nicht mehr oeffnen.
@@ -425,5 +425,37 @@ assert(($nachName['Llavari']['kind'] ?? '(fehlt ganz)') === '',
     'ein Objekt ohne Item muss `kind` als leeren String tragen, nicht fehlen lassen: '
     . json_encode($nachName['Llavari']['kind'] ?? '(fehlt ganz)'));
 $pruefungen++;
+
+// ---------------------------------------------------------------------------------------------
+// Owner-Meldung 29.08.2026, Nachtrag zu Aufgabe 11: `facetten.typ_kategorie` muss einen WIRKLICH
+// uebersprungenen Typ als solchen zeigen. Die Insel (weiter oben) ist seit der vollstaendigen
+// Zuordnung (Aufgabe 12, Waelder/Gelaendeformen) kein Beispiel mehr -- eingesetzt wird deshalb ein
+// Typ, der es (Stand 29.08.2026) noch ist: 'Stadtviertel' steht explizit in
+// AVESMAPS_GARETIEN_OHNE_GEGENSTUECK. Die vormals dritte Kategorie 'spaetere_stufe' gibt es nicht
+// mehr (siehe garetien-abgleich.php) -- 'ohne_gegenstueck' und 'unbekannt' sind die einzigen zwei.
+//
+// ⚠️ Auch DIESER Block steht bewusst GANZ AM ENDE, aus demselben Grund wie der Kraehensee-Block
+// oben: ein weiteres Objekt an frueherer Stelle liesse die Vorher/Nachher-Vergleiche der
+// vorangehenden Abschnitte falsch anschlagen.
+$stadtviertelZeile = [
+    'run_id' => 1, 'wiki' => 'ggp', 'ebene' => 'Ortschaften_1', 'zeile_nr' => 902,
+    'typ' => 'Stadtviertel', 'namensraum' => 'Garetien', 'artikel' => 'Nordend', 'anzeige' => 'Nordend',
+    'lodmin' => '4', 'lodmax' => '14', 'extra' => '', 'geo_art' => 'koordinaten',
+    'geo' => '5000 5000', 'roh' => '', 'urteil' => 'uebersprungen',
+    'grund' => 'Typ "Stadtviertel" hat bei uns kein Gegenstueck',
+];
+$stadtviertelSpalten = implode(', ', array_keys($stadtviertelZeile));
+$stadtviertelPlatz = ':' . implode(', :', array_keys($stadtviertelZeile));
+$pdo->prepare("INSERT INTO garetien_import_row ({$stadtviertelSpalten}) VALUES ({$stadtviertelPlatz})")
+    ->execute($stadtviertelZeile);
+
+$mitStadtviertel = avesmapsGaretienArbeitsliste($pdo, 1, []);
+// 🪤 Vakuum-Zusicherung vermeiden: der Schluessel muss VORHANDEN sein (nicht nur der `??`-Rueckfall
+// zufaellig denselben Wert liefern) -- deshalb erst `array_key_exists`, dann der Wert.
+assert(array_key_exists('Stadtviertel', $mitStadtviertel['facetten']['typ_kategorie']),
+    'ein uebersprungener Typ muss ueberhaupt in der Kategorie-Facette stehen');
+assert($mitStadtviertel['facetten']['typ_kategorie']['Stadtviertel'] === 'ohne_gegenstueck',
+    'Stadtviertel hat bei uns kein Gegenstueck: ' . $mitStadtviertel['facetten']['typ_kategorie']['Stadtviertel']);
+$pruefungen += 2;
 
 echo "OK: {$pruefungen} Pruefungen\n";

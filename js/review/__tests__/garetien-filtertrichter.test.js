@@ -92,15 +92,18 @@ mod.garetienFilterState.typ.clear();
 // ---- Blasse Optionen: was der Server als "liefert nichts" markiert, wird gedaempft ------------
 //
 // Owner-Meldung 29.08.2026: Typen, aus denen wir ohnehin nichts holen ("BurgKlein" -- Entscheidung
-// "raus damit, das passt") und Typen ohne Zuordnung (unerledigte Arbeit), werden im Filter-Trichter
-// blasser dargestellt, damit ein Editor sieht, dass er dort nichts findet. Die Auskunft kommt VOM
-// SERVER (facetten.typ_kategorie aus garetien-liste.php) -- die zwei serverseitigen Listen
-// (AVESMAPS_GARETIEN_OHNE_GEGENSTUECK / _SPAETERE_STUFEN) und die 'Klein'-Regel werden hier NICHT
-// nachgebaut.
+// "raus damit, das passt") und Typen ohne Zuordnung ("GrafschaftsflaecheA" -- wir kennen ihre
+// Rohdaten-Typnamen nicht, keine Entscheidung), werden im Filter-Trichter blasser dargestellt,
+// damit ein Editor sieht, dass er dort nichts findet. Die Auskunft kommt VOM SERVER
+// (facetten.typ_kategorie aus garetien-liste.php) -- die serverseitige Liste
+// (AVESMAPS_GARETIEN_OHNE_GEGENSTUECK) und die 'Klein'-Regel werden hier NICHT nachgebaut.
+// 🔴 Bis zum 29.08.2026 war Insel (spaetere Stufe) das Beispiel fuer die zweite Kategorie -- seit
+// die Mapping-Tabelle vollstaendig ist, liefert Insel etwas, und die Kategorie 'spaetere_stufe'
+// selbst ist entfernt (garetien-abgleich.php). 'unbekannt' ist seither der einzige Auffangfall.
 const facettenMitKategorie = {
 	ebene: { Gewaesser: 289 },
-	typ: { Bach: 143, See: 96, BurgKlein: 5, Insel: 1 },
-	typ_kategorie: { Bach: "", See: "", BurgKlein: "ohne_gegenstueck", Insel: "spaetere_stufe" },
+	typ: { Bach: 143, See: 96, BurgKlein: 5, GrafschaftsflaecheA: 1 },
+	typ_kategorie: { Bach: "", See: "", BurgKlein: "ohne_gegenstueck", GrafschaftsflaecheA: "unbekannt" },
 	urteil: { neu: 199 },
 	wiki: { ggp: 246 },
 };
@@ -108,7 +111,7 @@ const typOptionenMitKategorie = mod.garetienFacettenOptionen(facettenMitKategori
 const bachMitKategorie = typOptionenMitKategorie.find((o) => o.value === "Bach");
 const seeMitKategorie = typOptionenMitKategorie.find((o) => o.value === "See");
 const burgKlein = typOptionenMitKategorie.find((o) => o.value === "BurgKlein");
-const insel = typOptionenMitKategorie.find((o) => o.value === "Insel");
+const grafschaftsflaeche = typOptionenMitKategorie.find((o) => o.value === "GrafschaftsflaecheA");
 
 // 🪤 Vakuum-Zusicherung vermeiden: es zaehlt die DIFFERENZ. Zwei importierbare Typen (gegen
 // Zufallsgleichheit) tragen KEIN `muted`, zwei uebersprungene tragen es -- eines davon (BurgKlein)
@@ -116,13 +119,14 @@ const insel = typOptionenMitKategorie.find((o) => o.value === "Insel");
 wahr(!bachMitKategorie.muted, "Bach liefert etwas -- kein `muted`");
 wahr(!seeMitKategorie.muted, "See liefert etwas -- kein `muted`, gegen Zufallsgleichheit mit Bach");
 wahr(burgKlein.muted === true, "BurgKlein liefert nichts -- `muted` muss gesetzt sein");
-wahr(insel.muted === true, "Insel (spaetere Stufe) liefert (noch) nichts -- `muted` muss gesetzt sein");
+wahr(grafschaftsflaeche.muted === true, "GrafschaftsflaecheA (unbekannt) liefert nichts -- `muted` muss gesetzt sein");
 
-// Zwei GRUENDE, zwei verschiedene Erklaerungen -- "raus damit" (Entscheidung) und "noch keine
-// Zuordnung" (offene Arbeit) duerfen nicht im selben Topf landen.
+// Zwei KATEGORIEN, zwei verschiedene Erklaerungen -- "raus damit" (Entscheidung) und "keine
+// Zuordnung" (unbekannter Typ) duerfen nicht im selben Topf landen.
 wahr(typeof burgKlein.title === "string" && burgKlein.title !== "", "eine blasse Option braucht eine Erklaerung");
-wahr(typeof insel.title === "string" && insel.title !== "", "auch die zweite blasse Option braucht eine Erklaerung");
-wahr(burgKlein.title !== insel.title, "die zwei Gruende duerfen nicht dieselbe Erklaerung tragen");
+wahr(typeof grafschaftsflaeche.title === "string" && grafschaftsflaeche.title !== "",
+	"auch die zweite blasse Option braucht eine Erklaerung");
+wahr(burgKlein.title !== grafschaftsflaeche.title, "die zwei Kategorien duerfen nicht dieselbe Erklaerung tragen");
 
 // Die Zahl in Klammern bleibt, wie sie ist -- unabhaengig von `muted`.
 gleich(burgKlein.count, 5, "die Zahl neben einer blassen Option bleibt unangetastet");
@@ -180,14 +184,16 @@ assert.ok(!/Math\.sqrt|Math\.hypot/.test(quelle),
 checks++;
 
 // 🔴 Owner-Meldung 29.08.2026: DER SERVER ist die einzige Wahrheit darueber, welcher Objekttyp
-// nichts liefert -- ein Nachbau der zwei Listen (AVESMAPS_GARETIEN_OHNE_GEGENSTUECK,
-// AVESMAPS_GARETIEN_SPAETERE_STUFEN) oder der 'Klein'-Regel im Browser waere die zweite Wahrheit,
-// vor der AGENTS.md §5 warnt -- und zementierte genau den Fehler, den es zu vermeiden gilt.
+// nichts liefert -- ein Nachbau der Liste (AVESMAPS_GARETIEN_OHNE_GEGENSTUECK) oder der
+// 'Klein'-Regel im Browser waere die zweite Wahrheit, vor der AGENTS.md §5 warnt -- und
+// zementierte genau den Fehler, den es zu vermeiden gilt. AVESMAPS_GARETIEN_SPAETERE_STUFEN bleibt
+// im Muster stehen, obwohl sie serverseitig entfernt wurde (garetien-abgleich.php, Nachtrag
+// 29.08.2026): sie darf auch als toter Name nicht wieder im Browser auftauchen.
 assert.ok(!/endsWith\(\s*["']Klein["']\s*\)/.test(quelle),
 	"die 'Klein'-Regel gehoert dem Server (garetien-abgleich.php), nicht dem Browser");
 checks++;
 assert.ok(!/AVESMAPS_GARETIEN_OHNE_GEGENSTUECK|AVESMAPS_GARETIEN_SPAETERE_STUFEN/.test(quelle),
-	"die zwei serverseitigen Listen duerfen im Browser nicht unter ihrem eigenen Namen auftauchen");
+	"die serverseitige(n) Liste(n) duerfen im Browser nicht unter ihrem eigenen Namen auftauchen");
 checks++;
 
 // Direkt zaehlen statt mustern: `fetch\(\s*["'][^"']*\.php` matcht in der echten Datei NICHTS,

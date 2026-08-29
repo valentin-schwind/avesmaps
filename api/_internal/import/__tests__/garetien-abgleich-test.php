@@ -120,13 +120,15 @@ $pruefungen += 7 + 9;
 assert(avesmapsGaretienMappeTyp('GrafschaftsflaecheA') === null, 'Territorien sind nicht Teil dieses Imports');
 $pruefungen++;
 
-// --- 🔴 UND WAS WIR KENNEN, ABER (NOCH) NICHT ANSCHLIESSEN, WIRD MIT GRUND UEBERSPRUNGEN, nicht
-// stillschweigend. Politische Flaechen sind heute der einzige Fall, und ihre genauen
-// Rohdaten-Typnamen sind ungemessen -- AVESMAPS_GARETIEN_SPAETERE_STUFEN ist deshalb LEER, ein
-// Typ wie 'GrafschaftsflaecheA' faellt auf die dritte, ehrliche Kategorie zurueck.
-assert(AVESMAPS_GARETIEN_SPAETERE_STUFEN === [], 'heute ist jeder frueher vorgemerkte Typ zugeordnet');
+// --- 🔴 UND WAS WIR KENNEN, ABER (NOCH) NICHT ANSCHLIESSEN, FAELLT AUF 'unbekannt' ZURUECK, nicht
+// stillschweigend durch. Politische Flaechen sind heute der einzige Fall; ihre genauen
+// Rohdaten-Typnamen sind ungemessen, eine geratene Schreibweise waere schlimmer als die ehrliche
+// Kategorie. 🔴 Es gibt keine dritte Kategorie mehr -- `AVESMAPS_GARETIEN_SPAETERE_STUFEN` und
+// 'spaetere_stufe' wurden entfernt (leerer toter Code, seit die Zuordnung vollstaendig ist), nicht
+// nur geleert. `avesmapsGaretienTypKategorie()` kennt seither ausschliesslich 'ohne_gegenstueck'
+// und 'unbekannt' (plus '' fuer "liefert etwas").
 assert(avesmapsGaretienTypKategorie('GrafschaftsflaecheA') === 'unbekannt',
-    'Territorien sind weder zugeordnet noch (mangels bekannter Typnamen) vorgemerkt');
+    'Territorien sind nicht zugeordnet (mangels bekannter Typnamen)');
 assert(avesmapsGaretienTypKategorie('Xyz-Voellig-Unbekannt') === 'unbekannt',
     'und ein voellig unbekannter Typ landet in derselben Kategorie');
 $pruefungen += 2;

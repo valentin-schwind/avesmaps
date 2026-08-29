@@ -1065,14 +1065,17 @@
 
 	// Owner-Meldung 29.08.2026: Typen, aus denen wir ohnehin nichts holen (Beispiel "BurgKlein" --
 	// Entscheidung "raus damit"), werden im Filter-Trichter blasser dargestellt, damit ein Editor
-	// sieht, dass er dort nichts findet. ZWEI Gruende, servergeliefert aus derselben Tabelle wie
+	// sieht, dass er dort nichts findet. ZWEI Kategorien, servergeliefert aus derselben Stelle wie
 	// der Zeilen-Riegel (avesmapsGaretienTypKategorie in api/_internal/import/garetien-abgleich.php,
-	// als facetten.typ_kategorie in garetien-liste.php) -- der Browser baut die zwei Listen
-	// (AVESMAPS_GARETIEN_OHNE_GEGENSTUECK / _SPAETERE_STUFEN) NICHT nach (AGENTS.md §5).
+	// als facetten.typ_kategorie in garetien-liste.php) -- der Browser baut die Liste
+	// (AVESMAPS_GARETIEN_OHNE_GEGENSTUECK) NICHT nach (AGENTS.md §5).
+	// 🔴 Bis zum 29.08.2026 gab es eine dritte, 'spaetere_stufe' -- ENTFERNT, seit die Mapping-
+	// Tabelle vollstaendig ist (Owner: „Stufen werden weder erklaert noch will ich, dass sie
+	// verhindern, dass ich objekte importieren kann"). 'unbekannt' ist seither der einzige
+	// Auffangfall und bekommt eine Erklaerung, die auch WAHR bleibt, wenn die Zuordnung waechst.
 	const AVESMAPS_GARETIEN_TYP_KATEGORIE_TITEL = {
 		ohne_gegenstueck: "Kein Gegenstück bei uns -- wird nicht importiert",
-		spaetere_stufe: "Noch keine Zuordnung bei uns -- kommt erst in einer späteren Stufe",
-		unbekannt: "Unbekannter Typ -- wird nicht importiert",
+		unbekannt: "Für diesen Typ gibt es bei uns noch keine Zuordnung",
 	};
 
 	// REIN: aus den servergelieferten Facetten (Aufgabe 8, VOR dem Filtern gezaehlt) eine

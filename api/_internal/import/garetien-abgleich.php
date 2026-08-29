@@ -110,25 +110,20 @@ const AVESMAPS_GARETIEN_TYP_MAP = [
     // fallen deshalb weiterhin unter avesmapsGaretienTypKategorie() === 'unbekannt'.
 ];
 
-/**
- * Typen, die wir kennen und bewusst (noch) nicht anschliessen -- UNERLEDIGTE ARBEIT, keine
- * Entscheidung wie bei AVESMAPS_GARETIEN_OHNE_GEGENSTUECK.
- *
- * 🔴 Owner 29.08.2026: „Stufen werden weder erklaert noch will ich, dass sie verhindern, dass ich
- * objekte importieren kann." Alle Typen, die hier bis zum 29.08.2026 mit einer Stufennummer
- * standen (Wege, Waelder, Berge, Ortschaften), sind jetzt in AVESMAPS_GARETIEN_TYP_MAP
- * eingetragen -- diese Liste ist deshalb LEER, nicht abgeschafft.
- *
- * ⚠️ SIE BLEIBT BESTEHEN, weil avesmapsGaretienTypKategorie() (unten) ihre dritte Kategorie
- * ('spaetere_stufe') an sie bindet, und diese Funktion ist die EINE Stelle, die auch der
- * Filter-Trichter des Fensters liest (garetien-liste.php). Politische Flaechen
- * (Grafschafts-/Baronie-/Junkertumsflaeche[A-E], Entwurf §3.5) sind bewusst NICHT eingetragen: wir
- * kennen ihre genauen Typnamen aus den Rohdaten nicht (ungemessen), eine geratene Schreibweise
- * waere schlimmer als die ehrliche Kategorie 'unbekannt'.
- */
-const AVESMAPS_GARETIEN_SPAETERE_STUFEN = [];
+// 🔴 Owner 29.08.2026: „Stufen werden weder erklaert noch will ich, dass sie verhindern, dass ich
+// objekte importieren kann." Bis zum 29.08.2026 stand hier `AVESMAPS_GARETIEN_SPAETERE_STUFEN` --
+// eine dritte Kategorie 'spaetere_stufe' fuer Typen, die wir kennen, aber (noch) nicht anschliessen.
+// Mit der vollstaendigen Zuordnung oben (Wege, Waelder, Berge, Ortschaften) wurde diese Liste LEER
+// und die Kategorie damit UNERREICHBAR TOTER CODE -- eine leere Konstante mit einem beruhigenden
+// Kommentar ist in diesem Projekt eine bekannte Falle (eine Zahl/ein Zustand im Kommentar liest
+// sich wie eine gepflegte, vollstaendige Aussage, und niemand prueft nach). ENTFERNT, nicht nur
+// geleert: `avesmapsGaretienTypKategorie()` kennt seither nur noch ZWEI Kategorien.
+// Politische Flaechen (Grafschafts-/Baronie-/Junkertumsflaeche[A-E], Entwurf §3.5) -- der einzige
+// heute bekannte Fall "wir kennen den Typ, schliessen ihn aber nicht an" -- fallen jetzt unter
+// 'unbekannt': wir kennen ihre genauen Rohdaten-Typnamen nicht (ungemessen), eine geratene
+// Schreibweise waere schlimmer als die ehrliche Kategorie.
 
-/** Typen ohne jedes Gegenstueck -- die kommen nie, in keiner Stufe (Entwurf §3.6). */
+/** Typen ohne jedes Gegenstueck -- die kommen nie (Entwurf §3.6). */
 const AVESMAPS_GARETIEN_OHNE_GEGENSTUECK = ['Stadtviertel', 'Kontinent', 'Platz'];
 
 /**
@@ -186,26 +181,28 @@ function avesmapsGaretienLiegtAufDerKarte(array $punkte): bool
  *
  * 🔴 DIE EINE STELLE fuer die Typ-Frage: `avesmapsGaretienUeberspringGrund` (unten) UND der
  * Filter-Trichter des Fensters (garetien-liste.php baut daraus `facetten.typ_kategorie`, Owner-
- * Meldung 29.08.2026) lesen GENAU DIESE Funktion. Ein Nachbau der zwei Listen
- * (AVESMAPS_GARETIEN_OHNE_GEGENSTUECK / _SPAETERE_STUFEN) oder der 'Klein'-Regel an einer zweiten
- * Stelle waere die zweite Wahrheit, vor der AGENTS.md §5 warnt.
+ * Meldung 29.08.2026) lesen GENAU DIESE Funktion. Ein Nachbau der Liste
+ * (AVESMAPS_GARETIEN_OHNE_GEGENSTUECK) oder der 'Klein'-Regel an einer zweiten Stelle waere die
+ * zweite Wahrheit, vor der AGENTS.md §5 warnt.
  *
- * 🔴 ZWEI Gruende, und sie sind verschieden: 'ohne_gegenstueck' ist eine ENTSCHEIDUNG ("raus
- * damit", Owner 29.08.2026 -- Beispiel BurgKlein), 'spaetere_stufe' ist UNERLEDIGTE ARBEIT.
- * 'unbekannt' ist der dritte, seltene Fall (weder zugeordnet noch als spaetere Stufe vermerkt).
+ * 🔴 ZWEI Kategorien, nicht drei: 'ohne_gegenstueck' ist eine ENTSCHEIDUNG ("raus damit", Owner
+ * 29.08.2026 -- Beispiel BurgKlein), 'unbekannt' ist der Auffangfall fuer alles andere, das nicht
+ * in AVESMAPS_GARETIEN_TYP_MAP steht. Bis zum 29.08.2026 gab es eine dritte, 'spaetere_stufe' --
+ * ENTFERNT, seit die Zuordnung vollstaendig ist und ihre Liste (AVESMAPS_GARETIEN_SPAETERE_STUFEN)
+ * leer wurde: der Owner wollte ausdruecklich keinen Begriff im Code, der zum erneuten Befuellen
+ * einlaedt ("Stufen werden weder erklaert noch will ich, dass sie verhindern, dass ich objekte
+ * importieren kann"). 'unbekannt' war genau dafuer schon da (bewusst vorsorglich gebaut) und ist
+ * jetzt der einzige Auffangfall.
  *
- * @return 'ohne_gegenstueck'|'spaetere_stufe'|'unbekannt'|'' ('' = der Typ liefert etwas)
+ * @return 'ohne_gegenstueck'|'unbekannt'|'' ('' = der Typ liefert etwas)
  */
 function avesmapsGaretienTypKategorie(string $typ): string
 {
     if (in_array($typ, AVESMAPS_GARETIEN_OHNE_GEGENSTUECK, true) || str_ends_with($typ, 'Klein')) {
         return 'ohne_gegenstueck';
     }
-    if (avesmapsGaretienMappeTyp($typ) !== null) {
-        return '';
-    }
 
-    return in_array($typ, AVESMAPS_GARETIEN_SPAETERE_STUFEN, true) ? 'spaetere_stufe' : 'unbekannt';
+    return avesmapsGaretienMappeTyp($typ) !== null ? '' : 'unbekannt';
 }
 
 /**
@@ -241,14 +238,11 @@ function avesmapsGaretienUeberspringGrund(array $zeile): ?string
     }
 
     // 🔴 Owner 29.08.2026: „Stufen werden weder erklaert noch will ich, dass sie verhindern, dass
-    // ich objekte importieren kann." Keine der drei Meldungen nennt eine Stufe oder eine Zahl --
+    // ich objekte importieren kann." Keine der beiden Meldungen nennt eine Stufe oder eine Zahl --
     // ein Editor liest, WAS fehlt, nicht WANN es angeblich kommt.
     $typKategorie = avesmapsGaretienTypKategorie($typ);
     if ($typKategorie === 'ohne_gegenstueck') {
         return 'Typ "' . $typ . '" hat bei uns kein Gegenstueck';
-    }
-    if ($typKategorie === 'spaetere_stufe') {
-        return 'Fuer "' . $typ . '" gibt es bei uns noch kein Gegenstueck';
     }
     if ($typKategorie === 'unbekannt') {
         return 'Typ "' . $typ . '" ist unbekannt -- weder zugeordnet noch vorgemerkt';
