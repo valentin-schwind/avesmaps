@@ -123,3 +123,46 @@
 		border-radius: 0;
 	}
 }
+
+/* ── Der durchsichtige Editor: die Karte bleibt sichtbar UND bedienbar ──────────────────────────
+   🔴 Owner 29.08.2026 fuer den Kraftlinien-Editor: „der hintergrund darf beim oeffnen der
+   kraftlinien nicht unscharf werden" und „der editor muss zur seite geschoben werden koennen".
+   Der Grund ist die Kurvenform: man stellt sie ein, waehrend man die Linie auf der Karte SIEHT.
+
+   💣 Drei Dinge gehoeren zusammen, und einzeln taugt keines:
+   1. keine Unschaerfe und kein Schleier -- sonst sieht man die Linie nicht,
+   2. `pointer-events: none` am Overlay -- sonst faengt es jeden Klick ab und die Karte laesst sich
+      weder ziehen noch zoomen, obwohl man sie sieht,
+   3. `pointer-events: auto` am Dialog -- sonst waere der Editor selbst tot.
+   ⚠️ Und weil das Overlay keine Klicks mehr bekommt, feuert auch sein „Klick auf den Hintergrund
+   schliesst" nicht mehr. Das ist hier RICHTIG: ein Klick auf die Karte soll die Karte bedienen,
+   nicht den Editor zuwerfen, an dem man gerade arbeitet. */
+.avm-editor-overlay--durchsichtig {
+	background: transparent;
+	backdrop-filter: none;
+	pointer-events: none;
+}
+
+.avm-editor-overlay--durchsichtig .avm-editor-dialog {
+	pointer-events: auto;
+	/* Etwas schmaler als der Vollbild-Editor: daneben soll Karte stehen, nicht nur ein Rand. */
+	width: min(980px, calc(100vw - 24px));
+	/* Der Dialog wird am Kopf verschoben; die Verschiebung setzt das JS als transform. */
+	will-change: transform;
+}
+
+/* Der Kopf ist der Griff. ⚠️ `grab`/`grabbing` und NICHT `move`: der Zeiger sagt damit, dass hier
+   etwas aufgenommen wird -- dieselbe Sprache wie die Karte darunter. */
+.avm-editor-overlay--durchsichtig .avm-editor-dialog__header {
+	cursor: grab;
+	user-select: none;
+}
+
+.avm-editor-overlay--durchsichtig .avm-editor-dialog__header:active {
+	cursor: grabbing;
+}
+
+/* Die Knoepfe im Kopf bleiben Knoepfe -- sonst zieht man den Dialog beim Schliessen. */
+.avm-editor-overlay--durchsichtig .avm-editor-dialog__header button {
+	cursor: pointer;
+}

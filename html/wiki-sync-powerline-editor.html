@@ -511,6 +511,23 @@ function curveSegMarkup(seg) {
 
 // „+26 %" statt „26" -- eine nackte Zahl an einem Schieber sagt nicht, ob sie Prozent, Grad oder
 // Meilen ist.
+// 🔴 Die Kurven wandern LIVE auf die Karte, waehrend man zieht (Owner 29.08.2026: „die aenderungen
+// am kurven parameter muessen auf der karte sichtbar werden"). Ohne das sieht man beim Einstellen
+// nichts und muss raten -- der eigentliche Sinn des Reglers.
+// 💣 EINE Stelle fuer alle Erzeuger (Kantenregler, Kartenregler-Rueckweg, Speichern), sonst zeigt
+// die Karte je nach Weg etwas anderes an als der Editor.
+// ⚠️ `gespeichert` unterscheidet die zwei Faelle: die Vorschau ist fluechtig und wird beim
+// Schliessen zurueckgenommen, ein gespeicherter Wert gehoert dauerhaft in die Kartendaten.
+function meldeKurvenAnKarte(gespeichert) {
+	if (!window.parent || window.parent === window) { return; }
+	try {
+		window.parent.postMessage({
+			avesmapsPowerlineCurvePreview: Object.assign({}, curveDraft),
+			avesmapsPowerlineCurveGespeichert: gespeichert === true,
+		}, location.origin);
+	} catch (e) { /* noop -- ohne Elternfenster gibt es schlicht keine Karte */ }
+}
+
 function curveText(wert) {
 	const zahl = Number(wert) || 0;
 	return (zahl > 0 ? "+" : "") + zahl + " %";
@@ -549,10 +566,14 @@ function renderDetail() {
 		// dieses ein. Die Zahlen selbst stehen rechts an jeder Kante.
 		// 🔴 KEIN eigener dt-grp-Abschnitt: die Abschnittsfolge dieses Fensters ist eine feste
 		// Owner-Liste (16.08.2026), gewacht von editor-abschnittsreihenfolge.test.js.
-		+ '<div class="dt-grid"><div class="k">Kurvenform</div><div>'
+		// 🔴 OHNE Beschriftungsspalte (`stack`): seit der Linien-Schieber gefallen ist, steht hier
+		// keine Eigenschaft mehr, sondern eine HANDLUNG. Im Label-Raster blieb links unter dem Wort
+		// „Kurvenform" ein 130x60-Fleck leer -- der Owner hat genau darauf gezeigt (29.08.2026).
+		// Der Knopf sagt selbst, worum es geht; ein Wort davor gewinnt nichts.
+		+ '<div class="dt-grid stack"><div>'
 			+ '<button type="button" class="btn2" id="plCurveOnMap">Kurve auf der Karte einstellen</button>'
-			+ '<div class="pl-hint">Prozent der Sehne, <b>je Segment</b> — die Regler stehen rechts an '
-				+ "jeder Kante. <b>0</b> ist gerade, das Vorzeichen ist die Seite.</div>"
+			+ '<div class="pl-hint">Kurvenform: Prozent der Sehne, <b>je Segment</b> — die Regler stehen '
+				+ "rechts an jeder Kante. <b>0</b> ist gerade, das Vorzeichen ist die Seite.</div>"
 		+ "</div></div>"
 		// ---- Eigenschaften ----------------------------------------------------------------------
 		// 🔴 DER KOPF HEISST WEITER „Beschreibung", NICHT „Eigenschaften" (Owner-Entscheid 16.08.2026
@@ -793,6 +814,9 @@ async function saveLine() {
 	try {
 		await mapFeaturesEditPost(rumpf);
 		const merged = newName !== line.name && lines.some((l) => l.name === newName);
+		// 🔴 ZUERST melden, DANN leeren: die Karte soll den gespeicherten Stand dauerhaft
+		// uebernehmen, und nach dem Leeren waere nichts mehr zu melden.
+		meldeKurvenAnKarte(true);
 		// ⚠️ Erst NACH dem erfolgreichen Schreiben leeren: bei einem Fehlschlag bleibt der Entwurf
 		// stehen, damit ein zweiter Versuch nicht bei null anfaengt.
 		curveDraft = {};
@@ -902,6 +926,8 @@ function wireNodeActions(line) {
 			curveDraft[pid] = Number(schieber.value) || 0;
 			const anzeige = schieber.parentNode.querySelector(".pl-curve-seg__val");
 			if (anzeige) { anzeige.textContent = curveText(curveDraft[pid]); }
+			// Live auf die Karte -- ohne das zieht man blind.
+			meldeKurvenAnKarte(false);
 		});
 	});
 	$("plNodes").querySelectorAll("[data-move-up]").forEach((b) => b.addEventListener("click", () => moveNode(parseInt(b.getAttribute("data-move-up"), 10), -1)));

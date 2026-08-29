@@ -43,6 +43,14 @@ assert.ok(posShowLabel > -1, "das Haekchen plShowLabel steht nicht mehr da -- um
 assert.ok(posKnopf > -1, "der Knopf fuer das Einstellen auf der Karte fehlt");
 assert.ok(posKnopf > posShowLabel && posKnopf < posBeschreibung,
 	"der Knopf ist aus dem Identitaet-Block herausgerutscht");
+// 🔴 OHNE Beschriftungsspalte: seit der Linien-Schieber gefallen ist, steht hier keine Eigenschaft
+// mehr, sondern eine HANDLUNG. Im Label-Raster blieb links ein leerer Fleck -- der Owner hat am
+// 29.08.2026 genau darauf gezeigt.
+const knopfZeile = ohneKommentare.slice(posKnopf - 300, posKnopf);
+assert.ok(/dt-grid stack/.test(knopfZeile),
+	"der Knopf steht wieder im Label-Raster -- links bleibt ein leerer Fleck");
+assert.ok(!/<div class="k">Kurvenform<\/div>/.test(ohneKommentare),
+	"die leere Beschriftungszelle 'Kurvenform' ist zurueck");
 
 // ---- 3. Der Knopf reicht die SEGMENTE herueber ----------------------------------------------
 // 💣 Nicht mehr einen einzelnen Wert: auf der Karte wird ein Stueck angeklickt und einzeln gebogen,

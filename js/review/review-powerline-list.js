@@ -27,7 +27,12 @@ window.openAvesmapsPowerlineEditorOverlay = window.openAvesmapsPowerlineEditorOv
 	}
 	overlay = document.createElement("div");
 	overlay.id = overlayId;
-	overlay.className = "avm-editor-overlay";
+	// 🔴 DURCHSICHTIG VON ANFANG AN (Owner 29.08.2026): keine Unschaerfe, kein Schleier, und das
+	// Overlay faengt keine Klicks ab -- die Karte bleibt daneben sichtbar UND bedienbar. Der Grund
+	// ist die Kurvenform: man stellt sie ein, waehrend man die Linie sieht.
+	// ⚠️ Nur DIESER Editor. Die fuenf anderen behalten den Schleier: sie arbeiten nicht gegen die
+	// Karte, und ein abgedunkelter Hintergrund haelt den Blick beim Formular.
+	overlay.className = "avm-editor-overlay avm-editor-overlay--durchsichtig";
 	const dialog = document.createElement("div");
 	dialog.className = "avm-editor-dialog";
 	const header = document.createElement("div");
@@ -43,6 +48,7 @@ window.openAvesmapsPowerlineEditorOverlay = window.openAvesmapsPowerlineEditorOv
 	closeButton.addEventListener("click", closeOverlay);
 	header.appendChild(headingEl);
 	header.appendChild(closeButton);
+	avesmapsEditorDialogZiehbar(header, dialog);
 	const frame = document.createElement("iframe");
 	frame.className = "avm-editor-dialog__frame";
 	frame.src = buildSrc();
@@ -52,7 +58,10 @@ window.openAvesmapsPowerlineEditorOverlay = window.openAvesmapsPowerlineEditorOv
 	dialog.appendChild(header);
 	dialog.appendChild(frame);
 	overlay.appendChild(dialog);
-	overlay.addEventListener("click", (event) => { if (event.target === overlay) closeOverlay(); });
+	// 🔴 KEIN „Klick auf den Hintergrund schliesst" mehr: der Hintergrund IST die Karte, und ein
+	// Klick darauf soll sie bedienen, nicht den Editor zuwerfen, an dem man gerade arbeitet. Das
+	// Overlay bekommt ohnehin keine Klicks mehr (pointer-events: none).
+	// ⚠️ Geschlossen wird ueber das ✕ im Kopf -- der einzige Weg, und er ist sichtbar.
 	document.body.appendChild(overlay);
 	document.body.style.overflow = "hidden";
 };
@@ -174,6 +183,42 @@ window.avesmapsPowerlineCurveEditStart = window.avesmapsPowerlineCurveEditStart
 	});
 	return true;
 };
+
+// Der Editor meldet seine Kurven-Aenderungen hierher -- LIVE beim Ziehen und noch einmal nach dem
+// Speichern. Owner 29.08.2026: „die aenderungen am kurven parameter muessen auf der karte sichtbar
+// werden und gespeichert werden".
+//
+// 💣 ZWEI Faelle, und ihre Verwechslung waere die teure: eine VORSCHAU ist fluechtig (sie liegt in
+// avesmapsPowerlineCurveVorschau und wird beim Schliessen zurueckgenommen), ein GESPEICHERTER Wert
+// gehoert dauerhaft in die Kartendaten (properties.curve). Landete Gespeichertes nur in der
+// Vorschau, waere die Kurve nach dem Schliessen des Editors wieder weg -- und der Owner haette
+// gespeichert und saehe nichts. Landete eine Vorschau in den Kartendaten, stuende ein nie
+// gespeicherter Wert auf der Karte, bis jemand neu laedt.
+window.addEventListener("message", (event) => {
+	if (event.origin !== location.origin) { return; }
+	const kurven = event.data && event.data.avesmapsPowerlineCurvePreview;
+	if (!kurven || typeof kurven !== "object") { return; }
+	const gespeichert = event.data.avesmapsPowerlineCurveGespeichert === true;
+
+	if (gespeichert) {
+		// Dauerhaft in die Kartendaten -- ohne Neuladen, die Zahlen stehen ja schon in der Datenbank.
+		if (typeof powerlineData !== "undefined" && Array.isArray(powerlineData)) {
+			powerlineData.forEach((pl) => {
+				const pid = String(pl?.properties?.public_id || pl?.id || "");
+				if (pid && Object.prototype.hasOwnProperty.call(kurven, pid)) {
+					const wert = Number(kurven[pid]);
+					if (Number.isFinite(wert)) { pl.properties.curve = wert; }
+				}
+			});
+		}
+		// ⚠️ Und die Vorschau faellt: sonst laege ein fluechtiger Wert ueber dem gespeicherten und
+		// die naechste Aenderung von aussen (Sync, zweiter Editor) waere unsichtbar.
+		avesmapsPowerlineCurveVorschau.werte = null;
+	} else {
+		avesmapsPowerlineCurveVorschau.werte = Object.assign({}, kurven);
+	}
+	if (typeof refreshPowerlineLayers === "function") { refreshPowerlineLayers(); }
+}, false);
 
 // The editor iframe asks the parent to fly the live map to a node ("◎ auf Karte zeigen" in the
 // Knoten column). Kept here rather than in the iframe because only the parent holds the map + marker
