@@ -145,6 +145,88 @@ Array.from(new Set(ebenenTokens.concat([karte.AVESMAPS_GARETIEN_SICHT_NEUTRAL.to
 		wahr(tokenDefiniert(token), "Tafel-Token " + token + " steht nicht in css/base/tokens.css");
 	});
 
+// ---- 5b. Eine Siedlungsklasse (30.08.2026) --------------------------------------------------------
+//
+// 🔴 GEFUNDEN BEIM BAU DER ORTSMARKIERUNGS-GROESSE: `ziel:'location'` traegt bei einem Vorschlag
+// `subtyp` = settlement_class UND `kind: null` -- also GENAU dieselbe Form wie ein Weg-Subtyp
+// (Flussweg/Strasse/...), der ebenfalls `kind: null` traegt. Ohne eine eigene Weiche fiel eine
+// Siedlungsklasse in die Weg-Ableitung (`--color-path-dorf`, ein Tokenname, den es nicht gibt) und
+// landete -- lautlos bis auf eine Konsolenmeldung -- als Gold-Linie auf der Karte, obwohl die
+// Ebenen-Tafel eine Zeile weiter unten (Ortschaften_1..4/Detail_1..2) fuer genau diesen Fall schon
+// das richtige Marker-Token bereithaelt.
+gleich(sicht({ ebene: "Ortschaften_2", typ: "Dorf", subtyp: "dorf", kind: "", geometrie_typ: "" }).token,
+	"--color-marker-settlement",
+	"eine Siedlungsklasse MIT Vorschlag bekommt ihr eigenes Marker-Token, nicht den kaputten "
+	+ "Weg-Rueckfall");
+gleich(sicht({ ebene: "Ortschaften_2", typ: "Dorf", subtyp: "dorf", kind: "", geometrie_typ: "" }).form,
+	"punkt", "eine erkannte Siedlungsklasse ist ein PUNKT, nie eine Linie");
+gleich(sicht({ ebene: "Ortschaften_2", typ: "Dorf", subtyp: "dorf", kind: "", geometrie_typ: "" }).neutral,
+	false, "ein Treffer in der Siedlungsklasse ist kein Rueckfall");
+// Alle sechs Klassen, nicht nur eine -- eine Weiche, die nur "dorf" kennt, waere Vakuum.
+["metropole", "grossstadt", "stadt", "kleinstadt", "dorf", "gebaeude"].forEach(function (klasse) {
+	gleich(sicht({ ebene: "Detail_1", typ: "x", subtyp: klasse, kind: "", geometrie_typ: "" }).token,
+		"--color-marker-settlement", "Klasse " + klasse + " muss ebenfalls das Siedlungstoken tragen");
+});
+// Die DIFFERENZ, ohne die die Weiche Vakuum waere: ein WEG-Subtyp bleibt beim alten Verhalten.
+wahr(sicht({ ebene: "Gewaesser", typ: "Fluss", subtyp: "Flussweg", kind: "", geometrie_typ: "LineString" }).token
+	!== "--color-marker-settlement",
+	"ein Weg-Subtyp darf nicht faelschlich als Siedlungsklasse erkannt werden");
+gleich(sicht({ ebene: "Gewaesser", typ: "Fluss", subtyp: "Flussweg", kind: "", geometrie_typ: "LineString" }).token,
+	"--color-path-flussweg", "und traegt weiterhin sein eigenes Weg-Token");
+// Und die zweite DIFFERENZ: `kind` gefuellt schlaegt die Siedlungsklasse nie (kann in der Praxis
+// nicht vorkommen, `garetien-abgleich.php` setzt `kind: null` fuer `ziel:'location'` -- aber die
+// Ordnung "kind zuerst" muss trotzdem gelten, sonst waere sie nur zufaellig richtig).
+wahr(sicht({ ebene: "Ortschaften_2", typ: "Dorf", subtyp: "dorf", kind: "vegetation",
+	geometrie_typ: "" }).token !== "--color-marker-settlement",
+	"ein gefuelltes `kind` schlaegt die Siedlungsklasse -- sie greift nur, wenn `kind` leer ist");
+
+wahr(typeof karte.garetienSiedlungsKlasse === "function", "garetienSiedlungsKlasse fehlt im Export");
+gleich(karte.garetienSiedlungsKlasse({ subtyp: "dorf" }), "dorf", "eine bekannte Klasse kommt zurueck");
+gleich(karte.garetienSiedlungsKlasse({ subtyp: "Flussweg" }), "",
+	"ein Weg-Subtyp ist KEINE Siedlungsklasse");
+gleich(karte.garetienSiedlungsKlasse({ subtyp: "see" }), "", "ein Regions-Subtyp auch nicht");
+gleich(karte.garetienSiedlungsKlasse({}), "", "ohne subtyp keine Klasse");
+gleich(karte.garetienSiedlungsKlasse(null), "", "und ohne Objekt erst recht nicht");
+
+// ---- 5c. Das `kind` fuer die Flaechen-Deckkraft -- eine ORDNUNG (30.08.2026) --------------------
+wahr(typeof karte.garetienObjektKind === "function", "garetienObjektKind fehlt im Export");
+gleich(karte.garetienObjektKind({ kind: "topographie", ebene: "Waelder" }), "topographie",
+	"die Server-Auskunft (kind) schlaegt die Ebenen-Tafel");
+gleich(karte.garetienObjektKind({ ebene: "Waelder" }), "vegetation",
+	"ohne `kind` gilt die Tafel -- 'Waelder' ist unzweideutig Vegetation");
+gleich(karte.garetienObjektKind({ ebene: "Gewaesser" }), "",
+	"'Gewaesser' traegt KEIN `kind` in der Tafel -- die Ebene ist mehrdeutig (See/Meer/Sumpf/Fluss)");
+gleich(karte.garetienObjektKind({ ebene: "Sternenhimmel" }), "", "eine unbekannte Ebene bleibt leer");
+gleich(karte.garetienObjektKind({}), "", "ein leeres Objekt bleibt leer");
+gleich(karte.garetienObjektKind(null), "", "und `null` erst recht");
+
+// ---- 5d. Die Flaechen-Deckkraft -- die VORHANDENE Regel, nicht ihre Zahlen (30.08.2026) ---------
+//
+// 🪤 Die teuerste Fehlerklasse hier ist die VAKUUM-Zusicherung: es reicht nicht, dass IRGENDEINE
+// Zahl herauskommt -- zwei verschiedene Arten muessen sich unterscheiden, sonst koennte die Tafel
+// wirkungslos verdrahtet sein.
+wahr(typeof karte.garetienFlaechenDeckkraft === "function", "garetienFlaechenDeckkraft fehlt im Export");
+const deckkraftAbfragen = [];
+global.avesmapsEcosystemDisplayDeckkraft = function (kind, typeKey) {
+	deckkraftAbfragen.push([kind, typeKey]);
+	const TAFEL = { derographisch: 0.16, vegetation: 0.72, topographie: 0.72, klima: 0.30 };
+	return typeof TAFEL[String(kind || "")] === "number" ? TAFEL[String(kind || "")] : 0.72;
+};
+gleich(karte.garetienFlaechenDeckkraft({ kind: "vegetation", subtyp: "wald" }), 0.72,
+	"Vegetation ruft die VORHANDENE Regel und bekommt ihre echte Deckkraft");
+gleich(karte.garetienFlaechenDeckkraft({ kind: "derographisch", subtyp: "kontinent" }), 0.16,
+	"die DIFFERENZ: derographisch bekommt eine ANDERE Deckkraft als Vegetation");
+wahr(deckkraftAbfragen.some((a) => a[0] === "vegetation" && a[1] === "wald"),
+	"der `subtyp` muss wirklich mitgereicht werden -- eine Uebersteuerung je Typ braucht ihn");
+// Ohne bekanntes `kind` (mehrdeutige Ebene) bleibt es beim alten, niedrigen Festwert -- NICHT bei
+// der Vegetation-Zahl, auch wenn die Regel verfuegbar waere.
+gleich(karte.garetienFlaechenDeckkraft({ ebene: "Gewaesser" }), 0.14,
+	"eine mehrdeutige Ebene rundet NICHT auf 0,72 hoch, sie bleibt beim zurueckhaltenden Rueckfall");
+// Und ohne die Regel selbst (z.B. eine Seite, die ecosystem-display.js nicht laedt) ebenfalls.
+delete global.avesmapsEcosystemDisplayDeckkraft;
+gleich(karte.garetienFlaechenDeckkraft({ kind: "vegetation", subtyp: "wald" }), 0.14,
+	"fehlt die Regel selbst, bleibt es beim alten Festwert -- kein Wurf, kein Raten");
+
 // ---- 6. Rot heisst: bei uns liegt etwas, und eine Frage ist offen (Aufgabe 4, Entwurf §4.2) -----
 //
 // 🔴 Genau die drei Urteile, bei denen bei uns etwas an derselben Stelle liegt UND eine Frage offen

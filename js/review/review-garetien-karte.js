@@ -135,16 +135,28 @@
 	// Zahl (map-features.js, ecosystem-*.js). Fuer FARBEN gilt das Gegenteil — siehe unten.
 	var AVESMAPS_GARETIEN_STRICH_BREITE = 3;
 	var AVESMAPS_GARETIEN_STRICHELUNG = "9 5";
-	// Der Radius eines Punktobjekts (Ortschaft, Berggipfel, Bauwerk). Gross genug, um neben einer
-	// Ortsmarkierung als eigener Ring lesbar zu sein, klein genug, um sie nicht zuzudecken.
+	// 🔴 NUR NOCH DER RUECKFALL (30.08.2026, Owner: „das Design dessen, was es werden wird,
+	// uebernehmen -- z.b. ... die Ortsmarkierung"). Fuer eine ERKANNTE Siedlungsklasse (metropole
+	// .. gebaeude) kommt die Groesse jetzt aus DEMSELBEN Zoomband, das die echte Ortsmarkierung
+	// zeichnet (garetienPunktDurchmesser, location-zoom-bands.js) -- ein dorf ist kleiner als eine
+	// metropole, und beide wachsen mit dem Zoom. Diese eine Zahl bleibt nur fuer Punkte, denen keine
+	// Zoombandklasse zugeordnet werden kann: Berggipfel und Bauwerk kennen KEIN eigenes Band (die
+	// Tafel fuehrt ausschliesslich Siedlungsklassen), und ein Punkt ohne jeden Vorschlag (die
+	// Ebenen-Tafel kennt seine Klasse noch nicht).
 	var AVESMAPS_GARETIEN_PUNKT_RADIUS = 8;
 	var AVESMAPS_GARETIEN_SCHEIN_BREITE = 13;
 	var AVESMAPS_GARETIEN_SCHEIN_DECKKRAFT = 0.55;
-	// Die Fuellung einer Flaeche (Mockup §2, Blutmoor: `fill=var(--color-marker-active) opacity=".14"`).
-	// Sehr leicht, damit die Landschaft darunter lesbar bleibt -- dieselbe Zurueckhaltung wie bei den
-	// Klimabaendern (css/features/ecosystem-layer.css). Beide Parteien nehmen denselben Wert: bei
-	// zwei uebereinanderliegenden Seen ist die Ueberlappung dann sichtbar kraeftiger, und genau das
-	// ist die Auskunft „hier sind sie sich einig".
+	// 🔴 NUR NOCH DER RUECKFALL (30.08.2026, Owner: „das Design dessen, was es werden wird,
+	// uebernehmen -- z.b. die Farbe einer Sumpflaeche"). Wie voll eine ECHTE Flaeche gefuellt ist,
+	// haengt von ihrer Art ab -- derographisch 0,16, Vegetation/Topographie 0,72, Klima 0,30
+	// (css/features/ecosystem-layer.css), plus einer moeglichen Uebersteuerung je Typ
+	// (Darstellungstafel, js/map-features/ecosystem-display.js, Entwurf §5.2). Diese eine Zahl bleibt
+	// nur stehen, wenn die ART nicht bekannt ist -- siehe garetienFlaechenDeckkraft weiter unten, die
+	// die VORHANDENE Regel (avesmapsEcosystemDisplayDeckkraft) ruft, statt ihre Zahlen ein zweites
+	// Mal aufzuschreiben (AGENTS.md §12: eine Deckkraft zweimal hingeschrieben ist Divergenz mit
+	// Anlauf, dieselbe Lehre wie bei den Zoombaendern). Beide Parteien nehmen weiterhin denselben
+	// Wert je Objekt: bei zwei uebereinanderliegenden Seen ist die Ueberlappung dann sichtbar
+	// kraeftiger, und genau das ist die Auskunft „hier sind sie sich einig".
 	var AVESMAPS_GARETIEN_FLAECHE_DECKKRAFT = 0.14;
 
 	// Sie stehen im `class`-Attribut der erzeugten SVG-Pfade. Nicht Zierde: so laesst sich in der
@@ -169,6 +181,32 @@
 	// 🔴 DIE FARBEN KOMMEN AUS TOKENS (AGENTS.md §12) — sie stehen nirgends als Zahl in dieser Datei.
 	var AVESMAPS_GARETIEN_TOKEN_IHRE = "--color-marker-active";
 	var AVESMAPS_GARETIEN_TOKEN_UNSERE = "--color-garetien-unsere";
+	// EIN Name fuer das Marker-Token einer Siedlung -- es steht seit heute SIEBEN statt sechs Mal in
+	// dieser Datei (sechs Ebenen-Zeilen plus die dynamische Siedlungsklasse in
+	// avesmapsGaretienSichtFuer), und ein neuer Umton soll nicht sieben Stellen finden muessen.
+	var AVESMAPS_GARETIEN_TOKEN_SIEDLUNG = "--color-marker-settlement";
+
+	/*
+	 * Die sechs Siedlungsklassen (AGENTS.md §2: „Settlement type slugs (stable keys)") -- ein FESTES
+	 * Vokabular wie PATH_SUBTYPE_KEYS, keine Regel, die sich aendern koennte. `garetien-abgleich.php`
+	 * setzt bei `ziel: 'location'` `subtyp` auf genau eine davon und `kind` auf `null` (leer im
+	 * Client) -- dieselbe Form wie ein WEG-Ziel (Flussweg/Strasse/...), das ebenfalls `kind: null`
+	 * traegt. Ohne diese Liste liesse sich ein leeres `kind` nicht auseinanderhalten: ein
+	 * Weg-`subtyp` braucht die Ableitung `--color-path-<subtyp>`, eine Siedlungsklasse braucht
+	 * `AVESMAPS_GARETIEN_TOKEN_SIEDLUNG` -- und die zwei Wertevorraete ueberschneiden sich nicht
+	 * (klein-deutsche Siedlungsklassen gegen grossgeschriebene Wegarten).
+	 * ⚠️ Sie entscheidet NUR Zugehoerigkeit, nie Aussehen: die tatsaechliche GROESSE je Klasse UND
+	 * Zoomstufe bleibt ausschliesslich in location-zoom-bands.js (garetienPunktDurchmesser weiter
+	 * unten).
+	 */
+	var AVESMAPS_GARETIEN_SIEDLUNGSKLASSEN = ["metropole", "grossstadt", "stadt", "kleinstadt", "dorf", "gebaeude"];
+
+	// Traegt `objekt.subtyp` eine der sechs Siedlungsklassen? "" sonst (z.B. ein Weg-Subtyp oder gar
+	// keiner). REIN.
+	function garetienSiedlungsKlasse(objekt) {
+		var subtyp = String((objekt || {}).subtyp || "");
+		return AVESMAPS_GARETIEN_SIEDLUNGSKLASSEN.indexOf(subtyp) !== -1 ? subtyp : "";
+	}
 
 	/*
 	 * Die zwei Parteinamen — sie stehen in JEDEM Tooltip vorn, und das ist ihr Zweck (Owner
@@ -426,13 +464,20 @@
 	var AVESMAPS_GARETIEN_SICHT_EBENE = {
 		Gewaesser:     { form: "linie",   token: "--color-path-flussweg",                breite: 3 },
 		Berge:         { form: "punkt",   token: "--color-ecosystem-topographie-gebirge", breite: 3 },
-		Waelder:       { form: "flaeche", token: "--color-ecosystem-vegetation-wald",     breite: 2 },
-		Ortschaften_1: { form: "punkt",   token: "--color-marker-settlement",             breite: 3 },
-		Ortschaften_2: { form: "punkt",   token: "--color-marker-settlement",             breite: 3 },
-		Ortschaften_3: { form: "punkt",   token: "--color-marker-settlement",             breite: 3 },
-		Ortschaften_4: { form: "punkt",   token: "--color-marker-settlement",             breite: 3 },
-		Detail_1:      { form: "punkt",   token: "--color-marker-settlement",             breite: 3 },
-		Detail_2:      { form: "punkt",   token: "--color-marker-settlement",             breite: 3 },
+		// 🔴 30.08.2026: `kind` ist NEU und dient NUR der Flaechen-Deckkraft (garetienObjektKind /
+		// garetienFlaechenDeckkraft weiter unten) -- „Wald" ist UNZWEIDEUTIG Vegetation, auch ohne
+		// Vorschlag. Bei `Gewaesser` fehlt dieselbe Angabe bewusst: die Ebene deckt
+		// Fluss/Bach/Strom/See/Meer/Sumpf zugleich ab und koennte je nach Objekt TOPOGRAPHISCH oder
+		// VEGETATIV werden -- eine geratene Art waere schlimmer als der zurueckhaltende Rueckfall
+		// (js/review/__tests__/garetien-karte.test.js haelt genau das an "Blutmoor" fest, das ohne
+		// Vorschlag bewusst bei der alten, niedrigen Deckkraft bleibt).
+		Waelder:       { form: "flaeche", token: "--color-ecosystem-vegetation-wald",     breite: 2, kind: "vegetation" },
+		Ortschaften_1: { form: "punkt",   token: AVESMAPS_GARETIEN_TOKEN_SIEDLUNG,        breite: 3 },
+		Ortschaften_2: { form: "punkt",   token: AVESMAPS_GARETIEN_TOKEN_SIEDLUNG,        breite: 3 },
+		Ortschaften_3: { form: "punkt",   token: AVESMAPS_GARETIEN_TOKEN_SIEDLUNG,        breite: 3 },
+		Ortschaften_4: { form: "punkt",   token: AVESMAPS_GARETIEN_TOKEN_SIEDLUNG,        breite: 3 },
+		Detail_1:      { form: "punkt",   token: AVESMAPS_GARETIEN_TOKEN_SIEDLUNG,        breite: 3 },
+		Detail_2:      { form: "punkt",   token: AVESMAPS_GARETIEN_TOKEN_SIEDLUNG,        breite: 3 },
 	};
 
 	// Der Rueckfall. 🔴 Er ist das BILD VOR DIESER AUFGABE -- wer die Tafel entfernt, bekommt genau
@@ -464,6 +509,19 @@
 		var geoTyp = String(o.geometrie_typ || "");
 
 		if (subtyp !== "") {
+			/*
+			 * 🔴 GEFUNDEN BEIM BAU DER ORTSMARKIERUNGS-GROESSE (30.08.2026): eine Siedlungsklasse
+			 * (subtyp='dorf'..'gebaeude') traegt bei `ziel:'location'` IMMER `kind: null` -- genau
+			 * wie ein Weg-Subtyp. Ohne diese Weiche liefe „dorf" in den Weg-Zweig darunter und
+			 * ergaebe `--color-path-dorf`, ein Tokenname, den es nicht gibt -> Meldung + Gold-
+			 * Rueckfall, obwohl die Sicht-Tafel ein paar Zeilen weiter unten genau dafuer schon
+			 * `AVESMAPS_GARETIEN_TOKEN_SIEDLUNG` bereithaelt (Ortschaften_1..4/Detail_1..2). Jede
+			 * Ortschaft/jedes Bauwerk mit einem aufgeloesten Vorschlag traf also lautlos den
+			 * Warnpfad, statt seine echte (rote) Markerfarbe zu bekommen.
+			 */
+			if (kind === "" && garetienSiedlungsKlasse(o) !== "") {
+				return { form: "punkt", token: AVESMAPS_GARETIEN_TOKEN_SIEDLUNG, breite: 3, neutral: false };
+			}
 			var token = kind !== ""
 				? "--color-ecosystem-" + kind + "-" + subtyp.replace(/_/g, "-")
 				: "--color-path-" + subtyp.toLowerCase();
@@ -492,6 +550,81 @@
 			breite: eintrag.breite,
 			neutral: false,
 		};
+	}
+
+	/*
+	 * Das `kind` EINES Objekts, fuer die Flaechen-Deckkraft -- unabhaengig von der Partei, denn
+	 * `kind` beschreibt das ZIEL (topographie/vegetation/...), nicht wessen Geometrie gerade
+	 * gezeichnet wird. REIN.
+	 *
+	 * 🔴 EINE ORDNUNG: erst die Server-Auskunft (`objekt.kind`, gefuellt sobald ein Vorschlag
+	 * vorliegt), dann die Ebenen-Tafel -- aber NUR fuer die Zeilen, die dort ausdruecklich ein
+	 * `kind` tragen (heute: `Waelder`). Eine Ebene OHNE `kind`-Eintrag (z.B. `Gewaesser`, das
+	 * Fluss/Bach/Strom/See/Meer/Sumpf gemeinsam traegt) bleibt ABSICHTLICH ohne Antwort -- eine
+	 * geratene Art waere schlimmer als der zurueckhaltende Rueckfall in garetienFlaechenDeckkraft.
+	 */
+	function garetienObjektKind(objekt) {
+		var kind = String((objekt || {}).kind || "");
+		if (kind !== "") { return kind; }
+		var eintrag = AVESMAPS_GARETIEN_SICHT_EBENE[String((objekt || {}).ebene || "")];
+		return (eintrag && eintrag.kind) ? eintrag.kind : "";
+	}
+
+	/*
+	 * Die Deckkraft, mit der eine Flaeche gefuellt wird -- „die Farbe einer Sumpflaeche" (Owner
+	 * 30.08.2026). REIN, kein DOM, keine Karte.
+	 *
+	 * 🔴 DIE VORHANDENE REGEL, NICHT IHRE ZAHLEN: `avesmapsEcosystemDisplayDeckkraft`
+	 * (js/map-features/ecosystem-display.js, geladen VOR dieser Datei) ist die dokumentierte
+	 * einzige Quelle dieser Zahlen (derographisch 0,16 / Vegetation+Topographie 0,72 / Klima 0,30,
+	 * plus eine moegliche Uebersteuerung je Typ). Ein zweiter Satz Zahlen hier wuerde beim naechsten
+	 * "die Farben kraeftiger" (wie am 2026-08-04 bei genau dieser Tafel geschehen) stillschweigend
+	 * veralten.
+	 * ⚠️ OHNE bekanntes `kind` bleibt es beim alten, niedrigen Festwert
+	 * (AVESMAPS_GARETIEN_FLAECHE_DECKKRAFT) -- eine mehrdeutige Ebene (`Gewaesser`) rundet damit
+	 * NICHT auf 0,72 hoch, siehe garetienObjektKind. Genauso, wenn die Regel selbst fehlt (z.B. ein
+	 * Testlauf, der review-garetien-karte.js allein laedt): kein Werfen, sondern derselbe
+	 * zurueckhaltende Rueckfall.
+	 */
+	function garetienFlaechenDeckkraft(objekt) {
+		var kind = garetienObjektKind(objekt);
+		if (kind === "") { return AVESMAPS_GARETIEN_FLAECHE_DECKKRAFT; }
+		var subtyp = String((objekt || {}).subtyp || "");
+		return typeof avesmapsEcosystemDisplayDeckkraft === "function"
+			? avesmapsEcosystemDisplayDeckkraft(kind, subtyp)
+			: AVESMAPS_GARETIEN_FLAECHE_DECKKRAFT;
+	}
+
+	/*
+	 * Der Aussendurchmesser (px) eines Punktobjekts -- „die Ortsmarkierung ... von der Groesse"
+	 * (Owner 30.08.2026). Gilt fuer BEIDE Parteien: die Siedlungsklasse beschreibt das Ziel, nicht
+	 * wessen Geometrie gerade gezeichnet wird.
+	 *
+	 * 🔴 DIE VORHANDENE REGEL: `avesmapsLocationZoomBandValue("marker", klasse, zoom)`
+	 * (js/map-features/location-zoom-bands.js, geladen VOR dieser Datei) ist die EINZIGE Quelle der
+	 * Zoombaender (AGENTS.md §11: „vorher stand `0/0/0/1/2/3` zweimal im Code" -- eine zweite Kurve
+	 * hier waere derselbe Fehler ein drittes Mal).
+	 * ⚠️ EIN Klassenwert kann an der AKTUELLEN Zoomstufe `null` sein ("auf dieser Stufe gibt es diese
+	 * Klasse nicht", z.B. ein `dorf` bei Zoom 0). Der Vorschau-Punkt darf deshalb NICHT verschwinden
+	 * -- ihr Zweck ist der Vergleich, unabhaengig davon, wo die Karte gerade steht. Der Rueckfall ist
+	 * deshalb die ERSTE Zoomstufe, auf der die Klasse ueberhaupt erscheint
+	 * (avesmapsLocationZoomBandMinZoom), nie eine geratene Zahl.
+	 * ⚠️ Ohne erkannte Siedlungsklasse (Berggipfel, Bauwerk ohne Vorschlag, unbekannt) oder ohne die
+	 * Regel selbst bleibt es beim alten Festwert (AVESMAPS_GARETIEN_PUNKT_RADIUS).
+	 */
+	function garetienPunktDurchmesser(objekt, karte) {
+		var klasse = garetienSiedlungsKlasse(objekt);
+		if (klasse === "" || typeof avesmapsLocationZoomBandValue !== "function") {
+			return AVESMAPS_GARETIEN_PUNKT_RADIUS * 2;
+		}
+		var zoom = (karte && typeof karte.getZoom === "function") ? Number(karte.getZoom()) : NaN;
+		if (!isFinite(zoom)) { zoom = 0; }
+		var minZoom = (typeof avesmapsLocationZoomBandMinZoom === "function")
+			? avesmapsLocationZoomBandMinZoom("marker", klasse)
+			: null;
+		var effektiverZoom = (minZoom !== null && zoom < minZoom) ? minZoom : zoom;
+		var wert = avesmapsLocationZoomBandValue("marker", klasse, effektiverZoom);
+		return typeof wert === "number" ? wert : (AVESMAPS_GARETIEN_PUNKT_RADIUS * 2);
 	}
 
 	/*
@@ -602,7 +735,17 @@
 		var ebene = null;
 		if (punkte.length === 1) {
 			if (typeof l.circleMarker !== "function") { return null; }
-			basis.radius = AVESMAPS_GARETIEN_PUNKT_RADIUS;
+			// 🔴 30.08.2026: `opt.durchmesser` traegt, wenn bekannt, den ECHTEN Aussendurchmesser aus
+			// dem Zoomband der Siedlungsklasse (garetienPunktDurchmesser) -- der alte Festwert bleibt
+			// nur der Rueckfall. Hof UND Form desselben Punktobjekts bekommen IMMER denselben
+			// Durchmesser (beide Aufrufer in avesmapsGaretienKarteZeigen reichen `eintrag.durchmesser`
+			// durch): das Leuchten entsteht daraus, dass der dicke halbdurchsichtige Hofring und der
+			// duenne volldeckende Form-Ring auf demselben Radius liegen -- verschiedene Radien rissen
+			// den Schein neben den Punkt.
+			var aussenDurchmesser = typeof opt.durchmesser === "number"
+				? opt.durchmesser
+				: AVESMAPS_GARETIEN_PUNKT_RADIUS * 2;
+			basis.radius = aussenDurchmesser / 2;
 			// Ungefuellt, damit der Ring den Ort darunter nicht zudeckt.
 			basis.fill = false;
 			basis.fillOpacity = 0;
@@ -610,7 +753,13 @@
 		} else {
 			basis.fill = opt.flaeche === true;
 			basis.fillColor = opt.farbe;
-			basis.fillOpacity = opt.flaeche === true ? AVESMAPS_GARETIEN_FLAECHE_DECKKRAFT : 0;
+			// 🔴 30.08.2026: `opt.fuellwert` traegt, wenn bekannt, die ECHTE Deckkraft nach Art
+			// (garetienFlaechenDeckkraft) -- der alte Festwert bleibt der Rueckfall fuer eine
+			// unbekannte/mehrdeutige Art. Der Hof reicht ihn nie mit (er zeichnet nie eine Flaeche,
+			// `opt.flaeche` ist dort immer `false`), also bleibt diese Zeile fuer ihn wirkungslos.
+			basis.fillOpacity = opt.flaeche === true
+				? (typeof opt.fuellwert === "number" ? opt.fuellwert : AVESMAPS_GARETIEN_FLAECHE_DECKKRAFT)
+				: 0;
 			var bauer = (opt.flaeche === true && typeof l.polygon === "function")
 				? l.polygon
 				: l.polyline;
@@ -686,6 +835,11 @@
 					flaeche: garetienIstFlaeche(objekt) && garetienRingSchliesst(punkte),
 					// Aufgabe 4 (Entwurf §4.2): kollidiert das GANZE Objekt, glueht auch UNSER Hof rot.
 					kollidiert: avesmapsGaretienKollidiert(objekt),
+					// 30.08.2026: „das Design dessen, was es werden wird" -- beide Werte haengen am
+					// ZIEL (`objekt`), nicht an der Partei, siehe garetienFlaechenDeckkraft /
+					// garetienPunktDurchmesser.
+					deckkraft: garetienFlaechenDeckkraft(objekt),
+					durchmesser: garetienPunktDurchmesser(objekt, k),
 				});
 			});
 		});
@@ -703,6 +857,9 @@
 				flaeche: false,
 				strichelung: null,
 				titel: eintrag.titel,
+				// Derselbe Durchmesser wie die Form (siehe garetienForm) -- sonst liegt der Schein
+				// eines Punktobjekts neben statt um seinen Ring.
+				durchmesser: eintrag.durchmesser,
 			});
 			if (hof) { gruppe.addLayer(hof); }
 		});
@@ -718,6 +875,8 @@
 				flaeche: eintrag.flaeche,
 				strichelung: null,
 				titel: eintrag.titel,
+				durchmesser: eintrag.durchmesser,
+				fuellwert: eintrag.deckkraft,
 			});
 			if (form) { gruppe.addLayer(form); }
 		});
@@ -752,6 +911,10 @@
 				breite: sicht.breite,
 				// Aufgabe 4 (Entwurf §4.2): kollidiert das GANZE Objekt, glueht auch IHR Hof rot.
 				kollidiert: avesmapsGaretienKollidiert(objekt),
+				// 30.08.2026: dasselbe Ziel wie bei „unsere" -- die Werte haengen NICHT von `sicht`
+				// ab (die kennt nur Form/Farbe/Breite), sondern direkt vom Objekt.
+				deckkraft: garetienFlaechenDeckkraft(objekt),
+				durchmesser: garetienPunktDurchmesser(objekt, k),
 			});
 		});
 
@@ -769,6 +932,8 @@
 				flaeche: false,
 				strichelung: null,
 				titel: eintrag.titel,
+				// Derselbe Durchmesser wie die Form -- siehe der Kommentar bei „unsere" oben.
+				durchmesser: eintrag.durchmesser,
 			});
 			if (hof) { gruppe.addLayer(hof); }
 		});
@@ -787,6 +952,8 @@
 				flaeche: eintrag.flaeche,
 				strichelung: AVESMAPS_GARETIEN_STRICHELUNG,
 				titel: eintrag.titel,
+				durchmesser: eintrag.durchmesser,
+				fuellwert: eintrag.deckkraft,
 			});
 			if (form) { gruppe.addLayer(form); }
 		});
@@ -949,6 +1116,14 @@
 			// Aufgabe 4: die Kollision (Entwurf §4.2)
 			avesmapsGaretienKollidiert,
 			AVESMAPS_GARETIEN_KLASSE_KOLLISION,
+			// 30.08.2026: „das Design dessen, was es werden wird" -- Flaechen-Deckkraft und
+			// Punkt-Durchmesser nach echter Art/Klasse/Zoomstufe.
+			AVESMAPS_GARETIEN_TOKEN_SIEDLUNG,
+			AVESMAPS_GARETIEN_SIEDLUNGSKLASSEN,
+			garetienSiedlungsKlasse,
+			garetienObjektKind,
+			garetienFlaechenDeckkraft,
+			garetienPunktDurchmesser,
 		};
 	}
 })();

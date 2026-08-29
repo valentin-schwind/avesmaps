@@ -53,6 +53,11 @@ function gefaelschteKarte() {
 		panes: {},
 		paneAufrufe: 0,
 		fluege: [],
+		// 30.08.2026: die Zoomstufe fuer garetienPunktDurchmesser. Vorgabe 4, weil kein bestehender
+		// Test sie je gesetzt hat und ein aeltere Fixtures deshalb unveraendert bleiben muessen; ein
+		// Test, der die Groesse pruefen will, setzt `karte.zoom` vor dem Zeichnen um.
+		zoom: 4,
+		getZoom() { return this.zoom; },
 		createPane(name) {
 			this.paneAufrufe++;
 			this.panes[name] = { name: name, style: {}, classList: { add() {} } };
@@ -142,6 +147,14 @@ const GEBIRGE = "#7a6c5e";
 // Fix-Runde 1 zu Aufgabe 3: ein SEE-Token, DAMIT die Gegenprobe (ohne `kind`) wirklich einen NICHT
 // gestellten Tokennamen trifft -- `--color-path-see` bleibt absichtlich UNGESTELLT.
 const SEE = "#4a86b8";
+// 30.08.2026: die echte Markerfarbe einer Siedlung (--color-marker-settlement, tokens.css) -- ein
+// FUENFTER gestellter Wert, sonst waere „eine Siedlungsklasse bekommt ihre echte Farbe" Vakuum
+// (ohne diesen Eintrag liefe sie in die Gold-Rueckfall-Meldung und saehe zufaellig richtig aus).
+const SIEDLUNG = "#cc2f2a";
+// Und ein SECHSTER: die echte Waldfarbe (--color-ecosystem-vegetation-wald) -- ohne sie faellt die
+// Ebenen-Tafel selbst auf den Neutral-Rueckfall zurueck (Tokenname nicht gefunden), und die
+// Flaechen-Deckkraft-Probe (Abschnitt 11f) misst dann eine LINIE statt einer Flaeche.
+const WALD = "#3f6b2c";
 let tokenAbfragen = [];
 // ⚠️ Vollstaendig genug, dass auch review-garetien-importer.js (Abschnitt 12) darin starten kann:
 // dessen `hasDocument` ist ein `typeof document !== "undefined"`, und sein boot() greift dann
@@ -159,6 +172,9 @@ const TOKEN_WERTE = {
 	"--color-path-flussweg": WASSER,
 	"--color-ecosystem-topographie-gebirge": GEBIRGE,
 	"--color-ecosystem-topographie-see": SEE,
+	"--color-marker-settlement": SIEDLUNG,
+	"--color-ecosystem-vegetation-wald": WALD,
+	"--color-ecosystem-derographisch-kontinent": "#575757",
 };
 global.getComputedStyle = function (element) {
 	return {
@@ -168,6 +184,41 @@ global.getComputedStyle = function (element) {
 			return TOKEN_WERTE[name] || "";
 		},
 	};
+};
+
+// ---- 30.08.2026: die zwei VORHANDENEN Regeln, gegen die dieser Zeichner jetzt spielt -----------
+//
+// 🔴 GESTELLT, NICHT GERATEN -- und mit einer echten DIFFERENZ je Art/Klasse, sonst waere jede
+// Zusicherung unten Vakuum (AGENTS.md-Falle „ein Sumpf und ein See bekommen verschiedene Werte").
+// Beide Stubs bleiben WEIT unter den echten Tafeln (js/map-features/ecosystem-display.js,
+// location-zoom-bands.js) -- diese Datei prueft die VERDRAHTUNG (wird die Regel wirklich gerufen,
+// mit den richtigen Argumenten, und schlaegt sie den alten Festwert), nicht deren eigene Zahlen.
+const DECKKRAFT_ABFRAGEN = [];
+global.avesmapsEcosystemDisplayDeckkraft = function (kind, typeKey) {
+	DECKKRAFT_ABFRAGEN.push([kind, typeKey]);
+	const TAFEL = { derographisch: 0.16, vegetation: 0.72, topographie: 0.72, klima: 0.30 };
+	return typeof TAFEL[String(kind || "")] === "number" ? TAFEL[String(kind || "")] : 0.72;
+};
+
+// Zwei Klassen, verschieden GROSS und verschieden BREIT gestaffelt -- ein `dorf` erscheint erst
+// spaeter UND bleibt kleiner, eine `metropole` ist von Anfang an da und waechst staerker.
+const ZOOMBAND_ABFRAGEN = [];
+const ZOOMBAND_MARKER = {
+	dorf: [null, null, 2, 4, 8, 16],
+	metropole: [4, 6, 9, 13, 18, 26],
+};
+global.avesmapsLocationZoomBandValue = function (bandArt, klasse, zoom) {
+	ZOOMBAND_ABFRAGEN.push([bandArt, klasse, zoom]);
+	const reihe = ZOOMBAND_MARKER[klasse];
+	if (!reihe) { return null; }
+	const z = Math.max(0, Math.min(reihe.length - 1, Math.round(Number(zoom) || 0)));
+	return reihe[z];
+};
+global.avesmapsLocationZoomBandMinZoom = function (bandArt, klasse) {
+	const reihe = ZOOMBAND_MARKER[klasse];
+	if (!reihe) { return null; }
+	const index = reihe.findIndex((wert) => wert !== null);
+	return index < 0 ? null : index;
 };
 
 const mod = require(path.resolve(__dirname, "..", "review-garetien-karte.js"));
@@ -1173,6 +1224,150 @@ gleich(gefundenK, 2, "die Kollisions-Klasse muss GENAU in den zwei Paarungen vor
 	gleich(treffer.length, 1, "der Selektor " + selektor + " darf nur EINMAL deklariert sein, sonst "
 		+ "gewinnt lautlos die spaetere Fassung: " + treffer.length + " Treffer");
 });
+
+// ---- 11f. Das Design dessen, was es werden wird (30.08.2026) -----------------------------------
+//
+// 🔴 Owner: „bei flaechen und orten etc. das design dessen, was es werden wird uebernehmen -- z.b.
+// die farbe einer sumpflaeche oder die ortsmarkierung [...] mit dem glow und der gestrichelten
+// kontur, die bereits besteht." Gepruft wird die VERDRAHTUNG gegen die zwei VORHANDENEN Regeln
+// (Deckkraft, Zoomband, gestellt am Dateikopf), nicht deren eigene Zahlen -- und jede Zusicherung
+// haelt eine DIFFERENZ fest, sonst waere die Verdrahtung Vakuum.
+//
+// Zwei Flaechen derselben Form (Polygon), verschiedene Art.
+const waldObjekt = {
+	key: "wald1", name: "Herzwald", urteil: "ergaenzung", ebene: "Waelder", geometrie_typ: "Polygon",
+	geometrie: [[100, 100], [140, 100], [140, 140], [100, 100]], abschnitte: [],
+	items: [{ id: 101, selected: 1 }],
+};
+const provinzObjekt = {
+	key: "prov1", name: "Nordmark", urteil: "ergaenzung", ebene: "Sternenhimmel",
+	kind: "derographisch", subtyp: "kontinent", geometrie_typ: "Polygon",
+	geometrie: [[200, 200], [240, 200], [240, 240], [200, 200]], abschnitte: [],
+	items: [{ id: 102, selected: 1 }],
+};
+const karte11f = gefaelschteKarte();
+DECKKRAFT_ABFRAGEN.length = 0;
+avesmapsGaretienKarteZeigen([waldObjekt, provinzObjekt], karte11f);
+const waldForm = nach(karte11f, IHRE).filter((e) => e._punkte[0][1] === 100)[0];
+const provinzForm = nach(karte11f, IHRE).filter((e) => e._punkte[0][1] === 200)[0];
+wahr(waldForm && provinzForm, "beide Flaechen muessen gezeichnet werden");
+gleich(waldForm.options.fillOpacity, 0.72,
+	"ein Wald (Vegetation) bekommt die ECHTE Deckkraft der vorhandenen Regel, nicht mehr den alten "
+	+ "Festwert 0,14");
+gleich(provinzForm.options.fillOpacity, 0.16,
+	"die DIFFERENZ: derographisch bekommt eine ANDERE Deckkraft als Vegetation");
+wahr(DECKKRAFT_ABFRAGEN.some((a) => a[0] === "vegetation"),
+	"die vorhandene Regel muss wirklich fuer Vegetation gerufen worden sein");
+wahr(DECKKRAFT_ABFRAGEN.some((a) => a[0] === "derographisch"), "und fuer derographisch");
+avesmapsGaretienKarteAus(karte11f);
+
+// Die Gegenprobe: eine MEHRDEUTIGE Ebene (Gewaesser, deckt Fluss/Bach/See/Meer/Sumpf zugleich ab)
+// ruft die vorhandene Regel gar nicht erst -- sie rundet nicht auf 0,72 hoch (bereits an "moor"
+// oben in Abschnitt 11b bestaetigt; hier zusaetzlich die Nichtabfrage).
+const karte11f2 = gefaelschteKarte();
+DECKKRAFT_ABFRAGEN.length = 0;
+avesmapsGaretienKarteZeigen([blutmoor], karte11f2);
+gleich(DECKKRAFT_ABFRAGEN.length, 0,
+	"eine mehrdeutige Ebene darf die vorhandene Regel gar nicht erst befragen");
+avesmapsGaretienKarteAus(karte11f2);
+
+// ---- Ortsmarkierungen: Groesse nach Siedlungsklasse UND Zoomstufe (location-zoom-bands.js) ------
+const dorfObjekt = {
+	key: "dorf1", name: "Kleindorf", urteil: "ergaenzung", ebene: "Ortschaften_2", subtyp: "dorf",
+	kind: "", geometrie_typ: "", geometrie: [[300, 300]], abschnitte: [],
+	items: [{ id: 103, selected: 1 }],
+};
+const metropoleObjekt = {
+	key: "metro1", name: "Grossmetropole", urteil: "ergaenzung", ebene: "Ortschaften_1",
+	subtyp: "metropole", kind: "", geometrie_typ: "", geometrie: [[350, 350]], abschnitte: [],
+	items: [{ id: 104, selected: 1 }],
+};
+const karte11g = gefaelschteKarte();
+karte11g.zoom = 4;
+const warnungen11g = [];
+const warnVorher11g = console.warn;
+console.warn = function () { warnungen11g.push(Array.prototype.join.call(arguments, " ")); };
+avesmapsGaretienKarteZeigen([dorfObjekt, metropoleObjekt], karte11g);
+console.warn = warnVorher11g;
+
+const dorfForm = nach(karte11g, IHRE).filter((e) => e._punkte[0][0] === 300)[0];
+const metropoleForm = nach(karte11g, IHRE).filter((e) => e._punkte[0][0] === 350)[0];
+const dorfHof = nach(karte11g, SCHEIN_IHRE).filter((e) => e._punkte[0][0] === 300)[0];
+wahr(dorfForm && metropoleForm && dorfHof,
+	"beide Siedlungen (und der Hof des Dorfes) muessen gezeichnet werden");
+
+// Die tragende DIFFERENZ: ein dorf ist kleiner als eine metropole, bei DERSELBEN Zoomstufe.
+wahr(dorfForm.options.radius < metropoleForm.options.radius,
+	"ein dorf muss einen kleineren Ring bekommen als eine metropole: " + dorfForm.options.radius
+	+ " gegen " + metropoleForm.options.radius);
+gleich(dorfForm.options.radius, ZOOMBAND_MARKER.dorf[4] / 2,
+	"der Radius kommt aus dem GESTELLTEN Zoomband (dorf, z4), nicht aus dem alten Festwert");
+gleich(metropoleForm.options.radius, ZOOMBAND_MARKER.metropole[4] / 2,
+	"und hier aus dem Band der metropole (z4)");
+
+// Und die echte Farbe: nicht Gold, sondern die echte Siedlungsfarbe -- OHNE Warnung. Das ist der
+// beim Bau gefundene Fehler: `subtyp='dorf'` bei `kind: null` lief vorher in die kaputte
+// Weg-Ableitung (`--color-path-dorf`).
+gleich(dorfForm.options.color, SIEDLUNG,
+	"eine Siedlungsklasse bekommt ihre ECHTE Markerfarbe, nicht den Gold-Rueckfall");
+gleich(warnungen11g.length, 0,
+	"und OHNE eine Konsolenmeldung -- vorher waere das der kaputte Weg-Token-Fehlschlag gewesen: "
+	+ JSON.stringify(warnungen11g));
+
+// Der Hof teilt den Radius mit der Form -- sonst liegt das Leuchten neben statt um den Punkt.
+gleich(dorfHof.options.radius, dorfForm.options.radius,
+	"Hof und Form eines Punktobjekts muessen DENSELBEN Radius tragen, sonst reisst das Leuchten "
+	+ "vom Punkt ab");
+avesmapsGaretienKarteAus(karte11g);
+
+// Waechst mit dem Zoom: dieselbe Klasse an einer HOEHEREN Zoomstufe bekommt einen groesseren Ring.
+const karte11h = gefaelschteKarte();
+karte11h.zoom = 2;
+avesmapsGaretienKarteZeigen([dorfObjekt], karte11h);
+const dorfFormZ2 = nach(karte11h, IHRE)[0];
+avesmapsGaretienKarteAus(karte11h);
+wahr(dorfFormZ2.options.radius < dorfForm.options.radius,
+	"dieselbe Klasse muss bei niedrigerem Zoom einen KLEINEREN Ring bekommen: "
+	+ dorfFormZ2.options.radius + " (z2) gegen " + dorfForm.options.radius + " (z4)");
+
+// Der Riegel gegen das Verschwinden: bei Zoom 0 gibt es fuer 'dorf' laut Gestelltem Band gar keinen
+// Wert (null) -- der Punkt bekommt trotzdem eine Groesse (die der ERSTEN Zoomstufe, auf der die
+// Klasse ueberhaupt erscheint), statt unsichtbar zu werden. Die Vorschau muss vergleichbar bleiben,
+// unabhaengig davon, wo die Karte gerade steht.
+const karte11i = gefaelschteKarte();
+karte11i.zoom = 0;
+avesmapsGaretienKarteZeigen([dorfObjekt], karte11i);
+const dorfFormZ0 = nach(karte11i, IHRE)[0];
+avesmapsGaretienKarteAus(karte11i);
+wahr(dorfFormZ0 && typeof dorfFormZ0.options.radius === "number" && dorfFormZ0.options.radius > 0,
+	"ein 'dorf' bei Zoom 0 (Band sagt null) darf trotzdem nicht unsichtbar werden");
+gleich(dorfFormZ0.options.radius, ZOOMBAND_MARKER.dorf[2] / 2,
+	"der Rueckfall ist die ERSTE Zoomstufe, auf der 'dorf' ueberhaupt erscheint (z2), nicht Zoom 0 "
+	+ "selbst");
+
+// Die Gegenprobe: OHNE erkannte Siedlungsklasse (Berggipfel, kein eigenes Zoomband) bleibt der alte
+// Festwert -- unabhaengig von der Zoomstufe.
+const karte11j = gefaelschteKarte();
+karte11j.zoom = 6;
+avesmapsGaretienKarteZeigen([berg], karte11j);
+const bergFormZ6 = nach(karte11j, IHRE).filter((e) => e._punkte.length === 1)[0];
+avesmapsGaretienKarteAus(karte11j);
+gleich(bergFormZ6.options.radius, 8,
+	"ein Berggipfel (keine Siedlungsklasse) bleibt beim alten Festwert, unabhaengig von der "
+	+ "Zoomstufe");
+
+// ---- garetienPunktDurchmesser direkt, REIN ------------------------------------------------------
+wahr(typeof mod.garetienPunktDurchmesser === "function", "garetienPunktDurchmesser fehlt im Export");
+gleich(mod.garetienPunktDurchmesser({ subtyp: "" }, karte11g), 16,
+	"ohne Siedlungsklasse der alte Festwert (Durchmesser 16 = 2 * Radius 8)");
+gleich(mod.garetienPunktDurchmesser({ subtyp: "dorf" }, { getZoom: () => 4 }), 8,
+	"mit Karte kommt der Wert aus dem gestellten Band (dorf, z4)");
+gleich(mod.garetienPunktDurchmesser({ subtyp: "dorf" }, null), 2,
+	"ohne Karte faellt die Zoomstufe auf 0 zurueck, und OHNE Wert dort auf die erste Zoomstufe, auf "
+	+ "der 'dorf' erscheint (z2) -- nicht auf den alten Festwert, denn die Regel selbst ist ja da");
+wahr(typeof mod.garetienFlaechenDeckkraft === "function", "garetienFlaechenDeckkraft fehlt im Export");
+wahr(typeof mod.garetienSiedlungsKlasse === "function", "garetienSiedlungsKlasse fehlt im Export");
+wahr(typeof mod.garetienObjektKind === "function", "garetienObjektKind fehlt im Export");
 
 // ---- 12. Verdrahtung: die Datei laedt, das Fenster ruft sie ------------------------------------
 //
