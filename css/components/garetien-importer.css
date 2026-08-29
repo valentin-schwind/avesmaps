@@ -39,6 +39,36 @@
 	   ⚠️ Kleiner als --avm-editor-h: dieses Fenster muss NEBEN der Karte bestehen, nicht statt
 	   ihrer. */
 	height: min(700px, calc(100vh - 2 * var(--space-16)));
+
+	/* 🔴 ZIEHBAR (Owner 29.08.2026). Nativ, nicht selbstgebaut: das Haus macht es an sechs
+	   Stellen genauso (`resize: vertical` an Textfeldern in editor-page.css, legal-dialog.css,
+	   location-report-dialog.css, social-hub.css, mail-inbox.css, place-extras.css) -- eine
+	   eigene Zieh-Ecke gibt es nirgends, und sie wäre ein Bauteil mehr, das niemand sonst nutzt.
+	   ⭐ Der Anlass: die vier Reiter brauchen 399px, die Spalte hatte 343 -- sie brachen auf zwei
+	   Zeilen, sobald eine Zahl dreistellig wurde („Vorgemerkt (211)"). Statt den Deckel zu
+	   erraten, zieht der Editor sich das Fenster so breit, wie sein Bestand es braucht.
+	   💣 `resize` WIRKT NUR bei `overflow` ungleich `visible` -- das `overflow: hidden` weiter
+	   unten ist damit tragend und keine Kosmetik. Wer es entfernt, nimmt das Ziehen mit.
+	   ⚠️ `width`/`height` oben bleiben der STARTWERT; der Zug schreibt sie als Inline-Stil und
+	   überstimmt sie. Die Größe hält, solange die Seite steht -- dieselbe Lebensdauer wie bei
+	   den Textfeldern des Hauses. */
+	resize: both;
+	/* 💣 Beide Schranken sind nötig, und die untere ist die wichtigere: ohne sie lässt sich das
+	   Fenster auf wenige Pixel zusammenziehen, und weil die Hülle `overflow: hidden` trägt, ist
+	   danach NICHTS mehr da, woran man es wieder aufziehen könnte -- auch die Zieh-Ecke nicht.
+	   480px ist die Breite, unter der die zwei Spalten (`.avm-cols--2`) keine lesbare Zeile mehr
+	   hergeben. */
+	min-width: 480px;
+	min-height: 360px;
+	/* 💣 DIE OBERE SCHRANKE DARF NICHT MIT DEM PLANER RECHNEN, so nahe das auch liegt: `width`
+	   oben tut es, und dann ist der Deckel auf jedem Schirm, wo dieser zweite Term zieht,
+	   GENAU die Startbreite -- das Fenster liesse sich kein Pixel aufziehen. Bei 1151px
+	   Viewport gemessen: Start 735, Deckel 735, Zug wirkungslos.
+	   🔴 Der Planer gehört zum START, nicht zur Grenze. Das Fenster ist verschiebbar
+	   (dialog-drag.js) -- wer es über den Planer zieht, tut das absichtlich, und wer es breiter
+	   zieht, auch. Begrenzt wird nur gegen den Viewport, damit die Zieh-Ecke erreichbar bleibt. */
+	max-width: calc(100vw - 2 * var(--space-16));
+	max-height: calc(100vh - 2 * var(--space-16));
 	border: 1px solid var(--color-border-strong);
 	border-radius: var(--radius-sm);      /* Hülle sm, Bedienelemente md — Designsprache */
 	background: var(--color-panel);
@@ -307,7 +337,10 @@
 	flex: none;
 	margin: 0;
 	max-width: none;
-	padding: 0 var(--space-10) var(--space-6);
+	/* ⚠️ Rechts mehr Luft als links: dort sitzt der native Zieh-Anfasser (rund 16px), und er
+	   liegt UEBER dem Text. Ohne den Zuschlag laeuft die letzte Zeile unter das Dreieck --
+	   gemessen an der laengsten Fassung dieses Satzes. */
+	padding: 0 var(--space-20) var(--space-6) var(--space-10);
 	background: var(--color-panel-soft);
 	font-size: var(--font-size-caption);
 	color: var(--color-text-muted);

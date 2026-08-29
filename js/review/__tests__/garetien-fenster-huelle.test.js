@@ -63,4 +63,39 @@ assert.ok(js.includes("capabilities.admin === true"),
 	"Der Knopf muss ausdruecklich auf `=== true` pruefen. Eine als JSON geparste Fehlerseite, "
 	+ "eine 1 statt true, ein Proxy mit \"0\" -- alles davon ist truthy.");
 
+
+// ---- Das Fenster ist ZIEHBAR (Owner 29.08.2026) ------------------------------------------------
+//
+// Gemessen wird der Kern der Regel und ihre zwei Abhaengigkeiten, nicht ihre Anwesenheit.
+// 🪤 KOMMENTARE ZUERST WEG. Diese Datei ERKLAERT ihre eigenen Regeln ausfuehrlich -- der
+// Kommentar ueber `resize` nennt `overflow: hidden` woertlich. Ohne das Strippen fand die
+// Zusicherung darunter die Zeichenfolge im KOMMENTAR und blieb gruen, obwohl die Regel auf
+// `visible` stand. Beim Schreiben dieses Blocks am 29.08.2026 genau so passiert und von der
+// Mutationsprobe gefangen -- dieselbe Klasse, die in diesem Vorhaben schon achtmal zugeschlagen hat.
+const cssOhneKommentar = css.replace(/\/\*[\s\S]*?\*\//g, "");
+const winRegel = cssOhneKommentar.slice(
+	cssOhneKommentar.indexOf(".gi-win {"), cssOhneKommentar.indexOf(".gi-win[hidden]"));
+
+assert.ok(/\bresize:\s*both\b/.test(winRegel),
+	"das Fenster muss `resize: both` tragen -- der Owner zieht es sich so breit, wie sein Bestand es braucht");
+
+// 💣 `resize` wirkt NUR bei `overflow` ungleich `visible`. Wer das `overflow: hidden` der Huelle
+// entfernt, nimmt das Ziehen lautlos mit -- und es faellt erst auf, wenn jemand es benutzen will.
+assert.ok(/\boverflow:\s*hidden\b/.test(winRegel),
+	"`overflow: hidden` ist die Bedingung fuer `resize` und deshalb tragend, nicht kosmetisch");
+
+// 💣 DIE SCHARFE ZUSICHERUNG. `max-width` darf NICHT mit dem Planer rechnen -- `width` darueber
+// tut es, und dann ist der Deckel auf jedem Schirm, wo dieser zweite Term zieht, GENAU die
+// Startbreite. Live gemessen bei 1151px Viewport: Start 735, Deckel 735, der Zug wirkungslos.
+const maxWidth = /max-width:\s*([^;]+);/.exec(winRegel);
+assert.ok(maxWidth, "die Huelle braucht eine `max-width`, sonst zieht man sie aus dem Viewport heraus");
+assert.ok(!/avesmaps-planner-width/.test(maxWidth[1]),
+	"`max-width` darf den Planer NICHT abziehen -- sonst ist der Deckel gleich der Startbreite und "
+	+ "das Fenster laesst sich kein Pixel aufziehen. Der Planer gehoert zum START, nicht zur Grenze.");
+
+// Und der Boden: ohne ihn zieht man das Fenster auf wenige Pixel zusammen, und weil die Huelle
+// `overflow: hidden` traegt, ist danach nichts mehr da, woran man es wieder aufziehen koennte.
+assert.ok(/\bmin-width:\s*\d/.test(winRegel) && /\bmin-height:\s*\d/.test(winRegel),
+	"ohne Mindestmasse laesst sich das Fenster zu einem unbedienbaren Rest zusammenziehen");
+
 console.log("garetien-fenster-huelle: Knopf, Huelle und Riegel stehen wie im Auftrag verlangt.");
