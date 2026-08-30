@@ -2018,7 +2018,13 @@
 			return name || subtyp;
 		}
 		if (ziel === "path") {
-			return (typeof getPathTypeLabel === "function") ? getPathTypeLabel(subtyp) : subtyp;
+			const art = (typeof getPathTypeLabel === "function") ? getPathTypeLabel(subtyp) : subtyp;
+			// 🔴 „Flussweg (Bach)" -- der Owner hat diese Schreibweise am 30.08.2026 wörtlich
+			// bestellt, und sie sagt genau das Richtige: angelegt wird ein FLUSSWEG, und er trägt
+			// das Häkchen „Bach". Nur „Bach" verschwiege den Wegtyp, unter dem das Objekt in der
+			// Karte und im Wege-Editor auftaucht; nur „Flussweg" verschwiege das Häkchen, das ihm
+			// jede Befahrbarkeit nimmt.
+			return objekt && objekt.is_bach === true ? art + " (Bach)" : art;
 		}
 		return subtyp;
 	}

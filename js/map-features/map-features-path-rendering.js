@@ -158,7 +158,10 @@ function pathShowActionButtonMarkup(path) {
 // aber ein Typ-Icon, damit der Kopf nicht leer wirkt). Fluss/Seeweg -> Wellen, sonst Strassen-Symbol.
 // Inline-SVG (kein Asset noetig), fuellt die location-popup__icon-Groesse.
 function pathHeaderIconMarkup(pathType) {
-	const isWater = pathType === "Flussweg" || pathType === "Seeweg";
+	// ⚠️ „Bach" ist hier der ANZEIGE-Typ (pathAnzeigeSubtyp) -- er kommt nie aus der Datenbank,
+	// aber genau er steht in `pathType`, sobald das Haekchen gesetzt ist. Ohne ihn bekaeme ein
+	// Bach das STRASSEN-Symbol.
+	const isWater = pathType === "Flussweg" || pathType === "Seeweg" || pathType === "Bach";
 	const svg = isWater
 		? '<svg viewBox="0 0 24 24" width="100%" height="100%" fill="none" stroke="#3f6fa0" stroke-width="1.7" stroke-linecap="round"><path d="M3 7q3 -2.4 6 0t6 0 6 0"/><path d="M3 12q3 -2.4 6 0t6 0 6 0"/><path d="M3 17q3 -2.4 6 0t6 0 6 0"/></svg>'
 		: '<svg viewBox="0 0 24 24" width="100%" height="100%" fill="none" stroke="#7a6647" stroke-width="1.7" stroke-linecap="round"><path d="M8.5 21 11 3"/><path d="M15.5 21 13 3"/><path d="M12 5.5v2.5M12 11v2.5M12 16.5v2.5"/></svg>';
@@ -166,7 +169,14 @@ function pathHeaderIconMarkup(pathType) {
 }
 
 function createPathPopupMarkup(path) {
-	const pathType = normalizePathSubtype(path.properties?.feature_subtype || path.properties?.name);
+	// 🔴 DER ANZEIGE-TYP, nicht der gespeicherte: ein Flussweg mit Haekchen „Bach" heisst hier
+	// „Bach" (Owner 30.08.2026). Diese eine Zeile traegt DREI Anzeigen -- die Typzeile
+	// (getPathTypeLabel), den Titel eines unbenannten Weges (getUnnamedPathTitle) und das Kopfbild
+	// (pathHeaderImageBasename); alle drei lesen `pathType`. Genau deshalb steht die Weiche hier
+	// und nicht dreimal weiter unten.
+	// ⚠️ Der Rueckfall auf den NAMEN bleibt: Altbestaende ohne `feature_subtype` haengen daran.
+	const speicherTyp = normalizePathSubtype(path.properties?.feature_subtype || path.properties?.name);
+	const pathType = (typeof pathIstBach === "function" && pathIstBach(path)) ? "Bach" : speicherTyp;
 	// Titel wie in der Routen-Etappe (Owner): echter Name -> Name im Titel, Typ als Untertitel; kein Name
 	// -> "Unbenannte Straße" tritt an die Titelstelle und der Untertitel entfaellt (stuende sonst doppelt).
 	// getPathTitleName nimmt den WIKI-Namen zuerst -- genau wie die Spotlight-Suche. Vorher stand hier roh

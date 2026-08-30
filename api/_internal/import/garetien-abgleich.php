@@ -81,7 +81,11 @@ const AVESMAPS_GARETIEN_TYP_MAP = [
     // Imports -- sie wird gemessen und berichtet, nicht gebaut.
     'Strom' => ['ziel' => 'path',   'subtyp' => 'Flussweg',      'kind' => null],
     'Fluss' => ['ziel' => 'path',   'subtyp' => 'Flussweg',      'kind' => null],
-    'Bach'  => ['ziel' => 'path',   'subtyp' => 'Flussweg',      'kind' => null],
+    // 🔴 EIN BACH IST EIN FLUSSWEG MIT HAEKCHEN (Owner 30.08.2026) -- `is_bach` schaltet jede
+    // Befahrbarkeit ab (avesmapsPathTransportRegel), laesst ihn aber ein Fliessgewaesser bleiben.
+    // Er war vom 29. bis zum 30.08.2026 eine eigene Wegart; der Owner hat sich am 30.08. an einem
+    // Bildschirmfoto des Dialogs „Weg bearbeiten" fuer das Haekchen entschieden.
+    'Bach'  => ['ziel' => 'path',   'subtyp' => 'Flussweg',      'kind' => null, 'is_bach' => true],
 
     // Stehende Gewaesser sind bei uns eine FLAECHE plus ein LABEL -- zwei Objekte, und das
     // Label ist das tragende (Entwurf §3.3).

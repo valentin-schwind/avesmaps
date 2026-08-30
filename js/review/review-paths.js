@@ -13,6 +13,9 @@ function populatePathEditForm(path) {
 	document.getElementById("path-edit-autoname").checked = true;
 	document.getElementById("path-edit-autoname").disabled = false;
 	document.getElementById("path-edit-show-label").checked = shouldPathNameBeDisplayed(path);
+	// Der gespeicherte Stand des Häkchens -- VOR syncPathTransportOptions, das ihn ausliest.
+	const bachHaken = document.getElementById("path-edit-is-bach");
+	if (bachHaken) { bachHaken.checked = typeof pathIstBach === "function" && pathIstBach(path); }
 	const showLabelField = document.getElementById("path-edit-show-label")?.closest("label");
 	if (showLabelField) {
 		const hasWikiWay = typeof pathWikiCurrentAssignment === "function" && Boolean(pathWikiCurrentAssignment());
@@ -171,6 +174,10 @@ function buildPathEditPayload(formElement) {
 		name: submittedName || getNextPathDisplayName(featureSubtype, { excludePath: pathEditFeature }),
 		feature_subtype: featureSubtype,
 		show_label: formData.get("show_label") === "on",
+		// 🔴 Reist IMMER mit, auch als `false` -- sonst liesse sich ein einmal gesetztes Häkchen nie
+		// wieder abwählen (ein fehlender Schlüssel heisst am Server „nicht angehakt", aber der
+		// Rumpf sagt dann nichts, und ein späterer Leser könnte ihn als „nicht geändert" lesen).
+		is_bach: featureSubtype === "Flussweg" && formData.get("is_bach") === "on",
 		transport_domain: getDefaultTransportDomainForPathSubtype(featureSubtype),
 		allowed_transports: allowedTransports,
 		// Wann darf, was darf. Leer heisst ganzjaehrig; der Server entfernt das Feld dann ganz und
@@ -212,18 +219,49 @@ function getPathAllowedTransports(path) {
 // TWO lists, not one: getTransportOptionsForPathSubtype says which checkboxes EXIST for this way
 // type, getDefaultAllowedTransportsForPathSubtype which of them start CHECKED. On a Pfad they differ
 // -- the carriage is offered but unticked, so an editor can grant it to the few paths it fits.
+// Das Häkchen „Bach" (Owner 30.08.2026) -- Sichtbarkeit und Stand in EINER Funktion.
+//
+// 🔴 NUR BEI WEGTYP „FLUSSWEG". Die Zeile verschwindet sonst ganz, statt nur auszugrauen: an einer
+// Straße ist „Bach" keine Einstellung, die man gerade nicht treffen darf, sondern eine, die es
+// nicht gibt. Der Server verwirft sie dort ohnehin (avesmapsPathIstBach).
+// ⚠️ Wechselt der Wegtyp WEG vom Flussweg, wird der Haken auch geleert -- ein unsichtbarer, aber
+// gesetzter Haken reiste sonst im Rumpf mit und wäre beim Zurückwechseln plötzlich wieder da.
+function syncPathBachHaken({ path = null } = {}) {
+	const haken = document.getElementById("path-edit-is-bach");
+	const zeile = document.getElementById("path-edit-is-bach-row");
+	if (!haken || !zeile) { return false; }
+	const subtype = normalizePathSubtype(
+		document.getElementById("path-edit-type")?.value || path?.properties?.feature_subtype || "Weg"
+	);
+	const gilt = subtype === "Flussweg";
+	zeile.hidden = !gilt;
+	if (!gilt) { haken.checked = false; }
+	return gilt && haken.checked;
+}
+
 function syncPathTransportOptions({ path = null, resetToDefault = false } = {}) {
 	const subtype = normalizePathSubtype(document.getElementById("path-edit-type")?.value || path?.properties?.feature_subtype || "Weg");
 	const offeredOptions = getTransportOptionsForPathSubtype(subtype);
-	const selectedOptions = resetToDefault || !path
-		? getDefaultAllowedTransportsForPathSubtype(subtype)
-		: getPathAllowedTransports(path);
+	// 🔴 EIN BACH IST NICHT BEFAHRBAR (Owner 30.08.2026). Der Haken wird hier MITGEZOGEN, damit
+	// „Wegtyp gewechselt" und „Häkchen umgelegt" denselben Weg nehmen -- zwei Synchronisierer
+	// nebeneinander liefen beim ersten Wegtypwechsel auseinander.
+	// ⚠️ Der Riegel ist trotzdem der SERVER (avesmapsPathTransportRegel): hier steht die Anzeige.
+	// Ein Browser, der diese Zeile umgeht, bekommt vom Server dieselbe leere Liste.
+	const istBach = syncPathBachHaken({ path });
+	const selectedOptions = istBach
+		? []
+		: (resetToDefault || !path
+			? getDefaultAllowedTransportsForPathSubtype(subtype)
+			: getPathAllowedTransports(path));
 	document.querySelectorAll('#path-edit-transport-options input[name="allowed_transport"]').forEach((input) => {
 		const isCompatible = offeredOptions.includes(input.value);
 		// Die ganze ZEILE verschwindet, nicht nur der Haken -- an ihr haengen die Zeitfelder.
 		input.closest(".path-transport-row").hidden = !isCompatible;
-		input.disabled = !isCompatible;
-		input.checked = isCompatible && selectedOptions.includes(input.value);
+		// 🔴 Bei einem Bach bleiben die Zeilen SICHTBAR, aber gesperrt und leer. Sie zu verstecken
+		// sähe aus wie „dieser Wegtyp kennt keine Verkehrsmittel"; sichtbar und grau sagt, was
+		// wirklich gilt: es gäbe welche, und das Häkchen nimmt sie weg.
+		input.disabled = !isCompatible || istBach;
+		input.checked = !istBach && isCompatible && selectedOptions.includes(input.value);
 	});
 	// Die Gangbarkeit steht in denselben Zeilen: der Haken sagt OB, die Felder dahinter WANN.
 	// 💣 Nach dem programmatischen Setzen der Haken -- ein `checked` aus Code loest kein `change`

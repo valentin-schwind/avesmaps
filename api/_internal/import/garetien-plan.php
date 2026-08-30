@@ -168,6 +168,9 @@ function avesmapsGaretienPlanEintrag(array $zeile, array $ziel, array $urteil): 
             'ziel' => $ziel['ziel'],
             'subtyp' => $ziel['subtyp'],
             'kind' => $ziel['kind'],
+            // 🔴 NUR WENN GESETZT -- die Abwesenheit ist die Aussage „kein Bach". Ein
+            // `is_bach: false` an jedem Strom und Fluss waere eine Behauptung in jeder Planzeile.
+            ...(!empty($ziel['is_bach']) ? ['is_bach' => true] : []),
             'name' => trim((string) ($zeile['anzeige'] ?? '')),
             // 🔴 Seit 29.08.2026 DREI Geometrieformen, nicht mehr zwei (Entwurf §3.1/§3.4): ein
             // Ort ('location') oder ein Berggipfel-Label ('label') ist bei uns ein PUNKT, keine

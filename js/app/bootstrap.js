@@ -900,6 +900,15 @@ $("#political-timeline-range, #political-timeline-year").on("input change", func
 $("#path-edit-autoname").on("change", syncPathAutoNameControls);
 $("#path-edit-type").on("change", () => {
     syncPathAutoNameControls({ forceName: true });
+    // 🔴 syncPathTransportOptions zieht das Bach-Häkchen mit (syncPathBachHaken) -- Wegtypwechsel
+    // und Häkchen laufen deshalb durch DENSELBEN Weg. Ein zweiter Aufruf hier wäre der zweite
+    // Erzeuger derselben Anzeige.
+    syncPathTransportOptions({ resetToDefault: true });
+});
+// Owner 30.08.2026: das Häkchen „Bach" nimmt die Verkehrsmittel weg, sobald es fällt.
+// ⚠️ `resetToDefault: true` -- beim Abwählen sollen die Verkehrsmittel der Wegart zurückkommen,
+// nicht die leere Liste, die der Bach hinterlassen hat.
+$("#path-edit-is-bach").on("change", () => {
     syncPathTransportOptions({ resetToDefault: true });
 });
 $("#path-edit-close, #path-edit-cancel").on("click", () => setPathEditDialogOpen(false, { resetForm: true }));

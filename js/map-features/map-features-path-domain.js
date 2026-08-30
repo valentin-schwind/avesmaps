@@ -61,6 +61,11 @@ const PATH_TYPE_LABEL = {
 	Wuestenpfad: "Wüstenpfad",
 	Flussweg: "Flussweg",
 	Seeweg: "Seeweg",
+	// 🔴 „Bach" ist ein ANZEIGE-Schluessel, kein Speicher-Schluessel. Gespeichert wird
+	// `feature_subtype: "Flussweg"` plus `properties.is_bach` -- avesmapsReadPathSubtype lehnt
+	// „Bach" als Wegtyp ausdruecklich ab. Er steht hier, weil ein Bach dem Leser als „Bach"
+	// begegnen soll und nicht als „Flussweg" (Owner 30.08.2026).
+	Bach: "Bach",
 };
 
 function getPathTypeLabel(subtype) {
@@ -81,6 +86,7 @@ const UNNAMED_PATH_TITLE = {
 	Gebirgspass: "Unbenannter Gebirgspass",
 	Wuestenpfad: "Unbenannter Wüstenpfad",
 	Flussweg: "Unbenannter Flussweg",
+	Bach: "Unbenannter Bach",
 };
 
 function getUnnamedPathTitle(subtype) {
@@ -91,6 +97,27 @@ function getUnnamedPathTitle(subtype) {
 		return getPathTypeLabel(subtype);
 	}
 	return typeof tr === "function" ? tr(key, fallback) : fallback;
+}
+
+// --- Das Haekchen „Bach" --------------------------------------------------------------------
+//
+// Owner 30.08.2026, an einem Bildschirmfoto des Dialogs „Weg bearbeiten": „Flusswege bekommen die
+// zusaetzlich Option 'Bach'. Bach deaktiviert automatisch Flusssegler und Flusskahn (oder jeder art
+// von Befahrbarkeit), bleibt aber Flussweg (z.b. als Hindernis)."
+//
+// 🔴 NUR AN EINEM FLUSSWEG -- dieselbe Regel wie serverseitig in avesmapsPathIstBach
+// (api/_internal/map/features.php). Damit loescht ein Wegtypwechsel das Haekchen von selbst.
+function pathIstBach(path) {
+	const subtyp = String(path?.properties?.feature_subtype || "");
+	return subtyp === "Flussweg" && path?.properties?.is_bach === true;
+}
+
+// 🔴 DER WEGTYP, DEN EIN MENSCH SIEHT -- „Bach" statt „Flussweg". Er ist NICHT der gespeicherte
+// Wegtyp und darf nie in einen Schreibweg geraten: `avesmapsReadPathSubtype` lehnt „Bach" ab.
+// ⚠️ Deshalb ein eigener Name statt eines Umbaus von `normalizePathSubtype` -- jene Funktion wird
+// von ~10 Stellen benutzt, die den SPEICHER-Typ meinen (Zeichnen, Verkehrsmittel, Editor).
+function pathAnzeigeSubtyp(path) {
+	return pathIstBach(path) ? "Bach" : String(path?.properties?.feature_subtype || "");
 }
 
 function getNextPathDisplayName(subtype, { excludePath = null } = {}) {

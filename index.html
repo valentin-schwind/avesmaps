@@ -1770,6 +1770,18 @@
 							<option value="Seeweg">Seeweg</option>
 						</select></div>
 					</label>
+					<!-- Owner 30.08.2026, an einem Bildschirmfoto dieses Dialogs: „Flusswege bekommen die
+					     zusätzlich Option 'Bach'. Bach deaktiviert automatisch Flusssegler und Flusskahn
+					     (oder jeder art von Befahrbarkeit), bleibt aber Flussweg (z.b. als Hindernis)."
+					     🔴 Ein HÄKCHEN, kein Wegtyp: gespeichert wird `feature_subtype: "Flussweg"` plus
+					     `properties.is_bach`. Ein Bach bleibt damit für alles, was „ist das ein Fluss?"
+					     fragt, ein Fluss — Farbe, Strichstärke, Zeichenreihenfolge und die
+					     Gelände-Erkennung erben von selbst.
+					     ⚠️ Die Zeile ist NUR bei Wegtyp „Flussweg" sichtbar (syncPathBachHaken); an einer
+					     Straße hat der Satz keine Bedeutung, und der Server verwirft ihn dort ohnehin. -->
+					<label class="location-report-form__field" id="path-edit-is-bach-row" hidden>
+						<span class="location-report-form__checkline"><input id="path-edit-is-bach" name="is_bach" type="checkbox" /> Bach <span class="location-report-form__hint">— nicht befahrbar</span></span>
+					</label>
 					<!-- Wer darf hier reisen -- und wann. EINE ZEILE JE FAHRTYP: der Haken sagt OB, die
 					     Zeitfelder dahinter sagen WANN (kein Haken = nie · Haken + „ganzjährig" = immer ·
 					     Haken + Monat = Fenster). Die vier Zeitfelder baut js/review/review-path-seasons.js

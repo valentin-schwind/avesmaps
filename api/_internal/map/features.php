@@ -209,7 +209,12 @@ function avesmapsReadPathSubtype(mixed $value): string {
     // 'Der Wegtyp ist ungueltig.' Sie ist eine EIGENE Kopie von PATH_SUBTYPE_KEYS (js/config.js),
     // nicht dieselbe Liste -- ein Fund beim Bauen dieser Aufgabe, nicht Teil des urspruenglichen
     // Auftrags.
-    $allowedSubtypes = ['Reichsstrasse', 'Strasse', 'Weg', 'Pfad', 'Gebirgspass', 'Wuestenpfad', 'Flussweg', 'Seeweg', 'Bach'];
+    // 🔴 'Bach' STEHT HIER NICHT MEHR (Owner 30.08.2026, an einem Bildschirmfoto des Dialogs
+    // „Weg bearbeiten": ein Haekchen am Wegtyp, kein eigener Wegtyp). Er war vom 29. bis zum
+    // 30.08.2026 eine eigene Wegart, aber weder in der Auswahlliste des Dialogs noch auf einem
+    // einzigen Objekt: live gemessen 0 von 6038 Wegen. Ein Bach ist seither ein FLUSSWEG mit
+    // properties.is_bach -- siehe avesmapsPathIstBach unten.
+    $allowedSubtypes = ['Reichsstrasse', 'Strasse', 'Weg', 'Pfad', 'Gebirgspass', 'Wuestenpfad', 'Flussweg', 'Seeweg'];
     if (!in_array($subtype, $allowedSubtypes, true)) {
         throw new InvalidArgumentException('Der Wegtyp ist ungueltig.');
     }
@@ -221,14 +226,54 @@ function avesmapsDefaultTransportDomainForPathSubtype(string $subtype): string {
     return match ($subtype) {
         'Flussweg' => 'river',
         'Seeweg' => 'sea',
-        // 🔴 Ein Bach ist "wie ein Flussweg, aber nicht befahrbar" (Owner 27.08.2026) -- 'none' ist
-        // eine bereits gueltige, leere Transport-Domaene (avesmapsAllowedTransportOptionsForDomain
-        // default => []). KEINE neue Domaene, KEIN Eingriff in die Sperrregel der Querfeldein-Wand
-        // (offroad-grid.php) -- die greift ueber avesmapsGetRouteTransportType() === 'river' von
-        // selbst nicht, weil ein Bach dort 'unknown' liefert.
-        'Bach' => 'none',
         default => 'land',
     };
+}
+
+/**
+ * PURE: Traegt dieser Weg das Haekchen „Bach"?
+ *
+ * Owner 30.08.2026: „Flusswege bekommen die zusaetzlich Option 'Bach'. Bach deaktiviert automatisch
+ * Flusssegler und Flusskahn (oder jeder art von Befahrbarkeit), bleibt aber Flussweg (z.b. als
+ * Hindernis)."
+ *
+ * 🔴 NUR AN EINEM FLUSSWEG. Das Haekchen sagt „dieses Gewaesser ist zu klein zum Befahren" -- an
+ * einer Strasse hat der Satz keine Bedeutung, und ein durchgereichtes `is_bach` an einem Landweg
+ * waere eine Aussage, die niemand treffen wollte. Ein Wegtypwechsel weg vom Flussweg loescht das
+ * Haekchen deshalb von selbst, ohne eigene Aufraeumregel.
+ * ⚠️ Wie is_nodix/is_ruined/is_hidden beim Ort liegt es im `properties_json` -- keine Spalte, keine
+ * DDL, keine Migration.
+ */
+function avesmapsPathIstBach(string $subtype, mixed $wert): bool {
+    return $subtype === 'Flussweg' && avesmapsReadBoolean($wert);
+}
+
+/**
+ * PURE: DER EINE ORT, an dem „ein Bach ist nicht befahrbar" steht.
+ *
+ * 🔴 EINE REGEL, DREI SCHREIBWEGE. `avesmapsCreatePathFeature`, `avesmapsUpdatePathFeatureDetails`
+ * und `avesmapsUpdatePathGroupDetails` loesten die Domaene bisher jeder fuer sich auf. Haette jeder
+ * das Haekchen einzeln beachten muessen, waere das die Fehlerklasse, die dieses Projekt schon
+ * zweimal bezahlt hat (Querfeldein-Kanten 14.08., Ausstiegsregel 15.08.): „eine Regel, die einen von
+ * mehreren Erzeugern bindet, ist keine Regel". Gewacht von bach-haekchen-test.php, das die
+ * Schreibwege zur LAUFZEIT zaehlt -- deshalb steht hier keine ZAHL.
+ *
+ * 🔴 DIE SPERRE IST BAULICH, NICHT BERATEND. Domaene 'none' ergibt in
+ * avesmapsAllowedTransportOptionsForDomain eine LEERE Vertraeglichkeitsliste, und
+ * avesmapsReadAllowedTransports filtert jeden eingereichten Wert dagegen. Ein alter Client, der
+ * `['riverSailer']` mitschickt, bekommt `[]` -- es gibt keinen Pfad, auf dem ein Bach befahrbar
+ * wird, und keinen, den ein spaeterer Leser vergessen kann.
+ *
+ * @return array{domain:string, allowed:list<string>, is_bach:bool}
+ */
+function avesmapsPathTransportRegel(string $subtype, bool $istBach, mixed $eingereicht): array {
+    $domain = $istBach ? 'none' : avesmapsDefaultTransportDomainForPathSubtype($subtype);
+
+    return [
+        'domain' => $domain,
+        'allowed' => avesmapsReadAllowedTransports($eingereicht, $domain, $subtype),
+        'is_bach' => $istBach,
+    ];
 }
 
 function avesmapsAllowedTransportOptionsForDomain(string $domain): array {
@@ -2447,8 +2492,11 @@ function avesmapsCreatePathFeature(PDO $pdo, array $payload, array $user): array
     $subtype = avesmapsReadPathSubtype($payload['feature_subtype'] ?? 'Weg');
     $name = avesmapsReadFeatureName($payload['name'] ?? $subtype, 'Der Wegname');
     $showLabel = avesmapsReadBoolean($payload['show_label'] ?? false);
-    $transportDomain = avesmapsDefaultTransportDomainForPathSubtype($subtype);
-    $allowedTransports = avesmapsReadAllowedTransports($payload['allowed_transports'] ?? null, $transportDomain, $subtype);
+    // 🔴 Bach-Haekchen und Verkehrsmittel kommen aus DERSELBEN Regel (avesmapsPathTransportRegel).
+    $istBach = avesmapsPathIstBach($subtype, $payload['is_bach'] ?? false);
+    $regel = avesmapsPathTransportRegel($subtype, $istBach, $payload['allowed_transports'] ?? null);
+    $transportDomain = $regel['domain'];
+    $allowedTransports = $regel['allowed'];
     $coordinates = avesmapsReadLineStringCoordinates($payload['coordinates'] ?? null);
     $bounds = avesmapsCalculateLineStringBounds($coordinates);
 
@@ -2466,6 +2514,13 @@ function avesmapsCreatePathFeature(PDO $pdo, array $payload, array $user): array
         'transport_domain' => $transportDomain,
         'allowed_transports' => $allowedTransports,
     ];
+    // 🔴 NUR WENN GESETZT. `false` wird NICHT geschrieben -- die Abwesenheit ist die Aussage
+    // „kein Bach", genau wie bei place_kind am Ort. Ein `is_bach: false` an 1107 Flusswegen waere
+    // eine Behauptung in jeder Zeile, die niemand getroffen hat, und sie reiste in der
+    // Kartennutzlast mit.
+    if ($istBach) {
+        $properties['is_bach'] = true;
+    }
 
     // Die Feldherkunft eines FRISCH GEZEICHNETEN Weges.
     // 🔴 DER ANLEGEFALL IST EIN EIGENER SCHREIBWEG, und er ist beim Bauen zuerst uebersehen worden
@@ -2591,9 +2646,16 @@ function avesmapsApplyTransportSeasonsToWikiSiblings(
     foreach ($siblings as $sibling) {
         $properties = avesmapsDecodeJsonColumnForEdit($sibling['properties_json'] ?? null);
         $subtype = (string) $sibling['feature_subtype'];
+        // ⚠️ Auch der RUECKFALL geht durch die Regel: ein Bach ohne gespeicherte Liste bekaeme
+        // sonst Fluss-Verkehrsmittel untergeschoben, und ein Jahreszeitenfenster fuer einen
+        // Flusssegler, der dort nie faehrt, waere tote Angabe.
         $allowed = is_array($properties['allowed_transports'] ?? null)
             ? array_values($properties['allowed_transports'])
-            : avesmapsReadAllowedTransports(null, avesmapsDefaultTransportDomainForPathSubtype($subtype), $subtype);
+            : avesmapsPathTransportRegel(
+                $subtype,
+                avesmapsPathIstBach($subtype, $properties['is_bach'] ?? false),
+                null
+            )['allowed'];
         $forSibling = avesmapsReadTransportSeasons($seasons, $allowed);
 
         $before = $properties['transport_seasons'] ?? null;
@@ -2792,8 +2854,11 @@ function avesmapsUpdatePathFeatureDetails(PDO $pdo, array $payload, array $user)
     $name = avesmapsReadFeatureName($payload['name'] ?? '', 'Der Wegname');
     $subtype = avesmapsReadPathSubtype($payload['feature_subtype'] ?? 'Weg');
     $showLabel = avesmapsReadBoolean($payload['show_label'] ?? false);
-    $transportDomain = avesmapsDefaultTransportDomainForPathSubtype($subtype);
-    $allowedTransports = avesmapsReadAllowedTransports($payload['allowed_transports'] ?? null, $transportDomain, $subtype);
+    // 🔴 Dieselbe eine Regel wie beim Anlegen -- siehe avesmapsPathTransportRegel.
+    $istBach = avesmapsPathIstBach($subtype, $payload['is_bach'] ?? false);
+    $regel = avesmapsPathTransportRegel($subtype, $istBach, $payload['allowed_transports'] ?? null);
+    $transportDomain = $regel['domain'];
+    $allowedTransports = $regel['allowed'];
 
     $pdo->beginTransaction();
     try {
@@ -2814,6 +2879,14 @@ function avesmapsUpdatePathFeatureDetails(PDO $pdo, array $payload, array $user)
         $properties['show_label'] = $showLabel;
         $properties['transport_domain'] = $transportDomain;
         $properties['allowed_transports'] = $allowedTransports;
+        // 🔴 GESETZT ODER ENTFERNT, nie als `false` gespeichert -- siehe die Begruendung am
+        // Anlegeweg. Das Entfernen ist die Haelfte, die man beim Aendern vergisst: ohne sie
+        // liesse sich ein Haekchen nie wieder abwaehlen.
+        if ($istBach) {
+            $properties['is_bach'] = true;
+        } else {
+            unset($properties['is_bach']);
+        }
         // Wann darf, was darf. Ein leeres Ergebnis heisst „ganzjaehrig" und wird deshalb ENTFERNT
         // statt als leeres Objekt gespeichert -- „das ganze Jahr" ist die Abwesenheit eines Fensters.
         $transportSeasons = avesmapsReadTransportSeasons($payload['transport_seasons'] ?? null, $allowedTransports);
@@ -3094,18 +3167,32 @@ function avesmapsUpdatePathGroupDetails(PDO $pdo, array $payload, array $user): 
             // im Rumpf steht. In einer gemischten Gruppe traegt die Mehrheit den gewaehlten Typ
             // schon; ein Aufraeumen bei ihnen aendert nichts, wuerde aber `transport_domain`
             // nachtragen und damit als Aenderung durchgehen -- acht neue Revisionen fuer nichts.
+            // 🔴 DAS BACH-HAEKCHEN GILT AUCH HIER. Dieser Schreibweg rechnet die Fahrtyp-Liste
+            // neu -- ohne die Regel haette ein Gruppen-Speichern einem Bach seine Flusssegler
+            // zurueckgegeben, und zwar lautlos: der Kasten „Verkehrsmittel" ist in diesem Fenster
+            // gar nicht sichtbar. Gelesen wird der GESPEICHERTE Stand des Segments; gesetzt wird
+            // das Haekchen hier nicht (das tut der Dialog „Weg bearbeiten").
+            $istBach = avesmapsPathIstBach($subtype, $properties['is_bach'] ?? false);
             if ($wantsTransports || $subtype !== $subtypeVorher) {
-                $domain = avesmapsDefaultTransportDomainForPathSubtype($subtype);
+                $domain = avesmapsPathTransportRegel($subtype, $istBach, null)['domain'];
+                // ⚠️ Der Bestand wird mit dem ALTEN Wegtyp gerechnet (er beschreibt, was VORHER
+                // galt) -- aber ebenfalls durch die Regel, aus demselben Grund wie oben. Das
+                // Ergebnis wird gleich darunter ohnehin noch einmal gegen den NEUEN Stand
+                // gefiltert.
                 $bestand = is_array($properties['allowed_transports'] ?? null)
                     ? array_values($properties['allowed_transports'])
-                    : avesmapsReadAllowedTransports(null, avesmapsDefaultTransportDomainForPathSubtype($subtypeVorher), $subtypeVorher);
+                    : avesmapsPathTransportRegel(
+                        $subtypeVorher,
+                        avesmapsPathIstBach($subtypeVorher, $properties['is_bach'] ?? false),
+                        null
+                    )['allowed'];
                 foreach ($decisions as $option => $an) {
                     $bestand = array_values(array_filter($bestand, static fn(string $v): bool => $v !== $option));
                     if ($an) {
                         $bestand[] = $option;
                     }
                 }
-                $allowed = avesmapsReadAllowedTransports($bestand, $domain, $subtype);
+                $allowed = avesmapsPathTransportRegel($subtype, $istBach, $bestand)['allowed'];
                 $properties['transport_domain'] = $domain;
                 $properties['allowed_transports'] = $allowed;
                 // Ein Fenster auf einem nicht mehr erlaubten Fahrtyp ist tote Angabe -- derselbe

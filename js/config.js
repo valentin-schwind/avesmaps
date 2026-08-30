@@ -89,12 +89,13 @@ const SPARSE_CROSSING_OVERLAY_DISTANCE = 0.02;
 // Editor also oft. Die Zelle MUSS groesser sein als SPARSE_CROSSING_OVERLAY_DISTANCE, sonst reichen
 // die drei mal drei abgefragten Zellen nicht bis an den Suchradius heran.
 const SPARSE_CROSSING_SEGMENT_CELL = 0.5;
-// 🔴 „Bach" steht ANS ENDE, nicht einsortiert -- die sieben vorhandenen Plaetze sind Bestand
-// (svg-export-build.js zeichnet in dieser Reihenfolge), und ein Einschieben verschoebe jede Liste,
-// die ueber PATH_SUBTYPE_KEYS iteriert. Ein Bach ist "wie ein Flussweg, aber nicht befahrbar"
-// (Owner 27.08.2026) -- siehe avesmapsDefaultTransportDomainForPathSubtype in
-// api/_internal/map/features.php ('Bach' => 'none', keine eigene Transport-Domaene noetig).
-const PATH_SUBTYPE_KEYS = ["Reichsstrasse", "Strasse", "Weg", "Pfad", "Gebirgspass", "Wuestenpfad", "Flussweg", "Seeweg", "Bach"];
+// 🔴 „Bach" STEHT HIER NICHT (Owner 30.08.2026, an einem Bildschirmfoto des Dialogs „Weg
+// bearbeiten": ein Haekchen am Wegtyp, kein eigener Wegtyp). Er war vom 29. bis zum 30.08.2026 eine
+// eigene Wegart -- aber weder in der Auswahlliste des Dialogs noch auf einem einzigen Objekt (live
+// gemessen 0 von 6038 Wegen). Ein Bach ist seither ein FLUSSWEG mit `properties.is_bach`; die Regel
+// dazu steht in avesmapsPathTransportRegel (api/_internal/map/features.php), die Anzeige in
+// pathIstBach (map-features-path-domain.js).
+const PATH_SUBTYPE_KEYS = ["Reichsstrasse", "Strasse", "Weg", "Pfad", "Gebirgspass", "Wuestenpfad", "Flussweg", "Seeweg"];
 const PATH_ENDPOINT_SNAP_DISTANCE_PX = 18;
 
 // Miles per hour per transport x path subtype. Derived from Geographia Aventurica S. 123 (day

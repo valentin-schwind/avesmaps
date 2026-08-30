@@ -514,6 +514,10 @@ function avesmapsGaretienArbeitslisteObjekte(PDO $pdo, int $importRunId): array
             'quelle' => (array) ($erstesAfter['quelle'] ?? []),
             // Als WAS wir es anlegen wuerden. Ohne dieses Feld sagt der Kopf nur ihren Typ.
             'subtyp' => (string) ($erstesAfter['subtyp'] ?? ''),
+            // 🔴 Das Bach-Haekchen -- DURCHGEREICHT, nicht aus `typ === 'Bach'` hergeleitet.
+            // Die Zuordnung (AVESMAPS_GARETIEN_TYP_MAP) entscheidet, was ein Bach ist; eine zweite
+            // Fassung im Browser liefe beim ersten neuen Quelltyp auseinander.
+            'is_bach' => !empty($erstesAfter['is_bach']),
             // 🔴 AUFGABE „Eingefuegt wird": DURCHGEREICHT, NICHT HERGELEITET -- dieselbe Lehre wie
             // beim `kind`-Feld darueber. `after.ziel` (path|region|location|label) steht seit dem
             // Planbau da (garetien-plan.php:143); die Einzelansicht braucht es, um zu wissen, WAS

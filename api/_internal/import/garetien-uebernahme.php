@@ -1105,6 +1105,10 @@ function avesmapsGaretienUebernehmen(PDO $pdo, int $runId, array $itemIds, array
                 $feature = avesmapsCreatePathFeature($pdo, array_merge([
                     'name' => (string) $nach['name'],
                     'feature_subtype' => (string) $nach['subtyp'],
+                    // 🔴 Das Bach-Haekchen der Zuordnung (AVESMAPS_GARETIEN_TYP_MAP['Bach']).
+                    // avesmapsCreatePathFeature gibt es an avesmapsPathTransportRegel weiter, und
+                    // die nimmt einem Bach jede Befahrbarkeit -- baulich, nicht per Bedingung.
+                    'is_bach' => !empty($nach['is_bach']),
                     // 💣 GeoJSON [x,y] -> Hausvertrag, siehe avesmapsGaretienGeoJsonNachHausvertrag.
                     'coordinates' => avesmapsGaretienGeoJsonNachHausvertrag((array) $nach['geometry']['coordinates']),
                 ], avesmapsGaretienWegUebersteuerung($einstellungen)), $user);
