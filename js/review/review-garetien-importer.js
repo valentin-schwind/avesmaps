@@ -1958,47 +1958,44 @@
 	// `avesmapsCreateLabelFeature` (api/_internal/map/features.php:3236) fiel dann auf
 	// min_zoom=0/max_zoom=5/size=18/priority=3 zurück -- unabhängig von der Art.
 	//
-	// 🔴 KORREKTUR (Owner-Nachtrag 30.08.2026, wörtlich: „DOCH DER IMPORT SOLL SIE SETZEN!!!"): der
-	// Import wendet seither die vom Admin im Fenster „Landschaften -> Darstellung" gesetzte
-	// Übersteuerung der Zielart an (avesmapsGaretienLabelVorgabeFuerArt,
-	// api/_internal/import/garetien-uebernahme.php) -- diese Anzeige MUSS mitziehen, sonst
-	// behauptet der Satz „der Import setzt sie nicht" ausgerechnet für die Fälle, in denen er es
-	// jetzt tut, das Gegenteil.
+	// 🔴 KORREKTUR (Owner-Nachtrag 30.08.2026, wörtlich: „DOCH DER IMPORT SOLL SIE SETZEN!!!",
+	// dann „WARUM DARF ICH DAS NICHT VERÄNDERN?"): diese Felder sind seither ECHTE Eingabefelder
+	// (siehe unten) -- die Frage ist damit nicht mehr "was setzt der Import unsichtbar", sondern
+	// "womit ist das Feld VORBELEGT". Das ändert, welche Tafel hier die richtige Quelle ist:
 	//
-	// 🔴 DIE TAFEL DER ART-EMPFEHLUNGEN LIEGT IN js/map-features/ecosystem-display.js UND WIRD
-	// HIER NUR GELESEN, NIE ABGESCHRIEBEN (AGENTS.md §5: eine Tafel, zwei Erzeuger, sie laufen
-	// auseinander). ⚠️ ABER `avesmapsEcosystemDisplayVorgabe(subtyp)` selbst taugt hier NICHT als
-	// „echter" Wert: sie mischt DREI Stufen (Admin-Übersteuerung > gemessene Vorgabe der Art >
-	// Grundwert), und der IMPORT kennt serverseitig nur die ERSTE -- die gemessene Tafel
+	// 🔴 HIER GILT DIE VOLLE „VORGABE DER ART" (`avesmapsEcosystemDisplayVorgabe`/
+	// `…BasisGroesse`), NICHT die schmale, admin-only Übersteuerung. Server-seitig
+	// (avesmapsGaretienLabelVorgabeFuerArt) kennt der Import nur die ERSTE der drei Stufen (Admin-
+	// Übersteuerung > gemessene Vorgabe der Art > Grundwert) -- die gemessene Tafel
 	// `AVESMAPS_ECOSYSTEM_DISPLAY_VORGABE_JE_ART` ist ein reiner Client-Schnappschuss ohne
-	// PHP-Gegenstück (siehe der Kommentar an avesmapsGaretienLabelVorgabeFuerArt). Der „echte" Wert
-	// unten liest deshalb dieselbe ROHE Übersteuerung wie der Server -- über
-	// `avesmapsEcosystemDisplayTeil()`, nicht über `avesmapsEcosystemDisplayVorgabe()` -- und wendet
-	// dieselben zwei Wächter an wie avesmapsGaretienLabelVorgabeFuerArt: ein umgekehrtes Zoomband
-	// ("aus", bis < ab) verwirft beide Enden, eine Größe unter 10 pt (dem Label-Minimum, unterhalb
-	// der 4..30-Schranke der Darstellungstafel) verwirft die Größe. Bleibt DANACH noch eine
-	// Abweichung zur VOLLEN Empfehlung (inklusive der gemessenen Tafel), zeigt die Zeile sie
-	// weiterhin als Hinweis -- genau für die Arten, die der Import mangels Admin-Übersteuerung
-	// unverändert lässt.
-	function garetienEingefuegtWirdLabelEcht(subtyp) {
+	// PHP-Gegenstück (Grund: AGENTS.md §5, "eine Tafel, zwei Erzeuger, sie laufen auseinander" --
+	// dort steht die Begründung für den SERVER). Für die VORBELEGUNG eines Eingabefelds gilt diese
+	// Einschränkung NICHT: der Browser darf die volle, hilfreichere Empfehlung zeigen (z. B. Zoom 4
+	// für einen See statt des uniformen Grundwerts 0), weil das Feld ohnehin editierbar ist UND
+	// sein Inhalt -- gleich woher er stammt -- der Wert ist, der tatsächlich gesendet wird. Es gibt
+	// dadurch keine zweite Wahrheit mehr, nur noch eine bessere Vorbelegung.
+	//
+	// ⚠️ DIESELBEN ZWEI WÄCHTER WIE BEIM SERVER bleiben trotzdem stehen: ein umgekehrtes Zoomband
+	// ("aus", bis < ab, in der Darstellungstafel gültig) ist für ein neues Label keine gültige
+	// Aussage und verwirft BEIDE Enden auf den Grundwert; eine Größe unter 10 pt (dem
+	// Label-Minimum, unterhalb der 4..30-Schranke der Darstellungstafel) verwirft die Größe.
+	function garetienEingabenVorbelegung(subtyp) {
 		const grundwert = { minZoom: 0, maxZoom: 5, size: 18, prio: 3 };
-		if (typeof avesmapsEcosystemDisplayTeil !== "function") { return grundwert; }
-		const echt = Object.assign({}, grundwert);
-		const vorgabe = avesmapsEcosystemDisplayTeil("vorgabe")[String(subtyp || "")];
-		if (vorgabe && typeof vorgabe === "object") {
-			if (typeof vorgabe.ab === "number") { echt.minZoom = vorgabe.ab; }
-			if (typeof vorgabe.bis === "number") { echt.maxZoom = vorgabe.bis; }
-			if (typeof vorgabe.prio === "number") { echt.prio = vorgabe.prio; }
+		const vorbelegung = Object.assign({}, grundwert);
+		if (typeof avesmapsEcosystemDisplayVorgabe === "function") {
+			const vorgabe = avesmapsEcosystemDisplayVorgabe(subtyp);
+			if (vorgabe && typeof vorgabe.ab === "number" && typeof vorgabe.bis === "number"
+				&& vorgabe.bis >= vorgabe.ab) {
+				vorbelegung.minZoom = vorgabe.ab;
+				vorbelegung.maxZoom = vorgabe.bis;
+			}
+			if (vorgabe && typeof vorgabe.prio === "number") { vorbelegung.prio = vorgabe.prio; }
 		}
-		if (echt.maxZoom < echt.minZoom) {
-			echt.minZoom = grundwert.minZoom;
-			echt.maxZoom = grundwert.maxZoom;
+		if (typeof avesmapsEcosystemDisplayBasisGroesse === "function") {
+			const basis = avesmapsEcosystemDisplayBasisGroesse(subtyp);
+			if (typeof basis === "number" && basis >= 10) { vorbelegung.size = basis; }
 		}
-		const groesseZeile = avesmapsEcosystemDisplayTeil("groesse")[String(subtyp || "")];
-		if (Array.isArray(groesseZeile) && typeof groesseZeile[5] === "number" && groesseZeile[5] >= 10) {
-			echt.size = Math.round(groesseZeile[5]);
-		}
-		return echt;
+		return vorbelegung;
 	}
 
 	// REIN: hat dieses Objekt überhaupt einen "neu anlegen"-Vorschlag? Dieselbe Frage wie
@@ -2010,19 +2007,6 @@
 		return ((objekt && objekt.items) || []).some(function (item) {
 			return String((item && item.change_type) || "") === "new";
 		});
-	}
-
-	// REIN: eine Datenzeile -- Beschriftung, echter Wert, und (falls abweichend) die Empfehlung.
-	function garetienEingefuegtWirdZeile(beschriftung, echt, empfehlung) {
-		const weicht = empfehlung !== null && empfehlung !== undefined
-			&& String(empfehlung) !== String(echt);
-		const hinweis = weicht
-			? '<span class="gi-insert__hint"> — Vorgabe der Art wäre '
-				+ avesmapsGaretienEscape(String(empfehlung)) + ", der Import setzt sie nicht</span>"
-			: "";
-		return '<p class="gi-insert__row">' + avesmapsGaretienEscape(beschriftung)
-			+ ' <span class="gi-insert__val">(' + avesmapsGaretienEscape(String(echt)) + ")</span>"
-			+ hinweis + "</p>";
 	}
 
 	// REIN: eine Datenzeile mit einem FREIEN Hinweistext statt einer Art-Empfehlung. Weg und Ort
@@ -2043,42 +2027,164 @@
 		return '<p class="gi-insert__sub">' + avesmapsGaretienEscape(text) + "</p>";
 	}
 
-	// REIN: „Fläche" -- für Klicks gesperrt. IMMER „aus": `avesmapsGaretienFlaecheAnlegen"
-	// (garetien-uebernahme.php) schickt kein `is_locked` mit, und die Spalte fällt auf ihren
-	// Tabellendeckel zurück (api/_internal/app/ecosystem.php: „is_locked TINYINT(1) NOT NULL
-	// DEFAULT 0"). Kein Vergleichswert nötig -- es gibt keine Art-Empfehlung für diese Spalte,
-	// sie ist eine reine Karteneigenschaft je Region (AGENTS.md §11, „Stapelreihenfolge und
-	// Klick-Sperre der REGION").
-	function garetienEingefuegtWirdFlaecheMarkup() {
-		return garetienEingefuegtWirdUeberschrift("Fläche")
-			+ '<p class="gi-insert__row">für Klicks gesperrt <span class="gi-insert__val">(aus)</span></p>';
+	// ---- Aufgabe „Eingefügt wird -> Eingabefelder" (Owner 30.08.2026, wörtlich: „ich hatte
+	// plötzlich 3000 labels da stehen ... WARUM DARF ICH DAS NICHT VERÄNDERN?" -- „einstellbar"
+	// heißt: hier, im Kasten, vor dem Einfügen). Die Werte der Fläche/Beschriftung werden
+	// Eingabefelder, vorbelegt mit der Vorgabe der Art (bzw. dem Grundwert). Ort und Weg BLEIBEN
+	// reine Anzeige (garetienEingefuegtWirdZeileMitHinweis, unverändert) -- die Recherche ergab,
+	// dass dort nichts von alledem tatsächlich gespeichert wird (ein Ort trägt kein Zoomband).
+	//
+	// 🔴 DER SERVER BLEIBT DIE LETZTE INSTANZ. Ein Eingabefeld ist die Anzeige, nicht der Riegel --
+	// avesmapsCreateLabelFeature/…EcosystemRegion prüfen jeden Wert selbst und lehnen einen
+	// unsinnigen (z. B. `bis < ab`) ab, auch wenn der Browser ihn durchließe. Diese Datei validiert
+	// hier bewusst NICHTS außer der reinen Zahlenform.
+	//
+	// 🔴 EIN GEÄNDERTER WERT GILT FÜR DIESES EINE OBJEKT -- er schreibt NIE in die Einstellungstafel
+	// (`ecosystem_display`, die dem Landschaften-Editor gehört) und überlebt keinen Listenwechsel:
+	// die Menge unten ist Modulzustand dieses FENSTERS, kein gespeicherter Zustand, kein
+	// `localStorage`. Ein neu geöffneter Importer-Lauf startet wieder bei der Vorgabe der Art.
+	//
+	// 🔴 „ALLE ANGEZEIGTEN EINFÜGEN" NIMMT DIE VORGABEN, NIE DIE HANDEINGABEN. Die Massenübernahme
+	// (garetienFussknopfKlick) ruft `garetienEingabenFuerServer` nirgends -- nur der Einzelknopf
+	// „Neu einfügen" (garetienNeuKlick) tut das. Eine Massenhandlung, die die Einstellung EINES
+	// zufällig zuletzt geöffneten Objekts auf alle übrigen anwendete, wäre genau die Falschaussage
+	// über die nächste Handlung, die dem Owner am 30.08.2026 schon einmal 3007 Objekte gekostet hat.
+	let _garetienEingabenZustand = {};
+
+	// REIN: die Vorbelegung eines frisch geöffneten Objekts -- Vorgabe der Art (bzw. Grundwert) für
+	// die vier Zahlenfelder, „aus"/„an" für die drei Haken. Liest dieselbe Tafel wie jede andere
+	// Vorbelegung im Haus (avesmapsEcosystemDisplayVorgabe/…BasisGroesse), keine zweite.
+	function garetienEingabenGrundwerte(objekt) {
+		const vorbelegung = garetienEingabenVorbelegung(String((objekt && objekt.subtyp) || ""));
+		return {
+			size: vorbelegung.size, priority: vorbelegung.prio,
+			minZoom: vorbelegung.minZoom, maxZoom: vorbelegung.maxZoom,
+			showName: true, curveLabel: false, curveLabelMax: 1, isLocked: false,
+		};
 	}
 
-	// REIN: „Beschriftung" -- Größe/Priorität/Zoomband/[Kurvenbeschreibung]/Auf Karte anzeigen.
-	// `mitKurve` gilt nur bei einer FLÄCHE -- ein Berggipfel-Label hängt an keiner
-	// `ecosystem_region` (siehe der 'label'-Zweig in avesmapsGaretienUebernehmen).
-	function garetienEingefuegtWirdBeschriftungMarkup(subtyp, mitKurve) {
-		const echt = garetienEingefuegtWirdLabelEcht(subtyp);
-		const vorgabe = (typeof avesmapsEcosystemDisplayVorgabe === "function")
-			? avesmapsEcosystemDisplayVorgabe(subtyp)
-			: null;
-		const basisGroesse = (typeof avesmapsEcosystemDisplayBasisGroesse === "function")
-			? avesmapsEcosystemDisplayBasisGroesse(subtyp)
-			: null;
-		let markup = garetienEingefuegtWirdUeberschrift("Beschriftung")
-			+ garetienEingefuegtWirdZeile("Größe", echt.size + " pt",
-				basisGroesse === null ? null : basisGroesse + " pt")
-			+ garetienEingefuegtWirdZeile("Priorität", echt.prio,
-				vorgabe === null ? null : vorgabe.prio)
-			+ garetienEingefuegtWirdZeile("Sichtbar ab Zoom", echt.minZoom,
-				vorgabe === null ? null : vorgabe.ab)
-			+ garetienEingefuegtWirdZeile("Sichtbar bis Zoom", echt.maxZoom,
-				vorgabe === null ? null : vorgabe.bis);
-		if (mitKurve) {
-			markup += '<p class="gi-insert__row">Kurvenbeschreibung <span class="gi-insert__val">(aus)</span></p>';
+	// REIN/ZUSTANDSHALTEND: der aktuelle Eingabestand eines Objekts -- angelegt beim ERSTEN Zugriff
+	// (Vorbelegung), danach unverändert zurückgegeben, damit ein erneutes Rendern (z. B. nach einem
+	// Listen-Refetch) eine bereits getippte Handeingabe nicht verwirft. Derselbe Bau wie
+	// garetienWikiSucheZustandZu daneben.
+	function garetienEingabenZustandZu(objekt) {
+		const key = String((objekt && objekt.key) || "");
+		if (!_garetienEingabenZustand[key]) {
+			_garetienEingabenZustand[key] = garetienEingabenGrundwerte(objekt);
 		}
-		markup += '<p class="gi-insert__row">Auf Karte anzeigen <span class="gi-insert__val">(an)</span></p>';
+		return _garetienEingabenZustand[key];
+	}
+
+	function garetienEingabeId(objekt, feld) {
+		return "gi-feld-" + avesmapsGaretienEscape(String((objekt && objekt.key) || "")) + "-" + feld;
+	}
+
+	// REIN: eine Zahlenzeile -- Beschriftung + Eingabefeld, vorbelegt mit dem aktuellen
+	// Eingabestand. `grenzen` ist eine Anzeigehilfe (`min`/`max` am `<input>`), KEIN Ersatz für die
+	// Server-Prüfung -- ein Browser, der diese Grenzen ignoriert (ältere Engines, direkte DOM-
+	// Manipulation), bekommt vom Server trotzdem eine Ablehnung.
+	function garetienEingefuegtWirdZahlZeile(objekt, beschriftung, feld, wert, einheit, grenzen, deaktiviert) {
+		const id = garetienEingabeId(objekt, feld);
+		return '<p class="gi-insert__row gi-insert__row--edit">'
+			+ '<label for="' + id + '">' + avesmapsGaretienEscape(beschriftung) + "</label> "
+			+ '<input type="number" class="gi-insert__input" id="' + id + '" data-gi-feld="' + feld + '" '
+			+ 'min="' + grenzen.min + '" max="' + grenzen.max + '" value="' + Number(wert) + '"'
+			+ (deaktiviert ? " disabled" : "") + ">"
+			+ (einheit ? ' <span class="gi-insert__unit">' + avesmapsGaretienEscape(einheit) + "</span>" : "")
+			+ "</p>";
+	}
+
+	// REIN: eine Häkchenzeile -- dasselbe Muster, für die drei Ja/Nein-Einstellungen des Kastens.
+	function garetienEingefuegtWirdHakenZeile(objekt, beschriftung, feld, angehakt) {
+		const id = garetienEingabeId(objekt, feld);
+		return '<p class="gi-insert__row gi-insert__row--edit">'
+			+ '<label for="' + id + '"><input type="checkbox" id="' + id + '" data-gi-feld="' + feld + '"'
+			+ (angehakt ? " checked" : "") + "> " + avesmapsGaretienEscape(beschriftung) + "</label></p>";
+	}
+
+	// REIN: „Fläche" -- für Klicks gesperrt (is_locked). Kein Vergleichswert/keine Vorgabe der Art
+	// nötig -- es gibt keine Art-Empfehlung für diese Spalte, sie ist eine reine
+	// Karteneigenschaft je Region (AGENTS.md §11, „Stapelreihenfolge und Klick-Sperre der REGION"),
+	// ihr Grundwert ist immer „aus".
+	function garetienEingefuegtWirdFlaecheMarkup(objekt) {
+		const eingaben = garetienEingabenZustandZu(objekt);
+		return garetienEingefuegtWirdUeberschrift("Fläche")
+			+ garetienEingefuegtWirdHakenZeile(objekt, "für Klicks gesperrt", "isLocked", eingaben.isLocked);
+	}
+
+	// REIN: „Beschriftung" -- Größe/Priorität/Zoomband/[Kurvenbeschreibung]/Auf Karte anzeigen, ALLE
+	// editierbar. `mitKurve` gilt nur bei einer FLÄCHE -- ein Berggipfel-Label hängt an keiner
+	// `ecosystem_region` (siehe der 'label'-Zweig in avesmapsGaretienUebernehmen) und kennt deshalb
+	// weder Kurvenbeschreibung noch „für Klicks gesperrt".
+	function garetienEingefuegtWirdBeschriftungMarkup(objekt, subtyp, mitKurve) {
+		const eingaben = garetienEingabenZustandZu(objekt);
+		let markup = garetienEingefuegtWirdUeberschrift("Beschriftung")
+			+ garetienEingefuegtWirdZahlZeile(objekt, "Größe", "size", eingaben.size, "pt", { min: 10, max: 56 })
+			+ garetienEingefuegtWirdZahlZeile(objekt, "Priorität", "priority", eingaben.priority, "", { min: 1, max: 5 })
+			+ garetienEingefuegtWirdZahlZeile(objekt, "Sichtbar ab Zoom", "minZoom", eingaben.minZoom, "", { min: 0, max: 7 })
+			+ garetienEingefuegtWirdZahlZeile(objekt, "Sichtbar bis Zoom", "maxZoom", eingaben.maxZoom, "", { min: 0, max: 7 });
+		if (mitKurve) {
+			// „mit Anzahl wenn an" (Auftrag): die Anzahl steht immer im Kasten, aber gesperrt, solange
+			// die Kurvenbeschreibung selbst aus ist -- dieselbe Sperr-statt-Verstecken-Form wie bei
+			// jedem anderen abhängigen Feld dieses Hauses (kein DOM-Umbau bei jedem Klick nötig).
+			markup += garetienEingefuegtWirdHakenZeile(objekt, "Kurvenbeschreibung", "curveLabel", eingaben.curveLabel)
+				+ garetienEingefuegtWirdZahlZeile(objekt, "Anzahl Beschriftungen", "curveLabelMax",
+					eingaben.curveLabelMax, "", { min: 1, max: 3 }, !eingaben.curveLabel);
+		}
+		markup += garetienEingefuegtWirdHakenZeile(objekt, "Auf Karte anzeigen", "showName", eingaben.showName);
 		return markup;
+	}
+
+	// Ein Eingabefeld des Kastens hat sich geändert -- der Zustand liegt in
+	// `_garetienEingabenZustand`, NICHT im DOM: die Detailspalte wird bei jedem Listen-Refetch neu
+	// gebaut (garetienDetailRendern), ein Zustand nur am Feld wäre dabei verloren.
+	//
+	// 💣 `feld === "curveLabel"` schaltet zusätzlich das Nachbarfeld frei/gesperrt -- DIREKT am
+	// DOM-Knoten, ohne die ganze Spalte neu zu rendern (das würde jede andere, gerade offene
+	// Eingabe mit verwerfen).
+	function garetienEingabenAendern(ereignis, objekte) {
+		const ziel = ereignis && ereignis.target;
+		if (!ziel || !ziel.getAttribute || !ziel.hasAttribute("data-gi-feld")) { return; }
+		if (zustand.detailKey === null) { return; }
+		const objekt = (objekte || zustand.objekte || []).filter(function (o) {
+			return o && String(o.key) === String(zustand.detailKey);
+		})[0] || null;
+		if (!objekt) { return; }
+		const eingaben = garetienEingabenZustandZu(objekt);
+		const feld = ziel.getAttribute("data-gi-feld");
+		if (ziel.type === "checkbox") {
+			eingaben[feld] = Boolean(ziel.checked);
+			if (feld === "curveLabel" && hasDocument) {
+				const maxFeld = document.getElementById(garetienEingabeId(objekt, "curveLabelMax"));
+				if (maxFeld) { maxFeld.disabled = !eingaben.curveLabel; }
+			}
+			return;
+		}
+		// Ein leeres/kaputtes Feld behält den letzten gültigen Stand, statt `NaN` zu speichern --
+		// der Server sähe dann die Zeichenkette "NaN" statt einer Zahl.
+		const zahl = parseInt(ziel.value, 10);
+		if (!isNaN(zahl)) { eingaben[feld] = zahl; }
+	}
+
+	// REIN: was aus dem Kasten an den Server reist -- nur, was für DIESES Ziel wirklich gilt (ein
+	// Ort/Weg speichert keines dieser Felder, siehe die Recherche am Auftrag). `null` heißt „keine
+	// Handeingabe" -- der einzige Wert, den die Massenübernahme je sieht (sie ruft diese Funktion
+	// nicht, aber ein `null` ist trotzdem die korrekte Antwort für ein Ziel ohne diese Felder).
+	function garetienEingabenFuerServer(objekt) {
+		const ziel = String((objekt && objekt.ziel) || "");
+		if (ziel !== "region" && ziel !== "label") { return null; }
+		const eingaben = garetienEingabenZustandZu(objekt);
+		const raus = {
+			size: eingaben.size, priority: eingaben.priority,
+			min_zoom: eingaben.minZoom, max_zoom: eingaben.maxZoom,
+			show_name: eingaben.showName,
+		};
+		if (ziel === "region") {
+			raus.is_locked = eingaben.isLocked;
+			raus.curve_label = eingaben.curveLabel;
+			raus.curve_label_max = eingaben.curveLabelMax;
+		}
+		return raus;
 	}
 
 	// REIN: „Ort" -- die Zoomstufe kommt aus einer FESTEN Klassentafel
@@ -2371,10 +2477,10 @@
 		let markup = '<p class="gi-sec">Eingefügt wird</p>'
 			+ '<p class="gi-why gi-insert__kopf">' + avesmapsGaretienEscape(garetienTypText(objekt)) + "</p>";
 		if (ziel === "region") {
-			markup += garetienEingefuegtWirdFlaecheMarkup();
-			markup += garetienEingefuegtWirdBeschriftungMarkup(subtyp, true);
+			markup += garetienEingefuegtWirdFlaecheMarkup(objekt);
+			markup += garetienEingefuegtWirdBeschriftungMarkup(objekt, subtyp, true);
 		} else if (ziel === "label") {
-			markup += garetienEingefuegtWirdBeschriftungMarkup(subtyp, false);
+			markup += garetienEingefuegtWirdBeschriftungMarkup(objekt, subtyp, false);
 		} else if (ziel === "location") {
 			markup += garetienEingefuegtWirdOrtMarkup(subtyp);
 		} else if (ziel === "path") {
@@ -3305,9 +3411,13 @@
 		knopf.disabled = true;
 		knopf.textContent = "Fügt ein …";
 
+		// Der Kasten „Eingefügt wird" (Owner 30.08.2026) -- NUR dieser Einzelknopf liest ihn und
+		// reicht ihn weiter; siehe die Begründung an garetienEinfuegenAusfuehren.
+		const einstellungen = garetienEingabenFuerServer(objekt);
+
 		// `rumpf.ids` ist bereits der VOLLE Umfang (garetienHandlungsRumpf/garetienHandlungBauen
 		// filtern nie nach Tick-Zustand) -- Anhaken und Übernehmen decken hier dieselbe Menge ab.
-		return garetienEinfuegenAusfuehren(rumpf.ids, rumpf.ids, runId, avesmapsGaretienRufe)
+		return garetienEinfuegenAusfuehren(rumpf.ids, rumpf.ids, runId, avesmapsGaretienRufe, null, einstellungen)
 			.then(function () {
 				return avesmapsGaretienAnzeigeNachEinfuegenBereinigen(avesmapsGaretienRufe, runId);
 			})
@@ -3858,7 +3968,13 @@
 	// angezeigten einfügen" auf 3007 statt der angezeigten rund 100 Objekte gebracht. Bei „Neu
 	// einfügen" sind beide Listen IDENTISCH (garetienHandlungsRumpf liefert schon den vollen
 	// Umfang, ohne Toggle-Filterung).
-	function garetienEinfuegenAusfuehren(idsZumAnhaken, idsZumUebernehmen, runId, rufe, fortschritt) {
+	//
+	// 🔴 `einstellungen` (Owner 30.08.2026, Kasten „Eingefügt wird"): NUR garetienNeuKlick reicht
+	// hier je etwas herein -- der Fußknopf (garetienFussknopfKlick, „Alle angezeigten einfügen")
+	// ruft diese Funktion ohne den sechsten Parameter, `undefined` bleibt also `undefined` und wird
+	// unten NIE in den `apply`-Rumpf gehängt. Genau DAS ist die Umsetzung der Regel „die
+	// Massenübernahme nimmt die Vorgaben, nie die Handeingaben" -- strukturell, nicht per Vereinbarung.
+	function garetienEinfuegenAusfuehren(idsZumAnhaken, idsZumUebernehmen, runId, rufe, fortschritt, einstellungen) {
 		const sauber = (idsZumAnhaken || []).map(Number).filter(function (id) { return id > 0; });
 		const uebernahmeIds = (idsZumUebernehmen || []).map(Number).filter(function (id) { return id > 0; });
 		const gesamt = uebernahmeIds.length;
@@ -3893,12 +4009,17 @@
 					if (iterationen > DECKEL) {
 						throw new Error("Die Übernahme wurde nach zu vielen Teilschritten angehalten.");
 					}
-					return rufe(GARETIEN_PLAN_ENDPUNKT, {
+					const rumpfApply = {
 						// 🔴 SCHADENSFALL 30.08.2026: `ids` beschränkt `apply` auf GENAU dieses
 						// Häppchen -- ohne dieses Feld übernähme der Server ALLES `selected=1` im
 						// Lauf, Altbestand eingeschlossen (siehe avesmapsGaretienApplyStep).
 						action: "apply", kind: GARETIEN_PLAN_ART, run_id: runId, ids: teil,
-					}).then(function (antwort) {
+					};
+					// Nur, wenn der Aufrufer wirklich eine Handeingabe mitgibt (siehe oben) -- sonst
+					// bliebe der Schlüssel `undefined` im JSON-Rumpf ohnehin weg, aber explizit ist
+					// hier klarer als implizit.
+					if (einstellungen) { rumpfApply.einstellungen = einstellungen; }
+					return rufe(GARETIEN_PLAN_ENDPUNKT, rumpfApply).then(function (antwort) {
 						["applied", "deleted", "stale", "skipped", "declined"].forEach(function (feld) {
 							summe[feld] += Number((antwort && antwort[feld]) || 0);
 						});
@@ -4117,6 +4238,12 @@
 				garetienHandlungKlick(ereignis, zustand.objekte, zustand.planRunId,
 					avesmapsGaretienHandlungSenden, garetienFragen);
 			});
+			// Der Kasten „Eingefügt wird" (Owner 30.08.2026): ein EIGENER Zuhörer, weil Zahlenfelder
+			// per "input" tippen, nicht klicken -- derselbe Delegationsgriff wie beim Klick-Zuhörer
+			// oben, einmal beim Start, überlebt jeden Lauf von garetienDetailRendern.
+			detailEl.addEventListener("input", function (ereignis) {
+				garetienEingabenAendern(ereignis, zustand.objekte);
+			});
 		}
 		// 🔴 Die zwei Anzeige-Knoepfe -- seit 29.08.2026 hier statt in garetienListeSkelettVerdrahten,
 		// weil sie seit derselben Meldung statisch im Fuss von index.html stehen (.gi-foot, links von
@@ -4303,6 +4430,13 @@
 			garetienEingefuegtWirdZeileMitHinweis,
 			garetienEingefuegtWirdOrtMarkup,
 			garetienEingefuegtWirdWegMarkup,
+			// Aufgabe „Eingefügt wird -> Eingabefelder" (30.08.2026, „warum darf ich das nicht
+			// verändern?"): die Handeingabe des Kastens, ihr Zustand und was daraus an den Server reist.
+			garetienEingabenZustandZu,
+			garetienEingabenGrundwerte,
+			garetienEingabenAendern,
+			garetienEingabenFuerServer,
+			garetienEingabeId,
 			garetienWikiLandschaftZeileText,
 			garetienWikiLandschaftPlatzhalterId,
 			garetienWikiLandschaftBeiBedarfLaden,

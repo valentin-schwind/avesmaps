@@ -405,6 +405,15 @@ assert(($muehlseeLabelProps['size'] ?? null) === 18, 'size bleibt der Grundwert 
 assert(($muehlseeLabelProps['priority'] ?? null) === 3, 'priority bleibt der Grundwert 3: ' . json_encode($muehlseeLabelProps));
 $pruefungen += 4;
 
+// --- 🔴 AUFGABE 30 (Owner 30.08.2026, "warum darf ich das nicht verändern?"): OHNE Handeingabe
+// (der fuenfte Parameter von avesmapsGaretienUebernehmen bleibt hier weg) bleiben auch "für Klicks
+// gesperrt" und "Kurvenbeschreibung" beim Grundwert "aus" -- die Gegenprobe zur Handeingabe weiter
+// unten (Testteich).
+assert((int) $region['is_locked'] === 0, 'is_locked bleibt ohne Handeingabe beim Grundwert 0 (aus): ' . json_encode($region));
+assert(!str_contains((string) $region['properties_json'], 'curve_label'),
+    'curve_label bleibt ohne Handeingabe ganz WEG: ' . var_export($region['properties_json'], true));
+$pruefungen += 2;
+
 // --- 🔴 AUFGABE 29 (Owner-Entscheid 30.08.2026): DIE ZUWEISUNG STEHT AN properties.wiki_region.wiki_key,
 // UND NAME/ART BLEIBEN DIE DES IMPORTS. "Zugewiesen wird nur der Schluessel" (Owner) -- Name und
 // Subtyp der Flaeche/des Labels sind unveraendert die des Garetien-Imports, nicht die des Wikis.
@@ -1326,6 +1335,171 @@ $pruefungen++;
 $bergQuelle = $pdoNeu->prepare("SELECT COUNT(*) FROM feature_sources WHERE entity_type = 'region' AND entity_public_id = ?");
 $bergQuelle->execute([$bergZeile['public_id']]);
 assert((int) $bergQuelle->fetchColumn() === 1, 'die Quelle des Gipfels haengt an seiner EIGENEN public_id unter entity_type=region');
+$pruefungen++;
+
+// ===============================================================================================
+// Aufgabe 30 (30.08.2026) -- der Kasten "Eingefügt wird" wird editierbar. Owner, wörtlich: "ich
+// hatte plötzlich 3000 labels da stehen ... WARUM DARF ICH DAS NICHT VERÄNDERN?" -- die Werte im
+// Kasten reisen jetzt als Handeingabe mit dem Einfügen mit.
+// ===============================================================================================
+
+// --- Reine Funktion, keine Datenbank: avesmapsGaretienLabelUebersteuerung. Eine Handeingabe
+// UEBERSTIMMT die Vorgabe der Art, fehlt sie fuer ein Feld, bleibt die Vorgabe stehen -- und
+// `null` (keine Handeingabe ueberhaupt) aendert an der Vorgabe GAR NICHTS.
+$vorgabeTest = ['min_zoom' => 2, 'max_zoom' => 6, 'priority' => 4, 'size' => 17];
+assert(avesmapsGaretienLabelUebersteuerung(null, $vorgabeTest) === $vorgabeTest,
+    'ohne Handeingabe bleibt die Vorgabe der Art unveraendert');
+assert(avesmapsGaretienLabelUebersteuerung([], $vorgabeTest) === $vorgabeTest,
+    'eine LEERE Handeingabe aendert ebenfalls nichts');
+$vollUebersteuert = avesmapsGaretienLabelUebersteuerung(
+    ['size' => 30, 'priority' => 5, 'min_zoom' => 1, 'max_zoom' => 4, 'show_name' => false],
+    $vorgabeTest
+);
+assert($vollUebersteuert === ['min_zoom' => 1, 'max_zoom' => 4, 'priority' => 5, 'size' => 30, 'show_name' => false],
+    'eine VOLLE Handeingabe ueberstimmt alle vier Felder und setzt show_name dazu: ' . json_encode($vollUebersteuert));
+$teilUebersteuert = avesmapsGaretienLabelUebersteuerung(['is_locked' => true, 'size' => null], $vorgabeTest);
+assert($teilUebersteuert === $vorgabeTest,
+    'ein FREMDES Feld (is_locked gehoert der Region) und ein EXPLIZITES null aendern nichts: '
+    . json_encode($teilUebersteuert));
+$pruefungen += 4;
+
+// --- Reine Funktion: avesmapsGaretienRegionUebersteuerung -- KEINE Vorgabe der Art fuer diese
+// beiden Felder, deshalb kein zweiter Parameter und ein leeres Ergebnis ohne Handeingabe.
+assert(avesmapsGaretienRegionUebersteuerung(null) === [], 'ohne Handeingabe: leer');
+assert(avesmapsGaretienRegionUebersteuerung(['is_locked' => null, 'curve_label' => null]) === [],
+    'explizite nulls zaehlen wie "nicht genannt"');
+assert(avesmapsGaretienRegionUebersteuerung(['is_locked' => true, 'curve_label' => true, 'curve_label_max' => 2])
+    === ['is_locked' => true, 'curve_label' => true, 'curve_label_max' => 2],
+    'alle drei Felder reisen durch, wenn sie genannt sind');
+$pruefungen += 3;
+
+/** Ein nach()-Rumpf fuer eine FLAECHE (Polygon), wie garetien-plan.php ihn baut -- hier von Hand. */
+$bauePolygonEintrag = static function (string $subtyp, string $kind, string $name, array $ring): array {
+    return [
+        'entity_key' => 'ggp:Probe:region:' . $name,
+        'entity_public_id' => null,
+        'change_type' => 'new',
+        'label' => $name . ' (Probe)',
+        'before' => [],
+        'after' => [
+            'herkunft' => 'garetien', 'wiki' => 'ggp', 'ebene' => 'Probe', 'typ' => 'Probe',
+            'ziel' => 'region', 'subtyp' => $subtyp, 'kind' => $kind, 'name' => $name,
+            'geometry' => ['type' => 'Polygon', 'coordinates' => [$ring]],
+            'quelle' => ['url' => 'https://www.garetien.de/index.php?title=Garetien:' . $name,
+                'label' => 'Briefspiel (Garetien)', 'license' => 'cc-by-nc-sa-3.0', 'attribution' => 'VolkoV / garetien.de'],
+            'urteil' => 'neu', 'anlass' => null, 'nachbar' => null,
+        ],
+        'override' => [],
+        'selected' => 1,
+    ];
+};
+$testRing = [[750.0, 750.0], [770.0, 750.0], [770.0, 770.0], [750.0, 770.0], [750.0, 750.0]];
+
+// --- Vor jeder Handeingabe: der gespeicherte Rechenstand der Einstellungstafel (Fenster
+// "Landschaften -> Darstellung") -- er darf nach dem Einfuegen ZEICHENGLEICH derselbe sein. Ein
+// zweiter Schreiber auf dieser Tafel waere genau der Fehler, den der Auftrag ausdruecklich
+// ausschliesst ("darf die Einstellungstafel NICHT verändern -- die gehört dem
+// Landschaften-Editor").
+$tafelVorher = $pdoNeu->query("SELECT setting_value FROM app_setting WHERE setting_key = 'ecosystem_display'")->fetchColumn();
+
+// --- Die FLAECHE ("Testteich") MIT VOLLER Handeingabe -- alle sieben Felder, die der Kasten
+// kennt. 'huegelland' hat KEINE gespeicherte Uebersteuerung in dieser Fixture (nur berggipfel/
+// vulkan tragen eine, siehe oben) -- die Vorgabe der Art ist hier also der reine Grundwert, und
+// jede der sieben Zahlen/Haken unten muss NUR aus der Handeingabe stammen.
+avesmapsSyncPlanAddItem($pdoNeu, $laufNeu, $bauePolygonEintrag('huegelland', 'topographie', 'Testteich', $testRing));
+$teichItemId = $itemIdVon($pdoNeu, 'Testteich (Probe)');
+$teichEinstellungen = [
+    'size' => 30, 'priority' => 5, 'min_zoom' => 1, 'max_zoom' => 4, 'show_name' => false,
+    'is_locked' => true, 'curve_label' => true, 'curve_label_max' => 2,
+];
+$eTeich = avesmapsGaretienUebernehmen($pdoNeu, $laufNeu, [$teichItemId], ['id' => 7], $teichEinstellungen);
+assert($eTeich['angelegt'] === 1 && $eTeich['fehler'] === [],
+    'die Flaeche mit Handeingabe wird angelegt: ' . json_encode($eTeich, JSON_UNESCAPED_UNICODE));
+$pruefungen++;
+
+$teichRegion = $pdoNeu->query("SELECT * FROM ecosystem_region WHERE name = 'Testteich'")->fetch(PDO::FETCH_ASSOC);
+assert($teichRegion !== false, 'die Region des Teichs steht da');
+$teichLabel = $pdoNeu->query('SELECT * FROM map_features WHERE public_id = '
+    . $pdoNeu->quote((string) $teichRegion['label_public_id']))->fetch(PDO::FETCH_ASSOC);
+assert($teichLabel !== false, 'und sein Label existiert');
+$pruefungen += 2;
+
+// --- DIE TRAGENDE ZUSICHERUNG: ein GEÄNDERTER Wert kommt beim Server an und wird geschrieben --
+// belegt am ERGEBNIS (der gespeicherten Zeile), nicht daran, dass irgendwo ein <input> stand.
+$teichLabelProps = json_decode((string) $teichLabel['properties_json'], true);
+assert(($teichLabelProps['size'] ?? null) === 30, 'die Handeingabe setzt die Groesse: ' . json_encode($teichLabelProps));
+assert(($teichLabelProps['priority'] ?? null) === 5, 'und die Prioritaet: ' . json_encode($teichLabelProps));
+assert(($teichLabelProps['min_zoom'] ?? null) === 1, 'und den Start-Zoom: ' . json_encode($teichLabelProps));
+assert(($teichLabelProps['max_zoom'] ?? null) === 4, 'und den End-Zoom: ' . json_encode($teichLabelProps));
+assert(($teichLabelProps['show_name'] ?? null) === false, 'und "Auf Karte anzeigen": ' . json_encode($teichLabelProps));
+assert((int) $teichRegion['is_locked'] === 1, '"für Klicks gesperrt" steht an der Region: ' . json_encode($teichRegion));
+$teichRegionProps = json_decode((string) $teichRegion['properties_json'], true);
+assert(($teichRegionProps['curve_label'] ?? null) === true, 'die Kurvenbeschreibung steht: ' . json_encode($teichRegionProps));
+assert(($teichRegionProps['curve_label_max'] ?? null) === 2, 'mit ihrer Anzahl: ' . json_encode($teichRegionProps));
+$pruefungen += 7;
+
+// --- DIFFERENTIELL: eine ANDERE Flaeche OHNE Handeingabe (derselbe Aufruf wie bisher, kein
+// fuenfter Parameter) bleibt beim Grundwert -- sonst waere "Testteich" nur zufaellig richtig und
+// die Handeingabe wirkte in Wahrheit global.
+avesmapsSyncPlanAddItem($pdoNeu, $laufNeu, $bauePolygonEintrag('huegelland', 'topographie', 'Testteich Zwei',
+    [[790.0, 790.0], [805.0, 790.0], [805.0, 805.0], [790.0, 805.0], [790.0, 790.0]]));
+$teich2ItemId = $itemIdVon($pdoNeu, 'Testteich Zwei (Probe)');
+$eTeich2 = avesmapsGaretienUebernehmen($pdoNeu, $laufNeu, [$teich2ItemId], ['id' => 7]);
+assert($eTeich2['angelegt'] === 1 && $eTeich2['fehler'] === [],
+    'die Flaeche OHNE Handeingabe wird ebenfalls angelegt: ' . json_encode($eTeich2, JSON_UNESCAPED_UNICODE));
+$teich2Region = $pdoNeu->query("SELECT * FROM ecosystem_region WHERE name = 'Testteich Zwei'")->fetch(PDO::FETCH_ASSOC);
+assert((int) $teich2Region['is_locked'] === 0, 'ohne Handeingabe bleibt is_locked beim Grundwert 0: ' . json_encode($teich2Region));
+assert(!str_contains((string) $teich2Region['properties_json'], 'curve_label'),
+    'und curve_label bleibt ganz WEG: ' . var_export($teich2Region['properties_json'], true));
+$teich2Label = $pdoNeu->query('SELECT properties_json FROM map_features WHERE public_id = '
+    . $pdoNeu->quote((string) $teich2Region['label_public_id']))->fetch(PDO::FETCH_ASSOC);
+$teich2LabelProps = json_decode((string) $teich2Label['properties_json'], true);
+assert(($teich2LabelProps['size'] ?? null) === 18, 'und die Groesse bleibt der Grundwert 18: ' . json_encode($teich2LabelProps));
+$pruefungen += 4;
+
+// --- DER BERGGIPFEL MIT HANDEINGABE -- dieselben vier Zahlen + show_name, aber kein is_locked/
+// curve_label (ein Berggipfel haengt an keiner ecosystem_region). 'berggipfel' traegt in dieser
+// Fixture eine gespeicherte Uebersteuerung (ab=2/bis=6/prio=4/size=17, siehe oben) -- die
+// Handeingabe unten MUSS diese trotzdem schlagen, sonst gewinnt "Vorgabe der Art" fälschlich
+// gegen eine ausdrueckliche Handeingabe.
+avesmapsSyncPlanAddItem($pdoNeu, $laufNeu, $bauePunktEintrag('label', 'berggipfel', 'Testgipfel Zwei', 650.0, 650.0));
+$gipfel2ItemId = $itemIdVon($pdoNeu, 'Testgipfel Zwei (Probe)');
+$eGipfel2 = avesmapsGaretienUebernehmen($pdoNeu, $laufNeu, [$gipfel2ItemId], ['id' => 7], [
+    'size' => 22, 'priority' => 1, 'min_zoom' => 0, 'max_zoom' => 3, 'show_name' => false,
+    'is_locked' => true, // muss IGNORIERT werden -- ein Berggipfel-Label kennt kein is_locked
+]);
+assert($eGipfel2['angelegt'] === 1 && $eGipfel2['fehler'] === [],
+    'der Gipfel mit Handeingabe wird angelegt: ' . json_encode($eGipfel2, JSON_UNESCAPED_UNICODE));
+$gipfel2Zeile = $pdoNeu->query("SELECT properties_json FROM map_features WHERE name = 'Testgipfel Zwei'")->fetch(PDO::FETCH_ASSOC);
+$gipfel2Props = json_decode((string) $gipfel2Zeile['properties_json'], true);
+assert(($gipfel2Props['size'] ?? null) === 22, 'die Handeingabe schlaegt die gespeicherte Uebersteuerung der Art (17): '
+    . json_encode($gipfel2Props));
+assert(($gipfel2Props['priority'] ?? null) === 1 && ($gipfel2Props['min_zoom'] ?? null) === 0
+    && ($gipfel2Props['max_zoom'] ?? null) === 3 && ($gipfel2Props['show_name'] ?? null) === false,
+    'und die uebrigen vier Felder ebenso: ' . json_encode($gipfel2Props));
+$pruefungen += 3;
+
+// --- 🔴 DIE TRAGENDE REGEL DES SERVERS: EIN UNSINNIGER WERT WIRD ABGELEHNT, AUCH WENN DER
+// BROWSER IHN DURCHLIESSE. `max_zoom < min_zoom` ist fuer ein NEUES Label keine gueltige Aussage
+// (anders als bei der Darstellungstafel, wo es "aus" bedeutet) -- avesmapsCreateLabelFeature wirft,
+// avesmapsGaretienLabelUebersteuerung validiert VORSAETZLICH NICHTS vor.
+avesmapsSyncPlanAddItem($pdoNeu, $laufNeu, $bauePunktEintrag('label', 'berggipfel', 'Testgipfel Unsinn', 660.0, 660.0));
+$gipfelUnsinnItemId = $itemIdVon($pdoNeu, 'Testgipfel Unsinn (Probe)');
+$eGipfelUnsinn = avesmapsGaretienUebernehmen($pdoNeu, $laufNeu, [$gipfelUnsinnItemId], ['id' => 7], [
+    'min_zoom' => 5, 'max_zoom' => 1,
+]);
+assert($eGipfelUnsinn['angelegt'] === 0, 'ein unsinniger Wert (bis < ab) legt NICHTS an: '
+    . json_encode($eGipfelUnsinn, JSON_UNESCAPED_UNICODE));
+assert(count($eGipfelUnsinn['fehler']) === 1, 'und der Fehlschlag steht im Ergebnis: '
+    . json_encode($eGipfelUnsinn, JSON_UNESCAPED_UNICODE));
+assert((int) $pdoNeu->query("SELECT COUNT(*) FROM map_features WHERE name = 'Testgipfel Unsinn'")->fetchColumn() === 0,
+    'und es steht wirklich nichts in map_features');
+$pruefungen += 3;
+
+// --- Und die Einstellungstafel selbst ist von alledem ZEICHENGLEICH unberuehrt geblieben -- kein
+// zweiter Schreiber auf `app_setting.ecosystem_display`.
+$tafelNachher = $pdoNeu->query("SELECT setting_value FROM app_setting WHERE setting_key = 'ecosystem_display'")->fetchColumn();
+assert($tafelNachher === $tafelVorher, 'die Einstellungstafel bleibt nach einer Handeingabe unveraendert');
 $pruefungen++;
 
 // --- 💣 DIE ERGAENZUNG DARF KEIN FELD LOESCHEN, DAS SIE NICHT NENNT. avesmapsUpdatePointFeatureDetails

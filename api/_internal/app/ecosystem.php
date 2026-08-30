@@ -2589,6 +2589,16 @@ function avesmapsCreateEcosystemRegion(PDO $pdo, array $payload, int $userId): a
     // gesetztem Haken auf und haette das Namensfeld gesperrt -- ausgerechnet in dem Augenblick, in
     // dem der Editor den Namen vergeben soll. Er schickt deshalb ein ausdrueckliches `false` mit.
     $fields = array_merge($fields, avesmapsEcosystemApplyRegionAutoName([], $payload, $fields));
+    // 🔴 DIE KURVENBESCHRIFTUNG DARF SCHON BEI DER ANLAGE GESETZT WERDEN (Owner 30.08.2026, Kasten
+    // „Eingefügt wird" des Garetien-Importers: „warum darf ich das nicht verändern?"). Derselbe
+    // Anwender wie in `update_region` -- nur mit einem leeren „davor" (eine frische Region traegt
+    // noch kein `properties_json`). `null`/`null` (kein Schluessel im Rumpf) aendert nichts, wie
+    // ueberall sonst in diesem Anwender.
+    $fields = array_merge($fields, avesmapsCurveLabelApplyToProperties(
+        $fields['properties_json'] ?? null,
+        array_key_exists('curve_label', $payload) ? avesmapsEcosystemReadBoolean($payload['curve_label']) : null,
+        array_key_exists('curve_label_max', $payload) ? (int) $payload['curve_label_max'] : null
+    ));
     if (($fields['region_type'] ?? null) !== null) {
         avesmapsEcosystemAssertRegionType($pdo, $fields['kind'], $fields['region_type']);
     }
@@ -2600,10 +2610,16 @@ function avesmapsCreateEcosystemRegion(PDO $pdo, array $payload, int $userId): a
         // avesmapsEcosystemNextStackOrder; sie steht dort und nicht hier, weil auch die
         // Startaufstellung dieselbe Schrittweite benutzt.
         $stackOrder = avesmapsEcosystemNextStackOrder($pdo, $fields['kind']);
+        // 🔴 `is_locked` reiste bis 30.08.2026 zwar in `$fields` (avesmapsEcosystemReadRegionFields
+        // liest es fuer BEIDE Anwender), landete beim ANLEGEN aber nie in der Zeile -- dieser
+        // INSERT nannte die Spalte nicht, die Tabelle fiel also immer auf ihren Deckel 0 zurueck.
+        // Fuer `update_region` war das nie sichtbar (dort steht die Spalte laengst da); der Kasten
+        // „Eingefügt wird" des Garetien-Importers ist der erste Aufrufer, der eine Flaeche schon
+        // GESPERRT anlegen will.
         $statement = $pdo->prepare(
             'INSERT INTO ecosystem_region
-                (public_id, name, kind, region_type, wiki_region_key, wiki_url, label_public_id, properties_json, stack_order, created_by, updated_by)
-             VALUES (:public_id, :name, :kind, :region_type, :wiki_region_key, :wiki_url, :label_public_id, :properties_json, :stack_order, :user_id, :user_id2)'
+                (public_id, name, kind, region_type, wiki_region_key, wiki_url, label_public_id, properties_json, stack_order, is_locked, created_by, updated_by)
+             VALUES (:public_id, :name, :kind, :region_type, :wiki_region_key, :wiki_url, :label_public_id, :properties_json, :stack_order, :is_locked, :user_id, :user_id2)'
         );
         $statement->execute([
             'public_id' => $publicId,
@@ -2615,6 +2631,7 @@ function avesmapsCreateEcosystemRegion(PDO $pdo, array $payload, int $userId): a
             'wiki_url' => $fields['wiki_url'] ?? null,
             'label_public_id' => $fields['label_public_id'] ?? null,
             'properties_json' => $fields['properties_json'] ?? null,
+            'is_locked' => (int) ($fields['is_locked'] ?? 0),
             'user_id' => $userId > 0 ? $userId : null,
             'user_id2' => $userId > 0 ? $userId : null,
         ]);

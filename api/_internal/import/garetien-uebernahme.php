@@ -318,6 +318,70 @@ function avesmapsGaretienLabelVorgabeFuerArt(PDO $pdo, string $subtyp): array
 }
 
 /**
+ * Die Handeingabe des Kastens „Eingefügt wird" MIT der Vorgabe der Art zusammenfuehren -- eine
+ * ausdrueckliche Handeingabe UEBERSTIMMT die Vorgabe (Owner 30.08.2026, nach dem Schadensfall
+ * „3000 Labels ab Zoom 0": „WARUM DARF ICH DAS NICHT VERÄNDERN?" -- „einstellbar" heisst: hier,
+ * im Kasten, vor dem Einfügen).
+ *
+ * 🔴 KEINE VALIDIERUNG HIER. Diese Funktion reicht Rohwerte unveraendert durch;
+ * avesmapsCreateLabelFeature (ueber avesmapsReadLabelSize/…Zoom/…Priority) bleibt die LETZTE
+ * INSTANZ und wirft bei einem unsinnigen Wert (z.B. `max_zoom < min_zoom`) -- ein Eingabefeld ist
+ * die Anzeige, nicht der Riegel, dieselbe Trennung wie bei jedem gesperrten Knopf dieses Fensters.
+ *
+ * 🔴 `$einstellungen === null` HEISST „KEINE HANDEINGABE" (z.B. „Alle angezeigten einfügen" --
+ * die Massenübernahme nimmt IMMER die Vorgabe der Art, nie die Handeingabe eines einzelnen
+ * Objekts, siehe die Verdrahtung in review-garetien-importer.js). Das Ergebnis ist dann exakt
+ * $vorgabeDerArt, unveraendert.
+ *
+ * @param ?array $einstellungen Rumpf aus dem Kasten (`size`/`priority`/`min_zoom`/`max_zoom`/
+ *     `show_name`), oder null.
+ * @param array $vorgabeDerArt avesmapsGaretienLabelVorgabeFuerArt(...)
+ * @return array{size?:int, priority?:int, min_zoom?:int, max_zoom?:int, show_name?:bool}
+ */
+function avesmapsGaretienLabelUebersteuerung(?array $einstellungen, array $vorgabeDerArt): array
+{
+    $raus = $vorgabeDerArt;
+    foreach (['size', 'priority', 'min_zoom', 'max_zoom'] as $feld) {
+        if (is_array($einstellungen) && array_key_exists($feld, $einstellungen) && $einstellungen[$feld] !== null) {
+            $raus[$feld] = $einstellungen[$feld];
+        }
+    }
+    if (is_array($einstellungen) && array_key_exists('show_name', $einstellungen) && $einstellungen['show_name'] !== null) {
+        $raus['show_name'] = (bool) $einstellungen['show_name'];
+    }
+
+    return $raus;
+}
+
+/**
+ * Dieselbe Handeingabe, fuer die REGION (nur bei einer Flaeche gueltig -- ein Berggipfel haengt
+ * an keiner ecosystem_region). „für Klicks gesperrt" (is_locked) und „Kurvenbeschreibung"
+ * (curve_label/curve_label_max) haben KEINE Vorgabe der Art -- ihr Grundwert ist immer "aus", und
+ * eine Handeingabe ist die einzige Quelle, die sie je auf "an" setzt.
+ *
+ * @param ?array $einstellungen Rumpf aus dem Kasten, oder null (keine Handeingabe).
+ * @return array{is_locked?:bool, curve_label?:bool, curve_label_max?:int}
+ */
+function avesmapsGaretienRegionUebersteuerung(?array $einstellungen): array
+{
+    $raus = [];
+    if (!is_array($einstellungen)) {
+        return $raus;
+    }
+    if (array_key_exists('is_locked', $einstellungen) && $einstellungen['is_locked'] !== null) {
+        $raus['is_locked'] = (bool) $einstellungen['is_locked'];
+    }
+    if (array_key_exists('curve_label', $einstellungen) && $einstellungen['curve_label'] !== null) {
+        $raus['curve_label'] = (bool) $einstellungen['curve_label'];
+    }
+    if (array_key_exists('curve_label_max', $einstellungen) && $einstellungen['curve_label_max'] !== null) {
+        $raus['curve_label_max'] = $einstellungen['curve_label_max'];
+    }
+
+    return $raus;
+}
+
+/**
  * Eine Flaeche anlegen: LABEL (Punkt) + ecosystem_region + ecosystem_area.
  *
  * 💣 DAS LABEL IST DAS TRAGENDE OBJEKT. Ein Label ist bei uns ein PUNKT, die Flaeche liegt in
@@ -325,9 +389,12 @@ function avesmapsGaretienLabelVorgabeFuerArt(PDO $pdo, string $subtyp): array
  * das Loeschen des letzten Labels Region UND Flaechen mit (AGENTS.md, Konfliktzentrum). Wer nur
  * die Flaeche anlegt, baut eine Region, die kein Mensch je wieder anfassen kann.
  *
- * @return array{public_id:string, entity_type:string}
+ * @param ?array $einstellungen Handeingabe des Kastens „Eingefügt wird" (Owner 30.08.2026), oder
+ *     null (keine -- z.B. „Alle angezeigten einfügen"). Siehe avesmapsGaretienLabelUebersteuerung
+ *     / …RegionUebersteuerung.
+ * @return array{public_id:string, entity_type:string, label_public_id:string}
  */
-function avesmapsGaretienFlaecheAnlegen(PDO $pdo, array $nach, array $user, int $userId): array
+function avesmapsGaretienFlaecheAnlegen(PDO $pdo, array $nach, array $user, int $userId, ?array $einstellungen = null): array
 {
     $ring = $nach['geometry']['coordinates'][0] ?? [];
     [$lx, $ly] = avesmapsGaretienRingMittelpunkt($ring);
@@ -362,7 +429,7 @@ function avesmapsGaretienFlaecheAnlegen(PDO $pdo, array $nach, array $user, int 
     $wikiZuweisung = avesmapsGaretienWikiLandschaftZuweisung($pdo, (string) $nach['name'], (string) $nach['subtyp']);
     $label = avesmapsCreateLabelFeature($pdo, array_merge(
         ['text' => (string) $nach['name'], 'feature_subtype' => (string) $nach['subtyp'], 'lng' => $lx, 'lat' => $ly],
-        avesmapsGaretienLabelVorgabeFuerArt($pdo, (string) $nach['subtyp']),
+        avesmapsGaretienLabelUebersteuerung($einstellungen, avesmapsGaretienLabelVorgabeFuerArt($pdo, (string) $nach['subtyp'])),
         $wikiZuweisung !== null ? ['wiki_region' => $wikiZuweisung] : []
     ), $user);
     $labelId = avesmapsGaretienPublicIdAus($label, 'Das Label der Flaeche');
@@ -371,13 +438,16 @@ function avesmapsGaretienFlaecheAnlegen(PDO $pdo, array $nach, array $user, int 
     // ⚠️ `auto_name` ausdruecklich false: der Name kommt aus Volkers Daten, nicht aus dem
     // Zeichengriff. Ohne das leitete der Dialog spaeter "automatisch benannt" ab und sperrte das
     // Namensfeld -- derselbe Merker, den auch der Zeichner mitschickt.
-    $region = avesmapsCreateEcosystemRegion($pdo, [
+    // 🔴 „für Klicks gesperrt" / „Kurvenbeschreibung" (Owner 30.08.2026) -- avesmapsGaretienRegion
+    // Uebersteuerung liefert nur, was der Kasten ausdruecklich setzt; ohne Handeingabe ein leeres
+    // Array, unveraendert gegenueber dem bisherigen Verhalten.
+    $region = avesmapsCreateEcosystemRegion($pdo, array_merge([
         'name' => (string) $nach['name'],
         'auto_name' => false,
         'kind' => (string) $nach['kind'],
         'region_type' => (string) $nach['subtyp'],
         'label_public_id' => $labelId,
-    ], $userId);
+    ], avesmapsGaretienRegionUebersteuerung($einstellungen)), $userId);
     $regionId = avesmapsGaretienPublicIdAus($region, 'Die Region');
     avesmapsCreateEcosystemArea($pdo, [
         'region_public_id' => $regionId,
@@ -704,6 +774,27 @@ function avesmapsGaretienApplyIdsAusRumpf(array $payload): array
 }
 
 /**
+ * Die Handeingabe des Kastens „Eingefügt wird" aus dem Anfragerumpf lesen (Owner 30.08.2026).
+ * Nur der EINZELKNOPF „Neu einfügen" schickt sie -- „Alle angezeigten einfügen" nennt den
+ * Schluessel `einstellungen` im Rumpf nie (siehe die Verdrahtung in review-garetien-importer.js),
+ * eine fehlende oder Nicht-Objekt-Angabe kommt deshalb als `null` zurueck: „keine Handeingabe",
+ * nicht "alles auf 0/aus setzen".
+ *
+ * 🔴 KEINE VALIDIERUNG HIER -- nur die Form (ein assoziatives Array). Die Werte selbst reichen
+ * unveraendert bis zu avesmapsCreateLabelFeature/avesmapsCreateEcosystemRegion durch, die als
+ * letzte Instanz pruefen (AGENTS.md: der Server bleibt die letzte Instanz).
+ *
+ * @return ?array{size?:int, priority?:int, min_zoom?:int, max_zoom?:int, show_name?:bool,
+ *     is_locked?:bool, curve_label?:bool, curve_label_max?:int}
+ */
+function avesmapsGaretienEinstellungenAusRumpf(array $payload): ?array
+{
+    $roh = $payload['einstellungen'] ?? null;
+
+    return is_array($roh) ? $roh : null;
+}
+
+/**
  * EIN Haeppchen der Uebernahme, fuer die vorhandene Vorschau (api/edit/wiki/sync-plan.php).
  *
  * 🔴 DAS IST DIE EINE TUER. Der Endpunkt des Imports hat bewusst KEIN eigenes `apply` mehr: die
@@ -720,8 +811,13 @@ function avesmapsGaretienApplyIdsAusRumpf(array $payload): array
  *     Kernmechanik unabhaengig von der Anzeige pruefen. Der EINZIGE Produktionsaufrufer
  *     (api/edit/wiki/sync-plan.php, kind='garetien') gibt seit diesem Fund IMMER eine
  *     nicht-leere Liste mit -- ohne sie lehnt der Endpunkt die Anfrage ab, bevor sie hier ankommt.
+ * @param ?array $einstellungen Handeingabe des Kastens „Eingefügt wird" (Owner 30.08.2026), oder
+ *     null. Gilt fuer ALLE 'new'-Items dieses Aufrufs -- das ist unbedenklich, weil der EINZIGE
+ *     Aufrufer, der jemals eine Handeingabe mitschickt (der Einzelknopf „Neu einfügen"), $itemIds
+ *     stets auf GENAU EIN Objekt skopiert (siehe garetienEinfuegenAusfuehren). Die Massenübernahme
+ *     „Alle angezeigten einfügen" schickt NIE eine Handeingabe -- sie uebergibt hier immer null.
  */
-function avesmapsGaretienApplyStep(PDO $pdo, int $runId, int $userId, ?array $user, ?int $budget = null, ?array $itemIds = null): array
+function avesmapsGaretienApplyStep(PDO $pdo, int $runId, int $userId, ?array $user, ?int $budget = null, ?array $itemIds = null, ?array $einstellungen = null): array
 {
     $budget = $budget ?? AVESMAPS_SYNC_PLAN_APPLY_BUDGET;
     // ⚠️ DDL oben, einmal, VOR jeder Transaktion: MySQL committet eine offene Transaktion, sobald
@@ -733,7 +829,7 @@ function avesmapsGaretienApplyStep(PDO $pdo, int $runId, int $userId, ?array $us
         ? avesmapsSyncPlanPendingItems($pdo, $runId, $budget)
         : avesmapsGaretienPendingItemsScoped($pdo, $runId, $itemIds, $budget);
     $ids = array_map(static fn(array $r): int => (int) $r['id'], $offen);
-    $ergebnis = avesmapsGaretienUebernehmen($pdo, $runId, $ids, is_array($user) ? $user : ['id' => $userId]);
+    $ergebnis = avesmapsGaretienUebernehmen($pdo, $runId, $ids, is_array($user) ? $user : ['id' => $userId], $einstellungen);
     $rest = $itemIds === null
         ? avesmapsSyncPlanPendingCount($pdo, $runId)
         : avesmapsGaretienPendingCountScoped($pdo, $runId, $itemIds);
@@ -792,9 +888,13 @@ function avesmapsGaretienItemAbschliessen(PDO $pdo, int $itemId, string $applySt
  * Die angehakten Vorschlaege eines Vorschau-Laufs uebernehmen.
  *
  * @param list<int> $itemIds Nur diese Items -- alles andere bleibt unberuehrt.
+ * @param ?array $einstellungen Handeingabe des Kastens „Eingefügt wird" (Owner 30.08.2026,
+ *     „warum darf ich das nicht verändern?"), oder null (keine -- der Grundfall, und IMMER der
+ *     Fall bei „Alle angezeigten einfügen"). Wirkt nur auf 'new'-Items mit ziel 'region'/'label'
+ *     -- ein Ort/Weg speichert keines dieser Felder, siehe avesmapsGaretienLabelUebersteuerung.
  * @return array{angelegt:int, quellen:int, fehler:list<array{item:int, grund:string}>}
  */
-function avesmapsGaretienUebernehmen(PDO $pdo, int $runId, array $itemIds, array $user = []): array
+function avesmapsGaretienUebernehmen(PDO $pdo, int $runId, array $itemIds, array $user = [], ?array $einstellungen = null): array
 {
     if ($itemIds === []) {
         return ['angelegt' => 0, 'quellen' => 0, 'fehler' => []];
@@ -934,7 +1034,7 @@ function avesmapsGaretienUebernehmen(PDO $pdo, int $runId, array $itemIds, array
                 $feature = avesmapsCreateLabelFeature($pdo, array_merge(
                     ['text' => (string) $nach['name'], 'feature_subtype' => (string) $nach['subtyp'],
                         'lng' => $punkt['lng'], 'lat' => $punkt['lat']],
-                    avesmapsGaretienLabelVorgabeFuerArt($pdo, (string) $nach['subtyp']),
+                    avesmapsGaretienLabelUebersteuerung($einstellungen, avesmapsGaretienLabelVorgabeFuerArt($pdo, (string) $nach['subtyp'])),
                     $wikiZuweisung !== null ? ['wiki_region' => $wikiZuweisung] : []
                 ), $user);
                 $publicId = avesmapsGaretienPublicIdAus($feature, 'Der Gipfel');
@@ -944,7 +1044,7 @@ function avesmapsGaretienUebernehmen(PDO $pdo, int $runId, array $itemIds, array
                 $entityType = 'region';
                 $quellePublicId = $publicId;
             } else {
-                $ergebnis = avesmapsGaretienFlaecheAnlegen($pdo, $nach, $user, $userId);
+                $ergebnis = avesmapsGaretienFlaecheAnlegen($pdo, $nach, $user, $userId, $einstellungen);
                 $publicId = $ergebnis['public_id'];
                 $entityType = $ergebnis['entity_type'];
                 // 💣 HIER laufen $publicId (Region, fuer den Item-Vermerk/die Ruecknahme) und die

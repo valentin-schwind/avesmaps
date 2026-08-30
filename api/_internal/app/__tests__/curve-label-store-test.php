@@ -320,8 +320,15 @@ assert(avesmapsCurveLabelSettingsFromProperties(json_decode((string) $rund, true
 $ecoQuelle = file_get_contents(__DIR__ . '/../ecosystem.php');
 assert(strpos($ecoQuelle, 'avesmapsCurveLabelApplyToProperties(') !== false,
     'der Schreiber ist nicht in ecosystem.php verdrahtet');
+// 🔴 SEIT 30.08.2026 ZWEI AUFRUFER, NICHT MEHR EINER (Garetien-Importer, Kasten "Eingefügt
+// wird": eine Flaeche darf ihre Kurvenbeschreibung schon bei der ANLAGE tragen, nicht erst nach
+// einem zweiten `update_region`). Die Ordnungsregel gilt weiterhin nur INNERHALB von
+// `update_region` -- der Feldherkunft-Aufruf existiert nur dort, `strpos` ab dessen Position
+// findet also GENAU den Kurvenschreiber von `update_region`, unabhaengig vom frueheren Aufruf in
+// `create_region`. Ein naiver `strpos($ecoQuelle, ...)` ohne Offset traf nach der Erweiterung den
+// FALSCHEN (fruehesten) Aufruf und riss diese Zusicherung faelschlich.
 $posHerkunft = strpos($ecoQuelle, 'avesmapsEcosystemApplyRegionFieldOrigins($before');
-$posKurve = strpos($ecoQuelle, 'avesmapsCurveLabelApplyToProperties(');
+$posKurve = strpos($ecoQuelle, 'avesmapsCurveLabelApplyToProperties(', $posHerkunft === false ? 0 : $posHerkunft);
 assert($posHerkunft !== false && $posKurve !== false);
 assert($posHerkunft < $posKurve, 'der Kurvenschreiber muss NACH der Feldherkunft stehen -- beide schreiben properties_json');
 

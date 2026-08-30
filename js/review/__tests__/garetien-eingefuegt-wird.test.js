@@ -1,12 +1,20 @@
 // „Eingefügt wird" -- die Einzelansicht zeigt, welche Einstellungen die Fläche/der Ort/das
 // Label wirklich bekäme (Owner 30.08.2026, nach dem Schadensfall „3000 Labels ab Zoom 0").
 //
+// 🔴 SEIT 30.08.2026 SIND DIE FELDER DER FLÄCHE/BESCHRIFTUNG ECHTE EINGABEFELDER (Owner, wörtlich:
+// "ich hatte plötzlich 3000 labels da stehen ... WARUM DARF ICH DAS NICHT VERÄNDERN?" --
+// "einstellbar" heißt: hier, im Kasten, vor dem Einfügen). Ort und Weg bleiben reine Anzeige
+// (garetienEingefuegtWirdZeileMitHinweis) -- dort speichert der Import ohnehin nichts von alledem.
+//
 // Ausfuehren, vom Repo-Wurzelverzeichnis:
 //   node js/review/__tests__/garetien-eingefuegt-wird.test.js
 //
 // 🔴 Geprueft wird DIFFERENTIELL (die Falle der Vakuum-Zusicherung): zwei verschiedene Arten
 // muessen verschiedene Zahlen zeigen, und Flaeche/Ort/Label muessen verschiedene Abschnitte
 // zeigen -- eine Zusicherung, die nur prueft, DASS eine Zeile im Markup steht, prueft nichts.
+// 🪤 Und ein Test, der nur prueft, dass ein `<input>` im Markup steht, prueft ebenfalls nichts --
+// die Abschnitte C/D/I/J/K unten pruefen deshalb den WERT des Feldes, seinen ZUSTAND (aktiviert/
+// deaktiviert) und was eine EINGABE am geteilten Zustand bewegt, nie nur seine Anwesenheit.
 //
 // 💣 `hasDocument` wird beim LADEN von review-garetien-importer.js ausgewertet
 // (`typeof document !== "undefined"`) -- `global.document` muss deshalb VOR dem `require` stehen
@@ -35,10 +43,12 @@ function gleich(ist, soll, warum) {
 // beim Laden selbst schon document.documentElement.classList.add(...) ruft (IS_INFOPANEL_MODE).
 //
 // ⚠️ Absichtlich mager, wie im Vorbild (garetien-fussknopf-dom.test.js): nur die Elemente, die
-// dieser Ablauf wirklich anfasst.
+// dieser Ablauf wirklich anfasst. Ein `<input>` bekommt zusaetzlich `disabled`/`checked`/`value`
+// -- die drei Eigenschaften, die garetienEingabenAendern wirklich anfasst.
 function macheElement(id) {
 	return {
 		id: id, hidden: false, innerHTML: "", textContent: "",
+		disabled: false, checked: false, value: "",
 		addEventListener() {},
 		querySelectorAll() { return []; },
 		querySelector() { return null; },
@@ -100,18 +110,48 @@ const {
 	garetienWikiLandschaftZeileText,
 	garetienWikiLandschaftPlatzhalterId,
 	garetienDetailWaehlen,
+	garetienEingabenZustandZu,
+	garetienEingabenGrundwerte,
+	garetienEingabenAendern,
+	garetienEingabenFuerServer,
+	garetienEingabeId,
 } = mod;
 
 wahr(typeof garetienEingefuegtWirdHatVorschlag === "function", "garetienEingefuegtWirdHatVorschlag fehlt im Export");
 wahr(typeof garetienEingefuegtWirdMarkup === "function", "garetienEingefuegtWirdMarkup fehlt im Export");
 wahr(typeof garetienEingefuegtWirdZeileMitHinweis === "function", "garetienEingefuegtWirdZeileMitHinweis fehlt im Export");
 wahr(typeof garetienWikiLandschaftZeileText === "function", "garetienWikiLandschaftZeileText fehlt im Export");
+wahr(typeof garetienEingabenZustandZu === "function", "garetienEingabenZustandZu fehlt im Export");
+wahr(typeof garetienEingabenGrundwerte === "function", "garetienEingabenGrundwerte fehlt im Export");
+wahr(typeof garetienEingabenAendern === "function", "garetienEingabenAendern fehlt im Export");
+wahr(typeof garetienEingabenFuerServer === "function", "garetienEingabenFuerServer fehlt im Export");
+wahr(typeof garetienEingabeId === "function", "garetienEingabeId fehlt im Export");
 // Die geteilte Verkehrsmittel-Regel muss als blanker Bezeichner ankommen -- sonst wuerde die
 // nachfolgende Rechnung der Erwartungswerte (2 von 2 / 5 von 6 / 6 von 6) selbst zur Vakuum-Probe.
 wahr(typeof getDefaultAllowedTransportsForPathSubtype === "function",
 	"getDefaultAllowedTransportsForPathSubtype (map-features-path-domain.js) wurde nicht geladen");
 wahr(typeof getTransportOptionsForPathSubtype === "function",
 	"getTransportOptionsForPathSubtype (map-features-path-domain.js) wurde nicht geladen");
+
+// Ein kleiner Helfer fuer die Eingabefeld-Zusicherungen unten: liest `value="X"` fuer eine
+// gegebene Feld-id aus dem Markup -- ROBUSTER als ein reiner `includes()`-Test, weil er die
+// Attributgrenze wirklich prueft (ein Treffer mitten in einem ANDEREN Attribut waere ein
+// Fehlalarm).
+function eingabeWert(markup, id) {
+	const treffer = new RegExp('id="' + id + '"[^>]*value="([^"]*)"').exec(markup)
+		|| new RegExp('value="([^"]*)"[^>]*id="' + id + '"').exec(markup);
+	return treffer ? treffer[1] : null;
+}
+function istAngehakt(markup, id) {
+	const re = new RegExp('id="' + id + '"[^>]*>');
+	const treffer = re.exec(markup);
+	return treffer ? treffer[0].includes("checked") : null;
+}
+function istDeaktiviert(markup, id) {
+	const re = new RegExp('id="' + id + '"[^>]*>');
+	const treffer = re.exec(markup);
+	return treffer ? treffer[0].includes("disabled") : null;
+}
 
 // =================================================================================================
 // A. garetienEingefuegtWirdHatVorschlag -- die Torfrage
@@ -135,7 +175,8 @@ gleich(garetienEingefuegtWirdMarkup({ items: [] }), "", "ohne Vorschlag gibt es 
 	+ "Ueberschrift ueber nichts ist keine Auskunft (dieselbe Regel wie bei garetienQuellenMarkup)");
 
 // =================================================================================================
-// C. Eine FLAECHE (ziel='region') -- Owner-Beispiel Huegel -> huegelland
+// C. Eine FLAECHE (ziel='region') -- Owner-Beispiel Huegel -> huegelland, ALLE SIEBEN Felder als
+//    ECHTE Eingabefelder, vorbelegt mit der Vorgabe der Art bzw. dem Grundwert.
 // =================================================================================================
 
 const huegel = {
@@ -152,38 +193,67 @@ wahr(mHuegel.includes("Eingefügt wird"), "die Ueberschrift fehlt");
 wahr(mHuegel.includes("Huegel (garetien.de) → huegelland (Avesmaps)"),
 	"die Kopfzeile nennt ihren Typ und unseren Zielsubtyp, wie im Kopf der Einzelansicht");
 
-// ---- Flaeche: fuer Klicks gesperrt ist IMMER "aus" (Spaltendeckel, kein Wert des Imports) ------
+// ---- Fläche: "für Klicks gesperrt" ist ein ECHTES Häkchen, vorbelegt UNGEHAKT (kein Grundwert
+// der Art dafuer -- eine reine Karteneigenschaft, siehe die Begruendung an
+// garetienEingefuegtWirdFlaecheMarkup).
 wahr(mHuegel.includes("Fläche"), "die Flaechen-Unterueberschrift fehlt");
-wahr(mHuegel.includes("für Klicks gesperrt") && mHuegel.includes("(aus)"),
-	'„für Klicks gesperrt (aus)" -- exakt das Owner-Beispiel');
+wahr(mHuegel.includes("für Klicks gesperrt"), '"für Klicks gesperrt" fehlt');
+const idGesperrt = garetienEingabeId(huegel, "isLocked");
+wahr(mHuegel.includes('id="' + idGesperrt + '"') && mHuegel.includes('type="checkbox"'),
+	'"für Klicks gesperrt" muss ein ECHTES Häkchen sein, keine reine Anzeige');
+gleich(istAngehakt(mHuegel, idGesperrt), false, "vorbelegt UNGEHAKT (Grundwert 'aus')");
 
-// ---- Beschriftung: der ECHTE Wert des Imports steht IMMER da -------------------------------
-wahr(mHuegel.includes("Größe") && mHuegel.includes("(18 pt)"), "die echte Groesse (Import-Vorgabe) fehlt");
-wahr(mHuegel.includes("Priorität") && mHuegel.includes("(3)"), "die echte Prioritaet fehlt");
-wahr(mHuegel.includes("Sichtbar ab Zoom") && mHuegel.includes("(0)"), "der echte Start-Zoom (0) fehlt");
-wahr(mHuegel.includes("Sichtbar bis Zoom") && mHuegel.includes("(5)"), "der echte End-Zoom (5) fehlt");
+// ---- Beschriftung: die VIER Zahlenfelder sind ECHTE <input>s, vorbelegt mit dem Grundwert
+// (huegelland traegt in dieser Fixture KEINE gespeicherte Admin-Uebersteuerung).
+const idGroesse = garetienEingabeId(huegel, "size");
+const idPrio = garetienEingabeId(huegel, "priority");
+const idAb = garetienEingabeId(huegel, "minZoom");
+const idBis = garetienEingabeId(huegel, "maxZoom");
+wahr(mHuegel.includes("Größe") && mHuegel.includes('id="' + idGroesse + '"'), "das Größenfeld fehlt");
+gleich(eingabeWert(mHuegel, idGroesse), "18", "die echte Groesse (Grundwert) fehlt als Feldwert");
+wahr(mHuegel.includes("Priorität") && mHuegel.includes('id="' + idPrio + '"'), "das Prioritätsfeld fehlt");
+gleich(eingabeWert(mHuegel, idPrio), "3", "die echte Prioritaet fehlt als Feldwert");
+wahr(mHuegel.includes("Sichtbar ab Zoom") && mHuegel.includes('id="' + idAb + '"'), "das Ab-Zoom-Feld fehlt");
+// 'huegelland' hat eine GEMESSENE Vorgabe (ab=3, AVESMAPS_ECOSYSTEM_DISPLAY_VORGABE_JE_ART) -- die
+// Vorbelegung nutzt die VOLLE Vorgabe der Art, nicht nur den uniformen Grundwert 0.
+gleich(eingabeWert(mHuegel, idAb), "3", "die Vorbelegung des Start-Zooms (3, gemessene Vorgabe der Art) fehlt");
+wahr(mHuegel.includes("Sichtbar bis Zoom") && mHuegel.includes('id="' + idBis + '"'), "das Bis-Zoom-Feld fehlt");
+// 'huegelland' setzt kein eigenes "bis" -- das faellt auf den GRUNDWERT DER TAFEL (7), nicht auf
+// den Grundwert der Feature-Anlage (5).
+gleich(eingabeWert(mHuegel, idBis), "7", "die Vorbelegung des End-Zooms (7, Grundwert der Tafel) fehlt");
 
-// ---- Und die EHRLICHE Abweichung: huegelland empfiehlt ab=3 (AVESMAPS_ECOSYSTEM_DISPLAY_
-// VORGABE_JE_ART.huegelland), der Import setzt aber 0 -- das MUSS als Hinweis dastehen, sonst
-// waere die Anzeige die Falschaussage, die die 3000 Labels gekostet hat.
-wahr(/Sichtbar ab Zoom[\s\S]{0,120}Vorgabe der Art wäre 3/.test(mHuegel),
-	"huegelland empfiehlt ab=3 -- die Abweichung vom echten Wert (0) muss benannt werden");
-// bis=7 ist die Grundvorgabe (kein Art-Eintrag setzt "bis" fuer huegelland), der Import setzt 5.
-wahr(/Sichtbar bis Zoom[\s\S]{0,120}Vorgabe der Art wäre 7/.test(mHuegel),
-	"die Grundvorgabe bis=7 weicht vom echten Wert (5) ab und muss benannt werden");
+// ---- 🔴 KEIN HINWEIS "Vorgabe der Art wäre ... der Import setzt sie nicht" MEHR -- der ganze
+// Sinn dieses Umbaus ist, dass der Import JEDEN im Kasten stehenden Wert setzt. Dieser Satz war
+// die Falschaussage, die den Schadensfall ausgelöst hat; er darf nirgendwo mehr vorkommen.
+wahr(!mHuegel.includes("der Import setzt sie nicht"),
+	'die Falschaussage "der Import setzt sie nicht" darf nirgendwo mehr stehen: ' + mHuegel);
 
-wahr(mHuegel.includes("Kurvenbeschreibung") && mHuegel.includes("(aus)"),
-	"eine Flaeche zeigt die Kurvenbeschreibung, immer 'aus' (der Import setzt curve_label nie)");
-wahr(mHuegel.includes("Auf Karte anzeigen") && mHuegel.includes("(an)"),
-	"show_name ist immer 'an' (avesmapsCreateLabelFeature-Vorgabe)");
+// ---- Kurvenbeschreibung: EIN Häkchen (vorbelegt "aus", kein Grundwert der Art dafuer) + EIN
+// Zahlenfeld fuer die Anzahl, das SOLANGE deaktiviert ist, wie das Häkchen aus ist ("mit Anzahl
+// wenn an" -- Auftrag).
+wahr(mHuegel.includes("Kurvenbeschreibung"), "die Kurvenbeschreibungs-Zeile fehlt");
+const idKurve = garetienEingabeId(huegel, "curveLabel");
+const idKurveMax = garetienEingabeId(huegel, "curveLabelMax");
+wahr(mHuegel.includes('id="' + idKurve + '"') && mHuegel.includes('type="checkbox"'),
+	"die Kurvenbeschreibung muss ein ECHTES Häkchen sein");
+gleich(istAngehakt(mHuegel, idKurve), false, "vorbelegt UNGEHAKT (kein Grundwert der Art dafür)");
+wahr(mHuegel.includes('id="' + idKurveMax + '"'), "das Anzahl-Feld fehlt");
+gleich(istDeaktiviert(mHuegel, idKurveMax), true, "die Anzahl ist deaktiviert, solange die Kurve aus ist");
+
+// ---- Auf Karte anzeigen: EIN Häkchen, vorbelegt ANGEHAKT (Grundwert show_name=true).
+wahr(mHuegel.includes("Auf Karte anzeigen"), "die Zeile fehlt");
+const idAnzeigen = garetienEingabeId(huegel, "showName");
+wahr(mHuegel.includes('id="' + idAnzeigen + '"') && mHuegel.includes('type="checkbox"'),
+	'"Auf Karte anzeigen" muss ein ECHTES Häkchen sein');
+gleich(istAngehakt(mHuegel, idAnzeigen), true, "vorbelegt ANGEHAKT (Grundwert 'an')");
 
 // ---- DIFFERENZIELL: eine ANDERE Art zeigt eine ANDERE Empfehlung (sonst waere die Tafel nicht
-// wirklich angeschlossen, sondern eine feste Zeichenkette). 'see' empfiehlt ab=4, nicht 3.
+// wirklich angeschlossen, sondern eine feste Zeichenkette). 'see' empfiehlt ab=4, nicht 0/3.
 const see = Object.assign({}, huegel, { key: "ggp:Gewaesser:See:Garetien:Testsee",
 	subtyp: "see", kind: "topographie", typ: "See" });
 const mSee = garetienEingefuegtWirdMarkup(see);
-wahr(/Sichtbar ab Zoom[\s\S]{0,120}Vorgabe der Art wäre 4/.test(mSee),
-	"'see' empfiehlt ab=4 -- eine andere Zahl als 'huegelland' (3), sonst waere es Vakuum");
+gleich(eingabeWert(mSee, garetienEingabeId(see, "minZoom")), "4",
+	"'see' hat eine ANDERE Vorbelegung (4) als 'huegelland' (3), sonst waere es Vakuum");
 
 // ---- Wiki und Quellen: die Quelle zieht HIERHER (nicht mehr als eigener Abschnitt danach) ------
 wahr(mHuegel.includes("Wiki und Quellen"), "die Unterueberschrift fehlt");
@@ -198,7 +268,8 @@ wahr(mHuegel.includes("wird gesucht"), "der Platzhalter muss synchron einen Wart
 	+ "(die echte Suche laeuft erst async ueber die Aktion 'wiki_landschaft')");
 
 // =================================================================================================
-// D. Ein BERGGIPFEL (ziel='label') -- KEINE Flaeche, KEINE Kurvenbeschreibung, KEIN Wiki-Landschaft
+// D. Ein BERGGIPFEL (ziel='label') -- KEINE Flaeche, KEINE Kurvenbeschreibung, KEIN Wiki-Landschaft,
+//    aber die VIER Zahlenfelder + "Auf Karte anzeigen" GENAUSO editierbar wie bei der Fläche.
 // =================================================================================================
 
 const gipfel = {
@@ -210,16 +281,21 @@ const mGipfel = garetienEingefuegtWirdMarkup(gipfel);
 wahr(!mGipfel.includes("Fläche"), "ein Berggipfel ist keine Region -- kein Klick-Sperr-Abschnitt");
 wahr(mGipfel.includes("Beschriftung"), "ein Berggipfel IST ein Label -- die Beschriftungszeilen gelten");
 // Owner-Entscheid 27.08.2026 (ecosystem-display.js): Berggipfel empfehlen ab=4.
-wahr(/Sichtbar ab Zoom[\s\S]{0,120}Vorgabe der Art wäre 4/.test(mGipfel),
-	"Berggipfel empfehlen Zoom 4 (Owner-Entscheid) -- muss als Abweichung vom echten Wert 0 stehen");
+gleich(eingabeWert(mGipfel, garetienEingabeId(gipfel, "minZoom")), "4",
+	"Berggipfel empfehlen Zoom 4 (Owner-Entscheid) -- muss als Feldwert stehen");
 wahr(!mGipfel.includes("Kurvenbeschreibung"),
 	"ein Berggipfel-Label haengt an KEINER ecosystem_region -- keine Kurvenbeschreibung");
+wahr(!mGipfel.includes('id="' + garetienEingabeId(gipfel, "isLocked") + '"'),
+	"ein Berggipfel kennt kein 'für Klicks gesperrt' -- das gehört der Region");
 wahr(!mGipfel.includes("Wiki-Landschaft"),
 	"Wiki-Landschaft ist ein Regions-Konzept -- ein Berggipfel bekommt die Zeile nicht");
+wahr(mGipfel.includes("Auf Karte anzeigen") && mGipfel.includes('id="' + garetienEingabeId(gipfel, "showName") + '"'),
+	'"Auf Karte anzeigen" gilt auch fuer ein Label ohne Flaeche');
 
 // =================================================================================================
 // E. Ein ORT (ziel='location') -- FESTE Klassentafel, kein Einstellwert des Imports, UND (Owner-
 //    Nachtrag 30.08.2026) die sechs Karteifelder von "Ort bearbeiten", die der Import nie fuellt.
+//    UNVERÄNDERT reine Anzeige -- die Recherche ergab, dass ein Ort keines dieser Felder speichert.
 // =================================================================================================
 
 const ort = {
@@ -232,6 +308,8 @@ wahr(!mOrt.includes("Fläche") && !mOrt.includes("class=\"gi-insert__sub\">Besch
 	"ein Ort hat weder Flaechen- noch Beschriftungs- noch Weg-Einstellwerte -- die Karte zeichnet ihn "
 	+ "aus der Ortsklassen-Tafel, nicht aus properties_json");
 wahr(mOrt.includes("Ort"), "die Ort-Unterueberschrift fehlt");
+wahr(!mOrt.includes('type="checkbox"') && !mOrt.includes('type="number"'),
+	"ein Ort bekommt KEIN einziges Eingabefeld -- die Recherche ergab, dass hier nichts speicherbar ist");
 // 'dorf' im Marker-Band: [null, null, 1.33, ...] -- die erste gefuellte Zelle ist Index 2.
 wahr(mOrt.includes("erscheint ab Zoom 2"),
 	"die feste Klassentafel (location-zoom-bands.js) muss den ECHTEN Bandwert zeigen, nicht geraten");
@@ -262,7 +340,7 @@ wahr(!mOrt.includes("Vorgabe der Art wäre"),
 // =================================================================================================
 // F. Ein WEG (ziel='path') -- Owner-Nachtrag 30.08.2026: "vergiss nicht die andern einstellungen
 //    aus 'Weg bearbeiten'". Vier Zeilen: Weg anzeigen, Jahreszeiten, Verkehrsmittel, und (nur bei
-//    einem Flussweg) Stroemung.
+//    einem Flussweg) Stroemung. UNVERÄNDERT reine Anzeige.
 // =================================================================================================
 
 const weg = {
@@ -276,6 +354,8 @@ wahr(!mWeg.includes("Fläche") && !mWeg.includes("class=\"gi-insert__sub\">Besch
 	&& !mWeg.includes('class="gi-insert__sub">Ort<'),
 	"ein Weg bekommt keinen der drei ANDEREN Kartenobjekt-Unterabschnitte");
 wahr(mWeg.includes('class="gi-insert__sub">Weg<'), "die Weg-Unterueberschrift fehlt");
+wahr(!mWeg.includes('type="checkbox"') && !mWeg.includes('type="number"'),
+	"ein Weg bekommt KEIN einziges Eingabefeld -- die Recherche ergab, dass hier nichts speicherbar ist");
 wahr(mWeg.includes("Wiki und Quellen") && mWeg.includes("Die Quelle, die mitreist"),
 	"Quelle bleibt fuer JEDES Ziel gueltig, auch fuer einen Weg");
 wahr(!mWeg.includes("Wiki-Landschaft"), "Wiki-Landschaft gilt nur Regionen, nicht Wegen");
@@ -341,12 +421,9 @@ gleich(garetienWikiLandschaftZeileText({ status: "mehrdeutig", name: "", art: ""
 	"mehrere gleichnamige Wiki-Artikel — keine sichere Zuordnung");
 
 // =================================================================================================
-// G2. KORREKTUR A (Owner-Nachtrag 30.08.2026, wörtlich: „DOCH DER IMPORT SOLL SIE SETZEN!!!"):
-//     eine gespeicherte ADMIN-UEBERSTEUERUNG wird vom Import wirklich gesetzt -- der echte Wert
-//     MUSS sie dann tragen, und "der Import setzt sie nicht" darf fuer diese Felder nicht mehr
-//     stehen. Eine UNGUELTIGE Uebersteuerung (die avesmapsCreateLabelFeature ablehnen wuerde)
-//     faellt dagegen auf den Grundwert zurueck -- genau wie server-seitig
-//     (avesmapsGaretienLabelVorgabeFuerArt, api/_internal/import/garetien-uebernahme.php).
+// G2. Eine gespeicherte ADMIN-UEBERSTEUERUNG (Fenster "Landschaften -> Darstellung") schlägt sich
+//     im VORBELEGTEN Feldwert nieder -- und eine UNGUELTIGE Uebersteuerung faellt auf den
+//     Grundwert zurueck, statt eine kaputte Vorbelegung anzuzeigen.
 // =================================================================================================
 
 // ---- G2.1: eine VOLLSTAENDIGE, gueltige Uebersteuerung fuer 'huegelland'.
@@ -354,58 +431,185 @@ avesmapsEcosystemDisplayInstall({
 	vorgabe: { huegelland: { ab: 2, bis: 6, prio: 4 } },
 	groesse: { huegelland: [10, 11, 12, 13, 14, 25, 26, 27, 28] },
 });
-const mHuegelUebersteuert = garetienEingefuegtWirdMarkup(huegel);
-wahr(mHuegelUebersteuert.includes("Größe") && mHuegelUebersteuert.includes("(25 pt)"),
-	"die Uebersteuerung setzt die Groesse auf ihren z5-Wert 25: " + mHuegelUebersteuert);
-wahr(mHuegelUebersteuert.includes("Priorität") && mHuegelUebersteuert.includes("(4)"),
-	"die Uebersteuerung setzt die Prioritaet auf 4");
-wahr(mHuegelUebersteuert.includes("Sichtbar ab Zoom") && mHuegelUebersteuert.includes("(2)"),
-	"die Uebersteuerung setzt den Start-Zoom auf 2");
-wahr(mHuegelUebersteuert.includes("Sichtbar bis Zoom") && mHuegelUebersteuert.includes("(6)"),
-	"die Uebersteuerung setzt den End-Zoom auf 6");
-wahr(!mHuegelUebersteuert.includes("Vorgabe der Art wäre"),
-	'"der Import setzt sie nicht" darf jetzt nicht mehr stehen -- der Import setzt sie: '
-	+ mHuegelUebersteuert);
+// 🔴 Ein NEUER Objektschluessel -- derselbe `huegel.key` traegt seit Abschnitt C schon einen
+// Eingabezustand (per Vorbelegung angelegt); ein zweiter Zugriff auf DENSELBEN Schluessel wuerde
+// diesen bereits BESTEHENDEN Zustand liefern, nicht neu vorbelegen (das ist die Regel, die
+// Abschnitt I unten prueft) -- und diese Zeile prüfte dann fälschlich nichts über die Tafel.
+const huegelUebersteuert = Object.assign({}, huegel, { key: "ggp:Berge:Huegel:Garetien:Testhuegel-2" });
+const mHuegelUebersteuert = garetienEingefuegtWirdMarkup(huegelUebersteuert);
+gleich(eingabeWert(mHuegelUebersteuert, garetienEingabeId(huegelUebersteuert, "size")), "25",
+	"die Uebersteuerung setzt die Vorbelegung der Groesse auf ihren z5-Wert 25: " + mHuegelUebersteuert);
+gleich(eingabeWert(mHuegelUebersteuert, garetienEingabeId(huegelUebersteuert, "priority")), "4",
+	"die Uebersteuerung setzt die Vorbelegung der Prioritaet auf 4");
+gleich(eingabeWert(mHuegelUebersteuert, garetienEingabeId(huegelUebersteuert, "minZoom")), "2",
+	"die Uebersteuerung setzt die Vorbelegung des Start-Zooms auf 2");
+gleich(eingabeWert(mHuegelUebersteuert, garetienEingabeId(huegelUebersteuert, "maxZoom")), "6",
+	"die Uebersteuerung setzt die Vorbelegung des End-Zooms auf 6");
 
-// ---- G2.2: die GEGENPROBE -- eine ANDERE Art ohne eigene Uebersteuerung bleibt beim Grundwert
-// und zeigt weiterhin ihre Empfehlung als Hinweis. Ohne diese Zeile prüfte G2.1 nicht, ob die
-// Uebersteuerung wirklich an der ART haengt, statt den Grundwert global zu veraendern.
-const mSeeOhneUebersteuerung = garetienEingefuegtWirdMarkup(see);
-wahr(mSeeOhneUebersteuerung.includes("Größe") && mSeeOhneUebersteuerung.includes("(18 pt)"),
-	"'see' traegt keine eigene Uebersteuerung -- die Groesse bleibt beim Grundwert 18 pt");
-wahr(/Sichtbar ab Zoom[\s\S]{0,120}Vorgabe der Art wäre 4/.test(mSeeOhneUebersteuerung),
-	"'see' zeigt weiterhin seine Empfehlung als Hinweis -- 'huegelland' und 'see' duerfen sich "
-	+ "nicht gegenseitig beeinflussen");
+// ---- G2.2: die GEGENPROBE -- eine ANDERE Art ohne eigene Uebersteuerung bleibt beim Grundwert.
+// Ohne diese Zeile prüfte G2.1 nicht, ob die Uebersteuerung wirklich an der ART haengt, statt den
+// Grundwert global zu veraendern.
+const seeOhneUebersteuerung = Object.assign({}, see, { key: "ggp:Gewaesser:See:Garetien:Testsee-2" });
+const mSeeOhneUebersteuerung = garetienEingefuegtWirdMarkup(seeOhneUebersteuerung);
+gleich(eingabeWert(mSeeOhneUebersteuerung, garetienEingabeId(seeOhneUebersteuerung, "size")), "18",
+	"'see' traegt keine eigene Uebersteuerung -- die Vorbelegung der Groesse bleibt beim Grundwert 18");
 
-// ---- G2.3: eine UNGUELTIGE Uebersteuerung faellt auf den Grundwert zurueck, statt den Import
-// zum Werfen zu bringen -- fuer 'berggipfel': ein umgekehrtes Zoomband (bis < ab, in der
+// ---- G2.3: eine UNGUELTIGE Uebersteuerung faellt auf den Grundwert zurueck, statt eine kaputte
+// Vorbelegung anzuzeigen -- fuer 'berggipfel': ein umgekehrtes Zoomband (bis < ab, in der
 // Darstellungstafel gueltig als "aus") und eine Groesse unter dem Label-Minimum 10 pt.
 avesmapsEcosystemDisplayInstall({
 	vorgabe: { berggipfel: { ab: 5, bis: 1, prio: 2 } },
 	groesse: { berggipfel: [4, 4, 4, 4, 4, 4, 4, 4, 4] },
 });
-const mGipfelUngueltig = garetienEingefuegtWirdMarkup(gipfel);
-wahr(mGipfelUngueltig.includes("Sichtbar ab Zoom") && mGipfelUngueltig.includes("(0)"),
+const gipfelUngueltig = Object.assign({}, gipfel, { key: "ggp:Berge:Berg:Garetien:Testgipfel-2" });
+const mGipfelUngueltig = garetienEingefuegtWirdMarkup(gipfelUngueltig);
+gleich(eingabeWert(mGipfelUngueltig, garetienEingabeId(gipfelUngueltig, "minZoom")), "0",
 	"ein umgekehrtes Zoomband faellt auf den Grundwert 0 zurueck: " + mGipfelUngueltig);
-wahr(mGipfelUngueltig.includes("Sichtbar bis Zoom") && mGipfelUngueltig.includes("(5)"),
+gleich(eingabeWert(mGipfelUngueltig, garetienEingabeId(gipfelUngueltig, "maxZoom")), "5",
 	"und ebenso auf den Grundwert 5 -- BEIDE Enden, nicht nur eines");
-wahr(mGipfelUngueltig.includes("Größe") && mGipfelUngueltig.includes("(18 pt)"),
+gleich(eingabeWert(mGipfelUngueltig, garetienEingabeId(gipfelUngueltig, "size")), "18",
 	"eine Groesse unter 10 pt faellt auf den Grundwert 18 pt zurueck");
-wahr(mGipfelUngueltig.includes("Priorität") && mGipfelUngueltig.includes("(2)"),
+gleich(eingabeWert(mGipfelUngueltig, garetienEingabeId(gipfelUngueltig, "priority")), "2",
 	"die Prioritaet 2 ist fuer sich gueltig und wird trotzdem uebernommen -- nur Zoomband/Groesse "
 	+ "sind kaputt");
-// Die verworfene Uebersteuerung bleibt trotzdem als EHRLICHER Hinweis sichtbar -- sie wurde
-// gespeichert, nur eben nicht angewendet.
-wahr(/Sichtbar ab Zoom[\s\S]{0,120}Vorgabe der Art wäre 5/.test(mGipfelUngueltig),
-	"die verworfene Uebersteuerung (ab=5) bleibt als Hinweis sichtbar -- der Import setzt sie eben nicht");
-wahr(mGipfelUngueltig.includes("Größe") && /Größe[\s\S]{0,120}Vorgabe der Art wäre 4 pt/.test(mGipfelUngueltig),
-	"und ebenso die verworfene Groesse (4 pt)");
 
-// ---- Aufraeumen: die globale Uebersteuerung darf die Verdrahtungs-Sektion (H) nicht beeinflussen.
+// ---- Aufraeumen: die globale Uebersteuerung darf die folgenden Abschnitte nicht beeinflussen.
 avesmapsEcosystemDisplayInstall(null);
 
 // =================================================================================================
-// H. Die Verdrahtung: garetienDetailWaehlen -> garetienWikiLandschaftBeiBedarfLaden -> Aktion
+// I. Der Eingabezustand -- garetienEingabenGrundwerte/garetienEingabenZustandZu: Vorbelegung EINMAL,
+//    danach ÜBERLEBT eine Handeingabe ein erneutes Rendern desselben Objekts.
+// =================================================================================================
+
+// 🔴 'tundra' TRÄGT KEINE ZEILE IN AVESMAPS_ECOSYSTEM_DISPLAY_VORGABE_JE_ART -- anders als
+// 'huegelland' (Abschnitt C, ab=3) prüft dieser Abschnitt den GRUNDWERT DER TAFEL (nicht den der
+// Feature-Anlage): `avesmapsEcosystemDisplayVorgabe` beantwortet JEDE Art, auch eine unbekannte --
+// sie fällt dann auf ihren EIGENEN Grundwert zurück (ab=0/bis=7/prio=3), nicht auf die
+// Feature-Anlage-Vorgabe (min_zoom=0/max_zoom=5). Größe bleibt in beiden Grundwerten 18.
+const zustandsObjekt = { key: "gi-zustand:1", subtyp: "tundra", ziel: "region" };
+const grundwerte = garetienEingabenGrundwerte(zustandsObjekt);
+gleich(grundwerte.size, 18, "Grundwert Groesse");
+gleich(grundwerte.priority, 3, "Grundwert Prioritaet");
+gleich(grundwerte.minZoom, 0, "Grundwert Start-Zoom");
+gleich(grundwerte.maxZoom, 7, "Grundwert End-Zoom (Grundwert DER TAFEL, nicht der Feature-Anlage)");
+gleich(grundwerte.showName, true, '"Auf Karte anzeigen" startet angehakt');
+gleich(grundwerte.curveLabel, false, "Kurvenbeschreibung startet aus");
+gleich(grundwerte.curveLabelMax, 1, "Anzahl startet bei 1");
+gleich(grundwerte.isLocked, false, '"für Klicks gesperrt" startet aus');
+
+const zustand1 = garetienEingabenZustandZu(zustandsObjekt);
+zustand1.size = 42;
+const zustand2 = garetienEingabenZustandZu(zustandsObjekt);
+gleich(zustand2.size, 42, "ein zweiter Zugriff auf DASSELBE Objekt liefert den bereits GEÄNDERTEN "
+	+ "Zustand, keine frische Vorbelegung -- sonst ginge jede Handeingabe beim nächsten Rendern verloren");
+gleich(zustand1 === zustand2, true, "es ist wortwörtlich dasselbe Objekt, keine Kopie");
+
+const anderesObjekt = { key: "gi-zustand:2", subtyp: "huegelland", ziel: "region" };
+gleich(garetienEingabenZustandZu(anderesObjekt).size, 18,
+	"ein ANDERES Objekt (anderer Schlüssel) bekommt seine EIGENE, frische Vorbelegung -- der "
+	+ "geänderte Wert von oben darf nicht mitwandern");
+
+// =================================================================================================
+// J. garetienEingabenAendern -- eine Eingabe im Kasten bewegt GENAU den Eingabezustand des
+//    GERADE GEÖFFNETEN Objekts, nichts sonst.
+// =================================================================================================
+
+// 🔴 garetienDetailWaehlen loest NEBENBEI die Wiki-Landschaft-Suche aus
+// (garetienWikiLandschaftBeiBedarfLaden) -- ohne diese Wache griffe sie hier auf das ECHTE,
+// native `fetch` von Node zu und versuchte einen echten Netzruf gegen eine relative Adresse.
+const echtesFetchJ = global.fetch;
+global.fetch = function () { return Promise.resolve({ json: () => Promise.resolve({ ok: true }) }); };
+
+// zustand.detailKey wird über garetienDetailWaehlen gesetzt (dieselbe Verdrahtung wie im echten
+// Fenster) -- ohne ein geöffnetes Objekt darf eine Eingabe gar nichts bewegen.
+garetienDetailWaehlen(null, []);
+const objektJ = { key: "gi-aendern:1", subtyp: "huegelland", ziel: "region" };
+const feldOhneOffen = { getAttribute: () => "size", hasAttribute: () => true, type: "number", value: "99" };
+garetienEingabenAendern({ target: feldOhneOffen }, [objektJ]);
+gleich(garetienEingabenZustandZu(objektJ).size, 18,
+	"ohne ein geöffnetes Objekt (detailKey === null) bewegt eine Eingabe NICHTS");
+
+garetienDetailWaehlen(objektJ.key, [objektJ]);
+
+// Ein fremdes Ziel (kein data-gi-feld) wird ignoriert.
+garetienEingabenAendern({ target: { getAttribute: () => null, hasAttribute: () => false } }, [objektJ]);
+gleich(garetienEingabenZustandZu(objektJ).size, 18, "ein Ziel ohne data-gi-feld bewegt nichts");
+
+// Eine Zahl wird übernommen.
+const feldGroesse = { getAttribute: () => "size", hasAttribute: () => true, type: "number", value: "27" };
+garetienEingabenAendern({ target: feldGroesse }, [objektJ]);
+gleich(garetienEingabenZustandZu(objektJ).size, 27, "eine getippte Zahl wird übernommen");
+
+// Ein kaputter/leerer Wert wird VERWORFEN, nicht als NaN gespeichert -- der letzte gültige Stand
+// bleibt stehen.
+const feldKaputt = { getAttribute: () => "size", hasAttribute: () => true, type: "number", value: "" };
+garetienEingabenAendern({ target: feldKaputt }, [objektJ]);
+gleich(garetienEingabenZustandZu(objektJ).size, 27,
+	"ein leeres Feld überschreibt den letzten gültigen Wert NICHT mit NaN");
+
+// Ein Häkchen wird übernommen.
+const feldHaken = { getAttribute: () => "showName", hasAttribute: () => true, type: "checkbox", checked: false };
+garetienEingabenAendern({ target: feldHaken }, [objektJ]);
+gleich(garetienEingabenZustandZu(objektJ).showName, false, "ein umgelegtes Häkchen wird übernommen");
+
+// Das Umlegen von "curveLabel" schaltet das benachbarte Anzahl-Feld frei/gesperrt -- DIREKT am
+// DOM-Knoten (ohne die ganze Spalte neu zu rendern).
+const maxFeldElement = macheElement(garetienEingabeId(objektJ, "curveLabelMax"));
+maxFeldElement.disabled = true;
+ELEMENTE[maxFeldElement.id] = maxFeldElement;
+const feldKurveAn = { getAttribute: () => "curveLabel", hasAttribute: () => true, type: "checkbox", checked: true };
+garetienEingabenAendern({ target: feldKurveAn }, [objektJ]);
+gleich(garetienEingabenZustandZu(objektJ).curveLabel, true, "die Kurvenbeschreibung wird angehakt");
+gleich(maxFeldElement.disabled, false, "…und schaltet das Anzahl-Feld sofort FREI");
+const feldKurveAus = { getAttribute: () => "curveLabel", hasAttribute: () => true, type: "checkbox", checked: false };
+garetienEingabenAendern({ target: feldKurveAus }, [objektJ]);
+gleich(maxFeldElement.disabled, true, "…und wieder GESPERRT, sobald sie ausgehakt wird");
+
+// Ein ANDERES, nicht geöffnetes Objekt bleibt von alledem unberührt.
+const objektDaneben = { key: "gi-aendern:2", subtyp: "huegelland", ziel: "region" };
+gleich(garetienEingabenZustandZu(objektDaneben).size, 18,
+	"ein Objekt, das nie geöffnet war, bleibt bei seiner Vorbelegung");
+
+garetienDetailWaehlen(null, []);
+global.fetch = echtesFetchJ;
+
+// =================================================================================================
+// K. garetienEingabenFuerServer -- was tatsächlich an den Server reist, je Ziel.
+// =================================================================================================
+
+// Ort/Weg: KEINE Handeingabe -- es gibt dort nichts, das der Kasten überhaupt anbietet.
+gleich(garetienEingabenFuerServer({ key: "k1", ziel: "location", subtyp: "dorf" }), null,
+	"ein Ort liefert KEINE Handeingabe -- der Kasten bietet dort keine Felder");
+gleich(garetienEingabenFuerServer({ key: "k2", ziel: "path", subtyp: "Pfad" }), null,
+	"ein Weg ebenso");
+
+// Berggipfel (ziel='label'): die fünf Label-Felder, aber KEIN is_locked/curve_label.
+const kBerg = { key: "k3", ziel: "label", subtyp: "berggipfel" };
+garetienEingabenZustandZu(kBerg).size = 22;
+garetienEingabenZustandZu(kBerg).priority = 1;
+garetienEingabenZustandZu(kBerg).minZoom = 2;
+garetienEingabenZustandZu(kBerg).maxZoom = 6;
+garetienEingabenZustandZu(kBerg).showName = false;
+const eBerg = garetienEingabenFuerServer(kBerg);
+assert.deepStrictEqual(eBerg, {
+	size: 22, priority: 1, min_zoom: 2, max_zoom: 6, show_name: false,
+}, "ein Berggipfel liefert GENAU die fünf Label-Felder, keine Region-Felder: " + JSON.stringify(eBerg));
+checks++;
+
+// Fläche (ziel='region'): alle ACHT Felder.
+const kFlaeche = { key: "k4", ziel: "region", subtyp: "huegelland" };
+const eF = garetienEingabenZustandZu(kFlaeche);
+eF.size = 30; eF.priority = 5; eF.minZoom = 1; eF.maxZoom = 4; eF.showName = false;
+eF.isLocked = true; eF.curveLabel = true; eF.curveLabelMax = 2;
+const eFlaeche = garetienEingabenFuerServer(kFlaeche);
+assert.deepStrictEqual(eFlaeche, {
+	size: 30, priority: 5, min_zoom: 1, max_zoom: 4, show_name: false,
+	is_locked: true, curve_label: true, curve_label_max: 2,
+}, "eine Fläche liefert alle ACHT Felder: " + JSON.stringify(eFlaeche));
+checks++;
+
+// =================================================================================================
+// L. Die Verdrahtung: garetienDetailWaehlen -> garetienWikiLandschaftBeiBedarfLaden -> Aktion
 //    'wiki_landschaft' -> der Platzhalter wird nachgetragen. Vorbild: garetien-fussknopf-dom.test.js.
 // =================================================================================================
 
@@ -434,7 +638,7 @@ async function pruefeWikiLandschaftVerdrahtung() {
 
 	const echtesFetch = global.fetch;
 
-	// ---- H1: das geoeffnete Objekt loest GENAU EINE Anfrage aus, ueber denselben Sender/dieselbe
+	// ---- L1: das geoeffnete Objekt loest GENAU EINE Anfrage aus, ueber denselben Sender/dieselbe
 	// Adresse wie jeder andere Aufruf dieser Datei (avesmapsGaretienRufe, GARETIEN_ENDPUNKT).
 	const f1 = machFetch(function () {
 		return { ok: true, wiki_landschaft: { status: "passt", name: "Huegel", art: "Hügelland" } };
@@ -457,7 +661,7 @@ async function pruefeWikiLandschaftVerdrahtung() {
 	gleich(huegelPlatzhalter.textContent, "„Huegel\" (Hügelland) — Name und Art passen",
 		"der Platzhalter traegt jetzt das Urteil des Servers");
 
-	// ---- H2: ein erneutes Rendern DESSELBEN Objekts (z. B. nach einem Listen-Refetch) loest
+	// ---- L2: ein erneutes Rendern DESSELBEN Objekts (z. B. nach einem Listen-Refetch) loest
 	// KEINE zweite Anfrage aus -- kein Massenlauf, kein Nachfragen bei jedem Klick woanders.
 	const f2 = machFetch(function () {
 		throw new Error("darf nicht gerufen werden -- dasselbe Objekt bleibt geoeffnet");
@@ -468,7 +672,7 @@ async function pruefeWikiLandschaftVerdrahtung() {
 	global.fetch = echtesFetch;
 	gleich(f2.angefragt.length, 0, "kein zweiter Aufruf fuer dasselbe, weiterhin geoeffnete Objekt");
 
-	// ---- H3: ein ANDERES Objekt loest wieder EINE eigene Anfrage aus, mit seinen EIGENEN Werten.
+	// ---- L3: ein ANDERES Objekt loest wieder EINE eigene Anfrage aus, mit seinen EIGENEN Werten.
 	const f3 = machFetch(function () {
 		return { ok: true, wiki_landschaft: { status: "warnung", name: "Seesumpf", art: "Sumpf" } };
 	});

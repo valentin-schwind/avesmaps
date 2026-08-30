@@ -249,6 +249,10 @@ try {
             // UNVERAENDERT beim geteilten Verhalten (AGENTS.md §11: „der Cap ist auf das GEZEIGTE,
             // nie auf das VORHANDENE" -- dort ist das gewollt, hier war es der Schaden).
             $garetienItemIds = null;
+            // 🔴 Owner 30.08.2026 (Kasten „Eingefügt wird"): eine Handeingabe reist NUR am
+            // Einzelknopf „Neu einfügen" mit -- fehlt sie, ist das der Grundfall (Vorgabe der Art),
+            // nie ein Fehler. Siehe avesmapsGaretienEinstellungenAusRumpf.
+            $garetienEinstellungen = null;
             if ($kind === 'garetien') {
                 $garetienItemIds = avesmapsGaretienApplyIdsAusRumpf($payload);
                 if ($garetienItemIds === []) {
@@ -260,6 +264,7 @@ try {
                         . 'angezeigten Objekte (Schadensfall 30.08.2026).'
                     );
                 }
+                $garetienEinstellungen = avesmapsGaretienEinstellungenAusRumpf($payload);
             }
 
             // 🔴 THE SECOND CONFIRMATION IS A SERVER RULE, NOT A DISABLED BUTTON. A greyed-out button is
@@ -296,7 +301,7 @@ try {
                 // nicht-leer -- der einzige der acht Zweige, der `apply` auf eine ausdrueckliche
                 // id-Liste beschraenkt statt auf den ganzen Lauf.
                 'garetien' => avesmapsGaretienApplyStep(
-                    $pdo, $runId, $userId, $currentUser, null, $garetienItemIds
+                    $pdo, $runId, $userId, $currentUser, null, $garetienItemIds, $garetienEinstellungen
                 ),
             };
             $done = ($step['done'] ?? false) === true;

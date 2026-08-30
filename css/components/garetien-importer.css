@@ -817,8 +817,44 @@
 .gi-insert__val { font-weight: var(--font-weight-bold); color: var(--color-text-strong); }
 
 /* Der Hinweis, dass der Import die Empfehlung der Art NICHT liest -- kein Riegel, nur eine
- * Auskunft (dieselbe zurückhaltende Farbe wie ein Warnton, kein volles Rot). */
+ * Auskunft (dieselbe zurückhaltende Farbe wie ein Warnton, kein volles Rot). Gilt weiterhin für
+ * Ort/Weg (garetienEingefuegtWirdZeileMitHinweis, unverändert). */
 .gi-insert__hint { font-weight: var(--font-weight-regular); color: var(--color-warning); }
+
+/* ---- Aufgabe „Eingefügt wird -> Eingabefelder" (30.08.2026, Owner: „warum darf ich das nicht
+ * verändern?") -- Größe/Priorität/Zoomband/Kurvenbeschreibung/Auf Karte anzeigen/für Klicks
+ * gesperrt werden echte Eingabefelder statt reiner Anzeige. Hausform von `.gi-search` (Rahmen,
+ * Radius, Fläche) und dem Häkchen aus `.gi-win .avm-row > input[type="checkbox"]` abgeschaut --
+ * keine neue Bauform, nur ihre Maße auf ein schmales Zahlenfeld skaliert. */
+.gi-insert__row--edit { display: flex; align-items: center; gap: var(--space-4); flex-wrap: wrap; }
+
+.gi-insert__row--edit label { display: inline-flex; align-items: center; gap: var(--space-4); }
+
+.gi-insert__input {
+	width: 4.5em;
+	height: var(--avm-control-h);
+	padding: 0 var(--space-4);
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-md);
+	background: var(--color-panel);
+	color: var(--color-text);
+	font: inherit;
+	font-size: var(--font-size-caption);
+}
+
+.gi-insert__row--edit input[type="checkbox"] {
+	width: 14px;
+	height: 14px;
+	accent-color: var(--color-check-accent);
+}
+
+.gi-insert__input:disabled {
+	background: var(--color-disabled-bg);
+	border-color: var(--color-disabled-border);
+	color: var(--color-disabled-text);
+}
+
+.gi-insert__unit { color: var(--color-text-muted); }
 
 /* ---- Aufgabe 15: die Handlungsleiste ------------------------------------------------------ *
  *
