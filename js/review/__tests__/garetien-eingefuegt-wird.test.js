@@ -101,6 +101,11 @@ vm.runInThisContext(
 	fs.readFileSync(path.join(WURZEL, "js/map-features/map-features-path-domain.js"), "utf8"),
 	{ filename: "map-features-path-domain.js" }
 );
+// Fuenf-Punkte-Brief 30.08.2026, Punkt 3: die dritte Beschriftungsquelle (garetienUnserBeschriftung
+// liest sie fuer ziel='region'/'label') -- js/ui/label-arten.js unterstuetzt `module.exports` und
+// braucht deshalb kein `vm.runInThisContext` wie die beiden Tafeln oben.
+global.avesmapsLabelArtName =
+	require(path.resolve(WURZEL, "js/ui/label-arten.js")).avesmapsLabelArtName;
 
 const mod = require(path.resolve(__dirname, "..", "review-garetien-importer.js"));
 const {
@@ -192,8 +197,13 @@ const huegel = {
 const mHuegel = garetienEingefuegtWirdMarkup(huegel);
 
 wahr(mHuegel.includes("Eingefügt wird"), "die Ueberschrift fehlt");
-wahr(mHuegel.includes("Huegel (garetien.de) → huegelland (Avesmaps)"),
-	"die Kopfzeile nennt ihren Typ und unseren Zielsubtyp, wie im Kopf der Einzelansicht");
+// 🔴 Fuenf-Punkte-Brief 30.08.2026, Punkt 3: „huegelland" ist seither aufgeloest -- die Kopfzeile
+// zeigt „Hügelland" (avesmapsLabelArtName, js/ui/label-arten.js), nicht mehr den rohen Schluessel.
+wahr(mHuegel.includes("Huegel (garetien.de) → Hügelland (Avesmaps)"),
+	"die Kopfzeile nennt ihren Typ und UNSERE aufgeloeste Beschriftung des Zielsubtyps, wie im Kopf "
+	+ "der Einzelansicht");
+wahr(!mHuegel.includes("huegelland (Avesmaps)"),
+	"der rohe Schluessel darf nicht mehr in Klammern stehen -- nur noch die aufgeloeste Beschriftung");
 
 // ---- Fläche: "für Klicks gesperrt" ist ein ECHTES Häkchen, vorbelegt UNGEHAKT (kein Grundwert
 // der Art dafuer -- eine reine Karteneigenschaft, siehe die Begruendung an

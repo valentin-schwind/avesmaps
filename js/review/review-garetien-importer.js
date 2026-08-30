@@ -1749,20 +1749,53 @@
 			: garetienAnzahlText(Number(punkte || 0), "Punkt", "Punkte");
 	}
 
-	// REIN: der Kopf-Zusatz „Gebirge (garetien.de) → gebirge (Avesmaps)" -- IHR Typ samt IHRER
-	// Quelle, und die Art, als die WIR es anlegen würden, samt UNSEREM Namen. Ohne die zwei
-	// Klammern sagt der Pfeil nicht, wessen Vokabular welche Seite spricht -- bei "Gebirge →
-	// gebirge" unterscheiden sich die beiden nur durch einen Großbuchstaben (Owner-Meldung
-	// 30.08.2026).
+	// REIN: übersetzt UNSEREN Schlüssel (`objekt.subtyp`) in seine deutsche Beschriftung -- Owner
+	// 30.08.2026, wörtlich: „kannst du unsere bezeichnung für die Worte (z.B. suempfe_moore ->
+	// Sümpfe und Moore) auflösen?" 🔴 KEINE NEUE TABELLE (AGENTS.md §5/§11): jede der vier Zielarten
+	// hat schon eine Beschriftungsquelle im Haus -- dieselbe, aus der ihr eigener Editor/ihr eigenes
+	// Dropdown schöpft. Eine fünfte Abschrift wäre genau die Divergenz, vor der AGENTS.md warnt.
+	//   'location'          -> LOCATION_TYPE_CONFIG[subtyp].singularLabel (js/config.js, dieselbe
+	//                          Tafel, die auch der Meldedialog liest, review-panels.js)
+	//   'region' / 'label'  -> avesmapsLabelArtName(subtyp) (js/ui/label-arten.js -- „DAS
+	//                          AUSWAHLFELD IST DIE QUELLE", dieselbe Tafel wie #label-edit-type)
+	//   'path'              -> getPathTypeLabel(subtyp) (js/map-features/map-features-path-domain.js)
+	// ⚠️ Findet sich keine Beschriftung (eine Quelle fehlt auf einer Seite ohne Karte, oder das
+	// Vokabular kennt den Schlüssel nicht -- z. B. 'urwald' fehlt heute in label-arten.js, siehe
+	// Bericht), steht der SCHLÜSSEL da, nie ein erfundener Name (Owner: „zeig den Schlüssel").
+	// ⚠️ Ohne `ziel` (ältere Läufe, reine Fixtures) bleibt der Schlüssel unangetastet -- dieselbe
+	// zurückhaltende Richtung.
+	function garetienUnserBeschriftung(objekt) {
+		const subtyp = String((objekt && objekt.subtyp) || "").trim();
+		if (subtyp === "") { return subtyp; }
+		const ziel = String((objekt && objekt.ziel) || "").trim();
+		if (ziel === "location") {
+			const eintrag = (typeof LOCATION_TYPE_CONFIG !== "undefined") ? LOCATION_TYPE_CONFIG[subtyp] : null;
+			return (eintrag && eintrag.singularLabel) || subtyp;
+		}
+		if (ziel === "region" || ziel === "label") {
+			const name = (typeof avesmapsLabelArtName === "function") ? avesmapsLabelArtName(subtyp) : "";
+			return name || subtyp;
+		}
+		if (ziel === "path") {
+			return (typeof getPathTypeLabel === "function") ? getPathTypeLabel(subtyp) : subtyp;
+		}
+		return subtyp;
+	}
+
+	// REIN: der Kopf-Zusatz „Gebirge (garetien.de) → Gebirge (Avesmaps)" -- IHR Typ samt IHRER
+	// Quelle, und die Art, als die WIR es anlegen würden, samt UNSEREM (aufgelösten) Namen. Ohne die
+	// zwei Klammern sagt der Pfeil nicht, wessen Vokabular welche Seite spricht -- bei "Gebirge →
+	// gebirge" unterschieden sich die beiden vor der Auflösung nur durch einen Großbuchstaben
+	// (Owner-Meldung 30.08.2026).
 	// ⚠️ Die Quelle ist NICHT immer "Garetien" -- die Objekte kommen aus ZWEI Wikis (`objekt.wiki`:
 	// 'ggp'/'kosch'), und `garetienWikiLabel()` übersetzt das schon in "garetien.de"/"koschwiki.de".
 	// Ein festgeschriebenes "Garetien" stünde bei jedem Kosch-Objekt falsch da.
-	// ⚠️ Fehlt der Zielsubtyp (ein Objekt ohne Vorschlag, ein Lauf von vor dem Nachzug) oder ist er
-	// mit ihrem Typ identisch, steht nur ihr Typ da -- UNBESCHRIFTET: ohne Pfeil gibt es nichts zu
-	// unterscheiden, und ein leeres „(Avesmaps)" darf nie stehenbleiben.
+	// ⚠️ Fehlt der Zielsubtyp (ein Objekt ohne Vorschlag, ein Lauf von vor dem Nachzug) oder deckt
+	// sich die AUFGELÖSTE Beschriftung mit ihrem Typ, steht nur ihr Typ da -- UNBESCHRIFTET: ohne
+	// Pfeil gibt es nichts zu unterscheiden, und ein leeres „(Avesmaps)" darf nie stehenbleiben.
 	function garetienTypText(objekt) {
 		const ihr = String((objekt && objekt.typ) || "").trim();
-		const unser = String((objekt && objekt.subtyp) || "").trim();
+		const unser = garetienUnserBeschriftung(objekt);
 		if (unser === "" || unser === ihr) { return ihr; }
 		if (ihr === "") { return unser; }
 		const quelle = garetienWikiLabel(String((objekt && objekt.wiki) || ""));
@@ -4511,6 +4544,8 @@
 			garetienDetailMarkup,
 			// Aufgabe 13b
 			garetienTypText,
+			// Fuenf-Punkte-Brief 30.08.2026, Punkt 3: unsere Bezeichnung aufloesen
+			garetienUnserBeschriftung,
 			garetienPunkteText,
 			garetienQuellenMarkup,
 			// Aufgabe „Eingefügt wird" (30.08.2026)
