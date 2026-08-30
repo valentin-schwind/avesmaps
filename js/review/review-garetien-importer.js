@@ -48,8 +48,18 @@
 	// 🔴 Fällt GESCHLOSSEN aus: bis die Auskunft da ist — und für immer, wenn sie nie kommt —
 	// bleibt der Knopf verborgen. Nur echtes `true` zählt; eine als JSON geparste Fehlerseite,
 	// eine 1 statt true, ein Proxy mit "0" sind alle truthy und würden den Knopf sonst freigeben.
+	// 🔴 SEIT 31.08.2026 AUCH FUER EDITOREN (Owner: „der button 'Garetien Importer' soll für alle
+	// Editoren-Nutzer sichtbar werden"). Das war von Anfang an das Ziel — „ich baue das tool für die
+	// editoren" —, und der Riegel war nur so lange eng, wie das Fenster noch niemand ausser dem
+	// Owner sehen sollte.
+	// ⚠️ „Holen & Rechnen" und „Ebenen" bleiben admin-only: das ist eine EIGENE Frage
+	// (avesmapsGaretienDarfAdminHandlung unten), und sie war schon vor dieser Freigabe getrennt --
+	// deshalb kostet die Freigabe hier genau eine Zeile und fasst dort nichts an.
 	function avesmapsGaretienDarfOeffnen(sitzung) {
-		return !!(sitzung && sitzung.capabilities && sitzung.capabilities.admin === true);
+		const rechte = (sitzung && sitzung.capabilities) || null;
+		if (!rechte) { return false; }
+
+		return rechte.admin === true || rechte.edit === true;
 	}
 
 	// 🔴 Fuenf-Punkte-Brief 30.08.2026, Punkt 2: EINE EIGENE Frage, obwohl sie heute dieselbe
@@ -511,10 +521,37 @@
 		});
 	}
 
+	// REIN GENUG: die zwei Panels beiseiteschieben, damit der Importer Platz hat.
+	//
+	// 🔴 Owner 31.08.2026: „Beim Drücken sollen sich die panels zur seite schieben (routerplaner
+	// nach links, editor/info-panel nach rechts)". Gebaut wird das mit den EINKLAPP-MECHANISMEN, die
+	// das Haus schon hat -- `window.avesmapsCollapseRoutePlanner` (js/ui/route-planner-toggle.js)
+	// und `window.avesmapsInfopanelCollapse` (map-features-infopanel.js). Ein eigenes Schieben wäre
+	// ein zweiter Zustand darüber, wo die Panels stehen, und die beiden vorhandenen wüssten nichts
+	// davon: die Lasche zeigte weiter in die falsche Richtung, und der nächste Klick darauf brächte
+	// den Planer über das Fenster zurück.
+	// ⚠️ Beide Aufrufe sind OPTIONAL geprüft: der Importer läuft auch auf Seiten ohne Karte (dort
+	// gibt es weder Planer noch Infopanel), und ein fehlender Aufruf darf das Fenster nicht
+	// aufhalten.
+	// 🔴 EINGEKLAPPT, NICHT ZUGEMACHT -- und beim Schliessen des Importers wird NICHTS
+	// zurückgeklappt: wer den Planer wiederhaben will, hat seine Lasche, und ein Fenster, das
+	// fremde Panels beim Schliessen wieder aufreisst, nähme dem Editor eine Entscheidung ab, die er
+	// inzwischen selbst getroffen haben kann.
+	function garetienPanelsBeiseite() {
+		if (typeof window === "undefined") { return; }
+		if (typeof window.avesmapsCollapseRoutePlanner === "function") {
+			window.avesmapsCollapseRoutePlanner();
+		}
+		if (typeof window.avesmapsInfopanelCollapse === "function") {
+			window.avesmapsInfopanelCollapse();
+		}
+	}
+
 	function avesmapsGaretienFensterOeffnen() {
 		const win = fensterElement();
 		if (win) { win.hidden = false; }
 		zustand.offen = true;
+		garetienPanelsBeiseite();
 		// Aufgabe 12b: erst das Menüband (es ist der Schalter des Fensters, nicht seine Zier),
 		// dann die 18 Ebenen im Hintergrund, dann der geltende Lauf.
 		garetienMenuebandSicherstellen();
@@ -5232,6 +5269,7 @@
 	if (typeof module !== "undefined" && module.exports) {
 		module.exports = {
 			avesmapsGaretienDarfOeffnen,
+			garetienPanelsBeiseite,
 			// Fuenf-Punkte-Brief 30.08.2026, Punkt 2
 			avesmapsGaretienDarfAdminHandlung,
 			avesmapsGaretienFensterZustand,

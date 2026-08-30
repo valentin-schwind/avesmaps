@@ -32,7 +32,9 @@
 	/* ⚠️ Die Breite muss mit dem vollen Versatz (Planer + Lasche + Lücke) mitrechnen, sonst ragt
 	   das Fenster auf schmalen Schirmen rechts über den Viewport hinaus (bei 1400px bleiben 984px
 	   übrig -> 800px zieht; bei 1000px nur noch 584px -- schmaler, aber heil). */
-	width: min(800px, calc(100vw - var(--avesmaps-planner-width) - var(--avesmaps-tab-w) - 2 * var(--space-16)));
+	/* 🔴 745px (Owner 31.08.2026, beim Freischalten fuer die Editoren: „Die Breite des dialog
+	   fensters soll 745 px sein"). Vorher 800. */
+	width: min(745px, calc(100vw - var(--avesmaps-planner-width) - var(--avesmaps-tab-w) - 2 * var(--space-16)));
 	/* 💣 FESTE Höhe, nicht bloß max-height: der Kasten verteilt seinen Platz auf seine Spalten,
 	   und eine Verteilung braucht eine Bezugsgröße. Mit nur max-height fiel die Liste beim ersten
 	   Wurf auf NULL zusammen — gemessen beim Zeichnen des Mockups, nicht vermutet.
@@ -77,6 +79,25 @@
 	line-height: var(--leading-snug);
 	color: var(--color-text);
 	overflow: hidden;
+}
+
+/* 🔴 DER PLATZ, DEN DAS EINKLAPPEN FREIMACHT, WIRD AUCH BENUTZT (Owner 31.08.2026: „damit der
+   platz frei für dem importer ist"). Beim Oeffnen klappt der Importer beide Panels ein
+   (garetienPanelsBeiseite); ohne diese Regel bliebe er trotzdem 380px vom linken Rand stehen und
+   liesse eine leere Spalte, wo eben noch der Planer war.
+   💣 `--avesmaps-planner-width` ist ein FESTER Token und aendert sich beim Einklappen NICHT -- die
+   Weiche ist die Klasse `html.avesmaps-planner-collapsed` (js/ui/route-planner-toggle.js), also
+   derselbe Zustand, den die Lasche und ihre Pfeilrichtung lesen. Ein eigener Merker hier waere die
+   zweite Wahrheit darueber, ob der Planer offen ist.
+   ⚠️ Die Lasche `#toggle-button` bleibt sichtbar und rutscht mit auf `left: 0` -- ihre Breite
+   (`--avesmaps-tab-w`) muss deshalb weiterhin mitgerechnet werden, sonst liegt das Fenster auf dem
+   einzigen Knopf, mit dem der Editor den Planer zurueckholt. Genau dieser Fehler steht schon im
+   Kommentar am `left` oben; er gilt eingeklappt genauso.
+   ⚠️ Klappt der Editor den Planer waehrend des Fensters wieder auf, rueckt der Importer zurueck --
+   gewollt: er weicht dem Planer, nicht umgekehrt. */
+html.avesmaps-planner-collapsed .gi-win {
+	left: calc(var(--avesmaps-tab-w) + var(--space-16));
+	width: min(745px, calc(100vw - var(--avesmaps-tab-w) - 2 * var(--space-16)));
 }
 
 .gi-win[hidden] { display: none; }
