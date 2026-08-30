@@ -52,11 +52,28 @@ $pruefungen += 7;
 
 // --- 🔴 Owner-Meldung 29.08.2026 (Aufgabe 12, Wege): Reichsstrasse/Strasse/Weg/Pfad heissen exakt
 // wie unsere PATH_SUBTYPE_KEYS (js/config.js), keine Uebersetzung noetig.
-assert(avesmapsGaretienMappeTyp('Reichsstrasse') === ['ziel' => 'path', 'subtyp' => 'Reichsstrasse', 'kind' => null]);
-assert(avesmapsGaretienMappeTyp('Strasse') === ['ziel' => 'path', 'subtyp' => 'Strasse', 'kind' => null]);
-assert(avesmapsGaretienMappeTyp('Weg') === ['ziel' => 'path', 'subtyp' => 'Weg', 'kind' => null]);
-assert(avesmapsGaretienMappeTyp('Pfad') === ['ziel' => 'path', 'subtyp' => 'Pfad', 'kind' => null]);
+// 🔴 KEINE VOLLE ARRAY-GLEICHHEIT MEHR: seit 30.08.2026 traegt jeder Eintrag zusaetzlich `suchen`
+// (die Wegefamilie, siehe unten) -- volle Gleichheit wuerde bei jeder neuen Familie erneut brechen.
+foreach (['Reichsstrasse', 'Strasse', 'Weg', 'Pfad'] as $wegart) {
+    $eintrag = avesmapsGaretienMappeTyp($wegart);
+    assert($eintrag['ziel'] === 'path' && $eintrag['subtyp'] === $wegart && $eintrag['kind'] === null,
+        $wegart . ' bildet direkt auf sich selbst ab');
+}
 $pruefungen += 4;
+
+// --- 🔴 Owner-Entscheid 30.08.2026: die vier Wegqualitaeten sind EINE Familie -- die
+// Wegequalitaet ist eine Einschaetzung, kein Wesensunterschied. `Flussweg` gehoert NICHT dazu.
+assert(avesmapsGaretienMappeTyp('Reichsstrasse')['suchen'] === AVESMAPS_GARETIEN_SUCHEN_REICHSSTRASSE);
+assert(avesmapsGaretienMappeTyp('Strasse')['suchen'] === AVESMAPS_GARETIEN_SUCHEN_STRASSE);
+assert(avesmapsGaretienMappeTyp('Weg')['suchen'] === AVESMAPS_GARETIEN_SUCHEN_WEG);
+assert(avesmapsGaretienMappeTyp('Pfad')['suchen'] === AVESMAPS_GARETIEN_SUCHEN_PFAD);
+foreach (['Reichsstrasse', 'Strasse', 'Weg', 'Pfad'] as $wegart) {
+    $suchen = avesmapsGaretienMappeTyp($wegart)['suchen'];
+    assert(count($suchen) === 4, $wegart . ': die Familie umfasst alle vier Wegqualitaeten');
+    assert($suchen[0] === [null, $wegart], $wegart . ': die eigene Art steht zuerst');
+    assert(!in_array([null, 'Flussweg'], $suchen, true), $wegart . ': Flussweg gehoert nicht zur Wegefamilie');
+}
+$pruefungen += 4 + 4 * 3;
 
 // --- 🔴 Was kein Gegenstueck hat, wird NICHT geraten, sondern uebersprungen.
 assert(avesmapsGaretienMappeTyp('Stadtviertel') === null);
@@ -88,14 +105,31 @@ assert(avesmapsGaretienMappeTyp('Insel') === ['ziel' => 'region', 'subtyp' => 'i
 assert(avesmapsGaretienTypKategorie('Insel') === '', 'Insel liefert jetzt etwas, keine Kategorie mehr');
 $pruefungen += 3;
 
-assert(avesmapsGaretienMappeTyp('Wald') === ['ziel' => 'region', 'subtyp' => 'wald', 'kind' => 'vegetation']);
-assert(avesmapsGaretienMappeTyp('Forst') === ['ziel' => 'region', 'subtyp' => 'wald', 'kind' => 'vegetation']);
+// 🔴 KEINE VOLLE ARRAY-GLEICHHEIT MEHR fuer Wald/Forst/Urwald/Gebirge/Huegel -- sie tragen seit
+// 30.08.2026 `suchen`. Kueste bleibt allein und traegt weiterhin GAR KEIN `suchen`, ihre volle
+// Gleichheit bleibt deshalb die richtige Pruefung.
+assert(avesmapsGaretienMappeTyp('Wald')['ziel'] === 'region' && avesmapsGaretienMappeTyp('Wald')['subtyp'] === 'wald' && avesmapsGaretienMappeTyp('Wald')['kind'] === 'vegetation');
+assert(avesmapsGaretienMappeTyp('Forst')['subtyp'] === 'wald' && avesmapsGaretienMappeTyp('Forst')['kind'] === 'vegetation');
 // 🔴 NEUE ART: Urwald != Wald, sonst wuerde die Zustandsaussage (nie gerodet) eingeebnet.
-assert(avesmapsGaretienMappeTyp('Urwald') === ['ziel' => 'region', 'subtyp' => 'urwald', 'kind' => 'vegetation']);
-assert(avesmapsGaretienMappeTyp('Gebirge') === ['ziel' => 'region', 'subtyp' => 'gebirge', 'kind' => 'topographie']);
-assert(avesmapsGaretienMappeTyp('Huegel') === ['ziel' => 'region', 'subtyp' => 'huegelland', 'kind' => 'topographie']);
+assert(avesmapsGaretienMappeTyp('Urwald')['subtyp'] === 'urwald' && avesmapsGaretienMappeTyp('Urwald')['kind'] === 'vegetation');
+assert(avesmapsGaretienMappeTyp('Gebirge')['subtyp'] === 'gebirge' && avesmapsGaretienMappeTyp('Gebirge')['kind'] === 'topographie');
+assert(avesmapsGaretienMappeTyp('Huegel')['subtyp'] === 'huegelland' && avesmapsGaretienMappeTyp('Huegel')['kind'] === 'topographie');
 assert(avesmapsGaretienMappeTyp('Kueste') === ['ziel' => 'region', 'subtyp' => 'kueste', 'kind' => 'topographie']);
-$pruefungen += 5;
+$pruefungen += 6;
+
+// --- 🔴 Owner-Entscheid 30.08.2026: Wald/Urwald und Gebirge/Huegelland sind je EINE enge
+// Familie ("wo es sachlich passt"), Insel und Kueste bleiben ALLEIN.
+assert(avesmapsGaretienMappeTyp('Wald')['suchen'] === AVESMAPS_GARETIEN_SUCHEN_WALD_ART);
+assert(avesmapsGaretienMappeTyp('Forst')['suchen'] === AVESMAPS_GARETIEN_SUCHEN_WALD_ART,
+    'Forst sucht dieselbe Familie wie Wald -- beide bilden auf denselben Subtyp ab');
+assert(avesmapsGaretienMappeTyp('Urwald')['suchen'] === AVESMAPS_GARETIEN_SUCHEN_URWALD_ART);
+assert(avesmapsGaretienMappeTyp('Urwald')['suchen'][0] === ['vegetation', 'urwald'], 'Urwald hat seine eigene Art zuerst');
+assert(avesmapsGaretienMappeTyp('Gebirge')['suchen'] === AVESMAPS_GARETIEN_SUCHEN_GEBIRGE_ART);
+assert(avesmapsGaretienMappeTyp('Huegel')['suchen'] === AVESMAPS_GARETIEN_SUCHEN_HUEGELLAND_ART);
+assert(avesmapsGaretienMappeTyp('Huegel')['suchen'][0] === ['topographie', 'huegelland'], 'Huegel hat seine eigene Art zuerst');
+assert(!array_key_exists('suchen', avesmapsGaretienMappeTyp('Insel')), 'Insel bleibt allein, kein `suchen`');
+assert(!array_key_exists('suchen', avesmapsGaretienMappeTyp('Kueste')), 'Kueste bleibt allein, kein `suchen`');
+$pruefungen += 8;
 
 // --- 🔴 Der Berg ist die EINZIGE Punkt-Ausnahme: ein Label OHNE Flaeche dahinter (Entwurf §3.4).
 assert(avesmapsGaretienMappeTyp('Berg') === ['ziel' => 'label', 'subtyp' => 'berggipfel', 'kind' => null]);
@@ -115,6 +149,25 @@ foreach (['Burg', 'Pfalz', 'Tempel', 'Kloster', 'Gutshof', 'Gebaeude', 'Akademie
         && avesmapsGaretienMappeTyp($bauwerk)['subtyp'] === 'gebaeude', $bauwerk . ' ist ein gebaeude');
 }
 $pruefungen += 7 + 9;
+
+// --- 🔴 Owner-Entscheid 30.08.2026: alle sechs Ortsklassen sind EINE Familie -- ein Ort ist ein
+// Punkt mit einem Namen, die Klasse eine Groesseneinschaetzung, kein Wesensunterschied. Jede
+// Konstante traegt alle sechs Klassen, mit der eigenen zuerst.
+foreach ([
+    'Kaiserstadt' => 'metropole', 'Koenigsstadt' => 'grossstadt', 'Reichsstadt' => 'grossstadt',
+    'Stadt' => 'stadt', 'Markt' => 'kleinstadt', 'Dorf' => 'dorf', 'Binge' => 'dorf',
+    'Burg' => 'gebaeude', 'Gasthaus' => 'gebaeude',
+] as $quellTyp => $erwarteteArt) {
+    $suchen = avesmapsGaretienMappeTyp($quellTyp)['suchen'] ?? null;
+    assert($suchen !== null, $quellTyp . ' traegt eine Ortsfamilie');
+    assert(count($suchen) === 6, $quellTyp . ': die Familie umfasst alle sechs Ortsklassen');
+    assert($suchen[0] === [null, $erwarteteArt], $quellTyp . ': die eigene Art steht zuerst');
+    $arten = array_column($suchen, 1);
+    sort($arten);
+    assert($arten === ['dorf', 'gebaeude', 'grossstadt', 'kleinstadt', 'metropole', 'stadt'],
+        $quellTyp . ': die Familie enthaelt genau die sechs Ortsklassen, keine doppelt');
+    $pruefungen += 4;
+}
 
 // --- 🔴 Politische Flaechen (Entwurf §3.5) bleiben draussen -- eigenes Vorhaben, keine Zuordnung.
 assert(avesmapsGaretienMappeTyp('GrafschaftsflaecheA') === null, 'Territorien sind nicht Teil dieses Imports');
@@ -181,6 +234,59 @@ $zeile = ['typ' => 'Bach', 'namensraum' => 'Garetien', 'artikel' => 'Alke', 'anz
           'geo_art' => 'koordinaten', 'geo' => '20000 10000, 21000 11000'];
 assert(avesmapsGaretienFindeBestand($pdo, $zeile, avesmapsGaretienMappeTyp('Bach'))['status'] === 'neu');
 $pruefungen++;
+
+// ---------------------------------------------------------------------------------------------
+// 🔴 DIE FUNKTIONALE ZUSICHERUNG DER ORTS- UND WEGEFAMILIE, nicht nur die Daten oben.
+//
+// Bis zum 30.08.2026 wertete `avesmapsGaretienKandidaten` `suchen` fuer die drei Ziele in
+// map_features (path/location/label) GAR NICHT aus -- die Abfrage nahm immer nur
+// `$ziel['subtyp']`, egal was die Zuordnung als Familie nannte. Ohne DIESEN Block waeren alle
+// Daten-Assertions oben gruen geblieben, obwohl die Familie im Abgleich nichts bewirkt haette --
+// genau die Falle einer Regel, die niemand ausliest (AGENTS.md §11).
+$pdo->exec("INSERT INTO map_features (public_id, name, feature_type, feature_subtype, geometry_json, properties_json)
+            VALUES ('dorf-42', 'Finsterkoppen', 'location', 'dorf', '{\"type\":\"Point\",\"coordinates\":[500.0,500.0]}', '{}')");
+$pdo->exec("INSERT INTO map_features (public_id, name, feature_type, feature_subtype, geometry_json, properties_json)
+            VALUES ('strasse-9', 'Trollpforte', 'path', 'Strasse', '{\"type\":\"LineString\",\"coordinates\":[[600.0,600.0],[601.0,601.0]]}', '{}')");
+avesmapsGaretienKandidatenVergessen();
+
+// Eine "Burg" (subtyp `gebaeude`) an der Stelle eines bei uns als `dorf` gefuehrten Ortes wird
+// GEFUNDEN -- die Ortsfamilie greift ueber die Klassengrenze hinweg, wie beim See vorgemacht.
+$burg = avesmapsGaretienFindeBestand($pdo, [
+    'typ' => 'Burg', 'namensraum' => '', 'artikel' => '', 'anzeige' => 'Burg Finsterkoppen',
+    'geo_art' => 'koordinaten', 'geo' => avesmapsGaretienTestNachWagenhalt(500.1, 500.1),
+], avesmapsGaretienMappeTyp('Burg'));
+assert($burg['status'] === 'deckt_sich',
+    'eine Burg an der Stelle eines bei uns als dorf gefuehrten Ortes wird gefunden, nicht als neu gemeldet (' . $burg['grund'] . ')');
+assert($burg['treffer_public_id'] === 'dorf-42');
+// Und der Grund NENNT die Abweichung -- dieselbe Regel wie beim Angbarer See weiter unten: sonst
+// sieht niemand, dass die Klasse auseinandergeht.
+assert(str_contains($burg['grund'], 'bei uns als dorf'), 'die Klassenabweichung steht im Grund: ' . $burg['grund']);
+$pruefungen += 3;
+
+// Ein "Fluss" findet KEINE "Strasse" -- Flussweg gehoert nicht zur Wegefamilie (ein Fluss ist
+// keine Strasse, beide liegen nur zufaellig in derselben Tabelle).
+$flussAnStrasse = avesmapsGaretienFindeBestand($pdo, [
+    'typ' => 'Fluss', 'namensraum' => '', 'artikel' => '', 'anzeige' => 'Fluss an der Trollpforte',
+    'geo_art' => 'koordinaten',
+    'geo' => avesmapsGaretienTestNachWagenhalt(600.0, 600.0) . ', ' . avesmapsGaretienTestNachWagenhalt(601.0, 601.0),
+], avesmapsGaretienMappeTyp('Fluss'));
+assert($flussAnStrasse['status'] === 'neu',
+    'ein Fluss darf die Strasse "Trollpforte" nicht als Bestand finden (' . $flussAnStrasse['grund'] . ')');
+$pruefungen++;
+
+// Die Gegenprobe, dass die Wegefamilie WIRKLICH greift: ein "Weg" findet dieselbe, bei uns als
+// `Strasse` gefuehrte Kante -- die Wegequalitaet ist eine Einschaetzung, kein Wesensunterschied.
+avesmapsGaretienKandidatenVergessen();
+$wegAnStrasse = avesmapsGaretienFindeBestand($pdo, [
+    'typ' => 'Weg', 'namensraum' => '', 'artikel' => '', 'anzeige' => 'Pfad zur Trollpforte',
+    'geo_art' => 'koordinaten',
+    'geo' => avesmapsGaretienTestNachWagenhalt(600.0, 600.0) . ', ' . avesmapsGaretienTestNachWagenhalt(601.0, 601.0),
+], avesmapsGaretienMappeTyp('Weg'));
+assert($wegAnStrasse['status'] === 'deckt_sich',
+    'ein Weg findet eine bei uns als Strasse gefuehrte Kante -- die Wegefamilie greift (' . $wegAnStrasse['grund'] . ')');
+assert($wegAnStrasse['treffer_public_id'] === 'strasse-9');
+assert(str_contains($wegAnStrasse['grund'], 'bei uns als Strasse'), $wegAnStrasse['grund']);
+$pruefungen += 3;
 
 // --- 🔴 Der Artikelname schlaegt die Geometrie. Er ist ein Wiki-SEITENname und damit
 // eindeutig; die Geometrie ist eine Schaetzung ueber zwei von Hand gemalte Karten.
@@ -502,6 +608,38 @@ $sumpf = avesmapsGaretienFindeBestand($pdo, [
     'geo_art' => 'koordinaten', 'geo' => implode(', ', $ihrRing),
 ], avesmapsGaretienMappeTyp('Sumpf'));
 assert($sumpf['status'] === 'neu', 'ein Moor auf einem See ist nicht derselbe Gegenstand');
+$pruefungen++;
+
+// --- 🔴 Owner-Entscheid 30.08.2026: Gebirge/Huegelland sind eine enge Familie -- dieselbe
+// Erhebung, andere Einschaetzung. Ein "Gebirge" muss ein bei uns als `huegelland` gefuehrtes
+// Objekt FINDEN (nicht die drei vorhandenen Familien See/Meer/Sumpf, die unveraendert bleiben).
+$pdo->exec("INSERT INTO ecosystem_region (id, public_id, name, kind, region_type) VALUES (2, 'huegel-1', 'Steinerne Schwelle', 'topographie', 'huegelland')");
+$hRing = [];
+foreach ([[700.0, 700.0], [710.0, 700.0], [710.0, 710.0], [700.0, 710.0], [700.0, 700.0]] as $p) { $hRing[] = $p; }
+$pdo->prepare('INSERT INTO ecosystem_area (public_id, region_id, geometry_geojson) VALUES (?,2,?)')
+    ->execute(['huegel-flaeche-1', json_encode(['type' => 'Polygon', 'coordinates' => [$hRing]])]);
+avesmapsGaretienKandidatenVergessen();
+
+$ihrHuegelRing = [];
+foreach ([[700.1, 700.1], [710.1, 700.1], [710.1, 710.1], [700.1, 710.1], [700.1, 700.1]] as [$x, $y]) {
+    $ihrHuegelRing[] = avesmapsGaretienTestNachWagenhalt($x, $y);
+}
+$gebirge = avesmapsGaretienFindeBestand($pdo, [
+    'typ' => 'Gebirge', 'namensraum' => '', 'artikel' => '', 'anzeige' => 'Steinerne Schwelle',
+    'geo_art' => 'koordinaten', 'geo' => implode(', ', $ihrHuegelRing),
+], avesmapsGaretienMappeTyp('Gebirge'));
+assert($gebirge['status'] === 'deckt_sich', 'ein Gebirge findet ein bei uns als huegelland gefuehrtes Objekt (' . $gebirge['grund'] . ')');
+assert($gebirge['treffer_public_id'] === 'huegel-1');
+assert(str_contains($gebirge['grund'], 'bei uns als huegelland'), 'die Abweichung steht im Grund: ' . $gebirge['grund']);
+$pruefungen += 3;
+
+// ⚠️ Und die Gegenprobe: dieselbe Flaeche darf ein "Sumpf" WEITERHIN nicht finden -- die
+// Landschaftsfamilien sind eng, nicht "irgendeine Flaeche in der Naehe".
+$sumpfAmHuegel = avesmapsGaretienFindeBestand($pdo, [
+    'typ' => 'Sumpf', 'namensraum' => '', 'artikel' => '', 'anzeige' => 'Moor an der Steinernen Schwelle',
+    'geo_art' => 'koordinaten', 'geo' => implode(', ', $ihrHuegelRing),
+], avesmapsGaretienMappeTyp('Sumpf'));
+assert($sumpfAmHuegel['status'] === 'neu', 'ein Sumpf findet kein huegelland -- die Familien bleiben eng');
 $pruefungen++;
 
 // ---------------------------------------------------------------------------------------------

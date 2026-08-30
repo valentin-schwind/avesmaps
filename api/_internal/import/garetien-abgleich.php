@@ -12,6 +12,55 @@ require_once __DIR__ . '/garetien-parser.php';
 require_once __DIR__ . '/garetien-koordinaten.php';
 
 /**
+ * Ortschaften (Entwurf §3.1) sind EINE Familie -- Owner-Entscheid 30.08.2026, sinngemaess: ein
+ * Ort ist ein Punkt mit einem Namen, die Klasse eine Groesseneinschaetzung, kein
+ * Wesensunterschied. Ihre Klasse und unsere duerfen deshalb auseinandergehen, wie schon beim See
+ * (`suchen` unten bei AVESMAPS_GARETIEN_TYP_MAP). Jede der sechs Konstanten setzt die EIGENE Art
+ * zuerst -- die Konvention der drei Bestandsfamilien (See/Meer/Sumpf) --, dahinter den Rest in
+ * derselben festen Reihenfolge (metropole, grossstadt, stadt, kleinstadt, dorf, gebaeude).
+ * ⚠️ Die Reihenfolge hat auf das ERGEBNIS heute KEINEN Einfluss -- `avesmapsGaretienKandidaten`
+ * baut daraus nur eine WHERE-IN-Liste ohne Rangfolge, und welcher Kandidat als `bester` gilt,
+ * entscheidet allein die Deckung (wie viele Probepunkte ihn treffen, avesmapsGaretienDeckung).
+ * Sie bleibt trotzdem bestehen, weil sie den eigenen Typ lesbar an die erste Stelle setzt.
+ */
+const AVESMAPS_GARETIEN_SUCHEN_METROPOLE  = [[null, 'metropole'],  [null, 'grossstadt'], [null, 'stadt'],      [null, 'kleinstadt'], [null, 'dorf'],       [null, 'gebaeude']];
+const AVESMAPS_GARETIEN_SUCHEN_GROSSSTADT = [[null, 'grossstadt'], [null, 'metropole'],  [null, 'stadt'],      [null, 'kleinstadt'], [null, 'dorf'],       [null, 'gebaeude']];
+const AVESMAPS_GARETIEN_SUCHEN_STADT      = [[null, 'stadt'],      [null, 'metropole'],  [null, 'grossstadt'], [null, 'kleinstadt'], [null, 'dorf'],       [null, 'gebaeude']];
+const AVESMAPS_GARETIEN_SUCHEN_KLEINSTADT = [[null, 'kleinstadt'], [null, 'metropole'],  [null, 'grossstadt'], [null, 'stadt'],      [null, 'dorf'],       [null, 'gebaeude']];
+const AVESMAPS_GARETIEN_SUCHEN_DORF       = [[null, 'dorf'],       [null, 'metropole'],  [null, 'grossstadt'], [null, 'stadt'],      [null, 'kleinstadt'], [null, 'gebaeude']];
+const AVESMAPS_GARETIEN_SUCHEN_GEBAEUDE   = [[null, 'gebaeude'],   [null, 'metropole'],  [null, 'grossstadt'], [null, 'stadt'],      [null, 'kleinstadt'], [null, 'dorf']];
+
+/**
+ * Wege (Entwurf §3.2) sind eine enge Familie -- Owner-Entscheid 30.08.2026: die Wegequalitaet
+ * (Reichsstrasse/Strasse/Weg/Pfad) ist eine Einschaetzung, kein Wesensunterschied. Eigene Art
+ * zuerst, derselbe Grund wie bei den Ortschaften oben.
+ * ⚠️ `Flussweg` (Strom/Fluss/Bach) gehoert NICHT dazu -- ein Fluss ist keine Strasse, beide liegen
+ * nur zufaellig in derselben Tabelle (map_features, feature_type='path'). Die drei Gewaessertypen
+ * behalten deshalb ihre eigene Art als einzigen Suchraum -- sie tragen bewusst KEIN `suchen`-Feld.
+ */
+const AVESMAPS_GARETIEN_SUCHEN_REICHSSTRASSE = [[null, 'Reichsstrasse'], [null, 'Strasse'],       [null, 'Weg'],           [null, 'Pfad']];
+const AVESMAPS_GARETIEN_SUCHEN_STRASSE       = [[null, 'Strasse'],       [null, 'Reichsstrasse'], [null, 'Weg'],           [null, 'Pfad']];
+const AVESMAPS_GARETIEN_SUCHEN_WEG           = [[null, 'Weg'],           [null, 'Reichsstrasse'], [null, 'Strasse'],       [null, 'Pfad']];
+const AVESMAPS_GARETIEN_SUCHEN_PFAD          = [[null, 'Pfad'],          [null, 'Reichsstrasse'], [null, 'Strasse'],       [null, 'Weg']];
+
+/**
+ * Wald/Urwald sind eine enge Familie -- Owner-Entscheid 30.08.2026: beides ist Wald, der
+ * Unterschied ist der ZUSTAND (nie gerodet), keine eigene Art. `kind` bleibt 'vegetation' fuer
+ * beide Seiten der Familie.
+ */
+const AVESMAPS_GARETIEN_SUCHEN_WALD_ART   = [['vegetation', 'wald'],   ['vegetation', 'urwald']];
+const AVESMAPS_GARETIEN_SUCHEN_URWALD_ART = [['vegetation', 'urwald'], ['vegetation', 'wald']];
+
+/**
+ * Gebirge/Huegelland sind eine enge Familie -- Owner-Entscheid 30.08.2026: dieselbe Erhebung,
+ * nur eine andere Einschaetzung ihrer Groesse. `kind` bleibt 'topographie' fuer beide Seiten.
+ * 🔴 Insel und Kueste bleiben ALLEIN (kein `suchen`-Feld) -- der Owner zieht die Familien nur dort,
+ * wo es sachlich passt, und eine Insel ist keine Kueste.
+ */
+const AVESMAPS_GARETIEN_SUCHEN_GEBIRGE_ART    = [['topographie', 'gebirge'],    ['topographie', 'huegelland']];
+const AVESMAPS_GARETIEN_SUCHEN_HUEGELLAND_ART = [['topographie', 'huegelland'], ['topographie', 'gebirge']];
+
+/**
  * 🔴 DIE ZUORDNUNG IST DATEN, KEIN `if`-BAUM (Entwurf §3). Sie steht in EINER Tabelle und wird
  * von Abgleich und Uebernahme gemeinsam gelesen; ein Editor kann sie lesen und aendern.
  *
@@ -54,25 +103,31 @@ const AVESMAPS_GARETIEN_TYP_MAP = [
     // ersten Klick fuer JEDEN Reisenden nutzbar. Auch hier gilt Entwurf §3.3 sinngemaess: die
     // Anbindung ans bestehende Netz (Kreuzungs-Splits, Komponentenbruecken) wird NICHT gebaut,
     // nur gemessen und berichtet.
-    'Reichsstrasse' => ['ziel' => 'path', 'subtyp' => 'Reichsstrasse', 'kind' => null],
-    'Strasse'       => ['ziel' => 'path', 'subtyp' => 'Strasse',       'kind' => null],
-    'Weg'           => ['ziel' => 'path', 'subtyp' => 'Weg',           'kind' => null],
-    'Pfad'          => ['ziel' => 'path', 'subtyp' => 'Pfad',          'kind' => null],
+    'Reichsstrasse' => ['ziel' => 'path', 'subtyp' => 'Reichsstrasse', 'kind' => null, 'suchen' => AVESMAPS_GARETIEN_SUCHEN_REICHSSTRASSE],
+    'Strasse'       => ['ziel' => 'path', 'subtyp' => 'Strasse',       'kind' => null, 'suchen' => AVESMAPS_GARETIEN_SUCHEN_STRASSE],
+    'Weg'           => ['ziel' => 'path', 'subtyp' => 'Weg',           'kind' => null, 'suchen' => AVESMAPS_GARETIEN_SUCHEN_WEG],
+    'Pfad'          => ['ziel' => 'path', 'subtyp' => 'Pfad',          'kind' => null, 'suchen' => AVESMAPS_GARETIEN_SUCHEN_PFAD],
 
     // Waelder (Entwurf §3.4) -- FLAECHE plus LABEL, wie die Gewaesserflaechen oben.
-    'Wald'  => ['ziel' => 'region', 'subtyp' => 'wald',   'kind' => 'vegetation'],
-    'Forst' => ['ziel' => 'region', 'subtyp' => 'wald',   'kind' => 'vegetation'],
+    // 🔴 Wald/Urwald sind seit 30.08.2026 EINE Familie (Owner-Entscheid): beides ist Wald, der
+    // Unterschied ist der ZUSTAND, siehe AVESMAPS_GARETIEN_SUCHEN_WALD_ART weiter oben.
+    'Wald'  => ['ziel' => 'region', 'subtyp' => 'wald',   'kind' => 'vegetation', 'suchen' => AVESMAPS_GARETIEN_SUCHEN_WALD_ART],
+    'Forst' => ['ziel' => 'region', 'subtyp' => 'wald',   'kind' => 'vegetation', 'suchen' => AVESMAPS_GARETIEN_SUCHEN_WALD_ART],
     // 🔴 NEUE ART, Owner-Entscheid 2026-08-26: ein Urwald ist NICHT dasselbe wie ein Dschungel --
     // der Dschungel ist eine Klimaaussage (tropisch), der Urwald eine Aussage ueber den ZUSTAND
     // (nie gerodet). Begruendung an der Art selbst: AVESMAPS_ECOSYSTEM_REGION_TYPE_SEED
-    // (api/_internal/app/ecosystem.php).
-    'Urwald' => ['ziel' => 'region', 'subtyp' => 'urwald', 'kind' => 'vegetation'],
+    // (api/_internal/app/ecosystem.php). Er sucht trotzdem MIT im Wald (Owner 30.08.2026): der
+    // Zustand ist eine Einschaetzung, kein zweiter Suchraum.
+    'Urwald' => ['ziel' => 'region', 'subtyp' => 'urwald', 'kind' => 'vegetation', 'suchen' => AVESMAPS_GARETIEN_SUCHEN_URWALD_ART],
 
     // Berge und Gelaendeformen (Entwurf §3.4) -- alle vier Arten gibt es bei uns schon
     // (`topographie/insel` und `/kueste`/`/huegelland`/`/gebirge`, nachgemessen), keine neue
-    // Art noetig.
-    'Gebirge' => ['ziel' => 'region', 'subtyp' => 'gebirge',    'kind' => 'topographie'],
-    'Huegel'  => ['ziel' => 'region', 'subtyp' => 'huegelland', 'kind' => 'topographie'],
+    // Art noetig. 🔴 Gebirge/Huegelland sind seit 30.08.2026 EINE Familie (Owner-Entscheid,
+    // AVESMAPS_GARETIEN_SUCHEN_GEBIRGE_ART oben): dieselbe Erhebung, andere Einschaetzung.
+    // ⚠️ Insel und Kueste bleiben ALLEIN -- eine Insel ist keine Kueste, und wer die Familien zu
+    // weit zieht, erklaert am Ende jede Landform zur selben Sache (dieselbe Warnung wie beim Sumpf).
+    'Gebirge' => ['ziel' => 'region', 'subtyp' => 'gebirge',    'kind' => 'topographie', 'suchen' => AVESMAPS_GARETIEN_SUCHEN_GEBIRGE_ART],
+    'Huegel'  => ['ziel' => 'region', 'subtyp' => 'huegelland', 'kind' => 'topographie', 'suchen' => AVESMAPS_GARETIEN_SUCHEN_HUEGELLAND_ART],
     'Insel'   => ['ziel' => 'region', 'subtyp' => 'insel',      'kind' => 'topographie'],
     'Kueste'  => ['ziel' => 'region', 'subtyp' => 'kueste',     'kind' => 'topographie'],
 
@@ -83,25 +138,28 @@ const AVESMAPS_GARETIEN_TYP_MAP = [
     'Berg' => ['ziel' => 'label', 'subtyp' => 'berggipfel', 'kind' => null],
 
     // Ortschaften (Entwurf §3.1) -- map_features.location, `subtyp` ist unser settlement_class.
-    'Kaiserstadt'  => ['ziel' => 'location', 'subtyp' => 'metropole',  'kind' => null],
-    'Koenigsstadt' => ['ziel' => 'location', 'subtyp' => 'grossstadt', 'kind' => null],
-    'Reichsstadt'  => ['ziel' => 'location', 'subtyp' => 'grossstadt', 'kind' => null],
-    'Stadt'        => ['ziel' => 'location', 'subtyp' => 'stadt',      'kind' => null],
-    'Markt'        => ['ziel' => 'location', 'subtyp' => 'kleinstadt', 'kind' => null],
-    'Dorf'         => ['ziel' => 'location', 'subtyp' => 'dorf',       'kind' => null],
+    // 🔴 Alle sechs Klassen sind seit 30.08.2026 EINE Familie (Owner-Entscheid, sinngemaess): ein
+    // Ort ist ein Punkt mit einem Namen, die Klasse eine Groesseneinschaetzung, kein
+    // Wesensunterschied -- siehe die AVESMAPS_GARETIEN_SUCHEN_*-Konstanten weiter oben.
+    'Kaiserstadt'  => ['ziel' => 'location', 'subtyp' => 'metropole',  'kind' => null, 'suchen' => AVESMAPS_GARETIEN_SUCHEN_METROPOLE],
+    'Koenigsstadt' => ['ziel' => 'location', 'subtyp' => 'grossstadt', 'kind' => null, 'suchen' => AVESMAPS_GARETIEN_SUCHEN_GROSSSTADT],
+    'Reichsstadt'  => ['ziel' => 'location', 'subtyp' => 'grossstadt', 'kind' => null, 'suchen' => AVESMAPS_GARETIEN_SUCHEN_GROSSSTADT],
+    'Stadt'        => ['ziel' => 'location', 'subtyp' => 'stadt',      'kind' => null, 'suchen' => AVESMAPS_GARETIEN_SUCHEN_STADT],
+    'Markt'        => ['ziel' => 'location', 'subtyp' => 'kleinstadt', 'kind' => null, 'suchen' => AVESMAPS_GARETIEN_SUCHEN_KLEINSTADT],
+    'Dorf'         => ['ziel' => 'location', 'subtyp' => 'dorf',       'kind' => null, 'suchen' => AVESMAPS_GARETIEN_SUCHEN_DORF],
     // 🔴 Owner-Entscheid 2026-08-26: im Einklang mit den zwei Bingen, die wir schon als `dorf`
     // fuehren (Finsterkoppen, Antalorgol).
-    'Binge'        => ['ziel' => 'location', 'subtyp' => 'dorf',       'kind' => null],
+    'Binge'        => ['ziel' => 'location', 'subtyp' => 'dorf',       'kind' => null, 'suchen' => AVESMAPS_GARETIEN_SUCHEN_DORF],
     // Einzelne Bauwerke -- bei uns eine Klasse, `gebaeude` (Entwurf §3.1).
-    'Burg'        => ['ziel' => 'location', 'subtyp' => 'gebaeude', 'kind' => null],
-    'Pfalz'       => ['ziel' => 'location', 'subtyp' => 'gebaeude', 'kind' => null],
-    'Tempel'      => ['ziel' => 'location', 'subtyp' => 'gebaeude', 'kind' => null],
-    'Kloster'     => ['ziel' => 'location', 'subtyp' => 'gebaeude', 'kind' => null],
-    'Gutshof'     => ['ziel' => 'location', 'subtyp' => 'gebaeude', 'kind' => null],
-    'Gebaeude'    => ['ziel' => 'location', 'subtyp' => 'gebaeude', 'kind' => null],
-    'Akademie'    => ['ziel' => 'location', 'subtyp' => 'gebaeude', 'kind' => null],
-    'Gasthaus'    => ['ziel' => 'location', 'subtyp' => 'gebaeude', 'kind' => null],
-    'Magierturm'  => ['ziel' => 'location', 'subtyp' => 'gebaeude', 'kind' => null],
+    'Burg'        => ['ziel' => 'location', 'subtyp' => 'gebaeude', 'kind' => null, 'suchen' => AVESMAPS_GARETIEN_SUCHEN_GEBAEUDE],
+    'Pfalz'       => ['ziel' => 'location', 'subtyp' => 'gebaeude', 'kind' => null, 'suchen' => AVESMAPS_GARETIEN_SUCHEN_GEBAEUDE],
+    'Tempel'      => ['ziel' => 'location', 'subtyp' => 'gebaeude', 'kind' => null, 'suchen' => AVESMAPS_GARETIEN_SUCHEN_GEBAEUDE],
+    'Kloster'     => ['ziel' => 'location', 'subtyp' => 'gebaeude', 'kind' => null, 'suchen' => AVESMAPS_GARETIEN_SUCHEN_GEBAEUDE],
+    'Gutshof'     => ['ziel' => 'location', 'subtyp' => 'gebaeude', 'kind' => null, 'suchen' => AVESMAPS_GARETIEN_SUCHEN_GEBAEUDE],
+    'Gebaeude'    => ['ziel' => 'location', 'subtyp' => 'gebaeude', 'kind' => null, 'suchen' => AVESMAPS_GARETIEN_SUCHEN_GEBAEUDE],
+    'Akademie'    => ['ziel' => 'location', 'subtyp' => 'gebaeude', 'kind' => null, 'suchen' => AVESMAPS_GARETIEN_SUCHEN_GEBAEUDE],
+    'Gasthaus'    => ['ziel' => 'location', 'subtyp' => 'gebaeude', 'kind' => null, 'suchen' => AVESMAPS_GARETIEN_SUCHEN_GEBAEUDE],
+    'Magierturm'  => ['ziel' => 'location', 'subtyp' => 'gebaeude', 'kind' => null, 'suchen' => AVESMAPS_GARETIEN_SUCHEN_GEBAEUDE],
 
     // Politische Flaechen (Entwurf §3.5) -- hier ABSICHTLICH NICHT eingetragen. An
     // political_territory haengen BF-Zeitachse, abgeleitete Aussengrenzen, WikiSync und das
@@ -366,13 +424,32 @@ function avesmapsGaretienKandidaten(PDO $pdo, array $ziel): array
     // der feature_type-Wert ('path'/'location'/'label'), 'subtyp' der feature_subtype. Ort und
     // Berggipfel (seit 29.08.2026, Entwurf §3.1/§3.4) teilen sich die Abfrage mit dem Weg statt
     // eine zweite, fast gleiche danebenzustellen.
+    //
+    // 🔴 BIS ZUM 30.08.2026 WERTETE DIESER ZWEIG `$familie` GAR NICHT AUS -- die Abfrage nahm
+    // immer nur `$ziel['subtyp']`, egal was `suchen` sagte. Fuer Ortschaften und Wege eine Familie
+    // zu erklaeren und dann trotzdem nur in der eigenen Art zu suchen, waere dieselbe Falle wie
+    // eine Regel, die einen von mehreren Lesern bindet (AGENTS.md §11) -- hier gab es nur EINEN
+    // Leser, und der las die Zuordnung falsch. `feature_type` ist ueber eine Familie hinweg immer
+    // derselbe (jede Ortsklasse ist `location`, jede Wegart `path`) -- ein `kind` gibt es fuer
+    // diese drei Ziele nicht, nur `feature_subtype`, deshalb wird hier nur der Subtyp aus jedem
+    // Familienmitglied gebraucht.
     if (in_array($ziel['ziel'], ['path', 'location', 'label'], true)) {
+        $platzhalter = [];
+        $werte = [':typ' => $ziel['ziel']];
+        foreach ($familie as $i => [, $subtyp]) {
+            $platzhalter[] = ':s' . $i;
+            $werte[':s' . $i] = (string) $subtyp;
+        }
+        // `feature_subtype` reist mit heraus (unten `art`), damit eine abweichende Einordnung
+        // -- wie bei See/Meer -- auch hier im Grund genannt werden kann (z.B. eine "Burg", die
+        // bei uns als `dorf` liegt).
         $stmt = $pdo->prepare(
-            'SELECT public_id, name, geometry_json AS geo, properties_json AS props'
+            'SELECT public_id, name, feature_subtype, geometry_json AS geo, properties_json AS props'
             . ' FROM map_features'
-            . ' WHERE feature_type = :typ AND feature_subtype = :subtyp AND is_active = 1'
+            . ' WHERE feature_type = :typ AND feature_subtype IN (' . implode(',', $platzhalter) . ')'
+            . ' AND is_active = 1'
         );
-        $stmt->execute([':typ' => $ziel['ziel'], ':subtyp' => $ziel['subtyp']]);
+        $stmt->execute($werte);
     } else {
         // ⚠️ Die Flaeche liegt in ecosystem_area, nicht in ecosystem_region -- die Region traegt
         // nur Name und Art. Probeflaechen (`is_trial`) bleiben draussen: sie sind Entwuerfe.
@@ -411,7 +488,11 @@ function avesmapsGaretienKandidaten(PDO $pdo, array $ziel): array
         $kandidaten[] = [
             'public_id' => (string) $zeile['public_id'],
             'name' => (string) ($zeile['name'] ?? ''),
-            'art' => (string) ($zeile['region_type'] ?? ''),
+            // Region traegt `region_type`, path/location/label seit 30.08.2026 `feature_subtype`
+            // -- beide sagen dasselbe ("welche Art traegt dieser Kandidat"), nur unter anderem
+            // Spaltennamen. Ohne den zweiten Fall bliebe `art` fuer eine Ortsfamilie immer leer
+            // und der Abweichungshinweis im Grund ("bei uns als X, nicht Y") koennte nie feuern.
+            'art' => (string) ($zeile['region_type'] ?? $zeile['feature_subtype'] ?? ''),
             'props' => (string) ($zeile['props'] ?? ''),
             // Nur bei einem Flaechen-Kandidaten gesetzt (die path/location/label-Abfrage kennt
             // keine Spalte dieses Namens) -- siehe die Begruendung an der SELECT-Klausel oben.
