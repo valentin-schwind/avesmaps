@@ -347,7 +347,15 @@ const INFO_HEADER_IMAGE_BY_ART = {
 	gebirge: "gebirge", berge: "gebirge", berg: "gebirge", berggruppe: "gebirge", bergkamm: "gebirge",
 	hochland: "gebirge", schlucht: "gebirge", vulkan: "gebirge",
 	berggipfel: "berggipfel",
-	wald: "wald", urwald: "wald",
+	wald: "wald",
+	// Garetien-Import (29.08.2026): Urwald ist eine eigene Art -- "Aussage ueber die Bewirtschaftung",
+	// keine Klimaaussage wie Dschungel (ecosystem.php). Bis zum eigenen Bild lief er als Behelf auf
+	// "wald" mit; das ist seit dem 30.08.2026 vorbei.
+	urwald: "urwald",
+	dschungel: "dschungel",
+	wuestenoase: "wuestenoase",
+	kulturlandschaft: "kulturlandschaft",
+	wadi: "wadi",
 	fluss: "fluss", flusstal: "fluss", wasserfall: "fluss",
 	// Eigenes Vokabular: "Flussland/Flusstal" wird am / geschnitten, "Flussdelta" bleibt ganz.
 	flussland: "fluss", flussdelta: "fluss",
@@ -381,6 +389,7 @@ const INFO_HEADER_IMAGE_BY_PATH = {
 	Wuestenpfad: "wuestenpfad",
 	Flussweg: "flussweg",
 	Seeweg: "seeweg",
+	Bach: "bach",
 };
 // Siedlungstyp -> Header-Bild (eigene Grafik je Groesse). Unbekannte Typen fallen auf "metropole" zurueck.
 const INFO_HEADER_IMAGE_BY_SETTLEMENT = {

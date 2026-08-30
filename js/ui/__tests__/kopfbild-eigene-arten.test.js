@@ -88,8 +88,6 @@ assert.strictEqual(flaechenArten.suempfe_moore, "Sümpfe und Moore",
 //    mitbenutzen); sie stehen hier, damit die Luecke sichtbar bleibt, statt lautlos zu sein.
 const GENERISCH_GEWOLLT = new Set([
 	"region", "sonstiges", "kontinent",
-	// 🔧 offen: kein passendes Bild in icons/header/
-	"dschungel", "wuestenoase", "kulturlandschaft", "wadi",
 	// 🔧 offen: ein Klimaband ist keine Landschaft -- es hat kein Aussehen, das sich abbilden liesse.
 	"polar", "subpolar", "boreal", "gemaessigt",
 	"subtropen_winterfeucht", "trockene_subtropen", "subtropisch", "tropisch",
