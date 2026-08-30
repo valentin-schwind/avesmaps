@@ -2398,22 +2398,50 @@
 	// Brief: .superpowers/sdd/2026-08-29-garetien-importer-sichtwerkzeug/task-9-brief.md
 	//
 	// 🔴 NUR EIN 'new'-ITEM HAT WIRKLICH ETWAS ANGELEGT. Ein 'changed'-Item hat ein BESTEHENDES
-	// Objekt verändert (Namen ersetzen/Nur Quelle/Geometrie ersetzen) -- das gehörte uns schon vor
-	// dem Import, und sein Löschen wäre Datenverlust an fremder Arbeit (Owner-Entscheid 1). Der
-	// Server prüft dasselbe ein zweites Mal (avesmapsGaretienRuecknahmeAusfuehren) -- eine Sperre
-	// nur im Browser ist keine.
-	function garetienRuecknahmeItem(objekt) {
-		return ((objekt && objekt.items) || []).filter(function (item) {
-			return item && String(item.change_type || "") === "new" && item.apply_state === "done";
-		})[0] || null;
+	// Objekt verändert (Namen ersetzen/Geometrie ersetzen) -- das gehörte uns schon vor dem Import,
+	// und sein Löschen wäre Datenverlust an fremder Arbeit (Owner-Entscheid 1). Der Server prüft
+	// dasselbe ein zweites Mal (avesmapsGaretienRuecknahmeAusfuehren) -- eine Sperre nur im Browser
+	// ist keine.
+	//
+	// 🔴 MELDUNG (30.08.2026): DIE ENGE AUSNAHME. Ein 'changed'-Item, dessen `felder` GENAU
+	// `['quelle']` ist, hat NICHTS Unwiederbringliches verändert -- avesmapsGaretienErgaenzungAnwenden
+	// tut in diesem Fall ausschließlich avesmapsGaretienQuelleAnlegen, keinen einzigen
+	// Update-Aufruf an Name oder Geometrie (garetien-uebernahme.php). Der Riegel wird dadurch ENGER
+	// formuliert, nicht aufgehoben: „hat nichts Unwiederbringliches verändert" statt „ist neu" --
+	// sobald 'name' oder 'geometrie' mit in `felder` steht, gilt Owner-Entscheid 1 unverändert.
+	function garetienItemIstQuelleNur(item) {
+		const felder = (item && item.felder) || [];
+		return felder.length === 1 && String(felder[0]) === "quelle";
 	}
 
-	// REIN: die EINE Rücknahme-Zeile eines übernommenen Objekts -- ein Knopf (das 'new'-Item ist
-	// da), oder ein Grund an seiner Stelle (Owner-Entscheid 1: „Kein Knopf, sondern ein sichtbarer
-	// Grund" -- kein AUSGEGRAUTER Knopf, der eine grundsätzliche Möglichkeit behauptete).
+	function garetienRuecknahmeFaehig(item) {
+		if (!item || item.apply_state !== "done") { return false; }
+		const changeType = String(item.change_type || "");
+		if (changeType === "new") { return true; }
+		return changeType === "changed" && garetienItemIstQuelleNur(item);
+	}
+
+	// 🔴 PLURAL, NICHT NUR DAS ERSTE TREFFENDE ITEM. Ein Weg mit mehreren Abschnitten kann MEHRERE
+	// eigenständige 'quelle'-Items tragen (je Abschnitt eines), alle am selben "Objekt" der Liste --
+	// live gemessen an der Meldung selbst: 372 Items an 312 Objekten, also trägt ein Teil der
+	// Objekte mehr als eines. `avesmapsGaretienListeObjektStand` erklärt das Objekt schon
+	// "übernommen", sobald IRGENDEIN Item 'done' ist -- eine Rücknahme, die nur EINES davon
+	// zurücksetzt, ließe das Objekt fälschlich in "Übernommen" stehen.
+	function garetienRuecknahmeItems(objekt) {
+		return ((objekt && objekt.items) || []).filter(garetienRuecknahmeFaehig);
+	}
+
+	function garetienRuecknahmeItem(objekt) {
+		return garetienRuecknahmeItems(objekt)[0] || null;
+	}
+
+	// REIN: die EINE Rücknahme-Zeile eines übernommenen Objekts -- ein Knopf (mindestens ein
+	// rücknehmbares Item ist da), oder ein Grund an seiner Stelle (Owner-Entscheid 1: „Kein Knopf,
+	// sondern ein sichtbarer Grund" -- kein AUSGEGRAUTER Knopf, der eine grundsätzliche Möglichkeit
+	// behauptete).
 	function garetienRuecknahmeBauen(objekt) {
-		const item = garetienRuecknahmeItem(objekt);
-		if (!item) {
+		const items = garetienRuecknahmeItems(objekt);
+		if (items.length === 0) {
 			return {
 				name: "ruecknahme", beschriftung: "Zurücknehmen", ton: "danger",
 				ids: [], angehakt: 0, gesamt: 0, erledigt: false, disabled: true,
@@ -2422,7 +2450,8 @@
 		}
 		return {
 			name: "ruecknahme", beschriftung: "Zurücknehmen", ton: "danger",
-			ids: [item.id], angehakt: 0, gesamt: 1, erledigt: false, disabled: false, grund: "",
+			ids: items.map(function (item) { return item.id; }),
+			angehakt: 0, gesamt: items.length, erledigt: false, disabled: false, grund: "",
 		};
 	}
 
@@ -2862,9 +2891,14 @@
 	// (GARETIEN_ENDPUNKT, `action: 'ruecknahme'`), deren Gegenstück ausschließlich innerhalb von
 	// api/_internal/import/ liegt (avesmapsGaretienRuecknahmeAusfuehren, garetien-uebernahme.php)
 	// und mit diesem Fenster verschwindet.
-	function garetienRuecknahmeSenden(itemId, runId) {
+	// ⚠️ NIMMT EINE ID ODER EINE LISTE -- ein Zusatz-Item genauso wie mehrere 'quelle'-Items
+	// desselben Objekts (Meldung 30.08.2026, siehe garetienRuecknahmeItems). `[].concat(...)`
+	// verpackt beides gleich: eine einzelne Zahl bleibt ein Ein-Element-Array, ein Array bleibt
+	// ein Array.
+	function garetienRuecknahmeSenden(itemIdsOderId, runId) {
+		const ids = [].concat(itemIdsOderId).map(Number).filter(function (id) { return id > 0; });
 		return avesmapsGaretienRufe(GARETIEN_ENDPUNKT, {
-			action: "ruecknahme", run_id: runId, ids: [itemId],
+			action: "ruecknahme", run_id: runId, ids: ids,
 		}).then(function () { return avesmapsGaretienListeHolen(); })
 			.catch(function (fehler) { garetienListeFehlerZeigen(fehler); return null; });
 	}
@@ -2873,9 +2907,26 @@
 	// was verschwindet (bei einer Fläche alle drei Zeilen namentlich), dass spätere Bearbeitungen
 	// mitgehen, und dass das Objekt danach wieder offen ist. Der Wortlaut ist hier die eigentliche
 	// Sicherung, kein Riegel im Code.
+	//
+	// 🔴 MELDUNG (30.08.2026): ZWEI GRUNDVERSCHIEDENE FOLGEN, ZWEI TEXTE. Ein 'new'-Item löscht das
+	// angelegte Objekt wirklich von der Karte -- der alte Text stimmt weiter. Ein 'quelle'-only
+	// 'changed'-Item löscht NICHTS vom Objekt, nur seine Quellenangabe -- der alte Text ("wird aus
+	// unserer Karte entfernt") wäre hier schlicht FALSCH und eine unnötige Warnung vor etwas, das
+	// gar nicht passiert.
 	function garetienRuecknahmeRueckfrageText(objekt) {
 		const o = objekt || {};
 		const name = String(o.name || "").trim() || "(ohne Namen)";
+		const items = garetienRuecknahmeItems(o);
+		const nurQuelle = items.length > 0 && items.every(function (item) {
+			return String((item && item.change_type) || "") === "changed";
+		});
+
+		if (nurQuelle) {
+			return "Die Quellenangabe von garetien.de an „" + name + "“ wird entfernt — das Objekt "
+				+ "selbst bleibt unverändert auf der Karte.\n\n"
+				+ "Es fällt danach zurück nach „Offen“. Fortfahren?";
+		}
+
 		const istFlaeche = String(o.geometrie_typ || "") === "Polygon";
 		const was = istFlaeche
 			? "die Beschriftung „" + name + "“, die Landschaftsregion „" + name + "“ und ihre gezeichnete Fläche"
@@ -2902,13 +2953,17 @@
 		if (!knopf || knopf.disabled) { return null; }
 		const objekt = garetienObjektNach(knopf.getAttribute("data-key"), objekte);
 		if (!objekt) { return null; }
-		const item = garetienRuecknahmeItem(objekt);
-		if (!item) { return null; }
+		const items = garetienRuecknahmeItems(objekt);
+		if (items.length === 0) { return null; }
 		if (!fragen(garetienRuecknahmeRueckfrageText(objekt))) { return true; }
 
 		knopf.disabled = true;
 		knopf.textContent = "Nimmt zurück …";
-		return senden(item.id, runId);
+		// ⚠️ EIN einzelnes Item bleibt eine nackte Zahl (Rückwärtskompatibilität mit dem
+		// bestehenden Sender/Test), MEHRERE gehen als Liste -- garetienRuecknahmeSenden
+		// verpackt ohnehin beides gleich (siehe dort).
+		const ids = items.map(function (item) { return item.id; });
+		return senden(ids.length === 1 ? ids[0] : ids, runId);
 	}
 
 	// ---- Meldung C (30.08.2026): „Markierte zurücknehmen" -- das Gegenstück zu „Alle angezeigten
@@ -2927,9 +2982,13 @@
 	// Chrome keine Zeigerereignisse, sein Tooltip erscheint also nie).
 	//
 	// ⚠️ `n von m`: m = markierte Objekte DIESES Reiters, n = davon wirklich rücknehmbar --
-	// `garetienRuecknahmeItem` ist die EINZIGE Prüfung dafür (keine zweite Rechnung, dieselbe Regel
-	// wie an der Einzelzeile, `garetienRuecknahmeBauen"). Ein 'changed'-Objekt (verändert ein
-	// bestehendes Objekt von uns) zählt zu m, nie zu n -- Owner-Entscheid 1 aus Aufgabe 9.
+	// `garetienRuecknahmeItems` ist die EINZIGE Prüfung dafür (keine zweite Rechnung, dieselbe Regel
+	// wie an der Einzelzeile, `garetienRuecknahmeBauen"). Ein Objekt ohne rücknehmbares Item (weiter
+	// als 'quelle' verändert) zählt zu m, nie zu n -- Owner-Entscheid 1 aus Aufgabe 9.
+	//
+	// 🔴 EIN OBJEKT KANN MEHRERE ITEM-IDS BEISTEUERN (Meldung 30.08.2026, siehe garetienRuecknahmeItems)
+	// -- `ids` wird deshalb ÜBER ALLE Objekte hinweg FLACH gesammelt, `ruecknehmbar` zählt trotzdem
+	// OBJEKTE (die "n von m"-Anzeige bezieht sich auf Objekte, nicht auf Items).
 	function garetienRuecknahmeMengeZustand(objekte, stand) {
 		const falscherReiter = stand !== "uebernommen";
 		const markierte = (objekte || []).filter(function (o) {
@@ -2937,8 +2996,8 @@
 		});
 		const paare = [];
 		markierte.forEach(function (o) {
-			const item = garetienRuecknahmeItem(o);
-			if (item) { paare.push({ objekt: o, item: item }); }
+			const items = garetienRuecknahmeItems(o);
+			if (items.length > 0) { paare.push({ objekt: o, items: items }); }
 		});
 		let hinweis = "";
 		if (falscherReiter) {
@@ -2954,7 +3013,9 @@
 			ruecknehmbar: paare.length,
 			// Die OBJEKTE (nicht nur ihre Item-ids) -- die Rückfrage zählt daran Wege gegen Flächen.
 			objekte: paare.map(function (p) { return p.objekt; }),
-			ids: paare.map(function (p) { return Number(p.item.id); }),
+			ids: paare.reduce(function (acc, p) {
+				return acc.concat(p.items.map(function (item) { return Number(item.id); }));
+			}, []),
 			beschriftung: "Markierte zurücknehmen (" + paare.length + " von " + markierte.length + ")",
 			gesperrt: falscherReiter || paare.length === 0,
 			hinweis: hinweis,
@@ -2986,23 +3047,45 @@
 	// Fläche) -- derselbe Maßstab wie `garetienRuecknahmeRueckfrageText` für EIN Objekt, hier nur
 	// GEZÄHLT statt benannt: bei Dutzenden Namen wäre ein Fließtext keine Warnung mehr, sondern eine
 	// Wand.
+	//
+	// 🔴 MELDUNG (30.08.2026): EINE MARKIERTE MENGE KANN BEIDE ARTEN MISCHEN -- 'new'-Objekte
+	// (werden wirklich gelöscht) UND 'quelle'-only 'changed'-Objekte (verlieren nur ihre
+	// Quellenangabe). Derselbe Text für beide wäre für die zweite Sorte falsch (nichts wird von der
+	// Karte entfernt) -- die zwei Sätze werden deshalb GETRENNT gezählt und genannt.
 	function garetienRuecknahmeMengeRueckfrageText(objekte) {
 		const liste = objekte || [];
-		const flaechen = liste.filter(function (o) {
-			return String((o && o.geometrie_typ) || "") === "Polygon";
-		}).length;
-		const wege = liste.length - flaechen;
+		const loeschung = liste.filter(function (o) {
+			const items = garetienRuecknahmeItems(o);
+			return items.length > 0 && String((items[0] && items[0].change_type) || "") === "new";
+		});
+		const nurQuelle = liste.filter(function (o) {
+			const items = garetienRuecknahmeItems(o);
+			return items.length > 0 && String((items[0] && items[0].change_type) || "") === "changed";
+		});
+
 		const teile = [];
-		if (wege > 0) { teile.push(garetienAnzahlText(wege, "Kartenobjekt", "Kartenobjekte")); }
-		if (flaechen > 0) {
-			teile.push(garetienAnzahlText(flaechen, "Fläche", "Flächen")
-				+ " (jeweils mit Beschriftung und Landschaftsregion)");
+		if (loeschung.length > 0) {
+			const flaechen = loeschung.filter(function (o) {
+				return String((o && o.geometrie_typ) || "") === "Polygon";
+			}).length;
+			const wege = loeschung.length - flaechen;
+			const stuecke = [];
+			if (wege > 0) { stuecke.push(garetienAnzahlText(wege, "Kartenobjekt", "Kartenobjekte")); }
+			if (flaechen > 0) {
+				stuecke.push(garetienAnzahlText(flaechen, "Fläche", "Flächen")
+					+ " (jeweils mit Beschriftung und Landschaftsregion)");
+			}
+			teile.push(stuecke.join(" und ") + " werden aus unserer Karte entfernt");
+		}
+		if (nurQuelle.length > 0) {
+			teile.push("bei " + garetienAnzahlText(nurQuelle.length, "Objekt", "Objekten")
+				+ " wird nur die Quellenangabe entfernt — die Objekte bleiben unverändert auf der Karte");
 		}
 		const was = teile.length > 0
-			? teile.join(" und ")
-			: garetienAnzahlText(liste.length, "Objekt", "Objekte");
+			? teile.join("; ")
+			: garetienAnzahlText(liste.length, "Objekt", "Objekte") + " werden zurückgenommen";
 
-		return was + " werden aus unserer Karte entfernt, einschließlich aller Änderungen, die "
+		return was + ", einschließlich aller Änderungen, die "
 			+ "seither daran vorgenommen wurden.\n\n"
 			+ "Sie fallen danach zurück nach „Offen“. Fortfahren?";
 	}
@@ -3952,6 +4035,10 @@
 			garetienNeuIstZusatz,
 			garetienZusatzRueckfrageText,
 			// Aufgabe 9: „Zurücknehmen" -- der eine Löschweg dieses Fensters
+			// Meldung (30.08.2026): die enge Ausnahme für 'quelle'-only 'changed'-Items
+			garetienItemIstQuelleNur,
+			garetienRuecknahmeFaehig,
+			garetienRuecknahmeItems,
 			garetienRuecknahmeItem,
 			garetienRuecknahmeBauen,
 			garetienRuecknahmeRueckfrageText,

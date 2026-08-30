@@ -167,6 +167,84 @@ function avesmapsGaretienQuelleAnlegen(PDO $pdo, string $entityType, string $pub
 }
 
 /**
+ * Das Gegenstueck zu avesmapsGaretienQuelleAnlegen: entity_type + die public_id, an der eine
+ * 'quelle'-Verknuepfung WIRKLICH haengt -- fuer die Ruecknahme EINES 'quelle'-Items (Meldung,
+ * 30.08.2026). Spiegelt DIESELBE Bindung wie avesmapsGaretienErgaenzungAnwenden weiter unten,
+ * keine zweite Fassung derselben Entscheidung:
+ *   ziel 'path'      -> entity_type 'path',      dieselbe public_id
+ *   ziel 'location'  -> entity_type 'settlement', dieselbe public_id
+ *   ziel 'label'     -> entity_type 'region',     dieselbe public_id (das Label TRAEGT die id)
+ *   sonst (Flaeche)  -> entity_type 'region',     die public_id des LABELS der Region -- NICHT
+ *                       der Region selbst (AGENTS.md §11: "die Quellen einer Landschaft liegen …
+ *                       an ihrer BESCHRIFTUNG").
+ *
+ * @return array{0:string,1:string} [entity_type, quelle_public_id] -- die zweite ist '' bei
+ *   einer Flaeche ohne Label (dieselbe "lieber laut als falsch"-Lage wie beim Anlegen).
+ */
+function avesmapsGaretienQuelleZielAufloesen(PDO $pdo, string $ziel, string $publicId): array
+{
+    if ($ziel === 'path') {
+        return ['path', $publicId];
+    }
+    if ($ziel === 'location') {
+        return ['settlement', $publicId];
+    }
+    if ($ziel === 'label') {
+        return ['region', $publicId];
+    }
+    // Flaeche: $publicId ist die REGION, die Quelle haengt an ihrem LABEL.
+    $labelDerRegion = $pdo->prepare('SELECT label_public_id FROM ecosystem_region WHERE public_id = :p');
+    $labelDerRegion->execute([':p' => $publicId]);
+    $labelId = trim((string) $labelDerRegion->fetchColumn());
+
+    return ['region', $labelId];
+}
+
+/**
+ * Die Verknuepfung LOESEN, die avesmapsGaretienQuelleAnlegen fuer EIN Objekt angelegt hat --
+ * das Gegenstueck zum Anlegen, fuer die Ruecknahme eines 'quelle'-Items.
+ *
+ * 🔴 NUR feature_sources, NIE sources: derselbe Katalog-Schutz wie in
+ * avesmapsGaretienQuellenAbbauAusfuehren (garetien-quellen-abbau.php) -- eine geteilte Adresse
+ * darf durch die Ruecknahme EINES Objekts nicht anderen Objekten ihre Quelle nehmen.
+ *
+ * ⭐ WIEDERVERWENDET avesmapsRemoveFeatureSource (api/_internal/app/feature-sources.php) statt
+ * eines eigenen DELETE -- dieselbe Funktion, die der Quellen-Editor benutzt: sie bumpt
+ * avesmapsNextMapRevision (die Karte liefert Quellen SYNCHRON mit der Nutzlast, AGENTS.md §5/§7)
+ * und haengt am Grabstein-Riegel fuer origin='wiki_publication', der hier ohnehin nie greift
+ * (eine garetien-Zeile traegt immer origin='garetien').
+ *
+ * ⚠️ ORIGIN WIRD VORHER GEPRUEFT, NICHT NACHHER VERTRAUT: geloescht werden nur die
+ * source_id(s), deren FEATURE_SOURCES-ZEILE origin='garetien' traegt -- eine `manual`- oder
+ * `wiki_publication`-Verknuepfung DERSELBEN oder einer ANDEREN Quelle am selben Objekt bleibt
+ * unangetastet (eine der Zusicherungen des Auftrags).
+ *
+ * ⚠️ KEIN FEHLER, WENN NICHTS DA IST: eine bereits entfernte Verknuepfung (etwa ueber den
+ * globalen Aufraeum-Knopf, garetien-quellen-abbau.php) macht die Ruecknahme nicht ungueltig --
+ * das Item faellt trotzdem zurueck nach 'offen'.
+ *
+ * @return int Anzahl der geloesten Verknuepfungen (0 oder mehr).
+ */
+function avesmapsGaretienQuelleRuecknahmeLoesen(PDO $pdo, string $entityType, string $entityPublicId, int $userId): int
+{
+    avesmapsEnsureFeatureSourceTables($pdo);
+
+    $stmt = $pdo->prepare(
+        'SELECT source_id FROM feature_sources WHERE entity_type = :t AND entity_public_id = :id AND origin = :o'
+    );
+    $stmt->execute(['t' => $entityType, 'id' => $entityPublicId, 'o' => AVESMAPS_GARETIEN_SOURCE_ORIGIN]);
+    $sourceIds = $stmt->fetchAll(PDO::FETCH_COLUMN);
+
+    $geloest = 0;
+    foreach ($sourceIds as $sourceId) {
+        avesmapsRemoveFeatureSource($pdo, $entityType, $entityPublicId, (int) $sourceId, $userId);
+        $geloest++;
+    }
+
+    return $geloest;
+}
+
+/**
  * Eine Flaeche anlegen: LABEL (Punkt) + ecosystem_region + ecosystem_area.
  *
  * 💣 DAS LABEL IST DAS TRAGENDE OBJEKT. Ein Label ist bei uns ein PUNKT, die Flaeche liegt in
@@ -812,6 +890,15 @@ function avesmapsGaretienUebernehmen(PDO $pdo, int $runId, array $itemIds, array
  * Objekte schon keinen Knopf an; der Riegel steht hier ein zweites Mal, weil eine Sperre nur im
  * Browser keine ist.
  *
+ * 🔴 MELDUNG (30.08.2026): DIE ENGE AUSNAHME. Ein 'changed'-Item, dessen `felder` GENAU `['quelle']`
+ * ist, hat NICHTS Unwiederbringliches veraendert -- avesmapsGaretienErgaenzungAnwenden tut in
+ * diesem Fall ausschliesslich avesmapsGaretienQuelleAnlegen, keinen einzigen Update-Aufruf an Name
+ * oder Geometrie. Owner-Entscheid 1 bleibt fuer alles andere unveraendert (sobald 'name' oder
+ * 'geometrie' mit in `felder` steht); der Riegel wird dadurch ENGER formuliert, nicht aufgehoben.
+ * Die Ruecknahme entfernt hier NICHT das Objekt, sondern loest nur die feature_sources-Verknuepfung
+ * mit origin='garetien' (avesmapsGaretienQuelleRuecknahmeLoesen) -- dieselbe enge Zielauflösung wie
+ * beim Anlegen (avesmapsGaretienQuelleZielAufloesen), NIEMALS die geteilte `sources`-Zeile selbst.
+ *
  * 🔴 OWNER-ENTSCHEID 2 (29.08.2026): eine nachtraegliche Bearbeitung SPERRT die Ruecknahme NICHT --
  * kein Zeitstempel-Vergleich, keine neue Zustandshaltung. Die Rueckfrage im Fenster nennt das beim
  * Namen; hier wird deshalb bewusst KEIN `expected_revision` mitgeschickt.
@@ -839,7 +926,7 @@ function avesmapsGaretienRuecknahmeAusfuehren(PDO $pdo, int $runId, array $itemI
 
     $platzhalter = implode(',', array_fill(0, count($itemIds), '?'));
     $stmt = $pdo->prepare(
-        'SELECT id, change_type, after_json, apply_state, apply_note'
+        'SELECT id, change_type, entity_public_id, after_json, apply_state, apply_note'
         . ' FROM sync_plan_item WHERE run_id = ? AND id IN (' . $platzhalter . ') ORDER BY id'
     );
     $stmt->execute(array_merge([$runId], array_map('intval', $itemIds)));
@@ -848,11 +935,56 @@ function avesmapsGaretienRuecknahmeAusfuehren(PDO $pdo, int $runId, array $itemI
     $fehler = [];
     foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $item) {
         $itemId = (int) $item['id'];
+        $changeType = (string) $item['change_type'];
+
+        // MELDUNG (30.08.2026): die enge Ausnahme fuer 'quelle'-only 'changed'-Items -- geprueft
+        // VOR der generischen OWNER-ENTSCHEID-1-Sperre, sonst wuerde diese jedes 'changed'-Item
+        // ausnahmslos ablehnen. Server prueft dasselbe wie der Browser
+        // (garetienItemIstQuelleNur) -- eine Sperre nur im Browser ist keine.
+        if ($changeType === 'changed') {
+            $nach = json_decode((string) $item['after_json'], true);
+            $felder = is_array($nach) ? (array) ($nach['felder'] ?? []) : [];
+            if (count($felder) !== 1 || $felder[0] !== 'quelle') {
+                $fehler[] = ['item' => $itemId, 'grund' => 'veraendert ein bestehendes Objekt -- nicht ruecknehmbar'];
+                continue;
+            }
+            if ((string) ($item['apply_state'] ?? '') !== 'done') {
+                $fehler[] = ['item' => $itemId, 'grund' => 'dieses Item wurde nie uebernommen'];
+                continue;
+            }
+            // ⚠️ entity_public_id, NICHT apply_note -- bei einem 'changed'-Item ist sie von Anfang
+            // an (Planbau) das ZIEL des Update-Aufrufs (avesmapsGaretienUebernehmen liest genau
+            // diese Spalte fuer avesmapsGaretienErgaenzungAnwenden); apply_note traegt nach dem
+            // Erfolg zwar denselben Wert, ist aber nur ein Echo davon.
+            $entityPublicId = trim((string) ($item['entity_public_id'] ?? ''));
+            if ($entityPublicId === '') {
+                $fehler[] = ['item' => $itemId, 'grund' => 'kein Ziel-Objekt hinterlegt'];
+                continue;
+            }
+            $ziel = is_array($nach) ? (string) ($nach['ziel'] ?? '') : '';
+            try {
+                [$entityType, $quellePublicId] = avesmapsGaretienQuelleZielAufloesen($pdo, $ziel, $entityPublicId);
+                if ($quellePublicId === '') {
+                    throw new RuntimeException('keine Beschriftung fuer die Quellen-Verknuepfung gefunden');
+                }
+                avesmapsGaretienQuelleRuecknahmeLoesen($pdo, $entityType, $quellePublicId, (int) ($user['id'] ?? 0));
+
+                // Zurueck auf 'offen' -- derselbe Riegel wie im 'new'-Zweig unten (dieselbe
+                // Bedeutung von "Ruecknahme": zurueck in GENAU den Stand vor der Uebernahme).
+                $pdo->prepare(
+                    'UPDATE sync_plan_item SET apply_state = NULL, apply_note = NULL, selected = 1 WHERE id = :id'
+                )->execute(['id' => $itemId]);
+                $zurueckgenommen++;
+            } catch (Throwable $abbruch) {
+                $fehler[] = ['item' => $itemId, 'grund' => $abbruch->getMessage()];
+            }
+            continue;
+        }
 
         // OWNER-ENTSCHEID 1: nur ein 'new'-Item hat wirklich etwas ANGELEGT (der 'changed'-Zweig
         // von avesmapsGaretienUebernehmen AENDERT ein bestehendes Objekt ueber
         // avesmapsGaretienErgaenzungAnwenden, legt aber nie eine Zeile an).
-        if ((string) $item['change_type'] !== 'new') {
+        if ($changeType !== 'new') {
             $fehler[] = ['item' => $itemId, 'grund' => 'veraendert ein bestehendes Objekt -- nicht ruecknehmbar'];
             continue;
         }

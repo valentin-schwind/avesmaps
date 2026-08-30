@@ -245,9 +245,12 @@ function avesmapsGaretienUebernahmeTestPdo(): PDO
     avesmapsEnsureSyncPlanTablesSqlite($pdo);
     // ⚠️ Von Hand, nicht ueber avesmapsEnsureFeatureSourceTables: dessen DDL ist MySQL-eigen und
     // laeuft hier nicht. Dieselbe Loesung wie in feature-source-live-entity-test.php.
-    $pdo->exec("CREATE TABLE sources (id INTEGER PRIMARY KEY AUTOINCREMENT, url TEXT, url_hash TEXT UNIQUE,
+    // ⚠️ `created_at` MUSS mit -- avesmapsListFeatureSourcesForEdit (aufgerufen am Ende von
+    // avesmapsRemoveFeatureSource) sortiert nach `s.created_at`, und ohne die Spalte wirft SQLite
+    // "no such column". Dieselbe Loesung wie in feature-source-live-entity-test.php.
+    $pdo->exec('CREATE TABLE sources (id INTEGER PRIMARY KEY AUTOINCREMENT, url TEXT, url_hash TEXT UNIQUE,
         wiki_key TEXT NULL, label TEXT, source_type TEXT, is_official INTEGER DEFAULT 0, created_by INTEGER NULL,
-        license TEXT NOT NULL DEFAULT '', attribution TEXT NOT NULL DEFAULT '')");
+        license TEXT NOT NULL DEFAULT \'\', attribution TEXT NOT NULL DEFAULT \'\', created_at TEXT DEFAULT "2026-01-01")');
     $pdo->exec("CREATE TABLE feature_sources (id INTEGER PRIMARY KEY AUTOINCREMENT, entity_type TEXT NOT NULL,
         entity_public_id TEXT NOT NULL, source_id INTEGER NOT NULL, status TEXT DEFAULT 'approved',
         created_by INTEGER NULL, origin TEXT DEFAULT 'manual', reference_kind TEXT NULL, pages TEXT NULL,
@@ -1377,5 +1380,257 @@ assert(avesmapsGaretienApplyIdsAusRumpf([]) === [], 'ohne "ids" im Rumpf: leer (
 assert(avesmapsGaretienApplyIdsAusRumpf(['ids' => 'kein-array']) === [], 'ein Nicht-Array wird verworfen, nicht geraten');
 assert(avesmapsGaretienApplyIdsAusRumpf(['ids' => []]) === [], 'eine leere Liste bleibt leer');
 $pruefungen += 5;
+
+// =================================================================================================
+// MELDUNG (30.08.2026): „Übernommen (312) -- mach die rückgängig". `avesmapsGaretienRuecknahmeAusfuehren`
+// liess bis dahin GENAU 'new'-Items zu; alle 312 gemeldeten Objekte sind 'changed'-Items mit
+// `felder: ['quelle']` -- ein bestehendes Objekt bekam NUR eine Quellenangabe angehängt, nichts an
+// Name oder Geometrie wurde berührt (avesmapsGaretienErgaenzungAnwenden tut in diesem Fall
+// ausschliesslich avesmapsGaretienQuelleAnlegen). Diese Sektion prüft die ENGERE, nicht die
+// AUFGEHOBENE Regel: rücknehmbar wird GENAU DAS, nicht jedes 'changed'-Item.
+//
+// Eigener, ISOLIERTER Pruefstand (wie Aufgabe 12) -- die Zaehler der vorigen Abschnitte duerfen
+// unberuehrt bleiben.
+$pdoQ = avesmapsGaretienUebernahmeTestPdo();
+$laufQ = (int) avesmapsSyncPlanOpenRun($pdoQ, AVESMAPS_GARETIEN_PLAN_KIND)['id'];
+
+// --- 1. Der Normalfall: ein WEG (entity_type='path'), 'quelle'-only -- die Verknuepfung geht weg,
+//        das Objekt UND eine fremde 'manual'-Verknuepfung DERSELBEN Adresse bleiben unangetastet.
+$idWegQ = '00000000-0000-4000-8000-000000009001';
+$pdoQ->prepare('INSERT INTO map_features (public_id, name, feature_type, feature_subtype, geometry_json, properties_json, geometry_type) VALUES (?,?,?,?,?,?,?)')
+    ->execute([$idWegQ, 'Testpfad Quelle', 'path', 'Weg',
+        json_encode(['type' => 'LineString', 'coordinates' => [[1.0, 1.0], [2.0, 2.0]]]),
+        '{}', 'LineString']);
+
+// Eine fremde, HANDGEPFLEGTE Verknuepfung derselben Adresse -- die Ruecknahme darf sie NICHT
+// anfassen, auch wenn sie am selben Objekt haengt.
+$manuelleSourceId = avesmapsFeatureSourceUpsert(
+    $pdoQ, 'https://www.beispiel.de/handgepflegt', 'Handgepflegte Quelle', 'sonstiges', false, 1
+);
+avesmapsFeatureSourceLink($pdoQ, 'path', $idWegQ, $manuelleSourceId, 1, 'manual');
+
+avesmapsSyncPlanAddItem($pdoQ, $laufQ, [
+    'entity_key' => 'ggp:Probe:path:Testpfad-Quelle|ergaenzung|' . $idWegQ,
+    'entity_public_id' => $idWegQ,
+    'change_type' => 'changed',
+    'label' => 'Testpfad Quelle · Quelle',
+    'before' => ['public_id' => $idWegQ, 'name' => 'Testpfad Quelle'],
+    'after' => ['herkunft' => 'garetien', 'anlass' => 'ergaenzung', 'felder' => ['quelle'],
+        'ziel' => 'path', 'subtyp' => 'Weg',
+        'quelle' => ['url' => 'https://www.garetien.de/index.php?title=Garetien:Testpfad',
+            'label' => 'Briefspiel (Garetien)', 'license' => 'cc-by-nc-sa-3.0', 'attribution' => 'VolkoV / garetien.de']],
+    'override' => [], 'selected' => 1,
+]);
+$itemWegQ = $itemIdVon($pdoQ, 'Testpfad Quelle · Quelle');
+$eWegQ = avesmapsGaretienUebernehmen($pdoQ, $laufQ, [$itemWegQ], ['id' => 7]);
+assert($eWegQ['fehler'] === [], 'die Quellen-Ergaenzung des Wegs gelingt: ' . json_encode($eWegQ, JSON_UNESCAPED_UNICODE));
+assert($eWegQ['quellen'] === 1, 'genau eine Quelle wurde angelegt');
+$pruefungen += 2;
+
+$zaehleGaretienLinks = static function (PDO $pdo, string $entityType, string $publicId) {
+    $s = $pdo->prepare("SELECT COUNT(*) FROM feature_sources WHERE entity_type = ? AND entity_public_id = ? AND origin = 'garetien'");
+    $s->execute([$entityType, $publicId]);
+
+    return (int) $s->fetchColumn();
+};
+$zaehleManualLinks = static function (PDO $pdo, string $entityType, string $publicId) {
+    $s = $pdo->prepare("SELECT COUNT(*) FROM feature_sources WHERE entity_type = ? AND entity_public_id = ? AND origin = 'manual'");
+    $s->execute([$entityType, $publicId]);
+
+    return (int) $s->fetchColumn();
+};
+
+assert($zaehleGaretienLinks($pdoQ, 'path', $idWegQ) === 1, 'die garetien-Verknuepfung steht nach der Uebernahme');
+assert($zaehleManualLinks($pdoQ, 'path', $idWegQ) === 1, 'und die manuelle Verknuepfung ebenso');
+$pruefungen += 2;
+
+$rWegQ = avesmapsGaretienRuecknahmeAusfuehren($pdoQ, $laufQ, [$itemWegQ], ['id' => 7]);
+assert($rWegQ['zurueckgenommen'] === 1, 'die Ruecknahme des quelle-only-Items gelingt: ' . json_encode($rWegQ, JSON_UNESCAPED_UNICODE));
+assert($rWegQ['fehler'] === [], 'ohne Fehler: ' . json_encode($rWegQ['fehler'], JSON_UNESCAPED_UNICODE));
+$pruefungen += 2;
+
+assert($zaehleGaretienLinks($pdoQ, 'path', $idWegQ) === 0, '🔴 die garetien-Verknuepfung ist WEG');
+assert($zaehleManualLinks($pdoQ, 'path', $idWegQ) === 1,
+    '🔴 MISS DIE DIFFERENZ: die manuelle Verknuepfung DERSELBEN Quelle bleibt unangetastet');
+$pruefungen += 2;
+
+// 🔴 Die sources-ZEILE selbst bleibt stehen -- ein geteilter Katalog, kein Objekt-Eigentum.
+$sourcesZeileNochStmt = $pdoQ->prepare('SELECT COUNT(*) FROM sources WHERE url = ?');
+$sourcesZeileNochStmt->execute(['https://www.garetien.de/index.php?title=Garetien:Testpfad']);
+assert((int) $sourcesZeileNochStmt->fetchColumn() === 1,
+    '🔴 die sources-Zeile selbst wird NIEMALS geloescht -- geteilter Katalog, AGENTS.md §5');
+$pruefungen++;
+
+// Und das OBJEKT selbst ist gaenzlich unberuehrt -- weder Name noch is_active aendern sich.
+$wegQNachher = $pdoQ->query("SELECT name, is_active FROM map_features WHERE public_id = " . $pdoQ->quote($idWegQ))
+    ->fetch(PDO::FETCH_ASSOC);
+assert($wegQNachher['name'] === 'Testpfad Quelle', 'der Name bleibt unveraendert -- niemals angefasst');
+assert((int) $wegQNachher['is_active'] === 1, 'und das Objekt bleibt aktiv -- keine Loeschung');
+$pruefungen += 2;
+
+$itemWegQNachher = $pdoQ->query('SELECT apply_state, selected FROM sync_plan_item WHERE id = ' . $itemWegQ)
+    ->fetch(PDO::FETCH_ASSOC);
+assert($itemWegQNachher['apply_state'] === null, 'apply_state faellt zurueck auf NULL -- das Objekt steht wieder in "Offen"');
+assert((int) $itemWegQNachher['selected'] === 1, 'selected ist wieder 1, wie vor der Uebernahme');
+$pruefungen += 2;
+
+// --- 2. Die ALTE Regel gilt UNVERAENDERT: 'name' zusammen mit 'quelle' bleibt gesperrt ----------
+$idWegGemischtQ = '00000000-0000-4000-8000-000000009002';
+$pdoQ->prepare('INSERT INTO map_features (public_id, name, feature_type, feature_subtype, geometry_json, properties_json, geometry_type) VALUES (?,?,?,?,?,?,?)')
+    ->execute([$idWegGemischtQ, '', 'path', 'Weg',
+        json_encode(['type' => 'LineString', 'coordinates' => [[3.0, 3.0], [4.0, 4.0]]]),
+        '{}', 'LineString']);
+avesmapsSyncPlanAddItem($pdoQ, $laufQ, [
+    'entity_key' => 'ggp:Probe:path:Testpfad-Gemischt|ergaenzung|' . $idWegGemischtQ,
+    'entity_public_id' => $idWegGemischtQ,
+    'change_type' => 'changed',
+    'label' => 'Testpfad Gemischt · Name+Quelle',
+    'before' => ['public_id' => $idWegGemischtQ, 'name' => ''],
+    'after' => ['herkunft' => 'garetien', 'anlass' => 'ergaenzung', 'felder' => ['name', 'quelle'],
+        'ziel' => 'path', 'subtyp' => 'Weg', 'name' => 'Testpfad Gemischt',
+        'quelle' => ['url' => 'https://www.garetien.de/index.php?title=Garetien:Gemischt',
+            'label' => 'Briefspiel (Garetien)', 'license' => 'cc-by-nc-sa-3.0', 'attribution' => 'VolkoV / garetien.de']],
+    'override' => [], 'selected' => 1,
+]);
+$itemGemischtQ = $itemIdVon($pdoQ, 'Testpfad Gemischt · Name+Quelle');
+$eGemischtQ = avesmapsGaretienUebernehmen($pdoQ, $laufQ, [$itemGemischtQ], ['id' => 7]);
+assert($eGemischtQ['fehler'] === [], 'die Ergaenzung selbst gelingt: ' . json_encode($eGemischtQ, JSON_UNESCAPED_UNICODE));
+$pruefungen++;
+
+$rGemischtQ = avesmapsGaretienRuecknahmeAusfuehren($pdoQ, $laufQ, [$itemGemischtQ], ['id' => 7]);
+assert($rGemischtQ['zurueckgenommen'] === 0,
+    '🔴 name+quelle bleibt GESPERRT -- die alte Regel gilt fuer alles ausser reinem "nur Quelle"');
+assert(count($rGemischtQ['fehler']) === 1 && str_contains($rGemischtQ['fehler'][0]['grund'], 'nicht ruecknehmbar'),
+    'mit demselben Grund wie zuvor: ' . json_encode($rGemischtQ, JSON_UNESCAPED_UNICODE));
+$pruefungen += 2;
+
+assert($zaehleGaretienLinks($pdoQ, 'path', $idWegGemischtQ) === 1,
+    'die Quellen-Verknuepfung bleibt stehen -- die Ruecknahme hat sie nicht angefasst');
+$itemGemischtQNachher = $pdoQ->query('SELECT apply_state FROM sync_plan_item WHERE id = ' . $itemGemischtQ)->fetchColumn();
+assert($itemGemischtQNachher === 'done', 'das Item bleibt auf "done" stehen');
+$pruefungen += 2;
+
+// --- 3. Eine LANDSCHAFTSFLAECHE: die Verknuepfung haengt an der BESCHRIFTUNG, nicht der Region --
+$idSeeQLabel = '00000000-0000-4000-8000-000000009101';
+$idSeeQRegion = '00000000-0000-4000-8000-000000009102';
+$pdoQ->prepare('INSERT INTO map_features (public_id, name, feature_type, feature_subtype, geometry_json, properties_json, geometry_type) VALUES (?,?,?,?,?,?,?)')
+    ->execute([$idSeeQLabel, 'Testquellsee', 'label', 'seen', json_encode(['type' => 'Point', 'coordinates' => [70.0, 70.0]]), '{}', 'Point']);
+$pdoQ->exec("INSERT INTO ecosystem_region (public_id, name, kind, region_type, label_public_id, is_active)
+             VALUES ('{$idSeeQRegion}', 'Testquellsee', 'topographie', 'see', '{$idSeeQLabel}', 1)");
+
+avesmapsSyncPlanAddItem($pdoQ, $laufQ, [
+    'entity_key' => 'ggp:Gewaesser:See:Garetien:Testquellsee|ergaenzung|' . $idSeeQRegion,
+    'entity_public_id' => $idSeeQRegion,
+    'change_type' => 'changed',
+    'label' => 'Testquellsee · Quelle',
+    'before' => ['public_id' => $idSeeQRegion, 'name' => 'Testquellsee'],
+    'after' => ['herkunft' => 'garetien', 'anlass' => 'ergaenzung', 'felder' => ['quelle'],
+        'ziel' => 'region', 'subtyp' => 'see', 'kind' => 'topographie',
+        'quelle' => ['url' => 'https://www.garetien.de/index.php?title=Garetien:Testquellsee',
+            'label' => 'Briefspiel (Garetien)', 'license' => 'cc-by-nc-sa-3.0', 'attribution' => 'VolkoV / garetien.de']],
+    'override' => [], 'selected' => 1,
+]);
+$itemSeeQ = $itemIdVon($pdoQ, 'Testquellsee · Quelle');
+$eSeeQ = avesmapsGaretienUebernehmen($pdoQ, $laufQ, [$itemSeeQ], ['id' => 7]);
+assert($eSeeQ['fehler'] === [], 'die Quellen-Ergaenzung der Flaeche gelingt: ' . json_encode($eSeeQ, JSON_UNESCAPED_UNICODE));
+$pruefungen++;
+
+assert($zaehleGaretienLinks($pdoQ, 'region', $idSeeQLabel) === 1,
+    'die Verknuepfung haengt an der BESCHRIFTUNG (Label-public_id)');
+assert($zaehleGaretienLinks($pdoQ, 'region', $idSeeQRegion) === 0,
+    'und NICHT an der Regions-public_id');
+$pruefungen += 2;
+
+$rSeeQ = avesmapsGaretienRuecknahmeAusfuehren($pdoQ, $laufQ, [$itemSeeQ], ['id' => 7]);
+assert($rSeeQ['zurueckgenommen'] === 1, 'die Ruecknahme der Flaechen-Quelle gelingt: ' . json_encode($rSeeQ, JSON_UNESCAPED_UNICODE));
+assert($rSeeQ['fehler'] === [], 'ohne Fehler: ' . json_encode($rSeeQ['fehler'], JSON_UNESCAPED_UNICODE));
+$pruefungen += 2;
+
+assert($zaehleGaretienLinks($pdoQ, 'region', $idSeeQLabel) === 0,
+    '🔴 DIE ZUSICHERUNG AUS DEM AUFTRAG: die Ruecknahme findet die Verknuepfung an der BESCHRIFTUNG, '
+    . 'nicht an einem geratenen ID-Raum, und entfernt genau sie');
+$pruefungen++;
+
+$labelSeeQNachher = $pdoQ->query('SELECT is_active FROM map_features WHERE public_id = ' . $pdoQ->quote($idSeeQLabel))->fetchColumn();
+$regionSeeQNachher = $pdoQ->query('SELECT is_active FROM ecosystem_region WHERE public_id = ' . $pdoQ->quote($idSeeQRegion))->fetchColumn();
+assert((int) $labelSeeQNachher === 1, 'die Beschriftung bleibt aktiv -- keine Loeschung');
+assert((int) $regionSeeQNachher === 1, 'die Region bleibt aktiv -- keine Loeschung');
+$pruefungen += 2;
+
+// --- 4. Zwei quelle-only-Items EINES mehrteiligen Wegs, in EINEM Ruecknahme-Aufruf -- derselbe
+//        Aufruf, den ein Klick auf „Zuruecknehmen" fuer ein Objekt mit mehreren Abschnitten
+//        ausloest (js/review/review-garetien-importer.js: garetienRuecknahmeItems).
+$idAbschnittEinsQ = '00000000-0000-4000-8000-000000009201';
+$idAbschnittZweiQ = '00000000-0000-4000-8000-000000009202';
+foreach ([$idAbschnittEinsQ, $idAbschnittZweiQ] as $i => $id) {
+    $pdoQ->prepare('INSERT INTO map_features (public_id, name, feature_type, feature_subtype, geometry_json, properties_json, geometry_type) VALUES (?,?,?,?,?,?,?)')
+        ->execute([$id, 'Reichsstrasse Zwei', 'path', 'Reichsstrasse',
+            json_encode(['type' => 'LineString', 'coordinates' => [[10.0 + $i, 10.0], [11.0 + $i, 11.0]]]),
+            '{}', 'LineString']);
+    avesmapsSyncPlanAddItem($pdoQ, $laufQ, [
+        'entity_key' => 'ggp:Weg:Reichsstrasse:Garetien:ReichsstrasseZwei|ergaenzung|' . $id,
+        'entity_public_id' => $id,
+        'change_type' => 'changed',
+        'label' => 'Reichsstrasse Zwei Abschnitt ' . ($i + 1) . ' · Quelle',
+        'before' => ['public_id' => $id, 'name' => 'Reichsstrasse Zwei'],
+        'after' => ['herkunft' => 'garetien', 'anlass' => 'ergaenzung', 'felder' => ['quelle'],
+            'ziel' => 'path', 'subtyp' => 'Reichsstrasse',
+            'quelle' => ['url' => 'https://www.garetien.de/index.php?title=Garetien:ReichsstrasseZwei',
+                'label' => 'Briefspiel (Garetien)', 'license' => 'cc-by-nc-sa-3.0', 'attribution' => 'VolkoV / garetien.de']],
+        'override' => [], 'selected' => 1,
+    ]);
+}
+$itemAbschnittEinsQ = $itemIdVon($pdoQ, 'Reichsstrasse Zwei Abschnitt 1 · Quelle');
+$itemAbschnittZweiQ = $itemIdVon($pdoQ, 'Reichsstrasse Zwei Abschnitt 2 · Quelle');
+$eBeideQ = avesmapsGaretienUebernehmen($pdoQ, $laufQ, [$itemAbschnittEinsQ, $itemAbschnittZweiQ], ['id' => 7]);
+assert($eBeideQ['fehler'] === [], 'beide Abschnitte werden ergaenzt: ' . json_encode($eBeideQ, JSON_UNESCAPED_UNICODE));
+$pruefungen++;
+
+// 🔴 EIN Ruecknahme-Aufruf mit BEIDEN ids -- genau das, was ein einzelner Klick auf "Zuruecknehmen"
+// fuer dieses Objekt gemaess garetienRuecknahmeItems() verschickt.
+$rBeideQ = avesmapsGaretienRuecknahmeAusfuehren($pdoQ, $laufQ, [$itemAbschnittEinsQ, $itemAbschnittZweiQ], ['id' => 7]);
+assert($rBeideQ['zurueckgenommen'] === 2, 'BEIDE Items gehen in EINEM Aufruf zurueck: ' . json_encode($rBeideQ, JSON_UNESCAPED_UNICODE));
+assert($rBeideQ['fehler'] === [], 'ohne Fehler: ' . json_encode($rBeideQ['fehler'], JSON_UNESCAPED_UNICODE));
+$pruefungen += 2;
+
+assert($zaehleGaretienLinks($pdoQ, 'path', $idAbschnittEinsQ) === 0, 'Abschnitt 1 ist quellenlos');
+assert($zaehleGaretienLinks($pdoQ, 'path', $idAbschnittZweiQ) === 0, 'Abschnitt 2 ebenso');
+$pruefungen += 2;
+
+// --- 5. Idempotenz: die Verknuepfung ist schon weg (z.B. ueber den globalen Aufraeum-Knopf) --
+//        die Ruecknahme darf trotzdem gelingen, statt einen Fehlschlag vorzutaeuschen.
+$idWegLeerQ = '00000000-0000-4000-8000-000000009301';
+$pdoQ->prepare('INSERT INTO map_features (public_id, name, feature_type, feature_subtype, geometry_json, properties_json, geometry_type) VALUES (?,?,?,?,?,?,?)')
+    ->execute([$idWegLeerQ, 'Testpfad Bereits Bereinigt', 'path', 'Weg',
+        json_encode(['type' => 'LineString', 'coordinates' => [[5.0, 5.0], [6.0, 6.0]]]),
+        '{}', 'LineString']);
+avesmapsSyncPlanAddItem($pdoQ, $laufQ, [
+    'entity_key' => 'ggp:Probe:path:Testpfad-Bereinigt|ergaenzung|' . $idWegLeerQ,
+    'entity_public_id' => $idWegLeerQ,
+    'change_type' => 'changed',
+    'label' => 'Testpfad Bereits Bereinigt · Quelle',
+    'before' => ['public_id' => $idWegLeerQ, 'name' => 'Testpfad Bereits Bereinigt'],
+    'after' => ['herkunft' => 'garetien', 'anlass' => 'ergaenzung', 'felder' => ['quelle'],
+        'ziel' => 'path', 'subtyp' => 'Weg',
+        'quelle' => ['url' => 'https://www.garetien.de/index.php?title=Garetien:Bereinigt',
+            'label' => 'Briefspiel (Garetien)', 'license' => 'cc-by-nc-sa-3.0', 'attribution' => 'VolkoV / garetien.de']],
+    'override' => [], 'selected' => 1,
+]);
+$itemLeerQ = $itemIdVon($pdoQ, 'Testpfad Bereits Bereinigt · Quelle');
+$eLeerQ = avesmapsGaretienUebernehmen($pdoQ, $laufQ, [$itemLeerQ], ['id' => 7]);
+assert($eLeerQ['fehler'] === [], 'die Ergaenzung gelingt: ' . json_encode($eLeerQ, JSON_UNESCAPED_UNICODE));
+$pruefungen++;
+
+// Der globale Aufraeum-Knopf (oder eine andere Sitzung) war schneller: die Verknuepfung ist schon weg.
+$pdoQ->exec("DELETE FROM feature_sources WHERE entity_type = 'path' AND entity_public_id = '{$idWegLeerQ}' AND origin = 'garetien'");
+assert($zaehleGaretienLinks($pdoQ, 'path', $idWegLeerQ) === 0, 'die Verknuepfung ist vorab weg -- simuliert den globalen Aufraeum-Knopf');
+$pruefungen++;
+
+$rLeerQ = avesmapsGaretienRuecknahmeAusfuehren($pdoQ, $laufQ, [$itemLeerQ], ['id' => 7]);
+assert($rLeerQ['zurueckgenommen'] === 1,
+    '🔴 KEIN FEHLER, WENN NICHTS DA IST: das Item faellt trotzdem zurueck nach "offen": '
+    . json_encode($rLeerQ, JSON_UNESCAPED_UNICODE));
+assert($rLeerQ['fehler'] === [], 'ohne Fehler: ' . json_encode($rLeerQ['fehler'], JSON_UNESCAPED_UNICODE));
+$pruefungen += 2;
 
 echo "OK: {$pruefungen} Pruefungen\n";
