@@ -2240,21 +2240,25 @@
 	}
 
 	// REIN: eine Häkchenzeile -- dasselbe Muster, für die drei Ja/Nein-Einstellungen des Kastens.
-	function garetienEingefuegtWirdHakenZeile(objekt, beschriftung, feld, angehakt) {
+	// 🔴 Fuenf-Punkte-Brief 30.08.2026, Punkt 6a: `deaktiviert` sperrt das Haekchen, wenn das
+	// Objekt bereits UEBERNOMMEN ist -- hier gibt es dann nichts mehr zu entscheiden.
+	function garetienEingefuegtWirdHakenZeile(objekt, beschriftung, feld, angehakt, deaktiviert) {
 		const id = garetienEingabeId(objekt, feld);
 		return '<p class="gi-insert__row gi-insert__row--edit">'
 			+ '<label for="' + id + '"><input type="checkbox" id="' + id + '" data-gi-feld="' + feld + '"'
-			+ (angehakt ? " checked" : "") + "> " + avesmapsGaretienEscape(beschriftung) + "</label></p>";
+			+ (angehakt ? " checked" : "") + (deaktiviert ? " disabled" : "") + "> "
+			+ avesmapsGaretienEscape(beschriftung) + "</label></p>";
 	}
 
 	// REIN: „Fläche" -- für Klicks gesperrt (is_locked). Kein Vergleichswert/keine Vorgabe der Art
 	// nötig -- es gibt keine Art-Empfehlung für diese Spalte, sie ist eine reine
 	// Karteneigenschaft je Region (AGENTS.md §11, „Stapelreihenfolge und Klick-Sperre der REGION"),
 	// ihr Grundwert ist immer „aus".
-	function garetienEingefuegtWirdFlaecheMarkup(objekt) {
+	function garetienEingefuegtWirdFlaecheMarkup(objekt, deaktiviert) {
 		const eingaben = garetienEingabenZustandZu(objekt);
 		return garetienEingefuegtWirdUeberschrift("Fläche")
-			+ garetienEingefuegtWirdHakenZeile(objekt, "für Klicks gesperrt", "isLocked", eingaben.isLocked);
+			+ garetienEingefuegtWirdHakenZeile(objekt, "für Klicks gesperrt", "isLocked", eingaben.isLocked,
+				deaktiviert);
 	}
 
 	// REIN: derselbe Hinweistext wie im echten Beschriftungsdialog (index.html,
@@ -2276,32 +2280,38 @@
 	// einer FLÄCHE -- ein Berggipfel-Label hängt an keiner `ecosystem_region` (siehe der
 	// 'label'-Zweig in avesmapsGaretienUebernehmen) und kennt deshalb weder Kurvenbeschreibung noch
 	// „für Klicks gesperrt".
-	function garetienEingefuegtWirdBeschriftungMarkup(objekt, subtyp, mitKurve) {
+	// 🔴 Fuenf-Punkte-Brief 30.08.2026, Punkt 6a: `deaktiviert` sperrt ALLE Felder dieses Kastens,
+	// wenn das Objekt bereits UEBERNOMMEN ist (Owner: „die editoren sollen dann das objekt auf der
+	// karte editieren"). Die „Anzahl Beschriftungen" bleibt zusaetzlich an ihre eigene Bedingung
+	// gebunden (`!eingaben.curveLabel`) -- beide Gruende sperren unabhaengig voneinander.
+	function garetienEingefuegtWirdBeschriftungMarkup(objekt, subtyp, mitKurve, deaktiviert) {
 		const eingaben = garetienEingabenZustandZu(objekt);
 		// Die VIER Vorgabemarken -- dieselbe Tafel wie bei der Vorbelegung, hier ein zweites Mal
 		// gelesen, weil sie sich NICHT mit der (ggf. schon geänderten) Handeingabe bewegen dürfen.
 		const vorgabe = garetienEingabenVorbelegung(subtyp);
 		let markup = garetienEingefuegtWirdUeberschrift("Beschriftung")
-			+ garetienEingefuegtWirdHakenZeile(objekt, "Nodix", "isNodix", eingaben.isNodix)
+			+ garetienEingefuegtWirdHakenZeile(objekt, "Nodix", "isNodix", eingaben.isNodix, deaktiviert)
 			+ garetienEingefuegtWirdZahlZeile(objekt, "Größe", "size", eingaben.size, "pt",
-				{ min: 10, max: 56 }, false, vorgabe.size)
+				{ min: 10, max: 56 }, deaktiviert, vorgabe.size)
 			+ garetienEingefuegtWirdZahlZeile(objekt, "Priorität", "priority", eingaben.priority, "",
-				{ min: 1, max: 5 }, false, vorgabe.prio)
+				{ min: 1, max: 5 }, deaktiviert, vorgabe.prio)
 			+ garetienEingefuegtWirdZahlZeile(objekt, "Sichtbar ab Zoom", "minZoom", eingaben.minZoom, "",
-				{ min: 0, max: 7 }, false, vorgabe.minZoom)
+				{ min: 0, max: 7 }, deaktiviert, vorgabe.minZoom)
 			+ garetienEingefuegtWirdZahlZeile(objekt, "Sichtbar bis Zoom", "maxZoom", eingaben.maxZoom, "",
-				{ min: 0, max: 7 }, false, vorgabe.maxZoom);
+				{ min: 0, max: 7 }, deaktiviert, vorgabe.maxZoom);
 		if (mitKurve) {
 			// „mit Anzahl wenn an" (Auftrag): die Anzahl steht immer im Kasten, aber gesperrt, solange
 			// die Kurvenbeschreibung selbst aus ist -- dieselbe Sperr-statt-Verstecken-Form wie bei
 			// jedem anderen abhängigen Feld dieses Hauses (kein DOM-Umbau bei jedem Klick nötig).
 			// Keine Vorgabemarke fuer die Anzahl -- es gibt dafuer keine Tafel der Art.
-			markup += garetienEingefuegtWirdHakenZeile(objekt, "Kurvenbeschreibung", "curveLabel", eingaben.curveLabel)
+			markup += garetienEingefuegtWirdHakenZeile(objekt, "Kurvenbeschreibung", "curveLabel",
+					eingaben.curveLabel, deaktiviert)
 				+ garetienEingefuegtWirdZahlZeile(objekt, "Anzahl Beschriftungen", "curveLabelMax",
-					eingaben.curveLabelMax, "", { min: 1, max: 3 }, !eingaben.curveLabel)
+					eingaben.curveLabelMax, "", { min: 1, max: 3 }, deaktiviert || !eingaben.curveLabel)
 				+ garetienEingefuegtWirdBindungHinweis(eingaben.curveLabel);
 		}
-		markup += garetienEingefuegtWirdHakenZeile(objekt, "Auf Karte anzeigen", "showName", eingaben.showName);
+		markup += garetienEingefuegtWirdHakenZeile(objekt, "Auf Karte anzeigen", "showName", eingaben.showName,
+			deaktiviert);
 		return markup;
 	}
 
@@ -2655,17 +2665,36 @@
 	// 🔴 „Die Quelle, die mitreist" zieht HIERHER, in „Wiki und Quellen" -- die leere Fläche
 	// darunter war der vom Owner benannte Platz für diesen Kasten, und dieselbe Angabe zweimal
 	// auf dem Bildschirm wäre die Duplikation, vor der AGENTS.md §5 warnt.
+	// REIN: der Hinweis fuer ein bereits UEBERNOMMENES Objekt (Fuenf-Punkte-Brief 30.08.2026, Punkt
+	// 6b) -- ob es sich zuruecknehmen laesst, und wenn nicht, warum. ⭐ Liest DIESELBE Regel wie der
+	// Ruecknahme-Knopf am Fuss der Ansicht (garetienRuecknahmeBauen), formuliert sie nicht neu:
+	// zwei Fassungen derselben Auskunft laufen auseinander, und genau das hat dieses Fenster laut
+	// Auftrag schon mehrfach bezahlt.
+	function garetienEingefuegtWirdUebernommenHinweis(objekt) {
+		if (String((objekt && objekt.stand) || "") !== "uebernommen") { return ""; }
+		const ruecknahme = garetienRuecknahmeBauen(objekt);
+		const zusatz = ruecknahme.disabled
+			? ruecknahme.grund
+			: 'Kann mit „Zurücknehmen" wieder entfernt werden.';
+		return '<p class="gi-why">Liegt bereits auf der Karte. ' + avesmapsGaretienEscape(zusatz) + "</p>";
+	}
+
 	function garetienEingefuegtWirdMarkup(objekt) {
 		if (!objekt || !garetienEingefuegtWirdHatVorschlag(objekt)) { return ""; }
 		const ziel = String(objekt.ziel || "");
 		const subtyp = String(objekt.subtyp || "");
+		// 🔴 Punkt 6a: ein bereits UEBERNOMMENES Objekt ist angelegt -- hier gibt es nichts mehr zu
+		// entscheiden, und die Felder werden reine Anzeige (Owner: „die editoren sollen dann das
+		// objekt auf der karte editieren").
+		const uebernommen = String(objekt.stand || "") === "uebernommen";
 		let markup = '<p class="gi-sec">Eingefügt wird</p>'
-			+ '<p class="gi-why gi-insert__kopf">' + avesmapsGaretienEscape(garetienTypText(objekt)) + "</p>";
+			+ '<p class="gi-why gi-insert__kopf">' + avesmapsGaretienEscape(garetienTypText(objekt)) + "</p>"
+			+ garetienEingefuegtWirdUebernommenHinweis(objekt);
 		if (ziel === "region") {
-			markup += garetienEingefuegtWirdFlaecheMarkup(objekt);
-			markup += garetienEingefuegtWirdBeschriftungMarkup(objekt, subtyp, true);
+			markup += garetienEingefuegtWirdFlaecheMarkup(objekt, uebernommen);
+			markup += garetienEingefuegtWirdBeschriftungMarkup(objekt, subtyp, true, uebernommen);
 		} else if (ziel === "label") {
-			markup += garetienEingefuegtWirdBeschriftungMarkup(objekt, subtyp, false);
+			markup += garetienEingefuegtWirdBeschriftungMarkup(objekt, subtyp, false, uebernommen);
 		} else if (ziel === "location") {
 			markup += garetienEingefuegtWirdOrtMarkup(subtyp);
 		} else if (ziel === "path") {
@@ -4626,6 +4655,8 @@
 			// Aufgabe „Eingefügt wird" (30.08.2026)
 			garetienEingefuegtWirdHatVorschlag,
 			garetienEingefuegtWirdMarkup,
+			// Fuenf-Punkte-Brief 30.08.2026, Punkt 6b
+			garetienEingefuegtWirdUebernommenHinweis,
 			// Owner-Nachtrag 30.08.2026: die Weg-/Ort-Einstellungen ("vergiss nicht die andern
 			// einstellungen aus 'Weg bearbeiten', 'Ort bearbeiten' usw.")
 			garetienEingefuegtWirdZeileMitHinweis,

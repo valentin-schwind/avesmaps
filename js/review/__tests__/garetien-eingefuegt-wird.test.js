@@ -111,6 +111,7 @@ const mod = require(path.resolve(__dirname, "..", "review-garetien-importer.js")
 const {
 	garetienEingefuegtWirdHatVorschlag,
 	garetienEingefuegtWirdMarkup,
+	garetienEingefuegtWirdUebernommenHinweis,
 	garetienEingefuegtWirdZeileMitHinweis,
 	garetienWikiLandschaftZeileText,
 	garetienWikiLandschaftPlatzhalterId,
@@ -125,6 +126,8 @@ const {
 
 wahr(typeof garetienEingefuegtWirdHatVorschlag === "function", "garetienEingefuegtWirdHatVorschlag fehlt im Export");
 wahr(typeof garetienEingefuegtWirdMarkup === "function", "garetienEingefuegtWirdMarkup fehlt im Export");
+wahr(typeof garetienEingefuegtWirdUebernommenHinweis === "function",
+	"garetienEingefuegtWirdUebernommenHinweis fehlt im Export");
 wahr(typeof garetienEingefuegtWirdZeileMitHinweis === "function", "garetienEingefuegtWirdZeileMitHinweis fehlt im Export");
 wahr(typeof garetienWikiLandschaftZeileText === "function", "garetienWikiLandschaftZeileText fehlt im Export");
 wahr(typeof garetienEingabenZustandZu === "function", "garetienEingabenZustandZu fehlt im Export");
@@ -199,9 +202,10 @@ const mHuegel = garetienEingefuegtWirdMarkup(huegel);
 wahr(mHuegel.includes("Eingefügt wird"), "die Ueberschrift fehlt");
 // 🔴 Fuenf-Punkte-Brief 30.08.2026, Punkt 3: „huegelland" ist seither aufgeloest -- die Kopfzeile
 // zeigt „Hügelland" (avesmapsLabelArtName, js/ui/label-arten.js), nicht mehr den rohen Schluessel.
+// 🔴 Punkt 4: diese Kopfzeile ist die EINZIGE verbliebene Stelle -- im Kopf der Einzelansicht steht
+// sie seither nicht mehr (garetien-einzelansicht.test.js).
 wahr(mHuegel.includes("Huegel (garetien.de) → Hügelland (Avesmaps)"),
-	"die Kopfzeile nennt ihren Typ und UNSERE aufgeloeste Beschriftung des Zielsubtyps, wie im Kopf "
-	+ "der Einzelansicht");
+	"die Kopfzeile nennt ihren Typ und UNSERE aufgeloeste Beschriftung des Zielsubtyps");
 wahr(!mHuegel.includes("huegelland (Avesmaps)"),
 	"der rohe Schluessel darf nicht mehr in Klammern stehen -- nur noch die aufgeloeste Beschriftung");
 
@@ -809,6 +813,87 @@ async function pruefeWikiLandschaftVerdrahtung() {
 	wahr(seePlatzhalter.textContent.startsWith("!"),
 		'Owner-Wortlaut "typ nicht gefunden -> ausrufezeichen" -- das "!" steht am Anfang');
 }
+
+// =================================================================================================
+// M. Ein UEBERNOMMENES Objekt (Fuenf-Punkte-Brief 30.08.2026, Punkt 6) -- ALLE Felder werden reine
+//    Anzeige, UND ein Hinweis sagt, ob es sich zuruecknehmen laesst (und wenn nicht, warum).
+// =================================================================================================
+
+const huegelUebernommenFaehig = Object.assign({}, huegel, {
+	key: "ggp:Berge:Huegel:Garetien:Testhuegel-uebernommen-faehig",
+	stand: "uebernommen",
+	// Ein einzelnes 'new'-Item, bereits ANGEWENDET -- genau der Fall, den garetienRuecknahmeBauen
+	// als bedienbar einstuft (garetien-handlungen.test.js, Abschnitt N.1, wegUebernommen).
+	items: [{ id: 901, change_type: "new", anlass: null, apply_state: "done" }],
+});
+const mHuegelFaehig = garetienEingefuegtWirdMarkup(huegelUebernommenFaehig);
+
+// ---- 6a: der Kasten zeigt weiterhin die ECHTEN Steuerelemente -- nur DEAKTIVIERT, nicht entfernt
+// (ein Editor soll sehen, was beim Einfuegen galt, auch wenn er es hier nicht mehr aendern kann).
+wahr(mHuegelFaehig.includes('type="checkbox"') && mHuegelFaehig.includes('type="number"')
+	&& mHuegelFaehig.includes('type="range"'),
+	"der Kasten muss weiterhin die echten Steuerelemente zeigen -- nur deaktiviert, nicht entfernt");
+[
+	["isLocked", "Fläche/für Klicks gesperrt"], ["isNodix", "Nodix"],
+	["curveLabel", "Kurvenbeschreibung"], ["showName", "Auf Karte anzeigen"],
+].forEach(function ([feld, name]) {
+	gleich(istDeaktiviert(mHuegelFaehig, garetienEingabeId(huegelUebernommenFaehig, feld)), true,
+		"das Häkchen „" + name + "\" muss bei einem übernommenen Objekt deaktiviert sein");
+});
+["size", "priority", "minZoom", "maxZoom"].forEach(function (feld) {
+	gleich(istDeaktiviert(mHuegelFaehig, garetienEingabeId(huegelUebernommenFaehig, feld)), true,
+		"das Zahlenfeld „" + feld + "\" muss bei einem übernommenen Objekt deaktiviert sein");
+});
+
+// ---- DIE DIFFERENZ, ohne die die Zusicherungen oben Vakuum waeren: DASSELBE Objekt, NICHT
+// übernommen, hat dieselben Felder BEDIENBAR.
+const huegelOffen = Object.assign({}, huegel, { key: "ggp:Berge:Huegel:Garetien:Testhuegel-offen" });
+const mHuegelOffen = garetienEingefuegtWirdMarkup(huegelOffen);
+gleich(istDeaktiviert(mHuegelOffen, garetienEingabeId(huegelOffen, "isLocked")), false,
+	"ohne 'uebernommen' bleibt dasselbe Häkchen bedienbar -- die Zusicherungen oben prüfen wirklich etwas");
+gleich(istDeaktiviert(mHuegelOffen, garetienEingabeId(huegelOffen, "size")), false,
+	"ohne 'uebernommen' bleibt dasselbe Zahlenfeld bedienbar");
+
+// ---- 6b: der Hinweis, RÜCKNAHMEFÄHIGER Fall -- liest DIESELBE Regel wie der Rücknahme-Knopf am
+// Fuß der Ansicht (garetienRuecknahmeBauen), formuliert sie nicht neu.
+wahr(mHuegelFaehig.includes("Liegt bereits auf der Karte."),
+	"der Hinweis muss sagen, dass es schon auf der Karte liegt");
+wahr(mHuegelFaehig.includes("Zurücknehmen"),
+	"und dass es sich zurücknehmen lässt -- derselbe Knopfname wie am Fuß der Ansicht");
+gleich(garetienEingefuegtWirdUebernommenHinweis(huegelOffen), "",
+	"ohne 'uebernommen' gibt es keinen Hinweis -- er wäre eine Behauptung über etwas, das nicht gilt");
+
+// ---- 6b, DIE GEGENPROBE: NICHT rücknahmefähig -- WORTGLEICH zum Rücknahme-Knopf, nicht neu
+// formuliert (Owner: „Lies dieselbe Regel"). Derselbe Fall wie changedUebernommen in
+// garetien-handlungen.test.js: ein 'changed'-Item hat ein bestehendes Objekt verändert, und das
+// mitgelieferte 'new'-Zusatz-Item (Owner-Sprache: „trotzdem neu anlegen") wurde nie angewendet --
+// GENAU der Fall, der den Kasten trotzdem zeigt (er braucht nur IRGENDEIN 'new'-Item), aber keine
+// Rücknahme erlaubt.
+const huegelUebernommenUnfaehig = Object.assign({}, huegel, {
+	key: "ggp:Berge:Huegel:Garetien:Testhuegel-uebernommen-unfaehig",
+	stand: "uebernommen",
+	items: [
+		{ id: 902, change_type: "changed", felder: ["name"], apply_state: "done" },
+		{ id: 903, change_type: "new", anlass: "zusatz", apply_state: "offen" },
+	],
+});
+const mHuegelUnfaehig = garetienEingefuegtWirdMarkup(huegelUebernommenUnfaehig);
+wahr(mHuegelUnfaehig.includes("Liegt bereits auf der Karte."),
+	"auch hier steht, dass es schon auf der Karte liegt");
+wahr(mHuegelUnfaehig.includes("Verändert ein bestehendes Objekt — nicht rücknehmbar."),
+	"und WARUM es sich nicht zurücknehmen lässt -- wortgleich zum Rücknahme-Knopf am Fuß");
+gleich(
+	garetienEingefuegtWirdUebernommenHinweis(huegelUebernommenUnfaehig).includes(
+		mod.garetienRuecknahmeBauen(huegelUebernommenUnfaehig).grund
+	),
+	true,
+	"der Hinweis liest WIRKLICH garetienRuecknahmeBauen -- zwei Fassungen derselben Auskunft liefen "
+		+ "an diesem Fenster schon einmal auseinander"
+);
+// Die Felder bleiben deaktiviert -- die Sperre hängt am STAND ('uebernommen'), nicht daran, ob
+// sich das Objekt zurücknehmen lässt.
+gleich(istDeaktiviert(mHuegelUnfaehig, garetienEingabeId(huegelUebernommenUnfaehig, "isLocked")), true,
+	"die Felder bleiben deaktiviert, auch wenn das Objekt NICHT zurücknehmbar ist");
 
 pruefeWikiLandschaftVerdrahtung().then(function () {
 	console.log("garetien-eingefuegt-wird: " + checks + " Pruefungen bestanden.");
