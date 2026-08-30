@@ -3960,16 +3960,44 @@
 		});
 	}
 
+	// REIN: ein `data-key` als CSS-Attributwert. Die Schlüssel tragen `:` und `!`
+	// (`ggp:Gewaesser:Fluss:Garetien:Alling`) -- in Anführungszeichen ist das harmlos, nur
+	// Anführungszeichen und Rückwärtsstriche im Wert selbst müssten entkommen. Sie kommen heute
+	// nicht vor; die Funktion behandelt sie trotzdem, weil ein kaputter Selektor eine Ausnahme
+	// wirft und damit die ganze Auswahl abbräche.
+	function garetienKeySelektor(schluessel) {
+		return '[data-key="' + String(schluessel).replace(/["\\]/g, "\\$&") + '"]';
+	}
+
 	// Die gewählte Zeile wird SICHTBAR markiert -- `.avm-row.is-selected` ist die Hausform
 	// (editor-row.css), kein eigener Zustand daneben.
+	//
+	// 🔴 ZWEI ZUGRIFFE STATT EINER SCHLEIFE ÜBER ALLE ZEILEN. Seit die Seitengröße auf 10000 steht,
+	// trägt die Liste den ganzen Lauf; die alte Fassung ging bei JEDER Auswahl über 8212 Zeilen und
+	// rief 8212-mal `classList.toggle` -- für ein Ergebnis, das genau zwei Zeilen betrifft (die
+	// alte und die neue). Jetzt wird die alte über ihre Klasse gefunden und die neue über ihren
+	// Schlüssel.
+	//
+	// 🔴 UND DIE GEWÄHLTE ZEILE WIRD SICHTBAR GESCROLLT (Owner 30.08.2026: „ich will, dass die
+	// liste auch zur auswahl hinscrollt"). Der Anlass ist die Karte: wer dort ein Objekt anklickt,
+	// bekommt seine Einzelansicht -- und die zugehörige Zeile stand irgendwo unter 8000 anderen.
+	// ⚠️ `block: "nearest"` und NICHT "center": eine Zeile, die ohnehin im Bild steht, darf sich
+	// nicht bewegen. Sonst springt die Liste bei jedem Zeilenklick unter dem Finger weg.
+	// ⚠️ `scrollIntoView` wirkt auch auf Zeilen, die `content-visibility: auto` gerade übersprungen
+	// hat -- der Browser löst sie dafür auf. Genau deshalb ist dort `auto` und nicht `hidden`.
 	function garetienAuswahlMarkieren() {
 		if (!hasDocument) { return; }
 		const listeEl = document.getElementById("garetien-list");
 		if (!listeEl) { return; }
-		Array.prototype.forEach.call(listeEl.querySelectorAll(".avm-row"), function (zeile) {
-			zeile.classList.toggle("is-selected",
-				zustand.detailKey !== null && zeile.getAttribute("data-key") === zustand.detailKey);
-		});
+		const alt = listeEl.querySelector(".avm-row.is-selected");
+		if (alt) { alt.classList.remove("is-selected"); }
+		if (zustand.detailKey === null) { return; }
+		const neu = listeEl.querySelector(".avm-row" + garetienKeySelektor(zustand.detailKey));
+		if (!neu) { return; }
+		neu.classList.add("is-selected");
+		if (typeof neu.scrollIntoView === "function") {
+			neu.scrollIntoView({ block: "nearest" });
+		}
 	}
 
 	function garetienDetailWaehlen(schluessel, objekte) {
@@ -5385,6 +5413,8 @@
 			avesmapsGaretienKeineMarkieren,
 			garetienKeineMarkierenZustand,
 			garetienAlleZentrierenZustand,
+			garetienKeySelektor,
+			garetienAuswahlMarkieren,
 			garetienAlleZentrierenKnopfSetzen,
 			garetienKeineMarkierenKnopfSetzen,
 			// Meldung C (30.08.2026): „Markierte zurücknehmen" -- die Menge, symmetrisch zum

@@ -1586,7 +1586,13 @@ function attrappe14(id) {
 			id, innerHTML: "", textContent: "", dataset: {}, style: {}, hidden: false, disabled: false,
 			classList: { add() {}, remove() {}, toggle() {} },
 			addEventListener() {}, removeEventListener() {},
+			// ⚠️ BEIDE Sucher. Die Attrappe kannte lange nur `querySelectorAll`, weil das die
+			// damalige Fassung von garetienAuswahlMarkieren benutzte -- als sie am 30.08.2026 auf
+			// gezielte `querySelector`-Zugriffe umgestellt wurde (O(1) statt ein Lauf ueber 8212
+			// Zeilen), fiel dieser Test mit "is not a function" um. Eine Attrappe, die nur das
+			// kann, was ihr heutiger Aufrufer braucht, bricht beim naechsten.
 			querySelectorAll() { return []; },
+			querySelector() { return null; },
 			getAttribute() { return null; }, setAttribute() {},
 		});
 	}
@@ -1710,7 +1716,9 @@ function attrappe15(id) {
 			id, innerHTML: "", textContent: "", dataset: {}, style: {}, hidden: false, disabled: false,
 			classList: { add() {}, remove() {}, toggle() {} },
 			addEventListener() {}, removeEventListener() {},
+			// ⚠️ BEIDE Sucher -- siehe die Begruendung an der Zwillings-Attrappe weiter oben.
 			querySelectorAll() { return []; },
+			querySelector() { return null; },
 			getAttribute() { return null; }, setAttribute() {},
 		});
 	}
