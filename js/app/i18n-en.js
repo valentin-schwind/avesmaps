@@ -772,6 +772,7 @@ window.AVESMAPS_I18N_EN = {
 	"spotlight.labelType.berggipfel": "Peak",
 	"spotlight.labelType.vulkan": "Volcano",
 	"spotlight.labelType.wald": "Forest",
+	"spotlight.labelType.urwald": "Primeval Forest",
 	"spotlight.labelType.steppe": "Steppe",
 	"spotlight.labelType.huegelland": "Hills",
 	"spotlight.labelType.tal": "Valley",

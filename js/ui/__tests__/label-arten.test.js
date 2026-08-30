@@ -1,13 +1,18 @@
 // Die deutschen Namen der Label-Arten stehen an EINER Stelle (js/ui/label-arten.js) -- und diese
 // Stelle ist Zeichen fuer Zeichen das Auswahlfeld, aus dem ein Editor die Art waehlt.
 //
-// Zwei Zusicherungen, und die zweite ist die teurere:
+// Drei Zusicherungen, und die dritte ist die, die am 30.08.2026 gefehlt hat:
 //   1. Tabelle == #label-edit-type in index.html, in BEIDE Richtungen. Eine neue Art im
 //      Auswahlfeld ohne Eintrag hier (oder umgekehrt) faellt hier auf, nicht erst in der Suche.
 //   2. getSpotlightLabelTypeLabel benutzt die geteilte Tabelle WIRKLICH -- zur Laufzeit geprueft,
 //      indem der Test einen Eintrag austauscht und das Ergebnis mitwandern muss. "Die Datei ist
 //      eingebunden" ist erfuellt, auch wenn niemand sie ruft (die Lehre der Quellenkuerzung,
 //      AGENTS.md §11).
+//   3. Jede gesaete Landschaftsart (AVESMAPS_ECOSYSTEM_REGION_TYPE_SEED, ausser den Klimazonen)
+//      hat hier einen Namen. 💣 GENAU DAS FEHLTE: `urwald` kam am 29.08.2026 in den Seed und in
+//      die Speicher-Erlaubnis (avesmapsReadLabelSubtype), aber nicht ins Auswahlfeld -- und die
+//      zwei Zusicherungen oben blieben gruen, weil sie Tabelle und Markup nur GEGENEINANDER halten.
+//      Zwei deckungsgleiche Abschriften, denen dieselbe Art fehlt, sind deckungsgleich.
 const assert = require("node:assert");
 const fs = require("node:fs");
 const path = require("node:path");
@@ -82,5 +87,52 @@ const spion = spotlightKontext();
 vm.runInContext('AVESMAPS_LABEL_ART_NAMEN.vulkan = "AUSGETAUSCHT";', spion);
 assert.strictEqual(spion.getSpotlightLabelTypeLabel("vulkan"), "AUSGETAUSCHT",
 	"getSpotlightLabelTypeLabel muss die geteilte Tabelle wirklich lesen, nicht eine eigene Abschrift");
+
+// ---- 3. Jede gesaete Landschaftsart hat einen Namen -------------------------------------------
+// Der Subtyp eines Labels IST der Art-Schluessel seiner Flaeche (derselbe Satz steht ueber
+// avesmapsReadLabelSubtype, api/_internal/map/features.php). ecosystem-geometry-test.php haelt den
+// Seed deshalb schon gegen die SPEICHER-Erlaubnis -- diese Zusicherung ist die fehlende zweite
+// Haelfte: gegen das VOKABULAR. Eine Art, die sich speichern laesst, aber in keinem Auswahlfeld
+// steht und keinen Namen hat, ist an der Oberflaeche nicht vorhanden.
+//
+// 🔴 OHNE die Klimazonen, aus demselben Grund wie dort: ein Klimaband traegt kein Kartenlabel, sein
+// Name wird von der Ebene selbst gezeichnet. Sie hier aufzunehmen hiesse anzubieten, ein Label
+// „Tropische Zone" auf die oeffentliche Karte zu setzen.
+//
+// ⚠️ Verglichen werden SCHLUESSEL, nie Woerter: die Flaeche schreibt „Sümpfe und Moore", das Label
+// „Sümpfe & Moore" -- beide Schreibweisen sind gewollt und in kopfbild-eigene-arten.test.js
+// festgenagelt.
+//
+// ⚠️ Und nur DIESE Richtung ist eine Regel. Das Label-Vokabular ist echt groesser als der Seed --
+// gemessen 30.08.2026 stehen `berggipfel`, `ebene`, `fluss` und `vulkan` nur hier (Gipfel sind
+// Punkte, Fluesse Linien, und die Ebene hat keinen eigenen Reisefaktor). Die Gegenrichtung zu
+// erzwingen hiesse, jede dieser vier zu einer Flaechenart zu machen.
+const ecosystemPhp = fs.readFileSync(path.join(REPO, "api", "_internal", "app", "ecosystem.php"), "utf8")
+	.replace(/\r\n/g, "\n");
+const seedVon = ecosystemPhp.indexOf("const AVESMAPS_ECOSYSTEM_REGION_TYPE_SEED = [");
+assert.ok(seedVon >= 0, "der Arten-Seed muss in api/_internal/app/ecosystem.php auffindbar sein");
+// 🪤 Kommentarzeilen RAUS, bevor gesucht wird -- der Seed ist dicht kommentiert, und ein Beispiel in
+// einem Kommentar waere eine Art, die es gar nicht gibt (dieselbe Vorsichtsmassnahme wie in
+// kopfbild-eigene-arten.test.js).
+const seedRumpf = ecosystemPhp.slice(seedVon).split(/\n\s*\];/)[0]
+	.split("\n").filter((zeile) => !zeile.trim().startsWith("//")).join("\n");
+const gesaeteArten = [];
+for (const seedZeile of seedRumpf.matchAll(/\[\s*'(\w+)'\s*,\s*'(\w+)'\s*,\s*'[^']+'\s*,\s*\d+\s*\]/g)) {
+	gesaeteArten.push({ kind: seedZeile[1], key: seedZeile[2] });
+}
+assert.ok(gesaeteArten.length >= 30,
+	"der Seed muss wirklich gelesen worden sein, gefunden: " + gesaeteArten.length);
+assert.ok(gesaeteArten.some((art) => art.kind === "klima"),
+	"die Klimazonen muessen im gelesenen Seed stehen -- sonst prueft der Ausschluss unten nichts");
+
+for (const art of gesaeteArten) {
+	if (art.kind === "klima") { continue; }
+	assert.ok(Object.prototype.hasOwnProperty.call(AVESMAPS_LABEL_ART_NAMEN, art.key),
+		"die gesaete Landschaftsart \"" + art.key + "\" (" + art.kind + ") hat keinen Namen in "
+		+ "js/ui/label-arten.js und steht damit in keinem Auswahlfeld -- genau die Luecke, mit der "
+		+ "`urwald` am 29.08.2026 halb angekommen ist");
+}
+
+assert.strictEqual(avesmapsLabelArtName("urwald"), "Urwald", "der gemeldete Fall");
 
 console.log("label-arten.test.js: alle Zusicherungen erfuellt");
