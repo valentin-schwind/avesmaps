@@ -2190,6 +2190,147 @@
 	// Anfrage aus.
 	let _garetienWikiLandschaftLetzterKey = null;
 
+	// ---- KORREKTUR B (Owner-Nachtrag 30.08.2026, wörtlich: „kein automatischer Treffer nach
+	// Namen -> TROTZDEM WILL ICH DIE WIKI-SYNC SUCHE!"). Ein Objekt ohne automatischen Treffer ist
+	// GENAU der Fall, in dem ein Mensch suchen will -- die bisherige Zeile war eine Sackgasse.
+	//
+	// 🔴 ZWEI GEPRÜFTE UND VERWORFENE WEGE, BEIDE AN EINER ECHTEN, GEMESSENEN SCHRANKE GESCHEITERT:
+	// (a) `avesmapsWikiAssignMount` (js/ui/wiki-assign.js), Erklärung „landschaft" bzw.
+	//     „landschaftslabel" aus dem Feldregister (AGENTS.md §11, „Die Wiki-Zuweisung"). Die
+	//     Prüfung im Ordner js/ui/__tests__ zur geteilten Merkliste verlangt von JEDER Datei, die
+	//     eine dieser Erklärungen mit einem Kartenziel mountet, eine gefüllte UND ausgelieferte
+	//     Herkunfts-Meldung an den Server -- diese Regel existiert, weil eine vergessene Meldung
+	//     den nächsten Wiki-Abgleich echte Handarbeit überschreiben lässt (AGENTS.md §9/§11). Ein
+	//     Garetien-Vorschlag hat aber noch KEINE `public_id` -- es gibt nichts, das „von uns" oder
+	//     „vom Wiki" sein könnte, bevor „Neu einfügen" gedrückt wurde. Sie ehrlich zu erfüllen
+	//     bräuchte eine neue Schreibstrecke UND die Owner-Entscheidung „wessen Name/Art gewinnt,
+	//     wenn Garetien und Wiki sich widersprechen" -- ein neuer Schalter, den sich diese
+	//     Korrektur nicht selbst geben darf (AGENTS.md §9 „Editor bekommt zwei Schalter, nicht die
+	//     Werkstatt"). Siehe der Bericht dieser Aufgabe.
+	// (b) eine eigene, freie Suche gegen `/api/edit/wiki/regions.php?action=search` mit einem
+	//     eigenen `fetch(`-Aufruf. Diese DATEI prüft repoweit
+	//     (garetien-filtertrichter.test.js), dass sie GENAU EINEN `fetch(`-Aufruf enthält --
+	//     `avesmapsGaretienRufe` -- weil ein zweiter Netzweg an ihr vorbei genau die Divergenz
+	//     wäre, die diese Zusicherung verhindern soll.
+	//
+	// ⭐ STATTDESSEN: DIESELBE Server-Aktion, die die automatische Zeile daneben schon befragt
+	// (`wiki_landschaft`, avesmapsGaretienWikiLandschaftVorschlag) -- aber mit einem NAMEN, den
+	// der Editor selbst einträgt, statt dem Namen des Vorschlags. Sie geht durch DIESELBE
+	// `avesmapsGaretienRufe`, denselben Endpunkt und dieselbe Textbildung
+	// (`garetienWikiLandschaftZeileText`) wie die automatische Zeile -- kein zweiter Netzweg,
+	// keine zweite Formulierung, keine Behauptung, hier würde irgendetwas zugewiesen (die
+	// automatische Zeile war schon rein informativ: avesmapsGaretienFlaecheAnlegen schickt nie
+	// ein wiki_url mit).
+	//
+	// ⚠️ NUR FÜR `ziel==='region'` -- dieselbe Einschränkung wie bei der automatischen Zeile
+	// daneben (ein Berggipfel bekommt „Wiki-Landschaft" schon heute nicht, siehe
+	// garetien-eingefuegt-wird.test.js Abschnitt D).
+
+	// Der Stand je geöffnetem Objekt (Schlüssel) -- der zuletzt versuchte Name und sein Ergebnis.
+	// 🔴 ÖRTLICH, NICHT GESCHRIEBEN: ein Versuch ist eine Notiz für den Editor, keine Zuweisung
+	// (siehe oben). Er überlebt ein erneutes Zeigen derselben Zeile in dieser Sitzung, ein
+	// Fensterschließen/-neuöffnen verwirft ihn -- genau wie die automatische Zeile daneben, die
+	// bei jedem Öffnen neu fragt.
+	let _garetienWikiSucheZustand = {};
+
+	function garetienWikiSucheHostId(objekt) {
+		return "gi-wiki-suche-" + avesmapsGaretienEscape(String((objekt && objekt.key) || ""));
+	}
+
+	function garetienWikiSucheZustandZu(objekt) {
+		const key = String((objekt && objekt.key) || "");
+		if (!_garetienWikiSucheZustand[key]) {
+			_garetienWikiSucheZustand[key] = { name: "", laufendeSuche: 0, ergebnis: null, fehler: "" };
+		}
+		return _garetienWikiSucheZustand[key];
+	}
+
+	function garetienWikiSucheMarkup(objekt) {
+		const zustand = garetienWikiSucheZustandZu(objekt);
+		const ergebnisMarkup = zustand.ergebnis
+			? '<p class="gi-why">' + avesmapsGaretienEscape(garetienWikiLandschaftZeileText(zustand.ergebnis)) + "</p>"
+			: (zustand.fehler !== "" ? '<p class="gi-insert__hint">' + avesmapsGaretienEscape(zustand.fehler) + "</p>" : "");
+		return '<p class="gi-insert__hint">Ein abweichender Name kann trotzdem im Wiki stehen -- '
+			+ "hier lässt sich das mit einem anderen Namen prüfen (dieselbe Suche, ein anderer Name).</p>"
+			+ '<p class="gi-insert__row"><input type="search" class="gi-search" data-gws-suche '
+			+ 'placeholder="Anderen Namen im Wiki suchen …" value="' + avesmapsGaretienEscape(zustand.name) + '">'
+			+ ' <button type="button" class="btn" data-gws-suchen>Suchen</button></p>'
+			+ ergebnisMarkup;
+	}
+
+	function garetienWikiSucheZeichnen(host, objekt) {
+		host.innerHTML = garetienWikiSucheMarkup(objekt);
+	}
+
+	/**
+	 * Fragt `wiki_landschaft` mit dem vom Editor eingetragenen Namen -- dieselbe Aktion, derselbe
+	 * Netzweg (`avesmapsGaretienRufe`) wie die automatische Zeile, nur mit einem anderen Namen im
+	 * Rumpf. ⚠️ WIRFT/LEHNT AB statt still ein leeres Ergebnis zu zeigen: ein Fehlschlag muss sich
+	 * von „kein Treffer" unterscheiden (dieselbe Lehre wie am automatischen Aufruf daneben).
+	 */
+	function garetienWikiSucheAusfuehren(host, objekt, name) {
+		const zustand = garetienWikiSucheZustandZu(objekt);
+		zustand.name = name;
+		const meine = ++zustand.laufendeSuche;
+		avesmapsGaretienRufe(GARETIEN_ENDPUNKT, {
+			action: "wiki_landschaft",
+			name: name,
+			subtyp: String((objekt && objekt.subtyp) || ""),
+		}).then(function (antwort) {
+			if (meine !== zustand.laufendeSuche) { return; }
+			zustand.ergebnis = antwort.wiki_landschaft || null;
+			zustand.fehler = "";
+			garetienWikiSucheZeichnen(host, objekt);
+		}, function (fehler) {
+			if (meine !== zustand.laufendeSuche) { return; }
+			zustand.ergebnis = null;
+			zustand.fehler = "Suche fehlgeschlagen: " + String((fehler && fehler.message) || "Unbekannter Fehler.");
+			garetienWikiSucheZeichnen(host, objekt);
+		});
+	}
+
+	function garetienWikiSucheEinrichten(host, objekt) {
+		host.addEventListener("input", function (ereignis) {
+			const ziel = ereignis && ereignis.target;
+			if (!ziel || !ziel.hasAttribute || !ziel.hasAttribute("data-gws-suche")) { return; }
+			garetienWikiSucheZustandZu(objekt).name = ziel.value || "";
+		});
+		host.addEventListener("keydown", function (ereignis) {
+			const ziel = ereignis && ereignis.target;
+			if (!ziel || !ziel.hasAttribute || !ziel.hasAttribute("data-gws-suche")) { return; }
+			if (ereignis.key === "Enter") {
+				if (typeof ereignis.preventDefault === "function") { ereignis.preventDefault(); }
+				garetienWikiSucheAusfuehren(host, objekt, garetienWikiSucheZustandZu(objekt).name);
+			}
+		});
+		host.addEventListener("click", function (ereignis) {
+			const ziel = ereignis && ereignis.target;
+			if (!ziel || typeof ziel.closest !== "function") { return; }
+			const knopf = ziel.closest("[data-gws-suchen]");
+			if (knopf && host.contains(knopf)) {
+				garetienWikiSucheAusfuehren(host, objekt, garetienWikiSucheZustandZu(objekt).name);
+			}
+		});
+	}
+
+	/**
+	 * Zeigt die manuelle Suche NUR, wenn der automatische Treffer leer blieb (`kein_treffer`,
+	 * `mehrdeutig`) ODER die automatische Suche selbst fehlschlug -- aus Sicht des Editors ist ein
+	 * Fehlschlag ebenso „kein Treffer", und genau dann will er suchen können.
+	 */
+	function garetienWikiSucheBeiBedarfZeigen(objekt, status) {
+		if (!hasDocument) { return; }
+		const host = document.getElementById(garetienWikiSucheHostId(objekt));
+		if (!host) { return; }
+		if (status !== "kein_treffer" && status !== "mehrdeutig") {
+			host.hidden = true;
+			return;
+		}
+		host.hidden = false;
+		garetienWikiSucheEinrichten(host, objekt);
+		garetienWikiSucheZeichnen(host, objekt);
+	}
+
 	// Sucht bei Bedarf die Wiki-Landschaft für das GERADE GEÖFFNETE Objekt und trägt das Ergebnis
 	// in den Platzhalter ein -- über denselben Sender wie jeder andere Aufruf dieser Datei
 	// (avesmapsGaretienRufe, GARETIEN_ENDPUNKT) und dieselbe `.php`-Adresse, kein zweiter fetch(.
@@ -2205,12 +2346,15 @@
 			subtyp: String(objekt.subtyp || ""),
 		}).then(function (antwort) {
 			if (zustand.detailKey !== schluessel) { return; }
+			const urteil = antwort.wiki_landschaft || {};
 			const feld = document.getElementById(garetienWikiLandschaftPlatzhalterId(objekt));
-			if (feld) { feld.textContent = garetienWikiLandschaftZeileText(antwort.wiki_landschaft); }
+			if (feld) { feld.textContent = garetienWikiLandschaftZeileText(urteil); }
+			garetienWikiSucheBeiBedarfZeigen(objekt, String(urteil.status || ""));
 		}).catch(function () {
 			if (zustand.detailKey !== schluessel) { return; }
 			const feld = document.getElementById(garetienWikiLandschaftPlatzhalterId(objekt));
 			if (feld) { feld.textContent = "Suche fehlgeschlagen."; }
+			garetienWikiSucheBeiBedarfZeigen(objekt, "kein_treffer");
 		});
 	}
 
@@ -2240,7 +2384,10 @@
 		markup += garetienQuellenMarkup(objekt);
 		if (ziel === "region") {
 			markup += '<p class="gi-insert__row" id="' + garetienWikiLandschaftPlatzhalterId(objekt) + '">'
-				+ 'Wiki-Landschaft <span class="gi-insert__val">wird gesucht …</span></p>';
+				+ 'Wiki-Landschaft <span class="gi-insert__val">wird gesucht …</span></p>'
+				// KORREKTUR B: die manuelle Suche -- verborgen, bis der automatische Treffer oben als
+				// leer/mehrdeutig/fehlgeschlagen feststeht (garetienWikiSucheBeiBedarfZeigen).
+				+ '<div id="' + garetienWikiSucheHostId(objekt) + '" hidden></div>';
 		}
 		return '<div class="gi-insert">' + markup + "</div>";
 	}
@@ -4159,6 +4306,11 @@
 			garetienWikiLandschaftZeileText,
 			garetienWikiLandschaftPlatzhalterId,
 			garetienWikiLandschaftBeiBedarfLaden,
+			// KORREKTUR B (30.08.2026): die manuelle Wiki-Suche, wenn der automatische Treffer leer bleibt
+			garetienWikiSucheHostId,
+			garetienWikiSucheBeiBedarfZeigen,
+			garetienWikiSucheMarkup,
+			garetienWikiSucheZustandZu,
 			garetienAbschnittsItems,
 			garetienAbschnittsLage,
 			garetienAbschnittsBeschriftung,
