@@ -326,7 +326,23 @@ assert($e['quellen'] === 1);
 $q = $pdo->query('SELECT * FROM feature_sources')->fetch(PDO::FETCH_ASSOC);
 assert($q['origin'] === 'garetien', 'eigene Herkunft, damit ein spaeterer Lauf sie wiedererkennt');
 assert($q['entity_type'] === 'path' && $q['entity_public_id'] === $neu['public_id'], 'sie haengt am richtigen Objekt');
+// --- 🔴 OWNER-ENTSCHEID (30.08.2026, "leg sie in feature_sources.note ab"): seit sources.url der
+// WIRT ist (garetien.de/koschwiki.de), traegt die VERKNUEPFUNG die Export-Arbeitsseite -- die
+// einzige Stelle, an der ein Editor nach der Uebernahme noch nachsehen kann, VON WELCHER Seite ein
+// Objekt stammt. `sources.url` selbst bleibt der Wirt, siehe die Zusicherung an $s['url'] unten.
+assert(
+    $q['note'] === AVESMAPS_GARETIEN_BASIS_GGP . 'Garetien:Gardel',
+    'die Notiz traegt die Export-Arbeitsseite dieses Objekts: ' . var_export($q['note'], true)
+);
+$pruefungen++;
 $s = $pdo->query('SELECT * FROM sources')->fetch(PDO::FETCH_ASSOC);
+// 🔴 UND sources.url bleibt der WIRT -- die Export-Seite landet NICHT dort zurueck, sie steht
+// ausschliesslich in feature_sources.note (siehe oben).
+assert(
+    $s['url'] === 'https://www.garetien.de',
+    'sources.url bleibt der Wirt allein, ohne title=-Parameter: ' . var_export($s['url'], true)
+);
+$pruefungen++;
 assert(str_contains((string) $s['url'], 'garetien.de'), 'die Quelle zeigt auf den Wiki-Artikel');
 // 🔴 BRIEFSPIEL, kein eigener Typ -- garetien.de IST eines, und das Haus fuehrt die Form seit
 // langem. Die Lizenzangabe haengt deshalb am WIRT der Adresse, nicht am Typ: beide Wikis tragen
@@ -436,6 +452,18 @@ assert($qr !== false && $qr['entity_public_id'] === $label['public_id'],
 assert($qr['entity_public_id'] !== $region['public_id'],
     'und NICHT im ID-Raum der Region -- genau das war der Fehler (AGENTS.md §11: "die Quellen einer Landschaft liegen an ihrer BESCHRIFTUNG")');
 $pruefungen += 3;
+
+// --- 🔴 MISS DIE DIFFERENZ: ein zweites uebernommenes Objekt traegt eine ANDERE Notiz --
+// eine Konstante saehe hier genauso aus wie der richtige Wert.
+// ⚠️ 'Muehlsee' (ASCII), NICHT 'Mühlsee' -- die Fixture traegt den Artikelnamen (den Wiki-Slug)
+// und die Anzeige (den Namen mit Umlaut) getrennt (avesmapsGaretienPlanTestPdo: Spalte 'artikel'
+// vs. 'anzeige'); seite_url entsteht aus dem ARTIKEL, der Objektname aus der ANZEIGE.
+assert(
+    $qr['note'] === AVESMAPS_GARETIEN_BASIS_GGP . 'Garetien:Muehlsee',
+    'die Notiz des Sees nennt SEINE eigene Export-Seite: ' . var_export($qr['note'], true)
+);
+assert($qr['note'] !== $q['note'], 'zwei verschiedene Objekte tragen zwei verschiedene Notizen');
+$pruefungen += 2;
 
 // --- 🔴 EIN WIDERSPRUCH BLEIBT DRAUSSEN (Aufgabe 4). Der Seitenarm ist ein ZUFLUSS
 // (after.anlass = 'zufluss', keiner der drei Ausgaenge ergaenzung/umbenennung/geometrie) -- wird
@@ -1723,13 +1751,34 @@ avesmapsSyncPlanAddItem($pdoQ, $laufQ, [
     'after' => ['herkunft' => 'garetien', 'anlass' => 'ergaenzung', 'felder' => ['quelle'],
         'ziel' => 'path', 'subtyp' => 'Weg',
         'quelle' => ['url' => 'https://www.garetien.de/index.php?title=Garetien:Testpfad',
-            'label' => 'Briefspiel (Garetien)', 'license' => 'cc-by-nc-sa-3.0', 'attribution' => 'VolkoV / garetien.de']],
+            'label' => 'Briefspiel (Garetien)', 'license' => 'cc-by-nc-sa-3.0', 'attribution' => 'VolkoV / garetien.de'],
+        // Wie ein echter Plan sie mitfuehrt (avesmapsGaretienPlanEintrag) -- ein Geschwister von
+        // 'quelle', keine Unterangabe darin.
+        'seite_url' => 'https://www.garetien.de/index.php?title=Benutzer:VolkoV/MapSVG/Avesmaps_Garetien:Testpfad'],
     'override' => [], 'selected' => 1,
 ]);
 $itemWegQ = $itemIdVon($pdoQ, 'Testpfad Quelle · Quelle');
 $eWegQ = avesmapsGaretienUebernehmen($pdoQ, $laufQ, [$itemWegQ], ['id' => 7]);
 assert($eWegQ['fehler'] === [], 'die Quellen-Ergaenzung des Wegs gelingt: ' . json_encode($eWegQ, JSON_UNESCAPED_UNICODE));
 assert($eWegQ['quellen'] === 1, 'genau eine Quelle wurde angelegt');
+$pruefungen += 2;
+
+// --- 🔴 DIE VERKNUEPFUNG EINES ANDEREN ERZEUGERS BEKOMMT KEINE NOTIZ. Die manuelle Verknuepfung
+// oben ging NICHT ueber avesmapsGaretienQuelleAnlegen -- origin='garetien' ist die einzige, die
+// seite_url in note ablegt.
+$notizGaretien = $pdoQ->prepare(
+    "SELECT note FROM feature_sources WHERE entity_type = 'path' AND entity_public_id = ? AND origin = 'garetien'"
+);
+$notizGaretien->execute([$idWegQ]);
+assert(
+    $notizGaretien->fetchColumn() === 'https://www.garetien.de/index.php?title=Benutzer:VolkoV/MapSVG/Avesmaps_Garetien:Testpfad',
+    'die garetien-Verknuepfung traegt die Export-Arbeitsseite als Notiz'
+);
+$notizManuell = $pdoQ->prepare(
+    "SELECT note FROM feature_sources WHERE entity_type = 'path' AND entity_public_id = ? AND origin = 'manual'"
+);
+$notizManuell->execute([$idWegQ]);
+assert($notizManuell->fetchColumn() === null, 'die manuelle Verknuepfung bekommt KEINE Notiz -- anderer Erzeuger');
 $pruefungen += 2;
 
 $zaehleGaretienLinks = static function (PDO $pdo, string $entityType, string $publicId) {

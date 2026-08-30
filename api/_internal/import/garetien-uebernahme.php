@@ -138,8 +138,22 @@ function avesmapsGaretienGeoJsonNachHausvertrag(array $punkte): array
  * von jedem einzelnen Bach. Sie in jedes `label` zu schreiben waere exakt die Duplizierung, die
  * das Lore-Quellensystem eine Migration gekostet hat (AGENTS.md §5). Getragen wird sie vom
  * `source_type` -- die Infobox rendert dafuer EINMAL "Garetien.de, CC BY-NC-SA 3.0".
+ *
+ * 🔴 OWNER-ENTSCHEID (30.08.2026): seit `sources.url` der WIRT ist (garetien.de/koschwiki.de,
+ * nicht mehr VolkoVs Export-Arbeitsseite, siehe die Begruendung an `avesmapsGaretienWirtAusZeile`
+ * in garetien-plan.php), stand an einem uebernommenen Objekt nirgends mehr, VON WELCHER
+ * Export-Seite es stammt. Der Owner, woertlich: "leg sie in feature_sources.note ab". `$seiteUrl`
+ * ist deshalb `after.seite_url` aus dem Plan (nicht Teil von `$quelle` -- die beiden sind
+ * Geschwister im selben `$nach`-Array, siehe die Aufrufer). ⭐ KEINE NEUE SPALTE, KEINE ZWEITE
+ * TABELLE: `avesmapsFeatureSourceLink` traegt `note` bereits (AGENTS.md §5 fuehrt es neben
+ * `origin`/`reference_kind`/`pages` als Teil der Herkunftsangabe des Quellensystems).
+ *
+ * ⚠️ ES IST EINE HERKUNFTSANGABE, KEIN ZWEITER QUELLENLINK -- `note` wird von KEINEM Renderer
+ * angezeigt (weder `buildSourceListMarkup` noch der Quellen-Editor lesen das Feld; es reist nur
+ * unbenutzt im map-features-Payload mit, siehe `avesmapsLoadFeatureSourceRefs`). Eine sichtbare
+ * zweite Quelle war nicht der Auftrag.
  */
-function avesmapsGaretienQuelleAnlegen(PDO $pdo, string $entityType, string $publicId, array $quelle, int $userId): bool
+function avesmapsGaretienQuelleAnlegen(PDO $pdo, string $entityType, string $publicId, array $quelle, int $userId, string $seiteUrl = ''): bool
 {
     $url = trim((string) ($quelle['url'] ?? ''));
     if ($url === '') {
@@ -163,7 +177,11 @@ function avesmapsGaretienQuelleAnlegen(PDO $pdo, string $entityType, string $pub
     if ($sourceId <= 0) {
         return false;
     }
-    avesmapsFeatureSourceLink($pdo, $entityType, $publicId, $sourceId, $userId, AVESMAPS_GARETIEN_SOURCE_ORIGIN);
+    $seiteUrl = trim($seiteUrl);
+    avesmapsFeatureSourceLink(
+        $pdo, $entityType, $publicId, $sourceId, $userId,
+        AVESMAPS_GARETIEN_SOURCE_ORIGIN, null, null, $seiteUrl !== '' ? $seiteUrl : null
+    );
 
     return true;
 }
@@ -702,7 +720,10 @@ function avesmapsGaretienErgaenzungAnwenden(PDO $pdo, array $nach, string $publi
 
     $quellen = 0;
     if (in_array('quelle', $felder, true)
-        && avesmapsGaretienQuelleAnlegen($pdo, $entityType, $quellePublicId, (array) ($nach['quelle'] ?? []), $userId)) {
+        && avesmapsGaretienQuelleAnlegen(
+            $pdo, $entityType, $quellePublicId, (array) ($nach['quelle'] ?? []), $userId,
+            (string) ($nach['seite_url'] ?? '')
+        )) {
         $quellen = 1;
         $geschrieben++;
     }
@@ -1064,7 +1085,10 @@ function avesmapsGaretienUebernehmen(PDO $pdo, int $runId, array $itemIds, array
                 $quellePublicId = $ergebnis['label_public_id'];
             }
             $angelegt++;
-            if (avesmapsGaretienQuelleAnlegen($pdo, $entityType, $quellePublicId, (array) ($nach['quelle'] ?? []), $userId)) {
+            if (avesmapsGaretienQuelleAnlegen(
+                $pdo, $entityType, $quellePublicId, (array) ($nach['quelle'] ?? []), $userId,
+                (string) ($nach['seite_url'] ?? '')
+            )) {
                 $quellen++;
             }
             avesmapsGaretienItemAbschliessen($pdo, (int) $item['id'], 'done', $publicId);
