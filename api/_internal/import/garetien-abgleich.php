@@ -218,6 +218,33 @@ function avesmapsGaretienMappeTyp(string $typ): ?array
 }
 
 /**
+ * Ist DIESER Planeintrag ein Bach? -- die EINE Frage, zwei Leser (Arbeitsliste und Uebernahme).
+ *
+ * 💣 SIE DARF NICHT NUR AUF DAS GESPEICHERTE FELD SEHEN. `is_bach` entsteht beim RECHNEN und steht
+ * deshalb nur in Plaenen, die NACH dem 30.08.2026 gebaut wurden. Der Owner hat den Fall sofort
+ * gesehen: sein Lauf vom 29.08. zeigte fuer einen Bach weiter "Flussweg" und zwei angehakte
+ * Fluss-Verkehrsmittel -- die 143 Baeche waeren als BEFAHRBARE Fluesse in die Karte gegangen, also
+ * genau der Schaden, den das Haekchen verhindern soll. Ein Neurechnen des ganzen Laufs waere die
+ * teure Antwort auf ein Problem, das hier eine Zeile kostet.
+ *
+ * 🔴 GEFRAGT WIRD DIE ZUORDNUNGSTABELLE, NICHT `typ === 'Bach'`. AVESMAPS_GARETIEN_TYP_MAP
+ * entscheidet, was ein Bach ist; ein Zeichenkettenvergleich hier waere ihre zweite Fassung und
+ * liefe beim naechsten Quelltyp auseinander (dieselbe Lehre wie bei `kind` und `ziel`).
+ * ⚠️ Das GESPEICHERTE Feld hat trotzdem Vorrang: ein Plan beschreibt, was zum Zeitpunkt seines
+ * Baus galt, und das soll er auch dann noch sagen, wenn die Tabelle sich seither geaendert hat.
+ * Der Rueckfall gilt nur, wenn er gar nichts sagt.
+ */
+function avesmapsGaretienNachIstBach(array $nach): bool
+{
+    if (array_key_exists('is_bach', $nach)) {
+        return (bool) $nach['is_bach'];
+    }
+    $zuordnung = avesmapsGaretienMappeTyp((string) ($nach['typ'] ?? ''));
+
+    return is_array($zuordnung) && !empty($zuordnung['is_bach']);
+}
+
+/**
  * Liegt wenigstens EIN Punkt auf der Karte?
  *
  * ⚠️ Ein leeres Ergebnis heisst NICHT "nein". Verweis-Objekte (Flaechen aus Grenzzuegen) haben

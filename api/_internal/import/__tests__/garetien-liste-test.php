@@ -566,4 +566,30 @@ assert(($probefluss['is_bach'] ?? null) === false,
     'ein Fluss ohne Haekchen traegt false: ' . json_encode($probefluss['is_bach'] ?? '(fehlt)'));
 $pruefungen += 3;
 
+
+// 🔴 UND EIN ALTER PLANEINTRAG (ohne `is_bach`) muss ebenso als Bach ankommen -- der Owner-Befund
+// vom 30.08.2026: sein Lauf vom Vortag zeigte fuer einen Bach weiter zwei angehakte
+// Verkehrsmittel. Der Eintrag hier traegt NUR `typ`, kein Haekchen; das ist der ganze Punkt.
+avesmapsSyncPlanAddItem($pdo, 1, [
+    'entity_key' => 'ggp:Gewaesser:Bach:Garetien:Altbach',
+    'entity_public_id' => null,
+    'change_type' => 'new',
+    'label' => 'Altbach',
+    'after' => [
+        'typ' => 'Bach', 'wiki' => 'ggp', 'ebene' => 'Gewaesser', 'name' => 'Altbach',
+        'subtyp' => 'Flussweg', 'kind' => null, 'ziel' => 'path',
+        'geometry' => ['type' => 'LineString', 'coordinates' => [[9.0, 9.0], [11.0, 11.0]]],
+    ],
+    'selected' => 1,
+]);
+$mitAlt = avesmapsGaretienArbeitsliste($pdo, 1, []);
+$altbach = null;
+foreach ($mitAlt['objekte'] as $o) {
+    if ($o['key'] === 'ggp:Gewaesser:Bach:Garetien:Altbach') { $altbach = $o; }
+}
+assert($altbach !== null, 'der Altbach muss in der Liste stehen');
+assert(($altbach['is_bach'] ?? null) === true,
+    'ein Planeintrag OHNE gespeichertes Haekchen wird ueber die Zuordnungstabelle als Bach erkannt: '
+    . json_encode($altbach['is_bach'] ?? '(fehlt)'));
+$pruefungen += 2;
 echo "OK: {$pruefungen} Pruefungen\n";

@@ -1424,6 +1424,53 @@ assert(empty($flussZuordnung['is_bach']),
     'waehrend "Fluss" es NICHT setzt: ' . json_encode($flussZuordnung));
 $pruefungen += 3;
 // Uebersteuerung, wie sie das Fenster „Landschaften -> Darstellung" tatsaechlich speichert:
+
+// --- 🔴 DER ALTE PLAN (Owner-Befund 30.08.2026, an einem Bildschirmfoto seines Laufs vom 29.08.).
+// `is_bach` entsteht beim RECHNEN. Ein Lauf, der VOR dem 30.08.2026 gebaut wurde, traegt das Feld
+// nicht -- und zeigte den Bach deshalb weiter als gewoehnlichen Flussweg samt zwei angehakten
+// Verkehrsmitteln. Die 143 Baeche waeren als BEFAHRBARE Fluesse in die Karte gegangen, also genau
+// der Schaden, gegen den das Haekchen gebaut ist.
+// ⚠️ Der Eintrag hier hat KEIN `is_bach` -- das ist der ganze Punkt. Er trägt nur `typ`, und daraus
+// findet avesmapsGaretienNachIstBach ueber die Zuordnungstabelle zurueck.
+$alterBach = $baueWegEintrag('Flussweg', 'Altplan Bach', [[600.0, 600.0], [610.0, 610.0]]);
+$alterBach['after']['typ'] = 'Bach';
+assert(!array_key_exists('is_bach', $alterBach['after']),
+    'die Vorbedingung: der alte Planeintrag traegt das Feld NICHT -- sonst prueft dieser Block nichts');
+avesmapsSyncPlanAddItem($pdoNeu, $laufNeu, $alterBach);
+$alterId = $itemIdVon($pdoNeu, 'Altplan Bach (Probe)');
+avesmapsGaretienUebernehmen($pdoNeu, $laufNeu, [$alterId], ['id' => 7]);
+$alterProps = json_decode((string) $pdoNeu->query(
+    "SELECT properties_json FROM map_features WHERE name = 'Altplan Bach'"
+)->fetchColumn(), true);
+assert(($alterProps['is_bach'] ?? null) === true,
+    'auch ein ALTER Planeintrag wird als Bach angelegt: ' . json_encode($alterProps));
+assert(($alterProps['allowed_transports'] ?? null) === [],
+    'und traegt kein Verkehrsmittel: ' . json_encode($alterProps));
+$pruefungen += 3;
+
+// ⚠️ Gegenprobe: ein alter Eintrag mit `typ` = 'Fluss' bleibt befahrbar -- sonst belegte der Block
+// darueber nur, dass der Rueckfall IMMER 'Bach' sagt.
+$alterFluss = $baueWegEintrag('Flussweg', 'Altplan Fluss', [[620.0, 620.0], [630.0, 630.0]]);
+$alterFluss['after']['typ'] = 'Fluss';
+avesmapsSyncPlanAddItem($pdoNeu, $laufNeu, $alterFluss);
+avesmapsGaretienUebernehmen($pdoNeu, $laufNeu, [$itemIdVon($pdoNeu, 'Altplan Fluss (Probe)')], ['id' => 7]);
+$alterFlussProps = json_decode((string) $pdoNeu->query(
+    "SELECT properties_json FROM map_features WHERE name = 'Altplan Fluss'"
+)->fetchColumn(), true);
+assert(!array_key_exists('is_bach', $alterFlussProps),
+    'ein alter Fluss-Eintrag bekommt KEIN Haekchen: ' . json_encode($alterFlussProps));
+assert(count((array) ($alterFlussProps['allowed_transports'] ?? [])) === 2,
+    'und bleibt befahrbar: ' . json_encode($alterFlussProps));
+$pruefungen += 2;
+
+// 🔴 UND DAS GESPEICHERTE FELD HAT VORRANG vor dem Rueckfall: ein Plan beschreibt, was zum
+// Zeitpunkt seines Baus galt. Ein ausdrueckliches `false` an einem `typ` = 'Bach' bleibt `false`.
+assert(avesmapsGaretienNachIstBach(['typ' => 'Bach', 'is_bach' => false]) === false,
+    'ein ausdrueckliches false schlaegt den Rueckfall');
+assert(avesmapsGaretienNachIstBach(['typ' => 'Bach']) === true, 'ohne Feld entscheidet die Zuordnung');
+assert(avesmapsGaretienNachIstBach(['typ' => 'Fluss']) === false, 'und die sagt beim Fluss nein');
+assert(avesmapsGaretienNachIstBach([]) === false, 'ein Eintrag ganz ohne Typ ist kein Bach');
+$pruefungen += 4;
 // 'berggipfel' traegt eine VOLLSTAENDIGE, gueltige Zeile, 'vulkan' eine, die ausserhalb dessen
 // liegt, was ein Label ueberhaupt tragen darf (Groesse 4 < die 10 von avesmapsReadLabelSize; ein
 // invertiertes Zoomband, in der Darstellungstafel gueltig als "aus", hier keine gueltige Aussage
