@@ -216,6 +216,17 @@
 		return zustand.markiert.has(String(schluessel));
 	}
 
+	// ---- Owner-Auftrag B (30.08.2026): „Keines markieren" -- leert die MARKIERUNG, nicht die
+	// Anzeige. Dieselbe Trennung wie ueberall in diesem Abschnitt: „Anzeige leeren"
+	// (avesmapsGaretienAnzeigeLeeren) und „Keines markieren" sind zwei verschiedene Mengen, und ein
+	// Knopf, der beide zugleich leerte, verwischte genau die Trennung, die „Markieren aendert
+	// nichts" ausdruecklich haelt. Dieselbe Rueckgabe-Form wie avesmapsGaretienAnzeigeLeeren --
+	// die neue (immer leere) Groesse, nicht die vorherige.
+	function avesmapsGaretienKeineMarkieren() {
+		zustand.markiert.clear();
+		return zustand.markiert.size;
+	}
+
 	// „Markierte anzeigen": sie kommen ZUSAETZLICH in die Anzeige und BLEIBEN markiert und offen.
 	// ⚠️ Die Liste kommt HEREIN (Hausform in dieser Datei), damit sich am Ergebnis messen laesst,
 	// welche Objekte wirklich uebernommen wurden.
@@ -285,6 +296,37 @@
 		return stand;
 	}
 
+	// ---- Owner-Auftrag B (30.08.2026): „Keines markieren" -- neben „Alle markieren", derselbe
+	// Bau (REIN + DOM-Haelfte). 🔴 Gesperrt heisst hier NUR "nichts markiert" (Auftrag) -- anders
+	// als „Alle markieren" haengt sie an KEINEM Reiter: die Markierung ist filter-/reiterunabhaengig
+	// (dieselbe Menge, die „Markierte anzeigen" ueberall liest), also darf auch ihr Leeren auf
+	// jedem Reiter moeglich sein.
+	function garetienKeineMarkierenZustand(anzahlMarkiert) {
+		const anzahl = Number(anzahlMarkiert) || 0;
+		return {
+			anzahl: anzahl,
+			beschriftung: "Keines markieren",
+			gesperrt: anzahl === 0,
+			hinweis: anzahl === 0 ? "Nichts markiert — nichts zu leeren." : "",
+		};
+	}
+
+	function garetienKeineMarkierenKnopfSetzen(anzahlMarkiert) {
+		if (!hasDocument) { return null; }
+		const stand = garetienKeineMarkierenZustand(anzahlMarkiert);
+		const knopf = document.getElementById("garetien-mark-none");
+		if (knopf) {
+			knopf.textContent = stand.beschriftung;
+			knopf.disabled = stand.gesperrt;
+		}
+		const hinweisEl = document.getElementById("garetien-mark-none-hint");
+		if (hinweisEl) {
+			hinweisEl.textContent = stand.hinweis;
+			hinweisEl.hidden = stand.hinweis === "";
+		}
+		return stand;
+	}
+
 	function avesmapsGaretienFensterZustand() {
 		// Eine Kopie -- Aufrufer sollen den internen Zustand nicht direkt mutieren können.
 		return {
@@ -346,6 +388,10 @@
 		garetienUebernahmeKnopfSetzen(avesmapsGaretienAnzeigeListe());
 		// Aufgabe 10: ohne Lauf gibt es auch keine gerenderte Zeile -- und damit nichts zu markieren.
 		garetienAlleMarkierenKnopfSetzen([]);
+		// Owner-Auftrag B: „Keines markieren" haengt an KEINEM Lauf und KEINEM Reiter (siehe seine
+		// eigene Begruendung) -- die echte Groesse der Markierung wird hier trotzdem gemessen, nicht
+		// auf 0 gezwungen.
+		garetienKeineMarkierenKnopfSetzen(zustand.markiert.size);
 		// Meldung C (30.08.2026): ohne Lauf gibt es auch nichts Markiertes zurückzunehmen.
 		garetienRuecknahmeMengeKnopfSetzen([]);
 	}
@@ -905,6 +951,9 @@
 		// Aufgabe 10: „Alle markieren" traegt dagegen die Zahl der GERENDERTEN Zeilen -- `objekte`
 		// ist genau die aktuelle (gefilterte, gedeckelte) Ansicht, nicht die Anzeige-Menge.
 		garetienAlleMarkierenKnopfSetzen(objekte);
+		// Owner-Auftrag B: „Keines markieren" -- die ECHTE Groesse von `zustand.markiert`, unabhaengig
+		// vom Reiter (siehe ihre eigene Begruendung).
+		garetienKeineMarkierenKnopfSetzen(zustand.markiert.size);
 		// Meldung C (30.08.2026): „Markierte zurücknehmen" -- dieselbe gerenderte Liste, gefiltert
 		// auf `zustand.markiert` UND den Reiter „Übernommen" (innerhalb der Funktion selbst).
 		garetienRuecknahmeMengeKnopfSetzen(objekte);
@@ -4600,6 +4649,17 @@
 				garetienAnzeigeNeuZeichnen();
 			});
 		}
+		// Owner-Auftrag B (30.08.2026): „Keines markieren" -- derselbe Zug, nur leerend statt
+		// hinzufuegend. `garetienAnzeigeNeuZeichnen` zeichnet danach die Listenzeilen (ihr
+		// Markiert-Zustand) und die zwei Fussknoepfe neu, wie bei „Alle markieren".
+		const markKeinerBtn = hasDocument ? document.getElementById("garetien-mark-none") : null;
+		if (markKeinerBtn) {
+			markKeinerBtn.addEventListener("click", function () {
+				if (markKeinerBtn.disabled) { return; }
+				avesmapsGaretienKeineMarkieren();
+				garetienAnzeigeNeuZeichnen();
+			});
+		}
 		const markZeigenBtn = hasDocument ? document.getElementById("garetien-mark-show") : null;
 		if (markZeigenBtn) {
 			markZeigenBtn.addEventListener("click", function () {
@@ -4868,6 +4928,10 @@
 			avesmapsGaretienAlleMarkieren,
 			garetienAlleMarkierenZustand,
 			garetienAlleMarkierenKnopfSetzen,
+			// Owner-Auftrag B (30.08.2026): „Keines markieren"
+			avesmapsGaretienKeineMarkieren,
+			garetienKeineMarkierenZustand,
+			garetienKeineMarkierenKnopfSetzen,
 			// Meldung C (30.08.2026): „Markierte zurücknehmen" -- die Menge, symmetrisch zum
 			// Fußknopf „Einfügen".
 			garetienKetteAbarbeiten,

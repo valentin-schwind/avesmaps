@@ -3865,6 +3865,12 @@
 				     „Anzeigen", oder eine leere Liste) steht SICHTBAR daneben, nie nur im `title`. -->
 				<button class="btn" type="button" id="garetien-mark-all">Alle markieren</button>
 				<span class="gi-foot__hint" id="garetien-mark-all-hint" hidden></span>
+				<!-- Owner-Auftrag B (30.08.2026): „Neben 'Alle markieren (500)' braucht es auch noch
+				     'Keines markieren'." Leert `zustand.markiert`, weich (`.btn`), gesperrt mit
+				     sichtbarem Grund, wenn nichts markiert ist -- dieselbe Bauform wie „Alle markieren"
+				     direkt daneben. -->
+				<button class="btn" type="button" id="garetien-mark-none">Keines markieren</button>
+				<span class="gi-foot__hint" id="garetien-mark-none-hint" hidden></span>
 				<button class="btn" type="button" id="garetien-mark-show">Markierte anzeigen</button>
 				<button class="btn" type="button" id="garetien-anzeige-clear">Anzeige leeren</button>
 				<!-- Meldung C (30.08.2026, Owner): „zurücknehmen ist da, aber nicht 'Alle markieren

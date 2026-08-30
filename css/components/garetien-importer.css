@@ -972,3 +972,27 @@
 }
 
 .gi-acts__grund span { display: block; }
+
+/* ---- Owner-Auftrag A (30.08.2026): "Imports in der Naehe markieren" ----------------------- *
+ *
+ * 🔴 GESCHWISTER von `.gi-acts`, aus demselben Grund: sie ist Bedienung, keine Ansicht, und darf
+ *    nie unter der Handlungsleiste hinter der Bildlaufleiste von `.gi-detail` verschwinden --
+ *    sie ist deshalb NIE ihr Kind, sondern steht als eigener `flex: none`-Block im Markup direkt
+ *    danach ("unter den vorhandenen Knöpfen", Auftrag).
+ * 🔴 EIGENE Trennlinie (`border-top`), keine Fortsetzung derselben Zeile: sie beantwortet eine
+ *    ANDERE Frage als „Neu einfügen"/„Ablehnen" (nicht "was tun mit DIESEM Vorschlag", sondern
+ *    "was liegt sonst noch in der Nähe") -- Gruppierung durch Trennlinie, nicht durch einen
+ *    Rahmen (AGENTS.md §12).
+ */
+.gi-naehe {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: var(--space-2);
+}
+
+.gi-win .avm-col > .gi-naehe {
+	flex: none;
+	padding: var(--space-6) var(--space-10);
+	border-top: 1px solid var(--color-divider);
+}
