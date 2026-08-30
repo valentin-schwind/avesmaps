@@ -597,18 +597,21 @@ async function pruefeAnzeigeBereinigen() {
 	const standDrei = modul.garetienAlleMarkierenZustand([a, b, c], "offen");
 	gleich(standDrei.beschriftung, "Alle markieren (3)", "die Zahl der gerenderten Zeilen steht im Knopf");
 	gleich(standDrei.gesperrt, false, "auf dem Reiter „Offen\" ist er bedienbar");
-	gleich(standDrei.hinweis, "", "und ohne Hinweis");
 
-	// ---- Im Reiter „Anzeigen" ist er sinnlos und gesperrt, mit sichtbarem Grund --------------------
+	// ---- Im Reiter „Anzeigen" ist er sinnlos und gesperrt ------------------------------------------
 	const standAnzeigen = modul.garetienAlleMarkierenZustand([a, b, c], "anzeigen");
 	gleich(standAnzeigen.gesperrt, true, "auf „Anzeigen\" ist er gesperrt -- dort liegt ohnehin alles");
-	wahr(standAnzeigen.hinweis.length > 0, "und der Grund steht sichtbar da, wie bei Suche/Filter");
+	// 🔴 OHNE Hinweistext (Owner 30.08.2026: „verbraucht nur platz"). Beide Gruende sagten nur „hier
+	// gibt es nichts zu tun"; das sagt der graue Knopf mit seiner Zahl bereits. Festgenagelt, damit
+	// niemand versehentlich eine neue Zeile daneben einfuehrt.
+	gleich(standAnzeigen.hinweis, undefined, "der Zustand traegt gar keinen Hinweistext mehr");
 
-	// ---- Eine leere gerenderte Liste sperrt ihn ebenfalls, mit eigenem Grund -----------------------
+	// ---- Eine leere gerenderte Liste sperrt ihn ebenfalls ------------------------------------------
 	const standLeer = modul.garetienAlleMarkierenZustand([], "offen");
 	gleich(standLeer.gesperrt, true, "nichts in der Liste -- nichts zu markieren");
-	wahr(standLeer.hinweis.length > 0, "und auch das steht sichtbar da");
-	gleich(standLeer.beschriftung, "Alle markieren (0)", "und die Zahl sagt es ebenfalls");
+	gleich(standLeer.beschriftung, "Alle markieren (0)",
+		"und die Zahl im Knopf sagt es -- sie ist seit dem 30.08.2026 der einzige Traeger dieser "
+		+ "Auskunft, der Hinweistext daneben ist weg");
 }
 
 pruefeFussknopfHaeppchen().then(function () {

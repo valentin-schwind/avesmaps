@@ -3861,18 +3861,23 @@
 				     (js/review/review-garetien-importer.js), nicht mehr in garetienListeSkelettVerdrahten
 				     -- diese zwei Knöpfe stehen von Anfang an statisch hier, wie #garetien-apply selbst. -->
 				<!-- Aufgabe 10 (Owner 29.08.2026): „Alle markieren" markiert alle Zeilen der aktuellen
-				     Liste -- links von den beiden Knöpfen darüber, ebenso WEICH. Sein Grund (Reiter
-				     „Anzeigen", oder eine leere Liste) steht SICHTBAR daneben, nie nur im `title`. -->
+				     Liste -- links von den beiden Knöpfen darüber, ebenso WEICH.
+				     🔴 OHNE Hinweiszeile (Owner 30.08.2026): seine zwei Gründe sagten nur „hier gibt
+				     es nichts zu tun", und das sagt der graue Knopf samt seiner „(0)" bereits. -->
 				<button class="btn" type="button" id="garetien-mark-all">Alle markieren</button>
-				<span class="gi-foot__hint" id="garetien-mark-all-hint" hidden></span>
 				<!-- Owner-Auftrag B (30.08.2026): „Neben 'Alle markieren (500)' braucht es auch noch
-				     'Keines markieren'." Leert `zustand.markiert`, weich (`.btn`), gesperrt mit
-				     sichtbarem Grund, wenn nichts markiert ist -- dieselbe Bauform wie „Alle markieren"
-				     direkt daneben. -->
+				     'Keines markieren'." Leert `zustand.markiert`, weich (`.btn`), gesperrt, wenn nichts
+				     markiert ist -- dieselbe Bauform wie „Alle markieren" direkt daneben. -->
 				<button class="btn" type="button" id="garetien-mark-none">Keines markieren</button>
-				<span class="gi-foot__hint" id="garetien-mark-none-hint" hidden></span>
 				<button class="btn" type="button" id="garetien-mark-show">Markierte anzeigen</button>
 				<button class="btn" type="button" id="garetien-anzeige-clear">Anzeige leeren</button>
+				<!-- Owner 30.08.2026, wörtlich: „außerdem wär ein button mit 'Alle zentrieren'
+				     hilfreich, wo die ansicht auf alle in 'Anzeigen' gelisteten objekte zoomt
+				     (gemeinsamer mittelpunkt und vermutlich herauszoomt)". Weich wie seine Nachbarn --
+				     die eine gefüllte Handlung des Fensters bleibt „Angehakte übernehmen" (§12).
+				     🔴 Er misst die ANZEIGE-Menge, nicht die gerenderte Liste: er soll auf das zoomen,
+				     was wirklich auf der Karte liegt. Gesperrt, wenn dort nichts liegt. -->
+				<button class="btn" type="button" id="garetien-zentrieren-alle" disabled>Alle zentrieren</button>
 				<!-- Meldung C (30.08.2026, Owner): „zurücknehmen ist da, aber nicht 'Alle markieren
 				     zurücknehmen'" -- das Gegenstück zur Einzelzeile „Zurücknehmen", auf den MARKIERTEN
 				     (nicht der Anzeige-Menge), nur auf dem Reiter „Übernommen" bedienbar. `.btn--danger`

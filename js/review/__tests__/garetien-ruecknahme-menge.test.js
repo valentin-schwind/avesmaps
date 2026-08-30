@@ -163,11 +163,14 @@ const objC = { key: "c", stand: "uebernommen", items: [{ id: 103, change_type: "
 		"💣 Zusicherung 1 des Auftrags: „2 von 3\"");
 	gleich(zustand1.gesperrt, false, "2 ruecknehmbare -> offen");
 
-	// Nur auf dem Reiter „Übernommen" bedienbar -- sonst gesperrt, mit SICHTBAREM Grund (nie ein
-	// `title`: ein deaktiviertes Element bekommt in Chrome keine Zeigerereignisse).
+	// Nur auf dem Reiter „Übernommen" bedienbar -- sonst gesperrt.
+	// 🔴 OHNE Hinweistext seit dem 30.08.2026 (Owner: „verbraucht nur platz"): „Nur im Reiter
+	// Übernommen verfügbar." sagte nur, dass hier nichts zu tun ist -- das sagt der graue Knopf
+	// samt seinem „(0 von 0)". Der DRITTE Grund weiter unten bleibt, weil er das Gegenteil
+	// erklärt.
 	const zustandFalscherReiter = garetienRuecknahmeMengeZustand([objA, objB, objC], "offen");
 	gleich(zustandFalscherReiter.gesperrt, true, "auf jedem anderen Reiter gesperrt");
-	gleich(zustandFalscherReiter.hinweis, "Nur im Reiter „Übernommen“ verfügbar.");
+	gleich(zustandFalscherReiter.hinweis, "", "und ohne Hinweistext");
 
 	// Nichts markiert -> gesperrt, eigener Grund.
 	entmarkieren("a");
@@ -176,7 +179,7 @@ const objC = { key: "c", stand: "uebernommen", items: [{ id: 103, change_type: "
 	const zustandLeer = garetienRuecknahmeMengeZustand([objA, objB, objC], "uebernommen");
 	gleich(zustandLeer.markiert, 0, "keine Markierung mehr");
 	gleich(zustandLeer.gesperrt, true);
-	gleich(zustandLeer.hinweis, "Nichts markiert — „Alle markieren“ markiert die Zeilen dieser Liste.");
+	gleich(zustandLeer.hinweis, "", "ebenfalls ohne Hinweistext -- die Zahl im Knopf sagt es");
 
 	// Nur ein 'changed'-Objekt markiert -> markiert>0, aber ruecknehmbar=0, eigener Grund.
 	markieren("c");

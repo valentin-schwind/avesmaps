@@ -240,6 +240,18 @@
 	 */
 	var AVESMAPS_GARETIEN_FELD_NUR_IHRE = "nur_ihre";
 
+	/*
+	 * Und dasselbe fuer „das ist die gerade GEWAEHLTE Zeile" (Owner 30.08.2026, an einem
+	 * Bildschirmfoto: „kannst du einer selektierten Flaeche einen durchgehende kontur geben
+	 * (anstelle der gestrichelten)").
+	 *
+	 * 💣 GEKOPPELTER WERT IN ZWEI DATEIEN, gesetzt in review-garetien-importer.js
+	 * (garetienGewaehltStempeln), gelesen hier -- dieselbe Begruendung und derselbe Waechter wie
+	 * beim Feld darueber.
+	 * 🔴 ENTSCHIEDEN WIRD IM FENSTER: der Zeichner weiss nicht, WELCHE Zeile offen ist.
+	 */
+	var AVESMAPS_GARETIEN_FELD_GEWAEHLT = "gewaehlt";
+
 	// 💣 DIE EBENENGRUPPE IST DER ZUSTAND — kein Schalter, keine Liste, kein „ist offen" daneben,
 	// das auseinanderlaufen koennte. Gezeichnet wird immer: erst alles abraeumen, dann alles neu.
 	var gruppe = null;
@@ -992,6 +1004,8 @@
 				breite: sicht.breite,
 				// Aufgabe 4 (Entwurf §4.2): kollidiert das GANZE Objekt, glueht auch IHR Hof rot.
 				kollidiert: avesmapsGaretienKollidiert(objekt),
+				// Owner 30.08.2026: die GEWAEHLTE Zeile zeichnet durchgehend statt gestrichelt.
+				gewaehlt: objekt && objekt[AVESMAPS_GARETIEN_FELD_GEWAEHLT] === true,
 				// 30.08.2026: dasselbe Ziel wie bei „unsere" -- die Werte haengen NICHT von `sicht`
 				// ab (die kennt nur Form/Farbe/Breite), sondern direkt vom Objekt.
 				deckkraft: garetienFlaechenDeckkraft(objekt),
@@ -1023,6 +1037,15 @@
 		// Die Strichelung BLEIBT -- sie haengt an der Kante, nicht an der Farbe, und sagt weiterhin
 		// „das ist ihre Fassung, sie steht noch nicht bei uns"; ein Ring traegt sie deshalb genauso
 		// wie eine Linie.
+		//
+		// 🔴 MIT GENAU EINER AUSNAHME (Owner 30.08.2026): die gerade GEWAEHLTE Zeile zeichnet
+		// DURCHGEHEND. Auf einer Karte voller gestrichelter Importe war nicht zu sehen, welche
+		// Flaeche zu der Zeile gehoert, die man gerade offen hat -- und genau das Vergleichen ist
+		// der Zweck dieses Fensters.
+		// ⚠️ Die Aussage der Strichelung geht dabei NICHT verloren: sie tritt fuer EIN Objekt
+		// zurueck, und zwar fuer das, dessen Einzelansicht daneben aufgeschlagen ist und in Worten
+		// sagt, was es ist. Die Farbe (ihre Partei) bleibt unberuehrt -- sie ist die Aussage, die
+		// nie zurueckstehen darf.
 		ihre.forEach(function (eintrag) {
 			var form = garetienForm(l, eintrag.punkte, {
 				pane: AVESMAPS_GARETIEN_IHRE_PANE,
@@ -1031,7 +1054,7 @@
 				breite: eintrag.breite,
 				deckkraft: 1,
 				flaeche: eintrag.flaeche,
-				strichelung: AVESMAPS_GARETIEN_STRICHELUNG,
+				strichelung: eintrag.gewaehlt ? null : AVESMAPS_GARETIEN_STRICHELUNG,
 				titel: eintrag.titel,
 				durchmesser: eintrag.durchmesser,
 				fuellwert: eintrag.deckkraft,
@@ -1062,6 +1085,40 @@
 		if (!k || !l || typeof l.latLngBounds !== "function") { return null; }
 		var punkte = avesmapsGaretienNachLeaflet((objekt || {}).geometrie);
 		if (punkte.length === 0) { garetienGeometrieFehlt(objekt, null); return null; }
+		return garetienFliegenAuf(k, l, punkte);
+	}
+
+	/*
+	 * „Alle zentrieren" (Owner 30.08.2026) — die Ansicht zoomt auf ALLE uebergebenen Objekte
+	 * zusammen, also auf den gemeinsamen Kasten der Anzeige-Menge.
+	 *
+	 * 🔴 EIN KASTEN AUS ALLEN PUNKTEN, kein gerechneter Mittelpunkt mit geratener Zoomstufe:
+	 * `fitBounds` bestimmt beides selbst und trifft auch den Fall, in dem die Objekte sehr
+	 * ungleich verteilt liegen (ein Ausreisser weit im Norden zoege einen Mittelpunkt dorthin,
+	 * waehrend der Kasten einfach groesser wird).
+	 * ⚠️ Objekte OHNE Geometrie werden ueberSPRUNGEN, nicht gemeldet: bei einem Einzelflug ist eine
+	 * fehlende Geometrie ein Befund (der Knopf taete sonst nichts), hier ist sie einer von vielen --
+	 * eine Warnung je Objekt waere bei 300 Zeilen eine Wand aus Meldungen.
+	 * 🔴 Ohne einen einzigen Punkt wird NICHT geflogen und `null` zurueckgegeben: eine Karte auf
+	 * einen leeren Kasten zu zwingen, springt in Leaflet an eine unbestimmte Stelle.
+	 */
+	function avesmapsGaretienKarteAlleZentrieren(objekte, karte) {
+		var k = garetienKarte(karte);
+		var l = garetienLeaflet();
+		if (!k || !l || typeof l.latLngBounds !== "function") { return null; }
+		var alle = [];
+		(objekte || []).forEach(function (objekt) {
+			var punkte = avesmapsGaretienNachLeaflet((objekt || {}).geometrie);
+			for (var i = 0; i < punkte.length; i++) { alle.push(punkte[i]); }
+		});
+		if (alle.length === 0) { return null; }
+		return garetienFliegenAuf(k, l, alle);
+	}
+
+	// Der gemeinsame Schluss beider Fluege -- dieselbe Polsterung, dieselbe Vorliebe fuer
+	// `flyToBounds`. 🪤 In der Browser-Flaeche wirft JEDER Leaflet-Flug NaN (Artefakt der Flaeche,
+	// kein Fehler hier); `fitBounds` an derselben Stelle ist die Kontrollprobe.
+	function garetienFliegenAuf(k, l, punkte) {
 		var kasten = l.latLngBounds(punkte);
 		var optionen = { padding: [40, 40] };
 		if (typeof k.flyToBounds === "function") { k.flyToBounds(kasten, optionen); }
@@ -1155,6 +1212,7 @@
 		// ohne diese Datei lauffaehig — der Importer laeuft auch auf Seiten ohne Karte.
 		window.avesmapsGaretienKarteZeigen = avesmapsGaretienKarteZeigen;
 		window.avesmapsGaretienKarteFliegen = avesmapsGaretienKarteFliegen;
+		window.avesmapsGaretienKarteAlleZentrieren = avesmapsGaretienKarteAlleZentrieren;
 		window.avesmapsGaretienKarteAus = avesmapsGaretienKarteAus;
 		window.avesmapsGaretienKarteSicht = avesmapsGaretienKarteSicht;
 		window.avesmapsGaretienKarteUmschalten = avesmapsGaretienKarteUmschalten;
@@ -1177,6 +1235,7 @@
 			garetienTitelUnsere,
 			avesmapsGaretienKarteZeigen,
 			avesmapsGaretienKarteFliegen,
+			avesmapsGaretienKarteAlleZentrieren,
 			avesmapsGaretienKarteSicht,
 			avesmapsGaretienKarteUmschalten,
 			avesmapsGaretienKarteAus,
@@ -1191,6 +1250,7 @@
 			AVESMAPS_GARETIEN_PARTEI_IHRE,
 			AVESMAPS_GARETIEN_PARTEI_UNSERE,
 			AVESMAPS_GARETIEN_FELD_NUR_IHRE,
+			AVESMAPS_GARETIEN_FELD_GEWAEHLT,
 			// Aufgabe 3: die Sicht-Tafel (Entwurf §4.1)
 			avesmapsGaretienSichtFuer,
 			AVESMAPS_GARETIEN_SICHT_EBENE,

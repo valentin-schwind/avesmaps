@@ -20,11 +20,12 @@ const modul = require(path.resolve(__dirname, "..", "review-garetien-importer.js
 const leer = modul.garetienKeineMarkierenZustand(0);
 gleich(leer.beschriftung, "Keines markieren", "die Beschriftung traegt keine Zahl -- anders als „Alle markieren\"");
 gleich(leer.gesperrt, true, "ohne eine einzige Markierung ist nichts zu leeren");
-wahr(leer.hinweis.length > 0, "und der Grund steht SICHTBAR daneben, nie nur im `title`");
+// 🔴 OHNE Hinweistext (Owner 30.08.2026: „verbraucht nur platz") -- „Nichts markiert — nichts zu
+// leeren." sagte nur, was der graue Knopf schon sagt.
+gleich(leer.hinweis, undefined, "der Zustand traegt gar keinen Hinweistext mehr");
 
 const voll = modul.garetienKeineMarkierenZustand(3);
 gleich(voll.gesperrt, false, "mit mindestens einer Markierung ist der Knopf bedienbar");
-gleich(voll.hinweis, "", "und dann ohne Hinweis");
 gleich(voll.beschriftung, "Keines markieren", "die Beschriftung bleibt gleich -- sie zeigt keine Zahl");
 
 gleich(modul.garetienKeineMarkierenZustand().gesperrt, true, "ganz ohne Argument gilt dasselbe wie 0");

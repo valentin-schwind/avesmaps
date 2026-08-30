@@ -1967,4 +1967,87 @@ wahr(!mitAuswahl[0][NUR_IHRE],
 importer.garetienDetailWaehlen(null, []);
 importer.avesmapsGaretienAnzeigeLeeren();
 
+
+// =================================================================================================
+// Owner 30.08.2026, an einem Bildschirmfoto: „kannst du einer selektierten Flaeche einen
+// durchgehende kontur geben (anstelle der gestrichelten)". Auf einer Karte voller gestrichelter
+// Importe war nicht zu sehen, welche Flaeche zu der offenen Zeile gehoert.
+// =================================================================================================
+
+// 💣 DERSELBE GEKOPPELTE WERT IN ZWEI DATEIEN wie NUR_IHRE oben -- und dieselbe Falle: laeuft er
+// auseinander, zeichnet einfach nichts durchgehend, ohne dass irgendwo ein Fehler entsteht.
+gleich(mod.AVESMAPS_GARETIEN_FELD_GEWAEHLT, importer.AVESMAPS_GARETIEN_FELD_GEWAEHLT,
+	"Zeichner und Fenster muessen dasselbe Feld meinen");
+wahr(typeof mod.AVESMAPS_GARETIEN_FELD_GEWAEHLT === "string"
+	&& mod.AVESMAPS_GARETIEN_FELD_GEWAEHLT.length > 0,
+	"und es muss ein echter Feldname sein, sonst vergleicht die Zeile darueber zwei undefined");
+// ⚠️ Und er darf NICHT derselbe sein wie NUR_IHRE -- ein Objekt kann beides zugleich sein.
+wahr(mod.AVESMAPS_GARETIEN_FELD_GEWAEHLT !== mod.AVESMAPS_GARETIEN_FELD_NUR_IHRE,
+	"die zwei Marken duerfen sich nicht denselben Feldnamen teilen");
+
+// --- Das Fenster stempelt GENAU die offene Zeile, und zwar auf einer KOPIE.
+const GEWAEHLT = mod.AVESMAPS_GARETIEN_FELD_GEWAEHLT;
+importer.avesmapsGaretienAnzeigeLeeren();
+const objOffen = { key: "gw:1", name: "Offen", geometrie: [[10, 10]], items: [] };
+const objDaneben = { key: "gw:2", name: "Daneben", geometrie: [[20, 20]], items: [] };
+importer.avesmapsGaretienAnzeigeHinzufuegen([objOffen, objDaneben]);
+
+const ohneAuswahlGw = importer.avesmapsGaretienAufDerKarte([objOffen, objDaneben]);
+wahr(!ohneAuswahlGw.some((o) => o && o[GEWAEHLT]),
+	"Zeuge: ohne offene Zeile traegt KEIN Objekt die Marke -- sonst misst die Zeile darunter nichts");
+
+importer.garetienDetailWaehlen("gw:1", [objOffen, objDaneben]);
+const mitAuswahlGewaehlt = importer.avesmapsGaretienAufDerKarte([objOffen, objDaneben]);
+const gestempelt = mitAuswahlGewaehlt.filter((o) => o && o[GEWAEHLT] === true);
+gleich(gestempelt.length, 1, "genau EIN Objekt traegt die Marke");
+gleich(gestempelt[0].key, "gw:1", "und zwar das geoeffnete");
+// 🔴 DIE KOPIE-REGEL: das Original darf die Marke NICHT tragen. Anzeige-Menge und `zustand.objekte`
+// halten dieselbe Referenz -- ein Stempel am Original schriebe sich bis in die Listenzeile durch.
+wahr(!objOffen[GEWAEHLT], "gestempelt wird eine KOPIE, nie das Objekt der Anzeige-Menge");
+
+// 💣 UND DER ZWEITE WEG HINEIN: ein geoeffnetes Objekt, das NICHT in der Anzeige-Menge liegt, wird
+// von avesmapsGaretienAufDerKarte angehaengt -- es muss die Marke genauso bekommen. Eine
+// Mutationsprobe hat gezeigt, dass ein Test ueber nur einen der beiden Wege den anderen ungeprueft
+// laesst; seither hat die Funktion nur noch EINEN Ausgang, und diese Zeile haelt das fest.
+importer.garetienDetailWaehlen(null, []);
+importer.avesmapsGaretienAnzeigeLeeren();
+const objNurOffen = { key: "gw:3", name: "Nur offen", geometrie: [[30, 30]], items: [] };
+importer.garetienDetailWaehlen("gw:3", [objNurOffen]);
+const angehaengt = importer.avesmapsGaretienAufDerKarte([objNurOffen]);
+gleich(angehaengt.length, 1, "es liegt genau das eine, angehaengte Objekt auf der Karte");
+gleich(angehaengt[0][GEWAEHLT], true,
+	"auch der ANGEHAENGTE Weg stempelt -- sonst zeichnete ein frisch angeklicktes Objekt, das noch "
+	+ "nicht in der Anzeige-Menge liegt, weiter gestrichelt");
+wahr(!objNurOffen[GEWAEHLT], "und auch hier wird eine KOPIE gestempelt");
+importer.garetienDetailWaehlen(null, []);
+importer.avesmapsGaretienAnzeigeLeeren();
+
+// --- Und der Zeichner macht daraus eine durchgehende Kontur.
+// 🔴 Gemessen wird das, was wirklich an Leaflet geht: `dashArray`. Ein Test ueber „das Feld kommt
+// an" waere Vakuum -- die Frage ist, ob die Strichelung verschwindet. Gefahren wird auf DEMSELBEN
+// Pruefstand wie oben (gefaelschteKarte + avesmapsGaretienKarteZeigen), nicht auf einem zweiten.
+const kartGw = gefaelschteKarte();
+const blutmoorGewaehlt = Object.assign({}, blutmoor);
+blutmoorGewaehlt[GEWAEHLT] = true;
+avesmapsGaretienKarteZeigen([natter, blutmoorGewaehlt], kartGw);
+
+const ihreFormen = nach(kartGw, IHRE);
+gleich(ihreFormen.length, 2, "beide Objekte bekommen ihre Form -- sonst misst die Zeile darunter nichts");
+const gestrichelte = ihreFormen.filter((e) => !!e.options.dashArray);
+const durchgehende = ihreFormen.filter((e) => !e.options.dashArray);
+gleich(durchgehende.length, 1, "GENAU die gewaehlte Form zeichnet durchgehend");
+gleich(gestrichelte.length, 1,
+	"und die andere bleibt gestrichelt -- ohne diesen Zeugen belegte die Zeile darueber nur, dass "
+	+ "die Strichelung ueberall verschwunden ist");
+
+// ⚠️ Die FARBE bleibt unberuehrt: sie ist die Aussage „ihre Partei" und darf nie zuruecktreten --
+// zurueck tritt NUR die Strichelung, und nur fuer das eine Objekt, dessen Einzelansicht daneben
+// aufgeschlagen ist. Gemessen an der Farbe, die derselbe Aufruf OHNE Marke liefert.
+const kartOhne = gefaelschteKarte();
+avesmapsGaretienKarteZeigen([natter, blutmoor], kartOhne);
+const blutmoorOhne = nach(kartOhne, IHRE).filter((e) => !!e.options.dashArray)
+	.map((e) => e.options.color);
+wahr(blutmoorOhne.indexOf(durchgehende[0].options.color) !== -1,
+	"die gewaehlte Form traegt dieselbe Farbe wie ohne Marke -- nur die Strichelung faellt weg");
+
 console.log(`garetien-karte: ${checks} Pruefungen bestanden.`);

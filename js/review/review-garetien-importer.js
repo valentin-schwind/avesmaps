@@ -126,6 +126,11 @@
 	 */
 	const AVESMAPS_GARETIEN_FELD_NUR_IHRE = "nur_ihre";
 
+	// Und dasselbe für „das ist die gerade GEWÄHLTE Zeile" (Owner 30.08.2026: „kannst du einer
+	// selektierten Fläche einen durchgehende kontur geben"). 💣 Ebenfalls ein gekoppelter Wert in
+	// ZWEI Dateien, aus derselben Begründung wie oben -- und von demselben Test zusammengehalten.
+	const AVESMAPS_GARETIEN_FELD_GEWAEHLT = "gewaehlt";
+
 	// ---- Die Anzeige-Menge ------------------------------------------------------------------------
 	//
 	// 🔴 CLIENT-SEITIG, und das ist eine Bedingung, keine Bequemlichkeit: eine Server-Tabelle dafuer
@@ -297,21 +302,23 @@
 	// REIN: Beschriftung + Sperre des Knopfes „Alle markieren" -- er trägt die Zahl der GERENDERTEN
 	// Zeilen (Brief: „trägt seine Zahl, wie der Fußknopf sein 'n von m'"), nie die des ganzen Laufs.
 	// 🔴 Im Reiter „Anzeigen" ist er sinnlos (dort liegt ohnehin alles auf der Karte) -- gesperrt,
-	// mit sichtbarem Grund, wie Suche und Filtertrichter dort schon gesperrt sind (RULING R7).
+	// wie Suche und Filtertrichter dort schon gesperrt sind (RULING R7).
+	//
+	// 🔴 OHNE HINWEISTEXT, seit dem 30.08.2026 (Owner: „kannst du so kommentare wie … entfernen?
+	// verbraucht nur platz"). Beide Gründe, die hier standen, sagten nur „hier gibt es nichts zu
+	// tun" -- und das sagt der graue Knopf mitsamt seiner Zahl „(0)" bereits. Der Reiter „Anzeigen"
+	// trägt seinen eigenen Satz über der Liste.
+	// ⚠️ Ein `title` wäre KEIN Ersatz: ein deaktivierter Knopf bekommt keine Zeigerereignisse, sein
+	// Tooltip erscheint in Chrome also nie (gemessen, siehe der Kommentar an #garetien-apply-hint
+	// in index.html). Wo ein Grund wirklich nötig ist, bleibt er sichtbar -- das ist er am
+	// Hauptknopf und beim dritten Fall der Mengen-Rücknahme, die beide etwas Unerwartetes erklären.
 	function garetienAlleMarkierenZustand(objekte, stand) {
 		const liste = objekte || [];
 		const aufAnzeigenReiter = stand === "anzeigen";
-		let hinweis = "";
-		if (aufAnzeigenReiter) {
-			hinweis = "Der Reiter zeigt, was schon auf der Karte liegt — hier gibt es nichts zu markieren.";
-		} else if (liste.length === 0) {
-			hinweis = "Keine Zeile in dieser Ansicht.";
-		}
 		return {
 			anzahl: liste.length,
 			beschriftung: "Alle markieren (" + liste.length + ")",
 			gesperrt: aufAnzeigenReiter || liste.length === 0,
-			hinweis: hinweis,
 		};
 	}
 
@@ -324,11 +331,6 @@
 		if (knopf) {
 			knopf.textContent = stand.beschriftung;
 			knopf.disabled = stand.gesperrt;
-		}
-		const hinweisEl = document.getElementById("garetien-mark-all-hint");
-		if (hinweisEl) {
-			hinweisEl.textContent = stand.hinweis;
-			hinweisEl.hidden = stand.hinweis === "";
 		}
 		return stand;
 	}
@@ -344,7 +346,6 @@
 			anzahl: anzahl,
 			beschriftung: "Keines markieren",
 			gesperrt: anzahl === 0,
-			hinweis: anzahl === 0 ? "Nichts markiert — nichts zu leeren." : "",
 		};
 	}
 
@@ -356,10 +357,37 @@
 			knopf.textContent = stand.beschriftung;
 			knopf.disabled = stand.gesperrt;
 		}
-		const hinweisEl = document.getElementById("garetien-mark-none-hint");
-		if (hinweisEl) {
-			hinweisEl.textContent = stand.hinweis;
-			hinweisEl.hidden = stand.hinweis === "";
+
+		return stand;
+	}
+
+	// ---- Owner-Auftrag (30.08.2026): „Alle zentrieren" -----------------------------------------
+	//
+	// Wörtlich: „außerdem wär ein button mit 'Alle zentrieren' hilfreich, wo die ansicht auf alle
+	// in 'Anzeigen' gelisteten objekte zoomt (gemeinsamer mittelpunkt und vermutlich herauszoomt)".
+	//
+	// 🔴 GEMESSEN WIRD DIE ANZEIGE-MENGE, NICHT DIE GERENDERTE LISTE -- anders als bei „Alle
+	// markieren" daneben. Der Auftrag nennt „alle in 'Anzeigen' gelisteten", und das ist genau
+	// diese Menge; sie liegt auf der Karte, egal auf welchem Reiter man gerade steht. Ein Knopf,
+	// der die Zeilen des Reiters „Offen" anflöge, würde auf etwas zoomen, das gar nicht gezeichnet
+	// ist.
+	// ⚠️ Deshalb hängt er an KEINEM Reiter (wie „Keines markieren", anders als „Alle markieren").
+	function garetienAlleZentrierenZustand(anzahlAngezeigt) {
+		const anzahl = Number(anzahlAngezeigt) || 0;
+		return {
+			anzahl: anzahl,
+			beschriftung: "Alle zentrieren",
+			gesperrt: anzahl === 0,
+		};
+	}
+
+	function garetienAlleZentrierenKnopfSetzen(anzahlAngezeigt) {
+		if (!hasDocument) { return null; }
+		const stand = garetienAlleZentrierenZustand(anzahlAngezeigt);
+		const knopf = document.getElementById("garetien-zentrieren-alle");
+		if (knopf) {
+			knopf.textContent = stand.beschriftung;
+			knopf.disabled = stand.gesperrt;
 		}
 		return stand;
 	}
@@ -429,6 +457,8 @@
 		// eigene Begruendung) -- die echte Groesse der Markierung wird hier trotzdem gemessen, nicht
 		// auf 0 gezwungen.
 		garetienKeineMarkierenKnopfSetzen(zustand.markiert.size);
+		// Owner 30.08.2026: „Alle zentrieren" misst die ANZEIGE-Menge -- ohne Lauf ist sie leer.
+		garetienAlleZentrierenKnopfSetzen(avesmapsGaretienAnzeigeListe().length);
 		// Meldung C (30.08.2026): ohne Lauf gibt es auch nichts Markiertes zurückzunehmen.
 		garetienRuecknahmeMengeKnopfSetzen([]);
 	}
@@ -991,6 +1021,9 @@
 		// Owner-Auftrag B: „Keines markieren" -- die ECHTE Groesse von `zustand.markiert`, unabhaengig
 		// vom Reiter (siehe ihre eigene Begruendung).
 		garetienKeineMarkierenKnopfSetzen(zustand.markiert.size);
+		// Owner 30.08.2026: „Alle zentrieren" misst die ANZEIGE-Menge (was wirklich gezeichnet ist),
+		// nicht `objekte` -- siehe die Begründung an garetienAlleZentrierenZustand.
+		garetienAlleZentrierenKnopfSetzen(avesmapsGaretienAnzeigeListe().length);
 		// Meldung C (30.08.2026): „Markierte zurücknehmen" -- dieselbe gerenderte Liste, gefiltert
 		// auf `zustand.markiert` UND den Reiter „Übernommen" (innerhalb der Funktion selbst).
 		garetienRuecknahmeMengeKnopfSetzen(objekte);
@@ -1032,12 +1065,45 @@
 		const schonDrin = raus.some(function (o) {
 			return o && String(o.key) === String(zustand.detailKey);
 		});
-		if (schonDrin) { return raus; }
-		const liste = objekte || zustand.objekte || [];
-		const angeklickt = liste.filter(function (o) {
-			return o && String(o.key) === String(zustand.detailKey);
-		})[0];
-		return angeklickt ? raus.concat([angeklickt]) : raus;
+		// 🔴 EIN Ausgang für den Gewählt-Stempel, nicht zwei. Der erste Bau setzte ihn an beide
+		// `return`-Zeilen -- und eine Mutationsprobe zeigte sofort, dass ein Test, der nur den
+		// einen Weg fährt, den anderen ungeprüft lässt. Dieselbe Lehre, die dieses Projekt schon
+		// bei den Querfeldein-Kanten und der Verkehrsmittel-Sperre bezahlt hat: eine Regel, die
+		// einen von zwei Erzeugern bindet, ist keine Regel. Also gibt es hier nur noch einen.
+		let liegt = raus;
+		if (!schonDrin) {
+			const liste = objekte || zustand.objekte || [];
+			const angeklickt = liste.filter(function (o) {
+				return o && String(o.key) === String(zustand.detailKey);
+			})[0];
+			if (angeklickt) { liegt = raus.concat([angeklickt]); }
+		}
+		return garetienGewaehltStempeln(liegt);
+	}
+
+	/*
+	 * Die Marke „das ist das gerade GEWÄHLTE Objekt" -- REIN. Owner 30.08.2026, an einem
+	 * Bildschirmfoto: „kannst du einer selektierten Fläche einen durchgehende kontur geben
+	 * (anstelle der gestrichelten)".
+	 *
+	 * 🔴 DIESELBE BAUFORM WIE `avesmapsGaretienNurIhreStempeln` darüber, und aus demselben Grund:
+	 * ENTSCHIEDEN WIRD IM FENSTER, gezeichnet im Zeichner. Der Zeichner weiß nicht, welche Zeile
+	 * offen ist, und soll es nicht wissen -- er liest nur ein Feld am Objekt.
+	 * 🔴 GESTEMPELT WIRD EINE KOPIE. Die Anzeige-Menge hält die Objekte, wie der Server sie
+	 * geliefert hat; sie zu verändern schriebe sich über `zustand.objekte` bis in die Listenzeile
+	 * durch, denn beide halten dieselbe Referenz. (Genau daran ist der Nur-ihre-Stempel beinahe
+	 * gescheitert -- deshalb steht der Satz dort ein zweites Mal.)
+	 * ⚠️ Ohne offene Zeile passiert gar nichts: die Liste reist unverändert weiter, ohne Kopien.
+	 */
+	function garetienGewaehltStempeln(objekte) {
+		if (zustand.detailKey === null) { return objekte; }
+		const gewaehlt = String(zustand.detailKey);
+		return (objekte || []).map(function (o) {
+			if (!o || String(o.key) !== gewaehlt) { return o; }
+			const kopie = Object.assign({}, o);
+			kopie[AVESMAPS_GARETIEN_FELD_GEWAEHLT] = true;
+			return kopie;
+		});
 	}
 
 	/*
@@ -4190,12 +4256,13 @@
 			const items = garetienRuecknahmeItems(o);
 			if (items.length > 0) { paare.push({ objekt: o, items: items }); }
 		});
+		// 🔴 NUR NOCH DER DRITTE GRUND (Owner 30.08.2026). „Nur im Reiter Übernommen verfügbar."
+		// und „Nichts markiert …" sagten beide nur „hier gibt es nichts zu tun" -- das sagt der
+		// graue Knopf mit seinem „(0 von 0)" schon. Dieser hier bleibt, weil er das Gegenteil
+		// erklärt: es IST etwas markiert, und trotzdem geht nichts -- ohne den Satz sucht ein
+		// Editor den Fehler bei sich.
 		let hinweis = "";
-		if (falscherReiter) {
-			hinweis = "Nur im Reiter „Übernommen“ verfügbar.";
-		} else if (markierte.length === 0) {
-			hinweis = "Nichts markiert — „Alle markieren“ markiert die Zeilen dieser Liste.";
-		} else if (paare.length === 0) {
+		if (!falscherReiter && markierte.length > 0 && paare.length === 0) {
 			hinweis = "Keines der markierten Objekte lässt sich zurücknehmen — sie haben ein "
 				+ "bestehendes Objekt verändert.";
 		}
@@ -4921,7 +4988,31 @@
 		if (markZeigenBtn) {
 			markZeigenBtn.addEventListener("click", function () {
 				avesmapsGaretienMarkierteAnzeigen(zustand.objekte);
+				// 🔴 UND DER REITER WECHSELT MIT (Owner 30.08.2026: „Beim Klick auf 'Markierte
+				// anzeigen' kannst du auf das 'Anzeigen'-Tab gehen"). Der Knopf legt Objekte in die
+				// Anzeige-Menge, und genau die zeigt jener Reiter -- wer ihn drückt und auf „Offen"
+				// stehen bleibt, sieht von seiner Handlung nur eine Zahl im Reiterkopf.
+				// ⚠️ Der Wechsel geht über `zustand.stand` und dann durch denselben Trichter wie ein
+				// Reiterklick (garetienAnzeigeNeuZeichnen ruft auf „anzeigen" avesmapsGaretienListeHolen).
+				// Ein eigener Renderweg hier wäre der zweite Erzeuger derselben Ansicht.
+				zustand.stand = "anzeigen";
 				garetienAnzeigeNeuZeichnen();
+			});
+		}
+		// Owner 30.08.2026: „Alle zentrieren" -- die Ansicht zoomt auf ALLE angezeigten Objekte.
+		// 🔴 Gereicht wird dieselbe Menge, die auch gezeichnet ist (avesmapsGaretienAufDerKarte),
+		// nicht die rohe Anzeige-Liste: die zwei laufen genau dann auseinander, wenn ein Objekt
+		// gerade geöffnet ist und nur deswegen mit auf der Karte liegt. Auf etwas zu zoomen, das
+		// nicht gezeichnet ist, wäre die zweite Wahrheit darüber, was auf der Karte liegt.
+		const zentrierenAlleBtn = hasDocument
+			? document.getElementById("garetien-zentrieren-alle") : null;
+		if (zentrierenAlleBtn) {
+			zentrierenAlleBtn.addEventListener("click", function () {
+				if (zentrierenAlleBtn.disabled) { return; }
+				if (typeof window !== "undefined"
+					&& typeof window.avesmapsGaretienKarteAlleZentrieren === "function") {
+					window.avesmapsGaretienKarteAlleZentrieren(avesmapsGaretienAufDerKarte());
+				}
 			});
 		}
 		const anzeigeLeerenBtn = hasDocument ? document.getElementById("garetien-anzeige-clear") : null;
@@ -5022,6 +5113,7 @@
 			avesmapsGaretienAnzeigeHinzufuegen,
 			avesmapsGaretienNurIhreMerken,
 			AVESMAPS_GARETIEN_FELD_NUR_IHRE,
+			AVESMAPS_GARETIEN_FELD_GEWAEHLT,
 			avesmapsGaretienAnzeigeLeeren,
 			avesmapsGaretienAnzeigeListe,
 			avesmapsGaretienAnzeigeHat,
@@ -5190,6 +5282,8 @@
 			// Owner-Auftrag B (30.08.2026): „Keines markieren"
 			avesmapsGaretienKeineMarkieren,
 			garetienKeineMarkierenZustand,
+			garetienAlleZentrierenZustand,
+			garetienAlleZentrierenKnopfSetzen,
 			garetienKeineMarkierenKnopfSetzen,
 			// Meldung C (30.08.2026): „Markierte zurücknehmen" -- die Menge, symmetrisch zum
 			// Fußknopf „Einfügen".
