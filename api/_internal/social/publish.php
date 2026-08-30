@@ -175,6 +175,24 @@ function avesmapsSocialDispatch(PDO $pdo, int $postId, array $config, ?string $o
             continue;
         }
 
+        // 🔴 DIE RELAIS-WEICHE (Entwurf 2026-08-30-mastodon-relais-design.md). Ein Kanal, der im
+        // Register `relay` trägt, wird von DIESEM Server nicht gesendet -- er wandert in die
+        // Warteschlange, die ein GitHub-Workflow abholt.
+        //
+        // 💣 SIE STEHT HIER UND NICHT WEITER OBEN. Kill-Switch, Zeichenlimit und Bilderreichbarkeit
+        // sind bereits geprüft. Stünde die Weiche davor, wanderte ein zu langer Beitrag in die
+        // Warteschlange und scheiterte eine halbe Stunde später an etwas, das im Augenblick des
+        // Klicks schon feststand -- und die Rückmeldung erreichte ihren Verfasser nie (dieselbe
+        // Lehre wie bei routine-post.php am 16.08.2026).
+        //
+        // ⚠️ `queued` ist KEIN Fehler und kein Erfolg. Der Chip sagt „wartet auf Versand"; erst der
+        // Workflow schreibt `sent` oder `failed`.
+        if (trim((string) ($channel['relay'] ?? '')) !== '') {
+            $results[$key] = ['status' => 'queued', 'error' => ''];
+            avesmapsSocialUpdateTarget($pdo, $postId, $key, $results[$key]);
+            continue;
+        }
+
         $adapter = avesmapsSocialAdapterFor($key);
         if ($adapter === null) {
             $results[$key] = ['status' => 'failed',

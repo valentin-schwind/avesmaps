@@ -1,0 +1,66 @@
+name: Mastodon-Beitraege senden
+
+# Holt wartende Mastodon-Beitraege bei Avesmaps ab und sendet sie VON DIESER MASCHINE aus.
+#
+# 💣 WARUM ES DIESEN UMWEG GIBT: rollenspiel.social verwirft die Pakete von avesmaps.de. Gemessen am
+# 30.08.2026 mit api/edit/admin/ausgang-check.php -- Phase `tcp`, Port 80 UND 443, waehrend dieselbe
+# Adresse jedes andere Ziel in 17 ms erreicht. Die Ausgangsadresse ist STRATO-Shared-Hosting
+# (81.169.144.135) mit fremder Reputation; die Instanz-Administration hat eine Ausnahme geprueft,
+# abgelehnt und ausdruecklich um eine Alternative auf unserer Seite gebeten. Ein GitHub-Runner hat
+# eine andere Adresse -- das ist der ganze Trick.
+#
+# 🔴 NUR MASTODON. Facebook, Instagram und „Neuigkeiten" senden unveraendert direkt vom Server. Was
+# hier laeuft, entscheidet das Feld `relay` im Kanal-Register, nicht dieser Workflow.
+#
+# ⚠️ GITHUBS ZEITPLAN IST KEINE ZUSAGE: geplante Laeufe verschieben sich bei Last um Minuten, und in
+# Repositorien ohne Aktivitaet schaltet GitHub sie nach 60 Tagen ab. Deshalb sagt der Hub selbst,
+# wenn ein Beitrag zu lange wartet -- man soll sich nicht darauf verlassen muessen, dass hier etwas
+# laeuft.
+#
+# 🔴 DIE GEHEIMNISSE: AVESMAPS_SOCIAL_RELAY_TOKEN oeffnet unsere zwei Endpunkte,
+# AVESMAPS_MASTODON_TOKEN gehoert der Mastodon-Anwendung „Avesmaps Relay" (nur write:statuses und
+# write:media). Der Server kennt den zweiten nicht -- jede Seite hat genau das Geheimnis, das sie
+# braucht.
+
+on:
+  schedule:
+    # Alle 30 Minuten (Owner-Entscheid 30.08.2026).
+    - cron: "*/30 * * * *"
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: "Von wo die Beitraege geholt werden"
+        required: true
+        default: "https://avesmaps.de"
+        type: string
+
+permissions:
+  contents: read
+
+# 💣 KEINE ZWEI LAEUFE GLEICHZEITIG, und der laufende wird NICHT abgebrochen. Ein abgebrochener Lauf
+# haette den Beitrag womoeglich schon uebernommen (`sending`), aber nie zurueckgemeldet -- er laege
+# dann bis zum Verfall still. `cancel-in-progress: false` laesst den laufenden zu Ende kommen.
+concurrency:
+  group: avesmaps-mastodon-relais
+  cancel-in-progress: false
+
+jobs:
+  senden:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Wartende Beitraege senden
+        env:
+          AVESMAPS_BASIS: ${{ inputs.base_url || 'https://avesmaps.de' }}
+          AVESMAPS_RELAY_TOKEN: ${{ secrets.AVESMAPS_SOCIAL_RELAY_TOKEN }}
+          MASTODON_TOKEN: ${{ secrets.AVESMAPS_MASTODON_TOKEN }}
+        # ⚠️ Ein Lauf ohne Arbeit ist ein ERFOLG. Der Normalfall ist die leere Warteschlange; ein
+        # Workflow, der dann rot wird, erzeugt Dutzende Fehlmeldungen am Tag und wird nach einer
+        # Woche ignoriert -- samt der echten. Rot wird nur, wer unsere Endpunkte nicht erreicht;
+        # ein von Mastodon abgelehnter Beitrag steht im Hub und ist dort zu sehen.
+        run: node tools/social/mastodon-relais.mjs

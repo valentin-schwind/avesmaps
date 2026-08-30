@@ -28,11 +28,43 @@
 		return "social-chip social-chip--wait";
 	}
 
+	// Ab wann ein wartender Beitrag nicht mehr „gleich ist es so weit" heißt, sondern „da läuft
+	// etwas nicht". Der Workflow taktet alle 30 Minuten — das hier sind drei verpasste Läufe.
+	// 💣 GITHUBS ZEITPLAN IST KEINE ZUSAGE: geplante Läufe verschieben sich bei Last um Minuten,
+	// und in einem stillen Repository schaltet GitHub sie nach 60 Tagen ganz ab. Ohne diese Zeile
+	// sähe „der Workflow läuft seit Tagen nicht" genauso aus wie „noch zehn Minuten".
+	const RELAIS_WARNUNG_MINUTEN = 90;
+
+	// „vor 12 Min." / „vor 3 Std." — grob, weil es hier um eine Größenordnung geht und nicht um
+	// eine Uhrzeit. ⚠️ Die Sekunden rechnet der SERVER (list.php): `attempted_at` trägt keine
+	// Zeitzone, und im Browser gelesen wäre die Zahl für jeden Betrachter eine andere.
+	function wartezeitText(sekunden) {
+		if (typeof sekunden !== "number" || sekunden < 0) { return ""; }
+		if (sekunden < 60) { return "gerade eben"; }
+		const minuten = Math.floor(sekunden / 60);
+		if (minuten < 60) { return minuten + " Min."; }
+		const stunden = Math.floor(minuten / 60);
+		return stunden < 24 ? stunden + " Std." : Math.floor(stunden / 24) + " Tage";
+	}
+
 	function chipLabel(target) {
 		const label = (target && target.label) || "";
 		if (target && target.status === "sent") { return label + " ✓"; }
 		if (target && target.status === "failed") { return label + " — Fehler"; }
 		if (target && target.status === "scheduled") { return label + " — geplant"; }
+		// Die zwei Zustände des Relais (Entwurf 2026-08-30-mastodon-relais-design.md).
+		// 🔴 Sie werden AUSDRÜCKLICH benannt, statt sich auf den Rückfall „wartet" zu verlassen:
+		// der Editor soll den Unterschied sehen zwischen „liegt in der Warteschlange" und „ist
+		// unterwegs schiefgegangen" — genau das war der Auftrag.
+		if (target && target.status === "sending") { return label + " — wird gesendet"; }
+		if (target && target.status === "queued") {
+			const zeit = wartezeitText(target.wartet_sekunden);
+			if (typeof target.wartet_sekunden === "number"
+				&& target.wartet_sekunden >= RELAIS_WARNUNG_MINUTEN * 60) {
+				return label + " — wartet seit " + zeit + " (läuft der Workflow?)";
+			}
+			return label + " — wartet auf Versand" + (zeit === "" ? "" : " (" + zeit + ")");
+		}
 		return label + " — wartet";
 	}
 
@@ -1486,6 +1518,6 @@
 	if (typeof module !== "undefined" && module.exports) {
 		module.exports = { chipClass, chipLabel, canRetry, strictestLimit, formatCount, postAuthorLabel,
 			formatExpiry, proposalNote, isDraft, linkNoteText, applyCapabilityTo, postSummaryText,
-			joinNames, aiChannelsText, aiWarningText };
+			joinNames, aiChannelsText, aiWarningText, wartezeitText, RELAIS_WARNUNG_MINUTEN };
 	}
 })();

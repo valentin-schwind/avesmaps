@@ -13,6 +13,28 @@ require __DIR__ . '/../../_internal/auth.php';
 require_once __DIR__ . '/../../_internal/social/channels.php';
 require_once __DIR__ . '/../../_internal/social/compose.php';
 require_once __DIR__ . '/../../_internal/social/store.php';
+// Fuer avesmapsSocialRelayDatabaseNow -- die Wartezeit wird gegen die Uhr der Datenbank gerechnet.
+require_once __DIR__ . '/../../_internal/social/relay.php';
+
+/**
+ * Wie lange dieses Ziel schon auf seinen Versand wartet, in Sekunden -- oder null.
+ *
+ * ⚠️ null heisst „noch nie angefasst". Es als 0 zu melden hiesse „gerade eben eingereiht", und
+ * genau daran haengt im Hub die Warnung, dass der Workflow nicht laeuft.
+ */
+function avesmapsSocialWartetSekunden(string $jetzt, string $seit): ?int
+{
+    if ($jetzt === '' || $seit === '') {
+        return null;
+    }
+    $a = strtotime($jetzt);
+    $b = strtotime($seit);
+    if ($a === false || $b === false) {
+        return null;
+    }
+
+    return max(0, $a - $b);
+}
 
 try {
     $config = avesmapsLoadApiConfig(avesmapsApiRoot());
@@ -35,6 +57,8 @@ try {
     // Wann der Zugang je Kanal abläuft. Eine zweite Abfrage auf dieselbe kleine Tabelle, damit die
     // Verfügbarkeitsprüfung ihre Schlüsselliste behält -- sie hat einen anderen Zweck als die Anzeige.
     $tokenExpiry = avesmapsSocialTokenExpiryMap($pdo);
+    // EINMAL fuer die ganze Liste gelesen, nicht je Ziel.
+    $jetzt = avesmapsSocialRelayDatabaseNow($pdo);
 
     $posts = [];
     foreach (avesmapsSocialListPosts($pdo, 50) as $row) {
@@ -48,6 +72,17 @@ try {
                 'label' => $channel === null ? (string) $target['channel_key'] : (string) $channel['label'],
                 'status' => (string) $target['status'],
                 'error' => (string) $target['error'],
+                // 💣 DIE WARTEZEIT RECHNET DER SERVER, nicht der Browser. `attempted_at` ist eine
+                // Zeichenkette ohne Zeitzone; ein `new Date("2026-08-30 15:16:57")` im Browser
+                // liest sie als ORTSZEIT DES BETRACHTERS, und schon steht bei einem Editor in
+                // einer anderen Zone „wartet seit 3 Stunden" für etwas, das gerade eben
+                // eingereiht wurde. Gerechnet wird gegen die Uhr, die den Wert auch geschrieben
+                // hat -- dieselbe Regel wie in relay.php.
+                // ⚠️ null heißt „noch nie angefasst", nicht „null Sekunden".
+                'wartet_sekunden' => avesmapsSocialWartetSekunden(
+                    $jetzt,
+                    $target['attempted_at'] === null ? '' : (string) $target['attempted_at']
+                ),
                 'remote_id' => (string) $target['remote_id'],
                 // Die Adresse des veroeffentlichten Beitrags, oder '' wenn der Kanal keine nennt.
                 // Der Client macht daraus einen Link -- und laesst ihn weg, wenn nichts dasteht.

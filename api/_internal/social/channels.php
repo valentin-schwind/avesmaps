@@ -243,6 +243,21 @@ const AVESMAPS_SOCIAL_CHANNELS = [
         // Feld: ein aus `!ai_label` abgeleiteter Hinweis schickte den Editor hier auf die Suche nach
         // einem Schalter, den Mastodon nicht kennt.
         'ai_label_manual' => false,
+        // 🔴 DIESER KANAL SENDET NICHT VOM SERVER (Entwurf 2026-08-30-mastodon-relais-design.md).
+        // rollenspiel.social verwirft die Pakete unserer Ausgangsadresse -- gemessen am 30.08.2026
+        // mit api/edit/admin/ausgang-check.php: Phase `tcp`, Port 80 UND 443, während dieselbe
+        // Adresse jedes andere Ziel in 17 ms erreicht. Die Instanz-Administration hat eine Ausnahme
+        // geprüft und abgelehnt (Shared-Hosting-Adresse mit fremder Reputation) und um eine
+        // Alternative gebeten. Der Beitrag wandert daher in eine Warteschlange, die ein
+        // GitHub-Workflow abholt und von SEINER Adresse aus sendet.
+        //
+        // 💣 Ein Feld im Register, kein `$key === 'mastodon'` im Ablauf. Trifft es je einen zweiten
+        // Kanal, ist das eine Datenzeile -- und die Weiche bleibt an EINER Stelle.
+        //
+        // ⚠️ Mastodon ist der einzige Kanal, bei dem das gefahrlos ist: sein `Idempotency-Key` hängt
+        // an der Beitrags-ID, ein zweiter Versand liefert also den ursprünglichen Beitrag zurück
+        // statt einen zweiten anzulegen. Bei Instagram wäre ein Doppelversand nicht reparabel.
+        'relay' => 'github',
     ],
 ];
 
