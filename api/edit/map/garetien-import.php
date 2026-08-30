@@ -50,6 +50,26 @@ try {
     $payload = avesmapsReadJsonRequest();
     $action = avesmapsNormalizeSingleLine((string) ($payload['action'] ?? 'ebenen'), 40);
 
+    // 🔴 FUENF-PUNKTE-BRIEF (30.08.2026), PUNKT 2: „Holen & Rechnen" und „Ebenen" bleiben
+    // admin-only, AUCH wenn der Riegel oben eines Tages fuer Editoren geoeffnet wird (Owner: „ich
+    // baue das tool für die editoren"). Sie holen von aussen (fetch/upload/probe) oder rechnen den
+    // ganzen Bestand neu (plan) bzw. zeigen die interne Zielliste (ebenen).
+    // 🔴 `runs` bleibt AUSSEN VOR -- dieselbe Aktion liefert auch, welcher Lauf beim OEFFNEN des
+    // Fensters gilt (garetienFensterFuellen, js/review/review-garetien-importer.js), und das muss
+    // ein Editor koennen, ohne selbst rechnen zu duerfen. `liste`/`wiki_landschaft`/`ruecknahme`
+    // sind die Pruef-/Entscheidwege dieses Fensters und bleiben aus demselben Grund aussen vor.
+    // 💣 KEIN zweiter `avesmapsRequireUserWithCapability`-Aufruf hier -- garetien-endpunkt-test.php
+    // verlangt „genau EIN Riegel, nicht je Zweig einer" (er stuende sonst zweimal im Quelltext, und
+    // das Zaehl-Argument der Zusicherung waere falsch). `avesmapsUserCan` ist die lesende Haelfte
+    // desselben Riegels, ohne diese Zaehlung zu treffen.
+    // ⚠️ Heute unerreichbar: die Zeile darueber laesst ohnehin nur Admins herein. Er steht trotzdem
+    // schon hier, weil eine Sperre, die erst NACH der Oeffnung fuer Editoren nachgetragen wird, in
+    // der Zwischenzeit keine ist -- „eine Sperre nur im Browser ist keine".
+    if (in_array($action, ['ebenen', 'probe', 'fetch', 'upload', 'plan'], true)
+        && !avesmapsUserCan($user, 'admin')) {
+        avesmapsErrorResponse(403, 'forbidden', 'Diese Aktion ist Administratoren vorbehalten.');
+    }
+
     // --- Die feste Liste. Braucht keine Datenbank und keinen Abruf.
     if ($action === 'ebenen') {
         avesmapsJsonResponse(200, ['ok' => true, 'ebenen' => AVESMAPS_GARETIEN_EBENEN]);

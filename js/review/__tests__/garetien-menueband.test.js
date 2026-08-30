@@ -244,6 +244,43 @@ gleich(mod.garetienLaufKachelText({ lauf: LAUF, fehler: [{}, {}] }),
 // Ein unfertiger Lauf hat kein finished_at -- dann gilt sein Beginn, statt „unbekannt" zu melden.
 gleich(mod.garetienLaufStempel({ started_at: "2026-08-27 11:58:02", finished_at: null }), "27.08., 11:58");
 
+// ---- 5b. Fuenf-Punkte-Brief 30.08.2026, Punkt 2: „Holen & Rechnen"/„Ebenen" bleiben admin-only --
+
+wahr(typeof mod.avesmapsGaretienDarfAdminHandlung === "function",
+	"avesmapsGaretienDarfAdminHandlung fehlt im Export");
+// 🔴 Faellt GESCHLOSSEN aus, wie avesmapsGaretienDarfOeffnen -- nur echtes `true` zaehlt (eine als
+// JSON geparste Fehlerseite, eine 1 statt true, ein Proxy mit "0" sind alle truthy).
+gleich(mod.avesmapsGaretienDarfAdminHandlung({ capabilities: { admin: true } }), true);
+gleich(mod.avesmapsGaretienDarfAdminHandlung({ capabilities: { admin: 1 } }), false,
+	"eine 1 statt `true` darf nicht durchrutschen");
+gleich(mod.avesmapsGaretienDarfAdminHandlung({ capabilities: { admin: "1" } }), false);
+gleich(mod.avesmapsGaretienDarfAdminHandlung({ capabilities: { edit: true } }), false,
+	"'edit' allein genuegt NICHT -- genau das ist der Sinn dieser Aufgabe: das Fenster darf kuenftig "
+	+ "fuer Editoren aufgehen, ohne dass diese zwei Kacheln mitaufgehen");
+gleich(mod.avesmapsGaretienDarfAdminHandlung(null), false);
+gleich(mod.avesmapsGaretienDarfAdminHandlung(undefined), false);
+
+// Der Admin-Riegel schlaegt JEDE andere Auskunft der Lauf-Kachel -- unabhaengig davon, ob Ebenen
+// gewaehlt sind oder ein Lauf gerade laeuft.
+gleich(mod.garetienLaufKachelText({ keinAdmin: true, lauf: LAUF, dauerMs: 350 }), "nur Administratoren",
+	"der Admin-Riegel schlaegt einen bestehenden Lauf");
+gleich(mod.garetienLaufKachelText({ keinAdmin: true, laeuft: true, schritt: "holt 2 Ebenen …" }),
+	"nur Administratoren", "und auch den laufenden Fortschritt (der Fall kann nicht eintreten, aber "
+	+ "die Reihenfolge soll stimmen, falls doch)");
+gleich(mod.garetienLaufKachelText({ keinAdmin: true, ohneEbenen: true }), "nur Administratoren",
+	"und die fehlende Ebenenauswahl");
+gleich(mod.garetienLaufKachelText({ keinAdmin: false, lauf: LAUF, dauerMs: 350 }),
+	"Lauf 27.08., 12:04 · 0,35 s", "DIE DIFFERENZ: `keinAdmin: false` aendert nichts an der bisherigen Kette");
+
+wahr(typeof mod.garetienEbenenKachelZustand === "function", "garetienEbenenKachelZustand fehlt im Export");
+assert.deepStrictEqual(mod.garetienEbenenKachelZustand(false, zweiGewaesser, EBENEN),
+	{ text: "nur Administratoren", disabled: true }, "ohne Admin ist die Kachel gesperrt");
+checks++;
+assert.deepStrictEqual(mod.garetienEbenenKachelZustand(true, zweiGewaesser, EBENEN),
+	{ text: "2 von 18 · Gewässer ggp + kosch", disabled: false },
+	"DIE DIFFERENZ: mit Admin steht die gewohnte Zeile da, bedienbar");
+checks++;
+
 // ---- 6. Beim Oeffnen gilt der juengste Lauf -- und ohne Lauf geht KEINE Listenanfrage hinaus ----
 
 function spion(antworten) {

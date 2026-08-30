@@ -57,6 +57,38 @@ assert(
 );
 assert(substr_count($quelle, 'avesmapsRequireUserWithCapability') === 1, 'genau EIN Riegel, nicht je Zweig einer');
 
+// ---- Fuenf-Punkte-Brief 30.08.2026, Punkt 2: „Holen & Rechnen"/„Ebenen" bleiben admin-only, AUCH
+// wenn der Riegel oben eines Tages fuer Editoren geoeffnet wird -------------------------------
+//
+// 🔴 KEIN zweiter avesmapsRequireUserWithCapability-Aufruf (die Zusicherung oben zaehlt weiterhin
+// GENAU EINEN) -- die engere Wiederholung laeuft ueber avesmapsUserCan, direkt am selben $user.
+assert(substr_count($quelle, 'avesmapsRequireUserWithCapability') === 1,
+    'der engere Admin-Riegel darf die Gesamtzahl der avesmapsRequireUserWithCapability-Aufrufe nicht erhoehen');
+assert(str_contains($quelle, "avesmapsUserCan(\$user, 'admin')"), 'der engere Admin-Riegel fehlt');
+// Er muss NACH `$action` (er braucht ihn) und VOR der ersten Aktionsweiche stehen -- sonst laesst
+// er den `ebenen`-Zweig schon durchrutschen, bevor er ueberhaupt prueft.
+$actionPos = strpos($quelle, "\$action = avesmapsNormalizeSingleLine");
+$riegelPos = strpos($quelle, "avesmapsUserCan(\$user, 'admin')");
+$ersteWeichePos = strpos($quelle, "\$action === 'ebenen'");
+assert($actionPos !== false && $ersteWeichePos !== false,
+    'die $action-Zuweisung oder die erste Aktionsweiche wurden nicht gefunden -- hat sich ihre Form geaendert?');
+assert($riegelPos !== false && $riegelPos > $actionPos && $riegelPos < $ersteWeichePos,
+    'der engere Riegel braucht $action, muss also NACH ihr und VOR der ersten Aktionsweiche stehen');
+// Genau die fuenf Aktionen, die von aussen holen (fetch/upload/probe) oder rechnen (plan) bzw. die
+// interne Zielliste zeigen (ebenen) -- NICHT `runs` (das braucht auch ein Editor beim Oeffnen des
+// Fensters) und NICHT liste/wiki_landschaft/ruecknahme (die Pruef-/Entscheidwege des Fensters).
+foreach (['ebenen', 'probe', 'fetch', 'upload', 'plan'] as $art) {
+    assert(
+        preg_match("~in_array\\(\\\$action,\\s*\\[[^\\]]*'{$art}'[^\\]]*\\],\\s*true\\)~", $quelle) === 1,
+        "die enge Liste des Admin-Riegels muss '{$art}' nennen"
+    );
+}
+assert(
+    preg_match("~in_array\\(\\\$action,\\s*\\[[^\\]]*'runs'[^\\]]*\\],\\s*true\\)~", $quelle) !== 1,
+    "'runs' darf NICHT im engen Riegel stehen -- ein Editor muss beim Oeffnen des Fensters sehen "
+        . 'koennen, welcher Lauf gilt, ohne selbst admin zu sein'
+);
+
 // 💣 Helfer brauchen ihre Argumente. `avesmapsCreatePdo($config)` statt `$config['database']`
 // kostete dem Tempowerte-Fenster jede einzelne Ladung -- die Funktion nimmt ein Array, PHP
 // beschwert sich nicht, und drinnen ist alles leer.

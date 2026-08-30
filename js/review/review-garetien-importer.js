@@ -52,6 +52,27 @@
 		return !!(sitzung && sitzung.capabilities && sitzung.capabilities.admin === true);
 	}
 
+	// 🔴 Fuenf-Punkte-Brief 30.08.2026, Punkt 2: EINE EIGENE Frage, obwohl sie heute dieselbe
+	// Antwort wie avesmapsGaretienDarfOeffnen gibt. „Darf ich das Fenster ueberhaupt oeffnen" und
+	// „darf ich hier einen fremden Server abrufen bzw. den ganzen Bestand neu rechnen" sind zwei
+	// verschiedene Fragen, die zufaellig denselben Riegel teilen -- das Fenster ist HEUTE ganz
+	// admin-beschraenkt, soll aber kuenftig fuer Editoren offen sein (Owner: „ich baue das tool für
+	// die editoren"). „Holen & Rechnen" und „Ebenen" bleiben admin-only, AUCH wenn das geschieht.
+	// Faellt GESCHLOSSEN aus, wie avesmapsGaretienDarfOeffnen -- nur echtes `true` zaehlt.
+	function avesmapsGaretienDarfAdminHandlung(sitzung) {
+		return !!(sitzung && sitzung.capabilities && sitzung.capabilities.admin === true);
+	}
+
+	// ⚠️ Kein zweiter Rechteweg: dieselbe Auskunft, GEMESSEN bei jedem Kachel-Update, nicht
+	// gemerkt -- ein Modulzustand koennte veralten, wenn sich die Sitzung nach dem ersten Aufbau
+	// noch aendert. Dasselbe Muster wie `window.AvesmapsSession.current()` in `anwendeRechteRiegel`.
+	function garetienDarfAdminHandlungJetzt() {
+		const sitzung = (typeof window !== "undefined" && window.AvesmapsSession)
+			? window.AvesmapsSession.current()
+			: null;
+		return avesmapsGaretienDarfAdminHandlung(sitzung);
+	}
+
 	// ---- Zustand ---------------------------------------------------------------------------------
 	//
 	// Die volle Form ist die Schnittstelle für Aufgabe 11-16 (avesmapsGaretienFensterZustand()).
@@ -1364,6 +1385,18 @@
 			}).join(" · ");
 	}
 
+	// REIN: Text + Sperre der Ebenen-Kachel in EINEM Zug -- derselbe Zug wie bei
+	// garetienAlleMarkierenZustand/garetienUebernahmeKnopfZustand: Text und Sperre entstehen an
+	// EINER Stelle, testbar ganz ohne DOM. Fuenf-Punkte-Brief 30.08.2026, Punkt 2: der Admin-Riegel
+	// schlaegt JEDE andere Auskunft -- eine bestehende Auswahl bleibt erhalten, ist fuer einen
+	// Nicht-Admin aber weder einsehbar noch aenderbar.
+	function garetienEbenenKachelZustand(darfAdmin, bezeichner, alleEbenen) {
+		if (!darfAdmin) {
+			return { text: "nur Administratoren", disabled: true };
+		}
+		return { text: garetienEbenenKachelText(bezeichner, alleEbenen), disabled: false };
+	}
+
 	// REIN: die 18 Ebenen als Optionsliste für avmFilterMenuAttach. Wert = der Bezeichner, den der
 	// Endpunkt erwartet; Beschriftung = „Gewässer · garetien.de" (im Menü ist Platz für die lange
 	// Form, und dieselbe Wiki-Beschriftung trägt schon der Filtertrichter).
@@ -1392,14 +1425,18 @@
 		});
 	}
 
-	// REIN: die zweite Zeile der Lauf-Kachel. Vier Lagen, in dieser Reihenfolge -- ein harter
-	// Fehler (steht bis zum nächsten Versuch) · es läuft gerade · kein Lauf da · der geltende Lauf.
+	// REIN: die zweite Zeile der Lauf-Kachel. FUENF Lagen, in dieser Reihenfolge -- der Admin-Riegel
+	// (Fuenf-Punkte-Brief 30.08.2026, Punkt 2) · ein harter Fehler (steht bis zum nächsten Versuch)
+	// · es läuft gerade · kein Lauf da · der geltende Lauf.
+	// 🔴 `keinAdmin` steht ZUERST: er gilt UNABHAENGIG davon, ob Ebenen gewaehlt sind oder ein Lauf
+	// gerade laeuft -- ein Nicht-Admin kann den Knopf nie druecken, unabhaengig vom uebrigen Stand.
 	// 🔴 Die Rechendauer kennen wir NUR für einen Lauf dieser Sitzung: `action:'runs'` liefert
 	// keine. Für einen älteren Lauf steht deshalb seine Zeilenzahl da -- auch eine Tatsache, nur
 	// eine andere -- statt einer erfundenen Sekundenzahl. (Der Brief zeigt die Zeile im Zustand
 	// direkt nach einem Lauf; „0,35 s" ist dort das Gemessene, nicht das Gespeicherte.)
 	function garetienLaufKachelText(lage) {
 		const l = lage || {};
+		if (l.keinAdmin) { return "nur Administratoren"; }
 		if (l.laeuft) { return l.schritt || "läuft …"; }
 		// 🔴 Der Grund der Sperre schlägt eine stehengebliebene Fehlermeldung: sie berichtet vom
 		// LETZTEN Versuch, die Sperre gilt JETZT und sagt, was zu tun ist. Ein gesperrter Knopf
@@ -1451,9 +1488,13 @@
 		// Die Sperre hat ZWEI Gründe, und beide werden aus DERSELBEN Rechnung gelesen wie die
 		// Nachbarkachel -- „was wird geholt" steht nur an einer Stelle.
 		const ohneEbenen = garetienGewaehlteBezeichner(garetienEbenenAuswahl, garetienAlleEbenen).length === 0;
+		// Fuenf-Punkte-Brief 30.08.2026, Punkt 2: EIN dritter Grund, GEMESSEN bei jedem Aufbau --
+		// kein Modulzustand, der veralten koennte.
+		const keinAdmin = !garetienDarfAdminHandlungJetzt();
 		const zeile = document.getElementById("garetien-run-state");
 		if (zeile) {
 			zeile.textContent = garetienLaufKachelText({
+				keinAdmin: keinAdmin,
 				laeuft: garetienLaufLaeuft,
 				schritt: garetienLaufSchritt,
 				ohneEbenen: ohneEbenen,
@@ -1465,8 +1506,10 @@
 		}
 		const knopf = document.getElementById("garetien-run-tile");
 		// Nur die ANZEIGE der Riegel -- der Doppelklick-Riegel selbst ist `garetienLaufLaeuft`
-		// (siehe dort), und der leere Zustand wird in garetienLaufStarten noch einmal geprüft.
-		if (knopf) { knopf.disabled = garetienLaufLaeuft || ohneEbenen; }
+		// (siehe dort), und der leere Zustand wird in garetienLaufStarten noch einmal geprüft. Der
+		// Admin-Riegel dagegen hat KEINE zweite Pruefstelle im Browser -- er ist rein Anzeige, die
+		// Wahrheit steht auf dem Server (api/edit/map/garetien-import.php).
+		if (knopf) { knopf.disabled = keinAdmin || garetienLaufLaeuft || ohneEbenen; }
 	}
 
 	// Beide Kacheln in einem Zug -- die Auswahl steuert die eine und sperrt die andere.
@@ -1477,13 +1520,18 @@
 
 	function garetienEbenenKachelAktualisieren() {
 		if (!hasDocument) { return; }
+		const stand = garetienEbenenKachelZustand(
+			garetienDarfAdminHandlungJetzt(),
+			garetienGewaehlteBezeichner(garetienEbenenAuswahl, garetienAlleEbenen),
+			garetienAlleEbenen
+		);
 		const zeile = document.getElementById("garetien-ebenen-state");
-		if (zeile) {
-			zeile.textContent = garetienEbenenKachelText(
-				garetienGewaehlteBezeichner(garetienEbenenAuswahl, garetienAlleEbenen),
-				garetienAlleEbenen
-			);
-		}
+		if (zeile) { zeile.textContent = stand.text; }
+		// Fuenf-Punkte-Brief 30.08.2026, Punkt 2: die Kachel oeffnet ihr Menue nicht mehr, wenn sie
+		// gesperrt ist -- ein `disabled`-Knopf feuert gar kein `click`, avmFilterMenuAttach bekommt
+		// den Klick also nie zu sehen.
+		const knopf = document.getElementById("garetien-ebenen-toggle");
+		if (knopf) { knopf.disabled = stand.disabled; }
 	}
 
 	// Die feste Ebenenliste, einmal je Sitzung. 🔴 Fällt OFFEN aus: scheitert der Abruf, bleibt die
@@ -4508,6 +4556,8 @@
 	if (typeof module !== "undefined" && module.exports) {
 		module.exports = {
 			avesmapsGaretienDarfOeffnen,
+			// Fuenf-Punkte-Brief 30.08.2026, Punkt 2
+			avesmapsGaretienDarfAdminHandlung,
 			avesmapsGaretienFensterZustand,
 			avesmapsGaretienRufe,
 			// Aufgabe 1: die Anzeige-Menge -- gehoert dem Fenster, nicht dem Vorschlag (Entwurf §3).
@@ -4557,6 +4607,7 @@
 			garetienEbenenBezeichner,
 			garetienGewaehlteBezeichner,
 			garetienEbenenKachelText,
+			garetienEbenenKachelZustand,
 			garetienEbenenOptionenAus,
 			garetienEbenenAuswahl,
 			garetienLaufStempel,
