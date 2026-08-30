@@ -372,6 +372,17 @@ $flaeche = $pdo->query('SELECT * FROM ecosystem_area')->fetch(PDO::FETCH_ASSOC);
 assert($flaeche !== false && (int) $flaeche['region_id'] === (int) $region['id'], 'die Flaeche haengt an der Region');
 $pruefungen += 8;
 
+// --- 🔴 KORREKTUR A (Owner-Nachtrag 30.08.2026): OHNE eine gespeicherte Uebersteuerung fuer die
+// Art 'see' bleibt es beim heutigen GRUNDWERT -- ausdruecklich, nicht zufaellig. Diese Zeile ist
+// die Gegenprobe zur Berggipfel-Zeile weiter unten (mit Uebersteuerung): zwei verschiedene Arten
+// muessen zwei verschiedene Werte tragen, sonst prueft keine der beiden Zeilen etwas.
+$muehlseeLabelProps = json_decode((string) $label['properties_json'], true);
+assert(($muehlseeLabelProps['min_zoom'] ?? null) === 0, 'min_zoom bleibt der Grundwert 0: ' . json_encode($muehlseeLabelProps));
+assert(($muehlseeLabelProps['max_zoom'] ?? null) === 5, 'max_zoom bleibt der Grundwert 5: ' . json_encode($muehlseeLabelProps));
+assert(($muehlseeLabelProps['size'] ?? null) === 18, 'size bleibt der Grundwert 18: ' . json_encode($muehlseeLabelProps));
+assert(($muehlseeLabelProps['priority'] ?? null) === 3, 'priority bleibt der Grundwert 3: ' . json_encode($muehlseeLabelProps));
+$pruefungen += 4;
+
 // --- 🔴 AUFGABE 13 (Rechtsfolgenfehler): die Quelle der Flaeche haengt an der BESCHRIFTUNG,
 // NICHT an der Region -- dieselbe Bindung, mit der map-features.php:1228 Quellen fuer die Karte
 // nachschlaegt (entity_type 'region' ist an feature_type 'label' gebunden, gekeyt an dessen
@@ -1187,6 +1198,25 @@ $ortQuelle->execute([$ortZeile['public_id']]);
 assert((int) $ortQuelle->fetchColumn() === 1, 'die Quelle des Ortes haengt an entity_type=settlement');
 $pruefungen++;
 
+// --- 🔴 KORREKTUR A (Owner-Nachtrag 30.08.2026: „DOCH DER IMPORT SOLL SIE SETZEN!!!"). Eine
+// Uebersteuerung, wie sie das Fenster „Landschaften -> Darstellung" tatsaechlich speichert:
+// 'berggipfel' traegt eine VOLLSTAENDIGE, gueltige Zeile, 'vulkan' eine, die ausserhalb dessen
+// liegt, was ein Label ueberhaupt tragen darf (Groesse 4 < die 10 von avesmapsReadLabelSize; ein
+// invertiertes Zoomband, in der Darstellungstafel gueltig als "aus", hier keine gueltige Aussage
+// fuer ein neues Label). Beide Zeilen zusammen pruefen avesmapsGaretienLabelVorgabeFuerArt an
+// ihren zwei Enden: uebernommen, wo gueltig -- verworfen zugunsten des Grundwerts, wo nicht.
+$pdoNeu->exec('INSERT INTO app_setting (setting_key, setting_value) VALUES ('
+    . $pdoNeu->quote('ecosystem_display') . ', ' . $pdoNeu->quote(json_encode([
+        'vorgabe' => [
+            'berggipfel' => ['ab' => 2, 'bis' => 6, 'prio' => 4],
+            'vulkan' => ['ab' => 5, 'bis' => 1, 'prio' => 2],
+        ],
+        'groesse' => [
+            'berggipfel' => [10, 11, 12, 13, 14, 17, 20, 23, 25],
+            'vulkan' => [4, 4, 4, 4, 4, 4, 4, 4, 4],
+        ],
+    ], JSON_UNESCAPED_UNICODE)) . ')');
+
 // --- Berggipfel: avesmapsCreateLabelFeature, entity_type 'region' (map-features.php:1228),
 // KEYED AN DER PUBLIC_ID DES LABELS SELBST -- es gibt keine Region dahinter.
 avesmapsSyncPlanAddItem($pdoNeu, $laufNeu, $bauePunktEintrag('label', 'berggipfel', 'Testspitze', 600.0, 600.0));
@@ -1198,6 +1228,35 @@ assert($bergZeile !== false, 'der Gipfel steht in map_features');
 assert($bergZeile['feature_type'] === 'label' && $bergZeile['feature_subtype'] === 'berggipfel',
     'feature_type/feature_subtype stimmen: ' . json_encode($bergZeile));
 $pruefungen += 3;
+
+// --- 🔴 DER IMPORT SETZT DIE VORGABE DER ART: min_zoom=2, max_zoom=6, priority=4, size=17 --
+// zeichenidentisch mit der gespeicherten Uebersteuerung, und andere Werte als bei der Muehlsee-
+// Flaeche (Art 'see', Grundwert) weiter oben -- ohne diesen Gegensatz pruefte keine der beiden
+// Zeilen etwas.
+$bergProps = json_decode((string) $bergZeile['properties_json'], true);
+assert(($bergProps['min_zoom'] ?? null) === 2, 'min_zoom traegt die Uebersteuerung der Art: ' . json_encode($bergProps));
+assert(($bergProps['max_zoom'] ?? null) === 6, 'max_zoom traegt die Uebersteuerung der Art: ' . json_encode($bergProps));
+assert(($bergProps['priority'] ?? null) === 4, 'priority traegt die Uebersteuerung der Art: ' . json_encode($bergProps));
+assert(($bergProps['size'] ?? null) === 17, 'size traegt den z5-Wert der Uebersteuerung: ' . json_encode($bergProps));
+$pruefungen += 4;
+
+// --- 🔴 UND EINE UNGUELTIGE UEBERSTEUERUNG FAELLT AUF DEN GRUNDWERT ZURUECK, STATT DEN IMPORT
+// ABZUBRECHEN. 'vulkan' traegt oben eine Zeile, die es fuer die Darstellungstafel gueltig gibt
+// (Groesse 4, Zoomband "aus"), aber keine, die avesmapsReadLabelSize/…Zoom durchliesse --
+// avesmapsGaretienLabelVorgabeFuerArt muss sie VORHER verwerfen, nicht avesmapsCreateLabelFeature
+// werfen lassen.
+avesmapsSyncPlanAddItem($pdoNeu, $laufNeu, $bauePunktEintrag('label', 'vulkan', 'Testvulkan', 620.0, 620.0));
+$vulkanItemId = $itemIdVon($pdoNeu, 'Testvulkan (Probe)');
+$eVulkan = avesmapsGaretienUebernehmen($pdoNeu, $laufNeu, [$vulkanItemId], ['id' => 7]);
+assert($eVulkan['angelegt'] === 1 && $eVulkan['fehler'] === [],
+    'der Vulkan wird trotz ungueltiger Uebersteuerung angelegt: ' . json_encode($eVulkan, JSON_UNESCAPED_UNICODE));
+$vulkanZeile = $pdoNeu->query("SELECT properties_json FROM map_features WHERE name = 'Testvulkan'")->fetch(PDO::FETCH_ASSOC);
+assert($vulkanZeile !== false, 'der Vulkan steht in map_features');
+$vulkanProps = json_decode((string) $vulkanZeile['properties_json'], true);
+assert(($vulkanProps['min_zoom'] ?? null) === 0, 'min_zoom faellt auf den Grundwert zurueck: ' . json_encode($vulkanProps));
+assert(($vulkanProps['max_zoom'] ?? null) === 5, 'max_zoom faellt auf den Grundwert zurueck: ' . json_encode($vulkanProps));
+assert(($vulkanProps['size'] ?? null) === 18, 'size faellt auf den Grundwert zurueck: ' . json_encode($vulkanProps));
+$pruefungen += 5;
 
 // 🔴 DIE TRAGENDE ZUSICHERUNG: KEINE ERFUNDENE HOEHE. Ein Gipfel ist ein Stuetzpunkt des
 // Hoehenfelds (terrain-store.php liest is_active=1 + height_schritt); Volkers Daten tragen keine

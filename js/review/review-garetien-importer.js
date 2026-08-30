@@ -1954,23 +1954,52 @@
 	// Owner 30.08.2026, wörtlich: „ich hatte plötzlich 3000 labels da stehen ... die gi-sec
 	// 'Eingefügt wird' soll alle einstellungen der fläche/des orts/des labels erhalten, die es
 	// bekommen wird. alle werte mit den vorausgefüllten und default werden". Anlass war genau der
-	// Fund: der Import setzt weder min_zoom/max_zoom noch Größe/Priorität, und
-	// `avesmapsCreateLabelFeature` (api/_internal/map/features.php:3236) fällt dann auf
+	// Fund: der Import setzte weder min_zoom/max_zoom noch Größe/Priorität, und
+	// `avesmapsCreateLabelFeature` (api/_internal/map/features.php:3236) fiel dann auf
 	// min_zoom=0/max_zoom=5/size=18/priority=3 zurück -- unabhängig von der Art.
+	//
+	// 🔴 KORREKTUR (Owner-Nachtrag 30.08.2026, wörtlich: „DOCH DER IMPORT SOLL SIE SETZEN!!!"): der
+	// Import wendet seither die vom Admin im Fenster „Landschaften -> Darstellung" gesetzte
+	// Übersteuerung der Zielart an (avesmapsGaretienLabelVorgabeFuerArt,
+	// api/_internal/import/garetien-uebernahme.php) -- diese Anzeige MUSS mitziehen, sonst
+	// behauptet der Satz „der Import setzt sie nicht" ausgerechnet für die Fälle, in denen er es
+	// jetzt tut, das Gegenteil.
 	//
 	// 🔴 DIE TAFEL DER ART-EMPFEHLUNGEN LIEGT IN js/map-features/ecosystem-display.js UND WIRD
 	// HIER NUR GELESEN, NIE ABGESCHRIEBEN (AGENTS.md §5: eine Tafel, zwei Erzeuger, sie laufen
-	// auseinander). Sie ist "eine EMPFEHLUNG, kein Riegel" (Kommentar dort) -- der Import liest
-	// sie heute NICHT, und diese Ansicht darf deshalb nicht so tun, als täte er es. Jede Zeile
-	// zeigt den ECHTEN Wert, den der Import setzt, und nennt die Empfehlung der Art nur als
-	// Hinweis, wenn sie abweicht -- eine Vorschau, die nur die Empfehlung zeigt, wäre eine
-	// Falschaussage über die nächste Handlung (dieselbe Fehlerklasse, die die 3000 Labels
-	// gekostet hat).
-	//
-	// Die vier Zahlen hier sind KEINE Abschrift der Vorgabetafel -- es sind die literalen
-	// Vorgabewerte von avesmapsCreateLabelFeature (features.php:3232-3241), unabhängig von jeder
-	// Art. Sie ändern sich nur, wenn sich der PHP-Schreiber ändert.
-	const AVESMAPS_GARETIEN_LABEL_ECHT = { minZoom: 0, maxZoom: 5, size: 18, prio: 3 };
+	// auseinander). ⚠️ ABER `avesmapsEcosystemDisplayVorgabe(subtyp)` selbst taugt hier NICHT als
+	// „echter" Wert: sie mischt DREI Stufen (Admin-Übersteuerung > gemessene Vorgabe der Art >
+	// Grundwert), und der IMPORT kennt serverseitig nur die ERSTE -- die gemessene Tafel
+	// `AVESMAPS_ECOSYSTEM_DISPLAY_VORGABE_JE_ART` ist ein reiner Client-Schnappschuss ohne
+	// PHP-Gegenstück (siehe der Kommentar an avesmapsGaretienLabelVorgabeFuerArt). Der „echte" Wert
+	// unten liest deshalb dieselbe ROHE Übersteuerung wie der Server -- über
+	// `avesmapsEcosystemDisplayTeil()`, nicht über `avesmapsEcosystemDisplayVorgabe()` -- und wendet
+	// dieselben zwei Wächter an wie avesmapsGaretienLabelVorgabeFuerArt: ein umgekehrtes Zoomband
+	// ("aus", bis < ab) verwirft beide Enden, eine Größe unter 10 pt (dem Label-Minimum, unterhalb
+	// der 4..30-Schranke der Darstellungstafel) verwirft die Größe. Bleibt DANACH noch eine
+	// Abweichung zur VOLLEN Empfehlung (inklusive der gemessenen Tafel), zeigt die Zeile sie
+	// weiterhin als Hinweis -- genau für die Arten, die der Import mangels Admin-Übersteuerung
+	// unverändert lässt.
+	function garetienEingefuegtWirdLabelEcht(subtyp) {
+		const grundwert = { minZoom: 0, maxZoom: 5, size: 18, prio: 3 };
+		if (typeof avesmapsEcosystemDisplayTeil !== "function") { return grundwert; }
+		const echt = Object.assign({}, grundwert);
+		const vorgabe = avesmapsEcosystemDisplayTeil("vorgabe")[String(subtyp || "")];
+		if (vorgabe && typeof vorgabe === "object") {
+			if (typeof vorgabe.ab === "number") { echt.minZoom = vorgabe.ab; }
+			if (typeof vorgabe.bis === "number") { echt.maxZoom = vorgabe.bis; }
+			if (typeof vorgabe.prio === "number") { echt.prio = vorgabe.prio; }
+		}
+		if (echt.maxZoom < echt.minZoom) {
+			echt.minZoom = grundwert.minZoom;
+			echt.maxZoom = grundwert.maxZoom;
+		}
+		const groesseZeile = avesmapsEcosystemDisplayTeil("groesse")[String(subtyp || "")];
+		if (Array.isArray(groesseZeile) && typeof groesseZeile[5] === "number" && groesseZeile[5] >= 10) {
+			echt.size = Math.round(groesseZeile[5]);
+		}
+		return echt;
+	}
 
 	// REIN: hat dieses Objekt überhaupt einen "neu anlegen"-Vorschlag? Dieselbe Frage wie
 	// AVESMAPS_GARETIEN_ITEMS_JE_HANDLUNG.neu (weiter unten), hier auf Objektebene gefragt: nur
@@ -2029,6 +2058,7 @@
 	// `mitKurve` gilt nur bei einer FLÄCHE -- ein Berggipfel-Label hängt an keiner
 	// `ecosystem_region` (siehe der 'label'-Zweig in avesmapsGaretienUebernehmen).
 	function garetienEingefuegtWirdBeschriftungMarkup(subtyp, mitKurve) {
+		const echt = garetienEingefuegtWirdLabelEcht(subtyp);
 		const vorgabe = (typeof avesmapsEcosystemDisplayVorgabe === "function")
 			? avesmapsEcosystemDisplayVorgabe(subtyp)
 			: null;
@@ -2036,13 +2066,13 @@
 			? avesmapsEcosystemDisplayBasisGroesse(subtyp)
 			: null;
 		let markup = garetienEingefuegtWirdUeberschrift("Beschriftung")
-			+ garetienEingefuegtWirdZeile("Größe", AVESMAPS_GARETIEN_LABEL_ECHT.size + " pt",
+			+ garetienEingefuegtWirdZeile("Größe", echt.size + " pt",
 				basisGroesse === null ? null : basisGroesse + " pt")
-			+ garetienEingefuegtWirdZeile("Priorität", AVESMAPS_GARETIEN_LABEL_ECHT.prio,
+			+ garetienEingefuegtWirdZeile("Priorität", echt.prio,
 				vorgabe === null ? null : vorgabe.prio)
-			+ garetienEingefuegtWirdZeile("Sichtbar ab Zoom", AVESMAPS_GARETIEN_LABEL_ECHT.minZoom,
+			+ garetienEingefuegtWirdZeile("Sichtbar ab Zoom", echt.minZoom,
 				vorgabe === null ? null : vorgabe.ab)
-			+ garetienEingefuegtWirdZeile("Sichtbar bis Zoom", AVESMAPS_GARETIEN_LABEL_ECHT.maxZoom,
+			+ garetienEingefuegtWirdZeile("Sichtbar bis Zoom", echt.maxZoom,
 				vorgabe === null ? null : vorgabe.bis);
 		if (mitKurve) {
 			markup += '<p class="gi-insert__row">Kurvenbeschreibung <span class="gi-insert__val">(aus)</span></p>';

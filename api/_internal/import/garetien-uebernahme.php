@@ -18,6 +18,7 @@ require_once __DIR__ . '/garetien-plan.php';
 require_once __DIR__ . '/../map/features.php';
 require_once __DIR__ . '/../app/feature-sources.php';
 require_once __DIR__ . '/../app/ecosystem.php';
+require_once __DIR__ . '/../app/ecosystem-display.php';
 
 // 🔴 ES IST EIN BRIEFSPIEL, KEIN EIGENER TYP (Owner 27.08.2026: „wichtig ist auch die kategorie
 // der quelle ... beispiel Briefspiel (Weiden)"). garetien.de und koschwiki.de sind genau das --
@@ -242,6 +243,79 @@ function avesmapsGaretienQuelleRuecknahmeLoesen(PDO $pdo, string $entityType, st
     return $geloest;
 }
 
+// 🔴 DER Z5-INDEX -- dieselbe Stelle, an der js/map-features/ecosystem-display.js die
+// "Grundgroesse" einer Art abliest (avesmapsEcosystemDisplayBasisGroesse: "bei z5 ist der
+// Zoomfaktor der Groessenrechnung genau 1,0 ... die Grundgroesse IST also per Konstruktion der
+// z5-Wert"). Keine eigene Zahl, dieselbe Stelle der Zeile.
+const AVESMAPS_GARETIEN_LABEL_VORGABE_GROESSE_INDEX = 5;
+
+/**
+ * Die vom ADMIN gesetzte Uebersteuerung einer Landschaftsart lesen (Fenster „Landschaften ->
+ * Darstellung") und in die Form von avesmapsCreateLabelFeature() bringen: size/priority/
+ * min_zoom/max_zoom (Owner-Nachtrag 30.08.2026: „DOCH DER IMPORT SOLL SIE SETZEN!!!").
+ *
+ * 🔴 NUR DIE UEBERSTEUERUNG AUS avesmapsEcosystemDisplayRead(), NIE DIE GEMESSENE BASISTAFEL.
+ * AVESMAPS_ECOSYSTEM_DISPLAY_VORGABE_JE_ART (js/map-features/ecosystem-display.js) ist ein
+ * Client-Schnappschuss ohne PHP-Gegenstueck -- ihn hier nachzubauen waere die zweite Wahrheit,
+ * die AGENTS.md §5 verbietet ("eine abgeschriebene Vorgabetafel ... die teuerste Fehlerklasse
+ * dieses Projekts"). avesmapsEcosystemDisplayRead() ist die einzige Quelle, die der Server
+ * ueberhaupt kennt: exakt das, was ein Admin im Fenster tatsaechlich gespeichert hat.
+ *
+ * ⚠️ FEHLT FUER DIESE ART EINE UEBERSTEUERUNG, BLEIBT ES BEIM HEUTIGEN GRUNDWERT -- ausdruecklich,
+ * nicht zufaellig: das jeweilige Feld fehlt dann im Rueckgabearray ganz, und
+ * avesmapsCreateLabelFeature faellt auf seine eigenen Vorgaben zurueck (size=18, min_zoom=0,
+ * max_zoom=5, priority=3) -- dieselben vier Zahlen, die AVESMAPS_GARETIEN_LABEL_ECHT im Fenster
+ * „Eingefuegt wird" bisher als „der Import setzt sie nicht" zeigte.
+ *
+ * ⚠️ EIN GESPEICHERTER WERT KANN AUSSERHALB DESSEN LIEGEN, WAS EIN LABEL TRAGEN DARF. Die
+ * Darstellungstafel prueft nur gegen ihre EIGENEN, weiteren Schranken (Groesse 4..30 pt, Zoomband
+ * -1(=„aus")..7); avesmapsReadLabelSize/…Zoom/…Priority pruefen gegen ihre eigenen (Groesse
+ * 10..56, Zoom 0..7). Ein dort gueltiger, hier ungueltiger Wert wuerde avesmapsCreateLabelFeature
+ * zum Werfen bringen und den ganzen Uebernahme-Schritt fuer ein Objekt abbrechen -- fuer eine
+ * reine Anzeige-Einstellung. Er wird deshalb VORAB gegen dieselben Schranken geprueft und im
+ * Zweifel weggelassen (= Grundwert), nie ungeprueft durchgereicht.
+ *
+ * @return array{size?:int, priority?:int, min_zoom?:int, max_zoom?:int}
+ */
+function avesmapsGaretienLabelVorgabeFuerArt(PDO $pdo, string $subtyp): array
+{
+    $display = avesmapsEcosystemDisplayRead($pdo)['display'] ?? null;
+    if (!is_array($display)) {
+        return [];
+    }
+
+    $raus = [];
+    $vorgabe = $display['vorgabe'][$subtyp] ?? null;
+    if (is_array($vorgabe)) {
+        if (isset($vorgabe['ab']) && is_int($vorgabe['ab']) && $vorgabe['ab'] >= 0 && $vorgabe['ab'] <= 7) {
+            $raus['min_zoom'] = $vorgabe['ab'];
+        }
+        if (isset($vorgabe['bis']) && is_int($vorgabe['bis']) && $vorgabe['bis'] >= 0 && $vorgabe['bis'] <= 7) {
+            $raus['max_zoom'] = $vorgabe['bis'];
+        }
+        if (isset($vorgabe['prio']) && is_int($vorgabe['prio']) && $vorgabe['prio'] >= 1 && $vorgabe['prio'] <= 5) {
+            $raus['priority'] = $vorgabe['prio'];
+        }
+    }
+    // 💣 EIN HALBES ZOOMBAND WAERE EINE ERFUNDENE AUSSAGE. `bis < ab` kodiert in der
+    // Darstellungstafel "aus" (z.B. bis=-1) -- fuer ein NEUES Label, das ohnehin erscheinen soll,
+    // ist das keine gueltige Angabe. avesmapsCreateLabelFeature wirft ausserdem hart bei
+    // max_zoom < min_zoom; beide Enden werden deshalb zusammen verworfen, nicht nur eines.
+    if (isset($raus['min_zoom'], $raus['max_zoom']) && $raus['max_zoom'] < $raus['min_zoom']) {
+        unset($raus['min_zoom'], $raus['max_zoom']);
+    }
+
+    $groesseZeile = $display['groesse'][$subtyp] ?? null;
+    if (is_array($groesseZeile) && array_key_exists(AVESMAPS_GARETIEN_LABEL_VORGABE_GROESSE_INDEX, $groesseZeile)) {
+        $z5 = $groesseZeile[AVESMAPS_GARETIEN_LABEL_VORGABE_GROESSE_INDEX];
+        if ((is_int($z5) || is_float($z5)) && $z5 >= 10 && $z5 <= 56) {
+            $raus['size'] = (int) round($z5);
+        }
+    }
+
+    return $raus;
+}
+
 /**
  * Eine Flaeche anlegen: LABEL (Punkt) + ecosystem_region + ecosystem_area.
  *
@@ -265,12 +339,16 @@ function avesmapsGaretienFlaecheAnlegen(PDO $pdo, array $nach, array $user, int 
     // der Karte, und bei einem Punkt nahe der Diagonale faellt das nicht auf.
     // ⚠️ Der Subtyp des Labels IST der Art-Schluessel seiner Region -- so steht es an
     // avesmapsReadLabelSubtype, und 'see'/'meer'/'suempfe_moore' sind dort gueltig.
-    $label = avesmapsCreateLabelFeature($pdo, [
+    // 🔴 DER IMPORT SETZT DIE VORGABE DER ART (Owner-Nachtrag 30.08.2026) -- siehe
+    // avesmapsGaretienLabelVorgabeFuerArt oben. Fehlt eine Uebersteuerung fuer diese Art, liefert
+    // sie ein leeres Array, und avesmapsCreateLabelFeature faellt auf seine eigenen Vorgaben
+    // zurueck -- der bisherige Zustand bleibt fuer eine unberuehrte Art also unveraendert.
+    $label = avesmapsCreateLabelFeature($pdo, array_merge([
         'text' => (string) $nach['name'],
         'feature_subtype' => (string) $nach['subtyp'],
         'lng' => $lx,
         'lat' => $ly,
-    ], $user);
+    ], avesmapsGaretienLabelVorgabeFuerArt($pdo, (string) $nach['subtyp'])), $user);
     $labelId = avesmapsGaretienPublicIdAus($label, 'Das Label der Flaeche');
 
     // 2. Region und Flaeche, ueber die Hausfunktionen der Landschaften-Ebene.
@@ -826,12 +904,14 @@ function avesmapsGaretienUebernehmen(PDO $pdo, int $runId, array $itemIds, array
                 // auf 0 oder null gesetzt (avesmapsCreateLabelFeature schreibt es nur, wenn der
                 // Schluessel ueberhaupt im Payload steht).
                 $punkt = avesmapsGaretienPunktAusGeometrie($nach);
-                $feature = avesmapsCreateLabelFeature($pdo, [
+                // 🔴 DER IMPORT SETZT DIE VORGABE DER ART (Owner-Nachtrag 30.08.2026) -- siehe
+                // avesmapsGaretienLabelVorgabeFuerArt oben, dieselbe Regel wie bei der Flaeche.
+                $feature = avesmapsCreateLabelFeature($pdo, array_merge([
                     'text' => (string) $nach['name'],
                     'feature_subtype' => (string) $nach['subtyp'],
                     'lng' => $punkt['lng'],
                     'lat' => $punkt['lat'],
-                ], $user);
+                ], avesmapsGaretienLabelVorgabeFuerArt($pdo, (string) $nach['subtyp'])), $user);
                 $publicId = avesmapsGaretienPublicIdAus($feature, 'Der Gipfel');
                 // 🔴 Dieselbe Bindung wie oben: feature_type 'label' -> entity_type 'region'
                 // (map-features.php:1228), KEYED AN DER PUBLIC_ID DES LABELS SELBST -- es gibt

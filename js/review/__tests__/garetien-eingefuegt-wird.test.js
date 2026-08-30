@@ -341,6 +341,70 @@ gleich(garetienWikiLandschaftZeileText({ status: "mehrdeutig", name: "", art: ""
 	"mehrere gleichnamige Wiki-Artikel — keine sichere Zuordnung");
 
 // =================================================================================================
+// G2. KORREKTUR A (Owner-Nachtrag 30.08.2026, wörtlich: „DOCH DER IMPORT SOLL SIE SETZEN!!!"):
+//     eine gespeicherte ADMIN-UEBERSTEUERUNG wird vom Import wirklich gesetzt -- der echte Wert
+//     MUSS sie dann tragen, und "der Import setzt sie nicht" darf fuer diese Felder nicht mehr
+//     stehen. Eine UNGUELTIGE Uebersteuerung (die avesmapsCreateLabelFeature ablehnen wuerde)
+//     faellt dagegen auf den Grundwert zurueck -- genau wie server-seitig
+//     (avesmapsGaretienLabelVorgabeFuerArt, api/_internal/import/garetien-uebernahme.php).
+// =================================================================================================
+
+// ---- G2.1: eine VOLLSTAENDIGE, gueltige Uebersteuerung fuer 'huegelland'.
+avesmapsEcosystemDisplayInstall({
+	vorgabe: { huegelland: { ab: 2, bis: 6, prio: 4 } },
+	groesse: { huegelland: [10, 11, 12, 13, 14, 25, 26, 27, 28] },
+});
+const mHuegelUebersteuert = garetienEingefuegtWirdMarkup(huegel);
+wahr(mHuegelUebersteuert.includes("Größe") && mHuegelUebersteuert.includes("(25 pt)"),
+	"die Uebersteuerung setzt die Groesse auf ihren z5-Wert 25: " + mHuegelUebersteuert);
+wahr(mHuegelUebersteuert.includes("Priorität") && mHuegelUebersteuert.includes("(4)"),
+	"die Uebersteuerung setzt die Prioritaet auf 4");
+wahr(mHuegelUebersteuert.includes("Sichtbar ab Zoom") && mHuegelUebersteuert.includes("(2)"),
+	"die Uebersteuerung setzt den Start-Zoom auf 2");
+wahr(mHuegelUebersteuert.includes("Sichtbar bis Zoom") && mHuegelUebersteuert.includes("(6)"),
+	"die Uebersteuerung setzt den End-Zoom auf 6");
+wahr(!mHuegelUebersteuert.includes("Vorgabe der Art wäre"),
+	'"der Import setzt sie nicht" darf jetzt nicht mehr stehen -- der Import setzt sie: '
+	+ mHuegelUebersteuert);
+
+// ---- G2.2: die GEGENPROBE -- eine ANDERE Art ohne eigene Uebersteuerung bleibt beim Grundwert
+// und zeigt weiterhin ihre Empfehlung als Hinweis. Ohne diese Zeile prüfte G2.1 nicht, ob die
+// Uebersteuerung wirklich an der ART haengt, statt den Grundwert global zu veraendern.
+const mSeeOhneUebersteuerung = garetienEingefuegtWirdMarkup(see);
+wahr(mSeeOhneUebersteuerung.includes("Größe") && mSeeOhneUebersteuerung.includes("(18 pt)"),
+	"'see' traegt keine eigene Uebersteuerung -- die Groesse bleibt beim Grundwert 18 pt");
+wahr(/Sichtbar ab Zoom[\s\S]{0,120}Vorgabe der Art wäre 4/.test(mSeeOhneUebersteuerung),
+	"'see' zeigt weiterhin seine Empfehlung als Hinweis -- 'huegelland' und 'see' duerfen sich "
+	+ "nicht gegenseitig beeinflussen");
+
+// ---- G2.3: eine UNGUELTIGE Uebersteuerung faellt auf den Grundwert zurueck, statt den Import
+// zum Werfen zu bringen -- fuer 'berggipfel': ein umgekehrtes Zoomband (bis < ab, in der
+// Darstellungstafel gueltig als "aus") und eine Groesse unter dem Label-Minimum 10 pt.
+avesmapsEcosystemDisplayInstall({
+	vorgabe: { berggipfel: { ab: 5, bis: 1, prio: 2 } },
+	groesse: { berggipfel: [4, 4, 4, 4, 4, 4, 4, 4, 4] },
+});
+const mGipfelUngueltig = garetienEingefuegtWirdMarkup(gipfel);
+wahr(mGipfelUngueltig.includes("Sichtbar ab Zoom") && mGipfelUngueltig.includes("(0)"),
+	"ein umgekehrtes Zoomband faellt auf den Grundwert 0 zurueck: " + mGipfelUngueltig);
+wahr(mGipfelUngueltig.includes("Sichtbar bis Zoom") && mGipfelUngueltig.includes("(5)"),
+	"und ebenso auf den Grundwert 5 -- BEIDE Enden, nicht nur eines");
+wahr(mGipfelUngueltig.includes("Größe") && mGipfelUngueltig.includes("(18 pt)"),
+	"eine Groesse unter 10 pt faellt auf den Grundwert 18 pt zurueck");
+wahr(mGipfelUngueltig.includes("Priorität") && mGipfelUngueltig.includes("(2)"),
+	"die Prioritaet 2 ist fuer sich gueltig und wird trotzdem uebernommen -- nur Zoomband/Groesse "
+	+ "sind kaputt");
+// Die verworfene Uebersteuerung bleibt trotzdem als EHRLICHER Hinweis sichtbar -- sie wurde
+// gespeichert, nur eben nicht angewendet.
+wahr(/Sichtbar ab Zoom[\s\S]{0,120}Vorgabe der Art wäre 5/.test(mGipfelUngueltig),
+	"die verworfene Uebersteuerung (ab=5) bleibt als Hinweis sichtbar -- der Import setzt sie eben nicht");
+wahr(mGipfelUngueltig.includes("Größe") && /Größe[\s\S]{0,120}Vorgabe der Art wäre 4 pt/.test(mGipfelUngueltig),
+	"und ebenso die verworfene Groesse (4 pt)");
+
+// ---- Aufraeumen: die globale Uebersteuerung darf die Verdrahtungs-Sektion (H) nicht beeinflussen.
+avesmapsEcosystemDisplayInstall(null);
+
+// =================================================================================================
 // H. Die Verdrahtung: garetienDetailWaehlen -> garetienWikiLandschaftBeiBedarfLaden -> Aktion
 //    'wiki_landschaft' -> der Platzhalter wird nachgetragen. Vorbild: garetien-fussknopf-dom.test.js.
 // =================================================================================================
