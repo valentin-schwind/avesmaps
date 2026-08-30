@@ -329,25 +329,25 @@ function avesmapsGaretienListeObjektPasstFilter(array $objekt, array $filter): b
 }
 
 /**
- * Die Arbeitsliste: EINE Zeile je Objekt, ihre Items daran -- und die Zeilen, die gar kein Item
- * erzeugen (Aufgabe 6: "deckt sich" ohne Ergaenzung, "uebersprungen"), trotzdem sichtbar.
+ * Alle Objekte EINES Laufs, UNGEFILTERT und UNPAGINIERT -- der Bauabschnitt, den sich
+ * avesmapsGaretienArbeitsliste (unten, Aufgabe 8) und avesmapsGaretienNaehe (Owner-Auftrag A,
+ * 30.08.2026, "Imports in der Naehe markieren") teilen. Beide brauchen dieselben Objekte samt
+ * ihrer schon fertig gebauten Geometrie -- eine zweite Fassung dieses Item-Merges liefe beim
+ * naechsten Feld auseinander (AGENTS.md §11: "eine Regel, die einen von mehreren Lesern bindet,
+ * ist keine Regel").
  *
- * @param array{ebene?:list<string>, typ?:list<string>, urteil?:list<string>, wiki?:list<string>,
- *              suche?:string, nur_ungehakt?:bool, nur_mehrteilig?:bool, stand?:string,
- *              versatz?:int, anzahl?:int} $filter
+ * 🔴 REIN LESEND, wie die Arbeitsliste selbst. Baut GENAU die Schritte 2-5, die vorher am Anfang
+ * von avesmapsGaretienArbeitsliste standen, wortgleich -- nur ohne die Filterung/Bilanz danach,
+ * die beide Aufrufer unterschiedlich brauchen (der eine filtert+seitet, der andere sucht im
+ * ganzen Lauf nach einem Umkreis).
+ *
+ * @return array{plan_run_id: ?int, objekte: array<string, array>, angehakt: array{new:int, changed:int}}
+ *   `plan_run_id` ist `null`, solange kein offener Vorschau-Lauf existiert -- dann ist `objekte`
+ *   leer und `angehakt` beide 0, derselbe leere Zustand wie vor dem ersten Rechnen.
  */
-function avesmapsGaretienArbeitsliste(PDO $pdo, int $importRunId, array $filter): array
+function avesmapsGaretienArbeitslisteObjekte(PDO $pdo, int $importRunId): array
 {
-    $leer = [
-        'ok' => true,
-        'plan_run_id' => 0,
-        'gesamt' => 0,
-        'objekte' => [],
-        'bilanz' => ['neu' => 0, 'ergaenzung' => 0, 'zweifel' => 0, 'widerspruch' => 0, 'deckt_sich' => 0, 'uebersprungen' => 0],
-        'reiter' => ['offen' => 0, 'vorgemerkt' => 0, 'abgelehnt' => 0, 'uebernommen' => 0],
-        'facetten' => ['ebene' => [], 'typ' => [], 'urteil' => [], 'wiki' => [], 'typ_kategorie' => []],
-        'angehakt' => ['new' => 0, 'changed' => 0],
-    ];
+    $leer = ['plan_run_id' => null, 'objekte' => [], 'angehakt' => ['new' => 0, 'changed' => 0]];
 
     // 1. Der offene Vorschau-Lauf. Keiner da -> leere, aber gueltige Antwort (kein Fehler: das
     // ist der Normalfall vor dem ersten Rechnen).
@@ -621,6 +621,39 @@ function avesmapsGaretienArbeitsliste(PDO $pdo, int $importRunId, array $filter)
         ];
     }
 
+    return ['plan_run_id' => $planRunId, 'objekte' => $objekte, 'angehakt' => ['new' => $angehaktNeu, 'changed' => $angehaktGeaendert]];
+}
+
+/**
+ * Die Arbeitsliste: EINE Zeile je Objekt, ihre Items daran -- und die Zeilen, die gar kein Item
+ * erzeugen (Aufgabe 6: "deckt sich" ohne Ergaenzung, "uebersprungen"), trotzdem sichtbar.
+ *
+ * @param array{ebene?:list<string>, typ?:list<string>, urteil?:list<string>, wiki?:list<string>,
+ *              suche?:string, nur_ungehakt?:bool, nur_mehrteilig?:bool, stand?:string,
+ *              versatz?:int, anzahl?:int} $filter
+ */
+function avesmapsGaretienArbeitsliste(PDO $pdo, int $importRunId, array $filter): array
+{
+    $leer = [
+        'ok' => true,
+        'plan_run_id' => 0,
+        'gesamt' => 0,
+        'objekte' => [],
+        'bilanz' => ['neu' => 0, 'ergaenzung' => 0, 'zweifel' => 0, 'widerspruch' => 0, 'deckt_sich' => 0, 'uebersprungen' => 0],
+        'reiter' => ['offen' => 0, 'vorgemerkt' => 0, 'abgelehnt' => 0, 'uebernommen' => 0],
+        'facetten' => ['ebene' => [], 'typ' => [], 'urteil' => [], 'wiki' => [], 'typ_kategorie' => []],
+        'angehakt' => ['new' => 0, 'changed' => 0],
+    ];
+
+    $basis = avesmapsGaretienArbeitslisteObjekte($pdo, $importRunId);
+    if ($basis['plan_run_id'] === null) {
+        return $leer;
+    }
+    $planRunId = $basis['plan_run_id'];
+    $objekte = $basis['objekte'];
+    $angehaktNeu = $basis['angehakt']['new'];
+    $angehaktGeaendert = $basis['angehakt']['changed'];
+
     // 6. Facetten und Bilanz zaehlen den LAUF -- VOR dem Filtern. Sonst faellt nach dem ersten
     // Klick jeder andere Wert auf 0, und der Trichter laesst sich nicht mehr oeffnen.
     //
@@ -680,4 +713,132 @@ function avesmapsGaretienArbeitsliste(PDO $pdo, int $importRunId, array $filter)
         'facetten' => $facetten,
         'angehakt' => ['new' => $angehaktNeu, 'changed' => $angehaktGeaendert],
     ];
+}
+
+/**
+ * Der Zuschlag ueber die eigene Ausdehnung hinaus (Owner-Auftrag A, 30.08.2026, woertlich:
+ * "5 karteneinheiten von zentrum, entferntesten flaechepunkt entfernt"). Eine benannte Konstante,
+ * keine Zahl im Ausdruck -- eine Zahl ohne Namen wird beim naechsten Zweifel geraten.
+ */
+const AVESMAPS_GARETIEN_NAEHE_ZUSCHLAG = 5.0;
+
+/**
+ * Owner-Auftrag A (30.08.2026), Knopf "Imports in der Naehe markieren": weitere Objekte DES
+ * IMPORTS im groben Umkreis um ein bereits geladenes Objekt.
+ *
+ * Der Radius reicht ueber die eigene Ausdehnung hinaus: Mittelpunkt -> entferntester eigener
+ * Punkt + AVESMAPS_GARETIEN_NAEHE_ZUSCHLAG. Fuer einen Punkt (Ort, Gipfel) ist der erste Teil 0,
+ * der Radius also schlicht der Zuschlag -- genau die Zusicherung aus dem Auftrag.
+ *
+ * 🔴 SIE SUCHT UEBER DEN GANZEN LAUF, NIE UEBER EINE SEITE. Die Liste im Fenster haelt hoechstens
+ * AVESMAPS_GARETIEN_LISTE_MAX von bis zu 8213 Objekten, zusaetzlich gefiltert -- eine Umkreissuche
+ * ueber nur das GELADENE faende nur, was die Ansicht gerade zeigt, und die Zahl im Knopf haenge
+ * dann von der Ansicht ab statt von der Karte. Das ist die Falschaussage ueber die naechste
+ * Handlung, die dieses Fenster laut Auftrag schon mehrfach gekostet hat. Deshalb baut diese
+ * Funktion auf avesmapsGaretienArbeitslisteObjekte auf, die den GANZEN Lauf liest.
+ *
+ * ⚠️ GROB, absichtlich: geprueft wird "hat der Nachbar irgendeinen Punkt im Kreis um den
+ * Mittelpunkt", keine echte Flaechenueberschneidung -- derselbe Massstab wie der Abgleich selbst
+ * (avesmapsGaretienDeckung, garetien-abgleich.php), der ebenfalls nur Punkte vergleicht statt
+ * Geometrien zu schneiden.
+ *
+ * 💣 DER VORFILTER IST DIE HUELLBOX DES KANDIDATEN, FRISCH AUS SEINEN PUNKTEN GERECHNET -- NIE
+ * eine gespeicherte Spalte. `garetien_import_row` hat gar keine bbox-Spalten, und der Abgleich
+ * verbietet ihre Benutzung ohnehin aus gutem Grund (avesmapsGaretienKandidaten,
+ * garetien-abgleich.php: eine gespeicherte bbox kann veralten). `min()`/`max()` ueber die schon
+ * geladene Punktliste sind C-Funktionen und schneiden die grosse Mehrheit der weit entfernten
+ * Kandidaten mit vier Vergleichen ab, bevor ihre Punkte einzeln gegen den Kreis geprueft werden --
+ * derselbe Griff wie avesmapsGaretienHuellenBeruehrenSich (garetien-abgleich.php), nur mit dem
+ * Radius als Rand statt der festen Trefferzone AVESMAPS_GARETIEN_TREFFER_EINHEITEN.
+ *
+ * @return array{gefunden: list<array>, radius: float}
+ *   `gefunden` sind VOLLE Objekte, in der Form, die avesmapsGaretienArbeitslisteObjekte liefert --
+ *   nicht nur Schluessel. Der Client kann sie damit direkt markieren UND anzeigen, ohne an die
+ *   hoechstens 500 Zeilen der gerade geladenen Seite gebunden zu sein (Auftrag: "Wenn du siehst,
+ *   dass die Serverantwort die Objekte ohnehin mitbringen koennte ... waere die Grenze weg statt
+ *   nur benannt" -- sie kann es, siehe avesmapsGaretienArbeitslisteObjekte oben, also ist sie weg).
+ *   Leer (`radius: 0.0`), wenn `$ziel` im Lauf nicht existiert oder keine eigene Geometrie traegt --
+ *   ohne eigene Punkte gibt es keinen Mittelpunkt und keinen Radius.
+ *
+ * 🔴 REIN, KEIN PDO -- dieselbe Trennung wie bei avesmapsGaretienListeObjektUrteil/-Stand daneben:
+ * die Umkreisrechnung selbst braucht keine Datenbank, nur die schon gebauten Objekte. Ihr
+ * PDO-Zwilling avesmapsGaretienNaehe (Endpunkt-Aufrufer) ist ein duenner Wrapper, der nur noch
+ * avesmapsGaretienArbeitslisteObjekte davorschaltet -- eine Testfixture braucht damit keine echten
+ * Koordinaten aus garetien.de samt Affintransformation, sondern kann Objekte mit handgewaehlten
+ * Karteneinheiten direkt uebergeben.
+ *
+ * @param array<string, array{geometrie: list<array{0:float,1:float}>}> $objekte
+ */
+function avesmapsGaretienNaeheAusObjekten(array $objekte, string $ziel): array
+{
+    $leer = ['gefunden' => [], 'radius' => 0.0];
+
+    $zielObjekt = $objekte[$ziel] ?? null;
+    if ($zielObjekt === null) {
+        return $leer;
+    }
+    $eigenePunkte = (array) $zielObjekt['geometrie'];
+    if ($eigenePunkte === []) {
+        return $leer;
+    }
+
+    // Der Mittelpunkt -- der schlichte Durchschnitt der eigenen Punkte, wie
+    // avesmapsGaretienRingMittelpunkt (garetien-uebernahme.php) ihn fuer eine Flaeche rechnet, nur
+    // hier ohne die Abhaengigkeit auf den Schreibweg dieses Imports (§5.5: die Leseseite kennt
+    // ausschliesslich ihre eigenen Nachbarn, kein Zweig dieser Datei braucht einen Schreibweg).
+    $n = count($eigenePunkte);
+    $cx = 0.0;
+    $cy = 0.0;
+    foreach ($eigenePunkte as $p) {
+        $cx += (float) $p[0];
+        $cy += (float) $p[1];
+    }
+    $cx /= $n;
+    $cy /= $n;
+
+    $eigenAbstand = 0.0;
+    foreach ($eigenePunkte as [$px, $py]) {
+        $d = sqrt((($px - $cx) ** 2) + (($py - $cy) ** 2));
+        if ($d > $eigenAbstand) {
+            $eigenAbstand = $d;
+        }
+    }
+    $radius = $eigenAbstand + AVESMAPS_GARETIEN_NAEHE_ZUSCHLAG;
+    $radiusQuadrat = $radius ** 2;
+
+    $gefunden = [];
+    foreach ($objekte as $key => $kandidat) {
+        if ($key === $ziel) {
+            continue;   // das Ziel selbst ist kein Nachbar seiner selbst
+        }
+        $punkte = (array) $kandidat['geometrie'];
+        if ($punkte === []) {
+            continue;
+        }
+        $xs = array_column($punkte, 0);
+        $ys = array_column($punkte, 1);
+        if (min($xs) > $cx + $radius || max($xs) < $cx - $radius
+            || min($ys) > $cy + $radius || max($ys) < $cy - $radius) {
+            continue;   // Huellbox-Vorfilter -- ganz ausserhalb des Suchquadrats
+        }
+        foreach ($punkte as [$px, $py]) {
+            if ((($px - $cx) ** 2) + (($py - $cy) ** 2) <= $radiusQuadrat) {
+                $gefunden[] = $kandidat;
+                break;   // ein Treffer genuegt, der Rest seiner Punkte aendert daran nichts mehr
+            }
+        }
+    }
+
+    return ['gefunden' => $gefunden, 'radius' => $radius];
+}
+
+/**
+ * Der PDO-Zwilling zu avesmapsGaretienNaeheAusObjekten -- liest den GANZEN Lauf (nie eine Seite,
+ * siehe die Begruendung an der reinen Funktion oben) und reicht die Objekte durch.
+ */
+function avesmapsGaretienNaehe(PDO $pdo, int $importRunId, string $ziel): array
+{
+    $objekte = avesmapsGaretienArbeitslisteObjekte($pdo, $importRunId)['objekte'];
+
+    return avesmapsGaretienNaeheAusObjekten($objekte, $ziel);
 }

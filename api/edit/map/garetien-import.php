@@ -158,6 +158,27 @@ try {
         ]));
     }
 
+    // --- Owner-Auftrag A (30.08.2026): "Imports in der Naehe markieren" -- weitere Objekte DES
+    // IMPORTS im groben Umkreis um ein bereits geladenes Objekt. REIN LESEND, wie `liste`.
+    //
+    // 🔴 SIE SUCHT UEBER DEN GANZEN LAUF (avesmapsGaretienNaehe liest den ganzen Lauf ueber
+    // avesmapsGaretienArbeitslisteObjekte) -- eine Umkreissuche ueber nur die geladene Seite faende
+    // nur, was gerade sichtbar ist, und die Zahl im Knopf haenge dann von der Ansicht ab statt von
+    // der Karte.
+    // ⚠️ NICHT im admin-only-Riegel oben: dieselbe Zukunft wie bei `liste`/`wiki_landschaft` -- ein
+    // per-Zeile-Leseweg, der eines Tages Editoren offenstehen soll (Fuenf-Punkte-Brief, Punkt 2).
+    if ($action === 'naehe') {
+        $importRun = (int) ($payload['run_id'] ?? 0);
+        if ($importRun <= 0) {
+            avesmapsErrorResponse(400, 'no_run', 'Es wurde kein Import-Lauf genannt.');
+        }
+        $ziel = avesmapsNormalizeSingleLine((string) ($payload['ziel'] ?? ''), 190);
+        if ($ziel === '') {
+            avesmapsErrorResponse(400, 'no_target', 'Es wurde kein Objekt genannt.');
+        }
+        avesmapsJsonResponse(200, ['ok' => true] + avesmapsGaretienNaehe($pdo, $importRun, $ziel));
+    }
+
     // 🔴 EIN `apply` GIBT ES HIER NICHT, und das ist Absicht. Uebernommen wird ueber die
     // vorhandene Vorschau (api/edit/wiki/sync-plan.php, Art 'garetien') -- dort haengen der
     // Einzelflug-Riegel, die zweite Bestaetigung fuer Loeschungen, das Protokoll und der

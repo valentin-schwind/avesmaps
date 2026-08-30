@@ -2817,6 +2817,108 @@
 			+ "</div>";
 	}
 
+	// ---- Owner-Auftrag A (30.08.2026): „Imports in der Nähe markieren" ----------------------------
+	//
+	// Owner, wörtlich: „Im groben umkreis um ein objekt herum (5 karteneinheiten von zentrum,
+	// entferntesten flächepunkt entfernt) sollen weitere objekte aus dem import markiert werden
+	// können." Die Zahl selbst kommt vom SERVER (avesmapsGaretienNaehe,
+	// api/_internal/import/garetien-liste.php) -- sie sucht über den GANZEN Lauf, eine Liste von
+	// höchstens 500 geladenen Zeilen fände nur, was gerade sichtbar ist, und der Knopf verspräche
+	// dann eine Zahl, die von der Ansicht statt von der Karte abhängt.
+
+	// REIN: Beschriftung + Sperre, aus der schon vom Server gelieferten Trefferliste.
+	function garetienNaeheKnopfZustand(gefunden) {
+		const anzahl = Array.isArray(gefunden) ? gefunden.length : 0;
+		return {
+			anzahl: anzahl,
+			beschriftung: "Imports in der Nähe markieren (" + anzahl + ")",
+			gesperrt: anzahl === 0,
+			hinweis: anzahl === 0 ? "Kein weiteres Import-Objekt im Umkreis gefunden." : "",
+		};
+	}
+
+	// Modulzustand: EIN Abruf je geöffneter Zeile (dieselbe Wache wie bei der Wiki-Landschaft-Suche,
+	// `_garetienWikiLandschaftLetzterKey`). `_garetienNaeheGefunden` bleibt `null`, solange die
+	// Antwort noch nicht da ist -- so unterscheidet `garetienNaeheMarkup` "wird noch gesucht" von
+	// "gesucht, nichts gefunden" (leere Liste). ⚠️ Anders als der Wiki-Landschaft-Platzhalter MUSS
+	// diese Markup-Funktion den geladenen Stand zeigen, nicht nur beim ersten Rendern: der Klick auf
+	// diesen Knopf selbst löst `garetienAnzeigeNeuZeichnen()` aus, und `garetienDetailRendern` baut
+	// dieselbe Spalte danach sofort neu -- eine Funktion, die immer nur den Platzhalter zöge, ließe
+	// den gerade benutzten Knopf im selben Klick wieder auf "wird ermittelt" zurückfallen.
+	let _garetienNaeheLetzterKey = null;
+	let _garetienNaeheGefunden = null;
+
+	// REIN: das Markup, aus dem schon geladenen (oder noch fehlenden) Stand für GENAU dieses Objekt.
+	// 🔴 Erscheint nur, wo es überhaupt einen Mittelpunkt gibt -- dieselbe Bedingung wie beim Knopf
+	// „✦ Zentrieren" darüber: ohne eigene Geometrie kein Umkreis, kein Knopf, der nichts täte.
+	function garetienNaeheMarkup(objekt) {
+		if (!objekt || !Array.isArray(objekt.geometrie) || objekt.geometrie.length === 0) { return ""; }
+		const schluessel = String(objekt.key || "");
+		const geladen = schluessel === _garetienNaeheLetzterKey ? _garetienNaeheGefunden : null;
+		if (geladen === null) {
+			return '<div class="gi-naehe"><button class="btn" type="button" id="garetien-naehe-btn" '
+				+ "data-naehe disabled>Wird ermittelt …</button></div>";
+		}
+		const stand = garetienNaeheKnopfZustand(geladen);
+		const hinweisMarkup = stand.hinweis === "" ? ""
+			: '<span class="gi-foot__hint">' + avesmapsGaretienEscape(stand.hinweis) + "</span>";
+		return '<div class="gi-naehe"><button class="btn" type="button" id="garetien-naehe-btn" data-naehe'
+			+ (stand.gesperrt ? " disabled" : "") + ">" + avesmapsGaretienEscape(stand.beschriftung)
+			+ "</button>" + hinweisMarkup + "</div>";
+	}
+
+	// Fragt bei Bedarf den Umkreis für das GERADE GEÖFFNETE Objekt ab -- über denselben Sender wie
+	// jeder andere Aufruf dieser Datei (avesmapsGaretienRufe, GARETIEN_ENDPUNKT), EIN Abruf je
+	// geöffneter Zeile (dieselbe Begründung wie bei der Wiki-Landschaft-Suche).
+	function garetienNaeheBeiBedarfLaden(objekt) {
+		if (!objekt || !Array.isArray(objekt.geometrie) || objekt.geometrie.length === 0) { return; }
+		const schluessel = String(objekt.key || "");
+		if (schluessel === _garetienNaeheLetzterKey) { return; }
+		_garetienNaeheLetzterKey = schluessel;
+		_garetienNaeheGefunden = null;
+		if (!hasDocument || typeof fetch !== "function") { return; }
+		avesmapsGaretienRufe(GARETIEN_ENDPUNKT, {
+			action: "naehe",
+			run_id: zustand.importRunId,
+			ziel: schluessel,
+		}).then(function (antwort) {
+			// ⚠️ Gegen den EIGENEN Schlüssel geprüft, nicht gegen `zustand.detailKey`: nur so verwirft
+			// eine überholte Antwort sich selbst, auch wenn der Editor zwischenzeitlich zu einem
+			// dritten Objekt und wieder zurück geklickt hat (dieselbe Falle wie bei jeder anderen
+			// Wache dieser Datei, die nur den AKTUELLEN Stand prüft).
+			if (schluessel !== _garetienNaeheLetzterKey) { return; }
+			_garetienNaeheGefunden = Array.isArray(antwort.gefunden) ? antwort.gefunden : [];
+			if (zustand.detailKey === schluessel) { garetienDetailRendern(zustand.objekte); }
+		}).catch(function () {
+			if (schluessel !== _garetienNaeheLetzterKey) { return; }
+			_garetienNaeheGefunden = [];
+			if (zustand.detailKey === schluessel) { garetienDetailRendern(zustand.objekte); }
+		});
+	}
+
+	// Der Klick: markiert UND zeigt die gefundenen Nachbarn. 🔴 ZWEI ZÜGE IN EINEM KLICK, ABSICHT --
+	// der Server liefert bereits VOLLE Objekte (avesmapsGaretienArbeitslisteObjekte kennt sie
+	// ohnehin für den ganzen Lauf), damit schließt sich die Lücke aus dem Auftrag ("markierte
+	// Nachbarn, die nicht in der geladenen Liste stehen, lassen sich nicht anzeigen") VOLLSTÄNDIG,
+	// statt sie nur zu benennen: ein gefundener Nachbar liegt sofort auf der Karte, unabhängig von
+	// den höchstens 500 Zeilen der gerade geladenen Seite. „Alle markieren" bleibt davon unberührt
+	// -- ihr Vertrag „Markieren ändert nichts" gilt dort, wo `zustand.objekte` ohnehin schon die
+	// richtige Antwort ist; hier ist sie es nicht, und der Server hat die richtige Antwort bereits
+	// mitgeschickt.
+	// 🔴 Der Klick LEERT NICHTS (Auftrag): `avesmapsGaretienAlleMarkieren`/`avesmapsGaretienAnzeige-
+	// Hinzufuegen` ERGÄNZEN beide, wie überall in diesem Fenster.
+	function garetienNaeheKlick(ereignis, gefunden) {
+		const ziel = ereignis && ereignis.target;
+		if (!ziel || typeof ziel.closest !== "function") { return null; }
+		const knopf = ziel.closest("[data-naehe]");
+		if (!knopf || knopf.disabled) { return null; }
+		const liste = Array.isArray(gefunden) ? gefunden : [];
+		if (liste.length === 0) { return null; }
+		avesmapsGaretienAlleMarkieren(liste);
+		avesmapsGaretienAnzeigeHinzufuegen(liste);
+		return liste.length;
+	}
+
 	// REIN: die ganze rechte Spalte.
 	//
 	// 🔴 Der Knopf „✦ Zentrieren" (Aufgabe 14) trägt seinen `data-key` selbst. Er ist
@@ -2901,7 +3003,8 @@
 		// 13 Abschnitten hinter der Bildlaufleiste.
 		return '<div class="gi-detail">' + kopf + mitte + warum
 			+ garetienEingefuegtWirdMarkup(objekt) + "</div>"
-			+ garetienHandlungsMarkup(objekt);
+			+ garetienHandlungsMarkup(objekt)
+			+ garetienNaeheMarkup(objekt);
 	}
 
 	// ---- Aufgabe 15: die vier Handlungen ----------------------------------------------------------
@@ -3422,6 +3525,9 @@
 		// „Eingefügt wird" > „Wiki-Landschaft" braucht den Server (Aktion 'wiki_landschaft') --
 		// der Platzhalter steht schon im Markup, dies trägt ihn nach.
 		garetienWikiLandschaftBeiBedarfLaden(gewaehlt);
+		// Owner-Auftrag A: „Imports in der Nähe markieren" -- derselbe Zug, eigener Riegel gegen
+		// doppelte Abrufe desselben Objekts (`_garetienNaeheLetzterKey`).
+		garetienNaeheBeiBedarfLaden(gewaehlt);
 		// Dreiwertig ist eine EIGENSCHAFT, kein Attribut -- erst nach dem Einfügen einlösen, genau
 		// wie in avesmapsGaretienListeRendern.
 		Array.prototype.forEach.call(spalte.querySelectorAll("input[data-part]"), function (feld) {
@@ -4461,6 +4567,12 @@
 				// Begründung an garetienRuecknahmeSenden).
 				if (garetienRuecknahmeKlick(ereignis, zustand.objekte, zustand.planRunId,
 					garetienRuecknahmeSenden, garetienFragen)) { return; }
+				// Owner-Auftrag A: „Imports in der Nähe markieren" -- derselbe Zug wie die drei
+				// Verteiler darüber, mit der schon geladenen Trefferliste dieses Objekts.
+				if (garetienNaeheKlick(ereignis, _garetienNaeheGefunden)) {
+					garetienAnzeigeNeuZeichnen();
+					return;
+				}
 				garetienHandlungKlick(ereignis, zustand.objekte, zustand.planRunId,
 					avesmapsGaretienHandlungSenden, garetienFragen);
 			});
@@ -4675,6 +4787,11 @@
 			garetienWikiLandschaftZeileText,
 			garetienWikiLandschaftPlatzhalterId,
 			garetienWikiLandschaftBeiBedarfLaden,
+			// Owner-Auftrag A (30.08.2026): „Imports in der Nähe markieren"
+			garetienNaeheKnopfZustand,
+			garetienNaeheMarkup,
+			garetienNaeheBeiBedarfLaden,
+			garetienNaeheKlick,
 			// KORREKTUR B (30.08.2026): die manuelle Wiki-Suche, wenn der automatische Treffer leer bleibt
 			garetienWikiSucheHostId,
 			garetienWikiSucheBeiBedarfZeigen,
