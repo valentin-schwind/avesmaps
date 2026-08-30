@@ -14,6 +14,8 @@
 const path = require("path");
 const assert = require("assert");
 
+const fs = require("fs");
+const WURZEL = path.resolve(__dirname, "..", "..", "..");
 const mod = require(path.resolve(__dirname, "..", "review-garetien-importer.js"));
 
 let checks = 0;
@@ -252,4 +254,34 @@ wahr(!skelett.includes('id="garetien-mark-show"') && !skelett.includes('id="gare
 	"die zwei Anzeige-Knoepfe duerfen nicht ZWEIMAL entstehen -- einmal hier UND einmal in "
 	+ "index.html waere eine Doppelanmeldung mit zwei Klick-Zuhoerern (AGENTS.md §11)");
 
+
+// =================================================================================================
+// Die lange Liste -- Owner 30.08.2026: „alle 8212 sind da, die anzeige ist höllisch lahm".
+//
+// 🪤 DER GLOW WAR ES NICHT (seine Vermutung, nachgemessen widerlegt): die `drop-shadow`-Filter des
+// Importers liegen auf KARTEN-Elementen, `.avm-row` selbst ist billig, und die Liste wird schon in
+// EINEM `innerHTML` geschrieben. Der Preis ist die DOM-Groesse -- rund neun Knoten je Zeile.
+//
+// 🔴 `content-visibility: auto` ist das eine Mittel, das ohne Umbau wirkt. Diese Zusicherung haelt
+// es fest, weil es eine EINZELNE CSS-Zeile ist, die beim naechsten Aufraeumen wie Zierrat aussieht.
+// =================================================================================================
+const importerCssLang = fs.readFileSync(
+	path.join(WURZEL, "css/components/garetien-importer.css"), "utf8").replace(/\r\n/g, "\n");
+const cvRegel = importerCssLang.slice(importerCssLang.indexOf(".gi-list .avm-row {"));
+const cvRumpf = cvRegel.slice(0, cvRegel.indexOf("}") + 1);
+wahr(/content-visibility:\s*auto/.test(cvRumpf),
+	"die lange Liste braucht content-visibility, sonst rechnet der Browser 8212 Zeilen bei jedem "
+	+ "Bild durch: " + cvRumpf);
+
+// 💣 ZWEI contain-intrinsic-size-Zeilen, in DIESER Reihenfolge: ein Browser ohne das
+// `auto`-Schluesselwort verwirft die zweite und behaelt die erste. Ohne die erste bliebe er ganz
+// ohne Schaetzwert -- und die Bildlaufleiste springt dann bei jedem Scrollen.
+wahr(/contain-intrinsic-size:\s*\d+px;[\s\S]*contain-intrinsic-size:\s*auto\s+\d+px/.test(cvRumpf),
+	"beide Schaetzwerte muessen stehen, der einfache VOR dem auto-Wert: " + cvRumpf);
+
+// 🔴 UND NUR IN DIESER LISTE. `.avm-row` gehoert allen sechs Editorlisten (editor-row.css) --
+// eine Regel dort traefe Fenster, die nie mehr als ein paar hundert Zeilen zeigen.
+const zeilenCss = fs.readFileSync(path.join(WURZEL, "css/components/editor-row.css"), "utf8");
+wahr(!/content-visibility/.test(zeilenCss),
+	"die geteilte Listenzeile darf die Regel NICHT tragen -- sie gilt nur der langen Importliste");
 console.log(`garetien-liste-zeile: ${checks} Pruefungen bestanden.`);

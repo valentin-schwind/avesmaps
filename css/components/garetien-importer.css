@@ -876,6 +876,40 @@
 	font-weight: var(--font-weight-bold);
 }
 
+/* ---- Die lange Liste: 8212 Zeilen im DOM (Owner 30.08.2026) ---------------------------------
+ *
+ * Seit die Seitengroesse auf 10000 steht, traegt der Reiter „Offen" den GANZEN Lauf. Der Owner:
+ * „alle 8212 sind da, die anzeige ist höllisch lahm, vermutlich wegen dem glow und dem css kram".
+ *
+ * 🪤 DER GLOW WAR ES NICHT. Die `drop-shadow`-Filter dieser Datei liegen auf KARTEN-Elementen
+ * (`.gi-map-schein`), nicht auf Listenzeilen; `.avm-row` selbst ist billig (Flex, keine Schatten,
+ * keine Filter), und die Liste wird bereits in EINEM `innerHTML` geschrieben. Der Preis ist die
+ * schiere DOM-GROESSE: eine Zeile baut rund neun Knoten, macht ~70.000 -- darunter 8212 echte
+ * `<input type="checkbox">`, und Formularelemente sind deutlich teurer als blanke Knoten.
+ *
+ * 🔴 `content-visibility: auto` ist dagegen das eine Mittel, das ohne Umbau wirkt: der Browser
+ * ueberspringt Layout und Malen fuer alles, was gerade nicht im Sichtfenster steht. Kein
+ * Virtualisieren, kein zweiter Renderweg, keine Zeile JavaScript.
+ * ⚠️ `auto` (nicht `hidden`): der Inhalt bleibt fuer Strg+F, `scrollIntoView` und Vorlesehilfen
+ * erreichbar -- dieselbe Begruendung wie beim Fenster „Hinweise", wo aus genau diesem Grund
+ * `<details>` steht und kein selbstgebautes Ausblenden.
+ *
+ * 💣 NUR IN DIESER LISTE (`.gi-list`). `.avm-row` gehoert allen sechs Editorlisten
+ * (css/components/editor-row.css) -- eine Regel dort traefe Fenster, die nie mehr als ein paar
+ * hundert Zeilen zeigen, und `content-visibility` hat einen Preis: die Hoehe steht erst fest,
+ * wenn gescrollt wurde.
+ * 💣 ZWEI `contain-intrinsic-size`-Zeilen, und die Reihenfolge ist tragend: ein Browser ohne
+ * `auto`-Schluesselwort verwirft die zweite und behaelt die erste. Ohne die erste bliebe er ganz
+ * ohne Schaetzwert, und die Bildlaufleiste spraenge bei jedem Scrollen.
+ * ⚠️ Die 41px sind GERECHNET, nicht geraten: 4+4 Polsterung + 2 Rahmen + 16 (13px × 1,25) +
+ * 15 (11px × 1,25 + 1px) -- und mit `auto` merkt sich der Browser ohnehin die gemessene Hoehe,
+ * sobald eine Zeile einmal sichtbar war. */
+.gi-list .avm-row {
+	content-visibility: auto;
+	contain-intrinsic-size: 41px;
+	contain-intrinsic-size: auto 41px;
+}
+
 .gi-insert__unit { color: var(--color-text-muted); }
 
 /* ---- Owner-Bestellung 30.08.2026 (wörtlich): „du kannst die slider bzw. abstände zwischen den
