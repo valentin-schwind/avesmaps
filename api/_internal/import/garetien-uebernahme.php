@@ -204,9 +204,8 @@ function avesmapsGaretienQuelleZielAufloesen(PDO $pdo, string $ziel, string $pub
  * Die Verknuepfung LOESEN, die avesmapsGaretienQuelleAnlegen fuer EIN Objekt angelegt hat --
  * das Gegenstueck zum Anlegen, fuer die Ruecknahme eines 'quelle'-Items.
  *
- * 🔴 NUR feature_sources, NIE sources: derselbe Katalog-Schutz wie in
- * avesmapsGaretienQuellenAbbauAusfuehren (garetien-quellen-abbau.php) -- eine geteilte Adresse
- * darf durch die Ruecknahme EINES Objekts nicht anderen Objekten ihre Quelle nehmen.
+ * 🔴 NUR feature_sources, NIE sources: eine geteilte Adresse darf durch die Ruecknahme
+ * EINES Objekts nicht anderen Objekten ihre Quelle nehmen.
  *
  * ⭐ WIEDERVERWENDET avesmapsRemoveFeatureSource (api/_internal/app/feature-sources.php) statt
  * eines eigenen DELETE -- dieselbe Funktion, die der Quellen-Editor benutzt: sie bumpt
@@ -219,9 +218,8 @@ function avesmapsGaretienQuelleZielAufloesen(PDO $pdo, string $ziel, string $pub
  * `wiki_publication`-Verknuepfung DERSELBEN oder einer ANDEREN Quelle am selben Objekt bleibt
  * unangetastet (eine der Zusicherungen des Auftrags).
  *
- * ⚠️ KEIN FEHLER, WENN NICHTS DA IST: eine bereits entfernte Verknuepfung (etwa ueber den
- * globalen Aufraeum-Knopf, garetien-quellen-abbau.php) macht die Ruecknahme nicht ungueltig --
- * das Item faellt trotzdem zurueck nach 'offen'.
+ * ⚠️ KEIN FEHLER, WENN NICHTS DA IST: eine bereits entfernte Verknuepfung macht die
+ * Ruecknahme nicht ungueltig -- das Item faellt trotzdem zurueck nach 'offen'.
  *
  * @return int Anzahl der geloesten Verknuepfungen (0 oder mehr).
  */

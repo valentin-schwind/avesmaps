@@ -199,18 +199,6 @@
    ist derselbe Ton wie der Fensterkopf darüber. */
 .gi-win .avm-ribbon-bar { background: var(--color-panel-soft); }
 
-/* Aufraeumen nach einem Fehlimport (30.08.2026) -- eine zweite, WARTUNGS-Zeile im Menueband,
-   kein drittes .avm-tile im Raster (siehe Kommentar in index.html): das Raster gehoert dem
-   laufenden Import-Workflow eines EINZELNEN Laufs, diese Handlung ist global. Knopf und Hinweis
-   sind bestehende Klassen (.btn/.btn--danger/.gi-foot__hint aus dieser Datei) -- keine neue Form,
-   keine neue Farbe. */
-.gi-wartung {
-	display: flex;
-	align-items: center;
-	gap: var(--space-6);
-	margin-top: var(--space-6);
-}
-
 /* ---- Die stille Zeile: die Bilanz des LAUFS (Aufgabe 11+ füllt sie). ---------------------- */
 .gi-runline {
 	margin: 0;

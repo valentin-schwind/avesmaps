@@ -373,9 +373,6 @@
 		// Zu- und Wiederaufmachen -- genauso wie die Zeilen links stehen bleiben, bis die neue
 		// Liste da ist.
 		garetienDetailRendern();
-		// Aufraeumen nach einem Fehlimport: die Zaehlung ist unabhaengig vom Lauf/der Liste --
-		// eigener, paralleler Abruf, kein Anhaengsel an garetienFensterFuellen.
-		garetienQuellenAbbauZaehlungHolen();
 		return garetienFensterFuellen(avesmapsGaretienRufe, avesmapsGaretienListeHolen);
 	}
 
@@ -3639,123 +3636,6 @@
 		});
 	}
 
-	// ---- Aufraeumen nach einem Fehlimport --------------------------------------------------------
-	//
-	// Owner 30.08.2026, wörtlich: „entferne die quellen, sonst stehen sie irgendwann noch doppelt
-	// drin, weil du nix checkst" -- der Schadensfall vom selben Tag (Aufgabe 21) hat an bestehenden
-	// Kartenobjekten eine Quellenangabe hinterlassen, die niemand wollte. Diese Handlung ist GLOBAL
-	// (kein `run_id`, kein Bezug auf `zustand.objekte`): die betroffenen Verknüpfungen stammen aus
-	// mehreren Läufen, und die Reparatur soll ALLE erwischen, nicht nur die des offenen Laufs.
-	//
-	// 🔴 ZÄHLEN UND ENTFERNEN SIND ZWEI GETRENNTE SCHRITTE (Auftrag: „eine Löschung ohne Zahl ist
-	// genau der Fehler, der diesen Schaden erzeugt hat"). Der Knopf trägt die Zahl aus dem Zählen
-	// bereits IN seiner Beschriftung, bevor überhaupt geklickt wurde -- dieselbe Regel wie beim
-	// Fußknopf „Angehakte übernehmen (n)".
-
-	let garetienQuellenAbbauLaeuft = false;
-	// `null` = noch nicht (oder nicht erfolgreich) gezählt -- UNTERSCHIEDEN von „0 gezählt", sonst
-	// zeigte ein fehlgeschlagener Zählversuch denselben Knopf wie ein sauberer Bestand.
-	let garetienQuellenAbbauZaehlung = null;
-	let garetienQuellenAbbauMeldung = "";
-
-	// REIN: was der Knopf sagt und ob er geht. Dieselbe Aufteilung wie bei den übrigen
-	// Fuß-/Mengen-Knöpfen (garetienRuecknahmeMengeZustand & Co.): eine Rechnung, eine DOM-Hälfte.
-	function garetienQuellenAbbauZustand(zaehlung, laeuft, meldung) {
-		if (laeuft) {
-			return { beschriftung: "Entfernt …", gesperrt: true, hinweis: "" };
-		}
-		if (zaehlung === null) {
-			return {
-				beschriftung: "Fehlimport-Quellen entfernen",
-				gesperrt: true,
-				hinweis: meldung || "Zählung noch nicht geladen.",
-			};
-		}
-		const anzahl = Number(zaehlung.verknuepfungen || 0);
-		return {
-			beschriftung: "Fehlimport-Quellen entfernen (" + anzahl + ")",
-			gesperrt: anzahl === 0,
-			hinweis: anzahl === 0 ? "Keine Fehlimport-Quellen gefunden." : "",
-		};
-	}
-
-	function garetienQuellenAbbauKnopfSetzen() {
-		if (!hasDocument) { return null; }
-		const stand = garetienQuellenAbbauZustand(
-			garetienQuellenAbbauZaehlung, garetienQuellenAbbauLaeuft, garetienQuellenAbbauMeldung
-		);
-		const knopf = document.getElementById("garetien-quellen-abbau");
-		if (knopf) {
-			knopf.textContent = stand.beschriftung;
-			knopf.disabled = stand.gesperrt;
-		}
-		const hinweisEl = document.getElementById("garetien-quellen-abbau-hint");
-		if (hinweisEl) {
-			hinweisEl.textContent = stand.hinweis;
-			hinweisEl.hidden = stand.hinweis === "";
-		}
-		return stand;
-	}
-
-	// REIN: die Rückfrage -- nennt BEIDE Zahlen (Auftrag: „372 Verknüpfungen an 312 Objekten") und
-	// sagt ausdrücklich, was NICHT verschwindet.
-	function garetienQuellenAbbauRueckfrageText(zaehlung) {
-		const z = zaehlung || { verknuepfungen: 0, objekte: 0 };
-		return garetienAnzahlText(Number(z.verknuepfungen || 0), "Verknüpfung", "Verknüpfungen")
-			+ " an " + garetienAnzahlText(Number(z.objekte || 0), "Objekt", "Objekten")
-			+ " werden entfernt.\n\n"
-			+ "Betroffen sind nur die Quellenangaben, die der Garetien-Import versehentlich "
-			+ "angelegt hat. Die Quellen selbst (die Katalogeinträge) und alle anderen "
-			+ "Verknüpfungen bleiben unverändert bestehen. Fortfahren?";
-	}
-
-	// Die Zählung holen und den Knopf danach setzen -- beim Öffnen des Fensters UND nach jedem
-	// abgeschlossenen Entfernen (dann steht dort wieder „0").
-	function garetienQuellenAbbauZaehlungHolen(rufe) {
-		return (rufe || avesmapsGaretienRufe)(GARETIEN_ENDPUNKT, { action: "quellen_zaehlen" })
-			.then(function (antwort) {
-				garetienQuellenAbbauZaehlung = {
-					verknuepfungen: Number((antwort && antwort.verknuepfungen) || 0),
-					objekte: Number((antwort && antwort.objekte) || 0),
-				};
-				garetienQuellenAbbauMeldung = "";
-				return garetienQuellenAbbauKnopfSetzen();
-			})
-			.catch(function (fehler) {
-				garetienQuellenAbbauZaehlung = null;
-				garetienQuellenAbbauMeldung = (fehler && fehler.message) || "Zählung fehlgeschlagen.";
-				return garetienQuellenAbbauKnopfSetzen();
-			});
-	}
-
-	// 🔴 OHNE BESTÄTIGUNG PASSIERT NICHTS -- `fragen` liefert ohne `window.confirm` `false`
-	// (`garetienFragen`), dieselbe Regel wie bei jeder anderen Löschhandlung dieses Fensters.
-	function garetienQuellenAbbauKlick(fragen, rufe) {
-		if (garetienQuellenAbbauLaeuft) { return Promise.resolve(null); }
-		const z = garetienQuellenAbbauZaehlung;
-		if (!z || Number(z.verknuepfungen || 0) === 0) { return Promise.resolve(null); }
-		if (typeof fragen === "function" && !fragen(garetienQuellenAbbauRueckfrageText(z))) {
-			return Promise.resolve(null);
-		}
-
-		garetienQuellenAbbauLaeuft = true;
-		garetienQuellenAbbauKnopfSetzen();
-		const senden = rufe || avesmapsGaretienRufe;
-		return senden(GARETIEN_ENDPUNKT, { action: "quellen_bereinigen" })
-			.then(function (antwort) {
-				garetienQuellenAbbauLaeuft = false;
-				// Neu zählen statt dem `entfernt` aus der Antwort blind zu vertrauen -- derselbe
-				// Bestand, den auch die nächste Rückfrage wieder anzeigen würde.
-				return garetienQuellenAbbauZaehlungHolen(senden).then(function () { return antwort; });
-			})
-			.catch(function (fehler) {
-				garetienQuellenAbbauLaeuft = false;
-				garetienListeFehlerZeigen(fehler);
-				garetienQuellenAbbauKnopfSetzen();
-				return null;
-			});
-	}
-
 	// ---- Verdrahtung + Rechte-Riegel ---------------------------------------------------------------
 
 	function bindFenster() {
@@ -3832,14 +3712,6 @@
 			ruecknahmeMengeBtn.addEventListener("click", function () {
 				if (ruecknahmeMengeBtn.disabled) { return; }
 				garetienRuecknahmeMengeKlick(zustand.planRunId, garetienFragen);
-			});
-		}
-		// Aufraeumen nach einem Fehlimport -- global, unabhaengig vom offenen Lauf.
-		const quellenAbbauBtn = hasDocument ? document.getElementById("garetien-quellen-abbau") : null;
-		if (quellenAbbauBtn) {
-			quellenAbbauBtn.addEventListener("click", function () {
-				if (quellenAbbauBtn.disabled) { return; }
-				garetienQuellenAbbauKlick(garetienFragen);
 			});
 		}
 		// Aufgabe 16: die EINE gefuellte Handlung des Fensters.
@@ -4056,13 +3928,6 @@
 			garetienRuecknahmeMengeRueckfrageText,
 			garetienRuecknahmeMengeAusfuehren,
 			garetienRuecknahmeMengeKlick,
-			// Aufraeumen nach einem Fehlimport (30.08.2026): die feature_sources-Verknuepfungen
-			// mit origin='garetien' zaehlen und -- nach Bestaetigung -- entfernen.
-			garetienQuellenAbbauZustand,
-			garetienQuellenAbbauKnopfSetzen,
-			garetienQuellenAbbauRueckfrageText,
-			garetienQuellenAbbauZaehlungHolen,
-			garetienQuellenAbbauKlick,
 		};
 	}
 })();
