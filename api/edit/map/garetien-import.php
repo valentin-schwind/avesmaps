@@ -17,6 +17,7 @@ require __DIR__ . '/../../_internal/auth.php';
 require_once __DIR__ . '/../../_internal/import/garetien-abruf.php';
 require_once __DIR__ . '/../../_internal/import/garetien-uebernahme.php';
 require_once __DIR__ . '/../../_internal/import/garetien-liste.php';
+require_once __DIR__ . '/../../_internal/import/garetien-quellen-abbau.php';
 
 /** Eine Ebene der festen Liste anhand von wiki+ebene finden. */
 function avesmapsGaretienEndpunktEbene(string $wiki, string $ebene): ?array
@@ -154,6 +155,23 @@ try {
             'zurueckgenommen' => $ergebnis['zurueckgenommen'],
             'fehler' => $ergebnis['fehler'],
         ]);
+    }
+
+    // --- Aufraeumen nach einem Fehlimport: die feature_sources-VERKNUEPFUNGEN mit
+    // origin='garetien' zaehlen bzw. entfernen -- niemals die sources-Zeilen selbst und
+    // niemals ein Kartenobjekt (siehe api/_internal/import/garetien-quellen-abbau.php).
+    // Zaehlen und Loeschen sind bewusst ZWEI Aktionen: das Fenster fragt erst die Zahl
+    // ab, zeigt sie in der Rueckfrage, und ruft die zweite Aktion erst nach der
+    // Bestaetigung. Eine Loeschung ohne vorherige Zahl ist genau der Fehler, der diesen
+    // Schaden erzeugt hat.
+    // 🔴 Global, ohne run_id: die betroffenen Zeilen stammen aus mehreren Laeufen (jede
+    // hochgeladene/abgerufene Ebene startet einen eigenen), und die Reparatur soll ALLE
+    // erwischen, nicht nur die des zuletzt geoeffneten Laufs.
+    if ($action === 'quellen_zaehlen') {
+        avesmapsJsonResponse(200, ['ok' => true] + avesmapsGaretienQuellenAbbauZaehlen($pdo));
+    }
+    if ($action === 'quellen_bereinigen') {
+        avesmapsJsonResponse(200, ['ok' => true] + avesmapsGaretienQuellenAbbauAusfuehren($pdo));
     }
 
     if ($action !== 'fetch' && $action !== 'upload') {
