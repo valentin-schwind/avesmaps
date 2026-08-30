@@ -545,4 +545,31 @@ assert($plan['entity_key'] === avesmapsGaretienObjektSchluesselAusZeile($zeileD)
     'der Schluessel aus avesmapsGaretienPlanEintrag muss verhaltensgleich zur ausgelagerten Formel sein');
 $pruefungen++;
 
+
+// --- 🔴 DAS BACH-HAEKCHEN REIST IM PLAN MIT (Owner 30.08.2026). Ein Bach ist bei uns ein
+// `Flussweg` mit `is_bach`; faellt das Feld hier heraus, legt JEDER echte Lauf Baeche als
+// befahrbare Fluesse an -- und ein Ablauftest, der seinen `after`-Satz von Hand baut, saehe das
+// nie. Genau diese Luecke hat eine Mutationsprobe am 30.08.2026 aufgedeckt.
+$bachZeile = $pdo->query("SELECT after_json FROM sync_plan_item WHERE label LIKE '%Seitenarm der Alke%' ORDER BY id DESC LIMIT 1")->fetchColumn();
+assert($bachZeile !== false && $bachZeile !== null, 'die Bach-Zeile der Fixture muss im Plan stehen');
+$bachAfter = json_decode((string) $bachZeile, true);
+assert(($bachAfter['subtyp'] ?? '') === 'Flussweg',
+    'ein Bach wird als Flussweg geplant, nicht als eigene Wegart: ' . json_encode($bachAfter, JSON_UNESCAPED_UNICODE));
+assert(($bachAfter['is_bach'] ?? null) === true,
+    'und der Plan traegt das Haekchen: ' . json_encode($bachAfter, JSON_UNESCAPED_UNICODE));
+$pruefungen += 3;
+
+// ⚠️ GEGENPROBE: eine Zeile, die KEIN Bach ist, traegt das Feld gar nicht -- die Abwesenheit ist
+// die Aussage. Ohne sie belegt die Zeile darueber nur, dass irgendwo ein `true` steht.
+// 🪤 Gesucht wird ueber den TYP, nicht ueber das Label: die Bach-Zeile der Fixture ist eine
+// Ergaenzung an der „Alke" und traegt deren Namen -- eine Label-Suche nach „Seitenarm" haette
+// ausgerechnet sie als Gegenbeispiel gewaehlt (beim ersten Bau genau so passiert).
+$andere = $pdo->query("SELECT after_json FROM sync_plan_item WHERE after_json LIKE '%\"ziel\":\"path\"%' AND after_json NOT LIKE '%\"typ\":\"Bach\"%' ORDER BY id LIMIT 1")->fetchColumn();
+assert($andere !== false && $andere !== null,
+    'die Fixture muss mindestens einen Weg enthalten, der KEIN Bach ist -- sonst misst diese Gegenprobe nichts');
+$andereAfter = json_decode((string) $andere, true);
+assert(!array_key_exists('is_bach', $andereAfter),
+    'ein anderer Weg traegt GAR KEIN is_bach: ' . json_encode($andereAfter, JSON_UNESCAPED_UNICODE));
+$pruefungen += 2;
+
 echo "OK: {$pruefungen} Pruefungen\n";

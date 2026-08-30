@@ -2765,6 +2765,12 @@
 	// „unangetastet" und liefert die Vorauswahl der Wegart -- dieselbe Liste, die der Server
 	// wählt, wenn nichts mitgeschickt wird. Siehe garetienEingabenGrundwerte.
 	function garetienWegTransporteZu(objekt, subtyp) {
+		// 🔴 EIN BACH IST NICHT BEFAHRBAR -- und zwar unabhaengig davon, was jemand angehakt hat.
+		// Der Server nimmt ihm jedes Verkehrsmittel (avesmapsPathTransportRegel); zeigte der Kasten
+		// hier trotzdem die zwei Fluss-Verkehrsmittel an, behauptete er das Gegenteil dessen, was
+		// gleich gespeichert wird. Genau diese Falschaussage ueber die naechste Handlung ist der
+		// Grund, warum es dieses Fenster gibt.
+		if (objekt && objekt.is_bach === true) { return []; }
 		const eingaben = garetienEingabenZustandZu(objekt);
 		if (eingaben.transports !== null) { return eingaben.transports; }
 		return (typeof getDefaultAllowedTransportsForPathSubtype === "function")
@@ -2791,6 +2797,7 @@
 			+ garetienEingefuegtWirdZeileMitHinweis("Jahreszeiten (Gangbarkeit)", "ganzjährig",
 				"keine saisonale Einschränkung — der Anleger liest transport_seasons gar nicht, "
 				+ "das setzt der Wege-Editor");
+		const istBach = Boolean(objekt && objekt.is_bach === true);
 		if (angeboten !== null && angeboten.length) {
 			const gewaehlt = garetienWegTransporteZu(objekt, subtyp);
 			const namen = garetienVerkehrsmittelNamen();
@@ -2802,14 +2809,26 @@
 					+ '<input type="checkbox" id="' + id + '" data-gi-feld="transports" '
 					+ 'data-gi-transport="' + avesmapsGaretienEscape(schluessel) + '"'
 					+ (gewaehlt.indexOf(schluessel) !== -1 ? " checked" : "")
-					+ (deaktiviert ? " disabled" : "") + "> "
+					// ⚠️ Bei einem Bach bleiben die Zeilen SICHTBAR, aber gesperrt -- dieselbe Wahl
+					// wie im echten Dialog "Weg bearbeiten". Sie zu verstecken saehe aus wie "diese
+					// Wegart kennt keine Verkehrsmittel"; sichtbar und grau sagt, was gilt: es gaebe
+					// welche, und das Haekchen nimmt sie weg.
+					+ (deaktiviert || istBach ? " disabled" : "") + "> "
 					+ avesmapsGaretienEscape(namen[schluessel] || schluessel) + "</label></p>";
 			});
 			// 🔴 Eine leere Auswahl ist ERLAUBT (avesmapsReadAllowedTransports nimmt `[]` an und
 			// speichert es -- der echte Dialog lässt dasselbe zu), aber sie darf nicht still
 			// passieren: ein Weg, den kein Verkehrsmittel befahren darf, ist eine Kante, die im
 			// Routing niemand benutzen kann.
-			if (!gewaehlt.length) {
+			// 🔴 ZWEI VERSCHIEDENE AUSSAGEN, und sie duerfen nicht denselben Kasten teilen: bei
+			// einem Bach ist die leere Auswahl die REGEL (nichts ist schiefgegangen), sonst eine
+			// Entscheidung mit Folgen. Ein Warnkasten am Bach liesse einen Editor nach einem Fehler
+			// suchen, den es nicht gibt.
+			if (istBach) {
+				markup += '<p class="gi-insert__row"><span class="gi-insert__hint">Ein Bach ist '
+					+ "nicht befahrbar — er wird gezeichnet und zählt im Gelände, aber keine Route "
+					+ "führt auf ihm entlang.</span></p>";
+			} else if (!gewaehlt.length) {
 				markup += '<p class="gi-bomb">Ohne Häkchen darf hier <b>kein Verkehrsmittel</b> '
 					+ "fahren — der Weg wird gezeichnet, aber keine Route führt über ihn.</p>";
 			}

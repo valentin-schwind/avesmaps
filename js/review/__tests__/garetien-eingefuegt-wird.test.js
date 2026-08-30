@@ -593,6 +593,46 @@ const wegUebernommen = Object.assign({}, weg, {
 gleich((garetienEingefuegtWirdMarkup(wegUebernommen).match(/disabled/g) || []).length, 3,
 	"beim uebernommenen Flussweg sind der Anzeige-Haken und beide Verkehrsmittel gesperrt");
 
+// =================================================================================================
+// F2. Ein BACH (ziel='path', is_bach) -- Owner 30.08.2026: „der jetzt bäche importieren soll".
+//
+// 🔴 EIN BACH IST NICHT BEFAHRBAR, und der Kasten muss das ZEIGEN. Der Server nimmt ihm jedes
+// Verkehrsmittel (avesmapsPathTransportRegel); zeigte der Kasten trotzdem die zwei
+// Fluss-Verkehrsmittel vorgehakt an, behauptete er das Gegenteil dessen, was gleich gespeichert
+// wird -- genau die Falschaussage über die nächste Handlung, gegen die dieses Fenster gebaut ist.
+// 💣 Beim Bau war es zwei Stunden lang genau so: gemessen 2 vorgehakte Verkehrsmittel am Bach.
+// =================================================================================================
+const importBach = Object.assign({}, weg, {
+	key: "ggp:Gewaesser:Bach:Garetien:Probebach", name: "Probebach", typ: "Bach", is_bach: true,
+});
+const mBach = garetienEingefuegtWirdMarkup(importBach);
+const vmBach = vmZaehlen(mBach);
+gleich(vmBach.gehakt, 0, "an einem Bach ist KEIN Verkehrsmittel vorgehakt: " + mBach);
+gleich(vmBach.haken, getTransportOptionsForPathSubtype("Flussweg").length,
+	"die Zeilen bleiben aber SICHTBAR -- sie zu verstecken sähe aus wie „diese Wegart kennt keine "
+	+ "Verkehrsmittel“, statt zu zeigen, dass das Häkchen sie wegnimmt");
+gleich((mBach.match(/data-gi-transport="[^"]*"[^>]*disabled/g) || []).length, 2,
+	"und beide sind gesperrt");
+wahr(mBach.includes("nicht befahrbar"),
+	"der Grund steht als ruhiger Satz da: " + mBach);
+
+// 🔴 UND NICHT ALS WARNKASTEN. Bei einem Bach ist die leere Auswahl die REGEL, nicht eine
+// Entscheidung mit Folgen -- ein `gi-bomb` liesse einen Editor nach einem Fehler suchen, den es
+// nicht gibt. Der Warnkasten gehört dem Fall „jemand hat alles abgehakt“.
+wahr(!mBach.includes("gi-bomb"), "ein Bach bekommt KEINEN Warnkasten: " + mBach);
+
+// ---- Gegenprobe: derselbe Wegtyp OHNE Häkchen ist unverändert befahrbar.
+gleich(vmZaehlen(garetienEingefuegtWirdMarkup(weg)).gehakt, 2,
+	"ein gewöhnlicher Flussweg trägt weiterhin beide Verkehrsmittel -- sonst belegte der Block "
+	+ "darüber nur, dass die Haken überall verschwunden sind");
+
+// ---- Und der Kopf sagt, was entsteht: „Flussweg (Bach)“ (Owner-Bestellung, wörtlich).
+wahr(mod.garetienTypText(importBach).includes("Flussweg (Bach)"),
+	"der Kopf nennt Wegtyp UND Häkchen: " + mod.garetienTypText(importBach));
+wahr(!mod.garetienTypText(weg).includes("(Bach)"),
+	"ein gewöhnlicher Flussweg trägt den Zusatz nicht");
+
+
 // G. garetienWikiLandschaftZeileText -- die vier Urteile, wortgetreu zur Bestellung
 // =================================================================================================
 

@@ -512,4 +512,58 @@ assert($mitStadtviertel['facetten']['typ_kategorie']['Stadtviertel'] === 'ohne_g
     'Stadtviertel hat bei uns kein Gegenstueck: ' . $mitStadtviertel['facetten']['typ_kategorie']['Stadtviertel']);
 $pruefungen += 2;
 
+
+// --- 🔴 DAS BACH-HAEKCHEN KOMMT AM CLIENT AN (Owner 30.08.2026). Dieselbe Lehre wie bei `kind`
+// und `ziel` darueber: das Feld steht seit dem Planbau in `after`, und wenn es hier herausfaellt,
+// zeigt der Kasten „Eingefuegt wird" einen Bach als gewoehnlichen Flussweg -- samt zwei
+// vorgehakten Verkehrsmitteln, die der Server nie speichern wird. Eine Falschaussage ueber die
+// naechste Handlung, und genau dagegen ist dieses Fenster gebaut.
+avesmapsSyncPlanAddItem($pdo, 1, [
+    'entity_key' => 'ggp:Gewaesser:Bach:Garetien:Probebach',
+    'entity_public_id' => null,
+    'change_type' => 'new',
+    'label' => 'Probebach',
+    'after' => [
+        'typ' => 'Bach', 'wiki' => 'ggp', 'ebene' => 'Gewaesser', 'name' => 'Probebach',
+        'subtyp' => 'Flussweg', 'kind' => null, 'ziel' => 'path', 'is_bach' => true,
+        'geometry' => ['type' => 'LineString', 'coordinates' => [[1.0, 2.0], [3.0, 4.0]]],
+    ],
+    'selected' => 1,
+]);
+// 🪤 Der Vergleichsweg wird EIGENS angelegt, statt aus der Liste gegriffen: beim ersten Bau nahm
+// die Gegenprobe „der erste Weg, der nicht der Probebach ist" -- und traf ein Objekt, das selbst
+// `is_bach` trug. Ein Gegenbeispiel, das man sucht statt es hinzulegen, ist keins.
+avesmapsSyncPlanAddItem($pdo, 1, [
+    'entity_key' => 'ggp:Gewaesser:Fluss:Garetien:Probefluss',
+    'entity_public_id' => null,
+    'change_type' => 'new',
+    'label' => 'Probefluss',
+    'after' => [
+        'typ' => 'Fluss', 'wiki' => 'ggp', 'ebene' => 'Gewaesser', 'name' => 'Probefluss',
+        'subtyp' => 'Flussweg', 'kind' => null, 'ziel' => 'path',
+        'geometry' => ['type' => 'LineString', 'coordinates' => [[5.0, 6.0], [7.0, 8.0]]],
+    ],
+    'selected' => 1,
+]);
+
+$mitBach = avesmapsGaretienArbeitsliste($pdo, 1, []);
+$probebach = null;
+$probefluss = null;
+foreach ($mitBach['objekte'] as $o) {
+    if ($o['key'] === 'ggp:Gewaesser:Bach:Garetien:Probebach') { $probebach = $o; }
+    if ($o['key'] === 'ggp:Gewaesser:Fluss:Garetien:Probefluss') { $probefluss = $o; }
+}
+assert($probebach !== null, 'der Probebach muss in der Liste stehen');
+assert($probebach['subtyp'] === 'Flussweg', 'er ist ein Flussweg -- „Bach" ist kein Wegtyp');
+assert(($probebach['is_bach'] ?? null) === true,
+    'und `is_bach` muss in der Nutzlast ankommen: ' . json_encode($probebach['is_bach'] ?? '(fehlt)'));
+$pruefungen += 3;
+
+// ⚠️ Gegenprobe: derselbe Wegtyp, dieselbe Nutzlast, nur ohne Haekchen -- er muss `false` tragen.
+assert($probefluss !== null, 'der Vergleichs-Fluss muss ebenfalls in der Liste stehen');
+assert($probefluss['subtyp'] === 'Flussweg', 'derselbe Wegtyp wie der Bach -- sonst vergleicht das nichts');
+assert(($probefluss['is_bach'] ?? null) === false,
+    'ein Fluss ohne Haekchen traegt false: ' . json_encode($probefluss['is_bach'] ?? '(fehlt)'));
+$pruefungen += 3;
+
 echo "OK: {$pruefungen} Pruefungen\n";

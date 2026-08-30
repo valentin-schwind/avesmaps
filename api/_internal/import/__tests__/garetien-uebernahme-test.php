@@ -1363,6 +1363,66 @@ assert(count((array) ($wegVorgabeProps['allowed_transports'] ?? [])) > 1,
     'ohne Handeingabe gilt die volle Vorauswahl der Wegart, nicht die eine von oben: '
     . json_encode($wegVorgabeProps));
 $pruefungen += 2;
+
+// --- 🔴 EIN BACH GEHT DURCH DEN IMPORT (Owner 30.08.2026: „der jetzt bäche importieren soll").
+// Die Zuordnung bildet ihn auf `Flussweg` ab und traegt `is_bach`; der Anleger nimmt ihm darueber
+// jede Befahrbarkeit (avesmapsPathTransportRegel). Gemessen wird das ERGEBNIS in properties_json,
+// nicht die Zuordnungstabelle -- die kann tadellos sein, waehrend das Feld unterwegs verlorengeht.
+$baueBachEintrag = static function (string $typ, string $name, array $linie) use ($baueWegEintrag): array {
+    $eintrag = $baueWegEintrag('Flussweg', $name, $linie);
+    $eintrag['after']['typ'] = $typ;
+    if ($typ === 'Bach') {
+        $eintrag['after']['is_bach'] = true;
+    }
+
+    return $eintrag;
+};
+
+avesmapsSyncPlanAddItem($pdoNeu, $laufNeu, $baueBachEintrag('Bach', 'Probebach Garetien', [[560.0, 560.0], [570.0, 570.0]]));
+$bachItemId = $itemIdVon($pdoNeu, 'Probebach Garetien (Probe)');
+$eBach = avesmapsGaretienUebernehmen($pdoNeu, $laufNeu, [$bachItemId], ['id' => 7]);
+assert($eBach['angelegt'] === 1 && $eBach['fehler'] === [],
+    'der Bach wird angelegt: ' . json_encode($eBach, JSON_UNESCAPED_UNICODE));
+$bachZeile = $pdoNeu->query("SELECT feature_subtype, properties_json FROM map_features WHERE name = 'Probebach Garetien'")->fetch(PDO::FETCH_ASSOC);
+assert($bachZeile !== false, 'der Bach steht in map_features');
+// 🔴 Er ist ein FLUSSWEG -- „Bach" ist kein Wegtyp und darf nie in feature_subtype landen.
+assert($bachZeile['feature_subtype'] === 'Flussweg',
+    'ein Bach wird als Flussweg gespeichert, nicht als eigene Wegart: ' . json_encode($bachZeile));
+$bachProps = json_decode((string) $bachZeile['properties_json'], true);
+assert(($bachProps['is_bach'] ?? null) === true, 'und traegt das Haekchen: ' . json_encode($bachProps));
+assert(($bachProps['allowed_transports'] ?? null) === [],
+    'ein Bach traegt KEIN Verkehrsmittel: ' . json_encode($bachProps));
+assert(($bachProps['transport_domain'] ?? null) === 'none',
+    'und liegt in der leeren Domaene: ' . json_encode($bachProps));
+$pruefungen += 6;
+
+// ⚠️ GEGENPROBE: ein FLUSS aus derselben Quelle, ueber denselben Weg, muss weiter befahrbar sein.
+// Ohne sie belegt der Block darueber nur, dass irgendwo eine leere Liste herauskommt -- nicht, dass
+// das Bach-Haekchen der Grund dafuer ist.
+avesmapsSyncPlanAddItem($pdoNeu, $laufNeu, $baueBachEintrag('Fluss', 'Probefluss Garetien', [[580.0, 580.0], [590.0, 590.0]]));
+$flussItemId = $itemIdVon($pdoNeu, 'Probefluss Garetien (Probe)');
+avesmapsGaretienUebernehmen($pdoNeu, $laufNeu, [$flussItemId], ['id' => 7]);
+$flussProps = json_decode((string) $pdoNeu->query(
+    "SELECT properties_json FROM map_features WHERE name = 'Probefluss Garetien'"
+)->fetchColumn(), true);
+assert(!array_key_exists('is_bach', $flussProps),
+    'ein Fluss traegt GAR KEIN is_bach -- die Abwesenheit ist die Aussage: ' . json_encode($flussProps));
+assert(($flussProps['allowed_transports'] ?? null) === ['riverSailer', 'riverBarge'],
+    'und bleibt mit beiden Fluss-Verkehrsmitteln befahrbar: ' . json_encode($flussProps));
+$pruefungen += 2;
+
+// 💣 Und die ZUORDNUNG selbst: sie muss das Haekchen ueberhaupt setzen. Ohne diese Zeile koennte
+// alles oben stimmen, waehrend der echte Lauf Baeche ohne Haekchen anlegt -- der Test baut seinen
+// Eintrag von Hand und saehe das nie.
+$bachZuordnung = avesmapsGaretienMappeTyp('Bach');
+assert(is_array($bachZuordnung) && ($bachZuordnung['subtyp'] ?? '') === 'Flussweg',
+    'die Zuordnung bildet "Bach" auf Flussweg ab: ' . json_encode($bachZuordnung));
+assert(!empty($bachZuordnung['is_bach']),
+    'und setzt das Haekchen: ' . json_encode($bachZuordnung));
+$flussZuordnung = avesmapsGaretienMappeTyp('Fluss');
+assert(empty($flussZuordnung['is_bach']),
+    'waehrend "Fluss" es NICHT setzt: ' . json_encode($flussZuordnung));
+$pruefungen += 3;
 // Uebersteuerung, wie sie das Fenster „Landschaften -> Darstellung" tatsaechlich speichert:
 // 'berggipfel' traegt eine VOLLSTAENDIGE, gueltige Zeile, 'vulkan' eine, die ausserhalb dessen
 // liegt, was ein Label ueberhaupt tragen darf (Groesse 4 < die 10 von avesmapsReadLabelSize; ein
