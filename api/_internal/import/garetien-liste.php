@@ -719,8 +719,15 @@ function avesmapsGaretienArbeitsliste(PDO $pdo, int $importRunId, array $filter)
  * Der Zuschlag ueber die eigene Ausdehnung hinaus (Owner-Auftrag A, 30.08.2026, woertlich:
  * "5 karteneinheiten von zentrum, entferntesten flaechepunkt entfernt"). Eine benannte Konstante,
  * keine Zahl im Ausdruck -- eine Zahl ohne Namen wird beim naechsten Zweifel geraten.
+ *
+ * 🔴 Am 30.08.2026 von 5,0 auf 1,0 gesenkt, nachdem der Owner den Knopf an echten Daten benutzt
+ * hat: "geil funktioniert, aber der radius ist etwas groß, kannst du auf 1 karteneinheit stellen?"
+ * ⚠️ Die Fixturen in garetien-naehe-test.php rechnen seither RELATIV zu dieser Konstante. Sie
+ * waren auf die 5,0 geeicht ([105,100] ist genau 5 von [100,100]) und waeren bei dieser Senkung
+ * alle vier gekippt -- an einer Stelle, an der nichts kaputt war. Wer den Wert wieder aendert,
+ * braucht sie deshalb nicht anzufassen.
  */
-const AVESMAPS_GARETIEN_NAEHE_ZUSCHLAG = 5.0;
+const AVESMAPS_GARETIEN_NAEHE_ZUSCHLAG = 1.0;
 
 /**
  * Owner-Auftrag A (30.08.2026), Knopf "Imports in der Naehe markieren": weitere Objekte DES
