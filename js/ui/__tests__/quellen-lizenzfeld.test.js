@@ -65,10 +65,23 @@ const html = markup.buildSourceListMarkup("", [
   // haben mit dieser Lizenz nichts zu tun. Die Kategorie entscheidet nichts.
   { label: "Briefspiel (Weiden)", url: "https://www.herzogtum-weiden.net/x", type: "briefspiel" },
 ]);
-assert.ok(html.includes("VolkoV / garetien.de, CC BY-NC-SA 3.0"), "die Angabe steht da");
+assert.ok(html.includes("VolkoV / garetien.de"), "die Namensnennung steht da");
+assert.ok(html.includes("CC BY-NC-SA 3.0"), "die Lizenzbeschriftung steht da");
 assert.ok(html.includes("creativecommons.org/licenses/by-nc-sa/3.0"), "und ist verlinkt");
 const abWeiden = html.slice(html.indexOf("Briefspiel (Weiden)"));
 assert.ok(!abWeiden.includes("CC BY"), "die Quelle ohne Eintrag traegt nichts");
+pruefungen += 4;
+
+// 🔴 MELDUNG (30.08.2026): NAMENSNENNUNG UND LIZENZ ZEIGEN AUF ZWEI VERSCHIEDENE ZIELE. Bis dahin
+// klebte hier EIN Text zusammen und der GANZE Text zeigte auf die Lizenzadresse -- ein Klick auf
+// "VolkoV / garetien.de" landete beim CC-Lizenztext, nicht beim Urheber. Jetzt ist die
+// Namensnennung reiner Text, und NUR die Lizenzbeschriftung ist verlinkt.
+assert.ok(/<span class="fs-src-lic fs-src-lic--attrib">VolkoV \/ garetien\.de<\/span>/.test(html),
+  "die Namensnennung steht als eigener, unverlinkter Text");
+const lizenzLink = html.match(/<a class="fs-src-lic fs-src-lic--attrib" href="[^"]*creativecommons[^"]*"[^>]*>([\s\S]*?)<\/a>/);
+assert.ok(lizenzLink, "die Lizenz ist eigens verlinkt");
+assert.ok(!lizenzLink[1].includes("VolkoV"), "der Lizenzlink nennt NICHT auch den Urheber");
+assert.ok(lizenzLink[1].includes("CC BY-NC-SA 3.0"), "sondern nur die Lizenzbeschriftung");
 pruefungen += 3;
 
 // 🔴 Ohne Adresse ein <span>, kein Link ins Leere.
@@ -227,10 +240,16 @@ pruefungen += 3;
 // Der gemeldete Fall, bis zum fertigen Markup: die Zeile der Infobox nennt beides.
 const zeile = kette.renderFeatureSourceLine("region", "eupelmunder-moor", "", "region-info-box__link");
 assert.ok(zeile.includes("Briefspiel (Garetien)"), "die Quelle steht in der Zeile");
-assert.ok(zeile.includes("VolkoV / garetien.de, CC BY-NC-SA 3.0"),
+assert.ok(zeile.includes("VolkoV / garetien.de") && zeile.includes("CC BY-NC-SA 3.0"),
   "und die CC-Angabe daneben -- ohne sie ist die Namensnennung nicht erfuellt, sondern nur "
   + "unterlassen. Gerendert wurde: " + zeile);
-pruefungen += 2;
+// 🔴 MELDUNG (30.08.2026), an der ECHTEN Kette gemessen: der Lizenzlink darf den Urheber nicht
+// mitnennen -- genau das war der gemeldete Fehler ("Briefspiel (Garetien) ↗" ging an den Artikel,
+// aber die Namensnennung ging an den Lizenztext statt an den Urheber).
+const zeilenLizenzLink = zeile.match(/<a class="fs-src-lic fs-src-lic--attrib" href="[^"]*creativecommons[^"]*"[^>]*>([\s\S]*?)<\/a>/);
+assert.ok(zeilenLizenzLink, "die Lizenz ist eigens verlinkt");
+assert.ok(!zeilenLizenzLink[1].includes("VolkoV"), "der Lizenzlink nennt nicht auch den Urheber");
+pruefungen += 3;
 
 // 🔴 Und eine Quelle OHNE die Felder bleibt still: leer heisst "nicht erfasst", nie "keine Lizenz".
 const ohneAngabe = kette.renderFeatureSourceLine("settlement", "gareth", "", "region-info-box__link");

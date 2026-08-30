@@ -174,22 +174,39 @@ function buildSourceListMarkup(wikiUrl, sources, opts) {
     // 14.08.2026 stand nur die erste Haelfte da.
     items.push(link(wikiUrl, esc(wikiLabel)) + wikiLicenseMarkup());
   }
-  // Lizenz und Namensnennung einer Quelle -- gebaut wie der Wiki-Lizenzhinweis oben, aus
-  // demselben Grund und in derselben gedaempften Form.
-  // 🔴 Sie stehen am EINZELNEN Eintrag, nie unter der Zeile: eine Fussnote unter der ganzen
-  // Quellenzeile behauptete die Lizenz auch fuer alles andere, was dort steht.
-  var lizenzMarkup = function (s) {
-    var l = featureSourceLicenseText(s);
-    if (!l.text) { return ""; }
+  // Lizenz und Namensnennung einer Quelle -- ZWEI unabhaengige Verweise, keiner zeigt auf den
+  // anderen. Meldung (30.08.2026): bis dahin klebte hier EIN Text aus beidem zusammen
+  // ("VolkoV / garetien.de, CC BY-NC-SA 3.0") und der GANZE Text zeigte auf die Lizenzadresse --
+  // ein Klick auf den Urhebernamen landete beim CC-Lizenztext, nicht beim Urheber. Jetzt rendert
+  // jede Haelfte fuer sich: die Namensnennung als reiner (noch unverlinkter -- es gibt keine
+  // Spalte fuer eine Urheber-Adresse) Text, die Lizenz als eigener Link auf ihre Beschreibung.
+  // Fehlt eine Haelfte, entfaellt nur sie: eine Quelle darf NUR genannt werden oder NUR eine
+  // Lizenz tragen, das ist kein halber Zustand (featureSourceLicenseText weiter oben).
+  // 🔴 Beide stehen am EINZELNEN Eintrag, nie unter der Zeile: eine Fussnote unter der ganzen
+  // Quellenzeile behauptete die Angabe auch fuer alles andere, was dort steht.
+  var attributionMarkup = function (s) {
+    var wer = String((s && s.attribution) == null ? "" : s.attribution).trim();
+    return wer ? '<span class="fs-src-lic fs-src-lic--attrib">' + esc(wer) + "</span>" : "";
+  };
+  var licenseBadgeMarkup = function (s) {
+    var eintrag = FEATURE_SOURCE_LICENSES[String((s && s.license) || "").trim()] || null;
+    if (!eintrag) { return ""; }
     // --attrib: sie darf umbrechen, der kurze Wiki-Hinweis nicht (css/features/feature-sources.css).
     // ⚠️ Ohne Adresse ein <span>, kein Link ins Leere -- "Gemeinfrei" und "Keine freie Lizenz"
     // haben nichts zu verlinken.
-    if (!l.url) {
-      return '<span class="fs-src-lic fs-src-lic--attrib">' + esc(l.text) + "</span>";
+    if (!eintrag.url) {
+      return '<span class="fs-src-lic fs-src-lic--attrib">' + esc(eintrag.label) + "</span>";
     }
-    return '<a class="fs-src-lic fs-src-lic--attrib" href="' + esc(l.url) +
-      '" target="_blank" rel="noopener">' + esc(l.text) +
+    return '<a class="fs-src-lic fs-src-lic--attrib" href="' + esc(eintrag.url) +
+      '" target="_blank" rel="noopener">' + esc(eintrag.label) +
       ' <span class="fs-src-ext" aria-hidden="true">↗</span></a>';
+  };
+  var lizenzMarkup = function (s) {
+    var attrib = attributionMarkup(s);
+    var lic = licenseBadgeMarkup(s);
+    if (!attrib) { return lic; }
+    if (!lic) { return attrib; }
+    return attrib + ", " + lic;
   };
   direct.forEach(function (s) {
     var label = esc(s.label || s.url || "");
