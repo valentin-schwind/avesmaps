@@ -10,6 +10,10 @@ declare(strict_types=1);
 //           -d extension=php_pdo_sqlite.dll api/_internal/import/__tests__/garetien-liste-test.php
 
 require_once __DIR__ . '/../garetien-liste.php';
+// ⚠️ Fuer den Abschnitt „eine Uebernahme ueberlebt Holen & Rechnen" ganz unten -- er nimmt wirklich
+// etwas an, statt den Zustand von Hand in die Tabelle zu schreiben. Nur so faellt auf, wenn der
+// dauerhafte Vermerk am Schreibweg haengenbleibt statt in sync_decision zu landen.
+require_once __DIR__ . '/../garetien-uebernahme.php';
 
 $pruefungen = 0;
 
@@ -667,4 +671,82 @@ $pruefungen += 2;
 assert(AVESMAPS_GARETIEN_LISTE_MAX === 10000,
     'die Seitengroesse traegt den vom Owner gesetzten Wert: ' . AVESMAPS_GARETIEN_LISTE_MAX);
 $pruefungen++;
+// =================================================================================================
+// 🔴 EINE UEBERNAHME UEBERLEBT „HOLEN & RECHNEN" (Owner-Befund 30.08.2026).
+//
+// Woertlich: „das problem ist, dass 'holen' die einträge / IDs in 'übernommen' killt" und „ich will
+// die liste abarbeiten bis am ende alles entweder abgelehnt oder auf der karte und in 'übernommen'
+// ist".
+//
+// 💣 DIE URSACHE WAR EINE ASYMMETRIE, und dieser Abschnitt misst genau sie:
+//   Abgelehnt   -> sync_decision.declined_at  -> ueberlebt (funktionierte schon)
+//   Uebernommen -> sync_plan_item.apply_state -> starb mit dem Lauf
+// avesmapsSyncPlanSupersedeRuns legt den alten Lauf still; damit fiel die halbe Arbeit jedes Mal
+// auf „Offen" zurueck, waehrend eine Ablehnung liegenblieb.
+//
+// ⚠️ GEPRUEFT WIRD DER VERMERK, NICHT DIE ANLAGE. Ein echtes avesmapsGaretienUebernehmen braeuchte
+// die Karten-Schreibwege (avesmapsFeatureSourceUpsert ist MySQL-only und laeuft auf dieser Fixture
+// nicht); die Frage hier ist aber eine andere -- ueberlebt der dauerhafte Vermerk den Laufwechsel?
+// Dass die Uebernahme ihn ueberhaupt schreibt, sichert garetien-uebernahme-test.php.
+// =================================================================================================
+$pdoU = avesmapsGaretienPlanTestPdo();
+avesmapsGaretienBaueSyncPlan($pdoU, 1);
+
+$standVon = static function (PDO $pdo, string $name): string {
+    foreach (avesmapsGaretienArbeitsliste($pdo, 1, [])['objekte'] as $o) {
+        if ($o['name'] === $name) { return (string) $o['stand']; }
+    }
+
+    return '(fehlt)';
+};
+$schluesselVon = static function (PDO $pdo, string $label): array {
+    $stmt = $pdo->prepare('SELECT entity_key, change_type FROM sync_plan_item WHERE label LIKE :l LIMIT 1');
+    $stmt->execute([':l' => $label . '%']);
+
+    return (array) $stmt->fetch(PDO::FETCH_ASSOC);
+};
+
+// --- Vorbedingung: der Gardel ist offen.
+assert($standVon($pdoU, 'Gardel') === 'offen', 'die Vorbedingung: der Gardel steht auf offen');
+$pruefungen++;
+
+// --- Der dauerhafte Vermerk, mit dem ECHTEN Schreiber der Uebernahme.
+$gardel = $schluesselVon($pdoU, 'Gardel');
+assert(($gardel['entity_key'] ?? '') !== '', 'das Gardel-Item muss auffindbar sein');
+avesmapsSyncPlanRecordApplied($pdoU, AVESMAPS_GARETIEN_PLAN_KIND, (string) $gardel['entity_key'], 7,
+    (string) $gardel['change_type']);
+assert($standVon($pdoU, 'Gardel') === 'uebernommen', 'mit Vermerk steht er auf uebernommen');
+$pruefungen += 2;
+
+// --- 🔴 UND JETZT „HOLEN & RECHNEN": ein neuer Lauf, der den alten stilllegt.
+avesmapsGaretienBaueSyncPlan($pdoU, 1);
+assert($standVon($pdoU, 'Gardel') === 'uebernommen',
+    'NACH dem Neurechnen steht er IMMER NOCH auf uebernommen -- das ist die ganze Zusicherung: '
+    . $standVon($pdoU, 'Gardel'));
+$pruefungen++;
+
+// ⚠️ Gegenprobe: ein Objekt OHNE Vermerk ist danach weiterhin offen. Ohne sie belegte die Zeile
+// darueber nur, dass nach einem Neurechnen alles „uebernommen" heisst.
+assert($standVon($pdoU, 'Mühlsee') === 'offen',
+    'ein Objekt ohne Vermerk bleibt offen: ' . $standVon($pdoU, 'Mühlsee'));
+$pruefungen++;
+
+// --- 🔴 DER NACHZUG fuer alles, was VOR dem 30.08.2026 uebernommen wurde: dort gibt es keinen
+// Vermerk, wohl aber ein altes Item mit apply_state='done' -- und das ueberlebt, weil ein
+// stillgelegter Lauf nicht geloescht wird.
+$pdoU->exec("DELETE FROM sync_decision WHERE kind = 'garetien' AND applied_at IS NOT NULL");
+$pdoU->prepare("UPDATE sync_plan_item SET apply_state = 'done' WHERE entity_key = :ek")
+    ->execute([':ek' => (string) $gardel['entity_key']]);
+// ⚠️ Die Vorbedingung des Nachzugs: OHNE Vermerk faellt er zurueck -- allerdings nur, wenn das
+// Item nicht im AKTUELLEN Lauf steht (dort gilt schon `apply_state`). Deshalb erst einen neuen
+// Lauf, der das done-Item stilllegt.
+avesmapsGaretienBaueSyncPlan($pdoU, 1);
+$pdoU->exec("DELETE FROM sync_decision WHERE kind = 'garetien' AND applied_at IS NOT NULL");
+assert($standVon($pdoU, 'Gardel') === 'offen',
+    'die Vorbedingung: ohne Vermerk faellt er zurueck auf offen -- genau der gemeldete Fehler');
+$nachgetragen = avesmapsGaretienUebernahmenNachtragen($pdoU);
+assert($nachgetragen >= 1, 'der Nachzug findet die alte Uebernahme: ' . $nachgetragen);
+assert($standVon($pdoU, 'Gardel') === 'uebernommen', 'und stellt sie wieder her');
+$pruefungen += 3;
+
 echo "OK: {$pruefungen} Pruefungen\n";

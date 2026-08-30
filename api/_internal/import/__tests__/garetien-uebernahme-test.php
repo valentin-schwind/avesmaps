@@ -1425,6 +1425,37 @@ assert(empty($flussZuordnung['is_bach']),
 $pruefungen += 3;
 // Uebersteuerung, wie sie das Fenster „Landschaften -> Darstellung" tatsaechlich speichert:
 
+// --- 🔴 DIE UEBERNAHME SCHREIBT DEN DAUERHAFTEN VERMERK (Owner-Befund 30.08.2026: „das problem
+// ist, dass 'holen' die einträge / IDs in 'übernommen' killt"). `apply_state` stirbt mit dem Lauf,
+// sync_decision nicht -- ohne diesen Vermerk faellt jede Uebernahme beim naechsten Neurechnen auf
+// „Offen" zurueck, waehrend eine Ablehnung liegenbleibt. Dass er den Laufwechsel dann wirklich
+// ueberlebt, sichert garetien-liste-test.php; hier steht die andere Haelfte: dass er entsteht.
+$vermerkStmt = $pdoNeu->prepare(
+    "SELECT COUNT(*) FROM sync_decision WHERE kind = 'garetien' AND entity_key = ? AND applied_at IS NOT NULL"
+);
+$vermerkStmt->execute(['ggp:Probe:path:Probebach Garetien']);
+assert((int) $vermerkStmt->fetchColumn() === 1,
+    'die Uebernahme des Bachs hat einen dauerhaften Vermerk hinterlassen');
+$pruefungen++;
+
+// ⚠️ Gegenprobe: eine Zeile, die NICHT uebernommen wurde, hat keinen. Ohne sie belegte die Zeile
+// darueber nur, dass irgendwo Vermerke stehen.
+$vermerkStmt->execute(['ggp:Probe:path:gibtsnicht']);
+assert((int) $vermerkStmt->fetchColumn() === 0, 'eine nicht uebernommene Zeile hat keinen Vermerk');
+$pruefungen++;
+
+// 🔴 UND ER STEHT AN BEIDEN AUSGAENGEN. `done` wird an zwei Stellen gesetzt (Ergaenzung und
+// Anlegen); der Vermerk sitzt deshalb IM Trichter avesmapsGaretienItemAbschliessen und nicht an
+// den Aufrufstellen. Gemessen am Quelltext, weil beide Ausgaenge eine eigene Fixture braeuchten.
+// 🪤 Kommentare vorher weg -- sonst schlaegt der Test an der Erklaerung an, die davor warnt.
+$uebernahmeQuelle = preg_replace('~^\s*//.*$~m', '',
+    str_replace("\r\n", "\n", (string) file_get_contents(__DIR__ . '/../garetien-uebernahme.php')));
+assert(preg_match_all('~avesmapsSyncPlanRecordApplied\s*\(~', (string) $uebernahmeQuelle) === 1,
+    'der Vermerk wird GENAU EINMAL geschrieben -- im Trichter, nicht je Ausgang');
+assert(preg_match_all('~avesmapsGaretienItemAbschliessen\([^;]*?\x27done\x27~', (string) $uebernahmeQuelle) === 2,
+    'und es gibt wirklich ZWEI done-Ausgaenge -- sonst belegt die Zeile darueber nichts');
+$pruefungen += 2;
+
 // --- 🔴 DER ALTE PLAN (Owner-Befund 30.08.2026, an einem Bildschirmfoto seines Laufs vom 29.08.).
 // `is_bach` entsteht beim RECHNEN. Ein Lauf, der VOR dem 30.08.2026 gebaut wurde, traegt das Feld
 // nicht -- und zeigte den Bach deshalb weiter als gewoehnlichen Flussweg samt zwei angehakten

@@ -621,6 +621,64 @@ function avesmapsGaretienAbschnitteMitNamensbefund(array $abschnitte, string $ih
 }
 
 /**
+ * Die Uebernahmen ALTER Laeufe dauerhaft nachtragen -- ein einmaliger Nachzug, der sich selbst
+ * ueberfluessig macht.
+ *
+ * 🔴 WOZU (Owner 30.08.2026): `avesmapsSyncPlanRecordApplied` schreibt den dauerhaften Vermerk erst
+ * seit heute. Alles, was VORHER uebernommen wurde, hat ihn nicht -- und stuende beim naechsten
+ * „Holen & Rechnen" wieder unter „Offen", obwohl es laengst auf der Karte liegt. Genau das hat der
+ * Owner gemeldet.
+ *
+ * ⭐ Der Nachzug ist EXAKT, nicht geraten: `avesmapsSyncPlanSupersedeRuns` LOESCHT einen alten Lauf
+ * nicht, es setzt nur seinen Zustand auf 'superseded'. Seine Items stehen also noch da, samt
+ * `apply_state = 'done'` und `entity_key`. Der Umweg ueber die Quellenspur (`origin='garetien'` in
+ * feature_sources) waere die schlechtere Achse gewesen: sie haengt am OBJEKT, nicht an der
+ * Importzeile, und haette zugeordnet werden muessen.
+ *
+ * 🔴 GESCHRIEBEN WIRD MIT DEMSELBEN SCHREIBER wie zur Laufzeit (avesmapsSyncPlanRecordApplied),
+ * nicht mit einer eigenen SQL. Eine zweite Fassung derselben Regel ist genau die Doppelung, die
+ * dieses Projekt mehrfach bezahlt hat -- und sie waere hier besonders leicht zu uebersehen, weil
+ * der Nachzug nach dem ersten Lauf nichts mehr tut.
+ * ⚠️ Damit ist er idempotent und faellt von selbst trocken: was schon einen Vermerk hat, bekommt
+ * ihn nur neu gestempelt.
+ */
+function avesmapsGaretienUebernahmenNachtragen(PDO $pdo): int
+{
+    try {
+        $stmt = $pdo->prepare(
+            'SELECT i.entity_key, i.change_type
+               FROM sync_plan_item i
+               JOIN sync_plan_run r ON r.id = i.run_id
+              WHERE r.kind = :k AND i.apply_state = :s'
+        );
+        $stmt->execute(['k' => AVESMAPS_GARETIEN_PLAN_KIND, 's' => 'done']);
+    } catch (PDOException) {
+        // Die Tabellen stehen noch nicht -- der Normalfall vor dem allerersten Lauf.
+        return 0;
+    }
+
+    $nachgetragen = 0;
+    foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $zeile) {
+        $entityKey = trim((string) ($zeile['entity_key'] ?? ''));
+        if ($entityKey === '') {
+            continue;
+        }
+        // ⚠️ `userId` 0: wer es damals uebernommen hat, steht im Item nicht -- und eine erfundene
+        // Kennung waere schlimmer als keine.
+        avesmapsSyncPlanRecordApplied(
+            $pdo,
+            AVESMAPS_GARETIEN_PLAN_KIND,
+            $entityKey,
+            0,
+            (string) ($zeile['change_type'] ?? 'new')
+        );
+        $nachgetragen++;
+    }
+
+    return $nachgetragen;
+}
+
+/**
  * Den Plan fuer einen Import-Lauf bauen. Gibt die Zahl der Vorschlaege zurueck.
  *
  * 🔴 Review I3: `deckt_sich` geht seit dem vierten Ausgang (Aufgabe 3) durch
@@ -642,6 +700,8 @@ function avesmapsGaretienBaueSyncPlan(PDO $pdo, int $importRunId, int $userId = 
     // 🪤 Der Kandidatenspeicher gilt fuer den ganzen Prozess. Wer im selben Lauf erst uebernimmt
     // und dann neu plant, bekaeme sonst den Stand von vorher.
     avesmapsGaretienKandidatenVergessen();
+    // 🔴 VOR dem neuen Lauf: die Uebernahmen der ALTEN Laeufe dauerhaft nachtragen.
+    avesmapsGaretienUebernahmenNachtragen($pdo);
 
     $runId = avesmapsSyncPlanStartRun($pdo, AVESMAPS_GARETIEN_PLAN_KIND, $userId, 'import:' . $importRunId);
     if ($runId <= 0) {

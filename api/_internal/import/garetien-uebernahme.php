@@ -991,10 +991,36 @@ function avesmapsGaretienApplyStep(PDO $pdo, int $runId, int $userId, ?array $us
  * ⚠️ Der Riegel `apply_state IS NULL` in `avesmapsSyncPlanSetSelection` wirkt nicht gegen uns:
  * hier wird direkt geschrieben, in derselben Reihenfolge wie der Vermerk.
  */
-function avesmapsGaretienItemAbschliessen(PDO $pdo, int $itemId, string $applyState, string $note = ''): void
+function avesmapsGaretienItemAbschliessen(PDO $pdo, int $itemId, string $applyState, string $note = '', int $userId = 0): void
 {
     avesmapsSyncPlanMarkItem($pdo, $itemId, $applyState, $note);
     $pdo->prepare('UPDATE sync_plan_item SET selected = 0 WHERE id = :id')->execute(['id' => $itemId]);
+
+    // 🔴 DER DAUERHAFTE VERMERK STEHT HIER UND NICHT AN DEN AUFRUFSTELLEN. `done` wird an ZWEI
+    // Stellen gesetzt (die Ergaenzung und das Anlegen) -- eine Regel, die einen von zwei Erzeugern
+    // bindet, ist keine Regel, und dieses Projekt hat das schon zweimal bezahlt. Wer einen dritten
+    // Ausgang baut, erbt den Vermerk hier automatisch.
+    //
+    // 🔴 WOZU (Owner 30.08.2026): `apply_state` stirbt mit dem Lauf, `sync_decision` nicht. Ohne
+    // diesen Vermerk faellt jede Uebernahme beim naechsten „Holen & Rechnen" auf „Offen" zurueck,
+    // waehrend eine Ablehnung liegenbleibt -- und die Liste laesst sich nie leer arbeiten.
+    // ⚠️ NUR bei 'done'. Ein 'failed' oder 'stale' ist keine Entscheidung, sondern ein Befund.
+    if ($applyState !== 'done') {
+        return;
+    }
+    $stmt = $pdo->prepare('SELECT entity_key, change_type FROM sync_plan_item WHERE id = :id');
+    $stmt->execute(['id' => $itemId]);
+    $zeile = $stmt->fetch(PDO::FETCH_ASSOC);
+    if (!is_array($zeile)) {
+        return;
+    }
+    avesmapsSyncPlanRecordApplied(
+        $pdo,
+        AVESMAPS_GARETIEN_PLAN_KIND,
+        (string) $zeile['entity_key'],
+        $userId,
+        (string) $zeile['change_type']
+    );
 }
 
 /**
@@ -1066,7 +1092,7 @@ function avesmapsGaretienUebernehmen(PDO $pdo, int $runId, array $itemIds, array
                 );
                 $angelegt += $ergebnis['felder'] > 0 ? 1 : 0;
                 $quellen += $ergebnis['quellen'];
-                avesmapsGaretienItemAbschliessen($pdo, (int) $item['id'], 'done', (string) $item['entity_public_id']);
+                avesmapsGaretienItemAbschliessen($pdo, (int) $item['id'], 'done', (string) $item['entity_public_id'], $userId);
             } catch (Throwable $abbruch) {
                 $fehler[] = ['item' => (int) $item['id'], 'grund' => $abbruch->getMessage()];
                 avesmapsGaretienItemAbschliessen($pdo, (int) $item['id'], 'failed', mb_substr($abbruch->getMessage(), 0, 300, 'UTF-8'));
@@ -1188,7 +1214,7 @@ function avesmapsGaretienUebernehmen(PDO $pdo, int $runId, array $itemIds, array
             )) {
                 $quellen++;
             }
-            avesmapsGaretienItemAbschliessen($pdo, (int) $item['id'], 'done', $publicId);
+            avesmapsGaretienItemAbschliessen($pdo, (int) $item['id'], 'done', $publicId, $userId);
         } catch (Throwable $abbruch) {
             // 🔴 Ein Fehlschlag bei EINEM Objekt haelt die uebrigen nicht auf, aber er wird
             // benannt. Ein stiller Ueberspringer waere von "wurde angelegt" nicht zu

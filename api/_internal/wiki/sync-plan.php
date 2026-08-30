@@ -212,9 +212,28 @@ function avesmapsEnsureSyncPlanTables(PDO $pdo): void
             last_skipped_by INT NULL,
             declined_at DATETIME(3) NULL,
             declined_by INT NULL,
+            applied_at DATETIME(3) NULL,
+            applied_by INT NULL,
             PRIMARY KEY (kind, entity_key, change_type)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"
     );
+
+    // 🔴 NACHZUG FUER BESTEHENDE INSTALLATIONEN. `CREATE TABLE IF NOT EXISTS` legt eine
+    // vorhandene Tabelle NICHT um -- ohne diese zwei Zeilen bekaeme die Live-Datenbank die
+    // Spalten nie, und `applied_at` waere ein Feld, das nur in Tests existiert. Dasselbe
+    // selbstheilende Muster wie ueberall im Haus (AGENTS.md §5).
+    // ⚠️ Der Fehler wird geschluckt, weil "Spalte steht schon" der Normalfall ab dem zweiten
+    // Aufruf ist -- MySQL vor 8.0.29 kennt kein "ADD COLUMN IF NOT EXISTS".
+    foreach ([
+        'ALTER TABLE sync_decision ADD COLUMN applied_at DATETIME(3) NULL',
+        'ALTER TABLE sync_decision ADD COLUMN applied_by INT NULL',
+    ] as $sql) {
+        try {
+            $pdo->exec($sql);
+        } catch (PDOException) {
+            // Spalte steht schon.
+        }
+    }
 }
 
 /**
@@ -265,6 +284,8 @@ function avesmapsEnsureSyncPlanTablesSqlite(PDO $pdo): void
             last_skipped_by INTEGER NULL,
             declined_at TEXT NULL,
             declined_by INTEGER NULL,
+            applied_at TEXT NULL,
+            applied_by INTEGER NULL,
             PRIMARY KEY (kind, entity_key, change_type)
         )"
     );
@@ -602,12 +623,12 @@ function avesmapsSyncPlanMarkItem(PDO $pdo, int $itemId, string $applyState, str
  * ONE query for the whole table, never one per row: this is read while walking thousands of catalog
  * rows, and a per-row lookup is exactly the loop STRATO cannot take (AGENTS.md §10).
  *
- * @return array<string, array{skipped_count:int, last_skipped_at:?string, declined_at:?string}>
+ * @return array<string, array{skipped_count:int, last_skipped_at:?string, declined_at:?string, applied_at:?string}>
  */
 function avesmapsSyncPlanDecisions(PDO $pdo, string $kind): array
 {
     $stmt = $pdo->prepare(
-        'SELECT entity_key, change_type, skipped_count, last_skipped_at, declined_at
+        'SELECT entity_key, change_type, skipped_count, last_skipped_at, declined_at, applied_at
            FROM sync_decision WHERE kind = :k'
     );
     $stmt->execute(['k' => $kind]);
@@ -618,6 +639,10 @@ function avesmapsSyncPlanDecisions(PDO $pdo, string $kind): array
             'skipped_count' => (int) $row['skipped_count'],
             'last_skipped_at' => $row['last_skipped_at'] === null ? null : (string) $row['last_skipped_at'],
             'declined_at' => $row['declined_at'] === null ? null : (string) $row['declined_at'],
+            // 🔴 Der dauerhafte Uebernahme-Vermerk (avesmapsSyncPlanRecordApplied). Er reist im
+            // selben Rueckgabewert wie die Ablehnung, weil beide dieselbe Frage beantworten:
+            // „hat jemand ueber diese Zeile schon entschieden?"
+            'applied_at' => ($row['applied_at'] ?? null) === null ? null : (string) $row['applied_at'],
         ];
     }
 
@@ -698,6 +723,63 @@ function avesmapsSyncPlanRecordDecline(
         'ct' => $changeType,
         'by' => $userId > 0 ? $userId : null,
     ]);
+}
+
+/**
+ * Der DAUERHAFTE Vermerk „das ist uebernommen" -- das Gegenstueck zu avesmapsSyncPlanRecordDecline.
+ *
+ * 🔴 WARUM ES IHN GIBT (Owner 30.08.2026): der Garetien-Importer soll eine Liste sein, die man
+ * LEER bekommt -- „ich will die liste abarbeiten bis am ende alles entweder abgelehnt oder auf der
+ * karte und in 'übernommen' ist". Das ging nicht, und der Grund war eine Asymmetrie:
+ *
+ *   Abgelehnt    -> sync_decision.declined_at   -> ueberlebt jedes Neurechnen
+ *   Uebernommen  -> sync_plan_item.apply_state  -> stirbt mit dem Lauf
+ *
+ * Ein neuer Lauf legt den alten stillt (avesmapsSyncPlanSupersedeRuns), und damit fiel die halbe
+ * Arbeit jedes Mal auf „Offen" zurueck -- die abgelehnte Haelfte blieb korrekt liegen, die
+ * uebernommene nicht. Der Owner hat das gemessen: „das problem ist, dass 'holen' die einträge /
+ * IDs in 'übernommen' killt". Beide Endzustaende leben jetzt in DERSELBEN Tabelle, unter DEMSELBEN
+ * Schluessel, mit DERSELBEN Lebensdauer.
+ *
+ * 💣 KEIN `ON DUPLICATE KEY UPDATE`. Das kennt SQLite nicht, und dieser Schreibweg laeuft in den
+ * Tests wirklich (avesmapsGaretienUebernehmen ruft ihn). Die Produktionsform fuer einen Test zu
+ * verbiegen ist der Fehler, den AGENTS.md §9 als Error-1093-Falle beschreibt -- deshalb hier
+ * UPDATE-dann-INSERT, das auf beiden Maschinen dieselbe Bedeutung hat.
+ * ⚠️ Zwei gleichzeitige Schreiber koennten sich zwischen UPDATE und INSERT ueberholen; der INSERT
+ * faellt dann auf den Primaerschluessel und wird geschluckt -- der Vermerk steht danach trotzdem,
+ * nur vom anderen gesetzt. Fuer „ist uebernommen" ist das gleichwertig.
+ *
+ * ⚠️ `avesmapsSyncPlanClearSkip` loescht Zeilen mit change_type='changed' GANZ und naehme einen
+ * dort stehenden Vermerk mit. Der Garetien-Weg ruft sie nicht, und seine uebernommenen Zeilen sind
+ * 'new' -- wer das aendert, prueft diese Wechselwirkung.
+ */
+function avesmapsSyncPlanRecordApplied(
+    PDO $pdo,
+    string $kind,
+    string $entityKey,
+    int $userId,
+    string $changeType = 'new'
+): void {
+    $jetzt = gmdate('Y-m-d H:i:s');
+    $wer = $userId > 0 ? $userId : null;
+
+    $update = $pdo->prepare(
+        'UPDATE sync_decision SET applied_at = :at, applied_by = :by
+          WHERE kind = :k AND entity_key = :ek AND change_type = :ct'
+    );
+    $update->execute(['at' => $jetzt, 'by' => $wer, 'k' => $kind, 'ek' => $entityKey, 'ct' => $changeType]);
+    if ($update->rowCount() > 0) {
+        return;
+    }
+
+    try {
+        $pdo->prepare(
+            'INSERT INTO sync_decision (kind, entity_key, change_type, applied_at, applied_by)
+             VALUES (:k, :ek, :ct, :at, :by)'
+        )->execute(['k' => $kind, 'ek' => $entityKey, 'ct' => $changeType, 'at' => $jetzt, 'by' => $wer]);
+    } catch (PDOException) {
+        // Ein zweiter Schreiber war schneller -- der Vermerk steht, und genau darauf kommt es an.
+    }
 }
 
 /**

@@ -578,4 +578,5 @@ assert(!array_key_exists('is_bach', $andereAfter),
     'ein anderer Weg traegt GAR KEIN is_bach: ' . json_encode($andereAfter, JSON_UNESCAPED_UNICODE));
 $pruefungen += 2;
 
+
 echo "OK: {$pruefungen} Pruefungen\n";

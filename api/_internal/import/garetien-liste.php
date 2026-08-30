@@ -272,7 +272,7 @@ function avesmapsGaretienListeObjektUrteil(array $items, string $stagingUrteil):
  * die Zeile steht trotzdem hier, wortgetreu nach Brief Schritt 6, fuer den Tag, an dem ein
  * Ablehnungsweg dazukommt.
  *
- * @param list<array{selected:int, apply_state:?string, declined:bool}> $items
+ * @param list<array{selected:int, apply_state:?string, declined:bool, applied?:bool}> $items
  */
 function avesmapsGaretienListeObjektStand(array $items): string
 {
@@ -280,7 +280,13 @@ function avesmapsGaretienListeObjektStand(array $items): string
         return 'offen';
     }
     foreach ($items as $item) {
-        if ($item['apply_state'] === 'done') {
+        // 🔴 ZWEI WEGE ZU „uebernommen", und beide muessen hier stehen (Owner 30.08.2026):
+        //   `apply_state === 'done'` -- in DIESEM Lauf uebernommen.
+        //   `applied`                -- irgendwann uebernommen, dauerhaft in sync_decision.
+        // Der zweite ist der Grund, warum die Liste sich ueberhaupt leer arbeiten laesst: der
+        // erste stirbt mit dem Lauf, und ohne den zweiten fiel jede Uebernahme beim naechsten
+        // „Holen & Rechnen" auf „Offen" zurueck, waehrend eine Ablehnung liegenblieb.
+        if ($item['apply_state'] === 'done' || ($item['applied'] ?? false)) {
             return 'uebernommen';
         }
     }
@@ -434,6 +440,10 @@ function avesmapsGaretienArbeitslisteObjekte(PDO $pdo, int $importRunId): array
             'selected' => (int) $roh['selected'],
             'apply_state' => $roh['apply_state'] !== null ? (string) $roh['apply_state'] : null,
             'declined' => ($entscheidungen[$entscheidungsSchluessel]['declined_at'] ?? null) !== null,
+            // 🔴 Der DAUERHAFTE Uebernahme-Vermerk (avesmapsSyncPlanRecordApplied). Er ist das
+            // Gegenstueck zu `declined` und aus demselben Grund noetig: `apply_state` stirbt mit
+            // dem Lauf, sync_decision nicht.
+            'applied' => ($entscheidungen[$entscheidungsSchluessel]['applied_at'] ?? null) !== null,
             'after' => is_array($after) ? $after : [],
             'before' => is_array($before) ? $before : [],
         ];
@@ -630,6 +640,7 @@ function avesmapsGaretienArbeitslisteObjekte(PDO $pdo, int $importRunId): array
                 'selected' => $item['selected'],
                 'apply_state' => $item['apply_state'],
                 'declined' => $item['declined'],
+                'applied' => $item['applied'] ?? false,
             ], $items)),
         ];
     }
