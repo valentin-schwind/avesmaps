@@ -866,6 +866,16 @@
 	min-width: 0;
 }
 
+/* Die Zwischenüberschrift über einer Häkchengruppe -- heute nur „Verkehrsmittel" (Owner
+ * 30.08.2026, „dann weg bearbeiten"). Sie ist bewusst KEIN `.gi-insert__sub`: das ist die
+ * Überschrift eines ganzen Kartenobjekt-Abschnitts („Weg", „Ort", „Fläche"), und eine Gruppe
+ * INNERHALB davon auf dieselbe Stufe zu heben, verwischt genau die Ordnung, die den Kasten
+ * lesbar macht. Gruppiert wird hier durch Abstand, nicht durch einen Rahmen (AGENTS.md §12). */
+.gi-insert__row--kopf {
+	margin-top: var(--space-4);
+	font-weight: var(--font-weight-bold);
+}
+
 .gi-insert__unit { color: var(--color-text-muted); }
 
 /* ---- Owner-Bestellung 30.08.2026 (wörtlich): „du kannst die slider bzw. abstände zwischen den

@@ -60,6 +60,26 @@ function macheElement(id) {
 const ELEMENTE = {};
 ["garetien-detailcol", "garetien-list"].forEach((id) => { ELEMENTE[id] = macheElement(id); });
 
+// 🔴 DIE VERKEHRSMITTEL-BESCHRIFTUNGEN KOMMEN AUS index.html, NICHT AUS DIESEM TEST. Der Importer
+// liest sie zur Laufzeit aus dem ECHTEN Dialog „Weg bearbeiten" im selben Dokument
+// (#path-edit-transport-options) -- es gibt im Haus keine geteilte Tafel fuer die elf Schluessel,
+// und eine vierte Kopie waere genau die Doppelung, die dieses Fenster schon zweimal bezahlt hat.
+// Damit dieser Test das WIRKLICH prueft, baut er das Element aus den echten Zeilen der Seite:
+// wer die Zeilen dort umbenennt oder entfernt, sieht es hier.
+const PFAD_TRANSPORT_ZEILEN = [];
+for (const treffer of fs.readFileSync(path.join(WURZEL, "index.html"), "utf8")
+	.matchAll(/<input type="checkbox" name="allowed_transport" value="([^"]+)"\s*\/>\s*([^<]+)</g)) {
+	PFAD_TRANSPORT_ZEILEN.push({
+		getAttribute(name) { return name === "value" ? treffer[1] : null; },
+		parentNode: { textContent: " " + treffer[2].trim() },
+	});
+}
+assert.ok(PFAD_TRANSPORT_ZEILEN.length === 11,
+	`index.html muss die elf Verkehrsmittel-Zeilen des Dialogs "Weg bearbeiten" tragen, gefunden: ${PFAD_TRANSPORT_ZEILEN.length}`);
+ELEMENTE["path-edit-transport-options"] = Object.assign(macheElement("path-edit-transport-options"), {
+	querySelectorAll(sel) { return sel.includes("allowed_transport") ? PFAD_TRANSPORT_ZEILEN : []; },
+});
+
 global.document = {
 	documentElement: { classList: { add() {}, remove() {} } },
 	readyState: "complete",
@@ -459,9 +479,13 @@ wahr(!mOrt.includes("Vorgabe der Art wäre"),
 	"der Ort-Abschnitt darf keine Art-Empfehlung behaupten, die es nicht gibt");
 
 // =================================================================================================
-// F. Ein WEG (ziel='path') -- Owner-Nachtrag 30.08.2026: "vergiss nicht die andern einstellungen
-//    aus 'Weg bearbeiten'". Vier Zeilen: Weg anzeigen, Jahreszeiten, Verkehrsmittel, und (nur bei
-//    einem Flussweg) Stroemung. UNVERÄNDERT reine Anzeige.
+// F. Ein WEG (ziel='path') -- Owner 30.08.2026: „ja mach ort bearbeiten, dann weg bearbeiten".
+//    ZWEI echte Bedienelemente, und zwar GENAU die zwei Felder, die avesmapsCreatePathFeature
+//    beim Anlegen wirklich aus dem Anfragerumpf liest: `show_label` und `allowed_transports`.
+//
+//    🔴 Reine ANZEIGE bleiben Jahreszeiten und Stroemung -- `transport_seasons` steht ueberhaupt
+//    nicht im $properties-Rumpf des Anlegers, und die Flussrichtung hat einen eigenen Schreibweg
+//    im Wege-Editor. Ein Bedienelement darauf waere eines, das nichts tut.
 // =================================================================================================
 
 const weg = {
@@ -475,60 +499,100 @@ wahr(!mWeg.includes("Fläche") && !mWeg.includes("class=\"gi-insert__sub\">Besch
 	&& !mWeg.includes('class="gi-insert__sub">Ort<'),
 	"ein Weg bekommt keinen der drei ANDEREN Kartenobjekt-Unterabschnitte");
 wahr(mWeg.includes('class="gi-insert__sub">Weg<'), "die Weg-Unterueberschrift fehlt");
-wahr(!mWeg.includes('type="checkbox"') && !mWeg.includes('type="number"'),
-	"ein Weg bekommt KEIN einziges Eingabefeld -- die Recherche ergab, dass hier nichts speicherbar ist");
 wahr(mWeg.includes("Wiki und Quellen") && mWeg.includes("Die Quelle, die mitreist"),
 	"Quelle bleibt fuer JEDES Ziel gueltig, auch fuer einen Weg");
 wahr(!mWeg.includes("Wiki-Landschaft"), "Wiki-Landschaft gilt nur Regionen, nicht Wegen");
 
-// ---- "Weg anzeigen" (show_label) -- der Import setzt es nie, IMMER "aus".
-wahr(/Weg anzeigen \(Name auf der Karte\)[\s\S]{0,140}\(aus\)/.test(mWeg),
-	"show_label ist beim Import immer aus (avesmapsCreatePathFeature liest show_label ?? false)");
-wahr(mWeg.includes("zuletzt im Wege-Editor benutzte Einstellung"),
-	"die Zeile muss die Praxis nennen (von Hand gezeichnete Wege erben die letzte Sitzungseinstellung)");
+// ---- "Weg anzeigen" (show_label) ist jetzt ein Haken.
+wahr(/data-gi-feld="showLabel"/.test(mWeg), "show_label ist ein Haekchen: " + mWeg);
+wahr(mWeg.includes("Weg anzeigen (Name auf der Karte)"), "und traegt die Beschriftung des echten Dialogs");
 
-// ---- "Jahreszeiten" (transport_seasons) -- der Import setzt es nie, IMMER "ganzjährig".
-wahr(/Jahreszeiten \(Gangbarkeit\)[\s\S]{0,60}\(ganzjährig\)/.test(mWeg),
-	"transport_seasons kommt vom Import nie mit -- muss als ganzjaehrig/unbeschraenkt stehen");
-
-// ---- "Verkehrsmittel" -- ECHT aus der geteilten Regel gerechnet (kein Abschreiben ihrer Zahlen),
-// DIFFERENTIELL ueber drei Wegarten: Flussweg (2 von 2), Pfad (5 von 6, ohne Kutsche), Strasse
-// (6 von 6). Dieselbe Regel, die avesmapsReadAllowedTransports serverseitig anwendet, wenn der
-// Import (wie tatsaechlich) kein allowed_transports mitschickt.
-function verkehrsmittelZeile(subtyp) {
-	const erlaubt = getDefaultAllowedTransportsForPathSubtype(subtyp).length;
-	const angeboten = getTransportOptionsForPathSubtype(subtyp).length;
-	return { erlaubt: erlaubt, angeboten: angeboten };
+// ---- "Verkehrsmittel": EIN Haken je ANGEBOTENEM Mittel, vorgehakt nach der Vorauswahl der Wegart.
+// 🔴 Beides kommt aus der geteilten Regel (map-features-path-domain.js), nicht aus abgeschriebenen
+// Zahlen -- dieselbe Regel, die avesmapsReadAllowedTransports serverseitig anwendet.
+function vmZaehlen(markup) {
+	return {
+		haken: (markup.match(/data-gi-transport="/g) || []).length,
+		gehakt: (markup.match(/data-gi-transport="[^"]*" checked/g) || []).length,
+	};
 }
-
-const vmFlussweg = verkehrsmittelZeile("Flussweg");
-gleich(vmFlussweg.erlaubt, 2, "Flussweg erlaubt beide Fluss-Verkehrsmittel");
-gleich(vmFlussweg.angeboten, 2, "Flussweg bietet nur die zwei Fluss-Verkehrsmittel an");
-wahr(mWeg.includes("Verkehrsmittel") && mWeg.includes("(2 von 2 für diese Wegart möglichen)"),
-	"die echte Verkehrsmittel-Zahl fuer Flussweg (2 von 2) fehlt");
+const vmFluss = vmZaehlen(mWeg);
+gleich(vmFluss.haken, getTransportOptionsForPathSubtype("Flussweg").length,
+	"ein Haken je angebotenem Verkehrsmittel des Flusswegs (2)");
+gleich(vmFluss.gehakt, getDefaultAllowedTransportsForPathSubtype("Flussweg").length,
+	"vorgehakt ist die Vorauswahl der Wegart (2 von 2)");
 
 const pfad = Object.assign({}, weg, { key: "ggp:Wege:Pfad:Garetien:Testpfad", subtyp: "Pfad", typ: "Pfad" });
 const mPfad = garetienEingefuegtWirdMarkup(pfad);
-const vmPfad = verkehrsmittelZeile("Pfad");
-gleich(vmPfad.erlaubt, 5, "Pfad laesst die Kutsche standardmaessig unangehakt (5 von 6)");
-gleich(vmPfad.angeboten, 6, "Pfad BIETET die Kutsche an, waehlt sie nur nicht vor");
-wahr(mPfad.includes("(5 von 6 für diese Wegart möglichen)"),
-	"'Pfad' zeigt eine ANDERE Verkehrsmittel-Zahl als 'Flussweg' -- sonst waere es Vakuum");
+const vmPfad = vmZaehlen(mPfad);
+gleich(vmPfad.haken, 6, "der Pfad BIETET sechs Verkehrsmittel an -- eine andere Zahl als der Flussweg");
+gleich(vmPfad.gehakt, 5, "und haekelt fuenf davon vor: die Kutsche wird angeboten, aber nicht gewaehlt");
+wahr(/data-gi-transport="horseCarriage"(?! checked)/.test(mPfad),
+	"und zwar GENAU die Kutsche ist die ungehakte -- sonst waere die Zahl 5 zufaellig richtig: " + mPfad);
 
 const strasse = Object.assign({}, weg, { key: "ggp:Wege:Strasse:Garetien:Teststrasse", subtyp: "Strasse", typ: "Strasse" });
 const mStrasse = garetienEingefuegtWirdMarkup(strasse);
-wahr(mStrasse.includes("(6 von 6 für diese Wegart möglichen)"),
-	"'Strasse' erlaubt alle sechs Land-Verkehrsmittel -- eine DRITTE Zahl, sonst waere es Vakuum");
+gleich(vmZaehlen(mStrasse).gehakt, 6, "die Strasse erlaubt alle sechs Land-Verkehrsmittel -- eine DRITTE Zahl");
 
-// ---- "Strömung" (flow_direction) -- NUR bei einem Flussweg, sonst gar keine Zeile.
+// ---- 💣 DIE BESCHRIFTUNGEN WERDEN NICHT ABGESCHRIEBEN, sondern aus dem ECHTEN Dialog „Weg
+// bearbeiten" im selben Dokument gelesen (#path-edit-transport-options in index.html). Es gibt
+// im Haus KEINE geteilte Tafel fuer die elf Schluessel -- nur literale Texte in index.html und
+// woertliche Kopien in wege-editor.js/transport-speed-info.js. Eine VIERTE Kopie hier waere genau
+// die Doppelung, vor der der alte Kommentar an dieser Stelle gewarnt hat.
+// Das gefaelschte `document` oben liefert dafuer die ECHTEN Zeilen aus index.html.
+wahr(mWeg.includes("Flusssegler") && mWeg.includes("Flusskahn"),
+	"die zwei Fluss-Verkehrsmittel stehen mit ihrem Namen da, nicht mit ihrem Schluessel: " + mWeg);
+wahr(!mWeg.includes(">riverSailer<"), "und der Schluessel steht NICHT als Beschriftung da");
+
+// ---- Was an den Server reist.
+const rausWeg = garetienEingabenFuerServer(weg);
+wahr(rausWeg !== null, "ein Weg schickt jetzt eine Handeingabe mit (frueher: null)");
+gleich(rausWeg.show_label, false, "Grundwert: der Name steht nicht auf der Karte");
+wahr(!("allowed_transports" in rausWeg),
+	"UNANGETASTET schickt der Weg KEINE Verkehrsmittel mit -- dann waehlt der Server dieselbe "
+	+ "Vorauswahl wie bisher, und der Aufruf bleibt zeichengleich zu vorher: " + JSON.stringify(rausWeg));
+
+// Erst eine echte Handeingabe schickt die Liste mit.
+garetienEingabenZustandZu(weg).transports = ["riverSailer"];
+garetienEingabenZustandZu(weg).showLabel = true;
+const rausWeg2 = garetienEingabenFuerServer(weg);
+gleich(rausWeg2.show_label, true, "ein gesetzter Haken reist mit");
+assert.deepStrictEqual(rausWeg2.allowed_transports, ["riverSailer"],
+	"eine geaenderte Auswahl reist als Liste mit");
+checks++;
+
+// ---- 🔴 EINE LEERE AUSWAHL IST ERLAUBT, ABER SIE WIRD BENANNT. avesmapsReadAllowedTransports
+// nimmt `[]` an und speichert es -- ein Weg, den kein Verkehrsmittel benutzen darf, ist damit eine
+// Kante, die im Routing niemand befahren kann. Das ist die Entscheidung des Editors (der echte
+// Dialog laesst dasselbe zu), aber sie darf nicht still passieren.
+garetienEingabenZustandZu(weg).transports = [];
+const mWegLeer = garetienEingefuegtWirdMarkup(weg);
+wahr(mWegLeer.includes("kein Verkehrsmittel"),
+	"eine leere Auswahl bekommt einen sichtbaren Warnsatz: " + mWegLeer);
+assert.deepStrictEqual(garetienEingabenFuerServer(weg).allowed_transports, [],
+	"und sie reist trotzdem mit -- verschluckt wuerde sie zur Vorauswahl zurueckfallen, "
+	+ "also genau das Gegenteil der Absicht");
+checks++;
+garetienEingabenZustandZu(weg).transports = null;   // aufräumen
+garetienEingabenZustandZu(weg).showLabel = false;
+
+// ---- Die zwei Zeilen OHNE Schreibweg bleiben Anzeige.
+wahr(/Jahreszeiten \(Gangbarkeit\)[\s\S]{0,60}\(ganzjährig\)/.test(mWeg),
+	"transport_seasons steht gar nicht im Rumpf des Anlegers und bleibt Anzeige");
 wahr(/Strömung \(Flussrichtung\)[\s\S]{0,60}\(unbekannt\)/.test(mWeg),
-	"ein Flussweg muss die Stroemungszeile mit 'unbekannt' zeigen (flow kommt vom Import nie mit)");
-wahr(mWeg.includes("Flussrichtung unbekannt"),
-	"die Zeile muss auf den Wege-Editor-Reiter verweisen, unter dem sich die Richtung setzen laesst");
+	"ein Flussweg zeigt die Stroemungszeile mit 'unbekannt' -- sie hat ihren eigenen Schreibweg");
+wahr(!mWeg.includes('data-gi-feld="seasons"') && !mWeg.includes('data-gi-feld="flow"'),
+	"und beide bekommen KEIN Eingabefeld");
 wahr(!mPfad.includes("Strömung") && !mStrasse.includes("Strömung"),
 	"ein Pfad/eine Strasse fuehrt keine Stroemung -- die Zeile darf dort gar nicht erscheinen");
 
-// =================================================================================================
+// ---- Punkt 6a: ein UEBERNOMMENER Weg ist angelegt -- alles gesperrt (1 Haken + 2 Verkehrsmittel).
+const wegUebernommen = Object.assign({}, weg, {
+	key: "ggp:Gewaesser:Fluss:Garetien:Testfluss-uebernommen", stand: "uebernommen",
+});
+gleich((garetienEingefuegtWirdMarkup(wegUebernommen).match(/disabled/g) || []).length, 3,
+	"beim uebernommenen Flussweg sind der Anzeige-Haken und beide Verkehrsmittel gesperrt");
+
 // G. garetienWikiLandschaftZeileText -- die vier Urteile, wortgetreu zur Bestellung
 // =================================================================================================
 
@@ -632,13 +696,18 @@ ELEMENTE[idH2 + "-range"] = reglerElementH2;
 // Der Regler wird gezogen (das Ziel TRÄGT selbst keinen "id"-Vergleichswert -- wie ein echtes
 // DOM-Element, das über getElementById NICHT sich selbst zurückbekommt, weil garetienEingabenAendern
 // die Geschwister immer per ID nachschlägt).
-const reglerZiel = { getAttribute: () => "size", hasAttribute: () => true, type: "range", value: "40", id: idH2 + "-range" };
+// 🪤 NAMENSTREU antworten, nicht auf jede Frage "size": eine Attrappe, die jedes Attribut mit
+// demselben Wort beantwortet, laesst einen neuen Leser (hier: `data-gi-transport`) einen Wert
+// finden, den ein echtes DOM-Element nie liefert -- und der Test bricht dann an einer Stelle, an
+// der nichts kaputt ist.
+const nurFeld = (name) => (name === "data-gi-feld" ? "size" : null);
+const reglerZiel = { getAttribute: nurFeld, hasAttribute: () => true, type: "range", value: "40", id: idH2 + "-range" };
 garetienEingabenAendern({ target: reglerZiel }, [objektH2]);
 gleich(garetienEingabenZustandZu(objektH2).size, 40, "eine Reglerbewegung wird uebernommen wie eine Zahleingabe");
 gleich(nummerElementH2.value, "40", "…und ins ZAHLENFELD gespiegelt, ohne dass jemand es angefasst hat");
 
 // Und umgekehrt: die Zahl wird getippt, der Regler zieht nach.
-const nummerZiel = { getAttribute: () => "size", hasAttribute: () => true, type: "number", value: "12", id: idH2 };
+const nummerZiel = { getAttribute: nurFeld, hasAttribute: () => true, type: "number", value: "12", id: idH2 };
 garetienEingabenAendern({ target: nummerZiel }, [objektH2]);
 gleich(garetienEingabenZustandZu(objektH2).size, 12, "eine getippte Zahl wird uebernommen");
 gleich(reglerElementH2.value, "12", "…und in den REGLER gespiegelt");
@@ -756,9 +825,17 @@ assert.deepStrictEqual(garetienEingabenFuerServer(kOrt), {
 	is_nodix: true, is_ruined: false, is_hidden: true, place_kind: "Turm",
 }, "ein Ort liefert GENAU die vier Karteifelder, keine Label-/Region-Felder");
 checks++;
-// Weg: weiterhin KEINE Handeingabe -- der Kasten bietet dort noch keine Felder an.
-gleich(garetienEingabenFuerServer({ key: "k2", ziel: "path", subtyp: "Pfad" }), null,
-	"ein Weg liefert (noch) keine Handeingabe");
+// Weg: seit dem 30.08.2026 die ZWEI Felder, die avesmapsCreatePathFeature wirklich liest.
+// 🔴 UNANGETASTET ohne `allowed_transports` -- dann waehlt der Server dieselbe Vorauswahl der
+// Wegart wie bisher, und der Anlegeaufruf bleibt zeichengleich zu dem von vorher.
+const kWeg = { key: "k2", ziel: "path", subtyp: "Pfad" };
+assert.deepStrictEqual(garetienEingabenFuerServer(kWeg), { show_label: false },
+	"ein unangetasteter Weg schickt nur show_label mit, KEINE Verkehrsmittel");
+garetienEingabenZustandZu(kWeg).transports = ["groupFoot"];
+assert.deepStrictEqual(garetienEingabenFuerServer(kWeg),
+	{ show_label: false, allowed_transports: ["groupFoot"] },
+	"erst eine angefasste Auswahl reist als Liste mit");
+checks += 2;
 
 // Berggipfel (ziel='label'): die SECHS Label-Felder (inkl. Nodix seit dieser Aufgabe), aber KEIN
 // is_locked/curve_label.

@@ -2213,6 +2213,14 @@
 			// Art wäre eine Behauptung, die niemand getroffen hat, und der Anleger ließe den
 			// Schlüssel bei "" ohnehin weg.
 			isRuined: false, isHidden: false, placeKind: "",
+			// 🔴 „Weg bearbeiten" (Owner 30.08.2026). `showLabel` hat den Grundwert des Anlegers
+			// (`show_label ?? false`).
+			// 💣 `transports: null` heißt „UNANGETASTET", nicht „keines". Nur so bleibt der
+			// Anlegeaufruf für einen nicht angefassten Weg zeichengleich zu dem von vorher: der
+			// Client schickt dann gar kein `allowed_transports`, und avesmapsReadAllowedTransports
+			// wählt dieselbe Vorauswahl der Wegart wie bisher. Eine leere LISTE ist dagegen eine
+			// Aussage („kein Verkehrsmittel darf hier fahren") und reist mit.
+			showLabel: false, transports: null,
 		};
 	}
 
@@ -2410,6 +2418,26 @@
 		if (!objekt) { return; }
 		const eingaben = garetienEingabenZustandZu(objekt);
 		const feld = ziel.getAttribute("data-gi-feld");
+		// 🔴 EIN VERKEHRSMITTEL IST KEIN JA/NEIN-FELD, sondern ein Eintrag in einer LISTE -- dieser
+		// Zweig muss deshalb VOR dem Häkchen-Zweig darunter stehen. Stünde er dahinter, machte
+		// `eingaben["transports"] = Boolean(checked)` aus der Liste ein Bool, und der nächste Klick
+		// läse `indexOf` auf `true`.
+		// ⚠️ Der Riegel ist das FELD, nicht die blosse Anwesenheit von `data-gi-transport`: nur so
+		// hängt er nicht davon ab, dass ein Aufrufer (oder eine Test-Attrappe) auf eine unbekannte
+		// Attributfrage wirklich `null` antwortet.
+		const vmSchluessel = feld === "transports" ? ziel.getAttribute("data-gi-transport") : "";
+		if (vmSchluessel) {
+			const jetzt = garetienWegTransporteZu(objekt, String(objekt.subtyp || "")).slice();
+			const stelle = jetzt.indexOf(vmSchluessel);
+			if (ziel.checked && stelle === -1) { jetzt.push(vmSchluessel); }
+			if (!ziel.checked && stelle !== -1) { jetzt.splice(stelle, 1); }
+			// Ab jetzt ist die Liste ANGETASTET und reist mit -- auch wenn sie zufällig wieder der
+			// Vorauswahl entspricht. Wer ein Häkchen setzt und wieder entfernt, hat eine
+			// Entscheidung getroffen; sie stillschweigend auf „unangetastet" zurückzudrehen wäre
+			// eine andere Aussage als die getroffene.
+			eingaben.transports = jetzt;
+			return;
+		}
 		if (ziel.type === "checkbox") {
 			eingaben[feld] = Boolean(ziel.checked);
 			if (feld === "curveLabel" && hasDocument) {
@@ -2462,6 +2490,18 @@
 				is_nodix: ortEingaben.isNodix, is_ruined: ortEingaben.isRuined,
 				is_hidden: ortEingaben.isHidden, place_kind: ortEingaben.placeKind,
 			};
+		}
+		// 🔴 Der WEG ebenso, seit dem 30.08.2026 -- und `allowed_transports` reist NUR mit, wenn
+		// jemand die Auswahl wirklich angefasst hat (`transports !== null`). Sonst wählt der Server
+		// dieselbe Vorauswahl der Wegart wie bisher, und der Anlegeaufruf bleibt zeichengleich zu
+		// dem von vorher. Eine LEERE Liste ist dagegen eine Aussage und reist mit.
+		if (ziel === "path") {
+			const wegEingaben = garetienEingabenZustandZu(objekt);
+			const rausWeg = { show_label: wegEingaben.showLabel };
+			if (wegEingaben.transports !== null) {
+				rausWeg.allowed_transports = wegEingaben.transports;
+			}
+			return rausWeg;
 		}
 		if (ziel !== "region" && ziel !== "label") { return null; }
 		const eingaben = garetienEingabenZustandZu(objekt);
@@ -2549,28 +2589,87 @@
 	// ⚠️ Es gibt KEINE geteilte Beschriftungstafel für die elf Verkehrsmittel-Schlüssel (nur
 	// literale Texte in index.html und wörtliche Kopien in wege-editor.js/transport-speed-info.js) --
 	// eine vierte Kopie wird hier bewusst nicht angelegt, gezählt wird stattdessen.
-	function garetienEingefuegtWirdWegMarkup(subtyp) {
-		const erlaubt = (typeof getDefaultAllowedTransportsForPathSubtype === "function")
+	// REIN (liest das DOM): die Beschriftungen der Verkehrsmittel -- aus dem ECHTEN Dialog „Weg
+	// bearbeiten" im SELBEN Dokument (`#path-edit-transport-options` in index.html).
+	//
+	// 🔴 KEINE VIERTE KOPIE. Es gibt im Haus keine geteilte Tafel für die elf Schlüssel: die Texte
+	// stehen literal in index.html und wörtlich abgeschrieben in wege-editor.js und
+	// transport-speed-info.js. Der alte Kommentar an dieser Stelle hat davor gewarnt und deshalb
+	// nur GEZÄHLT statt benannt („2 von 2 möglichen"). Für Häkchen braucht es Namen — und die
+	// billigste Quelle ist die, die ohnehin danebensteht: derselbe Dialog, dasselbe Dokument. Wer
+	// dort ein Verkehrsmittel umbenennt oder ergänzt, ändert diesen Kasten mit, ohne davon zu wissen.
+	// ⚠️ Fehlt das Element (kein DOM, anderes Dokument), fällt die Beschriftung auf den SCHLÜSSEL
+	// zurück -- unschön, aber ehrlich. Ein erfundener Name wäre eine Behauptung.
+	function garetienVerkehrsmittelNamen() {
+		const raus = {};
+		if (!hasDocument) { return raus; }
+		const wirt = document.getElementById("path-edit-transport-options");
+		if (!wirt || typeof wirt.querySelectorAll !== "function") { return raus; }
+		Array.prototype.forEach.call(wirt.querySelectorAll('input[name="allowed_transport"]'), function (feld) {
+			const wert = feld.getAttribute ? String(feld.getAttribute("value") || "") : "";
+			const text = feld.parentNode ? String(feld.parentNode.textContent || "").trim() : "";
+			if (wert && text) { raus[wert] = text; }
+		});
+		return raus;
+	}
+
+	// REIN: die aktuell gewählten Verkehrsmittel eines Weges. `null` im Zustand heißt
+	// „unangetastet" und liefert die Vorauswahl der Wegart -- dieselbe Liste, die der Server
+	// wählt, wenn nichts mitgeschickt wird. Siehe garetienEingabenGrundwerte.
+	function garetienWegTransporteZu(objekt, subtyp) {
+		const eingaben = garetienEingabenZustandZu(objekt);
+		if (eingaben.transports !== null) { return eingaben.transports; }
+		return (typeof getDefaultAllowedTransportsForPathSubtype === "function")
 			? getDefaultAllowedTransportsForPathSubtype(subtyp)
-			: null;
+			: [];
+	}
+
+	// 🔴 SEIT DEM 30.08.2026 EINSTELLBAR (Owner: „dann weg bearbeiten") -- aber NUR die zwei Felder,
+	// die avesmapsCreatePathFeature beim Anlegen wirklich aus dem Anfragerumpf liest: `show_label`
+	// und `allowed_transports`. Serverseitig nimmt sie avesmapsGaretienWegUebersteuerung entgegen.
+	//
+	// 🔴 JAHRESZEITEN UND STRÖMUNG BLEIBEN ANZEIGE, und auch das ist die eigentliche Entscheidung:
+	// `transport_seasons` steht überhaupt nicht im $properties-Rumpf des Anlegers, und die
+	// Flussrichtung hat ihren eigenen Schreibweg im Wege-Editor. Ein Bedienelement darauf wäre
+	// eines, das nichts tut -- und sähe wie eine getroffene Entscheidung aus.
+	function garetienEingefuegtWirdWegMarkup(objekt, subtyp, deaktiviert) {
+		const eingaben = garetienEingabenZustandZu(objekt);
 		const angeboten = (typeof getTransportOptionsForPathSubtype === "function")
 			? getTransportOptionsForPathSubtype(subtyp)
 			: null;
 		let markup = garetienEingefuegtWirdUeberschrift("Weg")
-			+ garetienEingefuegtWirdZeileMitHinweis("Weg anzeigen (Name auf der Karte)", "aus",
-				"der Import setzt show_label nicht — von Hand gezeichnete Wege übernehmen die "
-				+ "zuletzt im Wege-Editor benutzte Einstellung, meist „an\"")
+			+ garetienEingefuegtWirdHakenZeile(objekt, "Weg anzeigen (Name auf der Karte)",
+				"showLabel", eingaben.showLabel, deaktiviert)
 			+ garetienEingefuegtWirdZeileMitHinweis("Jahreszeiten (Gangbarkeit)", "ganzjährig",
-				"keine saisonale Einschränkung — der Import setzt transport_seasons nicht");
-		if (erlaubt !== null && angeboten !== null) {
-			markup += garetienEingefuegtWirdZeileMitHinweis("Verkehrsmittel",
-				erlaubt.length + " von " + angeboten.length + " für diese Wegart möglichen",
-				"entspricht der Vorauswahl der Wegart, keine Abweichung — wirkt auf die Routenplanung");
+				"keine saisonale Einschränkung — der Anleger liest transport_seasons gar nicht, "
+				+ "das setzt der Wege-Editor");
+		if (angeboten !== null && angeboten.length) {
+			const gewaehlt = garetienWegTransporteZu(objekt, subtyp);
+			const namen = garetienVerkehrsmittelNamen();
+			markup += '<p class="gi-insert__row gi-insert__row--kopf">Verkehrsmittel'
+				+ ' <span class="gi-insert__hint">— wirkt auf die Routenplanung</span></p>';
+			angeboten.forEach(function (schluessel) {
+				const id = garetienEingabeId(objekt, "vm-" + schluessel);
+				markup += '<p class="gi-insert__row gi-insert__row--edit"><label for="' + id + '">'
+					+ '<input type="checkbox" id="' + id + '" data-gi-feld="transports" '
+					+ 'data-gi-transport="' + avesmapsGaretienEscape(schluessel) + '"'
+					+ (gewaehlt.indexOf(schluessel) !== -1 ? " checked" : "")
+					+ (deaktiviert ? " disabled" : "") + "> "
+					+ avesmapsGaretienEscape(namen[schluessel] || schluessel) + "</label></p>";
+			});
+			// 🔴 Eine leere Auswahl ist ERLAUBT (avesmapsReadAllowedTransports nimmt `[]` an und
+			// speichert es -- der echte Dialog lässt dasselbe zu), aber sie darf nicht still
+			// passieren: ein Weg, den kein Verkehrsmittel befahren darf, ist eine Kante, die im
+			// Routing niemand benutzen kann.
+			if (!gewaehlt.length) {
+				markup += '<p class="gi-bomb">Ohne Häkchen darf hier <b>kein Verkehrsmittel</b> '
+					+ "fahren — der Weg wird gezeichnet, aber keine Route führt über ihn.</p>";
+			}
 		}
 		if (subtyp === "Flussweg") {
 			markup += garetienEingefuegtWirdZeileMitHinweis("Strömung (Flussrichtung)", "unbekannt",
-				"wirkt auf die Reisezeit (flussauf-/-abwärts) — wird im Wege-Editor unter "
-				+ "„Flussrichtung unbekannt\" festgelegt");
+				"wirkt auf die Reisezeit (flussauf-/-abwärts) — hat einen eigenen Schreibweg und "
+				+ "wird im Wege-Editor unter „Flussrichtung unbekannt\" festgelegt");
 		}
 		return markup;
 	}
@@ -2812,7 +2911,7 @@
 		} else if (ziel === "location") {
 			markup += garetienEingefuegtWirdOrtMarkup(objekt, subtyp, uebernommen);
 		} else if (ziel === "path") {
-			markup += garetienEingefuegtWirdWegMarkup(subtyp);
+			markup += garetienEingefuegtWirdWegMarkup(objekt, subtyp, uebernommen);
 		}
 		markup += garetienEingefuegtWirdUeberschrift("Wiki und Quellen");
 		markup += garetienQuellenMarkup(objekt);

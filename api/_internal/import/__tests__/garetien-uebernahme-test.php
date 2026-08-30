@@ -1308,6 +1308,61 @@ assert(!array_key_exists('place_kind', $ortOhneProps),
     . 'Behauptung "keine Art", die niemand getroffen hat: ' . json_encode($ortOhneProps));
 $pruefungen += 4;
 // --- 🔴 KORREKTUR A (Owner-Nachtrag 30.08.2026: „DOCH DER IMPORT SOLL SIE SETZEN!!!"). Eine
+
+// --- 🔴 „Weg bearbeiten" WIRKT WIRKLICH (Owner 30.08.2026). Dieselbe Gegenprobe wie beim Ort:
+// die reine Funktion koennte tadellos sein und der Aufruf im 'path'-Zweig trotzdem fehlen.
+$baueWegEintrag = static function (string $subtyp, string $name, array $linie): array {
+    return [
+        'entity_key' => 'ggp:Probe:path:' . $name,
+        'entity_public_id' => null,
+        'change_type' => 'new',
+        'label' => $name . ' (Probe)',
+        'before' => [],
+        'after' => [
+            'herkunft' => 'garetien', 'wiki' => 'ggp', 'ebene' => 'Probe', 'typ' => 'Probe',
+            'ziel' => 'path', 'subtyp' => $subtyp, 'kind' => null, 'name' => $name,
+            'geometry' => ['type' => 'LineString', 'coordinates' => $linie],
+            'quelle' => ['url' => 'https://www.garetien.de/index.php?title=Garetien:' . $name,
+                'label' => 'Briefspiel (Garetien)', 'license' => 'cc-by-nc-sa-3.0', 'attribution' => 'VolkoV / garetien.de'],
+            'urteil' => 'neu', 'anlass' => null, 'nachbar' => null,
+        ],
+        'override' => [],
+        'selected' => 1,
+    ];
+};
+
+// MIT Handeingabe: der Name steht auf der Karte, und nur EIN Verkehrsmittel ist erlaubt.
+avesmapsSyncPlanAddItem($pdoNeu, $laufNeu, $baueWegEintrag('Flussweg', 'Probefluss Einstellbar', [[520.0, 520.0], [530.0, 530.0]]));
+$wegEinstellId = $itemIdVon($pdoNeu, 'Probefluss Einstellbar (Probe)');
+$eWegEinstell = avesmapsGaretienUebernehmen($pdoNeu, $laufNeu, [$wegEinstellId], ['id' => 7], [
+    'show_label' => true, 'allowed_transports' => ['riverSailer'],
+]);
+assert($eWegEinstell['angelegt'] === 1 && $eWegEinstell['fehler'] === [],
+    'der eingestellte Weg wird angelegt: ' . json_encode($eWegEinstell, JSON_UNESCAPED_UNICODE));
+$wegEinstellProps = json_decode((string) $pdoNeu->query(
+    "SELECT properties_json FROM map_features WHERE name = 'Probefluss Einstellbar'"
+)->fetchColumn(), true);
+assert(($wegEinstellProps['show_label'] ?? null) === true, 'show_label traegt die Handeingabe: ' . json_encode($wegEinstellProps));
+assert(($wegEinstellProps['allowed_transports'] ?? null) === ['riverSailer'],
+    'allowed_transports traegt GENAU die eine Handeingabe: ' . json_encode($wegEinstellProps));
+$pruefungen += 3;
+
+// ⚠️ GEGENPROBE OHNE Handeingabe: derselbe Wegtyp muss show_label=false und die volle Vorauswahl
+// der Wegart tragen. Ohne sie belegt der Block darueber nur, dass irgendwo etwas herauskommt --
+// nicht, dass die Handeingabe der Grund dafuer ist. 🔴 Die Vorauswahl wird NICHT abgeschrieben,
+// sondern gegen die Hausregel gehalten: avesmapsReadAllowedTransports faellt bei fehlendem Wert
+// genau auf sie zurueck, und ihre Laenge muss GROESSER sein als die eine oben.
+avesmapsSyncPlanAddItem($pdoNeu, $laufNeu, $baueWegEintrag('Flussweg', 'Probefluss Vorgabe', [[540.0, 540.0], [550.0, 550.0]]));
+$wegVorgabeId = $itemIdVon($pdoNeu, 'Probefluss Vorgabe (Probe)');
+avesmapsGaretienUebernehmen($pdoNeu, $laufNeu, [$wegVorgabeId], ['id' => 7]);
+$wegVorgabeProps = json_decode((string) $pdoNeu->query(
+    "SELECT properties_json FROM map_features WHERE name = 'Probefluss Vorgabe'"
+)->fetchColumn(), true);
+assert(($wegVorgabeProps['show_label'] ?? null) === false, 'ohne Handeingabe bleibt show_label aus');
+assert(count((array) ($wegVorgabeProps['allowed_transports'] ?? [])) > 1,
+    'ohne Handeingabe gilt die volle Vorauswahl der Wegart, nicht die eine von oben: '
+    . json_encode($wegVorgabeProps));
+$pruefungen += 2;
 // Uebersteuerung, wie sie das Fenster „Landschaften -> Darstellung" tatsaechlich speichert:
 // 'berggipfel' traegt eine VOLLSTAENDIGE, gueltige Zeile, 'vulkan' eine, die ausserhalb dessen
 // liegt, was ein Label ueberhaupt tragen darf (Groesse 4 < die 10 von avesmapsReadLabelSize; ein
@@ -2148,4 +2203,47 @@ assert($ortArt === ['place_kind' => '  Gibtsnicht  '],
 assert(avesmapsGaretienOrtUebersteuerung(['place_kind' => '']) === ['place_kind' => ''],
     'eine leere Art reist mit; der Anleger laesst den Schluessel dann weg');
 $pruefungen += 2;
+
+// =================================================================================================
+// „Weg bearbeiten" im Kasten „Eingefuegt wird" (Owner 30.08.2026: „dann weg bearbeiten").
+//
+// 🔴 GENAU ZWEI FELDER, und auch sie sind nicht frei gewaehlt: avesmapsCreatePathFeature liest aus
+// dem Anfragerumpf NUR `show_label` und `allowed_transports` (plus Name/Art/Geometrie).
+// `transport_seasons` steht ueberhaupt nicht in seinem $properties-Rumpf, `transport_domain` wird
+// aus der Wegart abgeleitet -- ein Bedienelement dafuer waere eines, das nichts tut.
+// =================================================================================================
+assert(avesmapsGaretienWegUebersteuerung(null) === [], 'ohne Handeingabe: leer');
+assert(avesmapsGaretienWegUebersteuerung([]) === [], 'ein leerer Rumpf ist keine Aussage');
+assert(avesmapsGaretienWegUebersteuerung(['show_label' => null, 'allowed_transports' => null]) === [],
+    'explizite nulls zaehlen wie "nicht genannt"');
+$pruefungen += 3;
+
+assert(avesmapsGaretienWegUebersteuerung(['show_label' => '1']) === ['show_label' => true],
+    'show_label wird zu einem echten Bool gecastet');
+$pruefungen++;
+
+// 🔴 EINE LEERE LISTE IST EINE AUSSAGE UND REIST MIT. Sie bedeutet „kein Verkehrsmittel darf hier
+// fahren"; verschluckt wuerde sie, faellt avesmapsReadAllowedTransports auf die Vorauswahl der
+// Wegart zurueck -- also auf genau das Gegenteil dessen, was der Editor angehakt (bzw. abgehakt)
+// hat. Das Fenster warnt sichtbar davor, aber es verhindert es nicht.
+assert(avesmapsGaretienWegUebersteuerung(['allowed_transports' => []]) === ['allowed_transports' => []],
+    'eine LEERE Verkehrsmittel-Liste reist mit, statt zur Vorauswahl zurueckzufallen');
+$pruefungen++;
+
+// ⚠️ Was KEINE Liste ist, wird verworfen statt durchgereicht: avesmapsReadAllowedTransports pruefte
+// zwar selbst auf `is_array`, aber ein durchgereichter Unsinn saehe im Protokoll wie eine
+// getroffene Auswahl aus. Die sichere Richtung ist „nicht genannt" -- dann gilt die Vorauswahl.
+assert(avesmapsGaretienWegUebersteuerung(['allowed_transports' => 'groupFoot']) === [],
+    'ein Nicht-Array wird verworfen, nicht durchgereicht');
+$pruefungen++;
+
+// ⚠️ Die Werte selbst bleiben ungeprueft -- avesmapsReadAllowedTransports ist die letzte Instanz
+// und wirft alles weg, was fuer die Domaene der Wegart nicht in Frage kommt. Eine zweite
+// Vertraeglichkeitspruefung hier waere die zweite Wahrheit ueber die Verkehrsmittel-Tafel.
+$wegVoll = avesmapsGaretienWegUebersteuerung([
+    'show_label' => true, 'allowed_transports' => ['riverSailer', 'gibtsnicht'],
+]);
+assert($wegVoll === ['show_label' => true, 'allowed_transports' => ['riverSailer', 'gibtsnicht']],
+    'beide Felder reisen durch, die Werte ungeprueft: ' . json_encode($wegVoll));
+$pruefungen++;
 echo "OK: {$pruefungen} Pruefungen\n";

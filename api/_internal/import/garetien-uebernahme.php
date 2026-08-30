@@ -407,6 +407,48 @@ function avesmapsGaretienRegionUebersteuerung(?array $einstellungen): array
 }
 
 
+
+/**
+ * Dieselbe Handeingabe, fuer den WEG (ziel='path'). Owner 30.08.2026: „dann weg bearbeiten".
+ *
+ * 🔴 GENAU ZWEI FELDER, und auch sie sind nicht frei gewaehlt: avesmapsCreatePathFeature
+ * (api/_internal/map/features.php) liest aus dem Anfragerumpf nur `show_label` und
+ * `allowed_transports`. `transport_seasons` steht ueberhaupt nicht in seinem $properties-Rumpf
+ * (das setzt der Wege-Editor), `transport_domain` wird aus der Wegart abgeleitet, und die
+ * Flussrichtung hat ihren eigenen Schreibweg. Ein Bedienelement dafuer waere eines, das nichts
+ * tut -- und von einem, das wirkt, von aussen nicht zu unterscheiden.
+ *
+ * 🔴 EINE LEERE LISTE IST EINE AUSSAGE UND REIST MIT: sie heisst „kein Verkehrsmittel darf hier
+ * fahren". Verschluckte man sie, fiele avesmapsReadAllowedTransports auf die Vorauswahl der Wegart
+ * zurueck -- also auf das Gegenteil dessen, was der Editor abgehakt hat. Das Fenster warnt
+ * sichtbar davor (garetienEingefuegtWirdWegMarkup), verhindert es aber nicht: derselbe Freiraum,
+ * den der echte Dialog „Weg bearbeiten" auch hat.
+ * ⚠️ Ein NICHT-Array wird dagegen verworfen statt durchgereicht. avesmapsReadAllowedTransports
+ * faenge es zwar selbst ab, aber ein durchgereichter Unsinn saehe im Protokoll wie eine getroffene
+ * Auswahl aus; „nicht genannt" ist hier die sichere Richtung, denn dann gilt die Vorauswahl.
+ *
+ * ⚠️ Die Werte der Liste bleiben UNGEPRUEFT -- avesmapsReadAllowedTransports ist die letzte Instanz
+ * und wirft weg, was zur Domaene der Wegart nicht passt. Eine zweite Vertraeglichkeitspruefung hier
+ * waere die zweite Wahrheit ueber dieselbe Verkehrsmittel-Tafel (AGENTS.md §5).
+ *
+ * @param ?array $einstellungen Rumpf aus dem Kasten, oder null (keine Handeingabe).
+ * @return array{show_label?:bool, allowed_transports?:list<string>}
+ */
+function avesmapsGaretienWegUebersteuerung(?array $einstellungen): array
+{
+    $raus = [];
+    if (!is_array($einstellungen)) {
+        return $raus;
+    }
+    if (array_key_exists('show_label', $einstellungen) && $einstellungen['show_label'] !== null) {
+        $raus['show_label'] = (bool) $einstellungen['show_label'];
+    }
+    if (array_key_exists('allowed_transports', $einstellungen) && is_array($einstellungen['allowed_transports'])) {
+        $raus['allowed_transports'] = array_values($einstellungen['allowed_transports']);
+    }
+
+    return $raus;
+}
 /**
  * Dieselbe Handeingabe, fuer den ORT (ziel='location'). Owner 30.08.2026: „ja mach ort bearbeiten,
  * dann weg bearbeiten" -- der Kasten „Eingefuegt wird" zeigte diese Felder bis dahin nur an.
@@ -1056,12 +1098,16 @@ function avesmapsGaretienUebernehmen(PDO $pdo, int $runId, array $itemIds, array
             // (See/Meer/Sumpf/…) laufen sie auseinander.
             $quellePublicId = null;
             if ($ziel === 'path') {
-                $feature = avesmapsCreatePathFeature($pdo, [
+                // 🔴 DIE HANDEINGABE DES KASTENS „Eingefuegt wird" (Owner 30.08.2026: „dann weg
+                // bearbeiten"). Ohne sie ist das dritte Array LEER, und dann ist dieser Aufruf
+                // zeichengleich mit dem von vorher -- „Alle angezeigten einfuegen" schickt nie
+                // Einstellungen und legt Wege deshalb weiter genau wie bisher an.
+                $feature = avesmapsCreatePathFeature($pdo, array_merge([
                     'name' => (string) $nach['name'],
                     'feature_subtype' => (string) $nach['subtyp'],
                     // 💣 GeoJSON [x,y] -> Hausvertrag, siehe avesmapsGaretienGeoJsonNachHausvertrag.
                     'coordinates' => avesmapsGaretienGeoJsonNachHausvertrag((array) $nach['geometry']['coordinates']),
-                ], $user);
+                ], avesmapsGaretienWegUebersteuerung($einstellungen)), $user);
                 $publicId = avesmapsGaretienPublicIdAus($feature, 'Der Weg');
                 $entityType = 'path';
                 $quellePublicId = $publicId;
