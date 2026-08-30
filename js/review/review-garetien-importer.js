@@ -231,7 +231,7 @@
 	// vom gerade aktiven UI-Reiter, damit ein Editor auf „Offen" nicht deshalb die Karte verliert.
 	// ⚠️ Und OHNE Schleife: fuer diesen Import passen alle moeglichen Uebernahmen (heute hoechstens
 	// 283 -- nur ein Objekt MIT Vorschlag kann je uebernommen werden) in eine einzige Seite
-	// (AVESMAPS_GARETIEN_LISTE_MAX = 500). Ein zweiter Ruf mit `versatz` waere hier genau die
+	// (AVESMAPS_GARETIEN_LISTE_MAX). Ein zweiter Ruf mit `versatz` waere hier genau die
 	// Endpunktschleife, vor der AGENTS.md warnt (der Endpunkt liest das GANZE Laufinventar neu ein).
 	function avesmapsGaretienAnzeigeNachEinfuegenBereinigen(rufe, runId) {
 		return rufe(GARETIEN_ENDPUNKT, {
@@ -3226,7 +3226,7 @@
 	// entferntesten flächepunkt entfernt) sollen weitere objekte aus dem import markiert werden
 	// können." Die Zahl selbst kommt vom SERVER (avesmapsGaretienNaehe,
 	// api/_internal/import/garetien-liste.php) -- sie sucht über den GANZEN Lauf, eine Liste von
-	// höchstens 500 geladenen Zeilen fände nur, was gerade sichtbar ist, und der Knopf verspräche
+	// geladenen Zeilen fände nur, was gerade sichtbar ist, und der Knopf verspräche
 	// dann eine Zahl, die von der Ansicht statt von der Karte abhängt.
 
 	// REIN: Beschriftung + Sperre, aus der schon vom Server gelieferten Trefferliste.
@@ -3304,7 +3304,7 @@
 	// ohnehin für den ganzen Lauf), damit schließt sich die Lücke aus dem Auftrag ("markierte
 	// Nachbarn, die nicht in der geladenen Liste stehen, lassen sich nicht anzeigen") VOLLSTÄNDIG,
 	// statt sie nur zu benennen: ein gefundener Nachbar liegt sofort auf der Karte, unabhängig von
-	// den höchstens 500 Zeilen der gerade geladenen Seite. „Alle markieren" bleibt davon unberührt
+	// den Zeilen der gerade geladenen Seite. „Alle markieren" bleibt davon unberührt
 	// -- ihr Vertrag „Markieren ändert nichts" gilt dort, wo `zustand.objekte` ohnehin schon die
 	// richtige Antwort ist; hier ist sie es nicht, und der Server hat die richtige Antwort bereits
 	// mitgeschickt.

@@ -15,8 +15,60 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/garetien-plan.php';
 
-/** So viele Objekte je Antwort -- der Rest blaettert ueber `versatz`. */
-const AVESMAPS_GARETIEN_LISTE_MAX = 500;
+/**
+ * So viele Objekte je Antwort -- der Rest blaettert ueber `versatz`.
+ *
+ * 🔴 500 -> 10000 am 30.08.2026 (Owner: „setz das limit auf 10000 und ich [schau], ob wir alle auf
+ * einmal im browser handeln koennen"). Damit reist ein ganzer Lauf in EINER Antwort.
+ *
+ * 💣 SIE HAT DEN SERVER NIE GESCHUETZT, und das war der Anlass, sie ueberhaupt zu messen:
+ * avesmapsGaretienArbeitslisteObjekte liest ALLE Items des Laufs, baut ALLE Objekte samt
+ * Geometrie -- und erst danach schneidet avesmapsGaretienArbeitsliste zu. Jede Seite kostet also
+ * denselben vollen Aufbau wie alle Seiten zusammen; Blaettern ueber `versatz` war damit TEURER als
+ * eine grosse Antwort, nicht billiger.
+ *
+ * ⚠️ GEMESSEN (30.08.2026, Lauf 9, live): 500 Objekte = 1,35 MB, davon 0,67 MB Geometrie
+ * (18.748 Punkte, ~37,5 je Objekt -- unsere eigenen Wege liegen bei 7,8), 0,52 MB Text, 0,16 MB
+ * Abschnitte. Mit der Koordinatenrundung unten sind es 1,00 MB je 500, also rund 16 MB fuer die
+ * 8212 Objekte des Reiters „Offen".
+ * 🔧 Ob ein Browser das traegt, misst der Owner -- deshalb steht hier 10000 und nicht 2000.
+ * Reicht es nicht, ist der naechste Schritt NICHT eine kleinere Zahl, sondern die Geometrie aus
+ * der Listenzeile heraus (sie ist die Haelfte der Nutzlast und wird nur fuer ANGEZEIGTE Objekte
+ * gebraucht).
+ */
+const AVESMAPS_GARETIEN_LISTE_MAX = 10000;
+
+/**
+ * PURE: die Punkte einer Geometrie fuer die ANZEIGE -- auf Millimeterarbeit verzichtet.
+ *
+ * 🔴 FUER DIE ANZEIGE -- und, weil sie am OBJEKT haengt, auch fuer die Umkreissuche, die dieselben
+ * Punkte liest (avesmapsGaretienNaeheAusObjekten). Das ist gemessen unbedenklich: gerundet wird auf
+ * +-2,4 Meter, und der Umkreis betraegt eine ganze Karteneinheit = 4,8 Kilometer. Es steht hier
+ * trotzdem, weil „nur Anzeige" sonst eine Behauptung waere, die der naechste Leser glaubt.
+ * 🔴 Der Umrechner (avesmapsGaretienNachAvesmaps) rechnet roh in
+ * Fliesskomma und rundet nie; PHP schreibt daraus `554.095820893` -- dreizehn Zeichen je Zahl.
+ * Auf einer Karte von 0..1024 Einheiten, wo eine Einheit DREI MEILEN ist, ist die neunte
+ * Nachkommastelle 4,8 Mikrometer. Drei Stellen sind 4,8 Meter und damit feiner als alles, was je
+ * gezeichnet wird.
+ * ⚠️ GEMESSEN: 0,67 -> 0,32 MB je 500 Objekte, also 26 % der GANZEN Antwort.
+ *
+ * 💣 DIE GESPEICHERTE GEOMETRIE WIRD NICHT ANGEFASST. Liste und Uebernahme lesen zwar beide
+ * `after.geometry`, erzeugen daraus aber getrennte Ausgaben: diese Funktion fuer die Anzeige,
+ * avesmapsGaretienGeoJsonNachHausvertrag fuer das Anlegen. Wer die Rundung stattdessen in
+ * avesmapsGaretienZeilePunkte oder in den Umrechner legte, ruendete auch das, was in die KARTE
+ * geschrieben wird -- und den Uebersprung-Riegel und die Umkreissuche gleich mit, die beide
+ * dieselben Punkte lesen.
+ */
+function avesmapsGaretienListePunkteRunden(array $punkte): array
+{
+    $raus = [];
+    foreach ($punkte as $punkt) {
+        if (!is_array($punkt) || count($punkt) < 2) { continue; }
+        $raus[] = [round((float) $punkt[0], 3), round((float) $punkt[1], 3)];
+    }
+
+    return $raus;
+}
 
 /**
  * Der Objekt-Schluessel EINES sync_plan_item -- alles vor dem ersten "|".
@@ -460,7 +512,7 @@ function avesmapsGaretienArbeitslisteObjekte(PDO $pdo, int $importRunId): array
                     'public_id' => (string) $abschnitt['public_id'],
                     'name' => (string) ($abschnitt['name'] ?? ''),
                     'punkte' => (int) ($abschnitt['punkte'] ?? 0),
-                    'geometrie' => $abschnitt['geometrie'] ?? [],
+                    'geometrie' => avesmapsGaretienListePunkteRunden((array) ($abschnitt['geometrie'] ?? [])),
                     // 💣 Die zweite feldweise Abschrift derselben Angabe (die erste steht in
                     // avesmapsGaretienAbschnittsEintrag, garetien-plan.php). Faellt sie an EINER
                     // der beiden Stellen weg, kappt der Server still -- AGENTS.md §9.
@@ -487,7 +539,9 @@ function avesmapsGaretienArbeitslisteObjekte(PDO $pdo, int $importRunId): array
             'urteil' => avesmapsGaretienListeObjektUrteil($urteilEingaben, (string) ($zeile['urteil'] ?? '')),
             'grund' => (string) ($zeile['grund'] ?? ($erstesAfter['urteil'] ?? '')),
             'abschnitte' => $abschnitte,
-            'geometrie' => avesmapsGaretienListeGeometriePunkte((array) ($erstesAfter['geometry'] ?? [])),
+            'geometrie' => avesmapsGaretienListePunkteRunden(
+                avesmapsGaretienListeGeometriePunkte((array) ($erstesAfter['geometry'] ?? []))
+            ),
             // 🔴 IST IHR OBJEKT EINE FLAECHE ODER EINE LINIE? Der Browser kann das sonst nicht
             // wissen: avesmapsGaretienListeGeometriePunkte flacht einen Polygon auf seinen
             // AEUSSEREN RING ab, und eine flache Punktliste sieht aus wie eine Linie. Die Karte
@@ -602,7 +656,7 @@ function avesmapsGaretienArbeitslisteObjekte(PDO $pdo, int $importRunId): array
             'urteil' => avesmapsGaretienListeObjektUrteil([], (string) ($zeile['urteil'] ?? '')),
             'grund' => (string) ($zeile['grund'] ?? ''),
             'abschnitte' => $treffer['abschnitte'],
-            'geometrie' => avesmapsGaretienZeilePunkte($zeile),
+            'geometrie' => avesmapsGaretienListePunkteRunden(avesmapsGaretienZeilePunkte($zeile)),
             // ⚠️ LEER, und das ist richtig: diese Zeilen haben KEIN Item, also kein `after` und
             // damit keine Auskunft ueber die Form. Gezeichnet werden sie nie -- die Karte zeigt
             // nur, was ein Haekchen traegt, und ohne Item gibt es keins. Der Browser faellt bei

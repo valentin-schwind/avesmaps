@@ -592,4 +592,64 @@ assert(($altbach['is_bach'] ?? null) === true,
     'ein Planeintrag OHNE gespeichertes Haekchen wird ueber die Zuordnungstabelle als Bach erkannt: '
     . json_encode($altbach['is_bach'] ?? '(fehlt)'));
 $pruefungen += 2;
+
+// --- 🔴 DIE KOORDINATEN DER ANZEIGE SIND GERUNDET (Owner-Messung 30.08.2026: Geometrie ist die
+// HAELFTE der Nutzlast -- 0,67 von 1,35 MB je 500 Objekte, 18.748 Punkte). Der Umrechner rundet
+// nie, PHP schreibt daraus `554.095820893`; auf 0..1024 Karteneinheiten a drei Meilen ist die
+// neunte Nachkommastelle 4,8 Mikrometer. Drei Stellen sind 4,8 Meter.
+$gerundet = avesmapsGaretienListePunkteRunden([[554.095820893, 538.54949238], [1.0, 2.0]]);
+assert($gerundet === [[554.096, 538.549], [1.0, 2.0]],
+    'die Anzeige-Punkte werden auf drei Stellen gerundet: ' . json_encode($gerundet));
+$pruefungen++;
+
+// ⚠️ Kaputte Punkte fallen heraus, statt als [0,0] durchzurutschen -- ein Punkt am Kartenursprung
+// waere eine erfundene Aussage, ein fehlender Punkt ist ehrlich.
+assert(avesmapsGaretienListePunkteRunden([[1.0], 'kaputt', [1.0, 2.0, 3.0]]) === [[1.0, 2.0]],
+    'zu kurze und nicht-Array-Punkte fallen heraus, ein dritter Wert wird ignoriert');
+$pruefungen++;
+
+// 🔴 UND SIE STEHT AM AUSGANG DER LISTE, NICHT IM UMRECHNER. avesmapsGaretienZeilePunkte wird auch
+// vom Uebersprung-Riegel und der Umkreissuche gelesen; eine Rundung dort raendete mit, was in die
+// KARTE geschrieben wird. Der Beleg: derselbe Rohpunkt kommt aus dem Umrechner UNGERUNDET.
+$roh = avesmapsGaretienNachAvesmaps(20000.0, 10300.0);
+assert($roh[0] !== round($roh[0], 3) || $roh[1] !== round($roh[1], 3),
+    'der Umrechner selbst rundet NICHT -- sonst belegt die Zeile darueber nichts ueber den Ort '
+    . 'der Rundung: ' . json_encode($roh));
+$pruefungen++;
+
+
+// 💣 UND DIE VERDRAHTUNG, NICHT NUR DIE FUNKTION. Eine Mutationsprobe hat gezeigt: die reine
+// Funktion oben laesst sich tadellos pruefen, waehrend der Ausgang der Objektliste sie gar nicht
+// ruft -- und dann reist jede Koordinate weiter mit dreizehn Zeichen. Deshalb geht hier ein Objekt
+// mit ROHEN Koordinaten durch die echte Arbeitsliste.
+avesmapsSyncPlanAddItem($pdo, 1, [
+    'entity_key' => 'ggp:Gewaesser:Fluss:Garetien:Rundungsprobe',
+    'entity_public_id' => null,
+    'change_type' => 'new',
+    'label' => 'Rundungsprobe',
+    'after' => [
+        'typ' => 'Fluss', 'wiki' => 'ggp', 'ebene' => 'Gewaesser', 'name' => 'Rundungsprobe',
+        'subtyp' => 'Flussweg', 'kind' => null, 'ziel' => 'path',
+        'geometry' => ['type' => 'LineString', 'coordinates' => [
+            [554.095820893, 538.54949238], [554.4331457823, 538.220802449],
+        ]],
+    ],
+    'selected' => 1,
+]);
+$mitRundung = avesmapsGaretienArbeitsliste($pdo, 1, []);
+$probe = null;
+foreach ($mitRundung['objekte'] as $o) {
+    if ($o['key'] === 'ggp:Gewaesser:Fluss:Garetien:Rundungsprobe') { $probe = $o; }
+}
+assert($probe !== null, 'die Rundungsprobe muss in der Liste stehen');
+assert($probe['geometrie'] === [[554.096, 538.549], [554.433, 538.221]],
+    'die Liste gibt GERUNDETE Punkte aus -- sonst ruft ihr Ausgang die Rundung gar nicht: '
+    . json_encode($probe['geometrie']));
+$pruefungen += 2;
+// --- 🔴 DIE SEITENGROESSE (Owner 30.08.2026: „setz das limit auf 10000"). Sie hat den Server nie
+// geschuetzt -- avesmapsGaretienArbeitslisteObjekte baut ohnehin ALLE Objekte und schneidet erst
+// danach zu; Blaettern kostete deshalb je Seite den vollen Aufbau.
+assert(AVESMAPS_GARETIEN_LISTE_MAX === 10000,
+    'die Seitengroesse traegt den vom Owner gesetzten Wert: ' . AVESMAPS_GARETIEN_LISTE_MAX);
+$pruefungen++;
 echo "OK: {$pruefungen} Pruefungen\n";
