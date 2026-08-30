@@ -301,19 +301,21 @@
 	padding: 0;
 }
 
-.gi-balance {
+/* Fuenf-Punkte-Brief 30.08.2026, Punkt 1: die alte Bilanzzeile ("N von M Objekten · ✦ K
+   leuchten", vormals `.gi-balance`) ist restlos entfernt (Owner: „weiß sowieso nicht was das
+   bedeutet"). Was hier steht, ist NICHT ihr Nachfolger: der Neutral-Hinweis der Sicht-Tafel
+   (Aufgabe 3, Entwurf §4.1) hing DANEBEN an derselben Zeile und traegt jetzt seinen EIGENEN,
+   ehrlichen Namen. */
+.gi-neutral-hinweis {
 	margin: 0 0 var(--space-6);
 	max-width: none;
 	font-size: var(--font-size-caption);
 	color: var(--color-text-muted);
 }
-.gi-balance b { color: var(--color-text-strong); }
-.gi-balance .lit { color: var(--color-accent-strong); font-weight: var(--font-weight-bold); }
-/* Aufgabe 3 (Sicht-Tafel, Entwurf §4.1): eine Ebene ohne eigene Sicht-Regel MELDET sich hier --
-   ein stiller Rueckfall saehe aus wie „so sieht das Objekt eben aus". Keine eigene Farbe: es ist
-   ein Hinweis, keine Warnung, und erbt darum die gedaempfte Farbe von `.gi-balance`; kursiv als
-   einziger Unterschied zum Rest der Zeile. */
-.gi-balance .gi-neutral { font-style: italic; }
+/* Eine Ebene ohne eigene Sicht-Regel MELDET sich hier -- ein stiller Rueckfall saehe aus wie „so
+   sieht das Objekt eben aus". Keine eigene Farbe: es ist ein Hinweis, keine Warnung, und erbt
+   darum die gedaempfte Farbe des Wirts; kursiv als einziger Unterschied zum Rest der Zeile. */
+.gi-neutral-hinweis .gi-neutral { font-style: italic; }
 
 /* Ein angehaktes Objekt LEUCHTET auf der Karte (Aufgabe 14) -- die Zeile sagt es mit. */
 .lit-dot { color: var(--color-marker-active); font-weight: var(--font-weight-bold); }
@@ -463,13 +465,6 @@
 	color: var(--color-text-strong);
 	hyphens: auto;
 	overflow-wrap: break-word;
-}
-
-.gi-detail__kind {
-	margin-left: auto;
-	white-space: nowrap;
-	font-size: var(--font-size-caption);
-	color: var(--color-text-muted);
 }
 
 .gi-detail__meta {

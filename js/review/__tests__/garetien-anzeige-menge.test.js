@@ -130,18 +130,12 @@ gleich(anzeigenAntwort.reiter.offen, 259,
 	"die uebrigen Reiterzahlen bleiben aus der letzten echten Serverantwort erhalten");
 gleich(anzeigenAntwort.bilanz.neu, 5, "und die Laufbilanz ebenso -- „Anzeigen\" hat keine eigene");
 
-// avesmapsGaretienBalanceZeileText ruft den GETEILTEN Erzeuger (js/review/review-list-balance.js)
-// als globalen Namen -- derselbe Vertrag wie bei den acht WikiSync-Listen. Die ECHTE Fassung wird
-// geladen (kein Spion): hier zaehlt das tatsaechliche Ergebnis, nicht nur dass irgendetwas gerufen
-// wurde.
-global.avesmapsListBalanceText =
-	require(path.resolve(__dirname, "..", "review-list-balance.js")).avesmapsListBalanceText;
-gleich(
-	modul.avesmapsGaretienBalanceZeileText(anzeigenAntwort.gesamt, anzeigenAntwort.reiter.anzeigen),
-	"2 Objekte",
-	"und die Bilanzzeile nennt schlicht die Zahl -- kein „von M\", weil „Anzeigen\" nie filtert"
-);
-delete global.avesmapsListBalanceText;
+// 🔴 Fuenf-Punkte-Brief 30.08.2026, Punkt 1: die Bilanzzeile (und ihr Erzeuger
+// avesmapsGaretienBalanceZeileText) ist restlos entfernt (Owner: „weiß sowieso nicht was das
+// bedeutet") -- `anzeigenAntwort.reiter.anzeigen` bleibt trotzdem Teil dieser Antwort-Form (siehe
+// oben), auch ohne einen aktuellen Leser dafuer.
+wahr(typeof modul.avesmapsGaretienBalanceZeileText === "undefined",
+	"avesmapsGaretienBalanceZeileText ist entfernt, keine leere Huelle geblieben");
 
 // ---- 10. Der Fussknopf sagt EHRLICH, wie viele einen Vorschlag haben ---------------------------
 //

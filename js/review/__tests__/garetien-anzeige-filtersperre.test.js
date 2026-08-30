@@ -54,9 +54,12 @@ function macheElement(id) {
 }
 
 const ELEMENTE = {};
+// 🔴 Fuenf-Punkte-Brief 30.08.2026, Punkt 1: `garetien-balance` heisst jetzt `garetien-neutral-
+// hinweis` -- die alte Bilanzzeile ist entfernt, das verbliebene Element traegt nur noch den
+// Neutral-Hinweis der Sicht-Tafel.
 ["garetien-listcol", "garetien-tabs", "garetien-list", "garetien-runline", "garetien-search",
 	"garetien-filter-toggle", "garetien-filter-menu", "garetien-anzeige-hinweis",
-	"garetien-balance", "garetien-detailcol"]
+	"garetien-neutral-hinweis", "garetien-detailcol"]
 	.forEach((id) => { ELEMENTE[id] = macheElement(id); });
 
 global.document = {
@@ -67,12 +70,6 @@ global.document = {
 	querySelectorAll() { return []; },
 };
 global.window = global.window || {};
-
-// avesmapsGaretienBalanceZeileText ruft die GETEILTE Bilanzformel als globalen Namen
-// (js/review/review-list-balance.js) -- dieselbe Zusage wie bei den acht WikiSync-Listen. Die
-// ECHTE Fassung wird geladen, kein Nachbau.
-global.avesmapsListBalanceText =
-	require(path.resolve(__dirname, "..", "review-list-balance.js")).avesmapsListBalanceText;
 
 const mod = require(path.resolve(__dirname, "..", "review-garetien-importer.js"));
 const { avesmapsGaretienListeRendern, garetienAnzeigeFilterSperreSetzen, garetienListeSkelettMarkup }

@@ -309,12 +309,18 @@
 			listeEl.innerHTML = '<p class="avm-empty">Noch kein Import-Lauf. „Holen &amp; Rechnen" '
 				+ "im Menüband holt die gewählten Ebenen und rechnet den Abgleich.</p>";
 		}
-		// Die Zahlen der zwei Bilanzflächen gehören einem Lauf; ohne Lauf stehen sie leer, statt
-		// eine Null zu behaupten, die niemand gezählt hat.
-		["garetien-runline", "garetien-balance"].forEach(function (id) {
-			const el = document.getElementById(id);
-			if (el) { el.textContent = ""; }
-		});
+		// Die Zahl der Laufzeile gehört einem Lauf; ohne Lauf steht sie leer, statt eine Null zu
+		// behaupten, die niemand gezählt hat.
+		const laufzeileEl = document.getElementById("garetien-runline");
+		if (laufzeileEl) { laufzeileEl.textContent = ""; }
+		// Fuenf-Punkte-Brief 30.08.2026, Punkt 1: die alte Bilanzzeile ("N von M Objekten") ist
+		// restlos entfernt -- was hier bleibt, ist NUR der Neutral-Hinweis (Sicht-Tafel, Aufgabe 3),
+		// und der hat ohne Lauf nichts zu melden.
+		const neutralHinweisEl = document.getElementById("garetien-neutral-hinweis");
+		if (neutralHinweisEl) {
+			neutralHinweisEl.textContent = "";
+			neutralHinweisEl.hidden = true;
+		}
 		// Aufgabe 16/5: ohne Lauf gibt es keine Anzeige -- und damit nichts einzufuegen.
 		garetienUebernahmeKnopfSetzen(avesmapsGaretienAnzeigeListe());
 		// Aufgabe 10: ohne Lauf gibt es auch keine gerenderte Zeile -- und damit nichts zu markieren.
@@ -548,15 +554,14 @@
 			+ "<b>" + zahl("uebersprungen") + "</b> übersprungen";
 	}
 
-	// Die Zeile UNTER der Suche ist die des FILTERS -- js/review/review-list-balance.js ist der
-	// EINE Erzeuger (acht Kopien derselben Formel liefen in drei Monaten wieder achtfach
-	// auseinander). Nominativ Plural "Objekte" -- die Faustregel bildet daraus von selbst den
-	// richtigen Dativ "Objekten"; trotzdem ausdruecklich mitgegeben (Brief nennt ihn wortgleich),
-	// falls die Faustregel je umgebaut wird. Das ✦-Stueck wird DANEBEN gehaengt (Brief), nicht in
-	// die geteilte Formel gerechnet.
-	function avesmapsGaretienBalanceZeileText(sichtbar, gesamt) {
-		return avesmapsListBalanceText("Objekte", sichtbar, gesamt, "Objekten");
-	}
+	// 🔴 Fuenf-Punkte-Brief 30.08.2026, Punkt 1: die Zeile UNTER der Suche ("N von M Objekten · ✦ K
+	// leuchten") ist restlos entfernt (Owner: „weiß sowieso nicht was das bedeutet"). Ihr Erzeuger
+	// hiess `avesmapsGaretienBalanceZeileText` und rief js/review/review-list-balance.js -- beides
+	// ist weg, ohne Ersatz. Was von ihr blieb, ist NICHT ihr Nachfolger: der Neutral-Hinweis der
+	// Sicht-Tafel (Aufgabe 3) hing DANEBEN an derselben Zeile und bekommt jetzt sein EIGENES,
+	// ehrlich benanntes Element (garetien-neutral-hinweis, siehe garetienListeSkelettMarkup und
+	// avesmapsGaretienListeRendern) -- kein leeres <p> bleibt zurueck, das nur noch selten etwas
+	// zeigt.
 
 	// 🔴 Die Reiter zeigen den BEARBEITUNGSSTAND, nicht das Urteil: Offen · Anzeigen · Abgelehnt ·
 	// Uebernommen. .avm-tabs/.avm-tab sind Hausform (editor-body.css) -- die aktive Unterstreichung
@@ -654,7 +659,12 @@
 			// Fussknopf selbst) -- nicht mehr hier, wo nur einmalig gebautes, dynamisches Skelett
 			// entsteht. Die IDs (garetien-mark-show, garetien-anzeige-clear) sind unveraendert.
 			+ '<div class="gi-chips" id="garetien-chips"></div>'
-			+ '<p class="gi-balance" id="garetien-balance"></p>'
+			// Fuenf-Punkte-Brief 30.08.2026, Punkt 1: die alte Bilanzzeile ("N von M Objekten · ✦ K
+			// leuchten") ist restlos entfernt. Was hier steht, ist NICHT ihr Nachfolger, sondern der
+			// Neutral-Hinweis der Sicht-Tafel (Aufgabe 3, garetienNeutralHinweisMarkup) mit einem
+			// EIGENEN, ehrlichen Namen -- dieselbe Hausform wie `garetien-anzeige-hinweis` darueber:
+			// startet `hidden`, damit ohne etwas zu melden kein leeres Element sichtbaren Platz zieht.
+			+ '<p class="gi-neutral-hinweis" id="garetien-neutral-hinweis" hidden></p>'
 			+ '<div class="avm-scroll gi-list" id="garetien-list"></div>';
 	}
 
@@ -839,29 +849,31 @@
 			});
 		}
 
-		const balanceEl = document.getElementById("garetien-balance");
-		if (balanceEl) {
-			// "gesamt" der Bilanzzeile ist die Groesse der AKTIVEN ANSICHT (des Reiters) ohne
-			// Suche/Filter -- reiter[stand] zaehlt genau das (Aufgabe 8, VOR dem Filtern gezaehlt).
-			const basisDesReiters = (a.reiter && a.reiter[zustand.stand]) || 0;
-			const leuchtenAnzahl = objekte.filter(avesmapsGaretienHatAuswahl).length;
-			// Fix-Runde 2 zu Aufgabe 3: die Neutral-Meldung MUSS `avesmapsGaretienAufDerKarte(objekte)`
-			// lesen, NICHT `avesmapsGaretienAnzeigeListe()` -- obwohl Letztere die naheliegendere
-			// Wahl scheint ("die Anzeige-Menge ist doch, was angezeigt wird"). Sie ist es nicht mehr:
-			// seit `b45bc5cfa` (Owner-Beispiel „Perz") zeichnet JEDER Kartenaufruf
-			// `avesmapsGaretienAufDerKarte()`, und die traegt zusaetzlich das ANGEKLICKTE, aber noch
-			// nicht angezeigte Objekt (siehe deren Kommentar). Die zwei Mengen unterscheiden sich also
-			// um genau EIN Objekt -- und das ist ausgerechnet das, auf das der Editor gerade schaut.
-			// Mit `avesmapsGaretienAnzeigeListe()` liesse sich eine Ebene Wege/Grenzen/Sonstiges
-			// anklicken (die per RULING R3/R9 immer neutral sind) und die Bilanzzeile bliebe stumm,
-			// waehrend die Karte das Objekt sichtbar golden zeichnet -- die Meldung behauptete "nichts
-			// ist neutral", genau waehrend der Editor auf ein neutrales Objekt blickt. Derselbe Zug
-			// wie in `garetienAnzeigeNeuZeichnen` (oben): DIE Menge, die tatsaechlich gezeichnet wird.
-			balanceEl.innerHTML = avesmapsGaretienBalanceZeileText(a.gesamt, basisDesReiters)
-				+ (leuchtenAnzahl > 0
-					? ' · <span class="lit">✦ ' + leuchtenAnzahl + " leuchten</span>"
-					: "")
-				+ garetienNeutralHinweisMarkup(avesmapsGaretienAufDerKarte(objekte));
+		// Fuenf-Punkte-Brief 30.08.2026, Punkt 1: die alte Bilanzzeile ("N von M Objekten · ✦ K
+		// leuchten") ist restlos entfernt (Owner: „weiß sowieso nicht was das bedeutet"). Was
+		// bleibt, ist NICHT ihr Nachfolger: der Neutral-Hinweis der Sicht-Tafel (Aufgabe 3) hing
+		// DANEBEN an derselben Zeile und bekommt jetzt sein EIGENES Element, ehrlich benannt.
+		const neutralHinweisEl = document.getElementById("garetien-neutral-hinweis");
+		if (neutralHinweisEl) {
+			// Fix-Runde 2 zu Aufgabe 3 gilt unveraendert: die Neutral-Meldung MUSS
+			// `avesmapsGaretienAufDerKarte(objekte)` lesen, NICHT `avesmapsGaretienAnzeigeListe()` --
+			// obwohl Letztere die naheliegendere Wahl scheint ("die Anzeige-Menge ist doch, was
+			// angezeigt wird"). Sie ist es nicht mehr: seit `b45bc5cfa` (Owner-Beispiel „Perz")
+			// zeichnet JEDER Kartenaufruf `avesmapsGaretienAufDerKarte()`, und die traegt zusaetzlich
+			// das ANGEKLICKTE, aber noch nicht angezeigte Objekt (siehe deren Kommentar). Die zwei
+			// Mengen unterscheiden sich also um genau EIN Objekt -- und das ist ausgerechnet das,
+			// auf das der Editor gerade schaut. Mit `avesmapsGaretienAnzeigeListe()` liesse sich eine
+			// Ebene Wege/Grenzen/Sonstiges anklicken (die per RULING R3/R9 immer neutral sind) und
+			// die Meldung bliebe stumm, waehrend die Karte das Objekt sichtbar golden zeichnet --
+			// dieselbe Menge wie in `garetienAnzeigeNeuZeichnen` (oben): DIE, die tatsaechlich
+			// gezeichnet wird.
+			// 🔴 `garetienNeutralHinweisMarkup` selbst bleibt UNVERAENDERT (ihre eigenen Tests bauen
+			// weiterhin auf ihrem fuehrenden " · ", das an einen Satz DAVOR anschliesst) -- als
+			// SOLOSATZ in seinem eigenen Element wird nur dieser Anschluss abgeschnitten, der Rest
+			// ist zeichengleich.
+			const neutralMarkup = garetienNeutralHinweisMarkup(avesmapsGaretienAufDerKarte(objekte));
+			neutralHinweisEl.innerHTML = neutralMarkup === "" ? "" : neutralMarkup.replace(/^ · /, "");
+			neutralHinweisEl.hidden = neutralMarkup === "";
 		}
 
 		// Aufgabe 5: der Fussknopf traegt „n von m" der ANZEIGE-MENGE, nicht mehr die Zahl der
@@ -941,9 +953,10 @@
 			objekte: objekte,
 			gesamt: objekte.length,
 			bilanz: vorher.bilanz || {},
-			// `anzeigen` hier auf die eigene Groesse gesetzt: avesmapsGaretienBalanceZeileText
-			// zeigt bei sichtbar >= gesamt nur "N Objekte", nie "N von M" -- die Anzeige filtert
-			// nicht, also gibt es kein "von M" zu nennen.
+			// `anzeigen` hier auf die eigene Groesse gesetzt -- die Anzeige filtert nicht, es gibt
+			// also kein "von M" zu nennen. ⚠️ Die Bilanzzeile, die diesen Unterschied einst zeigte
+			// (avesmapsGaretienBalanceZeileText), ist seit Punkt 1 des Fuenf-Punkte-Briefs
+			// 30.08.2026 entfernt; das Feld selbst bleibt Teil der "Antwort"-Form dieser Funktion.
 			reiter: Object.assign({}, vorher.reiter || {}, { anzeigen: objekte.length }),
 			facetten: vorher.facetten || {},
 			angehakt: vorher.angehakt || {},
@@ -2703,11 +2716,19 @@
 	 * 🔴 „GARETIEN" BLEIBT UNBERÜHRT (Owner-Meldung 29.08.2026, Auftrag §„Was heute ist"): in der
 	 * Anzeige liegt ihre Geometrie immer, sonst stünde die Zeile gar nicht in der Anzeige-Menge --
 	 * nur „Avesmaps" bekommt die Sperre.
+	 *
+	 * 🔴 Fuenf-Punkte-Brief 30.08.2026, Punkt 5: der sichtbare Grund WIEDERHOLT nur, was der
+	 * Abschnitt darunter („Was bei uns an derselben Stelle liegt … Zu diesem Objekt steht kein
+	 * Abschnitt von uns im Vorschlag.") schon sagt, wenn dieses Objekt GAR KEINE Abschnitte hat --
+	 * `abschnitteLeer` unterdrückt ihn dann. Er bleibt stehen, wenn Abschnitte EXISTIEREN, aber
+	 * keiner angehakt ist (`avesmapsGaretienUnsereIds` zählt nur ANGEHAKTE Items, nicht alle
+	 * getroffenen) -- dort erklärt NUR er, warum der Knopf trotzdem grau ist; der Abschnitt darunter
+	 * zeigt in diesem Fall echte Zeilen und sagt nichts über die Karten-Sperre.
 	 */
-	function garetienSichtLeisteMarkup(sicht, unsereVorhanden) {
+	function garetienSichtLeisteMarkup(sicht, unsereVorhanden, abschnitteLeer) {
 		const s = sicht || {};
 		const unsereGesperrt = unsereVorhanden === false;
-		const grundMarkup = unsereGesperrt
+		const grundMarkup = (unsereGesperrt && abschnitteLeer !== true)
 			? '<p class="gi-sicht__grund">' + avesmapsGaretienEscape(AVESMAPS_GARETIEN_SICHT_GESPERRT_GRUND)
 				+ "</p>"
 			: "";
@@ -2744,9 +2765,13 @@
 		const abschnitte = objekt.abschnitte || [];
 		const gruppen = garetienAbschnittsGruppen(abschnitte);
 
+		// 🔴 Fuenf-Punkte-Brief 30.08.2026, Punkt 4: die Typ-Zuordnung („Fluss (garetien.de) →
+		// Flussweg (Avesmaps)") steht seither NICHT mehr im Kopf -- sie steht weiterhin, wortgleich,
+		// im Kasten „Eingefügt wird" (garetienEingefuegtWirdMarkup), und dieselbe Angabe zweimal auf
+		// dem Bildschirm ist die Duplikation, vor der AGENTS.md §5 warnt. Der Kopf zeigt seither NUR
+		// den Namen.
 		let kopf = '<div class="gi-detail__head">'
 			+ '<h4 class="gi-detail__name">' + avesmapsGaretienEscape(objekt.name || "") + "</h4>"
-			+ '<span class="gi-detail__kind">' + avesmapsGaretienEscape(garetienTypText(objekt)) + "</span>"
 			+ "</div>";
 		kopf += garetienDetailMetaMarkup(objekt);
 		// ⚠️ Ohne Geometrie gäbe es nichts anzufliegen -- dann steht der Knopf auch nicht da. Ein
@@ -2762,7 +2787,7 @@
 				+ "✦ Zentrieren</button>";
 			kopf += garetienSichtLeisteMarkup(sicht, unsereVorhanden === undefined
 				? garetienUnsereVorhanden([objekt])
-				: unsereVorhanden);
+				: unsereVorhanden, abschnitte.length === 0);
 		}
 
 		let notiz = garetienAnzahlText(abschnitte.length, "Abschnitt", "Abschnitte");
@@ -4507,7 +4532,6 @@
 			avesmapsGaretienHatAuswahl,
 			avesmapsGaretienAufDerKarte,
 			avesmapsGaretienUrteilInfo,
-			avesmapsGaretienBalanceZeileText,
 			avesmapsGaretienRunlineMarkup,
 			avesmapsGaretienTabsMarkup,
 			avesmapsGaretienAngehakt,

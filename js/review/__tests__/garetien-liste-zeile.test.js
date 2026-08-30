@@ -143,24 +143,14 @@ wahr(!garetienZeileMarkup(Object.assign({}, basis, { items: [{ id: 1, selected: 
 	.includes("lit-dot"),
 	"ohne Auswahl darf kein ✦ stehen -- auch MARKIERT nicht");
 
-// ---- Die Bilanz ruft avesmapsListBalanceText WIRKLICH auf (Spion) -----------------------------
-// 🔴 js/review/review-list-balance.js ist der EINE Erzeuger -- nicht nachbauen. Ein Test, der nur
-// das Markup liest, sieht eine handgeschriebene Kopie nicht von einem echten Aufruf unterschieden;
-// der Spion prueft die LAUFZEIT.
-
-const aufrufe = [];
-global.avesmapsListBalanceText = function () {
-	aufrufe.push(Array.prototype.slice.call(arguments));
-	return "SPION-ERGEBNIS";
-};
-wahr(typeof mod.avesmapsGaretienBalanceZeileText === "function", "avesmapsGaretienBalanceZeileText fehlt");
-const balanceText = mod.avesmapsGaretienBalanceZeileText(10, 289);
-gleich(balanceText, "SPION-ERGEBNIS",
-	"die Bilanzzeile muss den RUECKGABEWERT von avesmapsListBalanceText verwenden, nicht selbst formulieren");
-gleich(aufrufe.length, 1, "avesmapsListBalanceText muss GENAU EINMAL wirklich aufgerufen werden");
-gleich(aufrufe[0][1], 10, "sichtbar (gefiltert) muss durchgereicht werden");
-gleich(aufrufe[0][2], 289, "gesamt (der aktiven Ansicht) muss durchgereicht werden");
-delete global.avesmapsListBalanceText;
+// ---- Die Bilanzzeile ("N von M Objekten · ✦ K leuchten") ist restlos entfernt -----------------
+//
+// Fuenf-Punkte-Brief 30.08.2026, Punkt 1 (Owner: „weiß sowieso nicht was das bedeutet"). Ihr
+// Erzeuger `avesmapsGaretienBalanceZeileText` und der geteilte Ruf gegen
+// js/review/review-list-balance.js sind ohne Ersatz verschwunden -- kein Nachfolger, der
+// dieselbe Formel wieder aufruft.
+wahr(typeof mod.avesmapsGaretienBalanceZeileText === "undefined",
+	"avesmapsGaretienBalanceZeileText ist entfernt, keine leere Huelle geblieben");
 
 // ---- Die stille Laufzeile (.gi-runline) -- Bilanz des LAUFS, unabhaengig vom Filter -----------
 
@@ -245,9 +235,12 @@ function obersteEbene(html) {
 	return raus;
 }
 const oben = obersteEbene(skelett);
-gleich(oben.join(","), "avm-tabs,gi-searchrow,gi-anzeigehinweis,gi-chips,gi-balance,avm-scroll",
-	"die linke Spalte hat SECHS Geschwister in dieser Reihenfolge -- stehen Chips, Bilanz oder "
-	+ "Liste IN der `.gi-searchrow`, legt deren `display: flex` sie nebeneinander");
+// 🔴 Fuenf-Punkte-Brief 30.08.2026, Punkt 1: `gi-balance` heisst jetzt `gi-neutral-hinweis` -- die
+// alte Bilanzzeile ist weg, das verbliebene Element traegt NUR noch den Neutral-Hinweis der
+// Sicht-Tafel (Aufgabe 3) und ist deshalb ehrlich umbenannt, kein Nachfolger unter altem Namen.
+gleich(oben.join(","), "avm-tabs,gi-searchrow,gi-anzeigehinweis,gi-chips,gi-neutral-hinweis,avm-scroll",
+	"die linke Spalte hat SECHS Geschwister in dieser Reihenfolge -- stehen Chips, Neutral-Hinweis "
+	+ "oder Liste IN der `.gi-searchrow`, legt deren `display: flex` sie nebeneinander");
 checks++;
 
 // Und die DIFFERENZ zur Regression: die zwei Anzeige-Knoepfe stehen NICHT MEHR in diesem Skelett --

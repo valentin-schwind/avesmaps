@@ -1593,11 +1593,6 @@ function attrappe14(id) {
 	return elementRegister14.get(id);
 }
 global.document.getElementById = function (id) { return attrappe14(id); };
-// Der geteilte Erzeuger der Bilanzzeile -- ohne ihn wirft `avesmapsGaretienBalanceZeileText` einen
-// ReferenceError (er ruft `avesmapsListBalanceText` als BLOSSEN globalen Namen, kein `window.…`).
-// Dasselbe Muster wie in `garetien-anzeige-menge.test.js`.
-global.avesmapsListBalanceText =
-	require(path.resolve(__dirname, "..", "review-list-balance.js")).avesmapsListBalanceText;
 
 importer.avesmapsGaretienAnzeigeLeeren();
 importer.garetienDetailWaehlen(null, []);
@@ -1609,23 +1604,25 @@ const neutralerKlick = {
 const antwort14 = { objekte: [alke, neutralerKlick], reiter: {}, gesamt: 2, bilanz: {}, facetten: {} };
 
 // Angeklickt, aber (noch) nicht in die Anzeige uebernommen -- genau der Fall aus der Rueckmeldung.
+// 🔴 Fuenf-Punkte-Brief 30.08.2026, Punkt 1: der Neutral-Hinweis steht seither in seinem EIGENEN
+// Element (`garetien-neutral-hinweis`), nicht mehr an der (entfernten) Bilanzzeile.
 importer.garetienDetailWaehlen(neutralerKlick.key, antwort14.objekte);
 importer.avesmapsGaretienListeRendern(antwort14);
-const balanceMitKlick = attrappe14("garetien-balance").innerHTML;
-wahr(balanceMitKlick.indexOf('class="gi-neutral"') !== -1
-	&& balanceMitKlick.indexOf("1 neutral gezeichnet") !== -1
-	&& balanceMitKlick.indexOf("Sternenhimmel") !== -1,
-	"das angeklickte, neutrale Objekt muss in der ECHTEN Bilanzzeile auftauchen: " + balanceMitKlick);
+const hinweisMitKlick = attrappe14("garetien-neutral-hinweis").innerHTML;
+wahr(hinweisMitKlick.indexOf('class="gi-neutral"') !== -1
+	&& hinweisMitKlick.indexOf("1 neutral gezeichnet") !== -1
+	&& hinweisMitKlick.indexOf("Sternenhimmel") !== -1,
+	"das angeklickte, neutrale Objekt muss im ECHTEN Neutral-Hinweis auftauchen: " + hinweisMitKlick);
 
 // Die Gegenprobe: dieselbe Lage, aber NICHTS angeklickt -- die Zahl MUSS sich aendern (0 statt 1),
 // sonst waere die Zusicherung oben Vakuum (dieselbe Zahl in beiden Faellen bewiese nichts).
 importer.garetienDetailWaehlen(null, antwort14.objekte);
 importer.avesmapsGaretienListeRendern(antwort14);
-const balanceOhneKlick = attrappe14("garetien-balance").innerHTML;
-wahr(balanceOhneKlick.indexOf("gi-neutral") === -1,
+const hinweisOhneKlick = attrappe14("garetien-neutral-hinweis").innerHTML;
+wahr(hinweisOhneKlick.indexOf("gi-neutral") === -1,
 	"ohne Anklicken darf KEIN neutrales Objekt gemeldet werden (Alke hat eine eigene Sicht-Regel): "
-	+ balanceOhneKlick);
-wahr(balanceMitKlick !== balanceOhneKlick,
+	+ hinweisOhneKlick);
+wahr(hinweisMitKlick !== hinweisOhneKlick,
 	"die DIFFERENZ selbst: mit und ohne angeklicktes neutrales Objekt muss sich die Meldung "
 	+ "unterscheiden, sonst wurde nichts wirklich gemessen");
 
@@ -1633,7 +1630,6 @@ wahr(balanceMitKlick !== balanceOhneKlick,
 // verlassen (der Rest der Datei geht von einem `document` aus, dessen `getElementById` immer
 // `null` liefert).
 global.document.getElementById = getElementByIdVorher14;
-delete global.avesmapsListBalanceText;
 importer.avesmapsGaretienAnzeigeLeeren();
 importer.garetienDetailWaehlen(null, []);
 
@@ -1721,8 +1717,6 @@ function attrappe15(id) {
 	return elementRegister15.get(id);
 }
 global.document.getElementById = function (id) { return attrappe15(id); };
-global.avesmapsListBalanceText =
-	require(path.resolve(__dirname, "..", "review-list-balance.js")).avesmapsListBalanceText;
 
 // Derselbe gemessene An/Aus-Stand ('unsere' aus) gilt fuer ALLE drei Renderlaeufe unten -- so lässt
 // sich zeigen, dass eine Sperre daran nichts aendert.
@@ -1753,10 +1747,18 @@ const detailGesperrt = attrappe15("garetien-detailcol").innerHTML;
 const knopfGesperrt = unsereKnopf(detailGesperrt);
 wahr(knopfGesperrt !== "" && /\bdisabled\b/.test(knopfGesperrt),
 	"ohne natter in der Anzeige-Menge muss 'Avesmaps' gesperrt sein: " + knopfGesperrt);
-wahr(detailGesperrt.indexOf('class="gi-sicht__grund"') !== -1
-	&& detailGesperrt.indexOf(importer.AVESMAPS_GARETIEN_SICHT_GESPERRT_GRUND) !== -1,
-	"der Grund muss in DIESER echten Verdrahtung sichtbar dastehen, nicht nur in der reinen "
-	+ "Markup-Probe weiter oben: " + detailGesperrt);
+// 🔴 Fuenf-Punkte-Brief 30.08.2026, Punkt 5: DIE DIFFERENZ zur vorherigen Fassung. blutmoor hat
+// KEINEN einzigen Abschnitt (`abschnitte: []`) -- der Grund neben dem Knopf wiederholte hier nur,
+// was der Abschnitt darunter ohnehin sagt ("Zu diesem Objekt steht kein Abschnitt von uns im
+// Vorschlag."), und ist deshalb in DIESER echten Verdrahtung nicht mehr sichtbar. Die reine
+// Markup-Probe weiter oben (mit `natter`, die echte Abschnitte hat) belegt, dass der Grund dort
+// weiterhin steht -- nur diese redundante Lage ist entfernt.
+wahr(detailGesperrt.indexOf('class="gi-sicht__grund"') === -1,
+	"blutmoor hat keine Abschnitte -- der Grund neben dem Knopf waere hier reine Wiederholung: "
+	+ detailGesperrt);
+wahr(detailGesperrt.includes("Zu diesem Objekt steht kein Abschnitt von uns im Vorschlag."),
+	"und GENAU DORT steht die Auskunft stattdessen -- sie ist nicht ersatzlos verschwunden: "
+	+ detailGesperrt);
 wahr(/aria-pressed="false"/.test(knopfGesperrt),
 	"ein gesperrter Knopf behaelt seinen gemessenen An/Aus-Stand: " + knopfGesperrt);
 
@@ -1775,7 +1777,6 @@ wahr(/aria-pressed="false"/.test(knopfWiederFrei),
 
 // Aufraeumen.
 global.document.getElementById = getElementByIdVorher15;
-delete global.avesmapsListBalanceText;
 delete global.window.avesmapsGaretienKarteSicht;
 delete global.window.avesmapsGaretienUnsereIds;
 importer.avesmapsGaretienAnzeigeLeeren();
