@@ -334,9 +334,9 @@ function avesmapsGaretienLabelVorgabeFuerArt(PDO $pdo, string $subtyp): array
  * $vorgabeDerArt, unveraendert.
  *
  * @param ?array $einstellungen Rumpf aus dem Kasten (`size`/`priority`/`min_zoom`/`max_zoom`/
- *     `show_name`), oder null.
+ *     `show_name`/`is_nodix`), oder null.
  * @param array $vorgabeDerArt avesmapsGaretienLabelVorgabeFuerArt(...)
- * @return array{size?:int, priority?:int, min_zoom?:int, max_zoom?:int, show_name?:bool}
+ * @return array{size?:int, priority?:int, min_zoom?:int, max_zoom?:int, show_name?:bool, is_nodix?:bool}
  */
 function avesmapsGaretienLabelUebersteuerung(?array $einstellungen, array $vorgabeDerArt): array
 {
@@ -348,6 +348,13 @@ function avesmapsGaretienLabelUebersteuerung(?array $einstellungen, array $vorga
     }
     if (is_array($einstellungen) && array_key_exists('show_name', $einstellungen) && $einstellungen['show_name'] !== null) {
         $raus['show_name'] = (bool) $einstellungen['show_name'];
+    }
+    // 🔴 „Nodix" (Owner-Bestellung 30.08.2026, Bildschirmfoto „Beschriftung bearbeiten"): GENAU wie
+    // is_locked/curve_label bei der Region hat auch dieses Feld KEINE Vorgabe der Art -- garetien.de
+    // liefert nie eine Nodix-Aussage fuer ein Label, ihr Grundwert ist immer "aus". Eine Handeingabe
+    // ist deshalb die EINZIGE Quelle, die es je auf "an" setzt.
+    if (is_array($einstellungen) && array_key_exists('is_nodix', $einstellungen) && $einstellungen['is_nodix'] !== null) {
+        $raus['is_nodix'] = (bool) $einstellungen['is_nodix'];
     }
 
     return $raus;

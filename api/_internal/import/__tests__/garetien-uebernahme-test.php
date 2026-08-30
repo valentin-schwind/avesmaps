@@ -1363,6 +1363,14 @@ assert($teilUebersteuert === $vorgabeTest,
     . json_encode($teilUebersteuert));
 $pruefungen += 4;
 
+// --- Nodix (Owner-Bestellung 30.08.2026): KEINE Vorgabe der Art, genau wie is_locked/curve_label
+// bei der Region -- eine Handeingabe ist die einzige Quelle, die es je auf "an" setzt.
+assert(!array_key_exists('is_nodix', avesmapsGaretienLabelUebersteuerung(null, $vorgabeTest)),
+    'ohne Handeingabe steht is_nodix gar nicht in der Uebersteuerung');
+$mitNodix = avesmapsGaretienLabelUebersteuerung(['is_nodix' => true], $vorgabeTest);
+assert(($mitNodix['is_nodix'] ?? null) === true, 'eine Handeingabe setzt is_nodix: ' . json_encode($mitNodix));
+$pruefungen += 2;
+
 // --- Reine Funktion: avesmapsGaretienRegionUebersteuerung -- KEINE Vorgabe der Art fuer diese
 // beiden Felder, deshalb kein zweiter Parameter und ein leeres Ergebnis ohne Handeingabe.
 assert(avesmapsGaretienRegionUebersteuerung(null) === [], 'ohne Handeingabe: leer');
@@ -1410,7 +1418,7 @@ avesmapsSyncPlanAddItem($pdoNeu, $laufNeu, $bauePolygonEintrag('huegelland', 'to
 $teichItemId = $itemIdVon($pdoNeu, 'Testteich (Probe)');
 $teichEinstellungen = [
     'size' => 30, 'priority' => 5, 'min_zoom' => 1, 'max_zoom' => 4, 'show_name' => false,
-    'is_locked' => true, 'curve_label' => true, 'curve_label_max' => 2,
+    'is_locked' => true, 'curve_label' => true, 'curve_label_max' => 2, 'is_nodix' => true,
 ];
 $eTeich = avesmapsGaretienUebernehmen($pdoNeu, $laufNeu, [$teichItemId], ['id' => 7], $teichEinstellungen);
 assert($eTeich['angelegt'] === 1 && $eTeich['fehler'] === [],
@@ -1432,11 +1440,12 @@ assert(($teichLabelProps['priority'] ?? null) === 5, 'und die Prioritaet: ' . js
 assert(($teichLabelProps['min_zoom'] ?? null) === 1, 'und den Start-Zoom: ' . json_encode($teichLabelProps));
 assert(($teichLabelProps['max_zoom'] ?? null) === 4, 'und den End-Zoom: ' . json_encode($teichLabelProps));
 assert(($teichLabelProps['show_name'] ?? null) === false, 'und "Auf Karte anzeigen": ' . json_encode($teichLabelProps));
+assert(($teichLabelProps['is_nodix'] ?? null) === true, 'und Nodix: ' . json_encode($teichLabelProps));
 assert((int) $teichRegion['is_locked'] === 1, '"für Klicks gesperrt" steht an der Region: ' . json_encode($teichRegion));
 $teichRegionProps = json_decode((string) $teichRegion['properties_json'], true);
 assert(($teichRegionProps['curve_label'] ?? null) === true, 'die Kurvenbeschreibung steht: ' . json_encode($teichRegionProps));
 assert(($teichRegionProps['curve_label_max'] ?? null) === 2, 'mit ihrer Anzahl: ' . json_encode($teichRegionProps));
-$pruefungen += 7;
+$pruefungen += 8;
 
 // --- DIFFERENTIELL: eine ANDERE Flaeche OHNE Handeingabe (derselbe Aufruf wie bisher, kein
 // fuenfter Parameter) bleibt beim Grundwert -- sonst waere "Testteich" nur zufaellig richtig und
@@ -1455,7 +1464,9 @@ $teich2Label = $pdoNeu->query('SELECT properties_json FROM map_features WHERE pu
     . $pdoNeu->quote((string) $teich2Region['label_public_id']))->fetch(PDO::FETCH_ASSOC);
 $teich2LabelProps = json_decode((string) $teich2Label['properties_json'], true);
 assert(($teich2LabelProps['size'] ?? null) === 18, 'und die Groesse bleibt der Grundwert 18: ' . json_encode($teich2LabelProps));
-$pruefungen += 4;
+assert(($teich2LabelProps['is_nodix'] ?? null) === false,
+    'ohne Handeingabe bleibt Nodix beim Grundwert "aus": ' . json_encode($teich2LabelProps));
+$pruefungen += 5;
 
 // --- DER BERGGIPFEL MIT HANDEINGABE -- dieselben vier Zahlen + show_name, aber kein is_locked/
 // curve_label (ein Berggipfel haengt an keiner ecosystem_region). 'berggipfel' traegt in dieser
@@ -1466,6 +1477,7 @@ avesmapsSyncPlanAddItem($pdoNeu, $laufNeu, $bauePunktEintrag('label', 'berggipfe
 $gipfel2ItemId = $itemIdVon($pdoNeu, 'Testgipfel Zwei (Probe)');
 $eGipfel2 = avesmapsGaretienUebernehmen($pdoNeu, $laufNeu, [$gipfel2ItemId], ['id' => 7], [
     'size' => 22, 'priority' => 1, 'min_zoom' => 0, 'max_zoom' => 3, 'show_name' => false,
+    'is_nodix' => true,
     'is_locked' => true, // muss IGNORIERT werden -- ein Berggipfel-Label kennt kein is_locked
 ]);
 assert($eGipfel2['angelegt'] === 1 && $eGipfel2['fehler'] === [],
@@ -1477,7 +1489,9 @@ assert(($gipfel2Props['size'] ?? null) === 22, 'die Handeingabe schlaegt die ges
 assert(($gipfel2Props['priority'] ?? null) === 1 && ($gipfel2Props['min_zoom'] ?? null) === 0
     && ($gipfel2Props['max_zoom'] ?? null) === 3 && ($gipfel2Props['show_name'] ?? null) === false,
     'und die uebrigen vier Felder ebenso: ' . json_encode($gipfel2Props));
-$pruefungen += 3;
+assert(($gipfel2Props['is_nodix'] ?? null) === true,
+    'Nodix gilt auch fuer ein Berggipfel-Label, das an keiner Region haengt: ' . json_encode($gipfel2Props));
+$pruefungen += 4;
 
 // --- 🔴 DIE TRAGENDE REGEL DES SERVERS: EIN UNSINNIGER WERT WIRD ABGELEHNT, AUCH WENN DER
 // BROWSER IHN DURCHLIESSE. `max_zoom < min_zoom` ist fuer ein NEUES Label keine gueltige Aussage

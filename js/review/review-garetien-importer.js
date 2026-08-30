@@ -2060,6 +2060,10 @@
 			size: vorbelegung.size, priority: vorbelegung.prio,
 			minZoom: vorbelegung.minZoom, maxZoom: vorbelegung.maxZoom,
 			showName: true, curveLabel: false, curveLabelMax: 1, isLocked: false,
+			// 🔴 Nodix (Owner-Bestellung 30.08.2026, Bildschirmfoto „Beschriftung bearbeiten") --
+			// KEINE Vorgabe der Art, genau wie isLocked/curveLabel: garetien.de liefert nie eine
+			// Nodix-Aussage, der Grundwert ist immer „aus".
+			isNodix: false,
 		};
 	}
 
@@ -2079,19 +2083,66 @@
 		return "gi-feld-" + avesmapsGaretienEscape(String((objekt && objekt.key) || "")) + "-" + feld;
 	}
 
-	// REIN: eine Zahlenzeile -- Beschriftung + Eingabefeld, vorbelegt mit dem aktuellen
-	// Eingabestand. `grenzen` ist eine Anzeigehilfe (`min`/`max` am `<input>`), KEIN Ersatz für die
-	// Server-Prüfung -- ein Browser, der diese Grenzen ignoriert (ältere Engines, direkte DOM-
-	// Manipulation), bekommt vom Server trotzdem eine Ablehnung.
-	function garetienEingefuegtWirdZahlZeile(objekt, beschriftung, feld, wert, einheit, grenzen, deaktiviert) {
+	// REIN: dieselbe Umrechnung wie avesmapsLabelVorgabeMarkePosition (js/review/review-labels.js,
+	// dort fuer den ECHTEN Beschriftungsdialog #label-edit-form) -- hier als EIGENE, kleine Kopie,
+	// nicht als Aufruf dorthin. Grund: js/review/__tests__/label-vorgabemarke.test.js schneidet
+	// jene Funktion TEXTUELL aus review-labels.js heraus und fuehrt sie ISOLIERT ueber `new
+	// Function(...)` aus (kein globales Objekt, keine anderen Bezeichner erreichbar) -- eine
+	// Umleitung von dort auf einen gemeinsamen Helfer wuerde GENAU DIESEN Quelltexttest brechen
+	// (AGENTS.md: „ein Quelltexttest trifft die Definitionszeile mit"). Die Formel ist eine einzige
+	// Zeile Mathematik ohne DOM-Bezug; sie hier zu wiederholen ist günstiger und sicherer als den
+	// bestehenden, fragilen Test eines ausgelieferten Features anzufassen.
+	//
+	// 💣 Die 16px Knopfbreite sind dieselbe Zahl wie in review-labels.js und .label-edit-marke
+	// (css/components/location-report-dialog.css) -- ein gekoppelter Wert in DREI Dateien.
+	function garetienSliderMarkePosition(wert, min, max) {
+		const spanne = Number(max) - Number(min);
+		const anteil = spanne === 0 ? 0 : Math.max(0, Math.min(1, (Number(wert) - Number(min)) / spanne));
+		return "calc(" + (anteil * 100) + "% + " + (8 - anteil * 16) + "px)";
+	}
+
+	// REIN: eine Zahlenzeile -- Beschriftung + Zahlenfeld + REGLER + VORGABE-MARKE, dieselbe
+	// Bauform wie der echte Beschriftungsdialog (index.html #label-edit-form:
+	// .location-report-form__field--zeile > .label-edit-sliderrow > [Zahl, .label-edit-markewrap
+	// > [Regler, .label-edit-marke]]). Owner-Bestellung 30.08.2026: „ich will die ECHTEN
+	// Steuerelemente dieser Dialoge im Importer — nicht eine Nachbildung mit Zahlenfeldern."
+	//
+	// 🔴 Die drei Klassen sind GLOBAL definiert (css/components/region-sync.css,
+	// …/location-report-dialog.css) -- keine neue CSS-Regel noetig, keine zweite Bauform.
+	// ⚠️ Und ABSICHTLICH nicht dieselbe JS-Verdrahtung: review-labels.js haengt einen document-weiten
+	// `input`-Zuhoerer an `.label-edit-sliderrow`, der bei jeder Beruehrung (auch hier) mitlaeuft --
+	// harmlos (sein `labelDisplayPreview` ist null, solange der echte Dialog nicht offen ist), aber
+	// dieser Kasten verlaesst sich NICHT darauf: garetienEingabenAendern spiegelt Zahl<->Regler
+	// selbst (siehe dort), damit dieses Fenster von jenem Modul unabhaengig bleibt.
+	//
+	// `grenzen` ist eine Anzeigehilfe (`min`/`max` an BEIDEN Feldern), KEIN Ersatz für die
+	// Server-Prüfung -- ein Browser, der sie ignoriert, bekommt vom Server trotzdem eine Ablehnung.
+	// `vorgabeWert` ist die Vorgabe der Art (nicht der aktuelle Wert!) -- die Marke bewegt sich beim
+	// Ziehen NICHT mit, sie zeigt, wovon eine Handeingabe abweicht. `undefined`/`null`/`NaN`
+	// unterdrückt die Marke (z. B. „Anzahl Beschriftungen", die keine Art-Vorgabe hat).
+	function garetienEingefuegtWirdZahlZeile(objekt, beschriftung, feld, wert, einheit, grenzen, deaktiviert, vorgabeWert) {
 		const id = garetienEingabeId(objekt, feld);
-		return '<p class="gi-insert__row gi-insert__row--edit">'
-			+ '<label for="' + id + '">' + avesmapsGaretienEscape(beschriftung) + "</label> "
+		const idRegler = id + "-range";
+		const idMarke = id + "-marke";
+		const marke = (typeof vorgabeWert === "number" && Number.isFinite(vorgabeWert))
+			? '<i class="label-edit-marke" id="' + idMarke + '" style="left: '
+				+ garetienSliderMarkePosition(vorgabeWert, grenzen.min, grenzen.max)
+				+ ';" title="Vorgabe: ' + avesmapsGaretienEscape(String(vorgabeWert)) + '" aria-hidden="true"></i>'
+			: "";
+		return '<label class="location-report-form__field location-report-form__field--zeile gi-insert__row">'
+			+ "<span>" + avesmapsGaretienEscape(beschriftung) + "</span>"
+			+ '<div class="label-edit-sliderrow">'
 			+ '<input type="number" class="gi-insert__input" id="' + id + '" data-gi-feld="' + feld + '" '
 			+ 'min="' + grenzen.min + '" max="' + grenzen.max + '" value="' + Number(wert) + '"'
 			+ (deaktiviert ? " disabled" : "") + ">"
+			+ '<span class="label-edit-markewrap">'
+			+ '<input type="range" id="' + idRegler + '" data-gi-feld="' + feld + '" '
+			+ 'min="' + grenzen.min + '" max="' + grenzen.max + '" value="' + Number(wert) + '"'
+			+ (deaktiviert ? " disabled" : "") + ' aria-label="' + avesmapsGaretienEscape(beschriftung) + '">'
+			+ marke
+			+ "</span>"
 			+ (einheit ? ' <span class="gi-insert__unit">' + avesmapsGaretienEscape(einheit) + "</span>" : "")
-			+ "</p>";
+			+ "</div></label>";
 	}
 
 	// REIN: eine Häkchenzeile -- dasselbe Muster, für die drei Ja/Nein-Einstellungen des Kastens.
@@ -2112,24 +2163,49 @@
 			+ garetienEingefuegtWirdHakenZeile(objekt, "für Klicks gesperrt", "isLocked", eingaben.isLocked);
 	}
 
-	// REIN: „Beschriftung" -- Größe/Priorität/Zoomband/[Kurvenbeschreibung]/Auf Karte anzeigen, ALLE
-	// editierbar. `mitKurve` gilt nur bei einer FLÄCHE -- ein Berggipfel-Label hängt an keiner
-	// `ecosystem_region` (siehe der 'label'-Zweig in avesmapsGaretienUebernehmen) und kennt deshalb
-	// weder Kurvenbeschreibung noch „für Klicks gesperrt".
+	// REIN: derselbe Hinweistext wie im echten Beschriftungsdialog (index.html,
+	// .landschaft-dialog__bindung, wortgleich) -- ein Editor, der beide Oberflächen kennt, lernt
+	// keine zweite Aussage. Die Klasse ist global definiert (css/components/landschaft-dialog.css,
+	// über styles.css geladen) -- keine neue CSS-Regel nötig.
+	function garetienEingefuegtWirdBindungHinweis(curveLabel) {
+		return curveLabel
+			? '<p class="landschaft-dialog__bindung"><b>An die Fläche gebunden:</b> die Beschriftung '
+				+ "läuft auf der Mittelachse der Fläche. Ihre eigene Position und Drehung wirken "
+				+ "nicht mehr.</p>"
+			: '<p class="landschaft-dialog__bindung">Die Beschriftung liegt frei auf der Karte und '
+				+ "lässt sich unabhängig von der Fläche verschieben.</p>";
+	}
+
+	// REIN: „Beschriftung" -- Nodix/Größe/Priorität/Zoomband/[Kurvenbeschreibung]/Auf Karte
+	// anzeigen, ALLE editierbar -- dieselben Felder und dieselbe Reihenfolge wie im echten Dialog
+	// (index.html #label-edit-form: „Eigenschaften" vor „Darstellung"). `mitKurve` gilt nur bei
+	// einer FLÄCHE -- ein Berggipfel-Label hängt an keiner `ecosystem_region` (siehe der
+	// 'label'-Zweig in avesmapsGaretienUebernehmen) und kennt deshalb weder Kurvenbeschreibung noch
+	// „für Klicks gesperrt".
 	function garetienEingefuegtWirdBeschriftungMarkup(objekt, subtyp, mitKurve) {
 		const eingaben = garetienEingabenZustandZu(objekt);
+		// Die VIER Vorgabemarken -- dieselbe Tafel wie bei der Vorbelegung, hier ein zweites Mal
+		// gelesen, weil sie sich NICHT mit der (ggf. schon geänderten) Handeingabe bewegen dürfen.
+		const vorgabe = garetienEingabenVorbelegung(subtyp);
 		let markup = garetienEingefuegtWirdUeberschrift("Beschriftung")
-			+ garetienEingefuegtWirdZahlZeile(objekt, "Größe", "size", eingaben.size, "pt", { min: 10, max: 56 })
-			+ garetienEingefuegtWirdZahlZeile(objekt, "Priorität", "priority", eingaben.priority, "", { min: 1, max: 5 })
-			+ garetienEingefuegtWirdZahlZeile(objekt, "Sichtbar ab Zoom", "minZoom", eingaben.minZoom, "", { min: 0, max: 7 })
-			+ garetienEingefuegtWirdZahlZeile(objekt, "Sichtbar bis Zoom", "maxZoom", eingaben.maxZoom, "", { min: 0, max: 7 });
+			+ garetienEingefuegtWirdHakenZeile(objekt, "Nodix", "isNodix", eingaben.isNodix)
+			+ garetienEingefuegtWirdZahlZeile(objekt, "Größe", "size", eingaben.size, "pt",
+				{ min: 10, max: 56 }, false, vorgabe.size)
+			+ garetienEingefuegtWirdZahlZeile(objekt, "Priorität", "priority", eingaben.priority, "",
+				{ min: 1, max: 5 }, false, vorgabe.prio)
+			+ garetienEingefuegtWirdZahlZeile(objekt, "Sichtbar ab Zoom", "minZoom", eingaben.minZoom, "",
+				{ min: 0, max: 7 }, false, vorgabe.minZoom)
+			+ garetienEingefuegtWirdZahlZeile(objekt, "Sichtbar bis Zoom", "maxZoom", eingaben.maxZoom, "",
+				{ min: 0, max: 7 }, false, vorgabe.maxZoom);
 		if (mitKurve) {
 			// „mit Anzahl wenn an" (Auftrag): die Anzahl steht immer im Kasten, aber gesperrt, solange
 			// die Kurvenbeschreibung selbst aus ist -- dieselbe Sperr-statt-Verstecken-Form wie bei
 			// jedem anderen abhängigen Feld dieses Hauses (kein DOM-Umbau bei jedem Klick nötig).
+			// Keine Vorgabemarke fuer die Anzahl -- es gibt dafuer keine Tafel der Art.
 			markup += garetienEingefuegtWirdHakenZeile(objekt, "Kurvenbeschreibung", "curveLabel", eingaben.curveLabel)
 				+ garetienEingefuegtWirdZahlZeile(objekt, "Anzahl Beschriftungen", "curveLabelMax",
-					eingaben.curveLabelMax, "", { min: 1, max: 3 }, !eingaben.curveLabel);
+					eingaben.curveLabelMax, "", { min: 1, max: 3 }, !eingaben.curveLabel)
+				+ garetienEingefuegtWirdBindungHinweis(eingaben.curveLabel);
 		}
 		markup += garetienEingefuegtWirdHakenZeile(objekt, "Auf Karte anzeigen", "showName", eingaben.showName);
 		return markup;
@@ -2163,7 +2239,22 @@
 		// Ein leeres/kaputtes Feld behält den letzten gültigen Stand, statt `NaN` zu speichern --
 		// der Server sähe dann die Zeichenkette "NaN" statt einer Zahl.
 		const zahl = parseInt(ziel.value, 10);
-		if (!isNaN(zahl)) { eingaben[feld] = zahl; }
+		if (isNaN(zahl)) { return; }
+		eingaben[feld] = zahl;
+		// 🔴 ZAHL UND REGLER SPIEGELN SICH GEGENSEITIG -- unabhängig davon, welches der beiden Felder
+		// die Eingabe ausgelöst hat. Dieselbe Bauform wie im echten Beschriftungsdialog
+		// (review-labels.js), aber hier EIGENSTÄNDIG verdrahtet: jene Datei hängt zwar auch einen
+		// document-weiten Zuhörer an dieselben CSS-Klassen (harmlos, siehe der Kommentar an
+		// garetienEingefuegtWirdZahlZeile), aber dieser Kasten verlässt sich nicht auf ein fremdes
+		// Modul -- er spiegelt selbst, damit er unabhängig bleibt.
+		if (hasDocument) {
+			const idNummer = garetienEingabeId(objekt, feld);
+			const idRegler = idNummer + "-range";
+			const nummerFeld = document.getElementById(idNummer);
+			const reglerFeld = document.getElementById(idRegler);
+			if (nummerFeld && nummerFeld !== ziel) { nummerFeld.value = String(zahl); }
+			if (reglerFeld && reglerFeld !== ziel) { reglerFeld.value = String(zahl); }
+		}
 	}
 
 	// REIN: was aus dem Kasten an den Server reist -- nur, was für DIESES Ziel wirklich gilt (ein
@@ -2177,7 +2268,7 @@
 		const raus = {
 			size: eingaben.size, priority: eingaben.priority,
 			min_zoom: eingaben.minZoom, max_zoom: eingaben.maxZoom,
-			show_name: eingaben.showName,
+			show_name: eingaben.showName, is_nodix: eingaben.isNodix,
 		};
 		if (ziel === "region") {
 			raus.is_locked = eingaben.isLocked;
@@ -4437,6 +4528,9 @@
 			garetienEingabenAendern,
 			garetienEingabenFuerServer,
 			garetienEingabeId,
+			// Aufgabe „die ECHTEN Steuerelemente" (30.08.2026): Regler + Vorgabe-Marke wie im echten
+			// Beschriftungsdialog (index.html #label-edit-form).
+			garetienSliderMarkePosition,
 			garetienWikiLandschaftZeileText,
 			garetienWikiLandschaftPlatzhalterId,
 			garetienWikiLandschaftBeiBedarfLaden,

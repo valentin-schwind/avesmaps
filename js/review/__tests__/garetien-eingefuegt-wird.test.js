@@ -115,6 +115,7 @@ const {
 	garetienEingabenAendern,
 	garetienEingabenFuerServer,
 	garetienEingabeId,
+	garetienSliderMarkePosition,
 } = mod;
 
 wahr(typeof garetienEingefuegtWirdHatVorschlag === "function", "garetienEingefuegtWirdHatVorschlag fehlt im Export");
@@ -126,6 +127,7 @@ wahr(typeof garetienEingabenGrundwerte === "function", "garetienEingabenGrundwer
 wahr(typeof garetienEingabenAendern === "function", "garetienEingabenAendern fehlt im Export");
 wahr(typeof garetienEingabenFuerServer === "function", "garetienEingabenFuerServer fehlt im Export");
 wahr(typeof garetienEingabeId === "function", "garetienEingabeId fehlt im Export");
+wahr(typeof garetienSliderMarkePosition === "function", "garetienSliderMarkePosition fehlt im Export");
 // Die geteilte Verkehrsmittel-Regel muss als blanker Bezeichner ankommen -- sonst wuerde die
 // nachfolgende Rechnung der Erwartungswerte (2 von 2 / 5 von 6 / 6 von 6) selbst zur Vakuum-Probe.
 wahr(typeof getDefaultAllowedTransportsForPathSubtype === "function",
@@ -222,6 +224,49 @@ wahr(mHuegel.includes("Sichtbar bis Zoom") && mHuegel.includes('id="' + idBis + 
 // den Grundwert der Feature-Anlage (5).
 gleich(eingabeWert(mHuegel, idBis), "7", "die Vorbelegung des End-Zooms (7, Grundwert der Tafel) fehlt");
 
+// ---- 🔴 DIE ECHTEN STEUERELEMENTE (Owner-Bestellung 30.08.2026, drei Bildschirmfotos): Zahl UND
+// Regler UND Vorgabe-Marke, dieselbe Bauform wie index.html #label-edit-form -- keine Nachbildung
+// mit blossen Zahlenfeldern mehr.
+wahr(mHuegel.includes("label-edit-sliderrow") && mHuegel.includes("label-edit-markewrap"),
+	"die Sliderrow-Bauform des echten Beschriftungsdialogs fehlt");
+wahr(mHuegel.includes("location-report-form__field--zeile"),
+	"die Zeilenform des echten Dialogs (Beschriftung LINKS) fehlt");
+const idAbRegler = idAb + "-range";
+const idAbMarke = idAb + "-marke";
+wahr(mHuegel.includes('id="' + idAbRegler + '"') && mHuegel.includes('type="range"'),
+	'"Sichtbar ab Zoom" muss einen ECHTEN Regler tragen, nicht nur ein Zahlenfeld');
+gleich(eingabeWert(mHuegel, idAbRegler), "3", "der Regler startet mit demselben Wert wie die Zahl");
+wahr(mHuegel.includes('id="' + idAbMarke + '"'), "die Vorgabe-Marke des Ab-Zoom-Reglers fehlt");
+// 🔴 Die Marke zeigt die VORGABE DER ART (3), nicht den aktuellen Wert -- hier zufaellig gleich,
+// weil noch niemand am Regler gezogen hat (der HAEUFIGSTE Fall, siehe .label-edit-marke-CSS).
+const markeAbSoll = garetienSliderMarkePosition(3, 0, 7);
+wahr(mHuegel.includes('style="left: ' + markeAbSoll + ';"'),
+	"die Marke steht an der errechneten Position der Vorgabe (3 von 0..7): " + mHuegel);
+
+// ---- 🔴 NODIX (drittes Bildschirmfoto: „Beschriftung bearbeiten" traegt auch dieses Haekchen) --
+// gilt fuer JEDE Beschriftung, nicht nur fuer eine Flaeche, und startet immer AUS (keine Vorgabe
+// der Art -- garetien.de liefert nie eine Nodix-Aussage).
+const idNodixHuegel = garetienEingabeId(huegel, "isNodix");
+wahr(mHuegel.includes("Nodix") && mHuegel.includes('id="' + idNodixHuegel + '"') && mHuegel.includes('type="checkbox"'),
+	"die Nodix-Zeile fehlt oder ist kein echtes Häkchen");
+gleich(istAngehakt(mHuegel, idNodixHuegel), false, "Nodix startet UNGEHAKT (kein Grundwert der Art dafür)");
+
+// ---- 🔴 DER HINWEISKASTEN (erstes Bildschirmfoto): derselbe Text wie im echten Dialog, abhängig
+// vom Kurvenbeschreibungs-Haken -- „frei", solange er aus ist (der Startzustand).
+wahr(mHuegel.includes("landschaft-dialog__bindung") && mHuegel.includes("liegt frei auf der Karte"),
+	"der Hinweiskasten (frei/gebunden) fehlt oder zeigt den falschen Starttext");
+wahr(!mHuegel.includes("An die Fläche gebunden"),
+	"ohne angehakte Kurvenbeschreibung darf der 'gebunden'-Text nicht stehen");
+
+// ---- DIFFERENZIELL: der Hinweiskasten wechselt mit der Kurvenbeschreibung -- sonst waere er ein
+// fester Satz statt wirklich vom Haken abhaengig.
+garetienEingabenZustandZu(huegel).curveLabel = true;
+const mHuegelGebunden = garetienEingefuegtWirdMarkup(huegel);
+wahr(mHuegelGebunden.includes("An die Fläche gebunden") && !mHuegelGebunden.includes("liegt frei auf der Karte"),
+	"mit angehakter Kurvenbeschreibung muss der 'gebunden'-Text stehen, der 'frei'-Text nicht mehr: "
+	+ mHuegelGebunden);
+garetienEingabenZustandZu(huegel).curveLabel = false; // aufräumen -- der Rest der Datei erwartet "aus"
+
 // ---- 🔴 KEIN HINWEIS "Vorgabe der Art wäre ... der Import setzt sie nicht" MEHR -- der ganze
 // Sinn dieses Umbaus ist, dass der Import JEDEN im Kasten stehenden Wert setzt. Dieser Satz war
 // die Falschaussage, die den Schadensfall ausgelöst hat; er darf nirgendwo mehr vorkommen.
@@ -254,6 +299,13 @@ const see = Object.assign({}, huegel, { key: "ggp:Gewaesser:See:Garetien:Testsee
 const mSee = garetienEingefuegtWirdMarkup(see);
 gleich(eingabeWert(mSee, garetienEingabeId(see, "minZoom")), "4",
 	"'see' hat eine ANDERE Vorbelegung (4) als 'huegelland' (3), sonst waere es Vakuum");
+// ---- DIFFERENZIELL: die Vorgabe-Marke wandert mit der Art, nicht nur der Feldwert -- sonst waere
+// die Marke eine feste Zeichenkette statt wirklich an die Tafel angeschlossen.
+const markeSeeAb = garetienSliderMarkePosition(4, 0, 7);
+wahr(markeSeeAb !== markeAbSoll,
+	"eine ANDERE Vorgabe (4 statt 3) muss eine ANDERE Markenposition ergeben, sonst waere es Vakuum");
+wahr(mSee.includes('style="left: ' + markeSeeAb + ';"'),
+	"'see' zeigt die Marke an SEINER eigenen Position (4 von 0..7): " + mSee);
 
 // ---- Wiki und Quellen: die Quelle zieht HIERHER (nicht mehr als eigener Abschnitt danach) ------
 wahr(mHuegel.includes("Wiki und Quellen"), "die Unterueberschrift fehlt");
@@ -291,6 +343,17 @@ wahr(!mGipfel.includes("Wiki-Landschaft"),
 	"Wiki-Landschaft ist ein Regions-Konzept -- ein Berggipfel bekommt die Zeile nicht");
 wahr(mGipfel.includes("Auf Karte anzeigen") && mGipfel.includes('id="' + garetienEingabeId(gipfel, "showName") + '"'),
 	'"Auf Karte anzeigen" gilt auch fuer ein Label ohne Flaeche');
+// ---- Nodix gilt AUCH fuer ein Label ohne Flaeche (drittes Bildschirmfoto zeigt es an DERSELBEN
+// Beschriftung wie Groesse/Prioritaet/Zoomband, nicht nur an einer Region).
+wahr(mGipfel.includes("Nodix") && mGipfel.includes('id="' + garetienEingabeId(gipfel, "isNodix") + '"'),
+	"Nodix gilt auch fuer ein Label ohne Flaeche");
+// ---- KEIN Hinweiskasten (frei/gebunden) ohne Kurvenbeschreibung -- ein Berggipfel-Label kennt
+// gar keine Bindung an eine Flaeche.
+wahr(!mGipfel.includes("landschaft-dialog__bindung"),
+	"ein Berggipfel-Label zeigt keinen Bindungs-Hinweis -- es gibt keine Flaeche, an die es sich binden könnte");
+// ---- Auch ein Berggipfel bekommt den echten Regler samt Marke.
+wahr(mGipfel.includes("label-edit-sliderrow") && mGipfel.includes('type="range"'),
+	"ein Berggipfel-Label bekommt dieselben echten Regler wie eine Flaeche");
 
 // =================================================================================================
 // E. Ein ORT (ziel='location') -- FESTE Klassentafel, kein Einstellwert des Imports, UND (Owner-
@@ -477,6 +540,54 @@ gleich(eingabeWert(mGipfelUngueltig, garetienEingabeId(gipfelUngueltig, "priorit
 avesmapsEcosystemDisplayInstall(null);
 
 // =================================================================================================
+// H. garetienSliderMarkePosition -- dieselbe Rechnung wie im echten Beschriftungsdialog
+//    (review-labels.js), hier als eigene, AUSGEFÜHRTE Kopie (siehe Kommentar an der Funktion).
+// =================================================================================================
+
+const hLinks = garetienSliderMarkePosition(0, 0, 7);
+const hMitte = garetienSliderMarkePosition(3.5, 0, 7);
+const hRechts = garetienSliderMarkePosition(7, 0, 7);
+wahr(/calc\(/.test(hLinks) && /px/.test(hLinks), "die Position rechnet in calc mit Pixeln: " + hLinks);
+wahr(hLinks.includes("0%"), "ganz links sind es 0 % plus der halbe Knopf: " + hLinks);
+wahr(hRechts.includes("100%"), "ganz rechts 100 % minus der halbe Knopf: " + hRechts);
+const hZahl = (s) => Number((s.match(/([+-]?[0-9.]+)px/) || [])[1]);
+wahr(hZahl(hLinks) > 0, "links wird nach INNEN geschoben: " + hLinks);
+wahr(hZahl(hRechts) < 0, "rechts nach innen, also andersherum: " + hRechts);
+wahr(Math.abs(hZahl(hMitte)) < 1e-9, "in der Mitte ist die Korrektur null: " + hMitte);
+wahr(/calc\(/.test(garetienSliderMarkePosition(3, 3, 3)), "min === max liefert eine gueltige Position statt NaN");
+
+// =================================================================================================
+// H2. garetienEingabenAendern spiegelt Zahl <-> Regler ECHT im DOM -- unabhängig davon, welches der
+//     beiden Felder die Eingabe ausgelöst hat. Eigenständig verdrahtet (siehe Kommentar an der
+//     Funktion) -- also hier zu prüfen, nicht bei review-labels.js.
+// =================================================================================================
+
+const objektH2 = { key: "gi-spiegel:1", subtyp: "huegelland", ziel: "region" };
+garetienDetailWaehlen(objektH2.key, [objektH2]);
+
+const idH2 = garetienEingabeId(objektH2, "size");
+const nummerElementH2 = macheElement(idH2);
+const reglerElementH2 = macheElement(idH2 + "-range");
+ELEMENTE[idH2] = nummerElementH2;
+ELEMENTE[idH2 + "-range"] = reglerElementH2;
+
+// Der Regler wird gezogen (das Ziel TRÄGT selbst keinen "id"-Vergleichswert -- wie ein echtes
+// DOM-Element, das über getElementById NICHT sich selbst zurückbekommt, weil garetienEingabenAendern
+// die Geschwister immer per ID nachschlägt).
+const reglerZiel = { getAttribute: () => "size", hasAttribute: () => true, type: "range", value: "40", id: idH2 + "-range" };
+garetienEingabenAendern({ target: reglerZiel }, [objektH2]);
+gleich(garetienEingabenZustandZu(objektH2).size, 40, "eine Reglerbewegung wird uebernommen wie eine Zahleingabe");
+gleich(nummerElementH2.value, "40", "…und ins ZAHLENFELD gespiegelt, ohne dass jemand es angefasst hat");
+
+// Und umgekehrt: die Zahl wird getippt, der Regler zieht nach.
+const nummerZiel = { getAttribute: () => "size", hasAttribute: () => true, type: "number", value: "12", id: idH2 };
+garetienEingabenAendern({ target: nummerZiel }, [objektH2]);
+gleich(garetienEingabenZustandZu(objektH2).size, 12, "eine getippte Zahl wird uebernommen");
+gleich(reglerElementH2.value, "12", "…und in den REGLER gespiegelt");
+
+garetienDetailWaehlen(null, []);
+
+// =================================================================================================
 // I. Der Eingabezustand -- garetienEingabenGrundwerte/garetienEingabenZustandZu: Vorbelegung EINMAL,
 //    danach ÜBERLEBT eine Handeingabe ein erneutes Rendern desselben Objekts.
 // =================================================================================================
@@ -583,29 +694,31 @@ gleich(garetienEingabenFuerServer({ key: "k1", ziel: "location", subtyp: "dorf" 
 gleich(garetienEingabenFuerServer({ key: "k2", ziel: "path", subtyp: "Pfad" }), null,
 	"ein Weg ebenso");
 
-// Berggipfel (ziel='label'): die fünf Label-Felder, aber KEIN is_locked/curve_label.
+// Berggipfel (ziel='label'): die SECHS Label-Felder (inkl. Nodix seit dieser Aufgabe), aber KEIN
+// is_locked/curve_label.
 const kBerg = { key: "k3", ziel: "label", subtyp: "berggipfel" };
 garetienEingabenZustandZu(kBerg).size = 22;
 garetienEingabenZustandZu(kBerg).priority = 1;
 garetienEingabenZustandZu(kBerg).minZoom = 2;
 garetienEingabenZustandZu(kBerg).maxZoom = 6;
 garetienEingabenZustandZu(kBerg).showName = false;
+garetienEingabenZustandZu(kBerg).isNodix = true;
 const eBerg = garetienEingabenFuerServer(kBerg);
 assert.deepStrictEqual(eBerg, {
-	size: 22, priority: 1, min_zoom: 2, max_zoom: 6, show_name: false,
-}, "ein Berggipfel liefert GENAU die fünf Label-Felder, keine Region-Felder: " + JSON.stringify(eBerg));
+	size: 22, priority: 1, min_zoom: 2, max_zoom: 6, show_name: false, is_nodix: true,
+}, "ein Berggipfel liefert GENAU die sechs Label-Felder, keine Region-Felder: " + JSON.stringify(eBerg));
 checks++;
 
-// Fläche (ziel='region'): alle ACHT Felder.
+// Fläche (ziel='region'): alle NEUN Felder.
 const kFlaeche = { key: "k4", ziel: "region", subtyp: "huegelland" };
 const eF = garetienEingabenZustandZu(kFlaeche);
 eF.size = 30; eF.priority = 5; eF.minZoom = 1; eF.maxZoom = 4; eF.showName = false;
-eF.isLocked = true; eF.curveLabel = true; eF.curveLabelMax = 2;
+eF.isLocked = true; eF.curveLabel = true; eF.curveLabelMax = 2; eF.isNodix = false;
 const eFlaeche = garetienEingabenFuerServer(kFlaeche);
 assert.deepStrictEqual(eFlaeche, {
-	size: 30, priority: 5, min_zoom: 1, max_zoom: 4, show_name: false,
+	size: 30, priority: 5, min_zoom: 1, max_zoom: 4, show_name: false, is_nodix: false,
 	is_locked: true, curve_label: true, curve_label_max: 2,
-}, "eine Fläche liefert alle ACHT Felder: " + JSON.stringify(eFlaeche));
+}, "eine Fläche liefert alle NEUN Felder: " + JSON.stringify(eFlaeche));
 checks++;
 
 // =================================================================================================
