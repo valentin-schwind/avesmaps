@@ -48,6 +48,19 @@ foreach (['facebook', 'instagram', 'changelog', 'probe'] as $direkt) {
     );
 }
 
+// 🔴 WER UEBER EIN RELAIS GEHT, MUSS ES SAGEN. Der Chip sagt es erst NACH dem Absenden -- aber wer
+// anhakt und drueckt, rechnet mit „sofort draussen" und haelt die Verzoegerung fuer einen Fehler.
+// Der Hinweis steht im `note` des Registers, das die Kanalzeile des Hubs vor dem Klick anzeigt.
+// ⚠️ Diese Zusicherung gilt der GATTUNG, nicht Mastodon: ein zweiter Relais-Kanal ohne Hinweis
+// waere derselbe stille Bruch mit der Erwartung.
+foreach ($relaisKanaele as $key) {
+    $kanal = avesmapsSocialChannel($key);
+    assert(
+        trim((string) ($kanal['note'] ?? '')) !== '',
+        "{$key} geht ueber ein Relais und muss das in seinem note sagen"
+    );
+}
+
 // ------------------------------------------------------------------------------------------------
 // 2. Der Riegel. 💣 Im Zweifel ZU -- `hash_equals('', '')` ist wahr, ein unkonfigurierter Server
 //    liesse sonst jeden herein.

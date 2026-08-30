@@ -226,7 +226,13 @@ const AVESMAPS_SOCIAL_CHANNELS = [
         ],
         'icon' => '🐘',
         'account' => '@Avesmaps@rollenspiel.social',
-        'note' => '',
+        // 💣 DIE ERWARTUNG WIRD VORHER GESETZT, NICHT HINTERHER. Der Chip sagt nach dem Absenden
+        // „wartet auf Versand" -- aber wer anhakt und drückt, rechnet mit „sofort draußen" und hält
+        // die Verzögerung für einen Fehler. Dieser Kanal ist der einzige, der nicht direkt sendet
+        // (Feld `relay`), und genau das gehört in die Zeile, die man VOR dem Klick liest.
+        // ⚠️ Die 30 Minuten sind der Takt aus .github/workflows/mastodon-relais.yml. Wer den Takt
+        // ändert, ändert diesen Satz mit -- er ist die einzige Stelle, an der ein Mensch ihn liest.
+        'note' => 'Versand über GitHub, bis zu 30 Min.',
         'max_chars' => 500,
         'max_hashtags' => 4,
         'requires_media' => false,
