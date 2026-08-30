@@ -195,6 +195,13 @@ function resolveFeatureSourceList(entityType, entityPublicId) {
 			label: source.label || "",
 			official: Boolean(source.official),
 			type: source.type || "",
+			// 💣 Lizenz und Namensnennung gehoeren zur QUELLE, nicht zur Verknuepfung -- sie kommen
+			// aus dem Katalog, wie url/label/type. Sie fehlten hier vom 27.08. bis zum 30.08.2026,
+			// und weil auch der Serversammler sie nicht holte, war die CC-Angabe auf der ganzen
+			// Karte unsichtbar. Ein leerer Wert heisst "nicht erfasst" und rendert nichts
+			// (featureSourceLicenseText) -- nie "keine Lizenz".
+			license: source.license || "",
+			attribution: source.attribution || "",
 			pages: ref.pages || "",
 			reference_kind: ref.reference_kind || "",
 			note: ref.note || "",

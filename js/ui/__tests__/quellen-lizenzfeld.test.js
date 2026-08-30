@@ -174,4 +174,69 @@ assert.strictEqual(spalten, zellen, "die Vorlage nennt so viele Spalten wie die 
   + spalten + " gegen " + zellen);
 pruefungen += 3;
 
+// ---- H. DER WEG VON DER KARTENNUTZLAST BIS IN DIE INFOBOX -------------------------------------
+// 💣 DIESER ABSCHNITT IST DIE LUECKE, DIE DEN FEHLER DREI TAGE GETRAGEN HAT. Alles darueber prueft
+// den REINEN Renderer -- und der war von Anfang an richtig. Auf der Karte stand die Angabe
+// trotzdem nirgends, weil zwischen `sources` und dem Renderer zwei Stellen liegen, die die zwei
+// Felder einfach nicht weiterreichten: der Sammler der Nutzlast (jetzt
+// api/_internal/app/feature-sources.php, gewacht von quellen-lizenz-in-der-karte-test.php) und
+// resolveFeatureSourceList hier. Live gemessen am 30.08.2026: 0 von 1695 Katalogeintraegen der
+// Nutzlast trugen eine Lizenz.
+//
+// 🔴 Gefahren wird deshalb die ECHTE Kette: die zwei Funktionen aus popups.js, gefuettert mit
+// einem Katalog in der Form, die api/app/map-features.php wirklich ausliefert.
+const vm = require("vm");
+const popupsQuelle = fs.readFileSync(path.join(wurzel, "js", "ui", "popups.js"), "utf8");
+const kettenVon = popupsQuelle.indexOf("function resolveFeatureSourceList");
+const kettenBis = popupsQuelle.indexOf("function locationIconMarkup");
+assert.ok(kettenVon >= 0 && kettenBis > kettenVon, "die Quellenkette muss in popups.js auffindbar sein");
+const kette = {
+  console,
+  tr: (schluessel, deutsch) => deutsch,
+  WIKI_TEXT_LICENSE_URL: "https://creativecommons.org/licenses/by-sa/3.0/deed.de",
+  window: {
+    buildSourceListMarkup: markup.buildSourceListMarkup,
+    // So sieht der Katalog aus, den map-features.php liefert: die leeren Felder FEHLEN, sie
+    // stehen nicht als "" da.
+    __sourceCatalog: {
+      1322124: {
+        url: "https://www.garetien.de/index.php?title=Avesmaps_Garetien:Eupelmunder_Moor",
+        label: "Briefspiel (Garetien)", type: "briefspiel", official: false,
+        license: "cc-by-nc-sa-3.0", attribution: "VolkoV / garetien.de",
+      },
+      7: { url: "https://ulisses.example/gf", label: "Goldene Fluegel", type: "abenteuer", official: true },
+    },
+    __featureSourceRefs: {
+      "region:eupelmunder-moor": [{ source_id: 1322124 }],
+      "settlement:gareth": [{ source_id: 7 }],
+    },
+  },
+};
+kette.globalThis = kette;
+vm.createContext(kette);
+vm.runInContext(popupsQuelle.slice(kettenVon, kettenBis), kette, { filename: "popups.js" });
+
+const aufgeloest = kette.resolveFeatureSourceList("region", "eupelmunder-moor");
+assert.strictEqual(aufgeloest.length, 1);
+assert.strictEqual(aufgeloest[0].license, "cc-by-nc-sa-3.0",
+  "resolveFeatureSourceList muss die Lizenz aus dem Katalog durchreichen");
+assert.strictEqual(aufgeloest[0].attribution, "VolkoV / garetien.de",
+  "und die Namensnennung -- sie gehoert zur QUELLE, nicht zur Verknuepfung");
+pruefungen += 3;
+
+// Der gemeldete Fall, bis zum fertigen Markup: die Zeile der Infobox nennt beides.
+const zeile = kette.renderFeatureSourceLine("region", "eupelmunder-moor", "", "region-info-box__link");
+assert.ok(zeile.includes("Briefspiel (Garetien)"), "die Quelle steht in der Zeile");
+assert.ok(zeile.includes("VolkoV / garetien.de, CC BY-NC-SA 3.0"),
+  "und die CC-Angabe daneben -- ohne sie ist die Namensnennung nicht erfuellt, sondern nur "
+  + "unterlassen. Gerendert wurde: " + zeile);
+pruefungen += 2;
+
+// 🔴 Und eine Quelle OHNE die Felder bleibt still: leer heisst "nicht erfasst", nie "keine Lizenz".
+const ohneAngabe = kette.renderFeatureSourceLine("settlement", "gareth", "", "region-info-box__link");
+assert.ok(ohneAngabe.includes("Goldene Fluegel"), "sie wird trotzdem genannt");
+assert.ok(!ohneAngabe.includes("fs-src-lic--attrib"),
+  "aber ohne Lizenz-Fussnote -- eine leere Angabe behauptet nichts");
+pruefungen += 2;
+
 console.log("OK: " + pruefungen + " Pruefungen");

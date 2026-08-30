@@ -92,7 +92,16 @@ require_once __DIR__ . '/../_internal/app/map-features-cache.php';
 //    darueberlegte -- live gemessen 5,07 gegen 5,18 fuer die Reisegruppe zu Fuss auf der
 //    Reichsstrasse, 5,95 gegen 6,00 fuer den Flusssegler. Der Reiseplan zeigte damit rund 2 %
 //    kuerzere Zeiten als der Router gerechnet hat.
-const AVESMAPS_MAP_FEATURES_PAYLOAD_VERSION = 17;
+// 18 (2026-08-30): LIZENZ und NAMENSNENNUNG reisen im `source_catalog` mit. Die zwei Spalten
+//    kamen am 27.08.2026 an `sources`, aber nur der per-Objekt-Leser und der Quellen-Editor
+//    zeigten sie -- die KARTE liest ihre Quellen synchron aus dieser Nutzlast, und deren Sammler
+//    holte fuenf Spalten. Live gemessen: 0 von 1695 Katalogeintraegen trugen eine Lizenz, die
+//    Infobox eines garetien.de-Objekts verschwieg "CC BY-NC-SA 3.0 / VolkoV / garetien.de".
+//    💣 Der Bump ist hier zwingend und nicht Kosmetik: neue FELDER bewegen map_revision nicht,
+//    also bekaeme jeder warme Browser sein 304 samt alter Nutzlast und saehe die Angabe nie --
+//    dieselbe Falle wie beim Klimastempel und beim Wappen-Notaus. Und sie ist die Haelfte mit
+//    Rechtsfolge: CC verlangt Namensnennung UND Lizenzhinweis an jeder Kopie.
+const AVESMAPS_MAP_FEATURES_PAYLOAD_VERSION = 18;
 
 // 🔴 Fix-Runde 6 (15.08.2026): the coat-of-arms staging/model table constants AND the two loader/gate
 // functions that used to sit here (avesmapsLoadSettlementCoatGateInputs, avesmapsSettlementTerritoryCoatUrl)
@@ -100,26 +109,6 @@ const AVESMAPS_MAP_FEATURES_PAYLOAD_VERSION = 17;
 // AVESMAPS_COAT_GATE_MODEL_TABLE -- so the what-is-here "Liegt in" chain can share the exact same
 // implementation instead of a second one. Call sites below are unchanged (same function names).
 
-// Die entity_type, die die KARTE aufloest. renderFeatureSourceLine wird ausschliesslich mit
-// diesen fuenf aufgerufen (map-features-labels.js, -location-marker-entry.js, -path-rendering.js,
-// -powerlines.js, -region-info-markup.js, popups.js) -- alles andere laege im Payload, ohne dass
-// es je jemand nachschlaegt. Gelesen von avesmapsLoadFeatureSourceRefs (weiter unten).
-//
-// 💣 STEHT HIER OBEN, NICHT BEI DER FUNKTION. PHP hoistet Funktionsdefinitionen, aber KEINE
-// const auf Dateiebene: eine Konstante entsteht erst, wenn die Zeile ausgefuehrt wird. Der
-// try-Block darunter laeuft aber vorher durch und endet in avesmapsMapFeaturesRespond() + exit,
-// sodass eine weiter unten stehende Zeile nie erreicht wird. Genau das hat den Endpunkt am
-// 2026-07-28 mit HTTP 500 lahmgelegt -- `php -l` findet es nicht, es ist kein Syntaxfehler.
-//
-// 'lore' gehoert NICHT dazu, und das ist der teure Teil: Vorkommen (Flora/Fauna/Waren) sind
-// keine Kartenobjekte, sie haben ihren eigenen, seitenweise ladenden Endpunkt (api/app/lore.php,
-// 200 von ~35.000 Zeilen). Ihre Quellen machten dennoch 3,03 MB von 8,2 MB dieses Blocks aus --
-// 33.981 Referenzen ueber 5.087 Eintraege, allein "lore:ork" 19 KB. Wer hier einen Typ ergaenzt,
-// muss ihn auf der JS-Seite auch wirklich aufloesen.
-//
-// 'citymap' bleibt bewusst drin: 631 Referenzen / 0,04 MB, und der Karteneditor schreibt in
-// denselben Cache (review-feature-sources.js) -- der Gewinn waere Rauschen, das Risiko nicht.
-const AVESMAPS_MAP_FEATURES_SOURCE_ENTITY_TYPES = ['settlement', 'region', 'path', 'territory', 'powerline', 'citymap'];
 
 /**
  * Die Innerorts-Liste fuer den Payload (Name + Stadt je Objekt). Faellt sie aus -- fehlende
@@ -1125,86 +1114,6 @@ function avesmapsResolveSettlementPolitical(string $settlementName, array $prope
         'coat_url' => $leaf['coat_url'] ?? '',
         'hierarchy' => $hierarchy,
     ];
-}
-
-// Shared catalog of every source that is actually linked to at least one element with an approved
-// link: { <source_id> => {url,label,type,official} }. One collect-query (EXISTS), deduped to one row
-// per source so a source used by many elements is serialized once. Try/catch -> [] when the tables
-// do not exist yet (fresh DB): the hot map-features path never runs DDL (see AGENTS.md perf notes).
-function avesmapsLoadFeatureSourceCatalog(PDO $pdo): array {
-    try {
-        $statement = $pdo->query(
-            // Same clause as the refs below: a source whose only links hang on deleted elements is
-            // not in use and has no business in the shared catalog.
-            "SELECT s.id, s.url, s.label, s.source_type, s.is_official
-               FROM sources s
-              WHERE EXISTS (
-                    SELECT 1 FROM feature_sources fs
-                     WHERE fs.source_id = s.id AND fs.status = 'approved'"
-            . avesmapsFeatureSourceLiveEntityClause('fs') .
-            "  )"
-        );
-    } catch (Throwable $error) {
-        return [];
-    }
-    if ($statement === false) {
-        return [];
-    }
-    $catalog = [];
-    foreach ($statement->fetchAll(PDO::FETCH_ASSOC) as $row) {
-        $catalog[(int) $row['id']] = [
-            'url' => (string) $row['url'],
-            'label' => (string) $row['label'],
-            'type' => (string) $row['source_type'],
-            'official' => (int) $row['is_official'] === 1,
-        ];
-    }
-    return $catalog;
-}
-
-// Per-entity approved source references grouped in PHP (no N+1): { "<entity_type>:<public_id>" =>
-// [ {source_id[, reference_kind][, pages][, note]} ] }. Ordered official-first then insertion order
-// so buildSourceListMarkup keeps a stable within-group order. Null/empty detail fields are omitted
-// to keep the payload compact. Try/catch -> [] (tables or the Task-1 detail columns may be absent).
-function avesmapsLoadFeatureSourceRefs(PDO $pdo): array {
-    $placeholders = implode(', ', array_fill(0, count(AVESMAPS_MAP_FEATURES_SOURCE_ENTITY_TYPES), '?'));
-    try {
-        $statement = $pdo->prepare(
-            // 💣 The live-entity clause is what keeps a DELETED element from shipping its sources.
-            // The delete is soft, so the link outlives the element -- 216 elements with 4.714 links
-            // on 2026-08-05. This is THE public path: sources travel in this payload, there is no
-            // per-popup fetch any more. Cost is one unique-key lookup per link.
-            "SELECT fs.entity_type, fs.entity_public_id, fs.source_id, fs.reference_kind, fs.pages, fs.note
-               FROM feature_sources fs
-               JOIN sources s ON s.id = fs.source_id
-              WHERE fs.status = 'approved'
-                AND fs.entity_type IN (" . $placeholders . ")"
-            . avesmapsFeatureSourceLiveEntityClause('fs') .
-            " ORDER BY fs.entity_type, fs.entity_public_id, s.is_official DESC, s.created_at ASC, s.id ASC"
-        );
-        $statement->execute(AVESMAPS_MAP_FEATURES_SOURCE_ENTITY_TYPES);
-    } catch (Throwable $error) {
-        return [];
-    }
-    if ($statement === false) {
-        return [];
-    }
-    $refs = [];
-    foreach ($statement->fetchAll(PDO::FETCH_ASSOC) as $row) {
-        $key = (string) $row['entity_type'] . ':' . (string) $row['entity_public_id'];
-        $ref = ['source_id' => (int) $row['source_id']];
-        if (($row['reference_kind'] ?? '') !== '') {
-            $ref['reference_kind'] = (string) $row['reference_kind'];
-        }
-        if (($row['pages'] ?? '') !== '') {
-            $ref['pages'] = (string) $row['pages'];
-        }
-        if (($row['note'] ?? '') !== '') {
-            $ref['note'] = (string) $row['note'];
-        }
-        $refs[$key][] = $ref;
-    }
-    return $refs;
 }
 
 // Fix #2 parity: settlement/region/path elements can still carry a legacy single

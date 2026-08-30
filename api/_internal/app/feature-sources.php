@@ -1312,3 +1312,154 @@ function avesmapsSearchSourceCatalog(PDO $pdo, string $query, int $limit): array
         'uses' => $uses[(int) $row['id']] ?? 0,
     ], $rows);
 }
+
+// ---------------------------------------------------------------------------------------------
+// DIE ZWEI SAMMLER DER KARTENNUTZLAST. Bis zum 30.08.2026 standen sie in api/app/map-features.php
+// -- also in einer ENDPUNKTdatei, die sich nicht einbinden laesst, ohne die ganze Kartenantwort
+// auszufuehren. Damit war der einzige Erzeuger der oeffentlichen Quellenliste der einzige, den
+// kein Test je ausgefuehrt hat, und genau dort fehlte die Lizenz vier Tage lang unbemerkt.
+// Sie gehoeren ohnehin hierher: beide rufen avesmapsFeatureSourceLiveEntityClause, und der
+// per-Objekt-Leser darueber (avesmapsReadFeatureSources) ist ihr Geschwister.
+// ⚠️ Der Umzug hat die Konstante mitgenommen -- sie hatte NUR diese zwei Leser. Ihre alte
+// Warnung ("steht oben im Endpunkt, weil PHP const nicht hoistet") ist damit erledigt: eine
+// require_once-Bibliothek wird ganz ausgefuehrt, bevor der Endpunkt seine erste Zeile tut.
+// ---------------------------------------------------------------------------------------------
+
+// Die entity_type, die die KARTE aufloest. renderFeatureSourceLine wird ausschliesslich mit
+// diesen fuenf aufgerufen (map-features-labels.js, -location-marker-entry.js, -path-rendering.js,
+// -powerlines.js, -region-info-markup.js, popups.js) -- alles andere laege im Payload, ohne dass
+// es je jemand nachschlaegt. Gelesen von avesmapsLoadFeatureSourceRefs (weiter unten).
+//
+// 🪤 HIER STAND "STEHT HIER OBEN, NICHT BEI DER FUNKTION" -- die Warnung, dass PHP zwar
+// Funktionen hoistet, aber KEINE const auf Dateiebene, und dass der try-Block des Endpunkts
+// vorher in avesmapsMapFeaturesRespond() + exit endet (HTTP 500 am 2026-07-28, `php -l` findet
+// es nicht). Sie galt der ENDPUNKTdatei. Hier ist sie erledigt: eine require_once-Bibliothek
+// wird ganz ausgefuehrt, bevor der Endpunkt seine erste Zeile tut. Der Satz bleibt als Merkposten
+// stehen, weil er fuer jede Konstante gilt, die jemand nach api/app/*.php zurueckschiebt.
+//
+// 'lore' gehoert NICHT dazu, und das ist der teure Teil: Vorkommen (Flora/Fauna/Waren) sind
+// keine Kartenobjekte, sie haben ihren eigenen, seitenweise ladenden Endpunkt (api/app/lore.php,
+// 200 von ~35.000 Zeilen). Ihre Quellen machten dennoch 3,03 MB von 8,2 MB dieses Blocks aus --
+// 33.981 Referenzen ueber 5.087 Eintraege, allein "lore:ork" 19 KB. Wer hier einen Typ ergaenzt,
+// muss ihn auf der JS-Seite auch wirklich aufloesen.
+//
+// 'citymap' bleibt bewusst drin: 631 Referenzen / 0,04 MB, und der Karteneditor schreibt in
+// denselben Cache (review-feature-sources.js) -- der Gewinn waere Rauschen, das Risiko nicht.
+const AVESMAPS_MAP_FEATURES_SOURCE_ENTITY_TYPES = ['settlement', 'region', 'path', 'territory', 'powerline', 'citymap'];
+
+// Shared catalog of every source that is actually linked to at least one element with an approved
+// link: { <source_id> => {url,label,type,official[,license][,attribution]} }. One collect-query
+// (EXISTS), deduped to one row per source so a source used by many elements is serialized once.
+//
+// 💣 LIZENZ UND NAMENSNENNUNG FEHLTEN HIER VIER TAGE LANG, UND DAS IST DIE HAELFTE MIT RECHTSFOLGE.
+// Die zwei Spalten kamen am 27.08.2026 an `sources` (0c00f191, Owner: "quellen fehlt das
+// lizenz-feld"), samt Anzeige im Quellen-Editor und im per-Objekt-Leser avesmapsReadFeatureSources
+// darueber. Die KARTE liest ihre Quellen aber nicht ueber diesen Leser, sondern synchron aus der
+// Nutzlast -- und dieser Sammler holte fuenf Spalten. Live gemessen am 30.08.2026: 0 von 1695
+// Katalogeintraegen trugen eine Lizenz, die Infobox eines garetien.de-Objekts sagte nur "Quelle:
+// Briefspiel (Garetien)" und verschwieg "CC BY-NC-SA 3.0 / VolkoV / garetien.de". CC verlangt
+// beides an JEDER Kopie. Zwei Erzeuger derselben Quellenliste, und nur einer trug die Angabe --
+// eine Regel, die einen von zweien bindet, ist keine Regel.
+//
+// 💣 UND SIE ERREICHT KEINEN WARMEN BROWSER OHNE EINEN STEMPEL. Der ETag haengt an
+// map_revision + AVESMAPS_MAP_FEATURES_PAYLOAD_VERSION; neue FELDER bewegen die Revision nicht.
+// Ohne den Versionssprung bekaeme jeder Wiederbesucher sein 304 samt alter Nutzlast -- dieselbe
+// Falle wie beim Klimastempel, den Tempowerten und dem Wappen-Notaus (AGENTS.md §10).
+//
+// ⚠️ LEER HEISST "NICHT ERFASST", NIE "KEINE LIZENZ" (AGENTS.md §11) -- ein leeres Feld wird
+// deshalb WEGGELASSEN statt als "" mitgeschickt: 1694 der 1695 Quellen starten leer, und der
+// Renderer zeigt fuer beides nichts. Das haelt die Nutzlast klein und trifft dieselbe Aussage.
+//
+// ⚠️ ZWEI ANLAEUFE, weil dieser Pfad KEIN DDL fahren darf (er ist die heisse Kartenantwort). Auf
+// einer Datenbank ohne die zwei Spalten wuerde die Abfrage werfen -- und der Rueckfall des
+// try-Blocks ist ein LEERER Katalog, also KEINE einzige Quelle mehr auf der ganzen Karte. Der
+// zweite Anlauf ohne die Spalten faellt in die richtige Richtung: Quellen ohne Lizenzangabe.
+function avesmapsLoadFeatureSourceCatalog(PDO $pdo): array {
+    $abfrage = static function (string $spalten): string {
+        return "SELECT s.id, s.url, s.label, s.source_type, s.is_official" . $spalten . "
+               FROM sources s
+              WHERE EXISTS (
+                    SELECT 1 FROM feature_sources fs
+                     WHERE fs.source_id = s.id AND fs.status = 'approved'"
+            . avesmapsFeatureSourceLiveEntityClause('fs') . "  )";
+    };
+    $statement = false;
+    try {
+        // Same clause as the refs below: a source whose only links hang on deleted elements is
+        // not in use and has no business in the shared catalog.
+        $statement = $pdo->query($abfrage(", s.license, s.attribution"));
+    } catch (Throwable $error) {
+        try {
+            $statement = $pdo->query($abfrage(""));
+        } catch (Throwable $zweiter) {
+            return [];
+        }
+    }
+    if ($statement === false) {
+        return [];
+    }
+    $catalog = [];
+    foreach ($statement->fetchAll(PDO::FETCH_ASSOC) as $row) {
+        $eintrag = [
+            'url' => (string) $row['url'],
+            'label' => (string) $row['label'],
+            'type' => (string) $row['source_type'],
+            'official' => (int) $row['is_official'] === 1,
+        ];
+        $license = trim((string) ($row['license'] ?? ''));
+        $attribution = trim((string) ($row['attribution'] ?? ''));
+        if ($license !== '') {
+            $eintrag['license'] = $license;
+        }
+        if ($attribution !== '') {
+            $eintrag['attribution'] = $attribution;
+        }
+        $catalog[(int) $row['id']] = $eintrag;
+    }
+    return $catalog;
+}
+
+// Per-entity approved source references grouped in PHP (no N+1): { "<entity_type>:<public_id>" =>
+// [ {source_id[, reference_kind][, pages][, note]} ] }. Ordered official-first then insertion order
+// so buildSourceListMarkup keeps a stable within-group order. Null/empty detail fields are omitted
+// to keep the payload compact. Try/catch -> [] (tables or the Task-1 detail columns may be absent).
+function avesmapsLoadFeatureSourceRefs(PDO $pdo): array {
+    $placeholders = implode(', ', array_fill(0, count(AVESMAPS_MAP_FEATURES_SOURCE_ENTITY_TYPES), '?'));
+    try {
+        $statement = $pdo->prepare(
+            // 💣 The live-entity clause is what keeps a DELETED element from shipping its sources.
+            // The delete is soft, so the link outlives the element -- 216 elements with 4.714 links
+            // on 2026-08-05. This is THE public path: sources travel in this payload, there is no
+            // per-popup fetch any more. Cost is one unique-key lookup per link.
+            "SELECT fs.entity_type, fs.entity_public_id, fs.source_id, fs.reference_kind, fs.pages, fs.note
+               FROM feature_sources fs
+               JOIN sources s ON s.id = fs.source_id
+              WHERE fs.status = 'approved'
+                AND fs.entity_type IN (" . $placeholders . ")"
+            . avesmapsFeatureSourceLiveEntityClause('fs') .
+            " ORDER BY fs.entity_type, fs.entity_public_id, s.is_official DESC, s.created_at ASC, s.id ASC"
+        );
+        $statement->execute(AVESMAPS_MAP_FEATURES_SOURCE_ENTITY_TYPES);
+    } catch (Throwable $error) {
+        return [];
+    }
+    if ($statement === false) {
+        return [];
+    }
+    $refs = [];
+    foreach ($statement->fetchAll(PDO::FETCH_ASSOC) as $row) {
+        $key = (string) $row['entity_type'] . ':' . (string) $row['entity_public_id'];
+        $ref = ['source_id' => (int) $row['source_id']];
+        if (($row['reference_kind'] ?? '') !== '') {
+            $ref['reference_kind'] = (string) $row['reference_kind'];
+        }
+        if (($row['pages'] ?? '') !== '') {
+            $ref['pages'] = (string) $row['pages'];
+        }
+        if (($row['note'] ?? '') !== '') {
+            $ref['note'] = (string) $row['note'];
+        }
+        $refs[$key][] = $ref;
+    }
+    return $refs;
+}

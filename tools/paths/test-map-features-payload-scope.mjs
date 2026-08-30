@@ -14,26 +14,33 @@ import assert from "node:assert/strict";
 const here = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(here, "..", "..");
 const php = readFileSync(path.join(repoRoot, "api", "app", "map-features.php"), "utf8");
+// 🔴 Seit 30.08.2026 stehen die zwei Sammler und ihre Positivliste in der geteilten Bibliothek,
+// nicht mehr im Endpunkt: eine Endpunktdatei laesst sich nicht einbinden, ohne die ganze
+// Kartenantwort auszufuehren -- der einzige Erzeuger der oeffentlichen Quellenliste war damit der
+// einzige, den kein Test je AUSGEFUEHRT hat, und genau dort fehlte die Lizenzangabe unbemerkt.
+const lib = readFileSync(path.join(repoRoot, "api", "_internal", "app", "feature-sources.php"), "utf8");
 
 // --- 1. Welche entity_type liefert der Server aus? ---------------------------------------
-const listMatch = /const AVESMAPS_MAP_FEATURES_SOURCE_ENTITY_TYPES = \[([^\]]+)\]/.exec(php);
-assert.ok(listMatch, "die Positivliste der entity_type muss in map-features.php stehen");
+const listMatch = /const AVESMAPS_MAP_FEATURES_SOURCE_ENTITY_TYPES = \[([^\]]+)\]/.exec(lib);
+assert.ok(listMatch, "die Positivliste der entity_type muss in api/_internal/app/feature-sources.php stehen");
 const serverTypes = new Set([...listMatch[1].matchAll(/'([^']+)'/g)].map((m) => m[1]));
 
-// 💣 Die const MUSS vor ihrem ersten Aufrufer stehen. PHP hoistet Funktionsdefinitionen, aber
-// KEINE const auf Dateiebene -- sie entsteht erst, wenn ihre Zeile ausgefuehrt wird. Der
-// Endpunkt-Bootstrap ganz oben laeuft aber vorher durch und endet in
-// avesmapsMapFeaturesRespond() + exit, sodass eine weiter unten stehende Zeile nie erreicht
-// wird. Genau so ging der Endpunkt am 2026-07-28 mit HTTP 500 offline: die Konstante stand
-// bei der Funktion statt im Kopf. `php -l` sieht das nicht -- es ist kein Syntaxfehler.
-const posConst = php.indexOf("const AVESMAPS_MAP_FEATURES_SOURCE_ENTITY_TYPES");
-const posErsterAufruf = php.indexOf("avesmapsLoadFeatureSourceRefs($pdo)");
-assert.ok(posErsterAufruf > -1, "der Aufruf von avesmapsLoadFeatureSourceRefs muss auffindbar sein");
-assert.ok(
-	posConst < posErsterAufruf,
-	"AVESMAPS_MAP_FEATURES_SOURCE_ENTITY_TYPES steht NACH ihrem ersten Aufrufer -- zur Laufzeit "
-	+ "existiert sie dann nicht und der Endpunkt antwortet mit HTTP 500",
-);
+// 🪤 HIER STAND EINE ZUSICHERUNG, DIE MIT DEM UMZUG IHREN GEGENSTAND VERLOREN HAT: die const
+// musste im ENDPUNKT vor ihrem ersten Aufrufer stehen, weil PHP Funktionen hoistet, aber keine
+// const auf Dateiebene -- und der Bootstrap darueber endet in avesmapsMapFeaturesRespond() +
+// exit, sodass eine spaetere Zeile nie erreicht wird (HTTP 500 am 2026-07-28, `php -l` sieht es
+// nicht). In einer require_once-Bibliothek gibt es diese Reihenfolge nicht: sie wird ganz
+// ausgefuehrt, bevor der Endpunkt seine erste Zeile tut. Was BLEIBT, ist die eine Frage, die der
+// Umzug wirklich stellen kann -- steht die Liste in derselben Datei wie ihr Leser, und ruft der
+// Endpunkt den Sammler ueberhaupt noch?
+assert.ok(lib.indexOf("const AVESMAPS_MAP_FEATURES_SOURCE_ENTITY_TYPES") > -1
+	&& lib.indexOf("function avesmapsLoadFeatureSourceRefs") > -1,
+	"Liste und Leser gehoeren in DIESELBE Datei -- getrennt ist die Liste zur Laufzeit undefiniert");
+assert.ok(php.indexOf("avesmapsLoadFeatureSourceRefs($pdo)") > -1
+	&& php.indexOf("avesmapsLoadFeatureSourceCatalog($pdo)") > -1,
+	"der Endpunkt muss beide Sammler weiterhin rufen -- ein Umzug ohne Aufrufer waere lautlos");
+assert.ok(php.indexOf("function avesmapsLoadFeatureSourceRefs") === -1,
+	"und er darf sie nicht ein zweites Mal definieren (Redeklaration = Fatal mit leerem Rumpf)");
 
 // --- 2. Welche fragt das Frontend nach? --------------------------------------------------
 // Jeder Aufruf von renderFeatureSourceLine("<typ>", …) im ausgelieferten JS.
