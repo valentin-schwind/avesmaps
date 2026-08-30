@@ -105,15 +105,49 @@ assert(avesmapsAusgangIpAusText(str_repeat('1', 200)) === '', 'ein langer Rumpf 
 // 3. Die Ziele. 🔴 Fest, vollstaendig, und keines davon kommt aus einer Anfrage.
 // --------------------------------------------------------------------------------------------
 $ziele = avesmapsAusgangZiele();
-assert(array_keys($ziele) === ['ausgangs_ip', 'mastodon', 'kontrolle'], 'die drei Ziele stehen fest');
+assert(
+    array_keys($ziele) === ['ausgangs_ip', 'mastodon', 'mastodon_port80', 'kontrolle'],
+    'die vier Ziele stehen fest'
+);
 foreach ($ziele as $name => $ziel) {
-    assert(str_starts_with($ziel['url'], 'https://'), "{$name} wird ueber https abgefragt");
     assert(trim($ziel['zweck']) !== '', "{$name} sagt, wozu es da ist");
 }
 assert(
     str_contains($ziele['mastodon']['url'], 'rollenspiel.social'),
     'das kranke Ziel ist die Mastodon-Instanz selbst'
 );
+
+// 💣 `mastodon_port80` MUSS ueber http gehen -- das ist seine ganze Aufgabe. Wer ihn im Zuge einer
+// Aufraeumaktion auf https zieht („wir sprechen doch ueberall https"), macht ihn zur zweiten Kopie
+// des Ziels darueber, und die Antwort auf „ist die Adresse gesperrt oder nur der Dienst?" ist
+// lautlos verschwunden -- beide Zeilen sagen dann dasselbe.
+assert(
+    str_starts_with($ziele['mastodon_port80']['url'], 'http://'),
+    'der Port-80-Test geht ueber http, sonst misst er dasselbe wie das Ziel darueber'
+);
+assert(
+    parse_url($ziele['mastodon_port80']['url'], PHP_URL_HOST)
+        === parse_url($ziele['mastodon']['url'], PHP_URL_HOST),
+    'beide Mastodon-Ziele meinen denselben Wirt -- sonst vergleichen sie nichts'
+);
+foreach (['ausgangs_ip', 'mastodon', 'kontrolle'] as $name) {
+    assert(str_starts_with($ziele[$name]['url'], 'https://'), "{$name} wird ueber https abgefragt");
+}
+
+// Die Namensaufloesung: ohne Wirt gibt es nichts aufzuloesen. ⚠️ Mehr wird hier NICHT geprueft --
+// jede echte Abfrage waere ein netzabhaengiger Test, und davon hat das Feld schon einen, der
+// dauerhaft rot steht (linkcheck/link-url-test.php).
+assert(avesmapsAusgangAufloesung('') === [], 'ohne Adresse keine Aufloesung');
+assert(avesmapsAusgangAufloesung('kein-wirt') === [], 'ohne Wirt keine Aufloesung');
+
+// 💣 Die Aufloesung wird VOR dem Abruf geholt -- sie ist genau fuer den Fall da, in dem der Abruf
+// gleich scheitert. Stuende sie dahinter, fehlte sie ausgerechnet dann, wenn man sie braucht:
+// cURL laesst `primary_ip` bei einem Verbindungsabbruch leer (gemessen 30.08.2026).
+$sondeQuelleRoh = (string) file_get_contents(__DIR__ . '/../ausgang-sonde.php');
+$aufloesungBei = strpos($sondeQuelleRoh, "\$befund['aufgeloest_auf'] = avesmapsAusgangAufloesung");
+$abrufBei = strpos($sondeQuelleRoh, 'curl_exec(');
+assert(is_int($aufloesungBei) && is_int($abrufBei), 'Aufloesung und Abruf stehen in der Datei');
+assert($aufloesungBei < $abrufBei, 'die Namensaufloesung wird vor dem Abruf geholt');
 
 // 💣 Die tragende Zusicherung: der Quelltext nimmt KEINE Adresse aus der Anfrage entgegen.
 // ⚠️ Kommentare werden vorher entfernt -- sonst schlaegt der Test an der Warnung an, die vor

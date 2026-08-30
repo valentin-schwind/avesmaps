@@ -52,6 +52,15 @@ function avesmapsAusgangZiele(): array
             'url' => 'https://rollenspiel.social/api/v1/instance',
             'zweck' => 'Das Ziel, das seit dem 30.08.2026 nicht mehr antwortet.',
         ],
+        // 💣 DASSELBE ZIEL, ANDERER PORT -- und das ist kein Beifang, sondern die Frage, die
+        // entscheidet, WEM man schreibt. Bleibt auch Port 80 stumm, ist die ganze Adresse auf
+        // Paketebene gesperrt (Firewall des Hosters, IP-Sperrliste). Antwortet Port 80 dagegen,
+        // steht die Sperre nur vor dem Dienst auf 443 -- dann ist es eine bewusste Regel der
+        // Instanz und keine geerbte Sperrliste. Beide Faelle sehen im Adapter voellig gleich aus.
+        'mastodon_port80' => [
+            'url' => 'http://rollenspiel.social/',
+            'zweck' => 'Trennt „die Adresse ist gesperrt" von „nur der Dienst auf 443 ist zu".',
+        ],
         'kontrolle' => [
             'url' => 'https://graph.facebook.com/',
             'zweck' => 'Ein Ziel, das nachweislich geht -- trennt „unser Ausgang ist tot" von'
@@ -130,6 +139,34 @@ function avesmapsAusgangIpAusText(string $rumpf): string
 }
 
 /**
+ * Worauf loest DIESER Server den Namen auf?
+ *
+ * 💣 DIE FRAGE, DIE `primary_ip` OFFENLAESST. Kommt die Verbindung nicht zustande, laesst cURL
+ * `primary_ip` LEER -- gemessen am 30.08.2026, und genau im interessanten Fall. Damit bliebe die
+ * letzte Gegenhypothese unwiderlegt: dass unser Resolver auf eine veraltete oder falsche Adresse
+ * zeigt und die Gegenseite gar nichts dafuer kann. Wer das nicht misst, schickt jemanden zur
+ * fremden Administration wegen eines eigenen Fehlers.
+ *
+ * ⚠️ Gefragt wird der SYSTEM-Resolver (`gethostbynamel`) -- derselbe, den cURL benutzt. Ein
+ * eigener DNS-Weg beantwortete eine andere Frage als die, die hier gestellt ist.
+ *
+ * @return list<string>
+ */
+function avesmapsAusgangAufloesung(string $url): array
+{
+    $host = (string) parse_url($url, PHP_URL_HOST);
+    if ($host === '') {
+        return [];
+    }
+
+    $adressen = gethostbynamel($host);
+
+    // ⚠️ `gethostbynamel` gibt bei einem Fehlschlag `false` -- und `false` heisst „nicht
+    // aufgeloest", nicht „keine Adressen". Der Unterschied steht in der Phase, nicht hier.
+    return $adressen === false ? [] : array_values($adressen);
+}
+
+/**
  * Eine einzelne Sonde. Gibt IMMER einen Befund zurueck -- ein Fehlschlag ist hier ein Ergebnis,
  * keine Ausnahme.
  *
@@ -149,11 +186,18 @@ function avesmapsAusgangSonde(string $url, string $zweck): array
         // 💣 DIE ANGESTEUERTE ADRESSE IST EIN EIGENER BEFUND. Weicht sie von dem ab, was die Welt
         // aufloest, liegt die Ursache bei uns -- nicht bei der Gegenseite.
         'ziel_ip' => '',
+        // Was der Resolver dieses Servers hergibt -- unabhaengig davon, ob die Verbindung danach
+        // zustande kam. Genau diese Liste fehlt in `ziel_ip`, wenn es klemmt.
+        'aufgeloest_auf' => [],
         'dns_ms' => 0,
         'tcp_ms' => 0,
         'tls_ms' => 0,
         'gesamt_ms' => 0,
     ];
+
+    // ⚠️ VOR dem Abruf, und unabhaengig von ihm: die Auflistung soll auch dann dastehen, wenn die
+    // Verbindung gleich scheitert -- das ist der Fall, fuer den sie gedacht ist.
+    $befund['aufgeloest_auf'] = avesmapsAusgangAufloesung($url);
 
     if (!function_exists('curl_init')) {
         $befund['fehler'] = 'cURL steht auf diesem Server nicht zur Verfuegung.';
