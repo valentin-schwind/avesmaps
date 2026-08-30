@@ -131,6 +131,17 @@
 	// ZWEI Dateien, aus derselben Begründung wie oben -- und von demselben Test zusammengehalten.
 	const AVESMAPS_GARETIEN_FELD_GEWAEHLT = "gewaehlt";
 
+	/*
+	 * Der Name des globalen Hakens, ueber den der ZEICHNER einen Klick auf eine Form hierher meldet
+	 * (Owner 30.08.2026: „wenn sie auf ein zu importierendes objekt klicken koennten").
+	 *
+	 * 💣 GEKOPPELTER WERT IN ZWEI DATEIEN, wie die zwei Feldnamen darueber -- und aus demselben
+	 * Grund: der Zeichner darf dieses Fenster nicht voraussetzen, dieses Fenster nicht die Karte.
+	 * Liefe der Name auseinander, riefe der Zeichner ins Leere, und zwar STILL. Zusammengehalten
+	 * von js/review/__tests__/garetien-karte-klick.test.js.
+	 */
+	const AVESMAPS_GARETIEN_HAKEN_KLICK = "avesmapsGaretienKarteKlick";
+
 	// ---- Die Anzeige-Menge ------------------------------------------------------------------------
 	//
 	// 🔴 CLIENT-SEITIG, und das ist eine Bedingung, keine Bequemlichkeit: eine Server-Tabelle dafuer
@@ -3962,6 +3973,33 @@
 		return zustand.detailKey;
 	}
 
+	/*
+	 * Ein Klick auf ein Import-Objekt AUF DER KARTE (Owner 30.08.2026).
+	 *
+	 * 🔴 ER WAEHLT AUS, ER HAEKELT NICHT AN -- und der Owner hat ausdruecklich darum gebeten, das
+	 * nicht zu verwechseln. Der Unterschied ist keine Wortklauberei, die zwei tun Verschiedenes:
+	 *   · AUSGEWAEHLT (`detailKey`) ist reine Anzeige -- die Einzelansicht rechts, die durchgehende
+	 *     Kontur auf der Karte. Sie aendert nichts und wird nirgends weiterverwendet.
+	 *   · MARKIERT (`markiert`, das Haekchen) ist eine ENTSCHEIDUNG: sie speist „Markierte anzeigen"
+	 *     und die Sammelhandlungen, und der Editor findet sie spaeter wieder.
+	 * Ein Kartenklick, der nebenbei anhaekelt, macht aus einem BLICK eine Entscheidung, die niemand
+	 * getroffen hat -- und sie taucht in einer Sammelhandlung wieder auf, wo sie Schaden anrichtet.
+	 * Deshalb fasst diese Funktion `zustand.markiert` in KEINE Richtung an, auch nicht loeschend.
+	 *
+	 * ⭐ Sie ruft schlicht denselben Waehler wie ein Zeilenklick: Einzelansicht, `is-selected` an der
+	 * Zeile und die frisch gezeichnete Karte fallen dort von selbst ab. Ein eigener Weg waere eine
+	 * zweite Wahrheit darueber, was „gewaehlt" heisst.
+	 *
+	 * ⚠️ Ein unbekannter Schluessel faellt OFFEN aus: Anzeige-Menge und Kartendaten koennen
+	 * auseinanderlaufen (ein Objekt wurde eingefuegt und ist fort), und ein Wurf hier risse Leaflets
+	 * Ereigniskette fuer die ganze Karte mit -- nicht nur fuer diese eine Form.
+	 */
+	function avesmapsGaretienKarteKlickBehandeln(schluessel, objekte) {
+		if (schluessel === undefined || schluessel === null || schluessel === "") { return null; }
+		const liste = objekte || zustand.objekte || [];
+		return garetienDetailWaehlen(String(schluessel), liste);
+	}
+
 	// 🔴 Der Verteiler nimmt Ereignis UND Objektliste HEREIN -- dieselbe Bauform wie
 	// garetienLaufStarten (Aufgabe 12b), und aus demselben Grund: nur so lässt sich am ERGEBNIS
 	// messen, dass ein Klick auf das Häkchen die Ansicht NICHT umschaltet. Eine Zusicherung, die
@@ -5113,6 +5151,16 @@
 	}
 
 	if (typeof window !== "undefined") {
+		// 🔴 Der Haken, ueber den der ZEICHNER einen Klick auf eine Form hierher meldet
+		// (Owner 30.08.2026). Er wird beim Laden gesetzt und nie wieder abgemeldet: der Zeichner
+		// ruft ihn nur, wenn ueberhaupt Formen liegen, und die liegen nur, solange das Fenster sie
+		// zeigt. Ein An- und Abmelden je Fensteroeffnung waere ein zweiter Zustand, der mit dem
+		// ersten auseinanderlaufen kann.
+		// ⚠️ `||` statt harter Zuweisung: laedt diese Datei zweimal, bliebe sonst der zweite Haken
+		// stehen und der erste waere still fort -- dieselbe Doppelanmeldungs-Falle wie beim
+		// Sammelmenue im Menueband.
+		window[AVESMAPS_GARETIEN_HAKEN_KLICK] = window[AVESMAPS_GARETIEN_HAKEN_KLICK]
+			|| function (schluessel) { avesmapsGaretienKarteKlickBehandeln(schluessel, null); };
 		window.avesmapsGaretienImporter = {
 			oeffnen: avesmapsGaretienFensterOeffnen,
 			schliessen: avesmapsGaretienFensterSchliessen,
@@ -5139,6 +5187,9 @@
 			avesmapsGaretienNurIhreMerken,
 			AVESMAPS_GARETIEN_FELD_NUR_IHRE,
 			AVESMAPS_GARETIEN_FELD_GEWAEHLT,
+			AVESMAPS_GARETIEN_HAKEN_KLICK,
+			// Owner 30.08.2026: Klick auf der Karte -> Einzelansicht. Waehlt AUS, haekelt NICHT an.
+			avesmapsGaretienKarteKlickBehandeln,
 			avesmapsGaretienAnzeigeLeeren,
 			avesmapsGaretienAnzeigeListe,
 			avesmapsGaretienAnzeigeHat,

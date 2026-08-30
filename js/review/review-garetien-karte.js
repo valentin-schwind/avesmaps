@@ -810,6 +810,22 @@
 	 * 🔴 `interactive: true` — ohne das gibt es keinen Tooltip. Was das kostet, steht an
 	 * `garetienPaneSicherstellen` und an der Zeigerregel in css/components/garetien-importer.css.
 	 */
+	/*
+	 * Der Name des globalen Hakens, ueber den ein Klick auf eine Form dem IMPORTER gemeldet wird.
+	 *
+	 * 💣 GEKOPPELTER WERT IN ZWEI DATEIEN, wie die zwei Feldnamen daneben -- und aus demselben
+	 * Grund: der Zeichner darf das Fenster nicht voraussetzen (er wird im Test allein geladen),
+	 * das Fenster nicht die Karte (es laeuft auch auf Seiten ohne). Liefe der Name auseinander,
+	 * riefe der Zeichner ins Leere, und zwar STILL. Zusammengehalten von
+	 * js/review/__tests__/garetien-karte-klick.test.js, das beide Exporte gegeneinander haelt.
+	 *
+	 * 🔴 Die Meldung waehlt AUS (Einzelansicht), sie haekelt NICHT an. „Ausgewaehlt" und
+	 * „markiert" sind im Importer zwei verschiedene Dinge, und ein Blick darf keine Entscheidung
+	 * treffen, die der Editor spaeter in einer Sammelhandlung wiederfindet (Owner 30.08.2026).
+	 * Was daraus wird, entscheidet allein der Importer -- der Zeichner meldet nur den Schluessel.
+	 */
+	var AVESMAPS_GARETIEN_HAKEN_KLICK = "avesmapsGaretienKarteKlick";
+
 	function garetienForm(l, punkte, opt) {
 		var basis = {
 			pane: opt.pane,
@@ -857,6 +873,17 @@
 				? l.polygon
 				: l.polyline;
 			ebene = bauer(punkte, basis);
+		}
+		// 🔴 Der Klick meldet den Schluessel -- mehr nicht. Der Zeichner weiss nicht, was der
+		// Importer daraus macht, und darf es nicht wissen.
+		// ⚠️ `typeof === "function"` auf BEIDEN Seiten: das Fenster kann geschlossen oder gar nicht
+		// geladen sein, und ein Wurf im Klick-Handler risse Leaflets Ereigniskette fuer die GANZE
+		// Karte mit -- nicht nur fuer diese eine Form.
+		if (ebene && opt.schluessel && typeof ebene.on === "function") {
+			ebene.on("click", function () {
+				var haken = (typeof window !== "undefined") ? window[AVESMAPS_GARETIEN_HAKEN_KLICK] : null;
+				if (typeof haken === "function") { haken(opt.schluessel); }
+			});
 		}
 		if (ebene && opt.titel && typeof ebene.bindTooltip === "function") {
 			// `sticky` laesst den Tooltip dem Zeiger folgen -- an einer langen Flusslinie stuende er
@@ -922,6 +949,10 @@
 				if (punkte.length === 0) { garetienGeometrieFehlt(objekt, publicId); return; }
 				unsere.push({
 					punkte: punkte,
+					// Der Schluessel reist mit, damit ein Klick auf die Form sagen kann, WELCHES
+					// Objekt getroffen wurde. Ihre und unsere Form tragen denselben -- es ist
+					// dasselbe Stueck, nur zweimal gezeichnet.
+					schluessel: objekt && objekt.key,
 					titel: garetienTitelUnsere(objekt, publicId),
 					// 🔴 Eine Flaeche nur dann als Flaeche, wenn ihre Gestalt das hergibt -- siehe
 					// garetienFlaecheZeichenbar (verschachtelt: immer; flach: nur als echter Ring).
@@ -950,6 +981,7 @@
 				flaeche: false,
 				strichelung: null,
 				titel: eintrag.titel,
+				schluessel: eintrag.schluessel,
 				// Derselbe Durchmesser wie die Form (siehe garetienForm) -- sonst liegt der Schein
 				// eines Punktobjekts neben statt um seinen Ring.
 				durchmesser: eintrag.durchmesser,
@@ -968,6 +1000,7 @@
 				flaeche: eintrag.flaeche,
 				strichelung: null,
 				titel: eintrag.titel,
+				schluessel: eintrag.schluessel,
 				durchmesser: eintrag.durchmesser,
 				fuellwert: eintrag.deckkraft,
 			});
@@ -998,6 +1031,7 @@
 			}
 			ihre.push({
 				punkte: punkte,
+				schluessel: objekt && objekt.key,
 				titel: garetienTitelIhre(objekt),
 				flaeche: sicht.form === "flaeche",
 				farbe: farbe,
@@ -1027,6 +1061,7 @@
 				flaeche: false,
 				strichelung: null,
 				titel: eintrag.titel,
+				schluessel: eintrag.schluessel,
 				// Derselbe Durchmesser wie die Form -- siehe der Kommentar bei „unsere" oben.
 				durchmesser: eintrag.durchmesser,
 			});
@@ -1056,6 +1091,7 @@
 				flaeche: eintrag.flaeche,
 				strichelung: eintrag.gewaehlt ? null : AVESMAPS_GARETIEN_STRICHELUNG,
 				titel: eintrag.titel,
+				schluessel: eintrag.schluessel,
 				durchmesser: eintrag.durchmesser,
 				fuellwert: eintrag.deckkraft,
 			});
@@ -1211,6 +1247,7 @@
 		// Kein Sammelobjekt: review-garetien-importer.js fragt jeden einzeln ab und bleibt damit
 		// ohne diese Datei lauffaehig — der Importer laeuft auch auf Seiten ohne Karte.
 		window.avesmapsGaretienKarteZeigen = avesmapsGaretienKarteZeigen;
+		window.AVESMAPS_GARETIEN_HAKEN_KLICK = AVESMAPS_GARETIEN_HAKEN_KLICK;
 		window.avesmapsGaretienKarteFliegen = avesmapsGaretienKarteFliegen;
 		window.avesmapsGaretienKarteAlleZentrieren = avesmapsGaretienKarteAlleZentrieren;
 		window.avesmapsGaretienKarteAus = avesmapsGaretienKarteAus;
@@ -1234,6 +1271,7 @@
 			garetienTitelIhre,
 			garetienTitelUnsere,
 			avesmapsGaretienKarteZeigen,
+			AVESMAPS_GARETIEN_HAKEN_KLICK,
 			avesmapsGaretienKarteFliegen,
 			avesmapsGaretienKarteAlleZentrieren,
 			avesmapsGaretienKarteSicht,
