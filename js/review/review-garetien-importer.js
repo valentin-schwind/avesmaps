@@ -319,6 +319,8 @@
 		garetienUebernahmeKnopfSetzen(avesmapsGaretienAnzeigeListe());
 		// Aufgabe 10: ohne Lauf gibt es auch keine gerenderte Zeile -- und damit nichts zu markieren.
 		garetienAlleMarkierenKnopfSetzen([]);
+		// Meldung C (30.08.2026): ohne Lauf gibt es auch nichts Markiertes zurückzunehmen.
+		garetienRuecknahmeMengeKnopfSetzen([]);
 	}
 
 	// Der Füllvorgang beim Öffnen, mit seinen Werkzeugen herein -- aus demselben Grund wie bei
@@ -870,6 +872,9 @@
 		// Aufgabe 10: „Alle markieren" traegt dagegen die Zahl der GERENDERTEN Zeilen -- `objekte`
 		// ist genau die aktuelle (gefilterte, gedeckelte) Ansicht, nicht die Anzeige-Menge.
 		garetienAlleMarkierenKnopfSetzen(objekte);
+		// Meldung C (30.08.2026): „Markierte zurücknehmen" -- dieselbe gerenderte Liste, gefiltert
+		// auf `zustand.markiert` UND den Reiter „Übernommen" (innerhalb der Funktion selbst).
+		garetienRuecknahmeMengeKnopfSetzen(objekte);
 
 		// Aufgabe 13: die Auswahl ueberlebt einen Listenlauf -- aber nur, solange ihre Zeile in der
 		// Ansicht steht. Faellt sie durch Filter oder Reiter heraus, faellt auch die Auswahl: eine
@@ -2871,6 +2876,187 @@
 		return senden(item.id, runId);
 	}
 
+	// ---- Meldung C (30.08.2026): „Markierte zurücknehmen" -- das Gegenstück zu „Alle angezeigten
+	// einfügen" auf der ANDEREN Seite des Fensters -----------------------------------------------
+	//
+	// 🔴 Owner: „zurücknehmen ist da, aber nicht 'Alle markieren zurücknehmen'". Die Menge fehlte --
+	// nur die EINZELNE Rücknahme gab es (oben).
+	//
+	// 🔴 ER WIRKT AUF DIE MARKIERTEN, NICHT DIE ANZEIGE-MENGE -- symmetrisch zu „Markierte anzeigen"
+	// (`avesmapsGaretienMarkierteAnzeigen`), das ebenfalls die gerenderte Liste gegen
+	// `zustand.markiert` filtert. „Alle markieren" ist der vom Owner genannte Weg dorthin.
+	// 🔴 UND ER STEHT NUR AUF DEM REITER „ÜBERNOMMEN": in den drei anderen gibt es nichts
+	// zurückzunehmen (dort trägt ein Objekt gar kein 'new'+'done'-Item). Der Knopf bleibt trotzdem
+	// immer gerendert -- dieselbe Hausform wie „Alle markieren" auf dem Reiter „Anzeigen": gesperrt,
+	// mit einem sichtbaren Grund, NIE nur in einem `title` (ein deaktiviertes Element bekommt in
+	// Chrome keine Zeigerereignisse, sein Tooltip erscheint also nie).
+	//
+	// ⚠️ `n von m`: m = markierte Objekte DIESES Reiters, n = davon wirklich rücknehmbar --
+	// `garetienRuecknahmeItem` ist die EINZIGE Prüfung dafür (keine zweite Rechnung, dieselbe Regel
+	// wie an der Einzelzeile, `garetienRuecknahmeBauen"). Ein 'changed'-Objekt (verändert ein
+	// bestehendes Objekt von uns) zählt zu m, nie zu n -- Owner-Entscheid 1 aus Aufgabe 9.
+	function garetienRuecknahmeMengeZustand(objekte, stand) {
+		const falscherReiter = stand !== "uebernommen";
+		const markierte = (objekte || []).filter(function (o) {
+			return o && zustand.markiert.has(String(o.key));
+		});
+		const paare = [];
+		markierte.forEach(function (o) {
+			const item = garetienRuecknahmeItem(o);
+			if (item) { paare.push({ objekt: o, item: item }); }
+		});
+		let hinweis = "";
+		if (falscherReiter) {
+			hinweis = "Nur im Reiter „Übernommen“ verfügbar.";
+		} else if (markierte.length === 0) {
+			hinweis = "Nichts markiert — „Alle markieren“ markiert die Zeilen dieser Liste.";
+		} else if (paare.length === 0) {
+			hinweis = "Keines der markierten Objekte lässt sich zurücknehmen — sie haben ein "
+				+ "bestehendes Objekt verändert.";
+		}
+		return {
+			markiert: markierte.length,
+			ruecknehmbar: paare.length,
+			// Die OBJEKTE (nicht nur ihre Item-ids) -- die Rückfrage zählt daran Wege gegen Flächen.
+			objekte: paare.map(function (p) { return p.objekt; }),
+			ids: paare.map(function (p) { return Number(p.item.id); }),
+			beschriftung: "Markierte zurücknehmen (" + paare.length + " von " + markierte.length + ")",
+			gesperrt: falscherReiter || paare.length === 0,
+			hinweis: hinweis,
+		};
+	}
+
+	// Die DOM-Hälfte dazu -- dieselbe Aufteilung wie beim Fußknopf (garetienUebernahmeKnopfSetzen)
+	// und bei „Alle markieren" (garetienAlleMarkierenKnopfSetzen): Knopf und Hinweis werden an EINER
+	// Stelle gesetzt, damit sie nie auseinanderlaufen.
+	function garetienRuecknahmeMengeKnopfSetzen(objekte) {
+		if (!hasDocument) { return null; }
+		const stand = garetienRuecknahmeMengeZustand(objekte, zustand.stand);
+		const knopf = document.getElementById("garetien-ruecknahme-markierte");
+		if (knopf) {
+			knopf.textContent = stand.beschriftung;
+			knopf.disabled = stand.gesperrt;
+		}
+		const hinweisEl = document.getElementById("garetien-ruecknahme-markierte-hint");
+		if (hinweisEl) {
+			hinweisEl.textContent = stand.hinweis;
+			hinweisEl.hidden = stand.hinweis === "";
+		}
+		return stand;
+	}
+
+	// REIN: die Rückfrage vor der MENGEN-Rücknahme -- sie nennt die Zahl und sagt, was verschwindet
+	// (Auftrag), und dass spätere Bearbeitungen mitgehen (Owner-Entscheid 2 aus Aufgabe 9, gilt hier
+	// unverändert). Bei einer Fläche verschwinden DREI Zeilen (Beschriftung, Landschaftsregion,
+	// Fläche) -- derselbe Maßstab wie `garetienRuecknahmeRueckfrageText` für EIN Objekt, hier nur
+	// GEZÄHLT statt benannt: bei Dutzenden Namen wäre ein Fließtext keine Warnung mehr, sondern eine
+	// Wand.
+	function garetienRuecknahmeMengeRueckfrageText(objekte) {
+		const liste = objekte || [];
+		const flaechen = liste.filter(function (o) {
+			return String((o && o.geometrie_typ) || "") === "Polygon";
+		}).length;
+		const wege = liste.length - flaechen;
+		const teile = [];
+		if (wege > 0) { teile.push(garetienAnzahlText(wege, "Kartenobjekt", "Kartenobjekte")); }
+		if (flaechen > 0) {
+			teile.push(garetienAnzahlText(flaechen, "Fläche", "Flächen")
+				+ " (jeweils mit Beschriftung und Landschaftsregion)");
+		}
+		const was = teile.length > 0
+			? teile.join(" und ")
+			: garetienAnzahlText(liste.length, "Objekt", "Objekte");
+
+		return was + " werden aus unserer Karte entfernt, einschließlich aller Änderungen, die "
+			+ "seither daran vorgenommen wurden.\n\n"
+			+ "Sie fallen danach zurück nach „Offen“. Fortfahren?";
+	}
+
+	// REIN EIN SCHRITT: eine id zurücknehmen, und PRÜFEN statt VERTRAUEN.
+	//
+	// 💣 EIN FEHLSCHLAG STEHT IM `ok:true`-RUMPF, NICHT ALS WURF. Der Server
+	// (avesmapsGaretienRuecknahmeAusfuehren) antwortet mit HTTP 200 und
+	// `{zurueckgenommen:0, fehler:[{item,grund}]}`, wenn GENAU DIESES Item nicht zurückging (ein
+	// zwischenzeitlich verändertes Item, ein von außen bereits gelöschtes Objekt) -- UND verarbeitet
+	// dabei, anders als „Einfügen", nie mehr als die eine id, die wir schicken. `rufe()` wirft also
+	// nicht von selbst; dieser Schritt prüft die Antwort und wirft MANUELL, mit der Zahl der SCHON
+	// zurückgenommenen davor (Auftrag: „er muss sagen, wie viele schon zurückgenommen sind" -- ein
+	// Fehler mittendrin darf nie als Erfolg durchgehen).
+	function garetienRuecknahmeMengeSchritt(id, runId, rufe, zaehler, fortschritt) {
+		return rufe(GARETIEN_ENDPUNKT, { action: "ruecknahme", run_id: runId, ids: [id] })
+			.then(function (antwort) {
+				const fehlerZeile = (antwort && antwort.fehler && antwort.fehler[0]) || null;
+				if (!antwort || Number(antwort.zurueckgenommen) !== 1 || fehlerZeile) {
+					throw new Error(
+						"Zurücknehmen angehalten nach " + zaehler.fertig + " von " + zaehler.gesamt
+						+ " — " + (fehlerZeile ? fehlerZeile.grund
+							: "der Server meldet keinen Erfolg für dieses Objekt") + "."
+					);
+				}
+				zaehler.fertig++;
+				if (typeof fortschritt === "function") { fortschritt(zaehler.fertig, zaehler.gesamt); }
+			});
+	}
+
+	// 🔴 GEHT PER ITEM, NIE ALS EIN SAMMELRUF. `avesmapsGaretienRuecknahmeAusfuehren` verarbeitet
+	// eine ganze id-Liste in EINEM PHP-Lauf und läuft nach einem Fehlschlag bei EINEM Item WEITER
+	// (eigener try/catch je Item dort) -- ein Sammelruf könnte den Lauf also nie „anhalten". Ein Ruf
+	// je id, SEQUENZIELL über `garetienKetteAbarbeiten` (dasselbe Rückgrat wie die Häppchen-Kette
+	// bei „Einfügen"), erfüllt „hält an" wirklich: die Kette wirft, sobald EIN Item scheitert, und
+	// der nächste Ruf startet dann gar nicht erst.
+	function garetienRuecknahmeMengeAusfuehren(ids, runId, rufe, fortschritt) {
+		const sauber = (ids || []).map(Number).filter(function (id) { return id > 0; });
+		const zaehler = { fertig: 0, gesamt: sauber.length };
+		if (typeof fortschritt === "function") { fortschritt(0, zaehler.gesamt); }
+		return garetienKetteAbarbeiten(sauber, function (id) {
+			return garetienRuecknahmeMengeSchritt(id, runId, rufe, zaehler, fortschritt);
+		}).then(function () { return zaehler.fertig; });
+	}
+
+	// 💣 DER RIEGEL IST EIN MODULZUSTAND, nicht nur `knopf.disabled` -- dieselbe Regel wie
+	// `garetienEinfuegenLaeuft`: ein am Attribut gelesener Riegel wirkt nicht, weil das Attribut
+	// erst im nächsten Bild steht (AGENTS.md §11).
+	let garetienRuecknahmeMengeLaeuft = false;
+
+	// Die DOM-Hälfte des Mengen-Knopfes -- dieselbe Form wie `garetienFussknopfEinfuegenKlick`
+	// (das Vorbild, Auftrag): sperrt sich SOFORT, trägt ihren Fortschritt IM Knopf, holt die Liste
+	// GENAU EINMAL neu, am Ende (nie in der Schleife -- AGENTS.md: STRATO nie mit einer Schleife auf
+	// einen teuren Endpunkt treffen).
+	//
+	// 🔴 OHNE BESTÄTIGUNG PASSIERT NICHTS -- `fragen` liefert ohne `window.confirm` `false`
+	// (`garetienFragen`), das ist Absicht (dieselbe Regel wie bei der Einzel-Rücknahme).
+	function garetienRuecknahmeMengeKlick(runId, fragen) {
+		if (garetienRuecknahmeMengeLaeuft) { return Promise.resolve(null); }
+		const stand = garetienRuecknahmeMengeZustand(zustand.objekte, zustand.stand);
+		if (stand.gesperrt) { return Promise.resolve(null); }
+		if (typeof fragen === "function"
+			&& !fragen(garetienRuecknahmeMengeRueckfrageText(stand.objekte))) {
+			return Promise.resolve(null);
+		}
+
+		garetienRuecknahmeMengeLaeuft = true;
+		const knopf = hasDocument ? document.getElementById("garetien-ruecknahme-markierte") : null;
+		if (knopf) { knopf.disabled = true; }
+		function fortschritt(fertig, gesamt) {
+			if (!knopf) { return; }
+			knopf.textContent = gesamt > 0
+				? "Nimmt zurück … " + fertig + " von " + gesamt
+				: "Nimmt zurück …";
+		}
+		return garetienRuecknahmeMengeAusfuehren(stand.ids, runId, avesmapsGaretienRufe, fortschritt)
+			.then(function () { return avesmapsGaretienListeHolen(); })
+			.then(function (ergebnis) {
+				garetienRuecknahmeMengeLaeuft = false;
+				return ergebnis;
+			})
+			.catch(function (fehler) {
+				garetienRuecknahmeMengeLaeuft = false;
+				garetienListeFehlerZeigen(fehler);
+				garetienRuecknahmeMengeKnopfSetzen(zustand.objekte);
+				return null;
+			});
+	}
+
 	// Der Häkchen-Wechsel -- für die Listenzeile UND die Abschnittszeile. Beide tragen ihren
 	// `data-key` selbst; die Abschnittszeile zusätzlich ihr `data-seg`.
 	//
@@ -3043,6 +3229,21 @@
 		return haeppchen;
 	}
 
+	// REIN: eine Liste von „Einheiten" GENAU EINE NACH DER ANDEREN abarbeiten -- nie parallel
+	// (AGENTS.md: STRATO nie mit mehreren gleichzeitigen Aufrufen treffen). Das gemeinsame
+	// Rueckgrat von „Einfuegen" (Haeppchen zu 200 fuer `select`, weiter unten) und „Markierte
+	// zuruecknehmen" (Meldung C, 30.08.2026: je EINE id, damit ein Fehlschlag die Kette dort
+	// anhaelt, wo er auftritt).
+	// ⚠️ Mehr laesst sich nicht teilen: die zwei Aufrufer haengen an VERSCHIEDENEN Endpunkten mit
+	// VERSCHIEDENER Fehlererkennung -- „Einfuegen" laesst `rufe()` selbst werfen, „Zuruecknehmen"
+	// bekommt einen Fehlschlag als `ok:true`-Rumpf zurueck und muss ihn selbst pruefen (siehe dort).
+	// „eine Kette nie parallel abarbeiten" ist an beiden Stellen trotzdem wortgleich derselbe Code.
+	function garetienKetteAbarbeiten(einheiten, schritt) {
+		return (einheiten || []).reduce(function (kette, einheit) {
+			return kette.then(function () { return schritt(einheit); });
+		}, Promise.resolve());
+	}
+
 	// ---- Aufgabe 8: „Neu einfügen" und „Alle angezeigten einfügen" schreiben WIRKLICH --------------
 	// Brief: .superpowers/sdd/2026-08-29-garetien-importer-sichtwerkzeug/task-8-brief.md
 	//
@@ -3080,13 +3281,11 @@
 		// `hatVorschlag`, garetienNeuKlick prüft ein gültiges `rumpf`); hier wird nur das Anhaken
 		// übersprungen, wenn nichts NEU anzuhaken ist -- `apply` läuft immer.
 		const haeppchen = garetienIdsInHaeppchen(sauber);
-		return haeppchen.reduce(function (kette, teil) {
-			return kette.then(function () {
-				return rufe(GARETIEN_PLAN_ENDPUNKT, {
-					action: "select", kind: GARETIEN_PLAN_ART, run_id: runId, ids: teil, selected: true,
-				});
+		return garetienKetteAbarbeiten(haeppchen, function (teil) {
+			return rufe(GARETIEN_PLAN_ENDPUNKT, {
+				action: "select", kind: GARETIEN_PLAN_ART, run_id: runId, ids: teil, selected: true,
 			});
-		}, Promise.resolve()).then(function () {
+		}).then(function () {
 			const summe = { applied: 0, deleted: 0, stale: 0, skipped: 0, declined: 0 };
 			let verarbeitet = 0;
 			let iterationen = 0;
@@ -3322,6 +3521,17 @@
 				garetienAnzeigeNeuZeichnen();
 			});
 		}
+		// Meldung C (30.08.2026): „Markierte zurücknehmen" -- der Löschweg der MENGE, derselbe
+		// Riegel-Zug wie beim Fußknopf „Angehakte übernehmen" darunter (`disabled` NOCH EINMAL
+		// geprüft, das Attribut ist die Anzeige, nicht der Riegel).
+		const ruecknahmeMengeBtn = hasDocument
+			? document.getElementById("garetien-ruecknahme-markierte") : null;
+		if (ruecknahmeMengeBtn) {
+			ruecknahmeMengeBtn.addEventListener("click", function () {
+				if (ruecknahmeMengeBtn.disabled) { return; }
+				garetienRuecknahmeMengeKlick(zustand.planRunId, garetienFragen);
+			});
+		}
 		// Aufgabe 16: die EINE gefuellte Handlung des Fensters.
 		// ⚠️ `disabled` wird hier NOCH EINMAL geprueft -- das Attribut ist die Anzeige, nicht der
 		// Riegel; dieselbe Trennung wie bei garetienHandlungKlick und beim Ebenen-Riegel.
@@ -3517,6 +3727,14 @@
 			avesmapsGaretienAlleMarkieren,
 			garetienAlleMarkierenZustand,
 			garetienAlleMarkierenKnopfSetzen,
+			// Meldung C (30.08.2026): „Markierte zurücknehmen" -- die Menge, symmetrisch zum
+			// Fußknopf „Einfügen".
+			garetienKetteAbarbeiten,
+			garetienRuecknahmeMengeZustand,
+			garetienRuecknahmeMengeKnopfSetzen,
+			garetienRuecknahmeMengeRueckfrageText,
+			garetienRuecknahmeMengeAusfuehren,
+			garetienRuecknahmeMengeKlick,
 		};
 	}
 })();

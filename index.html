@@ -3866,6 +3866,16 @@
 				<span class="gi-foot__hint" id="garetien-mark-all-hint" hidden></span>
 				<button class="btn" type="button" id="garetien-mark-show">Markierte anzeigen</button>
 				<button class="btn" type="button" id="garetien-anzeige-clear">Anzeige leeren</button>
+				<!-- Meldung C (30.08.2026, Owner): „zurücknehmen ist da, aber nicht 'Alle markieren
+				     zurücknehmen'" -- das Gegenstück zur Einzelzeile „Zurücknehmen", auf den MARKIERTEN
+				     (nicht der Anzeige-Menge), nur auf dem Reiter „Übernommen" bedienbar. `.btn--danger`
+				     wie die Einzelzeile: Rot als Schrift, keine Füllung (AGENTS.md §12) -- die eine
+				     gefüllte Handlung des Fensters bleibt „Angehakte übernehmen" rechts. Immer gerendert,
+				     gesperrt + Grund SICHTBAR auf den drei anderen Reitern (dieselbe Hausform wie „Alle
+				     markieren" auf dem Reiter „Anzeigen"). Verdrahtet in bindFenster()
+				     (js/review/review-garetien-importer.js). -->
+				<button class="btn btn--danger" type="button" id="garetien-ruecknahme-markierte" disabled>Markierte zurücknehmen (0 von 0)</button>
+				<span class="gi-foot__hint" id="garetien-ruecknahme-markierte-hint" hidden></span>
 				<!-- 🔴 Umgehängt 30.08.2026, seit die Zählzeile links (die den Hinweis bisher physisch
 				     an den Anfang der Zeile geschoben hat) weg ist: der Grund für den gesperrten
 				     Hauptknopf steht jetzt DIREKT VOR ihm, in einem gemeinsamen Wirt -- man liest ihn,

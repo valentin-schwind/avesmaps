@@ -327,16 +327,17 @@
 .u--wider { color: var(--color-danger); }
 .u--deckt { color: var(--color-text-muted); }
 
-/* ---- Fuß: die EINE gefüllte Handlung des Fensters, plus die drei weichen Anzeige-Knoepfe --- *
+/* ---- Fuß: die EINE gefüllte Handlung des Fensters, plus die weichen Anzeige-/Markier-Knoepfe -- *
  * 🔴 Seit 30.08.2026 (Owner-Meldung: die Zaehlzeile ist „inkonsistent mit allen anderen Zahlen")
- *    traegt dieser Fuss SECHS Kinder statt sieben: „Alle markieren" (Aufgabe 10) samt eigenem
- *    Hinweis, „Markierte anzeigen", „Anzeige leeren", „Alle angezeigten einfuegen" samt EIGENEM
- *    Hinweis dahinter -- die Zaehlzeile (#garetien-foot-count) und ihr vorangestellter Hinweis sind
- *    restlos weg. Die drei linken Knoepfe haben kein eigenes `min-width: 0` -- sie duerfen nicht
- *    unter ihre Textbreite schrumpfen (ein abgeschnittenes „Markierte an…" waere schlimmer als ein
- *    Zeilenumbruch). `flex-wrap` faengt die Fensteruntergrenze (`min-width: 480px`, weiter oben) ab:
- *    reicht die Breite nicht fuer alle Kinder in einer Zeile, weicht der Hauptknopf samt seinem
- *    Hinweis in die naechste Zeile -- KEIN Abschneiden, `.gi-win` traegt `overflow: hidden`. */
+ *    traegt dieser Fuss „Alle markieren" (Aufgabe 10) samt eigenem Hinweis, „Markierte anzeigen",
+ *    „Anzeige leeren", „Markierte zuruecknehmen" (Meldung C) samt EIGENEM Hinweis, und „Alle
+ *    angezeigten einfuegen" samt EIGENEM Hinweis dahinter -- die Zaehlzeile (#garetien-foot-count)
+ *    und ihr vorangestellter Hinweis sind restlos weg. Die linken Knoepfe haben kein eigenes
+ *    `min-width: 0` -- sie duerfen nicht unter ihre Textbreite schrumpfen (ein abgeschnittenes
+ *    „Markierte an…" waere schlimmer als ein Zeilenumbruch). `flex-wrap` faengt die
+ *    Fensteruntergrenze (`min-width: 480px`, weiter oben) ab: reicht die Breite nicht fuer alle
+ *    Kinder in einer Zeile, weicht der Hauptknopf samt seinem Hinweis in die naechste Zeile --
+ *    KEIN Abschneiden, `.gi-win` traegt `overflow: hidden`. */
 .gi-foot {
 	flex: none;
 	display: flex;
