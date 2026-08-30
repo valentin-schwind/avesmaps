@@ -1,8 +1,15 @@
-// Owner-Auftrag A (30.08.2026): „Imports in der Naehe markieren (15)" -- ein Knopf in der
-// Einzelansicht, unter den vorhandenen Knoepfen. Im groben Umkreis um ein Objekt (5 Karteneinheiten
-// ueber die eigene Ausdehnung hinaus) werden weitere Objekte aus dem Import markiert -- der Klick
-// leert keine Auswahl, die Zahl kommt vom SERVER (er sucht ueber den GANZEN Lauf, nicht ueber die
-// hoechstens 500 geladenen Zeilen).
+// Owner-Auftrag A (30.08.2026): „Imports in der Naehe anzeigen (15)" -- ein Knopf in der
+// Einzelansicht, unter den vorhandenen Knoepfen. Im groben Umkreis um ein Objekt (der Zuschlag
+// ueber die eigene Ausdehnung hinaus steht als AVESMAPS_GARETIEN_NAEHE_ZUSCHLAG in
+// api/_internal/import/garetien-liste.php -- hier steht bewusst KEINE Zahl, sie ist am 30.08.2026
+// schon einmal gewandert, von 5 auf 1) werden weitere Objekte aus dem Import markiert UND gleich
+// angezeigt -- der Klick leert keine Auswahl, die Zahl kommt vom SERVER (er sucht ueber den GANZEN
+// Lauf, nicht ueber die hoechstens 500 geladenen Zeilen).
+//
+// 🔴 Der Knopf hiess bis zum 30.08.2026 „… markieren". Der Name war eine Luege, seit der Klick die
+// Treffer auch in die Anzeige legt (Abschnitt C misst genau das); die Beschriftung nennt jetzt die
+// SICHTBARE Wirkung. Der DATEINAME bleibt `garetien-naehe-markieren.test.js` -- eine Beschriftung
+// wandert, eine Kennung nicht (AGENTS.md §11, „Neuigkeiten"/`changelog`).
 //
 // Ausfuehren, vom Repo-Wurzelverzeichnis:
 //   node js/review/__tests__/garetien-naehe-markieren.test.js
@@ -64,12 +71,12 @@ wahr(typeof garetienNaeheKlick === "function", "garetienNaeheKlick fehlt im Expo
 // A. garetienNaeheKnopfZustand -- REIN: Beschriftung traegt die Zahl, Sperre + Grund bei null
 // =================================================================================================
 const leer = garetienNaeheKnopfZustand([]);
-gleich(leer.beschriftung, "Imports in der Nähe markieren (0)", "auch ohne Treffer nennt der Knopf die Zahl");
+gleich(leer.beschriftung, "Imports in der Nähe anzeigen (0)", "auch ohne Treffer nennt der Knopf die Zahl");
 gleich(leer.gesperrt, true, "ohne Treffer ist nichts zu markieren");
 wahr(leer.hinweis.length > 0, "und der Grund steht sichtbar da");
 
 const voll = garetienNaeheKnopfZustand([{ key: "a" }, { key: "b" }, { key: "c" }]);
-gleich(voll.beschriftung, "Imports in der Nähe markieren (3)", "die Beschriftung nennt die genaue Zahl -- Beispiel des Auftrags: (15)");
+gleich(voll.beschriftung, "Imports in der Nähe anzeigen (3)", "die Beschriftung nennt die genaue Zahl -- Beispiel des Auftrags: (15)");
 gleich(voll.gesperrt, false, "mit Treffern ist der Knopf bedienbar");
 gleich(voll.hinweis, "", "und ohne Hinweis");
 
@@ -169,7 +176,7 @@ async function pruefeAbruf() {
 
 		// Nach dem Laden zeigt garetienNaeheMarkup den GELADENEN Stand fuer GENAU dieses Objekt.
 		const geladenesMarkup = garetienNaeheMarkup(objekt);
-		wahr(geladenesMarkup.includes("Imports in der Nähe markieren (1)"),
+		wahr(geladenesMarkup.includes("Imports in der Nähe anzeigen (1)"),
 			"nach der Antwort zeigt der Knopf die echte Zahl: " + geladenesMarkup);
 		wahr(!geladenesMarkup.includes("disabled"), "und ist bedienbar, weil ein Treffer da ist");
 

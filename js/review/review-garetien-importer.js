@@ -2866,7 +2866,19 @@
 			+ "</div>";
 	}
 
-	// ---- Owner-Auftrag A (30.08.2026): „Imports in der Nähe markieren" ----------------------------
+	// ---- Owner-Auftrag A (30.08.2026): „Imports in der Nähe anzeigen" ------------------------------
+	//
+	// 🔴 Der Knopf hieß bis zum 30.08.2026 „… markieren", und der Name war eine Lüge: der Klick
+	// markiert NICHT nur, er legt die Treffer im selben Zug in die Anzeige (`garetienNaeheKlick`
+	// ruft beides). Möglich wurde das, weil die Serverantwort die ganzen Objekte ohnehin mitbringt —
+	// damit fällt die 500er-Grenze der geladenen Liste wirklich weg, statt nur benannt zu werden.
+	// Owner dazu: „Du hast dich natürlich nicht daran gehalten nur zu markieren, sondern hast es
+	// gleich auf anzeigen getan, aber das is in ordnung." Die Beschriftung nennt jetzt die SICHTBARE
+	// Wirkung — dieselbe Lehre wie beim Knopf „✦ Zentrieren" ein Stück weiter unten, dessen Name
+	// ebenfalls stehen blieb, nachdem sich seine Wirkung verschoben hatte.
+	// ⚠️ Gewandert ist die BESCHRIFTUNG, nicht die Kennungen: `data-naehe`, `garetienNaeheKlick`,
+	// `avesmapsGaretienNaehe` und `garetien-naehe-markieren.test.js` heißen weiter wie vorher —
+	// dieselbe Trennung wie bei „Neuigkeiten"/`changelog` (AGENTS.md §11).
 	//
 	// Owner, wörtlich: „Im groben umkreis um ein objekt herum (5 karteneinheiten von zentrum,
 	// entferntesten flächepunkt entfernt) sollen weitere objekte aus dem import markiert werden
@@ -2880,7 +2892,7 @@
 		const anzahl = Array.isArray(gefunden) ? gefunden.length : 0;
 		return {
 			anzahl: anzahl,
-			beschriftung: "Imports in der Nähe markieren (" + anzahl + ")",
+			beschriftung: "Imports in der Nähe anzeigen (" + anzahl + ")",
 			gesperrt: anzahl === 0,
 			hinweis: anzahl === 0 ? "Kein weiteres Import-Objekt im Umkreis gefunden." : "",
 		};
@@ -3574,7 +3586,7 @@
 		// „Eingefügt wird" > „Wiki-Landschaft" braucht den Server (Aktion 'wiki_landschaft') --
 		// der Platzhalter steht schon im Markup, dies trägt ihn nach.
 		garetienWikiLandschaftBeiBedarfLaden(gewaehlt);
-		// Owner-Auftrag A: „Imports in der Nähe markieren" -- derselbe Zug, eigener Riegel gegen
+		// Owner-Auftrag A: „Imports in der Nähe anzeigen" -- derselbe Zug, eigener Riegel gegen
 		// doppelte Abrufe desselben Objekts (`_garetienNaeheLetzterKey`).
 		garetienNaeheBeiBedarfLaden(gewaehlt);
 		// Dreiwertig ist eine EIGENSCHAFT, kein Attribut -- erst nach dem Einfügen einlösen, genau
@@ -4616,7 +4628,7 @@
 				// Begründung an garetienRuecknahmeSenden).
 				if (garetienRuecknahmeKlick(ereignis, zustand.objekte, zustand.planRunId,
 					garetienRuecknahmeSenden, garetienFragen)) { return; }
-				// Owner-Auftrag A: „Imports in der Nähe markieren" -- derselbe Zug wie die drei
+				// Owner-Auftrag A: „Imports in der Nähe anzeigen" -- derselbe Zug wie die drei
 				// Verteiler darüber, mit der schon geladenen Trefferliste dieses Objekts.
 				if (garetienNaeheKlick(ereignis, _garetienNaeheGefunden)) {
 					garetienAnzeigeNeuZeichnen();
@@ -4847,7 +4859,7 @@
 			garetienWikiLandschaftZeileText,
 			garetienWikiLandschaftPlatzhalterId,
 			garetienWikiLandschaftBeiBedarfLaden,
-			// Owner-Auftrag A (30.08.2026): „Imports in der Nähe markieren"
+			// Owner-Auftrag A (30.08.2026): „Imports in der Nähe anzeigen"
 			garetienNaeheKnopfZustand,
 			garetienNaeheMarkup,
 			garetienNaeheBeiBedarfLaden,

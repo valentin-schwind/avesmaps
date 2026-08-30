@@ -331,7 +331,7 @@ function avesmapsGaretienListeObjektPasstFilter(array $objekt, array $filter): b
 /**
  * Alle Objekte EINES Laufs, UNGEFILTERT und UNPAGINIERT -- der Bauabschnitt, den sich
  * avesmapsGaretienArbeitsliste (unten, Aufgabe 8) und avesmapsGaretienNaehe (Owner-Auftrag A,
- * 30.08.2026, "Imports in der Naehe markieren") teilen. Beide brauchen dieselben Objekte samt
+ * 30.08.2026, "Imports in der Naehe anzeigen") teilen. Beide brauchen dieselben Objekte samt
  * ihrer schon fertig gebauten Geometrie -- eine zweite Fassung dieses Item-Merges liefe beim
  * naechsten Feld auseinander (AGENTS.md §11: "eine Regel, die einen von mehreren Lesern bindet,
  * ist keine Regel").
@@ -730,7 +730,7 @@ function avesmapsGaretienArbeitsliste(PDO $pdo, int $importRunId, array $filter)
 const AVESMAPS_GARETIEN_NAEHE_ZUSCHLAG = 1.0;
 
 /**
- * Owner-Auftrag A (30.08.2026), Knopf "Imports in der Naehe markieren": weitere Objekte DES
+ * Owner-Auftrag A (30.08.2026), Knopf "Imports in der Naehe anzeigen": weitere Objekte DES
  * IMPORTS im groben Umkreis um ein bereits geladenes Objekt.
  *
  * Der Radius reicht ueber die eigene Ausdehnung hinaus: Mittelpunkt -> entferntester eigener

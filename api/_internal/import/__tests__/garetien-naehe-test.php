@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-// Owner-Auftrag A (30.08.2026), Knopf "Imports in der Naehe markieren": weitere Objekte DES
+// Owner-Auftrag A (30.08.2026), Knopf "Imports in der Naehe anzeigen": weitere Objekte DES
 // IMPORTS im groben Umkreis um ein bereits geladenes Objekt.
 //
 // Geprueft wird ueberwiegend die REINE Rechnung (avesmapsGaretienNaeheAusObjekten) -- sie braucht

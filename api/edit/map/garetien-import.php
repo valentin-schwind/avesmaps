@@ -158,7 +158,7 @@ try {
         ]));
     }
 
-    // --- Owner-Auftrag A (30.08.2026): "Imports in der Naehe markieren" -- weitere Objekte DES
+    // --- Owner-Auftrag A (30.08.2026): "Imports in der Naehe anzeigen" -- weitere Objekte DES
     // IMPORTS im groben Umkreis um ein bereits geladenes Objekt. REIN LESEND, wie `liste`.
     //
     // 🔴 SIE SUCHT UEBER DEN GANZEN LAUF (avesmapsGaretienNaehe liest den ganzen Lauf ueber

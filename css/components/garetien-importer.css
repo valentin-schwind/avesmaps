@@ -973,7 +973,7 @@
 
 .gi-acts__grund span { display: block; }
 
-/* ---- Owner-Auftrag A (30.08.2026): "Imports in der Naehe markieren" ----------------------- *
+/* ---- Owner-Auftrag A (30.08.2026): "Imports in der Naehe anzeigen" ----------------------- *
  *
  * 🔴 GESCHWISTER von `.gi-acts`, aus demselben Grund: sie ist Bedienung, keine Ansicht, und darf
  *    nie unter der Handlungsleiste hinter der Bildlaufleiste von `.gi-detail` verschwinden --
