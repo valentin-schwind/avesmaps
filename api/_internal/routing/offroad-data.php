@@ -160,3 +160,60 @@ function avesmapsOffroadLoadFactorPlane(PDO $pdo, array $box): string
         return '';
     }
 }
+
+/**
+ * DER EINE ERZEUGER DER VIER GITTEREBENEN EINER QUERFELDEIN-SUCHE.
+ *
+ * 🔴 DREI ZUSAMMENBAU-STELLEN, EIN ERZEUGER. Vor dem 30.08.2026 standen dieselben vier Zeilen
+ * dreimal da -- in avesmapsAttachOffroadPointToGraph, in avesmapsConnectOffroadPoints und in
+ * avesmapsFindOffroadPathBetween. Der Bach-Aufschlag waere die fuenfte Regel gewesen, die man an
+ * drei Stellen einzeln haette nachziehen muessen, und dieses Haus hat genau das zweimal bezahlt:
+ * die Verkehrsmittel-Sperre (14.08.2026, zwei von vier Erzeugern) und die Ausstiegsregel
+ * (15.08.2026, einer von drei). „Eine Regel, die einen von mehreren Erzeugern bindet, ist keine
+ * Regel." Gewacht von __tests__/bach-furt-test.php, das die Stellen zur LAUFZEIT im Quelltext
+ * ZAEHLT -- deshalb steht hier keine Zahl.
+ *
+ * 🔴 DIE WAND-LINIEN KOMMEN MIT ZURUECK. avesmapsOffroadStraightPathIfDry geht am Raster VORBEI
+ * (das ist ihr Sinn) und muss die Fluesse eigens gefragt bekommen. Nimmt der Aufrufer sie aus
+ * DIESEM Rueckgabewert, kann er sie nicht mit der falschen Haelfte fuellen -- das Auspacken des
+ * Gewaesser-Bunds geschieht damit an genau einer Stelle.
+ *
+ * ⚠️ Ohne PDO bleibt alles inert (leere Faktorebene, keine Hoehen) -- der entworfene Fehlermodus
+ * dieses Moduls, kein stilles Loch.
+ * 🔴 DER GELAENDE-NOTSCHALTER GILT AUCH HIER (V11 §8.3): „Gelaende aus" muss ueberall dasselbe
+ * bedeuten.
+ *
+ * @param array $gewaesser ['wand' => Flusslinien, 'furt' => Bachlinien], aus
+ *                         avesmapsCollectRouteRiverBarrierLines.
+ * @return array{blocked:string, factors:string, rasters:array, heights:?string, wand:list<array>}
+ */
+function avesmapsOffroadBuildPlanes(
+    array $box,
+    array $water,
+    ?PDO $pdo,
+    array $gewaesser = [],
+    bool $terrainEnabled = true
+): array {
+    $wand = avesmapsOffroadBarrierLines($gewaesser);
+    $furt = avesmapsOffroadFordLines($gewaesser);
+
+    $blocked = avesmapsOffroadRasteriseBlocked($box, $water, $wand);
+    // 🔴 DER BACH LIEGT IN DER FAKTOR-EBENE, NICHT IN DER SPERRE. Owner 30.08.2026: „ein bach wird
+    // ueberquert werden koennen, aber nur mit etwas erschwernis". Der Aufschlag kommt NACH der
+    // Landschaft und ueberlagert sie per Maximum -- eine Bachzelle im Sumpf bleibt Sumpf, wenn der
+    // teurer ist.
+    $factors = avesmapsOffroadRasteriseBachFactor(
+        $box,
+        $pdo instanceof PDO ? avesmapsOffroadLoadFactorPlane($pdo, $box) : '',
+        $furt
+    );
+    $rasters = $terrainEnabled && $pdo instanceof PDO ? avesmapsOffroadLoadHeightRasters($pdo, $box) : [];
+
+    return [
+        'blocked' => $blocked,
+        'factors' => $factors,
+        'rasters' => $rasters,
+        'heights' => $rasters === [] ? null : avesmapsOffroadSampleHeights($box, $rasters),
+        'wand' => $wand,
+    ];
+}

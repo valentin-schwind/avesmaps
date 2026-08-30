@@ -307,7 +307,9 @@ function avesmapsMaybeOfferOffroadDetour(
     string $fromNode,
     string $toNode,
     bool $terrainEnabled = true,
-    array $riverLines = []
+    // Die Gewaesserlinien in ihren zwei Rollen -- nur durchgereicht; siehe
+    // avesmapsCollectRouteRiverBarrierLines.
+    array $gewaesser = []
 ): array {
     $x1 = (float) ($fromPoint['x'] ?? 0.0);
     $y1 = (float) ($fromPoint['y'] ?? 0.0);
@@ -445,7 +447,7 @@ function avesmapsMaybeOfferOffroadDetour(
             ['x' => $chain[$candidate['from_index']]['x'], 'y' => $chain[$candidate['from_index']]['y']],
             ['x' => $chain[$candidate['to_index']]['x'], 'y' => $chain[$candidate['to_index']]['y']],
             $candidate['from_node'], $candidate['to_node'], $terrainEnabled,
-            $connectionId, $riverLines
+            $connectionId, $gewaesser
         );
         if (empty($offroad['ok'])) {
             // Kein trockener Weg durch die Kiste. Die gezeichnete Route bleibt die Antwort -- das ist

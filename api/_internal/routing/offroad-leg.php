@@ -141,8 +141,10 @@ function avesmapsAttachOffroadPointToGraph(
     float $y,
     string $nodeName,
     bool $terrainEnabled = true,
-    // Die Flusslinien -- ein Fluss ist im Gelaende eine Wand (Entwurf 2026-08-15-fluesse-sperren).
-    array $riverLines = []
+    // Die Gewaesserlinien in ihren zwei Rollen: 'wand' sperrt (Fluss, Entwurf
+    // 2026-08-15-fluesse-sperren), 'furt' kostet nur (Bach, 30.08.2026). Ein Bund, kein zweiter
+    // Parameter -- die Begruendung steht bei avesmapsCollectRouteRiverBarrierLines.
+    array $gewaesser = []
 ): array {
     if (!avesmapsRoutePointIsOnLand($x, $y, $land, $water)) {
         return ['ok' => false, 'error' => 'point_not_on_land'];
@@ -302,12 +304,14 @@ function avesmapsAttachOffroadPointToGraph(
             $spanMinY = min($spanMinY, $candidate['y']); $spanMaxY = max($spanMaxY, $candidate['y']);
         }
         $box = avesmapsBuildOffroadBox($spanMinX, $spanMinY, $spanMaxX, $spanMaxY);
-        $blocked = avesmapsOffroadRasteriseBlocked($box, $water, $riverLines);
-        $factors = $pdo instanceof PDO ? avesmapsOffroadLoadFactorPlane($pdo, $box) : '';
-        // 🔴 DER NOTSCHALTER GILT AUCH HIER. V11 §8.3: der Gelaendeschalter ist ein Not-Aus, und er
-        // muss ueberall dasselbe bedeuten.
-        $rasters = $terrainEnabled && $pdo instanceof PDO ? avesmapsOffroadLoadHeightRasters($pdo, $box) : [];
-        $heights = $rasters === [] ? null : avesmapsOffroadSampleHeights($box, $rasters);
+        // 🔴 DER EINE ERZEUGER DER EBENEN (offroad-data.php) -- Sperre, Faktoren samt Bach-Aufschlag,
+        // Hoehen und der Gelaende-Notschalter in einem Griff, fuer alle drei Zusammenbau-Stellen
+        // gleich. Bis zum 30.08.2026 standen dieselben vier Zeilen dreimal da.
+        $ebenen = avesmapsOffroadBuildPlanes($box, $water, $pdo, $gewaesser, $terrainEnabled);
+        $blocked = $ebenen['blocked'];
+        $factors = $ebenen['factors'];
+        $rasters = $ebenen['rasters'];
+        $heights = $ebenen['heights'];
 
         $clientGraph['graph'][$nodeName] ??= [];
 
@@ -323,7 +327,7 @@ function avesmapsAttachOffroadPointToGraph(
             if ($weightByDistance) {
                 $gerade = avesmapsOffroadStraightPathIfDry($box, $water, $factors, $heights,
                     (float) $speed, $candidate['x'], $candidate['y'], $x, $y,
-                    AVESMAPS_ROUTE_OFFROAD_SIMPLIFY_EPS, $rasters, $riverLines);
+                    AVESMAPS_ROUTE_OFFROAD_SIMPLIFY_EPS, $rasters, $ebenen['wand']);
                 if ($gerade !== null) { $paths[$index] = $gerade; continue; }
             }
             $goals[$index] = ['x' => $candidate['x'], 'y' => $candidate['y']];
@@ -553,7 +557,7 @@ function avesmapsConnectOffroadPoints(
     string $toNode,
     bool $terrainEnabled = true,
     string $connectionId = 'offroad-direct',
-    array $riverLines = []
+    array $gewaesser = []
 ): array {
     $transport = avesmapsResolveClientRouteTransportOption(AVESMAPS_ROUTE_CLIENT_SYNTHETIC_TYPE, $request);
     // 🔴 ERZEUGER 4 VON 4 -- die Zwillingspruefung zu der in avesmapsAttachOffroadPointToGraph, und
@@ -574,10 +578,12 @@ function avesmapsConnectOffroadPoints(
     $weightByDistance = (string) ($request['optimize'] ?? 'fastest') === 'shortest';
 
     $box = avesmapsBuildOffroadBox($fromPoint['x'], $fromPoint['y'], $toPoint['x'], $toPoint['y']);
-    $blocked = avesmapsOffroadRasteriseBlocked($box, $water, $riverLines);
-    $factors = $pdo instanceof PDO ? avesmapsOffroadLoadFactorPlane($pdo, $box) : '';
-    $rasters = $terrainEnabled && $pdo instanceof PDO ? avesmapsOffroadLoadHeightRasters($pdo, $box) : [];
-    $heights = $rasters === [] ? null : avesmapsOffroadSampleHeights($box, $rasters);
+    // 🔴 DER EINE ERZEUGER DER EBENEN -- siehe avesmapsOffroadBuildPlanes (offroad-data.php).
+    $ebenen = avesmapsOffroadBuildPlanes($box, $water, $pdo, $gewaesser, $terrainEnabled);
+    $blocked = $ebenen['blocked'];
+    $factors = $ebenen['factors'];
+    $rasters = $ebenen['rasters'];
+    $heights = $ebenen['heights'];
 
     // ⭐ IM STRECKENMODUS ZUERST DIE GERADE. Ist sie trocken, ist sie bereits die Antwort.
     // ⚠️ Die Kiste, die Faktorebene und die Hoehen sind oben trotzdem gebaut worden -- nicht zum
@@ -586,7 +592,7 @@ function avesmapsConnectOffroadPoints(
     $path = $weightByDistance
         ? avesmapsOffroadStraightPathIfDry($box, $water, $factors, $heights, (float) $speed,
             (float) $fromPoint['x'], (float) $fromPoint['y'], (float) $toPoint['x'], (float) $toPoint['y'],
-            AVESMAPS_ROUTE_OFFROAD_SIMPLIFY_EPS, $rasters, $riverLines)
+            AVESMAPS_ROUTE_OFFROAD_SIMPLIFY_EPS, $rasters, $ebenen['wand'])
         : null;
     $path ??= avesmapsOffroadFindPath($box, $blocked, $factors, $heights, (float) $speed,
         $fromPoint['x'], $fromPoint['y'], $toPoint['x'], $toPoint['y'], AVESMAPS_ROUTE_OFFROAD_SIMPLIFY_EPS,

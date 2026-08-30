@@ -37,8 +37,9 @@ function avesmapsRefineSyntheticRouteLegs(
     ?PDO $pdo,
     array $segments,
     bool $terrainEnabled = true,
-    // Die Flusslinien -- ein Fluss ist im Gelaende eine Wand.
-    array $riverLines = []
+    // Die Gewaesserlinien in ihren zwei Rollen ('wand' sperrt, 'furt' kostet) -- ein Bund, kein
+    // zweiter Parameter; siehe avesmapsCollectRouteRiverBarrierLines.
+    array $gewaesser = []
 ): array {
     $report = ['examined' => 0, 'refined' => 0, 'legs' => []];
 
@@ -71,7 +72,7 @@ function avesmapsRefineSyntheticRouteLegs(
             $request, $water, $pdo,
             (float) $coordinates[0][0], (float) $coordinates[0][1],
             (float) $coordinates[1][0], (float) $coordinates[1][1],
-            $terrainEnabled, $riverLines
+            $terrainEnabled, $gewaesser
         );
         if ($path === null) {
             // Kein trockener Weg durch die Kiste. Die Sehne bleibt stehen -- V13 hat sie selbst
@@ -120,7 +121,7 @@ function avesmapsFindOffroadPathBetween(
     float $x2,
     float $y2,
     bool $terrainEnabled = true,
-    array $riverLines = []
+    array $gewaesser = []
 ): ?array {
     $transport = avesmapsResolveClientRouteTransportOption(AVESMAPS_ROUTE_CLIENT_SYNTHETIC_TYPE, $request);
     $speed = $transport === null
@@ -129,15 +130,13 @@ function avesmapsFindOffroadPathBetween(
     if ($speed === null || $speed <= 0.0) { return null; }
 
     $box = avesmapsBuildOffroadBox($x1, $y1, $x2, $y2);
-    $blocked = avesmapsOffroadRasteriseBlocked($box, $water, $riverLines);
-    $factors = $pdo instanceof PDO ? avesmapsOffroadLoadFactorPlane($pdo, $box) : '';
-    // Der Gelände-Notschalter gilt auch hier (V11 §8.3) -- „Gelände aus" muss für eine Notbrücke
-    // dasselbe bedeuten wie für einen gezeichneten Weg.
-    $rasters = $terrainEnabled && $pdo instanceof PDO ? avesmapsOffroadLoadHeightRasters($pdo, $box) : [];
-    $heights = $rasters === [] ? null : avesmapsOffroadSampleHeights($box, $rasters);
+    // 🔴 DER EINE ERZEUGER DER EBENEN -- siehe avesmapsOffroadBuildPlanes (offroad-data.php). Der
+    // Gelände-Notschalter steckt darin (V11 §8.3): „Gelände aus" muss für eine Notbrücke dasselbe
+    // bedeuten wie für einen gezeichneten Weg.
+    $ebenen = avesmapsOffroadBuildPlanes($box, $water, $pdo, $gewaesser, $terrainEnabled);
 
-    return avesmapsOffroadFindPath($box, $blocked, $factors, $heights, (float) $speed,
-        $x1, $y1, $x2, $y2, AVESMAPS_ROUTE_OFFROAD_SIMPLIFY_EPS, $rasters);
+    return avesmapsOffroadFindPath($box, $ebenen['blocked'], $ebenen['factors'], $ebenen['heights'],
+        (float) $speed, $x1, $y1, $x2, $y2, AVESMAPS_ROUTE_OFFROAD_SIMPLIFY_EPS, $ebenen['rasters']);
 }
 
 /** Eine Kante beider Richtungen aus dem Graphen nehmen, an ihrer ID erkannt. */

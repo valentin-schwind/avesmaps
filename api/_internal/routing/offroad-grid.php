@@ -61,6 +61,26 @@ const AVESMAPS_ROUTE_OFFROAD_SIMPLIFY_EPS = 0.10;
 // Bewacht von __tests__/terrain-speed-factor-test.php (Abschnitt A).
 const AVESMAPS_ROUTE_OFFROAD_FACTOR_SCALE = 25.0;
 
+// Der Aufschlag fuer das Queren eines BACHS. Ein Bach ist seit dem 30.08.2026 ein `Flussweg` mit
+// `properties.is_bach` -- er bleibt ein Hindernis, aber er ist keine Wand mehr.
+//
+// 🔴 3,0, UND ES IST EIN EINGEFRORENER WERT. Owner 30.08.2026, woertlich: „ja ein bach wird
+// ueberquert werden koennen, aber nur mit etwas erschwernis, ich wollte aber nicht, dass du ihn
+// komplett aus der hinternis erkennung rausnimmst." Ausdruecklich KEIN Regler: das Fenster
+// „Tempowerte" beschreibt Reisemittel und Untergruende, ein Bach ist weder das eine noch das andere.
+// ⭐ Die Einordnung, damit die Zahl nicht beliebig aussieht: eine Zelle ist
+// AVESMAPS_ROUTE_OFFROAD_CELL_MAPUNITS = 0,5 Karteneinheiten = 1,5 Meilen breit, das Queren kostet
+// also so viel Zeit wie 4,5 Meilen offenes Gelaende -- 3 Meilen MEHR, als der Reisende dort ohnehin
+// bezahlt haette. Zum Vergleich traegt das Gebirge in der Faktorebene rund 3,75 (0,75 ÷ 0,20) --
+// aber ueber seine ganze Ausdehnung. Der Bach ist ein kurzer, harter Schritt, kein Band.
+// ⭐ Gemessen am 30.08.2026 an der Fixture von __tests__/bach-furt-test.php: eine Gelaendeetappe
+// von 30,11 Einheiten (rund 90 Meilen), die genau EINEN Bach quert, wird um 3,3 % teurer -- das
+// entspricht 4,6 Meilen offenen Gelaendes (der Laengenaufschlag der Etappe steckt darin).
+// ⚠️ Er wirkt NUR unter „Schnellste". Unter „Kuerzeste" ist das Gewicht die Strecke, und dort sind
+// Boden und Steigung von jeher neutralisiert (siehe avesmapsOffroadFindPath) -- Wald, Sumpf und
+// Gebirge bremsen dort ebenso wenig. Das ist die Hausregel und kein Versehen.
+const AVESMAPS_ROUTE_OFFROAD_BACH_FACTOR = 3.0;
+
 // 16 bit per cell, and the value IS the height in Schritt (V11 §3.2: no white point, no scaling).
 // 💣 65535 means „NO DATA", not „very high". `null` and `0` are different things all the way through
 // this house -- 0 is measured level ground, and the largest real height is ~15.000 Schritt.
@@ -205,35 +225,42 @@ function avesmapsOffroadRasteriseBlocked(array $box, array $water, array $riverL
 }
 
 /**
- * Die Flusslinien in die Sperrebene -- ein Fluss ist im Gelaende eine Wand, wie Meer und See.
+ * PURE: jede von den Linien beruehrte Zelle, samt der Eckzellen des Treppenschritts.
  *
- * 🔴 Er ist bei uns keine FLAECHE, sondern ein `Flussweg`-WEG. Deshalb steht er nicht in $water und
- * musste bis zum 15.08.2026 gar nicht ueberquert werden -- er war schlicht nicht da. Gequert wird
- * seither nur, wo ein gezeichneter Weg quert: das ist die Bruecke, und die wirkt von selbst, weil
- * Wege Graph-Kanten sind und das Gitter nie sehen.
+ * 🔴 DIE GEMEINSAME SCHRITTLOGIK BEIDER LINIEN-RASTERER: der WAND (Fluss, Sperrebene) und der FURT
+ * (Bach, Faktorebene). Bis zum 30.08.2026 gab es nur einen Rasterer und die Logik stand einmal da.
+ * Ein zweiter, von Hand abgeschriebener haette genau die Divergenz erzeugt, die dieses Haus bei den
+ * Listenzeilen (sieben Rezepturen) und der Wiki-Zuweisung (sechs Fassungen) schon zweimal bezahlt
+ * hat -- und sie waere hier still: die Furt wuerde einfach ein paar Zellen weniger treffen.
  *
  * 💣 JEDE BERUEHRTE ZELLE, UND DIE ECKEN DAZU. Der Suchlauf geht ueber ACHT Nachbarn. Eine schraege
- * Linie markiert eine Treppe aus Zellen, und zwischen zwei diagonal benachbarten gesperrten Zellen
- * schluepft er hindurch, solange die beiden Eckzellen frei bleiben. Eine einzige durchlaessige Zelle
- * an einer Flussmuendung macht die ganze Wand wirkungslos, und es faellt an genau einer Route auf.
+ * Linie markiert eine Treppe aus Zellen, und zwischen zwei diagonal benachbarten markierten Zellen
+ * schluepft er hindurch, solange die beiden Eckzellen frei bleiben. Bei der WAND macht eine einzige
+ * durchlaessige Zelle an einer Flussmuendung die ganze Sperre wirkungslos; bei der FURT laeuft der
+ * Schritt genau dort kostenlos vorbei, und der Aufschlag ist wirkungslos, ohne dass etwas fehlt.
+ * Beide Male faellt es an genau einer Route auf.
  *
- * 💣 Die Zellbreite IST die Flussbreite (0,5 Einheiten = 1,5 Meilen) -- grosszuegig fuer einen Bach,
- * knapp fuer den Grossen Fluss. Es ist EINE Regel ohne Datenfeld; ein Groessenfeld je Fluss waere ein
- * eigenes Vorhaben (Owner-Entscheid 15.08.2026).
+ * 💣 Die Zellbreite IST die Gewaesserbreite (0,5 Einheiten = 1,5 Meilen) -- grosszuegig fuer einen
+ * Bach, knapp fuer den Grossen Fluss. Es ist EINE Regel ohne Datenfeld; ein Groessenfeld je Gewaesser
+ * waere ein eigenes Vorhaben (Owner-Entscheid 15.08.2026).
+ *
+ * $markiere bekommt den fertigen ZELLINDEX -- die Randpruefung liegt hier, damit sie kein Aufrufer
+ * vergessen kann (ein Schreibzugriff hinter dem Ende einer PHP-Zeichenkette fuellt sie stillschweigend
+ * mit Leerzeichen auf, und ein Leerzeichen ist Byte 32, also Faktor 1,28).
  */
-function avesmapsOffroadRasteriseRiverLines(array $box, string &$plane, array $riverLines): void
+function avesmapsOffroadForEachLineCell(array $box, array $lines, callable $markiere): void
 {
-    if ($riverLines === []) { return; }
+    if ($lines === []) { return; }
     // Schrittweite unter einer halben Zelle: so kann keine Zelle uebersprungen werden.
     $step = $box['cell'] * 0.4;
     if ($step <= 0.0) { return; }
 
-    $markiere = static function (int $col, int $row) use ($box, &$plane): void {
+    $zelle = static function (int $col, int $row) use ($box, $markiere): void {
         if ($col < 0 || $col >= $box['cols'] || $row < 0 || $row >= $box['rows']) { return; }
-        $plane[$row * $box['cols'] + $col] = "\x01";
+        $markiere($row * $box['cols'] + $col);
     };
 
-    foreach ($riverLines as $line) {
+    foreach ($lines as $line) {
         $count = is_array($line) ? count($line) : 0;
         for ($i = 0; $i < $count - 1; $i++) {
             $ax = (float) $line[$i][0];     $ay = (float) $line[$i][1];
@@ -248,16 +275,76 @@ function avesmapsOffroadRasteriseRiverLines(array $box, string &$plane, array $r
             for ($s = 0; $s <= $steps; $s++) {
                 $t = $s / $steps;
                 [$col, $row] = avesmapsOffroadCellOf($box, $ax + ($bx - $ax) * $t, $ay + ($by - $ay) * $t);
-                $markiere($col, $row);
+                $zelle($col, $row);
                 // Die beiden Eckzellen des Treppenschritts -- ohne sie bleibt eine diagonale Luecke.
                 if ($previous !== null && $previous[0] !== $col && $previous[1] !== $row) {
-                    $markiere($previous[0], $row);
-                    $markiere($col, $previous[1]);
+                    $zelle($previous[0], $row);
+                    $zelle($col, $previous[1]);
                 }
                 $previous = [$col, $row];
             }
         }
     }
+}
+
+/**
+ * Die Flusslinien in die Sperrebene -- ein Fluss ist im Gelaende eine Wand, wie Meer und See.
+ *
+ * 🔴 Er ist bei uns keine FLAECHE, sondern ein `Flussweg`-WEG. Deshalb steht er nicht in $water und
+ * musste bis zum 15.08.2026 gar nicht ueberquert werden -- er war schlicht nicht da. Gequert wird
+ * seither nur, wo ein gezeichneter Weg quert: das ist die Bruecke, und die wirkt von selbst, weil
+ * Wege Graph-Kanten sind und das Gitter nie sehen.
+ *
+ * ⚠️ Was hier ankommt, ist die WAND-Haelfte aus avesmapsCollectRouteRiverBarrierLines. Ein Bach
+ * gehoert nicht hierher, sondern in avesmapsOffroadRasteriseBachFactor.
+ */
+function avesmapsOffroadRasteriseRiverLines(array $box, string &$plane, array $riverLines): void
+{
+    avesmapsOffroadForEachLineCell($box, $riverLines, static function (int $index) use (&$plane): void {
+        $plane[$index] = "\x01";
+    });
+}
+
+/**
+ * PURE: die Bachlinien als AUFSCHLAG in die Faktorebene -- eine Furt, keine Wand.
+ *
+ * 🔴 EIN BACH SPERRT NICHT, ER KOSTET (Owner 30.08.2026). Der Faktor liegt auf den beruehrten Zellen,
+ * und weil der Suchlauf jeden Schritt mit `max($currentFactor, $nextFactor)` bepreist, verteuert er
+ * jeden Schritt, der eine Bachzelle beruehrt -- also genau das Queren, und nur das.
+ *
+ * 🔴 UEBERLAGERT WIRD PER MAXIMUM, wie die drei Landschaftsebenen untereinander
+ * (avesmapsOffroadCombineFactorPlanes): eine Bachzelle im Sumpf nimmt den teureren der beiden Werte.
+ * ⭐ Gerechnet wird das hier auf den BERUEHRTEN Zellen statt ueber eine zweite volle Ebene und
+ * avesmapsOffroadCombineFactorPlanes -- die Wirkung ist dieselbe, aber der Vergleich zweier ganzer
+ * Ebenen ist eine PHP-Schleife ueber bis zu 150.000 Zellen fuer eine Handvoll Bachzellen, und das
+ * dreimal je Anfrage (die drei Zusammenbau-Stellen). Auf Shared Hosting ist das der Unterschied
+ * zwischen Fix und Last.
+ *
+ * 💣 EINE LEERE EBENE HEISST „ueberall 1,0", NICHT „keine Ebene". Ohne Landschaftsdaten kommt
+ * avesmapsOffroadLoadFactorPlane mit '' zurueck; der Bach braucht trotzdem eine Ebene, in die er
+ * schreiben kann, sonst waere er ausgerechnet dort wirkungslos, wo sonst nichts bremst.
+ * 💣 UND EINE EBENE FALSCHER LAENGE WIRD NICHT ANGEFASST. Ein Schreibzugriff hinter dem Ende einer
+ * PHP-Zeichenkette verlaengert sie mit LEERZEICHEN -- Byte 32, also Faktor 1,28 auf jeder Zelle
+ * dazwischen. Das waere ein stiller Gelaendeaufschlag ueber die halbe Kiste.
+ */
+function avesmapsOffroadRasteriseBachFactor(array $box, string $factors, array $bachLines): string
+{
+    if ($bachLines === []) { return $factors; }
+
+    $byte = (int) round(AVESMAPS_ROUTE_OFFROAD_BACH_FACTOR * AVESMAPS_ROUTE_OFFROAD_FACTOR_SCALE);
+    $byte = max(0, min(255, $byte));
+    if ($byte === 0) { return $factors; }
+
+    $cells = (int) $box['cell_count'];
+    if ($factors === '') { $factors = str_repeat("\x00", $cells); }
+    if (strlen($factors) !== $cells) { return $factors; }
+
+    $character = chr($byte);
+    avesmapsOffroadForEachLineCell($box, $bachLines, static function (int $index) use (&$factors, $byte, $character): void {
+        if (ord($factors[$index]) < $byte) { $factors[$index] = $character; }
+    });
+
+    return $factors;
 }
 
 /**
@@ -967,32 +1054,81 @@ function avesmapsRouteSegmentsIntersect(
 }
 
 /**
- * PURE: die Flusslinien aus den Netzdaten -- und sonst nichts.
+ * PURE: die Gewaesserlinien aus den Netzdaten, in ihre ZWEI Rollen sortiert -- und sonst nichts.
  *
- * 🔴 DIES IST DIE EINZIGE STELLE, DIE ENTSCHEIDET, WAS EINE WAND IST. Owner, 15.08.2026: „wir werden
- * bald fluesse bauen die ueberquert werden koennen (baeche)". Wenn es soweit ist, kommt der Bach
- * hier heraus -- durch eine zusaetzliche Bedingung in DIESER Schleife -- und nirgends sonst. Wer die
- * Unterscheidung stattdessen in die Rasterung oder in den Schnitt-Test der Geraden legt, hat sie
- * zweimal, und die beiden laufen auseinander (siehe die vier Erzeuger der Verkehrsmittel-Sperre,
- * AGENTS.md §11).
+ * 🔴 DIES IST DIE EINZIGE STELLE, DIE ENTSCHEIDET, WAS EINE WAND IST UND WAS EINE FURT. Der Satz
+ * stand hier schon am 15.08.2026, als es die Furt noch nicht gab: „wenn es soweit ist, kommt der
+ * Bach hier heraus -- durch eine zusaetzliche Bedingung in DIESER Schleife -- und nirgends sonst."
+ * Genau so ist es am 30.08.2026 geschehen. Wer die Unterscheidung stattdessen in die Rasterung oder
+ * in den Schnitt-Test der Geraden legt, hat sie zweimal, und die beiden laufen auseinander (siehe
+ * die vier Erzeuger der Verkehrsmittel-Sperre, AGENTS.md §11).
  *
+ * 🔴 EIN RUECKGABEWERT MIT ZWEI FAECHERN, KEIN ZWEITER PARAMETER. Ein `$bachLines` neben
+ * `$riverLines` durch dieselben sechs Signaturen zu reichen waere genau die Falle, die dieses Haus
+ * zweimal bezahlt hat: der naechste Erzeuger reicht das eine weiter und das andere nicht, und der
+ * Fehler ist STILL -- eine Route wird ohne Aufschlag einfach ein bisschen billiger, und niemand
+ * sieht es. So gibt es nur EIN Ding zu reichen; wer es reicht, reicht beide Haelften.
+ *
+ * ⚠️ Ein Bach ist ein `Flussweg` mit `properties.is_bach === true`. Gelesen wird STRIKT und genau so
+ * wie im Browser (`avesmapsPathIstBach` schreibt nur literales `true` ins properties_json,
+ * `js/map-features/map-features-path-domain.js` liest `=== true`). Eine grosszuegigere Lesart hier
+ * hiesse: die Karte zeichnet einen Fluss und der Router nimmt eine Furt an, oder umgekehrt -- und
+ * das ist die Sorte Widerspruch, die man nur als Reisezeit sieht.
  * ⚠️ `Seeweg` bleibt draussen: Seewege laufen ueber das Meer, das ohnehin gesperrt ist, und sie
  * zusaetzlich als Wand zu rastern wuerde Kuestenrouten zerschneiden.
  * ⭐ Die Geometrien sind bereits geladen ($routeNetworkData['paths']) -- keine zweite Abfrage je
  * Route. Auf Shared Hosting ist das der Unterschied zwischen Fix und Last.
+ *
+ * @return array{wand: list<array>, furt: list<array>}
  */
 function avesmapsCollectRouteRiverBarrierLines(array $paths): array
 {
-    $lines = [];
+    $wand = [];
+    $furt = [];
     foreach ($paths as $path) {
         if (!is_array($path)) { continue; }
         if (avesmapsGetRouteTransportType((string) ($path['subtype'] ?? '')) !== 'river') { continue; }
         $coordinates = $path['geometry']['coordinates'] ?? null;
         if (!is_array($coordinates) || count($coordinates) < 2) { continue; }
-        $lines[] = $coordinates;
+        // `properties` ist das ausgepackte properties_json (avesmapsBuildRoutePathData).
+        $properties = is_array($path['properties'] ?? null) ? $path['properties'] : [];
+        if (($properties['is_bach'] ?? null) === true) { $furt[] = $coordinates; continue; }
+        $wand[] = $coordinates;
     }
 
-    return $lines;
+    return ['wand' => $wand, 'furt' => $furt];
+}
+
+/**
+ * PURE: die WAND-Haelfte eines Gewaesser-Bunds (die Fluesse, die sperren).
+ *
+ * 💣 EINE FLACHE LINIENLISTE -- die Form vor dem 30.08.2026 -- WIRD ALS WAND GELESEN, nicht als
+ * nichts. Das ist die sichere Richtung: der schlimmste Fall ist dann „ein Bach sperrt wieder", also
+ * der Zustand von gestern. Mit `$gewaesser['wand'] ?? []` waere der schlimmste Fall „KEIN Fluss
+ * sperrt mehr" -- genau der Zustand, den der Entwurf vom 15.08.2026 beseitigt hat, und er sieht von
+ * aussen aus wie eine besonders zuegige Reise.
+ */
+function avesmapsOffroadBarrierLines(array $gewaesser): array
+{
+    if ($gewaesser === []) { return []; }
+    if (array_key_exists('wand', $gewaesser)) {
+        return is_array($gewaesser['wand']) ? $gewaesser['wand'] : [];
+    }
+
+    return $gewaesser;
+}
+
+/**
+ * PURE: die FURT-Haelfte eines Gewaesser-Bunds (die Baeche, die nur kosten).
+ *
+ * ⚠️ Die alte flache Form kennt keine Furt und liefert hier zu Recht nichts -- der Gegenpol zu
+ * avesmapsOffroadBarrierLines, und in derselben sicheren Richtung: im Zweifel Wand, nie Furt.
+ */
+function avesmapsOffroadFordLines(array $gewaesser): array
+{
+    if (!array_key_exists('furt', $gewaesser)) { return []; }
+
+    return is_array($gewaesser['furt']) ? $gewaesser['furt'] : [];
 }
 
 /**

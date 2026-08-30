@@ -80,6 +80,8 @@ $geradeFern = avesmapsOffroadStraightPathIfDry($box, $keinWasser, null, null, $t
 assert(is_array($geradeFern), 'ein Fluss, den sie nicht kreuzt, geht sie nichts an');
 
 // ---- G: der Sammler nimmt Fluesse und sonst nichts ----------------------------------------
+// ⚠️ Seit dem 30.08.2026 liefert er ZWEI Faecher: 'wand' (Fluss) und 'furt' (Bach). Hier wird nur
+// die Wand geprueft -- die Furt hat ihren eigenen Test (bach-furt-test.php).
 $wege = [
     ['subtype' => 'Flussweg', 'geometry' => ['coordinates' => [[1.0, 1.0], [2.0, 2.0]]]],
     ['subtype' => 'Strasse',  'geometry' => ['coordinates' => [[3.0, 3.0], [4.0, 4.0]]]],
@@ -89,7 +91,9 @@ $wege = [
     ['subtype' => 'Flussweg', 'geometry' => ['coordinates' => [[7.0, 7.0]]]],   // zu kurz
 ];
 $gesammelt = avesmapsCollectRouteRiverBarrierLines($wege);
-assert(count($gesammelt) === 1, 'genau ein Fluss, und der Einpunkt-Fluss faellt heraus: ' . count($gesammelt));
-assert($gesammelt[0] === [[1.0, 1.0], [2.0, 2.0]], 'mit seiner Geometrie: ' . json_encode($gesammelt[0]));
+$wand = avesmapsOffroadBarrierLines($gesammelt);
+assert(count($wand) === 1, 'genau ein Fluss, und der Einpunkt-Fluss faellt heraus: ' . count($wand));
+assert($wand[0] === [[1.0, 1.0], [2.0, 2.0]], 'mit seiner Geometrie: ' . json_encode($wand[0]));
+assert(avesmapsOffroadFordLines($gesammelt) === [], 'ohne Haekchen gibt es keine Furt');
 
 fwrite(STDOUT, "fluss-sperre-test: OK\n");
