@@ -1272,6 +1272,41 @@ $ortQuelle->execute([$ortZeile['public_id']]);
 assert((int) $ortQuelle->fetchColumn() === 1, 'die Quelle des Ortes haengt an entity_type=settlement');
 $pruefungen++;
 
+
+// --- 🔴 „Ort bearbeiten" WIRKT WIRKLICH (Owner 30.08.2026). Der Test oben legt einen Ort OHNE
+// Handeingabe an; dieser legt einen MIT an und liest die vier Felder aus properties_json zurueck.
+// Ohne diese Gegenprobe waere die ganze Bedienoberflaeche eine Behauptung: die reine Funktion
+// avesmapsGaretienOrtUebersteuerung koennte tadellos sein und der Aufruf im 'location'-Zweig
+// trotzdem fehlen -- genau die Luecke, die dem Quellen-Lizenzfeld drei Tage gekostet hat
+// („Feld erreicht nur den TESTBAREN Leser").
+avesmapsSyncPlanAddItem($pdoNeu, $laufNeu, $bauePunktEintrag('location', 'stadt', 'Probestadt Einstellbar', 510.0, 510.0));
+$ortEinstellId = $itemIdVon($pdoNeu, 'Probestadt Einstellbar (Probe)');
+$eOrtEinstell = avesmapsGaretienUebernehmen($pdoNeu, $laufNeu, [$ortEinstellId], ['id' => 7], [
+    'is_nodix' => true, 'is_ruined' => true, 'is_hidden' => true, 'place_kind' => 'Brücke',
+]);
+assert($eOrtEinstell['angelegt'] === 1 && $eOrtEinstell['fehler'] === [],
+    'der eingestellte Ort wird angelegt: ' . json_encode($eOrtEinstell, JSON_UNESCAPED_UNICODE));
+$ortEinstellProps = json_decode((string) $pdoNeu->query(
+    "SELECT properties_json FROM map_features WHERE name = 'Probestadt Einstellbar'"
+)->fetchColumn(), true);
+assert(($ortEinstellProps['is_nodix'] ?? null) === true, 'is_nodix traegt die Handeingabe: ' . json_encode($ortEinstellProps));
+assert(($ortEinstellProps['is_ruined'] ?? null) === true, 'is_ruined traegt die Handeingabe: ' . json_encode($ortEinstellProps));
+assert(($ortEinstellProps['is_hidden'] ?? null) === true, 'is_hidden traegt die Handeingabe: ' . json_encode($ortEinstellProps));
+assert(($ortEinstellProps['place_kind'] ?? null) === 'Brücke',
+    'place_kind rastet auf den Katalog ein und steht drin: ' . json_encode($ortEinstellProps, JSON_UNESCAPED_UNICODE));
+$pruefungen += 5;
+
+// ⚠️ GEGENPROBE ZUM OBEN ANGELEGTEN ORT: er stand OHNE Handeingabe da und muss die drei Haken auf
+// `false` und GAR KEIN place_kind tragen. Ohne sie belegt der Block darueber nur, dass irgendwo
+// `true` herauskommt -- nicht, dass die Handeingabe der Grund dafuer ist.
+$ortOhneProps = json_decode((string) $ortZeile['properties_json'], true);
+assert(($ortOhneProps['is_nodix'] ?? null) === false, 'ohne Handeingabe bleibt is_nodix aus');
+assert(($ortOhneProps['is_ruined'] ?? null) === false, 'ohne Handeingabe bleibt is_ruined aus');
+assert(($ortOhneProps['is_hidden'] ?? null) === false, 'ohne Handeingabe bleibt is_hidden aus');
+assert(!array_key_exists('place_kind', $ortOhneProps),
+    'ohne Handeingabe steht place_kind GAR NICHT im JSON -- ein leerer Schluessel waere die '
+    . 'Behauptung "keine Art", die niemand getroffen hat: ' . json_encode($ortOhneProps));
+$pruefungen += 4;
 // --- 🔴 KORREKTUR A (Owner-Nachtrag 30.08.2026: „DOCH DER IMPORT SOLL SIE SETZEN!!!"). Eine
 // Uebersteuerung, wie sie das Fenster „Landschaften -> Darstellung" tatsaechlich speichert:
 // 'berggipfel' traegt eine VOLLSTAENDIGE, gueltige Zeile, 'vulkan' eine, die ausserhalb dessen
@@ -2067,4 +2102,50 @@ avesmapsGaretienUebernehmen($pdoR, $laufR, [], ['id' => 7]);
 assert($revisionVon($pdoR) === $revVorLeer, 'eine leere Auswahl hebt die Revision nicht');
 $pruefungen++;
 
+
+// =================================================================================================
+// „Ort bearbeiten" im Kasten „Eingefuegt wird" (Owner 30.08.2026: „ja mach ort bearbeiten, dann
+// weg bearbeiten"). Bis dahin war der Ort-Abschnitt reine ANZEIGE; einstellbar sind jetzt genau
+// die Felder, die avesmapsCreatePointFeature wirklich in properties_json schreibt.
+//
+// 🔴 GEPRUEFT WIRD, DASS ES GENAU DIESE VIER SIND. Ein Regler auf einem Feld, das die Anlage gar
+// nicht liest, waere ein Bedienelement, das nichts tut -- und von einem, das wirkt, von aussen
+// nicht zu unterscheiden. is_nodix/is_ruined/is_hidden stehen fest im $properties-Rumpf von
+// avesmapsCreatePointFeature, place_kind nur, wenn es nach der Normalisierung nicht leer ist.
+// =================================================================================================
+assert(avesmapsGaretienOrtUebersteuerung(null) === [], 'ohne Handeingabe: leer -- der Import setzt dann gar nichts');
+assert(avesmapsGaretienOrtUebersteuerung([]) === [], 'ein leerer Rumpf ist ebenfalls keine Aussage');
+assert(avesmapsGaretienOrtUebersteuerung(['is_nodix' => null, 'place_kind' => null]) === [],
+    'explizite nulls zaehlen wie "nicht genannt" -- dieselbe Regel wie bei Region und Label');
+$pruefungen += 3;
+
+$ortVoll = avesmapsGaretienOrtUebersteuerung([
+    'is_nodix' => true, 'is_ruined' => true, 'is_hidden' => true, 'place_kind' => 'Bruecke',
+]);
+assert($ortVoll === ['is_nodix' => true, 'is_ruined' => true, 'is_hidden' => true, 'place_kind' => 'Bruecke'],
+    'alle vier Felder reisen durch, wenn sie genannt sind: ' . json_encode($ortVoll));
+$pruefungen++;
+
+// 💣 Die drei Haken werden zu ECHTEN Bools gecastet, nicht durchgereicht -- ein "0" aus einem
+// alten, zwischengespeicherten Client waere sonst `true`. Dieselbe Behandlung wie bei
+// avesmapsGaretienLabelUebersteuerung('show_name').
+$ortRoh = avesmapsGaretienOrtUebersteuerung(['is_nodix' => '0', 'is_ruined' => 1, 'is_hidden' => '']);
+assert($ortRoh['is_nodix'] === false, 'die Zeichenkette "0" wird false: ' . json_encode($ortRoh));
+assert($ortRoh['is_ruined'] === true, 'die Zahl 1 wird true: ' . json_encode($ortRoh));
+assert($ortRoh['is_hidden'] === false, 'die leere Zeichenkette wird false: ' . json_encode($ortRoh));
+$pruefungen += 3;
+
+// ⚠️ place_kind reist als ZEICHENKETTE durch, ungeprueft -- avesmapsNormalizePlaceKind in
+// avesmapsCreatePointFeature ist die letzte Instanz und rastet auf den Ortsarten-Katalog ein
+// (api/_internal/wiki/place-kinds.php). Eine zweite Normalisierung hier waere die zweite Wahrheit
+// ueber diesen Katalog -- genau die Doppelung, die AGENTS.md §5 verbietet.
+$ortArt = avesmapsGaretienOrtUebersteuerung(['place_kind' => '  Gibtsnicht  ']);
+assert($ortArt === ['place_kind' => '  Gibtsnicht  '],
+    'place_kind reist unveraendert, der Anleger entscheidet: ' . json_encode($ortArt));
+// 🔴 Eine LEERE Art reist mit, statt weggelassen zu werden -- avesmapsCreatePointFeature setzt den
+// Schluessel dann ohnehin nicht. Wuerde "" hier verschluckt, haette die Uebersteuerung zwei
+// Bedeutungen fuer denselben Wert ("nicht genannt" und "ausdruecklich keine Art").
+assert(avesmapsGaretienOrtUebersteuerung(['place_kind' => '']) === ['place_kind' => ''],
+    'eine leere Art reist mit; der Anleger laesst den Schluessel dann weg');
+$pruefungen += 2;
 echo "OK: {$pruefungen} Pruefungen\n";

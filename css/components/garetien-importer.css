@@ -849,6 +849,23 @@
 	color: var(--color-disabled-text);
 }
 
+/* Das Freitextfeld der Ortsart (Owner 30.08.2026, „ja mach ort bearbeiten") -- dieselbe Optik wie
+ * das Zahlenfeld, aber NICHT dessen Breite: `.gi-insert__input` steht auf `width: 4.5em`, und der
+ * Platzhalter dieses Feldes lautet „z. B. Brücke – leer lassen, wenn unbekannt".
+ *
+ * 🔴 Es ist ein DIREKTES Kind von `.location-report-form__field--zeile` (die Zahlenzeile hat dort
+ * `.label-edit-sliderrow` dazwischen, das `flex: 1 1 auto` schon trägt) -- ohne diese Regel bliebe
+ * es bei 4.5em stehen, weil die Zeile nur ihre beiden bekannten Kind-Klassen wachsen lässt.
+ * 💣 Zwei Klassen (0,2,0), nicht eine: `.gi-insert__input` weiter oben ist ebenfalls 0,1,0 und
+ * steht DAVOR -- bei gleicher Spezifität gewinnt die spätere, aber diese Datei ist lang und der
+ * Abstand lädt zum Umsortieren ein. Dieselbe Lehre wie bei `.fs-row--add`, das fünf Tage lang
+ * wirkungslos war (AGENTS.md §11, Quellenliste). */
+.gi-insert__input.gi-insert__input--text {
+	width: auto;
+	flex: 1 1 auto;
+	min-width: 0;
+}
+
 .gi-insert__unit { color: var(--color-text-muted); }
 
 /* ---- Owner-Bestellung 30.08.2026 (wörtlich): „du kannst die slider bzw. abstände zwischen den

@@ -2207,6 +2207,12 @@
 			// KEINE Vorgabe der Art, genau wie isLocked/curveLabel: garetien.de liefert nie eine
 			// Nodix-Aussage, der Grundwert ist immer „aus".
 			isNodix: false,
+			// 🔴 „Ort bearbeiten" (Owner 30.08.2026: „ja mach ort bearbeiten, dann weg bearbeiten").
+			// Auch hier keine Vorgabe der Art: garetien.de trifft zu Ruine, Verborgenheit und
+			// Ortsart keine Aussage. `placeKind` ist LEER und nicht etwa geraten -- eine erfundene
+			// Art wäre eine Behauptung, die niemand getroffen hat, und der Anleger ließe den
+			// Schlüssel bei "" ohnehin weg.
+			isRuined: false, isHidden: false, placeKind: "",
 		};
 	}
 
@@ -2299,6 +2305,29 @@
 			+ avesmapsGaretienEscape(beschriftung) + "</label></p>";
 	}
 
+	// REIN: eine Textzeile -- Beschriftung + Freitextfeld. Bislang nur für die Ortsart
+	// (`place_kind`) gebraucht, deshalb bewusst schlicht: der echte Dialog „Ort bearbeiten"
+	// (index.html #location-edit-place-kind) hängt dort eine Vorschlagsliste mit Nutzungszahlen an
+	// (js/ui/place-kind-autocomplete.js), die ihren Katalog über einen EIGENEN Endpunkt holt.
+	//
+	// 🔴 Die wird hier NICHT nachgebaut. Sie ist ein eigenständiges Bauteil mit eigenem Abruf, und
+	// eine zweite, abgespeckte Fassung wäre genau die Doppelung, die dieses Fenster an den
+	// Listenzeilen (sieben Rezepturen) und der Wiki-Zuweisung (sechs Fassungen) schon zweimal
+	// bezahlt hat. Der Server rastet den getippten Wert ohnehin auf den Katalog ein
+	// (avesmapsNormalizePlaceKind) -- ein Wort daneben wird verworfen, nicht falsch gespeichert.
+	// 🔧 Wenn der Owner die Vorschlagsliste hier haben will, ist das der Ort, an dem das Bauteil
+	// eingehängt wird -- nicht der Ort, an dem eine zweite entsteht.
+	function garetienEingefuegtWirdTextZeile(objekt, beschriftung, feld, wert, platzhalter, deaktiviert) {
+		const id = garetienEingabeId(objekt, feld);
+		return '<label class="location-report-form__field location-report-form__field--zeile gi-insert__row" for="'
+			+ id + '"><span>' + avesmapsGaretienEscape(beschriftung) + "</span>"
+			+ '<input type="text" class="gi-insert__input gi-insert__input--text" id="' + id + '" '
+			+ 'data-gi-feld="' + feld + '" maxlength="120" autocomplete="off" '
+			+ 'value="' + avesmapsGaretienEscape(String(wert || "")) + '" '
+			+ 'placeholder="' + avesmapsGaretienEscape(platzhalter || "") + '"'
+			+ (deaktiviert ? " disabled" : "") + "></label>";
+	}
+
 	// REIN: „Fläche" -- für Klicks gesperrt (is_locked). Kein Vergleichswert/keine Vorgabe der Art
 	// nötig -- es gibt keine Art-Empfehlung für diese Spalte, sie ist eine reine
 	// Karteneigenschaft je Region (AGENTS.md §11, „Stapelreihenfolge und Klick-Sperre der REGION"),
@@ -2389,6 +2418,14 @@
 			}
 			return;
 		}
+		// Ein FREITEXTFELD (heute nur die Ortsart) wird unverändert übernommen -- auch leer, denn
+		// „keine Art" ist ein gültiger Zustand. 🔴 Hier wird NICHT auf den Ortsarten-Katalog
+		// eingerastet: das tut avesmapsNormalizePlaceKind auf dem Server, und eine zweite
+		// Normalisierung im Browser wäre die zweite Wahrheit über denselben Katalog.
+		if (ziel.type === "text") {
+			eingaben[feld] = String(ziel.value || "");
+			return;
+		}
 		// Ein leeres/kaputtes Feld behält den letzten gültigen Stand, statt `NaN` zu speichern --
 		// der Server sähe dann die Zeichenkette "NaN" statt einer Zahl.
 		const zahl = parseInt(ziel.value, 10);
@@ -2416,6 +2453,16 @@
 	// nicht, aber ein `null` ist trotzdem die korrekte Antwort für ein Ziel ohne diese Felder).
 	function garetienEingabenFuerServer(objekt) {
 		const ziel = String((objekt && objekt.ziel) || "");
+		// 🔴 Der ORT hat seit dem 30.08.2026 eigene Felder, und sie heißen ANDERS als im Browser:
+		// hier `isNodix`, im Anfragerumpf `is_nodix` -- die Schlüssel des Anlegers
+		// (avesmapsCreatePointFeature) sind der Vertrag, nicht die des Fensters.
+		if (ziel === "location") {
+			const ortEingaben = garetienEingabenZustandZu(objekt);
+			return {
+				is_nodix: ortEingaben.isNodix, is_ruined: ortEingaben.isRuined,
+				is_hidden: ortEingaben.isHidden, place_kind: ortEingaben.placeKind,
+			};
+		}
 		if (ziel !== "region" && ziel !== "label") { return null; }
 		const eingaben = garetienEingabenZustandZu(objekt);
 		const raus = {
@@ -2443,7 +2490,21 @@
 	// lat/lng. Sechs weitere Felder des Dialogs bekommen dabei ihren TABELLENDECKEL, nie eine vom
 	// Import gesetzte Aussage -- dieselbe Lage wie „für Klicks gesperrt" bei der Fläche, deshalb
 	// dieselbe Form: der echte Wert, keine „Vorgabe der Art" (es gibt dafür keine Tafel).
-	function garetienEingefuegtWirdOrtMarkup(subtyp) {
+	// 🔴 SEIT DEM 30.08.2026 EINSTELLBAR (Owner: „ja mach ort bearbeiten, dann weg bearbeiten") --
+	// aber NUR die vier Felder, hinter denen beim Anlegen wirklich ein Schreibweg steht:
+	// `is_nodix`/`is_ruined`/`is_hidden` stehen fest im $properties-Rumpf von
+	// avesmapsCreatePointFeature, `place_kind` nur, wenn es nach avesmapsNormalizePlaceKind nicht
+	// leer ist. Serverseitig nimmt sie avesmapsGaretienOrtUebersteuerung entgegen.
+	//
+	// 🔴 ZWEI ZEILEN BLEIBEN ANZEIGE, UND DAS IST DIE EIGENTLICHE ENTSCHEIDUNG. Die Zoomstufe ist
+	// eine feste Klassentafel (js/map-features/location-zoom-bands.js) und gar kein
+	// properties_json-Feld; Einwohner/Lage/Herrscher entstehen aus der WIKI-Zuweisung
+	// (avesmapsApplyPointWikiFields), nicht aus dem Anfragerumpf. Ein Eingabefeld darauf wäre ein
+	// Bedienelement, das nichts tut — und von einem, das wirkt, von außen nicht zu unterscheiden.
+	// Das ist teurer als eine fehlende Einstellmöglichkeit: es sieht wie eine getroffene
+	// Entscheidung aus.
+	function garetienEingefuegtWirdOrtMarkup(objekt, subtyp, deaktiviert) {
+		const eingaben = garetienEingabenZustandZu(objekt);
 		const abZoom = (typeof avesmapsLocationZoomBandMinZoom === "function")
 			? avesmapsLocationZoomBandMinZoom("marker", subtyp)
 			: null;
@@ -2454,16 +2515,20 @@
 			+ '<p class="gi-insert__row">Diese Ortsklasse ' + zeile
 			+ ' <span class="gi-insert__hint">(feste Vorgabe der Klasse — kein Einstellwert '
 			+ "dieses Imports)</span></p>"
-			+ garetienEingefuegtWirdZeileMitHinweis("Art", "keine gesetzt",
-				"place_kind kommt vom Import nie mit — im Ort-Editor nachtragbar")
-			+ garetienEingefuegtWirdZeileMitHinweis("Ort ist ein Nodix", "aus",
-				"garetien.de kennt kein Nodix-Merkmal — wird nie automatisch gesetzt")
-			+ garetienEingefuegtWirdZeileMitHinweis("Ruine/zerstört", "aus",
-				"garetien.de führt Ruinen nicht als eigenen Typ — wird nie automatisch gesetzt")
-			+ garetienEingefuegtWirdZeileMitHinweis("Verborgen", "aus",
-				"wie bei jedem neu angelegten Ort — der Import setzt is_hidden nicht")
+			// Beschriftung und Platzhalter wortgleich zum echten Dialog (index.html
+			// #location-edit-place-kind) -- ein Editor, der beide Oberflächen kennt, lernt keine
+			// zweite Aussage.
+			+ garetienEingefuegtWirdTextZeile(objekt, "Art", "placeKind", eingaben.placeKind,
+				"z. B. Brücke – leer lassen, wenn unbekannt", deaktiviert)
+			+ garetienEingefuegtWirdHakenZeile(objekt, "Ort ist ein Nodix", "isNodix",
+				eingaben.isNodix, deaktiviert)
+			+ garetienEingefuegtWirdHakenZeile(objekt, "Ruine/zerstört", "isRuined",
+				eingaben.isRuined, deaktiviert)
+			+ garetienEingefuegtWirdHakenZeile(objekt, "Verborgen", "isHidden",
+				eingaben.isHidden, deaktiviert)
 			+ garetienEingefuegtWirdZeileMitHinweis("Einwohner · Lage · Herrscher", "keine Angabe",
-				"füllt sich bislang nur über die Wiki-Zuweisung, nicht über diesen Import");
+				"füllt sich nur über die Wiki-Zuweisung, nicht über diesen Import — hier nicht "
+				+ "einstellbar, weil der Anleger diese drei gar nicht aus der Anfrage liest");
 	}
 
 	// REIN: „Weg" -- Name-Anzeige, Verkehrsmittel, Jahreszeiten und (nur bei einem Flussweg) die
@@ -2745,7 +2810,7 @@
 		} else if (ziel === "label") {
 			markup += garetienEingefuegtWirdBeschriftungMarkup(objekt, subtyp, false, uebernommen);
 		} else if (ziel === "location") {
-			markup += garetienEingefuegtWirdOrtMarkup(subtyp);
+			markup += garetienEingefuegtWirdOrtMarkup(objekt, subtyp, uebernommen);
 		} else if (ziel === "path") {
 			markup += garetienEingefuegtWirdWegMarkup(subtyp);
 		}

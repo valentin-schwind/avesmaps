@@ -406,6 +406,49 @@ function avesmapsGaretienRegionUebersteuerung(?array $einstellungen): array
     return $raus;
 }
 
+
+/**
+ * Dieselbe Handeingabe, fuer den ORT (ziel='location'). Owner 30.08.2026: „ja mach ort bearbeiten,
+ * dann weg bearbeiten" -- der Kasten „Eingefuegt wird" zeigte diese Felder bis dahin nur an.
+ *
+ * 🔴 GENAU VIER FELDER, UND SIE SIND NICHT FREI GEWAEHLT: es sind die einzigen, die
+ * avesmapsCreatePointFeature (api/_internal/map/features.php) beim Anlegen wirklich in
+ * properties_json schreibt. is_nodix/is_ruined/is_hidden stehen fest in seinem $properties-Rumpf,
+ * place_kind nur, wenn es nach avesmapsNormalizePlaceKind nicht leer ist. Alles andere aus dem
+ * Dialog „Ort bearbeiten" (Einwohner, Lage, Herrscher) entsteht dort aus der WIKI-Zuweisung, nicht
+ * aus dem Anfragerumpf -- ein Bedienelement dafuer waere eines, das nichts tut, und von einem, das
+ * wirkt, von aussen nicht zu unterscheiden.
+ *
+ * 🔴 KEINE Vorgabe der Art, wie bei avesmapsGaretienRegionUebersteuerung: garetien.de trifft zu
+ * keinem dieser vier eine Aussage, ihr Grundwert ist immer „aus" bzw. leer. Eine Handeingabe ist
+ * die einzige Quelle, die sie je anders setzt.
+ *
+ * ⚠️ place_kind reist als ZEICHENKETTE durch, ungeprueft -- der Ortsarten-Katalog liegt in
+ * api/_internal/wiki/place-kinds.php und wird von avesmapsCreatePointFeature befragt. Ihn hier ein
+ * zweites Mal einzurasten waere die zweite Wahrheit ueber denselben Katalog (AGENTS.md §5); und
+ * eine LEERE Art reist mit, statt weggelassen zu werden, damit "" nicht zwei Bedeutungen bekommt
+ * („nicht genannt" gegen „ausdruecklich keine Art") -- der Anleger laesst den Schluessel dann weg.
+ *
+ * @param ?array $einstellungen Rumpf aus dem Kasten, oder null (keine Handeingabe).
+ * @return array{is_nodix?:bool, is_ruined?:bool, is_hidden?:bool, place_kind?:string}
+ */
+function avesmapsGaretienOrtUebersteuerung(?array $einstellungen): array
+{
+    $raus = [];
+    if (!is_array($einstellungen)) {
+        return $raus;
+    }
+    foreach (['is_nodix', 'is_ruined', 'is_hidden'] as $feld) {
+        if (array_key_exists($feld, $einstellungen) && $einstellungen[$feld] !== null) {
+            $raus[$feld] = (bool) $einstellungen[$feld];
+        }
+    }
+    if (array_key_exists('place_kind', $einstellungen) && $einstellungen['place_kind'] !== null) {
+        $raus['place_kind'] = (string) $einstellungen['place_kind'];
+    }
+
+    return $raus;
+}
 /**
  * Eine Flaeche anlegen: LABEL (Punkt) + ecosystem_region + ecosystem_area.
  *
@@ -1026,12 +1069,16 @@ function avesmapsGaretienUebernehmen(PDO $pdo, int $runId, array $itemIds, array
                 // Ortschaften (Entwurf §3.1) -- ein Ort ist ein PUNKT, avesmapsCreatePointFeature
                 // setzt feature_type='location' und liest settlement_class aus 'feature_subtype'.
                 $punkt = avesmapsGaretienPunktAusGeometrie($nach);
-                $feature = avesmapsCreatePointFeature($pdo, [
+                // 🔴 DIE HANDEINGABE DES KASTENS „Eingefuegt wird" (Owner 30.08.2026: „ja mach ort
+                // bearbeiten"). Ohne sie ist das dritte Array LEER, und dann ist dieser Aufruf
+                // zeichengleich mit dem von vorher -- „Alle angezeigten einfuegen" schickt nie
+                // Einstellungen und legt Orte deshalb weiter genau wie bisher an.
+                $feature = avesmapsCreatePointFeature($pdo, array_merge([
                     'name' => (string) $nach['name'],
                     'feature_subtype' => (string) $nach['subtyp'],
                     'lng' => $punkt['lng'],
                     'lat' => $punkt['lat'],
-                ], $user);
+                ], avesmapsGaretienOrtUebersteuerung($einstellungen)), $user);
                 $publicId = avesmapsGaretienPublicIdAus($feature, 'Der Ort');
                 // 🔴 map-features.php:1228 ($entityTypeByFeatureType) bindet feature_type
                 // 'location' an entity_type 'settlement' -- dieselbe Auskunft, an der der

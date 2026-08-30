@@ -370,9 +370,15 @@ wahr(mGipfel.includes("label-edit-sliderrow") && mGipfel.includes('type="range"'
 	"ein Berggipfel-Label bekommt dieselben echten Regler wie eine Flaeche");
 
 // =================================================================================================
-// E. Ein ORT (ziel='location') -- FESTE Klassentafel, kein Einstellwert des Imports, UND (Owner-
-//    Nachtrag 30.08.2026) die sechs Karteifelder von "Ort bearbeiten", die der Import nie fuellt.
-//    UNVERÄNDERT reine Anzeige -- die Recherche ergab, dass ein Ort keines dieser Felder speichert.
+// E. Ein ORT (ziel='location') -- Owner 30.08.2026: „ja mach ort bearbeiten, dann weg bearbeiten".
+//    VIER echte Bedienelemente, und zwar GENAU die vier Felder, die avesmapsCreatePointFeature
+//    (api/_internal/map/features.php) beim Anlegen wirklich in properties_json schreibt:
+//    is_nodix / is_ruined / is_hidden als Haken, place_kind als Textfeld.
+//
+//    🔴 Reine ANZEIGE bleiben die zwei Zeilen, hinter denen KEIN Schreibweg steht: die Zoomstufe
+//    (feste Klassentafel, kein properties_json-Feld) und Einwohner/Lage/Herrscher (die entstehen
+//    aus der WIKI-Zuweisung, nicht aus dem Anfragerumpf). Ein Regler darauf waere ein
+//    Bedienelement, das nichts tut -- und von einem, das wirkt, von aussen nicht zu unterscheiden.
 // =================================================================================================
 
 const ort = {
@@ -382,16 +388,56 @@ const ort = {
 };
 const mOrt = garetienEingefuegtWirdMarkup(ort);
 wahr(!mOrt.includes("Fläche") && !mOrt.includes("class=\"gi-insert__sub\">Beschriftung<") && !mOrt.includes("Weg anzeigen"),
-	"ein Ort hat weder Flaechen- noch Beschriftungs- noch Weg-Einstellwerte -- die Karte zeichnet ihn "
-	+ "aus der Ortsklassen-Tafel, nicht aus properties_json");
+	"ein Ort hat weder Flaechen- noch Beschriftungs- noch Weg-Einstellwerte");
 wahr(mOrt.includes("Ort"), "die Ort-Unterueberschrift fehlt");
-wahr(!mOrt.includes('type="checkbox"') && !mOrt.includes('type="number"'),
-	"ein Ort bekommt KEIN einziges Eingabefeld -- die Recherche ergab, dass hier nichts speicherbar ist");
+
+// ---- Die drei Haken sind ECHTE Haken, jeder mit seinem Feldnamen am Knoten.
+["isNodix", "isRuined", "isHidden"].forEach(function (feld) {
+	wahr(mOrt.includes('type="checkbox"') && mOrt.includes('data-gi-feld="' + feld + '"'),
+		"der Ort braucht ein Haekchen fuer " + feld + ": " + mOrt);
+});
+// ---- Und die Art ist ein Textfeld, kein Haken und keine Zahl.
+wahr(/<input type="text"[^>]*data-gi-feld="placeKind"/.test(mOrt),
+	"place_kind ist ein Textfeld (der echte Dialog hat dort ein Freitextfeld mit Katalog-Vorschlaegen): " + mOrt);
+
+// 💣 UND SEINE BREITE HAENGT AN EINER EIGENEN REGEL. `.gi-insert__input` steht auf `width: 4.5em`
+// -- fuer eine Zahl richtig, fuer ein Freitextfeld mit dem Platzhalter „z. B. Brücke – leer
+// lassen, wenn unbekannt" unbrauchbar. Der Modifier im Markup und die Regel im CSS sind ein
+// gekoppelter Wert in ZWEI Dateien; faellt eine Haelfte weg, schrumpft das Feld lautlos auf
+// Zahlenbreite und niemand merkt es an einem gruenen Test.
+wahr(mOrt.includes("gi-insert__input--text"), "das Textfeld traegt seinen Modifier: " + mOrt);
+const importerCss = fs.readFileSync(path.join(WURZEL, "css/components/garetien-importer.css"), "utf8");
+wahr(/\.gi-insert__input\.gi-insert__input--text\s*\{/.test(importerCss),
+	"und die CSS-Regel dazu gibt es wirklich -- mit ZWEI Klassen, damit sie die 4.5em sicher schlaegt");
+
+// ---- Was an den Server reist -- die vier Feldnamen des Anlegers, nicht die des Browsers.
+const rausOrt = garetienEingabenFuerServer(ort);
+wahr(rausOrt !== null, "ein Ort schickt jetzt eine Handeingabe mit (frueher: null)");
+gleich(Object.keys(rausOrt).sort().join(","), "is_hidden,is_nodix,is_ruined,place_kind",
+	"GENAU die vier Felder, die avesmapsCreatePointFeature liest -- kein fuenftes: " + JSON.stringify(rausOrt));
+gleich(rausOrt.is_nodix, false, "Grundwert aus");
+gleich(rausOrt.place_kind, "", "Grundwert: keine Art");
+
+// ---- Eine Handeingabe kommt wirklich an (differenziell, nicht nur die Form).
+garetienEingabenZustandZu(ort).isRuined = true;
+garetienEingabenZustandZu(ort).placeKind = "Brücke";
+gleich(garetienEingabenFuerServer(ort).is_ruined, true, "ein gesetzter Haken reist mit");
+gleich(garetienEingabenFuerServer(ort).place_kind, "Brücke", "eine getippte Art reist mit");
+wahr(garetienEingefuegtWirdMarkup(ort).includes('value="Brücke"'),
+	"und sie steht beim naechsten Rendern wieder im Feld -- der Zustand liegt im Modul, nicht im DOM");
+garetienEingabenZustandZu(ort).isRuined = false;
+garetienEingabenZustandZu(ort).placeKind = ""; // aufräumen -- der Rest der Datei erwartet die Grundwerte
+
+// ---- Die zwei Zeilen OHNE Schreibweg bleiben Anzeige.
 // 'dorf' im Marker-Band: [null, null, 1.33, ...] -- die erste gefuellte Zelle ist Index 2.
 wahr(mOrt.includes("erscheint ab Zoom 2"),
 	"die feste Klassentafel (location-zoom-bands.js) muss den ECHTEN Bandwert zeigen, nicht geraten");
 wahr(mOrt.includes("kein Einstellwert dieses Imports"),
-	"die Zeile muss sagen, dass hier gar nichts vom Import kommt");
+	"die Zoomzeile muss sagen, dass hier gar nichts vom Import kommt");
+wahr(/Einwohner · Lage · Herrscher[\s\S]{0,40}\(keine Angabe\)/.test(mOrt),
+	"einwohner/lage/oberhaupt kommen vom Import nie mit und bleiben Anzeige");
+wahr(!/data-gi-feld="(einwohner|lage|oberhaupt|minZoom)"/.test(mOrt),
+	"und sie bekommen KEIN Eingabefeld -- dahinter steht beim Anlegen kein Schreibweg");
 
 // ---- DIFFERENZIELL: eine ANDERE Ortsklasse zeigt eine ANDERE Zoomstufe. 'stadt': [1.33, ...] --
 // die erste gefuellte Zelle ist Index 0.
@@ -399,17 +445,15 @@ const stadt = Object.assign({}, ort, { key: "ggp:Sonstiges:Stadt:Garetien:Testst
 wahr(garetienEingefuegtWirdMarkup(stadt).includes("erscheint ab Zoom 0"),
 	"'stadt' erscheint ab Zoom 0 -- eine andere Zahl als 'dorf' (2), sonst waere es Vakuum");
 
-// ---- Owner-Nachtrag 30.08.2026: die sechs uebrigen Karteifelder von "Ort bearbeiten"
-// (avesmapsCreatePointFeature, features.php) -- KEINE Art-Tafel dahinter, deshalb der echte Wert
-// ohne "Vorgabe der Art waere ...".
-wahr(mOrt.includes("Art") && /Art[\s\S]{0,40}\(keine gesetzt\)/.test(mOrt),
-	"place_kind kommt vom Import nie mit -- muss als 'keine gesetzt' stehen");
-wahr(/Ort ist ein Nodix[\s\S]{0,40}\(aus\)/.test(mOrt), "is_nodix ist beim Import immer aus");
-wahr(/Ruine\/zerstört[\s\S]{0,40}\(aus\)/.test(mOrt), "is_ruined ist beim Import immer aus");
-wahr(/Verborgen[\s\S]{0,40}\(aus\)/.test(mOrt), "is_hidden ist beim Import immer aus");
-wahr(/Einwohner · Lage · Herrscher[\s\S]{0,40}\(keine Angabe\)/.test(mOrt),
-	"einwohner/lage/oberhaupt kommen vom Import nie mit");
-// Keine "Vorgabe der Art"-Behauptung -- fuer diese sechs Felder gibt es keine Tafel, eine erfundene
+// ---- Punkt 6a: ein UEBERNOMMENER Ort ist angelegt -- alle vier Felder gesperrt.
+const ortUebernommen = Object.assign({}, ort, {
+	key: "ggp:Sonstiges:Dorf:Garetien:Testdorf-uebernommen", stand: "uebernommen",
+});
+const mOrtUeb = garetienEingefuegtWirdMarkup(ortUebernommen);
+gleich((mOrtUeb.match(/disabled/g) || []).length, 4,
+	"alle vier Bedienelemente des Ortes sind gesperrt, sobald er auf der Karte liegt: " + mOrtUeb);
+
+// Keine "Vorgabe der Art"-Behauptung -- fuer diese vier Felder gibt es keine Tafel, eine erfundene
 // Empfehlung waere die zweite Wahrheit, vor der AGENTS.md warnt.
 wahr(!mOrt.includes("Vorgabe der Art wäre"),
 	"der Ort-Abschnitt darf keine Art-Empfehlung behaupten, die es nicht gibt");
@@ -702,11 +746,19 @@ global.fetch = echtesFetchJ;
 // K. garetienEingabenFuerServer -- was tatsächlich an den Server reist, je Ziel.
 // =================================================================================================
 
-// Ort/Weg: KEINE Handeingabe -- es gibt dort nichts, das der Kasten überhaupt anbietet.
-gleich(garetienEingabenFuerServer({ key: "k1", ziel: "location", subtyp: "dorf" }), null,
-	"ein Ort liefert KEINE Handeingabe -- der Kasten bietet dort keine Felder");
+// Ort: seit dem 30.08.2026 die VIER Felder, die avesmapsCreatePointFeature wirklich schreibt --
+// unter den Schlüsseln des ANLEGERS, nicht denen des Fensters (isNodix -> is_nodix).
+const kOrt = { key: "k1", ziel: "location", subtyp: "dorf" };
+garetienEingabenZustandZu(kOrt).isNodix = true;
+garetienEingabenZustandZu(kOrt).isHidden = true;
+garetienEingabenZustandZu(kOrt).placeKind = "Turm";
+assert.deepStrictEqual(garetienEingabenFuerServer(kOrt), {
+	is_nodix: true, is_ruined: false, is_hidden: true, place_kind: "Turm",
+}, "ein Ort liefert GENAU die vier Karteifelder, keine Label-/Region-Felder");
+checks++;
+// Weg: weiterhin KEINE Handeingabe -- der Kasten bietet dort noch keine Felder an.
 gleich(garetienEingabenFuerServer({ key: "k2", ziel: "path", subtyp: "Pfad" }), null,
-	"ein Weg ebenso");
+	"ein Weg liefert (noch) keine Handeingabe");
 
 // Berggipfel (ziel='label'): die SECHS Label-Felder (inkl. Nodix seit dieser Aufgabe), aber KEIN
 // is_locked/curve_label.
