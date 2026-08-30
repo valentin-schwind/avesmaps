@@ -264,6 +264,45 @@ wahr(!modul.avesmapsGaretienAufDerKarte([])[0][modul.AVESMAPS_GARETIEN_FELD_NUR_
 modul.avesmapsGaretienAnzeigeLeeren();
 
 pruefeAbruf().then(function () {
+
+// =================================================================================================
+// E. Owner 30.08.2026: „soll auch automatisch ins tab 'Anzeigen' wechseln"
+// =================================================================================================
+
+// --- Das GEOEFFNETE Objekt geht mit in die Anzeige. 🔴 Nicht Kosmetik: `garetienDetailRendern`
+// sucht `zustand.detailKey` in der gerade gerenderten Liste. Steht das offene Objekt nicht darin,
+// ist `gewaehlt` null und die rechte Spalte raeumt sich beim Reiterwechsel selbst ab -- gemessen.
+modul.avesmapsGaretienAnzeigeLeeren();
+const offenesObjekt = { key: "e:offen", name: "Alling", geometrie: [[1, 1]] };
+const nachbarn2 = [{ key: "e:n1", name: "N1", geometrie: [[2, 2]] }];
+gleich(garetienNaeheKlick({ target: scheinKnopf(false) }, nachbarn2, offenesObjekt), 1,
+	"der Rueckgabewert bleibt die Zahl der NACHBARN -- nicht die der angezeigten Objekte");
+gleich(modul.avesmapsGaretienAnzeigeHat("e:n1"), true, "der Nachbar liegt in der Anzeige");
+gleich(modul.avesmapsGaretienAnzeigeHat("e:offen"), true,
+	"und das geoeffnete Objekt ebenso -- sonst zeigt der Reiter „Anzeigen“ weniger, als auf der "
+	+ "Karte liegt, und die Einzelansicht laeuft leer");
+
+// ⚠️ Ohne `eigenes` bleibt alles wie vorher -- der dritte Parameter ist zusaetzlich, nicht Pflicht.
+modul.avesmapsGaretienAnzeigeLeeren();
+garetienNaeheKlick({ target: scheinKnopf(false) }, nachbarn2);
+gleich(modul.avesmapsGaretienAnzeigeHat("e:n1"), true, "der Nachbar kommt auch ohne dritten Parameter");
+gleich(modul.avesmapsGaretienAnzeigeHat("e:offen"), false, "und sonst nichts");
+modul.avesmapsGaretienAnzeigeLeeren();
+
+// --- Und der Klickverteiler wechselt den Reiter. Gemessen am Quelltext, weil der Knopf in der
+// DETAILSPALTE steht und ueber einen delegierten Zuhoerer laeuft, den dieser Test nicht aufbaut.
+// ⚠️ Kommentare werden vorher entfernt: der Test schluege sonst an der Erklaerung an, die den
+// Mechanismus beschreibt -- und der naechste Leser loescht dann den Kommentar (AGENTS.md-Falle).
+const quelleOhneKommentare = require("fs")
+	.readFileSync(require("path").resolve(__dirname, "..", "review-garetien-importer.js"), "utf8")
+	.replace(/\r\n/g, "\n")
+	.replace(/\/\*[\s\S]*?\*\//g, "")
+	.replace(/^\s*\/\/.*$/gm, "");
+wahr(/garetienNaeheKlick\(ereignis, _garetienNaeheGefunden, naeheOffen\)\) \{\n\s*zustand\.stand = "anzeigen";/
+	.test(quelleOhneKommentare),
+	"der Klickverteiler muss direkt nach dem Naehe-Klick auf den Reiter „Anzeigen“ wechseln");
+wahr(/const naeheOffen = \(zustand\.objekte \|\| \[\]\)/.test(quelleOhneKommentare),
+	"und dabei das geoeffnete Objekt heraussuchen und mitgeben");
 	console.log(`garetien-naehe-markieren: ${checks} Pruefungen bestanden.`);
 }).catch(function (fehler) {
 	console.error(fehler);

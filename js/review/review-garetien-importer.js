@@ -3310,7 +3310,21 @@
 	// mitgeschickt.
 	// 🔴 Der Klick LEERT NICHTS (Auftrag): `avesmapsGaretienAlleMarkieren`/`avesmapsGaretienAnzeige-
 	// Hinzufuegen` ERGÄNZEN beide, wie überall in diesem Fenster.
-	function garetienNaeheKlick(ereignis, gefunden) {
+	// 🔴 `eigenes` ist das GEOEFFNETE Objekt, und es geht mit in die Anzeige (Owner 30.08.2026,
+	// zusammen mit dem Reiterwechsel unten). Zwei Gruende, und der zweite ist der wichtigere:
+	//   · Es liegt ohnehin schon auf der Karte -- `avesmapsGaretienAufDerKarte` haengt die offene
+	//     Zeile immer an. Ohne diese Zeile zeigte der Reiter „Anzeigen" 42 Nachbarn, waehrend 43
+	//     Objekte gezeichnet sind: er waere nicht mehr die Liste dessen, was auf der Karte liegt,
+	//     und genau das ist seine einzige Aufgabe.
+	//   · Und die EINZELANSICHT LIEFE SONST LEER. `garetienDetailRendern` sucht `zustand.detailKey`
+	//     in der gerade gerenderten Liste; steht das offene Objekt nicht darin, ist `gewaehlt` null
+	//     und die rechte Spalte raeumt sich beim Reiterwechsel selbst ab -- gemessen, nicht vermutet.
+	// ⚠️ Die ZAHL im Knopf bleibt die der NACHBARN (der Rueckgabewert). Sie beantwortet „wie viele
+	// liegen in der Naehe", nicht „wie viele liegen jetzt auf der Karte" -- zwei verschiedene Fragen,
+	// und die zweite steht im Reiterkopf.
+	// ⚠️ Und es bekommt KEINE Nur-ihre-Marke: das geoeffnete Objekt ist von ihr ohnehin ausgenommen
+	// (avesmapsGaretienNurIhreStempeln) -- wer eine Zeile ansieht, will beide Seiten vergleichen.
+	function garetienNaeheKlick(ereignis, gefunden, eigenes) {
 		const ziel = ereignis && ereignis.target;
 		if (!ziel || typeof ziel.closest !== "function") { return null; }
 		const knopf = ziel.closest("[data-naehe]");
@@ -3324,6 +3338,9 @@
 		// LOESCHT die Marke, damit ein gewoehnlicher Weg sie aufhebt -- davor gesetzt waere sie im
 		// selben Zug wieder fort.
 		avesmapsGaretienNurIhreMerken(liste);
+		if (eigenes && eigenes.key !== undefined && eigenes.key !== null) {
+			avesmapsGaretienAnzeigeHinzufuegen([eigenes]);
+		}
 		return liste.length;
 	}
 
@@ -5005,7 +5022,16 @@
 					garetienRuecknahmeSenden, garetienFragen)) { return; }
 				// Owner-Auftrag A: „Imports in der Nähe anzeigen" -- derselbe Zug wie die drei
 				// Verteiler darüber, mit der schon geladenen Trefferliste dieses Objekts.
-				if (garetienNaeheKlick(ereignis, _garetienNaeheGefunden)) {
+				// Owner 30.08.2026: „soll auch automatisch ins tab 'Anzeigen' wechseln" --
+				// derselbe Zug wie bei „Markierte anzeigen" im Fussknopf-Bund, und aus demselben
+				// Grund: der Knopf legt Objekte in die Anzeige-Menge, und genau die zeigt jener
+				// Reiter. Wer ihn drueckt und auf „Offen" stehen bleibt, sieht von seiner Handlung
+				// nur eine Zahl im Reiterkopf.
+				const naeheOffen = (zustand.objekte || []).filter(function (o) {
+					return o && String(o.key) === String(zustand.detailKey);
+				})[0] || null;
+				if (garetienNaeheKlick(ereignis, _garetienNaeheGefunden, naeheOffen)) {
+					zustand.stand = "anzeigen";
 					garetienAnzeigeNeuZeichnen();
 					return;
 				}
