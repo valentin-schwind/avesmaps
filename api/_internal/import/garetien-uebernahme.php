@@ -1077,6 +1077,30 @@ function avesmapsGaretienUebernehmen(PDO $pdo, int $runId, array $itemIds, array
         }
     }
 
+    // 💣 EIN STEMPEL FUER DEN GANZEN LAUF -- UND ER MUSS GANZ ANS ENDE.
+    // avesmapsFeatureSourceLink hebt die Kartenrevision NICHT (es ist der reine Schreiber; alle vier
+    // Hauspfade in api/_internal/app/feature-sources.php rufen avesmapsNextMapRevision selbst).
+    // Dieser Import tat es nicht, und das kostete zweierlei:
+    //
+    //   · Ein Item, das NUR eine Quelle ergaenzt (der Normalfall bei Wegen und Orten, die es schon
+    //     gibt), aenderte kein einziges Kartenobjekt. Die Revision blieb stehen, der ETag auch --
+    //     jeder warme Browser bekam sein 304 samt alter Nutzlast und sah die Quelle NIE. Seit dem
+    //     27.08.2026 legt der Client Nutzlast und Tag zusaetzlich in IndexedDB ab; es heilt also
+    //     auch durch Neuladen nicht von selbst.
+    //   · Beim ANLEGEN hob zwar die Objektanlage die Revision -- aber VOR dem Quellen-Link. Faellt
+    //     dazwischen eine Kartenanfrage, schreibt der Ganzkoerper-Dateicache genau diese Revision
+    //     OHNE die Quelle fest und liefert sie allen weiter aus. Genau so sah der Owner am
+    //     30.08.2026 ein frisch importiertes Moor ohne jede Quellenangabe.
+    //
+    // 🔴 NUR WENN WIRKLICH ETWAS GESCHRIEBEN WURDE. Ein Stempel ohne Schreibvorgang entwertet die
+    // Kopie JEDES Besuchers (rund 3 MB je Wiederbesuch) fuer nichts -- ein Lauf, der nur "stale"
+    // und "failed" produziert hat, hat die Karte nicht angefasst.
+    // ⚠️ Die Fehlerrichtung ist bewusst die teure: im Zweifel lieber ein Stempel zu viel als eine
+    // Quellenangabe, die nie jemand zu sehen bekommt (dieselbe Wahl wie beim Klimastempel).
+    if ($angelegt > 0 || $quellen > 0) {
+        avesmapsNextMapRevision($pdo);
+    }
+
     return ['angelegt' => $angelegt, 'quellen' => $quellen, 'fehler' => $fehler];
 }
 

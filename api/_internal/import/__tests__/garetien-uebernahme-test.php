@@ -1938,4 +1938,84 @@ assert($rLeerQ['zurueckgenommen'] === 1,
 assert($rLeerQ['fehler'] === [], 'ohne Fehler: ' . json_encode($rLeerQ['fehler'], JSON_UNESCAPED_UNICODE));
 $pruefungen += 2;
 
+// =================================================================================================
+// DER KARTENSTEMPEL -- ohne ihn erreicht eine uebernommene Quelle KEINEN Browser
+// =================================================================================================
+//
+// 💣 DER BEFUND (Owner 30.08.2026, an einem importierten Moor: "ganz wichtig war die quelle").
+// avesmapsFeatureSourceLink ist der reine Schreiber und hebt die Kartenrevision NICHT -- alle vier
+// Hauspfade in api/_internal/app/feature-sources.php rufen avesmapsNextMapRevision selbst. Dieser
+// Import tat es nicht. Ein Item, das NUR eine Quelle ergaenzt, aendert kein Kartenobjekt: die
+// Revision blieb stehen, der ETag damit auch, und jeder warme Browser bekam sein 304 samt alter
+// Nutzlast. Seit dem 27.08.2026 liegt die Nutzlast zusaetzlich in IndexedDB -- es heilt also nicht
+// einmal durch Neuladen.
+//
+// ⭐ Messbar ist das hier NUR, weil die Treiber-Naht oben avesmapsNextMapRevision uebersetzt
+// (ON DUPLICATE KEY UPDATE -> ON CONFLICT). Der Produktivcode bleibt MySQL, wie im Kopf begruendet.
+$revisionVon = static function (PDO $pdo): int {
+    return (int) ($pdo->query('SELECT revision FROM map_revision WHERE id = 1')->fetchColumn() ?: 0);
+};
+
+$pdoR = avesmapsGaretienUebernahmeTestPdo();
+$laufR = (int) avesmapsSyncPlanOpenRun($pdoR, AVESMAPS_GARETIEN_PLAN_KIND)['id'];
+$idWegR = '00000000-0000-4000-8000-00000000a001';
+$pdoR->prepare('INSERT INTO map_features (public_id, name, feature_type, feature_subtype, geometry_json, properties_json, geometry_type) VALUES (?,?,?,?,?,?,?)')
+    ->execute([$idWegR, 'Stempelpfad', 'path', 'Weg',
+        json_encode(['type' => 'LineString', 'coordinates' => [[1.0, 1.0], [2.0, 2.0]]]),
+        '{}', 'LineString']);
+
+// --- 1. Eine Ergaenzung, die NUR die Quelle schreibt, hebt die Revision --------------------------
+avesmapsSyncPlanAddItem($pdoR, $laufR, [
+    'entity_key' => 'ggp:Probe:path:Stempelpfad|ergaenzung|' . $idWegR,
+    'entity_public_id' => $idWegR,
+    'change_type' => 'changed',
+    'label' => 'Stempelpfad · Quelle',
+    'before' => ['public_id' => $idWegR, 'name' => 'Stempelpfad'],
+    'after' => ['herkunft' => 'garetien', 'anlass' => 'ergaenzung', 'felder' => ['quelle'],
+        'ziel' => 'path', 'subtyp' => 'Weg',
+        'quelle' => ['url' => 'https://www.garetien.de/index.php?title=Garetien:Stempelpfad',
+            'label' => 'Briefspiel (Garetien)', 'license' => 'cc-by-nc-sa-3.0',
+            'attribution' => 'VolkoV / garetien.de']],
+    'override' => [], 'selected' => 1,
+]);
+$itemR = $itemIdVon($pdoR, 'Stempelpfad · Quelle');
+$revVorher = $revisionVon($pdoR);
+$eR = avesmapsGaretienUebernehmen($pdoR, $laufR, [$itemR], ['id' => 7]);
+assert($eR['fehler'] === [] && $eR['quellen'] === 1,
+    'die Quellen-Ergaenzung gelingt: ' . json_encode($eR, JSON_UNESCAPED_UNICODE));
+assert($revisionVon($pdoR) > $revVorher,
+    '🔴 EINE UEBERNAHME, DIE NUR EINE QUELLE SCHREIBT, MUSS DIE KARTENREVISION HEBEN -- sonst '
+    . 'bekommt jeder warme Browser sein 304 samt alter Nutzlast und sieht die Quelle NIE');
+$pruefungen += 2;
+
+// --- 2. Ein Lauf, der NICHTS geschrieben hat, hebt sie NICHT -------------------------------------
+// 🔴 Ein Stempel ohne Schreibvorgang entwertet die Kopie JEDES Besuchers (rund 3 MB je
+// Wiederbesuch) fuer nichts. Die leere Auswahl steigt schon vorher aus; hier zaehlt der Fall
+// DAHINTER: ein Item, das der Apply als "braucht eine Entscheidung von Hand" ablegt.
+avesmapsSyncPlanAddItem($pdoR, $laufR, [
+    'entity_key' => 'ggp:Probe:path:Stempelpfad|widerspruch|' . $idWegR,
+    'entity_public_id' => $idWegR,
+    'change_type' => 'changed',
+    'label' => 'Stempelpfad · Widerspruch',
+    'before' => ['public_id' => $idWegR, 'name' => 'Stempelpfad'],
+    'after' => ['herkunft' => 'garetien', 'anlass' => 'widerspruch', 'felder' => [],
+        'ziel' => 'path', 'subtyp' => 'Weg'],
+    'override' => [], 'selected' => 1,
+]);
+$itemStale = $itemIdVon($pdoR, 'Stempelpfad · Widerspruch');
+$revVorStale = $revisionVon($pdoR);
+$eStale = avesmapsGaretienUebernehmen($pdoR, $laufR, [$itemStale], ['id' => 7]);
+assert($eStale['angelegt'] === 0 && $eStale['quellen'] === 0,
+    'der Widerspruch schreibt nichts: ' . json_encode($eStale, JSON_UNESCAPED_UNICODE));
+assert($revisionVon($pdoR) === $revVorStale,
+    'ein Lauf ohne Schreibvorgang darf die Revision NICHT heben -- er entwertet sonst die '
+    . 'Kartenkopie jedes Besuchers fuer nichts');
+$pruefungen += 2;
+
+// --- 3. Und eine leere Auswahl erst recht nicht ---------------------------------------------------
+$revVorLeer = $revisionVon($pdoR);
+avesmapsGaretienUebernehmen($pdoR, $laufR, [], ['id' => 7]);
+assert($revisionVon($pdoR) === $revVorLeer, 'eine leere Auswahl hebt die Revision nicht');
+$pruefungen++;
+
 echo "OK: {$pruefungen} Pruefungen\n";
