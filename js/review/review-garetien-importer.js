@@ -2213,6 +2213,27 @@
 		return ((item && item.felder) || []).indexOf(feld) !== -1;
 	}
 
+	// REIN: ist DIESES Item das Zusatz-Item -- "trotzdem neu anlegen" TROTZ erkannter Kollision
+	// (Meldung B, 30.08.2026; garetien-plan.php haengt es an jedes 'deckt_sich'-Objekt, IMMER
+	// ungehakt, `change_type:'new'`, `anlass:'zusatz'`)?
+	//
+	// 🔴 DIE EINE STELLE FUER DIESE FRAGE (Schadensfall 30.08.2026, Aufgabe 19/20). Bis hierher
+	// beantwortete NUR `garetienNeuIstZusatz` (weiter unten) sie -- objektweise, fuer EINEN
+	// Aufrufer (die Rueckfrage vor „Neu einfuegen"). Jeder Pfad, der Items zum ANHAKEN oder
+	// UEBERNEHMEN SAMMELT, muss dasselbe Praedikat fragen und das Zusatz-Item ausschliessen --
+	// sonst hakt eine Massenhandlung es MIT an, und ein Klick aendert dann gleichzeitig das
+	// GETROFFENE Objekt (das legitime Ergaenzungs-Item) UND legt daneben eine Dublette an (das
+	// Zusatz-Item). Genau das ist am 30.08.2026 mit „Alle angezeigten einfuegen" passiert: 3007
+	// Objekte, viele davon Dubletten, weil `garetienHakenItems` das Zusatz-Item nicht kannte.
+	// ⚠️ Der EINE legitime Weg zu diesem Item bleibt der Einzelknopf „Neu einfuegen" (der bei einer
+	// Kollision zu „trotzdem neu anlegen" wird, siehe garetienNeuKlick) -- er fragt bewusst NICHT
+	// dieses Praedikat, sondern `AVESMAPS_GARETIEN_ITEMS_JE_HANDLUNG.neu`
+	// (`change_type === 'new'`), das das Zusatz-Item WEITERHIN findet.
+	function garetienItemIstZusatz(item) {
+		return Boolean(item) && String((item && item.change_type) || "") === "new"
+			&& garetienItemAnlass(item) === "zusatz";
+	}
+
 	// REIN: welche Abschnitte sind angehakt -- ihr Häkchen (dieselbe Menge, die
 	// garetienAbschnittsItems/avesmapsGaretienCheckboxZustand der Abschnittszeile zugrunde legen)
 	// steht auf VOLL, nicht auf „halb" oder „aus". Ein Abschnitt OHNE Item (Lage „nichts", das
@@ -2235,14 +2256,22 @@
 			.map(function (abschnitt) { return String((abschnitt && abschnitt.public_id) || ""); });
 	}
 
-	// REIN: die Items, die ein HÄKCHEN bewegen darf -- alles außer dem Geometrie-Item.
+	// REIN: die Items, die ein HÄKCHEN bewegen darf -- alles außer dem Geometrie-Item UND dem
+	// Zusatz-Item.
 	// 💣 Das Geometrie-Item hat seinen eigenen Knopf mit Rückfrage und darf nie über ein Häkchen
 	// gesetzt werden: ein Klick auf eine Listenzeile merkte sonst lautlos einen Geometrie-Ersatz
 	// vor. Dieselbe Grenze zieht garetienAbschnittsItems für die Abschnittszeile -- beide Häkchen
 	// meinen also dieselbe Menge.
+	// 🔴 SCHADENSFALL 30.08.2026: das Zusatz-Item (garetienItemIstZusatz) gehört aus demselben
+	// Grund NICHT hierher -- diese Funktion speist sowohl das Zeilenhäkchen als auch
+	// `garetienAnzeigeAnhakenIds` (die Massenübernahme „Alle angezeigten einfügen"). Ein
+	// Zusatz-Item, das hier mitliefe, würde bei jedem Klick auf diesen Knopf zusätzlich zur
+	// Änderung am getroffenen Objekt eine Dublette anlegen -- „trotzdem neu anlegen" ist die
+	// begründete AUSNAHME und bleibt dem Einzelknopf „Neu einfügen" vorbehalten
+	// (AVESMAPS_GARETIEN_ITEMS_JE_HANDLUNG.neu fragt bewusst NICHT dieses Praedikat).
 	function garetienHakenItems(objekt) {
 		return ((objekt && objekt.items) || []).filter(function (item) {
-			return garetienItemAnlass(item) !== "geometrie";
+			return garetienItemAnlass(item) !== "geometrie" && !garetienItemIstZusatz(item);
 		});
 	}
 
@@ -2757,10 +2786,11 @@
 	// avesmapsGaretienErgaenzungsEintraege). Ein urteilsbasierter Riegel liefe auseinander,
 	// sobald ein Objekt trotz 'ergaenzung'-Urteil KEIN legitimes Ergänzungs-Item, aber ein
 	// Zusatz-Item trägt (alle Abschnitte fremd benannt) -- der Riegel muss trotzdem greifen.
+	// 🔴 Fragt seit Schadensfall 30.08.2026 dasselbe Praedikat wie `garetienHakenItems`
+	// (garetienItemIstZusatz) -- EINE Stelle fuer „ist das ein Zusatz-Item", nicht zwei
+	// wortgleiche Bedingungen, die auseinanderlaufen koennten.
 	function garetienNeuIstZusatz(objekt) {
-		return ((objekt && objekt.items) || []).some(function (item) {
-			return item && String(item.change_type || "") === "new" && garetienItemAnlass(item) === "zusatz";
-		});
+		return ((objekt && objekt.items) || []).some(garetienItemIstZusatz);
 	}
 
 	// REIN: die Rückfrage vor „trotzdem neu anlegen" -- sie NENNT, was daneben liegt (Owner:
@@ -3715,6 +3745,7 @@
 			garetienNeuKlick,
 			garetienFussknopfEinfuegenKlick,
 			// Meldung B (30.08.2026): „trotzdem neu anlegen“ trotz erkannter Kollision
+			garetienItemIstZusatz,
 			garetienNeuIstZusatz,
 			garetienZusatzRueckfrageText,
 			// Aufgabe 9: „Zurücknehmen" -- der eine Löschweg dieses Fensters

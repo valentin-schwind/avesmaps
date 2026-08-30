@@ -395,6 +395,63 @@ gleich(mod.avesmapsGaretienHatAuswahl({ items: [{ id: 1, anlass: "geometrie", se
 	"ein angehaktes Geometrie-Item laesst das Objekt leuchten");
 
 // =================================================================================================
+// E2. Das Zusatz-Item darf NIE ueber eine Massenhandlung mitlaufen (Schadensfall 30.08.2026)
+// =================================================================================================
+//
+// Owner-Bestellung 30.08.2026: „Alle angezeigten einfuegen" hat 3007 Objekte uebernommen, viele
+// davon Dubletten -- weil garetienHakenItems das Zusatz-Item ("trotzdem neu anlegen" trotz
+// erkannter Kollision, garetien-plan.php) nicht kannte und `garetienAnzeigeAnhakenIds` es deshalb
+// bei jedem Ergaenzungs-Objekt MIT anhakte. Ein Ergaenzungs-Objekt mit Kollision traegt hier DREI
+// Items: das legitime Ergaenzungs-Item (unser bestehendes Objekt bekommt die Quelle), das
+// Geometrie-Item (eigener Knopf, siehe Abschnitt E) und das Zusatz-Item selbst.
+const kollisionsobjekt = {
+	key: "k-zusatz-mengen", urteil: "ergaenzung", wiki: "ggp", name: "Krähensee",
+	grund: 'Geometrie liegt 0.42 Einheiten von "Krähensee" (anderer Name)',
+	abschnitte: [{ public_id: "r-9001", name: "Krähensee alt" }],
+	items: [
+		{ id: 9500, anlass: "ergaenzung", felder: ["quelle"], change_type: "changed", selected: 0,
+			abschnitt: { public_id: "r-9001", name: "Krähensee alt" } },
+		{ id: 9501, anlass: "geometrie", felder: ["geometrie"], change_type: "changed", selected: 0,
+			abschnitt: { public_id: "r-9001", name: "Krähensee alt" } },
+		{ id: 9502, anlass: "zusatz", felder: [], change_type: "new", selected: 0 },
+	],
+};
+
+wahr(mod.garetienItemIstZusatz(kollisionsobjekt.items[2]) === true,
+	"das dritte Item ist als Zusatz-Item erkennbar");
+wahr(mod.garetienItemIstZusatz(kollisionsobjekt.items[0]) === false,
+	"das Ergaenzungs-Item ist KEIN Zusatz-Item, obwohl `anlass` denselben Wortstamm traegt");
+wahr(mod.garetienItemIstZusatz(kollisionsobjekt.items[1]) === false,
+	"und das Geometrie-Item auch nicht");
+gleich(mod.garetienItemIstZusatz(null), false, "ein fehlendes Item ist kein Zusatz-Item");
+
+tief(garetienHakenItems(kollisionsobjekt).map((i) => i.id), [9500],
+	"🔴 garetienHakenItems liefert NUR das legitime Ergaenzungs-Item -- weder das Geometrie- noch "
+	+ "das Zusatz-Item");
+tief(garetienHakenPlan(kollisionsobjekt, null), { ids: [9500], selected: true },
+	"nichts angehakt -> der Klick hakt an -- und die id des Zusatz-Items (9502) taucht dort NIE auf");
+
+// Gegenprobe: ein ECHTER Neuzugang (kein Treffer, garetien-plan.php haengt dafuer gar kein
+// Zusatz-Item an) bleibt VOLLSTAENDIG anhakbar -- die Ausnahme darf den Normalfall nicht treffen,
+// sonst waere „Alle angezeigten einfuegen" fuer jeden echten Neuzugang kaputt.
+tief(garetienHakenItems(zufluss).map((i) => i.id), [1],
+	"ein genuiner 'new'-Neuzugang (anlass:'zufluss', KEIN Zusatz-Item) bleibt vollstaendig erreichbar");
+
+// Und von der Seite der Massenuebernahme selbst: `garetienAnzeigeAnhakenIds` ist die Funktion
+// hinter „Alle angezeigten einfuegen" (Aufgabe 5/8). Die Differenz zaehlt: die id des Zusatz-Items
+// darf NIE auftauchen, die des echten Neuzugangs IMMER.
+const echterNeuzugang = {
+	key: "k-echt-neu-mengen", urteil: "neu", abschnitte: [],
+	items: [{ id: 9600, anlass: null, change_type: "new", selected: 0 }],
+};
+const mengeIds = mod.garetienAnzeigeAnhakenIds([kollisionsobjekt, echterNeuzugang]).slice()
+	.sort(function (a, b) { return a - b; });
+tief(mengeIds, [9500, 9600],
+	"🔴 die Massenuebernahme hakt das changed-Item (9500) und den echten Neuzugang (9600) an -- "
+	+ "und lässt das Zusatz-Item (9502) aus, obwohl es zum selben Objekt gehoert");
+wahr(mengeIds.indexOf(9502) === -1, "explizit: 9502 ist NICHT dabei");
+
+// =================================================================================================
 // F. Die Rueckfrage nennt die Folge beim Namen
 // =================================================================================================
 

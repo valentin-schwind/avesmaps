@@ -196,6 +196,40 @@ tief(modul.garetienAnzeigeAnhakenIds([nurGeometrie, mitOffenemItem]), [701],
 	"nur das gewoehnliche offene Item traegt eine id bei, das Geometrie-Item NIE -- dieselbe "
 	+ "Filterung wie in `n`");
 
+// ---- 10c. Schadensfall 30.08.2026: das Zusatz-Item darf NIE in die Massen-Menge ------------------
+//
+// Owner-Bestellung: „Alle angezeigten einfuegen" hat 3007 Objekte uebernommen, viele davon
+// Dubletten -- weil ein Ergaenzungs-Objekt mit erkannter Kollision neben seinem legitimen
+// Ergaenzungs-Item auch das Zusatz-Item ("trotzdem neu anlegen", garetien-plan.php,
+// `anlass:'zusatz'`, IMMER ungehakt) ungefragt anhakte. Dieselbe DIFFERENZ-Pruefung wie in 10b,
+// diesmal gegen das Zusatz-Item statt gegen das Geometrie-Item.
+const mitZusatz = {
+	key: "ggp:Kollision:1", name: "Krähensee", typ: "See",
+	items: [
+		{ id: 810, anlass: "ergaenzung", change_type: "changed", selected: 0 },
+		{ id: 811, anlass: "zusatz", change_type: "new", selected: 0 },
+	],
+};
+const standZusatz = modul.garetienUebernahmeKnopfZustand([mitZusatz]);
+gleich(standZusatz.anzahl, 1,
+	"ein Ergaenzungs-Objekt mit Kollision zaehlt als EIN Vorschlag -- das Zusatz-Item zaehlt nicht "
+	+ "extra mit");
+gleich(standZusatz.gesperrt, false, "und der Knopf ist bedienbar");
+
+tief(modul.garetienAnzeigeAnhakenIds([mitZusatz]), [810],
+	"🔴 die Massenuebernahme haengt NUR das legitime Ergaenzungs-Item an -- die id des Zusatz-Items "
+	+ "(811) taucht NIE auf, sonst legte derselbe Klick still eine Dublette an");
+
+// Gegenprobe: ein echter Neuzugang (kein Zusatz-Item) traegt weiterhin vollstaendig bei -- sonst
+// waere die Ausnahme zur Regel geworden und „Alle angezeigten einfuegen" fuer den Normalfall kaputt.
+const echtNeu = {
+	key: "ggp:EchtNeu:1", name: "Neuer Bach", typ: "Bach",
+	items: [{ id: 820, anlass: null, change_type: "new", selected: 0 }],
+};
+tief(modul.garetienAnzeigeAnhakenIds([mitZusatz, echtNeu]).slice().sort(function (a, b) { return a - b; }),
+	[810, 820],
+	"gemischt: das changed-Item UND der echte Neuzugang haken an, das Zusatz-Item bleibt aussen vor");
+
 // =================================================================================================
 // 11. Nachtrag RULING R11 -- der Endpunkt kappt eine laengere id-Liste STILLSCHWEIGEND bei 200
 // =================================================================================================
