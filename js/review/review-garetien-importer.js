@@ -1996,6 +1996,20 @@
 			+ hinweis + "</p>";
 	}
 
+	// REIN: eine Datenzeile mit einem FREIEN Hinweistext statt einer Art-Empfehlung. Weg und Ort
+	// haben keine Vorgabetafel wie die Landschaften (kein "Art X empfiehlt Zoom Y") -- ihre
+	// Einstellungen sind Kartei-Felder ohne Art-Bezug (is_nodix, transport_seasons, …). Ein Hinweis
+	// im Ton „Vorgabe der Art wäre …" wäre hier erfunden; diese Zeile nennt stattdessen die
+	// Tatsache/Folge, ohne eine Tafel vorzutäuschen, die es nicht gibt.
+	function garetienEingefuegtWirdZeileMitHinweis(beschriftung, echt, hinweisText) {
+		const hinweis = hinweisText
+			? '<span class="gi-insert__hint"> — ' + avesmapsGaretienEscape(hinweisText) + "</span>"
+			: "";
+		return '<p class="gi-insert__row">' + avesmapsGaretienEscape(beschriftung)
+			+ ' <span class="gi-insert__val">(' + avesmapsGaretienEscape(String(echt)) + ")</span>"
+			+ hinweis + "</p>";
+	}
+
 	function garetienEingefuegtWirdUeberschrift(text) {
 		return '<p class="gi-insert__sub">' + avesmapsGaretienEscape(text) + "</p>";
 	}
@@ -2042,6 +2056,13 @@
 	// min_zoom/max_zoom in seinen `properties_json` (avesmapsCreatePointFeature, features.php),
 	// die Karte liest die Größe allein aus `settlement_class` beim Zeichnen. Es gibt hier also
 	// nichts, das der Import „falsch" setzen könnte -- anders als bei Fläche/Label.
+	//
+	// Owner-Nachtrag 30.08.2026: „vergiss nicht die andern einstellungen aus 'Weg bearbeiten',
+	// 'Ort bearbeiten' usw." -- Recherche gegen avesmapsCreatePointFeature (features.php:1595) und
+	// den Ortsdialog (index.html #location-edit-*): der Import schickt NUR name/feature_subtype/
+	// lat/lng. Sechs weitere Felder des Dialogs bekommen dabei ihren TABELLENDECKEL, nie eine vom
+	// Import gesetzte Aussage -- dieselbe Lage wie „für Klicks gesperrt" bei der Fläche, deshalb
+	// dieselbe Form: der echte Wert, keine „Vorgabe der Art" (es gibt dafür keine Tafel).
 	function garetienEingefuegtWirdOrtMarkup(subtyp) {
 		const abZoom = (typeof avesmapsLocationZoomBandMinZoom === "function")
 			? avesmapsLocationZoomBandMinZoom("marker", subtyp)
@@ -2052,7 +2073,61 @@
 		return garetienEingefuegtWirdUeberschrift("Ort")
 			+ '<p class="gi-insert__row">Diese Ortsklasse ' + zeile
 			+ ' <span class="gi-insert__hint">(feste Vorgabe der Klasse — kein Einstellwert '
-			+ "dieses Imports)</span></p>";
+			+ "dieses Imports)</span></p>"
+			+ garetienEingefuegtWirdZeileMitHinweis("Art", "keine gesetzt",
+				"place_kind kommt vom Import nie mit — im Ort-Editor nachtragbar")
+			+ garetienEingefuegtWirdZeileMitHinweis("Ort ist ein Nodix", "aus",
+				"garetien.de kennt kein Nodix-Merkmal — wird nie automatisch gesetzt")
+			+ garetienEingefuegtWirdZeileMitHinweis("Ruine/zerstört", "aus",
+				"garetien.de führt Ruinen nicht als eigenen Typ — wird nie automatisch gesetzt")
+			+ garetienEingefuegtWirdZeileMitHinweis("Verborgen", "aus",
+				"wie bei jedem neu angelegten Ort — der Import setzt is_hidden nicht")
+			+ garetienEingefuegtWirdZeileMitHinweis("Einwohner · Lage · Herrscher", "keine Angabe",
+				"füllt sich bislang nur über die Wiki-Zuweisung, nicht über diesen Import");
+	}
+
+	// REIN: „Weg" -- Name-Anzeige, Verkehrsmittel, Jahreszeiten und (nur bei einem Flussweg) die
+	// Strömung. Der Wegtyp selbst steht schon im Kopf (garetienTypText); dies sind die übrigen
+	// Einstellungen aus dem Dialog „Weg bearbeiten" (index.html #path-edit-*).
+	//
+	// Owner-Nachtrag 30.08.2026, wörtlich das Gegenstück zur Fläche: „vergiss nicht die andern
+	// einstellungen aus 'Weg bearbeiten' … usw.". Recherche gegen avesmapsCreatePathFeature
+	// (features.php:2446): der Import schickt NUR name/feature_subtype/coordinates.
+	//
+	// 🔴 KEINE eigene Verkehrsmittel-Tafel hier -- getDefaultTransportDomainForPathSubtype /
+	// getDefaultAllowedTransportsForPathSubtype (js/map-features/map-features-path-domain.js) sind
+	// dieselbe Regel, die der Server beim Anlegen anwendet: `avesmapsReadAllowedTransports($payload
+	// ['allowed_transports'] ?? null, $domain, $subtype)` fällt GENAU auf ihre Vorauswahl zurück,
+	// wenn -- wie beim Import -- nichts mitgeschickt wird. Es gibt hier also NIE eine Abweichung zu
+	// melden; die Zeile nennt die echte Zahl trotzdem, weil ein Weg eine Kante im Routing-Graphen
+	// ist und die Auswahl der Verkehrsmittel jede Route mitbestimmt.
+	// ⚠️ Es gibt KEINE geteilte Beschriftungstafel für die elf Verkehrsmittel-Schlüssel (nur
+	// literale Texte in index.html und wörtliche Kopien in wege-editor.js/transport-speed-info.js) --
+	// eine vierte Kopie wird hier bewusst nicht angelegt, gezählt wird stattdessen.
+	function garetienEingefuegtWirdWegMarkup(subtyp) {
+		const erlaubt = (typeof getDefaultAllowedTransportsForPathSubtype === "function")
+			? getDefaultAllowedTransportsForPathSubtype(subtyp)
+			: null;
+		const angeboten = (typeof getTransportOptionsForPathSubtype === "function")
+			? getTransportOptionsForPathSubtype(subtyp)
+			: null;
+		let markup = garetienEingefuegtWirdUeberschrift("Weg")
+			+ garetienEingefuegtWirdZeileMitHinweis("Weg anzeigen (Name auf der Karte)", "aus",
+				"der Import setzt show_label nicht — von Hand gezeichnete Wege übernehmen die "
+				+ "zuletzt im Wege-Editor benutzte Einstellung, meist „an\"")
+			+ garetienEingefuegtWirdZeileMitHinweis("Jahreszeiten (Gangbarkeit)", "ganzjährig",
+				"keine saisonale Einschränkung — der Import setzt transport_seasons nicht");
+		if (erlaubt !== null && angeboten !== null) {
+			markup += garetienEingefuegtWirdZeileMitHinweis("Verkehrsmittel",
+				erlaubt.length + " von " + angeboten.length + " für diese Wegart möglichen",
+				"entspricht der Vorauswahl der Wegart, keine Abweichung — wirkt auf die Routenplanung");
+		}
+		if (subtyp === "Flussweg") {
+			markup += garetienEingefuegtWirdZeileMitHinweis("Strömung (Flussrichtung)", "unbekannt",
+				"wirkt auf die Reisezeit (flussauf-/-abwärts) — wird im Wege-Editor unter "
+				+ "„Flussrichtung unbekannt\" festgelegt");
+		}
+		return markup;
 	}
 
 	function garetienWikiLandschaftPlatzhalterId(objekt) {
@@ -2128,6 +2203,8 @@
 			markup += garetienEingefuegtWirdBeschriftungMarkup(subtyp, false);
 		} else if (ziel === "location") {
 			markup += garetienEingefuegtWirdOrtMarkup(subtyp);
+		} else if (ziel === "path") {
+			markup += garetienEingefuegtWirdWegMarkup(subtyp);
 		}
 		markup += garetienEingefuegtWirdUeberschrift("Wiki und Quellen");
 		markup += garetienQuellenMarkup(objekt);
@@ -4044,6 +4121,11 @@
 			// Aufgabe „Eingefügt wird" (30.08.2026)
 			garetienEingefuegtWirdHatVorschlag,
 			garetienEingefuegtWirdMarkup,
+			// Owner-Nachtrag 30.08.2026: die Weg-/Ort-Einstellungen ("vergiss nicht die andern
+			// einstellungen aus 'Weg bearbeiten', 'Ort bearbeiten' usw.")
+			garetienEingefuegtWirdZeileMitHinweis,
+			garetienEingefuegtWirdOrtMarkup,
+			garetienEingefuegtWirdWegMarkup,
 			garetienWikiLandschaftZeileText,
 			garetienWikiLandschaftPlatzhalterId,
 			garetienWikiLandschaftBeiBedarfLaden,

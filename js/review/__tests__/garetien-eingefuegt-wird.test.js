@@ -31,22 +31,8 @@ function gleich(ist, soll, warum) {
 	checks++;
 }
 
-// ---- Die Vorgabetafeln, ECHT geladen (kein Abschreiben ihrer Zahlen) ---------------------------
-//
-// 🔴 `vm.runInThisContext` haengt Funktionsdeklarationen an das ECHTE globale Objekt (dieselbe
-// Begruendung wie in ecosystem-display-vorgabe.test.js) -- review-garetien-importer.js findet
-// `avesmapsEcosystemDisplayVorgabe` & Co. danach als blanke Bezeichner, genau wie im Browser
-// (index.html laedt ecosystem-display.js UND location-zoom-bands.js VOR dieser Datei).
-vm.runInThisContext(
-	fs.readFileSync(path.join(WURZEL, "js/map-features/ecosystem-display.js"), "utf8"),
-	{ filename: "ecosystem-display.js" }
-);
-vm.runInThisContext(
-	fs.readFileSync(path.join(WURZEL, "js/map-features/location-zoom-bands.js"), "utf8"),
-	{ filename: "location-zoom-bands.js" }
-);
-
-// ---- Das gefaelschte `document` -----------------------------------------------------------------
+// ---- Das gefaelschte `document`/`window` -- VOR jedem vm.runInThisContext-Laden, weil config.js
+// beim Laden selbst schon document.documentElement.classList.add(...) ruft (IS_INFOPANEL_MODE).
 //
 // ⚠️ Absichtlich mager, wie im Vorbild (garetien-fussknopf-dom.test.js): nur die Elemente, die
 // dieser Ablauf wirklich anfasst.
@@ -65,18 +51,52 @@ const ELEMENTE = {};
 ["garetien-detailcol", "garetien-list"].forEach((id) => { ELEMENTE[id] = macheElement(id); });
 
 global.document = {
-	documentElement: {},
+	documentElement: { classList: { add() {}, remove() {} } },
 	readyState: "complete",
 	getElementById(id) { return ELEMENTE[id] || null; },
 	addEventListener() {},
 	querySelectorAll() { return []; },
 };
 global.window = global.window || {};
+global.window.location = global.window.location || { search: "", hostname: "", protocol: "http:" };
+
+// ---- Die Vorgabetafeln, ECHT geladen (kein Abschreiben ihrer Zahlen) ---------------------------
+//
+// 🔴 `vm.runInThisContext` haengt Funktionsdeklarationen an das ECHTE globale Objekt (dieselbe
+// Begruendung wie in ecosystem-display-vorgabe.test.js) -- review-garetien-importer.js findet
+// `avesmapsEcosystemDisplayVorgabe` & Co. danach als blanke Bezeichner, genau wie im Browser
+// (index.html laedt ecosystem-display.js UND location-zoom-bands.js VOR dieser Datei).
+vm.runInThisContext(
+	fs.readFileSync(path.join(WURZEL, "js/map-features/ecosystem-display.js"), "utf8"),
+	{ filename: "ecosystem-display.js" }
+);
+vm.runInThisContext(
+	fs.readFileSync(path.join(WURZEL, "js/map-features/location-zoom-bands.js"), "utf8"),
+	{ filename: "location-zoom-bands.js" }
+);
+// Owner-Nachtrag 30.08.2026 ("vergiss nicht die andern einstellungen aus 'Weg bearbeiten' ..."):
+// dieselbe Regel gilt fuer die Verkehrsmittel-Vorauswahl eines Weges. Ladereihenfolge exakt wie in
+// js/review/__tests__/path-transport-options.test.js (dem bestehenden Vorbild fuer genau dieses
+// Dateipaar) -- config.js braucht map-features-line-catmull.js VOR sich (AVESMAPS_CATMULL_DEFAULTS),
+// map-features-path-domain.js braucht config.js VOR sich (TRANSPORT_DOMAIN_OPTIONS).
+vm.runInThisContext(
+	fs.readFileSync(path.join(WURZEL, "js/map-features/map-features-line-catmull.js"), "utf8"),
+	{ filename: "map-features-line-catmull.js" }
+);
+vm.runInThisContext(
+	fs.readFileSync(path.join(WURZEL, "js/config.js"), "utf8"),
+	{ filename: "config.js" }
+);
+vm.runInThisContext(
+	fs.readFileSync(path.join(WURZEL, "js/map-features/map-features-path-domain.js"), "utf8"),
+	{ filename: "map-features-path-domain.js" }
+);
 
 const mod = require(path.resolve(__dirname, "..", "review-garetien-importer.js"));
 const {
 	garetienEingefuegtWirdHatVorschlag,
 	garetienEingefuegtWirdMarkup,
+	garetienEingefuegtWirdZeileMitHinweis,
 	garetienWikiLandschaftZeileText,
 	garetienWikiLandschaftPlatzhalterId,
 	garetienDetailWaehlen,
@@ -84,7 +104,14 @@ const {
 
 wahr(typeof garetienEingefuegtWirdHatVorschlag === "function", "garetienEingefuegtWirdHatVorschlag fehlt im Export");
 wahr(typeof garetienEingefuegtWirdMarkup === "function", "garetienEingefuegtWirdMarkup fehlt im Export");
+wahr(typeof garetienEingefuegtWirdZeileMitHinweis === "function", "garetienEingefuegtWirdZeileMitHinweis fehlt im Export");
 wahr(typeof garetienWikiLandschaftZeileText === "function", "garetienWikiLandschaftZeileText fehlt im Export");
+// Die geteilte Verkehrsmittel-Regel muss als blanker Bezeichner ankommen -- sonst wuerde die
+// nachfolgende Rechnung der Erwartungswerte (2 von 2 / 5 von 6 / 6 von 6) selbst zur Vakuum-Probe.
+wahr(typeof getDefaultAllowedTransportsForPathSubtype === "function",
+	"getDefaultAllowedTransportsForPathSubtype (map-features-path-domain.js) wurde nicht geladen");
+wahr(typeof getTransportOptionsForPathSubtype === "function",
+	"getTransportOptionsForPathSubtype (map-features-path-domain.js) wurde nicht geladen");
 
 // =================================================================================================
 // A. garetienEingefuegtWirdHatVorschlag -- die Torfrage
@@ -191,7 +218,8 @@ wahr(!mGipfel.includes("Wiki-Landschaft"),
 	"Wiki-Landschaft ist ein Regions-Konzept -- ein Berggipfel bekommt die Zeile nicht");
 
 // =================================================================================================
-// E. Ein ORT (ziel='location') -- FESTE Klassentafel, kein Einstellwert des Imports
+// E. Ein ORT (ziel='location') -- FESTE Klassentafel, kein Einstellwert des Imports, UND (Owner-
+//    Nachtrag 30.08.2026) die sechs Karteifelder von "Ort bearbeiten", die der Import nie fuellt.
 // =================================================================================================
 
 const ort = {
@@ -200,9 +228,9 @@ const ort = {
 	items: [{ id: 3, change_type: "new" }],
 };
 const mOrt = garetienEingefuegtWirdMarkup(ort);
-wahr(!mOrt.includes("Fläche") && !mOrt.includes("Beschriftung"),
-	"ein Ort hat weder Flaechen- noch Beschriftungs-Einstellwerte -- die Karte zeichnet ihn aus der "
-	+ "Ortsklassen-Tafel, nicht aus properties_json");
+wahr(!mOrt.includes("Fläche") && !mOrt.includes("class=\"gi-insert__sub\">Beschriftung<") && !mOrt.includes("Weg anzeigen"),
+	"ein Ort hat weder Flaechen- noch Beschriftungs- noch Weg-Einstellwerte -- die Karte zeichnet ihn "
+	+ "aus der Ortsklassen-Tafel, nicht aus properties_json");
 wahr(mOrt.includes("Ort"), "die Ort-Unterueberschrift fehlt");
 // 'dorf' im Marker-Band: [null, null, 1.33, ...] -- die erste gefuellte Zelle ist Index 2.
 wahr(mOrt.includes("erscheint ab Zoom 2"),
@@ -216,8 +244,25 @@ const stadt = Object.assign({}, ort, { key: "ggp:Sonstiges:Stadt:Garetien:Testst
 wahr(garetienEingefuegtWirdMarkup(stadt).includes("erscheint ab Zoom 0"),
 	"'stadt' erscheint ab Zoom 0 -- eine andere Zahl als 'dorf' (2), sonst waere es Vakuum");
 
+// ---- Owner-Nachtrag 30.08.2026: die sechs uebrigen Karteifelder von "Ort bearbeiten"
+// (avesmapsCreatePointFeature, features.php) -- KEINE Art-Tafel dahinter, deshalb der echte Wert
+// ohne "Vorgabe der Art waere ...".
+wahr(mOrt.includes("Art") && /Art[\s\S]{0,40}\(keine gesetzt\)/.test(mOrt),
+	"place_kind kommt vom Import nie mit -- muss als 'keine gesetzt' stehen");
+wahr(/Ort ist ein Nodix[\s\S]{0,40}\(aus\)/.test(mOrt), "is_nodix ist beim Import immer aus");
+wahr(/Ruine\/zerstört[\s\S]{0,40}\(aus\)/.test(mOrt), "is_ruined ist beim Import immer aus");
+wahr(/Verborgen[\s\S]{0,40}\(aus\)/.test(mOrt), "is_hidden ist beim Import immer aus");
+wahr(/Einwohner · Lage · Herrscher[\s\S]{0,40}\(keine Angabe\)/.test(mOrt),
+	"einwohner/lage/oberhaupt kommen vom Import nie mit");
+// Keine "Vorgabe der Art"-Behauptung -- fuer diese sechs Felder gibt es keine Tafel, eine erfundene
+// Empfehlung waere die zweite Wahrheit, vor der AGENTS.md warnt.
+wahr(!mOrt.includes("Vorgabe der Art wäre"),
+	"der Ort-Abschnitt darf keine Art-Empfehlung behaupten, die es nicht gibt");
+
 // =================================================================================================
-// F. Ein WEG (ziel='path') -- keiner der drei Abschnitte, nur „Wiki und Quellen"
+// F. Ein WEG (ziel='path') -- Owner-Nachtrag 30.08.2026: "vergiss nicht die andern einstellungen
+//    aus 'Weg bearbeiten'". Vier Zeilen: Weg anzeigen, Jahreszeiten, Verkehrsmittel, und (nur bei
+//    einem Flussweg) Stroemung.
 // =================================================================================================
 
 const weg = {
@@ -227,11 +272,60 @@ const weg = {
 	items: [{ id: 4, change_type: "new" }],
 };
 const mWeg = garetienEingefuegtWirdMarkup(weg);
-wahr(!mWeg.includes("Fläche") && !mWeg.includes("Beschriftung") && !mWeg.includes('class="gi-insert__sub">Ort<'),
-	"ein Weg bekommt keine der drei Kartenobjekt-Unterabschnitte");
+wahr(!mWeg.includes("Fläche") && !mWeg.includes("class=\"gi-insert__sub\">Beschriftung<")
+	&& !mWeg.includes('class="gi-insert__sub">Ort<'),
+	"ein Weg bekommt keinen der drei ANDEREN Kartenobjekt-Unterabschnitte");
+wahr(mWeg.includes('class="gi-insert__sub">Weg<'), "die Weg-Unterueberschrift fehlt");
 wahr(mWeg.includes("Wiki und Quellen") && mWeg.includes("Die Quelle, die mitreist"),
 	"Quelle bleibt fuer JEDES Ziel gueltig, auch fuer einen Weg");
 wahr(!mWeg.includes("Wiki-Landschaft"), "Wiki-Landschaft gilt nur Regionen, nicht Wegen");
+
+// ---- "Weg anzeigen" (show_label) -- der Import setzt es nie, IMMER "aus".
+wahr(/Weg anzeigen \(Name auf der Karte\)[\s\S]{0,140}\(aus\)/.test(mWeg),
+	"show_label ist beim Import immer aus (avesmapsCreatePathFeature liest show_label ?? false)");
+wahr(mWeg.includes("zuletzt im Wege-Editor benutzte Einstellung"),
+	"die Zeile muss die Praxis nennen (von Hand gezeichnete Wege erben die letzte Sitzungseinstellung)");
+
+// ---- "Jahreszeiten" (transport_seasons) -- der Import setzt es nie, IMMER "ganzjährig".
+wahr(/Jahreszeiten \(Gangbarkeit\)[\s\S]{0,60}\(ganzjährig\)/.test(mWeg),
+	"transport_seasons kommt vom Import nie mit -- muss als ganzjaehrig/unbeschraenkt stehen");
+
+// ---- "Verkehrsmittel" -- ECHT aus der geteilten Regel gerechnet (kein Abschreiben ihrer Zahlen),
+// DIFFERENTIELL ueber drei Wegarten: Flussweg (2 von 2), Pfad (5 von 6, ohne Kutsche), Strasse
+// (6 von 6). Dieselbe Regel, die avesmapsReadAllowedTransports serverseitig anwendet, wenn der
+// Import (wie tatsaechlich) kein allowed_transports mitschickt.
+function verkehrsmittelZeile(subtyp) {
+	const erlaubt = getDefaultAllowedTransportsForPathSubtype(subtyp).length;
+	const angeboten = getTransportOptionsForPathSubtype(subtyp).length;
+	return { erlaubt: erlaubt, angeboten: angeboten };
+}
+
+const vmFlussweg = verkehrsmittelZeile("Flussweg");
+gleich(vmFlussweg.erlaubt, 2, "Flussweg erlaubt beide Fluss-Verkehrsmittel");
+gleich(vmFlussweg.angeboten, 2, "Flussweg bietet nur die zwei Fluss-Verkehrsmittel an");
+wahr(mWeg.includes("Verkehrsmittel") && mWeg.includes("(2 von 2 für diese Wegart möglichen)"),
+	"die echte Verkehrsmittel-Zahl fuer Flussweg (2 von 2) fehlt");
+
+const pfad = Object.assign({}, weg, { key: "ggp:Wege:Pfad:Garetien:Testpfad", subtyp: "Pfad", typ: "Pfad" });
+const mPfad = garetienEingefuegtWirdMarkup(pfad);
+const vmPfad = verkehrsmittelZeile("Pfad");
+gleich(vmPfad.erlaubt, 5, "Pfad laesst die Kutsche standardmaessig unangehakt (5 von 6)");
+gleich(vmPfad.angeboten, 6, "Pfad BIETET die Kutsche an, waehlt sie nur nicht vor");
+wahr(mPfad.includes("(5 von 6 für diese Wegart möglichen)"),
+	"'Pfad' zeigt eine ANDERE Verkehrsmittel-Zahl als 'Flussweg' -- sonst waere es Vakuum");
+
+const strasse = Object.assign({}, weg, { key: "ggp:Wege:Strasse:Garetien:Teststrasse", subtyp: "Strasse", typ: "Strasse" });
+const mStrasse = garetienEingefuegtWirdMarkup(strasse);
+wahr(mStrasse.includes("(6 von 6 für diese Wegart möglichen)"),
+	"'Strasse' erlaubt alle sechs Land-Verkehrsmittel -- eine DRITTE Zahl, sonst waere es Vakuum");
+
+// ---- "Strömung" (flow_direction) -- NUR bei einem Flussweg, sonst gar keine Zeile.
+wahr(/Strömung \(Flussrichtung\)[\s\S]{0,60}\(unbekannt\)/.test(mWeg),
+	"ein Flussweg muss die Stroemungszeile mit 'unbekannt' zeigen (flow kommt vom Import nie mit)");
+wahr(mWeg.includes("Flussrichtung unbekannt"),
+	"die Zeile muss auf den Wege-Editor-Reiter verweisen, unter dem sich die Richtung setzen laesst");
+wahr(!mPfad.includes("Strömung") && !mStrasse.includes("Strömung"),
+	"ein Pfad/eine Strasse fuehrt keine Stroemung -- die Zeile darf dort gar nicht erscheinen");
 
 // =================================================================================================
 // G. garetienWikiLandschaftZeileText -- die vier Urteile, wortgetreu zur Bestellung
