@@ -318,24 +318,46 @@ function sharePinVisualMarkup(rootClassName = "") {
 // darueber (Banner unten-links + Schatten). Drei Tabellen, eine je Objektart: Landschaftsregionen per art,
 // Wege per Subtyp, Siedlungen per Groesse. Territorien (und alles Unbekannte) fallen auf "region" zurueck.
 // Die Basenamen zeigen auf icons/header/<name>.webp -- alle 800x450, lossy WebP.
+// 💣 DREI VOKABULARE SPEISEN DIESE TABELLE, UND SIE SCHREIBEN DIESELBE SACHE VERSCHIEDEN.
+// Gebaut wurde sie fuer die WIKI-Art (Freitext: "Bucht", "Wasserfall", "Marschland"). Seit dem
+// 28.08.2026 fuellt die EIGENE Art die Luecke, wenn keine Wiki-Zuweisung da ist (das Vokabular in
+// js/ui/label-arten.js), und das Flaechen-Panel schlaegt mit der Art der LANDSCHAFTSFLAECHE nach
+// (AVESMAPS_ECOSYSTEM_REGION_TYPE_SEED in api/_internal/app/ecosystem.php). Fuer ein und dieselbe
+// Sache kommen hier deshalb drei Woerter an -- "Moor" (Wiki), "Suempfe & Moore" (Label) und
+// "Suempfe und Moore" (Flaeche) --, und nur das erste stand in der Tabelle. Live gemessen am
+// 30.08.2026: 90 von 359 Beschriftungen ohne Wiki-Zuweisung trugen das generische region.webp,
+// obwohl das passende Bild danebenlag (Owner ueber ein importiertes Moor: "wir haben extra
+// bildchen fuer die kategorien"). Der Fehler war nicht das Bild und nicht der Import -- es war
+// dieses Woerterbuch, das nur eine der drei Sprachen kannte.
+// ⚠️ normalizeInfoHeaderKey schneidet am ersten |,/ ab: "Flussland/Flusstal" kommt als
+// "flussland" an, nicht als "flusslandflusstal". Wer einen Schluessel von Hand ergaenzt, faltet
+// ihn erst durch normalizeInfoHeaderKey, statt ihn zu raten.
+// 🔴 Gewacht von js/ui/__tests__/kopfbild-eigene-arten.test.js: es haelt BEIDE eigenen Vokabulare
+// gegen diese Tabelle UND gegen icons/header/. Eine neue Art ohne passendes Bild muss dort
+// ausdruecklich als "generisch gewollt" stehen -- sonst faellt sie hier LAUTLOS auf region.webp
+// zurueck, und das sieht von "es gibt kein Bild" nicht zu unterscheiden aus.
 const INFO_HEADER_IMAGE_BY_ART = {
 	gebirge: "gebirge", berge: "gebirge", berg: "gebirge", berggruppe: "gebirge", bergkamm: "gebirge",
 	hochland: "gebirge", schlucht: "gebirge", vulkan: "gebirge",
 	berggipfel: "berggipfel",
-	wald: "wald",
+	wald: "wald", urwald: "wald",
 	fluss: "fluss", flusstal: "fluss", wasserfall: "fluss",
+	// Eigenes Vokabular: "Flussland/Flusstal" wird am / geschnitten, "Flussdelta" bleibt ganz.
+	flussland: "fluss", flussdelta: "fluss",
 	meer: "meer", golf: "meer", ozean: "meer", meerenge: "meer", meeresteil: "meer", bucht: "meer",
 	see: "see", seenlandschaft: "see",
 	kueste: "kueste", halbinsel: "kueste", klippe: "kueste", sandbank: "kueste",
 	insel: "insel", inselgruppe: "insel",
 	sumpf: "sumpfmoor", moor: "sumpfmoor", marschland: "sumpfmoor",
+	// Dieselbe Sache in unseren zwei eigenen Schreibweisen -- Label mit "&", Flaeche mit "und".
+	suempfemoore: "sumpfmoor", suempfeundmoore: "sumpfmoor",
 	wueste: "wueste",
 	steppe: "steppe", heide: "steppe",
 	huegelland: "huegel", huegel: "huegel",
 	graslandschaft: "graslandschaft", wiese: "graslandschaft",
 	auenlandschaft: "auenlandschaft",
 	tundra: "tundra",
-	ebene: "ebene", talkessel: "ebene", tal: "ebene",
+	ebene: "ebene", talkessel: "ebene", tal: "ebene", tiefebene: "ebene", hochebene: "ebene",
 };
 // Wegtyp -> Header-Bild (Owner-Grafiken 2026-07-17, eine je Subtyp). Vorher teilten sich alle Landwege das
 // generische "region", und Fluss-/Seewege liehen sich "fluss"/"meer" von den Landschafts-Labels.

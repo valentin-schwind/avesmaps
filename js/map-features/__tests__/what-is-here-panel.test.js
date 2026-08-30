@@ -64,19 +64,34 @@ function ladeKopfbildFunktion() {
 		fs.readFileSync(path.join(ROOT, "js", "map-features", "map-features-what-is-here.js"), "utf8"),
 		sandbox, { filename: "map-features-what-is-here.js" }
 	);
-	return sandbox.avesmapsWhatIsHereHeaderImageBasename;
+	return sandbox;
 }
 
-const kopfbild = ladeKopfbildFunktion();
+const kopfbildSandbox = ladeKopfbildFunktion();
+const kopfbild = kopfbildSandbox.avesmapsWhatIsHereHeaderImageBasename;
+// Die Nachschlagefunktion selbst -- gebraucht, um die VORAUSSETZUNG des naechsten Falls zu pruefen
+// statt sie zu glauben (siehe dort).
+const bildFuerArt = kopfbildSandbox.regionHeaderImageBasename;
 assert.strictEqual(typeof kopfbild, "function", "avesmapsWhatIsHereHeaderImageBasename ist geladen");
 
-// 🔴 DER FALL, UM DEN ES GEHT: genau die am Landpunkt gemessene Reihenfolge -- „Flusslande" zuerst
-// (type_label „Flussland/Flusstal", nicht in INFO_HEADER_IMAGE_BY_ART), „Dunkelwald" (type_label
-// „Wald") an zweiter Stelle. Das Kopfbild MUSS der zweite Treffer sein, nicht der erste.
+// 🔴 DER FALL, UM DEN ES GEHT: der erste Vegetationstreffer hat KEIN eigenes Kopfbild, der zweite
+// schon -- das Bild MUSS der zweite sein, nicht der erste.
+//
+// 🪤 Der Fall stand bis zum 30.08.2026 mit der am Landpunkt gemessenen Reihenfolge da
+// („Flusslande"/„Flussland/Flusstal" zuerst, „Dunkelwald"/„Wald" dahinter). Genau diese Art hat
+// seit dem 30.08. ein Bild (INFO_HEADER_IMAGE_BY_ART kannte unser eigenes Vokabular nicht -- siehe
+// js/ui/__tests__/kopfbild-eigene-arten.test.js), und damit prueft die Vorlage ihre eigene
+// Voraussetzung nicht mehr: der Test wurde rot, obwohl am VERHALTEN nichts falsch war. Deshalb
+// steht die Voraussetzung jetzt als eigene Zusicherung darueber -- wer der Kulturlandschaft ein
+// Bild gibt, bekommt einen Satz, der auf die VORLAGE zeigt, nicht auf die Ueberspringen-Regel.
+assert.strictEqual(bildFuerArt("Kulturlandschaft"), "region",
+	"Vorlage dieses Falls: die erste Art darf kein eigenes Kopfbild haben. Hat sie jetzt eines, "
+	+ "gehoert hier eine andere bildlose Art hin (die offene Liste steht in "
+	+ "js/ui/__tests__/kopfbild-eigene-arten.test.js, GENERISCH_GEWOLLT) -- die Regel darunter bleibt.");
 assert.strictEqual(
 	kopfbild({
 		vegetation: [
-			{ region_name: "Flusslande", type_label: "Flussland/Flusstal" },
+			{ region_name: "Gareths Kornkammer", type_label: "Kulturlandschaft" },
 			{ region_name: "Dunkelwald", type_label: "Wald" },
 		],
 	}),
