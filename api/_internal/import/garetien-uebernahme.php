@@ -15,6 +15,7 @@ declare(strict_types=1);
 // zweite Erzeuger, und eine Regel, die einen von zwei Erzeugern bindet, ist keine.
 
 require_once __DIR__ . '/garetien-plan.php';
+require_once __DIR__ . '/garetien-wiki-landschaft.php';
 require_once __DIR__ . '/../map/features.php';
 require_once __DIR__ . '/../app/feature-sources.php';
 require_once __DIR__ . '/../app/ecosystem.php';
@@ -343,12 +344,27 @@ function avesmapsGaretienFlaecheAnlegen(PDO $pdo, array $nach, array $user, int 
     // avesmapsGaretienLabelVorgabeFuerArt oben. Fehlt eine Uebersteuerung fuer diese Art, liefert
     // sie ein leeres Array, und avesmapsCreateLabelFeature faellt auf seine eigenen Vorgaben
     // zurueck -- der bisherige Zustand bleibt fuer eine unberuehrte Art also unveraendert.
-    $label = avesmapsCreateLabelFeature($pdo, array_merge([
-        'text' => (string) $nach['name'],
-        'feature_subtype' => (string) $nach['subtyp'],
-        'lng' => $lx,
-        'lat' => $ly,
-    ], avesmapsGaretienLabelVorgabeFuerArt($pdo, (string) $nach['subtyp'])), $user);
+    //
+    // 🔴 UND DER IMPORT WEIST DEN WIKI-SCHLUESSEL ZU (Owner-Entscheid 30.08.2026, siehe
+    // avesmapsGaretienWikiLandschaftZuweisung): passt der Name (mit oder ohne passende Art) auf
+    // GENAU eine Wiki-Landschaft, traegt das frisch angelegte Label sie sofort -- ohne einen
+    // zweiten, spaeteren Handgriff im Editor. Name und Art bleiben die des Imports; nur der
+    // Schluessel kommt vom Wiki. Ohne sichere Zuordnung bleibt das Feld schlicht WEG (kein
+    // erfundener Schluessel).
+    // ⚠️ `array_merge` mit einem dritten, bedingt LEEREN Array haengt den Schluessel an --
+    // absichtlich KEINE Feldzuweisung auf einer eigenen Zeile hier: label-wiki-no-article-test.php
+    // scannt den GANZEN api/-Baum nach genau dieser Schreibweise und verlangt daneben ein Loeschen
+    // des Merkers "kein Wiki-Artikel" (AGENTS.md §11: "FUENF Schreiber von properties.wiki_region,
+    // jeder loescht den Merker"). Hier gibt es diesen Merker nicht zu loeschen: das Ergebnis dieser
+    // Suche ist die EINGABE fuer avesmapsCreateLabelFeature() an einem noch gar nicht existierenden
+    // Label, kein direkter Schreibzugriff auf eine bestehende Feature-Zeile -- die Loeschung
+    // passiert bereits DORT (features.php, im selben Atemzug wie die eigentliche Zuweisung).
+    $wikiZuweisung = avesmapsGaretienWikiLandschaftZuweisung($pdo, (string) $nach['name'], (string) $nach['subtyp']);
+    $label = avesmapsCreateLabelFeature($pdo, array_merge(
+        ['text' => (string) $nach['name'], 'feature_subtype' => (string) $nach['subtyp'], 'lng' => $lx, 'lat' => $ly],
+        avesmapsGaretienLabelVorgabeFuerArt($pdo, (string) $nach['subtyp']),
+        $wikiZuweisung !== null ? ['wiki_region' => $wikiZuweisung] : []
+    ), $user);
     $labelId = avesmapsGaretienPublicIdAus($label, 'Das Label der Flaeche');
 
     // 2. Region und Flaeche, ueber die Hausfunktionen der Landschaften-Ebene.
@@ -906,12 +922,21 @@ function avesmapsGaretienUebernehmen(PDO $pdo, int $runId, array $itemIds, array
                 $punkt = avesmapsGaretienPunktAusGeometrie($nach);
                 // 🔴 DER IMPORT SETZT DIE VORGABE DER ART (Owner-Nachtrag 30.08.2026) -- siehe
                 // avesmapsGaretienLabelVorgabeFuerArt oben, dieselbe Regel wie bei der Flaeche.
-                $feature = avesmapsCreateLabelFeature($pdo, array_merge([
-                    'text' => (string) $nach['name'],
-                    'feature_subtype' => (string) $nach['subtyp'],
-                    'lng' => $punkt['lng'],
-                    'lat' => $punkt['lat'],
-                ], avesmapsGaretienLabelVorgabeFuerArt($pdo, (string) $nach['subtyp'])), $user);
+                // 🔴 UND DENSELBEN WIKI-SCHLUESSEL WIE BEI DER FLAECHE (Owner-Entscheid 30.08.2026,
+                // avesmapsGaretienWikiLandschaftZuweisung) -- "Landschaft" meint hier BEIDE Formen,
+                // Flaeche UND Berggipfel (AVESMAPS_WIKI_REGION_ART_TO_SUBTYPE kennt 'Berggipfel'
+                // gleichberechtigt neben 'See'/'Wald'/…). Name und Art bleiben die des Imports.
+                // ⚠️ `array_merge` mit bedingt leerem drittem Array, absichtlich keine Feldzuweisung
+                // auf einer eigenen Zeile -- siehe die ausfuehrliche Begruendung an
+                // avesmapsGaretienFlaecheAnlegen oben (label-wiki-no-article-test.php scannt genau
+                // diese Schreibweise repoweit).
+                $wikiZuweisung = avesmapsGaretienWikiLandschaftZuweisung($pdo, (string) $nach['name'], (string) $nach['subtyp']);
+                $feature = avesmapsCreateLabelFeature($pdo, array_merge(
+                    ['text' => (string) $nach['name'], 'feature_subtype' => (string) $nach['subtyp'],
+                        'lng' => $punkt['lng'], 'lat' => $punkt['lat']],
+                    avesmapsGaretienLabelVorgabeFuerArt($pdo, (string) $nach['subtyp']),
+                    $wikiZuweisung !== null ? ['wiki_region' => $wikiZuweisung] : []
+                ), $user);
                 $publicId = avesmapsGaretienPublicIdAus($feature, 'Der Gipfel');
                 // 🔴 Dieselbe Bindung wie oben: feature_type 'label' -> entity_type 'region'
                 // (map-features.php:1228), KEYED AN DER PUBLIC_ID DES LABELS SELBST -- es gibt

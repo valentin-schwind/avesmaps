@@ -255,6 +255,12 @@ function avesmapsGaretienUebernahmeTestPdo(): PDO
         entity_public_id TEXT NOT NULL, source_id INTEGER NOT NULL, status TEXT DEFAULT 'approved',
         created_by INTEGER NULL, origin TEXT DEFAULT 'manual', reference_kind TEXT NULL, pages TEXT NULL,
         note TEXT NULL, UNIQUE(entity_type, entity_public_id, source_id))");
+    // 🔴 AUFGABE 29 (Owner-Entscheid 30.08.2026): "Landschaft" (Flaeche/Berggipfel) weist beim
+    // Anlegen den Wiki-Schluessel zu -- avesmapsGaretienWikiLandschaftZuweisung liest dieselbe
+    // Tabelle wie die Einzelansicht (garetien-wiki-landschaft.php). LEER PER VORGABE: die vielen
+    // bestehenden Tests dieser Datei duerfen davon unberuehrt bleiben.
+    $pdo->exec('CREATE TABLE wiki_region_staging (id INTEGER PRIMARY KEY AUTOINCREMENT, wiki_key TEXT,
+        name TEXT, match_key TEXT, art TEXT)');
 
     // Bestand und Staging aus dem Planbauer-Pruefstand uebernehmen.
     foreach (['garetien_import_run', 'garetien_import_row'] as $tabelle) {
@@ -274,6 +280,17 @@ function avesmapsGaretienUebernahmeTestPdo(): PDO
     avesmapsGaretienBaueSyncPlan($pdo, 1);
 
     return $pdo;
+}
+
+/**
+ * Eine Zeile der Wiki-Landschaft-Staging-Tabelle anlegen -- match_key wie die echte Suche
+ * (avesmapsWikiSyncCreateMatchKey, verfuegbar ueber garetien-uebernahme.php ->
+ * garetien-wiki-landschaft.php -> wiki/sync.php).
+ */
+function avesmapsGaretienUebernahmeWikiRegionZeile(PDO $pdo, string $name, string $art, string $wikiKey): void
+{
+    $pdo->prepare('INSERT INTO wiki_region_staging (wiki_key, name, match_key, art) VALUES (?, ?, ?, ?)')
+        ->execute([$wikiKey, $name, avesmapsWikiSyncCreateMatchKey($name), $art]);
 }
 
 $pdo = avesmapsGaretienUebernahmeTestPdo();
@@ -358,6 +375,11 @@ $pruefungen += 2;
 // Flaeche anlegt, baut eine Region, die kein Mensch je wieder anfassen kann (dieselbe
 // Owner-Regel wie bei den verwaisten Aussenhuellen: "es darf keine Elemente geben, ueber die ich
 // keine Kontrolle mehr habe").
+//
+// 🔴 AUFGABE 29 (Owner-Entscheid 30.08.2026): "Mühlsee" traegt hier eine Wiki-Landschaft mit
+// PASSENDER Art (See) -- die Flaeche muss beim Anlegen den Schluessel zugewiesen bekommen, ohne
+// dass Name oder Art des Imports sich aendern.
+avesmapsGaretienUebernahmeWikiRegionZeile($pdo, 'Mühlsee', 'See', 'wiki:muehlsee');
 $e3 = avesmapsGaretienUebernehmen($pdo, $lauf, [$muehlsee], ['id' => 7]);
 assert($e3['angelegt'] === 1, 'die Seeflaeche wurde angelegt: ' . json_encode($e3['fehler'], JSON_UNESCAPED_UNICODE));
 $region = $pdo->query("SELECT * FROM ecosystem_region WHERE name = 'Mühlsee'")->fetch(PDO::FETCH_ASSOC);
@@ -382,6 +404,15 @@ assert(($muehlseeLabelProps['max_zoom'] ?? null) === 5, 'max_zoom bleibt der Gru
 assert(($muehlseeLabelProps['size'] ?? null) === 18, 'size bleibt der Grundwert 18: ' . json_encode($muehlseeLabelProps));
 assert(($muehlseeLabelProps['priority'] ?? null) === 3, 'priority bleibt der Grundwert 3: ' . json_encode($muehlseeLabelProps));
 $pruefungen += 4;
+
+// --- 🔴 AUFGABE 29 (Owner-Entscheid 30.08.2026): DIE ZUWEISUNG STEHT AN properties.wiki_region.wiki_key,
+// UND NAME/ART BLEIBEN DIE DES IMPORTS. "Zugewiesen wird nur der Schluessel" (Owner) -- Name und
+// Subtyp der Flaeche/des Labels sind unveraendert die des Garetien-Imports, nicht die des Wikis.
+assert(($muehlseeLabelProps['wiki_region']['wiki_key'] ?? '') === 'wiki:muehlsee',
+    'die Flaeche traegt den gefundenen Wiki-Schluessel: ' . json_encode($muehlseeLabelProps));
+assert($label['name'] === 'Mühlsee', 'der NAME bleibt der des Imports, nicht der des Wikis: ' . $label['name']);
+assert($region['region_type'] === 'see', 'und die ART bleibt ebenfalls die des Imports: ' . $region['region_type']);
+$pruefungen += 3;
 
 // --- 🔴 AUFGABE 13 (Rechtsfolgenfehler): die Quelle der Flaeche haengt an der BESCHRIFTUNG,
 // NICHT an der Region -- dieselbe Bindung, mit der map-features.php:1228 Quellen fuer die Karte
@@ -1181,15 +1212,21 @@ $itemIdVon = static function (PDO $pdo, string $label): int {
 };
 
 // --- Ort: avesmapsCreatePointFeature, entity_type 'settlement'.
+// 🔴 AUFGABE 29: EIN ORT IST KEINE "LANDSCHAFT" -- selbst mit einem passenden Namensgleichstand
+// in der Wiki-Landschaft-Tabelle darf hier NICHTS zugewiesen werden (der Auftrag gilt
+// ausdruecklich nur Flaeche und Berggipfel).
+avesmapsGaretienUebernahmeWikiRegionZeile($pdoNeu, 'Testdorf Garetien', 'Region', 'wiki:testdorf-fehlgriff');
 avesmapsSyncPlanAddItem($pdoNeu, $laufNeu, $bauePunktEintrag('location', 'dorf', 'Testdorf Garetien', 500.0, 500.0));
 $ortItemId = $itemIdVon($pdoNeu, 'Testdorf Garetien (Probe)');
 $eOrt = avesmapsGaretienUebernehmen($pdoNeu, $laufNeu, [$ortItemId], ['id' => 7]);
 assert($eOrt['angelegt'] === 1 && $eOrt['fehler'] === [], 'der Ort wird angelegt: ' . json_encode($eOrt, JSON_UNESCAPED_UNICODE));
-$ortZeile = $pdoNeu->query("SELECT public_id, feature_type, feature_subtype, name FROM map_features WHERE name = 'Testdorf Garetien'")->fetch(PDO::FETCH_ASSOC);
+$ortZeile = $pdoNeu->query("SELECT public_id, feature_type, feature_subtype, name, properties_json FROM map_features WHERE name = 'Testdorf Garetien'")->fetch(PDO::FETCH_ASSOC);
 assert($ortZeile !== false, 'der Ort steht in map_features');
 assert($ortZeile['feature_type'] === 'location' && $ortZeile['feature_subtype'] === 'dorf',
     'feature_type/feature_subtype stimmen: ' . json_encode($ortZeile));
-$pruefungen += 3;
+assert(!str_contains((string) $ortZeile['properties_json'], 'wiki_region'),
+    'ein Ort bekommt KEINE Wiki-Landschaft zugewiesen: ' . $ortZeile['properties_json']);
+$pruefungen += 4;
 
 // 🔴 Die Quelle haengt an entity_type='settlement', NICHT 'location' -- das ist die Bindung, die
 // map-features.php:1228 fuer den Infobox-Quellenkasten benutzt.
@@ -1219,6 +1256,14 @@ $pdoNeu->exec('INSERT INTO app_setting (setting_key, setting_value) VALUES ('
 
 // --- Berggipfel: avesmapsCreateLabelFeature, entity_type 'region' (map-features.php:1228),
 // KEYED AN DER PUBLIC_ID DES LABELS SELBST -- es gibt keine Region dahinter.
+//
+// 🔴 AUFGABE 29 (Owner-Entscheid 30.08.2026): "Testspitze" traegt hier eine Wiki-Landschaft mit
+// ABWEICHENDER Art (Wiki sagt "See", der Import will "berggipfel") -- die tragende Zusicherung
+// der Aufgabe: TROTZDEM zugewiesen, Owner: "wenn nicht sieht der editor ja, dass der typ anders
+// is ... des geht nur um die zuweisung". Zugleich die Gegenprobe zu Muehlsee oben (dort passte
+// die Art) -- zwei verschiedene Ausgaenge muessen zwei verschiedene Wege durchlaufen, sonst
+// prueft keine der beiden Zeilen etwas.
+avesmapsGaretienUebernahmeWikiRegionZeile($pdoNeu, 'Testspitze', 'See', 'wiki:testspitze');
 avesmapsSyncPlanAddItem($pdoNeu, $laufNeu, $bauePunktEintrag('label', 'berggipfel', 'Testspitze', 600.0, 600.0));
 $bergItemId = $itemIdVon($pdoNeu, 'Testspitze (Probe)');
 $eBerg = avesmapsGaretienUebernehmen($pdoNeu, $laufNeu, [$bergItemId], ['id' => 7]);
@@ -1240,11 +1285,23 @@ assert(($bergProps['priority'] ?? null) === 4, 'priority traegt die Uebersteueru
 assert(($bergProps['size'] ?? null) === 17, 'size traegt den z5-Wert der Uebersteuerung: ' . json_encode($bergProps));
 $pruefungen += 4;
 
+// --- 🔴 AUFGABE 29: DER SCHLUESSEL STEHT TROTZ ABWEICHENDER ART, UND SUBTYP/NAME BLEIBEN
+// UNVERAENDERT DIE DES IMPORTS ('berggipfel'/'Testspitze', NICHT die Wiki-Art "See").
+assert(($bergProps['wiki_region']['wiki_key'] ?? '') === 'wiki:testspitze',
+    'der Gipfel traegt den gefundenen Wiki-Schluessel trotz abweichender Art: ' . json_encode($bergProps));
+assert($bergZeile['feature_subtype'] === 'berggipfel', 'der Subtyp bleibt der des Imports: ' . $bergZeile['feature_subtype']);
+assert($bergZeile['name'] === 'Testspitze', 'der Name bleibt der des Imports: ' . $bergZeile['name']);
+$pruefungen += 3;
+
 // --- 🔴 UND EINE UNGUELTIGE UEBERSTEUERUNG FAELLT AUF DEN GRUNDWERT ZURUECK, STATT DEN IMPORT
 // ABZUBRECHEN. 'vulkan' traegt oben eine Zeile, die es fuer die Darstellungstafel gueltig gibt
 // (Groesse 4, Zoomband "aus"), aber keine, die avesmapsReadLabelSize/…Zoom durchliesse --
 // avesmapsGaretienLabelVorgabeFuerArt muss sie VORHER verwerfen, nicht avesmapsCreateLabelFeature
 // werfen lassen.
+//
+// 🔴 AUFGABE 29: "Testvulkan" hat KEINEN Namensgleichstand in der Wiki-Landschaft-Tabelle --
+// kein_treffer, also KEINE Zuweisung. Ohne diesen Fall pruefte kein Test, dass ein fehlender
+// Treffer wirklich nichts eintraegt (die Gegenprobe zu Testspitze/Muehlsee oben).
 avesmapsSyncPlanAddItem($pdoNeu, $laufNeu, $bauePunktEintrag('label', 'vulkan', 'Testvulkan', 620.0, 620.0));
 $vulkanItemId = $itemIdVon($pdoNeu, 'Testvulkan (Probe)');
 $eVulkan = avesmapsGaretienUebernehmen($pdoNeu, $laufNeu, [$vulkanItemId], ['id' => 7]);
@@ -1256,7 +1313,8 @@ $vulkanProps = json_decode((string) $vulkanZeile['properties_json'], true);
 assert(($vulkanProps['min_zoom'] ?? null) === 0, 'min_zoom faellt auf den Grundwert zurueck: ' . json_encode($vulkanProps));
 assert(($vulkanProps['max_zoom'] ?? null) === 5, 'max_zoom faellt auf den Grundwert zurueck: ' . json_encode($vulkanProps));
 assert(($vulkanProps['size'] ?? null) === 18, 'size faellt auf den Grundwert zurueck: ' . json_encode($vulkanProps));
-$pruefungen += 5;
+assert(!array_key_exists('wiki_region', $vulkanProps), 'ohne Wiki-Treffer bleibt wiki_region ganz WEG: ' . json_encode($vulkanProps));
+$pruefungen += 6;
 
 // 🔴 DIE TRAGENDE ZUSICHERUNG: KEINE ERFUNDENE HOEHE. Ein Gipfel ist ein Stuetzpunkt des
 // Hoehenfelds (terrain-store.php liest is_active=1 + height_schritt); Volkers Daten tragen keine
