@@ -49,10 +49,21 @@ $quelle = $nurCode($roh);
 
 // 🔴 DER RIEGEL, und er steht VOR der Weiche. Eine Importquelle, die jeder befuellen kann, ist
 // eine Schreibberechtigung auf die Karte -- der Upload-Weg braucht ihn genauso wie der Abruf.
-assert(str_contains($quelle, "avesmapsRequireUserWithCapability('admin')"), 'admin-Riegel vorhanden');
+//
+// 🔴 SEIT 31.08.2026 `edit` STATT `admin` (Owner: „der button 'Garetien Importer' soll für alle
+// Editoren-Nutzer sichtbar werden"). ⚠️ Das ist KEINE Aufweichung: `edit` schliesst Admins ein
+// (avesmapsUserCan: 'edit' => ['admin','editor']), und die schreibenden bzw. nach AUSSEN gehenden
+// Aktionen haengen weiterhin an `admin` -- der zweite Riegel darunter, der bis dahin unerreichbar
+// war und mit dieser Zeile scharf wurde.
+// 💣 Der Knopf im Browser war zuerst allein freigegeben; der Editor sah daraufhin ein leeres
+// Fenster mit „Dir fehlt die Berechtigung fuer diese Aktion." -- eine Freigabe ist erst dann eine,
+// wenn BEIDE Haelften sie kennen. Deshalb nagelt dieser Test die Server-Haelfte fest.
+assert(str_contains($quelle, "avesmapsRequireUserWithCapability('edit')"), 'edit-Riegel vorhanden');
+assert(!str_contains($quelle, "avesmapsRequireUserWithCapability('admin')"),
+    'und KEIN admin-Riegel mehr am Eingang -- sonst kaeme kein Editor herein');
 $vorDerWeiche = substr($quelle, 0, strpos($quelle, "\$action ==="));
 assert(
-    str_contains($vorDerWeiche, "avesmapsRequireUserWithCapability('admin')"),
+    str_contains($vorDerWeiche, "avesmapsRequireUserWithCapability('edit')"),
     'der Riegel steht VOR der ersten Aktionsweiche, nicht in einzelnen Zweigen'
 );
 assert(substr_count($quelle, 'avesmapsRequireUserWithCapability') === 1, 'genau EIN Riegel, nicht je Zweig einer');

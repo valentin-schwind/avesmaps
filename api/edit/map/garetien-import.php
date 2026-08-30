@@ -46,7 +46,15 @@ try {
         avesmapsErrorResponse(405, 'method_not_allowed', 'Nur POST ist fuer diesen Endpoint erlaubt.');
     }
 
-    $user = avesmapsRequireUserWithCapability('admin');
+    // 🔴 SEIT 31.08.2026 `edit`, NICHT MEHR `admin` (Owner: „der button 'Garetien Importer' soll
+    // für alle Editoren-Nutzer sichtbar werden"). Der Knopf im Browser war zuerst allein
+    // freigegeben, und der Editor sah daraufhin ein leeres Fenster mit „Dir fehlt die Berechtigung
+    // fuer diese Aktion." -- eine Freigabe ist erst dann eine, wenn BEIDE Haelften sie kennen.
+    // ⚠️ `edit` schliesst Admins ein (`avesmapsUserCan`: 'edit' => ['admin', 'editor']) -- diese
+    // Zeile sperrt also niemanden aus, den sie vorher hereinliess.
+    // 🔴 Die schreibenden und die nach AUSSEN gehenden Aktionen bleiben admin-only: der Riegel
+    // dafuer steht direkt darunter und war bis heute unerreichbar. Er wird mit dieser Zeile scharf.
+    $user = avesmapsRequireUserWithCapability('edit');
     $payload = avesmapsReadJsonRequest();
     $action = avesmapsNormalizeSingleLine((string) ($payload['action'] ?? 'ebenen'), 40);
 
@@ -62,9 +70,12 @@ try {
     // verlangt „genau EIN Riegel, nicht je Zweig einer" (er stuende sonst zweimal im Quelltext, und
     // das Zaehl-Argument der Zusicherung waere falsch). `avesmapsUserCan` ist die lesende Haelfte
     // desselben Riegels, ohne diese Zaehlung zu treffen.
-    // ⚠️ Heute unerreichbar: die Zeile darueber laesst ohnehin nur Admins herein. Er steht trotzdem
-    // schon hier, weil eine Sperre, die erst NACH der Oeffnung fuer Editoren nachgetragen wird, in
-    // der Zwischenzeit keine ist -- „eine Sperre nur im Browser ist keine".
+    // ✅ SEIT 31.08.2026 SCHARF. Bis dahin war dieser Riegel unerreichbar, weil die Zeile darueber
+    // ohnehin nur Admins hereinliess -- er stand trotzdem schon da, weil eine Sperre, die erst NACH
+    // der Oeffnung fuer Editoren nachgetragen wird, in der Zwischenzeit keine ist. Genau dieser
+    // Vorgriff hat die Oeffnung heute auf zwei Zeilen verkuerzt: waere er nicht dagewesen, haette
+    // ein Editor mit dem Aufmachen des aeusseren Riegels den Abruf bei einem FREMDEN Server und das
+    // Neurechnen des ganzen Bestandes mitbekommen.
     if (in_array($action, ['ebenen', 'probe', 'fetch', 'upload', 'plan'], true)
         && !avesmapsUserCan($user, 'admin')) {
         avesmapsErrorResponse(403, 'forbidden', 'Diese Aktion ist Administratoren vorbehalten.');
