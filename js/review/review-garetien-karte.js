@@ -227,6 +227,19 @@
 	var AVESMAPS_GARETIEN_PARTEI_IHRE = "Garetien";
 	var AVESMAPS_GARETIEN_PARTEI_UNSERE = "Avesmaps";
 
+	/*
+	 * Traegt ein Objekt dieses Feld, wird nur IHRE Seite gemalt (Owner 30.08.2026: „der button
+	 * sollte nur imports nicht unsere eigenen anzeigen").
+	 *
+	 * 💣 DERSELBE GEKOPPELTE WERT WIE DIE ZWEI PARTEINAMEN DARUEBER, aus demselben Grund: das
+	 * Fenster laeuft auch auf Seiten ohne Karte und darf den Zeichner nicht voraussetzen, der
+	 * Zeichner wird im Test allein geladen und kann das Fenster nicht voraussetzen.
+	 * Zusammengehalten von js/review/__tests__/garetien-karte.test.js.
+	 * 🔴 ENTSCHIEDEN WIRD IM FENSTER, nicht hier: der Zeichner weiss nicht, WARUM ein Objekt nur
+	 * halb gezeigt wird, und soll es nicht wissen.
+	 */
+	var AVESMAPS_GARETIEN_FELD_NUR_IHRE = "nur_ihre";
+
 	// 💣 DIE EBENENGRUPPE IST DER ZUSTAND — kein Schalter, keine Liste, kein „ist offen" daneben,
 	// das auseinanderlaufen koennte. Gezeichnet wird immer: erst alles abraeumen, dann alles neu.
 	var gruppe = null;
@@ -333,16 +346,57 @@
 	 * ⚠️ Ein halber oder unzahliger Punkt faellt heraus statt mitzureisen — Leaflet rechnet mit einem
 	 * NaN klaglos weiter, bis eine Transformation kippt, und dann ist die ganze Karte weg.
 	 */
-	function avesmapsGaretienNachLeaflet(punkte) {
-		var raus = [];
-		(punkte || []).forEach(function (punkt) {
-			if (!punkt || punkt.length < 2) { return; }
-			var x = Number(punkt[0]);
-			var y = Number(punkt[1]);
-			if (!isFinite(x) || !isFinite(y)) { return; }
-			raus.push([y, x]);
+	/*
+	 * Ist dieser Knoten ein Punktpaar? REIN.
+	 *
+	 * 🪤 `!Array.isArray` an beiden Stellen ist tragend: `Number([5])` ist 5, nicht NaN -- ohne die
+	 * zwei Wachen saehe `[[5], [6]]` wie ein Punkt aus, und ein ganzer Ring verschwaende in ihm.
+	 */
+	function garetienIstPunkt(knoten) {
+		return Array.isArray(knoten) && knoten.length >= 2
+			&& !Array.isArray(knoten[0]) && !Array.isArray(knoten[1])
+			&& isFinite(Number(knoten[0])) && isFinite(Number(knoten[1]));
+	}
+
+	/*
+	 * Ist dieser Knoten eine PUNKTLISTE -- ein Ring, eine Linie, ein einzelner Ort? REIN.
+	 *
+	 * 🔴 SIE IST DIE WEICHE ZWISCHEN DEN ZWEI FORMEN, DIE GLEICHZEITIG IM FELD LIEGEN: seit dem
+	 * 30.08.2026 liefert der Server unsere Geometrie MIT ihrer Ringstruktur, aber die alte flache
+	 * Liste ist beim Rechnen abgelegt worden -- ein Lauf von gestern traegt sie, bis jemand
+	 * „Holen & Rechnen" neu faehrt. Der Zeichner muss also beide lesen koennen.
+	 */
+	function garetienIstPunktliste(knoten) {
+		return Array.isArray(knoten) && knoten.length > 0 && garetienIstPunkt(knoten[0]);
+	}
+
+	/*
+	 * GeoJSON [x, y] -> Leaflet [lat, lng] = [y, x], auf JEDER Ebene, und die Verschachtelung
+	 * bleibt stehen. REIN -- die Eingabe wird nie an Ort und Stelle gedreht.
+	 *
+	 * 🔴 Sie ist rekursiv, seit unsere Geometrie ihre Ringe behaelt (Owner-Meldung 30.08.2026,
+	 * „diese wirre rosa linie"): `L.polygon` liest eine Liste von Ringen als Flaeche mit Loechern
+	 * und eine Liste von Teilen als Mehrfachpolygon -- es braucht also kein zweites Format, nur
+	 * den Verzicht aufs Flachklopfen. Eine flache Liste kommt flach wieder heraus.
+	 * ⚠️ Unfug faellt still heraus, auch tief unten: eine NaN-Koordinate reisst sonst die ganze
+	 * Karte mit (Leaflet rechnet damit weiter, bis eine Transformation NaN wird).
+	 */
+	function avesmapsGaretienNachLeaflet(knoten) {
+		if (!Array.isArray(knoten)) { return []; }
+		if (garetienIstPunktliste(knoten)) {
+			var raus = [];
+			knoten.forEach(function (punkt) {
+				if (!garetienIstPunkt(punkt)) { return; }
+				raus.push([Number(punkt[1]), Number(punkt[0])]);
+			});
+			return raus;
+		}
+		var aeste = [];
+		knoten.forEach(function (kind) {
+			var gebaut = avesmapsGaretienNachLeaflet(kind);
+			if (gebaut.length > 0) { aeste.push(gebaut); }
 		});
-		return raus;
+		return aeste;
 	}
 
 	/*
@@ -368,6 +422,12 @@
 	 * der Hof; entschieden wird hier, welche unserer Abschnitte ueberhaupt auf die Karte kommen.
 	 */
 	function avesmapsGaretienUnsereIds(objekt) {
+		// 🔴 DER EINE RIEGEL FUER „nur ihre Seite" (Owner 30.08.2026). Er sitzt hier, weil diese
+		// Funktion die EINZIGE Stelle ist, die entscheidet, welche unserer Abschnitte auf die Karte
+		// kommen -- der Zeichner ruft sie, und garetienUnsereVorhanden (die Sperre des Knopfes
+		// „Avesmaps", review-garetien-importer.js) misst an derselben. Ein zweiter Riegel im
+		// Zeichenlauf liesse den Knopf bedienbar aussehen, wo nichts mehr zu sehen ist.
+		if (objekt && objekt[AVESMAPS_GARETIEN_FELD_NUR_IHRE] === true) { return []; }
 		var raus = [];
 		var gesehen = {};
 		(((objekt || {}).items) || []).forEach(function (item) {
@@ -677,6 +737,24 @@
 	}
 
 	/*
+	 * Darf diese Geometrie als FLAECHE gezeichnet werden? REIN.
+	 *
+	 * 🔴 ZWEI FORMEN, ZWEI ANTWORTEN, und beide liegen gleichzeitig im Feld (siehe
+	 * garetienIstPunktliste):
+	 *  · VERSCHACHTELT (seit 30.08.2026): die Struktur ist bekannt, `L.polygon` kann sie fuellen --
+	 *    der Schlusstest darf hier gar nicht mehr entscheiden. Die aeusserste Liste eines
+	 *    MultiPolygons „schliesst" naemlich NIE (ihr erstes Element ist ein Ring, ihr letztes ein
+	 *    anderer), er saegte also genau die Form ab, fuer die dieser Umbau gemacht ist.
+	 *  · FLACH (jeder gespeicherte Lauf davor): die Ringgrenzen sind fort, und nur der Schlusstest
+	 *    trennt einen echten Ring von einer Verkettung mehrerer. Ihn hier fallenzulassen machte
+	 *    einen alten Lauf SCHLIMMER -- aus dem ungefuellten Gespinst wuerde ein gefuelltes.
+	 */
+	function garetienFlaecheZeichenbar(punkte) {
+		if (garetienIstPunktliste(punkte)) { return garetienRingSchliesst(punkte); }
+		return Array.isArray(punkte) && punkte.length > 0;
+	}
+
+	/*
 	 * Der Tooltip-Text. REIN.
 	 *
 	 * 🔴 DIE PARTEI STEHT VORN — das ist der ganze Zweck (Owner 29.08.2026: „dass ich seh welches
@@ -733,7 +811,10 @@
 		};
 		if (opt.strichelung) { basis.dashArray = opt.strichelung; }
 		var ebene = null;
-		if (punkte.length === 1) {
+		// 💣 `punkte.length === 1` ALLEIN reicht seit der Ringstruktur NICHT mehr: bei einer
+		// verschachtelten Geometrie zaehlt die Laenge die RINGE, nicht die Punkte. Eine einteilige
+		// Flaeche waere damit ein 8-px-Ring an der Stelle ihres ersten Ringpunkts geworden.
+		if (garetienIstPunktliste(punkte) && punkte.length === 1) {
 			if (typeof l.circleMarker !== "function") { return null; }
 			// 🔴 30.08.2026: `opt.durchmesser` traegt, wenn bekannt, den ECHTEN Aussendurchmesser aus
 			// dem Zoomband der Siedlungsklasse (garetienPunktDurchmesser) -- der alte Festwert bleibt
@@ -830,9 +911,9 @@
 				unsere.push({
 					punkte: punkte,
 					titel: garetienTitelUnsere(objekt, publicId),
-					// 🔴 Eine Flaeche nur dann als Flaeche, wenn die Punktliste sich zu EINEM Ring
-					// schliesst -- siehe garetienRingSchliesst.
-					flaeche: garetienIstFlaeche(objekt) && garetienRingSchliesst(punkte),
+					// 🔴 Eine Flaeche nur dann als Flaeche, wenn ihre Gestalt das hergibt -- siehe
+					// garetienFlaecheZeichenbar (verschachtelt: immer; flach: nur als echter Ring).
+					flaeche: garetienIstFlaeche(objekt) && garetienFlaecheZeichenbar(punkte),
 					// Aufgabe 4 (Entwurf §4.2): kollidiert das GANZE Objekt, glueht auch UNSER Hof rot.
 					kollidiert: avesmapsGaretienKollidiert(objekt),
 					// 30.08.2026: „das Design dessen, was es werden wird" -- beide Werte haengen am
@@ -1109,6 +1190,7 @@
 			AVESMAPS_GARETIEN_KLASSE_SCHEIN_IHRE,
 			AVESMAPS_GARETIEN_PARTEI_IHRE,
 			AVESMAPS_GARETIEN_PARTEI_UNSERE,
+			AVESMAPS_GARETIEN_FELD_NUR_IHRE,
 			// Aufgabe 3: die Sicht-Tafel (Entwurf §4.1)
 			avesmapsGaretienSichtFuer,
 			AVESMAPS_GARETIEN_SICHT_EBENE,

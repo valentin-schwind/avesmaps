@@ -1782,4 +1782,189 @@ delete global.window.avesmapsGaretienUnsereIds;
 importer.avesmapsGaretienAnzeigeLeeren();
 importer.garetienDetailWaehlen(null, []);
 
+// ---- 16. DIE RINGSTRUKTUR (Owner-Meldung 30.08.2026: „diese wirre rosa linie") ----------------
+//
+// UNSERE Geometrie kommt seit dem 30.08.2026 MIT ihrer Verschachtelung vom Server
+// (avesmapsGaretienGeoJsonTeile, api/_internal/import/garetien-abgleich.php): eine Liste von
+// Ringen ist eine Flaeche mit Loechern, eine Liste von Teilen ein Mehrfachpolygon -- genau die
+// Form, die `L.polygon`/`L.polyline` entgegennehmen.
+// 🔴 UND DIE FLACHE FORM MUSS WEITER GEHEN. Die Geometrie wird beim Rechnen ABGELEGT; ein Lauf
+// von gestern traegt die alte flache Liste, bis jemand „Holen & Rechnen" neu faehrt. Beide Formen
+// liegen also gleichzeitig im Feld.
+// 🪤 Und der Name der Speichertabelle darf hier NICHT stehen -- der Abbau-Waechter
+// (api/_internal/import/__tests__/garetien-abbau-waechter-test.php) sucht ihn in jeder verfolgten
+// Datei ausserhalb von api/_internal/import/. Genau daran ist dieser Abschnitt beim Schreiben
+// einmal haengengeblieben, und zwar erst NACH dem `git add`: davor ist die Datei fuer den
+// Waechter unsichtbar (er liest `git ls-files`).
+
+// --- Der Tausch x/y gilt auf JEDER Ebene, und die Verschachtelung bleibt stehen.
+tief(avesmapsGaretienNachLeaflet([[[10, 20], [30, 40]], [[50, 60], [70, 80]]]),
+	[[[20, 10], [40, 30]], [[60, 50], [80, 70]]],
+	"zwei Ringe bleiben zwei Ringe -- und jeder Punkt darin ist getauscht");
+tief(avesmapsGaretienNachLeaflet([[[[1, 2], [3, 4]]]]), [[[[2, 1], [4, 3]]]],
+	"auch drei Ebenen tief (MultiPolygon) bleibt die Gestalt erhalten");
+// Die Rueckwaertsvertraeglichkeit, ohne die jeder gespeicherte Lauf schwarz wuerde.
+tief(avesmapsGaretienNachLeaflet([[10, 20], [30, 40]]), [[20, 10], [40, 30]],
+	"eine FLACHE Liste bleibt flach -- so liegt die Geometrie in jedem Lauf vor dem 30.08.2026");
+// Unfug faellt auch tief unten heraus, statt NaN in die Karte zu tragen.
+tief(avesmapsGaretienNachLeaflet([[[1, 2], ["a", "b"], [3]], []]), [[[2, 1]]],
+	"halbe Punkte und leere Aeste fallen heraus, ohne den Rest mitzunehmen");
+
+// --- Gezeichnet wird die Verschachtelung, nicht ihre Flachform.
+// Zwei Quadrate, weit auseinander -- genau der Reichsforst-Fall im Kleinen.
+const quadratA = [[0, 0], [0, 10], [10, 10], [10, 0], [0, 0]];
+const quadratB = [[100, 100], [100, 110], [110, 110], [110, 100], [100, 100]];
+const reichsforst = {
+	key: "ggp:Vegetation:Wald:Reichsforst", name: "Reichsforst", urteil: "ergaenzung",
+	ebene: "Vegetation", geometrie_typ: "Polygon",
+	geometrie: [[200, 200], [260, 220], [240, 260], [200, 200]],
+	abschnitte: [{
+		public_id: "eco-1", name: "Reichsforst", punkte: 12,
+		// So liefert der Server seit dem 30.08.2026: Teile aus Ringen.
+		geometrie: [[quadratA], [quadratB]],
+	}],
+	items: [{ id: 61, anlass: "ergaenzung", selected: 1, abschnitt: { public_id: "eco-1" } }],
+};
+
+const karte16 = gefaelschteKarte();
+avesmapsGaretienKarteZeigen([reichsforst], karte16);
+const unsere16 = nach(karte16, UNSERE);
+gleich(unsere16.length, 1, "ein Abschnitt ergibt EINE Form");
+// 💣 DIE ZUSICHERUNG, UM DIE ES GEHT: kein Punkt des einen Quadrats steht in der Liste des
+// anderen. Genau das war das Gespinst -- eine Linie durch alle Punkte hintereinander.
+const gezeichnet = unsere16[0]._punkte;
+gleich(gezeichnet.length, 2, "zwei Teile bleiben ZWEI Punktlisten, nicht eine durchgezogene");
+// Die Verschachtelung ist die des GeoJSON: Teil -> Ring -> Punkt. Genau so liest `L.polygon` ein
+// Mehrfachpolygon; ein Uebersetzer dazwischen waere ein zweites Format.
+tief(gezeichnet[0][0], quadratA.map((p) => [p[1], p[0]]),
+	"der erste Teil traegt genau die Punkte des ersten Quadrats (getauscht)");
+tief(gezeichnet[1][0], quadratB.map((p) => [p[1], p[0]]),
+	"und der zweite genau die des zweiten -- keiner wandert in den anderen");
+
+// --- Eine verschachtelte Flaeche wird GEFUELLT, ohne den Ringschluss-Test.
+// 💣 Die aeusserste Liste eines MultiPolygons „schliesst" nie (ihr erstes Element ist ein RING,
+// ihr letztes ein anderer). Der alte Riegel haette hier abgelehnt und eine ungefuellte Linie
+// gezeichnet -- er darf auf die neue Form gar nicht mehr angewandt werden.
+gleich(garetienRingSchliesst([[quadratA], [quadratB]]), false,
+	"Zeuge: der alte Riegel sagt bei der verschachtelten Form NEIN -- deshalb darf er sie nicht entscheiden");
+gleich(unsere16[0]._bauer, "polygon",
+	"eine verschachtelte Flaeche wird trotzdem als Flaeche gebaut -- ihre Struktur ist bekannt");
+
+// --- Der Hof darunter traegt dieselbe Gestalt (sonst laege er neben der Form).
+const hof16 = nach(karte16, SCHEIN);
+gleich(hof16.length, 1, "ein Abschnitt bekommt EINEN Hof");
+tief(hof16[0]._punkte, gezeichnet, "Hof und Form zeichnen dieselbe Gestalt");
+gleich(hof16[0]._bauer, "polyline", "der Hof bleibt ein Strich, auch unter einer Flaeche");
+
+// --- ALTBESTAND: eine flache, nicht schliessende Liste bleibt UNgefuellt.
+// 🔴 Ohne diesen Zweig wuerde ein gespeicherter Lauf von gestern SCHLIMMER: aus dem ungefuellten
+// Gespinst wuerde ein gefuelltes.
+const altGespinst = {
+	key: "ggp:Vegetation:Wald:Alt", name: "Alter Lauf", urteil: "ergaenzung", ebene: "Vegetation",
+	geometrie_typ: "Polygon", geometrie: [[300, 300], [360, 320], [340, 360], [300, 300]],
+	abschnitte: [{
+		public_id: "eco-2", name: "Alter Lauf", punkte: 12,
+		geometrie: [[0, 0], [0, 10], [10, 10], [100, 100], [110, 110], [100, 110]],
+	}],
+	items: [{ id: 62, anlass: "ergaenzung", selected: 1, abschnitt: { public_id: "eco-2" } }],
+};
+const karteAlt = gefaelschteKarte();
+avesmapsGaretienKarteZeigen([altGespinst], karteAlt);
+gleich(nach(karteAlt, UNSERE)[0]._bauer, "polyline",
+	"eine flache Liste, die sich nicht schliesst, bleibt ungefuellt -- der Riegel gilt dem Altbestand weiter");
+
+// --- ALTBESTAND, die Gegenprobe: flach UND geschlossen wird weiter gefuellt.
+const altRing = JSON.parse(JSON.stringify(altGespinst));
+altRing.key = "ggp:Vegetation:Wald:AltRing";
+altRing.abschnitte[0].geometrie = [[0, 0], [0, 10], [10, 10], [10, 0], [0, 0]];
+const karteAltRing = gefaelschteKarte();
+avesmapsGaretienKarteZeigen([altRing], karteAltRing);
+gleich(nach(karteAltRing, UNSERE)[0]._bauer, "polygon",
+	"ein flacher, geschlossener Ring wird weiter gefuellt -- sonst verloere jeder alte Lauf seine Flaechen");
+
+// --- 💣 DIE PUNKT-FALLE: ein EINteiliges Polygon hat Laenge 1 und ist trotzdem kein Ort.
+// `punkte.length === 1` war bis hierher die Frage „ist das ein Punkt". Bei der verschachtelten
+// Form ist die Laenge die Zahl der RINGE -- eine einteilige Flaeche waere damit ein circleMarker
+// geworden, also ein Ring von 8 px an der Stelle des ersten Ringpunkts.
+const einTeil = JSON.parse(JSON.stringify(reichsforst));
+einTeil.key = "ggp:Vegetation:Wald:EinTeil";
+einTeil.abschnitte[0].geometrie = [[quadratA]];
+const karteEin = gefaelschteKarte();
+avesmapsGaretienKarteZeigen([einTeil], karteEin);
+gleich(nach(karteEin, UNSERE)[0]._bauer, "polygon",
+	"eine einteilige verschachtelte Flaeche ist KEIN Ort -- die Laenge 1 zaehlt Ringe, nicht Punkte");
+
+// --- Und die Gegenprobe: ein echter Ort bleibt ein circleMarker.
+const ort16 = {
+	key: "ggp:Ortschaften:Dorf:Klein", name: "Klein", urteil: "ergaenzung", ebene: "Ortschaften",
+	geometrie_typ: "Point", geometrie: [[400, 400]],
+	abschnitte: [{ public_id: "loc-1", name: "Klein", punkte: 1, geometrie: [[401, 401]] }],
+	items: [{ id: 63, anlass: "ergaenzung", selected: 1, abschnitt: { public_id: "loc-1" } }],
+};
+const karteOrt = gefaelschteKarte();
+avesmapsGaretienKarteZeigen([ort16], karteOrt);
+gleich(nach(karteOrt, UNSERE)[0]._bauer, "circleMarker",
+	"ein echter Ort -- eine Liste mit GENAU einem Punktpaar -- bleibt ein Ring");
+
+// ---- 17. „NUR IMPORTE" (Owner 30.08.2026) ----------------------------------------------------
+//
+// Der Knopf „Imports in der Nähe anzeigen" legt seine Nachbarn nur in IHRER Farbe hin. Der
+// Zeichner erfaehrt das an EINEM Feld am Objekt; entschieden wird es im Fenster
+// (avesmapsGaretienNurIhreStempeln, review-garetien-importer.js).
+
+// 💣 GEKOPPELTER WERT IN ZWEI DATEIEN -- dieselbe Bauform wie die zwei Parteinamen, und dieselbe
+// Begruendung (das Fenster laeuft auf Seiten ohne Karte, der Zeichner wird allein geladen). Diese
+// Zeile ist der einzige Ort, an dem beide zusammenkommen.
+gleich(mod.AVESMAPS_GARETIEN_FELD_NUR_IHRE, importer.AVESMAPS_GARETIEN_FELD_NUR_IHRE,
+	"Zeichner und Fenster muessen dasselbe Feld meinen -- sonst zeichnet der Knopf weiter unsere Formen");
+wahr(typeof mod.AVESMAPS_GARETIEN_FELD_NUR_IHRE === "string"
+	&& mod.AVESMAPS_GARETIEN_FELD_NUR_IHRE.length > 0,
+	"und es muss ein echter Feldname sein, sonst vergleicht die Zeile darueber zwei undefined");
+
+const NUR_IHRE = mod.AVESMAPS_GARETIEN_FELD_NUR_IHRE;
+
+// --- Die Marke nimmt UNSERE Abschnitte aus dem Spiel, obwohl das Haekchen steht.
+const mitHaken = { items: [{ id: 1, selected: 1, abschnitt: { public_id: "w-1" } }] };
+tief(avesmapsGaretienUnsereIds(mitHaken), ["w-1"],
+	"Zeuge: ohne die Marke liegt unser Abschnitt da -- sonst misst die Zeile darunter nichts");
+const markiert = Object.assign({}, mitHaken);
+markiert[NUR_IHRE] = true;
+tief(avesmapsGaretienUnsereIds(markiert), [],
+	"mit der Marke zeichnet der Nachbar nur seine eigene Seite");
+
+// --- Und am Ergebnis auf der Karte: ihre Form bleibt, unsere faellt weg.
+const nachbar17 = {
+	key: "ggp:Gewaesser:Bach:Nachbar", name: "Nachbar", urteil: "ergaenzung", ebene: "Gewaesser",
+	geometrie_typ: "LineString", geometrie: [[600, 60], [620, 80]],
+	abschnitte: [{ public_id: "w-7001", name: "Unser Bach", punkte: 5, geometrie: [[601, 61], [619, 79]] }],
+	items: [{ id: 71, anlass: "ergaenzung", selected: 1, abschnitt: { public_id: "w-7001" } }],
+};
+const karte17a = gefaelschteKarte();
+avesmapsGaretienKarteZeigen([nachbar17], karte17a);
+gleich(nach(karte17a, UNSERE).length, 1, "Zeuge: ohne Marke wird unsere Form gezeichnet");
+gleich(nach(karte17a, IHRE).length, 1, "und ihre auch");
+
+const nachbarMarkiert = Object.assign({}, nachbar17);
+nachbarMarkiert[NUR_IHRE] = true;
+const karte17b = gefaelschteKarte();
+avesmapsGaretienKarteZeigen([nachbarMarkiert], karte17b);
+gleich(nach(karte17b, UNSERE).length, 0, "mit Marke liegt KEINE magenta Form auf der Karte");
+gleich(nach(karte17b, SCHEIN).length, 0, "und auch kein Hof darunter -- er haengt an derselben Regel");
+gleich(nach(karte17b, IHRE).length, 1, "ihre Form bleibt -- der Knopf zeigt sie ja gerade");
+
+// --- Die Ausnahme: das GEOEFFNETE Objekt bleibt vergleichbar.
+// Ohne sie waere ein ueber den Knopf hereingeholtes Objekt nie mehr mit unserem Bestand zu
+// vergleichen -- und genau dafuer ist dieses Fenster da.
+importer.avesmapsGaretienAnzeigeLeeren();
+importer.avesmapsGaretienAnzeigeHinzufuegen([nachbar17]);
+importer.avesmapsGaretienNurIhreMerken([nachbar17]);
+const ohneAuswahl = importer.avesmapsGaretienAufDerKarte([nachbar17]);
+gleich(ohneAuswahl[0][NUR_IHRE], true, "solange niemand die Zeile ansieht, gilt die Marke");
+importer.garetienDetailWaehlen(nachbar17.key, [nachbar17]);
+const mitAuswahl = importer.avesmapsGaretienAufDerKarte([nachbar17]);
+wahr(!mitAuswahl[0][NUR_IHRE],
+	"das geoeffnete Objekt zeigt wieder beide Seiten -- sonst waere es nie mehr vergleichbar");
+importer.garetienDetailWaehlen(null, []);
+importer.avesmapsGaretienAnzeigeLeeren();
+
 console.log(`garetien-karte: ${checks} Pruefungen bestanden.`);

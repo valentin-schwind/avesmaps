@@ -461,6 +461,10 @@ function avesmapsGaretienArbeitslisteObjekte(PDO $pdo, int $importRunId): array
                     'name' => (string) ($abschnitt['name'] ?? ''),
                     'punkte' => (int) ($abschnitt['punkte'] ?? 0),
                     'geometrie' => $abschnitt['geometrie'] ?? [],
+                    // 💣 Die zweite feldweise Abschrift derselben Angabe (die erste steht in
+                    // avesmapsGaretienAbschnittsEintrag, garetien-plan.php). Faellt sie an EINER
+                    // der beiden Stellen weg, kappt der Server still -- AGENTS.md §9.
+                    'verworfene_teile' => (int) ($abschnitt['verworfene_teile'] ?? 0),
                 ];
             }
         }

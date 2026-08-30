@@ -205,6 +205,64 @@ async function pruefeAbruf() {
 	}
 }
 
+// =================================================================================================
+// D. DER KNOPF ZEIGT NUR IMPORTE (Owner 30.08.2026: „der button sollte nur imports nicht unsere
+//    eigenen anzeigen")
+// =================================================================================================
+// Er heisst „Imports in der Nähe anzeigen", und genau das tut er jetzt: die Nachbarn kommen in
+// IHRER Farbe auf die Karte, unsere magenta Gegenstuecke bleiben weg. Wer vergleichen will, oeffnet
+// das Objekt -- dafuer gibt es die Einzelansicht und die zwei Sicht-Knoepfe.
+//
+// 🔴 DIE MARKE STEHT NEBEN DER ANZEIGE-MENGE, NICHT IN IHR. Die Menge haelt die Objekte, wie der
+// Server sie geliefert hat; ein Feld hineinzuschreiben ginge beim naechsten Auffrischen
+// (avesmapsGaretienAnzeigeAuffrischen ersetzt die Fassung nach jedem Schreibvorgang) still
+// verloren -- und die magenta Formen kaemen zurueck, ohne dass jemand etwas getan haette.
+modul.avesmapsGaretienAnzeigeLeeren();
+const ausAnderemWeg = { key: "eigenweg", name: "Von Hand angezeigt", geometrie: [[5, 5]] };
+modul.avesmapsGaretienAnzeigeHinzufuegen([ausAnderemWeg]);
+const ausNaehe = [
+	{ key: "naeh-1", name: "Nachbar A", geometrie: [[1, 1]] },
+	{ key: "naeh-2", name: "Nachbar B", geometrie: [[2, 2]] },
+];
+garetienNaeheKlick({ target: scheinKnopf(false) }, ausNaehe);
+
+const aufDerKarte = modul.avesmapsGaretienAufDerKarte([]);
+const nachKey = {};
+aufDerKarte.forEach(function (o) { nachKey[String(o.key)] = o; });
+gleich(aufDerKarte.length, 3, "alle drei liegen auf der Karte -- der Knopf blendet nichts aus");
+gleich(nachKey["naeh-1"][modul.AVESMAPS_GARETIEN_FELD_NUR_IHRE], true,
+	"ein ueber den Naehe-Knopf gekommener Nachbar traegt die Marke");
+gleich(nachKey["naeh-2"][modul.AVESMAPS_GARETIEN_FELD_NUR_IHRE], true, "und der zweite auch");
+// 💣 DIE DIFFERENZ, ohne die die Marke Vakuum waere: ein Objekt aus einem ANDEREN Weg traegt sie
+// nicht -- sonst haette der Knopf nicht die Anzeige geaendert, sondern die ganze Karte.
+wahr(!nachKey["eigenweg"][modul.AVESMAPS_GARETIEN_FELD_NUR_IHRE],
+	"ein von Hand angezeigtes Objekt behaelt sein magenta Gegenstueck");
+
+// Die Anzeige-Menge selbst bleibt unberuehrt -- gestempelt wird eine KOPIE fuer die Karte.
+const inDerMenge = modul.avesmapsGaretienAnzeigeListe()
+	.filter(function (o) { return String(o.key) === "naeh-1"; })[0];
+wahr(!inDerMenge[modul.AVESMAPS_GARETIEN_FELD_NUR_IHRE],
+	"das Objekt in der Anzeige-Menge bleibt, wie der Server es geliefert hat");
+
+// Ein anderer Weg HEBT die Marke auf: wer denselben Nachbarn ueber „Markierte anzeigen" hereinholt,
+// will ihn ganz sehen.
+modul.avesmapsGaretienAnzeigeHinzufuegen([ausNaehe[0]]);
+const nachErneutemZeigen = modul.avesmapsGaretienAufDerKarte([])
+	.filter(function (o) { return String(o.key) === "naeh-1"; })[0];
+wahr(!nachErneutemZeigen[modul.AVESMAPS_GARETIEN_FELD_NUR_IHRE],
+	"ein zweiter, gewoehnlicher Weg in die Anzeige nimmt die Marke zurueck");
+gleich(modul.avesmapsGaretienAufDerKarte([])
+	.filter(function (o) { return String(o.key) === "naeh-2"; })[0][modul.AVESMAPS_GARETIEN_FELD_NUR_IHRE],
+	true, "und der andere Nachbar behaelt seine -- aufgehoben wird EINZELN, nicht pauschal");
+
+// „Anzeige leeren" vergisst auch die Marken -- sonst traegt ein spaeter wieder hereingeholtes
+// Objekt sie aus einer Sitzung, an die sich niemand mehr erinnert.
+modul.avesmapsGaretienAnzeigeLeeren();
+modul.avesmapsGaretienAnzeigeHinzufuegen([ausNaehe[1]]);
+wahr(!modul.avesmapsGaretienAufDerKarte([])[0][modul.AVESMAPS_GARETIEN_FELD_NUR_IHRE],
+	"nach dem Leeren der Anzeige ist keine Marke mehr uebrig");
+modul.avesmapsGaretienAnzeigeLeeren();
+
 pruefeAbruf().then(function () {
 	console.log(`garetien-naehe-markieren: ${checks} Pruefungen bestanden.`);
 }).catch(function (fehler) {

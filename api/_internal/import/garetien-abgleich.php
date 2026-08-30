@@ -497,6 +497,12 @@ function avesmapsGaretienKandidaten(PDO $pdo, array $ziel): array
             // Nur bei einem Flaechen-Kandidaten gesetzt (die path/location/label-Abfrage kennt
             // keine Spalte dieses Namens) -- siehe die Begruendung an der SELECT-Klausel oben.
             'label_public_id' => (string) ($zeile['label_public_id'] ?? ''),
+            // 🔴 Die ROHE Geometrie reist mit, obwohl `punkte` daneben steht: nur sie kennt noch
+            // die Ringstruktur, und die braucht der ZEICHNER (avesmapsGaretienGeoJsonTeile in
+            // avesmapsGaretienAbschnitte). `punkte` ist flach und gehoert dem ABGLEICH.
+            // ⚠️ Die Zeichenkette wiegt nichts gegen `punkte`: 1727 Punkte liegen als PHP-Arrays
+            // bei rund 170 KB, ihr JSON bei rund 30 KB.
+            'geo' => (string) ($zeile['geo'] ?? ''),
             'punkte' => $punkte,
             // 🔴 Die Praefixe sind Absicht: diese Huellbox ist GERECHNET. Ohne sie liest sich
             // der Vergleich unten wie ein Zugriff auf die gespeicherten Spalten min_x/max_x --
@@ -680,6 +686,29 @@ const AVESMAPS_GARETIEN_AUSDEHNUNG_MINDESTVERHAELTNIS = 0.75;
 const AVESMAPS_GARETIEN_ABSCHNITT_PUNKTE = 64;
 
 /**
+ * Hoechstens so viele TEILE eines mehrteiligen Objekts reisen mit -- die groessten, der Rest wird
+ * gemeldet (`verworfene_teile`), nie verschwiegen.
+ *
+ * 💣 SIE IST DER EINZIGE GRUND, WARUM DIE NUTZLAST NICHT MITWAECHST. Ohne Deckel traegt die
+ * groesste Flaeche des Livebestands 343 Teile und damit 1372 Punkte in EINEM Abschnitt -- und ein
+ * Objekt kann 13 Abschnitte treffen. Mit 16 sind es hoechstens 184 Punkte.
+ * ⚠️ Live gemessen am 30.08.2026 (GET /api/app/ecosystem-areas.php, alle vier Ebenen, 1314
+ * Flaechen): Median 1 Teil, p90 3, p99 42. Der Deckel greift bei 41 Flaechen (3,1 %), und die
+ * gesamte Nutzlast waechst dadurch von 48.886 auf 50.429 Punkte -- 3 %.
+ */
+const AVESMAPS_GARETIEN_ABSCHNITT_TEILE = 16;
+
+/**
+ * So viele Punkte behaelt JEDER Ring mindestens, egal wie klein sein Anteil am Budget ist.
+ *
+ * 🔴 Unter drei Punkten ist ein Ring keine Flaeche mehr, sondern ein Strich -- eine kleine Insel
+ * verschwaende dann nicht, sie laege falsch da. Das Budget wird nach GROESSE verteilt (der
+ * 800-Punkte-Umriss bekommt den Loewenanteil), und ohne diese Untergrenze bekaemen alle kleinen
+ * Ringe rechnerisch 0 oder 1.
+ */
+const AVESMAPS_GARETIEN_ABSCHNITT_RING_MINDEST = 3;
+
+/**
  * Die getroffenen Abschnitte, wie das Fenster sie braucht: Name (oder leer), Deckung, Geometrie.
  *
  * 🔴 KEINE ZWEITE RECHNUNG. Die Indizes kommen aus `avesmapsGaretienDeckung`, die Punkte aus dem
@@ -693,15 +722,24 @@ function avesmapsGaretienAbschnitte(array $deckung, array $kandidaten): array
         if ($kandidat === null) {
             continue;
         }
+        $teile = avesmapsGaretienGeoJsonTeile(
+            $kandidat['geo'] ?? null,
+            AVESMAPS_GARETIEN_ABSCHNITT_PUNKTE,
+            AVESMAPS_GARETIEN_ABSCHNITT_TEILE
+        );
         $raus[] = [
             'public_id' => (string) $kandidat['public_id'],
             // ⚠️ Ein LEERER Name ist die Auskunft, nicht die Abwesenheit einer Auskunft: 25 von 76
             // Geometrietreffern trugen bei uns gar keinen Namen. Genau die sind der vierte Ausgang.
             'name' => (string) ($kandidat['name'] ?? ''),
             'punkte' => (int) $eintrag['punkte'],
-            'geometrie' => avesmapsGaretienProbepunkteN(
-                $kandidat['punkte'], AVESMAPS_GARETIEN_ABSCHNITT_PUNKTE
-            ),
+            // 🔴 MIT Ringstruktur (avesmapsGaretienGeoJsonTeile), NIE flachgeklopft. Die flache
+            // Liste `$kandidat['punkte']` bleibt daneben stehen und gehoert dem ABGLEICH -- sie
+            // hier zu zeichnen war die "wirre rosa Linie" vom 30.08.2026.
+            'geometrie' => $teile['geometrie'],
+            // AGENTS.md §9 "No silent caps": eine Kappung wird GENANNT. Die Abschnittszeile der
+            // Einzelansicht haengt sie an ihre Kennung (garetienAbschnittMarkup).
+            'verworfene_teile' => $teile['verworfene_teile'],
             // 🔴 Nur bei einer Flaeche nicht-leer (siehe avesmapsGaretienKandidaten). Der
             // Bestandscheck in garetien-plan.php (avesmapsGaretienErgaenzungsEintraege) benutzt
             // sie als Quellen-Schluessel statt der Regions-id -- dieselbe Bindung wie beim
@@ -726,6 +764,184 @@ function avesmapsGaretienProbepunkteN(array $punkte, int $deckel): array
     }
 
     return $raus;
+}
+
+/** Ist dieser Knoten ein Punktpaar `[x, y]`? */
+function avesmapsGaretienGeoJsonIstPunkt(mixed $knoten): bool
+{
+    return is_array($knoten) && is_numeric($knoten[0] ?? null) && is_numeric($knoten[1] ?? null);
+}
+
+/**
+ * Ist dieser Knoten eine PUNKTLISTE -- also ein Ring oder eine Linie?
+ *
+ * 🪤 Der Unterschied haengt daran, dass `avesmapsGaretienGeoJsonIstPunkt` BEIDE Stellen auf eine
+ * ZAHL prueft. Eine Punktliste aus genau zwei Punkten (`[[1,2],[3,4]]`) saehe sonst wie ein Punkt
+ * aus, und eine zweigliedrige Linie waere ab da ein Ort.
+ */
+function avesmapsGaretienGeoJsonIstPunktliste(mixed $knoten): bool
+{
+    return is_array($knoten) && $knoten !== [] && avesmapsGaretienGeoJsonIstPunkt($knoten[0] ?? null);
+}
+
+/**
+ * Dieselbe Verschachtelung wie das GeoJSON, aber sauber: Punkte als Zahlenpaare, Unfug und leere
+ * Aeste heraus. REIN.
+ */
+function avesmapsGaretienGeoJsonBaum(mixed $knoten): array
+{
+    if (!is_array($knoten) || $knoten === []) {
+        return [];
+    }
+    if (avesmapsGaretienGeoJsonIstPunktliste($knoten)) {
+        $punkte = [];
+        foreach ($knoten as $p) {
+            if (avesmapsGaretienGeoJsonIstPunkt($p)) {
+                $punkte[] = [(float) $p[0], (float) $p[1]];
+            }
+        }
+
+        return $punkte;
+    }
+    $raus = [];
+    foreach ($knoten as $kind) {
+        $gebaut = avesmapsGaretienGeoJsonBaum($kind);
+        if ($gebaut !== []) {
+            $raus[] = $gebaut;
+        }
+    }
+
+    return $raus;
+}
+
+/** Alle Punktlisten eines solchen Baums, in Zeichenreihenfolge. REIN. */
+function avesmapsGaretienGeoJsonBlaetter(mixed $knoten): array
+{
+    if (avesmapsGaretienGeoJsonIstPunktliste($knoten)) {
+        return [$knoten];
+    }
+    if (!is_array($knoten)) {
+        return [];
+    }
+    $raus = [];
+    foreach ($knoten as $kind) {
+        foreach (avesmapsGaretienGeoJsonBlaetter($kind) as $blatt) {
+            $raus[] = $blatt;
+        }
+    }
+
+    return $raus;
+}
+
+/** Jede Punktliste auf ihren Anteil ausduennen -- `$index` laeuft in derselben Ordnung wie `…Blaetter`. */
+function avesmapsGaretienGeoJsonDuennen(array $knoten, array $behalten, int &$index): array
+{
+    if (avesmapsGaretienGeoJsonIstPunktliste($knoten)) {
+        $deckel = $behalten[$index] ?? count($knoten);
+        $index++;
+
+        return avesmapsGaretienProbepunkteN($knoten, $deckel);
+    }
+    $raus = [];
+    foreach ($knoten as $kind) {
+        $raus[] = avesmapsGaretienGeoJsonDuennen((array) $kind, $behalten, $index);
+    }
+
+    return $raus;
+}
+
+/**
+ * Die Geometrie fuer den ZEICHNER -- ausgeduennt, aber MIT ihrer Ringstruktur.
+ *
+ * 💣 SIE IST DAS GEGENSTUECK ZU avesmapsGaretienGeoJsonPunkte, NICHT IHR ERSATZ. Jene flacht jede
+ * Geometrie in EINE Punktliste, und fuer den ABGLEICH ist das richtig: gefragt ist "liegt hier
+ * schon so etwas", also genuegen Punkte ohne Ordnung. Fuer das ZEICHNEN ist es falsch -- der
+ * Zeichner zieht durch eine Punktliste EINE Linie, und die springt bei einem MultiPolygon zwischen
+ * den Teilen hin und her.
+ * 🔴 Owner-Meldung 30.08.2026 ("da kam ploetzlich diese wirre rosa linie"): unser "Reichsforst"
+ * ist ein MultiPolygon aus 12 Teilen / 20 Ringen / 1727 Punkten. Auf 64 Punkte ausgeduennt und
+ * durchverbunden ergab er eine Linie von 567 Karteneinheiten Laenge in einer Huellbox mit 79
+ * Einheiten Diagonale. Live gemessen sind 113 von 520 Vegetationsflaechen (21,7 %) mehrteilig.
+ * 🪤 Der alte Riegel dagegen (`garetienRingSchliesst`, review-garetien-karte.js) hat nur die
+ * HAELFTE gefangen: er entscheidet Flaeche oder Linie und verhinderte damit die FUELLUNG des
+ * Gespinsts, nie das Gespinst selbst.
+ *
+ * 🔴 DIE VERSCHACHTELUNG BLEIBT DIE DES GeoJSON, und das ist der ganze Trick: `L.polygon` und
+ * `L.polyline` nehmen genau diese Form entgegen -- eine Liste von Ringen ist eine Flaeche mit
+ * Loechern, eine Liste von Teilen ist ein Mehrfachpolygon. Es braucht also keinen Uebersetzer und
+ * kein zweites Format, nur den Verzicht aufs Flachklopfen.
+ * ⚠️ Ein Point bleibt bewusst eine Liste mit GENAU einem Punkt (Tiefe 1) -- daran erkennt
+ * `garetienForm` den Ortsring; eine zusaetzliche Ebene naehme ihm diesen Zweig.
+ *
+ * @return array{geometrie: array, verworfene_teile: int}
+ */
+function avesmapsGaretienGeoJsonTeile(mixed $geometrie, int $budget, int $teileMax): array
+{
+    $leer = ['geometrie' => [], 'verworfene_teile' => 0];
+    if (is_string($geometrie)) {
+        $geometrie = json_decode($geometrie, true);
+    }
+    if (!is_array($geometrie)) {
+        return $leer;
+    }
+    $koordinaten = $geometrie['coordinates'] ?? $geometrie;
+    // Ein Point: die Koordinaten SIND das Punktpaar, es gibt keinen Ring darum.
+    if (avesmapsGaretienGeoJsonIstPunkt($koordinaten)) {
+        return ['geometrie' => [[(float) $koordinaten[0], (float) $koordinaten[1]]], 'verworfene_teile' => 0];
+    }
+    $baum = avesmapsGaretienGeoJsonBaum($koordinaten);
+    if ($baum === []) {
+        return $leer;
+    }
+
+    // Der Deckel greift auf der OBERSTEN Ebene -- bei einem MultiPolygon sind das die Teile, bei
+    // einem Polygon seine Ringe. 🔴 Verworfen werden die KLEINSTEN, und die Ueberlebenden behalten
+    // die Reihenfolge der Eingabe: nach Groesse umsortiert zeichnete jeder Lauf anders.
+    $verworfen = 0;
+    if ($teileMax > 0 && !avesmapsGaretienGeoJsonIstPunktliste($baum) && count($baum) > $teileMax) {
+        $groessen = [];
+        foreach ($baum as $i => $teil) {
+            $summe = 0;
+            foreach (avesmapsGaretienGeoJsonBlaetter($teil) as $blatt) {
+                $summe += count($blatt);
+            }
+            $groessen[] = ['i' => $i, 'n' => $summe];
+        }
+        usort($groessen, static function (array $a, array $b): int {
+            return $b['n'] <=> $a['n'] ?: $a['i'] <=> $b['i'];
+        });
+        $behaltenIndex = array_column(array_slice($groessen, 0, $teileMax), 'i');
+        sort($behaltenIndex);
+        $verworfen = count($baum) - $teileMax;
+        $gekuerzt = [];
+        foreach ($behaltenIndex as $i) {
+            $gekuerzt[] = $baum[$i];
+        }
+        $baum = $gekuerzt;
+    }
+
+    // Das Budget wird nach GROESSE verteilt, mit einer Untergrenze je Ring.
+    $blaetter = avesmapsGaretienGeoJsonBlaetter($baum);
+    $gesamt = 0;
+    foreach ($blaetter as $blatt) {
+        $gesamt += count($blatt);
+    }
+    $behalten = [];
+    foreach ($blaetter as $blatt) {
+        $anzahl = count($blatt);
+        $anteil = $gesamt > 0 ? (int) round($budget * $anzahl / $gesamt) : $anzahl;
+        if ($anteil < AVESMAPS_GARETIEN_ABSCHNITT_RING_MINDEST) {
+            $anteil = AVESMAPS_GARETIEN_ABSCHNITT_RING_MINDEST;
+        }
+        $behalten[] = min($anzahl, $anteil);
+    }
+
+    $index = 0;
+
+    return [
+        'geometrie' => avesmapsGaretienGeoJsonDuennen($baum, $behalten, $index),
+        'verworfene_teile' => $verworfen,
+    ];
 }
 
 /**

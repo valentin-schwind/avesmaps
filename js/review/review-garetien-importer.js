@@ -103,7 +103,28 @@
 		// 🔴 Aufgabe 2: die Markierung ist CLIENT-SEITIG und schreibt nichts (Owner 29.08.2026:
 		// „Markieren aendert nichts"). Sie hat genau einen Zweck: der Knopf „Markierte anzeigen".
 		markiert: new Set(),
+		// 🔴 Owner 30.08.2026: „der button sollte nur imports nicht unsere eigenen anzeigen".
+		// Wer ueber „Imports in der Nähe anzeigen" hereinkommt, wird in SEINER Farbe gezeichnet --
+		// unser magenta Gegenstueck bleibt weg, bis jemand das Objekt oeffnet oder es auf einem
+		// anderen Weg in die Anzeige holt.
+		// 💣 EINE MENGE NEBEN DER ANZEIGE, KEIN FELD DARIN. avesmapsGaretienAnzeigeAuffrischen
+		// ersetzt nach jedem Schreibvorgang die gespeicherte Fassung durch die frische vom Server;
+		// ein in das Objekt geschriebenes Feld waere danach still fort, und die magenta Formen
+		// kaemen zurueck, ohne dass jemand etwas getan haette.
+		nurIhre: new Set(),
 	};
+
+	/*
+	 * Der Feldname, an dem der ZEICHNER erkennt, dass er von diesem Objekt nur ihre Seite malen
+	 * soll.
+	 *
+	 * 💣 GEKOPPELTER WERT IN ZWEI DATEIEN, wie die zwei Parteinamen darunter -- und aus demselben
+	 * Grund: dieses Fenster laeuft auch auf Seiten ohne Karte und darf den Zeichner nicht
+	 * voraussetzen, der Zeichner wird im Test allein geladen und kann dieses Fenster nicht
+	 * voraussetzen. Zusammengehalten werden sie von js/review/__tests__/garetien-karte.test.js,
+	 * das beide Exporte gegeneinander haelt.
+	 */
+	const AVESMAPS_GARETIEN_FELD_NUR_IHRE = "nur_ihre";
 
 	// ---- Die Anzeige-Menge ------------------------------------------------------------------------
 	//
@@ -120,12 +141,28 @@
 			// Die Reihenfolge bleibt trotzdem die des ERSTEN Einfuegens -- `Map.set` auf einen
 			// vorhandenen Schluessel sortiert nicht um.
 			zustand.anzeige.set(String(o.key), o);
+			// 🔴 EIN GEWOEHNLICHER WEG IN DIE ANZEIGE HEBT DIE „nur ihre"-MARKE AUF. Wer denselben
+			// Nachbarn ueber „Markierte anzeigen" oder einen Zeilenknopf hereinholt, will ihn ganz
+			// sehen -- und der Naehe-Klick setzt seine Marke NACH diesem Aufruf wieder.
+			zustand.nurIhre.delete(String(o.key));
 		});
 		return zustand.anzeige.size;
 	}
 
+	// Diese Objekte werden nur in IHRER Farbe gezeichnet (siehe `zustand.nurIhre`).
+	function avesmapsGaretienNurIhreMerken(objekte) {
+		(objekte || []).forEach(function (o) {
+			if (!o || o.key === undefined || o.key === null || o.key === "") { return; }
+			zustand.nurIhre.add(String(o.key));
+		});
+		return zustand.nurIhre.size;
+	}
+
 	function avesmapsGaretienAnzeigeLeeren() {
 		zustand.anzeige.clear();
+		// ⚠️ Die Marken gehen MIT. Sonst traegt ein spaeter wieder hereingeholtes Objekt eine
+		// Entscheidung aus einer Sitzung, an die sich niemand mehr erinnert.
+		zustand.nurIhre.clear();
 		return zustand.anzeige.size;
 	}
 
@@ -990,7 +1027,7 @@
 	 * soll die Anzeige nicht heimlich fuellen (dann waere „Anzeige leeren" nie wirksam).
 	 */
 	function avesmapsGaretienAufDerKarte(objekte) {
-		const raus = avesmapsGaretienAnzeigeListe();
+		const raus = avesmapsGaretienNurIhreStempeln(avesmapsGaretienAnzeigeListe());
 		if (zustand.detailKey === null) { return raus; }
 		const schonDrin = raus.some(function (o) {
 			return o && String(o.key) === String(zustand.detailKey);
@@ -1001,6 +1038,34 @@
 			return o && String(o.key) === String(zustand.detailKey);
 		})[0];
 		return angeklickt ? raus.concat([angeklickt]) : raus;
+	}
+
+	/*
+	 * Die Marke „nur ihre Seite" an die Objekte heften, die auf die Karte gehen. REIN.
+	 *
+	 * 🔴 HIER UND NUR HIER, weil avesmapsGaretienAufDerKarte der EINE Erzeuger der gezeichneten
+	 * Menge ist -- jeder Aufruf von window.avesmapsGaretienKarteZeigen geht durch ihn, und
+	 * garetienUnsereVorhanden (die Sperre des Knopfes „Avesmaps") misst dieselbe Menge. Eine Marke
+	 * an den Aufrufstellen waere beim naechsten Zeichenweg vergessen.
+	 * 🔴 GESTEMPELT WIRD EINE KOPIE. Die Anzeige-Menge haelt die Objekte, wie der Server sie
+	 * geliefert hat; sie zu veraendern schriebe sich ueber `zustand.objekte` bis in die Listenzeile
+	 * durch, denn beide halten dieselbe Referenz.
+	 * 🔴 DAS GERADE GEOEFFNETE OBJEKT IST AUSGENOMMEN. Wer eine Zeile ansieht, will vergleichen --
+	 * dafuer ist dieses Fenster da. Ohne die Ausnahme waere ein ueber den Naehe-Knopf hereingeholtes
+	 * Objekt nie mehr mit unserem Bestand vergleichbar, und der Knopf „Avesmaps" haette keine
+	 * Wirkung mehr, die ein Editor herstellen koennte.
+	 */
+	function avesmapsGaretienNurIhreStempeln(objekte) {
+		if (zustand.nurIhre.size === 0) { return objekte; }
+		return (objekte || []).map(function (o) {
+			if (!o) { return o; }
+			const schluessel = String(o.key);
+			if (!zustand.nurIhre.has(schluessel)) { return o; }
+			if (zustand.detailKey !== null && schluessel === String(zustand.detailKey)) { return o; }
+			const kopie = Object.assign({}, o);
+			kopie[AVESMAPS_GARETIEN_FELD_NUR_IHRE] = true;
+			return kopie;
+		});
 	}
 
 	// 🔴 RULING R5 (Aufgabe 2, Luecke im Plan): der Reiter „Anzeigen" ist die CLIENT-Menge und wird
@@ -1978,6 +2043,17 @@
 		// fehlendes Feld (alter Lauf) ist gar keine Auskunft und darf keine erfinden.
 		if (a.name_gleich === true) {
 			kennung += " · Name gleich";
+		}
+		// 🔴 30.08.2026: unsere Geometrie reist MIT ihrer Ringstruktur, aber gedeckelt
+		// (AVESMAPS_GARETIEN_ABSCHNITT_TEILE, api/_internal/import/garetien-abgleich.php) -- die
+		// groesste Flaeche des Bestands hat 343 Teile. Was wegbleibt, wird GENANNT: AGENTS.md §9
+		// verbietet die stille Kappung, weil sie sich wie „das ist alles" liest.
+		// ⚠️ NUR ueber 0, und aus denselben zwei Gruenden wie beim Namensbefund darueber: 0 ist der
+		// Normalfall und stuende sonst an fast jeder Zeile, und ein fehlendes Feld (Lauf vor dem
+		// 30.08.2026) ist ueberhaupt keine Auskunft.
+		const verworfen = Number(a.verworfene_teile) || 0;
+		if (verworfen > 0) {
+			kennung += " · " + verworfen + (verworfen === 1 ? " Teil" : " Teile") + " nicht gezeichnet";
 		}
 
 		const klassen = "gi-seg" + (lage === "nichts" ? " is-full" : "")
@@ -3141,6 +3217,11 @@
 		if (liste.length === 0) { return null; }
 		avesmapsGaretienAlleMarkieren(liste);
 		avesmapsGaretienAnzeigeHinzufuegen(liste);
+		// 🔴 NACH dem Hinzufuegen (Owner 30.08.2026: „der button sollte nur imports nicht unsere
+		// eigenen anzeigen"). Die Reihenfolge ist tragend: avesmapsGaretienAnzeigeHinzufuegen
+		// LOESCHT die Marke, damit ein gewoehnlicher Weg sie aufhebt -- davor gesetzt waere sie im
+		// selben Zug wieder fort.
+		avesmapsGaretienNurIhreMerken(liste);
 		return liste.length;
 	}
 
@@ -4939,6 +5020,8 @@
 			avesmapsGaretienRufe,
 			// Aufgabe 1: die Anzeige-Menge -- gehoert dem Fenster, nicht dem Vorschlag (Entwurf §3).
 			avesmapsGaretienAnzeigeHinzufuegen,
+			avesmapsGaretienNurIhreMerken,
+			AVESMAPS_GARETIEN_FELD_NUR_IHRE,
 			avesmapsGaretienAnzeigeLeeren,
 			avesmapsGaretienAnzeigeListe,
 			avesmapsGaretienAnzeigeHat,

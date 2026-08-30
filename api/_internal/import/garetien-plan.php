@@ -486,7 +486,13 @@ function avesmapsGaretienAbschnittsEintrag(
         'public_id' => $publicId,
         'name' => $unserName,
         'punkte' => (int) ($abschnitt['punkte'] ?? 0),
+        // 🔴 Die Geometrie traegt seit dem 30.08.2026 ihre RINGSTRUKTUR (avesmapsGaretienGeoJsonTeile)
+        // -- flachgeklopft wurde daraus die "wirre rosa Linie". Sie wird hier nur durchgereicht.
         'geometrie' => $abschnitt['geometrie'] ?? [],
+        // 💣 Und ihre Kappungszahl MIT. Diese Fassung gewinnt in
+        // avesmapsGaretienListeAbschnitteVereinen ueber die gespeicherte; fehlt sie hier, kappt
+        // der Server still (AGENTS.md §9).
+        'verworfene_teile' => (int) ($abschnitt['verworfene_teile'] ?? 0),
     ];
     // ⚠️ `nachbar` gehoert dem Zufluss und hat hier nichts zu suchen.
     $eintrag['after']['nachbar'] = null;

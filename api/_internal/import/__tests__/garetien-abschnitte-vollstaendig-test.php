@@ -272,6 +272,13 @@ $pruefungen++;
 foreach ($gespeichert['abschnitte'] as $i => $eintrag) {
     if ($eintrag['public_id'] === 'w-4471') {
         $gespeichert['abschnitte'][$i]['punkte'] = 999;
+        // 💣 UND DIE KAPPUNGSZAHL RAUS (30.08.2026, Ringstruktur). Sie steht sonst in BEIDEN
+        // Fassungen, und `array_merge` reichte den gespeicherten Wert durch, auch wenn das Item
+        // ihn gar nicht traegt -- die Zusicherung unten waere dann aus dem falschen Grund gruen.
+        // Ohne sie hier misst nichts, ob die zwei feldweisen Abschriften (der Item-Bauer
+        // avesmapsGaretienAbschnittsEintrag und der `$ausItems`-Bauer der Arbeitsliste) sie
+        // wirklich mitnehmen. AGENTS.md §9 verbietet eine stille Kappung.
+        unset($gespeichert['abschnitte'][$i]['verworfene_teile']);
     }
     if ($eintrag['public_id'] === 'w-5008') {
         $gespeichert['abschnitte'][$i]['punkte'] = 777;
@@ -293,7 +300,10 @@ assert($vereintNachId['w-4471']['punkte'] === 9,
 assert($vereintNachId['w-5008']['punkte'] === 777,
     'der Abschnitt OHNE Item kommt wirklich aus der gespeicherten Liste: '
     . $vereintNachId['w-5008']['punkte']);
-$pruefungen += 3;
+assert(array_key_exists('verworfene_teile', $vereintNachId['w-4471']),
+    'die Kappungszahl muss aus dem ITEM kommen, wenn die gespeicherte Liste sie nicht mehr traegt --'
+    . ' sonst kappt der Server still: ' . json_encode(array_keys($vereintNachId['w-4471'])));
+$pruefungen += 4;
 
 // --- Und das Vereinigen ist FELDWEISE: `name_gleich` steht nur in der gespeicherten Liste (der
 // Namensvergleich gehoert dem Abgleich, nicht dem Item) und muss ein Ersetzen ueberleben.

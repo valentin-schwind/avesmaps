@@ -411,6 +411,29 @@ wahr(!garetienDetailMarkup(Object.assign({}, voll, {
 })).includes("Name gleich"),
 	"ein fehlendes Feld (alter Lauf) ist keine Auskunft und erfindet keine");
 
+// 5b. DIE KAPPUNG WIRD GENANNT (30.08.2026, Ringstruktur). Der Server schickt hoechstens
+// AVESMAPS_GARETIEN_ABSCHNITT_TEILE Teile einer mehrteiligen Flaeche mit; was er weglaesst, steht
+// als Zahl am Abschnitt. AGENTS.md §9: eine stille Kappung liest sich wie „das ist alles".
+const mitKappung = garetienDetailMarkup(Object.assign({}, voll, {
+	abschnitte: [{ public_id: "w-4471", name: "Natter", punkte: 9, verworfene_teile: 4 }],
+}));
+wahr(/w-4471[\s\S]{0,300}4 Teile nicht gezeichnet/.test(mitKappung),
+	"ein gekappter Abschnitt sagt, wie viele Teile fehlen: " + mitKappung.slice(0, 400));
+// 🪤 Die zwei Gegenproben, ohne die die Zeile darueber Vakuum waere: 0 ist die Regel und stuende
+// sonst an fast jeder Zeile, und ein fehlendes Feld (alter Lauf) ist ueberhaupt keine Auskunft.
+wahr(!garetienDetailMarkup(Object.assign({}, voll, {
+	abschnitte: [{ public_id: "w-4471", name: "Natter", punkte: 9, verworfene_teile: 0 }],
+})).includes("nicht gezeichnet"),
+	"ohne Kappung steht nichts da -- 0 ist der Normalfall");
+wahr(!garetienDetailMarkup(Object.assign({}, voll, {
+	abschnitte: [{ public_id: "w-4471", name: "Natter", punkte: 9 }],
+})).includes("nicht gezeichnet"),
+	"und ein alter Lauf ohne das Feld erfindet keine Kappung");
+// Einzahl bleibt Einzahl -- dieselbe Sorgfalt wie bei „1 Punkt" darueber.
+wahr(garetienDetailMarkup(Object.assign({}, voll, {
+	abschnitte: [{ public_id: "w-4471", name: "Natter", punkte: 9, verworfene_teile: 1 }],
+})).includes("1 Teil nicht gezeichnet"), "ein einzelnes Teil steht in der Einzahl da");
+
 // 6. Der Abschnitt „Die Quelle, die mitreist" -- Mockup §3.
 wahr(mv.includes("Die Quelle, die mitreist"), "der Quellenabschnitt fehlt");
 wahr(mv.includes("Briefspiel (Garetien)") && mv.includes("VolkoV / garetien.de"),
