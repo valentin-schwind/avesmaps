@@ -32,6 +32,15 @@ uploads/dumps/*
 uploads/db-backups/*
 !uploads/db-backups/.htaccess
 
+# 🔴 Und dasselbe fuer einen VON HAND heruntergeladenen Dump. `.backup/` ist der Ort, an dem ein
+# Dump zum Auswerten landet -- am 30.08.2026 lag dort ein 77-MB-Abzug der Produktionsdatenbank,
+# und das Verzeichnis war von KEINER Zeile hier abgedeckt: ein einziges `git add -A` haette ihn
+# samt Passwort-Hashes eingecheckt (docs/repository-data-policy.md verbietet genau das).
+# ⚠️ Die Zeile darueber schuetzt nur `uploads/db-backups/`, wohin der Sicherungslauf schreibt --
+# ein Dump, den ein Mensch woanders ablegt, faellt nicht darunter. Gefunden hat die Luecke ein
+# Werkzeug, das den Dump gelesen hat, nicht ein Test; es gibt keinen, der sie faengt.
+.backup/
+
 # Die Wappen selbst gehoeren dem Server, nicht dem Repo (451 + 80 + 217 Dateien, Stand
 # 23.08.2026). Ohne diese Zeilen wuerde ein "git add uploads/" sie alle einchecken --
 # uploads/wappen war als einziges Unterverzeichnis nicht abgedeckt.
