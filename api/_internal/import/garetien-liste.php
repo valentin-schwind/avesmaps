@@ -497,7 +497,13 @@ function avesmapsGaretienArbeitsliste(PDO $pdo, int $importRunId, array $filter)
             // werden beim Bau nur in `[$punkte]` gewickelt -- ein unsauber geschlossener Ring ist
             // moeglich, und dann raet der Browser falsch.
             'geometrie_typ' => (string) ($erstesAfter['geometry']['type'] ?? ''),
-            'wiki_url' => (string) ($erstesAfter['quelle']['url'] ?? ($zeile !== null ? avesmapsGaretienSeitenUrlAusZeile($zeile) : '')),
+            // 🔴 MELDUNG (30.08.2026): `seite_url`, NICHT `quelle.url` -- seit der Korrektur zeigt
+            // `quelle.url` auf den Wirt allein (garetien.de/koschwiki.de, die zitierte Quelle),
+            // `seite_url` bleibt die Export-Arbeitsseite dieser Zeile. Dieses Feld hier ist der
+            // Artikel-Link im Review-Fenster (garetienDetailMetaMarkup), der braucht weiterhin die
+            // konkrete Seite -- ein Rueckfall auf `quelle.url` wuerde ihn lautlos auf den Wirt
+            // ziehen und der Editor koennte nicht mehr nachsehen, VON WELCHER Seite eine Zeile kam.
+            'wiki_url' => (string) ($erstesAfter['seite_url'] ?? ($zeile !== null ? avesmapsGaretienSeitenUrlAusZeile($zeile) : '')),
             // Die Quelle, die beim Uebernehmen mitreist -- Beschriftung, Namensnennung, Lizenz.
             // 🔴 DATEN, keine Regel im Renderer: der Wortlaut ist eine Owner-Entscheidung, und ein
             // Browser, der ihn aus dem Wiki-Kuerzel ableitet, waere ihre zweite Fassung.

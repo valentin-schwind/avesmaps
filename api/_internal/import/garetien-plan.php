@@ -57,8 +57,33 @@ function avesmapsGaretienObjektSchluesselAusZeile(array $zeile): string
 }
 
 /**
+ * Der WIRT einer Staging-Zeile allein -- `https://www.garetien.de` bzw. `https://www.koschwiki.de`,
+ * ohne Pfad und ohne Artikel. REIN -- kein I/O.
+ *
+ * 🔴 MELDUNG (30.08.2026, Owner: „ich glaube https://www.garetien.de reicht"): das ist die
+ * Adresse, die eine ZITIERTE Quelle bekommt (`quelle.url` in `avesmapsGaretienPlanEintrag`, damit
+ * `sources.url`) -- NIE die Export-Arbeitsseite aus `avesmapsGaretienSeitenUrlAusZeile` darunter.
+ * `.../index.php?title=Benutzer:VolkoV/MapSVG/Avesmaps_…` ist eine interne Seite, auf der VolkoV
+ * Kartendaten fuer DIESEN Import ablegt -- kein Artikel, den ein Leser der Infobox zitieren soll.
+ *
+ * 🔴 EIN WIRT, ZWEI STELLEN, DIE IHN NENNEN. Diese Formel entsteht HIER; ohne sie stuenden die
+ * beiden Host-Literale zweimal im Repo (RULING P6 / Review I2 gilt sinngemaess auch hier).
+ */
+function avesmapsGaretienWirtAusZeile(array $zeile): string
+{
+    $wiki = (string) ($zeile['wiki'] ?? 'ggp');
+
+    return $wiki === 'kosch' ? 'https://www.koschwiki.de' : 'https://www.garetien.de';
+}
+
+/**
  * Die Wiki-Adresse EINER Staging-Zeile -- der Artikel-Link, oder ohne Artikel die Sammelquelle
  * (der Wirt allein). REIN -- kein I/O.
+ *
+ * ⚠️ DAS IST DIE EXPORT-ARBEITSSEITE, NICHT DIE ZITIERTE QUELLE (Meldung 30.08.2026). Sie landet
+ * in `after.seite_url` -- fuer den Editor, der beim Review nachsehen will, VON WELCHER Seite eine
+ * Zeile stammt. Die Quelle, die mit dem Objekt zitiert wird (`quelle.url`), ist
+ * `avesmapsGaretienWirtAusZeile` darueber.
  *
  * 🔴 DIESELBE LEHRE WIE RULING P6 BEIM OBJEKTSCHLUESSEL (Review I2, 27.08.2026): diese Formel
  * entsteht HIER und wird von `avesmapsGaretienPlanEintrag` UND der Arbeitsliste des Fensters
@@ -73,7 +98,7 @@ function avesmapsGaretienSeitenUrlAusZeile(array $zeile): string
     $wiki = (string) ($zeile['wiki'] ?? 'ggp');
     $seite = avesmapsGaretienSeitenNameAusZeile($zeile);
     // 🔴 Ohne Artikel gibt es keinen Objektlink, sondern die Sammelquelle (Entwurf §5.3).
-    $wirt = $wiki === 'kosch' ? 'https://www.koschwiki.de' : 'https://www.garetien.de';
+    $wirt = avesmapsGaretienWirtAusZeile($zeile);
     if ($seite === '') {
         return $wirt;
     }
@@ -162,13 +187,23 @@ function avesmapsGaretienPlanEintrag(array $zeile, array $ziel, array $urteil): 
                 },
             ],
             'quelle' => [
-                'url' => avesmapsGaretienSeitenUrlAusZeile($zeile),
+                // 🔴 MELDUNG (30.08.2026): DER WIRT, NICHT DIE EXPORT-ARBEITSSEITE. Das ist die
+                // Adresse, die als `sources.url` landet und in der Infobox verlinkt wird -- ein
+                // Leser soll nach garetien.de/koschwiki.de gefuehrt werden, nicht auf VolkoVs
+                // MapSVG-Exportseite (avesmapsGaretienWirtAusZeile darueber). Die Exportseite
+                // bleibt als `seite_url` weiter unten erhalten, fuer den Editor.
+                'url' => avesmapsGaretienWirtAusZeile($zeile),
                 'label' => $quellenTitel,
                 'source_type' => 'briefspiel',
                 'origin' => 'garetien',
                 'license' => 'cc-by-nc-sa-3.0',
                 'attribution' => $namensnennung,
             ],
+            // Die Export-Arbeitsseite, von der diese Zeile stammt -- NICHT die zitierte Quelle
+            // (die ist `quelle.url` darueber, seit der Meldung vom 30.08.2026 der Wirt allein).
+            // Der Editor braucht sie trotzdem: `garetien-liste.php` liest sie als `wiki_url` fuer
+            // den Artikel-Link im Review-Fenster (js/review/review-garetien-importer.js).
+            'seite_url' => avesmapsGaretienSeitenUrlAusZeile($zeile),
             'urteil' => $urteil['grund'],
             'anlass' => $urteil['anlass'],
             // Nur eine ANGABE fuer den Menschen, der die Zeile ansieht -- nie ein Ziel.

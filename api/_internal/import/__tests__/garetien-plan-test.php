@@ -129,15 +129,42 @@ foreach ($pdo->query('SELECT label, after_json FROM sync_plan_item') as $zeile) 
     // sind genau das, und das Haus fuehrt diese Form seit langem -- 96 Briefspiel-Quellen im
     // Katalog, darunter "Briefspiel (Weiden)" und "Albernisches Briefspiel".
     assert(($nach['quelle']['source_type'] ?? null) === 'briefspiel', 'source_type fehlt bei ' . $zeile['label']);
-    // Und die Beschriftung nennt das Briefspiel, waehrend die Adresse auf den Artikel zeigt.
+    // Und die Beschriftung nennt das Briefspiel, waehrend die Adresse auf den WIRT zeigt.
     assert(in_array($nach['quelle']['label'] ?? null, ['Briefspiel (Garetien)', 'Briefspiel (Kosch)'], true),
         'die Beschriftung nennt das Briefspiel: ' . var_export($nach['quelle']['label'] ?? null, true));
-    assert(str_contains((string) ($nach['quelle']['url'] ?? ''), 'title='),
-        'und die Adresse zeigt auf den Artikel: ' . ($nach['quelle']['url'] ?? ''));
+    // 🔴 MELDUNG (30.08.2026, Owner: „ich glaube https://www.garetien.de reicht"): die ZITIERTE
+    // Quelle ist der Wirt, NICHT VolkoVs Export-Arbeitsseite (die trug bis dahin ein `title=` und
+    // landete unveraendert in `sources.url` -- ein Leser der Infobox waere auf einer internen
+    // Arbeitsseite gelandet statt beim zitierten Werk).
+    assert(!str_contains((string) ($nach['quelle']['url'] ?? ''), 'title='),
+        'die Quellenadresse zeigt NICHT mehr auf die Export-Arbeitsseite: ' . ($nach['quelle']['url'] ?? ''));
+    assert(
+        in_array($nach['quelle']['url'] ?? null, ['https://www.garetien.de', 'https://www.koschwiki.de'], true),
+        'sondern auf den Wirt allein: ' . var_export($nach['quelle']['url'] ?? null, true)
+    );
     assert(($nach['quelle']['origin'] ?? null) === 'garetien', 'origin fehlt bei ' . $zeile['label']);
-    assert(str_contains((string) ($nach['quelle']['url'] ?? ''), '.de'), 'die Quelle zeigt auf ein Wiki');
+    // Die Export-Arbeitsseite geht dabei nicht verloren -- sie bleibt separat erhalten, fuer den
+    // Editor, der beim Review nachsehen will, VON WELCHER Seite eine Zeile stammt
+    // (garetien-liste.php liest sie als `wiki_url` fuer den Artikel-Link im Review-Fenster).
+    assert(str_contains((string) ($nach['seite_url'] ?? ''), 'title='),
+        'die Export-Arbeitsseite bleibt als seite_url erhalten: ' . ($nach['seite_url'] ?? ''));
+    assert(str_contains((string) ($nach['seite_url'] ?? ''), '.de'), 'auch sie zeigt auf ein Wiki');
 }
-$pruefungen += 5;
+$pruefungen += 6;
+
+// --- 🔴 MELDUNG (30.08.2026): FUER EIN KOSCH-OBJEKT koschwiki.de, NICHT garetien.de. Die Fixture
+// oben hat keine gueltige Kosch-Zeile (ihre einzige, 'Kontinent', ist 'uebersprungen' und erreicht
+// nie ein after.quelle) -- reine Funktionspruefung, unabhaengig vom Sync-Lauf.
+assert(avesmapsGaretienWirtAusZeile(['wiki' => 'ggp']) === 'https://www.garetien.de',
+    'ggp zeigt auf garetien.de');
+assert(avesmapsGaretienWirtAusZeile(['wiki' => 'kosch']) === 'https://www.koschwiki.de',
+    'kosch zeigt auf koschwiki.de');
+$koschZeile = ['wiki' => 'kosch', 'namensraum' => 'Kosch', 'artikel' => 'Bodrin'];
+assert(avesmapsGaretienSeitenUrlAusZeile($koschZeile) !== avesmapsGaretienWirtAusZeile($koschZeile),
+    'die Export-Arbeitsseite bleibt von der zitierten Quelle unterschieden');
+assert(str_starts_with(avesmapsGaretienSeitenUrlAusZeile($koschZeile), AVESMAPS_GARETIEN_BASIS_KOSCH),
+    'und die Export-Arbeitsseite eines Kosch-Objekts nutzt die Kosch-Basis');
+$pruefungen += 4;
 
 // --- 💣 EINE FLAECHE IST EIN RING, EINE LINIE NICHT. Bei GeoJSON liegt die Punktliste eines
 // Polygons eine Ebene tiefer. Wer das gleichsetzt, schreibt einen See als Linienzug in die
