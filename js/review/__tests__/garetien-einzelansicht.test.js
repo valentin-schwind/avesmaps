@@ -332,8 +332,17 @@ const voll = {
 		{ public_id: "w-4471", name: "Natter", punkte: 9, name_gleich: true },
 		{ public_id: "w-5008", name: "Gardel", punkte: 6, name_gleich: false },
 	],
-	items: [{ id: 11, anlass: "ergaenzung", felder: ["quelle"], selected: 1,
-		abschnitt: { public_id: "w-4471", name: "Natter" } }],
+	// 🔴 „Eingefügt wird" (30.08.2026): ZWEI Items, wie ein echter 'ergaenzung'-Fall sie heute
+	// traegt (avesmapsGaretienErgaenzungsEintraege haengt IMMER ein Zusatz-Item an, sobald
+	// ueberhaupt ein Abschnitt getroffen wurde -- ein 'ergaenzung'-Objekt OHNE Zusatz-Item kommt
+	// in der Produktion gar nicht vor). Ohne das Zusatz-Item (change_type 'new') zeigte diese
+	// Fixture "Eingefügt wird" gar nicht, und der Test unten prüfte eine Stelle, die es fuer ein
+	// echtes 'ergaenzung'-Objekt nie gibt.
+	items: [
+		{ id: 11, anlass: "ergaenzung", felder: ["quelle"], change_type: "changed", selected: 1,
+			abschnitt: { public_id: "w-4471", name: "Natter" } },
+		{ id: 12, anlass: "zusatz", change_type: "new", selected: 0 },
+	],
 };
 const mv = garetienDetailMarkup(voll);
 

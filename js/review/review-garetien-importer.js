@@ -1949,6 +1949,195 @@
 			+ " — einmal an der Quelle, nicht an jedem Objekt.</p>";
 	}
 
+	// ---- „Eingefügt wird" -- alle Einstellungen, die die Fläche/der Ort/das Label bekäme -------
+	//
+	// Owner 30.08.2026, wörtlich: „ich hatte plötzlich 3000 labels da stehen ... die gi-sec
+	// 'Eingefügt wird' soll alle einstellungen der fläche/des orts/des labels erhalten, die es
+	// bekommen wird. alle werte mit den vorausgefüllten und default werden". Anlass war genau der
+	// Fund: der Import setzt weder min_zoom/max_zoom noch Größe/Priorität, und
+	// `avesmapsCreateLabelFeature` (api/_internal/map/features.php:3236) fällt dann auf
+	// min_zoom=0/max_zoom=5/size=18/priority=3 zurück -- unabhängig von der Art.
+	//
+	// 🔴 DIE TAFEL DER ART-EMPFEHLUNGEN LIEGT IN js/map-features/ecosystem-display.js UND WIRD
+	// HIER NUR GELESEN, NIE ABGESCHRIEBEN (AGENTS.md §5: eine Tafel, zwei Erzeuger, sie laufen
+	// auseinander). Sie ist "eine EMPFEHLUNG, kein Riegel" (Kommentar dort) -- der Import liest
+	// sie heute NICHT, und diese Ansicht darf deshalb nicht so tun, als täte er es. Jede Zeile
+	// zeigt den ECHTEN Wert, den der Import setzt, und nennt die Empfehlung der Art nur als
+	// Hinweis, wenn sie abweicht -- eine Vorschau, die nur die Empfehlung zeigt, wäre eine
+	// Falschaussage über die nächste Handlung (dieselbe Fehlerklasse, die die 3000 Labels
+	// gekostet hat).
+	//
+	// Die vier Zahlen hier sind KEINE Abschrift der Vorgabetafel -- es sind die literalen
+	// Vorgabewerte von avesmapsCreateLabelFeature (features.php:3232-3241), unabhängig von jeder
+	// Art. Sie ändern sich nur, wenn sich der PHP-Schreiber ändert.
+	const AVESMAPS_GARETIEN_LABEL_ECHT = { minZoom: 0, maxZoom: 5, size: 18, prio: 3 };
+
+	// REIN: hat dieses Objekt überhaupt einen "neu anlegen"-Vorschlag? Dieselbe Frage wie
+	// AVESMAPS_GARETIEN_ITEMS_JE_HANDLUNG.neu (weiter unten), hier auf Objektebene gefragt: nur
+	// wenn WENIGSTENS EIN Item change_type 'new' trägt, würde überhaupt etwas eingefügt -- eine
+	// „Ergänzung" (Lücke füllen an einem VORHANDENEN Objekt) fügt nichts ein und bekommt diesen
+	// Kasten deshalb zu Recht nicht.
+	function garetienEingefuegtWirdHatVorschlag(objekt) {
+		return ((objekt && objekt.items) || []).some(function (item) {
+			return String((item && item.change_type) || "") === "new";
+		});
+	}
+
+	// REIN: eine Datenzeile -- Beschriftung, echter Wert, und (falls abweichend) die Empfehlung.
+	function garetienEingefuegtWirdZeile(beschriftung, echt, empfehlung) {
+		const weicht = empfehlung !== null && empfehlung !== undefined
+			&& String(empfehlung) !== String(echt);
+		const hinweis = weicht
+			? '<span class="gi-insert__hint"> — Vorgabe der Art wäre '
+				+ avesmapsGaretienEscape(String(empfehlung)) + ", der Import setzt sie nicht</span>"
+			: "";
+		return '<p class="gi-insert__row">' + avesmapsGaretienEscape(beschriftung)
+			+ ' <span class="gi-insert__val">(' + avesmapsGaretienEscape(String(echt)) + ")</span>"
+			+ hinweis + "</p>";
+	}
+
+	function garetienEingefuegtWirdUeberschrift(text) {
+		return '<p class="gi-insert__sub">' + avesmapsGaretienEscape(text) + "</p>";
+	}
+
+	// REIN: „Fläche" -- für Klicks gesperrt. IMMER „aus": `avesmapsGaretienFlaecheAnlegen"
+	// (garetien-uebernahme.php) schickt kein `is_locked` mit, und die Spalte fällt auf ihren
+	// Tabellendeckel zurück (api/_internal/app/ecosystem.php: „is_locked TINYINT(1) NOT NULL
+	// DEFAULT 0"). Kein Vergleichswert nötig -- es gibt keine Art-Empfehlung für diese Spalte,
+	// sie ist eine reine Karteneigenschaft je Region (AGENTS.md §11, „Stapelreihenfolge und
+	// Klick-Sperre der REGION").
+	function garetienEingefuegtWirdFlaecheMarkup() {
+		return garetienEingefuegtWirdUeberschrift("Fläche")
+			+ '<p class="gi-insert__row">für Klicks gesperrt <span class="gi-insert__val">(aus)</span></p>';
+	}
+
+	// REIN: „Beschriftung" -- Größe/Priorität/Zoomband/[Kurvenbeschreibung]/Auf Karte anzeigen.
+	// `mitKurve` gilt nur bei einer FLÄCHE -- ein Berggipfel-Label hängt an keiner
+	// `ecosystem_region` (siehe der 'label'-Zweig in avesmapsGaretienUebernehmen).
+	function garetienEingefuegtWirdBeschriftungMarkup(subtyp, mitKurve) {
+		const vorgabe = (typeof avesmapsEcosystemDisplayVorgabe === "function")
+			? avesmapsEcosystemDisplayVorgabe(subtyp)
+			: null;
+		const basisGroesse = (typeof avesmapsEcosystemDisplayBasisGroesse === "function")
+			? avesmapsEcosystemDisplayBasisGroesse(subtyp)
+			: null;
+		let markup = garetienEingefuegtWirdUeberschrift("Beschriftung")
+			+ garetienEingefuegtWirdZeile("Größe", AVESMAPS_GARETIEN_LABEL_ECHT.size + " pt",
+				basisGroesse === null ? null : basisGroesse + " pt")
+			+ garetienEingefuegtWirdZeile("Priorität", AVESMAPS_GARETIEN_LABEL_ECHT.prio,
+				vorgabe === null ? null : vorgabe.prio)
+			+ garetienEingefuegtWirdZeile("Sichtbar ab Zoom", AVESMAPS_GARETIEN_LABEL_ECHT.minZoom,
+				vorgabe === null ? null : vorgabe.ab)
+			+ garetienEingefuegtWirdZeile("Sichtbar bis Zoom", AVESMAPS_GARETIEN_LABEL_ECHT.maxZoom,
+				vorgabe === null ? null : vorgabe.bis);
+		if (mitKurve) {
+			markup += '<p class="gi-insert__row">Kurvenbeschreibung <span class="gi-insert__val">(aus)</span></p>';
+		}
+		markup += '<p class="gi-insert__row">Auf Karte anzeigen <span class="gi-insert__val">(an)</span></p>';
+		return markup;
+	}
+
+	// REIN: „Ort" -- die Zoomstufe kommt aus einer FESTEN Klassentafel
+	// (js/map-features/location-zoom-bands.js), nicht aus dem Import: ein Ort trägt gar kein
+	// min_zoom/max_zoom in seinen `properties_json` (avesmapsCreatePointFeature, features.php),
+	// die Karte liest die Größe allein aus `settlement_class` beim Zeichnen. Es gibt hier also
+	// nichts, das der Import „falsch" setzen könnte -- anders als bei Fläche/Label.
+	function garetienEingefuegtWirdOrtMarkup(subtyp) {
+		const abZoom = (typeof avesmapsLocationZoomBandMinZoom === "function")
+			? avesmapsLocationZoomBandMinZoom("marker", subtyp)
+			: null;
+		const zeile = abZoom === null
+			? "erscheint auf keiner Zoomstufe der heutigen Tafel"
+			: "erscheint ab Zoom " + avesmapsGaretienEscape(String(abZoom));
+		return garetienEingefuegtWirdUeberschrift("Ort")
+			+ '<p class="gi-insert__row">Diese Ortsklasse ' + zeile
+			+ ' <span class="gi-insert__hint">(feste Vorgabe der Klasse — kein Einstellwert '
+			+ "dieses Imports)</span></p>";
+	}
+
+	function garetienWikiLandschaftPlatzhalterId(objekt) {
+		return "gi-wiki-landschaft-" + avesmapsGaretienEscape(String((objekt && objekt.key) || ""));
+	}
+
+	// REIN: die Anzeigezeile aus der Server-Antwort (Aktion 'wiki_landschaft',
+	// avesmapsGaretienWikiLandschaftVorschlag in api/_internal/import/garetien-wiki-landschaft.php).
+	// 🔴 Das Urteil selbst wird HIER NICHT gerechnet -- der Server fragt dieselbe Faltung und
+	// dieselbe Art-Tabelle wie der Rest des Hauses (avesmapsWikiSyncCreateMatchKey,
+	// avesmapsWikiRegionArtToSubtype); eine zweite, ungenauere Fassung im Browser wäre die zweite
+	// Wahrheit, vor der AGENTS.md §5 warnt.
+	function garetienWikiLandschaftZeileText(urteil) {
+		const u = urteil || {};
+		const name = String(u.name || "").trim();
+		const art = String(u.art || "").trim();
+		if (name === "") {
+			return u.status === "mehrdeutig"
+				? "mehrere gleichnamige Wiki-Artikel — keine sichere Zuordnung"
+				: "kein automatischer Treffer nach Namen";
+		}
+		const kennung = "„" + name + "\"" + (art === "" ? "" : " (" + art + ")");
+		// Owner-Wortlaut: „wenn name und typ passen, passts, wenn name passt aber typ nicht
+		// gefunden -> ausrufezeichen".
+		return u.status === "passt" ? kennung + " — Name und Art passen" : "! " + kennung + " — Art passt nicht";
+	}
+
+	// Welches Objekt zuletzt gefragt wurde -- EIN Aufruf je Objektwechsel, kein Massenlauf. Ein
+	// erneutes Rendern DESSELBEN Objekts (z. B. nach einem Listen-Refetch) löst keine zweite
+	// Anfrage aus.
+	let _garetienWikiLandschaftLetzterKey = null;
+
+	// Sucht bei Bedarf die Wiki-Landschaft für das GERADE GEÖFFNETE Objekt und trägt das Ergebnis
+	// in den Platzhalter ein -- über denselben Sender wie jeder andere Aufruf dieser Datei
+	// (avesmapsGaretienRufe, GARETIEN_ENDPUNKT) und dieselbe `.php`-Adresse, kein zweiter fetch(.
+	function garetienWikiLandschaftBeiBedarfLaden(objekt) {
+		if (!objekt) { _garetienWikiLandschaftLetzterKey = null; return; }
+		const schluessel = String(objekt.key || "");
+		if (schluessel === _garetienWikiLandschaftLetzterKey) { return; }
+		_garetienWikiLandschaftLetzterKey = schluessel;
+		if (!hasDocument || typeof fetch !== "function") { return; }
+		avesmapsGaretienRufe(GARETIEN_ENDPUNKT, {
+			action: "wiki_landschaft",
+			name: String(objekt.name || ""),
+			subtyp: String(objekt.subtyp || ""),
+		}).then(function (antwort) {
+			if (zustand.detailKey !== schluessel) { return; }
+			const feld = document.getElementById(garetienWikiLandschaftPlatzhalterId(objekt));
+			if (feld) { feld.textContent = garetienWikiLandschaftZeileText(antwort.wiki_landschaft); }
+		}).catch(function () {
+			if (zustand.detailKey !== schluessel) { return; }
+			const feld = document.getElementById(garetienWikiLandschaftPlatzhalterId(objekt));
+			if (feld) { feld.textContent = "Suche fehlgeschlagen."; }
+		});
+	}
+
+	// REIN: der ganze Kasten. „Was mich beim Import erwartet" (Owner) -- nur wo tatsächlich etwas
+	// eingefügt würde (garetienEingefuegtWirdHatVorschlag); eine Überschrift über nichts ist keine
+	// Auskunft, dieselbe Regel wie bei garetienQuellenMarkup.
+	// 🔴 „Die Quelle, die mitreist" zieht HIERHER, in „Wiki und Quellen" -- die leere Fläche
+	// darunter war der vom Owner benannte Platz für diesen Kasten, und dieselbe Angabe zweimal
+	// auf dem Bildschirm wäre die Duplikation, vor der AGENTS.md §5 warnt.
+	function garetienEingefuegtWirdMarkup(objekt) {
+		if (!objekt || !garetienEingefuegtWirdHatVorschlag(objekt)) { return ""; }
+		const ziel = String(objekt.ziel || "");
+		const subtyp = String(objekt.subtyp || "");
+		let markup = '<p class="gi-sec">Eingefügt wird</p>'
+			+ '<p class="gi-why gi-insert__kopf">' + avesmapsGaretienEscape(garetienTypText(objekt)) + "</p>";
+		if (ziel === "region") {
+			markup += garetienEingefuegtWirdFlaecheMarkup();
+			markup += garetienEingefuegtWirdBeschriftungMarkup(subtyp, true);
+		} else if (ziel === "label") {
+			markup += garetienEingefuegtWirdBeschriftungMarkup(subtyp, false);
+		} else if (ziel === "location") {
+			markup += garetienEingefuegtWirdOrtMarkup(subtyp);
+		}
+		markup += garetienEingefuegtWirdUeberschrift("Wiki und Quellen");
+		markup += garetienQuellenMarkup(objekt);
+		if (ziel === "region") {
+			markup += '<p class="gi-insert__row" id="' + garetienWikiLandschaftPlatzhalterId(objekt) + '">'
+				+ 'Wiki-Landschaft <span class="gi-insert__val">wird gesucht …</span></p>';
+		}
+		return '<div class="gi-insert">' + markup + "</div>";
+	}
+
 	/*
 	 * Die zwei Parteinamen auf den Sicht-Knöpfen.
 	 *
@@ -2125,7 +2314,7 @@
 		// steht als `flex: none` darunter fest. Läge sie IM Rollkasten, stünde die Entscheidung bei
 		// 13 Abschnitten hinter der Bildlaufleiste.
 		return '<div class="gi-detail">' + kopf + mitte + warum
-			+ garetienQuellenMarkup(objekt) + "</div>"
+			+ garetienEingefuegtWirdMarkup(objekt) + "</div>"
 			+ garetienHandlungsMarkup(objekt);
 	}
 
@@ -2644,6 +2833,9 @@
 		// leeren" ändern diese Menge, ohne das angeklickte Objekt zu wechseln.
 		const unsereVorhanden = garetienUnsereVorhanden(avesmapsGaretienAufDerKarte(objekte));
 		spalte.innerHTML = garetienDetailMarkup(gewaehlt, sicht, unsereVorhanden);
+		// „Eingefügt wird" > „Wiki-Landschaft" braucht den Server (Aktion 'wiki_landschaft') --
+		// der Platzhalter steht schon im Markup, dies trägt ihn nach.
+		garetienWikiLandschaftBeiBedarfLaden(gewaehlt);
 		// Dreiwertig ist eine EIGENSCHAFT, kein Attribut -- erst nach dem Einfügen einlösen, genau
 		// wie in avesmapsGaretienListeRendern.
 		Array.prototype.forEach.call(spalte.querySelectorAll("input[data-part]"), function (feld) {
@@ -3849,6 +4041,12 @@
 			garetienTypText,
 			garetienPunkteText,
 			garetienQuellenMarkup,
+			// Aufgabe „Eingefügt wird" (30.08.2026)
+			garetienEingefuegtWirdHatVorschlag,
+			garetienEingefuegtWirdMarkup,
+			garetienWikiLandschaftZeileText,
+			garetienWikiLandschaftPlatzhalterId,
+			garetienWikiLandschaftBeiBedarfLaden,
 			garetienAbschnittsItems,
 			garetienAbschnittsLage,
 			garetienAbschnittsBeschriftung,

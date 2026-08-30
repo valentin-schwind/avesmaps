@@ -793,6 +793,33 @@
 
 .gi-bomb b { color: var(--color-warning-soft-text); }
 
+/* „Eingefügt wird" (30.08.2026) -- alle Einstellungen, die die Fläche/der Ort/das Label bekäme.
+ * Der Kasten ersetzt an dieser Stelle den früheren alleinstehenden Absatz „Die Quelle, die
+ * mitreist" (garetienQuellenMarkup) -- er zieht als Unterabschnitt „Wiki und Quellen" HIER
+ * hinein, keine zweite Anzeige derselben Angabe. */
+.gi-insert__kopf { margin-top: var(--space-2); }
+
+.gi-insert__sub {
+	margin: var(--space-4) 0 0;
+	font-size: var(--font-size-caption);
+	font-weight: var(--font-weight-bold);
+	color: var(--color-accent-strong);
+}
+
+.gi-insert__row {
+	margin: var(--space-2) 0 0;
+	max-width: none;
+	overflow-wrap: anywhere;
+	font-size: var(--font-size-caption);
+	color: var(--color-text-strong);
+}
+
+.gi-insert__val { font-weight: var(--font-weight-bold); color: var(--color-text-strong); }
+
+/* Der Hinweis, dass der Import die Empfehlung der Art NICHT liest -- kein Riegel, nur eine
+ * Auskunft (dieselbe zurückhaltende Farbe wie ein Warnton, kein volles Rot). */
+.gi-insert__hint { font-weight: var(--font-weight-regular); color: var(--color-warning); }
+
 /* ---- Aufgabe 15: die Handlungsleiste ------------------------------------------------------ *
  *
  * 🔴 SIE IST ANGEHEFTET, NICHT IM FLUSS. Die Entscheidung darf nie hinter einer Bildlaufleiste

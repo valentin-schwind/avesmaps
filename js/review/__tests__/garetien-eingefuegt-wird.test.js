@@ -1,0 +1,333 @@
+// „Eingefügt wird" -- die Einzelansicht zeigt, welche Einstellungen die Fläche/der Ort/das
+// Label wirklich bekäme (Owner 30.08.2026, nach dem Schadensfall „3000 Labels ab Zoom 0").
+//
+// Ausfuehren, vom Repo-Wurzelverzeichnis:
+//   node js/review/__tests__/garetien-eingefuegt-wird.test.js
+//
+// 🔴 Geprueft wird DIFFERENTIELL (die Falle der Vakuum-Zusicherung): zwei verschiedene Arten
+// muessen verschiedene Zahlen zeigen, und Flaeche/Ort/Label muessen verschiedene Abschnitte
+// zeigen -- eine Zusicherung, die nur prueft, DASS eine Zeile im Markup steht, prueft nichts.
+//
+// 💣 `hasDocument` wird beim LADEN von review-garetien-importer.js ausgewertet
+// (`typeof document !== "undefined"`) -- `global.document` muss deshalb VOR dem `require` stehen
+// (Vorbild: garetien-fussknopf-dom.test.js).
+
+"use strict";
+
+const fs = require("fs");
+const path = require("path");
+const assert = require("assert");
+const vm = require("vm");
+
+const WURZEL = path.resolve(__dirname, "..", "..", "..");
+
+let checks = 0;
+function wahr(bedingung, warum) {
+	assert.ok(bedingung, warum || "");
+	checks++;
+}
+function gleich(ist, soll, warum) {
+	assert.strictEqual(ist, soll, warum || "");
+	checks++;
+}
+
+// ---- Die Vorgabetafeln, ECHT geladen (kein Abschreiben ihrer Zahlen) ---------------------------
+//
+// 🔴 `vm.runInThisContext` haengt Funktionsdeklarationen an das ECHTE globale Objekt (dieselbe
+// Begruendung wie in ecosystem-display-vorgabe.test.js) -- review-garetien-importer.js findet
+// `avesmapsEcosystemDisplayVorgabe` & Co. danach als blanke Bezeichner, genau wie im Browser
+// (index.html laedt ecosystem-display.js UND location-zoom-bands.js VOR dieser Datei).
+vm.runInThisContext(
+	fs.readFileSync(path.join(WURZEL, "js/map-features/ecosystem-display.js"), "utf8"),
+	{ filename: "ecosystem-display.js" }
+);
+vm.runInThisContext(
+	fs.readFileSync(path.join(WURZEL, "js/map-features/location-zoom-bands.js"), "utf8"),
+	{ filename: "location-zoom-bands.js" }
+);
+
+// ---- Das gefaelschte `document` -----------------------------------------------------------------
+//
+// ⚠️ Absichtlich mager, wie im Vorbild (garetien-fussknopf-dom.test.js): nur die Elemente, die
+// dieser Ablauf wirklich anfasst.
+function macheElement(id) {
+	return {
+		id: id, hidden: false, innerHTML: "", textContent: "",
+		addEventListener() {},
+		querySelectorAll() { return []; },
+		querySelector() { return null; },
+		getAttribute() { return null; },
+		classList: { toggle() {}, add() {}, remove() {}, contains() { return false; } },
+	};
+}
+
+const ELEMENTE = {};
+["garetien-detailcol", "garetien-list"].forEach((id) => { ELEMENTE[id] = macheElement(id); });
+
+global.document = {
+	documentElement: {},
+	readyState: "complete",
+	getElementById(id) { return ELEMENTE[id] || null; },
+	addEventListener() {},
+	querySelectorAll() { return []; },
+};
+global.window = global.window || {};
+
+const mod = require(path.resolve(__dirname, "..", "review-garetien-importer.js"));
+const {
+	garetienEingefuegtWirdHatVorschlag,
+	garetienEingefuegtWirdMarkup,
+	garetienWikiLandschaftZeileText,
+	garetienWikiLandschaftPlatzhalterId,
+	garetienDetailWaehlen,
+} = mod;
+
+wahr(typeof garetienEingefuegtWirdHatVorschlag === "function", "garetienEingefuegtWirdHatVorschlag fehlt im Export");
+wahr(typeof garetienEingefuegtWirdMarkup === "function", "garetienEingefuegtWirdMarkup fehlt im Export");
+wahr(typeof garetienWikiLandschaftZeileText === "function", "garetienWikiLandschaftZeileText fehlt im Export");
+
+// =================================================================================================
+// A. garetienEingefuegtWirdHatVorschlag -- die Torfrage
+// =================================================================================================
+
+gleich(garetienEingefuegtWirdHatVorschlag(null), false, "kein Objekt -> kein Vorschlag");
+gleich(garetienEingefuegtWirdHatVorschlag({ items: [] }), false, "keine Items -> kein Vorschlag");
+gleich(garetienEingefuegtWirdHatVorschlag({
+	items: [{ change_type: "changed" }],
+}), false, "nur 'changed'-Items (reine Ergaenzung an einem VORHANDENEN Objekt) -> kein Einfuegen");
+gleich(garetienEingefuegtWirdHatVorschlag({
+	items: [{ change_type: "changed" }, { change_type: "new", anlass: "zusatz" }],
+}), true, "ein Zusatz-Item ('new') macht daraus einen Einfuege-Kandidaten -- egal, was daneben steht");
+
+// =================================================================================================
+// B. garetienEingefuegtWirdMarkup(null) / ohne Vorschlag -- KEIN Kasten
+// =================================================================================================
+
+gleich(garetienEingefuegtWirdMarkup(null), "", "ohne Objekt gibt es keinen Kasten");
+gleich(garetienEingefuegtWirdMarkup({ items: [] }), "", "ohne Vorschlag gibt es keinen Kasten -- eine "
+	+ "Ueberschrift ueber nichts ist keine Auskunft (dieselbe Regel wie bei garetienQuellenMarkup)");
+
+// =================================================================================================
+// C. Eine FLAECHE (ziel='region') -- Owner-Beispiel Huegel -> huegelland
+// =================================================================================================
+
+const huegel = {
+	key: "ggp:Berge:Huegel:Garetien:Testhuegel", name: "Testhuegel", typ: "Huegel",
+	subtyp: "huegelland", kind: "topographie", ziel: "region", wiki: "ggp",
+	quelle: { label: "Briefspiel (Garetien)", attribution: "VolkoV / garetien.de",
+		license: "cc-by-nc-sa-3.0", source_type: "briefspiel" },
+	abschnitte: [],
+	items: [{ id: 1, change_type: "new", anlass: null }],
+};
+const mHuegel = garetienEingefuegtWirdMarkup(huegel);
+
+wahr(mHuegel.includes("Eingefügt wird"), "die Ueberschrift fehlt");
+wahr(mHuegel.includes("Huegel (garetien.de) → huegelland (Avesmaps)"),
+	"die Kopfzeile nennt ihren Typ und unseren Zielsubtyp, wie im Kopf der Einzelansicht");
+
+// ---- Flaeche: fuer Klicks gesperrt ist IMMER "aus" (Spaltendeckel, kein Wert des Imports) ------
+wahr(mHuegel.includes("Fläche"), "die Flaechen-Unterueberschrift fehlt");
+wahr(mHuegel.includes("für Klicks gesperrt") && mHuegel.includes("(aus)"),
+	'„für Klicks gesperrt (aus)" -- exakt das Owner-Beispiel');
+
+// ---- Beschriftung: der ECHTE Wert des Imports steht IMMER da -------------------------------
+wahr(mHuegel.includes("Größe") && mHuegel.includes("(18 pt)"), "die echte Groesse (Import-Vorgabe) fehlt");
+wahr(mHuegel.includes("Priorität") && mHuegel.includes("(3)"), "die echte Prioritaet fehlt");
+wahr(mHuegel.includes("Sichtbar ab Zoom") && mHuegel.includes("(0)"), "der echte Start-Zoom (0) fehlt");
+wahr(mHuegel.includes("Sichtbar bis Zoom") && mHuegel.includes("(5)"), "der echte End-Zoom (5) fehlt");
+
+// ---- Und die EHRLICHE Abweichung: huegelland empfiehlt ab=3 (AVESMAPS_ECOSYSTEM_DISPLAY_
+// VORGABE_JE_ART.huegelland), der Import setzt aber 0 -- das MUSS als Hinweis dastehen, sonst
+// waere die Anzeige die Falschaussage, die die 3000 Labels gekostet hat.
+wahr(/Sichtbar ab Zoom[\s\S]{0,120}Vorgabe der Art wäre 3/.test(mHuegel),
+	"huegelland empfiehlt ab=3 -- die Abweichung vom echten Wert (0) muss benannt werden");
+// bis=7 ist die Grundvorgabe (kein Art-Eintrag setzt "bis" fuer huegelland), der Import setzt 5.
+wahr(/Sichtbar bis Zoom[\s\S]{0,120}Vorgabe der Art wäre 7/.test(mHuegel),
+	"die Grundvorgabe bis=7 weicht vom echten Wert (5) ab und muss benannt werden");
+
+wahr(mHuegel.includes("Kurvenbeschreibung") && mHuegel.includes("(aus)"),
+	"eine Flaeche zeigt die Kurvenbeschreibung, immer 'aus' (der Import setzt curve_label nie)");
+wahr(mHuegel.includes("Auf Karte anzeigen") && mHuegel.includes("(an)"),
+	"show_name ist immer 'an' (avesmapsCreateLabelFeature-Vorgabe)");
+
+// ---- DIFFERENZIELL: eine ANDERE Art zeigt eine ANDERE Empfehlung (sonst waere die Tafel nicht
+// wirklich angeschlossen, sondern eine feste Zeichenkette). 'see' empfiehlt ab=4, nicht 3.
+const see = Object.assign({}, huegel, { key: "ggp:Gewaesser:See:Garetien:Testsee",
+	subtyp: "see", kind: "topographie", typ: "See" });
+const mSee = garetienEingefuegtWirdMarkup(see);
+wahr(/Sichtbar ab Zoom[\s\S]{0,120}Vorgabe der Art wäre 4/.test(mSee),
+	"'see' empfiehlt ab=4 -- eine andere Zahl als 'huegelland' (3), sonst waere es Vakuum");
+
+// ---- Wiki und Quellen: die Quelle zieht HIERHER (nicht mehr als eigener Abschnitt danach) ------
+wahr(mHuegel.includes("Wiki und Quellen"), "die Unterueberschrift fehlt");
+wahr(mHuegel.includes("Die Quelle, die mitreist"), "die Quelle muss weiterhin irgendwo stehen");
+wahr(mHuegel.includes("Briefspiel (Garetien)"), "die Quellen-Beschriftung fehlt");
+
+// ---- Wiki-Landschaft: der Platzhalter steht synchron da, mit dem echten Objektschluessel -------
+const platzhalterId = garetienWikiLandschaftPlatzhalterId(huegel);
+wahr(mHuegel.includes('id="' + platzhalterId + '"'), "der Platzhalter fuer die Wiki-Landschaft fehlt");
+wahr(mHuegel.includes("Wiki-Landschaft"), "die Zeilenbeschriftung fehlt");
+wahr(mHuegel.includes("wird gesucht"), "der Platzhalter muss synchron einen Wartezustand zeigen "
+	+ "(die echte Suche laeuft erst async ueber die Aktion 'wiki_landschaft')");
+
+// =================================================================================================
+// D. Ein BERGGIPFEL (ziel='label') -- KEINE Flaeche, KEINE Kurvenbeschreibung, KEIN Wiki-Landschaft
+// =================================================================================================
+
+const gipfel = {
+	key: "ggp:Berge:Berg:Garetien:Testgipfel", name: "Testgipfel", typ: "Berg",
+	subtyp: "berggipfel", kind: "", ziel: "label", wiki: "ggp", abschnitte: [],
+	items: [{ id: 2, change_type: "new" }],
+};
+const mGipfel = garetienEingefuegtWirdMarkup(gipfel);
+wahr(!mGipfel.includes("Fläche"), "ein Berggipfel ist keine Region -- kein Klick-Sperr-Abschnitt");
+wahr(mGipfel.includes("Beschriftung"), "ein Berggipfel IST ein Label -- die Beschriftungszeilen gelten");
+// Owner-Entscheid 27.08.2026 (ecosystem-display.js): Berggipfel empfehlen ab=4.
+wahr(/Sichtbar ab Zoom[\s\S]{0,120}Vorgabe der Art wäre 4/.test(mGipfel),
+	"Berggipfel empfehlen Zoom 4 (Owner-Entscheid) -- muss als Abweichung vom echten Wert 0 stehen");
+wahr(!mGipfel.includes("Kurvenbeschreibung"),
+	"ein Berggipfel-Label haengt an KEINER ecosystem_region -- keine Kurvenbeschreibung");
+wahr(!mGipfel.includes("Wiki-Landschaft"),
+	"Wiki-Landschaft ist ein Regions-Konzept -- ein Berggipfel bekommt die Zeile nicht");
+
+// =================================================================================================
+// E. Ein ORT (ziel='location') -- FESTE Klassentafel, kein Einstellwert des Imports
+// =================================================================================================
+
+const ort = {
+	key: "ggp:Sonstiges:Dorf:Garetien:Testdorf", name: "Testdorf", typ: "Dorf",
+	subtyp: "dorf", kind: "", ziel: "location", wiki: "ggp", abschnitte: [],
+	items: [{ id: 3, change_type: "new" }],
+};
+const mOrt = garetienEingefuegtWirdMarkup(ort);
+wahr(!mOrt.includes("Fläche") && !mOrt.includes("Beschriftung"),
+	"ein Ort hat weder Flaechen- noch Beschriftungs-Einstellwerte -- die Karte zeichnet ihn aus der "
+	+ "Ortsklassen-Tafel, nicht aus properties_json");
+wahr(mOrt.includes("Ort"), "die Ort-Unterueberschrift fehlt");
+// 'dorf' im Marker-Band: [null, null, 1.33, ...] -- die erste gefuellte Zelle ist Index 2.
+wahr(mOrt.includes("erscheint ab Zoom 2"),
+	"die feste Klassentafel (location-zoom-bands.js) muss den ECHTEN Bandwert zeigen, nicht geraten");
+wahr(mOrt.includes("kein Einstellwert dieses Imports"),
+	"die Zeile muss sagen, dass hier gar nichts vom Import kommt");
+
+// ---- DIFFERENZIELL: eine ANDERE Ortsklasse zeigt eine ANDERE Zoomstufe. 'stadt': [1.33, ...] --
+// die erste gefuellte Zelle ist Index 0.
+const stadt = Object.assign({}, ort, { key: "ggp:Sonstiges:Stadt:Garetien:Teststadt", subtyp: "stadt" });
+wahr(garetienEingefuegtWirdMarkup(stadt).includes("erscheint ab Zoom 0"),
+	"'stadt' erscheint ab Zoom 0 -- eine andere Zahl als 'dorf' (2), sonst waere es Vakuum");
+
+// =================================================================================================
+// F. Ein WEG (ziel='path') -- keiner der drei Abschnitte, nur „Wiki und Quellen"
+// =================================================================================================
+
+const weg = {
+	key: "ggp:Gewaesser:Fluss:Garetien:Testfluss", name: "Testfluss", typ: "Fluss",
+	subtyp: "Flussweg", kind: "", ziel: "path", wiki: "ggp", abschnitte: [],
+	quelle: { label: "Briefspiel (Garetien)" },
+	items: [{ id: 4, change_type: "new" }],
+};
+const mWeg = garetienEingefuegtWirdMarkup(weg);
+wahr(!mWeg.includes("Fläche") && !mWeg.includes("Beschriftung") && !mWeg.includes('class="gi-insert__sub">Ort<'),
+	"ein Weg bekommt keine der drei Kartenobjekt-Unterabschnitte");
+wahr(mWeg.includes("Wiki und Quellen") && mWeg.includes("Die Quelle, die mitreist"),
+	"Quelle bleibt fuer JEDES Ziel gueltig, auch fuer einen Weg");
+wahr(!mWeg.includes("Wiki-Landschaft"), "Wiki-Landschaft gilt nur Regionen, nicht Wegen");
+
+// =================================================================================================
+// G. garetienWikiLandschaftZeileText -- die vier Urteile, wortgetreu zur Bestellung
+// =================================================================================================
+
+gleich(garetienWikiLandschaftZeileText({ status: "passt", name: "Huegel", art: "Hügelland" }),
+	"„Huegel\" (Hügelland) — Name und Art passen");
+wahr(garetienWikiLandschaftZeileText({ status: "warnung", name: "Huegel", art: "Küste" }).startsWith("!"),
+	'Owner-Wortlaut: "typ nicht gefunden -> ausrufezeichen" -- das "!" muss am Anfang stehen');
+gleich(garetienWikiLandschaftZeileText({ status: "kein_treffer", name: "", art: "" }),
+	"kein automatischer Treffer nach Namen");
+gleich(garetienWikiLandschaftZeileText({ status: "mehrdeutig", name: "", art: "" }),
+	"mehrere gleichnamige Wiki-Artikel — keine sichere Zuordnung");
+
+// =================================================================================================
+// H. Die Verdrahtung: garetienDetailWaehlen -> garetienWikiLandschaftBeiBedarfLaden -> Aktion
+//    'wiki_landschaft' -> der Platzhalter wird nachgetragen. Vorbild: garetien-fussknopf-dom.test.js.
+// =================================================================================================
+
+function tick() {
+	return new Promise(function (resolve) { setImmediate(resolve); });
+}
+
+/** Ein gefaelschtes `fetch`, das jede Anfrage protokolliert und `antworten(rumpf)` befragt. */
+function machFetch(antworten) {
+	const angefragt = [];
+	return {
+		angefragt: angefragt,
+		fn: function (pfad, optionen) {
+			const rumpf = JSON.parse((optionen && optionen.body) || "{}");
+			angefragt.push({ pfad: String(pfad), rumpf: rumpf });
+			return Promise.resolve({ json: function () { return Promise.resolve(antworten(rumpf)); } });
+		},
+	};
+}
+
+async function pruefeWikiLandschaftVerdrahtung() {
+	const huegelPlatzhalter = macheElement(garetienWikiLandschaftPlatzhalterId(huegel));
+	ELEMENTE[huegelPlatzhalter.id] = huegelPlatzhalter;
+	const seePlatzhalter = macheElement(garetienWikiLandschaftPlatzhalterId(see));
+	ELEMENTE[seePlatzhalter.id] = seePlatzhalter;
+
+	const echtesFetch = global.fetch;
+
+	// ---- H1: das geoeffnete Objekt loest GENAU EINE Anfrage aus, ueber denselben Sender/dieselbe
+	// Adresse wie jeder andere Aufruf dieser Datei (avesmapsGaretienRufe, GARETIEN_ENDPUNKT).
+	const f1 = machFetch(function () {
+		return { ok: true, wiki_landschaft: { status: "passt", name: "Huegel", art: "Hügelland" } };
+	});
+	global.fetch = f1.fn;
+	garetienDetailWaehlen(huegel.key, [huegel]);
+	// Synchron steht der Wartezustand schon da -- die Antwort kommt erst async.
+	wahr(ELEMENTE["garetien-detailcol"].innerHTML.includes("wird gesucht"),
+		"synchron steht der Wartezustand da, bevor die Serverantwort kommt");
+	await tick();
+	await tick();
+	global.fetch = echtesFetch;
+
+	gleich(f1.angefragt.length, 1, "GENAU EIN Aufruf fuer das geoeffnete Objekt");
+	gleich(f1.angefragt[0].pfad, "/api/edit/map/garetien-import.php",
+		"derselbe Sender, dieselbe Adresse -- kein zweiter fetch(");
+	gleich(f1.angefragt[0].rumpf.action, "wiki_landschaft");
+	gleich(f1.angefragt[0].rumpf.name, "Testhuegel");
+	gleich(f1.angefragt[0].rumpf.subtyp, "huegelland");
+	gleich(huegelPlatzhalter.textContent, "„Huegel\" (Hügelland) — Name und Art passen",
+		"der Platzhalter traegt jetzt das Urteil des Servers");
+
+	// ---- H2: ein erneutes Rendern DESSELBEN Objekts (z. B. nach einem Listen-Refetch) loest
+	// KEINE zweite Anfrage aus -- kein Massenlauf, kein Nachfragen bei jedem Klick woanders.
+	const f2 = machFetch(function () {
+		throw new Error("darf nicht gerufen werden -- dasselbe Objekt bleibt geoeffnet");
+	});
+	global.fetch = f2.fn;
+	garetienDetailWaehlen(huegel.key, [huegel]);
+	await tick();
+	global.fetch = echtesFetch;
+	gleich(f2.angefragt.length, 0, "kein zweiter Aufruf fuer dasselbe, weiterhin geoeffnete Objekt");
+
+	// ---- H3: ein ANDERES Objekt loest wieder EINE eigene Anfrage aus, mit seinen EIGENEN Werten.
+	const f3 = machFetch(function () {
+		return { ok: true, wiki_landschaft: { status: "warnung", name: "Seesumpf", art: "Sumpf" } };
+	});
+	global.fetch = f3.fn;
+	garetienDetailWaehlen(see.key, [see]);
+	await tick();
+	await tick();
+	global.fetch = echtesFetch;
+	gleich(f3.angefragt.length, 1, "ein anderes Objekt loest wieder EINE eigene Anfrage aus");
+	gleich(f3.angefragt[0].rumpf.subtyp, "see", "die eigenen Werte des NEUEN Objekts, nicht die alten");
+	wahr(seePlatzhalter.textContent.startsWith("!"),
+		'Owner-Wortlaut "typ nicht gefunden -> ausrufezeichen" -- das "!" steht am Anfang');
+}
+
+pruefeWikiLandschaftVerdrahtung().then(function () {
+	console.log("garetien-eingefuegt-wird: " + checks + " Pruefungen bestanden.");
+}).catch(function (fehler) {
+	console.error(fehler);
+	process.exitCode = 1;
+});

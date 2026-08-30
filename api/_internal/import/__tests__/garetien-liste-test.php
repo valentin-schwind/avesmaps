@@ -248,7 +248,7 @@ avesmapsSyncPlanAddItem($pdo, $planRunId, [
         // Name muss also aus EINEM Item kommen, sonst waere das Objekt namenlos und die
         // nur_mehrteilig-Zusicherung liesse sich am Namen nicht festmachen.
         'typ' => 'Fluss', 'wiki' => 'ggp', 'ebene' => 'Gewaesser', 'anlass' => 'ergaenzung',
-        'felder' => ['name', 'quelle'], 'name' => 'Vielarm',
+        'felder' => ['name', 'quelle'], 'name' => 'Vielarm', 'ziel' => 'path',
         'abschnitt' => ['public_id' => 'w-1', 'name' => 'Erstling', 'punkte' => 4, 'geometrie' => [[1.0, 2.0]]],
     ],
     'selected' => 1,
@@ -421,8 +421,8 @@ avesmapsSyncPlanAddItem($pdo, $planRunId, [
         'typ' => 'See', 'wiki' => 'ggp', 'ebene' => 'Gewaesser', 'anlass' => 'ergaenzung',
         'felder' => ['quelle'], 'name' => 'Kraehensee',
         // Genau die Form, die garetien-plan.php fuer ein Regionsziel baut (Zeile ~143-151):
-        // `subtyp`/`kind` aus AVESMAPS_GARETIEN_TYP_MAP['See'], `geometry.type` = 'Polygon'.
-        'subtyp' => 'see', 'kind' => 'topographie',
+        // `subtyp`/`kind`/`ziel` aus AVESMAPS_GARETIEN_TYP_MAP['See'], `geometry.type` = 'Polygon'.
+        'subtyp' => 'see', 'kind' => 'topographie', 'ziel' => 'region',
         'geometry' => ['type' => 'Polygon', 'coordinates' => [[[1.0, 2.0], [3.0, 4.0], [1.0, 2.0]]]],
         'abschnitt' => ['public_id' => 'a-1', 'name' => 'Kraehensee', 'punkte' => 4,
             'geometrie' => [[1.0, 2.0], [3.0, 4.0], [1.0, 2.0]]],
@@ -442,7 +442,26 @@ assert($kraehensee['kind'] === 'topographie',
     . 'die Sicht-Tafel im Browser auf einen Tokennamen zurueck, den es nicht gibt: '
     . json_encode($kraehensee['kind'] ?? '(fehlt)'));
 assert($kraehensee['subtyp'] === 'see', 'die Vorbedingung: `subtyp` muss ebenfalls ankommen');
-$pruefungen += 2;
+// 🔴 AUFGABE „Eingefuegt wird": dieselbe Lehre wie bei `kind` -- `ziel` (path|region|location|
+// label) steht seit dem Planbau in `after`, kam aber nie am Client an. Die Einzelansicht braucht
+// es, um zu wissen, welche Vorschau (Flaeche/Beschriftung/Ort) sie zeigen darf.
+assert($kraehensee['ziel'] === 'region',
+    'ein Regionsziel MIT Vorschlag muss `ziel` in der Nutzlast tragen: '
+    . json_encode($kraehensee['ziel'] ?? '(fehlt)'));
+$pruefungen += 3;
+
+// Dieselbe DIFFERENZ wie bei `kind`: ein Weg-Ziel traegt sein EIGENES `ziel` ('path'), nicht das
+// der Fixture darueber ('region') -- sonst waere es nur ein zweiter Test fuer denselben Wert.
+assert($vielarm['ziel'] === 'path',
+    'ein Weg-Ziel muss sein eigenes `ziel` tragen, nicht das eines anderen Objekts: '
+    . json_encode($vielarm['ziel'] ?? '(fehlt ganz)'));
+$pruefungen++;
+
+// Und ein Objekt OHNE Item traegt `ziel` als leeren String, genau wie `kind`/`subtyp`.
+assert(($nachName['Llavari']['ziel'] ?? '(fehlt ganz)') === '',
+    'ohne Vorschlag gibt es kein `ziel` zu behaupten: '
+    . json_encode($nachName['Llavari']['ziel'] ?? '(fehlt ganz)'));
+$pruefungen++;
 
 // Die DIFFERENZ: ein Weg-Ziel (Fluss/Bach/Strom) traegt `kind: null` in `after` -- das MUSS als
 // LEERER String ankommen, nicht als das Wort "topographie" von der Fixture darueber. Vielarm

@@ -504,6 +504,13 @@ function avesmapsGaretienArbeitsliste(PDO $pdo, int $importRunId, array $filter)
             'quelle' => (array) ($erstesAfter['quelle'] ?? []),
             // Als WAS wir es anlegen wuerden. Ohne dieses Feld sagt der Kopf nur ihren Typ.
             'subtyp' => (string) ($erstesAfter['subtyp'] ?? ''),
+            // 🔴 AUFGABE „Eingefuegt wird": DURCHGEREICHT, NICHT HERGELEITET -- dieselbe Lehre wie
+            // beim `kind`-Feld darueber. `after.ziel` (path|region|location|label) steht seit dem
+            // Planbau da (garetien-plan.php:143); die Einzelansicht braucht es, um zu wissen, WAS
+            // fuer eine Vorschau sie zeigen darf (Flaeche/Beschriftung/Ort), ohne den Subtyp-String
+            // im Browser gegen eine abgeschriebene Liste zu raten -- genau das Muster, das Ruling
+            // R21 fuer `geometrie_typ` schon verworfen hat.
+            'ziel' => (string) ($erstesAfter['ziel'] ?? ''),
             // 🔴 FIX-RUNDE 1 ZU AUFGABE 3: OHNE DIESES FELD WIRD AUSGERECHNET EIN SEE UNSICHTBAR.
             // `garetien-plan.php` schreibt `kind` (topographie/vegetation/null) laengst in `after`
             // (Zeile ~145, aus AVESMAPS_GARETIEN_TYP_MAP in garetien-abgleich.php) -- bis hierher
@@ -595,6 +602,8 @@ function avesmapsGaretienArbeitsliste(PDO $pdo, int $importRunId, array $filter)
             // Dieselbe Auskunft wie bei `subtyp`: ohne Item gibt es kein `after` und damit kein
             // `kind` -- leer ist hier die richtige Aussage, kein Versaeumnis.
             'kind' => '',
+            // Dieselbe Auskunft wie bei `kind`: ohne Item kein `ziel`.
+            'ziel' => '',
             'seite' => avesmapsGaretienSeitenNameAusZeile($zeile),
             'deckung' => $treffer['deckung'],
             'probepunkte' => avesmapsGaretienListeProbepunkte($treffer['abschnitte']),

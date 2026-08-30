@@ -17,6 +17,7 @@ require __DIR__ . '/../../_internal/auth.php';
 require_once __DIR__ . '/../../_internal/import/garetien-abruf.php';
 require_once __DIR__ . '/../../_internal/import/garetien-uebernahme.php';
 require_once __DIR__ . '/../../_internal/import/garetien-liste.php';
+require_once __DIR__ . '/../../_internal/import/garetien-wiki-landschaft.php';
 
 /** Eine Ebene der festen Liste anhand von wiki+ebene finden. */
 function avesmapsGaretienEndpunktEbene(string $wiki, string $ebene): ?array
@@ -83,6 +84,20 @@ try {
     // kapselt sie, und die liegt im Importer (Auftrag §5.5: nichts ausserhalb darf sie kennen).
     if ($action === 'runs') {
         avesmapsJsonResponse(200, ['ok' => true, 'runs' => avesmapsGaretienListeLaeufe($pdo)]);
+    }
+
+    // --- Die Einzelansicht: passt eine Wiki-Landschaft nach Namen + Typ? REIN LESEND, EIN
+    // Aufruf je geoeffneter Zeile -- kein Massenlauf ueber die Arbeitsliste. Braucht keinen
+    // Import-Lauf: sie fragt allein `wiki_region_staging` nach dem Namen.
+    if ($action === 'wiki_landschaft') {
+        avesmapsJsonResponse(200, [
+            'ok' => true,
+            'wiki_landschaft' => avesmapsGaretienWikiLandschaftVorschlag(
+                $pdo,
+                (string) ($payload['name'] ?? ''),
+                avesmapsNormalizeSingleLine((string) ($payload['subtyp'] ?? ''), 40)
+            ),
+        ]);
     }
 
     // --- Der Plan bauen: rechnen, in KEINE Nutztabelle schreiben.
