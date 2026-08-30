@@ -374,6 +374,22 @@ function avesmapsGaretienLabelUebersteuerung(?array $einstellungen, array $vorga
     if (is_array($einstellungen) && array_key_exists('is_nodix', $einstellungen) && $einstellungen['is_nodix'] !== null) {
         $raus['is_nodix'] = (bool) $einstellungen['is_nodix'];
     }
+    // 🔴 DIE HOEHE EINES BERGGIPFELS (Owner 31.08.2026: „die berggipfel brauchen eine höhe als
+    // eigenschaft, gib ihnen das feld mit"). Sie reist NUR mit, wenn der Kasten sie ueberhaupt
+    // nennt -- und der nennt sie nur, wenn ein Mensch etwas eingetippt hat.
+    //
+    // 💣 HIER STAND BIS HEUTE „KEINE height_schritt", und die Begruendung gilt unveraendert: ein
+    // Gipfel ist ein STUETZPUNKT DES HOEHENFELDS (terrain-store.php liest is_active=1 +
+    // height_schritt), und Volkers Daten tragen keine Hoehe. Was sich geaendert hat, ist die
+    // QUELLE des Wertes: nicht mehr eine erfundene Vorgabe an jedem Gipfel, sondern eine Eingabe.
+    // ⚠️ Leer bleibt leer: avesmapsReadOptionalPeakHeight macht daraus `null`, und
+    // avesmapsCreateLabelFeature entfernt die Eigenschaft dann -- es gibt KEINE 0 als Vorgabe.
+    // Wer hier je einen Rueckfallwert einbaut, veraendert das Gelaendemodell fuer jeden Gipfel,
+    // den niemand angefasst hat, und es faellt an keiner Stelle auf.
+    if (is_array($einstellungen) && array_key_exists('height_schritt', $einstellungen)
+        && $einstellungen['height_schritt'] !== null && $einstellungen['height_schritt'] !== '') {
+        $raus['height_schritt'] = $einstellungen['height_schritt'];
+    }
 
     return $raus;
 }
@@ -1164,12 +1180,16 @@ function avesmapsGaretienUebernehmen(PDO $pdo, int $runId, array $itemIds, array
                 $quellePublicId = $publicId;
             } elseif ($ziel === 'label') {
                 // 🔴 Der Berggipfel ist die EINZIGE Punkt-Ausnahme: ein Label OHNE Region/Flaeche
-                // dahinter (Entwurf §3.4). 💣 KEINE `height_schritt` -- ein Gipfel ist ein
-                // Stuetzpunkt des Hoehenfelds (terrain-store.php liest is_active=1 +
-                // height_schritt), und Volkers Daten tragen keine Hoehe. Ein erfundener Wert
-                // veraendert das Gelandemodell lautlos falsch; das Feld bleibt deshalb WEG, nicht
-                // auf 0 oder null gesetzt (avesmapsCreateLabelFeature schreibt es nur, wenn der
-                // Schluessel ueberhaupt im Payload steht).
+                // dahinter (Entwurf §3.4).
+                // 💣 `height_schritt` KOMMT NUR AUS EINER EINGABE, nie aus einer Vorgabe. Ein
+                // Gipfel ist ein Stuetzpunkt des Hoehenfelds (terrain-store.php liest is_active=1
+                // + height_schritt), und Volkers Daten tragen keine Hoehe -- ein erfundener Wert
+                // veraendert das Gelaendemodell lautlos falsch.
+                // ⚠️ Bis zum 31.08.2026 stand hier „das Feld bleibt WEG". Seither hat der Kasten
+                // „Eingefuegt wird" eine Hoehenzeile (Owner: „gib ihnen das feld mit") -- LEER
+                // vorbelegt, und leer schickt den Schluessel gar nicht mit. Die Gefahr ist damit
+                // dieselbe geblieben und nur ihre Quelle eine andere: solange niemand tippt,
+                // passiert genau das, was vorher passierte.
                 $punkt = avesmapsGaretienPunktAusGeometrie($nach);
                 // 🔴 DER IMPORT SETZT DIE VORGABE DER ART (Owner-Nachtrag 30.08.2026) -- siehe
                 // avesmapsGaretienLabelVorgabeFuerArt oben, dieselbe Regel wie bei der Flaeche.

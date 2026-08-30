@@ -2409,6 +2409,12 @@
 			// Art wäre eine Behauptung, die niemand getroffen hat, und der Anleger ließe den
 			// Schlüssel bei "" ohnehin weg.
 			isRuined: false, isHidden: false, placeKind: "",
+			// 🔴 Die Hoehe eines Berggipfels -- LEER, und das ist die ganze Sicherung (Owner
+			// 31.08.2026: „die berggipfel brauchen eine höhe als eigenschaft, gib ihnen das feld
+			// mit"). Leer heisst „nicht erfasst"; avesmapsReadOptionalPeakHeight liefert dafuer
+			// `null`, und der Anleger schreibt die Eigenschaft dann GAR NICHT. Ein Zahlenwert als
+			// Vorgabe waere dagegen eine erfundene Hoehe an JEDEM importierten Gipfel.
+			hoehe: "",
 			// 🔴 „Weg bearbeiten" (Owner 30.08.2026). `showLabel` hat den Grundwert des Anlegers
 			// (`show_label ?? false`).
 			// 💣 `transports: null` heißt „UNANGETASTET", nicht „keines". Nur so bleibt der
@@ -2532,6 +2538,41 @@
 			+ (deaktiviert ? " disabled" : "") + "></label>";
 	}
 
+	// REIN: die Hoehe eines Berggipfels -- Zahl + Regler wie im echten Dialog (index.html
+	// #label-edit-height-row), aber mit einem Zustand, den ein Regler allein nicht ausdruecken kann:
+	// LEER.
+	//
+	// 💣 UND GENAU DIESER LEERE ZUSTAND IST DIE SICHERUNG. Ein Berggipfel ist ein STUETZPUNKT DES
+	// HOEHENFELDS -- terrain-store.php liest `is_active = 1` + `height_schritt`, und daraus entsteht
+	// das Gelaende, ueber das der Router seine Steigungen rechnet. Volkers Daten tragen keine Hoehe;
+	// eine Vorgabezahl hier schriebe an JEDEN importierten Gipfel denselben erfundenen Wert und
+	// veraenderte das Gelaendemodell lautlos falsch. Deshalb hat die Uebernahme das Feld bis heute
+	// ganz weggelassen (mit genau dieser Begruendung im Code) -- und deshalb ist es jetzt zwar da,
+	// aber leer: geschrieben wird nur, was ein Mensch eingetippt hat.
+	// ⚠️ `avesmapsReadOptionalPeakHeight` (features.php) macht aus leer `null`, und der Anleger
+	// entfernt die Eigenschaft dann, statt eine 0 zu schreiben. NULL und 0 sind dort zwei
+	// verschiedene Aussagen; diese Zeile darf sie nicht verwischen.
+	// ⚠️ Der Regler steht bei leerem Feld auf 0 -- ihn zu bewegen IST eine Eingabe und fuellt die
+	// Zahl. Die Grenzen (0..20000, Schritt 50) sind dieselben wie im echten Dialog.
+	function garetienEingefuegtWirdHoeheZeile(objekt, wert, deaktiviert) {
+		const id = garetienEingabeId(objekt, "hoehe");
+		const roh = String(wert === null || wert === undefined ? "" : wert);
+		return '<label class="location-report-form__field location-report-form__field--zeile gi-insert__row">'
+			+ "<span>Höhe (Schritt)</span>"
+			+ '<div class="label-edit-sliderrow">'
+			+ '<input type="number" class="gi-insert__input" id="' + id + '" data-gi-feld="hoehe" '
+			+ 'min="0" max="20000" step="1" inputmode="numeric" placeholder="nicht erfasst" '
+			+ 'value="' + avesmapsGaretienEscape(roh) + '"' + (deaktiviert ? " disabled" : "") + ">"
+			+ '<span class="label-edit-markewrap">'
+			+ '<input type="range" id="' + id + '-range" data-gi-feld="hoehe" '
+			+ 'min="0" max="20000" step="50" value="' + (roh === "" ? "0" : avesmapsGaretienEscape(roh)) + '"'
+			+ (deaktiviert ? " disabled" : "") + ' aria-label="Höhe in Schritt">'
+			+ "</span></div></label>"
+			+ '<p class="gi-insert__row"><span class="gi-insert__hint">Leer heißt „nicht erfasst" — '
+			+ "dann bekommt der Gipfel keine Höhe, und das Höhenfeld bleibt unberührt. Nachtragbar "
+			+ "im Beschriftungsdialog.</span></p>";
+	}
+
 	// REIN: „Fläche" -- für Klicks gesperrt (is_locked). Kein Vergleichswert/keine Vorgabe der Art
 	// nötig -- es gibt keine Art-Empfehlung für diese Spalte, sie ist eine reine
 	// Karteneigenschaft je Region (AGENTS.md §11, „Stapelreihenfolge und Klick-Sperre der REGION"),
@@ -2571,7 +2612,14 @@
 		// Die VIER Vorgabemarken -- dieselbe Tafel wie bei der Vorbelegung, hier ein zweites Mal
 		// gelesen, weil sie sich NICHT mit der (ggf. schon geänderten) Handeingabe bewegen dürfen.
 		const vorgabe = garetienEingabenVorbelegung(subtyp);
+		// 🔴 NUR EIN BERGGIPFEL BEKOMMT DIE HOEHE, und gefragt wird mit DERSELBEN Funktion wie im
+		// echten Dialog (`isEcosystemPeakSubtype`, map-features-ecosystem-height-field.js) -- eine
+		// eigene Liste der Gipfel-Arten waere ihre zweite Fassung und liefe beim naechsten Eintrag
+		// auseinander. ⚠️ Faellt sie aus (Seite ohne Kartenschicht), gibt es keine Zeile: lieber
+		// ein fehlendes Feld als eines an einer Seebeschriftung.
+		const istGipfel = typeof isEcosystemPeakSubtype === "function" && isEcosystemPeakSubtype(subtyp);
 		let markup = garetienEingefuegtWirdUeberschrift("Beschriftung")
+			+ (istGipfel ? garetienEingefuegtWirdHoeheZeile(objekt, eingaben.hoehe, deaktiviert) : "")
 			+ garetienEingefuegtWirdHakenZeile(objekt, "Nodix", "isNodix", eingaben.isNodix, deaktiviert)
 			+ garetienEingefuegtWirdZahlZeile(objekt, "Größe", "size", eingaben.size, "pt",
 				{ min: 10, max: 56 }, deaktiviert, vorgabe.size)
@@ -2650,6 +2698,21 @@
 			eingaben[feld] = String(ziel.value || "");
 			return;
 		}
+		// 🔴 DIE HOEHE DARF LEER WERDEN, und das ist der Unterschied zu jedem anderen Zahlenfeld
+		// hier: leer heisst „nicht erfasst", und der Anleger schreibt die Eigenschaft dann gar
+		// nicht. Faenge sie der Riegel darunter ab („leeres Feld behält den letzten Stand"), liesse
+		// sich eine einmal getippte Hoehe nie wieder loeschen -- und ein erfundener Wert bliebe am
+		// Gipfel stehen, obwohl der Editor ihn ausdruecklich weggenommen hat.
+		if (feld === "hoehe" && String(ziel.value || "").trim() === "") {
+			eingaben.hoehe = "";
+			if (hasDocument) {
+				const reglerLeer = document.getElementById(garetienEingabeId(objekt, "hoehe") + "-range");
+				if (reglerLeer && reglerLeer !== ziel) { reglerLeer.value = "0"; }
+				const zahlLeer = document.getElementById(garetienEingabeId(objekt, "hoehe"));
+				if (zahlLeer && zahlLeer !== ziel) { zahlLeer.value = ""; }
+			}
+			return;
+		}
 		// Ein leeres/kaputtes Feld behält den letzten gültigen Stand, statt `NaN` zu speichern --
 		// der Server sähe dann die Zeichenkette "NaN" statt einer Zahl.
 		const zahl = parseInt(ziel.value, 10);
@@ -2706,6 +2769,13 @@
 			min_zoom: eingaben.minZoom, max_zoom: eingaben.maxZoom,
 			show_name: eingaben.showName, is_nodix: eingaben.isNodix,
 		};
+		// 🔴 NUR WENN WIRKLICH ETWAS DASTEHT. Ein leeres Feld schickt den Schluessel GAR NICHT --
+		// avesmapsCreateLabelFeature schreibt `height_schritt` nur, wenn der Schluessel im Rumpf
+		// steht und einen brauchbaren Wert traegt. Eine mitgeschickte "" waere zwar auch `null`,
+		// aber der Rumpf behauptete damit, jemand habe ueber die Hoehe entschieden.
+		if (String(eingaben.hoehe || "").trim() !== "") {
+			raus.height_schritt = eingaben.hoehe;
+		}
 		if (ziel === "region") {
 			raus.is_locked = eingaben.isLocked;
 			raus.curve_label = eingaben.curveLabel;
