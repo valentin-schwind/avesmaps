@@ -219,8 +219,15 @@ $kontinent = $zeileSuchen($pdo, 'kosch', 'Gewaesser', 1);
 assert($alke['urteil'] === 'deckt_sich', 'die Alke deckt sich und muss es auch nachher sagen');
 assert($alke['grund'] !== '', 'ein Urteil ohne Grund ist eine Zahl, die niemand pruefen kann');
 assert($gardel['urteil'] === 'neu', 'der Gardel ist neu');
-assert($llavari['urteil'] === 'uebersprungen', 'der Sammelartikel ist uebersprungen');
-assert(str_contains($llavari['grund'], 'Sammelartikel'), 'der Grund des Ueberspringens fehlt');
+// 🔴 SEIT 30.08.2026 WIRD DER SAMMELARTIKEL NICHT MEHR UEBERSPRUNGEN (Owner: „warum sollte ich
+// sagen nicht importieren können nur weil sie außerhalb von irgendwas sind?"). Er bekommt jetzt
+// ein echtes Urteil wie jede andere Zeile -- und dass er ueberhaupt EINES hat, ist die
+// Zusicherung: ein leerer Urteilswert waere „gar nicht abgeglichen".
+assert($llavari['urteil'] !== 'uebersprungen',
+    'der Sammelartikel wird abgeglichen statt uebersprungen: ' . $llavari['urteil']);
+assert($llavari['urteil'] !== '', 'und traegt ein echtes Urteil');
+assert(!str_contains((string) $llavari['grund'], 'Sammelartikel'),
+    'und keinen Sammelartikel-Grund mehr: ' . (string) $llavari['grund']);
 $pruefungen += 5;
 
 // --- 🔴 DIE EIGENTLICHE ZUSICHERUNG VON REVIEW C1: der Kontinent teilt sich (wiki, zeile_nr)

@@ -81,11 +81,19 @@ assert(count($nachName['Alke']['items']) === 3,
     'die Alke traegt ihre drei Items (Quelle-Luecke + Geometrie + Zusatz): '
     . count($nachName['Alke']['items']));
 assert(isset($nachName['Llavari']), 'Llavari fehlt in der Liste');
-assert($nachName['Llavari']['urteil'] === 'uebersprungen',
-    'ohne Item traegt das Objekt den ROHEN Staging-Wert: ' . $nachName['Llavari']['urteil']);
-assert($nachName['Llavari']['grund'] !== '' && str_contains($nachName['Llavari']['grund'], 'Sammelartikel'),
-    'der Grund des Ueberspringens muss aus der Staging-Zeile (Aufgabe 6) in die Liste wandern');
-assert($nachName['Llavari']['items'] === [], 'Llavari hat kein einziges Item');
+// 🔴 Llavari stand auf dem Sammelartikel "Nachbarprovinzen" und war bis zum 30.08.2026
+// uebersprungen. Der Riegel ist auf Owner-Entscheid gefallen; die Zeile traegt jetzt ein echtes
+// Urteil und einen Vorschlag wie jede andere.
+assert($nachName['Llavari']['urteil'] !== 'uebersprungen',
+    'der ehemalige Sammelartikel wird abgeglichen: ' . $nachName['Llavari']['urteil']);
+assert($nachName['Llavari']['urteil'] !== '', 'und traegt ein echtes Urteil');
+assert(!str_contains((string) $nachName['Llavari']['grund'], 'Sammelartikel'),
+    'kein Sammelartikel-Grund mehr: ' . (string) $nachName['Llavari']['grund']);
+// 🔴 UND ER HAT JETZT EINEN VORSCHLAG. Das ist die eigentliche Zusicherung: ein Objekt ohne Item
+// waere zwar sichtbar, aber weiterhin nicht importierbar -- also genau der Zustand, den der
+// Owner-Entscheid beseitigen sollte.
+assert($nachName['Llavari']['items'] !== [],
+    'der ehemalige Sammelartikel traegt einen Vorschlag und ist damit wirklich importierbar');
 assert(isset($nachName['Gardel']), 'Gardel fehlt in der Liste');
 assert($nachName['Gardel']['urteil'] === 'neu', 'der Gardel ist ein einfacher Neuzugang: ' . $nachName['Gardel']['urteil']);
 $pruefungen += 9;
@@ -458,9 +466,16 @@ assert($vielarm['ziel'] === 'path',
 $pruefungen++;
 
 // Und ein Objekt OHNE Item traegt `ziel` als leeren String, genau wie `kind`/`subtyp`.
-assert(($nachName['Llavari']['ziel'] ?? '(fehlt ganz)') === '',
+// 🪤 HIER STAND „Llavari", und das ging am 30.08.2026 kaputt -- nicht der Test, sondern sein
+// BEISPIEL: Llavari stand auf dem Sammelartikel „Nachbarprovinzen" und hatte deshalb keinen
+// Vorschlag. Seit der Riegel gefallen ist, hat es einen. Das Beispiel ist jetzt „Aventurien"
+// (Typ `Kontinent`, kein Gegenstueck) -- ein Grund, der nichts mit Gebietsgrenzen zu tun hat und
+// deshalb nicht dieselbe Wanderung mitmacht.
+assert(($nachName['Aventurien']['items'] ?? null) === [],
+    'die Vorbedingung: dieses Objekt hat wirklich keinen Vorschlag');
+assert(($nachName['Aventurien']['ziel'] ?? '(fehlt ganz)') === '',
     'ohne Vorschlag gibt es kein `ziel` zu behaupten: '
-    . json_encode($nachName['Llavari']['ziel'] ?? '(fehlt ganz)'));
+    . json_encode($nachName['Aventurien']['ziel'] ?? '(fehlt ganz)'));
 $pruefungen++;
 
 // Die DIFFERENZ: ein Weg-Ziel (Fluss/Bach/Strom) traegt `kind: null` in `after` -- das MUSS als

@@ -42,18 +42,24 @@ $pruefungen += 3;
 // ZWEI Eintraege: eine Quellen-Luecke (ihre Quelle liegt bei uns noch nicht) plus ein
 // Geometrie-Angebot (genau EIN Abschnitt getroffen) -- macht fuenf. Seit Meldung B (30.08.2026)
 // bringt JEDE deckt_sich-Zeile zusaetzlich das Zusatz-Item ("trotzdem neu anlegen") mit -- macht
-// sechs. "Nachbarprovinzen" ist ein Sammelartikel, der Kontinent hat kein Gegenstueck.
+// sechs. Der Kontinent hat kein Gegenstueck und faellt weiter heraus.
+// 🔴 SIEBEN SEIT 30.08.2026, NICHT SECHS: "Nachbarprovinzen" war ein Sammelartikel und wurde
+// uebersprungen -- der Riegel ist auf Owner-Entscheid gefallen („warum sollte ich sagen nicht
+// importieren können nur weil sie außerhalb von irgendwas sind?"), die Zeile bringt jetzt ihren
+// eigenen Vorschlag mit. Die Zahl ist damit der Zeuge dafuer, dass sie wirklich durchkommt.
 // 🪤 Mit "> 0" ueberlebten drei Mutationen: uebersprungene Zeilen doch aufnehmen, deckende ganz
 // verwerfen statt ueber den vierten Ausgang zu fuehren, und den Ueberspringen-Riegel ganz
 // entfernen -- jedes Mal wurden es MEHR Eintraege, und mehr ist immer noch groesser als null.
-assert($anzahl === 6, 'genau sechs Vorschlaege aus sechs Quellzeilen, ' . $anzahl . ' gebaut');
+assert($anzahl === 7, 'genau sieben Vorschlaege aus den Quellzeilen, ' . $anzahl . ' gebaut');
 $namen = $pdo->query('SELECT label FROM sync_plan_item ORDER BY id')->fetchAll(PDO::FETCH_COLUMN);
 // 🔴 Review I1: die Beschriftung traegt seither den Anlass (sonst waeren die beiden Alke-Items
 // nicht auseinanderzuhalten -- eines schreibt eine Quelle, das andere bietet nur die Geometrie an).
+// 🔴 „Llavari (Fluss)" ist der siebte, seit der Sammelartikel-Riegel am 30.08.2026 gefallen ist --
+// eine ganz gewoehnliche Neu-Zeile, wie sie es ohne den Riegel immer gewesen waere.
 assert($namen === ['Alke → Alke · Quelle', 'Alke → Alke · Geometrie',
     'Alke (Bach) · trotz Nähe zu "Alke" zusätzlich anlegen', 'Gardel (Fluss)', 'Mühlsee (See)',
-    'Seitenarm der Alke (Bach) · liegt auf "Alke"'],
-    'die richtigen sechs: ' . implode(' | ', $namen));
+    'Llavari (Fluss)', 'Seitenarm der Alke (Bach) · liegt auf "Alke"'],
+    'die richtigen sieben: ' . implode(' | ', $namen));
 $pruefungen += 2;
 
 // --- 🔴 Review I2: das Geometrie-Item ist IMMER ungehakt -- auch tatsaechlich in der Datenbank,

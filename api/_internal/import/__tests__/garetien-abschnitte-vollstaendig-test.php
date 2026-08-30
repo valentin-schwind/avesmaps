@@ -468,11 +468,13 @@ assert(count($nahArtikel['abschnitte']) === 1,
     'ein Artikeltreffer mit passender Geometrie behaelt seinen Abschnitt: ' . count($nahArtikel['abschnitte']));
 $pruefungen += 2;
 
-// (e) `uebersprungen` hatte nie welche und bekommt auch keine.
-$uebersprungen = $nachSchluessel['ggp:Gewaesser:Fluss:Nachbarprovinzen'] ?? null;
-assert($uebersprungen !== null && $uebersprungen['urteil'] === 'uebersprungen', 'der Sammelartikel fehlt');
-assert($uebersprungen['abschnitte'] === [] && $uebersprungen['deckung'] === null,
-    'eine uebersprungene Zeile wurde nie abgeglichen und traegt nichts');
+// (e) 🔴 Der Sammelartikel wird seit 30.08.2026 NICHT mehr uebersprungen (Owner-Entscheid) --
+// er wird abgeglichen wie jede andere Zeile. Die Zusicherung dreht sich damit um: er MUSS ein
+// echtes Urteil tragen, sonst ist er stillschweigend wieder aus dem Abgleich gefallen.
+$sammel = $nachSchluessel['ggp:Gewaesser:Fluss:Nachbarprovinzen'] ?? null;
+assert($sammel !== null && $sammel['urteil'] !== 'uebersprungen',
+    'der Sammelartikel wird abgeglichen: ' . json_encode($sammel['urteil'] ?? '(fehlt)'));
+assert($sammel['urteil'] !== '', 'und traegt ein echtes Urteil');
 $pruefungen += 2;
 
 // 🪤 UND DIE GEGENPROBE GEGEN EINE ZU SCHARFE REGEL: waeren alle Urteilsarten gleich behandelt,

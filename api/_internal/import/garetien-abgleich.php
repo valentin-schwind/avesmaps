@@ -188,15 +188,33 @@ const AVESMAPS_GARETIEN_TYP_MAP = [
 /** Typen ohne jedes Gegenstueck -- die kommen nie (Entwurf §3.6). */
 const AVESMAPS_GARETIEN_OHNE_GEGENSTUECK = ['Stadtviertel', 'Kontinent', 'Platz'];
 
-/**
- * Sammelartikel: Objekte ausserhalb des gepflegten Gebiets, wo wir eigene Daten haben.
- *
- * 🪤 SIE STEHEN IM ARTIKEL, NICHT IM NAMENSRAUM. "Fluss:Nachbarprovinzen!Llavari" hat gar
- * keinen Namensraum -- der Text vor dem "!" IST der Artikelname. Der Bauplan suchte sie im
- * Namensraum; damit haette er keine der vier Zeilen der Gewaesserseite gefunden und alle vier
- * importiert. Geprueft werden deshalb BEIDE Felder.
- */
-const AVESMAPS_GARETIEN_SAMMELARTIKEL = ['Nachbarprovinzen', 'Raschtulswall'];
+// 🔴 HIER STAND EIN SAMMELARTIKEL-RIEGEL, UND ER IST AM 30.08.2026 GEFALLEN.
+//
+// `AVESMAPS_GARETIEN_SAMMELARTIKEL = ['Nachbarprovinzen', 'Raschtulswall']` hat jede Zeile
+// uebersprungen, deren ARTIKEL oder NAMENSRAUM so hiess -- mit dem Grund "ausserhalb des
+// gepflegten Gebiets, dort haben wir eigene Daten". Er stand als 🔴-Entscheidung im Entwurf vom
+// 26.08.2026 (docs/superpowers/specs/2026-08-26-garetien-kartenimport-design.md §3.6).
+//
+// Owner 30.08.2026, woertlich: „was soll denn der blödsinn? warum sollte ich sagen nicht
+// importieren können nur weil sie außerhalb von irgendwas sind?"
+//
+// 💣 ER WAR DIESELBE BAUFORM WIE DIE „STUFEN", die der Owner am 29.08.2026 schon einmal
+// gestrichen hat („Stufen werden weder erklaert noch will ich, dass sie verhindern, dass ich
+// objekte importieren kann"): eine Vorab-Entscheidung im Code darueber, was ein Editor gar nicht
+// erst zu sehen bekommt. Der Umbau dieses Fensters zum SICHTwerkzeug hatte genau das zum Ziel --
+// „ich will, dass alles was importiert werden kann angezeigt werden kann".
+//
+// ⭐ Und das Argument dahinter braucht keinen Riegel: WENN wir dort eigene Daten haben, sagt das
+// der Abgleich von selbst -- die Zeile bekommt „deckt sich" oder „Zweifel" und den gefundenen
+// Nachbarn dazu. Das ist eine bessere Auskunft als „uebersprungen", weil sie zeigt, WAS wir haben,
+// statt zu behaupten, dass wir etwas haben.
+//
+// 🪤 Der Riegel trug ein echtes, teuer erkauftes Wissen, und das gilt weiter, falls je wieder
+// jemand nach diesen Namen sucht: SIE STEHEN IM ARTIKEL, NICHT IM NAMENSRAUM.
+// "Fluss:Nachbarprovinzen!Llavari" hat gar keinen Namensraum -- der Text vor dem "!" IST der
+// Artikelname. Der urspruengliche Bauplan suchte im Namensraum und haette keine einzige Zeile
+// gefunden.
+
 
 /** Bis hierher gilt "an dieser Stelle liegt schon dasselbe". Startwert, in Karteneinheiten. */
 const AVESMAPS_GARETIEN_TREFFER_EINHEITEN = 2.0;
@@ -303,14 +321,7 @@ function avesmapsGaretienUeberspringGrund(array $zeile): ?string
 {
     $typ = (string) ($zeile['typ'] ?? '');
     $artikel = trim((string) ($zeile['artikel'] ?? ''));
-    $namensraum = trim((string) ($zeile['namensraum'] ?? ''));
     $anzeige = trim((string) ($zeile['anzeige'] ?? ''));
-
-    if (in_array($artikel, AVESMAPS_GARETIEN_SAMMELARTIKEL, true)
-        || in_array($namensraum, AVESMAPS_GARETIEN_SAMMELARTIKEL, true)) {
-        return 'Sammelartikel "' . ($artikel !== '' ? $artikel : $namensraum)
-            . '" -- ausserhalb des gepflegten Gebiets, dort haben wir eigene Daten';
-    }
 
     if ($anzeige === '' && $artikel === '') {
         return 'Zeile ohne jeden Namen';

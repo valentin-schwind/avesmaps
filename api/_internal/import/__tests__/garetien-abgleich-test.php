@@ -429,24 +429,42 @@ $pruefungen += 3;
 assert($kurz['status'] === 'widerspricht' && $kurz['anlass'] === 'zufluss', 'der Riegel greift weiterhin');
 $pruefungen++;
 
-// --- 🔴 Sammelartikel werden uebersprungen: dort haben wir eigene Daten.
+// --- 🔴 SAMMELARTIKEL WERDEN NICHT MEHR UEBERSPRUNGEN (Owner 30.08.2026).
 //
-// 🪤 DER BAUPLAN SUCHTE SIE IM NAMENSRAUM, UND DORT STEHEN SIE NICHT. Gemessen am 26.08.2026:
-// "Fluss:Nachbarprovinzen!Llavari" hat GAR KEINEN Namensraum -- der Text vor dem "!" IST der
-// Artikelname. Wer nur den Namensraum prueft, findet keine der vier Zeilen dieser Seite und
-// importiert sie alle. Geprueft werden deshalb BEIDE Felder.
+// Bis dahin hat ein Riegel jede Zeile verworfen, deren Artikel oder Namensraum "Nachbarprovinzen"
+// oder "Raschtulswall" hiess -- mit dem Grund "ausserhalb des gepflegten Gebiets, dort haben wir
+// eigene Daten". Owner, woertlich: „was soll denn der blödsinn? warum sollte ich sagen nicht
+// importieren können nur weil sie außerhalb von irgendwas sind?"
+//
+// 💣 Es war dieselbe Bauform wie die „Stufen", die er am 29.08. schon gestrichen hat: eine
+// Vorab-Entscheidung im Code darueber, was ein Editor gar nicht erst zu sehen bekommt. Dieser Test
+// haelt die Umkehrung fest, damit der Riegel nicht bei der naechsten Aufraeumrunde zurueckkommt.
+// ⭐ Und das Argument dahinter braucht ihn nicht: haben wir dort wirklich eigene Daten, sagt das
+// der Abgleich von selbst („deckt sich"/„Zweifel", samt dem gefundenen Nachbarn).
 $zeile = ['typ' => 'Fluss', 'namensraum' => '', 'artikel' => 'Nachbarprovinzen', 'anzeige' => 'Llavari',
           'geo_art' => 'koordinaten', 'geo' => '1 2, 3 4'];
-assert(avesmapsGaretienUeberspringen($zeile) === true, 'Sammelartikel im ARTIKEL wird uebersprungen');
+assert(avesmapsGaretienUeberspringen($zeile) === false,
+    'ein Sammelartikel im ARTIKEL wird importierbar: ' . (string) avesmapsGaretienUeberspringGrund($zeile));
 $zeile['artikel'] = 'Raschtulswall';
 $zeile['anzeige'] = 'See hoch im Raschtulswall';
-assert(avesmapsGaretienUeberspringen($zeile) === true);
-// Und falls Volker sie eines Tages doch in einen Namensraum legt:
+assert(avesmapsGaretienUeberspringen($zeile) === false, 'und der zweite Name ebenso');
 assert(avesmapsGaretienUeberspringen(
     ['typ' => 'Fluss', 'namensraum' => 'Nachbarprovinzen', 'artikel' => '', 'anzeige' => 'Llavari',
      'geo_art' => 'koordinaten', 'geo' => '1 2, 3 4']
-) === true, 'auch im Namensraum');
+) === false, 'auch im Namensraum nicht mehr');
 $pruefungen += 3;
+
+// ⚠️ Die UEBRIGEN Uebersprung-Gruende gelten weiter -- sonst belegte der Block darueber nur, dass
+// avesmapsGaretienUeberspringen ueberhaupt nichts mehr verwirft.
+assert(avesmapsGaretienUeberspringen(
+    ['typ' => 'Fluss', 'namensraum' => '', 'artikel' => 'Nachbarprovinzen', 'anzeige' => 'Llavari',
+     'geo_art' => 'koordinaten', 'geo' => '2000000 2000000']
+) === true, 'eine Zeile ohne Position bleibt uebersprungen, Sammelartikel hin oder her');
+assert(avesmapsGaretienUeberspringen(
+    ['typ' => 'Stadtviertel', 'namensraum' => '', 'artikel' => 'Nachbarprovinzen', 'anzeige' => 'X',
+     'geo_art' => 'koordinaten', 'geo' => '1 2, 3 4']
+) === true, 'und ein Typ ohne Gegenstueck ebenfalls');
+$pruefungen += 2;
 
 // --- Und ein normaler Bach wird NICHT uebersprungen -- sonst prueft das oben nichts.
 assert(avesmapsGaretienUeberspringen(
