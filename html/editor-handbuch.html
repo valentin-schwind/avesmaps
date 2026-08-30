@@ -202,7 +202,7 @@
 <body>
 	<div class="hb-topbar">
 		<span class="hb-topbar__title">Avesmaps · Editor-Handbuch</span>
-		<span class="hb-topbar__meta">Stand: 30.08.2026</span>
+		<span class="hb-topbar__meta">Stand: 31.08.2026</span>
 		<div class="hb-topbar__actions">
 			<button type="button" class="theme-toggle-btn" aria-label="Auf dunkles Design umschalten" title="Design umschalten (hell/dunkel)">
 				<svg class="theme-toggle-ico theme-toggle-ico--sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4.2" /><g stroke-width="1.9" stroke-linecap="round"><line x1="12" y1="2" x2="12" y2="4.4" /><line x1="12" y1="19.6" x2="12" y2="22" /><line x1="2" y1="12" x2="4.4" y2="12" /><line x1="19.6" y1="12" x2="22" y2="12" /><line x1="4.9" y1="4.9" x2="6.6" y2="6.6" /><line x1="17.4" y1="17.4" x2="19.1" y2="19.1" /><line x1="4.9" y1="19.1" x2="6.6" y2="17.4" /><line x1="17.4" y1="6.6" x2="19.1" y2="4.9" /></g></svg>
@@ -840,6 +840,7 @@
 				<ul class="hb-steps">
 					<li><strong>Wegname</strong>, <strong>„Auto-Name"</strong> und <strong>„Weg anzeigen"</strong> (blendet den Namen an der Linie ein).</li>
 					<li><strong>Wegtyp</strong> — acht Sorten von Reichsstraße bis Seeweg, mit <strong>↻</strong> aus dem Wiki.</li>
+					<li><strong>Bach</strong> (nur bei Flusswegen) — ein Häkchen unter dem Wegtyp. Ein Bach bleibt ein Flussweg, ist aber <strong>nicht befahrbar</strong>: Sobald du es setzt, werden die Transportmittel darunter grau und leer. Auf der Karte behält er Farbe und Strich des Flusses, die Infobox nennt ihn „Bach".</li>
 					<li><strong>Erlaubte Transportmittel</strong> — steuert direkt das Routing: Was hier nicht angehakt ist, kann diesen Weg nicht befahren. Rechts daneben steht unter <em>„gangbar"</em> je Fahrtyp ein Zeitfenster: Der Haken sagt <strong>ob</strong>, das Fenster sagt <strong>wann</strong>.</li>
 					<li><strong>Wiki-Weg</strong> — der <a href="#v-wiki">Zuweisungskasten</a>, mit „Sync" für den Wegtyp.</li>
 					<li><strong>Andere Quelle</strong> — Beleg außerhalb des Wikis.</li>
@@ -1295,7 +1296,7 @@
 					<tr><td><strong>Neuigkeiten</strong></td><td>das Fenster „Neuigkeiten" auf avesmaps.de</td><td>2.000</td><td>keine</td></tr>
 					<tr><td><strong>Instagram</strong></td><td>@avesmaps</td><td>2.200</td><td>frei</td></tr>
 					<tr><td><strong>Facebook</strong></td><td>die Seite Avesmaps</td><td>63.206</td><td>2</td></tr>
-					<tr><td><strong>Mastodon</strong></td><td>@Avesmaps@rollenspiel.social</td><td>500</td><td>4</td></tr>
+					<tr><td><strong>Mastodon</strong></td><td>@Avesmaps@rollenspiel.social — <strong>Versand über GitHub, bis zu 30 Min.</strong></td><td>500</td><td>4</td></tr>
 				</table>
 				<div class="hb-note hb-tip"><strong>Fang mit der Probe an — sie ist vorangehakt.</strong> Sie läuft die <em>ganze</em> Kette durch — Rechteprüfung, Bildwandlung, Zuschnitt, Textbau je Kanal — und legt am Ende ab, was sie gesendet hätte. In der Liste klappst du das unter <em>„Probe: Was gesendet worden wäre"</em> auf. Ihre Grenzen sind die strengsten — was die Probe besteht, besteht überall.</div>
 				<div class="hb-note hb-tip"><strong>Ein Kanal ohne Zugang ist ausgegraut</strong> und trägt statt des Kontos den Vermerk <em>„noch nicht eingerichtet"</em>; steht der Zugang, zeigt die Zeile, <strong>wann er abläuft</strong>. Einrichten kannst du ihn in der Zeile des Kanals selbst — <strong>„🔑 Zugang zu &lt;Kanal&gt; einrichten"</strong>; steht schon einer, heißt derselbe Knopf <strong>„… erneuern"</strong>. Du fügst dort nur den kurzlebigen Token ein, alles Weitere macht der Server, und er legt nur ab, was nachweislich nie abläuft. <strong>Probe</strong> und <strong>Neuigkeiten</strong> brauchen nie einen Zugang.</div>
@@ -1313,6 +1314,7 @@
 					<tr><td><strong>… ✓</strong></td><td>Steht draußen. Mit <strong>↗</strong> ist die Marke der Link zum Beitrag; ohne kam nur keine Adresse zurück.</td></tr>
 					<tr><td><strong>… — wartet</strong></td><td>Noch nicht draußen. Auch alles Unklare steht hier — nie unter ✓.</td></tr>
 					<tr><td><strong>… — geplant</strong></td><td>Eingereiht, geht später hinaus.</td></tr>
+					<tr><td><strong>… — wartet auf Versand</strong></td><td>Nur <strong>Mastodon</strong>: Der Beitrag liegt in der Warteschlange und geht binnen 30 Minuten hinaus. Die Marke nennt die bisherige Wartezeit, kurz vor dem Absenden steht dort <em>„wird gesendet"</em>. <strong>Das ist kein Fehler</strong> — erst wenn die Marke selbst nachfragt <em>(„läuft der Workflow?")</em>, stimmt etwas nicht.</td></tr>
 					<tr><td><strong>… — Fehler</strong></td><td>Gescheitert; der Fehlertext steht im Schwebezettel. Nur diese Marke bekommt <strong>„Erneut"</strong>.</td></tr>
 				</table>
 				<p><strong>„Erneut" wiederholt genau diesen einen Kanal</strong> — ein bereits gesendeter wäre auf Instagram ein Doppelbeitrag.</p>
@@ -1541,11 +1543,20 @@
 				<div class="hb-note hb-warn"><strong>„Das Bild wird nicht angezeigt" ist meistens kein Fehler.</strong> Es ist fast immer die Lizenz — oder ein Schalter (siehe unten). Bevor du einen Bug meldest, schau in beides.</div>
 
 				<h3 id="v-spoiler" class="hb-sub">Spoiler</h3>
-				<p>Bei Literatur und Karten verraten manche Angaben die Handlung — allerdings längst nicht alle: ein Werk, das seine Orte nur <em>beschreibt</em> (Regionalspielhilfe, Spielhilfe), steht immer offen da. Verschleiert wird nur, wo ein Werk <em>spielt</em>. Wir lösen das immer gleich: <strong>verschleiern statt verstecken</strong>. Der Eintrag steht sichtbar an seiner Stelle, aber verdeckt; ein Klick hebt genau diesen Schleier, ein Sammelschalter hebt alle. So sieht man, <em>dass</em> es etwas gibt, ohne es zu erfahren.</p>
+				<p>Bei Literatur und Karten verraten manche Angaben die Handlung. Verschleiert wird nur, wo ein Werk <em>spielt</em>. Ein Werk, das seine Orte nur <em>beschreibt</em> (Regionalspielhilfe, Spielhilfe), steht immer offen da.</p>
+				<p>Wir <strong>verschleiern statt zu verstecken</strong>: Der Eintrag steht sichtbar an seiner Stelle, aber verdeckt. Ein Klick hebt diesen einen Schleier, ein Sammelschalter hebt alle.</p>
 
 				<h3 id="v-schalter" class="hb-sub">Die Schalter des Betreibers</h3>
-				<p>Mehrere Bereiche lassen sich im Ganzen ein- und ausschalten. Sie sitzen als <strong>AN/AUS</strong>-Kacheln in den Menübändern, jede im Editor ihres Bereichs: <strong>„Literatur"</strong> und <strong>„Vorschauen"</strong> (die Cover) im Literatur-Editor, <strong>„Kartensammlung"</strong> und <strong>„Vorschauen"</strong> im Karteneditor, <strong>„Bilder"</strong> und <strong>„Wappen"</strong> im Ortseditor und noch einmal <strong>„Wappen"</strong> im Territorieneditor, dazu <strong>„Fauna"</strong>, <strong>„Flora"</strong>, <strong>„Waren"</strong> und <strong>„Spezies"</strong> im Vorkommen-Editor.</p>
-				<div class="hb-note hb-tip"><strong>Die gleichnamigen Schalter sind wirklich getrennt.</strong> „Vorschauen" gibt es zweimal — einmal für die Cover der Literatur, einmal für die Kartenvorschauen —, und „Wappen" ebenso: einer für die Ortswappen, einer für die Gebietswappen. Eine Bilderlaubnis gilt nur bis auf Widerruf und muss einzeln zurücknehmbar sein. Jeder Schalter wirkt nur auf die <em>öffentliche</em> Seite; im Editor siehst du weiter alles.</div>
+				<p>Mehrere Bereiche lassen sich im Ganzen ein- und ausschalten. Jeder Schalter sitzt im Menüband seines Editors. Er wirkt nur auf die <em>öffentliche</em> Seite; im Editor siehst du weiter alles.</p>
+				<table class="hb-table">
+					<tr><th>Editor</th><th>Schalter</th></tr>
+					<tr><td><strong>Literatur</strong></td><td>„Literatur" · „Vorschauen" (die Cover)</td></tr>
+					<tr><td><strong>Karten</strong></td><td>„Kartensammlung" · „Vorschauen"</td></tr>
+					<tr><td><strong>Orte</strong></td><td>im Menü <strong>„Wappen &amp; Bilder ▾"</strong>: „Lokale Wappen" · „Wiki-Wappen" · „Ortsbilder"</td></tr>
+					<tr><td><strong>Territorien</strong></td><td>im Menü <strong>„Wappen ▾"</strong>: „Lokale Wappen" · „Wiki-Wappen"</td></tr>
+					<tr><td><strong>Vorkommen</strong></td><td>„Fauna" · „Flora" · „Waren" · „Spezies"</td></tr>
+				</table>
+				<div class="hb-note hb-tip"><strong>Gleichnamige Schalter sind wirklich getrennt.</strong> „Vorschauen" gibt es zweimal: für die Cover der Literatur und für die Kartenvorschauen. „Lokale Wappen" und „Wiki-Wappen" gibt es je einmal bei den Orten und einmal bei den Territorien — vier Schalter, nicht zwei. Eine Bilderlaubnis gilt bis auf Widerruf und muss einzeln zurücknehmbar sein.</div>
 				<div class="hb-note hb-tip"><strong>Wenn ein ganzer Bereich „weg" ist,</strong> ist meistens nur so ein Schalter aus. Das ist die erste Sache, die du prüfst, bevor du irgendetwas anderes vermutest.</div>
 			</section>
 
@@ -1560,12 +1571,12 @@
 					<tr><td><strong>Ortsgröße</strong></td><td>Dorf · Kleinstadt · Stadt · Großstadt · Metropole · Besondere Bauwerke/Stätten</td></tr>
 					<tr><td><strong>Wegtyp</strong></td><td>Reichsstraße · Straße · Weg · Pfad · Gebirgspass · Wüstenpfad · Flussweg · Seeweg</td></tr>
 					<tr><td><strong>Transportmittel</strong></td><td>Karawane · Reisegruppe zu Fuß · Zu Fuß · Kutsche · Reisegruppe beritten · Reiter · Flusssegler · Flusskahn · Lastensegler · Schnellsegler · Galeere</td></tr>
-					<tr><td><strong>Region: Art</strong></td><td><em>alphabetisch, wie im Feld:</em> Auenlandschaft · Berggipfel · Dschungel · Ebene · Fluss · Flussdelta · Flussland/Flusstal · Gebirge · Graslandschaft · Hochebene · Hügelland · Insel · Inselgruppe · Kontinent · Kulturlandschaft · Küste · Meer · Region · Schlucht · See · Sonstiges · Steppe · Sümpfe &amp; Moore · Tal · Tiefebene · Tundra · Vulkan · Wadi · Wald · Wüste · Wüstenoase. Vorausgewählt ist <strong>Region</strong>, nicht der erste Eintrag.</td></tr>
+					<tr><td><strong>Region: Art</strong></td><td><em>alphabetisch, wie im Feld:</em> Auenlandschaft · Berggipfel · Dschungel · Ebene · Fluss · Flussdelta · Flussland/Flusstal · Gebirge · Graslandschaft · Hochebene · Hügelland · Insel · Inselgruppe · Kontinent · Kulturlandschaft · Küste · Meer · Region · Schlucht · See · Sonstiges · Steppe · Sümpfe &amp; Moore · Tal · Tiefebene · Tundra · Urwald · Vulkan · Wadi · Wald · Wüste · Wüstenoase. Vorausgewählt ist <strong>Region</strong>, nicht der erste Eintrag.</td></tr>
 					<tr><td><strong>Quellentyp</strong></td><td>Regionalspielhilfe · Abenteuer · Aventurischer Bote · Quellenband · Roman · Briefspiel · Regelbuch · Sonstiges</td></tr>
 				</table>
 
 				<h3 id="n-haekchen" class="hb-sub">Die Prüf-Häkchen</h3>
-				<p>Sie stehen seit dem 12.08.2026 im <strong>Anzeige-Menü</strong> an der Karte, nicht mehr unten im Routenplaner. Aufgeklappt wird es über den Knopf mit dem <strong>Auge</strong>: rechte <em>untere</em> Ecke der Karte, ganz oben im Knopfbund — über der Lupe und der Ansichts-Kachel. Sie ändern nichts an den Daten, sie zeigen nur.</p>
+				<p>Sie stehen im <strong>Anzeige-Menü</strong> an der Karte. Aufgeklappt wird es über den Knopf mit dem <strong>Auge</strong>: rechte <em>untere</em> Ecke der Karte, ganz oben im Knopfbund — über der Lupe und der Ansichts-Kachel. Sie ändern nichts an den Daten, sie zeigen nur.</p>
 				<p>Das Menü hat <strong>vier Gruppen</strong>, und der Unterschied ist der Blick. <strong>„Orte"</strong> (die sechs Ortsklassen als Bildknöpfe) und <strong>„Ebenen"</strong> sagen, was die Karte <em>zeigt</em> — die beiden sieht jeder Besucher. <strong>„Prüfen"</strong> zeigt in zwei Spalten, was an der Karte <em>nicht stimmt</em>, und <strong>„Mapstil"</strong> wechselt den Kartengrund; beide tragen neben der Überschrift den Zusatz <em>„nur Editoren"</em> und stehen erst im Bearbeiten-Modus da.</p>
 				<table class="hb-table">
 					<tr><th>Häkchen</th><th>Zeigt</th></tr>
@@ -1574,18 +1585,18 @@
 					<tr><td><strong>Grenzen</strong></td><td>Die Territoriengrenzen, ebenfalls als Übersteuerung des Modus. Beide Haken gibt es, weil Beschriftungen und Grenzen beim Zeichnen im Weg stehen.</td></tr>
 					<tr><td><strong>Kreuzungen</strong></td><td>Alle Knotenpunkte des Wegenetzes.</td></tr>
 					<tr><td><strong>Unverbunden</strong></td><td><em>Pinker Ring:</em> Ort oder Kreuzung ohne Anschluss ans Wegenetz (Regel 5). Blendet jeden Fund samt Namen ein — auch wenn dessen Ortsgröße gerade aus ist und ohne dass „Kreuzungen" dafür anstehen muss.</td></tr>
-					<tr><td><strong>Kreuzungen mit 2 Wegen</strong></td><td><em>Türkiser Ring:</em> die auflösbare Durchgangs-Kreuzung (Regel 2) — sie hat genau zwei Arme, es läuft kein fremder Weg über sie hinweg, und beide Arme sind derselben Wegart. Nur dann lassen sich die zwei Stücke zu einem zusammenziehen. Wirkt allein; vorher tat der Haken ohne „Kreuzungen" gar nichts.</td></tr>
+					<tr><td><strong>Kreuzungen mit 2 Wegen</strong></td><td><em>Türkiser Ring:</em> die auflösbare Durchgangs-Kreuzung (Regel 2) — sie hat genau zwei Arme, es läuft kein fremder Weg über sie hinweg, und beide Arme sind derselben Wegart. Nur dann lassen sich die zwei Stücke zu einem zusammenziehen.</td></tr>
 					<tr><td><strong>Offene Wegenden</strong></td><td><em>Roter Weg, roter Ring am Ende:</em> ein Weg, an dessen Ende weder Ort noch Kreuzung liegt — für die Routenplanung existiert er damit <em>gar nicht</em>. Ein Klick auf den Ring öffnet den Geometrie-Editor. Häufigster Fall ist der <em>lose Stoß</em>: mehrere Wegenden auf demselben Punkt, auf dem keine Kreuzung sitzt.</td></tr>
 					<tr><td><strong>Nodices</strong></td><td>Als Nodix markierte Objekte.</td></tr>
 					<tr><td><strong>Verborgene Orte</strong></td><td>Holt die als <a href="#siedlungen">verborgen</a> markierten Orte samt Namen zurück aufs Bild. Kein eigener Ring und keine eigene Farbe — der Haken erzeugt keine Markierung, er zeigt nur wieder, was sonst weggelassen wird.</td></tr>
 					<tr><td><strong>nur Labels mit Region</strong></td><td>Blendet alle Beschriftungen aus, an denen <em>keine</em> Landschaftsfläche hängt — was stehen bleibt, ist die Restliste zum Nacharbeiten. Steht nur da, wenn die Landschaften-Ebene eingeschaltet ist.</td></tr>
-					<tr><td><strong>Mapstil</strong></td><td>Kein Häkchen, sondern eine Auswahl: Stylized · Original. Sie hat im Menü eine eigene Gruppe.</td></tr>
+					<tr><td><strong>Mapstil</strong></td><td>Kein Häkchen, sondern eine Auswahl: Modern · Original · Old. Sie hat im Menü eine eigene Gruppe.</td></tr>
 				</table>
 				<p>Trägt ein Marker beide Fehler, gewinnt der pinke Ring — es wird immer nur einer gezeigt.</p>
-				<div class="hb-note hb-tip"><strong>Die Prüf-Häkchen holen ihre Funde hervor, statt sie nur zu markieren</strong> (seit dem 14.08.2026). <em>„Unverbunden"</em>, <em>„Kreuzungen mit 2 Wegen"</em>, <em>„Kreuzungen"</em> und <em>„Offene Wegenden"</em> hängen nicht mehr davon ab, welche Ortsgrößen an sind oder wie weit du herausgezoomt hast — sonst versteckte man sich mit der Zoomstufe genau das, wonach man sucht. Der Bildausschnitt gilt weiterhin. Die beiden Zeilen tragen im Menü jetzt auch <strong>den Marker selbst als Zeichen</strong> — dunkler Kern, farbiger Ring —, statt der Lupe, die dort fünfmal gleich aussah — die Farbe steht damit schon in der Zeile.</div>
-				<div class="hb-note hb-tip"><strong>Einen türkisen Fund kannst du melden, statt ihn selbst aufzulösen.</strong> Ein Klick auf die Kreuzung öffnet ihr Popup; darin steht neben „Zu Ort konvertieren" und „Kreuzung verschieben" die Kachel <strong>„Kreuzung melden"</strong>. Sie legt eine Zeile in die Zwischenablage — die Wegart und ein Link direkt auf die Stelle. <strong>Bewusst nicht die Nummer:</strong> „Kreuzung-2090" entsteht erst in deinem Browser als laufender Zähler und rutscht, sobald jemand eine Kreuzung früher einsortiert — am nächsten Tag wäre sie falsch, der Link nicht.</div>
-				<div class="hb-note hb-tip"><strong>Ein ausgegrauter Schalter ist nicht kaputt.</strong> Manche Ansichten sperren einen Schalter ohnehin — dann ist seine Zeile grau und nennt im Titel den Grund. <strong>Kraftlinien</strong> sperrt Wege, Flüsse, Seewege, „Offene Wegenden", Grenzen und die Ortsklassen (dort zeichnet die „Magiersicht" nichts davon), <strong>Nur Karte</strong> und <strong>Original</strong> sperren die Grenzen, weil in diesen Ansichten gar keine Gebietsdaten geladen werden. Sein Zustand bleibt dabei unangetastet: Zurück in einer Ansicht, in der er wirkt, steht er wieder so, wie du ihn gelassen hast.</div>
-				<div class="hb-note hb-tip"><strong>„Labels" und „Grenzen" halten nicht über einen Moduswechsel hinweg.</strong> Bei jedem Wechsel des Kartenmodus springen beide auf das zurück, was der neue Modus von sich aus zeigt. Sie sind eine Abweichung <em>nach</em> dem Wechsel, kein Dauerzustand — ein Moduswechsel verändert das Kartenbild also genau so wie eh und je.</div>
+				<div class="hb-note hb-tip"><strong>Die Prüf-Häkchen holen ihre Funde hervor, statt sie nur zu markieren.</strong> <em>„Unverbunden"</em>, <em>„Kreuzungen mit 2 Wegen"</em>, <em>„Kreuzungen"</em> und <em>„Offene Wegenden"</em> zeigen ihre Funde unabhängig davon, welche Ortsgrößen an sind und wie weit du herausgezoomt hast. Der Bildausschnitt gilt weiterhin. Im Menü tragen ihre Zeilen <strong>den Marker selbst als Zeichen</strong> — dunkler Kern, farbiger Ring —, die Farbe steht also schon in der Zeile.</div>
+				<div class="hb-note hb-tip"><strong>Einen türkisen Fund kannst du melden, statt ihn selbst aufzulösen.</strong> Ein Klick auf die Kreuzung öffnet ihr Popup; darin steht neben „Zu Ort konvertieren" und „Kreuzung verschieben" die Kachel <strong>„Kreuzung melden"</strong>. Sie legt eine Zeile in die Zwischenablage — die Wegart und ein Link direkt auf die Stelle. <strong>Nicht die Nummer melden:</strong> „Kreuzung-2090" ist ein Zähler deines Browsers und rutscht, sobald jemand eine Kreuzung früher einsortiert — am nächsten Tag wäre sie falsch, der Link nicht.</div>
+				<div class="hb-note hb-tip"><strong>Ein ausgegrauter Schalter ist nicht kaputt.</strong> Manche Ansichten sperren einen Schalter ohnehin — dann ist seine Zeile grau und nennt im Titel den Grund. <strong>Kraftlinien</strong> sperrt Wege, Flüsse, Seewege, „Offene Wegenden", Grenzen und die Ortsklassen (dort zeichnet die „Magiersicht" nichts davon), <strong>Nur Karte</strong> sperrt die Grenzen, weil in dieser Ansicht gar keine Gebietsdaten geladen werden. Sein Zustand bleibt dabei unangetastet: Zurück in einer Ansicht, in der er wirkt, steht er wieder so, wie du ihn gelassen hast.</div>
+				<div class="hb-note hb-tip"><strong>„Labels" und „Grenzen" halten nicht über einen Moduswechsel hinweg.</strong> Bei jedem Wechsel des Kartenmodus springen beide auf das zurück, was der neue Modus von sich aus zeigt. Sie sind eine Abweichung <em>nach</em> dem Wechsel, kein Dauerzustand.</div>
 
 				<h3 id="n-menues" class="hb-sub">Die beiden Kontextmenüs</h3>
 				<p>Es gibt genau zwei, nicht mehr.</p>
