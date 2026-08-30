@@ -148,4 +148,19 @@ assert(preg_match('~require_once[^;]*import/garetien-uebernahme\.php~', $vorscha
 assert(!preg_match('~INSERT\s+INTO\s+(map_features|ecosystem_region|ecosystem_area)~i', $quelle),
     'der Endpunkt schreibt keine Kartenobjekte selbst');
 
+// 🔴 SCHADENSFALL 30.08.2026 -- die Vorschau (sync-plan.php) verlangt fuer kind='garetien' eine
+// ausdrueckliche id-Liste, BEVOR sie in den Verteiler-Zweig geht, und lehnt eine leere ab. Ohne
+// diesen Riegel liest avesmapsGaretienApplyStep den GANZEN Lauf statt nur die angezeigten Objekte
+// -- genau das hat "Alle angezeigten einfuegen" auf 3007 statt rund 100 Objekte gebracht.
+assert(str_contains($vorschau, 'avesmapsGaretienApplyIdsAusRumpf('),
+    'der Riegel liest die ids ueber die dafuer vorgesehene Funktion, nicht per Hand aus dem Rumpf');
+assert(str_contains($vorschau, "'missing_ids'"),
+    'eine fehlende/leere id-Liste wird ausdruecklich abgelehnt, nicht stillschweigend als "alles" gelesen');
+// Und der Riegel steht VOR dem match-Arm, der ihn braucht -- ein Riegel NACH dem Verteiler waere
+// zu spaet.
+$riegelPos = strpos($vorschau, 'avesmapsGaretienApplyIdsAusRumpf(');
+$verteilerPos = strpos($vorschau, "'garetien' => avesmapsGaretienApplyStep(");
+assert($riegelPos !== false && $verteilerPos !== false && $riegelPos < $verteilerPos,
+    'der id-Riegel steht VOR dem Verteiler-Zweig, der ihn benutzt');
+
 echo "OK: garetien-endpunkt-test\n";

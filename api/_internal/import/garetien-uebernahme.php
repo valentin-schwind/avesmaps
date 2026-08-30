@@ -464,6 +464,76 @@ function avesmapsGaretienErgaenzungAnwenden(PDO $pdo, array $nach, string $publi
 }
 
 /**
+ * Wie avesmapsSyncPlanPendingItems (api/_internal/wiki/sync-plan.php), aber SKOPIERT auf eine
+ * ausdrueckliche id-Menge -- nie auf den ganzen Lauf.
+ *
+ * 🔴 SCHADENSFALL 30.08.2026 (Owner: „hat unsere ganze karte zerstoert"). „Alle angezeigten
+ * einfuegen" haengte die ids der ANGEZEIGTEN Objekte per `select` an
+ * (garetienEinfuegenAusfuehren, review-garetien-importer.js), rief `apply` aber OHNE sie -- und
+ * die geteilte avesmapsSyncPlanPendingItems liest ALLE `selected = 1`-Zeilen des LAUFS, Altbestand
+ * aus frueheren Klicks und die Vorbelegung eingeschlossen (neue/geaenderte Vorschlaege starten
+ * beim Planbau vorangehaehkelt). Rund 100 angezeigte Objekte uebernahmen dadurch 3007. Diese
+ * Funktion ist seither die einzige Stelle, an der der Garetien-Zweig noch offene Zeilen liest, und
+ * sie kennt NUR die ids, die der Aufrufer ausdruecklich benennt (siehe avesmapsGaretienApplyStep).
+ */
+function avesmapsGaretienPendingItemsScoped(PDO $pdo, int $runId, array $itemIds, int $limit): array
+{
+    $itemIds = array_values(array_unique(array_map('intval', $itemIds)));
+    if ($itemIds === []) {
+        return [];
+    }
+    $platzhalter = implode(',', array_fill(0, count($itemIds), '?'));
+    $stmt = $pdo->prepare(
+        'SELECT id, entity_key, entity_public_id, change_type, label, before_json, after_json'
+        . ' FROM sync_plan_item'
+        . ' WHERE run_id = ? AND id IN (' . $platzhalter . ') AND selected = 1 AND apply_state IS NULL'
+        . ' ORDER BY id ASC LIMIT ' . max(1, $limit)
+    );
+    $stmt->execute(array_merge([$runId], $itemIds));
+
+    return $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+}
+
+/** Wie avesmapsSyncPlanPendingCount, aber SKOPIERT auf dieselbe id-Menge -- siehe oben. */
+function avesmapsGaretienPendingCountScoped(PDO $pdo, int $runId, array $itemIds): int
+{
+    $itemIds = array_values(array_unique(array_map('intval', $itemIds)));
+    if ($itemIds === []) {
+        return 0;
+    }
+    $platzhalter = implode(',', array_fill(0, count($itemIds), '?'));
+    $stmt = $pdo->prepare(
+        'SELECT COUNT(*) FROM sync_plan_item'
+        . ' WHERE run_id = ? AND id IN (' . $platzhalter . ') AND selected = 1 AND apply_state IS NULL'
+    );
+    $stmt->execute(array_merge([$runId], $itemIds));
+
+    return (int) $stmt->fetchColumn();
+}
+
+/**
+ * Die `ids` aus dem Anfragerumpf lesen und saeubern -- fuer den Garetien-Zweig von `apply` in
+ * api/edit/wiki/sync-plan.php PFLICHT (siehe avesmapsGaretienApplyStep und der Schadensfall oben).
+ * Eine fehlende, nicht-Array- oder leere Angabe kommt als leere Liste zurueck; der Aufrufer lehnt
+ * die Anfrage dann ab, statt still auf den ganzen Lauf zurueckzufallen -- GENAU DER Rueckfall war
+ * der Schaden.
+ *
+ * @return list<int>
+ */
+function avesmapsGaretienApplyIdsAusRumpf(array $payload): array
+{
+    $roh = $payload['ids'] ?? null;
+    if (!is_array($roh)) {
+        return [];
+    }
+
+    return array_values(array_unique(array_filter(
+        array_map('intval', $roh),
+        static fn(int $id): bool => $id > 0
+    )));
+}
+
+/**
  * EIN Haeppchen der Uebernahme, fuer die vorhandene Vorschau (api/edit/wiki/sync-plan.php).
  *
  * 🔴 DAS IST DIE EINE TUER. Der Endpunkt des Imports hat bewusst KEIN eigenes `apply` mehr: die
@@ -474,8 +544,14 @@ function avesmapsGaretienErgaenzungAnwenden(PDO $pdo, array $nach, string $publi
  * ⚠️ Die Form der Rueckgabe gehoert der Vorschau, nicht uns -- `done` beendet die Haeppchenkette,
  * `remaining` treibt den Fortschritt. Ein `done`, das nie true wird, dreht den Client im Kreis;
  * deshalb vermerkt die Uebernahme JEDE Zeile, auch die abgelehnte.
+ *
+ * @param ?list<int> $itemIds SCHADENSFALL 30.08.2026: `null` ist der ALTE, ungeskopierte Weg (der
+ *     ganze Lauf) -- er bleibt nur fuer die bestehenden Tests dieser Datei stehen, die die
+ *     Kernmechanik unabhaengig von der Anzeige pruefen. Der EINZIGE Produktionsaufrufer
+ *     (api/edit/wiki/sync-plan.php, kind='garetien') gibt seit diesem Fund IMMER eine
+ *     nicht-leere Liste mit -- ohne sie lehnt der Endpunkt die Anfrage ab, bevor sie hier ankommt.
  */
-function avesmapsGaretienApplyStep(PDO $pdo, int $runId, int $userId, ?array $user, ?int $budget = null): array
+function avesmapsGaretienApplyStep(PDO $pdo, int $runId, int $userId, ?array $user, ?int $budget = null, ?array $itemIds = null): array
 {
     $budget = $budget ?? AVESMAPS_SYNC_PLAN_APPLY_BUDGET;
     // ⚠️ DDL oben, einmal, VOR jeder Transaktion: MySQL committet eine offene Transaktion, sobald
@@ -483,10 +559,14 @@ function avesmapsGaretienApplyStep(PDO $pdo, int $runId, int $userId, ?array $us
     avesmapsEnsureSyncPlanTables($pdo);
     avesmapsEnsureFeatureSourceTables($pdo);
 
-    $offen = avesmapsSyncPlanPendingItems($pdo, $runId, $budget);
+    $offen = $itemIds === null
+        ? avesmapsSyncPlanPendingItems($pdo, $runId, $budget)
+        : avesmapsGaretienPendingItemsScoped($pdo, $runId, $itemIds, $budget);
     $ids = array_map(static fn(array $r): int => (int) $r['id'], $offen);
     $ergebnis = avesmapsGaretienUebernehmen($pdo, $runId, $ids, is_array($user) ? $user : ['id' => $userId]);
-    $rest = avesmapsSyncPlanPendingCount($pdo, $runId);
+    $rest = $itemIds === null
+        ? avesmapsSyncPlanPendingCount($pdo, $runId)
+        : avesmapsGaretienPendingCountScoped($pdo, $runId, $itemIds);
 
     return [
         // Fertig, wenn nichts mehr offen ist.

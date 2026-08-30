@@ -246,6 +246,35 @@ function listeAntwortLeer() {
 }
 
 async function pruefeFussknopfSchreibtWirklich() {
+	// D0: SCHADENSFALL 30.08.2026 (Owner: „Eine Warnung gabs nicht … hat unsere ganze karte
+	// zerstört") -- die Rückfrage nennt die ECHTE Zahl, und OHNE Bestätigung passiert NICHTS.
+	avesmapsGaretienAnzeigeLeeren();
+	avesmapsGaretienAnzeigeHinzufuegen([mitVorschlagOffen]);
+	garetienUebernahmeKnopfSetzen(avesmapsGaretienAnzeigeListe());
+
+	let letzterRueckfrageText = null;
+	const echtesFetchD0 = global.fetch;
+	global.window.confirm = function (text) { letzterRueckfrageText = text; return false; };
+	global.fetch = function () { throw new Error("D0 darf OHNE Bestätigung KEIN fetch auslösen"); };
+	KNOPF.klick();
+	await tick();
+	global.fetch = echtesFetchD0;
+
+	wahr(letzterRueckfrageText !== null, "🔴 die Rückfrage wird tatsächlich gestellt");
+	wahr(letzterRueckfrageText.indexOf("1 Objekt") !== -1,
+		"…und nennt die ECHTE Zahl -- hier genau das eine angezeigte Objekt, keine Schätzung");
+	gleich(KNOPF.disabled, false,
+		"ein „Nein“ lässt den Knopf bedienbar -- der Riegel steht VOR `garetienEinfuegenLaeuft`");
+
+	// Ab hier bestätigt `window.confirm` jeden weiteren Klick dieses Abschnitts -- die restlichen
+	// D-Tests prüfen den Schreibweg SELBST, nicht die Rückfrage ein zweites Mal.
+	global.window.confirm = function () { return true; };
+
+	// Und die Anzeige geht zurück auf den Stand, den D1 erwartet ("(0 von 0)"/gesperrt) -- D0 hat
+	// sie fürs Nennen der echten Zahl absichtlich gefüllt, D1 prüft den gesperrten Ausgangszustand.
+	avesmapsGaretienAnzeigeLeeren();
+	garetienUebernahmeKnopfSetzen(avesmapsGaretienAnzeigeListe());
+
 	// D1: GESPERRT (der Zustand, den Abschnitt C hinterlassen hat) -- kein einziger Netzruf.
 	const echtesFetchD1 = global.fetch;
 	global.fetch = function () { throw new Error("D1 darf KEIN fetch ausloesen -- der Knopf ist gesperrt"); };

@@ -1281,4 +1281,101 @@ $rBerg = avesmapsGaretienRuecknahmeAusfuehren($pdoNeu, $laufNeu, [$bergItemId], 
 assert($rBerg['zurueckgenommen'] === 1 && $rBerg['fehler'] === [], 'der neu angelegte Gipfel laesst sich zuruecknehmen: ' . json_encode($rBerg));
 $pruefungen++;
 
+// =================================================================================================
+// SCHADENSFALL 30.08.2026: `apply` SKOPIERT AUF EINE AUSDRUECKLICHE ID-LISTE, NICHT AUF DEN
+// GANZEN LAUF. Owner: „Eine Warnung gabs nicht … hat unsere ganze karte zerstoert." "Alle
+// angezeigten einfuegen" hat 3007 statt der angezeigten rund 100 Objekte uebernommen, weil das
+// ungeskopierte avesmapsGaretienApplyStep ALLE `selected = 1`-Zeilen des Laufs liest -- Altbestand
+// aus frueheren Klicks und die Vorbelegung eingeschlossen.
+//
+// 🔴 DIE ZUSICHERUNG, WOERTLICH AUS DEM AUFTRAG: ein Lauf mit FUENF vorgemerkten Objekten, davon
+// ZWEI angezeigt, uebernimmt GENAU ZWEI -- nicht fuenf. Ohne diese Zusicherung ist die Aufgabe
+// nicht erledigt.
+//
+// ⭐ EIN EIGENER, LEERER LAUF (avesmapsSyncPlanStartRun), nicht der von
+// avesmapsGaretienUebernahmeTestPdo() schon mitgebrachte -- der traegt bereits Gardel/Muehlsee/
+// Seitenarm mit unbekanntem Stand; die Zusicherung braucht FUENF Objekte mit BEKANNTEM Stand.
+$pdoSkop = avesmapsGaretienUebernahmeTestPdo();
+$laufSkop = avesmapsSyncPlanStartRun($pdoSkop, AVESMAPS_GARETIEN_PLAN_KIND, 1, 'test-id-skopierung');
+
+$skopIds = [];
+for ($i = 1; $i <= 5; $i++) {
+    avesmapsSyncPlanAddItem($pdoSkop, $laufSkop,
+        $bauePunktEintrag('location', 'dorf', 'Skop Ort ' . $i, 100.0 + $i, 100.0 + $i));
+    $skopIds[] = $itemIdVon($pdoSkop, 'Skop Ort ' . $i . ' (Probe)');
+}
+assert(count(array_filter($skopIds, static fn(int $id): bool => $id > 0)) === 5,
+    'alle fuenf Vorschlaege stehen im Lauf: ' . json_encode($skopIds));
+$pruefungen++;
+
+$offenVorSkop = (int) $pdoSkop->query(
+    "SELECT COUNT(*) FROM sync_plan_item WHERE run_id = {$laufSkop} AND selected = 1 AND apply_state IS NULL"
+)->fetchColumn();
+assert($offenVorSkop === 5, 'fuenf vorgemerkte Objekte stehen im Lauf: ' . $offenVorSkop);
+$pruefungen++;
+
+// „Angezeigt" sind nur die ERSTEN ZWEI -- genau die ids, die eine Anzeige-Menge im Fenster
+// weiterreichen wuerde (avesmapsGaretienApplyIdsAusRumpf liest sie unveraendert aus dem Rumpf).
+$angezeigteIdsSkop = [$skopIds[0], $skopIds[1]];
+$featuresVorSkop = (int) $pdoSkop->query('SELECT COUNT(*) FROM map_features')->fetchColumn();
+$schrittSkop = avesmapsGaretienApplyStep($pdoSkop, $laufSkop, 7, ['id' => 7], null, $angezeigteIdsSkop);
+
+assert($schrittSkop['applied'] === 2,
+    '🔴 genau ZWEI angezeigte Objekte werden uebernommen, nicht alle fuenf vorgemerkten: ' . json_encode($schrittSkop));
+assert($schrittSkop['processed'] === 2, 'verarbeitet wurden ebenfalls genau zwei: ' . json_encode($schrittSkop));
+assert($schrittSkop['remaining'] === 0, 'fuer die SKOPIERTE Menge ist nichts mehr offen: ' . json_encode($schrittSkop));
+assert($schrittSkop['done'] === true, 'und der Schritt gilt fuer diese Menge als fertig: ' . json_encode($schrittSkop));
+$pruefungen += 4;
+
+assert((int) $pdoSkop->query('SELECT COUNT(*) FROM map_features')->fetchColumn() === $featuresVorSkop + 2,
+    'genau ZWEI neue Kartenobjekte entstehen, nicht fuenf');
+$pruefungen++;
+
+// 🔴 DIE TRAGENDE GEGENPROBE: die drei NICHT angezeigten Vorschlaege bleiben UNVERAENDERT
+// vorgemerkt -- weder geschrieben noch abgehakt. Genau das ist der Schaden vom 30.08.2026: ein
+// Klick auf "Alle angezeigten einfuegen" (rund 100 Objekte) hat auch den unbeteiligten Altbestand
+// mit uebernommen, weil die Skopierung fehlte.
+$offenNachSkop = (int) $pdoSkop->query(
+    "SELECT COUNT(*) FROM sync_plan_item WHERE run_id = {$laufSkop} AND selected = 1 AND apply_state IS NULL"
+)->fetchColumn();
+assert($offenNachSkop === 3, '🔴 die drei NICHT angezeigten Vorschlaege bleiben unangetastet vorgemerkt: ' . $offenNachSkop);
+$pruefungen++;
+
+foreach ([$skopIds[2], $skopIds[3], $skopIds[4]] as $unberuehrteId) {
+    $zeile = $pdoSkop->query('SELECT apply_state, selected FROM sync_plan_item WHERE id = ' . $unberuehrteId)
+        ->fetch(PDO::FETCH_ASSOC);
+    assert($zeile['apply_state'] === null && (int) $zeile['selected'] === 1,
+        'Item ' . $unberuehrteId . ' bleibt unangetastet vorgemerkt: ' . json_encode($zeile));
+}
+$pruefungen += 3;
+
+for ($i = 3; $i <= 5; $i++) {
+    $vorhandenSkop = (int) $pdoSkop->query(
+        'SELECT COUNT(*) FROM map_features WHERE name = ' . $pdoSkop->quote('Skop Ort ' . $i)
+    )->fetchColumn();
+    assert($vorhandenSkop === 0, 'Skop Ort ' . $i . ' (nicht angezeigt) darf NICHT auf der Karte stehen: ' . $vorhandenSkop);
+}
+$pruefungen += 3;
+
+// --- Und die Gegenprobe zur Gegenprobe: der ALTE, ungeskopierte Weg (`itemIds === null`) bleibt
+// als Testpfad erreichbar (siehe die Doku an avesmapsGaretienApplyStep) und holt jetzt WIRKLICH
+// den Rest -- der Altbestand ist also nicht verloren, nur bei der skopierten Uebernahme
+// unberuehrt geblieben.
+$schrittRestSkop = avesmapsGaretienApplyStep($pdoSkop, $laufSkop, 7, ['id' => 7]);
+assert($schrittRestSkop['applied'] === 3, 'der unskopierte Weg erreicht danach die restlichen drei: '
+    . json_encode($schrittRestSkop));
+$pruefungen++;
+
+// =================================================================================================
+// avesmapsGaretienApplyIdsAusRumpf -- die REINE Pruefung des Endpunkt-Riegels (api/edit/wiki/
+// sync-plan.php liest sie fuer kind='garetien' aus dem Anfragerumpf; ein leeres Ergebnis lehnt
+// die Anfrage dort mit 400 ab, statt still auf den ganzen Lauf zurueckzufallen).
+assert(avesmapsGaretienApplyIdsAusRumpf(['ids' => [3, 5, 7]]) === [3, 5, 7], 'die gewoehnliche Liste bleibt unveraendert');
+assert(avesmapsGaretienApplyIdsAusRumpf(['ids' => ['3', '5', 5, -1, 0, 'x']]) === [3, 5],
+    'Zeichenketten werden zu Zahlen, Dubletten/Nullen/Negative/Nicht-Zahlen fallen heraus');
+assert(avesmapsGaretienApplyIdsAusRumpf([]) === [], 'ohne "ids" im Rumpf: leer (fehlende Angabe ist kein "alles")');
+assert(avesmapsGaretienApplyIdsAusRumpf(['ids' => 'kein-array']) === [], 'ein Nicht-Array wird verworfen, nicht geraten');
+assert(avesmapsGaretienApplyIdsAusRumpf(['ids' => []]) === [], 'eine leere Liste bleibt leer');
+$pruefungen += 5;
+
 echo "OK: {$pruefungen} Pruefungen\n";

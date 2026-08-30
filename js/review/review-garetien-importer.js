@@ -2830,7 +2830,9 @@
 		knopf.disabled = true;
 		knopf.textContent = "Fügt ein …";
 
-		return garetienEinfuegenAusfuehren(rumpf.ids, runId, avesmapsGaretienRufe)
+		// `rumpf.ids` ist bereits der VOLLE Umfang (garetienHandlungsRumpf/garetienHandlungBauen
+		// filtern nie nach Tick-Zustand) -- Anhaken und Übernehmen decken hier dieselbe Menge ab.
+		return garetienEinfuegenAusfuehren(rumpf.ids, rumpf.ids, runId, avesmapsGaretienRufe)
 			.then(function () {
 				return avesmapsGaretienAnzeigeNachEinfuegenBereinigen(avesmapsGaretienRufe, runId);
 			})
@@ -3248,6 +3250,28 @@
 		return ids;
 	}
 
+	// REIN: ALLE Item-ids der angezeigten Objekte, die ueberhaupt einen Vorschlag tragen -- der
+	// SCHREIBUMFANG von `apply` (Schadensfall 30.08.2026, Owner: „hat unsere ganze karte
+	// zerstoert"). 🔴 ANDERS als `garetienAnzeigeAnhakenIds` darueber: jene geht ueber die
+	// TOGGLE-Regel von `garetienHakenPlan` und laesst ein Objekt aus, dessen Items schon
+	// VOLLSTAENDIG angehakt sind (ein Toggle wuerde es sonst ABHAKEN) -- richtig fuer „was muss
+	// NEU angehakt werden", falsch fuer „was schreibt `apply` gerade". Ein Objekt, dessen Item
+	// schon von einer FRUEHEREN Handlung (z.B. „Namen ersetzen") angehakt, aber noch nicht
+	// uebernommen ist, braucht KEIN neues Anhaken -- `apply` MUSS es trotzdem erreichen, sonst
+	// bliebe die Vormerkung fuer immer nur vorgemerkt. Diese Funktion filtert deshalb nicht nach
+	// Tick-Zustand, nur nach `garetienHakenItems` (derselbe Ausschluss von Geometrie- und
+	// Zusatz-Item wie beim Zeilenhaekchen).
+	function garetienAnzeigeUebernahmeIds(angezeigte) {
+		const ids = [];
+		(angezeigte || []).forEach(function (objekt) {
+			garetienHakenItems(objekt).forEach(function (item) {
+				const id = Number(item && item.id);
+				if (id > 0) { ids.push(id); }
+			});
+		});
+		return ids;
+	}
+
 	// REIN: eine id-Liste in Haeppchen zu hoechstens GARETIEN_ANHAKEN_HAEPPCHEN.
 	// 🪤 Gezaehlt werden hier die IDS, nicht die Objekte -- ein Objekt kann zwei Items tragen (eine
 	// „Ergaenzung" mit Namens- UND Quellen-Item), und die Grenze von 200 gilt dem Endpunkt-Rumpf.
@@ -3295,52 +3319,69 @@
 	// Übernehmen. `rufe(pfad, rumpf)` ist derselbe Vertrag wie `avesmapsGaretienRufe`: es löst mit
 	// der geparsten Antwort auf, oder es wirft. Es gibt hier keinen eigenen try/catch, der einen
 	// Fehlschlag in ein „false" übersetzen könnte -- die Kette bricht von selbst ab.
-	function garetienEinfuegenAusfuehren(ids, runId, rufe, fortschritt) {
-		const sauber = (ids || []).map(Number).filter(function (id) { return id > 0; });
-		const gesamt = sauber.length;
+	//
+	// 🔴 SCHADENSFALL 30.08.2026 (Owner: „hat unsere ganze karte zerstoert"): ZWEI id-LISTEN, NICHT
+	// EINE. `idsZumAnhaken` sind die ids, die noch NEU angehakt werden müssen (leer, wenn ein
+	// Objekt schon vollständig angehakt ist -- siehe garetienAnzeigeAnhakenIds);
+	// `idsZumUebernehmen` ist der VOLLE Schreibumfang dieser Handlung (garetienAnzeigeUebernahmeIds)
+	// und beschränkt JEDEN `apply`-Ruf. Ohne diese Skopierung liest `apply` sonst den GANZEN Lauf
+	// (`selected = 1` quer durch frühere Klicks und die Vorbelegung) -- genau das hat „Alle
+	// angezeigten einfügen" auf 3007 statt der angezeigten rund 100 Objekte gebracht. Bei „Neu
+	// einfügen" sind beide Listen IDENTISCH (garetienHandlungsRumpf liefert schon den vollen
+	// Umfang, ohne Toggle-Filterung).
+	function garetienEinfuegenAusfuehren(idsZumAnhaken, idsZumUebernehmen, runId, rufe, fortschritt) {
+		const sauber = (idsZumAnhaken || []).map(Number).filter(function (id) { return id > 0; });
+		const uebernahmeIds = (idsZumUebernehmen || []).map(Number).filter(function (id) { return id > 0; });
+		const gesamt = uebernahmeIds.length;
 		function melden(fertig) {
 			if (typeof fortschritt === "function") { fortschritt(fertig, gesamt); }
 		}
 		melden(0);
 
-		// ⚠️ KEIN Rückfall auf "gesamt === 0 -> nichts tun": ein bereits VOLLSTÄNDIG angehaktes
-		// Objekt braucht keine neue Markierung (`sauber` ist dann leer), steht aber trotzdem als
-		// echter Vorschlag in der Datenbank und MUSS `apply` erreichen -- sonst bliebe eine frühere
-		// Vormerkung (z.B. ein "Namen ersetzen"-Klick) für immer nur vorgemerkt. Der Aufrufer
-		// entscheidet, OB diese Funktion überhaupt gerufen wird (garetienFussknopfKlick unten prüft
-		// `hatVorschlag`, garetienNeuKlick prüft ein gültiges `rumpf`); hier wird nur das Anhaken
-		// übersprungen, wenn nichts NEU anzuhaken ist -- `apply` läuft immer.
-		const haeppchen = garetienIdsInHaeppchen(sauber);
-		return garetienKetteAbarbeiten(haeppchen, function (teil) {
+		// ⚠️ KEIN Rückfall auf "gesamt === 0 -> nichts tun" beim ANHAKEN: ein bereits VOLLSTÄNDIG
+		// angehaktes Objekt braucht keine neue Markierung (`sauber` ist dann leer), steht aber
+		// trotzdem als echter Vorschlag in der Datenbank und MUSS `apply` erreichen -- sonst bliebe
+		// eine frühere Vormerkung (z.B. ein "Namen ersetzen"-Klick) für immer nur vorgemerkt.
+		// `uebernahmeIds` bleibt in genau diesem Fall NICHT leer (siehe garetienAnzeigeUebernahmeIds)
+		// und trägt die Handlung trotzdem zu Ende.
+		const haeppchenAnhaken = garetienIdsInHaeppchen(sauber);
+		const haeppchenUebernehmen = garetienIdsInHaeppchen(uebernahmeIds);
+		const summe = { applied: 0, deleted: 0, stale: 0, skipped: 0, declined: 0 };
+		let verarbeitet = 0;
+		let iterationen = 0;
+		// 💣 DER DECKEL gegen eine Endlosschleife bei einem Server, der nie `done` meldet --
+		// dieselbe Größenordnung wie im vorhandenen Blatt (sync-plan-sheet.js, guard > 4000).
+		const DECKEL = 4000;
+
+		return garetienKetteAbarbeiten(haeppchenAnhaken, function (teil) {
 			return rufe(GARETIEN_PLAN_ENDPUNKT, {
 				action: "select", kind: GARETIEN_PLAN_ART, run_id: runId, ids: teil, selected: true,
 			});
 		}).then(function () {
-			const summe = { applied: 0, deleted: 0, stale: 0, skipped: 0, declined: 0 };
-			let verarbeitet = 0;
-			let iterationen = 0;
-			// 💣 DER DECKEL gegen eine Endlosschleife bei einem Server, der nie `done` meldet --
-			// dieselbe Größenordnung wie im vorhandenen Blatt (sync-plan-sheet.js, guard > 4000).
-			const DECKEL = 4000;
-			function schritt() {
-				iterationen++;
-				if (iterationen > DECKEL) {
-					throw new Error("Die Übernahme wurde nach zu vielen Teilschritten angehalten.");
-				}
-				return rufe(GARETIEN_PLAN_ENDPUNKT,
-					{ action: "apply", kind: GARETIEN_PLAN_ART, run_id: runId }
-				).then(function (antwort) {
-					["applied", "deleted", "stale", "skipped", "declined"].forEach(function (feld) {
-						summe[feld] += Number((antwort && antwort[feld]) || 0);
+			return garetienKetteAbarbeiten(haeppchenUebernehmen, function (teil) {
+				function schritt() {
+					iterationen++;
+					if (iterationen > DECKEL) {
+						throw new Error("Die Übernahme wurde nach zu vielen Teilschritten angehalten.");
+					}
+					return rufe(GARETIEN_PLAN_ENDPUNKT, {
+						// 🔴 SCHADENSFALL 30.08.2026: `ids` beschränkt `apply` auf GENAU dieses
+						// Häppchen -- ohne dieses Feld übernähme der Server ALLES `selected=1` im
+						// Lauf, Altbestand eingeschlossen (siehe avesmapsGaretienApplyStep).
+						action: "apply", kind: GARETIEN_PLAN_ART, run_id: runId, ids: teil,
+					}).then(function (antwort) {
+						["applied", "deleted", "stale", "skipped", "declined"].forEach(function (feld) {
+							summe[feld] += Number((antwort && antwort[feld]) || 0);
+						});
+						verarbeitet = Math.min(gesamt, verarbeitet + Number((antwort && antwort.processed) || 0));
+						melden(verarbeitet);
+						if (antwort && antwort.done === true) { return; }
+						return schritt();
 					});
-					verarbeitet = Math.min(gesamt, verarbeitet + Number((antwort && antwort.processed) || 0));
-					melden(verarbeitet);
-					if (antwort && antwort.done === true) { return summe; }
-					return schritt();
-				});
-			}
-			return schritt();
-		});
+				}
+				return schritt();
+			});
+		}).then(function () { return summe; });
 	}
 
 	// Der Fußknopf: dieselbe Funktion, mit der Anzeige-Menge als Item-Quelle (Aufgabe 5 lieferte
@@ -3358,17 +3399,45 @@
 		if (!hatVorschlag) {
 			return Promise.resolve({ applied: 0, deleted: 0, stale: 0, skipped: 0, declined: 0 });
 		}
-		return garetienEinfuegenAusfuehren(garetienAnzeigeAnhakenIds(liste), runId, rufe, fortschritt);
+		// 🔴 SCHADENSFALL 30.08.2026: ZWEI verschiedene Mengen -- `garetienAnzeigeAnhakenIds` sagt,
+		// was NEU angehakt werden muss, `garetienAnzeigeUebernahmeIds` sagt, was `apply` schreiben
+		// darf (der volle Umfang der ANGEZEIGTEN Objekte, nie mehr).
+		return garetienEinfuegenAusfuehren(
+			garetienAnzeigeAnhakenIds(liste), garetienAnzeigeUebernahmeIds(liste), runId, rufe, fortschritt
+		);
 	}
 
-	// Die DOM-Hälfte des Fußknopfs: sperrt sich, trägt seinen Stand IN der Beschriftung, und
-	// bereinigt danach die Anzeige (Aufgabe 8) -- außerhalb der reinen Kette oben, weil sie echtes
-	// DOM und den Modulzustand (`zustand`, `garetienEinfuegenLaeuft`) anfasst, derselbe Schnitt wie
-	// bei garetienLaufStarten/garetienLaufKachelAktualisieren.
-	function garetienFussknopfEinfuegenKlick(runId) {
+	// REIN: der Rückfragetext vor „Alle angezeigten einfügen" -- er NENNT die echte Zahl (Owner,
+	// Schadensfall 30.08.2026: „Eine Warnung gabs nicht"). Dieselbe Zählung wie die Beschriftung
+	// des Knopfs (garetienUebernahmeKnopfZustand) -- seit der Skopierung von `apply`
+	// (garetienEinfuegenAusfuehren schickt seine ids jetzt mit) ist „n" hier auch wirklich die
+	// geschriebene Menge, keine Schätzung mehr.
+	function garetienEinfuegenRueckfrageText(anzahl) {
+		return "Wirklich " + anzahl + (anzahl === 1 ? " Objekt" : " Objekte")
+			+ " aus der Anzeige in die Karte einfügen?\n\n"
+			+ "Neu angelegte Objekte lassen sich über „Zurücknehmen“ wieder entfernen. Für "
+			+ "Änderungen an bestehenden Objekten (Name, Quelle, Geometrie) gibt es keinen Rückweg.";
+	}
+
+	// Die DOM-Hälfte des Fußknopfs: fragt nach, sperrt sich, trägt seinen Stand IN der
+	// Beschriftung, und bereinigt danach die Anzeige (Aufgabe 8) -- außerhalb der reinen Kette
+	// oben, weil sie echtes DOM und den Modulzustand (`zustand`, `garetienEinfuegenLaeuft`)
+	// anfasst, derselbe Schnitt wie bei garetienLaufStarten/garetienLaufKachelAktualisieren.
+	//
+	// 🔴 SCHADENSFALL 30.08.2026: DIE RÜCKFRAGE, die es nicht gab. `fragen` ist derselbe Vertrag
+	// wie bei garetienRuecknahmeMengeKlick daneben -- fehlt es (kein zweites Argument), wird NICHT
+	// gefragt; die Verdrahtung unten reicht deshalb ausdrücklich `garetienFragen` herein. Sie steht
+	// VOR dem Riegel `garetienEinfuegenLaeuft`, damit ein "Nein" den laufenden Zustand nie berührt.
+	function garetienFussknopfEinfuegenKlick(runId, fragen) {
 		if (garetienEinfuegenLaeuft) { return Promise.resolve(null); }
-		garetienEinfuegenLaeuft = true;
 		const angezeigte = avesmapsGaretienAnzeigeListe();
+		const stand = garetienUebernahmeKnopfZustand(angezeigte);
+		if (stand.gesperrt) { return Promise.resolve(null); }
+		if (typeof fragen === "function" && !fragen(garetienEinfuegenRueckfrageText(stand.anzahl))) {
+			return Promise.resolve(null);
+		}
+
+		garetienEinfuegenLaeuft = true;
 		const knopf = hasDocument ? document.getElementById("garetien-apply") : null;
 		if (knopf) { knopf.disabled = true; }
 		function fortschritt(fertig, gesamt) {
@@ -3570,9 +3639,11 @@
 			// Aufgabe 8: der Fußknopf öffnet die Übernahme-Vorschau NICHT mehr -- er schreibt selbst,
 			// über garetienFussknopfEinfuegenKlick (dieselbe Einfüge-Funktion wie „Neu einfügen“).
 			// garetienUebernahmeOeffnen/#garetien-sheet bleiben unangetastet im Code stehen (Brief).
+			// 🔴 SCHADENSFALL 30.08.2026: `garetienFragen` reist seither MIT -- derselbe Zug wie bei
+			// „Markierte zurücknehmen" daneben.
 			uebernehmenBtn.addEventListener("click", function () {
 				if (uebernehmenBtn.disabled) { return; }
-				garetienFussknopfEinfuegenKlick(zustand.planRunId);
+				garetienFussknopfEinfuegenKlick(zustand.planRunId, garetienFragen);
 			});
 		}
 	}
@@ -3744,6 +3815,10 @@
 			garetienEinfuegenAusfuehren,
 			garetienNeuKlick,
 			garetienFussknopfEinfuegenKlick,
+			// Schadensfall 30.08.2026: der volle Schreibumfang fuer `apply`, ANDERS als
+			// garetienAnzeigeAnhakenIds (siehe deren Kommentare)
+			garetienAnzeigeUebernahmeIds,
+			garetienEinfuegenRueckfrageText,
 			// Meldung B (30.08.2026): „trotzdem neu anlegen“ trotz erkannter Kollision
 			garetienItemIstZusatz,
 			garetienNeuIstZusatz,

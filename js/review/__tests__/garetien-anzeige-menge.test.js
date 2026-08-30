@@ -405,6 +405,9 @@ async function pruefeFussknopfHaeppchen() {
 		gleich(gestellt[1].rumpf.action, "apply",
 			"🔴 DIE DIFFERENZ: danach wird WIRKLICH uebernommen, nicht nur vorgemerkt");
 		gleich(gestellt[1].rumpf.run_id, 4711, "mit der hereingereichten Lauf-Nummer");
+		gleich(gestellt[1].rumpf.ids.length, 50,
+			"🔴 SCHADENSFALL 30.08.2026: `apply` traegt die id-Liste der ANGEZEIGTEN Objekte -- ohne "
+			+ "sie uebernaehme der Server den ganzen Lauf statt nur diese 50");
 		gleich(summe.applied, 50, "und die Summe zaehlt die Uebernahme, nicht das Anhaken");
 	}
 
@@ -414,6 +417,11 @@ async function pruefeFussknopfHaeppchen() {
 		for (let i = 1; i <= 210; i++) { angezeigte.push(idsObjekt("h:" + i, [i], false)); }
 
 		const sequenz = [];
+		// 🔴 SCHADENSFALL 30.08.2026: `apply` ist seither ebenfalls je Häppchen skopiert
+		// (avesmapsGaretienApplyStep braucht eine ausdrückliche id-Liste) -- die Antwort spiegelt
+		// deshalb die GRÖSSE DES ANGEFRAGTEN HÄPPCHENS, nicht mehr einen festen Wert für den ganzen
+		// Lauf. `applySequenz` misst das ausdrücklich mit.
+		const applySequenz = [];
 		const rufe = function (pfad, rumpf) {
 			if (rumpf.action === "select") {
 				sequenz.push("start:" + rumpf.ids.length);
@@ -424,9 +432,10 @@ async function pruefeFussknopfHaeppchen() {
 					}, 0);
 				});
 			}
+			applySequenz.push(rumpf.ids.length);
 			return Promise.resolve({
-				ok: true, done: true, applied: 210, deleted: 0, stale: 0, processed: 210,
-				remaining: 0, skipped: 0, declined: 0,
+				ok: true, done: true, applied: rumpf.ids.length, deleted: 0, stale: 0,
+				processed: rumpf.ids.length, remaining: 0, skipped: 0, declined: 0,
 			});
 		};
 		const summe = await modul.garetienFussknopfKlick(angezeigte, 1, rufe);
@@ -435,6 +444,10 @@ async function pruefeFussknopfHaeppchen() {
 			"💣 210 ids -> 200 + 10, und das ZWEITE Haeppchen startet erst, NACHDEM das erste "
 			+ "fertig ist (nicht `start:200,start:10,…`) -- STRATO wird nie mit zwei parallelen "
 			+ "Anfragen auf denselben Lauf getroffen");
+		tief(applySequenz, [200, 10],
+			"🔴 und `apply` selbst geht in denselben zwei Häppchen hinaus, JEDES MIT SEINER EIGENEN "
+			+ "id-Liste -- ohne sie übernähme der Server den ganzen Lauf statt nur die angezeigten "
+			+ "210 Objekte (Schadensfall 30.08.2026)");
 		gleich(summe.applied, 210, "und danach steht die Uebernahme wirklich da");
 	}
 
