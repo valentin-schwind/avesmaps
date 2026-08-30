@@ -856,6 +856,63 @@
 
 .gi-insert__unit { color: var(--color-text-muted); }
 
+/* ---- Owner-Bestellung 30.08.2026 (wörtlich): „du kannst die slider bzw. abstände zwischen den
+ * einstellungen kleiner/kompakter im importer machen" -- eine Zeile maß hier 47px, im echten
+ * Dialog (index.html #label-edit-form, innerhalb #location-report-dialog) nur 41px, gemessen an
+ * einer Abnahmeseite mit dem echten Markup beider Seiten.
+ *
+ * 🪤 DIE HAELFTE DAVON WAR EIN FEHLER, KEIN GESCHMACK: `.gi-insert__input` (weiter oben) setzt
+ * bereits `padding: 0 var(--space-4)` -- flach, nach dem Vorbild von `.gi-search` (0 var(--space-6),
+ * derselbe `--avm-control-h`). Diese Regel traegt nur EINE Klasse (Spezifitaet 0,1,0) und verliert
+ * deshalb IMMER gegen die geteilte `.location-report-form__field input` (location-report-dialog.css,
+ * 0,1,1 -- Klasse + Elementtyp): das Zahlenfeld trug live 9px/10px Polsterung statt der gewollten
+ * 0/6px. Im echten Dialog faellt das nicht auf, weil DORT eine NOCH spezifischere, ID-gebundene
+ * Regel gewinnt (`#location-report-dialog .location-report-form__field input`, 1,1,1 -- 6px/8px) --
+ * dieser Kasten haengt aber nie in `#location-report-dialog`, er sitzt im Menuefenster (`.gi-win`).
+ * Der Regler (`<input type="range">`) traegt dieselbe fremde Polsterung mit, obwohl er dafuer gar
+ * keine eigene Klasse hat.
+ *
+ * ⭐ AGENTS.md §9: „gleich spezifisch, die SPAETERE gewinnt" ist hier keine verlaessliche Antwort
+ * (Ladereihenfolge zu pruefen waere zerbrechlich) -- der Ausweg ist MEHR Klassen im Selektor, nicht
+ * eine spaetere Regel. Beide Regeln unten tragen zwei Klassen plus einen Attributselektor (0,3,1)
+ * und gewinnen damit unabhaengig von der Ladereihenfolge -- gegen (0,1,1) UND gegen jede (1,1,1)-
+ * Auspraegung, die dieser Kasten nie erreicht (er hat keine ID).
+ *
+ * 🔴 DIE GETEILTEN REGELN SELBST BLEIBEN UNVERAENDERT -- `.label-edit-sliderrow`,
+ * `.label-edit-markewrap`, `.label-edit-marke`, `.location-report-form__field--zeile` stehen
+ * weiterhin Zeichen fuer Zeichen wie vorher in region-sync.css/location-report-dialog.css. Jede
+ * Verengung hier haengt an der Ahnenklasse `.gi-insert`, die es nur in diesem Kasten gibt -- der
+ * echte Beschriftungsdialog (#label-edit-form) traegt sie nie und bleibt unberuehrt (Gegenprobe:
+ * Hoehe des echten Dialogs vor/nach dieser Aenderung identisch, siehe Abnahme-Bericht).
+ *
+ * ⚠️ Die Vorgabe-Marke (▲) bewegt sich nach einer reinen `left`-Formel (garetienSliderMarkePosition,
+ * review-garetien-importer.js), die von 100% Wrapperbreite und einer 16px-Reglerknopfbreite ausgeht
+ * (dieselbe Zahl wie in review-labels.js/.label-edit-marke). Der Regler bekommt deshalb GAR KEINE
+ * horizontale Polsterung (statt der geerbten 9px/10px) -- jede von Null verschiedene Polsterung
+ * verschoebe die tatsaechliche Reglerspur gegen die Formel, die genau davon ausgeht, dass die Spur
+ * die volle Wrapperbreite einnimmt. Das Zahlenfeld daneben braucht keine Formel und behaelt seine
+ * schmale Seitenluft. */
+.gi-insert .label-edit-sliderrow input[type="number"] {
+	padding: 0 var(--space-4);
+}
+
+.gi-insert .label-edit-markewrap input[type="range"] {
+	padding: 0;
+}
+
+/* Zahlenfeld und Reglerspur ruecken enger zusammen -- die geteilte Regel (region-sync.css) hat
+ * hier hartkodierte 8px; die engere Fassung bleibt ein Token statt einer erfundenen Zahl. */
+.gi-insert .label-edit-sliderrow {
+	gap: var(--space-4);
+}
+
+/* Die Luecke fuer die Vorgabe-Marke unter dem Regler darf schmaler sein als im grossen Dialog --
+ * ihre Spitze ist 6px hoch (border-bottom in .label-edit-marke), var(--space-4) = 6px reicht also
+ * exakt, nur enger als die bisherigen (geteilten) 8px. */
+.gi-insert .label-edit-markewrap {
+	padding-bottom: var(--space-4);
+}
+
 /* ---- Aufgabe 15: die Handlungsleiste ------------------------------------------------------ *
  *
  * 🔴 SIE IST ANGEHEFTET, NICHT IM FLUSS. Die Entscheidung darf nie hinter einer Bildlaufleiste
