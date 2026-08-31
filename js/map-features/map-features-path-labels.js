@@ -31,7 +31,7 @@ function isPathLabelVisibleAtCurrentZoom(path) {
 	}
 	// Fluss-Labels werden wie Straßen-Labels erst ab PATH_LABEL_MIN_ZOOM gezeigt -> bei Zoom 3
 	// ausgeblendet (vorher erschienen Flussnamen schon ab Zoom 3).
-	return shouldPathNameBeDisplayed(path) && map.getZoom() >= PATH_LABEL_MIN_ZOOM;
+	return shouldPathNameBeDisplayed(path) && map.getZoom() >= pathLabelMinZoom(path);
 }
 
 // Normalisiere eine Zoomstufe auf den visuellen Index 0–5 für die Pfad-Label-Tafeln.
@@ -67,6 +67,27 @@ function getPathLabelBaseSize(zoomLevel = (typeof map !== "undefined" ? map.getZ
 // 16.08.2026): wer Dörfer verstellt, verstellt Dörfer. Soll sie je wieder folgen, ist DAS hier die
 // eine Stelle.
 const PATH_LABEL_MIN_ZOOM = 4;
+
+// 🔴 DER BACH ZEIGT SEINEN NAMEN EINE STUFE SPÄTER (Owner 31.08.2026). Eine eigene Zahl, keine
+// Ableitung: die 4 ist die Dichteregel für Wege- und Flussnamen, die 5 die Ansage, dass ein Bach
+// erst im nahen Bild etwas beizutragen hat.
+// ⚠️ Damit trägt die Grundtafel oben bei z4 einen Wert, der nie gezeichnet wird -- genau wie die 8,5
+// bei z3 für den Fluss. Vom Owner ausdrücklich bestätigt, kein Versehen.
+const PATH_LABEL_MIN_ZOOM_BACH = 5;
+
+// 🔴 Der Bach schreibt 2 px kleiner als der Fluss (Owner 31.08.2026). Als ABLEITUNG vom Fluss
+// notiert, nicht als abgeschriebene 1: dass die Zahl heute mit dem Straßenwert zusammenfällt, ist
+// Zufall. Dreht jemand am Fluss, geht der Bach mit.
+const BACH_LABEL_SIZE_DELTA = -2;
+
+// 💣 ZWEI LABEL-KANÄLE fragen nach der Erscheinungsstufe: isPathLabelVisibleAtCurrentZoom (Kanal B,
+// hier) und isWayLabelEligible (Kanal A, map-features-way-labels.js). Stünde die Bach-Regel nur in
+// einem, zeigte der wiki-zugewiesene Bach seinen Namen bei z4 und der ohne bei z5.
+function pathLabelMinZoom(path) {
+	return (typeof pathIstBach === "function" && pathIstBach(path))
+		? PATH_LABEL_MIN_ZOOM_BACH
+		: PATH_LABEL_MIN_ZOOM;
+}
 
 // Live tunbar via ?pathtune=1 (siehe Panel am Dateiende).
 // Schriftgrößen-Delta PRO (visueller) Zoomstufe -- px auf die berechnete (zoomabhängige) Basisgröße.
@@ -159,7 +180,8 @@ function getPathLabelStyle(path) {
 	};
 
 	const isRiver = pathSubtype === "Flussweg" || pathSubtype === "Seeweg";
-	const fontSize = Math.max(4, getPathLabelBaseSize() + (pathSubtype === "Flussweg" ? 3 : 1) + getPathLabelFontDelta());
+	const flussAufschlag = 3 + ((typeof pathIstBach === "function" && pathIstBach(path)) ? BACH_LABEL_SIZE_DELTA : 0);
+	const fontSize = Math.max(4, getPathLabelBaseSize() + (pathSubtype === "Flussweg" ? flussAufschlag : 1) + getPathLabelFontDelta());
 	const halo = getPathLabelHaloParams(
 		isRiver ? PATH_LABEL_RIVER_HALO_STRENGTH : PATH_LABEL_ROAD_HALO_STRENGTH,
 		isRiver ? PATH_LABEL_RIVER_HALO_SHARPNESS : PATH_LABEL_ROAD_HALO_SHARPNESS,
@@ -402,8 +424,10 @@ function syncPathLabels() {
 	try { on = new URLSearchParams(window.location.search).has("roadtune"); } catch (e) { on = false; }
 	if (!on || !document.body || typeof PATH_WIDTH_SCALE === "undefined") return;
 	const ZOOMS = [0, 1, 2, 3, 4, 5, 6];
-	const LABELS = { Reichsstrasse: "Reichsstr.", Strasse: "Straße", Weg: "Weg", Pfad: "Pfad", Gebirgspass: "Geb.pass", Wuestenpfad: "Wüstenpf.", Flussweg: "Fluss", Seeweg: "See/Meer" };
-	const subtypes = (typeof PATH_SUBTYPE_KEYS !== "undefined") ? PATH_SUBTYPE_KEYS : Object.keys(LABELS);
+	const LABELS = { Reichsstrasse: "Reichsstr.", Strasse: "Straße", Weg: "Weg", Pfad: "Pfad", Gebirgspass: "Geb.pass", Wuestenpfad: "Wüstenpf.", Flussweg: "Fluss", Seeweg: "See/Meer", Bach: "Bach" };
+	// ⚠️ „Bach" wird ANGEHÄNGT statt in PATH_SUBTYPE_KEYS aufgenommen: jene Liste ist der Speicher-
+	// vertrag (avesmapsReadPathSubtype lehnt „Bach" ab), diese Zeile ist ein Regler fürs Aussehen.
+	const subtypes = ((typeof PATH_SUBTYPE_KEYS !== "undefined") ? PATH_SUBTYPE_KEYS : Object.keys(LABELS)).concat(["Bach"]);
 	const cur = (st, z) => { const b = PATH_WIDTH_SCALE[st]; const v = b ? b[z] : undefined; return (typeof v === "number" && v >= 0) ? v : 1; };
 	const setScale = (st, z, v) => { if (!PATH_WIDTH_SCALE[st]) PATH_WIDTH_SCALE[st] = {}; PATH_WIDTH_SCALE[st][z] = v; };
 	const restyle = () => { try { if (typeof syncPathRendering === "function") syncPathRendering(); } catch (e) { /* noop */ } };

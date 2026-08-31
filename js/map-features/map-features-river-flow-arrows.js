@@ -73,7 +73,11 @@
 			return smoothed;
 		}
 
-		function drawArrow(x, y, angle, viewWidth, viewHeight) {
+		// ⭐ `massstab` ist KEINE zweite Zahl, sondern der Breiten-Faktor der Linie selbst
+		// (pathBreitenFaktor): auf einem Bach 0,5, sonst 1. Ein volles Dreieck auf einer 1,5-px-Linie
+		// wäre breiter als der Bach. Unter Zoom 3 stellt sich die Frage nicht -- dort liegt die Linie
+		// gar nicht auf der Karte, und der Test oben lässt die Pfeile mit ihr verschwinden.
+		function drawArrow(x, y, angle, viewWidth, viewHeight, massstab) {
 			if (x < -20 || y < -20 || x > viewWidth + 20 || y > viewHeight + 20) {
 				return;
 			}
@@ -81,15 +85,15 @@
 			ctx.translate(x, y);
 			ctx.rotate(angle);
 			ctx.beginPath();
-			ctx.moveTo(8, 0);
-			ctx.lineTo(-5, -5.5);
-			ctx.lineTo(-5, 5.5);
+			ctx.moveTo(8 * massstab, 0);
+			ctx.lineTo(-5 * massstab, -5.5 * massstab);
+			ctx.lineTo(-5 * massstab, 5.5 * massstab);
 			ctx.closePath();
 			// River blue (getPathStyleColors centerColors.Flussweg) with a white contour, so the
 			// arrows read as part of the river instead of floating on top of it.
 			ctx.fillStyle = "#6ec6ff";
 			ctx.strokeStyle = "rgba(255, 255, 255, 0.95)";
-			ctx.lineWidth = 1.5;
+			ctx.lineWidth = 1.5 * massstab;
 			ctx.fill();
 			ctx.stroke();
 			ctx.restore();
@@ -134,6 +138,7 @@
 				if (!Array.isArray(rawCoordinates) || rawCoordinates.length < 2) {
 					return;
 				}
+				const massstab = (typeof pathBreitenFaktor === "function") ? pathBreitenFaktor(path, map.getZoom()) : 1;
 				const displayCoordinates = displayCoordinatesFor(path, rawCoordinates);
 				// Walk in FLOW direction: reverse-drawn rivers are walked back-to-front.
 				const coordinates = dir === "forward" ? displayCoordinates : [...displayCoordinates].reverse();
@@ -149,7 +154,7 @@
 						let offset = ARROW_SPACING_PX - carried;
 						while (offset <= length) {
 							const t = offset / length;
-							drawArrow(previousPoint.x + dx * t, previousPoint.y + dy * t, angle, size.x, size.y);
+							drawArrow(previousPoint.x + dx * t, previousPoint.y + dy * t, angle, size.x, size.y, massstab);
 							offset += ARROW_SPACING_PX;
 						}
 						carried = (carried + length) % ARROW_SPACING_PX;

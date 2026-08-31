@@ -53,9 +53,8 @@ function pathShouldBeOnMap(path, ctx) {
 		if (!shouldShowPathOnMap(path, ctx)) {
 			return false;
 		}
-		if (typeof getPathWidthScale === "function") {
-			const subtype = normalizePathSubtype(path?.properties?.feature_subtype || path?.properties?.name);
-			if (!(getPathWidthScale(subtype, ctx.zoom) > 0)) {
+		if (typeof pathBreitenFaktor === "function") {
+			if (!(pathBreitenFaktor(path, ctx.zoom) > 0)) {
 				return false;
 			}
 		}

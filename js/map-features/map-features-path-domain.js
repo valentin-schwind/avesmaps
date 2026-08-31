@@ -120,6 +120,24 @@ function pathAnzeigeSubtyp(path) {
 	return pathIstBach(path) ? "Bach" : String(path?.properties?.feature_subtype || "");
 }
 
+// 🔴 DER BREITEN-FAKTOR EINES WEGES -- die EINE Stelle, die „ein Bach ist halb so breit" kennt.
+// 💣 Zwei Erzeuger lesen ihn: pathShouldBeOnMap (map-features-display-mode.js) entscheidet damit, ob
+// der Weg überhaupt auf der Karte liegt (Faktor 0 = raus), und getPathStyleColors (map-features.js)
+// multipliziert Kontur und Füllung damit. Beide reichten vorher normalizePathSubtype(...) an
+// getPathWidthScale weiter -- und das sagt bei einem Bach „Flussweg". Eine Regel, die einen von zwei
+// Erzeugern bindet, ist keine Regel.
+// ⚠️ NICHT pathAnzeigeSubtyp benutzen, obwohl der „Bach" liefert: ihm fehlt der Namens-Rückfall für
+// Altwege ohne feature_subtype -- die fielen damit still auf Faktor 1.
+function pathBreitenFaktor(path, zoom) {
+	if (typeof getPathWidthScale !== "function") {
+		return 1;
+	}
+	const subtyp = pathIstBach(path)
+		? "Bach"
+		: normalizePathSubtype(path?.properties?.feature_subtype || path?.properties?.name);
+	return getPathWidthScale(subtyp, zoom);
+}
+
 function getNextPathDisplayName(subtype, { excludePath = null } = {}) {
 	const normalizedSubtype = normalizePathSubtype(subtype);
 	const namePattern = new RegExp(`^${escapeRegExp(normalizedSubtype)}-(\\d+)$`);

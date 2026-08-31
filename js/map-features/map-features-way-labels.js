@@ -364,7 +364,10 @@ function buildWayLabelEligibilityContext() {
 		powerlines: typeof getSelectedMapLayerMode === "function" && getSelectedMapLayerMode() === "powerlines",
 		pathsToggle: typeof $ === "function" ? $("#togglePaths").is(":checked") : true,
 		riverLabels: pathRiverLabelsVisible,
-		zoomOk: map.getZoom() >= PATH_LABEL_MIN_ZOOM,
+		// 💣 Die ZOOMSTUFE, nicht mehr die fertige Antwort: seit der Bach eine eigene
+		// Erscheinungsstufe hat (pathLabelMinZoom), hängt sie am einzelnen Weg. Ein vorgerechnetes
+		// zoomOk zeigte den wiki-zugewiesenen Bach bei z4 und den ohne bei z5.
+		zoom: map.getZoom(),
 	};
 }
 
@@ -394,6 +397,6 @@ function isWayLabelEligible(path, ctx) {
 		// Wege-/Straßen-Labels folgen weiterhin ihrer Pfad-Sichtbarkeit (#togglePaths).
 		return false;
 	}
-	// Wie Straßen-/Fluss-Labels: erst ab dorf.minZoom (Zoom 4) zeigen.
-	return ctx.zoomOk;
+	// Wie Straßen-/Fluss-Labels: erst ab PATH_LABEL_MIN_ZOOM (4) zeigen -- ein Bach erst ab 5.
+	return ctx.zoom >= pathLabelMinZoom(path);
 }

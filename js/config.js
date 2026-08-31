@@ -706,6 +706,14 @@ const PATH_WIDTH_SCALE = {
 	Pfad: { 0: 0, 1: 0, 2: 0.1, 3: 0.4, 4: 0.6, 5: 1, 6: 1.2 },
 	Gebirgspass: { 0: 0, 1: 0, 2: 0.1, 3: 0.4, 4: 0.6, 5: 1, 6: 1.2 },
 	Wuestenpfad: { 0: 0, 1: 0, 2: 0.1, 3: 0.4, 4: 0.6, 5: 1, 6: 1.2 },
+	// 🔴 „Bach" IST HIER EIN GÜLTIGER SCHLÜSSEL, obwohl er in PATH_SUBTYPE_KEYS bewusst fehlt: diese
+	// Tafel beschreibt das AUSSEHEN, nicht den Speicher (Owner 31.08.2026, „bach is halb so breit wie
+	// n fluss"). Der Faktor 0,5 halbiert Kontur UND Füllung -- aus 5/3 px werden 2,5/1,5.
+	// 💣 DIE 0 IST MEHR ALS „UNSICHTBAR": pathShouldBeOnMap nimmt einen Weg mit Faktor 0 VON DER KARTE
+	// (map-features-display-mode.js). Genau so verschwinden die Straßen beim Rauszoomen -- es braucht
+	// keinen zweiten Sichtbarkeits-Riegel, und die Fließrichtungs-Pfeile gehen von selbst mit, weil
+	// sie prüfen, ob die gezeichnete Linie auf der Karte liegt.
+	Bach: { 0: 0, 1: 0, 2: 0, 3: 0.5, 4: 0.5, 5: 0.5, 6: 0.5 },
 };
 function getPathWidthScale(subtype, zoom) {
 	const bySubtype = PATH_WIDTH_SCALE[subtype];
