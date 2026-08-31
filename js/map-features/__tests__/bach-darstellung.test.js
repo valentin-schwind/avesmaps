@@ -127,3 +127,46 @@ assert.ok(/moveTo\(8 \* massstab, 0\)/.test(pfeile), "die Pfeilspitze wird mitsk
 assert.ok(/lineWidth = 1\.5 \* massstab/.test(pfeile), "die Kontur des Pfeils ebenso");
 
 console.log("bach-darstellung: alle Zusicherungen erfuellt");
+
+// ---- 6. Der Bach behaelt seine EDITOR-Knoepfe --------------------------------------------------
+// 🔴 DIE REGEL: der ANZEIGE-Typ regiert WORTE UND BILDER, der SPEICHER-Typ regiert FUNKTIONEN.
+// `pathType` ist seit dem 30.08.2026 "Bach", sobald das Haekchen sitzt -- richtig fuer die Typzeile,
+// den Titel eines unbenannten Weges und das Kopfbild. Der Kurzknopf „Stroemung umkehren" hing an
+// derselben Weiche und verschwand damit am Bach (Owner 31.08.2026: „das haettest du nicht machen
+// sollen"). Er MUSS bleiben: die Fliessrichtungs-Pfeile zeichnen fuer einen Bach weiter (sie fragen
+// normalizePathSubtype, also den Speicher-Typ) -- ein Editor sah die Pfeile und hatte keinen Griff
+// mehr, sie zu drehen.
+const rendering = ohneKommentare(lies("js/map-features/map-features-path-rendering.js"));
+assert.ok(/if \(speicherTyp === "Flussweg" && typeof pathFlowShortcutLabelFor === "function"\)/.test(rendering),
+	"der Stroemungs-Knopf haengt am SPEICHER-Typ -- ein Bach ist ein Flussweg und behaelt ihn");
+assert.ok(!/if \(pathType === "Flussweg"/.test(rendering),
+	"und nicht am Anzeige-Typ, der bei einem Bach 'Bach' sagt");
+
+// ---- 7. Der namenlose Wasserweg: „Fluss" oben, die Wegart darunter ----------------------------
+// Owner 31.08.2026: „in der infobox 'Unbenannter Flussweg' in 'Unbenannter Fluss' benennen und
+// drunter 'Flussweg' wie bei normalen flüssen (bei bach auch)".
+// 🔴 Der Untertitel entfiel bei namenlosen Wegen bisher GANZ, weil „Unbenannte Straße" über
+// „Straße" sich doppelt liest. Beim Wasser gilt das nicht mehr: der Titel sagt „Fluss", die Zeile
+// darunter die Wegart „Flussweg". ⚠️ Beim Bach steht dasselbe Wort zweimal -- ausdruecklicher
+// Owner-Entscheid vom 31.08.2026, keine Nachlaessigkeit.
+assert.strictEqual(getUnnamedPathTitle("Flussweg"), "Unbenannter Fluss",
+	"der Titel heisst 'Fluss', nicht 'Flussweg'");
+assert.strictEqual(getUnnamedPathTitle("Bach"), "Unbenannter Bach", "der Bach heisst weiter Bach");
+assert.strictEqual(getPathTypeLabel("Flussweg"), "Flussweg",
+	"die WEGART heisst unveraendert 'Flussweg' -- sie steht jetzt darunter");
+assert.strictEqual(getPathTypeLabel("Bach"), "Bach");
+// 🔴 Die Landwege bleiben unberuehrt: dort stuende das Wort wirklich zweimal.
+assert.strictEqual(getUnnamedPathTitle("Strasse"), "Unbenannte Straße");
+assert.ok(/const istWasserweg = pathType === "Flussweg" \|\| pathType === "Bach";/.test(rendering),
+	"die Weiche nennt genau die zwei Wasserwege");
+assert.ok(/const subtitle = \(realName \|\| istWasserweg\) \? typeLabel : "";/.test(rendering),
+	"der Untertitel kommt bei Wasser auch ohne Namen");
+
+// Die englische Fassung zieht mit -- sonst liest ein Besucher unter ?lang=en weiter „river route",
+// und der Bach fehlte dort seit dem 30.08.2026 ganz.
+const i18n = lies("js/app/i18n-en.js");
+assert.ok(/"path\.unnamed\.Flussweg": "Unnamed river"/.test(i18n), "EN: 'Unnamed river'");
+assert.ok(/"path\.type\.Bach":/.test(i18n), "EN kennt die Wegart Bach");
+assert.ok(/"path\.unnamed\.Bach":/.test(i18n), "EN kennt den namenlosen Bach");
+
+console.log("bach-darstellung: Abschnitt 7 ebenfalls erfuellt");

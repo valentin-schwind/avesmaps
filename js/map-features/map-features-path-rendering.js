@@ -185,7 +185,14 @@ function createPathPopupMarkup(path) {
 	const realName = typeof getPathTitleName === "function" ? getPathTitleName(path) : getPathDisplayName(path);
 	const typeLabel = getPathTypeLabel(pathType);
 	const pathName = realName || (typeof getUnnamedPathTitle === "function" ? getUnnamedPathTitle(pathType) : typeLabel);
-	const subtitle = realName ? typeLabel : "";
+	// 🔴 BEIM WASSER AUCH OHNE NAMEN. Ein namenloser Weg trug bisher gar keinen Untertitel --
+	// „Unbenannte Straße" über „Straße" liest sich doppelt. Der Fluss heißt oben seit dem
+	// 31.08.2026 „Unbenannter Fluss", darunter passt die Wegart „Flussweg" wie bei einem
+	// benannten Fluss (Owner).
+	// ⚠️ Beim Bach steht das Wort dann zweimal („Unbenannter Bach" / „Bach") -- ausdrücklicher
+	// Owner-Entscheid vom 31.08.2026, nicht übersehen. Die Landwege bleiben ohne Untertitel.
+	const istWasserweg = pathType === "Flussweg" || pathType === "Bach";
+	const subtitle = (realName || istWasserweg) ? typeLabel : "";
 	// Owner: 16:9 header image per way subtype + title overlay.
 	const headerImg = typeof infoHeaderImageMarkup === "function"
 		? infoHeaderImageMarkup(pathHeaderImageBasename(pathType), pathName, subtitle)
@@ -228,7 +235,12 @@ function createPathPopupMarkup(path) {
 			if (IS_EDIT_MODE) {
 				// Fluss-Shortcut: Stroemung direkt am Segment umkehren/festlegen, ohne den
 				// "Weg bearbeiten"-Dialog (weg-weite Wirkung wie die Panel-Buttons).
-				if (pathType === "Flussweg" && typeof pathFlowShortcutLabelFor === "function") {
+				// 🔴 DER SPEICHER-TYP, NICHT DER ANZEIGE-TYP. `pathType` sagt bei einem Bach "Bach"
+				// -- richtig fuer Typzeile, Titel und Kopfbild, falsch fuer eine FUNKTION: ein Bach ist
+				// ein Flussweg und hat eine Fliessrichtung. Die Pfeile zeichnen fuer ihn weiter (sie
+				// fragen normalizePathSubtype), der Knopf war aber weg -- der Editor sah die Pfeile und
+				// hatte keinen Griff mehr, sie zu drehen (Owner 31.08.2026).
+				if (speicherTyp === "Flussweg" && typeof pathFlowShortcutLabelFor === "function") {
 					editorButtons.push(popupActionButtonMarkup({
 						label: pathFlowShortcutLabelFor(path),
 						className: "location-popup__action-button--accent",

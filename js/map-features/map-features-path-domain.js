@@ -85,7 +85,10 @@ const UNNAMED_PATH_TITLE = {
 	Pfad: "Unbenannter Pfad",
 	Gebirgspass: "Unbenannter Gebirgspass",
 	Wuestenpfad: "Unbenannter Wüstenpfad",
-	Flussweg: "Unbenannter Flussweg",
+	// 🔴 „Fluss", nicht „Flussweg" (Owner 31.08.2026): die WEGART steht seit heute als Untertitel
+	// darunter (map-features-path-rendering.js), und „Unbenannter Flussweg" über „Flussweg" wäre
+	// genau die Doppelung, wegen der es den Untertitel dort vorher gar nicht gab.
+	Flussweg: "Unbenannter Fluss",
 	Bach: "Unbenannter Bach",
 };
 

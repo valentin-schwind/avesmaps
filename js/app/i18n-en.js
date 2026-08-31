@@ -599,6 +599,9 @@ window.AVESMAPS_I18N_EN = {
 	"path.type.Wuestenpfad": "Desert trail",
 	"path.type.Flussweg": "River route",
 	"path.type.Seeweg": "Sea route",
+	// A Flussweg carrying properties.is_bach. Storage-wise it IS a Flussweg -- this is the label a
+	// reader sees, added 31.08.2026 together with the German one.
+	"path.type.Bach": "Brook",
 	// A way we carry but have no name for. German inflects the adjective (DIE Straße -> "Unbenannte",
 	// DER Pfad -> "Unbenannter"), hence one string per subtype; English needs no such table but keeps the
 	// same keys. Seeweg is absent on purpose -- open water carries no names, so "unnamed" would imply a gap.
@@ -608,7 +611,10 @@ window.AVESMAPS_I18N_EN = {
 	"path.unnamed.Pfad": "Unnamed trail",
 	"path.unnamed.Gebirgspass": "Unnamed mountain pass",
 	"path.unnamed.Wuestenpfad": "Unnamed desert trail",
-	"path.unnamed.Flussweg": "Unnamed river route",
+	// „River", not „river route": the subtype now appears BELOW the title, so the title would
+	// otherwise repeat it (same reason as the German „Unbenannter Fluss").
+	"path.unnamed.Flussweg": "Unnamed river",
+	"path.unnamed.Bach": "Unnamed brook",
 	"toast.path.notFound": "The way could not be found.",
 	"popup.labelTypeRegion": "Region",
 	"popup.labelNameFallback": "Label",

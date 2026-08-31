@@ -86,7 +86,11 @@ assert.strictEqual(sandbox.getUnnamedPathTitle("Pfad"), "Unbenannter Pfad", "mas
 assert.strictEqual(sandbox.getUnnamedPathTitle("Weg"), "Unbenannter Weg", "masculine: der Weg");
 assert.strictEqual(sandbox.getUnnamedPathTitle("Gebirgspass"), "Unbenannter Gebirgspass", "masculine: der Gebirgspass");
 assert.strictEqual(sandbox.getUnnamedPathTitle("Wuestenpfad"), "Unbenannter Wüstenpfad", "masculine: der Wüstenpfad");
-assert.strictEqual(sandbox.getUnnamedPathTitle("Flussweg"), "Unbenannter Flussweg", "masculine: der Flussweg");
+// 🔴 "Fluss", nicht "Flussweg" (Owner 31.08.2026): die Wegart steht seit dem 31.08.2026 als
+// Untertitel DARUNTER, und der Titel darf sie nicht wiederholen. Die Beugung bleibt der Punkt
+// dieses Blocks -- "der Fluss" ist maskulin wie "der Flussweg".
+assert.strictEqual(sandbox.getUnnamedPathTitle("Flussweg"), "Unbenannter Fluss", "masculine: der Fluss");
+assert.strictEqual(sandbox.getUnnamedPathTitle("Bach"), "Unbenannter Bach", "masculine: der Bach");
 // The proper ß is used throughout -- our subtype KEYS carry "ss", the user-facing strings must not.
 // Read through the context, not off the sandbox: a top-level `const` lives in the script's LEXICAL scope and
 // never becomes a property of the global object -- same as a browser <script> tag, which is why the functions
