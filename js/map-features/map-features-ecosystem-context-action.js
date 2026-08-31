@@ -170,9 +170,27 @@
 	// nicht nebenbei mitgedreht.
 	// Bleibt eine Liste leer, verschwindet die ganze Gruppe samt Überschrift -- ein „Hier hinzufügen",
 	// das ein leeres Untermenü aufklappt, ist schlimmer als keines.
+	// 🔴 „Landschaften" TRÄGT SEIT 31.08.2026 AUCH DIE KARTEN-EINTRÄGE DER STANDARDANSICHT (Owner:
+	// „das bearbeiten von wegen durch das kontextmenü wieder zulassen", Nachsatz „auch das
+	// Standard-Kontextmenü ‚Hier hinzufügen' ist verschwunden").
+	//
+	// 💣 DAS IST FALL #90 EINE ANSICHT WEITER, und es war derselbe Denkfehler: „man legt an, was man
+	// SIEHT" ist am FRONTEND gemessen und auf den EDITOR übertragen worden, wo die Messung nicht gilt.
+	// Der Landschaftsmodus nimmt dem Editor die Wege NICHT weg -- `applyFrontendLayerModeDefaults`
+	// (mit `ecosystem: { wege: false }`) steigt bei `IS_EDIT_MODE` in der ersten Zeile aus, und
+	// `ecosystemFrontendProfile()` gibt ihm ausdrücklich `null`: „🔴 NUR DER BESUCHER. Der Editor
+	// behält in JEDER Ebene seine Haken." Ein Editor sah dort also Wege, an die er nicht mehr
+	// herankam, und „Neue Kreuzung und Weg teilen" ist der EINZIGE Weg, einen Weg zu teilen.
+	//
+	// ⚠️ „Neuer Ort" und „Neue Kreuzung" sind die eine Stelle, an der die Regel bewusst NICHT gilt --
+	// Owner-Entscheid vom 31.08.2026 auf die ausdrückliche Frage („wie die Standardansicht"). Die
+	// Ebene nimmt die Ortsklassen zurück (`syncEcosystemSettlementVisibility`, Owner 04.08.2026), ein
+	// frisch angelegter Ort ist dort zunächst unsichtbar. Sein Schalter bleibt bedienbar und holt ihn
+	// mit einem Klick zurück -- deshalb ist das ein Preis und keine Sackgasse.
 	const ADD_HERE_BY_MODE = {
 		political:   ["create-region"],
-		ecosystem:   ["new-area", "new-peak", "import-territory"],
+		ecosystem:   ["create-location", "create-crossing", "split-path-at-node", "create-path", "create-label",
+		              "new-area", "new-peak", "import-territory"],
 		deregraphic: ["create-location", "create-crossing", "split-path-at-node", "create-path", "create-label"],
 		powerlines:  ["create-location", "create-crossing", "create-label"],
 		original:    ["create-location", "create-crossing", "split-path-at-node", "create-path"],
@@ -191,6 +209,13 @@
 	// niemand im Blick hat. Genau so bekam die Weiden-Region eine Fläche im Süden der Heldentrutz.
 	// ⚠️ `showAll` fehlt beim Aufrufer ⇒ „nicht Alle“: die sichere Richtung, denn diese Tabelle wird auch
 	// von der Nachbardatei für den Territorien-Import gefragt.
+	// 💣 `landscapeAllowed` BINDET NUR DIE DREI LANDSCHAFTS-EINTRÄGE, und seit dem 31.08.2026 ist das
+	// eine tragende Unterscheidung statt einer Formsache. In „Alle" fällt es weg -- damit fielen dort
+	// bis dahin ALLE Einträge der Ansicht weg, und die Gruppe blendete sich samt Überschrift aus (siehe
+	// den `sichtbare.length === 0`-Zweig in syncMapContextMenuEntries). Genau das war der zweite Teil
+	// der Meldung vom 31.08.2026: „auch das Standard-Kontextmenü ‚Hier hinzufügen' ist verschwunden."
+	// Die Karten-Einträge hängen deshalb allein an der ANSICHT: „Alle" zeigt Wege und Labels wie jede
+	// andere, und was man sieht, muss man auch anfassen können.
 	function addHereMenuVisibility({ mode = "", isEditMode = false, isEcosystemEnabled = false, activeKind = "", showAll = false } = {}) {
 		const erlaubt = new Set(ADD_HERE_BY_MODE[String(mode)] || []);
 		const landscapeAllowed = Boolean(isEditMode) && Boolean(isEcosystemEnabled) && !showAll;

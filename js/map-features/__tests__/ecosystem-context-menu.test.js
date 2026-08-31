@@ -29,10 +29,38 @@ assert.deepStrictEqual(
 	"politische Ansicht: NUR Neues Herrschaftsgebiet"
 );
 
+// 🔴 LANDSCHAFTEN TRAEGT SEIT 31.08.2026 AUCH DIE KARTEN-EINTRAEGE (Owner: „das bearbeiten von wegen
+// durch das kontextmenue wieder zulassen"). Gemeldet als „im Landschaftsmodus lassen sich Wege nicht
+// mehr per Rechtsklick bearbeiten" -- und im Nachsatz: „auch das Standard-Kontextmenue ‚Hier
+// hinzufuegen' ist verschwunden".
+//
+// 💣 DAS IST FALL #90 EINE ANSICHT WEITER, und die Begruendung ist dieselbe: „man legt an, was man
+// SIEHT" wurde am Frontend gemessen und auf den EDITOR uebertragen, wo sie nicht gilt. Im Editor zeigt
+// der Landschaftsmodus die Wege sehr wohl -- applyFrontendLayerModeDefaults (mit `ecosystem: { wege:
+// false }`) steigt bei IS_EDIT_MODE sofort aus, und ecosystemFrontendProfile() gibt dem Editor
+// ausdruecklich `null` („NUR DER BESUCHER. Der Editor behaelt in JEDER Ebene seine Haken").
+// Ein Editor sah dort Wege, an die er nicht mehr herankam -- „Neue Kreuzung und Weg teilen" ist der
+// EINZIGE Weg, einen Weg zu teilen.
+//
+// ⚠️ „Neuer Ort"/„Neue Kreuzung" sind Owner-Entscheid vom 31.08.2026 („wie die Standardansicht") und
+// die eine Stelle, an der die Regel bewusst nicht gilt: die Ebene nimmt die Ortsklassen zurueck
+// (syncEcosystemSettlementVisibility, Owner 04.08.2026), ein frisch angelegter Ort ist also zunaechst
+// unsichtbar. Der Ortsschalter holt ihn mit einem Klick zurueck; er wird NICHT zwangsweise gehalten.
 assert.deepStrictEqual(
 	sichtbar(addHereMenuVisibility({ mode: "ecosystem", ...voll, activeKind: "vegetation" })),
-	["importTerritory", "newArea"],
-	"Landschaften: die drei Ebenen-Eintraege + Grenzen aus Territorien importieren"
+	["createCrossing", "createLabel", "createLocation", "createPath", "importTerritory", "newArea", "splitPathAtNode"].sort(),
+	"Landschaften: die Ebenen-Eintraege UND die Karten-Eintraege der Standardansicht"
+);
+
+// 💣 UND SIE UEBERLEBEN „Alle". Dort faellt `landscapeAllowed` weg, also verschwanden bis zum
+// 31.08.2026 alle drei Landschafts-Eintraege -- und mit ihnen die GANZE Gruppe samt Ueberschrift
+// (syncMapContextMenuEntries blendet sie aus, wenn kein Eintrag uebrig ist). Genau das war der zweite
+// Teil der Meldung. Die Karten-Eintraege haengen NICHT an `landscapeAllowed`, weil „Alle" die Wege
+// zeigt wie jede andere Ansicht.
+assert.deepStrictEqual(
+	sichtbar(addHereMenuVisibility({ mode: "ecosystem", ...voll, activeKind: "topographie", showAll: true })),
+	["createCrossing", "createLabel", "createLocation", "createPath", "splitPathAtNode"].sort(),
+	'„Alle": keine Landschafts-Eintraege, aber die Gruppe bleibt -- die Karten-Eintraege tragen sie'
 );
 
 assert.deepStrictEqual(
@@ -76,6 +104,38 @@ assert.ok(!sichtbar(addHereMenuVisibility({ mode: "original", ...voll })).includ
 assert.deepStrictEqual(sichtbar(addHereMenuVisibility({ mode: "none", ...voll })), [],
 	"Nur Karte: gar nichts anzulegen -- die Gruppe faellt weg");
 
+// ---- DIE NAHT: jeder Tabellen-Eintrag muss im DOM auch EXISTIEREN ---------------------------------
+//
+// 💣 Die Tabelle nennt Aktionsnamen, `syncMapContextMenuEntries` sucht sie per
+// `[data-context-action="…"]` im Untermenue -- und ein `querySelector`, der nichts findet, tut
+// KOMMENTARLOS nichts. Ein Tippfehler oder ein umbenannter Knopf ist damit ununterscheidbar von „diese
+// Ansicht bietet das nicht an": beide Haelften waeren gruen, die Naht dazwischen ungeprueft.
+// ⚠️ Nur die Karten-Eintraege: `new-area`, `new-peak` und `import-territory` stehen NICHT in
+// index.html, sie werden von ensureNewAreaMenuEntries zur Laufzeit eingehaengt.
+const fs = require("fs");
+const path = require("path");
+const indexHtml = fs.readFileSync(path.join(__dirname, "..", "..", "..", "index.html"), "utf8");
+const alleModi = ["political", "ecosystem", "deregraphic", "powerlines", "original", "none"];
+const dynamisch = new Set(["new-area", "new-peak", "import-territory"]);
+const genannteAktionen = new Set();
+alleModi.forEach((mode) => {
+	// Der Schluesselname der Sichtbarkeit -> der Aktionsname im DOM. Beide Richtungen stehen in der
+	// Datei; hier wird der DOM-Name gebraucht, also aus dem Schluessel zurueckgerechnet.
+	Object.entries(addHereMenuVisibility({ mode, ...voll, activeKind: "topographie" }))
+		.filter(([, v]) => v)
+		.forEach(([schluessel]) => {
+			genannteAktionen.add(schluessel.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`));
+		});
+});
+assert.ok(genannteAktionen.size >= 8, `die Tabelle nennt ${genannteAktionen.size} Aktionen -- zu wenige, die Umrechnung stimmt nicht`);
+genannteAktionen.forEach((aktion) => {
+	if (dynamisch.has(aktion)) {
+		return;
+	}
+	assert.ok(indexHtml.includes(`data-context-action="${aktion}"`),
+		`"${aktion}" steht in der Tabelle, aber es gibt keinen Knopf dafuer in index.html -- der Eintrag waere lautlos wirkungslos`);
+});
+
 // ---- "Hoehenpunkt setzen" (V8) --------------------------------------------------------------------
 // 🔴 Er haengt ZUSAETZLICH zur Ansicht an EINER Ebene: nur in der Topographie ist ein Gipfel sichtbar,
 // ziehbar und wirksam (oekosystem-editor-leitfaden.md §1.4).
@@ -91,16 +151,25 @@ assert.ok(!addHereMenuVisibility({ mode: "political", ...voll, activeKind: "topo
 // ---- die zwei Riegel, die ueber der Ansicht stehen ------------------------------------------------
 // ?landschaften=1 fehlt -> setSelectedMapLayerMode wuerde den Modus verweigern; ein Eintrag, der ihn
 // anboete, liesse den Editor still in der Standardansicht landen.
+// 🔴 SEIT 31.08.2026 SPERREN DIESE ZWEI RIEGEL NUR NOCH DIE DREI LANDSCHAFTS-EINTRAEGE. Vorher stand
+// hier zweimal `[]`, und das war nur wahr, solange die Ansicht ausschliesslich Landschafts-Eintraege
+// trug. Die Karten-Eintraege haengen an der ANSICHT, genau wie in „Standard" und „Original" -- ihr
+// Riegel ist die Gruppe, nicht die Tabelle (siehe die politische Zeile darunter, dieselbe Bauart).
+const ohneEbenenFlag = sichtbar(addHereMenuVisibility({ mode: "ecosystem", isEditMode: true, isEcosystemEnabled: false }));
 assert.deepStrictEqual(
-	sichtbar(addHereMenuVisibility({ mode: "ecosystem", isEditMode: true, isEcosystemEnabled: false })),
-	[],
-	"Ebenen-Flag aus: keine Landschafts-Eintraege, auch nicht in ihrer eigenen Ansicht"
+	ohneEbenenFlag,
+	["createCrossing", "createLabel", "createLocation", "createPath", "splitPathAtNode"].sort(),
+	"Ebenen-Flag aus: keine Landschafts-Eintraege, aber die Karten-Eintraege der Ansicht"
 );
-assert.deepStrictEqual(
-	sichtbar(addHereMenuVisibility({ mode: "ecosystem", isEditMode: false, isEcosystemEnabled: true })),
-	[],
-	"kein Bearbeiten-Modus: nichts anzulegen"
-);
+["newArea", "newPeak", "importTerritory"].forEach((eintrag) => {
+	assert.ok(!ohneEbenenFlag.includes(eintrag),
+		`Ebenen-Flag aus: kein ${eintrag} -- setSelectedMapLayerMode wuerde den Modus verweigern`);
+});
+const ohneEditMode = sichtbar(addHereMenuVisibility({ mode: "ecosystem", isEditMode: false, isEcosystemEnabled: true }));
+["newArea", "newPeak", "importTerritory"].forEach((eintrag) => {
+	assert.ok(!ohneEditMode.includes(eintrag),
+		`kein Bearbeiten-Modus: kein ${eintrag}`);
+});
 // Ein Besucher sieht die Gruppe ohnehin nie (bootstrap.js nimmt ihr das `hidden` nur im Edit-Modus) --
 // dies ist der zweite Riegel. Die POLITISCHE Zeile haengt allein an der Ansicht, das ist Absicht:
 // ihr Riegel ist die Gruppe, nicht die Tabelle.

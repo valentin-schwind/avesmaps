@@ -211,6 +211,15 @@ assert.ok(!anlegenInAlle.newArea, '💣 in „Alle“ gibt es kein „Neue Fläc
 assert.ok(!anlegenInAlle.newPeak, '💣 und keinen „Höhenpunkt setzen“');
 assert.ok(!anlegenInAlle.importTerritory, '💣 und kein „Territorium importieren“');
 
+// 🪤 UND DARAUS FOLGT NICHT, DASS DIE GRUPPE LEER IST — genau diese Fehllesart hat die Meldung vom
+// 31.08.2026 erzeugt („auch das Standard-Kontextmenü ‚Hier hinzufügen‘ ist verschwunden“).
+// syncMapContextMenuEntries blendet die ganze Gruppe samt Überschrift aus, sobald KEIN Eintrag mehr
+// steht; bis dahin trug „Alle“ ausschliesslich Landschafts-Einträge und fiel damit vollständig weg.
+// Die Karten-Einträge hängen nicht an `landscapeAllowed` und tragen die Gruppe jetzt.
+assert.ok(anlegenInAlle.splitPathAtNode && anlegenInAlle.createPath && anlegenInAlle.createLabel
+	&& anlegenInAlle.createLocation && anlegenInAlle.createCrossing,
+	'💣 in „Alle“ bleiben die Karten-Einträge — sonst blendet sich die ganze Gruppe aus');
+
 const anlegenInEbene = menue.addHereMenuVisibility({
 	mode: "ecosystem", isEditMode: true, isEcosystemEnabled: true, activeKind: "topographie", showAll: false,
 });
