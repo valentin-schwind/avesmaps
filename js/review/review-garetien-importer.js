@@ -4095,6 +4095,44 @@
 		};
 	}
 
+	// REIN: der ZWEITE Knopf eines uebernommenen Objekts -- „Ablehnen".
+	//
+	// Owner 31.08.2026: „Ich würde gern neben objekten die 'Übernommen' wurde und die Option
+	// 'Zurücknehmen' anbieten auch gleichzeitig die Option 'Ablehnen' anbieten, wo sie
+	// zurückgenommen und in die kategorie ablehnen gesteckt werden."
+	//
+	// \U0001f534 ER KANN GENAU DANN, WENN „Zurücknehmen" KANN -- und das ist keine Bequemlichkeit,
+	// sondern die Sache selbst: abgelehnt werden kann nur, was vorher von der Karte kommt. Ein
+	// Objekt, das sich nicht zurücknehmen laesst (es hat ein BESTEHENDES Objekt veraendert), darf
+	// auch nicht in „Abgelehnt" wandern -- dort staende dann eine Aenderung, die weiterhin gilt.
+	// Deshalb dieselbe Item-Menge, derselbe Riegel, derselbe Grund.
+	//
+	// \u26a0\ufe0f DIE BESCHRIFTUNG IST DIE DES OWNERS („Ablehnen"), obwohl der Knopf ZWEI Dinge tut. Die
+	// Folge steht dafuer vollstaendig in der Rueckfrage -- dieselbe Aufteilung wie bei
+	// „Zurücknehmen" selbst, wo der Wortlaut der Rueckfrage die eigentliche Sicherung ist.
+	// \U0001f534 UND ER ERSCHEINT GAR NICHT ERST, wenn er nicht kann -- kein ausgegrauter Zwilling
+	// neben dem Grund. Owner-Entscheid 1 zu „Zurücknehmen" gilt hier unverändert: ein 'changed'-
+	// Objekt bekommt „kein Knopf, sondern ein sichtbarer Grund an seiner Stelle". Ein zweiter,
+	// gesperrter Knopf hätte diese Regel aufgehoben UND den Grund doppelt hingeschrieben
+	// (garetienHandlungsMarkup sammelt ihn je gesperrtem Knopf) -- gemessen beim Bau.
+	function garetienRuecknahmeAblehnenBauen(objekt) {
+		const items = garetienRuecknahmeItems(objekt);
+		if (items.length === 0) { return null; }
+		// \U0001f4a3 DIE ABLEHNUNG BRAUCHT ALLE ITEMS DES OBJEKTS, die Ruecknahme nur die
+		// ruecknehmbaren. `avesmapsGaretienListeObjektStand` (garetien-liste.php) erklaert ein
+		// Objekt erst dann „abgelehnt", wenn JEDES seiner Items abgelehnt ist -- mit nur den
+		// zurueckgenommenen bliebe es in „Offen" stehen, und der Knopf haette sichtbar die halbe
+		// Arbeit getan. Es ist dieselbe Menge, die der gewoehnliche „Ablehnen"-Knopf benutzt
+		// (AVESMAPS_GARETIEN_ITEMS_JE_HANDLUNG.ablehnen: alle).
+		const alle = ((objekt && objekt.items) || []).map(function (item) { return item.id; });
+		return {
+			name: "ruecknahme_ablehnen", beschriftung: "Ablehnen", ton: "danger",
+			ids: items.map(function (item) { return item.id; }),
+			ablehnenIds: alle,
+			angehakt: 0, gesamt: items.length, erledigt: false, disabled: false, grund: "",
+		};
+	}
+
 	// REIN: die ganze Knopfleiste EINES Objekts.
 	function garetienHandlungen(objekt) {
 		const o = objekt || {};
@@ -4108,7 +4146,8 @@
 		// Rücknahme-Zeile -- ein 'changed'-Objekt (kein "neu"-Item) zeigt dabei gar keinen Knopf,
 		// nur den Grund (garetienRuecknahmeBauen).
 		if (String(o.stand || "") === "uebernommen") {
-			return [garetienRuecknahmeBauen(o)];
+			// \u26a0\ufe0f `filter(Boolean)`: „Ablehnen" fällt ganz weg, wenn es nicht kann (siehe dort).
+			return [garetienRuecknahmeBauen(o), garetienRuecknahmeAblehnenBauen(o)].filter(Boolean);
 		}
 		const namen = AVESMAPS_GARETIEN_HANDLUNGEN_JE_URTEIL[String(o.urteil || "")] || ["ablehnen"];
 		return namen.map(function (name) { return garetienHandlungBauen(name, o); });
@@ -4161,6 +4200,15 @@
 
 	// REIN: der Rumpf, den EIN Knopf an die eine Tür schickt -- oder `null`.
 	function garetienHandlungsRumpf(name, objekt, runId) {
+		// \U0001f4a3 DIE ZWEI RUECKNAHME-VERBEN GEHEN HIER NIE HINAUS. Sie haben ihre EIGENE Tuer
+		// (GARETIEN_ENDPUNKT, `action:'ruecknahme'`) und ihren eigenen Verteiler; faenden sie hier
+		// einen Rumpf, fiele der Klick bis zu `garetienHandlungKlick` durch und verschickte ein
+		// sinnloses `select` an die GETEILTE Tuer -- zwei Erzeuger fuer denselben Knopf.
+		// \u26a0\ufe0f Bis zum 31.08.2026 hielt das allein die Reihenfolge der Verdrahtung
+		// (garetienRuecknahmeKlick laeuft vorher und meldet, dass er uebernommen hat). Das war eine
+		// Zusicherung ohne Riegel: sie faellt, sobald jemand die Reihenfolge aendert, und der
+		// Fehler waere still.
+		if (name === "ruecknahme" || name === "ruecknahme_ablehnen") { return null; }
 		const knopf = garetienHandlungen(objekt).filter(function (h) { return h.name === name; })[0];
 		if (!knopf || knopf.disabled || knopf.ids.length === 0) { return null; }
 		if (name === "ablehnen" || name === "wieder") {
@@ -4600,10 +4648,24 @@
 	// desselben Objekts (Meldung 30.08.2026, siehe garetienRuecknahmeItems). `[].concat(...)`
 	// verpackt beides gleich: eine einzelne Zahl bleibt ein Ein-Element-Array, ein Array bleibt
 	// ein Array.
-	function garetienRuecknahmeSenden(itemIdsOderId, runId) {
+	function garetienRuecknahmeSenden(itemIdsOderId, runId, ablehnenIds) {
 		const ids = [].concat(itemIdsOderId).map(Number).filter(function (id) { return id > 0; });
+		const abzulehnen = (ablehnenIds || []).map(Number).filter(function (id) { return id > 0; });
 		return avesmapsGaretienRufe(GARETIEN_ENDPUNKT, {
 			action: "ruecknahme", run_id: runId, ids: ids,
+		}).then(function () {
+			// \U0001f534 ZUERST ZURUECKNEHMEN, DANN ABLEHNEN -- und diese Reihenfolge ist die sichere.
+			// Bricht der zweite Schritt ab, ist das Objekt von der Karte und steht in „Offen": ein
+			// Zustand, den der Editor sieht und mit einem Klick zu Ende bringt. Andersherum staende
+			// es als „abgelehnt" da und laege weiter auf der Karte -- eine Ablehnung, die nichts
+			// abgelehnt hat, und niemand saehe es.
+			// \u26a0\ufe0f Die Ablehnung geht durch die GETEILTE Tuer (dieselbe wie der gewoehnliche
+			// „Ablehnen"-Knopf), nicht durch die des Importers: sie ist keine Loeschung, sondern
+			// eine Entscheidung, und die fuehren alle acht Objektarten dort.
+			if (abzulehnen.length === 0) { return null; }
+			return avesmapsGaretienRufe(GARETIEN_PLAN_ENDPUNKT, {
+				action: "decline", kind: GARETIEN_PLAN_ART, run_id: runId, ids: abzulehnen,
+			});
 		}).then(function () { return avesmapsGaretienListeHolen(); })
 			.catch(function (fehler) { garetienListeFehlerZeigen(fehler); return null; });
 	}
@@ -4618,7 +4680,7 @@
 	// 'changed'-Item löscht NICHTS vom Objekt, nur seine Quellenangabe -- der alte Text ("wird aus
 	// unserer Karte entfernt") wäre hier schlicht FALSCH und eine unnötige Warnung vor etwas, das
 	// gar nicht passiert.
-	function garetienRuecknahmeRueckfrageText(objekt) {
+	function garetienRuecknahmeRueckfrageText(objekt, auchAblehnen) {
 		const o = objekt || {};
 		const name = String(o.name || "").trim() || "(ohne Namen)";
 		const items = garetienRuecknahmeItems(o);
@@ -4629,7 +4691,7 @@
 		if (nurQuelle) {
 			return "Die Quellenangabe von garetien.de an „" + name + "“ wird entfernt — das Objekt "
 				+ "selbst bleibt unverändert auf der Karte.\n\n"
-				+ "Es fällt danach zurück nach „Offen“. Fortfahren?";
+				+ garetienRuecknahmeZielSatz(auchAblehnen) + " Fortfahren?";
 		}
 
 		const istFlaeche = String(o.geometrie_typ || "") === "Polygon";
@@ -4639,7 +4701,21 @@
 
 		return "„" + name + "“ wird aus unserer Karte entfernt — das nimmt " + was + " mit, "
 			+ "einschließlich aller Änderungen, die seither daran vorgenommen wurden.\n\n"
-			+ "Das Objekt fällt danach zurück nach „Offen“. Fortfahren?";
+			+ garetienRuecknahmeZielSatz(auchAblehnen) + " Fortfahren?";
+	}
+
+	// REIN: der eine Satz, in dem sich die zwei Knöpfe unterscheiden -- WOHIN das Objekt danach
+	// fällt. Er steht separat, weil die Rückfrage darüber ZWEI Textvarianten hat (Karte bzw. nur
+	// Quelle) und der Unterschied in beiden derselbe ist; in beide hineingeschrieben liefe er beim
+	// nächsten Wortlaut auseinander.
+	//
+	// \U0001f534 „Ablehnen" tut ZWEI Dinge, und die Rückfrage ist die Stelle, an der das steht -- der
+	// Knopf trägt den Wortlaut des Owners („Ablehnen"), nicht die Aufzählung seiner Folgen.
+	function garetienRuecknahmeZielSatz(auchAblehnen) {
+		return auchAblehnen
+			? "Das Objekt wandert danach nach „Abgelehnt“ und wird nicht wieder vorgeschlagen — "
+				+ "zurückholen lässt es sich dort mit „Wieder vorschlagen“."
+			: "Das Objekt fällt danach zurück nach „Offen“.";
 	}
 
 	// 🔴 Derselbe Bau wie garetienNeuKlick/garetienDetailKlick: Ereignis, Objektliste, Lauf-Nummer
@@ -4654,21 +4730,30 @@
 	function garetienRuecknahmeKlick(ereignis, objekte, runId, senden, fragen) {
 		const ziel = ereignis && ereignis.target;
 		if (!ziel || typeof ziel.closest !== "function") { return null; }
-		const knopf = ziel.closest('[data-handlung="ruecknahme"]');
+		// \U0001f534 BEIDE RUECKNAHME-VERBEN, EIN VERTEILER (Owner 31.08.2026). Sie teilen alles --
+		// dieselbe Item-Menge, dieselbe Rueckfrage-Form, denselben Sender; verschieden ist nur, ob
+		// danach noch abgelehnt wird. Zwei Verteiler waeren zwei Erzeuger derselben Loeschung.
+		const knopf = ziel.closest('[data-handlung="ruecknahme"], [data-handlung="ruecknahme_ablehnen"]');
 		if (!knopf || knopf.disabled) { return null; }
+		const auchAblehnen = knopf.getAttribute("data-handlung") === "ruecknahme_ablehnen";
 		const objekt = garetienObjektNach(knopf.getAttribute("data-key"), objekte);
 		if (!objekt) { return null; }
 		const items = garetienRuecknahmeItems(objekt);
 		if (items.length === 0) { return null; }
-		if (!fragen(garetienRuecknahmeRueckfrageText(objekt))) { return true; }
+		if (!fragen(garetienRuecknahmeRueckfrageText(objekt, auchAblehnen))) { return true; }
 
 		knopf.disabled = true;
-		knopf.textContent = "Nimmt zurück …";
+		knopf.textContent = auchAblehnen ? "Lehnt ab …" : "Nimmt zurück …";
 		// ⚠️ EIN einzelnes Item bleibt eine nackte Zahl (Rückwärtskompatibilität mit dem
 		// bestehenden Sender/Test), MEHRERE gehen als Liste -- garetienRuecknahmeSenden
 		// verpackt ohnehin beides gleich (siehe dort).
 		const ids = items.map(function (item) { return item.id; });
-		return senden(ids.length === 1 ? ids[0] : ids, runId);
+		// \U0001f4a3 ZWEI VERSCHIEDENE MENGEN, und das ist der Kern: zurueckgenommen werden die
+		// ruecknehmbaren Items, ABGELEHNT werden ALLE (siehe garetienRuecknahmeAblehnenBauen).
+		const ablehnenIds = auchAblehnen
+			? ((objekt.items || []).map(function (item) { return item.id; }))
+			: null;
+		return senden(ids.length === 1 ? ids[0] : ids, runId, ablehnenIds);
 	}
 
 	// ---- Meldung C (30.08.2026): „Markierte zurücknehmen" -- das Gegenstück zu „Alle angezeigten
@@ -5642,6 +5727,9 @@
 			garetienPanelsBeiseite,
 			// Owner-Meldung 31.08.2026: die mitgereiste Quelle ohne Neuladen sichtbar machen.
 			garetienQuellenNachtragen,
+			// Owner 31.08.2026: „Ablehnen" neben „Zuruecknehmen" am uebernommenen Objekt.
+			garetienRuecknahmeAblehnenBauen,
+			garetienRuecknahmeZielSatz,
 			// Owner 31.08.2026: die Karte wird beim Oeffnen auf Import-Sicht gestellt.
 			garetienKarteFuerImportRichten,
 			garetienImportHakenSetzen,

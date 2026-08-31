@@ -783,6 +783,29 @@ function avesmapsSyncPlanRecordApplied(
 }
 
 /**
+ * Den dauerhaften Uebernahme-Vermerk WIEDER LOESCHEN -- das Gegenstueck zu
+ * avesmapsSyncPlanRecordApplied.
+ *
+ * 🔴 MELDUNG 31.08.2026, und der Fehler war MEIN eigener: seit `applied_at` die Uebernahme den
+ * Lauf ueberleben laesst, setzte die Ruecknahme zwar `sync_plan_item` zurueck -- aber nicht diesen
+ * Vermerk. Gemessen: nach der Ruecknahme steht `apply_state = NULL, selected = 1` und trotzdem
+ * `applied_at`, und `avesmapsGaretienListeObjektStand` liest genau ihn („zwei Wege zu
+ * uebernommen"). Das Objekt verschwand also von der Karte und blieb im Reiter „Uebernommen"
+ * stehen -- die Ruecknahme sah aus, als haette sie nicht gewirkt.
+ *
+ * ⚠️ Die ZEILE bleibt stehen, nur die zwei Spalten werden geleert. Sie kann eine Ablehnung
+ * tragen (`declined_at`), und ein `DELETE` naehme die mit -- genau das braucht die Ablehnung eines
+ * uebernommenen Objekts (Owner 31.08.2026), die beides nacheinander tut.
+ */
+function avesmapsSyncPlanForgetApplied(PDO $pdo, string $kind, string $entityKey, string $changeType = 'new'): void
+{
+    $pdo->prepare(
+        'UPDATE sync_decision SET applied_at = NULL, applied_by = NULL
+          WHERE kind = :k AND entity_key = :ek AND change_type = :ct'
+    )->execute(['k' => $kind, 'ek' => $entityKey, 'ct' => $changeType]);
+}
+
+/**
  * Forget the skip counter of a change that has now been applied.
  *
  * ⚠️ Without this the tag lies: a row skipped three times and then taken would keep telling the next

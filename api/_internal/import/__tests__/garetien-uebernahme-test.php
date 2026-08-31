@@ -18,6 +18,9 @@ declare(strict_types=1);
 //           api/_internal/import/__tests__/garetien-uebernahme-test.php
 
 require_once __DIR__ . '/../garetien-uebernahme.php';
+// Fuer den STAND-Zeugen der Ruecknahme (avesmapsGaretienArbeitsliste, 31.08.2026): die Frage des
+// Owners war nicht "ist eine Spalte leer", sondern "in welchem Reiter steht die Zeile".
+require_once __DIR__ . '/../garetien-liste.php';
 
 $pruefungen = 0;
 
@@ -2675,6 +2678,93 @@ $pdoN->exec("DELETE FROM map_features WHERE public_id = '$idNeu'");
 $n4 = avesmapsGaretienArtikelQuellenNachtragen($pdoN);
 assert($n4['geschrieben'] === 0 && is_int($n4['geprueft']),
     'ein geloeschtes Objekt wird uebersprungen, nicht geworfen: ' . json_encode($n4));
+$pruefungen++;
+
+// =================================================================================================
+// 🔴 DIE RUECKNAHME VERGISST AUCH DEN DAUERHAFTEN VERMERK -- sonst wirkt sie nicht
+// =================================================================================================
+// Der Fehler war der Preis fuer die Reparatur vom 30.08.2026: seit `sync_decision.applied_at` die
+// Uebernahme den Lauf ueberleben laesst, setzte die Ruecknahme zwar `sync_plan_item` zurueck --
+// aber nicht diesen Vermerk. `avesmapsGaretienListeObjektStand` liest BEIDE („zwei Wege zu
+// uebernommen"), und der dauerhafte gewinnt.
+//
+// 💣 DAS FEHLERBILD: das Objekt verschwindet von der Karte und bleibt trotzdem im Reiter
+// „Uebernommen" stehen. Die Ruecknahme sah aus, als haette sie nicht gewirkt -- und der Reiter
+// „Offen" bekam die Zeile nie zurueck.
+$pdoV = avesmapsGaretienUebernahmeTestPdo();
+$laufV = (int) avesmapsSyncPlanOpenRun($pdoV, AVESMAPS_GARETIEN_PLAN_KIND)['id'];
+$idV = '00000000-0000-4000-8000-0000000d0001';
+$pdoV->prepare('INSERT INTO map_features (public_id, name, feature_type, feature_subtype, geometry_json, properties_json, geometry_type) VALUES (?,?,?,?,?,?,?)')
+    ->execute([$idV, 'Vermerkweg', 'path', 'Weg',
+        json_encode(['type' => 'LineString', 'coordinates' => [[1.0, 1.0], [2.0, 2.0]]]), '{}', 'LineString']);
+avesmapsSyncPlanAddItem($pdoV, $laufV, [
+    'entity_key' => 'ggp:Wege:Weg:Garetien:Vermerkweg',
+    'entity_public_id' => $idV,
+    'change_type' => 'changed',
+    'label' => 'Vermerkweg \u00b7 Quelle',
+    'before' => ['public_id' => $idV, 'name' => 'Vermerkweg'],
+    'after' => ['herkunft' => 'garetien', 'wiki' => 'ggp', 'ebene' => 'Wege', 'anlass' => 'ergaenzung',
+        'felder' => ['quelle'], 'ziel' => 'path', 'subtyp' => 'Weg',
+        'quelle' => ['url' => 'https://www.garetien.de', 'label' => 'Briefspiel (Garetien)',
+            'license' => 'cc-by-nc-sa-3.0', 'attribution' => 'VolkoV / garetien.de'],
+        'seite_url' => AVESMAPS_GARETIEN_BASIS_GGP . 'Wege'],
+    'override' => [], 'selected' => 1,
+]);
+$itemV = $itemIdVon($pdoV, 'Vermerkweg \u00b7 Quelle');
+$vermerkV = static fn(PDO $pdo): ?string => ($w = $pdo->query(
+    "SELECT applied_at FROM sync_decision WHERE kind = 'garetien' AND entity_key = 'ggp:Wege:Weg:Garetien:Vermerkweg'"
+)->fetchColumn()) === false ? null : ($w === null ? null : (string) $w);
+
+avesmapsGaretienUebernehmen($pdoV, $laufV, [$itemV], ['id' => 7]);
+assert($vermerkV($pdoV) !== null, 'nach der Uebernahme steht der dauerhafte Vermerk');
+$pruefungen++;
+
+$rV = avesmapsGaretienRuecknahmeAusfuehren($pdoV, $laufV, [$itemV], ['id' => 7]);
+assert($rV['zurueckgenommen'] === 1, 'die Ruecknahme gelingt: ' . json_encode($rV));
+assert($vermerkV($pdoV) === null,
+    '🔴 und sie loescht den dauerhaften Vermerk MIT -- sonst bliebe das Objekt in "Uebernommen"');
+$pruefungen += 2;
+
+// ⚠️ DIE ZEILE BLEIBT STEHEN, nur die zwei Spalten sind leer. Sie kann eine Ablehnung tragen
+// (`declined_at`), und ein DELETE naehme die mit -- genau das braucht die Ablehnung eines
+// uebernommenen Objekts (Owner 31.08.2026), die Ruecknahme und Ablehnung nacheinander tut.
+$zeilenV = (int) $pdoV->query(
+    "SELECT COUNT(*) FROM sync_decision WHERE kind = 'garetien' AND entity_key = 'ggp:Wege:Weg:Garetien:Vermerkweg'"
+)->fetchColumn();
+assert($zeilenV === 1, 'die Entscheidungszeile bleibt stehen, nur die Spalten sind leer: ' . $zeilenV);
+$pruefungen++;
+
+// 💣 UND DAS OBJEKT IST WIRKLICH WIEDER OFFEN -- am STAND gemessen, nicht an der Spalte. Ohne
+// diese Zeile belegt der Abschnitt nur, dass ein Feld leer ist; die Frage des Owners war aber, in
+// welchem Reiter die Zeile steht.
+$standV = avesmapsGaretienArbeitsliste($pdoV, 0, [])['reiter'] ?? [];
+assert(($standV['uebernommen'] ?? -1) === 0,
+    'kein Objekt steht mehr in "Uebernommen": ' . json_encode($standV));
+$pruefungen++;
+
+// --- Und die Gegenprobe: OHNE Ruecknahme steht es dort sehr wohl.
+$idW = '00000000-0000-4000-8000-0000000d0002';
+$pdoV->prepare('INSERT INTO map_features (public_id, name, feature_type, feature_subtype, geometry_json, properties_json, geometry_type) VALUES (?,?,?,?,?,?,?)')
+    ->execute([$idW, 'Bleibtweg', 'path', 'Weg',
+        json_encode(['type' => 'LineString', 'coordinates' => [[3.0, 3.0], [4.0, 4.0]]]), '{}', 'LineString']);
+avesmapsSyncPlanAddItem($pdoV, $laufV, [
+    'entity_key' => 'ggp:Wege:Weg:Garetien:Bleibtweg',
+    'entity_public_id' => $idW,
+    'change_type' => 'changed',
+    'label' => 'Bleibtweg \u00b7 Quelle',
+    'before' => ['public_id' => $idW, 'name' => 'Bleibtweg'],
+    'after' => ['herkunft' => 'garetien', 'wiki' => 'ggp', 'ebene' => 'Wege', 'anlass' => 'ergaenzung',
+        'felder' => ['quelle'], 'ziel' => 'path', 'subtyp' => 'Weg',
+        'quelle' => ['url' => 'https://www.garetien.de', 'label' => 'Briefspiel (Garetien)',
+            'license' => 'cc-by-nc-sa-3.0', 'attribution' => 'VolkoV / garetien.de'],
+        'seite_url' => AVESMAPS_GARETIEN_BASIS_GGP . 'Wege'],
+    'override' => [], 'selected' => 1,
+]);
+avesmapsGaretienUebernehmen($pdoV, $laufV, [$itemIdVon($pdoV, 'Bleibtweg \u00b7 Quelle')], ['id' => 7]);
+$standW = avesmapsGaretienArbeitsliste($pdoV, 0, [])['reiter'] ?? [];
+assert(($standW['uebernommen'] ?? 0) === 1,
+    'ein nicht zurueckgenommenes Objekt steht sehr wohl in "Uebernommen" -- sonst prueft die Zeile '
+    . 'darueber eine Konstante: ' . json_encode($standW));
 $pruefungen++;
 
 echo "OK: {$pruefungen} Pruefungen\n";

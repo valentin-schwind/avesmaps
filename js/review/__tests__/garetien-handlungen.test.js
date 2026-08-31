@@ -40,7 +40,7 @@ const {
 	garetienGeometrieRueckfrageText, garetienHandlungKlick, garetienHakenKlick,
 	garetienDetailMarkup,
 	// Aufgabe 9
-	garetienRuecknahmeRueckfrageText, garetienRuecknahmeKlick,
+	garetienRuecknahmeRueckfrageText, garetienRuecknahmeKlick, garetienRuecknahmeZielSatz,
 } = mod;
 
 [["garetienHandlungen", garetienHandlungen], ["garetienHandlungsRumpf", garetienHandlungsRumpf],
@@ -493,9 +493,16 @@ function kette(knoten) {
 				? k.attribute[name] : null;
 		},
 	}, k));
+	// 🪤 EHRLICHER `closest`: eine Auswahl kann MEHRERE, kommagetrennte Alternativen tragen
+	// (`'[data-handlung="a"], [data-handlung="b"]'`). Die alte Attrappe verglich die ganze
+	// Zeichenkette und lieferte bei jeder Erweiterung des Selektors still `null` -- also „der Klick
+	// traf nichts", was von „der Knopf tut nichts" nicht zu unterscheiden ist.
 	kandidaten[0].closest = function (auswahl) {
+		const teile = String(auswahl).split(",").map(function (t) { return t.trim(); });
 		for (const k of kandidaten) {
-			if ((k.passt || []).indexOf(auswahl) !== -1) { return k; }
+			for (const teil of teile) {
+				if ((k.passt || []).indexOf(teil) !== -1) { return k; }
+			}
 		}
 		return null;
 	};
@@ -930,7 +937,109 @@ laufMitGefaelschtemFetch(() => mod.avesmapsGaretienListeHolen()).then(function (
 	// parallelen Sitzungen, nur hier im selben Prozess.
 	return pruefeRuecknahmeSenden();
 }).then(function () {
-	console.log(`garetien-handlungen ok -- ${checks} Zusicherungen`);
+	// =================================================================================================
+// \U0001f534 „ABLEHNEN" NEBEN „ZURUECKNEHMEN" (Owner 31.08.2026)
+// =================================================================================================
+// „Ich würde gern neben objekten die 'Übernommen' wurde und die Option 'Zurücknehmen' anbieten auch
+// gleichzeitig die Option 'Ablehnen' anbieten, wo sie zurückgenommen und in die kategorie ablehnen
+// gesteckt werden."
+
+function ablehnenZiel(key) {
+	return kette([{
+		passt: ['[data-handlung="ruecknahme_ablehnen"]', "[data-handlung]", "[data-key]"],
+		attribute: { "data-handlung": "ruecknahme_ablehnen", "data-key": key },
+	}]);
+}
+
+// --- Das Markup: zwei echte Knöpfe, beide in Gefahrenfarbe.
+const markupZwei = garetienHandlungsMarkup(wegUebernommen);
+wahr(/<button[^>]*btn--danger[^>]*data-handlung="ruecknahme_ablehnen"/.test(markupZwei),
+	"„Ablehnen\" steht als echter Knopf daneben: " + markupZwei);
+wahr(/>Ablehnen</.test(markupZwei), "mit dem Wortlaut des Owners");
+
+// --- \U0001f4a3 UND BEI EINEM 'changed'-OBJEKT STEHT ER GAR NICHT DA. Owner-Entscheid 1 zu
+// „Zurücknehmen" gilt unverändert: kein Knopf, ein sichtbarer Grund. Ein gesperrter Zwilling hätte
+// die Regel aufgehoben und den Grund doppelt hingeschrieben.
+const markupChangedZwei = garetienHandlungsMarkup(changedUebernommen);
+wahr(!/<button/.test(markupChangedZwei),
+	"ein 'changed'-Objekt bekommt weiterhin GAR KEINEN Knopf: " + markupChangedZwei);
+gleich((markupChangedZwei.match(/gi-acts__grund/g) || []).length, 1, "und den Grund genau EINMAL");
+gleich((markupChangedZwei.match(/nicht rücknehmbar/g) || []).length, 1,
+	"\U0001fa64 wirklich einmal, nicht zweimal derselbe Satz: " + markupChangedZwei);
+
+// --- Der Klickverteiler nimmt BEIDE Verben, und nur „Ablehnen" reicht die Ablehn-Menge weiter.
+ruecknahmeGesendet = []; gefragt = [];
+const sendenDrei = (idsOderId, runId, ablehnenIds) => {
+	ruecknahmeGesendet.push([idsOderId, runId, ablehnenIds]);
+	return "gesendet-a";
+};
+gleich(garetienRuecknahmeKlick({ target: ablehnenZiel(wegUebernommen.key) }, objekteN, 7,
+	sendenDrei, jaSagen), "gesendet-a", "der Ablehnen-Knopf wird vom selben Verteiler bedient");
+tief(ruecknahmeGesendet[0][0], 501, "zurückgenommen wird das rücknehmbare Item");
+tief(ruecknahmeGesendet[0][2], [501], "und abgelehnt werden ALLE Items des Objekts");
+
+// --- 🪤 UND DAS MISST ERST AN EINEM OBJEKT MIT ZWEI VERSCHIEDENEN ITEMS ETWAS. Am Gardel oben sind
+// „rücknehmbar" und „alle" dieselbe einelementige Menge -- eine Mutation, die die falsche nimmt,
+// bliebe dort unentdeckt (genau diese Falle ist in dieser Sitzung schon zweimal zugeschnappt).
+// Hier trägt das Objekt ein übernommenes 'new'-Item UND ein nie übernommenes Umbenennungs-Item.
+const gemischtUebernommen = {
+	key: "gi9:gemischt", name: "Zweiteiler", urteil: "neu", stand: "uebernommen",
+	geometrie_typ: "LineString",
+	items: [
+		{ id: 701, change_type: "new", apply_state: "done", selected: 0 },
+		{ id: 702, change_type: "changed", apply_state: null, anlass: "umbenennung",
+			felder: ["name"], selected: 0 },
+	],
+};
+tief(knopf(gemischtUebernommen, "ruecknahme_ablehnen").ids, [701],
+	"zurückgenommen wird NUR das übernommene 'new'-Item");
+tief(knopf(gemischtUebernommen, "ruecknahme_ablehnen").ablehnenIds, [701, 702],
+	"🔴 abgelehnt werden BEIDE -- ein Objekt gilt erst als abgelehnt, wenn JEDES Item abgelehnt ist "
+	+ "(garetien-liste.php); mit nur dem ersten bliebe es in „Offen\" stehen");
+ruecknahmeGesendet = []; gefragt = [];
+garetienRuecknahmeKlick({ target: ablehnenZiel(gemischtUebernommen.key) },
+	[gemischtUebernommen], 7, sendenDrei, jaSagen);
+tief(ruecknahmeGesendet[0][0], 701, "und der Verteiler reicht die zwei Mengen getrennt weiter");
+tief(ruecknahmeGesendet[0][2], [701, 702], "-- die Ablehn-Menge ist die vollständige");
+
+// \U0001f4a3 DIE GEWÖHNLICHE RÜCKNAHME REICHT KEINE ABLEHN-MENGE -- sonst lehnte sie still mit ab.
+ruecknahmeGesendet = []; gefragt = [];
+garetienRuecknahmeKlick({ target: ruecknahmeZiel(wegUebernommen.key) }, objekteN, 7, sendenDrei, jaSagen);
+gleich(ruecknahmeGesendet[0][2], null, "„Zurücknehmen\" lehnt NICHTS ab: " + JSON.stringify(ruecknahmeGesendet[0]));
+
+// --- Die Rückfrage sagt, WOHIN das Objekt fällt -- und die zwei Knöpfe sagen Verschiedenes.
+const frageZurueck = garetienRuecknahmeRueckfrageText(wegUebernommen, false);
+const frageAblehnen = garetienRuecknahmeRueckfrageText(wegUebernommen, true);
+wahr(frageZurueck.includes("zurück nach „Offen“"), "„Zurücknehmen\" führt nach Offen");
+wahr(frageAblehnen.includes("„Abgelehnt“"), "„Ablehnen\" führt nach Abgelehnt: " + frageAblehnen);
+wahr(!frageAblehnen.includes("zurück nach „Offen“"),
+	"\U0001fa64 MISS DIE DIFFERENZ: der Ablehn-Text sagt NICHT auch noch „nach Offen\"");
+// \U0001f534 UND ER NENNT DEN RÜCKWEG. Eine Ablehnung ohne Rückweg wäre ein schwarzes Loch (Entwurf §5)
+// -- der Knopf „Wieder vorschlagen" steht im Reiter „Abgelehnt", aber wer den Text liest, weiß es
+// noch nicht.
+wahr(frageAblehnen.includes("Wieder vorschlagen"), "und nennt den Rückweg: " + frageAblehnen);
+// \u26a0\ufe0f Die Folge für die KARTE steht in beiden gleich -- sie ist dieselbe.
+wahr(frageAblehnen.includes("aus unserer Karte entfernt") && frageZurueck.includes("aus unserer Karte entfernt"),
+	"beide sagen, dass das Objekt von der Karte geht");
+
+// --- Und beim 'quelle'-only-Objekt greift derselbe Unterschied auf dem ANDEREN Grundtext.
+// \U0001f4a3 Der Zielsatz steht deshalb in einer eigenen Funktion: in beide Texte hineingeschrieben
+// liefe er beim nächsten Wortlaut auseinander.
+gleich(garetienRuecknahmeZielSatz(false).includes("„Offen“"), true, "der Zielsatz für Zurücknehmen");
+gleich(garetienRuecknahmeZielSatz(true).includes("„Abgelehnt“"), true, "und der für Ablehnen");
+wahr(garetienRuecknahmeZielSatz(true) !== garetienRuecknahmeZielSatz(false),
+	"die beiden Sätze sind verschieden -- sonst prüfen die Zeilen darüber eine Konstante");
+
+// --- \U0001f4a3 UND DIE ZWEI RÜCKNAHME-VERBEN GEHEN NIE ÜBER DIE GETEILTE TÜR HINAUS.
+// Fänden sie in garetienHandlungsRumpf einen Rumpf, fiele der Klick bis zu garetienHandlungKlick
+// durch und verschickte ein sinnloses `select` an sync-plan.php -- zwei Erzeuger für denselben
+// Knopf. Bis zum 31.08.2026 hielt das allein die Reihenfolge der Verdrahtung.
+gleich(garetienHandlungsRumpf("ruecknahme", wegUebernommen, 7), null,
+	"„Zurücknehmen\" hat hier keinen Rumpf -- es hat seine eigene Tür");
+gleich(garetienHandlungsRumpf("ruecknahme_ablehnen", wegUebernommen, 7), null,
+	"und „Ablehnen\" ebenso");
+
+console.log(`garetien-handlungen ok -- ${checks} Zusicherungen`);
 }).catch(function (fehler) {
 	console.error(fehler);
 	process.exitCode = 1;
@@ -1113,10 +1222,31 @@ const changedUebernommen = {
 };
 
 // ---- N.1 Die Tafel: 'new' bekommt einen bedienbaren Knopf, 'changed' gar keinen ------------------
-tief(namen(wegUebernommen), ["ruecknahme"], "ein übernommenes 'new'-Objekt hat GENAU eine Handlung");
+// \U0001f534 SEIT 31.08.2026 ZWEI (Owner: „neben … 'Zurücknehmen' … auch gleichzeitig die Option
+// 'Ablehnen' anbieten, wo sie zurückgenommen und in die kategorie ablehnen gesteckt werden").
+tief(namen(wegUebernommen), ["ruecknahme", "ruecknahme_ablehnen"],
+	"ein übernommenes 'new'-Objekt hat ZWEI Handlungen: zurücknehmen und ablehnen");
+gleich(knopf(wegUebernommen, "ruecknahme_ablehnen").disabled, false, "der Ablehnen-Knopf ist bedienbar");
+gleich(knopf(wegUebernommen, "ruecknahme_ablehnen").beschriftung, "Ablehnen",
+	"und trägt den Wortlaut des Owners");
+// \U0001f4a3 ZWEI MENGEN: zurückgenommen werden die RÜCKNEHMBAREN Items, abgelehnt ALLE. Ein Objekt
+// gilt erst als „abgelehnt", wenn JEDES seiner Items abgelehnt ist (garetien-liste.php) -- mit nur
+// den zurückgenommenen bliebe es in „Offen" stehen, und der Knopf hätte sichtbar die halbe Arbeit
+// getan.
+tief(knopf(wegUebernommen, "ruecknahme_ablehnen").ids, [501], "zurückgenommen wird das 'new'-Item");
+tief(knopf(wegUebernommen, "ruecknahme_ablehnen").ablehnenIds,
+	wegUebernommen.items.map(function (i) { return i.id; }),
+	"abgelehnt werden ALLE Items des Objekts");
 gleich(knopf(wegUebernommen, "ruecknahme").disabled, false, "und sie ist bedienbar");
 tief(knopf(wegUebernommen, "ruecknahme").ids, [501], "mit der id GENAU dieses 'new'-Items");
 
+// \U0001f534 UND „Ablehnen" KANN GENAU DANN, WENN „Zurücknehmen" KANN -- keine Bequemlichkeit,
+// sondern die Sache selbst: abgelehnt werden kann nur, was vorher von der Karte kommt. Ein Objekt,
+// das ein BESTEHENDES verändert hat, stünde sonst in „Abgelehnt", während seine Änderung weiter
+// gilt.
+// \U0001f4a3 ES ERSCHEINT DANN GAR NICHT, statt ausgegraut dazustehen: Owner-Entscheid 1 zu
+// „Zurücknehmen" lautet „kein Knopf, sondern ein sichtbarer Grund an seiner Stelle", und ein
+// gesperrter Zwilling hätte diese Regel aufgehoben UND den Grund doppelt hingeschrieben.
 tief(namen(changedUebernommen), ["ruecknahme"],
 	"auch ein übernommenes 'changed'-Objekt zeigt die eine Handlung -- als GRUND, nicht als Knopf");
 gleich(knopf(changedUebernommen, "ruecknahme").disabled, true,

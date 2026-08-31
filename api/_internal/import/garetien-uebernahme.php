@@ -1549,6 +1549,41 @@ function avesmapsGaretienUebernehmen(PDO $pdo, int $runId, array $itemIds, array
 }
 
 /**
+ * EIN Item zurueck auf „offen" -- der EINE Weg, und er ist es seit dem 31.08.2026.
+ *
+ * 🔴 ZWEI DINGE, NICHT EINES. Das Haekchen und der Lauf-Vermerk stehen an `sync_plan_item`, der
+ * DAUERHAFTE Uebernahme-Vermerk an `sync_decision.applied_at`. Wer nur das erste zuruecksetzt,
+ * nimmt das Objekt von der Karte und laesst es trotzdem im Reiter „Uebernommen" stehen --
+ * `avesmapsGaretienListeObjektStand` liest beide („zwei Wege zu uebernommen") und der zweite
+ * gewinnt. Genau so war es vom 30.08. bis zum 31.08.2026: die Ruecknahme sah aus, als haette sie
+ * nicht gewirkt.
+ *
+ * 💣 UND SIE STEHT HIER, NICHT AN DEN AUFRUFSTELLEN. `avesmapsGaretienRuecknahmeAusfuehren`
+ * setzt an ZWEI Stellen zurueck (der 'quelle'-only-Zweig und der 'new'-Zweig) -- dieselbe
+ * Bauform und derselbe Grund wie bei `avesmapsGaretienItemAbschliessen`, das den Vermerk SETZT.
+ * Eine Regel, die einen von zwei Erzeugern bindet, ist keine Regel.
+ */
+function avesmapsGaretienItemZurueckAufOffen(PDO $pdo, int $itemId): void
+{
+    $pdo->prepare(
+        'UPDATE sync_plan_item SET apply_state = NULL, apply_note = NULL, selected = 1 WHERE id = :id'
+    )->execute(['id' => $itemId]);
+
+    $stmt = $pdo->prepare('SELECT entity_key, change_type FROM sync_plan_item WHERE id = :id');
+    $stmt->execute(['id' => $itemId]);
+    $zeile = $stmt->fetch(PDO::FETCH_ASSOC);
+    if (!is_array($zeile)) {
+        return;
+    }
+    avesmapsSyncPlanForgetApplied(
+        $pdo,
+        AVESMAPS_GARETIEN_PLAN_KIND,
+        (string) $zeile['entity_key'],
+        (string) $zeile['change_type']
+    );
+}
+
+/**
  * Die Ruecknahme: umkehren, was EINE Uebernahme angelegt hat -- das Item faellt zurueck auf
  * 'offen'. Aufgabe 9 (.superpowers/sdd/2026-08-29-garetien-importer-sichtwerkzeug/task-9-brief.md).
  *
@@ -1649,9 +1684,7 @@ function avesmapsGaretienRuecknahmeAusfuehren(PDO $pdo, int $runId, array $itemI
 
                 // Zurueck auf 'offen' -- derselbe Riegel wie im 'new'-Zweig unten (dieselbe
                 // Bedeutung von "Ruecknahme": zurueck in GENAU den Stand vor der Uebernahme).
-                $pdo->prepare(
-                    'UPDATE sync_plan_item SET apply_state = NULL, apply_note = NULL, selected = 1 WHERE id = :id'
-                )->execute(['id' => $itemId]);
+                avesmapsGaretienItemZurueckAufOffen($pdo, $itemId);
                 $zurueckgenommen++;
             } catch (Throwable $abbruch) {
                 $fehler[] = ['item' => $itemId, 'grund' => $abbruch->getMessage()];
@@ -1712,9 +1745,7 @@ function avesmapsGaretienRuecknahmeAusfuehren(PDO $pdo, int $runId, array $itemI
             // „Neu einfuegen" (der Vorschlag stand vorangehakt da, sonst waere er nie uebernommen
             // worden -- avesmapsSyncPlanPendingItems verlangt selected=1). „Ruecknahme" heisst:
             // zurueck in GENAU diesen Stand, nicht in einen neuen.
-            $pdo->prepare(
-                'UPDATE sync_plan_item SET apply_state = NULL, apply_note = NULL, selected = 1 WHERE id = :id'
-            )->execute(['id' => $itemId]);
+            avesmapsGaretienItemZurueckAufOffen($pdo, $itemId);
             $zurueckgenommen++;
         } catch (Throwable $abbruch) {
             $fehler[] = ['item' => $itemId, 'grund' => $abbruch->getMessage()];

@@ -55,9 +55,16 @@ function kette(knoten) {
 				? k.attribute[name] : null;
 		},
 	}, k));
+	// \U0001fa64 EHRLICHER `closest`: eine Auswahl kann MEHRERE, kommagetrennte Alternativen tragen
+	// (`'[data-handlung="a"], [data-handlung="b"]'`). Die alte Attrappe verglich die ganze
+	// Zeichenkette und haette bei jeder Erweiterung des Selektors still `null` geliefert -- also
+	// „der Klick traf nichts", was von „der Knopf tut nichts" nicht zu unterscheiden ist.
 	kandidaten[0].closest = function (auswahl) {
+		const teile = String(auswahl).split(",").map(function (t) { return t.trim(); });
 		for (const kandidat of kandidaten) {
-			if ((kandidat.passt || []).indexOf(auswahl) !== -1) { return kandidat; }
+			for (const teil of teile) {
+				if ((kandidat.passt || []).indexOf(teil) !== -1) { return kandidat; }
+			}
 		}
 		return null;
 	};
