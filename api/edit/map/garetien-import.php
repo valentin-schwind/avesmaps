@@ -221,6 +221,20 @@ try {
     // geteilt und ueberlebt den Abbau dieses Importers (Auftrag §5.5) -- ein Loeschweg dort bliebe
     // als Waise stehen. Die ganze Logik (avesmapsGaretienRuecknahmeAusfuehren) liegt deshalb
     // innerhalb von api/_internal/import/ und verschwindet mit ihm.
+    // Owner 31.08.2026: „wir wollen aber 'Übernommen' zurück nach 'Offen' verschieben können."
+    // \U0001f534 EIGENE AKTION, nicht ein Schalter an `ruecknahme`: die beiden tun Verschiedenes -- die
+    // eine loescht ein Kartenobjekt, die andere fasst keines an. Ein gemeinsamer Eingang mit einem
+    // Modus-Feld waere genau die Stelle, an der ein falscher Vorgabewert einmal loescht.
+    if ($action === 'zurueck_offen') {
+        $planLauf = (int) ($payload['run_id'] ?? 0);
+        $ids = avesmapsGaretienApplyIdsAusRumpf($payload);
+        if ($planLauf <= 0 || $ids === []) {
+            avesmapsErrorResponse(400, 'no_items', 'Es wurde kein Objekt genannt.');
+        }
+        avesmapsJsonResponse(200, ['ok' => true]
+            + avesmapsGaretienZurueckAufOffen($pdo, $planLauf, $ids, $user));
+    }
+
     if ($action === 'ruecknahme') {
         $planRunId = (int) ($payload['run_id'] ?? 0);
         $lauf = $planRunId > 0 ? avesmapsSyncPlanRunById($pdo, $planRunId) : null;

@@ -4162,6 +4162,36 @@
 		};
 	}
 
+	// REIN: „Zurück nach Offen" -- nur die Buchführung, kein Kartenobjekt wird angefasst.
+	//
+	// Owner 31.08.2026: „ich glaube geometrien haben sich nicht verändert wir wollen aber
+	// 'Übernommen' zurück nach 'Offen' verschieben können."
+	//
+	// 🔴 ER GILT FÜR ITEMS, DIE NICHTS ANGELEGT HABEN ('changed'). Ein 'new'-Item hat ein Objekt auf
+	// die Karte gebracht; es einfach nach „Offen" zurückzuschieben ließe das Objekt dort und böte
+	// an, es ein zweites Mal anzulegen -- eine Dublette, die niemand mehr als solche erkennt. Dafür
+	// gibt es „Zurücknehmen", das beides zusammen tut.
+	//
+	// ⚠️ Genau deshalb steht er NEBEN „Zurücknehmen" und nicht an seiner Stelle: die zwei Knöpfe
+	// bedienen zwei verschiedene Mengen desselben Objekts, und welcher davon etwas kann, sagt seine
+	// Zahl. Bei einem Objekt, dessen Items ausschließlich ein bestehendes Objekt beschrieben haben,
+	// ist „Zurücknehmen" leer und DIESER trägt alles -- genau der Fall des Owners.
+	function garetienZurueckOffenItems(objekt) {
+		return ((objekt && objekt.items) || []).filter(function (item) {
+			return item && item.apply_state === "done" && String(item.change_type || "") === "changed";
+		});
+	}
+
+	function garetienZurueckOffenBauen(objekt) {
+		const items = garetienZurueckOffenItems(objekt);
+		if (items.length === 0) { return null; }
+		return {
+			name: "zurueck_offen", beschriftung: "Zurück nach Offen", ton: "soft",
+			ids: items.map(function (item) { return item.id; }),
+			angehakt: 0, gesamt: items.length, erledigt: false, disabled: false, grund: "",
+		};
+	}
+
 	// REIN: die ganze Knopfleiste EINES Objekts.
 	function garetienHandlungen(objekt) {
 		const o = objekt || {};
@@ -4175,8 +4205,13 @@
 		// Rücknahme-Zeile -- ein 'changed'-Objekt (kein "neu"-Item) zeigt dabei gar keinen Knopf,
 		// nur den Grund (garetienRuecknahmeBauen).
 		if (String(o.stand || "") === "uebernommen") {
-			// ⚠️ `filter(Boolean)`: „Ablehnen" fällt ganz weg, wenn es nicht kann (siehe dort).
-			return [garetienRuecknahmeBauen(o), garetienRuecknahmeAblehnenBauen(o)].filter(Boolean);
+			// ⚠️ `filter(Boolean)`: „Ablehnen" und „Zurück nach Offen" fallen ganz weg, wenn sie
+			// nichts können -- kein ausgegrauter Knopf neben dem Grund (Owner-Entscheid 1).
+			return [
+				garetienRuecknahmeBauen(o),
+				garetienRuecknahmeAblehnenBauen(o),
+				garetienZurueckOffenBauen(o),
+			].filter(Boolean);
 		}
 		const namen = AVESMAPS_GARETIEN_HANDLUNGEN_JE_URTEIL[String(o.urteil || "")] || ["ablehnen"];
 		return namen.map(function (name) { return garetienHandlungBauen(name, o); });
@@ -4237,7 +4272,9 @@
 		// (garetienRuecknahmeKlick laeuft vorher und meldet, dass er uebernommen hat). Das war eine
 		// Zusicherung ohne Riegel: sie faellt, sobald jemand die Reihenfolge aendert, und der
 		// Fehler waere still.
-		if (name === "ruecknahme" || name === "ruecknahme_ablehnen") { return null; }
+		if (name === "ruecknahme" || name === "ruecknahme_ablehnen" || name === "zurueck_offen") {
+			return null;
+		}
 		const knopf = garetienHandlungen(objekt).filter(function (h) { return h.name === name; })[0];
 		if (!knopf || knopf.disabled || knopf.ids.length === 0) { return null; }
 		if (name === "ablehnen" || name === "wieder") {
@@ -4756,6 +4793,43 @@
 	// derselbe Klick weiter zu garetienHandlungKlick durch, das über die GETEILTE Tür
 	// (GARETIEN_PLAN_ENDPUNKT) ein wirkungsloses, aber unnötiges `select` verschickte -- zwei
 	// Erzeuger für denselben Knopf (AGENTS.md §11).
+	// REIN: der Klick auf „Zurück nach Offen" -- derselbe Bau wie garetienRuecknahmeKlick nebenan,
+	// aber eine EIGENE Funktion und eine EIGENE Tür.
+	//
+	// 🔴 KEIN GEMEINSAMER VERTEILER MIT DER RÜCKNAHME, obwohl beide dieselbe Form haben. Die eine
+	// löscht ein Kartenobjekt, die andere fasst keines an -- ein gemeinsamer Eingang mit einem
+	// Modus-Feld wäre genau die Stelle, an der ein falscher Vorgabewert einmal löscht. Dieselbe
+	// Begründung wie für die eigene Server-Aktion.
+	//
+	// ⚠️ OHNE RÜCKFRAGE, und das ist Absicht: hier verschwindet nichts. Eine Rückfrage vor einer
+	// folgenlosen Handlung lehrt, Rückfragen wegzuklicken -- und die eine, die zählt, steht direkt
+	// daneben am „Zurücknehmen".
+	function garetienZurueckOffenKlick(ereignis, objekte, runId, senden) {
+		const ziel = ereignis && ereignis.target;
+		if (!ziel || typeof ziel.closest !== "function") { return null; }
+		const knopf = ziel.closest('[data-handlung="zurueck_offen"]');
+		if (!knopf || knopf.disabled) { return null; }
+		const objekt = garetienObjektNach(knopf.getAttribute("data-key"), objekte);
+		if (!objekt) { return null; }
+		const items = garetienZurueckOffenItems(objekt);
+		if (items.length === 0) { return null; }
+
+		knopf.disabled = true;
+		knopf.textContent = "Verschiebt …";
+		return senden(items.map(function (item) { return item.id; }), runId);
+	}
+
+	// Der Sender dazu. 🔴 EIGENE Aktion am EIGENEN Endpunkt (`zurueck_offen`), nicht die geteilte
+	// Übernahme-Vorschau: was die Staging-Tabellen dieses Imports kennt, bleibt im Importer
+	// (Abbau-Bedingung §5.5).
+	function garetienZurueckOffenSenden(itemIds, runId) {
+		const ids = [].concat(itemIds).map(Number).filter(function (id) { return id > 0; });
+		return avesmapsGaretienRufe(GARETIEN_ENDPUNKT, {
+			action: "zurueck_offen", run_id: runId, ids: ids,
+		}).then(function () { return avesmapsGaretienListeHolen(); })
+			.catch(function (fehler) { garetienListeFehlerZeigen(fehler); return null; });
+	}
+
 	function garetienRuecknahmeKlick(ereignis, objekte, runId, senden, fragen) {
 		const ziel = ereignis && ereignis.target;
 		if (!ziel || typeof ziel.closest !== "function") { return null; }
@@ -5549,6 +5623,11 @@
 				// Begründung an garetienRuecknahmeSenden).
 				if (garetienRuecknahmeKlick(ereignis, zustand.objekte, zustand.planRunId,
 					garetienRuecknahmeSenden, garetienFragen)) { return; }
+				// Owner 31.08.2026: „wir wollen aber 'Übernommen' zurück nach 'Offen' verschieben
+				// können." Eigener Verteiler, eigene Tür -- siehe die Begründung an seiner
+				// Definition.
+				if (garetienZurueckOffenKlick(ereignis, zustand.objekte, zustand.planRunId,
+					garetienZurueckOffenSenden)) { return; }
 				// Owner-Auftrag A: „Imports in der Nähe anzeigen" -- derselbe Zug wie die drei
 				// Verteiler darüber, mit der schon geladenen Trefferliste dieses Objekts.
 				// Owner 30.08.2026: „soll auch automatisch ins tab 'Anzeigen' wechseln" --
@@ -5758,6 +5837,10 @@
 			garetienQuellenNachtragen,
 			// Owner 31.08.2026: „Ablehnen" neben „Zuruecknehmen" am uebernommenen Objekt.
 			garetienRuecknahmeAblehnenBauen,
+			// Owner 31.08.2026: „Uebernommen" zurueck nach „Offen" verschieben.
+			garetienZurueckOffenBauen,
+			garetienZurueckOffenItems,
+			garetienZurueckOffenKlick,
 			garetienRuecknahmeZielSatz,
 			// Owner 31.08.2026: die Karte wird beim Oeffnen auf Import-Sicht gestellt.
 			garetienKarteFuerImportRichten,

@@ -839,8 +839,10 @@ wahr(/>Ablehnen</.test(markupZwei), "mit dem Wortlaut des Owners");
 // „Zurücknehmen" gilt unverändert: kein Knopf, ein sichtbarer Grund. Ein gesperrter Zwilling hätte
 // die Regel aufgehoben und den Grund doppelt hingeschrieben.
 const markupChangedZwei = garetienHandlungsMarkup(changedUebernommen);
-wahr(!/<button/.test(markupChangedZwei),
-	"ein 'changed'-Objekt bekommt weiterhin GAR KEINEN Knopf: " + markupChangedZwei);
+wahr(!/data-handlung="ruecknahme_ablehnen"/.test(markupChangedZwei)
+	&& !/data-handlung="ruecknahme"/.test(markupChangedZwei),
+	"ein 'changed'-Objekt bekommt weder einen Ruecknahme- noch einen Ablehnen-Knopf: "
+	+ markupChangedZwei);
 gleich((markupChangedZwei.match(/gi-acts__grund/g) || []).length, 1, "und den Grund genau EINMAL");
 gleich((markupChangedZwei.match(/nicht rücknehmbar/g) || []).length, 1,
 	"🩤 wirklich einmal, nicht zweimal derselbe Satz: " + markupChangedZwei);
@@ -1125,8 +1127,12 @@ tief(knopf(wegUebernommen, "ruecknahme").ids, [501], "mit der id GENAU dieses 'n
 // 💣 ES ERSCHEINT DANN GAR NICHT, statt ausgegraut dazustehen: Owner-Entscheid 1 zu
 // „Zurücknehmen" lautet „kein Knopf, sondern ein sichtbarer Grund an seiner Stelle", und ein
 // gesperrter Zwilling hätte diese Regel aufgehoben UND den Grund doppelt hingeschrieben.
-tief(namen(changedUebernommen), ["ruecknahme"],
-	"auch ein übernommenes 'changed'-Objekt zeigt die eine Handlung -- als GRUND, nicht als Knopf");
+// 🔴 SEIT 31.08.2026 STEHT DANEBEN „ZURÜCK NACH OFFEN" (Owner: „wir wollen aber 'Übernommen'
+// zurück nach 'Offen' verschieben können"). Genau dieses Objekt ist sein Fall: „Zurücknehmen" ist
+// leer (es hat nichts angelegt), und ohne den zweiten Knopf hätte es überhaupt keinen Ausgang.
+// ⚠️ „Zurücknehmen" bleibt trotzdem in der Liste -- als GRUND, nicht als Knopf (Owner-Entscheid 1).
+tief(namen(changedUebernommen), ["ruecknahme", "zurueck_offen"],
+	"ein übernommenes 'changed'-Objekt: „Zurücknehmen\" als Grund, „Zurück nach Offen\" als Knopf");
 gleich(knopf(changedUebernommen, "ruecknahme").disabled, true,
 	"🔴 OWNER-ENTSCHEID 1: ein 'changed'-Objekt bekommt GAR KEINE Rücknahme");
 gleich(knopf(changedUebernommen, "ruecknahme").grund, "Verändert ein bestehendes Objekt — nicht rücknehmbar.",
@@ -1145,8 +1151,14 @@ wahr(/<button[^>]*btn--danger[^>]*data-handlung="ruecknahme"/.test(markupWeg),
 wahr(/>Zurücknehmen</.test(markupWeg), "mit der Beschriftung aus dem Brief");
 
 const markupChanged = garetienHandlungsMarkup(changedUebernommen);
-wahr(!/<button/.test(markupChanged),
-	"🔴 „Kein Knopf, sondern ein sichtbarer Grund an seiner Stelle\" -- hier steht wirklich KEIN <button>");
+// 🔴 „Kein Knopf, sondern ein sichtbarer Grund an seiner Stelle" gilt weiterhin FÜR DIE RÜCKNAHME:
+// sie steht als Grund da, nicht als ausgegrauter Knopf.
+wahr(!/data-handlung="ruecknahme"/.test(markupChanged),
+	"🔴 „Zurücknehmen\" steht als GRUND da, nicht als Knopf: " + markupChanged);
+// ⚠️ Seit 31.08.2026 steht daneben aber sehr wohl EIN Knopf -- „Zurück nach Offen". Ohne ihn hätte
+// dieses Objekt gar keinen Ausgang, und genau das war die Meldung des Owners.
+wahr(/data-handlung="zurueck_offen"/.test(markupChanged),
+	"und „Zurück nach Offen\" als echter Knopf daneben: " + markupChanged);
 wahr(/gi-acts__grund/.test(markupChanged) && /nicht rücknehmbar/.test(markupChanged),
 	"und der Grund steht trotzdem sichtbar da, nicht nur als Behauptung");
 

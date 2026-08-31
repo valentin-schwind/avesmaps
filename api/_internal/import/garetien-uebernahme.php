@@ -1605,6 +1605,67 @@ function avesmapsGaretienItemZurueckAufOffen(PDO $pdo, int $itemId): void
 }
 
 /**
+ * ZURUECK NACH „OFFEN" -- nur die Buchfuehrung, kein Kartenobjekt wird angefasst.
+ *
+ * Owner 31.08.2026: „die hier sollen zurück nach 'offen' wandern" und, nach der Frage nach den
+ * Geometrien: „ich glaube geometrien haben sich nicht verändert wir wollen aber 'Übernommen'
+ * zurück nach 'Offen' verschieben können."
+ *
+ * 🔴 DER UNTERSCHIED ZUR RUECKNAHME IST DAS OBJEKT. Die Ruecknahme LOESCHT, was der Import
+ * angelegt hat; diese Funktion loescht nichts. Sie setzt `apply_state`, das Haekchen und den
+ * dauerhaften Vermerk zurueck -- mehr nicht. Genau das ist der Fall, den der Owner hat: seine
+ * Zeilen haben ein BESTEHENDES Objekt beschriftet oder ihm dieselbe Geometrie noch einmal
+ * zugewiesen, und die Objekte sollen bleiben, wo sie sind.
+ *
+ * 💣 DESHALB GILT SIE NUR FUER 'changed'-ITEMS. Ein 'new'-Item hat ein Objekt ANGELEGT; es
+ * einfach nach „Offen" zurueckzuschieben liesse das Objekt auf der Karte und boete an, es ein
+ * zweites Mal anzulegen -- eine Dublette, und zwar eine, die niemand mehr als solche erkennt.
+ * Fuer die gibt es die Ruecknahme, die beides zusammen tut.
+ *
+ * ⚠️ Ein Item, das nie uebernommen wurde, ist kein Fehler, sondern schon dort, wo es hin soll --
+ * es wird uebersprungen, nicht beanstandet.
+ *
+ * @return array{verschoben:int, fehler:list<array{item:int, grund:string}>}
+ */
+function avesmapsGaretienZurueckAufOffen(PDO $pdo, int $runId, array $itemIds, array $user): array
+{
+    if ($itemIds === []) {
+        return ['verschoben' => 0, 'fehler' => []];
+    }
+    avesmapsEnsureSyncPlanTables($pdo);
+
+    $platzhalter = implode(',', array_fill(0, count($itemIds), '?'));
+    $stmt = $pdo->prepare(
+        'SELECT id, change_type, apply_state FROM sync_plan_item'
+        . ' WHERE run_id = ? AND id IN (' . $platzhalter . ') ORDER BY id'
+    );
+    $stmt->execute(array_merge([$runId], array_map('intval', $itemIds)));
+
+    $verschoben = 0;
+    $fehler = [];
+    foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $item) {
+        $itemId = (int) $item['id'];
+        if ((string) ($item['apply_state'] ?? '') !== 'done') {
+            continue;   // steht schon offen -- kein Fehler
+        }
+        if ((string) $item['change_type'] !== 'changed') {
+            // 🔴 Der Grund wird BENANNT und nennt den richtigen Weg. „geht nicht" allein liesse
+            // den Editor raten, warum ausgerechnet dieses Objekt nicht mitkommt.
+            $fehler[] = [
+                'item' => $itemId,
+                'grund' => 'hat ein Objekt ANGELEGT -- dafuer gibt es "Zuruecknehmen", '
+                    . 'das auch das Objekt von der Karte nimmt',
+            ];
+            continue;
+        }
+        avesmapsGaretienItemZurueckAufOffen($pdo, $itemId);
+        $verschoben++;
+    }
+
+    return ['verschoben' => $verschoben, 'fehler' => $fehler];
+}
+
+/**
  * Die Ruecknahme: umkehren, was EINE Uebernahme angelegt hat -- das Item faellt zurueck auf
  * 'offen'. Aufgabe 9 (.superpowers/sdd/2026-08-29-garetien-importer-sichtwerkzeug/task-9-brief.md).
  *
