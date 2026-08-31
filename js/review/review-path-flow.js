@@ -132,7 +132,11 @@ function renderPathFlowSection() {
 		const rawFactor = Number(flow?.factor);
 		// Vorbelegung 2,0 wie AVESMAPS_PATH_FLOW_FACTOR_DEFAULT -- ein Weg ohne eigenen Faktor faehrt
 		// im Routing auf diesem Wert, das Feld muss ihn also zeigen und nicht einen anderen anbieten.
-		factorInput.value = (Number.isFinite(rawFactor) ? Math.min(3, Math.max(1, rawFactor)) : 2.0).toFixed(1);
+		// 🔴 NUR NOCH NACH UNTEN (31.08.2026). Hier stand die SIEBTE Fassung des 3er-Riegels, und sie
+		// war die sichtbarste: der Server speicherte den eingestellten Wert, das Feld zeigte hoechstens
+		// 3,0 -- fuer den Editor sah es aus, als wuerde seine Eingabe zurueckgesetzt.
+		// 🪤 Uebersehen wurde sie, weil sie `Math.min(3, ...)` heisst und das Inventar `min(3.0` suchte.
+		factorInput.value = (Number.isFinite(rawFactor) ? Math.max(1, rawFactor) : 2.0).toFixed(1);
 		// Faktor editierbar, sobald ein Wiki-Weg zugewiesen ODER der Weg gerichtet ist
 		// (Owner-Anforderung 3).
 		const hasWiki = Boolean(pathEditFeature.properties?.wiki_path?.wiki_key);

@@ -106,4 +106,27 @@ assert(preg_match('~id="path-flow-factor"[^>]*max="~', $markup) !== 1,
 assert(preg_match('~id="path-flow-factor"[^>]*min="1"~', $markup) === 1,
     'die Untergrenze steht weiterhin am Feld');
 
+// =================================================================================================
+// E. 🪤 DIE SIEBTE KLEMME -- und warum die Suche sie zuerst verfehlt hat
+// =================================================================================================
+// 💣 Sie stand in js/review/review-path-flow.js als `Math.min(3, ...)` -- OHNE Nachkomma. Das
+// Inventar suchte `min(3.0` und fand sie deshalb nicht; live blieb damit die ANZEIGE geklemmt: der
+// Server speicherte den eingestellten Wert, das Feld zeigte hoechstens 3,0, und fuer den Editor sah
+// es aus, als wuerde seine Eingabe zurueckgesetzt.
+// ⭐ Die Lehre steckt im MUSTER: gesucht wird jetzt schreibweisenunabhaengig (3, 3.0, 3.00) und ueber
+// ALLE Dateien, die den Faktor anfassen. Ein Suchmuster, das eine Schreibweise voraussetzt, findet
+// die andere nie -- dieselbe Falle wie beim Zoomband-Inventar (AGENTS.md §11).
+$klemmenMuster = '~(?:Math\\.)?min\\(\\s*3(?:\\.0+)?\\s*,~';
+foreach ([
+    'js/review/review-path-flow.js',
+    'js/routing/route-node.js',
+    'js/routing/route-graph-routing.js',
+    'api/_internal/routing/client-graph.php',
+    'api/_internal/wiki/path-flow.php',
+] as $datei) {
+    $quelle = $ohneKommentare($lies($datei));
+    assert(preg_match($klemmenMuster, $quelle) !== 1,
+        $datei . ' klemmt den Stroemungsfaktor wieder auf 3 -- in irgendeiner Schreibweise');
+}
+
 fwrite(STDOUT, "stroemungsfaktor-ohne-deckel-test: OK\n");
