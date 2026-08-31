@@ -10,6 +10,9 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/garetien-parser.php';
 require_once __DIR__ . '/garetien-koordinaten.php';
+// Fuer AVESMAPS_TERRAIN_MEILEN_PER_MAPUNIT: die Begruendungen nennen Meilen, nicht
+// Karteneinheiten (Owner 31.08.2026: „kurz und auf was es sich bezieht").
+require_once __DIR__ . '/../routing/terrain-factor.php';
 
 /**
  * Ortschaften (Entwurf §3.1) sind EINE Familie -- Owner-Entscheid 30.08.2026, sinngemaess: ein
@@ -216,8 +219,63 @@ const AVESMAPS_GARETIEN_OHNE_GEGENSTUECK = ['Stadtviertel', 'Kontinent', 'Platz'
 // gefunden.
 
 
-/** Bis hierher gilt "an dieser Stelle liegt schon dasselbe". Startwert, in Karteneinheiten. */
+/** Bis hierher gilt "an dieser Stelle liegt schon dasselbe" -- fuer LINIEN und FLAECHEN. */
 const AVESMAPS_GARETIEN_TREFFER_EINHEITEN = 2.0;
+
+/**
+ * \U0001f534 FUER PUNKTE GILT EINE VIEL ENGERE SCHWELLE -- UND SIE ALLEIN GENUEGT NICHT.
+ *
+ * Owner 31.08.2026, nach dem Schaden an „Valpolust": „ich will konservativere schwellen".
+ *
+ * \U0001f4a3 GEMESSEN, UND DIE MESSUNG DREHT DIE ERWARTUNG UM: von 2364 Punktobjekten der
+ * garetien.de-Exportseiten haben bei 2,0 Einheiten (6 Meilen) 86,3 % einen ANDERS BENANNTEN
+ * Nachbarn -- aber auch bei 0,05 Einheiten (0,2 Meilen) sind es noch 13,8 %, und das 10.
+ * Perzentil der Nachbarabstaende ist EXAKT 0,000: mindestens jedes zehnte Punktobjekt liegt auf
+ * DEMSELBEN Punkt wie ein anders benanntes. Eine Burg und ihr Dorf teilen sich in diesem
+ * Kartenwerk die Koordinate.
+ *
+ * \U0001f534 KEINE Abstandsschwelle kann die beiden trennen. Deshalb entscheidet bei Punkten der NAME
+ * (avesmapsGaretienPunktTrefferGilt) -- der Abstand ist nur noch die zweite Bedingung.
+ *
+ * \u26a0\ufe0f 0,3 Einheiten = 0,9 Meilen: weit genug fuer denselben Ort, etwas anders gesetzt (das 25.
+ * Perzentil liegt bei 0,93 Meilen), und weit unter dem Median der Nachbarabstaende von 2,83
+ * Meilen.
+ */
+const AVESMAPS_GARETIEN_TREFFER_EINHEITEN_PUNKT = 0.3;
+
+/**
+ * Die Schwelle fuer DIESES Ziel. Ein Punkt ist bei uns ein `location` (Ort) oder ein `label`
+ * (Berggipfel und Geschwister) -- beide tragen genau eine Koordinate.
+ */
+function avesmapsGaretienTrefferSchwelle(array $ziel): float
+{
+    return in_array($ziel['ziel'] ?? '', ['location', 'label'], true)
+        ? AVESMAPS_GARETIEN_TREFFER_EINHEITEN_PUNKT
+        : AVESMAPS_GARETIEN_TREFFER_EINHEITEN;
+}
+
+/**
+ * Gilt ein Geometrietreffer bei einem PUNKT? Nur mit passendem NAMEN.
+ *
+ * \U0001f534 DAS IST DIE EIGENTLICHE REPARATUR (Owner 31.08.2026). Ihre „Burg Gryffenwacht" lag 1,90
+ * Einheiten neben unserem Dorf „Valpolust" und galt damit als dasselbe Objekt -- der Name spielte
+ * keine Rolle. Bei einem Punkt ist er aber das einzige Merkmal, das die beiden ueberhaupt
+ * unterscheidet: die Koordinate tut es nachweislich nicht (siehe die Messung oben).
+ *
+ * \u26a0\ufe0f NUR BEI PUNKTEN. Bei einer LINIE ist ein abweichender Name der Normalfall und kein
+ * Gegenbeweis: ihre eine „Natter" laeuft ueber unsere Natter, den Gardel UND den Darpat. Wer die
+ * Regel dorthin ausdehnt, macht aus jedem laengeren Fluss einen Neuzugang.
+ */
+function avesmapsGaretienPunktTrefferGilt(array $ziel, bool $gleicherName): bool
+{
+    return $gleicherName || !in_array($ziel['ziel'] ?? '', ['location', 'label'], true);
+}
+
+/** Karteneinheiten in Meilen -- fuer die Begruendungen, die ein Mensch liest. */
+function avesmapsGaretienMeilen(float $einheiten): string
+{
+    return number_format($einheiten * AVESMAPS_TERRAIN_MEILEN_PER_MAPUNIT, 1, ',', '') . ' Meilen';
+}
 
 /**
  * Die Kartengrenzen, gegen die "hat dieses Objekt ueberhaupt eine Position?" geprueft wird.
@@ -1029,17 +1087,25 @@ function avesmapsGaretienFindeBestand(PDO $pdo, array $zeile, ?array $ziel): arr
         // 🔴 Trifft der Artikel, liegt die Geometrie aber woanders, ist das ein WIDERSPRUCH und
         // kein Treffer: derselbe Artikel behauptet zwei Stellen. Das gehoert einem Menschen
         // vorgelegt, nicht stillschweigend entschieden.
-        $passt = $abstand <= AVESMAPS_GARETIEN_TREFFER_EINHEITEN;
+        // ⚠️ Hier gilt die Schwelle des ZIELS -- bei einem Punkt die enge (siehe
+        // avesmapsGaretienTrefferSchwelle). Der ARTIKEL ist das staerkste Signal, das es gibt, und
+        // deshalb braucht dieser Zweig KEINEN Namensvergleich: ein Wiki-Artikel gehoert genau
+        // einem Objekt.
+        $passt = $abstand <= avesmapsGaretienTrefferSchwelle($ziel);
 
         return [
             'status' => $passt ? 'deckt_sich' : 'widerspricht',
             'anlass' => $passt ? 'artikel' : 'artikel_widerspruch',
             'treffer_public_id' => $kandidat['public_id'],
             'treffer_name' => $kandidat['name'],
+            // 🔴 KURZ, IN MEILEN, MIT BEZUG (Owner 31.08.2026: „kurz und auf was es sich
+            // bezieht"). „20.26 Einheiten" sagt niemandem etwas, der nicht weiss, dass eine
+            // Karteneinheit drei Meilen sind.
             'grund' => $passt
-                ? sprintf('Artikel trifft "%s", Geometrie %.2f Einheiten entfernt', $kandidat['name'], $abstand)
-                : sprintf('Artikel trifft "%s", aber die Geometrie liegt %.2f Einheiten entfernt',
-                    $kandidat['name'], $abstand),
+                ? sprintf('Artikel trifft "%s" · %s entfernt', $kandidat['name'],
+                    avesmapsGaretienMeilen($abstand))
+                : sprintf('Artikel trifft "%s", liegt aber %s entfernt', $kandidat['name'],
+                    avesmapsGaretienMeilen($abstand)),
             'abstand' => is_finite($abstand) ? $abstand : null,
             // Der Artikeltreffer wird gegen GENAU DIESEN EINEN Kandidaten gemessen, wie schon
             // der `abstand` darueber -- keine zweite Deckung ueber den ganzen Bestand.
@@ -1064,12 +1130,31 @@ function avesmapsGaretienFindeBestand(PDO $pdo, array $zeile, ?array $ziel): arr
     $besterAbstand = $deckung['abstand'];
     $bester = $deckung['bester'] === null ? null : $kandidaten[$deckung['bester']];
 
-    if ($bester !== null && $besterAbstand <= AVESMAPS_GARETIEN_TREFFER_EINHEITEN) {
+    if ($bester !== null && $besterAbstand <= avesmapsGaretienTrefferSchwelle($ziel)) {
         // 3. Der Name -- NUR als Zusatz zur Meldung, nie als Entscheidung.
         $gleicherName = avesmapsGaretienNamenAehnlich(
             (string) ($zeile['anzeige'] ?? ''),
             $bester['name']
         );
+
+        // 🔴 BEI EINEM PUNKT ENTSCHEIDET DER NAME (Owner 31.08.2026). Ihre „Burg Gryffenwacht"
+        // lag 1,90 Einheiten neben unserem Dorf „Valpolust" und galt als dasselbe Objekt. Gemessen
+        // am Bestand: mindestens jedes zehnte Punktobjekt liegt auf DEMSELBEN Punkt wie ein anders
+        // benanntes -- keine Abstandsschwelle kann die beiden trennen, der Name schon.
+        // ⚠️ Ohne passenden Namen ist es ein NEUZUGANG, nicht etwa ein Widerspruch: es ist ein
+        // anderes Objekt, das zufaellig danebenliegt, und das ist der Normalfall.
+        if (!avesmapsGaretienPunktTrefferGilt($ziel, $gleicherName)) {
+            return [
+                'status' => 'neu',
+                'anlass' => null,
+                'treffer_public_id' => null,
+                'treffer_name' => $bester['name'],
+                'grund' => sprintf('nächstes "%s" nur %s entfernt, aber anderer Name',
+                    $bester['name'], avesmapsGaretienMeilen($besterAbstand)),
+                'abstand' => $besterAbstand,
+                'abschnitte' => avesmapsGaretienAbschnitte($deckung, $kandidaten),
+            ];
+        }
 
         // 💣 Die Ausdehnung -- der Riegel gegen den Zufluss auf seinem Hauptfluss.
         //
@@ -1109,17 +1194,19 @@ function avesmapsGaretienFindeBestand(PDO $pdo, array $zeile, ?array $ziel): arr
             // "gefunden", und niemand sieht, dass ihr `Meer` bei uns ein `see` ist -- die Zeile
             // saehe aus wie ein Treffer ohne Besonderheit, und die Frage, welche Einordnung
             // stimmt, wuerde nie gestellt.
+            // 🔴 KURZ, IN MEILEN, MIT BEZUG. Vorher: „Geometrie liegt 1.90 Einheiten von
+            // 'Valpolust' [bei uns als dorf, nicht gebaeude] (anderer Name)".
             'grund' => sprintf(
-                'Geometrie liegt %.2f Einheiten von "%s"%s%s%s',
-                $besterAbstand,
+                '%s von "%s"%s%s%s',
+                avesmapsGaretienMeilen($besterAbstand),
                 $bester['name'],
                 ($bester['art'] ?? '') !== '' && $bester['art'] !== $ziel['subtyp']
-                    ? ' [bei uns als ' . $bester['art'] . ', nicht ' . $ziel['subtyp'] . ']'
+                    ? ' (bei uns ' . $bester['art'] . ')'
                     : '',
-                $gleicherName ? ' (Name passt auch)' : ' (anderer Name)',
+                $gleicherName ? ' · Name passt' : ' · anderer Name',
                 $vergleichbar
                     ? ''
-                    : sprintf(', aber nur %.0f %% seiner Ausdehnung -- vermutlich ein Zufluss oder Seitenarm',
+                    : sprintf(' · nur %.0f %% seiner Ausdehnung, vermutlich ein Zufluss',
                         $verhaeltnis * 100.0)
             ),
             'abstand' => $besterAbstand,
@@ -1132,10 +1219,12 @@ function avesmapsGaretienFindeBestand(PDO $pdo, array $zeile, ?array $ziel): arr
         'anlass' => null,
         'treffer_public_id' => null,
         'treffer_name' => $bester === null ? null : $bester['name'],
+        // 🔴 KURZ, IN MEILEN, MIT BEZUG. Vorher: „naechstes gleichartiges Objekt 'Valpolust'
+        // liegt 2.11 Einheiten entfernt".
         'grund' => $bester === null
-            ? 'nichts desselben Typs in der Naehe'
-            : sprintf('naechstes gleichartiges Objekt "%s" liegt %.2f Einheiten entfernt',
-                $bester['name'], $besterAbstand),
+            ? 'nichts desselben Typs in der Nähe'
+            : sprintf('nächstes "%s" %s entfernt', $bester['name'],
+                avesmapsGaretienMeilen($besterAbstand)),
         'abstand' => $bester === null ? null : $besterAbstand,
         // ⚠️ `$deckung` ist hier noch im Gueltigkeitsbereich -- sie wird VOR der if-Verzweigung
         // oben gerechnet und deckt auch den Fall ab, in dem kein Kandidat die Schwelle erreicht.

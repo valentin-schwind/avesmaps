@@ -251,8 +251,14 @@ avesmapsGaretienKandidatenVergessen();
 
 // Eine "Burg" (subtyp `gebaeude`) an der Stelle eines bei uns als `dorf` gefuehrten Ortes wird
 // GEFUNDEN -- die Ortsfamilie greift ueber die Klassengrenze hinweg, wie beim See vorgemacht.
+// 🔴 SEIT 31.08.2026 MUSS DER NAME DAZU PASSEN (Owner: „konservativere schwellen"). Bei einem
+// PUNKT entscheidet er: mindestens jedes zehnte Punktobjekt der Exportseiten liegt auf DEMSELBEN
+// Punkt wie ein anders benanntes, der Abstand trennt die beiden also nachweislich nicht.
+// ⚠️ Die Anzeige heisst deshalb "Finsterkoppen", nicht "Burg Finsterkoppen" -- so steht sie auch in
+// den echten Daten: `Burg:Garetien:Burg Gryffenwacht!Gryffenwacht` traegt den Typ nur im ARTIKEL,
+// die Anzeige ist der blanke Name. Der Test hatte hier eine Form, die es im Bestand nicht gibt.
 $burg = avesmapsGaretienFindeBestand($pdo, [
-    'typ' => 'Burg', 'namensraum' => '', 'artikel' => '', 'anzeige' => 'Burg Finsterkoppen',
+    'typ' => 'Burg', 'namensraum' => '', 'artikel' => '', 'anzeige' => 'Finsterkoppen',
     'geo_art' => 'koordinaten', 'geo' => avesmapsGaretienTestNachWagenhalt(500.1, 500.1),
 ], avesmapsGaretienMappeTyp('Burg'));
 assert($burg['status'] === 'deckt_sich',
@@ -260,7 +266,13 @@ assert($burg['status'] === 'deckt_sich',
 assert($burg['treffer_public_id'] === 'dorf-42');
 // Und der Grund NENNT die Abweichung -- dieselbe Regel wie beim Angbarer See weiter unten: sonst
 // sieht niemand, dass die Klasse auseinandergeht.
-assert(str_contains($burg['grund'], 'bei uns als dorf'), 'die Klassenabweichung steht im Grund: ' . $burg['grund']);
+// 🔴 Kuerzer seit 31.08.2026 (Owner: „kurz und auf was es sich bezieht") -- „(bei uns dorf)" statt
+// „[bei uns als dorf, nicht gebaeude]". Der zweite Teil war die Wiederholung dessen, was in der
+// Zeile darueber schon als Zielart steht.
+assert(str_contains($burg['grund'], '(bei uns dorf)'), 'die Klassenabweichung steht im Grund: ' . $burg['grund']);
+// ⚠️ Und die Entfernung steht in MEILEN, nicht in Karteneinheiten: „1.90 Einheiten" sagt niemandem
+// etwas, der die Umrechnung nicht kennt.
+assert(str_contains($burg['grund'], 'Meilen'), 'die Entfernung steht in Meilen: ' . $burg['grund']);
 $pruefungen += 3;
 
 // Ein "Fluss" findet KEINE "Strasse" -- Flussweg gehoert nicht zur Wegefamilie (ein Fluss ist
@@ -285,7 +297,14 @@ $wegAnStrasse = avesmapsGaretienFindeBestand($pdo, [
 assert($wegAnStrasse['status'] === 'deckt_sich',
     'ein Weg findet eine bei uns als Strasse gefuehrte Kante -- die Wegefamilie greift (' . $wegAnStrasse['grund'] . ')');
 assert($wegAnStrasse['treffer_public_id'] === 'strasse-9');
-assert(str_contains($wegAnStrasse['grund'], 'bei uns als Strasse'), $wegAnStrasse['grund']);
+assert(str_contains($wegAnStrasse['grund'], '(bei uns Strasse)'), $wegAnStrasse['grund']);
+// 🔴 UND DER WEG BRAUCHT KEINEN PASSENDEN NAMEN -- „Pfad zur Trollpforte" gegen „Trollpforte"
+// reicht nicht fuer avesmapsGaretienNamenAehnlich, und trotzdem ist es ein Treffer. Das ist der
+// Unterschied zum PUNKT: bei einer Linie ist ein abweichender Name der Normalfall (ihre eine
+// „Natter" laeuft ueber unsere Natter, den Gardel UND den Darpat), bei einem Punkt ist er das
+// einzige Merkmal, das zwei Objekte an derselben Stelle unterscheidet.
+assert(str_contains($wegAnStrasse['grund'], 'anderer Name'),
+    'die Linie wird trotz abweichendem Namen gefunden: ' . $wegAnStrasse['grund']);
 $pruefungen += 3;
 
 // --- 🔴 Der Artikelname schlaegt die Geometrie. Er ist ein Wiki-SEITENname und damit
@@ -616,7 +635,7 @@ assert($meer['status'] === 'deckt_sich', 'ihr Meer findet unseren See (' . $meer
 assert($meer['treffer_public_id'] === 'see-1');
 // 🔴 Und der Grund NENNT die Abweichung -- sonst sieht niemand, dass die Einordnung auseinandergeht,
 // und die Frage, welche stimmt, wird nie gestellt.
-assert(str_contains($meer['grund'], 'bei uns als see'), 'die Abweichung steht im Grund: ' . $meer['grund']);
+assert(str_contains($meer['grund'], '(bei uns see)'), 'die Abweichung steht im Grund: ' . $meer['grund']);
 $pruefungen += 3;
 
 // ⚠️ Die Familie ist nicht beliebig weit: ein Moor ist kein See. Wer sie zu weit zieht, erklaert
@@ -648,7 +667,7 @@ $gebirge = avesmapsGaretienFindeBestand($pdo, [
 ], avesmapsGaretienMappeTyp('Gebirge'));
 assert($gebirge['status'] === 'deckt_sich', 'ein Gebirge findet ein bei uns als huegelland gefuehrtes Objekt (' . $gebirge['grund'] . ')');
 assert($gebirge['treffer_public_id'] === 'huegel-1');
-assert(str_contains($gebirge['grund'], 'bei uns als huegelland'), 'die Abweichung steht im Grund: ' . $gebirge['grund']);
+assert(str_contains($gebirge['grund'], '(bei uns huegelland)'), 'die Abweichung steht im Grund: ' . $gebirge['grund']);
 $pruefungen += 3;
 
 // ⚠️ Und die Gegenprobe: dieselbe Flaeche darf ein "Sumpf" WEITERHIN nicht finden -- die
@@ -765,5 +784,87 @@ foreach ([
         'Rueckgabeweg fuer Typ ' . $typ . ' (' . $erwarteterStatus . ') vergisst `abschnitte`');
     $pruefungen += 2;
 }
+
+// =================================================================================================
+// 🔴 BEI EINEM PUNKT ENTSCHEIDET DER NAME -- der Schadensfall Valpolust/Gryffenwacht
+// =================================================================================================
+// Owner 31.08.2026: „ich will konservativere schwellen". Anlass: ihre „Burg Gryffenwacht" lag 1,90
+// Karteneinheiten (5,7 Meilen) neben unserem Dorf „Valpolust", galt als dasselbe Objekt, und der
+// Import ersetzte dessen NAMEN.
+//
+// 💣 DIE MESSUNG DREHT DIE ERWARTUNG UM, und deshalb steht die Regel so und nicht als kleinere
+// Zahl: von 2364 Punktobjekten der Exportseiten haben bei 2,0 Einheiten 86,3 % einen anders
+// benannten Nachbarn -- bei 0,05 Einheiten (0,2 Meilen) immer noch 13,8 %, und das 10. Perzentil
+// der Nachbarabstaende ist EXAKT 0,000. Mindestens jedes zehnte Punktobjekt liegt auf DEMSELBEN
+// Punkt wie ein anders benanntes. Keine Abstandsschwelle trennt die beiden.
+$pdo->exec("INSERT INTO map_features (public_id, name, feature_type, feature_subtype, geometry_json, properties_json)
+            VALUES ('dorf-99', 'Valpolust', 'location', 'dorf', '{\"type\":\"Point\",\"coordinates\":[520.0,520.0]}', '{}')");
+avesmapsGaretienKandidatenVergessen();
+
+// --- Der Schadensfall selbst: dieselbe Stelle, anderer Name.
+$gryffen = avesmapsGaretienFindeBestand($pdo, [
+    'typ' => 'Burg', 'namensraum' => 'Garetien', 'artikel' => 'Burg Gryffenwacht',
+    'anzeige' => 'Gryffenwacht',
+    'geo_art' => 'koordinaten', 'geo' => avesmapsGaretienTestNachWagenhalt(520.05, 520.05),
+], avesmapsGaretienMappeTyp('Burg'));
+assert($gryffen['status'] === 'neu',
+    '🔴 eine Burg mit ANDEREM Namen ist ein Neuzugang, kein Treffer: ' . $gryffen['status']
+    . ' (' . $gryffen['grund'] . ')');
+// ⚠️ Der Nachbar wird trotzdem GENANNT -- er ist Auskunft, kein Ziel. Ohne ihn saehe der Editor
+// nicht, dass dort etwas liegt.
+assert($gryffen['treffer_public_id'] === null, 'und er zeigt auf NICHTS Vorhandenes');
+assert(str_contains($gryffen['grund'], 'Valpolust'), 'der Nachbar steht trotzdem im Grund');
+assert(str_contains($gryffen['grund'], 'anderer Name'),
+    'und der Grund sagt, WORAN es lag: ' . $gryffen['grund']);
+$pruefungen += 4;
+
+// --- 💣 DIE GEGENPROBE: derselbe Punkt mit PASSENDEM Namen ist sehr wohl ein Treffer. Ohne sie
+// belegte der Abschnitt nur, dass Punkte nie treffen.
+$valpo = avesmapsGaretienFindeBestand($pdo, [
+    'typ' => 'Dorf', 'namensraum' => 'Garetien', 'artikel' => 'Dorf Valpolust',
+    'anzeige' => 'Valpolust',
+    'geo_art' => 'koordinaten', 'geo' => avesmapsGaretienTestNachWagenhalt(520.05, 520.05),
+], avesmapsGaretienMappeTyp('Dorf'));
+assert($valpo['status'] === 'deckt_sich',
+    'derselbe Punkt mit passendem Namen trifft: ' . $valpo['status'] . ' (' . $valpo['grund'] . ')');
+assert($valpo['treffer_public_id'] === 'dorf-99', 'und zwar unser Valpolust');
+$pruefungen += 2;
+
+// --- 🔴 UND DIE SCHWELLE IST KONSERVATIV: 0,3 Einheiten (0,9 Meilen). Derselbe Name, aber 1,0
+// Einheiten (3 Meilen) daneben, ist KEIN Treffer mehr -- unter der alten Schwelle von 2,0 waere er
+// einer gewesen.
+$weit = avesmapsGaretienFindeBestand($pdo, [
+    'typ' => 'Dorf', 'namensraum' => '', 'artikel' => '', 'anzeige' => 'Valpolust',
+    'geo_art' => 'koordinaten', 'geo' => avesmapsGaretienTestNachWagenhalt(521.0, 520.0),
+], avesmapsGaretienMappeTyp('Dorf'));
+assert($weit['status'] === 'neu',
+    '🔴 1,0 Einheiten sind zu weit fuer einen Punkt: ' . $weit['status'] . ' (' . $weit['grund'] . ')');
+assert(AVESMAPS_GARETIEN_TREFFER_EINHEITEN_PUNKT === 0.3, 'die Punkt-Schwelle steht bei 0,3 Einheiten');
+// ⚠️ Und Linien/Flaechen behalten ihre weite Schwelle -- dort ist die Abweichung der Normalfall
+// (ein Fluss laeuft bei uns anders gezeichnet), und der Name kann nicht entscheiden.
+assert(AVESMAPS_GARETIEN_TREFFER_EINHEITEN === 2.0, 'Linien und Flaechen behalten 2,0 Einheiten');
+assert(avesmapsGaretienTrefferSchwelle(['ziel' => 'location']) === 0.3, 'ein Ort ist ein Punkt');
+assert(avesmapsGaretienTrefferSchwelle(['ziel' => 'label']) === 0.3, 'ein Berggipfel-Label auch');
+assert(avesmapsGaretienTrefferSchwelle(['ziel' => 'path']) === 2.0, 'ein Weg nicht');
+assert(avesmapsGaretienTrefferSchwelle(['ziel' => 'region']) === 2.0, 'eine Flaeche auch nicht');
+$pruefungen += 7;
+
+// =================================================================================================
+// 🔴 DIE BEGRUENDUNGEN: KURZ, IN MEILEN, MIT BEZUG
+// =================================================================================================
+// Owner 31.08.2026: „vorallem begründung, kurz und auf was es sich bezieht". Vorher stand da
+// „Geometrie liegt 1.90 Einheiten von 'Valpolust' [bei uns als dorf, nicht gebaeude] (anderer
+// Name)" -- eine Zahl in einer Einheit, die niemand kennt, und eine Klammer, die die Zielart
+// wiederholt, die eine Zeile hoeher schon steht.
+assert(!str_contains($valpo['grund'], 'Einheiten'),
+    '🔴 keine Karteneinheiten mehr in einer Begruendung: ' . $valpo['grund']);
+assert(str_contains($valpo['grund'], 'Meilen'), 'sondern Meilen: ' . $valpo['grund']);
+// ⚠️ Und sie nennt, WORAUF sich die Zahl bezieht -- das Objekt, zu dem gemessen wurde.
+assert(str_contains($valpo['grund'], 'Valpolust'), 'und den Bezug: ' . $valpo['grund']);
+// 💣 KURZ heisst gemessen kurz, nicht gefuehlt: die alte Fassung dieses Satzes war 78 Zeichen
+// lang. Ohne eine Zahl hier wandert der Text beim naechsten Zusatz zurueck auf seine alte Laenge.
+assert(mb_strlen($valpo['grund'], 'UTF-8') <= 50,
+    'kurz: ' . mb_strlen($valpo['grund'], 'UTF-8') . ' Zeichen -- ' . $valpo['grund']);
+$pruefungen += 4;
 
 echo "OK: {$pruefungen} Pruefungen\n";
