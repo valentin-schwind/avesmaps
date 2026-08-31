@@ -44,12 +44,6 @@ function avesmapsZeichenBilanz() {
 	return Object.assign(Object.create(null), avesmapsZeichenZaehler);
 }
 
-function avesmapsZeichenBilanzZuruecksetzen() {
-	for (const name of Object.keys(avesmapsZeichenZaehler)) {
-		delete avesmapsZeichenZaehler[name];
-	}
-}
-
 /**
  * Macht aus einer Zeichenfunktion eine, die höchstens EINMAL pro Bild läuft.
  *

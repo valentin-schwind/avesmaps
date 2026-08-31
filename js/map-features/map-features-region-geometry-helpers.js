@@ -172,20 +172,6 @@ function latLngToGeoJsonPosition(latLng) {
 	return [normalizedLatLng.lng, normalizedLatLng.lat];
 }
 
-function geoJsonPositionToLatLng(position) {
-	if (!Array.isArray(position) || position.length < 2) {
-		return null;
-	}
-
-	const lng = Number(position[0]);
-	const lat = Number(position[1]);
-	if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
-		return null;
-	}
-
-	return L.latLng(lat, lng);
-}
-
 function leafletRingToGeoJsonRing(latLngs) {
 	const ring = latLngs.map((latLng) => latLngToGeoJsonPosition(latLng));
 	const first = ring[0];
@@ -335,10 +321,6 @@ function setRegionOuterLatLngs(regionEntry, outerLatLngs, ringIndex = null) {
 	if (activeRegionGeometryEdit?.regionEntry === regionEntry) {
 		activeRegionGeometryEdit.editRingIndex = resolvedRingIndex;
 	}
-}
-
-function getPolygonOuterLatLngs(polygon) {
-	return getPolygonLatLngRings(polygon)[0] || [];
 }
 
 function getPolygonLatLngRings(polygon) {

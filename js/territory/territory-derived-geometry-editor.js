@@ -502,14 +502,6 @@ function findDerivedBoundaryPlanSourceRevision(plan, territoryPublicId) {
 	return String(targetNode?.source_revision_hint || "").trim();
 }
 
-function readDerivedBoundaryMinZoom(regionEntry) {
-	return String(document.getElementById("region-edit-derived-geometry-min-zoom")?.value || regionEntry?.minZoom || "").trim();
-}
-
-function readDerivedBoundaryMaxZoom(regionEntry) {
-	return String(document.getElementById("region-edit-derived-geometry-max-zoom")?.value || regionEntry?.maxZoom || "").trim();
-}
-
 function waitForNextFrame() {
 	return new Promise((resolve) => window.requestAnimationFrame(() => resolve()));
 }

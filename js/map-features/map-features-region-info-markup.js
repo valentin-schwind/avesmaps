@@ -287,24 +287,6 @@ function createRegionInfoPlaceValue(placeName, placePublicId) {
 	return escapeHtml(normalizedName);
 }
 
-function createRegionInfoLink(url) {
-	const normalizedUrl = normalizeRegionInfoUrl(url);
-	if (normalizedUrl === "") {
-		return "";
-	}
-
-	return `<a class="region-info-box__link" href="${escapeHtml(normalizedUrl)}" target="_blank" rel="noopener noreferrer">${tr("infobox.openWiki", "Wiki öffnen")}</a>`;
-}
-
-function createRegionInfoPathValue(regionEntry) {
-	const pathItems = normalizeRegionStringList(regionEntry.affiliationPath);
-	if (pathItems.length > 0) {
-		return pathItems.join(" > ");
-	}
-
-	return normalizeRegionParentheticalSpacing(regionEntry.wikiAffiliationRaw || regionEntry.affiliation || "").trim();
-}
-
 function normalizeRegionInfoUrl(value) {
 	const url = String(value || "").trim();
 	return /^https?:\/\//iu.test(url) ? url : "";

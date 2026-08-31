@@ -204,10 +204,6 @@ function rememberPathEditSettingsFromPayload(payload, { autoname = true } = {}) 
 	};
 }
 
-function getPathTransportDomain(path) {
-	return path?.properties?.transport_domain || getDefaultTransportDomainForPathSubtype(normalizePathSubtype(path?.properties?.feature_subtype || path?.properties?.name));
-}
-
 // The subtype rule and the stored-list rule both live in js/map-features/map-features-path-domain.js
 // -- the client route graph applies the same ones and must not reach into the editor cluster.
 function getPathAllowedTransports(path) {

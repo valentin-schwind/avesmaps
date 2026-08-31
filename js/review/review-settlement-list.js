@@ -255,20 +255,6 @@ function settlementIsBuilding(item) {
 	return avesmapsIstBauwerksklasse(item && item.settlement_class);
 }
 
-// Die Typ-Beschriftung(en) der Bauwerke, AUS DEN DATEN. Der Typ-Filter arbeitet mit
-// settlement_label, die Zugehörigkeitsprüfung braucht also das Label -- aber als zweite
-// Kopie der Serverkonstante (api/edit/wiki/sync.php) liefe es irgendwann auseinander.
-// Kommen keine Bauwerke vor, ist die Menge leer und der Unterabschnitt bleibt zu.
-function settlementBuildingLabels() {
-	const labels = new Set();
-	settlementListItems.forEach((item) => {
-		if (settlementIsBuilding(item)) {
-			labels.add(item.settlement_label || "—");
-		}
-	});
-	return labels;
-}
-
 // Lage einer Bauwerks-Zeile. Ohne Urteil (Registry noch nicht neu gesynct) gilt
 // „außerorts" -- die sichere Seite: die Zeile bleibt sichtbar, statt still zu
 // verschwinden. Gleiche Regel wie pathRowScope in review-path-sync.js.

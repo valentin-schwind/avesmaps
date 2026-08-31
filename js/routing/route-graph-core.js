@@ -1,7 +1,3 @@
-function getVisualPathLatLngCoordinates(coordinates) {
-	return smoothLineCoordinatesForDisplay(coordinates).map(([x, y]) => [y, x]);
-}
-
 function createLocationLookup() {
 	return new Map(locationData.map((location) => [location.name, location]));
 }

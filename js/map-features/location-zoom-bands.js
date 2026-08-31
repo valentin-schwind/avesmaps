@@ -198,10 +198,6 @@ function avesmapsResolveLocationZoomBands(stored) {
 
 let _avesmapsLocationZoomBands = avesmapsResolveLocationZoomBands(null);
 
-function avesmapsLocationZoomBands() {
-	return _avesmapsLocationZoomBands;
-}
-
 function avesmapsApplyLocationZoomBands(stored) {
 	const next = avesmapsResolveLocationZoomBands(stored);
 	const changed = JSON.stringify(next) !== JSON.stringify(_avesmapsLocationZoomBands);

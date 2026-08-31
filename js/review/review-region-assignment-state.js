@@ -112,19 +112,6 @@ async function loadPersistedRegionAssignment(territoryPublicId) {
 	return request;
 }
 
-function storeRegionAssignmentBreadcrumbCache(territoryPublicId, path, ensuredChain = [], activeWikiPublicId = "") {
-	const cacheKey = String(territoryPublicId || "").trim();
-	if (!cacheKey) {
-		return;
-	}
-
-	regionAssignmentBreadcrumbCache.set(cacheKey, {
-		path: clonePoliticalTerritoryPath(path),
-		ensuredChain: clonePoliticalTerritoryChain(ensuredChain),
-		activeWikiPublicId: String(activeWikiPublicId || "").trim(),
-	});
-}
-
 function storeRegionAssignmentBreadcrumbCaches(path, ensuredChain = [], activeWikiPublicId = "") {
 	const normalizedPath = Array.isArray(path) ? path : [];
 	if (normalizedPath.length < 1) {

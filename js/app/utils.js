@@ -21,45 +21,6 @@ function renderTypeFilter(toggleId, menuId, options, state, label = "Typ") {
 	}
 }
 
-// Verdrahtet ein Typ-Filter-Dropdown: getOptions() liefert die aktuellen Optionen aus den Daten,
-// applyFilter() rendert die Liste neu. Einmal beim Laden aufrufen.
-function attachTypeFilter(toggleId, menuId, state, getOptions, applyFilter, label = "Typ") {
-	const toggle = document.getElementById(toggleId);
-	const menu = document.getElementById(menuId);
-	if (!toggle || !menu) {
-		return;
-	}
-	const rebuild = () => renderTypeFilter(toggleId, menuId, getOptions(), state, label);
-	toggle.addEventListener("click", (event) => {
-		event.stopPropagation();
-		menu.hidden = !menu.hidden;
-		if (!menu.hidden) {
-			rebuild();
-		}
-	});
-	document.addEventListener("click", (event) => {
-		if (!menu.hidden && event.target !== toggle && !menu.contains(event.target)) {
-			menu.hidden = true;
-		}
-	});
-	menu.addEventListener("change", (event) => {
-		const checkbox = event.target;
-		if (!checkbox || checkbox.type !== "checkbox") {
-			return;
-		}
-		if (checkbox.value === "__all__") {
-			state.clear();
-		} else if (checkbox.checked) {
-			state.add(checkbox.value);
-		} else {
-			state.delete(checkbox.value);
-		}
-		rebuild();
-		applyFilter();
-	});
-	rebuild();
-}
-
 // ===== Einwertiger „Quelle"-Filter: Single-Select-Dropdown mit Radios =====
 // Wie der Typ-Filter, aber genau EIN Wert (Keine/Wiki/Andere). state = { value: "" } (Referenz;
 // "" = Alle). options ist FEST (nicht aus den Daten abgeleitet). Der Toggle ist nur ein Trichter-
@@ -86,38 +47,6 @@ function renderRadioFilter(toggleId, menuId, options, state, label = "Quelle") {
 		toggle.title = chosen ? `${label}: ${chosen}` : label;
 		toggle.setAttribute("aria-label", chosen ? `${label}: ${chosen}` : label);
 	}
-}
-
-function attachRadioFilter(toggleId, menuId, state, options, applyFilter, label = "Quelle") {
-	const toggle = document.getElementById(toggleId);
-	const menu = document.getElementById(menuId);
-	if (!toggle || !menu) {
-		return;
-	}
-	const rebuild = () => renderRadioFilter(toggleId, menuId, options, state, label);
-	toggle.addEventListener("click", (event) => {
-		event.stopPropagation();
-		menu.hidden = !menu.hidden;
-		if (!menu.hidden) {
-			rebuild();
-		}
-	});
-	document.addEventListener("click", (event) => {
-		if (!menu.hidden && event.target !== toggle && !menu.contains(event.target)) {
-			menu.hidden = true;
-		}
-	});
-	menu.addEventListener("change", (event) => {
-		const radio = event.target;
-		if (!radio || radio.type !== "radio") {
-			return;
-		}
-		state.value = radio.value === "__all__" ? "" : radio.value;
-		rebuild();
-		menu.hidden = true;
-		applyFilter();
-	});
-	rebuild();
 }
 
 // Kombiniertes Filter-Dropdown: EIN Trichter-Toggle oeffnet ein Panel mit mehreren Abschnitten

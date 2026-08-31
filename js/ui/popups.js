@@ -163,12 +163,6 @@ function otherSourceCreditMarkup(otherSource, linkClass = "region-info-box__link
 	return `<div class="wiki-source-credit"><a class="${escapeHtml(linkClass)}" href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(label)}<span class="wiki-source-credit__arrow" aria-hidden="true"> &#8599;</span></a></div>`;
 }
 
-// Quellen-Zeile für eine Infobox: bevorzugt den Wiki-Link, fällt auf die "Andere Quelle" zurück.
-// Leerer String, wenn weder Wiki noch andere Quelle vorhanden ist.
-function featureSourceCreditMarkup(wikiUrl, otherSource, linkClass = "region-info-box__link") {
-	return wikiSourceCreditMarkup(wikiUrl, linkClass) || otherSourceCreditMarkup(otherSource, linkClass);
-}
-
 // Multi-source system: the map-features payload ships a shared source catalog + per-entity
 // references (see api/app/map-features.php); routing.js stashes them on window.__sourceCatalog /
 // window.__featureSourceRefs when the payload loads. resolveFeatureSourceList turns an
@@ -477,19 +471,6 @@ function locationDescriptionMarkup(name, descriptionOverride = "", isRuined = fa
 	}
 
 	return `<div class="location-popup__description">${escapeHtml([statusText, description].filter(Boolean).join(" "))}</div>`;
-}
-
-function locationAddToRouteActionMarkup(name) {
-	return locationPopupActionsMarkup([
-		popupActionButtonMarkup({
-			label: tr("popup.addToRoute", "➕ Reiseziel hinzufügen"),
-			className: "location-popup__action-button--accent",
-			attributes: {
-				"data-popup-action": "add-location-to-route",
-				"data-location-name": name,
-			},
-		}),
-	]);
 }
 
 function getPowerlineEndpointByPublicId(publicId) {
@@ -882,23 +863,6 @@ function labelActionsMarkup(publicId, noteMarkup = "", { hatFlaeche = false } = 
 	}
 
 	return locationPopupEditorBandMarkup(actionButtons, noteMarkup);
-}
-
-function waypointRemoveActionMarkup(waypointId) {
-	if (!waypointId) {
-		return "";
-	}
-
-	return locationPopupActionsMarkup([
-		popupActionButtonMarkup({
-			label: tr("popup.removeFromRouteX", "✕ Reiseziel entfernen"),
-			className: "location-popup__action-button--danger",
-			attributes: {
-				"data-popup-action": "remove-waypoint",
-				"data-waypoint-id": waypointId,
-			},
-		}),
-	]);
 }
 
 // Shared display name for a political territory (Owner: "'Kaiserreich' ist unspezifisch"): the CURATED

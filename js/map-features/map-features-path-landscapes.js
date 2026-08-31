@@ -250,10 +250,6 @@ var AVESMAPS_PATH_LANDSCAPES_CHUNK = 400;   // matches AVESMAPS_PATH_LANDSCAPES_
 
 var avesmapsPathLandscapesStore = { landscapes: {}, paths: {}, stamp: null, pending: {} };
 
-function avesmapsPathLandscapesPayload() {
-	return avesmapsPathLandscapesStore;
-}
-
 function avesmapsPathLandscapesLineFor(pathIds) {
 	return buildLandscapeLine(pathIds, avesmapsPathLandscapesStore);
 }

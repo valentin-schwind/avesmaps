@@ -1,7 +1,3 @@
-function getLocationReportOverlayElement() {
-	return document.getElementById("location-report-overlay");
-}
-
 function getLocationReportDialogElement() {
 	return document.getElementById("location-report-dialog");
 }
@@ -95,14 +91,6 @@ function getLocationReportServiceNoteElement() {
 
 function isLocationReportDialogOpen() {
 	return !$("#location-report-overlay").prop("hidden");
-}
-
-function isLocationEditDialogOpen() {
-	return !$("#location-edit-overlay").prop("hidden");
-}
-
-function isWikiSyncResolveDialogOpen() {
-	return !$("#wiki-sync-resolve-overlay").prop("hidden");
 }
 
 function isWikiSyncConflictsDialogOpen() {

@@ -87,12 +87,6 @@ function closePoliticalTerritoryEditor() {
 	window.AvesmapsPoliticalTerritoryEditorContext = null;
 }
 
-function createEmbeddedPoliticalTerritoryEditorUrl(regionEntry = {}) {
-	const url = createPoliticalTerritoryEditorUrl(regionEntry);
-	const separator = url.includes("?") ? "&" : "?";
-	return `${url}${separator}embedded=1`;
-}
-
 // Baut das Kontext-Objekt, das der inline geladene Editor statt der iframe-URL liest.
 function buildPoliticalTerritoryEditorContext(regionEntry = {}) {
 	const context = { embedded: "1" };
