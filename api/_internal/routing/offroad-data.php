@@ -198,15 +198,16 @@ function avesmapsOffroadBuildPlanes(
     $furt = avesmapsOffroadFordLines($gewaesser);
 
     $blocked = avesmapsOffroadRasteriseBlocked($box, $water, $wand);
+    $furtPlane = avesmapsOffroadRasteriseFurtPlane($box, $furt);
+    // Die blanken Punktlisten der Furten -- die Gerade-Abkuerzung braucht Geometrie, keine Ebene.
+    $furtLinien = array_map(static fn(array $e): array => $e['coords'], avesmapsOffroadFordLines(['furt' => $furt]));
     // 🔴 DER BACH LIEGT IN DER FAKTOR-EBENE, NICHT IN DER SPERRE. Owner 30.08.2026: „ein bach wird
     // ueberquert werden koennen, aber nur mit etwas erschwernis". Der Aufschlag kommt NACH der
     // Landschaft und ueberlagert sie per Maximum -- eine Bachzelle im Sumpf bleibt Sumpf, wenn der
     // teurer ist.
-    $factors = avesmapsOffroadRasteriseBachFactor(
-        $box,
-        $pdo instanceof PDO ? avesmapsOffroadLoadFactorPlane($pdo, $box) : '',
-        $furt
-    );
+    // 🔴 DIE FAKTOR-EBENE TRAEGT DIE FURT NICHT MEHR (Owner 31.08.2026: Querungspreis „statt"
+    // Zell-Aufschlag). Sie ist wieder das, was ihr Name sagt: der Untergrund.
+    $factors = $pdo instanceof PDO ? avesmapsOffroadLoadFactorPlane($pdo, $box) : '';
     $rasters = $terrainEnabled && $pdo instanceof PDO ? avesmapsOffroadLoadHeightRasters($pdo, $box) : [];
 
     return [
@@ -215,5 +216,7 @@ function avesmapsOffroadBuildPlanes(
         'rasters' => $rasters,
         'heights' => $rasters === [] ? null : avesmapsOffroadSampleHeights($box, $rasters),
         'wand' => $wand,
+        'furtplane' => $furtPlane,
+        'furtlinien' => $furtLinien,
     ];
 }

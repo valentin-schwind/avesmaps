@@ -135,8 +135,11 @@ function avesmapsFindOffroadPathBetween(
     // bedeuten wie für einen gezeichneten Weg.
     $ebenen = avesmapsOffroadBuildPlanes($box, $water, $pdo, $gewaesser, $terrainEnabled);
 
+    // ⚠️ Auch die Sehnen-Begradigung zahlt die Querung: sie biegt die Geometrie einer bereits
+    // genehmigten Kante, und eine Biegung, die einen Bach quert, waere sonst gratis.
     return avesmapsOffroadFindPath($box, $ebenen['blocked'], $ebenen['factors'], $ebenen['heights'],
-        (float) $speed, $x1, $y1, $x2, $y2, AVESMAPS_ROUTE_OFFROAD_SIMPLIFY_EPS, $ebenen['rasters']);
+        (float) $speed, $x1, $y1, $x2, $y2, AVESMAPS_ROUTE_OFFROAD_SIMPLIFY_EPS, $ebenen['rasters'],
+        false, $ebenen['furtplane']);
 }
 
 /** Eine Kante beider Richtungen aus dem Graphen nehmen, an ihrer ID erkannt. */

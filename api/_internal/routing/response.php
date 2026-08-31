@@ -233,7 +233,7 @@ function avesmapsBuildMinimalRouteResultFromRequest(array $request, array $confi
 	// schlicht nicht da (?s=w38RkXYP: 61,8 Meilen in EINER Etappe quer ueber die Rakula).
 	// ⭐ Die Geometrien sind hier bereits geladen -- keine zweite Abfrage je Route.
 	// 🔴 SEIT 30.08.2026 ZWEI FAECHER: `wand` (Fluss, sperrt) und `furt` (Bach, kostet nur --
-	// AVESMAPS_ROUTE_OFFROAD_BACH_FACTOR). EIN Rueckgabewert, damit kein Erzeuger weiter unten die
+	// Querungspreis). EIN Rueckgabewert, damit kein Erzeuger weiter unten die
 	// eine Haelfte durchreichen und die andere vergessen kann; die Begruendung steht am Sammler.
 	$gewaesser = avesmapsCollectRouteRiverBarrierLines(
 		is_array($routeNetworkData['paths'] ?? null) ? $routeNetworkData['paths'] : []

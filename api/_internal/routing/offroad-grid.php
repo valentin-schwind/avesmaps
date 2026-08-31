@@ -84,9 +84,18 @@ const AVESMAPS_ROUTE_OFFROAD_FACTOR_SCALE = 25.0;
 // ⚠️ Er wirkt NUR unter „Schnellste". Unter „Kuerzeste" ist das Gewicht die Strecke, und dort sind
 // Boden und Steigung von jeher neutralisiert (siehe avesmapsOffroadFindPath) -- Wald, Sumpf und
 // Gebirge bremsen dort ebenso wenig. Das ist die Hausregel und kein Versehen.
-const AVESMAPS_ROUTE_OFFROAD_BACH_FACTOR = 3.0;
+// 🔴 EIN BACH IST EIN HINDERNIS, KEINE BREMSE (Owner 31.08.2026: „ich will dass der bach ein
+// hindernis ist / er geht aber nicht drumrum / sondern durch"). Bis dahin war er ein Faktor JE
+// ZELLE -- und das konnte nie lenken: ein Bach ist eine Zelle breit, sein Gesamtbeitrag also an die
+// Zellbreite gefesselt, waehrend der Umweg mit der Geometrie waechst. Gemessen am 31.08.2026 kostete
+// selbst eine gesaettigte Furt nur +2,72 Zeit -- genug fuer rund 4,6 Karteneinheiten Umweg und
+// keinen Meter mehr, bei JEDEM Stroemungsfaktor.
+// 🔴 Jetzt ein fester Preis JE QUERUNG, in KARTENEINHEITEN: bei Vorgabe-Stroemung 15 Meilen
+// (Owner-Entscheid), also 15 / AVESMAPS_TERRAIN_MEILEN_PER_MAPUNIT. Damit bestimmt eine Zahl, wie
+// weit ein Umweg sich lohnen darf -- geometrieunabhaengig.
+const AVESMAPS_ROUTE_OFFROAD_BACH_CROSSING_UNITS = 15.0 / AVESMAPS_TERRAIN_MEILEN_PER_MAPUNIT;
 
-// 🔴 DIE STROEMUNG, BEI DER EINE FURT GENAU AVESMAPS_ROUTE_OFFROAD_BACH_FACTOR KOSTET.
+// 🔴 DIE STROEMUNG, BEI DER EINE QUERUNG GENAU AVESMAPS_ROUTE_OFFROAD_BACH_CROSSING_UNITS KOSTET.
 // Owner 31.08.2026: „die gewichtung der schwierigkeit der ueberquerung der furt an den
 // stroemungsfaktor gekoppelt, 3-fache stroemung = 3-fache kosten" -- und auf die Rueckfrage nach
 // dem Anker: der Vorgabe-Bach soll bleiben, was er war. Daraus wird
@@ -111,7 +120,7 @@ const AVESMAPS_ROUTE_OFFROAD_BACH_FLOW_ANKER = 2.0;
 const AVESMAPS_ROUTE_OFFROAD_FURT_MAX = 255.0 / AVESMAPS_ROUTE_OFFROAD_FACTOR_SCALE;
 
 /**
- * PURE: der Furt-Aufschlag EINES Bachs, aus seiner Stroemung.
+ * PURE: der QUERUNGSFAKTOR eines Bachs, aus seiner Stroemung. 1,0 bei Vorgabe-Stroemung.
  *
  * 💣 DIE KLEMME KOMMT AUS DEM VORHANDENEN LESER. `avesmapsRouteClientNormalizeFlow` haelt
  * [1,0 ... 3,0] und die Vorgabe 2,0; eine eigene Rechnung hier waere die dritte Fassung derselben
@@ -130,9 +139,7 @@ function avesmapsOffroadFurtFaktor(array $path): float
         ? (float) $flow['factor']
         : AVESMAPS_ROUTE_OFFROAD_BACH_FLOW_ANKER;
 
-    $furt = AVESMAPS_ROUTE_OFFROAD_BACH_FACTOR * $stroemung / AVESMAPS_ROUTE_OFFROAD_BACH_FLOW_ANKER;
-
-    return min($furt, AVESMAPS_ROUTE_OFFROAD_FURT_MAX);
+    return min($stroemung / AVESMAPS_ROUTE_OFFROAD_BACH_FLOW_ANKER, AVESMAPS_ROUTE_OFFROAD_FURT_MAX);
 }
 
 // 16 bit per cell, and the value IS the height in Schritt (V11 §3.2: no white point, no scaling).
@@ -381,7 +388,64 @@ function avesmapsOffroadRasteriseRiverLines(array $box, string &$plane, array $r
  * PHP-Zeichenkette verlaengert sie mit LEERZEICHEN -- Byte 32, also Faktor 1,28 auf jeder Zelle
  * dazwischen. Das waere ein stiller Gelaendeaufschlag ueber die halbe Kiste.
  */
-function avesmapsOffroadRasteriseBachFactor(array $box, string $factors, array $bachLines): string
+/**
+ * PURE: die FURT-EBENE -- ein Byte je Zelle, das den QUERUNGSFAKTOR dieser Furt traegt (0 = keine).
+ *
+ * 🔴 EIGENE EBENE, NICHT DIE FAKTOR-EBENE. Dort liegen Landschaft und Furt per Maximum uebereinander;
+ * daraus laesst sich „ist das eine Furtzelle" nicht mehr zurueckrechnen -- und genau das braucht der
+ * Kantenpreis. Ein Byte je Zelle, bei der groessten Kiste des Hauses ein paar hundert KB.
+ * ⚠️ Der Zell-Aufschlag ist damit ERSATZLOS entfallen (Owner 31.08.2026: „statt"): wer LAENGS im
+ * Bachbett laeuft, zahlt nichts extra. Bezahlt wird das Queren, nicht das Nasse.
+ */
+function avesmapsOffroadRasteriseFurtPlane(array $box, array $bachLines): string
+{
+    $bachLines = avesmapsOffroadFordLines(['furt' => $bachLines]);
+    if ($bachLines === []) { return ''; }
+
+    $cells = (int) $box['cell_count'];
+    $plane = str_repeat("\x00", $cells);
+    foreach ($bachLines as $linie) {
+        $byte = (int) round(((float) $linie['faktor']) * AVESMAPS_ROUTE_OFFROAD_FACTOR_SCALE);
+        $byte = max(0, min(255, $byte));
+        if ($byte === 0) { continue; }
+        $character = chr($byte);
+        avesmapsOffroadForEachLineCell($box, [$linie['coords']], static function (int $index) use (&$plane, $byte, $character): void {
+            if (ord($plane[$index]) < $byte) { $plane[$index] = $character; }
+        });
+    }
+
+    return $plane;
+}
+
+/** PURE: der Querungsfaktor in einer Zelle (0,0 = keine Furt). */
+function avesmapsOffroadFurtAtCell(?string $plane, int $index): float
+{
+    if ($plane === null || $plane === '' || $index < 0 || $index >= strlen($plane)) { return 0.0; }
+    $byte = ord($plane[$index]);
+
+    return $byte === 0 ? 0.0 : $byte / AVESMAPS_ROUTE_OFFROAD_FACTOR_SCALE;
+}
+
+/**
+ * PURE: was ein Schritt von einer Zelle in die naechste an QUERUNG kostet -- in Karteneinheiten.
+ *
+ * 💣 HALB AN JEDER KANTE, beim Hinein UND beim Hinaus. Nur beim Betreten zu zahlen waere eine
+ * ASYMMETRISCHE Kante (A->B teuer, B->A gratis), und der Kommentar an den Schrittkosten sagt, warum
+ * das nicht geht: eine asymmetrische Kante bricht die Konsistenz des A*, nicht bloss seine Zahlen.
+ * Halb/halb ergibt in Summe genau eine Querung und ist richtungsunabhaengig.
+ * ⚠️ Wer die Furt betritt und auf derselben Seite wieder herauskommt, zahlt ebenfalls voll -- das
+ * ist richtig: er hat den Bach zweimal beruehrt.
+ */
+function avesmapsOffroadFurtKantenpreis(?string $plane, int $from, int $to): float
+{
+    $a = avesmapsOffroadFurtAtCell($plane, $from);
+    $b = avesmapsOffroadFurtAtCell($plane, $to);
+    if (($a > 0.0) === ($b > 0.0)) { return 0.0; }
+
+    return 0.5 * AVESMAPS_ROUTE_OFFROAD_BACH_CROSSING_UNITS * max($a, $b);
+}
+
+function avesmapsOffroadRasteriseBachFactorAlt(array $box, string $factors, array $bachLines): string
 {
     if ($bachLines === []) { return $factors; }
 
@@ -569,7 +633,10 @@ function avesmapsOffroadFindPath(
     float $y2,
     float $eps = AVESMAPS_ROUTE_OFFROAD_SIMPLIFY_EPS,
     array $rasters = [],
-    bool $weightByDistance = false
+    bool $weightByDistance = false,
+    // 🔴 Die Furt-Ebene: ein Byte je Zelle mit dem Querungsfaktor. Optional, damit jeder vorhandene
+    // Aufrufer unveraendert weiterlaeuft -- ohne sie kostet keine Kante eine Querung.
+    ?string $furtPlane = null
 ): ?array {
     if ($speed <= 0.0) { return null; }
 
@@ -582,7 +649,7 @@ function avesmapsOffroadFindPath(
     $goal = $goalRow * $cols + $goalCol;
 
     if ($start === $goal) {
-        return avesmapsOffroadFinishPath([[$x1, $y1], [$x2, $y2]], $speed, $factors, $heights, $box, $eps, 0, $rasters);
+        return avesmapsOffroadFinishPath([[$x1, $y1], [$x2, $y2]], $speed, $factors, $heights, $box, $eps, 0, $rasters, $furtPlane);
     }
 
     // §5.2, and it is the reason $blocked is edited by value: the freeing applies to THIS request.
@@ -664,7 +731,15 @@ function avesmapsOffroadFindPath(
             // aber keine Reisezeit und keinen Anstieg (Entwurf §3.2).
             if ($weightByDistance) { $slopeFactor = 1.0; $groundFactor = 1.0; }
 
-            $cost = ($best[$current] ?? INF) + ($distance / $speed) * $slopeFactor * $groundFactor;
+            // 🔴 DER QUERUNGSPREIS IST KEIN FAKTOR, und genau deshalb steht er HINTER der
+            // Neutralisierung: er ueberlebt sie und wirkt damit in BEIDEN Modi. Ein Bach ist ein
+            // Hindernis, kein Untergrund -- Wald und Sumpf bleiben unter „Kuerzeste" neutral wie
+            // bisher, Wasser nicht (die Wand sperrt dort ohnehin seit jeher).
+            // ⚠️ In Karteneinheiten gerechnet, hier durch das Tempo in dieselbe Waehrung gebracht
+            // wie der Rest der Kante: alles in dieser Schleife ist Zeit.
+            $querung = avesmapsOffroadFurtKantenpreis($furtPlane, $current, $next) / $speed;
+
+            $cost = ($best[$current] ?? INF) + ($distance / $speed) * $slopeFactor * $groundFactor + $querung;
             if ($cost >= ($best[$next] ?? INF)) { continue; }
 
             $best[$next] = $cost;
@@ -696,7 +771,7 @@ function avesmapsOffroadFindPath(
     $points[0] = [$x1, $y1];
     $points[count($points) - 1] = [$x2, $y2];
 
-    return avesmapsOffroadFinishPath($points, $speed, $factors, $heights, $box, $eps, $opened, $rasters);
+    return avesmapsOffroadFinishPath($points, $speed, $factors, $heights, $box, $eps, $opened, $rasters, $furtPlane);
 }
 
 /**
@@ -733,7 +808,10 @@ function avesmapsOffroadFindPathsFromPoint(
     array $goals,
     float $eps = AVESMAPS_ROUTE_OFFROAD_SIMPLIFY_EPS,
     array $rasters = [],
-    bool $weightByDistance = false
+    bool $weightByDistance = false,
+    // 🔴 Die Furt-Ebene: ein Byte je Zelle mit dem Querungsfaktor. Optional, damit jeder vorhandene
+    // Aufrufer unveraendert weiterlaeuft -- ohne sie kostet keine Kante eine Querung.
+    ?string $furtPlane = null
 ): array {
     $result = [];
     foreach ($goals as $key => $goal) { $result[$key] = null; }
@@ -834,7 +912,15 @@ function avesmapsOffroadFindPathsFromPoint(
             // aber keine Reisezeit und keinen Anstieg (Entwurf §3.2).
             if ($weightByDistance) { $slopeFactor = 1.0; $groundFactor = 1.0; }
 
-            $cost = ($best[$current] ?? INF) + ($distance / $speed) * $slopeFactor * $groundFactor;
+            // 🔴 DER QUERUNGSPREIS IST KEIN FAKTOR, und genau deshalb steht er HINTER der
+            // Neutralisierung: er ueberlebt sie und wirkt damit in BEIDEN Modi. Ein Bach ist ein
+            // Hindernis, kein Untergrund -- Wald und Sumpf bleiben unter „Kuerzeste" neutral wie
+            // bisher, Wasser nicht (die Wand sperrt dort ohnehin seit jeher).
+            // ⚠️ In Karteneinheiten gerechnet, hier durch das Tempo in dieselbe Waehrung gebracht
+            // wie der Rest der Kante: alles in dieser Schleife ist Zeit.
+            $querung = avesmapsOffroadFurtKantenpreis($furtPlane, $current, $next) / $speed;
+
+            $cost = ($best[$current] ?? INF) + ($distance / $speed) * $slopeFactor * $groundFactor + $querung;
             if ($cost >= ($best[$next] ?? INF)) { continue; }
 
             $best[$next] = $cost;
@@ -864,7 +950,7 @@ function avesmapsOffroadFindPathsFromPoint(
         $points[0] = [(float) $goals[$key]['x'], (float) $goals[$key]['y']];
         $points[count($points) - 1] = [$x, $y];
 
-        $result[$key] = avesmapsOffroadFinishPath($points, $speed, $factors, $heights, $box, $eps, $opened, $rasters);
+        $result[$key] = avesmapsOffroadFinishPath($points, $speed, $factors, $heights, $box, $eps, $opened, $rasters, $furtPlane);
     }
 
     // Die nassen Kandidaten, jeder mit einer eigenen Gitterkopie. avesmapsOffroadFindPath legt darin
@@ -895,7 +981,7 @@ function avesmapsOffroadFindPathsFromPoint(
  * here, matching the resolution the search itself priced at. Same rule as V11 §5.3: one resolution
  * for everything, or the same ground yields two different ascents.
  */
-function avesmapsOffroadFinishPath(array $points, float $speed, ?string $factors, ?string $heights, array $box, float $eps, int $opened, array $rasters = []): array
+function avesmapsOffroadFinishPath(array $points, float $speed, ?string $factors, ?string $heights, array $box, float $eps, int $opened, array $rasters = [], ?string $furtPlane = null): array
 {
     $points = avesmapsSimplifyLineDouglasPeucker($points, $eps);
 
@@ -938,6 +1024,8 @@ function avesmapsOffroadFinishPath(array $points, float $speed, ?string $factors
         $steps = max(1, (int) ceil($length / $sampleStep));
         $stepLength = $length / $steps;
         $previousHeight = $heightAt($fromX, $fromY);
+        $vorherX = $fromX;
+        $vorherY = $fromY;
         for ($step = 1; $step <= $steps; $step++) {
             $t = $step / $steps;
             $x = $fromX + ($toX - $fromX) * $t;
@@ -958,6 +1046,17 @@ function avesmapsOffroadFinishPath(array $points, float $speed, ?string $factors
 
             $groundFactor = avesmapsOffroadFactorAt($box, $factors ?? '', $x, $y);
             $time += ($stepLength / $speed) * $slopeFactor * $groundFactor;
+            // 🔴 DER QUERUNGSPREIS GEHOERT AUCH IN DIE GEMELDETE ZEIT. Er lenkt die Suche; stuende er
+            // nicht auch hier, lenkte er unsichtbar -- die Etappe waere umgeleitet worden und die
+            // Zahl darunter erzaehlte nichts davon. Gezaehlt wird an DENSELBEN Kanten wie in der
+            // Suche (Wechsel Furt <-> keine Furt, halb je Kante).
+            $time += avesmapsOffroadFurtKantenpreis(
+                $furtPlane,
+                avesmapsOffroadIndexOf($box, $vorherX, $vorherY),
+                avesmapsOffroadIndexOf($box, $x, $y)
+            ) / $speed;
+            $vorherX = $x;
+            $vorherY = $y;
             $previousHeight = $height;
         }
     }
@@ -1065,10 +1164,18 @@ function avesmapsOffroadStraightPathIfDry(
     float $y2,
     float $eps = AVESMAPS_ROUTE_OFFROAD_SIMPLIFY_EPS,
     array $rasters = [],
-    array $riverLines = []
+    array $riverLines = [],
+    // 🔴 Die FURT-Linien. Bis zum 31.08.2026 fragte diese Abkuerzung nur die Waende -- und nahm die
+    // Gerade, bevor der A* ueberhaupt lief. Genau das war im Bild des Owners zu sehen: eine
+    // schnurgerade Linie quer durch den Bach, unter „Kuerzeste", bei jedem Stroemungsfaktor.
+    array $furtLines = []
 ): ?array {
     if ($speed <= 0.0) { return null; }
     if (avesmapsRouteChordCrossesWater($x1, $y1, $x2, $y2, $water)) { return null; }
+    // ⚠️ VERWORFEN, NICHT BEPREIST: die Gerade kann nicht ausweichen. Faellt sie weg, entscheidet der
+    // A* -- und der wiegt den Querungspreis gegen den Umweg. Eine Gerade, die den Preis nur
+    // draufschlaegt, waere weiterhin die einzige Antwort.
+    if (avesmapsRouteChordCrossesRiver($x1, $y1, $x2, $y2, $furtLines)) { return null; }
     // 💣 DIE FLUESSE MUESSEN HIER EIGENS GEFRAGT WERDEN. Diese Funktion geht am Raster VORBEI --
     // das ist ihr Sinn (siehe oben) -- und die Sperrebene, in der die Fluesse stehen, sieht sie
     // deshalb nie. Wer nur avesmapsOffroadRasteriseBlocked repariert, verhindert das Durchwaten
@@ -1202,7 +1309,7 @@ function avesmapsOffroadBarrierLines(array $gewaesser): array
  * eine blanke Punktliste; seither traegt sie ihren Faktor bei sich. Eine blanke Liste hier
  * durchfallen zu lassen hiesse, dass ein Bach aus einem aelteren Erzeuger GAR NICHTS mehr kostet --
  * die gefaehrliche Richtung. Sie bekommt deshalb genau das, was sie vorher bedeutet hat: den
- * Grundwert AVESMAPS_ROUTE_OFFROAD_BACH_FACTOR.
+ * Anker-Querungsfaktor 1,0 (= Vorgabe-Stroemung).
  */
 function avesmapsOffroadFordLines(array $gewaesser): array
 {
@@ -1216,10 +1323,10 @@ function avesmapsOffroadFordLines(array $gewaesser): array
             $koordinaten = is_array($eintrag['coords']) ? $eintrag['coords'] : [];
             $faktor = isset($eintrag['faktor']) && is_numeric($eintrag['faktor'])
                 ? (float) $eintrag['faktor']
-                : AVESMAPS_ROUTE_OFFROAD_BACH_FACTOR;
+                : 1.0;
         } else {
             $koordinaten = $eintrag;
-            $faktor = AVESMAPS_ROUTE_OFFROAD_BACH_FACTOR;
+            $faktor = 1.0;   // die flache Altform bedeutet den ANKER: Querungsfaktor 1,0
         }
         if (count($koordinaten) < 2) { continue; }
         $raus[] = ['coords' => $koordinaten, 'faktor' => $faktor];

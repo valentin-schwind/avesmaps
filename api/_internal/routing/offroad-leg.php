@@ -327,7 +327,8 @@ function avesmapsAttachOffroadPointToGraph(
             if ($weightByDistance) {
                 $gerade = avesmapsOffroadStraightPathIfDry($box, $water, $factors, $heights,
                     (float) $speed, $candidate['x'], $candidate['y'], $x, $y,
-                    AVESMAPS_ROUTE_OFFROAD_SIMPLIFY_EPS, $rasters, $ebenen['wand']);
+                    AVESMAPS_ROUTE_OFFROAD_SIMPLIFY_EPS, $rasters, $ebenen['wand'],
+                    $ebenen['furtlinien']);
                 if ($gerade !== null) { $paths[$index] = $gerade; continue; }
             }
             $goals[$index] = ['x' => $candidate['x'], 'y' => $candidate['y']];
@@ -337,7 +338,7 @@ function avesmapsAttachOffroadPointToGraph(
             // array_merge numeriert sie neu, und danach zeigt jede Kante auf den falschen Ausstieg.
             $paths += avesmapsOffroadFindPathsFromPoint($box, $blocked, $factors, $heights,
                 (float) $speed, $x, $y, $goals, AVESMAPS_ROUTE_OFFROAD_SIMPLIFY_EPS, $rasters,
-                $weightByDistance);
+                $weightByDistance, $ebenen['furtplane']);
         }
 
         // 🔴 GENAU EINE KANTE, UND ZWAR ZUM NAECHSTEN ERREICHBAREN. $set ist nach Entfernung
@@ -592,11 +593,11 @@ function avesmapsConnectOffroadPoints(
     $path = $weightByDistance
         ? avesmapsOffroadStraightPathIfDry($box, $water, $factors, $heights, (float) $speed,
             (float) $fromPoint['x'], (float) $fromPoint['y'], (float) $toPoint['x'], (float) $toPoint['y'],
-            AVESMAPS_ROUTE_OFFROAD_SIMPLIFY_EPS, $rasters, $ebenen['wand'])
+            AVESMAPS_ROUTE_OFFROAD_SIMPLIFY_EPS, $rasters, $ebenen['wand'], $ebenen['furtlinien'])
         : null;
     $path ??= avesmapsOffroadFindPath($box, $blocked, $factors, $heights, (float) $speed,
         $fromPoint['x'], $fromPoint['y'], $toPoint['x'], $toPoint['y'], AVESMAPS_ROUTE_OFFROAD_SIMPLIFY_EPS,
-        $rasters, $weightByDistance);
+        $rasters, $weightByDistance, $ebenen['furtplane']);
     if ($path === null) {
         return ['ok' => false, 'error' => 'no_offroad_route'];
     }

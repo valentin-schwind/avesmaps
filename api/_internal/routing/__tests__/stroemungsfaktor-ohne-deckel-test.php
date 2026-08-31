@@ -75,13 +75,17 @@ $furt = static function (float $stroemung): float {
 };
 
 // Unterhalb der Saettigung gilt die Kopplung unveraendert weiter.
-assert(abs($furt(4.0) - 6.0) < 1e-9, 'Stroemung 4,0 ergibt Furt 6,0 (1,5 x)');
-assert(abs($furt(6.0) - 9.0) < 1e-9, 'Stroemung 6,0 ergibt 9,0');
+// 🪤 Hier stand bis zum 31.08.2026 abends „Furt 6,0 (1,5 x)“ -- das war der ZELL-Aufschlag. Seit dem
+// Umbau auf den Querungspreis ist die Zahl der QUERUNGSFAKTOR: 1,0 bei Vorgabe-Stroemung, und der
+// Preis dazu steht in AVESMAPS_ROUTE_OFFROAD_BACH_CROSSING_UNITS (bach-querung-hindernis-test.php).
+assert(abs($furt(4.0) - 2.0) < 1e-9, 'Stroemung 4,0 ergibt Querungsfaktor 2,0');
+assert(abs($furt(6.0) - 3.0) < 1e-9, 'Stroemung 6,0 ergibt 3,0');
 // Und darueber steht der Deckel -- gemessen, nicht behauptet.
-assert(abs($furt(20.0) - AVESMAPS_ROUTE_OFFROAD_FURT_MAX) < 1e-9,
-    'sehr starke Stroemung saettigt bei ' . AVESMAPS_ROUTE_OFFROAD_FURT_MAX . ', gemessen: ' . $furt(20.0));
-// ⚠️ Der Uebergang liegt bei Stroemung 6,8; knapp darunter darf noch NICHTS gedeckelt sein.
-assert($furt(6.7) < AVESMAPS_ROUTE_OFFROAD_FURT_MAX, 'knapp unter dem Uebergang wirkt die Kopplung voll');
+// ⚠️ Der Uebergang liegt beim Querungsfaktor bei Stroemung 2 x FURT_MAX = 20,4 (vorher 6,8, als die
+// Zahl noch der Zell-Aufschlag 1,5 x Stroemung war).
+assert(abs($furt(50.0) - AVESMAPS_ROUTE_OFFROAD_FURT_MAX) < 1e-9,
+    'sehr starke Stroemung saettigt bei ' . AVESMAPS_ROUTE_OFFROAD_FURT_MAX . ', gemessen: ' . $furt(50.0));
+assert($furt(20.0) < AVESMAPS_ROUTE_OFFROAD_FURT_MAX, 'knapp unter dem Uebergang wirkt die Kopplung voll');
 
 // =================================================================================================
 // D. Kein Literal 3.0 mehr in den zwei Spiegeln

@@ -9,8 +9,14 @@ declare(strict_types=1);
 // Ein Bach ist seit 9131b3800 ein `Flussweg` mit `properties.is_bach` -- und lag damit als volle
 // Wand im Gelaende, wie jeder Fluss seit dem 15.08.2026 (fluss-sperre-test.php).
 //
-// Er kommt deshalb aus der Sperrebene heraus und in die FAKTOR-Ebene hinein, mit
-// AVESMAPS_ROUTE_OFFROAD_BACH_FACTOR = 3,0.
+// Er kommt deshalb aus der Sperrebene heraus.
+//
+// 🔴 SEIT DEM 31.08.2026 IST DER PREIS EIN QUERUNGS-AUFSCHLAG, KEIN ZELLFAKTOR MEHR (Owner: „ich
+// will dass der bach ein hindernis ist / er geht aber nicht drumrum / sondern durch"). Der alte
+// Zellfaktor konnte nie lenken -- er war an die Zellbreite gefesselt, waehrend der Umweg mit der
+// Geometrie waechst. Die Furt hat jetzt eine EIGENE Ebene (avesmapsOffroadRasteriseFurtPlane) und
+// kostet an der Kante: halb beim Hinein, halb beim Hinaus. Was das im Ganzen heisst, misst
+// bach-querung-hindernis-test.php; hier bleibt, was den Bach von der Wand unterscheidet.
 //
 // Lauf:  php -d zend.assertions=1 -d assert.exception=1 api/_internal/routing/__tests__/bach-furt-test.php
 
@@ -52,11 +58,10 @@ $wege = [
 $gesammelt = avesmapsCollectRouteRiverBarrierLines($wege);
 assert(avesmapsOffroadBarrierLines($gesammelt) === [[[1.0, 1.0], [2.0, 2.0]]],
     'genau ein Fluss ist Wand: ' . json_encode($gesammelt['wand']));
-// 🔴 Die Furt traegt seit dem 31.08.2026 IHREN Faktor mit (bach-furt-stroemung-test.php). Dieser
-// Bach hat keine Stroemungsangabe, faellt also auf den Anker AVESMAPS_ROUTE_OFFROAD_BACH_FACTOR --
-// genau der Wert, der vor der Kopplung fuer jede Furt galt.
+// 🔴 Die Furt traegt IHREN Querungsfaktor mit. Dieser Bach hat keine Stroemungsangabe, faellt also
+// auf den Anker: Vorgabe-Stroemung = Faktor 1,0 = eine Querung zum vollen Preis.
 assert(avesmapsOffroadFordLines($gesammelt)
-        === [['coords' => [[3.0, 3.0], [4.0, 4.0]], 'faktor' => AVESMAPS_ROUTE_OFFROAD_BACH_FACTOR]],
+        === [['coords' => [[3.0, 3.0], [4.0, 4.0]], 'faktor' => 1.0]],
     'genau ein Bach ist Furt, und der Einpunkt-Bach faellt heraus: ' . json_encode($gesammelt['furt']));
 
 // 💣 GELESEN WIRD STRIKT `=== true`, genau wie im Browser (map-features-path-domain.js). Eine
@@ -89,13 +94,13 @@ $gesperrteZellen = substr_count($mitFluss['blocked'], "\x01");
 assert($gesperrteZellen > 0, 'die Gegenprobe: ein Fluss schon (' . $gesperrteZellen . ')');
 
 $ueberBach = avesmapsOffroadFindPath($box, $mitBach['blocked'], $mitBach['factors'], null,
-    $tempo, 20.0, 5.0, 20.0, 35.0);
+    $tempo, 20.0, 5.0, 20.0, 35.0, AVESMAPS_ROUTE_OFFROAD_SIMPLIFY_EPS, [], false, $mitBach['furtplane']);
 assert(is_array($ueberBach), 'die Reise quert den Bach');
 
 // 🔴 UND DER FLUSS BLEIBT DIE WAND, DIE ER SEIT DEM 15.08.2026 IST. Ohne diese Zusicherung waere
 // „Bach raus" nicht von „Gewaesser raus" zu unterscheiden.
 $ueberFluss = avesmapsOffroadFindPath($box, $mitFluss['blocked'], $mitFluss['factors'], null,
-    $tempo, 20.0, 5.0, 20.0, 35.0);
+    $tempo, 20.0, 5.0, 20.0, 35.0, AVESMAPS_ROUTE_OFFROAD_SIMPLIFY_EPS, [], false, $mitFluss['furtplane']);
 assert($ueberFluss === null, 'ein Fluss quer durch die Kiste bleibt eine Wand');
 
 // =================================================================================================
@@ -104,21 +109,21 @@ assert($ueberFluss === null, 'ein Fluss quer durch die Kiste bleibt eine Wand');
 // 💣 OHNE DIE GEGENPROBE IST DAS VAKUUM: eine Zahl allein sagt nicht, dass der Bach sie erzeugt hat.
 // Gefahren wird deshalb zweimal ueber dieselbe Sperrebene, einmal mit und einmal ohne Faktorebene.
 $ohneAufschlag = avesmapsOffroadFindPath($box, $mitBach['blocked'], null, null,
-    $tempo, 20.0, 5.0, 20.0, 35.0);
+    $tempo, 20.0, 5.0, 20.0, 35.0);   // ohne Furt-Ebene = ohne Querungspreis
 assert(is_array($ohneAufschlag), 'die Gegenprobe faehrt dieselbe Strecke');
 assert(abs($ohneAufschlag['distance'] - $ueberBach['distance']) < 1e-9,
     'und sie ist geometrisch dieselbe: ' . $ohneAufschlag['distance'] . ' gegen ' . $ueberBach['distance']);
 assert($ueberBach['time'] > $ohneAufschlag['time'] + 1e-9,
     'aber sie kostet mehr Zeit: ' . $ueberBach['time'] . ' gegen ' . $ohneAufschlag['time']);
 
-// ⭐ WAS DAS HEISST, IN DER SPRACHE DER KARTE. Gemessen 30.08.2026 an dieser Fixture: eine
-// Gelaendeetappe von 30,11 Einheiten (rund 90 Meilen), die EINEN Bach quert, wird um 3,3 % teurer --
-// das sind 4,6 Meilen offenen Gelaendes. Die Zahl steht hier, damit ein spaeterer Leser sieht, was
-// AVESMAPS_ROUTE_OFFROAD_BACH_FACTOR = 3,0 wirklich bedeutet; die Schranken sind weit, sie sollen
-// den Betrag einordnen und nicht die Rundung der Rasterung nachrechnen.
+// ⭐ WAS DAS HEISST, IN DER SPRACHE DER KARTE: eine Querung kostet wie
+// AVESMAPS_ROUTE_OFFROAD_BACH_CROSSING_UNITS Karteneinheiten offenen Gelaendes -- bei
+// Vorgabe-Stroemung die 15 Meilen, die der Owner am 31.08.2026 genannt hat.
+// ⚠️ Die Schranken sind weit: gezaehlt werden RASTERKANTEN, und eine schraege Querung beruehrt mehr
+// Bandzellen als eine gerade. Sie sollen den Betrag einordnen, nicht die Rasterung nachrechnen.
 $mehrMeilen = ($ueberBach['time'] - $ohneAufschlag['time']) * $tempo * AVESMAPS_TERRAIN_MEILEN_PER_MAPUNIT;
-assert($mehrMeilen > 2.0 && $mehrMeilen < 9.0,
-    'ein Bach kostet die Groessenordnung weniger Meilen offenen Gelaendes: ' . $mehrMeilen);
+assert($mehrMeilen > 10.0 && $mehrMeilen < 45.0,
+    'ein Bach kostet die Groessenordnung einer Querung: ' . $mehrMeilen . ' Meilen');
 
 // 💣 UND KEINE STRECKE. Der Aufschlag ist ein Zeitfaktor; `distance` ist eine Meilenzahl und wird
 // von keiner Gelaenderegel angefasst (dieselbe Trennung wie beim Laengenaufschlag).
@@ -134,7 +139,7 @@ assert($ueberBach['distance'] === $ohneAufschlag['distance'], 'die Strecke bleib
 $halberBach = [[[-200.0, 20.0], [20.0, 20.0]]];
 $halb = avesmapsOffroadBuildPlanes($box, $keinWasser, null, ['wand' => [], 'furt' => $halberBach]);
 $ausweichen = avesmapsOffroadFindPath($box, $halb['blocked'], $halb['factors'], null,
-    $tempo, 20.0, 5.0, 20.0, 35.0);
+    $tempo, 20.0, 5.0, 20.0, 35.0, AVESMAPS_ROUTE_OFFROAD_SIMPLIFY_EPS, [], false, $halb['furtplane']);
 $geradeaus = avesmapsOffroadFindPath($box, $halb['blocked'], null, null,
     $tempo, 20.0, 5.0, 20.0, 35.0);
 assert(is_array($ausweichen) && is_array($geradeaus), 'beide Wege gibt es');
@@ -144,47 +149,50 @@ assert($ausweichen['time'] < $ueberBach['time'],
     'und trotzdem billiger als das Queren: ' . $ausweichen['time'] . ' gegen ' . $ueberBach['time']);
 
 // =================================================================================================
-// E. 🔴 UNTER „KUERZESTE" WIRKT ER NICHT -- und das ist die HAUSREGEL, kein Fehler
+// E. 🔴 UNTER „KUERZESTE" WIRKT ER JETZT AUCH -- und das war eine ENTSCHEIDUNG
 // =================================================================================================
-// avesmapsOffroadFindPath neutralisiert Boden UND Steigung, sobald das Gewicht die Strecke ist
-// ($weightByDistance). Wald, Sumpf und Gebirge bremsen dort ebenso wenig: auf eine Meilenzahl haben
-// sie keinen Einfluss, also hat eine kuerzeste Linie keinen Grund, ihnen auszuweichen. Nur Wasser
-// sperrt, und das steht in $blocked -- weshalb ein FLUSS auch unter „Kuerzeste" eine Wand bleibt.
+// 🪤 HIER STAND DAS GEGENTEIL, und der Kommentar verlangte ausdruecklich: „Wer das fuer einen Fehler
+// haelt und den Bach dort auch wirken laesst, dreht die Bedeutung des Knopfes um. Diese Zusicherung
+// steht hier, damit das eine Entscheidung bleibt und kein Versehen." Genau das ist am 31.08.2026
+// passiert -- der Owner hat entschieden: „ich will dass der bach ein hindernis ist".
 //
-// ⚠️ Wer das fuer einen Fehler haelt und den Bach dort „auch wirken laesst", dreht die Bedeutung des
-// Knopfes um. Diese Zusicherung steht hier, damit das eine Entscheidung bleibt und kein Versehen.
+// ⭐ Moeglich wurde es OHNE die Hausregel anzufassen: der Querungspreis ist kein FAKTOR, also fasst
+// ihn die Neutralisierung ($slopeFactor/$groundFactor = 1.0) nicht an. Wald, Sumpf und Gebirge
+// bremsen unter „Kuerzeste" weiterhin nicht -- Wasser schon, und das tat es dort mit der WAND seit
+// jeher.
+// ⚠️ Der Preis: „Kuerzeste" ist nicht mehr die kuerzeste, wenn ein Bach im Weg liegt.
 $kuerzeste = avesmapsOffroadFindPath($box, $halb['blocked'], $halb['factors'], null,
-    $tempo, 20.0, 5.0, 20.0, 35.0, AVESMAPS_ROUTE_OFFROAD_SIMPLIFY_EPS, [], true);
+    $tempo, 20.0, 5.0, 20.0, 35.0, AVESMAPS_ROUTE_OFFROAD_SIMPLIFY_EPS, [], true, $halb['furtplane']);
 assert(is_array($kuerzeste), 'die kuerzeste Linie gibt es');
-assert(abs($kuerzeste['distance'] - $geradeaus['distance']) < 1e-9,
-    'sie geht GERADEAUS durch den Bach, sie weicht ihm nicht aus: '
+assert($kuerzeste['distance'] > $geradeaus['distance'] + 1e-9,
+    'sie weicht dem Bach aus und ist damit LAENGER als die Gerade: '
     . $kuerzeste['distance'] . ' gegen ' . $geradeaus['distance']);
-// 💣 Die MESSUNG traegt den Aufschlag trotzdem -- die Ebenen fliessen unveraendert an
-// avesmapsOffroadFinishPath weiter. Eine kuerzeste Etappe haette sonst eine Laenge, aber keine
-// ehrliche Reisezeit.
-assert($kuerzeste['time'] > $geradeaus['time'] + 1e-9,
-    'aber ihre gemeldete ZEIT traegt ihn: ' . $kuerzeste['time'] . ' gegen ' . $geradeaus['time']);
+// 🔴 Und die Gegenprobe, ohne die das auch von einem kaputten Suchlauf erfuellt waere: OHNE die
+// Furt-Ebene nimmt derselbe Aufruf weiterhin die Gerade.
+$kuerzesteOhne = avesmapsOffroadFindPath($box, $halb['blocked'], $halb['factors'], null,
+    $tempo, 20.0, 5.0, 20.0, 35.0, AVESMAPS_ROUTE_OFFROAD_SIMPLIFY_EPS, [], true);
+assert(abs($kuerzesteOhne['distance'] - $geradeaus['distance']) < 1e-9,
+    'ohne Furt-Ebene bleibt die kuerzeste Linie gerade: ' . $kuerzesteOhne['distance']);
 
 // =================================================================================================
-// F. 🔴 UEBERLAGERT WIRD PER MAXIMUM -- eine Bachzelle im Sumpf bleibt Sumpf
+// F. 🔴 UEBERLAGERT WIRD PER MAXIMUM -- wo zwei Baeche liegen, gilt der teurere
 // =================================================================================================
-$bachByte = (int) round(AVESMAPS_ROUTE_OFFROAD_BACH_FACTOR * AVESMAPS_ROUTE_OFFROAD_FACTOR_SCALE);
-assert($bachByte > 0 && $bachByte < 256, 'der Bach passt in ein Byte: ' . $bachByte);
+// 🪤 HIER STAND „eine Bachzelle im Sumpf bleibt Sumpf". Das gibt es nicht mehr: die Furt liegt seit
+// dem 31.08.2026 in einer EIGENEN Ebene und ueberlagert die Landschaft nicht mehr -- ein Bach im
+// Sumpf kostet jetzt BEIDES, den Sumpf als Untergrund und die Querung an der Kante. Die
+// Maximum-Regel bleibt trotzdem noetig: zwei Baeche koennen dieselbe Zelle treffen.
+$bachByte = (int) round(1.0 * AVESMAPS_ROUTE_OFFROAD_FACTOR_SCALE);   // Anker = Querungsfaktor 1,0
+assert($bachByte > 0 && $bachByte < 256, 'der Anker passt in ein Byte: ' . $bachByte);
 
-$sumpfByte = $bachByte + 40;                       // teurer als der Bach
-$sumpf = str_repeat(chr($sumpfByte), $box['cell_count']);
-$sumpfUndBach = avesmapsOffroadRasteriseBachFactor($box, $sumpf, $querLinie);
-assert(substr_count($sumpfUndBach, chr($bachByte)) === 0,
-    'im Sumpf setzt sich der Bach NICHT durch');
-assert(substr_count($sumpfUndBach, chr($sumpfByte)) === $box['cell_count'], 'der Sumpf bleibt vollstaendig');
+$furtEbene = avesmapsOffroadRasteriseFurtPlane($box, $querLinie);
+assert(substr_count($furtEbene, chr($bachByte)) > 0, 'die flache Altform ergibt den Anker');
 
-$wieseByte = $bachByte - 40;                       // billiger als der Bach
-$wiese = str_repeat(chr($wieseByte), $box['cell_count']);
-$wieseUndBach = avesmapsOffroadRasteriseBachFactor($box, $wiese, $querLinie);
-$bachZellen = substr_count($wieseUndBach, chr($bachByte));
-assert($bachZellen > 0, 'auf der billigeren Flaeche schon: ' . $bachZellen);
-assert(substr_count($wieseUndBach, chr($wieseByte)) === $box['cell_count'] - $bachZellen,
-    'und genau dort, sonst nirgends');
+$stark = [['coords' => $querLinie[0], 'faktor' => 3.0], ['coords' => $querLinie[0], 'faktor' => 1.0]];
+$zweiBaeche = avesmapsOffroadRasteriseFurtPlane($box, $stark);
+$starkByte = (int) round(3.0 * AVESMAPS_ROUTE_OFFROAD_FACTOR_SCALE);
+assert(substr_count($zweiBaeche, chr($starkByte)) > 0, 'der teurere setzt sich durch');
+assert(substr_count($zweiBaeche, chr($bachByte)) === 0,
+    'und der billigere steht auf denselben Zellen NICHT mehr daneben');
 
 // =================================================================================================
 // G. 💣 AUCH DIAGONAL KEINE LUECKE -- die Eckzellen des Treppenschritts
@@ -196,7 +204,7 @@ assert(substr_count($wieseUndBach, chr($wieseByte)) === $box['cell_count'] - $ba
 $schraeg = [[[-200.0, -190.0], [200.0, 210.0]]];
 $diagonal = avesmapsOffroadBuildPlanes($box, $keinWasser, null, ['wand' => [], 'furt' => $schraeg]);
 $schraegMit = avesmapsOffroadFindPath($box, $diagonal['blocked'], $diagonal['factors'], null,
-    $tempo, 30.0, 5.0, 5.0, 30.0);
+    $tempo, 30.0, 5.0, 5.0, 30.0, AVESMAPS_ROUTE_OFFROAD_SIMPLIFY_EPS, [], false, $diagonal['furtplane']);
 $schraegOhne = avesmapsOffroadFindPath($box, $diagonal['blocked'], null, null,
     $tempo, 30.0, 5.0, 5.0, 30.0);
 assert(is_array($schraegMit) && is_array($schraegOhne), 'die schraege Furt sperrt nicht');
@@ -212,7 +220,7 @@ assert($schraegMit['time'] > $schraegOhne['time'] + 1e-9,
 // die Schrittlogik ist seit dem 30.08.2026 geteilt, der Fehler waere also derselbe. Hier steht er
 // trotzdem noch einmal, weil die FURT ihn nicht als fehlenden Weg zeigt, sondern nur als eine
 // Reisezeit, die niemand nachrechnet.
-$istFurt = static fn(int $index): bool => ord($diagonal['factors'][$index]) === $bachByte;
+$istFurt = static fn(int $index): bool => ord($diagonal['furtplane'][$index]) === $bachByte;
 $loecher = 0;
 for ($row = 0; $row < $box['rows'] - 1; $row++) {
     for ($col = 0; $col < $box['cols'] - 1; $col++) {
@@ -227,40 +235,41 @@ for ($row = 0; $row < $box['rows'] - 1; $row++) {
 assert($loecher === 0, 'die schraege Furt hat keine diagonale Luecke: ' . $loecher);
 
 // 🪤 GEGENPROBE, damit die Null oben nicht bloss heisst „hier ist gar nichts markiert".
-$furtZellen = substr_count($diagonal['factors'], chr($bachByte));
+$furtZellen = substr_count($diagonal['furtplane'], chr($bachByte));
 assert($furtZellen > $box['rows'], 'und sie ist wirklich da: ' . $furtZellen . ' Zellen');
 
 // =================================================================================================
 // H. Grenzfaelle des Rasterers
 // =================================================================================================
-assert(avesmapsOffroadRasteriseBachFactor($box, '', []) === '',
+assert(avesmapsOffroadRasteriseFurtPlane($box, []) === '',
     'ohne Bach entsteht keine Ebene aus dem Nichts');
-$leerAberBach = avesmapsOffroadRasteriseBachFactor($box, '', $querLinie);
+$leerAberBach = avesmapsOffroadRasteriseFurtPlane($box, $querLinie);
 assert(strlen($leerAberBach) === $box['cell_count'],
-    'aber MIT Bach entsteht eine -- sonst waere er dort wirkungslos, wo sonst nichts bremst');
+    'aber MIT Bach entsteht eine -- in voller Kistenlaenge, sonst zeigt sie an der falschen Stelle');
 assert(substr_count($leerAberBach, chr($bachByte)) > 0, 'und sie traegt ihn');
 
-// 💣 Eine Ebene falscher Laenge wird NICHT angefasst: ein Schreibzugriff hinter dem Ende einer
-// PHP-Zeichenkette verlaengert sie mit LEERZEICHEN (Byte 32 = Faktor 1,28) auf jeder Zelle
-// dazwischen -- ein stiller Gelaendeaufschlag ueber die halbe Kiste.
-$zuKurz = str_repeat("\x00", 5);
-assert(avesmapsOffroadRasteriseBachFactor($box, $zuKurz, $querLinie) === $zuKurz,
-    'eine Ebene falscher Laenge bleibt unberuehrt');
+// ⭐ Die alte Falle „eine Ebene falscher Laenge wird nicht angefasst" gibt es hier nicht mehr: die
+// Furt-Ebene wird IMMER selbst angelegt und nie in eine fremde hineingeschrieben. Genau das war der
+// Grund, sie zu trennen -- ein Schreibzugriff hinter dem Ende einer PHP-Zeichenkette verlaengert sie
+// mit LEERZEICHEN (Byte 32) und legte einen stillen Aufschlag ueber die halbe Kiste.
 
 // =================================================================================================
 // I. 💣 DIE GERADE LINIE GEHT AM RASTER VORBEI -- und braucht die Wand eigens
 // =================================================================================================
 // avesmapsOffroadStraightPathIfDry ist der Weg unter „Kuerzeste", wenn die Verbindung trocken ist.
-// Sie sieht die Sperrebene nie, fragt die Fluesse also selbst. Ein Bach darf sie NICHT aufhalten --
-// und weil sie durch avesmapsOffroadFinishPath geht, traegt sie den Aufschlag trotzdem.
+// Sie sieht die Sperrebene nie, fragt die Gewaesser also selbst.
+// 🪤 HIER STAND „Ein Bach darf sie NICHT aufhalten" -- und genau das war der Fehler, den der Owner
+// am 31.08.2026 im Bild hatte: eine schnurgerade Linie quer durch den Bach, bei jedem
+// Stroemungsfaktor. Die Abkuerzung nahm die Gerade, BEVOR der A* ueberhaupt lief.
+// 🔴 Sie wird jetzt verworfen, nicht bepreist: eine Gerade kann nicht ausweichen. Faellt sie weg,
+// entscheidet der A* -- und der wiegt den Querungspreis gegen den Umweg.
 $geradeUeberBach = avesmapsOffroadStraightPathIfDry($box, $keinWasser, $mitBach['factors'], null,
-    $tempo, 20.0, 5.0, 20.0, 35.0, AVESMAPS_ROUTE_OFFROAD_SIMPLIFY_EPS, [], $mitBach['wand']);
-assert(is_array($geradeUeberBach), 'die Gerade quert einen Bach');
+    $tempo, 20.0, 5.0, 20.0, 35.0, AVESMAPS_ROUTE_OFFROAD_SIMPLIFY_EPS, [], $mitBach['wand'],
+    $mitBach['furtlinien']);
+assert($geradeUeberBach === null, 'die Gerade wird verworfen, wenn sie einen Bach quert');
 $geradeOhne = avesmapsOffroadStraightPathIfDry($box, $keinWasser, null, null,
     $tempo, 20.0, 5.0, 20.0, 35.0, AVESMAPS_ROUTE_OFFROAD_SIMPLIFY_EPS, [], []);
-assert(is_array($geradeOhne), 'die Gegenprobe ohne alles auch');
-assert($geradeUeberBach['time'] > $geradeOhne['time'] + 1e-9,
-    'und traegt seinen Aufschlag: ' . $geradeUeberBach['time'] . ' gegen ' . $geradeOhne['time']);
+assert(is_array($geradeOhne), 'die Gegenprobe ohne alles bleibt erhalten');
 
 $geradeUeberFluss = avesmapsOffroadStraightPathIfDry($box, $keinWasser, null, null,
     $tempo, 20.0, 5.0, 20.0, 35.0, AVESMAPS_ROUTE_OFFROAD_SIMPLIFY_EPS, [], $mitFluss['wand']);
@@ -424,7 +433,7 @@ $daten = $lies('offroad-data.php');
 $stelle = strpos($daten, 'function avesmapsOffroadBuildPlanes');
 assert($stelle !== false, 'avesmapsOffroadBuildPlanes muss es geben');
 $rumpf = substr($daten, $stelle);
-foreach (['avesmapsOffroadRasteriseBlocked(', 'avesmapsOffroadRasteriseBachFactor(',
+foreach (['avesmapsOffroadRasteriseBlocked(', 'avesmapsOffroadRasteriseFurtPlane(',
     'avesmapsOffroadLoadFactorPlane(', 'avesmapsOffroadLoadHeightRasters(',
     'avesmapsOffroadSampleHeights('] as $noetig) {
     assert(str_contains($rumpf, $noetig), "der Erzeuger ruft $noetig selbst");
@@ -434,7 +443,7 @@ foreach (['avesmapsOffroadRasteriseBlocked(', 'avesmapsOffroadRasteriseBachFacto
 $zeuge = avesmapsOffroadBuildPlanes($box, $keinWasser, null,
     ['wand' => $querLinie, 'furt' => [[[-200.0, 30.0], [200.0, 30.0]]]]);
 assert(substr_count($zeuge['blocked'], "\x01") > 0, 'der Erzeuger sperrt die Wand');
-assert(substr_count($zeuge['factors'], chr($bachByte)) > 0, 'und bepreist die Furt');
+assert(substr_count($zeuge['furtplane'], chr($bachByte)) > 0, 'und bepreist die Furt');
 assert($zeuge['heights'] === null && $zeuge['rasters'] === [], 'ohne PDO bleiben die Hoehen inert');
 
 fwrite(STDOUT, "bach-furt-test: OK\n");
