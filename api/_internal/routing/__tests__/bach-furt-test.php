@@ -52,7 +52,11 @@ $wege = [
 $gesammelt = avesmapsCollectRouteRiverBarrierLines($wege);
 assert(avesmapsOffroadBarrierLines($gesammelt) === [[[1.0, 1.0], [2.0, 2.0]]],
     'genau ein Fluss ist Wand: ' . json_encode($gesammelt['wand']));
-assert(avesmapsOffroadFordLines($gesammelt) === [[[3.0, 3.0], [4.0, 4.0]]],
+// 🔴 Die Furt traegt seit dem 31.08.2026 IHREN Faktor mit (bach-furt-stroemung-test.php). Dieser
+// Bach hat keine Stroemungsangabe, faellt also auf den Anker AVESMAPS_ROUTE_OFFROAD_BACH_FACTOR --
+// genau der Wert, der vor der Kopplung fuer jede Furt galt.
+assert(avesmapsOffroadFordLines($gesammelt)
+        === [['coords' => [[3.0, 3.0], [4.0, 4.0]], 'faktor' => AVESMAPS_ROUTE_OFFROAD_BACH_FACTOR]],
     'genau ein Bach ist Furt, und der Einpunkt-Bach faellt heraus: ' . json_encode($gesammelt['furt']));
 
 // 💣 GELESEN WIRD STRIKT `=== true`, genau wie im Browser (map-features-path-domain.js). Eine

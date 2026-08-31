@@ -19,6 +19,11 @@ require_once __DIR__ . '/land-areas.php';
 // Fuer avesmapsGetRouteTransportType (die Flussweg-Erkennung). network-data.php verlangt nichts --
 // ein Blatt, kein Zirkel.
 require_once __DIR__ . '/network-data.php';
+// 🔴 WEGEN avesmapsRouteClientNormalizeFlow: die Furt kostet seit dem 31.08.2026 nach der
+// Stroemung, und die Klemme [1,0 ... 3,0] samt Vorgabe 2,0 soll NICHT ein drittes Mal
+// abgeschrieben werden (sie steht schon zweimal -- in der Wiki-Bibliothek und als deren
+// bewusster Spiegel in client-graph.php). ⚠️ Kein Kreis: client-graph.php zieht offroad-* nicht.
+require_once __DIR__ . '/client-graph.php';
 require_once __DIR__ . '/terrain-factor.php';
 require_once __DIR__ . '/../app/heightmap.php';
 
@@ -80,6 +85,43 @@ const AVESMAPS_ROUTE_OFFROAD_FACTOR_SCALE = 25.0;
 // Boden und Steigung von jeher neutralisiert (siehe avesmapsOffroadFindPath) -- Wald, Sumpf und
 // Gebirge bremsen dort ebenso wenig. Das ist die Hausregel und kein Versehen.
 const AVESMAPS_ROUTE_OFFROAD_BACH_FACTOR = 3.0;
+
+// 🔴 DIE STROEMUNG, BEI DER EINE FURT GENAU AVESMAPS_ROUTE_OFFROAD_BACH_FACTOR KOSTET.
+// Owner 31.08.2026: „die gewichtung der schwierigkeit der ueberquerung der furt an den
+// stroemungsfaktor gekoppelt, 3-fache stroemung = 3-fache kosten" -- und auf die Rueckfrage nach
+// dem Anker: der Vorgabe-Bach soll bleiben, was er war. Daraus wird
+//     furt = BACH_FACTOR * stroemung / BACH_FLOW_ANKER   (= 1,5 x Stroemung)
+// ⚠️ Live gemessen am 31.08.2026: 49 Baeche, KEINER mit eigenem `flow.factor`. Mit dem Anker 2,0
+// aendert sich damit an keiner Route etwas -- die Kopplung greift erst, wenn ein Editor an einem
+// Bach dreht. Ein Anker von 1,0 haette jede Gelaenderoute mit Bach sofort verbilligt.
+// 💣 EIGENE KONSTANTE, KEIN VERWEIS AUF AVESMAPS_PATH_FLOW_FACTOR_DEFAULT (dessen Wert sie heute
+// teilt). Die zwei bedeuten Verschiedenes: jener ist „welche Stroemung nehmen wir an, wenn keine
+// eingetragen ist", diese ist „bei welcher Stroemung kostet eine Furt den Grundwert". Zoege jemand
+// die Vorgabe auf 2,5, waere die Furt sonst still um ein Viertel teurer geworden.
+const AVESMAPS_ROUTE_OFFROAD_BACH_FLOW_ANKER = 2.0;
+
+/**
+ * PURE: der Furt-Aufschlag EINES Bachs, aus seiner Stroemung.
+ *
+ * 💣 DIE KLEMME KOMMT AUS DEM VORHANDENEN LESER. `avesmapsRouteClientNormalizeFlow` haelt
+ * [1,0 ... 3,0] und die Vorgabe 2,0; eine eigene Rechnung hier waere die dritte Fassung derselben
+ * Regel und liefe beim ersten Dreh an einer der anderen auseinander.
+ * 🔴 OHNE FLIESSRICHTUNG GILT DER ANKER, nicht „keine Erschwernis": der Leser gibt dort `null`
+ * zurueck, und die sichere Richtung ist eine Furt zu teuer statt eines Bachs, den man gratis
+ * durchwatet.
+ * ⚠️ EINE ZAHL, ZWEI ROLLEN (Owner: „passt so, eine zahl genuegt"): `flow.factor` heisst im Editor
+ * „Stroemungsfaktor (flussaufwaerts x)" und sagte bisher nur, wie viel langsamer man GEGEN die
+ * Stroemung faehrt. Er sagt jetzt zusaetzlich, wie schwer man quer hindurchkommt.
+ */
+function avesmapsOffroadFurtFaktor(array $path): float
+{
+    $flow = avesmapsRouteClientNormalizeFlow($path, (string) ($path['subtype'] ?? ''));
+    $stroemung = is_array($flow) && isset($flow['factor'])
+        ? (float) $flow['factor']
+        : AVESMAPS_ROUTE_OFFROAD_BACH_FLOW_ANKER;
+
+    return AVESMAPS_ROUTE_OFFROAD_BACH_FACTOR * $stroemung / AVESMAPS_ROUTE_OFFROAD_BACH_FLOW_ANKER;
+}
 
 // 16 bit per cell, and the value IS the height in Schritt (V11 §3.2: no white point, no scaling).
 // 💣 65535 means „NO DATA", not „very high". `null` and `0` are different things all the way through
@@ -331,18 +373,30 @@ function avesmapsOffroadRasteriseBachFactor(array $box, string $factors, array $
 {
     if ($bachLines === []) { return $factors; }
 
-    $byte = (int) round(AVESMAPS_ROUTE_OFFROAD_BACH_FACTOR * AVESMAPS_ROUTE_OFFROAD_FACTOR_SCALE);
-    $byte = max(0, min(255, $byte));
-    if ($byte === 0) { return $factors; }
+    // 💣 ZWEITER EINGANG, DIESELBE REGEL. Diese Funktion wird auch DIREKT gerufen (Einheitstests,
+    // und wer sie sonst noch findet), nicht nur ueber avesmapsOffroadBuildPlanes. Sie normalisiert
+    // deshalb selbst -- ueber DENSELBEN Leser, nicht ueber eine zweite Fassung. Eine flache
+    // Punktliste bedeutet dabei den Anker, nie „kein Aufschlag".
+    $bachLines = avesmapsOffroadFordLines(['furt' => $bachLines]);
+    if ($bachLines === []) { return $factors; }
 
     $cells = (int) $box['cell_count'];
     if ($factors === '') { $factors = str_repeat("\x00", $cells); }
     if (strlen($factors) !== $cells) { return $factors; }
 
-    $character = chr($byte);
-    avesmapsOffroadForEachLineCell($box, $bachLines, static function (int $index) use (&$factors, $byte, $character): void {
-        if (ord($factors[$index]) < $byte) { $factors[$index] = $character; }
-    });
+    // 🔴 JE LINIE IHR EIGENER WERT (seit 31.08.2026): der Aufschlag haengt an der Stroemung des
+    // einzelnen Bachs, nicht mehr an einer Konstanten fuer alle. Deshalb ein Durchgang je Linie.
+    // ⚠️ Der Deckel 255 ist bei Skala 25 ein Faktor von 10,2 -- die Furt reicht hoechstens bis 4,5
+    // (Stroemung 3,0), er kann also nur greifen, wenn jemand an den Konstanten dreht.
+    foreach ($bachLines as $linie) {
+        $byte = (int) round(((float) $linie['faktor']) * AVESMAPS_ROUTE_OFFROAD_FACTOR_SCALE);
+        $byte = max(0, min(255, $byte));
+        if ($byte === 0) { continue; }
+        $character = chr($byte);
+        avesmapsOffroadForEachLineCell($box, [$linie['coords']], static function (int $index) use (&$factors, $byte, $character): void {
+            if (ord($factors[$index]) < $byte) { $factors[$index] = $character; }
+        });
+    }
 
     return $factors;
 }
@@ -1079,7 +1133,11 @@ function avesmapsRouteSegmentsIntersect(
  * ⭐ Die Geometrien sind bereits geladen ($routeNetworkData['paths']) -- keine zweite Abfrage je
  * Route. Auf Shared Hosting ist das der Unterschied zwischen Fix und Last.
  *
- * @return array{wand: list<array>, furt: list<array>}
+ * 🔴 Die Furt traegt seit dem 31.08.2026 IHREN Faktor mit (`{coords, faktor}`) -- er haengt an der
+ * Stroemung des einzelnen Bachs, siehe avesmapsOffroadFurtFaktor. Die Wand braucht keinen: sie ist
+ * gesperrt, und gesperrt kennt keine Abstufung.
+ *
+ * @return array{wand: list<array>, furt: list<array{coords: array, faktor: float}>}
  */
 function avesmapsCollectRouteRiverBarrierLines(array $paths): array
 {
@@ -1092,7 +1150,10 @@ function avesmapsCollectRouteRiverBarrierLines(array $paths): array
         if (!is_array($coordinates) || count($coordinates) < 2) { continue; }
         // `properties` ist das ausgepackte properties_json (avesmapsBuildRoutePathData).
         $properties = is_array($path['properties'] ?? null) ? $path['properties'] : [];
-        if (($properties['is_bach'] ?? null) === true) { $furt[] = $coordinates; continue; }
+        if (($properties['is_bach'] ?? null) === true) {
+            $furt[] = ['coords' => $coordinates, 'faktor' => avesmapsOffroadFurtFaktor($path)];
+            continue;
+        }
         $wand[] = $coordinates;
     }
 
@@ -1119,16 +1180,40 @@ function avesmapsOffroadBarrierLines(array $gewaesser): array
 }
 
 /**
- * PURE: die FURT-Haelfte eines Gewaesser-Bunds (die Baeche, die nur kosten).
+ * PURE: die FURT-Haelfte eines Gewaesser-Bunds (die Baeche, die nur kosten), auf die Form
+ * `[{coords, faktor}]` gebracht.
  *
  * ⚠️ Die alte flache Form kennt keine Furt und liefert hier zu Recht nichts -- der Gegenpol zu
  * avesmapsOffroadBarrierLines, und in derselben sicheren Richtung: im Zweifel Wand, nie Furt.
+ *
+ * 💣 ZWEI EINTRAGS-BAUFORMEN, UND DIE ALTE BEDEUTET DEN ANKER. Bis zum 31.08.2026 war eine Furt
+ * eine blanke Punktliste; seither traegt sie ihren Faktor bei sich. Eine blanke Liste hier
+ * durchfallen zu lassen hiesse, dass ein Bach aus einem aelteren Erzeuger GAR NICHTS mehr kostet --
+ * die gefaehrliche Richtung. Sie bekommt deshalb genau das, was sie vorher bedeutet hat: den
+ * Grundwert AVESMAPS_ROUTE_OFFROAD_BACH_FACTOR.
  */
 function avesmapsOffroadFordLines(array $gewaesser): array
 {
     if (!array_key_exists('furt', $gewaesser)) { return []; }
+    if (!is_array($gewaesser['furt'])) { return []; }
 
-    return is_array($gewaesser['furt']) ? $gewaesser['furt'] : [];
+    $raus = [];
+    foreach ($gewaesser['furt'] as $eintrag) {
+        if (!is_array($eintrag)) { continue; }
+        if (array_key_exists('coords', $eintrag)) {
+            $koordinaten = is_array($eintrag['coords']) ? $eintrag['coords'] : [];
+            $faktor = isset($eintrag['faktor']) && is_numeric($eintrag['faktor'])
+                ? (float) $eintrag['faktor']
+                : AVESMAPS_ROUTE_OFFROAD_BACH_FACTOR;
+        } else {
+            $koordinaten = $eintrag;
+            $faktor = AVESMAPS_ROUTE_OFFROAD_BACH_FACTOR;
+        }
+        if (count($koordinaten) < 2) { continue; }
+        $raus[] = ['coords' => $koordinaten, 'faktor' => $faktor];
+    }
+
+    return $raus;
 }
 
 /**
