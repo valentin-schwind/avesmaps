@@ -849,6 +849,15 @@ function syncFeatureSourcesToClientCache(entityType, entityPublicId, editorSourc
       label: source.label || "",
       official: Boolean(source.official),
       type: source.type || "",
+      // 💣 LIZENZ UND NAMENSNENNUNG GEHOEREN DAZU, und ihr Fehlen war lange unsichtbar.
+      // js/ui/feature-source-markup.js liest `s.license`/`s.attribution` aus GENAU DIESEM Eintrag
+      // und zeichnet daraus den Lizenzbaustein. Ohne die zwei Zeilen erscheint eine frisch
+      // eingetragene Quelle zwar, aber OHNE ihre Lizenz -- und die traegt die Rechtsfolge (der
+      // Garetien-Import haengt `cc-by-nc-sa-3.0` / „VolkoV / garetien.de" an jedes Objekt).
+      // Bis zum vollstaendigen Neuladen sah es aus wie eine Quelle ohne Lizenzangabe, also wie
+      // eine schlechter erfasste Quelle -- nicht wie ein Anzeigefehler.
+      license: source.license || "",
+      attribution: source.attribution || "",
     };
     refs.push({ source_id: source.source_id, pages: source.pages || "", reference_kind: source.reference_kind || "" });
   }
@@ -861,7 +870,13 @@ if (typeof window !== "undefined") {
   window.linkCommunityReportSource = linkCommunityReportSource;
   window.appendProposedFeatureSources = appendProposedFeatureSources;
   window.createPendingFeatureSourceStore = createPendingFeatureSourceStore;
+  // 🔴 Damit der Garetien-Importer DIESE Fassung ruft statt einer eigenen. Er legt Quellen an
+  // Objekten an, die die geladene Karte noch nicht mit Quelle kennt; ohne den Abgleich stuende
+  // seine Quelle erst nach einem vollstaendigen Neuladen in der Infobox.
+  window.syncFeatureSourcesToClientCache = syncFeatureSourcesToClientCache;
 }
 if (typeof module !== "undefined" && module.exports) {
-  module.exports = { renderFeatureSourceEditorHtml, createPendingFeatureSourceStore };
+  module.exports = {
+    renderFeatureSourceEditorHtml, createPendingFeatureSourceStore, syncFeatureSourcesToClientCache,
+  };
 }

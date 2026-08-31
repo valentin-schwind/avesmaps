@@ -820,6 +820,11 @@ function avesmapsGaretienErgaenzungAnwenden(PDO $pdo, array $nach, string $publi
     }
 
     $quellen = 0;
+    // 🔴 DER ZWEITE SCHREIBWEG FUER QUELLEN, und er ist der gefaehrlichere: hier bekommt ein
+    // BESTEHENDES Objekt eine Quelle dazu. Er meldet die beruehrte Entitaet mit zurueck, damit der
+    // Browser sie nachtragen kann (Owner-Meldung 31.08.2026) -- der Anlegeweg tut dasselbe an
+    // seiner Stelle. Eine Regel, die einen von zwei Erzeugern bindet, ist keine Regel.
+    $beruehrt = null;
     if (in_array('quelle', $felder, true)
         && avesmapsGaretienQuelleAnlegen(
             $pdo, $entityType, $quellePublicId, (array) ($nach['quelle'] ?? []), $userId,
@@ -827,9 +832,10 @@ function avesmapsGaretienErgaenzungAnwenden(PDO $pdo, array $nach, string $publi
         )) {
         $quellen = 1;
         $geschrieben++;
+        $beruehrt = ['entity_type' => $entityType, 'public_id' => $quellePublicId];
     }
 
-    return ['felder' => $geschrieben, 'quellen' => $quellen];
+    return ['felder' => $geschrieben, 'quellen' => $quellen, 'quelle_an' => $beruehrt];
 }
 
 /**
@@ -980,6 +986,9 @@ function avesmapsGaretienApplyStep(PDO $pdo, int $runId, int $userId, ?array $us
         'remaining' => $rest,
         'skipped' => count($ergebnis['fehler']),
         'declined' => 0,
+        // Die Quellen der beruehrten Objekte, damit der Browser sie ohne Neuladen zeigen kann --
+        // siehe die Begruendung am Ende von avesmapsGaretienUebernehmen.
+        'quellen_neu' => $ergebnis['quellen_neu'] ?? [],
     ];
 }
 
@@ -1052,7 +1061,7 @@ function avesmapsGaretienItemAbschliessen(PDO $pdo, int $itemId, string $applySt
 function avesmapsGaretienUebernehmen(PDO $pdo, int $runId, array $itemIds, array $user = [], ?array $einstellungen = null): array
 {
     if ($itemIds === []) {
-        return ['angelegt' => 0, 'quellen' => 0, 'fehler' => []];
+        return ['angelegt' => 0, 'quellen' => 0, 'fehler' => [], 'quellen_neu' => []];
     }
     // ⚠️ Das selbstheilende DDL steht beim ENDPUNKT, nicht hier -- wie bei zoom-bands.php. Eine
     // Bibliothek, die beim Schreiben Tabellen anlegt, laesst sich gegen keine andere Datenbank
@@ -1069,6 +1078,17 @@ function avesmapsGaretienUebernehmen(PDO $pdo, int $runId, array $itemIds, array
     );
     $stmt->execute(array_merge([$runId], array_map('intval', $itemIds)));
 
+    // 🔴 WAS DER BROWSER NACHTRAGEN MUSS (Owner-Meldung 31.08.2026: „ich hab ein moor importiert,
+    // aber es fehlt die 'quelle, die mitreist', erst wenn ich die seite komplett neulade stehts
+    // dran"). Die Infobox liest ihre Quellen aus zwei Globals, die GENAU EINMAL gefuellt werden --
+    // beim Laden der Kartennutzlast (js/routing/routing.js). Ein Objekt, das waehrend der Sitzung
+    // entsteht, stand dort nicht; seine Quelle ist in der Datenbank, der Browser weiss nur nichts
+    // davon.
+    // ⭐ Das Werkzeug dagegen gibt es laengst: syncFeatureSourcesToClientCache
+    // (js/review/review-feature-sources.js), vom Quellen-Editor benutzt. Ihm fehlt nur die
+    // `public_id` des frisch angelegten Objekts -- und die kennt nur der Server. Genau die reist
+    // hier zurueck.
+    $quellenNeu = [];
     $angelegt = 0;
     $quellen = 0;
     $fehler = [];
@@ -1108,6 +1128,10 @@ function avesmapsGaretienUebernehmen(PDO $pdo, int $runId, array $itemIds, array
                 );
                 $angelegt += $ergebnis['felder'] > 0 ? 1 : 0;
                 $quellen += $ergebnis['quellen'];
+                if (is_array($ergebnis['quelle_an'] ?? null)) {
+                    $quellenNeu[$ergebnis['quelle_an']['entity_type'] . ':' . $ergebnis['quelle_an']['public_id']]
+                        = $ergebnis['quelle_an'];
+                }
                 avesmapsGaretienItemAbschliessen($pdo, (int) $item['id'], 'done', (string) $item['entity_public_id'], $userId);
             } catch (Throwable $abbruch) {
                 $fehler[] = ['item' => (int) $item['id'], 'grund' => $abbruch->getMessage()];
@@ -1233,6 +1257,10 @@ function avesmapsGaretienUebernehmen(PDO $pdo, int $runId, array $itemIds, array
                 (string) ($nach['seite_url'] ?? '')
             )) {
                 $quellen++;
+                $quellenNeu[$entityType . ':' . $quellePublicId] = [
+                    'entity_type' => $entityType,
+                    'public_id' => $quellePublicId,
+                ];
             }
             avesmapsGaretienItemAbschliessen($pdo, (int) $item['id'], 'done', $publicId, $userId);
         } catch (Throwable $abbruch) {
@@ -1268,7 +1296,36 @@ function avesmapsGaretienUebernehmen(PDO $pdo, int $runId, array $itemIds, array
         avesmapsNextMapRevision($pdo);
     }
 
-    return ['angelegt' => $angelegt, 'quellen' => $quellen, 'fehler' => $fehler];
+    // 💣 DIE VOLLE LISTE, NICHT NUR UNSERE QUELLE -- und das ist die Falle dieser Aufgabe.
+    // `syncFeatureSourcesToClientCache` (js/review/review-feature-sources.js) UEBERSCHREIBT die
+    // Quellenliste einer Entitaet. Bei einem frisch angelegten Objekt ist unsere die einzige, da
+    // waere der Unterschied unsichtbar. Bei einer ERGAENZUNG haengen wir eine Quelle an ein
+    // BESTEHENDES Objekt -- schickten wir dort nur unsere, verschwaenden seine anderen Quellen aus
+    // der Anzeige, bis jemand neu laedt. Genau der Fall, den der Owner gemeldet hat (Eupelmunder
+    // Moor), nur andersherum.
+    // ⚠️ EINE Abfrage je beruehrter Entitaet, nicht je Item: `$quellenNeu` ist ueber
+    // "<typ>:<public_id>" entdoppelt.
+    // ⚠️ avesmapsListFeatureSourcesForEdit ist nicht rein: es holt unterwegs eine alte
+    // `properties.other_source` in die geteilte Tabelle nach (avesmapsFeatureSourcesTakeoverOtherSource).
+    // Das ist gewollt und dieselbe Haustuer, die der Quellen-Editor beim Oeffnen benutzt -- ein
+    // frisch angelegtes Objekt hat das Feld nie, ein ergaenztes altes wird dabei aufgeraeumt.
+    $quellenRueck = [];
+    foreach ($quellenNeu as $eintrag) {
+        $quellenRueck[] = [
+            'entity_type' => $eintrag['entity_type'],
+            'public_id' => $eintrag['public_id'],
+            // ⚠️ NUR die Liste, nicht die ganze Huelle: avesmapsListFeatureSourcesForEdit
+            // liefert ['ok','sources','wiki_url','revision']. Der Browser erwartet die Liste.
+            'sources' => avesmapsListFeatureSourcesForEdit(
+                $pdo, $eintrag['entity_type'], $eintrag['public_id'], $userId
+            )['sources'] ?? [],
+        ];
+    }
+
+    return [
+        'angelegt' => $angelegt, 'quellen' => $quellen, 'fehler' => $fehler,
+        'quellen_neu' => $quellenRueck,
+    ];
 }
 
 /**

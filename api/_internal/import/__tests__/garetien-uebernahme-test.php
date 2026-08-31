@@ -323,6 +323,14 @@ $pruefungen++;
 
 // --- 🔴 Jedes uebernommene Objekt bekommt seine Quelle -- ueber das VORHANDENE System.
 assert($e['quellen'] === 1);
+// 💣 UND DER ANLEGEWEG MELDET SIE EBENSO ZURUECK. Es sind ZWEI Erzeuger von Quellen in dieser
+// Datei (Anlegen und Ergaenzung) -- eine Regel, die einen von zweien bindet, ist keine Regel
+// (AGENTS.md). Die Ergaenzung ist weiter unten belegt, an dem Weg mit der fremden Quelle.
+assert(count($e['quellen_neu']) === 1 && $e['quellen_neu'][0]['entity_type'] === 'path',
+    'auch das frisch ANGELEGTE Objekt meldet seine Quellen zurueck: ' . json_encode($e['quellen_neu']));
+assert(count($e['quellen_neu'][0]['sources']) === 1,
+    'beim Anlegen ist unsere die einzige Quelle');
+$pruefungen += 2;
 $q = $pdo->query('SELECT * FROM feature_sources')->fetch(PDO::FETCH_ASSOC);
 assert($q['origin'] === 'garetien', 'eigene Herkunft, damit ein spaeterer Lauf sie wiedererkennt');
 assert($q['entity_type'] === 'path' && $q['entity_public_id'] === $neu['public_id'], 'sie haengt am richtigen Objekt');
@@ -1990,6 +1998,52 @@ $eWegQ = avesmapsGaretienUebernehmen($pdoQ, $laufQ, [$itemWegQ], ['id' => 7]);
 assert($eWegQ['fehler'] === [], 'die Quellen-Ergaenzung des Wegs gelingt: ' . json_encode($eWegQ, JSON_UNESCAPED_UNICODE));
 assert($eWegQ['quellen'] === 1, 'genau eine Quelle wurde angelegt');
 $pruefungen += 2;
+
+// --- 💣 DIE ERGAENZUNGS-FALLE: `quellen_neu` traegt die VOLLE Quellenliste des Objekts, nicht nur
+// unsere. Owner-Meldung 31.08.2026: „ich hab ein moor importiert, aber es fehlt die 'quelle, die
+// mitreist', erst wenn ich die seite komplett neulade stehts glaub dran" -- die geladene Seite
+// haelt Katalog und Verweise als EINMALIGE Aufnahme vom Seitenstart, ein Kartenstempel erreicht
+// sie nicht. Der Browser traegt sie deshalb per `syncFeatureSourcesToClientCache` nach.
+//
+// 🔴 UND JENE FUNKTION UEBERSCHREIBT DIE LISTE EINER ENTITAET. Schickte der Server hier nur die
+// eben angelegte Quelle, verschwaende die HANDGEPFLEGTE oben aus der Anzeige -- derselbe Fehler
+// wie der gemeldete, nur andersherum, und er faellt niemandem auf, weil die neue Quelle ja da
+// steht. Genau dafuer haengt an diesem Weg seit dem Aufbau eine zweite, fremde Verknuepfung.
+// ⚠️ Beim ANLEGEN waere der Unterschied unsichtbar (dort ist unsere die einzige Quelle) -- deshalb
+// steht die Zusicherung HIER und nicht im Anlegepfad.
+assert(isset($eWegQ['quellen_neu']) && is_array($eWegQ['quellen_neu']),
+    'die Uebernahme meldet die beruehrten Objekte samt Quellen zurueck');
+assert(count($eWegQ['quellen_neu']) === 1,
+    'genau EIN beruehrtes Objekt, entdoppelt ueber typ:public_id: ' . json_encode($eWegQ['quellen_neu']));
+$rueckWegQ = $eWegQ['quellen_neu'][0];
+assert($rueckWegQ['entity_type'] === 'path' && $rueckWegQ['public_id'] === $idWegQ,
+    'und es ist der richtige Weg: ' . json_encode($rueckWegQ));
+$adressenWegQ = array_map(static fn(array $q): string => $q['url'], $rueckWegQ['sources']);
+sort($adressenWegQ);
+assert($adressenWegQ === [
+        'https://www.beispiel.de/handgepflegt',
+        'https://www.garetien.de/index.php?title=Garetien:Testpfad',
+    ],
+    'BEIDE Quellen reisen zurueck -- die eben angelegte UND die vorhandene handgepflegte: '
+    . json_encode($adressenWegQ));
+$pruefungen += 4;
+
+// --- 💣 UND DIE LIZENZ REIST MIT. Sie traegt die Rechtsfolge (NOTICE.md), und der Leser in
+// js/ui/feature-source-markup.js zeichnet den Lizenzbaustein aus GENAU diesen zwei Feldern. Ohne
+// sie erschiene die Quelle ohne Lizenz -- also wie eine schlechter erfasste Quelle, nicht wie ein
+// Anzeigefehler.
+$unsereQ = null;
+foreach ($rueckWegQ['sources'] as $eintragQ) {
+    if (str_contains($eintragQ['url'], 'garetien.de')) { $unsereQ = $eintragQ; }
+}
+assert($unsereQ !== null, 'unsere Quelle steht in der Rueckgabe');
+assert($unsereQ['license'] === 'cc-by-nc-sa-3.0' && $unsereQ['attribution'] === 'VolkoV / garetien.de',
+    'Lizenz und Namensnennung reisen mit: ' . json_encode($unsereQ));
+// ⚠️ Und `source_id` ist der Schluessel, unter dem der Browser den Katalog fuehrt -- ohne ihn
+// verwirft syncFeatureSourcesToClientCache die Zeile stillschweigend.
+assert(isset($unsereQ['source_id']) && (int) $unsereQ['source_id'] > 0,
+    'die source_id reist mit -- ohne sie faellt die Zeile im Browser lautlos heraus');
+$pruefungen += 3;
 
 // --- 🔴 DIE VERKNUEPFUNG EINES ANDEREN ERZEUGERS BEKOMMT KEINE NOTIZ. Die manuelle Verknuepfung
 // oben ging NICHT ueber avesmapsGaretienQuelleAnlegen -- origin='garetien' ist die einzige, die

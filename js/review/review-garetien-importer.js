@@ -5023,6 +5023,48 @@
 	// ruft diese Funktion ohne den sechsten Parameter, `undefined` bleibt also `undefined` und wird
 	// unten NIE in den `apply`-Rumpf gehängt. Genau DAS ist die Umsetzung der Regel „die
 	// Massenübernahme nimmt die Vorgaben, nie die Handeingaben" -- strukturell, nicht per Vereinbarung.
+	// Die Quellen der eben angelegten Objekte in den Kartenspeicher der GELADENEN Seite nachtragen.
+	//
+	// Owner-Meldung 31.08.2026, woertlich: „ich hab ein moor importiert, aber es fehlt die 'quelle,
+	// die mitreist', erst wenn ich die seite komplett neulade stehts glaub dran".
+	//
+	// 🔴 DER KARTENSTEMPEL HEILT DAS NICHT, und das ist der ganze Grund fuer diese Funktion. Die
+	// Uebernahme hebt `map_revision` (siehe avesmapsGaretienUebernehmen) -- aber die geladene Seite
+	// fragt die Kartendaten danach nicht noch einmal ab. `window.__sourceCatalog` und
+	// `window.__featureSourceRefs` sind eine EINMALIGE Aufnahme vom Seitenstart; die Infobox liest
+	// synchron aus ihnen (AGENTS.md §11: „rendered synchronously -- no lazy per-popup fetch"). Ein
+	// frisch importiertes Objekt steht darin gar nicht, seine Quelle also auch nicht.
+	//
+	// 🔴 DIE FUNKTION IST GETEILT, NICHT NACHGEBAUT. `syncFeatureSourcesToClientCache`
+	// (js/review/review-feature-sources.js) tut dasselbe schon fuer die angenommene
+	// Gemeinschaftsmeldung -- samt der beiden Feinheiten, an denen eine zweite Fassung scheitern
+	// wuerde: sie schreibt in das Fenster, das die Globals wirklich FUEHRT (Editorseiten sind
+	// iframes und tragen sie nicht), und sie fuellt den Katalog samt Lizenz und Namensnennung.
+	// ⚠️ Kein stiller Rueckfall: fehlt sie, ist die Datei nicht geladen -- dann wird nichts
+	// nachgetragen, aber es bricht auch nichts (der naechste vollstaendige Ladevorgang bringt den
+	// Stand ohnehin). Eine Ersatzfassung waere die zweite Wahrheit, die dieser Absatz vermeidet.
+	//
+	// 💣 DER SERVER SCHICKT DIE VOLLE LISTE, NICHT NUR UNSERE QUELLE -- und das muss er, weil
+	// `syncFeatureSourcesToClientCache` die Quellenliste einer Entitaet UEBERSCHREIBT. Bei einer
+	// Ergaenzung (eine Quelle an ein BESTEHENDES Objekt, der Fall „Eupelmunder Moor") verschwaenden
+	// sonst dessen andere Quellen aus der Anzeige -- derselbe Fehler wie der gemeldete, nur
+	// andersherum.
+	function garetienQuellenNachtragen(antwort) {
+		const liste = (antwort && antwort.quellen_neu) || [];
+		if (!Array.isArray(liste) || liste.length === 0) { return 0; }
+		const abgleich = (typeof module !== "undefined" && module.exports)
+			? require("./review-feature-sources.js").syncFeatureSourcesToClientCache
+			: (typeof window !== "undefined" ? window.syncFeatureSourcesToClientCache : null);
+		if (typeof abgleich !== "function") { return 0; }
+		let getragen = 0;
+		liste.forEach(function (eintrag) {
+			if (!eintrag || !eintrag.entity_type || !eintrag.public_id) { return; }
+			abgleich(eintrag.entity_type, eintrag.public_id, eintrag.sources || []);
+			getragen++;
+		});
+		return getragen;
+	}
+
 	function garetienEinfuegenAusfuehren(idsZumAnhaken, idsZumUebernehmen, runId, rufe, fortschritt, einstellungen) {
 		const sauber = (idsZumAnhaken || []).map(Number).filter(function (id) { return id > 0; });
 		const uebernahmeIds = (idsZumUebernehmen || []).map(Number).filter(function (id) { return id > 0; });
@@ -5072,6 +5114,11 @@
 						["applied", "deleted", "stale", "skipped", "declined"].forEach(function (feld) {
 							summe[feld] += Number((antwort && antwort[feld]) || 0);
 						});
+						// 💣 HIER, im EINEN Trichter -- nicht an den zwei Klickverteilern. Jede
+						// Antwort von `apply` kommt hier vorbei, auch die zweite und dritte eines
+						// laengeren Laufs; an den Aufrufstellen waere es beim naechsten Knopf
+						// vergessen.
+						garetienQuellenNachtragen(antwort);
 						verarbeitet = Math.min(gesamt, verarbeitet + Number((antwort && antwort.processed) || 0));
 						melden(verarbeitet);
 						if (antwort && antwort.done === true) { return; }
@@ -5489,6 +5536,8 @@
 		module.exports = {
 			avesmapsGaretienDarfOeffnen,
 			garetienPanelsBeiseite,
+			// Owner-Meldung 31.08.2026: die mitgereiste Quelle ohne Neuladen sichtbar machen.
+			garetienQuellenNachtragen,
 			// Fuenf-Punkte-Brief 30.08.2026, Punkt 2
 			avesmapsGaretienDarfAdminHandlung,
 			avesmapsGaretienFensterZustand,

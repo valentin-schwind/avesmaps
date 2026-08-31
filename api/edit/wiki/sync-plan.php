@@ -325,6 +325,15 @@ try {
                 'remaining' => (int) ($step['remaining'] ?? 0),
                 'skipped' => (int) ($step['skipped'] ?? 0),
                 'declined' => (int) ($step['declined'] ?? 0),
+                // 🔴 EINE Zeile, GETEILT von allen acht Objektarten -- und bei sieben davon leer.
+                // Wer eine Quelle an ein Kartenobjekt haengt, gibt hier dessen VOLLE Quellenliste
+                // zurueck; der Browser traegt sie in seinen Kartenspeicher nach
+                // (syncFeatureSourcesToClientCache). Ohne das steht eine frisch importierte Quelle
+                // erst nach einem vollstaendigen Neuladen in der Infobox -- Owner-Meldung
+                // 31.08.2026: „es fehlt die 'quelle, die mitreist', erst wenn ich die seite
+                // komplett neulade stehts glaub dran". Der Kartenstempel allein heilt das nicht:
+                // die geladene Seite fragt die Kartendaten nicht noch einmal ab.
+                'quellen_neu' => is_array($step['quellen_neu'] ?? null) ? $step['quellen_neu'] : [],
             ]);
             // no break -- avesmapsJsonResponse exits.
 
