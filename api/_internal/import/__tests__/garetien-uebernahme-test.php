@@ -2,6 +2,15 @@
 
 declare(strict_types=1);
 
+// 🔴 DIESER PRUEFSTAND FAEHRT DIE ERSETZUNGS-MASCHINERIE ANGESCHALTET -- live ist sie AUS.
+// Owner 31.08.2026: „es gibt kein ersetzen. es gibt neu oder nix." Die Zusicherungen hier bleiben
+// stehen, weil sie teuer erkauftes Wissen ueber diese Maschinerie tragen (welcher Abschnitt was
+// annehmen darf, was vorangehakt kommt, welche id wohin zeigt) -- eine spaetere, korrigierte
+// Fassung braucht es unveraendert.
+// ⚠️ SIE SAGEN NICHTS UEBER DIE PRODUKTION. Dass die Vorgabe `false` ist und die ganze Kette sie
+// befolgt, steht in api/_internal/import/__tests__/garetien-kein-ersetzen-test.php.
+define('AVESMAPS_GARETIEN_ERSETZEN_ERLAUBT', true);
+
 // Die Uebernahme -- der EINZIGE Schreibweg dieses Imports.
 //
 // 🔴 Geschrieben wird NUR, was angehakt ist. Ein nicht genanntes Item bleibt unberuehrt --

@@ -621,27 +621,27 @@
 	// 'Grenzen', 'Flüsse', 'Kreuzungen' und alle Ortstypen sichtbar machen, wenn man in den
 	// import-modus geht."
 	//
-	// \U0001f534 DIE REIHENFOLGE IST TRAGEND, und sie ist der ganze Grund, warum das hier eine Funktion ist
+	// 🔴 DIE REIHENFOLGE IST TRAGEND, und sie ist der ganze Grund, warum das hier eine Funktion ist
 	// und keine drei Zeilen: ZUERST die Ansicht, DANN die Ebene, ZULETZT die Sichtbarkeit. Die
 	// Landschaften-Ebene setzt beim Betreten ihr eigenes Anzeige-Profil
 	// (`syncEcosystemSettlementVisibility`, `syncEcosystemFrontendFeatures`) -- und fuer einen
 	// EDITOR heisst dieses Profil „leere Zeichenflaeche": sie nimmt ihm ALLE Ortsklassen weg. Wer
 	// die Sichtbarkeit vorher setzt, sieht sie eine Zehntelsekunde spaeter wieder verschwinden.
 	//
-	// \U0001f4a3 UND DAS IST KEIN FEHLER DIESER EBENE, den man dort reparieren duerfte: die leere Flaeche
+	// 💣 UND DAS IST KEIN FEHLER DIESER EBENE, den man dort reparieren duerfte: die leere Flaeche
 	// ist ihre Aufgabe, wenn jemand Landschaften ZEICHNET. Der Import ist eine andere Arbeit am
 	// selben Ort -- hier will man sehen, was schon daliegt. Deshalb legt sich diese Sicht OBEN DRAUF,
 	// statt das Profil umzuschreiben.
-	// \u26a0\ufe0f Sie wird beim Schliessen NICHT zurueckgenommen -- wie die beiseitegeschobenen Panels.
+	// ⚠️ Sie wird beim Schliessen NICHT zurueckgenommen -- wie die beiseitegeschobenen Panels.
 	// Die Ortsklassen kommen trotzdem von selbst zurueck: die Landschaften-Ebene hat sie sich nur
 	// GELIEHEN und gibt beim Verlassen den Stand von vor dem Import zurueck.
 	//
-	// \U0001f534 KEINE ADRESSZEILE. `setAllLocationTypesVisible` schreibt bewusst kein
+	// 🔴 KEINE ADRESSZEILE. `setAllLocationTypesVisible` schreibt bewusst kein
 	// `syncPlannerStateToUrl` -- ein Klick auf die Ortsklassen-Kachel taete es, und damit stuende der
 	// Teilen-Link des Editors hinter seinem Ruecken anders da. Genau aus diesem Grund verzichtet auch
 	// die Landschaften-Ebene darauf (URL-Policy: die Adresszeile wird nie automatisch umgeschrieben).
 	//
-	// \U0001f4a3 UND NUR SCHALTER, DIE DER BENUTZER AUCH ZURUECKSTELLEN KANN. Drei der genannten Zeilen im
+	// 💣 UND NUR SCHALTER, DIE DER BENUTZER AUCH ZURUECKSTELLEN KANN. Drei der genannten Zeilen im
 	// Anzeige-Menue stehen `hidden`, solange die Seite nicht im Bearbeiten-Modus ist
 	// (`toggleCrossingsControl` und Geschwister, js/app/bootstrap.js). Einen davon anzuschalten
 	// erzeugte einen Zustand, den niemand mehr sieht und deshalb auch nicht mehr loswird.
@@ -661,11 +661,11 @@
 		(ids || []).forEach(function (id) {
 			const haken = document.getElementById(id);
 			if (!haken || haken.checked === true) { return; }
-			// \u26a0\ufe0f Die Zeile, nicht der Haken: das `hidden` sitzt am umschliessenden `<label>`
+			// ⚠️ Die Zeile, nicht der Haken: das `hidden` sitzt am umschliessenden `<label>`
 			// (`<id>Control`), der Haken selbst ist immer da.
 			const zeile = document.getElementById(id + "Control");
 			if (zeile && zeile.hidden) { return; }
-			// \U0001f4a3 Ein programmatisch gesetztes `checked` feuert KEIN `change` -- und daran haengen die
+			// 💣 Ein programmatisch gesetztes `checked` feuert KEIN `change` -- und daran haengen die
 			// Zeichner (syncPathVisibility fuer die Wege, die Grenz-Leinwand fuer die Grenzen). Die
 			// Hausfassung dieser Geste steht in map-features-ecosystem-layer-switch.js; sie hier
 			// nachzubauen waere ihre zweite Fassung.
@@ -690,7 +690,7 @@
 			&& typeof window !== "undefined" && window.jQuery) {
 			window.jQuery(ansicht).val("ecosystem").trigger("change");
 		}
-		// 2. Die Ebene: „Alle". \u26a0\ufe0f Sie traegt BEWUSST kein `data-ecosystem-kind` (sie ist ein
+		// 2. Die Ebene: „Alle". ⚠️ Sie traegt BEWUSST kein `data-ecosystem-kind` (sie ist ein
 		//    Anzeige-Flag neben dem Ebenen-Zustand, siehe index.html) -- gesucht wird deshalb ueber
 		//    ihr eigenes Attribut, nicht ueber einen erfundenen Ebenennamen.
 		const alle = document.querySelector("#ecosystem-layer-switch [data-ecosystem-show-all]");
@@ -776,7 +776,12 @@
 	// Familie, kein Blau. deckt_sich und uebersprungen teilen sich die gedaempfte Klasse (Brief).
 	const AVESMAPS_GARETIEN_URTEIL_ZEILE = {
 		neu: { klasse: "u--neu", beschriftung: "neu" },
-		ergaenzung: { klasse: "u--erg", beschriftung: "Ergänzung" },
+		// 🔴 MIT FRAGEZEICHEN seit 31.08.2026 (Owner): „Bei 'Ergänzung' kannst du gern 'Ergänzung?'
+		// schreiben, dass man weiß, hier existiert schon was ABER ES WIRD DURCH DEN IMPORTER
+		// NIEMALS ERSETZT." Das Wort ohne Fragezeichen las sich wie eine Zusage, dass hier etwas
+		// ergänzt WIRD -- und genau das tut der Importer seit heute nicht mehr. Es sagt jetzt nur
+		// noch: an dieser Stelle liegt schon etwas, sieh es dir an.
+		ergaenzung: { klasse: "u--erg", beschriftung: "Ergänzung?" },
 		zweifel: { klasse: "u--zweif", beschriftung: "Zweifel" },
 		widerspruch: { klasse: "u--wider", beschriftung: "widerspricht" },
 		deckt_sich: { klasse: "u--deckt", beschriftung: "deckt sich" },
@@ -3798,14 +3803,38 @@
 	// an -- dieselbe Prädikat-Funktion (AVESMAPS_GARETIEN_ITEMS_JE_HANDLUNG.neu) findet es, ohne
 	// dass die Prädikate selbst etwas wissen müssten. „neu" steht VOR „ablehnen", aber NACH den
 	// übrigen drei: es ist die begründete AUSNAHME, nicht der Normalfall dieser Zeile.
+	// 🔴 KEIN ERSETZEN MEHR (Owner 31.08.2026, woertlich: „ich will dass du alle
+	// 'ersetzungsfunktionen' des importers augenblicklich deaktivierst. es gibt kein ersetzen. es
+	// gibt neu oder nix - kein verändern, kein ersetzen").
+	//
+	// Gestrichen sind „name" (Namen ersetzen), „quelle" (Nur Quelle + Artikel) und „geometrie"
+	// (Ausgewählte Segmente ersetzen) -- alle drei schreiben an einem BESTEHENDEN Objekt.
+	// Geblieben sind „neu" und „ablehnen": neu oder nix.
+	//
+	// ⚠️ DAS HIER IST NUR DIE ANZEIGE. Der verbindliche Riegel steht im Server
+	// (AVESMAPS_GARETIEN_ERSETZEN_ERLAUBT, api/_internal/import/garetien-plan.php): der laufende
+	// Lauf traegt bereits fertige Ergaenzungs-Items in der Datenbank, und ein Riegel nur im
+	// Browser waere keiner.
+	//
+	// 💣 ANLASS: der Abgleich hatte ihre „Burg Gryffenwacht" mit unserem Dorf „Valpolust"
+	// gleichgesetzt (1,90 Einheiten, Schwelle 2,0 = 6 Meilen) und dessen Namen ersetzt.
+	// garetien.de fuehrt beide getrennt. Am Bestand gemessen haben 2041 von 2364 Punktobjekten
+	// (86,3 %) einen anders benannten Nachbarn innerhalb dieser Schwelle.
 	const AVESMAPS_GARETIEN_HANDLUNGEN_JE_URTEIL = {
 		neu: ["neu", "ablehnen"],
 		// Der Nachbar ist der Hauptfluss, ihr Objekt der Seitenarm: ein NEUES Objekt, kein Ersatz.
 		zweifel: ["neu", "ablehnen"],
-		ergaenzung: ["name", "quelle", "geometrie", "neu", "ablehnen"],
-		// Ihr Artikel trifft, ihre Geometrie nicht -- die Geometriefrage steht vorn.
-		widerspruch: ["geometrie", "name", "ablehnen"],
-		deckt_sich: ["ablehnen"],
+		// ⚠️ „neu" bleibt und ist der einzige Ausgang: eine Zeile mit erkanntem Treffer laesst
+		// sich weiterhin als EIGENES Objekt anlegen (das `zusatz`-Item, garetien-plan.php).
+		// 🔴 „Nur Quelle + Artikel" BLEIBT (Owner 31.08.2026: „Garetien.de als 'Quelle und Artikel
+		// ergänzen' soll erlaubt sein, aber nicht den namen verändern") -- sie ist additiv,
+		// überschreibt nichts und lässt sich exakt zurücknehmen; an ihr hängt die Rechtsfolge.
+		ergaenzung: ["quelle", "neu", "ablehnen"],
+		// 🔴 „widerspricht" bekommt „neu" (Owner: „widerspricht ist kein grund, dass es nicht
+		// trotzdem eingefügt werden darf") -- der Artikel trifft, die Geometrie liegt weit weg.
+		// Das ist ein Hinweis für den Editor, kein Verbot.
+		widerspruch: ["quelle", "neu", "ablehnen"],
+		deckt_sich: ["quelle", "neu", "ablehnen"],
 		uebersprungen: ["ablehnen"],
 	};
 
@@ -4101,16 +4130,16 @@
 	// 'Zurücknehmen' anbieten auch gleichzeitig die Option 'Ablehnen' anbieten, wo sie
 	// zurückgenommen und in die kategorie ablehnen gesteckt werden."
 	//
-	// \U0001f534 ER KANN GENAU DANN, WENN „Zurücknehmen" KANN -- und das ist keine Bequemlichkeit,
+	// 🔴 ER KANN GENAU DANN, WENN „Zurücknehmen" KANN -- und das ist keine Bequemlichkeit,
 	// sondern die Sache selbst: abgelehnt werden kann nur, was vorher von der Karte kommt. Ein
 	// Objekt, das sich nicht zurücknehmen laesst (es hat ein BESTEHENDES Objekt veraendert), darf
 	// auch nicht in „Abgelehnt" wandern -- dort staende dann eine Aenderung, die weiterhin gilt.
 	// Deshalb dieselbe Item-Menge, derselbe Riegel, derselbe Grund.
 	//
-	// \u26a0\ufe0f DIE BESCHRIFTUNG IST DIE DES OWNERS („Ablehnen"), obwohl der Knopf ZWEI Dinge tut. Die
+	// ⚠️ DIE BESCHRIFTUNG IST DIE DES OWNERS („Ablehnen"), obwohl der Knopf ZWEI Dinge tut. Die
 	// Folge steht dafuer vollstaendig in der Rueckfrage -- dieselbe Aufteilung wie bei
 	// „Zurücknehmen" selbst, wo der Wortlaut der Rueckfrage die eigentliche Sicherung ist.
-	// \U0001f534 UND ER ERSCHEINT GAR NICHT ERST, wenn er nicht kann -- kein ausgegrauter Zwilling
+	// 🔴 UND ER ERSCHEINT GAR NICHT ERST, wenn er nicht kann -- kein ausgegrauter Zwilling
 	// neben dem Grund. Owner-Entscheid 1 zu „Zurücknehmen" gilt hier unverändert: ein 'changed'-
 	// Objekt bekommt „kein Knopf, sondern ein sichtbarer Grund an seiner Stelle". Ein zweiter,
 	// gesperrter Knopf hätte diese Regel aufgehoben UND den Grund doppelt hingeschrieben
@@ -4118,7 +4147,7 @@
 	function garetienRuecknahmeAblehnenBauen(objekt) {
 		const items = garetienRuecknahmeItems(objekt);
 		if (items.length === 0) { return null; }
-		// \U0001f4a3 DIE ABLEHNUNG BRAUCHT ALLE ITEMS DES OBJEKTS, die Ruecknahme nur die
+		// 💣 DIE ABLEHNUNG BRAUCHT ALLE ITEMS DES OBJEKTS, die Ruecknahme nur die
 		// ruecknehmbaren. `avesmapsGaretienListeObjektStand` (garetien-liste.php) erklaert ein
 		// Objekt erst dann „abgelehnt", wenn JEDES seiner Items abgelehnt ist -- mit nur den
 		// zurueckgenommenen bliebe es in „Offen" stehen, und der Knopf haette sichtbar die halbe
@@ -4146,7 +4175,7 @@
 		// Rücknahme-Zeile -- ein 'changed'-Objekt (kein "neu"-Item) zeigt dabei gar keinen Knopf,
 		// nur den Grund (garetienRuecknahmeBauen).
 		if (String(o.stand || "") === "uebernommen") {
-			// \u26a0\ufe0f `filter(Boolean)`: „Ablehnen" fällt ganz weg, wenn es nicht kann (siehe dort).
+			// ⚠️ `filter(Boolean)`: „Ablehnen" fällt ganz weg, wenn es nicht kann (siehe dort).
 			return [garetienRuecknahmeBauen(o), garetienRuecknahmeAblehnenBauen(o)].filter(Boolean);
 		}
 		const namen = AVESMAPS_GARETIEN_HANDLUNGEN_JE_URTEIL[String(o.urteil || "")] || ["ablehnen"];
@@ -4200,11 +4229,11 @@
 
 	// REIN: der Rumpf, den EIN Knopf an die eine Tür schickt -- oder `null`.
 	function garetienHandlungsRumpf(name, objekt, runId) {
-		// \U0001f4a3 DIE ZWEI RUECKNAHME-VERBEN GEHEN HIER NIE HINAUS. Sie haben ihre EIGENE Tuer
+		// 💣 DIE ZWEI RUECKNAHME-VERBEN GEHEN HIER NIE HINAUS. Sie haben ihre EIGENE Tuer
 		// (GARETIEN_ENDPUNKT, `action:'ruecknahme'`) und ihren eigenen Verteiler; faenden sie hier
 		// einen Rumpf, fiele der Klick bis zu `garetienHandlungKlick` durch und verschickte ein
 		// sinnloses `select` an die GETEILTE Tuer -- zwei Erzeuger fuer denselben Knopf.
-		// \u26a0\ufe0f Bis zum 31.08.2026 hielt das allein die Reihenfolge der Verdrahtung
+		// ⚠️ Bis zum 31.08.2026 hielt das allein die Reihenfolge der Verdrahtung
 		// (garetienRuecknahmeKlick laeuft vorher und meldet, dass er uebernommen hat). Das war eine
 		// Zusicherung ohne Riegel: sie faellt, sobald jemand die Reihenfolge aendert, und der
 		// Fehler waere still.
@@ -4654,12 +4683,12 @@
 		return avesmapsGaretienRufe(GARETIEN_ENDPUNKT, {
 			action: "ruecknahme", run_id: runId, ids: ids,
 		}).then(function () {
-			// \U0001f534 ZUERST ZURUECKNEHMEN, DANN ABLEHNEN -- und diese Reihenfolge ist die sichere.
+			// 🔴 ZUERST ZURUECKNEHMEN, DANN ABLEHNEN -- und diese Reihenfolge ist die sichere.
 			// Bricht der zweite Schritt ab, ist das Objekt von der Karte und steht in „Offen": ein
 			// Zustand, den der Editor sieht und mit einem Klick zu Ende bringt. Andersherum staende
 			// es als „abgelehnt" da und laege weiter auf der Karte -- eine Ablehnung, die nichts
 			// abgelehnt hat, und niemand saehe es.
-			// \u26a0\ufe0f Die Ablehnung geht durch die GETEILTE Tuer (dieselbe wie der gewoehnliche
+			// ⚠️ Die Ablehnung geht durch die GETEILTE Tuer (dieselbe wie der gewoehnliche
 			// „Ablehnen"-Knopf), nicht durch die des Importers: sie ist keine Loeschung, sondern
 			// eine Entscheidung, und die fuehren alle acht Objektarten dort.
 			if (abzulehnen.length === 0) { return null; }
@@ -4709,7 +4738,7 @@
 	// Quelle) und der Unterschied in beiden derselbe ist; in beide hineingeschrieben liefe er beim
 	// nächsten Wortlaut auseinander.
 	//
-	// \U0001f534 „Ablehnen" tut ZWEI Dinge, und die Rückfrage ist die Stelle, an der das steht -- der
+	// 🔴 „Ablehnen" tut ZWEI Dinge, und die Rückfrage ist die Stelle, an der das steht -- der
 	// Knopf trägt den Wortlaut des Owners („Ablehnen"), nicht die Aufzählung seiner Folgen.
 	function garetienRuecknahmeZielSatz(auchAblehnen) {
 		return auchAblehnen
@@ -4730,7 +4759,7 @@
 	function garetienRuecknahmeKlick(ereignis, objekte, runId, senden, fragen) {
 		const ziel = ereignis && ereignis.target;
 		if (!ziel || typeof ziel.closest !== "function") { return null; }
-		// \U0001f534 BEIDE RUECKNAHME-VERBEN, EIN VERTEILER (Owner 31.08.2026). Sie teilen alles --
+		// 🔴 BEIDE RUECKNAHME-VERBEN, EIN VERTEILER (Owner 31.08.2026). Sie teilen alles --
 		// dieselbe Item-Menge, dieselbe Rueckfrage-Form, denselben Sender; verschieden ist nur, ob
 		// danach noch abgelehnt wird. Zwei Verteiler waeren zwei Erzeuger derselben Loeschung.
 		const knopf = ziel.closest('[data-handlung="ruecknahme"], [data-handlung="ruecknahme_ablehnen"]');
@@ -4748,7 +4777,7 @@
 		// bestehenden Sender/Test), MEHRERE gehen als Liste -- garetienRuecknahmeSenden
 		// verpackt ohnehin beides gleich (siehe dort).
 		const ids = items.map(function (item) { return item.id; });
-		// \U0001f4a3 ZWEI VERSCHIEDENE MENGEN, und das ist der Kern: zurueckgenommen werden die
+		// 💣 ZWEI VERSCHIEDENE MENGEN, und das ist der Kern: zurueckgenommen werden die
 		// ruecknehmbaren Items, ABGELEHNT werden ALLE (siehe garetienRuecknahmeAblehnenBauen).
 		const ablehnenIds = auchAblehnen
 			? ((objekt.items || []).map(function (item) { return item.id; }))

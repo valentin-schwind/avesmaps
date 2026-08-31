@@ -75,22 +75,37 @@ tief(zuflussKnoepfe, ["neu", "ablehnen"], "und sonst gibt es beim Zweifel nichts
 tief(namen({ urteil: "neu", abschnitte: [], items: [{ id: 9, change_type: "new", selected: 1 }] }),
 	["neu", "ablehnen"], "„neu\": einfuegen oder ablehnen");
 
-// „Ergaenzung": wir haben es, sie wissen mehr -- mit dem vierten Ausgang.
-// 🔴 Meldung B (30.08.2026, Owner): „neu" steht seither MIT dabei -- „trotzdem neu anlegen" ist
-// die begruendete Ausnahme und steht deshalb VOR „ablehnen", aber NACH den drei uebrigen.
+// 🔴 SEIT 31.08.2026 GIBT ES KEIN ERSETZEN MEHR (Owner: „es gibt neu oder nix - kein
+// verändern, kein ersetzen"). Hier standen „name", „quelle" und „geometrie" -- alle drei schrieben
+// an einem BESTEHENDEN Objekt. Was bleibt, ist derselbe Satz wie bei „neu": einfügen oder
+// ablehnen. ⚠️ Die Zeile mit Treffer bleibt importierbar (ihr Zusatz-Item), sie kann nur nichts
+// mehr überschreiben.
 tief(namen({ urteil: "ergaenzung", abschnitte: [{ public_id: "w-1", name: "x" }], items: [] }),
-	["name", "quelle", "geometrie", "neu", "ablehnen"],
-	"bei der Ergaenzung steht „Namen ersetzen\" vorn, „Nur Quelle + Artikel\" daneben, „neu\" "
-	+ "als begruendete Ausnahme vor „ablehnen\"");
+	["quelle", "neu", "ablehnen"],
+	"die Ergaenzung: Quelle ergaenzen, als eigenes Objekt anlegen, oder ablehnen");
+// 💣 UND „NAMEN ERSETZEN" / „SEGMENTE ERSETZEN" GIBT ES IN KEINEM URTEIL MEHR. Ohne diese Schleife
+// bewiese die Zeile darüber nur, dass EIN Urteil sie los ist -- „widerspruch" trug beide ebenfalls.
+["neu", "zweifel", "ergaenzung", "widerspruch", "deckt_sich", "uebersprungen"].forEach((urteil) => {
+	const gefunden = namen({ urteil, abschnitte: [{ public_id: "w-1", name: "x" }], items: [] });
+	["name", "geometrie"].forEach((verb) => {
+		wahr(!gefunden.includes(verb),
+			'das Urteil "' + urteil + '" bietet "' + verb + '" nicht mehr an: ' + gefunden.join(", "));
+	});
+});
 
-// „widerspricht": ihr Artikel trifft, ihre Geometrie nicht -- die GEOMETRIEFRAGE steht vorn.
+// „widerspricht": ihr Artikel trifft, ihre Geometrie nicht. 🔴 Bis zum 31.08.2026 stand hier die
+// Geometriefrage vorn („die Reihenfolge ist die Aussage") -- sie ist ein Ersetzen und gibt es nicht
+// mehr. Was bleibt: als eigenes Objekt anlegen oder ablehnen.
 tief(namen({ urteil: "widerspruch", abschnitte: [{ public_id: "w-1", name: "x" }], items: [] }),
-	["geometrie", "name", "ablehnen"],
-	"beim Widerspruch steht die Geometriefrage VORN -- die Reihenfolge ist die Aussage");
+	["quelle", "neu", "ablehnen"],
+	"🔴 der Widerspruch bekommt „neu\" (Owner: „widerspricht ist kein grund, dass es nicht trotzdem "
+	+ "eingefuegt werden darf\")");
 
-// „deckt sich" kann nur abgelehnt werden -- die Zeile steht da, damit die Zahl nachpruefbar bleibt.
-tief(namen({ urteil: "deckt_sich", abschnitte: [], items: [] }), ["ablehnen"],
-	"„deckt sich\" hat genau einen Ausgang");
+// 🔴 „deckt sich" hat seit 31.08.2026 ZWEI Ausgaenge: es kann auch als EIGENES Objekt angelegt
+// werden. Das ist der einzige Ausgang, den das Abschalten des Ersetzens uebriglaesst -- ohne ihn
+// waere eine Zeile mit Treffer ueberhaupt nicht mehr importierbar.
+tief(namen({ urteil: "deckt_sich", abschnitte: [], items: [] }), ["quelle", "neu", "ablehnen"],
+	"„deckt sich\": Quelle ergaenzen, als eigenes Objekt anlegen, oder ablehnen");
 tief(namen({ urteil: "uebersprungen", abschnitte: [], items: [] }), ["ablehnen"],
 	"„uebersprungen\" ebenso");
 
@@ -102,29 +117,26 @@ tief(namen({ urteil: "brandneue_kategorie", abschnitte: [], items: [] }), ["able
 tief(namen({ abschnitte: [], items: [] }), ["ablehnen"], "und ein fehlendes Urteil auch");
 
 // =================================================================================================
-// B. Der ausgegraute Knopf sagt, WARUM
+// 🔴 HIER STANDEN DIE PRUEFSTAENDE DER DREI ERSETZUNGS-VERBEN -- SIE SIND RAUS
 // =================================================================================================
-
-// 🔴 Meldung A (30.08.2026, Owner): „Geometrie ersetzen" (jetzt „Ausgewählte Segmente ersetzen")
-// ist NICHT MEHR bei mehreren getroffenen Abschnitten pauschal ausgegraut -- garetien-plan.php
-// legt seit dieser Meldung ein Geometrie-Item JE LEGITIMEM Abschnitt an, und die Handlung wirkt
-// auf GENAU die ANGEHAKTEN. Ohne ein angehaktes Häkchen hat sie trotzdem kein Ziel.
-const fuenf = {
-	key: "k", urteil: "ergaenzung",
-	abschnitte: [1, 2, 3, 4, 5].map((n) => ({ public_id: "w-" + n, name: "x" })), items: [],
-};
-const geo = knopf(fuenf, "geometrie");
-wahr(geo && geo.disabled === true, "fuenf Abschnitte, aber KEINER angehakt -- kein Ziel");
-wahr(/kein Abschnitt ist angehakt/.test(geo.grund), "ein ausgegrauter Knopf muss sagen, warum");
-wahr(!/5 Abschnitte/.test(geo.grund),
-	"💣 die alte Begruendung (Anzahl statt Auswahl) darf nicht wiederkehren");
-
-// Die Gegenprobe: bei GENAU EINEM angehakten Abschnitt mit Geometrie-Item ist er bedienbar. Ohne
-// sie belegte die Zeile darueber nur, dass irgendetwas ausgegraut ist.
+// Owner 31.08.2026: „ich will dass du alle 'ersetzungsfunktionen' des importers augenblicklich
+// deaktivierst. es gibt kein ersetzen. es gibt neu oder nix - kein verändern, kein ersetzen." Und
+// zu diesen Abschnitten ausdrücklich: „die fliegen raus."
 //
-// 🔴 Meldung A: JEDES Item traegt jetzt `abschnitt` (wie es garetien-liste.php live tut,
-// `item.after.abschnitt`) -- garetienAngehakteAbschnittIds braucht es, um ein Geometrie-Item
-// seinem Abschnitt zuzuordnen.
+// Weg sind: B (warum „Ausgewählte Segmente ersetzen" ausgegraut ist), B2 (kein Häkchen ⇒
+// gesperrt, N Häkchen ⇒ wirkt auf genau diese N), C („Nur Quelle + Artikel" gegen „Namen
+// ersetzen", unterschieden an der Namensspalte). Alle drei prüften Knöpfe, die es nicht mehr
+// gibt.
+//
+// ⚠️ Was NICHT weg ist: die Maschinerie dahinter im Server. Sie steht weiter unter Test
+// (garetien-uebernahme-test.php, garetien-abschnitte-vollstaendig-test.php -- beide definieren
+// den Schalter ausdrücklich auf `true`), damit eine spätere, korrigierte Fassung nicht bei null
+// anfangen muss. Dass sie live AUS ist, steht in garetien-kein-ersetzen-test.php.
+
+// ⚠️ DIE FIXTUREN BLEIBEN -- spaetere Abschnitte (Klickverteiler, Markup, EINE Tuer) messen an
+// ihnen weiter, und sie sind ehrliche Abbilder dessen, was garetien-liste.php live liefert: ein
+// Objekt mit Ergaenzungs-Items, wie es bis zum 31.08.2026 entstand. Dass daraus keine Knoepfe mehr
+// werden, ist genau die Aussage.
 const einer = {
 	key: "k", urteil: "ergaenzung", wiki: "ggp",
 	abschnitte: [{ public_id: "w-5112", name: "", punkte: 12 }],
@@ -136,160 +148,44 @@ const einer = {
 			abschnitt: { public_id: "w-5112", name: "" } },
 	],
 };
-gleich(knopf(einer, "geometrie").disabled, false,
-	"EIN angehakter Abschnitt mit Geometrie-Vorschlag -- der Knopf ist bedienbar");
-gleich(knopf(einer, "geometrie").grund, "", "und dann steht kein Grund da");
-
-// Ein Abschnitt ist angehakt, aber KEIN Geometrie-Item liegt vor (ein Lauf von vor dem Nachzug):
-// ausgegraut, mit einem ANDEREN Grund -- „kein Abschnitt ist angehakt" waere hier eine Luege.
-const ohneGeoItem = Object.assign({}, einer, { items: [einer.items[0]] });
-gleich(knopf(ohneGeoItem, "geometrie").disabled, true, "ohne Geometrie-Vorschlag ist er aus");
-wahr(/Geometrie-Vorschlag/.test(knopf(ohneGeoItem, "geometrie").grund),
-	"und der Grund nennt den fehlenden Vorschlag, nicht die Abschnittsauswahl");
-wahr(!/kein Abschnitt ist angehakt/.test(knopf(ohneGeoItem, "geometrie").grund),
-	"die zwei Gruende duerfen nicht ineinander rutschen -- hier IST ja etwas angehakt");
-
-// =================================================================================================
-// B2. Die DIFFERENZ: kein Haekchen -> gesperrt · N Haekchen -> wirkt auf GENAU diese N
-// =================================================================================================
-//
-// 🔴 Das ist der Kern von Meldung A: der Owner widerspricht der alten Regel ausdruecklich -- „die
-// angehakten Haekchen SIND das Ziel". Fuenf Abschnitte, von denen ZWEI angehakt sind (ihr
-// Quellen-Item ist voll selektiert) -- der Knopf muss GENAU deren zwei Geometrie-Items nennen,
-// nicht alle fuenf und nicht null.
-function garetienTestAbschnitt(nummer, quelleAngehakt) {
-	const publicId = "w-mehr-" + nummer;
-	const basis = { public_id: publicId, name: "x" };
-	return {
-		abschnitt: basis,
-		items: [
-			{ id: 8000 + nummer, anlass: "ergaenzung", felder: ["quelle"], change_type: "changed",
-				selected: quelleAngehakt ? 1 : 0, abschnitt: basis },
-			{ id: 9000 + nummer, anlass: "geometrie", felder: ["geometrie"], change_type: "changed",
-				selected: 0, abschnitt: basis },
-		],
-	};
-}
-const fuenfTeileKeinsAngehakt = [1, 2, 3, 4, 5].map((n) => garetienTestAbschnitt(n, false));
-const fuenfObjektBasis = {
-	key: "k-mehr", urteil: "ergaenzung", wiki: "ggp",
-	abschnitte: fuenfTeileKeinsAngehakt.map((t) => t.abschnitt),
-};
-function garetienTestObjektMit(teile) {
-	return Object.assign({}, fuenfObjektBasis, {
-		items: teile.map((t) => t.items).reduce((a, b) => a.concat(b), []),
-	});
-}
-
-const keinsAngehakt = garetienTestObjektMit(fuenfTeileKeinsAngehakt);
-gleich(knopf(keinsAngehakt, "geometrie").disabled, true,
-	"fuenf Abschnitte, echte Geometrie-Items -- aber KEINER angehakt: immer noch kein Ziel");
-tief(knopf(keinsAngehakt, "geometrie").ids, [], "und wirklich KEIN Item wird angeboten");
-
-const zweiAngehakt = garetienTestObjektMit(
-	fuenfTeileKeinsAngehakt.map((t, i) => (i === 0 || i === 1
-		? garetienTestAbschnitt(i + 1, true)
-		: t))
-);
-const geoZwei = knopf(zweiAngehakt, "geometrie");
-gleich(geoZwei.disabled, false, "ZWEI angehakte Abschnitte -- die Handlung hat ein Ziel");
-gleich(geoZwei.grund, "", "und dann steht kein Grund da");
-tief(geoZwei.ids.slice().sort(function (a, b) { return a - b; }), [9001, 9002],
-	"und sie wirkt auf GENAU die zwei angehakten Abschnitte -- nicht auf alle fuenf getroffenen");
-gleich(geoZwei.beschriftung, "Ausgewählte Segmente ersetzen (0) …",
-	"„(0)\": keines der zwei Ziel-Items ist SELBST schon vorgemerkt -- die Zahl zaehlt Vormerkungen, "
-	+ "nicht Ziel-Abschnitte");
-
-// Ein DRITTER Abschnitt kommt dazu -- die Menge waechst mit, es ist keine feste Zweierregel.
-const dreiAngehakt = garetienTestObjektMit(
-	fuenfTeileKeinsAngehakt.map((t, i) => (i === 0 || i === 1 || i === 2
-		? garetienTestAbschnitt(i + 1, true)
-		: t))
-);
-tief(knopf(dreiAngehakt, "geometrie").ids.slice().sort(function (a, b) { return a - b; }),
-	[9001, 9002, 9003],
-	"DREI angehakte Abschnitte -> die Handlung wirkt auf genau drei Geometrie-Items");
-
-// Und die Gegenprobe zur Rumpf-Seite: der Rumpf schickt GENAU diese Ziel-Ids hinaus.
-tief(garetienHandlungsRumpf("geometrie", zweiAngehakt, 7).ids.slice().sort(function (a, b) { return a - b; }),
-	[9001, 9002], "der Rumpf traegt dieselbe Menge wie der Knopf, kein Nachbau daneben");
-
-// Und OHNE getroffenen Abschnitt wieder ein dritter Grund.
-wahr(/keinen Abschnitt von uns getroffen/.test(
-	garetienHandlungen({ urteil: "widerspruch", abschnitte: [], items: [] })
-		.filter((k) => k.name === "geometrie")[0].grund),
-	"ohne Treffer gibt es keine Geometrie zu ersetzen -- und der Grund sagt genau das");
-
-// Jeder ausgegraute Knopf traegt einen Grund -- ausnahmslos.
-[fuenf, ohneGeoItem, { urteil: "deckt_sich", abschnitte: [], items: [] },
-	{ urteil: "neu", abschnitte: [], items: [] }].forEach((objekt) => {
-	garetienHandlungen(objekt).forEach((k) => {
-		wahr(!k.disabled || k.grund.length > 10,
-			`der Knopf „${k.name}" ist aus und sagt nicht warum`);
-	});
-});
-// Gegenprobe zur Schleife darueber: sie darf nicht deshalb gruen sein, weil sie NICHTS Ausgegrautes
-// gesehen hat. 🪤 Genau diese Form -- eine Schleife, deren Fixture den Zweig nie erreicht -- hat
-// dieses Vorhaben schon bezahlt.
-// Aufgeschluesselt, damit die Zahl nachrechenbar bleibt statt abgeschrieben zu werden:
-// 🔴 Meldung B (30.08.2026): "ergaenzung" traegt seither auch "neu" -- ohne ein 'new'-Item ist
-// das ein FUENFTER/DRITTER ausgegrauter Knopf bei fuenf/ohneGeoItem.
-// fuenf 5 (name/quelle/geometrie/neu/ablehnen, alle ohne Item bzw. ohne Ziel) · ohneGeoItem 3
-// (quelle/geometrie/neu) · deckt_sich 1 (ablehnen) · neu-ohne-Item 2 (neu/ablehnen) = 11.
-tief([fuenf, ohneGeoItem, { urteil: "deckt_sich", abschnitte: [], items: [] },
-	{ urteil: "neu", abschnitte: [], items: [] }]
-	.map((o) => garetienHandlungen(o).filter((k) => k.disabled).length), [5, 3, 1, 2],
-	"die Schleife hat bei JEDEM der vier Objekte ausgegraute Knoepfe gesehen");
-
-// =================================================================================================
-// C. „Nur Quelle + Artikel" -- unterschieden an der NAMENSSPALTE, nicht am Anlass
-// =================================================================================================
-//
-// 🔴 „Es ist dieselbe Handlung wie ‚Namen ersetzen', nur mit abgewaehlter Namensspalte" (Brief).
-// Ein Luecken-Item traegt bei uns `felder: ['name','quelle']` und den Anlass 'ergaenzung' -- am
-// ANLASS gemessen landete es unter „Nur Quelle", und der Knopf schriebe den Namen mit, den sein
-// eigener Name ausschliesst. Genau die Falle, die dieses Werkzeug ueberall sonst vermeidet.
-
-// Die Alke (Mockup §6a): EIN namenloser Abschnitt, Luecken-Item mit name+quelle, vorangehakt.
-gleich(knopf(einer, "name").beschriftung, "Namen ersetzen (1)",
-	"das Luecken-Item schreibt einen Namen -- Mockup §6a zeigt „Namen ersetzen (1) ✓\"");
-gleich(knopf(einer, "name").erledigt, true, "und es ist angehakt, also erledigt");
-gleich(knopf(einer, "quelle").beschriftung, "Nur Quelle + Artikel (0)",
-	"an der Alke gaebe es keinen Gewinn OHNE den Namen");
-gleich(knopf(einer, "quelle").disabled, true, "also ist der vierte Ausgang dort aus");
-
-// Die Angbarer Reichsstrasse (Mockup §6d): sechs benannte Abschnitte, je ein Umbenennungs-Item
-// (ungehakt) und ein reines Quellen-Item (vorangehakt).
 const strasse = {
 	key: "ggp:Wege:Reichsstrasse:Angbarer", urteil: "ergaenzung", wiki: "ggp",
-	abschnitte: [1, 2, 3, 4, 5, 6].map((n) => ({ public_id: "w-221" + n, name: "Reichsstraße 3" })),
+	abschnitte: [1, 2, 3, 4, 5, 6].map((n) => ({ public_id: "w-221" + n, name: "Reichsstrasse 3" })),
 	items: [1, 2, 3, 4, 5, 6].map((n) => ([
 		{ id: 100 + n, anlass: "umbenennung", felder: ["name"], change_type: "changed", selected: 0,
-			abschnitt: { public_id: "w-221" + n, name: "Reichsstraße 3" } },
+			abschnitt: { public_id: "w-221" + n, name: "Reichsstrasse 3" } },
 		{ id: 200 + n, anlass: "ergaenzung", felder: ["quelle"], change_type: "changed", selected: 1,
-			abschnitt: { public_id: "w-221" + n, name: "Reichsstraße 3" } },
+			abschnitt: { public_id: "w-221" + n, name: "Reichsstrasse 3" } },
 	])).reduce((a, b) => a.concat(b), []),
 };
-gleich(knopf(strasse, "name").beschriftung, "Namen ersetzen (0)",
-	"Mockup §6d: sechs Umbenennungen, keine angehakt -- „(0)\"");
-gleich(knopf(strasse, "name").gesamt, 6, "sie sind trotzdem alle sechs da");
-gleich(knopf(strasse, "name").disabled, false, "und der Knopf ist bedienbar");
-gleich(knopf(strasse, "quelle").beschriftung, "Nur Quelle + Artikel (6)",
-	"Mockup §6d: sechs reine Quellen-Items, alle vorangehakt -- „(6) ✓\"");
-gleich(knopf(strasse, "quelle").erledigt, true, "und damit erledigt");
-// 💣 Die Mengen duerfen sich NICHT ueberschneiden: sonst schriebe „Nur Quelle" den Namen mit.
-tief(knopf(strasse, "name").ids.filter((id) => knopf(strasse, "quelle").ids.includes(id)), [],
-	"kein Item gehoert beiden Knoepfen -- „nur Quelle\" heisst OHNE den Namen");
 
-// 🔴 „(n)" ist die Zahl der ANGEHAKTEN, nicht der moeglichen: sonst stuende an der Reichsstrasse
-// „Namen ersetzen (6)", obwohl keine einzige Umbenennung vorgemerkt ist.
-const strasseEineGehakt = Object.assign({}, strasse, {
-	items: strasse.items.map((i) => (i.id === 101 ? Object.assign({}, i, { selected: 1 }) : i)),
+// 🔴 UND DAS IST DIE ZUSICHERUNG, DIE AN IHRE STELLE TRITT: aus einem Objekt mit
+// Ergaenzungs-, Umbenennungs- UND Geometrie-Items entstehen KEINE Ersetzungs-Knoepfe mehr.
+[["einer", einer], ["strasse", strasse]].forEach(function (paar) {
+	const wie = paar[0];
+	const objekt = paar[1];
+	tief(namen(objekt), ["quelle", "neu", "ablehnen"],
+		wie + ": aus Umbenennungs- und Geometrie-Items werden keine Knoepfe mehr");
+	["name", "geometrie"].forEach(function (verb) {
+		gleich(garetienHandlungsRumpf(verb, objekt, 7), null,
+			wie + ': "' + verb + '" schickt nichts mehr hinaus');
+	});
 });
-gleich(knopf(strasseEineGehakt, "name").beschriftung, "Namen ersetzen (1)",
-	"eine angehakte Umbenennung macht aus „(0)\" ein „(1)\"");
-gleich(knopf(strasseEineGehakt, "name").erledigt, false,
-	"aber erst wenn ALLE angehakt sind, ist der Knopf erledigt");
+
+// ⚠️ UND DIE GEGENPROBE: „Nur Quelle + Artikel" schickt sehr wohl noch etwas -- sonst maesse die
+// Schleife darueber nur, dass ueberhaupt nichts mehr geht.
+// 🔴 Sie greift bei der STRASSE, deren Quellen-Items GENAU `['quelle']` tragen -- nicht bei
+// `einer`, dessen Item `['name','quelle']` traegt. Das ist kein Zufall, sondern eine alte Regel
+// dieses Fensters: ein Item, das AUCH den Namen schreibt, wird nie als „Nur Quelle" angeboten
+// (AVESMAPS_GARETIEN_ITEMS_JE_HANDLUNG.quelle). Sie wirkt heute als zweiter Riegel gegen genau die
+// Umbenennung, die abgeschaltet wurde.
+wahr(garetienHandlungsRumpf("quelle", strasse, 7) !== null,
+	'strasse: "quelle" geht weiterhin hinaus -- sie ist additiv und traegt die Rechtsfolge');
+tief(garetienHandlungsRumpf("quelle", strasse, 7).ids, [201, 202, 203, 204, 205, 206],
+	"und zwar genau die sechs reinen Quellen-Items");
+gleich(garetienHandlungsRumpf("quelle", einer, 7), null,
+	'🔴 ein Item, das AUCH den Namen schreibt, wird NICHT als "Nur Quelle" angeboten');
+
 
 // =================================================================================================
 // D. Der Rumpf, der hinausgeht -- und was NICHT hinausgeht
@@ -298,22 +194,25 @@ gleich(knopf(strasseEineGehakt, "name").erledigt, false,
 tief(garetienHandlungsRumpf("neu", zufluss, 7),
 	{ action: "select", kind: "garetien", run_id: 7, ids: [1], selected: true },
 	"„Neu einfuegen\" hakt das new-Item an -- ueber `select`, nicht ueber einen eigenen Weg");
-tief(garetienHandlungsRumpf("name", strasse, 7).ids, [101, 102, 103, 104, 105, 106],
-	"„Namen ersetzen\" hakt genau die sechs Umbenennungen an");
 tief(garetienHandlungsRumpf("quelle", strasse, 7).ids, [201, 202, 203, 204, 205, 206],
-	"„Nur Quelle + Artikel\" genau die sechs Quellen-Items");
-gleich(garetienHandlungsRumpf("name", strasse, 7).selected, true, "sie HAKEN AN");
+	"„Nur Quelle + Artikel\" hakt genau die sechs Quellen-Items an");
+gleich(garetienHandlungsRumpf("quelle", strasse, 7).selected, true, "sie HAKT AN");
 
-// 💣 Ein ausgegrauter Knopf schickt NICHTS. Der Riegel steht in der Rechnung, nicht am `disabled`
-// des Markups -- `disabled` ist die Anzeige.
-gleich(garetienHandlungsRumpf("geometrie", fuenf, 7), null,
-	"„Ausgewählte Segmente ersetzen\" ohne angehakten Abschnitt schickt gar nichts");
-gleich(garetienHandlungsRumpf("quelle", einer, 7), null, "und ein leerer vierter Ausgang auch nicht");
+// 🔴 „Namen ersetzen" und „Ausgewählte Segmente ersetzen" schicken NICHTS mehr hinaus (Owner
+// 31.08.2026). Die Items liegen weiterhin in der Datenbank -- kein Knopf fasst sie noch an, und
+// der Rumpf-Bauer verweigert sie auch dann, wenn jemand den Namen von Hand hineinreicht.
+gleich(garetienHandlungsRumpf("name", strasse, 7), null,
+	'„Namen ersetzen" schickt nichts mehr hinaus');
+gleich(garetienHandlungsRumpf("geometrie", einer, 7), null,
+	'„Ausgewählte Segmente ersetzen" schickt nichts mehr hinaus');
+
+// 💣 Ein leerer vierter Ausgang schickt ebenfalls nichts -- der Riegel steht in der Rechnung,
+// nicht am `disabled` des Markups.
+gleich(garetienHandlungsRumpf("quelle", einer, 7), null,
+	'ein Item, das AUCH den Namen schreibt, ist kein "Nur Quelle"');
 // 🔴 Und ein Knopf, den dieses Urteil GAR NICHT anbietet, ist ebenfalls kein Schreibweg.
-gleich(garetienHandlungsRumpf("geometrie", zufluss, 7), null,
+gleich(garetienHandlungsRumpf("quelle", zufluss, 7), null,
 	"💣 was die Tafel nicht anbietet, laesst sich auch nicht ueber den Rumpf erzwingen");
-gleich(garetienHandlungsRumpf("name", zufluss, 7), null,
-	"beim Zufluss gibt es nichts umzubenennen -- unser Nachbar ist der Hauptfluss");
 
 // Ablehnen und Wieder-vorschlagen: sie fassen ALLE Items an, auch das Geometrie-Item.
 tief(garetienHandlungsRumpf("ablehnen", einer, 7),
@@ -335,17 +234,12 @@ gleich(knopf(deckt, "ablehnen").disabled, true,
 wahr(/keinen Vorschlag/.test(knopf(deckt, "ablehnen").grund), "und der Grund sagt genau das");
 gleich(garetienHandlungsRumpf("ablehnen", deckt, 7), null, "es geht also auch nichts hinaus");
 
-// 🔴 NUR DIE GEOMETRIE SCHALTET UM -- sie ist die einzige Handlung ohne eigenes Haekchen.
-gleich(garetienHandlungsRumpf("geometrie", einer, 7).selected, true,
-	"ungehakt -> anhaken");
-const geoGehakt = Object.assign({}, einer, {
-	items: einer.items.map((i) => (i.id === 22 ? Object.assign({}, i, { selected: 1 }) : i)),
-});
-gleich(garetienHandlungsRumpf("geometrie", geoGehakt, 7).selected, false,
-	"schon angehakt -> der zweite Druck nimmt die Vormerkung zurueck (Mockup §8: „rueckgaengig: ja\")");
-// Die Gegenprobe: „Namen ersetzen" schaltet NICHT um -- dort nimmt das Abschnittshaekchen zurueck.
-gleich(garetienHandlungsRumpf("name", einer, 7).selected, true,
-	"ein erledigtes „Namen ersetzen\" hakt weiterhin AN, es schaltet nicht um");
+// 🔴 HIER STAND DIE UMSCHALT-REGEL DER GEOMETRIE („nur sie schaltet um, sonst gaebe es keinen
+// Rueckweg"). Ihr Knopf ist weg, die Regel damit gegenstandslos.
+// ⚠️ Was BLEIBT: die uebrigen Knoepfe haken nur AN, nie ab -- zurueckgenommen wird an der
+// Abschnittszeile. Gemessen an „Nur Quelle + Artikel", dem einzigen verbliebenen Bestandsknopf.
+gleich(garetienHandlungsRumpf("quelle", strasse, 7).selected, true,
+	'„Nur Quelle + Artikel" hakt immer AN, nie ab');
 
 // =================================================================================================
 // E. Das Haekchen -- Zeile und Abschnitt bewegen DIESELBE Menge
@@ -452,33 +346,14 @@ tief(mengeIds, [9500, 9600],
 wahr(mengeIds.indexOf(9502) === -1, "explizit: 9502 ist NICHT dabei");
 
 // =================================================================================================
-// F. Die Rueckfrage nennt die Folge beim Namen
+// 🔴 HIER STAND DIE RÜCKFRAGE VOR „AUSGEWÄHLTE SEGMENTE ERSETZEN" -- SIE IST RAUS
 // =================================================================================================
-
-const frage = garetienGeometrieRueckfrageText(einer);
-wahr(frage.includes("w-5112"), "die Rueckfrage nennt, WAS ersetzt wuerde");
-wahr(frage.includes("garetien.de"), "und WOHER der neue Verlauf kommt");
-wahr(/3 Stützpunkte/.test(frage), "und wie gross ihre Fassung ist");
-wahr(frage.includes("Jetzt wird nur vorgemerkt"),
-	"💣 und dass jetzt noch nichts geschrieben wird -- „Sind Sie sicher?\" sagt gar nichts");
-wahr(garetienGeometrieRueckfrageText(Object.assign({}, einer, { wiki: "kosch" }))
-	.includes("koschwiki.de"),
-	"der Wirt kommt aus garetienWikiLabel, nicht aus einer zweiten Tafel");
-wahr(garetienGeometrieRueckfrageText(einer).includes("ohne Namen"),
-	"ein namenloser Abschnitt wird auch in der Rueckfrage so genannt");
-
-// 🔴 Meldung A (30.08.2026, Owner): SEIT MEHRERE ABSCHNITTE ZUGLEICH ANGEHAKT SEIN KOENNEN, NENNT
-// DIE RUECKFRAGE DEREN ZAHL -- "abschnitte[0]" war das ganze Bild nur, solange hoechstens einer
-// angehakt sein konnte. ⚠️ Sie muss auch sagen, dass ALLE denselben Verlauf bekommen -- sonst
-// liest sich die Rueckfrage wie eine Aufteilung, die es nicht gibt.
-const frageZwei = garetienGeometrieRueckfrageText(zweiAngehakt);
-wahr(/2 Abschnitte/.test(frageZwei), "die Rueckfrage nennt die ZAHL der betroffenen Abschnitte");
-wahr(frageZwei.includes("w-mehr-1") && frageZwei.includes("w-mehr-2"),
-	"und nennt BEIDE angehakten Abschnitte beim Namen");
-wahr(!frageZwei.includes("w-mehr-3"),
-	"der dritte, NICHT angehakte Abschnitt wird nicht genannt");
-wahr(frageZwei.includes("Jetzt wird nur vorgemerkt"),
-	"dieselbe Zusicherung gilt auch bei mehreren angehakten Abschnitten");
+// Owner 31.08.2026: „es gibt kein ersetzen." Der Knopf ist weg, seine Rückfrage damit auch. Sie war
+// die einzige Stelle, an der garetienGeometrieRueckfrageText geprüft wurde; die Funktion selbst
+// bleibt vorerst stehen (sie ist unerreichbar, aber harmlos) und geht mit dem Rückbau des
+// Importers.
+// ⚠️ Was NICHT weg ist: die Rückfrage vor „trotzdem neu anlegen" (Abschnitt E2) und die vor
+// „Zurücknehmen"/„Ablehnen" -- beide gehören Handlungen, die es weiterhin gibt.
 
 // =================================================================================================
 // G. Die Klickverteiler -- gemessen am ERGEBNIS
@@ -524,30 +399,24 @@ function handlungsZiel(name, key, options) {
 }
 
 gesendet = [];
-gleich(garetienHandlungKlick({ target: handlungsZiel("name", strasse.key) }, objekte, 7, senden, jaSagen),
-	"gesendet", "ein Klick auf „Namen ersetzen\" schickt");
+// 🔴 „Nur Quelle + Artikel" ist der einzige Bestandsknopf, der noch etwas hinausschickt.
+gleich(garetienHandlungKlick({ target: handlungsZiel("quelle", strasse.key) }, objekte, 7, senden, jaSagen),
+	"gesendet", "ein Klick auf „Nur Quelle + Artikel\" schickt");
 gleich(gesendet.length, 1, "und zwar genau einmal");
-tief(gesendet[0].ids, [101, 102, 103, 104, 105, 106], "mit den Items dieses Knopfes");
-gleich(gefragt.length, 0, "„Namen ersetzen\" fragt NICHT nach -- es ersetzt keine Geometrie");
+tief(gesendet[0].ids, [201, 202, 203, 204, 205, 206], "mit den Items dieses Knopfes");
+gleich(gefragt.length, 0, "er fragt NICHT nach -- er ergaenzt nur, er ersetzt nichts");
 
-// 💣 Die Rueckfrage kommt VOR dem Senden. Sagt der Editor Nein, geht NICHTS hinaus.
+// 🔴 UND DIE ZWEI ERSETZUNGS-KNOEPFE SCHICKEN AUCH ÜBER DEN KLICKVERTEILER NICHTS (Owner
+// 31.08.2026). Hier stand die Rueckfrage vor „Ausgewaehlte Segmente ersetzen"; es gibt sie nicht
+// mehr, weil es den Knopf nicht mehr gibt.
+// 💣 Gemessen am KLICK, nicht nur am Rumpf-Bauer: ein Ereignis, das durch alle Verteiler faellt,
+// landet zuletzt bei garetienHandlungKlick -- genau dort muss es folgenlos bleiben.
 gesendet = []; gefragt = [];
-gleich(garetienHandlungKlick({ target: handlungsZiel("geometrie", einer.key) }, objekte, 7, senden, neinSagen),
-	null, "„Nein\" in der Rueckfrage bricht ab");
-gleich(gesendet.length, 0, "und dann geht NICHTS hinaus");
-gleich(gefragt.length, 1, "gefragt wurde trotzdem");
-
-gesendet = []; gefragt = [];
-garetienHandlungKlick({ target: handlungsZiel("geometrie", einer.key) }, objekte, 7, senden, jaSagen);
-gleich(gesendet.length, 1, "„Ja\" schickt");
-gleich(gesendet[0].selected, true, "und hakt an");
-
-// 💣 Das ZURUECKNEHMEN fragt nicht -- die sichere Richtung fragt niemanden.
-gesendet = []; gefragt = [];
-garetienHandlungKlick({ target: handlungsZiel("geometrie", geoGehakt.key) }, [geoGehakt], 7, senden, neinSagen);
-gleich(gesendet.length, 1, "eine Vormerkung zurueckzunehmen geht auch gegen ein „Nein\" durch");
-gleich(gesendet[0].selected, false, "und nimmt zurueck");
-gleich(gefragt.length, 0, "gefragt wurde dabei gar nicht");
+["name", "geometrie"].forEach(function (verb) {
+	garetienHandlungKlick({ target: handlungsZiel(verb, strasse.key) }, objekte, 7, senden, jaSagen);
+});
+gleich(gesendet.length, 0, "🔴 weder „Namen ersetzen\" noch „Segmente ersetzen\" schicken etwas");
+gleich(gefragt.length, 0, "und gefragt wird auch nichts mehr");
 
 // Ein ausgegrauter Knopf schickt nichts -- der Riegel steht ZWEIMAL (Anzeige und Rechnung).
 gesendet = [];
@@ -654,8 +523,13 @@ gleich(mod.avesmapsGaretienMarkierungHat(einer.key), vorMarkierungEiner,
 
 const leiste = garetienHandlungsMarkup(strasse);
 wahr(/^<div class="gi-acts">/.test(leiste), "die Leiste ist ein .gi-acts");
-wahr(/data-handlung="name"/.test(leiste) && /data-key="ggp:Wege:Reichsstrasse:Angbarer"/.test(leiste),
+wahr(/data-handlung="quelle"/.test(leiste) && /data-key="ggp:Wege:Reichsstrasse:Angbarer"/.test(leiste),
 	"jeder Knopf traegt seine Handlung UND seinen Schluessel selbst -- kein Modulzustand daneben");
+// 🔴 UND DIE ZWEI ERSETZUNGS-KNOEPFE STEHEN NICHT MEHR IM MARKUP (Owner 31.08.2026). Das ist die
+// Zusicherung an der Oberflaeche: ein Knopf, den der Server ablehnt, waere eine Fehlermeldung als
+// Bedienelement.
+wahr(!/data-handlung="name"/.test(leiste) && !/data-handlung="geometrie"/.test(leiste),
+	"weder „Namen ersetzen\" noch „Segmente ersetzen\" stehen noch im Markup: " + leiste);
 wahr(/class="btn btn--danger"[^>]*data-handlung="ablehnen"/.test(leiste),
 	"„Ablehnen\" traegt --color-danger als SCHRIFT-Klasse, nicht als Fuellung");
 wahr(!/btn--main/.test(leiste),
@@ -671,32 +545,36 @@ const allesGehakt = Object.assign({}, einer, {
 });
 gleich(knopf(allesGehakt, "ablehnen").erledigt, false,
 	"💣 „Ablehnen\" wird NIE erledigt -- ein gruenes ✓ daran laese sich als „schon abgelehnt\"");
-gleich(knopf(allesGehakt, "geometrie").erledigt, true,
-	"die Gegenprobe: derselbe Zustand macht „Geometrie ersetzen\" sehr wohl erledigt");
+// ⚠️ Die Gegenprobe lief bis zum 31.08.2026 ueber „Geometrie ersetzen"; den Knopf gibt es nicht
+// mehr. „Nur Quelle + Artikel" tut dasselbe -- gemessen an der STRASSE, deren Quellen-Items GENAU
+// `['quelle']` tragen (bei `einer` steht `['name','quelle']`, und ein solches Item wird nie als
+// „Nur Quelle" angeboten).
+const strasseGehakt = Object.assign({}, strasse, {
+	items: strasse.items.map((i) => Object.assign({}, i, { selected: 1 })),
+});
+gleich(knopf(strasseGehakt, "quelle").erledigt, true,
+	"die Gegenprobe: derselbe Zustand macht „Nur Quelle + Artikel\" sehr wohl erledigt");
 gleich(knopf(abgelehnt, "wieder").erledigt, false, "und „Wieder vorschlagen\" ebenso wenig");
 wahr(!/btn--done[^>]*data-handlung="ablehnen"|data-handlung="ablehnen"[^>]*btn--done/
 	.test(garetienHandlungsMarkup(allesGehakt)),
 	"und auch im Markup traegt „Ablehnen\" die Klasse nicht");
 wahr(/Nur Quelle \+ Artikel \(6\) ✓</.test(leiste), "und sein ✓ steht IM Knopf");
-wahr(!/data-handlung="name"[^>]*btn--done/.test(leiste) && !/Namen ersetzen \(0\) ✓/.test(leiste),
+// ⚠️ Der Gegenprobe-Knopf war „Namen ersetzen (0)"; es gibt ihn nicht mehr. „Neu einfuegen"
+// traegt in dieser Lage kein Haekchen und ist damit der nicht-erledigte Zeuge.
+wahr(!/data-handlung="neu"[^>]*btn--done/.test(leiste),
 	"ein nicht erledigter Knopf traegt weder die Klasse noch das Haken-Zeichen");
 
-const leisteAus = garetienHandlungsMarkup(fuenf);
-wahr(/disabled title="[^"]*kein Abschnitt ist angehakt/.test(leisteAus),
-	"ein ausgegrauter Knopf traegt seinen Grund im title");
-wahr(/gi-acts__grund/.test(leisteAus)
-	&& />Ausgewählte Segmente ersetzen \(0\): [^<]*kein Abschnitt ist angehakt/.test(leisteAus),
-	"💣 und SICHTBAR daneben -- ein title erscheint nur beim Verweilen, am Telefon nie");
-// Die DIFFERENZ: der Zufluss hat NUR bedienbare Knoepfe (neu + ablehnen), und dann steht auch
-// keine Grundzeile da. ⚠️ Die Reichsstrasse taugt dafuer NICHT -- keiner ihrer sechs Abschnitte
-// ist VOLLSTAENDIG angehakt (die Umbenennung steht ungehakt neben der vorangehakten Quelle), ihr
-// „Ausgewählte Segmente ersetzen" ist also sehr wohl ausgegraut.
-// ⚠️ Der sichtbare Grund traegt die Auslassungspunkte des Knopfes NICHT mit -- „Ausgewählte
-// Segmente ersetzen (0) …: kein Abschnitt ist angehakt …" liest sich wie ein abgebrochener Satz.
-wahr(/>Ausgewählte Segmente ersetzen \(0\): /.test(leisteAus),
-	"der sichtbare Grund nennt den Knopf ohne seine Auslassungspunkte");
-wahr(/Ausgewählte Segmente ersetzen \(0\) …</.test(leisteAus),
-	"die Gegenprobe: auf dem KNOPF stehen sie weiterhin -- sie kuendigen die Rueckfrage an");
+// 🔴 Ein ausgegrauter Knopf traegt seinen Grund im title -- gemessen am Objekt OHNE Vorschlag,
+// dem einzigen, das noch einen gesperrten Knopf erzeugt („Ablehnen" ohne Item).
+const leisteAus = garetienHandlungsMarkup(deckt);
+wahr(/disabled title="[^"]*keinen Vorschlag/.test(leisteAus),
+	"ein ausgegrauter Knopf traegt seinen Grund im title: " + leisteAus);
+wahr(/gi-acts__grund/.test(leisteAus) && />Ablehnen: [^<]*keinen Vorschlag/.test(leisteAus),
+	"💣 und SICHTBAR daneben -- ein title erscheint nur beim Verweilen, am Telefon nie: " + leisteAus);
+// ⚠️ Hier stand bis zum 31.08.2026 die Probe an „Ausgewählte Segmente ersetzen" samt der Regel,
+// dass der sichtbare Grund die Auslassungspunkte des Knopfes NICHT mitträgt. Beides ging mit dem
+// Knopf; die Regel selbst lebt in AVESMAPS_GARETIEN_HANDLUNG_MIT_RUECKFRAGE weiter und hat heute
+// keinen Träger mehr.
 
 wahr(garetienHandlungen(zufluss).every((k) => !k.disabled),
 	"die Gegenprobe hat wirklich ein Objekt ohne ausgegrauten Knopf");
@@ -938,7 +816,7 @@ laufMitGefaelschtemFetch(() => mod.avesmapsGaretienListeHolen()).then(function (
 	return pruefeRuecknahmeSenden();
 }).then(function () {
 	// =================================================================================================
-// \U0001f534 „ABLEHNEN" NEBEN „ZURUECKNEHMEN" (Owner 31.08.2026)
+// 🔴 „ABLEHNEN" NEBEN „ZURUECKNEHMEN" (Owner 31.08.2026)
 // =================================================================================================
 // „Ich würde gern neben objekten die 'Übernommen' wurde und die Option 'Zurücknehmen' anbieten auch
 // gleichzeitig die Option 'Ablehnen' anbieten, wo sie zurückgenommen und in die kategorie ablehnen
@@ -957,7 +835,7 @@ wahr(/<button[^>]*btn--danger[^>]*data-handlung="ruecknahme_ablehnen"/.test(mark
 	"„Ablehnen\" steht als echter Knopf daneben: " + markupZwei);
 wahr(/>Ablehnen</.test(markupZwei), "mit dem Wortlaut des Owners");
 
-// --- \U0001f4a3 UND BEI EINEM 'changed'-OBJEKT STEHT ER GAR NICHT DA. Owner-Entscheid 1 zu
+// --- 💣 UND BEI EINEM 'changed'-OBJEKT STEHT ER GAR NICHT DA. Owner-Entscheid 1 zu
 // „Zurücknehmen" gilt unverändert: kein Knopf, ein sichtbarer Grund. Ein gesperrter Zwilling hätte
 // die Regel aufgehoben und den Grund doppelt hingeschrieben.
 const markupChangedZwei = garetienHandlungsMarkup(changedUebernommen);
@@ -965,7 +843,7 @@ wahr(!/<button/.test(markupChangedZwei),
 	"ein 'changed'-Objekt bekommt weiterhin GAR KEINEN Knopf: " + markupChangedZwei);
 gleich((markupChangedZwei.match(/gi-acts__grund/g) || []).length, 1, "und den Grund genau EINMAL");
 gleich((markupChangedZwei.match(/nicht rücknehmbar/g) || []).length, 1,
-	"\U0001fa64 wirklich einmal, nicht zweimal derselbe Satz: " + markupChangedZwei);
+	"🩤 wirklich einmal, nicht zweimal derselbe Satz: " + markupChangedZwei);
 
 // --- Der Klickverteiler nimmt BEIDE Verben, und nur „Ablehnen" reicht die Ablehn-Menge weiter.
 ruecknahmeGesendet = []; gefragt = [];
@@ -1002,7 +880,7 @@ garetienRuecknahmeKlick({ target: ablehnenZiel(gemischtUebernommen.key) },
 tief(ruecknahmeGesendet[0][0], 701, "und der Verteiler reicht die zwei Mengen getrennt weiter");
 tief(ruecknahmeGesendet[0][2], [701, 702], "-- die Ablehn-Menge ist die vollständige");
 
-// \U0001f4a3 DIE GEWÖHNLICHE RÜCKNAHME REICHT KEINE ABLEHN-MENGE -- sonst lehnte sie still mit ab.
+// 💣 DIE GEWÖHNLICHE RÜCKNAHME REICHT KEINE ABLEHN-MENGE -- sonst lehnte sie still mit ab.
 ruecknahmeGesendet = []; gefragt = [];
 garetienRuecknahmeKlick({ target: ruecknahmeZiel(wegUebernommen.key) }, objekteN, 7, sendenDrei, jaSagen);
 gleich(ruecknahmeGesendet[0][2], null, "„Zurücknehmen\" lehnt NICHTS ab: " + JSON.stringify(ruecknahmeGesendet[0]));
@@ -1013,24 +891,24 @@ const frageAblehnen = garetienRuecknahmeRueckfrageText(wegUebernommen, true);
 wahr(frageZurueck.includes("zurück nach „Offen“"), "„Zurücknehmen\" führt nach Offen");
 wahr(frageAblehnen.includes("„Abgelehnt“"), "„Ablehnen\" führt nach Abgelehnt: " + frageAblehnen);
 wahr(!frageAblehnen.includes("zurück nach „Offen“"),
-	"\U0001fa64 MISS DIE DIFFERENZ: der Ablehn-Text sagt NICHT auch noch „nach Offen\"");
-// \U0001f534 UND ER NENNT DEN RÜCKWEG. Eine Ablehnung ohne Rückweg wäre ein schwarzes Loch (Entwurf §5)
+	"🩤 MISS DIE DIFFERENZ: der Ablehn-Text sagt NICHT auch noch „nach Offen\"");
+// 🔴 UND ER NENNT DEN RÜCKWEG. Eine Ablehnung ohne Rückweg wäre ein schwarzes Loch (Entwurf §5)
 // -- der Knopf „Wieder vorschlagen" steht im Reiter „Abgelehnt", aber wer den Text liest, weiß es
 // noch nicht.
 wahr(frageAblehnen.includes("Wieder vorschlagen"), "und nennt den Rückweg: " + frageAblehnen);
-// \u26a0\ufe0f Die Folge für die KARTE steht in beiden gleich -- sie ist dieselbe.
+// ⚠️ Die Folge für die KARTE steht in beiden gleich -- sie ist dieselbe.
 wahr(frageAblehnen.includes("aus unserer Karte entfernt") && frageZurueck.includes("aus unserer Karte entfernt"),
 	"beide sagen, dass das Objekt von der Karte geht");
 
 // --- Und beim 'quelle'-only-Objekt greift derselbe Unterschied auf dem ANDEREN Grundtext.
-// \U0001f4a3 Der Zielsatz steht deshalb in einer eigenen Funktion: in beide Texte hineingeschrieben
+// 💣 Der Zielsatz steht deshalb in einer eigenen Funktion: in beide Texte hineingeschrieben
 // liefe er beim nächsten Wortlaut auseinander.
 gleich(garetienRuecknahmeZielSatz(false).includes("„Offen“"), true, "der Zielsatz für Zurücknehmen");
 gleich(garetienRuecknahmeZielSatz(true).includes("„Abgelehnt“"), true, "und der für Ablehnen");
 wahr(garetienRuecknahmeZielSatz(true) !== garetienRuecknahmeZielSatz(false),
 	"die beiden Sätze sind verschieden -- sonst prüfen die Zeilen darüber eine Konstante");
 
-// --- \U0001f4a3 UND DIE ZWEI RÜCKNAHME-VERBEN GEHEN NIE ÜBER DIE GETEILTE TÜR HINAUS.
+// --- 💣 UND DIE ZWEI RÜCKNAHME-VERBEN GEHEN NIE ÜBER DIE GETEILTE TÜR HINAUS.
 // Fänden sie in garetienHandlungsRumpf einen Rumpf, fiele der Klick bis zu garetienHandlungKlick
 // durch und verschickte ein sinnloses `select` an sync-plan.php -- zwei Erzeuger für denselben
 // Knopf. Bis zum 31.08.2026 hielt das allein die Reihenfolge der Verdrahtung.
@@ -1222,14 +1100,14 @@ const changedUebernommen = {
 };
 
 // ---- N.1 Die Tafel: 'new' bekommt einen bedienbaren Knopf, 'changed' gar keinen ------------------
-// \U0001f534 SEIT 31.08.2026 ZWEI (Owner: „neben … 'Zurücknehmen' … auch gleichzeitig die Option
+// 🔴 SEIT 31.08.2026 ZWEI (Owner: „neben … 'Zurücknehmen' … auch gleichzeitig die Option
 // 'Ablehnen' anbieten, wo sie zurückgenommen und in die kategorie ablehnen gesteckt werden").
 tief(namen(wegUebernommen), ["ruecknahme", "ruecknahme_ablehnen"],
 	"ein übernommenes 'new'-Objekt hat ZWEI Handlungen: zurücknehmen und ablehnen");
 gleich(knopf(wegUebernommen, "ruecknahme_ablehnen").disabled, false, "der Ablehnen-Knopf ist bedienbar");
 gleich(knopf(wegUebernommen, "ruecknahme_ablehnen").beschriftung, "Ablehnen",
 	"und trägt den Wortlaut des Owners");
-// \U0001f4a3 ZWEI MENGEN: zurückgenommen werden die RÜCKNEHMBAREN Items, abgelehnt ALLE. Ein Objekt
+// 💣 ZWEI MENGEN: zurückgenommen werden die RÜCKNEHMBAREN Items, abgelehnt ALLE. Ein Objekt
 // gilt erst als „abgelehnt", wenn JEDES seiner Items abgelehnt ist (garetien-liste.php) -- mit nur
 // den zurückgenommenen bliebe es in „Offen" stehen, und der Knopf hätte sichtbar die halbe Arbeit
 // getan.
@@ -1240,11 +1118,11 @@ tief(knopf(wegUebernommen, "ruecknahme_ablehnen").ablehnenIds,
 gleich(knopf(wegUebernommen, "ruecknahme").disabled, false, "und sie ist bedienbar");
 tief(knopf(wegUebernommen, "ruecknahme").ids, [501], "mit der id GENAU dieses 'new'-Items");
 
-// \U0001f534 UND „Ablehnen" KANN GENAU DANN, WENN „Zurücknehmen" KANN -- keine Bequemlichkeit,
+// 🔴 UND „Ablehnen" KANN GENAU DANN, WENN „Zurücknehmen" KANN -- keine Bequemlichkeit,
 // sondern die Sache selbst: abgelehnt werden kann nur, was vorher von der Karte kommt. Ein Objekt,
 // das ein BESTEHENDES verändert hat, stünde sonst in „Abgelehnt", während seine Änderung weiter
 // gilt.
-// \U0001f4a3 ES ERSCHEINT DANN GAR NICHT, statt ausgegraut dazustehen: Owner-Entscheid 1 zu
+// 💣 ES ERSCHEINT DANN GAR NICHT, statt ausgegraut dazustehen: Owner-Entscheid 1 zu
 // „Zurücknehmen" lautet „kein Knopf, sondern ein sichtbarer Grund an seiner Stelle", und ein
 // gesperrter Zwilling hätte diese Regel aufgehoben UND den Grund doppelt hingeschrieben.
 tief(namen(changedUebernommen), ["ruecknahme"],

@@ -681,6 +681,27 @@ function avesmapsGaretienFlaecheAnlegen(PDO $pdo, array $nach, array $user, int 
  */
 function avesmapsGaretienErgaenzungAnwenden(PDO $pdo, array $nach, string $publicId, array $user, string $entityKey = ''): array
 {
+    // 🔴 DER VERBINDLICHE RIEGEL (Owner 31.08.2026: „es gibt neu oder nix - kein verändern,
+    // kein ersetzen"). Er steht HIER und nicht nur im Planbau: der laufende Lauf des Owners traegt
+    // bereits fertige Ergaenzungs-Items in der Datenbank, und die liessen sich sonst weiterhin
+    // uebernehmen. Ein Riegel, der nur verhindert, dass NEUE Angebote entstehen, ist keiner.
+    // ⚠️ Er WIRFT, statt still nichts zu tun: der Aufrufer vermerkt das Item als 'failed' mit
+    // diesem Grund, und der Editor sieht, warum. Ein stiller Leerlauf saehe aus wie „uebernommen".
+    // 🔴 NUR DIE QUELLE DARF AN EIN BESTEHENDES OBJEKT (Owner 31.08.2026: „Garetien.de als
+    // 'Quelle und Artikel ergänzen' soll erlaubt sein, aber nicht den namen verändern"). Sie ist
+    // additiv, ueberschreibt nichts und ist exakt ruecknehmbar; Name und Geometrie sind es nicht.
+    // ⚠️ Geprueft wird an den FELDERN, nicht am Anlass: der Anlass ist eine Beschriftung, die
+    // Felder sind die Anweisung. Ein Item mit `['name','quelle']` faellt damit ganz heraus -- die
+    // sichere Richtung.
+    $angefragteFelder = array_values(array_unique(array_map('strval', (array) ($nach['felder'] ?? []))));
+    sort($angefragteFelder);
+    if (!AVESMAPS_GARETIEN_ERSETZEN_ERLAUBT && $angefragteFelder !== AVESMAPS_GARETIEN_ERGAENZUNG_FELDER) {
+        throw new RuntimeException(
+            'Ersetzen ist abgeschaltet -- an einem bestehenden Objekt wird nur die Quelle ergaenzt, '
+            . 'nicht "' . implode('", "', $angefragteFelder) . '".'
+        );
+    }
+
     $felder = (array) ($nach['felder'] ?? []);
     $userId = (int) ($user['id'] ?? 0);
     $geschrieben = 0;

@@ -39,6 +39,60 @@ function avesmapsGaretienSeitenNameAusZeile(array $zeile): string
 }
 
 /**
+ * 🔴 KEIN SCHREIBZUGRIFF AUF EIN BESTEHENDES OBJEKT. Owner 31.08.2026, woertlich:
+ * „ich will dass du alle 'ersetzungsfunktionen' des importers augenblicklich deaktivierst. es
+ * gibt kein ersetzen. es gibt neu oder nix - kein verändern, kein ersetzen."
+ *
+ * ANLASS: der Abgleich hatte ihre „Burg Gryffenwacht" mit unserem Dorf „Valpolust" gleichgesetzt
+ * (1,90 Karteneinheiten Abstand, Schwelle 2,0 = 6 Meilen) und dessen NAMEN ersetzt. garetien.de
+ * fuehrt beide getrennt und zeichnet sogar einen Pfad dazwischen. Am Bestand gemessen: von 2364
+ * Punktobjekten haben **2041 (86,3 %)** einen anders benannten Nachbarn innerhalb der Schwelle --
+ * eine Burg liegt in diesem Kartenwerk fast immer neben ihrem Dorf. Der Abgleich konnte also
+ * systematisch fremde Objekte umbenennen und ueberschreiben.
+ *
+ * 🔴 DIESE KONSTANTE IST DER EINE SCHALTER. Sie steht hier und wird an jeder Stelle gefragt, die
+ * an einem bestehenden Objekt schreiben koennte -- Plan (was angeboten wird), Uebernahme (was
+ * geschrieben wird) und Fenster (was ein Editor sieht). Der SERVER ist dabei der verbindliche
+ * Riegel: der laufende Lauf traegt bereits fertige Ergaenzungs-Items in der Datenbank, und ein
+ * Riegel nur im Browser waere keiner.
+ *
+ * ⚠️ WAS BLEIBT: „Neu einfuegen". Jede Zeile -- auch eine mit erkanntem Treffer -- behaelt ihr
+ * `zusatz`-Item und laesst sich damit als EIGENES Objekt anlegen, samt ihren Quellen. „neu oder
+ * nix", genau so.
+ *
+ * ⚠️ WAS MIT ABGESCHALTET IST: auch die reine QUELLEN-Ergaenzung an einem bestehenden Objekt.
+ * Sie ist additiv und war umkehrbar -- aber sie ist ein Schreibzugriff auf ein fremdes Objekt, und
+ * der Auftrag lautet „neu oder nix". Sie zurueckzuholen ist eine Zeile hier; das ist eine
+ * Owner-Entscheidung, keine Vermutung.
+ */
+// 🔴 LIVE IST ER AUS, UND ZWAR IMMER: kein Produktivpfad definiert ihn vor. Ueberschreibbar
+// ist er nur, damit die Pruefstaende der Ersetzungs-Maschinerie erhalten bleiben -- sie beweisen,
+// dass eine spaetere, korrigierte Fassung wieder anschaltbar waere, ohne dass die Regeln neu
+// erfunden werden muessen. ⚠️ Ein Test, der ihn anschaltet, sagt NICHTS ueber die Produktion;
+// dass die Vorgabe `false` ist und die ganze Kette sie befolgt, steht deshalb in einem eigenen
+// Pruefstand (garetien-kein-ersetzen-test.php), und ein Waechter dort verbietet jedem
+// Produktivpfad, ihn auf `true` zu setzen.
+if (!defined('AVESMAPS_GARETIEN_ERSETZEN_ERLAUBT')) {
+    define('AVESMAPS_GARETIEN_ERSETZEN_ERLAUBT', false);
+}
+
+/**
+ * 🔴 WAS TROTZDEM ERLAUBT BLEIBT: die QUELLE. Owner 31.08.2026, nach dem Abschalten:
+ * „Garetien.de als 'Quelle und Artikel ergänzen' soll erlaubt sein, aber nicht den namen
+ * verändern."
+ *
+ * Eine Quellenangabe ist ADDITIV -- sie haengt eine Zeile in `feature_sources`, sie ueberschreibt
+ * nichts am Objekt, und die Ruecknahme kann sie exakt wieder loesen. Genau daran haengt die
+ * Rechtsfolge (CC BY-NC-SA), und genau deshalb ist sie die eine Ausnahme.
+ *
+ * ⚠️ DER NAME BLEIBT DRAUSSEN, AUCH WENN UNSERER LEER IST. Das Luecken-Item fuellte frueher einen
+ * leeren Namen mit -- „fuellen" ist streng genommen kein „veraendern", aber nach dem heutigen Tag
+ * ist die zurueckhaltende Richtung die richtige. Es waere EINE Zeile hier, und es ist eine
+ * Owner-Entscheidung, keine Vermutung.
+ */
+const AVESMAPS_GARETIEN_ERGAENZUNG_FELDER = ['quelle'];
+
+/**
  * Der Objekt-Schluessel EINER Staging-Zeile. REIN -- kein I/O.
  *
  * 🔴 RULING P6: diese Formel entsteht HIER und wird von `avesmapsGaretienPlanEintrag` benutzt,
@@ -505,6 +559,13 @@ function avesmapsGaretienErgaenzungsEintraege(array $zeile, array $ziel, array $
     }
     $ihrName = trim((string) ($zeile['anzeige'] ?? ''));
     $einObjekt = avesmapsGaretienEinObjekt($abschnitte);
+    // 🔴 KEIN ERSETZEN MEHR (Owner 31.08.2026). Umbenennung und Geometrie-Ersatz schreiben an
+    // einem BESTEHENDEN Objekt und entstehen nicht mehr; das Luecken-Item bleibt, traegt aber nur
+    // noch die QUELLE (AVESMAPS_GARETIEN_ERGAENZUNG_FELDER) -- sie ist additiv und exakt
+    // ruecknehmbar.
+    // ⚠️ Und das ZUSATZ-Item („trotzdem neu anlegen") bleibt ebenfalls: eine Zeile mit Treffer
+    // laesst sich weiterhin als EIGENES Objekt anlegen.
+    $ersetzenErlaubt = AVESMAPS_GARETIEN_ERSETZEN_ERLAUBT;
     // Der gemeinsame Rumpf (Quelle, Wiki, Beschriftung) steht schon im Neu-Eintrag -- er wird
     // wiederverwendet und nicht abgeschrieben.
     $vorlage = avesmapsGaretienPlanEintrag($zeile, $ziel, $urteil);
@@ -544,8 +605,10 @@ function avesmapsGaretienErgaenzungsEintraege(array $zeile, array $ziel, array $
             && isset($quellen[$ziel['ziel'] . '|' . $quellenSchluesselId]);
 
         // 1. Das Luecken-Item: nur Leeres wird gefuellt, deshalb VORANGEHAKT.
+        // 🔴 SEIT 31.08.2026 NUR NOCH DIE QUELLE. Der leere Name wird nicht mehr gefuellt --
+        // siehe AVESMAPS_GARETIEN_ERGAENZUNG_FELDER.
         $felder = [];
-        if ($nameLeer) {
+        if ($ersetzenErlaubt && $nameLeer) {
             $felder[] = 'name';
         }
         if (!$hatQuelle && $legitim) {
@@ -560,7 +623,9 @@ function avesmapsGaretienErgaenzungsEintraege(array $zeile, array $ziel, array $
         }
 
         // 2. Das Umbenennungs-Item: ein VORHANDENER Name wird ueberschrieben -- nie stillschweigend.
-        if (!$nameLeer && !$nameGleich && $einObjekt) {
+        // 🔴 ABGESCHALTET 31.08.2026 (Owner: „aber nicht den namen verändern"). Genau dieses
+        // Item hat unser Dorf „Valpolust" in „Gryffenwacht" umbenannt.
+        if ($ersetzenErlaubt && !$nameLeer && !$nameGleich && $einObjekt) {
             $eintraege[] = avesmapsGaretienAbschnittsEintrag(
                 $vorlage, $abschnitt, 'umbenennung', ['name'], $ihrName, $unserName, true, $abschnittAnzahl
             );
@@ -588,7 +653,10 @@ function avesmapsGaretienErgaenzungsEintraege(array $zeile, array $ziel, array $
         // -- Flaechen UND Wege/Fluesse. Die zwei echten Fehler des Region-Zweigs (falscher
         // id-Raum, fehlende erwartete Revision) bleiben im Anwender repariert
         // (avesmapsGaretienErgaenzungAnwenden, garetien-uebernahme.php).
-        if ($legitim) {
+        // 🔴 ABGESCHALTET 31.08.2026 (Owner: „es gibt kein ersetzen"). Ein Geometrie-Ersatz
+        // ueberschreibt den gezeichneten Verlauf eines bestehenden Objekts -- und anders als ein
+        // Name laesst er sich nicht aus dem Item zurueckholen, nur aus dem Aenderungs-Protokoll.
+        if ($ersetzenErlaubt && $legitim) {
             $eintraege[] = avesmapsGaretienAbschnittsEintrag(
                 $vorlage, $abschnitt, 'geometrie', ['geometrie'], $ihrName, $unserName, true, $abschnittAnzahl
             );

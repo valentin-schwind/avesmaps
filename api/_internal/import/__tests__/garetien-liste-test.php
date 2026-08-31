@@ -67,23 +67,32 @@ $schluessel = array_column($liste['objekte'], 'key');
 assert(count(array_unique($schluessel)) === count($schluessel), 'ein Objekt steht zweimal in der Liste');
 $pruefungen++;
 
-// --- Und der Zweck von Aufgabe 6 wird wirklich eingeloest: die Alke (deckt sich, aber MIT
-// Ergaenzungs-Items) traegt ein FEINERES Urteil als der Staging-Wert, waehrend Llavari und
-// Insel (KEIN Item) den rohen Staging-Wert tragen -- beide Wege wirklich BELEGT, nicht nur
-// "irgendein Objekt kam durch".
+// --- Und der Zweck von Aufgabe 6 wird wirklich eingeloest: die Alke traegt ein FEINERES Urteil
+// als der Staging-Wert, waehrend Llavari und Insel (KEIN Item) den rohen Staging-Wert tragen --
+// beide Wege wirklich BELEGT, nicht nur "irgendein Objekt kam durch".
+//
+// 🔴 Das Wort heisst im Fenster seit 31.08.2026 „Ergänzung?" mit Fragezeichen (Owner) -- der
+// Schluessel `ergaenzung` bleibt. Es sagt nur noch: an dieser Stelle liegt schon etwas, sieh es dir
+// an; ERSETZT wird nichts. ⚠️ Die Alke traegt weiterhin ein Quellen-Item (additiv, erlaubt) und
+// ihr Zusatz-Item -- das Geometrie-Angebot ist weg.
 $nachName = [];
 foreach ($liste['objekte'] as $o) {
     $nachName[$o['name']] = $o;
 }
 assert(isset($nachName['Alke']), 'die Alke fehlt in der Liste');
 assert($nachName['Alke']['urteil'] === 'ergaenzung',
-    'die Alke deckt sich, hat aber Ergaenzungs-Items -- das Fenster zeigt "Ergaenzung", nicht "deckt_sich": '
-    . $nachName['Alke']['urteil']);
+    'die Alke deckt sich, traegt aber ein Quellen-Item -- das Fenster zeigt "Ergaenzung?", nicht '
+    . '"deckt_sich": ' . $nachName['Alke']['urteil']);
+// 💣 UND DER ROHE STAGING-WERT IST WEITERHIN "deckt_sich" -- sonst pruefte die Zeile darueber nur,
+// dass zwei Zeichenketten gleich sind, und nicht, dass das Urteil aus den ITEMS kommt.
+$rohAlke = $pdo->query("SELECT urteil FROM garetien_import_row WHERE anzeige = 'Alke'")->fetchColumn();
+assert($rohAlke === 'deckt_sich', 'der rohe Staging-Wert bleibt "deckt_sich": ' . var_export($rohAlke, true));
 // 🔴 Meldung B (30.08.2026): seither DREI Items -- Quelle-Luecke + Geometrie + das Zusatz-Item
 // ("trotzdem neu anlegen", das JEDE deckt_sich-Zeile jetzt zusaetzlich mitbringt).
-assert(count($nachName['Alke']['items']) === 3,
-    'die Alke traegt ihre drei Items (Quelle-Luecke + Geometrie + Zusatz): '
-    . count($nachName['Alke']['items']));
+// 🔴 SEIT 31.08.2026 NUR NOCH ZWEI: das Geometrie-Angebot ueberschrieb einen gezeichneten Verlauf
+// und entsteht nicht mehr. Quellen-Luecke (additiv) und Zusatz-Item bleiben.
+assert(count($nachName['Alke']['items']) === 2,
+    'die Alke traegt ihre Quellen-Luecke und ihr Zusatz-Item: ' . count($nachName['Alke']['items']));
 assert(isset($nachName['Llavari']), 'Llavari fehlt in der Liste');
 // 🔴 Llavari stand auf dem Sammelartikel "Nachbarprovinzen" und war bis zum 30.08.2026
 // uebersprungen. Der Riegel ist auf Owner-Entscheid gefallen; die Zeile traegt jetzt ein echtes
@@ -112,14 +121,24 @@ $pruefungen += 9;
 // dasselbe stuende, waere von einer festen Zeichenkette nicht zu unterscheiden.
 assert(array_column($nachName['Gardel']['items'], 'change_type') === ['new'],
     'ein Neuzugang traegt change_type "new"');
-// 🔴 Meldung B (30.08.2026): die Alke traegt jetzt BEIDE Kategorien -- ihre Ergaenzungs- und
-// Geometrie-Items sind "changed" (sie aendern etwas Bestehendes), ihr Zusatz-Item ("trotzdem neu
-// anlegen") ist "new" (es legt an, es aendert nichts).
+// 🔴 SEIT 31.08.2026 TRAEGT DIE ALKE NUR NOCH "new" (Owner: „es gibt kein ersetzen"). Hier stand
+// die Gegenprobe, dass sie BEIDE Kategorien traegt -- die "changed"-Haelfte waren genau die
+// Ersetzungen. 💣 Das ist die schaerfste Zusicherung dieser Datei geworden: KEIN Objekt der ganzen
+// Liste traegt noch ein "changed"-Item, also kann keines mehr etwas Bestehendes veraendern.
 $alkeTypen = array_unique(array_column($nachName['Alke']['items'], 'change_type'));
 sort($alkeTypen);
 assert($alkeTypen === ['changed', 'new'],
-    'die Ergaenzungs-/Geometrie-Items der Alke tragen "changed", ihr Zusatz-Item "new": '
-    . implode(',', $alkeTypen));
+    'die Quellen-Luecke ist "changed", das Zusatz-Item "new": ' . implode(',', $alkeTypen));
+// 🔴 UND JEDES "changed"-ITEM DER GANZEN LISTE SCHREIBT NUR DIE QUELLE. Das ist die Zusicherung,
+// die an die Stelle von „es gibt gar keine changed mehr" tritt: es gibt sie, aber sie koennen
+// nichts ueberschreiben.
+foreach ($liste['objekte'] as $o) {
+    foreach ($o['items'] as $item) {
+        if ($item['change_type'] !== 'changed') { continue; }
+        assert(($item['felder'] ?? []) === ['quelle'],
+            '🔴 ein "changed"-Item darf NUR die Quelle schreiben: ' . implode(',', (array) ($item['felder'] ?? [])));
+    }
+}
 $alkeZusatz = array_values(array_filter($nachName['Alke']['items'],
     static fn($i) => $i['anlass'] === 'zusatz'));
 assert(count($alkeZusatz) === 1 && $alkeZusatz[0]['change_type'] === 'new',
@@ -217,17 +236,22 @@ foreach ($liste['objekte'] as $o) {
 $pruefungen += 2;
 
 // --- Die Gruppierung ist wirklich eine Gruppierung, nicht nur an einem einzigen Objekt gezeigt:
-// die Alke traegt drei rohe sync_plan_item-Zeilen (Quelle-Luecke + Geometrie-Angebot + seit
-// Meldung B das Zusatz-Item) unter EINEM Schluessel -- gezaehlt direkt in der Datenbank, nicht
-// nur an der zusammengefassten Liste.
+// mehrere rohe sync_plan_item-Zeilen unter EINEM Objektschluessel werden zu EINER Listenzeile.
+//
+// ⚠️ Die Alke traegt zwei echte Items (Quellen-Luecke + Zusatz) -- der Fall ist also weiterhin
+// echt und muss nicht gebaut werden.
 $roheItemZahlAlke = (int) $pdo->query(
     "SELECT COUNT(*) FROM sync_plan_item WHERE entity_key LIKE 'ggp:Gewaesser:Bach:Garetien:Alke%'"
 )->fetchColumn();
-assert($roheItemZahlAlke === 3, 'die Vorbedingung der Gruppierung: drei rohe Items fuer die Alke, '
+assert($roheItemZahlAlke === 2, 'die Vorbedingung der Gruppierung: zwei rohe Items fuer die Alke, '
     . $roheItemZahlAlke . ' gefunden');
 assert(count($nachName['Alke']['items']) === $roheItemZahlAlke,
-    'die Gruppierung muss alle drei rohen Items unter einem Objekt zusammenfassen');
-$pruefungen += 2;
+    'die Gruppierung muss BEIDE rohen Items unter einem Objekt zusammenfassen');
+// 💣 UND DIE ALKE STEHT TROTZDEM NUR EINMAL IN DER LISTE -- das ist die eigentliche Aussage.
+$alkeZeilen = 0;
+foreach ($liste['objekte'] as $o) { if ($o['name'] === 'Alke') { $alkeZeilen++; } }
+assert($alkeZeilen === 1, 'zwei Items, EINE Zeile: ' . $alkeZeilen);
+$pruefungen += 4;
 
 // --- `avesmapsGaretienObjektSchluessel` ist "alles vor dem ersten |" -- an einem Abschnitts-Item
 // UND an einem einfachen Item geprueft, nicht nur behauptet.
