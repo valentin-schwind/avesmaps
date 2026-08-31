@@ -574,13 +574,43 @@ function buildRegionLabelViewPopupHtml(label) {
 	// ⚠️ "Region" bleibt der letzte Rueckfall: eine unbekannte Art ohne Wiki-Zuweisung soll etwas
 	// sagen -- ein leerer Untertitel liest sich wie ein Fehler.
 	const wikiArt = labelWikiArtPrimary(label.wikiRegion && label.wikiRegion.art);
-	const art = wikiArt || avesmapsLabelArtName(label.labelType) || "Region";
+	const eigeneArt = avesmapsLabelArtName(label.labelType);
+	// 🔴 …AUSSER JEMAND HAT DIE EIGENE ART AUSDRUECKLICH GESETZT (Owner 31.08.2026: „der altenforst ist
+	// als urwald eingetragen (ueberschreibt Wald), aber es steht immer noch wald dran"). Bis dahin gewann
+	// das Wiki BEDINGUNGSLOS, womit der Wiki-Override (AGENTS.md §11) an dieser einen Stelle wirkungslos
+	// war: der Editor sah im Bearbeiten-Popup „Urwald" (labelPopupSubtitle liest nur die eigene Art), der
+	// Karten-Schwebezettel ebenfalls -- nur der Besucher sah „Wald". Dieselbe Frage, drei Erzeuger, einer
+	// scherte aus.
+	//
+	// 💣 GEFRAGT WIRD DIE HERKUNFT DES SUBTYPS, nicht ob ueberhaupt ein Eintrag da ist. `field_origins`
+	// traegt BEIDE Wiki-Felder des Labels (`text` und `feature_subtype`, avesmapsUpdateLabelFeature);
+	// wer nur auf das Vorhandensein prueft, laesst ein von Hand UMBENANNTES Label seine Wiki-Art
+	// verlieren -- und das traefe ausgerechnet die gepflegtesten Beschriftungen. `manual` genau, denn
+	// ein vom Sync gesetztes Feld traegt `wiki` und ist keine eigene Wahl.
+	//
+	// 💣 UND `region` ZAEHLT NICHT ALS AUSSAGE. Es ist beim Label der NEUTRALE Subtyp („keine Art", so
+	// woertlich in map-features-ecosystem-label-writeback.js) und wird auch dann als `manual` gestempelt,
+	// wenn niemand eine Art waehlen wollte. Ohne diese Ausnahme verloeren live fuenf Beschriftungen ihre
+	// einzige Auskunft: Weiden und Regengebirge das „Gebirge", Galottas Insel die „Insel", Ongalo das
+	// „Flusstal", Wilder Sueden die „Mischregion" (gemessen 31.08.2026 am Livebestand).
+	//
+	// ⚠️ Der Bestand bleibt unberuehrt: 442 der 615 Beschriftungen mit Wiki-Art tragen an ihrem Subtyp
+	// gar keine Herkunft, fuer sie gilt die Regel darueber unveraendert weiter. Sichtbar aendern sich 26.
+	const eigeneGewaehlt = eigeneArt !== ""
+		&& String(label.labelType || "") !== "region"
+		&& String((label.fieldOrigins || {}).feature_subtype || "") === "manual";
+	const art = eigeneGewaehlt ? eigeneArt : (wikiArt || eigeneArt || "Region");
 	// 💣 ZWEI WERTE, und ihre Trennung ist tragend: `art` ist der SCHLUESSEL (deutsch, wird in
 	// INFO_HEADER_IMAGE_BY_ART nachgeschlagen), `artText` das ANGEZEIGTE Wort. Unter ?lang=en gaebe
 	// tr() „Volcano" zurueck -- als Schluessel benutzt faende das nichts, und jede Beschriftung
 	// bekaeme wieder das generische region.webp. Eine Wiki-Art hat keine Uebersetzung und geht roh
 	// durch.
-	const artText = wikiArt || tr("spotlight.labelType." + label.labelType, art);
+	// ⚠️ Und er folgt DERSELBEN Wahl: gewinnt die eigene Art, geht sie durch tr() -- gewinnt das Wiki,
+	// geht seine Art roh durch (sie hat keine Uebersetzung). Zwei verschiedene Woerter fuer dieselbe
+	// Aussage waeren hier lautlos.
+	const artText = eigeneGewaehlt || !wikiArt
+		? tr("spotlight.labelType." + label.labelType, art)
+		: wikiArt;
 	const labelName = label.text || (label.wikiRegion && label.wikiRegion.name) || "Region";
 	// Owner: 16:9 header image (by landscape art) + title overlay instead of the headless title.
 	const headerImg = typeof infoHeaderImageMarkup === "function"

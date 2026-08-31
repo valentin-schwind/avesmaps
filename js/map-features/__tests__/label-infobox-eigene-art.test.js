@@ -141,4 +141,93 @@ spion.buildRegionLabelViewPopupHtml({
 assert.strictEqual(spion.__gerufen.header.untertitel, "AUSGETAUSCHT",
 	"die Art kommt aus js/ui/label-arten.js, nicht aus einer Abschrift in map-features-labels.js");
 
+// ---- 7. EINE VON HAND GESETZTE ART SCHLAEGT DIE WIKI-ART (Owner 31.08.2026) ------------------
+//
+// 💣 DER BEFUND: der Altenforst ist als `urwald` eingetragen, das Wiki sagt "Wald" -- und die
+// Infobox sagte trotzdem "Wald". Die Wiki-Art gewann BEDINGUNGSLOS, womit der Wiki-Override
+// (AGENTS.md §11) an dieser einen Stelle wirkungslos war: der Editor sah im Bearbeiten-Popup
+// "Urwald" (labelPopupSubtitle liest nur die eigene Art) und der Karten-Schwebezettel ebenfalls,
+// nur der Besucher sah "Wald". Dieselbe Frage, drei Erzeuger, einer scherte aus.
+//
+// 🔴 Die Herkunft liegt seit dem 18.08.2026 am Label (`fieldOrigins`, map-features-labels.js:82) --
+// gefehlt hat nur, dass sie hier gefragt wird. `manual` heisst: jemand hat diesen Wert ausdruecklich
+// gesetzt, in Kenntnis dessen, was das Wiki sagt.
+//
+// 💣 UND DAS KOPFBILD HAENGT AM SELBEN AUSDRUCK: `urwald` hat seit dem 30.08.2026 ein eigenes Bild
+// (INFO_HEADER_IMAGE_BY_ART). Der Altenforst bekam deshalb nicht nur den falschen Untertitel,
+// sondern auch das Waldbild -- ein zweiter, unbemerkter Teil desselben Fehlers.
+const altenforst = makeContext();
+altenforst.buildRegionLabelViewPopupHtml({
+	publicId: "22b77418-c647-41c6-83ab-53dd80fd886a",
+	text: "Altenforst",
+	labelType: "urwald",
+	fieldOrigins: { feature_subtype: "manual" },
+	wikiRegion: { art: "Wald", name: "Altenforst" },
+	coordinates: [1, 2],
+});
+assert.strictEqual(altenforst.__gerufen.header.untertitel, "Urwald",
+	"eine von Hand gesetzte Art schlaegt die Wiki-Art -- sonst ist der Wiki-Override hier wirkungslos");
+assert.strictEqual(altenforst.__gerufen.header.basename, "urwald",
+	"💣 und das Kopfbild folgt ihr mit: urwald hat seit dem 30.08.2026 ein eigenes");
+
+// ---- 8. OHNE HERKUNFT BLEIBT DIE WIKI-ART VORNE ----------------------------------------------
+//
+// 🔴 Das ist der BESTAND und der weitaus groessere Teil: 442 der 615 Beschriftungen mit Wiki-Art
+// tragen keine Herkunft an ihrem Subtyp (live gemessen 31.08.2026). Fuer sie aendert sich nichts --
+// die Wiki-Art ist dort feiner als unser Vokabular, und die Regel aus Fall 2 gilt unveraendert
+// weiter. `null` heisst "nicht bekannt", NIE "von Hand".
+const ohneHerkunft = makeContext();
+ohneHerkunft.buildRegionLabelViewPopupHtml({
+	publicId: "b6", text: "Irgendwald", labelType: "urwald",
+	fieldOrigins: null,
+	wikiRegion: { art: "Wald" }, coordinates: [1, 2],
+});
+assert.strictEqual(ohneHerkunft.__gerufen.header.untertitel, "Wald",
+	"ohne belegte Herkunft bleibt die feinere Wiki-Art vorne -- der unveraenderte Bestand");
+
+// ---- 9. "region" IST KEINE AUSSAGE, AUCH NICHT VON HAND (Owner-Entscheid 31.08.2026) ----------
+//
+// 💣 DIE EINE AUSNAHME, und sie ist gemessen, nicht geraten: `region` ist beim Label der NEUTRALE
+// Subtyp ("keine Art" -- so steht es woertlich in map-features-ecosystem-label-writeback.js). Er
+// wird auch dann als `manual` gestempelt, wenn niemand eine Art WAEHLEN wollte. Ohne diese Ausnahme
+// verloeren fuenf Beschriftungen live ihre einzige Auskunft: Weiden und Regengebirge das "Gebirge",
+// Galottas Insel die "Insel", Ongalo das "Flusstal", Wilder Sueden die "Mischregion".
+const weiden = makeContext();
+weiden.buildRegionLabelViewPopupHtml({
+	publicId: "b7", text: "Weiden", labelType: "region",
+	fieldOrigins: { feature_subtype: "manual" },
+	wikiRegion: { art: "Gebirge" }, coordinates: [1, 2],
+});
+assert.strictEqual(weiden.__gerufen.header.untertitel, "Gebirge",
+	"der neutrale Ruecklfall \"region\" verdraengt die Wiki-Art nicht, auch als manual nicht");
+
+// ---- 10. HERKUNFT "wiki" IST KEINE EIGENE WAHL ------------------------------------------------
+//
+// 🔴 Gefragt wird auf `manual` GENAU, nicht auf "ist ein Eintrag da". Ein Feld, das der Sync selbst
+// gesetzt hat, traegt `wiki` -- es als eigene Wahl zu lesen drehte die Regel fuer genau die Faelle
+// um, fuer die sie gebaut ist.
+const ausWiki = makeContext();
+ausWiki.buildRegionLabelViewPopupHtml({
+	publicId: "b8", text: "Uebernommen", labelType: "urwald",
+	fieldOrigins: { feature_subtype: "wiki" },
+	wikiRegion: { art: "Wald" }, coordinates: [1, 2],
+});
+assert.strictEqual(ausWiki.__gerufen.header.untertitel, "Wald",
+	"eine vom Sync gesetzte Art ist keine eigene Wahl");
+
+// ---- 11. DIE HERKUNFT DES NAMENS IST NICHT DIE DER ART ----------------------------------------
+//
+// 💣 `field_origins` traegt BEIDE Wiki-Felder des Labels (`text` und `feature_subtype`). Wer nur
+// fragt, ob die Karte ueberhaupt einen Eintrag hat, laesst ein von Hand umbenanntes Label seine
+// Wiki-Art verlieren -- ein Fehler, der genau die Beschriftungen traefe, die am meisten gepflegt
+// sind.
+const nurName = makeContext();
+nurName.buildRegionLabelViewPopupHtml({
+	publicId: "b9", text: "Umbenannt", labelType: "urwald",
+	fieldOrigins: { text: "manual" },
+	wikiRegion: { art: "Wald" }, coordinates: [1, 2],
+});
+assert.strictEqual(nurName.__gerufen.header.untertitel, "Wald",
+	"nur der NAME wurde von Hand gesetzt -- die Art bleibt unbelegt, also gewinnt das Wiki");
+
 console.log("label-infobox-eigene-art.test.js: alle Zusicherungen erfuellt");
