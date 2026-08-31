@@ -174,6 +174,18 @@ try {
             'nur_mehrteilig' => ($payload['nur_mehrteilig'] ?? false) === true,
             'stand' => avesmapsNormalizeSingleLine((string) ($payload['stand'] ?? 'offen'), 20),
             'versatz' => max(0, (int) ($payload['versatz'] ?? 0)),
+            // 🔴 MELDUNG 31.08.2026 (Owner: „das mit dem markieren kann ja nicht stimmen wenn oben
+            // 1000 steht"). Diese Zeile FEHLTE -- und damit war die Kachel „Angezeigte Zeilen" seit
+            // ihrer Auslieferung vollstaendig WIRKUNGSLOS: der Browser schickte `anzahl` treu mit,
+            // die Liste las es treu aus ihrem `$filter`, und dazwischen warf dieser Endpunkt es
+            // weg, weil er sein Filterfeld aus einer ausdruecklichen Liste baut.
+            // 💣 Das Fehlerbild war keine Fehlermeldung, sondern eine Zahl an einer ganz anderen
+            // Stelle: „Alle markieren (8205)" bei eingestellten 1000. Der Deckel sollte schwache
+            // Rechner entlasten und tat gar nichts.
+            // ⚠️ Nicht gedeckelt: avesmapsGaretienArbeitsliste prueft selbst gegen
+            // AVESMAPS_GARETIEN_LISTE_MAX. Eine zweite Schranke hier waere die zweite Wahrheit
+            // ueber die Obergrenze.
+            'anzahl' => (int) ($payload['anzahl'] ?? 0),
         ]));
     }
 

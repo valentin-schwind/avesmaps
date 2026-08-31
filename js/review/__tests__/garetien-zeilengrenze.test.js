@@ -5,9 +5,10 @@
 // 🔴 DREI ENTSCHEIDUNGEN STECKEN DARIN, und alle drei sind hier festgenagelt:
 //   1. Die VORGABE ist die kleinste Stufe. Die Meldung lautete "auf manchen pcs ein problem" --
 //      ein neuer Benutzer soll nicht erst hineinlaufen, um den Regler zu finden.
-//   2. Verborgen wird trotzdem nichts: die Kachel nennt IMMER beide Zahlen ("1000 von 8213").
-//      Eine Liste, die vollstaendig aussieht und es nicht ist, waere genau die Falschaussage,
-//      gegen die dieses Fenster gebaut ist.
+//   2. 🔴 KORRIGIERT 31.08.2026 (Owner: "warum steht da 2x 1000 btw. die dropdown reicht"):
+//      die Kachel trug unter der Auswahl eine zweite Zeile mit derselben Zahl. Sie ist weg. Die
+//      Gesamtzahl geht dabei nicht verloren -- sie steht in der Option "alle (8213)" und in der
+//      Bilanzzeile ueber den Reitern; verborgen wird also weiterhin nichts.
 //   3. "alle" schickt GAR KEIN `anzahl` mit -- dann gilt der Server-Deckel. Eine im Browser
 //      erfundene Obergrenze waere eine zweite Wahrheit darueber, wie viel es hoechstens gibt.
 //
@@ -36,12 +37,17 @@ global.document = {
 global.window = global.window || {};
 global.window.location = global.window.location || { search: "", hostname: "", protocol: "http:" };
 
+const quelleRoh = lies("js", "review", "review-garetien-importer.js");
+// 🩤 Kommentare weg, bevor am Quelltext geprueft wird -- eine Zusicherung, die an der ERKLAERUNG
+// anschlaegt, ist gruen und prueft nichts.
+const quelleOhneKommentare = quelleRoh
+	.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+
 const mod = require(path.resolve(__dirname, "..", "review-garetien-importer.js"));
 const {
 	GARETIEN_ZEILEN_STUFEN,
 	garetienZeilenGrenzeLesen,
 	garetienZeilenGrenzeMerken,
-	garetienZeilenKachelText,
 	garetienZeilenOptionenMarkup,
 } = mod;
 
@@ -90,16 +96,23 @@ gleich(gemerkt, "alle", "`alle` wird als Wort gemerkt, nicht als Zahl");
 gleich(garetienZeilenGrenzeLesen(speicher), null, "und kommt als null zurueck");
 
 // =================================================================================================
-// 3. 🔴 DIE KACHEL NENNT IMMER BEIDE ZAHLEN
+// 3. 🔴 DIE ZAHL STEHT GENAU EINMAL IN DER KACHEL
 // =================================================================================================
-gleich(garetienZeilenKachelText(1000, 8213), "1000 von 8213",
-	"gedeckelt heisst: die gezeigte UND die vorhandene Zahl -- sonst sieht die Liste vollstaendig aus");
-gleich(garetienZeilenKachelText(null, 8213), "alle 8213", "`alle` nennt die echte Gesamtzahl");
-// ⚠️ Ein Deckel ueber der Gesamtzahl ist keiner -- „4000 von 500" waere eine erfundene Knappheit.
-gleich(garetienZeilenKachelText(4000, 500), "alle 500",
-	"ein Deckel groesser als der Bestand zeigt schlicht alles");
-gleich(garetienZeilenKachelText(1000, 0), "1000",
-	"ohne bekannte Gesamtzahl (vor der ersten Antwort) steht nur der Deckel da");
+// Owner 31.08.2026: "warum steht da 2x 1000 btw. die dropdown reicht". Die Kachel hatte die
+// `t2`-Zustandszeile ihrer zwei Nachbarn abgeschrieben -- bei denen sagt sie etwas, das sonst
+// nirgends steht ("Lauf 30.08., 23:18", "18 von 18"), hier wiederholte sie die Auswahl einen
+// Zentimeter unter der Auswahl.
+const kachelAb = quelleRoh.slice(quelleRoh.indexOf("gi-tile--wahl"));
+wahr(!/garetien-zeilen-state/.test(kachelAb.slice(0, kachelAb.indexOf("</label>"))),
+	"die Kachel traegt keine zweite Zeile mit derselben Zahl mehr");
+// 💣 UND DER SETZER MUSS MITGEHEN. Ein `getElementById` auf ein Element, das es nicht mehr
+// gibt, ist stumm -- die Funktion bliebe stehen, und niemand merkte, dass sie nichts tut.
+wahr(!/garetien-zeilen-state/.test(quelleOhneKommentare),
+	"und der Setzer dazu ist mitgegangen, statt ins Leere zu greifen");
+// ⚠️ Die Gesamtzahl bleibt sichtbar -- in der Option "alle (N)". Das ist die Zusicherung, die
+// die alte Regel "immer beide Zahlen" ersetzt.
+wahr(/alle \(8213\)/.test(garetienZeilenOptionenMarkup(1000, 8213)),
+	"die Gesamtzahl steht weiterhin in der Auswahl selbst");
 
 // =================================================================================================
 // 4. Die Optionen -- „alle" traegt die ECHTE Zahl, keine abgeschriebene 8213

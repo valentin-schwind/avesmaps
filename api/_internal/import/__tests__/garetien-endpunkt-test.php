@@ -206,4 +206,69 @@ $verteilerPos = strpos($vorschau, "'garetien' => avesmapsGaretienApplyStep(");
 assert($riegelPos !== false && $verteilerPos !== false && $riegelPos < $verteilerPos,
     'der id-Riegel steht VOR dem Verteiler-Zweig, der ihn benutzt');
 
+// =================================================================================================
+// 💣 JEDES FELD, DAS DER BROWSER IN EINER `liste`-ANFRAGE SCHICKT, MUSS DIESER ENDPUNKT AUCH LESEN
+// =================================================================================================
+// MELDUNG 31.08.2026 (Owner: „das mit dem markieren kann ja nicht stimmen wenn oben 1000 steht").
+// Die Kachel „Angezeigte Zeilen" war seit ihrer Auslieferung VOLLSTAENDIG WIRKUNGSLOS: der Browser
+// schickte `anzahl` mit, avesmapsGaretienArbeitsliste las es aus ihrem `$filter` -- und dazwischen
+// warf dieser Endpunkt es weg, weil er sein Filterfeld aus einer AUSDRUECKLICHEN Liste baut und
+// `anzahl` schlicht fehlte.
+//
+// 🔴 DAS FEHLERBILD WAR KEINE FEHLERMELDUNG. Nichts brach, nichts warnte; sichtbar wurde es an
+// einer Zahl an ganz anderer Stelle („Alle markieren (8205)" bei eingestellten 1000). Beide
+// Haelften waren fuer sich geprueft -- der Sender per Quelltextpruefung, der Empfaenger zur
+// Laufzeit --, und genau die NAHT dazwischen hatte niemand.
+//
+// ⚠️ Deshalb prueft dies NICHT den einen Namen `anzahl`, sondern die MENGE: was der Browser
+// schickt, muss hier ankommen. Ein Test auf den einen Namen faenge das naechste vergessene Feld
+// nicht -- und dass es ein naechstes gibt, ist die einzige sichere Annahme.
+$browser = str_replace("\r\n", "\n", (string) file_get_contents(
+    __DIR__ . '/../../../../js/review/review-garetien-importer.js'
+));
+
+// Alle Anfragerumpfe der Liste einsammeln. 💣 ES SIND ZWEI, und der zweite steht kompakt in EINER
+// Zeile (avesmapsGaretienAnzeigeNachEinfuegenBereinigen) -- ein Muster, das nur Zeilenanfaenge
+// liest, sieht ihn nicht.
+$gesendet = [];
+$pos = 0;
+$rumpfe = 0;
+while (($von = strpos($browser, 'action: "liste"', $pos)) !== false) {
+    $stueck = substr($browser, $von, 600);
+    // Bis zum Ende des Objektliterals: entweder `};` (die Variante mit Variablen) oder `})`
+    // (die Variante, die direkt in den Aufruf geschrieben ist).
+    $enden = array_filter([strpos($stueck, '};'), strpos($stueck, '})')], 'is_int');
+    $literalEnde = $enden === [] ? strlen($stueck) : min($enden);
+    preg_match_all('~(?<![.\w:"\'])([a-z_]+)\s*:~', substr($stueck, 0, $literalEnde), $t);
+    $gesendet = array_merge($gesendet, $t[1]);
+    // ⚠️ `anzahl` steht in KEINEM der beiden Literale -- es wird eine Zeile DAHINTER angehaengt
+    // (`rumpf.anzahl = …`), weil es nur bei gesetztem Deckel mitreist. Genau diese Bauform hat
+    // den Fehler versteckt: wer nur das Literal liest, sieht das Feld ueberhaupt nicht.
+    // 💣 Nur das Fenster HINTER DIESEM Literal, nie die ganze Datei: `rumpf` heisst die
+    // Variable auch in den anderen Anfragen des Fensters (`select`, `apply`), und deren Felder
+    // gehoeren anderen Endpunkt-Zweigen.
+    preg_match_all('~\brumpf\.([a-z_]+)\s*=~', substr($stueck, $literalEnde, 400), $nach);
+    $gesendet = array_merge($gesendet, $nach[1]);
+    $rumpfe++;
+    $pos = $von + 10;
+}
+$gesendet = array_values(array_unique($gesendet));
+
+assert($rumpfe === 2, 'beide Listen-Anfragen gefunden, nicht nur eine: ' . $rumpfe);
+assert(in_array('anzahl', $gesendet, true),
+    'der Deckel reist mit -- sonst prueft der Rest dieses Abschnitts nichts: ' . implode(', ', $gesendet));
+assert(count($gesendet) >= 9, 'die Rumpfe wurden wirklich gelesen: ' . implode(', ', $gesendet));
+
+// Was der Endpunkt in seinem `liste`-Zweig aus dem Payload liest.
+$code = $nurCode($roh);
+$listeVon = strpos($code, "\$action === 'liste'");
+assert($listeVon !== false, 'der liste-Zweig steht im Endpunkt');
+preg_match_all("~\\\$payload\\['([a-z_]+)'\\]~", substr($code, $listeVon, 2000), $gelesen);
+$gelesenNamen = array_values(array_unique($gelesen[1]));
+
+// `action` beantwortet der Verteiler weiter oben, nicht der Filter.
+$fehlend = array_values(array_diff($gesendet, $gelesenNamen, ['action']));
+assert($fehlend === [],
+    'DER ENDPUNKT LIEST NICHT, WAS DER BROWSER SCHICKT -- verloren gehen: ' . implode(', ', $fehlend)
+    . ' (gesendet: ' . implode(', ', $gesendet) . ' | gelesen: ' . implode(', ', $gelesenNamen) . ')');
 echo "OK: garetien-endpunkt-test\n";

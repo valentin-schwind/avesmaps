@@ -764,4 +764,38 @@ assert($nachgetragen >= 1, 'der Nachzug findet die alte Uebernahme: ' . $nachget
 assert($standVon($pdoU, 'Gardel') === 'uebernommen', 'und stellt sie wieder her');
 $pruefungen += 3;
 
+// =================================================================================================
+// 🔴 DER DECKEL `anzahl` -- die Kachel „Angezeigte Zeilen"
+// =================================================================================================
+// Owner 31.08.2026 („das mit dem markieren kann ja nicht stimmen wenn oben 1000 steht"): der
+// Deckel war seit seiner Auslieferung wirkungslos, weil der ENDPUNKT ihn nicht durchreichte.
+// Diese Haelfte hier -- dass die Liste ihn ueberhaupt beachtet -- war nie geprueft; sie sah nur
+// richtig aus.
+$voll = avesmapsGaretienArbeitsliste($pdo, 1, []);
+$gedeckelt = avesmapsGaretienArbeitsliste($pdo, 1, ['anzahl' => 2]);
+assert(count($gedeckelt['objekte']) === 2,
+    'der Deckel schneidet die Objektliste: ' . count($gedeckelt['objekte']));
+assert(count($voll['objekte']) > 2, 'und ohne ihn stehen mehr da: ' . count($voll['objekte']));
+$pruefungen += 2;
+
+// 💣 `gesamt` UND DIE REITERZAHLEN BLEIBEN DIE VOLLEN. Sie beantworten „wie viel gibt es",
+// nicht „wie viel zeige ich" -- die Auswahl „alle (8213)" und die Bilanzzeile lesen sie. Wuerden
+// sie mitschrumpfen, saehe der Editor eine Liste, die vollstaendig aussieht und es nicht ist:
+// genau die Falschaussage, gegen die dieses Fenster gebaut ist.
+assert($gedeckelt['gesamt'] === $voll['gesamt'],
+    'gesamt bleibt die volle Zahl: ' . $gedeckelt['gesamt'] . ' gegen ' . $voll['gesamt']);
+assert($gedeckelt['reiter'] === $voll['reiter'], 'und die Reiterzahlen ebenso');
+assert($gedeckelt['bilanz'] === $voll['bilanz'], 'die Bilanzzeile auch');
+$pruefungen += 3;
+
+// ⚠️ Ein unsinniger Deckel faellt auf den Server-Deckel zurueck, statt eine leere Liste zu
+// liefern -- eine leere Liste waere von „der Lauf ist leer" nicht zu unterscheiden.
+assert(count(avesmapsGaretienArbeitsliste($pdo, 1, ['anzahl' => 0])['objekte']) === count($voll['objekte']),
+    'anzahl 0 heisst "kein Deckel", nicht "nichts zeigen"');
+assert(count(avesmapsGaretienArbeitsliste($pdo, 1, ['anzahl' => -5])['objekte']) === count($voll['objekte']),
+    'und eine negative Zahl ebenso');
+assert(count(avesmapsGaretienArbeitsliste($pdo, 1, ['anzahl' => 999999])['objekte']) === count($voll['objekte']),
+    'ueber dem Server-Deckel gilt der Server-Deckel');
+$pruefungen += 3;
+
 echo "OK: {$pruefungen} Pruefungen\n";

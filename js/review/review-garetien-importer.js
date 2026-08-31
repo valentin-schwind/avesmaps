@@ -128,17 +128,6 @@
 		}
 	}
 
-	// REIN: Beschriftung der Kachel. 🔴 Sie nennt IMMER beide Zahlen -- „1000 von 8213". Ohne die
-	// zweite saehe ein Editor eine Liste, die vollstaendig aussieht und es nicht ist; genau das
-	// waere die Falschaussage, gegen die dieses Fenster gebaut ist.
-	function garetienZeilenKachelText(grenze, gesamt) {
-		const alle = Number(gesamt) || 0;
-		if (grenze === null) { return alle > 0 ? "alle " + alle : "alle"; }
-		if (alle > 0 && grenze >= alle) { return "alle " + alle; }
-
-		return alle > 0 ? grenze + " von " + alle : String(grenze);
-	}
-
 	// ---- Zustand ---------------------------------------------------------------------------------
 	//
 	// Die volle Form ist die Schnittstelle für Aufgabe 11-16 (avesmapsGaretienFensterZustand()).
@@ -1816,10 +1805,15 @@
 			// das Verhalten des Systems gratis mit. ⚠️ Es steht in einem `<label>`, nicht in einem
 			// `<button>`: ein Auswahlfeld in einem Knopf ist ungueltiges Markup, und der Klick
 			// darauf oeffnete zwei Dinge zugleich.
+			// 🔴 KEINE ZWEITE ZEILE MIT DERSELBEN ZAHL (Owner 31.08.2026: „warum steht da
+			// 2x 1000 btw. die dropdown reicht"). Die zwei Nachbarkacheln tragen unter ihrer
+			// Beschriftung eine `t2`-Zeile mit ihrem Zustand -- diese hier hatte sie abgeschrieben,
+			// und ihr Zustand ist die Auswahl selbst, die einen Zentimeter darueber steht.
+			// ⚠️ Die Gesamtzahl geht dabei nicht verloren: sie steht in der Option „alle (8213)"
+			// und in der Bilanzzeile ueber den Reitern.
 			+ '<label class="avm-tile gi-tile--wahl" for="garetien-zeilen">'
 			+ '<span class="t1">Angezeigte Zeilen</span>'
 			+ '<select class="gi-zeilen" id="garetien-zeilen"></select>'
-			+ '<span class="t2" id="garetien-zeilen-state"></span>'
 			+ "</label>";
 	}
 
@@ -1835,8 +1829,6 @@
 			// offenes `<select>` schliesst es unter dem Finger.
 			if (feld.innerHTML !== markup) { feld.innerHTML = markup; }
 		}
-		const zeile = document.getElementById("garetien-zeilen-state");
-		if (zeile) { zeile.textContent = garetienZeilenKachelText(zustand.zeilenGrenze, gesamt); }
 	}
 
 	function garetienLaufKachelAktualisieren() {
@@ -5744,7 +5736,6 @@
 			GARETIEN_ZEILEN_STUFEN,
 			garetienZeilenGrenzeLesen,
 			garetienZeilenGrenzeMerken,
-			garetienZeilenKachelText,
 			garetienZeilenOptionenMarkup,
 			garetienAuswahlMarkieren,
 			garetienAlleZentrierenKnopfSetzen,

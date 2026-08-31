@@ -66,8 +66,17 @@ wahr(band.includes('<span class="t1">Angezeigte Zeilen</span>'), "die dritte „
 // `<button>` waere ungueltiges Markup -- der Klick oeffnete zwei Dinge zugleich.
 wahr(/<label class="avm-tile gi-tile--wahl"/.test(band), "die dritte Kachel ist ein <label>");
 wahr(/<select class="gi-zeilen" id="garetien-zeilen">/.test(band), "und traegt ein natives <select>");
-gleich((band.match(/class="t2"/g) || []).length, 3,
-	"BEIDE Kacheln tragen ihre zweite Zeile -- der Zustand steht IN der Kachel, nicht daneben");
+// 🔴 ZWEI Zustandszeilen, nicht drei (Owner 31.08.2026: „warum steht da 2x 1000 btw. die dropdown
+// reicht"). Bei den ersten beiden Kacheln sagt die `t2`-Zeile etwas, das sonst nirgends steht --
+// „Lauf 30.08., 23:18 · 8348 Zeilen" und „18 von 18 · alle". Die dritte hatte sie abgeschrieben
+// und wiederholte damit die Auswahl einen Zentimeter unter der Auswahl.
+// ⚠️ Der Text der Zusicherung sagte schon vorher „BEIDE Kacheln" und zaehlte drei -- er stammte
+// aus der Zeit vor der dritten Kachel und war beim Anbau nicht mitgewandert.
+gleich((band.match(/class="t2"/g) || []).length, 2,
+	"die zwei Kacheln MIT eigenem Zustand tragen ihre zweite Zeile -- die Auswahl-Kachel nicht");
+const dritte = band.slice(band.indexOf("gi-tile--wahl"));
+wahr(!/class="t2"/.test(dritte.slice(0, dritte.indexOf("</label>"))),
+	"und zwar ist es die dritte, die keine hat: " + dritte.slice(0, dritte.indexOf("</label>")));
 wahr(band.includes('id="garetien-run-state"') && band.includes('id="garetien-ebenen-state"'),
 	"die zwei Zustandszeilen brauchen je eine Kennung, damit sie sich einzeln schreiben lassen");
 
