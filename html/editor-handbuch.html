@@ -202,7 +202,7 @@
 <body>
 	<div class="hb-topbar">
 		<span class="hb-topbar__title">Avesmaps · Editor-Handbuch</span>
-		<span class="hb-topbar__meta">Stand: 31.08.2026</span>
+		<span class="hb-topbar__meta">Stand: 01.09.2026</span>
 		<div class="hb-topbar__actions">
 			<button type="button" class="theme-toggle-btn" aria-label="Auf dunkles Design umschalten" title="Design umschalten (hell/dunkel)">
 				<svg class="theme-toggle-ico theme-toggle-ico--sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4.2" /><g stroke-width="1.9" stroke-linecap="round"><line x1="12" y1="2" x2="12" y2="4.4" /><line x1="12" y1="19.6" x2="12" y2="22" /><line x1="2" y1="12" x2="4.4" y2="12" /><line x1="19.6" y1="12" x2="22" y2="12" /><line x1="4.9" y1="4.9" x2="6.6" y2="6.6" /><line x1="17.4" y1="17.4" x2="19.1" y2="19.1" /><line x1="4.9" y1="19.1" x2="6.6" y2="17.4" /><line x1="17.4" y1="6.6" x2="19.1" y2="4.9" /></g></svg>
@@ -246,6 +246,7 @@
 				<li><a href="#aufgaben" data-keywords="posteingang arbeit community">Aufgaben</a>
 					<ul>
 						<li><a href="#konflikte" data-keywords="konflikt konflikte wiki artikel doppelt verknüpfung trennen genehmigt kein wiki-eintrag artikel übernehmen reichweite segmente ganze linie widerspruch dump-lauf dump-bericht bericht auffällig">Konflikte</a></li>
+						<li><a href="#garetien-importer" data-keywords="garetien koschwiki volkov import importer importieren fremde karte uebernehmen anhaken ablehnen zuruecknehmen offen anzeigen abgelehnt uebernommen angezeigte zeilen holen rechnen ebenen lizenz cc by-nc-sa">Garetien Importer</a></li>
 						<li><a href="#bug-system" data-keywords="discord fehler bug idee frage offen erledigt bot">Das automatische Bug-System</a></li>
 						<li><a href="#meldungen" data-keywords="community änderung vorschlagen position melden report bearbeitet erledigt offen alle filter wiederfinden angenommen verworfen begründung änderungswunsch beschreibung">Meldungen</a></li>
 						<li><a href="#bewertungen" data-keywords="sterne rating community spam verbergen einblenden löschen moderation">Bewertungen</a></li>
@@ -1230,6 +1231,36 @@
 				</table>
 				<div class="hb-note hb-tip"><strong>Die zweite Zeile lohnt einen zweiten Blick.</strong> Wenn ein Ort verknüpft ist, sein Name im Wiki aber nirgends vorkommt, kann der Link nicht aus dem Namensabgleich stammen. Dann hat ihn entweder jemand von Hand gesetzt, er kommt aus einer Wiki-Zuordnung — oder der Artikel wurde nachträglich umbenannt oder gelöscht. <strong>Ein toter Link fällt genau hier auf und in keiner anderen Gruppe.</strong></div>
 
+				<h3 id="garetien-importer" class="hb-sub">Garetien Importer</h3>
+				<p>Der Knopf <strong>„🗺 Garetien Importer"</strong> steht im Reiter <strong>Editor → WikiSync</strong>, neben <em>„⚖️ Konflikte"</em>. Er öffnet ein verschiebbares Fenster mit Kartenobjekten aus <strong>garetien.de</strong> und <strong>koschwiki.de</strong> — Gewässer, Wege, Wälder, Berge, Ortschaften und Herrschaftsgebiete. Du gehst sie durch und entscheidest Objekt für Objekt.</p>
+				<div class="hb-note hb-tip"><strong>Beim Öffnen stellt sich die Karte um.</strong> Ansicht <em>Landschaften</em>, Ebene <em>Alle</em>, dazu Wege, Beschriftungen, Grenzen, Flüsse, Kreuzungen und alle Ortsklassen sichtbar — du sollst sehen, was schon daliegt. Routenplaner und Editorpanel klappen zur Seite und bleiben es; hol sie über ihre Laschen zurück.</div>
+				<h4>So gehst du vor</h4>
+				<ul class="hb-steps">
+					<li>Reiter <strong>Offen</strong> wählen. Links die Liste, rechts das ausgewählte Objekt.</li>
+					<li>Ein Objekt anklicken und rechts prüfen: Name, Art, Geometrie, Quelle.</li>
+					<li>Passt es, <strong>anhaken</strong>. Anhaken schreibt noch nichts.</li>
+					<li>Unten rechts <strong>„Angehakte übernehmen"</strong> drücken. Es kommt erst die Übernahme-Vorschau — geschrieben wird nur, was dort angehakt bleibt.</li>
+				</ul>
+				<h4>Die vier Reiter</h4>
+				<table class="hb-table">
+					<tr><th>Reiter</th><th>Was darin steht</th></tr>
+					<tr><td><strong>Offen</strong></td><td>Noch nicht entschieden.</td></tr>
+					<tr><td><strong>Anzeigen</strong></td><td>Was du zur Ansicht auf die Karte gelegt hast. Diese Menge lebt nur in deinem Browser.</td></tr>
+					<tr><td><strong>Abgelehnt</strong></td><td>Von dir verworfen. Wird nicht wieder vorgeschlagen.</td></tr>
+					<tr><td><strong>Übernommen</strong></td><td>Steht auf der Karte.</td></tr>
+				</table>
+				<h4>Die Knopfleiste unten</h4>
+				<ul>
+					<li><strong>Alle markieren</strong> und <strong>Keines markieren</strong> setzen die Markierung für die ganze Liste.</li>
+					<li><strong>Markierte anzeigen</strong> legt sie auf die Karte, <strong>Anzeige leeren</strong> nimmt sie wieder herunter.</li>
+					<li><strong>Alle zentrieren</strong> zoomt auf alles, was gerade angezeigt ist.</li>
+					<li><strong>Markierte zurücknehmen</strong> holt Übernommenes von der Karte zurück. Nur auf dem Reiter <em>Übernommen</em>.</li>
+				</ul>
+				<p>Am einzelnen übernommenen Objekt stehen zwei Verben: <strong>„Zurücknehmen"</strong> setzt es zurück auf <em>Offen</em>, <strong>„Ablehnen"</strong> nimmt es zurück <em>und</em> legt es nach <em>Abgelehnt</em>.</p>
+				<h4>Das Menüband</h4>
+				<p>Drei Kacheln. <strong>„Holen &amp; Rechnen"</strong> und <strong>„Ebenen"</strong> gehören dem Betreiber — sie rufen die fremden Server ab und rechnen den Abgleich neu. <strong>„Angezeigte Zeilen"</strong> stellst du selbst: 1000, 2000, 4000 oder alle. Die Vorgabe ist 1000, weil ein paar tausend Zeilen langsame Rechner ausbremsen.</p>
+				<div class="hb-note hb-warn"><strong>Diese Daten tragen eine Lizenz.</strong> Sie stammen von Volker Strunk (VolkoV) und stehen unter CC BY-NC-SA 3.0. Die Namensnennung reist als Quelle mit, dazu der Link auf den zugehörigen Artikel. Lösch beides nicht aus der Infobox.</div>
+
 				<h3 id="bug-system" class="hb-sub">Das automatische Bug-System</h3>
 				<p class="hb-path"><strong>Auf unserem Discord</strong></p>
 				<p>Fehler in der <em>Software</em> — etwas lädt nicht, ein Knopf reagiert nicht, eine Anzeige stimmt nicht — gehören nicht in die Karten-Meldungen, sondern auf den Discord. Dort nimmt ein Bot sie entgegen, legt sie als nummerierten Fall ab, und eine tägliche Routine arbeitet sie ab.</p>
@@ -1607,19 +1638,19 @@
 					<li><strong>Immer:</strong> Was ist hier? · Hierher reisen · Hier etwas melden · Nächsten Ort finden · Auf Karte suchen · Entfernung messen</li>
 				</ul>
 				<p>Ein Eintrag erscheint nur situativ: <strong>„Neue Kreuzung und Weg teilen"</strong> beim Rechtsklick auf einen Zwischenknoten während „Verlauf bearbeiten".</p>
-				<div class="hb-note hb-tip"><strong>„Stelle markieren und teilen" gibt es seit dem 15.08.2026 nicht mehr</strong> — an seiner Stelle steht <strong>„Was ist hier?"</strong>, und es kann mehr: Es setzt dieselbe Markierung und sagt dir zugleich im Infopanel, was an der Stelle liegt — Herrschaftskette mit Wappen, die Landschaftsebenen, die Klimazone, Natur &amp; Waren und die nächsten Orte und Wege mit Entfernung. Den Teil-Link auf den Punkt bekommst du dort über die Kachel <strong>„Link teilen"</strong>. Es gibt jetzt nur noch <em>eine</em> Markierung: Ein Klick auf sie öffnet das Panel wieder, und ein geteilter Link bringt die Auskunft gleich mit. Zwei Einträge heißen außerdem anders — <em>„Hier melden…"</em> ist <strong>„Hier etwas melden"</strong>, <em>„Suchen"</em> ist <strong>„Auf Karte suchen"</strong>, weil die Suche neben Orten auch Regionen, Wege und Gebiete findet.</div>
-				<p><strong>Seit dem 14.08.2026 bietet „Hier hinzufügen" nur noch an, was die eingestellte Ansicht auch zeigt.</strong> Man legt an, was man sieht — vorher stand in der politischen Ansicht „Neuer Weg" und in den Kraftlinien „Neue Vegetation", also Dinge, die man dort anlegen, aber nicht sehen konnte.</p>
+				<div class="hb-note hb-tip"><strong>„Was ist hier?" setzt die Markierung und sagt dir, was an der Stelle liegt</strong> — Herrschaftskette mit Wappen, die Landschaftsebenen, die Klimazone, Natur &amp; Waren und die nächsten Orte und Wege mit Entfernung. Den Teil-Link auf den Punkt holst du dort über die Kachel <strong>„Link teilen"</strong>. Es gibt genau <em>eine</em> Markierung: Ein Klick auf sie öffnet das Panel wieder, ein geteilter Link bringt die Auskunft mit.</div>
+				<p><strong>„Hier hinzufügen" bietet an, was zur eingestellten Ansicht passt.</strong> Du legst an, was du siehst.</p>
 				<table class="hb-table">
 					<tr><th>Ansicht</th><th>Was „Hier hinzufügen" anbietet</th></tr>
 					<tr><td><strong>Standard</strong></td><td>Neuer Ort · Neue Kreuzung · Neuer Weg · Neues freies Label (dazu situativ „Neue Kreuzung und Weg teilen")</td></tr>
 					<tr><td><strong>Politisch</strong></td><td>Neues Herrschaftsgebiet — und <em>nur</em> das</td></tr>
-					<tr><td><strong>Landschaften</strong></td><td>Neue Derographische Region · Neue Vegetation · Neue Topographie · Höhenpunkt setzen · Grenzen aus Territorien importieren</td></tr>
+					<tr><td><strong>Landschaften</strong></td><td><em>Alles aus der Standardansicht</em>, dazu Neue Derographische Region · Neue Vegetation · Neue Topographie · Höhenpunkt setzen · Grenzen aus Territorien importieren</td></tr>
 					<tr><td><strong>Kraftlinien</strong></td><td>Neuer Ort · Neue Kreuzung · Neues freies Label</td></tr>
-					<tr><td><strong>Original · Nur Karte</strong></td><td>Nichts — dort zeigt die Karte weder Orte noch Wege. Die Gruppe fällt samt Überschrift weg.</td></tr>
+					<tr><td><strong>Nur Karte</strong></td><td>Nichts — die Gruppe fällt samt Überschrift weg.</td></tr>
 				</table>
-				<div class="hb-note hb-warn"><strong>Damit ist die alte Abkürzung weg: Erst die Ansicht wechseln, dann anlegen.</strong> Früher waren die drei „Neue …"-Einträge der Weg <em>in</em> die Landschaften — man wählte „Neue Vegetation" in der Standardansicht und landete zeichnend in einer anderen Ebene. Wer heute in der Standardansicht ein Herrschaftsgebiet sucht oder in der politischen Ansicht einen Ort, findet den Eintrag nicht mehr; er ist nicht verschwunden, er steht in seiner Ansicht. Umschalten geht am schnellsten über die Tastatur: <kbd>N</kbd> Standard, <kbd>P</kbd> Politisch, <kbd>L</kbd> Landschaften, <kbd>K</kbd> Kraftlinien.</div>
-				<p>Zwei Einträge der Landschaften-Ansicht haben eigene Regeln: <strong>„Höhenpunkt setzen"</strong> steht nur da, wenn die Ebene <em>Topographie</em> gewählt ist — ein Gipfel ist nur dort sichtbar und wirksam. Er legt an der angeklickten Stelle ein neues <em>Berggipfel</em>-Label an und fragt im selben Zug nach Name und <a href="#regionen">Höhe</a>; angelegt wird also nichts stillschweigend. <strong>„Grenzen aus Territorien importieren"</strong> baut eine Landschaftsfläche aus vorhandenen Gebietsgrenzen — beschrieben unter <a href="#landschaften">Landschaften</a>.</p>
-				<div class="hb-note hb-tip"><strong>„Neuer Ort aus dem Wiki" gibt es nicht mehr</strong> — und du brauchst ihn auch nicht. Nimm <strong>„Neuer Ort"</strong> und fang an, den Namen zu tippen: Der Editor schlägt dir passende Wiki-Siedlungen vor und sagt bei jeder dazu, ob sie schon mit einem Ort auf der Karte verbunden ist. Wählst du einen Vorschlag, ist die Wiki-Verknüpfung gleich mit gesetzt — derselbe Ort, ein Schritt weniger.</div>
+				<div class="hb-note hb-warn"><strong>Erst die Ansicht wählen, dann anlegen.</strong> Suchst du ein Herrschaftsgebiet in der Standardansicht oder einen Ort in der politischen, fehlt der Eintrag — er steht in seiner Ansicht. Am schnellsten über die Tastatur: <kbd>N</kbd> Standard, <kbd>P</kbd> Politisch, <kbd>L</kbd> Landschaften, <kbd>K</kbd> Kraftlinien.</div>
+				<p>Die Flächen-Einträge brauchen eine <strong>gewählte Ebene</strong>: In <em>Alle</em> steht keiner von ihnen, weil sonst niemand sähe, in welche Ebene die neue Fläche fällt. Zwei haben eigene Regeln: <strong>„Höhenpunkt setzen"</strong> steht nur da, wenn die Ebene <em>Topographie</em> gewählt ist — ein Gipfel ist nur dort sichtbar und wirksam. Er legt an der angeklickten Stelle ein neues <em>Berggipfel</em>-Label an und fragt im selben Zug nach Name und <a href="#regionen">Höhe</a>; angelegt wird also nichts stillschweigend. <strong>„Grenzen aus Territorien importieren"</strong> baut eine Landschaftsfläche aus vorhandenen Gebietsgrenzen — beschrieben unter <a href="#landschaften">Landschaften</a>.</p>
+				<div class="hb-note hb-tip"><strong>Einen Ort aus dem Wiki legst du mit <em>„Neuer Ort"</em> an.</strong> Fang an, den Namen zu tippen: Der Editor schlägt passende Wiki-Siedlungen vor und sagt bei jeder, ob sie schon mit einem Ort auf der Karte verbunden ist. Wählst du einen Vorschlag, ist die Wiki-Verknüpfung gleich gesetzt.</div>
 				<figure class="hb-shot">
 					<img src="screenshots/03-hinzufuegen.png" alt="Rechtsklick-Menue Hier hinzufuegen mit Untermenue Neuer Ort, Neue Kreuzung, Neuer Weg, Neues Label, Neues Herrschaftsgebiet" />
 					<figcaption>Rechtsklick → „Hier hinzufügen" mit den Anlege-Optionen. <em>(Die Aufnahme ist älter — sie zeigt noch den entfallenen Eintrag „Neuer Ort aus dem Wiki".)</em></figcaption>
@@ -1644,7 +1675,7 @@
 					<tr><td><strong>Vorkommen</strong></td><td>WikiSync → Vorkommen → „Vorkommen bearbeiten" oder <em>einfacher</em> Klick auf eine Zeile</td></tr>
 				</table>
 				<p><strong>Die Detailspalte steht überall in derselben Ordnung:</strong> Bild/Wappen/Cover · Identität · Eigenschaften · Wiki-Zuweisung · Quellen · <em>Speicherleiste</em> · Lage &amp; Zugehörigkeit. Die <strong>Speicherleiste ist dabei die Trennlinie</strong> — alles darüber bearbeitest du, alles darunter ist abgeleitet. Sie sieht überall gleich aus: Meldung links (<em>„Keine ungespeicherten Änderungen."</em>), Knöpfe rechts, der gefüllte zuletzt.</p>
-				<p>Wiederkehrende Kacheln: <strong>🔗 Links prüfen</strong> (prüft die Quellen-Links des jeweiligen Reiters), <strong>Vorschauen holen</strong> (holt Bilder nach, läuft in Etappen), das Menü <strong>🛡️ Wappen ▾</strong> und die <strong>AN/AUS</strong>-Schalter fürs Frontend.</p>
+				<p>Wiederkehrende Kacheln: <strong>🔗 Links prüfen</strong> (prüft die Quellen-Links des jeweiligen Reiters), <strong>Vorschauen holen</strong> (holt Bilder nach, läuft in Etappen), das Wappen-Menü (bei Orten <strong>„Wappen &amp; Bilder ▾"</strong>, bei Territorien <strong>„Wappen ▾"</strong>) und die <strong>AN/AUS</strong>-Schalter fürs Frontend.</p>
 				<div class="hb-note hb-warn"><strong>Massenläufe nicht in Schleife anstoßen.</strong> „Vorschauen holen" und die Sync-Läufe arbeiten in Etappen und lassen jeweils nur <em>einen</em> Lauf gleichzeitig zu. Ein zweiter Klick bringt nichts außer Last auf dem Server — und der ist geteilt.</div>
 
 				<h3 id="n-glossar" class="hb-sub">Glossar</h3>
