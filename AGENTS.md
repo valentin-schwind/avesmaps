@@ -178,12 +178,18 @@ Two independent cache-busting mechanisms:
    loaded editor HTML/CSS/JS**. **Bump it on every change to editor assets**, or
    the browser serves stale editor code. `inline-host.js` itself is loaded by
    `index.html` *without* `?v=`, so after editing it you need one hard reload.
-3. **Manual, and the one exception to "never by hand":** `edit/index.php` links
-   `css/pages/edit.css` with a hand-written `?v=`. The stamper walks `index.html`
-   and `html/*.html` only, so it never reaches a `.php` page and cannot overwrite
-   or verify this tag. **Bump it by hand whenever `edit.css` changes**, otherwise
-   editors keep the cached stylesheet. Rule 1's ban applies to everything the
-   stamper *does* reach — which is everything else.
+3. **Manual, and the exception to "never by hand": every `.php` page that links an
+   asset.** The stamper walks `index.html` and `html/*.html` only, so it never reaches
+   a `.php` page and can neither overwrite nor verify those tags. **Bump them by hand
+   whenever the linked file changes**, otherwise editors keep the cached version.
+   Rule 1's ban applies to everything the stamper *does* reach — which is everything else.
+   🔴 **Bis zum 31.08.2026 stand hier „the ONE exception", und genannt war nur
+   `edit/index.php` → `css/pages/edit.css`.** Eine Zahl liest sich wie eine vollständige
+   Liste, und niemand zählt nach: `edit/svg-export.php` trägt **fünf** solche Tags (vier
+   Skripte unter einem gemeinsamen Stempel plus die CSS). Wer die alte Fassung las, hielt
+   seine Seite für gestempelt und lieferte Editoren die gecachte alte Datei — die Datei
+   liegt live, der Browser holt sie nie. ⭐ Die Gegenprobe kostet nichts:
+   `grep -n '?v=' <die .php-Seite, die deine Datei lädt>`.
 
 Diagnosis when a deployed change doesn't appear: compare `fetch(url+'?cb='+Date.now())`
 (server-fresh) vs `fetch(url)` (as the app loads). See
