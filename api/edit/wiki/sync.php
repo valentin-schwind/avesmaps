@@ -18,6 +18,7 @@ const AVESMAPS_WIKI_SETTLEMENT_CLASS_LABELS = [
     "grossstadt" => "Gro\u{00DF}stadt",
     'metropole' => 'Metropole',
     "gebaeude" => "Besondere Bauwerke/St\u{00E4}tten",
+    'stadtviertel' => 'Stadtviertel',
 ];
 
 const AVESMAPS_WIKI_CATEGORY_TO_CLASS = [
@@ -32,6 +33,7 @@ const AVESMAPS_WIKI_CATEGORY_TO_CLASS = [
 const AVESMAPS_WIKI_LOCATION_SUBTYPE_LABELS = [
     'dorf' => 'Dorf',
     "gebaeude" => "Besondere Bauwerke/St\u{00E4}tten",
+    'stadtviertel' => 'Stadtviertel',
     'kleinstadt' => 'Kleinstadt',
     'stadt' => 'Stadt',
     "grossstadt" => "Gro\u{00DF}stadt",

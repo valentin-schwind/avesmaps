@@ -108,11 +108,12 @@ AVESMAPS_WIKI_ASSIGN_ORT_GROESSEN.forEach((schluessel) => {
 		"eine unbekannte Ortsklasse (" + JSON.stringify(unbekannt) + ") faellt auf eine geratene Groesse zurueck");
 	zaehl();
 });
-// Die sechs Schluessel sind genau die des Servers und der zwei Auswahlfelder -- keine Zahl im
-// Kommentar, sondern die Liste selbst.
+// Die Schluessel sind genau die des Servers und der zwei Auswahlfelder -- keine Zahl im
+// Kommentar, sondern die Liste selbst. Seit 31.08.2026 sieben: `stadtviertel` kam dazu
+// (Owner, Garetien-Import -- „wie Gebaeude, aber innerorts", und KEIN Behaelter).
 assert.deepStrictEqual(
 	AVESMAPS_WIKI_ASSIGN_ORT_GROESSEN.slice().sort(),
-	["dorf", "gebaeude", "grossstadt", "kleinstadt", "metropole", "stadt"],
+	["dorf", "gebaeude", "grossstadt", "kleinstadt", "metropole", "stadt", "stadtviertel"],
 	"die Ortsgroessen weichen von den stabilen Schluesseln ab (AGENTS.md §2)"
 );
 zaehl();
@@ -363,7 +364,7 @@ const kartenOptionen = (/<select id="location-edit-type"[\s\S]*?<\/select>/.exec
 assert.deepStrictEqual(
 	kartenOptionen.map((t) => t.replace(/value="|"/g, "")).sort(),
 	AVESMAPS_WIKI_ASSIGN_ORT_GROESSEN.slice().sort(),
-	"die Ortsgroessen des Kartendialogs weichen von den sechs Schluesseln ab"
+	"die Ortsgroessen des Kartendialogs weichen von den stabilen Schluesseln ab"
 );
 const editorOptionen = (/const SETTLEMENT_EDIT_TYPE_OPTIONS = \[[\s\S]*?\];/.exec(editorHtmlRoh) || [""])[0]
 	.match(/value: "([a-z]+)"/g) || [];

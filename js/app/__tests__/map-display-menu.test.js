@@ -62,19 +62,28 @@ assert.ok(/\shidden(\s|>)/.test(menue[0].slice(0, menue[0].indexOf(">") + 1)),
 // 💣 Faengt: jemand baut sie im Menue nach und laesst die alten im Routenplaner stehen. Dann gibt
 // es zwoelf Knoepfe fuer sechs Zustaende, die Zifferntasten treffen die falschen, und zwei
 // Bedienelemente streiten sich um denselben Zustand. Der Entwurf §6 haengt an dieser einen Zahl.
+// 🔴 DIE ZAHL WIRD ABGELEITET, NICHT GESCHRIEBEN. Hier stand zweimal `6`, und die siebte
+// Ortsklasse (stadtviertel, 31.08.2026) warf beide Zeilen um, obwohl an der geprüften Regel
+// nichts falsch war. Maßgeblich ist LOCATION_TYPE_VISIBILITY_ORDER in js/config.js: so viele
+// Schalter muss es geben, und alle müssen im Menü stehen.
+const klassenZeile = /const LOCATION_TYPE_VISIBILITY_ORDER = \[([^\]]+)\]/.exec(
+	fs.readFileSync(path.join(ROOT, "js", "config.js"), "utf8"));
+assert.ok(klassenZeile, "die Ortsklassen-Reihenfolge muss in js/config.js auffindbar sein");
+const klassenAnzahl = (klassenZeile[1].match(/"/g) || []).length / 2;
+assert.ok(klassenAnzahl >= 6, "unplausibel wenige Ortsklassen gefunden: " + klassenAnzahl);
 const alleToggles = indexHtml.match(/class="location-toggle"/g) || [];
-assert.strictEqual(alleToggles.length, 6,
-	"es gibt GENAU sechs .location-toggle im ganzen Dokument (umgezogen, nicht kopiert)");
-assert.strictEqual((menue[0].match(/class="location-toggle"/g) || []).length, 6,
-	"und alle sechs stehen im Anzeige-Menue");
+assert.strictEqual(alleToggles.length, klassenAnzahl,
+	"es gibt GENAU eine .location-toggle je Ortsklasse im ganzen Dokument (umgezogen, nicht kopiert)");
+assert.strictEqual((menue[0].match(/class="location-toggle"/g) || []).length, klassenAnzahl,
+	"und alle stehen im Anzeige-Menue");
 
 // 💣 Faengt: die Reihenfolge wird beim Umzug vertauscht. js/app/keyboard-shortcuts.js:290 nimmt
-// document.querySelectorAll(".location-toggle") und trifft mit den Ziffern 1..6 die n-te in
+// document.querySelectorAll(".location-toggle") und trifft mit den Ziffern 1..7 die n-te in
 // DOM-Reihenfolge -- bewusst, weil gezaehlt wird, was der Besucher sieht. Ein Tausch legt damit
 // stumm die Tastenbelegung um und sieht im Quelltext harmlos aus.
 const reihenfolge = [...menue[0].matchAll(/data-location-type="([a-z]+)"/g)].map((m) => m[1]);
 assert.deepStrictEqual(reihenfolge,
-	["metropole", "grossstadt", "stadt", "kleinstadt", "dorf", "gebaeude"],
+	["metropole", "grossstadt", "stadt", "kleinstadt", "dorf", "gebaeude", "stadtviertel"],
 	"in unveraenderter Reihenfolge -- die Zifferntasten zaehlen sie");
 
 // ---- Die Derographie-Zeile bleibt, wo sie ist -----------------------------------------------------

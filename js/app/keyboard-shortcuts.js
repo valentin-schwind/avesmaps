@@ -34,10 +34,10 @@
 	var PAN_STEP_PX = 80;
 	var PAN_SHIFT_FACTOR = 3;
 
-	// Die sechs Ortsklassen stehen in index.html in genau dieser Reihenfolge nebeneinander; die
+	// Die sieben Ortsklassen stehen in index.html in genau dieser Reihenfolge nebeneinander; die
 	// Zifferntaste trifft die n-te davon. Gezählt wird, was der Besucher SIEHT, darum über die
 	// DOM-Reihenfolge und nicht über LOCATION_TYPE_VISIBILITY_ORDER.
-	var LOCATION_TIER_COUNT = 6;
+	var LOCATION_TIER_COUNT = 7;
 
 	/*
 	 * Eine Zeile:
@@ -91,10 +91,10 @@
 			i18n: "shortcuts.row.modeEcosystem", de: "Ansicht „Landschaften“" },
 		{ id: "modeNone", keys: ["i"], caps: [cap("I")], mode: "none",
 			i18n: "shortcuts.row.modeNone", de: "Ansicht „Nur Karte“" },
-		{ id: "locationTier", keys: ["1", "2", "3", "4", "5", "6"],
-			caps: [cap("1"), cap("…"), cap("6")],
+		{ id: "locationTier", keys: ["1", "2", "3", "4", "5", "6", "7"],
+			caps: [cap("1"), cap("…"), cap("7")],
 			i18n: "shortcuts.row.locationTier",
-			de: "Orte bis zur Stufe zeigen: 1 Metropolen, 2 auch Großstädte … 6 alles. Dieselbe Ziffer noch einmal blendet alle aus" },
+			de: "Orte bis zur Stufe zeigen: 1 Metropolen, 2 auch Großstädte … 7 alles. Dieselbe Ziffer noch einmal blendet alle aus" },
 		{ id: "routeFastest", keys: ["home"], caps: [cap("Pos 1", "shortcuts.key.home")],
 			i18n: "shortcuts.row.routeFastest", de: "Schnellste Route" },
 		{ id: "routeShortest", keys: ["end"], caps: [cap("Ende", "shortcuts.key.end")],
@@ -284,7 +284,7 @@
 		}
 	}
 
-	// Der n-te der sechs Ortsklassen-Knöpfe, per echtem Klick: so laufen Filterreset, URL-Abgleich
+	// Der n-te der sieben Ortsklassen-Knöpfe, per echtem Klick: so laufen Filterreset, URL-Abgleich
 	// und Stufenlogik durch dieselbe Stelle wie beim Anklicken und können nicht auseinanderlaufen.
 	function toggleLocationTier(tier) {
 		var buttons = document.querySelectorAll(".location-toggle");

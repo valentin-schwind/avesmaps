@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+require_once __DIR__ . '/../ortsklassen.php';
+
 /**
  * Innerorts-Objekte als Suchtreffer (dritte Quelle der Kartensuche).
  * ===========================================================================
@@ -57,7 +59,8 @@ function avesmapsFetchInSettlementSearchRows(PDO $pdo): array
     // 17.07.2026).
     $bauwerke = "SELECT title, building_type, wiki_url, standort, %s
                FROM wiki_sync_pages
-              WHERE standort IS NOT NULL AND standort <> '' AND settlement_class = 'gebaeude'";
+              WHERE standort IS NOT NULL AND standort <> '' AND "
+             . avesmapsBauwerksklassenSql('settlement_class');
     try {
         $statement = $pdo->query(sprintf($bauwerke, 'deity'));
     } catch (Throwable) {

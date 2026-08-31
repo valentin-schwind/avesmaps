@@ -34,7 +34,7 @@ const LOCATION_MARKER_ZOOM_SCALE_ENABLED = (() => {
 	}
 })();
 
-const LOCATION_CANVAS_TYPES = new Set(["metropole", "grossstadt", "stadt", "kleinstadt", "dorf", "gebaeude"]);
+const LOCATION_CANVAS_TYPES = new Set(["metropole", "grossstadt", "stadt", "kleinstadt", "dorf", "gebaeude", "stadtviertel"]);
 
 // Active/clicked settlement highlight (Owner: the active location's marker fills gold-yellow). The
 // active id lives in runtime-state (activeLocationPublicId). These helpers set/clear it, repaint the
@@ -181,7 +181,7 @@ const locationCanvasLayer = {
 		const inPowerlineMode = typeof getSelectedMapLayerMode === "function" && getSelectedMapLayerMode() === "powerlines";
 		this._entries = entries.map((entry) => {
 			const locationType = entry.locationType;
-			const isSite = locationType === "gebaeude";
+			const isSite = avesmapsIstBauwerksklasse(locationType);
 			const markerSize = getLocationMarkerSize(locationType, zoomLevel);
 			const core = getLocationMarkerCoreRadius(locationType, zoomLevel);
 			const contour = getLocationMarkerBorderWidth(locationType, zoomLevel);

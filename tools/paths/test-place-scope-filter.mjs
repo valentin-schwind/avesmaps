@@ -110,6 +110,12 @@ const liftFrom = (source, name) => {
 	return source.slice(start, index + 1);
 };
 vm.runInContext("const settlementScopeFilter = new Set();", settlementContext);
+// 💣 Das geteilte Bauwerks-Merkmal MUSS mitgeladen werden (js/ui/ortsklassen.js): settlementIsBuilding
+// fragt seit dem 31.08.2026 avesmapsIstBauwerksklasse(), statt auf "gebaeude" zu vergleichen --
+// es gibt zwei Bauwerksklassen. Im Browser teilen sich die Skripte den globalen Raum, ein
+// Pruefstand hat ihn NICHT: ohne diese Zeile faellt er mit einem ReferenceError um, der wie ein
+// Fehler der Liste aussieht und keiner ist.
+vm.runInContext(readFileSync(path.join(repoRoot, "js", "ui", "ortsklassen.js"), "utf8"), settlementContext);
 ["settlementIsBuilding", "settlementRowScope", "settlementScopeMatches"].forEach((name) => {
 	vm.runInContext(liftFrom(settlementSource, name), settlementContext);
 });

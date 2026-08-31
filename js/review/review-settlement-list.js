@@ -250,7 +250,9 @@ const SETTLEMENT_BUILDING_TYPE_FACET = wikiSyncSubjectFacets("locations").find((
 // „Besondere Bauwerke/Stätten" ist UI-Text und darf sich ändern, `gebaeude` nicht
 // (AGENTS.md §2/§8).
 function settlementIsBuilding(item) {
-	return String(item && item.settlement_class) === "gebaeude";
+	// 🔴 Seit 31.08.2026 über das geteilte Merkmal (js/ui/ortsklassen.js): es gibt ZWEI
+	// Bauwerksklassen, und ein Stadtviertel gehört in denselben Unterfilter wie ein Gebäude.
+	return avesmapsIstBauwerksklasse(item && item.settlement_class);
 }
 
 // Die Typ-Beschriftung(en) der Bauwerke, AUS DEN DATEN. Der Typ-Filter arbeitet mit

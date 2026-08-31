@@ -87,6 +87,9 @@ const AVESMAPS_LOCATION_ZOOM_BAND_DEFAULTS = {
 		kleinstadt: [null, 1.33, 2.39, 4.29, 7.7, 13.82, 24.82, 24.82, 24.82],
 		dorf: [null, null, 1.33, 2.54, 4.86, 9.28, 17.74, 17.74, 17.74],
 		gebaeude: [null, null, null, 1.33, 2.8, 5.9, 12.42, 12.42, 12.42],
+		// 🔴 Zeichen für Zeichen die Zeile darüber: ein Stadtviertel erscheint und wächst wie ein
+		// Bauwerk (Owner 31.08.2026). Eine eigene Kurve wäre eine Aussage, die niemand getroffen hat.
+		stadtviertel: [null, null, null, 1.33, 2.8, 5.9, 12.42, 12.42, 12.42],
 	},
 	label: {
 		metropole: [8, 9, 11, 13, 17, 19, 19, 19, 19],
@@ -95,6 +98,7 @@ const AVESMAPS_LOCATION_ZOOM_BAND_DEFAULTS = {
 		kleinstadt: [null, null, null, 9.5, 11, 13, 13, 13, 13],
 		dorf: [null, null, null, null, 10, 11, 11, 11, 11],
 		gebaeude: [null, null, null, null, 9, 9, 9, 9, 9],
+		stadtviertel: [null, null, null, null, 9, 9, 9, 9, 9],
 	},
 	// 🔴 AUFGABE 8B: drei GLOBALE Abstände -- keine Zeile je Ortsklasse/Zoomstufe, nur je EINE Zahl.
 	// Vorgabewerte wörtlich aus den bisherigen Konstanten übernommen (die einzige Quelle bleibt diese

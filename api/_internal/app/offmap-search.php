@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+require_once __DIR__ . '/../ortsklassen.php';
+
 /**
  * Objekte OHNE Kartenobjekt als Suchtreffer (siebte Quelle der Kartensuche).
  * ===========================================================================
@@ -360,7 +362,7 @@ function avesmapsFetchOffmapSearchRows(PDO $pdo): array
         $statement = $pdo->query(
             "SELECT title, building_type, standort, wiki_url
                FROM wiki_sync_pages
-              WHERE settlement_class = 'gebaeude' AND {$aventurien}"
+              WHERE " . avesmapsBauwerksklassenSql('settlement_class') . " AND {$aventurien}"
         );
         foreach ($statement !== false ? $statement->fetchAll(PDO::FETCH_ASSOC) : [] as $row) {
             $rows[] = [
@@ -400,7 +402,7 @@ function avesmapsFetchOffmapSearchRows(PDO $pdo): array
                FROM wiki_sync_pages
               WHERE settlement_class IS NOT NULL
                 AND settlement_class <> ''
-                AND settlement_class <> 'gebaeude'
+                AND " . avesmapsBauwerksklassenSql('settlement_class', true) . "
                 AND {$aventurien}"
         );
         foreach ($statement !== false ? $statement->fetchAll(PDO::FETCH_ASSOC) : [] as $row) {

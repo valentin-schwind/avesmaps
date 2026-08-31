@@ -34,11 +34,11 @@
 // 🔴 Dieselbe Verwechslungsklasse wie bei den Stadtplaenen (`wiki_key` gegen `wiki_url`, Entwurf §8).
 // Wer hier `wiki_url` liest, wo `wiki_settlement` gemeint ist, baut die Falle nach.
 
-// Die sechs Ortsgroessen. 🔴 STABILE SCHLUESSEL, keine Beschriftungen (AGENTS.md §2) -- dieselben
-// sechs, die beide Oberflaechen als `<option value>` fuehren (index.html „location-edit-type",
+// Die Ortsgroessen. 🔴 STABILE SCHLUESSEL, keine Beschriftungen (AGENTS.md §2) -- dieselben,
+// die beide Oberflaechen als `<option value>` fuehren (index.html „location-edit-type",
 // SETTLEMENT_EDIT_TYPE_OPTIONS in html/wiki-sync-settlement-editor.html) und die der Server als
 // AVESMAPS_WIKI_SETTLEMENT_CLASS_LABELS kennt (api/edit/wiki/sync.php:14-21).
-const AVESMAPS_WIKI_ASSIGN_ORT_GROESSEN = ["dorf", "kleinstadt", "stadt", "grossstadt", "metropole", "gebaeude"];
+const AVESMAPS_WIKI_ASSIGN_ORT_GROESSEN = ["dorf", "kleinstadt", "stadt", "grossstadt", "metropole", "gebaeude", "stadtviertel"];
 
 // Die bearbeitbaren KARTENFELDER des Orts -- die einzige Liste davon im Browser.
 //

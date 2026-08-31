@@ -74,7 +74,8 @@ function loadModule({ mapContainerClasses = [], dialogs = [], picking = null } =
 	const mapContainer = makeElement([]);
 	mapContainerClasses.forEach((name) => mapContainer.classList.add(name));
 
-	const locationButtons = [0, 1, 2, 3, 4, 5].map((index) =>
+	// Sieben Ortsklassen seit 31.08.2026 (stadtviertel) -- so viele Knoepfe stehen im Anzeige-Menue.
+	const locationButtons = [0, 1, 2, 3, 4, 5, 6].map((index) =>
 		makeElement([], { click() { log.locationClicks.push(index); } }));
 
 	const layerOptions = {
@@ -340,12 +341,16 @@ check("die schon gewaehlte Ansicht loest nichts aus", () => {
 	assert.deepStrictEqual(t.log.layerModeSets, []);
 });
 
-check("1 bis 6 klicken den n-ten Ortsklassen-Knopf, 7 gehoert uns nicht", () => {
+// 🔴 SEIT 31.08.2026 SIEBEN: `stadtviertel` kam als Ortsklasse dazu (Owner, Garetien-Import), und
+// die Ziffer trifft die n-te .location-toggle in DOM-Reihenfolge. Hier stand "7 gehoert uns nicht" --
+// haette niemand die Zeile mitgezogen, waere die neue Klasse die EINZIGE ohne Tastenkuerzel gewesen,
+// und die Tabelle unter „Hinweise -> Bedienung" haette es nicht gesagt (sie wird aus SHORTCUTS gebaut).
+check("1 bis 7 klicken den n-ten Ortsklassen-Knopf, 8 gehoert uns nicht", () => {
 	const t = loadModule();
-	["1", "2", "3", "4", "5", "6"].forEach((key) => t.press(key));
-	assert.deepStrictEqual(t.log.locationClicks, [0, 1, 2, 3, 4, 5]);
-	assert.strictEqual(t.press("7"), 0, "die 7 darf durchfallen -- es gibt nur sechs Klassen");
-	assert.deepStrictEqual(t.log.locationClicks, [0, 1, 2, 3, 4, 5]);
+	["1", "2", "3", "4", "5", "6", "7"].forEach((key) => t.press(key));
+	assert.deepStrictEqual(t.log.locationClicks, [0, 1, 2, 3, 4, 5, 6]);
+	assert.strictEqual(t.press("8"), 0, "die 8 darf durchfallen -- es gibt sieben Klassen");
+	assert.deepStrictEqual(t.log.locationClicks, [0, 1, 2, 3, 4, 5, 6]);
 });
 
 check("Pos 1 und Ende waehlen schnellste und kuerzeste Route", () => {

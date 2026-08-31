@@ -399,6 +399,9 @@ const INFO_HEADER_IMAGE_BY_SETTLEMENT = {
 	kleinstadt: "kleinstadt",
 	dorf: "dorf",
 	gebaeude: "gebaeude",
+	// 🔧 GELIEHEN (Owner 31.08.2026: „nimm erstmal die gebäude-bilder"). Sobald
+	// icons/header/stadtviertel.webp existiert, ist das hier eine Zeile.
+	stadtviertel: "gebaeude",
 };
 
 // art/Bezeichnung -> Header-Bild-Basename: erster Bestandteil vor |,/ ; Umlaute normalisiert.

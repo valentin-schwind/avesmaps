@@ -191,6 +191,8 @@ const SVGX_PLACE_KINDS = [
 	{ slug: "kleinstadt", label: "Kleinstadt", r: 0.097 },
 	{ slug: "dorf", label: "Dorf", r: 0.0693 },
 	{ slug: "gebaeude", label: "Gebäude", r: 0.0485 },
+	// Dieselbe Größe wie das Gebäude -- beide teilen sich das Zoomband (siehe location-zoom-bands.js).
+	{ slug: "stadtviertel", label: "Stadtviertel", r: 0.0485 },
 ];
 
 // 💣 Der Radius einer Ortsklasse, die diese Liste NICHT kennt (der Abzug zeichnet auch solche --
@@ -408,6 +410,7 @@ const SVGX_TYPE_VOCAB = {
 	kleinstadt: { de: "Kleinstadt", en: "small town" },
 	dorf: { de: "Dorf", en: "village" },
 	gebaeude: { de: "Gebäude", en: "building" },
+	stadtviertel: { de: "Stadtviertel", en: "city quarter" },
 };
 
 // Die Semantik-Attribute eines Elements. Leer, wenn niemand sie bestellt hat -- niemand

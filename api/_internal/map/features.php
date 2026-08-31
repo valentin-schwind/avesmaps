@@ -44,7 +44,7 @@ if (!class_exists('AvesmapsConflictException')) {
 // abweichend sortierte Kopie in api/app/report-location.php) unveraendert gewinnt, wenn sie
 // zuerst laeuft -- kein Aufrufer wird umgestellt, nur der fehlende Fall abgesichert.
 if (!defined('AVESMAPS_LOCATION_SUBTYPES')) {
-    define('AVESMAPS_LOCATION_SUBTYPES', ['metropole', 'grossstadt', 'stadt', 'kleinstadt', 'dorf', 'gebaeude']);
+    define('AVESMAPS_LOCATION_SUBTYPES', ['metropole', 'grossstadt', 'stadt', 'kleinstadt', 'dorf', 'gebaeude', 'stadtviertel']);
 }
 
 function avesmapsReadMapFeaturePublicId(mixed $value): string {
@@ -194,6 +194,7 @@ function avesmapsLocationSubtypeLabel(string $subtype): string {
         'stadt' => 'Stadt',
         'kleinstadt' => 'Kleinstadt',
         'gebaeude' => 'Besondere Bauwerke/Staetten',
+        'stadtviertel' => 'Stadtviertel',
         default => 'Dorf',
     };
 }

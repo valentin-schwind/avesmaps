@@ -64,7 +64,7 @@ const AVESMAPS_REPORT_TYPES = [
     // citymap_public_id im Payload, und die Freigabe haengt die Fundorte additiv an.
     'fundort' => ['type' => 'citymap_link', 'subtype' => 'fundort'],
 ];
-const AVESMAPS_LOCATION_SUBTYPES = ['dorf', 'gebaeude', 'kleinstadt', 'stadt', 'grossstadt', 'metropole'];
+const AVESMAPS_LOCATION_SUBTYPES = ['dorf', 'gebaeude', 'stadtviertel', 'kleinstadt', 'stadt', 'grossstadt', 'metropole'];
 const AVESMAPS_REPORT_MAP_MAX_COORDINATE = 1024.0;
 const AVESMAPS_REPORT_SPAM_WORDS = ['casino', 'crypto', 'viagra', 'loan', 'betting', 'porn', 'seo'];
 

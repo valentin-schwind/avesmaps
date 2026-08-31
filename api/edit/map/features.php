@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 require __DIR__ . '/../../_internal/auth.php';
 
-const AVESMAPS_LOCATION_SUBTYPES = ['metropole', 'grossstadt', 'stadt', 'kleinstadt', 'dorf', 'gebaeude'];
+const AVESMAPS_LOCATION_SUBTYPES = ['metropole', 'grossstadt', 'stadt', 'kleinstadt', 'dorf', 'gebaeude', 'stadtviertel'];
 const AVESMAPS_FEATURE_LOCK_TTL_SECONDS = 120;
 
 class AvesmapsConflictException extends RuntimeException {

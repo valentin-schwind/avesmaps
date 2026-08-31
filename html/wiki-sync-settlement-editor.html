@@ -328,8 +328,9 @@
   .zb-cls-kleinstadt { --pc:var(--color-chart-4); }
   .zb-cls-dorf { --pc:var(--color-chart-1); }
   .zb-cls-gebaeude { --pc:var(--color-chart-2); }
-  .zb-plot-curve.zb-cls-dorf, .zb-plot-curve.zb-cls-gebaeude,
-  .zb-swatch.zb-cls-dorf, .zb-swatch.zb-cls-gebaeude { stroke-dasharray:8 5; }
+  .zb-cls-stadtviertel { --pc:var(--color-chart-3); }
+  .zb-plot-curve.zb-cls-dorf, .zb-plot-curve.zb-cls-gebaeude, .zb-plot-curve.zb-cls-stadtviertel,
+  .zb-swatch.zb-cls-dorf, .zb-swatch.zb-cls-gebaeude, .zb-swatch.zb-cls-stadtviertel { stroke-dasharray:8 5; }
   .zb-plot-caption { margin:var(--space-4) 0 0; font-size:var(--font-size-caption); color:var(--mut); max-width:62rem; }
   .zb-selected { display:flex; align-items:center; gap:var(--space-8); flex-wrap:wrap; margin:var(--space-8) 0 0; padding:var(--space-6) var(--space-10); background:var(--soft); border:1px solid var(--line); border-radius:var(--radius-md); font-size:var(--font-size-small); }
   .zb-selected__label { color:var(--mut); }
@@ -774,6 +775,9 @@
      auch das Hauptfenster; das iframe bekommt seine eigene Kopie der Globalen. Vor dem Inline-Skript
      unten, das ihn für die linke Spalte verdrahtet. -->
 <script src="/js/ui/filter-menu.js"></script>
+<!-- Bauwerk oder Siedlung? Dieselbe eine Frage wie im Kartenfenster; dieses Dokument ist ein
+     eigenstaendiges iframe und laedt das Ruestzeug des Hauptfensters nicht mit. -->
+<script src="/js/ui/ortsklassen.js"></script>
 <!-- Das Sammelmenue im Menueband (Wappen-Knopf) -- abhaengigkeitsfrei wie der Trichter daneben. -->
 <script src="/js/ui/ribbon-menu.js"></script>
 <!-- Verschiebbare Fenster: greift die .modal-title dieser Seite. Die Fenster der Hauptseite bedient
@@ -1345,7 +1349,7 @@ function settlementBaseFilteredItems() {
 }
 
 function settlementTypeOptions() {
-	const order = ["dorf", "kleinstadt", "stadt", "grossstadt", "metropole", "gebaeude"];
+	const order = ["dorf", "kleinstadt", "stadt", "grossstadt", "metropole", "gebaeude", "stadtviertel"];
 	const byLabel = new Map();
 	for (const item of settlementBaseFilteredItems()) {
 		const label = item.settlement_label || "—";
@@ -1361,6 +1365,7 @@ function settlementTypeOptions() {
 const SETTLEMENT_EDIT_TYPE_OPTIONS = [
 	{ value: "dorf", label: "Dorf" },
 	{ value: "gebaeude", label: "Besondere Bauwerke/Stätten" },
+	{ value: "stadtviertel", label: "Stadtviertel" },
 	{ value: "kleinstadt", label: "Kleinstadt" },
 	{ value: "stadt", label: "Stadt" },
 	{ value: "grossstadt", label: "Großstadt" },
@@ -1395,7 +1400,9 @@ function settlementPassesBaseFilters(item) {
 // Bauwerk? Über den stabilen Slug, NICHT über die Beschriftung: „Besondere Bauwerke/Stätten"
 // ist UI-Text und darf sich ändern, `gebaeude` nicht (AGENTS.md §2/§8).
 function settlementIsBuilding(item) {
-	return String(item && item.settlement_class) === "gebaeude";
+	// 🔴 Seit 31.08.2026 ueber das geteilte Merkmal (js/ui/ortsklassen.js): es gibt ZWEI
+	// Bauwerksklassen, und ein Stadtviertel gehoert in denselben Unterfilter wie ein Gebaeude.
+	return avesmapsIstBauwerksklasse(item && item.settlement_class);
 }
 
 // Ohne Urteil (Registry noch nicht neu gesynct) gilt „außerorts" -- die sichere Seite: die
@@ -4045,10 +4052,10 @@ function wireTerritoryFilterBar() {
 // <script> weiter oben) -- diese Datei schreibt keine ihrer Zahlen ab (Bauplan-Falle).
 
 const ZOOM_BANDS_API = "/api/edit/map/zoom-bands.php";
-const ZOOM_BAND_KLASSEN = ["metropole", "grossstadt", "stadt", "kleinstadt", "dorf", "gebaeude"];
+const ZOOM_BAND_KLASSEN = ["metropole", "grossstadt", "stadt", "kleinstadt", "dorf", "gebaeude", "stadtviertel"];
 const ZOOM_BAND_KLASSEN_LABEL = {
 	metropole: "Metropole", grossstadt: "Großstadt", stadt: "Stadt",
-	kleinstadt: "Kleinstadt", dorf: "Dorf", gebaeude: "Bauwerk/Stätte",
+	kleinstadt: "Kleinstadt", dorf: "Dorf", gebaeude: "Bauwerk/Stätte", stadtviertel: "Stadtviertel",
 };
 const ZOOM_BAND_SVGNS = "http://www.w3.org/2000/svg";
 const ZOOM_BAND_PLOT_W = 920, ZOOM_BAND_PLOT_H = 420;

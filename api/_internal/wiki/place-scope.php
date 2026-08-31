@@ -389,8 +389,15 @@ function avesmapsPlaceScopeLabel(string $scope): string
 
 /**
  * The map_features subtypes that count as a settlement (a container an object can
- * be inside of). gebaeude is EXCLUDED on purpose -- a building is not a container,
- * and including them would let one building's name mark another as "inside" it.
+ * be inside of). The BUILDING classes are EXCLUDED on purpose -- a building is not a
+ * container, and including them would let one building's name mark another as "inside" it.
+ *
+ * 🔴 Seit 31.08.2026 sind das ZWEI: `gebaeude` und `stadtviertel` (Owner: „wie Gebaeude, aber
+ * innerorts" -- und ausdruecklich KEIN Behaelter). Diese Liste ist damit die Gegenmenge zu
+ * AVESMAPS_BAUWERKSKLASSEN (api/_internal/ortsklassen.php); PHP laesst in einer `const` keine
+ * Berechnung zu, deshalb steht sie ausgeschrieben da und ortsklassen-test.php haelt beide
+ * gegeneinander. Ohne ihn waere die Gegenmenge genau die Stelle, an der eine dritte
+ * Bauwerksklasse still zum Behaelter wuerde.
  */
 const AVESMAPS_PLACE_SCOPE_SETTLEMENT_SUBTYPES = ['metropole', 'grossstadt', 'stadt', 'kleinstadt', 'dorf'];
 

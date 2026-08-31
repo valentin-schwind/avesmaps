@@ -737,6 +737,11 @@ const LOCATION_TYPE_CONFIG = {
 	kleinstadt: { label: "Kleinstädte", singularLabel: "Kleinstadt", icon: "🏘️", queryParam: "toggleKleinstaedte" },
 	dorf: { label: "Dörfer", singularLabel: "Dorf", icon: "🏡", queryParam: "toggleDoerfer" },
 	gebaeude: { label: "Besondere Bauwerke/Stätten", singularLabel: "Besondere Bauwerke/Stätten", icon: "🏛️", queryParam: "toggleGebaeude" },
+	// 🔴 Die zweite BAUWERKSklasse (Owner 30.08.2026, Garetien-Import: „wie Gebäude, aber
+	// innerorts", 22 Objekte). Sie ist ausdrücklich KEIN Behälter -- was das für den Code heißt,
+	// steht in api/_internal/ortsklassen.php und js/ui/ortsklassen.js.
+	// ⚠️ Plural und Singular sind im Deutschen dasselbe Wort; das ist kein vergessenes Feld.
+	stadtviertel: { label: "Stadtviertel", singularLabel: "Stadtviertel", icon: "🏙️", queryParam: "toggleStadtviertel" },
 };
 const LOCATION_ICON_PATHS = {
 	metropole: "icons/metropole.webp",
@@ -745,6 +750,10 @@ const LOCATION_ICON_PATHS = {
 	kleinstadt: "icons/kleinstadt.webp",
 	dorf: "icons/dorf.webp",
 	gebaeude: "icons/bauwerk.webp",
+	// 🔧 GELIEHEN, nicht entschieden (Owner 31.08.2026: „nimm erstmal die gebäude-bilder").
+	// Ein eigenes Bild ersetzt diese Zeile; bis dahin steht hier ausdrücklich dasselbe wie
+	// darüber, statt dass es wie eine Wahl aussieht.
+	stadtviertel: "icons/bauwerk.webp",
 };
 // Realistic settlement illustrations by size (icons/realistic/) -- shown as the floating-box header
 // image instead of the coat of arms (Owner). One per settlement type.
@@ -755,9 +764,10 @@ const LOCATION_REALISTIC_ICON_PATHS = {
 	kleinstadt: "icons/realistic/kleinstadt.webp",
 	dorf: "icons/realistic/dorf.webp",
 	gebaeude: "icons/realistic/bauwerk.webp",
+	stadtviertel: "icons/realistic/bauwerk.webp", // 🔧 geliehen, siehe oben
 };
 const LOCATION_TYPE_KEYS = Object.keys(LOCATION_TYPE_CONFIG);
-const LOCATION_TYPE_VISIBILITY_ORDER = ["metropole", "grossstadt", "stadt", "kleinstadt", "dorf", "gebaeude"];
+const LOCATION_TYPE_VISIBILITY_ORDER = ["metropole", "grossstadt", "stadt", "kleinstadt", "dorf", "gebaeude", "stadtviertel"];
 const POWERLINE_RENDER_CONFIG = {
 	animationEnabled: true,
 	strandCount: 3,

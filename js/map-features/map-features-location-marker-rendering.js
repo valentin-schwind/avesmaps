@@ -96,7 +96,11 @@ function createLocationMarkerIcon(locationType, zoomLevel = map.getZoom(), ringM
 
 	const markerSize = getLocationMarkerSize(locationType, zoomLevel);
 	const visualZoomLevel = getVisualZoomLevel(zoomLevel);
-	const isSite = locationType === "gebaeude";
+	// 💣 EIN MERKMAL, KEIN VERGLEICH AUF EINEN WERT. Bis zum 31.08.2026 stand hier
+	// `locationType === "gebaeude"`, und das war richtig, solange es genau eine Bauwerksklasse gab.
+	// Mit `stadtviertel` daneben hätte das Viertel still den Siedlungs-Kreis statt der Bauwerks-Raute
+	// bekommen -- kein Fehler, nur eine falsche Form. js/ui/ortsklassen.js.
+	const isSite = avesmapsIstBauwerksklasse(locationType);
 	const isDiamond = isSite && visualZoomLevel >= 4; // Raute erst zeigen, wenn sie lesbar ist
 	const isCapital = locationType === "metropole" && visualZoomLevel >= 3 && markerSize >= 14;
 

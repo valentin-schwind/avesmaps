@@ -101,7 +101,10 @@ const unfug = avesmapsResolveLocationZoomBands({ label: { metropole: ["12", NaN,
 // ---- E. Unbekannte Klasse wird ignoriert ------------------------------------------------------
 const fremd = avesmapsResolveLocationZoomBands({ marker: { hauptstadt: [5, 5, 5, 5, 5, 5, 5, 5] } });
 assert.strictEqual(fremd.marker.hauptstadt, undefined, "der Browser führt die Klassenliste");
-assert.strictEqual(Object.keys(fremd.marker).length, 6, "es bleiben sechs Klassen");
+// 🔴 ABGELEITET, nicht gezählt: hier stand `6`, und die siebte Ortsklasse (stadtviertel,
+// 31.08.2026) hat die Zeile umgeworfen, obwohl an der geprüften REGEL nichts falsch war.
+assert.strictEqual(Object.keys(fremd.marker).length, Object.keys(VORGABE.marker).length,
+	"es bleiben genau die Klassen der Vorgabetafel -- nicht mehr und nicht weniger");
 
 // ---- F. Zugriff, Rundung und Klemmung ---------------------------------------------------------
 avesmapsApplyLocationZoomBands(null);

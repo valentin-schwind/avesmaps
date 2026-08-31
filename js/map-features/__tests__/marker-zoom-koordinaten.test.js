@@ -112,6 +112,14 @@ global.getLocationMarkerBorderWidth = (typ, z) => global.getLocationMarkerSize(t
 
 vm.runInThisContext(
 	fs.readFileSync(path.join(__dirname, "../zoom-uebergang.js"), "utf8"), { filename: "zoom-uebergang.js" });
+// 💣 Das geteilte Bauwerks-Merkmal MUSS mitgeladen werden (js/ui/ortsklassen.js): der Zeichner
+// fragt seit dem 31.08.2026 avesmapsIstBauwerksklasse(), statt auf "gebaeude" zu vergleichen --
+// es gibt zwei Bauwerksklassen. Im Browser teilen sich die Skripte den globalen Raum, ein
+// Pruefstand hat ihn NICHT: ohne diese Zeile faellt er mit einem ReferenceError um, der wie ein
+// Fehler des Zeichners aussieht und keiner ist.
+vm.runInThisContext(
+	fs.readFileSync(path.join(__dirname, "..", "..", "ui", "ortsklassen.js"), "utf8"),
+	{ filename: "ortsklassen.js" });
 vm.runInThisContext(
 	fs.readFileSync(path.join(__dirname, "../map-features-location-canvas-layer.js"), "utf8"),
 	{ filename: "map-features-location-canvas-layer.js" });

@@ -1276,6 +1276,7 @@
 						<select id="location-report-size" name="size" required>
 							<option value="dorf" data-i18n="report.sizeOption.dorf">Dorf</option>
 							<option value="gebaeude" data-i18n="report.sizeOption.gebaeude">Besondere Bauwerke/Stätten</option>
+							<option value="stadtviertel" data-i18n="report.sizeOption.stadtviertel">Stadtviertel</option>
 							<option value="kleinstadt" data-i18n="report.sizeOption.kleinstadt">Kleinstadt</option>
 							<option value="stadt" data-i18n="report.sizeOption.stadt">Stadt</option>
 							<option value="grossstadt" data-i18n="report.sizeOption.grossstadt">Großstadt</option>
@@ -1385,6 +1386,7 @@
 									<option value="grossstadt">Großstadt</option>
 									<option value="metropole">Metropole</option>
 									<option value="gebaeude">Besondere Bauwerke/Stätten</option>
+									<option value="stadtviertel">Stadtviertel</option>
 								</select>
 							</div>
 						</label>
@@ -1665,6 +1667,7 @@
 						<select id="wiki-sync-resolve-type" name="feature_subtype" required>
 							<option value="dorf">Dorf</option>
 							<option value="gebaeude">Gebäude/Stätte</option>
+							<option value="stadtviertel">Stadtviertel</option>
 							<option value="kleinstadt">Kleinstadt</option>
 							<option value="stadt">Stadt</option>
 							<option value="grossstadt">Großstadt</option>
@@ -2837,6 +2840,10 @@
 						<button type="button" class="location-toggle" data-location-type="gebaeude" title="Besondere Bauwerke/Stätten anzeigen oder ausblenden" aria-label="Besondere Bauwerke/Stätten anzeigen oder ausblenden" data-i18n-title="layer.toggle.gebaeude" data-i18n-aria-label="layer.toggle.gebaeude">
 							<img class="location-toggle__icon" loading="lazy" src="icons/realistic/bauwerk.webp" data-source-src="icons/realistic/bauwerk.webp" alt="" />
 						</button>
+						<!-- 🔧 Dasselbe Bild wie das Gebäude, geliehen bis es ein eigenes gibt (Owner 31.08.2026). -->
+						<button type="button" class="location-toggle" data-location-type="stadtviertel" title="Stadtviertel anzeigen oder ausblenden" aria-label="Stadtviertel anzeigen oder ausblenden" data-i18n-title="layer.toggle.stadtviertel" data-i18n-aria-label="layer.toggle.stadtviertel">
+							<img class="location-toggle__icon" loading="lazy" src="icons/realistic/bauwerk.webp" data-source-src="icons/realistic/bauwerk.webp" alt="" />
+						</button>
 					</div>
 				</div>
 				<!-- 💣 Jede Zeile ist EIN <label>, kein <div> mit eigenem Knopf. Das Auge ist reine
@@ -3399,6 +3406,10 @@
 		     „Zoombaender" -- das Verfahren gibt es genau einmal. -->
 		<script src="js/map-features/label-placement.js"></script>
 		<script src="js/config.js"></script>
+		<!-- Bauwerk oder Siedlung? EINE Frage, und sie muss VOR ihren Lesern stehen:
+		     map-features-location-marker-rendering.js, -location-canvas-layer.js und
+		     review-settlement-list.js fragen sie. Reine Daten, haengt von nichts ab. -->
+		<script src="js/ui/ortsklassen.js"></script>
 		<script src="js/app/visitor-tracking.js"></script>
 		<script src="js/app/i18n-en.js"></script>
 		<script src="js/app/i18n.js"></script>

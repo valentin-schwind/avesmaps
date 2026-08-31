@@ -32,6 +32,7 @@ const AVESMAPS_LABEL_PRIORITY_BY_TYPE = {
 	kleinstadt: 70,
 	dorf: 60,
 	gebaeude: 60,
+	stadtviertel: 60,
 };
 
 // Der Mindestspalt zwischen Marker und Name, wenn keine Markergröße bekannt ist.
