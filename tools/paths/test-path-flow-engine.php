@@ -30,8 +30,10 @@ check('normalize: defaults', avesmapsPathFlowNormalize(['dir' => 'forward']),
 // The default is the source's upstream/downstream ratio (S. 129: Kahn 20/40, Segler 30/60), not a
 // free knob -- pinned here so a change has to be a decision, not a typo.
 check('normalize: default factor is 2.0', AVESMAPS_PATH_FLOW_FACTOR_DEFAULT, 2.0);
-check('normalize: clamps high factor', avesmapsPathFlowNormalize(['dir' => 'reverse', 'factor' => 9, 'source' => 'verlauf-sync']),
-    ['dir' => 'reverse', 'factor' => 3.0, 'source' => 'verlauf-sync']);
+// 🔴 Kein oberer Riegel mehr (31.08.2026, Owner: „ganz weg, nur noch >= 1“): ein hoher Wert reist
+// unveraendert durch. Nach UNTEN klemmt es weiterhin -- siehe die Zeile darunter.
+check('normalize: laesst hohe Faktoren durch', avesmapsPathFlowNormalize(['dir' => 'reverse', 'factor' => 9, 'source' => 'verlauf-sync']),
+    ['dir' => 'reverse', 'factor' => 9.0, 'source' => 'verlauf-sync']);
 check('normalize: clamps low factor', avesmapsPathFlowNormalize(['dir' => 'forward', 'factor' => 0.5]),
     ['dir' => 'forward', 'factor' => 1.0, 'source' => 'editor']);
 
@@ -113,7 +115,8 @@ $factorPlan = avesmapsPathFlowPlanFactor([
 check('factor: updates a', $factorPlan['writes']['a'], ['flow' => ['dir' => 'forward', 'factor' => 2.0, 'source' => 'editor']]);
 check('factor: creates on empty', $factorPlan['writes']['b'], ['flow' => ['factor' => 2.0]]);
 check('factor: skips equal', isset($factorPlan['writes']['c']), false);
-check('factor: clamp result', avesmapsPathFlowPlanFactor(['a' => null], 9.0)['factor'], 3.0);
+check('factor: hoher Wert bleibt stehen', avesmapsPathFlowPlanFactor(['a' => null], 9.0)['factor'], 9.0);
+check('factor: nach unten wird weiterhin geklemmt', avesmapsPathFlowPlanFactor(['a' => null], 0.2)['factor'], 1.0);
 
 // --- avesmapsPathFlowChainOrientation ---
 // Three-segment line A--B--C--D, middle segment drawn backwards. Consistent walk expected.

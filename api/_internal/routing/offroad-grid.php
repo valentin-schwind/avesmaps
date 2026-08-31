@@ -100,6 +100,16 @@ const AVESMAPS_ROUTE_OFFROAD_BACH_FACTOR = 3.0;
 // die Vorgabe auf 2,5, waere die Furt sonst still um ein Viertel teurer geworden.
 const AVESMAPS_ROUTE_OFFROAD_BACH_FLOW_ANKER = 2.0;
 
+// 🔴 DIE SAETTIGUNG DER FURT, ALS ZAHL STATT ALS NEBENWIRKUNG. Die Faktor-Ebene ist EIN BYTE je
+// Zelle bei AVESMAPS_ROUTE_OFFROAD_FACTOR_SCALE -- darstellbar ist hoechstens 255/Skala = 10,2.
+// Solange der Stroemungsfaktor bei 3,0 geklemmt war, konnte die Furt (1,5 x Stroemung) diesen Wert
+// gar nicht erreichen; seit dem 31.08.2026 hat der Faktor keinen oberen Riegel mehr, und ab
+// Stroemung 6,8 wuerde beim Rastern lautlos abgeschnitten.
+// 💣 STILL WAERE ES GENAU DIE SORTE FEHLER, DIE MAN NIE FINDET: die Furt hoerte einfach auf,
+// teurer zu werden, und niemand saehe warum. Deshalb ein NAME und eine gemessene Zusicherung
+// (stroemungsfaktor-ohne-deckel-test.php) statt eines Ueberlaufs im Byte.
+const AVESMAPS_ROUTE_OFFROAD_FURT_MAX = 255.0 / AVESMAPS_ROUTE_OFFROAD_FACTOR_SCALE;
+
 /**
  * PURE: der Furt-Aufschlag EINES Bachs, aus seiner Stroemung.
  *
@@ -120,7 +130,9 @@ function avesmapsOffroadFurtFaktor(array $path): float
         ? (float) $flow['factor']
         : AVESMAPS_ROUTE_OFFROAD_BACH_FLOW_ANKER;
 
-    return AVESMAPS_ROUTE_OFFROAD_BACH_FACTOR * $stroemung / AVESMAPS_ROUTE_OFFROAD_BACH_FLOW_ANKER;
+    $furt = AVESMAPS_ROUTE_OFFROAD_BACH_FACTOR * $stroemung / AVESMAPS_ROUTE_OFFROAD_BACH_FLOW_ANKER;
+
+    return min($furt, AVESMAPS_ROUTE_OFFROAD_FURT_MAX);
 }
 
 // 16 bit per cell, and the value IS the height in Schritt (V11 §3.2: no white point, no scaling).

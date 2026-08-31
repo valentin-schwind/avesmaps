@@ -199,7 +199,8 @@ function getRouteSegmentUpstreamFactor(segment, orientation, type) {
 	}
 	const rawFactor = Number(flow.factor);
 	// Default 2.0, mirroring AVESMAPS_PATH_FLOW_FACTOR_DEFAULT (S. 129: Kahn 20/40, Segler 30/60).
-	return Number.isFinite(rawFactor) ? Math.min(3.0, Math.max(1.0, rawFactor)) : 2.0;
+	// 🔴 NUR NOCH NACH UNTEN (31.08.2026, Owner: „ganz weg, nur noch >= 1“).
+	return Number.isFinite(rawFactor) ? Math.max(1.0, rawFactor) : 2.0;
 }
 
 // Display flow factor for a route segment: server-primary display segments carry the
@@ -210,7 +211,12 @@ function getRouteSegmentUpstreamFactor(segment, orientation, type) {
 function resolveRouteSegmentFlowFactor(segment, orientation, type) {
 	const explicit = Number(segment?.properties?.flow_time_factor);
 	if (Number.isFinite(explicit) && explicit > 0) {
-		return Math.min(3.0, Math.max(1.0, explicit));
+		// 🔴 NUR NOCH NACH UNTEN (31.08.2026, Owner: „ganz weg, nur noch >= 1“). Hier stand die FUENFTE
+		// Fassung derselben 3,0 -- und die gefaehrlichste: sie sitzt im ANZEIGE-Pfad. Der Server
+		// berechnet die Kante mit dem eingestellten Faktor, der Plan rechnete seine Stunden mit
+		// hoechstens 3,0 nach, und die gezeigte Zeit widerspraeche der Route, die wirklich gewaehlt
+		// wurde -- genau die Fehlerklasse, die der Kommentar unter dieser Funktion beschreibt.
+		return Math.max(1.0, explicit);
 	}
 	return getRouteSegmentUpstreamFactor(segment, orientation, type);
 }

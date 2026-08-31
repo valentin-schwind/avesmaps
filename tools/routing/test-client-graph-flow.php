@@ -84,12 +84,14 @@ $downBA = routeCost([makePath('r1', 'Flussweg', $line, $flowReverse)], 'B', 'A',
 check('reverse: upstream x2.0', round($upAB / $noFlowAB, 6), 2.0);
 check('reverse: downstream unchanged', round($downBA / $noFlowAB, 9), 1.0);
 
-// Missing factor -> the shared default (2.0, the source's 20/40 ratio); oversized -> clamped to 3.0.
+// Missing factor -> the shared default (2.0, the source's 20/40 ratio).
+// 🔴 Nach oben wird seit dem 31.08.2026 NICHT mehr geklemmt (Owner: „ganz weg, nur noch >= 1“) --
+// stand die 3,0 hier doch noch, folgte die Reisezeit dem eingestellten Wert nicht.
 $upDefault = routeCost([makePath('r1', 'Flussweg', $line, ['dir' => 'forward'])], 'B', 'A', $request);
 check('default factor = wiki lib default', round($upDefault / $noFlowAB, 6), round(AVESMAPS_PATH_FLOW_FACTOR_DEFAULT, 6));
 check('default factor is the source ratio 2.0', AVESMAPS_PATH_FLOW_FACTOR_DEFAULT, 2.0);
 $upClamped = routeCost([makePath('r1', 'Flussweg', $line, ['dir' => 'forward', 'factor' => 9])], 'B', 'A', $request);
-check('factor clamped to 3.0', round($upClamped / $noFlowAB, 6), 3.0);
+check('hoher Faktor wirkt voll', round($upClamped / $noFlowAB, 6), 9.0);
 
 // shortest: distance stays symmetric even with flow.
 $shortestRequest = avesmapsNormalizeRouteRequest([

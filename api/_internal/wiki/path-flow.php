@@ -15,13 +15,22 @@ declare(strict_types=1);
 // value; only ways an owner set by hand carry their own.
 const AVESMAPS_PATH_FLOW_FACTOR_DEFAULT = 2.0;
 const AVESMAPS_PATH_FLOW_FACTOR_MIN = 1.0;
-const AVESMAPS_PATH_FLOW_FACTOR_MAX = 3.0;
+// 🔴 KEIN OBERER RIEGEL MEHR (Owner 31.08.2026: „kannst du hier das limit deaktivieren" /
+// „ganz weg, nur noch >= 1"). Bis dahin klemmte hier eine 3,0 -- und weil sie an drei weiteren
+// Stellen als LITERAL stand, nahm das Formular einen hoeheren Wert an, waehrend die Reisezeit ihm
+// nicht folgte. Von aussen sah das aus wie ein kaputtes Speichern.
+// 🔴 DIE UNTERGRENZE BLEIBT: unter 1,0 waere flussaufwaerts SCHNELLER als flussabwaerts, und das
+// ist keine Einstellung, sondern ein Vorzeichenfehler.
+// ⚠️ Die Zahl, die der Besuchertext nennt (transport.speedInfo.riverNote), steht als
+// AVESMAPS_PATH_FLOW_FACTOR_STRONG darunter -- sie ist eine AUSSAGE ueber starke Stroemungen,
+// keine Klemme. terrain-text-claims-test.php haelt Text und Konstante zusammen.
+const AVESMAPS_PATH_FLOW_FACTOR_STRONG = 6.0;
 
 function avesmapsPathFlowClampFactor(float $factor): float {
     if (!is_finite($factor)) {
         return AVESMAPS_PATH_FLOW_FACTOR_DEFAULT;
     }
-    return max(AVESMAPS_PATH_FLOW_FACTOR_MIN, min(AVESMAPS_PATH_FLOW_FACTOR_MAX, $factor));
+    return max(AVESMAPS_PATH_FLOW_FACTOR_MIN, $factor);
 }
 
 // Normalizes a raw properties.flow value. Null unless dir is valid (missing dir => the

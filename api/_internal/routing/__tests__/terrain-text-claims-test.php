@@ -213,9 +213,13 @@ $readJs = static function (string $relative) use ($jsRoot): string {
     return terrainClaimNormalize($source);
 };
 
-// „in der Regel das 2-fache … bis zum 3-fachen der Zeit" = the routing default and its clamp ceiling.
+// „in der Regel das 2-fache … bis zum 6-fachen der Zeit" = the routing default and the number the
+// text names for a strong current. Seit dem 31.08.2026 ist die zweite Zahl KEINE Klemme mehr.
 terrainClaimNear(2.0, AVESMAPS_PATH_FLOW_FACTOR_DEFAULT, 'upstream default = the source ratio (S. 129: Kahn 20/40, Segler 30/60)');
-terrainClaimNear(3.0, AVESMAPS_PATH_FLOW_FACTOR_MAX, 'upstream ceiling = the „bis zum 3-fachen" of the dialog');
+// 🔴 Seit dem 31.08.2026 ist das KEINE Klemme mehr, sondern eine Aussage: der Stroemungsfaktor hat
+// keinen oberen Riegel, und AVESMAPS_PATH_FLOW_FACTOR_STRONG ist die Zahl, die der Besuchertext
+// nennt. Der Test haelt beide weiterhin zusammen -- genau dafuer gibt es ihn.
+terrainClaimNear(6.0, AVESMAPS_PATH_FLOW_FACTOR_STRONG, 'strong current = the „bis zum 6-fachen" of the dialog');
 
 // Every entry of the speed table is a day performance in disguise. TIME_SCALE_FACTOR is read from
 // js/config.js because the SERVER never applies it -- it is a display multiplier on the client
@@ -281,7 +285,7 @@ assert(!str_contains($restSource, '"Seeweg", "Flussweg"'), 'route-result.js: Flu
 
 $waterNeedles = [
     'DE' => [
-        'in der Regel das 2-fache, bei starker Strömung bis zum 3-fachen',
+        'in der Regel das 2-fache, bei starker Strömung bis zum 6-fachen',
         'An Land 8 Reisestunden am Tag und 16 Stunden Rast',
         'auf Fluss und See 12 und 12',
         'Tempo = Tagesleistung ÷ Reisestunden',
@@ -291,7 +295,7 @@ $waterNeedles = [
         '„Wege des Entdeckers“ S. 160–162',
     ],
     'EN' => [
-        'as a rule twice the duration, and up to 3 times in strong currents',
+        'as a rule twice the duration, and up to 6 times in strong currents',
         'On land 8 travel hours a day and 16 hours of rest',
         'on river and sea 12 and 12',
         'speed = day performance ÷ travel hours',

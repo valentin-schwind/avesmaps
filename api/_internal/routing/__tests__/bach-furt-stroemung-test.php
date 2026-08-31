@@ -64,10 +64,11 @@ assert(abs($einzeln(3.0) - 3 * $einzeln(1.0)) < 1e-9, 'dreifache Stroemung = dre
 assert(abs($einzeln(2.0) - AVESMAPS_ROUTE_OFFROAD_BACH_FACTOR) < 1e-9,
     'ein Bach auf der Vorgabe-Stroemung kostet unveraendert ' . AVESMAPS_ROUTE_OFFROAD_BACH_FACTOR);
 
-// 💣 DIE KLEMME KOMMT AUS DEM VORHANDENEN LESER, nicht aus einer eigenen Rechnung. `flow.factor`
-// ist auf [1,0 ... 3,0] geklemmt; ein Ausreisser darf die Furt nicht ins Unermessliche treiben.
-assert(abs($einzeln(99.0) - $einzeln(3.0)) < 1e-9, 'ueber 3,0 klemmt der Leser');
-assert(abs($einzeln(0.1) - $einzeln(1.0)) < 1e-9, 'unter 1,0 ebenso');
+// 💣 DIE UNTERGRENZE KOMMT AUS DEM VORHANDENEN LESER, nicht aus einer eigenen Rechnung.
+// ⚠️ Nach OBEN klemmt seit dem 31.08.2026 nichts mehr (Owner: „ganz weg, nur noch >= 1“); wo die
+// Furt saettigt, misst stroemungsfaktor-ohne-deckel-test.php.
+assert(abs($einzeln(0.1) - $einzeln(1.0)) < 1e-9, 'unter 1,0 klemmt der Leser');
+assert($einzeln(4.0) > $einzeln(3.0), 'und darueber waechst die Furt weiter');
 
 // 🔴 OHNE FLIESSRICHTUNG GILT DER ANKER, nicht „keine Erschwernis". Die sichere Richtung: lieber
 // eine Furt zu teuer als ein Bach, den man gratis durchwatet.

@@ -101,7 +101,10 @@ function getRiverFlowTimeFactors(properties, routeType) {
     const rawFactor = Number(flow?.factor);
     // Default 2.0 = the source's upstream/downstream ratio (S. 129: Kahn 20/40, Segler 30/60).
     // Mirrors AVESMAPS_PATH_FLOW_FACTOR_DEFAULT; the server owns the rule.
-    const factor = Number.isFinite(rawFactor) ? Math.min(3.0, Math.max(1.0, rawFactor)) : 2.0;
+    // 🔴 NUR NOCH NACH UNTEN (31.08.2026, Owner: „ganz weg, nur noch >= 1"). Die 3,0 stand hier
+    // als drittes Literal derselben Regel; ohne diese Zeile rechnete der Browser-Graph weiter mit
+    // hoechstens 3,0, waehrend der Server dem eingestellten Wert folgte.
+    const factor = Number.isFinite(rawFactor) ? Math.max(1.0, rawFactor) : 2.0;
     return {
         forwardFactor: dir === "reverse" ? factor : 1,
         backwardFactor: dir === "forward" ? factor : 1,

@@ -166,7 +166,7 @@
 			'<div class="tsi-water">' +
 			'<div class="tsi-wcard"><div class="tsi-wtitle">' + iconImg("icons/flussweg.webp") + esc(tr("transport.speedInfo.riverTravel", "Flussreise")) + '</div><div class="tsi-wmodes">' +
 			waterModes(RIVER_MODES, "riverTransport", "Flussweg") +
-			'</div><div class="tsi-wnote">' + tr("transport.speedInfo.riverNote", "Flussabwärts, mit der Strömung, geht es mit voller Geschwindigkeit. Flussaufwärts, gegen die Strömung, dauert dieselbe Strecke länger — in der Regel das 2-fache, bei starker Strömung bis zum 3-fachen der Zeit.") + '</div></div>' +
+			'</div><div class="tsi-wnote">' + tr("transport.speedInfo.riverNote", "Flussabwärts, mit der Strömung, geht es mit voller Geschwindigkeit. Flussaufwärts, gegen die Strömung, dauert dieselbe Strecke länger — in der Regel das 2-fache, bei starker Strömung bis zum 6-fachen der Zeit.") + '</div></div>' +
 			'<div class="tsi-wcard"><div class="tsi-wtitle">' + iconImg("icons/meerweg.webp") + esc(tr("transport.speedInfo.seaTravel", "Meerreise")) + '</div><div class="tsi-wmodes">' +
 			waterModes(SEA_MODES, "seaTransport", "Seeweg") +
 			'</div><div class="tsi-wnote">' + tr("transport.speedInfo.seaNote", "Nur der Schnellsegler fährt bei bekannter Strecke Tag und Nacht durch — für ihn fällt keine Rastzeit an. Lastensegler und Galeere gehen nachts vor Anker und rasten wie an Land.") + '</div></div>' +

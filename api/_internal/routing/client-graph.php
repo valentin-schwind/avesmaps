@@ -311,7 +311,11 @@ function avesmapsRouteClientNormalizeFlow(array $path, string $routeType): ?arra
         return null;
     }
     $factor = is_numeric($flow['factor'] ?? null) ? (float) $flow['factor'] : 2.0;
-    $factor = max(1.0, min(3.0, $factor));
+    // 🔴 NUR NOCH NACH UNTEN (31.08.2026). Die 3,0 stand hier als LITERAL neben der Konstanten in
+    // der Wiki-Bibliothek -- wer dort den Riegel hob, klemmte hier weiter, und die Reisezeit folgte
+    // dem eingestellten Wert nicht. Genau das ist die Fehlerklasse „eine Regel, die einen von
+    // mehreren Erzeugern bindet".
+    $factor = max(1.0, $factor);
     return ['dir' => $dir, 'factor' => $factor];
 }
 

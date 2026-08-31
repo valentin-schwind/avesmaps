@@ -59,7 +59,10 @@ const FLOW_DEFAULT = Number(serverDefaultMatch[1]);
 assert.ok(FLOW_DEFAULT >= 1 && FLOW_DEFAULT <= 3, `die Vorgabe muss im erlaubten Band liegen, ist aber ${FLOW_DEFAULT}`);
 // ⚠️ NUMERISCH vergleichen, nicht als Text: der Browser schreibt 2.0, PHP liefert 2 --
 // zeichenweise verglichen faende man einen Unterschied, den es nicht gibt.
-const browserDefaultMatch = /Math\.max\([0-9.]+, rawFactor\)\)\s*:\s*([0-9.]+);/.exec(nodeSource);
+// ⚠️ Das Muster folgt der SCHREIBWEISE: bis zum 31.08.2026 stand dort ein geschachteltes
+// Math.min(3.0, Math.max(1.0, rawFactor)) -- mit dem Wegfall des oberen Riegels faellt eine
+// Klammer weg, und ein Muster, das sie noch verlangt, findet gar nichts mehr.
+const browserDefaultMatch = /Math\.max\([0-9.]+, rawFactor\)\s*:\s*([0-9.]+);/.exec(nodeSource);
 assert.ok(browserDefaultMatch, "der Browser-Zweig muss eine Vorgabe nennen");
 assert.equal(
 	Number(browserDefaultMatch[1]),
@@ -75,8 +78,11 @@ assert.deepEqual(getRiverFlowTimeFactors({ flow: { dir: "forward" } }, "Flussweg
 	{ forwardFactor: 1, backwardFactor: FLOW_DEFAULT }, "forward default");
 assert.deepEqual(getRiverFlowTimeFactors({ flow: { dir: "reverse", factor: 2 } }, "Flussweg"),
 	{ forwardFactor: 2, backwardFactor: 1 }, "reverse custom factor");
+// 🔴 Kein oberer Riegel mehr (31.08.2026): der Wert wirkt voll.
 assert.deepEqual(getRiverFlowTimeFactors({ flow: { dir: "forward", factor: 9 } }, "Flussweg"),
-	{ forwardFactor: 1, backwardFactor: 3 }, "factor clamped");
+	{ forwardFactor: 1, backwardFactor: 9 }, "hoher Faktor wirkt voll");
+assert.deepEqual(getRiverFlowTimeFactors({ flow: { dir: "forward", factor: 0.4 } }, "Flussweg"),
+	{ forwardFactor: 1, backwardFactor: 1 }, "nach unten klemmt es weiterhin bei 1,0");
 
 // --- getRouteSegmentUpstreamFactor ---
 const coords = [[0, 0], [10, 0]];
@@ -87,7 +93,7 @@ assert.equal(getRouteSegmentUpstreamFactor(riverSegment({ dir: "forward" }), for
 assert.equal(getRouteSegmentUpstreamFactor(riverSegment({ dir: "forward" }), reverseTraversal, "Flussweg"), FLOW_DEFAULT, "upstream default");
 assert.equal(getRouteSegmentUpstreamFactor(riverSegment({ dir: "reverse", factor: 2 }), forwardTraversal, "Flussweg"), 2, "upstream reverse-dir");
 assert.equal(getRouteSegmentUpstreamFactor(riverSegment({ dir: "reverse" }), reverseTraversal, "Flussweg"), 1, "downstream reverse-dir");
-assert.equal(getRouteSegmentUpstreamFactor(riverSegment({ dir: "forward", factor: 9 }), reverseTraversal, "Flussweg"), 3, "clamped");
+assert.equal(getRouteSegmentUpstreamFactor(riverSegment({ dir: "forward", factor: 9 }), reverseTraversal, "Flussweg"), 9, "hoher Faktor wirkt voll");
 assert.equal(getRouteSegmentUpstreamFactor(riverSegment({ dir: "forward" }), null, "Flussweg"), 1, "no orientation -> neutral");
 assert.equal(getRouteSegmentUpstreamFactor(riverSegment({ dir: "forward" }), reverseTraversal, "Seeweg"), 1, "non-river neutral");
 assert.equal(getRouteSegmentUpstreamFactor(riverSegment(undefined), reverseTraversal, "Flussweg"), 1, "no flow neutral");
@@ -100,10 +106,12 @@ assert.equal(
 	2,
 	"explicit factor preferred"
 );
+// 💣 Der ANZEIGE-Pfad klemmte hier bis zum 31.08.2026 ebenfalls auf 3,0 -- der Server haette mit
+// dem eingestellten Faktor gerechnet und der Plan seine Stunden mit hoechstens 3,0 nachgerechnet.
 assert.equal(
 	resolveRouteSegmentFlowFactor({ properties: { flow_time_factor: 9 } }, null, "Flussweg"),
-	3,
-	"explicit factor clamped"
+	9,
+	"der Anzeige-Pfad folgt dem Serverwert"
 );
 assert.equal(
 	resolveRouteSegmentFlowFactor(

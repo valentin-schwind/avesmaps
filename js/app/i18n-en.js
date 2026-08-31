@@ -1103,7 +1103,7 @@ window.AVESMAPS_I18N_EN = {
 	"transport.speedInfo.legend.mid": "medium",
 	"transport.speedInfo.legend.slow": "slow",
 	"transport.speedInfo.riverTravel": "River travel",
-	"transport.speedInfo.riverNote": "Downstream, with the current, you travel at full speed. Upstream, against the current, the same distance takes longer — as a rule twice the duration, and up to 3 times in strong currents.",
+	"transport.speedInfo.riverNote": "Downstream, with the current, you travel at full speed. Upstream, against the current, the same distance takes longer — as a rule twice the duration, and up to 6 times in strong currents.",
 	"transport.speedInfo.seaTravel": "Sea travel",
 	"transport.speedInfo.seaNote": "Only the fast sailer runs day and night on a known route — no rest time is needed for it. The cargo sailer and the galley anchor at night and rest like travellers on land.",
 	"transport.speedInfo.restRule": "<b>Rest.</b> On land 8 travel hours a day and 16 hours of rest (adjustable in the planner), on river and sea 12 and 12 — <b>only the fast sailer</b> runs around the clock. <b>Every value is computed from the day's mileage: speed = day performance ÷ travel hours.</b> A group on foot covers 30 miles a day, a single rider 50, a cargo sailer 120. Sources: the 8 hours from “Wege des Entdeckers” pp. 160–162, the 12 from the Geographia pp. 129 (river) and 131 (sea), the day performances from the Geographia pp. 123 · 129 · 131.",
