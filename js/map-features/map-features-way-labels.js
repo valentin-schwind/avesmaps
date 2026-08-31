@@ -17,6 +17,15 @@
 // überbrückt nur noch OFFENE Ketten-Enden bis zu dieser Distanz.
 const WAY_LABEL_CHAIN_GAP_EPS = 7;
 
+// Wie nah ein unzugewiesenes Segment DESSELBEN Wegs an einem Ketten-Ende liegen muss, damit dieses
+// Ende als fortgesetzt (und damit als nicht offen) gilt. Am Livebestand gemessen (01.09.2026): von
+// 98 Phase-2-Brücken werden 7 von einem namensgleichen Segment gefüllt, dessen Enden zwischen 0,011
+// und 1,697 Einheiten neben dem Ketten-Ende liegen -- weit auseinander, weil genau dieser Versatz
+// der Grund ist, dass Phase 1 sie nie verkettet hat. 2 fängt alle sieben.
+// ⚠️ Die Zahl trägt allein nicht: sie greift NUR bei namensgleichen Segmenten (der Aufrufer schlägt
+// den Füller-Index unter dem Wegnamen nach), und ein fremder Weg im Zwischenraum sperrt nichts.
+const WAY_LABEL_FILLER_TOUCH_EPS = 2;
+
 // Rundet eine [x,y]-Koordinate auf 2 Nachkommastellen -> stabiler Verkettungs-Key für Phase 1
 // (striktes Verketten). 0.01-Raster: das gemessene Fließkomma-Rauschen (~0.001) liegt weit
 // darunter (rundet auf denselben Key), die kürzeste Segmentlänge (2.32) weit darüber (kein
@@ -75,12 +84,39 @@ function wayLabelArmDirection(coordinates, atStart) {
 //     Kette sind die neuen freien Enden. Nie eine Kette mit sich selbst verbrücken (kein
 //     künstlicher Ringschluss). O(k^2) pro Iteration, k = Ketten EINES Wegs (<= wenige Dutzend).
 // Pur -- keine Globals, kein DOM.
-function buildWayLabelChains(segments, eps) {
+function buildWayLabelChains(segments, eps, fillers) {
 	const list = Array.isArray(segments) ? segments : [];
 	if (!list.length) {
 		return [];
 	}
 	const bridgeEps = Number.isFinite(eps) && eps > 0 ? eps : WAY_LABEL_CHAIN_GAP_EPS;
+
+	// 💣 EIN GEFÜLLTER ZWISCHENRAUM IST KEINE LÜCKE. Phase 2 überbrückt handgezeichnete Ortsstoß-
+	// Lücken -- aber nicht jeder Abstand zwischen zwei zugewiesenen Segmenten ist einer: liegt dort
+	// ein Segment DESSELBEN Wegs ohne Wiki-Zuweisung, ist der Weg lückenlos, nur die Zuweisung nicht.
+	// Die Brücke malte den Namen dann über die gedachte Gerade, während Kanal B dasselbe Stück
+	// entlang seiner echten Kurve beschriftete -- zwei Namen auf einer Linie (Tiefenfurt, gemeldet
+	// 01.09.2026: Sieben-Baronien-Weg, 30 Segmente, 24 zugewiesen, die Lücke Glaumensee->Tiefenfurt
+	// 3,30 Einheiten breit und von genau einem unzugewiesenen Segment gefüllt).
+	// ⚠️ Der Aufrufer entscheidet, WAS ein Füller ist (namensgleich, unzugewiesen) -- diese Funktion
+	// kennt keine Namen und keine Eigenschaften, nur Geometrie.
+	const fillerEnds = (Array.isArray(fillers) ? fillers : [])
+		.map((filler) => {
+			const coords = filler?.coordinates || [];
+			return coords.length >= 2 ? [coords[0], coords[coords.length - 1]] : null;
+		})
+		.filter(Boolean);
+
+	// 💣 GESPERRT WIRD DAS ENDE, NICHT DAS PAAR -- und das ist der Unterschied zwischen einem Fix und
+	// einem verschobenen Fehler. Nur die eine Brücke zu verbieten hilft nichts: Phase 2 nimmt dann
+	// das nächstbeste Paar, und das ist oft dieselbe Stelle über Bande. Live am Sieben-Baronien-Weg
+	// gemessen (01.09.2026): nach dem Verbot der 3,297er Brücke standen 3,899 und 4,868 bereit --
+	// beide sprangen ebenfalls über Glaumensee/Tiefenfurt, die erste sogar quer am Ort vorbei.
+	// Richtig ist die Aussage eine Etage höher: wo ein Segment desselben Wegs anschließt, ist das
+	// Ende gar nicht offen. Der Weg geht dort weiter, nur unbeschriftet.
+	const fillerContinuesEnd = (point) => fillerEnds.some(([a, b]) =>
+		Math.hypot(a[0] - point[0], a[1] - point[1]) <= WAY_LABEL_FILLER_TOUCH_EPS
+		|| Math.hypot(b[0] - point[0], b[1] - point[1]) <= WAY_LABEL_FILLER_TOUCH_EPS);
 
 	// ===== Phase 1: striktes Verketten über (gerundet) exakt geteilte Endpunkte =====
 
@@ -249,7 +285,7 @@ function buildWayLabelChains(segments, eps) {
 		chains.forEach((chain, chainIndex) => {
 			const ends = chainOuterEnds(chain);
 			[["start", ends.start], ["end", ends.end]].forEach(([which, pt]) => {
-				if (degreeOf(wayLabelEndpointKey(pt)) === 1) {
+				if (degreeOf(wayLabelEndpointKey(pt)) === 1 && !fillerContinuesEnd(pt)) {
 					freeEnds.push({ chainIndex, which, pt });
 				}
 			});
@@ -295,6 +331,46 @@ function buildWayLabelChains(segments, eps) {
 	}
 
 	return chains;
+}
+
+// Index "Wegname -> Segmente OHNE Wiki-Zuweisung", die Futter für den fillers-Parameter von
+// buildWayLabelChains sind. Ein solches Segment ist kein Fremdkörper, sondern meist der Weg
+// selbst an einer Stelle, die nie zugewiesen wurde -- und genau das unterscheidet einen echten
+// Ortsstoß-Zwischenraum von einem, der bereits gefüllt ist.
+// ⚠️ EINMAL pro Redraw bauen, nicht je Gruppe: Kanal A liefe sonst über ~410 Gruppen x ~6000
+// Pfade (dieselbe Begründung wie bei buildWayLabelEligibilityContext).
+// ⚠️ Ein zugewiesenes Segment gehört schon zu seiner Kette -- käme es hier mit hinein, könnte ein
+// Weg seine eigenen Brücken sperren.
+// 💣 DER NAME KOMMT AUS nameOf, NIEMALS AUS properties.name -- die erste Fassung tat das und war im
+// Browser wirkungslos: dort trägt properties.name den Autonamen ("Strasse-5854"), während der Weg
+// "Hagweg" heißt (der Klarname steht in original_name/display_name). Gegen die rohe API-Nutzlast
+// gemessen sah dieselbe Fassung tadellos aus, weil dort der Klarname steht -- der Fehler war nur
+// im laufenden Browser sichtbar. Der Aufrufer reicht getPathDisplayName herein, also GENAU die
+// Quelle, aus der er auch group.name bildet; eine eigene Namensregel hier wäre eine zweite Wahrheit.
+// ⚠️ Ohne nameOf bleibt der Index LEER (= altes Verhalten). Ein Rückfall auf properties.name wäre
+// schlimmer als nichts: er sieht richtig aus und findet nie etwas.
+// Pur -- keine Globals, kein DOM.
+function buildWayLabelGapFillerIndex(paths, nameOf) {
+	if (typeof nameOf !== "function") {
+		return new Map();
+	}
+	const index = new Map();
+	(Array.isArray(paths) ? paths : []).forEach((path) => {
+		const props = path?.properties;
+		if (!props || props.wiki_path?.wiki_key) {
+			return;
+		}
+		const name = String(nameOf(path) || "").trim();
+		const coords = path?.geometry?.type === "LineString" ? path.geometry.coordinates : null;
+		if (!name || !Array.isArray(coords) || coords.length < 2) {
+			return;
+		}
+		if (!index.has(name)) {
+			index.set(name, []);
+		}
+		index.get(name).push({ id: props.public_id || path.id, coordinates: coords });
+	});
+	return index;
 }
 
 // Berechnet Mittelpunkt-Offsets (px entlang der Kette) für wiederholte Label-Platzierungen im

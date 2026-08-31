@@ -66,14 +66,16 @@ function extractConst(source, name) {
 
 const sandbox = new Function(`
 	${extractConst(wayLabelsSource, "WAY_LABEL_CHAIN_GAP_EPS")}
+	${extractConst(wayLabelsSource, "WAY_LABEL_FILLER_TOUCH_EPS")}
 	${extractFunction(wayLabelsSource, "wayLabelEndpointKey")}
 	${extractFunction(wayLabelsSource, "wayLabelArmDirection")}
 	${extractFunction(wayLabelsSource, "buildWayLabelChains")}
+	${extractFunction(wayLabelsSource, "buildWayLabelGapFillerIndex")}
 	${extractFunction(wayLabelsSource, "computeWayLabelIntervalOffsets")}
 	${extractFunction(wayLabelsSource, "wayLabelHitTest")}
-	return { wayLabelEndpointKey, wayLabelArmDirection, buildWayLabelChains, computeWayLabelIntervalOffsets, wayLabelHitTest };
+	return { wayLabelEndpointKey, wayLabelArmDirection, buildWayLabelChains, buildWayLabelGapFillerIndex, computeWayLabelIntervalOffsets, wayLabelHitTest, WAY_LABEL_FILLER_TOUCH_EPS };
 `)();
-const { wayLabelEndpointKey, wayLabelArmDirection, buildWayLabelChains, computeWayLabelIntervalOffsets, wayLabelHitTest } = sandbox;
+const { wayLabelEndpointKey, wayLabelArmDirection, buildWayLabelChains, buildWayLabelGapFillerIndex, computeWayLabelIntervalOffsets, wayLabelHitTest, WAY_LABEL_FILLER_TOUCH_EPS } = sandbox;
 
 // Euclidean distance -- used by assertChainsWellFormed to check end-to-start connectivity
 // against the SAME tolerance buildWayLabelChains itself bridges with in phase 2 (default eps=7,
@@ -371,6 +373,106 @@ check("closed ring of 4 segments -> terminates, every segment used exactly once,
 	assert.equal(chains[0].length, 4, "all four segments end up in that one chain");
 });
 
+check("gap bridging: a filler segment covering the gap blocks the bridge (it is not a gap)", () => {
+	// Live case Tiefenfurt (measured 2026-09-01): the Sieben-Baronien-Weg lies on the map in 30
+	// segments, 24 of them wiki-assigned. Between Glaumensee and Tiefenfurt sits ONE unassigned
+	// segment -- so phase 2 saw a 3.30-unit "gap" and bridged it over the straight line, while
+	// channel B labelled that very segment along its real curve: two names on one line. A segment
+	// that fills the gap IS the way; only true gaps may be bridged.
+	const segments = [
+		{ id: "seg-A", coordinates: [[-10, 0], [0, 0]] },
+		{ id: "seg-B", coordinates: [[0, 3.3], [10, 3.3]] },
+	];
+	// The filler joins the two free ends -- its own endpoints miss them slightly (live: 0.042),
+	// which is exactly why phase 1 never chained it and phase 2 called it a gap.
+	const fillers = [{ coordinates: [[0.04, 0.04], [0, 3.3]] }];
+	assert.equal(buildWayLabelChains(segments).length, 1, "without a filler the 3.3-unit gap is bridged as before");
+	const chains = buildWayLabelChains(segments, undefined, fillers);
+	assertChainsWellFormed(chains, segments);
+	assert.equal(chains.length, 2, "a gap that a real segment fills must NOT be bridged");
+});
+
+check("gap bridging: a continued end is closed for EVERY bridge, not just the one across the filler", () => {
+	// The first attempt at this rule only vetoed the one pair spanning the filler -- and phase 2
+	// simply took the next-best pair, which on live data jumped the SAME place over the bank.
+	// Measured on the Sieben-Baronien-Weg (2026-09-01): with the 3.297 pair vetoed, 3.899 and
+	// 4.868 were waiting, the first of them running clean past Glaumensee. So the end itself must
+	// be closed: seg-B is short, so its far end (2,3.3) is within eps of seg-A's end (0,0).
+	const segments = [
+		{ id: "seg-A", coordinates: [[-10, 0], [0, 0]] },
+		{ id: "seg-B", coordinates: [[0, 3.3], [2, 3.3]] },
+	];
+	const fillers = [{ coordinates: [[0.04, 0.04], [0, 3.3]] }];
+	// Without the rule both pairs are in range (3.30 and ~4.00) and one of them WILL be bridged.
+	assert.equal(buildWayLabelChains(segments).length, 1, "unguarded, phase 2 bridges one of the two pairs");
+	assert.equal(buildWayLabelChains(segments, undefined, fillers).length, 2,
+		"a continued end may not serve as the anchor of a substitute bridge either");
+});
+
+check("gap bridging: filler direction does not matter (endpoints may be given either way round)", () => {
+	// Segment orientation is storage order, not geography -- a filler stored the other way round
+	// is the same piece of road and must block just the same.
+	const segments = [
+		{ id: "seg-A", coordinates: [[-10, 0], [0, 0]] },
+		{ id: "seg-B", coordinates: [[0, 3.3], [10, 3.3]] },
+	];
+	const fillers = [{ coordinates: [[0, 3.3], [0.04, 0.04]] }];
+	assert.equal(buildWayLabelChains(segments, undefined, fillers).length, 2, "reversed filler blocks the bridge too");
+});
+
+check("gap bridging: a same-named segment further off than the touch eps leaves the bridge alone", () => {
+	// A way can legitimately have another same-named segment somewhere nearby without that segment
+	// continuing THIS end. Measured over the whole live payload (98 bridges, 7 of them filled by a
+	// same-named segment): the real fillers miss their end by 0.011 to 1.697 units, so
+	// WAY_LABEL_FILLER_TOUCH_EPS=2 catches all seven -- and anything beyond it must not veto.
+	const segments = [
+		{ id: "seg-A", coordinates: [[-10, 0], [0, 0]] },
+		{ id: "seg-B", coordinates: [[0, 3.3], [10, 3.3]] },
+	];
+	const fillers = [{ coordinates: [[5, 0], [5, 3.3]] }]; // 5 units off BOTH ends, well beyond eps=2
+	assert.equal(buildWayLabelChains(segments, undefined, fillers).length, 1,
+		"a same-named segment that does not reach either end leaves the bridge alone");
+	assert.ok(WAY_LABEL_FILLER_TOUCH_EPS < 5, "this test only means anything while the eps stays below 5");
+});
+
+check("filler index: groups UNASSIGNED same-named segments by name, keeps assigned ones out", () => {
+	// The index is what turns "a segment lies in that gap" into something buildWayLabelChains can
+	// check. Built ONCE per redraw (channel A walks ~6000 paths x ~410 groups otherwise).
+	const paths = [
+		{ properties: { public_id: "zugewiesen", name: "Sieben-Baronien-Weg", wiki_path: { wiki_key: "w:sbw", name: "Sieben-Baronien-Weg" } },
+		  geometry: { type: "LineString", coordinates: [[0, 0], [1, 1]] } },
+		{ properties: { public_id: "fueller", name: "Sieben-Baronien-Weg" },
+		  geometry: { type: "LineString", coordinates: [[1, 1], [2, 2]] } },
+		{ properties: { public_id: "fremd", name: "Goblinpfad" },
+		  geometry: { type: "LineString", coordinates: [[5, 5], [6, 6]] } },
+	];
+	// The way name comes from the resolver the caller passes in, NEVER from properties.name: in the
+	// client that field holds the auto-name ("Strasse-5854") while the way is called "Hagweg". The
+	// overlay hands in getPathDisplayName -- the same source it builds group.name from.
+	const index = buildWayLabelGapFillerIndex(paths, (p) => String(p.properties.display_name || p.properties.name || "").trim());
+	// Only the unassigned same-named segment is a filler candidate: an ASSIGNED segment is already
+	// part of its chain, so counting it here would let a way block its own bridges.
+	assert.deepEqual((index.get("Sieben-Baronien-Weg") || []).map((f) => f.id), ["fueller"]);
+	assert.deepEqual((index.get("Goblinpfad") || []).map((f) => f.id), ["fremd"]);
+});
+
+check("filler index: skips nameless, non-line and single-point entries", () => {
+	// Auto-generated segment names ("Strasse-5832") never equal a wiki name, so they simply form
+	// their own bucket -- but an entry without usable geometry must not enter the index at all,
+	// or gapIsFilled would read undefined endpoints.
+	const paths = [
+		{ properties: { public_id: "ohne-name" }, geometry: { type: "LineString", coordinates: [[0, 0], [1, 1]] } },
+		{ properties: { public_id: "punkt", name: "Weg" }, geometry: { type: "LineString", coordinates: [[0, 0]] } },
+		{ properties: { public_id: "flaeche", name: "Weg" }, geometry: { type: "Polygon", coordinates: [[[0, 0], [1, 1], [2, 0]]] } },
+	];
+	const index = buildWayLabelGapFillerIndex(paths, (p) => String(p.properties.name || "").trim());
+	assert.equal(index.get("Weg"), undefined, "neither a single point nor a polygon is a filler");
+	assert.equal(index.size, 0, "a nameless segment cannot be matched to a way name");
+	// Without a resolver the index stays EMPTY (= old behaviour). A silent fallback to
+	// properties.name would look right and never find anything -- that was the first, dead version.
+	assert.equal(buildWayLabelGapFillerIndex(paths).size, 0, "no resolver, no index");
+});
+
 check("wayLabelHitTest: point inside a single rect -> that entry", () => {
 	const register = [
 		{ left: 10, top: 10, right: 50, bottom: 30, wikiKey: "letta", name: "Letta" },
@@ -410,4 +512,4 @@ check("wayLabelHitTest: rect boundary is inclusive on all four edges", () => {
 	assert.equal(wayLabelHitTest(register, { x: 30, y: 30 }).wikiKey, "kante", "bottom edge");
 });
 
-console.log(`${passed}/23 passed`);
+console.log(`${passed}/29 passed`);

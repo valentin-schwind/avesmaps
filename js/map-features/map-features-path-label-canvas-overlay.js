@@ -861,6 +861,17 @@
 				wayGroups.get(wikiKey).pathsById.set(publicId, path);
 			});
 
+			// 💣 Ein Zwischenraum, in dem ein namensgleiches Segment OHNE Wiki-Zuweisung liegt, ist KEINE
+			// Lücke -- dort geht der Weg weiter, nur unbeschriftet, und Kanal B setzt seinen Namen darauf.
+			// Ohne dieses Wissen überbrückt Phase 2 die Stelle und malt einen ZWEITEN Namen über die
+			// gedachte Gerade (gemeldet 01.09.2026 bei Tiefenfurt).
+			// ⚠️ EINMAL je Redraw, nicht je Gruppe -- sonst ~410 Gruppen x ~6000 Pfade.
+			// 💣 getPathDisplayName ist Pflicht: properties.name ist hier der Autoname ("Strasse-5854"),
+			// der Wegname steht im Anzeigenamen -- und group.name unten kommt aus derselben Quelle.
+			const gapFillerIndex = (typeof buildWayLabelGapFillerIndex === "function" && typeof getPathDisplayName === "function")
+				? buildWayLabelGapFillerIndex(pathData, getPathDisplayName)
+				: new Map();
+
 			const acceptedWayLabelBoxes = []; // Selbstkollision: {x1,y1,x2,y2} bereits platzierter Way-Labels
 			const boxesOverlap = (a, b) => a.x1 < b.x2 && a.x2 > b.x1 && a.y1 < b.y2 && a.y2 > b.y1;
 
@@ -869,7 +880,10 @@
 					id: p.properties?.public_id || p.id,
 					coordinates: p.geometry.coordinates,
 				}));
-				const chains = buildWayLabelChains(segments);
+				// ⚠️ Der Index steht unter properties.name, die Gruppe unter ihrem Wiki-Namen. Weichen die
+				// beiden ab, findet sich kein Füller -- die sichere Richtung (es bleibt beim alten Verhalten).
+				const gapFillers = gapFillerIndex.get(group.name) || [];
+				const chains = buildWayLabelChains(segments, undefined, gapFillers);
 				chains.forEach((chain) => {
 					// Kette zur geglätteten Bildschirm-Polyline zusammensetzen: pro Eintrag die (geglättete)
 					// Label-Leitlinie desselben Helfers wie Kanal B, bei reversed umgedreht, dieselbe
