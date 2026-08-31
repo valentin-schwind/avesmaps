@@ -174,6 +174,11 @@ $layers = [
             ['key' => 'Gebirgspass', 'label' => 'Gebirgspässe', 'note' => '201'],
             ['key' => 'Wuestenpfad', 'label' => 'Wüstenpfade', 'note' => '35'],
             ['key' => 'Flussweg', 'label' => 'Flusswege', 'note' => '1.103'],
+            // „Bach" ist keine gespeicherte Wegart, sondern ein Flussweg mit Häkchen
+            // (properties.is_bach) -- der Export gruppiert ihn trotzdem eigen, weil er
+            // schmaler gezeichnet wird. Ohne dieses Kästchen wäre er die einzige Art
+            // im Abzug, die sich nicht abwählen lässt.
+            ['key' => 'Bach', 'label' => 'Bäche', 'note' => 'Flusswege mit Häkchen „Bach“'],
             ['key' => 'Seeweg', 'label' => 'Seewege', 'note' => '1.286'],
         ],
     ],

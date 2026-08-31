@@ -25,6 +25,10 @@ const SVGX_COLOR_PRESETS = {
 	"landschaften/vegetation/wald": "#589a64",
 	"landschaften/topographie/gebirge": "#acaea2",
 	"wege/Flussweg": "#4c89c6",
+	// Der Bach ist ein Flussweg mit Häkchen (Owner 30.08.2026) und bekommt darum die
+	// Flussfarbe -- schmaler gezeichnet wird er, nicht anders gefärbt. Ohne diese Zeile
+	// fiele er auf seinen Kartenton zurück und wäre der einzige helle Strich im Gewässernetz.
+	"wege/Bach": "#4c89c6",
 	"wege/Reichsstrasse": "#f5ffe9",
 	"wege/Strasse": "#f5ffe9",
 	"wege/Weg": "#f5ffe9",

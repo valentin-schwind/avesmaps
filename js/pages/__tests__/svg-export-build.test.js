@@ -164,13 +164,16 @@ const payload = {
 	assert.ok(svg.includes("<title>Gareth</title>"), "<title> trägt den Namen auch hier");
 }
 
-// Die acht Wegefarben sind die ABSCHRIFT aus getPathStyleColors -- Schlüssel und Werte
+// Die Wegefarben sind die ABSCHRIFT aus getPathStyleColors -- Schlüssel und Werte
 // eingefroren, damit ein Vertipper auffällt (die Karte wird dafür nicht angefasst).
+// ⚠️ Es sind die acht Wegarten PLUS „Bach": der ist keine gespeicherte Wegart, sondern ein
+// Flussweg mit Häkchen -- der Export gruppiert aber nach dem, was ein Leser sieht.
 assert.deepStrictEqual(Object.keys(B.SVGX_WAY_COLORS).sort(), B.SVGX_WAY_SUBTYPES.slice().sort(),
-	"die Farbtafel muss genau die acht Wegarten führen");
+	"die Farbtafel muss genau die Wegarten der Artenliste führen");
 assert.deepStrictEqual(B.SVGX_WAY_COLORS, {
 	Reichsstrasse: "#ffffff", Strasse: "#8b8b8b", Weg: "#cec4ae", Pfad: "#9b755a",
-	Gebirgspass: "#a8695c", Wuestenpfad: "#bea470", Flussweg: "#6ec6ff", Seeweg: "#2f7dd3",
+	Gebirgspass: "#a8695c", Wuestenpfad: "#bea470", Flussweg: "#6ec6ff", Bach: "#6ec6ff",
+	Seeweg: "#2f7dd3",
 }, "Wegefarben abweichend von der Abschrift aus map-features.js");
 
 console.log("svg-export-build: ok");

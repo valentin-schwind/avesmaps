@@ -42,10 +42,28 @@ const SVGX_DIALECTS = {
 	INKSCAPE: "inkscape",
 };
 
-// Die acht Wegarten in der Reihenfolge von PATH_SUBTYPE_KEYS (js/config.js).
+// Die acht Wegarten in der Reihenfolge von PATH_SUBTYPE_KEYS (js/config.js), plus „Bach".
 // Hier noch einmal aufgeführt, weil dieser Bauer ohne die Karte laufen können muss.
+// 🔴 „Bach" STEHT IN PATH_SUBTYPE_KEYS AUSDRÜCKLICH NICHT und in keiner Datenbankzeile: er
+// ist ein `Flussweg` mit `properties.is_bach` (Owner 30.08.2026). Diese Liste führt aber
+// die ANZEIGE-Arten -- das, wonach der Export gruppiert und was ein Leser der Datei sieht.
+// ⚠️ Sie ist damit auch die Liste, aus der die Farbtafel des Abzugs entsteht
+// (svgxVorgabeFarben). Wer hier etwas einträgt, braucht drüben einen Farbwert, sonst zeichnet
+// der Export es im Rückfall-Grau.
 const SVGX_WAY_SUBTYPES = ["Reichsstrasse", "Strasse", "Weg", "Pfad",
-	"Gebirgspass", "Wuestenpfad", "Flussweg", "Seeweg"];
+	"Gebirgspass", "Wuestenpfad", "Flussweg", "Bach", "Seeweg"];
+
+// 🔴 DIE ANZEIGE-WEGART EINES FEATURES, nicht die gespeicherte. ABSCHRIFT aus pathIstBach
+// (js/map-features/map-features-path-domain.js) -- bewusst, wie SVGX_WAY_COLORS darunter:
+// dieser Bauer läuft nachts unter Node und darf die Karte nicht laden.
+// ⚠️ Gelesen wird STRIKT `=== true` und nur an einem `Flussweg`, genau wie dort, serverseitig
+// in avesmapsPathIstBach und im Router. Eine großzügigere Lesart machte aus einem Fluss mit
+// krummem Feld einen Bach -- und der Export behauptete etwas, das die Karte nicht zeigt.
+function svgxWaySubtype(feature) {
+	const p = (feature && feature.properties) || {};
+	const art = p.feature_subtype || "Weg";
+	return art === "Flussweg" && p.is_bach === true ? "Bach" : art;
+}
 
 // Die Mittellinienfarbe je Wegart. 🔴 ABSCHRIFT aus getPathStyleColors()
 // (js/map-features/map-features.js) -- bewusst, nicht aus Versehen: die Karte wird für
@@ -60,6 +78,9 @@ const SVGX_WAY_COLORS = {
 	Gebirgspass: "#a8695c",
 	Wuestenpfad: "#bea470",
 	Flussweg: "#6ec6ff",
+	// Ein Bach ist Wasser wie der Fluss -- unterschieden wird er über die BREITE, nicht über
+	// die Farbe. Zwei Blautöne nebeneinander läsen sich als zwei Gewässerarten.
+	Bach: "#6ec6ff",
 	Seeweg: "#2f7dd3",
 };
 
@@ -86,6 +107,7 @@ const SVGX_WAY_WIDTHS = {
 	Wuestenpfad: 0.047,     // 1,5  px
 	Flussweg: 0.094,        // 3    px
 	Seeweg: 0.094,          // 3    px
+	// Bach: siehe SVGX_BACH_FAKTOR unter der Konturtabelle -- er wird GERECHNET.
 };
 
 // Konturbreiten, nach derselben Rechnung aus PATH_OUTLINE_WEIGHTS (js/config.js):
@@ -96,6 +118,22 @@ const SVGX_WAY_OUTLINE_WIDTHS = {
 	Reichsstrasse: 0.203, Strasse: 0.125, Weg: 0.125, Pfad: 0.094,
 	Gebirgspass: 0.094, Wuestenpfad: 0.094, Flussweg: 0.156, Seeweg: 0.156,
 };
+
+// 🔴 EIN BACH IST EIN HALBER FLUSS -- Owner 31.08.2026, wörtlich: „bach is halb so breit wie
+// n fluss". Die Zahl steht in der KARTE (`PATH_WIDTH_SCALE.Bach`, js/config.js: 0,5 ab Zoom 3)
+// und halbiert dort Kontur UND Füllung; aus 5/3 px werden 2,5/1,5.
+// ⭐ Hier wird sie GERECHNET und nicht abgeschrieben: zwei Zahlen für „die Hälfte des Flusses"
+// laufen beim ersten Mal auseinander, an dem jemand die Flussbreite anfasst -- und dann zeigt
+// der Abzug einen anderen Bach als die Karte, ohne dass etwas rot wird.
+// ⚠️ Der Faktor der Karte hängt am Zoom; dieser Export IST die volle Zoomstufe (32.768 px =
+// 1024 × 2⁵, siehe oben), also gilt der Wert von z5. Unter Zoom 3 nimmt die Karte den Bach
+// ganz von der Karte -- das ist eine Frage der Kartenansicht, nicht des Abzugs.
+// 💣 Die Halbierung trifft BEIDE Breiten. Bliebe der Kern bei 3 px und nur die Kontur ginge
+// herunter, wäre vom Saum ein halber Pixel je Seite übrig -- der Bach hätte dann faktisch
+// gar keine Kontur mehr. So bleibt das Verhältnis Mantel:Kern das des Flusses.
+const SVGX_BACH_FAKTOR = 0.5;
+SVGX_WAY_WIDTHS.Bach = SVGX_WAY_WIDTHS.Flussweg * SVGX_BACH_FAKTOR;              // 1,5 px
+SVGX_WAY_OUTLINE_WIDTHS.Bach = SVGX_WAY_OUTLINE_WIDTHS.Flussweg * SVGX_BACH_FAKTOR;  // 2,5 px
 
 // Die Ortsfarbe: der Ton der Kartenmarkierung (--color-marker-waypoint in tokens.css).
 const SVGX_PLACE_COLOR = "#e33b35";
@@ -361,6 +399,7 @@ const SVGX_TYPE_VOCAB = {
 	Gebirgspass: { de: "Gebirgspass", en: "mountain pass" },
 	Wuestenpfad: { de: "Wüstenpfad", en: "desert trail" },
 	Flussweg: { de: "Flussweg", en: "river" },
+	Bach: { de: "Bach", en: "brook" },
 	Seeweg: { de: "Seeweg", en: "sea route" },
 	// Ortsarten
 	metropole: { de: "Metropole", en: "metropolis" },
@@ -842,7 +881,7 @@ function svgxWayLayer(options) {
 	svgxAsFeatures(o.features).forEach((f) => {
 		if (!f || !f.geometry || f.geometry.type !== "LineString") { return; }
 		if (f.properties && f.properties.feature_type === "powerline") { return; }
-		const art = (f.properties && f.properties.feature_subtype) || "Weg";
+		const art = svgxWaySubtype(f);
 		if (!nachArt.has(art)) { nachArt.set(art, []); }
 		nachArt.get(art).push(f);
 	});
@@ -1269,10 +1308,16 @@ function svgxBuildDocument(options) {
 			features: o.mapFeatures, dialect: dialect, seen: seen, wayIds: wayIds,
 			enabled: (o.subgroups || {}).wege, strokeScale: o.strokeScale,
 			colors: o.wayColors, outlines: o.wayOutlines, smooth: o.smooth, tension: o.tension,
-			only: ["Flussweg"], bare: true, semantics: semAn, context: kontext, typen: typenGesehen,
+			// 💣 DER BACH GEHÖRT HIER MIT HINEIN. Er ist ein Flussweg mit Häkchen -- fiele er
+			// aus dieser Liste, wäre er die einzige Gewässerlinie, die ÜBER dem See läuft.
+			only: ["Flussweg", "Bach"], bare: true, semantics: semAn, context: kontext, typen: typenGesehen,
 		});
 		flussTeile = fl.parts;
-		if (fl.count) { detail.push({ layer: "Landschaften", group: "Flusswege", count: fl.count }); }
+		// Jede Art mit ihrer eigenen Zahl -- eine Summe „Flusswege" verschwiege die Bäche.
+		Object.entries(fl.groups || {}).forEach(([art, anzahl]) => {
+			if (!anzahl) { return; }
+			detail.push({ layer: "Landschaften", group: art === "Bach" ? "Bäche" : "Flusswege", count: anzahl });
+		});
 	}
 
 	// Reihenfolge = Zeichenreihenfolge. In SVG liegt das Erste unten.
@@ -1334,8 +1379,10 @@ function svgxBuildDocument(options) {
 	if (an.wege !== false) {
 		// Liegen die Flüsse unten, dürfen sie hier NICHT noch einmal kommen -- sonst
 		// stünde jeder Fluss zweimal in der Datei, einmal unter und einmal über dem See.
+		// 💣 Und der Bach ist einer von ihnen: die beiden Listen -- hier und `only` oben --
+		// müssen dieselben Arten nennen, sonst fehlt er entweder oder steht doppelt.
 		const wegeAus = fluesseUnten
-			? Object.assign({}, (o.subgroups || {}).wege, { Flussweg: false })
+			? Object.assign({}, (o.subgroups || {}).wege, { Flussweg: false, Bach: false })
 			: (o.subgroups || {}).wege;
 		nimm("Wege", svgxWayLayer({ semantics: semAn, context: kontext, typen: typenGesehen, features: o.mapFeatures, dialect: dialect, seen: seen,
 			wayIds: wayIds, enabled: wegeAus, strokeScale: o.strokeScale,
@@ -1473,6 +1520,7 @@ if (typeof module !== "undefined" && module.exports) {
 		svgxSmoothPathData: svgxSmoothPathData,
 		SVGX_CATMULL_TENSION: SVGX_CATMULL_TENSION,
 		SVGX_WAY_OUTLINE_WIDTHS: SVGX_WAY_OUTLINE_WIDTHS,
+		SVGX_BACH_FAKTOR: SVGX_BACH_FAKTOR,
 		svgxPolygonData: svgxPolygonData,
 		svgxSmoothRingData: svgxSmoothRingData,
 		svgxRegistrationMarks: svgxRegistrationMarks,
@@ -1488,6 +1536,7 @@ if (typeof module !== "undefined" && module.exports) {
 		svgxProps: svgxProps,
 		svgxNameOf: svgxNameOf,
 		svgxSubgroupEnabled: svgxSubgroupEnabled,
+		svgxWaySubtype: svgxWaySubtype,
 		svgxWayLayer: svgxWayLayer,
 		svgxPowerlineLayer: svgxPowerlineLayer,
 		svgxAreaLayer: svgxAreaLayer,

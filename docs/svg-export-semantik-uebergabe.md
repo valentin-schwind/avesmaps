@@ -196,9 +196,17 @@ der Maßstab ist derselbe, nur ohne Übersteuerung.
 ### Wasser
 
 Kein eigenes `kind` — Wasser sind Flächen der Ebene `topographie` mit
-`avm:type` ∈ `meer`, `see`, `kueste`, `flussdelta`, plus die Linien `Flussweg` und
+`avm:type` ∈ `meer`, `see`, `kueste`, `flussdelta`, plus die Linien `Flussweg`, `Bach` und
 `Seeweg` unter `kind="weg"`. 🔴 **Die Flüsse liegen UNTER den Wasserflächen** (eigene
-Zeichenreihenfolge, siehe unten), damit ein Fluss im See verschwindet statt ihn zu queren.
+Zeichenreihenfolge, siehe unten), damit ein Fluss im See verschwindet statt ihn zu queren;
+**der Bach liegt bei ihnen.**
+
+🔴 **`Bach` ist eine ANZEIGE-Art, keine gespeicherte** (seit 31.08.2026): in den Daten ist er
+ein `Flussweg` mit `properties.is_bach`. Wer die Karte über die API abfragt, findet ihn dort
+als Flussweg — in dieser Datei trägt er `avm:type="Bach"`, weil er **halb so breit** gezeichnet
+wird wie ein Fluss: Kern **0,047** (1,5 px) statt 0,094, Mantel **0,078** (2,5 px) statt 0,156.
+Dieselbe Halbierung wie auf der Karte (`PATH_WIDTH_SCALE.Bach`). ⚠️ Ein Verbraucher, der „alle
+Flüsse" sucht, muss beide Vokabeln nehmen.
 
 ### Klimabänder
 
