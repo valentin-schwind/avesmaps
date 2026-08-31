@@ -334,14 +334,31 @@ Antwort lautet: es braucht wieder eine Kampagne.
 
 ---
 
-## 11. Offene Punkte für den Owner
+## 11. Owner-Entscheide (2026-08-31, alle drei getroffen)
 
-- 🔧 **Bericht:** Soll die Routine täglich etwas melden, oder nur bei einem tatsächlichen
-  Schritt (wie `daily-fixes`) bzw. gar nicht (wie `handbuch-pflege`)? Vorschlag: **still**,
-  außer bei einem Schritt, einem verworfenen Lauf mit interessantem Grund, oder einem
-  abgebrochenen Deploy.
-- 🔧 **`daily-fixes` nachziehen?** Die Routine arbeitet im **geteilten Checkout** ohne den
-  Worktree-Riegel und ohne den Deploy-Riegel aus §6.2. Für ein, zwei kleine Fixes geht das
-  meistens gut — aber die 17-%-Messung gilt dort genauso. Eigene kleine Aufgabe.
-- 🔧 **Erste Ziele:** Soll die Routine frei nach Rangliste wählen, oder die ersten Tage
-  bewusst an einer harmlosen Datei anfangen, damit du den Ablauf einmal siehst?
+1. 🔴 **Bericht: still, außer bei einem tatsächlichen Schritt.** Kein Discord-Post — ein
+   Innenumbau ist keine Neuigkeit für Editoren; die Rückmeldung geht an den Owner.
+   **Ausnahme:** der allererste Lauf meldet in jedem Fall, damit der Owner den Ablauf einmal
+   sieht (`runs: 0` im Merkzettel).
+2. 🔴 **`daily-fixes` wird nachgezogen** — Wegwerf-Worktree statt geteiltem Checkout, plus
+   der Deploy-Riegel aus §6.2. Erledigt am 2026-08-31.
+3. 🔴 **Erste Ziele: frei nach Rangliste.** Kein künstlich harmloser Einstieg — die Riegel
+   (Abkühlfrist, Ausschlussliste, Fingerabdruck, Testtor, „im Zweifel nichts") sind der
+   Schutz, nicht die Zielauswahl.
+
+## 12. Gebaut
+
+- Routine `avesmaps-refactoring`, täglich 08:00 Ortszeit
+  (`C:\Users\mail\.claude\scheduled-tasks\avesmaps-refactoring\`), samt `state.md` und
+  `liste.md`.
+- `avesmaps-daily-fixes` um Worktree- und Deploy-Riegel ergänzt.
+
+⭐ **Die Testtor-Gegenprobe ist selbstprüfend gebaut**, nicht als feste Zahl: die Routine
+zählt ihr `-print0`-Muster gegen die Form des Workflows selbst und bricht bei Abweichung ab.
+Eine hart notierte Zahl veraltet — am 2026-08-31 waren es **397 JS / 341 PHP**, während in
+AGENTS.md noch 312/310 vom 26.08. stehen. Verifiziert: beide Formen liefern denselben Wert,
+und die Form **ohne** äußere Klammer liefert 22 statt 397 — die dokumentierte Falle ist real.
+
+🔧 **Offen:** Der erste echte Lauf hat noch nicht stattgefunden. Bis dahin ist ungeprüft, ob
+die Rangliste im Worktree genauso rechnet wie im Hauptbaum und ob der `gh`-Riegel unter der
+Routine (nicht in einer Owner-Sitzung) dieselben Rechte hat.
