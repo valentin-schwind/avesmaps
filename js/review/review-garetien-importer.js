@@ -83,11 +83,73 @@
 		return avesmapsGaretienDarfAdminHandlung(sitzung);
 	}
 
+	// ---- Wie viele Zeilen die Liste hoechstens zeigt ---------------------------------------------
+	//
+	// 🔴 Owner 31.08.2026: „die 8000 objekte sind auf manchen pcs ein problem ... ein dropdown mit
+	// 1000, 2000, 4000 und max ... bei dem die leute die maximale anzahl items selber einstellen
+	// können". Der Deckel reist als `anzahl` im Listenrumpf mit; der Server klemmt ihn ohnehin auf
+	// AVESMAPS_GARETIEN_LISTE_MAX (10000) herunter.
+	//
+	// 🔴 DIE VORGABE IST DIE KLEINSTE STUFE, und das ist eine Entscheidung: die Meldung lautete
+	// „auf manchen pcs ein problem", und ein neuer Benutzer soll nicht erst hineinlaufen, um den
+	// Regler zu finden. ⚠️ Verborgen wird dabei nichts — die Kachel nennt IMMER beide Zahlen
+	// („1000 von 8213"), und der Reiterkopf trug die Gesamtzahl schon vorher.
+	// ⭐ Er UEBERLEBT das Neuladen (localStorage): auf einem langsamen Rechner waere eine
+	// Einstellung, die man nach jedem Laden neu treffen muss, keine.
+	// ⚠️ `null` heisst „alle" -- dann reist gar kein `anzahl` mit, und es gilt der Server-Deckel.
+	// Eine Zahl dafuer zu erfinden hiesse, die Gesamtzahl im Browser zu kennen; sie kommt aber vom
+	// Server und aendert sich mit jedem Lauf.
+	const GARETIEN_ZEILEN_STUFEN = [1000, 2000, 4000, null];
+	const GARETIEN_ZEILEN_SCHLUESSEL = "avesmaps.garetien.zeilen";
+
+	// REIN: die gespeicherte Stufe, oder die Vorgabe. Faellt bei jedem Zweifel auf die KLEINSTE
+	// Stufe zurueck -- ein kaputter Wert darf nie „alle" bedeuten, sonst haengt genau der Rechner,
+	// dem die Einstellung helfen soll.
+	function garetienZeilenGrenzeLesen(speicher) {
+		try {
+			const roh = speicher ? speicher.getItem(GARETIEN_ZEILEN_SCHLUESSEL) : null;
+			if (roh === "alle") { return null; }
+			const zahl = parseInt(String(roh), 10);
+			if (GARETIEN_ZEILEN_STUFEN.indexOf(zahl) !== -1) { return zahl; }
+		} catch (fehler) {
+			// Kein Speicher (privates Fenster, gesperrte Seitendaten) -- die Vorgabe gilt.
+		}
+
+		return GARETIEN_ZEILEN_STUFEN[0];
+	}
+
+	function garetienZeilenGrenzeMerken(speicher, grenze) {
+		try {
+			if (speicher) {
+				speicher.setItem(GARETIEN_ZEILEN_SCHLUESSEL, grenze === null ? "alle" : String(grenze));
+			}
+		} catch (fehler) {
+			// Volles Kontingent oder gesperrt -- die Einstellung gilt fuer diesen Besuch trotzdem.
+		}
+	}
+
+	// REIN: Beschriftung der Kachel. 🔴 Sie nennt IMMER beide Zahlen -- „1000 von 8213". Ohne die
+	// zweite saehe ein Editor eine Liste, die vollstaendig aussieht und es nicht ist; genau das
+	// waere die Falschaussage, gegen die dieses Fenster gebaut ist.
+	function garetienZeilenKachelText(grenze, gesamt) {
+		const alle = Number(gesamt) || 0;
+		if (grenze === null) { return alle > 0 ? "alle " + alle : "alle"; }
+		if (alle > 0 && grenze >= alle) { return "alle " + alle; }
+
+		return alle > 0 ? grenze + " von " + alle : String(grenze);
+	}
+
 	// ---- Zustand ---------------------------------------------------------------------------------
 	//
 	// Die volle Form ist die Schnittstelle für Aufgabe 11-16 (avesmapsGaretienFensterZustand()).
 	const zustand = {
 		offen: false,
+		// Wie viele Zeilen die Liste hoechstens zeigt -- `null` heisst „alle" (Owner 31.08.2026).
+		// ⚠️ Beim Laden des Moduls gelesen, nicht beim Oeffnen: der Wert entscheidet ueber den
+		// ERSTEN Listenabruf, und der laeuft schon beim Aufmachen des Fensters.
+		zeilenGrenze: garetienZeilenGrenzeLesen(
+			typeof window !== "undefined" ? window.localStorage : null
+		),
 		planRunId: null,
 		importRunId: null,
 		objekte: [],
@@ -1260,6 +1322,12 @@
 			nur_mehrteilig: filter.nur_mehrteilig === true,
 			stand: stand,
 		};
+		// 🔴 NUR WENN GEDECKELT. Bei „alle" reist gar kein `anzahl` mit, und es gilt der
+		// Server-Deckel (AVESMAPS_GARETIEN_LISTE_MAX) -- eine im Browser erfundene Zahl waere eine
+		// zweite Wahrheit ueber die Obergrenze.
+		if (zustand.zeilenGrenze !== null) {
+			rumpf.anzahl = zustand.zeilenGrenze;
+		}
 		return avesmapsGaretienRufe(GARETIEN_ENDPUNKT, rumpf).then(function (antwort) {
 			zustand.objekte = antwort.objekte || [];
 			zustand.letzteAntwort = antwort;
@@ -1710,6 +1778,20 @@
 	// `data-avm-eigene-beschriftung`: ohne dieses Attribut überschreibt dessen `rebuild()` beim
 	// ERSTEN Aufruf `.t1`/`.t2` mit einer einzeiligen Filterbeschriftung -- die zweizeilige
 	// Kachelform wäre lautlos weg. Die Alternative wäre eine zweite Menü-Rezeptur gewesen.
+	// REIN: die Optionen der Zeilen-Kachel. 🔴 „alle" traegt die ECHTE Gesamtzahl im Text, nicht
+	// eine abgeschriebene 8213 -- die Zahl gehoert dem Lauf und aendert sich mit jedem Rechnen.
+	function garetienZeilenOptionenMarkup(grenze, gesamt) {
+		return GARETIEN_ZEILEN_STUFEN.map(function (stufe) {
+			const wert = stufe === null ? "alle" : String(stufe);
+			const text = stufe === null
+				? (Number(gesamt) > 0 ? "alle (" + Number(gesamt) + ")" : "alle")
+				: String(stufe);
+
+			return '<option value="' + wert + '"' + (stufe === grenze ? " selected" : "") + ">"
+				+ avesmapsGaretienEscape(text) + "</option>";
+		}).join("");
+	}
+
 	function garetienMenuebandMarkup() {
 		return '<button class="avm-tile" type="button" id="garetien-run-tile">'
 			+ '<span class="t1">Holen &amp; Rechnen</span>'
@@ -1724,7 +1806,37 @@
 			+ '<div class="type-filter__menu" id="garetien-ebenen-menu" hidden>'
 			+ '<div id="garetien-ebenen-optionen"></div>'
 			+ "</div>"
-			+ "</div>";
+			+ "</div>"
+			// 🔴 DIE DRITTE KACHEL, und sie ist die EINZIGE des Bandes OHNE Admin-Riegel (Owner
+			// 31.08.2026: „einen dropdown button für alle verfügbar"). Sie holt nichts von aussen
+			// und rechnet nichts neu -- sie sagt nur, wie viel dieser Browser zeichnen soll.
+			// 💣 EIN NATIVES `<select>`, kein drittes Klappmenue. Das Band traegt schon zwei
+			// Rezepturen (Kachel-Knopf und geteilter Trichter); eine dritte fuer eine
+			// EINFACHauswahl waere Zierrat -- und ein `<select>` bringt Tastatur, Vorlesehilfe und
+			// das Verhalten des Systems gratis mit. ⚠️ Es steht in einem `<label>`, nicht in einem
+			// `<button>`: ein Auswahlfeld in einem Knopf ist ungueltiges Markup, und der Klick
+			// darauf oeffnete zwei Dinge zugleich.
+			+ '<label class="avm-tile gi-tile--wahl" for="garetien-zeilen">'
+			+ '<span class="t1">Angezeigte Zeilen</span>'
+			+ '<select class="gi-zeilen" id="garetien-zeilen"></select>'
+			+ '<span class="t2" id="garetien-zeilen-state"></span>'
+			+ "</label>";
+	}
+
+	// Die DOM-Haelfte -- dieselbe Aufteilung wie bei den zwei Nachbarkacheln: Beschriftung und
+	// Zustand werden an EINER Stelle gesetzt, damit sie nie auseinanderlaufen.
+	function garetienZeilenKachelAktualisieren() {
+		if (!hasDocument) { return; }
+		const gesamt = Number((zustand.letzteAntwort && zustand.letzteAntwort.gesamt) || 0);
+		const feld = document.getElementById("garetien-zeilen");
+		if (feld) {
+			const markup = garetienZeilenOptionenMarkup(zustand.zeilenGrenze, gesamt);
+			// ⚠️ Nur neu bauen, wenn sich wirklich etwas geaendert hat: ein `innerHTML` auf ein
+			// offenes `<select>` schliesst es unter dem Finger.
+			if (feld.innerHTML !== markup) { feld.innerHTML = markup; }
+		}
+		const zeile = document.getElementById("garetien-zeilen-state");
+		if (zeile) { zeile.textContent = garetienZeilenKachelText(zustand.zeilenGrenze, gesamt); }
 	}
 
 	function garetienLaufKachelAktualisieren() {
@@ -1760,6 +1872,7 @@
 	function garetienMenuebandKachelnAktualisieren() {
 		garetienEbenenKachelAktualisieren();
 		garetienLaufKachelAktualisieren();
+		garetienZeilenKachelAktualisieren();
 	}
 
 	function garetienEbenenKachelAktualisieren() {
@@ -5224,6 +5337,26 @@
 				garetienAnzeigeNeuZeichnen();
 			});
 		}
+		// Owner 31.08.2026: die Zeilen-Kachel. 🔴 Sie holt die Liste NEU -- der Deckel ist ein
+		// Server-Parameter, kein Zuschnitt im Browser; ihn hier zu beschneiden hiesse, eine zweite
+		// Wahrheit ueber „was steht in der Liste" zu fuehren.
+		// ⚠️ Der Zuhoerer haengt am FENSTER-Bund, nicht am Feld: das Menueband wird neu gebaut
+		// (garetienMenuebandSicherstellen), und ein Zuhoerer am Feld waere danach fort. Delegiert
+		// ueber `change`, das in modernen Browsern blubbert.
+		const bandEl = hasDocument ? document.getElementById("garetien-importer") : null;
+		if (bandEl) {
+			bandEl.addEventListener("change", function (ereignis) {
+				const ziel = ereignis && ereignis.target;
+				if (!ziel || ziel.id !== "garetien-zeilen") { return; }
+				const roh = String(ziel.value || "");
+				zustand.zeilenGrenze = roh === "alle" ? null : (parseInt(roh, 10) || null);
+				garetienZeilenGrenzeMerken(
+					typeof window !== "undefined" ? window.localStorage : null,
+					zustand.zeilenGrenze
+				);
+				avesmapsGaretienListeHolen();
+			});
+		}
 		const markZeigenBtn = hasDocument ? document.getElementById("garetien-mark-show") : null;
 		if (markZeigenBtn) {
 			markZeigenBtn.addEventListener("click", function () {
@@ -5538,6 +5671,11 @@
 			garetienKeineMarkierenZustand,
 			garetienAlleZentrierenZustand,
 			garetienKeySelektor,
+			GARETIEN_ZEILEN_STUFEN,
+			garetienZeilenGrenzeLesen,
+			garetienZeilenGrenzeMerken,
+			garetienZeilenKachelText,
+			garetienZeilenOptionenMarkup,
 			garetienAuswahlMarkieren,
 			garetienAlleZentrierenKnopfSetzen,
 			garetienKeineMarkierenKnopfSetzen,

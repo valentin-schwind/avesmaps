@@ -45,17 +45,28 @@ const EBENEN = [
 ];
 gleich(EBENEN.length, 18, "die Vorlage muss die 18 Ebenen des Endpunkts abbilden");
 
-// ---- 1. Die zwei Kacheln stehen im Menueband, in der Hausform -----------------------------------
+// ---- 1. Die DREI Kacheln stehen im Menueband, in der Hausform ----------------------------------
+//
+// 🔴 DREI SEIT 31.08.2026, nicht mehr zwei (Mockup §1). Der Owner: „die 8000 objekte sind auf
+// manchen pcs ein problem. kannst du oben einen dropdown button für alle verfügbar machen".
+// ⚠️ Die dritte ist die EINZIGE ohne Admin-Riegel -- sie holt nichts von aussen und rechnet nichts
+// neu, sie sagt nur, wie viel dieser Browser zeichnen soll.
 
 wahr(typeof mod.garetienMenuebandMarkup === "function", "garetienMenuebandMarkup fehlt im Export");
 const band = mod.garetienMenuebandMarkup();
 
-gleich((band.match(/class="avm-tile[^"]*"/g) || []).length, 2,
-	"das Menueband traegt GENAU zwei Kacheln (Mockup §1)");
+gleich((band.match(/class="avm-tile[^"]*"/g) || []).length, 3,
+	"das Menueband traegt GENAU drei Kacheln");
 wahr(band.includes('<span class="t1">Holen &amp; Rechnen</span>'),
 	"die erste Kachel heisst wortgleich zum Mockup „Holen & Rechnen\"");
 wahr(band.includes('<span class="t1">Ebenen</span>'), "die zweite Kachel heisst „Ebenen\"");
-gleich((band.match(/class="t2"/g) || []).length, 2,
+wahr(band.includes('<span class="t1">Angezeigte Zeilen</span>'), "die dritte „Angezeigte Zeilen\"");
+// 💣 Sie ist ein `<label>` mit einem nativen `<select>`, KEIN dritter Klappmechanismus: das Band
+// traegt schon zwei Rezepturen (Kachel-Knopf und geteilter Trichter), und ein Auswahlfeld in einem
+// `<button>` waere ungueltiges Markup -- der Klick oeffnete zwei Dinge zugleich.
+wahr(/<label class="avm-tile gi-tile--wahl"/.test(band), "die dritte Kachel ist ein <label>");
+wahr(/<select class="gi-zeilen" id="garetien-zeilen">/.test(band), "und traegt ein natives <select>");
+gleich((band.match(/class="t2"/g) || []).length, 3,
 	"BEIDE Kacheln tragen ihre zweite Zeile -- der Zustand steht IN der Kachel, nicht daneben");
 wahr(band.includes('id="garetien-run-state"') && band.includes('id="garetien-ebenen-state"'),
 	"die zwei Zustandszeilen brauchen je eine Kennung, damit sie sich einzeln schreiben lassen");
