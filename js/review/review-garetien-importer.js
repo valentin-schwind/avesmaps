@@ -542,6 +542,22 @@
 		if (typeof window.avesmapsCollapseRoutePlanner === "function") {
 			window.avesmapsCollapseRoutePlanner();
 		}
+		// 🔴 DER RECHTE RAND HAT ZWEI BEWOHNER UND EINEN KOORDINATOR (Owner-Meldung 31.08.2026:
+		// „das editorpanel geht noch nicht nach rechts weg"). `avesmapsInfopanelCollapse` allein
+		// traf nur die Infobox -- das EDITORPANEL (#review-panel) ist ein eigenes Element mit
+		// eigenem Zustand, und beide teilen sich den rechten Slot ueber `avesmapsEdgePanels`
+		// (js/config.js). Wer nur einen von beiden einklappt, laesst den anderen stehen.
+		// ⭐ `deactivate` ist dafuer gebaut: es wirkt nur auf den, der GERADE aktiv ist, und beide
+		// Panels haengen mit ihrem eigenen `onChange` daran. Zwei Aufrufe, weil der Koordinator
+		// keinen kennt, der „egal welcher" bedeutet -- der zweite ist ein Leerlauf.
+		// ⚠️ Der Koordinator wird nur im BEARBEITEN-Modus bestueckt (map-features-infopanel.js:211).
+		// Deshalb bleibt `avesmapsInfopanelCollapse` daneben stehen: ausserhalb des Editors ist es
+		// der einzige Weg, die Infobox wegzubekommen. Zwei Wege, jeder fuer seinen Fall -- keiner
+		// davon ist der Rueckfall des anderen.
+		if (window.avesmapsEdgePanels && typeof window.avesmapsEdgePanels.deactivate === "function") {
+			window.avesmapsEdgePanels.deactivate("editor");
+			window.avesmapsEdgePanels.deactivate("info");
+		}
 		if (typeof window.avesmapsInfopanelCollapse === "function") {
 			window.avesmapsInfopanelCollapse();
 		}

@@ -82,16 +82,27 @@ wahr(avesmapsGaretienDarfOeffnen(editor) !== avesmapsGaretienDarfAdminHandlung(e
 // Zustand darueber, wo die Panels stehen, liefe mit der Lasche und ihrer Pfeilrichtung auseinander.
 let planerEingeklappt = 0;
 let infoEingeklappt = 0;
+const deaktiviert = [];
 global.window.avesmapsCollapseRoutePlanner = () => { planerEingeklappt++; };
 global.window.avesmapsInfopanelCollapse = () => { infoEingeklappt++; };
+global.window.avesmapsEdgePanels = { deactivate: (w) => { deaktiviert.push(w); } };
 garetienPanelsBeiseite();
 gleich(planerEingeklappt, 1, "der Routenplaner klappt nach links ein");
-gleich(infoEingeklappt, 1, "und das Info-/Editorpanel nach rechts");
+gleich(infoEingeklappt, 1, "die Infobox klappt ein");
+
+// 💣 DER RECHTE RAND HAT ZWEI BEWOHNER. Beim ersten Bau wurde nur `avesmapsInfopanelCollapse`
+// gerufen -- das traf die Infobox, aber NICHT das Editorpanel (#review-panel), und der Owner
+// meldete: "das editorpanel geht noch nicht nach rechts weg". Beide teilen sich den Slot ueber
+// `avesmapsEdgePanels`; `deactivate` wirkt nur auf den gerade aktiven, deshalb zwei Aufrufe.
+assert.deepStrictEqual(deaktiviert.slice().sort(), ["editor", "info"],
+	"BEIDE Bewohner des rechten Randes werden abgemeldet, nicht nur die Infobox");
+checks++;
 
 // ⚠️ Auf einer Seite OHNE Karte gibt es weder Planer noch Infopanel -- ein fehlender Aufruf darf
 // das Fenster nicht aufhalten.
 delete global.window.avesmapsCollapseRoutePlanner;
 delete global.window.avesmapsInfopanelCollapse;
+delete global.window.avesmapsEdgePanels;
 assert.doesNotThrow(() => garetienPanelsBeiseite(),
 	"ohne die beiden Haus-Funktionen passiert nichts, und es wirft nichts");
 checks++;
@@ -110,8 +121,16 @@ wahr(/function avesmapsGaretienFensterOeffnen\(\)[\s\S]{0,400}garetienPanelsBeis
 // =================================================================================================
 const css = lies("css", "components", "garetien-importer.css");
 const huelle = css.slice(css.indexOf(".gi-win {"), css.indexOf(".gi-win[hidden]"));
-wahr(/width: min\(745px,/.test(huelle), "das Fenster ist 745px breit (Owner-Vorgabe)");
-wahr(!/min\(800px/.test(css), "und die alten 800px stehen nirgends mehr");
+wahr(/width: min\(835px,/.test(huelle), "das Fenster ist 835px breit (Owner-Vorgabe)");
+wahr(/height: min\(900px,/.test(huelle), "und 900px hoch");
+// ⚠️ Die Groesse ist an EINEM Tag dreimal gewandert (800 -> 745 -> 835 breit, 700 -> 900 hoch),
+// weil der Owner sie am gebauten Fenster abliest und nicht am Entwurf. Deshalb wird hier
+// festgehalten, dass keine alte Zahl irgendwo stehenblieb -- die Breite steht an ZWEI Stellen
+// (offener und eingeklappter Planer) und muesste sonst nachgezogen werden.
+wahr(!/min\(800px/.test(css) && !/min\(745px/.test(css) && !/min\(700px/.test(css),
+	"und keine der alten Zahlen steht mehr irgendwo");
+gleich((css.match(/min\(835px/g) || []).length, 2,
+	"die Breite steht an BEIDEN Stellen -- offener und eingeklappter Planer");
 
 // 🔴 Der freigewordene Platz wird auch BENUTZT -- sonst bliebe der Importer 380px vom Rand stehen
 // und liesse eine leere Spalte, wo eben noch der Planer war.

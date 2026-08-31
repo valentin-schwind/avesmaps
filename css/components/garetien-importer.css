@@ -32,15 +32,18 @@
 	/* ⚠️ Die Breite muss mit dem vollen Versatz (Planer + Lasche + Lücke) mitrechnen, sonst ragt
 	   das Fenster auf schmalen Schirmen rechts über den Viewport hinaus (bei 1400px bleiben 984px
 	   übrig -> 800px zieht; bei 1000px nur noch 584px -- schmaler, aber heil). */
-	/* 🔴 745px (Owner 31.08.2026, beim Freischalten fuer die Editoren: „Die Breite des dialog
-	   fensters soll 745 px sein"). Vorher 800. */
-	width: min(745px, calc(100vw - var(--avesmaps-planner-width) - var(--avesmaps-tab-w) - 2 * var(--space-16)));
+	/* 🔴 835px (Owner 31.08.2026). Die Zahl ist an diesem Tag zweimal gewandert -- 800 -> 745 -> 835
+	   -- weil der Owner sie am gebauten Fenster abliest, nicht am Entwurf. Sie steht deshalb an
+	   ZWEI Stellen hier (offener und eingeklappter Planer) und nirgends sonst. */
+	width: min(835px, calc(100vw - var(--avesmaps-planner-width) - var(--avesmaps-tab-w) - 2 * var(--space-16)));
 	/* 💣 FESTE Höhe, nicht bloß max-height: der Kasten verteilt seinen Platz auf seine Spalten,
 	   und eine Verteilung braucht eine Bezugsgröße. Mit nur max-height fiel die Liste beim ersten
 	   Wurf auf NULL zusammen — gemessen beim Zeichnen des Mockups, nicht vermutet.
 	   ⚠️ Kleiner als --avm-editor-h: dieses Fenster muss NEBEN der Karte bestehen, nicht statt
 	   ihrer. */
-	height: min(700px, calc(100vh - 2 * var(--space-16)));
+	/* 🔴 900px (Owner 31.08.2026). Vorher 700. Beide Werte sind ein STARTWERT -- der Zug an der
+	   Ecke (`resize: both`) schreibt sie als Inline-Stil und ueberstimmt sie. */
+	height: min(900px, calc(100vh - 2 * var(--space-16)));
 
 	/* 🔴 ZIEHBAR (Owner 29.08.2026). Nativ, nicht selbstgebaut: das Haus macht es an sechs
 	   Stellen genauso (`resize: vertical` an Textfeldern in editor-page.css, legal-dialog.css,
@@ -97,7 +100,7 @@
    gewollt: er weicht dem Planer, nicht umgekehrt. */
 html.avesmaps-planner-collapsed .gi-win {
 	left: calc(var(--avesmaps-tab-w) + var(--space-16));
-	width: min(745px, calc(100vw - var(--avesmaps-tab-w) - 2 * var(--space-16)));
+	width: min(835px, calc(100vw - var(--avesmaps-tab-w) - 2 * var(--space-16)));
 }
 
 .gi-win[hidden] { display: none; }
