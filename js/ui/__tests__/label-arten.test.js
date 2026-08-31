@@ -1,7 +1,7 @@
 // Die deutschen Namen der Label-Arten stehen an EINER Stelle (js/ui/label-arten.js) -- und diese
 // Stelle ist Zeichen fuer Zeichen das Auswahlfeld, aus dem ein Editor die Art waehlt.
 //
-// Drei Zusicherungen, und die dritte ist die, die am 30.08.2026 gefehlt hat:
+// Vier Zusicherungen, und die letzten beiden sind die, die am 30.08.2026 gefehlt haben:
 //   1. Tabelle == #label-edit-type in index.html, in BEIDE Richtungen. Eine neue Art im
 //      Auswahlfeld ohne Eintrag hier (oder umgekehrt) faellt hier auf, nicht erst in der Suche.
 //   2. getSpotlightLabelTypeLabel benutzt die geteilte Tabelle WIRKLICH -- zur Laufzeit geprueft,
@@ -13,6 +13,9 @@
 //      die Speicher-Erlaubnis (avesmapsReadLabelSubtype), aber nicht ins Auswahlfeld -- und die
 //      zwei Zusicherungen oben blieben gruen, weil sie Tabelle und Markup nur GEGENEINANDER halten.
 //      Zwei deckungsgleiche Abschriften, denen dieselbe Art fehlt, sind deckungsgleich.
+//   4. Jede Art hat eine englische Zeile ("spotlight.labelType.<art>", js/app/i18n-en.js), und
+//      der Namensraum traegt nichts anderes. 💣 tr() faellt auf das DEUTSCHE Wort zurueck --
+//      eine fehlende Zeile sieht unter ?lang=en aus wie eine Entscheidung, nicht wie ein Loch.
 const assert = require("node:assert");
 const fs = require("node:fs");
 const path = require("node:path");
@@ -134,5 +137,64 @@ for (const art of gesaeteArten) {
 }
 
 assert.strictEqual(avesmapsLabelArtName("urwald"), "Urwald", "der gemeldete Fall");
+
+// ---- 4. Und jede Art hat eine englische Fassung -----------------------------------------------
+// 💣 EINE FEHLENDE ZEILE IST LAUTLOS. Beide Leser bauen den Schluessel aus dem Subtyp zusammen und
+// geben das deutsche Wort als Rueckfall mit -- `tr("spotlight.labelType." + art, ...)` in
+// js/ui/spotlight-search.js und js/map-features/map-features-labels.js. Fehlt die Zeile, steht unter
+// ?lang=en das DEUTSCHE Wort da: kein Fehler, keine Meldung, und von einer bewussten Entscheidung
+// nicht zu unterscheiden. `urwald` waere am 30.08.2026 die erste solche Luecke geworden.
+//
+// 🔴 GELADEN, nicht per Muster gelesen: i18n-en.js ist ein Objektliteral (window.AVESMAPS_I18N_EN),
+// und der Parser wirft die Kommentare von selbst weg. Ein Muster ueber den Quelltext traefe die
+// Beispiele in den Kommentaren mit -- dieselbe Falle, die Abschnitt 3 von Hand entschaerfen muss.
+//
+// ⚠️ Ein Wort, das auf Englisch genauso heisst, bekommt TROTZDEM seine Zeile ("Region", "Steppe",
+// "Tundra", "Wadi" -- gemessen 31.08.2026). Die Zeile sagt "nachgesehen, es ist dasselbe Wort"; ihr
+// Fehlen saehe im Browser identisch aus und waere doch nur ein Versehen.
+const i18nKontext = { window: {} };
+vm.createContext(i18nKontext);
+vm.runInContext(fs.readFileSync(path.join(REPO, "js", "app", "i18n-en.js"), "utf8"), i18nKontext);
+const ENGLISCH = i18nKontext.window.AVESMAPS_I18N_EN;
+assert.ok(ENGLISCH && typeof ENGLISCH === "object",
+	"js/app/i18n-en.js muss window.AVESMAPS_I18N_EN setzen");
+assert.ok(Object.keys(ENGLISCH).length >= 500,
+	"die englische Tafel muss wirklich geladen worden sein, gefunden: " + Object.keys(ENGLISCH).length);
+
+// 🔴 BLEIBT_DEUTSCH startet LEER, und das ist kein Platzhalter, den man beim ersten Widerstand
+// fuellt. Hier hinein gehoert allein eine Art, deren Name DOMAENENINHALT ist (AGENTS.md §2:
+// aventurische Begriffe werden nie uebersetzt) -- mit ihrem Grund in derselben Zeile. "Heisst auf
+// Englisch genauso" ist KEIN Grund; dafuer steht der Absatz darueber.
+const BLEIBT_DEUTSCH = new Map([
+	// ["<art>", "<Grund, warum dieses Wort auch auf Englisch deutsch bleibt>"],
+]);
+
+const I18N_PRAEFIX = "spotlight.labelType.";
+for (const art of Object.keys(AVESMAPS_LABEL_ART_NAMEN)) {
+	if (BLEIBT_DEUTSCH.has(art)) { continue; }
+	const englisch = ENGLISCH[I18N_PRAEFIX + art];
+	assert.ok(typeof englisch === "string" && englisch.trim() !== "",
+		"die Label-Art \"" + art + "\" (\"" + AVESMAPS_LABEL_ART_NAMEN[art] + "\") hat keine Zeile "
+		+ "\"" + I18N_PRAEFIX + art + "\" in js/app/i18n-en.js -- unter ?lang=en stuende dort still "
+		+ "das deutsche Wort. Entweder die Zeile nachtragen (auch wenn das Wort gleich lautet), oder "
+		+ "die Art mit Grund in BLEIBT_DEUTSCH eintragen");
+}
+
+// ⚠️ Und die Gegenrichtung, weil dieser Namensraum AUSSCHLIESSLICH den Label-Arten gehoert: beide
+// Leser setzen den Schluessel aus einem Label-Subtyp zusammen, es kann dort gar nichts anderes
+// ankommen. Eine Zeile ohne Art ist deshalb die zurueckgebliebene Haelfte einer Entfernung, die
+// niemand zu Ende gefuehrt hat -- gemessen 31.08.2026: keine.
+for (const schluessel of Object.keys(ENGLISCH)) {
+	if (!schluessel.startsWith(I18N_PRAEFIX)) { continue; }
+	const art = schluessel.slice(I18N_PRAEFIX.length);
+	assert.ok(Object.prototype.hasOwnProperty.call(AVESMAPS_LABEL_ART_NAMEN, art),
+		"js/app/i18n-en.js kennt \"" + schluessel + "\", aber js/ui/label-arten.js kennt die Art \""
+		+ art + "\" nicht -- entweder ist die Art nur halb entfernt worden, oder der Namensraum "
+		+ "wurde fuer etwas benutzt, das keine Label-Art ist");
+}
+
+assert.strictEqual(ENGLISCH[I18N_PRAEFIX + "urwald"], "Primeval Forest",
+	"der gemeldete Fall, und nicht \"Jungle\" -- das ist `dschungel`, und der Seed unterscheidet die "
+	+ "beiden ausdruecklich (Klimaaussage gegen Zustandsaussage)");
 
 console.log("label-arten.test.js: alle Zusicherungen erfuellt");
