@@ -38,9 +38,6 @@ let ecosystemDrawRubberBand = null;
 let ecosystemDrawVertices = null;
 let ecosystemDrawLastClick = null;
 let ecosystemDrawSaving = false;
-// Held when the finish finds no active region: the dialog opens, and a successful create_region
-// resumes the save instead of throwing the outline away.
-let ecosystemPendingAreaRing = null;
 
 function isEcosystemDrawing() {
 	return ecosystemDrawActive;
@@ -274,7 +271,6 @@ function cancelEcosystemAreaDrawing(message) {
 		return;
 	}
 	stopEcosystemAreaDrawing();
-	ecosystemPendingAreaRing = null;
 	if (message) {
 		showFeedbackToast?.(message);
 	}
@@ -344,7 +340,6 @@ async function saveEcosystemAreaRing(ring) {
 			region_public_id: regionPublicId,
 			geometry_geojson: geometry,
 		});
-		ecosystemPendingAreaRing = null;
 		// 🔴 EINE FRISCH GEZEICHNETE FLAECHE BEKOMMT KEINE BESCHRIFTUNG (Owner 26.08.2026).
 		//
 		// Hier stand bis heute `createEcosystemRegionLabel(regionPublicId, geometry, name, true, "")`
@@ -377,8 +372,22 @@ async function saveEcosystemAreaRing(ring) {
 			showFeedbackToast?.("Fläche gespeichert.");
 		}
 	} catch (error) {
-		// Der Umriss bleibt erhalten -- nach einem Fehlschlag soll niemand neu zeichnen müssen.
-		ecosystemPendingAreaRing = ring;
+		// 🪤 HIER WURDE DER UMRISS GEHALTEN -- „nach einem Fehlschlag soll niemand neu zeichnen
+		// müssen". Eingelöst hat es nie jemand: der einzige Wiedereinreicher wurde nirgends gerufen
+		// (Systemtest B15), und der gemerkte Ring verfiel still beim nächsten Escape oder beim
+		// nächsten Erfolg. Ein Versprechen, auf das sich niemand verlassen kann, ist schlimmer als
+		// keines -- deshalb steht hier jetzt die ehrliche Zusage: der Editor erfährt den Fehlschlag.
+		//
+		// 💣 UND NAIV NACHGEBAUT WÄRE ER SCHLIMMER ALS SEIN FEHLEN. Ein Speichern sind ZWEI Aufrufe
+		// -- create_region, dann create_area -- ohne Klammer darum; die `operation_id`, die eine
+		// mehrteilige Geste zusammenhält (api/_internal/app/ecosystem.php), gibt es auf DIESEM Weg
+		// nicht. Scheitert der zweite Aufruf, steht die Region bereits. Ein zweiter Anlauf mit
+		// demselben Ring legt dann eine WEITERE an und lässt die erste ohne Fläche liegen --
+		// gemessen: zwei Regionen, eine Waise. Genau die „Leichen", die der Kopf dieser Datei aus
+		// den Daten heraushalten will.
+		//
+		// Wer das Versprechen wirklich einlösen will, braucht zuerst die Klammer: beim zweiten
+		// Anlauf die schon angelegte Region WIEDERVERWENDEN, statt eine neue zu erzeugen.
 		showFeedbackToast?.(error?.message || "Die Fläche konnte nicht gespeichert werden.", "warning");
 	} finally {
 		ecosystemDrawSaving = false;
@@ -556,16 +565,6 @@ function ecosystemDraftRegionName() {
 		? Object.values(ecosystemRegionsByKind).filter(Array.isArray).flat().map((r) => String(r?.name || ""))
 		: [];
 	return nextEcosystemRegionAutoName("", namen);
-}
-
-// Ein nach einem Fehlschlag gehaltener Umriss wird beim nächsten Versuch weitergereicht.
-function resumePendingEcosystemAreaSave() {
-	if (!ecosystemPendingAreaRing) {
-		return;
-	}
-	const ring = ecosystemPendingAreaRing;
-	ecosystemPendingAreaRing = null;
-	void saveEcosystemAreaRing(ring);
 }
 
 // ---- der Knopf, den es nicht mehr gibt --------------------------------------------------------------
