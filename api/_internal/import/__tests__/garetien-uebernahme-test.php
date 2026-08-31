@@ -322,28 +322,60 @@ assert($neu !== false && $neu['feature_type'] === 'path' && $neu['feature_subtyp
 $pruefungen++;
 
 // --- 🔴 Jedes uebernommene Objekt bekommt seine Quelle -- ueber das VORHANDENE System.
-assert($e['quellen'] === 1);
+// 🔴 SEIT 31.08.2026 SIND ES ZWEI (Owner: „kann man den artikel dann als zusaetzliche quelle
+// angeben?"): die Sammelquelle „Briefspiel (Garetien)" auf den Wirt UND der eigene Wiki-Artikel
+// des Objekts. Der Gardel nennt einen (`Garetien:Gardel` im Schluessel), also bekommt er beide.
+assert($e['quellen'] === 2, 'Sammelquelle UND Artikelquelle: ' . $e['quellen']);
 // 💣 UND DER ANLEGEWEG MELDET SIE EBENSO ZURUECK. Es sind ZWEI Erzeuger von Quellen in dieser
 // Datei (Anlegen und Ergaenzung) -- eine Regel, die einen von zweien bindet, ist keine Regel
 // (AGENTS.md). Die Ergaenzung ist weiter unten belegt, an dem Weg mit der fremden Quelle.
 assert(count($e['quellen_neu']) === 1 && $e['quellen_neu'][0]['entity_type'] === 'path',
     'auch das frisch ANGELEGTE Objekt meldet seine Quellen zurueck: ' . json_encode($e['quellen_neu']));
-assert(count($e['quellen_neu'][0]['sources']) === 1,
-    'beim Anlegen ist unsere die einzige Quelle');
+assert(count($e['quellen_neu'][0]['sources']) === 2,
+    'und zwar BEIDE: ' . json_encode($e['quellen_neu'][0]['sources']));
 $pruefungen += 2;
-$q = $pdo->query('SELECT * FROM feature_sources')->fetch(PDO::FETCH_ASSOC);
+
+// --- 🔴 DIE ARTIKELQUELLE: Adresse, Beschriftung, Lizenz.
+// Owner-Wortlaut fuer die Beschriftung: „Stadt Praioslob auf garetien.de" -- also der Artikelname
+// OHNE Namensraum, gefolgt vom Wirt. ⚠️ Die ADRESSE traegt den Namensraum weiter vollstaendig.
+$artikelZeile = $pdo->query(
+    "SELECT s.url, s.label, s.source_type, s.license, s.attribution, fs.origin, fs.note
+       FROM feature_sources fs JOIN sources s ON s.id = fs.source_id
+      WHERE s.url LIKE '%index.php%'"
+)->fetch(PDO::FETCH_ASSOC);
+assert($artikelZeile !== false, 'die Artikelquelle haengt am Objekt');
+assert($artikelZeile['url'] === 'https://www.garetien.de/index.php/Garetien:Gardel',
+    'die gemessene Artikelform (31.08.2026: /index.php/<Namensraum:Artikel> antwortet mit 200, '
+    . 'die frueher gebaute …/Avesmaps_<Artikel>-Form mit 404): ' . var_export($artikelZeile['url'], true));
+assert($artikelZeile['label'] === 'Gardel auf garetien.de',
+    'Beschriftung nach Owner-Wortlaut, Artikelname ohne Namensraum: ' . var_export($artikelZeile['label'], true));
+assert($artikelZeile['license'] === 'cc-by-nc-sa-3.0' && $artikelZeile['attribution'] === 'VolkoV / garetien.de',
+    'dieselbe Lizenz und Namensnennung wie die Sammelquelle -- derselbe Wirt, derselbe Autor');
+assert($artikelZeile['origin'] === 'garetien',
+    'eigene Herkunft, damit die Ruecknahme sie mitnimmt und ein spaeterer Lauf sie wiedererkennt');
+$pruefungen += 5;
+
+$q = $pdo->query("SELECT fs.* FROM feature_sources fs JOIN sources s ON s.id = fs.source_id
+                   WHERE s.url = 'https://www.garetien.de'")->fetch(PDO::FETCH_ASSOC);
 assert($q['origin'] === 'garetien', 'eigene Herkunft, damit ein spaeterer Lauf sie wiedererkennt');
 assert($q['entity_type'] === 'path' && $q['entity_public_id'] === $neu['public_id'], 'sie haengt am richtigen Objekt');
 // --- 🔴 OWNER-ENTSCHEID (30.08.2026, "leg sie in feature_sources.note ab"): seit sources.url der
 // WIRT ist (garetien.de/koschwiki.de), traegt die VERKNUEPFUNG die Export-Arbeitsseite -- die
 // einzige Stelle, an der ein Editor nach der Uebernahme noch nachsehen kann, VON WELCHER Seite ein
 // Objekt stammt. `sources.url` selbst bleibt der Wirt, siehe die Zusicherung an $s['url'] unten.
+// 🔴 KORREKTUR 31.08.2026: DIE ARBEITSSEITE HEISST NACH DER EBENE, NICHT NACH DEM ARTIKEL.
+// `…/Avesmaps_Garetien:Gardel` gibt es nicht -- live gemessen HTTP 404, waehrend
+// `…/Avesmaps_Gewaesser` mit 200 antwortet. Die Notiz zeigte also an jedem Objekt mit Artikel
+// ins Leere, und derselbe kaputte Link stand als „Artikel" im Importer-Fenster.
 assert(
-    $q['note'] === AVESMAPS_GARETIEN_BASIS_GGP . 'Garetien:Gardel',
-    'die Notiz traegt die Export-Arbeitsseite dieses Objekts: ' . var_export($q['note'], true)
+    $q['note'] === AVESMAPS_GARETIEN_BASIS_GGP . 'Gewaesser',
+    'die Notiz traegt die Export-Arbeitsseite dieser EBENE: ' . var_export($q['note'], true)
 );
-$pruefungen++;
-$s = $pdo->query('SELECT * FROM sources')->fetch(PDO::FETCH_ASSOC);
+// ⚠️ Und BEIDE Verknuepfungen tragen sie -- sie stammen aus derselben Zeile.
+assert($artikelZeile['note'] === $q['note'],
+    'auch die Artikelquelle traegt dieselbe Arbeitsseite: ' . var_export($artikelZeile['note'], true));
+$pruefungen += 2;
+$s = $pdo->query("SELECT * FROM sources WHERE url = 'https://www.garetien.de'")->fetch(PDO::FETCH_ASSOC);
 // 🔴 UND sources.url bleibt der WIRT -- die Export-Seite landet NICHT dort zurueck, sie steht
 // ausschliesslich in feature_sources.note (siehe oben).
 assert(
@@ -461,17 +493,36 @@ assert($qr['entity_public_id'] !== $region['public_id'],
     'und NICHT im ID-Raum der Region -- genau das war der Fehler (AGENTS.md §11: "die Quellen einer Landschaft liegen an ihrer BESCHRIFTUNG")');
 $pruefungen += 3;
 
-// --- 🔴 MISS DIE DIFFERENZ: ein zweites uebernommenes Objekt traegt eine ANDERE Notiz --
-// eine Konstante saehe hier genauso aus wie der richtige Wert.
+// --- 🔴 DIE NOTIZ GEHOERT DER EBENE, NICHT DEM OBJEKT (Korrektur 31.08.2026). Gardel und
+// Muehlsee liegen beide in `Gewaesser`, tragen also DIESELBE Arbeitsseite -- und das ist richtig:
+// es ist die Seite, von der beide Zeilen stammen. Bis dahin stand hier die Gegenprobe „zwei
+// Objekte, zwei Notizen", weil die Notiz aus dem ARTIKEL gebaut wurde; genau diese Bildung ergab
+// die 404-Adresse.
+assert(
+    $qr['note'] === AVESMAPS_GARETIEN_BASIS_GGP . 'Gewaesser',
+    'die Notiz des Sees nennt die Export-Seite seiner EBENE: ' . var_export($qr['note'], true)
+);
+assert($qr['note'] === $q['note'], 'dieselbe Ebene, dieselbe Arbeitsseite');
+// 💣 UND DIE GEGENPROBE MUSS MITWANDERN, sonst prueft die Zeile darueber eine Konstante: eine
+// ANDERE Ebene ergibt eine andere Adresse. Rein gemessen, ohne zweiten Durchlauf.
+assert(avesmapsGaretienSeitenUrlAusZeile(['wiki' => 'ggp', 'ebene' => 'Berge'])
+    !== avesmapsGaretienSeitenUrlAusZeile(['wiki' => 'ggp', 'ebene' => 'Gewaesser']),
+    'eine andere Ebene ergibt eine andere Arbeitsseite -- sonst stuende hier eine Konstante');
 // ⚠️ 'Muehlsee' (ASCII), NICHT 'Mühlsee' -- die Fixture traegt den Artikelnamen (den Wiki-Slug)
 // und die Anzeige (den Namen mit Umlaut) getrennt (avesmapsGaretienPlanTestPdo: Spalte 'artikel'
-// vs. 'anzeige'); seite_url entsteht aus dem ARTIKEL, der Objektname aus der ANZEIGE.
-assert(
-    $qr['note'] === AVESMAPS_GARETIEN_BASIS_GGP . 'Garetien:Muehlsee',
-    'die Notiz des Sees nennt SEINE eigene Export-Seite: ' . var_export($qr['note'], true)
-);
-assert($qr['note'] !== $q['note'], 'zwei verschiedene Objekte tragen zwei verschiedene Notizen');
-$pruefungen += 2;
+// vs. 'anzeige'). Das PRO-OBJEKT-Merkmal ist seit dem 31.08.2026 die ARTIKELQUELLE, und die
+// unterscheidet die beiden.
+$qrArtikel = $pdo->query(
+    "SELECT s.url, s.label FROM feature_sources fs JOIN sources s ON s.id = fs.source_id
+      WHERE fs.entity_type = 'region' AND s.url LIKE '%index.php%'"
+)->fetch(PDO::FETCH_ASSOC);
+assert($qrArtikel !== false && $qrArtikel['url'] === 'https://www.garetien.de/index.php/Garetien:Muehlsee',
+    'der See traegt SEINEN eigenen Artikel: ' . var_export($qrArtikel['url'] ?? null, true));
+assert($qrArtikel['label'] === 'Muehlsee auf garetien.de',
+    'und die Beschriftung nennt ihn: ' . var_export($qrArtikel['label'] ?? null, true));
+assert($qrArtikel['url'] !== $artikelZeile['url'],
+    'zwei verschiedene Objekte tragen zwei verschiedene Artikelquellen');
+$pruefungen += 6;
 
 // --- 🔴 EIN WIDERSPRUCH BLEIBT DRAUSSEN (Aufgabe 4). Der Seitenarm ist ein ZUFLUSS
 // (after.anlass = 'zufluss', keiner der drei Ausgaenge ergaenzung/umbenennung/geometrie) -- wird
@@ -1277,7 +1328,8 @@ $pruefungen += 4;
 // map-features.php:1228 fuer den Infobox-Quellenkasten benutzt.
 $ortQuelle = $pdoNeu->prepare("SELECT COUNT(*) FROM feature_sources WHERE entity_type = 'settlement' AND entity_public_id = ?");
 $ortQuelle->execute([$ortZeile['public_id']]);
-assert((int) $ortQuelle->fetchColumn() === 1, 'die Quelle des Ortes haengt an entity_type=settlement');
+assert((int) $ortQuelle->fetchColumn() === 2,
+    'BEIDE Quellen des Ortes haengen an entity_type=settlement -- Sammelquelle und Artikel (31.08.2026)');
 $pruefungen++;
 
 
@@ -1598,7 +1650,8 @@ $pruefungen++;
 
 $bergQuelle = $pdoNeu->prepare("SELECT COUNT(*) FROM feature_sources WHERE entity_type = 'region' AND entity_public_id = ?");
 $bergQuelle->execute([$bergZeile['public_id']]);
-assert((int) $bergQuelle->fetchColumn() === 1, 'die Quelle des Gipfels haengt an seiner EIGENEN public_id unter entity_type=region');
+assert((int) $bergQuelle->fetchColumn() === 2,
+    'BEIDE Quellen des Gipfels haengen an seiner EIGENEN public_id unter entity_type=region');
 $pruefungen++;
 
 // ===============================================================================================
@@ -1996,8 +2049,30 @@ avesmapsSyncPlanAddItem($pdoQ, $laufQ, [
 $itemWegQ = $itemIdVon($pdoQ, 'Testpfad Quelle · Quelle');
 $eWegQ = avesmapsGaretienUebernehmen($pdoQ, $laufQ, [$itemWegQ], ['id' => 7]);
 assert($eWegQ['fehler'] === [], 'die Quellen-Ergaenzung des Wegs gelingt: ' . json_encode($eWegQ, JSON_UNESCAPED_UNICODE));
-assert($eWegQ['quellen'] === 1, 'genau eine Quelle wurde angelegt');
+assert($eWegQ['quellen'] === 2,
+    'zwei Quellen: die Sammelquelle UND der Artikel -- die Ergaenzung geht durch denselben '
+    . 'Trichter wie das Anlegen (31.08.2026): ' . $eWegQ['quellen']);
 $pruefungen += 2;
+
+// --- 💣 UND DAS IST DER ZWEITE ERZEUGER. Die Artikelquelle haengt am Anlegeweg UND hier;
+// haette sie nur der Anlegeweg, bekaemen ausgerechnet die 312 reinen Quellen-Ergaenzungen sie nie.
+// ⚠️ Dieses Item hat KEIN `after.artikel_quelle` -- es ist von Hand gebaut, wie ein Item aus
+// einem Lauf von VOR dem 31.08.2026. Es belegt damit den Rueckfall ueber den entity_key, und der
+// ist der Grund, warum der laufende Lauf des Owners nicht neu gerechnet werden muss.
+assert(!isset($eWegQ['artikel_quelle']), 'Gegenprobe: das Item traegt selbst keine Artikelquelle');
+$artikelWegQ = $pdoQ->query(
+    "SELECT s.url, s.label FROM feature_sources fs JOIN sources s ON s.id = fs.source_id
+      WHERE fs.entity_type = 'path' AND s.url LIKE '%index.php/%'"
+)->fetch(PDO::FETCH_ASSOC);
+assert($artikelWegQ !== false, 'die Artikelquelle entstand aus dem Schluessel allein');
+// 💣 DER SUFFIX HINTER `|` DARF NICHT IM ARTIKELNAMEN LANDEN. Der Schluessel dieses Items lautet
+// `ggp:Probe:path:Testpfad-Quelle|ergaenzung|00000000-…` -- ohne avesmapsGaretienObjektSchluessel
+// hiesse die Quelle „Testpfad-Quelle|ergaenzung|00000000-… auf garetien.de".
+assert($artikelWegQ['label'] === 'Testpfad-Quelle auf garetien.de',
+    'der Suffix hinter | faellt heraus: ' . var_export($artikelWegQ['label'], true));
+assert(!str_contains((string) $artikelWegQ['url'], '|') && !str_contains((string) $artikelWegQ['url'], 'ergaenzung'),
+    'und auch nicht in die Adresse: ' . var_export($artikelWegQ['url'], true));
+$pruefungen += 4;
 
 // --- 💣 DIE ERGAENZUNGS-FALLE: `quellen_neu` traegt die VOLLE Quellenliste des Objekts, nicht nur
 // unsere. Owner-Meldung 31.08.2026: „ich hab ein moor importiert, aber es fehlt die 'quelle, die
@@ -2022,9 +2097,10 @@ $adressenWegQ = array_map(static fn(array $q): string => $q['url'], $rueckWegQ['
 sort($adressenWegQ);
 assert($adressenWegQ === [
         'https://www.beispiel.de/handgepflegt',
+        'https://www.garetien.de/index.php/Testpfad-Quelle',
         'https://www.garetien.de/index.php?title=Garetien:Testpfad',
     ],
-    'BEIDE Quellen reisen zurueck -- die eben angelegte UND die vorhandene handgepflegte: '
+    'ALLE DREI reisen zurueck -- die zwei eben angelegten UND die vorhandene handgepflegte: '
     . json_encode($adressenWegQ));
 $pruefungen += 4;
 
@@ -2076,7 +2152,8 @@ $zaehleManualLinks = static function (PDO $pdo, string $entityType, string $publ
     return (int) $s->fetchColumn();
 };
 
-assert($zaehleGaretienLinks($pdoQ, 'path', $idWegQ) === 1, 'die garetien-Verknuepfung steht nach der Uebernahme');
+assert($zaehleGaretienLinks($pdoQ, 'path', $idWegQ) === 2,
+    'BEIDE garetien-Verknuepfungen stehen nach der Uebernahme -- Sammelquelle und Artikel');
 assert($zaehleManualLinks($pdoQ, 'path', $idWegQ) === 1, 'und die manuelle Verknuepfung ebenso');
 $pruefungen += 2;
 
@@ -2085,7 +2162,11 @@ assert($rWegQ['zurueckgenommen'] === 1, 'die Ruecknahme des quelle-only-Items ge
 assert($rWegQ['fehler'] === [], 'ohne Fehler: ' . json_encode($rWegQ['fehler'], JSON_UNESCAPED_UNICODE));
 $pruefungen += 2;
 
-assert($zaehleGaretienLinks($pdoQ, 'path', $idWegQ) === 0, '🔴 die garetien-Verknuepfung ist WEG');
+// 🔴 BEIDE sind weg. Die Ruecknahme loest alles mit `origin='garetien'` -- sie musste fuer die
+// zweite Quelle nicht angefasst werden, und genau das ist der Grund, warum die Artikelquelle
+// dieselbe Herkunft traegt statt einer eigenen.
+assert($zaehleGaretienLinks($pdoQ, 'path', $idWegQ) === 0,
+    '🔴 BEIDE garetien-Verknuepfungen sind WEG, auch die Artikelquelle');
 assert($zaehleManualLinks($pdoQ, 'path', $idWegQ) === 1,
     '🔴 MISS DIE DIFFERENZ: die manuelle Verknuepfung DERSELBEN Quelle bleibt unangetastet');
 $pruefungen += 2;
@@ -2140,7 +2221,7 @@ assert(count($rGemischtQ['fehler']) === 1 && str_contains($rGemischtQ['fehler'][
     'mit demselben Grund wie zuvor: ' . json_encode($rGemischtQ, JSON_UNESCAPED_UNICODE));
 $pruefungen += 2;
 
-assert($zaehleGaretienLinks($pdoQ, 'path', $idWegGemischtQ) === 1,
+assert($zaehleGaretienLinks($pdoQ, 'path', $idWegGemischtQ) === 2,
     'die Quellen-Verknuepfung bleibt stehen -- die Ruecknahme hat sie nicht angefasst');
 $itemGemischtQNachher = $pdoQ->query('SELECT apply_state FROM sync_plan_item WHERE id = ' . $itemGemischtQ)->fetchColumn();
 assert($itemGemischtQNachher === 'done', 'das Item bleibt auf "done" stehen');
@@ -2171,7 +2252,7 @@ $eSeeQ = avesmapsGaretienUebernehmen($pdoQ, $laufQ, [$itemSeeQ], ['id' => 7]);
 assert($eSeeQ['fehler'] === [], 'die Quellen-Ergaenzung der Flaeche gelingt: ' . json_encode($eSeeQ, JSON_UNESCAPED_UNICODE));
 $pruefungen++;
 
-assert($zaehleGaretienLinks($pdoQ, 'region', $idSeeQLabel) === 1,
+assert($zaehleGaretienLinks($pdoQ, 'region', $idSeeQLabel) === 2,
     'die Verknuepfung haengt an der BESCHRIFTUNG (Label-public_id)');
 assert($zaehleGaretienLinks($pdoQ, 'region', $idSeeQRegion) === 0,
     'und NICHT an der Regions-public_id');
@@ -2312,8 +2393,8 @@ avesmapsSyncPlanAddItem($pdoR, $laufR, [
 $itemR = $itemIdVon($pdoR, 'Stempelpfad · Quelle');
 $revVorher = $revisionVon($pdoR);
 $eR = avesmapsGaretienUebernehmen($pdoR, $laufR, [$itemR], ['id' => 7]);
-assert($eR['fehler'] === [] && $eR['quellen'] === 1,
-    'die Quellen-Ergaenzung gelingt: ' . json_encode($eR, JSON_UNESCAPED_UNICODE));
+assert($eR['fehler'] === [] && $eR['quellen'] === 2,
+    'die Quellen-Ergaenzung gelingt, Sammelquelle und Artikel: ' . json_encode($eR, JSON_UNESCAPED_UNICODE));
 assert($revisionVon($pdoR) > $revVorher,
     '🔴 EINE UEBERNAHME, DIE NUR EINE QUELLE SCHREIBT, MUSS DIE KARTENREVISION HEBEN -- sonst '
     . 'bekommt jeder warme Browser sein 304 samt alter Nutzlast und sieht die Quelle NIE');
@@ -2438,4 +2519,162 @@ $wegVoll = avesmapsGaretienWegUebersteuerung([
 assert($wegVoll === ['show_label' => true, 'allowed_transports' => ['riverSailer', 'gibtsnicht']],
     'beide Felder reisen durch, die Werte ungeprueft: ' . json_encode($wegVoll));
 $pruefungen++;
+// =================================================================================================
+// DER NACHZUG (Owner 31.08.2026: „go, und ja mach den nachzug"). Alles, was dieser Import schon
+// angelegt hat, bekommt seine Artikelquelle nachtraeglich -- und seine tote Arbeitsseite geheilt.
+//
+// 🔴 Eigener, ISOLIERTER Pruefstand: hier wird zuerst mit ABGESCHALTETER Artikelquelle
+// uebernommen (ein Item ohne Artikel im Schluessel), damit es ueberhaupt etwas nachzutragen gibt.
+// =================================================================================================
+$pdoN = avesmapsGaretienUebernahmeTestPdo();
+$laufN = (int) avesmapsSyncPlanOpenRun($pdoN, AVESMAPS_GARETIEN_PLAN_KIND)['id'];
+
+// --- Ein Objekt, das es schon gibt, mit einer Quellen-Ergaenzung, deren Item KEINEN Artikel nennt
+// (Schluessel endet auf `#417`) -- so entsteht der Zustand „uebernommen, aber ohne Artikelquelle",
+// den es vor dem 31.08.2026 fuer JEDES Objekt gab.
+$idOhneArtikel = '00000000-0000-4000-8000-00000000b001';
+$pdoN->prepare('INSERT INTO map_features (public_id, name, feature_type, feature_subtype, geometry_json, properties_json, geometry_type) VALUES (?,?,?,?,?,?,?)')
+    ->execute([$idOhneArtikel, 'Namenloser Pfad', 'path', 'Pfad',
+        json_encode(['type' => 'LineString', 'coordinates' => [[1.0, 1.0], [2.0, 2.0]]]), '{}', 'LineString']);
+avesmapsSyncPlanAddItem($pdoN, $laufN, [
+    'entity_key' => 'ggp:Wege:Pfad:#417',
+    'entity_public_id' => $idOhneArtikel,
+    'change_type' => 'changed',
+    'label' => 'Namenloser Pfad · Quelle',
+    'before' => ['public_id' => $idOhneArtikel, 'name' => 'Namenloser Pfad'],
+    'after' => ['herkunft' => 'garetien', 'wiki' => 'ggp', 'ebene' => 'Wege', 'anlass' => 'ergaenzung',
+        'felder' => ['quelle'], 'ziel' => 'path', 'subtyp' => 'Pfad',
+        'quelle' => ['url' => 'https://www.garetien.de', 'label' => 'Briefspiel (Garetien)',
+            'license' => 'cc-by-nc-sa-3.0', 'attribution' => 'VolkoV / garetien.de'],
+        'seite_url' => AVESMAPS_GARETIEN_BASIS_GGP . 'Wege'],
+    'override' => [], 'selected' => 1,
+]);
+$eOhne = avesmapsGaretienUebernehmen($pdoN, $laufN, [$itemIdVon($pdoN, 'Namenloser Pfad · Quelle')], ['id' => 7]);
+assert($eOhne['quellen'] === 1, 'ohne Artikel im Schluessel bleibt es bei EINER Quelle: ' . $eOhne['quellen']);
+$pruefungen++;
+
+// --- Und ein Objekt, das die Artikelquelle SCHON hat (der Normalfall nach dem 31.08.2026).
+$idMitArtikel = '00000000-0000-4000-8000-00000000b002';
+$pdoN->prepare('INSERT INTO map_features (public_id, name, feature_type, feature_subtype, geometry_json, properties_json, geometry_type) VALUES (?,?,?,?,?,?,?)')
+    ->execute([$idMitArtikel, 'Alter Weg', 'path', 'Weg',
+        json_encode(['type' => 'LineString', 'coordinates' => [[3.0, 3.0], [4.0, 4.0]]]), '{}', 'LineString']);
+avesmapsSyncPlanAddItem($pdoN, $laufN, [
+    'entity_key' => 'ggp:Wege:Weg:Garetien:Alter Weg',
+    'entity_public_id' => $idMitArtikel,
+    'change_type' => 'changed',
+    'label' => 'Alter Weg · Quelle',
+    'before' => ['public_id' => $idMitArtikel, 'name' => 'Alter Weg'],
+    'after' => ['herkunft' => 'garetien', 'wiki' => 'ggp', 'ebene' => 'Wege', 'anlass' => 'ergaenzung',
+        'felder' => ['quelle'], 'ziel' => 'path', 'subtyp' => 'Weg',
+        'quelle' => ['url' => 'https://www.garetien.de', 'label' => 'Briefspiel (Garetien)',
+            'license' => 'cc-by-nc-sa-3.0', 'attribution' => 'VolkoV / garetien.de'],
+        // 💣 DIE TOTE ARBEITSSEITE, wie jedes Item aus einem Lauf vor dem 31.08.2026 sie traegt.
+        'seite_url' => AVESMAPS_GARETIEN_BASIS_GGP . 'Garetien:Alter_Weg'],
+    'override' => [], 'selected' => 1,
+]);
+avesmapsGaretienUebernehmen($pdoN, $laufN, [$itemIdVon($pdoN, 'Alter Weg · Quelle')], ['id' => 7]);
+
+// --- 💣 DIE TOTE ADRESSE WIRD GEHEILT, OHNE DASS JEMAND DEN NACHZUG RUFT. Die Uebernahme rechnet
+// die Arbeitsseite aus `wiki`+`ebene` neu, statt `after.seite_url` zu glauben -- sonst schriebe der
+// laufende Lauf des Owners (8213 Zeilen, alle vor dem 31.08. gebaut) die 404-Adresse weiter fort.
+$notizAlt = $pdoN->query("SELECT note FROM feature_sources WHERE entity_public_id = '$idMitArtikel' LIMIT 1")->fetchColumn();
+assert($notizAlt === AVESMAPS_GARETIEN_BASIS_GGP . 'Wege',
+    'die Arbeitsseite wurde neu gerechnet, nicht aus dem alten after uebernommen: ' . var_export($notizAlt, true));
+$pruefungen++;
+
+$zaehleArtikel = static function (PDO $pdo, string $publicId): int {
+    $s = $pdo->prepare("SELECT COUNT(*) FROM feature_sources fs JOIN sources s ON s.id = fs.source_id
+                         WHERE fs.entity_public_id = :id AND s.url LIKE '%/index.php/%'");
+    $s->execute([':id' => $publicId]);
+
+    return (int) $s->fetchColumn();
+};
+assert($zaehleArtikel($pdoN, $idOhneArtikel) === 0, 'der namenlose Pfad hat KEINE Artikelquelle');
+assert($zaehleArtikel($pdoN, $idMitArtikel) === 1, 'der alte Weg hat sie schon');
+$pruefungen += 2;
+
+// --- 🔴 UND JETZT EIN ITEM, DAS DEN ZUSTAND VOR DEM 31.08.2026 NACHSTELLT: uebernommen, mit
+// Artikel im Schluessel, aber die Artikelquelle von Hand wieder entfernt.
+$idNachzug = '00000000-0000-4000-8000-00000000b003';
+$pdoN->prepare('INSERT INTO map_features (public_id, name, feature_type, feature_subtype, geometry_json, properties_json, geometry_type) VALUES (?,?,?,?,?,?,?)')
+    ->execute([$idNachzug, 'Praioslob Probe', 'location', 'stadt',
+        json_encode(['type' => 'Point', 'coordinates' => [5.0, 5.0]]), '{}', 'Point']);
+avesmapsSyncPlanAddItem($pdoN, $laufN, [
+    'entity_key' => 'ggp:Ortschaften_3:Stadt:Garetien:Stadt Praioslob',
+    'entity_public_id' => $idNachzug,
+    'change_type' => 'changed',
+    'label' => 'Praioslob Probe · Quelle',
+    'before' => ['public_id' => $idNachzug, 'name' => 'Praioslob Probe'],
+    'after' => ['herkunft' => 'garetien', 'wiki' => 'ggp', 'ebene' => 'Ortschaften_3', 'anlass' => 'ergaenzung',
+        'felder' => ['quelle'], 'ziel' => 'location', 'subtyp' => 'stadt',
+        'quelle' => ['url' => 'https://www.garetien.de', 'label' => 'Briefspiel (Garetien)',
+            'license' => 'cc-by-nc-sa-3.0', 'attribution' => 'VolkoV / garetien.de'],
+        'seite_url' => AVESMAPS_GARETIEN_BASIS_GGP . 'Ortschaften_3'],
+    'override' => [], 'selected' => 1,
+]);
+avesmapsGaretienUebernehmen($pdoN, $laufN, [$itemIdVon($pdoN, 'Praioslob Probe · Quelle')], ['id' => 7]);
+$pdoN->exec("DELETE FROM feature_sources WHERE entity_public_id = '$idNachzug'
+              AND source_id IN (SELECT id FROM (SELECT id FROM sources WHERE url LIKE '%/index.php/%') x)");
+assert($zaehleArtikel($pdoN, $idNachzug) === 0, 'der Pruefstand steht: die Artikelquelle ist weg');
+$pruefungen++;
+
+// --- DER LAUF.
+$n1 = avesmapsGaretienArtikelQuellenNachtragen($pdoN);
+assert($n1['geschrieben'] === 1,
+    'genau EIN Objekt bekommt sie nachgetragen: ' . json_encode($n1));
+assert($zaehleArtikel($pdoN, $idNachzug) === 1, 'und es hat sie jetzt');
+// 🔴 DER NAMENLOSE PFAD BLEIBT UNBERUEHRT -- ohne Artikel gibt es nichts nachzutragen, und ein
+// „#417 auf garetien.de" waere die schlimmere Antwort als gar keine.
+assert($zaehleArtikel($pdoN, $idOhneArtikel) === 0, 'ein Objekt ohne Artikel bekommt keine erfundene Quelle');
+$pruefungen += 3;
+
+// --- Die Beschriftung ist die des Artikels, nicht die des Objekts.
+$nachzugLabel = $pdoN->query("SELECT s.label FROM feature_sources fs JOIN sources s ON s.id = fs.source_id
+                               WHERE fs.entity_public_id = '$idNachzug' AND s.url LIKE '%/index.php/%'")->fetchColumn();
+assert($nachzugLabel === 'Stadt Praioslob auf garetien.de',
+    'die nachgetragene Quelle traegt den Artikelnamen aus dem Schluessel: ' . var_export($nachzugLabel, true));
+$pruefungen++;
+
+// --- 🔴 IDEMPOTENT: ein zweiter Lauf schreibt NICHTS mehr. Das ist die Bedingung, unter der er
+// am Ende jedes abgeschlossenen Uebernahme-Vorgangs mitlaufen darf -- ohne den Uebersprung-Riegel
+// kostete er dort bis zu 8213 Schreibvorgaenge fuer nichts.
+$n2 = avesmapsGaretienArtikelQuellenNachtragen($pdoN);
+assert($n2['geschrieben'] === 0, 'ein zweiter Lauf schreibt nichts mehr: ' . json_encode($n2));
+assert($zaehleArtikel($pdoN, $idNachzug) === 1, 'und legt nichts doppelt an');
+$pruefungen += 2;
+
+// --- 💣 BEIDE ITEM-ARTEN, und das ist der Punkt, an dem die halbe Menge still durchfallen
+// wuerde: bei einem 'new'-Item steht die angelegte public_id in `apply_note`, bei einem 'changed'
+// in `entity_public_id`. Wer nur eine der beiden liest, traegt die Haelfte nach und merkt es nicht.
+$idNeu = '00000000-0000-4000-8000-00000000b004';
+$pdoN->prepare('INSERT INTO map_features (public_id, name, feature_type, feature_subtype, geometry_json, properties_json, geometry_type) VALUES (?,?,?,?,?,?,?)')
+    ->execute([$idNeu, 'Neuling', 'path', 'Weg',
+        json_encode(['type' => 'LineString', 'coordinates' => [[7.0, 7.0], [8.0, 8.0]]]), '{}', 'LineString']);
+avesmapsSyncPlanAddItem($pdoN, $laufN, [
+    'entity_key' => 'ggp:Wege:Weg:Garetien:Neuling',
+    'entity_public_id' => null,
+    'change_type' => 'new',
+    'label' => 'Neuling (Probe)',
+    'before' => [],
+    'after' => ['herkunft' => 'garetien', 'wiki' => 'ggp', 'ebene' => 'Wege', 'ziel' => 'path',
+        'subtyp' => 'Weg', 'name' => 'Neuling', 'urteil' => 'neu', 'anlass' => null],
+    'override' => [], 'selected' => 1,
+]);
+// Von Hand auf 'done' setzen, mit der angelegten id im Vermerk -- genau so, wie die Uebernahme es
+// fuer ein 'new'-Item tut.
+avesmapsGaretienItemAbschliessen($pdoN, $itemIdVon($pdoN, 'Neuling (Probe)'), 'done', $idNeu, 7);
+assert($zaehleArtikel($pdoN, $idNeu) === 0, 'der Pruefstand steht: der Neuling hat noch keine');
+$n3 = avesmapsGaretienArtikelQuellenNachtragen($pdoN);
+assert($n3['geschrieben'] === 1, 'auch ein \'new\'-Item wird erreicht: ' . json_encode($n3));
+assert($zaehleArtikel($pdoN, $idNeu) === 1,
+    'die public_id eines \'new\'-Items steht in apply_note, nicht in entity_public_id');
+$pruefungen += 3;
+
+// --- ⚠️ EIN OBJEKT, DAS ES NICHT MEHR GIBT, HAELT DEN NACHZUG NICHT AN.
+$pdoN->exec("DELETE FROM map_features WHERE public_id = '$idNeu'");
+$n4 = avesmapsGaretienArtikelQuellenNachtragen($pdoN);
+assert($n4['geschrieben'] === 0 && is_int($n4['geprueft']),
+    'ein geloeschtes Objekt wird uebersprungen, nicht geworfen: ' . json_encode($n4));
+$pruefungen++;
+
 echo "OK: {$pruefungen} Pruefungen\n";

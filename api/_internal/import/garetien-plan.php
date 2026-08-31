@@ -57,6 +57,48 @@ function avesmapsGaretienObjektSchluesselAusZeile(array $zeile): string
 }
 
 /**
+ * Der Objekt-Schluessel EINES sync_plan_item -- alles vor dem ersten "|".
+ *
+ * 🔴 RULING P6 (Aufgabe 3, in garetien-plan.php): ein Abschnitts-Item traegt
+ * `<basis>|<anlass>|<public_id>`, ein einfacher Neu-/Geaendert-Eintrag nur `<basis>` -- OHNE
+ * Pipe. Am ersten "|" zu splitten liefert in beiden Faellen dieselbe Basis wie
+ * avesmapsGaretienObjektSchluesselAusZeile, und das ist auch der einzige Ort, an dem diese
+ * Formel entsteht -- hier wird sie nur benutzt, nie ein zweites Mal gebaut.
+ */
+function avesmapsGaretienObjektSchluessel(string $entityKey): string
+{
+    $pos = strpos($entityKey, '|');
+
+    return $pos === false ? $entityKey : substr($entityKey, 0, $pos);
+}
+
+/**
+ * Der ARTIKELNAME aus einem Objektschluessel -- die Umkehrung von
+ * `avesmapsGaretienObjektSchluesselAusZeile`. `''`, wenn das Objekt keinen Artikel hat.
+ * REIN -- kein I/O.
+ *
+ * 🔴 Die Formel dort lautet `wiki:ebene:typ:<Namensraum:Artikel>`, und der Artikelname ist der
+ * VIERTE Teil -- mit seinem eigenen Doppelpunkt darin, deshalb `explode(..., 4)`.
+ *
+ * 💣 ZWEI DINGE MUESSEN HERAUSFALLEN, und beide sind schon einmal durchgerutscht:
+ *   · Ein Objekt OHNE Artikel traegt `#<Zeilennummer>` an dieser Stelle (der Bauer setzt das ein).
+ *     Ohne den Riegel entstuende daraus die Quelle „#417 auf garetien.de".
+ *   · Ein Item kann einen SUFFIX hinter `|` tragen (`…|ergaenzung|<public_id>`) -- deshalb erst
+ *     durch `avesmapsGaretienObjektSchluessel`. Ohne das hiesse der Artikel
+ *     „Testpfad-Quelle|ergaenzung|00000000-…".
+ */
+function avesmapsGaretienArtikelNameAusSchluessel(string $entityKey): string
+{
+    $teile = explode(':', avesmapsGaretienObjektSchluessel($entityKey), 4);
+    if (count($teile) < 4) {
+        return '';
+    }
+    $seite = trim($teile[3]);
+
+    return str_starts_with($seite, '#') ? '' : $seite;
+}
+
+/**
  * Der WIRT einer Staging-Zeile allein -- `https://www.garetien.de` bzw. `https://www.koschwiki.de`,
  * ohne Pfad und ohne Artikel. REIN -- kein I/O.
  *
@@ -77,34 +119,180 @@ function avesmapsGaretienWirtAusZeile(array $zeile): string
 }
 
 /**
- * Die Wiki-Adresse EINER Staging-Zeile -- der Artikel-Link, oder ohne Artikel die Sammelquelle
- * (der Wirt allein). REIN -- kein I/O.
+ * Die EXPORT-ARBEITSSEITE einer Staging-Zeile -- die MapSVG-Seite, von der die Zeile stammt.
+ * REIN -- kein I/O.
  *
- * ⚠️ DAS IST DIE EXPORT-ARBEITSSEITE, NICHT DIE ZITIERTE QUELLE (Meldung 30.08.2026). Sie landet
- * in `after.seite_url` -- fuer den Editor, der beim Review nachsehen will, VON WELCHER Seite eine
- * Zeile stammt. Die Quelle, die mit dem Objekt zitiert wird (`quelle.url`), ist
- * `avesmapsGaretienWirtAusZeile` darueber.
+ * 🔴 KORREKTUR 31.08.2026: SIE HEISST NACH DER EBENE, NICHT NACH DEM ARTIKEL. Bis dahin baute
+ * diese Funktion `…/Avesmaps_` + ARTIKELNAME, also z.B. `…/Avesmaps_Garetien:Stadt_Praioslob`
+ * -- eine Seite, die es nicht gibt. Live gemessen:
+ *   `…/Avesmaps_Garetien:Stadt_Praioslob` -> HTTP 404
+ *   `…/Avesmaps_Ortschaften_1`            -> HTTP 200
+ * Die Exportseiten heissen nach der EBENE (AVESMAPS_GARETIEN_EBENEN in garetien-abruf.php ist die
+ * einzige Liste, die sie nennt), und die Ebene steht in der Staging-Zeile. Der Fehler traf jede
+ * Zeile MIT Artikel -- 58 % des Bestands -- und war an zwei Stellen sichtbar: als toter Link im
+ * Importer-Fenster und als `feature_sources.note` an jedem uebernommenen Objekt.
+ * ⚠️ Er ist auch der Grund, warum der Owner den Artikel „Garetien:Stadt Praioslob" ZUFAELLIG
+ * entdecken musste, statt ihn anzuklicken.
  *
- * 🔴 DIESELBE LEHRE WIE RULING P6 BEIM OBJEKTSCHLUESSEL (Review I2, 27.08.2026): diese Formel
- * entsteht HIER und wird von `avesmapsGaretienPlanEintrag` UND der Arbeitsliste des Fensters
- * benutzt, nicht ein zweites Mal gebaut. Eine zweite Fassung stand kurz in `garetien-liste.php`
- * und war Zeile fuer Zeile dieselbe Rechnung -- mit dem Preis, dass die zwei Wirt-Literale
- * zweimal im Repo standen und die `$namensraum:$artikel`-Bildung dreimal (hier, dort, im
- * Objektschluessel). Eine Aenderung an einem der beiden Wirte haette sonst nur EINE der beiden
- * Stellen erreicht.
+ * ⚠️ DAS IST NICHT DIE ZITIERTE QUELLE. Die ist `avesmapsGaretienWirtAusZeile` (der Wirt allein),
+ * und der ARTIKEL-Link ist `avesmapsGaretienArtikelUrlAusZeile` darunter -- drei Adressen aus
+ * derselben Zeile, jede mit eigener Aufgabe.
  */
 function avesmapsGaretienSeitenUrlAusZeile(array $zeile): string
 {
     $wiki = (string) ($zeile['wiki'] ?? 'ggp');
-    $seite = avesmapsGaretienSeitenNameAusZeile($zeile);
-    // 🔴 Ohne Artikel gibt es keinen Objektlink, sondern die Sammelquelle (Entwurf §5.3).
-    $wirt = avesmapsGaretienWirtAusZeile($zeile);
-    if ($seite === '') {
-        return $wirt;
+    $ebene = trim((string) ($zeile['ebene'] ?? ''));
+    // ⚠️ Ohne Ebene gibt es keine Arbeitsseite -- dann der Wirt allein, nie ein `Avesmaps_`
+    // ohne Namen (das waere eine Adresse, die sicher ins Leere zeigt).
+    if ($ebene === '') {
+        return avesmapsGaretienWirtAusZeile($zeile);
     }
     $basis = $wiki === 'kosch' ? AVESMAPS_GARETIEN_BASIS_KOSCH : AVESMAPS_GARETIEN_BASIS_GGP;
 
-    return $basis . str_replace(' ', '_', $seite);
+    return $basis . $ebene;
+}
+
+/**
+ * Der Artikelname OHNE Namensraum -- aus `Garetien:Stadt Praioslob` wird `Stadt Praioslob`.
+ * REIN -- kein I/O.
+ *
+ * 🔴 Das ist die UMKEHRUNG der Trennung, die `avesmapsGaretienParseZeile` beim Einlesen macht
+ * (garetien-parser.php: der erste Doppelpunkt trennt Namensraum vom Artikel, wenn ueberhaupt einer
+ * da ist). Sie ist deshalb hier erlaubt und nicht geraten: dieselbe, schon getroffene Entscheidung,
+ * nur rueckwaerts -- und ein Artikel im Hauptnamensraum, dessen Titel selbst einen Doppelpunkt
+ * traegt, wird vom Parser bereits genauso behandelt.
+ *
+ * ⚠️ Gebraucht wird sie fuer die BESCHRIFTUNG der Artikelquelle („Stadt Praioslob auf
+ * garetien.de", Owner 31.08.2026). Der Namensraum ist ein Wiki-interner Behaelter; er steht
+ * weiterhin vollstaendig in der Adresse.
+ */
+function avesmapsGaretienArtikelOhneNamensraum(string $seite): string
+{
+    $seite = trim($seite);
+    $pos = strpos($seite, ':');
+
+    return $pos === false ? $seite : trim(substr($seite, $pos + 1));
+}
+
+/**
+ * Die Adresse des WIKI-ARTIKELS -- `https://www.garetien.de/index.php/Garetien:Stadt_Praioslob`.
+ * Ohne Artikel: der Wirt allein. REIN -- kein I/O.
+ *
+ * 🔴 DIE FORM IST GEMESSEN, NICHT GERATEN (31.08.2026): `/index.php/<Namensraum:Artikel>` mit
+ * Unterstrichen statt Leerzeichen antwortet mit 200, die frueher hier gebaute
+ * `…/Avesmaps_<Artikel>`-Form mit 404. Stichprobe ueber 20 zufaellige Artikel aus den
+ * Exportseiten: 20 von 20 vorhanden -- die Angabe der Exportseite ist verlaesslich, eine
+ * Existenzpruefung also unnoetig. ⚠️ Sie waere auch nicht baubar: die MediaWiki-API von
+ * garetien.de ist fuer Anonyme zu (`readapidenied`), und 3162 Einzelabrufe waeren ein Crawl auf
+ * einem fremden Server.
+ *
+ * 💣 KEIN `urlencode` UEBER DEN GANZEN NAMEN -- Doppelpunkt und Schraegstrich sind hier Struktur
+ * (Namensraum, Unterseite), kein Inhalt; kodiert werden muessen die Umlaute. `rawurlencode` und
+ * danach genau diese zwei Zeichen zuruecknehmen.
+ */
+function avesmapsGaretienArtikelUrlAus(string $wiki, string $seite): string
+{
+    $wirt = $wiki === 'kosch' ? 'https://www.koschwiki.de' : 'https://www.garetien.de';
+    $seite = trim($seite);
+    if ($seite === '') {
+        return $wirt;
+    }
+    $kodiert = str_replace(['%3A', '%2F'], [':', '/'], rawurlencode(str_replace(' ', '_', $seite)));
+
+    return $wirt . '/index.php/' . $kodiert;
+}
+
+/**
+ * Die Export-Arbeitsseite aus einem `after`-Rumpf -- NEU GERECHNET, nicht aus `after.seite_url`
+ * gelesen. REIN -- kein I/O.
+ *
+ * 🔴 UND DAS IST ABSICHT, keine Umstaendlichkeit. Jedes Item, das VOR dem 31.08.2026 gebaut
+ * wurde, traegt in `after.seite_url` die alte, kaputte Form `…/Avesmaps_<Artikelname>` (HTTP 404,
+ * siehe avesmapsGaretienSeitenUrlAusZeile). Das trifft den ganzen Bestand des Owners UND seinen
+ * laufenden Lauf mit 8213 Zeilen -- wuerde die Uebernahme das Feld glauben, schriebe sie die tote
+ * Adresse weiter in jede neue `feature_sources.note`.
+ *
+ * ⚠️ Die Herleitung ist exakt und nicht geraten: `after` traegt `wiki` und `ebene`, also genau
+ * die zwei Angaben, aus denen ein frischer Planbau dieselbe Adresse baut. Fehlt die Ebene (ein
+ * von Hand gebautes Item), gilt weiterhin das gespeicherte Feld.
+ */
+function avesmapsGaretienArbeitsseiteAus(array $nach): string
+{
+    $ebene = trim((string) ($nach['ebene'] ?? ''));
+    if ($ebene === '') {
+        return (string) ($nach['seite_url'] ?? '');
+    }
+
+    return avesmapsGaretienSeitenUrlAusZeile([
+        'wiki' => (string) ($nach['wiki'] ?? 'ggp'),
+        'ebene' => $ebene,
+    ]);
+}
+
+/** Dieselbe Adresse aus einer Staging-Zeile. REIN. */
+function avesmapsGaretienArtikelUrlAusZeile(array $zeile): string
+{
+    return avesmapsGaretienArtikelUrlAus(
+        (string) ($zeile['wiki'] ?? 'ggp'),
+        avesmapsGaretienSeitenNameAusZeile($zeile)
+    );
+}
+
+/**
+ * Die Namensnennung eines Wirts. REIN.
+ *
+ * 🔴 Der Wortlaut ist eine Owner-Entscheidung (27.08.2026) und stand bis zum 31.08.2026 nur
+ * inline in `avesmapsGaretienPlanEintrag`. Die Artikelquelle braucht denselben -- und sie entsteht
+ * auch im Nachzug, also an einer zweiten Stelle. Er steht deshalb ab hier einmal da.
+ */
+function avesmapsGaretienNamensnennungFuer(string $wiki): string
+{
+    return $wiki === 'kosch' ? 'VolkoV / koschwiki.de' : 'VolkoV / garetien.de';
+}
+
+/**
+ * Die ZWEITE Quelle eines Objekts: sein eigener Wiki-Artikel. `null`, wenn kein Artikel genannt
+ * ist. REIN -- kein I/O.
+ *
+ * Owner 31.08.2026, nachdem er den Artikel zu Praioslob zufaellig gefunden hatte: „kann man den
+ * artikel dann als zusaetzliche quelle angeben? 'Stadt Praioslob auf garetien.de' (Link)".
+ *
+ * 🔴 ZUSAETZLICH, NICHT STATT. „Briefspiel (Garetien)" auf den Wirt bleibt -- das ist die
+ * Sammelquelle, die JEDES importierte Objekt traegt; diese hier ist die konkrete Seite, und nur
+ * 58 % der Zeilen haben eine (Orte/Burgen/Gutshoefe fast 100 %, Wege 7 %, Waelder 8 %).
+ *
+ * 🔴 EIN BAUER, ZWEI FUETTERER: der Planbau reicht den Namen aus der Staging-Zeile herein, der
+ * Nachzug (avesmapsGaretienArtikelQuellenNachtragen) den aus dem entity_key eines schon
+ * uebernommenen Items. Zwei Fassungen dieser Form liefen beim ersten abweichenden Zeichen
+ * auseinander -- und diese Quelle traegt die Rechtsfolge.
+ *
+ * ⚠️ Lizenz und Namensnennung sind DIESELBEN wie bei der Sammelquelle: derselbe Wirt, dieselben
+ * Inhalte, derselbe Autor. Sie werden hier nicht neu entschieden.
+ *
+ * ⚠️ Mehrere Objekte duerfen sich einen Artikel teilen (gemessen: 1014 Artikel tragen mehr als
+ * ein Objekt, Spitze 7 -- meist dieselbe Burg als Flaeche UND als Beschriftung). Das ist kein
+ * Fehler, sondern die Seite, von der die Angabe stammt; die Beschriftung nennt den ARTIKEL, nicht
+ * das Objekt. Der geteilte Katalog legt sie ueber `url_hash` ohnehin nur einmal ab.
+ *
+ * @return array{url:string,label:string,source_type:string,origin:string,license:string,attribution:string}|null
+ */
+function avesmapsGaretienArtikelQuelleAus(string $wiki, string $seite): ?array
+{
+    $seite = trim($seite);
+    if ($seite === '') {
+        return null;
+    }
+
+    return [
+        'url' => avesmapsGaretienArtikelUrlAus($wiki, $seite),
+        // Owner-Wortlaut: „Stadt Praioslob auf garetien.de".
+        'label' => avesmapsGaretienArtikelOhneNamensraum($seite)
+            . ' auf ' . ($wiki === 'kosch' ? 'koschwiki.de' : 'garetien.de'),
+        'source_type' => 'briefspiel',
+        'origin' => 'garetien',
+        'license' => 'cc-by-nc-sa-3.0',
+        'attribution' => avesmapsGaretienNamensnennungFuer($wiki),
+    ];
 }
 
 /**
@@ -131,7 +319,9 @@ function avesmapsGaretienPlanEintrag(array $zeile, array $ziel, array $urteil): 
     // 🔴 Lizenz und Namensnennung reisen als DATEN mit (Owner 27.08.2026), nicht als Regel im
     // Renderer. Der Wortlaut ist seiner: "VolkoV / garetien.de" fuer die Inhalte aus Garetien,
     // "VolkoV / koschwiki.de" fuer den Kosch.
-    $namensnennung = $wiki === 'kosch' ? 'VolkoV / koschwiki.de' : 'VolkoV / garetien.de';
+    $namensnennung = avesmapsGaretienNamensnennungFuer($wiki);
+    // Die zweite Quelle: der eigene Wiki-Artikel, wenn die Zeile einen nennt (Owner 31.08.2026).
+    $artikelQuelle = avesmapsGaretienArtikelQuelleAus($wiki, avesmapsGaretienSeitenNameAusZeile($zeile));
 
     // 🔴 EIN ZUFLUSS IST EIN NEUES OBJEKT, KEINE AENDERUNG AN UNSEREM FLUSS (Owner 27.08.2026).
     // 34 der 37 Widersprueche sind Baeche, die auf ihrem Hauptfluss liegen. Als 'changed' mit
@@ -202,6 +392,10 @@ function avesmapsGaretienPlanEintrag(array $zeile, array $ziel, array $urteil): 
                 'license' => 'cc-by-nc-sa-3.0',
                 'attribution' => $namensnennung,
             ],
+            // 🔴 NUR WENN DIE ZEILE EINEN ARTIKEL NENNT -- die Abwesenheit ist die Aussage
+            // „dieses Objekt hat keine eigene Seite" (42 % der Zeilen, vor allem Wege und
+            // Waelder). Ein leeres `artikel_quelle` an jeder Planzeile waere eine Behauptung.
+            ...($artikelQuelle !== null ? ['artikel_quelle' => $artikelQuelle] : []),
             // Die Export-Arbeitsseite, von der diese Zeile stammt -- NICHT die zitierte Quelle
             // (die ist `quelle.url` darueber, seit der Meldung vom 30.08.2026 der Wirt allein).
             // Der Editor braucht sie trotzdem: `garetien-liste.php` liest sie als `wiki_url` fuer

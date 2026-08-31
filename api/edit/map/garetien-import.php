@@ -138,11 +138,19 @@ try {
             avesmapsErrorResponse(400, 'no_run', 'Es wurde kein Import-Lauf genannt.');
         }
         $anzahl = avesmapsGaretienBaueSyncPlan($pdo, $importRun, (int) ($user['id'] ?? 0));
+        // Der zweite Ausloeser des Artikelquellen-Nachzugs (der erste steht am Ende eines
+        // abgeschlossenen Uebernahme-Vorgangs, avesmapsGaretienApplyStep). Er sitzt HIER und nicht
+        // in avesmapsGaretienBaueSyncPlan, weil garetien-plan.php die Uebernahme nicht sieht --
+        // die Abhaengigkeit laeuft andersherum. Der Endpunkt ist die Stelle, die beide kennt.
+        // 🔴 UND ER WIRD GEMELDET. Eine stille Reparatur an fremden Objekten ist von "nichts
+        // passiert" nicht zu unterscheiden -- dieselbe Regel wie bei der Art einer Quelle.
+        $nachzug = avesmapsGaretienArtikelQuellenNachtragen($pdo);
         $lauf = avesmapsSyncPlanOpenRun($pdo, AVESMAPS_GARETIEN_PLAN_KIND);
         avesmapsJsonResponse(200, [
             'ok' => true,
             'plan_run_id' => (int) ($lauf['id'] ?? 0),
             'vorschlaege' => $anzahl,
+            'artikel_nachgetragen' => $nachzug['geschrieben'],
         ]);
     }
 

@@ -499,6 +499,21 @@ assert(($nachName['Llavari']['kind'] ?? '(fehlt ganz)') === '',
     . json_encode($nachName['Llavari']['kind'] ?? '(fehlt ganz)'));
 $pruefungen++;
 
+// --- 🔴 DER ARTIKEL-LINK ZEIGT AUF DEN ARTIKEL, auch bei einem Objekt OHNE Item. Die Metazeile
+// des Fensters beschriftet ihn mit dem ARTIKELNAMEN (garetienDetailMetaMarkup), also muss er
+// dorthin fuehren. Bis zum 31.08.2026 zeigte er auf `…/Avesmaps_<Artikelname>` -- eine Seite, die
+// es nicht gibt (live gemessen HTTP 404), und genau deshalb musste der Owner den Artikel zu
+// Praioslob zufaellig entdecken, statt ihn anzuklicken.
+// 💣 ZWEI ERZEUGER dieser Zeile: der Item-Pfad und der ohne Item. Der Item-Pfad ist in
+// garetien-abschnitte-vollstaendig-test.php belegt; das hier ist der andere -- ohne ihn bleibt
+// genau die Haelfte ungeprueft, in der die Objekte ohne Vorschlag stehen.
+assert(str_contains((string) ($nachName['Llavari']['wiki_url'] ?? ''), '/index.php/'),
+    'der Artikel-Link eines Objekts ohne Item zeigt auf den Artikel: '
+    . var_export($nachName['Llavari']['wiki_url'] ?? null, true));
+assert(!str_contains((string) ($nachName['Llavari']['wiki_url'] ?? ''), 'Avesmaps_'),
+    'und NICHT auf die Export-Arbeitsseite: ' . var_export($nachName['Llavari']['wiki_url'] ?? null, true));
+$pruefungen += 2;
+
 // ---------------------------------------------------------------------------------------------
 // Owner-Meldung 29.08.2026, Nachtrag zu Aufgabe 11: `facetten.typ_kategorie` muss einen WIRKLICH
 // uebersprungenen Typ als solchen zeigen. Die Insel (weiter oben) ist seit der vollstaendigen

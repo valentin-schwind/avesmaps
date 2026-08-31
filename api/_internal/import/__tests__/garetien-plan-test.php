@@ -165,7 +165,10 @@ assert(avesmapsGaretienWirtAusZeile(['wiki' => 'ggp']) === 'https://www.garetien
     'ggp zeigt auf garetien.de');
 assert(avesmapsGaretienWirtAusZeile(['wiki' => 'kosch']) === 'https://www.koschwiki.de',
     'kosch zeigt auf koschwiki.de');
-$koschZeile = ['wiki' => 'kosch', 'namensraum' => 'Kosch', 'artikel' => 'Bodrin'];
+// ⚠️ MIT `ebene` -- seit dem 31.08.2026 heisst die Export-Arbeitsseite nach der EBENE, nicht
+// nach dem Artikel (die alte Form `…/Avesmaps_Kosch:Bodrin` gibt es auf koschwiki.de so wenig
+// wie ihr garetien.de-Gegenstueck, live gemessen HTTP 404).
+$koschZeile = ['wiki' => 'kosch', 'ebene' => 'Gewaesser', 'namensraum' => 'Kosch', 'artikel' => 'Bodrin'];
 assert(avesmapsGaretienSeitenUrlAusZeile($koschZeile) !== avesmapsGaretienWirtAusZeile($koschZeile),
     'die Export-Arbeitsseite bleibt von der zitierten Quelle unterschieden');
 assert(str_starts_with(avesmapsGaretienSeitenUrlAusZeile($koschZeile), AVESMAPS_GARETIEN_BASIS_KOSCH),

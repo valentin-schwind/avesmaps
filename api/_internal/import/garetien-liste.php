@@ -70,20 +70,41 @@ function avesmapsGaretienListePunkteRunden(array $punkte): array
     return $raus;
 }
 
-/**
- * Der Objekt-Schluessel EINES sync_plan_item -- alles vor dem ersten "|".
- *
- * 🔴 RULING P6 (Aufgabe 3, in garetien-plan.php): ein Abschnitts-Item traegt
- * `<basis>|<anlass>|<public_id>`, ein einfacher Neu-/Geaendert-Eintrag nur `<basis>` -- OHNE
- * Pipe. Am ersten "|" zu splitten liefert in beiden Faellen dieselbe Basis wie
- * avesmapsGaretienObjektSchluesselAusZeile, und das ist auch der einzige Ort, an dem diese
- * Formel entsteht -- hier wird sie nur benutzt, nie ein zweites Mal gebaut.
- */
-function avesmapsGaretienObjektSchluessel(string $entityKey): string
-{
-    $pos = strpos($entityKey, '|');
+// 🔴 `avesmapsGaretienObjektSchluessel` ist am 31.08.2026 nach garetien-plan.php gewandert --
+// neben `avesmapsGaretienObjektSchluesselAusZeile`, das den Schluessel BAUT. Sie ist seine
+// Umkehrung, und die Uebernahme braucht sie seither ebenfalls (garetien-uebernahme.php sieht
+// diese Datei hier nicht). Zwei Fassungen der Pipe-Regel waeren die Divergenz, gegen die der
+// Docblock des Bauers ausdruecklich warnt.
 
-    return $pos === false ? $entityKey : substr($entityKey, 0, $pos);
+/**
+ * Der ARTIKEL-LINK einer Listenzeile -- die Adresse, unter der die Metazeile des Fensters den
+ * Artikelnamen verlinkt (garetienDetailMetaMarkup). REIN -- kein I/O.
+ *
+ * 🔴 KORREKTUR 31.08.2026: ER ZEIGT AUF DEN ARTIKEL. Bis dahin stand hier `after.seite_url`,
+ * und die baute `…/Avesmaps_<Artikelname>` -- eine Seite, die es nicht gibt (live gemessen HTTP
+ * 404). Der Link traegt als Text den Artikelnamen und muss dorthin fuehren; er tat es nie, und
+ * darum musste der Owner den Artikel zu Praioslob ZUFAELLIG entdecken, statt ihn anzuklicken.
+ * ⚠️ Die Export-Arbeitsseite ist damit nicht verloren -- sie steht weiter in `after.seite_url`
+ * und wandert von dort in `feature_sources.note`.
+ *
+ * 💣 EIN ERZEUGER FUER BEIDE LISTENZWEIGE. Die Arbeitsliste baut ihre Zeilen an ZWEI Stellen
+ * (mit Vorschlag und ohne), und beide brauchen dieselbe Adresse. Als zwei Ausdruecke geschrieben
+ * war der zweite nicht pruefbar: die einzige Zeile OHNE Vorschlag in der Fixture hat keinen
+ * Artikel, dort liefern beide Fassungen den Wirt -- eine Mutation am zweiten Zweig blieb
+ * unentdeckt. Zusammengelegt statt zweimal geprueft; dieselbe Lehre wie bei den Listenzeilen und
+ * der Wiki-Zuweisung (AGENTS.md §11).
+ *
+ * ⚠️ Die Staging-Zeile geht vor: sie traegt Namensraum und Artikel als eigene Spalten. Nur wenn
+ * es gar keine gibt (ein Vorschlag, dessen Staging-Zeile inzwischen fort ist), gilt die Adresse
+ * aus dem Vorschlag.
+ */
+function avesmapsGaretienListeArtikelUrl(?array $zeile, array $erstesAfter): string
+{
+    if ($zeile !== null) {
+        return avesmapsGaretienArtikelUrlAusZeile($zeile);
+    }
+
+    return (string) ($erstesAfter['artikel_quelle']['url'] ?? '');
 }
 
 /**
@@ -565,17 +586,24 @@ function avesmapsGaretienArbeitslisteObjekte(PDO $pdo, int $importRunId): array
             // werden beim Bau nur in `[$punkte]` gewickelt -- ein unsauber geschlossener Ring ist
             // moeglich, und dann raet der Browser falsch.
             'geometrie_typ' => (string) ($erstesAfter['geometry']['type'] ?? ''),
-            // 🔴 MELDUNG (30.08.2026): `seite_url`, NICHT `quelle.url` -- seit der Korrektur zeigt
-            // `quelle.url` auf den Wirt allein (garetien.de/koschwiki.de, die zitierte Quelle),
-            // `seite_url` bleibt die Export-Arbeitsseite dieser Zeile. Dieses Feld hier ist der
-            // Artikel-Link im Review-Fenster (garetienDetailMetaMarkup), der braucht weiterhin die
-            // konkrete Seite -- ein Rueckfall auf `quelle.url` wuerde ihn lautlos auf den Wirt
-            // ziehen und der Editor koennte nicht mehr nachsehen, VON WELCHER Seite eine Zeile kam.
-            'wiki_url' => (string) ($erstesAfter['seite_url'] ?? ($zeile !== null ? avesmapsGaretienSeitenUrlAusZeile($zeile) : '')),
+            'wiki_url' => avesmapsGaretienListeArtikelUrl($zeile, $erstesAfter),
             // Die Quelle, die beim Uebernehmen mitreist -- Beschriftung, Namensnennung, Lizenz.
             // 🔴 DATEN, keine Regel im Renderer: der Wortlaut ist eine Owner-Entscheidung, und ein
             // Browser, der ihn aus dem Wiki-Kuerzel ableitet, waere ihre zweite Fassung.
             'quelle' => (array) ($erstesAfter['quelle'] ?? []),
+            // Die ZWEITE Quelle: der eigene Wiki-Artikel (Owner 31.08.2026). Leer, wenn die Zeile
+            // keinen nennt -- 42 % der Zeilen, vor allem Wege und Waelder.
+            // 🔴 AUS DER ZEILE GERECHNET, nicht nur aus `after` gelesen: der laufende Lauf des
+            // Owners wurde vor dem 31.08.2026 gebaut und hat das Feld nicht. Sonst zeigte der
+            // Kasten „Eingefuegt wird" bei ihm keine Artikelquelle an, waehrend die Uebernahme sie
+            // sehr wohl anlegt (die liest denselben Rueckfall) -- eine Vorschau, die weniger
+            // verspricht, als geschieht, ist genauso falsch wie umgekehrt.
+            'artikel_quelle' => $zeile !== null
+                ? (avesmapsGaretienArtikelQuelleAus(
+                    (string) ($zeile['wiki'] ?? 'ggp'),
+                    avesmapsGaretienSeitenNameAusZeile($zeile)
+                ) ?? [])
+                : (array) ($erstesAfter['artikel_quelle'] ?? []),
             // Als WAS wir es anlegen wuerden. Ohne dieses Feld sagt der Kopf nur ihren Typ.
             'subtyp' => (string) ($erstesAfter['subtyp'] ?? ''),
             // 🔴 Das Bach-Haekchen -- DURCHGEREICHT, nicht aus `typ === 'Bach'` hergeleitet.
@@ -673,10 +701,13 @@ function avesmapsGaretienArbeitslisteObjekte(PDO $pdo, int $importRunId): array
             // nur, was ein Haekchen traegt, und ohne Item gibt es keins. Der Browser faellt bei
             // leerem Feld auf "Linie" zurueck, die zurueckhaltende Richtung.
             'geometrie_typ' => '',
-            'wiki_url' => avesmapsGaretienSeitenUrlAusZeile($zeile),
+            'wiki_url' => avesmapsGaretienListeArtikelUrl($zeile, []),
             // ⚠️ LEER, und das ist die Auskunft: ohne Vorschlag reist auch keine Quelle mit, und
             // ein Zieltyp waere eine Behauptung ueber etwas, das gar nicht angelegt wird.
             'quelle' => [],
+            // ⚠️ LEER wie `quelle`: ohne Vorschlag wird nichts angelegt, also reist auch keine
+            // Quelle mit -- der Artikel-LINK der Metazeile steht davon unberuehrt in `wiki_url`.
+            'artikel_quelle' => [],
             'subtyp' => '',
             // Dieselbe Auskunft wie bei `subtyp`: ohne Item gibt es kein `after` und damit kein
             // `kind` -- leer ist hier die richtige Aussage, kein Versaeumnis.

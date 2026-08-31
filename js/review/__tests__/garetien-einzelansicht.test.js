@@ -493,6 +493,50 @@ gleich(garetienQuellenMarkup({ quelle: {} }), "", "ohne Quelle gibt es den Absch
 wahr(!garetienDetailMarkup(natter).includes("Die Quelle, die mitreist"),
 	"ein Objekt ohne Quellenfeld zeigt den Abschnitt nicht");
 
+// ---- 🔴 DIE ZWEITE QUELLE: der eigene Wiki-Artikel (Owner 31.08.2026) ---------------------------
+// „kann man den artikel dann als zusätzliche quelle angeben? 'Stadt Praioslob auf garetien.de'
+// (Link)" -- ZUSÄTZLICH, nicht statt. Die Sammelquelle „Briefspiel (Garetien)" bleibt daneben.
+const beideQuellen = garetienQuellenMarkup({
+	quelle: { label: "Briefspiel (Garetien)", license: "cc-by-nc-sa-3.0", attribution: "VolkoV / garetien.de" },
+	artikel_quelle: {
+		label: "Stadt Praioslob auf garetien.de",
+		url: "https://www.garetien.de/index.php/Garetien:Stadt_Praioslob",
+	},
+});
+wahr(beideQuellen.includes("Briefspiel (Garetien)"), "die Sammelquelle steht weiter da: " + beideQuellen);
+wahr(beideQuellen.includes("Stadt Praioslob auf garetien.de"), "und die Artikelquelle daneben");
+// 💣 DER ARTIKEL WIRD VERLINKT -- er ist die einzige der beiden Quellen, die auf eine konkrete
+// Seite zeigt. Ohne den Link waere er ein Text, den niemand nachschlagen kann.
+wahr(/href="https:\/\/www\.garetien\.de\/index\.php\/Garetien:Stadt_Praioslob"/.test(beideQuellen),
+	"mit Link auf den Artikel: " + beideQuellen);
+wahr(/target="_blank"/.test(beideQuellen), "und auswaerts, wie jeder fremde Link im Fenster");
+// 💣 DIE LIZENZZEILE STEHT EINMAL, NICHT ZWEIMAL. Sie ist bei beiden Quellen dieselbe (derselbe
+// Wirt, derselbe Autor); zweimal derselbe Satz liest sich wie ein Unterschied.
+gleich((beideQuellen.match(/CC BY-NC-SA 3\.0/g) || []).length, 1,
+	"die Lizenzangabe steht genau einmal unter beiden");
+// 🔴 UND DIE UEBERSCHRIFT WIRD PLURAL -- „Die Quellen, die mitreisen" waere die naechste Stufe,
+// aber der Satz danach ist einer; gemeint ist der Wechsel von „Die Quelle" auf „Die Quellen".
+wahr(beideQuellen.includes("Die Quellen, die mitreist"), "die Ueberschrift nennt beide: " + beideQuellen);
+
+// --- ⚠️ OHNE ARTIKEL bleibt alles wie vorher. 42 % der Zeilen haben keinen (Wege 7 %, Waelder
+// 8 % Abdeckung, live gemessen) -- eine Zeile „kein Artikel" waere eine Auskunft ueber eine
+// Abwesenheit, die niemanden interessiert.
+const nurSammel = garetienQuellenMarkup({
+	quelle: { label: "Briefspiel (Garetien)", license: "cc-by-nc-sa-3.0", attribution: "VolkoV / garetien.de" },
+});
+wahr(nurSammel.includes("Die Quelle, die mitreist"), "ohne Artikel bleibt die Einzahl: " + nurSammel);
+wahr(!nurSammel.includes("<a "), "und es wird nichts verlinkt");
+
+// --- 💣 EINE ARTIKELQUELLE OHNE ADRESSE wird als TEXT gezeigt, nicht als toter Link. Ein
+// `<a href="">` fuehrt auf die eigene Seite zurueck -- schlimmer als kein Link.
+const ohneAdresse = garetienQuellenMarkup({
+	quelle: { label: "Briefspiel (Garetien)" },
+	artikel_quelle: { label: "Irgendwas auf garetien.de", url: "" },
+});
+wahr(ohneAdresse.includes("Irgendwas auf garetien.de"), "der Name steht da");
+wahr(!ohneAdresse.includes("<a "), "aber ohne Adresse kein Link: " + ohneAdresse);
+checks += 0;
+
 // ---- Das CSS haelt die zwei Fallen, die beim Zeichnen des Mockups gemessen wurden --------------
 
 const cssRoh = fs.readFileSync(path.join(WURZEL, "css/components/garetien-importer.css"), "utf8");

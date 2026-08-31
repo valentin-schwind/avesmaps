@@ -2404,15 +2404,36 @@
 	// Wiki-Kürzel abzuleiten („kosch ? Briefspiel (Kosch) : …") wäre ihre zweite Fassung.
 	// ⚠️ Fehlt die Quelle ganz (ein Objekt ohne Vorschlag, ein Lauf von vor dem Nachzug), fällt der
 	// ganze Abschnitt WEG -- eine Überschrift über nichts ist keine Auskunft.
+	// 🔴 SEIT 31.08.2026 SIND ES ZWEI (Owner, nachdem er den Artikel zu Praioslob zufaellig
+	// gefunden hatte: „kann man den artikel dann als zusaetzliche quelle angeben?"): die
+	// Sammelquelle „Briefspiel (Garetien)" auf den Wirt UND der eigene Wiki-Artikel des Objekts.
+	// ⚠️ Die zweite fehlt bei 42 % der Zeilen (vor allem Wege und Waelder) -- dann steht sie
+	// schlicht nicht da. Eine Zeile „kein Artikel" waere eine Auskunft ueber eine Abwesenheit, die
+	// niemanden interessiert.
+	// 💣 Die Lizenzzeile steht EINMAL unter beiden, nicht an jeder: sie ist bei beiden dieselbe
+	// (derselbe Wirt, derselbe Autor), und zweimal derselbe Satz liest sich wie ein Unterschied.
 	function garetienQuellenMarkup(objekt) {
 		const quelle = (objekt && objekt.quelle) || {};
+		const artikel = (objekt && objekt.artikel_quelle) || {};
 		const label = String(quelle.label || "").trim();
+		const artikelLabel = String(artikel.label || "").trim();
+		const artikelUrl = String(artikel.url || "").trim();
 		const lizenz = garetienLizenzZeile(quelle);
-		if (label === "" && lizenz.text === "") { return ""; }
+		if (label === "" && artikelLabel === "" && lizenz.text === "") { return ""; }
 		const teile = [];
 		if (label !== "") { teile.push("„" + avesmapsGaretienEscape(label) + "\""); }
+		if (artikelLabel !== "") {
+			// Der Artikel wird VERLINKT -- er ist die einzige der beiden Quellen, die auf eine
+			// konkrete Seite zeigt. ⚠️ Das ↗ kommt aus der CSS-Regel
+			// `.gi-detail a[target="_blank"]::after`, nicht von Hand (wie in der Metazeile).
+			teile.push(artikelUrl !== ""
+				? '<a href="' + avesmapsGaretienEscape(artikelUrl) + '" target="_blank" rel="noopener">'
+					+ "„" + avesmapsGaretienEscape(artikelLabel) + "\"</a>"
+				: "„" + avesmapsGaretienEscape(artikelLabel) + "\"");
+		}
 		if (lizenz.text !== "") { teile.push(avesmapsGaretienEscape(lizenz.text)); }
-		return '<p class="gi-sec">Die Quelle, die mitreist</p><p class="gi-why">'
+		return '<p class="gi-sec">Die Quelle' + (artikelLabel !== "" ? "n" : "") + ', die mitreist' + '</p>'
+			+ '<p class="gi-why">'
 			+ teile.join(" · ")
 			+ " — einmal an der Quelle, nicht an jedem Objekt.</p>";
 	}

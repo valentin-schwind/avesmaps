@@ -187,6 +187,84 @@ function avesmapsGaretienQuelleAnlegen(PDO $pdo, string $entityType, string $pub
 }
 
 /**
+ * Die Artikelquelle EINES Plan-Items -- aus dem Vorschlag, sonst aus seinem Schluessel.
+ *
+ * 🔴 ZWEI WEGE HINEIN, EIN BAUER (avesmapsGaretienArtikelQuelleAus, garetien-plan.php).
+ * Der normale Weg ist `after.artikel_quelle`, seit dem 31.08.2026 vom Planbau gesetzt. Der zweite
+ * ist der Rueckfall fuer Items, die VOR diesem Tag gebaut wurden: ihr `after` kennt das Feld
+ * nicht, ihr `entity_key` traegt den Artikelnamen aber sehr wohl -- er ist Teil der Formel
+ * `wiki:ebene:typ:<Namensraum:Artikel>` (avesmapsGaretienObjektSchluesselAusZeile).
+ *
+ * ⚠️ OHNE DEN RUECKFALL MUESSTE DER OWNER SEINEN LAUFENDEN LAUF NEU RECHNEN, um die
+ * Artikelquelle zu bekommen -- 8213 Zeilen, und die Arbeitsliste faengt von vorn an. Er ist
+ * deshalb kein Notnagel, sondern der Grund, warum die Aenderung ueberhaupt sofort wirkt.
+ *
+ * 💣 EIN OBJEKT OHNE ARTIKEL TRAEGT `#<Zeilennummer>` an dieser Stelle des Schluessels -- die
+ * Formel setzt das ein, wenn es keinen Artikel gibt. Ohne diesen Riegel entstuende die Quelle
+ * „#417 auf garetien.de", die auf `…/index.php/#417` zeigt.
+ *
+ * ⚠️ Der Wirt kommt aus `after.wiki`, wenn er dasteht -- der Schluessel traegt ihn zwar auch,
+ * aber das `after` ist die Angabe, die der Planbau ausdruecklich gemacht hat.
+ */
+function avesmapsGaretienArtikelQuelleAusItem(array $nach, string $entityKey): ?array
+{
+    $fertig = $nach['artikel_quelle'] ?? null;
+    if (is_array($fertig) && trim((string) ($fertig['url'] ?? '')) !== '') {
+        return $fertig;
+    }
+    // Rueckfall ueber den Schluessel -- die Zerlegung steht in garetien-plan.php, direkt neben der
+    // Formel, die ihn baut. Hier ein zweites Mal zu zerlegen waere ihre zweite Fassung.
+    $seite = avesmapsGaretienArtikelNameAusSchluessel($entityKey);
+    if ($seite === '') {
+        return null;
+    }
+    $wiki = trim((string) ($nach['wiki'] ?? ''));
+    if ($wiki === '') {
+        $wiki = explode(':', $entityKey, 2)[0];
+    }
+
+    return avesmapsGaretienArtikelQuelleAus($wiki, $seite);
+}
+
+/**
+ * BEIDE Quellen eines Objekts anhaengen: die Sammelquelle des Wirts und -- wenn die Zeile einen
+ * Artikel nennt -- dessen eigene Seite.
+ *
+ * 🔴 DER EINE TRICHTER. Es gibt ZWEI Erzeuger von Quellen in dieser Datei (das Anlegen eines
+ * neuen Objekts und die Ergaenzung eines vorhandenen), und beide gehen hier durch. Haengte die
+ * Artikelquelle nur am Anlegepfad, bekaeme ausgerechnet die Ergaenzung sie nie -- „eine Regel, die
+ * einen von zwei Erzeugern bindet, ist keine Regel" (AGENTS.md).
+ *
+ * ⚠️ Beide Verknuepfungen tragen DIESELBE `note` (die Export-Arbeitsseite): sie stammen aus
+ * derselben Zeile, und die Notiz beantwortet „woher kommt diese Angabe", nicht „was ist das".
+ *
+ * @return int 0, 1 oder 2 -- wie viele Verknuepfungen wirklich entstanden sind.
+ */
+function avesmapsGaretienQuellenAnlegen(
+    PDO $pdo,
+    string $entityType,
+    string $publicId,
+    array $nach,
+    int $userId,
+    string $entityKey = ''
+): int {
+    // 💣 NEU GERECHNET, NICHT AUS `after.seite_url` GELESEN -- jedes vor dem 31.08.2026 gebaute
+    // Item traegt dort die tote `…/Avesmaps_<Artikel>`-Adresse (siehe avesmapsGaretienArbeitsseiteAus).
+    $seiteUrl = avesmapsGaretienArbeitsseiteAus($nach);
+    $gezaehlt = 0;
+    if (avesmapsGaretienQuelleAnlegen($pdo, $entityType, $publicId, (array) ($nach['quelle'] ?? []), $userId, $seiteUrl)) {
+        $gezaehlt++;
+    }
+    $artikel = avesmapsGaretienArtikelQuelleAusItem($nach, $entityKey);
+    if ($artikel !== null
+        && avesmapsGaretienQuelleAnlegen($pdo, $entityType, $publicId, $artikel, $userId, $seiteUrl)) {
+        $gezaehlt++;
+    }
+
+    return $gezaehlt;
+}
+
+/**
  * Das Gegenstueck zu avesmapsGaretienQuelleAnlegen: entity_type + die public_id, an der eine
  * 'quelle'-Verknuepfung WIRKLICH haengt -- fuer die Ruecknahme EINES 'quelle'-Items (Meldung,
  * 30.08.2026). Spiegelt DIESELBE Bindung wie avesmapsGaretienErgaenzungAnwenden weiter unten,
@@ -601,7 +679,7 @@ function avesmapsGaretienFlaecheAnlegen(PDO $pdo, array $nach, array $user, int 
  *
  * @return array{felder:int, quellen:int}
  */
-function avesmapsGaretienErgaenzungAnwenden(PDO $pdo, array $nach, string $publicId, array $user): array
+function avesmapsGaretienErgaenzungAnwenden(PDO $pdo, array $nach, string $publicId, array $user, string $entityKey = ''): array
 {
     $felder = (array) ($nach['felder'] ?? []);
     $userId = (int) ($user['id'] ?? 0);
@@ -824,15 +902,15 @@ function avesmapsGaretienErgaenzungAnwenden(PDO $pdo, array $nach, string $publi
     // BESTEHENDES Objekt eine Quelle dazu. Er meldet die beruehrte Entitaet mit zurueck, damit der
     // Browser sie nachtragen kann (Owner-Meldung 31.08.2026) -- der Anlegeweg tut dasselbe an
     // seiner Stelle. Eine Regel, die einen von zwei Erzeugern bindet, ist keine Regel.
+    // ⚠️ Und aus demselben Grund geht er durch avesmapsGaretienQuellenAnlegen: die Artikelquelle
+    // gehoert BEIDEN Wegen.
     $beruehrt = null;
-    if (in_array('quelle', $felder, true)
-        && avesmapsGaretienQuelleAnlegen(
-            $pdo, $entityType, $quellePublicId, (array) ($nach['quelle'] ?? []), $userId,
-            (string) ($nach['seite_url'] ?? '')
-        )) {
-        $quellen = 1;
-        $geschrieben++;
-        $beruehrt = ['entity_type' => $entityType, 'public_id' => $quellePublicId];
+    if (in_array('quelle', $felder, true)) {
+        $quellen = avesmapsGaretienQuellenAnlegen($pdo, $entityType, $quellePublicId, $nach, $userId, $entityKey);
+        if ($quellen > 0) {
+            $geschrieben++;
+            $beruehrt = ['entity_type' => $entityType, 'public_id' => $quellePublicId];
+        }
     }
 
     return ['felder' => $geschrieben, 'quellen' => $quellen, 'quelle_an' => $beruehrt];
@@ -969,6 +1047,16 @@ function avesmapsGaretienApplyStep(PDO $pdo, int $runId, int $userId, ?array $us
         ? avesmapsSyncPlanPendingCount($pdo, $runId)
         : avesmapsGaretienPendingCountScoped($pdo, $runId, $itemIds);
 
+    // 🔴 DER NACHZUG LAEUFT AM ENDE EINES ABGESCHLOSSENEN VORGANGS, nicht bei jedem Haeppchen.
+    // Er traegt allem, was dieser Import je angelegt hat, seine Artikelquelle nach (Owner
+    // 31.08.2026). Zwei Ausloeser hat er -- hier und in der `plan`-Aktion des Endpunkts; ein
+    // verpasster Ausloeser verzoegert die Reparatur nur, er macht nichts inkonsistent.
+    // ⚠️ Er ist hier bezahlbar, WEIL er ueberspringt, was die Quelle schon hat: nach dem ersten
+    // Lauf kostet er zwei Abfragen und keinen Schreibvorgang.
+    if ($rest === 0) {
+        avesmapsGaretienArtikelQuellenNachtragen($pdo);
+    }
+
     return [
         // Fertig, wenn nichts mehr offen ist.
         // 🪤 Hier stand „nicht, wenn dieses Haeppchen leer war" -- als waeren das zwei Dinge. Sind
@@ -990,6 +1078,138 @@ function avesmapsGaretienApplyStep(PDO $pdo, int $runId, int $userId, ?array $us
         // siehe die Begruendung am Ende von avesmapsGaretienUebernehmen.
         'quellen_neu' => $ergebnis['quellen_neu'] ?? [],
     ];
+}
+
+/**
+ * DER NACHZUG: allem, was dieser Import schon angelegt hat, seine Artikelquelle nachtragen --
+ * und dabei die tote Arbeitsseite in `feature_sources.note` heilen.
+ *
+ * Owner 31.08.2026: „go, und ja mach den nachzug". Ohne ihn bekaemen nur kuenftige Uebernahmen
+ * die zweite Quelle, und alles bereits Importierte (darunter das Praioslob, an dem der Owner den
+ * Artikel entdeckt hat) bliebe fuer immer ohne sie.
+ *
+ * 🔴 IDEMPOTENT DURCH DIE BAUFORM, nicht durch eine eigene Buchfuehrung.
+ * `avesmapsFeatureSourceLink` ist ein `ON DUPLICATE KEY UPDATE` -- ein zweiter Lauf legt nichts
+ * doppelt an, er schreibt dieselbe Zeile noch einmal. Eine eigene Liste „was habe ich schon
+ * nachgetragen" waere die zweite Buchhaltung, die beim ersten Abbruch auseinanderlaeuft (dieselbe
+ * Begruendung wie beim Item-Vermerk).
+ *
+ * ⚠️ ER SCHREIBT NUR AN OBJEKTE, DIE DIESER IMPORT ANGELEGT HAT: die Menge sind die Items mit
+ * `apply_state='done'` in Laeufen der Art `garetien`. Ein von Hand gezeichnetes Objekt kann so
+ * nicht getroffen werden -- und ein Objekt, das seine Artikelquelle laengst hat, bekommt sie
+ * schlicht noch einmal geschrieben.
+ *
+ * 💣 DER TRICHTER IST DERSELBE (avesmapsGaretienQuellenAnlegen). Er entscheidet, WELCHE Quellen
+ * ein Objekt bekommt; haette der Nachzug eine eigene Fassung, muesste jede kuenftige Aenderung an
+ * zwei Stellen nachgezogen werden -- und die stille Abweichung waere „das Objekt von damals
+ * bekommt etwas anderes als das von heute".
+ *
+ * ⚠️ `userId` 0 wie beim Uebernahme-Nachtrag daneben: wer es damals uebernommen hat, steht im
+ * Item nicht, und eine erfundene Kennung waere schlimmer als keine.
+ *
+ * @return array{geprueft:int, geschrieben:int}
+ */
+function avesmapsGaretienArtikelQuellenNachtragen(PDO $pdo): array
+{
+    try {
+        $stmt = $pdo->prepare(
+            'SELECT i.entity_key, i.after_json, i.change_type, i.entity_public_id, i.apply_note
+               FROM sync_plan_item i
+               JOIN sync_plan_run r ON r.id = i.run_id
+              WHERE r.kind = :k AND i.apply_state = :s'
+        );
+        $stmt->execute(['k' => AVESMAPS_GARETIEN_PLAN_KIND, 's' => 'done']);
+    } catch (PDOException) {
+        // Die Tabellen stehen noch nicht -- der Normalfall vor dem allerersten Lauf.
+        return ['geprueft' => 0, 'geschrieben' => 0];
+    }
+
+    // 💣 WER SIE SCHON HAT, WIRD UEBERSPRUNGEN -- und das ist die Bedingung, unter der dieser
+    // Nachzug ueberhaupt zweimal laufen darf. `avesmapsFeatureSourceLink` ist zwar idempotent,
+    // schreibt aber jedes Mal; ohne diesen Riegel kostete jeder abgeschlossene Uebernahme-Vorgang
+    // am Ende bis zu 8213 Schreibvorgaenge fuer nichts. Mit ihm sind es nach dem ersten Lauf ZWEI
+    // Abfragen und null Schreibvorgaenge.
+    // ⚠️ Erkannt an der ADRESSFORM (`/index.php/`), nicht an einer Zaehlung: „das Objekt hat zwei
+    // garetien-Quellen" waere auch dann wahr, wenn jemand von Hand eine zweite angehaengt hat.
+    $schon = [];
+    try {
+        $vorhanden = $pdo->prepare(
+            "SELECT fs.entity_type, fs.entity_public_id
+               FROM feature_sources fs JOIN sources s ON s.id = fs.source_id
+              WHERE fs.origin = :o AND s.url LIKE '%/index.php/%'"
+        );
+        $vorhanden->execute(['o' => AVESMAPS_GARETIEN_SOURCE_ORIGIN]);
+        foreach ($vorhanden->fetchAll(PDO::FETCH_ASSOC) as $v) {
+            $schon[$v['entity_type'] . ':' . $v['entity_public_id']] = true;
+        }
+    } catch (PDOException) {
+        // Ohne die Quellentabellen gibt es nichts zu ueberspringen -- der Nachzug legt sie an.
+    }
+
+    $geprueft = 0;
+    $geschrieben = 0;
+    foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $zeile) {
+        $nach = json_decode((string) ($zeile['after_json'] ?? ''), true);
+        if (!is_array($nach) || ($nach['herkunft'] ?? '') !== 'garetien') {
+            continue;
+        }
+        $entityKey = (string) ($zeile['entity_key'] ?? '');
+        // ⚠️ Ohne Artikel gibt es nichts nachzutragen -- 42 % der Zeilen (Wege, Waelder). Der
+        // Riegel steht VOR der Aufloesung, damit ein Lauf ohne Artikel keine Abfrage kostet.
+        if (avesmapsGaretienArtikelQuelleAusItem($nach, $entityKey) === null) {
+            continue;
+        }
+        $geprueft++;
+        // 💣 DIE public_id STEHT AN ZWEI VERSCHIEDENEN STELLEN, je nach Art des Items -- und das
+        // ist keine Wahl, sondern die Bauform der Uebernahme (siehe die zwei Zweige in
+        // avesmapsGaretienRuecknahmeAusfuehren):
+        //   · 'new'      -> die FRISCH ANGELEGTE id steht in `apply_note` (entity_public_id ist
+        //                    bei einem Neuzugang von Anfang an NULL -- vor der Uebernahme gibt es
+        //                    kein Ziel).
+        //   · 'changed'  -> `entity_public_id` ist seit dem Planbau das ZIEL.
+        // Wer nur eine der beiden liest, traegt die halbe Menge nach und merkt es nicht: die
+        // andere Haelfte faellt still durch, weil eine leere id einfach uebersprungen wird.
+        $objektId = trim((string) ($zeile['entity_public_id'] ?? ''));
+        if ($objektId === '') {
+            $objektId = trim((string) ($zeile['apply_note'] ?? ''));
+        }
+        if ($objektId === '') {
+            continue;
+        }
+        try {
+            [$entityType, $quellePublicId] = avesmapsGaretienQuelleZielAufloesen(
+                $pdo,
+                (string) ($nach['ziel'] ?? ''),
+                $objektId
+            );
+        } catch (Throwable) {
+            // 🔴 EIN OBJEKT, DAS ES NICHT MEHR GIBT, HAELT DEN NACHZUG NICHT AN. Zurueckgenommene
+            // und von Hand geloeschte Objekte sind der Normalfall, kein Fehler.
+            continue;
+        }
+        if ($entityType === '' || $quellePublicId === '') {
+            continue;
+        }
+        if (isset($schon[$entityType . ':' . $quellePublicId])) {
+            continue;
+        }
+        if (avesmapsGaretienQuellenAnlegen($pdo, $entityType, $quellePublicId, $nach, 0, $entityKey) > 0) {
+            $geschrieben++;
+            // ⚠️ Innerhalb EINES Laufs mitfuehren: mehrere Items koennen auf dasselbe Objekt
+            // zeigen (eine Flaeche und ihre Beschriftung), und ohne das zaehlte der Lauf sie
+            // doppelt -- und schriebe sie doppelt.
+            $schon[$entityType . ':' . $quellePublicId] = true;
+        }
+    }
+
+    // 💣 EIN STEMPEL, UND NUR WENN WIRKLICH ETWAS GESCHRIEBEN WURDE -- dieselbe Regel wie am
+    // Ende von avesmapsGaretienUebernehmen: ein Stempel ohne Schreibvorgang entwertet die Kopie
+    // JEDES Besuchers fuer nichts.
+    if ($geschrieben > 0) {
+        avesmapsNextMapRevision($pdo);
+    }
+
+    return ['geprueft' => $geprueft, 'geschrieben' => $geschrieben];
 }
 
 /**
@@ -1124,7 +1344,7 @@ function avesmapsGaretienUebernehmen(PDO $pdo, int $runId, array $itemIds, array
             }
             try {
                 $ergebnis = avesmapsGaretienErgaenzungAnwenden(
-                    $pdo, $nach, (string) $item['entity_public_id'], $user
+                    $pdo, $nach, (string) $item['entity_public_id'], $user, (string) $item['entity_key']
                 );
                 $angelegt += $ergebnis['felder'] > 0 ? 1 : 0;
                 $quellen += $ergebnis['quellen'];
@@ -1252,11 +1472,11 @@ function avesmapsGaretienUebernehmen(PDO $pdo, int $runId, array $itemIds, array
                 $quellePublicId = $ergebnis['label_public_id'];
             }
             $angelegt++;
-            if (avesmapsGaretienQuelleAnlegen(
-                $pdo, $entityType, $quellePublicId, (array) ($nach['quelle'] ?? []), $userId,
-                (string) ($nach['seite_url'] ?? '')
-            )) {
-                $quellen++;
+            $neueQuellen = avesmapsGaretienQuellenAnlegen(
+                $pdo, $entityType, $quellePublicId, $nach, $userId, (string) $item['entity_key']
+            );
+            if ($neueQuellen > 0) {
+                $quellen += $neueQuellen;
                 $quellenNeu[$entityType . ':' . $quellePublicId] = [
                     'entity_type' => $entityType,
                     'public_id' => $quellePublicId,
