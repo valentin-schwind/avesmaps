@@ -87,7 +87,7 @@ $lauf = static function (array $gewaesser, bool $strecke) use ($tempo): ?array {
         : null;
     $p = $gerade ?? avesmapsOffroadFindPath($box, $e['blocked'], $e['factors'], $e['heights'], $tempo,
         0.0, 0.0, 20.0, 0.0, AVESMAPS_ROUTE_OFFROAD_SIMPLIFY_EPS, $e['rasters'], $strecke,
-        $e['furtplane']);
+        $e['furt']);
     if ($p === null) { return null; }
     $maxY = 0.0;
     foreach ($p['points'] ?? [] as $pt) { $maxY = max($maxY, (float) $pt[1]); }
@@ -137,8 +137,11 @@ $aufschlag = (float) $durch['time'] - (float) $ohne['time'];
 // Scheingenauigkeit, die beim naechsten Zellmass umfaellt.
 assert($aufschlag > $preis * 0.9,
     'die durchwatende Etappe meldet mindestens eine Querung: ' . $aufschlag . ' gegen ' . $preis);
-assert($aufschlag < $preis * 2.5,
-    'und nicht ein Vielfaches davon: ' . $aufschlag . ' gegen ' . $preis);
+// ⚠️ Nach OBEN nur noch grob: seit dem 31.08.2026 kostet auch das WATEN (der Weg laeuft ein Stueck
+// im Bachbett), und das ist ein zweiter, gewollter Posten. Scharf gemessen wird der Querungspreis
+// in Abschnitt G an der reinen Funktion.
+assert($aufschlag < $preis * 6.0,
+    'und bleibt in der Groessenordnung: ' . $aufschlag . ' gegen ' . $preis);
 // 🔴 Die Gegenprobe, ohne die das oben auch von Rauschen erfuellt waere: OHNE Bach ist er null.
 assert(abs((float) $lauf(['wand' => [], 'furt' => []], false)['time'] - (float) $ohne['time']) < 1e-9,
     'ohne Bach traegt dieselbe Etappe keinen Aufschlag');
@@ -165,3 +168,81 @@ assert(avesmapsOffroadStraightPathIfDry($box, $keinWasser, $e2['factors'], $e2['
     'ohne Furt nimmt der Streckenmodus weiterhin die Gerade');
 
 fwrite(STDOUT, "bach-querung-hindernis-test: OK\n");
+
+// =================================================================================================
+// G. 🔴 DER PREIS IST EXAKT -- gemessen an der reinen Funktion, nicht an einer Route
+// =================================================================================================
+// 🪤 Die erste Fassung (31.08.2026, ein halber Tag alt) zaehlte Uebertritte ueber eine RASTERBAND-
+// KANTE. Der Owner hat das Loch am selben Tag gefunden: liegen beide Endpunkte IM Band, laeuft die
+// Route im Band mit und tritt nie ueber eine Kante. Jetzt zaehlen echte Schnittpunkte.
+$box = avesmapsBuildOffroadBox(0.0, 0.0, 20.0, 0.0);
+$linieQuer = [[10.0, -200.0], [10.0, 200.0]];
+$g = avesmapsCollectRouteRiverBarrierLines([$bach(null, $linieQuer)]);
+$e = avesmapsOffroadBuildPlanes($box, avesmapsPrepareRouteAreas([]), null,
+    ['wand' => [], 'furt' => $g['furt']], false);
+$iAuf = static fn(float $x, float $y): int => avesmapsOffroadIndexOf($box, $x, $y);
+
+// Ein Schritt QUER ueber die Linie -- voller Preis, kein halber.
+$quer = avesmapsOffroadFurtSchnittpreis($box, $e['furt']['plane'], $e['furt']['linien'],
+    $iAuf(9.8, 0.0), $iAuf(10.2, 0.0), 9.8, 0.0, 10.2, 0.0);
+assert(abs($quer - AVESMAPS_ROUTE_OFFROAD_BACH_CROSSING_UNITS) < 1e-9,
+    'ein querender Schritt kostet genau eine Querung: ' . $quer);
+
+// Ein Schritt LAENGS im Band -- kein Schnitt, also kein Querungspreis (das Waten steckt im Boden).
+$laengs = avesmapsOffroadFurtSchnittpreis($box, $e['furt']['plane'], $e['furt']['linien'],
+    $iAuf(10.0, 0.0), $iAuf(10.0, 0.4), 10.0, 0.0, 10.0, 0.4);
+assert($laengs === 0.0, 'ein Schritt LAENGS im Bachbett ist keine Querung: ' . $laengs);
+
+// Weit weg -- das Gatter haelt, ohne die Linie ueberhaupt zu befragen.
+$fern = avesmapsOffroadFurtSchnittpreis($box, $e['furt']['plane'], $e['furt']['linien'],
+    $iAuf(2.0, 0.0), $iAuf(2.4, 0.0), 2.0, 0.0, 2.4, 0.0);
+assert($fern === 0.0, 'fernab kostet nichts');
+
+// 💣 SYMMETRISCH: A->B und B->A sind derselbe Schnitt. Die halbe Zahlung an der Kante -- der
+// Kunstgriff der Bandfassung -- ist damit ueberfluessig geworden, nicht vergessen.
+$rueck = avesmapsOffroadFurtSchnittpreis($box, $e['furt']['plane'], $e['furt']['linien'],
+    $iAuf(10.2, 0.0), $iAuf(9.8, 0.0), 10.2, 0.0, 9.8, 0.0);
+assert(abs($quer - $rueck) < 1e-12, 'hin und zurueck kosten dasselbe');
+
+// Und der Faktor wirkt: starke Stroemung, teurere Querung.
+$gStark = avesmapsCollectRouteRiverBarrierLines([$bach(6.0, $linieQuer)]);
+$eStark = avesmapsOffroadBuildPlanes($box, avesmapsPrepareRouteAreas([]), null,
+    ['wand' => [], 'furt' => $gStark['furt']], false);
+$querStark = avesmapsOffroadFurtSchnittpreis($box, $eStark['furt']['plane'], $eStark['furt']['linien'],
+    $iAuf(9.8, 0.0), $iAuf(10.2, 0.0), 9.8, 0.0, 10.2, 0.0);
+assert(abs($querStark - 3.0 * $quer) < 1e-9, 'Stroemung 6,0 kostet das Dreifache: ' . $querStark);
+
+// =================================================================================================
+// H. 🔴 DER FALL DES OWNERS: BEIDE ENDPUNKTE IM BACH
+// =================================================================================================
+// 💣 Genau hier ist die Bandfassung gescheitert -- live gemessen 1,49 statt 25,00 Einheiten. Der
+// Schnitt-Test kennt keine Endpunkte, nur Geometrie: wer zweimal quert, zahlt zweimal.
+$imBach = [[10.0, 200.0], [10.0, 0.0], [11.0, 0.0], [11.0, 200.0]];   // U, beide Arme nach Norden
+$gU = avesmapsCollectRouteRiverBarrierLines([$bach(null, $imBach)]);
+$eU = avesmapsOffroadBuildPlanes($box, avesmapsPrepareRouteAreas([]), null,
+    ['wand' => [], 'furt' => $gU['furt']], false);
+// Start UND Ziel auf der Bachlinie selbst.
+assert(avesmapsOffroadFurtAtCell($eU['furt']['plane'], $iAuf(10.0, 1.0)) > 0.0,
+    'die Startzelle liegt wirklich im Band -- sonst prueft dieser Abschnitt nichts');
+$schritt = avesmapsOffroadFurtSchnittpreis($box, $eU['furt']['plane'], $eU['furt']['linien'],
+    // ⚠️ EIN ZELLSCHRITT, nicht vier: das Gatter verlangt, dass eine der beiden Zellen Furt traegt --
+    // und genau das ist bei einem echten A*-Schritt (eine Zellbreite) immer so, wenn er quert.
+    $iAuf(10.9, 1.0), $iAuf(11.1, 1.0), 10.9, 1.0, 11.1, 1.0);
+assert(abs($schritt - AVESMAPS_ROUTE_OFFROAD_BACH_CROSSING_UNITS) < 1e-9,
+    'ein Schritt aus dem Band heraus ueber den zweiten Arm kostet voll: ' . $schritt);
+
+// =================================================================================================
+// I. 🔴 WATEN BREMST (Owner 31.08.2026: „ja, waten soll bremsen")
+// =================================================================================================
+// ⚠️ Der Zell-Aufschlag ist zurueck -- NEBEN dem Querungspreis, nicht statt seiner. Ohne ihn war das
+// Mitlaufen im Bachbett gratis, und genau daran lief der Querungspreis ins Leere.
+$wat = avesmapsOffroadFactorAt($box, $e['factors'], 10.0, 0.0);
+assert($wat > 1.0, 'eine Bachzelle bremst: Faktor ' . $wat);
+assert(abs($wat - AVESMAPS_ROUTE_OFFROAD_BACH_WATE_FACTOR) < 0.05,
+    'und zwar mit dem Wat-Faktor bei Vorgabe-Stroemung: ' . $wat);
+$watStark = avesmapsOffroadFactorAt($box, $eStark['factors'], 10.0, 0.0);
+assert($watStark > $wat, 'ein starker Bach bremst beim Waten staerker: ' . $watStark . ' gegen ' . $wat);
+// 🪤 Und daneben ist trockener Boden -- ohne das waere die Zusicherung oben auch von einer Ebene
+// erfuellt, die ueberall bremst.
+assert(abs(avesmapsOffroadFactorAt($box, $e['factors'], 2.0, 0.0) - 1.0) < 1e-9,
+    'zwei Einheiten daneben ist es trocken');

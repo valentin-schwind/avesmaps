@@ -139,7 +139,7 @@ function avesmapsFindOffroadPathBetween(
     // genehmigten Kante, und eine Biegung, die einen Bach quert, waere sonst gratis.
     return avesmapsOffroadFindPath($box, $ebenen['blocked'], $ebenen['factors'], $ebenen['heights'],
         (float) $speed, $x1, $y1, $x2, $y2, AVESMAPS_ROUTE_OFFROAD_SIMPLIFY_EPS, $ebenen['rasters'],
-        false, $ebenen['furtplane']);
+        false, $ebenen['furt']);
 }
 
 /** Eine Kante beider Richtungen aus dem Graphen nehmen, an ihrer ID erkannt. */

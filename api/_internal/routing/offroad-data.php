@@ -205,9 +205,16 @@ function avesmapsOffroadBuildPlanes(
     // ueberquert werden koennen, aber nur mit etwas erschwernis". Der Aufschlag kommt NACH der
     // Landschaft und ueberlagert sie per Maximum -- eine Bachzelle im Sumpf bleibt Sumpf, wenn der
     // teurer ist.
-    // 🔴 DIE FAKTOR-EBENE TRAEGT DIE FURT NICHT MEHR (Owner 31.08.2026: Querungspreis „statt"
-    // Zell-Aufschlag). Sie ist wieder das, was ihr Name sagt: der Untergrund.
-    $factors = $pdo instanceof PDO ? avesmapsOffroadLoadFactorPlane($pdo, $box) : '';
+    // 🔴 UND WATEN BREMST WIEDER (Owner 31.08.2026: „ja, waten soll bremsen"). Der Zell-Aufschlag ist
+    // zurueck -- aber NEBEN dem Querungspreis, nicht statt seiner. Ohne ihn war das Mitlaufen im
+    // Bachbett gratis, und der Querungspreis lief ins Leere: wer nie herauskommt, quert auch nie.
+    // ⚠️ Ueberlagert per Maximum wie jeder Untergrund: eine Bachzelle im Sumpf bleibt Sumpf, wenn der
+    // teurer ist.
+    $factors = avesmapsOffroadRasteriseWatFactor(
+        $box,
+        $pdo instanceof PDO ? avesmapsOffroadLoadFactorPlane($pdo, $box) : '',
+        $furt
+    );
     $rasters = $terrainEnabled && $pdo instanceof PDO ? avesmapsOffroadLoadHeightRasters($pdo, $box) : [];
 
     return [
@@ -216,7 +223,9 @@ function avesmapsOffroadBuildPlanes(
         'rasters' => $rasters,
         'heights' => $rasters === [] ? null : avesmapsOffroadSampleHeights($box, $rasters),
         'wand' => $wand,
-        'furtplane' => $furtPlane,
+        // 🔴 EIN BUENDEL: das Gatter (Ebene) und die Genauigkeit (Linien) gehoeren zusammen. Wer nur
+        // eines weiterreicht, bekommt entweder gar keinen Querungspreis oder einen unbezahlbaren Test.
+        'furt' => ['plane' => $furtPlane, 'linien' => avesmapsOffroadFordLines(['furt' => $furt])],
         'furtlinien' => $furtLinien,
     ];
 }

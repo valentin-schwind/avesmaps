@@ -338,7 +338,7 @@ function avesmapsAttachOffroadPointToGraph(
             // array_merge numeriert sie neu, und danach zeigt jede Kante auf den falschen Ausstieg.
             $paths += avesmapsOffroadFindPathsFromPoint($box, $blocked, $factors, $heights,
                 (float) $speed, $x, $y, $goals, AVESMAPS_ROUTE_OFFROAD_SIMPLIFY_EPS, $rasters,
-                $weightByDistance, $ebenen['furtplane']);
+                $weightByDistance, $ebenen['furt']);
         }
 
         // 🔴 GENAU EINE KANTE, UND ZWAR ZUM NAECHSTEN ERREICHBAREN. $set ist nach Entfernung
@@ -597,7 +597,7 @@ function avesmapsConnectOffroadPoints(
         : null;
     $path ??= avesmapsOffroadFindPath($box, $blocked, $factors, $heights, (float) $speed,
         $fromPoint['x'], $fromPoint['y'], $toPoint['x'], $toPoint['y'], AVESMAPS_ROUTE_OFFROAD_SIMPLIFY_EPS,
-        $rasters, $weightByDistance, $ebenen['furtplane']);
+        $rasters, $weightByDistance, $ebenen['furt']);
     if ($path === null) {
         return ['ok' => false, 'error' => 'no_offroad_route'];
     }
