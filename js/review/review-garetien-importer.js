@@ -614,11 +614,102 @@
 		}
 	}
 
+	// ---- Die IMPORT-SICHT: was die Karte zeigt, waehrend importiert wird ------------------------
+	//
+	// Owner 31.08.2026: „da überwiegend landschaften importiert werden, sollte man beim öffnen des
+	// importers automatisch 'Alle' von 'Landschaften' wechseln. Außerdem kannst du 'Wege', 'Labels',
+	// 'Grenzen', 'Flüsse', 'Kreuzungen' und alle Ortstypen sichtbar machen, wenn man in den
+	// import-modus geht."
+	//
+	// \U0001f534 DIE REIHENFOLGE IST TRAGEND, und sie ist der ganze Grund, warum das hier eine Funktion ist
+	// und keine drei Zeilen: ZUERST die Ansicht, DANN die Ebene, ZULETZT die Sichtbarkeit. Die
+	// Landschaften-Ebene setzt beim Betreten ihr eigenes Anzeige-Profil
+	// (`syncEcosystemSettlementVisibility`, `syncEcosystemFrontendFeatures`) -- und fuer einen
+	// EDITOR heisst dieses Profil „leere Zeichenflaeche": sie nimmt ihm ALLE Ortsklassen weg. Wer
+	// die Sichtbarkeit vorher setzt, sieht sie eine Zehntelsekunde spaeter wieder verschwinden.
+	//
+	// \U0001f4a3 UND DAS IST KEIN FEHLER DIESER EBENE, den man dort reparieren duerfte: die leere Flaeche
+	// ist ihre Aufgabe, wenn jemand Landschaften ZEICHNET. Der Import ist eine andere Arbeit am
+	// selben Ort -- hier will man sehen, was schon daliegt. Deshalb legt sich diese Sicht OBEN DRAUF,
+	// statt das Profil umzuschreiben.
+	// \u26a0\ufe0f Sie wird beim Schliessen NICHT zurueckgenommen -- wie die beiseitegeschobenen Panels.
+	// Die Ortsklassen kommen trotzdem von selbst zurueck: die Landschaften-Ebene hat sie sich nur
+	// GELIEHEN und gibt beim Verlassen den Stand von vor dem Import zurueck.
+	//
+	// \U0001f534 KEINE ADRESSZEILE. `setAllLocationTypesVisible` schreibt bewusst kein
+	// `syncPlannerStateToUrl` -- ein Klick auf die Ortsklassen-Kachel taete es, und damit stuende der
+	// Teilen-Link des Editors hinter seinem Ruecken anders da. Genau aus diesem Grund verzichtet auch
+	// die Landschaften-Ebene darauf (URL-Policy: die Adresszeile wird nie automatisch umgeschrieben).
+	//
+	// \U0001f4a3 UND NUR SCHALTER, DIE DER BENUTZER AUCH ZURUECKSTELLEN KANN. Drei der genannten Zeilen im
+	// Anzeige-Menue stehen `hidden`, solange die Seite nicht im Bearbeiten-Modus ist
+	// (`toggleCrossingsControl` und Geschwister, js/app/bootstrap.js). Einen davon anzuschalten
+	// erzeugte einen Zustand, den niemand mehr sieht und deshalb auch nicht mehr loswird.
+	const GARETIEN_IMPORT_HAKEN = [
+		// Owner-Reihenfolge; die Kreuzungen stehen nur im Bearbeiten-Modus zur Verfuegung.
+		"togglePaths",            // Wege
+		"toggleMapLabels",        // Labels
+		"toggleTerritoryBorders", // Grenzen
+		"toggleRivers",           // Fluesse
+		"toggleCrossings",        // Kreuzungen
+	];
+
+	// REIN genug zum Pruefen: gibt zurueck, was sie wirklich angefasst hat.
+	function garetienImportHakenSetzen(ids) {
+		if (!hasDocument) { return []; }
+		const gesetzt = [];
+		(ids || []).forEach(function (id) {
+			const haken = document.getElementById(id);
+			if (!haken || haken.checked === true) { return; }
+			// \u26a0\ufe0f Die Zeile, nicht der Haken: das `hidden` sitzt am umschliessenden `<label>`
+			// (`<id>Control`), der Haken selbst ist immer da.
+			const zeile = document.getElementById(id + "Control");
+			if (zeile && zeile.hidden) { return; }
+			// \U0001f4a3 Ein programmatisch gesetztes `checked` feuert KEIN `change` -- und daran haengen die
+			// Zeichner (syncPathVisibility fuer die Wege, die Grenz-Leinwand fuer die Grenzen). Die
+			// Hausfassung dieser Geste steht in map-features-ecosystem-layer-switch.js; sie hier
+			// nachzubauen waere ihre zweite Fassung.
+			if (typeof ecosystemSetzeAnzeigeHaken === "function") {
+				ecosystemSetzeAnzeigeHaken(id, true);
+			} else {
+				haken.checked = true;
+				haken.dispatchEvent(new Event("change", { bubbles: true }));
+			}
+			gesetzt.push(id);
+		});
+		return gesetzt;
+	}
+
+	function garetienKarteFuerImportRichten() {
+		if (!hasDocument) { return; }
+		// 1. Die Ansicht: „Landschaften". Ueber die Auswahlbox, denn SIE ist der Zustand -- derselbe
+		//    Weg, den ein Klick im Kartenfaecher geht (js/app/keyboard-shortcuts.js macht es genauso).
+		const ansicht = document.getElementById("mapLayerModeSelect");
+		if (ansicht && ansicht.value !== "ecosystem"
+			&& ansicht.querySelector('option[value="ecosystem"]')
+			&& typeof window !== "undefined" && window.jQuery) {
+			window.jQuery(ansicht).val("ecosystem").trigger("change");
+		}
+		// 2. Die Ebene: „Alle". \u26a0\ufe0f Sie traegt BEWUSST kein `data-ecosystem-kind` (sie ist ein
+		//    Anzeige-Flag neben dem Ebenen-Zustand, siehe index.html) -- gesucht wird deshalb ueber
+		//    ihr eigenes Attribut, nicht ueber einen erfundenen Ebenennamen.
+		const alle = document.querySelector("#ecosystem-layer-switch [data-ecosystem-show-all]");
+		if (alle && alle.getAttribute("aria-selected") !== "true") {
+			alle.click();
+		}
+		// 3. Erst jetzt die Sichtbarkeit -- siehe die Begruendung zur Reihenfolge oben.
+		if (typeof setAllLocationTypesVisible === "function") {
+			setAllLocationTypesVisible(true);
+		}
+		garetienImportHakenSetzen(GARETIEN_IMPORT_HAKEN);
+	}
+
 	function avesmapsGaretienFensterOeffnen() {
 		const win = fensterElement();
 		if (win) { win.hidden = false; }
 		zustand.offen = true;
 		garetienPanelsBeiseite();
+		garetienKarteFuerImportRichten();
 		// Aufgabe 12b: erst das Menüband (es ist der Schalter des Fensters, nicht seine Zier),
 		// dann die 18 Ebenen im Hintergrund, dann der geltende Lauf.
 		garetienMenuebandSicherstellen();
@@ -5551,6 +5642,10 @@
 			garetienPanelsBeiseite,
 			// Owner-Meldung 31.08.2026: die mitgereiste Quelle ohne Neuladen sichtbar machen.
 			garetienQuellenNachtragen,
+			// Owner 31.08.2026: die Karte wird beim Oeffnen auf Import-Sicht gestellt.
+			garetienKarteFuerImportRichten,
+			garetienImportHakenSetzen,
+			GARETIEN_IMPORT_HAKEN,
 			// Fuenf-Punkte-Brief 30.08.2026, Punkt 2
 			avesmapsGaretienDarfAdminHandlung,
 			avesmapsGaretienFensterZustand,
