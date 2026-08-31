@@ -231,7 +231,66 @@ async function main() {
 	assert.strictEqual(letzte.status, 200, "und der Zeiger geht nicht ins Leere");
 	sagen(`9. Aufbewahrung              -> ${abzuege.length} Abzuege, der neueste steht, Leseweg ${letzte.status}`);
 
-	sagen("\nablage-ablauf: alle 9 Schritte durchlaufen.");
+	// ---- 10. Die GEGLAETTETE Fassung ordnet sich SELBST ein -----------------------------
+	// 🔴 DAS IST DIE REGEL DIESES SCHRITTS: der Rumpf sagt NICHT, welche Fassung das ist --
+	// der Server liest `avm:geglaettet` aus dem Wurzelelement der hochgeladenen Datei.
+	// Duerfte der Aufrufer es behaupten, koennte ein eckiger Handabzug in der glatten
+	// Schublade landen, und `?smooth=1` lieferte Stuetzpunkt-Polygone aus.
+	const glattKern = FX.baueFixtureAbzug({ glatt: true }).parts.join("");
+	const glattSvg = glattKern.replace("</svg>", "<!-- " + "h".repeat(5 * 1024 * 1024) + " -->\n</svg>");
+	const glattRoh = Buffer.from(glattSvg, "utf8");
+	const glattSha = crypto.createHash("sha256").update(glattRoh).digest("hex");
+	assert.deepStrictEqual(P.pruefeAbzug(glattSvg, false, { glatt: true }).befunde, [],
+		"die glatte Probe besteht ihre Abnahmeliste");
+
+	const sg = await (await rufen(ablegen + "?action=start",
+		mitToken(ABLAGE_TOKEN, { method: "POST" }))).json();
+	for (let ab = 0; ab < glattRoh.length; ab += STUECK) {
+		await rufen(`${ablegen}?action=chunk&upload_id=${sg.upload_id}`,
+			mitToken(ABLAGE_TOKEN, { method: "POST", body: glattRoh.subarray(ab, ab + STUECK) }));
+	}
+	const glattFertig = await (await rufen(`${ablegen}?action=finish&upload_id=${sg.upload_id}`,
+		mitToken(ABLAGE_TOKEN, { method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({
+				dateiname: "avesmaps-karte-2026-08-23-r88513-inkscape-glatt.svg",
+				dialekt: "inkscape", kartenfassung: "88513",
+				landschaftsfassung: "29637", exportiert: FX.EXPORTIERT,
+				// 💣 Eine LUEGE im Rumpf -- sie darf nichts bewirken. Der Inhalt ist glatt, also
+				// gehoert die Datei in die glatte Schublade, egal was hier steht.
+				variante: "roh", geglaettet: "nein",
+			}) }))).json();
+	assert.strictEqual(glattFertig.ok, true, "die glatte Uebernahme gelingt");
+	assert.strictEqual(glattFertig.variante, "glatt",
+		"der SERVER ordnet nach dem Inhalt ein, nicht nach dem Rumpf");
+	assert.strictEqual(glattFertig.datei, "abzug-glatt-" + glattSha.slice(0, 16) + ".svg",
+		"und legt sie in den eigenen Namensraum");
+
+	// Der Leseweg: mit Parameter die glatte, ohne die rohe -- und die rohe ist unberuehrt.
+	const glattGelesen = await rufen(lesen + "?smooth=1", mitToken(LESE_TOKEN));
+	assert.strictEqual(glattGelesen.status, 200);
+	assert.strictEqual(glattGelesen.headers.get("x-avesmaps-variante"), "glatt");
+	assert.strictEqual(glattGelesen.headers.get("x-avesmaps-sha256"), glattSha);
+	assert.ok(Buffer.from(await glattGelesen.arrayBuffer()).equals(glattRoh), "byte-identisch");
+
+	const rohNochDa = await rufen(lesen, mitToken(LESE_TOKEN));
+	assert.strictEqual(rohNochDa.status, 200, "die rohe Fassung steht unberuehrt daneben");
+	assert.strictEqual(rohNochDa.headers.get("x-avesmaps-variante"), "roh");
+	assert.strictEqual(rohNochDa.headers.get("x-avesmaps-sha256"), letzterSha,
+		"und zwar die zuletzt hinterlegte rohe -- die glatte hat den Zeiger NICHT umgebogen");
+
+	// 💣 UND DIE AUFRAEUMUNG HAT KEINE ROHE FASSUNG MITGENOMMEN. Das `glob` sucht `abzug-*.svg`,
+	// und `abzug-glatt-…` faengt genauso an -- ohne die Trennung nach Variante raeumte die eine
+	// Fassung die andere weg, genau dann, wenn beide frisch hinterlegt wurden.
+	const alleRoh = fs.readdirSync(ABLAGE).filter((f) => /^abzug-[0-9a-f]{16}\.svg$/.test(f));
+	const alleGlatt = fs.readdirSync(ABLAGE).filter((f) => /^abzug-glatt-[0-9a-f]{16}\.svg$/.test(f));
+	assert.ok(alleRoh.includes("abzug-" + letzterSha.slice(0, 16) + ".svg"),
+		"die aktuelle rohe Datei liegt noch da");
+	assert.strictEqual(alleGlatt.length, 1, "eine glatte");
+	sagen(`10. Glatte Fassung          -> ${glattGelesen.status}, aus dem INHALT eingeordnet, `
+		+ `${alleRoh.length} rohe + ${alleGlatt.length} glatte nebeneinander`);
+
+	sagen("\nablage-ablauf: alle 10 Schritte durchlaufen.");
 }
 
 main().then(() => ende(0)).catch((fehler) => {

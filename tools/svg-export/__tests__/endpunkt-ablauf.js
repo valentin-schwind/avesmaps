@@ -215,7 +215,100 @@ async function main() {
 		"ein Token in der Adresse steht im Serverprotokoll und darf nie gelten");
 	sagen(`9. Token als URL-Parameter -> ${ueberUrl.status}`);
 
-	// ---- 10. Ohne eingerichteten Token: 503, nicht 401 ----------------------------------
+	// ---- 10. ?smooth=1, solange keine glatte Fassung liegt -> 404 mit EIGENEM Grund ------
+	// 💣 UND AUF KEINEN FALL DIE ROHE. Wer die geglaettete bestellt und M/L/Z bekommt, rendert
+	// Kanten, die nicht zum Kartenbild passen -- und sucht den Fehler bei sich, denn die
+	// Antwort sieht voellig normal aus. Der eigene Fehlercode ist der ganze Unterschied.
+	const glattFehlt = await fetch(basis + "?smooth=1", { headers: { Authorization: "Bearer " + TOKEN } });
+	assert.strictEqual(glattFehlt.status, 404, "ohne hinterlegte glatte Fassung: 404");
+	const gfJson = await glattFehlt.json();
+	assert.strictEqual(gfJson.error.code, "smooth_export_not_available",
+		"und ein eigener Code, nicht der allgemeine export_not_available");
+	sagen(`10. ?smooth=1 (fehlt)      -> ${glattFehlt.status} ${gfJson.error.code}`);
+
+	// ---- 11. Die glatte Fassung hinterlegen und abrufen ----------------------------------
+	const abzugGlatt = FX.baueFixtureAbzug({ glatt: true });
+	const inhaltGlatt = abzugGlatt.parts.join("");
+	const shaGlatt = require("crypto").createHash("sha256")
+		.update(Buffer.from(inhaltGlatt, "utf8")).digest("hex");
+	assert.notStrictEqual(shaGlatt, sha, "die beiden Fassungen sind wirklich verschieden");
+	const dateiGlatt = "abzug-glatt-" + shaGlatt.slice(0, 16) + ".svg";
+	fs.writeFileSync(path.join(ABLAGE, dateiGlatt), inhaltGlatt, "utf8");
+	aufgeraeumt.push(path.join(ABLAGE, dateiGlatt));
+	const zeigerGlattPfad = path.join(ABLAGE, "aktuell-glatt.json");
+	fs.writeFileSync(zeigerGlattPfad, JSON.stringify({
+		datei: dateiGlatt,
+		dateiname: "avesmaps-karte-2026-08-23-r76178-inkscape-glatt.svg",
+		bytes: Buffer.byteLength(inhaltGlatt, "utf8"),
+		sha256: shaGlatt,
+		etag: '"' + shaGlatt + '"',
+		kartenfassung: "76178",
+		landschaftsfassung: FX.ECO_REVISION,
+		exportiert: FX.EXPORTIERT,
+		dialekt: "inkscape",
+		variante: "glatt",
+	}, null, 2));
+	aufgeraeumt.push(zeigerGlattPfad);
+
+	const glatt = await fetch(basis + "?smooth=1", { headers: { Authorization: "Bearer " + TOKEN } });
+	assert.strictEqual(glatt.status, 200, "jetzt liegt sie");
+	assert.strictEqual(glatt.headers.get("x-avesmaps-variante"), "glatt");
+	assert.strictEqual(glatt.headers.get("x-avesmaps-sha256"), shaGlatt);
+	assert.strictEqual(glatt.headers.get("etag"), '"' + shaGlatt + '"');
+	// 🔴 Alles Uebrige unveraendert -- dieselben Fassungsstempel, dieselbe Art, dieselbe Regel.
+	assert.strictEqual(glatt.headers.get("content-type"), "image/svg+xml; charset=utf-8");
+	assert.strictEqual(glatt.headers.get("x-avesmaps-kartenfassung"), "76178");
+	assert.strictEqual(glatt.headers.get("x-avesmaps-landschaftsfassung"), FX.ECO_REVISION);
+	assert.strictEqual(glatt.headers.get("content-disposition"),
+		'attachment; filename="avesmaps-karte-2026-08-23-r76178-inkscape-glatt.svg"');
+	const geliefertGlatt = await glatt.text();
+	assert.strictEqual(geliefertGlatt, inhaltGlatt, "Byte fuer Byte die glatte Datei");
+	// Und sie ist wirklich geglaettet -- Kopf UND Geometrie.
+	assert.ok(geliefertGlatt.includes('avm:geglaettet="ja"'), "der Kopf meldet ja");
+	assert.ok(geliefertGlatt.includes('avm:flaechen_geglaettet="ja"'));
+	assert.ok(P.enthaeltKurven(geliefertGlatt), "und es stehen wirklich Kurven drin");
+	assert.deepStrictEqual(P.fremdeKommandos(geliefertGlatt), [], "nur M/L/C/Z");
+	assert.deepStrictEqual(P.pruefeAbzug(geliefertGlatt, false, { glatt: true }).befunde, [],
+		"das Ausgelieferte besteht die Abnahmeliste der glatten Fassung");
+	// 🔴 viewBox, Groesse und Einheit sind identisch -- ausdrueckliche Zusage an den Abrufer.
+	["viewBox=\"0 0 1024 1024\"", "width=\"32768\"", "height=\"32768\"", "avm:einheit_px=\"32\""]
+		.forEach((stueck) => {
+			assert.ok(geliefertGlatt.includes(stueck), `unveraendert: ${stueck}`);
+			assert.ok(geliefert.includes(stueck), `und in der rohen ebenso: ${stueck}`);
+		});
+	sagen(`11. ?smooth=1              -> ${glatt.status}, ${geliefertGlatt.length} Zeichen, Kurven ja`);
+
+	// ---- 12. Die beiden Fassungen sind ueber Kreuz NICHT dasselbe ------------------------
+	// 💣 DIE GEFAEHRLICHSTE STELLE DES GANZEN UMBAUS. Traefe der ETag der einen die andere,
+	// bekaeme ein Client ein 304 auf Geometrie, die er nie gesehen hat -- und zwar dauerhaft,
+	// denn er fragt ja mit dem Tag, den er hat.
+	const kreuz1 = await fetch(basis + "?smooth=1",
+		{ headers: { Authorization: "Bearer " + TOKEN, "If-None-Match": sha } });
+	assert.strictEqual(kreuz1.status, 200, "der rohe Hash trifft die glatte Fassung NICHT");
+	const kreuz2 = await hole({ Authorization: "Bearer " + TOKEN, "If-None-Match": shaGlatt });
+	assert.strictEqual(kreuz2.status, 200, "und der glatte nicht die rohe");
+	// Der jeweils eigene trifft sehr wohl.
+	assert.strictEqual((await fetch(basis + "?smooth=1",
+		{ headers: { Authorization: "Bearer " + TOKEN, "If-None-Match": shaGlatt } })).status, 304,
+	"der eigene Hash trifft");
+	sagen("12. ETag ueber Kreuz       -> 200 / 200, eigener -> 304");
+
+	// ---- 13. Der Parameter wird streng gelesen -------------------------------------------
+	// ⚠️ Alles ausser 1/true ist die rohe Fassung -- und zwar ohne Fehler: die Wurzelattribute
+	// der gelieferten Datei sagen dem Aufrufer dann die Wahrheit.
+	for (const [wert, erwartet] of [["1", "glatt"], ["true", "glatt"], ["TRUE", "glatt"],
+		["0", "roh"], ["ja", "roh"], ["", "roh"]]) {
+		const a = await fetch(basis + "?smooth=" + wert, { headers: { Authorization: "Bearer " + TOKEN } });
+		assert.strictEqual(a.headers.get("x-avesmaps-variante"), erwartet,
+			`?smooth=${wert} muss ${erwartet} liefern`);
+	}
+	// Ohne Parameter unveraendert die rohe -- der bestehende Abrufer merkt von alledem nichts.
+	const ohneParameter = await hole({ Authorization: "Bearer " + TOKEN });
+	assert.strictEqual(ohneParameter.headers.get("x-avesmaps-variante"), "roh");
+	assert.strictEqual(ohneParameter.headers.get("x-avesmaps-sha256"), sha);
+	sagen("13. ?smooth streng gelesen -> 1/true/TRUE glatt, 0/ja/leer/ohne roh");
+
+	// ---- 14. Ohne eingerichteten Token: 503, nicht 401 ----------------------------------
 	// Ein zweiter Server, diesmal ohne die Umgebungsvariable.
 	const port2 = PORT2;
 	const server2 = spawn("php", ["-S", "127.0.0.1:" + port2, "-t", WURZEL],
@@ -230,9 +323,9 @@ async function main() {
 	assert.strictEqual(ohneEinrichtung.status, 503, "eine fehlende Umgebungsvariable ist kein 401");
 	assert.strictEqual(oeJson.error.code, "export_not_configured");
 	server2.kill();
-	sagen(`10. Server ohne Token      -> ${ohneEinrichtung.status} ${oeJson.error.code}`);
+	sagen(`14. Server ohne Token      -> ${ohneEinrichtung.status} ${oeJson.error.code}`);
 
-	sagen("\nendpunkt-ablauf: alle 10 Schritte durchlaufen.");
+	sagen("\nendpunkt-ablauf: alle 14 Schritte durchlaufen.");
 }
 
 main().then(() => ende(0)).catch((fehler) => {

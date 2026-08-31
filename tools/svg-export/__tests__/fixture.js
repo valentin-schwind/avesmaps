@@ -50,15 +50,21 @@ const ECO_REVISION = "21358";
 const EXPORTIERT = "2026-08-23T03:17:00.000Z";
 
 // Den Abzug aus der Fixture bauen -- mit den Einstellungen des naechtlichen Laeufers.
-function baueFixtureAbzug() {
+// `{ glatt: true }` nimmt dessen ZWEITE Fassung (Bezierkurven, `?smooth=1`).
+// ⚠️ Die Einstellungen kommen aus dem Laeufer, nicht aus einer Kopie hier: sonst prueft der
+// Ablauf eine Zusammenstellung, die es nirgends gibt.
+function baueFixtureAbzug(optionen) {
 	const B = require("../../../js/pages/svg-export-build.js");
 	const L = require("../abzug-bauen.js");
 	const T = require("../tokens-tafel.js");
 	const path = require("path");
 	const wurzel = path.resolve(__dirname, "..", "..", "..");
 	const token = T.svgxTokenLeser(path.join(wurzel, "css", "base", "tokens.css"));
+	const einstellungen = (optionen && optionen.glatt)
+		? B.SVGX_ABZUG_EINSTELLUNGEN_GLATT
+		: L.ABZUG_EINSTELLUNGEN;
 
-	return B.svgxBuildDocument(Object.assign({}, L.ABZUG_EINSTELLUNGEN, {
+	return B.svgxBuildDocument(Object.assign({}, einstellungen, {
 		mapFeatures: MAP_FEATURES,
 		territories: TERRITORIES,
 		ecosystems: OEKOSYSTEME,

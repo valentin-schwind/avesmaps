@@ -32,6 +32,42 @@ Geliefert wird der **jeweils neueste** Abzug: Inkscape-Dialekt, 32768 x 32768,
 `viewBox="0 0 1024 1024"`, alle Ebenen, volle Semantik, nichts geglättet — also genau die
 Einstellung, die für eine Auswertung gebraucht wird.
 
+### 🔴 Zwei Fassungen: roh und geglättet (seit 31.08.2026)
+
+```bash
+curl … https://avesmaps.de/api/svg-export.php             # roh:      M / L / Z
+curl … https://avesmaps.de/api/svg-export.php?smooth=1    # geglättet: M / L / C / Z
+```
+
+Die **rohe** Fassung trägt die Stützpunkt-Polygone, wie die Geometrie in den Daten steht — sie
+ist unverändert das, was seit dem 23.08.2026 ausgeliefert wird, und bleibt die Vorgabe.
+Die **geglättete** trägt **absolute kubische Bézierkurven** — dieselben, die der Browser
+zeichnet. Wer die Karte maschinell rendert, braucht sie: sonst hat sein Bild Ecken, wo die
+sichtbare Karte Kurven hat.
+
+**Nur `M`, `L`, `C` und `Z`.** Keine relativen Kommandos (Kleinbuchstaben), kein `S`/`Q`/`T`/`A`,
+kein `H`/`V`. Das ist eine Zusage, kein Zufall: die Abnahme des nächtlichen Laufs weist einen
+Abzug ab, in dem etwas anderes steht.
+
+**Alles Übrige ist identisch** — dieselben `avm:`-Attribute an jedem Element, dieselbe
+`viewBox`, `width`/`height` 32768, `avm:einheit_px="32"`, y **nicht** gespiegelt, dieselben
+Kopfzeilen und dasselbe bedingte Abrufen über den blanken Inhalts-Hash. Dazu kommt
+`X-Avesmaps-Variante: roh|glatt`.
+
+🔴 **Die Wurzelattribute sind die Wahrheit, nicht der Parameter:** `avm:geglaettet` und
+`avm:flaechen_geglaettet` melden den tatsächlichen Zustand der Datei.
+
+⚠️ **Herrschaftsgebiete bleiben auch in der geglätteten Fassung eckig.** Ihr `smooth: false`
+steht ausgeschrieben im Ebenenbau, mit Begründung (Owner 15.08.2026): eine gerundete Grenze
+verschiebt Land zwischen Reichen und sieht dabei aus wie eine Verbesserung. `avm:flaechen_
+geglaettet="ja"` gilt also den Landschaftsflächen, nicht den politischen Grenzen.
+
+💣 **Der ETag der einen Fassung trifft die andere NICHT** — jede hat ihren eigenen Hash. Wer
+mit dem falschen fragt, bekommt `200` und die volle Datei, nie ein `304` auf fremde Geometrie.
+
+💣 **Die geglättete Fassung ist deutlich größer**: die Geometrie misst gemessene **2,53-mal** so
+viele Zeichen. Aufbewahrt werden deshalb 3 rohe, aber nur **2** geglättete Fassungen.
+
 Die Fassungsstempel stehen auch als Kopfzeilen, man muss die 8 MB also nicht parsen, um zu
 wissen, ob sich etwas geändert hat: `X-Avesmaps-Kartenfassung`,
 `X-Avesmaps-Landschaftsfassung`, `X-Avesmaps-Exported-At`, `X-Avesmaps-Quelle`.
@@ -48,6 +84,10 @@ unveränderter Abzug antwortet dann `304` und wird gar nicht erst übertragen.
 
 - `401 unauthorized` — Token fehlt **oder** ist falsch (von außen nicht zu unterscheiden)
 - `404 export_not_available` — es liegt noch kein Abzug bereit
+- `404 smooth_export_not_available` — es liegt noch keine **geglättete** Fassung bereit.
+  ⚠️ Ausdrücklich ein eigener Code: es wird **nie** ersatzweise die rohe geliefert. Wer
+  `?smooth=1` bestellt und Stützpunkt-Polygone bekäme, rendert Kanten, die nicht zur Karte
+  passen — und sucht den Fehler bei sich, denn die Antwort sähe völlig normal aus.
 - `503 export_not_configured` — der Schlüssel fehlt **auf dem Server**
 
 ⚠️ **Der Abzug der Routine ist bis zu 24 h alt** (der Owner kann jederzeit einen frischen

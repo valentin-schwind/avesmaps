@@ -113,8 +113,9 @@ assert.ok(svg.includes('avm:einheit_px="32"'), "32768 / 1024 = 32");
 const mutationen = [
 	['viewBox="0 0 1024 1024"', 'viewBox="0 0 512 512"', "viewBox 0 0 1024 1024"],
 	['width="32768"', 'width="8192"', "32768 x 32768"],
-	['avm:geglaettet="nein"', 'avm:geglaettet="ja"', 'avm:geglaettet="nein"'],
-	['avm:flaechen_geglaettet="nein"', 'avm:flaechen_geglaettet="ja"', 'avm:flaechen_geglaettet="nein"'],
+	['avm:geglaettet="nein"', 'avm:geglaettet="ja"', "avm:geglaettet passt zur Fassung"],
+	['avm:flaechen_geglaettet="nein"', 'avm:flaechen_geglaettet="ja"',
+		"avm:flaechen_geglaettet passt zur Fassung"],
 	['avm:landschaftsfassung="21358"', 'avm:landschaftsfassung=""', "avm:landschaftsfassung gesetzt"],
 	['avm:kind="ort"', 'avm:kind="ortx"', "avm:kind=ort"],
 	['avm:type="Flussweg"', 'avm:type="Trockenweg"', "Gewaesser: Flusswege"],
@@ -129,6 +130,58 @@ mutationen.forEach(([suchen, ersetzen, erwarteterBefund]) => {
 // Und die Strukturpruefung merkt eine fehlende Klammer.
 assert.ok(!P.pruefeStruktur(svg.replace("</g>", "")).ok, "eine fehlende Gruppenklammer faellt auf");
 assert.ok(!P.pruefeStruktur(svg + "Fisch & Chips").ok, "ein rohes & faellt auf");
+
+// ---- 5b. DIE ZWEITE FASSUNG: geglaettet (`?smooth=1`) ----------------------------------
+// 🔴 Sie ist ABGELEITET, nicht abgeschrieben: alles ausser der Glaettung muss gleich bleiben.
+// Eine zweite Literaltafel liefe beim ersten Mal auseinander, an dem jemand die Basis anfasst.
+const EG = B.SVGX_ABZUG_EINSTELLUNGEN_GLATT;
+assert.strictEqual(EG.smooth, true, "Linien geglaettet");
+assert.strictEqual(EG.smoothAreas, true, "Flaechen geglaettet");
+Object.keys(E).forEach((schluessel) => {
+	if (schluessel === "smooth" || schluessel === "smoothAreas") { return; }
+	assert.deepStrictEqual(EG[schluessel], E[schluessel],
+		`"${schluessel}" muss in beiden Fassungen gleich sein -- sie duerfen sich in GENAU einer `
+		+ "Eigenschaft unterscheiden, sonst vergleicht ein Abrufer zwei verschiedene Karten");
+});
+assert.deepStrictEqual(Object.keys(EG).sort(), Object.keys(E).sort(),
+	"und die glatte Fassung fuehrt kein Feld mehr oder weniger");
+
+const svgGlatt = B.svgxBuildDocument(Object.assign({}, EG, {
+	mapFeatures: mapFeatures, territories: territories, ecosystems: oekosysteme,
+	ecoRevision: FX.ECO_REVISION, exportedAt: FX.EXPORTIERT,
+}, farben)).parts.join("");
+
+const abnahmeGlatt = P.pruefeAbzug(svgGlatt, false, { glatt: true });
+assert.deepStrictEqual(abnahmeGlatt.befunde, [], "die glatte Fassung muss die Abnahme bestehen");
+assert.strictEqual(abnahmeGlatt.geprueft, abnahme.geprueft, "dieselbe Liste, dieselbe Zahl Punkte");
+
+// 🔴 DIE FORMATZUSAGE AN DEN ABRUFER: absolute kubische Kurven, sonst nichts. Kein S/Q/T/A,
+// kein H/V, keine Kleinbuchstaben (relative Kommandos) -- ein Verbraucher soll die Pfade lesen
+// koennen, ohne die halbe SVG-Grammatik nachzubauen.
+assert.deepStrictEqual(P.fremdeKommandos(svgGlatt), [], "nur M/L/C/Z in der glatten Fassung");
+assert.deepStrictEqual(P.fremdeKommandos(svg), [], "und in der rohen");
+assert.ok(P.enthaeltKurven(svgGlatt), "die glatte Fassung traegt wirklich Kurven");
+assert.ok(!P.enthaeltKurven(svg), "die rohe traegt keine");
+
+// 💣 DIE MUTATION, DIE DIESEN GANZEN UMBAU TRAEGT: der Kopf behauptet „geglaettet", die
+// Geometrie ist aber eckig. Das ist der schlimmste denkbare Fehlschlag -- der Abrufer bekommt,
+// wonach er gefragt hat, in der falschen Form, und weil der Kopf stimmt, sucht er den Fehler
+// bei sich. Ohne den Pruefpunkt „Kurven passen zur Fassung" faellt das NIEMANDEM auf.
+const luegner = svg
+	.replace('avm:geglaettet="nein"', 'avm:geglaettet="ja"')
+	.replace('avm:flaechen_geglaettet="nein"', 'avm:flaechen_geglaettet="ja"');
+const luegnerBefund = P.pruefeAbzug(luegner, false, { glatt: true });
+assert.ok(luegnerBefund.befunde.includes("Kurven passen zur Fassung"),
+	"ein Kopf ohne die passende Geometrie muss auffallen, gemeldet wurde: "
+	+ (luegnerBefund.befunde.join(", ") || "nichts"));
+// Und andersherum: eine glatte Datei, die als rohe angenommen wird, faellt ebenfalls auf.
+assert.ok(P.pruefeAbzug(svgGlatt, false, { glatt: false }).befunde.includes("Kurven passen zur Fassung"),
+	"eine glatte Datei besteht die rohe Abnahme nicht");
+// Ein fremdes Kommando faellt auf -- hier ein relatives `c`, der wahrscheinlichste Zufall,
+// wenn jemand den Glaetter einmal anders schreibt.
+const fremd = svgGlatt.replace(/ d="M/, ' d="m');
+assert.ok(P.pruefeAbzug(fremd, false, { glatt: true }).befunde.includes("nur M/L/C/Z in d="),
+	"ein kleingeschriebenes (relatives) Kommando faellt auf");
 
 // ---- 6. Die Stueckliste wandert unveraendert in die Datei -------------------------------
 // 💣 Nie ein einziger Riesenstring durch Aneinanderhaengen -- und der Hash muss zu genau den

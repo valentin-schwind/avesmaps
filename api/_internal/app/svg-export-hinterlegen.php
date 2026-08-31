@@ -27,6 +27,23 @@ require_once __DIR__ . '/svg-export-ablage.php';
 /** Wie viele fertige Abzuege aufbewahrt werden. Vorbild: AVESMAPS_DB_BACKUP_KEEP_FILES = 3. */
 const AVESMAPS_SVG_EXPORT_KEEP_FILES = 3;
 
+/**
+ * Von der GEGLAETTETEN Fassung nur zwei -- Owner-Entscheid 31.08.2026 („2 fassungen reichen").
+ *
+ * ⚠️ Sie ist deutlich groesser: die Bezier-Geometrie misst gemessene 2,53-mal so viele Zeichen
+ * wie die Stuetzpunkt-Fassung. Zwei statt drei ist kein Geiz, sondern der Grund, aus dem hier
+ * ueberhaupt aufgeraeumt wird -- ein volles Webspace entzieht auf STRATO der Datenbank die
+ * Schreibrechte, und das Fehlerbild ist `1142 INSERT denied`, nicht „Platte voll".
+ */
+const AVESMAPS_SVG_EXPORT_KEEP_FILES_GLATT = 2;
+
+/** Wie viele Fassungen diese Variante behaelt. */
+function avesmapsSvgExportKeepFiles(string $variante): int {
+    return $variante === AVESMAPS_SVG_EXPORT_VARIANTE_GLATT
+        ? AVESMAPS_SVG_EXPORT_KEEP_FILES_GLATT
+        : AVESMAPS_SVG_EXPORT_KEEP_FILES;
+}
+
 /** Obergrenze fuer einen Abzug. Live gemessen 23.08.2026: 8,6 MB. */
 const AVESMAPS_SVG_EXPORT_MAX_BYTES = 64 * 1024 * 1024;
 
@@ -81,12 +98,20 @@ function avesmapsSvgExportUploadsAufraeumen(string $verzeichnis, int $jetzt): in
  * Schluessel ist die Reihenfolge bei zwei Dateien aus derselben Sekunde nicht stabil, und dann
  * faellt mal die eine, mal die andere -- ein Fehler, der sich nur manchmal zeigt.
  */
-function avesmapsSvgExportAufraeumen(string $verzeichnis, string $aktuelleDatei): array {
+function avesmapsSvgExportAufraeumen(
+    string $verzeichnis,
+    string $aktuelleDatei,
+    string $variante = AVESMAPS_SVG_EXPORT_VARIANTE_ROH
+): array {
     $dateien = [];
     foreach ((array) glob($verzeichnis . DIRECTORY_SEPARATOR . 'abzug-*.svg') as $datei) {
         $pfad = (string) $datei;
         $name = basename($pfad);
-        if (!avesmapsSvgExportDateinameGueltig($name) || $name === $aktuelleDatei) {
+        // 💣 DIE VARIANTE FILTERT HIER, und das ist der einzige Riegel dagegen, dass eine
+        // Variante die andere wegraeumt: das `glob` oben trifft BEIDE Namensraeume
+        // (`abzug-glatt-…` faengt selbst mit `abzug-` an). Ohne den Variantenparameter
+        // loeschte ein frisch hinterlegter roher Abzug die glatten mit.
+        if (!avesmapsSvgExportDateinameGueltig($name, $variante) || $name === $aktuelleDatei) {
             continue;
         }
         $dateien[] = ['name' => $name, 'pfad' => $pfad, 'zeit' => (int) @filemtime($pfad)];
@@ -98,7 +123,7 @@ function avesmapsSvgExportAufraeumen(string $verzeichnis, string $aktuelleDatei)
 
     $geloescht = [];
     // Der aktuelle belegt bereits einen der Plaetze, also bleiben KEEP-1 weitere.
-    foreach (array_slice($dateien, AVESMAPS_SVG_EXPORT_KEEP_FILES - 1) as $eintrag) {
+    foreach (array_slice($dateien, avesmapsSvgExportKeepFiles($variante) - 1) as $eintrag) {
         if (@unlink($eintrag['pfad'])) {
             $geloescht[] = $eintrag['name'];
         }
@@ -173,13 +198,22 @@ function avesmapsSvgExportUebernehmen(string $verzeichnis, string $uploadId, arr
         throw new RuntimeException('Das ist kein SVG-Dokument.');
     }
 
+    // 🔴 IN WELCHE SCHUBLADE, entscheidet DERSELBE Kopf -- nicht der Rumpf der Anfrage. Die
+    // Wurzelattribute stehen in den ersten paar hundert Bytes, der Lesevorgang oben genuegt
+    // also; ein zweiter waere es nicht wert. Warum nicht der Rumpf: siehe
+    // avesmapsSvgExportVarianteAusInhalt (dieselbe Regel wie bei `quelle`).
+    $variante = avesmapsSvgExportVarianteAusInhalt($kopf);
+
     $sha = hash_file('sha256', $quelle);
     if (!is_string($sha)) {
         @unlink($quelle);
         throw new RuntimeException('Der Abzug konnte nicht geprueft werden.');
     }
 
-    $datei = 'abzug-' . substr($sha, 0, 16) . '.svg';
+    // 💣 Der Namensraum trennt die Varianten -- das ist der Riegel, der verhindert, dass die
+    // Aufraeumung der einen die andere wegwirft (avesmapsSvgExportDateinameGueltig).
+    $datei = ($variante === AVESMAPS_SVG_EXPORT_VARIANTE_GLATT ? 'abzug-glatt-' : 'abzug-')
+        . substr($sha, 0, 16) . '.svg';
     $ziel = $verzeichnis . DIRECTORY_SEPARATOR . $datei;
     // ⚠️ Ein identischer Abzug traegt denselben Hash und damit denselben Namen. Dann liegt er
     // schon da -- das ist kein Fehler, sondern „nichts hat sich geaendert".
@@ -204,15 +238,18 @@ function avesmapsSvgExportUebernehmen(string $verzeichnis, string $uploadId, arr
         'dialekt' => avesmapsSvgExportKurzfeld($angaben['dialekt'] ?? 'inkscape', 20),
         'quelle' => ($angaben['quelle'] ?? '') === 'routine' ? 'routine' : 'manuell',
         'hinterlegt_von' => avesmapsSvgExportKurzfeld($angaben['hinterlegt_von'] ?? '', 60),
+        // ⚠️ AUS DEM INHALT, wie die Schublade selbst -- eine Angabe aus dem Rumpf koennte
+        // etwas anderes behaupten als die Datei, und dann stritte der Zeiger mit ihr.
+        'variante' => $variante,
     ];
 
     $roh = json_encode($zeiger, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
-    if (!is_string($roh)
-        || @file_put_contents($verzeichnis . DIRECTORY_SEPARATOR . 'aktuell.json', $roh . "\n") === false) {
+    $zeigerPfad = $verzeichnis . DIRECTORY_SEPARATOR . avesmapsSvgExportZeigerName($variante);
+    if (!is_string($roh) || @file_put_contents($zeigerPfad, $roh . "\n") === false) {
         throw new RuntimeException('Der Zeiger konnte nicht geschrieben werden.');
     }
 
-    $zeiger['aufgeraeumt'] = avesmapsSvgExportAufraeumen($verzeichnis, $datei);
+    $zeiger['aufgeraeumt'] = avesmapsSvgExportAufraeumen($verzeichnis, $datei, $variante);
     $zeiger['verwaiste_uploads_entfernt'] = avesmapsSvgExportUploadsAufraeumen($verzeichnis, time());
 
     return $zeiger;

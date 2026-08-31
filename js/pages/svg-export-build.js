@@ -37,6 +37,21 @@ const SVGX_ABZUG_EINSTELLUNGEN = {
 	subgroups: {},
 };
 
+// 🔴 DIE ZWEITE FASSUNG DES API-ABZUGS (seit 31.08.2026): dieselbe Karte mit den Bezierkurven,
+// die der Browser zeichnet. Ein maschineller Renderer braucht sie, damit seine Konturen zum
+// sichtbaren Kartenbild passen -- `GET /api/svg-export.php?smooth=1` liefert sie.
+//
+// 💣 ABGELEITET, NICHT ABGESCHRIEBEN. Alles ausser der Glaettung MUSS gleich bleiben (Groesse,
+// Dialekt, Semantik, Spannung): die beiden Abzuege sollen sich in GENAU einer Eigenschaft
+// unterscheiden. Eine zweite Literaltafel liefe beim ersten Mal auseinander, an dem jemand die
+// Basis anfasst -- und der Unterschied waere still, weil beide Dateien gueltig aussehen.
+// ⚠️ Herrschaftsgebiete bleiben auch hier eckig: ihr `smooth: false` steht ausgeschrieben im
+// Ebenenbau (Owner 15.08.2026, „auf keinen Fall") und wird von diesem Schalter nicht erreicht.
+const SVGX_ABZUG_EINSTELLUNGEN_GLATT = Object.assign({}, SVGX_ABZUG_EINSTELLUNGEN, {
+	smooth: true,
+	smoothAreas: true,
+});
+
 const SVGX_DIALECTS = {
 	ILLUSTRATOR: "illustrator",
 	INKSCAPE: "inkscape",
@@ -1501,6 +1516,7 @@ if (typeof module !== "undefined" && module.exports) {
 		SVGX_DIALECTS: SVGX_DIALECTS,
 		SVGX_WAY_SUBTYPES: SVGX_WAY_SUBTYPES,
 		SVGX_ABZUG_EINSTELLUNGEN: SVGX_ABZUG_EINSTELLUNGEN,
+		SVGX_ABZUG_EINSTELLUNGEN_GLATT: SVGX_ABZUG_EINSTELLUNGEN_GLATT,
 		SVGX_WAY_COLORS: SVGX_WAY_COLORS,
 		SVGX_WAY_WIDTHS: SVGX_WAY_WIDTHS,
 		SVGX_BOUNDARY_WIDTH: SVGX_BOUNDARY_WIDTH,

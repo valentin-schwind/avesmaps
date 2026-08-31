@@ -74,13 +74,114 @@ function avesmapsSvgExportEnsureAblage(): string {
 }
 
 /**
+ * ---------------------------------------------------------------------------------------
+ * DIE ZWEI VARIANTEN (seit 31.08.2026)
+ * ---------------------------------------------------------------------------------------
+ * `roh` sind die Stuetzpunkt-Polygone (M/L/Z), `glatt` ist dieselbe Karte mit den
+ * Bezierkurven, die der Browser auch zeichnet (M/L/C/Z). Ein maschineller Renderer braucht
+ * die glatte Fassung, damit seine Konturen zum sichtbaren Kartenbild passen.
+ *
+ * 🔴 EIN ANFRAGEPARAMETER KANN SIE NICHT ERZEUGEN. Dieser Endpunkt baut nichts -- er reicht
+ * eine hinterlegte Datei durch (siehe Kopf dieser Datei). Die glatte Fassung ist deshalb eine
+ * ZWEITE hinterlegte Datei mit eigenem Zeiger, nicht ein Schalter am Ausgang.
+ *
+ * 💣 ZWEI ZEIGER, NICHT EIN ZEIGER MIT ZWEI FELDERN. Jeder wird fuer sich zuletzt geschrieben,
+ * auf einen Namen, den es vorher nicht gab -- die Regel, die das Fenster „halb hochgeladen"
+ * schliesst. Ein gemeinsamer Zeiger muesste beide Uploads ueberleben, und ein Lauf, der nach
+ * der ersten Haelfte abbricht, hinterliesse einen Zeiger auf eine Datei, die es nicht gibt.
+ */
+const AVESMAPS_SVG_EXPORT_VARIANTE_ROH = 'roh';
+const AVESMAPS_SVG_EXPORT_VARIANTE_GLATT = 'glatt';
+
+/**
+ * Welche Variante will der Aufrufer? `?smooth=1` oder `?smooth=true`.
+ *
+ * ⚠️ STRENG GELESEN, und der Rueckfall ist die rohe Fassung. Ein `?smooth=ja` schaltet NICHT
+ * um -- aber es wirft auch keinen Fehler: der Aufrufer bekommt die rohe Datei, und deren
+ * Wurzelattribute (`avm:geglaettet="nein"`) sagen ihm die Wahrheit. Ein 400 auf einen
+ * Tippfehler waere strenger, als dieser Endpunkt sein muss.
+ * 💣 `?smooth[]=1` liefert ein ARRAY. Ohne die Typpruefung waere das ein TypeError, also ein
+ * 500 auf einem Endpunkt, der nur eine Datei durchreicht.
+ */
+function avesmapsSvgExportVarianteAusAnfrage(array $get): string {
+    $wert = $get['smooth'] ?? '';
+    if (!is_string($wert) && !is_int($wert)) {
+        return AVESMAPS_SVG_EXPORT_VARIANTE_ROH;
+    }
+    $wert = strtolower(trim((string) $wert));
+
+    return ($wert === '1' || $wert === 'true')
+        ? AVESMAPS_SVG_EXPORT_VARIANTE_GLATT
+        : AVESMAPS_SVG_EXPORT_VARIANTE_ROH;
+}
+
+/**
+ * In welche Schublade gehoert dieses Dokument? Gelesen wird das WURZELELEMENT.
+ *
+ * 🔴 DER INHALT ORDNET SICH SELBST EIN, der Aufrufer behauptet es nicht -- dieselbe Regel wie
+ * bei `X-Avesmaps-Quelle`. Der Owner haengt auf /edit/svg-export.php seine eigenen Regler an
+ * den Abzug; duerfte der Rumpf die Variante nennen, koennte ein eckiger Handabzug in der
+ * glatten Schublade landen, und `?smooth=1` lieferte Stuetzpunkt-Polygone aus.
+ *
+ * ⚠️ Halb geglaettet (nur Linien) zaehlt als `glatt`: die Datei traegt dann Bezierkurven, und
+ * darum geht es dem Abrufer. WAS genau geglaettet ist, sagen die Wurzelattribute selbst -- die
+ * Ablage ist eine Schublade, keine zweite Wahrheit darueber.
+ *
+ * 💣 NUR IM OEFFNENDEN `<svg …>`-TAG. Ein `avm:geglaettet="ja"` weiter unten -- in einem
+ * `<metadata>`, einem Kommentar, einer eingebetteten Fremddatei -- darf die Einordnung nicht
+ * drehen. Ohne die Begrenzung genuegte ein beliebiger Textschnipsel im Dokument.
+ * ⚠️ Fehlt die Angabe, ist es die ROHE Fassung: so hat es angefangen, und ein Abzug ohne
+ * Semantik traegt die Attribute gar nicht.
+ */
+function avesmapsSvgExportVarianteAusInhalt(string $kopf): string {
+    $anfang = strpos($kopf, '<svg');
+    if ($anfang === false) {
+        return AVESMAPS_SVG_EXPORT_VARIANTE_ROH;
+    }
+    $ende = strpos($kopf, '>', $anfang);
+    if ($ende === false) {
+        return AVESMAPS_SVG_EXPORT_VARIANTE_ROH;
+    }
+
+    $wurzel = substr($kopf, $anfang, $ende - $anfang + 1);
+    $glatt = str_contains($wurzel, 'avm:geglaettet="ja"')
+        || str_contains($wurzel, 'avm:flaechen_geglaettet="ja"');
+
+    return $glatt ? AVESMAPS_SVG_EXPORT_VARIANTE_GLATT : AVESMAPS_SVG_EXPORT_VARIANTE_ROH;
+}
+
+/**
+ * Der Name des Zeigers je Variante.
+ *
+ * 🔴 `aktuell.json` BLEIBT WAS ES IST. Der rohe Abzug ist die Fassung, die es seit dem
+ * 23.08.2026 gibt; jeder bestehende Client und jede Ablage auf dem Server haengen daran. Die
+ * neue Variante bekommt einen neuen Namen, nicht umgekehrt.
+ */
+function avesmapsSvgExportZeigerName(string $variante): string {
+    return $variante === AVESMAPS_SVG_EXPORT_VARIANTE_GLATT ? 'aktuell-glatt.json' : 'aktuell.json';
+}
+
+/**
  * 💣 EIN NAME, KEIN PFAD. Der Zeiger ist eine Datei auf der Platte, aber sie kaeme bei einem
  * Fehlschlag des Laeufers auch halb geschrieben vor -- und ein `datei`-Feld mit `../` waere
  * ein Leseloch in den ganzen Webspace. Deshalb muss der Name exakt der Form entsprechen, die
- * der Laeufer vergibt: `abzug-<16 Hexstellen>.svg`.
+ * der Laeufer vergibt: `abzug-<16 Hexstellen>.svg` bzw. `abzug-glatt-<16 Hexstellen>.svg`.
+ *
+ * 💣 DIE GETRENNTEN NAMENSRAEUME SIND TRAGEND, nicht Kosmetik: die Aufraeumung sucht mit
+ * `glob('abzug-*.svg')` und behaelt die neuesten. Truegen beide Varianten denselben
+ * Namensraum, raeumte die eine die andere weg -- und zwar genau dann, wenn beide frisch
+ * hinterlegt wurden. Ein `abzug-glatt-…` ist fuer die rohe Variante deshalb KEIN gueltiger
+ * Name (und umgekehrt), und das ist die einzige Stelle, an der das entschieden wird.
  */
-function avesmapsSvgExportDateinameGueltig(string $datei): bool {
-    return preg_match('/^abzug-[0-9a-f]{16}\.svg$/', $datei) === 1;
+function avesmapsSvgExportDateinameGueltig(
+    string $datei,
+    string $variante = AVESMAPS_SVG_EXPORT_VARIANTE_ROH
+): bool {
+    $muster = $variante === AVESMAPS_SVG_EXPORT_VARIANTE_GLATT
+        ? '/^abzug-glatt-[0-9a-f]{16}\.svg$/'
+        : '/^abzug-[0-9a-f]{16}\.svg$/';
+
+    return preg_match($muster, $datei) === 1;
 }
 
 /**
@@ -99,8 +200,11 @@ function avesmapsSvgExportDateinameSaeubern(string $name): string {
  * Den Zeiger lesen. Gibt `null` zurueck, wenn es (noch) keinen gibt oder er unbrauchbar ist --
  * der Aufrufer macht daraus eine ehrliche Absage, nie eine leere Datei.
  */
-function avesmapsSvgExportZeigerLesen(string $verzeichnis): ?array {
-    $pfad = $verzeichnis . DIRECTORY_SEPARATOR . 'aktuell.json';
+function avesmapsSvgExportZeigerLesen(
+    string $verzeichnis,
+    string $variante = AVESMAPS_SVG_EXPORT_VARIANTE_ROH
+): ?array {
+    $pfad = $verzeichnis . DIRECTORY_SEPARATOR . avesmapsSvgExportZeigerName($variante);
     if (!is_file($pfad) || !is_readable($pfad)) {
         return null;
     }
@@ -120,7 +224,10 @@ function avesmapsSvgExportZeigerLesen(string $verzeichnis): ?array {
         return null;
     }
 
-    return avesmapsSvgExportDateinameGueltig($zeiger['datei']) ? $zeiger : null;
+    // 💣 Gegen die NAMENSFORM DIESER VARIANTE geprueft, nicht nur gegen „irgendein Abzug":
+    // sonst liesse sich ueber einen manipulierten glatten Zeiger die rohe Datei unter
+    // `?smooth=1` ausliefern -- eine Antwort, die anders aussieht als bestellt.
+    return avesmapsSvgExportDateinameGueltig($zeiger['datei'], $variante) ? $zeiger : null;
 }
 
 /**
@@ -134,8 +241,11 @@ function avesmapsSvgExportZeigerLesen(string $verzeichnis): ?array {
  * ist schlimmer als gar keiner: der Client bekaeme spaeter ein 304 auf eine kaputte Kopie.
  * In dem Fall wird neu gehasht -- selten, und die einzige ehrliche Antwort.
  */
-function avesmapsSvgExportAbzug(string $verzeichnis): ?array {
-    $zeiger = avesmapsSvgExportZeigerLesen($verzeichnis);
+function avesmapsSvgExportAbzug(
+    string $verzeichnis,
+    string $variante = AVESMAPS_SVG_EXPORT_VARIANTE_ROH
+): ?array {
+    $zeiger = avesmapsSvgExportZeigerLesen($verzeichnis, $variante);
     if ($zeiger === null) {
         return null;
     }

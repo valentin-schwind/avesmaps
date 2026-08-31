@@ -89,11 +89,33 @@ assert(str_contains($quelltextAblage, '$_GET') && !str_contains($codeAblage, '$_
     'die Kommentar-Entfernung wirkt -- sonst prueft der naechste Block gar nichts');
 
 foreach (['svg-export-ablage.php' => $codeAblage, 'svg-export.php' => $codeEndpunkt] as $wo => $q) {
-    assert(!str_contains($q, '$_GET'), "{$wo} fasst \$_GET nicht an");
     assert(!str_contains($q, '$_POST'), "{$wo} fasst \$_POST nicht an");
     assert(!str_contains($q, '$_REQUEST'), "{$wo} fasst \$_REQUEST nicht an");
     // 🔴 config.local.php IST seit 23.08.2026 der Hauptweg (Owner: „unsere token werden in
     // der config.local gesammelt") -- die alte Zusicherung stand hier genau andersherum.
+}
+
+// 🔴 DIE ABLAGE FASST DIE ADRESSE UEBERHAUPT NICHT AN. Sie bekommt gereicht, was sie braucht
+// (`avesmapsSvgExportVarianteAusAnfrage(array $get)` nimmt ein Array als Argument) -- eine
+// Bibliothek, die selbst in `$_GET` greift, laesst sich nicht mehr aus einem Test heraus
+// fahren und nicht mehr von einem zweiten Aufrufer benutzen.
+assert(!str_contains($codeAblage, '$_GET'), 'svg-export-ablage.php fasst $_GET nicht an');
+
+// 💣 DER ENDPUNKT DARF GENAU EIN $_GET HABEN, und es ist die Wahl der Fassung.
+// 🔴 Die Regel dahinter ist NICHT „$_GET ist boese", sondern: DER TOKEN KOMMT NIE AUS DER
+// ADRESSE. Adressen stehen in Serverprotokollen, in Verlaufslisten und in `Referer`-Koepfen;
+// ein Token darin ist ein veroeffentlichter Token. Bis zum 31.08.2026 stand die Regel als
+// pauschales Verbot da -- das war einfacher zu pruefen, verbot aber auch `?smooth=1`, also
+// eine Angabe, die kein Geheimnis ist. Jetzt wird das GEHEIMNIS geschuetzt statt der
+// Buchstabenfolge: ein `$_GET` mehr faellt hier auf, und jedes token-artige Feld ebenfalls.
+assert(substr_count($codeEndpunkt, '$_GET') === 1,
+    'genau EIN $_GET im Endpunkt, gezaehlt: ' . substr_count($codeEndpunkt, '$_GET'));
+assert(str_contains($codeEndpunkt, 'avesmapsSvgExportVarianteAusAnfrage($_GET)'),
+    'und zwar die Wahl der Fassung, nichts anderes');
+foreach (['token', 'access_token', 'key', 'secret', 'auth', 'password'] as $geheim) {
+    assert(!str_contains($codeEndpunkt, '$_GET[\'' . $geheim),
+        "der Endpunkt liest kein \$_GET['{$geheim}…'] -- ein Token gehoert nie in die Adresse");
+    assert(!str_contains($codeEndpunkt, '$_GET["' . $geheim), "dasselbe mit doppelten Anfuehrungszeichen");
 }
 // 🔴 Der Token wird nirgends protokolliert -- ein Token im Logfile ist ein veroeffentlichter Token.
 foreach (['error_log', 'syslog', 'file_put_contents'] as $schreiber) {

@@ -36,13 +36,18 @@ const PRUEFUNGEN = [
 		pruef: (k) => /avm:landschaftsfassung="[0-9]+"/.test(k) },
 	{ name: "avm:exportiert gesetzt", braucht: "kopf",
 		pruef: (k) => /avm:exportiert="\d{4}-\d{2}-\d{2}T/.test(k) },
-	// 🔴 Keine Glaettung: die API liefert die Geometrie, wie sie in den Daten steht. Eine
-	// gerundete Grenze verschoebe Land zwischen Reichen, und eine geglaettete Kueste waere
-	// eine Aussage ueber die Welt, die niemand getroffen hat.
-	{ name: 'avm:geglaettet="nein"', braucht: "kopf",
-		pruef: (k) => k.includes('avm:geglaettet="nein"') },
-	{ name: 'avm:flaechen_geglaettet="nein"', braucht: "kopf",
-		pruef: (k) => k.includes('avm:flaechen_geglaettet="nein"') },
+	// 🔴 DIE FASSUNG MUSS SAGEN, WAS SIE IST -- und beide Fassungen gibt es (seit 31.08.2026).
+	// Die ROHE liefert die Geometrie, wie sie in den Daten steht; das war und bleibt die
+	// Vorgabe, denn eine geglaettete Kueste waere eine Aussage ueber die Welt, die niemand
+	// getroffen hat. Die GEGLAETTETE liefert die Kurven, die der Browser zeichnet -- fuer
+	// maschinelle Renderer, deren Konturen sonst nicht zum Kartenbild passen.
+	// ⚠️ Die alte Sorge „eine gerundete Grenze verschoebe Land zwischen Reichen" trifft auch
+	// die glatte Fassung NICHT: Herrschaftsgebiete werden nie geglaettet, das steht im Bauer
+	// als ausgeschriebenes `smooth: false` samt Begruendung (Owner 15.08.2026).
+	{ name: "avm:geglaettet passt zur Fassung", braucht: "kopf",
+		pruef: (k, erw) => k.includes(`avm:geglaettet="${erw.glatt ? "ja" : "nein"}"`) },
+	{ name: "avm:flaechen_geglaettet passt zur Fassung", braucht: "kopf",
+		pruef: (k, erw) => k.includes(`avm:flaechen_geglaettet="${erw.glatt ? "ja" : "nein"}"`) },
 	{ name: "Lizenz reist mit", braucht: "kopf",
 		pruef: (k) => k.includes("NOTICE.md") && k.includes("avesmaps.de") },
 	{ name: "Vokabular im Kopf", braucht: "kopf",
@@ -64,19 +69,64 @@ const PRUEFUNGEN = [
 		pruef: (t) => t.includes('avm:type="see"') || t.includes('avm:type="meer"') },
 	{ name: "avm:id (stabile Kennung)", braucht: "ganz", pruef: (t) => /avm:id="[^"]+"/.test(t) },
 
+	// 💣 DER KOPF IST EINE BEHAUPTUNG, DIE GEOMETRIE IST DER BELEG. `avm:geglaettet="ja"` an
+	// einer Datei voller M/L-Ketten waere der schlimmste Fehlschlag dieses Umbaus: der Abrufer
+	// bekaeme, wonach er gefragt hat, in der falschen Form -- und weil der Kopf stimmt, suchte
+	// er den Fehler bei sich. Also wird nachgesehen, ob wirklich Kurven da sind (bzw. keine).
+	{ name: "Kurven passen zur Fassung", braucht: "ganz",
+		pruef: (t, erw) => enthaeltKurven(t) === Boolean(erw.glatt) },
+	// 🔴 NUR M, L, C UND Z -- keine relativen Kommandos, kein S/Q/T/A/H/V. Ein Verbraucher, der
+	// die Pfade selbst liest, muss nicht die halbe SVG-Grammatik nachbauen; das ist eine
+	// ausdrueckliche Zusage der Uebergabe (docs/svg-export-semantik-uebergabe.md).
+	{ name: "nur M/L/C/Z in d=", braucht: "ganz", pruef: (t) => fremdeKommandos(t).length === 0 },
+
 	{ name: "sauber geschlossen", braucht: "ganz", pruef: (t) => t.trimEnd().endsWith("</svg>") },
 ];
+
+/**
+ * Die Pfadkommandos, die in `d=`-Attributen vorkommen -- in EINEM Durchlauf.
+ *
+ * ⚠️ Kein regulaerer Ausdruck ueber die ganze Datei je Frage: die Uebergabe sagt es selbst
+ * („einmal parsen, nicht mehrfach mit regulaeren Ausdruecken ueber 10 MB laufen"). Also ein
+ * Durchlauf, dessen Ergebnis beide Pruefpunkte oben benutzen, und ein Zwischenspeicher fuer
+ * denselben Text -- `pruefeAbzug` fragt ihn zweimal.
+ */
+let kommandoSpeicher = { text: null, kommandos: null };
+
+function kommandosIn(text) {
+	if (kommandoSpeicher.text === text) { return kommandoSpeicher.kommandos; }
+	const gefunden = new Set();
+	const muster = / d="([^"]*)"/g;
+	let treffer;
+	while ((treffer = muster.exec(text)) !== null) {
+		const buchstaben = treffer[1].match(/[A-Za-z]/g);
+		if (buchstaben) { buchstaben.forEach((b) => gefunden.add(b)); }
+	}
+	kommandoSpeicher = { text: text, kommandos: gefunden };
+	return gefunden;
+}
+
+function enthaeltKurven(text) {
+	return kommandosIn(text).has("C");
+}
+
+function fremdeKommandos(text) {
+	return [...kommandosIn(text)].filter((b) => !["M", "L", "C", "Z"].includes(b)).sort();
+}
 
 /**
  * `text` darf der ganze Abzug sein oder -- fuer die Kopfpruefungen -- nur dessen Anfang.
  * Rueckgabe: {ok, befunde:[Namen der durchgefallenen Punkte], geprueft}
  */
-function pruefeAbzug(text, nurKopf) {
+function pruefeAbzug(text, nurKopf, erwartung) {
 	const ganz = String(text);
 	const kopf = ganz.slice(0, 200000);
+	// ⚠️ Die Vorgabe ist die ROHE Fassung -- jeder bestehende Aufrufer ohne dritten Parameter
+	// meint sie, und sie ist auch das, was der Endpunkt ohne `?smooth=1` ausliefert.
+	const erw = erwartung || { glatt: false };
 	const anwendbar = PRUEFUNGEN.filter((p) => !nurKopf || p.braucht === "kopf");
 	const befunde = anwendbar
-		.filter((p) => !p.pruef(p.braucht === "kopf" ? kopf : ganz))
+		.filter((p) => !p.pruef(p.braucht === "kopf" ? kopf : ganz, erw))
 		.map((p) => p.name);
 
 	return { ok: befunde.length === 0, befunde: befunde, geprueft: anwendbar.length };
@@ -102,4 +152,12 @@ function pruefeStruktur(text) {
 	return { ok: befunde.length === 0, befunde: befunde };
 }
 
-module.exports = { PRUEFUNGEN: PRUEFUNGEN, pruefeAbzug: pruefeAbzug, pruefeStruktur: pruefeStruktur };
+module.exports = {
+	PRUEFUNGEN: PRUEFUNGEN,
+	pruefeAbzug: pruefeAbzug,
+	pruefeStruktur: pruefeStruktur,
+	// Fuer die Diagnose: WELCHES fremde Kommando steht drin? Ein Befundname allein sagt nur,
+	// dass etwas nicht stimmt -- der Workflow soll den Buchstaben nennen koennen.
+	fremdeKommandos: fremdeKommandos,
+	enthaeltKurven: enthaeltKurven,
+};

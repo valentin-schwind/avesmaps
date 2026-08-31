@@ -11,7 +11,15 @@ declare(strict_types=1);
  * dieselbe Datei, die /edit/svg-export.php im Browser erzeugt -- gebaut vom naechtlichen
  * Lauf (.github/workflows/svg-export-abzug.yml) mit demselben Bauer
  * (js/pages/svg-export-build.js), 32768 x 32768, viewBox 0 0 1024 1024, alle Ebenen,
- * volle avm:*-Semantik, nichts geglaettet.
+ * volle avm:*-Semantik.
+ *
+ * 🔴 ZWEI FASSUNGEN, seit 31.08.2026. Ohne Parameter die ungeglaettete (Stuetzpunkt-Polygone,
+ * M/L/Z) -- unveraendert das, was es seit dem 23.08. gibt. Mit `?smooth=1` die geglaettete
+ * (M/L/C/Z, absolute kubische Bezierkurven), also die Geometrie, die der Browser zeichnet:
+ * ein maschineller Renderer braucht sie, damit seine Konturen zum Kartenbild passen. Alles
+ * Uebrige ist identisch -- dieselben avm:-Attribute, dieselbe viewBox, dieselben Kopfzeilen.
+ * ⚠️ Die Wurzelattribute `avm:geglaettet` / `avm:flaechen_geglaettet` der Datei melden den
+ * TATSAECHLICHEN Zustand; sie sind die Wahrheit, nicht der Parameter.
  *
  * 🔴 NUR LESEN. Dieser Endpunkt hat keinen Schreibweg, keine Datenbankverbindung und keine
  * Verwaltungsfunktion; er reicht eine Datei durch. Der Token kann nichts anderes.
@@ -70,8 +78,22 @@ if (!avesmapsSvgExportTokenPasst($erwarteterToken, $gegebenerToken)) {
 // 🔴 ERST HIER, nach dem Riegel: die Sperre der Ablage heilt sich zur Laufzeit (Hausmuster,
 // siehe avesmapsSvgExportEnsureAblage) -- aber eine anonyme Anfrage soll keinen
 // Schreibvorgang ausloesen koennen.
-$abzug = avesmapsSvgExportAbzug(avesmapsSvgExportEnsureAblage());
+// 🔴 `?smooth=1` waehlt die GEGLAETTETE Fassung -- dieselbe Karte mit den Bezierkurven, die
+// der Browser zeichnet (M/L/C/Z statt M/L/Z). Sie wird nicht hier erzeugt: dieser Endpunkt
+// baut nichts, er reicht eine hinterlegte Datei durch. Die glatte Fassung ist eine ZWEITE
+// hinterlegte Datei mit eigenem Zeiger (svg-export-ablage.php).
+$variante = avesmapsSvgExportVarianteAusAnfrage($_GET);
+$abzug = avesmapsSvgExportAbzug(avesmapsSvgExportEnsureAblage(), $variante);
 if ($abzug === null) {
+    // 💣 EIN EIGENER GRUND FUER DIE GLATTE FASSUNG, und niemals ersatzweise die rohe. Wer
+    // `?smooth=1` bestellt und M/L/Z bekommt, rendert Kanten, die nicht zur Karte passen --
+    // und sucht den Fehler bei sich. Eine Antwort, die anders aussieht als bestellt, ist
+    // schlimmer als keine.
+    if ($variante === AVESMAPS_SVG_EXPORT_VARIANTE_GLATT) {
+        avesmapsErrorResponse(404, 'smooth_export_not_available',
+            'Es liegt noch kein geglaetteter Abzug bereit. Der naechtliche Lauf erzeugt ihn; '
+            . 'ohne ?smooth=1 gibt es die ungeglaettete Fassung.');
+    }
     avesmapsErrorResponse(404, 'export_not_available',
         'Es liegt noch kein Abzug bereit. Der naechtliche Lauf erzeugt ihn.');
 }
@@ -100,6 +122,10 @@ header('X-Avesmaps-Exported-At: ' . $abzug['exportiert']);
 // unterscheiden koennen -- ein geglaetteter Handabzug hat andere Geometrie als der
 // ungeglaettete der Routine, und die Fassungsstempel sagen darueber nichts.
 header('X-Avesmaps-Quelle: ' . $abzug['quelle']);
+// ⚠️ Welche Fassung das hier ist -- additiv, damit ein HEAD sie ohne Parsen erfaehrt und ein
+// Client nach einem 304 weiss, worauf sich sein Hash bezieht. Die Datei selbst sagt es in
+// ihren Wurzelattributen; diese Zeile erspart, dafuer 8 MB zu laden.
+header('X-Avesmaps-Variante: ' . $variante);
 
 // 💣 ZWEI GUELTIGE FORMEN, und die zweite ist die WICHTIGERE. Der Client bekommt den ETag
 // gar nicht zu sehen -- der Proxy vor STRATO wirft ihn weg (siehe oben). Was er von uns

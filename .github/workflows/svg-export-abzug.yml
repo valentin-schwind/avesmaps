@@ -105,44 +105,59 @@ jobs:
         run: |
           set -euo pipefail
           endpunkt="$BASIS/api/svg-export-deposit.php"
-          svg="$(ls "$ABZUG_DIR"/abzug-*.svg)"
-          zeiger="$ABZUG_DIR/aktuell.json"
-          echo "Hinterlege $(basename "$svg") ($(stat -c%s "$svg") Bytes)"
 
           ruf() { curl -sS --fail-with-body --max-time 180 -H "Authorization: Bearer $DEPOSIT_TOKEN" "$@"; }
 
-          id="$(ruf -X POST "$endpunkt?action=start" | node -e \
-            'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const j=JSON.parse(s);if(!j.upload_id)throw new Error("keine upload_id");process.stdout.write(j.upload_id)})')"
-          echo "Upload-Kennung: ${id:0:8}…"
+          # 🔴 BEIDE FASSUNGEN, NACHEINANDER ueber denselben Endpunkt: die rohe
+          # (Stuetzpunkt-Polygone) und die geglaettete (`?smooth=1`, Bezierkurven).
+          # 💣 In WELCHE Schublade sie kommen, sagt der SERVER -- er liest `avm:geglaettet` aus
+          # dem Wurzelelement der hochgeladenen Datei. Hier wird es NICHT mitgeschickt, aus
+          # demselben Grund wie bei `quelle`: was der Aufrufer behauptet, entscheidet nicht.
+          # ⚠️ Die rohe zuerst. Bricht der Lauf dazwischen ab, ist die Fassung erneuert, an der
+          # die bestehenden Abrufer haengen -- und die glatte bleibt einen Tag alt, statt
+          # umgekehrt.
+          for variante in roh glatt; do
+            case "$variante" in
+              roh)   zeiger="$ABZUG_DIR/aktuell.json" ;;
+              glatt) zeiger="$ABZUG_DIR/aktuell-glatt.json" ;;
+            esac
+            svg="$ABZUG_DIR/$(node -e 'process.stdout.write(JSON.parse(require("fs").readFileSync(process.argv[1],"utf8")).datei)' "$zeiger")"
+            echo "== $variante: $(basename "$svg") ($(stat -c%s "$svg") Bytes)"
 
-          teile="$ABZUG_DIR/teile"
-          mkdir -p "$teile"
-          split -b 2097152 "$svg" "$teile/stueck-"
-          anzahl=$(ls "$teile" | wc -l)
-          n=0
-          for stueck in "$teile"/stueck-*; do
-            n=$((n + 1))
-            echo "  Stueck $n/$anzahl"
-            ruf -X POST --data-binary "@$stueck" \
-              -H "Content-Type: application/octet-stream" \
-              "$endpunkt?action=chunk&upload_id=$id" > /dev/null
+            id="$(ruf -X POST "$endpunkt?action=start" | node -e \
+              'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const j=JSON.parse(s);if(!j.upload_id)throw new Error("keine upload_id");process.stdout.write(j.upload_id)})')"
+            echo "Upload-Kennung: ${id:0:8}…"
+
+            teile="$ABZUG_DIR/teile-$variante"
+            rm -rf "$teile"
+            mkdir -p "$teile"
+            split -b 2097152 "$svg" "$teile/stueck-"
+            anzahl=$(ls "$teile" | wc -l)
+            n=0
+            for stueck in "$teile"/stueck-*; do
+              n=$((n + 1))
+              echo "  Stueck $n/$anzahl"
+              ruf -X POST --data-binary "@$stueck" \
+                -H "Content-Type: application/octet-stream" \
+                "$endpunkt?action=chunk&upload_id=$id" > /dev/null
+            done
+
+            # 🔴 `quelle` wird NICHT mitgeschickt -- die bestimmt der Server aus dem Riegel
+            # (Routine-Token => routine). Mitgeschickt koennte ein Handabzug sich als Routine
+            # ausgeben, und genau diese Angabe soll die beiden auseinanderhalten.
+            rumpf="$(node -e '
+              const fs=require("fs");
+              const z=JSON.parse(fs.readFileSync(process.argv[1],"utf8"));
+              process.stdout.write(JSON.stringify({
+                dateiname: z.dateiname, dialekt: z.dialekt,
+                kartenfassung: z.kartenfassung, landschaftsfassung: z.landschaftsfassung,
+                exportiert: z.exportiert,
+              }));' "$zeiger")"
+
+            ruf -X POST -H "Content-Type: application/json" --data "$rumpf" \
+              "$endpunkt?action=finish&upload_id=$id" | tee "$ABZUG_DIR/antwort-$variante.json"
+            echo
           done
-
-          # 🔴 `quelle` wird NICHT mitgeschickt -- die bestimmt der Server aus dem Riegel
-          # (Routine-Token => routine). Mitgeschickt koennte ein Handabzug sich als Routine
-          # ausgeben, und genau diese Angabe soll die beiden auseinanderhalten.
-          rumpf="$(node -e '
-            const fs=require("fs");
-            const z=JSON.parse(fs.readFileSync(process.argv[1],"utf8"));
-            process.stdout.write(JSON.stringify({
-              dateiname: z.dateiname, dialekt: z.dialekt,
-              kartenfassung: z.kartenfassung, landschaftsfassung: z.landschaftsfassung,
-              exportiert: z.exportiert,
-            }));' "$zeiger")"
-
-          ruf -X POST -H "Content-Type: application/json" --data "$rumpf" \
-            "$endpunkt?action=finish&upload_id=$id" | tee "$ABZUG_DIR/antwort.json"
-          echo
 
       - name: Zusammenfassung
         if: always()
@@ -150,7 +165,8 @@ jobs:
         run: |
           {
             echo "### SVG-Abzug"
-            for f in "$ABZUG_DIR/aktuell.json" "$ABZUG_DIR/antwort.json"; do
+            for f in "$ABZUG_DIR/aktuell.json" "$ABZUG_DIR/aktuell-glatt.json" \
+                     "$ABZUG_DIR/antwort-roh.json" "$ABZUG_DIR/antwort-glatt.json"; do
               if [[ -f "$f" ]]; then
                 echo "**$(basename "$f")**"
                 echo '```json'

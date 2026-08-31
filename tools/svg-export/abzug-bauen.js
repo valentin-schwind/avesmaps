@@ -39,6 +39,35 @@ const ECOSYSTEM_ARTEN = ["klima", "derographisch", "vegetation", "topographie"];
 // live kam dabei ein 7,4-MB-Illustrator-Abzug heraus, wo 9,0 MB Inkscape erwartet wurden.
 const ABZUG_EINSTELLUNGEN = bauer.SVGX_ABZUG_EINSTELLUNGEN;
 
+// 🔴 ZWEI FASSUNGEN AUS EINEM DATENABRUF (seit 31.08.2026). Die rohe traegt Stuetzpunkt-
+// Polygone (M/L/Z), die glatte dieselbe Karte mit den Bezierkurven des Browsers (M/L/C/Z);
+// `GET /api/svg-export.php?smooth=1` liefert die zweite.
+//
+// ⭐ Die drei Endpunkte werden dafuer NICHT ein zweites Mal gefragt -- es sind bekannte
+// Perf-Brennpunkte auf dem Shared Hosting, und die Daten sind dieselben. Gebaut wird zweimal
+// aus demselben Speicher; das kostet Rechenzeit auf dem GitHub-Laeufer, nicht auf STRATO.
+//
+// 💣 DIE NAMEN SIND DIE DES SERVERS. `abzug-glatt-<sha>.svg` und `aktuell-glatt.json` stehen
+// so auch in api/_internal/app/svg-export-ablage.php -- und dass die Namensraeume getrennt
+// sind, ist dort der einzige Riegel dagegen, dass die Aufraeumung der einen Fassung die andere
+// wegwirft. Wer hier umbenennt, muss es dort tun; `abzug-pruefen.js` haelt beide gegeneinander.
+const VARIANTEN = [
+	{
+		schluessel: "roh",
+		einstellungen: ABZUG_EINSTELLUNGEN,
+		dateiPraefix: "abzug-",
+		zeigerDatei: "aktuell.json",
+		namensZusatz: "",
+	},
+	{
+		schluessel: "glatt",
+		einstellungen: bauer.SVGX_ABZUG_EINSTELLUNGEN_GLATT,
+		dateiPraefix: "abzug-glatt-",
+		zeigerDatei: "aktuell-glatt.json",
+		namensZusatz: "-glatt",
+	},
+];
+
 function argument(name, vorgabe) {
 	const i = process.argv.indexOf(name);
 	return i >= 0 && process.argv[i + 1] ? process.argv[i + 1] : vorgabe;
@@ -122,48 +151,66 @@ async function main() {
 	const token = svgxTokenLeser(path.join(REPO, "css", "base", "tokens.css"));
 	const exportiert = new Date().toISOString();
 
-	melde("  Datei bauen …");
-	const ergebnis = bauer.svgxBuildDocument(Object.assign({}, ABZUG_EINSTELLUNGEN, {
-		mapFeatures: mapFeatures,
-		territories: territories,
-		ecosystems: oekosysteme,
-		// 🔴 Die Fassungsnummern kommen aus den Endpunkten selbst, nicht aus einer Uhr --
-		// nur damit laesst sich beweisen, dass Vektor- und Rasterabzug dieselbe Welt zeigen.
-		ecoRevision: ecoRevision,
-		exportedAt: exportiert,
-	}, vorgabeFarben(oekosysteme, token)));
-
 	const kartenfassung = String((mapFeatures && mapFeatures.revision) || "0");
-	const roh = path.join(ziel, "abzug.unfertig.svg");
-	const mass = await schreibeAbzug(ergebnis.parts, roh);
-	const datei = "abzug-" + mass.sha256.slice(0, 16) + ".svg";
-	fs.renameSync(roh, path.join(ziel, datei));
+	const farben = vorgabeFarben(oekosysteme, token);
+	const gebaut = [];
 
-	// 🔴 DER ZEIGER WIRD ZULETZT GESCHRIEBEN, und er zeigt auf einen Namen, den es vorher
-	// nicht gab. Damit gibt es kein Fenster, in dem der Endpunkt eine halb hochgeladene
-	// Datei ausliefert: bis `aktuell.json` umspringt, kennt niemand den neuen Namen.
-	const zeiger = {
-		datei: datei,
-		dateiname: "avesmaps-karte-" + exportiert.slice(0, 10) + "-r" + kartenfassung
-			+ "-" + ABZUG_EINSTELLUNGEN.dialect + ".svg",
-		bytes: mass.bytes,
-		sha256: mass.sha256,
-		etag: '"' + mass.sha256 + '"',
-		kartenfassung: kartenfassung,
-		landschaftsfassung: ecoRevision,
-		exportiert: exportiert,
-		dialekt: ABZUG_EINSTELLUNGEN.dialect,
-		groesse_px: ABZUG_EINSTELLUNGEN.sizePx,
-		geglaettet: ABZUG_EINSTELLUNGEN.smooth ? "ja" : "nein",
-		flaechen_geglaettet: ABZUG_EINSTELLUNGEN.smoothAreas ? "ja" : "nein",
-		ebenen: ergebnis.stats,
-	};
-	fs.writeFileSync(path.join(ziel, "aktuell.json"), JSON.stringify(zeiger, null, 2) + "\n", "utf8");
+	for (const variante of VARIANTEN) {
+		melde("  Datei bauen (" + variante.schluessel + ") …");
+		const ergebnis = bauer.svgxBuildDocument(Object.assign({}, variante.einstellungen, {
+			mapFeatures: mapFeatures,
+			territories: territories,
+			ecosystems: oekosysteme,
+			// 🔴 Die Fassungsnummern kommen aus den Endpunkten selbst, nicht aus einer Uhr --
+			// nur damit laesst sich beweisen, dass Vektor- und Rasterabzug dieselbe Welt zeigen.
+			ecoRevision: ecoRevision,
+			exportedAt: exportiert,
+		}, farben));
 
-	melde("Fertig: " + datei + " (" + (mass.bytes / (1024 * 1024)).toFixed(1) + " MB), "
-		+ "Kartenfassung " + kartenfassung + ", Landschaftsfassung " + (ecoRevision || "—"));
-	Object.entries(ergebnis.stats).forEach(([ebene, anzahl]) => melde("  " + ebene + ": " + anzahl));
-	process.stdout.write(datei + "\n");
+		// ⚠️ Die Zwischendatei traegt die Variante im Namen: beide Laeufe schreiben in dasselbe
+		// Verzeichnis, und ein gemeinsames `abzug.unfertig.svg` liesse den zweiten Lauf den
+		// ersten ueberschreiben, falls je einer abbricht, bevor er umbenannt hat.
+		const roh = path.join(ziel, "abzug.unfertig-" + variante.schluessel + ".svg");
+		const mass = await schreibeAbzug(ergebnis.parts, roh);
+		const datei = variante.dateiPraefix + mass.sha256.slice(0, 16) + ".svg";
+		fs.renameSync(roh, path.join(ziel, datei));
+
+		// 🔴 DER ZEIGER WIRD ZULETZT GESCHRIEBEN, und er zeigt auf einen Namen, den es vorher
+		// nicht gab. Damit gibt es kein Fenster, in dem der Endpunkt eine halb hochgeladene
+		// Datei ausliefert: bis der Zeiger umspringt, kennt niemand den neuen Namen.
+		// 💣 ZWEI ZEIGER, JEDER FUER SICH -- kein gemeinsamer mit zwei Feldern. Ein Lauf, der
+		// nach der ersten Haelfte abbricht, hinterliesse sonst einen Zeiger auf eine Datei,
+		// die es nicht gibt.
+		const zeiger = {
+			datei: datei,
+			dateiname: "avesmaps-karte-" + exportiert.slice(0, 10) + "-r" + kartenfassung
+				+ "-" + variante.einstellungen.dialect + variante.namensZusatz + ".svg",
+			bytes: mass.bytes,
+			sha256: mass.sha256,
+			etag: '"' + mass.sha256 + '"',
+			kartenfassung: kartenfassung,
+			landschaftsfassung: ecoRevision,
+			exportiert: exportiert,
+			dialekt: variante.einstellungen.dialect,
+			groesse_px: variante.einstellungen.sizePx,
+			variante: variante.schluessel,
+			geglaettet: variante.einstellungen.smooth ? "ja" : "nein",
+			flaechen_geglaettet: variante.einstellungen.smoothAreas ? "ja" : "nein",
+			ebenen: ergebnis.stats,
+		};
+		fs.writeFileSync(path.join(ziel, variante.zeigerDatei),
+			JSON.stringify(zeiger, null, 2) + "\n", "utf8");
+
+		melde("Fertig (" + variante.schluessel + "): " + datei
+			+ " (" + (mass.bytes / (1024 * 1024)).toFixed(1) + " MB)");
+		gebaut.push(datei);
+		if (variante.schluessel === "roh") {
+			Object.entries(ergebnis.stats).forEach(([ebene, anzahl]) => melde("  " + ebene + ": " + anzahl));
+		}
+	}
+
+	melde("Kartenfassung " + kartenfassung + ", Landschaftsfassung " + (ecoRevision || "—"));
+	process.stdout.write(gebaut.join("\n") + "\n");
 }
 
 if (require.main === module) {

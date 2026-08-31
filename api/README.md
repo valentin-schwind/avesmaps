@@ -420,13 +420,37 @@ Legacy root wrappers such as /api/map-features.php, /api/map-search.php, /api/re
 ## Machine access: the semantic SVG export
 
 ```text
-GET  /api/svg-export.php          Authorization: Bearer <svg_export.token>
-POST /api/svg-export-deposit.php  Authorization: Bearer <svg_export.deposit_token>  (or an admin session)
+GET  /api/svg-export.php            Authorization: Bearer <svg_export.token>
+GET  /api/svg-export.php?smooth=1   … the smoothed rendering (Bézier)
+POST /api/svg-export-deposit.php    Authorization: Bearer <svg_export.deposit_token>  (or an admin session)
 ```
 
 Hands out **the newest semantic SVG rendering of the whole map** — the same file
 `/edit/svg-export.php` produces in the browser, for tools that cannot hold a browser login.
 The vocabulary contract is in `docs/svg-export-semantik-uebergabe.md`.
+
+**Two renderings, since 2026-08-31.** Without a parameter you get the raw one (support-point
+polygons, `M`/`L`/`Z`) — unchanged from what has been served since 2026-08-23. With `?smooth=1`
+you get the smoothed one: **absolute cubic Béziers, `M`/`L`/`C`/`Z` and nothing else**, i.e.
+the geometry the browser actually draws, so a machine renderer's outlines match the visible
+map. Everything else is identical — same `avm:` attributes on every element, same
+`viewBox="0 0 1024 1024"`, `width`/`height` 32768, `avm:einheit_px="32"`, y not mirrored, same
+`X-Avesmaps-SHA256` / `-Kartenfassung` / `-Landschaftsfassung` headers and the same conditional
+fetch by bare content hash. The response also carries `X-Avesmaps-Variante: roh|glatt`.
+
+🔴 **The root attributes are the truth, not the parameter:** `avm:geglaettet` and
+`avm:flaechen_geglaettet` report the actual state. ⚠️ **Territories stay angular even in the
+smoothed rendering** — their `smooth: false` is written out in the layer builder with its
+reason (owner 2026-08-15: a rounded border moves land between realms).
+
+⚠️ **`?smooth=1` before the first smoothed deposit answers 404 `smooth_export_not_available`** —
+never the raw file instead. A response that looks different from what was ordered is worse than
+none: the consumer would render edges that do not match the map and look for the fault at their
+end. The parameter is read strictly (`1`/`true`); anything else is the raw rendering.
+
+**Retention differs:** 3 raw renderings, **2 smoothed** — the Bézier geometry measures 2.53×
+the characters of the support-point one, and a full webspace takes MySQL's write permission
+away on STRATO (the symptom is `1142 INSERT denied`, not "disk full").
 
 🔴 **The renderer is JavaScript and stays that way.** The export is 1356 lines of map
 appearance in `js/pages/svg-export-build.js`. A PHP renderer would restate it a second time
@@ -442,8 +466,13 @@ endpoint:
 | The routine | `.github/workflows/svg-export-abzug.yml`, 03:17 UTC | `routine` |
 
 🔴 **Both build with the same settings** — `SVGX_ABZUG_EINSTELLUNGEN` in
-`js/pages/svg-export-build.js`: inkscape, 32768², all layers, full semantics, nothing smoothed,
-default colours. **The page's checkboxes apply to the owner's own download only.** The API copy
+`js/pages/svg-export-build.js`: inkscape, 32768², all layers, full semantics, default colours;
+plus `SVGX_ABZUG_EINSTELLUNGEN_GLATT`, which is **derived from it** and differs in exactly the
+two smoothing flags. 💣 The routine builds both from **one** data fetch (the three endpoints are
+known perf hotspots) and deposits them one after the other; **which drawer they land in is read
+from the file's own root element**, not claimed in the request body — same rule as `quelle`.
+Their filenames are separated (`abzug-…` / `abzug-glatt-…`), and that separation is the only
+thing keeping one rendering's pruning from deleting the other's files. **The page's checkboxes apply to the owner's own download only.** The API copy
 is a data source, not a design artefact; it has to be complete and in one fixed notation, or a
 consumer never knows what it is getting.
 
@@ -527,8 +556,10 @@ half-written one.
 
 Libs: `api/_internal/app/svg-export-ablage.php` (read), `…/svg-export-hinterlegen.php` (write).
 Tests: `api/_internal/app/__tests__/svg-export-ablage-test.php` (the decisions),
-`tools/svg-export/__tests__/endpunkt-ablauf.js` (10 HTTP steps, reading),
-`tools/svg-export/__tests__/ablage-ablauf.js` (9 HTTP steps, a real multi-chunk deposit).
+`…/svg-export-glatt-test.php` (the two renderings and their separate pruning),
+`tools/svg-export/__tests__/endpunkt-ablauf.js` (14 HTTP steps, reading — incl. `?smooth=1`, the
+cross-ETag check and the 404 before the first smoothed deposit),
+`tools/svg-export/__tests__/ablage-ablauf.js` (10 HTTP steps, a real multi-chunk deposit of both).
 
 ## Editor, import, and diagnostic areas
 
