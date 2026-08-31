@@ -527,7 +527,27 @@ function avesmapsAddOffroadEdge(array &$graph, string $fromName, string $toName,
  * Naechstliegende -- und genau dann gehoert die Kante gebaut.
  * ⚠️ Ein Bericht ohne Ausstieg zaehlt als „unendlich weit": dann ist die direkte Kante die einzige
  * Verbindung, die dieser Punkt ueberhaupt hat, und sie zu verweigern hiesse, ihn abzuschneiden.
+ *
+ * 🔴 UND SEIT DEM 31.08.2026 EIN ZWEITER, UNABHAENGIGER GRUND: zwei Kartenpunkte, die nah genug
+ * beieinander liegen, bekommen die Gerade IMMER angeboten -- der Dijkstra entscheidet dann, ob sie
+ * gewinnt. Owner: 'bei zwei querfeldeinpunkten, die so nah sind (vielleicht 15 Meilen?), will man
+ * vorher testen, ob nicht der kuerzeste die direkte linie ist'.
+ * 💣 Die alte Bedingung koppelt zwei Dinge, die nichts miteinander zu tun haben: wie weit die Punkte
+ * VONEINANDER liegen gegen wie weit der naechste WEG ist. Gemessen an der Meldung: 3,77 Einheiten
+ * Abstand gegen Anschluesse von 3,00 und 1,72 -- um 25 % verweigert, und die Reise lief 21,7 statt
+ * 11,3 Meilen ueber einen Pfad, obwohl die Luftlinie NULL Gewaesser quert.
+ * ⭐ ODER, NICHT STATT. Beide Fehlerbilder liegen an entgegengesetzten Enden derselben Achse: der
+ * Drachenflug vom 15.08.2026 mass 46,8 Einheiten, dieser Fall 3,77 -- Faktor 9 dazwischen. Als ODER
+ * kann nichts kaputtgehen, was heute funktioniert; es kommen nur Faelle hinzu.
  */
+// 🔴 DIE KURZE ABKUERZUNG: bis hierhin schneidet ein Reisender quer ab, statt einen Weg zu suchen.
+// 15 Meilen (Owner 31.08.2026) sind ein halber Reisetag -- eine Zahl, die in der Welt etwas bedeutet,
+// anders als der Vergleich mit dem naechsten Netzpunkt.
+// ⚠️ Dass AVESMAPS_ROUTE_OFFROAD_BACH_CROSSING_UNITS heute denselben Betrag traegt, ist ZUFALL: die
+// eine sagt 'so weit kuerzt man ab', die andere 'so teuer ist eine Bachquerung'. Wer sie zusammenlegt,
+// koppelt zwei Entscheidungen, die nichts miteinander zu tun haben.
+const AVESMAPS_ROUTE_OFFROAD_DIRECT_MAX_UNITS = 15.0 / AVESMAPS_TERRAIN_MEILEN_PER_MAPUNIT;
+
 function avesmapsOffroadDirectEdgeAllowed(
     array $fromReport,
     array $toReport,
@@ -543,6 +563,8 @@ function avesmapsOffroadDirectEdgeAllowed(
         (float) $fromPoint['x'] - (float) $toPoint['x'],
         (float) $fromPoint['y'] - (float) $toPoint['y']
     );
+
+    if ($abstand <= AVESMAPS_ROUTE_OFFROAD_DIRECT_MAX_UNITS + 1e-9) { return true; }
 
     return $abstand <= max($naechster($fromReport), $naechster($toReport)) + 1e-9;
 }

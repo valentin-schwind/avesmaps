@@ -61,6 +61,44 @@ assert(avesmapsOffroadDirectEdgeAllowed($bericht(null), $bericht(2.0), $vonP, $n
 assert(avesmapsOffroadDirectEdgeAllowed($bericht(10.0), $bericht(3.0), $vonP, $nachP) === true,
     'bei Gleichstand entsteht sie');
 
+// ---- A2: DIE KURZE ABKUERZUNG (31.08.2026) ------------------------------------------------
+// 🔴 Owner, an einer geteilten Route: „bei zwei querfeldeinpunkten, die so nah sind (vielleicht 15
+// Meilen?), will man vorher testen, ob nicht der kuerzeste die direkte linie ist".
+// 💣 Gemessen an seinem Fall: die Punkte lagen 3,77 Einheiten auseinander, ihre Netzanschluesse bei
+// 3,00 und 1,72 -- die alte Regel verweigerte die Kante um 25 %, und die Reise lief 21,7 statt 11,3
+// Meilen ueber einen Pfad, obwohl die Luftlinie NULL Gewaesser quert (nachgemessen).
+// ⭐ Die zwei Fehlerbilder liegen an entgegengesetzten Enden derselben Achse: der Drachenflug vom
+// 15.08.2026 mass 46,8 Einheiten (140,4 Meilen), dieser Fall 3,77. Eine Laengenschwelle trennt sie
+// mit dem Faktor 9 Abstand.
+// 🔴 ODER, NICHT STATT: ohne die alte Bedingung verloere ein Punkt tief im Nirgendwo (Anschluss 80
+// Einheiten) seine einzige Verbindung. Als ODER kann nichts kaputtgehen, was heute funktioniert.
+$kurz = ['x' => 0.0, 'y' => 0.0];
+$kurzZiel = ['x' => 3.767, 'y' => 0.0];   // der Abstand aus dem Fall des Owners
+assert(avesmapsOffroadDirectEdgeAllowed($bericht(3.0), $bericht(1.72), $kurz, $kurzZiel) === true,
+    'zwei nahe Kartenpunkte bekommen die Gerade, auch wenn das Netz naeher liegt');
+
+// ⚠️ Und knapp darueber nicht mehr -- sonst waere die Schwelle keine.
+$weit = ['x' => 0.0, 'y' => 0.0];
+$weitZiel = ['x' => AVESMAPS_ROUTE_OFFROAD_DIRECT_MAX_UNITS + 0.5, 'y' => 0.0];
+assert(avesmapsOffroadDirectEdgeAllowed($bericht(1.0), $bericht(1.0), $weit, $weitZiel) === false,
+    'jenseits der Schwelle entscheidet wieder allein die alte Regel');
+
+// 💣 Genau auf der Schwelle zaehlt sie als erlaubt -- dieselbe Begruendung wie beim Gleichstand oben.
+$genau = ['x' => AVESMAPS_ROUTE_OFFROAD_DIRECT_MAX_UNITS, 'y' => 0.0];
+assert(avesmapsOffroadDirectEdgeAllowed($bericht(1.0), $bericht(1.0), $weit, $genau) === true,
+    'auf der Schwelle entsteht sie');
+
+// 🔴 DER DRACHENFLUG BLEIBT DRAUSSEN. 475.458/479.833 -> 521.542/488.083, gemessen am 15.08.2026:
+// 46,8 Einheiten. Ohne diese Zusicherung waere die Schwelle der Rueckbau jener Entscheidung.
+$drachen = ['x' => 475.458, 'y' => 479.833];
+$drachenZiel = ['x' => 521.542, 'y' => 488.083];
+assert(avesmapsOffroadDirectEdgeAllowed($bericht(2.0), $bericht(3.0), $drachen, $drachenZiel) === false,
+    '140 Meilen querfeldein bleiben verweigert -- die Kuerzeste wird nicht wieder zum Drachenflug');
+
+// ⚠️ Die Schwelle ist 15 Meilen, in Karteneinheiten gerechnet -- nicht abgeschrieben.
+assert(abs(AVESMAPS_ROUTE_OFFROAD_DIRECT_MAX_UNITS * AVESMAPS_TERRAIN_MEILEN_PER_MAPUNIT - 15.0) < 1e-9,
+    'die Schwelle sind 15 Meilen');
+
 // ---- B: keine Umweg-Sehne an einen Kartenpunkt --------------------------------------------
 // Kette: A -- M -- B. Die gefahrene Strecke ist doppelt so lang wie die Luftlinie A->B, also ist
 // A->B ein Sehnen-Kandidat, solange kein Ende ein Kartenpunkt ist.
