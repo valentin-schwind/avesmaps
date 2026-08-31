@@ -114,6 +114,46 @@ const AVESMAPS_ECOSYSTEM_DISPLAY_VORGABE_JE_ART = {
 	wuestenoase: { ab: 5 },   // 9 Namen, 100 % einig
 };
 
+// ---- Die Abstaende der Namen: wie sie einander ausweichen ------------------------------------
+// 🔴 DREI ZAHLEN, GLOBAL UEBER ALLE ARTEN (Owner 31.08.2026). Eine Staffelung je Art hat fuer 28
+// Landschaftsarten nie jemand entschieden, und eine geratene Vorgabe saehe aus wie eine getroffene
+// -- dieselbe Begruendung wie bei AVESMAPS_ECOSYSTEM_DISPLAY_VORGABE darueber.
+// Entwurf: docs/superpowers/specs/2026-08-31-landschaften-label-kollision-design.md
+//
+//   repel    Luft um jeden Namen, bevor die Kollision geprueft wird
+//   versatz  Schrittweite EINES Ausweichschritts (der Ring waechst in diesen Schritten)
+//   drift    wie weit ein Name hoechstens von seinem Punkt wegruecken darf. Darueber verschwindet
+//            er -- seit dem 31.08.2026 auch dann, wenn eine Flaeche an ihm haengt.
+//
+// 💣 DIE 72 IST AM LAUFENDEN BROWSER GEMESSEN, NICHT GERECHNET. Im gemeldeten Fall („Gruene
+// Zwillinge", drei Namen auf einem Punkt) stehen bei 40 nur einer, bei 56 zwei und ab 64 alle drei;
+// die 72 gibt dem Fall eine Stufe Luft, weil 64 ihn auf den Pixel genau loest. Ueber den ganzen
+// Livebestand (~900 Namen, 31.08.2026) verschwinden bei 72 an z4 acht Namen statt heute 37 -- und
+// heute ueberlappen zusaetzlich 29, was danach keiner mehr tut.
+//
+// 🪤 UND HIER STAND ZWEI STUNDEN LANG 56, WEIL DIE MESSUNG DIE NAMEN ZU KLEIN GERECHNET HAT.
+// `createLabelIcon` rendert das Namensbild MIT Halo (getLabelHaloParams); ein blanker
+// `renderMapLabelToImage`-Aufruf, wie ihn eine Messung naheliegenderweise macht, liefert ein Bild,
+// das 6 px schmaler und 6 px flacher ist. Bei einem 40 px hohen Namen sind das 15 % -- genug, um
+// eine Simulation gruen aussehen zu lassen, waehrend der echte Fall im Browser einen Namen
+// verliert. ⭐ Die Gegenprobe, die es gefunden hat, kostet nichts: das gerechnete Bildmass gegen die
+// `width`/`height` des `<img>` im DOM halten, bevor irgendetwas darauf aufgebaut wird.
+//
+// ⚠️ Die Landschaftsnamen lasen bis dahin den Repel der ORTSCHAFTEN mit
+// (measureLabelCollisionRect fiel auf avesmapsLocationLabelSpacing("repel") zurueck) -- eine
+// Kopplung, die nirgends stand. Mit diesen drei Werten liest jede Familie ihren eigenen.
+const AVESMAPS_ECOSYSTEM_DISPLAY_ABSTAND_VORGABE = { repel: 2, versatz: 8, drift: 72 };
+
+// 💣 `versatz` HAT EINE UNTERGRENZE UEBER NULL, und das ist kein Geschmack: ein Versatz von 0
+// liesse den Kandidatenbauer endlos schleifen. Er faengt das selbst ab (avesmapsFreeLabelCandidate-
+// Placements), aber ein Regler, der einen unbrauchbaren Wert erst anbietet und dann verwirft, ist
+// eine Falle fuer den, der ihn bedient.
+const AVESMAPS_ECOSYSTEM_DISPLAY_ABSTAND_LIMITS = {
+	repel: { min: 0, max: 20 },
+	versatz: { min: 2, max: 24 },
+	drift: { min: 0, max: 150 },
+};
+
 // 🔴 Die Karte kennt Stufe 8 nicht (maxZoom: 7 in js/app/bootstrap.js). z8 erbt z7 -- dieselbe
 // Regel wie bei den Zoombaendern.
 const AVESMAPS_ECOSYSTEM_DISPLAY_BAND_MAX = 7;
@@ -311,6 +351,29 @@ function avesmapsEcosystemDisplaySichtbar(subtype, zoom) {
 	return z >= b.ab && z <= b.bis;
 }
 
+/**
+ * Ein Abstand, wie er WIRKT: "repel" | "versatz" | "drift".
+ *
+ * 🔴 Ein Wert ausserhalb seiner Grenzen faellt auf die VORGABE zurueck, nicht auf die Grenze. Ein
+ * geklemmter Wert saehe aus wie eine Entscheidung; ein Rueckfall ist als Rueckfall erkennbar.
+ * ⚠️ Faellt still aus -- kein Wurf, keine Meldung. Diese Funktion steht im Kollisionsdurchgang und
+ * laeuft je Beschriftung und je Bild; ein Wurf hier hielte die ganze Karte an.
+ */
+function avesmapsEcosystemDisplayAbstand(key) {
+	const name = String(key || "");
+	const vorgabe = AVESMAPS_ECOSYSTEM_DISPLAY_ABSTAND_VORGABE[name];
+	if (typeof vorgabe !== "number") {
+		return 0;
+	}
+	const eigen = avesmapsEcosystemDisplayTeil("abstaende")[name];
+	const grenzen = AVESMAPS_ECOSYSTEM_DISPLAY_ABSTAND_LIMITS[name];
+	if (typeof eigen === "number" && Number.isFinite(eigen)
+		&& eigen >= grenzen.min && eigen <= grenzen.max) {
+		return eigen;
+	}
+	return vorgabe;
+}
+
 const AVESMAPS_ECOSYSTEM_DISPLAY_ENDPOINT = "api/app/ecosystem-display.php";
 
 /**
@@ -345,4 +408,6 @@ if (typeof globalThis !== "undefined") {
 	globalThis.AVESMAPS_ECOSYSTEM_DISPLAY_VORGABE = AVESMAPS_ECOSYSTEM_DISPLAY_VORGABE;
 	globalThis.AVESMAPS_ECOSYSTEM_DISPLAY_VORGABE_JE_ART = AVESMAPS_ECOSYSTEM_DISPLAY_VORGABE_JE_ART;
 	globalThis.AVESMAPS_ECOSYSTEM_DISPLAY_BAND_MAX = AVESMAPS_ECOSYSTEM_DISPLAY_BAND_MAX;
+	globalThis.AVESMAPS_ECOSYSTEM_DISPLAY_ABSTAND_VORGABE = AVESMAPS_ECOSYSTEM_DISPLAY_ABSTAND_VORGABE;
+	globalThis.AVESMAPS_ECOSYSTEM_DISPLAY_ABSTAND_LIMITS = AVESMAPS_ECOSYSTEM_DISPLAY_ABSTAND_LIMITS;
 }

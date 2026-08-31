@@ -140,20 +140,6 @@ function getLocationNameLabelPriority(entry) {
 	return AVESMAPS_LABEL_PRIORITY_BY_TYPE[entry.markerEntry?.locationType] || 50;
 }
 
-function getLabelOffsetCandidates() {
-	return [
-		[0, 0],
-		[8, 0],
-		[-8, 0],
-		[0, -8],
-		[0, 8],
-		[12, -6],
-		[-12, -6],
-		[12, 6],
-		[-12, 6],
-	];
-}
-
 function setLabelElementOffset(element, offsetX, offsetY) {
 	element.style.setProperty("--label-offset-x", `${offsetX}px`);
 	element.style.setProperty("--label-offset-y", `${offsetY}px`);
@@ -229,9 +215,16 @@ function measureLabelRect(element) {
 
 // 🔴 AUFGABE 8B: "Repel" ist jetzt ein globaler Regler im Fenster „Zoombänder" (war die Konstante
 // LOCATION_LABEL_COLLISION_PADDING) -- als Vorgabewert-Ausdruck statt einer Konstante, damit ein
-// Aufruf ohne explizites `padding` (Orts-/Frei-Label-Pass, `duplicateLabelEntry`) den WIRKSAMEN Wert
-// bekommt, nicht den zur Ladezeit eingefrorenen. Der Regionen-Aufruf (resolveRegionLabelCollisions,
-// oben) übergibt weiterhin seinen eigenen regionPadding -- unverändert, siehe Bericht.
+// Aufruf ohne explizites `padding` (`duplicateLabelEntry`) den WIRKSAMEN Wert bekommt, nicht den zur
+// Ladezeit eingefrorenen. Der Regionen-Aufruf (resolveRegionLabelCollisions, oben) übergibt
+// weiterhin seinen eigenen regionPadding -- unverändert, siehe Bericht.
+//
+// 🪤 UND DIESER VORGABEWERT WAR EINE VERSTECKTE KOPPLUNG. Bis zum 31.08.2026 ging auch der
+// Orts-/Frei-Label-Pass ohne `padding` hier hinein -- ein LANDSCHAFTSNAME bekam damit den Repel der
+// ORTSCHAFTEN, und wer im Fenster „Orte → Darstellung" daran drehte, verschob längst auch
+// Landschaftsnamen, ohne dass das irgendwo stand. Seit die Landschaften ihren eigenen Regler haben
+// (Fenster „Darstellung" im Regioneneditor), reicht resolveLabelCollisions den passenden Wert
+// ausdrücklich herein. Der Vorgabewert bleibt für die übrigen Aufrufer stehen.
 function measureLabelCollisionRect(element, padding = avesmapsLocationLabelSpacing("repel")) {
 	const rect = measureLabelRect(element);
 	if (rect.width <= 0 || rect.height <= 0) {
@@ -282,7 +275,21 @@ function getCollisionEntries() {
 
 function resolveLabelCollisions(seedRects = []) {
 	const visibleEntries = getCollisionEntries();
-	const offsetCandidates = getLabelOffsetCandidates();
+	// 🔴 DIE FREIEN KARTENLABELS (Landschaften, Meere, Gipfel) HABEN SEIT DEM 31.08.2026 EIGENE
+	// ABSTÄNDE -- Fenster „Darstellung" im Regioneneditor, Tafel in js/map-features/ecosystem-display.js.
+	// Vorher waren es neun feste Stellen mit höchstens ±12 px waagerecht und ±8 px senkrecht; bei
+	// 179-296 px Namensbreite bewegte das nichts, und drei Namen auf einem Punkt blieben gestapelt.
+	// Entwurf: docs/superpowers/specs/2026-08-31-landschaften-label-kollision-design.md
+	//
+	// ⚠️ Der Ring wird EINMAL je Durchgang gebaut, nicht je Label: er hängt allein an den zwei
+	// Reglern und ist für alle freien Labels derselbe (anders als bei den Ortsnamen, deren Stellen
+	// aus der eigenen Namensbreite entstehen).
+	const freeLabelRepel = avesmapsEcosystemDisplayAbstand("repel");
+	const freeLabelDrift = avesmapsEcosystemDisplayAbstand("drift");
+	const freeLabelCandidates = avesmapsFreeLabelCandidatePlacements(
+		avesmapsEcosystemDisplayAbstand("versatz"),
+		freeLabelDrift
+	);
 
 	// Schreibphase 1: alle Offsets zurücksetzen, damit die Basis-Box bei Offset 0 gemessen wird.
 	visibleEntries.forEach(({ element }) => {
@@ -300,11 +307,12 @@ function resolveLabelCollisions(seedRects = []) {
 		.map(({ element, group, priority, minZoom }) => {
 			const isLocation = element.classList.contains("location-name-label");
 			const baseRect = measureLabelRect(element);
-			const collisionRect = measureLabelCollisionRect(element);
+			// 💣 DER REPEL GEHÖRT DER FAMILIE, nicht dem Durchgang -- siehe measureLabelCollisionRect.
+			const collisionRect = measureLabelCollisionRect(element, isLocation ? undefined : freeLabelRepel);
 			const baseOffset = isLocation ? getLocationNameLabelBaseOffset(element) : { x: 0, y: 0 };
 			const candidates = isLocation
 				? getLocationNameLabelOffsets(element, baseRect)
-				: offsetCandidates.map(([offsetX, offsetY]) => ({ dx: offsetX, dy: offsetY }));
+				: freeLabelCandidates;
 			return { element, isLocation, collisionRect, baseOffset, candidates, group, priority, minZoom };
 		});
 
@@ -323,6 +331,11 @@ function resolveLabelCollisions(seedRects = []) {
 			// weil die Sortierung stabil ist" ist keine Zusicherung, sondern ein Zufall.
 			prioritaet: priority,
 			minZoom: minZoom,
+			// 💣 DER DECKEL JE EINTRAG. Orts- und Landschaftsnamen liegen in DIESEM einen Aufruf, und
+			// sie haben zwei verschiedene Regler -- ein gemeinsamer Wert wäre nicht baubar. Für einen
+			// Ortsnamen bleibt es `undefined`, dort gilt weiterhin die Aufrufoption (der Drift-Regler
+			// des Fensters „Zoombänder", über avesmapsLabelSpacingOf).
+			maxDrift: isLocation ? undefined : freeLabelDrift,
 		})),
 		{ seedRects: Array.isArray(seedRects) ? seedRects : [] }
 	);

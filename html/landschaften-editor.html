@@ -323,6 +323,22 @@
           <strong>z8</strong> gibt es auf der Karte noch nicht; der Wert liegt bereit und erbt z7.
         </p>
       </div>
+      <!-- Die Abstaende der Namen (31.08.2026). 🔴 GLOBAL ueber alle vier Ebenen, nicht je Reiter --
+           deshalb der Satz „Gilt fuer alle Ebenen" im Kopf: der Abschnitt steht in einem Fenster mit
+           Reitern, und ohne den Satz liest man ihn als Einstellung des gerade offenen Reiters.
+           Bauform woertlich die der Kurvenfeinheiten darunter (.kv-list / .kv-row). -->
+      <div class="dg__section" id="ecoDisplayAbstaendeSection">
+        <div class="dg__head">
+          <h3>Namen — Abstände</h3>
+          <span class="dg__src">Gilt für alle Ebenen · wie Namen einander ausweichen, wenn sie sich überlappen</span>
+        </div>
+        <div class="kv-list" id="ecoDisplayAbstaendeRows"></div>
+        <p class="dg-plot-caption">
+          Findet ein Name innerhalb von <strong>Drift</strong> keinen freien Platz, wird er
+          <strong>ausgeblendet</strong> — wie ein Ortsname. Ein kleiner Deckel hält die Namen dicht
+          an ihrem Punkt und lässt dafür mehr davon verschwinden.
+        </p>
+      </div>
       <!-- Die Kurvenfeinheiten samt Vorschau (Entwurf 5.6, 7). Die Werte kommen aus
            AVESMAPS_CURVE_LABEL_DEFAULTS; die Kurve rechnet der SERVER und wird hier nur geholt. -->
       <div class="dg__section" id="ecoDisplayKurvenSection">
@@ -2672,8 +2688,26 @@ let ecoDisplayReiter = "vegetation";
 let ecoDisplayDarfSpeichern = false;
 let ecoDisplayNamensarten = [];
 let ecoDisplayBearbeitet = false;
+// 💣 DIE ABSCHNITTE DER TAFEL STEHEN GENAU EINMAL. Bis zum 31.08.2026 stand dieselbe Liste an
+// VIER Stellen abgeschrieben (Anfangswert, Laden, Antwort des Speicherns, Zuruecksetzen) plus ein
+// fuenftes Mal in ecoDisplayZumSenden. Ein neuer Abschnitt musste damit fuenfmal nachgezogen werden,
+// und wer eine Stelle vergisst, bekommt einen Regler, der beim Zuruecksetzen wiederkommt oder beim
+// Speichern verschwindet -- lautlos, denn `t.abstaende || {}` fehlt einfach.
+const ECO_DISPLAY_ABSCHNITTE = ["flaeche", "deckkraft", "global", "farbe", "groesse", "vorgabe", "kurve", "abstaende"];
+
+/** Eine Tafel aus einer Serverantwort. ⚠️ Alles, was kein Objekt ist, gilt als „nichts uebersteuert". */
+function ecoDisplayTafelAus(t) {
+	const quelle = (t && typeof t === "object" && !Array.isArray(t)) ? t : {};
+	const raus = {};
+	ECO_DISPLAY_ABSCHNITTE.forEach((feld) => {
+		const teil = quelle[feld];
+		raus[feld] = (teil && typeof teil === "object" && !Array.isArray(teil)) ? teil : {};
+	});
+	return raus;
+}
+
 // Die Uebersteuerung, wie sie gespeichert wird. Leer = die Vorgabe gilt.
-let ecoDisplayTafel = { flaeche: {}, deckkraft: {}, global: {}, farbe: {}, groesse: {}, vorgabe: {}, kurve: {} };
+let ecoDisplayTafel = ecoDisplayTafelAus(null);
 // Die Zeilen melden ihren Nachzieher an, damit das globale Haekchen sie alle aktualisieren kann,
 // OHNE die Tabelle neu zu bauen -- ein Neubau naehme dem gerade angefassten Feld den Fokus.
 let ecoDisplayZeilenZeichner = [];
@@ -3835,6 +3869,85 @@ function ecoDisplayKurvenAuswahl() {
 	return raus.sort((a, b) => a.name.localeCompare(b.name, "de"));
 }
 
+// ---- Die Abstaende der Namen (31.08.2026) ------------------------------------------------------
+// 🔴 DIE VORGABEN UND SCHRANKEN STEHEN NICHT HIER. Sie kommen aus
+// js/map-features/ecosystem-display.js (AVESMAPS_ECOSYSTEM_DISPLAY_ABSTAND_VORGABE / _LIMITS) --
+// derselben Datei, die auch die Karte laedt. Eine Abschrift waere die zweite Wahrheit, und der
+// Regler zeigte dann etwas anderes an, als die Karte rechnet.
+// Entwurf: docs/superpowers/specs/2026-08-31-landschaften-label-kollision-design.md
+const ECO_DISPLAY_ABSTAENDE = [
+	{ feld: "repel", t: "Repel", h: "Luft um jeden Namen, bevor die Überlappung geprüft wird", e: "px", step: 1 },
+	{ feld: "versatz", t: "Versatz", h: "Schrittweite eines Ausweichschritts", e: "px", step: 1 },
+	{ feld: "drift", t: "Drift", h: "wie weit ein Name höchstens von seinem Punkt wegrücken darf", e: "px", step: 2 },
+];
+
+function ecoDisplaySetzAbstand(feld, roh) {
+	const zahl = Number(roh);
+	const grenzen = AVESMAPS_ECOSYSTEM_DISPLAY_ABSTAND_LIMITS[feld];
+	// ⚠️ Ein halb getippter Wert („1" auf dem Weg zu „12") darf die Tafel nicht vergiften -- er wird
+	// schlicht nicht uebernommen, das Eingabefeld behaelt ihn. Dieselbe Regel wie bei den
+	// Kurvenfeinheiten daneben.
+	if (!Number.isFinite(zahl) || zahl < grenzen.min || zahl > grenzen.max) { return; }
+	ecoDisplayTafel.abstaende[feld] = zahl;
+	ecoDisplayBearbeitet = true;
+}
+
+function ecoDisplayZeichneAbstaende() {
+	const host = $("ecoDisplayAbstaendeRows");
+	host.innerHTML = "";
+	ECO_DISPLAY_ABSTAENDE.forEach((spanne) => {
+		const grenzen = AVESMAPS_ECOSYSTEM_DISPLAY_ABSTAND_LIMITS[spanne.feld];
+		const vorgabe = AVESMAPS_ECOSYSTEM_DISPLAY_ABSTAND_VORGABE[spanne.feld];
+		const eigen = ecoDisplayTeil("abstaende")[spanne.feld];
+		const wert = typeof eigen === "number" ? eigen : vorgabe;
+
+		const zeile = document.createElement("div");
+		zeile.className = "kv-row";
+
+		const links = document.createElement("div");
+		links.className = "kv-row__label";
+		const titel = document.createElement("span");
+		titel.className = "kv-row__t";
+		titel.textContent = spanne.t;
+		const hinweis = document.createElement("span");
+		hinweis.className = "kv-row__h";
+		hinweis.textContent = spanne.h;
+		links.append(titel, hinweis);
+
+		const num = document.createElement("input");
+		num.type = "number";
+		num.className = "fl-pctnum";
+		num.min = grenzen.min;
+		num.max = grenzen.max;
+		num.step = spanne.step;
+		num.value = wert;
+		num.disabled = !ecoDisplayDarfSpeichern;
+		num.addEventListener("input", () => ecoDisplaySetzAbstand(spanne.feld, num.value));
+		// ⚠️ Der Rücksetzknopf erscheint erst beim nächsten Zeichnen -- die Zeile beim Tippen neu zu
+		// bauen nähme dem Feld den Fokus. Dieselbe Begründung wie bei den Zeilen der Tabelle oben.
+		num.addEventListener("change", () => ecoDisplayZeichneAbstaende());
+
+		const einheit = document.createElement("span");
+		einheit.className = "kv-row__e";
+		einheit.textContent = spanne.e;
+
+		const rst = document.createElement("button");
+		rst.type = "button";
+		rst.className = "fl-reset";
+		rst.textContent = "↺";
+		rst.title = "Auf die Vorgabe zurücksetzen (" + vorgabe + " px)";
+		rst.hidden = !(spanne.feld in ecoDisplayTeil("abstaende")) || !ecoDisplayDarfSpeichern;
+		rst.addEventListener("click", () => {
+			delete ecoDisplayTafel.abstaende[spanne.feld];
+			ecoDisplayBearbeitet = true;
+			ecoDisplayZeichneAbstaende();
+		});
+
+		zeile.append(links, num, einheit, rst);
+		host.appendChild(zeile);
+	});
+}
+
 function ecoDisplayZeichneKurvenwerte() {
 	const kind = ecoDisplayReiter;
 	// 🔴 Klimazonen tragen keinen Namen auf der Karte -- also auch keine Kurvenfeinheiten.
@@ -4047,6 +4160,7 @@ function ecoDisplayZeichne() {
 	ecoDisplayZeichneGlobal();
 	ecoDisplayZeichneBand();
 	ecoDisplayZeichnePlot();
+	ecoDisplayZeichneAbstaende();
 	ecoDisplayZeichneKurvenwerte();
 	ecoDisplayZeichneKurvenWahl();
 	ecoDisplayZeichneKurvenVorschau();
@@ -4080,7 +4194,7 @@ async function ecoDisplayPost(koerper) {
 /** Was in die Datenbank geht: NUR die Abweichung, nie eine Kopie der Vorgabe. */
 function ecoDisplayZumSenden() {
 	const raus = {};
-	["flaeche", "deckkraft", "global", "farbe", "groesse", "vorgabe", "kurve"].forEach((feld) => {
+	ECO_DISPLAY_ABSCHNITTE.forEach((feld) => {
 		const teil = ecoDisplayTeil(feld);
 		if (Object.keys(teil).length > 0) {
 			raus[feld] = teil;
@@ -4097,11 +4211,7 @@ async function ecoDisplayOeffnen() {
 		ecoDisplayDarfSpeichern = daten.can_save === true;
 		ecoDisplayNamensarten = Array.isArray(daten.label_subtypes) ? daten.label_subtypes : [];
 		// ⚠️ Eine leere oder kaputte Tafel ist „nichts übersteuert", kein Fehler.
-		const t = (daten.display && typeof daten.display === "object") ? daten.display : {};
-		ecoDisplayTafel = {
-			flaeche: t.flaeche || {}, deckkraft: t.deckkraft || {}, global: t.global || {},
-			farbe: t.farbe || {}, groesse: t.groesse || {}, vorgabe: t.vorgabe || {}, kurve: t.kurve || {},
-		};
+		ecoDisplayTafel = ecoDisplayTafelAus(daten.display);
 		ecoDisplayBearbeitet = false;
 		// ⚠️ Auch beim Laden: eine gespeicherte Kurventafel muss die Vorschau sofort tragen,
 		// sonst zeigt sie beim ersten Aufschlagen die Vorgabe statt des eingestellten Werts.
@@ -4184,11 +4294,7 @@ $("ecoDisplaySave").addEventListener("click", async () => {
 		ecoDisplayMelde("Gespeichert. Die Karte zeigt es nach dem nächsten Laden.");
 		if (daten.display && typeof daten.display === "object") {
 			// 🔴 Was der Server zurückgibt, ist die Wahrheit -- er hat geprüft und zurückgelesen.
-			const t = daten.display;
-			ecoDisplayTafel = {
-				flaeche: t.flaeche || {}, deckkraft: t.deckkraft || {}, global: t.global || {},
-				farbe: t.farbe || {}, groesse: t.groesse || {}, vorgabe: t.vorgabe || {}, kurve: t.kurve || {},
-			};
+			ecoDisplayTafel = ecoDisplayTafelAus(daten.display);
 			ecoDisplayZeichne();
 		}
 	} catch (fehler) {
@@ -4207,7 +4313,7 @@ $("ecoDisplayReset").addEventListener("click", async () => {
 		await ecoDisplayPost({ action: "reset" });
 		// 🔴 Zurücksetzen LÖSCHT die Zeile -- danach gilt wieder die Vorgabe aus dem Browser-Modul,
 		// nicht eine Kopie davon in der Datenbank.
-		ecoDisplayTafel = { flaeche: {}, deckkraft: {}, global: {}, farbe: {}, groesse: {}, vorgabe: {}, kurve: {} };
+		ecoDisplayTafel = ecoDisplayTafelAus(null);
 		// 💣 Und das geteilte Modul MIT. Ohne diese Zeile behielte es die zuletzt getippten
 		// Kurvenwerte, und die Vorschau zeichnete nach dem Zuruecksetzen weiter mit ihnen.
 		ecoDisplayInstalliereKurve();

@@ -177,8 +177,19 @@ assert.strictEqual(avesmapsResolveLocationZoomBands({ abstaende: { spalt: 60 } }
 const loeser = fs.readFileSync(path.join(__dirname, "../label-placement.js"), "utf8");
 assert.ok(/avesmapsLabelSpacingOf\(opts\.abstaende, "drift"\)/.test(loeser),
 	"avesmapsResolveLabelPlacements liest den Deckel");
-assert.ok(/if \(relativ && typeof kandidat\.drift === "number" && kandidat\.drift > maxDrift\) \{\s*\n\s*continue;/.test(loeser),
-	"und ueberspringt jede Stelle darueber -- nur bei relativen (Orts-)Kandidaten");
+// 🔴 DER RIEGEL HAT AM 31.08.2026 SEINE FORM GEAENDERT: das `relativ &&` ist gefallen, weil seither
+// auch die freien Kartenlabels einen Kandidatenring MIT `drift` bekommen und der Deckel sie
+// schneiden muss (Entwurf 2026-08-31-landschaften-label-kollision-design.md). Fuer die ORTSNAMEN,
+// um die es hier geht, aendert das nichts -- ihre Stellen tragen `drift` seit jeher.
+// ⚠️ Die TYPPRUEFUNG ist geblieben und wird hier mitgeprueft: sie ist die sichere Richtung, ein
+// Kandidat ohne `drift` wird weiterhin nie beschnitten.
+assert.ok(/if \(typeof kandidat\.drift === "number" && kandidat\.drift > deckel\) \{\s*\n\s*continue;/.test(loeser),
+	"und ueberspringt jede Stelle darueber");
+// 💣 Und der Deckel ist JE EINTRAG uebersteuerbar -- Orts- und Landschaftsnamen liegen in EINEM
+// Aufruf und haben zwei verschiedene Regler. Ohne diese Weiche truege der Ortsname den Deckel der
+// Landschaften oder umgekehrt, je nachdem wer zuletzt schrieb.
+assert.ok(/eintrag\.maxDrift/.test(loeser),
+	"ein Eintrag darf den Deckel des Aufrufs uebersteuern");
 const karte = fs.readFileSync(path.join(__dirname, "../map-features-label-collisions.js"), "utf8");
 assert.ok(/avesmapsResolveLabelPlacements\(/.test(karte),
 	"und die Karte ruft genau diesen Loeser, statt einen eigenen zu fahren");

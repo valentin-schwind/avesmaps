@@ -94,19 +94,36 @@ assert.strictEqual(r.ergebnisse[0].kandidat.name, "top-right", "das andere weich
 // schriebe der Aufrufer die Offsets auf die falschen Elemente.
 assert.strictEqual(r.ergebnisse.length, 2, "ein Ergebnis je Eintrag, in Eingabereihenfolge");
 
-// ---- D. Die Gruppenregel: eigene Flaeche blockiert nicht, und sie wird NIE ausgeblendet -----------
+// ---- D. `gruppe` heisst NUR NOCH „darf mit der eigenen Flaeche ueberlappen" ----------------------
+// 💣 SIE TRUG BIS ZUM 31.08.2026 ZWEI BEDEUTUNGEN, und die zweite ist gefallen (Entwurf
+// docs/superpowers/specs/2026-08-31-landschaften-label-kollision-design.md §3):
+//   bleibt:  „Labels DERSELBEN Flaeche duerfen einander ueberlappen" (Owner 2026-07-28, Finsterkamm)
+//   faellt:  „ein Flaechen-Label wird NIE ausgeblendet"
+// Beide hingen an derselben Zeile (`const gesetzt = gruppe !== ""`). Dieser Abschnitt haelt sie
+// auseinander -- wer sie beim naechsten Umbau wieder zusammenzieht, faellt hier auf.
 r = avesmapsResolveLabelPlacements([
 	eintrag(0, 0, { gruppe: "finsterkamm" }),
 	eintrag(0, 10, { gruppe: "finsterkamm" }),
 ], {});
 assert.strictEqual(r.ergebnisse[1].kandidat.name, "right",
-	"Labels DERSELBEN Flaeche duerfen einander ueberlappen (Owner 2026-07-28)");
+	"DIE BLEIBENDE HAELFTE: Labels derselben Flaeche duerfen einander ueberlappen (Owner 2026-07-28)");
+assert.strictEqual(r.ergebnisse[1].kollidiert, false, "und keines von beiden verschwindet deswegen");
 
-// Eine Gruppe ohne jeden freien Platz bleibt stehen statt zu verschwinden -- ihr Label ist der
-// einzige garantierte Anfasser ihrer Flaeche.
+// 🔴 DIE GEFALLENE HAELFTE. Grund (Owner 31.08.2026): seit dem 23.08.2026 traegt ein Label im
+// Bearbeiten-Modus keinen Marker mehr, der Weg zu ihm fuehrt ueber das Kontextmenue der FLAECHE
+// („Beschriftung bearbeiten"). Es ist damit nicht mehr der einzige Anfasser seiner Flaeche, und
+// drei gestapelte Namen sind unlesbarer als zwei.
+r = avesmapsResolveLabelPlacements([eintrag(0, 0), eintrag(0, 10, { gruppe: "tal" })],
+	{ maxDrift: 20, seedRects: [LINKS_ZU] });
+assert.strictEqual(r.ergebnisse[1].kollidiert, true,
+	"ein Flaechen-Label ohne freien Platz verschwindet jetzt, statt liegenzubleiben");
+assert.strictEqual(r.belegt.length, 2,
+	"und sein Rechteck ist KEIN Hindernis mehr -- es ist ja nicht mehr da (Sperre + Label 1)");
+
+// ⚠️ Die Gegenprobe: ein Flaechen-Label, das einen Platz FINDET, verschwindet natuerlich nicht.
 r = avesmapsResolveLabelPlacements([eintrag(0, 0), eintrag(0, 10, { gruppe: "tal" })], { maxDrift: 20 });
-assert.strictEqual(r.ergebnisse[1].kollidiert, false, "ein Flaechen-Label wird NIE ausgeblendet");
-assert.strictEqual(r.belegt.length, 2, "und sein Rechteck ist trotzdem ein Hindernis -- es ist ja sichtbar");
+assert.strictEqual(r.ergebnisse[1].kollidiert, false, "wer ausweichen kann, weicht aus");
+assert.strictEqual(r.ergebnisse[1].kandidat.name, "left", "hier nach links");
 
 // ---- E. Vorbelegung (Gebietsnamen) blockiert jeden ------------------------------------------------
 const sperre = { left: 0, top: -40, right: 200, bottom: 40, width: 200, height: 80 };
@@ -117,9 +134,11 @@ assert.ok(r.belegt.length >= 2, "die Vorbelegung reist in der Endlage mit");
 r = avesmapsResolveLabelPlacements([eintrag(0, 0, { gruppe: "tal" })], { seedRects: [sperre] });
 assert.notStrictEqual(r.ergebnisse[0].kandidat.name, "right", "auch fuer ein Gruppen-Label");
 
-// ---- F. Freie Kartenlabels: kein Drift, kein relativer Versatz -------------------------------------
-// 💣 Ihr Kandidat IST der Offset (nicht die Ziellage), und sie tragen keinen `drift` -- ein Deckel
-// darf sie deshalb nie wegschneiden.
+// ---- F. Freie Kartenlabels: ihr Kandidat IST der Offset, und der Deckel gilt jetzt auch --------
+// 💣 EINE STELLE OHNE `drift` BLEIBT UNGEDECKELT, und das ist die sichere Richtung: der Riegel
+// prueft weiterhin `typeof kandidat.drift === "number"`. Gefallen ist nur das `relativ &&` davor
+// (31.08.2026). Ein Aufrufer mit schlichten {dx, dy} wird also nie beschnitten -- der schlimmste
+// Fall ist „ein Name weicht weiter aus als gedacht", nicht „alle Namen verschwinden".
 const freiesLabel = {
 	kollisionsRect: { left: 0, top: 0, right: 50, bottom: 20, width: 50, height: 20 },
 	basisOffset: { x: 0, y: 0 },
@@ -131,7 +150,38 @@ const freiesLabel = {
 };
 r = avesmapsResolveLabelPlacements([freiesLabel], { maxDrift: 0 });
 assert.deepStrictEqual(r.ergebnisse[0].kandidat, { dx: 0, dy: 0 },
-	"ein freies Kartenlabel wird vom Deckel nicht angefasst");
+	"eine Stelle ohne `drift` wird vom Deckel nicht angefasst");
+
+// 🔴 MIT `drift` schneidet er sehr wohl -- das ist der ganze Sinn des Reglers „Drift" fuer die
+// Landschaftsnamen. Gemessen an zwei Kandidaten, deren zweiter 24 px driftet.
+const mitDrift = (dx, dy) => ({
+	kollisionsRect: { left: dx, top: dy, right: dx + 50, bottom: dy + 20, width: 50, height: 20 },
+	basisOffset: { x: 0, y: 0 },
+	kandidaten: [
+		{ name: "mitte", dx: 0, dy: 0, drift: 0 },
+		{ name: "unten", dx: 0, dy: 24, drift: 24 },
+	],
+	gruppe: "",
+	relativ: false,
+	prioritaet: 1000,
+	minZoom: 0,
+});
+r = avesmapsResolveLabelPlacements([mitDrift(0, 0), mitDrift(0, 10)], { maxDrift: 24 });
+assert.strictEqual(r.ergebnisse[1].kandidat.name, "unten", "Deckel 24 laesst die Stelle mit Drift 24 zu");
+r = avesmapsResolveLabelPlacements([mitDrift(0, 0), mitDrift(0, 10)], { maxDrift: 16 });
+assert.strictEqual(r.ergebnisse[1].kollidiert, true, "Deckel 16 schneidet sie weg -> ausgeblendet");
+
+// 💣 UND DER DECKEL GILT JE EINTRAG, NICHT JE AUFRUF. Orts- und Landschaftsnamen liegen in EINEM
+// Durchgang (resolveLabelCollisions ruft den Loeser einmal mit beiden Familien) und haben seit dem
+// 31.08.2026 EIGENE Regler. Ein gemeinsamer Wert fuer zwei Familien ist damit nicht baubar.
+const engEintrag = { ...mitDrift(0, 10), maxDrift: 16 };
+r = avesmapsResolveLabelPlacements([mitDrift(0, 0), engEintrag], { maxDrift: 24 });
+assert.strictEqual(r.ergebnisse[1].kollidiert, true,
+	"der eigene Deckel des Eintrags schlaegt die Aufrufoption");
+const weitEintrag = { ...mitDrift(0, 10), maxDrift: 24 };
+r = avesmapsResolveLabelPlacements([mitDrift(0, 0), weitEintrag], { maxDrift: 0 });
+assert.strictEqual(r.ergebnisse[1].kandidat.name, "unten",
+	"und zwar in beide Richtungen -- ein weiter Eintrag ueberlebt einen engen Aufruf");
 
 // ---- G. Die Reinheit -- und sie ist die Bedingung dafuer, dass es das Panel geben kann ------------
 const quelle = lies("../label-placement.js");
@@ -235,5 +285,67 @@ assert.ok(/getLocationNameLabelPadX\(element\)/.test(karteJ),
 	"getLocationNameLabelOffsets reicht die Polsterung durch");
 assert.ok(/getPropertyValue\("--location-label-pad-x"\)/.test(karteJ),
 	"und liest sie aus derselben Variablen, statt sie nachzurechnen");
+
+// ---- K. Die Ausweichstellen eines FREIEN Kartenlabels (31.08.2026) -------------------------------
+// 🔴 Ein Landschaftsname sitzt MITTIG auf seinem Punkt, nicht neben einem Marker -- die zwoelf
+// Stellen der Ortsnamen lassen sich deshalb nicht abschreiben. Ein Ring um den Punkt ist die
+// Entsprechung. Vorher waren es NEUN feste Stellen mit hoechstens ±12 px waagerecht und ±8 px
+// senkrecht (getLabelOffsetCandidates), und bei 179-296 px Namensbreite bewegte das nichts.
+const ring = avesmapsFreeLabelCandidatePlacements(8, 24);
+
+assert.deepStrictEqual(
+	{ name: ring[0].name, dx: ring[0].dx, dy: ring[0].dy, drift: ring[0].drift },
+	{ name: "mitte", dx: 0, dy: 0, drift: 0 },
+	"die Normalstellung steht zuerst und driftet nicht -- sie traegt den Rueckfall");
+
+// 💣 SENKRECHT ZUERST, und das ist begruendet, nicht Geschmack: breite Namen ueberlappen stark
+// waagerecht und nur wenig senkrecht, der kuerzeste Ausweg ist also nach oben oder unten. Dieselbe
+// Begruendung steht seit jeher an den Territoriumsnamen (getRegionLabelOffsetCandidates).
+assert.deepStrictEqual([ring[1].dx, ring[1].dy], [0, -8], "die zweite Stelle geht nach OBEN");
+assert.deepStrictEqual([ring[2].dx, ring[2].dy], [0, 8], "die dritte nach UNTEN");
+const ersteWaagerecht = ring.findIndex((k) => k.dy === 0 && k.dx !== 0);
+const ersteSenkrecht = ring.findIndex((k) => k.dx === 0 && k.dy !== 0);
+assert.ok(ersteSenkrecht < ersteWaagerecht, "senkrecht kommt vor waagerecht");
+
+// Der Ring waechst in Schritten von `versatz` bis `deckel` -- und KEINE Stelle darueber hinaus.
+assert.ok(ring.every((k) => k.drift <= 24 + 1e-9), "keine Stelle liegt jenseits des Deckels");
+assert.ok(ring.some((k) => Math.round(k.drift) === 16), "der zweite Ring (2 x 8) ist dabei");
+assert.ok(ring.some((k) => Math.round(k.drift) === 24), "und der dritte");
+// ⚠️ Die Diagonale eines Rings liegt weiter als seine Achse: bei Schritt 24 ist sie 33,9 und faellt
+// damit aus einem Deckel von 24 heraus. Genau das soll `drift` leisten -- Luftlinie, nicht Ringnummer.
+assert.ok(!ring.some((k) => k.dx === 24 && k.dy === 24), "die Diagonale des dritten Rings faellt heraus");
+assert.strictEqual(
+	ring.filter((k) => k.dx === 8 && k.dy === -8).length, 1,
+	"die Diagonale des ersten Rings (Drift 11,3) bleibt");
+
+// Jede Stelle kommt genau einmal vor -- eine Wiederholung waere ein verschenkter Versuch.
+const schluessel = ring.map((k) => `${k.dx}|${k.dy}`);
+assert.strictEqual(new Set(schluessel).size, schluessel.length, "keine Stelle steht doppelt");
+
+// 💣 EIN VERSATZ VON 0 DARF NICHT ENDLOS SCHLEIFEN. Der Regler laesst ihn nicht zu, aber ein
+// kaputter gespeicherter Wert erreicht diese Funktion trotzdem -- und eine Endlosschleife im
+// Kollisionsdurchgang friert die Karte ein, statt nur schlecht auszusehen.
+assert.deepStrictEqual(avesmapsFreeLabelCandidatePlacements(0, 56).length, 1,
+	"Versatz 0 ergibt genau die Normalstellung");
+assert.deepStrictEqual(avesmapsFreeLabelCandidatePlacements(-5, 56).length, 1, "ein negativer ebenso");
+assert.deepStrictEqual(avesmapsFreeLabelCandidatePlacements(NaN, 56).length, 1, "und NaN auch");
+assert.deepStrictEqual(avesmapsFreeLabelCandidatePlacements(8, 0).length, 1,
+	"Deckel 0 heisst: gar kein Ausweichen, nur die Normalstellung");
+
+// ---- L. Verdrahtung: die Karte benutzt den Bauer, statt ihre neun Stellen zu behalten ------------
+const karteL = lies("../map-features-label-collisions.js");
+assert.ok(/avesmapsFreeLabelCandidatePlacements\(/.test(karteL),
+	"die Karte ruft den geteilten Kandidatenbauer fuer freie Labels");
+// 💣 Und sie fuehrt keine eigene Liste mehr. Gemessen an der alten Tafel: sie trug [12, -6] als
+// einzige Stelle mit dieser Form -- wer sie abschreibt, schreibt sie mit.
+assert.ok(!/\[12,\s*-6\]/.test(karteL),
+	"die neun festen Stellen sind weg, nicht neben dem Bauer stehengeblieben");
+assert.ok(/maxDrift:/.test(karteL), "und sie reicht den Deckel JE EINTRAG durch");
+
+// 💣 Der Repel je Familie: der Landschaftsname darf nicht laenger den Regler der ORTSCHAFTEN lesen
+// (avesmapsLocationLabelSpacing("repel") war bis 31.08.2026 die Vorgabe fuer ALLE Elemente des
+// Durchgangs -- eine Kopplung, die nirgends stand).
+assert.ok(/avesmapsEcosystemDisplayAbstand\(/.test(karteL),
+	"freie Labels lesen ihre Abstaende aus der Landschafts-Darstellungstafel");
 
 console.log("label-placement: alle Zusicherungen erfuellt");

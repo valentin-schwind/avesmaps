@@ -125,6 +125,51 @@ $ok = avesmapsEcosystemDisplayValidate(['kurve' => ['polyDegree' => 3, 'tracking
 assert($ok['kurve']['polyDegree'] === 3.0, 'eine Zahl geht durch');
 assert(avesmapsEcosystemDisplayValidate(['kurve' => ['polyDegree' => 'drei']]) === null, 'ein Wort nicht');
 
+// ---- H2. Die Abstaende der Namen (31.08.2026) ---------------------------------------------------
+// 🔴 DREI ZAHLEN, GLOBAL: repel, versatz, drift. Der Server prueft nur, ob ein Wert UEBERHAUPT sein
+// kann -- welcher davon sinnvoll ist, entscheidet der Browser gegen seine Vorgabetafel
+// (js/map-features/ecosystem-display.js). Dieselbe Arbeitsteilung wie bei den Zoombaendern.
+$ok = avesmapsEcosystemDisplayValidate(['abstaende' => ['repel' => 3, 'versatz' => 10, 'drift' => 56]]);
+assert($ok['abstaende']['repel'] === 3.0, 'repel geht durch');
+assert($ok['abstaende']['versatz'] === 10.0, 'versatz auch');
+assert($ok['abstaende']['drift'] === 56.0, 'und drift');
+
+// 💣 DER SERVER FUEHRT HIER SEHR WOHL EINE SCHLUESSELLISTE -- anders als bei `kurve` und `farbe`.
+// Der Grund: es sind DREI feste Stellschrauben, keine offene Tafel je Art. Ein vierter Schluessel
+// waere kein neuer Landschaftstyp, sondern Muell -- und `drfit` statt `drift` faende sonst niemand,
+// weil der Browser den Tippfehler stumm auf die Vorgabe zurueckfallen liesse.
+assert(avesmapsEcosystemDisplayValidate(['abstaende' => ['drfit' => 20]]) === null,
+    'ein unbekannter Schluessel faellt raus, statt stumm zu verschwinden');
+
+// Schranken: sie muessen zu AVESMAPS_ECOSYSTEM_DISPLAY_ABSTAND_LIMITS im Browser passen.
+assert(avesmapsEcosystemDisplayValidate(['abstaende' => ['drift' => 151]]) === null, 'ueber 150 nicht');
+assert(avesmapsEcosystemDisplayValidate(['abstaende' => ['drift' => -1]]) === null, 'unter 0 nicht');
+assert(avesmapsEcosystemDisplayValidate(['abstaende' => ['repel' => 21]]) === null, 'repel ueber 20 nicht');
+assert(avesmapsEcosystemDisplayValidate(['abstaende' => ['versatz' => 25]]) === null, 'versatz ueber 24 nicht');
+
+// 💣 `versatz` HAT EINE UNTERGRENZE UEBER NULL, und das ist keine Kosmetik: der Kandidatenbauer im
+// Browser waechst in Schritten von `versatz` -- bei 0 liefe er endlos. Er faengt das selbst ab, aber
+// ein Wert, den der Server annimmt und der Browser dann verwirft, ist eine stille Luege.
+assert(avesmapsEcosystemDisplayValidate(['abstaende' => ['versatz' => 0]]) === null, 'versatz 0 nicht');
+assert(avesmapsEcosystemDisplayValidate(['abstaende' => ['versatz' => 1]]) === null, 'versatz 1 auch nicht');
+assert(avesmapsEcosystemDisplayValidate(['abstaende' => ['versatz' => 2]])['abstaende']['versatz'] === 2.0,
+    'ab 2 geht es');
+
+// 🔴 `drift` DARF 0 SEIN: „gar nicht ausweichen" ist eine Einstellung, kein Nichtwissen -- dieselbe
+// Begruendung wie beim Drift-Regler der Ortschaften.
+assert(avesmapsEcosystemDisplayValidate(['abstaende' => ['drift' => 0]])['abstaende']['drift'] === 0.0,
+    'drift 0 ist gueltig');
+// Und `repel` ebenso (kein Zuschlag rund um den Namen).
+assert(avesmapsEcosystemDisplayValidate(['abstaende' => ['repel' => 0]])['abstaende']['repel'] === 0.0,
+    'repel 0 ist gueltig');
+
+assert(avesmapsEcosystemDisplayValidate(['abstaende' => ['drift' => '56']]) === null,
+    'eine Zeichenkette ist keine Zahl');
+assert(avesmapsEcosystemDisplayValidate(['abstaende' => [1, 2, 3]]) === null, 'eine Liste ist keine Tafel');
+// Ein Teilsatz ist gueltig -- wer nur den Deckel verstellt, schickt nur ihn.
+assert(avesmapsEcosystemDisplayValidate(['abstaende' => ['drift' => 40]])['abstaende'] === ['drift' => 40.0],
+    'ein einzelner Wert genuegt');
+
 // ---- I. Deckel ----------------------------------------------------------------------------------
 $riesig = ['farbe' => []];
 for ($i = 0; $i < 6000; $i += 1) {

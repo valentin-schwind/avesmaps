@@ -149,6 +149,52 @@ function avesmapsLabelCandidatePlacements(baseOffset, labelWidth, labelHeight, a
 	}));
 }
 
+// ---- Die Ausweichstellen eines FREIEN Kartenlabels (Landschaften, Meere, Gipfel) ---------------
+// 🔴 EIN LANDSCHAFTSNAME SITZT MITTIG AUF SEINEM PUNKT, nicht neben einem Marker -- die zwölf
+// Stellen der Ortsnamen darüber lassen sich deshalb nicht abschreiben. Die Entsprechung ist ein
+// Ring um den Punkt, gewachsen in Schritten von `versatz` bis `deckel`.
+// Entwurf: docs/superpowers/specs/2026-08-31-landschaften-label-kollision-design.md
+//
+// 💣 SENKRECHT ZUERST, und das ist begründet, nicht Geschmack: breite Namen überlappen stark
+// waagerecht und nur wenig senkrecht, der kürzeste Ausweg ist also nach oben oder unten. Dieselbe
+// Begründung steht seit jeher an den Territoriumsnamen (getRegionLabelOffsetCandidates).
+//
+// 💣 `drift` IST DIE LUFTLINIE, nicht die Ringnummer. Die Diagonale eines Rings liegt um den
+// Faktor 1,41 weiter als seine Achse; wer nach Ringnummer deckelt, lässt einen Namen weiter
+// wegrücken, als der Regler erlaubt -- und der Regler heißt „wie weit darf er weg".
+//
+// ⚠️ Bis zum 31.08.2026 gab es hier gar nichts: freie Labels bekamen neun feste Stellen mit
+// höchstens ±12 px waagerecht und ±8 px senkrecht (getLabelOffsetCandidates in
+// map-features-label-collisions.js). Bei 179-296 px Namensbreite bewegte das nichts, und der
+// gemeldete Fall („Grüne Zwillinge") stapelte drei Namen vollständig aufeinander.
+const AVESMAPS_FREE_LABEL_DIRECTIONS = [
+	[0, -1], [0, 1],            // senkrecht zuerst -- der kürzeste Ausweg bei breiten Namen
+	[1, -1], [-1, -1], [1, 1], [-1, 1],
+	[1, 0], [-1, 0],
+];
+
+function avesmapsFreeLabelCandidatePlacements(versatz, deckel) {
+	const stellen = [{ name: "mitte", dx: 0, dy: 0, drift: 0 }];
+	const schritt = Number(versatz);
+	const grenze = Number(deckel);
+	// 💣 EIN VERSATZ VON 0 ODER NaN WÜRDE ENDLOS SCHLEIFEN. Der Regler lässt ihn nicht zu, aber ein
+	// kaputter gespeicherter Wert erreicht diese Funktion trotzdem -- und eine Endlosschleife im
+	// Kollisionsdurchgang friert die Karte ein, statt nur schlecht auszusehen.
+	if (!Number.isFinite(schritt) || schritt <= 0 || !Number.isFinite(grenze) || grenze <= 0) {
+		return stellen;
+	}
+	for (let r = schritt; r <= grenze; r += schritt) {
+		for (const [ux, uy] of AVESMAPS_FREE_LABEL_DIRECTIONS) {
+			const dx = ux * r;
+			const dy = uy * r;
+			const drift = Math.hypot(dx, dy);
+			if (drift > grenze) { continue; }
+			stellen.push({ name: "r" + r + ":" + ux + "," + uy, dx, dy, drift });
+		}
+	}
+	return stellen;
+}
+
 // ---- Der Löser: wer bekommt welche Stelle, wer fällt weg ------------------------------------------
 // eintraege: [{ kollisionsRect, basisOffset, kandidaten, gruppe, prioritaet, minZoom, relativ }]
 //   kollisionsRect  das bei Offset 0 gemessene Rechteck, bereits um „Repel" aufgeweitet
@@ -184,6 +230,14 @@ function avesmapsResolveLabelPlacements(eintraege, optionen) {
 		const gruppe = eintrag.gruppe || "";
 		const basis = eintrag.basisOffset || { x: 0, y: 0 };
 		const relativ = eintrag.relativ !== false;
+		// 💣 DER DECKEL GILT JE EINTRAG, NICHT JE AUFRUF (31.08.2026). Orts- und Landschaftsnamen
+		// liegen in EINEM Durchgang -- resolveLabelCollisions ruft diesen Löser einmal mit beiden
+		// Familien -- und haben seither EIGENE Regler (Orte: das Fenster „Zoombänder", Landschaften:
+		// das Fenster „Darstellung" im Regioneneditor). Ein gemeinsamer Wert ist damit nicht baubar.
+		// ⚠️ Fehlt er, gilt wie bisher die Aufrufoption.
+		const deckel = (typeof eintrag.maxDrift === "number" && Number.isFinite(eintrag.maxDrift))
+			? eintrag.maxDrift
+			: maxDrift;
 		const versatzVon = (k) => (relativ
 			? { dx: k.dx - basis.x, dy: k.dy - basis.y }
 			: { dx: k.dx, dy: k.dy });
@@ -191,11 +245,16 @@ function avesmapsResolveLabelPlacements(eintraege, optionen) {
 		let gewaehlt = null;
 		let gewaehltesRect = null;
 		for (const kandidat of kandidaten) {
-			// 🔴 DER DECKEL: eine Stelle, die den Namen weiter als `maxDrift` von seiner
+			// 🔴 DER DECKEL: eine Stelle, die den Namen weiter als `deckel` von seiner
 			// Normalstellung wegrückte, wird gar nicht erst probiert. Bleibt darunter nichts frei,
 			// fällt das Label unten durch auf den Ausblend-Weg -- „begrenzen, bis sie verschwinden".
-			// ⚠️ Nur bei relativen (Orts-)Kandidaten: freie Kartenlabels tragen keinen `drift`.
-			if (relativ && typeof kandidat.drift === "number" && kandidat.drift > maxDrift) {
+			// 💣 DAS `relativ &&` IST AM 31.08.2026 GEFALLEN: seit die freien Kartenlabels einen
+			// echten Kandidatenring MIT `drift` bekommen haben, muss der Deckel auch sie schneiden --
+			// sonst hätte der Regler „Drift" der Landschaftsnamen keine Wirkung.
+			// ⚠️ Die TYPPRÜFUNG bleibt, und sie ist die sichere Richtung: ein Aufrufer, der schlichte
+			// {dx, dy} ohne `drift` übergibt, wird weiterhin nie beschnitten. Der schlimmste Fall ist
+			// damit „ein Name weicht weiter aus als gedacht", nicht „alle Namen verschwinden".
+			if (typeof kandidat.drift === "number" && kandidat.drift > deckel) {
 				continue;
 			}
 			const v = versatzVon(kandidat);
@@ -219,16 +278,25 @@ function avesmapsResolveLabelPlacements(eintraege, optionen) {
 			return;
 		}
 
-		// 🔴 EIN FLÄCHEN-LABEL WIRD NIE AUSGEBLENDET (Owner 2026-07-28). Für Siedlungen und freie
-		// Labels ist Verstecken die richtige Antwort auf Gedränge; eine Landschaft ist etwas anderes:
-		// ihr Label ist der einzige garantierte Anfasser ihrer Fläche. Sein Rechteck wandert TROTZDEM
-		// in die Belegung -- es ist sichtbar, also ist es ein Hindernis.
-		const gesetzt = gruppe !== "";
-		if (gesetzt) {
-			const v = versatzVon(kandidaten[0]);
-			belegt.push({ ...translateLabelRect(rect, v.dx, v.dy), group: gruppe });
-		}
-		ergebnisse[i] = { kandidat: kandidaten[0], kollidiert: !gesetzt, rect: null };
+		// 🔴 WER KEINEN PLATZ FINDET, VERSCHWINDET -- auch ein Flächen-Label (Owner 31.08.2026).
+		//
+		// 💣 `gruppe` TRUG BIS DAHIN ZWEI BEDEUTUNGEN, und nur eine ist geblieben:
+		//    bleibt:  „darf mit Namen DERSELBEN Fläche überlappen" (Owner 2026-07-28, Finsterkamm) --
+		//             das steht oben im `blockiert`-Ausdruck und ist unberührt.
+		//    fällt:   „wird nie ausgeblendet" -- war genau diese Stelle.
+		// Wer die beiden beim nächsten Umbau wieder zusammenzieht, nimmt einem Gebirge seinen
+		// zweiten Namen, und das fällt niemandem auf. Abschnitt D in
+		// js/map-features/__tests__/label-placement.test.js hält sie auseinander.
+		//
+		// 🔴 DER GRUND FÜR DIE ALTE REGEL IST ENTFALLEN: sie stand da, weil das Label „der einzige
+		// garantierte Anfasser seiner Fläche" war. Seit dem 23.08.2026 trägt es im Bearbeiten-Modus
+		// ohnehin keinen Marker mehr, und der Weg zu ihm führt über das Kontextmenü der FLÄCHE
+		// („Beschriftung bearbeiten", map-features-ecosystem-context-action.js). Die Owner-Regel von
+		// den verwaisten Außenhüllen bleibt damit gewahrt.
+		//
+		// ⚠️ Ein verstecktes Label ist KEIN Hindernis -- sein Rechteck wandert deshalb nicht in die
+		// Belegung. Vorher tat es das, weil es ja sichtbar liegenblieb.
+		ergebnisse[i] = { kandidat: kandidaten[0], kollidiert: true, rect: null };
 	});
 
 	return { ergebnisse, belegt };
@@ -239,4 +307,5 @@ function avesmapsResolveLabelPlacements(eintraege, optionen) {
 if (typeof globalThis !== "undefined") {
 	globalThis.LOCATION_LABEL_GAP = LOCATION_LABEL_GAP;
 	globalThis.AVESMAPS_LABEL_PRIORITY_BY_TYPE = AVESMAPS_LABEL_PRIORITY_BY_TYPE;
+	globalThis.AVESMAPS_FREE_LABEL_DIRECTIONS = AVESMAPS_FREE_LABEL_DIRECTIONS;
 }

@@ -67,7 +67,12 @@ assert.ok(geprueft > 500, `es wurden wirklich Deklarationen gefunden (${geprueft
 const loeser = fs.readFileSync(path.join(wurzel, "map-features", "map-features-label-collisions.js"), "utf8");
 assert.strictEqual((loeser.match(/^function resolveLabelCollisions\(/gm) || []).length, 1,
 	"resolveLabelCollisions steht genau einmal in der Datei");
-assert.ok(!/\bmaxDrift\b/.test(loeser),
-	"und die verwaiste Variable des alten Losers ist weg -- der Deckel liegt jetzt im Fundament");
+// 🪤 GEPRUEFT WIRD DIE DEKLARATION, NICHT DAS WORT. Bis zum 31.08.2026 stand hier ein Verbot des
+// blossen Vorkommens von `maxDrift` -- seither reicht die Datei den Deckel als FELD je Eintrag an
+// den Loeser durch (`maxDrift: isLocation ? undefined : freeLabelDrift`), und das ist genau richtig
+// so. Der Befund, den dieser Test wirklich festhaelt, ist eine verwaiste lokale VARIABLE aus einer
+// zweiten Fassung des Loesers; die faengt das Muster unten, ohne das Feld zu verbieten.
+assert.ok(!/^\s*(const|let|var)\s+maxDrift\b/m.test(loeser),
+	"kein eigener Deckel als lokale Variable -- der Deckel liegt im Fundament, hier wird er nur gereicht");
 
 console.log(`keine-doppelten-funktionen: ${dateien.length} Dateien, ${geprueft} Deklarationen, alles eindeutig`);

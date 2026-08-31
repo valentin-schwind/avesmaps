@@ -34,6 +34,19 @@ const AVESMAPS_ECOSYSTEM_DISPLAY_OPACITY_LIMITS = [0.0, 1.0];
 const AVESMAPS_ECOSYSTEM_DISPLAY_SIZE_LIMITS = [4.0, 30.0];   // Schriftgroesse in pt
 // 💣 `bis` darf -1 sein: so ist „aus" kodiert (bis < ab), und das ist ein gueltiger Zustand, kein
 // Fehler. Ein eigener Schalter daneben waere eine dritte Wahrheit ueber dieselbe Sache.
+// Die drei Abstaende der Namen (31.08.2026). 🔴 Sie muessen zu
+// AVESMAPS_ECOSYSTEM_DISPLAY_ABSTAND_LIMITS in js/map-features/ecosystem-display.js passen.
+// 💣 `versatz` hat eine Untergrenze UEBER NULL: der Kandidatenbauer im Browser waechst in Schritten
+// von `versatz` und liefe bei 0 endlos. Er faengt das selbst ab -- aber ein Wert, den der Server
+// annimmt und der Browser dann verwirft, ist eine stille Luege.
+// 🔴 `drift` und `repel` duerfen 0 sein: „gar nicht ausweichen" bzw. „kein Zuschlag" sind
+// Einstellungen, kein Nichtwissen.
+const AVESMAPS_ECOSYSTEM_DISPLAY_ABSTAND_LIMITS = [
+    'repel' => [0.0, 20.0],
+    'versatz' => [2.0, 24.0],
+    'drift' => [0.0, 150.0],
+];
+
 const AVESMAPS_ECOSYSTEM_DISPLAY_VORGABE_LIMITS = [
     'ab' => [0, 7],
     'bis' => [-1, 7],
@@ -251,6 +264,32 @@ function avesmapsEcosystemDisplayValidate(mixed $incoming): ?array
             $rein[$k] = $reinerSatz;
         }
         $clean['vorgabe'] = $rein;
+    }
+
+    // ---- Die Abstaende der Namen ----------------------------------------------------------------
+    // 💣 HIER FUEHRT DER SERVER SEHR WOHL EINE SCHLUESSELLISTE -- anders als bei `farbe`, `flaeche`
+    // und `kurve` daneben, und das ist kein Versehen. Jene sind offene Tafeln (eine neue
+    // Landschaftsart darf dazukommen, ohne dass der Server davon weiss); dies sind DREI feste
+    // Stellschrauben. Ein vierter Schluessel waere kein neuer Typ, sondern Muell -- und ein
+    // `drfit` statt `drift` faende niemand, weil der Browser den Tippfehler stumm auf die Vorgabe
+    // zurueckfallen liesse und der Regler einfach nichts taete.
+    if (array_key_exists('abstaende', $incoming)) {
+        if (!avesmapsEcosystemDisplayIsObject($incoming['abstaende'])) {
+            return null;
+        }
+        $rein = [];
+        foreach ($incoming['abstaende'] as $k => $v) {
+            if (!isset(AVESMAPS_ECOSYSTEM_DISPLAY_ABSTAND_LIMITS[$k])) {
+                return null;
+            }
+            [$min, $max] = AVESMAPS_ECOSYSTEM_DISPLAY_ABSTAND_LIMITS[$k];
+            $wert = avesmapsEcosystemDisplayZahlInSchranke($v, $min, $max);
+            if ($wert === null) {
+                return null;
+            }
+            $rein[$k] = $wert;
+        }
+        $clean['abstaende'] = $rein;
     }
 
     // ---- Die Kurvenfeinheiten -------------------------------------------------------------------

@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Landschaftsnamen: Kollisionsvermeidung – Prototyp (Abstimmung, 2026-08-31)</title>
+<script>
+  /* Wie jede Editorseite: gespeicherte Wahl schlaegt OS-Schema, vor dem ersten Anstrich. */
+  (function () {
+    function isDark() {
+      var s = null; try { s = localStorage.getItem("avesmaps-theme"); } catch (e) {}
+      if (s === "dark") { return true; }
+      if (s === "light") { return false; }
+      return !!(window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches);
+    }
+    function apply() {
+      if (isDark()) { document.documentElement.setAttribute("data-theme", "dark"); }
+      else { document.documentElement.removeAttribute("data-theme"); }
+    }
+    apply();
+    if (window.matchMedia) {
+      var mq = window.matchMedia("(prefers-color-scheme: dark)");
+      if (mq.addEventListener) { mq.addEventListener("change", apply); }
+      else if (mq.addListener) { mq.addListener(apply); }
+    }
+  })();
+</script>
+<!-- 🔴 RELATIVE Pfade, Absicht: eine docs/-Datei, die per file:// geoeffnet wird. Geladen wird die
+     ECHTE CSS-Kette der Editorseiten PLUS map-labels.css -- damit steht in dieser Datei KEIN
+     Namenston und KEINE Schriftart: beides kommt aus dem Stylesheet, das auch die Karte laedt.
+     Vorbild: docs/landschaften-darstellung-mockup.html. -->
+<link rel="stylesheet" href="../css/base/fonts.css">
+<link rel="stylesheet" href="../css/base/tokens.css">
+<link rel="stylesheet" href="../css/components/editor-page.css">
+<link rel="stylesheet" href="../css/features/map-labels.css">
+<!-- 🔴 UND DIE ECHTE RECHENSTRECKE. `label-placement.js` ist rein (kein DOM, kein Leaflet, kein
+     Modulzustand) und laesst sich deshalb hier laden. Der Pass „HEUTE" laeuft damit durch DENSELBEN
+     Loeser wie die Karte -- er wird nicht nachgebaut.
+     ⚠️ `location-zoom-bands.js` davor, wie in index.html: label-placement.js faellt fuer einen
+     fehlenden Abstand auf avesmapsLocationLabelSpacing zurueck. -->
+<script src="../js/map-features/location-zoom-bands.js"></script>
+<script src="../js/map-features/label-placement.js"></script>
+<style>
+/* ═══════════════════════════════════════════════════════════════════════════════════════════
+   Kein hartkodierter Farbwert, kein hartkodierter Radius, keine Schrift unter 11px
+   (AGENTS.md §12). Alles unten sind Tokens aus css/base/tokens.css.
+   ═══════════════════════════════════════════════════════════════════════════════════════════ */
+
+.proto-page { max-width: 1180px; margin: 0 auto; padding: var(--space-24) var(--space-16); }
+
+.proto-note {
+	margin: 0 0 var(--space-16);
+	padding: var(--space-10) var(--space-12);
+	border: 1px solid var(--color-border);
+	border-left: 3px solid var(--color-accent-brown);
+	border-radius: var(--radius-md);
+	background: var(--color-panel-soft);
+	color: var(--color-text-muted);
+	font-size: var(--font-size-small);
+	line-height: 1.55;
+}
+.proto-note strong { color: var(--color-text); }
+
+.proto-h1 { margin: 0 0 var(--space-4); font-size: var(--font-size-title); }
+.proto-sub { margin: 0 0 var(--space-16); color: var(--color-text-muted); font-size: var(--font-size-small); }
+
+/* ---- Reglerleiste ---------------------------------------------------------------------- */
+.pk-controls {
+	display: flex; flex-wrap: wrap; gap: var(--space-16);
+	align-items: flex-end;
+	padding: var(--space-12);
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-md);
+	background: var(--color-panel);
+	margin-bottom: var(--space-12);
+}
+.pk-ctl { display: flex; flex-direction: column; gap: var(--space-4); min-width: 190px; }
+.pk-ctl__label { font-size: var(--font-size-small); color: var(--color-text); font-weight: 600; }
+.pk-ctl__hint { font-size: var(--font-size-caption); color: var(--color-text-muted); }
+.pk-ctl__row { display: flex; align-items: center; gap: var(--space-8); }
+.pk-ctl input[type="range"] { flex: 1 1 auto; accent-color: var(--color-accent-brown); }
+.pk-ctl__val {
+	min-width: 46px; text-align: right;
+	font-variant-numeric: tabular-nums;
+	font-size: var(--font-size-small); color: var(--color-text);
+}
+.pk-ctl select { font-size: var(--font-size-control); }
+
+/* ---- Die zwei Buehnen ------------------------------------------------------------------ */
+.pk-stages { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-12); }
+@media (max-width: 900px) { .pk-stages { grid-template-columns: 1fr; } }
+
+.pk-stage {
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-md);
+	overflow: hidden;
+	background: var(--color-panel);
+}
+.pk-stage__head {
+	display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-8);
+	padding: var(--space-8) var(--space-12);
+	border-bottom: 1px solid var(--color-divider);
+}
+.pk-stage__title { font-weight: 600; font-size: var(--font-size-control); color: var(--color-text); }
+.pk-stage__tally { font-size: var(--font-size-caption); color: var(--color-text-muted); font-variant-numeric: tabular-nums; }
+.pk-stage__tally b { color: var(--color-text); font-weight: 600; }
+.pk-stage__bad b { color: var(--color-danger); }
+
+/* Die „Karte" -- ein neutraler dunkler Grund, damit die hellen Namenstoene aus map-labels.css
+   so aussehen wie auf der Karte. Kein Kachelbild: es ginge um die Namen, nicht um den Untergrund. */
+.pk-canvas {
+	position: relative;
+	height: 340px;
+	background: var(--color-page-bg-deep);
+	overflow: hidden;
+}
+.pk-canvas__inner { position: absolute; inset: 0; }
+
+/* Ein Name. Die FARBE und die SCHRIFT kommen aus map-labels.css (.map-label--<art>) -- hier steht
+   nur die Lage. Die Kiste ist das gemessene Bildmass des Kartenrenderers.
+   💣 DER NAME HAENGT IN EINER EIGENEN HUELLE, nicht die Kiste am `.map-label` selbst: map-labels.css
+   setzt dort `width/height: 0 !important` (der Marker ist auf der Karte ein 0x0-Anker, sichtbar ist
+   allein das Bild darin). Ein `inset: 0` in einem 0x0-Kasten ergibt einen 0x0-Kasten -- die Kisten
+   waren im ersten Anlauf deshalb unsichtbar. So herum ist es zugleich naeher am Original. */
+.pk-lbl { position: absolute; }
+.pk-lbl .map-label { position: absolute; left: 50%; top: 50%; }
+.pk-lbl .map-label span { transform: translate(-50%, -50%); white-space: nowrap; }
+.pk-lbl__box {
+	position: absolute; inset: 0;
+	border: 1px dashed var(--color-accent-brown-soft);
+	border-radius: var(--radius-sm);
+	opacity: 0.8;
+	pointer-events: none;
+}
+.pk-lbl--moved .pk-lbl__box { border-style: solid; }
+.pk-lbl--hidden { opacity: 0.28; }
+.pk-lbl--hidden .map-label span { text-decoration: line-through; }
+.pk-lbl--overlap .pk-lbl__box { border-color: var(--color-danger); border-width: 2px; opacity: 0.9; }
+
+/* Der Anker: der Punkt, an dem der Name wirklich gesetzt ist. Ein Strich zeigt, wie weit er
+   weggerueckt ist -- das ist der Wert, den „Drift" deckelt. */
+.pk-anchor { position: absolute; width: 7px; height: 7px; margin: -4px 0 0 -4px; border-radius: 50%;
+	background: var(--color-accent); box-shadow: 0 0 0 1px var(--color-page-bg-deep); }
+.pk-leash { position: absolute; height: 2px; transform-origin: 0 50%;
+	background: var(--color-accent-brown-soft); opacity: 0.9; }
+
+.pk-legend { margin-top: var(--space-10); font-size: var(--font-size-caption); color: var(--color-text-muted); }
+.pk-legend b { color: var(--color-text); }
+
+/* ---- Die Messtabelle ------------------------------------------------------------------- */
+.pk-table { width: 100%; border-collapse: collapse; margin-top: var(--space-16); font-size: var(--font-size-small); }
+.pk-table th, .pk-table td { padding: var(--space-6) var(--space-8); border-bottom: 1px solid var(--color-divider); text-align: right; }
+.pk-table th:first-child, .pk-table td:first-child { text-align: left; }
+.pk-table thead th { color: var(--color-text-muted); font-weight: 600; }
+.pk-table td { font-variant-numeric: tabular-nums; }
+.pk-table .pk-good { color: var(--color-success); font-weight: 600; }
+</style>
+</head>
+<body class="editor-page">
+<div class="proto-page">
+
+	<h1 class="proto-h1">Landschaftsnamen weichen einander aus</h1>
+	<p class="proto-sub">
+		Prototyp zur Abstimmung der drei Vorgabewerte · Stand 31.08.2026 ·
+		Fälle und Maße sind am <strong>Livebestand</strong> gemessen (Zoomstufe 5), nicht erfunden.
+	</p>
+
+	<div class="proto-note">
+		<strong>Was hier zu sehen ist.</strong> Links steht das Verhalten von heute, rechts der Entwurf.
+		Beide Bühnen zeigen dieselbe Ballung mit denselben gemessenen Bildmaßen.
+		Die gestrichelte Kiste ist das, was der Kollisionslöser wirklich prüft — das Namensbild samt
+		<em>Repel</em>. Der Punkt ist die Stelle, an der ein Editor den Namen gesetzt hat; der Strich
+		dorthin ist die Strecke, die <em>Drift</em> deckelt.
+		<br>
+		🔴 <strong>Der linke Pass ist echter Code</strong> — er läuft durch
+		<code>avesmapsResolveLabelPlacements</code> aus <code>js/map-features/label-placement.js</code>,
+		dieselbe Fassung, die die Karte ruft. Der rechte Pass ist der <strong>Entwurf</strong>: beim Bau
+		zieht er in dieselbe Datei, und diese Kopie stirbt. Sie ist keine zweite Wahrheit, sondern ein
+		Vorschlag, der noch keinen Ort hat.
+	</div>
+
+	<div class="pk-controls">
+		<div class="pk-ctl" style="min-width:260px">
+			<span class="pk-ctl__label">Fall</span>
+			<select id="pkCase"></select>
+			<span class="pk-ctl__hint" id="pkCaseHint"></span>
+		</div>
+		<div class="pk-ctl">
+			<span class="pk-ctl__label">Repel</span>
+			<span class="pk-ctl__hint">Luft um jeden Namen vor der Prüfung</span>
+			<span class="pk-ctl__row"><input type="range" id="pkRepel" min="0" max="12" step="1" value="2"><span class="pk-ctl__val" id="pkRepelVal">2 px</span></span>
+		</div>
+		<div class="pk-ctl">
+			<span class="pk-ctl__label">Versatz</span>
+			<span class="pk-ctl__hint">Schrittweite eines Ausweichschritts</span>
+			<span class="pk-ctl__row"><input type="range" id="pkStep" min="2" max="24" step="1" value="8"><span class="pk-ctl__val" id="pkStepVal">8 px</span></span>
+		</div>
+		<div class="pk-ctl">
+			<span class="pk-ctl__label">Drift</span>
+			<span class="pk-ctl__hint">weiter weg heißt: der Name verschwindet</span>
+			<span class="pk-ctl__row"><input type="range" id="pkDrift" min="0" max="150" step="8" value="72"><span class="pk-ctl__val" id="pkDriftVal">72 px</span></span>
+		</div>
+	</div>
+
+	<div class="pk-stages">
+		<section class="pk-stage">
+			<div class="pk-stage__head">
+				<span class="pk-stage__title">Heute</span>
+				<span class="pk-stage__tally pk-stage__bad" id="pkTallyOld"></span>
+			</div>
+			<div class="pk-canvas"><div class="pk-canvas__inner" id="pkStageOld"></div></div>
+		</section>
+		<section class="pk-stage">
+			<div class="pk-stage__head">
+				<span class="pk-stage__title">Entwurf</span>
+				<span class="pk-stage__tally" id="pkTallyNew"></span>
+			</div>
+			<div class="pk-canvas"><div class="pk-canvas__inner" id="pkStageNew"></div></div>
+		</section>
+	</div>
+
+	<p class="pk-legend">
+		<b>durchgestrichen &amp; blass</b> = wird ausgeblendet ·
+		<b>rote Kiste</b> = bleibt liegen und überlappt ·
+		<b>durchgezogene Kiste</b> = ist ausgewichen ·
+		gestrichelt = steht auf seinem Punkt.
+	</p>
+
+	<div class="proto-note" style="margin-top:var(--space-16)">
+		<strong>Über den ganzen Bestand gerechnet</strong> — alle ~900 Beschriftungen, echte Bildmaße,
+		echte Zoombänder, Repel 2, Versatz 8.
+		<br>
+		🔴 <strong>Der Knick liegt bei 64 px</strong>: dort behält der gemeldete Fall (Grüne Zwillinge) alle drei Namen. Die Vorgabe steht auf <strong>72</strong> — eine Stufe Luft, weil 64 den Fall auf den Pixel genau löst.
+		<br>
+		⚠️ Ohne die Vorbelegung (Gebietsnamen, Kurvenlabels, Wegenamen), die echten Zahlen liegen etwas höher. „überlappt" ist beim Entwurf per Bauart null: was keinen Platz findet, verschwindet.
+	</div>
+
+	<table class="pk-table">
+		<thead>
+			<tr>
+				<th>Zoomstufe</th><th>sichtbare Namen</th>
+				<th>heute: überlappen</th><th>heute: verschwinden</th>
+				<th>Deckel 56</th><th>Deckel 64</th><th>Deckel 72</th>
+			</tr>
+			<tr>
+				<th></th><th></th><th></th><th></th>
+				<th colspan="3" style="text-align:right; font-weight:400">… davon verschwinden</th>
+			</tr>
+		</thead>
+		<tbody>
+			<tr><td>z3</td><td>447</td><td>21</td><td>6</td><td>1</td><td>0</td><td class="pk-good">0</td></tr>
+			<tr><td>z4</td><td>710</td><td>29</td><td>37</td><td>17</td><td>11</td><td class="pk-good">8</td></tr>
+			<tr><td>z5</td><td>809</td><td>13</td><td>26</td><td>9</td><td>7</td><td class="pk-good">3</td></tr>
+			<tr><td>z6</td><td>831</td><td>5</td><td>7</td><td>3</td><td>2</td><td class="pk-good">0</td></tr>
+		</tbody>
+	</table>
+
+	<p class="pk-legend">
+		Am gemeldeten Fall im laufenden Browser nachgefahren: bei <b>40</b> steht einer der drei Namen,
+		bei <b>56</b> zwei, ab <b>64</b> alle drei (der Waldname weicht 48 px nach oben aus, der
+		Gipfelname 64 px nach unten). Die Vorgabe steht auf <b>72</b> — eine Stufe Luft, weil 64 den
+		Fall auf den Pixel genau löst.
+	</p>
+
+<script>
+"use strict";
+
+/* ═══════════════════════════════════════════════════════════════════════════════════════════
+   DIE FÄLLE. Vier Ballungen, am Livebestand bei Zoomstufe 5 gemessen (31.08.2026):
+   `w`/`h` sind die Bildmaße des Kartenrenderers (renderMapLabelToImage), `pt` die wirksame
+   Schriftgröße, `dx`/`dy` die Lage des Ankers relativ zum ersten Namen der Ballung,
+   `g` der Zeiger auf die Landschaftsfläche ("" = keine), `mn` die Erscheinungsstufe.
+   🔴 KEINE dieser Zahlen ist geschätzt.
+   ═══════════════════════════════════════════════════════════════════════════════════════════ */
+/* ═══════════════════════════════════════════════════════════════════════════════════════════
+   DIE FÄLLE. Vier Ballungen, am Livebestand bei Zoomstufe 5 gemessen (31.08.2026):
+   `w`/`h` sind die Bildmaße des Kartenrenderers, `pt` die wirksame Schriftgröße, `dx`/`dy` die
+   Lage des Ankers relativ zum ersten Namen, `g` der Zeiger auf die Landschaftsfläche ("" = keine),
+   `mn` die Erscheinungsstufe.
+
+   💣 GEMESSEN ÜBER DEN PFAD AUS `createLabelIcon`, also MIT Halo (getLabelHaloParams) -- und gegen
+   die `width`/`height` des `<img>` im DOM gegengeprüft, Ziffer für Ziffer. Ein blanker
+   `renderMapLabelToImage`-Aufruf, wie ihn eine Messung naheliegenderweise macht, liefert ein Bild,
+   das 6 px schmaler und 6 px flacher ist. Genau daran stand in der ersten Fassung dieser Seite
+   ein Deckel von 56, der den gemeldeten Fall NICHT löst -- die Simulation sah grün aus, der
+   Browser verlor einen Namen.
+   🔴 KEINE dieser Zahlen ist geschätzt.
+   ═══════════════════════════════════════════════════════════════════════════════════════════ */
+const PK_FAELLE = [
+	{
+		id: "zwillinge",
+		name: "Grüne Zwillinge — 3 Namen, der gemeldete Fall",
+		hinweis: "Drei verschiedene Flächen auf demselben Punkt. Braucht 64 px, damit alle drei stehen.",
+		labels: [
+			{ t: "Grüne Zwillinge O",             ty: "berggipfel",  pt: 18, w: 187, h: 60, dx: 0,   dy: 0,   g: "",  mn: 4 },
+			{ t: "Grüne Zwillinge W",             ty: "huegelland",  pt: 19, w: 202, h: 40, dx: 0,   dy: 5,   g: "A", mn: 0 },
+			{ t: "Wald an den Grünen Zwillingen", ty: "urwald",      pt: 18, w: 304, h: 38, dx: 2,   dy: 3,   g: "B", mn: 0 },
+		],
+	},
+	{
+		id: "mhanadi",
+		name: "Mhanadi-Delta — 7 Namen, die größte Ballung",
+		hinweis: "Sechs Flussarme plus das Delta. Löst sich schon bei kleinem Deckel.",
+		labels: [
+			{ t: "Mhanadi-Delta",     ty: "flussdelta", pt: 20, w: 171, h: 42, dx: 0,    dy: 0,   g: "C", mn: 2 },
+			{ t: "Dunkler Mhanadi",   ty: "fluss",      pt: 18, w: 175, h: 38, dx: 153,  dy: -7,  g: "",  mn: 4 },
+			{ t: "Schwarzer Mhanadi", ty: "fluss",      pt: 18, w: 199, h: 38, dx: 140,  dy: 31,  g: "",  mn: 4 },
+			{ t: "Sanfter Mhanadi",   ty: "fluss",      pt: 18, w: 170, h: 38, dx: -7,   dy: 52,  g: "",  mn: 4 },
+			{ t: "Kleiner Mhanadi",   ty: "fluss",      pt: 18, w: 168, h: 38, dx: 125,  dy: 86,  g: "",  mn: 4 },
+			{ t: "Grüner Mhanadi",    ty: "fluss",      pt: 18, w: 168, h: 38, dx: 60,   dy: 114, g: "",  mn: 4 },
+			{ t: "Weißer Mhanadi",    ty: "fluss",      pt: 18, w: 173, h: 38, dx: -98,  dy: 92,  g: "",  mn: 4 },
+		],
+	},
+	{
+		id: "firn",
+		name: "Firnhang — 5 Namen, Gipfel und Region",
+		hinweis: "Der harte Fall: vier Gipfel und ein Regionsname auf 60 px. Ganz frei erst weit oben.",
+		labels: [
+			{ t: "Avtanentige",    ty: "berggipfel", pt: 14, w: 105, h: 47, dx: 0,   dy: 0,   g: "", mn: 6 },
+			{ t: "Viorfirnithing", ty: "region",     pt: 13, w: 134, h: 27, dx: -24, dy: 29,  g: "", mn: 4 },
+			{ t: "Altoforisto",    ty: "berggipfel", pt: 14, w: 95,  h: 47, dx: -26, dy: 15,  g: "", mn: 5 },
+			{ t: "Driskaman",      ty: "berggipfel", pt: 14, w: 92,  h: 47, dx: -53, dy: 9,   g: "", mn: 6 },
+			{ t: "Rukkiman",       ty: "berggipfel", pt: 14, w: 88,  h: 47, dx: 15,  dy: -17, g: "", mn: 6 },
+		],
+	},
+	{
+		id: "kette",
+		name: "Gipfelkette — 4 Namen, knapp beieinander",
+		hinweis: "Der milde Fall: ein kleiner Versatz genügt, hier soll nichts verschwinden.",
+		labels: [
+			{ t: "Rohalsmütze",      ty: "berggipfel", pt: 14, w: 107, h: 47, dx: 0,    dy: 0,   g: "", mn: 5 },
+			{ t: "Wyrmenhorn",       ty: "berggipfel", pt: 14, w: 113, h: 47, dx: -63,  dy: -14, g: "", mn: 5 },
+			{ t: "Der Dreizack",     ty: "berggipfel", pt: 14, w: 109, h: 47, dx: -129, dy: 12,  g: "", mn: 5 },
+			{ t: "Donnerschneekopf", ty: "berggipfel", pt: 14, w: 150, h: 47, dx: -198, dy: -2,  g: "", mn: 5 },
+		],
+	},
+];
+
+/* Die neun Ausweichstellen von HEUTE, Ziffer für Ziffer aus getLabelOffsetCandidates()
+   (js/map-features/map-features-label-collisions.js). Höchstens ±12 px waagerecht, ±8 senkrecht. */
+const PK_HEUTE_STELLEN = [[0,0],[8,0],[-8,0],[0,-8],[0,8],[12,-6],[-12,-6],[12,6],[-12,6]];
+
+/* ═══════════════════════════════════════════════════════════════════════════════════════════
+   DER ENTWURF DES KANDIDATENBAUERS.
+   🔴 Beim Bau zieht er nach js/map-features/label-placement.js, rein und geteilt -- wie
+   avesmapsLabelCandidatePlacements für die Ortsnamen. Diese Kopie ist dann zu löschen.
+
+   Ein Landschaftsname sitzt MITTIG auf seinem Punkt, nicht neben einem Marker -- die zwölf
+   Stellen der Ortsnamen lassen sich deshalb nicht abschreiben. Ein Ring um den Punkt ist die
+   Entsprechung, und die Reihenfolge SENKRECHT ZUERST hat denselben Grund, der schon an den
+   Territoriumsnamen steht: breite Namen überlappen stark waagerecht und nur wenig senkrecht,
+   der kürzeste Ausweg ist also nach oben oder unten.
+   ═══════════════════════════════════════════════════════════════════════════════════════════ */
+const PK_RICHTUNGEN = [[0,-1],[0,1],[1,-1],[-1,-1],[1,1],[-1,1],[1,0],[-1,0]];
+
+function pkEntwurfStellen(versatz, deckel) {
+	const stellen = [{ name: "mitte", dx: 0, dy: 0, drift: 0 }];
+	for (let r = versatz; r <= deckel; r += versatz) {
+		for (const [ux, uy] of PK_RICHTUNGEN) {
+			const dx = ux * r;
+			const dy = uy * r;
+			const drift = Math.hypot(dx, dy);
+			if (drift > deckel) { continue; }
+			stellen.push({ name: `r${r}`, dx, dy, drift });
+		}
+	}
+	return stellen;
+}
+
+/* Der Löser des Entwurfs. Er unterscheidet sich vom heutigen an GENAU ZWEI Stellen:
+   (1) der Deckel gilt auch für Kandidaten, die keinen Marker als Bezug haben, und
+   (2) `gruppe` heißt nur noch „darf mit Namen DERSELBEN Fläche überlappen" -- nicht mehr
+       zusätzlich „wird nie ausgeblendet".
+   Die Rechteck-Mathe kommt aus der geladenen echten Datei, sie wird nicht nachgebaut. */
+function pkLoeseEntwurf(eintraege, deckel) {
+	const belegt = [];
+	const ergebnis = new Array(eintraege.length);
+	const reihenfolge = eintraege.map((_, i) => i)
+		.sort((a, b) => (eintraege[b].prio - eintraege[a].prio) || (eintraege[a].mn - eintraege[b].mn));
+
+	reihenfolge.forEach((i) => {
+		const e = eintraege[i];
+		let gewaehlt = null;
+		for (const stelle of e.stellen) {
+			if (stelle.drift > deckel) { continue; }
+			const versuch = translateLabelRect(e.rect, stelle.dx, stelle.dy);
+			const blockiert = belegt.some((b) => {
+				if (e.gruppe !== "" && b.group === e.gruppe) { return false; }
+				return rectanglesOverlap(versuch, b);
+			});
+			if (!blockiert) { gewaehlt = stelle; belegt.push({ ...versuch, group: e.gruppe }); break; }
+		}
+		ergebnis[i] = gewaehlt
+			? { stelle: gewaehlt, versteckt: false }
+			: { stelle: e.stellen[0], versteckt: true };
+	});
+	return ergebnis;
+}
+
+/* ---- Bühne zeichnen ---------------------------------------------------------------------- */
+
+const PK_MITTE = { x: 0.5, y: 0.5 };   // die Ballung wird mittig auf die Bühne gelegt
+
+function pkBaueEintraege(fall, repel) {
+	// Die Ballung zentrieren: Schwerpunkt der Anker auf die Bühnenmitte.
+	const mx = fall.labels.reduce((s, l) => s + l.dx, 0) / fall.labels.length;
+	const my = fall.labels.reduce((s, l) => s + l.dy, 0) / fall.labels.length;
+	return fall.labels.map((l) => {
+		// Der Anker liegt in der MITTE des Namensbildes (transform: translate(-50%, -50%)).
+		const ax = l.dx - mx;
+		const ay = l.dy - my;
+		const roh = { left: ax - l.w / 2, right: ax + l.w / 2, top: ay - l.h / 2, bottom: ay + l.h / 2, width: l.w, height: l.h };
+		return { label: l, anker: { x: ax, y: ay }, rect: expandRect(roh, repel), gruppe: l.g, prio: 1003, mn: l.mn };
+	});
+}
+
+function pkZeichne(wirt, fall, eintraege, ergebnisse, breite, hoehe) {
+	wirt.textContent = "";
+	let verschoben = 0, versteckt = 0, ueberlappt = 0;
+	const ox = breite * PK_MITTE.x;
+	const oy = hoehe * PK_MITTE.y;
+
+	eintraege.forEach((e, i) => {
+		const r = ergebnisse[i];
+		const dx = r.stelle.dx;
+		const dy = r.stelle.dy;
+		if (r.versteckt) { versteckt++; }
+		else if (r.ueberlappt) { ueberlappt++; }
+		else if (dx !== 0 || dy !== 0) { verschoben++; }
+
+		// Der Anker samt Leine zum verschobenen Namen -- die Strecke, die „Drift" deckelt.
+		const anker = document.createElement("div");
+		anker.className = "pk-anchor";
+		anker.style.left = `${ox + e.anker.x}px`;
+		anker.style.top = `${oy + e.anker.y}px`;
+		wirt.appendChild(anker);
+		if (!r.versteckt && (dx !== 0 || dy !== 0)) {
+			const leine = document.createElement("div");
+			leine.className = "pk-leash";
+			leine.style.left = `${ox + e.anker.x}px`;
+			leine.style.top = `${oy + e.anker.y}px`;
+			leine.style.width = `${Math.hypot(dx, dy)}px`;
+			leine.style.transform = `rotate(${Math.atan2(dy, dx)}rad)`;
+			wirt.appendChild(leine);
+		}
+
+		const knoten = document.createElement("div");
+		knoten.className = "pk-lbl"
+			+ (r.versteckt ? " pk-lbl--hidden" : "")
+			+ (r.ueberlappt ? " pk-lbl--overlap" : "")
+			+ (!r.versteckt && !r.ueberlappt && (dx || dy) ? " pk-lbl--moved" : "");
+		// 💣 Die Kiste ist das KOLLISIONSrechteck, also Bildmass PLUS Repel -- sonst bewegt der
+		// Repel-Regler sichtbar nichts, obwohl er das Ergebnis aendert.
+		const kw = e.rect.width;
+		const kh = e.rect.height;
+		knoten.style.left = `${ox + e.anker.x - kw / 2 + dx}px`;
+		knoten.style.top = `${oy + e.anker.y - kh / 2 + dy}px`;
+		knoten.style.width = `${kw}px`;
+		knoten.style.height = `${kh}px`;
+		const kiste = document.createElement("div");
+		kiste.className = "pk-lbl__box";
+		knoten.appendChild(kiste);
+		// Derselbe Aufbau wie auf der Karte: ein 0x0-Anker `.map-label` mit dem sichtbaren Teil darin.
+		const marke = document.createElement("div");
+		marke.className = "map-label map-label--" + e.label.ty;
+		const text = document.createElement("span");
+		text.style.fontSize = `${e.label.pt}px`;
+		text.textContent = e.label.t;
+		marke.appendChild(text);
+		knoten.appendChild(marke);
+		wirt.appendChild(knoten);
+	});
+	return { verschoben, versteckt, ueberlappt };
+}
+
+/* ---- Verdrahtung -------------------------------------------------------------------------- */
+
+const pkCase = document.getElementById("pkCase");
+const pkCaseHint = document.getElementById("pkCaseHint");
+const pkRepel = document.getElementById("pkRepel");
+const pkStep = document.getElementById("pkStep");
+const pkDrift = document.getElementById("pkDrift");
+
+PK_FAELLE.forEach((f) => {
+	const o = document.createElement("option");
+	o.value = f.id;
+	o.textContent = f.name;
+	pkCase.appendChild(o);
+});
+
+function pkZeichneAlles() {
+	const fall = PK_FAELLE.find((f) => f.id === pkCase.value) || PK_FAELLE[0];
+	const repel = Number(pkRepel.value);
+	const versatz = Number(pkStep.value);
+	const deckel = Number(pkDrift.value);
+	pkCaseHint.textContent = fall.hinweis;
+	document.getElementById("pkRepelVal").textContent = `${repel} px`;
+	document.getElementById("pkStepVal").textContent = `${versatz} px`;
+	document.getElementById("pkDriftVal").textContent = `${deckel} px`;
+
+	const alt = document.getElementById("pkStageOld");
+	const neu = document.getElementById("pkStageNew");
+	const b = alt.clientWidth || 520;
+	const h = alt.clientHeight || 340;
+
+	// ---- HEUTE: durch den ECHTEN Löser. `relativ: false` und kein `maxDrift`, genau wie die Karte
+	//      ihn für freie Namen ruft; die neun Stellen tragen bewusst kein `drift`.
+	const eAlt = pkBaueEintraege(fall, repel);
+	const { ergebnisse } = avesmapsResolveLabelPlacements(
+		eAlt.map((e) => ({
+			kollisionsRect: e.rect,
+			basisOffset: { x: 0, y: 0 },
+			kandidaten: PK_HEUTE_STELLEN.map(([dx, dy]) => ({ dx, dy })),
+			gruppe: e.gruppe,
+			relativ: false,
+			prioritaet: e.prio,
+			minZoom: e.mn,
+		})),
+		{ seedRects: [] }
+	);
+	// `kollidiert` heißt beim echten Löser „wird ausgeblendet"; ein Name MIT Fläche bleibt statt
+	// dessen liegen und überlappt -- genau die Regel, die dieser Entwurf aufhebt.
+	const rAlt = ergebnisse.map((r, i) => ({
+		stelle: r.kandidat,
+		versteckt: r.kollidiert,
+		ueberlappt: !r.kollidiert && r.rect === null,
+	}));
+	const zAlt = pkZeichne(alt, fall, eAlt, rAlt, b, h);
+
+	// ---- ENTWURF
+	const eNeu = pkBaueEintraege(fall, repel);
+	const stellen = pkEntwurfStellen(versatz, deckel);
+	const rNeu = pkLoeseEntwurf(eNeu.map((e) => ({ ...e, stellen })), deckel);
+	const zNeu = pkZeichne(neu, fall, eNeu, rNeu, b, h);
+
+	document.getElementById("pkTallyOld").innerHTML =
+		`ausgewichen <b>${zAlt.verschoben}</b> · ausgeblendet <b>${zAlt.versteckt}</b> · überlappt <b>${zAlt.ueberlappt}</b>`;
+	document.getElementById("pkTallyNew").innerHTML =
+		`ausgewichen <b>${zNeu.verschoben}</b> · ausgeblendet <b>${zNeu.versteckt}</b> · überlappt <b>${zNeu.ueberlappt}</b>`;
+}
+
+[pkCase, pkRepel, pkStep, pkDrift].forEach((el) => {
+	el.addEventListener("input", pkZeichneAlles);
+	el.addEventListener("change", pkZeichneAlles);
+});
+window.addEventListener("resize", pkZeichneAlles);
+document.fonts && document.fonts.ready.then(pkZeichneAlles);
+pkZeichneAlles();
+</script>
+</div>
+</body>
+</html>
