@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Eingeschränkt befahrbare Wege – Mockup (Abstimmung, 2026-09-01)</title>
+<script>
+  /* Wie jede Editorseite: gespeicherte Wahl schlaegt OS-Schema, vor dem ersten Anstrich. */
+  (function () {
+    function isDark() {
+      var s = null; try { s = localStorage.getItem("avesmaps-theme"); } catch (e) {}
+      if (s === "dark") { return true; }
+      if (s === "light") { return false; }
+      return !!(window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches);
+    }
+    function apply() {
+      if (isDark()) { document.documentElement.setAttribute("data-theme", "dark"); }
+      else { document.documentElement.removeAttribute("data-theme"); }
+    }
+    apply();
+    if (window.matchMedia) {
+      var mq = window.matchMedia("(prefers-color-scheme: dark)");
+      if (mq.addEventListener) { mq.addEventListener("change", apply); }
+      else if (mq.addListener) { mq.addListener(apply); }
+    }
+  })();
+</script>
+<!-- 🔴 RELATIVE Pfade, Absicht: eine docs/-Datei, die per file:// geoeffnet wird. Geladen wird die
+     ECHTE CSS-Kette -- damit steht in dieser Datei KEIN Namenston, KEIN Radius und KEINE Schriftart:
+     alles kommt aus den Stylesheets, die auch die Karte laedt.
+     Vorbild: docs/landschaften-label-kollision-mockup.html. -->
+<link rel="stylesheet" href="../css/base/fonts.css">
+<link rel="stylesheet" href="../css/base/tokens.css">
+<link rel="stylesheet" href="../css/components/editor-page.css">
+<link rel="stylesheet" href="../css/features/map-labels.css">
+<link rel="stylesheet" href="../css/features/location-popups-markers.css">
+<!-- 🔴 UND DIE ECHTE SCHRIFTREGEL DER WEGENAMEN. `getPathLabelStyle` (map-features-path-labels.js)
+     bestimmt Farbe, Groesse, Schriftart und Halo je Wegart. Sie wird hier NICHT nachgebaut, sondern
+     geladen und gerufen -- sonst zeigt das Mockup eine Schrift, die es auf der Karte nicht gibt.
+     ⚠️ Die Datei erwartet die Globals `map` (fuer den Zoom) und `normalizePathSubtype`; beide werden
+     unten gestellt, BEVOR sie laedt. Faellt etwas davon aus, sagt das die Fussnote der Seite --
+     stillschweigend auf eigene Werte zurueckzufallen waere genau die zweite Wahrheit, vor der
+     AGENTS.md §5 warnt. -->
+<script>
+  var map = { getZoom: function () { return 5; } };
+  var pathData = [];
+  var PATH_SUBTYPE_KEYS = ["Reichsstrasse", "Strasse", "Weg", "Pfad", "Gebirgspass", "Wuestenpfad", "Flussweg", "Seeweg"];
+  var SYNTHETIC_ROUTE_TYPE = "Querfeldein";
+</script>
+<script src="../js/map-features/map-features-path-domain.js"></script>
+<script src="../js/map-features/map-features-path-labels.js"></script>
+<style>
+/* ═══════════════════════════════════════════════════════════════════════════════════════════
+   Kein hartkodierter Farbwert, kein hartkodierter Radius, keine Schrift unter 11px
+   (AGENTS.md §12). Alles unten sind Tokens aus css/base/tokens.css.
+   ═══════════════════════════════════════════════════════════════════════════════════════════ */
+
+.proto-page { max-width: 1120px; margin: 0 auto; padding: var(--space-24) var(--space-16); }
+
+.proto-note {
+	margin: 0 0 var(--space-16);
+	padding: var(--space-10) var(--space-12);
+	border: 1px solid var(--color-border);
+	border-left: 3px solid var(--color-accent-brown);
+	border-radius: var(--radius-md);
+	background: var(--color-panel-soft);
+	color: var(--color-text-muted);
+	font-size: var(--font-size-small);
+	line-height: 1.55;
+}
+.proto-note strong { color: var(--color-text); }
+
+h1 { font-size: 22px; margin: 0 0 var(--space-8); color: var(--color-text); }
+h2 {
+	font-size: 15px;
+	margin: var(--space-24) 0 var(--space-10);
+	padding-bottom: var(--space-6);
+	border-bottom: 1px solid var(--color-divider);
+	color: var(--color-text);
+}
+h2 .proto-h2-hint { font-size: var(--font-size-small); color: var(--color-text-muted); font-weight: 400; margin-left: var(--space-8); }
+
+/* ---- Der Umschalter: welche Wege gelten als eingeschraenkt? --------------------------------- */
+.proto-switch { display: flex; gap: var(--space-8); flex-wrap: wrap; margin: 0 0 var(--space-16); }
+.proto-switch button {
+	appearance: none; cursor: pointer;
+	padding: var(--space-8) var(--space-12);
+	border: 1px solid var(--color-button-soft-border);
+	border-radius: var(--radius-md);
+	background: var(--color-button-soft);
+	color: var(--color-button-soft-text);
+	font: inherit; font-size: var(--font-size-small); text-align: left;
+}
+.proto-switch button[aria-pressed="true"] {
+	background: var(--color-button);
+	/* Der Fuellton allein trug nicht: #3a362c gegen #6b6456 ist im Screenshot kaum zu unterscheiden,
+	   und diese Seite ist ein ENTSCHEIDUNGSwerkzeug -- man muss auf einen Blick sehen, welche Regel
+	   gerade gilt. Deshalb zusaetzlich die Akzentkontur und fetter Text. */
+	border-color: var(--color-accent-brown);
+	box-shadow: inset 0 0 0 1px var(--color-accent-brown);
+	color: var(--color-button-text);
+	font-weight: 700;
+}
+.proto-switch button small { display: block; opacity: 0.78; font-size: 11px; margin-top: 2px; }
+
+/* ---- Die Kartenstreifen -------------------------------------------------------------------- */
+.proto-mapstrip {
+	position: relative;
+	border-radius: var(--radius-md);
+	border: 1px solid var(--color-border);
+	background: var(--color-page-bg-deep);
+	overflow: hidden;
+}
+.proto-mapstrip svg { display: block; width: 100%; height: 84px; }
+.proto-caption { font-size: 11px; color: var(--color-text-muted); margin: var(--space-6) 0 0; }
+
+/* ---- Die Beispiel-Karten ------------------------------------------------------------------- */
+.proto-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(310px, 1fr)); gap: var(--space-16); }
+.proto-card {
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-md);
+	background: var(--color-panel);
+	padding: var(--space-12);
+}
+.proto-card > h3 { font-size: 14px; margin: 0 0 var(--space-4); color: var(--color-text); }
+.proto-card > .proto-sub { font-size: 11px; color: var(--color-text-muted); margin: 0 0 var(--space-10); }
+
+/* Marke, ob dieser Weg unter der gewaehlten Regel ueberhaupt betroffen ist. */
+.proto-flag {
+	display: inline-block; font-size: 11px; line-height: 1.4;
+	padding: 2px var(--space-8); border-radius: var(--radius-md);
+	border: 1px solid var(--color-border); background: var(--color-panel-soft);
+	color: var(--color-text-muted); margin-bottom: var(--space-10);
+}
+.proto-flag--on { border-color: var(--color-accent-brown); color: var(--color-accent-brown); }
+
+/* Die Infobox sitzt live in einem Leaflet-Popup; hier bekommt sie nur dessen Breite. */
+.proto-popup { max-width: 340px; }
+
+.proto-datalist { font-size: var(--font-size-small); color: var(--color-text-muted); line-height: 1.6; margin: 0; padding-left: var(--space-16); }
+.proto-datalist code { font-size: 11px; }
+
+.proto-foot { margin-top: var(--space-24); font-size: 11px; color: var(--color-text-muted); }
+</style>
+</head>
+<body class="proto-page">
+
+<h1>Eingeschränkt befahrbare Wege</h1>
+<p class="proto-note">
+	<strong>Worum es geht.</strong> Wege, die man nicht das ganze Jahr (oder nicht mit jedem Reisemittel)
+	benutzen kann, sollen zwei Dinge bekommen: einen <em>kursiven Namen</em> auf der Karte und eine
+	<strong>Zusammenfassung der Einschränkung</strong> in der Infobox. Diese Seite zeigt beides an deinen
+	drei Beispielen — Saljethweg, Schattenbachpass, Rabenpass — mit den <strong>echten Live-Daten</strong>
+	vom 01.09.2026.
+</p>
+
+<p class="proto-note">
+	<strong>Ein Fund, den du sehen solltest.</strong> Du hast dich für „nur zeitlich“ entschieden — und dann
+	den <strong>Schattenbachpass</strong> als Beispiel genannt. Der hat aber <strong>gar kein Zeitfenster</strong>.
+	Bei ihm steht etwas anderes in den Daten: drei seiner Abschnitte erlauben nur „zu Fuß“, passend zum
+	Wiki-Satz <em>„Er ist nur zu Fuß nutzbar.“</em><br>
+	Unter der Regel „nur zeitlich“ bliebe er also <strong>unverändert</strong> — kein kursiver Name, keine Zeile
+	in der Infobox. Genau das kannst du mit dem Umschalter unten ausprobieren.
+</p>
+
+<div class="proto-switch" role="group" aria-label="Welche Wege gelten als eingeschränkt?">
+	<button type="button" data-regel="zeit" aria-pressed="true">
+		Nur zeitlich
+		<small>deine Wahl · betrifft heute 7 Wege</small>
+	</button>
+	<button type="button" data-regel="beides" aria-pressed="false">
+		Zeitlich + Reisemittel
+		<small>zusätzlich „nur zu Fuß“ &amp; Co. · rund 90 Landwege</small>
+	</button>
+</div>
+
+<h2>1. Der Name auf der Karte <span class="proto-h2-hint">oben heute, unten der Vorschlag</span></h2>
+<div class="proto-mapstrip">
+	<svg id="strip-heute" viewBox="0 0 1000 84" preserveAspectRatio="xMidYMid meet" aria-label="Wegenamen wie heute"></svg>
+</div>
+<p class="proto-caption">Heute — alle drei Namen stehen aufrecht, die Einschränkung ist auf der Karte unsichtbar.</p>
+<div class="proto-mapstrip" style="margin-top: var(--space-12)">
+	<svg id="strip-neu" viewBox="0 0 1000 84" preserveAspectRatio="xMidYMid meet" aria-label="Wegenamen mit dem Vorschlag"></svg>
+</div>
+<p class="proto-caption" id="strip-neu-caption"></p>
+
+<h2>2. Die Infobox <span class="proto-h2-hint">der Kasten, den ein Besucher beim Klick auf den Weg sieht</span></h2>
+<div class="proto-cards" id="karten"></div>
+
+<h2>3. Was in den Daten steht <span class="proto-h2-hint">live gemessen an 6.041 Wegabschnitten</span></h2>
+<ul class="proto-datalist" id="datenliste"></ul>
+
+<p class="proto-foot" id="fussnote"></p>
+
+<script>
+/* ═══════════════════════════════════════════════════════════════════════════════════════════════
+   DIE DREI BEISPIELE -- 1:1 aus der Live-Kartenantwort (GET /api/app/map-features.php, 01.09.2026).
+   Nichts hiervon ist erfunden; die Fenster und die erlaubten Reisemittel stehen so in der Datenbank.
+   ═══════════════════════════════════════════════════════════════════════════════════════════════ */
+var BEISPIELE = [
+	{
+		name: "Saljethweg",
+		subtype: "Gebirgspass",
+		art: "Pass",
+		lage: "Svelltland, Finsterkamm, Markgrafschaft Greifenfurt",
+		laenge: "",
+		durch: "Finsterkamm, Greifenfurter Wald",
+		abschnitte: 7,
+		fenster: { vonTag: 15, vonMonat: "peraine", bisTag: 30, bisMonat: "efferd" },
+		nurMittel: [],
+		daten: "7 Abschnitte (Pfad, Straße, Gebirgspass). Fenster <code>Peraine 15 &ndash; Efferd 30</code>. "
+			+ "<strong>2 der 7 Abschnitte tragen kein Fenster</strong> &mdash; Altbestand von vor der Weitergabe an alle Abschnitte."
+	},
+	{
+		name: "Schattenbachpass",
+		subtype: "Gebirgspass",
+		art: "Pass",
+		lage: "Nordaventurien: Finsterkamm",
+		laenge: "",
+		durch: "Finsterkamm",
+		abschnitte: 9,
+		fenster: null,
+		nurMittel: ["zu Fuß"],
+		daten: "9 Abschnitte. <strong>Kein Zeitfenster.</strong> Drei Gebirgspass-Abschnitte erlauben nur "
+			+ "<code>groupFoot</code> + <code>lightWalker</code> (zu Fuß). Wiki: &bdquo;Er ist nur zu Fuß nutzbar.&ldquo;"
+	},
+	{
+		name: "Rabenpass",
+		subtype: "Gebirgspass",
+		art: "Pass",
+		lage: "Nordaventurien: Gelbe Sichel",
+		laenge: "23 Meilen",
+		durch: "Gelbe Sichel",
+		abschnitte: 1,
+		fenster: { vonTag: 1, vonMonat: "peraine", bisTag: 30, bisMonat: "travia" },
+		nurMittel: [],
+		daten: "1 Abschnitt, alle sechs Landreisemittel erlaubt. Fenster <code>Peraine 1 &ndash; Travia 30</code>. "
+			+ "Der saubere Fall: ein Abschnitt, ein Fenster, keine Lücke."
+	}
+];
+
+/* Die zwölf Monatsnamen. 🔴 Live kommen sie NICHT aus einer Liste wie dieser, sondern aus dem
+   <select id="travelStartMonth"> des Routenplaners -- die Hausregel gegen eine zweite Wahrheit
+   (siehe review-path-seasons.js). Dieses <select> gibt es hier nicht, also steht die Liste
+   ausnahmsweise da; im Produktivcode wird sie NICHT so gebaut. */
+var MONATE = {
+	praios: "Praios", rondra: "Rondra", efferd: "Efferd", travia: "Travia",
+	boron: "Boron", hesinde: "Hesinde", firun: "Firun", tsa: "Tsa",
+	phex: "Phex", peraine: "Peraine", ingerimm: "Ingerimm", rahja: "Rahja"
+};
+
+var regel = "zeit";
+
+/* ---- Die EINE Regel: ist dieser Weg eingeschränkt, und wie lautet der Satz dazu? -------------
+   Im Produktivcode steht genau das an EINER Stelle und wird von beiden Anzeigen gerufen
+   (Kartenschrift + Infobox). Hier ist es ebenfalls eine Funktion, damit das Mockup nicht zeigen
+   kann, was der Code nicht kann. */
+function einschraenkung(bsp) {
+	if (bsp.fenster) {
+		var f = bsp.fenster;
+		return {
+			betroffen: true,
+			satz: "Nur vom " + f.vonTag + ". " + MONATE[f.vonMonat] + " bis zum " + f.bisTag + ". " + MONATE[f.bisMonat]
+				+ " befahrbar, sonst gesperrt."
+		};
+	}
+	if (regel === "beides" && bsp.nurMittel.length) {
+		return {
+			betroffen: true,
+			satz: "Nur " + bsp.nurMittel.join(" und ") + "; für Kutschen, Karren und Reittiere gesperrt."
+		};
+	}
+	return { betroffen: false, satz: "" };
+}
+
+/* ---- Die Schrift der Wegenamen: die ECHTE Regel, nicht nachgebaut --------------------------- */
+var STILQUELLE = "unbekannt";
+function labelStil(subtype) {
+	if (typeof getPathLabelStyle === "function") {
+		STILQUELLE = "echt";
+		return getPathLabelStyle({ properties: { feature_subtype: subtype } });
+	}
+	STILQUELLE = "ersatz";
+	return null;
+}
+
+function zeichneStreifen(svg, kursivWennBetroffen) {
+	svg.innerHTML = "";
+	var NS = "http://www.w3.org/2000/svg";
+	var breite = 1000, spalte = breite / BEISPIELE.length;
+	BEISPIELE.forEach(function (bsp, i) {
+		var stil = labelStil(bsp.subtype);
+		var mitte = spalte * i + spalte / 2;
+		/* Ein Stück Wegelinie unter dem Namen, damit er nicht im Nichts steht. */
+		var linie = document.createElementNS(NS, "path");
+		linie.setAttribute("d", "M" + (mitte - 140) + " 58 q 70 -13 140 0 t 140 0");
+		linie.setAttribute("fill", "none");
+		linie.setAttribute("stroke", stil ? stil.fill : "#e0a090");
+		linie.setAttribute("stroke-width", "2.4");
+		linie.setAttribute("stroke-opacity", "0.5");
+		svg.appendChild(linie);
+
+		var t = document.createElementNS(NS, "text");
+		t.setAttribute("x", String(mitte));
+		t.setAttribute("y", "44");
+		t.setAttribute("text-anchor", "middle");
+		t.setAttribute("class", "path-name-text path-name-text--" + bsp.subtype);
+		if (stil) {
+			t.setAttribute("fill", stil.fill);
+			t.setAttribute("stroke", stil.stroke);
+			t.setAttribute("stroke-width", stil.strokeWidth);
+			t.setAttribute("paint-order", stil.paintOrder);
+			t.style.fontFamily = stil.fontFamily;
+			/* ⚠️ Auf der Karte wächst die Schrift mit dem Zoom; hier fest vergrößert, damit der
+			   Unterschied aufrecht/kursiv auf dem Bildschirm überhaupt zu sehen ist. */
+			t.style.fontSize = (parseFloat(stil.fontSize) * 2.2) + "px";
+			t.style.fontWeight = stil.fontWeight;
+			t.style.letterSpacing = stil.letterSpacing;
+		}
+		if (kursivWennBetroffen && einschraenkung(bsp).betroffen) { t.style.fontStyle = "italic"; }
+		t.textContent = bsp.name;
+		svg.appendChild(t);
+	});
+}
+
+/* ---- Die Infobox-Karten -------------------------------------------------------------------- */
+function zeile(dt, dd) {
+	if (!dd) { return ""; }
+	return '<div class="region-info-box__row"><dt>' + dt + "</dt><dd>" + dd + "</dd></div>";
+}
+
+function zeichneKarten() {
+	document.getElementById("karten").innerHTML = BEISPIELE.map(function (bsp) {
+		var e = einschraenkung(bsp);
+		var flagge = e.betroffen
+			? '<span class="proto-flag proto-flag--on">kursiv + Zeile „Einschränkungen“</span>'
+			: '<span class="proto-flag">unverändert &mdash; keine Kennzeichnung</span>';
+		var rows = "";
+		rows += zeile("Lage", bsp.lage);
+		rows += zeile("Länge", bsp.laenge);
+		/* 🔴 DIE NEUE ZEILE. Sie steht bewusst NACH „Lage/Länge“ und VOR „Führt durch“ --
+		   keine eigene Umrandung, sondern eine Zeile im vorhandenen Angabenblock (AGENTS.md §12:
+		   gruppieren über Trennlinien, nicht über Rahmen). */
+		rows += e.betroffen ? zeile("Einschränkungen", "<strong>" + e.satz + "</strong>") : "";
+		rows += zeile("Führt durch", bsp.durch);
+		return ''
+			+ '<div class="proto-card">'
+			+   "<h3>" + bsp.name + "</h3>"
+			+   '<p class="proto-sub">' + bsp.art + " · " + bsp.abschnitte + " Abschnitte auf der Karte</p>"
+			+   flagge
+			+   '<div class="proto-popup"><div class="location-popup">'
+			+     '<div class="region-info-box region-info-box--settlement">'
+			+       '<dl class="region-info-box__data">' + rows + "</dl>"
+			+     "</div>"
+			+   "</div></div>"
+			+ "</div>";
+	}).join("");
+}
+
+function zeichneDaten() {
+	document.getElementById("datenliste").innerHTML = BEISPIELE.map(function (bsp) {
+		return "<li><strong>" + bsp.name + "</strong> &mdash; " + bsp.daten + "</li>";
+	}).join("") + "<li>Insgesamt tragen <strong>38 Abschnitte in 7 Wegen</strong> ein Zeitfenster. "
+		+ "Reisemittel-Sperren auf Landwegen gibt es an rund <strong>90</strong> weiteren "
+		+ "(dazu 564 Flussabschnitte, die hier bewusst außen vor bleiben).</li>";
+}
+
+function alles() {
+	zeichneStreifen(document.getElementById("strip-heute"), false);
+	zeichneStreifen(document.getElementById("strip-neu"), true);
+	zeichneKarten();
+	var betroffen = BEISPIELE.filter(function (b) { return einschraenkung(b).betroffen; })
+		.map(function (b) { return b.name; });
+	document.getElementById("strip-neu-caption").textContent =
+		"Vorschlag — kursiv steht: " + (betroffen.length ? betroffen.join(", ") : "keiner der drei") + ".";
+	document.getElementById("fussnote").textContent = STILQUELLE === "echt"
+		? "✔ Schriftfarbe, Schriftart und Halo der Wegenamen kommen aus der echten getPathLabelStyle() (js/map-features/map-features-path-labels.js) — nicht nachgebaut."
+		: "✘ ACHTUNG: getPathLabelStyle() ließ sich nicht laden — die Namen oben zeigen NICHT die echte Kartenschrift. Diesem Mockup ist an dieser Stelle nicht zu trauen.";
+}
+
+Array.prototype.forEach.call(document.querySelectorAll(".proto-switch button"), function (b) {
+	b.addEventListener("click", function () {
+		regel = b.getAttribute("data-regel");
+		Array.prototype.forEach.call(document.querySelectorAll(".proto-switch button"), function (o) {
+			o.setAttribute("aria-pressed", String(o === b));
+		});
+		alles();
+	});
+});
+
+zeichneDaten();
+alles();
+</script>
+</body>
+</html>

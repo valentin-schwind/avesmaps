@@ -3,6 +3,8 @@ function addCreatedPathFeature(feature) {
 	const pathLayer = createPathLayer(path);
 	pathData.push(path);
 	pathLayers.push(pathLayer);
+	// Der Bestand der Wege hat sich geändert -> das Urteil „eingeschränkt befahrbar" neu rechnen.
+	avesmapsWegEinschraenkungNeuRechnen();
 	$("#togglePaths").prop("checked", true);
 	syncPathVisibility();
 	syncPathTransportOptions({ path });
@@ -26,6 +28,7 @@ function applyLivePathFeature(feature) {
 	const pathLayer = createPathLayer(newPath);
 	pathData.push(newPath);
 	pathLayers.push(pathLayer);
+	avesmapsWegEinschraenkungNeuRechnen();
 	syncPathVisibility();
 }
 
@@ -60,6 +63,10 @@ function applyPathFeatureResponse(path, feature) {
 		original_name: displayName,
 		feature_subtype: pathSubtype,
 	};
+	// 💣 HIER landen gespeicherte Eigenschaften auf einem bestehenden Weg -- auch `transport_seasons`
+	// und `allowed_transports`. Ohne dieses Verwerfen bliebe ein frisch gesetztes Fenster unsichtbar,
+	// bis jemand neu lädt, und der Editor hielte das für einen verlorenen Speichervorgang.
+	avesmapsWegEinschraenkungNeuRechnen();
 	updatePathLayerGeometry(path);
 	updatePathLayerStyle(path);
 	refreshPathLayerPopup(path);
@@ -74,6 +81,7 @@ function removePathFeature(path) {
 		map.removeLayer(path._pathLabelLine);
 	}
 	pathData = pathData.filter((entry) => entry !== path);
+	avesmapsWegEinschraenkungNeuRechnen();
 	pathLayers = pathLayers.filter((layer) => layer !== path._layerGroup);
 	refreshPlannerAfterFeatureChange({ updateRoute: true });
 }

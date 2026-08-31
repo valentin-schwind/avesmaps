@@ -781,7 +781,7 @@
 			if (pts[pts.length - 1].x < pts[0].x) {
 				pts = pts.slice().reverse();
 			}
-			ctx.font = `${style.fontWeight || "400"} ${fontSize}px ${style.fontFamily}`;
+			ctx.font = avesmapsPathLabelFontString(style, fontSize);
 			const chars = [...name];
 			const widths = chars.map((c) => ctx.measureText(c).width);
 			let halo = { glow: null, blur: 0, strokeW: 0 };
@@ -937,7 +937,7 @@
 						return;
 					}
 
-					ctx.font = `${style.fontWeight || "400"} ${fontSize}px ${style.fontFamily}`;
+					ctx.font = avesmapsPathLabelFontString(style, fontSize);
 					const chars = [...group.name];
 					const widths = chars.map((c) => ctx.measureText(c).width);
 					const textLen = widths.reduce((s, w) => s + w + ls, 0) - ls;

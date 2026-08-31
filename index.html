@@ -3679,6 +3679,10 @@
 		<script src="js/map-features/map-features-label-occupancy.js"></script>
 		<script src="js/map-features/map-features-label-collisions.js"></script>
 		<script src="js/map-features/map-features-path-domain.js"></script>
+		<!-- 🔴 NACH path-domain.js: die Regel „eingeschränkt befahrbar" liest dessen
+		     resolvePathAllowedTransports. VOR path-labels.js und path-rendering.js, die beide
+		     ihr Urteil erfragen (kursiver Name bzw. Zeile „Einschränkungen"). -->
+		<script src="js/map-features/path-einschraenkung.js"></script>
 		<script src="js/map-features/map-features-path-labels.js"></script>
 		<script src="js/map-features/map-features-canvas-vectors.js"></script>
 		<script src="js/map-features/map-features-path-item-links.js"></script>

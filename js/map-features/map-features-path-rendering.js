@@ -69,6 +69,17 @@ function pathWikiInfoboxMarkup(path) {
 	let rows = "";
 	rows += lageHtml ? rowHtml("Lage", lageHtml) : row("Lage", wiki.lage);
 	rows += row("Länge", wiki.laenge);
+	// 🔴 „Eingeschränkt befahrbar" (Owner 01.09.2026) -- dieselbe Regel, die auf der Karte den Namen
+	// kursiv setzt (avesmapsWegEinschraenkungFuerPfad, gelesen in getPathLabelStyle). Zwei Anzeigen,
+	// eine Regel; liefe hier eine zweite, stünde irgendwann ein kursiver Name ohne Zeile da.
+	// ⚠️ Der Plural ist Owner-Wort: es können zwei Aussagen sein (Zeitfenster UND Reisemittel).
+	// ⚠️ Die Monatsnamen kommen über routePlanMonthLabel aus dem <select> des Routenplaners -- es gibt
+	// nur EINE Liste der zwölf Monate, und die steht im Markup (AGENTS.md §2).
+	if (typeof avesmapsWegEinschraenkungFuerPfad === "function") {
+		const einschraenkung = avesmapsWegEinschraenkungFuerPfad(path);
+		const monatsName = typeof routePlanMonthLabel === "function" ? routePlanMonthLabel : null;
+		rows += row("Einschränkungen", avesmapsWegEinschraenkungSatz(einschraenkung, monatsName));
+	}
 	// „Verlauf" im Deckel, wenn er lang ist. ⚠️ Der Rückfall ist zweistufig und beide Stufen tragen:
 	// ohne Fly-to-Links (Seeweg) gibt es kein verlaufHtml und die escapende `row` übernimmt; ohne das
 	// Bauteil liefert pathVerlaufLidMarkup "" und es bleibt bei der Zeile von vorher.

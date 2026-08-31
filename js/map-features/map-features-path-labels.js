@@ -166,6 +166,23 @@ function getPathLabelHaloParams(strength, sharpness, fontSize) {
 	};
 }
 
+/*
+ * Die Schriftzeile eines Wegenamens für den Canvas -- der EINZIGE Erzeuger.
+ *
+ * 💣 Es gab zwei. Das Overlay setzte `ctx.font` für Wegenamen und für Flussketten getrennt zusammen,
+ * beide Male aus Gewicht, Größe und Familie. Als am 01.09.2026 `fontStyle` dazukam, hätten beide es
+ * still verschluckt: der SVG-Rückfall (den kaum jemand sieht) wäre kursiv geworden, die echte
+ * Karte nicht. Eine Regel, die einen von zwei Erzeugern bindet, ist keine Regel.
+ *
+ * ⚠️ Die Größe kommt als Parameter, NICHT aus dem Stilobjekt: das Overlay verkleinert die Schrift,
+ * wenn ein Name sonst nicht in seinen Bogen passt, und setzt `ctx.font` je Fenster neu.
+ */
+function avesmapsPathLabelFontString(style, fontSize) {
+	const stil = style && style.fontStyle ? style.fontStyle : "normal";
+	const gewicht = (style && style.fontWeight) || "400";
+	return `${stil} ${gewicht} ${fontSize}px ${style ? style.fontFamily : ""}`;
+}
+
 function getPathLabelStyle(path) {
 	const pathSubtype = normalizePathSubtype(path.properties?.feature_subtype || path.properties?.name);
 	const fillColors = {
@@ -189,6 +206,13 @@ function getPathLabelStyle(path) {
 	);
 	return {
 		fill: fillColors[pathSubtype] || fillColors.Weg,
+		// 🔴 KURSIV = eingeschränkt befahrbar (Owner 01.09.2026). Die Frage stellt diese Datei nicht
+		// selbst: avesmapsWegEinschraenkungFuerPfad ist DIESELBE Regel, die auch die Infobox liest.
+		// ⚠️ Immer ein Wert, nie undefined -- `avesmapsPathLabelFontString` setzt ihn ungeprüft in die
+		// CSS-Kurzschreibweise, und ein "undefined" darin macht die ganze Schriftzeile ungültig
+		// (der Canvas fällt dann still auf 10px sans-serif zurück).
+		fontStyle: (typeof avesmapsWegEinschraenkungFuerPfad === "function"
+			&& avesmapsWegEinschraenkungFuerPfad(path)) ? "italic" : "normal",
 		stroke: halo.stroke,
 		strokeWidth: halo.strokeWidth,
 		paintOrder: halo.paintOrder,

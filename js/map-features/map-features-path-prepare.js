@@ -26,6 +26,10 @@ const preparePathData = (data) => {
 	pathData = data.features
 		.filter((feature) => feature.geometry.type === "LineString" && feature.properties?.feature_type !== "powerline")
 		.map((feature, idx) => normalizeRoutePathFeature(feature, idx + 1));
+	// 🔴 VOR dem Bauen der Layer: createPathLayer hängt jedem Weg sein fertiges Popup an, und darin
+	// steht die Zeile „Einschränkungen". Die fragt den Gruppen-Index, der sich hier aus dem gerade
+	// zugewiesenen pathData aufbaut -- ein Index aus dem VORHERIGEN Bestand wäre still falsch.
+	avesmapsWegEinschraenkungNeuRechnen();
 	pathData.forEach((path) => {
 		pathLayers.push(createPathLayer(path));
 	});
