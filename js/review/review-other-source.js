@@ -8,8 +8,13 @@
 //   #<prefix>-other-source-url     (URL input)
 //   #<prefix>-other-source-label   (optional link text)
 //   #<prefix>-other-source-preview (host for the preview anchor)
-// The field is shown ONLY when NO wiki entry is assigned -- a wiki source always takes
-// precedence and hides (but does not erase) the "Andere Quelle" value.
+// 🔴 Das Feld steht IMMER zur Verfuegung (Owner 31.08.2026: „man kann andere quellen
+// hinzufuegen, selbst wenn es eine wiki-quelle gibt"). Bis dahin galt ein Entweder-Oder --
+// zugewiesenes Wiki blendete den Abschnitt aus --, und das war tote Rechtsprechung aus der Zeit
+// VOR dem Mehrquellen-System (`sources` + `feature_sources`, AGENTS.md §5), in dem ein Objekt
+// beliebig viele Quellen traegt.
+// ⚠️ Fuer den Benutzer war es nicht als Regel erkennbar, sondern als Zufall: der Abschnitt war
+// mal da und mal nicht, je nachdem ob am Objekt ein Wiki-Artikel hing.
 
 function otherSourceElement(prefix, suffix) {
 	return document.getElementById(prefix + "-other-source-" + suffix);
@@ -68,15 +73,6 @@ function writeOtherSourceToForm(prefix, value) {
 	renderOtherSourcePreview(prefix);
 }
 
-// Show the "Andere Quelle" section only when no wiki entry is assigned.
-function toggleOtherSourceSection(prefix, hasWiki) {
-	const section = otherSourceElement(prefix, "section");
-	if (section) {
-		section.hidden = Boolean(hasWiki);
-	}
-	renderOtherSourcePreview(prefix);
-}
-
 // Small live preview of the resulting link below the inputs.
 function renderOtherSourcePreview(prefix) {
 	const host = otherSourceElement(prefix, "preview");
@@ -111,4 +107,3 @@ document.addEventListener("input", (event) => {
 
 window.readOtherSourceFromForm = readOtherSourceFromForm;
 window.writeOtherSourceToForm = writeOtherSourceToForm;
-window.toggleOtherSourceSection = toggleOtherSourceSection;

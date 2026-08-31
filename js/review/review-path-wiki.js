@@ -234,14 +234,12 @@ function pathWikiFeldZuruecksetzen(wikiWert) {
 // Zuweisen (serverseitig, in `assign_to` -- gezaehlt in weg-wiki-no-article-test.php, nicht
 // aufgezaehlt). Ein Weg mit Artikel UND Merker ist von hier aus unerreichbar.
 
-// Was neben dem Zuweisungskasten am Zustand haengt: der Quellen-Abschnitt („Andere Quelle" gibt es
-// nur ohne Wiki-Weg), die Namenssperre (R1) und die Zeile „Weg anzeigen" (Way-Labels beschriften
-// zugewiesene Wege selbst).
+// Was neben dem Zuweisungskasten am Zustand haengt: die Namenssperre (R1) und die Zeile „Weg
+// anzeigen" (Way-Labels beschriften zugewiesene Wege selbst).
+// 🔴 „Andere Quelle" haengt NICHT mehr daran (Owner 31.08.2026): der Abschnitt steht immer, ein
+// Objekt darf beliebig viele Quellen tragen. Siehe den Kopf von js/review/review-other-source.js.
 function pathWikiSyncNachbarn() {
 	const hasWikiPath = Boolean(pathWikiCurrentAssignment());
-	if (typeof toggleOtherSourceSection === "function") {
-		toggleOtherSourceSection("path-edit", hasWikiPath);
-	}
 	const showLabelField = pathWikiElement("path-edit-show-label")?.closest("label");
 	if (showLabelField) {
 		showLabelField.hidden = hasWikiPath;

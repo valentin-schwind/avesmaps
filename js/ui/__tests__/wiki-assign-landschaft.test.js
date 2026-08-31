@@ -1257,7 +1257,7 @@ function sandkastenBauen(dateien, felder, behaelterIds, fetchAntwort, zusatz) {
 			if (url.indexOf("action=staging_sample") !== -1) { return { ok: true, rows: [SUCHZEILE] }; }
 			return { ok: true, count: 1, rows: [SUCHZEILE] };
 		},
-		{ toggleOtherSourceSection: () => {} });
+		{});
 	const labelHost = kLabel.elemente["label-wiki-assign-host"];
 
 	// 🔴 Ueber den ECHTEN Trichter: `setLabelWikiRegion` ist, was der Dialog beim Oeffnen ruft

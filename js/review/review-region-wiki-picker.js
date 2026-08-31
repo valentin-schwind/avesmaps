@@ -184,7 +184,6 @@ function territoryWikiAssignZuweisen(treffer) {
 		territoryWikiModell || avesmapsWikiAssignTerritoriumModell([], false)
 	);
 	syncRegionCoatPreview();
-	toggleTerritoryOtherSourceSection(true);
 }
 
 /** Die Staatsform aus dem Wiki setzen -- mit der Nachtrags-Option, die der alte Picker auch hatte. */
@@ -210,7 +209,6 @@ function territoryWikiAssignLoesen() {
 		adresse.value = "";
 	}
 	territoryWikiEltern = { name: "", public_id: "", gesperrt: false, grund: "" };
-	toggleTerritoryOtherSourceSection(false);
 }
 
 /**
@@ -244,15 +242,6 @@ function territoryWikiAssignVerwerfen() {
 	// folgenden `neuLaden()` neu -- hier steht er nur auf einen unverfänglichen Anfangswert.
 	territoryWikiEltern = { name: "", public_id: "", gesperrt: true, grund: "" };
 	syncRegionCoatPreview();
-	toggleTerritoryOtherSourceSection(territoryWikiFelderGeladen.wiki_id !== "");
-}
-
-// „Andere Quelle" ist nur sichtbar, solange KEINE Wiki-Zuweisung besteht -- dieselbe Regel wie in
-// jedem anderen Editor des Hauses (js/review/review-other-source.js).
-function toggleTerritoryOtherSourceSection(hatWiki) {
-	if (typeof toggleOtherSourceSection === "function") {
-		toggleOtherSourceSection("region-edit", hatWiki === true);
-	}
 }
 
 /**

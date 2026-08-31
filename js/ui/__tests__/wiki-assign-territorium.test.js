@@ -576,7 +576,7 @@ const MODELL_ANTWORT = { ok: true, nodes: MODELL_KNOTEN };
 		"die Zuweisung schrieb die wiki_id nicht -- ohne sie speichert `update_territory` nichts");
 	assert.strictEqual(frisch.elemente["region-edit-wiki-url"].value, WIKI_LISTE[0].wiki_url);
 	assert.strictEqual(frisch.elemente["region-edit-coat-url"].value, WIKI_LISTE[0].coat_of_arms_url);
-	assert.deepStrictEqual(frisch.gerufen.quelle.slice(-1), [true], '„Andere Quelle" blieb sichtbar');
+	assert.deepStrictEqual(frisch.gerufen.quelle, [], "kein Schalten von „Andere Quelle“ -- der Abschnitt steht seit dem 31.08.2026 immer");
 	zaehl(); zaehl(); zaehl(); zaehl(); zaehl(); zaehl();
 
 	// ── F2) 🔴 DIE SUCHBREITE: EIN GEBIET, DAS NUR UEBER EIN NICHT-NAMENSFELD ZU FINDEN IST ──
@@ -645,7 +645,7 @@ const MODELL_ANTWORT = { ok: true, nodes: MODELL_KNOTEN };
 	await ruhe();
 	assert.strictEqual(frisch.elemente["region-edit-wiki-id"].value, "");
 	assert.strictEqual(frisch.elemente["region-edit-wiki-url"].value, "");
-	assert.deepStrictEqual(frisch.gerufen.quelle.slice(-1), [false]);
+	assert.deepStrictEqual(frisch.gerufen.quelle, [], "auch das Entfernen der Zuweisung schaltet ihn nicht");
 	zaehl(); zaehl(); zaehl();
 
 	// ── G) DAS ABGELOESTE FENSTER IST WIRKLICH WEG -- GEZAEHLT, NICHT AUFGESCHRIEBEN ─────────

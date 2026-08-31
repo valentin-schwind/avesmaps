@@ -1103,8 +1103,7 @@ const trefferProbe = avesmapsWikiAssignWegTreffer(zeile);
 		+ "function apiErrorMessage(d, f) { return (d && d.error && d.error.message) || f; }"
 		+ "function showFeedbackToast() {}"
 		+ "function findPathByPublicId() { return null; }"
-		+ "function toggleOtherSourceSection() {}"
-		+ "function syncPathAutoNameControls() {}"
+				+ "function syncPathAutoNameControls() {}"
 		+ "function renderPathFlowSection() {}"
 		+ "function setPathEditStatus() {}"
 		+ "function syncPathLabels() {}"
@@ -1179,7 +1178,7 @@ const trefferProbe = avesmapsWikiAssignWegTreffer(zeile);
 	const kNein = sandkastenBauen(() => ({ ok: true, type_ok: false, applied: 0, message: "Typ passt nicht." }));
 	vm.runInContext("var pathEditFeature = { properties: { public_id: 'path-7', feature_subtype: 'Strasse' } };"
 		+ "function apiErrorMessage(d, f) { return f; } function showFeedbackToast() {}"
-		+ "function findPathByPublicId() { return null; } function toggleOtherSourceSection() {}"
+		+ "function findPathByPublicId() { return null; }"
 		+ "function syncPathAutoNameControls() {} function renderPathFlowSection() {}"
 		+ "function setPathEditStatus() {} function syncPathLabels() {} function refreshPathLayerPopup() {}", kNein.kasten);
 	vm.runInContext(fs.readFileSync(path.join(wurzel, "js/review/review-path-wiki.js"), "utf8"), kNein.kasten,
@@ -1301,8 +1300,7 @@ const trefferProbe = avesmapsWikiAssignWegTreffer(zeile);
 		+ "function apiErrorMessage(d, f) { return f; }"
 		+ "function showFeedbackToast() {}"
 		+ "function findPathByPublicId() { return null; }"
-		+ "function toggleOtherSourceSection() {}"
-		+ "function syncPathAutoNameControls() {}"
+				+ "function syncPathAutoNameControls() {}"
 		+ "function renderPathFlowSection() {}"
 		+ "var letzterStatus = '';"
 		+ "function setPathEditStatus(t) { letzterStatus = String(t || ''); }"

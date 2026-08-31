@@ -104,7 +104,6 @@ function setLabelWikiRegion(wiki, keinArtikel, fieldOrigins) {
 	labelWikiFieldOrigins = fieldOrigins && typeof fieldOrigins === "object" ? fieldOrigins : null;
 	labelWikiUebernommen = new Set();
 	letzterLabelWikiArtikel = null;
-	toggleLabelOtherSourceSection();
 	mountLabelWikiAssign();
 }
 
@@ -127,7 +126,6 @@ function resetLabelWikiState() {
 	labelWikiFieldOrigins = null;
 	labelWikiUebernommen = new Set();
 	letzterLabelWikiArtikel = null;
-	toggleLabelOtherSourceSection();
 	mountLabelWikiAssign();
 }
 
@@ -150,14 +148,6 @@ function getLabelWikiNoArticlePayload() {
 	}
 	const stand = labelWikiAssign.lies();
 	return stand && stand.kein_artikel_geaendert === true ? stand.kein_artikel === true : null;
-}
-
-// „Andere Quelle" ist nur sichtbar, solange KEINE Wiki-Landschaft zugewiesen ist -- dieselbe Regel
-// wie in jedem anderen Editor des Hauses (review-other-source.js).
-function toggleLabelOtherSourceSection() {
-	if (typeof toggleOtherSourceSection === "function") {
-		toggleOtherSourceSection("label-edit", Boolean(currentLabelWikiRegion));
-	}
 }
 
 /**
@@ -349,14 +339,12 @@ function labelWikiAssignZuweisen(treffer) {
 	}).artikel || null;
 	labelWikiZeichneAbweichungen();
 	labelWikiSchnappschuss = roh;
-	toggleLabelOtherSourceSection();
 	labelWikiKategorieAusArt(roh.art);
 }
 
 function labelWikiAssignLoesen() {
 	currentLabelWikiRegion = null;
 	labelWikiSchnappschuss = null;
-	toggleLabelOtherSourceSection();
 }
 
 /**
@@ -376,7 +364,6 @@ function labelWikiAssignVerwerfen() {
 	// 💣 Auf `null`, nicht auf einen gemerkten Schnappschuss: `labelWikiAssignZustand` holt ihn selbst
 	// nach, sobald der Schlüssel wieder steht.
 	labelWikiSchnappschuss = null;
-	toggleLabelOtherSourceSection();
 }
 
 /**
