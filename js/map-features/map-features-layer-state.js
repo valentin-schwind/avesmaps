@@ -101,7 +101,12 @@ function applyPlannerStateFromUrl() {
 	setSelectedMapLayerMode(searchParams.get("mapLayerMode") || legacyPoliticalMode);
 	// Frontend: Sichtbarkeits-Defaults des aktiven Modus anwenden (Standard zeigt Städte/Straßen/Flussnamen, "Nur
 	// Karte" räumt frei). Städte nur erzwingen, wenn der Deep-Link keine eigenen Stadt-Parameter mitbringt.
-	const hasExplicitCityParam = LOCATION_TYPE_KEYS.some((locationType) => searchParams.has(LOCATION_TYPE_CONFIG[locationType].queryParam)) || searchParams.has("toggleLocations");
+	// ⚠️ Nur Klassen MIT eigenem Schalter haben einen Parameter (`folgtSchalter` in js/config.js);
+	// ohne die Prüfung fragte `searchParams.has(undefined)` nach einem Parameter namens "undefined".
+	const hasExplicitCityParam = LOCATION_TYPE_KEYS.some((locationType) => {
+		const param = LOCATION_TYPE_CONFIG[locationType].queryParam;
+		return param ? searchParams.has(param) : false;
+	}) || searchParams.has("toggleLocations");
 	if (typeof applyFrontendLayerModeDefaults === "function") {
 		applyFrontendLayerModeDefaults(getSelectedMapLayerMode(), { includeCities: !hasExplicitCityParam });
 	}
@@ -293,6 +298,11 @@ function buildPlannerSearchParams() {
 
 	LOCATION_TYPE_KEYS.forEach((locationType) => {
 		const config = LOCATION_TYPE_CONFIG[locationType];
+		// 💣 Eine Klasse ohne eigenen Schalter hat nichts mitzuteilen -- ohne diesen Riegel schriebe
+		// `searchParams.set(undefined, …)` einen Parameter, der wörtlich "undefined" heißt.
+		if (!config.queryParam) {
+			return;
+		}
 		const isVisible = isLocationTypeVisible(locationType);
 		if (isVisible !== DEFAULT_PLANNER_STATE[config.queryParam]) {
 			searchParams.set(config.queryParam, isVisible ? "1" : "0");

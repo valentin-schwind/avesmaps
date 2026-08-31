@@ -78,12 +78,12 @@ assert.strictEqual((menue[0].match(/class="location-toggle"/g) || []).length, kl
 	"und alle stehen im Anzeige-Menue");
 
 // 💣 Faengt: die Reihenfolge wird beim Umzug vertauscht. js/app/keyboard-shortcuts.js:290 nimmt
-// document.querySelectorAll(".location-toggle") und trifft mit den Ziffern 1..7 die n-te in
+// document.querySelectorAll(".location-toggle") und trifft mit den Ziffern 1..6 die n-te in
 // DOM-Reihenfolge -- bewusst, weil gezaehlt wird, was der Besucher sieht. Ein Tausch legt damit
 // stumm die Tastenbelegung um und sieht im Quelltext harmlos aus.
 const reihenfolge = [...menue[0].matchAll(/data-location-type="([a-z]+)"/g)].map((m) => m[1]);
 assert.deepStrictEqual(reihenfolge,
-	["metropole", "grossstadt", "stadt", "kleinstadt", "dorf", "gebaeude", "stadtviertel"],
+	["metropole", "grossstadt", "stadt", "kleinstadt", "dorf", "gebaeude"],
 	"in unveraenderter Reihenfolge -- die Zifferntasten zaehlen sie");
 
 // ---- Die Derographie-Zeile bleibt, wo sie ist -----------------------------------------------------

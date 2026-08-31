@@ -1133,8 +1133,18 @@ syncDistanceMeasurementContextMenuAction();
 updateLocationReportDialogAvailability();
 preloadPoliticalTerritoryOptions();
 
+// 🔴 Eine Ortsklasse ohne eigenen Knopf folgt dem einer anderen (`folgtSchalter` in js/config.js).
+// Heute betrifft das `stadtviertel`, das sich wie „Besondere Bauwerke/Stätten" verhalten soll.
+// 💣 Die Auflösung gehört HIERHIN und nirgendwo sonst: sechs Stellen fragen über
+// isLocationTypeVisible() nach der Sichtbarkeit, und ein leeres jQuery-Ergebnis sagt `false` --
+// die Klasse wäre lautlos unsichtbar statt „wie ein Bauwerk".
+function resolveLocationToggleType(locationType) {
+    const config = LOCATION_TYPE_CONFIG[locationType];
+    return (config && config.folgtSchalter) || locationType;
+}
+
 function getLocationToggleButton(locationType) {
-    return $(`.location-toggle[data-location-type="${locationType}"]`);
+    return $(`.location-toggle[data-location-type="${resolveLocationToggleType(locationType)}"]`);
 }
 
 function isLocationTypeVisible(locationType) {

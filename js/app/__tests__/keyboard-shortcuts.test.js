@@ -74,8 +74,7 @@ function loadModule({ mapContainerClasses = [], dialogs = [], picking = null } =
 	const mapContainer = makeElement([]);
 	mapContainerClasses.forEach((name) => mapContainer.classList.add(name));
 
-	// Sieben Ortsklassen seit 31.08.2026 (stadtviertel) -- so viele Knoepfe stehen im Anzeige-Menue.
-	const locationButtons = [0, 1, 2, 3, 4, 5, 6].map((index) =>
+	const locationButtons = [0, 1, 2, 3, 4, 5].map((index) =>
 		makeElement([], { click() { log.locationClicks.push(index); } }));
 
 	const layerOptions = {
@@ -341,16 +340,16 @@ check("die schon gewaehlte Ansicht loest nichts aus", () => {
 	assert.deepStrictEqual(t.log.layerModeSets, []);
 });
 
-// 🔴 SEIT 31.08.2026 SIEBEN: `stadtviertel` kam als Ortsklasse dazu (Owner, Garetien-Import), und
-// die Ziffer trifft die n-te .location-toggle in DOM-Reihenfolge. Hier stand "7 gehoert uns nicht" --
-// haette niemand die Zeile mitgezogen, waere die neue Klasse die EINZIGE ohne Tastenkuerzel gewesen,
-// und die Tabelle unter „Hinweise -> Bedienung" haette es nicht gesagt (sie wird aus SHORTCUTS gebaut).
-check("1 bis 7 klicken den n-ten Ortsklassen-Knopf, 8 gehoert uns nicht", () => {
+// 🪤 Kurz standen hier SIEBEN: `stadtviertel` war am 31.08.2026 als Ortsklasse mit eigenem Knopf
+// dazugekommen und am selben Tag wieder ohne (Owner). Gezaehlt werden die SCHALTER, nicht die
+// Klassen -- eine Klasse ohne eigenen Knopf hat keine Stufe. Wer das verwechselt, verschiebt die
+// ganze Ziffernbelegung um eins.
+check("1 bis 6 klicken den n-ten Ortsklassen-Knopf, 7 gehoert uns nicht", () => {
 	const t = loadModule();
-	["1", "2", "3", "4", "5", "6", "7"].forEach((key) => t.press(key));
-	assert.deepStrictEqual(t.log.locationClicks, [0, 1, 2, 3, 4, 5, 6]);
-	assert.strictEqual(t.press("8"), 0, "die 8 darf durchfallen -- es gibt sieben Klassen");
-	assert.deepStrictEqual(t.log.locationClicks, [0, 1, 2, 3, 4, 5, 6]);
+	["1", "2", "3", "4", "5", "6"].forEach((key) => t.press(key));
+	assert.deepStrictEqual(t.log.locationClicks, [0, 1, 2, 3, 4, 5]);
+	assert.strictEqual(t.press("7"), 0, "die 7 darf durchfallen -- es gibt sechs Schalter");
+	assert.deepStrictEqual(t.log.locationClicks, [0, 1, 2, 3, 4, 5]);
 });
 
 check("Pos 1 und Ende waehlen schnellste und kuerzeste Route", () => {

@@ -738,10 +738,21 @@ const LOCATION_TYPE_CONFIG = {
 	dorf: { label: "Dörfer", singularLabel: "Dorf", icon: "🏡", queryParam: "toggleDoerfer" },
 	gebaeude: { label: "Besondere Bauwerke/Stätten", singularLabel: "Besondere Bauwerke/Stätten", icon: "🏛️", queryParam: "toggleGebaeude" },
 	// 🔴 Die zweite BAUWERKSklasse (Owner 30.08.2026, Garetien-Import: „wie Gebäude, aber
-	// innerorts", 22 Objekte). Sie ist ausdrücklich KEIN Behälter -- was das für den Code heißt,
-	// steht in api/_internal/ortsklassen.php und js/ui/ortsklassen.js.
+	// innerorts"). Sie ist ausdrücklich KEIN Behälter -- was das für den Code heißt, steht in
+	// api/_internal/ortsklassen.php und js/ui/ortsklassen.js.
 	// ⚠️ Plural und Singular sind im Deutschen dasselbe Wort; das ist kein vergessenes Feld.
-	stadtviertel: { label: "Stadtviertel", singularLabel: "Stadtviertel", icon: "🏙️", queryParam: "toggleStadtviertel" },
+	//
+	// 🔴 KEIN EIGENER SCHALTER (Owner 31.08.2026: „kannst du den button stadtviertel im anzeige
+	// menü wieder rausnehmen"). Gedacht ist die Klasse als „Besondere Bauwerke/Stätten, aber
+	// innerorts" -- sie soll sich beim Ein- und Ausblenden wie ein Bauwerk verhalten, statt
+	// daneben zu stehen. `folgtSchalter` sagt genau das; getLocationToggleButton löst es auf.
+	// 💣 OHNE DIESE ZEILE WÄRE DIE KLASSE UNSICHTBAR, nicht etwa immer sichtbar:
+	// isLocationTypeVisible() liest die Sichtbarkeit AM KNOPF (`.hasClass("is-active")`), und ein
+	// leeres jQuery-Ergebnis sagt schlicht `false`. Kein Fehler, keine Meldung -- die Orte wären
+	// einfach nie da. Heute gibt es keine; wenn es welche gibt, fiele es niemandem als Fehler auf.
+	// ⚠️ Und deshalb auch KEIN `queryParam`: ein Schalter, den es nicht gibt, hat keinen Zustand zu
+	// teilen. Wer über LOCATION_TYPE_KEYS läuft und den Parameter liest, muss auf sein Fehlen prüfen.
+	stadtviertel: { label: "Stadtviertel", singularLabel: "Stadtviertel", icon: "🏙️", folgtSchalter: "gebaeude" },
 };
 const LOCATION_ICON_PATHS = {
 	metropole: "icons/metropole.webp",
@@ -767,7 +778,9 @@ const LOCATION_REALISTIC_ICON_PATHS = {
 	stadtviertel: "icons/realistic/bauwerk.webp", // 🔧 geliehen, siehe oben
 };
 const LOCATION_TYPE_KEYS = Object.keys(LOCATION_TYPE_CONFIG);
-const LOCATION_TYPE_VISIBILITY_ORDER = ["metropole", "grossstadt", "stadt", "kleinstadt", "dorf", "gebaeude", "stadtviertel"];
+// ⚠️ Die Kaskade der SCHALTER -- nur Klassen mit eigenem Knopf. `stadtviertel` fehlt hier mit
+// Absicht: es folgt dem Bauwerks-Schalter (`folgtSchalter` oben) und ist keine eigene Stufe.
+const LOCATION_TYPE_VISIBILITY_ORDER = ["metropole", "grossstadt", "stadt", "kleinstadt", "dorf", "gebaeude"];
 const POWERLINE_RENDER_CONFIG = {
 	animationEnabled: true,
 	strandCount: 3,

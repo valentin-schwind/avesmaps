@@ -98,9 +98,17 @@ assert.ok(eintrag, "LOCATION_TYPE_CONFIG kennt stadtviertel");
 assert.strictEqual(eintrag.label, "Stadtviertel");
 assert.strictEqual(eintrag.singularLabel, "Stadtviertel",
 	"Plural und Singular sind im Deutschen dasselbe Wort -- kein vergessenes Feld");
-assert.strictEqual(eintrag.queryParam, "toggleStadtviertel", "eigener Schalter im Auge-Menü");
-assert.ok(hole("LOCATION_TYPE_VISIBILITY_ORDER").includes("stadtviertel"),
-	"ohne Eintrag in der Sichtbarkeitsreihenfolge lässt sie sich nicht schalten");
+// 🔴 KEIN EIGENER SCHALTER (Owner 31.08.2026). Die Klasse folgt dem der Bauwerke -- sie soll sich
+// wie „Besondere Bauwerke/Stätten" verhalten, nicht als siebter Knopf daneben stehen.
+// 💣 Die zwei Zusicherungen hängen ZUSAMMEN: ohne `folgtSchalter` wäre die Klasse nicht etwa
+// immer sichtbar, sondern NIE -- isLocationTypeVisible() liest die Sichtbarkeit am Knopf, und
+// ein leeres jQuery-Ergebnis sagt `false`. Genau das prüft der Ablauf weiter unten.
+assert.strictEqual(eintrag.queryParam, undefined,
+	"kein eigener Schalter heißt auch: kein eigener URL-Parameter");
+assert.strictEqual(eintrag.folgtSchalter, "gebaeude",
+	"die Klasse folgt dem Schalter der Bauwerke");
+assert.ok(!hole("LOCATION_TYPE_VISIBILITY_ORDER").includes("stadtviertel"),
+	"und steht deshalb NICHT in der Schalter-Kaskade -- sie ist keine eigene Stufe");
 pruefungen += 5;
 
 // 🔧 GELIEHENE BILDER (Owner 31.08.2026: „nimm erstmal die gebäude-bilder"). Der Test nagelt das
@@ -157,7 +165,9 @@ assert.ok(/slug: "stadtviertel"/.test(svgx), "der SVG-Abzug braucht ihre Punktgr
 assert.ok(/stadtviertel: \{ de:/.test(svgx), "und ihren Begriff im Vokabular des Abzugs");
 
 const en = lies("js", "app", "i18n-en.js");
-for (const key of ["report.sizeOption.stadtviertel", "layer.toggle.stadtviertel",
+// ⚠️ `layer.toggle.stadtviertel` fehlt hier mit Absicht: die Klasse hat seit dem 31.08.2026 keinen
+// eigenen Schalter mehr, also gibt es nichts zu beschriften (Owner).
+for (const key of ["report.sizeOption.stadtviertel",
 	"type.stadtviertel.singular"]) {
 	assert.ok(en.includes(`"${key}"`), `die englische Fassung braucht ${key}`);
 }
@@ -169,13 +179,42 @@ const auswahl = index.match(/<option value="stadtviertel"/g) || [];
 assert.strictEqual(auswahl.length, 3,
 	"drei Auswahllisten führen die Ortsgröße (Meldedialog, Kartendialog, WikiSync-Auflösung) -- "
 	+ `gefunden: ${auswahl.length}`);
-assert.ok(index.includes('data-location-type="stadtviertel"'),
-	"und das Auge-Menü braucht ihren eigenen Schalter");
+// 🔴 UMGEDREHT am 31.08.2026: der Knopf ist wieder RAUS (Owner). Hier stand seine Anwesenheit;
+// die Zeile bleibt als Zusicherung stehen, damit ihn niemand versehentlich wieder einbaut.
+assert.ok(!index.includes('data-location-type="stadtviertel"'),
+	"das Auge-Menü führt KEINEN eigenen Schalter für Stadtviertel");
+assert.strictEqual((index.match(/class="location-toggle"/g) || []).length,
+	hole("LOCATION_TYPE_VISIBILITY_ORDER").length,
+	"es gibt genau einen Schalter je Stufe der Kaskade");
 const editor = lies("html", "wiki-sync-settlement-editor.html");
 assert.ok(editor.includes('{ value: "stadtviertel", label: "Stadtviertel" }'),
 	"das Ortseditor-Fenster bietet dieselbe Wahl wie der Kartendialog");
 assert.ok(/ZOOM_BAND_KLASSEN = \[[^\]]*"stadtviertel"/.test(editor),
 	"und seine Zoomband-Tafel zeigt die neue Kurve");
 pruefungen += 4;
+
+// ---- 5. Die Auflösung, AUSGEFÜHRT -----------------------------------------------------------
+// 💣 Alles darüber liest Daten. Diese Zusicherung fährt die echte Funktion aus js/app/bootstrap.js
+// mit einem gefälschten jQuery: sie ist der einzige Beleg, dass ein Stadtviertel wirklich den
+// Knopf der Bauwerke befragt statt einen, den es nicht gibt.
+const boot = lies("js", "app", "bootstrap.js");
+const bVon = boot.indexOf("function resolveLocationToggleType");
+const bBis = boot.indexOf("function isLocationTypeVisible");
+assert.ok(bVon >= 0 && bBis > bVon, "die Auflösung muss in bootstrap.js auffindbar sein");
+const gefragt = [];
+const bctx = {
+	console,
+	LOCATION_TYPE_CONFIG: hole("LOCATION_TYPE_CONFIG"),
+	$: (selektor) => { gefragt.push(selektor); return { hasClass: () => true }; },
+};
+vm.createContext(bctx);
+vm.runInContext(boot.slice(bVon, bBis), bctx);
+vm.runInContext('getLocationToggleButton("stadtviertel")', bctx);
+vm.runInContext('getLocationToggleButton("dorf")', bctx);
+assert.deepStrictEqual(gefragt, [
+	'.location-toggle[data-location-type="gebaeude"]',
+	'.location-toggle[data-location-type="dorf"]',
+], "das Stadtviertel fragt den Bauwerks-Knopf, alle anderen ihren eigenen");
+pruefungen += 2;
 
 console.log(`ortsklassen.test.js: ${pruefungen} Pruefungen erfuellt`);
