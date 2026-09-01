@@ -113,7 +113,7 @@ try {
             'ziel' => 'location', 'subtyp' => 'gebaeude', 'name' => 'Gryffenwacht'],
         '1114f89f-eb1c-5d76-8dcd-fff6117a694d',
         ['id' => 7],
-        'ggp:Ortschaften_3:Burg:Garetien:Burg Gryffenwacht|umbenennung|w-1'
+        'ggp:Ortschaften_3:Burg:Garetien:Burg Gryffenwacht!Burg Gryffenwacht|umbenennung|w-1'
     );
 } catch (Throwable $fehler) {
     $geworfen = $fehler->getMessage();
@@ -147,7 +147,7 @@ try {
             'ziel' => 'location', 'subtyp' => 'gebaeude', 'quelle' => ['url' => 'https://www.garetien.de']],
         '1114f89f-eb1c-5d76-8dcd-fff6117a694d',
         ['id' => 7],
-        'ggp:Ortschaften_3:Burg:Garetien:Burg Gryffenwacht|ergaenzung|w-1'
+        'ggp:Ortschaften_3:Burg:Garetien:Burg Gryffenwacht!Burg Gryffenwacht|ergaenzung|w-1'
     );
 } catch (Throwable $fehler) {
     $geworfenQuelle = $fehler->getMessage();

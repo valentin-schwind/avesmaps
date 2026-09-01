@@ -480,24 +480,31 @@ $anlaesseQ = static fn(array $quellen): array => array_map(
 
 $adressenQ = avesmapsGaretienQuellenAdressenAus('https://www.garetien.de',
     avesmapsGaretienArtikelQuelleAus('ggp', 'Garetien:Alke'));
-assert(count($adressenQ) === 2, 'ein Objekt mit Artikel bekommt ZWEI Adressen: ' . implode(', ', $adressenQ));
+// 🔴 SEIT 01.09.2026 IST ES EINE ADRESSE, NICHT ZWEI (Owner: „nur noch den artikel als
+// quelle"). Hier stand `count(...) === 2`, und genau die zweite Zeile hat der Owner an „Stadt
+// Praioslob" als Dublette gesehen.
+assert($adressenQ === ['https://www.garetien.de/index.php/Garetien:Alke'],
+    '🔴 mit Artikel haengt NUR der Artikel: ' . implode(', ', $adressenQ));
 $pruefungen++;
 
-$nurWirtQ = [avesmapsGaretienQuellenSchluessel('path', 'w-1', $adressenQ[0]) => true];
+$nurWirtQ = ['path|w-1|https://www.garetien.de' => true];
 $beideQ = [];
 foreach ($adressenQ as $u) {
     $beideQ[avesmapsGaretienQuellenSchluessel('path', 'w-1', $u)] = true;
 }
 
 assert(in_array('ergaenzung', $anlaesseQ([]), true), 'ohne Quelle wird eine angeboten');
-// 🔴 DAS IST DIE REPARATUR: nur die Sammelquelle reicht NICHT mehr.
+// 🔴 DAS IST DIE REPARATUR VOM 01.09.2026: ein Objekt, das vor diesem Tag importiert wurde
+// und nur die SAMMELQUELLE traegt, bekommt seinen Artikel noch angeboten. Vorher war „hat schon
+// eine Quelle" eine Ja/Nein-Frage ueber alle garetien-Quellen zusammen, und ein zweiter
+// Mechanismus (der Nachzug) musste das heilen.
 assert(in_array('ergaenzung', $anlaesseQ($nurWirtQ), true),
     '🔴 haengt nur die Sammelquelle, fehlt der Artikel -- und das wird angeboten: '
     . implode(', ', $anlaesseQ($nurWirtQ)));
-// ⚠️ Und wenn wirklich BEIDE haengen, wird nichts mehr angeboten -- sonst waere die Zeile
-// darueber nur „bietet immer etwas an".
+// ⚠️ Haengt der Artikel, gibt es nichts mehr zu ergaenzen -- sonst waere die Zeile darueber
+// nur „bietet immer etwas an".
 assert(!in_array('ergaenzung', $anlaesseQ($beideQ), true),
-    'haengen beide, gibt es nichts mehr zu ergaenzen: ' . implode(', ', $anlaesseQ($beideQ)));
+    'haengt der Artikel, ist nichts mehr offen: ' . implode(', ', $anlaesseQ($beideQ)));
 $pruefungen += 3;
 
 // 💣 UND DIE LISTE MUSS ZEICHENGLEICH DAS SEIN, WAS DER SCHREIBER ANHAENGT. Beim Bau nannte
@@ -511,5 +518,127 @@ assert(avesmapsGaretienQuellenAdressenAus('https://www.garetien.de', null)
     === ['https://www.garetien.de'], 'und ohne Artikel nur der Wirt');
 assert(avesmapsGaretienQuellenAdressenAus('', null) === [], 'und ohne beides gar nichts');
 $pruefungen += 3;
+
+// =================================================================================================
+// 🔴 DER ANZEIGENAME GEHOERT IN DEN SCHLUESSEL -- SONST VERSCHLUCKT EIN SAMMELARTIKEL SEINE ZEILEN
+// =================================================================================================
+// Owner 01.09.2026: „Kahler Schirch fehlt … ist der nicht in den daten?" Er WAR in den Daten:
+//   Gebirge:Garetien:Hügel und Berge in Hartsteen!Kahler Schirch;5!14;; 65258 -25547, …
+// Nur teilte er sich seinen Sammelartikel mit „Grafenhaupt", und der Schluessel endete beim
+// ARTIKEL -- beide fielen zu EINEM Listeneintrag zusammen, gezeigt wurde „Grafenhaupt".
+//
+// Live gemessen ueber alle 18 Ebenen: 8348 Zeilen, 8213 Objekte, 25 Schluessel mit mehreren
+// Zeilen, 135 unerreichbare Namen (1,6 %). In KEINEM Fall trug ein Schluessel zwei GLEICHE Namen
+// -- der Name legt also nichts zusammen, was zusammengehoert, er trennt nur, was getrennt gehoert.
+$zeileA = ['wiki' => 'ggp', 'ebene' => 'Berge', 'zeile_nr' => 41, 'typ' => 'Gebirge',
+    'namensraum' => 'Garetien', 'artikel' => 'Hügel und Berge in Hartsteen',
+    'anzeige' => 'Kahler Schirch'];
+$zeileB = $zeileA;
+$zeileB['anzeige'] = 'Grafenhaupt';
+$zeileB['zeile_nr'] = 42;
+
+$kA = avesmapsGaretienObjektSchluesselAusZeile($zeileA);
+$kB = avesmapsGaretienObjektSchluesselAusZeile($zeileB);
+assert($kA !== $kB,
+    '🔴 zwei Namen unter EINEM Sammelartikel sind zwei Objekte: ' . $kA . ' / ' . $kB);
+assert($kA === 'ggp:Berge:Gebirge:Garetien:Hügel und Berge in Hartsteen!Kahler Schirch',
+    'und der Schluessel ist die Schreibweise des Exports selbst: ' . $kA);
+$pruefungen += 2;
+
+// 💣 UND DER ARTIKELNAME MUSS WEITER SAUBER HERAUSKOMMEN. Ohne den Schnitt am „!" entstuende
+// aus dem Schluessel eine Quellenadresse auf einen Artikel, den es nicht gibt -- ein 404 in der
+// Infobox, und zwar einer, der wie eine gepflegte Quelle aussieht.
+assert(avesmapsGaretienArtikelNameAusSchluessel($kA) === 'Garetien:Hügel und Berge in Hartsteen',
+    '💣 der Artikel bleibt der Artikel: ' . avesmapsGaretienArtikelNameAusSchluessel($kA));
+assert(avesmapsGaretienAnzeigeNameAusSchluessel($kA) === 'Kahler Schirch',
+    'und der Anzeigename ist lesbar: ' . avesmapsGaretienAnzeigeNameAusSchluessel($kA));
+// ⚠️ Auch mit Item-Suffix, und auch bei einer Zeile OHNE Artikel (`#<nr>`).
+assert(avesmapsGaretienArtikelNameAusSchluessel($kA . '|ergaenzung|w-1') === 'Garetien:Hügel und Berge in Hartsteen',
+    'der Suffix stoert nicht');
+$ohne = avesmapsGaretienObjektSchluesselAusZeile(
+    ['wiki' => 'ggp', 'ebene' => 'Wege', 'zeile_nr' => 417, 'typ' => 'Pfad',
+     'namensraum' => '', 'artikel' => '', 'anzeige' => 'Namenloser Pfad']);
+assert(avesmapsGaretienArtikelNameAusSchluessel($ohne) === '',
+    'eine Zeile ohne Artikel liefert weiter KEINEN Artikelnamen: ' . $ohne);
+$pruefungen += 4;
+
+// =================================================================================================
+// 🔴 DIE WANDERUNG DER ALTSCHLUESSEL
+// =================================================================================================
+// 💣 `entity_key` IST die Identitaet in `sync_decision`. Ohne Wanderung staende jede
+// Uebernahme schlagartig wieder auf „Offen" und boete ein bereits angelegtes Objekt ein zweites
+// Mal an -- die Dublette, gegen die dieser Importer seit dem 31.08.2026 gebaut ist.
+$pdoW = avesmapsGaretienPlanTestPdo();
+$altAlke = 'ggp:Gewaesser:Bach:Garetien:Alke';
+$pdoW->prepare("INSERT INTO sync_decision (kind, entity_key, change_type, applied_at, applied_by)"
+    . " VALUES ('garetien', ?, 'new', '2026-08-31 10:00:00', 7)")->execute([$altAlke]);
+// Ein Altschluessel, unter dem MEHRERE Namen lagen -- der darf NICHT wandern.
+$altSammel = 'ggp:Gewaesser:Fluss:Nachbarprovinzen';
+$pdoW->prepare("INSERT INTO garetien_import_row (run_id, wiki, ebene, zeile_nr, typ, namensraum,"
+    . " artikel, anzeige, lodmin, lodmax, extra, geo_art, geo, roh)"
+    . " VALUES (1,'ggp','Gewaesser',44,'Fluss','','Nachbarprovinzen','Zweitname','','','','koordinaten','5 6, 7 8','')")
+    ->execute();
+$pdoW->prepare("INSERT INTO sync_decision (kind, entity_key, change_type, declined_at, declined_by)"
+    . " VALUES ('garetien', ?, 'new', '2026-08-31 10:00:00', 7)")->execute([$altSammel]);
+
+$gewandert = avesmapsGaretienSchluesselWanderung($pdoW, 1);
+$neuAlke = (string) $pdoW->query(
+    "SELECT entity_key FROM sync_decision WHERE applied_at IS NOT NULL"
+)->fetchColumn();
+assert($neuAlke === $altAlke . '!Alke',
+    '🔴 ein eindeutiger Altschluessel wandert samt seinem Vermerk: ' . $neuAlke);
+assert($gewandert >= 1, 'und die Wanderung sagt, dass sie etwas getan hat: ' . $gewandert);
+$pruefungen += 2;
+
+$sammelDanach = (string) $pdoW->query(
+    "SELECT entity_key FROM sync_decision WHERE declined_at IS NOT NULL"
+)->fetchColumn();
+assert($sammelDanach === $altSammel,
+    '⚠️ ein MEHRDEUTIGER Altschluessel bleibt liegen -- welchem der Namen der Vermerk galt, '
+    . 'ist nicht entscheidbar, und Raten waere hier ein falscher Grabstein: ' . $sammelDanach);
+$pruefungen++;
+
+// 🔴 UND SIE IST IDEMPOTENT: ein zweiter Lauf fasst nichts mehr an.
+$nochmal = avesmapsGaretienSchluesselWanderung($pdoW, 1);
+assert($nochmal === 0, '🔴 der zweite Lauf wandert nichts mehr: ' . $nochmal);
+assert((string) $pdoW->query("SELECT entity_key FROM sync_decision WHERE applied_at IS NOT NULL")->fetchColumn()
+    === $altAlke . '!Alke', 'und laesst den gewanderten Schluessel in Ruhe');
+$pruefungen += 2;
+
+// =================================================================================================
+// 🔴 NUR NOCH DER ARTIKEL ALS QUELLE
+// =================================================================================================
+// Owner 01.09.2026 zum Bild von „Stadt Praioslob", das beide nebeneinander zeigte: „jetzt hast du
+// genau gemacht was ich befuerchtet hatte und 2x die quelle hinzufuegt" → „nur noch den artikel
+// als quelle". Gleiche Domain, gleiche Namensnennung, gleiche Lizenz -- der Artikel sagt dasselbe
+// genauer, und zwei Zeilen, von denen die eine in der anderen steckt, liest ein Besucher als
+// Dublette.
+$artikelQ = avesmapsGaretienArtikelQuelleAus('ggp', 'Garetien:Stadt Praioslob');
+assert(avesmapsGaretienQuellenAdressenAus('https://www.garetien.de', $artikelQ)
+    === ['https://www.garetien.de/index.php/Garetien:Stadt_Praioslob'],
+    '🔴 mit Artikel haengt NUR der Artikel: '
+    . json_encode(avesmapsGaretienQuellenAdressenAus('https://www.garetien.de', $artikelQ)));
+// ⚠️ Ohne Artikel bleibt die Sammelquelle die einzige Angabe, die es gibt -- knapp die
+// Haelfte der Zeilen nennt keinen (4311 von 8348 tragen einen, live gemessen).
+assert(avesmapsGaretienQuellenAdressenAus('https://www.garetien.de', null)
+    === ['https://www.garetien.de'], 'ohne Artikel traegt die Sammelquelle: ');
+assert(avesmapsGaretienQuellenAdressenAus('', null) === [], 'und ohne beides gar nichts');
+$pruefungen += 3;
+
+// 💣 UND DER PLANBAU RUFT SIE WIRKLICH. Die Zusicherungen oben fahren die Wanderung DIREKT
+// an -- eine Mutationsprobe am 01.09.2026 hat den Aufruf aus avesmapsGaretienBaueSyncPlan entfernt
+// und ist unbemerkt durchgelaufen. Ein Bauteil, das niemand ruft, ist kein Bauteil; genau diese
+// Luecke hat dieses Projekt schon mehrfach bezahlt.
+$pdoV = avesmapsGaretienPlanTestPdo();
+$pdoV->prepare("INSERT INTO sync_decision (kind, entity_key, change_type, applied_at, applied_by)"
+    . " VALUES ('garetien', 'ggp:Gewaesser:Fluss:Garetien:Gardel', 'new', '2026-08-31 10:00:00', 7)")
+    ->execute();
+avesmapsGaretienBaueSyncPlan($pdoV, 1, 1);
+$nachBau = (string) $pdoV->query(
+    "SELECT entity_key FROM sync_decision WHERE kind = 'garetien' AND applied_at IS NOT NULL"
+)->fetchColumn();
+assert($nachBau === 'ggp:Gewaesser:Fluss:Garetien:Gardel!Gardel',
+    '💣 der Planbau zieht Altschluessel selbst mit -- nicht nur der direkte Aufruf: ' . $nachBau);
+$pruefungen++;
 
 echo "OK: {$pruefungen} Pruefungen\n";

@@ -241,7 +241,7 @@ $pruefungen += 2;
 // ⚠️ Die Alke traegt zwei echte Items (Quellen-Luecke + Zusatz) -- der Fall ist also weiterhin
 // echt und muss nicht gebaut werden.
 $roheItemZahlAlke = (int) $pdo->query(
-    "SELECT COUNT(*) FROM sync_plan_item WHERE entity_key LIKE 'ggp:Gewaesser:Bach:Garetien:Alke%'"
+    "SELECT COUNT(*) FROM sync_plan_item WHERE entity_key LIKE 'ggp:Gewaesser:Bach:Garetien:Alke!Alke%'"
 )->fetchColumn();
 assert($roheItemZahlAlke === 2, 'die Vorbedingung der Gruppierung: zwei rohe Items fuer die Alke, '
     . $roheItemZahlAlke . ' gefunden');
@@ -255,10 +255,10 @@ $pruefungen += 4;
 
 // --- `avesmapsGaretienObjektSchluessel` ist "alles vor dem ersten |" -- an einem Abschnitts-Item
 // UND an einem einfachen Item geprueft, nicht nur behauptet.
-assert(avesmapsGaretienObjektSchluessel('ggp:Gewaesser:Bach:Garetien:Alke|ergaenzung|abc-1')
-    === 'ggp:Gewaesser:Bach:Garetien:Alke', 'ein Abschnitts-Item verliert seinen Anlass/Abschnitt nicht sauber');
-assert(avesmapsGaretienObjektSchluessel('ggp:Gewaesser:Fluss:Garetien:Gardel')
-    === 'ggp:Gewaesser:Fluss:Garetien:Gardel', 'ein einfacher Schluessel ohne Pipe bleibt unveraendert');
+assert(avesmapsGaretienObjektSchluessel('ggp:Gewaesser:Bach:Garetien:Alke!Alke|ergaenzung|abc-1')
+    === 'ggp:Gewaesser:Bach:Garetien:Alke!Alke', 'ein Abschnitts-Item verliert seinen Anlass/Abschnitt nicht sauber');
+assert(avesmapsGaretienObjektSchluessel('ggp:Gewaesser:Fluss:Garetien:Gardel!Gardel')
+    === 'ggp:Gewaesser:Fluss:Garetien:Gardel!Gardel', 'ein einfacher Schluessel ohne Pipe bleibt unveraendert');
 $pruefungen += 2;
 
 // =================================================================================================
@@ -275,7 +275,7 @@ $pruefungen += 2;
 
 $planRunId = (int) avesmapsSyncPlanOpenRun($pdo, AVESMAPS_GARETIEN_PLAN_KIND)['id'];
 avesmapsSyncPlanAddItem($pdo, $planRunId, [
-    'entity_key' => 'ggp:Gewaesser:Fluss:Garetien:Vielarm|ergaenzung|w-1',
+    'entity_key' => 'ggp:Gewaesser:Fluss:Garetien:Vielarm!Vielarm|ergaenzung|w-1',
     'entity_public_id' => 'w-1',
     'change_type' => 'changed',
     'label' => 'Vielarm -> Erstling · Quelle',
@@ -290,7 +290,7 @@ avesmapsSyncPlanAddItem($pdo, $planRunId, [
     'selected' => 1,
 ]);
 avesmapsSyncPlanAddItem($pdo, $planRunId, [
-    'entity_key' => 'ggp:Gewaesser:Fluss:Garetien:Vielarm|ergaenzung|w-2',
+    'entity_key' => 'ggp:Gewaesser:Fluss:Garetien:Vielarm!Vielarm|ergaenzung|w-2',
     'entity_public_id' => 'w-2',
     'change_type' => 'changed',
     'label' => 'Vielarm -> Zweitling · Quelle',
@@ -307,7 +307,7 @@ assert($erweitert['gesamt'] === $liste['gesamt'] + 1,
     'die Vorbedingung: genau EIN neues Objekt (Vielarm), ' . $erweitert['gesamt'] . ' gegen ' . $liste['gesamt']);
 $vielarm = null;
 foreach ($erweitert['objekte'] as $o) {
-    if ($o['name'] === 'Vielarm' || $o['key'] === 'ggp:Gewaesser:Fluss:Garetien:Vielarm') {
+    if ($o['name'] === 'Vielarm' || $o['key'] === avesmapsGaretienObjektSchluesselAusZeile(['wiki' => 'ggp', 'ebene' => 'Gewaesser', 'typ' => 'Fluss', 'namensraum' => 'Garetien', 'artikel' => 'Vielarm', 'anzeige' => 'Vielarm', 'zeile_nr' => 0])) {
         $vielarm = $o;
     }
 }
@@ -353,7 +353,7 @@ $pruefungen += 4;
 // avesmapsGaretienListeObjektStand liest nur das Feld, der direkte Weg genuegt hier).
 $pdo->exec(
     "UPDATE sync_plan_item SET apply_state = 'done'"
-    . " WHERE entity_key LIKE 'ggp:Gewaesser:Bach:Garetien:Alke%'"
+    . " WHERE entity_key LIKE 'ggp:Gewaesser:Bach:Garetien:Alke!Alke%'"
 );
 $offenGefiltert = avesmapsGaretienArbeitsliste($pdo, 1, ['stand' => 'offen']);
 foreach ($offenGefiltert['objekte'] as $o) {
@@ -449,7 +449,7 @@ $pruefungen++;
 // genau diese Vorher/Nachher-Vergleiche falsch anschlagen (hier live aufgetreten, deshalb verschoben).
 // ---------------------------------------------------------------------------------------------
 avesmapsSyncPlanAddItem($pdo, $planRunId, [
-    'entity_key' => 'ggp:Gewaesser:See:Garetien:Kraehensee|ergaenzung|a-1',
+    'entity_key' => 'ggp:Gewaesser:See:Garetien:Kraehensee!Kraehensee|ergaenzung|a-1',
     'entity_public_id' => 'a-1',
     'change_type' => 'changed',
     'label' => 'Kraehensee · Quelle',
@@ -468,7 +468,7 @@ avesmapsSyncPlanAddItem($pdo, $planRunId, [
 $mitSee = avesmapsGaretienArbeitsliste($pdo, 1, []);
 $kraehensee = null;
 foreach ($mitSee['objekte'] as $o) {
-    if ($o['key'] === 'ggp:Gewaesser:See:Garetien:Kraehensee') {
+    if ($o['key'] === avesmapsGaretienObjektSchluesselAusZeile(['wiki' => 'ggp', 'ebene' => 'Gewaesser', 'typ' => 'See', 'namensraum' => 'Garetien', 'artikel' => 'Kraehensee', 'anzeige' => 'Kraehensee', 'zeile_nr' => 0])) {
         $kraehensee = $o;
     }
 }
@@ -577,7 +577,7 @@ $pruefungen += 2;
 // vorgehakten Verkehrsmitteln, die der Server nie speichern wird. Eine Falschaussage ueber die
 // naechste Handlung, und genau dagegen ist dieses Fenster gebaut.
 avesmapsSyncPlanAddItem($pdo, 1, [
-    'entity_key' => 'ggp:Gewaesser:Bach:Garetien:Probebach',
+    'entity_key' => avesmapsGaretienObjektSchluesselAusZeile(['wiki' => 'ggp', 'ebene' => 'Gewaesser', 'typ' => 'Bach', 'namensraum' => 'Garetien', 'artikel' => 'Probebach', 'anzeige' => 'Probebach', 'zeile_nr' => 0]),
     'entity_public_id' => null,
     'change_type' => 'new',
     'label' => 'Probebach',
@@ -592,7 +592,7 @@ avesmapsSyncPlanAddItem($pdo, 1, [
 // die Gegenprobe „der erste Weg, der nicht der Probebach ist" -- und traf ein Objekt, das selbst
 // `is_bach` trug. Ein Gegenbeispiel, das man sucht statt es hinzulegen, ist keins.
 avesmapsSyncPlanAddItem($pdo, 1, [
-    'entity_key' => 'ggp:Gewaesser:Fluss:Garetien:Probefluss',
+    'entity_key' => avesmapsGaretienObjektSchluesselAusZeile(['wiki' => 'ggp', 'ebene' => 'Gewaesser', 'typ' => 'Fluss', 'namensraum' => 'Garetien', 'artikel' => 'Probefluss', 'anzeige' => 'Probefluss', 'zeile_nr' => 0]),
     'entity_public_id' => null,
     'change_type' => 'new',
     'label' => 'Probefluss',
@@ -608,8 +608,8 @@ $mitBach = avesmapsGaretienArbeitsliste($pdo, 1, []);
 $probebach = null;
 $probefluss = null;
 foreach ($mitBach['objekte'] as $o) {
-    if ($o['key'] === 'ggp:Gewaesser:Bach:Garetien:Probebach') { $probebach = $o; }
-    if ($o['key'] === 'ggp:Gewaesser:Fluss:Garetien:Probefluss') { $probefluss = $o; }
+    if ($o['key'] === 'ggp:Gewaesser:Bach:Garetien:Probebach!Probebach') { $probebach = $o; }
+    if ($o['key'] === 'ggp:Gewaesser:Fluss:Garetien:Probefluss!Probefluss') { $probefluss = $o; }
 }
 assert($probebach !== null, 'der Probebach muss in der Liste stehen');
 assert($probebach['subtyp'] === 'Flussweg', 'er ist ein Flussweg -- „Bach" ist kein Wegtyp');
@@ -629,7 +629,7 @@ $pruefungen += 3;
 // vom 30.08.2026: sein Lauf vom Vortag zeigte fuer einen Bach weiter zwei angehakte
 // Verkehrsmittel. Der Eintrag hier traegt NUR `typ`, kein Haekchen; das ist der ganze Punkt.
 avesmapsSyncPlanAddItem($pdo, 1, [
-    'entity_key' => 'ggp:Gewaesser:Bach:Garetien:Altbach',
+    'entity_key' => avesmapsGaretienObjektSchluesselAusZeile(['wiki' => 'ggp', 'ebene' => 'Gewaesser', 'typ' => 'Bach', 'namensraum' => 'Garetien', 'artikel' => 'Altbach', 'anzeige' => 'Altbach', 'zeile_nr' => 0]),
     'entity_public_id' => null,
     'change_type' => 'new',
     'label' => 'Altbach',
@@ -643,7 +643,7 @@ avesmapsSyncPlanAddItem($pdo, 1, [
 $mitAlt = avesmapsGaretienArbeitsliste($pdo, 1, []);
 $altbach = null;
 foreach ($mitAlt['objekte'] as $o) {
-    if ($o['key'] === 'ggp:Gewaesser:Bach:Garetien:Altbach') { $altbach = $o; }
+    if ($o['key'] === 'ggp:Gewaesser:Bach:Garetien:Altbach!Altbach') { $altbach = $o; }
 }
 assert($altbach !== null, 'der Altbach muss in der Liste stehen');
 assert(($altbach['is_bach'] ?? null) === true,
@@ -681,7 +681,7 @@ $pruefungen++;
 // ruft -- und dann reist jede Koordinate weiter mit dreizehn Zeichen. Deshalb geht hier ein Objekt
 // mit ROHEN Koordinaten durch die echte Arbeitsliste.
 avesmapsSyncPlanAddItem($pdo, 1, [
-    'entity_key' => 'ggp:Gewaesser:Fluss:Garetien:Rundungsprobe',
+    'entity_key' => avesmapsGaretienObjektSchluesselAusZeile(['wiki' => 'ggp', 'ebene' => 'Gewaesser', 'typ' => 'Fluss', 'namensraum' => 'Garetien', 'artikel' => 'Rundungsprobe', 'anzeige' => 'Rundungsprobe', 'zeile_nr' => 0]),
     'entity_public_id' => null,
     'change_type' => 'new',
     'label' => 'Rundungsprobe',
@@ -697,7 +697,7 @@ avesmapsSyncPlanAddItem($pdo, 1, [
 $mitRundung = avesmapsGaretienArbeitsliste($pdo, 1, []);
 $probe = null;
 foreach ($mitRundung['objekte'] as $o) {
-    if ($o['key'] === 'ggp:Gewaesser:Fluss:Garetien:Rundungsprobe') { $probe = $o; }
+    if ($o['key'] === 'ggp:Gewaesser:Fluss:Garetien:Rundungsprobe!Rundungsprobe') { $probe = $o; }
 }
 assert($probe !== null, 'die Rundungsprobe muss in der Liste stehen');
 assert($probe['geometrie'] === [[554.096, 538.549], [554.433, 538.221]],

@@ -93,6 +93,16 @@ if (!defined('AVESMAPS_GARETIEN_ERSETZEN_ERLAUBT')) {
 const AVESMAPS_GARETIEN_ERGAENZUNG_FELDER = ['quelle'];
 
 /**
+ * Der Trenner zwischen Artikel und Anzeigename im Objektschluessel.
+ *
+ * 🔴 „!" IST DIE SCHREIBWEISE DES EXPORTS SELBST (`Typ:Namensraum:Artikel!Anzeige`) -- kein
+ * frei gewaehltes Zeichen. Damit ist der Schluessel eine Abschrift der Quelle und nicht eine
+ * zweite Erfindung daneben; und ein „!" kann im Artikelnamen nicht vorkommen, weil der Parser
+ * genau daran trennt.
+ */
+const AVESMAPS_GARETIEN_SCHLUESSEL_NAME_TRENNER = '!';
+
+/**
  * Der Objekt-Schluessel EINER Staging-Zeile. REIN -- kein I/O.
  *
  * 🔴 RULING P6: diese Formel entsteht HIER und wird von `avesmapsGaretienPlanEintrag` benutzt,
@@ -107,7 +117,8 @@ function avesmapsGaretienObjektSchluesselAusZeile(array $zeile): string
     $seite = avesmapsGaretienSeitenNameAusZeile($zeile);
 
     return $wiki . ':' . $zeile['ebene'] . ':' . $zeile['typ'] . ':'
-        . ($seite !== '' ? $seite : ('#' . $zeile['zeile_nr']));
+        . ($seite !== '' ? $seite : ('#' . $zeile['zeile_nr']))
+        . AVESMAPS_GARETIEN_SCHLUESSEL_NAME_TRENNER . trim((string) ($zeile['anzeige'] ?? ''));
 }
 
 /**
@@ -148,8 +159,27 @@ function avesmapsGaretienArtikelNameAusSchluessel(string $entityKey): string
         return '';
     }
     $seite = trim($teile[3]);
+    // 💣 SEIT 01.09.2026 HAENGT DER ANZEIGENAME HINTEN DRAN. Ohne diesen Schnitt entstuende
+    // aus „Hügel und Berge in Hartsteen!Kahler Schirch" ein Artikelname, den es nicht gibt -- und
+    // daraus eine Quellenadresse, die auf einen 404 zeigt.
+    $ruf = strpos($seite, AVESMAPS_GARETIEN_SCHLUESSEL_NAME_TRENNER);
+    if ($ruf !== false) {
+        $seite = trim(substr($seite, 0, $ruf));
+    }
 
     return str_starts_with($seite, '#') ? '' : $seite;
+}
+
+/**
+ * Der ANZEIGENAME aus einem Objektschluessel -- `''`, wenn keiner darinsteht (Altschluessel).
+ * REIN -- kein I/O.
+ */
+function avesmapsGaretienAnzeigeNameAusSchluessel(string $entityKey): string
+{
+    $basis = avesmapsGaretienObjektSchluessel($entityKey);
+    $ruf = strpos($basis, AVESMAPS_GARETIEN_SCHLUESSEL_NAME_TRENNER);
+
+    return $ruf === false ? '' : trim(substr($basis, $ruf + 1));
 }
 
 /**
@@ -572,17 +602,25 @@ function avesmapsGaretienQuellenSchluessel(string $entityType, string $publicId,
  */
 function avesmapsGaretienQuellenAdressenAus(?string $wirtUrl, ?array $artikelQuelle): array
 {
-    $adressen = [];
-    $wirt = trim((string) $wirtUrl);
-    if ($wirt !== '') {
-        $adressen[] = $wirt;
-    }
+    // 🔴 DER ARTIKEL SCHLAEGT DIE SAMMELQUELLE (Owner 01.09.2026: „nur noch den artikel als
+    // quelle", nachdem an „Stadt Praioslob" beide nebeneinander standen: „jetzt hast du genau
+    // gemacht was ich befuerchtet hatte und 2x die quelle hinzufuegt").
+    //
+    // Die beiden sagen dasselbe -- gleiche Domain, gleiche Namensnennung, gleiche Lizenz --, nur
+    // sagt der Artikel es genau. Zwei Zeilen in der Infobox, von denen die eine in der anderen
+    // enthalten ist, liest ein Besucher als Dublette, und er hat recht.
+    //
+    // ⚠️ Die Sammelquelle bleibt der RUECKFALL, nicht Beiwerk: knapp die Haelfte der Zeilen
+    // nennt gar keinen Artikel (live gemessen 4311 von 8348 tragen einen). Fuer die ist
+    // `https://www.garetien.de` die einzige Angabe, die es gibt.
     $artikel = trim((string) ($artikelQuelle['url'] ?? ''));
     if ($artikel !== '') {
-        $adressen[] = $artikel;
+        return [$artikel];
     }
 
-    return $adressen;
+    $wirt = trim((string) $wirtUrl);
+
+    return $wirt !== '' ? [$wirt] : [];
 }
 
 /**
@@ -1019,6 +1057,106 @@ function avesmapsGaretienUebernahmenNachtragen(PDO $pdo): int
  * im Lauf-Vermerk, damit die Zahl nachpruefbar bleibt: "6 uebersprungen" ohne Grund ist keine
  * Auskunft.
  */
+/**
+ * EINMALIGE WANDERUNG: Altschluessel ohne Anzeigenamen auf die neue Form ziehen.
+ *
+ * 🔴 Owner 01.09.2026: „ja, name in den schluessel". Damit aendert sich die IDENTITAET
+ * jedes Objekts -- und `entity_key` ist genau die Identitaet, unter der `sync_decision` haelt, was
+ * uebernommen und was abgelehnt wurde. Ohne diese Wanderung faende ein Vermerk sein Objekt nie
+ * wieder: alle Uebernahmen staenden schlagartig wieder auf „Offen", und ein bereits angelegtes
+ * Objekt boete sich ein zweites Mal zum Einfuegen an -- die Dublette, gegen die dieser Importer
+ * seit dem 31.08.2026 gebaut ist.
+ *
+ * 💣 SIE ZIEHT AUCH `sync_plan_item` MIT. Die Ruecknahme sucht die angelegte public_id ueber
+ * (kind, entity_key, change_type) in den alten, `superseded` gesetzten Laeufen
+ * (avesmapsGaretienRuecknahmeAusfuehren). Bliebe deren Schluessel alt, waere genau der Ausgang
+ * wieder zu, der am selben Tag aufgemacht wurde.
+ *
+ * ⚠️ GEWANDERT WIRD NUR, WAS EINDEUTIG IST. Ein Altschluessel, unter dem MEHRERE Zeilen mit
+ * verschiedenen Namen lagen, ist ja gerade der Fall, den die Aenderung aufloest -- dort ist nicht
+ * entscheidbar, welchem Namen der Vermerk galt, und er verfaellt. Live gemessen 01.09.2026: 25
+ * solcher Schluessel ueber 8348 Zeilen; die uebrigen 8188 wandern 1:1.
+ *
+ * 🔴 Sie ist idempotent und laeuft sich selbst tot: ein Schluessel in neuer Form traegt ein
+ * "!" und wird nicht mehr angefasst. Ist irgendwann keiner mehr alt, kostet sie EINE Abfrage.
+ *
+ * @return int Zahl der gewanderten Vermerke
+ */
+function avesmapsGaretienSchluesselWanderung(PDO $pdo, int $importRunId): int
+{
+    $basisVon = static fn(string $key): string => avesmapsGaretienObjektSchluessel($key);
+    $suffixVon = static function (string $key): string {
+        $pos = strpos($key, '|');
+
+        return $pos === false ? '' : substr($key, $pos);
+    };
+
+    // 1. Gibt es ueberhaupt Altschluessel? Sonst kostet die Wanderung eine Abfrage und ist fertig.
+    $alteKeys = [];
+    foreach ([['sync_decision', "kind = :k"], ['sync_plan_item', null]] as [$tabelle, $wo]) {
+        $sql = $tabelle === 'sync_decision'
+            ? "SELECT DISTINCT entity_key FROM sync_decision WHERE kind = :k"
+            : "SELECT DISTINCT i.entity_key FROM sync_plan_item i"
+                . " JOIN sync_plan_run r ON r.id = i.run_id WHERE r.kind = :k";
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute(['k' => AVESMAPS_GARETIEN_PLAN_KIND]);
+        foreach ($stmt->fetchAll(PDO::FETCH_COLUMN) as $key) {
+            $key = (string) $key;
+            if (!str_contains($basisVon($key), AVESMAPS_GARETIEN_SCHLUESSEL_NAME_TRENNER)) {
+                $alteKeys[$key] = true;
+            }
+        }
+    }
+    if ($alteKeys === []) {
+        return 0;
+    }
+
+    // 2. Die Abbildung alt -> neu aus den Staging-Zeilen DIESES Laufs.
+    // ⚠️ Die ALTE Formel steht hier ein zweites Mal, und das ist der einzige Ort, an dem das
+    // erlaubt ist: sie beschreibt einen Zustand der Vergangenheit, den es sonst nirgends mehr
+    // gibt. Faellt die Wanderung eines Tages weg, faellt sie mit.
+    $stmt = $pdo->prepare(
+        'SELECT wiki, ebene, zeile_nr, typ, namensraum, artikel, anzeige'
+        . ' FROM garetien_import_row WHERE run_id = :r ORDER BY id'
+    );
+    $stmt->execute([':r' => $importRunId]);
+    $abbildung = [];
+    foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $zeile) {
+        $seite = avesmapsGaretienSeitenNameAusZeile($zeile);
+        $altBasis = (string) ($zeile['wiki'] ?? 'ggp') . ':' . $zeile['ebene'] . ':' . $zeile['typ']
+            . ':' . ($seite !== '' ? $seite : ('#' . $zeile['zeile_nr']));
+        $abbildung[$altBasis][avesmapsGaretienObjektSchluesselAusZeile($zeile)] = true;
+    }
+
+    // 3. Wandern, was eindeutig ist.
+    $decision = $pdo->prepare(
+        'UPDATE sync_decision SET entity_key = :neu WHERE kind = :k AND entity_key = :alt'
+    );
+    $item = $pdo->prepare(
+        'UPDATE sync_plan_item SET entity_key = :neu WHERE entity_key = :alt AND run_id IN'
+        . ' (SELECT id FROM (SELECT id FROM sync_plan_run WHERE kind = :k) x)'
+    );
+
+    $gewandert = 0;
+    foreach (array_keys($alteKeys) as $altKey) {
+        $ziele = $abbildung[$basisVon($altKey)] ?? [];
+        if (count($ziele) !== 1) {
+            continue;
+        }
+        $neuKey = array_key_first($ziele) . $suffixVon($altKey);
+        try {
+            $decision->execute(['neu' => $neuKey, 'alt' => $altKey, 'k' => AVESMAPS_GARETIEN_PLAN_KIND]);
+            $gewandert += $decision->rowCount();
+            $item->execute(['neu' => $neuKey, 'alt' => $altKey, 'k' => AVESMAPS_GARETIEN_PLAN_KIND]);
+        } catch (PDOException) {
+            // ⚠️ Der Zielschluessel steht schon da (UNIQUE) -- dann ist nichts zu tun, und ein
+            // Abbruch wuerde die uebrigen Vermerke mitreissen.
+        }
+    }
+
+    return $gewandert;
+}
+
 function avesmapsGaretienBaueSyncPlan(PDO $pdo, int $importRunId, int $userId = 0): int
 {
     avesmapsEnsureSyncPlanTables($pdo);
@@ -1038,6 +1176,9 @@ function avesmapsGaretienBaueSyncPlan(PDO $pdo, int $importRunId, int $userId = 
     if ($runId <= 0) {
         throw new RuntimeException('Der Vorschau-Lauf konnte nicht angelegt werden.');
     }
+    // 🔴 VOR dem Lesen der Entscheidungen: Altschluessel auf die neue Form ziehen. Danach
+    // liest der Planbau nur noch Schluessel, die zu den Items passen, die er gleich baut.
+    avesmapsGaretienSchluesselWanderung($pdo, $importRunId);
     $entscheidungen = avesmapsSyncPlanDecisions($pdo, AVESMAPS_GARETIEN_PLAN_KIND);
     // EINE Abfrage je Lauf -- der vierte Ausgang fragt sonst je Abschnitt nach.
     $quellenBestand = avesmapsGaretienQuellenBestand($pdo);

@@ -277,14 +277,30 @@ function avesmapsGaretienQuellenAnlegen(
     // 💣 NEU GERECHNET, NICHT AUS `after.seite_url` GELESEN -- jedes vor dem 31.08.2026 gebaute
     // Item traegt dort die tote `…/Avesmaps_<Artikel>`-Adresse (siehe avesmapsGaretienArbeitsseiteAus).
     $seiteUrl = avesmapsGaretienArbeitsseiteAus($nach);
-    $gezaehlt = 0;
-    if (avesmapsGaretienQuelleAnlegen($pdo, $entityType, $publicId, (array) ($nach['quelle'] ?? []), $userId, $seiteUrl)) {
-        $gezaehlt++;
-    }
+
+    // 🔴 DER ARTIKEL SCHLAEGT DIE SAMMELQUELLE, und diese Weiche entsteht NICHT hier: sie
+    // steht in avesmapsGaretienQuellenAdressenAus, und der Planbau fragt dieselbe Funktion, um zu
+    // wissen, ob an einem Objekt noch etwas fehlt.
+    //
+    // 💣 DAS IST DIE TRAGENDE ZEILE DIESER FUNKTION. Rechnete der Schreiber seine Adressen
+    // selbst aus, waere die erwartete Menge des Planbaus eine BEHAUPTUNG ueber ihn -- und beim
+    // ersten Auseinanderlaufen bietet der Planbau eine Quelle an, die nie kommt, oder der Nachzug
+    // schreibt in jedem Lauf erneut. Genau das ist am 01.09.2026 schon einmal passiert (die
+    // Liste nannte den Wirt IMMER, der Schreiber haengte ihn nicht immer an).
     $artikel = avesmapsGaretienArtikelQuelleAusItem($nach, $entityKey);
-    if ($artikel !== null
-        && avesmapsGaretienQuelleAnlegen($pdo, $entityType, $publicId, $artikel, $userId, $seiteUrl)) {
-        $gezaehlt++;
+    $wirt = (array) ($nach['quelle'] ?? []);
+    $adressen = avesmapsGaretienQuellenAdressenAus((string) ($wirt['url'] ?? ''), $artikel);
+
+    $gezaehlt = 0;
+    foreach ($adressen as $adresse) {
+        // Welcher der beiden Beschreibungssaetze zu dieser Adresse gehoert -- Label, Lizenz und
+        // Namensnennung stehen dort und nicht in der Adressliste.
+        $quelle = ($artikel !== null && (string) ($artikel['url'] ?? '') === $adresse)
+            ? $artikel
+            : $wirt;
+        if (avesmapsGaretienQuelleAnlegen($pdo, $entityType, $publicId, $quelle, $userId, $seiteUrl)) {
+            $gezaehlt++;
+        }
     }
 
     return $gezaehlt;

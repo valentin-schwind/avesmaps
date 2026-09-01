@@ -153,7 +153,15 @@ function garetienTestPruefstand(): PDO
 function garetienTestNatter(PDO $pdo): array
 {
     foreach (avesmapsGaretienArbeitsliste($pdo, 1, [])['objekte'] as $objekt) {
-        if ($objekt['key'] === 'ggp:Gewaesser:Fluss:Garetien:Natter') {
+        // 01.09.2026: der Schluessel traegt seit der Sammelartikel-Reparatur den ANZEIGENAMEN
+        // hinten. Gebaut, nicht abgeschrieben -- eine Abschrift laeuft beim naechsten Mal wieder
+        // auseinander (avesmapsGaretienObjektSchluesselAusZeile ist der einzige Erzeuger).
+        $natterKey = avesmapsGaretienObjektSchluesselAusZeile([
+            'wiki' => 'ggp', 'ebene' => 'Gewaesser', 'typ' => 'Fluss',
+            'namensraum' => 'Garetien', 'artikel' => 'Natter', 'anzeige' => 'Natter',
+            'zeile_nr' => 7,
+        ]);
+        if ($objekt['key'] === $natterKey) {
             return $objekt;
         }
     }
@@ -386,7 +394,7 @@ $lang->prepare(
 avesmapsGaretienBaueSyncPlan($lang, 1, 1);
 $langObjekt = null;
 foreach (avesmapsGaretienArbeitsliste($lang, 1, [])['objekte'] as $o) {
-    if ($o['key'] === 'ggp:Gewaesser:Fluss:Garetien:Langfluss') {
+    if ($o['key'] === avesmapsGaretienObjektSchluesselAusZeile(['wiki' => 'ggp', 'ebene' => 'Gewaesser', 'typ' => 'Fluss', 'namensraum' => 'Garetien', 'artikel' => 'Langfluss', 'anzeige' => 'Langfluss', 'zeile_nr' => 8])) {
         $langObjekt = $o;
     }
 }
@@ -436,7 +444,7 @@ foreach (avesmapsGaretienArbeitsliste($pdo, 1, [])['objekte'] as $o) {
 // (a) `neu` mit ueberlappender Huelle, aber ohne Naehe -- der Fall, um den es geht.
 // Gemessen: OHNE den Riegel 2 Abschnitte / Deckung 42,79 (das Einundzwanzigfache der Schwelle),
 // MIT ihm 0.
-$fern = $nachSchluessel['ggp:Gewaesser:Fluss:Garetien:Fernfluss'] ?? null;
+$fern = $nachSchluessel['ggp:Gewaesser:Fluss:Garetien:Fernfluss!Fernfluss'] ?? null;
 assert($fern !== null, 'der Fernfluss fehlt im Pruefstand');
 assert($fern['urteil'] === 'neu', 'die Vorbedingung: der Fernfluss ist ein Neuzugang, kein Treffer: ' . $fern['urteil']);
 assert($fern['abschnitte'] === [],
@@ -452,7 +460,7 @@ $pruefungen += 4;
 // Filterung auf die 2,0-Schwelle das Werkzeug kaputtgemacht: derselbe Artikel behauptet zwei
 // Stellen, und die weit entfernte ist das, was ein Editor sehen soll. Gemessen: 1 Abschnitt bei
 // 8,95 Einheiten, mit und ohne Riegel.
-$fernArtikel = $nachSchluessel['ggp:Gewaesser:Fluss:Garetien:Fernartikel'] ?? null;
+$fernArtikel = $nachSchluessel['ggp:Gewaesser:Fluss:Garetien:Fernartikel!Fernartikel'] ?? null;
 assert($fernArtikel !== null, 'der Fernartikel fehlt im Pruefstand');
 assert($fernArtikel['urteil'] === 'widerspruch',
     'die Vorbedingung: derselbe Artikel behauptet zwei Stellen: ' . $fernArtikel['urteil']);
@@ -463,7 +471,7 @@ assert(count($fernArtikel['abschnitte']) === 1 && $fernArtikel['deckung'] > AVES
 $pruefungen += 3;
 
 // (c) `zufluss` (in der Liste `zweifel`) behaelt seine ebenfalls -- der Treffer ist echt (0,18).
-$zufluss = $nachSchluessel['ggp:Gewaesser:Bach:Garetien:Seitenarm der Alke'] ?? null;
+$zufluss = $nachSchluessel['ggp:Gewaesser:Bach:Garetien:Seitenarm der Alke!Seitenarm der Alke'] ?? null;
 assert($zufluss !== null && $zufluss['urteil'] === 'zweifel', 'der Zufluss fehlt oder traegt ein anderes Urteil');
 assert(count($zufluss['abschnitte']) === 1 && $zufluss['deckung'] < 1.0,
     'ein Zufluss liegt WIRKLICH auf seinem Hauptfluss und behaelt seinen Abschnitt: '
@@ -471,7 +479,7 @@ assert(count($zufluss['abschnitte']) === 1 && $zufluss['deckung'] < 1.0,
 $pruefungen += 2;
 
 // (d) `deckt_sich` ueber den ARTIKEL -- der zweite Zweig, der eine treffer_public_id setzt.
-$nahArtikel = $nachSchluessel['ggp:Gewaesser:Fluss:Garetien:Nahartikel'] ?? null;
+$nahArtikel = $nachSchluessel['ggp:Gewaesser:Fluss:Garetien:Nahartikel!Nahartikel'] ?? null;
 assert($nahArtikel !== null, 'der Nahartikel fehlt im Pruefstand');
 assert(count($nahArtikel['abschnitte']) === 1,
     'ein Artikeltreffer mit passender Geometrie behaelt seinen Abschnitt: ' . count($nahArtikel['abschnitte']));
@@ -480,7 +488,7 @@ $pruefungen += 2;
 // (e) 🔴 Der Sammelartikel wird seit 30.08.2026 NICHT mehr uebersprungen (Owner-Entscheid) --
 // er wird abgeglichen wie jede andere Zeile. Die Zusicherung dreht sich damit um: er MUSS ein
 // echtes Urteil tragen, sonst ist er stillschweigend wieder aus dem Abgleich gefallen.
-$sammel = $nachSchluessel['ggp:Gewaesser:Fluss:Nachbarprovinzen'] ?? null;
+$sammel = $nachSchluessel['ggp:Gewaesser:Fluss:Nachbarprovinzen!Llavari'] ?? null;
 assert($sammel !== null && $sammel['urteil'] !== 'uebersprungen',
     'der Sammelartikel wird abgeglichen: ' . json_encode($sammel['urteil'] ?? '(fehlt)'));
 assert($sammel['urteil'] !== '', 'und traegt ein echtes Urteil');
@@ -554,14 +562,14 @@ foreach (avesmapsGaretienArbeitsliste($pdo, 1, [])['objekte'] as $eintrag) {
     $nachSchluessel[$eintrag['key']] = $eintrag;
 }
 // Die VORBEDINGUNG: ohne beide Formen im Pruefstand belegt der Rest nichts.
-assert(isset($nachSchluessel['ggp:Gewaesser:See:Garetien:Muehlsee']),
+assert(isset($nachSchluessel['ggp:Gewaesser:See:Garetien:Muehlsee!Mühlsee']),
     'der Muehlsee fehlt im Pruefstand -- ohne eine Flaeche prueft der Rest nur die halbe Regel');
-assert(isset($nachSchluessel['ggp:Gewaesser:Bach:Garetien:Alke']),
+assert(isset($nachSchluessel['ggp:Gewaesser:Bach:Garetien:Alke!Alke']),
     'die Alke fehlt im Pruefstand -- ohne eine Linie prueft der Rest nur die halbe Regel');
 $pruefungen += 2;
 
-$muehlsee = $nachSchluessel['ggp:Gewaesser:See:Garetien:Muehlsee'];
-$alke = $nachSchluessel['ggp:Gewaesser:Bach:Garetien:Alke'];
+$muehlsee = $nachSchluessel['ggp:Gewaesser:See:Garetien:Muehlsee!Mühlsee'];
+$alke = $nachSchluessel['ggp:Gewaesser:Bach:Garetien:Alke!Alke'];
 assert(array_key_exists('geometrie_typ', $muehlsee),
     'geometrie_typ fehlt in der Arbeitsliste -- der Zeichner kann eine Flaeche dann nicht erkennen');
 assert($muehlsee['geometrie_typ'] === 'Polygon',
@@ -575,8 +583,8 @@ $pruefungen += 3;
 // Und der Wert stammt wirklich aus `after.geometry.type` und nicht aus einer zweiten Herleitung:
 // er ist zeichengleich mit dem, was im gespeicherten Plan steht.
 $ausPlan = $pdo->prepare('SELECT after_json FROM sync_plan_item WHERE entity_key LIKE ? LIMIT 1');
-foreach ([['ggp:Gewaesser:See:Garetien:Muehlsee%', 'Polygon'],
-          ['ggp:Gewaesser:Bach:Garetien:Alke%', 'LineString']] as [$muster, $erwartet]) {
+foreach ([['ggp:Gewaesser:See:Garetien:Muehlsee!Mühlsee%', 'Polygon'],
+          ['ggp:Gewaesser:Bach:Garetien:Alke!Alke%', 'LineString']] as [$muster, $erwartet]) {
     $ausPlan->execute([$muster]);
     $after = json_decode((string) $ausPlan->fetchColumn(), true);
     assert(is_array($after) && ($after['geometry']['type'] ?? null) === $erwartet,

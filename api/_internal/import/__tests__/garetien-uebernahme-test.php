@@ -334,17 +334,21 @@ assert($neu !== false && $neu['feature_type'] === 'path' && $neu['feature_subtyp
 $pruefungen++;
 
 // --- 🔴 Jedes uebernommene Objekt bekommt seine Quelle -- ueber das VORHANDENE System.
-// 🔴 SEIT 31.08.2026 SIND ES ZWEI (Owner: „kann man den artikel dann als zusaetzliche quelle
-// angeben?"): die Sammelquelle „Briefspiel (Garetien)" auf den Wirt UND der eigene Wiki-Artikel
-// des Objekts. Der Gardel nennt einen (`Garetien:Gardel` im Schluessel), also bekommt er beide.
-assert($e['quellen'] === 2, 'Sammelquelle UND Artikelquelle: ' . $e['quellen']);
+// 🔴 SEIT 01.09.2026 IST ES GENAU EINE, UND ZWAR DER ARTIKEL. Vom 31.08. bis dahin waren es
+// zwei -- die Sammelquelle „Briefspiel (Garetien)" auf den Wirt UND der eigene Wiki-Artikel.
+// Der Owner hat das an „Stadt Praioslob" gesehen und benannt: „jetzt hast du genau gemacht was ich
+// befuerchtet hatte und 2x die quelle hinzufuegt" -> „nur noch den artikel als quelle".
+// Gleiche Domain, gleiche Namensnennung, gleiche Lizenz; der Artikel sagt dasselbe genauer.
+// ⚠️ Der Gardel nennt einen Artikel (`Garetien:Gardel` im Schluessel) -- eine Zeile OHNE
+// Artikel bekommt weiter die Sammelquelle, das ist weiter unten belegt.
+assert($e['quellen'] === 1, 'NUR die Artikelquelle: ' . $e['quellen']);
 // 💣 UND DER ANLEGEWEG MELDET SIE EBENSO ZURUECK. Es sind ZWEI Erzeuger von Quellen in dieser
 // Datei (Anlegen und Ergaenzung) -- eine Regel, die einen von zweien bindet, ist keine Regel
 // (AGENTS.md). Die Ergaenzung ist weiter unten belegt, an dem Weg mit der fremden Quelle.
 assert(count($e['quellen_neu']) === 1 && $e['quellen_neu'][0]['entity_type'] === 'path',
     'auch das frisch ANGELEGTE Objekt meldet seine Quellen zurueck: ' . json_encode($e['quellen_neu']));
-assert(count($e['quellen_neu'][0]['sources']) === 2,
-    'und zwar BEIDE: ' . json_encode($e['quellen_neu'][0]['sources']));
+assert(count($e['quellen_neu'][0]['sources']) === 1,
+    'und zwar die eine: ' . json_encode($e['quellen_neu'][0]['sources']));
 $pruefungen += 2;
 
 // --- 🔴 DIE ARTIKELQUELLE: Adresse, Beschriftung, Lizenz.
@@ -367,8 +371,19 @@ assert($artikelZeile['origin'] === 'garetien',
     'eigene Herkunft, damit die Ruecknahme sie mitnimmt und ein spaeterer Lauf sie wiedererkennt');
 $pruefungen += 5;
 
+// \U0001f534 UND DIE SAMMELQUELLE HAENGT AN DIESEM OBJEKT GAR NICHT MEHR (01.09.2026). Das ist
+// die eigentliche Zusicherung der Owner-Entscheidung: nicht „der Artikel ist auch da", sondern
+// „die zweite Zeile ist WEG". Ohne sie waere „nur noch den artikel" schon erfuellt, sobald der
+// Artikel irgendwo auftaucht -- also auch NEBEN der Sammelquelle, dem beanstandeten Zustand.
+$wirtZahl = (int) $pdo->query("SELECT COUNT(*) FROM feature_sources fs JOIN sources s ON s.id = fs.source_id
+                     WHERE s.url = 'https://www.garetien.de'")->fetchColumn();
+assert($wirtZahl === 0,
+    '\U0001f534 an einem Objekt MIT Artikel haengt die Sammelquelle nicht mehr: ' . $wirtZahl);
+$pruefungen++;
+
+// Die Verknuepfung, an der die Arbeitsseite haengt, ist seither die ARTIKELquelle.
 $q = $pdo->query("SELECT fs.* FROM feature_sources fs JOIN sources s ON s.id = fs.source_id
-                   WHERE s.url = 'https://www.garetien.de'")->fetch(PDO::FETCH_ASSOC);
+                   WHERE s.url LIKE '%index.php%'")->fetch(PDO::FETCH_ASSOC);
 assert($q['origin'] === 'garetien', 'eigene Herkunft, damit ein spaeterer Lauf sie wiedererkennt');
 assert($q['entity_type'] === 'path' && $q['entity_public_id'] === $neu['public_id'], 'sie haengt am richtigen Objekt');
 // --- 🔴 OWNER-ENTSCHEID (30.08.2026, "leg sie in feature_sources.note ab"): seit sources.url der
@@ -383,16 +398,20 @@ assert(
     $q['note'] === AVESMAPS_GARETIEN_BASIS_GGP . 'Gewaesser',
     'die Notiz traegt die Export-Arbeitsseite dieser EBENE: ' . var_export($q['note'], true)
 );
-// ⚠️ Und BEIDE Verknuepfungen tragen sie -- sie stammen aus derselben Zeile.
-assert($artikelZeile['note'] === $q['note'],
-    'auch die Artikelquelle traegt dieselbe Arbeitsseite: ' . var_export($artikelZeile['note'], true));
+// ⚠️ Hier stand bis zum 01.09.2026 „und BEIDE Verknuepfungen tragen sie". Seit es nur noch
+// EINE gibt, waere dieser Vergleich eine Tautologie ($artikelZeile und $q sind dieselbe Zeile).
+// Was noch etwas sagt: die Notiz zeigt auf die EBENE, nie auf den Artikel -- die 404-Falle
+// vom 31.08.2026.
+assert(!str_contains((string) $q['note'], 'Gardel'),
+    'die Arbeitsseite heisst nach der EBENE, nie nach dem Artikel: ' . var_export($q['note'], true));
 $pruefungen += 2;
-$s = $pdo->query("SELECT * FROM sources WHERE url = 'https://www.garetien.de'")->fetch(PDO::FETCH_ASSOC);
-// 🔴 UND sources.url bleibt der WIRT -- die Export-Seite landet NICHT dort zurueck, sie steht
-// ausschliesslich in feature_sources.note (siehe oben).
+$s = $pdo->query("SELECT * FROM sources WHERE url LIKE '%index.php%'")->fetch(PDO::FETCH_ASSOC);
+// 🔴 UND sources.url ist die ARTIKELadresse -- die Export-Arbeitsseite landet NICHT dort
+// zurueck, sie steht ausschliesslich in feature_sources.note (siehe oben). Bis zum 01.09.2026 stand
+// hier der Wirt; die Aussage ist dieselbe geblieben, nur die Adresse ist genauer geworden.
 assert(
-    $s['url'] === 'https://www.garetien.de',
-    'sources.url bleibt der Wirt allein, ohne title=-Parameter: ' . var_export($s['url'], true)
+    $s['url'] === 'https://www.garetien.de/index.php/Garetien:Gardel',
+    'sources.url ist die Artikeladresse, nicht die Arbeitsseite: ' . var_export($s['url'], true)
 );
 $pruefungen++;
 assert(str_contains((string) $s['url'], 'garetien.de'), 'die Quelle zeigt auf den Wiki-Artikel');
@@ -400,7 +419,10 @@ assert(str_contains((string) $s['url'], 'garetien.de'), 'die Quelle zeigt auf de
 // langem. Die Lizenzangabe haengt deshalb am WIRT der Adresse, nicht am Typ: beide Wikis tragen
 // denselben Typ, und verschieden ist nur der Name, der genannt werden muss.
 assert($s['source_type'] === 'briefspiel', 'die Kategorie der Quelle: ' . $s['source_type']);
-assert(str_starts_with((string) $s['label'], 'Briefspiel ('), 'und die Beschriftung nennt sie: ' . $s['label']);
+// 01.09.2026: die eine Quelle ist der ARTIKEL, ihre Beschriftung folgt dem Owner-Wortlaut
+// („Stadt Praioslob auf garetien.de"). Die Sammelquelle „Briefspiel (Garetien)" traegt seither
+// nur noch, wer keinen Artikel hat -- belegt weiter unten an einer artikellosen Zeile.
+assert($s['label'] === 'Gardel auf garetien.de', 'und die Beschriftung nennt sie: ' . $s['label']);
 
 // --- 🔴 LIZENZ UND NAMENSNENNUNG STEHEN AN DER QUELLE (Owner 27.08.2026: "quellen fehlt das
 // lizenz-feld"). Zwei Felder, weil CC zwei getrennte Dinge verlangt: WAS gilt und WEN man nennt.
@@ -863,7 +885,7 @@ $pdo3->prepare('INSERT INTO map_features (public_id, name, feature_type, feature
 
 $runId4 = avesmapsSyncPlanStartRun($pdo3, AVESMAPS_GARETIEN_PLAN_KIND, 1, 'test');
 avesmapsSyncPlanAddItem($pdo3, $runId4, [
-    'entity_key' => 'ggp:Gewaesser:Bach:Garetien:Alke|ergaenzung|' . $idFluss,
+    'entity_key' => 'ggp:Gewaesser:Bach:Garetien:Alke!Alke|ergaenzung|' . $idFluss,
     'entity_public_id' => $idFluss,
     'change_type' => 'changed',
     'label' => 'Alke → ohne Namen',
@@ -881,7 +903,7 @@ avesmapsSyncPlanAddItem($pdo3, $runId4, [
 // der Erlaubnisliste) -- nur so unterscheidet die folgende Pruefung wirklich etwas, statt zufaellig
 // bei 0 zu landen.
 avesmapsSyncPlanAddItem($pdo3, $runId4, [
-    'entity_key' => 'ggp:Gewaesser:Bach:Garetien:Widerspruch|widerspruch|' . $idFluss,
+    'entity_key' => 'ggp:Gewaesser:Bach:Garetien:Widerspruch!Widerspruch|widerspruch|' . $idFluss,
     'entity_public_id' => $idFluss,
     'change_type' => 'changed',
     'label' => 'Widerspruch → Alke',
@@ -939,7 +961,7 @@ $pdo3->prepare('INSERT INTO map_features (public_id, name, feature_type, feature
 
 $runId8 = avesmapsSyncPlanStartRun($pdo3, AVESMAPS_GARETIEN_PLAN_KIND, 1, 'test-wiki-ueberschreibt');
 avesmapsSyncPlanAddItem($pdo3, $runId8, [
-    'entity_key' => 'ggp:Gewaesser:Bach:Garetien:AndererBach|ergaenzung|' . $idWikiWeg,
+    'entity_key' => 'ggp:Gewaesser:Bach:Garetien:AndererBach!AndererBach|ergaenzung|' . $idWikiWeg,
     'entity_public_id' => $idWikiWeg,
     'change_type' => 'changed',
     'label' => 'Anderer Bach → ohne Namen',
@@ -989,7 +1011,7 @@ $pruefungen += 5;
 $neueKoordinaten = [[100.0, 200.0], [150.0, 250.0], [175.0, 260.0]];
 $runId6 = avesmapsSyncPlanStartRun($pdo3, AVESMAPS_GARETIEN_PLAN_KIND, 1, 'test-geometrie');
 avesmapsSyncPlanAddItem($pdo3, $runId6, [
-    'entity_key' => 'ggp:Gewaesser:Bach:Garetien:Alke|geometrie|' . $idFluss,
+    'entity_key' => 'ggp:Gewaesser:Bach:Garetien:Alke!Alke|geometrie|' . $idFluss,
     'entity_public_id' => $idFluss,
     'change_type' => 'changed',
     'label' => 'Alke → Alke · Geometrie',
@@ -1060,7 +1082,7 @@ $pdo3->prepare('INSERT INTO ecosystem_area (public_id, region_id, geometry_geojs
 $neueFlaeche = ['type' => 'Polygon', 'coordinates' => [[[10.0, 10.0], [20.0, 10.0], [20.0, 20.0], [10.0, 20.0], [10.0, 10.0]]]];
 $runId7 = avesmapsSyncPlanStartRun($pdo3, AVESMAPS_GARETIEN_PLAN_KIND, 1, 'test-region-geometrie');
 avesmapsSyncPlanAddItem($pdo3, $runId7, [
-    'entity_key' => 'ggp:Gewaesser:See:Garetien:Muehlsee|geometrie|' . $idSeeRegion,
+    'entity_key' => 'ggp:Gewaesser:See:Garetien:Muehlsee!Muehlsee|geometrie|' . $idSeeRegion,
     'entity_public_id' => $idSeeRegion,
     'change_type' => 'changed',
     'label' => 'Mühlsee → Mühlsee · Geometrie',
@@ -1130,7 +1152,7 @@ $pdo3->exec("INSERT INTO ecosystem_region (public_id, name, kind, region_type, l
 
 $runId9 = avesmapsSyncPlanStartRun($pdo3, AVESMAPS_GARETIEN_PLAN_KIND, 1, 'test-region-quelle');
 avesmapsSyncPlanAddItem($pdo3, $runId9, [
-    'entity_key' => 'ggp:Gewaesser:Moor:Garetien:Testmoor|ergaenzung|' . $idMoorRegion,
+    'entity_key' => 'ggp:Gewaesser:Moor:Garetien:Testmoor!Testmoor|ergaenzung|' . $idMoorRegion,
     'entity_public_id' => $idMoorRegion,
     'change_type' => 'changed',
     'label' => 'Testmoor → Testmoor · Quelle',
@@ -1340,8 +1362,8 @@ $pruefungen += 4;
 // map-features.php:1228 fuer den Infobox-Quellenkasten benutzt.
 $ortQuelle = $pdoNeu->prepare("SELECT COUNT(*) FROM feature_sources WHERE entity_type = 'settlement' AND entity_public_id = ?");
 $ortQuelle->execute([$ortZeile['public_id']]);
-assert((int) $ortQuelle->fetchColumn() === 2,
-    'BEIDE Quellen des Ortes haengen an entity_type=settlement -- Sammelquelle und Artikel (31.08.2026)');
+assert((int) $ortQuelle->fetchColumn() === 1,
+    'die EINE Quelle des Ortes haengt an entity_type=settlement -- seit 01.09.2026 der Artikel allein');
 $pruefungen++;
 
 
@@ -1662,8 +1684,8 @@ $pruefungen++;
 
 $bergQuelle = $pdoNeu->prepare("SELECT COUNT(*) FROM feature_sources WHERE entity_type = 'region' AND entity_public_id = ?");
 $bergQuelle->execute([$bergZeile['public_id']]);
-assert((int) $bergQuelle->fetchColumn() === 2,
-    'BEIDE Quellen des Gipfels haengen an seiner EIGENEN public_id unter entity_type=region');
+assert((int) $bergQuelle->fetchColumn() === 1,
+    'die Quelle des Gipfels haengt an seiner EIGENEN public_id unter entity_type=region');
 $pruefungen++;
 
 // ===============================================================================================
@@ -2061,9 +2083,9 @@ avesmapsSyncPlanAddItem($pdoQ, $laufQ, [
 $itemWegQ = $itemIdVon($pdoQ, 'Testpfad Quelle · Quelle');
 $eWegQ = avesmapsGaretienUebernehmen($pdoQ, $laufQ, [$itemWegQ], ['id' => 7]);
 assert($eWegQ['fehler'] === [], 'die Quellen-Ergaenzung des Wegs gelingt: ' . json_encode($eWegQ, JSON_UNESCAPED_UNICODE));
-assert($eWegQ['quellen'] === 2,
-    'zwei Quellen: die Sammelquelle UND der Artikel -- die Ergaenzung geht durch denselben '
-    . 'Trichter wie das Anlegen (31.08.2026): ' . $eWegQ['quellen']);
+assert($eWegQ['quellen'] === 1,
+    'EINE Quelle -- der Artikel; die Ergaenzung geht durch denselben Trichter wie das Anlegen '
+    . 'und folgt damit derselben Weiche (01.09.2026): ' . $eWegQ['quellen']);
 $pruefungen += 2;
 
 // --- 💣 UND DAS IST DER ZWEITE ERZEUGER. Die Artikelquelle haengt am Anlegeweg UND hier;
@@ -2107,12 +2129,15 @@ assert($rueckWegQ['entity_type'] === 'path' && $rueckWegQ['public_id'] === $idWe
     'und es ist der richtige Weg: ' . json_encode($rueckWegQ));
 $adressenWegQ = array_map(static fn(array $q): string => $q['url'], $rueckWegQ['sources']);
 sort($adressenWegQ);
+// 01.09.2026: es sind ZWEI statt drei -- der Import haengt nur noch den Artikel an, die
+// Sammelquelle entfaellt. Die tragende Aussage bleibt dieselbe: die FREMDE, handgepflegte
+// Verknuepfung reist mit zurueck. Ohne sie wuerde die Anzeige im Browser die fremde Quelle
+// verlieren, sobald der Import eine eigene ergaenzt.
 assert($adressenWegQ === [
         'https://www.beispiel.de/handgepflegt',
         'https://www.garetien.de/index.php/Testpfad-Quelle',
-        'https://www.garetien.de/index.php?title=Garetien:Testpfad',
     ],
-    'ALLE DREI reisen zurueck -- die zwei eben angelegten UND die vorhandene handgepflegte: '
+    'BEIDE reisen zurueck -- die eben angelegte UND die vorhandene handgepflegte: '
     . json_encode($adressenWegQ));
 $pruefungen += 4;
 
@@ -2164,8 +2189,8 @@ $zaehleManualLinks = static function (PDO $pdo, string $entityType, string $publ
     return (int) $s->fetchColumn();
 };
 
-assert($zaehleGaretienLinks($pdoQ, 'path', $idWegQ) === 2,
-    'BEIDE garetien-Verknuepfungen stehen nach der Uebernahme -- Sammelquelle und Artikel');
+assert($zaehleGaretienLinks($pdoQ, 'path', $idWegQ) === 1,
+    'die EINE garetien-Verknuepfung steht nach der Uebernahme -- der Artikel');
 assert($zaehleManualLinks($pdoQ, 'path', $idWegQ) === 1, 'und die manuelle Verknuepfung ebenso');
 $pruefungen += 2;
 
@@ -2185,7 +2210,7 @@ $pruefungen += 2;
 
 // 🔴 Die sources-ZEILE selbst bleibt stehen -- ein geteilter Katalog, kein Objekt-Eigentum.
 $sourcesZeileNochStmt = $pdoQ->prepare('SELECT COUNT(*) FROM sources WHERE url = ?');
-$sourcesZeileNochStmt->execute(['https://www.garetien.de/index.php?title=Garetien:Testpfad']);
+$sourcesZeileNochStmt->execute(['https://www.garetien.de/index.php/Testpfad-Quelle']);
 assert((int) $sourcesZeileNochStmt->fetchColumn() === 1,
     '🔴 die sources-Zeile selbst wird NIEMALS geloescht -- geteilter Katalog, AGENTS.md §5');
 $pruefungen++;
@@ -2233,7 +2258,7 @@ assert(count($rGemischtQ['fehler']) === 1 && str_contains($rGemischtQ['fehler'][
     'mit demselben Grund wie zuvor: ' . json_encode($rGemischtQ, JSON_UNESCAPED_UNICODE));
 $pruefungen += 2;
 
-assert($zaehleGaretienLinks($pdoQ, 'path', $idWegGemischtQ) === 2,
+assert($zaehleGaretienLinks($pdoQ, 'path', $idWegGemischtQ) === 1,
     'die Quellen-Verknuepfung bleibt stehen -- die Ruecknahme hat sie nicht angefasst');
 $itemGemischtQNachher = $pdoQ->query('SELECT apply_state FROM sync_plan_item WHERE id = ' . $itemGemischtQ)->fetchColumn();
 assert($itemGemischtQNachher === 'done', 'das Item bleibt auf "done" stehen');
@@ -2248,7 +2273,7 @@ $pdoQ->exec("INSERT INTO ecosystem_region (public_id, name, kind, region_type, l
              VALUES ('{$idSeeQRegion}', 'Testquellsee', 'topographie', 'see', '{$idSeeQLabel}', 1)");
 
 avesmapsSyncPlanAddItem($pdoQ, $laufQ, [
-    'entity_key' => 'ggp:Gewaesser:See:Garetien:Testquellsee|ergaenzung|' . $idSeeQRegion,
+    'entity_key' => 'ggp:Gewaesser:See:Garetien:Testquellsee!Testquellsee|ergaenzung|' . $idSeeQRegion,
     'entity_public_id' => $idSeeQRegion,
     'change_type' => 'changed',
     'label' => 'Testquellsee · Quelle',
@@ -2264,7 +2289,7 @@ $eSeeQ = avesmapsGaretienUebernehmen($pdoQ, $laufQ, [$itemSeeQ], ['id' => 7]);
 assert($eSeeQ['fehler'] === [], 'die Quellen-Ergaenzung der Flaeche gelingt: ' . json_encode($eSeeQ, JSON_UNESCAPED_UNICODE));
 $pruefungen++;
 
-assert($zaehleGaretienLinks($pdoQ, 'region', $idSeeQLabel) === 2,
+assert($zaehleGaretienLinks($pdoQ, 'region', $idSeeQLabel) === 1,
     'die Verknuepfung haengt an der BESCHRIFTUNG (Label-public_id)');
 assert($zaehleGaretienLinks($pdoQ, 'region', $idSeeQRegion) === 0,
     'und NICHT an der Regions-public_id');
@@ -2297,7 +2322,7 @@ foreach ([$idAbschnittEinsQ, $idAbschnittZweiQ] as $i => $id) {
             json_encode(['type' => 'LineString', 'coordinates' => [[10.0 + $i, 10.0], [11.0 + $i, 11.0]]]),
             '{}', 'LineString']);
     avesmapsSyncPlanAddItem($pdoQ, $laufQ, [
-        'entity_key' => 'ggp:Weg:Reichsstrasse:Garetien:ReichsstrasseZwei|ergaenzung|' . $id,
+        'entity_key' => 'ggp:Weg:Reichsstrasse:Garetien:ReichsstrasseZwei!ReichsstrasseZwei|ergaenzung|' . $id,
         'entity_public_id' => $id,
         'change_type' => 'changed',
         'label' => 'Reichsstrasse Zwei Abschnitt ' . ($i + 1) . ' · Quelle',
@@ -2405,8 +2430,8 @@ avesmapsSyncPlanAddItem($pdoR, $laufR, [
 $itemR = $itemIdVon($pdoR, 'Stempelpfad · Quelle');
 $revVorher = $revisionVon($pdoR);
 $eR = avesmapsGaretienUebernehmen($pdoR, $laufR, [$itemR], ['id' => 7]);
-assert($eR['fehler'] === [] && $eR['quellen'] === 2,
-    'die Quellen-Ergaenzung gelingt, Sammelquelle und Artikel: ' . json_encode($eR, JSON_UNESCAPED_UNICODE));
+assert($eR['fehler'] === [] && $eR['quellen'] === 1,
+    'die Quellen-Ergaenzung gelingt, der Artikel: ' . json_encode($eR, JSON_UNESCAPED_UNICODE));
 assert($revisionVon($pdoR) > $revVorher,
     '🔴 EINE UEBERNAHME, DIE NUR EINE QUELLE SCHREIBT, MUSS DIE KARTENREVISION HEBEN -- sonst '
     . 'bekommt jeder warme Browser sein 304 samt alter Nutzlast und sieht die Quelle NIE');
@@ -2571,7 +2596,7 @@ $pdoN->prepare('INSERT INTO map_features (public_id, name, feature_type, feature
     ->execute([$idMitArtikel, 'Alter Weg', 'path', 'Weg',
         json_encode(['type' => 'LineString', 'coordinates' => [[3.0, 3.0], [4.0, 4.0]]]), '{}', 'LineString']);
 avesmapsSyncPlanAddItem($pdoN, $laufN, [
-    'entity_key' => 'ggp:Wege:Weg:Garetien:Alter Weg',
+    'entity_key' => 'ggp:Wege:Weg:Garetien:Alter Weg!Alter Weg',
     'entity_public_id' => $idMitArtikel,
     'change_type' => 'changed',
     'label' => 'Alter Weg · Quelle',
@@ -2612,7 +2637,7 @@ $pdoN->prepare('INSERT INTO map_features (public_id, name, feature_type, feature
     ->execute([$idNachzug, 'Praioslob Probe', 'location', 'stadt',
         json_encode(['type' => 'Point', 'coordinates' => [5.0, 5.0]]), '{}', 'Point']);
 avesmapsSyncPlanAddItem($pdoN, $laufN, [
-    'entity_key' => 'ggp:Ortschaften_3:Stadt:Garetien:Stadt Praioslob',
+    'entity_key' => 'ggp:Ortschaften_3:Stadt:Garetien:Stadt Praioslob!Stadt Praioslob',
     'entity_public_id' => $idNachzug,
     'change_type' => 'changed',
     'label' => 'Praioslob Probe · Quelle',
@@ -2663,7 +2688,7 @@ $pdoN->prepare('INSERT INTO map_features (public_id, name, feature_type, feature
     ->execute([$idNeu, 'Neuling', 'path', 'Weg',
         json_encode(['type' => 'LineString', 'coordinates' => [[7.0, 7.0], [8.0, 8.0]]]), '{}', 'LineString']);
 avesmapsSyncPlanAddItem($pdoN, $laufN, [
-    'entity_key' => 'ggp:Wege:Weg:Garetien:Neuling',
+    'entity_key' => 'ggp:Wege:Weg:Garetien:Neuling!Neuling',
     'entity_public_id' => null,
     'change_type' => 'new',
     'label' => 'Neuling (Probe)',
@@ -2707,7 +2732,7 @@ $pdoV->prepare('INSERT INTO map_features (public_id, name, feature_type, feature
     ->execute([$idV, 'Vermerkweg', 'path', 'Weg',
         json_encode(['type' => 'LineString', 'coordinates' => [[1.0, 1.0], [2.0, 2.0]]]), '{}', 'LineString']);
 avesmapsSyncPlanAddItem($pdoV, $laufV, [
-    'entity_key' => 'ggp:Wege:Weg:Garetien:Vermerkweg',
+    'entity_key' => 'ggp:Wege:Weg:Garetien:Vermerkweg!Vermerkweg',
     'entity_public_id' => $idV,
     'change_type' => 'changed',
     'label' => 'Vermerkweg \u00b7 Quelle',
@@ -2721,7 +2746,7 @@ avesmapsSyncPlanAddItem($pdoV, $laufV, [
 ]);
 $itemV = $itemIdVon($pdoV, 'Vermerkweg \u00b7 Quelle');
 $vermerkV = static fn(PDO $pdo): ?string => ($w = $pdo->query(
-    "SELECT applied_at FROM sync_decision WHERE kind = 'garetien' AND entity_key = 'ggp:Wege:Weg:Garetien:Vermerkweg'"
+    "SELECT applied_at FROM sync_decision WHERE kind = 'garetien' AND entity_key = 'ggp:Wege:Weg:Garetien:Vermerkweg!Vermerkweg'"
 )->fetchColumn()) === false ? null : ($w === null ? null : (string) $w);
 
 avesmapsGaretienUebernehmen($pdoV, $laufV, [$itemV], ['id' => 7]);
@@ -2738,7 +2763,7 @@ $pruefungen += 2;
 // (`declined_at`), und ein DELETE naehme die mit -- genau das braucht die Ablehnung eines
 // uebernommenen Objekts (Owner 31.08.2026), die Ruecknahme und Ablehnung nacheinander tut.
 $zeilenV = (int) $pdoV->query(
-    "SELECT COUNT(*) FROM sync_decision WHERE kind = 'garetien' AND entity_key = 'ggp:Wege:Weg:Garetien:Vermerkweg'"
+    "SELECT COUNT(*) FROM sync_decision WHERE kind = 'garetien' AND entity_key = 'ggp:Wege:Weg:Garetien:Vermerkweg!Vermerkweg'"
 )->fetchColumn();
 assert($zeilenV === 1, 'die Entscheidungszeile bleibt stehen, nur die Spalten sind leer: ' . $zeilenV);
 $pruefungen++;
@@ -2757,7 +2782,7 @@ $pdoV->prepare('INSERT INTO map_features (public_id, name, feature_type, feature
     ->execute([$idW, 'Bleibtweg', 'path', 'Weg',
         json_encode(['type' => 'LineString', 'coordinates' => [[3.0, 3.0], [4.0, 4.0]]]), '{}', 'LineString']);
 avesmapsSyncPlanAddItem($pdoV, $laufV, [
-    'entity_key' => 'ggp:Wege:Weg:Garetien:Bleibtweg',
+    'entity_key' => 'ggp:Wege:Weg:Garetien:Bleibtweg!Bleibtweg',
     'entity_public_id' => $idW,
     'change_type' => 'changed',
     'label' => 'Bleibtweg \u00b7 Quelle',
@@ -2810,14 +2835,14 @@ $baueZ = static function (PDO $pdo, int $lauf, string $label, string $key, strin
 };
 
 // --- Der Fall des Owners: das Item ist FRISCH (apply_state = NULL), der dauerhafte Vermerk steht.
-$baueZ($pdoZ, $laufZ, 'Praioslob \u00b7 Quelle', 'ggp:Ortschaften_3:Stadt:Garetien:Stadt Praioslob', $idZ, 'changed');
+$baueZ($pdoZ, $laufZ, 'Praioslob \u00b7 Quelle', 'ggp:Ortschaften_3:Stadt:Garetien:Stadt Praioslob!Stadt Praioslob', $idZ, 'changed');
 $itemZ = $itemIdVon($pdoZ, 'Praioslob \u00b7 Quelle');
 avesmapsSyncPlanRecordApplied($pdoZ, AVESMAPS_GARETIEN_PLAN_KIND,
-    'ggp:Ortschaften_3:Stadt:Garetien:Stadt Praioslob', 7, 'changed');
+    'ggp:Ortschaften_3:Stadt:Garetien:Stadt Praioslob!Stadt Praioslob', 7, 'changed');
 $standVorher = (string) $pdoZ->query("SELECT apply_state FROM sync_plan_item WHERE id = $itemZ")->fetchColumn();
 assert($standVorher === '', 'die Vorbedingung: das Item ist frisch, nicht "done" -- ' . var_export($standVorher, true));
 $vermerkVorher = $pdoZ->query(
-    "SELECT applied_at FROM sync_decision WHERE kind = 'garetien' AND entity_key = 'ggp:Ortschaften_3:Stadt:Garetien:Stadt Praioslob'"
+    "SELECT applied_at FROM sync_decision WHERE kind = 'garetien' AND entity_key = 'ggp:Ortschaften_3:Stadt:Garetien:Stadt Praioslob!Stadt Praioslob'"
 )->fetchColumn();
 assert($vermerkVorher !== false && $vermerkVorher !== null, 'und der dauerhafte Vermerk steht');
 $pruefungen += 2;
@@ -2827,7 +2852,7 @@ assert($zZ['verschoben'] === 1,
     '🔴 ein Objekt, das NUR ueber den dauerhaften Vermerk uebernommen ist, wandert auch zurueck: '
     . json_encode($zZ));
 $vermerkNachher = $pdoZ->query(
-    "SELECT applied_at FROM sync_decision WHERE kind = 'garetien' AND entity_key = 'ggp:Ortschaften_3:Stadt:Garetien:Stadt Praioslob'"
+    "SELECT applied_at FROM sync_decision WHERE kind = 'garetien' AND entity_key = 'ggp:Ortschaften_3:Stadt:Garetien:Stadt Praioslob!Stadt Praioslob'"
 )->fetchColumn();
 assert($vermerkNachher === null, 'und der Vermerk ist geloescht: ' . var_export($vermerkNachher, true));
 $pruefungen += 2;
@@ -2842,7 +2867,7 @@ $pruefungen += 2;
 // --- 🔴 EIN 'new'-ITEM WANDERT NICHT, und der Grund nennt den richtigen Weg. Es einfach
 // zurueckzuschieben liesse das angelegte Objekt auf der Karte und boete an, es ein zweites Mal
 // anzulegen.
-$baueZ($pdoZ, $laufZ, 'Neuling \u00b7 neu', 'ggp:Ortschaften_3:Stadt:Garetien:Neuling', $idZ, 'new');
+$baueZ($pdoZ, $laufZ, 'Neuling \u00b7 neu', 'ggp:Ortschaften_3:Stadt:Garetien:Neuling!Neuling', $idZ, 'new');
 $itemNeuZ = $itemIdVon($pdoZ, 'Neuling \u00b7 neu');
 avesmapsGaretienItemAbschliessen($pdoZ, $itemNeuZ, 'done', $idZ, 7);
 $zNeu = avesmapsGaretienZurueckAufOffen($pdoZ, $laufZ, [$itemNeuZ], ['id' => 7]);
@@ -2852,7 +2877,7 @@ assert(count($zNeu['fehler']) === 1 && str_contains($zNeu['fehler'][0]['grund'],
 $pruefungen += 2;
 
 // --- ⚠️ Ein Item, das nie uebernommen wurde, ist kein Fehler -- es ist schon dort, wo es hin soll.
-$baueZ($pdoZ, $laufZ, 'Offen \u00b7 Quelle', 'ggp:Ortschaften_3:Stadt:Garetien:Offen', $idZ, 'changed');
+$baueZ($pdoZ, $laufZ, 'Offen \u00b7 Quelle', 'ggp:Ortschaften_3:Stadt:Garetien:Offen!Offen', $idZ, 'changed');
 $zOffen = avesmapsGaretienZurueckAufOffen($pdoZ, $laufZ, [$itemIdVon($pdoZ, 'Offen \u00b7 Quelle')], ['id' => 7]);
 assert($zOffen === ['verschoben' => 0, 'fehler' => []],
     'ein nie uebernommenes Item wird uebersprungen, nicht beanstandet: ' . json_encode($zOffen));
@@ -2880,12 +2905,16 @@ $nachM = [
         'license' => 'cc-by-nc-sa-3.0', 'attribution' => 'VolkoV / garetien.de'],
     'seite_url' => AVESMAPS_GARETIEN_BASIS_GGP . 'Wege',
 ];
-$keyM = 'ggp:Wege:Weg:Garetien:Notizprobe';
+$keyM = 'ggp:Wege:Weg:Garetien:Notizprobe!Notizprobe';
 avesmapsGaretienQuellenAnlegen($pdoM, 'path', $idM, $nachM, 7, $keyM);
 
+// 01.09.2026: gemessen wird an der Verknuepfung, die WIRKLICH entsteht -- seit dem
+// Owner-Entscheid „nur noch den artikel als quelle" ist das die Artikelquelle, nicht mehr der
+// Wirt. Die Aussage dieses Abschnitts ist davon unberuehrt: es geht um die NOTIZ, nicht um die
+// Adresse.
 $leseM = static fn(PDO $p): array => (array) $p->query(
     "SELECT fs.origin, fs.note FROM feature_sources fs JOIN sources s ON s.id = fs.source_id
-      WHERE fs.entity_public_id = '$idM' AND s.url = 'https://www.garetien.de'"
+      WHERE fs.entity_public_id = '$idM' AND s.url = 'https://www.garetien.de/index.php/Garetien:Notizprobe'"
 )->fetch(PDO::FETCH_ASSOC);
 
 // --- Solange sie UNS gehoert, darf sie aufgefrischt werden: sonst bliebe die tote
@@ -2897,13 +2926,13 @@ assert($leseM($pdoM)['note'] === AVESMAPS_GARETIEN_BASIS_GGP . 'Wege',
 $pruefungen++;
 
 // --- 🔴 Sobald ein Mensch sie uebernommen hat, bleibt seine Notiz stehen.
-// ⚠️ BEIDE Verknuepfungen uebernimmt hier ein Mensch -- sonst zaehlte der Rueckgabewert unten die
-// Artikelquelle mit, die uns ja noch gehoert, und die Zusicherung „zaehlt nicht als neu" waere
-// gegen den falschen Fall gemessen.
+// ⚠️ Seit dem 01.09.2026 gibt es hier nur EINE Verknuepfung (den Artikel); der Satz „BEIDE
+// uebernimmt ein Mensch" stand hier, solange es zwei waren, und die Zusicherung „zaehlt nicht als
+// neu" waere sonst gegen den falschen Fall gemessen worden.
 $pdoM->exec("UPDATE feature_sources SET origin = 'manual' WHERE entity_public_id = '$idM'");
 $pdoM->exec("UPDATE feature_sources SET note = 'von Hand geprueft'
               WHERE entity_public_id = '$idM'
-                AND source_id = (SELECT id FROM sources WHERE url = 'https://www.garetien.de')");
+                AND source_id = (SELECT id FROM sources WHERE url = 'https://www.garetien.de/index.php/Garetien:Notizprobe')");
 $neuM = avesmapsGaretienQuellenAnlegen($pdoM, 'path', $idM, $nachM, 7, $keyM);
 assert($leseM($pdoM)['note'] === 'von Hand geprueft',
     '🔴 eine fremde Notiz bleibt stehen: ' . json_encode($leseM($pdoM)));
@@ -2916,7 +2945,7 @@ $pruefungen += 3;
 // einmal; „nicht anfassen" heisst nicht „wegnehmen".
 $zahlM = (int) $pdoM->query(
     "SELECT COUNT(*) FROM feature_sources fs JOIN sources s ON s.id = fs.source_id
-      WHERE fs.entity_public_id = '$idM' AND s.url = 'https://www.garetien.de'"
+      WHERE fs.entity_public_id = '$idM' AND s.url = 'https://www.garetien.de/index.php/Garetien:Notizprobe'"
 )->fetchColumn();
 assert($zahlM === 1, 'die Verknuepfung haengt weiter genau einmal: ' . $zahlM);
 $pruefungen++;
@@ -2937,7 +2966,7 @@ $pruefungen++;
 // ⭐ Der alte Lauf ist noch da -- avesmapsSyncPlanStartRun setzt ihn nur auf `superseded`,
 // geloescht wird nie. Dort steht der Vermerk.
 $pdoL = avesmapsGaretienUebernahmeTestPdo();
-$keyL = 'ggp:Ortschaften_3:Stadt:Garetien:Laufgrenze';
+$keyL = 'ggp:Ortschaften_3:Stadt:Garetien:Laufgrenze!Laufgrenze';
 $idL = '00000000-0000-4000-8000-0000000f0001';
 $pdoL->prepare('INSERT INTO map_features (public_id, name, feature_type, feature_subtype, geometry_json, properties_json, geometry_type) VALUES (?,?,?,?,?,?,?)')
     ->execute([$idL, 'Laufgrenze', 'location', 'stadt',
@@ -3005,7 +3034,7 @@ $pdoN->prepare('INSERT INTO map_features (public_id, name, feature_type, feature
     ->execute([$idN, 'Nievermerkt', 'location', 'stadt',
         json_encode(['type' => 'Point', 'coordinates' => [8.0, 8.0]]), '{}', 'Point']);
 avesmapsSyncPlanAddItem($pdoN, $laufN, [
-    'entity_key' => 'ggp:Ortschaften_3:Stadt:Garetien:Nievermerkt', 'entity_public_id' => null,
+    'entity_key' => 'ggp:Ortschaften_3:Stadt:Garetien:Nievermerkt!Nievermerkt', 'entity_public_id' => null,
     'change_type' => 'new', 'label' => 'Nievermerkt neu', 'before' => [],
     'after' => ['herkunft' => 'garetien', 'wiki' => 'ggp', 'ebene' => 'Ortschaften_3',
         'ziel' => 'location', 'subtyp' => 'stadt', 'name' => 'Nievermerkt',

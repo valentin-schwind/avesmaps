@@ -134,10 +134,10 @@ $pruefungen++;
 // =================================================================================================
 // Ohne ihn muesste der Owner seinen laufenden Lauf (8213 Zeilen) neu rechnen, um die Artikelquelle
 // zu bekommen. Er ist die Umkehrung von avesmapsGaretienObjektSchluesselAusZeile.
-assert(avesmapsGaretienArtikelNameAusSchluessel('ggp:Ortschaften_3:Stadt:Garetien:Stadt Praioslob')
+assert(avesmapsGaretienArtikelNameAusSchluessel('ggp:Ortschaften_3:Stadt:Garetien:Stadt Praioslob!Stadt Praioslob')
     === 'Garetien:Stadt Praioslob', 'der vierte Teil des Schluessels IST der Artikelname');
 // 💣 DER SUFFIX HINTER `|` MUSS HERAUSFALLEN -- ein Ergaenzungs-Item traegt ihn.
-assert(avesmapsGaretienArtikelNameAusSchluessel('ggp:Gewaesser:Fluss:Garetien:Natter|ergaenzung|abc-123')
+assert(avesmapsGaretienArtikelNameAusSchluessel('ggp:Gewaesser:Fluss:Garetien:Natter!Natter|ergaenzung|abc-123')
     === 'Garetien:Natter', 'der Suffix hinter | gehoert nicht zum Artikelnamen');
 // 💣 UND EIN OBJEKT OHNE ARTIKEL TRAEGT `#<Zeilennummer>` -- daraus darf keine Quelle „#417 auf
 // garetien.de" werden, die auf `…/index.php/#417` zeigt.
