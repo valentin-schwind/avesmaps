@@ -185,10 +185,9 @@ function createRegionWikiInfoBoxMarkup(regionEntry) {
 
 	// Owner: 16:9 header image + title overlay instead of the coat/icon header. Territories carry a political
 	// type (Baronie/Reich/...) -> no landscape art -> falls back to the generic "region" graphic.
-	const headerImg = typeof infoHeaderImageMarkup === "function"
-		? infoHeaderImageMarkup(regionHeaderImageBasename(regionEntry.wikiArt || regionEntry.art || type), name, type, coatMarkup)
-		: `<div class="region-info-box__header${hasCoatClass}">${coatMarkup}<div class="region-info-box__title-group"><strong class="region-info-box__title">${escapeHtml(name)}</strong><span class="region-info-box__subtitle">${escapeHtml(type)}</span></div></div>`;
-	// Das Kanon-Etikett, unter dem Kopf und ueber den Daten -- dieselbe Stelle wie im Ortspopup.
+	// Das Kanon-Etikett gehoert IN den Titelblock, nie hinter den Kopf: das Wappen liegt links,
+	// und hinter dem Kopf begaenne das Etikett an dessen Kante statt an der des Textes (Owner
+	// 01.09.2026 an Gareth gemeldet -- dasselbe Objekt, dieselbe Ursache wie im Ortspopup).
 	// ⚠️ TERRITORIEN ERREICHEN DEN NAMENSRAUM-RANG NICHT: sie haben keine `map_features`-Zeile, und
 	// avesmapsMapFeaturesWikiNamespaces (api/_internal/app/feature-sources.php) liest ausschliesslich
 	// die. Ein Territorium bekommt sein Etikett also nur aus seinen QUELLEN -- ein rein aus ns 222
@@ -198,10 +197,16 @@ function createRegionWikiInfoBoxMarkup(regionEntry) {
 	const kanonMarkup = typeof renderFeatureKanonBadge === "function"
 		? renderFeatureKanonBadge("territory", regionEntry.territoryPublicId || "")
 		: "";
+	// Owner: 16:9 header image + title overlay instead of the coat/icon header. Territories carry a political
+	// type (Baronie/Reich/...) -> no landscape art -> falls back to the generic "region" graphic.
+	// 💣 Der Rueckfall traegt das Etikett EBENFALLS in seiner Titelgruppe -- sonst waere genau der
+	// Zustand wieder da, den diese Zeile behebt, nur auf einer Seite ohne popups.js.
+	const headerImg = typeof infoHeaderImageMarkup === "function"
+		? infoHeaderImageMarkup(regionHeaderImageBasename(regionEntry.wikiArt || regionEntry.art || type), name, type, coatMarkup, [], "", kanonMarkup)
+		: `<div class="region-info-box__header${hasCoatClass}">${coatMarkup}<div class="region-info-box__title-group"><strong class="region-info-box__title">${escapeHtml(name)}</strong><span class="region-info-box__subtitle">${escapeHtml(type)}</span>${kanonMarkup}</div></div>`;
 	return `
 		<div class="region-info-box">
 			${headerImg}
-			${kanonMarkup}
 			${shareMarkup}
 			<dl class="region-info-box__data">${wikiRows}</dl>
 			${typeof renderFeatureSourceLine === "function" ? renderFeatureSourceLine("territory", regionEntry.territoryPublicId || "", wikiUrl || "", "region-info-box__link") : ""}

@@ -205,6 +205,72 @@ pruefe(mitBild.indexOf("feature-kanon-head") < mitBild.indexOf('class="actions"'
 for (const [was, markup] of [["Icon-Kopf", mitIcon], ["Bild-Kopf", mitBild]]) {
   pruefe((markup.match(/feature-kanon-head/g) || []).length === 1, `${was}: das Etikett genau einmal`);
 }
+
+// ---- K2. Der BILD-Kopf setzt es in seinen eigenen Titelblock ------------------------------------
+// 💣 DER ZWEITE ANLAUF DERSELBEN MELDUNG. Nach dem Icon-Kopf lag es im BILD-Kopf immer noch falsch,
+// und die Messung hatte es uebersehen: geprueft wurde an Burg Trutzfels, die dort GAR KEIN Wappen
+// traegt -- also lag das Etikett zufaellig richtig. Owner 01.09.2026 an Gareth: "das offiziell ist
+// unter das wappen gerutscht". Von acht Aufrufern geben nur zwei ein Wappen mit; genau die zwei
+// waren betroffen. Deshalb prueft dieser Abschnitt MIT Wappen.
+vm.runInContext(popups.slice(popups.indexOf("function infoHeaderImageMarkup"), popups.indexOf("function getLocationDescriptionText")),
+  Object.assign(vmKontext, { withAssetVersion: (s) => s }));
+const mitWappen = vmKontext.infoHeaderImageMarkup("metropole", "Gareth", "Metropole", "<img>", [], "", ETIKETT);
+const titelblock = mitWappen.slice(mitWappen.indexOf('class="info-header__titles"'));
+pruefe(titelblock.slice(0, titelblock.indexOf("</div></div>")).includes("feature-kanon-head"),
+  "der Bild-Kopf setzt das Etikett IN den Titelblock, nicht hinter das Wappen");
+pruefe(mitWappen.indexOf("info-header__coat") < mitWappen.indexOf("feature-kanon-head"),
+  "und damit hinter dem Wappen im Markup, aber innerhalb der Titel");
+pruefe(mitWappen.indexOf("info-header__subtitle") < mitWappen.indexOf("feature-kanon-head"),
+  "unter Art und Herrschaft, nicht darueber");
+// Ohne Etikett bleibt der Kopf unveraendert -- kein leeres Element, kein Platzhalter.
+pruefe(!vmKontext.infoHeaderImageMarkup("metropole", "Gareth", "Metropole", "<img>").includes("feature-kanon-head"),
+  "ohne Etikett zeichnet der Bild-Kopf keine leere Huelle");
+
+// 🔴 UND ES DARF NICHT ZWEIMAL DASTEHEN. locationPopupMarkup zeichnet es nur noch, wenn der
+// uebergebene Kopf es NICHT schon traegt -- der Riegel faellt dabei OFFEN aus: ein Aufrufer, der
+// es dem Bild-Kopf vergisst, bekommt es sichtbar an der alten Stelle statt gar nicht.
+const doppelt = vmKontext.locationPopupMarkup({
+  name: "Gareth", headerImageMarkup: mitWappen, showDescription: false, showWikiLink: false,
+  kanonMarkup: ETIKETT,
+});
+pruefe((doppelt.match(/feature-kanon-head/g) || []).length === 1,
+  "traegt der Bild-Kopf es schon, zeichnet das Popup es NICHT noch einmal");
+const vergessen = vmKontext.locationPopupMarkup({
+  name: "Gareth", headerImageMarkup: '<div class="info-header"></div>', showDescription: false,
+  showWikiLink: false, kanonMarkup: ETIKETT,
+});
+pruefe((vergessen.match(/feature-kanon-head/g) || []).length === 1,
+  "vergisst ein Aufrufer es am Kopf, faellt der Riegel OFFEN und es steht trotzdem da");
+
+// ---- K3. Die fuenf Flaechen reichen es an BEIDE Stellen ------------------------------------------
+// 💣 Einmal gebaut, zweimal gereicht: zweimal AUFGELOEST koennten die zwei Antworten auseinander
+// laufen (der Bildkopf zeigte dann etwas anderes als die schwebende Box desselben Objekts).
+for (const [datei, variable] of [
+  ["js/map-features/map-features-location-marker-entry.js", "settlementKanon"],
+  ["js/map-features/map-features-labels.js", "labelKanon"],
+  ["js/map-features/map-features-path-rendering.js", "pathKanon"],
+  ["js/map-features/map-features-powerlines.js", "powerlineKanon"],
+]) {
+  const quelle = fs.readFileSync(path.join(wurzel, datei), "utf8");
+  pruefe((quelle.match(new RegExp(`const ${variable} =`, "g")) || []).length === 1,
+    `${datei}: das Etikett wird genau EINMAL gebaut`);
+  // ⚠️ KEINE Regex mit `[^)]*` hier: der Aufruf traegt verschachtelte Klammern
+  // (`infoHeaderImageMarkup(settlementHeaderImageBasename(...), …)`), und die Zeichenklasse
+  // bricht an der ERSTEN zu. Gesucht wird stattdessen im Fenster hinter dem Aufrufbeginn.
+  const flach = quelle.replace(/\r?\n/g, " ");
+  const aufruf = flach.indexOf("infoHeaderImageMarkup(");
+  pruefe(aufruf >= 0 && flach.slice(aufruf, aufruf + 400).includes(`${variable})`),
+    `${datei}: und dem Bild-Kopf gereicht`);
+  pruefe(new RegExp(`kanonMarkup: ${variable}`).test(quelle),
+    `${datei}: und dem Popup gereicht`);
+}
+// Das Territorium hat keinen Popup-Kopf, nur den Bild-Kopf und seinen Rueckfall -- beide tragen es.
+const territorium = fs.readFileSync(path.join(wurzel, "js/map-features/map-features-region-info-markup.js"), "utf8").replace(/\r?\n/g, " ");
+const territoriumAufruf = territorium.indexOf("infoHeaderImageMarkup(");
+pruefe(territoriumAufruf >= 0 && territorium.slice(territoriumAufruf, territoriumAufruf + 400).includes("kanonMarkup)"),
+  "Territorium: Bild-Kopf traegt es");
+pruefe(/region-info-box__title-group[^`]*\$\{kanonMarkup\}/.test(territorium),
+  "Territorium: auch der Rueckfall-Kopf traegt es in seiner Titelgruppe");
 // Ohne Etikett bleibt der Kopf, wie er war.
 pruefe(!vmKontext.locationPopupMarkup({
   name: "Namenlos", showType: true, showDescription: false, showWikiLink: false,

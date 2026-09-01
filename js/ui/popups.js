@@ -543,7 +543,16 @@ function pathHeaderImageBasename(pathSubtype) {
 // Baut den 16:9-Bild-Header mit Titel-Overlay (Banner unten-links + Schatten). imageBasename ->
 // icons/header/<name>.webp. Ersetzt den bisherigen Icon-Kopf; subtitle optional (Typ/art). coatMarkup
 // (Owner): vorhandenes Wappen liegt 70x70 im Overlay links vom Titel (dekorativ, ueber dem Bild).
-function infoHeaderImageMarkup(imageBasename, title, subtitle, coatMarkup, ownImages, subtitleSuffixMarkup) {
+// 💣 `kanonMarkup` ist der siebte Parameter, weil das Etikett IN den Titelblock gehoert und nicht
+// hinter den Kopf. Hinter dem Kopf gezeichnet beginnt es an dessen linker Kante -- und die ist bei
+// einem Objekt MIT Wappen die Kante des WAPPENS, nicht die des Textes. Owner 01.09.2026 an Gareth
+// gemeldet, nachdem dieselbe Stelle im Icon-Kopf schon einmal falsch war.
+// 🪤 Und der Grund, warum es beim ersten Mal durchrutschte: gemessen wurde an Burg Trutzfels, und
+// die traegt im Bildkopf GAR KEIN Wappen -- dort lag das Etikett zufaellig richtig (908/908). Von
+// zwei Kopfformen die eine an einem unrepraesentativen Objekt zu pruefen ist keine Pruefung.
+// Von den acht Aufrufern geben nur zwei ein Wappen mit (Siedlung, Territorium); genau die zwei
+// waren betroffen.
+function infoHeaderImageMarkup(imageBasename, title, subtitle, coatMarkup, ownImages, subtitleSuffixMarkup, kanonMarkup) {
 	// Eigene Editor-Bilder (properties.images) ueberschreiben das generische Header-Bild; mehrere werden
 	// als Lightbox durchgeblaettert (< > + Dots, JS in map-features-infopanel.js). Ohne eigene Bilder das
 	// generische icons/header/<basename>.webp.
@@ -573,7 +582,7 @@ function infoHeaderImageMarkup(imageBasename, title, subtitle, coatMarkup, ownIm
 		+ nav
 		+ dots
 		+ `</div>`
-		+ `<div class="info-header__caption">${coat}<div class="info-header__titles"><div class="info-header__title">${escapeHtml(title)}</div>${sub}</div></div>`
+		+ `<div class="info-header__caption">${coat}<div class="info-header__titles"><div class="info-header__title">${escapeHtml(title)}</div>${sub}${kanonMarkup || ""}</div></div>`
 		+ '</div>';
 }
 
@@ -1102,12 +1111,18 @@ function locationPopupMarkup({
 	isRuined = false,
 	actionsMarkup = "",
 	// Das Kanon-Etikett. Leer bei jedem Objekt ohne Quelle -- siehe renderFeatureKanonBadge.
-	// 💣 ES STEHT IN JEDEM KOPF AN EINER ANDEREN STELLE, und das ist keine Unachtsamkeit: beim
-	// ICON-Kopf liegt das Wappen LINKS und der Text daneben, also gehoert das Etikett in die
-	// Titelgruppe -- als Geschwister des Kopfes rutschte es unter das Wappen und begann 58 px
-	// weiter links als der Text (Owner 01.09.2026, live gemessen: Titel bei x=512, Etikett bei
-	// x=454). Beim BILD-Kopf gibt es kein Wappen daneben, dort steht es korrekt darunter
-	// (gemessen 908/908). Eine gemeinsame Stelle fuer beide gibt es nicht.
+	// 💣 ES GEHOERT IN DEN TITELBLOCK, NIE HINTER DEN KOPF -- in BEIDEN Kopfformen. Hinter dem Kopf
+	// beginnt es an dessen linker Kante, und die ist bei einem Objekt MIT Wappen die Kante des
+	// WAPPENS, nicht die des Textes. Owner 01.09.2026, zweimal gemeldet: erst am Icon-Kopf
+	// (Titel x=512, Etikett x=454), dann am Bild-Kopf von Gareth.
+	// 🪤 Zwischen den beiden Meldungen lag meine Fehlmessung: der Bild-Kopf wurde an Burg
+	// Trutzfels geprueft, und die traegt dort GAR KEIN Wappen -- also lag das Etikett zufaellig
+	// richtig. Von zwei Kopfformen die eine an einem unrepraesentativen Objekt zu pruefen ist
+	// keine Pruefung.
+	// 🔴 Den BILD-Kopf setzt infoHeaderImageMarkup selbst (siebter Parameter), weil nur er seinen
+	// Titelblock kennt. Diese Zeile hier zeichnet ihn deshalb nur noch, wenn der Kopf ihn NICHT
+	// schon traegt -- ein Aufrufer, der ihn dort vergisst, bekommt ihn sichtbar an der alten
+	// Stelle statt gar nicht. Der Riegel faellt im Zweifel offen.
 	kanonMarkup = "",
 }) {
 	const popupClassName = compact ? "location-popup location-popup--compact" : "location-popup";
@@ -1115,7 +1130,7 @@ function locationPopupMarkup({
 	return `
 		<div class="${popupClassName}">
 			${headerImageMarkup
-				? `${headerImageMarkup}${kanonMarkup}`
+				? `${headerImageMarkup}${headerImageMarkup.includes("feature-kanon-head") ? "" : kanonMarkup}`
 				: `<div class="location-popup__header">
 				${showHeaderIcon ? (headerIconMarkup || locationIconMarkup(locationType, locationTypeLabel)) : ""}
 				<div class="location-popup__title-group">

@@ -205,8 +205,11 @@ function createPathPopupMarkup(path) {
 	const istWasserweg = pathType === "Flussweg" || pathType === "Bach";
 	const subtitle = (realName || istWasserweg) ? typeLabel : "";
 	// Owner: 16:9 header image per way subtype + title overlay.
+	// Einmal gebaut, an zwei Stellen gereicht -- siehe map-features-location-marker-entry.js.
+	const pathKanon = typeof renderFeatureKanonBadge === "function"
+		? renderFeatureKanonBadge("path", getPathPublicId(path)) : "";
 	const headerImg = typeof infoHeaderImageMarkup === "function"
-		? infoHeaderImageMarkup(pathHeaderImageBasename(pathType), pathName, subtitle)
+		? infoHeaderImageMarkup(pathHeaderImageBasename(pathType), pathName, subtitle, "", [], "", pathKanon)
 		: "";
 	return locationPopupMarkup({
 		name: pathName,
@@ -216,8 +219,7 @@ function createPathPopupMarkup(path) {
 		headerIconMarkup: pathHeaderIconMarkup(pathType),
 		// Derselbe Schluessel wie die Quellenzeile weiter oben (getPathPublicId): Wege kennen keine
 		// Ankergruppierung wie die Kraftlinien, jedes Segment steht fuer sich.
-		kanonMarkup: typeof renderFeatureKanonBadge === "function"
-			? renderFeatureKanonBadge("path", getPathPublicId(path)) : "",
+		kanonMarkup: pathKanon,
 		showHeaderIcon: true,
 		showDescription: false,
 		showWikiLink: false,

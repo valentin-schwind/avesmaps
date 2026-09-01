@@ -159,10 +159,15 @@ function buildLocationMarkerPopupHtml(markerEntry, opts) {
 			: "";
 		return polLine || `<span class="location-popup__political-none">${escapeHtml(tr("popup.locationFallback", "Lage"))}</span>`;
 	})();
+	// 💣 EINMAL gebaut, an ZWEI Stellen gereicht: der Bild-Kopf setzt das Etikett selbst in seinen
+	// Titelblock (nur er kennt ihn), der Icon-Kopf bekommt es ueber locationPopupMarkup. Zweimal
+	// gebaut waere es zweimal aufgeloest -- und die zwei Aufloesungen koennten auseinanderlaufen.
+	const settlementKanon = typeof renderFeatureKanonBadge === "function"
+		? renderFeatureKanonBadge("settlement", markerEntry.publicId) : "";
 	const settlementHeaderImg = (!floating && typeof IS_INFOPANEL_MODE !== "undefined" && IS_INFOPANEL_MODE && typeof infoHeaderImageMarkup === "function")
 		? infoHeaderImageMarkup(settlementHeaderImageBasename(markerEntry.locationType), markerEntry.name, typeLabel,
 			typeof settlementCoatIconMarkup === "function" ? settlementCoatIconMarkup(markerEntry.location.coat) : "",
-			markerEntry.location.images, settlementTypeSuffix)
+			markerEntry.location.images, settlementTypeSuffix, settlementKanon)
 		: "";
 	return locationPopupMarkup({
 		name: markerEntry.name,
@@ -178,8 +183,9 @@ function buildLocationMarkerPopupHtml(markerEntry, opts) {
 		// im Panel"), ist das Etikett KEINE Quellenangabe, sondern eine Aussage ueber das OBJEKT --
 		// wer einen Marker anklickt, soll „inoffiziell" sehen, ohne erst das Panel zu oeffnen.
 		// Ein unbelegtes Objekt bekommt hier nichts: renderFeatureKanonBadge gibt "".
-		kanonMarkup: typeof renderFeatureKanonBadge === "function"
-			? renderFeatureKanonBadge("settlement", markerEntry.publicId) : "",
+		// ⚠️ Im Panel traegt es schon der Bild-Kopf; locationPopupMarkup zeichnet es dann nicht
+		// noch einmal (es prueft das am Kopf-Markup).
+		kanonMarkup: settlementKanon,
 		showType: true,
 		// Political context under the type ("Metropole · Hauptstadt des Kaiserreichs" / "Stadt · Baronie
 		// Vierok"), a gold link that flies to that region. Resolved server-side. When nothing resolves, a

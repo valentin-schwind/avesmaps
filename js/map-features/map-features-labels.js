@@ -613,8 +613,11 @@ function buildRegionLabelViewPopupHtml(label) {
 		: wikiArt;
 	const labelName = label.text || (label.wikiRegion && label.wikiRegion.name) || "Region";
 	// Owner: 16:9 header image (by landscape art) + title overlay instead of the headless title.
+	// Einmal gebaut, an zwei Stellen gereicht -- siehe map-features-location-marker-entry.js.
+	const labelKanon = typeof renderFeatureKanonBadge === "function"
+		? renderFeatureKanonBadge("region", label.publicId) : "";
 	const headerImg = typeof infoHeaderImageMarkup === "function"
-		? infoHeaderImageMarkup(regionHeaderImageBasename(art), labelName, artText)
+		? infoHeaderImageMarkup(regionHeaderImageBasename(art), labelName, artText, "", [], "", labelKanon)
 		: "";
 	return locationPopupMarkup({
 		name: labelName,
@@ -624,8 +627,7 @@ function buildRegionLabelViewPopupHtml(label) {
 		locationTypeLabel: artText,
 		headerImageMarkup: headerImg,
 		// Derselbe Schluessel wie die Quellenzeile der Datenbox ("region", label.publicId).
-		kanonMarkup: typeof renderFeatureKanonBadge === "function"
-			? renderFeatureKanonBadge("region", label.publicId) : "",
+		kanonMarkup: labelKanon,
 		showHeaderIcon: false,
 		compact: true,
 		showType: true,

@@ -410,8 +410,11 @@ function createPowerlinePopupMarkup(powerline) {
 	// 16:9-Kopfbild wie beim Weg. EIN Bild fuer alle Kraftlinien -- es gibt keine Subtypen.
 	// showHeaderIcon bleibt false: das Bild ersetzt den Icon-Kopf ohnehin (js/ui/popups.js), und
 	// faellt es je aus, ist ein titelloser Kopf besser als das Dorf-Icon aus locationIconMarkup.
+	// Einmal gebaut, an zwei Stellen gereicht -- am ANKER, siehe getPowerlineSourceAnchorId.
+	const powerlineKanon = typeof renderFeatureKanonBadge === "function"
+		? renderFeatureKanonBadge("powerline", getPowerlineSourceAnchorId(powerline)) : "";
 	const headerImg = typeof infoHeaderImageMarkup === "function"
-		? infoHeaderImageMarkup("powerline", name, typeLabel)
+		? infoHeaderImageMarkup("powerline", name, typeLabel, "", [], "", powerlineKanon)
 		: "";
 	return locationPopupMarkup({
 		name,
@@ -419,8 +422,7 @@ function createPowerlinePopupMarkup(powerline) {
 		locationTypeLabel: typeLabel,
 		headerImageMarkup: headerImg,
 		// Am ANKER nachgeschlagen, genau wie die Quellenzeile -- siehe getPowerlineSourceAnchorId.
-		kanonMarkup: typeof renderFeatureKanonBadge === "function"
-			? renderFeatureKanonBadge("powerline", getPowerlineSourceAnchorId(powerline)) : "",
+		kanonMarkup: powerlineKanon,
 		showHeaderIcon: false,
 		showDescription: false,
 		showWikiLink: false,
