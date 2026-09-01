@@ -82,6 +82,66 @@ const AVESMAPS_WIKI_DUMP_STEP_PAGE_BUDGET = 2000;
 const AVESMAPS_WIKI_DUMP_STEP_SECONDS = 28;
 
 /**
+ * 🔴 DIE UNTERGRENZE EINES SCHRITTS -- und sie ist der Riegel gegen einen STILLSTAND, nicht eine
+ * Feinjustierung.
+ *
+ * 💣 DER FALL, DEN SIE ABWENDET (gemessen am Livedump, 01.09.2026). Ein Dump-Schritt zieht den
+ * Leser NEU auf und ueberspringt alles, was fruehere Schritte schon verbraucht haben -- bz2 ist
+ * nicht springbar, der Strom muss jedes Mal ganz entpackt werden (die O(n^2)-Warnung steht an
+ * avesmapsWikiDumpIteratePages). Die Zeitpruefung stand aber HINTER der ersten Seite:
+ *
+ *     foreach (Seiten ab Cursor) { verarbeiten; if (Zeit um) break; }
+ *
+ * Sobald das blosse Ueberspringen das Budget aufbraucht, verarbeitet ein Schritt damit GENAU EINE
+ * Seite und setzt den Cursor um eins weiter. Der Lauf meldet keinen Fehler, er kommt nur nicht
+ * mehr voran -- und das Ende des Dumps wird nie erreicht.
+ *
+ * 🔴 DAS TRIFFT AUSGERECHNET DEN NAMENSRAUM 222. Die inoffiziellen Seiten liegen im SCHWANZ des
+ * Dumps: 3.938 der 6.457 (61 %) in den letzten 28.000 Seiten, „Inoffiziell:Apfeldorn" auf Platz
+ * 251.382 von 252.902 (99,4 %). Gemeldet als „der Ort laesst sich im Wiki nicht zuweisen, er wird
+ * nicht gefunden" -- und keine Zeile des Klassifizierers, des Parsers oder der Suche war schuld:
+ * die Seite kam dort schlicht nie an.
+ *
+ * ⭐ WARUM EINE UNTERGRENZE REICHT UND NICHTS KOSTET. Der Sprung dominiert vollstaendig; die
+ * zusaetzlich verarbeiteten Seiten sind fast umsonst. An derselben Datei gemessen (Sprung auf
+ * Seite 240.000, dann N Seiten klassifizieren):
+ *     N=0  8,64 s | N=500  8,83 s | N=2000  8,77 s | N=5000  8,88 s
+ * Also rund 0,05 ms je Seite -- 2.000 Seiten kosten ein Zehntel einer Sekunde, waehrend sie den
+ * Unterschied zwischen 1.500 Schritten und rund 27 ausmachen.
+ *
+ * 🔴 SIE LIEGT BEWUSST UNTER DEM SEITENBUDGET (500 gegen 2.000), UND DAS IST DER GANZE UNTERSCHIED
+ * ZWISCHEN EINEM RIEGEL UND EINEM ZWEITEN FEHLER. Zwei der fuenf Schleifen fuehren beide Grenzen
+ * (Pass A und Pass B). Waere die Untergrenze GLEICH dem Budget, faenden beide Bedingungen zur
+ * selben Seitenzahl statt -- die Zeitpruefung waere wirkungslos, und ein Schritt liefe IMMER bis
+ * 2.000 Seiten, egal wie lange er dazu braucht. Genau das Sicherheitsventil, das die 28 Sekunden
+ * sein sollen, waere damit ausgebaut: ein ueberzogener Schritt laeuft auf STRATO in
+ * max_execution_time, faellt hart aus, und der Cursor steht danach da, wo er vorher stand.
+ * ⭐ So bleibt die Zeit die Hauptregel und die Menge nur ihr Boden: aus 1 Seite je Schritt werden
+ * 500 (Faktor 500), und der Ueberzug betraegt hoechstens 500 Seiten -- nach der Messung oben rund
+ * 0,03 s. Vom Stillstand bis zum Dumpende sind das Dutzende statt Tausender Schritte, und die
+ * Oberflaeche laeuft sie ohnehin selbsttaetig durch.
+ */
+const AVESMAPS_WIKI_DUMP_STEP_MIN_PAGES = 500;
+
+/**
+ * Darf ein Dump-Schritt jetzt aufhoeren? Zeit ist um UND die Untergrenze ist erreicht.
+ *
+ * 💣 SIE STEHT HIER UND WIRD VON FUENF SCHLEIFEN GERUFEN, statt fuenfmal abgeschrieben zu werden:
+ * dump-hybrid-read.php (Sammelphase), dump-hybrid-driver.php (Weiterleitungen), citymap-sync.php
+ * (Kartenindex), dump-entity-scan.php (Pass B) und dump-reader.php selbst. Alle fuenf ziehen den
+ * Dump per Seiten-Cursor neu auf und trugen denselben Stillstand. Eine Regel, die einen von fuenf
+ * Erzeugern bindet, ist in diesem Haus keine Regel.
+ *
+ * ⚠️ Die OBERgrenze bleibt Sache des Aufrufers -- wer ein Seitenbudget fuehrt, prueft es weiterhin
+ * selbst und VOR dieser Funktion. Sie beantwortet nur „ist der Schritt weit genug gekommen, um
+ * aufzuhoeren?", nie „muss er aufhoeren?".
+ */
+function avesmapsWikiDumpStepDarfAnhalten(int $verarbeitet, float $frist): bool
+{
+    return $verarbeitet >= AVESMAPS_WIKI_DUMP_STEP_MIN_PAGES && microtime(true) >= $frist;
+}
+
+/**
  * Rough page-count estimate for progress display (the dump has ~223,583 pages).
  * Refined from the actual stream when known; only used to seed progress_total.
  */
@@ -668,7 +728,9 @@ function avesmapsWikiDumpRunPassAStep(PDO $pdo, string $dumpPath, string $runPub
                 }
             }
 
-            if ($processedThisStep >= AVESMAPS_WIKI_DUMP_STEP_PAGE_BUDGET || microtime(true) >= $deadline) {
+            // ⚠️ Die OBERgrenze zuerst, die Untergrenze danach: sie darf ein Budget nie ueberziehen.
+            if ($processedThisStep >= AVESMAPS_WIKI_DUMP_STEP_PAGE_BUDGET
+                || avesmapsWikiDumpStepDarfAnhalten($processedThisStep, $deadline)) {
                 break;
             }
         }

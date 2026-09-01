@@ -479,7 +479,11 @@ function avesmapsWikiDumpHybridWikitextCollectStep(
         }
 
         // Adjudicated PRIMARY cap: the time budget, not a fixed page count.
-        if (microtime(true) >= $deadline) {
+        // 🔴 ...MIT UNTERGRENZE. Ohne sie verarbeitete dieser Schritt genau EINE Seite, sobald das
+        // blosse Ueberspringen das Budget aufgebraucht hatte -- und der Schwanz des Dumps, wo die
+        // ns-222-Seiten liegen, wurde nie erreicht. Begruendung und Messung an
+        // AVESMAPS_WIKI_DUMP_STEP_MIN_PAGES (dump-reader.php).
+        if (avesmapsWikiDumpStepDarfAnhalten($pagesScanned, $deadline)) {
             $streamExhausted = false; // ran out of time, not out of pages
             break;
         }

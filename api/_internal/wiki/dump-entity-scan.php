@@ -1791,7 +1791,8 @@ function avesmapsWikiDumpRunPassBStep(PDO $pdo, string $dumpPath, int $cursor = 
                     break;
             }
 
-            if ($processedThisStep >= $pageBudget || microtime(true) >= $deadline) {
+            // ⚠️ Die OBERgrenze zuerst, die Untergrenze danach: sie darf ein Budget nie ueberziehen.
+            if ($processedThisStep >= $pageBudget || avesmapsWikiDumpStepDarfAnhalten($processedThisStep, $deadline)) {
                 break;
             }
         }

@@ -688,7 +688,8 @@ function avesmapsWikiDumpHybridRedirectAliasStep(
             }
         }
 
-        if (microtime(true) >= $deadline) {
+        // Untergrenze wie in der Sammelphase -- siehe AVESMAPS_WIKI_DUMP_STEP_MIN_PAGES.
+        if (avesmapsWikiDumpStepDarfAnhalten($pagesScanned, $deadline)) {
             $streamExhausted = false;
             break;
         }
