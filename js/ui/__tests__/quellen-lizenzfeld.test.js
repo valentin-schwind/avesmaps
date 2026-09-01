@@ -76,9 +76,14 @@ pruefungen += 4;
 // klebte hier EIN Text zusammen und der GANZE Text zeigte auf die Lizenzadresse -- ein Klick auf
 // "VolkoV / garetien.de" landete beim CC-Lizenztext, nicht beim Urheber. Jetzt ist die
 // Namensnennung reiner Text, und NUR die Lizenzbeschriftung ist verlinkt.
-assert.ok(/<span class="fs-src-lic fs-src-lic--attrib">VolkoV \/ garetien\.de<\/span>/.test(html),
-  "die Namensnennung steht als eigener, unverlinkter Text");
-const lizenzLink = html.match(/<a class="fs-src-lic fs-src-lic--attrib" href="[^"]*creativecommons[^"]*"[^>]*>([\s\S]*?)<\/a>/);
+// ⭐ SEIT DEM 01.09.2026 STEHT DIE NAMENSNENNUNG HINTER DEM ⓘ, nicht mehr in der Zeile (Owner:
+// „die URL bringt um" -- sie war der laengste Wert und brach die einzeilige Zeile von innen auf).
+// Die AUSSAGE dieser Pruefung ist unveraendert: sie ist reiner, unverlinkter Text und klebt nicht
+// am Lizenzlink. Nur ihr Ort ist ein anderer -- die Rechtetafel.
+const tafel = html.slice(html.indexOf('class="fs-src-rights"'));
+assert.ok(/<dd>VolkoV \/ garetien\.de<\/dd>/.test(tafel),
+  "die Namensnennung steht als eigener, unverlinkter Text -- jetzt in der Rechtetafel");
+const lizenzLink = html.match(/<a class="fs-src-lic" href="[^"]*creativecommons[^"]*"[^>]*>([\s\S]*?)<\/a>/);
 assert.ok(lizenzLink, "die Lizenz ist eigens verlinkt");
 assert.ok(!lizenzLink[1].includes("VolkoV"), "der Lizenzlink nennt NICHT auch den Urheber");
 assert.ok(lizenzLink[1].includes("CC BY-NC-SA 3.0"), "sondern nur die Lizenzbeschriftung");
@@ -103,10 +108,22 @@ pruefungen += 2;
 assert.ok(html.includes('<ul class="fs-src-list">'), "die Quellen stehen in einer Liste");
 const zeilen = html.match(/<li><span class="fs-src-row">/g) || [];
 assert.ok(zeilen.length >= 2, "je Quelle eine eigene Zeile");
-assert.ok(html.includes("fs-src-lic--attrib"), "und die Angabe darf umbrechen");
-// 💣 Die Angabe muss INNERHALB ihrer Zeile stehen -- genau das war der Fehler vom 27.08.2026.
+// 🪤 HIER STAND `assert.ok(html.includes("fs-src-lic--attrib"), "und die Angabe darf umbrechen")`.
+// Genau dieses Duerfen war seit dem 01.09.2026 der FEHLER: die Zeile ist seither einzeilig
+// (`nowrap` + Ellipse), und die umbrechende Namensnennung riss sie von innen auf -- die erste
+// Haelfte schnitt die Ellipse, die zweite rutschte darunter. Die Klasse gibt es nicht mehr, und
+// die Zusicherung ist ins Gegenteil gedreht: sie darf NICHT mehr umbrechen, weil sie gar nicht
+// mehr in der Zeile steht.
+assert.ok(!html.includes("fs-src-lic--attrib"),
+  "die umbrechende Namensnennung in der Zeile gibt es nicht mehr -- sie war der gemeldete Fehler");
+// 💣 Die Rechteangabe muss INNERHALB ihrer Zeile stehen (im selben <li>) -- bei zwei Quellen waere
+// sonst nicht zu sehen, wessen Rechte dort stehen. Das war schon am 27.08.2026 der Punkt, nur
+// damals gegen einen Umbruch und heute gegen eine Tafel unter der Liste.
 const ersteZeile = html.slice(html.indexOf('<li><span class="fs-src-row">'), html.indexOf("</li>"));
-assert.ok(ersteZeile.includes("fs-src-lic"), "die Angabe steht in der Zeile ihrer Quelle");
+assert.ok(ersteZeile.includes("fs-src-lic"), "die Lizenz steht in der Zeile ihrer Quelle");
+const mitTafel = html.slice(html.indexOf('class="fs-src-rights"'));
+assert.ok(mitTafel.indexOf("</li>") < mitTafel.indexOf("<li>") || mitTafel.indexOf("<li>") === -1,
+  "und die Rechtetafel steht im <li> ihrer Quelle, nicht unter der Liste");
 pruefungen += 4;
 
 // ---- D. Der Absatz im Fenster „Hinweise" steht in BEIDEN Sprachen ----------------------------
@@ -249,13 +266,16 @@ pruefungen += 3;
 // Der gemeldete Fall, bis zum fertigen Markup: die Zeile der Infobox nennt beides.
 const zeile = kette.renderFeatureSourceLine("region", "eupelmunder-moor", "", "region-info-box__link");
 assert.ok(zeile.includes("Briefspiel (Garetien)"), "die Quelle steht in der Zeile");
+// ⭐ Seit dem 01.09.2026 steht die Namensnennung hinter dem ⓘ (in der Rechtetafel derselben
+// Zeile), die Lizenz weiterhin sichtbar daneben. BEIDES muss im Markup ankommen -- ohne die
+// Namensnennung ist sie nicht erfuellt, sondern nur unterlassen.
 assert.ok(zeile.includes("VolkoV / garetien.de") && zeile.includes("CC BY-NC-SA 3.0"),
   "und die CC-Angabe daneben -- ohne sie ist die Namensnennung nicht erfuellt, sondern nur "
   + "unterlassen. Gerendert wurde: " + zeile);
 // 🔴 MELDUNG (30.08.2026), an der ECHTEN Kette gemessen: der Lizenzlink darf den Urheber nicht
 // mitnennen -- genau das war der gemeldete Fehler ("Briefspiel (Garetien) ↗" ging an den Artikel,
 // aber die Namensnennung ging an den Lizenztext statt an den Urheber).
-const zeilenLizenzLink = zeile.match(/<a class="fs-src-lic fs-src-lic--attrib" href="[^"]*creativecommons[^"]*"[^>]*>([\s\S]*?)<\/a>/);
+const zeilenLizenzLink = zeile.match(/<a class="fs-src-lic" href="[^"]*creativecommons[^"]*"[^>]*>([\s\S]*?)<\/a>/);
 assert.ok(zeilenLizenzLink, "die Lizenz ist eigens verlinkt");
 assert.ok(!zeilenLizenzLink[1].includes("VolkoV"), "der Lizenzlink nennt nicht auch den Urheber");
 pruefungen += 3;
@@ -263,8 +283,11 @@ pruefungen += 3;
 // 🔴 Und eine Quelle OHNE die Felder bleibt still: leer heisst "nicht erfasst", nie "keine Lizenz".
 const ohneAngabe = kette.renderFeatureSourceLine("settlement", "gareth", "", "region-info-box__link");
 assert.ok(ohneAngabe.includes("Goldene Fluegel"), "sie wird trotzdem genannt");
-assert.ok(!ohneAngabe.includes("fs-src-lic--attrib"),
-  "aber ohne Lizenz-Fussnote -- eine leere Angabe behauptet nichts");
+assert.ok(!ohneAngabe.includes("fs-src-lic"),
+  "aber ohne Lizenzangabe -- eine leere Angabe behauptet nichts");
+// 🔴 UND OHNE ⓘ: ein Knopf ueber einer leeren Tafel ist ein Klick fuer nichts.
+assert.ok(!ohneAngabe.includes("fs-src-info"),
+  "und ohne ⓘ -- ohne Namensnennung gibt es nichts aufzuklappen");
 pruefungen += 2;
 
 console.log("OK: " + pruefungen + " Pruefungen");

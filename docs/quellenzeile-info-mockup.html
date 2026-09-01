@@ -1,0 +1,227 @@
+<title>Die Quellenzeile und ihr ⓘ (Mockup)</title>
+<style>
+/* Farbwerte 1:1 aus css/base/tokens.css. Gezeigt wird das DUNKLE Thema, weil die Meldung von dort
+   kam; der Schalter oben rechts stellt auf hell um. */
+:root {
+	--panel: #312e26; --panel-soft: #37342b; --panel-muted: #39352b;
+	--text: #eee7da; --text-strong: #f5f0e4; --text-muted: #b4a895;
+	--border: #514a3c; --border-strong: #615a49; --divider: rgba(207,197,171,0.24);
+	--link: #d7c38b; --accent-brown: #c9a97e;
+	--button-soft: #3a362c; --button-soft-text: #eae1cf; --button-soft-border: #585142;
+	--kanon-ja: #cfb767; --kanon-ja-text: #241d14;
+	--kanon-nein: #7fd4c1; --kanon-nein-text: #10312b;
+	--page: #26241e;
+	--radius-sm: 5px; --radius-md: 8px;
+}
+:root[data-theme="light"] {
+	--panel: #fffdf9; --panel-soft: #faf6ee; --panel-muted: #f1ece1;
+	--text: #2e271e; --text-strong: #3c3327; --text-muted: #706557;
+	--border: #ddd3c3; --border-strong: #cdbfa8; --divider: rgba(125,115,96,0.30);
+	--link: #8f7326; --accent-brown: #7a5a3a;
+	--button-soft: #efe9db; --button-soft-text: #564b3b; --button-soft-border: #cdbda0;
+	--kanon-ja: #cfb767; --kanon-ja-text: #241d14;
+	--kanon-nein: #7fd4c1; --kanon-nein-text: #10312b;
+	--page: #efe7d8;
+}
+* { box-sizing: border-box; }
+body { margin:0; padding:26px 24px 80px; background:var(--page); color:var(--text);
+	font-family:"Faculty Glyphic",Arial,sans-serif; font-size:14px; line-height:1.5; }
+h1 { margin:0 0 4px; font-size:25px; color:var(--text-strong); }
+h2 { margin:38px 0 4px; padding-bottom:8px; border-bottom:1px solid var(--divider);
+	font-size:19px; color:var(--text-strong); }
+p { margin:8px 0; color:var(--text-muted); max-width:82ch; }
+p strong, li strong { color:var(--text-strong); }
+code { padding:1px 5px; border-radius:var(--radius-sm); background:var(--panel-muted);
+	color:var(--text-strong); font-family:Consolas,monospace; font-size:12px; }
+ul { max-width:82ch; padding-left:20px; } li { margin:7px 0; color:var(--text-muted); }
+.sw { position:fixed; top:14px; right:16px; padding:6px 12px; border:1px solid var(--button-soft-border);
+	border-radius:var(--radius-md); background:var(--button-soft); color:var(--button-soft-text);
+	font:inherit; font-size:12px; cursor:pointer; z-index:5; }
+.breiten { display:flex; gap:20px; flex-wrap:wrap; align-items:flex-start; }
+.wirt { border:1px solid var(--border); border-radius:var(--radius-md); background:var(--panel);
+	padding:12px 14px; }
+.w400 { width:400px; } .w280 { width:280px; }
+.wlabel { margin:14px 0 4px; font-size:11px; text-transform:uppercase; letter-spacing:.04em;
+	color:var(--text-muted); }
+
+/* ── Der Quellenkasten, wie er heute im Infopanel steht ─────────────────────────── */
+.fs-box { border:1px solid var(--border); border-radius:var(--radius-md); padding:10px 12px; }
+.fs-label { margin:0 0 6px; font-size:12px; color:var(--text-muted); }
+.fs-list { list-style:none; margin:0; padding:0; }
+.fs-list li { margin:0 0 4px; min-width:0; }
+.fs-row { display:flex; align-items:baseline; gap:8px; flex-wrap:nowrap; }
+/* 💣 DER TITEL KÜRZT, NICHT DIE LIZENZ. Beide zusammen in EINEM ellipsierenden Kasten schneidet,
+   was hinten steht — und hinten steht die Lizenz. CC verlangt den Lizenzverweis an der Kopie, ein
+   abgeschnittenes „CC B…" ist keiner. Also ist `.fs-main` selbst eine Flex-Zeile: der Titel
+   schrumpft (`min-width:0`), die Lizenz nie. §4.2: „kürzt der Titel mit Ellipse". */
+.fs-main { flex:1 1 auto; min-width:0; display:flex; align-items:baseline; }
+.fs-title { flex:1 1 auto; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.fs-main > .fs-lic { flex:0 0 auto; }
+/* 💣 UNTERHALB EINER SCHWELLE BRICHT DIE ZEILE DOCH UM — bewusst und gemessen (§4.2 sieht genau
+   das vor). Ohne die Regel fällt die Titelbreite bei 280px auf 0: man sieht Lizenz, ⓘ und Etikett,
+   aber nicht mehr, WELCHE Quelle das ist. Ein Titel, der ganz verschwindet, ist schlimmer als eine
+   zweite Zeile.
+   ⚠️ Umgebrochen wird INNERHALB von `.fs-main` (Titel oben, Lizenz darunter) — die Markengruppe
+   bleibt rechts in ihrer Zeile, sonst wandert das Etikett unter den Text und die Zuordnung geht
+   verloren. Gemessen: die Schwelle liegt bei 340px, darunter reicht es für beides nicht.
+   🔴 Der Kasten misst sich SELBST (`container-type`), nicht das Fenster: das Infopanel ist
+   `min(400px, 100vw − 2·Rand)` und damit schmal, wo das Fenster breit ist — dieselbe Falle, die
+   die Quellenliste am 29.08. schon einmal bezahlt hat (Meldung #104). */
+.fs-box { container-type: inline-size; container-name: fsbox; }
+@container fsbox (max-width: 340px) {
+	.fs-main { flex-wrap: wrap; }
+	.fs-title { flex:1 1 100%; }
+	.fs-main > .fs-lic { margin-left:0; }
+}
+.fs-marks { flex:0 0 auto; display:inline-flex; align-items:center; gap:6px; }
+.fs-main a { color:var(--link); text-decoration:none; font-weight:700; font-size:12px; }
+.fs-lic { margin-left:6px; font-size:11px; color:var(--link); white-space:nowrap; }
+.kanon { position:relative; top:-.75px; display:inline-flex; border-radius:999px; overflow:hidden;
+	font-size:11px; text-transform:uppercase; letter-spacing:.03em; }
+.kanon b { padding:3px 8px 2px; font-weight:700; background:var(--kanon-nein); color:var(--kanon-nein-text); }
+.kanon i { padding:3px 8px 2px; font-style:normal; background:var(--panel-muted); color:var(--text-muted);
+	text-transform:none; letter-spacing:0; }
+.kanon--ja b { background:var(--kanon-ja); color:var(--kanon-ja-text); }
+
+/* 💣 DER FEHLER VON HEUTE, absichtlich nachgebaut: `.fs-lic--attrib { white-space: normal }`
+   erlaubt der Namensnennung den Umbruch, während die Zeile darüber `nowrap` + Ellipse fährt. */
+.kaputt .fs-lic { white-space:normal; }
+
+/* ── Das ⓘ und seine Rechtetafel ───────────────────────────────────────────────── */
+.fs-info { flex:0 0 auto; width:17px; height:17px; padding:0; display:inline-flex;
+	align-items:center; justify-content:center; border:1px solid var(--button-soft-border);
+	border-radius:999px; background:var(--button-soft); color:var(--button-soft-text);
+	font:inherit; font-size:11px; line-height:1; cursor:pointer; }
+.fs-info[aria-expanded="true"] { background:var(--accent-brown); color:var(--page); border-color:var(--accent-brown); }
+.fs-rights { margin:6px 0 8px; padding:8px 10px; border-left:2px solid var(--accent-brown);
+	border-radius:0 var(--radius-sm) var(--radius-sm) 0; background:var(--panel-soft); font-size:11px; }
+.fs-rights dl { display:grid; grid-template-columns:auto 1fr; gap:3px 10px; margin:0; }
+.fs-rights dt { color:var(--text-muted); }
+.fs-rights dd { margin:0; color:var(--text); overflow-wrap:anywhere; }
+.fs-rights a { color:var(--link); }
+.tabs { margin-top:6px; font-size:12px; color:var(--text-muted); }
+.tab { display:inline-block; padding:2px 9px; margin-right:4px; border:1px solid var(--border-strong);
+	border-radius:999px; font-size:11px; }
+</style>
+
+<button class="sw" onclick="document.documentElement.setAttribute('data-theme',
+  document.documentElement.getAttribute('data-theme')==='light'?'dark':'light')">Hell / Dunkel</button>
+
+<h1>Die Quellenzeile und ihr ⓘ</h1>
+<p>Gemeldet am 01.09.2026: „die URL bringt um". Der Entwurf
+<code>2026-08-27-kanon-etikett-design.md</code> §4.2/§4.4 sah dafür von Anfang an ein <b>ⓘ</b> vor —
+gebaut wurde bisher nur die Zeile darum herum.</p>
+
+<h2>1 · Was heute passiert — und warum</h2>
+<p><strong>Zwei Regeln aus zwei Entwurfsstufen ziehen gegeneinander.</strong> Die Zeile fährt seit
+dem 01.09. <code>white-space: nowrap</code> mit Ellipse (eine Quelle, eine Zeile). Die
+Namensnennung trägt aber noch <code>.fs-src-lic--attrib { white-space: normal }</code> vom
+27.08. — damals durfte sie umbrechen, damit sie am schmalen Telefon nicht aus dem Kasten lief.
+Jetzt bricht sie <em>innerhalb</em> der Zeile um: die erste Hälfte wird von der Ellipse geschnitten,
+die zweite rutscht darunter.</p>
+
+<div class="breiten">
+<div>
+	<p class="wlabel">Ist-Zustand (nachgebaut)</p>
+	<div class="wirt w400 kaputt">
+		<div class="fs-box">
+			<p class="fs-label">Quellen:</p>
+			<ul class="fs-list">
+				<li><span class="fs-row"><span class="fs-main"><a href="#">Wiki Aventurica ↗</a><span class="fs-lic">CC BY-SA 3.0 ↗</span></span><span class="fs-marks"><span class="kanon kanon--ja"><b>Offiziell</b></span></span></span></li>
+				<li><span class="fs-row"><span class="fs-main"><a href="#">Briefspiel (Weiden) ↗</a><span class="fs-lic">herzogtum-weiden.net</span></span><span class="fs-marks"><span class="kanon"><b>Inoffiziell</b><i>Briefspiel</i></span></span></span></li>
+			</ul>
+			<div class="tabs">Publikationen: <span class="tab">Beschrieben (29)</span><span class="tab">Erwähnt (56)</span></div>
+		</div>
+	</div>
+</div>
+</div>
+
+<h2>2 · Vorschlag: die Zeile bleibt eine Zeile, die Rechte stehen hinter dem ⓘ</h2>
+<p>Links Titel und Lizenz (kürzt mit Ellipse), rechts eine feste Gruppe aus <b>ⓘ</b> und Etikett —
+genau die Aufteilung aus §4.2. Das ⓘ steht <strong>unmittelbar vor dem Etikett</strong>, weil das
+Etikett die Zeile abschließt (§4.4).</p>
+
+<div class="breiten">
+<div>
+	<p class="wlabel">Zugeklappt · 400 px</p>
+	<div class="wirt w400">
+		<div class="fs-box">
+			<p class="fs-label">Quellen:</p>
+			<ul class="fs-list">
+				<li><span class="fs-row"><span class="fs-main"><span class="fs-title"><a href="#">Wiki Aventurica ↗</a></span><span class="fs-lic">CC BY-SA 3.0 ↗</span></span><span class="fs-marks"><span class="kanon kanon--ja"><b>Offiziell</b></span></span></span></li>
+				<li><span class="fs-row"><span class="fs-main"><span class="fs-title"><a href="#">Briefspiel (Weiden) ↗</a></span><span class="fs-lic">CC BY-NC-SA 3.0 ↗</span></span><span class="fs-marks"><button class="fs-info" aria-expanded="false" title="Rechte und Namensnennung">i</button><span class="kanon"><b>Inoffiziell</b><i>Briefspiel</i></span></span></span></li>
+			</ul>
+			<div class="tabs">Publikationen: <span class="tab">Beschrieben (29)</span><span class="tab">Erwähnt (56)</span></div>
+		</div>
+	</div>
+</div>
+<div>
+	<p class="wlabel">Aufgeklappt — die Tafel steht IN ihrer Zeile</p>
+	<div class="wirt w400">
+		<div class="fs-box">
+			<p class="fs-label">Quellen:</p>
+			<ul class="fs-list">
+				<li><span class="fs-row"><span class="fs-main"><span class="fs-title"><a href="#">Wiki Aventurica ↗</a></span><span class="fs-lic">CC BY-SA 3.0 ↗</span></span><span class="fs-marks"><span class="kanon kanon--ja"><b>Offiziell</b></span></span></span></li>
+				<li>
+					<span class="fs-row"><span class="fs-main"><span class="fs-title"><a href="#">Briefspiel (Weiden) ↗</a></span><span class="fs-lic">CC BY-NC-SA 3.0 ↗</span></span><span class="fs-marks"><button class="fs-info" aria-expanded="true">i</button><span class="kanon"><b>Inoffiziell</b><i>Briefspiel</i></span></span></span>
+					<div class="fs-rights">
+						<dl>
+							<dt>Nennung</dt><dd>herzogtum-weiden.net</dd>
+							<dt>Lizenz</dt><dd><a href="#">CC BY-NC-SA 3.0 ↗</a></dd>
+							<dt>Adresse</dt><dd>https://www.herzogtum-weiden.net/politik/liste-bn/baronien/hzgl-altentrallop</dd>
+						</dl>
+					</div>
+				</li>
+			</ul>
+			<div class="tabs">Publikationen: <span class="tab">Beschrieben (29)</span><span class="tab">Erwähnt (56)</span></div>
+		</div>
+	</div>
+</div>
+<div>
+	<p class="wlabel">280 px — der schmalste gemessene Fall</p>
+	<div class="wirt w280">
+		<div class="fs-box">
+			<p class="fs-label">Quellen:</p>
+			<ul class="fs-list">
+				<li><span class="fs-row"><span class="fs-main"><span class="fs-title"><a href="#">Wiki Aventurica ↗</a></span><span class="fs-lic">CC BY-SA 3.0 ↗</span></span><span class="fs-marks"><span class="kanon kanon--ja"><b>Offiziell</b></span></span></span></li>
+				<li><span class="fs-row"><span class="fs-main"><span class="fs-title"><a href="#">Briefspiel (Weiden) ↗</a></span><span class="fs-lic">CC BY-NC-SA 3.0 ↗</span></span><span class="fs-marks"><button class="fs-info" aria-expanded="false">i</button><span class="kanon"><b>Inoffiziell</b></span></span></span></li>
+			</ul>
+		</div>
+	</div>
+</div>
+</div>
+
+<h2>3 · Die Regeln, die das festlegt</h2>
+<ul>
+	<li>💣 <strong><code>.fs-src-lic--attrib { white-space: normal }</code> fällt weg.</strong> Sie
+	ist der Rest einer Zeile, die umbrechen durfte; seit die Zeile <code>nowrap</code> fährt, ist sie
+	genau der gemeldete Fehler. Wer sie zurückholt, holt den Umbruch mit.</li>
+
+	<li>💣 <strong>Die Namensnennung wandert hinter das ⓘ — und das ist die eine Stelle, an der ich
+	widerspreche.</strong> §4.4 des Entwurfs führt sie als „ja, Pflicht" sichtbar, §4.2 sagt
+	ausdrücklich: „eine weggekürzte Namensnennung ist keine Namensnennung". CC BY verlangt den
+	Namen <em>an der Kopie</em>. Ein Klick tief auf derselben Seite ist vertretbar, aber es ist
+	deine Entscheidung, nicht meine — sag Halt, wenn sie sichtbar bleiben soll.</li>
+
+	<li>🔴 <strong>Die Lizenz bleibt sichtbar und ein echter Link</strong> (§4.4). Sie ins ⓘ zu
+	verlegen spart ein Element, aber CC verlangt den Lizenzverweis an der Kopie.</li>
+
+	<li>💣 <strong>Die Tafel klappt INNERHALB ihrer Zeile auf, nie unter der Liste.</strong> Bei zwei
+	Quellen wäre sonst nicht zu sehen, wessen Rechte dort stehen — und das sind zuordnungspflichtige
+	Angaben.</li>
+
+	<li>🔴 <strong>Das ⓘ erscheint nur, wo es etwas zu zeigen gibt.</strong> Eine Quelle ohne
+	Namensnennung und ohne Erlaubnisvermerk bekommt keines — ein Knopf, der eine leere Tafel öffnet,
+	ist ein Klick für nichts. „Wiki Aventurica" oben hat deshalb keins.</li>
+
+	<li>⚠️ <strong>Die Adresse steht in der Tafel, umbrechend</strong> (<code>overflow-wrap:
+	anywhere</code>). Sie ist der längste Wert und der einzige, der dort umbrechen darf.</li>
+
+	<li>🔧 <strong><code>permission</code> gibt es noch nicht.</strong> §4.4 sieht eine dritte Spalte
+	vor („wer hat es erlaubt, und wann") — die Tafel hat den Platz dafür, die Spalte fehlt. Bis
+	dahin trägt sie Nennung, Lizenz und Adresse.</li>
+
+	<li>⚠️ <strong>Kein <code>&lt;details&gt;</code> hier</strong>, anders als bei den Quellenlisten:
+	die Tafel muss <em>in</em> einer Flex-Zeile aufklappen und ihren Knopf rechts in der Markengruppe
+	haben. Ein <code>&lt;summary&gt;</code> wäre der Knopf und säße links.</li>
+</ul>

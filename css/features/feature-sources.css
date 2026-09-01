@@ -345,17 +345,15 @@
 	font-size: 11px;
 	white-space: nowrap;
 }
-/* Die Namensnennung der uebernommenen Kartendaten ("VolkoV / garetien.de, CC BY-NC-SA 3.0") ist
-   DREIMAL so lang wie der Wiki-Hinweis darueber -- 198 statt 74 px, gemessen 27.08.2026.
-   💣 Mit dem geerbten `nowrap` laeuft die Quellenzeile am schmalen Telefon aus dem Kasten: bei
-   400 px Infobox passt sie, bei 280 px stehen 317 px Inhalt darin. Die Infobox ist
-   `min(400px, 100vw - 2 * Rand)`, also genau dort schmal, wo niemand hinsieht.
-   ⚠️ Der Umbruch nach dem Komma ist die natuerliche Stelle -- Name, dann Lizenz. Deshalb nur
-   diese eine Angabe umbrechend und nicht `.fs-src-lic` insgesamt: "CC BY-SA 3.0 ↗" soll
-   weiterhin zusammenbleiben, dort ist jeder Umbruch einer zu viel. */
-.fs-src-lic--attrib {
-	white-space: normal;
-}
+/* 🪤 HIER STAND `.fs-src-lic--attrib { white-space: normal }` -- UND SIE WAR DER GEMELDETE FEHLER.
+   Sie kam am 27.08.2026, als die Quellenzeile noch umbrechen DURFTE: die Namensnennung ist dreimal
+   so lang wie der Wiki-Hinweis (198 statt 74 px) und lief am schmalen Telefon aus dem Kasten.
+   Am 01.09.2026 wurde die Zeile einzeilig (`nowrap` + Ellipse, eine Quelle je Zeile) -- und die
+   alte Ausnahme brach sie seither VON INNEN auf: die erste Haelfte der Namensnennung schnitt die
+   Ellipse ab, die zweite rutschte darunter ("herz…" / "weiden.net", Owner-Meldung 01.09.2026:
+   „die URL bringt um"). Zwei Regeln aus zwei Entwurfsstufen, die einander nie gesehen haben.
+   ⭐ Die Namensnennung steht seither hinter dem ⓘ, wo sie ohne Laengenzwang ganz dastehen darf --
+   so, wie 2026-08-27-kanon-etikett-design.md §4.4 es von Anfang an vorsah. */
 /* Haelt einen Eintrag samt seiner Namensnennung zusammen: der Browser bricht ZWISCHEN den
    Quellen um und erst dann innerhalb einer. Begruendung an der Stelle, die die Klasse setzt
    (js/ui/feature-source-markup.js). */
@@ -889,12 +887,26 @@
    stehen -- alle stehen per Vorgabe auf `min-width: auto` und weigern sich zu schrumpfen. Fehlt
    sie irgendwo, laufen die Marken aus dem Kasten, statt dass der Titel kuerzt. `overflow` und
    `text-overflow` allein reichen NICHT. */
+/* 💣 DER TITEL KUERZT, NICHT DIE LIZENZ. Bis zum 01.09.2026 lagen beide in EINEM ellipsierenden
+   Kasten -- geschnitten wird dort, was hinten steht, und hinten steht die Lizenz. Ein
+   abgeschnittenes „CC B…" ist kein Lizenzverweis, und CC verlangt ihn AN DER KOPIE. Also ist
+   `.fs-src-main` selbst eine Flex-Zeile: der Titel schrumpft, die Lizenz nie. Entwurf §4.2:
+   „kuerzt der Titel mit Ellipse". */
 .fs-src-main {
+	flex: 1 1 auto;
+	min-width: 0;
+	display: flex;
+	align-items: baseline;
+}
+.fs-src-title {
 	flex: 1 1 auto;
 	min-width: 0;
 	overflow: hidden;
 	text-overflow: ellipsis;
 	white-space: nowrap;
+}
+.fs-src-main > .fs-src-lic {
+	flex: 0 0 auto;
 }
 .fs-src-list li { min-width: 0; }
 /* ⚠️ Die Markengruppe schrumpft nicht -- sie ist die Aussage. Gekuerzt wird links. */
@@ -903,6 +915,90 @@
 	display: inline-flex;
 	align-items: center;
 	gap: 6px;
+}
+
+/* ══ DAS ⓘ UND SEINE RECHTETAFEL (01.09.2026) ════════════════════════════════════════════════
+   Entwurf: 2026-08-27-kanon-etikett-design.md §4.4, Mockup docs/quellenzeile-info-mockup.html
+
+   🔴 Das ⓘ steht rechts, unmittelbar VOR dem Etikett -- Bedienelemente gehoeren an einen festen
+   Platz, und das Etikett schliesst die Zeile ab. Mitten in der Zeile waere es das dritte
+   anklickbare Ding in einer Reihe, ohne sich als das eine zu erkennen zu geben, das NICHT wegfuehrt.
+   🔴 Es erscheint nur, wo es etwas zu zeigen gibt (Namensnennung vorhanden) -- live gemessen
+   01.09.2026: 3 von 1694 Katalogzeilen. Ein Knopf ueber einer leeren Tafel ist ein Klick fuer nichts. */
+.fs-src-info {
+	flex: 0 0 auto;
+	width: 17px;
+	height: 17px;
+	padding: 0;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	border: 1px solid var(--color-button-soft-border);
+	border-radius: 999px;
+	background: var(--color-button-soft);
+	color: var(--color-button-soft-text);
+	font: inherit;
+	font-size: 11px;
+	line-height: 1;
+	cursor: pointer;
+}
+.fs-src-info:hover,
+.fs-src-info:focus-visible {
+	border-color: var(--color-accent-brown);
+	outline: none;
+}
+/* Aufgeklappt zeigt der Knopf sich gedrueckt -- dieselbe Sprache wie das ✎ im Quellen-Editor. */
+.fs-src-info[aria-expanded="true"] {
+	background: var(--color-accent-brown);
+	border-color: var(--color-accent-brown);
+	color: var(--color-panel);
+}
+/* 💣 DIE TAFEL KLAPPT INNERHALB IHRER ZEILE AUF, NIE UNTER DER LISTE. Bei zwei Quellen waere sonst
+   nicht zu sehen, WESSEN Rechte dort stehen -- und das sind zuordnungspflichtige Angaben. */
+.fs-src-rights {
+	margin: 6px 0 8px;
+	padding: 8px 10px;
+	border-left: 2px solid var(--color-accent-brown);
+	border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+	background: var(--color-panel-soft);
+	font-size: 11px;
+}
+.fs-src-rights dl {
+	display: grid;
+	grid-template-columns: auto 1fr;
+	gap: 3px 10px;
+	margin: 0;
+}
+.fs-src-rights dt { color: var(--color-text-muted); }
+/* ⚠️ Die Adresse ist der laengste Wert und der EINZIGE, der hier umbrechen darf -- sonst schiebt
+   sie die Tafel aus dem Kasten. `anywhere`, weil eine URL keine Wortgrenzen hat. */
+.fs-src-rights dd {
+	margin: 0;
+	color: var(--color-text);
+	overflow-wrap: anywhere;
+}
+
+/* ══ UNTERHALB EINER SCHWELLE BRICHT DIE ZEILE DOCH UM -- bewusst und gemessen ════════════════
+   Der Entwurf §4.2 sieht genau das vor („notfalls faellt die Zeile unterhalb einer Schwelle doch
+   in den Umbruch zurueck -- dann bewusst und gemessen, nicht als Vorgabe").
+   💣 Ohne diese Regel faellt die Titelbreite im 400px-Infopanel auf 53px und bei 280px auf NULL:
+   man sieht Lizenz, ⓘ und Etikett, aber nicht mehr, WELCHE Quelle das ist. Ein Titel, der ganz
+   verschwindet, ist schlimmer als eine zweite Zeile -- am Mockup gemessen, nicht geschaetzt.
+   🔴 Die Schwelle liegt bei 420px und damit UEBER der Infopanel-Breite (400px): dort bekommt der
+   Titel die volle Zeile (~340px statt 53px). Owner-Entscheid 01.09.2026 („Variante B").
+   ⚠️ Umgebrochen wird INNERHALB von `.fs-src-main` -- die Markengruppe bleibt rechts in ihrer
+   Zeile, sonst wandert das Etikett unter den Text und die Zuordnung geht verloren.
+   🔴 Der Kasten misst SICH SELBST (`container-type`), nie das Fenster: das Infopanel ist
+   `min(400px, 100vw - 2*Rand)` und damit schmal, wo das Fenster breit ist -- dieselbe Falle, die
+   die Quellenliste am 29.08.2026 schon einmal bezahlt hat (Meldung #104). */
+.fs-src {
+	container-type: inline-size;
+	container-name: fsbox;
+}
+@container fsbox (max-width: 420px) {
+	.fs-src-main { flex-wrap: wrap; }
+	.fs-src-title { flex: 1 1 100%; }
+	.fs-src-main > .fs-src-lic { margin-left: 0; }
 }
 
 /* 🔴 DAS ETIKETT. Pillenform wie alles hier (`fs-src-tab`, `fs-row__badge`, `fs-row__kind`);

@@ -204,6 +204,12 @@ function buildSourceListMarkup(wikiUrl, sources, opts) {
   var publicationsLabel = opts.publicationsLabel || "Publikationen:";
   var officialTabLabel = opts.officialTabLabel || "Offiziell";
   var mentionedTabLabel = opts.mentionedTabLabel || "Erwähnt";
+  // Die Rechtetafel hinter dem ⓘ. Wie alle Beschriftungen hier injizierbar, damit die i18n-
+  // Schicht (M8) sie uebersetzen kann, ohne diese Datei anzufassen.
+  var rightsButtonLabel = opts.rightsButtonLabel || "Rechte und Namensnennung";
+  var rightsAttributionLabel = opts.rightsAttributionLabel || "Nennung";
+  var rightsLicenseLabel = opts.rightsLicenseLabel || "Lizenz";
+  var rightsUrlLabel = opts.rightsUrlLabel || "Adresse";
   var tableHeaders = opts.tableHeaders || {};
   var titleHeader = tableHeaders.title || "Titel";
   var typeHeader = tableHeaders.type || "Typ";
@@ -247,9 +253,55 @@ function buildSourceListMarkup(wikiUrl, sources, opts) {
   // 🔴 DER KASTEN. Der Quellenblock klemmte bisher zwischen der letzten Datenzeile und der
   // naechsten Ueberschrift und las sich wie eine weitere Datenzeile -- obwohl er etwas anderes
   // tut: er sagt, WOHER alles darueber stammt. Owner 27.08.2026.
-  var zeile = function (inhalt, marken) {
-    return '<li><span class="fs-src-row"><span class="fs-src-main">' + inhalt + "</span>" +
-      '<span class="fs-src-marks">' + marken + "</span></span></li>";
+  /**
+   * Eine Quelle, eine Zeile: links Titel (kuerzt) und Lizenz (kuerzt NIE), rechts die feste Gruppe
+   * aus ⓘ und Etikett. Die Rechtetafel steht als Geschwister UNTER der Zeile, aber INNERHALB des
+   * <li> -- bei zwei Quellen waere sonst nicht zu sehen, wessen Rechte dort stehen, und das sind
+   * zuordnungspflichtige Angaben (Entwurf 2026-08-27-kanon-etikett-design.md §4.4).
+   */
+  var zeile = function (titel, lizenz, marken, tafel) {
+    return '<li><span class="fs-src-row"><span class="fs-src-main">' +
+      '<span class="fs-src-title">' + titel + "</span>" + lizenz + "</span>" +
+      '<span class="fs-src-marks">' + marken + "</span></span>" + (tafel || "") + "</li>";
+  };
+
+  /**
+   * Der Knopf ⓘ und seine Tafel — sie tragen, was die Zeile nicht mehr traegt.
+   *
+   * 🔴 NUR WO ES ETWAS ZU ZEIGEN GIBT. Ein Knopf, der eine leere Tafel oeffnet, ist ein Klick fuer
+   * nichts; die Adresse allein rechtfertigt ihn nicht, denn sie IST schon der Titel-Link. Ausloeser
+   * ist die NAMENSNENNUNG — live gemessen 01.09.2026 tragen 3 von 1694 Katalogzeilen eine.
+   *
+   * 💣 INLINE-`onclick`, kein delegierter Zuhoerer. Leaflet ruft den Popup-Inhalt bei jedem
+   * `_updateContent` neu auf und ersetzt das Markup; ein an einen Behaelter gehaengter Zuhoerer
+   * waere danach weg. Dieselbe Begruendung wie bei `avesmapsToggleSourceTab` daneben — die Falle
+   * hat dieses Haus 2026-07-08 schon einmal bezahlt („FALLE Popup-Revert").
+   */
+  var rechteMarkup = function (s, index) {
+    var wer = String((s && s.attribution) == null ? "" : s.attribution).trim();
+    if (!wer) { return { knopf: "", tafel: "" }; }
+    var id = "fsr-" + index;
+    var lizEintrag = FEATURE_SOURCE_LICENSES[String((s && s.license) || "").trim()] || null;
+    var zeilen = '<dt>' + esc(rightsAttributionLabel) + "</dt><dd>" + esc(wer) + "</dd>";
+    if (lizEintrag) {
+      zeilen += "<dt>" + esc(rightsLicenseLabel) + "</dt><dd>" + (lizEintrag.url
+        ? '<a href="' + esc(lizEintrag.url) + '" target="_blank" rel="noopener">' + esc(lizEintrag.label) +
+          ' <span class="fs-src-ext" aria-hidden="true">↗</span></a>'
+        : esc(lizEintrag.label)) + "</dd>";
+    }
+    // 🔴 Die Adresse ist ANKLICKBAR (Owner 01.09.2026). Sie steht hier vollstaendig, waehrend der
+    // Titel oben kuerzt -- und ein Link, den man sieht, aber nicht folgen kann, ist eine Sackgasse.
+    if (s && s.url) {
+      zeilen += "<dt>" + esc(rightsUrlLabel) + '</dt><dd><a class="fs-src-rights-url" href="' + esc(s.url) +
+        '" target="_blank" rel="noopener">' + esc(s.url) +
+        ' <span class="fs-src-ext" aria-hidden="true">↗</span></a></dd>';
+    }
+    return {
+      knopf: '<button type="button" class="fs-src-info" aria-expanded="false" aria-controls="' + id +
+        '" title="' + esc(rightsButtonLabel) + '" aria-label="' + esc(rightsButtonLabel) +
+        '" onclick="avesmapsToggleSourceRights(this)">i</button>',
+      tafel: '<div class="fs-src-rights" id="' + id + '" hidden><dl>' + zeilen + "</dl></div>"
+    };
   };
 
   var list = Array.isArray(sources) ? sources.filter(function (s) { return s && (s.label || s.url); }) : [];
@@ -270,9 +322,13 @@ function buildSourceListMarkup(wikiUrl, sources, opts) {
     // ⚠️ DIE WIKI-ZEILE TRAEGT KEINE TYPMARKE -- sie ist gar keine Katalogquelle, sondern
     // `properties.wiki_url` am Objekt und hat deshalb keinen `source_type`. Ihr Kanon kommt vom
     // NAMENSRAUM ihres Artikels (opts.wikiOfficial), nicht aus dem Katalog.
+    // ⚠️ KEIN ⓘ an der Wiki-Zeile: sie traegt keine Namensnennung (der Artikel-Link IST sie) und
+    // ihre Lizenz steht schon sichtbar daneben. Es gaebe nichts aufzuklappen.
     items.push(zeile(
-      link(wikiUrl, esc(wikiLabel)) + wikiLicenseMarkup(),
-      opts.wikiOfficial === undefined ? "" : featureSourceKanonMarkup(opts.wikiOfficial, esc, kanonLabels)
+      link(wikiUrl, esc(wikiLabel)),
+      wikiLicenseMarkup(),
+      opts.wikiOfficial === undefined ? "" : featureSourceKanonMarkup(opts.wikiOfficial, esc, kanonLabels),
+      ""
     ));
   }
   // Lizenz und Namensnennung einer Quelle -- ZWEI unabhaengige Verweise, keiner zeigt auf den
@@ -285,10 +341,6 @@ function buildSourceListMarkup(wikiUrl, sources, opts) {
   // Lizenz tragen, das ist kein halber Zustand (featureSourceLicenseText weiter oben).
   // 🔴 Beide stehen am EINZELNEN Eintrag, nie unter der Zeile: eine Fussnote unter der ganzen
   // Quellenzeile behauptete die Angabe auch fuer alles andere, was dort steht.
-  var attributionMarkup = function (s) {
-    var wer = String((s && s.attribution) == null ? "" : s.attribution).trim();
-    return wer ? '<span class="fs-src-lic fs-src-lic--attrib">' + esc(wer) + "</span>" : "";
-  };
   var licenseBadgeMarkup = function (s) {
     var eintrag = FEATURE_SOURCE_LICENSES[String((s && s.license) || "").trim()] || null;
     if (!eintrag) { return ""; }
@@ -296,28 +348,35 @@ function buildSourceListMarkup(wikiUrl, sources, opts) {
     // ⚠️ Ohne Adresse ein <span>, kein Link ins Leere -- "Gemeinfrei" und "Keine freie Lizenz"
     // haben nichts zu verlinken.
     if (!eintrag.url) {
-      return '<span class="fs-src-lic fs-src-lic--attrib">' + esc(eintrag.label) + "</span>";
+      return '<span class="fs-src-lic">' + esc(eintrag.label) + "</span>";
     }
-    return '<a class="fs-src-lic fs-src-lic--attrib" href="' + esc(eintrag.url) +
+    return '<a class="fs-src-lic" href="' + esc(eintrag.url) +
       '" target="_blank" rel="noopener">' + esc(eintrag.label) +
       ' <span class="fs-src-ext" aria-hidden="true">↗</span></a>';
   };
+  // 🔴 DIE NAMENSNENNUNG STEHT NICHT MEHR IN DER ZEILE -- sie steht hinter dem ⓘ (Owner
+  // 01.09.2026: „die URL bringt um"). Sie ist der laengste Wert der Zeile, und sie durfte als
+  // einzige umbrechen (`.fs-src-lic--attrib { white-space: normal }`, 27.08.2026) -- was seit der
+  // einzeiligen Zeile vom 01.09. GENAU der gemeldete Fehler ist: die erste Haelfte schneidet die
+  // Ellipse, die zweite rutscht darunter. Zwei Regeln aus zwei Entwurfsstufen.
+  // ⚠️ Die LIZENZ bleibt sichtbar und ein echter Link: CC verlangt den Lizenzverweis an der Kopie,
+  // und einen Klick tief ist er das nicht mehr (Entwurf §4.4).
   var lizenzMarkup = function (s) {
-    var attrib = attributionMarkup(s);
-    var lic = licenseBadgeMarkup(s);
-    if (!attrib) { return lic; }
-    if (!lic) { return attrib; }
-    return attrib + ", " + lic;
+    return licenseBadgeMarkup(s);
   };
-  direct.forEach(function (s) {
+  direct.forEach(function (s, index) {
     var label = esc(s.label || s.url || "");
     var namensnennung = lizenzMarkup(s);
     // 🔴 KEIN STERN MEHR hinter dem Titel -- der Kanon steht rechts als Stempel. Und die
     // Seitenangabe bleibt bei der Quelle, weil sie zu IHR gehoert.
+    // 💣 TITEL UND BEIPACK REISEN GETRENNT. Lagen sie in EINEM ellipsierenden Kasten, schnitt die
+    // Ellipse, was hinten steht -- und hinten steht die Lizenz. Ein abgeschnittenes „CC B…" ist
+    // kein Lizenzverweis, und CC verlangt ihn an der Kopie. Jetzt kuerzt der TITEL (§4.2:
+    // „kuerzt der Titel mit Ellipse"), die Lizenz nie.
     var meta = pagesInline(s.pages) + namensnennung;
     var eintrag = s.url
-      ? link(s.url, label) + meta
-      : '<span class="fs-src-plain">' + label + "</span>" + meta;
+      ? link(s.url, label)
+      : '<span class="fs-src-plain">' + label + "</span>";
     // 💣 EINE NAMENSNENNUNG DARF NICHT VON IHRER QUELLE ABREISSEN. Sie ist lang genug, um
     // umzubrechen -- und dann stand sie im Browser gemessen (27.08.2026) in einer Zeile mit der
     // NAECHSTEN Quelle: "VolkoV / garetien.de, CC BY-NC-SA 3.0 · Kosch:Bodrin". Wer das liest,
@@ -339,10 +398,11 @@ function buildSourceListMarkup(wikiUrl, sources, opts) {
     // traegt das Etikett den Namen.
     // ⚠️ Ohne Art bleibt es eine ganze Pille (seit 30.08.2026 darf eine Quelle typlos sein) --
     // dieselbe Regel wie beim Wiki-Artikel weiter oben, der gar keine Katalogzeile ist.
-    items.push(zeile(eintrag, featureKanonBadgeMarkup(
+    var rechte = rechteMarkup(s, index);
+    items.push(zeile(eintrag, meta, rechte.knopf + featureKanonBadgeMarkup(
       { kanon: s.official ? "offiziell" : "inoffiziell", bezeichner_type: s.type },
       esc, kanonLabels, typeLabels
-    )));
+    ), rechte.tafel));
   });
   if (items.length) {
     var lbl = items.length > 1 ? sourceLabelPlural : sourceLabelSingular;
@@ -395,8 +455,31 @@ function buildSourceListMarkup(wikiUrl, sources, opts) {
 
 // Browser-only: toggle one publication tab's table open, or collapse it if the tab was already
 // active. Scoped to the clicked tab's own .fs-src block, so multiple open popups never interfere.
-function avesmapsToggleSourceTab(tabEl) {
-  if (!tabEl || !tabEl.closest) return;
+/**
+ * Klappt die Rechtetafel EINER Quellenzeile auf und zu.
+ *
+ * 💣 INLINE-`onclick` wie bei den Publikationsreitern darunter, und aus demselben Grund: Leaflet
+ * ruft den Popup-Inhalt bei jedem `_updateContent` neu auf und ersetzt das Markup. Ein an einen
+ * Behaelter gehaengter Zuhoerer waere danach weg -- die „FALLE Popup-Revert", die dieses Haus am
+ * 08.07.2026 schon einmal bezahlt hat.
+ *
+ * 🔴 Die Tafel liegt im EIGENEN <li>, nicht unter der Liste: bei zwei Quellen waere sonst nicht zu
+ * sehen, wessen Rechte dort stehen -- und das sind zuordnungspflichtige Angaben.
+ * ⚠️ `aria-expanded` wandert mit, sonst sagt der Knopf einem Screenreader nichts ueber seinen
+ * Zustand.
+ */
+function avesmapsToggleSourceRights(btn) {
+  if (!btn || !btn.closest) return;
+  var li = btn.closest("li");
+  if (!li) return;
+  var tafel = li.querySelector(".fs-src-rights");
+  if (!tafel) return;
+  var offen = tafel.hidden === false;
+  tafel.hidden = offen;
+  btn.setAttribute("aria-expanded", offen ? "false" : "true");
+}
+
+function avesmapsToggleSourceTab(tabEl) {  if (!tabEl || !tabEl.closest) return;
   var block = tabEl.closest(".fs-src");
   if (!block) return;
   var key = tabEl.getAttribute("data-fs-tab");
@@ -424,12 +507,15 @@ function avesmapsSourceTabKeydown(event, tabEl) {
 }
 
 if (typeof module !== "undefined" && module.exports) {
-  module.exports = { buildSourceListMarkup: buildSourceListMarkup, FEATURE_SOURCE_MARKUP_TYPE_LABELS: FEATURE_SOURCE_MARKUP_TYPE_LABELS, featureSourceShortenPages: featureSourceShortenPages, featureSourceLicenseText: featureSourceLicenseText, FEATURE_SOURCE_LICENSES: FEATURE_SOURCE_LICENSES, featureKanonBadgeMarkup: featureKanonBadgeMarkup, featureKanonBezeichnerText: featureKanonBezeichnerText };
+  module.exports = { buildSourceListMarkup: buildSourceListMarkup, FEATURE_SOURCE_MARKUP_TYPE_LABELS: FEATURE_SOURCE_MARKUP_TYPE_LABELS, featureSourceShortenPages: featureSourceShortenPages, featureSourceLicenseText: featureSourceLicenseText, FEATURE_SOURCE_LICENSES: FEATURE_SOURCE_LICENSES, featureKanonBadgeMarkup: featureKanonBadgeMarkup, featureKanonBezeichnerText: featureKanonBezeichnerText, avesmapsToggleSourceRights,};
 }
 if (typeof window !== "undefined") {
   window.buildSourceListMarkup = buildSourceListMarkup;
   window.featureSourceShortenPages = featureSourceShortenPages;
   window.featureKanonBadgeMarkup = featureKanonBadgeMarkup;
   window.avesmapsToggleSourceTab = avesmapsToggleSourceTab;
+  // 🔴 MUSS global stehen: das Markup ruft ihn per Inline-`onclick`, und der wird im
+  // globalen Raum aufgeloest. Ohne diese Zeile klappt das ⓘ nicht auf -- lautlos.
+  window.avesmapsToggleSourceRights = avesmapsToggleSourceRights;
   window.avesmapsSourceTabKeydown = avesmapsSourceTabKeydown;
 }
