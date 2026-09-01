@@ -27,6 +27,12 @@ const AVESMAPS_REPORT_TYPES = [
     'gebirge' => ['type' => 'label', 'subtype' => 'gebirge'],
     'berggipfel' => ['type' => 'label', 'subtype' => 'berggipfel'],
     'vulkan' => ['type' => 'label', 'subtype' => 'vulkan'],
+    // 01.09.2026, Editorenwunsch: drei freie Label-Arten in der Familie von Berggipfel und
+    // Vulkan, dazu die neue Flaechenart.
+    'bergkette' => ['type' => 'label', 'subtype' => 'bergkette'],
+    'felsformation' => ['type' => 'label', 'subtype' => 'felsformation'],
+    'huegel' => ['type' => 'label', 'subtype' => 'huegel'],
+    'vorgebirge_mittelgebirge' => ['type' => 'label', 'subtype' => 'vorgebirge_mittelgebirge'],
     'wald' => ['type' => 'label', 'subtype' => 'wald'],
     'steppe' => ['type' => 'label', 'subtype' => 'steppe'],
     'graslandschaft' => ['type' => 'label', 'subtype' => 'graslandschaft'],

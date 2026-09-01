@@ -311,7 +311,9 @@ ecosystemTestThrows(static fn() => avesmapsEcosystemReadKind('wetter'), 'an unkn
 // 34 seit 2026-08-03: „Trockene Subtropen" wurde zwischen zwei bestehende Klimazonen geschoben.
 // 35 seit 2026-08-16: „Kulturlandschaft" als elfte Vegetationsart (Idee #77).
 // 36 seit 2026-08-29: „Urwald" als zwoelfte Vegetationsart (Garetien-Import, Entwurf §3.4).
-assert(count(AVESMAPS_ECOSYSTEM_REGION_TYPE_SEED) === 36, 'the seed is 36 rows');
+// 37 seit 2026-09-01: „Vor-/Mittelgebirge“ als dreizehnte topographische Art
+// (Editorenwunsch ueber den Owner).
+assert(count(AVESMAPS_ECOSYSTEM_REGION_TYPE_SEED) === 37, 'the seed is 37 rows');
 
 $byKind = [];
 foreach (AVESMAPS_ECOSYSTEM_REGION_TYPE_SEED as [$kind, $typeKey, $label, $sortOrder]) {
@@ -320,7 +322,7 @@ foreach (AVESMAPS_ECOSYSTEM_REGION_TYPE_SEED as [$kind, $typeKey, $label, $sortO
     $byKind[$kind][] = $typeKey;
 }
 assert(count($byKind['derographisch']) === 4, 'derographisch: 4');
-assert(count($byKind['topographie']) === 12, 'topographie: 12');
+assert(count($byKind['topographie']) === 13, 'topographie: 13');
 assert(count($byKind['vegetation']) === 12, 'vegetation: 12');
 assert(count($byKind['klima']) === 8, 'klima: 8 -- and the dividers are always one fewer');
 
@@ -355,6 +357,15 @@ assert(!in_array('kulturlandschaft', $byKind['derographisch'], true), 'and not a
 assert(in_array('urwald', $byKind['vegetation'], true), 'urwald is a vegetation cover');
 assert(in_array('dschungel', $byKind['vegetation'], true), 'and dschungel stays a distinct one');
 assert(!in_array('urwald', $byKind['topographie'], true), 'urwald is not a landform');
+
+// 🔴 2026-09-01: das Vor-/Mittelgebirge ist eine FORM und gehoert damit zur
+// Topographie -- wie Gebirge und Huegelland, zwischen denen es steht. Es ist weder eine
+// Decke (Vegetation) noch der Name einer Gegend (derographisch). Die Zahlen oben koennen
+// den Griff in die falsche Ebene nicht fangen; deshalb steht es hier beim Namen.
+assert(in_array('vorgebirge_mittelgebirge', $byKind['topographie'], true),
+    'vorgebirge_mittelgebirge is a landform');
+assert(in_array('gebirge', $byKind['topographie'], true), 'and gebirge stays a distinct one');
+assert(in_array('huegelland', $byKind['topographie'], true), 'huegelland likewise');
 
 // The PRIMARY KEY is (kind, type_key): a duplicate would be swallowed by INSERT IGNORE and the count
 // would silently be 15.

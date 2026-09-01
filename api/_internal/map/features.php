@@ -979,7 +979,13 @@ function avesmapsReadLabelSubtype(mixed $value): string {
     // 🔴 'urwald' seit 2026-08-29 (Garetien-Import): AVESMAPS_ECOSYSTEM_REGION_TYPE_SEED bekam die
     // Art dazu, und ohne den Eintrag hier liesse sich an keinem Label speichern -- siehe den
     // Kommentar oben an dieser Liste.
-    $allowedSubtypes = ['region', 'fluss', 'meer', 'gebirge', 'berggipfel', 'wald', 'urwald', 'steppe', 'huegelland', 'tundra', 'kueste', 'ebene', 'graslandschaft', 'auenlandschaft', 'flussland_flusstal', 'dschungel', 'wuestenoase', 'wadi', 'schlucht', 'hochebene', 'tiefebene', 'tal', 'flussdelta', 'kulturlandschaft', 'vulkan', 'kontinent', 'wueste', 'suempfe_moore', 'see', 'insel', 'inselgruppe', 'sonstiges'];
+    $allowedSubtypes = ['region', 'fluss', 'meer', 'gebirge', 'berggipfel', 'wald', 'urwald', 'steppe', 'huegelland', 'tundra', 'kueste', 'ebene', 'graslandschaft', 'auenlandschaft', 'flussland_flusstal', 'dschungel', 'wuestenoase', 'wadi', 'schlucht', 'hochebene', 'tiefebene', 'tal', 'flussdelta', 'kulturlandschaft', 'vulkan', 'kontinent', 'wueste', 'suempfe_moore', 'see', 'insel', 'inselgruppe', 'sonstiges',
+        // 🔴 01.09.2026 (Editorenwunsch): drei FREIE Label-Arten in der Familie von
+        // Berggipfel und Vulkan -- sie haben KEIN Flaechen-Gegenstueck und stehen deshalb
+        // nur hier, nicht im Seed. Dazu 'vorgebirge_mittelgebirge', das SEHR WOHL eine
+        // Flaechenart ist (topographie) -- dort waere sein Fehlen hier ein 400 auf jedes
+        // Label, dessen Flaeche die Art laengst traegt.
+        'felsformation', 'bergkette', 'huegel', 'vorgebirge_mittelgebirge'];
     if (!in_array($subtype, $allowedSubtypes, true)) {
         throw new InvalidArgumentException('Die Label-Kategorie ist ungueltig.');
     }

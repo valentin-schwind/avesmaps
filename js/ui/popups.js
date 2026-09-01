@@ -340,6 +340,13 @@ function sharePinVisualMarkup(rootClassName = "") {
 const INFO_HEADER_IMAGE_BY_ART = {
 	gebirge: "gebirge", berge: "gebirge", berg: "gebirge", berggruppe: "gebirge", bergkamm: "gebirge",
 	hochland: "gebirge", schlucht: "gebirge", vulkan: "gebirge",
+	// 01.09.2026, drei neue Arten. Zwei davon stehen hier NICHT unter ihrem Schluessel,
+	// sondern unter dem, was der Normalisierer aus ihrer BESCHRIFTUNG macht: er schneidet am
+	// "/" ab und wirft alles Nicht-Buchstabige weg. Aus "Berg-/Huegelkette" wird deshalb
+	// "berg" -- das steht oben schon --, und aus "Vor-/Mittelgebirge" wird "vor".
+	// âš ï¸� Genau dieselbe Bauform wie "flussland" aus "Flussland/Flusstal" eine Zeile
+	// tiefer; wer den Schluessel "vor" fuer einen Tippfehler haelt, hat den Schnitt uebersehen.
+	vor: "gebirge", felsformation: "gebirge",
 	berggipfel: "berggipfel",
 	wald: "wald",
 	// Garetien-Import (29.08.2026): Urwald ist eine eigene Art -- "Aussage ueber die Bewirtschaftung",

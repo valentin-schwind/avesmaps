@@ -225,7 +225,14 @@ $geschrieben = avesmapsTravelValuesWriteLandscapeFactors($pdo, $plan['factors'])
 // 22 seit dem 29.08.2026: „Urwald" kam als zwoelfte Vegetationsart dazu (Garetien-Import, Entwurf
 // §3.4) -- ohne eigenen GA-Wert, sie bekommt hier den rechnerischen Rueckfall (offroad_factor 1,00
 // aus dem Test-Seed oben -> Faktor = Basis).
-assert($geschrieben === 22, "zweiundzwanzig Zeilen geschrieben, bekommen: $geschrieben");
+// 23 seit dem 01.09.2026: „Vor-/Mittelgebirge" kam als dreizehnte topographische Art dazu
+// (Editorenwunsch ueber den Owner) -- ebenfalls ohne eigenen GA-Wert, also derselbe rechnerische
+// Rueckfall wie beim Urwald.
+// 🔧 UND DAMIT BREMST SIE NICHT. Ein Mittelgebirge, auf dem man so schnell vorankommt wie auf
+// offenem Boden, ist sachlich falsch (Gebirge 2,20, Huegelland 1,30) -- aber eine Reisebremse fuer
+// die Welt zu erfinden ist eine Owner-Entscheidung, kein Nebeneffekt einer Typregistrierung.
+// Einzustellen im Fenster „Tempowerte"; bis dahin steht sie wie der Urwald auf offenem Boden.
+assert($geschrieben === 23, "dreiundzwanzig Zeilen geschrieben, bekommen: $geschrieben");
 
 $nachher = $spalte($pdo);
 assert($nah((float) $nachher['suempfe_moore'], 0.100, 0.0005), 'Sumpf 0,100: ' . $nachher['suempfe_moore']);
@@ -514,7 +521,8 @@ foreach ($liste as $zeile) { $nachSchluessel[$zeile['type_key']] = $zeile; }
 // 21 seit dem 16.08.2026 (Kulturlandschaft, Idee #77), 22 seit dem 29.08.2026 (Urwald,
 // Garetien-Import, Entwurf §3.4). Die Liste kommt aus der Datenbank, eine neue Art steht also ohne
 // eine Zeile Code im Fenster -- genau deshalb wandert die Zahl hier mit.
-assert(count($liste) === 22, 'zweiundzwanzig Landschaftsarten im Fenster: ' . count($liste));
+// 23 seit dem 01.09.2026 (Vor-/Mittelgebirge, Editorenwunsch).
+assert(count($liste) === 23, 'dreiundzwanzig Landschaftsarten im Fenster: ' . count($liste));
 foreach (['kind', 'type_key', 'label', 'factor', 'source', 'area_count'] as $feld) {
     assert(array_key_exists($feld, $liste[0]), "jede Zeile traegt `$feld`");
 }

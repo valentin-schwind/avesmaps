@@ -311,6 +311,9 @@
 	   in warm brown would be unreadable to every editor who has ever seen a map. */
 	--color-ecosystem-topographie-gebirge: #7a6c5e;         /* mountains, brown-grey */
 	--color-ecosystem-topographie-huegelland: #7d8f6e;      /* hills, grey-green */
+	/* Vor-/Mittelgebirge: zwischen dem Gebirgs-Braungrau (#7a6c5e) und dem Huegel-Graugruen
+	   (#7d8f6e) -- es ist der Uebergang zwischen beiden, und der Ton sagt das. */
+	--color-ecosystem-topographie-vorgebirge_mittelgebirge: #7c7b66;
 	--color-ecosystem-topographie-see: #4a86b8;             /* lake, blue */
 	--color-ecosystem-topographie-meer: #2d5f8a;            /* sea, dark blue */
 	--color-ecosystem-topographie-kueste: #3f9e9a;          /* coast, turquoise */

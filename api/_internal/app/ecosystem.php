@@ -167,6 +167,16 @@ const AVESMAPS_ECOSYSTEM_REGION_TYPE_SEED = [
     // back to the layer's base tone -- which is the mountain brown-grey, so all 251 islands would
     // render as mountains.
     ['topographie', 'insel', 'Insel', 120],
+    // Owner 01.09.2026, Editorenwunsch. Zwischen Gebirge und Huegelland und keins von beiden:
+    // das Gebirge ist die hohe Kette, das Huegelland die flache Decke davor -- das
+    // Vor-/Mittelgebirge ist der Uebergang, den man weder als das eine noch als das andere
+    // zeichnen will. Dieselbe Unterscheidung, die Hochebene und Tiefebene rechtfertigt: nicht
+    // OB eben, sondern WIE hoch.
+    // 💣 Es BRAUCHT --color-ecosystem-topographie-vorgebirge_mittelgebirge. Ohne das
+    // Token faellt ecosystemAreaColor() auf den Grundton der Ebene zurueck -- das ist das
+    // Gebirgs-Braungrau, und dann saehe jedes Mittelgebirge wie ein Gebirge aus (dieselbe
+    // Falle, die bei `insel` ausgeschrieben danebensteht).
+    ['topographie', 'vorgebirge_mittelgebirge', 'Vor-/Mittelgebirge', 130],
 
     ['vegetation', 'wald', 'Wald', 10],
     // Owner 2026-08-29 (Garetien-Import, Entwurf §3.4): ein Urwald ist NICHT dasselbe wie ein
