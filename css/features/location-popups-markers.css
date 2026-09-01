@@ -56,6 +56,16 @@
 	flex-direction: column;
 	justify-content: center;
 	min-height: 28px;
+	/* 💣 TRAGEND, seit das Kanon-Etikett hier drinsteht: ein Flex-Kind weigert sich zu schrumpfen
+	   (Vorgabe `min-width: auto`), und der Chip bricht NICHT um. Ein langer Bezeichner zog damit
+	   die ganze Gruppe auf seine Textbreite -- live gemessen an „Sellach", dessen Quelle als Name
+	   ihre eigene Adresse traegt: Gruppe 439px statt 322, der Chip ragte ueber den Popup-Rand, das
+	   Popup SCROLLTE WAAGERECHT, und die Ellipse am Bezeichnerfeld griff gar nicht (sie kann erst
+	   greifen, wenn der Kasten schmaler ist als sein Inhalt). Mit `min-width: 0` faellt beides weg.
+	   ⚠️ Dieselbe Zeile aus demselben Grund wie im Quellenkasten (feature-sources.css) und in
+	   `.info-header__titles` -- dort stand sie schon, deshalb war nur die schwebende Box betroffen.
+	   ⚠️ Name und Typzeile brechen um und brauchten sie nie; sichtbar wurde es erst am Chip. */
+	min-width: 0;
 }
 
 .location-popup__icon {

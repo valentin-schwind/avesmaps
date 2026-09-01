@@ -118,6 +118,32 @@ for (const t of ["--color-kanon-official", "--color-kanon-official-text", "--col
   pruefe(treffer.length === 2, `${t} muss in hellem UND dunklem Thema definiert sein (gefunden: ${treffer.length})`);
 }
 
+// ---- H2. Alle drei Titelgruppen duerfen SCHRUMPFEN ----------------------------------------------
+// 💣 Ein Flex-/Grid-Kind weigert sich per Vorgabe zu schrumpfen (`min-width: auto`), und der Chip
+// bricht NICHT um. Ein langer Bezeichner zog damit die ganze Gruppe auf seine Textbreite -- live
+// gemessen an „Sellach", dessen Quelle als Namen ihre eigene Adresse traegt (1 von 604 im Bestand):
+// Gruppe 439px statt 322, Chip ueber dem Popup-Rand, das Popup SCROLLTE WAAGERECHT, und die
+// Ellipse am Bezeichnerfeld griff gar nicht -- sie kann erst greifen, wenn der Kasten schmaler ist
+// als sein Inhalt. Zwei der drei Gruppen trugen den Riegel schon; die dritte nicht, und genau die
+// war betroffen.
+// ⚠️ Ein Layoutfehler laesst sich in Node nicht nachstellen (kein Layout) -- geprueft wird deshalb
+// die Deklaration; die Messung dazu steht am Code.
+for (const [datei, regel] of [
+  ["css/features/location-popups-markers.css", ".location-popup__title-group {"],
+  ["css/features/location-popups-markers.css", ".info-header__titles {"],
+  ["css/features/map-labels.css", ".region-info-box__title-group {"],
+]) {
+  const quelle = fs.readFileSync(path.join(wurzel, ...datei.split("/")), "utf8");
+  const von = quelle.indexOf(regel);
+  pruefe(von >= 0, `${regel} muss es geben`);
+  // 🪤 KOMMENTARE RAUS, SONST PRUEFT DER TEST SEINE EIGENE DOKUMENTATION. Der Block traegt die
+  // Begruendung im Klartext („Mit `min-width: 0` faellt beides weg"), und eine blosse Textsuche
+  // fand die -- die Zusicherung ueberlebte das Entfernen der echten Deklaration. Nachgemessen.
+  const block = quelle.slice(von, quelle.indexOf("}", von)).replace(/\/\*[\s\S]*?\*\//g, "");
+  pruefe(/^[ \t]*min-width:\s*0\s*;/m.test(block),
+    `${regel} braucht min-width: 0, sonst zieht ein langer Bezeichner den Kopf auf`);
+}
+
 // ---- I. Der Kopf polstert nicht doppelt ---------------------------------------------------------
 // ⚠️ Die seitliche Einrueckung kommt vom Behaelter (.location-popup traegt padding: 10px). Eine
 // zweite hier haette das Etikett als EINZIGES Element im Kopf nach innen versetzt.
