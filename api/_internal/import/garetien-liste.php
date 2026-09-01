@@ -14,6 +14,8 @@ declare(strict_types=1);
 // mittragen.
 
 require_once __DIR__ . '/garetien-plan.php';
+// ⚠️ Fuer avesmapsEcosystemReadRegionTypes (das Flaechen-Vokabular der Zielwahl).
+require_once __DIR__ . '/../app/ecosystem.php';
 
 /**
  * So viele Objekte je Antwort -- der Rest blaettert ueber `versatz`.
@@ -750,6 +752,43 @@ function avesmapsGaretienArbeitslisteObjekte(PDO $pdo, int $importRunId): array
  *              suche?:string, nur_ungehakt?:bool, nur_mehrteilig?:bool, stand?:string,
  *              versatz?:int, anzahl?:int} $filter
  */
+/**
+ * Das Flaechen-Vokabular fuer die Zielwahl des Fensters: (kind, type_key, label) je Landschaftsart.
+ *
+ * 💣 AUS DER DATENBANK, NICHT AUS EINER ZWEITEN TABELLE IM BROWSER. Das Vokabular steht in
+ * `ecosystem_region_type` (gesaet aus AVESMAPS_ECOSYSTEM_REGION_TYPE_SEED); eine abgeschriebene
+ * Liste im JavaScript liefe beim naechsten neuen Typ auseinander -- genau das ist der Kartensuche
+ * passiert, die bis heute 18 Arten nicht kennt.
+ *
+ * ⚠️ OHNE KLIMA. Ein Klimaband ist ABGELEITET und darf nie als Polygon bearbeitet werden
+ * (avesmapsClimateAssertNotDerived); ein Importziel dafuer waere ein Weg um genau diesen Riegel
+ * herum.
+ *
+ * ⚠️ Faellt der Leser aus (fehlende Tabelle auf einem frischen Aufbau), kommt eine LEERE
+ * Liste -- dann bietet das Fenster nur die drei uebrigen Formen an, statt gar nicht zu laden.
+ *
+ * @return list<array{kind:string, type_key:string, label:string}>
+ */
+function avesmapsGaretienFlaechenVokabular(PDO $pdo): array
+{
+    try {
+        $arten = avesmapsEcosystemReadRegionTypes($pdo, null);
+    } catch (Throwable) {
+        return [];
+    }
+    $raus = [];
+    foreach ($arten as $art) {
+        $kind = (string) ($art['kind'] ?? '');
+        $schluessel = (string) ($art['type_key'] ?? '');
+        if ($kind === '' || $kind === 'klima' || $schluessel === '') {
+            continue;
+        }
+        $raus[] = ['kind' => $kind, 'type_key' => $schluessel, 'label' => (string) ($art['label'] ?? '')];
+    }
+
+    return $raus;
+}
+
 function avesmapsGaretienArbeitsliste(PDO $pdo, int $importRunId, array $filter): array
 {
     $leer = [
@@ -824,6 +863,13 @@ function avesmapsGaretienArbeitsliste(PDO $pdo, int $importRunId, array $filter)
     return [
         'ok' => true,
         'plan_run_id' => $planRunId,
+        // 🔴 DAS FLAECHEN-VOKABULAR REIST MIT (01.09.2026, zwei Auswahlfelder): rund 29
+        // Zeilen, EINMAL je Listenabruf, statt eines eigenen Endpunkts.
+        // ⭐ Die FREIEN Label-Arten stehen hier bewusst NICHT: das Fenster hat sie schon
+        // (AVESMAPS_LABEL_ART_NAMEN) und rechnet sie als Differenz aus -- was eine Label-Art ist,
+        // aber keine Flaechenart, ist ein freies Label. Eine zweite Liste waere die dritte Wahrheit
+        // ueber dasselbe Vokabular.
+        'flaechen_arten' => avesmapsGaretienFlaechenVokabular($pdo),
         'gesamt' => $gesamt,
         'objekte' => array_slice($gefiltert, $versatz, $anzahl),
         'bilanz' => $bilanz,
