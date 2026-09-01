@@ -944,6 +944,31 @@
 		0 0 0 calc(2px + var(--marker-check-ring-width)) rgba(0, 0, 0, 0.35);
 }
 
+/* Pruefhaken „Keine Wiki-Zuweisung" (Owner 01.09.2026) -- derselbe Ringbau wie die beiden darueber,
+   deshalb dieselbe Rezeptur mit --marker-check-ring-width: die vier Pruefringe der Karte sollen
+   gleich DICK sein und sich nur im Ton unterscheiden. Ein eigener Wert liefe beim naechsten „ruhig
+   dicker" auseinander.
+   💣 STEHT NACH pink und tuerkis, und das ist die Rangfolge in Selektor-Form: ein Marker traegt
+   hoechstens EINEN Ring, und das JS entscheidet welchen (resolveLocationCheckFinding schlaegt
+   resolveLocationWikiMark). Diese Regeln koennen sich gar nicht treffen -- die Ordnung hier ist die
+   Absicherung fuer den Tag, an dem doch jemand zwei Klassen setzt. */
+.location-visual-marker__shape--no-wiki {
+	box-shadow:
+		0 0 0 1px rgba(0, 0, 0, 0.55),
+		0 0 0 calc(1px + var(--marker-check-ring-width)) var(--color-check-no-wiki),
+		0 0 0 calc(2px + var(--marker-check-ring-width)) rgba(0, 0, 0, 0.35);
+}
+
+/* „Nachgesehen, es gibt keinen Artikel" -- derselbe Ring, nur blass. Live sind das 6 Orte.
+   ⚠️ Der aeussere Schattenring faellt hier weg: er ist die Abgrenzung gegen helle Kacheln, und
+   unter einem halbdurchsichtigen Ring saehe man ihn DURCH, was den blassen Ton wieder verdunkelt --
+   also genau die Unterscheidung wegnimmt, um die es geht. */
+.location-visual-marker__shape--no-wiki-checked {
+	box-shadow:
+		0 0 0 1px rgba(0, 0, 0, 0.55),
+		0 0 0 calc(1px + var(--marker-check-ring-width)) var(--color-check-no-wiki-checked);
+}
+
 /* Discord #43 -- "trennt ab": solange Strg beim Ziehen gedrueckt ist, traegt der gerade bearbeitete
    Marker einen Goldring. Man sieht VOR dem Loslassen, dass die angeschlossenen Wege liegenbleiben.
    Steht nach den Warnringen oben, damit die Ansage der laufenden Aktion einen ruhenden Befund

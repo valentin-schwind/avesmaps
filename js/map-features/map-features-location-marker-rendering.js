@@ -166,6 +166,10 @@ function createLocationVisibilityContext() {
 		nodixToggleChecked: IS_EDIT_MODE && $("#toggleNodix").is(":checked"),
 		hiddenToggleChecked: IS_EDIT_MODE && $("#toggleHidden").is(":checked"),
 		crossingsToggleChecked: IS_EDIT_MODE && $("#toggleCrossings").is(":checked"),
+		// ⚠️ Nur der SCHALTER steht hier, keine Fundliste wie bei den beiden darunter: die Regel ist
+		// ein Feldzugriff je Ort und braucht keinen vorberechneten Index.
+		noWikiToggleChecked: typeof avesmapsIstWikiZuweisungCheckAktiv === "function"
+			&& avesmapsIstWikiZuweisungCheckAktiv(),
 		unconnectedPublicIds: unconnectedToggleChecked ? getUnconnectedLocationPublicIds() : null,
 		sparseCrossingPublicIds: sparseCrossingsToggleChecked ? getSparseCrossingPublicIds() : null,
 		isTypeVisible(locationType) {
@@ -209,6 +213,37 @@ function resolveLocationCheckFinding(entry, visibilityContext = null) {
 		return "sparse-crossing";
 	}
 	return "";
+}
+
+// Die MARKE „Keine Wiki-Zuweisung" -- und sie ist ausdruecklich NICHT dasselbe wie der Befund oben.
+//
+// 💣 DER UNTERSCHIED IST DIE SICHTBARKEIT, UND ER IST DER GANZE GRUND FUER ZWEI FUNKTIONEN.
+// resolveLocationCheckFinding beantwortet zwei Fragen zugleich -- „welcher Ring" und „warum ist der
+// Marker ueberhaupt da" -- und genau das ist dort richtig: seine Funde sind Nadeln, die man sonst
+// wegzoomt (Owner 14.08.2026). Diese hier faerbt NUR. Sie wird deshalb ausschliesslich beim Icon-Bau
+// gerufen, nie aus shouldShowLocationMarker.
+// 🔴 GEMESSEN, NICHT GESCHAETZT: 983 der 2912 Orte haben keine Zuweisung. Stuende dieser Aufruf in
+// shouldShowLocationMarker, holte der Haken ein DRITTEL aller Orte an den Zoombaendern vorbei auf
+// die Karte -- keine Fundstelle mehr, sondern eine zweite Ortsebene. Der Owner hat „markieren"
+// gesagt, nicht „einblenden". Ausfuehrlich in js/map-features/wiki-zuweisung.js.
+// ⚠️ SIE STEHT HINTER DEM BEFUND, UND DAS IST DIE RANGFOLGE. Ein Marker traegt hoechstens EINEN
+// Ring (siehe oben). Ein Ort ohne Weganbindung UND ohne Wiki-Eintrag ist beides, aber die fehlende
+// Anbindung ist der Befund, der die Karte kaputt macht -- die fehlende Zuweisung nur eine Luecke in
+// der Dokumentation. Pink gewinnt gegen Rot.
+function resolveLocationWikiMark(entry, visibilityContext = null) {
+	if (!IS_EDIT_MODE || typeof avesmapsWikiZuweisungMarkeOrt !== "function") {
+		return "";
+	}
+	// 💣 Der Haken wird EINMAL JE DURCHGANG gelesen, nicht einmal je Marker: diese Funktion laeuft in
+	// derselben Schleife wie der Befund oben, ueber alle 4990 Ortseintraege, bei jedem moveend.
+	// `$(...).is(":checked")` waere dort ein jQuery-Aufbau je Marker.
+	const aktiv = visibilityContext
+		? visibilityContext.noWikiToggleChecked
+		: avesmapsIstWikiZuweisungCheckAktiv();
+	if (!aktiv) {
+		return "";
+	}
+	return avesmapsWikiZuweisungMarkeOrt(entry.location, entry.locationType);
 }
 
 function shouldShowLocationMarker(entry, zoomLevel = map.getZoom(), renderBounds = getMapRenderBounds(), visibilityContext = null) {
@@ -323,7 +358,10 @@ function syncLocationMarkerVisibility() {
 		// identisch -> kein setIcon-Neuaufbau pro sichtbarem Marker pro moveend.
 		// 💣 Auch die Stilrevision prufen: eine Zoomband-Aenderung aendert weder Zoomstufe noch Warnring
 		// und bliebe deshalb unbemerkt -- der Marker behaelte seinen alten Radius, bis jemand zoomt.
-		const ringModifier = resolveLocationCheckFinding(entry, visibilityContext);
+		// 💣 `||`, und die Reihenfolge IST die Rangfolge: ein echter Befund (pink/tuerkis) schlaegt die
+		// Wiki-Marke (rot). Ein Marker traegt hoechstens EINEN Ring -- siehe resolveLocationWikiMark.
+		const ringModifier = resolveLocationCheckFinding(entry, visibilityContext)
+			|| resolveLocationWikiMark(entry, visibilityContext);
 		if (shouldShow && (entry.iconZoomLevel !== zoomLevel || entry._ringModifier !== ringModifier || entry._markerStyleRevision !== _locationMarkerStyleRevision)) {
 			entry.marker.setIcon(createLocationMarkerIcon(entry.locationType, zoomLevel, ringModifier));
 			entry.iconZoomLevel = zoomLevel;

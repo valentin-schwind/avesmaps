@@ -308,6 +308,30 @@
 			return kein;
 		}
 		const fontSize = getScaledLabelSize(label);
+		// Prüfhaken „Keine Wiki-Zuweisung" (Owner 01.09.2026) -- derselbe rote Schein wie am waagerechten
+		// Label (createLabelIcon, map-features-labels.js), nur hier für den GEMALTEN Namen.
+		// 💣 OHNE DIESE ZEILEN HÄTTE DER HAKEN EIN LOCH. Ein gebogener Name ist kein divIcon, sondern
+		// Canvas (Entwurf §7.3) -- sein Marker ist abgemeldet, und nichts, was drüben am Bild hängt,
+		// erreicht ihn. Live betrifft das 16 der 361 offenen Beschriftungen: wenig, aber es wären genau
+		// die auffälligsten (Kurvenlabels tragen die großen Landschaften), und ein Prüfhaken mit einer
+		// stillen Ausnahme ist schlimmer als keiner -- man hielte die Lücke für geprüft.
+		const marke = typeof avesmapsWikiZuweisungMarkeLabel === "function"
+			? avesmapsWikiZuweisungMarkeLabel(label)
+			: "";
+		if (marke) {
+			// ⚠️ DIESELBEN DREI ZAHLEN WIE AM WAAGERECHTEN LABEL (createLabelIcon,
+			// map-features-labels.js) -- ein gebogener und ein gerader Name derselben Landschaft
+			// stehen nebeneinander auf der Karte, und zwei verschiedene Rotstärken lesen sich als
+			// zwei verschiedene Befunde. Wer dort dreht, dreht hier mit.
+			// 💣 Die Durchgänge fehlen hier: paintGlyphs kennt kein `glowPasses`, es malt Schein und
+			// Kontur je einmal. Die Kontur trägt deshalb umso mehr -- sie ist der Grund, warum der
+			// Befund auch auf den hellen Labelarten liest.
+			return {
+				glow: avesmapsWikiZuweisungFarbe(marke),
+				blur: fontSize * Math.max(hp.glowBlurRatio || 0, 0.22),
+				strokeW: fontSize * Math.max(hp.strokeRatio || 0, 0.13),
+			};
+		}
 		return { glow: hp.glow, blur: fontSize * (hp.glowBlurRatio || 0), strokeW: fontSize * (hp.strokeRatio || 0) };
 	}
 
@@ -650,6 +674,21 @@
 	// gemalt -- und dann muss der Marker stehenbleiben, sonst verschwindet der Name GANZ. Das ist
 	// derselbe Fehler wie eine Absage, die stumm als Erfolg durchgeht: aus „ich konnte nicht" wird
 	// „es gibt nichts".
+	// Die Ablage verwerfen, ohne auf einen Schwenk zu warten.
+	//
+	// 💣 IHR STEMPEL KENNT NUR ZOOMSTUFE UND AUSSCHNITT (siehe kurvenlabelAblageGilt) -- und das ist
+	// richtig, solange sich nur die ANSICHT ändert. Der Prüfhaken „Keine Wiki-Zuweisung" ändert aber
+	// die FARBE bei unveränderter Ansicht: ohne diesen Weg bliebe jeder gemalte Name in seinem alten
+	// Schein stehen, bis jemand zufällig zoomt oder schwenkt. Genau die Sorte Halb-gefärbt-halb-nicht,
+	// die „Offene Wegenden" am 22.08.2026 gekostet hat.
+	window.avesmapsKurvenlabelAblageVerwerfen = function avesmapsKurvenlabelAblageVerwerfen() {
+		kurvenlabelAblage.zoom = null;
+		kurvenlabelAblage.topLeft = null;
+		// ⚠️ `redraw` direkt, nicht ueber window.AvesmapsPathLabelCanvasOverlay: dieselbe Funktion, aber
+		// diese Zeile steht IM Modul und der Export wird erst ganz unten gesetzt.
+		redraw();
+	};
+
 	window.avesmapsLabelWirdAlsKurveGemalt = function (label) {
 		return Boolean(label) && kurvenlabelAblage.gemalt.has(label);
 	};

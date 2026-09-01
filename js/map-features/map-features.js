@@ -208,6 +208,15 @@ $("#toggleOpenPathEnds").change(() => {
 	}
 	syncPlannerStateToUrl();
 });
+// Owner 01.09.2026. ⚠️ Nicht syncLocationMarkerVisibility wie die Nachbarn: dieser Haken faerbt VIER
+// Objektarten zugleich (Ort, Weg, Flaeche, Beschriftung). avesmapsSyncWikiZuweisungCheck zieht alle
+// vier in EINEM Aufruf nach -- getrennt stuende nach dem Umlegen die halbe Karte im alten Zustand.
+$("#toggleNoWikiAssignment").change(() => {
+	if (typeof avesmapsSyncWikiZuweisungCheck === "function") {
+		avesmapsSyncWikiZuweisungCheck();
+	}
+	syncPlannerStateToUrl();
+});
 $("#toggleNodix").change(() => {
 	syncLocationMarkerVisibility();
 	syncPlannerStateToUrl();
@@ -411,6 +420,32 @@ function getPathStyleColors(path) {
 		style.center = befund.farbe;
 		style.centerWeight = befund.breite;
 		style.outlineWeight = Math.max(style.outlineWeight, befund.breite + 2.6);
+		style.outlineOpacity = 1;
+	}
+
+	// Prüfhaken „Keine Wiki-Zuweisung" (Owner 01.09.2026). Live sind das 268 Wege -- die mit einem von
+	// Hand vergebenen Namen und ohne Zuweisung. Die 3805 maschinell benannten („Strasse-17") sind
+	// ausdrücklich nicht gemeint und werden vom Prüfer selbst ausgeschlossen.
+	//
+	// 💣 DER SAUM, NICHT DIE MITTE -- und das ist der Unterschied zum Haken darüber. „Offene Wegenden"
+	// färbt `style.center`, weil sein Befund die Wegart aufhebt: ein Weg mit offenem Ende wird beim
+	// Routen ganz verworfen, da ist die Wegart egal. Eine fehlende Wiki-Zuweisung ändert am Weg gar
+	// nichts -- er trägt weiter, ist weiter Reichsstraße oder Pfad, es fehlt nur ein Artikel. Seine
+	// Farbe bleibt deshalb stehen, und der Befund legt sich als Saum darum.
+	// 🔴 SO KÖNNEN BEIDE ZUGLEICH SPRECHEN. Ein Weg kann ein offenes Ende UND keine Zuweisung haben;
+	// mit zwei Mitten-Färbungen gewänne stumm die untere Zeile und ein Haken sähe wirkungslos aus.
+	// Rote Mitte + dunkler Saum ist zweimal lesbar -- deshalb steht der Block NACH jenem und deshalb
+	// tragen die beiden verschiedene Töne (tokens.css: --color-check-no-wiki gegen
+	// --color-path-open-end).
+	// ⚠️ Die Deckkraft muss mit: ein Fluss ohne sichtbare Kontur setzt sie weiter oben auf 0, und der
+	// Saum wäre eingeschaltet und trotzdem unsichtbar. Derselbe Riegel, den der Haken darüber schon
+	// einmal gebraucht hat.
+	const wikiMarke = typeof avesmapsWikiZuweisungMarkeWeg === "function"
+		? avesmapsWikiZuweisungMarkeWeg(path)
+		: "";
+	if (wikiMarke) {
+		style.outline = avesmapsWikiZuweisungFarbe(wikiMarke);
+		style.outlineWeight = Math.max(style.outlineWeight, style.centerWeight + 4.5);
 		style.outlineOpacity = 1;
 	}
 

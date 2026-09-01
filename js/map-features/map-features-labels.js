@@ -395,9 +395,42 @@ function createLabelIcon(label) {
 	const typeStyle = getMapLabelTypeStyle(label.labelType);
 	// Optionaler Halo hinter den Regionen-/Landschafts-Titeln (live über ?halotune=1; Default 0 = aus).
 	const halo = getLabelHaloParams(REGION_LABEL_HALO_STRENGTH, REGION_LABEL_HALO_SHARPNESS);
-	const labelStyle = halo.glow
-		? { ...typeStyle, glow: halo.glow, glowBlurRatio: halo.glowBlurRatio, glowPasses: halo.glowPasses, strokeRatio: halo.strokeRatio }
-		: typeStyle;
+	// Prüfhaken „Keine Wiki-Zuweisung" (Owner 01.09.2026). Live sind das 361 der 977 Beschriftungen.
+	//
+	// 💣 DER HALO, NICHT EINE CSS-KLASSE. Ein Kartenlabel ist ein <img>, das renderMapLabelToImage auf
+	// ein Canvas malt -- der Schein ist ins BILD gebrannt und erbt kein `text-shadow` aus dem
+	// Stylesheet. Eine Klasse am divIcon (wie `map-label--has-wiki` daneben) könnte hier nur den
+	// Mauszeiger ändern, nie die Farbe.
+	// 🪤 Und der Schriftton bleibt, wo er ist: rot eingefärbte NAMEN wären auf der Karte nicht mehr als
+	// Landschaftsnamen lesbar, und die Labelfarbe ist zugleich die Auskunft über die Labelart. Der
+	// Schein dahinter trägt den Befund -- dasselbe Verhältnis wie beim Weg (Saum statt Mitte).
+	// 🪤 KEIN Cache-Leeren nötig: der Schlüssel von _mapLabelImageCache enthält `glow` (siehe
+	// renderMapLabelToImage), ein anderer Schein ergibt also von selbst einen anderen Schlüssel.
+	// ⚠️ DREI WERTE STEIGEN, UND DER DRITTE IST DER TRAGENDE. `glowPasses` verdichtet den Schein
+	// (der schwarze Vorgabe-Schein ist auf hellen Kacheln kräftig, ein einzelner roter Durchgang
+	// verschwände daneben), `glowBlurRatio` macht ihn breiter -- aber erst die scharfe KONTUR
+	// (`strokeRatio`, von 0.06 auf 0.13) trägt ihn auch auf den HELLEN Labelarten.
+	// 🔴 Am Bild entschieden, 01.09.2026: fünf Labelarten nebeneinander, je fünf Stärken. Mit dem
+	// weichen Schein allein las sich der Befund bei `region` (#ffffff) und `gebirge` (#e2ddd2)
+	// deutlich, bei `wald` (#bfeec8) und `see` (#b9e7ff) kaum -- ein Prüfhaken, der bei zwei von
+	// fünf Arten nur ahnen lässt, ist keiner. Die Kontur liest sich bei allen fünf.
+	// ⚠️ NICHT höher: bei 0.16 und fünf Durchgängen frisst der Rand die Buchstaben, und der Name ist
+	// nicht mehr zu lesen -- ein markierter Name, den man nicht mehr entziffert, kostet mehr, als er
+	// meldet.
+	const wikiMarke = typeof avesmapsWikiZuweisungMarkeLabel === "function"
+		? avesmapsWikiZuweisungMarkeLabel(label)
+		: "";
+	const labelStyle = wikiMarke
+		? {
+			...typeStyle,
+			glow: avesmapsWikiZuweisungFarbe(wikiMarke),
+			glowBlurRatio: Math.max(halo.glowBlurRatio, 0.22),
+			glowPasses: Math.max(halo.glowPasses, 3),
+			strokeRatio: Math.max(halo.strokeRatio, 0.13),
+		}
+		: (halo.glow
+			? { ...typeStyle, glow: halo.glow, glowBlurRatio: halo.glowBlurRatio, glowPasses: halo.glowPasses, strokeRatio: halo.strokeRatio }
+			: typeStyle);
 	const image = renderMapLabelToImage(label.text, safeSize, labelStyle);
 	return L.divIcon({
 		// Das Blassmachen fremder Labels in der Landschaftsebene gehört ins Icon, weil dieses Icon bei
@@ -1484,6 +1517,17 @@ function syncLabelIcons() {
 	});
 	scheduleLabelCollisionResolution();
 }
+
+// Der Einstieg für Module, die die Labelbilder neu bauen lassen müssen -- der Prüfhaken „Keine
+// Wiki-Zuweisung" färbt ihren Halo, und der steckt im Bild (siehe createLabelIcon).
+// ⚠️ `syncLabelIcons` heißt bewusst nicht um: der Name gehört seit jeher dem Zoom-/Rasterpfad. Dies
+// hier ist nur die Tür nach außen, damit ein anderes Modul nicht auf einen Dateinamen zielen muss.
+window.avesmapsLabelIconsNeuBauen = function avesmapsLabelIconsNeuBauen() {
+	if (typeof labelMarkers === "undefined" || !Array.isArray(labelMarkers) || labelMarkers.length === 0) {
+		return;
+	}
+	syncLabelIcons();
+};
 
 function prepareLabelData(data) {
 	// 💣 DIE DAUER GEHOERT IN DIE BILANZ, IN BEIDEN ZUSTAENDEN. Sonst vergleicht man zwei Messungen,

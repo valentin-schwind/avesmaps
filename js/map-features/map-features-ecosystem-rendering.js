@@ -142,7 +142,7 @@ function avesmapsRefreshEcosystemDisplay() {
 			return;
 		}
 		if (typeof layer.setStyle === "function") {
-			layer.setStyle(ecosystemAreaStyle(area.kind, area.region_type));
+			layer.setStyle(ecosystemAreaStyle(area.kind, area.region_type, area));
 		}
 		applyEcosystemAreaDeckkraft(layer);
 	});
@@ -229,12 +229,33 @@ function isEcosystemEditingInProgress() {
 	return false;
 }
 
-function ecosystemAreaStyle(kind, regionType) {
-	return {
+// 💣 `area` ist der DRITTE Parameter und optional -- nicht aus Bequemlichkeit, sondern weil `kind`
+// und `regionType` beide aus ihr stammen und alle drei Aufrufer sie ohnehin in der Hand haben. Ohne
+// sie kann der Pruefhaken „Keine Wiki-Zuweisung" nicht antworten: seine Frage haengt am
+// `wiki_region_key` der Flaeche, nicht an ihrer Art.
+function ecosystemAreaStyle(kind, regionType, area = null) {
+	const stil = {
 		color: ecosystemAreaContourColor(kind, regionType),
 		fillColor: ecosystemAreaColor(kind, regionType),
 		weight: 2,
 	};
+
+	// Pruefhaken „Keine Wiki-Zuweisung" (Owner 01.09.2026). Live sind das 889 der 1323 Flaechen --
+	// die groesste der vier Mengen, und der Grund, warum die Kontur und nicht die FUELLUNG spricht:
+	// 889 rot gefuellte Flaechen waeren die Karte, nicht ein Befund auf ihr. Die Fuellung traegt die
+	// Landschaftsart, und die will man beim Zuweisen ja gerade noch sehen.
+	// ⚠️ Klimabaender nimmt der Pruefer selbst aus (sie sind abgeleitet und haben nie einen Artikel).
+	// ⚠️ Die Kontur wird zugleich DICKER: die Landschaftstoene sind kraeftig, und 2 px in einem
+	// dunklen Rot verschwinden auf einem gesaettigten Gruen.
+	const marke = typeof avesmapsWikiZuweisungMarkeFlaeche === "function"
+		? avesmapsWikiZuweisungMarkeFlaeche(area)
+		: "";
+	if (marke) {
+		stil.color = avesmapsWikiZuweisungFarbe(marke);
+		stil.weight = 3.5;
+	}
+
+	return stil;
 }
 
 // Selection is a class on the path, not a style: the matrix in the stylesheet turns it into the
@@ -858,7 +879,7 @@ function buildEcosystemAreaLayer(area) {
 		// (see .ecosystem-pane--resting in css/features/ecosystem-layer.css). That is the whole reason
 		// there are three panes: switching must not have to rebuild layers.
 		interactive: true,
-		...ecosystemAreaStyle(kind, area.region_type),
+		...ecosystemAreaStyle(kind, area.region_type, area),
 	});
 
 	layer._ecosystemArea = area;

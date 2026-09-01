@@ -154,7 +154,7 @@ function applyEcosystemAreaPayload(payload) {
 				// to be recoloured -- but only then. Restyling every area on every pan would be N
 				// attribute writes per pan for nothing.
 				if (previous.region_type !== area.region_type) {
-					existingLayer.setStyle(ecosystemAreaStyle(area.kind, area.region_type));
+					existingLayer.setStyle(ecosystemAreaStyle(area.kind, area.region_type, area));
 					// ⚠️ Und die Deckkraft mit: sie haengt an der ART, und genau die hat sich gerade
 					// geaendert. Ohne diese Zeile behielte eine umtypisierte Flaeche die Deckkraft
 					// ihrer alten Art -- sichtbar, aber unerklaerlich.

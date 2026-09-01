@@ -111,112 +111,93 @@ document.documentElement.getAttribute('data-theme')==='dark'?'light':'dark')">He
 </div>
 </div>
 
-<h2>2 · Der Ablauf, den der Owner beschrieben hat</h2>
-<p>Die echte Zeile trägt <strong>acht</strong> Felder. Keines verschwindet — sie werden nur, sobald
-die Domain bekannt ist, <em>gefüllt und gesperrt</em>, weil sie der Quelle gehören und nicht dieser
-Verknüpfung.</p>
+<h2>2 · Die Eingabezeile — die Felder, wie sie heißen sollen</h2>
+<p>Zwei Namen, zwei Ebenen: <strong>Titel</strong> ist, wie <em>diese Seite</em> heißt.
+<strong>Name des Korpus</strong> ist, wie <em>das Angebot</em> heißt, aus dem sie stammt. Der Korpus
+ist über die <strong>registrierbare Domain</strong> verschlüsselt — nicht über seinen Namen.</p>
 
 <h3>Schritt 1 · Trallop — <code>herzogtum-weiden.net</code> ist noch unbekannt</h3>
 <div class="wirt">
 	<div class="fs-add">
-		<label class="f f--full"><span>Adresse</span>
-			<input type="text" value="https://www.herzogtum-weiden.net/politik/liste-st/staedte/herzogenstadt-trallop"></label>
-		<label class="f f--grow"><span>Quellenname</span><input type="text" value="Briefspiel (Weiden)"></label>
-		<label class="f"><span>Seite(n)</span><input type="text" size="9"></label>
-		<label class="f"><span>Art</span><select><option>Briefspiel</option><option>Art …</option></select></label>
-		<label class="f"><span>Abdeckung</span><select><option>Standardquelle</option><option>Ausführlich</option></select></label>
-		<label class="f"><span>Lizenz</span><select><option>CC BY-NC-SA 3.0</option><option>Lizenz …</option></select></label>
-		<label class="f f--grow"><span>Namensnennung</span><input type="text" value="herzogtum-weiden.net"></label>
+		<label class="f f--full"><span>Adresse — die genaue Seite</span>
+			<input type="text" placeholder="https://www.herzogtum-weiden.net/politik/liste-st/staedte/herzogenstadt-trallop"></label>
+		<label class="f f--grow"><span>Titel — wie diese Seite heißt</span>
+			<input type="text" placeholder="Herzogenstadt Trallop"></label>
+		<label class="f f--grow"><span>Name des Korpus <span class="lock">· aus der Adresse ermittelt</span></span>
+			<input type="text" value="herzogtum-weiden.net"></label>
+		<label class="f"><span>Seite(n)</span><input type="text" size="9" placeholder="optional"></label>
+		<label class="f"><span>Art</span>
+			<select><option>Briefspiel</option><option>Art …</option><option>Regionalspielhilfe</option></select></label>
+		<label class="f"><span>Abdeckung</span>
+			<select><option>Standardquelle</option><option>Ausführlich</option><option>Ergänzend</option><option>Nur Erwähnung</option></select></label>
+		<label class="f"><span>Lizenz</span>
+			<select><option>Lizenz …</option><option selected>CC BY-NC-SA 3.0</option><option>Keine freie Lizenz</option></select></label>
+		<label class="f f--grow"><span>Namensnennung bzw. mit freundlicher Genehmigung von</span>
+			<input type="text" placeholder="VolkoV"></label>
 		<label class="f" style="align-self:end;padding-bottom:5px">
 			<span style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-muted)">
 			<input type="checkbox"> offiziell</span></label>
 		<button class="btn">Hinzufügen</button>
 	</div>
-	<div class="note" style="display:flex;gap:8px;align-items:flex-start">
-		<input type="checkbox" checked style="margin-top:2px">
-		<span><strong>Aus herzogtum-weiden.net kommt noch mehr</strong> — beim nächsten Objekt genügt
-		der Link.<br><span style="font-size:11px">Diese Frage stellt sich <strong>genau einmal je
-		Domain</strong>. Ohne Häkchen bleibt es eine gewöhnliche Quelle.</span></span></div>
+	<div class="note note--ok">✓ Der Korpus heißt vorerst <strong>herzogtum-weiden.net</strong> —
+		der Name aus der Adresse. Trägst du etwas anderes ein (etwa <em>Briefspiel (Weiden)</em>),
+		gilt das ab sofort für <strong>alle</strong> Belege von dieser Domain; der Schlüssel bleibt
+		die Domain.</div>
 </div>
-<p>⭐ <strong>Das ist die ganze Mechanik.</strong> Ein Häkchen beim ersten Mal — danach fragt das
-Formular nie wieder nach einem Namen für diese Domain.</p>
+<p>🔴 <strong>Die Domain ist der Schlüssel, der Name nur die Beschriftung.</strong> Deshalb kann
+niemand einen zweiten Korpus für dieselbe Seite anlegen — und deshalb ist der Vorgabename
+zwangsläufig konsistent, auch wenn ihn nie jemand anfasst.</p>
 
 <h3>Schritt 2 · Baliho — dieselbe Domain, eine Woche später</h3>
 <div class="wirt">
 	<div class="fs-add">
-		<label class="f f--full"><span>Adresse der Fundstelle</span>
-			<input type="text" value="https://www.herzogtum-weiden.net/politik/liste-st/staedte/reichsstadt-baliho"></label>
-		<label class="f f--grow"><span>Quellenname <span class="lock">· aus der Quelle</span></span>
-			<input type="text" value="Briefspiel (Weiden)" disabled></label>
+		<label class="f f--full"><span>Adresse — die genaue Seite</span>
+			<input type="text" placeholder="https://www.herzogtum-weiden.net/politik/liste-st/staedte/reichsstadt-baliho"></label>
+		<label class="f f--grow"><span>Titel — wie diese Seite heißt</span>
+			<input type="text" placeholder="Reichsstadt Baliho"></label>
+		<label class="f f--grow"><span>Name des Korpus <span class="lock">· aus dem Schlüssel, änderbar</span></span>
+			<input type="text" value="Briefspiel (Weiden)"></label>
 		<label class="f"><span>Seite(n)</span><input type="text" size="9" placeholder="optional"></label>
-		<label class="f"><span>Art <span class="lock">· aus der Quelle</span></span>
-			<select disabled><option>Briefspiel</option></select></label>
+		<label class="f"><span>Art <span class="lock">· vom Korpus</span></span>
+			<select><option selected>Briefspiel</option></select></label>
 		<label class="f"><span>Abdeckung</span>
-			<select><option>Standardquelle</option><option>Ausführlich</option><option>Ergänzend</option><option>Nur Erwähnung</option></select></label>
-		<label class="f"><span>Lizenz <span class="lock">· aus der Quelle</span></span>
-			<select disabled><option>CC BY-NC-SA 3.0</option></select></label>
-		<label class="f f--grow"><span>Namensnennung <span class="lock">· aus der Quelle</span></span>
-			<input type="text" value="herzogtum-weiden.net" disabled></label>
+			<select><option>Standardquelle</option><option>Ausführlich</option></select></label>
+		<label class="f"><span>Lizenz <span class="lock">· vom Korpus</span></span>
+			<select><option selected>CC BY-NC-SA 3.0</option></select></label>
+		<label class="f f--grow"><span>Namensnennung … <span class="lock">· vom Korpus</span></span>
+			<input type="text" value="VolkoV"></label>
 		<label class="f" style="align-self:end;padding-bottom:5px">
 			<span style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-muted)">
-			<input type="checkbox" disabled> offiziell <span class="lock">· aus der Quelle</span></span></label>
+			<input type="checkbox"> offiziell <span class="lock">· vom Korpus</span></span></label>
 		<button class="btn">Hinzufügen</button>
 	</div>
-	<div class="note note--ok">✓ <strong>herzogtum-weiden.net</strong> ist bekannt:
-		<strong>Briefspiel (Weiden)</strong> · Briefspiel · inoffiziell · CC BY-NC-SA 3.0 ·
-		herzogtum-weiden.net. Deine Adresse wird als <strong>Fundstelle</strong> an Baliho gespeichert.</div>
+	<div class="note note--ok">✓ <strong>herzogtum-weiden.net</strong> ist bekannt als
+		<strong>Briefspiel (Weiden)</strong>. Art, Lizenz, Namensnennung und Kanon sind vorbelegt.
+		Du füllst <strong>Adresse</strong> und <strong>Titel</strong> — alles andere steht schon.</div>
 </div>
-<p>🔴 <strong>Der Editor füllt genau ein Feld</strong> — die Adresse, die er ohnehin in der
-Zwischenablage hat. Es gibt keinen Namen zu wählen, also auch keinen falschen zu treffen und keinen
-Grund, „Baliho bei Weiden" zu erfinden. <strong>Und die Frage aus Schritt 1 ist weg</strong>: sie
-stellt sich einmal je Domain.</p>
+<p>⭐ <strong>Der Korpusname ist vorbelegt, nicht gesperrt</strong> — mit Autocompletion über die
+16 vorhandenen Korpora. Wer ihn hier ändert, benennt den <em>Korpus</em> um, nicht diesen Eintrag.
+⚠️ Dasselbe gilt für Art, Lizenz, Namensnennung und „offiziell": sie tragen
+<span class="lock">· vom Korpus</span>, weil eine Änderung <strong>alle</strong> Belege dieses
+Korpus trifft — dieselbe Regel wie im Bearbeiten-Kasten seit dem 01.09.2026.</p>
 
 <h3>Der Unterschied in einem Bild</h3>
 <table class="m">
 	<tr><th></th><th>heute</th><th>nachher</th></tr>
-	<tr><td><strong>Trallop</strong> (erster Ort)</td>
-		<td>Adresse + Name + Art + Lizenz + Nennung + Haken</td>
-		<td>dasselbe, plus <strong>ein Häkchen</strong></td></tr>
-	<tr><td><strong>Baliho</strong> (zweiter Ort)</td>
+	<tr><td><strong>Trallop</strong> (erster Beleg)</td>
+		<td>Adresse + frei erfundener Name + Art + Lizenz + Nennung + Haken</td>
+		<td>dasselbe — nur heißt der Name <strong>Korpus</strong> und ist vorbelegt</td></tr>
+	<tr><td><strong>Baliho</strong> (zweiter Beleg)</td>
 		<td><strong>alles noch einmal</strong> — und der Name wird „Baliho bei Weiden"</td>
-		<td><strong>nur die Adresse</strong></td></tr>
-	<tr><td>…und 198 weitere Orte</td>
-		<td>198 weitere Katalogzeilen namens „Briefspiel"</td>
-		<td>198 Fundstellen an <em>einer</em> Quelle</td></tr>
+		<td><strong>Adresse und Titel</strong>, sonst nichts</td></tr>
+	<tr><td>Auswahlliste zeigt</td>
+		<td>26× „Briefspiel", 5× ohne Titel</td>
+		<td><strong>einen</strong> Eintrag: Briefspiel (Weiden)</td></tr>
 </table>
 
-<h3>Der Sonderfall · ein Werk, das dort nur zufällig liegt</h3>
-<p>Nicht jede unbekannte Domain ist ein Korpus. Ein Wiki-Aventurica-Artikel <em>ist</em> ein
-einzelnes Werk — dort bleibt das Häkchen leer, und alles verhält sich wie heute.</p>
-<div class="wirt">
-	<div class="fs-add">
-		<label class="f f--full"><span>Adresse</span>
-			<input type="text" value="https://de.wiki-aventurica.de/wiki/Kosch_(Regionalspielhilfe)"></label>
-		<label class="f f--grow"><span>Quellenname</span><input type="text" value="Kosch (Regionalspielhilfe)"></label>
-		<label class="f"><span>Seite(n)</span><input type="text" size="9" value="42"></label>
-		<label class="f"><span>Art</span><select><option>Regionalspielhilfe</option></select></label>
-		<label class="f"><span>Abdeckung</span><select><option>Ausführlich</option></select></label>
-		<label class="f"><span>Lizenz</span><select><option>Lizenz …</option></select></label>
-		<label class="f f--grow"><span>Namensnennung</span><input type="text"></label>
-		<label class="f" style="align-self:end;padding-bottom:5px">
-			<span style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-muted)">
-			<input type="checkbox" checked> offiziell</span></label>
-		<button class="btn">Hinzufügen</button>
-	</div>
-	<div class="note" style="display:flex;gap:8px;align-items:flex-start">
-		<input type="checkbox" style="margin-top:2px">
-		<span>Aus <strong>de.wiki-aventurica.de</strong> kommt noch mehr — <strong>nicht angehakt</strong>,
-		denn dort ist jede Adresse ein eigenes Werk.<br><span style="font-size:11px">💣 Wäre das Häkchen
-		hier gesetzt, würden 21 Werke zu einer Zeile — „Mutterglück", „Das Erbe von Blaustein",
-		„Kosch (Regionalspielhilfe)" …</span></span></div>
-</div>
-<p>💣 <strong>Deshalb darf die Auflösung nicht automatisch sein.</strong> <code>f-shop.de</code>
-trägt 637 Katalogzeilen mit 623 verschiedenen Titeln, <code>ulisses-ebooks.de</code> 245 mit 243 —
-eine Regel „eine Domain, eine Quelle" machte daraus 2 Quellen für 866 Werke.
-⭐ Das Verhältnis Zeilen/Titel trennt beide Fälle messbar (f-shop ≈ 1, Weiden 200/3 ≈ 67) und taugt
-als <em>Vorschlag</em> für das Häkchen — angehakt wird von einem Menschen.</p>
-
 <h2>3 · Was der Besucher sieht</h2>
+<p>Die Zeile nennt den <strong>Korpus</strong>, das <b>ⓘ</b> trägt alles, was die Editoren
+eingetragen haben — <strong>Titel</strong>, Fundstelle, Nennung und Lizenz.</p>
 <div class="reihe">
 <div>
 	<p class="wlabel">Heute</p>
@@ -227,11 +208,11 @@ als <em>Vorschlag</em> für das Häkchen — angehakt wird von einem Menschen.</
 				<span class="fs-marks"><span class="kanon"><b>Inoffiziell</b><i>Sonstiges</i></span></span></span></li>
 		</ul>
 	</div>
-	<p style="font-size:12px;max-width:380px">Der Name sagt nichts, der Typ ist falsch, und der Link
-	führt zwar richtig — aber nur, weil eine eigene Katalogzeile dafür angelegt wurde.</p>
+	<p style="font-size:12px;max-width:380px">Der Name sagt nichts, der Typ ist falsch — und dass
+	dahinter die Seite über <em>Trallop</em> liegt, sieht man nirgends.</p>
 </div>
 <div>
-	<p class="wlabel">Nachher — der Titel führt zur Fundstelle</p>
+	<p class="wlabel">Nachher — Korpus vorn, Titel im ⓘ</p>
 	<div class="fs-box">
 		<p class="fs-lbl">Quellen:</p>
 		<ul class="fs-list">
@@ -240,19 +221,35 @@ als <em>Vorschlag</em> für das Häkchen — angehakt wird von einem Menschen.</
 				<span class="fs-marks"><button class="info">i</button>
 					<span class="kanon"><b>Inoffiziell</b><i>Briefspiel</i></span></span></span>
 				<div class="rights"><dl>
+					<dt>Titel</dt><dd>Herzogenstadt Trallop</dd>
 					<dt>Fundstelle</dt><dd><a href="#">…/staedte/herzogenstadt-trallop ↗</a></dd>
-					<dt>Quelle</dt><dd><a href="#">herzogtum-weiden.net ↗</a></dd>
-					<dt>Nennung</dt><dd>herzogtum-weiden.net</dd>
+					<dt>Korpus</dt><dd><a href="#">herzogtum-weiden.net ↗</a></dd>
+					<dt>Nennung</dt><dd>mit freundlicher Genehmigung von VolkoV</dd>
 					<dt>Lizenz</dt><dd><a href="#">CC BY-NC-SA 3.0 ↗</a></dd>
 				</dl></div>
 			</li>
 		</ul>
 	</div>
-	<p style="font-size:12px;max-width:380px">⚠️ Der <strong>Titel-Link zeigt auf die Fundstelle</strong>,
-	nicht auf die Startseite: wer klickt, will die Seite über <em>diesen</em> Ort. Die Quell-Adresse
-	steht hinter dem ⓘ — dort, wo seit dem 01.09.2026 auch Nennung und Lizenz stehen.</p>
+	<p style="font-size:12px;max-width:380px">⚠️ Der <strong>Titel-Link zeigt auf die Fundstelle</strong>:
+	wer klickt, will die Seite über <em>diesen</em> Ort. Die Startseite des Korpus steht im ⓘ.</p>
 </div>
 </div>
+<p>🔴 <strong>Bei einem WERK ist es umgekehrt</strong> — dort steht der Titel vorn und der Korpus im
+ⓘ. „Geographia Aventurica", nicht „f-shop.de".</p>
+<div class="fs-box" style="margin-top:8px">
+	<p class="fs-lbl">Quellen:</p>
+	<ul class="fs-list">
+		<li><span class="fs-row"><span class="fs-main"><span class="fs-title">Geographia Aventurica ↗</span>
+			<span class="fs-lic" style="margin-left:6px;font-size:11px;color:var(--link)">S. 112</span></span>
+			<span class="fs-marks"><button class="info">i</button>
+				<span class="kanon"><b style="background:var(--kanon-ja);color:var(--kanon-ja-text)">Offiziell</b><i>Quellenband</i></span></span></span></li>
+	</ul>
+</div>
+<p>💣 <strong>Das ist die EINE Eigenschaft, die ein Korpus tragen muss: Werke oder Belegstellen?</strong>
+Sie entscheidet, welcher der beiden Namen vorn steht. ⭐ Und sie wird <strong>einmal je Korpus</strong>
+gesetzt — 16 Entscheidungen in einer Liste, die man ganz sehen kann, statt einer Frage bei jedem
+Eintrag. Vorschlagen lässt sie sich sogar: f-shop.de hat 637 Zeilen und 623 Titel (≈ 1 → Werke),
+herzogtum-weiden.net 32 Zeilen und 3 Titel (≈ 11 → Belegstellen).</p>
 
 <h2>4 · Der Umfang — jeder Titel, mit Beispielen</h2>
 

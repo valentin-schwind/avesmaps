@@ -3012,6 +3012,26 @@
 							<input type="checkbox" id="toggleOpenPathEnds" class="map-display-menu__state" />
 							<span class="map-display-menu__eye" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.8-6.5 10-6.5S22 12 22 12s-3.8 6.5-10 6.5S2 12 2 12z"></path><circle cx="12" cy="12" r="2.8"></circle><path class="map-display-menu__eye-slash" d="M3.5 3.5l17 17"></path></svg></span>
 						</label>
+						<!-- Owner 01.09.2026: „das objekt ohne wiki-eintrag auffaellig rot markieren“ -- egal ob
+						     Ort, Flaeche oder Weg. Steht ZULETZT in der Gruppe, und das ist die Aussage: die vier
+						     Haken darueber finden kaputte GEOMETRIE (fehlende Anbindung, ueberfluessiger Knoten,
+						     offenes Ende), dieser eine fehlende DOKUMENTATION. Zwei verschiedene Sorten Befund.
+						     💣 ER BLENDET ALS EINZIGER NICHTS EIN. Die anderen tun das ausdruecklich („ein
+						     Pruefhaken ZEIGT seine Funde“, Owner 14.08.2026) -- richtig fuer eine Handvoll
+						     Anbindungsluecken, falsch fuer 983 Orte, ein Drittel des Bestands. Begruendung und
+						     Messung stehen am Riegel in js/map-features/wiki-zuweisung.js.
+						     💣 Das Zeichen ist die Legende und zeigt, was der Haken WIRKLICH tut -- drei Formen
+						     in einem Bild, weil er drei Objektarten zugleich faerbt: Ring (Ort), Saum (Weg),
+						     Kontur (Flaeche). Farbe fest am Token, kein `stroke="currentColor"`: sie ist die
+						     Aussage, nicht die Verzierung.
+						     ⚠️ `stroke-width` als feste SVG-Einheit -- `var()` loest in diesem
+						     Praesentationsattribut nicht auf (siehe --marker-check-ring-width). -->
+						<label class="map-display-menu__row" id="toggleNoWikiAssignmentControl" hidden>
+							<span class="map-display-menu__glyph" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="M3 20.5h7.5a4 4 0 004-4V12" stroke="var(--color-check-no-wiki)" stroke-width="2.6" stroke-linecap="round"></path><circle cx="17" cy="7" r="4.4" stroke="var(--color-check-no-wiki)" stroke-width="2.8"></circle><path d="M2.5 3.5h6v6h-6z" stroke="var(--color-check-no-wiki)" stroke-width="2.2"></path></svg></span>
+							<span class="map-display-menu__name">Keine Wiki-Zuweisung</span>
+							<input type="checkbox" id="toggleNoWikiAssignment" class="map-display-menu__state" />
+							<span class="map-display-menu__eye" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.8-6.5 10-6.5S22 12 22 12s-3.8 6.5-10 6.5S2 12 2 12z"></path><circle cx="12" cy="12" r="2.8"></circle><path class="map-display-menu__eye-slash" d="M3.5 3.5l17 17"></path></svg></span>
+						</label>
 					</div>
 				</div>
 				<!-- 💣 Der Mapstil hat seine display-options__*-Klassen beim Umzug ABGELEGT: er steht
@@ -3441,6 +3461,13 @@
 		     ersten Zeichnen undefined. Neben location-zoom-bands.js, weil beide dieselbe Rolle
 		     spielen -- die eine fuer Orte, die andere fuer Landschaften. -->
 		<script src="js/map-features/ecosystem-display.js"></script>
+		<!-- Der reine Pruefer hinter dem Haken „Keine Wiki-Zuweisung" -- „hat dieses Objekt eine
+		     Wiki-Zuweisung?", eine Regel fuer alle vier Objektarten. Muss VOR den vier Zeichnern stehen
+		     (-location-marker-rendering.js, map-features.js, -ecosystem-rendering.js, -labels.js):
+		     `const` auf Dateiebene wird in einem klassischen Script nicht gehoistet. Kein DOM, kein
+		     `fetch`, kein Modulzustand -- die fruehe Position kostet also nichts, und der Test faehrt
+		     die Datei einzeln (js/map-features/__tests__/wiki-zuweisung.test.js). -->
+		<script src="js/map-features/wiki-zuweisung.js"></script>
 		<!-- Das reine Fundament der Beschriftungs-Platzierung (zwoelf Ausweichstellen, Deckel,
 		     Rechteck-Mathe). Nach location-zoom-bands.js, weil es avesmapsLocationLabelSpacing
 		     liest; vor map-features*.js, deren Loeser es ruft. Dieselbe Datei laedt das Fenster
@@ -3758,6 +3785,11 @@
 		     entsteht erst beim ersten Zugriff. NACH map-features-location-editing.js (liefert
 		     getLocationAtPathEndpoint) und nach path-rendering.js (updatePathLayerStyle). -->
 		<script src="js/map-features/map-features-open-path-check.js"></script>
+		<!-- Neben open-path-check.js, weil beide dieselbe Rolle spielen: der DOM-nahe Teil eines
+		     Pruefhakens (Schalter, Farbtoken, Nachziehen), waehrend die REGEL nebenan rein bleibt.
+		     Setzt beim Laden nur window-Funktionen. NACH den vier Zeichnern -- es ruft sie, sie rufen
+		     es nur ueber `typeof`-Riegel zur Laufzeit. -->
+		<script src="js/map-features/map-features-wiki-zuweisung-check.js"></script>
 		<script src="js/map-features/map-features-place-extras.js"></script>
 		<script src="js/map-features/map-features-region-operation-chip.js"></script>
 		<script src="js/map-features/map-features-region-context-menu.js"></script>

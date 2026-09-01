@@ -823,6 +823,7 @@ const DEFAULT_PLANNER_STATE = {
 	toggleUnconnected: false,
 	toggleSparseCrossings: false,
 	toggleOpenPathEnds: false,
+	toggleNoWikiAssignment: false,
 	toggleNodix: false,
 	toggleHidden: false,
 	toggleLabelsWithRegion: false,

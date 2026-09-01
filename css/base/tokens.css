@@ -259,6 +259,31 @@
 	   der Rückfallwert dort ist nur die Notbremse, wenn der Token fehlt. */
 	--color-path-open-end: #e01b24;
 
+	/* Pruefhaken „Keine Wiki-Zuweisung" (Owner 01.09.2026: „das objekt ohne wiki-eintrag auffaellig
+	   rot markieren", egal ob Ort, Flaeche oder Weg). EIN Ton fuer alle vier Objektarten -- Ortsring,
+	   Wegsaum, Flaechenkontur und Label-Halo sagen dasselbe, und vier Toene fuer einen Befund waeren
+	   vier Legenden statt einer.
+	   💣 BEWUSST NICHT --color-path-open-end MITBENUTZT, obwohl beide rot sind: das heisst „offenes
+	   Wegende" und liefe beim naechsten Umton auseinander -- dieselbe Begruendung, die schon ueber
+	   --color-garetien-kollision steht. Und die beiden treffen sich auf DEMSELBEN Weg: ein Weg kann
+	   ein offenes Ende UND keine Zuweisung haben, dann traegt er die rote Mitte des einen und den
+	   Saum des anderen. Waeren es dieselben Werte, waere das ein roter Klumpen ohne Aussage.
+	   ⚠️ Deshalb ist dieser Ton DUNKLER und blaeulicher als #e01b24 -- nebeneinander unterscheidbar.
+	   ⚠️ Wird auch im JS gelesen (Leaflet-Linienfarben koennen kein `var()` tragen, weder im Canvas-
+	   noch im SVG-Renderer -- siehe --color-path-open-end darueber). Wer den Wert aendert, aendert ihn
+	   HIER; die Rueckfallwerte im JS sind nur die Notbremse, wenn der Token fehlt.
+	   Gepinnt wie die Ringe darueber: liegt auf den IMMER-hellen Kartenkacheln, kein Dark-Override. */
+	--color-check-no-wiki: #a01029;
+	/* Derselbe Befund, aber schon NACHGESEHEN (der Merker `wiki_no_article`, „kein Wiki-Artikel
+	   vorhanden"). Kein zweiter Ton, sondern derselbe blasser: es ist dieselbe Sache in einem
+	   spaeteren Zustand, und ein eigener Farbton behauptete einen eigenen Befund.
+	   ⚠️ Live traegt den Merker fast niemand: 7 Orte (einer davon zusaetzlich eine Zuweisung, der
+	   faellt also auf „zugewiesen“ zurueck -- bleiben 6), 0 Wege, 0 Beschriftungen (01.09.2026
+	   gemessen). Bei den Landschaftsflaechen kann es ihn gar nicht geben, deren Merker ist am
+	   16.08.2026 mit dem Haekchen gefallen. Der blasse Ton ist also fast immer ungenutzt -- er steht
+	   trotzdem, weil der Merker beim Weg und beim Label lebt (das Konfliktzentrum setzt ihn). */
+	--color-check-no-wiki-checked: rgba(160, 16, 41, 0.42);
+
 	/* „Grenze aus Territorien" (Fall #68) -- die Territoriumsumrisse, solange das Fenster offen ist
 	   (leise), und der Umriss unter dem Zeiger (laut). Gepinnt wie die Ringe darueber: beides liegt auf
 	   den IMMER-hellen Kartenkacheln, ein Dark-Override machte sie dort unsichtbar.
