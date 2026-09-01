@@ -740,4 +740,98 @@ assert($standK($pdoK, $altGardelK) === 1,
 assert($standK($pdoK, $altGardelK . '!Gardel') === 0, 'es entsteht auch kein neuer Schluessel dafuer');
 $pruefungen += 2;
 
+// =================================================================================================
+// 🔴 DAS ZIEL LAESST SICH WECHSELN -- UND DIE GEOMETRIE WIRD MITGEFORMT
+// =================================================================================================
+// Owner 01.09.2026: „die editoren wollen dass man bestimmen kann, welchen typ das ziel haben soll
+// … auch von flaeche auf berg … er soll den vorschlag nehmen, den er gerade hat, aber mann will
+// auch aendern koennen."
+$ringZ = [[10.0, 10.0], [30.0, 10.0], [30.0, 30.0], [10.0, 30.0]];
+$flaecheZ = [
+    'herkunft' => 'garetien', 'ziel' => 'region', 'subtyp' => 'suempfe_moore',
+    'kind' => 'vegetation', 'name' => 'Lilienmoor',
+    'geometry' => avesmapsGaretienZielGeometrie($ringZ, 'region'),
+];
+
+// --- Ohne Wahl bleibt alles, wie es war. „Alle angezeigten einfuegen" schickt keine.
+assert(avesmapsGaretienZielUebersteuern($flaecheZ, null) === $flaecheZ, 'ohne Wahl unveraendert');
+assert(avesmapsGaretienZielUebersteuern($flaecheZ, ['size' => 17]) === $flaecheZ,
+    'und eine Handeingabe ohne Zielwahl ebenso');
+$pruefungen += 2;
+
+// --- 🔴 FLAECHE -> BERG: aus dem Polygon wird ein PUNKT, und zwar die Mitte.
+$bergZ = avesmapsGaretienZielUebersteuern($flaecheZ, ['ziel' => 'label', 'subtyp' => 'berggipfel']);
+assert($bergZ['ziel'] === 'label' && $bergZ['subtyp'] === 'berggipfel', 'das Ziel wandert');
+assert($bergZ['geometry']['type'] === 'Point',
+    '💣 und die GEOMETRIE mit -- sonst laege ein Ring im Point-Feld: '
+    . $bergZ['geometry']['type']);
+assert($bergZ['geometry']['coordinates'] === [20.0, 20.0],
+    'auf der Mitte der Flaeche: ' . json_encode($bergZ['geometry']['coordinates']));
+// 🔴 `kind` faellt weg -- ein Label hat keine Landschaftsebene.
+assert($bergZ['kind'] === null, 'ein Label traegt kein `kind`: ' . json_encode($bergZ['kind']));
+// ⚠️ Und die rohe Liste reist mit, sonst waere der Wechsel eine Einbahnstrasse.
+assert(($bergZ['punkte'] ?? null) === $ringZ, 'die rohe Punktliste bleibt erhalten');
+$pruefungen += 5;
+
+// --- ⚠️ UND ZURUECK. Genau dafuer traegt das Punktziel seine Liste.
+$zurueckZ = avesmapsGaretienZielUebersteuern($bergZ, ['ziel' => 'region', 'subtyp' => 'gebirge',
+    'kind' => 'topographie']);
+assert($zurueckZ['geometry']['type'] === 'Polygon' && $zurueckZ['geometry']['coordinates'] === [$ringZ],
+    '⚠️ der Weg zurueck zur Flaeche steht offen: ' . json_encode($zurueckZ['geometry']));
+assert($zurueckZ['kind'] === 'topographie', 'und die Flaeche bekommt ihre Ebene wieder');
+assert(!isset($zurueckZ['punkte']), 'die Liste steht jetzt wieder in der Geometrie selbst');
+$pruefungen += 3;
+
+// --- 💣 WAS DIE GEOMETRIE NICHT HERGIBT, WIRD ABGELEHNT. Aus EINER Koordinate laesst sich
+// keine Flaeche bauen -- und alle Burgen, Doerfer und Tempel des Exports haben genau eine.
+$ortZ = [
+    'herkunft' => 'garetien', 'ziel' => 'location', 'subtyp' => 'dorf', 'kind' => null,
+    'name' => 'Einpunkt', 'geometry' => avesmapsGaretienZielGeometrie([[5.0, 5.0]], 'location'),
+];
+assert(avesmapsGaretienMoeglicheZiele([[5.0, 5.0]]) === ['location', 'label'],
+    'ein einzelner Punkt traegt nur Punktziele: '
+    . json_encode(avesmapsGaretienMoeglicheZiele([[5.0, 5.0]])));
+assert(avesmapsGaretienMoeglicheZiele([[1.0, 1.0], [2.0, 2.0]]) === ['location', 'label', 'path'],
+    'zwei Punkte tragen zusaetzlich eine Linie');
+assert(avesmapsGaretienMoeglicheZiele($ringZ) === ['location', 'label', 'path', 'region'],
+    'ab drei Punkten geht alles');
+$gefangen = false;
+try {
+    avesmapsGaretienZielUebersteuern($ortZ, ['ziel' => 'region', 'subtyp' => 'wald',
+        'kind' => 'vegetation']);
+} catch (RuntimeException $e) {
+    $gefangen = str_contains($e->getMessage(), 'kein Ziel');
+}
+assert($gefangen, '💣 eine Flaeche aus einem einzigen Punkt wird LAUT abgelehnt');
+// ⚠️ Aber ein Ort darf sehr wohl ein Label werden -- die Ablehnung ist keine Sperre gegen
+// jeden Wechsel.
+$labelZ = avesmapsGaretienZielUebersteuern($ortZ, ['ziel' => 'label', 'subtyp' => 'felsformation']);
+assert($labelZ['subtyp'] === 'felsformation' && $labelZ['geometry']['coordinates'] === [5.0, 5.0],
+    'ein Ort wird ein freies Label, ohne dass sich der Punkt bewegt');
+$pruefungen += 5;
+
+// --- 🔴 DER PLANBAU LEGT DIE ROHE LISTE NUR DORT AB, WO SIE SONST VERLOREN GINGE.
+$pdoZ = avesmapsGaretienPlanTestPdo();
+$pdoZ->prepare("INSERT INTO garetien_import_row (run_id, wiki, ebene, zeile_nr, typ, namensraum,"
+    . " artikel, anzeige, lodmin, lodmax, extra, geo_art, geo, roh)"
+    . " VALUES (1,'ggp','Berge',78,'Berg','Garetien','Listenprobe','Listenprobe','','','','koordinaten',"
+    . "'10000 -10000, 30000 -10000, 30000 -30000, 10000 -30000','')")->execute();
+avesmapsGaretienBaueSyncPlan($pdoZ, 1, 1);
+$mitListe = json_decode((string) $pdoZ->query(
+    "SELECT after_json FROM sync_plan_item WHERE label LIKE 'Listenprobe%'")->fetchColumn(), true);
+assert(count((array) ($mitListe['punkte'] ?? [])) === 4,
+    '🔴 ein Punktziel mit mehreren Quellpunkten traegt seine Liste: '
+    . json_encode(array_keys($mitListe)));
+// ⚠️ Eine FLAECHE traegt sie NICHT -- sie steht schon in der Geometrie, und ein zweites Mal
+// kostet bei 8213 Vorschlaegen echten Platz.
+$flaecheDb = null;
+foreach ($pdoZ->query('SELECT after_json FROM sync_plan_item') as $zeileZ) {
+    $n = json_decode((string) $zeileZ['after_json'], true);
+    if (($n['ziel'] ?? '') === 'region') { $flaecheDb = $n; }
+}
+assert($flaecheDb !== null, 'die Vorbedingung: eine Flaeche ist im Pruefstand');
+assert(!isset($flaecheDb['punkte']),
+    '⚠️ eine Flaeche traegt die Liste NICHT doppelt: ' . json_encode(array_keys($flaecheDb)));
+$pruefungen += 3;
+
 echo "OK: {$pruefungen} Pruefungen\n";

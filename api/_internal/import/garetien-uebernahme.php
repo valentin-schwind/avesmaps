@@ -1448,6 +1448,29 @@ function avesmapsGaretienUebernehmen(PDO $pdo, int $runId, array $itemIds, array
             continue;
         }
         $nach = json_decode((string) $item['after_json'], true);
+        // 🔴 DIE WAHL DES EDITORS LEGT SICH AUF DEN VORSCHLAG -- HIER UND NUR HIER.
+        // `$nach` entsteht an genau dieser Stelle; jeder Leser weiter unten fragt `ziel`/`subtyp`
+        // daraus. Wuerde die Wahl daneben als zweiter Wert gereicht, muesste JEDER dieser Leser
+        // sie kennen, und der naechste vergisst sie (die Falle, die dieses Modul dreimal bezahlt
+        // hat). ⚠️ Vor der Herkunftspruefung waere sie falsch platziert: ein fremder Vorschlag
+        // soll gar nicht erst umgeformt werden.
+        if (is_array($nach) && ($nach['herkunft'] ?? '') === 'garetien') {
+            try {
+                $nach = avesmapsGaretienZielUebersteuern($nach, $einstellungen);
+            } catch (Throwable $abbruch) {
+                // ⚠️ LAUT, nicht still: eine verworfene Zielwahl waere von „hat funktioniert"
+                // nicht zu unterscheiden, und das Objekt laege danach in der falschen Form auf der
+                // Karte.
+                $fehler[] = ['item' => (int) $item['id'], 'grund' => $abbruch->getMessage()];
+                avesmapsGaretienItemAbschliessen(
+                    $pdo,
+                    (int) $item['id'],
+                    'failed',
+                    mb_substr($abbruch->getMessage(), 0, 300, 'UTF-8')
+                );
+                continue;
+            }
+        }
         if (!is_array($nach) || ($nach['herkunft'] ?? '') !== 'garetien') {
             // 💣 VERMERKEN, nicht nur melden. Ein abgelehntes Item ohne Vermerk bleibt "offen",
             // und der Uebernahme-Schritt der Vorschau arbeitet in Haeppchen, bis nichts mehr offen

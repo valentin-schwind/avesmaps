@@ -103,6 +103,84 @@ const AVESMAPS_GARETIEN_ERGAENZUNG_FELDER = ['quelle'];
 const AVESMAPS_GARETIEN_SCHLUESSEL_NAME_TRENNER = '!';
 
 /**
+ * Die Geometrie EINES Ziels aus einer rohen Punktliste. REIN -- kein I/O.
+ *
+ * 🔴 EIN FORMER, ZWEI LESER: der Planbau setzt damit die Vorgabe, und die Uebernahme formt
+ * damit um, wenn ein Editor das Ziel im Fenster gewechselt hat. Stuende die Formel zweimal da,
+ * liefe sie beim ersten neuen Ziel auseinander -- und der Fehler waere still: eine Flaeche als
+ * Linienzug ist an jeder Schranke gueltig.
+ *
+ * ⚠️ Ein PUNKTziel bekommt die MITTE der Punktliste, nicht ihre erste Ecke (Owner
+ * 01.09.2026). Bei einer einzelnen Koordinate ist die Mitte diese Koordinate.
+ *
+ * @param list<array{0:float,1:float}> $punkte
+ */
+function avesmapsGaretienZielGeometrie(array $punkte, string $ziel): array
+{
+    return [
+        'type' => match ($ziel) {
+            'path' => 'LineString',
+            'region' => 'Polygon',
+            default => 'Point',
+        },
+        'coordinates' => match ($ziel) {
+            'path' => $punkte,
+            'region' => [$punkte],
+            default => avesmapsGaretienRingMittelpunkt($punkte),
+        },
+    ];
+}
+
+/**
+ * Welche Ziele traegt DIESE Punktliste? REIN -- kein I/O.
+ *
+ * 🔴 DIE GEOMETRIE ENTSCHEIDET, NICHT DIE OBERFLAECHE. Eine Flaeche braucht drei Punkte,
+ * eine Linie zwei; ein Punkt geht immer. Ein Ort mit EINER Koordinate (alle Burgen, Doerfer,
+ * Tempel des Exports) kann deshalb nie eine Flaeche werden -- und das ist keine Einschraenkung,
+ * die man wegnehmen koennte, sondern die Sache selbst.
+ *
+ * @return list<string>
+ */
+function avesmapsGaretienMoeglicheZiele(array $punkte): array
+{
+    $n = count($punkte);
+    $ziele = ['location', 'label'];
+    if ($n >= 2) {
+        $ziele[] = 'path';
+    }
+    if ($n >= 3) {
+        $ziele[] = 'region';
+    }
+
+    return $ziele;
+}
+
+/**
+ * Die rohe Punktliste eines Vorschlags zurueckgewinnen. REIN -- kein I/O.
+ *
+ * 💣 SIE STECKT NICHT IMMER IN `geometry`. Bei einer Flaeche liegt der Ring eine Ebene
+ * tiefer, bei einer Linie flach -- aber ein PUNKTziel hat nur noch seine Mitte, und aus einer
+ * Mitte laesst sich keine Flaeche zurueckrechnen. Genau dafuer traegt ein Punktziel mit MEHR als
+ * einem Quellpunkt seine Liste als `punkte` mit (die 78 `Berg`-Zeilen mit Polygon, live gemessen).
+ *
+ * @return list<array{0:float,1:float}>
+ */
+function avesmapsGaretienPunkteAusVorschlag(array $nach): array
+{
+    $roh = $nach['punkte'] ?? null;
+    if (is_array($roh) && $roh !== []) {
+        return array_values($roh);
+    }
+    $geo = (array) ($nach['geometry'] ?? []);
+    $koordinaten = (array) ($geo['coordinates'] ?? []);
+    return match ((string) ($geo['type'] ?? '')) {
+        'Polygon' => array_values((array) ($koordinaten[0] ?? [])),
+        'LineString' => array_values($koordinaten),
+        default => $koordinaten === [] ? [] : [$koordinaten],
+    };
+}
+
+/**
  * Der Mittelpunkt eines Rings. REIN -- kein I/O.
  *
  * 🔴 ZWEI LESER, EINE FORMEL: die Flaeche setzt ihr Label darauf
@@ -136,6 +214,68 @@ function avesmapsGaretienRingMittelpunkt(array $ring): array
     }
 
     return [$sx / $n, $sy / $n];
+}
+
+/**
+ * Das vom Editor GEWAEHLTE Ziel auf einen Vorschlag legen. REIN -- kein I/O.
+ *
+ * 🔴 Owner 01.09.2026: „die editoren wollen dass man bestimmen kann, welchen typ das ziel
+ * haben soll … er soll den vorschlag nehmen, den er gerade hat, aber mann will auch aendern
+ * koennen."
+ *
+ * 🔴 SIE SCHREIBT DEN VORSCHLAG UM, NICHT DEN AUFRUFER. Jeder Leser weiter unten fragt
+ * `$nach['ziel']` und `$nach['subtyp']`; wuerde die Wahl daneben als zweiter Wert gereicht, muesste
+ * JEDER dieser Leser sie kennen -- und der naechste vergisst sie. Es gibt genau eine Stelle, an der
+ * `$nach` entsteht, und hier wird es umgeschrieben.
+ *
+ * 💣 DIE GEOMETRIE WIRD MITGEFORMT. Ein Wechsel Flaeche -> Berg ist kein Namenswechsel: aus
+ * einem Polygon muss ein Punkt werden. Ohne das Umformen laege ein Ring im `Point`-Feld, und der
+ * Schreiber nimmt davon das erste Element -- die x-Koordinate der ersten Ecke als ganzer Punkt.
+ *
+ * ⚠️ WAS DIE GEOMETRIE NICHT HERGIBT, WIRD ABGELEHNT (`avesmapsGaretienMoeglicheZiele`) --
+ * lieber eine Fehlermeldung als eine Flaeche aus einem einzigen Punkt.
+ *
+ * ⚠️ Ohne Wahl bleibt alles, wie der Planbau es vorgeschlagen hat -- „Alle angezeigten
+ * einfuegen" schickt keine Einstellungen und legt deshalb unveraendert an.
+ *
+ * @param ?array $einstellungen Rumpf aus dem Kasten; `ziel`/`subtyp` sind die zwei Auswahlfelder.
+ */
+function avesmapsGaretienZielUebersteuern(array $nach, ?array $einstellungen): array
+{
+    $ziel = trim((string) ($einstellungen['ziel'] ?? ''));
+    $subtyp = trim((string) ($einstellungen['subtyp'] ?? ''));
+    if ($ziel === '' || $subtyp === '') {
+        return $nach;
+    }
+    if ($ziel === (string) ($nach['ziel'] ?? '') && $subtyp === (string) ($nach['subtyp'] ?? '')) {
+        return $nach;
+    }
+
+    $punkte = avesmapsGaretienPunkteAusVorschlag($nach);
+    if (!in_array($ziel, avesmapsGaretienMoeglicheZiele($punkte), true)) {
+        throw new RuntimeException(sprintf(
+            'Aus %s Punkten laesst sich kein Ziel der Art "%s" bauen.',
+            count($punkte),
+            $ziel
+        ));
+    }
+
+    $nach['ziel'] = $ziel;
+    $nach['subtyp'] = $subtyp;
+    // 🔴 `kind` GEHOERT ZUR FLAECHE UND NUR ZU IHR. Ein Label, ein Ort und ein Weg haben
+    // keine Landschaftsebene; ein stehengebliebenes `kind` wuerde beim naechsten Leser so aussehen,
+    // als haette es eine.
+    $nach['kind'] = $ziel === 'region' ? (string) ($einstellungen['kind'] ?? '') : null;
+    $nach['geometry'] = avesmapsGaretienZielGeometrie($punkte, $ziel);
+    // ⚠️ Die rohe Liste reist weiter mit, solange das neue Ziel sie nicht selbst traegt --
+    // sonst waere ein zweiter Wechsel (Berg -> Flaeche -> Berg) eine Einbahnstrasse.
+    if (in_array($ziel, ['path', 'region'], true)) {
+        unset($nach['punkte']);
+    } elseif (count($punkte) > 1) {
+        $nach['punkte'] = $punkte;
+    }
+
+    return $nach;
 }
 
 /**
@@ -493,15 +633,15 @@ function avesmapsGaretienPlanEintrag(array $zeile, array $ziel, array $urteil): 
                 },
                 // Eine Flaeche ist ein RING: die Punktliste liegt eine Ebene tiefer. Ein Punkt
                 // (Ort/Berggipfel) ist ein EINZELNES [x,y]-Paar, GeoJSON-Point-Form.
-                // 🔴 EIN PUNKTZIEL BEKOMMT DIE MITTE, NICHT DIE ERSTE ECKE (01.09.2026).
-                // Hier stand `$punkte[0]`; bei den 78 `Berg`-Zeilen mit Polygon (bis 211 Punkte)
-                // war das eine Ringecke, und der Gipfel sass am Rand seiner Bergflaeche.
-                'coordinates' => match ($ziel['ziel']) {
-                    'path' => $punkte,
-                    'region' => [$punkte],
-                    default => avesmapsGaretienRingMittelpunkt($punkte),
-                },
+                'coordinates' => avesmapsGaretienZielGeometrie($punkte, $ziel['ziel'])['coordinates'],
             ],
+            // 💣 DIE ROHE PUNKTLISTE, ABER NUR WO SIE SONST VERLOREN GINGE. Ein Punktziel
+            // behaelt in `geometry` nur seine Mitte; wechselt ein Editor es spaeter auf Flaeche
+            // oder Weg, laesst sich daraus nichts zurueckrechnen. Betroffen sind live 78 Zeilen
+            // (die `Berg`-Zeilen mit Polygon) -- fuer alle anderen steht die Liste schon in
+            // `geometry` und wuerde hier nur ein zweites Mal Platz kosten.
+            ...(!in_array($ziel['ziel'], ['path', 'region'], true) && count($punkte) > 1
+                ? ['punkte' => $punkte] : []),
             'quelle' => [
                 // 🔴 MELDUNG (30.08.2026): DER WIRT, NICHT DIE EXPORT-ARBEITSSEITE. Das ist die
                 // Adresse, die als `sources.url` landet und in der Infobox verlinkt wird -- ein

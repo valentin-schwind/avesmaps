@@ -60,6 +60,9 @@ try {
         $dispatch = avesmapsSocialDispatch($pdo, $id, $config);
         avesmapsJsonResponse(200, [
             'ok' => true, 'id' => $id, 'state' => 'released', 'results' => $dispatch['results'],
+            // Warum der Relais-Anstoss ging oder nicht -- sonst scheitert er lautlos und der
+            // Beitrag haengt bis zum naechsten Zeitplan-Lauf, ohne dass jemand den Grund sieht.
+            'relais_anstoss' => $dispatch['relais_anstoss'] ?? null,
         ]);
     }
 

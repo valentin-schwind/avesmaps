@@ -62,12 +62,25 @@ const AVESMAPS_SOCIAL_RELAY_ANSTOSS_TIMEOUT = 8;
  *
  * ⚠️ Ohne Token faellt es still und offen aus. Das ist der Zustand zwischen diesem Deploy und dem
  * Eintrag in config.local.php -- und der Zeitplan traegt ihn.
+ *
+ * 💣 UND ER SAGT, WARUM ER NICHT GING. Die erste Fassung gab nur `false` zurueck; als der Anstoss
+ * am 01.09.2026 beim ersten echten Versuch nicht feuerte, war von aussen nicht zu unterscheiden,
+ * ob der Token fehlt, ihm ein Recht fehlt, die Adresse falsch ist oder GitHub nicht antwortet --
+ * vier Ursachen mit vier verschiedenen Reparaturen. Ein Fehlschlag ohne Diagnose ist ein
+ * Konstruktionsfehler, dieselbe Lehre wie beim „Connection timed out" des Adapters.
+ *
+ * @return array{ok: bool, status: int, grund: string} `grund` ist fuer Menschen und traegt NIE den
+ *                                                     Token -- er wandert in eine Editor-Antwort.
  */
-function avesmapsSocialRelayAnstossen(array $social): bool
+function avesmapsSocialRelayAnstossen(array $social): array
 {
     $token = trim((string) ($social['github_token'] ?? ''));
-    if ($token === '' || !function_exists('curl_init')) {
-        return false;
+    if ($token === '') {
+        return ['ok' => false, 'status' => 0,
+            'grund' => 'Kein Token: social.github_token fehlt in api/config.local.php.'];
+    }
+    if (!function_exists('curl_init')) {
+        return ['ok' => false, 'status' => 0, 'grund' => 'cURL steht nicht zur Verfuegung.'];
     }
 
     $url = 'https://api.github.com/repos/' . AVESMAPS_SOCIAL_RELAY_REPO
@@ -75,7 +88,7 @@ function avesmapsSocialRelayAnstossen(array $social): bool
 
     $handle = curl_init($url);
     if ($handle === false) {
-        return false;
+        return ['ok' => false, 'status' => 0, 'grund' => 'Die Adresse liess sich nicht oeffnen.'];
     }
     curl_setopt_array($handle, [
         CURLOPT_POST => true,
@@ -97,12 +110,41 @@ function avesmapsSocialRelayAnstossen(array $social): bool
             'User-Agent: Avesmaps (https://avesmaps.de)',
         ],
     ]);
-    curl_exec($handle);
+    $rumpf = curl_exec($handle);
     $status = (int) curl_getinfo($handle, CURLINFO_HTTP_CODE);
+    $curlFehler = (string) curl_error($handle);
     curl_close($handle);
 
     // 204 ist die Erfolgsantwort dieses Endpunkts -- er gibt keinen Rumpf zurueck.
-    return $status === 204;
+    if ($status === 204) {
+        return ['ok' => true, 'status' => 204, 'grund' => ''];
+    }
+
+    // GitHubs eigener Wortlaut, falls vorhanden -- er ist die genaueste Auskunft.
+    $meldung = '';
+    $daten = is_string($rumpf) ? json_decode($rumpf, true) : null;
+    if (is_array($daten) && isset($daten['message']) && is_string($daten['message'])) {
+        $meldung = trim($daten['message']);
+    }
+
+    // Die vier Faelle, die hier wirklich vorkommen -- jeder mit einer anderen Reparatur.
+    $deutung = match (true) {
+        $status === 0 => 'GitHub war nicht erreichbar' . ($curlFehler === '' ? '.' : ': ' . $curlFehler),
+        $status === 401 => 'Der Token gilt nicht (abgelaufen oder falsch eingetragen).',
+        // ⚠️ 403 UND 404 heissen bei fein granulierten Token oft dasselbe: GitHub verraet nicht, dass
+        // es etwas gibt, das man nicht sehen darf. Beide Male fehlt dem Token das Recht
+        // „Actions: read and write" auf GENAU diesem Repository.
+        $status === 403 => 'Dem Token fehlt das Recht „Actions: read and write" fuer '
+            . AVESMAPS_SOCIAL_RELAY_REPO . '.',
+        $status === 404 => 'Nicht gefunden: entweder sieht der Token das Repository '
+            . AVESMAPS_SOCIAL_RELAY_REPO . ' nicht (fehlendes Recht sieht bei fein granulierten Token'
+            . ' genauso aus), oder die Datei ' . AVESMAPS_SOCIAL_RELAY_WORKFLOW . ' liegt nicht auf master.',
+        $status === 422 => 'GitHub nimmt den Zweig nicht an -- laeuft der Workflow auf master?',
+        default => 'Unerwartete Antwort.',
+    };
+
+    return ['ok' => false, 'status' => $status,
+        'grund' => $deutung . ($meldung === '' ? '' : ' GitHub sagt: ' . $meldung)];
 }
 
 /**

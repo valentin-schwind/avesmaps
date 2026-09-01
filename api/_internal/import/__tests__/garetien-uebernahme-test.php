@@ -3148,4 +3148,82 @@ assert($zaehleA($pdoB, 'obj-durch-nachzug') === [$artikelA],
     'und die Sammelquelle ist wirklich weg: ' . json_encode($zaehleA($pdoB, 'obj-durch-nachzug')));
 $pruefungen += 2;
 
+// =================================================================================================
+// 🔴 DER UEBERNAHME-TRICHTER BENUTZT DIE ZIELWAHL WIRKLICH
+// =================================================================================================
+// 💣 Ein Bauteil, das niemand ruft, ist kein Bauteil -- diese Luecke ist heute schon zweimal
+// aufgetreten (Schluesselwanderung, Flaechenmittelpunkt). Deshalb wird hier nicht die reine
+// Funktion geprueft (das tut garetien-plan-test.php), sondern der WEG durch die Uebernahme.
+$pdoZW = avesmapsGaretienUebernahmeTestPdo();
+$laufZW = (int) avesmapsSyncPlanOpenRun($pdoZW, AVESMAPS_GARETIEN_PLAN_KIND)['id'];
+$ringZW = [[100.0, 100.0], [140.0, 100.0], [140.0, 140.0], [100.0, 140.0]];
+avesmapsSyncPlanAddItem($pdoZW, $laufZW, [
+    'entity_key' => 'ggp:Berge:Gebirge:Garetien:Zielwahl!Zielwahl',
+    'entity_public_id' => null, 'change_type' => 'new', 'label' => 'Zielwahl \u00b7 neu',
+    'before' => [],
+    'after' => [
+        'herkunft' => 'garetien', 'wiki' => 'ggp', 'ebene' => 'Berge',
+        'ziel' => 'region', 'subtyp' => 'gebirge', 'kind' => 'topographie',
+        'name' => 'Zielwahl',
+        'geometry' => ['type' => 'Polygon', 'coordinates' => [$ringZW]],
+        'quelle' => ['url' => 'https://www.garetien.de', 'label' => 'Briefspiel (Garetien)'],
+        'seite_url' => AVESMAPS_GARETIEN_BASIS_GGP . 'Berge',
+    ],
+    'override' => [], 'selected' => 1,
+]);
+$itemZW = $itemIdVon($pdoZW, 'Zielwahl \u00b7 neu');
+
+$eZW = avesmapsGaretienUebernehmen($pdoZW, $laufZW, [$itemZW], ['id' => 7],
+    ['ziel' => 'label', 'subtyp' => 'berggipfel']);
+assert($eZW['fehler'] === [], 'die Uebernahme mit gewaehltem Ziel gelingt: '
+    . json_encode($eZW['fehler'], JSON_UNESCAPED_UNICODE));
+assert($eZW['angelegt'] === 1, 'und legt genau ein Objekt an: ' . $eZW['angelegt']);
+$pruefungen += 2;
+
+// 🔴 ES IST EIN LABEL GEWORDEN, KEINE FLAECHE.
+$objZW = $pdoZW->query("SELECT feature_type, feature_subtype, geometry_json FROM map_features
+                         WHERE name = 'Zielwahl'")->fetch(PDO::FETCH_ASSOC);
+assert($objZW !== false, 'das Objekt liegt auf der Karte');
+assert($objZW['feature_type'] === 'label' && $objZW['feature_subtype'] === 'berggipfel',
+    '🔴 es ist ein Berggipfel geworden, keine Flaeche: ' . json_encode($objZW));
+// ⚠️ UND ES GIBT KEINE FLAECHE DANEBEN -- eine halb gewechselte Uebernahme waere schlimmer
+// als gar keine.
+assert((int) $pdoZW->query('SELECT COUNT(*) FROM ecosystem_region')->fetchColumn() === 0,
+    '⚠️ und es entstand KEINE Landschaftsflaeche daneben');
+$pruefungen += 3;
+
+// 💣 UND DER PUNKT IST DIE MITTE DES RINGS, nicht seine erste Ecke.
+$geoZW = json_decode((string) $objZW['geometry_json'], true);
+assert(($geoZW['type'] ?? '') === 'Point', 'die gespeicherte Geometrie ist ein Punkt: '
+    . json_encode($geoZW));
+assert(array_map('floatval', (array) $geoZW['coordinates']) === [120.0, 120.0],
+    '💣 auf der Mitte (120|120), nicht auf der Ecke (100|100): '
+    . json_encode($geoZW['coordinates']));
+$pruefungen += 2;
+
+// ⚠️ OHNE WAHL bleibt es eine Flaeche -- sonst waere oben nur belegt, dass IRGENDETWAS
+// entsteht, nicht dass die Wahl es gedreht hat.
+$pdoOW = avesmapsGaretienUebernahmeTestPdo();
+$laufOW = (int) avesmapsSyncPlanOpenRun($pdoOW, AVESMAPS_GARETIEN_PLAN_KIND)['id'];
+avesmapsSyncPlanAddItem($pdoOW, $laufOW, [
+    'entity_key' => 'ggp:Berge:Gebirge:Garetien:Ohnewahl!Ohnewahl',
+    'entity_public_id' => null, 'change_type' => 'new', 'label' => 'Ohnewahl \u00b7 neu',
+    'before' => [],
+    'after' => [
+        'herkunft' => 'garetien', 'wiki' => 'ggp', 'ebene' => 'Berge',
+        'ziel' => 'region', 'subtyp' => 'gebirge', 'kind' => 'topographie',
+        'name' => 'Ohnewahl',
+        'geometry' => ['type' => 'Polygon', 'coordinates' => [$ringZW]],
+        'quelle' => ['url' => 'https://www.garetien.de', 'label' => 'Briefspiel (Garetien)'],
+        'seite_url' => AVESMAPS_GARETIEN_BASIS_GGP . 'Berge',
+    ],
+    'override' => [], 'selected' => 1,
+]);
+$eOW = avesmapsGaretienUebernehmen($pdoOW, $laufOW, [$itemIdVon($pdoOW, 'Ohnewahl \u00b7 neu')],
+    ['id' => 7]);
+assert($eOW['fehler'] === [], 'ohne Wahl gelingt sie ebenso: ' . json_encode($eOW['fehler'], JSON_UNESCAPED_UNICODE));
+assert((int) $pdoOW->query('SELECT COUNT(*) FROM ecosystem_region')->fetchColumn() === 1,
+    '⚠️ ohne Wahl entsteht die FLAECHE wie bisher');
+$pruefungen += 2;
+
 echo "OK: {$pruefungen} Pruefungen\n";

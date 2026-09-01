@@ -75,14 +75,17 @@ assert(
 // 1b. Der Anstoss. 🔴 Er ist ein ZUSATZ, kein Zweck: sein Fehlschlag darf keinen Zielzustand
 //     aendern. „nicht gesendet" fuer etwas, das gleich hinausgeht, waere die schlimmere Luege.
 // ------------------------------------------------------------------------------------------------
-assert(
-    avesmapsSocialRelayAnstossen([]) === false,
-    'ohne Token faellt der Anstoss still aus -- er wirft nicht'
-);
-assert(
-    avesmapsSocialRelayAnstossen(['github_token' => '']) === false,
-    'ein leerer Token ist kein Token'
-);
+$ohneToken = avesmapsSocialRelayAnstossen([]);
+assert($ohneToken['ok'] === false, 'ohne Token faellt der Anstoss aus -- er wirft nicht');
+assert(avesmapsSocialRelayAnstossen(['github_token' => ''])['ok'] === false, 'ein leerer Token ist keiner');
+
+// 💣 UND ER SAGT WARUM. Die erste Fassung gab nur `false` zurueck; als der Anstoss am 01.09.2026
+// beim ersten echten Versuch nicht feuerte, waren vier Ursachen mit vier Reparaturen nicht
+// voneinander zu unterscheiden. Ein Fehlschlag ohne Diagnose ist ein Konstruktionsfehler.
+assert(trim($ohneToken['grund']) !== '', 'ein Fehlschlag nennt seinen Grund');
+assert(str_contains($ohneToken['grund'], 'config.local.php'), 'und sagt, WO der Token fehlt');
+// ⚠️ Der Grund wandert in eine Editor-Antwort -- er darf nie einen Schluessel tragen.
+assert(!str_contains(strtolower($ohneToken['grund']), 'github_pat'), 'der Grund traegt keinen Token');
 
 $anstossQuelle = $ohneKommentare(__DIR__ . '/../relay.php');
 // 💣 Der Token gehoert in die KOPFZEILE, nie in die Adresse -- eine Adresszeile steht im Serverlog.
@@ -115,8 +118,11 @@ assert(
 );
 // ⚠️ Und er haengt an `$eingereiht` -- ohne diese Bedingung klopfte JEDER Beitrag an, auch einer,
 // der nur an Facebook ging.
-assert(str_contains($publishOhne, '$eingereiht ? avesmapsSocialRelayAnstossen'),
-    'angestossen wird nur, wenn wirklich etwas eingereiht wurde');
+assert(str_contains($publishOhne, '$eingereiht'), 'angestossen wird nur, wenn etwas eingereiht wurde');
+// Und der Grund muss bis zum Editor durchgereicht werden -- sonst liegt er im Dispatch begraben und
+// der Beitrag haengt bis zum naechsten Zeitplan-Lauf, ohne dass jemand sieht, woran es lag.
+$endpunkt = $ohneKommentare(__DIR__ . '/../../../edit/social/publish.php');
+assert(str_contains($endpunkt, 'relais_anstoss'), 'der Endpunkt reicht den Grund an den Editor durch');
 
 // ------------------------------------------------------------------------------------------------
 // 2. Der Riegel. 💣 Im Zweifel ZU -- `hash_equals('', '')` ist wahr, ein unkonfigurierter Server

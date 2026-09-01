@@ -247,9 +247,14 @@ function avesmapsSocialDispatch(PDO $pdo, int $postId, array $config, ?string $o
     // ⚠️ Sein Ergebnis aendert KEINEN Zielzustand. Ein misslungener Anstoss heisst „der Zeitplan
     // holt es spaeter", nicht „nicht gesendet" -- deshalb reist er als eigenes Feld heraus und
     // fasst `results` nicht an.
-    $angestossen = $eingereiht ? avesmapsSocialRelayAnstossen($social) : false;
+    // ⚠️ Das Ergebnis traegt seit dem 01.09.2026 einen GRUND, nicht nur ein Ja/Nein: als der
+    // Anstoss beim ersten echten Versuch nicht feuerte, war von aussen nicht zu unterscheiden,
+    // ob der Token fehlt, ihm ein Recht fehlt oder GitHub schweigt.
+    $anstoss = $eingereiht
+        ? avesmapsSocialRelayAnstossen($social)
+        : ['ok' => false, 'status' => 0, 'grund' => 'nichts einzureihen'];
 
     // ok means "the run completed", NOT "everything was sent". The per-channel truth lives in results;
     // collapsing it into one boolean is exactly the swallowing §2.2 forbids.
-    return ['ok' => true, 'results' => $results, 'relais_angestossen' => $angestossen];
+    return ['ok' => true, 'results' => $results, 'relais_anstoss' => $anstoss];
 }
