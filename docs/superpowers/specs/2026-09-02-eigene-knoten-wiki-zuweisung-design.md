@@ -281,12 +281,18 @@ dehnen hieße, seinen Vertrag für alle elf aufzuweichen.
 | dto. | Der **Slug**: der Überlebende bekommt `t-y-rret`, nicht `t-y-rret-2` |
 | dto. | `parent_locked` ist am Ziel gesetzt |
 | dto. | Der **zweite Lauf auf denselben Zielschlüssel** verweigert sich und nennt den Belegenden |
-| `eigener-knoten-wiki-bindung-ziele-test.php` | **Der Zähler:** die Zahl der Wanderungsziele im Code gegen die Liste aus §4. Ein siebtes Ziel, das jemand hinzufügt, ohne es anzuschließen, bricht diesen Test |
-| `wiki-bindung-vorschau.test.js` | Die drei Vorbelegungsregeln aus §3 |
-| `wiki-bindung-sammellauf.test.js` | Verglichen wird der **Name**, nicht der Titel; Mehrdeutiges bleibt ungehakt |
+| dto. | Die drei Vorbelegungsregeln aus §3 |
+| dto. | Der Sammellauf vergleicht den **Namen**, nicht den Titel; Mehrdeutiges bleibt ungehakt |
+| `eigener-knoten-wiki-bindung-ziele-test.php` | **Der Zähler:** jedes Wanderungsziel aus §4 kommt im Code vor. Ein Ziel, das jemand hinzufügt, ohne es anzuschließen, bricht diesen Test. Dazu die Verdrahtung des Endpunkts und der Oberfläche |
 
-Der letzte PHP-Test ist der wichtigste: er ist der Ersatz für die Zahl, die im Kommentar bewusst
-fehlt.
+Der letzte Test ist der wichtigste: er ist der Ersatz für die Zahl, die im Kommentar bewusst fehlt.
+
+> ⭐ **Die Vorschau wird SERVERSEITIG gerechnet, nicht im Browser** — deshalb stehen ihre Tests
+> oben bei PHP und nicht als eigene `.test.js`. Der Server hat beide Seiten ohnehin (die Overrides
+> aus `wiki_territory_model.metadata_overrides_json` und die Wiki-Zeile aus dem Staging), und die
+> Übernahme muss dieselbe Regel kennen wie die Anzeige. Im Browser gerechnet wären es zwei
+> Wahrheiten über dieselbe Frage — die Bauform, die dieses Haus bei den Listenzeilen siebenmal
+> bezahlt hat.
 
 ---
 
