@@ -1,4 +1,14 @@
+/* 💣 DIESE KACHEL IST IN BEIDEN THEMEN DUNKEL (der Grund unten ist ein fester dunkler Wert) --
+   also nimmt das Kanon-Etikett darin die Fassung fuer dunkle Flaechen, unabhaengig vom Thema der
+   Seite. Ohne diese vier Zeilen trug es im hellen Thema die helle Fuellung: gemessen 2,33:1 gegen
+   die Kachel statt 8,61:1, unter den 3:1 einer Nicht-Text-Grenze. Die Schrift IM Chip war dabei
+   lesbar (5,83:1); auffallen konnte er nur nicht -- und das ist seine einzige Aufgabe.
+   ⚠️ Wer diese Kachel je dem Thema folgen laesst, nimmt die vier Zeilen wieder heraus. */
 .spotlight-search {
+	--color-kanon-official: var(--color-kanon-official-on-dark);
+	--color-kanon-official-text: var(--color-kanon-official-text-on-dark);
+	--color-kanon-unofficial: var(--color-kanon-unofficial-on-dark);
+	--color-kanon-unofficial-text: var(--color-kanon-unofficial-text-on-dark);
 	width: min(560px, 100%);
 	overflow: hidden;
 	border: 1px solid rgba(255, 255, 255, 0.24);
@@ -47,11 +57,14 @@
 	display: none !important;
 }
 
+/* DREI Spalten, und die dritte ist meistens leer: Name | Typ (+ Hinweis) | Kanon-Etikett.
+   Eine `auto`-Spalte ohne Kind ist 0 breit und der Abstand faellt mit ihr weg -- eine Zeile ohne
+   Etikett sieht deshalb aus wie vorher. */
 .spotlight-search__result {
 	width: 100%;
 	min-height: 36px;
 	display: grid;
-	grid-template-columns: minmax(0, 1fr) auto;
+	grid-template-columns: minmax(0, 1fr) auto auto;
 	align-items: center;
 	gap: 10px;
 	padding: 7px 10px;

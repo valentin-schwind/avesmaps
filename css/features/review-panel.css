@@ -922,6 +922,12 @@
 .conflict-party__type { color: var(--color-text-muted); font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.04em; }
 .conflict-party { display: flex; flex-direction: column; align-items: stretch; gap: 4px; min-width: 0; }
 .conflict-party__head { display: flex; align-items: baseline; gap: 6px; }
+/* Das Kanon-Etikett schliesst die Kopfzeile ab -- rechts, nicht zwischen Typ und Name.
+   ⚠️ `align-items: baseline` der Kopfzeile richtet den Chip an seiner SCHRIFT aus, nicht an
+   seinem Rand; ohne die eigene Ausrichtung sitzt er zwei Pixel zu hoch. Die Form selbst kommt
+   ungeaendert aus css/features/feature-sources.css (.fs-kanon) -- eine zweite Rezeptur fuer
+   denselben Chip waere genau die Divergenz, die dieses Repo bei den Listenzeilen bezahlt hat. */
+.conflict-party__kanon { margin-left: auto; align-self: center; }
 .conflict-party__evidence { display: flex; flex-direction: column; gap: 3px; font-size: 11.5px; }
 .conflict-party__wiki { color: var(--color-link); }
 .conflict-party__none { color: var(--color-text-muted); font-style: italic; }

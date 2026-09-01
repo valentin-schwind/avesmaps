@@ -516,6 +516,42 @@ function focusConflictParty(party) {
 	map.flyTo(latlng, Math.max(map.getZoom(), 4), { duration: 0.8 });
 }
 
+/**
+ * Das Kanon-Etikett einer Konfliktpartei -- "" wenn die Partei keins tragen kann.
+ *
+ * 🔴 WOFUER: der Fall „Wiki-Ort fehlt" (`wiki.missing_key`) listet Objekte OHNE Artikel, und die
+ * Entscheidung des Editors ist, wo er suchen soll. Ein Briefspielort wird im Hauptraum nie
+ * gefunden -- das Etikett sagt ihm, dass ns 222 der richtige Raum ist, bevor er sucht.
+ *
+ * 💣 DAS PARTEI-VOKABULAR IST EIN EIGENES. `label` heisst hier „Region/Landschaft" und im
+ * Suchtreffer dasselbe -- aber `region` gibt es hier gar nicht, waehrend es dort das
+ * HERRSCHAFTSGEBIET meint. Eine geteilte Wort-Tabelle waere fuer eine der beiden Flaechen falsch;
+ * geteilt sind der Aufloeser und der Renderer, also das, was wirklich dieselbe Frage beantwortet.
+ *
+ * ⚠️ Bewusst NICHT dabei: `powerline` (ihr Kanon haengt am Anker-Segment der Namensgruppe, die
+ * Partei traegt das ANGEKLICKTE), `adventure` (ein Werk ist kein Kartenobjekt und hat keinen
+ * Eintrag in dieser Karte) und `citymap` (ihre `entity_public_id` ist hier nicht nachgeprueft --
+ * ein Etikett auf einem ungeprueften Schluessel waere geraten). Kein Etikett ist kein falsches.
+ */
+function conflictPartyKanonBadge(party) {
+	if (typeof featureKanonListBadge !== "function") {
+		return "";
+	}
+	const entityTypeByPartyType = {
+		location: "settlement",
+		label: "region",
+		path: "path",
+		territory: "territory",
+	};
+	const entityType = entityTypeByPartyType[String(party?.type || "")] || "";
+	const publicId = String(party?.id || "");
+	if (!entityType || !publicId) {
+		return "";
+	}
+
+	return featureKanonListBadge(entityType, publicId);
+}
+
 // One party = one column of evidence. The conflict alone ("two things share an article") is not
 // decidable; what decides it is whether THIS object has an article of its own and where it sits.
 // Owner on the live list: "ist Jergan im Wiki? ist Jergan auf der Karte? ... dann kann ich
@@ -534,6 +570,19 @@ function createConflictPartyElement(party, conflict = null) {
 	label.className = "conflict-party__label";
 	label.textContent = party.label || "(ohne Namen)";
 	head.appendChild(label);
+	const kanon = conflictPartyKanonBadge(party);
+	if (kanon) {
+		const etikett = document.createElement("span");
+		etikett.className = "conflict-party__kanon";
+		// ⚠️ `innerHTML` mit ERZEUGTEM Markup, nicht mit Daten: featureKanonListBadge rendert
+		// ausschliesslich das Zustandswort aus der Uebersetzungstabelle („Inoffiziell") und
+		// maskiert ohnehin jede Einsetzung (gewacht in kanon-halbpille.test.js, Gruppe F).
+		// 💣 Wer hier je den BEZEICHNER mitrendern will, holt damit einen von Redakteuren
+		// gepflegten Quellennamen herein -- dann bleibt die Maskierung des Renderers die einzige
+		// Sperre, und sie muss es auch bleiben: kein zweiter Bauer daneben.
+		etikett.innerHTML = kanon;
+		head.appendChild(etikett);
+	}
 	element.appendChild(head);
 
 	const evidence = document.createElement("div");

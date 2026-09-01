@@ -875,6 +875,39 @@ function spotlightLocationStateHint(location) {
 	return parts.join(" · ");
 }
 
+/**
+ * Der Kanon-Schluessel eines Treffers -- `null`, wenn die Zeile keinen tragen kann.
+ *
+ * 💣 „region" HEISST HIER DAS HERRSCHAFTSGEBIET, im Konfliktzentrum gar nichts, und die
+ * LANDSCHAFT heisst an beiden Stellen „label". Eine geteilte Wort-Tabelle waere fuer eine der
+ * beiden Flaechen falsch -- deshalb steht die Uebersetzung bewusst HIER und nicht in einem
+ * gemeinsamen Modul. Geteilt sind der Aufloeser (`resolveFeatureKanon`) und der Renderer, also
+ * das, was wirklich dieselbe Frage beantwortet.
+ *
+ * ⚠️ WEGE UND KRAFTLINIEN FEHLEN, und das ist Absicht: ein Suchtreffer buendelt ihre SEGMENTE
+ * („Reichsstrasse 2" sind 57), waehrend Quellen und Kanon je Segment haengen -- bei der
+ * Kraftlinie sogar am kleinsten Segment der Namensgruppe. Ein Etikett aus dem erstbesten
+ * Segment waere eine Aussage ueber den ganzen Weg, die niemand geprueft hat.
+ */
+function spotlightEntryKanonRef(entry) {
+	const ersteId = String((entry.publicIds || [])[0] || "");
+	if (entry.kind === "location" && ersteId) {
+		return ["settlement", ersteId];
+	}
+	if (entry.kind === "label" && ersteId) {
+		return ["region", ersteId];
+	}
+	if (entry.kind === "region") {
+		// 💣 Das Herrschaftsgebiet traegt ZWEI public_id (siehe spotlightEntryLookupPublicIds):
+		// die der gezeichneten Flaeche und die des Territoriums. Die Quellen haengen an der
+		// zweiten -- `publicIds[0]` waere hier die falsche.
+		const territoryPublicId = String(entry.regionEntry?.territoryPublicId || "");
+		return territoryPublicId ? ["territory", territoryPublicId] : null;
+	}
+
+	return null;
+}
+
 function spotlightResultMarkup(entry, index) {
 	const resultId = `spotlight-result-${index}`;
 	// The second line under the type says what is special about this hit. Cases and wordings:
@@ -902,10 +935,16 @@ function spotlightResultMarkup(entry, index) {
 	const resultClass = "spotlight-search__result"
 		+ (entry.notOnMap ? " spotlight-search__result--not-on-map" : "")
 		+ (hintText ? " spotlight-search__result--two-line" : "");
+	// Das Kanon-Etikett schliesst die Zeile ab -- nur das INOFFIZIELLE, ohne Bezeichner
+	// (featureKanonListBadge sagt, warum). Es steht NACH der Typangabe, weil es dieselbe Stelle
+	// ist wie im Quellenkasten: das Etikett beendet die Zeile.
+	const kanonRef = typeof featureKanonListBadge === "function" ? spotlightEntryKanonRef(entry) : null;
+	const kanon = kanonRef ? featureKanonListBadge(kanonRef[0], kanonRef[1]) : "";
 	return `
 		<button id="${resultId}" type="button" class="${resultClass}" data-spotlight-result-index="${index}" role="option">
 			<span class="spotlight-search__result-name">${escapeHtml(entry.name)}</span>
 			<span class="spotlight-search__result-type">${escapeHtml(entry.typeLabel)}${notOnMap}</span>
+			${kanon}
 		</button>`;
 }
 
