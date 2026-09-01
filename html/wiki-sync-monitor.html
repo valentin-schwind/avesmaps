@@ -391,7 +391,7 @@
 <div id="planSheet" class="sync-plan-host" hidden></div>
 <div id="wappenDialog" class="modal" hidden>
   <div class="modal-box wide">
-    <div class="modal-title">Eigenes Wappen hochladen</div>
+    <div class="modal-title" id="wappenTitel">Eigenes Wappen hochladen</div>
     <div class="modal-sub" id="wappenFor">—</div>
     <div class="muted" id="wappenCur" style="font-size:var(--font-size-caption)"></div>
     <label class="fld">Bilddatei (PNG / JPG / SVG / GIF / WEBP)
@@ -1555,7 +1555,10 @@ function openWappenDialog(){
   $('wappenFor').textContent = n?`für „${n.name}"`:'';
   $('wappenFile').value=''; $('wappenUrl').value='';
   const curLs=n?effLic(n):''; const curCoat=n?effCoat(n):'';
-  $('wappenCur').innerHTML = (n&&curCoat)?`Aktuell: ${esc(licName(curLs))}${isOvr(n,'coat_of_arms_url')?' (eigener Override)':' (Wiki)'}` : 'Aktuell kein Wappen hinterlegt.';
+  $('wappenCur').innerHTML = (n&&curCoat)
+    ? `Aktuell: ${esc(licName(curLs))}${isOvr(n,'coat_of_arms_url')?' (eigener Override)':' (Wiki)'}` +
+      ' — ohne neue Datei oder URL bleibt das Bild, wie es ist.'
+    : 'Aktuell kein Wappen hinterlegt.';
   const fieldsEl=$('wappenFields');
   if(fieldsEl){
     fieldsEl.innerHTML = avesmapsMediaLicenseFieldsMarkup({
@@ -1564,6 +1567,13 @@ function openWappenDialog(){
       note: (n && n.overrides) ? (n.overrides.coat_of_arms_note||'') : '',
     }, {prefix:'wp', vorgabe:'public_domain', mitNotiz:true});
   }
+  // ⚠️ Der Dialog SAGT, was er kann -- wortgleich mit dem Ortseditor. Ein Knopf „Hochladen“
+  // ueber einem Formular, das man auch ohne Bild abschicken darf, verschweigt genau die
+  // Faehigkeit, um die es in Fall #112 geht.
+  const hatWappen = Boolean(n && effCoat(n));
+  const titelEl=$('wappenTitel'); const knopfEl=$('wappenUpload');
+  if(titelEl) titelEl.textContent = hatWappen ? 'Wappen und Angaben' : 'Eigenes Wappen hochladen';
+  if(knopfEl) knopfEl.textContent = hatWappen ? 'Speichern' : 'Hochladen';
   $('wappenDialog').hidden=false;
 }
 function closeWappenDialog(){ $('wappenDialog').hidden=true; }
@@ -1616,12 +1626,47 @@ document.addEventListener('change', e=>{
   const noteEl = document.querySelector('[data-wp-note]');
   if(noteEl) noteEl.value = avesmapsMediaLicenseNoteVorschlag(sel.value, noteEl.value);
 });
+// Nur die drei Angaben speichern -- ohne das Bild anzufassen (Fall #112).
+// ⚠️ DREI Aufrufe, nicht einer: `set_field_override` setzt EIN Feld. Das ist der Weg, den dieser
+// Editor fuer jedes andere Feld schon geht (BF-Jahre, Hauptstadt), also keine neue Bauform.
+// 🔴 Nacheinander, nicht parallel: die drei schreiben in DIESELBE `metadata_overrides_json`-Zeile,
+// die der Setzer liest, ergaenzt und zurueckschreibt -- parallel wuerden sie einander ueberholen
+// und zwei der drei Werte verlieren. Dieselbe Begruendung wie beim sequenziellen Bilder-Upload.
+async function saveCoatFieldsOnly(wikiKey){
+  const fieldsEl=$('wappenFields');
+  const lese=(sel)=>{ const el=fieldsEl?fieldsEl.querySelector(sel):null; return el?String(el.value||'').trim():''; };
+  const werte=[['coat_of_arms_license_status', lese('[data-wp-license]')||'public_domain'],
+               ['coat_of_arms_author', lese('[data-wp-author]')],
+               ['coat_of_arms_note', lese('[data-wp-note]')]];
+  busy(true);
+  try{
+    for(const [feld,wert] of werte){
+      await api('set_field_override',{method:'POST',body:{wiki_key:wikiKey, field_key:feld, value:wert}});
+    }
+    setStatus('Angaben zum Wappen gespeichert.');
+    closeWappenDialog();
+    await loadModel();
+  } catch(e){ setStatus('Fehler: '+e.message); }
+  busy(false);
+}
+
 async function uploadCoat(){
   const k=selectedKey, n=k?BYKEY.get(k):null;
   if(!n){ setStatus('Bitte zuerst ein Herrschaftsgebiet wählen.'); return; }
   const file=$('wappenFile').files[0];
   const url=$('wappenUrl').value.trim();
-  if(!file && !url){ setStatus('Bitte eine Bilddatei wählen oder eine Bild-URL angeben.'); return; }
+  // 🔴 ODER GAR NICHTS -- dann werden nur Lizenz/Urheber/Kommentar geaendert (Fall #112,
+  // Thomas 01.09.2026). Bis dahin verlangte auch dieser Dialog immer ein neues Bild.
+  // 💣 DIE ZWEITE TUER. Der Siedlungs-Dialog hat denselben Defekt und wird im selben Zug
+  // behoben; nur einen von beiden zu reparieren waere die Regel, die im Haus schon zweimal
+  // bezahlt worden ist -- eine Sperre, die eine von zwei Tueren zuhaelt, ist keine Sperre.
+  // ⚠️ Der WEG ist hier ein anderer: Territorien speichern diese drei Werte als Feld-Overrides
+  // (`set_field_override`), nicht im properties_json. Der Upload-Endpunkt schreibt am Ende
+  // genau dieselben drei Felder ueber genau dieselbe Funktion -- es entsteht also keine zweite
+  // Schreibweise, nur ein kuerzerer Weg zu derselben.
+  const hatWappen = Boolean(effCoat(n));
+  if(!file && !url && !hatWappen){ setStatus('Bitte eine Bilddatei wählen oder eine Bild-URL angeben.'); return; }
+  if(!file && !url){ await saveCoatFieldsOnly(k); return; }
   const fieldsEl=$('wappenFields');
   const licenseEl=fieldsEl?fieldsEl.querySelector('[data-wp-license]'):null;
   const authorEl=fieldsEl?fieldsEl.querySelector('[data-wp-author]'):null;

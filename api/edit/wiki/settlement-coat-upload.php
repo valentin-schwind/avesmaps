@@ -95,13 +95,39 @@ try {
         avesmapsErrorResponse(400, 'invalid_request', 'public_id fehlt.');
     }
 
+    // 🔴 Das Feature wird ZUERST geladen (frueher stand das hinter der Bildbeschaffung). Ohne
+    // seine Properties laesst sich gar nicht entscheiden, ob es schon ein Wappen gibt -- und
+    // genau daran haengt der Weg „nur die Angaben aendern" darunter.
+    $feature = avesmapsWikiSettlementLoadFeature($pdo, $publicId);
+    $props = $feature['props'];
+    $bestehendesWappen = is_array($props['coat'] ?? null) ? $props['coat'] : null;
+
     // DATEI ODER BILD-URL -- wie beim Territorien-Upload (Owner 23.08.2026: die Dialoge sollen
     // gleich sein). Die Bytes landen in $coatBytes, alles danach ist fuer beide Wege identisch.
     $file = $_FILES['coat'] ?? null;
     $sourceUrl = trim((string) ($_POST['coat_url'] ?? ''));
     $coatBytes = null;
+    $hatDatei = is_array($file) && (int) ($file['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_OK;
 
-    if (is_array($file) && (int) ($file['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_OK
+    /**
+     * 🔴 DER DRITTE WEG: NUR DIE ANGABEN, OHNE NEUES BILD (Fall #112, Thomas 01.09.2026 --
+     * „Aktuell kann man nur bei der Erstellung der Wappen die Quelle eingeben und nicht im
+     * Nachgang"). Bis hierher verlangte dieser Endpunkt IMMER Bytes: ohne Datei und ohne Adresse
+     * antwortete er 400. Wer eine falsche Lizenz oder einen falschen Urheber richtigstellen
+     * wollte, musste dasselbe Bild noch einmal hochladen -- und bekam dabei eine neue Datei, eine
+     * neue Zufalls-Adresse und einen neuen Upload-Stempel fuer eine Aenderung, die das Bild gar
+     * nicht betraf.
+     *
+     * ⚠️ Er greift nur, wenn WIRKLICH schon ein Wappen liegt. Ohne Bild gibt es nichts zu
+     * beschreiben, und die alte Absage bleibt genau dafuer stehen.
+     */
+    // 🔴 Die Regel steht in api/_internal/wiki/settlements.php -- ein Endpunkt-Skript laesst
+    // sich nicht einbinden, ohne zu laufen, und eine Regel, die kein Test ausfuehrt, ist keine.
+    $nurAngaben = avesmapsSettlementCoatMetadataOnly($hatDatei, $sourceUrl, $bestehendesWappen);
+
+    if ($nurAngaben) {
+        $coatBytes = null; // ausdruecklich: dieser Weg fasst die Bilddatei nicht an
+    } elseif (is_array($file) && (int) ($file['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_OK
         && is_uploaded_file((string) ($file['tmp_name'] ?? ''))) {
         $size = (int) ($file['size'] ?? 0);
         if ($size <= 0 || $size > AVESMAPS_SETTLEMENT_COAT_MAX_BYTES) {
@@ -139,6 +165,11 @@ try {
         avesmapsErrorResponse(400, 'invalid_request', 'Bitte eine Bilddatei hochladen oder eine Bild-URL angeben.');
     }
 
+    // ⚠️ ALLES ZWISCHEN HIER UND $url BETRIFFT NUR DAS BILD. Der Weg „nur die Angaben" laesst es
+    // unberuehrt: keine neue Datei, keine neue Adresse, kein neuer Upload-Stempel -- und vor
+    // allem KEIN Aufraeumen der alten Datei ganz unten, die ja weiterbenutzt wird.
+    $url = (string) ($bestehendesWappen['url'] ?? '');
+    if (!$nurAngaben) {
     // 🔴 Der Typ kommt aus den BYTES, nie aus dem Dateinamen oder dem Content-Type der Gegenseite.
     // Beim Citymap-Autoget steht dieselbe Lehre: die Ulisses-CDN meldet "image/jpg", was gar kein
     // MIME-Typ ist -- wer dem Header glaubt, lehnt gueltige Bilder ab und nimmt ungueltige an.
@@ -147,9 +178,6 @@ try {
         avesmapsErrorResponse(415, 'unsupported_media_type', 'Nur PNG, JPG, SVG, GIF oder WebP erlaubt.');
     }
     $ext = AVESMAPS_SETTLEMENT_COAT_TYPES[$mime];
-
-    // Feature muss existieren (lädt zugleich die Properties).
-    $feature = avesmapsWikiSettlementLoadFeature($pdo, $publicId);
 
     $docroot = rtrim((string) ($_SERVER['DOCUMENT_ROOT'] ?? dirname(__DIR__, 3)), '/');
     $dir = $docroot . '/uploads/wappen/own';
@@ -181,31 +209,57 @@ try {
     }
 
     $url = '/uploads/wappen/own/' . $filename;
+    } // Ende des Bild-Zweigs
 
     // 🔴 Lizenz/Urheber/Kommentar kommen erstmals aus dem Formular (Phase 4, Aufgabe 4) -- normalisiert,
     // nie vertraut. Vorgabe 'ai_generated': genau das ist der Bestand, die Editoren haben ihre Wappen mit
     // KI erzeugt (Owner 16.08.2026), und Phase 2 hat 'own' deshalb dorthin migriert.
-    $license = avesmapsMediaLicenseNormalize($_POST['license'] ?? null, 'ai_generated');
-    $author = avesmapsSettlementCoatNormalizeAuthor($_POST['author'] ?? '');
-    $note = avesmapsSettlementCoatNormalizeNote($_POST['note'] ?? '');
+    //
+    // 💣 BEIM AENDERN IST DIE VORGABE DER BESTAND, NICHT 'ai_generated'. Ein Formular, das ein Feld
+    // gar nicht mitschickt, hat dazu nichts gesagt -- und ein Rueckfall auf die Anlege-Vorgabe
+    // wuerde aus dem Schweigen eine Behauptung machen. Genau diese Verwechslung steckte hinter
+    // Meldung #105 auf der Quellenseite: eine Vorauswahl, die niemand getroffen hat, landete als
+    // Aussage in den Daten. Beim ANLEGEN bleibt 'ai_generated' die Vorgabe wie bisher.
+    $vorgabeLizenz = $nurAngaben
+        ? (string) ($bestehendesWappen['license_status'] ?? 'ai_generated')
+        : 'ai_generated';
+    $license = array_key_exists('license', $_POST) || !$nurAngaben
+        ? avesmapsMediaLicenseNormalize($_POST['license'] ?? null, $vorgabeLizenz)
+        : $vorgabeLizenz;
+    $author = array_key_exists('author', $_POST) || !$nurAngaben
+        ? avesmapsSettlementCoatNormalizeAuthor($_POST['author'] ?? '')
+        : (string) ($bestehendesWappen['author'] ?? '');
+    $note = array_key_exists('note', $_POST) || !$nurAngaben
+        ? avesmapsSettlementCoatNormalizeNote($_POST['note'] ?? '')
+        : (string) ($bestehendesWappen['note'] ?? '');
 
-    $props = $feature['props'];
     $previous = $props['coat'] ?? null;
     $auditBefore = avesmapsWikiSettlementAuditRow($pdo, (int) $feature['id']);
-    // 🔴 uploaded_by/uploaded_at setzt AUSSCHLIESSLICH der Server, nie das Formular -- sonst waere der
-    // Nachweis faelschbar. $user kommt aus avesmapsRequireUserWithCapability() weiter oben.
-    // Ein hochgeladenes Wappen hebt „kein Wappen" auf -- sonst muesste der Editor erst
-    // entsperren, bevor er hochladen darf.
-    unset($props['coat_none']);
-    $props['coat'] = [
-        'url' => $url,
-        'source' => 'own',
-        'license_status' => $license,
-        'author' => $author,
-        'note' => $note,
-        'uploaded_by' => (string) ($user['username'] ?? ''),
-        'uploaded_at' => gmdate('Y-m-d\TH:i:s\Z'),
-    ];
+    if ($nurAngaben) {
+        // 🔴 NUR die drei Angaben. `url`, `source`, `uploaded_by` und `uploaded_at` bleiben, wie sie
+        // sind: sie bezeugen, WER WANN DAS BILD hochgeladen hat, und eine Korrektur an der Lizenz
+        // hat daran nichts geaendert. Sie hier mitzuschreiben waere ein gefaelschter Nachweis.
+        // ⚠️ Wer die Angaben geaendert hat, steht trotzdem fest -- im Aenderungs-Log, das
+        // avesmapsWikiSettlementAuditAssignment gleich darunter schreibt.
+        // ⚠️ `coat_none` wird hier NICHT angefasst: es gibt ja ein Wappen, und dieser Weg trifft
+        // ueberhaupt keine Aussage darueber, ob eines gewuenscht ist.
+        $props['coat'] = avesmapsSettlementCoatMergeMetadata($bestehendesWappen, $license, $author, $note);
+    } else {
+        // 🔴 uploaded_by/uploaded_at setzt AUSSCHLIESSLICH der Server, nie das Formular -- sonst waere der
+        // Nachweis faelschbar. $user kommt aus avesmapsRequireUserWithCapability() weiter oben.
+        // Ein hochgeladenes Wappen hebt „kein Wappen" auf -- sonst muesste der Editor erst
+        // entsperren, bevor er hochladen darf.
+        unset($props['coat_none']);
+        $props['coat'] = [
+            'url' => $url,
+            'source' => 'own',
+            'license_status' => $license,
+            'author' => $author,
+            'note' => $note,
+            'uploaded_by' => (string) ($user['username'] ?? ''),
+            'uploaded_at' => gmdate('Y-m-d\TH:i:s\Z'),
+        ];
+    }
 
     $revision = avesmapsWikiSyncNextMapRevision($pdo);
     $pdo->prepare('UPDATE map_features SET properties_json = :pj, revision = :rev WHERE id = :id')
@@ -214,7 +268,12 @@ try {
     avesmapsWikiSyncNextMapRevision($pdo); // Map-Cache invalidieren
 
     // Vorheriges eigenes Bild best effort aufräumen.
-    if (is_array($previous) && ($previous['source'] ?? '') === 'own') {
+    // 💣 NIEMALS auf dem Weg „nur die Angaben". Dort IST das vorherige Bild das jetzige: `$previous`
+    // und `$props['coat']` zeigen auf dieselbe Datei, und dieser Block wuerde sie loeschen --
+    // zurueck bliebe ein Wappen-Eintrag mit einer Adresse, hinter der nichts mehr liegt, also ein
+    // kaputtes Bild auf der Karte. ⚠️ Ausserdem ist `$docroot` nur im Bild-Zweig definiert; ohne
+    // diesen Riegel liefe hier eine undefinierte Variable auf.
+    if (!$nurAngaben && is_array($previous) && ($previous['source'] ?? '') === 'own') {
         $prevUrl = (string) ($previous['url'] ?? '');
         if (str_starts_with($prevUrl, '/uploads/wappen/own/')) {
             @unlink($docroot . $prevUrl);

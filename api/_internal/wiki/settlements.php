@@ -493,6 +493,57 @@ function avesmapsWikiSettlementBulkRecordCoats(PDO $pdo, bool $dryRun, int $limi
 }
 
 // Hilfsfunktion: lädt properties_json eines aktiven Orts-Features per public_id.
+/**
+ * ══ WAPPEN-ANGABEN OHNE NEUES BILD (Fall #112, Thomas 01.09.2026) ═════════════════════════════
+ * „Aktuell kann man nur bei der Erstellung der Wappen die Quelle eingeben und nicht im Nachgang."
+ *
+ * 🔴 Bis dahin verlangte `settlement-coat-upload.php` IMMER Bilddaten: ohne Datei und ohne Adresse
+ * antwortete er 400. Eine falsche Lizenz liess sich damit nur korrigieren, indem man dasselbe Bild
+ * noch einmal hochlud -- was eine neue Datei, eine neue Zufalls-Adresse und einen neuen
+ * Upload-Stempel erzeugte, fuer eine Aenderung, die das Bild gar nicht betraf.
+ *
+ * Die zwei Entscheidungen stehen HIER und nicht im Endpunkt, weil ein Endpunkt-Skript sich nicht
+ * einbinden laesst, ohne zu laufen -- und eine Regel, die kein Test je ausfuehrt, ist keine.
+ */
+
+/**
+ * Ist das der Weg „nur die Angaben"? Nur wenn weder Datei noch Adresse kommen UND wirklich schon
+ * ein Wappen liegt.
+ * ⚠️ Gemessen wird die ADRESSE, nicht die blosse Anwesenheit des `coat`-Objekts: ein Eintrag ohne
+ * `url` beschreibt kein Bild, und ohne Bild gibt es nichts zu beschreiben.
+ *
+ * ⚠️ `is_array($existing)` ist dabei GUERTEL UND HOSENTRAEGER: die Adressprüfung darunter faengt
+ * `null` ohnehin ab (`null['url'] ?? ''` ist ''). Eine Mutationsprobe am 01.09.2026 hat das
+ * bestaetigt -- diese Zeile zu entfernen bewegt keinen Test. Das steht hier, damit der naechste
+ * Leser sie nicht „vereinfacht" und dann eine Luecke vermutet, wo keine ist.
+ */
+function avesmapsSettlementCoatMetadataOnly(bool $hasFile, string $sourceUrl, ?array $existing): bool
+{
+    return !$hasFile
+        && trim($sourceUrl) === ''
+        && is_array($existing)
+        && trim((string) ($existing['url'] ?? '')) !== '';
+}
+
+/**
+ * Die drei Angaben in ein bestehendes Wappen schreiben -- und sonst nichts.
+ *
+ * 💣 `url`, `source`, `uploaded_by` und `uploaded_at` BLEIBEN. Sie bezeugen, WER WANN DAS BILD
+ * hochgeladen hat; eine Korrektur an der Lizenz hat daran nichts geaendert, und sie mitzuschreiben
+ * waere ein gefaelschter Nachweis. Wer die Angaben geaendert hat, steht im Aenderungs-Log.
+ * 💣 Und `url` zu ueberschreiben waere schlimmer als falsch: der Aufraeumer am Ende des Endpunkts
+ * loescht die Datei der VORHERIGEN Adresse -- zeigten beide auf dieselbe Datei, loeschte er das
+ * Bild, das gerade angezeigt wird.
+ */
+function avesmapsSettlementCoatMergeMetadata(array $existing, string $license, string $author, string $note): array
+{
+    return array_merge($existing, [
+        'license_status' => $license,
+        'author' => $author,
+        'note' => $note,
+    ]);
+}
+
 function avesmapsWikiSettlementLoadFeature(PDO $pdo, string $publicId): array {
     $publicId = trim($publicId);
     if ($publicId === '') {
