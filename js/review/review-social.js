@@ -29,11 +29,15 @@
 	}
 
 	// Ab wann ein wartender Beitrag nicht mehr „gleich ist es so weit" heißt, sondern „da läuft
-	// etwas nicht". Der Workflow taktet alle 30 Minuten — das hier sind drei verpasste Läufe.
-	// 💣 GITHUBS ZEITPLAN IST KEINE ZUSAGE: geplante Läufe verschieben sich bei Last um Minuten,
-	// und in einem stillen Repository schaltet GitHub sie nach 60 Tagen ganz ab. Ohne diese Zeile
-	// sähe „der Workflow läuft seit Tagen nicht" genauso aus wie „noch zehn Minuten".
-	const RELAIS_WARNUNG_MINUTEN = 90;
+	// etwas nicht".
+	// 🪤 HIER STANDEN 90 MINUTEN, GERECHNET ALS „drei verpasste Läufe" AUS EINEM TAKT, DEN ES NICHT
+	// GIBT. Gemessen am 01.09.2026 (Fall #113): GitHubs Zeitplan lief alle 2,3 bis 7,0 Stunden statt
+	// der bestellten 30 Minuten. Die Warnung schlug damit bei fast jedem Beitrag an — und eine
+	// Warnung, die immer dasteht, liest niemand mehr. Sie war nicht zu scharf, sie war wertlos.
+	// ⭐ Seit demselben Tag stößt der Server den Lauf beim Freigeben selbst an; der Normalfall sind
+	// jetzt Sekunden. 30 Minuten heißen also wirklich „da stimmt etwas nicht" — der Anstoß ist
+	// misslungen und das Netz darunter (der Zeitplan) hat noch nicht gegriffen.
+	const RELAIS_WARNUNG_MINUTEN = 30;
 
 	// „vor 12 Min." / „vor 3 Std." — grob, weil es hier um eine Größenordnung geht und nicht um
 	// eine Uhrzeit. ⚠️ Die Sekunden rechnet der SERVER (list.php): `attempted_at` trägt keine

@@ -230,9 +230,17 @@ const AVESMAPS_SOCIAL_CHANNELS = [
         // „wartet auf Versand" -- aber wer anhakt und drückt, rechnet mit „sofort draußen" und hält
         // die Verzögerung für einen Fehler. Dieser Kanal ist der einzige, der nicht direkt sendet
         // (Feld `relay`), und genau das gehört in die Zeile, die man VOR dem Klick liest.
-        // ⚠️ Die 30 Minuten sind der Takt aus .github/workflows/mastodon-relais.yml. Wer den Takt
-        // ändert, ändert diesen Satz mit -- er ist die einzige Stelle, an der ein Mensch ihn liest.
-        'note' => 'Versand über GitHub, bis zu 30 Min.',
+        // 🪤 HIER STAND „bis zu 30 Min." — DER TAKT AUS DEM WORKFLOW, UND ER WAR EINE ZUSAGE, DIE
+        // GITHUB NIE GEHALTEN HAT. Gemessen am 01.09.2026 (Fall #113): der Zeitplan `*/30` lief in
+        // Wahrheit alle 2,3 bis 7,0 Stunden (Mittel 4,6 h, zehn Läufe nachgezählt) — geplante Läufe
+        // sind dort „best effort" und werden bei Last ersatzlos verworfen. Ein Melder hielt das
+        // zurecht für einen Fehler.
+        // ⭐ Seit demselben Tag stößt der Server den Lauf beim Freigeben selbst an
+        // (`avesmapsSocialRelayAnstossen`), der Zeitplan ist nur noch das Netz darunter.
+        // ⚠️ Deshalb steht hier bewusst KEINE Zahl mehr: sie hinge an GitHubs Laune und am
+        // Vorhandensein des Tokens. Wie lange es im Einzelfall wirklich dauert, sagt der Chip am
+        // Beitrag — der zählt echte Sekunden, statt eine Frist zu versprechen.
+        'note' => 'Versand über GitHub, meist sofort',
         'max_chars' => 500,
         'max_hashtags' => 4,
         'requires_media' => false,

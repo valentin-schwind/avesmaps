@@ -23,8 +23,18 @@ name: Mastodon-Beitraege senden
 # braucht.
 
 on:
+  # 🔴 DER ZEITPLAN IST NUR DAS NETZ. Angestossen wird der Lauf seit dem 01.09.2026 vom SERVER,
+  # sobald ein Beitrag freigegeben wird (avesmapsSocialRelayAnstossen) -- der Beitrag ist dann in
+  # rund einer Minute draussen statt in Stunden.
+  #
+  # 🪤 WARUM DAS NOETIG WURDE: dieser Eintrag hier bestellt alle 30 Minuten, und GitHub hat das nie
+  # geliefert. Gemessen am 01.09.2026 ueber zehn Laeufe (Fall #113, „Mastodon zickt immer noch"):
+  # tatsaechliche Abstaende 5,4 · 5,1 · 2,7 · 4,1 · 7,0 · 6,3 · 5,8 · 2,3 · 3,1 Stunden, im Mittel
+  # 4,6 h -- rund NEUNMAL seltener als bestellt. Geplante Laeufe sind bei GitHub „best effort" und
+  # werden bei Last ersatzlos verworfen, nicht nachgeholt.
+  # ⚠️ Der Eintrag bleibt trotzdem stehen: er faengt den Fall auf, dass der Anstoss scheitert (kein
+  # Token, GitHub-Stoerung). Nur verlassen darf man sich auf ihn nicht.
   schedule:
-    # Alle 30 Minuten (Owner-Entscheid 30.08.2026).
     - cron: "*/30 * * * *"
   workflow_dispatch:
     inputs:

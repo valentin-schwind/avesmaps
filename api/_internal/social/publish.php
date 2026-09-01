@@ -16,6 +16,8 @@ require_once __DIR__ . '/channels.php';
 require_once __DIR__ . '/compose.php';
 require_once __DIR__ . '/media.php';
 require_once __DIR__ . '/store.php';
+// Fuer avesmapsSocialRelayAnstossen -- der Weg, der einen eingereihten Beitrag sofort abholen laesst.
+require_once __DIR__ . '/relay.php';
 require_once __DIR__ . '/adapters/probe.php';
 require_once __DIR__ . '/adapters/changelog.php';
 require_once __DIR__ . '/adapters/facebook.php';
@@ -132,6 +134,11 @@ function avesmapsSocialDispatch(PDO $pdo, int $postId, array $config, ?string $o
     // single picture probe above: this is a request on shared hosting, not a batch job.
     $tokenRows = avesmapsSocialTokenMap($pdo);
     $results = [];
+    // Ob mindestens ein Ziel in die Relais-Warteschlange gewandert ist. Der Anstoss steht dann
+    // EINMAL am Ende -- nicht in der Weiche, die je Kanal laeuft: bei zwei Relais-Kanaelen klopfte
+    // er sonst zweimal an, und GitHub startet daraufhin zwei Laeufe, die sich um denselben Beitrag
+    // streiten.
+    $eingereiht = false;
 
     foreach ($post['targets'] as $target) {
         $key = (string) $target['channel_key'];
@@ -190,6 +197,7 @@ function avesmapsSocialDispatch(PDO $pdo, int $postId, array $config, ?string $o
         if (trim((string) ($channel['relay'] ?? '')) !== '') {
             $results[$key] = ['status' => 'queued', 'error' => ''];
             avesmapsSocialUpdateTarget($pdo, $postId, $key, $results[$key]);
+            $eingereiht = true;
             continue;
         }
 
@@ -232,7 +240,16 @@ function avesmapsSocialDispatch(PDO $pdo, int $postId, array $config, ?string $o
         avesmapsSocialUpdateTarget($pdo, $postId, $key, $results[$key]);
     }
 
+    // 🔴 DER ANSTOSS, EINMAL, GANZ AM ENDE -- und NUR wenn wirklich etwas eingereiht wurde.
+    // Ohne ihn wartet der Beitrag auf GitHubs Zeitplan, und der laeuft gemessen alle 2,3 bis 7,0
+    // Stunden statt der bestellten 30 Minuten (Fall #113, 01.09.2026).
+    //
+    // ⚠️ Sein Ergebnis aendert KEINEN Zielzustand. Ein misslungener Anstoss heisst „der Zeitplan
+    // holt es spaeter", nicht „nicht gesendet" -- deshalb reist er als eigenes Feld heraus und
+    // fasst `results` nicht an.
+    $angestossen = $eingereiht ? avesmapsSocialRelayAnstossen($social) : false;
+
     // ok means "the run completed", NOT "everything was sent". The per-channel truth lives in results;
     // collapsing it into one boolean is exactly the swallowing §2.2 forbids.
-    return ['ok' => true, 'results' => $results];
+    return ['ok' => true, 'results' => $results, 'relais_angestossen' => $angestossen];
 }

@@ -48,9 +48,21 @@ const knappDrueber = chipLabel({
 });
 assert.ok(!knappDrunter.includes("Workflow"), "unter der Schwelle keine Warnung");
 assert.ok(knappDrueber.includes("Workflow"), "ab der Schwelle die Frage nach dem Workflow");
-// 💣 Die Schwelle muss ueber dem Takt liegen -- sonst warnt der Hub bei JEDEM Beitrag, und eine
-// Warnung, die immer da steht, liest niemand mehr.
-assert.ok(RELAIS_WARNUNG_MINUTEN > 30, "die Warnschwelle liegt ueber dem 30-Minuten-Takt");
+// 💣 DIE SCHWELLE HAT ZWEI GRENZEN, UND SIE STAND EINMAL AUSSERHALB BEIDER.
+// 🪤 Bis zum 01.09.2026 waren es 90 Minuten, gerechnet als „drei verpasste Laeufe" aus einem Takt,
+// den GitHub nie eingehalten hat (gemessen: 2,3 bis 7,0 Stunden). Sie schlug damit bei fast jedem
+// Beitrag an -- und eine Warnung, die immer dasteht, liest niemand mehr. Sie war nicht zu scharf,
+// sie war wertlos.
+// Nach unten: deutlich ueber der normalen Zustellung (der Server stoesst den Lauf jetzt selbst an,
+// das sind Sekunden) -- sonst warnt sie im Normalfall.
+assert.ok(RELAIS_WARNUNG_MINUTEN >= 10, "die Warnschwelle warnt nicht im Normalfall");
+// Nach oben: UNTER dem kuerzesten gemessenen Abstand des Zeitplans (2,3 h = 138 min) -- sonst
+// deckt das Netz darunter sie zu und sie meldet nie etwas, was nicht ohnehin von selbst kaeme.
+assert.ok(RELAIS_WARNUNG_MINUTEN < 138, "die Warnschwelle greift, bevor der Zeitplan sie zudeckt");
+// ⚠️ INNERHALB dieses Korridors ist die genaue Zahl Ermessen, und der Test sagt das absichtlich:
+// eine Mutationsprobe auf 90 bleibt hier gruen. Das ist kein Loch -- 90 waere vertretbar, nur
+// traeger. Wer die Zusicherung auf den heute gewaehlten Wert zoege, machte sie zur Tautologie:
+// sie pruefte dann nur noch, dass die Zahl die Zahl ist.
 
 // -------------------------------------------------------------------------------------------------
 // 4. Die Wartezeit. ⚠️ Die Sekunden rechnet der SERVER: `attempted_at` traegt keine Zeitzone, und

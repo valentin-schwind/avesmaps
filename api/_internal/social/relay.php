@@ -35,6 +35,76 @@ require_once __DIR__ . '/adapters/mastodon.php';
 // damit sich nie zwei Laeufe denselben Beitrag greifen.
 const AVESMAPS_SOCIAL_RELAY_STALE_MINUTES = 60;
 
+// Wohin der Anstoss geht. 🔴 Fest, weil das Repository sich nicht aendert -- und weil eine aus der
+// Konfiguration gelesene Adresse hier eine Stelle waere, an der ein falscher Eintrag stillschweigend
+// woandershin anklopft.
+const AVESMAPS_SOCIAL_RELAY_REPO = 'valentin-schwind/avesmaps';
+const AVESMAPS_SOCIAL_RELAY_WORKFLOW = 'mastodon-relais.yml';
+// 💣 KURZ. Das laeuft IM Veroeffentlichen-Klick des Editors, auf Shared Hosting, wo jede Sekunde
+// einen PHP-Arbeiter haelt (AGENTS.md §10). Der Anstoss ist ein Zusatz, kein Zweck -- er darf den
+// Klick nicht spuerbar verzoegern.
+const AVESMAPS_SOCIAL_RELAY_ANSTOSS_CONNECT_TIMEOUT = 5;
+const AVESMAPS_SOCIAL_RELAY_ANSTOSS_TIMEOUT = 8;
+
+/**
+ * Den Workflow SOFORT starten, statt auf den Zeitplan zu warten.
+ *
+ * 💣 WARUM ES DAS GEBEN MUSS -- gemessen am 01.09.2026 (Fall #113, „Mastodon zickt immer noch"):
+ * der Halbstunden-Zeitplan laeuft bei GitHub in Wahrheit alle **2,3 bis 7,0 Stunden** (Mittel 4,6 h,
+ * zehn Laeufe nachgezaehlt). GitHub fuehrt geplante Laeufe „best effort" aus und verwirft sie bei
+ * Last ersatzlos. Ein Halbstundentakt ist dort nicht zu haben, und die Zusage „bis zu 30 Min."
+ * im Hub war damit von Anfang an falsch.
+ *
+ * 🔴 EIN FEHLSCHLAG HIER IST KEIN FEHLER DES BEITRAGS. Der Beitrag ist eingereiht; geht der Anstoss
+ * nicht durch, holt ihn der Zeitplan spaeter. Deshalb wird hier NIE geworfen und NIE ein Ziel auf
+ * `failed` gesetzt -- das waere die schlimmere Luege: „nicht gesendet" fuer etwas, das gleich
+ * hinausgeht.
+ *
+ * ⚠️ Ohne Token faellt es still und offen aus. Das ist der Zustand zwischen diesem Deploy und dem
+ * Eintrag in config.local.php -- und der Zeitplan traegt ihn.
+ */
+function avesmapsSocialRelayAnstossen(array $social): bool
+{
+    $token = trim((string) ($social['github_token'] ?? ''));
+    if ($token === '' || !function_exists('curl_init')) {
+        return false;
+    }
+
+    $url = 'https://api.github.com/repos/' . AVESMAPS_SOCIAL_RELAY_REPO
+        . '/actions/workflows/' . AVESMAPS_SOCIAL_RELAY_WORKFLOW . '/dispatches';
+
+    $handle = curl_init($url);
+    if ($handle === false) {
+        return false;
+    }
+    curl_setopt_array($handle, [
+        CURLOPT_POST => true,
+        // `ref` ist der Zweig, auf dem der Workflow liegt -- nicht der Zweig irgendeiner Arbeit.
+        CURLOPT_POSTFIELDS => (string) json_encode(['ref' => 'master']),
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_TIMEOUT => AVESMAPS_SOCIAL_RELAY_ANSTOSS_TIMEOUT,
+        CURLOPT_CONNECTTIMEOUT => AVESMAPS_SOCIAL_RELAY_ANSTOSS_CONNECT_TIMEOUT,
+        CURLOPT_SSL_VERIFYPEER => true,
+        CURLOPT_SSL_VERIFYHOST => 2,
+        CURLOPT_FOLLOWLOCATION => false,
+        // ⚠️ Der Token gehoert in die KOPFZEILE, nie in die Adresse -- eine Adresszeile steht im
+        // Serverlog. GitHub verlangt zudem einen User-Agent und antwortet sonst mit 403.
+        CURLOPT_HTTPHEADER => [
+            'Authorization: Bearer ' . $token,
+            'Accept: application/vnd.github+json',
+            'X-GitHub-Api-Version: 2022-11-28',
+            'Content-Type: application/json',
+            'User-Agent: Avesmaps (https://avesmaps.de)',
+        ],
+    ]);
+    curl_exec($handle);
+    $status = (int) curl_getinfo($handle, CURLINFO_HTTP_CODE);
+    curl_close($handle);
+
+    // 204 ist die Erfolgsantwort dieses Endpunkts -- er gibt keinen Rumpf zurueck.
+    return $status === 204;
+}
+
 /**
  * Die Kanaele, die ueber ein Relais gehen -- aus dem Register, nie als Namensliste.
  *

@@ -61,6 +61,63 @@ foreach ($relaisKanaele as $key) {
     );
 }
 
+// 🪤 UND SIE VERSPRICHT KEINE FRIST. Bis zum 01.09.2026 stand dort „bis zu 30 Min." -- der Takt aus
+// dem Workflow, und GitHub hat ihn nie gehalten (gemessen: 2,3 bis 7,0 Stunden). Eine Zahl in dieser
+// Zeile haengt an GitHubs Laune und am Vorhandensein des Tokens; wie lange es wirklich dauert, sagt
+// der Chip am Beitrag, der echte Sekunden zaehlt.
+$mastodonNote = (string) (avesmapsSocialChannel('mastodon')['note'] ?? '');
+assert(
+    preg_match('/\d+\s*(Min|Minuten|Std|Stunden|h)\b/u', $mastodonNote) !== 1,
+    'die Kanalzeile verspricht keine Frist -- sie haette keine, die sie halten kann: ' . $mastodonNote
+);
+
+// ------------------------------------------------------------------------------------------------
+// 1b. Der Anstoss. 🔴 Er ist ein ZUSATZ, kein Zweck: sein Fehlschlag darf keinen Zielzustand
+//     aendern. „nicht gesendet" fuer etwas, das gleich hinausgeht, waere die schlimmere Luege.
+// ------------------------------------------------------------------------------------------------
+assert(
+    avesmapsSocialRelayAnstossen([]) === false,
+    'ohne Token faellt der Anstoss still aus -- er wirft nicht'
+);
+assert(
+    avesmapsSocialRelayAnstossen(['github_token' => '']) === false,
+    'ein leerer Token ist kein Token'
+);
+
+$anstossQuelle = $ohneKommentare(__DIR__ . '/../relay.php');
+// 💣 Der Token gehoert in die KOPFZEILE, nie in die Adresse -- eine Adresszeile steht im Serverlog.
+$anstossBei = strpos($anstossQuelle, 'function avesmapsSocialRelayAnstossen');
+$anstossBlock = substr($anstossQuelle, $anstossBei, 2000);
+assert(str_contains($anstossBlock, 'Authorization: Bearer'), 'der Token reist als Kopfzeile');
+assert(!str_contains($anstossBlock, 'access_token='), 'der Token steht NIE in der Adresse');
+// GitHub antwortet auf diesen Endpunkt mit 204 und ohne Rumpf. Wer auf 200 prueft, meldet jeden
+// erfolgreichen Anstoss als Fehlschlag -- und der faellt nicht auf, weil der Zeitplan ihn deckt.
+assert(str_contains($anstossBlock, '204'), 'Erfolg ist 204, nicht 200');
+
+// 🔴 Der Anstoss steht EINMAL am Ende des Dispatch, nicht in der Weiche. Bei zwei Relais-Kanaelen
+// klopfte er sonst zweimal an, und GitHub startet zwei Laeufe, die sich um denselben Beitrag
+// streiten.
+$publishRoh = (string) file_get_contents(__DIR__ . '/../publish.php');
+assert(
+    substr_count($publishRoh, 'avesmapsSocialRelayAnstossen(') === 1,
+    'der Anstoss wird GENAU EINMAL gerufen'
+);
+$publishOhne = $ohneKommentare(__DIR__ . '/../publish.php');
+$anstossRufBei = strpos($publishOhne, 'avesmapsSocialRelayAnstossen(');
+// 🪤 NICHT gegen `return [` pruefen -- das erste steht im fruehen Ausstieg der Funktion
+// („Beitrag nicht gefunden") und liegt VOR allem. Die Zusicherung war damit rot, obwohl der Code
+// stimmte. Gemessen wird gegen das LETZTE Schreiben eines Ziels: was danach steht, steht hinter
+// der Schleife und laeuft folglich einmal.
+$letztesSchreiben = strrpos($publishOhne, 'avesmapsSocialUpdateTarget(');
+assert(
+    is_int($anstossRufBei) && is_int($letztesSchreiben) && $anstossRufBei > $letztesSchreiben,
+    'der Anstoss steht HINTER der Kanalschleife, laeuft also einmal je Beitrag statt je Kanal'
+);
+// ⚠️ Und er haengt an `$eingereiht` -- ohne diese Bedingung klopfte JEDER Beitrag an, auch einer,
+// der nur an Facebook ging.
+assert(str_contains($publishOhne, '$eingereiht ? avesmapsSocialRelayAnstossen'),
+    'angestossen wird nur, wenn wirklich etwas eingereiht wurde');
+
 // ------------------------------------------------------------------------------------------------
 // 2. Der Riegel. 💣 Im Zweifel ZU -- `hash_equals('', '')` ist wahr, ein unkonfigurierter Server
 //    liesse sonst jeden herein.
