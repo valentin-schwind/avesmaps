@@ -623,12 +623,27 @@ function avesmapsLabelSearchTypeLabel(string $subtype): string {
     };
 }
 
+// 🔴 DIE WEGART, AUSGESCHRIEBEN -- seit 01.09.2026 (Owner: „einfach wegarten anzeigen").
+// Hier warf eine Tabelle Reichsstrasse/Strasse/Weg/Pfad alle auf ein „Weg", und Flussweg auf
+// „Fluss". Zwillingstabelle im Browser: PATH_TYPE_LABEL / getPathTypeLabel
+// (js/map-features/map-features-path-domain.js) -- die beiden muessen dasselbe sagen.
+// ⚠️ WAS DIE TREFFERLISTE ZEIGT, ENTSCHEIDET DER BROWSER, nicht diese Zeile: ein Wegtreffer wird
+// dort immer auf den lokalen Spotlight-Eintrag aufgeloest, und dessen Beschriftung kommt aus
+// getSpotlightPathTypeLabel. Dieses Feld angeglichen zu halten ist trotzdem Pflicht -- der Endpunkt
+// ist app-seitig lesbar, und ein „Weg" hier neben einer „Reichsstrasse" dort ist genau die zweite
+// Wahrheit, die dieses Haus sonst teuer bezahlt.
+// 💣 „Bach" fehlt BEWUSST und ist keine Luecke: er ist kein gespeicherter Wegtyp, sondern ein
+// Flussweg mit properties.is_bach, und diese Funktion sieht nur den Wegtyp. Der Browser setzt ihn
+// (getSpotlightPathTypeLabel) -- also genau die Stelle, die die Liste wirklich beschriftet.
 function avesmapsPathSearchTypeLabel(string $subtype): string {
     return match ($subtype) {
-        'Flussweg' => 'Fluss',
-        'Seeweg' => 'Seeweg',
+        'Reichsstrasse' => "Reichsstra\u{00DF}e",
+        'Strasse' => "Stra\u{00DF}e",
+        'Pfad' => 'Pfad',
         'Gebirgspass' => 'Gebirgspass',
-        'Wuestenpfad' => 'Wuestenpfad',
+        'Wuestenpfad' => "W\u{00FC}stenpfad",
+        'Flussweg' => 'Flussweg',
+        'Seeweg' => 'Seeweg',
         default => 'Weg',
     };
 }

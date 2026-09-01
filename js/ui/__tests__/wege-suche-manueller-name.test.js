@@ -40,6 +40,13 @@ const schneideConst = (name, quelle, wo) => {
 	return treffer[0] + "\n";
 };
 
+// `const NAME = { ... };` -- die mehrzeilige Objektform, die PATH_TYPE_LABEL traegt.
+const schneideObjekt = (name, quelle, wo) => {
+	const treffer = quelle.match(new RegExp("\\nconst " + name + " = \\{[\\s\\S]*?\\n\\};"));
+	assert.ok(treffer, `const ${name} = {…} nicht in ${wo} gefunden -- umbenannt?`);
+	return treffer[0] + "\n";
+};
+
 // `const name = (arg) => { ... };` -- die Pfeilform, die normalizePathName traegt.
 const schneidePfeil = (name, quelle, wo) => {
 	const treffer = quelle.match(new RegExp("\\nconst " + name + " = \\([\\s\\S]*?\\n\\};"));
@@ -65,6 +72,9 @@ vm.runInNewContext(
 		+ schneideFunktion("normalizePathSubtype", wegeQuelle, "js/map-features/map-features-path-domain.js")
 		+ schneideFunktion("getPathDisplayName", wegeQuelle, "js/map-features/map-features-path-domain.js")
 		+ schneideFunktion("getPathTitleName", wegeQuelle, "js/map-features/map-features-path-domain.js")
+		+ schneideObjekt("PATH_TYPE_LABEL", wegeQuelle, "js/map-features/map-features-path-domain.js")
+		+ schneideFunktion("getPathTypeLabel", wegeQuelle, "js/map-features/map-features-path-domain.js")
+		+ schneideFunktion("pathIstBach", wegeQuelle, "js/map-features/map-features-path-domain.js")
 		+ schneideFunktion("getRoutePathDisplayName", routeQuelle, "js/routing/route-node.js")
 		+ schneideFunktion("escapeRouteDisplayRegex", routeQuelle, "js/routing/route-node.js")
 		+ schneideFunktion("shouldShowRoutePathDisplayName", routeQuelle, "js/routing/route-node.js")
@@ -214,6 +224,80 @@ try {
 tafel.forEach(([name, wegart, erwartet], i) => {
 	assert.strictEqual(jsUrteil[i], erwartet, `Browser urteilt falsch ueber ${JSON.stringify(name)} (${wegart})`);
 	assert.strictEqual(phpUrteil[i], erwartet, `Server urteilt falsch ueber ${JSON.stringify(name)} (${wegart})`);
+});
+
+
+// ---- 7. DIE WEGART STEHT IN DER ZEILE ------------------------------------------------------------
+// 🔴 Owner 01.09.2026: „einfach wegarten anzeigen, dann is alles gut." Davor warf die Liste
+// Reichsstrasse/Strasse/Weg/Pfad alle auf ein „Weg" -- und weil der Gruppenschluessel die Wegart
+// SEHR WOHL unterscheidet, standen zwei verschiedene Wege als zwei zeichengleiche Zeilen da.
+const wegart = (subtype, extra = {}) => index([
+	weg({ name: "Goblinpfad", display_name: "Goblinpfad", feature_subtype: subtype, ...extra }),
+])[0].typeLabel;
+
+assert.strictEqual(wegart("Reichsstrasse"), "Reichsstraße");
+assert.strictEqual(wegart("Strasse"), "Straße");
+assert.strictEqual(wegart("Weg"), "Weg");
+assert.strictEqual(wegart("Pfad"), "Pfad");
+assert.strictEqual(wegart("Gebirgspass"), "Gebirgspass");
+assert.strictEqual(wegart("Wuestenpfad"), "Wüstenpfad");
+assert.strictEqual(wegart("Flussweg"), "Flussweg");
+assert.strictEqual(wegart("Seeweg"), "Seeweg");
+
+// 💣 Genau der gemeldete Fall: zwei Gruppen, ein Name -- die Zeilen muessen unterscheidbar sein.
+const zweiArten = index([
+	weg({ name: "Goblinpfad", display_name: "Goblinpfad", feature_subtype: "Pfad" }, "weg-1"),
+	weg({ name: "Goblinpfad", display_name: "Goblinpfad", feature_subtype: "Weg" }, "weg-2"),
+]);
+assert.strictEqual(zweiArten.length, 2, "verschiedene Wegarten sind verschiedene Gruppen -- unveraendert");
+assert.notStrictEqual(
+	zweiArten[0].typeLabel, zweiArten[1].typeLabel,
+	"zwei Zeilen mit demselben Namen muessen sich in der Wegart unterscheiden -- sonst sind sie zeichengleich"
+);
+
+// 💣 „Bach" ist ein ANZEIGE-Wegtyp: gespeichert ist Flussweg + is_bach. Der Leser sieht „Bach",
+// der GRUPPENSCHLUESSEL bleibt der gespeicherte Wegtyp -- sonst faende der Servertreffer, der nur
+// feature_subtype kennt, seinen Eintrag nicht mehr.
+assert.strictEqual(wegart("Flussweg", { is_bach: true }), "Bach");
+const bach = index([weg({ name: "Goblinpfad", display_name: "Goblinpfad", feature_subtype: "Flussweg", is_bach: true })]);
+assert.strictEqual(
+	bach[0].id,
+	`path:${kontext.getSpotlightPathGroupKey("Goblinpfad", "Flussweg")}`,
+	"der Gruppenschluessel eines Bachs bleibt auf Flussweg -- „Bach\" darf nie in den Schluessel"
+);
+// ...und ein Flussweg OHNE das Haekchen bleibt Flussweg (die Weiche haengt am Haekchen, nicht am Typ).
+assert.strictEqual(wegart("Flussweg", { is_bach: false }), "Flussweg");
+
+// ---- 8. DIE ZWILLINGSTABELLE AUF DEM SERVER SAGT DASSELBE ---------------------------------------
+// 💣 avesmapsPathSearchTypeLabel (api/app/map-search.php) beschriftet dasselbe Objekt. Was die Liste
+// zeigt, entscheidet zwar der Browser -- aber zwei Tabellen, die dieselbe Frage verschieden
+// beantworten, sind genau der Fehler, den dieses Haus wiederholt bezahlt hat. Also wirklich BEIDE
+// fahren, statt es zu behaupten. „Bach" ist ausgenommen und im Code begruendet: der Server sieht
+// nur den gespeicherten Wegtyp.
+const arten = ["Reichsstrasse", "Strasse", "Weg", "Pfad", "Gebirgspass", "Wuestenpfad", "Flussweg", "Seeweg"];
+const phpLabelSkript = `<?php
+require __DIR__ . '/api/_internal/bootstrap.php';
+$q = file_get_contents(__DIR__ . '/api/app/map-search.php');
+$i = strpos($q, 'function avesmapsPathSearchTypeLabel');
+if ($i === false) { fwrite(STDERR, 'avesmapsPathSearchTypeLabel fehlt'); exit(1); }
+eval(substr($q, $i));
+$arten = json_decode(file_get_contents('php://stdin'), true);
+echo json_encode(array_map(fn($a) => avesmapsPathSearchTypeLabel((string) $a), $arten), JSON_UNESCAPED_UNICODE);`;
+const labelSkriptPfad = path.join(wurzel, ".wegart-label-probe.php");
+let phpLabels;
+try {
+	fs.writeFileSync(labelSkriptPfad, phpLabelSkript, "utf8");
+	phpLabels = JSON.parse(execFileSync("php", [labelSkriptPfad], {
+		cwd: wurzel, input: JSON.stringify(arten), encoding: "utf8",
+	}));
+} finally {
+	fs.rmSync(labelSkriptPfad, { force: true });
+}
+arten.forEach((art, i) => {
+	assert.strictEqual(
+		phpLabels[i], wegart(art),
+		`Server und Browser beschriften ${art} verschieden: ${phpLabels[i]} gegen ${wegart(art)}`
+	);
 });
 
 console.log("wege-suche-manueller-name: alle Zusicherungen gruen");

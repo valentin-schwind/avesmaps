@@ -1259,7 +1259,7 @@ function buildSpotlightPathEntries() {
 				id: `path:${groupKey}`,
 				kind: "path",
 				name: displayName,
-				typeLabel: getSpotlightPathTypeLabel(subtype),
+				typeLabel: getSpotlightPathTypeLabel(path, subtype),
 				subtype,
 				publicIds: [],
 				paths: [],
@@ -1306,18 +1306,26 @@ function getSpotlightLabelTypeLabel(labelType) {
 	return tr("spotlight.labelType." + labelType, avesmapsLabelArtName(labelType) || "Label");
 }
 
-function getSpotlightPathTypeLabel(subtype) {
-	const labels = {
-		Reichsstrasse: "Weg",
-		Strasse: "Weg",
-		Weg: "Weg",
-		Pfad: "Weg",
-		Gebirgspass: "Gebirgspass",
-		Wuestenpfad: "Wuestenpfad",
-		Flussweg: "Fluss",
-		Seeweg: "Seeweg",
-	};
-	return tr("spotlight.pathType." + subtype, labels[subtype] || "Weg");
+// 🔴 DIE WEGART, AUSGESCHRIEBEN -- seit 01.09.2026 (Owner: „einfach wegarten anzeigen, dann is
+// alles gut"). Hier stand eine EIGENE Tabelle, die Reichsstrasse/Strasse/Weg/Pfad alle auf ein
+// „Weg" warf; in der Trefferliste stand damit bei jedem zweiten Weg dasselbe Wort.
+// 💣 DAS WAR NICHT NUR UNSCHARF, ES WAR IRREFUEHREND. Zwei Abschnittsgruppen desselben Namens
+// bilden ZWEI Zeilen, sobald ihre Wegart sich unterscheidet (der Gruppenschluessel ist
+// Wegart+Name, siehe getSpotlightPathGroupKey -- Zusammenhang auf der Karte zaehlt nirgends).
+// Vergroebert las sich das als „Goblinpfad · WEG" und noch einmal „Goblinpfad · WEG": zwei
+// zeichengleiche Zeilen, zwischen denen niemand waehlen kann. Live gemeldet am 01.09.2026.
+// ⭐ Die Wegart ist damit auch das, was den Unterschied ERKLAERT -- gezeigt, nicht ueberbrueckt.
+// 🔴 Der GRUPPENSCHLUESSEL bleibt unberuehrt: er misst weiter den GESPEICHERTEN Wegtyp
+// (normalizePathSubtype). Diese Funktion beschriftet nur.
+// 💣 „Bach" ist ein ANZEIGE-Wegtyp, kein gespeicherter -- dieselbe Weiche wie in
+// pathBreitenFaktor, und ausdruecklich NICHT pathAnzeigeSubtyp: jener liest feature_subtype roh
+// und faellt bei einem Altweg ohne Wegart auf "" zurueck, waehrend `subtype` hier schon durch
+// normalizePathSubtype gegangen ist.
+function getSpotlightPathTypeLabel(path, subtype) {
+	const anzeigeSubtyp = typeof pathIstBach === "function" && pathIstBach(path) ? "Bach" : subtype;
+	// getPathTypeLabel (js/map-features/map-features-path-domain.js) ist die EINE Tabelle der
+	// ausgeschriebenen Wegarten -- dieselbe, die Infobox, Reiseplan und Etappenzeile lesen.
+	return typeof getPathTypeLabel === "function" ? getPathTypeLabel(anzeigeSubtyp) : anzeigeSubtyp;
 }
 
 function getSpotlightPathGroupKey(displayName, subtype) {

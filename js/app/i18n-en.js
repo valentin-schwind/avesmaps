@@ -600,10 +600,15 @@ window.AVESMAPS_I18N_EN = {
 	// keep them side by side so they cannot drift apart again.
 	"popup.showInPanel": "Show",
 	"popup.showWholePath": "Show",
-	// Precise way type (infobox subtitle, route leg, planner row). Deliberately NOT spotlight.pathType.*:
-	// that namespace belongs to the search list and collapses Reichsstrasse/Strasse/Weg/Pfad all to "Path",
-	// which is right for a result list and wrong for a subtitle -- an English visitor read "Reichsstraße 3 /
-	// Path" while a German one read the raw key "Reichsstrasse".
+	// Precise way type. ONE table for every surface: infobox subtitle, route leg, planner row -- and,
+	// since 01.09.2026, the search list too (Owner: „einfach wegarten anzeigen").
+	// 🔴 There WAS a second, coarse namespace `spotlight.pathType.*` for the list, collapsing
+	// Reichsstrasse/Strasse/Weg/Pfad all to "Path". It was retired, not because coarse is wrong in a
+	// list, but because two ways of the same name and different type then rendered as two
+	// character-identical rows nobody could choose between (reported live 01.09.2026).
+	// ⚠️ The older bug this comment carried is unchanged and still the reason the table exists at all:
+	// an English visitor read "Reichsstraße 3 / Path" while a German one read the raw key
+	// "Reichsstrasse" -- German has no table, so its fallback IS the key.
 	"path.type.Reichsstrasse": "Imperial road",
 	"path.type.Strasse": "Road",
 	"path.type.Weg": "Way",
@@ -821,14 +826,10 @@ window.AVESMAPS_I18N_EN = {
 	"spotlight.labelType.insel": "Island",
 	"spotlight.labelType.inselgruppe": "Archipelago",
 	"spotlight.labelType.sonstiges": "Label",
-	"spotlight.pathType.Reichsstrasse": "Path",
-	"spotlight.pathType.Strasse": "Path",
-	"spotlight.pathType.Weg": "Path",
-	"spotlight.pathType.Pfad": "Path",
-	"spotlight.pathType.Gebirgspass": "Mountain pass",
-	"spotlight.pathType.Wuestenpfad": "Desert trail",
-	"spotlight.pathType.Flussweg": "River",
-	"spotlight.pathType.Seeweg": "Sea route",
+	// 🔴 `spotlight.pathType.*` IS GONE (01.09.2026). The search list no longer keeps a coarse table
+	// of its own -- it reads the precise `path.type.*` above, same as the infobox. Eight keys stood
+	// here, four of them collapsing Reichsstrasse/Strasse/Weg/Pfad to one "Path", which is exactly
+	// what made two different ways read as two identical rows. Do not reintroduce the namespace.
 
 	// --- units ---
 	"units.miles": "{n} miles",
