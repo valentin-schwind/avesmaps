@@ -122,9 +122,9 @@ ist über die <strong>registrierbare Domain</strong> verschlüsselt — nicht ü
 		<label class="f f--full"><span>Adresse — die genaue Seite</span>
 			<input type="text" placeholder="https://www.herzogtum-weiden.net/politik/liste-st/staedte/herzogenstadt-trallop"></label>
 		<label class="f f--grow"><span>Titel — wie diese Seite heißt</span>
-			<input type="text" placeholder="Herzogenstadt Trallop"></label>
+			<input type="text" value="Herzogenstadt Trallop"></label>
 		<label class="f f--grow"><span>Name des Korpus <span class="lock">· (Korpusschlüssel: herzogtum-weiden.net) · noch keine Einträge</span></span>
-			<input type="text" value="herzogtum-weiden.net"></label>
+			<input type="text" value="Briefspiel (Weiden)"></label>
 		<label class="f"><span>Seite(n)</span><input type="text" size="9" placeholder="optional"></label>
 		<label class="f"><span>Art</span>
 			<select><option>Briefspiel</option><option>Art …</option><option>Regionalspielhilfe</option></select></label>
@@ -139,10 +139,11 @@ ist über die <strong>registrierbare Domain</strong> verschlüsselt — nicht ü
 			<input type="checkbox"> offiziell</span></label>
 		<button class="btn">Hinzufügen</button>
 	</div>
-	<div class="note note--ok">✓ Der Korpus heißt vorerst <strong>herzogtum-weiden.net</strong> —
-		der Name aus der Adresse. Trägst du etwas anderes ein (etwa <em>Briefspiel (Weiden)</em>),
-		gilt das ab sofort für <strong>alle</strong> Belege von dieser Domain; der Schlüssel bleibt
-		die Domain.</div>
+	<div class="note note--ok">✓ <strong>Erreichbar</strong> (HTTP 200, 240 ms) — und aus der Seite gelesen:
+		<br><span style="font-size:11px">Titel <strong>„Herzogenstadt Trallop"</strong> aus dem
+		<code>&lt;h1&gt;</code> · Korpusname <strong>„Briefspiel (Weiden)"</strong> vorgeschlagen aus
+		dem <code>&lt;title&gt;</code>-Zusatz. Beides ist ein <em>Vorschlag</em> — du kannst
+		überschreiben.</span></div>
 </div>
 <p>🔴 <strong>Die Domain ist der Schlüssel, der Name nur die Beschriftung.</strong> Deshalb kann
 niemand einen zweiten Korpus für dieselbe Seite anlegen — und deshalb ist der Vorgabename
@@ -154,7 +155,7 @@ zwangsläufig konsistent, auch wenn ihn nie jemand anfasst.</p>
 		<label class="f f--full"><span>Adresse — die genaue Seite</span>
 			<input type="text" placeholder="https://www.herzogtum-weiden.net/politik/liste-st/staedte/reichsstadt-baliho"></label>
 		<label class="f f--grow"><span>Titel — wie diese Seite heißt</span>
-			<input type="text" placeholder="Reichsstadt Baliho"></label>
+			<input type="text" value="Reichsstadt Baliho"></label>
 		<label class="f f--grow"><span>Name des Korpus <span class="lock">· (Korpusschlüssel: herzogtum-weiden.net) · gültig für 118 Objekte</span></span>
 			<input type="text" value="Briefspiel (Weiden)"></label>
 		<label class="f"><span>Seite(n)</span><input type="text" size="9" placeholder="optional"></label>
@@ -171,9 +172,12 @@ zwangsläufig konsistent, auch wenn ihn nie jemand anfasst.</p>
 			<input type="checkbox"> offiziell <span class="lock">· vom Korpus</span></span></label>
 		<button class="btn">Hinzufügen</button>
 	</div>
-	<div class="note note--ok">✓ <strong>herzogtum-weiden.net</strong> ist bekannt als
-		<strong>Briefspiel (Weiden)</strong>. Art, Lizenz, Namensnennung und Kanon sind vorbelegt.
-		Du füllst <strong>Adresse</strong> und <strong>Titel</strong> — alles andere steht schon.</div>
+	<div class="note note--ok">✓ <strong>Erreichbar</strong> (HTTP 200, 190 ms) · Titel
+		<strong>„Reichsstadt Baliho"</strong> aus dem <code>&lt;h1&gt;</code> übernommen ·
+		<strong>herzogtum-weiden.net</strong> ist bekannt als <strong>Briefspiel (Weiden)</strong>,
+		Art, Lizenz, Namensnennung und Kanon sind vorbelegt.
+		<br><span style="font-size:11px">Du fügst <strong>eine Adresse</strong> ein — alles andere
+		steht danach da.</span></div>
 </div>
 <p>🔴 <strong>Die Reichweite steht am Feld</strong> — „gültig für 118 Objekte". Wer den Namen hier ändert, benennt ihn für alle 118 um; wer die Lizenz ändert, ändert sie für alle 118. Dieselbe Zahl, dieselbe Stelle, dieselbe Begründung wie im Bearbeiten-Kasten seit dem 01.09.2026: „gilt überall" ohne Größe ist keine Warnung. ⚠️ Beim <em>ersten</em> Eintrag steht dort <span class="lock">· noch keine Einträge</span> — eine Zahl zu zeigen, wo es noch keine gibt, wäre eine Behauptung.<br>🔴 <strong>Und der Schlüssel steht immer dabei.</strong> „Briefspiel (Weiden)" ist nur die Beschriftung; verschlüsselt ist der Korpus über <code>herzogtum-weiden.net</code>. Ohne diese Angabe wäre nicht zu sehen, <em>woran</em> der Name hängt — und ein Editor, der ihn ändert, wüsste nicht, dass er eine Beschriftung umbenennt und keinen neuen Korpus anlegt.</p>
 <p>⭐ <strong>Der Korpusname ist vorbelegt, nicht gesperrt</strong> — mit Autocompletion über die
@@ -181,6 +185,42 @@ zwangsläufig konsistent, auch wenn ihn nie jemand anfasst.</p>
 ⚠️ Dasselbe gilt für Art, Lizenz, Namensnennung und „offiziell": sie tragen
 <span class="lock">· vom Korpus</span>, weil eine Änderung <strong>alle</strong> Belege dieses
 Korpus trifft — dieselbe Regel wie im Bearbeiten-Kasten seit dem 01.09.2026.</p>
+
+<h3>Woher Titel und Korpusname kommen — gemessen, nicht geraten</h3>
+<p>Beim Einfügen läuft ein <strong>kurzer Linkcheck</strong>, und aus derselben Antwort werden zwei
+Werte gelesen. An den echten Seiten am 01.09.2026 nachgemessen:</p>
+<table class="m">
+	<tr><th>Adresse</th><th><code>&lt;h1&gt;</code> → Titel</th><th><code>&lt;title&gt;</code>-Zusatz → Korpus</th></tr>
+	<tr><td>…/staedte/herzogenstadt-trallop</td><td><strong>Herzogenstadt Trallop</strong></td><td>— (kein Zusatz)</td></tr>
+	<tr><td>…/baronien/hzgl-weiden</td><td><strong>Herzoglich Weiden</strong></td><td>— (kein Zusatz)</td></tr>
+	<tr><td>wiki.punin.de/Baronie_Taubental</td><td><strong>Baronie Taubental</strong></td><td><strong>Almada Wiki</strong></td></tr>
+	<tr><td>westlande.de/…?title=Apfeldorn</td><td><strong>Apfeldorn</strong></td><td><strong>AlberniaWiki</strong></td></tr>
+	<tr><td>de.wiki-aventurica.de/wiki/Trallop</td><td><strong>Trallop</strong></td><td><strong>Wiki Aventurica</strong></td></tr>
+</table>
+<p>🔴 <strong>Der <code>&lt;h1&gt;</code> ist die bessere Quelle als der <code>&lt;title&gt;</code></strong>
+— letzterer trägt bei jedem Wiki einen Seitenzusatz („Baronie Taubental <em>– Almada Wiki</em>"),
+der <code>&lt;h1&gt;</code> ist sauber.</p>
+<p>⭐ <strong>Und der Zusatz ist nicht wertlos: er nennt den Korpus.</strong> „Almada Wiki",
+„AlberniaWiki", „Wiki Aventurica" — genau die Namen, die die Editoren sonst selbst erfinden. Ein
+Abruf liefert also beide Hälften: den Titel dieser Seite und einen Vorschlag für den Korpusnamen.</p>
+<p>💣 <strong>Beides ist ein VORSCHLAG, kein gesetzter Wert.</strong> Ein Wiki kann seinen Zusatz
+ändern, eine Seite kann gar keinen <code>&lt;h1&gt;</code> haben, und eine Slug-Adresse ohne Abruf
+ergäbe „hzgl weiden" statt „Herzoglich Weiden". Überschreibbar bleiben beide Felder.</p>
+<p>⚠️ <strong>Aus der Adresse allein geht es NICHT.</strong> Bei MediaWiki-Adressen wäre es machbar
+(<code>/Baronie_Taubental</code> → „Baronie Taubental"), bei Slug-Adressen nicht:
+<code>hzgl-weiden</code> → „hzgl weiden", <code>gfl-salthel</code> → „gfl salthel". Die Abkürzungen
+und die Großschreibung stehen nur auf der Seite.</p>
+<p>⭐ Das Rüstzeug liegt bereit: <code>avesmapsLinkCheckProbe</code> (erreichbar?) und
+<code>avesmapsLinkCheckFetchBody</code> (Abruf <em>mit</em> SSRF-Riegel — der einzige im Haus).
+Neu wäre allein die Titelextraktion.</p>
+<p>🔧 <strong>Und die eine Messung, die noch fehlt:</strong> die fünf Abrufe oben liefen von einem
+Arbeitsplatz, <em>nicht</em> vom Server. STRATOs Ausgangsadresse ist bei Wiki Aventurica
+nachweislich gesperrt (<code>Connection refused</code> in 24 ms, dokumentiert). Ob die vier
+Briefspiel-Wirte sie durchlassen, muss mit <code>api/edit/admin/ausgang-check.php</code> vom Server
+aus gemessen werden — sonst verspricht die Oberfläche eine Übernahme, die live nie stattfindet.
+⚠️ Fällt der Abruf aus, muss die Zeile <strong>ohne</strong> ihn benutzbar bleiben: Titel leer,
+Korpusname aus der Domain. Ein Formular, das auf einen fremden Server wartet, ist kaputt, sobald
+der langsam ist.</p>
 
 <h3>Der Unterschied in einem Bild</h3>
 <table class="m">
