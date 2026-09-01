@@ -123,6 +123,16 @@ const boese = etikett({ kanon: "inoffiziell", bezeichner_label: '<img src=x oner
 pruefe(!boese.includes("<img"), "der Bezeichner wird maskiert");
 pruefe(boese.includes("&lt;img"), "und zwar sichtbar, nicht verschluckt");
 
+// 🪤 EIN `indexOf(".fs-kanon {")` TRIFFT AUCH `.fs-src-row .fs-kanon {` -- der Selektor
+// enthaelt den anderen als Teilzeichenkette, und die Zeilenregel steht in der Datei frueher.
+// Die Polsterpruefung darunter bestand dadurch kurzzeitig aus dem falschen Grund. Gesucht wird
+// deshalb am ZEILENANFANG.
+const regelAb = (quelle, selektor) => {
+  const muster = new RegExp("^" + selektor.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "\\s*\\{", "m");
+  const t = muster.exec(quelle);
+  assert.ok(t, `Regel ${selektor} muss es geben`);
+  return quelle.slice(t.index);
+};
 // ---- G. Die Farbe traegt GENAU EINE Bedeutung --------------------------------------------------
 // 🔴 Gold = im Kanon, Blaugruen = nicht. Nirgends sonst. Das rechte Feld ist deshalb NEUTRAL: neben
 // einem blaugruenen INOFFIZIELL stiessen sonst zwei Blaugruen aneinander.
@@ -136,7 +146,7 @@ pruefe(boese.includes("&lt;img"), "und zwar sichtbar, nicht verschluckt");
 // Kommentare verstuemmeln.
 const ohneKommentare = (quelle) => quelle.replace(/\/\*[\s\S]*?\*\//g, "");
 const css = ohneKommentare(fs.readFileSync(path.join(wurzel, "css", "features", "feature-sources.css"), "utf8"));
-const halbpilleCss = css.slice(css.indexOf(".fs-kanon--split"), css.indexOf(".feature-kanon-head"));
+const halbpilleCss = regelAb(css, ".fs-kanon--split").slice(0, css.indexOf(".feature-kanon-head") - css.indexOf(".fs-kanon--split"));
 pruefe(halbpilleCss.includes(".fs-kanon--split .fs-kanon__by"), "das Bezeichnerfeld hat eine eigene Regel");
 const byRegel = halbpilleCss.slice(halbpilleCss.indexOf(".fs-kanon--split .fs-kanon__by"));
 pruefe(!/--color-kanon-/.test(byRegel), "das rechte Feld nimmt KEINEN der vier Kanon-Token");
@@ -164,11 +174,31 @@ for (const t of ["--color-kanon-official", "--color-kanon-official-text", "--col
 // Grundlinie −3,905, Pille mittig auf der Zeile bei −4,875. Mittelweg −4,39; 3/2 trifft −4,335.
 // Zeilenunwucht gemessen: 3/2 -> 1,08px | 2/2 -> 2,08 | 3/3 -> 2,08 | 2/3 -> 3,08.
 // ⚠️ Wer nur die INNERE Zentrierung misst, landet bei 2/3 und macht es sichtbar schlechter.
-const chipRegel = css.slice(css.indexOf(".fs-kanon {"), css.indexOf(".fs-kanon--off"));
+const chipRegel = regelAb(css, ".fs-kanon").slice(0, 260);
 pruefe(/padding:\s*3px\s+8px\s+2px\s*;/.test(chipRegel),
   "der Chip polstert 3px oben / 2px unten -- der gemessene Mittelweg, nicht die innere Mitte");
 pruefe(!/padding:\s*2px\s+8px\s+3px\s*;/.test(css),
   "die auf die innere Mitte optimierte Fassung darf nirgends mehr stehen");
+
+// ---- H1c. Der Zeilen-Versatz der Pille -----------------------------------------------------
+// 🔴 In der Quellenzeile wird an der GRUNDLINIE ausgerichtet. Chip (11px versal, Versalhoehe
+// 8,63) und Nachbartext (12px fett, 9,5) teilen sie sich -- aber nicht die optische Mitte: die
+// Pillenmitte liegt dadurch 0,75px zu tief. Am Livesystem gemessen, beide Zeilen identisch:
+//     ohne Versatz +0,75 | −0,75px -> 0,00 | −1px -> −0,25
+// ⭐ Ein VERSATZ statt Polster, weil er Pille UND Schrift gemeinsam verschiebt: die Zeilenlage
+// geht auf 0, die Lage der Schrift IN der Pille bleibt unangetastet. Ueber das Polster ging
+// beides nur gegeneinander (Versuch vom 01.09.2026, vom Owner sofort beanstandet).
+// ⚠️ NUR in der Quellenzeile -- Objektkopf, Suchtreffer und Konfliktpartei richten nicht an der
+// Grundlinie aus; dort waere er ein Fehler.
+const zeilenRegel = regelAb(css, ".fs-src-row .fs-kanon");
+pruefe(zeilenRegel.length > 0, "die Quellenzeile hebt ihre Pille an");
+pruefe(/top:\s*-0\.75px\s*;/.test(zeilenRegel.slice(0, 140)), "und zwar um genau 0,75px");
+pruefe(/position:\s*relative\s*;/.test(zeilenRegel.slice(0, 140)),
+  "ohne `position: relative` wirkt `top` gar nicht -- der Fehler waere still");
+// ⚠️ Der Versatz darf NICHT am Chip selbst haengen: dann traefe er auch Kopf, Suchtreffer und
+// Konfliktpartei, die mittig ausrichten.
+const chipGrund = regelAb(css, ".fs-kanon").slice(0, 260);
+pruefe(!/position:\s*relative/.test(chipGrund), "die Grundregel des Chips bleibt unversetzt");
 
 // ---- H2. Alle drei Titelgruppen duerfen SCHRUMPFEN ----------------------------------------------
 // 💣 Ein Flex-/Grid-Kind weigert sich per Vorgabe zu schrumpfen (`min-width: auto`), und der Chip

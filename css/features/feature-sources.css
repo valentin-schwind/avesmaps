@@ -858,6 +858,33 @@
 	gap: 8px;
 	flex-wrap: nowrap;
 }
+/* 🔴 DIE PILLE WIRD UM 0,75px ANGEHOBEN, UND DAS IST GEMESSEN, NICHT GESCHMACK.
+   Die Zeile richtet an der GRUNDLINIE aus (oben). Chip und Nachbartext teilen sich damit die
+   Grundlinie -- aber NICHT die optische Mitte: der Chip setzt 11px VERSAL (Versalhoehe 8,63),
+   der Nachbar 12px fett gemischtschriftlich (Versalhoehe 9,5). Auf gemeinsamer Grundlinie liegt
+   die Pillenmitte dadurch 0,75px UNTER der Mitte der Textzeile.
+
+   ⭐ Warum ein Versatz und nicht das Polster: das Polster verschiebt die PILLE um die
+   feststehende Schrift herum -- jede Verbesserung der Zeilenlage verschlechtert die Lage der
+   Schrift IN der Pille, und umgekehrt. Genau daran ist der Versuch vom 01.09.2026 gescheitert
+   (2px/3px: innen besser, in der Zeile 2px schlechter -- Owner: „wird immer schlimmer").
+   Ein Versatz verschiebt BEIDES gemeinsam: Zeilenlage 0,00, Innenlage unveraendert 0,31.
+
+   ⭐ Am Livesystem gemessen, beide Quellenzeilen identisch (Pillenmitte minus Zeilenmitte):
+     ohne Versatz +0,75 | −0,75px → 0,00 | −1px → −0,25
+   💣 Die Mitte der Textzeile wird ueber die VERSALHOEHE der Schrift bestimmt, nie ueber die
+   Tinte des konkreten Wortes: „Briefspiel (Weiden)" hat Klammern, die hoeher reichen als
+   Oberlaengen, „Wiki Aventurica" nicht -- eine glyphenabhaengige Messung gab je Zeile ein
+   anderes Ergebnis und schickte den ersten Anlauf in die falsche Richtung.
+
+   ⚠️ NUR HIER. Im Objektkopf steht die Pille allein in ihrer Zeile, im Suchtreffer und an der
+   Konfliktpartei wird mittig statt an der Grundlinie ausgerichtet -- dort waere der Versatz
+   ein Fehler.
+   ⚠️ Der Wert haengt an BEIDEN Schriftgroessen. Wer eine davon aendert, misst neu. */
+.fs-src-row .fs-kanon {
+	position: relative;
+	top: -0.75px;
+}
 /* 💣 `min-width: 0` ist die tragende Zeile, und sie muss an JEDEM Flex-/Grid-Kind auf dem Weg
    stehen -- alle stehen per Vorgabe auf `min-width: auto` und weigern sich zu schrumpfen. Fehlt
    sie irgendwo, laufen die Marken aus dem Kasten, statt dass der Titel kuerzt. `overflow` und
