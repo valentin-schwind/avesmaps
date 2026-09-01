@@ -303,8 +303,18 @@ Der letzte Test ist der wichtigste: er ist der Ersatz für die Zahl, die im Komm
   gebaut (Owner 02.09.2026), und deshalb nennt die Bestätigung die Folge beim Namen.
 - **Keine Änderung an der Schlüsselregel.** `avesmapsPoliticalSlug` bleibt unangetastet; der
   Namensraum bleibt im Schlüssel, wie bei den Siedlungen seit dem 01.09.2026.
-- **Kein Dump-Lauf.** Ob `Inoffiziell:Táyârret` schon im Staging liegt, hängt daran, ob seit dem
-  01.09.2026 ein Dump-Sync gelaufen ist. 🔧 **Das ist am lebenden Bestand nachzusehen** — dieser
-  Rechner hat weder `config.local.php` noch einen Dump, die Zahl „69 Staat-Seiten in ns 222" stammt
-  aus `namespaces.php` und ist hier nicht gegengeprüft.
+- **Kein Dump-Lauf — und der ist die harte Voraussetzung.**
+  🚩 **Beantwortet am 02.09.2026 durch eine parallele Sitzung** (`42ecc35f2`): der Artikel lag bis
+  dahin **nicht** im Staging, und zwar aus einem Grund, der nichts mit dieser Aufgabe zu tun hat.
+  Die Zeitprüfung eines Dump-Schritts stand *hinter* der ersten Seite; sobald das bloße
+  Überspringen das 28-Sekunden-Budget aufbrauchte, verarbeitete ein Schritt **genau eine** Seite.
+  Das trifft ausgerechnet ns 222, weil die inoffiziellen Seiten im **Schwanz** des Dumps liegen —
+  3.938 der 6.457 in den letzten 28.000 Seiten. Der Fehler ist behoben.
+  ⚠️ **Damit gilt: dieses Feature kann erst wirken, wenn nach `42ecc35f2` ein vollständiger
+  Dump-Sync durchgelaufen ist.** Vorher findet die Kandidatensuche nichts, und ein leeres Ergebnis
+  sieht aus wie „es gibt den Artikel nicht" — genau die Verwechslung, die jene Sitzung eine
+  Fehlersuche gekostet hat. Der erste Handgriff vor dem Testen der Bindung ist deshalb ein
+  Blick, ob `political_territory_wiki_test` inoffizielle Staaten führt.
+  🔧 Die Zahl „69 Staat-Seiten in ns 222" stammt weiterhin aus `namespaces.php` und ist hier nicht
+  am Livebestand gegengeprüft.
 - **Keine anderen Objektarten.** Wege, Regionen und Orte haben keine eigenen Knoten in diesem Sinn.
