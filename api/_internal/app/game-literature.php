@@ -607,7 +607,15 @@ function avesmapsGameLiteratureSampleSeedData(): array
             'authors' => '',
             'series' => '',
             'fshop_code' => '',
-            'cover_url' => 'https://de.wiki-aventurica.de/de/images/thumb/5/55/AB_VA62.jpg/240px-AB_VA62.jpg',
+            // 🔴 LEER, UND DAS BLEIBT SO (01.09.2026). Hier stand eine Bildadresse des Wikis, und
+            // diese Saat schreibt in die Spalte `adventure.cover_url` -- aus der der Literatur-Editor
+            // sein `<img src>` baut (html/game-literature-editor.html), OHNE Proxy und ohne Riegel.
+            // Der Browser des Editors haette das Bild damit direkt beim Wiki geholt.
+            // 🪤 Der Wert hat die Umbenennung adventures.php -> game-literature.php unbeschadet
+            // ueberlebt; er ueberlebt auch die naechste. Deshalb faellt der WERT weg, nicht die Datei.
+            // ⚠️ Ein Cover gehoert hierher nur als eigene Datei (/uploads/questcovers/...), die der
+            // Lauf „Cover holen" ablegt. Festgenagelt von api/_internal/wiki/__tests__/datei-riegel-test.php.
+            'cover_url' => '',
             'wiki_url' => 'https://de.wiki-aventurica.de/wiki/Siegelbruch',
             'places' => ['Mittelreich', 'Königreich Garetien', 'Gareth', 'Wagenhalt'],
         ],

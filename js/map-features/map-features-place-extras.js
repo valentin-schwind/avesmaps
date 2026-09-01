@@ -13,20 +13,32 @@
 // Abschnitte ein (nur fuer Wiki-Siedlungen).
 
 // ---- Platzhalter-Daten (Demo: Gareth; echte Daten von der Wiki-Seite <Ort>/Abenteuer) ----
-// cover: TEMPORAER hotgelinkte Wiki-Aventurica-Thumbnails (Owner-Freigabe fuer die Demo) -- spaeter
-// ersetzt durch echte Payload-Daten (location.adventures[].cover), idealerweise ueber den coat.php-artigen
-// Cache-Proxy statt Hotlink.
+// 🔴 OHNE COVER, UND DAS BLEIBT SO (01.09.2026). Hier standen ZEHN fest verdrahtete
+// Bildadressen des Wikis (Form: <Wiki-Host>/de/images/thumb/...), die roh in ein `<img src>` gingen
+// (unten in buildPlaceGameLiteratureMarkup und im Flachdialog). Der alte Kommentar nannte sie
+// „TEMPORAER ... Owner-Freigabe fuer die Demo" -- die Demo war lange vorbei, die Hotlinks nicht.
+//
+// 💣 WARUM DAS DIE SCHLIMMSTE FORM WAR: index.html laedt diese Datei fuer JEDEN Besucher, und
+// `getPlaceGameLiterature` faellt auf diese Liste zurueck, solange der Literatur-Katalog nicht
+// bereit ist -- bei einem Ausfall von /api/app/game-literature.php also dauerhaft. Ein `<img src>`
+// mit einer Wiki-Adresse geht vom Browser DIREKT ans Wiki: an coat.php vorbei, am Riegel vorbei,
+// an der Drossel vorbei. Unser Server sieht die Anfrage nie und kann sie deshalb auch nicht
+// aufhalten. Genau diese Bauform hat zweimal die Sperre unserer Ausgangs-IP ausgeloest.
+// ⚠️ Ohne `cover` zeichnet der Bauer unten seinen eigenen Platzhalter (AVESMAPS_ADV_COVER_PH_SVG) --
+// die Kacheln bleiben also vollstaendig, nur ohne fremdes Bild.
+// 🔴 Wer hier je wieder eine Adresse eintraegt: sie muss auf UNSEREM Server liegen (/uploads/...).
+// Festgenagelt von api/_internal/wiki/__tests__/datei-riegel-test.php.
 var AVESMAPS_PLACEHOLDER_GAME_LITERATURE = [
-	{ title: "Jagd nach dem Primoptolithen", type: "Soloabenteuer", edition: "", year: 1046, yearLabel: "1046 BF", cover: "https://de.wiki-aventurica.de/de/images/thumb/c/c5/Jagd_nach_dem_Primoptolithen.jpg/240px-Jagd_nach_dem_Primoptolithen.jpg" },
-	{ title: "Siegelbruch", type: "Gruppenabenteuer", edition: "DSA5", year: 1044, yearLabel: "1044 BF", cover: "https://de.wiki-aventurica.de/de/images/thumb/5/55/AB_VA62.jpg/240px-AB_VA62.jpg" },
-	{ title: "Aus den Augen, aber nicht aus dem Sinn", type: "Gruppenabenteuer", edition: "DSA5", year: 1041, yearLabel: "1041 BF", cover: "https://de.wiki-aventurica.de/de/images/thumb/a/a0/40_Jahre_und_ein_Schelm.jpg/240px-40_Jahre_und_ein_Schelm.jpg" },
-	{ title: "Feuchte Albträume", type: "Szenario", edition: "DSA5", year: 1040, yearLabel: "1040 BF", cover: "https://de.wiki-aventurica.de/de/images/thumb/6/63/Kurtisanen_%26_Bordelle.jpg/240px-Kurtisanen_%26_Bordelle.jpg" },
-	{ title: "Der Schattenmarschall", type: "Gruppenabenteuer", edition: "DSA4.1", year: 1040, yearLabel: "Sommer 1040 BF", cover: "https://de.wiki-aventurica.de/de/images/thumb/0/04/AB_A212.jpg/240px-AB_A212.jpg" },
-	{ title: "Seelanders Eleven", type: "Kurzabenteuer", edition: "DSA5", year: 1040, yearLabel: "etwa 1040 BF", cover: "https://de.wiki-aventurica.de/de/images/thumb/1/14/AB_KRK1.jpg/240px-AB_KRK1.jpg" },
-	{ title: "Niobaras Vermächtnis", type: "Gruppenabenteuer", edition: "DSA5", year: 1038, yearLabel: "bis RAH 1038 BF", cover: "https://de.wiki-aventurica.de/de/images/thumb/3/3a/AB_VA14.jpg/240px-AB_VA14.jpg" },
-	{ title: "Steinerne Schwingen", type: "Gruppenabenteuer", edition: "DSA4.1", year: 1038, yearLabel: "1038 BF", cover: "https://de.wiki-aventurica.de/de/images/thumb/e/ea/AB_A201.jpg/240px-AB_A201.jpg" },
-	{ title: "Herren der Unterwelt", type: "Gruppenabenteuer", edition: "DSA4.1", year: 1037, yearLabel: "Anfang 1037 BF", cover: "https://de.wiki-aventurica.de/de/images/thumb/4/47/Box-AB_Gh.png/240px-Box-AB_Gh.png" },
-	{ title: "Sturm der Gewalt", type: "Gruppenabenteuer", edition: "DSA4.1", year: 1037, yearLabel: "Hochsommer ab 1037 BF", cover: "https://de.wiki-aventurica.de/de/images/thumb/4/47/Box-AB_Gh.png/240px-Box-AB_Gh.png" },
+	{ title: "Jagd nach dem Primoptolithen", type: "Soloabenteuer", edition: "", year: 1046, yearLabel: "1046 BF", cover: "" },
+	{ title: "Siegelbruch", type: "Gruppenabenteuer", edition: "DSA5", year: 1044, yearLabel: "1044 BF", cover: "" },
+	{ title: "Aus den Augen, aber nicht aus dem Sinn", type: "Gruppenabenteuer", edition: "DSA5", year: 1041, yearLabel: "1041 BF", cover: "" },
+	{ title: "Feuchte Albträume", type: "Szenario", edition: "DSA5", year: 1040, yearLabel: "1040 BF", cover: "" },
+	{ title: "Der Schattenmarschall", type: "Gruppenabenteuer", edition: "DSA4.1", year: 1040, yearLabel: "Sommer 1040 BF", cover: "" },
+	{ title: "Seelanders Eleven", type: "Kurzabenteuer", edition: "DSA5", year: 1040, yearLabel: "etwa 1040 BF", cover: "" },
+	{ title: "Niobaras Vermächtnis", type: "Gruppenabenteuer", edition: "DSA5", year: 1038, yearLabel: "bis RAH 1038 BF", cover: "" },
+	{ title: "Steinerne Schwingen", type: "Gruppenabenteuer", edition: "DSA4.1", year: 1038, yearLabel: "1038 BF", cover: "" },
+	{ title: "Herren der Unterwelt", type: "Gruppenabenteuer", edition: "DSA4.1", year: 1037, yearLabel: "Anfang 1037 BF", cover: "" },
+	{ title: "Sturm der Gewalt", type: "Gruppenabenteuer", edition: "DSA4.1", year: 1037, yearLabel: "Hochsommer ab 1037 BF", cover: "" },
 ];
 var AVESMAPS_PLACEHOLDER_GAME_LITERATURE_TOTAL = 57;
 // AVESMAPS_PLACEHOLDER_CITYMAPS is gone (Aufgabe C): the Kartensammlung has a backend now
