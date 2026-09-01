@@ -2271,9 +2271,12 @@
 	// ⚠️ Ohne `ziel` (ältere Läufe, reine Fixtures) bleibt der Schlüssel unangetastet -- dieselbe
 	// zurückhaltende Richtung.
 	function garetienUnserBeschriftung(objekt) {
-		const subtyp = String((objekt && objekt.subtyp) || "").trim();
+		// 🔴 Über die WAHL, nicht über den rohen Vorschlag (01.09.2026) -- solange niemand etwas
+		// anderes gewählt hat, ist beides dasselbe.
+		const wahl = garetienZielWahlZu(objekt);
+		const subtyp = String(wahl.subtyp || "").trim();
 		if (subtyp === "") { return subtyp; }
-		const ziel = String((objekt && objekt.ziel) || "").trim();
+		const ziel = String(wahl.ziel || "").trim();
 		if (ziel === "location") {
 			const eintrag = (typeof LOCATION_TYPE_CONFIG !== "undefined") ? LOCATION_TYPE_CONFIG[subtyp] : null;
 			return (eintrag && eintrag.singularLabel) || subtyp;
@@ -2307,6 +2310,8 @@
 	// Pfeil gibt es nichts zu unterscheiden, und ein leeres „(Avesmaps)" darf nie stehenbleiben.
 	function garetienTypText(objekt) {
 		const ihr = String((objekt && objekt.typ) || "").trim();
+		// ⚠️ Die GEWÄHLTE Art, nicht die vorgeschlagene -- sonst sagte der Kopf „→ Sümpfe & Moore",
+		// während die Felder darunter „Berggipfel" zeigen.
 		const unser = garetienUnserBeschriftung(objekt);
 		if (unser === "" || unser === ihr) { return ihr; }
 		if (ihr === "") { return unser; }
@@ -2900,6 +2905,29 @@
 		if (!objekt) { return; }
 		const eingaben = garetienEingabenZustandZu(objekt);
 		const feld = ziel.getAttribute("data-gi-feld");
+		// 🔴 DIE ZIELWAHL STEHT VOR ALLEM ANDEREN -- sie ist kein Wert des Kastens, sie entscheidet,
+		// WELCHE Felder der Kasten überhaupt hat. Deshalb baut sie die Detailspalte neu, statt nur
+		// einen Wert abzulegen.
+		// 💣 EIN FORMWECHSEL SETZT DIE ART MIT, und zwar auf die erste der neuen Form: die alte Art
+		// gibt es in der neuen Form nicht (ein „Sumpf" ist kein Ortstyp), und ein stehengebliebener
+		// Wert ginge als gültige Wahl an den Server.
+		if (feld === "zielForm" || feld === "zielArt") {
+			const wahl = garetienZielWahlZu(objekt);
+			if (feld === "zielForm") {
+				wahl.ziel = String(ziel.value || "");
+				const ersteArt = garetienArtenFuerForm(wahl.ziel)[0] || null;
+				wahl.subtyp = ersteArt ? ersteArt.key : "";
+				wahl.kind = ersteArt ? String(ersteArt.kind || "") : "";
+			} else {
+				wahl.subtyp = String(ziel.value || "");
+				const gewaehlt = garetienArtenFuerForm(wahl.ziel).filter(function (a) {
+					return a.key === wahl.subtyp;
+				})[0];
+				wahl.kind = gewaehlt ? String(gewaehlt.kind || "") : "";
+			}
+			garetienDetailRendern(objekte || zustand.objekte || []);
+			return;
+		}
 		// 🔴 EIN VERKEHRSMITTEL IST KEIN JA/NEIN-FELD, sondern ein Eintrag in einer LISTE -- dieser
 		// Zweig muss deshalb VOR dem Häkchen-Zweig darunter stehen. Stünde er dahinter, machte
 		// `eingaben["transports"] = Boolean(checked)` aus der Liste ein Bool, und der nächste Klick
@@ -2977,16 +3005,23 @@
 	// Handeingabe" -- der einzige Wert, den die Massenübernahme je sieht (sie ruft diese Funktion
 	// nicht, aber ein `null` ist trotzdem die korrekte Antwort für ein Ziel ohne diese Felder).
 	function garetienEingabenFuerServer(objekt) {
-		const ziel = String((objekt && objekt.ziel) || "");
+		// 🔴 DIE GEWÄHLTE Form entscheidet, WELCHE Felder mitreisen -- ein zum Gipfel gewechselter
+		// Sumpf schickt die Label-Felder, nicht die der Fläche.
+		const wahl = garetienZielWahlZu(objekt);
+		const ziel = String(wahl.ziel || "");
+		// 💣 UND DIE WAHL SELBST REIST IMMER MIT, auch wenn sie dem Vorschlag entspricht: der Server
+		// vergleicht (avesmapsGaretienZielUebersteuern) und formt nur um, wenn sie abweicht. Sie
+		// wegzulassen, solange nichts geändert wurde, hiesse zwei Wege durch dieselbe Tür.
+		const zielRumpf = { ziel: ziel, subtyp: String(wahl.subtyp || ""), kind: String(wahl.kind || "") };
 		// 🔴 Der ORT hat seit dem 30.08.2026 eigene Felder, und sie heißen ANDERS als im Browser:
 		// hier `isNodix`, im Anfragerumpf `is_nodix` -- die Schlüssel des Anlegers
 		// (avesmapsCreatePointFeature) sind der Vertrag, nicht die des Fensters.
 		if (ziel === "location") {
 			const ortEingaben = garetienEingabenZustandZu(objekt);
-			return {
+			return Object.assign({}, zielRumpf, {
 				is_nodix: ortEingaben.isNodix, is_ruined: ortEingaben.isRuined,
 				is_hidden: ortEingaben.isHidden, place_kind: ortEingaben.placeKind,
-			};
+			});
 		}
 		// 🔴 Der WEG ebenso, seit dem 30.08.2026 -- und `allowed_transports` reist NUR mit, wenn
 		// jemand die Auswahl wirklich angefasst hat (`transports !== null`). Sonst wählt der Server
@@ -2994,19 +3029,19 @@
 		// dem von vorher. Eine LEERE Liste ist dagegen eine Aussage und reist mit.
 		if (ziel === "path") {
 			const wegEingaben = garetienEingabenZustandZu(objekt);
-			const rausWeg = { show_label: wegEingaben.showLabel };
+			const rausWeg = Object.assign({}, zielRumpf, { show_label: wegEingaben.showLabel });
 			if (wegEingaben.transports !== null) {
 				rausWeg.allowed_transports = wegEingaben.transports;
 			}
 			return rausWeg;
 		}
-		if (ziel !== "region" && ziel !== "label") { return null; }
+		if (ziel !== "region" && ziel !== "label") { return zielRumpf; }
 		const eingaben = garetienEingabenZustandZu(objekt);
-		const raus = {
+		const raus = Object.assign({}, zielRumpf, {
 			size: eingaben.size, priority: eingaben.priority,
 			min_zoom: eingaben.minZoom, max_zoom: eingaben.maxZoom,
 			show_name: eingaben.showName, is_nodix: eingaben.isNodix,
-		};
+		});
 		// 🔴 NUR WENN WIRKLICH ETWAS DASTEHT. Ein leeres Feld schickt den Schluessel GAR NICHT --
 		// avesmapsCreateLabelFeature schreibt `height_schritt` nur, wenn der Schluessel im Rumpf
 		// steht und einen brauchbaren Wert traegt. Eine mitgeschickte "" waere zwar auch `null`,
@@ -3415,17 +3450,199 @@
 		return '<p class="gi-why">Liegt bereits auf der Karte. ' + avesmapsGaretienEscape(zusatz) + "</p>";
 	}
 
+	/* =============================================================================================
+	 * DIE ZIELWAHL -- zwei Auswahlfelder statt einer festen Zuordnung
+	 * =============================================================================================
+	 * Owner 01.09.2026: „die editoren wollen dass man bestimmen kann, welchen typ das ziel haben
+	 * soll … auch von fläche auf berg … er soll den vorschlag nehmen, den er gerade hat, aber
+	 * mann will auch ändern können." Dazu: „alle orte und weg-typen mit rein" und „bei Flächen, die
+	 * sehr klein sind … sollen automatisch schon als Berge vorausgewählt werden".
+	 *
+	 * 🔴 ZWEI FELDER, NICHT EINE LISTE MIT 50 EINTRÄGEN. Die FORM (Fläche · freies Label ·
+	 * Ort · Weg) entscheidet, WAS gebaut wird; die ART, als was. Ein Wechsel innerhalb einer Form
+	 * ist ein Namenswechsel, ein Wechsel der Form ändert die Gestalt des Objekts -- in einer
+	 * flachen Liste wäre genau diese Grenze unsichtbar.
+	 */
+	const AVESMAPS_GARETIEN_FORMEN = [
+		{ key: "region", label: "Fläche", mindestPunkte: 3 },
+		{ key: "label", label: "Freies Label", mindestPunkte: 1 },
+		{ key: "location", label: "Ort", mindestPunkte: 1 },
+		{ key: "path", label: "Weg", mindestPunkte: 2 },
+	];
+
+	// 🔴 DIE GEOMETRIE ENTSCHEIDET, WELCHE FORM ÜBERHAUPT ANGEBOTEN WIRD -- dieselbe Regel wie
+	// avesmapsGaretienMoeglicheZiele auf dem Server, und sie steht dort wie hier, weil beide sie
+	// brauchen: der Server lehnt ab, das Fenster bietet gar nicht erst an. ⚠️ Der SERVER ist die
+	// Wahrheit; diese Liste erspart dem Editor nur eine Fehlermeldung.
+	function garetienMoeglicheFormen(objekt) {
+		const punkte = ((objekt && objekt.geometrie) || []).length;
+		return AVESMAPS_GARETIEN_FORMEN.filter(function (form) {
+			return punkte >= form.mindestPunkte;
+		});
+	}
+
+	// REIN: die Fläche eines Rings in Quadratmeilen. 1 Karteneinheit = 3 Meilen, also 9 Meilen² je
+	// Einheit² (AVESMAPS_TERRAIN_MEILEN_PER_MAPUNIT).
+	function garetienFlaecheMeilen2(punkte) {
+		const p = punkte || [];
+		if (p.length < 3) { return 0; }
+		let summe = 0;
+		for (let i = 0; i < p.length; i++) {
+			const a = p[i];
+			const b = p[(i + 1) % p.length];
+			if (!a || !b) { return 0; }
+			summe += Number(a[0]) * Number(b[1]) - Number(b[0]) * Number(a[1]);
+		}
+		return Math.abs(summe) / 2 * 9;
+	}
+
+	/*
+	 * Die Vorbelegung der zwei Felder: der Vorschlag -- außer eine sehr kleine Bergfläche.
+	 *
+	 * 🔴 DIE REGEL GILT NUR DER BERGFAMILIE, und das ist gemessen, nicht gewählt. Über alle 18
+	 * Ebenen: „klein" trennt nicht Berg von Fläche, sondern SEEN von allem anderen -- 59 von 96
+	 * Seen liegen unter 5 Meilen², während der Median der `Berg`-Zeilen bei 136 Meilen² liegt.
+	 * Eine globale Größenschwelle machte also die Mehrheit der Seen zu Beschriftungen und ließe
+	 * die Hälfte der Berge trotzdem Fläche. Auf Gebirge und Hügel beschränkt trifft sie 8 Zeilen.
+	 * ⚠️ `Berg` steht NICHT in der Liste: diese Zeilen werden ohnehin zu Gipfeln, unabhängig von
+	 * ihrer Größe.
+	 */
+	const AVESMAPS_GARETIEN_BERGFAMILIE = ["Gebirge", "Huegel"];
+	const AVESMAPS_GARETIEN_BERG_SCHWELLE_MEILEN2 = 5;
+
+	function garetienZielVorbelegung(objekt) {
+		const o = objekt || {};
+		const vorschlag = {
+			ziel: String(o.ziel || ""),
+			subtyp: String(o.subtyp || ""),
+			kind: String(o.kind || ""),
+		};
+		if (vorschlag.ziel !== "region") { return vorschlag; }
+		if (AVESMAPS_GARETIEN_BERGFAMILIE.indexOf(String(o.typ || "")) === -1) { return vorschlag; }
+		// 💣 EINE FEHLENDE GEOMETRIE IST NICHT „KLEIN". `garetienFlaecheMeilen2` liefert 0, wenn
+		// keine oder weniger als drei Punkte da sind -- 0 heisst UNBEKANNT, nicht winzig. Ohne
+		// diesen Riegel schlug die Regel bei jedem Objekt ohne mitgereiste Geometrie zu und machte
+		// aus einem Hügelland stillschweigend einen Berggipfel. Gefangen hat das der bestehende
+		// Test der Kopfzeile, nicht eine neue Zeile.
+		const flaeche = garetienFlaecheMeilen2(o.geometrie);
+		if (flaeche <= 0 || flaeche >= AVESMAPS_GARETIEN_BERG_SCHWELLE_MEILEN2) {
+			return vorschlag;
+		}
+		return { ziel: "label", subtyp: "berggipfel", kind: "" };
+	}
+
+	// 💣 DER ZUSTAND LIEGT NEBEN DEM DOM, wie bei den übrigen Feldern des Kastens: die Detailspalte
+	// wird bei jedem Listen-Refetch neu gebaut, eine Wahl am `<select>` wäre dabei verloren.
+	let _garetienZielWahl = {};
+
+	function garetienZielWahlZu(objekt) {
+		const key = String((objekt && objekt.key) || "");
+		// 💣 OHNE SCHLUESSEL WIRD NICHT ZWISCHENGESPEICHERT. Sonst teilten sich ALLE schluessellosen
+		// Objekte den Eintrag unter "" -- die Wahl des ersten gaelte fuer jedes weitere. Das trifft
+		// nicht nur Testattrappen: `garetienTypText` wird auch mit blossen {typ, subtyp}-Objekten
+		// gerufen, und dann stuende im Kopf die Art eines ganz anderen Objekts.
+		if (key === "") { return garetienZielVorbelegung(objekt); }
+		if (!_garetienZielWahl[key]) {
+			_garetienZielWahl[key] = garetienZielVorbelegung(objekt);
+		}
+		return _garetienZielWahl[key];
+	}
+
+	function garetienZielWahlVergessen() { _garetienZielWahl = {}; }
+
+	// Das Flächen-Vokabular aus der Listenantwort (garetien-liste.php) -- 29 Arten, EINMAL je Abruf.
+	function garetienFlaechenVokabular() {
+		const antwort = zustand && zustand.letzteAntwort;
+		return (antwort && Array.isArray(antwort.flaechen_arten)) ? antwort.flaechen_arten : [];
+	}
+
+	/*
+	 * Die Arten EINER Form. 🔴 VIER VORHANDENE QUELLEN, KEIN NEUES VOKABULAR -- dasselbe, aus dem
+	 * `garetienUnserBeschriftung` schon heute den angezeigten Namen holt.
+	 *
+	 * ⭐ Die FREIEN Label sind eine DIFFERENZ, keine gepflegte Liste: was eine Label-Art ist, aber
+	 * keine Flächenart, ist ein freies Label. Eine handgeschriebene Aufzählung liefe beim nächsten
+	 * neuen Typ auseinander -- genau das ist der Kartensuche passiert, die bis heute 18 Arten nicht
+	 * kennt.
+	 */
+	function garetienArtenFuerForm(form) {
+		if (form === "region") {
+			return garetienFlaechenVokabular().map(function (art) {
+				return { key: String(art.type_key || ""), label: String(art.label || art.type_key || ""),
+					kind: String(art.kind || "") };
+			});
+		}
+		if (form === "label") {
+			const flaechen = {};
+			garetienFlaechenVokabular().forEach(function (art) { flaechen[String(art.type_key || "")] = true; });
+			const namen = (typeof AVESMAPS_LABEL_ART_NAMEN !== "undefined") ? AVESMAPS_LABEL_ART_NAMEN : {};
+			return Object.keys(namen).filter(function (key) { return !flaechen[key]; })
+				.map(function (key) { return { key: key, label: String(namen[key] || key), kind: "" }; });
+		}
+		if (form === "location") {
+			const ordnung = (typeof LOCATION_TYPE_VISIBILITY_ORDER !== "undefined")
+				? LOCATION_TYPE_VISIBILITY_ORDER : [];
+			return ordnung.map(function (key) {
+				const eintrag = (typeof LOCATION_TYPE_CONFIG !== "undefined") ? LOCATION_TYPE_CONFIG[key] : null;
+				return { key: key, label: (eintrag && eintrag.singularLabel) || key, kind: "" };
+			});
+		}
+		if (form === "path") {
+			const keys = (typeof PATH_SUBTYPE_KEYS !== "undefined") ? PATH_SUBTYPE_KEYS : [];
+			return keys.map(function (key) {
+				const label = (typeof getPathTypeLabel === "function") ? getPathTypeLabel(key) : key;
+				return { key: key, label: String(label || key), kind: "" };
+			});
+		}
+		return [];
+	}
+
+	// REIN: die zwei Auswahlfelder. `deaktiviert` sperrt sie an einem bereits übernommenen Objekt --
+	// dieselbe Regel wie für jedes andere Feld dieses Kastens (Owner 30.08.2026, Punkt 6a).
+	function garetienZielWahlMarkup(objekt, deaktiviert) {
+		const wahl = garetienZielWahlZu(objekt);
+		const formen = garetienMoeglicheFormen(objekt);
+		// ⚠️ Eine Form, die die Geometrie nicht hergibt, steht nicht in der Liste -- die gewählte
+		// aber immer, sonst zeigte das Feld etwas anderes an als das, was gilt.
+		const formListe = formen.some(function (f) { return f.key === wahl.ziel; })
+			? formen
+			: formen.concat([{ key: wahl.ziel, label: wahl.ziel }]);
+		const arten = garetienArtenFuerForm(wahl.ziel);
+		const artListe = arten.some(function (a) { return a.key === wahl.subtyp; })
+			? arten
+			: arten.concat([{ key: wahl.subtyp, label: wahl.subtyp, kind: wahl.kind }]);
+		const gesperrt = deaktiviert ? " disabled" : "";
+		const bauen = function (feld, liste, gewaehlt) {
+			return '<select class="gi-insert__select" data-gi-feld="' + feld + '"'
+				+ ' id="' + garetienEingabeId(objekt, feld) + '"' + gesperrt + ">"
+				+ liste.map(function (e) {
+					return '<option value="' + avesmapsGaretienEscape(e.key) + '"'
+						+ (e.key === gewaehlt ? " selected" : "") + ">"
+						+ avesmapsGaretienEscape(e.label) + "</option>";
+				}).join("") + "</select>";
+		};
+		return '<p class="gi-insert__row">Form <span class="gi-insert__val">'
+			+ bauen("zielForm", formListe, wahl.ziel) + "</span></p>"
+			+ '<p class="gi-insert__row">Art <span class="gi-insert__val">'
+			+ bauen("zielArt", artListe, wahl.subtyp) + "</span></p>";
+	}
+
 	function garetienEingefuegtWirdMarkup(objekt) {
 		if (!objekt || !garetienEingefuegtWirdHatVorschlag(objekt)) { return ""; }
-		const ziel = String(objekt.ziel || "");
-		const subtyp = String(objekt.subtyp || "");
+		// 🔴 SEIT 01.09.2026 ENTSCHEIDET DIE WAHL, NICHT DER VORSCHLAG. `garetienZielWahlZu` liefert
+		// den Vorschlag, solange niemand etwas anderes gewählt hat -- der Kasten darunter zeigt
+		// deshalb die Felder der GEWÄHLTEN Form (eine Fläche hat andere als ein Gipfel).
+		const wahl = garetienZielWahlZu(objekt);
+		const ziel = String(wahl.ziel || "");
+		const subtyp = String(wahl.subtyp || "");
 		// 🔴 Punkt 6a: ein bereits UEBERNOMMENES Objekt ist angelegt -- hier gibt es nichts mehr zu
 		// entscheiden, und die Felder werden reine Anzeige (Owner: „die editoren sollen dann das
 		// objekt auf der karte editieren").
 		const uebernommen = String(objekt.stand || "") === "uebernommen";
 		let markup = '<p class="gi-sec">Eingefügt wird</p>'
 			+ '<p class="gi-why gi-insert__kopf">' + avesmapsGaretienEscape(garetienTypText(objekt)) + "</p>"
-			+ garetienEingefuegtWirdUebernommenHinweis(objekt);
+			+ garetienEingefuegtWirdUebernommenHinweis(objekt)
+			+ garetienZielWahlMarkup(objekt, uebernommen);
 		if (ziel === "region") {
 			markup += garetienEingefuegtWirdFlaecheMarkup(objekt, uebernommen);
 			markup += garetienEingefuegtWirdBeschriftungMarkup(objekt, subtyp, true, uebernommen);
@@ -5944,6 +6161,13 @@
 			// Aufgabe „Eingefügt wird" (30.08.2026)
 			garetienEingefuegtWirdHatVorschlag,
 			garetienEingefuegtWirdMarkup,
+			garetienZielVorbelegung,
+			garetienZielWahlZu,
+			garetienZielWahlVergessen,
+			garetienMoeglicheFormen,
+			garetienArtenFuerForm,
+			garetienFlaecheMeilen2,
+			garetienZielWahlMarkup,
 			// Fuenf-Punkte-Brief 30.08.2026, Punkt 6b
 			garetienEingefuegtWirdUebernommenHinweis,
 			// Owner-Nachtrag 30.08.2026: die Weg-/Ort-Einstellungen ("vergiss nicht die andern

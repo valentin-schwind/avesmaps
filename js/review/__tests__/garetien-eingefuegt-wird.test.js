@@ -433,8 +433,15 @@ wahr(/\.gi-insert__input\.gi-insert__input--text\s*\{/.test(importerCss),
 // ---- Was an den Server reist -- die vier Feldnamen des Anlegers, nicht die des Browsers.
 const rausOrt = garetienEingabenFuerServer(ort);
 wahr(rausOrt !== null, "ein Ort schickt jetzt eine Handeingabe mit (frueher: null)");
-gleich(Object.keys(rausOrt).sort().join(","), "is_hidden,is_nodix,is_ruined,place_kind",
-	"GENAU die vier Felder, die avesmapsCreatePointFeature liest -- kein fuenftes: " + JSON.stringify(rausOrt));
+// 🔴 SEIT 01.09.2026 SIND ES SIEBEN: die vier Felder, die avesmapsCreatePointFeature liest, PLUS
+// die Zielwahl (`ziel`/`subtyp`/`kind`). Die reist bei JEDER Form mit -- der Server vergleicht sie
+// gegen den Vorschlag (avesmapsGaretienZielUebersteuern) und formt nur um, wenn sie abweicht.
+// ⚠️ Die Zusicherung bleibt eine GENAUE Liste und keine „enthaelt mindestens": ihr Sinn ist, dass
+// kein Feld unbemerkt mitfaehrt, das der Anleger gar nicht liest.
+gleich(Object.keys(rausOrt).sort().join(","), "is_hidden,is_nodix,is_ruined,kind,place_kind,subtyp,ziel",
+	"die vier Anleger-Felder und die Zielwahl -- kein achtes: " + JSON.stringify(rausOrt));
+gleich(rausOrt.ziel, "location", "die Zielwahl steht auf dem Vorschlag, solange niemand waehlt");
+gleich(rausOrt.subtyp, "dorf", "und ihre Art ebenso");
 gleich(rausOrt.is_nodix, false, "Grundwert aus");
 gleich(rausOrt.place_kind, "", "Grundwert: keine Art");
 
@@ -470,8 +477,12 @@ const ortUebernommen = Object.assign({}, ort, {
 	key: "ggp:Sonstiges:Dorf:Garetien:Testdorf-uebernommen", stand: "uebernommen",
 });
 const mOrtUeb = garetienEingefuegtWirdMarkup(ortUebernommen);
-gleich((mOrtUeb.match(/disabled/g) || []).length, 4,
-	"alle vier Bedienelemente des Ortes sind gesperrt, sobald er auf der Karte liegt: " + mOrtUeb);
+// 🔴 SEIT 01.09.2026 SECHS: die vier Bedienelemente des Ortes UND die zwei Auswahlfelder der
+// Zielwahl. Ein bereits angelegtes Objekt hat nichts mehr zu entscheiden -- auch nicht, was es
+// haette werden sollen (Owner 30.08.2026, Punkt 6a: „die editoren sollen dann das objekt auf der
+// karte editieren").
+gleich((mOrtUeb.match(/disabled/g) || []).length, 6,
+	"alle sechs Bedienelemente sind gesperrt, sobald der Ort auf der Karte liegt: " + mOrtUeb);
 
 // Keine "Vorgabe der Art"-Behauptung -- fuer diese vier Felder gibt es keine Tafel, eine erfundene
 // Empfehlung waere die zweite Wahrheit, vor der AGENTS.md warnt.
@@ -590,8 +601,10 @@ wahr(!mPfad.includes("Strömung") && !mStrasse.includes("Strömung"),
 const wegUebernommen = Object.assign({}, weg, {
 	key: "ggp:Gewaesser:Fluss:Garetien:Testfluss-uebernommen", stand: "uebernommen",
 });
-gleich((garetienEingefuegtWirdMarkup(wegUebernommen).match(/disabled/g) || []).length, 3,
-	"beim uebernommenen Flussweg sind der Anzeige-Haken und beide Verkehrsmittel gesperrt");
+// 🔴 SEIT 01.09.2026 FUENF: Anzeige-Haken, beide Verkehrsmittel UND die zwei Auswahlfelder der
+// Zielwahl -- an einem angelegten Objekt ist auch die Form nicht mehr zu entscheiden.
+gleich((garetienEingefuegtWirdMarkup(wegUebernommen).match(/disabled/g) || []).length, 5,
+	"beim uebernommenen Flussweg sind Anzeige-Haken, beide Verkehrsmittel und die Zielwahl gesperrt");
 
 // =================================================================================================
 // F2. Ein BACH (ziel='path', is_bach) -- Owner 30.08.2026: „der jetzt bäche importieren soll".
@@ -861,19 +874,23 @@ const kOrt = { key: "k1", ziel: "location", subtyp: "dorf" };
 garetienEingabenZustandZu(kOrt).isNodix = true;
 garetienEingabenZustandZu(kOrt).isHidden = true;
 garetienEingabenZustandZu(kOrt).placeKind = "Turm";
+// 🔴 SEIT 01.09.2026 KOMMT DIE ZIELWAHL DAZU (`ziel`/`subtyp`/`kind`). Sie reist bei JEDER Form
+// mit; der Server vergleicht sie gegen den Vorschlag und formt nur um, wenn sie abweicht.
 assert.deepStrictEqual(garetienEingabenFuerServer(kOrt), {
+	ziel: "location", subtyp: "dorf", kind: "",
 	is_nodix: true, is_ruined: false, is_hidden: true, place_kind: "Turm",
-}, "ein Ort liefert GENAU die vier Karteifelder, keine Label-/Region-Felder");
+}, "ein Ort liefert die vier Karteifelder und die Zielwahl, keine Label-/Region-Felder");
 checks++;
 // Weg: seit dem 30.08.2026 die ZWEI Felder, die avesmapsCreatePathFeature wirklich liest.
 // 🔴 UNANGETASTET ohne `allowed_transports` -- dann waehlt der Server dieselbe Vorauswahl der
 // Wegart wie bisher, und der Anlegeaufruf bleibt zeichengleich zu dem von vorher.
 const kWeg = { key: "k2", ziel: "path", subtyp: "Pfad" };
-assert.deepStrictEqual(garetienEingabenFuerServer(kWeg), { show_label: false },
-	"ein unangetasteter Weg schickt nur show_label mit, KEINE Verkehrsmittel");
+assert.deepStrictEqual(garetienEingabenFuerServer(kWeg),
+	{ ziel: "path", subtyp: "Pfad", kind: "", show_label: false },
+	"ein unangetasteter Weg schickt show_label und die Zielwahl mit, KEINE Verkehrsmittel");
 garetienEingabenZustandZu(kWeg).transports = ["groupFoot"];
 assert.deepStrictEqual(garetienEingabenFuerServer(kWeg),
-	{ show_label: false, allowed_transports: ["groupFoot"] },
+	{ ziel: "path", subtyp: "Pfad", kind: "", show_label: false, allowed_transports: ["groupFoot"] },
 	"erst eine angefasste Auswahl reist als Liste mit");
 checks += 2;
 
@@ -888,8 +905,10 @@ garetienEingabenZustandZu(kBerg).showName = false;
 garetienEingabenZustandZu(kBerg).isNodix = true;
 const eBerg = garetienEingabenFuerServer(kBerg);
 assert.deepStrictEqual(eBerg, {
+	ziel: "label", subtyp: "berggipfel", kind: "",
 	size: 22, priority: 1, min_zoom: 2, max_zoom: 6, show_name: false, is_nodix: true,
-}, "ein Berggipfel liefert GENAU die sechs Label-Felder, keine Region-Felder: " + JSON.stringify(eBerg));
+}, "ein Berggipfel liefert die sechs Label-Felder und die Zielwahl, keine Region-Felder: "
+	+ JSON.stringify(eBerg));
 checks++;
 
 // Fläche (ziel='region'): alle NEUN Felder.
@@ -899,9 +918,10 @@ eF.size = 30; eF.priority = 5; eF.minZoom = 1; eF.maxZoom = 4; eF.showName = fal
 eF.isLocked = true; eF.curveLabel = true; eF.curveLabelMax = 2; eF.isNodix = false;
 const eFlaeche = garetienEingabenFuerServer(kFlaeche);
 assert.deepStrictEqual(eFlaeche, {
+	ziel: "region", subtyp: "huegelland", kind: "",
 	size: 30, priority: 5, min_zoom: 1, max_zoom: 4, show_name: false, is_nodix: false,
 	is_locked: true, curve_label: true, curve_label_max: 2,
-}, "eine Fläche liefert alle NEUN Felder: " + JSON.stringify(eFlaeche));
+}, "eine Fläche liefert alle neun Felder und die Zielwahl: " + JSON.stringify(eFlaeche));
 checks++;
 
 // =================================================================================================
