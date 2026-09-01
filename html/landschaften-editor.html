@@ -75,7 +75,7 @@
          die Rückmeldung — deshalb sagt die Unterzeile des Sammelknopfs, welcher Lauf gerade läuft
          (`ecoRunMenuState`, verdrahtet unten). Ohne diese Zeile darf hier nichts hinein. -->
     <div class="rb-menu">
-      <button type="button" class="avm-tile" id="ecoRunMenu" aria-haspopup="true" aria-expanded="false" title="Die vier Läufe, die dieser Editor anstößt: Zugehörigkeit, Höhenraster, Wegprofile und Beschriftungskurven. Jeder rechnet in Schüben und legt sein Ergebnis ab; keiner wird beim Anzeigen nachgerechnet."><span class="t1">Rechnen ▾</span><span class="t2" id="ecoRunMenuState">vier Läufe</span></button>
+      <button type="button" class="avm-tile" id="ecoRunMenu" aria-haspopup="true" aria-expanded="false" title="Die fünf Läufe, die dieser Editor anstößt: Zugehörigkeit, Höhenraster, Wegprofile, Beschriftungskurven und das Nachziehen der Wiki-Zuweisung an die Beschriftungen. Jeder legt sein Ergebnis ab; keiner wird beim Anzeigen nachgerechnet."><span class="t1">Rechnen ▾</span><span class="t2" id="ecoRunMenuState">fünf Läufe</span></button>
       <div class="rb-menu__panel type-filter__menu" id="ecoRunMenuPanel" hidden>
         <div class="rb-menu__row">
           <div class="rb-menu__txt"><b data-i18n="ecosystem.editor.ribbon.raycast">Zugehörigkeit</b><span id="ecoRaycastInfo" data-i18n="ecosystem.editor.ribbon.raycastIdle">noch nicht gerechnet</span></div>
@@ -92,6 +92,10 @@
         <div class="rb-menu__row">
           <div class="rb-menu__txt"><b>Kurven</b><span id="ecoCurvesInfo">noch nicht gerechnet</span></div>
           <button type="button" class="rb-menu__sw" id="ecoCurves" title="Rechnet die Beschriftungskurven aller eingeschalteten Landschaftsflächen neu und legt sie ab. Läuft einige Sekunden.">starten</button>
+        </div>
+        <div class="rb-menu__row">
+          <div class="rb-menu__txt"><b>Wiki-Zuweisung</b><span id="ecoLabelWikiInfo">noch nicht geprüft</span></div>
+          <button type="button" class="rb-menu__sw" id="ecoLabelWiki" title="Trägt die Wiki-Landschaft einer Fläche an ihre Beschriftungen nach. Zeigt erst, wie viele es betrifft, und fragt dann nach. Neue Zuweisungen wandern seit dem 01.09.2026 von selbst mit; dies ist für den Bestand.">prüfen</button>
         </div>
       </div>
     </div>
@@ -1501,6 +1505,56 @@ async function runCurveLabels() {
 	}
 }
 
+// „Wiki-Zuweisung" — der BESTANDSLAUF zum Durchtrag im Server (01.09.2026).
+//
+// 🔴 WOFÜR ER DA IST: eine Landschaft trägt ihre Wiki-Zuweisung an ZWEI Stellen — an der Fläche und
+// an ihrer Beschriftung. Seit dem 01.09.2026 reicht jedes Speichern die Zuweisung der Fläche an ihre
+// Beschriftungen durch; davor tat das nur der Flächendialog. Übrig blieb ein Bestand, dessen Namen
+// der Prüfhaken „Keine Wiki-Zuweisung" auf der Karte rot markiert, obwohl die Fläche zugewiesen ist.
+//
+// 💣 ERST ZEIGEN, DANN SCHREIBEN — und das ist keine Höflichkeit: der scharfe Lauf schreibt
+// Label-Zeilen und bumpt damit map_revision, also wird die ~21 MB Kartennutzlast für JEDEN Besucher
+// ungültig. Der erste Klick ist deshalb ein Trockenlauf (die Vorgabe des Endpunkts), und was er
+// gefunden hat, steht in der Rückfrage — mit Namen, nicht nur mit einer Zahl.
+// ⚠️ Bei null Funden gibt es KEINE Rückfrage: eine Bestätigung für nichts liest sich wie ein Fehler.
+async function runLabelWikiPush() {
+	const tile = $("ecoLabelWiki");
+	const info = $("ecoLabelWikiInfo");
+	tile.disabled = true;
+	info.textContent = "prüft …";
+	try {
+		const probe = await ecoPost("push_wiki_regions_to_labels", {});
+		const offen = Number(probe.regions || 0);
+		if (offen === 0) {
+			info.textContent = "nichts offen";
+			flashStatus("Wiki-Zuweisung: jede Beschriftung trägt die Zuweisung ihrer Fläche.", "ok");
+			return;
+		}
+		// 🔴 Der Deckel der Namensliste wird MITGESAGT (`names_truncated`) — eine gekürzte Aufzählung,
+		// die sich für vollständig ausgibt, liest sich wie „das sind alle".
+		const namen = (probe.names || []).join(", ") + (probe.names_truncated ? " …" : "");
+		info.textContent = offen + (offen === 1 ? " Fläche offen" : " Flächen offen");
+		const frage = offen === 1
+			? "Eine Beschriftung erbt die Wiki-Landschaft ihrer Fläche:\n\n" + namen + "\n\nJetzt nachtragen?"
+			: offen + " Beschriftungen erben die Wiki-Landschaft ihrer Fläche:\n\n" + namen + "\n\nJetzt nachtragen?";
+		if (!window.confirm(frage)) {
+			info.textContent = offen + " offen — nicht übernommen";
+			return;
+		}
+		info.textContent = "trägt nach …";
+		const lauf = await ecoPost("push_wiki_regions_to_labels", { dry_run: false, confirm: "apply" });
+		const geschrieben = Number(lauf.labels || 0);
+		info.textContent = geschrieben + (geschrieben === 1 ? " nachgetragen" : " nachgetragen");
+		flashStatus("Wiki-Zuweisung: " + geschrieben
+			+ (geschrieben === 1 ? " Beschriftung nachgetragen." : " Beschriftungen nachgetragen."), "ok");
+	} catch (error) {
+		info.textContent = "fehlgeschlagen";
+		flashStatus("Wiki-Zuweisung: " + (error && error.message ? error.message : String(error)), "bad");
+	} finally {
+		tile.disabled = false;
+	}
+}
+
 // 🔴 Gestückelt, mit Lauf-Token, Budget und Cursor. Der Browser ruft nur wiederholt auf; gerechnet
 // wird auf dem Server, und jeder Schritt bleibt weit unter jedem FastCGI-Limit.
 async function runTerrainProfiles() {
@@ -2463,6 +2517,7 @@ function wireRibbon() {
 	$("ecoHeightmap").addEventListener("click", () => { void runHeightmaps(); });
 	$("ecoProfiles").addEventListener("click", () => { void runTerrainProfiles(); });
 	$("ecoCurves").addEventListener("click", () => { void runCurveLabels(); });
+	$("ecoLabelWiki").addEventListener("click", () => { void runLabelWikiPush(); });
 	$("ecoTerrainTravel").addEventListener("click", () => { void toggleTerrainTravel(); });
 
 	// ---- Das Sammelmenü „Rechnen ▾" ------------------------------------------------------------
@@ -2495,6 +2550,7 @@ const RECHNEN_LAEUFE = [
 	["ecoHeightmap", "Höhenraster"],
 	["ecoProfiles", "Wegprofile"],
 	["ecoCurves", "Kurven"],
+	["ecoLabelWiki", "Wiki-Zuweisung"],
 ];
 let rechnenZuletzt = "";
 
@@ -2503,7 +2559,7 @@ function zeigeRechnenStand() {
 	if (!zeile) return;
 	const laeuft = RECHNEN_LAEUFE.find(([id]) => $(id)?.disabled === true);
 	if (laeuft) { zeile.textContent = laeuft[1] + " rechnet …"; return; }
-	zeile.textContent = rechnenZuletzt ? "zuletzt: " + rechnenZuletzt : "vier Läufe";
+	zeile.textContent = rechnenZuletzt ? "zuletzt: " + rechnenZuletzt : "fünf Läufe";
 }
 
 function verdrahteRechnenStand() {

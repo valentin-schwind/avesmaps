@@ -279,4 +279,150 @@ foreach (['avesmapsAssignEcosystemWikiRegion', 'avesmapsUpdateEcosystemRegion'] 
 $eigen = durchtragRumpf('avesmapsEcosystemPushWikiRegionToLabels');
 assert(!str_contains($eigen, 'UPDATE ecosystem_region'), 'der Durchtrag schreibt nur Beschriftungen');
 
+// ---- 10. DER BESTANDSLAUF: was schon offen liegt, wird nachgezogen --------------------------------
+// 🔴 Die zweite Hälfte des Owner-Entscheids: der Durchtrag oben verhindert NEUE Lücken, er schliesst
+// keine alte -- 12 Landschaften trugen die Zuweisung an der Fläche und nicht an ihrer Beschriftung.
+// Der Lauf sammelt genau die und reicht jede durch DENSELBEN Durchtrag; er entscheidet nicht selbst,
+// was geschrieben wird (sonst gäbe es zwei Regeln für eine Frage).
+function bestandFixture(): PDO
+{
+    // 💣 SIEBEN LAGEN, und fuenf davon sind Ausnahmen -- die erste Fassung dieser Fixture hatte nur
+    // drei und liess DREI Mutationen durch: sie prueften genau die Ausnahmen, die nicht dastanden.
+    $pdo = durchtragFixture([
+        ['l-offen', 'r-nordwalser', null],                                                 // (1) Fläche zugewiesen, Beschriftung leer
+        ['l-fertig', 'r-gelbe', ['wiki_key' => 'gelbe-sichel', 'name' => 'Gelbe Sichel']],  // (2) beide zugewiesen
+        ['l-ohne', 'r-namenlos', null],                                                    // (3) Fläche ohne Zuweisung
+        ['l-primaer', null, null],                                                         // (4) NUR über den Zeiger der Region erreichbar
+        ['l-tot', 'r-tot', null],                                                          // (5) an einer stillgelegten Region
+        ['l-fremdkey', 'r-fremdkey', ['wiki_key' => 'nur-am-label', 'name' => 'Nur am Label']], // (6) Label zugewiesen, Fläche nicht
+        ['l-inaktiv', 'r-inaktivlabel', null],                                             // (7) stillgelegte Beschriftung
+    ], null);
+    $pdo->prepare('UPDATE map_features SET is_active = 0 WHERE public_id = :p')->execute(['p' => 'l-inaktiv']);
+    $pdo->exec('CREATE TABLE ecosystem_region (
+        id INTEGER PRIMARY KEY, public_id TEXT, name TEXT, kind TEXT, wiki_region_key TEXT, wiki_url TEXT,
+        label_public_id TEXT, is_active INTEGER DEFAULT 1)');
+    $einfuegen = $pdo->prepare(
+        'INSERT INTO ecosystem_region (public_id, name, kind, wiki_region_key, wiki_url, label_public_id, is_active)
+         VALUES (:p, :n, :k, :w, :u, :l, :a)'
+    );
+    $wiki = 'https://de.wiki-aventurica.de/wiki/';
+    // (1) Der Livezustand vom 01.09.2026: die Fläche trägt die Zuweisung, ihre Beschriftung nicht.
+    $einfuegen->execute(['p' => 'r-nordwalser', 'n' => 'Nordwalser Höhen', 'k' => 'topographie',
+        'w' => 'nordwalser-h-hen', 'u' => $wiki . 'Nordwalser_H%C3%B6hen', 'l' => 'l-offen', 'a' => 1]);
+    // (2) Beide zugewiesen: nichts zu tun.
+    $einfuegen->execute(['p' => 'r-gelbe', 'n' => 'Gelbe Sichel', 'k' => 'topographie',
+        'w' => 'gelbe-sichel', 'u' => $wiki . 'Gelbe_Sichel', 'l' => 'l-fertig', 'a' => 1]);
+    // (3) Fläche ohne Zuweisung -- der Lauf reicht nach unten nichts durch, was oben fehlt.
+    $einfuegen->execute(['p' => 'r-namenlos', 'n' => 'Namenlos', 'k' => 'vegetation',
+        'w' => null, 'u' => null, 'l' => 'l-ohne', 'a' => 1]);
+    // 💣 (4) NUR über `label_public_id` erreichbar -- die Beschriftung zeigt selbst auf nichts zurück.
+    // Genau diese Richtung trug den gemeldeten Fall (das Kurvenlabel hängt am Zeiger der Region), und
+    // ohne sie ist der halbe Sammelweg ungeprüft.
+    $einfuegen->execute(['p' => 'r-kurve', 'n' => 'Kurvenland', 'k' => 'topographie',
+        'w' => 'kurvenland', 'u' => $wiki . 'Kurvenland', 'l' => 'l-primaer', 'a' => 1]);
+    // ⚠️ (5) Eine STILLGELEGTE Region mit Lücke: sie steht auf keiner Karte und gehört in keinen Lauf.
+    $einfuegen->execute(['p' => 'r-tot', 'n' => 'Versenkt', 'k' => 'topographie',
+        'w' => 'versenkt', 'u' => $wiki . 'Versenkt', 'l' => 'l-tot', 'a' => 0]);
+    // ⚠️ (6) Die Beschriftung trägt eine Zuweisung, die Fläche nicht. Der Lauf lässt sie in Ruhe --
+    // ohne den Schlüsselfilter zählte er sie als „offen" und der scharfe Lauf schriebe dann nichts:
+    // eine Meldung, die grösser ist als das, was passiert, ist schlimmer als keine.
+    $einfuegen->execute(['p' => 'r-fremdkey', 'n' => 'Nur am Label', 'k' => 'vegetation',
+        'w' => null, 'u' => null, 'l' => 'l-fremdkey', 'a' => 1]);
+    // ⚠️ (7) Eine STILLGELEGTE Beschriftung an einer zugewiesenen Fläche: gelöscht ist gelöscht.
+    $einfuegen->execute(['p' => 'r-inaktivlabel', 'n' => 'Ohne Beschriftung', 'k' => 'topographie',
+        'w' => 'inaktiv-key', 'u' => $wiki . 'Inaktiv', 'l' => 'l-inaktiv', 'a' => 1]);
+
+    return $pdo;
+}
+
+// 🔴 Der Trockenlauf ZÄHLT und schreibt nichts, und er ist die Vorgabe: ein Lauf über den ganzen
+// Bestand bumpt map_revision und macht damit die ~21 MB Kartennutzlast für jeden Besucher ungültig.
+// Dieselbe Zwei-Signal-Haltung wie bei avesmapsEcosystemAssignIsDryRun.
+$pdo = bestandFixture();
+$probe = avesmapsEcosystemPushWikiRegionsToLabelsAll($pdo, 7, true);
+assert($probe['dry_run'] === true);
+assert($probe['regions'] === 2, 'die zwei offenen Regionen, gemeldet: ' . var_export($probe['regions'], true));
+assert($probe['names'] === ['Nordwalser Höhen', 'Kurvenland'], 'und keine der fünf Ausnahmen: '
+    . implode(' | ', $probe['names']));
+assert($probe['names_truncated'] === false);
+assert($probe['labels'] === 0, 'ein Trockenlauf schreibt nichts');
+
+assert(labelProperties($pdo, 'l-offen') === ['text' => 'Nordwalser Höhen', 'ecosystem_region_public_id' => 'r-nordwalser'],
+    'nach dem Trockenlauf steht die Beschriftung unverändert da');
+assert((int) $pdo->query('SELECT COUNT(*) FROM map_audit_log')->fetchColumn() === 0);
+
+// Scharf: nur die offene wird geschrieben.
+$pdo = bestandFixture();
+$lauf = avesmapsEcosystemPushWikiRegionsToLabelsAll($pdo, 7, false);
+assert($lauf['dry_run'] === false);
+assert($lauf['labels'] === 2, 'genau zwei Beschriftungen nachgezogen, gemeldet: ' . var_export($lauf['labels'], true));
+assert((labelProperties($pdo, 'l-primaer')['wiki_region']['wiki_key'] ?? '') === 'kurvenland',
+    'auch die, die nur über den Zeiger der Region erreichbar ist');
+assert((labelProperties($pdo, 'l-fremdkey')['wiki_region']['wiki_key'] ?? '') === 'nur-am-label',
+    'eine Zuweisung ohne Gegenstück an der Fläche bleibt stehen');
+assert(labelProperties($pdo, 'l-tot') === ['text' => 'Nordwalser Höhen', 'ecosystem_region_public_id' => 'r-tot'],
+    'eine stillgelegte Fläche reicht nichts durch');
+assert(labelProperties($pdo, 'l-inaktiv') === ['text' => 'Nordwalser Höhen', 'ecosystem_region_public_id' => 'r-inaktivlabel'],
+    'und eine stillgelegte Beschriftung bekommt nichts');
+assert((labelProperties($pdo, 'l-offen')['wiki_region']['wiki_key'] ?? '') === 'nordwalser-h-hen');
+assert((labelProperties($pdo, 'l-fertig')['wiki_region']['wiki_key'] ?? '') === 'gelbe-sichel', 'die fertige bleibt, wie sie ist');
+assert(labelProperties($pdo, 'l-ohne') === ['text' => 'Nordwalser Höhen', 'ecosystem_region_public_id' => 'r-namenlos'],
+    'eine Fläche ohne Zuweisung reicht nichts durch');
+
+// Und ein zweiter Lauf findet nichts mehr -- der Beleg, dass er am ZUSTAND hängt und nicht an einem
+// Merker, den jemand zu setzen vergessen kann.
+$zweiter = avesmapsEcosystemPushWikiRegionsToLabelsAll($pdo, 7, false);
+assert($zweiter['regions'] === 0 && $zweiter['labels'] === 0, 'der Lauf ist wiederholbar und beim zweiten Mal leer');
+
+// ---- 11. DER NAMENSDECKEL SAGT, DASS ER GEKAPPT HAT ----------------------------------------------
+// 🔴 „Keine stille Kappung" (AGENTS.md §9): eine gekürzte Liste, die sich für vollständig ausgibt,
+// liest sich wie „das sind alle" -- und wer danach handelt, hält den Rest für erledigt. Gemessen
+// wird deshalb BEIDES: dass die Zählung vollständig bleibt und dass die Kürzung gemeldet wird.
+$viele = durchtragFixture([], null);
+$viele->exec('CREATE TABLE ecosystem_region (
+    id INTEGER PRIMARY KEY, public_id TEXT, name TEXT, kind TEXT, wiki_region_key TEXT, wiki_url TEXT,
+    label_public_id TEXT, is_active INTEGER DEFAULT 1)');
+$regionEinfuegen = $viele->prepare(
+    'INSERT INTO ecosystem_region (public_id, name, kind, wiki_region_key, wiki_url, label_public_id, is_active)
+     VALUES (:p, :n, "topographie", :w, :u, :l, 1)'
+);
+$labelEinfuegen = $viele->prepare(
+    'INSERT INTO map_features (public_id, feature_type, name, properties_json) VALUES (:p, "label", :n, :j)'
+);
+$anzahl = AVESMAPS_ECOSYSTEM_PUSH_NAMES_LIMIT + 5;
+for ($i = 1; $i <= $anzahl; $i++) {
+    $labelEinfuegen->execute(['p' => 'l-' . $i, 'n' => 'Fläche ' . $i,
+        'j' => json_encode(['text' => 'Fläche ' . $i, 'ecosystem_region_public_id' => 'r-' . $i], JSON_UNESCAPED_UNICODE)]);
+    $regionEinfuegen->execute(['p' => 'r-' . $i, 'n' => 'Fläche ' . $i, 'w' => 'flaeche-' . $i,
+        'u' => 'https://de.wiki-aventurica.de/wiki/Flaeche_' . $i, 'l' => 'l-' . $i]);
+}
+$gross = avesmapsEcosystemPushWikiRegionsToLabelsAll($viele, 7, true);
+assert($gross['regions'] === $anzahl, 'gezählt wird vollständig: ' . var_export($gross['regions'], true));
+assert(count($gross['names']) === AVESMAPS_ECOSYSTEM_PUSH_NAMES_LIMIT, 'die Namensliste ist gedeckelt');
+assert($gross['names_truncated'] === true, 'und die Kappung wird GEMELDET, nicht verschwiegen');
+
+// 🔴 Er trifft KEINE eigene Entscheidung: geschrieben wird ausschliesslich über den geteilten
+// Durchtrag. Zwei Regeln für dieselbe Frage sind die Divergenz, die dieses Haus mehrfach bezahlt hat.
+$sammel = durchtragRumpf('avesmapsEcosystemPushWikiRegionsToLabelsAll');
+assert(str_contains($sammel, 'avesmapsEcosystemPushWikiRegionToLabels('), 'der Lauf ruft den geteilten Durchtrag');
+assert(!str_contains($sammel, 'UPDATE map_features'), 'und schreibt nicht selbst');
+
+// ---- 12. DIE ZWEITE NAHT: der Endpunkt kennt den Lauf, und der Trockenlauf ist die Vorgabe -------
+// 💣 Der Endpunkt lässt sich nicht laden -- er LÄUFT beim Include (Auth, CORS, PDO). Gelesen wird
+// deshalb sein Quelltext, mit gestrippten Kommentaren: ein Kommentar, der die Aktion erwähnt, ist
+// keine Verdrahtung. Ohne diese Zusicherung wäre der Lauf serverseitig vorhanden und von aussen
+// unerreichbar -- die Lage, in der beide Hälften grün sind und die Naht fehlt.
+$endpunkt = file_get_contents(__DIR__ . '/../../../edit/map/ecosystem.php');
+assert($endpunkt !== false, 'der Endpunkt ist lesbar');
+$endpunkt = str_replace("\r\n", "\n", $endpunkt);
+$endpunkt = (string) preg_replace('~//[^\n]*~', '', (string) preg_replace('~/\*.*?\*/~s', '', $endpunkt));
+assert(str_contains($endpunkt, "'push_wiki_regions_to_labels' => avesmapsEcosystemPushWikiRegionsToLabelsAll("),
+    'der Endpunkt muss den Bestandslauf anbieten');
+// 🔴 Und er reicht die ZWEI-SIGNAL-Weiche durch, statt sich eine eigene zu bauen: dieselbe Funktion,
+// die auch assign_wiki_region schützt. Eine zweite Lesart von `dry_run` wäre die Stelle, an der ein
+// Lauf über den ganzen Bestand versehentlich scharf geht.
+$ausschnitt = substr($endpunkt, (int) strpos($endpunkt, "'push_wiki_regions_to_labels'"), 400);
+assert(str_contains($ausschnitt, 'avesmapsEcosystemAssignIsDryRun($payload)'),
+    'der Trockenlauf-Riegel ist der geteilte, nicht ein zweiter');
+
 echo "OK - Durchtrag der Wiki-Landschaft an die Beschriftungen: alle Zusicherungen erfüllt.\n";

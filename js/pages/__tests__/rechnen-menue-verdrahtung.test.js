@@ -55,7 +55,11 @@ const BAND = HTML.slice(bandVon, bandBis).replace(/<!--[\s\S]*?-->/g, "");
 	// 760 px Bandbreite -- 236 px Reserve. Wer eine FÜNFTE hinzufügt, misst nach, statt die Zahl
 	// hier hochzusetzen.
 	pruefe(kacheln === 4, `DER KERN VON TEIL 1: das Band trägt ${kacheln} Kacheln, erwartet 4`);
-	pruefe(imPanel === 4, `DER KERN VON TEIL 1: im Menü stehen ${imPanel} Läufe, erwartet 4`);
+	// 🔴 FUENF im PANEL seit dem 01.09.2026 -- „Wiki-Zuweisung“ ist dazugekommen (der Bestandslauf
+	// zum serverseitigen Durchtrag der Wiki-Landschaft an die Beschriftungen). Die KACHELN des
+	// Bandes bleiben bei vier: der Lauf steht im Menue, nicht daneben -- genau dafuer gibt es das
+	// Sammelmenue, und die Ellipsen-Messung von 1024 px oben ist damit unberuehrt.
+	pruefe(imPanel === 5, `DER KERN VON TEIL 1: im Menü stehen ${imPanel} Läufe, erwartet 5`);
 	// 💣 Und die Kachel, die gefallen ist, bleibt gefallen -- restlos, nicht halb. Ein Zuhörer ohne
 	// Kachel ist ein `addEventListener` auf null und nimmt beim Laden die ganze Seite mit.
 	const ohneKommentare = HTML.replace(/<!--[\s\S]*?-->/g, "").replace(/^\s*\/\/.*$/gm, "");

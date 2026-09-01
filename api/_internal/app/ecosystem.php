@@ -3462,6 +3462,10 @@ function avesmapsEcosystemRegionLabelPublicIds(PDO $pdo, string $regionPublicId,
 // reist, was sicher bekannt ist (Schlüssel und URL), genau wie beim Client-Schnappschuss
 // (ecosystemWikiRegionSnapshot, map-features-ecosystem-draw.js). Zu werfen hiesse, ein Speichern
 // an einer Wiki-Tabelle scheitern zu lassen, mit der der Editor gerade nichts zu tun hat.
+// Wie viele Namen ein Bestandslauf zurueckmeldet. Die ZAEHLUNG ist davon unberuehrt -- der
+// Deckel schuetzt nur die Rueckmeldung, und er wird gemeldet (`names_truncated`).
+const AVESMAPS_ECOSYSTEM_PUSH_NAMES_LIMIT = 50;
+
 function avesmapsEcosystemWikiRegionAssignObject(PDO $pdo, string $wikiKey, string $wikiUrl): array
 {
     require_once __DIR__ . '/../wiki/sync.php';
@@ -3600,6 +3604,114 @@ function avesmapsEcosystemPushWikiRegionToLabels(
     }
 
     return ['labels' => count($rows), 'applied' => $applied, 'revision' => $revision];
+}
+
+// DER BESTANDSLAUF zum Durchtrag darüber: was schon offen liegt, nachziehen.
+//
+// 🔴 WOZU ER ÜBERHAUPT DA IST: der Durchtrag oben verhindert NEUE Lücken -- er schliesst keine alte.
+// Am 01.09.2026 trugen 12 Landschaften die Wiki-Zuweisung an ihrer Fläche und nicht an ihrer
+// Beschriftung, und die stand deshalb rot auf der Karte. Ohne diesen Lauf müsste jede von Hand
+// aufgemacht und gespeichert werden.
+//
+// 🔴 ER ENTSCHEIDET NICHTS SELBST. Was geschrieben wird, sagt ausschliesslich
+// avesmapsEcosystemPushWikiRegionToLabels; hier wird nur AUSGEWÄHLT, wen es überhaupt betrifft. Eine
+// zweite Rechnung über dieselbe Frage wäre die Divergenz, die dieses Haus schon mehrfach bezahlt hat
+// (AGENTS.md §5) -- und sie wäre still: der Lauf schriebe dann andere Zeilen als der Einzelweg.
+//
+// ⭐ DIE AUSWAHL IST EIN DURCHGANG, nicht ein LIKE-Scan je Region. Live sind es 427 Regionen mit
+// Schlüssel und rund 1000 Beschriftungen; je Region zu scannen hiesse 427 Vollscans in EINER
+// Anfrage. So wird EINMAL über die Beschriftungen gelesen und danach nur für die wirklich
+// betroffenen Regionen der Durchtrag gerufen (live: 12 statt 427).
+//
+// 🔴 TROCKENLAUF IST DIE VORGABE, wie bei avesmapsAssignEcosystemWikiRegion und aus demselben Grund:
+// ein scharfer Lauf schreibt Label-Zeilen und bumpt damit `map_revision` -- die ~21 MB Kartennutzlast
+// wird für jeden Besucher ungültig. Das darf kein vertipptes Flag auslösen.
+//
+// ⚠️ KEINE eigene Transaktion. Jede nachgezogene Beschriftung ist für sich vollständig; ein Abbruch
+// in der Mitte hinterlässt keine halbe Wahrheit, sondern nur weniger geheilte Zeilen -- und ein
+// zweiter Lauf holt sie. Eine Transaktion über bis zu tausend Label-Zeilen hielte auf STRATO
+// dagegen genau die Sperren, vor denen CLAUDE.md warnt.
+function avesmapsEcosystemPushWikiRegionsToLabelsAll(PDO $pdo, int $userId, bool $dryRun = true): array
+{
+    $regionen = $pdo->query(
+        "SELECT public_id, name, wiki_region_key, wiki_url, label_public_id
+           FROM ecosystem_region
+          WHERE is_active = 1 AND wiki_region_key IS NOT NULL AND wiki_region_key <> ''"
+    )->fetchAll(PDO::FETCH_ASSOC) ?: [];
+    if ($regionen === []) {
+        return ['dry_run' => $dryRun, 'regions' => 0, 'labels' => 0, 'names' => [], 'names_truncated' => false];
+    }
+
+    // Der eine Durchgang: welcher Wiki-Schlüssel steht an welcher Beschriftung, und auf welche Region
+    // zeigt sie. Beide Zeigerrichtungen -- genau wie avesmapsEcosystemRegionLabelPublicIds, nur für
+    // alle Regionen auf einmal.
+    $schluesselJeLabel = [];
+    $labelsJeRegion = [];
+    $labelZeilen = $pdo->query(
+        "SELECT public_id, properties_json FROM map_features WHERE feature_type = 'label' AND is_active = 1"
+    )->fetchAll(PDO::FETCH_ASSOC) ?: [];
+    foreach ($labelZeilen as $zeile) {
+        $labelPublicId = (string) ($zeile['public_id'] ?? '');
+        $properties = json_decode((string) ($zeile['properties_json'] ?? ''), true);
+        $properties = is_array($properties) ? $properties : [];
+        $schluesselJeLabel[$labelPublicId] = trim((string) ($properties['wiki_region']['wiki_key'] ?? ''));
+        $zeiger = trim((string) ($properties['ecosystem_region_public_id'] ?? ''));
+        if ($zeiger !== '') {
+            $labelsJeRegion[$zeiger][] = $labelPublicId;
+        }
+    }
+
+    $offen = [];
+    foreach ($regionen as $region) {
+        $wikiKey = trim((string) ($region['wiki_region_key'] ?? ''));
+        $eigene = $labelsJeRegion[(string) $region['public_id']] ?? [];
+        // 💣 Der primäre Zeiger zählt mit, auch wenn die Beschriftung ihn nicht zurückgibt -- genau
+        // diese Richtung trug den Livefall: das Kurvenlabel der Nordwalser Höhen hängt am Zeiger der
+        // Region. Ein Zeiger auf eine gelöschte Zeile fällt hier von selbst heraus, weil er dann in
+        // $schluesselJeLabel gar nicht steht.
+        $primaer = trim((string) ($region['label_public_id'] ?? ''));
+        if ($primaer !== '' && array_key_exists($primaer, $schluesselJeLabel)) {
+            $eigene[] = $primaer;
+        }
+        foreach (array_unique($eigene) as $labelPublicId) {
+            if (($schluesselJeLabel[$labelPublicId] ?? '') !== $wikiKey) {
+                $offen[] = $region;
+                break;
+            }
+        }
+    }
+
+    // 🔴 Keine stille Kappung: die Namensliste ist für die Rückmeldung da und wird gedeckelt, aber
+    // der Deckel wird GEMELDET (AGENTS.md §9, „no silent caps"). Gezählt wird immer vollständig.
+    $namen = [];
+    foreach ($offen as $region) {
+        if (count($namen) >= AVESMAPS_ECOSYSTEM_PUSH_NAMES_LIMIT) {
+            break;
+        }
+        $namen[] = (string) ($region['name'] ?? '');
+    }
+
+    $labels = 0;
+    if (!$dryRun) {
+        foreach ($offen as $region) {
+            $labels += avesmapsEcosystemPushWikiRegionToLabels(
+                $pdo,
+                (string) $region['public_id'],
+                ($region['label_public_id'] ?? null) === null ? null : (string) $region['label_public_id'],
+                (string) ($region['wiki_region_key'] ?? ''),
+                (string) ($region['wiki_url'] ?? ''),
+                $userId
+            )['applied'];
+        }
+    }
+
+    return [
+        'dry_run' => $dryRun,
+        'regions' => count($offen),
+        'labels' => $labels,
+        'names' => $namen,
+        'names_truncated' => count($offen) > count($namen),
+    ];
 }
 
 // Soft-delete the given labels, with one audit row each and ONE shared map revision.

@@ -76,6 +76,20 @@ try {
         // Partial: only the fields actually present in the payload are written, so an update never wipes
         // what the client did not send.
         'update_region' => avesmapsUpdateEcosystemRegion($pdo, $payload, $userId),
+        // „Beschriftungen nachziehen" im Rechnen-Menue (01.09.2026). Traegt die Wiki-Landschaft der
+        // Flaeche an ihre Beschriftungen nach -- fuer den BESTAND, den es vor dem Durchtrag in
+        // avesmapsUpdateEcosystemRegion/assign_wiki_region schon gab (live: 12 Landschaften, deren
+        // Name deshalb rot auf der Karte stand).
+        // 🔴 Faehigkeit `edit` wie der ganze Endpunkt: der Lauf schreibt ausschliesslich das, was ein
+        // Editor mit einem Klick je Flaeche ohnehin ausloest -- er nimmt ihm nur die Handgriffe ab.
+        // 🔴 TROCKENLAUF IST DIE VORGABE, scharf braucht dieselben ZWEI Signale wie
+        // assign_wiki_region (dry_run=false UND confirm='apply'): ein scharfer Lauf schreibt
+        // Label-Zeilen und macht damit die ~21 MB Kartennutzlast fuer jeden Besucher ungueltig.
+        'push_wiki_regions_to_labels' => avesmapsEcosystemPushWikiRegionsToLabelsAll(
+            $pdo,
+            $userId,
+            avesmapsEcosystemAssignIsDryRun($payload)
+        ),
         // „Kurven aktualisieren" im Flaechenmenue (23.08.2026). EIGENE Aktion neben update_region,
         // weil sie NICHTS an der Region aendert -- sie rechnet nur die abgeleitete Kurve nach, etwa
         // nachdem jemand die Form veraendert hat. Ueber update_region zu gehen hiesse, dafuer ein
