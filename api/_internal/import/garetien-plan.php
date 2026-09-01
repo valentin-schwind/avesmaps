@@ -1130,22 +1130,43 @@ function avesmapsGaretienSchluesselWanderung(PDO $pdo, int $importRunId): int
         return $pos === false ? '' : substr($key, $pos);
     };
 
-    // 1. Gibt es ueberhaupt Altschluessel? Sonst kostet die Wanderung eine Abfrage und ist fertig.
+    // 1. Gibt es ueberhaupt Altschluessel? Sonst kostet die Wanderung zwei Abfragen und ist fertig.
+    //
+    // 💣 UND ES SIND NUR ZWEI SCHMALE MENGEN, NICHT ALLE ITEMS. Die erste Fassung sammelte
+    // JEDEN `entity_key` aus `sync_plan_item` ueber alle Laeufe -- das sind 8213 je Lauf, und die
+    // Schleife unten fuhr fuer jeden zwei UPDATEs. Ergebnis live am 01.09.2026: „Holen & Rechnen"
+    // lief in die Zeitschranke, STRATO antwortete mit 502 und einer HTML-Fehlerseite, die im
+    // Browser als „Unexpected token '<'" ankam. Genau die Last, vor der CLAUDE.md warnt.
+    //
+    // 🔴 GEBRAUCHT WIRD NUR, WAS EINEN LAUF UEBERLEBT:
+    //   · `sync_decision` -- die dauerhaften Vermerke (eine Handvoll Zeilen).
+    //   · `sync_plan_item` MIT `apply_state = 'done'` -- nur die findet die laufuebergreifende
+    //     Ruecknahme (avesmapsGaretienRuecknahmeAusfuehren), und nur ihre public_id ist noch
+    //     woanders gebraucht.
+    // Alles uebrige wird bei JEDEM Planbau ohnehin neu gebaut, und zwar schon in der neuen Form --
+    // es zu wandern waere Arbeit fuer Zeilen, die zwei Zeilen spaeter ersetzt werden.
     $alteKeys = [];
-    foreach ([['sync_decision', "kind = :k"], ['sync_plan_item', null]] as [$tabelle, $wo]) {
-        $sql = $tabelle === 'sync_decision'
-            ? "SELECT DISTINCT entity_key FROM sync_decision WHERE kind = :k"
-            : "SELECT DISTINCT i.entity_key FROM sync_plan_item i"
-                . " JOIN sync_plan_run r ON r.id = i.run_id WHERE r.kind = :k";
-        $stmt = $pdo->prepare($sql);
-        $stmt->execute(['k' => AVESMAPS_GARETIEN_PLAN_KIND]);
+    $sammeln = static function (PDOStatement $stmt) use (&$alteKeys, $basisVon): void {
         foreach ($stmt->fetchAll(PDO::FETCH_COLUMN) as $key) {
             $key = (string) $key;
             if (!str_contains($basisVon($key), AVESMAPS_GARETIEN_SCHLUESSEL_NAME_TRENNER)) {
                 $alteKeys[$key] = true;
             }
         }
-    }
+    };
+
+    $stmt = $pdo->prepare('SELECT DISTINCT entity_key FROM sync_decision WHERE kind = :k');
+    $stmt->execute(['k' => AVESMAPS_GARETIEN_PLAN_KIND]);
+    $sammeln($stmt);
+
+    $stmt = $pdo->prepare(
+        'SELECT DISTINCT i.entity_key FROM sync_plan_item i'
+        . ' JOIN sync_plan_run r ON r.id = i.run_id'
+        . " WHERE r.kind = :k AND i.apply_state = 'done'"
+    );
+    $stmt->execute(['k' => AVESMAPS_GARETIEN_PLAN_KIND]);
+    $sammeln($stmt);
+
     if ($alteKeys === []) {
         return 0;
     }
@@ -1159,11 +1180,20 @@ function avesmapsGaretienSchluesselWanderung(PDO $pdo, int $importRunId): int
         . ' FROM garetien_import_row WHERE run_id = :r ORDER BY id'
     );
     $stmt->execute([':r' => $importRunId]);
+    // ⚠️ Nur die Basen, nach denen wirklich gefragt wird -- sonst stuenden 8213 Eintraege im
+    // Speicher, von denen eine Handvoll gebraucht wird.
+    $gesucht = [];
+    foreach (array_keys($alteKeys) as $altKey) {
+        $gesucht[$basisVon($altKey)] = true;
+    }
     $abbildung = [];
     foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $zeile) {
         $seite = avesmapsGaretienSeitenNameAusZeile($zeile);
         $altBasis = (string) ($zeile['wiki'] ?? 'ggp') . ':' . $zeile['ebene'] . ':' . $zeile['typ']
             . ':' . ($seite !== '' ? $seite : ('#' . $zeile['zeile_nr']));
+        if (!isset($gesucht[$altBasis])) {
+            continue;
+        }
         $abbildung[$altBasis][avesmapsGaretienObjektSchluesselAusZeile($zeile)] = true;
     }
 

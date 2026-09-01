@@ -695,4 +695,49 @@ assert($bergNach['geometry']['coordinates'] !== $eckenM[0],
     '💣 und nicht auf die erste Ecke: ' . json_encode($eckenM[0]));
 $pruefungen += 3;
 
+// =================================================================================================
+// 💣 DIE WANDERUNG FASST NUR AN, WAS EINEN LAUF UEBERLEBT
+// =================================================================================================
+// Live am 01.09.2026: „Holen & Rechnen" antwortete mit 502 und einer HTML-Fehlerseite (im Browser
+// „Unexpected token '<'"). Die erste Fassung sammelte JEDEN `entity_key` aus `sync_plan_item` --
+// 8213 je Lauf -- und fuhr fuer jeden zwei UPDATEs. Das ist genau die Last, vor der CLAUDE.md
+// warnt, und sie stand im haeufigsten Pfad des Fensters.
+//
+// 🔴 Gebraucht wird nur, was einen Lauf ueberlebt: die Vermerke in `sync_decision` und die
+// Items mit `apply_state = 'done'` (nur die findet die laufuebergreifende Ruecknahme). Alles
+// uebrige baut der naechste Planbau ohnehin neu -- und zwar schon in der neuen Form.
+$pdoK = avesmapsGaretienPlanTestPdo();
+$laufK = avesmapsSyncPlanStartRun($pdoK, AVESMAPS_GARETIEN_PLAN_KIND, 7, null);
+$altAlkeK = 'ggp:Gewaesser:Bach:Garetien:Alke';
+$altGardelK = 'ggp:Gewaesser:Fluss:Garetien:Gardel';
+
+$setzK = static function (PDO $p, int $lauf, string $key, ?string $stand): void {
+    $p->prepare('INSERT INTO sync_plan_item (run_id, entity_key, change_type, label, before_json,'
+        . ' after_json, override_json, selected, apply_state)'
+        . " VALUES (?,?, 'new', ?, '{}', '{}', '{}', 1, ?)")
+        ->execute([$lauf, $key, 'L-' . $key, $stand]);
+};
+$setzK($pdoK, $laufK, $altAlkeK, 'done');    // uebernommen -> muss wandern
+$setzK($pdoK, $laufK, $altGardelK, null);    // nur geplant -> wird ohnehin neu gebaut
+
+avesmapsGaretienSchluesselWanderung($pdoK, 1);
+
+$standK = static fn(PDO $p, string $key): int => (int) $p->query(
+    "SELECT COUNT(*) FROM sync_plan_item WHERE entity_key = '$key'"
+)->fetchColumn();
+
+assert($standK($pdoK, $altAlkeK . '!Alke') === 1,
+    '🔴 ein UEBERNOMMENES Item wandert mit -- sonst findet die laufuebergreifende Ruecknahme '
+    . 'seine angelegte public_id nie wieder');
+assert($standK($pdoK, $altAlkeK) === 0, 'und steht nicht mehr unter dem alten Schluessel');
+$pruefungen += 2;
+
+// ⚠️ Das nur GEPLANTE Item bleibt liegen -- und das ist keine Nachlaessigkeit, sondern der
+// ganze Punkt: es wird beim naechsten Planbau ersetzt. Es zu wandern waere Arbeit fuer eine
+// Zeile, die zwei Zeilen spaeter verschwindet -- und mal 8213 genommen war es der 502.
+assert($standK($pdoK, $altGardelK) === 1,
+    '💣 ein nur geplantes Item wird NICHT angefasst: ' . $standK($pdoK, $altGardelK));
+assert($standK($pdoK, $altGardelK . '!Gardel') === 0, 'es entsteht auch kein neuer Schluessel dafuer');
+$pruefungen += 2;
+
 echo "OK: {$pruefungen} Pruefungen\n";
