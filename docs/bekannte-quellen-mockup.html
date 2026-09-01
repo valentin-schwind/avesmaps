@@ -222,6 +222,74 @@ aus gemessen werden — sonst verspricht die Oberfläche eine Übernahme, die li
 Korpusname aus der Domain. Ein Formular, das auf einen fremden Server wartet, ist kaputt, sobald
 der langsam ist.</p>
 
+<h3>Schritt 3 · dieselbe Adresse noch einmal — was heute wirklich passiert</h3>
+<p>Die naheliegende Antwort wäre „dann gibt es sie zweimal". Das stimmt nicht: <code>sources</code>
+hat ein <strong>UNIQUE auf <code>url_hash</code></strong>, die Adresse <em>ist</em> die Identität.
+Es wird also <strong>verknüpft statt angelegt</strong> — und dabei entscheidet je Feld eine eigene
+Regel, was gewinnt. Am Code nachgelesen (<code>avesmapsSourceUpsertOnDuplicateSql</code>):</p>
+<table class="m">
+	<tr><th>Feld</th><th>bei bekannter Adresse</th><th>Folge für dich</th></tr>
+	<tr><td><strong>Titel</strong></td><td>füllt nur eine <em>Lücke</em></td>
+		<td>dein Titel wird <strong>verworfen</strong>, die Zeile behält ihren gespeicherten</td></tr>
+	<tr><td><strong>Name des Korpus</strong></td><td>gehört der Domain, nicht dem Eintrag</td>
+		<td>unverändert — genau der Sinn des Schlüssels</td></tr>
+	<tr><td>Lizenz, Namensnennung</td><td>füllen nur</td><td>nichts geht verloren</td></tr>
+	<tr><td>Art</td><td>nur bei <em>ausdrücklicher</em> Wahl</td><td>eine Vorauswahl ändert nichts</td></tr>
+	<tr><td><strong>offiziell</strong></td><td><strong>wird unbedingt überschrieben</strong></td>
+		<td>💣 der Haken gilt danach <strong>überall</strong>, wo die Quelle zitiert wird</td></tr>
+	<tr><td>Seiten, Abdeckung</td><td>werden unbedingt gesetzt</td>
+		<td>💣 am <em>selben</em> Objekt löscht ein leeres Feld die vorhandene Angabe</td></tr>
+</table>
+<p>🔴 <strong>Am selben Objekt entsteht keine zweite Zeile</strong> — <code>feature_sources</code>
+hat ein UNIQUE auf (Objektart, Objekt, Quelle). Die bestehende Verknüpfung wird <em>aktualisiert</em>.
+Deshalb ist die Seitenangabe die gefährlichere Hälfte: das Formular startet leer, und leer heißt
+hier „lösche, was dastand".</p>
+<div class="wirt">
+	<div class="fs-add">
+		<label class="f f--full"><span>Adresse — die genaue Seite</span>
+			<input type="text" value="https://www.herzogtum-weiden.net/politik/liste-st/staedte/herzogenstadt-trallop"></label>
+		<label class="f f--grow"><span>Titel — wie diese Seite heißt <span class="lock">· aus dem Katalog</span></span>
+			<input type="text" value="Herzogenstadt Trallop" disabled></label>
+		<label class="f f--grow"><span>Name des Korpus <span class="lock">· vom Korpus</span></span>
+			<input type="text" value="Briefspiel (Weiden)" disabled></label>
+		<label class="f"><span>Seite(n)</span><input type="text" size="9" placeholder="optional"></label>
+		<label class="f"><span>Art <span class="lock">· vom Korpus</span></span>
+			<select disabled><option selected>Briefspiel</option></select></label>
+		<label class="f"><span>Abdeckung</span>
+			<select><option>Standardquelle</option><option>Ausführlich</option></select></label>
+		<label class="f"><span>Lizenz <span class="lock">· vom Korpus</span></span>
+			<select disabled><option selected>CC BY-NC-SA 3.0</option></select></label>
+		<label class="f f--grow"><span>Namensnennung … <span class="lock">· vom Korpus</span></span>
+			<input type="text" value="VolkoV" disabled></label>
+		<label class="f" style="align-self:end;padding-bottom:5px">
+			<span style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-muted)">
+			<input type="checkbox" disabled> offiziell <span class="lock">· vom Korpus</span></span></label>
+		<button class="btn">Verknüpfen</button>
+	</div>
+	<div class="note note--ok"><strong>Diese Seite steht schon im Katalog</strong> — als
+		<strong>„Herzogenstadt Trallop"</strong>, zitiert an <strong>4 Objekten</strong>. Sie wird
+		<em>verknüpft</em>, nicht neu angelegt. Du füllst nur noch <strong>Seiten</strong> und
+		<strong>Abdeckung</strong> — beides gilt <em>nur hier</em>.
+		<br><span style="font-size:11px">Etwas am Katalogeintrag stimmt nicht? Dann geh über das
+		<b>✎</b> in der Liste — dort steht, dass die Änderung alle 4 Objekte trifft.</span></div>
+</div>
+<p>💣 <strong>Das ist der dritte Zustand des Adressfeldes, und er fehlte bis hierher.</strong> Es
+gibt nicht „neu" und „schon bekannt vom Korpus", sondern drei: <em>neue Domain</em> (Schritt 1) ·
+<em>bekannte Domain, neue Seite</em> (Schritt 2) · <em>bekannte Seite</em> (hier). Der dritte ist
+der einzige, in dem die Katalogfelder <strong>gar nicht zur Eingabe gehören</strong> — sie stehen
+schon, und was der Editor dort hineinschreibt, wird entweder ignoriert (Titel) oder wirkt
+katalogweit (offiziell).</p>
+<p>🔴 <strong>Und er dreht die Reihenfolge des Linkchecks um: erst im Katalog nachsehen, dann
+erst nach draußen greifen.</strong> Sonst wartet der Editor auf einen fremden Server, um einen
+Titel zu holen, den der Katalog anschließend verwirft — Wartezeit für einen Wert, der auf dem
+<em>häufigsten</em> Weg nie ankommt. Die Katalogabfrage ist lokal und sofort; der Abruf ist die
+Ausnahme für unbekannte Adressen.</p>
+<p>⚠️ <strong>Zwei der sechs Regeln sind heute schon scharf und werden nur nicht gezeigt.</strong>
+Seit dem 01.09.2026 meldet der Server beide Überraschungen — „Diese Adresse gibt es schon —
+verknüpft mit „X“. Dein Titel „Y“ wurde nicht übernommen." und den umgelegten Kanon-Haken.
+Das ist die <em>Meldung danach</em>. Der Zustand oben ist die Antwort <em>davor</em>, und sie ist
+die bessere: was gar nicht erst einzugeben ist, muss auch niemand zurückerklärt bekommen.</p>
+
 <h3>Der Unterschied in einem Bild</h3>
 <table class="m">
 	<tr><th></th><th>heute</th><th>nachher</th></tr>
