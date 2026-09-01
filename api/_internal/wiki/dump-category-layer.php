@@ -195,6 +195,30 @@ const AVESMAPS_WIKI_CATEGORIES_MAX_FORTSETZUNGEN = 5;
  * @return array{titles: list<string>, continue: ?string}
  */
 function avesmapsWikiDumpCategoryFetchCategoryMemberPage(string $categoryName, ?string $continueToken = null): array {
+    // 🔴 `cmnamespace => 0` BLEIBT, und das ist eine Entscheidung, kein vergessener Riegel
+    // (01.09.2026). Als der Namensraum `Inoffiziell:` (ns 222) geoeffnet wurde, lag nahe, ihn
+    // hier mitzunehmen -- sonst faellt jede neue Siedlung in den Rueckfall
+    // `settlement_class_guessed = 'dorf'` (settlements.php), also genau in die Falle, die im
+    // August die Metropole Gareth zum Dorf gemacht hat.
+    //
+    // 💣 GEMESSEN BRINGT DAS NICHTS. Aus `dump_categorylinks.sql.gz` (Septemberdump, 1.255.758
+    // Zuordnungen) gegen die 301 ns-222-Kartenobjekte gehalten:
+    //   - alle 301 tragen Kategorien, die Datenlage ist also nicht der Grund,
+    //   - aber **0 von 180** ns-222-Siedlungen tragen eine der gesuchten Klassen-Kategorien
+    //     (Dorf, Kleinstadt, Stadt, Mittlere Stadt, Grossstadt, Metropole).
+    //   - Gegenprobe im Hauptraum: 135 von 300 Siedlungen tragen eine.
+    // Das Wiki sortiert inoffizielle Orte nach HERKUNFT statt nach Groesse: `Inoffizielle
+    // Siedlung` (151), `Briefspielartikel` (240), `Spielerwelten Ort` (36).
+    //
+    // ⚠️ Ein geweiteter Aufruf kostete also 100 % gedrosselte Abrufe fuer 0 % Ertrag -- bei
+    // Crawl-delay 20 der Wiki-robots.txt ist jede dieser Abfragen 20 Sekunden.
+    //
+    // 🔧 DIE KLASSE STEHT STATTDESSEN IM WIKITEXT: `|Siedlungsart=` ist bei **159 von 180**
+    // ns-222-Siedlungen gefuellt (157-mal „Dorf", 2-mal „Wehrhof"), und die 82 Seiten mit
+    // auswertbarer `|Einwohnerzahl=` bestaetigen es (Median 130, 79 unter 1000). Der Rueckfall
+    // `dorf` ist fuer diesen Bestand also inhaltlich RICHTIG -- er ist nur als „geraten"
+    // markiert, obwohl die Angabe dasteht. Sie zu lesen ist ein eigener Auftrag und beruehrt
+    // auch den Hauptraum; nicht nebenbei mitmachen.
     return avesmapsWikiSyncFetchCategoryMemberPage($categoryName, $continueToken, ['cmnamespace' => 0]);
 }
 

@@ -2,6 +2,9 @@
 
 declare(strict_types=1);
 
+// avesmapsWikiNamespace*() -- welche Namensraeume dieser Erzeuger annimmt.
+require_once __DIR__ . '/namespaces.php';
+
 // Wiki game-literature sync (Phase 4): staging schema + dump-build steps + an OVERRIDE-SAFE reconcile of
 // the dump's adventure catalog into the live adventure / adventure_place tables. Mirrors
 // api/_internal/wiki/publication-sync.php: the SAME two-step model -- build STAGING during
@@ -436,7 +439,12 @@ function avesmapsGameLiteratureBuildCatalogStep(PDO $pdo, string $dumpPath, int 
         $pagesScanned++;
 
         $wikitext = (string) ($page['wikitext'] ?? '');
-        if (stripos($wikitext, 'Produkt') !== false && (int) ($page['ns'] ?? 0) === 0 && ($page['redirect'] ?? null) === null) {
+        // 🔴 INHALTSRAEUME, wie beim Publikationskatalog -- Abenteuer SIND {{Infobox Produkt}}-Seiten
+        // und teilen dessen Schluesselraum. Derselbe Befund, dieselbe Zahl: ns 218 traegt 126
+        // Produktseiten, die seit der Verschiebung am 11.02.2026 an diesem Riegel vorbeiliefen;
+        // ns 220 eine. ⚠️ ns 222 und ns 444 tragen KEINE -- die Kanonfrage unten ist heute also
+        // Vorsorge, kein Fall.
+        if (stripos($wikitext, 'Produkt') !== false && avesmapsWikiNamespaceIsContent((int) ($page['ns'] ?? 0)) && ($page['redirect'] ?? null) === null) {
             $info = avesmapsWikiParseProductInfobox($wikitext);
             if (is_array($info) && is_array($info['adventure'] ?? null)) {
                 $gameLiterature = $info['adventure'];
@@ -458,7 +466,13 @@ function avesmapsGameLiteratureBuildCatalogStep(PDO $pdo, string $dumpPath, int 
                         'cpl' => mb_substr((string) ($gameLiterature['complexity_pl'] ?? ''), 0, 60, 'UTF-8'),
                         'authors' => mb_substr((string) ($gameLiterature['authors'] ?? ''), 0, 500, 'UTF-8'),
                         'series' => mb_substr((string) ($gameLiterature['series'] ?? ''), 0, 200, 'UTF-8'),
-                        'off' => 1,
+                        // 🔴 DER KANON FOLGT DEM NAMENSRAUM, nicht einer festen 1 -- dasselbe
+                        // feste „offiziell", das in publication-sync.php gerade gefallen ist.
+                        // ⚠️ Hier braucht es keine Spalte wie dort: der Namensraum steht in
+                        // DIESER Schleife zur Verfuegung, die Angabe muss nirgends ueberdauern.
+                        // `?? true` fuer einen unbekannten Raum -- „inoffiziell" waere eine
+                        // Aussage, die niemand getroffen hat.
+                        'off' => (avesmapsWikiNamespaceIsOfficial((int) ($page['ns'] ?? 0)) ?? true) ? 1 : 0,
                         'fshop' => mb_substr((string) ($info['f_shop_pid'] ?? ''), 0, 40, 'UTF-8'),
                         'cover' => mb_substr((string) ($gameLiterature['cover_file'] ?? ''), 0, 300, 'UTF-8'),
                         'url' => mb_substr($wikiUrl, 0, 500, 'UTF-8'),

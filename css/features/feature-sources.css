@@ -277,10 +277,6 @@
 .fs-src-plain {
 	color: var(--color-text-strong);
 }
-.fs-src-star {
-	color: var(--color-accent-strong);
-	margin-left: 1px;
-}
 .fs-src-direct {
 	line-height: 1.7;
 }
@@ -288,12 +284,21 @@
 	color: var(--color-text-muted);
 	margin: 0 6px;
 }
+/* Die Typmarke sagt, WAS fuer eine Quelle das ist -- und seit dem Kanon-Stempel daneben nur
+   noch das. Den Kanon trug frueher der Stern `.fs-src-star`; der ist mit dem Stempel entfallen.
+   💣 HIER STAND EINE ZWEITE FASSUNG DIESER REGEL weiter unten in derselben Datei, gleich
+   spezifisch (0,1,0) und damit die gewinnende -- dieselbe Falle wie bei der Eingabezeile oben.
+   Sie unterschied sich in genau einer Absicht (durchsichtiger Grund) und brachte nebenbei
+   9,5px mit, also unter die 11px-Untergrenze des Hauses (AGENTS.md §12).
+   ⚠️ `flex-shrink: 0`, weil die Marke im Quellenkasten ein Flex-Kind ist: ohne das quetscht
+   ein langer Titel sie zusammen, statt selbst zu ellipsieren. */
 .fs-src-type {
 	display: inline-block;
+	flex-shrink: 0;
 	margin-left: 6px;
-	font-size: 10.5px;
+	font-size: var(--font-size-caption);
 	color: var(--color-text-muted);
-	background: var(--color-panel-muted);
+	background: transparent;
 	border: 1px solid var(--color-border);
 	border-radius: 999px;
 	padding: 0 7px;
@@ -642,4 +647,146 @@
 	.fs-col-heads {
 		display: none;
 	}
+}
+
+/* ══ DER QUELLENKASTEN UND DAS KANON-ETIKETT (01.09.2026) ═════════════════════════════════════
+   Entwurf: docs/superpowers/specs/2026-08-27-kanon-etikett-design.md
+   🔴 Der Block bekommt einen Rahmen. Vorher klemmte er zwischen der letzten Datenzeile und der
+   naechsten Ueberschrift und las sich wie eine weitere Datenzeile -- obwohl er etwas anderes
+   tut: er sagt, WOHER alles darueber stammt. */
+.fs-src--box {
+	border: 1px solid var(--color-border);
+	background: var(--color-panel-soft);
+	border-radius: 7px;
+	padding: 9px 11px 10px;
+}
+.fs-src-label {
+	font-size: 12px;
+	color: var(--color-text);
+	margin: 0 0 5px;
+}
+.fs-src-list {
+	list-style: none;
+	margin: 0 0 7px;
+	padding: 0;
+	display: grid;
+	gap: 4px;
+}
+/* 🔴 EINE QUELLE, EINE ZEILE -- und sie bricht nicht um (Owner 01.09.2026). Links schrumpft
+   Titel plus Lizenz, rechts steht die Markengruppe fest. */
+.fs-src-row {
+	display: flex;
+	align-items: baseline;
+	gap: 8px;
+	flex-wrap: nowrap;
+}
+/* 💣 `min-width: 0` ist die tragende Zeile, und sie muss an JEDEM Flex-/Grid-Kind auf dem Weg
+   stehen -- alle stehen per Vorgabe auf `min-width: auto` und weigern sich zu schrumpfen. Fehlt
+   sie irgendwo, laufen die Marken aus dem Kasten, statt dass der Titel kuerzt. `overflow` und
+   `text-overflow` allein reichen NICHT. */
+.fs-src-main {
+	flex: 1 1 auto;
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+.fs-src-list li { min-width: 0; }
+/* ⚠️ Die Markengruppe schrumpft nicht -- sie ist die Aussage. Gekuerzt wird links. */
+.fs-src-marks {
+	flex: 0 0 auto;
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+}
+
+/* 🔴 DAS ETIKETT. Pillenform wie alles hier (`fs-src-tab`, `fs-row__badge`, `fs-row__kind`);
+   gefuellt und VERSAL sagt „Kanon". Gold = im Kanon, Blaugruen = nicht -- und diese Farbe traegt
+   auf der ganzen Flaeche genau EINE Bedeutung, seit die Typmarke davon befreit ist.
+   🔴 KEIN ROT fuer „inoffiziell": die Briefspiele sind der Grund, warum es die Inhalte gibt. Ein
+   Warnrot machte aus einer Herkunftsangabe eine Qualitaetsaussage. */
+.fs-kanon {
+	display: inline-flex;
+	align-items: center;
+	flex-shrink: 0;
+	font-size: var(--font-size-caption);
+	letter-spacing: .09em;
+	text-transform: uppercase;
+	line-height: 1;
+	padding: 3px 8px 2px;
+	border-radius: 999px;
+	white-space: nowrap;
+	border: 1px solid transparent;
+}
+.fs-kanon--off {
+	background: var(--color-kanon-official);
+	color: var(--color-kanon-official-text);
+}
+.fs-kanon--inoff {
+	background: var(--color-kanon-unofficial);
+	color: var(--color-kanon-unofficial-text);
+}
+
+/* ══ DIE HALBPILLE ═══════════════════════════════════════════════════════════════════════════
+   Ein Chip mit zwei Feldern und EINER Kontur: links der Kanon, rechts wer es geschrieben hat.
+   ⭐ Sie ist gewaehlt, weil sie die UNVOLLSTAENDIGKEIT des Eintrags unterstreicht (Owner
+   27.08.2026) -- das zweite Feld sagt, dass hier noch etwas offen ist.
+
+   🔴 DAS RECHTE FELD IST NEUTRAL, NIE BLAUGRUEN. Neben einem blaugruenen INOFFIZIELL stiessen
+   sonst zwei Blaugruen aneinander und der Chip waere ein Farbfeld mit einer Naht darin. Es traegt
+   deshalb gar keine Flaeche: transparent, --color-border als Kontur, --color-text-muted als
+   Schrift (Entwurf §3.1) -- und keinen der vier Kanon-Token, in KEINER Kanonlage.
+
+   💣 DAS POLSTER WANDERT AN DIE FELDER. Der Chip selbst wird auf 0 gesetzt: bliebe es aussen,
+   saesse die Naht nicht an der Feldgrenze, sondern mit Luft daneben -- und aus dem einen Chip
+   wuerden optisch zwei Pillen, die sich beruehren. Genau das war der Einwand des Owners gegen
+   „Stempel + Pille" ("sieht uneinheitlich aus").
+   ⚠️ `overflow: hidden` ist tragend: ohne es steht das eckige linke Farbfeld ueber die runde
+   Aussenkontur hinaus und der Chip bekommt zwei Ecken. */
+.fs-kanon--split {
+	padding: 0;
+	overflow: hidden;
+	background: transparent;
+	border-color: var(--color-border);
+	max-width: 100%;
+}
+.fs-kanon--split .fs-kanon__state {
+	flex-shrink: 0;
+	padding: 3px 8px 2px;
+}
+.fs-kanon--off.fs-kanon--split .fs-kanon__state {
+	background: var(--color-kanon-official);
+	color: var(--color-kanon-official-text);
+}
+.fs-kanon--inoff.fs-kanon--split .fs-kanon__state {
+	background: var(--color-kanon-unofficial);
+	color: var(--color-kanon-unofficial-text);
+}
+/* Das Bezeichnerfeld: gemischtschriftlich, nicht gesperrt -- es ist ein NAME
+   („Briefspiel (Garetien)"), und VERSAL gesperrt las er sich wie eine zweite Auszeichnung.
+   ⚠️ min-width: 0 + ellipsis: ein langer Bezeichner darf den Kopf nicht aufziehen. */
+.fs-kanon--split .fs-kanon__by {
+	min-width: 0;
+	padding: 3px 8px 2px;
+	color: var(--color-text-muted);
+	text-transform: none;
+	letter-spacing: 0;
+	font-size: var(--font-size-caption);
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+/* Die Halbpille im OBJEKTKOPF -- unter Art und Herrschaft, ueber der Knopfreihe.
+   🔴 NICHT NEBEN DEM NAMEN: dort saehe sie aus wie ein Zusatz zum WORT „Gareth". Der Kopf ist
+   der Ort, an dem das Objekt sagt, WAS ES IST -- Metropole, Hauptstadt, im Kanon.
+   🔴 EINE Klasse fuer ALLE fuenf Koepfe (Ort, Weg, Kraftlinie, Landschaftslabel, Territorium) --
+   die zwei letzten liegen in einer .region-info-box statt in einem .location-popup. Eine zweite,
+   abgeschriebene Regel je Wirt ist in diesem Repo teuer bezahlt worden (AGENTS.md, Listenzeile:
+   aus einer Abschrift wurden sieben Rezepturen, und beim Abschreiben fiel die Skala).
+   ⚠️ NUR OBEN POLSTERN. Die seitliche Einrueckung kommt vom Behaelter (.location-popup hat
+   padding: 10px, .region-info-box und das Panel ihre eigene) -- eine zweite hier haette das
+   Etikett als einziges Element im Kopf nach innen versetzt. */
+.feature-kanon-head {
+	display: flex;
+	padding-top: 8px;
 }

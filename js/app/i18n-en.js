@@ -533,7 +533,15 @@ window.AVESMAPS_I18N_EN = {
 	"popup.sourceMention": "mention only",
 	"popup.wiki": "Wiki Aventurica",
 	"popup.publications": "Publications:",
+	// 🔴 „Described", not „Official": the tab counts COVERAGE (detailed + supplementary vs.
+	// mention), never canon. With a canon badge next to it, „Official (35)" read as „35
+	// official sources" -- which is not what it counts.
+	"popup.sourceTabDescribed": "Described",
+	// ⚠️ Der alte Schluessel bleibt stehen: eine Oberflaeche, die noch nach ihm fragt, soll
+	// eine Beschriftung bekommen und nicht den nackten Schluessel.
 	"popup.sourceTabOfficial": "Official",
+	"popup.kanonOfficial": "Official",
+	"popup.kanonUnofficial": "Unofficial",
 	"popup.sourceTabMentioned": "Mentioned",
 	"popup.sourceTableTitle": "Title",
 	"popup.sourceTableType": "Type",

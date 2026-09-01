@@ -521,7 +521,7 @@ function avesmapsWikiPathParsePage(string $title, string $wikitext, string $cano
         'wiki_key' => avesmapsPoliticalSlug($canonical),
         'title' => mb_substr($title, 0, 255, 'UTF-8'),
         'name' => mb_substr($name, 0, 255, 'UTF-8'),
-        'match_key' => avesmapsWikiSyncCreateMatchKey($name),
+        'match_key' => avesmapsWikiSyncCreateMatchKeyForTitle($name, $canonical),
         'kind' => $kind,
         'art' => mb_substr($art, 0, 120, 'UTF-8'),
         'continent' => mb_substr($continent, 0, 120, 'UTF-8'),

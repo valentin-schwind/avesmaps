@@ -2,6 +2,9 @@
 
 declare(strict_types=1);
 
+// avesmapsWikiTitleNamespace() -- der Namensraum wird hier aus dem Titel abgeleitet.
+require_once __DIR__ . '/namespaces.php';
+
 // Die Gottheiten-Tabelle (Discord #54). Rein: keine Datenbank, kein DDL -- dieselbe Bauart wie
 // place-kinds.php. Ohne dieses require haengt avesmapsDeitiesToStored/-FromStored an der
 // Ladereihenfolge des Aufrufers, und ein Test, der die Datei einzeln zieht, faellt um.
@@ -158,22 +161,46 @@ function avesmapsWikiDumpHybridBuildWantedSet(array $pendingTitles, array $title
  * Reconstruct the MINIMAL dump-page shape avesmapsWikiDumpClassifyPage() and the
  * H3 parse handlers expect, from a filled state row (which stores only the
  * canonical title + the collected wikitext -- never the original <ns>/<redirect>
- * envelope). A collected page is, BY CONSTRUCTION, a wanted Main-namespace
- * article body (redirects were resolved away in the wanted-set build; only ns=0
- * articles carry the infoboxes the classifier reads), so ns=0 / redirect=null is
- * the faithful reconstruction -- the same "the dump page is canonical" stance the
- * Pass B handlers already take (title === canonicalTitle). This keeps kind
- * determination identical to Pass B without re-classifying by any other means.
+ * envelope). A collected page is, BY CONSTRUCTION, a wanted article body
+ * (redirects were resolved away in the wanted-set build), so redirect=null is the
+ * faithful reconstruction -- the same "the dump page is canonical" stance the
+ * Pass B handlers already take (title === canonicalTitle).
+ *
+ * 💣 DER NAMENSRAUM WAR HIER FEST AUF 0, UND DAS IST SEIT DEM 01.09.2026 FALSCH. Der Satz, der
+ * hier stand („only ns=0 articles carry the infoboxes the classifier reads"), galt genau so
+ * lange, wie der Sammler nur den Hauptraum durchliess. Seit ns 222 dazugehoert, ist er eine
+ * Behauptung ueber Daten, die es nicht mehr gibt -- und weil dieser Weg der SCHARFE ist
+ * (`parse_and_upsert`; avesmapsWikiDumpRunPassBStep hat keinen Aufrufer mehr), sah der ganze
+ * Schreibpfad jede Seite als Hauptraum. Wer die Kanonfrage an `$page['ns']` haengt -- der
+ * naheliegende naechste Schritt --, bekaeme fuer JEDE Zeile „offiziell".
+ *
+ * 🔴 ABGELEITET WIRD AUS DEM TITEL, nicht aus einer neuen Spalte. Der Titel im Zustandssatz ist
+ * der kanonische und traegt das Praefix (`Inoffiziell:Apfeldorn`) -- dieselbe Quelle, aus der
+ * auch der Zuordnungsschluessel seinen Raum nimmt (avesmapsWikiSyncCreateMatchKeyForTitle). Eine
+ * zweite Spalte waere eine zweite Wahrheit, die beim ersten halb gelaufenen Sammelschritt
+ * auseinanderliefe.
+ *
+ * ⚠️ DIE EINE VORAUSSETZUNG, und sie ist gemessen: kein Artikel im Hauptraum traegt einen Titel,
+ * der mit einem bekannten Praefix beginnt. Gegen alle 252.902 Titel des Septemberdumps geprueft
+ * -- 0 Falsch-Positive, 0 Falsch-Negative (avesmapsWikiTitleNamespace, namespaces.php). Legte
+ * jemand im Wiki einen Hauptraum-Artikel „Elf:Etwas" an, saehe dieser Weg ihn als ns 220.
  *
  * @param string $normalizedTitle the state row's normalized_title (canonical)
  * @param string $wikitext        the collected page body
- * @return array{title:string, ns:int, redirect:null, wikitext:string}
+ * @return array{title:string, ns:int, id:null, redirect:null, wikitext:string}
  */
 function avesmapsWikiDumpHybridPageFromRow(string $normalizedTitle, string $wikitext): array
 {
     return [
         'title' => $normalizedTitle,
-        'ns' => 0,
+        'ns' => avesmapsWikiTitleNamespace($normalizedTitle) ?? 0,
+        // ⚠️ `id` FEHLT HIER MIT ABSICHT UND SICHTBAR. Der Leser gibt seit dem 01.09.2026 die
+        // MediaWiki-Seitenkennung mit; die Zustandstabelle speichert sie nicht, also kann dieser
+        // Rekonstrukteur sie nicht erfinden. `null` statt eines stillen Fehlens, damit ein
+        // Verbraucher den Unterschied zwischen „unbekannt" und „Seite 0" sieht -- und damit der
+        // Tag, an dem der categorylinks-Verbund kommt, hier auf eine Spalte trifft und nicht auf
+        // eine Ueberraschung.
+        'id' => null,
         'redirect' => null,
         'wikitext' => $wikitext,
     ];
@@ -342,7 +369,7 @@ function avesmapsWikiDumpHybridParseRow(array $row): array
  *      pending-title read and NO wanted-set: the dump scan itself is the
  *      enumeration, so PHP memory stays bounded without holding any title set.
  *   2. For EVERY page in the window, call avesmapsWikiDumpClassifyPage($page)
- *      (reused VERBATIM from dump-entity-scan.php:214 -- ns!=0 and <redirect>
+ *      (reused VERBATIM from dump-entity-scan.php -- Nicht-Objektraeume und <redirect>
  *      pages short-circuit to '', the entity kind is read from the infobox name).
  *   3. If the kind is one of the 5 handled kinds, UPSERT a state row keyed
  *      (run_id, normalized_title) with entity_kind = the classified kind,
@@ -433,7 +460,10 @@ function avesmapsWikiDumpHybridWikitextCollectStep(
         $pagesScanned++;
 
         // Enumeration = infobox-presence classification (O4), reused VERBATIM from
-        // Pass B. ns!=0 / redirect pages classify as '' and are skipped.
+        // Pass B. ⚠️ Seiten ausserhalb der OBJEKTRAEUME (ns 0 und 222, namespaces.php) und
+        // Weiterleitungen klassifizieren als '' und werden uebersprungen -- hier stand bis zum
+        // 01.09.2026 „ns!=0", was seit der Namensraum-Oeffnung das Gegenteil dessen behauptete,
+        // was der Code tut.
         $kind = avesmapsWikiDumpClassifyPage($page);
         if ($kind !== '' && in_array($kind, $handledKinds, true)) {
             $normalizedTitle = avesmapsWikiSyncMonitorNormalizeTitle((string) ($page['title'] ?? ''));

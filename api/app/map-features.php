@@ -101,7 +101,21 @@ require_once __DIR__ . '/../_internal/app/map-features-cache.php';
 //    also bekaeme jeder warme Browser sein 304 samt alter Nutzlast und saehe die Angabe nie --
 //    dieselbe Falle wie beim Klimastempel und beim Wappen-Notaus. Und sie ist die Haelfte mit
 //    Rechtsfolge: CC verlangt Namensnennung UND Lizenzhinweis an jeder Kopie.
-const AVESMAPS_MAP_FEATURES_PAYLOAD_VERSION = 18;
+// 19 (01.09.2026): das abgeleitete KANON-ETIKETT je Objekt reist als eigene Karte `kanon` mit
+//    (avesmapsFeatureSourcesDeriveKanon, api/_internal/app/feature-sources.php). Wieder ein NEUES
+//    FELD -- und damit wieder derselbe Riegel wie bei 18: `map_revision` bewegt sich davon nicht,
+//    ein warmer Browser bekaeme sein 304 samt alter Nutzlast und saehe nie ein Etikett. Der Bump
+//    ist die einzige Stelle, an der diese Antwort ihren Zwischenspeicher verlaesst.
+const AVESMAPS_MAP_FEATURES_PAYLOAD_VERSION = 19;
+
+// 🔴 avesmapsMapFeaturesWikiNamespaces() UND die zugehoerige Typ-Zuordnung stehen NICHT hier,
+// sondern in api/_internal/app/feature-sources.php, direkt neben avesmapsFeatureSourcesDeriveKanon,
+// die sie fuettert. Sie standen einen Tag lang hier -- und weil eine ENDPUNKTdatei sich nicht
+// einbinden laesst, ohne die ganze Kartenantwort auszufuehren, hatten sie keinen Test. In dieser
+// testfreien Zone stand `$row['properties']` fuer eine Spalte, die `properties_json` heisst: der
+// gesamte ns-222-Rang war wortlos tot. Derselbe Umzug aus demselben Grund wie beim Quellensammler
+// am 30.08.2026 (siehe dessen Kopf: „DASS ES DIESEN TEST VORHER NICHT GAB, IST DER EIGENTLICHE
+// BEFUND").
 
 // 🔴 Fix-Runde 6 (15.08.2026): the coat-of-arms staging/model table constants AND the two loader/gate
 // functions that used to sit here (avesmapsLoadSettlementCoatGateInputs, avesmapsSettlementTerritoryCoatUrl)
@@ -279,6 +293,24 @@ try {
         static fn(array $row): array => avesmapsMapFeatureRowToGeoJsonFeature($row, $wikiLocationLinks, $buildingTypes, $politicalContext, $settlementImagesEnabled, $coatsLocalEnabled, $coatsWikiEnabled),
         $rows
     );
+
+    // Das Kanon-Etikett je Objekt -- abgeleitet aus genau denselben zwei Karten, ohne eine dritte
+    // Abfrage.
+    // 💣 STRIKT NACH avesmapsMapFeaturesMergeLegacyOtherSources: die Altquellen aus
+    // `properties.other_source` fallen erst dort in Katalog und Verweise. Davor gerechnet bekaeme
+    // jedes Objekt, dessen einzige Quelle eine Altquelle ist, kein Etikett -- und das faellt nicht
+    // auf, weil „kein Etikett" ein gueltiger Zustand ist. Dieselbe Reihenfolgefalle wie bei
+    // Landschaftszeiger, Kurve und Klimazone weiter unten.
+    // 💣 UND STRIKT NACH `$features`: der Namensraum wird aus der FERTIGEN `properties.wiki_url`
+    // gelesen, weil die Adresse dort erst entsteht (avesmapsEnrichMapFeatureWikiUrl) und
+    // Grabsteine dort schon herausgefallen sind. Der Kommentarblock ueber
+    // avesmapsMapFeaturesWikiNamespaces traegt die Messung. Die Zeilen darunter ergaenzen nur
+    // Landschaftszeiger und Kurve -- keine ruehrt `wiki_url` an.
+    $featureKanon = avesmapsFeatureSourcesDeriveKanon(
+        $sourceCatalog,
+        $featureSourceRefs,
+        avesmapsMapFeaturesWikiNamespaces($features)
+    );
     // Landscape membership: fill properties.ecosystem_region_public_id on every label that belongs to a
     // region, resolved from BOTH stored directions. Applied here rather than inside the row builder
     // because it needs a relation the builder has no business knowing about -- same shape as the
@@ -338,6 +370,38 @@ try {
         // ref lists stay JSON arrays. Keys: catalog by source_id, refs by "<entity_type>:<public_id>".
         'source_catalog' => (object) $sourceCatalog,
         'feature_sources' => (object) $featureSourceRefs,
+        // 🔴 DAS KANON-ETIKETT, NUR ALS ABWEICHUNG -- und die Nutzlast traegt ihre eigene Legende.
+        //
+        // 💣 GEMESSEN, NICHT GESCHAETZT (01.09.2026): 11.572 Objekte tragen Quellen. Jedes mit
+        // seinem Urteil zu versehen sind 568 KB roh und **97 KB gzip** an JEDER Kartenantwort --
+        // fuer eine Angabe, die bei ueber 90 % „offiziell" lautet. Nur die Abweichungen sind
+        // 109 KB roh und **10,5 KB gzip**.
+        //
+        // 🔴 ABER NICHT DURCH ABWESENHEIT. `vorgabe` steht ausdruecklich in der Antwort, damit ein
+        // Leser die Regel liest, statt sie zu erraten -- und damit ein Leser, der sie nicht kennt,
+        // ein FEHLENDES FELD sieht (das faellt auf) statt einer stillen Fehldeutung.
+        //
+        // ⚠️ DIE VORGABE GILT NUR FUER OBJEKTE MIT QUELLEN. Ein Objekt ohne jede Quelle und ohne
+        // inoffiziellen Wiki-Raum ist NICHT „offiziell", sondern unbelegt -- es bekommt gar kein
+        // Etikett. Der Leser muss dafuer `feature_sources` danebenhalten; das steht so im
+        // Renderer und ist die eine Stelle, an der diese Antwort nicht fuer sich allein spricht.
+        // 💣 AUF EINER DELTA-ANFRAGE IST DIESE KARTE UNVOLLSTAENDIG, und sie sieht trotzdem
+        // vollstaendig aus. Ihre Eingaenge haben verschiedene Geltungsbereiche: Katalog und
+        // Verweise sind GLOBAL, `$rows` ist bei gesetztem `since_revision` auf die geaenderten
+        // Zeilen gefiltert -- der Namensraum-Rang fehlt dann fuer alles Unveraenderte. Wer sie im
+        // Browser einfach ueberschriebe, verloere genau diese Eintraege. js/routing/routing.js
+        // setzt `window.__featureKanon` deshalb NUR beim Vollabruf; dass der Delta-Zweig sie stehen
+        // laesst, ist Absicht und nicht Vergesslichkeit.
+        // ⚠️ Der Preis: aendert ein Editor eine `wiki_url`, bleibt das Etikett bis zum Neuladen
+        // alt. Das betrifft nur den Editiermodus -- und ein falsch AUFGEFRISCHTES Etikett waere
+        // schlimmer als ein altes.
+        'feature_kanon' => [
+            'vorgabe' => 'offiziell',
+            'abweichungen' => (object) array_filter(
+                $featureKanon,
+                static fn(array $e): bool => ($e['kanon'] ?? '') !== 'offiziell'
+            ),
+        ],
         // Objekte, die IN einer Stadt liegen (Villen, Plaetze, Stadttempel, Gassen) -- je Eintrag
         // nur Name + Stadt. Sie haben keine eigene Kartenposition und sind deshalb KEINE features;
         // der Routenplaner-Autocomplete schlaegt sie trotzdem vor und setzt die STADT als Ziel.

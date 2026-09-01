@@ -623,6 +623,9 @@ function buildRegionLabelViewPopupHtml(label) {
 		// popups.js. Zwei verschiedene Woerter fuer dieselbe Aussage waeren hier lautlos.
 		locationTypeLabel: artText,
 		headerImageMarkup: headerImg,
+		// Derselbe Schluessel wie die Quellenzeile der Datenbox ("region", label.publicId).
+		kanonMarkup: typeof renderFeatureKanonBadge === "function"
+			? renderFeatureKanonBadge("region", label.publicId) : "",
 		showHeaderIcon: false,
 		compact: true,
 		showType: true,

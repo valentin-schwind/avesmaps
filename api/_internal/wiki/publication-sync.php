@@ -2,6 +2,9 @@
 
 declare(strict_types=1);
 
+// Siehe die Begruendung in dump-entity-scan.php: ausdruecklich gefordert, nicht geliehen.
+require_once __DIR__ . '/namespaces.php';
+
 // Wiki publication sources: staging schema + dump-sync/reconcile phase (additive, self-healing
 // via IF NOT EXISTS). See docs/wiki-publikations-quellen-design.md.
 //
@@ -93,7 +96,21 @@ function avesmapsEnsurePublicationStagingTables(PDO $pdo): void
     if (!$columnExists($pdo, 'wiki_publication_catalog', 'publisher')) {
         $pdo->exec('ALTER TABLE wiki_publication_catalog ADD COLUMN publisher VARCHAR(160) NULL AFTER isbn');
     }
+
+    // 🔴 DER NAMENSRAUM DER PRODUKTSEITE -- die eine Angabe, aus der die Kanonfrage einer
+    // Publikation beantwortet wird (Owner 31.08.2026: „a wiki publication is an official source
+    // unless an entry is in namespace Inoffiziell (ns 222)").
+    //
+    // ⚠️ `NULL` HEISST „NOCH NICHT ERFASST", NICHT „HAUPTRAUM". Der Bestand steht bis zum
+    // naechsten „Dump holen" auf NULL, und avesmapsPublicationCatalogIsOfficial() liest daraus
+    // „offiziell" -- weil das bis heute die Wahrheit war: der Katalog konnte gar nichts anderes
+    // enthalten als ns-0-Seiten. Ein DEFAULT 0 haette dieselbe Wirkung, wuerde aber behaupten,
+    // wir haetten nachgesehen.
+    if (!$columnExists($pdo, 'wiki_publication_catalog', 'page_ns')) {
+        $pdo->exec('ALTER TABLE wiki_publication_catalog ADD COLUMN page_ns INT NULL AFTER title');
+    }
 }
+
 
 // ===========================================================================
 // 1. PURE diff core (Step 1, TDD) -- the override-safety heart. DB-free.
@@ -413,7 +430,7 @@ function avesmapsPublicationEntityRefForPage(array $page): array
                 return ['entity_type' => '', 'entity_wiki_key' => ''];
             }
             $pageTitle = (string) ($page['title'] ?? '');
-            if ((int) ($page['ns'] ?? 0) !== 0 || ($page['redirect'] ?? null) !== null) {
+            if (!avesmapsWikiNamespaceIsContent((int) ($page['ns'] ?? 0)) || ($page['redirect'] ?? null) !== null) {
                 return ['entity_type' => '', 'entity_wiki_key' => ''];
             }
             // The INFOBOX NAME alone decides (lore invariant O4), which is also the cheap answer:
@@ -478,11 +495,11 @@ function avesmapsPublicationBuildCatalogStep(PDO $pdo, string $dumpPath, int $cu
 
     $upsert = $pdo->prepare(
         'INSERT INTO wiki_publication_catalog
-            (wiki_key, title, art, source_type, isbn, publisher, f_shop_url, pdf_shop_url, chosen_url, has_link, synced_at)
+            (wiki_key, title, page_ns, art, source_type, isbn, publisher, f_shop_url, pdf_shop_url, chosen_url, has_link, synced_at)
          VALUES
-            (:wiki_key, :title, :art, :source_type, :isbn, :publisher, :f_shop_url, :pdf_shop_url, :chosen_url, :has_link, CURRENT_TIMESTAMP(3))
+            (:wiki_key, :title, :page_ns, :art, :source_type, :isbn, :publisher, :f_shop_url, :pdf_shop_url, :chosen_url, :has_link, CURRENT_TIMESTAMP(3))
          ON DUPLICATE KEY UPDATE
-            title = VALUES(title), art = VALUES(art), source_type = VALUES(source_type),
+            title = VALUES(title), page_ns = VALUES(page_ns), art = VALUES(art), source_type = VALUES(source_type),
             isbn = VALUES(isbn), publisher = VALUES(publisher), f_shop_url = VALUES(f_shop_url),
             pdf_shop_url = VALUES(pdf_shop_url),
             chosen_url = VALUES(chosen_url), has_link = VALUES(has_link), synced_at = CURRENT_TIMESTAMP(3)'
@@ -498,8 +515,12 @@ function avesmapsPublicationBuildCatalogStep(PDO $pdo, string $dumpPath, int $cu
         $wikitext = (string) ($page['wikitext'] ?? '');
         // Cheap pre-filter before the regex-heavy parse: only a page whose wikitext mentions
         // "Produkt" can carry an {{Infobox Produkt}} (mirrors the refs step's 'Publikationen'
-        // gate below). Skips the parser on the vast majority of ns0 articles that are not products.
-        if (stripos($wikitext, 'Produkt') !== false && (int) ($page['ns'] ?? 0) === 0 && ($page['redirect'] ?? null) === null) {
+        // gate below). Skips the parser on the vast majority of articles that are not products.
+        // 💣 DER RAUMRIEGEL STAND HIER AUF `ns === 0` -- und genau daran sind die DSK-Produktartikel
+        // seit ihrer Verschiebung am 11.02.2026 vorbeigelaufen (ns 218 hat 662 Seiten, davon
+        // 126 mit {{Infobox Produkt}}; ns 220 eine, ns 222/444 keine). Jetzt
+        // Inhaltsraum statt Hauptraum; ns 218/220 sind Produkte wie die des Hauptraums.
+        if (stripos($wikitext, 'Produkt') !== false && avesmapsWikiNamespaceIsContent((int) ($page['ns'] ?? 0)) && ($page['redirect'] ?? null) === null) {
             $info = avesmapsWikiParseProductInfobox($wikitext);
             if (is_array($info)) {
                 $pageTitle = (string) ($page['title'] ?? '');
@@ -514,6 +535,12 @@ function avesmapsPublicationBuildCatalogStep(PDO $pdo, string $dumpPath, int $cu
                     $upsert->execute([
                         'wiki_key' => $wikiKey,
                         'title' => mb_substr($displayTitle, 0, 300, 'UTF-8'),
+                        // 🔴 DER NAMENSRAUM DER PRODUKTSEITE -- daraus faellt spaeter die
+                        // Kanonfrage der Publikation (avesmapsPublicationCatalogIsOfficial).
+                        // ⚠️ Er kommt aus der GELESENEN Seite, nicht aus dem Titel: hier steht
+                        // die echte Angabe des Dumps zur Verfuegung, und eine Ableitung waere
+                        // eine zweite Wahrheit neben ihr.
+                        'page_ns' => (int) ($page['ns'] ?? 0),
                         'art' => mb_substr((string) ($info['art'] ?? ''), 0, 80, 'UTF-8'),
                         'source_type' => (string) ($info['source_type'] ?? 'sonstiges'),
                         'isbn' => mb_substr((string) ($info['isbn'] ?? ''), 0, 20, 'UTF-8'),
@@ -587,7 +614,11 @@ function avesmapsPublicationBuildEntityRefsStep(PDO $pdo, string $dumpPath, int 
         $wikitext = (string) ($page['wikitext'] ?? '');
         // Cheap pre-filter before the full parse+classify: only pages mentioning a
         // Publikationen section can carry refs (the parser also gates on the heading).
-        if (stripos($wikitext, 'Publikationen') !== false && (int) ($page['ns'] ?? 0) === 0 && ($page['redirect'] ?? null) === null) {
+        // 💣 AUCH HIER WAR `ns === 0` DER RIEGEL -- der teuerste von allen. Am Septemberdump
+        // gemessen tragen 341 ns-222-Seiten die Ueberschrift `==Publikationen==`, aber nur 42 geben
+        // dem Parser wirklich etwas; sie
+        // blieben ungelesen, waehrend gleichzeitig ihre Objekte importiert wurden.
+        if (stripos($wikitext, 'Publikationen') !== false && avesmapsWikiNamespaceIsContent((int) ($page['ns'] ?? 0)) && ($page['redirect'] ?? null) === null) {
             $publications = avesmapsWikiParsePublicationsSection($wikitext);
             if ($publications !== []) {
                 $entityRef = avesmapsPublicationEntityRefForPage($page);
@@ -658,6 +689,7 @@ function avesmapsPublicationDesiredLinksForEntity(PDO $pdo, string $entityType, 
     // sources onto the other. The (entity_type, entity_wiki_key) pair is the true per-entity key.
     $statement = $pdo->prepare(
         'SELECT c.wiki_key AS publication_wiki_key, c.title, c.source_type, c.chosen_url, c.has_link,
+                c.page_ns,
                 r.reference_kind, r.pages, r.note
            FROM wiki_entity_publication r
            JOIN wiki_publication_catalog c ON c.wiki_key = r.publication_wiki_key
@@ -674,7 +706,13 @@ function avesmapsPublicationDesiredLinksForEntity(PDO $pdo, string $entityType, 
             $chosenUrl,
             (string) ($row['title'] ?? ''),
             (string) ($row['source_type'] ?? 'sonstiges'),
-            true, // a wiki publication is an official source
+            // 🔴 NICHT MEHR FEST `true`. Der Satz „a wiki publication is an official source" war
+            // richtig, solange der Katalog gar nichts anderes enthalten KONNTE als Hauptraum-
+            // Seiten. Seit der Namensraum-Oeffnung tragen ns 222 und ns 444 ebenfalls
+            // Produktseiten, und deren Werke sind kein Kanon. Owner-Wortlaut 31.08.2026:
+            // „a wiki publication is an official source unless an entry is in namespace
+            // Inoffiziell (ns 222)."
+            avesmapsPublicationCatalogIsOfficial($row['page_ns'] ?? null),
             $userId,
             (string) ($row['publication_wiki_key'] ?? ''), // URL-less identity fallback (has_link=0)
             true // the wiki catalog owns this label -- refresh it so title corrections land

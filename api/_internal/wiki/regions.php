@@ -585,7 +585,7 @@ function avesmapsWikiRegionParsePage(string $title, string $wikitext, string $ca
         'wiki_key' => avesmapsPoliticalSlug($canonical),
         'title' => mb_substr($title, 0, 255, 'UTF-8'),
         'name' => mb_substr($name, 0, 255, 'UTF-8'),
-        'match_key' => avesmapsWikiSyncCreateMatchKey($name),
+        'match_key' => avesmapsWikiSyncCreateMatchKeyForTitle($name, $canonical),
         'art' => mb_substr($art, 0, 120, 'UTF-8'),
         'continent' => mb_substr($continent, 0, 120, 'UTF-8'),
         'region_parent' => mb_substr($regionParent, 0, 255, 'UTF-8'),

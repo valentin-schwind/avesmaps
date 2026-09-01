@@ -173,6 +173,13 @@ function buildLocationMarkerPopupHtml(markerEntry, opts) {
 		description: markerEntry.location.description,
 		wikiUrl: markerEntry.location.wikiUrl,
 		isRuined: markerEntry.location.isRuined,
+		// Das Kanon-Etikett unter Art und Herrschaft. ⚠️ Auch in der SCHLANKEN Box (weiter unten):
+		// anders als die Quellenzeile, die der Owner dort ausdruecklich weggenommen hat („die lebt
+		// im Panel"), ist das Etikett KEINE Quellenangabe, sondern eine Aussage ueber das OBJEKT --
+		// wer einen Marker anklickt, soll „inoffiziell" sehen, ohne erst das Panel zu oeffnen.
+		// Ein unbelegtes Objekt bekommt hier nichts: renderFeatureKanonBadge gibt "".
+		kanonMarkup: typeof renderFeatureKanonBadge === "function"
+			? renderFeatureKanonBadge("settlement", markerEntry.publicId) : "",
 		showType: true,
 		// Political context under the type ("Metropole · Hauptstadt des Kaiserreichs" / "Stadt · Baronie
 		// Vierok"), a gold link that flies to that region. Resolved server-side. When nothing resolves, a
@@ -242,6 +249,8 @@ function buildSlimLocationPopupHtml(markerEntry) {
 		locationType: markerEntry.locationType,
 		locationTypeLabel: typeLabel,
 		headerIconMarkup: coatIconMarkup,
+		kanonMarkup: typeof renderFeatureKanonBadge === "function"
+			? renderFeatureKanonBadge("settlement", markerEntry.publicId) : "",
 		showType: true,
 		showDescription: false,
 		// Kopf-Trenner NUR wenn eine Beschreibung folgt -- sonst traegt die durchgehende Linie ueber der

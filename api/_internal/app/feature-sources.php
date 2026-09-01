@@ -1,6 +1,9 @@
 <?php
 declare(strict_types=1);
 
+// avesmapsWikiNamespaceIsOfficial() -- Rang 2 der Kanon-Ableitung.
+require_once __DIR__ . '/../wiki/namespaces.php';
+
 // Multi-source system (#1): catalog of distinct sources + element<->source links.
 // Self-healing DDL (project idiom); dedup by url_hash so arbitrary-length URLs get a
 // fixed-length UNIQUE index (avoids the utf8mb4 index-length limit on a long url column).
@@ -1462,4 +1465,237 @@ function avesmapsLoadFeatureSourceRefs(PDO $pdo): array {
         $refs[$key][] = $ref;
     }
     return $refs;
+}
+
+// feature_type -> der entity_type, unter dem die Quellen dieses Objekts stehen. VIER Eintraege,
+// nicht drei: `powerline` fehlte in der ersten Fassung, weil sie aus
+// avesmapsMapFeaturesMergeLegacyOtherSources abgeschrieben wurde -- deren Kommentar „only these
+// three feature types are in scope" galt fuer die ALTQUELLEN, nicht fuer den Kanon. Kraftlinien
+// tragen `properties.wiki_url` (api/edit/map/powerlines.php:67), stehen in
+// AVESMAPS_MAP_FEATURES_SOURCE_ENTITY_TYPES oben und rendern eine Kanonzeile
+// (js/map-features/map-features-powerlines.js). Eine geerbte Zuordnung erbt auch ihren blinden Fleck.
+//
+// ⚠️ 'territory' und 'citymap' stehen bewusst NICHT hier und KOENNEN es nicht: die Zuordnung
+// uebersetzt `map_features.feature_type`, und dort gibt es keinen, der ein Territorium oder einen
+// Stadtplan UNTER DESSEN EIGENER public_id fuehrt. Sie erreichen den Namensraum-Rang deshalb nie
+// -- siehe den Absatz „NUR OBJEKTE MIT KARTENZEILE" im Kopf von avesmapsFeatureSourcesDeriveKanon.
+// ⚠️ Praeziser als „Territorien haben hier gar keine Zeile", was hier zuerst stand: es gibt sehr
+// wohl aktive Zeilen mit `feature_type = 'region'` aus dem alten Seed-Import, die
+// Territoriumsflaechen tragen (api/_internal/political/territories-layer.php liest sie als
+// Rueckfallgeometrie). Sie aendern am Ergebnis nichts -- ihre public_id ist nicht die des
+// Territoriums, und 'region' schluesselt hierher als Landschaftslabel --, aber die Begruendung
+// „gibt es nicht" waere falsch und faende beim naechsten Blick in die Tabelle ihren Widerspruch.
+const AVESMAPS_MAP_FEATURES_KANON_ENTITY_TYPE_BY_FEATURE_TYPE = [
+    'location' => 'settlement',
+    'label' => 'region',
+    'path' => 'path',
+    'powerline' => 'powerline',
+];
+
+/**
+ * Der Wiki-Namensraum je Objekt -- der dritte Eingang der Kanon-Ableitung darunter.
+ *
+ * 🔴 AUS `properties.wiki_url`, NICHT AUS EINER NEUEN SPALTE. Ein aus ns 222 uebernommenes
+ * Objekt traegt keine eigene Katalogquelle; sein Artikel steckt in dieser Adresse und wird vom
+ * Quellenkasten ohnehin als erste Zeile gerendert.
+ *
+ * 💣 NIMMT DIE FERTIGEN GeoJSON-OBJEKTE, NICHT DIE DATENBANKZEILEN. Die erste Fassung las
+ * `$row['properties']` -- diese Spalte gibt es nicht, sie heisst `properties_json`, und die
+ * Funktion gab in Produktion AUSNAHMSLOS `[]` zurueck. Kein Test schlug an, kein Fehler wurde
+ * geworfen: „kein Etikett" ist ein gueltiger Zustand, also war der ganze ns-222-Rang wortlos tot.
+ * Der Schluesseltausch allein haette es NICHT geheilt -- zwei weitere Gruende zwingen hierher:
+ *
+ * ⚠️ 1. DIE ADRESSE ENTSTEHT ERST SPAETER. `avesmapsEnrichMapFeatureWikiUrl` FUELLT `wiki_url`
+ * ueberhaupt erst per Namensabgleich gegen `wiki_sync_pages`, wenn die gespeicherte leer ist, und
+ * achtet dabei auf `wiki_no_article` und den Kraftlinien-Riegel. Aus der Rohzeile gelesen haette
+ * das Etikett an einem ANDEREN Artikel gehangen als der Link daneben im selben Kasten.
+ * ⚠️ 2. GRABSTEINE. Bei gesetztem `since_revision` laesst avesmapsBuildMapFeaturesQuery
+ * `is_active = 1` fallen; geloeschte Objekte reisen als Grabstein mit. Deren GeoJSON traegt nur
+ * `deleted`/`revision` und nie eine `wiki_url` -- der Riegel unten faellt hier von selbst, statt
+ * als dritte handgeschriebene Kopie der `is_active`-Pruefung.
+ *
+ * ⚠️ Nur Objekte MIT erkennbarem Namensraum landen in der Karte. Der Hauptraum (ns 0) und alles
+ * Unbekannte fehlen bewusst -- die Ableitung fragt mit `?? null` und darf keinen Unterschied
+ * zwischen „Hauptraum" und „nicht nachgesehen" erfinden.
+ *
+ * @param list<array<string, mixed>> $features fertige GeoJSON-Objekte, NICHT die Rohzeilen
+ * @return array<string, int> "typ:public_id" => Namensraum
+ */
+function avesmapsMapFeaturesWikiNamespaces(array $features): array
+{
+    $out = [];
+    foreach ($features as $feature) {
+        $properties = $feature['properties'] ?? null;
+        if (!is_array($properties)) {
+            continue;
+        }
+        $entityType = AVESMAPS_MAP_FEATURES_KANON_ENTITY_TYPE_BY_FEATURE_TYPE[
+            (string) ($properties['feature_type'] ?? '')
+        ] ?? '';
+        $publicId = (string) ($properties['public_id'] ?? '');
+        if ($entityType === '' || $publicId === '') {
+            continue;
+        }
+        $wikiUrl = trim((string) ($properties['wiki_url'] ?? ''));
+        if ($wikiUrl === '') {
+            continue;
+        }
+        $ns = avesmapsWikiNamespaceFromWikiUrl($wikiUrl);
+        if ($ns !== null) {
+            $out[$entityType . ':' . $publicId] = $ns;
+        }
+    }
+
+    return $out;
+}
+
+/**
+ * DAS KANON-ETIKETT JE OBJEKT -- abgeleitet, nie getippt.
+ * ---------------------------------------------------------------------------
+ * Entwurf: docs/superpowers/specs/2026-08-27-kanon-etikett-design.md
+ *
+ * 🔴 DIE REGEL, in dieser Reihenfolge (Owner 27.-31.08.2026), Entwurf §2.1:
+ *   1. mindestens EINE offizielle Quelle    -> 'offiziell'    (auch neben zehn inoffiziellen)
+ *   2. sonst mindestens eine INOFFIZIELLE   -> 'inoffiziell' + dem GENAUEN Bezeichner
+ *      Quelle                                  („Briefspiel (Garetien)")
+ *   3. sonst inoffizieller WIKI-NAMENSRAUM  -> 'inoffiziell' + Bezeichner „Wiki Aventurica"
+ *      (ns 222 Inoffiziell, ns 444 Ilaris)     -- auch ohne jede Quellzeile
+ *   4. sonst                                -> gar kein Eintrag (der Besucher sieht nichts;
+ *                                              „Ohne Quelle" ist eine reine Editorenanzeige)
+ *
+ * ⚠️ DIESE LISTE NANNTE EINEN TAG LANG NUR DREI RAENGE und liess den Namensraum ganz weg -- ihr
+ * Punkt 3 sagte „gar keine Quelle -> gar kein Eintrag", und das ist seit dem ns-222-Umbau falsch:
+ * ein Objekt aus ns 222 OHNE jede Quelle bekommt sehr wohl ein Etikett, das ist der Zweck des
+ * Umbaus. Schlimmer noch hiess „Rang 2" oben und im Code darunter Verschiedenes. Wer eine
+ * Rangliste in einem Docblock fuehrt, muss sie beim Einbau eines Rangs mitfuehren -- sonst
+ * beschreibt sie die Fassung davor und liest sich trotzdem wie eine Zusage.
+ * ⚠️ Die Nummern 2 und 3 stehen im CODE in umgekehrter Reihenfolge (der Namensraum wird vorher
+ * berechnet, spricht aber nur, wenn keine inoffizielle Quelle da ist). Das Ergebnis ist dieses
+ * hier; die Begruendung steht an der Stelle selbst.
+ *
+ * 🔴 EIN EINTRAG KANN NICHT OFFIZIELL UND INOFFIZIELL SEIN. „Offiziell schlaegt immer
+ * inoffiziell": hat ein offizieller Ort zusaetzlich eine Briefspielquelle, bleibt er offiziell --
+ * die inoffizielle Quelle aendert nichts daran, dass es ihn im gedruckten Aventurien gibt. Sie
+ * bleibt an ihrer Zeile im Quellenkasten sichtbar, nur nicht am Kopf.
+ *
+ * 💣 HIER STEHT KEIN ANZEIGETEXT. Der Bezeichner faehrt als DATEN mit -- entweder als
+ * `bezeichner_label` (alle inoffiziellen Quellen tragen denselben Namen; der haeufige Fall,
+ * „Briefspiel (Garetien)") oder als `bezeichner_type` + `bezeichner_count`, aus denen die
+ * Anzeige „Briefspiel (2)" baut. Dieselbe Trennung wie beim `source_type`, dessen Whitelist in
+ * PHP steht und dessen Beschriftung in js/ui/feature-source-markup.js: wer den Text speichert,
+ * kann ihn nie uebersetzen und nie umformulieren, ohne den Bestand anzufassen.
+ *
+ * 💣 NACH avesmapsMapFeaturesMergeLegacyOtherSources AUFRUFEN, nie davor. Die Altquellen aus
+ * `properties.other_source` werden dort erst in Katalog und Verweise gefaltet; davor gerechnet
+ * bekaeme jedes Objekt, dessen einzige Quelle eine Altquelle ist, gar kein Etikett.
+ *
+ * 🔴 DREI EINGAENGE, EINE ANTWORT. Der dritte ist der Wiki-Namensraum des Objekts: ein aus
+ * ns 222 uebernommenes Objekt traegt keine eigene Katalogquelle -- sein Artikel steckt in
+ * `properties.wiki_url` und wird vom Kasten als erste Zeile gerendert. Eine zusaetzliche
+ * `sources`-Zeile dafuer anzulegen war der urspruengliche Plan und haette denselben Artikel
+ * ZWEIMAL in den Kasten gestellt.
+ *
+ * ⚠️ NUR OBJEKTE MIT KARTENZEILE ERREICHEN DEN DRITTEN EINGANG -- eine Grenze des Entwurfs,
+ * keine Luecke in der Zuordnung. `avesmapsMapFeaturesWikiNamespaces` uebersetzt
+ * `map_features.feature_type`; TERRITORIEN und STADTPLAENE haben in dieser Tabelle gar keine
+ * Zeile. Aus dem Dump vom 01.09.2026 gezaehlt (dewa_dump_small.xml.bz2, 252.902 Seiten, 6.457 in
+ * ns 222): von 302 ns-222-Kartenentitaeten sind 69 TERRITORIEN. Sie rendern eine Kanonzeile
+ * (js/map-features/map-features-region-info-markup.js), erreichen Rang 2 aber nie -- ohne eigene
+ * Quelle bleiben sie „unbelegt" statt „inoffiziell". Die ersten beiden Eingaenge greifen bei
+ * ihnen normal, ihre Quellen stehen ja im selben Katalog. Wer das aufheben will, braucht einen
+ * VIERTEN Eingang aus der Territoriumstabelle, nicht einen fuenften Eintrag in der Zuordnung.
+ *
+ * @param array<int|string, array<string, mixed>> $catalog source_id => {label, type, official, …}
+ * @param array<string, list<array{source_id:int}>> $refs  "typ:public_id" => Verweise
+ * @param array<string, int> $wikiNamespaces "typ:public_id" => Namensraum des Wiki-Artikels
+ * @return array<string, array<string, mixed>> "typ:public_id" => {kanon, bezeichner_*}
+ */
+function avesmapsFeatureSourcesDeriveKanon(array $catalog, array $refs, array $wikiNamespaces = []): array
+{
+    $out = [];
+    // 💣 Objekte, deren einzige Herkunft ihr WIKI-ARTIKEL ist, haben gar keinen Verweis -- ueber
+    // `$refs` allein waeren sie unerreichbar. Beide Mengen zusammen sind der Suchraum.
+    $schluessel = array_unique(array_merge(array_keys($refs), array_keys($wikiNamespaces)));
+    foreach ($schluessel as $key) {
+        $liste = $refs[$key] ?? [];
+        if (!is_array($liste)) {
+            $liste = [];
+        }
+        $hatOffizielle = false;
+        $labels = [];
+        $typen = [];
+        $inoffizielle = 0;
+        foreach ($liste as $ref) {
+            // 💣 NICHT NACH int WANDELN. Der Katalog traegt neben den echten `sources.id` auch
+            // SYNTHETISCHE Schluessel fuer die Altquellen aus `properties.other_source`:
+            // `'os:' . $publicId` (map-features.php, avesmapsMapFeaturesMergeLegacyOtherSources).
+            // `(int) 'os:abc'` ist 0, der Verweis fand nie eine Katalogzeile und wurde als
+            // „ohne Aussage" verworfen -- ausgerechnet der Fall, den der Docblock oben als
+            // abgewendet beschreibt. Ein Objekt, dessen EINZIGE Quelle eine Altquelle ist, bekam
+            // damit kein Etikett, und weil „kein Etikett" ein gueltiger Zustand ist, fiel es
+            // nicht auf. Der Schluessel wird deshalb genommen, wie er ist.
+            $id = $ref['source_id'] ?? null;
+            $eintrag = (is_int($id) || is_string($id)) ? ($catalog[$id] ?? null) : null;
+            if (!is_array($eintrag)) {
+                // ⚠️ Ein Verweis ohne Katalogzeile ist KEINE Aussage. Er zaehlt weder als
+                // offiziell noch als inoffiziell -- sonst entschiede eine Datenluecke ueber ein
+                // Etikett. Der Quellenkasten laesst dieselbe Zeile ebenfalls weg.
+                continue;
+            }
+            if (!empty($eintrag['official'])) {
+                $hatOffizielle = true;
+                continue;
+            }
+            $inoffizielle++;
+            $label = trim((string) ($eintrag['label'] ?? ''));
+            if ($label !== '') {
+                $labels[$label] = true;
+            }
+            $typ = trim((string) ($eintrag['type'] ?? ''));
+            if ($typ !== '') {
+                $typen[$typ] = true;
+            }
+        }
+
+        if ($hatOffizielle) {
+            $out[$key] = ['kanon' => 'offiziell'];
+            continue;
+        }
+
+        // 🔴 RANG 2: der Wiki-Namensraum des Objekts. Owner 31.08.2026: „gibt es was Offizielles,
+        // ist uns ns 222 egal" -- deshalb steht dieser Zweig NACH der offiziellen Quelle und nicht
+        // davor. Liegt der Artikel in einem inoffiziellen Raum, ist das Objekt inoffiziell, auch
+        // wenn ihm sonst jede Quellzeile fehlt.
+        // ⚠️ `avesmapsWikiNamespaceIsOfficial` gibt `null` fuer einen Raum, der kein Inhalt ist --
+        // das ist KEINE Aussage und darf hier nichts ausloesen.
+        $ns = $wikiNamespaces[$key] ?? null;
+        $raumIstInoffiziell = $ns !== null && avesmapsWikiNamespaceIsOfficial((int) $ns) === false;
+
+        if ($inoffizielle < 1) {
+            // 🔴 RANG 2 SPRICHT NUR, WENN RANG 3 SCHWEIGT. Die erste Fassung liess ihn VOR den
+            // Quellen entscheiden -- und weil beide Raenge auf dasselbe Urteil hinauslaufen
+            // ('inoffiziell'), aenderte er nie den Kanon, sondern ueberschrieb nur den genaueren
+            // Bezeichner: ein ns-222-Ort MIT Briefspielquelle stand als „Wiki Aventurica" statt
+            // als „Briefspiel (Garetien)" da. Owner 27.08.2026, woertlich: „trotzdem find ichs
+            // nett, wenn da briefspiel steht, wenns ein briefspiel-ort ist". Die Vorrangregel des
+            // Owners galt „offiziell schlaegt inoffiziell", nicht „ungenau schlaegt genau".
+            if ($raumIstInoffiziell) {
+                $out[$key] = ['kanon' => 'inoffiziell', 'bezeichner_label' => 'Wiki Aventurica'];
+            }
+            continue; // sonst: keine verwertbare Quelle, kein inoffizieller Raum -- kein Etikett
+        }
+
+        $eintragOut = ['kanon' => 'inoffiziell'];
+        if (count($labels) === 1) {
+            $eintragOut['bezeichner_label'] = (string) array_key_first($labels);
+        } else {
+            if (count($typen) === 1) {
+                $eintragOut['bezeichner_type'] = (string) array_key_first($typen);
+            }
+            $eintragOut['bezeichner_count'] = $inoffizielle;
+        }
+        $out[$key] = $eintragOut;
+    }
+
+    return $out;
 }

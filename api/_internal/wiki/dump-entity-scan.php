@@ -6,6 +6,10 @@ declare(strict_types=1);
 // place-kinds.php. Ohne dieses require haengt avesmapsDeitiesToStored/-FromStored an der
 // Ladereihenfolge des Aufrufers, und ein Test, der die Datei einzeln zieht, faellt um.
 require_once __DIR__ . '/deities.php';
+// 💣 AUSDRUECKLICH GEFORDERT, nicht geliehen. Der erste Anlauf verliess sich darauf, dass
+// `sync.php` die Tabelle mitzieht -- und `api/edit/map/feature-sources.php` laedt diese Datei
+// ohne `sync.php`. Ein `require_once` kostet nichts und kann sich nicht doppeln.
+require_once __DIR__ . '/namespaces.php';
 
 /**
  * WikiDump migration -- Pass B: entity enumeration + entity handlers.
@@ -239,16 +243,31 @@ function avesmapsWikiDumpClassifyEntityKind(string $infoboxName): string
 
 /**
  * Classify a single page row (as produced by avesmapsWikiDumpIteratePages).
- * Non-Main-namespace pages (ns != 0) and redirect pages are never entities, so
+ * Pages outside a CONTENT namespace and redirect pages are never entities, so
  * they short-circuit to '' regardless of any stray infobox in their wikitext.
  * Otherwise the entity kind is read from the infobox name (O4).
+ *
+ * ⭐ Hier stand bis zum 01.09.2026 `ns !== 0`. Der Riegel bleibt -- er heisst nur nicht mehr
+ * „Hauptraum", sondern „Raum, aus dem wir Objekte holen" (AVESMAPS_WIKI_ENTITY_NAMESPACES,
+ * namespaces.php): ns 0 und ns 222, sonst nichts.
+ * 💣 NICHT avesmapsWikiNamespaceIsContent NEHMEN. Der erste Anlauf tat das und holte damit auch
+ * ns 444 herein -- 264 Seiten mit `{{Infobox Ilaris Vorteil}}` wurden zu Doerfern, weil die
+ * Siedlungsnadel unten `str_contains($key, 'ort')` lautet und `ilarisvorteil` das Wort `ort`
+ * enthaelt. Gemessen am Septemberdump, alle 264 mit `settlement_class = 'dorf'`.
+ * ⚠️ Er entscheidet ausschliesslich, OB eine Seite eine Entitaet sein kann; ob sie Kanon ist,
+ * steht woanders (avesmapsWikiDumpNamespaceIsOfficial) und geht diese Funktion nichts an.
+ * ⭐ Die Klassifikation selbst filtert danach weiter ueber die Infobox und bleibt damit eng:
+ * von den 6.457 ns-222-Seiten des Septemberdumps tragen nur 302 eine Karten-Infobox
+ * (180 Siedlung, 69 Staat, 16 Region, 3 Fluss und 34 Bauwerk -- letztere aus `Infobox Bauwerk`
+ * 29, `Lehreinrichtung` 4 und `Geschaeft` 1, die alle auf `building` abbilden) -- der Rest sind Regeln,
+ * Spielercharaktere und Magazine und faellt hier von selbst durch.
  *
  * @param array{title:string, ns:int, redirect:?string, wikitext:string} $page
  */
 function avesmapsWikiDumpClassifyPage(array $page): string
 {
-    if ((int) ($page['ns'] ?? 0) !== 0) {
-        return ''; // only Main namespace carries article entities
+    if (!avesmapsWikiNamespaceCarriesEntities((int) ($page['ns'] ?? 0))) {
+        return ''; // nur ns 0 und ns 222 -- siehe namespaces.php
     }
     $redirect = $page['redirect'] ?? null;
     if (is_string($redirect) && $redirect !== '') {

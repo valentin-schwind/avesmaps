@@ -166,9 +166,21 @@ function avesmapsWikiDumpResolveStreamUri(string $path): string
  *   [
  *     'title'    => string,   // <title> text (namespace prefix preserved)
  *     'ns'       => int,      // <ns> as int (0 = Main; filtering is the caller's job)
+ *     'id'       => int,      // <page><id> -- die MediaWiki-Seitenkennung, 0 wenn sie fehlt
  *     'redirect' => ?string,  // <redirect title="..."/> target, or null
  *     'wikitext' => string,   // <revision><text> content (multi-line intact)
  *   ]
+ *
+ * ⭐ `id` ist seit dem 01.09.2026 dabei, und zwar fuer den Kategorie-Verbund: die Tabelle
+ * `categorylinks` (offline.wiki-aventurica.de/dump/dump_categorylinks.sql.gz, seit dem
+ * 01.09.2026 angeboten) haengt an `cl_from`, und das ist eine SEITENKENNUNG, kein Titel. Ohne
+ * sie ist die Datei nicht anschliessbar -- und mit ihr faellt der Grund weg, warum
+ * `dump-category-layer.php` rund 450 gedrosselte Zusatzabrufe fahren muss. Am Septemberdump
+ * gemessen: alle 252.902 Seiten tragen eine.
+ *
+ * 💣 GENOMMEN WIRD DIE ERSTE `<id>` AUF SEITENEBENE, nie die aus `<revision>`. Beide heissen
+ * `<id>`; wer nicht auf `$inRevision` achtet, speichert die Revisionskennung und verbindet
+ * damit gegen nichts -- ein Fehler, der erst beim ersten Kategorie-Abgleich auffiele.
  *
  * Only one page is held in memory at a time; nothing is accumulated. Uses the
  * XMLReader pull API (read()/name/nodeType), never DOM/SimpleXML.
@@ -186,7 +198,7 @@ function avesmapsWikiDumpResolveStreamUri(string $path): string
  * @param int      $skipPages number of leading <page> elements to skip (cursor).
  * @param int|null $maxPages  max pages to yield after skipping (null = no limit).
  *
- * @return \Generator<int, array{title:string, ns:int, redirect:?string, wikitext:string}>
+ * @return \Generator<int, array{title:string, ns:int, id:int, redirect:?string, wikitext:string}>
  */
 function avesmapsWikiDumpIteratePages(XMLReader $reader, int $skipPages = 0, ?int $maxPages = null): \Generator
 {
@@ -248,30 +260,33 @@ function avesmapsWikiDumpIteratePages(XMLReader $reader, int $skipPages = 0, ?in
  * <page> element. Advances the reader to the matching </page>. Reads:
  *   - the first <title> text,
  *   - the first <ns> text (as int),
+ *   - the first <id> text on PAGE level (as int) -- see the trap below,
  *   - the <redirect title="..."/> attribute (if present),
  *   - the first <revision>'s <text> content.
  *
  * Uses depth tracking so a nested <text> (revision text) is captured while an
  * unrelated element named "text" elsewhere would not be. Constant memory: only
- * the four scalar fields of this one page are retained.
+ * the five scalar fields of this one page are retained.
  *
- * @return array{title:string, ns:int, redirect:?string, wikitext:string}
+ * @return array{title:string, ns:int, id:int, redirect:?string, wikitext:string}
  */
 function avesmapsWikiDumpReadPageElement(XMLReader $reader): array
 {
     $title = '';
     $ns = 0;
+    $pageId = 0;
     $redirect = null;
     $wikitext = '';
 
     $haveTitle = false;
     $haveNs = false;
+    $haveId = false;
     $haveText = false;
     $inRevision = false;
 
     // An empty <page/> (shouldn't occur in a real dump, but be defensive).
     if ($reader->isEmptyElement) {
-        return ['title' => $title, 'ns' => $ns, 'redirect' => $redirect, 'wikitext' => $wikitext];
+        return ['title' => $title, 'ns' => $ns, 'id' => $pageId, 'redirect' => $redirect, 'wikitext' => $wikitext];
     }
 
     $pageDepth = $reader->depth;
@@ -324,6 +339,25 @@ function avesmapsWikiDumpReadPageElement(XMLReader $reader): array
                 $inRevision = true;
                 break;
 
+            // 💣 `<id>` GIBT ES MEHRFACH je Seite: auf Seitenebene (die Seitenkennung, an der
+            // `categorylinks.cl_from` haengt), in `<revision>` (die Revisionskennung), in
+            // `<contributor>` (die Benutzerkennung) und in `<upload>` (die des Hochladers). Sie
+            // sehen im Strom identisch aus.
+            //
+            // 🔴 DER RIEGEL IST DIE TIEFE, KEINE SPERRLISTE. Der erste Anlauf zaehlte die
+            // bekannten Behaelter einzeln auf (`!$inRevision`, spaeter `!$inUpload`) -- eine
+            // Mutationsprobe hat gezeigt, dass damit `<logitem><id>` und ein `<contributor>`
+            // direkt unter `<page>` durchrutschen und als Seitenkennung gelten. Die
+            // Seitenkennung ist das, was GENAU EINE Ebene unter `<page>` steht; alles Tiefere
+            // gehoert jemand anderem. Diese Fassung ist gegen jedes kuenftige Behaelterelement
+            // des Exportschemas immun, ohne dass jemand die Liste nachfuehren muss.
+            case 'id':
+                if ($reader->depth === $pageDepth + 1 && !$haveId) {
+                    $pageId = (int) avesmapsWikiDumpReadElementText($reader);
+                    $haveId = true;
+                }
+                break;
+
             case 'text':
                 // Only the FIRST revision's text; later <revision> blocks (none in
                 // a page-current dump, but be strict) are ignored.
@@ -338,7 +372,7 @@ function avesmapsWikiDumpReadPageElement(XMLReader $reader): array
         }
     }
 
-    return ['title' => $title, 'ns' => $ns, 'redirect' => $redirect, 'wikitext' => $wikitext];
+    return ['title' => $title, 'ns' => $ns, 'id' => $pageId, 'redirect' => $redirect, 'wikitext' => $wikitext];
 }
 
 /**

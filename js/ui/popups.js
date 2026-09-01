@@ -204,14 +204,55 @@ function resolveFeatureSourceList(entityType, entityPublicId) {
 	return resolved;
 }
 
+/**
+ * DAS KANON-ETIKETT EINES OBJEKTS -- `null`, wenn keins anzuzeigen ist.
+ * Entwurf: docs/superpowers/specs/2026-08-27-kanon-etikett-design.md
+ *
+ * 🔴 DIE VORGABE GILT NUR FUER OBJEKTE MIT QUELLEN. `feature_kanon.vorgabe` sagt „offiziell",
+ * und `abweichungen` traegt die Ausnahmen -- aber ein Objekt OHNE jede Quelle ist nicht
+ * offiziell, sondern unbelegt und bekommt gar kein Etikett. Genau deshalb wird hier
+ * `__featureSourceRefs` danebengehalten: das ist die eine Stelle, an der die Nutzlast nicht fuer
+ * sich allein spricht, und sie steht deshalb hier ausgeschrieben und nicht als stille Annahme.
+ *
+ * ⚠️ Fehlt `feature_kanon` ganz (alte Nutzlast im Zwischenspeicher eines warmen Browsers), gibt
+ * es KEIN Etikett -- nicht „offiziell". Eine Antwort, die die Frage nicht kennt, hat sie nicht
+ * mit „ja" beantwortet.
+ */
+function resolveFeatureKanon(entityType, entityPublicId) {
+	const kanon = typeof window !== "undefined" ? window.__featureKanon : null;
+	const refsMap = typeof window !== "undefined" ? window.__featureSourceRefs : null;
+	if (!kanon || !entityPublicId) {
+		return null;
+	}
+	const key = `${entityType}:${entityPublicId}`;
+	const abweichung = kanon.abweichungen && kanon.abweichungen[key];
+	if (abweichung) {
+		return abweichung;
+	}
+	const refs = refsMap && refsMap[key];
+	if (!Array.isArray(refs) || refs.length === 0) {
+		return null; // unbelegt -- die Vorgabe gilt fuer dieses Objekt nicht
+	}
+	return kanon.vorgabe ? { kanon: kanon.vorgabe } : null;
+}
+
 // The full "Quellen: …" line for a popup/infobox, rendered synchronously from the payload globals.
 // Replaces the old lazy placeholder: same wrapper class (.feature-sources, styled in region-sync.css)
 // and same German label/fallback, but the source list is resolved and rendered up front. entityType
 // in {settlement,region,path,territory}; wikiUrl is the fixed Wiki-Aventurica link (may be empty).
 function renderFeatureSourceLine(entityType, entityPublicId, wikiUrl, linkClass, opts) {
 	const sources = resolveFeatureSourceList(entityType, entityPublicId);
+	const kanon = resolveFeatureKanon(entityType, entityPublicId);
 	const list = window.buildSourceListMarkup(wikiUrl, sources, {
 		linkClass,
+		// ⚠️ Der Wiki-Artikel ist KEINE Katalogquelle -- sein Kanon ist der des OBJEKTS, weil der
+		// Namensraum dieses Artikels ihn bestimmt hat (avesmapsWikiNamespaceFromWikiUrl).
+		// `undefined` heisst „kein Stempel", nicht „offiziell".
+		wikiOfficial: kanon ? kanon.kanon === "offiziell" : undefined,
+		kanonLabels: {
+			official: tr("popup.kanonOfficial", "Offiziell"),
+			unofficial: tr("popup.kanonUnofficial", "Inoffiziell"),
+		},
 		officialTooltip: tr("popup.officialSource", "offizielle Quelle"),
 		wikiLabel: tr("popup.wiki", "Wiki Aventurica"),
 		// Haengt am Wiki-Eintrag der Zeile, nicht an der Zeile (siehe buildSourceListMarkup).
@@ -221,23 +262,17 @@ function renderFeatureSourceLine(entityType, entityPublicId, wikiUrl, linkClass,
 		sourceLabelSingular: tr("popup.sourceSingular", "Quelle"),
 		sourceLabelPlural: tr("popup.sources", "Quellen"),
 		publicationsLabel: tr("popup.publications", "Publikationen:"),
-		officialTabLabel: tr("popup.sourceTabOfficial", "Offiziell"),
+		// 🔴 „BESCHRIEBEN", NICHT „OFFIZIELL". Der Reiter zaehlt die ABDECKUNG (ausfuehrlich +
+		// ergaenzend gegen Erwaehnung), nicht den Kanon -- und mit einem Kanon-Etikett daneben las
+		// jeder „Offiziell (35)" als „35 offizielle Quellen". Reiner Beschriftungswechsel.
+		officialTabLabel: tr("popup.sourceTabDescribed", "Beschrieben"),
 		mentionedTabLabel: tr("popup.sourceTabMentioned", "Erwähnt"),
 		tableHeaders: {
 			title: tr("popup.sourceTableTitle", "Titel"),
 			type: tr("popup.sourceTableType", "Typ"),
 			pages: tr("popup.sourceTablePages", "Seiten"),
 		},
-		typeLabels: {
-			regionalspielhilfe: tr("popup.sourceType.regionalspielhilfe", "Regionalspielhilfe"),
-			abenteuer: tr("popup.sourceType.abenteuer", "Abenteuer"),
-			aventurischer_bote: tr("popup.sourceType.aventurischer_bote", "Aventurischer Bote"),
-			quellenband: tr("popup.sourceType.quellenband", "Quellenband"),
-			roman: tr("popup.sourceType.roman", "Roman"),
-			briefspiel: tr("popup.sourceType.briefspiel", "Briefspiel"),
-			regelbuch: tr("popup.sourceType.regelbuch", "Regelbuch"),
-			sonstiges: tr("popup.sourceType.sonstiges", "Sonstiges"),
-		},
+		typeLabels: featureSourceTypeLabels(),
 		// Floating map box (infopanel mode): drop the "Publikationen" tabs -- they live in the panel only.
 		omitPublications: Boolean(opts && opts.omitPublications),
 	});
@@ -248,9 +283,90 @@ function renderFeatureSourceLine(entityType, entityPublicId, wikiUrl, linkClass,
 	}
 	return `<div class="feature-sources">${list}</div>`;
 }
+
+// Die Beschriftungen der Quellenarten. ⚠️ EINE Fassung, zwei Leser: die Quellenzeile und das
+// Kopf-Etikett, das aus `bezeichner_type` „Briefspiel (2)" baut. Als zweite Abschrift liefen sie
+// beim ersten neuen Quellentyp auseinander -- und zwar still, weil ein unbekannter Schluessel
+// nicht faellt, sondern roh durchgereicht wird ("briefspiel" statt "Briefspiel").
+function featureSourceTypeLabels() {
+	return {
+		regionalspielhilfe: tr("popup.sourceType.regionalspielhilfe", "Regionalspielhilfe"),
+		abenteuer: tr("popup.sourceType.abenteuer", "Abenteuer"),
+		aventurischer_bote: tr("popup.sourceType.aventurischer_bote", "Aventurischer Bote"),
+		quellenband: tr("popup.sourceType.quellenband", "Quellenband"),
+		roman: tr("popup.sourceType.roman", "Roman"),
+		briefspiel: tr("popup.sourceType.briefspiel", "Briefspiel"),
+		regelbuch: tr("popup.sourceType.regelbuch", "Regelbuch"),
+		sonstiges: tr("popup.sourceType.sonstiges", "Sonstiges"),
+	};
+}
+
+/**
+ * DIE HALBPILLE FUER DEN OBJEKTKOPF -- "" wenn nichts anzuzeigen ist.
+ * Entwurf: docs/superpowers/specs/2026-08-27-kanon-etikett-design.md §4.1
+ *
+ * 🔴 SIE STEHT UNTER ART UND HERRSCHAFT, NICHT NEBEN DEM NAMEN. Neben „Gareth" saehe sie aus wie
+ * ein Zusatz zum WORT; der Kopf ist aber der Ort, an dem das Objekt sagt, WAS ES IST -- Metropole,
+ * Hauptstadt, im Kanon. Alle drei sind Aussagen ueber das Objekt und stehen nicht neben ihrem Beleg.
+ *
+ * ⚠️ „OHNE QUELLE" ERSCHEINT HIER NICHT. Ein unbelegtes Objekt bekommt gar kein Etikett und der
+ * Kopf bleibt, wie er ist -- `resolveFeatureKanon` gibt dafuer `null`. Die Editorenanzeige
+ * „Ohne Quelle" ist eine andere Flaeche mit einem anderen Publikum.
+ */
+function renderFeatureKanonBadge(entityType, entityPublicId) {
+	const badge = featureKanonBadge(entityType, entityPublicId);
+	// ⚠️ EINE Klasse fuer ALLE Koepfe (Ortspopup, Weg, Kraftlinie, Landschaftslabel, Territorium).
+	// Zwei Rezepturen fuer dieselbe Zeile sind in diesem Repo teuer bezahlt worden -- siehe die
+	// Listenzeile in AGENTS.md, wo aus einer abgeschriebenen Regel sieben wurden.
+	return badge ? `<div class="feature-kanon-head">${badge}</div>` : "";
+}
+
+/**
+ * DAS BLANKE ETIKETT -- ohne Kopf-Huelle, fuer Flaechen, die selbst rahmen (Suchtreffer,
+ * Konfliktpartei). "" wenn nichts anzuzeigen ist.
+ *
+ * ⚠️ `nurZustand` laesst den Bezeichner weg. In einer LISTE ist neben dem Namen kein Platz fuer
+ * „Briefspiel (Garetien)", und ein Chip, der die halbe Zeile nimmt, verdraengt genau die
+ * Angabe, wegen der jemand liest. Der Bezeichner steht dann im Objektkopf, einen Klick weiter.
+ */
+function featureKanonBadge(entityType, entityPublicId, opts) {
+	if (typeof featureKanonBadgeMarkup !== "function") {
+		return "";
+	}
+	let kanon = resolveFeatureKanon(entityType, entityPublicId);
+	if (kanon && opts && opts.nurZustand) {
+		kanon = { kanon: kanon.kanon };
+	}
+	return featureKanonBadgeMarkup(kanon, escapeHtml, {
+		official: tr("popup.kanonOfficial", "Offiziell"),
+		unofficial: tr("popup.kanonUnofficial", "Inoffiziell"),
+	}, featureSourceTypeLabels());
+}
+
+/**
+ * DAS ETIKETT FUER EINE LISTENZEILE -- nur das INOFFIZIELLE, und ohne Bezeichner.
+ *
+ * 🔴 „OFFIZIELL" WIRD IN LISTEN NICHT GEZEIGT. Die allermeisten Objekte sind offiziell; ein
+ * goldener Chip in fast jeder Zeile ist kein Etikett mehr, sondern Grundrauschen -- und er
+ * verdeckt genau das, was die Halbpille leisten soll: die Ausnahme sichtbar machen.
+ *
+ * ⚠️ KEIN Etikett heisst hier deshalb „offiziell ODER unbelegt", nicht „offiziell". Eine Liste
+ * ist keine Herkunftsangabe; die steht im Quellenkasten des Objekts. Wer diese Zeile je zu einer
+ * Aussage ueber Belegtheit machen will, braucht einen dritten Zustand, keine Umdeutung dieses.
+ */
+function featureKanonListBadge(entityType, entityPublicId) {
+	const kanon = resolveFeatureKanon(entityType, entityPublicId);
+	if (!kanon || kanon.kanon === "offiziell") {
+		return "";
+	}
+	return featureKanonBadge(entityType, entityPublicId, { nurZustand: true });
+}
 if (typeof window !== "undefined") {
 	window.resolveFeatureSourceList = resolveFeatureSourceList;
 	window.renderFeatureSourceLine = renderFeatureSourceLine;
+	window.resolveFeatureKanon = resolveFeatureKanon;
+	window.renderFeatureKanonBadge = renderFeatureKanonBadge;
+	window.featureKanonListBadge = featureKanonListBadge;
 }
 
 function locationIconMarkup(locationType, locationTypeLabel) {
@@ -344,7 +460,7 @@ const INFO_HEADER_IMAGE_BY_ART = {
 	// sondern unter dem, was der Normalisierer aus ihrer BESCHRIFTUNG macht: er schneidet am
 	// "/" ab und wirft alles Nicht-Buchstabige weg. Aus "Berg-/Huegelkette" wird deshalb
 	// "berg" -- das steht oben schon --, und aus "Vor-/Mittelgebirge" wird "vor".
-	// âš ï¸� Genau dieselbe Bauform wie "flussland" aus "Flussland/Flusstal" eine Zeile
+	// ⚠️ Genau dieselbe Bauform wie "flussland" aus "Flussland/Flusstal" eine Zeile
 	// tiefer; wer den Schluessel "vor" fuer einen Tippfehler haelt, hat den Schnitt uebersehen.
 	vor: "gebirge", felsformation: "gebirge",
 	berggipfel: "berggipfel",
@@ -985,6 +1101,8 @@ function locationPopupMarkup({
 	wikiUrl = "",
 	isRuined = false,
 	actionsMarkup = "",
+	// Das Kanon-Etikett. Leer bei jedem Objekt ohne Quelle -- siehe renderFeatureKanonBadge.
+	kanonMarkup = "",
 }) {
 	const popupClassName = compact ? "location-popup location-popup--compact" : "location-popup";
 	const nameClassName = isRuined ? "location-popup__name location-popup__name--ruined" : "location-popup__name";
@@ -997,6 +1115,7 @@ function locationPopupMarkup({
 					${showType ? `<div class="location-popup__type">${escapeHtml(locationTypeLabel)}${typeSuffixMarkup ? ` · ${typeSuffixMarkup}` : ""}</div>` : ""}
 				</div>
 			</div>`}
+			${kanonMarkup}
 			${showDivider ? `<div class="location-popup__divider"></div>` : ""}
 			${showDescription ? locationDescriptionMarkup(name, description, isRuined) : ""}
 			${actionsMarkup}

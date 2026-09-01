@@ -4,6 +4,11 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../text/ascii-fold.php';
 require_once __DIR__ . '/drossel.php';
+// Die Namensraumtabelle -- avesmapsWikiSyncCreateMatchKeyForTitle() weiter unten liest daraus.
+// 💣 NAMESPACES.PHP, NICHT DUMP-READER.PHP. Der erste Anlauf zog hier `dump-reader.php`, und
+// `api/edit/wiki/dump.php` laedt genau die Datei danach ein zweites Mal mit `require` (nicht
+// `require_once`) -- „Cannot redeclare", der Dump-Endpunkt tot, acht Werkzeug-Tests rot.
+require_once __DIR__ . '/namespaces.php';
 
 const AVESMAPS_WIKI_API_URL = 'https://de.wiki-aventurica.de/de/api.php';
 const AVESMAPS_WIKI_PAGE_BASE_URL = 'https://de.wiki-aventurica.de/wiki/';
@@ -1270,8 +1275,83 @@ function avesmapsWikiSyncCreateMatchKey(string $value): string {
     return avesmapsWikiSyncCreateMatchKeyInternal($value, false);
 }
 
+/**
+ * Der Zuordnungsschluessel eines Objekts, DESSEN NAMENSRAUM MITZAEHLT.
+ *
+ * 💣 DER ANLASS, GEMESSEN AM SEPTEMBERDUMP 2026: von den 302 Kartenobjekten im Namensraum
+ * `Inoffiziell:` bekommen **13** denselben Zuordnungsschluessel wie ein bestehendes Objekt
+ * DERSELBEN ART im Hauptraum (12 territory, 1 region) -- artunabhaengig sind es 19 Objekte auf
+ * 30 Schluesseln. Mit dem geoeffneten Namensraum-Riegel legte der naechste Lauf diese Paare
+ * uebereinander.
+ *
+ * ⚠️ DIESE ZAHL WURDE DREIMAL FALSCH GESCHRIEBEN, BEVOR SIE STIMMTE -- deshalb steht hier die
+ * METHODE und nicht nur der Wert. Gezaehlt wird: die 302 ns-222-Seiten durch den ECHTEN
+ * Zerleger fahren, den `match_key` bilden, den der jeweilige Staging-Parser bildet (er kommt aus
+ * `|Name=` mit Titel-Rueckfall und schneidet den Klammerzusatz weg), und gegen die Schluessel der
+ * Hauptraum-Objekte DERSELBEN Art halten. Frueher hier: 47 (blosser Titelvergleich) und 61
+ * (Schluessel, aber artunabhaengig und gegen alle Seiten statt gegen Objekte) -- beides misst
+ * etwas anderes als das, was der naechste Lauf tatsaechlich zusammenlegen wuerde.
+ *
+ * ⚠️ Und zwei naheliegende Beispiele taugen NICHT: `Apfeldorn` hat gar keinen Artikel im
+ * Hauptraum, und `Baronie Metenar` kollidiert nicht (`|Name=Baronie Metenar/Briefspiel`).
+ *
+ * ⚠️ GEAENDERT WIRD NUR DIE SCHREIBSEITE (die vier Staging-Parser), nicht die Leser.
+ *
+ * 💣 UND DAS TRENNT DIE SUCHE NICHT -- hier stand bis zum 01.09.2026 die Zusicherung „eine
+ * Suche nach ‚Temphis' findet den inoffiziellen NICHT". Sie ist falsch, gemessen an
+ * `avesmapsWikiPathSearch` (paths.php:724) und `avesmapsWikiRegionSearch` (regions.php:1117):
+ * beide fragen `WHERE name LIKE :like OR match_key LIKE :keylike`. `name` traegt weiterhin das
+ * blanke `|Name=`, und `%temphis%` ist ein TEILSTRING von `inoffizielltemphis` -- beide Haelften
+ * treffen also nach wie vor. Was der praefigierte Schluessel wirklich leistet, ist enger:
+ *   - der exakte Gleichstand (`match_key = :exactkey`) und damit die Sortierung trennen,
+ *   - der Unschaerfe-Vergleich (avesmapsWikiSyncFindProbableWikiMatches) faellt fuer lange
+ *     Praefixe unter die Schranke,
+ *   - und die Zuweisungslaeufe (avesmapsWikiRegionAssignAll / PathAssignAll) greifen eine
+ *     inoffizielle Zeile nicht mehr ueber den blanken Kartennamen ab.
+ * ⚠️ Hier stand zwischenzeitlich, der ERSTE-GEWINNT-Griff in avesmapsLoadWikiSyncLocationLinks
+ * (api/app/map-features.php) werde dadurch dicht. Das ist falsch: der liest `normalized_key` aus
+ * `wiki_sync_pages`, und der wird aus dem TITEL gebildet, trug das Praefix also schon vorher.
+ * Dieser Weg war nie offen -- wer sich hier auf `match_key` verlaesst, sichert die falsche Tuer.
+ * 🔧 Die Auswahllisten selbst zeigen `title` nicht an; zwei gleichnamige Zeilen sind dort
+ * NICHT unterscheidbar. Das ist offen und gehoert behoben, bevor Editoren damit arbeiten. Die Identitaet ueber Laeufe hinweg haengt ohnehin am `wiki_key`,
+ * der das Praefix immer behalten hat -- der `match_key` ist nur der unscharfe Namensvergleich.
+ *
+ * ⚠️ Ein Titel ohne bekanntes Praefix ergibt exakt den alten Schluessel. Der Hauptraum aendert
+ * sich also um kein Zeichen, und das ist die Bedingung dafuer, dass die bestehenden 203.678
+ * Objekte ihre Zuordnung behalten.
+ *
+ * 💣 DER PRAEFIX WIRD ALS `ns<nummer>` VORANGESTELLT, NICHT ALS WORT -- und der erste Anlauf tat
+ * genau das Falsche. Er baute `$praefix . ' ' . $value` und liess das durch dieselbe Faltung
+ * laufen. Zwei Fehler auf einmal, beide von einer Mutationsprobe gefunden:
+ *
+ *   1. Das Leerzeichen ERZEUGT eine Klammer-Grenze, die im blanken Namen nicht existiert.
+ *      `avesmapsWikiSyncStripParentheticalSuffix` schneidet mit `/\s+\([^)]*\)\s*$/u`, verlangt
+ *      also Leerraum vor der Klammer. `Inoffiziell:(Ehemalige Baronie)` wurde damit zu
+ *      `inoffiziell` -- der ganze Name gefressen. Ohne Praefix waere es `ehemaligebaronie`.
+ *   2. Der Trenner ueberlebt die Faltung nicht (`[^a-z0-9]` faellt weg). `Elf:Sturm` ergab
+ *      `elfsturm` und kollidierte damit mit einem Hauptraum-Artikel „Elfsturm" -- und
+ *      `inoffiziell` mit einem Artikel „Inoffiziell". Also genau die Kollisionsklasse, gegen
+ *      die diese Funktion gebaut ist, nur eine Ebene versetzt.
+ *
+ * Der blanke Schluessel wird deshalb ZUERST gebildet -- mit allem, was dazugehoert, Klammerstrip
+ * eingeschlossen -- und danach unveraendert vorangestellt. `ns222` ist kurz, alphanumerisch,
+ * uebersteht die Faltung und kann in keinem aventurischen Namen stehen.
+ *
+ * ⚠️ EIN LEERER NAME BLEIBT LEER. `ns222` allein waere ein Schluessel, den sich alle namenlosen
+ * Zeilen eines Raums teilen -- eine Sammelkollision statt einer Trennung.
+ */
 function avesmapsWikiSyncCreateMatchKeyPreservingParentheticalSuffix(string $value): string {
     return avesmapsWikiSyncCreateMatchKeyInternal($value, true);
+}
+
+function avesmapsWikiSyncCreateMatchKeyForTitle(string $value, string $canonicalTitle): string {
+    $blank = avesmapsWikiSyncCreateMatchKeyInternal($value, false);
+    $ns = avesmapsWikiTitleNamespace($canonicalTitle);
+    if ($ns === null || $blank === '') {
+        return $blank;
+    }
+
+    return 'ns' . $ns . $blank;
 }
 
 function avesmapsWikiSyncCreateMatchKeyInternal(string $value, bool $preserveHistoricalSuffix): string {

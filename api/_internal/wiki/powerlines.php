@@ -536,7 +536,7 @@ function avesmapsWikiPowerlineParsePage(
         'name' => mb_substr($name, 0, 255, 'UTF-8'),
         // The join to our map: our 162 powerline rows carry real lore names (Basiliuslinie,
         // Hexenband, Yaquirlinie ...), so the match is by name, exactly as for roads.
-        'match_key' => avesmapsWikiSyncCreateMatchKey($name),
+        'match_key' => avesmapsWikiSyncCreateMatchKeyForTitle($name, $canonical),
         'staerke' => mb_substr($staerke, 0, 120, 'UTF-8'),
         'affinitaet' => mb_substr($affinitaet, 0, 120, 'UTF-8'),
         'laenge' => mb_substr($laenge, 0, 120, 'UTF-8'),

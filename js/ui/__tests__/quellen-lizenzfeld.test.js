@@ -96,9 +96,18 @@ pruefungen += 2;
 // -- und dann stand sie im Browser gemessen (27.08.2026) in einer Zeile mit der NAECHSTEN Quelle:
 // „VolkoV / garetien.de, CC BY-NC-SA 3.0 · Kosch:Bodrin". Wer das liest, haengt die Lizenz an das
 // falsche Stueck, und damit ist die Namensnennung nicht erfuellt, sondern irrefuehrend.
-assert.ok(html.includes('<span class="fs-src-item">'), "der Eintrag mit Angabe ist eine Einheit");
+// ⭐ SEIT DEM 01.09.2026 TRAEGT DAS EINE ANDERE BAUFORM: jede Quelle steht in ihrem eigenen
+// <li>, die Trennung ist also die Zeile selbst und nicht mehr ein `inline-block`-Kniff
+// (`fs-src-item`). Die ZUSICHERUNG ist dieselbe geblieben und wird hier weiter geprueft -- nur
+// eben am neuen Mechanismus. Ein geloeschter Test waere eine aufgegebene Zusicherung.
+assert.ok(html.includes('<ul class="fs-src-list">'), "die Quellen stehen in einer Liste");
+const zeilen = html.match(/<li><span class="fs-src-row">/g) || [];
+assert.ok(zeilen.length >= 2, "je Quelle eine eigene Zeile");
 assert.ok(html.includes("fs-src-lic--attrib"), "und die Angabe darf umbrechen");
-pruefungen += 2;
+// 💣 Die Angabe muss INNERHALB ihrer Zeile stehen -- genau das war der Fehler vom 27.08.2026.
+const ersteZeile = html.slice(html.indexOf('<li><span class="fs-src-row">'), html.indexOf("</li>"));
+assert.ok(ersteZeile.includes("fs-src-lic"), "die Angabe steht in der Zeile ihrer Quelle");
+pruefungen += 4;
 
 // ---- D. Der Absatz im Fenster „Hinweise" steht in BEIDEN Sprachen ----------------------------
 // ⚠️ Der Absatz ist die Sammelangabe; die Zeile in der Infobox ist die Einzelnennung. Beides

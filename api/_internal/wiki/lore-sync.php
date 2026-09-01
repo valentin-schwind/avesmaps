@@ -2,6 +2,9 @@
 
 declare(strict_types=1);
 
+// avesmapsWikiNamespace*() -- welche Namensraeume dieser Erzeuger annimmt.
+require_once __DIR__ . '/namespaces.php';
+
 // Flora/Fauna/Spezies/Handelswaren -- Schema, Dump-Staging und der OVERRIDE-SICHERE
 // Reconcile in die Live-Tabellen. Spiegelt api/_internal/wiki/game-literature-sync.php 1:1:
 // STAGING waehrend "Dump holen" (Phase `lore`, dryRun), danach eine owner-getriggerte
@@ -429,7 +432,13 @@ function avesmapsLoreBuildCatalogStep(PDO $pdo, string $dumpPath, int $cursor = 
         $pagesScanned++;
 
         $wikitext = (string) ($page['wikitext'] ?? '');
-        if ((int) ($page['ns'] ?? 0) === 0 && ($page['redirect'] ?? null) === null && str_contains($wikitext, '{{')) {
+        // 🔴 OBJEKTRAEUME, nicht nur der Hauptraum (01.09.2026). Am Septemberdump gemessen liegen
+        // in ns 222 acht Lore-Seiten (3 Gegenstandsgruppe, 3 Tierart, 2 Pflanzenart) -- wenig, aber
+        // sie waren der Grund fuer verwaiste Verweise: der Publikations-Verweisschritt nahm
+        // ns-222-Seiten laengst an und schrieb `wiki_entity_publication`-Zeilen mit
+        // `entity_type='lore'`, waehrend dieser Riegel den passenden Katalogeintrag nie anlegte.
+        // Zwei Erzeuger derselben Beziehung mit verschiedenen Riegeln sind keine Regel.
+        if (avesmapsWikiNamespaceCarriesEntities((int) ($page['ns'] ?? 0)) && ($page['redirect'] ?? null) === null && str_contains($wikitext, '{{')) {
             $pageTitle = (string) ($page['title'] ?? '');
             $rec = avesmapsLoreParsePage($pageTitle, $wikitext);
             if ($rec !== null) {

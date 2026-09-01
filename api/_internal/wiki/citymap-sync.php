@@ -2,6 +2,9 @@
 
 declare(strict_types=1);
 
+// avesmapsPublicationCatalogIsOfficial() -- der Kanon einer Publikation folgt ihrem Namensraum.
+require_once __DIR__ . '/namespaces.php';
+
 // Kartensammlung wiki sync -- the MISSING pipeline stages 1+2 for citymaps.
 //
 // The house pipeline is "Dump ziehen -> syncen (staging, override-safe) -> manuell pflegen". For the
@@ -1352,6 +1355,11 @@ function avesmapsCitymapBuildCatalogStep(PDO $pdo, string $dumpPath, int $cursor
         $pagesScanned++;
 
         $title = trim((string) ($page['title'] ?? ''));
+        // ⭐ HIER BLEIBT `ns === 0`, und das ist kein vergessener Riegel. Gewacht wird eine FESTE
+        // TITELLISTE (AVESMAPS_CITYMAP_INDEX_PAGES: „Stadtplanindex", „Kartenindex") -- Seiten, die
+        // es nur im Hauptraum gibt. Der Namensraumvergleich ist hier Guertel zum Hosentraeger,
+        // keine Auswahl. Ihn auf die Inhaltsraeume zu weiten wuerde nichts hereinlassen und nur
+        // vortaeuschen, hier waere eine Entscheidung getroffen worden.
         if ((int) ($page['ns'] ?? 0) === 0 && ($page['redirect'] ?? null) === null
             && in_array($title, AVESMAPS_CITYMAP_INDEX_PAGES, true)) {
             $wikitext = (string) ($page['wikitext'] ?? '');
@@ -1629,7 +1637,7 @@ function avesmapsCitymapLinkSource(PDO $pdo, string $citymapPublicId, string $so
     }
 
     try {
-        $stmt = $pdo->prepare('SELECT wiki_key, title, source_type, chosen_url, has_link FROM wiki_publication_catalog WHERE wiki_key = :wk LIMIT 1');
+        $stmt = $pdo->prepare('SELECT wiki_key, title, source_type, chosen_url, has_link, page_ns FROM wiki_publication_catalog WHERE wiki_key = :wk LIMIT 1');
         $stmt->execute(['wk' => $sourceKey]);
         $row = $stmt->fetch(PDO::FETCH_ASSOC);
         if ($row === false) {
@@ -1642,7 +1650,13 @@ function avesmapsCitymapLinkSource(PDO $pdo, string $citymapPublicId, string $so
             $chosenUrl,
             (string) ($row['title'] ?? $sourceRaw),
             (string) ($row['source_type'] ?? 'sonstiges'),
-            true, // a wiki publication is an official source
+            // 🔴 DER ZWEITE SCHREIBER DERSELBEN KATALOGZEILE, und er stand noch auf fest `true`.
+            // `avesmapsFeatureSourceUpsert` schreibt `is_official = VALUES(is_official)`
+            // BEDINGUNGSLOS (feature-sources.php, avesmapsSourceUpsertOnDuplicateSql) -- anders
+            // als label, license und attribution, die „fuellen, nie leeren" folgen. Damit hob
+            // dieser Aufruf ein `0`, das der Publikations-Abgleich gerade gesetzt hatte, beim
+            // naechsten `sync_citymaps` wieder auf 1. Zwei Schreiber, eine Zeile, eine Regel.
+            avesmapsPublicationCatalogIsOfficial($row['page_ns'] ?? null),
             $userId,
             (string) ($row['wiki_key'] ?? '') // URL-less identity fallback (has_link=0)
         );

@@ -2,6 +2,9 @@
 
 declare(strict_types=1);
 
+// avesmapsWikiNamespace*() -- welche Namensraeume dieser Erzeuger annimmt.
+require_once __DIR__ . '/namespaces.php';
+
 // Die Sitze der Handelsorganisationen ins STAGING (Dump-Phase `organisations`).
 // ===========================================================================================
 // Gegenstück zu organisation-seats.php: dort der reine Parser, hier alles mit Datenbank.
@@ -107,7 +110,10 @@ function avesmapsOrgSeatBuildStep(
             $done = false;
             break;
         }
-        if ((int) ($page['ns'] ?? 0) !== 0 || ($page['redirect'] ?? null) !== null) {
+        // 🔴 OBJEKTRAEUME (ns 0 + 222). Gemessen: zwei {{Infobox Organisation}} in ns 222.
+        // ⚠️ Bewusst NICHT alle Inhaltsraeume: ns 218/220/444 tragen keine einzige, und ein
+        // geoeffneter Raum ohne Inhalt ist nur eine Stelle mehr, an der etwas hereinrutschen kann.
+        if (!avesmapsWikiNamespaceCarriesEntities((int) ($page['ns'] ?? 0)) || ($page['redirect'] ?? null) !== null) {
             continue;
         }
         $wikitext = (string) ($page['wikitext'] ?? '');

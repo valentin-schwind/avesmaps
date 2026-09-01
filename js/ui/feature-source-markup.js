@@ -102,6 +102,96 @@ function featureSourceShortenPages(pages) {
   return { kurz: teile[0] + " ff.", voll: voll, gekuerzt: true };
 }
 
+/**
+ * DER KANON-STEMPEL an einer einzelnen Quelle.
+ * Entwurf: docs/superpowers/specs/2026-08-27-kanon-etikett-design.md
+ *
+ * 🔴 ER ERSETZT DEN STERN. Bis zum 01.09.2026 markierte ein `*` die offizielle Quelle --
+ * unerklaert, unerklaerbar klein, und in einer gemischten Liste trug er die ganze Last. Ein Wort
+ * muss niemand nachschlagen.
+ *
+ * 💣 UND ER BEFREIT DIE TYPMARKE. Die trug vorher ZWEI Aussagen: was fuer eine Quelle das ist
+ * (Beschriftung) und ob sie im Kanon steht (Farbe). Eine Bedeutung zu viel fuer ein Element --
+ * seit der Stempel den Kanon sagt, ist die Typmarke neutral, und Farbe traegt auf der ganzen
+ * Flaeche genau eine Bedeutung: Gold = im Kanon, Blaugruen = nicht.
+ *
+ * ⚠️ Farbe allein ist keine Auszeichnung: der Wortlaut steht IM Element, nicht nur im `title`.
+ */
+function featureSourceKanonMarkup(official, esc, labels) {
+  var offiziell = Boolean(official);
+  var text = offiziell ? (labels.official || "Offiziell") : (labels.unofficial || "Inoffiziell");
+  return '<span class="fs-kanon fs-kanon--' + (offiziell ? "off" : "inoff") + '">' + esc(text) + "</span>";
+}
+
+/**
+ * DER BEZEICHNER als Text -- „von wem stammt das?". Leer, wenn die Ableitung keinen mitgibt.
+ *
+ * 🔴 DER TEXT ENTSTEHT HIER, NICHT IM SERVER. Die Ableitung schickt DATEN: entweder
+ * `bezeichner_label` (alle inoffiziellen Quellen tragen denselben Namen -- der haeufige Fall,
+ * „Briefspiel (Garetien)") oder `bezeichner_type` + `bezeichner_count`, aus denen hier
+ * „Briefspiel (2)" wird. Dieselbe Trennung wie beim `source_type`: wer den fertigen Satz
+ * speichert, kann ihn nie uebersetzen und nie umformulieren, ohne den Bestand anzufassen.
+ *
+ * ⚠️ Nur die ANZAHL ohne Typ ergibt keinen Bezeichner. „(2)" allein sagt nichts darueber, von
+ * wem etwas stammt -- dann bleibt es bei der einfachen Pille ohne zweites Feld.
+ */
+function featureKanonBezeichnerText(kanon, typeLabels) {
+  if (!kanon) {
+    return "";
+  }
+  var label = String(kanon.bezeichner_label == null ? "" : kanon.bezeichner_label).trim();
+  if (label) {
+    return label;
+  }
+  var typ = String(kanon.bezeichner_type == null ? "" : kanon.bezeichner_type).trim();
+  if (!typ) {
+    return "";
+  }
+  var name = (typeLabels && typeLabels[typ]) || typ;
+  var anzahl = Number(kanon.bezeichner_count);
+  return anzahl > 1 ? name + " (" + anzahl + ")" : name;
+}
+
+/**
+ * DAS KOPF-ETIKETT -- die Halbpille aus dem Objektkopf. "" wenn nichts anzuzeigen ist.
+ * Entwurf: docs/superpowers/specs/2026-08-27-kanon-etikett-design.md §3, §4.1
+ *
+ * ⭐ DIE HALBPILLE IST GEWAEHLT, WEIL SIE DIE UNVOLLSTAENDIGKEIT DES EINTRAGS UNTERSTREICHT
+ * (Owner 27.08.2026). Ein Chip, dessen zweites Feld sagt, dass hier noch etwas offen ist: wer
+ * geschrieben hat, was nicht im Kanon steht.
+ *
+ * 🔴 DAS RECHTE FELD IST NEUTRAL, NIE BLAUGRUEN. Neben einem blaugruenen INOFFIZIELL stossen
+ * sonst zwei Blaugruen aneinander und der Chip wird ein Farbfeld mit einer Naht darin. Neutral
+ * traegt er in beiden Kanonlagen dieselbe Form.
+ *
+ * 🔴 KEIN ROT FUER „INOFFIZIELL". Die Briefspiele sind der Grund, warum wir die Inhalte
+ * ueberhaupt haben; ein Warnrot machte aus einer HERKUNFTSANGABE eine Qualitaetsaussage. Rot
+ * bleibt Fehlern vorbehalten.
+ *
+ * ⚠️ OHNE BEZEICHNER BLEIBT ES EINE GANZE PILLE. Ein leeres zweites Feld waere eine Naht ohne
+ * Inhalt -- der haeufigste Fall ist genau das: „offiziell" trennt nichts auf.
+ *
+ * ⚠️ Farbe allein ist keine Auszeichnung: der Wortlaut steht IM Element. Die zwei Felder sind
+ * durch ein `·` im `aria-label` getrennt, weil ein Vorleser die Naht sonst nicht hoert.
+ */
+function featureKanonBadgeMarkup(kanon, esc, labels, typeLabels) {
+  if (!kanon || !kanon.kanon) {
+    return "";
+  }
+  var offiziell = kanon.kanon === "offiziell";
+  var zustand = offiziell ? (labels.official || "Offiziell") : (labels.unofficial || "Inoffiziell");
+  var bezeichner = featureKanonBezeichnerText(kanon, typeLabels);
+  var art = offiziell ? "off" : "inoff";
+  if (!bezeichner) {
+    return '<span class="fs-kanon fs-kanon--' + art + '">' + esc(zustand) + "</span>";
+  }
+  return '<span class="fs-kanon fs-kanon--' + art + ' fs-kanon--split" aria-label="'
+    + esc(zustand + " · " + bezeichner) + '">'
+    + '<span class="fs-kanon__state">' + esc(zustand) + "</span>"
+    + '<span class="fs-kanon__by">' + esc(bezeichner) + "</span>"
+    + "</span>";
+}
+
 function buildSourceListMarkup(wikiUrl, sources, opts) {
   opts = opts || {};
   var wikiLabel = opts.wikiLabel || "Wiki";
@@ -128,11 +218,10 @@ function buildSourceListMarkup(wikiUrl, sources, opts) {
     var key = String(t == null ? "" : t).trim();
     return key ? (typeLabels[key] || key) : "";
   };
-  var star = function (official) {
-    return official ? '<span class="fs-src-star" title="' + esc(officialTooltip) + '">*</span>' : "";
-  };
   var typeTag = function (t) {
     var label = typeLabel(t);
+    // ⚠️ NEUTRAL, seit der Stempel danebensteht: sie sagt nur noch, WAS fuer eine Quelle das
+    // ist. Traegt eine Quelle keinen Typ (seit 30.08.2026 zulaessig), rendert sie nichts.
     return label ? '<span class="fs-src-type">' + esc(label) + "</span>" : "";
   };
   // Line-1 page citation for a direct/own source (e.g. a manually added publication). The tabbed
@@ -157,6 +246,15 @@ function buildSourceListMarkup(wikiUrl, sources, opts) {
       esc(wikiLicenseLabel) + ' <span class="fs-src-ext" aria-hidden="true">↗</span></a>';
   };
 
+  var kanonLabels = opts.kanonLabels || {};
+  // 🔴 DER KASTEN. Der Quellenblock klemmte bisher zwischen der letzten Datenzeile und der
+  // naechsten Ueberschrift und las sich wie eine weitere Datenzeile -- obwohl er etwas anderes
+  // tut: er sagt, WOHER alles darueber stammt. Owner 27.08.2026.
+  var zeile = function (inhalt, marken) {
+    return '<li><span class="fs-src-row"><span class="fs-src-main">' + inhalt + "</span>" +
+      '<span class="fs-src-marks">' + marken + "</span></span></li>";
+  };
+
   var list = Array.isArray(sources) ? sources.filter(function (s) { return s && (s.label || s.url); }) : [];
   // A wiki publication carries a reference_kind; anything without one is a direct/own source.
   var publications = list.filter(function (s) { return s.reference_kind; });
@@ -172,7 +270,13 @@ function buildSourceListMarkup(wikiUrl, sources, opts) {
     // eine Fussnote unter der ganzen Zeile behauptete die Lizenz fuer alle. Die Lizenz verlangt an
     // jeder Kopie zweierlei: die Namensnennung (der Artikel-Link) UND den Lizenzhinweis; bis zum
     // 14.08.2026 stand nur die erste Haelfte da.
-    items.push(link(wikiUrl, esc(wikiLabel)) + wikiLicenseMarkup());
+    // ⚠️ DIE WIKI-ZEILE TRAEGT KEINE TYPMARKE -- sie ist gar keine Katalogquelle, sondern
+    // `properties.wiki_url` am Objekt und hat deshalb keinen `source_type`. Ihr Kanon kommt vom
+    // NAMENSRAUM ihres Artikels (opts.wikiOfficial), nicht aus dem Katalog.
+    items.push(zeile(
+      link(wikiUrl, esc(wikiLabel)) + wikiLicenseMarkup(),
+      opts.wikiOfficial === undefined ? "" : featureSourceKanonMarkup(opts.wikiOfficial, esc, kanonLabels)
+    ));
   }
   // Lizenz und Namensnennung einer Quelle -- ZWEI unabhaengige Verweise, keiner zeigt auf den
   // anderen. Meldung (30.08.2026): bis dahin klebte hier EIN Text aus beidem zusammen
@@ -211,10 +315,12 @@ function buildSourceListMarkup(wikiUrl, sources, opts) {
   direct.forEach(function (s) {
     var label = esc(s.label || s.url || "");
     var namensnennung = lizenzMarkup(s);
-    var meta = typeTag(s.type) + pagesInline(s.pages) + namensnennung;
+    // 🔴 KEIN STERN MEHR hinter dem Titel -- der Kanon steht rechts als Stempel. Und die
+    // Seitenangabe bleibt bei der Quelle, weil sie zu IHR gehoert.
+    var meta = pagesInline(s.pages) + namensnennung;
     var eintrag = s.url
-      ? link(s.url, label + star(s.official)) + meta
-      : '<span class="fs-src-plain">' + label + star(s.official) + "</span>" + meta;
+      ? link(s.url, label) + meta
+      : '<span class="fs-src-plain">' + label + "</span>" + meta;
     // 💣 EINE NAMENSNENNUNG DARF NICHT VON IHRER QUELLE ABREISSEN. Sie ist lang genug, um
     // umzubrechen -- und dann stand sie im Browser gemessen (27.08.2026) in einer Zeile mit der
     // NAECHSTEN Quelle: "VolkoV / garetien.de, CC BY-NC-SA 3.0 · Kosch:Bodrin". Wer das liest,
@@ -222,11 +328,15 @@ function buildSourceListMarkup(wikiUrl, sources, opts) {
     // sondern irrefuehrend. Als inline-block bricht der Browser ZWISCHEN den Eintraegen um und
     // erst dann innerhalb eines einzelnen.
     // ⚠️ Nur der betroffene Eintrag wird eingepackt: alles andere rendert unveraendert weiter.
-    items.push(namensnennung ? '<span class="fs-src-item">' + eintrag + "</span>" : eintrag);
+    // ⭐ DER `inline-block`-KNIFF VON FRUEHER ENTFAELLT. Er stand hier, damit die Namensnennung
+    // nicht von ihrer Quelle abriss und in einer Zeile mit der NAECHSTEN landete -- wer das las,
+    // haengte die Lizenz an das falsche Stueck. Bei einer Quelle je Zeile ist die Trennung die
+    // Zeile selbst.
+    items.push(zeile(eintrag, featureSourceKanonMarkup(s.official, esc, kanonLabels) + typeTag(s.type)));
   });
   if (items.length) {
     var lbl = items.length > 1 ? sourceLabelPlural : sourceLabelSingular;
-    blocks.push('<div class="fs-src-direct">' + esc(lbl) + ": " + items.join('<span class="fs-src-sep">·</span>') + "</div>");
+    blocks.push('<p class="fs-src-label">' + esc(lbl) + ":</p><ul class=\"fs-src-list\">" + items.join("") + "</ul>");
   }
 
   // ----- Line 2: Publikationen — collapsible tabbed Titel/Typ/Seiten table -----
@@ -270,7 +380,7 @@ function buildSourceListMarkup(wikiUrl, sources, opts) {
   }
 
   if (!blocks.length) return "";
-  return '<div class="fs-src">' + blocks.join("") + "</div>";
+  return '<div class="fs-src fs-src--box">' + blocks.join("") + "</div>";
 }
 
 // Browser-only: toggle one publication tab's table open, or collapse it if the tab was already
@@ -304,11 +414,12 @@ function avesmapsSourceTabKeydown(event, tabEl) {
 }
 
 if (typeof module !== "undefined" && module.exports) {
-  module.exports = { buildSourceListMarkup: buildSourceListMarkup, FEATURE_SOURCE_MARKUP_TYPE_LABELS: FEATURE_SOURCE_MARKUP_TYPE_LABELS, featureSourceShortenPages: featureSourceShortenPages, featureSourceLicenseText: featureSourceLicenseText, FEATURE_SOURCE_LICENSES: FEATURE_SOURCE_LICENSES };
+  module.exports = { buildSourceListMarkup: buildSourceListMarkup, FEATURE_SOURCE_MARKUP_TYPE_LABELS: FEATURE_SOURCE_MARKUP_TYPE_LABELS, featureSourceShortenPages: featureSourceShortenPages, featureSourceLicenseText: featureSourceLicenseText, FEATURE_SOURCE_LICENSES: FEATURE_SOURCE_LICENSES, featureKanonBadgeMarkup: featureKanonBadgeMarkup, featureKanonBezeichnerText: featureKanonBezeichnerText };
 }
 if (typeof window !== "undefined") {
   window.buildSourceListMarkup = buildSourceListMarkup;
   window.featureSourceShortenPages = featureSourceShortenPages;
+  window.featureKanonBadgeMarkup = featureKanonBadgeMarkup;
   window.avesmapsToggleSourceTab = avesmapsToggleSourceTab;
   window.avesmapsSourceTabKeydown = avesmapsSourceTabKeydown;
 }

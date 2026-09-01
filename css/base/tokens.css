@@ -118,6 +118,27 @@
 	--color-accent-brown-focus: rgba(122, 90, 58, 0.18);
 
 	/* Pills / tags (e.g. publication sources) */
+	/* 🔴 DAS KANON-ETIKETT (01.09.2026, Entwurf 2026-08-27-kanon-etikett-design.md).
+	   Gold = im Kanon, Blaugruen = nicht. 🔴 KEIN ROT fuer „inoffiziell" -- die Briefspiele sind
+	   der Grund, warum es diese Inhalte gibt; ein Warnrot machte aus einer Herkunftsangabe eine
+	   Qualitaetsaussage. Blaugruen kommt sonst nirgends in der Oberflaeche vor und ist damit
+	   eindeutig. Gemessen gegen die Fuellung: 4,9:1 (gold) und 5,9:1 (blaugruen), AA ist 4,5. */
+	--color-kanon-official: #8a6b16;
+	--color-kanon-official-text: #fffaea;
+	--color-kanon-unofficial: #1f6b64;
+	--color-kanon-unofficial-text: #eafaf7;
+	/* 🔴 DIE FASSUNG FUER DAUERHAFT DUNKLE FLAECHEN -- sie steht hier im hellen Block, weil sie
+	   NICHT mit dem Thema kippt: die Suchkachel ist in beiden Themen dunkel. Ohne sie trug der
+	   Chip dort die helle Fassung, und die hebt sich vom dunklen Grund kaum ab -- gemessen
+	   2,33:1 gegen 8,61:1 im dunklen Thema, also unter den 3:1, die eine Nicht-Text-Grenze
+	   braucht. Die Schrift IM Chip war mit 5,83:1 die ganze Zeit lesbar; auffallen konnte er nur
+	   nicht, und genau das ist seine Aufgabe.
+	   ⭐ Das dunkle Thema unten nimmt dieselben vier Werte, statt sie ein zweites Mal zu tippen. */
+	--color-kanon-official-on-dark: #dcc77e;
+	--color-kanon-official-text-on-dark: #2b2311;
+	--color-kanon-unofficial-on-dark: #6fc7bd;
+	--color-kanon-unofficial-text-on-dark: #0f2f2b;
+
 	--color-pill: #f3ecd9;
 	--color-pill-border: #d7c7a2;
 	--color-pill-text: #675024;
@@ -869,6 +890,15 @@ html.avesmaps-phone {
 	--color-accent-brown-soft: #a3835c;
 	--color-accent-brown-text: #241d14;
 	--color-accent-brown-focus: rgba(201, 169, 126, 0.25);
+
+	/* Kanon-Etikett, dunkel: Fuellung und Schrift tauschen die Rolle, damit das Feld auf dem
+	   dunklen Grund nicht als Loch wirkt. Gemessen 9,5:1 und 7,2:1.
+	   ⚠️ Die Werte stehen im hellen Block als `*-on-dark` -- sie gelten auch fuer Flaechen, die in
+	   BEIDEN Themen dunkel sind (die Suchkachel), und duerfen deshalb nur einmal existieren. */
+	--color-kanon-official: var(--color-kanon-official-on-dark);
+	--color-kanon-official-text: var(--color-kanon-official-text-on-dark);
+	--color-kanon-unofficial: var(--color-kanon-unofficial-on-dark);
+	--color-kanon-unofficial-text: var(--color-kanon-unofficial-text-on-dark);
 
 	--color-pill: #3b3522;
 	--color-pill-border: #5c5237;

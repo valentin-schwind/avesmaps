@@ -633,6 +633,10 @@ function avesmapsWikiDumpFetch(PDO $pdo, bool $forceRefresh = false): array
         CURLOPT_CONNECTTIMEOUT => AVESMAPS_WIKI_DUMP_CONNECT_TIMEOUT_SECONDS,
         CURLOPT_TIMEOUT => AVESMAPS_WIKI_DUMP_TRANSFER_TIMEOUT_SECONDS,
         CURLOPT_USERAGENT => 'AvesmapsDumpBot/1.0 (+https://avesmaps.de; info@avesmaps.de)',
+        // 🔴 DEN ZEITPUNKT DER GEGENSEITE MITBRINGEN. Ohne diese Zeile liefert
+        // CURLINFO_FILETIME immer -1, und der Riegel unten (‚nur ueberschreiben, wenn
+        // wirklich neuer') haette nichts zu vergleichen.
+        CURLOPT_FILETIME => true,
         CURLOPT_FAILONERROR => false, // we inspect the status code ourselves
         // 💣 Bei $timeValue = 0 MUSS die Bedingung ganz weg (CURL_TIMECOND_NONE), nicht etwa mit
         // dem Zeitpunkt 0 mitfahren: „seit dem 01.01.1970 geaendert?" ist immer wahr und damit
@@ -645,6 +649,22 @@ function avesmapsWikiDumpFetch(PDO $pdo, bool $forceRefresh = false): array
     $httpCode = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
     // ⚠️ VOR curl_close lesen -- danach ist das Handle zu und die Auskunft weg.
     $fehlertext = trim((string) curl_error($ch));
+    // 💣 DASSELBE GILT FUER DEN ZEITSTEMPEL DER GEGENSEITE, und der erste Anlauf hat ihn genau
+    // hier verloren: er las CURLINFO_FILETIME erst unten beim Umbenennen, also nach dem
+    // Schliessen. Die Warnung eine Zeile hoeher stand schon da.
+    //
+    // 💣 UND NICHT MIT DER EINZELOPTION. `curl_getinfo($ch, CURLINFO_FILETIME)` liefert bei
+    // fehlendem `Last-Modified` unter Windows **4294967295** statt -1 (32-Bit-Wrap, gemessen mit
+    // PHP 8.5 / curl 8.20). Ein `> 0`-Vergleich haelt das fuer einen gueltigen Zeitpunkt im Jahr
+    // 2106 -- und ab da ist jede Kopie „neuer" als alles, was je kommt. Das Sammelarray gibt
+    // korrekt -1. ⚠️ Auf STRATO (LP64) kaeme -1 an; gemessen wird aber auf Windows, also misst
+    // dort jede Pruefung dieser Funktion das Falsche.
+    $remoteTime = (int) (curl_getinfo($ch)['filetime'] ?? -1);
+    // ⚠️ Und ein Deckel gegen jeden Unsinn von drueben: was mehr als einen Tag in der Zukunft
+    // liegt, ist keine Angabe, sondern ein Fehler. 0 heisst hier „unbekannt".
+    if ($remoteTime <= 0 || $remoteTime > time() + 86400) {
+        $remoteTime = 0;
+    }
     curl_close($ch);
     // Always close the file handle before inspecting / renaming / unlinking.
     @fclose($handle);
@@ -710,12 +730,67 @@ function avesmapsWikiDumpFetch(PDO $pdo, bool $forceRefresh = false): array
         return ['ok' => false, 'code' => 'dump_fetch_failed', 'grund' => 'Antwort ist kein Dump (Groesse/Kennung)', 'http' => $httpCode];
     }
 
-    // Atomic publish.
+    // 🔴 NUR UEBERSCHREIBEN, WENN DIE GEHOLTE DATEI NICHT AELTER IST (Owner 01.09.2026).
+    //
+    // 💣 `If-Modified-Since` allein reicht dafuer nicht -- es ist eine BITTE an die Gegenseite.
+    // Drei Wege gehen daran vorbei: „erzwingen" setzt die Bedingung auf 0, ein Server darf sie
+    // ignorieren, und nach einem Ruecksetzer drueben kann ein 200 eine AELTERE Datei tragen. Die
+    // Wiki Aventurica ist regelmaessig unerreichbar; die vorhandene Kopie ist dann die
+    // Arbeitsgrundlage und darf nicht durch etwas Aelteres ersetzt werden.
+    //
+    // 💣 VERGLICHEN WIRD GEGEN EINEN GEMERKTEN WERT, NICHT GEGEN DIE MTIME DER KOPIE. Der erste
+    // Anlauf nahm die mtime -- und riss damit drei Dinge auf einmal ein:
+    //   - die mtime ist der ABRUFZEITPUNKT, nicht das Dumpdatum; ein frisch geholter Dump sah
+    //     immer neuer aus als die Gegenseite,
+    //   - sie per `touch` auf das Dumpdatum zu setzen brach die 1-Stunden-Frist
+    //     (avesmapsWikiDumpCacheIsFresh) und den Frischevergleich der entpackten `.xml`, die
+    //     beide „mtime = Abrufzeit" voraussetzen -- Ergebnis: der veraltete `.xml` gewann
+    //     dauerhaft, obwohl der neue Dump auf der Platte lag,
+    //   - und eine Uhr, die falsch geht, fror den Riegel fuer immer ein.
+    // Der gemerkte Wert steht in einer Beidatei neben dem Dump; die Ablage ist ohnehin per
+    // .htaccess gesperrt, und ein fehlender Merker heisst „unbekannt", nie „uralt".
+    //
+    // 🔴 `<` UND NICHT `<=`: bei GLEICHEM Zeitpunkt wird uebernommen. Das ist derselbe Dump, das
+    // Ueberschreiben ist harmlos -- und es ist der einzige Weg, eine kaputte oder halbe lokale
+    // Datei ueber die Oberflaeche zu reparieren. Mit `<=` waere „Dump holen (erzwingen)" an ~30
+    // von 31 Tagen wirkungslos gewesen: 39 MB laden und wieder wegwerfen.
     $finalPath = avesmapsWikiDumpStoragePath();
+    $merkerPfad = $finalPath . '.lastmod';
+    $gemerkt = is_file($merkerPfad) ? (int) trim((string) @file_get_contents($merkerPfad)) : 0;
+    if ($remoteTime > 0 && $gemerkt > 0 && $remoteTime < $gemerkt && is_file($finalPath)) {
+        @unlink($tmpPath);
+        // ⚠️ EIN 200 BEWEIST, DASS DIE ZUGANGSDATEN STIMMEN -- auch wenn wir die Datei verwerfen.
+        // Der erste Anlauf kehrte hier zurueck, bevor sie hinterlegt wurden, und ein Abruf mit
+        // frisch eingegebenen Daten vergass sie wieder, sobald die Gegendatei aelter war.
+        avesmapsWikiDumpSetCredentials($pdo, $credentials['username'], $credentials['password']);
+        avesmapsWikiDumpTouchFetchTimestamps($pdo, true);
+
+        return [
+            'ok' => true,
+            'from_cache' => true,
+            'not_newer' => true,
+            'size' => (int) @filesize($finalPath),
+            'remote_time' => $remoteTime,
+            'kept_time' => $gemerkt,
+            'age_seconds' => max(0, time() - (int) @filemtime($finalPath)),
+            'http' => $httpCode,
+        ];
+    }
+
+    // Atomic publish.
     if (!@rename($tmpPath, $finalPath)) {
         @unlink($tmpPath);
         avesmapsWikiDumpTouchFetchTimestamps($pdo, false);
         return ['ok' => false, 'code' => 'dump_fetch_failed', 'grund' => 'Umbenennen der fertigen Datei gescheitert', 'http' => $httpCode];
+    }
+
+    // 🔴 KEIN `touch` AUF DIE KOPIE. Ihre mtime bleibt der Abrufzeitpunkt -- die 1-Stunden-Frist
+    // und der Frischevergleich der entpackten `.xml` haengen daran. Das Dumpdatum wandert
+    // stattdessen in die Beidatei, wo es niemandem in die Quere kommt.
+    // ⚠️ Schlaegt das Schreiben fehl, ist das kein Grund zum Abbruch: der Merker fehlt dann, und
+    // „unbekannt" laesst den naechsten Abruf uebernehmen -- die sichere Richtung.
+    if ($remoteTime > 0) {
+        @file_put_contents($merkerPfad, (string) $remoteTime);
     }
 
     // Success: these creds worked -> persist as last-working + stamp timestamps.

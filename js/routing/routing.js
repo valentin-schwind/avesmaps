@@ -603,6 +603,16 @@ routeDataRequest
 		// in js/ui/popups.js). No lazy per-popup fetch.
 		window.__sourceCatalog = (data && data.source_catalog) || {};
 		window.__featureSourceRefs = (data && data.feature_sources) || {};
+		// Das Kanon-Etikett je Objekt. 🔴 NUR DIE ABWEICHUNGEN reisen mit, die Regel dazu steht als
+		// `vorgabe` IN der Antwort -- die Nutzlast traegt ihre eigene Legende, statt sie durch
+		// Abwesenheit zu behaupten (api/app/map-features.php).
+		// 💣 NUR HIER, NIE IM DELTA-ZWEIG (`since_revision`, weiter oben). Die Karte entsteht aus
+		// Eingaengen mit VERSCHIEDENEN Geltungsbereichen: Katalog und Verweise global, die
+		// Kartenzeilen gefiltert. Eine Delta-Antwort traegt den Namensraum-Rang deshalb nur fuer
+		// die geaenderten Objekte -- hier ueberschrieben, verloeren alle uebrigen ihr Etikett.
+		// Der Preis ist ein bis zum Neuladen altes Etikett, wenn ein Editor eine wiki_url aendert;
+		// das betrifft nur den Editiermodus, und Stehenlassen ist das kleinere Uebel.
+		window.__featureKanon = (data && data.feature_kanon) || null;
 		// Objekte, die IN einer Stadt liegen (Villen, Plätze, Stadttempel, Gassen). Sie sind KEINE
 		// features -- sie haben keine Position --, sondern eine schlanke Namensliste je Stadt. Der
 		// Wegpunkt-Autocomplete schlägt sie vor und setzt die Stadt als Ziel

@@ -688,7 +688,7 @@ function avesmapsWikiSettlementParseInfobox(string $title, string $wikitext, str
         'title' => mb_substr($title, 0, 255, 'UTF-8'),
         'name' => mb_substr($name, 0, 255, 'UTF-8'),
         'wiki_key' => avesmapsPoliticalSlug($title),
-        'match_key' => avesmapsWikiSyncCreateMatchKey($name),
+        'match_key' => avesmapsWikiSyncCreateMatchKeyForTitle($name, $title),
         'settlement_class' => $class,
         // 🔴 „Diese Klasse ist geraten, nicht aus dem Wiki gelesen." Siehe die Begruendung oben.
         'settlement_class_guessed' => $classGuessed,

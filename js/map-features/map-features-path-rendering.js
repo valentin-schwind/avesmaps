@@ -214,6 +214,10 @@ function createPathPopupMarkup(path) {
 		locationTypeLabel: subtitle,
 		headerImageMarkup: headerImg,
 		headerIconMarkup: pathHeaderIconMarkup(pathType),
+		// Derselbe Schluessel wie die Quellenzeile weiter oben (getPathPublicId): Wege kennen keine
+		// Ankergruppierung wie die Kraftlinien, jedes Segment steht fuer sich.
+		kanonMarkup: typeof renderFeatureKanonBadge === "function"
+			? renderFeatureKanonBadge("path", getPathPublicId(path)) : "",
 		showHeaderIcon: true,
 		showDescription: false,
 		showWikiLink: false,

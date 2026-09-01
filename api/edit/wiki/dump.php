@@ -364,12 +364,25 @@ try {
                 // safe (not a bounded read_step). Best-effort: on failure every reader
                 // falls back to the .bz2 (avesmapsWikiDumpPreferredReadPath).
                 avesmapsWikiDumpEnsureDecompressedXml();
-                avesmapsJsonResponse(200, [
+                $antwort = [
                     'ok' => true,
                     'from_cache' => (bool) ($result['from_cache'] ?? false),
                     'size' => (int) ($result['size'] ?? 0),
                     'age_seconds' => (int) ($result['age_seconds'] ?? 0),
-                ]);
+                ];
+                // 🔴 „NICHT NEUER" IST EIN EIGENER AUSGANG UND MUSS DURCH. Der Abruf lief, die
+                // Gegenseite antwortete mit 200, und wir haben die geholte Datei trotzdem
+                // verworfen, weil sie aelter war als die Kopie (dump-fetch.php). Fiele das hier
+                // aus der Weissliste, saehe der Editor „Dump geholt: <jetzt>" -- ein
+                // erfolgreicher Abruf, bei dem in Wahrheit 39 MB weggeworfen wurden.
+                // ⚠️ Der Schluessel wandert NUR mit, wenn der Fall eingetreten ist: ein `false`
+                // an jeder anderen Antwort waere ein neues Feld fuer alle Auswerter.
+                if (($result['not_newer'] ?? false) === true) {
+                    $antwort['not_newer'] = true;
+                    $antwort['remote_time'] = (int) ($result['remote_time'] ?? 0);
+                    $antwort['kept_time'] = (int) ($result['kept_time'] ?? 0);
+                }
+                avesmapsJsonResponse(200, $antwort);
             }
 
             // Distinguish the 401 credential-prompt signal from a generic failure.

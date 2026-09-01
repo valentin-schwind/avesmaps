@@ -188,9 +188,20 @@ function createRegionWikiInfoBoxMarkup(regionEntry) {
 	const headerImg = typeof infoHeaderImageMarkup === "function"
 		? infoHeaderImageMarkup(regionHeaderImageBasename(regionEntry.wikiArt || regionEntry.art || type), name, type, coatMarkup)
 		: `<div class="region-info-box__header${hasCoatClass}">${coatMarkup}<div class="region-info-box__title-group"><strong class="region-info-box__title">${escapeHtml(name)}</strong><span class="region-info-box__subtitle">${escapeHtml(type)}</span></div></div>`;
+	// Das Kanon-Etikett, unter dem Kopf und ueber den Daten -- dieselbe Stelle wie im Ortspopup.
+	// ⚠️ TERRITORIEN ERREICHEN DEN NAMENSRAUM-RANG NICHT: sie haben keine `map_features`-Zeile, und
+	// avesmapsMapFeaturesWikiNamespaces (api/_internal/app/feature-sources.php) liest ausschliesslich
+	// die. Ein Territorium bekommt sein Etikett also nur aus seinen QUELLEN -- ein rein aus ns 222
+	// stammendes Gebiet ohne Quellzeile bleibt hier unbeschriftet. Aus dem Dump vom 01.09.2026 waeren
+	// das bis zu 69 von 302 ns-222-Kartenentitaeten; der Docblock der Ableitung traegt die Begruendung
+	// und sagt auch, was es kostete, das zu aendern (ein VIERTER Eingang, nicht ein Zuordnungseintrag).
+	const kanonMarkup = typeof renderFeatureKanonBadge === "function"
+		? renderFeatureKanonBadge("territory", regionEntry.territoryPublicId || "")
+		: "";
 	return `
 		<div class="region-info-box">
 			${headerImg}
+			${kanonMarkup}
 			${shareMarkup}
 			<dl class="region-info-box__data">${wikiRows}</dl>
 			${typeof renderFeatureSourceLine === "function" ? renderFeatureSourceLine("territory", regionEntry.territoryPublicId || "", wikiUrl || "", "region-info-box__link") : ""}
