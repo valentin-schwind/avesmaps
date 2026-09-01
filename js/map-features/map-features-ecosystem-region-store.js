@@ -111,6 +111,74 @@ async function postEcosystemEdit(action, payload = {}) {
 	return result;
 }
 
+// ---- der Merker für die schon angelegte Region (01.09.2026) ----------------------------------------
+//
+// 💣 EINE FLÄCHE ANZULEGEN SIND ZWEI AUFRUFE, und dazwischen kann es reissen: `create_region` gelingt,
+// `create_area` scheitert -- dann steht die Region bereits, ohne Fläche. Ein zweiter Anlauf legte bis
+// dahin eine WEITERE an und liess die erste als Waise liegen. Genau das ist am 01.09.2026 live
+// passiert: `create_region` „Fläche-102" um 11:04:43, ohne Partner, zwei Minuten später von Hand über
+// den Änderungs-Log weggeräumt, dann der geglückte zweite Anlauf. Eine von fünf Zeichnungen des Tages.
+//
+// 🔴 DIE KLAMMER DAGEGEN IST NICHT `operation_id`. Die gruppiert Audit-Zeilen, damit „Rückgängig" eine
+// ganze Geste nimmt statt ihrer letzten Zeile -- die zweite Region verhindert sie nicht. Das tut nur
+// dieser Merker. Zwei Dinge, die sich leicht verwechseln lassen, und die Verwechslung kostet die
+// Hälfte der Wirkung.
+//
+// ⭐ Er steht HIER, im Schreibkanal, nicht bei den Aufrufern: dasselbe Paar hat VIER Erzeuger, und
+// zwei von ihnen trugen je eine eigene Fassung (`transferCreatedRegion` in ecosystem-transfer.js,
+// `importCreatedRegion` in ecosystem-territory-import.js). Eine Regel, die zwei von vier bindet, ist
+// keine Regel. Die beiden Dialoge behalten ihre eigene, weil deren Lebensdauer am FENSTER hängt und
+// nicht an der Ebene; gewacht wird die Aufteilung von Abschnitt C in
+// js/map-features/__tests__/landschaft-region-merker.test.js, der die Erzeuger nachzählt.
+//
+// 🔴 Der Schlüssel ist Ebene UND Art. „Zerschneiden" erbt die Art seiner Quellfläche, und die Art
+// sitzt auf der REGION: ein gemerkter Wald als Gefäss für ein abgetrenntes Stück Gebirge wäre keine
+// Unordnung, sondern eine falsche Angabe.
+let ecosystemCreatedRegion = null;
+
+// Legt die Region an -- oder gibt die schon angelegte wieder heraus.
+//
+// `payload` ist die Nutzlast von `create_region`, unverändert durchgereicht: die Aufrufer
+// unterscheiden sich darin (der Zeichner schickt ausdrücklich `auto_name: false`), und diese Funktion
+// entscheidet darüber nichts.
+async function ecosystemAcquireRegionForNewArea(payload = {}) {
+	const kind = String(payload.kind || "");
+	const regionType = String(payload.region_type || "");
+	if (ecosystemCreatedRegion
+		&& ecosystemCreatedRegion.kind === kind
+		&& ecosystemCreatedRegion.regionType === regionType) {
+		return { ...ecosystemCreatedRegion, reused: true };
+	}
+
+	const created = await postEcosystemEdit("create_region", payload);
+	const publicId = String(created?.region?.public_id || "");
+	// 🔴 Im Zweifel ABLEHNEN, nie mit etwas Leerem auflösen -- derselbe Vertrag wie bei der
+	// Wiki-Zuweisung. Ein leerer Zeiger als Merker hiesse: jeder weitere Anlauf hängt seine Fläche an
+	// nichts, und zwar stillschweigend.
+	if (!publicId) {
+		throw new Error("Die Region konnte nicht angelegt werden.");
+	}
+
+	ecosystemCreatedRegion = {
+		kind,
+		regionType,
+		publicId,
+		name: String(created?.region?.name || payload.name || ""),
+	};
+
+	return { ...ecosystemCreatedRegion, reused: false };
+}
+
+// Die Fläche steht -- der Merker hat seine Schuldigkeit getan.
+//
+// 💣 Er gehört unmittelbar hinter das geglückte `create_area` und ausdrücklich NICHT in einen
+// `finally`-Zweig: ein Fehlschlag muss ihn stehen lassen, das ist sein ganzer Sinn. Wer ihn dagegen
+// vergisst, bricht die Regel „jede gezeichnete Fläche bekommt ihre eigene Region" (Owner 27.07.2026)
+// -- die nächste Fläche bekäme das Gefäss der vorigen.
+function ecosystemReleaseCreatedRegion() {
+	ecosystemCreatedRegion = null;
+}
+
 async function loadEcosystemRegions(kind, { force = false } = {}) {
 	if (!isKnownEcosystemKind(kind) || (!force && Array.isArray(ecosystemRegionsByKind[kind]))) {
 		return;

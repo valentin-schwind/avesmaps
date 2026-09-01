@@ -319,8 +319,14 @@ async function saveEcosystemAreaRing(ring) {
 
 	ecosystemDrawSaving = true;
 	const name = ecosystemDraftRegionName();
+	// Steht sie am Ende? Dann ist ein früherer Anlauf zwischen den beiden Aufrufen gerissen, und der
+	// Fehlertext sagt es -- sonst sucht der Editor nach einer Waise, die keine ist.
+	let region = null;
 	try {
-		const region = await postEcosystemEdit("create_region", {
+		// 💣 NICHT `postEcosystemEdit("create_region", …)`: scheitert das `create_area` darunter, steht
+		// die Region schon. Der Merker im Schreibkanal gibt sie beim nächsten Anlauf wieder heraus,
+		// statt eine zweite anzulegen (map-features-ecosystem-region-store.js).
+		region = await ecosystemAcquireRegionForNewArea({
 			kind,
 			name,
 			region_type: "",
@@ -332,14 +338,12 @@ async function saveEcosystemAreaRing(ring) {
 			// dem der Editor sie benennen soll. Der Griff ist provisorisch, keine Entscheidung.
 			auto_name: false,
 		});
-		const regionPublicId = String(region?.region?.public_id || "");
-		if (!regionPublicId) {
-			throw new Error("Die Region konnte nicht angelegt werden.");
-		}
 		const created = await postEcosystemEdit("create_area", {
-			region_public_id: regionPublicId,
+			region_public_id: region.publicId,
 			geometry_geojson: geometry,
 		});
+		// Ab hier steht die Fläche -- die gemerkte Region ist verbraucht, die nächste bekommt ihre eigene.
+		ecosystemReleaseCreatedRegion();
 		// 🔴 EINE FRISCH GEZEICHNETE FLAECHE BEKOMMT KEINE BESCHRIFTUNG (Owner 26.08.2026).
 		//
 		// Hier stand bis heute `createEcosystemRegionLabel(regionPublicId, geometry, name, true, "")`
@@ -378,17 +382,29 @@ async function saveEcosystemAreaRing(ring) {
 		// nächsten Erfolg. Ein Versprechen, auf das sich niemand verlassen kann, ist schlimmer als
 		// keines -- deshalb steht hier jetzt die ehrliche Zusage: der Editor erfährt den Fehlschlag.
 		//
-		// 💣 UND NAIV NACHGEBAUT WÄRE ER SCHLIMMER ALS SEIN FEHLEN. Ein Speichern sind ZWEI Aufrufe
-		// -- create_region, dann create_area -- ohne Klammer darum; die `operation_id`, die eine
-		// mehrteilige Geste zusammenhält (api/_internal/app/ecosystem.php), gibt es auf DIESEM Weg
-		// nicht. Scheitert der zweite Aufruf, steht die Region bereits. Ein zweiter Anlauf mit
-		// demselben Ring legt dann eine WEITERE an und lässt die erste ohne Fläche liegen --
-		// gemessen: zwei Regionen, eine Waise. Genau die „Leichen", die der Kopf dieser Datei aus
-		// den Daten heraushalten will.
+		// 💣 UND NAIV NACHGEBAUT WÄRE ER SCHLIMMER GEWESEN ALS SEIN FEHLEN. Ein Speichern sind ZWEI
+		// Aufrufe -- create_region, dann create_area. Scheiterte der zweite, stand die Region bereits,
+		// und ein zweiter Anlauf legte eine WEITERE an, während die erste ohne Fläche liegenblieb --
+		// genau die „Leichen", die der Kopf dieser Datei aus den Daten heraushalten will. Am
+		// 01.09.2026 ist das live passiert: „Fläche-102" um 11:04:43, ohne Partner, zwei Minuten
+		// später von Hand über den Änderungs-Log weggeräumt. Eine von fünf Zeichnungen des Tages.
 		//
-		// Wer das Versprechen wirklich einlösen will, braucht zuerst die Klammer: beim zweiten
-		// Anlauf die schon angelegte Region WIEDERVERWENDEN, statt eine neue zu erzeugen.
-		showFeedbackToast?.(error?.message || "Die Fläche konnte nicht gespeichert werden.", "warning");
+		// 🔴 Die `operation_id` (api/_internal/app/ecosystem.php) hätte das NICHT verhindert. Sie
+		// gruppiert Audit-Zeilen, damit „Rückgängig" eine ganze Geste nimmt statt ihrer letzten
+		// Zeile; die zweite Region entstünde trotzdem. Zwei Dinge, die sich leicht verwechseln
+		// lassen -- und die Verwechslung kostet die Hälfte der Wirkung.
+		//
+		// ✅ SEIT DEM 01.09.2026 IST DIE VORBEDINGUNG GEBAUT -- die schon angelegte Region wird beim
+		// nächsten Anlauf WIEDERVERWENDET (`ecosystemAcquireRegionForNewArea`). Der Wiedereinreicher
+		// selbst bleibt trotzdem weg: ein Editor, der nach der Warnung neu zeichnet, ist der
+		// ehrlichere Weg als ein Umriss, den die Oberfläche heimlich weiterträgt.
+		//
+		// ⚠️ Der Merker räumt die Region nicht weg, er verhindert nur ihre Vermehrung. Der Ausweg
+		// bleibt der Änderungs-Log („Region erstellt" zurücknehmen) -- genau der Weg, den am
+		// 01.09.2026 ein Editor von Hand gegangen ist. Deshalb wird die stehende Region BENANNT: eine
+		// stumme Warnung schickte ihn auf die Suche nach einer Waise, die schon wiederverwendet ist.
+		const hinweis = region ? " Die Region wurde bereits angelegt — ein erneuter Versuch legt die Fläche dort hinein." : "";
+		showFeedbackToast?.((error?.message || "Die Fläche konnte nicht gespeichert werden.") + hinweis, "warning");
 	} finally {
 		ecosystemDrawSaving = false;
 	}

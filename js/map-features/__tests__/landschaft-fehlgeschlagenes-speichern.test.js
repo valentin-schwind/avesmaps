@@ -6,14 +6,20 @@
 // hätte, und sie wurde NIRGENDS gerufen (Bezeichner-Häufigkeit über alle getrackten Dateien: genau 1,
 // die Deklaration). Der gemerkte Ring verfiel still beim nächsten Escape oder beim nächsten Erfolg.
 //
-// 💣 UND NAIV NACHGEBAUT WÄRE ER SCHLIMMER ALS SEIN FEHLEN -- gemessen, nicht vermutet: ein Speichern
-// sind ZWEI Aufrufe (create_region, dann create_area) ohne Klammer darum. Scheitert der zweite, steht
-// die Region schon; ein zweiter Anlauf mit demselben Ring legt eine WEITERE an und lässt die erste
-// ohne Fläche liegen. Abschnitt C fährt genau das und hält die Zahl fest.
+// 💣 NAIV NACHGEBAUT WÄRE ER SCHLIMMER GEWESEN ALS SEIN FEHLEN -- gemessen, nicht vermutet: ein
+// Speichern sind ZWEI Aufrufe (create_region, dann create_area). Scheiterte der zweite, stand die
+// Region schon; ein zweiter Anlauf legte eine WEITERE an und liess die erste ohne Fläche liegen.
 //
-// Deshalb ist das Versprechen gefallen statt eingelöst worden, und dieser Test nagelt fest, was an
-// seine Stelle getreten ist: der Editor ERFÄHRT den Fehlschlag, und es bleibt nichts Gemerktes
-// zurück, das ein späterer Speichervorgang heimlich mitschickt.
+// ✅ SEIT DEM 01.09.2026 IST GENAU DIESE VORBEDINGUNG GEBAUT: der Schreibkanal merkt sich die schon
+// angelegte Region und gibt sie beim nächsten Anlauf wieder heraus
+// (`ecosystemAcquireRegionForNewArea`, map-features-ecosystem-region-store.js). Abschnitt C fährt
+// den ganzen Zyklus und hält fest, dass aus vier Anläufen ZWEI Regionen werden statt vier.
+//
+// 🔴 Der Wiedereinreicher selbst bleibt trotzdem weg. Die Vorbedingung ist erfüllt, die Entscheidung
+// nicht zurückgenommen: ein Editor, der nach der Warnung neu zeichnet, ist der ehrlichere Weg als
+// ein Umriss, den die Oberfläche heimlich weiterträgt. Dieser Test nagelt beides fest -- der Editor
+// ERFÄHRT den Fehlschlag, und es bleibt nichts Gemerktes zurück, das ein späterer Speichervorgang
+// unbemerkt mitschickt.
 //
 // ZUR LAUFZEIT gefahren: der echte Zeichenweg (start -> Klicks -> finish -> save) läuft im
 // vm-Kontext gegen eine Attrappe von `postEcosystemEdit`.
@@ -31,6 +37,7 @@ const wurzel = path.join(__dirname, "..", "..", "..");
 // ⭐ Zeilenenden-neutral (AGENTS.md §9): Arbeitskopie CRLF, CI LF.
 const lies = (datei) => fs.readFileSync(path.join(wurzel, datei), "utf8").replace(/\r\n/g, "\n");
 const ZEICHNER = "js/map-features/map-features-ecosystem-draw.js";
+const SPEICHER = "js/map-features/map-features-ecosystem-region-store.js";
 let checks = 0;
 
 // ---- Bühne ----------------------------------------------------------------------------------------
@@ -81,16 +88,22 @@ function baueBuehne(antwort) {
 		nextEcosystemRegionAutoName: () => "Flaeche-100",
 		ecosystemRegionsByKind: {},
 		loadEcosystemAreas: () => Promise.resolve(),
-		invalidateEcosystemRegionCache() {},
-		postEcosystemEdit: (aktion, rumpf) => {
-			gesendet.push({ aktion, rumpf });
-			const wert = antwort(aktion);
-			return wert instanceof Error ? Promise.reject(wert) : Promise.resolve(wert);
-		},
 	};
 	kontext.window = {};
 	kontext.globalThis = kontext;
 	vm.createContext(kontext);
+	// 🔴 DER ECHTE SCHREIBKANAL, nicht sein Nachbau: der Merker für die schon angelegte Region liegt
+	// dort. Stünde hier eine eigene Fassung, prüfte Abschnitt C etwas, das niemand fährt.
+	vm.runInContext(lies(SPEICHER), kontext);
+	// Die Attrappen DARÜBER, denn der Schreibkanal bringt beide selbst mit. Nachgebaut ist nur sein
+	// Ausgang zum Server; die echte Cache-Auffrischung ruft `list_regions` und stünde sonst in jeder
+	// Aktionsliste dieses Tests.
+	kontext.postEcosystemEdit = (aktion, rumpf) => {
+		gesendet.push({ aktion, rumpf });
+		const wert = antwort(aktion);
+		return wert instanceof Error ? Promise.reject(wert) : Promise.resolve(wert);
+	};
+	kontext.invalidateEcosystemRegionCache = () => {};
 	vm.runInContext(lies(ZEICHNER), kontext);
 
 	// Eine Ecke setzen heisst: den ECHTEN Klick-Handler fahren. Die Container-Punkte liegen weit
@@ -151,30 +164,58 @@ async function main() {
 			"…und kein Wiedereinreicher, den niemand ruft"); checks++;
 	}
 
-	// ── C. WARUM ER NICHT NAIV ZURÜCKKOMMEN DARF ─────────────────────────────────────────────────
-	// 🔴 Diese Messung IST die Begründung der Entscheidung und steht deshalb im Test, nicht nur im
-	// Kommentar: create_region gelingt, create_area scheitert -- die Region steht dann schon. Ein
-	// zweiter Anlauf mit demselben Ring legt eine ZWEITE an. Wer das Versprechen einlösen will, muss
-	// zuerst die schon angelegte Region WIEDERVERWENDEN.
+	// ── C. DIE SCHON ANGELEGTE REGION WIRD WIEDERVERWENDET ───────────────────────────────────────
+	// 🔴 Hier stand bis zum 01.09.2026 die Messung, die B15 begründet hat: create_region gelingt,
+	// create_area scheitert, und der nächste Anlauf legte eine ZWEITE Region an, während die erste
+	// ohne Fläche liegenblieb. An diesem Tag ist es live passiert -- „Fläche-102" um 11:04:43, zwei
+	// Minuten später von Hand über den Änderungs-Log weggeräumt, dann der geglückte zweite Anlauf.
+	//
+	// 💣 Der ganze Zyklus in einem Stück, weil jede Hälfte allein grün sein kann: zweimal scheitern
+	// (EINE Region), einmal gelingen, danach wieder von vorn (die ZWEITE). Ohne den letzten Schritt
+	// bliebe unbemerkt, dass der Merker nach dem Erfolg hängenbleibt -- und dann bekäme die nächste
+	// Fläche das Gefäss der vorigen, was die Regel „jede Fläche ihre eigene Region" bricht.
 	{
 		let regionen = 0;
+		let flaechen = 0;
 		const b = baueBuehne((aktion) => {
-			if (aktion !== "create_region") {
-				return scheitert();
+			if (aktion === "create_region") {
+				regionen += 1;
+				return { region: { public_id: `reg-${regionen}`, name: `Flaeche-${100 + regionen}` } };
 			}
-			regionen += 1;
-			return { region: { public_id: `reg-${regionen}` } };
+			if (aktion !== "create_area") {
+				return {};
+			}
+			flaechen += 1;
+			return flaechen < 3 ? scheitert() : { area: { public_id: `flaeche-${flaechen}` } };
 		});
+
 		await b.zeichneUndSpeichere(DREIECK);
 		assert.deepStrictEqual(b.aktionen(), ["create_region", "create_area"],
 			"ein Speichern sind ZWEI Aufrufe"); checks++;
 		assert.strictEqual(regionen, 1,
 			"…und nach dem Teilausfall steht die Region bereits"); checks++;
 
-		// Der zweite Anlauf -- genau so, wie ein Wiedereinreicher ihn gefahren hätte.
+		// Der zweite Anlauf -- ein frisch gezeichneter Umriss, wie ihn ein Editor nach der Warnung zieht.
+		b.gesendet.length = 0;
+		await b.zeichneUndSpeichere(ZWEITES_DREIECK);
+		assert.strictEqual(regionen, 1,
+			"der zweite Anlauf nimmt die schon angelegte Region, statt eine WEITERE anzulegen"); checks++;
+		assert.strictEqual(b.gesendet.find((e) => e.aktion === "create_area")?.rumpf.region_public_id, "reg-1",
+			"…und hängt seine Fläche genau dort hinein"); checks++;
+		assert.match(b.toasts[b.toasts.length - 1].text, /bereits angelegt/,
+			"…und der Editor erfährt, dass die Region schon steht -- sonst sucht er eine Waise, die keine ist"); checks++;
+
+		// Der dritte Anlauf gelingt. Damit hat der Merker seine Schuldigkeit getan.
+		b.gesendet.length = 0;
 		await b.zeichneUndSpeichere(DREIECK);
+		assert.strictEqual(regionen, 1,
+			"auch der geglückte Anlauf nimmt noch die gemerkte Region"); checks++;
+
+		// Und die NÄCHSTE Fläche bekommt wieder eine eigene.
+		b.gesendet.length = 0;
+		await b.zeichneUndSpeichere(ZWEITES_DREIECK);
 		assert.strictEqual(regionen, 2,
-			"ein zweiter Anlauf legt eine WEITERE Region an -- die erste bliebe ohne Fläche liegen"); checks++;
+			"nach dem Erfolg ist der Merker frei -- jede Fläche bekommt ihre eigene Region"); checks++;
 	}
 
 	// ── D. KEINE TOTE FUNKTION IM ZEICHNER ───────────────────────────────────────────────────────

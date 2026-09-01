@@ -150,20 +150,28 @@
 	//
 	// Auto-benannt und ohne Wiki-Link: ein frisch abgetrenntes Stück hat noch keine Identität, und
 	// genau dafür gibt es den Auto-Namen. Art und Ebene erbt es, denn ein Stück Wald bleibt Wald.
+	//
+	// 💣 ÜBER DEN MERKER DES SCHREIBKANALS, nicht direkt: scheitert das `create_area`, steht die
+	// Region schon, und ein zweiter Anlauf des Zerschneidens legte eine WEITERE an. Dieselbe Falle wie
+	// beim Zeichner, und sie war hier genauso offen.
+	//
+	// ⚠️ DIE KLAMMER DER GESTE HILFT DAGEGEN NICHT. `withEcosystemOperation` gruppiert nur die
+	// Audit-Zeilen. Umgekehrt entsteht durch die Wiederverwendung eine Naht: das `create_region` liegt
+	// dann in der VORIGEN, gescheiterten Geste, ein „Rückgängig" auf die geglückte nimmt also die
+	// Fläche zurück und lässt die Region stehen. Das ist der bewusste Preis und die kleinere Hälfte --
+	// vorher blieb bei JEDEM Fehlversuch eine Waise liegen, jetzt höchstens eine insgesamt.
 	async function createArea(area, geometry) {
-		const region = await postEcosystemEdit("create_region", {
+		const region = await ecosystemAcquireRegionForNewArea({
 			kind: String(area.kind || ""),
 			name: typeof ecosystemDraftRegionName === "function" ? ecosystemDraftRegionName() : "Neue Fläche",
 			region_type: String(area.region_type || ""),
 		});
-		const regionPublicId = String(region?.region?.public_id || "");
-		if (!regionPublicId) {
-			throw new Error("Die Region für das neue Stück konnte nicht angelegt werden.");
-		}
 		await postEcosystemEdit("create_area", {
-			region_public_id: regionPublicId,
+			region_public_id: region.publicId,
 			geometry_geojson: geometry,
 		});
+		// Das Stück liegt -- die gemerkte Region ist verbraucht.
+		ecosystemReleaseCreatedRegion();
 	}
 
 	// 🔴 Verschmelzen und einfaches Abziehen FRESSEN ihr Ziel (ecosystemBooleanConsumesTarget). War das
