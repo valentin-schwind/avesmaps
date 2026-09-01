@@ -202,7 +202,7 @@
 <body>
 	<div class="hb-topbar">
 		<span class="hb-topbar__title">Avesmaps · Editor-Handbuch</span>
-		<span class="hb-topbar__meta">Stand: 01.09.2026</span>
+		<span class="hb-topbar__meta">Stand: 02.09.2026</span>
 		<div class="hb-topbar__actions">
 			<button type="button" class="theme-toggle-btn" aria-label="Auf dunkles Design umschalten" title="Design umschalten (hell/dunkel)">
 				<svg class="theme-toggle-ico theme-toggle-ico--sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4.2" /><g stroke-width="1.9" stroke-linecap="round"><line x1="12" y1="2" x2="12" y2="4.4" /><line x1="12" y1="19.6" x2="12" y2="22" /><line x1="2" y1="12" x2="4.4" y2="12" /><line x1="19.6" y1="12" x2="22" y2="12" /><line x1="4.9" y1="4.9" x2="6.6" y2="6.6" /><line x1="17.4" y1="17.4" x2="19.1" y2="19.1" /><line x1="4.9" y1="19.1" x2="6.6" y2="17.4" /><line x1="17.4" y1="6.6" x2="19.1" y2="4.9" /></g></svg>
@@ -278,6 +278,7 @@
 						<li><a href="#n-listen" data-keywords="wegtyp ortsgröße transportmittel kategorie quellentyp auswahl vulkan tal insel inselgruppe">Die Auswahllisten</a></li>
 						<li><a href="#n-haekchen" data-keywords="unverbunden kreuzungen offene wegenden mapstil prüfen ring nodices labels beschriftungen grenzen ausblenden kartenoptionen anzeige anzeige-menü auge ebenen orte ortsklassen seewege flüsse wege ausgegraut gesperrt verborgene orte verborgen kreuzung melden">Die Prüf-Häkchen</a></li>
 						<li><a href="#n-menues" data-keywords="rechtsklick kontextmenü hinzufügen anlegen gebiet hierher reisen route messen strg notausgang kartenmenü nur editoren was ist hier markierung link teilen auf karte suchen">Die beiden Kontextmenüs</a></li>
+						<li><a href="#n-kopfmenue" data-keywords="menü kopfzeile hülle hamburger drei striche abmelden logout karte herunterladen svg vektor illustrator inkscape affinity ebenen passmarken semantische metadaten glätten originalkarte archiv kacheln datenbank-backup dump admin benutzerverwaltung">Das ☰-Menü der Kopfzeile</a></li>
 						<li><a href="#n-editoren" data-keywords="menüband kachel syncen links prüfen vorschauen overlay regionen landschaften wege">Die acht Sync-Editoren</a></li>
 						<li><a href="#n-glossar" data-keywords="bf dump nodix schraffur staging namensgruppe begriffe kreuzung querfeldein">Glossar</a></li>
 						<li><a href="#n-hilfe" data-keywords="discord kontakt support fragen">Hilfe &amp; Kontakt</a></li>
@@ -300,7 +301,7 @@
 				<ol class="hb-steps">
 					<li>Öffne <a href="https://avesmaps.de/edit/">avesmaps.de/edit/ ↗</a> im Browser.</li>
 					<li>Gib <strong>Benutzername</strong> und <strong>Passwort</strong> ein und klick auf <strong>„Anmelden"</strong>.</li>
-					<li>Danach siehst du oben deinen Namen und deine Rolle, rechts das Drei-Strich-Menü <strong>☰</strong> mit <strong>„Handbuch"</strong>, <strong>„Karte herunterladen"</strong> und <strong>„Abmelden"</strong>; darunter läuft die Karte im Bearbeiten-Modus.</li>
+					<li>Danach siehst du oben deinen Namen und deine Rolle, rechts das Drei-Strich-Menü <strong>☰</strong> (siehe <a href="#n-kopfmenue">Das ☰-Menü der Kopfzeile</a>); darunter läuft die Karte im Bearbeiten-Modus.</li>
 				</ol>
 				<div class="hb-note hb-tip"><strong>Browser-Tipp:</strong> Arbeite mit einem Browser <em>ohne</em> aggressive Werbe-/Skriptblocker. Viele Adblocker (z.&nbsp;B. in Vivaldi) bremsen den Editor spürbar aus.</div>
 
@@ -328,21 +329,27 @@
 				<ul class="hb-steps">
 					<li><strong>Übergreifende Knöpfe.</strong> <strong>„📥 Dump holen"</strong> und <strong>„⚖️ Konflikte"</strong> — sie gehören zu keinem einzelnen Thema, sondern zu allen.</li>
 					<li><strong>Die Auswahl.</strong> Acht Themen in zwei Spalten: <strong>Orte · Territorien · Regionen · Wege · Kraftlinien · Literatur · Karten · Vorkommen</strong>. Jede Zeile zeigt neben dem Namen das <strong>Datum des letzten Syncs</strong> in Kurzform („22.07.") — du siehst also alle acht Stände auf einen Blick, ohne zu klicken. <strong>„nie"</strong> heißt: dieses Thema wurde noch nie gesynct. Bleibt die Stelle <em>leer</em>, kam dazu bloß keine Antwort — das ist etwas anderes als „nie". Zeig mit der Maus auf die Zeile, dann steht der volle Satz da. Eine <em>Anzahl</em> steht dort bewusst nicht: sie ist erst bekannt, wenn die Liste eines Themas einmal geladen wurde.</li>
-					<li><strong>Der Knopf.</strong> Darunter steht <em>genau ein</em> Knopf, und zwar der des ausgewählten Themas. Er heißt seit dem achten Editor bei allen acht Themen <strong>„&lt;Thema&gt; bearbeiten"</strong> — „Orte bearbeiten", „Wege bearbeiten", „Karten bearbeiten" — und öffnet nur das Fenster: <strong>er startet nichts</strong>. Der scharfe Sync liegt überall <em>im</em> Editorfenster, oben im Menüband. Die Angabe, wann zuletzt gesynct wurde, steht weiterhin am Knopf selbst.</li>
-					<li><strong>Suche, Filter und die Liste</strong> des ausgewählten Themas. Unter der Suche steht seit dem 14.08.2026 in allen acht Listen dieselbe <strong>Bilanzzeile</strong>: ungefiltert nennt sie schlicht die Gesamtzahl („1.851 Regionen"), sobald Suche oder Trichter greifen, beide Zahlen („103 von 1.851 Regionen"). Sie zeigt <em>nur</em>, was der Filter bewegt — die Zahlen des letzten Syncs stehen unverändert darüber.</li>
+					<li><strong>Der Knopf.</strong> Darunter steht <em>genau ein</em> Knopf, und zwar der des ausgewählten Themas. Er heißt bei allen acht Themen <strong>„&lt;Thema&gt; bearbeiten"</strong> — „Orte bearbeiten", „Wege bearbeiten", „Karten bearbeiten" — und öffnet nur das Fenster: <strong>er startet nichts</strong>. Der scharfe Sync liegt überall <em>im</em> Editorfenster, oben im Menüband. Die Angabe, wann zuletzt gesynct wurde, steht am Knopf selbst.</li>
+					<li><strong>Suche, Filter und die Liste</strong> des ausgewählten Themas. Unter der Suche steht in allen acht Listen dieselbe <strong>Bilanzzeile</strong>: ungefiltert nennt sie schlicht die Gesamtzahl („1.851 Regionen"), sobald Suche oder Trichter greifen, beide Zahlen („103 von 1.851 Regionen"). Sie zeigt <em>nur</em>, was der Filter bewegt — die Zahlen des letzten Syncs stehen darüber.</li>
 				</ul>
-				<div class="hb-note hb-tip"><strong>Was sich geändert hat.</strong> Früher lagen Literatur, Karten und Vorkommen unter einem Sammelreiter <strong>„Materialien"</strong>, und die Kraftlinien hatten gar keinen eigenen Reiter. Beides war kein Ordnungsprinzip, sondern schlicht Platzmangel in der waagerechten Reiterzeile. Jetzt stehen alle acht gleichrangig untereinander. <strong>„Vorkommen" hieß bis zum 22.07.2026 „Natur &amp; Waren"</strong>, <strong>„Literatur" bis zum 07.08.2026 „Abenteuer"</strong> — dasselbe Thema, nur treffender benannt: unter dem Reiter stehen längst auch Romane, Regionalspielhilfen und Spielhilfen.</div>
 
 				<h3 id="rollen" class="hb-sub">Rollen &amp; Rechte</h3>
-				<p>Es gibt drei Rollen. Sie bestimmen, was du darfst:</p>
+				<p>Es gibt drei Rollen. Sie bestimmen, was du darfst.</p>
+				<table class="hb-table">
+					<tr><th>Rolle</th><th>Was sie darf</th></tr>
+					<tr><td><strong>reviewer</strong></td><td>Meldungen und Bewertungen prüfen.</td></tr>
+					<tr><td><strong>editor</strong></td><td>Dazu die Karte bearbeiten — Orte, Wege, Territorien, Wiki-Verknüpfung — und über <a href="#social">Social Media</a> im Namen des Projekts veröffentlichen.</td></tr>
+					<tr><td><strong>admin</strong></td><td>Alles. Dazu die Benutzerverwaltung und das <a href="#n-kopfmenue">Datenbank-Backup</a>.</td></tr>
+				</table>
+				<h4>Woran du siehst, was deiner Rolle gehört</h4>
+				<p>Bedienelemente, die nicht jeder sieht, tragen neben ihrer Überschrift den Zusatz <em>„nur Editoren"</em>:</p>
 				<ul class="hb-steps">
-					<li><strong>reviewer</strong> — darf Meldungen und Bewertungen prüfen.</li>
-					<li><strong>editor</strong> — darf zusätzlich die Karte bearbeiten (Orte, Wege, Territorien, Wiki-Verknüpfung …) und seit dem 11. August über <a href="#social">Social Media</a> im Namen des Projekts veröffentlichen.</li>
-					<li><strong>admin</strong> — darf alles, inkl. Verwaltung (z.&nbsp;B. Konten anlegen) und das <strong>Datenbank-Backup</strong>.</li>
+					<li>Im <strong>Infopanel</strong> eines Ortes, Weges, Labels, einer Kreuzung oder Kraftlinie — über den Editier-Kacheln, Überschrift <em>„Bearbeiten"</em>.</li>
+					<li>Im <strong>Rechtsklick-Menü</strong> über „Hier hinzufügen", Überschrift <em>„Anlegen"</em>.</li>
+					<li>Im <a href="#n-haekchen">Anzeige-Menü</a> über den Gruppen „Prüfen" und „Mapstil".</li>
 				</ul>
-				<div class="hb-note hb-tip"><strong>Das Datenbank-Backup steht im <span aria-hidden="true">☰</span>-Menü der Kopfzeile</strong>, im Block <em>„Nur Admins"</em>. Ein Klick auf <strong>„Backup erstellen"</strong> zieht einen vollständigen Abzug der Datenbank — Schema <em>und</em> Daten — als gepackte <code>.sql.gz</code>-Datei und lädt sie herunter; einspielen lässt sie sich unverändert per <code>mysql</code> oder über den Import von phpMyAdmin. Der Lauf geht in kleinen Schritten, damit er nicht an den PHP-Grenzen des Webhostings scheitert: <strong>den Tab offen lassen, bis 100&nbsp;% erreicht sind</strong>. Der Haken <em>„WikiSync-Zwischenspeicher überspringen"</em> macht die Datei kleiner. <strong>Editoren sehen den Link nicht</strong> — ein solcher Abzug enthält auch Passwort-Hashes, alle Share-Links und alle Meldungen.</div>
-				<div class="hb-note hb-tip"><strong>„Karte herunterladen" zieht die ganze Karte als Vektorgrafik.</strong> Sie steht im <span aria-hidden="true">☰</span>-Menü der Kopfzeile und seit dem 23. August <em>jedem</em> Editor offen — die Seite liest nur Daten, die ohnehin ohne Anmeldung offenstehen. Er baut aus den Kartendaten eine <strong>bearbeitbare</strong> Datei — jede Ebene eine Gruppe, jedes Element benannt — für Illustrator, Inkscape oder Affinity, also für Poster, Drucke und eigene Fassungen. Vorher stellst du dreierlei ein: <strong>für welches Programm</strong> (Illustrator liest Namen in der <code>id</code>, Inkscape in <code>inkscape:label</code> — eine Datei kann nur eines von beidem), <strong>welche Ebenen</strong> mitsollen — viele davon bis hinunter zu ihren Unterarten, jeweils mit der Zahl der Objekte daneben — und die <strong>Kantenlänge</strong> der Ausgabe in Pixeln. Dazu zwei Häkchen: <strong>„Passmarken in jede Ebene legen"</strong> hält beim Rastern in Photoshop die volle Leinwand, und <strong>„Semantische Metadaten"</strong> — vorangehakt — schreibt an jedes Element, was es ist und worin es liegt (Art, Klimazone, Relief), damit eine Bildgenerierung damit arbeiten kann. <strong>Die Datei baut dein Browser</strong>, nicht der Server: rund 20&nbsp;MB Kartendaten wollen geladen werden, also <strong>den Tab offen lassen</strong>. Wer eine kleinere Datei will, hakt Ebenen ab — an der <em>Kantenlänge</em> liegt es nicht, eine Vektordatei speichert Formen und keine Bildpunkte. Ganz unten auf derselben Seite steht <strong>„Originalkarte herunterladen"</strong> — die Archive, aus denen die Kartenkacheln entstanden sind. Sie sind sonst nirgends erreichbar, gehen über ein Gigabyte und lassen sich deshalb fortsetzen; <strong>jeder Download wird mit deinem Namen protokolliert</strong>.</div>
-					<div class="hb-note hb-tip"><strong>Die Oberfläche sagt dir, was deiner Rolle gehört.</strong> Bedienelemente, die nicht jeder sieht, tragen neben ihrer Überschrift den Zusatz <em>„nur Editoren"</em>: im Infopanel eines Ortes, Weges, Labels, einer Kreuzung oder Kraftlinie über den Editier-Kacheln (Überschrift <em>„Bearbeiten"</em>), im Rechtsklick-Menü über <em>„Hier hinzufügen"</em> (Überschrift <em>„Anlegen"</em>) und im <a href="#n-haekchen">Anzeige-Menü</a> über den Gruppen „Prüfen" und „Mapstil". Im <span aria-hidden="true">☰</span>-Menü der Kopfzeile steht das Datenbank-Backup entsprechend im Block <em>„Nur Admins"</em>. Der Zusatz ist eine Auskunft, keine Sperre — du siehst ihn, weil du darfst. Er sagt dir, was ein Besucher an dieser Stelle <em>nicht</em> vorfindet, damit du nicht auf etwas verweist, das dein Gegenüber gar nicht hat.</div>
+				<p>Im <span aria-hidden="true">☰</span>-Menü der Kopfzeile heißt der Block entsprechend <em>„Nur Admins"</em>.</p>
+				<div class="hb-note hb-tip"><strong>Der Zusatz ist eine Auskunft, keine Sperre.</strong> Du siehst ihn, weil du darfst. Er sagt dir, was ein Besucher an dieser Stelle <em>nicht</em> vorfindet — damit du nicht auf etwas verweist, das dein Gegenüber gar nicht hat.</div>
 				<div class="hb-diagram">
 					<svg viewBox="0 0 640 200" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Rollen und ihre Rechte">
 						<g font-size="14" font-weight="700" text-anchor="middle" fill="var(--hb-fg)">
@@ -1538,7 +1545,8 @@
 				<p>Eine neue Quelle trägst du in einer Zeile ein: <strong>URL</strong>, <strong>Quellenname</strong>, <strong>Seite(n)</strong>, der <strong>Typ</strong>, die <strong>Abdeckung</strong>, die <strong>Lizenz</strong>, die <strong>Namensnennung</strong> und das Häkchen <strong>offiziell</strong> — dann <strong>„Hinzufügen"</strong>. Beim Quellennamen gehört der <em>Veröffentlichungstitel</em> hinein, nicht eine Umschreibung.</p>
 				<p><strong>Lizenz</strong> und <strong>Namensnennung</strong> sind zwei getrennte Angaben: was gilt, und wen man nennen muss. Zur Auswahl stehen CC BY-SA 3.0, CC BY-NC-SA 3.0, CC BY 4.0, CC BY-SA 4.0, CC0 1.0, <em>Gemeinfrei</em> und <em>Keine freie Lizenz</em>. In die Namensnennung kommt, wen die Lizenz zu nennen verlangt — etwa <em>VolkoV / garetien.de</em>. Beide stehen beim Leser an der Quelle in der Infobox.</p>
 				<div class="hb-note hb-tip"><strong>Leer heißt „nicht erfasst", nicht „keine Lizenz".</strong> <em>Art</em> und <em>Lizenz</em> stehen anfangs auf keinem Wert, und ein leeres Feld behauptet nichts. Wer sagen will, dass eine Quelle unfrei ist, wählt <em>Keine freie Lizenz</em>.</div>
-				<div class="hb-note hb-tip"><strong>Korrigieren geht über dieselbe URL.</strong> Trag die Quelle noch einmal ein. Deine Wahl bei <em>Art</em> ersetzt dann den alten Wert — überall, wo die Quelle zitiert wird, und die Zeile meldet dir die Änderung. <em>Lizenz</em> und <em>Namensnennung</em> werden nur gefüllt, nie überschrieben.</div>
+				<div class="hb-note hb-tip"><strong>Korrigieren: das <span aria-hidden="true">✎</span> in der Quellenzeile.</strong> Es klappt ein Feld auf, das in zwei Hälften geteilt ist — oben <em>Seite(n)</em> und <em>Abdeckung</em>, die nur an diesem Objekt gelten, unten <em>Adresse</em>, <em>Titel</em>, <em>Quellenart</em>, <em>Lizenz</em>, <em>Namensnennung</em> und <em>offiziell</em>, die überall gelten, wo die Quelle zitiert wird. Die Überschrift der unteren Hälfte sagt dir, an wie vielen Objekten das ist; bei vielen fragt „Speichern" vorher nach.</div>
+				<div class="hb-note hb-warn"><strong>Bei einer Wiki-Publikation sind Adresse, Titel und „offiziell" gesperrt.</strong> Sie gehören dem Abgleich — von Hand geändert stünde beim nächsten Lauf wieder sein Wert da. Seiten, Abdeckung, Lizenz und Namensnennung kannst du trotzdem setzen.</div>
 				<div class="hb-note hb-tip"><strong>Beim Anlegen trägst du Quellen sofort mit ein.</strong> Ein Ort, den du gerade erst anlegst, hat noch keine Kennung, an der eine Quelle hängen könnte. Der Block sammelt sie deshalb unter <em>„Wird beim Anlegen übernommen"</em> und hängt sie an, sobald du gespeichert hast — Autocomplete und ✕ funktionieren dabei wie gewohnt.</div>
 
 				<h4>Die Abdeckung entscheidet, wo die Quelle landet</h4>
@@ -1599,10 +1607,10 @@
 				<h3 id="n-listen" class="hb-sub">Die Auswahllisten</h3>
 				<table class="hb-table">
 					<tr><th>Feld</th><th>Werte</th></tr>
-					<tr><td><strong>Ortsgröße</strong></td><td>Dorf · Kleinstadt · Stadt · Großstadt · Metropole · Besondere Bauwerke/Stätten</td></tr>
+					<tr><td><strong>Ortsgröße</strong></td><td>Dorf · Kleinstadt · Stadt · Großstadt · Metropole · Besondere Bauwerke/Stätten · Stadtviertel</td></tr>
 					<tr><td><strong>Wegtyp</strong></td><td>Reichsstraße · Straße · Weg · Pfad · Gebirgspass · Wüstenpfad · Flussweg · Seeweg</td></tr>
 					<tr><td><strong>Transportmittel</strong></td><td>Karawane · Reisegruppe zu Fuß · Zu Fuß · Kutsche · Reisegruppe beritten · Reiter · Flusssegler · Flusskahn · Lastensegler · Schnellsegler · Galeere</td></tr>
-					<tr><td><strong>Region: Art</strong></td><td><em>alphabetisch, wie im Feld:</em> Auenlandschaft · Berggipfel · Dschungel · Ebene · Fluss · Flussdelta · Flussland/Flusstal · Gebirge · Graslandschaft · Hochebene · Hügelland · Insel · Inselgruppe · Kontinent · Kulturlandschaft · Küste · Meer · Region · Schlucht · See · Sonstiges · Steppe · Sümpfe &amp; Moore · Tal · Tiefebene · Tundra · Urwald · Vulkan · Wadi · Wald · Wüste · Wüstenoase. Vorausgewählt ist <strong>Region</strong>, nicht der erste Eintrag.</td></tr>
+					<tr><td><strong>Region: Art</strong></td><td><em>alphabetisch, wie im Feld:</em> Auenlandschaft · Berggipfel · Berg-/Hügelkette · Dschungel · Ebene · Felsformation · Fluss · Flussdelta · Flussland/Flusstal · Gebirge · Graslandschaft · Hochebene · Hügel · Hügelland · Insel · Inselgruppe · Kontinent · Kulturlandschaft · Küste · Meer · Region · Schlucht · See · Sonstiges · Steppe · Sümpfe &amp; Moore · Tal · Tiefebene · Tundra · Urwald · Vor-/Mittelgebirge · Vulkan · Wadi · Wald · Wüste · Wüstenoase. Vorausgewählt ist <strong>Region</strong>, nicht der erste Eintrag.</td></tr>
 					<tr><td><strong>Quellentyp</strong></td><td>Regionalspielhilfe · Abenteuer · Aventurischer Bote · Quellenband · Roman · Briefspiel · Regelbuch · Sonstiges</td></tr>
 				</table>
 
@@ -1659,6 +1667,37 @@
 				<p>Rechtsklick auf ein Herrschaftsgebiet, nur im Bearbeiten-Modus: Grenzen bearbeiten · Territoriumseditor öffnen · Grenzen berechnen · Orte hier zuordnen · Infobox anzeigen · <em>„Form ändern ▸"</em> (Verschieben, Gebiet zerschneiden) · <em>„Mit anderem Gebiet ▸"</em> (vereinigen, ausschneiden in drei Varianten) · Neues Gebiet herauslösen · Löschen. Die beiden Untermenüs heißen und wirken wie die des <a href="#landschaften">Flächenmenüs</a>.</p>
 				<div class="hb-note hb-tip"><strong>Stehen nur <em>drei</em> Einträge da, hast du eine verwaiste Außenhülle erwischt</strong> — eine berechnete Außengrenze, deren Quellflächen es nicht mehr gibt. Übrig bleiben <em>Territoriumseditor öffnen</em>, <em>Infobox anzeigen</em> und unten <strong>„Außenhülle löschen"</strong>; alles andere arbeitet auf einer Quellfläche und hätte hier nichts zu fassen. Ein Linksklick sagt es auch. Gesammelt stehen sie im Territorieneditor unter <strong>„🗑 Nicht zugewiesene Geometrie"</strong>.</div>
 				<div class="hb-note hb-tip"><strong><kbd>Strg</kbd>+Rechtsklick holt statt dessen das Karten-Menü</strong> — am Fuß des Gebiets-Menüs steht der Hinweis darauf. Wo die Karte flächendeckend mit Gebieten belegt ist, gäbe es sonst keine freie Stelle mehr, an der „Hierher reisen", „Entfernung messen", „Suchen" oder „Hier melden" noch zu erreichen wären. Bei den <a href="#landschaften">Landschaften</a> gibt es denselben Griff schon länger, und er tut dort dasselbe.</div>
+
+				<h3 id="n-kopfmenue" class="hb-sub">Das <span aria-hidden="true">☰</span>-Menü der Kopfzeile</h3>
+				<p>Oben rechts in der Editor-Hülle.</p>
+				<table class="hb-table">
+					<tr><th>Eintrag</th><th>Was er tut</th></tr>
+					<tr><td><strong>Handbuch</strong></td><td>Diese Seite, in einem neuen Tab.</td></tr>
+					<tr><td><strong>Karte herunterladen</strong></td><td>Die Karte als Vektorgrafik — und die Originalarchive.</td></tr>
+					<tr><td><strong>Datenbank-Backup</strong></td><td><em>Nur Admins.</em> Vollständiger Abzug der Datenbank.</td></tr>
+					<tr><td><strong>Admin</strong></td><td><em>Nur Admins.</em> Benutzer verwalten.</td></tr>
+					<tr><td><strong>Abmelden</strong></td><td>Beendet die Sitzung.</td></tr>
+				</table>
+
+				<h4>Karte herunterladen</h4>
+				<p>Jeder Editor darf das. Die Seite baut eine <strong>bearbeitbare</strong> Vektordatei — jede Ebene eine Gruppe, jedes Element benannt — für Illustrator, Inkscape oder Affinity. Fünf Blöcke stellst du vorher ein:</p>
+				<table class="hb-table">
+					<tr><th>Block</th><th>Was du einstellst</th></tr>
+					<tr><td><strong>Für welches Programm?</strong></td><td>Illustrator liest Namen aus der <code>id</code>, Inkscape aus <code>inkscape:label</code> — eine Datei kann nur eines von beidem.</td></tr>
+					<tr><td><strong>Wie groß?</strong></td><td>Kantenlänge und Linienstärke. Dazu <em>Semantische Metadaten</em> (vorangehakt) und <em>Passmarken</em> für Photoshop.</td></tr>
+					<tr><td><strong>Glätten?</strong></td><td>Echte Kurven statt Polygonzug, getrennt für Linien und Flächen. Herrschaftsgebiete bleiben immer eckig.</td></tr>
+					<tr><td><strong>Welche Ebenen?</strong></td><td>Häkchen bis hinunter zu den Unterarten, jeweils mit der Zahl der Objekte, dazu Farbe und Kontur je Eintrag.</td></tr>
+					<tr><td><strong>Für die API hinterlegen</strong></td><td>Legt einen Abzug für die Schnittstelle auf dem Server ab. <strong>Deine Einstellungen gelten dafür nicht</strong> — der API-Abzug kommt immer gleich.</td></tr>
+				</table>
+				<div class="hb-note hb-tip"><strong>Die Datei baut dein Browser, nicht der Server.</strong> Rund 20&nbsp;MB Kartendaten wollen geladen werden — <strong>lass den Tab offen</strong>. Wer eine kleinere Datei will, hakt Ebenen ab: an der Kantenlänge liegt es nicht, eine Vektordatei speichert Formen und keine Bildpunkte.</div>
+
+				<h4>Originalkarte herunterladen</h4>
+				<p>Ganz unten auf derselben Seite stehen die Archive, aus denen die Kartenkacheln entstanden sind. Sie gehen über ein Gigabyte; bricht der Download ab, setzt er fort statt von vorn zu beginnen.</p>
+				<div class="hb-note hb-warn"><strong>Arbeitsmaterial, nicht zur Weitergabe.</strong> Das Projekt hat zugesagt, kein reines Bilderarchiv zu sein. Jeder Download wird mit deinem Namen festgehalten.</div>
+
+				<h4>Datenbank-Backup</h4>
+				<p>Nur Admins. Ein Klick auf <strong>„Backup erstellen"</strong> zieht Schema <em>und</em> Daten als gepackte <code>.sql.gz</code>-Datei; einspielen lässt sie sich per <code>mysql</code> oder über den Import von phpMyAdmin. Der Lauf geht in kleinen Schritten: <strong>den Tab offen lassen, bis 100&nbsp;% erreicht sind</strong>. Der Haken <em>„WikiSync-Zwischenspeicher überspringen"</em> macht die Datei kleiner.</p>
+				<div class="hb-note hb-warn"><strong>Editoren sehen den Link nicht.</strong> Ein voller Abzug enthält Passwort-Hashes, alle Teilen-Links und alle Meldungen.</div>
 
 				<h3 id="n-editoren" class="hb-sub">Die acht Sync-Editoren</h3>
 				<p>Alle acht öffnen sich aus dem Reiter <strong>WikiSync</strong> und sehen gleich aus: oben ein Menüband aus Kacheln, darunter Liste und Details. Die erste Kachel ist immer die scharfe Aktion und mit <strong>🚨</strong> markiert (beim Kraftlinien-Editor mit <strong>⚡</strong>).</p>
