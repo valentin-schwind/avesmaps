@@ -878,6 +878,19 @@
    auf der ganzen Flaeche genau EINE Bedeutung, seit die Typmarke davon befreit ist.
    🔴 KEIN ROT fuer „inoffiziell": die Briefspiele sind der Grund, warum es die Inhalte gibt. Ein
    Warnrot machte aus einer Herkunftsangabe eine Qualitaetsaussage. */
+/* 💣 DAS POLSTER IST ABSICHTLICH UNSYMMETRISCH -- 2px oben, 3px unten -- und die Richtung ist
+   NICHT beliebig. Mit `line-height: 1` zentriert der Zeilenkasten den SCHRIFTKASTEN
+   (Oberlaenge + Unterlaenge), nicht die sichtbare Schrift. Bei VERSALIEN steht unter der
+   Grundlinie aber gar keine Tinte -- der reservierte Unterlaengenraum bleibt leer, und der
+   Wortblock sitzt dadurch zu TIEF im Chip (Owner 01.09.2026: „nicht perfekt vertikal zentriert").
+   ⭐ Im Browser gemessen -- PIXELABTAST der Tinte gegen die per Layout ermittelte Grundlinie,
+   nicht ueber actualBoundingBox-Metriken (die widersprachen sich je Element): mit 3px/2px sass
+   der Versalblock 1,09px unter der Chipmitte, mit 2px/3px sind es 0,09px. Beim
+   gemischtschriftlichen Feld 0,84px -> -0,16px.
+   ⚠️ ZENTRIERT WIRD VERSALHOEHE BIS GRUNDLINIE, nicht die Tinte samt Unterlaenge -- sonst saehe
+   „Briefspiel" (mit p) anders zentriert aus als „Wiki Aventurica" ohne.
+   ⚠️ Der Wert haengt an Schrift und Groesse (system-ui, 11px). Wer daran dreht, misst neu;
+   „aufgeraeumt" auf 2px/2px ist es sichtbar daneben. */
 .fs-kanon {
 	display: inline-flex;
 	align-items: center;
@@ -886,7 +899,7 @@
 	letter-spacing: .09em;
 	text-transform: uppercase;
 	line-height: 1;
-	padding: 3px 8px 2px;
+	padding: 2px 8px 3px;
 	border-radius: 999px;
 	white-space: nowrap;
 	border: 1px solid transparent;
@@ -925,7 +938,7 @@
 }
 .fs-kanon--split .fs-kanon__state {
 	flex-shrink: 0;
-	padding: 3px 8px 2px;
+	padding: 2px 8px 3px;
 }
 .fs-kanon--off.fs-kanon--split .fs-kanon__state {
 	background: var(--color-kanon-official);
@@ -940,7 +953,7 @@
    ⚠️ min-width: 0 + ellipsis: ein langer Bezeichner darf den Kopf nicht aufziehen. */
 .fs-kanon--split .fs-kanon__by {
 	min-width: 0;
-	padding: 3px 8px 2px;
+	padding: 2px 8px 3px;
 	color: var(--color-text-muted);
 	text-transform: none;
 	letter-spacing: 0;

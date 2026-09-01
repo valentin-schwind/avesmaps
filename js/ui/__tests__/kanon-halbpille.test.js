@@ -154,6 +154,23 @@ for (const t of ["--color-kanon-official", "--color-kanon-official-text", "--col
   pruefe(treffer.length === 2, `${t} muss in hellem UND dunklem Thema definiert sein (gefunden: ${treffer.length})`);
 }
 
+// ---- H1b. Das Polster ist unsymmetrisch, und das ist GEMESSEN ---------------------------------
+// 💣 2px oben / 3px unten, nie 2/2 und nie 3/2. Mit `line-height: 1` zentriert der Zeilenkasten
+// den SCHRIFTKASTEN (Oberlaenge + Unterlaenge), nicht die sichtbare Schrift -- bei VERSALIEN
+// bleibt der Unterlaengenraum leer und der Wortblock sitzt zu TIEF. Owner 01.09.2026: „nicht
+// perfekt vertikal zentriert".
+// ⭐ Zwei unabhaengige Messungen im Browser, beide mit demselben Ergebnis: Pixelabtast der Tinte
+// gegen die per Layout ermittelte Grundlinie, UND das gerasterte Bild des Chips selbst
+// (foreignObject -> Canvas, Pixel klassifiziert). Versatz nach unten:
+//     3/2 -> 1,17px    2/2 -> 0,67px    2/3 -> 0,17px
+// ⚠️ Der Wert haengt an Schrift und Groesse. Diese Zusicherung haelt nur die ABSICHT fest --
+// wer font-size oder Schriftfamilie aendert, misst neu, statt die Zeile zu streichen.
+const chipRegel = css.slice(css.indexOf(".fs-kanon {"), css.indexOf(".fs-kanon--off"));
+pruefe(/padding:\s*2px\s+8px\s+3px\s*;/.test(chipRegel),
+  "der Chip polstert 2px oben / 3px unten -- gemessen, nicht geraten");
+pruefe(!/padding:\s*3px\s+8px\s+2px\s*;/.test(css),
+  "die alte, verkehrt herum unsymmetrische Fassung darf nirgends mehr stehen");
+
 // ---- H2. Alle drei Titelgruppen duerfen SCHRUMPFEN ----------------------------------------------
 // 💣 Ein Flex-/Grid-Kind weigert sich per Vorgabe zu schrumpfen (`min-width: auto`), und der Chip
 // bricht NICHT um. Ein langer Bezeichner zog damit die ganze Gruppe auf seine Textbreite -- live
