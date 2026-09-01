@@ -2921,4 +2921,109 @@ $zahlM = (int) $pdoM->query(
 assert($zahlM === 1, 'die Verknuepfung haengt weiter genau einmal: ' . $zahlM);
 $pruefungen++;
 
+// =================================================================================================
+// 🔴 EINE RUECKNAHME UEBER DIE LAUFGRENZE HINWEG -- DIE public_id LIEGT IM ALTEN LAUF
+// =================================================================================================
+// Owner 01.09.2026: „ich seh keine buttons, die so heissen." Im Reiter „Uebernommen" stand ein
+// Objekt und trug KEINEN einzigen Knopf.
+//
+// 💣 Nach einem „Holen & Rechnen" sind die Items NEUE Zeilen: `apply_state = null`,
+// `apply_note` leer. Der dauerhafte Vermerk in `sync_decision` haelt das Objekt in „Uebernommen",
+// aber die Ruecknahme verlangte `apply_state = 'done'` UND las die angelegte public_id aus
+// `apply_note` der aktuellen Zeile -- beides gab es nicht mehr. Ein 'new'-Objekt war damit
+// dauerhaft gefangen: „Zurueck nach Offen" bedient nur 'changed'-Items (sonst Dublette),
+// „Zuruecknehmen" und „Ablehnen" scheiterten am Riegel.
+//
+// ⭐ Der alte Lauf ist noch da -- avesmapsSyncPlanStartRun setzt ihn nur auf `superseded`,
+// geloescht wird nie. Dort steht der Vermerk.
+$pdoL = avesmapsGaretienUebernahmeTestPdo();
+$keyL = 'ggp:Ortschaften_3:Stadt:Garetien:Laufgrenze';
+$idL = '00000000-0000-4000-8000-0000000f0001';
+$pdoL->prepare('INSERT INTO map_features (public_id, name, feature_type, feature_subtype, geometry_json, properties_json, geometry_type) VALUES (?,?,?,?,?,?,?)')
+    ->execute([$idL, 'Laufgrenze', 'location', 'stadt',
+        json_encode(['type' => 'Point', 'coordinates' => [9.0, 9.0]]), '{}', 'Point']);
+
+$baueL = static function (PDO $pdo, int $lauf, string $label) use ($keyL): void {
+    avesmapsSyncPlanAddItem($pdo, $lauf, [
+        'entity_key' => $keyL, 'entity_public_id' => null, 'change_type' => 'new', 'label' => $label,
+        'before' => [],
+        'after' => ['herkunft' => 'garetien', 'wiki' => 'ggp', 'ebene' => 'Ortschaften_3',
+            'ziel' => 'location', 'subtyp' => 'stadt', 'name' => 'Laufgrenze',
+            'geometry' => ['type' => 'Point', 'coordinates' => [9.0, 9.0]]],
+        'override' => [], 'selected' => 1,
+    ]);
+};
+
+// --- Lauf A: uebernommen, die angelegte public_id steht im Vermerk.
+$laufA = (int) avesmapsSyncPlanOpenRun($pdoL, AVESMAPS_GARETIEN_PLAN_KIND)['id'];
+$baueL($pdoL, $laufA, 'Laufgrenze A');
+$itemA = $itemIdVon($pdoL, 'Laufgrenze A');
+avesmapsGaretienItemAbschliessen($pdoL, $itemA, 'done', $idL, 7);
+avesmapsSyncPlanRecordApplied($pdoL, AVESMAPS_GARETIEN_PLAN_KIND, $keyL, 7, 'new');
+
+// --- Lauf B: „Holen & Rechnen". Der alte Lauf wird `superseded`, das frische Item ist leer.
+$laufB = avesmapsSyncPlanStartRun($pdoL, AVESMAPS_GARETIEN_PLAN_KIND, 7, null);
+$baueL($pdoL, $laufB, 'Laufgrenze B');
+$itemB = $itemIdVon($pdoL, 'Laufgrenze B');
+$standB = (string) $pdoL->query("SELECT apply_state FROM sync_plan_item WHERE id = $itemB")->fetchColumn();
+$notizB = (string) $pdoL->query("SELECT apply_note FROM sync_plan_item WHERE id = $itemB")->fetchColumn();
+assert($standB === '' && $notizB === '',
+    'die Vorbedingung: das frische Item weiss nichts -- ' . var_export([$standB, $notizB], true));
+assert((int) $pdoL->query("SELECT COUNT(*) FROM sync_plan_item WHERE id = $itemA AND apply_state = 'done'")->fetchColumn() === 1,
+    'und der alte Lauf steht noch da');
+$pruefungen += 2;
+
+// --- 🔴 DIE ZUSICHERUNG: die Ruecknahme findet die public_id im alten Lauf.
+$rL = avesmapsGaretienRuecknahmeAusfuehren($pdoL, $laufB, [$itemB], ['id' => 7]);
+assert($rL['zurueckgenommen'] === 1,
+    '🔴 ein ueber die Laufgrenze uebernommenes Objekt laesst sich zuruecknehmen: ' . json_encode($rL));
+$aktivL = (int) $pdoL->query("SELECT is_active FROM map_features WHERE public_id = '$idL'")->fetchColumn();
+assert($aktivL === 0, 'und das angelegte Objekt ist wirklich weg: is_active = ' . $aktivL);
+$pruefungen += 2;
+
+// --- ⚠️ Der dauerhafte Vermerk faellt mit, sonst stuende das Objekt weiter in „Uebernommen".
+$vermerkL = $pdoL->query(
+    "SELECT applied_at FROM sync_decision WHERE kind = 'garetien' AND entity_key = '$keyL'"
+)->fetchColumn();
+assert($vermerkL === null, 'der dauerhafte Vermerk ist geloescht: ' . var_export($vermerkL, true));
+$pruefungen++;
+
+// --- 💣 UND DIE ALTE ZEILE IST MITGERAEUMT. Bliebe sie auf 'done', faende die Suche beim
+// naechsten Mal denselben Vermerk -- der dann auf ein geloeschtes Objekt zeigt, und die Ruecknahme
+// koennte nur noch scheitern. Ein Geist, der eine Handlung anbietet, die es nicht mehr gibt.
+$standAdanach = $pdoL->query("SELECT apply_state FROM sync_plan_item WHERE id = $itemA")->fetchColumn();
+assert($standAdanach === null || $standAdanach === '',
+    '💣 die alte Zeile steht nicht mehr auf "done": ' . var_export($standAdanach, true));
+$pruefungen++;
+
+// --- 🔴 UND OHNE VERMERK PASSIERT NICHTS. Der Riegel darf nicht zu „jedes Item ist
+// ruecknehmbar" verkommen: ein Item, das nie uebernommen wurde, wird abgelehnt, nicht geloescht.
+$pdoN = avesmapsGaretienUebernahmeTestPdo();
+$laufN = (int) avesmapsSyncPlanOpenRun($pdoN, AVESMAPS_GARETIEN_PLAN_KIND)['id'];
+$idN = '00000000-0000-4000-8000-0000000f0002';
+$pdoN->prepare('INSERT INTO map_features (public_id, name, feature_type, feature_subtype, geometry_json, properties_json, geometry_type) VALUES (?,?,?,?,?,?,?)')
+    ->execute([$idN, 'Nievermerkt', 'location', 'stadt',
+        json_encode(['type' => 'Point', 'coordinates' => [8.0, 8.0]]), '{}', 'Point']);
+avesmapsSyncPlanAddItem($pdoN, $laufN, [
+    'entity_key' => 'ggp:Ortschaften_3:Stadt:Garetien:Nievermerkt', 'entity_public_id' => null,
+    'change_type' => 'new', 'label' => 'Nievermerkt neu', 'before' => [],
+    'after' => ['herkunft' => 'garetien', 'wiki' => 'ggp', 'ebene' => 'Ortschaften_3',
+        'ziel' => 'location', 'subtyp' => 'stadt', 'name' => 'Nievermerkt',
+        'geometry' => ['type' => 'Point', 'coordinates' => [8.0, 8.0]]],
+    'override' => [], 'selected' => 1,
+]);
+$itemN = $itemIdVon($pdoN, 'Nievermerkt neu');
+$rN = avesmapsGaretienRuecknahmeAusfuehren($pdoN, $laufN, [$itemN], ['id' => 7]);
+assert($rN['zurueckgenommen'] === 0 && count($rN['fehler']) === 1,
+    '🔴 ein nie uebernommenes Item wird abgelehnt: ' . json_encode($rN));
+// 💣 UND DER GRUND MUSS DER RICHTIGE SEIN. Die Zeile darueber allein ist zu grob: faellt
+// der Riegel ganz weg, scheitert dasselbe Item eine Zeile spaeter an der fehlenden public_id --
+// dieselbe Bilanz (0 zurueckgenommen, 1 Fehler), voellig andere Ursache. Eine Mutationsprobe hat
+// genau das ausgenutzt und ist unbemerkt durchgelaufen.
+assert($rN['fehler'][0]['grund'] === 'dieses Item wurde nie uebernommen',
+    '💣 und zwar mit dem Grund, der die Ursache nennt: ' . json_encode($rN['fehler']));
+assert((int) $pdoN->query("SELECT is_active FROM map_features WHERE public_id = '$idN'")->fetchColumn() === 1,
+    'und sein Objekt bleibt unangetastet');
+$pruefungen += 2;
+
 echo "OK: {$pruefungen} Pruefungen\n";

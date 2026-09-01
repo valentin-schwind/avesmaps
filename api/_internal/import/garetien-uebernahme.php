@@ -177,7 +177,7 @@ function avesmapsGaretienQuelleAnlegen(PDO $pdo, string $entityType, string $pub
     if ($sourceId <= 0) {
         return false;
     }
-    // \U0001f534 EINE VERKNUEPFUNG, DIE EINEM ANDEREN GEHOERT, WIRD NICHT ANGEFASST.
+    // 🔴 EINE VERKNUEPFUNG, DIE EINEM ANDEREN GEHOERT, WIRD NICHT ANGEFASST.
     //
     // Gemessen am 01.09.2026: `avesmapsFeatureSourceLink` ist ein `ON DUPLICATE KEY UPDATE` und
     // setzt `note`, `pages` und `reference_kind` bei JEDEM Aufruf neu. Es schuetzt zwar `origin`
@@ -186,7 +186,7 @@ function avesmapsGaretienQuelleAnlegen(PDO $pdo, string $entityType, string $pub
     //     vorher   origin=manual  note="von Hand geprueft"
     //     nachher  origin=manual  note="…/Avesmaps_Wege"
     //
-    // \U0001f4a3 Das ist derselbe stille Schreibzugriff auf fremde Arbeit, den der Owner am 31.08.2026
+    // 💣 Das ist derselbe stille Schreibzugriff auf fremde Arbeit, den der Owner am 31.08.2026
     // am OBJEKT abgeschaltet hat -- nur eine Etage tiefer, an der Verknuepfung. Die Quelle haengt
     // ja bereits; es gibt hier nichts zu gewinnen und eine Notiz zu verlieren.
     //
@@ -1178,7 +1178,7 @@ function avesmapsGaretienArtikelQuellenNachtragen(PDO $pdo): array
     // Abfragen und null Schreibvorgaenge.
     // ⚠️ Erkannt an der ADRESSFORM (`/index.php/`), nicht an einer Zaehlung: „das Objekt hat zwei
     // garetien-Quellen" waere auch dann wahr, wenn jemand von Hand eine zweite angehaengt hat.
-    // \U0001f534 DIESELBE FRAGE WIE DER PLANBAU, DERSELBE ERZEUGER (01.09.2026). Hier stand ein
+    // 🔴 DIESELBE FRAGE WIE DER PLANBAU, DERSELBE ERZEUGER (01.09.2026). Hier stand ein
     // zweiter, groeberer Scan (`s.url LIKE '%/index.php/%'`) -- eine Frage mit zwei
     // Antwortgebern, und die feinere von beiden kannte er nicht. Jetzt fragen beide
     // avesmapsGaretienQuellenBestand, das je (Objekt, ADRESSE) antwortet.
@@ -1674,7 +1674,7 @@ function avesmapsGaretienZurueckAufOffen(PDO $pdo, int $runId, array $itemIds, a
     );
     $stmt->execute(array_merge([$runId], array_map('intval', $itemIds)));
 
-    // \U0001f4a3 „UEBERNOMMEN" HAT ZWEI QUELLEN. `apply_state = 'done'` gilt nur fuer den GERADE
+    // 💣 „UEBERNOMMEN" HAT ZWEI QUELLEN. `apply_state = 'done'` gilt nur fuer den GERADE
     // laufenden Lauf; der dauerhafte Vermerk in `sync_decision` ueberlebt ein „Holen & Rechnen".
     // Nach einem neuen Lauf stehen die Items auf `apply_state = null` und das Objekt trotzdem in
     // „Uebernommen" -- wer nur die erste Quelle liest, verschiebt dann NICHTS und meldet Erfolg.
@@ -1766,13 +1766,32 @@ function avesmapsGaretienRuecknahmeAusfuehren(PDO $pdo, int $runId, array $itemI
 
     $platzhalter = implode(',', array_fill(0, count($itemIds), '?'));
     $stmt = $pdo->prepare(
-        'SELECT id, change_type, entity_public_id, after_json, apply_state, apply_note'
+        'SELECT id, entity_key, change_type, entity_public_id, after_json, apply_state, apply_note'
         . ' FROM sync_plan_item WHERE run_id = ? AND id IN (' . $platzhalter . ') ORDER BY id'
     );
     $stmt->execute(array_merge([$runId], array_map('intval', $itemIds)));
 
+    // 🔴 „UEBERNOMMEN" HAT ZWEI QUELLEN, UND DIE RUECKNAHME KANNTE NUR EINE.
+    // `apply_state = 'done'` stirbt mit dem Lauf; `sync_decision.applied_at` nicht. Nach einem
+    // „Holen & Rechnen" standen die frischen Items also auf `apply_state = null`, waehrend das
+    // Objekt weiter in „Uebernommen" stand -- und JEDER der drei Knoepfe verweigerte:
+    // „Zuruecknehmen" und „Ablehnen" wegen dieser Pruefung, „Zurueck nach Offen" weil es nur
+    // 'changed'-Items bedient. Owner 01.09.2026: „ich seh keine buttons, die so heissen."
+    $entscheidungen = avesmapsSyncPlanDecisions($pdo, AVESMAPS_GARETIEN_PLAN_KIND);
+
     $zurueckgenommen = 0;
     $fehler = [];
+    $istUebernommen = static function (array $item) use ($entscheidungen): bool {
+        if ((string) ($item['apply_state'] ?? '') === 'done') {
+            return true;
+        }
+        $schluessel = avesmapsSyncPlanDecisionKey(
+            (string) $item['entity_key'],
+            (string) $item['change_type']
+        );
+
+        return ($entscheidungen[$schluessel]['applied_at'] ?? null) !== null;
+    };
     foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $item) {
         $itemId = (int) $item['id'];
         $changeType = (string) $item['change_type'];
@@ -1788,7 +1807,7 @@ function avesmapsGaretienRuecknahmeAusfuehren(PDO $pdo, int $runId, array $itemI
                 $fehler[] = ['item' => $itemId, 'grund' => 'veraendert ein bestehendes Objekt -- nicht ruecknehmbar'];
                 continue;
             }
-            if ((string) ($item['apply_state'] ?? '') !== 'done') {
+            if (!$istUebernommen($item)) {
                 $fehler[] = ['item' => $itemId, 'grund' => 'dieses Item wurde nie uebernommen'];
                 continue;
             }
@@ -1826,7 +1845,7 @@ function avesmapsGaretienRuecknahmeAusfuehren(PDO $pdo, int $runId, array $itemI
             $fehler[] = ['item' => $itemId, 'grund' => 'veraendert ein bestehendes Objekt -- nicht ruecknehmbar'];
             continue;
         }
-        if ((string) ($item['apply_state'] ?? '') !== 'done') {
+        if (!$istUebernommen($item)) {
             $fehler[] = ['item' => $itemId, 'grund' => 'dieses Item wurde nie uebernommen'];
             continue;
         }
@@ -1838,6 +1857,47 @@ function avesmapsGaretienRuecknahmeAusfuehren(PDO $pdo, int $runId, array $itemI
         // fuer den 'new'-Zweig uebergibt. Wer stattdessen entity_public_id liest, findet dort fuer
         // JEDES 'new'-Item eine leere Spalte.
         $publicId = trim((string) ($item['apply_note'] ?? ''));
+        // 💣 UND NACH EINEM NEUEN LAUF STEHT SIE IM ALTEN. `sync_plan_run` wird beim
+        // naechsten „Holen & Rechnen" nur auf `superseded` gesetzt, nie geloescht
+        // (avesmapsSyncPlanStartRun) -- die Zeile, die das Objekt angelegt hat, liegt also noch
+        // da, samt ihrem Vermerk. Das frische Item kennt ihn nicht: es ist eine neue Zeile mit
+        // leerem `apply_note`.
+        //
+        // 🔴 GESUCHT WIRD UEBER (kind, entity_key, change_type) UND `apply_state = 'done'`,
+        // und das ist der ganze Riegel gegen ein falsches Loeschziel: eine Ruecknahme setzt
+        // `apply_state` der alten Zeile auf NULL (avesmapsGaretienItemZurueckAufOffen), ein
+        // bereits zurueckgenommener Lauf kann hier also nicht mehr gefunden werden. Von mehreren
+        // gilt die JUENGSTE.
+        //
+        // ⚠️ EHRLICH GESAGT ist `apply_state = 'done'` hier Guertel UND Hosentraeger: die
+        // Sortierung nach `id DESC` deckt jede Reihenfolge ab, die im Betrieb entstehen kann, und
+        // eine Mutationsprobe am 01.09.2026 konnte die Bedingung deshalb folgenlos entfernen. Sie
+        // bleibt trotzdem stehen -- sie kostet nichts, und hier wird GELOESCHT. Wer sie streicht,
+        // streicht keinen toten Code, sondern die letzte Zusicherung gegen einen Vermerk, der auf
+        // ein laengst entferntes Objekt zeigt.
+        //
+        // ⚠️ Nur wenn der dauerhafte Vermerk sagt, dass wirklich uebernommen wurde -- der
+        // Riegel oben hat das schon geprueft. Findet sich nichts, wird NICHT geraten: hier wird
+        // geloescht, und ein falsches Ziel ist teurer als eine Fehlermeldung.
+        $altItemId = 0;
+        if ($publicId === '') {
+            $alt = $pdo->prepare(
+                'SELECT i.id, i.apply_note FROM sync_plan_item i'
+                . ' JOIN sync_plan_run r ON r.id = i.run_id'
+                . " WHERE r.kind = :k AND i.entity_key = :e AND i.change_type = 'new'"
+                . " AND i.apply_state = 'done' AND i.apply_note IS NOT NULL AND i.apply_note <> ''"
+                . ' ORDER BY i.id DESC LIMIT 1'
+            );
+            $alt->execute([
+                'k' => AVESMAPS_GARETIEN_PLAN_KIND,
+                'e' => (string) $item['entity_key'],
+            ]);
+            $treffer = $alt->fetch(PDO::FETCH_ASSOC);
+            if (is_array($treffer)) {
+                $publicId = trim((string) ($treffer['apply_note'] ?? ''));
+                $altItemId = (int) $treffer['id'];
+            }
+        }
         if ($publicId === '') {
             $fehler[] = ['item' => $itemId, 'grund' => 'keine angelegte public_id hinterlegt'];
             continue;
@@ -1873,6 +1933,13 @@ function avesmapsGaretienRuecknahmeAusfuehren(PDO $pdo, int $runId, array $itemI
             // worden -- avesmapsSyncPlanPendingItems verlangt selected=1). „Ruecknahme" heisst:
             // zurueck in GENAU diesen Stand, nicht in einen neuen.
             avesmapsGaretienItemZurueckAufOffen($pdo, $itemId);
+            // ⚠️ UND DIE ALTE ZEILE MIT, wenn die public_id von dort kam. Bliebe sie auf
+            // `apply_state = 'done'` stehen, faende die Suche oben beim naechsten Mal denselben
+            // Vermerk -- der dann auf ein geloeschtes Objekt zeigt. Ein Geist, der eine
+            // Ruecknahme anbietet, die nur noch scheitern kann.
+            if ($altItemId > 0) {
+                avesmapsGaretienItemZurueckAufOffen($pdo, $altItemId);
+            }
             $zurueckgenommen++;
         } catch (Throwable $abbruch) {
             $fehler[] = ['item' => $itemId, 'grund' => $abbruch->getMessage()];

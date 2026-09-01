@@ -43,6 +43,7 @@ const mod = require(path.resolve(__dirname, "..", "review-garetien-importer.js")
 const {
 	garetienHandlungen, garetienHandlungsMarkup, garetienHandlungsRumpf,
 	garetienZurueckOffenBauen, garetienZurueckOffenItems, garetienZurueckOffenKlick,
+	garetienRuecknahmeItems,
 } = mod;
 
 const namen = (o) => garetienHandlungen(o).map((k) => k.name);
@@ -210,5 +211,38 @@ wahr(/change_type'\] !== 'changed'/.test(rumpf),
 // ein `is_active = 0` darin wäre genau das, was der Owner ausgeschlossen hat.
 wahr(!/DELETE|is_active\s*=\s*0|avesmapsDeleteMapFeature/i.test(rumpf),
 	"🔴 sie fasst KEIN Kartenobjekt an: " + rumpf);
+
+// =================================================================================================
+// 🔴 UND „ZURUECKNEHMEN" SIEHT DENSELBEN ZWEITEN VERMERK
+// =================================================================================================
+// Owner 01.09.2026: „ich seh keine buttons, die so heissen." Nach einem „Holen & Rechnen" standen
+// die frischen Items auf `apply_state = null`, das Objekt aber weiter in „Uebernommen" -- und
+// `garetienRuecknahmeFaehig` fragte nur die erste Quelle. Damit trug ein 'new'-Objekt GAR KEINEN
+// Knopf: „Zurueck nach Offen" bedient es nicht (Dublettengefahr), „Zuruecknehmen" und „Ablehnen"
+// fielen hier heraus.
+//
+// ⭐ Der Server holt die angelegte public_id seit demselben Tag aus dem alten, nur
+// `superseded` gesetzten Lauf. Ohne die Zeile hier waere das gebaut und unerreichbar.
+const nurVermerk = {
+	stand: "uebernommen",
+	items: [{ id: 41, change_type: "new", apply_state: null, applied: true }],
+};
+wahr(garetienRuecknahmeItems(nurVermerk).length === 1,
+	"🔴 ein Item, das NUR ueber den dauerhaften Vermerk uebernommen ist, ist ruecknehmbar");
+const namenVermerk = garetienHandlungen(nurVermerk).map((h) => h.name);
+wahr(namenVermerk.indexOf("ruecknahme") !== -1 && namenVermerk.indexOf("ruecknahme_ablehnen") !== -1,
+	"und beide Knoepfe stehen da: " + namenVermerk.join(", "));
+wahr(garetienHandlungen(nurVermerk).filter((h) => h.name === "ruecknahme")[0].disabled === false,
+	"💣 und der Knopf ist WIRKLICH bedienbar -- ein gesperrter Knopf mit Grund waere "
+	+ "derselbe Sackgassen-Zustand, nur anders beschriftet");
+
+// ⚠️ Die Gegenprobe: OHNE beide Quellen bleibt es dabei, dass nichts geht. Sonst waere die
+// Reparatur zu „jedes Item ist ruecknehmbar" verkommen.
+const garNicht = {
+	stand: "uebernommen",
+	items: [{ id: 42, change_type: "new", apply_state: null, applied: false }],
+};
+wahr(garetienRuecknahmeItems(garNicht).length === 0,
+	"ein nie uebernommenes Item bleibt nicht ruecknehmbar");
 
 console.log(`garetien-zurueck-nach-offen: ${checks} Pruefungen bestanden.`);

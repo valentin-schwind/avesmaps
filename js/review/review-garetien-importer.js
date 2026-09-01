@@ -2165,7 +2165,7 @@
 	// 🔴 UND SIE HOLT NICHTS NACH. Alles, was hier steht, steht schon im Objekt der Liste -- ein
 	// zweiter Ruf je angeklickter Zeile wäre bei 289 Zeilen ein Abruf je Blick.
 	//
-	// 🚩 DREI FELDER DES MOCKUPS FEHLEN IN DER ANTWORT VON action:'liste' und werden deshalb hier
+	// 🚪 DREI FELDER DES MOCKUPS FEHLEN IN DER ANTWORT VON action:'liste' und werden deshalb hier
 	//    NICHT gezeigt (Serverbefund an Aufgabe 8, nicht an dieser Datei -- der Bericht zu Aufgabe
 	//    13 trägt die Einzelheiten):
 	//      · `after.quelle` (label/attribution/license) -- der Abschnitt „Die Quelle, die mitreist"
@@ -4083,8 +4083,18 @@
 		return felder.length === 1 && String(felder[0]) === "quelle";
 	}
 
+	// 💣 „UEBERNOMMEN" HAT ZWEI QUELLEN, UND HIER STAND NUR EINE. `apply_state === "done"`
+	// gilt nur fuer den GERADE laufenden Lauf; `applied` ist der dauerhafte Vermerk aus
+	// `sync_decision`, der ein „Holen & Rechnen" ueberlebt. Nach einem frischen Lauf stand ein
+	// Objekt damit in „Uebernommen" und trug KEINEN einzigen Knopf -- „Zuruecknehmen" und
+	// „Ablehnen" scheiterten hier, „Zurueck nach Offen" bedient nur 'changed'-Items.
+	// Owner 01.09.2026: „ich seh keine buttons, die so heissen."
+	// ⚠️ Der Server kann das seit demselben Tag: die angelegte public_id steht im alten,
+	// nur `superseded` gesetzten Lauf und wird von dort geholt (avesmapsGaretienRuecknahmeAusfuehren).
+	// Ohne diese Zeile hier waere das gebaut und unerreichbar.
 	function garetienRuecknahmeFaehig(item) {
-		if (!item || item.apply_state !== "done") { return false; }
+		if (!item) { return false; }
+		if (item.apply_state !== "done" && item.applied !== true) { return false; }
 		const changeType = String(item.change_type || "");
 		if (changeType === "new") { return true; }
 		return changeType === "changed" && garetienItemIstQuelleNur(item);
