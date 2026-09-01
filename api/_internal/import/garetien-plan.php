@@ -103,6 +103,42 @@ const AVESMAPS_GARETIEN_ERGAENZUNG_FELDER = ['quelle'];
 const AVESMAPS_GARETIEN_SCHLUESSEL_NAME_TRENNER = '!';
 
 /**
+ * Der Mittelpunkt eines Rings. REIN -- kein I/O.
+ *
+ * 🔴 ZWEI LESER, EINE FORMEL: die Flaeche setzt ihr Label darauf
+ * (avesmapsGaretienFlaecheAnlegen), und seit dem 01.09.2026 bekommt auch jedes PUNKTziel ihn --
+ * ein Ort oder ein freies Label, das aus einer Flaeche entsteht. Owner: „Bei Flaechen, die zu
+ * Punkten (label, orte, …) werden, soll der Flaechenmittelpunkt genommen werden."
+ *
+ * 💣 VORHER STAND DORT `$punkte[0]` -- DIE ERSTE ECKE DES RINGS. Gemessen am Livebestand:
+ * von den 79 `Berg`-Zeilen tragen 78 ein Polygon (bis 211 Punkte), also sassen praktisch alle
+ * importierten Berggipfel am RAND ihrer Bergflaeche statt in deren Mitte. Es fiel nicht auf,
+ * weil ein Gipfel am Rand immer noch wie ein Gipfel aussieht.
+ *
+ * ⚠️ Ein Flaechenschwerpunkt, kein "Pol der Unzugaenglichkeit". Der waere schoener (polylabel
+ * setzt ihn im Frontend), lebt aber im Browser; ihn hier in PHP nachzubauen waere eine zweite
+ * Wahrheit ueber dieselbe Frage. Ein Editor kann den Punkt jederzeit verschieben.
+ *
+ * ⚠️ Bei EINEM Punkt ist er dieser Punkt -- ein Ort mit einer einzigen Koordinate (alle
+ * Burgen, Doerfer, Tempel: 1 Punkt) wandert durch diese Aenderung um keinen Pixel.
+ */
+function avesmapsGaretienRingMittelpunkt(array $ring): array
+{
+    $n = count($ring);
+    if ($n === 0) {
+        return [0.0, 0.0];
+    }
+    $sx = 0.0;
+    $sy = 0.0;
+    foreach ($ring as $p) {
+        $sx += (float) $p[0];
+        $sy += (float) $p[1];
+    }
+
+    return [$sx / $n, $sy / $n];
+}
+
+/**
  * Der Objekt-Schluessel EINER Staging-Zeile. REIN -- kein I/O.
  *
  * 🔴 RULING P6: diese Formel entsteht HIER und wird von `avesmapsGaretienPlanEintrag` benutzt,
@@ -457,10 +493,13 @@ function avesmapsGaretienPlanEintrag(array $zeile, array $ziel, array $urteil): 
                 },
                 // Eine Flaeche ist ein RING: die Punktliste liegt eine Ebene tiefer. Ein Punkt
                 // (Ort/Berggipfel) ist ein EINZELNES [x,y]-Paar, GeoJSON-Point-Form.
+                // 🔴 EIN PUNKTZIEL BEKOMMT DIE MITTE, NICHT DIE ERSTE ECKE (01.09.2026).
+                // Hier stand `$punkte[0]`; bei den 78 `Berg`-Zeilen mit Polygon (bis 211 Punkte)
+                // war das eine Ringecke, und der Gipfel sass am Rand seiner Bergflaeche.
                 'coordinates' => match ($ziel['ziel']) {
                     'path' => $punkte,
                     'region' => [$punkte],
-                    default => $punkte[0] ?? [0.0, 0.0],
+                    default => avesmapsGaretienRingMittelpunkt($punkte),
                 },
             ],
             'quelle' => [

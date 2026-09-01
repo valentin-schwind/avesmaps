@@ -63,28 +63,10 @@ function avesmapsGaretienPublicIdAus(array $antwort, string $was): string
     throw new RuntimeException($was . ' wurde ohne public_id angelegt.');
 }
 
-/**
- * Der Mittelpunkt eines Rings -- der Punkt, an dem das Label der Flaeche sitzt.
- *
- * ⚠️ Ein Flaechenschwerpunkt, kein "Pol der Unzugaenglichkeit". Der waere schoener (polylabel
- * setzt ihn im Frontend), lebt aber im Browser; ihn hier in PHP nachzubauen waere eine zweite
- * Wahrheit ueber dieselbe Frage. Ein Editor kann das Label jederzeit verschieben.
- */
-function avesmapsGaretienRingMittelpunkt(array $ring): array
-{
-    $n = count($ring);
-    if ($n === 0) {
-        return [0.0, 0.0];
-    }
-    $sx = 0.0;
-    $sy = 0.0;
-    foreach ($ring as $p) {
-        $sx += (float) $p[0];
-        $sy += (float) $p[1];
-    }
-
-    return [$sx / $n, $sy / $n];
-}
+// 🔴 avesmapsGaretienRingMittelpunkt IST UMGEZOGEN nach garetien-plan.php (01.09.2026).
+// Der Planbau braucht ihn jetzt selbst -- ein Punktziel (Ort, freies Label) bekommt seit heute
+// den Flaechenmittelpunkt statt der ersten Ringecke. Und die Abhaengigkeit laeuft nur in eine
+// Richtung: uebernahme.php `require`t plan.php, nicht umgekehrt.
 
 /**
  * Ein GeoJSON-Point `[x, y]` -> `['lng' => x, 'lat' => y]`, die Form, die

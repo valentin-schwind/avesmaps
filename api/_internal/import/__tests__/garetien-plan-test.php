@@ -641,4 +641,58 @@ assert($nachBau === 'ggp:Gewaesser:Fluss:Garetien:Gardel!Gardel',
     '💣 der Planbau zieht Altschluessel selbst mit -- nicht nur der direkte Aufruf: ' . $nachBau);
 $pruefungen++;
 
+// =================================================================================================
+// 🔴 EIN PUNKTZIEL BEKOMMT DIE MITTE DER FLAECHE, NICHT DIE ERSTE ECKE
+// =================================================================================================
+// Owner 01.09.2026: „Bei Flaechen, die zu Punkten (label, orte, …) werden, soll der
+// Flaechenmittelpunkt genommen werden."
+//
+// 💣 Vorher stand dort `$punkte[0]` -- die erste Ecke des Rings. Gemessen am Livebestand:
+// von den 79 `Berg`-Zeilen des Exports tragen 78 ein POLYGON (bis 211 Punkte), also sassen
+// praktisch alle importierten Berggipfel am RAND ihrer Bergflaeche. Es fiel nie auf, weil ein
+// Gipfel am Rand immer noch wie ein Gipfel aussieht -- und KEIN Test hat die Aenderung bemerkt,
+// als sie gemacht wurde. Diese Zusicherung ist die Antwort darauf.
+$quadrat = [[10.0, 10.0], [30.0, 10.0], [30.0, 30.0], [10.0, 30.0]];
+assert(avesmapsGaretienRingMittelpunkt($quadrat) === [20.0, 20.0],
+    'die Mitte eines Quadrats: ' . json_encode(avesmapsGaretienRingMittelpunkt($quadrat)));
+// ⚠️ Und sie ist NICHT die erste Ecke -- ohne diese Zeile waere die obige auch fuer ein
+// Quadrat wahr, dessen erste Ecke zufaellig in der Mitte laege.
+assert(avesmapsGaretienRingMittelpunkt($quadrat) !== $quadrat[0],
+    '💣 und ausdruecklich nicht die erste Ecke');
+// ⚠️ Bei EINEM Punkt ist sie dieser Punkt -- jeder Ort mit einer einzigen Koordinate (alle
+// Burgen, Doerfer, Tempel) wandert durch diese Aenderung um keinen Pixel.
+assert(avesmapsGaretienRingMittelpunkt([[7.5, 3.25]]) === [7.5, 3.25],
+    'ein einzelner Punkt bleibt, wo er ist');
+assert(avesmapsGaretienRingMittelpunkt([]) === [0.0, 0.0], 'und eine leere Liste faellt nicht um');
+$pruefungen += 4;
+
+// 🔴 UND DER PLANBAU BENUTZT SIE WIRKLICH. Ein Rechner, den niemand ruft, ist kein Rechner
+// -- genau diese Luecke ist am selben Tag bei der Schluesselwanderung aufgetreten.
+$pdoM = avesmapsGaretienPlanTestPdo();
+$pdoM->prepare("INSERT INTO garetien_import_row (run_id, wiki, ebene, zeile_nr, typ, namensraum,"
+    . " artikel, anzeige, lodmin, lodmax, extra, geo_art, geo, roh)"
+    . " VALUES (1,'ggp','Berge',77,'Berg','Garetien','Mittelprobe','Mittelprobe','','','','koordinaten',"
+    . "'10000 -10000, 30000 -10000, 30000 -30000, 10000 -30000','')")->execute();
+avesmapsGaretienBaueSyncPlan($pdoM, 1, 1);
+$bergZeile = $pdoM->query("SELECT after_json FROM sync_plan_item WHERE label LIKE 'Mittelprobe%'")
+    ->fetchColumn();
+$bergNach = json_decode((string) $bergZeile, true);
+assert(is_array($bergNach) && ($bergNach['ziel'] ?? '') === 'label',
+    'die Vorbedingung: ein Berg wird ein freies Label: ' . json_encode($bergNach['ziel'] ?? null));
+
+// Die vier Ecken in UNSEREN Einheiten -- und die erwartete Mitte daraus, gerechnet mit demselben
+// Wandler wie der Planbau (keine abgeschriebene Zahl).
+$eckenM = avesmapsGaretienLinieNachAvesmaps(
+    [[10000.0, -10000.0], [30000.0, -10000.0], [30000.0, -30000.0], [10000.0, -30000.0]]
+);
+$mitteM = avesmapsGaretienRingMittelpunkt($eckenM);
+assert($bergNach['geometry']['coordinates'] === $mitteM,
+    '🔴 der Planbau setzt den Punkt in die Mitte: '
+    . json_encode([$bergNach['geometry']['coordinates'], $mitteM]));
+// 💣 UND MESSBAR NICHT AUF DIE ERSTE ECKE. Ohne diese Zeile waere der Test auch dann gruen,
+// wenn Mitte und erste Ecke zufaellig zusammenfielen.
+assert($bergNach['geometry']['coordinates'] !== $eckenM[0],
+    '💣 und nicht auf die erste Ecke: ' . json_encode($eckenM[0]));
+$pruefungen += 3;
+
 echo "OK: {$pruefungen} Pruefungen\n";
