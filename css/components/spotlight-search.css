@@ -15,7 +15,7 @@
 	border-radius: var(--radius-md);
 	background: rgba(31, 27, 24, 0.94);
 	box-shadow: 0 24px 70px rgba(0, 0, 0, 0.48);
-	color: #fff9ef;
+	color: var(--color-spotlight-text);
 }
 
 .spotlight-search__title {
@@ -35,7 +35,7 @@
 	border: 0;
 	border-bottom: 1px solid rgba(255, 255, 255, 0.12);
 	background: transparent;
-	color: #fff9ef;
+	color: var(--color-spotlight-text);
 	font-family: Georgia, "Times New Roman", serif;
 	font-size: 20px;
 	line-height: 1.2;
@@ -43,7 +43,7 @@
 }
 
 .spotlight-search__input::placeholder {
-	color: rgba(255, 249, 239, 0.58);
+	color: var(--color-spotlight-text-faint);
 }
 
 .spotlight-search__results {
@@ -93,7 +93,7 @@
 .spotlight-search__result-type {
 	max-width: 150px;
 	overflow: hidden;
-	color: rgba(255, 249, 239, 0.68);
+	color: var(--color-spotlight-text-soft);
 	font-size: 11px;
 	text-overflow: ellipsis;
 	text-transform: uppercase;
@@ -140,7 +140,7 @@
 	min-height: 20px;
 	margin: 0;
 	padding: 0 16px 10px;
-	color: rgba(255, 249, 239, 0.68);
+	color: var(--color-spotlight-text-soft);
 	font-size: 12px;
 }
 

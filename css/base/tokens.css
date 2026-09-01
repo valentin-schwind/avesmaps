@@ -139,6 +139,19 @@
 	--color-kanon-unofficial-on-dark: #6fc7bd;
 	--color-kanon-unofficial-text-on-dark: #0f2f2b;
 
+	/* Die Schrift der Suchkachel -- derselbe Grund wie beim Chip darueber: sie ist in BEIDEN Themen
+	   dunkel, diese drei Werte kippen also nicht mit dem Thema und haben bewusst KEIN helles
+	   Gegenstueck (deshalb auch kein `-on-dark`-Suffix: das bezeichnet hier die zweite Fassung eines
+	   Tokens, das eine erste hat).
+	   🔴 Wer sie je in den dunklen Block unten spiegelt oder im hellen Thema umdreht, macht die
+	   Suche im hellen Thema unlesbar -- dunkle Schrift auf dunklem Grund.
+	   Die Abstufungen sind derselbe Ton mit weniger Deckkraft: `soft` traegt die Typangabe neben
+	   einem Treffer UND die Statuszeile darunter (gemessen 8,12:1 gegen die Kachel), `faint` den
+	   Platzhalter im Eingabefeld. */
+	--color-spotlight-text: #fff9ef;
+	--color-spotlight-text-soft: rgba(255, 249, 239, 0.68);
+	--color-spotlight-text-faint: rgba(255, 249, 239, 0.58);
+
 	--color-pill: #f3ecd9;
 	--color-pill-border: #d7c7a2;
 	--color-pill-text: #675024;
