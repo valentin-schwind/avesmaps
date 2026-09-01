@@ -512,6 +512,11 @@ window.AVESMAPS_I18N_EN = {
 	"spotlight.title": "Search",
 	"spotlight.placeholder": "Search the map",
 	"spotlight.resultsAria": "Search results",
+	// The status line under the result list. Two states, and they must stay distinguishable: an empty
+	// result says "we have nothing", a failed lookup says "nobody looked" -- reporting the first for
+	// the second would turn an outage into a claim about the world.
+	"spotlight.noResults": "Not found on Avesmaps.",
+	"spotlight.searchFailed": "Search is currently unavailable.",
 
 	// --- toasts: find-nearest + distance measurement ---
 	"toast.findNearest.none": "No location found.",

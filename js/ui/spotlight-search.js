@@ -355,9 +355,12 @@ function updateSpotlightSearchResults() {
 	const query = input?.value || "";
 	const renderToken = ++spotlightSearchRenderToken;
 	const localEntries = searchSpotlightEntries(query);
-	renderSpotlightSearchResults(localEntries);
+	const backendPending = shouldUseBackendSpotlightSearch(query);
+	// Solange der Server noch antwortet, sagt der lokale Durchgang nichts -- siehe
+	// spotlightSearchStatusText().
+	renderSpotlightSearchResults(localEntries, { query, backendPending });
 
-	if (!shouldUseBackendSpotlightSearch(query)) {
+	if (!backendPending) {
 		if (spotlightBackendAbortController) {
 			spotlightBackendAbortController.abort();
 			spotlightBackendAbortController = null;
@@ -371,15 +374,26 @@ function updateSpotlightSearchResults() {
 				return;
 			}
 
+			// 💣 Ohne Treffer wurde hier frueher GAR NICHT gezeichnet -- der Status waere damit fuer
+			// immer im wartenden Zustand haengengeblieben, also stumm. Der Endzustand braucht diesen
+			// Durchgang. (Er kostet nichts: resolveBackendSpotlightEntries gibt bei leerem Ergebnis
+			// dieselben localEntries zurueck, die schon stehen.)
 			const resolvedEntries = resolveBackendSpotlightEntries(backendResults, localEntries);
-			if (resolvedEntries.length) {
-				renderSpotlightSearchResults(resolvedEntries);
-			}
+			renderSpotlightSearchResults(resolvedEntries, { query });
 		})
 		.catch((error) => {
-			if (error?.name !== "AbortError") {
-				console.warn("Spotlight-Suche konnte serverseitig nicht geladen werden:", error);
+			// ⚠️ Ein Abbruch heisst, dass schon die naechste Suche laeuft: die setzt ihren eigenen
+			// Stand, und ein Fehlersatz waere hier bei jedem Tastendruck zu sehen.
+			if (error?.name === "AbortError") {
+				return;
 			}
+
+			console.warn("Spotlight-Suche konnte serverseitig nicht geladen werden:", error);
+			if (renderToken !== spotlightSearchRenderToken) {
+				return;
+			}
+
+			renderSpotlightSearchResults(localEntries, { query, backendFailed: true });
 		});
 }
 
@@ -807,7 +821,45 @@ function scoreSpotlightWord(candidate, word) {
 	return Infinity;
 }
 
-function renderSpotlightSearchResults(entries) {
+/**
+ * Der Satz unter der Trefferliste -- `null`, wenn dort nichts stehen soll.
+ *
+ * Rein: kein DOM, kein Modulzustand, kein Abruf. Der EINZIGE Ort, an dem entschieden wird, ob die
+ * Suche etwas sagt.
+ *
+ * 💣 DIE TRAGENDE REGEL IST DAS SCHWEIGEN, NICHT DER SATZ. Die Suche ist zweistufig -- erst lokal
+ * aus den geladenen Kartendaten, dann schiebt der Server Literatur, Kartensammlung, Vorkommen und
+ * die Off-Map-Treffer nach, und genau die kennt der Browser gar nicht. Wer schon im lokalen
+ * Durchgang meldet, laesst „Nicht auf Avesmaps gefunden" bei JEDEM Tastendruck aufblinken und eine
+ * Sekunde spaeter von echten Treffern ersetzen. Solange `backendPending` steht, wird geschwiegen.
+ *
+ * 💣 Und ein AUSGEFALLENER Abruf ist kein leeres Ergebnis: „Nicht auf Avesmaps gefunden" hiesse
+ * dort „das gibt es nicht", obwohl niemand nachgesehen hat. Deshalb ein eigener Satz.
+ * ⚠️ Ein Abbruch (`AbortError`) ist KEIN Fehlschlag -- er heisst, dass schon die naechste Suche
+ * laeuft, und die setzt ihren eigenen Stand.
+ *
+ * ⚠️ Gemessen wird das NORMALISIERTE Suchwort: „???" ist kein Suchwort, sondern nichts.
+ */
+function spotlightSearchStatusText({ query = "", resultCount = 0, backendPending = false, backendFailed = false } = {}) {
+	if (!normalizeSpotlightSearchText(query)) {
+		return null;
+	}
+	if (resultCount > 0) {
+		// Eine Liste steht da. Auch ein gescheiterter Nachschlag bleibt still: der Benutzer koennte
+		// ohnehin nichts tun, und der Satz liesse seine Treffer unvollstaendig aussehen.
+		return null;
+	}
+	if (backendFailed) {
+		return tr("spotlight.searchFailed", "Die Suche ist gerade nicht erreichbar.");
+	}
+	if (backendPending) {
+		return null;
+	}
+
+	return tr("spotlight.noResults", "Nicht auf Avesmaps gefunden.");
+}
+
+function renderSpotlightSearchResults(entries, statusHinweis) {
 	const { input, results, status } = getSpotlightSearchElements();
 	if (!results || !status) {
 		return;
@@ -851,8 +903,12 @@ function renderSpotlightSearchResults(entries) {
 		.join("");
 
 	results.hidden = entries.length === 0;
-	status.textContent = "";
-	status.hidden = true;
+	// 🔴 Der Status geht durch DIESEN Trichter und sonst nirgends: die Funktion war schon vorher der
+	// einzige Erzeuger des Statuszustands (sie leerte ihn), und ein zweiter Schreiber daneben waere
+	// die Sorte Regel, die einen von zwei Erzeugern bindet.
+	const statusText = spotlightSearchStatusText({ ...(statusHinweis || {}), resultCount: entries.length });
+	status.textContent = statusText || "";
+	status.hidden = !statusText;
 	setSpotlightActiveResultIndex(entries.length ? 0 : -1);
 
 	if (input) {
