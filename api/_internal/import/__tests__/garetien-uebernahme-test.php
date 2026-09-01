@@ -3055,4 +3055,97 @@ assert((int) $pdoN->query("SELECT is_active FROM map_features WHERE public_id = 
     'und sein Objekt bleibt unangetastet');
 $pruefungen += 2;
 
+// =================================================================================================
+// 🔴 DIE DOPPELT HAENGENDE SAMMELQUELLE WEGRAEUMEN
+// =================================================================================================
+// Owner 01.09.2026: „ja, räum die doppelten quellen weg." Zwischen dem 31.08. und dem 01.09.2026
+// hat der Import BEIDE Adressen angehaengt -- den Wirt und den Artikel. In der Infobox von „Stadt
+// Praioslob" standen sie als zwei Zeilen untereinander.
+//
+// 💣 GEPRUEFT WIRD DIE DIFFERENZ, nicht das Ergebnis. „Die Sammelquelle ist weg" waere auch
+// dann wahr, wenn die Anweisung ALLES loescht -- und das ist der teure Fehlschlag: ein Objekt
+// ohne jede Quelle sieht wie ein schlecht erfasstes aus, nicht wie ein Fehler.
+$pdoA = avesmapsGaretienUebernahmeTestPdo();
+$wirtA = 'https://www.garetien.de';
+$artikelA = 'https://www.garetien.de/index.php/Garetien:Aufraeumprobe';
+
+$quelleAnlegenA = static function (PDO $p, string $url, int $id): void {
+    $p->prepare('INSERT INTO sources (id, url, url_hash, label, source_type, is_official)'
+        . ' VALUES (?, ?, ?, ?, ?, 0)')->execute([$id, $url, 'h' . $id, 'L' . $id, 'briefspiel']);
+};
+$linkA = static function (PDO $p, string $typ, string $objekt, int $sourceId,
+                          string $origin = 'garetien', string $status = 'approved'): void {
+    $p->prepare('INSERT INTO feature_sources (entity_type, entity_public_id, source_id, status, origin)'
+        . ' VALUES (?,?,?,?,?)')->execute([$typ, $objekt, $sourceId, $status, $origin]);
+};
+$zaehleA = static fn(PDO $p, string $objekt): array => array_map(
+    static fn(array $r): string => $r['url'],
+    (array) $p->query("SELECT s.url FROM feature_sources fs JOIN sources s ON s.id = fs.source_id"
+        . " WHERE fs.entity_public_id = '$objekt' ORDER BY s.url")->fetchAll(PDO::FETCH_ASSOC)
+);
+
+$quelleAnlegenA($pdoA, $wirtA, 901);
+$quelleAnlegenA($pdoA, $artikelA, 902);
+$quelleAnlegenA($pdoA, 'https://www.koschwiki.de', 903);
+$quelleAnlegenA($pdoA, 'https://www.beispiel.de/fremd', 904);
+
+// (a) Der Fall des Owners: Wirt + Artikel, beide aus unserer Hand.
+$linkA($pdoA, 'settlement', 'obj-doppelt', 901);
+$linkA($pdoA, 'settlement', 'obj-doppelt', 902);
+// (b) ⚠️ OHNE Artikel bleibt die Sammelquelle die einzige Angabe, die es gibt.
+$linkA($pdoA, 'settlement', 'obj-nur-wirt', 901);
+// (c) 🔴 Ein MENSCH hat die Sammelquelle uebernommen -- sie gehoert ihm.
+$linkA($pdoA, 'settlement', 'obj-manual', 901, 'manual');
+$linkA($pdoA, 'settlement', 'obj-manual', 902);
+// (d) ⚠️ Ein Grabstein bedeutet „hier soll nichts haengen".
+$linkA($pdoA, 'settlement', 'obj-grabstein', 901, 'garetien', 'suppressed');
+$linkA($pdoA, 'settlement', 'obj-grabstein', 902);
+// (e) 💣 Der Artikel gehoert einem ANDEREN Wirt -- dann ist die Sammelquelle nicht doppelt.
+$linkA($pdoA, 'settlement', 'obj-fremdwirt', 903);
+$linkA($pdoA, 'settlement', 'obj-fremdwirt', 902);
+
+$geloestA = avesmapsGaretienDoppelteSammelquellenLoesen($pdoA);
+assert($geloestA === 1, '🔴 GENAU EINE Verknuepfung faellt: ' . $geloestA);
+assert($zaehleA($pdoA, 'obj-doppelt') === [$artikelA],
+    '🔴 der Artikel bleibt, die Sammelquelle faellt: ' . json_encode($zaehleA($pdoA, 'obj-doppelt')));
+$pruefungen += 2;
+
+assert($zaehleA($pdoA, 'obj-nur-wirt') === [$wirtA],
+    '⚠️ ohne Artikel bleibt die Sammelquelle stehen -- sonst stuende das Objekt ohne jede '
+    . 'Quelle da: ' . json_encode($zaehleA($pdoA, 'obj-nur-wirt')));
+assert($zaehleA($pdoA, 'obj-manual') === [$wirtA, $artikelA],
+    '🔴 was ein Mensch uebernommen hat, gehoert ihm: ' . json_encode($zaehleA($pdoA, 'obj-manual')));
+assert($zaehleA($pdoA, 'obj-grabstein') === [$wirtA, $artikelA],
+    '⚠️ ein suppressed-Grabstein bleibt liegen: ' . json_encode($zaehleA($pdoA, 'obj-grabstein')));
+assert($zaehleA($pdoA, 'obj-fremdwirt') === [$artikelA, 'https://www.koschwiki.de'],
+    '💣 ein Artikel des ANDEREN Wirts macht die Sammelquelle nicht doppelt: '
+    . json_encode($zaehleA($pdoA, 'obj-fremdwirt')));
+$pruefungen += 4;
+
+// 🔴 UND DIE `sources`-ZEILE BLEIBT. Der Katalog ist geteilt -- dieselbe Adresse haengt an
+// tausend anderen Objekten, auch an solchen, die mit diesem Import nichts zu tun haben.
+assert((int) $pdoA->query("SELECT COUNT(*) FROM sources WHERE url = '$wirtA'")->fetchColumn() === 1,
+    '🔴 die sources-Zeile wird NIEMALS geloescht (AGENTS.md §5)');
+$pruefungen++;
+
+// ⚠️ Und ein zweiter Lauf faellt auf null -- sonst waere die Aufraeumung bei jedem Planbau
+// ein Schreibvorgang fuer nichts.
+assert(avesmapsGaretienDoppelteSammelquellenLoesen($pdoA) === 0,
+    'der zweite Lauf raeumt nichts mehr weg');
+$pruefungen++;
+
+// 💣 UND DER NACHZUG RUFT SIE WIRKLICH -- samt Reihenfolge. Ein Bauteil, das niemand ruft,
+// ist kein Bauteil; genau das ist am selben Tag bei der Schluesselwanderung passiert.
+$pdoB = avesmapsGaretienUebernahmeTestPdo();
+$quelleAnlegenA($pdoB, $wirtA, 901);
+$quelleAnlegenA($pdoB, $artikelA, 902);
+$linkA($pdoB, 'settlement', 'obj-durch-nachzug', 901);
+$linkA($pdoB, 'settlement', 'obj-durch-nachzug', 902);
+$nachzugB = avesmapsGaretienArtikelQuellenNachtragen($pdoB);
+assert(($nachzugB['aufgeraeumt'] ?? -1) === 1,
+    '💣 der Nachzug raeumt mit auf und MELDET es: ' . json_encode($nachzugB));
+assert($zaehleA($pdoB, 'obj-durch-nachzug') === [$artikelA],
+    'und die Sammelquelle ist wirklich weg: ' . json_encode($zaehleA($pdoB, 'obj-durch-nachzug')));
+$pruefungen += 2;
+
 echo "OK: {$pruefungen} Pruefungen\n";

@@ -151,6 +151,10 @@ try {
             'plan_run_id' => (int) ($lauf['id'] ?? 0),
             'vorschlaege' => $anzahl,
             'artikel_nachgetragen' => $nachzug['geschrieben'],
+            // 🔴 UND DAS AUFRAEUMEN WIRD EBENSO GEMELDET. Eine stille Loeschung an
+            // fremden Objekten ist von „nichts passiert" nicht zu unterscheiden -- dieselbe
+            // Regel wie eine Zeile darueber.
+            'quellen_aufgeraeumt' => $nachzug['aufgeraeumt'],
         ]);
     }
 

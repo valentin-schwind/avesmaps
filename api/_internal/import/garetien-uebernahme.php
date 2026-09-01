@@ -1170,8 +1170,75 @@ function avesmapsGaretienApplyStep(PDO $pdo, int $runId, int $userId, ?array $us
  * ⚠️ `userId` 0 wie beim Uebernahme-Nachtrag daneben: wer es damals uebernommen hat, steht im
  * Item nicht, und eine erfundene Kennung waere schlimmer als keine.
  *
- * @return array{geprueft:int, geschrieben:int}
+ * @return array{geprueft:int, geschrieben:int, aufgeraeumt:int}
  */
+/**
+ * DIE DOPPELT HAENGENDE SAMMELQUELLE WEGRAEUMEN -- dort, wo ein Artikel danebensteht.
+ *
+ * 🔴 Owner 01.09.2026: „ja, räum die doppelten quellen weg." Zwischen dem 31.08. und dem
+ * 01.09.2026 hat der Import BEIDE Adressen an ein Objekt gehaengt -- den Wirt (`garetien.de`) und
+ * den eigenen Wiki-Artikel. Gleiche Domain, gleiche Namensnennung, gleiche Lizenz; in der Infobox
+ * standen sie als zwei Zeilen untereinander, von denen die eine in der anderen steckt.
+ *
+ * 💣 SIE LOESCHT NUR DIE VERKNUEPFUNG, NIEMALS DIE `sources`-ZEILE. Der Quellenkatalog ist
+ * geteilt (AGENTS.md §5): dieselbe Adresse kann an tausend anderen Objekten haengen, auch an
+ * solchen, die mit diesem Import nichts zu tun haben.
+ *
+ * 🔴 DREI BEDINGUNGEN, UND JEDE EINZELNE IST EIN RIEGEL:
+ *   · `origin = 'garetien'` -- was ein Mensch uebernommen hat, gehoert ihm. Dieselbe Regel wie
+ *     in avesmapsGaretienQuelleAnlegen, wo eine fremde Notiz stehenbleibt.
+ *   · die Adresse ist GENAU der Wirt -- kein `LIKE`, keine Praefixsuche; sonst traefe es die
+ *     Artikeladresse gleich mit, und das Objekt stuende ohne jede Quelle da.
+ *   · am SELBEN Objekt haengt eine Artikeladresse DESSELBEN Wirts, ebenfalls aus unserer Hand.
+ *     Ohne sie waere die Sammelquelle die einzige Angabe, die es gibt -- knapp die Haelfte der
+ *     Zeilen nennt keinen Artikel.
+ *
+ * ⚠️ Ein `suppressed`-Grabstein bleibt liegen: er BEDEUTET „hier soll nichts haengen", und
+ * ihn zu loeschen hiesse, die Entscheidung dahinter zu vergessen.
+ *
+ * ⚠️ Zwei Anweisungen, eine je Wirt -- die Adressform wird nicht in SQL zusammengesetzt
+ * (`CONCAT` kennt SQLite nicht, `||` liest MySQL als ODER). Die Wirte kommen aus
+ * avesmapsGaretienWirtAusZeile, damit die beiden Hosts nicht ein zweites Mal im Repo stehen.
+ *
+ * @return int Zahl der geloesten Verknuepfungen
+ */
+function avesmapsGaretienDoppelteSammelquellenLoesen(PDO $pdo): int
+{
+    $geloest = 0;
+    foreach (['ggp', 'kosch'] as $wiki) {
+        $wirt = avesmapsGaretienWirtAusZeile(['wiki' => $wiki]);
+        try {
+            // 💣 Die doppelte Ableitungstabelle ist Pflicht, nicht Stil: MySQL lehnt eine
+            // Unterabfrage auf die GELOESCHTE Tabelle mit Fehler 1093 ab, SQLite nicht -- ein Test
+            // gegen SQLite wuerde die Regression also nicht sehen (AGENTS.md §9).
+            $stmt = $pdo->prepare(
+                'DELETE FROM feature_sources WHERE id IN (SELECT id FROM ('
+                . '  SELECT fs.id FROM feature_sources fs'
+                . '    JOIN sources s ON s.id = fs.source_id'
+                . "   WHERE fs.origin = :o AND fs.status <> 'suppressed' AND s.url = :wirt"
+                . '     AND EXISTS ('
+                . '       SELECT 1 FROM feature_sources fa JOIN sources sa ON sa.id = fa.source_id'
+                . '        WHERE fa.entity_type = fs.entity_type'
+                . '          AND fa.entity_public_id = fs.entity_public_id'
+                . '          AND fa.origin = :o2 AND sa.url LIKE :artikel'
+                . '     )'
+                . ') x)'
+            );
+            $stmt->execute([
+                'o' => AVESMAPS_GARETIEN_SOURCE_ORIGIN,
+                'o2' => AVESMAPS_GARETIEN_SOURCE_ORIGIN,
+                'wirt' => $wirt,
+                'artikel' => $wirt . '/index.php/%',
+            ]);
+            $geloest += $stmt->rowCount();
+        } catch (PDOException) {
+            // Ohne die Quellentabellen gibt es nichts aufzuraeumen.
+        }
+    }
+
+    return $geloest;
+}
+
 function avesmapsGaretienArtikelQuellenNachtragen(PDO $pdo): array
 {
     try {
@@ -1184,7 +1251,7 @@ function avesmapsGaretienArtikelQuellenNachtragen(PDO $pdo): array
         $stmt->execute(['k' => AVESMAPS_GARETIEN_PLAN_KIND, 's' => 'done']);
     } catch (PDOException) {
         // Die Tabellen stehen noch nicht -- der Normalfall vor dem allerersten Lauf.
-        return ['geprueft' => 0, 'geschrieben' => 0];
+        return ['geprueft' => 0, 'geschrieben' => 0, 'aufgeraeumt' => 0];
     }
 
     // 💣 WER SIE SCHON HAT, WIRD UEBERSPRUNGEN -- und das ist die Bedingung, unter der dieser
@@ -1279,7 +1346,15 @@ function avesmapsGaretienArtikelQuellenNachtragen(PDO $pdo): array
         avesmapsNextMapRevision($pdo);
     }
 
-    return ['geprueft' => $geprueft, 'geschrieben' => $geschrieben];
+    // 🔴 ZULETZT, NIE DAVOR. Erst haengt der Artikel, dann faellt die Sammelquelle -- in der
+    // anderen Reihenfolge stuende ein Objekt zwischen den beiden Anweisungen ohne jede Quelle da,
+    // und ein Abbruch dazwischen liesse es so.
+    // 💣 UND SIE SITZT IM NACHZUG, nicht an seinen zwei Aufrufern (Planbau-Endpunkt und
+    // Ende eines Uebernahme-Vorgangs). An den Aufrufstellen waere sie beim naechsten vergessen --
+    // die Falle, die dieser Importer schon dreimal bezahlt hat.
+    $geloest = avesmapsGaretienDoppelteSammelquellenLoesen($pdo);
+
+    return ['geprueft' => $geprueft, 'geschrieben' => $geschrieben, 'aufgeraeumt' => $geloest];
 }
 
 /**
