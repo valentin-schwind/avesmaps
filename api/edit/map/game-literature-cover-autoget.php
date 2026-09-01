@@ -2,6 +2,15 @@
 
 declare(strict_types=1);
 
+// 🔴 AUSDRUECKLICHE FREIGABE FUER DIESEN KNOPF (Owner 01.09.2026). Der Datei-Riegel ist seit dem
+// 01.09.2026 zu (api/_internal/wiki/datei-riegel.php); ans Wiki kommt nur noch, was ein Editor
+// selbst startet. Dieser Endpunkt IST so ein Start, deshalb oeffnet er die Tuer fuer die Dauer
+// seines Schritts -- und `avesmapsWikiAusdruecklicherAbruf` schliesst sie im `finally` wieder,
+// auch wenn der Schritt wirft.
+// ⚠️ Selbst geladen, nicht vom Aufrufer erwartet: ein fehlendes require waere ein Fatal mit LEEREM
+// Rumpf -- im Browser nicht von einem Netzfehler zu unterscheiden.
+require_once __DIR__ . '/../../_internal/wiki/datei-riegel.php';
+
 // The game-literature cover autoget RUN (cap 'edit'). One bounded, GUARDED step per request; the CLIENT drives
 // the repetition (js/review/review-game-literature-cover-autoget.js). Built to the SAME pattern as
 // citymap-autoget.php and sharing its safety core (avesmapsAutogetGuardedStep + the ONE lock name): a
@@ -80,9 +89,11 @@ try {
     // catalog) is read read-only by the step; it too exists after the first "Dump holen". The step body is
     // wrapped by the shared gate, so {stopped:true}/{busy:true} can come back instead of the tally.
     $enabled = avesmapsGameLiteratureCoverAutogetEnabled($pdo);
-    $result = avesmapsAutogetGuardedStep($pdo, $enabled, AVESMAPS_AUTOGET_RUN_LOCK, function (PDO $pdo): array {
-        return avesmapsGameLiteratureCoverAutogetStep($pdo, AVESMAPS_AUTOGET_STEP_BUDGET_SECONDS);
-    });
+    // 🔴 Owner 01.09.2026: „Literatur-Cover-Download -> darf ueber ‚Vorschauen holen'".
+    $result = avesmapsWikiAusdruecklicherAbruf(static fn(): array =>
+        avesmapsAutogetGuardedStep($pdo, $enabled, AVESMAPS_AUTOGET_RUN_LOCK, function (PDO $pdo): array {
+            return avesmapsGameLiteratureCoverAutogetStep($pdo, AVESMAPS_AUTOGET_STEP_BUDGET_SECONDS);
+        }));
     avesmapsJsonResponse(200, $result);
 } catch (Throwable $exception) {
     // No getMessage() to the client (info disclosure, refactoring milestone M1).

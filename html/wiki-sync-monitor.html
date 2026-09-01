@@ -775,6 +775,10 @@ async function restoreWikiParent(k){
 // #3: gemeinfreies Wiki-Wappen auf den Avesmaps-Server laden -> lokale Kopie als coat_of_arms_url-Override.
 async function saveCoatLocal(k){
   const n=BYKEY.get(k); if(!n) return;
+  // 🔴 RÜCKFRAGE, DIE DAS WIKI BEIM NAMEN NENNT (Owner 01.09.2026: „darf über Alert-Popup ‚Wiki
+  // wird angefragt'"). Seit dem 01.09.2026 ist der Datei-Riegel zu; dieser Knopf ist eine
+  // ausdrückliche Ausnahme — bis dahin ging der Abruf völlig wortlos hinaus.
+  if(!window.confirm('WIKI WIRD ANGEFRAGT\n\nWappen von Wiki Aventurica holen und auf unseren Server legen?\n\nDabei geht eine Anfrage an das Wiki hinaus. Geholt wird nur ein gemeinfreies Wappen.')){ return; }
   busy(true);
   try{
     const r=await api('save_coat_local',{method:'POST',body:{wiki_key:k}});

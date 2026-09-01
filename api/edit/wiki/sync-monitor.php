@@ -8,6 +8,10 @@ declare(strict_types=1);
 // Sandbox-Logik in _internal/wiki/sync-monitor.php.
 
 require __DIR__ . '/../../_internal/auth.php';
+// 🔴 Der Datei-Riegel -- selbst geladen, nicht ueber die Kette erwartet. `save_coat_local` unten
+// ruft avesmapsWikiAusdruecklicherAbruf; kaeme die Funktion nur zufaellig ueber einen anderen
+// require herein, waere der Knopf beim naechsten Umbau ein Fatal mit LEEREM Rumpf.
+require_once __DIR__ . '/../../_internal/wiki/datei-riegel.php';
 require_once __DIR__ . '/../../_internal/wiki/sync.php';
 require_once __DIR__ . '/../../_internal/wiki/locations.php';
 require_once __DIR__ . '/../../_internal/wiki/territories.php';
@@ -180,10 +184,18 @@ try {
                 (string) ($payload['wiki_key'] ?? ''),
                 (string) ($payload['field_key'] ?? '')
             ),
-            'save_coat_local' => avesmapsWikiSyncMonitorSaveCoatLocal(
-                $pdo,
-                (string) ($payload['wiki_key'] ?? '')
-            ),
+            // 🔴 Owner 01.09.2026: „der Territorien-Einzelknopf ‚Wappen herunterladen' -> darf
+            // ueber Alert-Popup ‚Wiki wird angefragt'". Der Hinweis steht im Editor
+            // (html/wiki-sync-monitor.html); hier steht die Freigabe, ohne die der Knopf am
+            // geschlossenen Riegel scheitern wuerde.
+            // ⚠️ NUR dieser eine Knopf. `localize_coats` daneben bringt seine Freigabe selbst mit
+            // (in avesmapsWikiSyncMonitorLocalizeCoats), und der Wrapper vertraegt Verschachtelung:
+            // sein `finally` stellt den VORHERIGEN Stand her, nicht hart `false`.
+            'save_coat_local' => avesmapsWikiAusdruecklicherAbruf(static fn(): array =>
+                avesmapsWikiSyncMonitorSaveCoatLocal(
+                    $pdo,
+                    (string) ($payload['wiki_key'] ?? '')
+                )),
             'localize_coats' => avesmapsWikiSyncMonitorLocalizeCoats($pdo, $options),
             // Global "Wappen: An/Aus" for the TERRITORY coats (ribbon toggle). No dry_run -- always a real
             // write, like the settlement-image switch it mirrors.

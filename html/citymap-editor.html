@@ -1977,7 +1977,11 @@
       ceStatus("Nur im eingebetteten Editor verfügbar.", true);
       return;
     }
-    if (!window.confirm("Für alle Karten ohne eigenes Vorschaubild ein Bild holen?\n\nWiki-Karten über die MediaWiki-API, Ulisses über die Produkt-API. Verlagscover werden öffentlich sichtbar, eigene Uploads bleiben unangetastet. Der Durchlauf dauert ein bis zwei Minuten und lässt sich fortsetzen.")) {
+    // 🔴 DAS WIKI WIRD BEIM NAMEN GENANNT (Owner 01.09.2026: „darf über Alert-Popup ‚Wiki wird
+    // angefragt'"). Seit dem 01.09.2026 ist der Datei-Riegel zu; dieser Lauf ist eine der wenigen
+    // ausdrücklichen Ausnahmen, und wer ihn startet, soll wissen, dass dabei Anfragen an Wiki
+    // Aventurica hinausgehen. Der alte Text nannte die „MediaWiki-API" nur im Nebensatz.
+    if (!window.confirm("WIKI WIRD ANGEFRAGT\n\nFür alle Karten ohne eigenes Vorschaubild ein Bild holen?\n\nDieser Lauf ruft Wiki Aventurica auf — MediaWiki-API und Bilddateien; Ulisses-Karten gehen über die Produkt-API. Verlagscover werden öffentlich sichtbar, eigene Uploads bleiben unangetastet. Der Durchlauf dauert ein bis zwei Minuten und lässt sich fortsetzen.")) {
       return;
     }
     setAutogetBusy(true);

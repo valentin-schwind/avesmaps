@@ -175,6 +175,13 @@ $ausnahmen = [
     'api/_internal/discord/post-message.php' => 'discord.com',
     'api/discord/register-commands.php' => 'discord.com',
     'api/_internal/mail/mailer.php' => 'SMTP, kein HTTP',
+    // 🔴 ZWEI AUSGAENGE, EINER GERIEGELT -- und das ist der Owner-Entscheid vom 01.09.2026, nicht
+    // eine Luecke. `avesmapsLinkCheckRequest` schickt ein HEAD und liest den Statuscode: das ist
+    // die Linkpruefung selbst, kein Bildabruf, und sie betrifft UNSERE Links, von denen sehr viele
+    // ins Wiki zeigen (364 von 365 Kartenlinks). Riegelte man sie, waeren genau diese Links
+    // dauerhaft ungeprueft. `avesmapsLinkCheckFetchBody` holt dagegen Bytes -- der bleibt gebunden,
+    // und Abschnitt 2b unten prueft das gezielt, statt die Datei einfach durchzuwinken.
+    'api/_internal/linkcheck/probe.php' => 'HEAD-Zweig frei (Linkpruefung), Bild-Zweig gebunden -- siehe 2b',
 ];
 
 $ungebunden = [];
@@ -213,6 +220,27 @@ $pruefe($ungebunden === [],
     . "Entweder `avesmapsWikiDateiAbrufErlaubt(\$url)` davorsetzen (und BEVOR die Drossel gefragt\n"
     . "wird -- ein geriegelter Abruf hat nie eine Anfrage gestellt), oder mit Begruendung in die\n"
     . "Ausnahmeliste in diesem Test eintragen.");
+
+// =====================================================================================
+// ABSCHNITT 2b -- DER BILD-HOLER DES LINKCHECKERS BLEIBT GEBUNDEN
+// =====================================================================================
+// 🔴 `probe.php` steht oben als Ausnahme, weil ihr HEAD-Zweig frei sein DARF. Diese Ausnahme gilt
+// aber nur der einen Funktion; ohne die Pruefung hier waere die ganze Datei durchgewunken, und der
+// Bild-Holer koennte seinen Riegel unbemerkt verlieren -- genau der Zustand, der bis zum
+// 01.09.2026 bestand und ueber den der Stadtkarten-Autoget Wiki-Bilder im Massenlauf holte.
+$probe = avesmapsRiegelTestOhneKommentare((string) file_get_contents($wurzel . '/api/_internal/linkcheck/probe.php'));
+$rumpfFetchBody = '';
+$start = strpos($probe, 'function avesmapsLinkCheckFetchBody');
+if ($start !== false) {
+    // Bis zur naechsten Funktionsdefinition auf Dateiebene -- reicht, um den Rumpf zu fassen.
+    $ende = strpos($probe, "\nfunction ", $start + 10);
+    $rumpfFetchBody = substr($probe, $start, $ende === false ? null : $ende - $start);
+}
+$pruefe($rumpfFetchBody !== '', 'avesmapsLinkCheckFetchBody nicht gefunden -- umbenannt oder entfernt?');
+$pruefe(str_contains($rumpfFetchBody, 'avesmapsWikiDateiAbrufErlaubt'),
+    "avesmapsLinkCheckFetchBody fragt den Riegel nicht mehr. Diese Funktion HOLT BYTES (Bilder) vom\n"
+    . "Wiki -- ueber sie lief der Stadtkarten-Autoget jahrelang am Riegel vorbei. Der HEAD-Zweig\n"
+    . "daneben darf frei sein, dieser nicht.");
 
 // =====================================================================================
 // ABSCHNITT 3 -- DER RIEGEL IST ZU, UND DIE ZWEI KNOEPFE KOENNEN IHN TROTZDEM PASSIEREN

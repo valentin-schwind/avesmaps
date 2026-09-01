@@ -186,13 +186,24 @@ function avesmapsLinkCheckRequest(string $url, bool $useHead): array
     // ⚠️ Er darf hier WARTEN: `avesmapsLinkCheckRunStep` prueft sein Zeitbudget vor jeder Zeile
     // und hoert auf, statt zu ueberziehen; die uebrigen Zeilen bleiben faellig und kommen im
     // naechsten Schritt dran.
-    // 🔴 DER RIEGEL STEHT VOR DER DROSSEL. Ein geriegelter Abruf hat NIE EINE ANFRAGE GESTELLT und
-    // darf deshalb weder den Crawl-Delay verbrauchen noch einen Fehlschlag-Zaehler fuettern --
-    // dieselbe Ordnung wie in api/app/coat.php und aus demselben Grund (eine Sperre, die den
-    // Zaehler einer anderen Sperre fuettert, baut eine Zeitbombe).
-    if (!avesmapsWikiDateiAbrufErlaubt($url)) {
-        return ['ok' => false, 'status' => 0, 'error' => 'geriegelt', 'final_url' => '', 'headers' => []];
-    }
+    // 🔴 HIER STEHT ABSICHTLICH KEIN RIEGEL (Owner-Entscheid 01.09.2026).
+    //
+    // Der Riegel gilt dem HOLEN VON BILDERN. Diese Funktion holt keins: sie schickt ein HEAD (oder
+    // ein Range-GET ueber ein einziges Byte) und liest den Statuscode. Sie ist der Linkchecker --
+    // ihre Aufgabe ist die Frage „funktioniert dieser Link noch?", und ein Link laesst sich nicht
+    // pruefen, ohne ihn abzurufen.
+    //
+    // ⚠️ WARUM DAS TROTZDEM WIE WIKI-VERKEHR AUSSIEHT: die geprueften Adressen sind UNSERE
+    // gespeicherten Links, und sehr viele zeigen ins Wiki -- 364 von 365 Kartenlinks
+    // (api/_internal/app/citymaps.php:65), dazu jedes `adventure.wiki_url`. Der Linkchecker laeuft
+    // also nicht „ueber das Wiki", er prueft Verweise, die dorthin fuehren. Wer ihn hier riegelt,
+    // schaltet nicht einen Wiki-Abruf ab, sondern die Pruefung genau der Links, die am haeufigsten
+    // kaputtgehen -- und bekommt sie dauerhaft als „ungeprueft" gemeldet.
+    //
+    // 🔴 Der Bild-Holer eine Etage tiefer (`avesmapsLinkCheckFetchBody`) IST geriegelt. Das ist die
+    // Trennlinie: Statuscode lesen ja, Bytes holen nur auf ausdruecklichen Knopfdruck.
+    // ⚠️ Gedrosselt bleibt es in jedem Fall -- 20 s Crawl-Delay aus der robots.txt des Wikis, siehe
+    // direkt darunter.
     if (avesmapsWikiDrosselGiltFuer($url)) {
         avesmapsWikiSyncThrottleWikiRequest();
     }
