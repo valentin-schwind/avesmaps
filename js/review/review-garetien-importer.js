@@ -4176,9 +4176,21 @@
 	// bedienen zwei verschiedene Mengen desselben Objekts, und welcher davon etwas kann, sagt seine
 	// Zahl. Bei einem Objekt, dessen Items ausschließlich ein bestehendes Objekt beschrieben haben,
 	// ist „Zurücknehmen" leer und DIESER trägt alles -- genau der Fall des Owners.
+	// 💣 „ÜBERNOMMEN" HAT ZWEI QUELLEN, UND BEIDE MÜSSEN HIER STEHEN. `apply_state === 'done'` gilt
+	// nur für den GERADE laufenden Lauf; `applied` ist der dauerhafte Vermerk in `sync_decision`,
+	// der einen „Holen & Rechnen"-Lauf überlebt. avesmapsGaretienListeObjektStand
+	// (garetien-liste.php) liest beide -- genau dafür wurde der zweite am 30.08.2026 überhaupt
+	// eingeführt, damit sich die Liste leer arbeiten lässt.
+	//
+	// 🔴 BEIM ERSTEN BAU STAND HIER NUR DIE ERSTE. Der Owner rechnete danach neu, die frischen
+	// Items standen auf `apply_state = null`, der Vermerk blieb -- das Objekt zeigte „Übernommen"
+	// und BEKAM KEINEN KNOPF. „wie nehm ich das zurück" war die Folge: es gab schlicht keinen Weg.
+	// Dieselbe Falle wie überall in dieser Datei: eine Regel, die einen von zwei Erzeugern bindet,
+	// ist keine Regel.
 	function garetienZurueckOffenItems(objekt) {
 		return ((objekt && objekt.items) || []).filter(function (item) {
-			return item && item.apply_state === "done" && String(item.change_type || "") === "changed";
+			if (!item || String(item.change_type || "") !== "changed") { return false; }
+			return item.apply_state === "done" || item.applied === true;
 		});
 	}
 

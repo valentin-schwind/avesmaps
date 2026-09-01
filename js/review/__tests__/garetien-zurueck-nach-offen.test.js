@@ -81,6 +81,33 @@ tief(garetienZurueckOffenBauen(nurGeaendert).ids, [801], "mit der id des überno
 gleich(garetienZurueckOffenBauen(nurGeaendert).beschriftung, "Zurück nach Offen",
 	"und trägt, was er tut");
 
+// =================================================================================================
+// 💣 „ÜBERNOMMEN" HAT ZWEI QUELLEN -- UND DIE ZWEITE WAR DER FALL DES OWNERS
+// =================================================================================================
+// `apply_state === "done"` gilt nur für den GERADE laufenden Lauf. `applied` ist der dauerhafte
+// Vermerk in `sync_decision`, der ein „Holen & Rechnen" überlebt -- genau dafür wurde er am
+// 30.08.2026 eingeführt, damit sich die Liste leer arbeiten lässt.
+//
+// 🔴 BEIM ERSTEN BAU PRÜFTE DIESER TEST NUR DIE ERSTE QUELLE, und er war grün. Der Owner rechnete
+// danach neu; die frischen Items standen auf `apply_state = null`, der Vermerk blieb -- sein
+// „Praioslob" zeigte „Übernommen" und bekam KEINEN Knopf. Seine Frage lautete wörtlich: „wie nehm
+// ich das zurück". Es gab schlicht keinen Weg.
+const nachNeuemLauf = {
+	key: "gi:praioslob", name: "Praioslob", urteil: "ergaenzung", stand: "uebernommen",
+	geometrie_typ: "Point",
+	items: [{ id: 802, change_type: "changed", apply_state: null, applied: true,
+		anlass: "ergaenzung", felder: ["quelle"], selected: 1 }],
+};
+tief(garetienZurueckOffenItems(nachNeuemLauf).map((i) => i.id), [802],
+	"🔴 ein Objekt, das nur über den DAUERHAFTEN Vermerk übernommen ist, bekommt den Knopf auch");
+wahr(namen(nachNeuemLauf).includes("zurueck_offen"),
+	"und er steht in der Leiste: " + namen(nachNeuemLauf));
+
+// ⚠️ Die Gegenprobe: ein Item, das WEDER `done` noch `applied` ist, steht schon offen.
+tief(garetienZurueckOffenItems({
+	items: [{ id: 803, change_type: "changed", apply_state: null, applied: false, selected: 1 }],
+}), [], "ein Item ohne beide Vermerke wandert nicht");
+
 // 💣 „Ablehnen" steht NICHT dabei: es kann nur, was sich auch zurücknehmen lässt, und hier lässt
 // sich nichts zurücknehmen. Ohne diese Zeile könnte der neue Knopf die alte Regel aufgeweicht
 // haben, ohne dass es auffällt.

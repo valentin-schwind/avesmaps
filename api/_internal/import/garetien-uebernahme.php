@@ -1636,16 +1636,28 @@ function avesmapsGaretienZurueckAufOffen(PDO $pdo, int $runId, array $itemIds, a
 
     $platzhalter = implode(',', array_fill(0, count($itemIds), '?'));
     $stmt = $pdo->prepare(
-        'SELECT id, change_type, apply_state FROM sync_plan_item'
+        'SELECT id, entity_key, change_type, apply_state FROM sync_plan_item'
         . ' WHERE run_id = ? AND id IN (' . $platzhalter . ') ORDER BY id'
     );
     $stmt->execute(array_merge([$runId], array_map('intval', $itemIds)));
+
+    // \U0001f4a3 „UEBERNOMMEN" HAT ZWEI QUELLEN. `apply_state = 'done'` gilt nur fuer den GERADE
+    // laufenden Lauf; der dauerhafte Vermerk in `sync_decision` ueberlebt ein „Holen & Rechnen".
+    // Nach einem neuen Lauf stehen die Items auf `apply_state = null` und das Objekt trotzdem in
+    // „Uebernommen" -- wer nur die erste Quelle liest, verschiebt dann NICHTS und meldet Erfolg.
+    $entscheidungen = avesmapsSyncPlanDecisions($pdo, AVESMAPS_GARETIEN_PLAN_KIND);
 
     $verschoben = 0;
     $fehler = [];
     foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $item) {
         $itemId = (int) $item['id'];
-        if ((string) ($item['apply_state'] ?? '') !== 'done') {
+        $schluessel = avesmapsSyncPlanDecisionKey(
+            (string) $item['entity_key'],
+            (string) $item['change_type']
+        );
+        $uebernommen = (string) ($item['apply_state'] ?? '') === 'done'
+            || ($entscheidungen[$schluessel]['applied_at'] ?? null) !== null;
+        if (!$uebernommen) {
             continue;   // steht schon offen -- kein Fehler
         }
         if ((string) $item['change_type'] !== 'changed') {

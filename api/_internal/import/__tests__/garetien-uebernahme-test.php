@@ -2776,4 +2776,86 @@ assert(($standW['uebernommen'] ?? 0) === 1,
     . 'darueber eine Konstante: ' . json_encode($standW));
 $pruefungen++;
 
+// =================================================================================================
+// 🔴 ZURUECK NACH „OFFEN" -- und die zweite Quelle von „uebernommen"
+// =================================================================================================
+// Owner 31.08.2026: „wir wollen aber 'Übernommen' zurück nach 'Offen' verschieben können."
+//
+// 💣 „UEBERNOMMEN" HAT ZWEI QUELLEN, UND DIE ZWEITE WAR DER FALL DES OWNERS.
+// `apply_state = 'done'` gilt nur fuer den GERADE laufenden Lauf; der dauerhafte Vermerk in
+// `sync_decision.applied_at` ueberlebt ein „Holen & Rechnen". Nach einem neuen Lauf stehen die
+// Items auf `apply_state = null` und das Objekt trotzdem in „Uebernommen" -- wer nur die erste
+// Quelle liest, verschiebt NICHTS und meldet trotzdem Erfolg. Genau das ist passiert: sein
+// „Praioslob" zeigte „Uebernommen" und hatte keinen Ausgang.
+$pdoZ = avesmapsGaretienUebernahmeTestPdo();
+$laufZ = (int) avesmapsSyncPlanOpenRun($pdoZ, AVESMAPS_GARETIEN_PLAN_KIND)['id'];
+$idZ = '00000000-0000-4000-8000-0000000e0001';
+$pdoZ->prepare('INSERT INTO map_features (public_id, name, feature_type, feature_subtype, geometry_json, properties_json, geometry_type) VALUES (?,?,?,?,?,?,?)')
+    ->execute([$idZ, 'Praioslob', 'location', 'stadt',
+        json_encode(['type' => 'Point', 'coordinates' => [5.0, 5.0]]), '{}', 'Point']);
+
+$baueZ = static function (PDO $pdo, int $lauf, string $label, string $key, string $publicId, string $changeType): void {
+    avesmapsSyncPlanAddItem($pdo, $lauf, [
+        'entity_key' => $key,
+        'entity_public_id' => $changeType === 'new' ? null : $publicId,
+        'change_type' => $changeType,
+        'label' => $label,
+        'before' => $changeType === 'new' ? [] : ['public_id' => $publicId, 'name' => 'Praioslob'],
+        'after' => ['herkunft' => 'garetien', 'wiki' => 'ggp', 'ebene' => 'Ortschaften_3',
+            'anlass' => 'ergaenzung', 'felder' => ['quelle'], 'ziel' => 'location', 'subtyp' => 'stadt',
+            'quelle' => ['url' => 'https://www.garetien.de', 'label' => 'Briefspiel (Garetien)'],
+            'seite_url' => AVESMAPS_GARETIEN_BASIS_GGP . 'Ortschaften_3'],
+        'override' => [], 'selected' => 1,
+    ]);
+};
+
+// --- Der Fall des Owners: das Item ist FRISCH (apply_state = NULL), der dauerhafte Vermerk steht.
+$baueZ($pdoZ, $laufZ, 'Praioslob \u00b7 Quelle', 'ggp:Ortschaften_3:Stadt:Garetien:Stadt Praioslob', $idZ, 'changed');
+$itemZ = $itemIdVon($pdoZ, 'Praioslob \u00b7 Quelle');
+avesmapsSyncPlanRecordApplied($pdoZ, AVESMAPS_GARETIEN_PLAN_KIND,
+    'ggp:Ortschaften_3:Stadt:Garetien:Stadt Praioslob', 7, 'changed');
+$standVorher = (string) $pdoZ->query("SELECT apply_state FROM sync_plan_item WHERE id = $itemZ")->fetchColumn();
+assert($standVorher === '', 'die Vorbedingung: das Item ist frisch, nicht "done" -- ' . var_export($standVorher, true));
+$vermerkVorher = $pdoZ->query(
+    "SELECT applied_at FROM sync_decision WHERE kind = 'garetien' AND entity_key = 'ggp:Ortschaften_3:Stadt:Garetien:Stadt Praioslob'"
+)->fetchColumn();
+assert($vermerkVorher !== false && $vermerkVorher !== null, 'und der dauerhafte Vermerk steht');
+$pruefungen += 2;
+
+$zZ = avesmapsGaretienZurueckAufOffen($pdoZ, $laufZ, [$itemZ], ['id' => 7]);
+assert($zZ['verschoben'] === 1,
+    '🔴 ein Objekt, das NUR ueber den dauerhaften Vermerk uebernommen ist, wandert auch zurueck: '
+    . json_encode($zZ));
+$vermerkNachher = $pdoZ->query(
+    "SELECT applied_at FROM sync_decision WHERE kind = 'garetien' AND entity_key = 'ggp:Ortschaften_3:Stadt:Garetien:Stadt Praioslob'"
+)->fetchColumn();
+assert($vermerkNachher === null, 'und der Vermerk ist geloescht: ' . var_export($vermerkNachher, true));
+$pruefungen += 2;
+
+// --- 💣 UND DAS KARTENOBJEKT BLEIBT. Das ist die tragende Zusicherung dieser Funktion.
+$objektNachher = $pdoZ->query("SELECT is_active, name FROM map_features WHERE public_id = '$idZ'")->fetch(PDO::FETCH_ASSOC);
+assert($objektNachher !== false && (int) $objektNachher['is_active'] === 1,
+    '🔴 das Kartenobjekt bleibt unangetastet auf der Karte');
+assert($objektNachher['name'] === 'Praioslob', 'und behaelt seinen Namen');
+$pruefungen += 2;
+
+// --- 🔴 EIN 'new'-ITEM WANDERT NICHT, und der Grund nennt den richtigen Weg. Es einfach
+// zurueckzuschieben liesse das angelegte Objekt auf der Karte und boete an, es ein zweites Mal
+// anzulegen.
+$baueZ($pdoZ, $laufZ, 'Neuling \u00b7 neu', 'ggp:Ortschaften_3:Stadt:Garetien:Neuling', $idZ, 'new');
+$itemNeuZ = $itemIdVon($pdoZ, 'Neuling \u00b7 neu');
+avesmapsGaretienItemAbschliessen($pdoZ, $itemNeuZ, 'done', $idZ, 7);
+$zNeu = avesmapsGaretienZurueckAufOffen($pdoZ, $laufZ, [$itemNeuZ], ['id' => 7]);
+assert($zNeu['verschoben'] === 0, 'ein angelegtes Objekt wandert NICHT zurueck: ' . json_encode($zNeu));
+assert(count($zNeu['fehler']) === 1 && str_contains($zNeu['fehler'][0]['grund'], 'Zuruecknehmen'),
+    'und der Grund nennt den richtigen Weg: ' . json_encode($zNeu['fehler']));
+$pruefungen += 2;
+
+// --- ⚠️ Ein Item, das nie uebernommen wurde, ist kein Fehler -- es ist schon dort, wo es hin soll.
+$baueZ($pdoZ, $laufZ, 'Offen \u00b7 Quelle', 'ggp:Ortschaften_3:Stadt:Garetien:Offen', $idZ, 'changed');
+$zOffen = avesmapsGaretienZurueckAufOffen($pdoZ, $laufZ, [$itemIdVon($pdoZ, 'Offen \u00b7 Quelle')], ['id' => 7]);
+assert($zOffen === ['verschoben' => 0, 'fehler' => []],
+    'ein nie uebernommenes Item wird uebersprungen, nicht beanstandet: ' . json_encode($zOffen));
+$pruefungen++;
+
 echo "OK: {$pruefungen} Pruefungen\n";
