@@ -1,0 +1,243 @@
+<title>Wirt-Register und Fundstelle (Mockup)</title>
+<style>
+/* Farbwerte 1:1 aus css/base/tokens.css. */
+:root{--panel:#fffdf9;--panel-soft:#faf6ee;--panel-muted:#f1ece1;--text:#2e271e;--text-strong:#3c3327;
+--text-muted:#706557;--border:#ddd3c3;--border-strong:#cdbfa8;--divider:rgba(125,115,96,.30);
+--button:#5b5548;--button-border:#635b4d;--button-text:#f6efe1;--button-soft:#efe9db;
+--button-soft-text:#564b3b;--button-soft-border:#cdbda0;--link:#8f7326;--accent-brown:#7a5a3a;
+--warning-soft:#faeeda;--warning-soft-border:#ef9f27;--warning-soft-text:#854f0b;
+--success-soft:#e9f0e0;--success-soft-border:#8ba86a;--success-soft-text:#4a6129;
+--kanon-nein:#7fd4c1;--kanon-nein-text:#10312b;--page:#efe7d8;--radius-sm:5px;--radius-md:8px}
+:root[data-theme="dark"]{--panel:#312e26;--panel-soft:#37342b;--panel-muted:#39352b;--text:#eee7da;
+--text-strong:#f5f0e4;--text-muted:#b4a895;--border:#514a3c;--border-strong:#615a49;
+--divider:rgba(207,197,171,.24);--button:#6b6456;--button-border:#7a7361;--button-text:#f5ebd7;
+--button-soft:#3a362c;--button-soft-text:#eae1cf;--button-soft-border:#585142;--link:#d7c38b;
+--accent-brown:#c9a97e;--warning-soft:#3b3122;--warning-soft-border:#6d5629;--warning-soft-text:#e9c684;
+--success-soft:#2b3324;--success-soft-border:#5c7040;--success-soft-text:#bcd39a;--page:#26241e}
+*{box-sizing:border-box}
+body{margin:0;padding:26px 24px 80px;background:var(--page);color:var(--text);
+font-family:"Faculty Glyphic",Arial,sans-serif;font-size:14px;line-height:1.5}
+h1{margin:0 0 4px;font-size:25px;color:var(--text-strong)}
+h2{margin:38px 0 4px;padding-bottom:8px;border-bottom:1px solid var(--divider);font-size:19px;color:var(--text-strong)}
+h3{margin:22px 0 6px;font-size:15px;color:var(--text-strong)}
+p{margin:8px 0;color:var(--text-muted);max-width:86ch}
+p strong,li strong,td strong{color:var(--text-strong)}
+code{padding:1px 5px;border-radius:var(--radius-sm);background:var(--panel-muted);color:var(--text-strong);
+font-family:Consolas,monospace;font-size:12px}
+ul{max-width:86ch;padding-left:20px}li{margin:7px 0;color:var(--text-muted)}
+table.m{border-collapse:collapse;margin:10px 0;font-size:13px}
+table.m th,table.m td{padding:5px 16px 5px 0;text-align:left;border-bottom:1px solid var(--divider);color:var(--text-muted)}
+table.m th{color:var(--text-strong);font-weight:700}
+.sw{position:fixed;top:14px;right:16px;padding:6px 12px;border:1px solid var(--button-soft-border);
+border-radius:var(--radius-md);background:var(--button-soft);color:var(--button-soft-text);font:inherit;font-size:12px;cursor:pointer;z-index:5}
+.wlabel{margin:16px 0 4px;font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--text-muted)}
+.wirt{border:1px solid var(--border);border-radius:var(--radius-md);background:var(--panel);padding:14px 16px;max-width:820px}
+.reihe{display:flex;gap:20px;flex-wrap:wrap;align-items:flex-start}
+
+/* Eingabezeile */
+.fs-add{display:flex;flex-wrap:wrap;gap:8px;align-items:flex-end}
+.f{display:flex;flex-direction:column;gap:3px}
+.f>span{font-size:11px;color:var(--text-muted)}
+.f--grow{flex:1 1 260px;min-width:0}
+.f--full{flex:1 1 100%}
+input,select{padding:5px 8px;border:1px solid var(--border-strong);border-radius:var(--radius-md);
+background:var(--panel);color:var(--text);font:inherit;font-size:12px;min-width:0}
+input[disabled],select[disabled]{background:var(--panel-muted);color:var(--text-muted);cursor:not-allowed}
+.btn{padding:6px 14px;border-radius:var(--radius-md);font:inherit;font-size:12px;cursor:pointer;
+border:1px solid var(--button-border);background:var(--button);color:var(--button-text)}
+.note{margin-top:10px;padding:8px 10px;border-radius:var(--radius-md);font-size:12px;
+border:1px solid var(--warning-soft-border);background:var(--warning-soft);color:var(--warning-soft-text)}
+.note--ok{border-color:var(--success-soft-border);background:var(--success-soft);color:var(--success-soft-text)}
+.lock{font-size:10px;color:var(--text-muted)}
+
+/* Quellenzeile */
+.fs-box{border:1px solid var(--border);border-radius:var(--radius-md);padding:10px 12px;max-width:400px}
+.fs-lbl{margin:0 0 6px;font-size:12px;color:var(--text-muted)}
+.fs-list{list-style:none;margin:0;padding:0}
+.fs-row{display:flex;align-items:baseline;gap:8px;flex-wrap:nowrap;padding:2px 0}
+.fs-main{flex:1 1 auto;min-width:0;display:flex;align-items:baseline}
+.fs-title{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--link)}
+.fs-marks{flex:0 0 auto;display:inline-flex;align-items:center;gap:6px}
+.kanon{display:inline-flex;border-radius:999px;overflow:hidden;font-size:10px;text-transform:uppercase;letter-spacing:.03em}
+.kanon b{padding:2px 7px 1px;font-weight:700;background:var(--kanon-nein);color:var(--kanon-nein-text)}
+.kanon i{padding:2px 7px 1px;font-style:normal;background:var(--panel-muted);color:var(--text-muted);text-transform:none;letter-spacing:0}
+.info{width:15px;height:15px;padding:0;display:inline-flex;align-items:center;justify-content:center;
+border:1px solid var(--button-soft-border);border-radius:999px;background:var(--button-soft);
+color:var(--button-soft-text);font:inherit;font-size:10px;line-height:1;cursor:pointer}
+.rights{margin:6px 0;padding:8px 10px;border-left:2px solid var(--accent-brown);
+border-radius:0 var(--radius-sm) var(--radius-sm) 0;background:var(--panel-soft);font-size:11px}
+.rights dl{display:grid;grid-template-columns:auto 1fr;gap:3px 10px;margin:0}
+.rights dt{color:var(--text-muted)}.rights dd{margin:0;overflow-wrap:anywhere}
+.rights a{color:var(--link)}
+.vorher{opacity:.85}
+</style>
+
+<button class="sw" onclick="document.documentElement.setAttribute('data-theme',
+document.documentElement.getAttribute('data-theme')==='dark'?'light':'dark')">Hell / Dunkel</button>
+
+<h1>Wirt-Register und Fundstelle</h1>
+<p>Entwurf: <code>docs/superpowers/specs/2026-09-01-quellen-wirt-register-design.md</code></p>
+
+<h2>1 · Das Problem, in einem Bild</h2>
+<p>Das Modell zwingt den Editor zu einer Wahl zwischen zwei Fehlern — <strong>beide sind live</strong>:</p>
+
+<div class="reihe">
+<div>
+	<p class="wlabel">Weg A — präziser Link, unbrauchbarer Name (200 Zeilen)</p>
+	<div class="wirt vorher" style="max-width:380px">
+		<table class="m" style="margin:0">
+			<tr><th>Titel im Katalog</th><th>Adresse</th></tr>
+			<tr><td>Briefspiel</td><td>…/baronien/adlerflug</td></tr>
+			<tr><td>Briefspiel</td><td>…/baronien/hzgl-altentrallop</td></tr>
+			<tr><td>Briefspiel</td><td>…/staedte/herzogenstadt-trallop</td></tr>
+			<tr><td>Briefspiel</td><td>…/baronien/eslamsgrund</td></tr>
+			<tr><td><em>(ohne Titel)</em></td><td>…/baronien/sindelsaum</td></tr>
+		</table>
+		<p style="font-size:12px;margin-top:8px">Die Auswahlliste zeigt <strong>189× „Briefspiel"</strong>.
+		Wer den falschen erwischt, legt einen neuen an — damit er heißt, wie er will.</p>
+	</div>
+</div>
+<div>
+	<p class="wlabel">Weg B — brauchbarer Name, falscher Link (1 Zeile)</p>
+	<div class="wirt vorher" style="max-width:380px">
+		<table class="m" style="margin:0">
+			<tr><th>Titel im Katalog</th><th>Adresse</th></tr>
+			<tr><td>Briefspiel Liebliches Feld</td><td>…/wiki/Datei:Ponterra_detail</td></tr>
+		</table>
+		<p style="font-size:12px;margin-top:8px">Eine Zeile, <strong>32 Objekte</strong> — und die
+		Adresse zeigt auf eine beliebige Bildseite. Der Name stimmt, der Link ist für 31 der 32
+		Objekte falsch.</p>
+	</div>
+</div>
+</div>
+
+<h2>2 · Die Eingabezeile mit Register</h2>
+
+<h3>Bekannter Wirt — der Editor wählt keinen Namen mehr</h3>
+<div class="wirt">
+	<div class="fs-add">
+		<label class="f f--full"><span>Adresse der Fundstelle</span>
+			<input type="text" value="https://www.herzogtum-weiden.net/politik/liste-st/staedte/herzogenstadt-trallop"></label>
+		<label class="f f--grow"><span>Quelle <span class="lock">· vom Wirt gesetzt</span></span>
+			<input type="text" value="Briefspiel (Weiden)" disabled></label>
+		<label class="f"><span>Art <span class="lock">· gesetzt</span></span>
+			<select disabled><option>Briefspiel</option></select></label>
+		<label class="f"><span>Kanon <span class="lock">· gesetzt</span></span>
+			<select disabled><option>Inoffiziell</option></select></label>
+		<label class="f"><span>Seite(n)</span><input type="text" size="8" placeholder="optional"></label>
+		<button class="btn">Hinzufügen</button>
+	</div>
+	<div class="note note--ok">✓ <strong>herzogtum-weiden.net</strong> ist im Register:
+		<strong>Briefspiel (Weiden)</strong>, Briefspiel, inoffiziell, CC BY-NC-SA 3.0 · herzogtum-weiden.net.
+		Deine Adresse wird als <strong>Fundstelle</strong> an diesem Ort gespeichert.</div>
+</div>
+<p>🔴 <strong>Name, Art, Kanon, Lizenz und Nennung sind gesetzt und gesperrt.</strong> Er kann
+keinen falschen treffen und hat keinen Grund, einen neuen anzulegen. Übrig bleibt genau ein Feld,
+das er füllt — <strong>die Fundstelle</strong>. Damit ist der präzise Link nicht mehr die Kür,
+sondern das Einzige, wonach das Formular fragt.</p>
+
+<h3>Unbekannter Wirt — der freie Weg bleibt</h3>
+<div class="wirt">
+	<div class="fs-add">
+		<label class="f f--full"><span>Adresse der Fundstelle</span>
+			<input type="text" value="https://wiki.beispiel-briefspiel.de/Ort_Nordhag"></label>
+		<label class="f f--grow"><span>Quelle</span><input type="text" placeholder="Name des Briefspiels / Wikis"></label>
+		<label class="f"><span>Art</span><select><option>Art …</option><option>Briefspiel</option></select></label>
+		<label class="f"><span>Kanon</span><select><option>Inoffiziell</option><option>Offiziell</option></select></label>
+		<button class="btn">Hinzufügen</button>
+	</div>
+	<div class="note">⚠️ <strong>wiki.beispiel-briefspiel.de</strong> kennt das Register noch nicht.
+		Ist das ein Briefspiel oder Wiki, aus dem noch mehr kommt? Dann trag es <strong>einmal</strong>
+		als Quelle ein — danach genügt bei jedem weiteren Ort der Link.</div>
+</div>
+<p>⭐ So wächst das Register durch Benutzung, statt gepflegt werden zu müssen.</p>
+
+<h2>3 · Was der Besucher sieht</h2>
+<div class="reihe">
+<div>
+	<p class="wlabel">Heute</p>
+	<div class="fs-box vorher">
+		<p class="fs-lbl">Quellen:</p>
+		<ul class="fs-list">
+			<li><span class="fs-row"><span class="fs-main"><span class="fs-title">Briefspiel ↗</span></span>
+				<span class="fs-marks"><span class="kanon"><b>Inoffiziell</b><i>Sonstiges</i></span></span></span></li>
+		</ul>
+	</div>
+	<p style="font-size:12px;max-width:380px">Der Name sagt nichts, der Typ ist falsch, und der Link
+	führt zwar richtig — aber nur, weil eine eigene Katalogzeile dafür angelegt wurde.</p>
+</div>
+<div>
+	<p class="wlabel">Nachher — der Titel führt zur Fundstelle</p>
+	<div class="fs-box">
+		<p class="fs-lbl">Quellen:</p>
+		<ul class="fs-list">
+			<li>
+				<span class="fs-row"><span class="fs-main"><span class="fs-title">Briefspiel (Weiden) ↗</span></span>
+				<span class="fs-marks"><button class="info">i</button>
+					<span class="kanon"><b>Inoffiziell</b><i>Briefspiel</i></span></span></span>
+				<div class="rights"><dl>
+					<dt>Fundstelle</dt><dd><a href="#">…/staedte/herzogenstadt-trallop ↗</a></dd>
+					<dt>Quelle</dt><dd><a href="#">herzogtum-weiden.net ↗</a></dd>
+					<dt>Nennung</dt><dd>herzogtum-weiden.net</dd>
+					<dt>Lizenz</dt><dd><a href="#">CC BY-NC-SA 3.0 ↗</a></dd>
+				</dl></div>
+			</li>
+		</ul>
+	</div>
+	<p style="font-size:12px;max-width:380px">⚠️ Der <strong>Titel-Link zeigt auf die Fundstelle</strong>,
+	nicht auf die Startseite: wer klickt, will die Seite über <em>diesen</em> Ort. Die Quell-Adresse
+	steht hinter dem ⓘ — dort, wo seit dem 01.09.2026 auch Nennung und Lizenz stehen.</p>
+</div>
+</div>
+
+<h2>4 · Der Umfang</h2>
+<table class="m">
+	<tr><th>Wirt</th><th>heute</th><th>Titel</th><th>nachher</th><th>Objekte</th></tr>
+	<tr><td>herzogtum-weiden.net</td><td><strong>200</strong></td><td>4</td><td>1</td><td>286</td></tr>
+	<tr><td>wiki.punin.de</td><td>115</td><td>6</td><td>1</td><td>158</td></tr>
+	<tr><td>westlande.de</td><td>77</td><td>5</td><td>1</td><td>87</td></tr>
+	<tr><td>kahet-ni-kemi.de</td><td>16</td><td>2</td><td>1</td><td>20</td></tr>
+	<tr><td>garetien.de</td><td>8</td><td>4</td><td>1</td><td>8</td></tr>
+	<tr><td>übrige vier Wirte</td><td>9</td><td>6</td><td>4</td><td>40</td></tr>
+	<tr><td><strong>Summe</strong></td><td><strong>425</strong></td><td><strong>20</strong></td><td><strong>9</strong></td><td><strong>599</strong></td></tr>
+</table>
+
+<h2>5 · Die Fallen</h2>
+<ul>
+	<li>💣 <strong><code>de.wiki-aventurica.de</code> gehört NICHT ins Register.</strong> 21 Zeilen,
+	19 Titel — aber das sind <em>Werke</em>: „Mutterglück", „Das Erbe von Blaustein", „Kosch
+	(Regionalspielhilfe)", fünf davon offiziell. Ihre Adresse ist zufällig ein Wikiartikel, ihre
+	Identität ist der Titel. Zusammenlegen zerstörte 19 Werke zu einer Zeile. Die Regel ist also
+	nicht „ein Wirt, eine Quelle", sondern „ein Wirt, dessen Seiten <em>Belegstellen</em> sind" —
+	und das entscheidet ein Mensch je Wirt, kein Muster.</li>
+
+	<li>💣 <strong>Der Wirt allein reicht als Schlüssel nicht.</strong> <code>horaswiki.de</code> und
+	<code>wiki.horaswiki.de</code> sind dasselbe Angebot unter zwei Namen. Mehrere Wirte müssen auf
+	dieselbe Quelle zeigen dürfen — sonst entsteht die Doppelung neu, eine Ebene höher.</li>
+
+	<li>💣 <strong>Auch der TYP ist inkonsistent, nicht nur der Name.</strong> 190 der 200
+	Weiden-Zeilen stehen auf <code>sonstiges</code>, obwohl alle dasselbe Briefspiel sind. Wer nur
+	die Namen vereinheitlicht, hat die halbe Arbeit gemacht.</li>
+
+	<li>💣 <strong>Die Fundstelle ist eine Adresse, kein Text.</strong> Nicht in <code>pages</code> —
+	das rendert als „S. https://…". Eigene Spalte, nur <code>http(s)</code>, im Markup ein echter Link.</li>
+
+	<li>💣 <strong><code>is_official</code> überschreibt der Upsert unbedingt.</strong> Setzt das
+	Register den Kanon, muss es ihn auch beim Verknüpfen setzen — sonst kippt der erste Editor, der
+	den Haken nicht sieht, den Kanon des ganzen Korpus.</li>
+
+	<li>🔴 <strong>Schritt 3 ist der riskante.</strong> Er fasst 416 Katalogzeilen an. Dafür gibt es
+	<code>avesmapsMergeSourceInto</code> samt <code>source_merge_log</code> — der einzige Schreibweg
+	mit Protokoll. Erst Register und Fundstelle live, damit alles Neue richtig entsteht; das
+	Aufräumen danach, wirtweise, mit Vorschau.</li>
+</ul>
+
+<h2>6 · Was du entscheiden musst</h2>
+<ul>
+	<li>🔧 <strong>Wie heißen die neun Quellen?</strong> Bei „Briefspiel Káhet Ni Kemi" (9 Zeilen)
+	gegen „Briefspiel Kâhet Ni Kemi" (7) ist nicht einmal die Mehrheit eindeutig.</li>
+	<li>🔧 <strong>Register als Tabelle oder als Konstante?</strong> Neun Zeilen, die sich selten
+	ändern — eine Konstante wäre ehrlich; eine Tabelle ließe Editoren sie selbst erweitern.</li>
+	<li>🔧 <strong>Bleibt der freie Weg offen?</strong> Der Entwurf sagt ja — sonst kann niemand ein
+	neues Briefspiel eintragen.</li>
+</ul>
