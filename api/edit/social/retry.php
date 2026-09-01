@@ -52,6 +52,10 @@ try {
 
     avesmapsJsonResponse(200, [
         'ok' => true, 'id' => $id, 'channel' => $channel, 'result' => $dispatch['results'][$channel],
+        // Bei einem Relais-Kanal landet der Beitrag hier nur in der Warteschlange -- ob der Lauf
+        // auch angestossen wurde und warum nicht, ist dann die eigentliche Auskunft. Ohne sie
+        // scheitert der Anstoss lautlos und der Beitrag haengt bis zum naechsten Zeitplan-Lauf.
+        'relais_anstoss' => $dispatch['relais_anstoss'] ?? null,
     ]);
 } catch (Throwable) {
     avesmapsErrorResponse(500, 'server_error', 'Internal server error.');
