@@ -62,6 +62,35 @@ pruefe((halb.match(/class="fs-kanon /g) || []).length === 1, "genau EIN aeussere
 // ⚠️ Ein Vorleser hoert die Naht nicht -- deshalb steht die Trennung im aria-label.
 pruefe(halb.includes('aria-label="Inoffiziell · Briefspiel (Garetien)"'), "beide Felder im aria-label");
 
+// ---- C2. DIE QUELLENZEILE traegt dieselbe Halbpille, nicht zwei Kapseln ----------------------
+// 🔴 Entwurf §3: „Halbpille … Objektkopf UND Quellenzeile". Gebaut waren es zwei Elemente
+// nebeneinander -- Stempel plus eine eigene Typmarke ("[INOFFIZIELL] [Briefspiel]"). Owner
+// 01.09.2026 an Trallop: „hier sind ‚Inoffiziell' und ‚Briefspiel' zwei separate kapseln, das
+// soll so aussehn wie die anderen". Zwei Chips lesen sich als zwei Aussagen; es ist eine.
+// ⚠️ Der Bezeichner ist hier die ART der Quelle, nicht ihr Name -- der steht in derselben Zeile
+// schon links davor. Im Objektkopf ist es umgekehrt.
+const quellenKasten = markup.buildSourceListMarkup("", [
+  { label: "Briefspiel (Weiden)", url: "https://garetien.de/x", type: "briefspiel", official: 0 },
+], { escape: esc, typeLabels: TYPEN, kanonLabels: L });
+pruefe(quellenKasten.includes("fs-kanon--split"), "die Quellenzeile traegt die Halbpille");
+pruefe(quellenKasten.includes('<span class="fs-kanon__by">Briefspiel</span>'),
+  "und im zweiten Feld die ART der Quelle");
+pruefe(!quellenKasten.includes("fs-src-type"),
+  "die alte separate Typmarke gibt es nicht mehr");
+pruefe((quellenKasten.match(/class="fs-kanon /g) || []).length === 1,
+  "genau EIN Chip in der Zeile, nicht zwei");
+// Ohne Art bleibt es eine ganze Pille -- seit 30.08.2026 darf eine Quelle typlos sein.
+const ohneArt = markup.buildSourceListMarkup("", [
+  { label: "Namenlose Quelle", url: "https://x.example/y", type: "", official: 1 },
+], { escape: esc, typeLabels: TYPEN, kanonLabels: L });
+pruefe(ohneArt.includes("fs-kanon--off") && !ohneArt.includes("fs-kanon--split"),
+  "eine Quelle ohne Art bekommt die ganze Pille");
+// ⚠️ Der WIKI-Artikel ist keine Katalogquelle und hat nie eine Art -- ganze Pille, wie bisher.
+const mitWiki = markup.buildSourceListMarkup("https://de.wiki-aventurica.de/wiki/Trallop", [],
+  { escape: esc, typeLabels: TYPEN, kanonLabels: L, wikiOfficial: true, wikiLabel: "Wiki Aventurica" });
+pruefe(mitWiki.includes("fs-kanon--off") && !mitWiki.includes("fs-kanon--split"),
+  "die Wiki-Zeile bleibt eine ganze Pille");
+
 // ---- D. Typ + Anzahl werden hier zum Text -----------------------------------------------------
 pruefe(bezeichner({ bezeichner_type: "briefspiel", bezeichner_count: 2 }, TYPEN) === "Briefspiel (2)",
   "aus Typ und Anzahl wird „Briefspiel (2)“");
@@ -99,7 +128,14 @@ pruefe(boese.includes("&lt;img"), "und zwar sichtbar, nicht verschluckt");
 // einem blaugruenen INOFFIZIELL stiessen sonst zwei Blaugruen aneinander.
 // 🔴 KEIN ROT. Die Briefspiele sind der Grund, warum wir die Inhalte haben -- ein Warnrot machte
 // aus einer Herkunftsangabe eine Qualitaetsaussage.
-const css = fs.readFileSync(path.join(wurzel, "css", "features", "feature-sources.css"), "utf8");
+// 🪤 CSS-QUELLTEXT WIRD OHNE KOMMENTARE GEPRUEFT -- sonst prueft der Test die Dokumentation.
+// Zweimal an einem Tag passiert: eine Zusicherung ueberlebte das Entfernen einer Deklaration,
+// weil der Kommentar darueber sie im Klartext nannte; und ein `indexOf(".fs-kanon--split")` fand
+// zuerst einen Kommentar, der die Klasse ERWAEHNT. In diesen Dateien steht die Begruendung
+// absichtlich im Klartext neben der Regel -- also muss der Test sie wegschneiden, nicht die
+// Kommentare verstuemmeln.
+const ohneKommentare = (quelle) => quelle.replace(/\/\*[\s\S]*?\*\//g, "");
+const css = ohneKommentare(fs.readFileSync(path.join(wurzel, "css", "features", "feature-sources.css"), "utf8"));
 const halbpilleCss = css.slice(css.indexOf(".fs-kanon--split"), css.indexOf(".feature-kanon-head"));
 pruefe(halbpilleCss.includes(".fs-kanon--split .fs-kanon__by"), "das Bezeichnerfeld hat eine eigene Regel");
 const byRegel = halbpilleCss.slice(halbpilleCss.indexOf(".fs-kanon--split .fs-kanon__by"));
@@ -112,7 +148,7 @@ pruefe(!/#[0-9a-f]{3,6}|\bred\b|crimson/i.test(halbpilleCss),
 // 💣 Ein Token, das nur im hellen Block steht, ist im dunklen Thema leer -- der Chip waere dort
 // transparent mit unsichtbarer Schrift. Gezaehlt wird je Token zweimal DEFINIERT, nicht nur
 // erwaehnt: die Zeichenkette steht auch in Kommentaren.
-const tokens = fs.readFileSync(path.join(wurzel, "css", "base", "tokens.css"), "utf8");
+const tokens = ohneKommentare(fs.readFileSync(path.join(wurzel, "css", "base", "tokens.css"), "utf8"));
 for (const t of ["--color-kanon-official", "--color-kanon-official-text", "--color-kanon-unofficial", "--color-kanon-unofficial-text"]) {
   const treffer = tokens.match(new RegExp("^\\s*" + t + ":", "gm")) || [];
   pruefe(treffer.length === 2, `${t} muss in hellem UND dunklem Thema definiert sein (gefunden: ${treffer.length})`);
@@ -139,7 +175,7 @@ for (const [datei, regel] of [
   // 🪤 KOMMENTARE RAUS, SONST PRUEFT DER TEST SEINE EIGENE DOKUMENTATION. Der Block traegt die
   // Begruendung im Klartext („Mit `min-width: 0` faellt beides weg"), und eine blosse Textsuche
   // fand die -- die Zusicherung ueberlebte das Entfernen der echten Deklaration. Nachgemessen.
-  const block = quelle.slice(von, quelle.indexOf("}", von)).replace(/\/\*[\s\S]*?\*\//g, "");
+  const block = ohneKommentare(quelle.slice(von, quelle.indexOf("}", von)));
   pruefe(/^[ \t]*min-width:\s*0\s*;/m.test(block),
     `${regel} braucht min-width: 0, sonst zieht ein langer Bezeichner den Kopf auf`);
 }

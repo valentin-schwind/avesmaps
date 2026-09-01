@@ -284,27 +284,13 @@
 	color: var(--color-text-muted);
 	margin: 0 6px;
 }
-/* Die Typmarke sagt, WAS fuer eine Quelle das ist -- und seit dem Kanon-Stempel daneben nur
-   noch das. Den Kanon trug frueher der Stern `.fs-src-star`; der ist mit dem Stempel entfallen.
-   💣 HIER STAND EINE ZWEITE FASSUNG DIESER REGEL weiter unten in derselben Datei, gleich
-   spezifisch (0,1,0) und damit die gewinnende -- dieselbe Falle wie bei der Eingabezeile oben.
-   Sie unterschied sich in genau einer Absicht (durchsichtiger Grund) und brachte nebenbei
-   9,5px mit, also unter die 11px-Untergrenze des Hauses (AGENTS.md §12).
-   ⚠️ `flex-shrink: 0`, weil die Marke im Quellenkasten ein Flex-Kind ist: ohne das quetscht
-   ein langer Titel sie zusammen, statt selbst zu ellipsieren. */
-.fs-src-type {
-	display: inline-block;
-	flex-shrink: 0;
-	margin-left: 6px;
-	font-size: var(--font-size-caption);
-	color: var(--color-text-muted);
-	background: transparent;
-	border: 1px solid var(--color-border);
-	border-radius: 999px;
-	padding: 0 7px;
-	white-space: nowrap;
-	vertical-align: 1px;
-}
+/* 🔴 `.fs-src-type` GIBT ES NICHT MEHR. Die Art der Quelle steht seit dem 01.09.2026 als zweites
+   Feld IN der Halbpille (`.fs-kanon--split .fs-kanon__by`), nicht als eigener Chip daneben --
+   Owner an Trallop: „hier sind ‚Inoffiziell' und ‚Briefspiel' zwei separate kapseln, das soll so
+   aussehn wie die anderen". Der Entwurf §3 sagte das von Anfang an („Halbpille … Objektkopf UND
+   Quellenzeile"); gebaut waren es zwei Elemente.
+   ⚠️ Die Publikationstabelle hat weiterhin eine Spalte „Typ" -- die traegt reinen Text
+   (`.fs-src-c-type`) und war nie dieser Chip. */
 .fs-src-pages {
 	margin-left: 6px;
 	font-size: 11px;

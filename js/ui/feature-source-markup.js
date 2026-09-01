@@ -218,12 +218,9 @@ function buildSourceListMarkup(wikiUrl, sources, opts) {
     var key = String(t == null ? "" : t).trim();
     return key ? (typeLabels[key] || key) : "";
   };
-  var typeTag = function (t) {
-    var label = typeLabel(t);
-    // ⚠️ NEUTRAL, seit der Stempel danebensteht: sie sagt nur noch, WAS fuer eine Quelle das
-    // ist. Traegt eine Quelle keinen Typ (seit 30.08.2026 zulaessig), rendert sie nichts.
-    return label ? '<span class="fs-src-type">' + esc(label) + "</span>" : "";
-  };
+  // 🔴 Eine eigene Typmarke (`.fs-src-type`) gibt es in der Quellenzeile NICHT mehr: die Art der
+  // Quelle ist das zweite Feld der Halbpille (siehe unten). `typeLabel` bleibt -- die
+  // Publikationstabelle hat eine eigene Spalte „Typ" und braucht dort reinen Text, keinen Chip.
   // Line-1 page citation for a direct/own source (e.g. a manually added publication). The tabbed
   // publication table has its own "Seiten" column, so this "S. …" form is only for line 1.
   var pagesInline = function (p) {
@@ -332,7 +329,20 @@ function buildSourceListMarkup(wikiUrl, sources, opts) {
     // nicht von ihrer Quelle abriss und in einer Zeile mit der NAECHSTEN landete -- wer das las,
     // haengte die Lizenz an das falsche Stueck. Bei einer Quelle je Zeile ist die Trennung die
     // Zeile selbst.
-    items.push(zeile(eintrag, featureSourceKanonMarkup(s.official, esc, kanonLabels) + typeTag(s.type)));
+    // 🔴 EINE HALBPILLE, NICHT ZWEI KAPSELN. Hier standen Stempel und Typmarke als zwei Elemente
+    // nebeneinander ("[INOFFIZIELL] [Briefspiel]") -- der Entwurf §3 sagt aber ausdruecklich
+    // „Halbpille … Objektkopf UND Quellenzeile", und der Owner hat es am 01.09.2026 an Trallop
+    // gemeldet: „das soll so aussehn wie die anderen". Zwei Chips lesen sich als zwei Aussagen;
+    // es ist eine.
+    // ⚠️ Der Bezeichner ist hier die ART DER QUELLE, nicht ihr Name: in dieser Zeile steht der
+    // Name schon links davor. Im Objektkopf ist es umgekehrt -- dort gibt es keine Zeile, also
+    // traegt das Etikett den Namen.
+    // ⚠️ Ohne Art bleibt es eine ganze Pille (seit 30.08.2026 darf eine Quelle typlos sein) --
+    // dieselbe Regel wie beim Wiki-Artikel weiter oben, der gar keine Katalogzeile ist.
+    items.push(zeile(eintrag, featureKanonBadgeMarkup(
+      { kanon: s.official ? "offiziell" : "inoffiziell", bezeichner_type: s.type },
+      esc, kanonLabels, typeLabels
+    )));
   });
   if (items.length) {
     var lbl = items.length > 1 ? sourceLabelPlural : sourceLabelSingular;
