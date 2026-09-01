@@ -519,18 +519,70 @@ function avesmapsGaretienQuellenBestand(PDO $pdo): array
 {
     try {
         $stmt = $pdo->query(
-            "SELECT DISTINCT entity_type, entity_public_id FROM feature_sources"
-            . " WHERE origin = 'garetien'"
+            'SELECT DISTINCT fs.entity_type, fs.entity_public_id, s.url'
+            . ' FROM feature_sources fs JOIN sources s ON s.id = fs.source_id'
+            . " WHERE fs.origin = 'garetien'"
         );
     } catch (PDOException) {
         return [];
     }
     $raus = [];
     foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) ?: [] as $zeile) {
-        $raus[$zeile['entity_type'] . '|' . (string) $zeile['entity_public_id']] = true;
+        $raus[avesmapsGaretienQuellenSchluessel(
+            (string) $zeile['entity_type'],
+            (string) $zeile['entity_public_id'],
+            (string) $zeile['url']
+        )] = true;
     }
 
     return $raus;
+}
+
+/**
+ * Der Schluessel EINER Quellen-Verknuepfung: Objektart, Objekt UND Adresse.
+ *
+ * 🔴 DIE ADRESSE GEHOERT DAZU, seit ein Objekt ZWEI Quellen bekommt (Sammelquelle des Wirts
+ * und sein eigener Wiki-Artikel, 31.08.2026). Bis dahin lautete die Frage „haengt an diesem Objekt
+ * IRGENDEINE garetien-Quelle?" -- und damit bekam ein Objekt, das vor diesem Tag importiert wurde
+ * und nur die Sammelquelle traegt, seine Artikelquelle NIE angeboten. Geheilt hat das ein zweiter
+ * Mechanismus (der Nachzug); eine Frage mit zwei Antwortgebern ist aber genau die Divergenz, die
+ * dieses Projekt schon mehrfach bezahlt hat.
+ *
+ * ⚠️ Beide Leser gehen jetzt hier durch: der Planbau (was wird angeboten) und der Nachzug (was
+ * wird nachgetragen).
+ */
+function avesmapsGaretienQuellenSchluessel(string $entityType, string $publicId, string $url): string
+{
+    return $entityType . '|' . $publicId . '|' . trim($url);
+}
+
+/**
+ * Welche Quellen-Adressen haengt dieser Import an EIN Objekt? REIN -- kein I/O.
+ *
+ * 🔴 SIE MUSS ZEICHENGLEICH DAS SEIN, WAS avesmapsGaretienQuelleAnlegen WIRKLICH SCHREIBT --
+ * sonst fragt der Planbau nach etwas, das nie kommt, und der Nachzug traegt in jedem Lauf erneut
+ * nach. Genau das ist beim Bau passiert: die Liste nannte den Wirt IMMER, ein Item ohne
+ * `after.quelle` bekommt ihn aber nie, und der Nachzug hielt es fuer ewig unvollstaendig.
+ *
+ * ⚠️ Deshalb nimmt sie die zwei Werte HEREIN, statt sie selbst zu raten: der Wirt steht in
+ * `after.quelle.url` (leer = dieses Item bringt keine Sammelquelle mit), der Artikel kommt aus
+ * avesmapsGaretienArtikelQuelleAus bzw. -AusItem.
+ *
+ * @return list<string>
+ */
+function avesmapsGaretienQuellenAdressenAus(?string $wirtUrl, ?array $artikelQuelle): array
+{
+    $adressen = [];
+    $wirt = trim((string) $wirtUrl);
+    if ($wirt !== '') {
+        $adressen[] = $wirt;
+    }
+    $artikel = trim((string) ($artikelQuelle['url'] ?? ''));
+    if ($artikel !== '') {
+        $adressen[] = $artikel;
+    }
+
+    return $adressen;
 }
 
 /**
@@ -559,6 +611,7 @@ function avesmapsGaretienErgaenzungsEintraege(array $zeile, array $ziel, array $
     }
     $ihrName = trim((string) ($zeile['anzeige'] ?? ''));
     $einObjekt = avesmapsGaretienEinObjekt($abschnitte);
+    $wiki = (string) ($zeile['wiki'] ?? 'ggp');
     // 🔴 KEIN ERSETZEN MEHR (Owner 31.08.2026). Umbenennung und Geometrie-Ersatz schreiben an
     // einem BESTEHENDEN Objekt und entstehen nicht mehr; das Luecken-Item bleibt, traegt aber nur
     // noch die QUELLE (AVESMAPS_GARETIEN_ERGAENZUNG_FELDER) -- sie ist additiv und exakt
@@ -601,8 +654,24 @@ function avesmapsGaretienErgaenzungsEintraege(array $zeile, array $ziel, array $
         // gilt OFFEN "keine Quelle liegt" -- das erzeugt hoechstens ein Item zu viel
         // (Bedienungs-Rauschen), nie eines zu wenig (eine stillschweigend verlorene
         // Quellenangabe), dieselbe Richtung wie an avesmapsGaretienQuellenBestand begruendet.
-        $hatQuelle = $quellenSchluesselId !== ''
-            && isset($quellen[$ziel['ziel'] . '|' . $quellenSchluesselId]);
+        // \U0001f534 JE ADRESSE GEFRAGT, nicht pauschal (31.08.2026). „Haengt IRGENDEINE garetien-Quelle
+        // dran?" liess ein Objekt, das nur die Sammelquelle trug, seine Artikelquelle nie
+        // bekommen. Gefragt wird jetzt: haengen ALLE, die dieser Import haengen wuerde?
+        $hatQuelle = $quellenSchluesselId !== '';
+        if ($hatQuelle) {
+            $erwartet = avesmapsGaretienQuellenAdressenAus(
+                (string) ($vorlage['after']['quelle']['url'] ?? ''),
+                avesmapsGaretienArtikelQuelleAus($wiki, avesmapsGaretienSeitenNameAusZeile($zeile))
+            );
+            foreach ($erwartet as $adresse) {
+                if (!isset($quellen[avesmapsGaretienQuellenSchluessel(
+                    (string) $ziel['ziel'], $quellenSchluesselId, $adresse
+                )])) {
+                    $hatQuelle = false;
+                    break;
+                }
+            }
+        }
 
         // 1. Das Luecken-Item: nur Leeres wird gefuellt, deshalb VORANGEHAKT.
         // 🔴 SEIT 31.08.2026 NUR NOCH DIE QUELLE. Der leere Name wird nicht mehr gefuellt --
@@ -1088,6 +1157,9 @@ function avesmapsGaretienPlanTestPdo(): PDO
     // wirklich AUSFUEHRT statt sie im catch-Zweig zu verschlucken. Bleibt LEER -- ein Test, der
     // eine hinterlegte Quelle braucht, saet seine eigene Zeile.
     $pdo->exec('CREATE TABLE feature_sources (id INTEGER PRIMARY KEY AUTOINCREMENT, entity_type TEXT, entity_public_id TEXT, source_id INT, status TEXT DEFAULT \'approved\', origin TEXT DEFAULT \'manual\')');
+    // 🔴 Seit 01.09.2026 fragt avesmapsGaretienQuellenBestand je (Objekt, ADRESSE) und JOINt dafuer
+    // den Katalog -- der Pruefstand braucht ihn deshalb auch.
+    $pdo->exec('CREATE TABLE sources (id INTEGER PRIMARY KEY AUTOINCREMENT, url TEXT, url_hash TEXT, label TEXT, source_type TEXT, is_official INT DEFAULT 0, license TEXT, attribution TEXT)');
     avesmapsEnsureSyncPlanTablesSqlite($pdo);
 
     // Ein Bestandsfluss dort, wo die erste Quellzeile landet -- damit "deckt_sich" wirklich

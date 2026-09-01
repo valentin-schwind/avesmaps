@@ -2858,4 +2858,67 @@ assert($zOffen === ['verschoben' => 0, 'fehler' => []],
     'ein nie uebernommenes Item wird uebersprungen, nicht beanstandet: ' . json_encode($zOffen));
 $pruefungen++;
 
+// =================================================================================================
+// 🔴 EINE VERKNUEPFUNG, DIE EINEM ANDEREN GEHOERT, WIRD NICHT ANGEFASST
+// =================================================================================================
+// Owner 01.09.2026, nachdem gemessen war, dass ein zweiter Schreibvorgang die `note` ueberschreibt:
+//     vorher   origin=manual  note="von Hand geprueft"
+//     nachher  origin=manual  note="…/Avesmaps_Wege"
+// `avesmapsFeatureSourceLink` schuetzt zwar `origin` (ein `manual` bleibt `manual`), setzt aber
+// `note`, `pages` und `reference_kind` bei jedem Aufruf neu.
+//
+// 💣 Das ist derselbe stille Schreibzugriff auf fremde Arbeit, den der Owner am 31.08.2026 am
+// OBJEKT abgeschaltet hat -- nur eine Etage tiefer.
+$pdoM = avesmapsGaretienUebernahmeTestPdo();
+$idM = '00000000-0000-4000-8000-00000010a001';
+$pdoM->prepare('INSERT INTO map_features (public_id, name, feature_type, feature_subtype, geometry_json, properties_json, geometry_type) VALUES (?,?,?,?,?,?,?)')
+    ->execute([$idM, 'Notizprobe', 'path', 'Weg',
+        json_encode(['type' => 'LineString', 'coordinates' => [[1.0, 1.0], [2.0, 2.0]]]), '{}', 'LineString']);
+$nachM = [
+    'herkunft' => 'garetien', 'wiki' => 'ggp', 'ebene' => 'Wege',
+    'quelle' => ['url' => 'https://www.garetien.de', 'label' => 'Briefspiel (Garetien)',
+        'license' => 'cc-by-nc-sa-3.0', 'attribution' => 'VolkoV / garetien.de'],
+    'seite_url' => AVESMAPS_GARETIEN_BASIS_GGP . 'Wege',
+];
+$keyM = 'ggp:Wege:Weg:Garetien:Notizprobe';
+avesmapsGaretienQuellenAnlegen($pdoM, 'path', $idM, $nachM, 7, $keyM);
+
+$leseM = static fn(PDO $p): array => (array) $p->query(
+    "SELECT fs.origin, fs.note FROM feature_sources fs JOIN sources s ON s.id = fs.source_id
+      WHERE fs.entity_public_id = '$idM' AND s.url = 'https://www.garetien.de'"
+)->fetch(PDO::FETCH_ASSOC);
+
+// --- Solange sie UNS gehoert, darf sie aufgefrischt werden: sonst bliebe die tote
+// „…/Avesmaps_<Artikel>"-Adresse aus der Zeit vor dem 31.08.2026 fuer immer stehen.
+$pdoM->exec("UPDATE feature_sources SET note = 'alte tote Adresse' WHERE entity_public_id = '$idM'");
+avesmapsGaretienQuellenAnlegen($pdoM, 'path', $idM, $nachM, 7, $keyM);
+assert($leseM($pdoM)['note'] === AVESMAPS_GARETIEN_BASIS_GGP . 'Wege',
+    'eine Verknuepfung, die uns gehoert, wird aufgefrischt: ' . json_encode($leseM($pdoM)));
+$pruefungen++;
+
+// --- 🔴 Sobald ein Mensch sie uebernommen hat, bleibt seine Notiz stehen.
+// ⚠️ BEIDE Verknuepfungen uebernimmt hier ein Mensch -- sonst zaehlte der Rueckgabewert unten die
+// Artikelquelle mit, die uns ja noch gehoert, und die Zusicherung „zaehlt nicht als neu" waere
+// gegen den falschen Fall gemessen.
+$pdoM->exec("UPDATE feature_sources SET origin = 'manual' WHERE entity_public_id = '$idM'");
+$pdoM->exec("UPDATE feature_sources SET note = 'von Hand geprueft'
+              WHERE entity_public_id = '$idM'
+                AND source_id = (SELECT id FROM sources WHERE url = 'https://www.garetien.de')");
+$neuM = avesmapsGaretienQuellenAnlegen($pdoM, 'path', $idM, $nachM, 7, $keyM);
+assert($leseM($pdoM)['note'] === 'von Hand geprueft',
+    '🔴 eine fremde Notiz bleibt stehen: ' . json_encode($leseM($pdoM)));
+assert($leseM($pdoM)['origin'] === 'manual', 'und die Herkunft ebenso');
+// ⚠️ Und sie zaehlt NICHT als neu angelegt -- sie haengt ja schon.
+assert($neuM === 0, 'eine fremde Verknuepfung zaehlt nicht als neu: ' . $neuM);
+$pruefungen += 3;
+
+// --- 💣 UND SIE WIRD AUCH NICHT GELOESCHT ODER VERDOPPELT. Die Quelle haengt weiter genau
+// einmal; „nicht anfassen" heisst nicht „wegnehmen".
+$zahlM = (int) $pdoM->query(
+    "SELECT COUNT(*) FROM feature_sources fs JOIN sources s ON s.id = fs.source_id
+      WHERE fs.entity_public_id = '$idM' AND s.url = 'https://www.garetien.de'"
+)->fetchColumn();
+assert($zahlM === 1, 'die Verknuepfung haengt weiter genau einmal: ' . $zahlM);
+$pruefungen++;
+
 echo "OK: {$pruefungen} Pruefungen\n";

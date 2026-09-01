@@ -274,6 +274,17 @@ $pruefungen++;
 // Hauswert ist 'approved', der einzige andere 'suppressed' ist der Grabstein einer von HAND
 // entfernten Verknuepfung und zaehlt trotzdem als "die Quelle ist erledigt". Und der Schluessel
 // traegt den Zieltyp, weil path UND region denselben public_id-Raum benutzen.
+// 🔴 SEIT 01.09.2026 TRAEGT DER SCHLUESSEL DIE ADRESSE (Owner: eine Frage statt zwei
+// Mechanismen). Vorher lautete er `typ|id` und beantwortete nur „haengt IRGENDEINE garetien-Quelle
+// dran?" -- damit bekam ein Objekt, das nur die Sammelquelle trug, seine Artikelquelle NIE
+// angeboten, und ein zweiter Mechanismus (der Nachzug) musste das heilen.
+// ⚠️ Die Abfrage JOINt seither `sources`; die Fixture braucht deshalb echte Katalogzeilen.
+$pdo->exec("INSERT INTO sources (id, url, url_hash, label, source_type, is_official)
+            VALUES (1, 'https://www.garetien.de', 'h1', 'Briefspiel (Garetien)', 'briefspiel', 0)");
+$pdo->exec("INSERT INTO sources (id, url, url_hash, label, source_type, is_official)
+            VALUES (2, 'https://www.garetien.de/index.php/Garetien:Unterdrueckt', 'h2', 'x', 'briefspiel', 0)");
+$pdo->exec("INSERT INTO sources (id, url, url_hash, label, source_type, is_official)
+            VALUES (3, 'https://www.beispiel.de/fremd', 'h3', 'Fremd', 'sonstiges', 0)");
 $pdo->exec("INSERT INTO feature_sources (entity_type, entity_public_id, source_id, status, origin)
             VALUES ('path', 'quellen-genehmigt', 1, 'approved', 'garetien')");
 $pdo->exec("INSERT INTO feature_sources (entity_type, entity_public_id, source_id, status, origin)
@@ -282,10 +293,22 @@ $pdo->exec("INSERT INTO feature_sources (entity_type, entity_public_id, source_i
 $pdo->exec("INSERT INTO feature_sources (entity_type, entity_public_id, source_id, status, origin)
             VALUES ('path', 'quellen-fremd', 3, 'approved', 'manual')");
 $bestand = avesmapsGaretienQuellenBestand($pdo);
-assert(isset($bestand['path|quellen-genehmigt']), 'eine genehmigte Garetien-Quelle muss im Bestand landen');
-assert(isset($bestand['path|quellen-unterdrueckt']),
+assert(isset($bestand[avesmapsGaretienQuellenSchluessel('path', 'quellen-genehmigt', 'https://www.garetien.de')]),
+    'eine genehmigte Garetien-Quelle muss im Bestand landen');
+// 💣 UND SIE STEHT NUR UNTER IHRER EIGENEN ADRESSE. Das ist der ganze Punkt: dasselbe Objekt
+// gilt fuer eine ANDERE Adresse weiterhin als unversorgt -- genau so bekommt ein vor dem
+// 31.08.2026 importiertes Objekt seine Artikelquelle noch angeboten.
+assert(!isset($bestand[avesmapsGaretienQuellenSchluessel(
+    'path', 'quellen-genehmigt', 'https://www.garetien.de/index.php/Garetien:Irgendwas'
+)]), '🔴 fuer eine andere Adresse gilt dasselbe Objekt als unversorgt');
+$pruefungen++;
+assert(isset($bestand[avesmapsGaretienQuellenSchluessel(
+    'path', 'quellen-unterdrueckt', 'https://www.garetien.de/index.php/Garetien:Unterdrueckt'
+)]),
     'eine UNTERDRUECKTE Quelle zaehlt trotzdem -- Grabstein, kein Fehlen');
-assert(!isset($bestand['path|quellen-fremd']), 'eine fremde Herkunft darf nicht mitgezaehlt werden');
+assert(!isset($bestand[avesmapsGaretienQuellenSchluessel(
+    'path', 'quellen-fremd', 'https://www.beispiel.de/fremd'
+)]), 'eine fremde Herkunft darf nicht mitgezaehlt werden');
 $pruefungen += 3;
 
 // =================================================================================================
@@ -432,5 +455,61 @@ assert(!array_key_exists('is_bach', $andereAfter),
     'ein anderer Weg traegt GAR KEIN is_bach: ' . json_encode($andereAfter, JSON_UNESCAPED_UNICODE));
 $pruefungen += 2;
 
+
+// =================================================================================================
+// 🔴 „HAT SCHON EINE QUELLE" IST EINE FRAGE JE ADRESSE, NICHT JE OBJEKT
+// =================================================================================================
+// Owner 01.09.2026, auf die Frage „was ist wenn ein objekt … Quelle + Artikel bereits hat?": „ja
+// mach beides" -- eine Frage statt zwei Mechanismen.
+//
+// 💣 Bis dahin lautete sie „haengt IRGENDEINE garetien-Quelle an diesem Objekt?". Ein Objekt,
+// das vor dem 31.08.2026 importiert wurde und nur die Sammelquelle traegt, bekam seine
+// ARTIKELQUELLE damit nie angeboten -- geheilt hat das ein zweiter Mechanismus (der Nachzug), und
+// eine Frage mit zwei Antwortgebern ist genau die Divergenz, die dieses Projekt schon mehrfach
+// bezahlt hat. Beide gehen jetzt durch avesmapsGaretienQuellenBestand.
+$urteilQ = ['status' => 'deckt_sich', 'anlass' => 'geometrie', 'treffer_public_id' => 'w-1',
+    'treffer_name' => 'Alke', 'grund' => 'Test', 'abstand' => 0.1,
+    'abschnitte' => [['public_id' => 'w-1', 'name' => 'Alke', 'punkte' => 12]]];
+$zeileQ = ['wiki' => 'ggp', 'ebene' => 'Gewaesser', 'zeile_nr' => 1, 'typ' => 'Bach',
+    'namensraum' => 'Garetien', 'artikel' => 'Alke', 'anzeige' => 'Alke',
+    'geo_art' => 'koordinaten', 'geo' => '70000 30000, 70100 30100'];
+$anlaesseQ = static fn(array $quellen): array => array_map(
+    static fn(array $e): string => (string) ($e['after']['anlass'] ?? ''),
+    avesmapsGaretienErgaenzungsEintraege($zeileQ, avesmapsGaretienMappeTyp('Bach'), $urteilQ, $quellen)
+);
+
+$adressenQ = avesmapsGaretienQuellenAdressenAus('https://www.garetien.de',
+    avesmapsGaretienArtikelQuelleAus('ggp', 'Garetien:Alke'));
+assert(count($adressenQ) === 2, 'ein Objekt mit Artikel bekommt ZWEI Adressen: ' . implode(', ', $adressenQ));
+$pruefungen++;
+
+$nurWirtQ = [avesmapsGaretienQuellenSchluessel('path', 'w-1', $adressenQ[0]) => true];
+$beideQ = [];
+foreach ($adressenQ as $u) {
+    $beideQ[avesmapsGaretienQuellenSchluessel('path', 'w-1', $u)] = true;
+}
+
+assert(in_array('ergaenzung', $anlaesseQ([]), true), 'ohne Quelle wird eine angeboten');
+// 🔴 DAS IST DIE REPARATUR: nur die Sammelquelle reicht NICHT mehr.
+assert(in_array('ergaenzung', $anlaesseQ($nurWirtQ), true),
+    '🔴 haengt nur die Sammelquelle, fehlt der Artikel -- und das wird angeboten: '
+    . implode(', ', $anlaesseQ($nurWirtQ)));
+// ⚠️ Und wenn wirklich BEIDE haengen, wird nichts mehr angeboten -- sonst waere die Zeile
+// darueber nur „bietet immer etwas an".
+assert(!in_array('ergaenzung', $anlaesseQ($beideQ), true),
+    'haengen beide, gibt es nichts mehr zu ergaenzen: ' . implode(', ', $anlaesseQ($beideQ)));
+$pruefungen += 3;
+
+// 💣 UND DIE LISTE MUSS ZEICHENGLEICH DAS SEIN, WAS DER SCHREIBER ANHAENGT. Beim Bau nannte
+// sie den Wirt IMMER -- ein Item ohne `after.quelle` bekommt ihn aber nie, und der Nachzug hielt
+// es fuer ewig unvollstaendig und schrieb bei JEDEM Lauf erneut. Gefunden hat das der
+// Ablauftest der Uebernahme, nicht diese Zeile; sie haelt es fest.
+assert(avesmapsGaretienQuellenAdressenAus('', avesmapsGaretienArtikelQuelleAus('ggp', 'Garetien:Alke'))
+    === ['https://www.garetien.de/index.php/Garetien:Alke'],
+    'ohne Wirt-Adresse steht sie nicht in der Liste');
+assert(avesmapsGaretienQuellenAdressenAus('https://www.garetien.de', null)
+    === ['https://www.garetien.de'], 'und ohne Artikel nur der Wirt');
+assert(avesmapsGaretienQuellenAdressenAus('', null) === [], 'und ohne beides gar nichts');
+$pruefungen += 3;
 
 echo "OK: {$pruefungen} Pruefungen\n";

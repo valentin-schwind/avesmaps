@@ -177,6 +177,32 @@ function avesmapsGaretienQuelleAnlegen(PDO $pdo, string $entityType, string $pub
     if ($sourceId <= 0) {
         return false;
     }
+    // \U0001f534 EINE VERKNUEPFUNG, DIE EINEM ANDEREN GEHOERT, WIRD NICHT ANGEFASST.
+    //
+    // Gemessen am 01.09.2026: `avesmapsFeatureSourceLink` ist ein `ON DUPLICATE KEY UPDATE` und
+    // setzt `note`, `pages` und `reference_kind` bei JEDEM Aufruf neu. Es schuetzt zwar `origin`
+    // (ein `manual` bleibt `manual`) -- aber eine von Hand gesetzte Notiz wurde durch unsere
+    // Export-Arbeitsseite ersetzt:
+    //     vorher   origin=manual  note="von Hand geprueft"
+    //     nachher  origin=manual  note="…/Avesmaps_Wege"
+    //
+    // \U0001f4a3 Das ist derselbe stille Schreibzugriff auf fremde Arbeit, den der Owner am 31.08.2026
+    // am OBJEKT abgeschaltet hat -- nur eine Etage tiefer, an der Verknuepfung. Die Quelle haengt
+    // ja bereits; es gibt hier nichts zu gewinnen und eine Notiz zu verlieren.
+    //
+    // ⚠️ Gefragt wird nach `origin`, nicht nach „existiert schon": eine Verknuepfung, die noch
+    // uns gehoert (`origin='garetien'`), darf ihre Notiz sehr wohl auffrischen -- sonst bliebe die
+    // tote `…/Avesmaps_<Artikel>`-Adresse aus der Zeit vor dem 31.08.2026 fuer immer stehen.
+    $bestand = $pdo->prepare(
+        'SELECT origin FROM feature_sources
+          WHERE entity_type = :t AND entity_public_id = :id AND source_id = :sid'
+    );
+    $bestand->execute(['t' => $entityType, 'id' => $publicId, 'sid' => $sourceId]);
+    $bisher = $bestand->fetchColumn();
+    if ($bisher !== false && (string) $bisher !== AVESMAPS_GARETIEN_SOURCE_ORIGIN) {
+        return false;   // haengt schon und gehoert jemand anderem
+    }
+
     $seiteUrl = trim($seiteUrl);
     avesmapsFeatureSourceLink(
         $pdo, $entityType, $publicId, $sourceId, $userId,
@@ -1152,20 +1178,11 @@ function avesmapsGaretienArtikelQuellenNachtragen(PDO $pdo): array
     // Abfragen und null Schreibvorgaenge.
     // ⚠️ Erkannt an der ADRESSFORM (`/index.php/`), nicht an einer Zaehlung: „das Objekt hat zwei
     // garetien-Quellen" waere auch dann wahr, wenn jemand von Hand eine zweite angehaengt hat.
-    $schon = [];
-    try {
-        $vorhanden = $pdo->prepare(
-            "SELECT fs.entity_type, fs.entity_public_id
-               FROM feature_sources fs JOIN sources s ON s.id = fs.source_id
-              WHERE fs.origin = :o AND s.url LIKE '%/index.php/%'"
-        );
-        $vorhanden->execute(['o' => AVESMAPS_GARETIEN_SOURCE_ORIGIN]);
-        foreach ($vorhanden->fetchAll(PDO::FETCH_ASSOC) as $v) {
-            $schon[$v['entity_type'] . ':' . $v['entity_public_id']] = true;
-        }
-    } catch (PDOException) {
-        // Ohne die Quellentabellen gibt es nichts zu ueberspringen -- der Nachzug legt sie an.
-    }
+    // \U0001f534 DIESELBE FRAGE WIE DER PLANBAU, DERSELBE ERZEUGER (01.09.2026). Hier stand ein
+    // zweiter, groeberer Scan (`s.url LIKE '%/index.php/%'`) -- eine Frage mit zwei
+    // Antwortgebern, und die feinere von beiden kannte er nicht. Jetzt fragen beide
+    // avesmapsGaretienQuellenBestand, das je (Objekt, ADRESSE) antwortet.
+    $bestand = avesmapsGaretienQuellenBestand($pdo);
 
     $geprueft = 0;
     $geschrieben = 0;
@@ -1211,7 +1228,21 @@ function avesmapsGaretienArtikelQuellenNachtragen(PDO $pdo): array
         if ($entityType === '' || $quellePublicId === '') {
             continue;
         }
-        if (isset($schon[$entityType . ':' . $quellePublicId])) {
+        // ⚠️ Uebersprungen wird, wem BEIDE Adressen schon haengen -- dieselbe Rechnung wie im
+        // Planbau. Fehlt eine, wird geschrieben; `avesmapsGaretienQuelleAnlegen` ist dabei
+        // idempotent und fasst eine fremde Verknuepfung nicht an.
+        $erwartet = avesmapsGaretienQuellenAdressenAus(
+            (string) ($nach['quelle']['url'] ?? ''),
+            avesmapsGaretienArtikelQuelleAusItem($nach, $entityKey)
+        );
+        $fehlt = false;
+        foreach ($erwartet as $adresse) {
+            if (!isset($bestand[avesmapsGaretienQuellenSchluessel($entityType, $quellePublicId, $adresse)])) {
+                $fehlt = true;
+                break;
+            }
+        }
+        if (!$fehlt) {
             continue;
         }
         if (avesmapsGaretienQuellenAnlegen($pdo, $entityType, $quellePublicId, $nach, 0, $entityKey) > 0) {
@@ -1219,7 +1250,9 @@ function avesmapsGaretienArtikelQuellenNachtragen(PDO $pdo): array
             // ⚠️ Innerhalb EINES Laufs mitfuehren: mehrere Items koennen auf dasselbe Objekt
             // zeigen (eine Flaeche und ihre Beschriftung), und ohne das zaehlte der Lauf sie
             // doppelt -- und schriebe sie doppelt.
-            $schon[$entityType . ':' . $quellePublicId] = true;
+            foreach ($erwartet as $adresse) {
+                $bestand[avesmapsGaretienQuellenSchluessel($entityType, $quellePublicId, $adresse)] = true;
+            }
         }
     }
 
