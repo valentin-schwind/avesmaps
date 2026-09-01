@@ -29,14 +29,16 @@ const ende = quelle.indexOf("\n}", anfang) + 2;
 
 const context = {
 	console,
-	// Kein Auswahlfeld im Dokument -> die Funktion fällt auf ihren Rückfall „Region" zurück. Das ist
-	// hier richtig: geprüft wird die ZÄHLUNG, nicht die Kategorie.
-	document: { querySelector: () => null },
+	// 🔴 KEIN `document`. Die Kategorie kommt seit dem 02.09.2026 aus dem geteilten Vokabular
+	// (js/ui/label-arten.js, unten in den Kontext geladen) statt aus dem Auswahlfeld `#label-edit-type`
+	// -- fasst die Funktion das DOM je wieder an, wirft dieser Test einen ReferenceError. Warum das
+	// eine Regel ist und keine Aufräumarbeit, steht in js/ui/__tests__/label-popup-art.test.js.
 	tr: (schluessel, rueckfall) => rueckfall,
 	countEcosystemRegionLabels: () => 1,
 };
 context.globalThis = context;
 vm.createContext(context);
+vm.runInContext(fs.readFileSync(path.join(ROOT, "js", "ui", "label-arten.js"), "utf8"), context);
 vm.runInContext(quelle.slice(anfang, ende), context);
 const untertitel = context.labelPopupSubtitle;
 
@@ -44,35 +46,35 @@ const label = { labelType: "gebirge" };
 
 // ---- der gemeldete Fall ----------------------------------------------------------------------------
 
-assert.strictEqual(untertitel(label, { public_id: "r1", area_count: 1 }), "Region · 1 Fläche, 1 Label",
+assert.strictEqual(untertitel(label, { public_id: "r1", area_count: 1 }), "Gebirge · 1 Fläche, 1 Label",
     "im Landschaftsmodus steht die Zahl da");
 
-assert.strictEqual(untertitel(label, { public_id: "r1" }), "Region · 1 Label",
+assert.strictEqual(untertitel(label, { public_id: "r1" }), "Gebirge · 1 Label",
     "💣 DER KERN: ohne geladene Regionsliste steht KEINE Flächenzahl da -- statt einer falschen");
 
 assert.ok(!untertitel(label, { public_id: "r1" }).includes("0 Flächen"),
     "🔴 und ganz sicher nicht „0 Flächen“ -- das war die Falschaussage");
 
-assert.strictEqual(untertitel(label, { public_id: "r1", area_count: null }), "Region · 1 Label",
+assert.strictEqual(untertitel(label, { public_id: "r1", area_count: null }), "Gebirge · 1 Label",
     "null zählt wie fehlend -- beides heisst „nicht gemessen“");
 
 // ---- was eine ECHTE Null bleiben muss ---------------------------------------------------------------
 //
 // 🔴 Eine Region, deren Flächen gelöscht wurden, hat wirklich keine -- und das ist genau die Auskunft,
 // die ein Editor an dieser Stelle braucht. Sie zu verschweigen wäre der umgekehrte Fehler.
-assert.strictEqual(untertitel(label, { public_id: "r1", area_count: 0 }), "Region · 0 Flächen, 1 Label",
+assert.strictEqual(untertitel(label, { public_id: "r1", area_count: 0 }), "Gebirge · 0 Flächen, 1 Label",
     "eine gemessene Null bleibt sichtbar");
 
 // ---- Mehrzahl --------------------------------------------------------------------------------------
 
 context.countEcosystemRegionLabels = () => 2;
-assert.strictEqual(untertitel(label, { public_id: "r1", area_count: 3 }), "Region · 3 Flächen, 2 Labels",
+assert.strictEqual(untertitel(label, { public_id: "r1", area_count: 3 }), "Gebirge · 3 Flächen, 2 Labels",
     "Mehrzahl auf beiden Seiten");
 
 // ---- ohne Fläche gar keine Zeile ---------------------------------------------------------------------
 
-assert.strictEqual(untertitel(label, null), "Region",
-    "ein Label ohne Fläche nennt nur seine Kategorie");
+assert.strictEqual(untertitel(label, null), "Gebirge",
+    "ein Label ohne Fläche nennt nur seine Kategorie -- und die ist seine ART, nicht „Region“");
 
 // ---- und die Listen werden nachgezogen ---------------------------------------------------------------
 //

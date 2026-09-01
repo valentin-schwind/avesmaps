@@ -1188,11 +1188,33 @@ function labelPopupMarkup(entry) {
 }
 
 // Untertitel: Kategorie, und -- wenn das Label an einer Flaeche haengt -- woraus die Region besteht.
-// Die Kategorienamen kommen aus dem Auswahlfeld des Label-Editors, nicht aus einer zweiten Liste hier:
-// eine neue Kategorie waere sonst sofort in einem der beiden Orte vergessen.
+// Die Kategorienamen kommen aus dem geteilten Vokabular (js/ui/label-arten.js), nicht aus einer
+// zweiten Liste hier: eine neue Kategorie waere sonst sofort in einem der beiden Orte vergessen.
+//
+// 💣 UND NICHT AUS DEM AUSWAHLFELD, so naheliegend das aussieht (Owner 02.09.2026: „im floating menü
+// steht n anderer regionstyp (Berggipfel) wie in der infobox"). Bis dahin schlug diese Zeile die
+// Bezeichnung im LIVE-DOM von `#label-edit-type` nach -- und das ist kein Vokabular, sondern das
+// Auswahlfeld zweier Dialoge: `applyLabelTypeVocabulary` (js/review/review-labels.js) ersetzt seinen
+// Inhalt durch das Vokabular der EBENE, an der das zuletzt geoeffnete Label bzw. die zuletzt
+// geoeffnete Flaeche haengt. Live gemessen: vor dem ersten Dialog 36 Optionen, nach EINEM
+// Vegetations-Dialog 7 -- und jede Art ausserhalb dieser sieben fiel danach auf „Region" zurueck.
+//
+// 🔴 GIPFEL TRAF ES IMMER: `berggipfel` und `vulkan` stehen in KEINER Ebene
+// (AVESMAPS_ECOSYSTEM_REGION_TYPE_SEED) -- sie sind Punkte, keine Flaechen, genau wie der Kommentar
+// ueber `istGipfel` weiter oben begruendet. Es gab kein Vokabular, in dem sie wieder auftauchen.
+//
+// ⚠️ Und der zweite, leisere Ausfluss: im Ebenen-Vokabular traegt der Wert `region` die Beschriftung
+// „— keine Vegetation —" (labelEmptyTypeLabel). Aus dem Formularfeld gelesen stand diese
+// Formularbeschriftung im Kopf des Menues.
+//
+// ⭐ Die Tabelle spiegelt das Auswahlfeld zeichengleich (label-arten.test.js haelt beide gegen-
+// einander) und ist unveraenderlich -- Infobox, Spotlight und Garetien-Importer lasen sie laengst.
 function labelPopupSubtitle(label, region) {
-	const option = document.querySelector('#label-edit-type option[value="' + String(label.labelType || "").replace(/"/g, "") + '"]');
-	const kategorie = option ? option.textContent.trim() : tr("popup.labelTypeRegion", "Region");
+	// ⚠️ Der Rueckfall gehoert dem Aufrufer, nicht der Tabelle (so ihr eigener Kopf): hier MUSS etwas
+	// stehen -- ein leerer Untertitel liest sich wie ein Fehler. Uebersetzt wird ueber denselben
+	// Schluessel wie in Infobox und Spotlight, sonst stuenden zwei Woerter fuer dieselbe Aussage.
+	const art = avesmapsLabelArtName(label.labelType);
+	const kategorie = art ? tr("spotlight.labelType." + label.labelType, art) : tr("popup.labelTypeRegion", "Region");
 	if (!region?.public_id) {
 		return kategorie;
 	}
