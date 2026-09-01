@@ -62,3 +62,89 @@ function avesmapsEigenerKnotenBindungVorschau(array $overrides, array $wikiRow):
 
     return $zeilen;
 }
+
+/**
+ * Gibt den Slug der Papierkorb-Zeile frei, damit die Zielzeile den sauberen bekommt.
+ *
+ * 💣 `uq_political_territory_slug` gilt ueber ALLE Zeilen. avesmapsPoliticalSlugExists
+ * (territory.php:785) fragt `SELECT COUNT(*) ... WHERE slug = :slug` -- OHNE is_active. Eine
+ * deaktivierte Zeile blockiert ihren Slug also weiter, und avesmapsPoliticalUniqueSlug haengte
+ * dem Ueberlebenden ein "-2" an, waehrend der weggeworfene Platzhalter den sauberen Namen behielte.
+ *
+ * ⚠️ Die id im Suffix, nicht ein Zaehler: sie ist schon eindeutig, und eine Zaehlschleife koennte
+ * bei mehrfach ersetzten Knoten kollidieren.
+ */
+function avesmapsEigenerKnotenBindungSlugFreigeben(PDO $pdo, int $alteId, string $alterSlug): string
+{
+    $neu = mb_substr($alterSlug . '-ersetzt-' . $alteId, 0, 180);
+    $pdo->prepare('UPDATE political_territory SET slug = :s WHERE id = :id')
+        ->execute(['s' => $neu, 'id' => $alteId]);
+
+    return $neu;
+}
+
+/**
+ * Die Zielzeile: die id des Gebiets mit $zielKey. Fehlt sie, wird sie angelegt.
+ *
+ * 🔴 IM NORMALFALL FEHLT SIE, und das ist kein Sonderfall. avesmapsWikiDumpPersistTerritoryRecords
+ * (dump-entity-scan.php:1652) schreibt ausschliesslich political_territory_wiki_test und
+ * wiki_redirect_alias -- niemals political_territory. Ein Dump-Lauf legt einen Staging-Datensatz an
+ * und sonst nichts. Beide Faelle laufen deshalb durch DIESE Funktion; ein zweiter Pfad waere genau
+ * die Divergenz, die dieser Umbau beseitigt.
+ *
+ * ⚠️ Nur aktive Zeilen zaehlen als vorhanden: eine im Papierkorb liegende Zeile mit demselben
+ * Schluessel soll die Bindung nicht blockieren.
+ */
+function avesmapsEigenerKnotenBindungZielzeile(PDO $pdo, string $zielKey, array $werte): int
+{
+    $vorhanden = $pdo->prepare(
+        'SELECT id FROM political_territory WHERE wiki_key = :k AND is_active = 1 LIMIT 1'
+    );
+    $vorhanden->execute(['k' => $zielKey]);
+    $id = $vorhanden->fetchColumn();
+    if ($id !== false) {
+        return (int) $id;
+    }
+
+    $name = trim((string) ($werte['name'] ?? ''));
+    if ($name === '') {
+        throw new RuntimeException('Die Zielzeile braucht einen Namen.');
+    }
+    $type = trim((string) ($werte['type'] ?? '')) !== '' ? trim((string) $werte['type']) : 'Herrschaftsgebiet';
+    $continent = trim((string) ($werte['continent'] ?? ''));
+    if ($continent === '') {
+        $continent = AVESMAPS_POLITICAL_DEFAULT_CONTINENT;
+    }
+    $zoom = avesmapsPoliticalDefaultZoomRange($type);
+
+    $pdo->prepare(
+        'INSERT INTO political_territory (
+            public_id, wiki_id, wiki_key, slug, name, type, continent, status, color, opacity,
+            coat_of_arms_url, wiki_url, valid_from_bf, valid_to_bf, min_zoom, max_zoom,
+            parent_id, is_active, editor_notes, sort_order
+        ) VALUES (
+            :public_id, NULL, :wiki_key, :slug, :name, :type, :continent, :status, :color, 0.5,
+            :coat, :wiki_url, :valid_from, :valid_to, :min_zoom, :max_zoom,
+            NULL, 1, :notes, :sort_order
+        )'
+    )->execute([
+        'public_id' => avesmapsPoliticalUuidV4(),
+        'wiki_key' => $zielKey,
+        'slug' => avesmapsPoliticalUniqueSlug($pdo, avesmapsPoliticalSlug($name)),
+        'name' => $name,
+        'type' => $type,
+        'continent' => $continent,
+        'status' => avesmapsPoliticalNullableString(trim((string) ($werte['status'] ?? ''))),
+        'color' => avesmapsPoliticalColorFromText($name),
+        'coat' => avesmapsPoliticalNullableString(trim((string) ($werte['coat_of_arms_url'] ?? ''))),
+        'wiki_url' => avesmapsPoliticalNullableString(trim((string) ($werte['wiki_url'] ?? ''))),
+        'valid_from' => $werte['valid_from_bf'] ?? null,
+        'valid_to' => $werte['valid_to_bf'] ?? null,
+        'min_zoom' => $zoom['min_zoom'],
+        'max_zoom' => $zoom['max_zoom'],
+        'notes' => 'Aus einem eigenen Knoten gebunden: ' . $zielKey,
+        'sort_order' => avesmapsPoliticalNextSortOrder($pdo),
+    ]);
+
+    return (int) $pdo->lastInsertId();
+}
