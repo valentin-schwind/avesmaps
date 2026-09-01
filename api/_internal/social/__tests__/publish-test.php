@@ -306,4 +306,44 @@ assert(mb_strpos((string) $noToken['error'], 'social_token') !== false,
     'naming the TABLE this time: the two halves live in two places, and which one is missing is the '
     . 'whole question');
 
+// ------------------------------------------------------------------------------------------------
+// Der Retry-Riegel (01.09.2026). 💣 Der Hub wusste es, der Endpunkt nicht: `canRetry` bietet
+// „Erneut" nur bei einem gescheiterten Kanal an, api/edit/social/retry.php nahm jeden Zustand an.
+// Ueber die API hindurchgegangen, antwortete Mastodon auf den wiederholten Idempotency-Key mit
+// HTTP 500 -- kein Doppelbeitrag, aber der Chip fiel auf „Fehler", waehrend der Beitrag oeffentlich
+// dastand. Die falsche ANZEIGE war der Schaden.
+// ------------------------------------------------------------------------------------------------
+assert(avesmapsSocialRetryErlaubt('failed'), 'ein gescheiterter Kanal darf wiederholt werden');
+assert(avesmapsSocialRetryErlaubt('pending'), 'ein nie versuchter auch');
+assert(!avesmapsSocialRetryErlaubt('sent'), 'ein GESENDETER nicht -- er steht bereits draussen');
+// ⚠️ Die zwei Relais-Zustaende ausdruecklich: der Beitrag wartet bzw. ein Lauf hat ihn uebernommen.
+// Ein zweiter Anstoss daneben liesse zwei Laeufe um denselben Beitrag streiten.
+assert(!avesmapsSocialRetryErlaubt('queued'), 'ein wartender nicht');
+assert(!avesmapsSocialRetryErlaubt('sending'), 'ein laufender nicht');
+
+// 🔴 ALLOWLIST, keine Sperrliste: ein kuenftiger, hier unbekannter Zustand ist GESPERRT, nicht
+// versehentlich erlaubt. Dieselbe sichere Richtung wie beim Chip, der Unbekanntes nie auf
+// „gesendet" faellt.
+assert(!avesmapsSocialRetryErlaubt('irgendwas-neues'), 'ein unbekannter Zustand ist gesperrt');
+assert(!avesmapsSocialRetryErlaubt(''), 'und ein leerer erst recht');
+
+// Die Absage nennt den Grund; bei einem unbekannten Zustand nennt sie den Zustand selbst, sonst
+// stuende der Editor vor einem „geht nicht" ohne jeden Anhaltspunkt.
+assert(trim(avesmapsSocialRetryAbsage('sent')) !== '', 'die Absage hat einen Text');
+assert(mb_strpos(avesmapsSocialRetryAbsage('irgendwas-neues'), 'irgendwas-neues') !== false,
+    'ein unbekannter Zustand steht in seiner eigenen Absage');
+
+// 💣 Und der Riegel steht VOR dem Dispatch -- danach hat der den Zustand laengst ueberschrieben,
+// und die Pruefung liefe ins Leere, ohne dass es auffiele.
+$retryQuelle = (string) preg_replace('~/\*.*?\*/|//[^\n]*~s', '',
+    (string) file_get_contents(__DIR__ . '/../../../edit/social/retry.php'));
+$riegelBei = mb_strpos($retryQuelle, 'avesmapsSocialRetryErlaubt');
+$dispatchBei = mb_strpos($retryQuelle, 'avesmapsSocialDispatch');
+assert($riegelBei !== false && $dispatchBei !== false, 'Riegel und Dispatch stehen in retry.php');
+assert($riegelBei < $dispatchBei, 'der Riegel greift VOR dem Dispatch');
+// ⚠️ Diese Zusicherung prueft die STELLE, nicht die Wirkung: wer den Riegel an Ort und Stelle
+// entschaerft (`if (false && …)`), bleibt hier gruen -- per Mutation nachgemessen. Die Wirkung
+// laesst sich nur mit einer echten Datenbank pruefen, und die hat dieser Test nicht (siehe
+// Kopf der Datei). Wer den Riegel anfasst, faehrt den Ablauf im Browser nach.
+
 fwrite(STDOUT, "publish-test: OK\n");

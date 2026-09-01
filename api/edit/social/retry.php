@@ -40,6 +40,32 @@ try {
     }
 
     $pdo = avesmapsCreatePdo($config['database'] ?? []);
+
+    // 🔴 DER RIEGEL, UND ER STEHT VOR DEM DISPATCH. Der Hub bietet „Erneut" nur bei einem
+    // gescheiterten Kanal an; dieser Endpunkt nahm bis zum 01.09.2026 jeden Zustand an. Ein Retry
+    // auf ein bereits GESENDETES Ziel holt den Beitrag nicht noch einmal heraus -- Mastodon
+    // antwortet auf den wiederholten Idempotency-Key mit HTTP 500 --, aber er setzt den Chip auf
+    // „Fehler", waehrend der Beitrag oeffentlich dasteht. Die falsche Anzeige ist der Schaden.
+    //
+    // ⚠️ Geprueft wird der Zustand VOR dem Dispatch: danach hat er ihn laengst ueberschrieben.
+    $post = avesmapsSocialLoadPost($pdo, $id);
+    if ($post === null) {
+        avesmapsErrorResponse(404, 'not_found', 'Der Beitrag wurde nicht gefunden.');
+    }
+    $zielStatus = null;
+    foreach ($post['targets'] as $target) {
+        if ((string) $target['channel_key'] === $channel) {
+            $zielStatus = (string) $target['status'];
+        }
+    }
+    if ($zielStatus === null) {
+        avesmapsErrorResponse(404, 'not_found', 'Dieser Beitrag hat kein Ziel für diesen Kanal.');
+    }
+    if (!avesmapsSocialRetryErlaubt($zielStatus)) {
+        // 409, nicht 400: die Anfrage ist in Ordnung, nur der Zustand laesst sie nicht zu.
+        avesmapsErrorResponse(409, 'retry_not_allowed', avesmapsSocialRetryAbsage($zielStatus));
+    }
+
     $dispatch = avesmapsSocialDispatch($pdo, $id, $config, $channel);
     if (!$dispatch['ok']) {
         avesmapsErrorResponse(404, 'not_found', 'Der Beitrag wurde nicht gefunden.');

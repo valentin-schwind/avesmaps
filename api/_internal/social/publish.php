@@ -25,6 +25,45 @@ require_once __DIR__ . '/adapters/instagram.php';
 require_once __DIR__ . '/adapters/mastodon.php';
 
 /**
+ * Darf dieses Ziel noch einmal versucht werden?
+ *
+ * 💣 DER HUB WEISS ES, DER ENDPUNKT WUSSTE ES NICHT. `canRetry` im Client bietet „Erneut" nur bei
+ * einem gescheiterten Kanal an -- api/edit/social/retry.php nahm dagegen JEDEN Zustand an. Am
+ * 01.09.2026 bin ich ueber die API genau dort hindurchgegangen und habe damit den Zustand erzeugt,
+ * den dieses Projekt sonst ueberall vermeidet: Mastodon antwortete auf den wiederholten
+ * Idempotency-Key mit **HTTP 500** (zweimal gemessen), der Chip fiel auf „Fehler" -- waehrend der
+ * Beitrag oeffentlich draussen stand. Ein Doppelbeitrag entstand nicht; die falsche ANZEIGE ist der
+ * Schaden.
+ *
+ * 🔴 ALLOWLIST, keine Sperrliste. Erlaubt sind genau die zwei Zustaende, in denen ein zweiter
+ * Versuch etwas bewirken KANN: `failed` (er ist gescheitert) und `pending` (er wurde nie versucht).
+ * Ein kuenftiger, hier unbekannter Zustand ist damit gesperrt statt versehentlich erlaubt -- die
+ * sichere Richtung, dieselbe wie beim Chip, der einen unbekannten Zustand nie auf „gesendet" faellt.
+ *
+ * ⚠️ `queued` und `sending` sind AUSDRUECKLICH nicht erlaubt: der Beitrag wartet bereits bzw. ein
+ * Lauf hat ihn uebernommen. Ein zweiter Anstoss daneben liesse zwei Laeufe um denselben Beitrag
+ * streiten.
+ */
+function avesmapsSocialRetryErlaubt(string $status): bool
+{
+    return in_array($status, ['failed', 'pending'], true);
+}
+
+/**
+ * Der Grund, warum nicht -- fuer den Editor lesbar, mit dem Zustand darin.
+ */
+function avesmapsSocialRetryAbsage(string $status): string
+{
+    return match ($status) {
+        'sent' => 'Dieser Kanal hat den Beitrag bereits gesendet. Ein zweiter Versuch bringt ihn'
+            . ' nicht noch einmal heraus, sondern kann nur die Anzeige verfaelschen.',
+        'queued' => 'Der Beitrag wartet bereits auf seinen Versand.',
+        'sending' => 'Der Beitrag wird gerade gesendet.',
+        default => 'In diesem Zustand (' . $status . ') ist kein neuer Versuch vorgesehen.',
+    };
+}
+
+/**
  * May this post go to this channel? Returns the refusal as GERMAN text -- it lands in the editor's
  * list as the reason nothing went out -- or null when nothing speaks against it.
  *
