@@ -1102,20 +1102,28 @@ function locationPopupMarkup({
 	isRuined = false,
 	actionsMarkup = "",
 	// Das Kanon-Etikett. Leer bei jedem Objekt ohne Quelle -- siehe renderFeatureKanonBadge.
+	// 💣 ES STEHT IN JEDEM KOPF AN EINER ANDEREN STELLE, und das ist keine Unachtsamkeit: beim
+	// ICON-Kopf liegt das Wappen LINKS und der Text daneben, also gehoert das Etikett in die
+	// Titelgruppe -- als Geschwister des Kopfes rutschte es unter das Wappen und begann 58 px
+	// weiter links als der Text (Owner 01.09.2026, live gemessen: Titel bei x=512, Etikett bei
+	// x=454). Beim BILD-Kopf gibt es kein Wappen daneben, dort steht es korrekt darunter
+	// (gemessen 908/908). Eine gemeinsame Stelle fuer beide gibt es nicht.
 	kanonMarkup = "",
 }) {
 	const popupClassName = compact ? "location-popup location-popup--compact" : "location-popup";
 	const nameClassName = isRuined ? "location-popup__name location-popup__name--ruined" : "location-popup__name";
 	return `
 		<div class="${popupClassName}">
-			${headerImageMarkup || `<div class="location-popup__header">
+			${headerImageMarkup
+				? `${headerImageMarkup}${kanonMarkup}`
+				: `<div class="location-popup__header">
 				${showHeaderIcon ? (headerIconMarkup || locationIconMarkup(locationType, locationTypeLabel)) : ""}
 				<div class="location-popup__title-group">
 					<div class="${nameClassName}">${escapeHtml(name)}</div>
 					${showType ? `<div class="location-popup__type">${escapeHtml(locationTypeLabel)}${typeSuffixMarkup ? ` · ${typeSuffixMarkup}` : ""}</div>` : ""}
+					${kanonMarkup}
 				</div>
 			</div>`}
-			${kanonMarkup}
 			${showDivider ? `<div class="location-popup__divider"></div>` : ""}
 			${showDescription ? locationDescriptionMarkup(name, description, isRuined) : ""}
 			${actionsMarkup}

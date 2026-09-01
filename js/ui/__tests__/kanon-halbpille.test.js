@@ -19,6 +19,7 @@
 const assert = require("assert");
 const fs = require("fs");
 const path = require("path");
+const vm = require("vm");
 
 const wurzel = path.join(__dirname, "..", "..", "..");
 const markup = require(path.join(wurzel, "js", "ui", "feature-source-markup.js"));
@@ -155,16 +156,59 @@ pruefe((kraft.match(/function getPowerlineSourceAnchorId/g) || []).length === 1,
 pruefe((kraft.match(/(?<!function )getPowerlineSourceAnchorId\(powerline\)/g) || []).length === 2,
   "und ihre zwei Leser sind Quellenzeile und Etikett");
 
-// ---- K. Der Kopf reicht es durch ----------------------------------------------------------------
+// ---- K. Der Kopf setzt es an die richtige Stelle -------------------------------------------------
+// 💣 HIER STAND EINE QUELLTEXT-PRUEFUNG ("kommt ${kanonMarkup} zwischen Titelgruppe und
+// Knopfreihe vor?"), und sie war GRUEN, waehrend das Etikett live unter dem WAPPEN klebte
+// (Owner 01.09.2026: „das offiziell ist unter das wappen gerutscht"). Die Reihenfolge im
+// Quelltext sagt nichts darueber, in welchem ELEMENT etwas landet -- geprueft wird deshalb das
+// gerenderte Markup.
 const popups = fs.readFileSync(path.join(wurzel, "js", "ui", "popups.js"), "utf8");
 pruefe(/kanonMarkup = ""/.test(popups), "locationPopupMarkup nimmt kanonMarkup entgegen");
-pruefe(/\$\{kanonMarkup\}/.test(popups), "und zeichnet es");
-// 🔴 UNTER Art und Herrschaft, UEBER der Knopfreihe -- nicht neben dem Namen.
-const kopfIdx = popups.indexOf("location-popup__title-group");
-const kanonIdx = popups.indexOf("${kanonMarkup}");
-const aktionIdx = popups.indexOf("${actionsMarkup}");
-pruefe(kopfIdx < kanonIdx && kanonIdx < aktionIdx,
-  "das Etikett steht zwischen Kopf und Knopfreihe (Entwurf §4.1)");
+const vmKontext = {
+  escapeHtml: (s) => String(s == null ? "" : s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])),
+  tr: (schluessel, rueckfall) => rueckfall,
+  locationIconMarkup: () => '<div class="location-popup__icon">W</div>',
+  locationDescriptionMarkup: () => "",
+  wikiLocationLinkMarkup: () => "",
+};
+vmKontext.globalThis = vmKontext;
+vm.createContext(vmKontext);
+vm.runInContext(popups.slice(popups.indexOf("function locationPopupMarkup"), popups.indexOf("function labelPopupMarkup")), vmKontext);
+const ETIKETT = '<div class="feature-kanon-head">ETIKETT</div>';
+
+// 🔴 ICON-KOPF: das Wappen liegt LINKS, der Text daneben -- also gehoert das Etikett IN die
+// Titelgruppe. Als Geschwister des Kopfes begann es 58 px weiter links als der Text.
+const mitIcon = vmKontext.locationPopupMarkup({
+  name: "Burg Trutzfels", locationTypeLabel: "Festung", showType: true,
+  showDescription: false, showWikiLink: false, kanonMarkup: ETIKETT,
+});
+const gruppe = mitIcon.slice(mitIcon.indexOf('class="location-popup__title-group"'));
+const gruppeEnde = gruppe.indexOf("</div>\n\t\t\t</div>") >= 0 ? gruppe.indexOf("</div>\n\t\t\t</div>") : gruppe.length;
+pruefe(gruppe.slice(0, gruppeEnde).includes("feature-kanon-head"),
+  "beim Icon-Kopf steht das Etikett IN der Titelgruppe, nicht unter dem Wappen");
+pruefe(mitIcon.indexOf("feature-kanon-head") > mitIcon.indexOf("location-popup__type"),
+  "und darin unter Art und Herrschaft, nicht ueber ihnen");
+pruefe(mitIcon.indexOf("feature-kanon-head") < mitIcon.indexOf("location-popup__divider")
+  || !mitIcon.includes("location-popup__divider"), "und vor dem Kopf-Trenner");
+
+// 🔴 BILD-KOPF: dort gibt es kein Wappen daneben, das Etikett steht unter dem Bild.
+const mitBild = vmKontext.locationPopupMarkup({
+  name: "Burg Trutzfels", headerImageMarkup: '<div class="info-header-image"></div>',
+  showDescription: false, showWikiLink: false, actionsMarkup: '<div class="actions"></div>',
+  kanonMarkup: ETIKETT,
+});
+pruefe(mitBild.indexOf("info-header-image") < mitBild.indexOf("feature-kanon-head"),
+  "beim Bild-Kopf steht es hinter dem Bild");
+pruefe(mitBild.indexOf("feature-kanon-head") < mitBild.indexOf('class="actions"'),
+  "und vor der Knopfreihe (Entwurf §4.1)");
+// ⚠️ Genau EINMAL -- die zwei Zweige duerfen es nicht beide zeichnen.
+for (const [was, markup] of [["Icon-Kopf", mitIcon], ["Bild-Kopf", mitBild]]) {
+  pruefe((markup.match(/feature-kanon-head/g) || []).length === 1, `${was}: das Etikett genau einmal`);
+}
+// Ohne Etikett bleibt der Kopf, wie er war.
+pruefe(!vmKontext.locationPopupMarkup({
+  name: "Namenlos", showType: true, showDescription: false, showWikiLink: false,
+}).includes("feature-kanon-head"), "ohne Etikett zeichnet der Kopf keine leere Huelle");
 // ⚠️ EINE Fassung der Typbeschriftungen, zwei Leser -- als Abschrift liefen sie beim ersten neuen
 // Quellentyp still auseinander (ein unbekannter Schluessel faellt nicht, er geht roh durch).
 pruefe((popups.match(/regionalspielhilfe: tr\(/g) || []).length === 1,
