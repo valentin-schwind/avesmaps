@@ -154,22 +154,21 @@ for (const t of ["--color-kanon-official", "--color-kanon-official-text", "--col
   pruefe(treffer.length === 2, `${t} muss in hellem UND dunklem Thema definiert sein (gefunden: ${treffer.length})`);
 }
 
-// ---- H1b. Das Polster ist unsymmetrisch, und das ist GEMESSEN ---------------------------------
-// 💣 2px oben / 3px unten, nie 2/2 und nie 3/2. Mit `line-height: 1` zentriert der Zeilenkasten
-// den SCHRIFTKASTEN (Oberlaenge + Unterlaenge), nicht die sichtbare Schrift -- bei VERSALIEN
-// bleibt der Unterlaengenraum leer und der Wortblock sitzt zu TIEF. Owner 01.09.2026: „nicht
-// perfekt vertikal zentriert".
-// ⭐ Zwei unabhaengige Messungen im Browser, beide mit demselben Ergebnis: Pixelabtast der Tinte
-// gegen die per Layout ermittelte Grundlinie, UND das gerasterte Bild des Chips selbst
-// (foreignObject -> Canvas, Pixel klassifiziert). Versatz nach unten:
-//     3/2 -> 1,17px    2/2 -> 0,67px    2/3 -> 0,17px
-// ⚠️ Der Wert haengt an Schrift und Groesse. Diese Zusicherung haelt nur die ABSICHT fest --
-// wer font-size oder Schriftfamilie aendert, misst neu, statt die Zeile zu streichen.
+// ---- H1b. Das Polster ist 3px oben / 2px unten -- der Mittelweg aus ZWEI Kriterien -----------
+// 💣 Ich habe es am 01.09.2026 auf 2/3 gedreht, weil die Schrift IN der Pille damit mittiger
+// sitzt. Der Owner meldete sofort „wird immer schlimmer mit der vertikalen ausrichtung" -- das
+// war das falsche Kriterium.
+// 🔴 Die Zeile richtet an der GRUNDLINIE aus; die Chipschrift steht damit fest, und das Polster
+// verschiebt die PILLE um sie herum. Zwei Optima, 0,97px auseinander (Chip 11px versal gegen
+// Nachbar 12px gemischtschriftlich auf derselben Grundlinie): Text mittig in der Pille bei
+// Grundlinie −3,905, Pille mittig auf der Zeile bei −4,875. Mittelweg −4,39; 3/2 trifft −4,335.
+// Zeilenunwucht gemessen: 3/2 -> 1,08px | 2/2 -> 2,08 | 3/3 -> 2,08 | 2/3 -> 3,08.
+// ⚠️ Wer nur die INNERE Zentrierung misst, landet bei 2/3 und macht es sichtbar schlechter.
 const chipRegel = css.slice(css.indexOf(".fs-kanon {"), css.indexOf(".fs-kanon--off"));
-pruefe(/padding:\s*2px\s+8px\s+3px\s*;/.test(chipRegel),
-  "der Chip polstert 2px oben / 3px unten -- gemessen, nicht geraten");
-pruefe(!/padding:\s*3px\s+8px\s+2px\s*;/.test(css),
-  "die alte, verkehrt herum unsymmetrische Fassung darf nirgends mehr stehen");
+pruefe(/padding:\s*3px\s+8px\s+2px\s*;/.test(chipRegel),
+  "der Chip polstert 3px oben / 2px unten -- der gemessene Mittelweg, nicht die innere Mitte");
+pruefe(!/padding:\s*2px\s+8px\s+3px\s*;/.test(css),
+  "die auf die innere Mitte optimierte Fassung darf nirgends mehr stehen");
 
 // ---- H2. Alle drei Titelgruppen duerfen SCHRUMPFEN ----------------------------------------------
 // 💣 Ein Flex-/Grid-Kind weigert sich per Vorgabe zu schrumpfen (`min-width: auto`), und der Chip
