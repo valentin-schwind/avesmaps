@@ -659,6 +659,20 @@ function avesmapsGaretienArbeitslisteObjekte(PDO $pdo, int $importRunId): array
                     'felder' => $item['after']['felder'] ?? [],
                     'selected' => $item['selected'],
                     'apply_state' => $item['apply_state'],
+                    // 🔴 UND DER DAUERHAFTE VERMERK MIT. „Uebernommen" hat ZWEI Quellen --
+                    // `apply_state = 'done'` gilt nur fuer den GERADE laufenden Lauf, `applied`
+                    // ist der Vermerk in `sync_decision`, der ein „Holen & Rechnen" ueberlebt.
+                    // Der Stand des OBJEKTS liest unten schon beide (avesmapsGaretienListeObjektStand);
+                    // das Item schickte nur die erste, und damit hatte die Knopfleiste im Browser
+                    // keine Chance, die zweite zu sehen.
+                    // 💣 GENAU DAS WAR DIE MELDUNG „wie nehm ich das zurueck" (01.09.2026):
+                    // nach einem frischen Lauf stand ein Objekt in „Uebernommen" und trug KEINEN
+                    // einzigen Knopf -- der Reiter rechnete serverseitig mit beiden Quellen, die
+                    // Leiste im Browser mit einer. Der Riegel gegen die zweite Quelle war am
+                    // 31.08.2026 eigens im JS gebaut worden (`item.applied === true`) und lief ins
+                    // Leere, weil das Feld die Tuer nie verliess: ein Leser, den nur der Test
+                    // erreicht, ist kein Leser.
+                    'applied' => $item['applied'] ?? false,
                     'before_name' => $item['before']['name'] ?? null,
                     'after_name' => $item['after']['name'] ?? null,
                     'abschnitt' => $item['after']['abschnitt'] ?? null,
