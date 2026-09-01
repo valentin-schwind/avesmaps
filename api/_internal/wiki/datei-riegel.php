@@ -40,26 +40,32 @@ declare(strict_types=1);
 // Lesen scheitern und faellt dann auf seinen Code-Standard zurueck -- und genau dieser Fehlerfall
 // hat hier die teuerste Richtung. Wer wieder aufmacht, aendert diese Zeile und sieht es im Diff.
 //
-// 🔴 SEIT 25.08.2026 WIEDER OFFEN (Owner: „mach den riegel auf und starte den lauf"), und das ist
-// KEINE Ruecknahme der Entscheidung vom 23.08. -- die Bedingungen darunter haben sich an drei
-// Stellen geaendert, jede gemessen:
+// 🔴 SEIT 01.09.2026 WIEDER ZU (Owner, mit Abschaltdrohung: „auf keinen fall laedst du wappen aus
+// dem wiki live aus dem wiki nach ... es darf nirgends passieren, ausser wenn ich auf ‚Starten' bei
+// diesen beiden buttons drueck.").
 //
-//   1. Die VERBOTENE SEITE wird gar nicht mehr abgerufen. `Spezial:Dateipfad` war der Grund der
-//      Sperre; seit `datei-adresse.php` fuehrt der Weg ueber `api.php` zur echten Adresse unter
-//      `/de/images/`, und die steht in keiner Verbotsliste -- auch nicht in der von `*`.
-//      `coat.php` weist eine Spezialseite ausdruecklich ab, statt sie zu holen.
-//   2. Die DROSSEL bindet seit `aa8f1801` alle fuenf Abrufer, nicht mehr nur die API. Am 23.08.
-//      war der einzige Schutz vor dem Haemmern dieser Schalter hier.
-//   3. AUS DEM SEITENAUFBAU KOMMT NICHTS MEHR. Live an der Kartennutzlast gemessen (20 MB,
-//      25.08.2026): GENAU EINE Wiki-Bildadresse steht noch darin, und die ist eine Spezialseite,
-//      die abgewiesen wird. Kein `coat`-Feld traegt eine Wiki-Adresse. Der Sturm von 2000+
-//      Anfragen je Seitenaufbau, der die Sperre am Leben hielt, kann strukturell nicht mehr
-//      entstehen.
+// 💣 UND ER KANN ES JETZT AUCH, WAS VORHER NICHT GING. Bis hierher haben die beiden
+// „Hole Wiki-Wappen"-Laeufe an DIESER Konstante gehangen statt an der Ausnahme darunter --
+// `false` haette also die zwei Knoepfe des Owners mitgenommen. Genau deshalb stand sie offen, und
+// damit stand die Tuer fuer alles uebrige offen. Seit dem 01.09.2026 rufen beide Laeufe
+// `avesmapsWikiAusdruecklicherAbruf` (settlements-coat-localize.php, sync-monitor-identity.php);
+// der Riegel kann deshalb geschlossen sein, ohne eine gewollte Funktion zu nehmen.
 //
-// ⚠️ WAS DAMIT NOCH RAUSGEHT, ist genau das Gewollte: der ausdrueckliche Lauf „Hole Wiki-Wappen"
-// und die Einzelaktionen eines Editors -- alle gedrosselt, alle auf dem erlaubten Weg.
-// ⚠️ Und der Rueckweg bleibt eine Zeile: wer hier wieder `false` schreibt, macht sofort zu.
-const AVESMAPS_WIKI_DATEI_ABRUF_ERLAUBT = true;
+// 🔴 WAS DIE OEFFNUNG VOM 25.08. BEGRUENDET HAT, WAR RICHTIG GEMESSEN UND TROTZDEM ZU SCHMAL:
+// sie sprach nur ueber den SERVER. Am 01.09.2026 hat ein Scan ueber das ganze Repo gezeigt, dass
+// die teuersten Wege gar nicht durch PHP laufen -- ein `<img src="<Wiki-Adresse>">` im Browser geht
+// an Riegel, Drossel und Ausgabefilter vorbei, weil unser Server die Anfrage nie sieht. Gefunden
+// wurden zehn fest verdrahtete Wiki-Bildadressen in js/map-features/map-features-place-extras.js
+// (ausgeliefert an JEDEN Besucher) und zwei Editorlisten mit einem rohen Bild je Zeile. Der Riegel
+// haette davon nie etwas gemerkt.
+//
+// ⚠️ WAS DAMIT NOCH RAUSGEHT: nur, was durch `avesmapsWikiAusdruecklicherAbruf` laeuft -- die zwei
+// Lokalisierungslaeufe, der Upload per Bild-URL und das Zuruecksetzen eines Wappens. Alles andere
+// bekommt eine Absage, auch wenn es an einem Knopf haengt. 🔧 Betroffen und dem Owner am 01.09.2026
+// gemeldet: Stadtkarten-Autoget, Literatur-Cover-Download und der Linkcheck auf Wiki-Adressen.
+// Wer einen davon wiederhaben will, huellt IHN in den Wrapper -- nicht diese Konstante zurueck.
+// ⚠️ Und der Rueckweg bleibt eine Zeile: wer hier wieder `true` schreibt, macht alles auf.
+const AVESMAPS_WIKI_DATEI_ABRUF_ERLAUBT = false;
 
 /**
  * PUR: wird diese URL von wiki-aventurica selbst ausgeliefert?

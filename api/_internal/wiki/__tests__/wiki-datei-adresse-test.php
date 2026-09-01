@@ -283,8 +283,13 @@ foreach (
         'api/_internal/wiki/sync-monitor-identity.php' => 'avesmapsWikiSyncMonitorLocalizeCoats',
     ] as $datei => $funktion
 ) {
-    $rumpf = $rumpfVon((string) file_get_contents($wurzel . '/' . $datei), $funktion);
-    assert($rumpf !== '', "6: {$funktion} nicht gefunden.");
+    // 🪤 SEIT 01.09.2026 IST DER LAUF EINE HUELLE. `$funktion` oeffnet nur noch den Riegel
+    // (avesmapsWikiAusdruecklicherAbruf) und ruft `…Ausfuehren`; der eigentliche Rumpf -- und damit
+    // die Vorab-Aufloesung, die hier geprueft wird -- steckt dort. Ohne dieses `Ausfuehren` misst
+    // dieser Test die Huelle und ist trivial gruen, waehrend die Abkuerzung wegfallen koennte.
+    // Genau so ist er beim Umbau umgefallen, und das war richtig.
+    $rumpf = $rumpfVon((string) file_get_contents($wurzel . '/' . $datei), $funktion . 'Ausfuehren');
+    assert($rumpf !== '', "6: {$funktion}Ausfuehren nicht gefunden.");
     assert(
         str_contains($rumpf, 'avesmapsWikiDateiAdressenAufloesen('),
         "6: {$funktion} loest seinen Stapel nicht im Voraus auf -- der Lauf kostet dann die "

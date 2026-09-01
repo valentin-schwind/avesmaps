@@ -307,7 +307,28 @@ function avesmapsWikiSyncMonitorPendingLocalizeCoatKeys(PDO $pdo, ?array &$adres
 // batch_limit Stueck herunterladen + lokal verkleinert speichern (via save_coat_local), zwischen den
 // Downloads sleep_ms warten (Wiki schonen). Der Client ruft, bis remaining=0 ODER ein Batch keinen
 // Fortschritt macht (nur noch dauerhaft fehlerhafte Bilder). Lizenz/Quelle: nur public_domain, nur Wiki.
+/**
+ * DIE AUSDRUECKLICHE AUSNAHME VOM RIEGEL -- und der Grund, warum der Riegel wieder zu sein kann.
+ *
+ * 🔴 Owner 01.09.2026: „es darf nirgends passieren, ausser wenn ich auf ‚Starten' bei diesen beiden
+ * buttons drueck." Dieser Lauf IST einer der beiden Knoepfe.
+ *
+ * 💣 BIS HIERHER HING ER AN DER KONSTANTE, NICHT AN DIESER AUSNAHME. Deshalb musste
+ * AVESMAPS_WIKI_DATEI_ABRUF_ERLAUBT auf `true` stehen, damit der Knopf ueberhaupt laeuft -- und
+ * damit stand die Tuer fuer ALLES uebrige offen. Der Kopf von datei-riegel.php behauptete seit jeher,
+ * ohne die Ausnahme koenne der Lauf „nie laufen"; gebaut war sie fuer ihn nie.
+ *
+ * ⚠️ Der Wrapper raeumt im `finally` auch bei einem Wurf auf und stellt den VORHERIGEN Stand her --
+ * niemals von Hand `avesmapsWikiLokalisierungLaeuft(true)` setzen.
+ * ⚠️ Die Freigabe gilt fuer die Dauer DIESES Laufs im selben Prozess, nicht darueber hinaus.
+ */
 function avesmapsWikiSyncMonitorLocalizeCoats(PDO $pdo, array $options = []): array {
+    return avesmapsWikiAusdruecklicherAbruf(
+        static fn(): array => avesmapsWikiSyncMonitorLocalizeCoatsAusfuehren($pdo, $options)
+    );
+}
+
+function avesmapsWikiSyncMonitorLocalizeCoatsAusfuehren(PDO $pdo, array $options = []): array {
     avesmapsWikiSyncMonitorEnsureTables($pdo);
     $batchLimit = max(1, min(40, (int) ($options['batch_limit'] ?? 10)));
     $sleepMs = max(0, min(3000, (int) ($options['sleep_ms'] ?? AVESMAPS_WIKI_SYNC_MONITOR_SLEEP_MS)));

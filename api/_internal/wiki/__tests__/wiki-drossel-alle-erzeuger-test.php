@@ -205,8 +205,21 @@ foreach (
         'api/_internal/wiki/sync-monitor-identity.php' => 'avesmapsWikiSyncMonitorLocalizeCoats',
     ] as $datei => $funktion
 ) {
-    $rumpf = $funktionsRumpf((string) file_get_contents($wurzel . '/' . $datei), $funktion);
-    assert($rumpf !== '', "1e: {$funktion} nicht gefunden.");
+    // 🪤 SEIT 01.09.2026 AUF `…Ausfuehren`, UND DAS IST TRAGEND. `$funktion` ist seither nur noch die
+    // Huelle, die den Riegel oeffnet (avesmapsWikiAusdruecklicherAbruf); ihr Rumpf ist drei Zeilen
+    // lang. Diese Zusicherung ist eine NEGATIVE ("enthaelt keinen eigenen Abruf-Kanal") -- an der
+    // Huelle gemessen ist sie trivial wahr, bleibt gruen und prueft nichts mehr. Sie waere beim
+    // Umbau also NICHT umgefallen, sondern lautlos bedeutungslos geworden; aufgefallen ist es nur,
+    // weil der Nachbartest daneben (wiki-datei-adresse-test.php) eine POSITIVE Zusicherung stellt
+    // und deshalb rot wurde. ⚠️ Wer eine negative Zusicherung auf einen Funktionsrumpf stellt,
+    // prueft mit, dass der Rumpf ueberhaupt noch der gemeinte ist.
+    $rumpf = $funktionsRumpf((string) file_get_contents($wurzel . '/' . $datei), $funktion . 'Ausfuehren');
+    assert($rumpf !== '', "1e: {$funktion}Ausfuehren nicht gefunden.");
+    assert(
+        strlen($rumpf) > 400,
+        "1e: der Rumpf von {$funktion}Ausfuehren ist verdaechtig kurz -- misst diese Zusicherung noch "
+            . "den Lauf, oder inzwischen wieder nur eine Huelle?"
+    );
     assert(
         !str_contains($rumpf, 'curl_init(') && !str_contains($rumpf, 'file_get_contents('),
         "1e: {$funktion} oeffnet einen eigenen Abruf-Kanal und laeuft damit an der Drossel vorbei."

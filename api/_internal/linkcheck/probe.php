@@ -14,6 +14,13 @@ declare(strict_types=1);
 // (Linkchecker-Lauf und Wappen-Upload per Bild-URL), und ein ungeladener Drossel-Aufruf waere
 // ein Fatal Error mit LEEREM Rumpf -- im Browser nicht von einem Netzfehler zu unterscheiden.
 require_once __DIR__ . '/../wiki/drossel.php';
+// 🔴 UND DER RIEGEL (01.09.2026). Bis dahin fragte diese Datei NUR die Drossel -- sie war damit
+// der einzige Wiki-Bildholer im Haus ohne Riegel, und `datei-riegel.php` behauptete in seinem Kopf
+// „ES GIBT GENAU ZWEI FETCHER", waehrend es vier waren. Ueber diese Datei laeuft der
+// Stadtkarten-Autoget (api/_internal/app/citymaps.php), der Wiki-BILDER im Massenlauf holt und
+// dessen Adresse sogar auf den Wiki-Wirt festgenagelt ist -- ein geschlossener Riegel haette ihn
+// nicht aufgehalten. Aus demselben Grund wie oben bindet diese Datei ihn SELBST ein.
+require_once __DIR__ . '/../wiki/datei-riegel.php';
 
 const AVESMAPS_LINK_PROBE_TIMEOUT_SECONDS = 15;
 const AVESMAPS_LINK_PROBE_CONNECT_TIMEOUT_SECONDS = 8;
@@ -179,6 +186,13 @@ function avesmapsLinkCheckRequest(string $url, bool $useHead): array
     // ⚠️ Er darf hier WARTEN: `avesmapsLinkCheckRunStep` prueft sein Zeitbudget vor jeder Zeile
     // und hoert auf, statt zu ueberziehen; die uebrigen Zeilen bleiben faellig und kommen im
     // naechsten Schritt dran.
+    // 🔴 DER RIEGEL STEHT VOR DER DROSSEL. Ein geriegelter Abruf hat NIE EINE ANFRAGE GESTELLT und
+    // darf deshalb weder den Crawl-Delay verbrauchen noch einen Fehlschlag-Zaehler fuettern --
+    // dieselbe Ordnung wie in api/app/coat.php und aus demselben Grund (eine Sperre, die den
+    // Zaehler einer anderen Sperre fuettert, baut eine Zeitbombe).
+    if (!avesmapsWikiDateiAbrufErlaubt($url)) {
+        return ['ok' => false, 'status' => 0, 'error' => 'geriegelt', 'final_url' => '', 'headers' => []];
+    }
     if (avesmapsWikiDrosselGiltFuer($url)) {
         avesmapsWikiSyncThrottleWikiRequest();
     }
@@ -266,6 +280,10 @@ function avesmapsLinkCheckFetchBody(string $url, int $maxBytes, string $accept =
     // ist zugleich der SSRF-geschuetzte Holer des Wappen-Uploads per Bild-URL -- sie laedt also
     // sehr wohl Bilder von wiki-aventurica.de. Wer nur den offensichtlichen
     // `avesmapsLinkCheckRequest` bindet, bindet die Haelfte.
+    // 🔴 Derselbe Riegel wie oben, vor der Drossel.
+    if (!avesmapsWikiDateiAbrufErlaubt($url)) {
+        return $fail();
+    }
     if (avesmapsWikiDrosselGiltFuer($url)) {
         avesmapsWikiSyncThrottleWikiRequest();
     }

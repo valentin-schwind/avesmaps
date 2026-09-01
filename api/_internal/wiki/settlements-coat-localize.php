@@ -6,6 +6,10 @@ declare(strict_types=1);
 // Selbst geladen, nicht vom Aufrufer erwartet -- ein fehlendes require waere ein Fatal
 // mit LEEREM Rumpf, im Browser nicht von einem Netzfehler zu unterscheiden.
 require_once __DIR__ . '/datei-adresse.php';
+// 🔴 Und der Riegel -- aus demselben Grund selbst geladen. Dieser Lauf ruft
+// `avesmapsWikiAusdruecklicherAbruf` (unten); waere die Datei nicht geladen, waere der Knopf
+// „Hole Wiki-Wappen" ein Fatal mit LEEREM Rumpf statt eines Laufs.
+require_once __DIR__ . '/datei-riegel.php';
 
 // Localising settlement coats of arms: copy the public-domain ones off wiki-aventurica onto our own
 // server, so the map stops hotlinking them. The territory side has done this since forever
@@ -152,7 +156,29 @@ function avesmapsWikiSettlementPendingLocalizeCoats(PDO $pdo): int
  *
  * @return array{ok:bool, processed:int, localized:int, failed:int, remaining:int, errors:array, counts:array}
  */
+/**
+ * DIE AUSDRUECKLICHE AUSNAHME VOM RIEGEL -- und der Grund, warum der Riegel wieder zu sein kann.
+ *
+ * 🔴 Owner 01.09.2026: „es darf nirgends passieren, ausser wenn ich auf ‚Starten' bei diesen beiden
+ * buttons drueck." Dieser Lauf IST einer der beiden Knoepfe.
+ *
+ * 💣 BIS HIERHER HING ER AN DER KONSTANTE, NICHT AN DIESER AUSNAHME. Deshalb musste
+ * AVESMAPS_WIKI_DATEI_ABRUF_ERLAUBT auf `true` stehen, damit der Knopf ueberhaupt laeuft -- und
+ * damit stand die Tuer fuer ALLES uebrige offen. Der Kopf von datei-riegel.php behauptete seit jeher,
+ * ohne die Ausnahme koenne der Lauf „nie laufen"; gebaut war sie fuer ihn nie.
+ *
+ * ⚠️ Der Wrapper raeumt im `finally` auch bei einem Wurf auf und stellt den VORHERIGEN Stand her --
+ * niemals von Hand `avesmapsWikiLokalisierungLaeuft(true)` setzen.
+ * ⚠️ Die Freigabe gilt fuer die Dauer DIESES Laufs im selben Prozess, nicht darueber hinaus.
+ */
 function avesmapsWikiSettlementLocalizeCoats(PDO $pdo, int $limit = 10, int $sleepMs = 150): array
+{
+    return avesmapsWikiAusdruecklicherAbruf(
+        static fn(): array => avesmapsWikiSettlementLocalizeCoatsAusfuehren($pdo, $limit, $sleepMs)
+    );
+}
+
+function avesmapsWikiSettlementLocalizeCoatsAusfuehren(PDO $pdo, int $limit = 10, int $sleepMs = 150): array
 {
     $limit = max(1, min(40, $limit));
     $sleepMs = max(0, min(3000, $sleepMs));
