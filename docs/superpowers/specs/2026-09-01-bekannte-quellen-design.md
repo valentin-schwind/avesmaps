@@ -121,9 +121,46 @@ Er fügt eine Adresse ein. Ist ihre Domain bekannt:
 Wiki-Publikationen — eine Adresse wird zur bekannten Identität aufgelöst. Dies ist dieselbe Weiche
 für den anderen Fall, kein zweites System.
 
-Bei einer **unbekannten** Domain bleibt alles wie heute, mit einer Rückfrage: „Ist das ein neues Briefspiel
-oder Wiki? Dann trag es einmal als Quelle ein — danach genügt der Link." So wächst das Register
-durch Benutzung, statt gepflegt werden zu müssen.
+### 3.3 Wie das Register lernt — die EINE zusätzliche Frage
+
+🔴 **Das Register ist keine gepflegte Liste.** Es entsteht beim ersten Eintrag und heißt danach nie
+wieder jemanden etwas fragen. Der Owner hat die Lücke gefunden (01.09.2026): *„ich komme aber mit
+einer anderen Stadt — muss ich alles neu ausfüllen, und die Leute geben wieder einen anderen
+Quellennamen an?"* Ohne Antwort darauf ist der ganze Entwurf wirkungslos.
+
+**Erster Eintrag auf einer unbekannten Domain** — die Zeile ist die von heute, plus eine Frage:
+
+> ☐ Aus **herzogtum-weiden.net** kommt noch mehr — beim nächsten Objekt genügt der Link.
+
+- **Angehakt** → diese Quelle wird die Quelle der Domain. Jede spätere Adresse dort löst auf sie
+  auf; der Editor füllt nur noch die Fundstelle.
+- **Nicht angehakt** → wie heute. Das ist der Fall „ein Werk, das zufällig dort liegt" (ein
+  Wiki-Aventurica-Artikel, eine einzelne PDF-Seite).
+
+⚠️ **Die Frage stellt sich GENAU EINMAL je Domain.** Beim zweiten Ort auf derselben Domain gibt es
+sie nicht mehr — dort ist der Name schon entschieden, und das ist der ganze Zweck.
+
+💣 **Ohne das Häkchen darf die Auflösung NICHT automatisch sein.** `f-shop.de` trägt 637
+Katalogzeilen mit 623 verschiedenen Titeln, `ulisses-ebooks.de` 245 mit 243 — dort ist jede Adresse
+ein eigenes Werk. Eine Regel „eine Domain, eine Quelle" machte daraus 2 Quellen für 866 Werke.
+
+⭐ **Das Verhältnis Zeilen/Titel trennt beide Fälle messbar** und taugt als *Vorschlag*, nie als
+Entscheidung: f-shop 637/623 ≈ 1, herzogtum-weiden 200/3 ≈ 67. Beim ersten Eintrag auf einer
+Domain, die schon viele gleichnamige Zeilen trägt, kann das Häkchen also vorgeschlagen werden —
+angehakt wird es von einem Menschen.
+
+⚠️ **Und es beantwortet die Frage „Tabelle oder Konstante" von selbst:** weder. Die Zuordnung ist
+eine Spalte an der Quelle (die Domain, für die sie steht) plus die Möglichkeit, mehrere Domains
+darauf zeigen zu lassen (`horaswiki.de` und `wiki.horaswiki.de`). Keine zweite Liste, die
+auseinanderlaufen kann.
+
+**Der Ablauf, den der Owner beschrieben hat:**
+
+| | heute | nachher |
+|---|---|---|
+| Trallop eintragen | Adresse + Name + Art + Lizenz + Nennung + Haken | dasselbe, plus **ein Häkchen** |
+| **Baliho** eintragen | **alles noch einmal** — und der Name wird „Baliho bei Weiden" | **nur die Adresse.** Name, Art, Lizenz, Nennung, Kanon stehen fest |
+
 
 ---
 
@@ -173,11 +210,36 @@ NEUE richtig entsteht; das Aufräumen danach, domainweise, mit Vorschau.
    Ab hier entsteht nichts Falsches mehr.
 3. **Zusammenlegen je Domain**, mit Vorschau und Protokoll. 416 Zeilen, neun Läufe.
 
+### 5.1 Die Namensnennung macht ZWEI Jobs — und das ist ein eigener Befund
+
+Owner, 01.09.2026: *„Namensnennung ist, wenn ein bestimmter Typ im Wiki uns was genehmigt hat."*
+
+🔴 **Das ist `permission`, nicht `attribution`.** Der Kanon-Etikett-Entwurf vom 27.08.2026 (§4.4)
+trennt beides bereits ausdrücklich:
+
+| Spalte | Frage | Beispiel |
+|---|---|---|
+| `license` | Was gilt rechtlich? | CC BY-NC-SA 3.0 |
+| `attribution` | **Wen muss man nennen?** | VolkoV / garetien.de |
+| `permission` *(nie gebaut)* | **Wer hat es erlaubt, und wann?** | Freundeskreis …, 12.08.2026 |
+
+Die dritte Spalte gibt es bis heute nicht — deshalb trägt `attribution` beides, und das sieht man
+den drei Livewerten an: **„herzogtum-weiden.net"** (eine Domain), **„Jens: Meister"** (eine Person),
+**„VolkoV / garetien.de"** (Person und Domain). Drei Werte, drei verschiedene Bedeutungen.
+
+⚠️ **Für dieses Vorhaben ist die Frage: gilt die Erlaubnis dem KORPUS oder der SEITE?** „Ein
+bestimmter Typ hat uns etwas genehmigt" klingt nach dem Korpus — eine Person gibt ihr Briefspiel
+frei, nicht einzelne Artikel. Dann bleibt sie an der Quelle und dieser Entwurf trägt unverändert.
+Gilt sie je Artikel, muss sie an die VERKNÜPFUNG, und dann ist sie das zweite Feld neben der
+Fundstelle. 🔧 Das entscheidet der Owner; gemessen werden kann es nicht, weil es heute nur drei
+Werte gibt.
+
 🔧 **Offene Fragen für den Owner:**
+- **Gilt die Erlaubnis dem Korpus oder der Seite?** (§5.1 — die wichtigste der drei)
 - Wie heißen die neun Quellen? Vorschlag aus dem Bestand: *Briefspiel (Weiden)*, *AlmadaWiki*,
   *Albernisches Briefspiel*, *Briefspiel Káhet Ni Kemi*, *Greifenfurt-Briefspiel*, *Briefspiel
   Liebliches Feld*, *Horas-Wiki*, *Orkenspalter*. Bei Káhet/Kâhet steht 9:7 — hier entscheidest du.
-- Soll das Register eine Tabelle sein oder eine Konstante im Code? Neun Zeilen, die sich selten
-  ändern — eine Konstante wäre ehrlich; eine Tabelle erlaubt Editoren, sie selbst zu erweitern.
+- ~~Register als Tabelle oder Konstante?~~ **Beantwortet von §3.3: weder.** Es ist eine Spalte an
+  der Quelle, gesetzt durch ein Häkchen beim ersten Eintrag.
 - Bleibt der freie Weg (eigener Name, eigene Adresse) für unbekannte Domains offen? Der Entwurf sagt
   ja — sonst kann niemand ein neues Briefspiel eintragen.
