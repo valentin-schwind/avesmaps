@@ -983,6 +983,8 @@ function avesmapsEcosystemEnsureTables(PDO $pdo): void
 
     avesmapsEcosystemSeedRegionTypes($pdo);
 
+    avesmapsEcosystemFillMissingTypeDefaults($pdo);
+
     avesmapsEcosystemMoveIslandsToTopographie($pdo);
 
     // ---- 2026-08-14: der Bodenfaktor der GA, als eigene Spalte an der Art ------------------------
@@ -1074,6 +1076,75 @@ function avesmapsEcosystemMoveIslandsToTopographie(PDO $pdo): void
 // upsert shape (app-setting.php:41-42 among others) would silently undo a deactivation on the next
 // endpoint call -- the owner switches a type off, the next request switches it back on, and nobody can
 // tell why. Right shape copied from api/_internal/app/citymaps.php:1652.
+/**
+ * STARTWERTE FUER EINE ART, DIE NOCH KEINE HAT -- und nur fuer eine solche.
+ *
+ * 🔴 Die fuenf Bloecke weiter oben laufen nur, wenn die SPALTE frisch angelegt wurde. Auf
+ * einer bestehenden Datenbank steht sie laengst da, und eine spaeter dazugekommene Art bekommt
+ * deshalb nichts -- sie faellt auf die Modulvorgaben zurueck, ohne dass es jemand sieht. Genau das
+ * ist dem Vor-/Mittelgebirge passiert.
+ *
+ * 💣 GESCHRIEBEN WIRD NUR IN EINE LEERE SPALTE. `NULL` heisst „keine eigene Aussage"; ein
+ * Wert darin gehoert dem Owner, und diese Funktion laeuft bei JEDEM Aufruf. Wer hier ein `UPDATE`
+ * ohne `IS NULL` einbaut, setzt bei jedem Seitenaufruf die Einstellungen des Fensters zurueck --
+ * genau davor warnt der Kommentar an den Bloecken oben.
+ * ⚠️ Der Preis: eine ABSICHTLICH auf NULL zurueckgesetzte Art wird wieder gefuellt. Das ist
+ * heute folgenlos (die Tabelle unten nennt nur eine Art, die noch niemand angefasst hat) und
+ * waere der Tag, an dem ein Merker daraus wird.
+ */
+function avesmapsEcosystemFillMissingTypeDefaults(PDO $pdo): void
+{
+    // 🔴 Owner 01.09.2026: „mach im Fenster tempowerte die werte fuer Vor-/Mittelgebirge, du
+    // kannst dieselben werte wie fuer gebirge nehmen, kannst du die Durchschnittshoehe auf 1.500
+    // Meter setzen (berggipfel ausgeschlossen)".
+    //
+    // 💣 DIE MAXIMALHOEHE IST *NICHT* die des Gebirges (2000), und das ist keine Freiheit,
+    // die ich mir genommen habe, sondern eine Kopplung: das Hoehenfeld klemmt den Durchschnitt bei
+    // rund 0,67 x Maximalhoehe (map-features-ecosystem-height-field.js). Mit 2000 waere die
+    // bestellte 1500 STILL auf 1340 gerutscht -- eine Einstellung, die dasteht und nicht gilt.
+    // 2500 traegt sie mit Luft (1500/2500 = 0,60).
+    //
+    // ⚠️ `terrain_speed_factor` 0,20 ist die Zahl des Gebirges, aber sie steht hier als
+    // OWNER-Entscheidung und NICHT in der GA-Tabelle (`avesmapsTravelValuesSource`, „GA S. 120-123"):
+    // ein Vor-/Mittelgebirge kommt in der Quelle nicht vor, und eine erfundene Zeile in einer
+    // Zitattabelle waere eine Falschangabe ueber das Regelwerk.
+    $startwerte = [
+        // [kind, type_key, grain, levels, maximalhoehe, durchschnittshoehe, tempofaktor, offroad]
+        ['topographie', 'vorgebirge_mittelgebirge', 3.2, 3, 2500, 1500, 0.20, 2.20],
+    ];
+
+    foreach ($startwerte as [$kind, $typeKey, $grain, $levels, $max, $mean, $tempo, $offroad]) {
+        foreach ([
+            ['terrain_grain', $grain],
+            ['terrain_levels', $levels],
+            ['terrain_avg_height', $max],
+            ['terrain_mean_height', $mean],
+            ['terrain_speed_factor', $tempo],
+        ] as [$spalte, $wert]) {
+            try {
+                $statement = $pdo->prepare(
+                    'UPDATE ecosystem_region_type SET ' . $spalte . ' = :w'
+                    . ' WHERE kind = :k AND type_key = :t AND ' . $spalte . ' IS NULL'
+                );
+                $statement->execute(['w' => $wert, 'k' => $kind, 't' => $typeKey]);
+            } catch (PDOException) {
+                // Eine Spalte, die es (noch) nicht gibt, haelt die uebrigen nicht auf.
+            }
+        }
+        // ⚠️ `offroad_factor` hat KEIN NULL -- die Spalte steht auf DEFAULT 1.00. Gefuellt
+        // wird deshalb nur, was noch unberuehrt auf der Vorgabe steht.
+        try {
+            $statement = $pdo->prepare(
+                'UPDATE ecosystem_region_type SET offroad_factor = :w'
+                . ' WHERE kind = :k AND type_key = :t AND offroad_factor = 1.00'
+            );
+            $statement->execute(['w' => $offroad, 'k' => $kind, 't' => $typeKey]);
+        } catch (PDOException) {
+            // dito
+        }
+    }
+}
+
 function avesmapsEcosystemSeedRegionTypes(PDO $pdo): void
 {
     $insert = $pdo->prepare(

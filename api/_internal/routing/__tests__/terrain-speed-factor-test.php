@@ -719,4 +719,97 @@ foreach ($ohne as $typ => $zeile) {
 // 💣 Und gar nichts liefert gar nichts -- keine Zeile mit Nullen, die wie eine Messung aussaehe.
 assert(avesmapsTravelValuesCalibrationBySubtype(null, []) === [], 'ohne alles: leer');
 
+// =================================================================================================
+// 🔴 L. DIE STARTWERTE DES VOR-/MITTELGEBIRGES
+// =================================================================================================
+// Owner 01.09.2026: „mach im Fenster tempowerte die werte fuer Vor-/Mittelgebirge, du kannst
+// dieselben werte wie fuer gebirge nehmen, kannst du die Durchschnittshoehe auf 1.500 Meter setzen
+// (berggipfel ausgeschlossen)".
+//
+// 💣 Die fuenf Startwert-Bloecke in ecosystem.php laufen nur, wenn die SPALTE frisch angelegt
+// wurde. Auf einer bestehenden Datenbank steht sie laengst da -- eine spaeter dazugekommene Art
+// bekommt deshalb NICHTS und faellt still auf die Modulvorgaben zurueck.
+$pdoL = new PDO('sqlite::memory:', null, null, [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]);
+$pdoL->exec('CREATE TABLE ecosystem_region_type (
+    kind TEXT, type_key TEXT, label TEXT, sort_order INT, is_active INT DEFAULT 1,
+    offroad_factor REAL NOT NULL DEFAULT 1.00, terrain_speed_factor REAL DEFAULT NULL,
+    terrain_grain REAL DEFAULT NULL, terrain_levels INT DEFAULT NULL,
+    terrain_avg_height REAL DEFAULT NULL, terrain_mean_height REAL DEFAULT NULL)');
+$einfuegenL = $pdoL->prepare('INSERT INTO ecosystem_region_type
+    (kind, type_key, label, sort_order) VALUES (?, ?, ?, ?)');
+foreach (AVESMAPS_ECOSYSTEM_REGION_TYPE_SEED as [$kind, $typeKey, $label, $sortOrder]) {
+    $einfuegenL->execute([$kind, $typeKey, $label, $sortOrder]);
+}
+
+$leseL = static fn(PDO $p): array => (array) $p->query(
+    "SELECT terrain_grain, terrain_levels, terrain_avg_height, terrain_mean_height,
+            terrain_speed_factor, offroad_factor
+       FROM ecosystem_region_type WHERE type_key = 'vorgebirge_mittelgebirge'"
+)->fetch(PDO::FETCH_ASSOC);
+
+$vorherL = $leseL($pdoL);
+assert($vorherL['terrain_mean_height'] === null,
+    'die Vorbedingung: die neue Art hat noch nichts');
+avesmapsEcosystemFillMissingTypeDefaults($pdoL);
+$nachherL = $leseL($pdoL);
+assert((float) $nachherL['terrain_mean_height'] === 1500.0,
+    '🔴 die Durchschnittshoehe steht auf 1500: ' . json_encode($nachherL));
+assert((float) $nachherL['terrain_speed_factor'] === 0.20,
+    'und der Tempofaktor auf dem des Gebirges (0,20): ' . json_encode($nachherL['terrain_speed_factor']));
+assert((float) $nachherL['offroad_factor'] === 2.20, 'ebenso der offroad_factor');
+assert((float) $nachherL['terrain_grain'] === 3.2 && (int) $nachherL['terrain_levels'] === 3,
+    'Koernung und Detailstufen wie beim Gebirge: ' . json_encode($nachherL));
+$pruefungen += 5;
+
+// 💣 DIE MAXIMALHOEHE IST GEKOPPELT, und das ist der Grund, warum sie NICHT die des
+// Gebirges (2000) ist: das Hoehenfeld klemmt den Durchschnitt bei rund 0,67 x Maximalhoehe
+// (map-features-ecosystem-height-field.js). Mit 2000 waere die bestellte 1500 STILL auf 1340
+// gerutscht -- eine Einstellung, die dasteht und nicht gilt. Wer die 2500 spaeter auf die 2000 des
+// Gebirges „vereinheitlicht", nimmt dem Owner seine Zahl weg, ohne dass irgendetwas rot wird.
+assert((float) $nachherL['terrain_avg_height'] >= (float) $nachherL['terrain_mean_height'] / 0.67,
+    '💣 die Maximalhoehe traegt die Durchschnittshoehe (Klemme 0,67): '
+    . json_encode([$nachherL['terrain_avg_height'], $nachherL['terrain_mean_height']]));
+$pruefungen++;
+
+// 🔴 UND EIN ZWEITER LAUF FASST NICHTS AN. Die Funktion laeuft bei JEDEM Aufruf; ohne den
+// NULL-Riegel setzte sie bei jedem Seitenaufruf die Einstellungen des Fensters zurueck.
+$pdoL->exec("UPDATE ecosystem_region_type SET terrain_mean_height = 900, terrain_speed_factor = 0.33
+              WHERE type_key = 'vorgebirge_mittelgebirge'");
+avesmapsEcosystemFillMissingTypeDefaults($pdoL);
+$owL = $leseL($pdoL);
+assert((float) $owL['terrain_mean_height'] === 900.0 && (float) $owL['terrain_speed_factor'] === 0.33,
+    '🔴 was der Owner eingestellt hat, bleibt stehen: ' . json_encode($owL));
+$pruefungen++;
+
+// ⚠️ Und die uebrigen Arten bleiben unberuehrt -- die Tabelle nennt genau eine.
+$fremdL = (array) $pdoL->query(
+    "SELECT terrain_mean_height FROM ecosystem_region_type WHERE type_key = 'gebirge'"
+)->fetch(PDO::FETCH_ASSOC);
+assert($fremdL['terrain_mean_height'] === null,
+    '⚠️ keine andere Art wird nebenbei gefuellt: ' . json_encode($fremdL));
+$pruefungen++;
+
+// 💣 UND SIE WIRD WIRKLICH GERUFEN. Eine Mutationsprobe am 01.09.2026 hat den Aufruf aus
+// avesmapsEcosystemEnsureTables entfernt und ist unbemerkt durchgelaufen -- die Zusicherungen oben
+// fahren die Fuellung DIREKT an. Ein Bauteil, das niemand ruft, ist kein Bauteil; diese Luecke ist
+// an einem Tag dreimal aufgetreten.
+//
+// ⚠️ DIESE PRUEFUNG IST SCHWAECHER ALS DIE UEBRIGEN, und das steht hier, statt es zu
+// verschweigen: avesmapsEcosystemEnsureTables fragt achtmal `information_schema` und laeuft gegen
+// SQLite nicht. Geprueft wird deshalb der QUELLTEXT -- er belegt, dass der Aufruf im Rumpf steht,
+// nicht, dass er im Betrieb ankommt.
+$quelleV = (string) file_get_contents(__DIR__ . '/../../app/ecosystem.php');
+// 💣 Kommentare ZUERST weg: der Rumpf erklaert die Fuellung in Prosa, und ein Test, der die
+// Erklaerung mitliest, schlaegt genau an der Warnung an, statt am Aufruf.
+$ohneKommentareV = preg_replace('~//[^\n]*~', '', $quelleV);
+$vonV = strpos($ohneKommentareV, 'function avesmapsEcosystemEnsureTables(');
+assert($vonV !== false, 'die Ensure-Funktion muss auffindbar sein');
+$bisV = strpos($ohneKommentareV, "\nfunction ", $vonV + 10);
+assert($bisV !== false && $bisV > $vonV, 'und ihr Ende ebenso');
+$rumpfV = substr($ohneKommentareV, $vonV, $bisV - $vonV);
+assert(strlen($rumpfV) > 2000, 'der Rumpf wurde wirklich ausgeschnitten: ' . strlen($rumpfV));
+assert(str_contains($rumpfV, 'avesmapsEcosystemFillMissingTypeDefaults($pdo);'),
+    '💣 die Fuellung wird aus avesmapsEcosystemEnsureTables gerufen');
+$pruefungen += 3;
+
 echo "terrain-speed-factor-test: A (Maszstab) + B (Plan) + C (Migration) + D (Reihenfolge) + E (Lader) + F (Ablageform) + G (Speicherbreite) + H (Landschaften) + I (Annahme) + J (Bodenprobe) + K (Eichung je Wegtyp) bestanden\n";
