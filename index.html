@@ -1464,6 +1464,17 @@
 					<div class="label-edit-section"><div class="label-edit-section-title">Quellen</div>
 						<div id="location-edit-feature-sources"></div>
 					</div>
+					<!-- 🔴 DIE WAPPEN-BOX KANN SEIT 01.09.2026 DASSELBE WIE DER ORTSEDITOR (Owner: „wappen
+					     können im editor hochgeladen/ersetzt/entfernt werden, im direkten editor aber
+					     nicht"). Vorher: nur Datei, kein SVG, keine Bild-URL, keine Lizenzangaben.
+					     💣 Und das war mehr als unbequem -- ohne Lizenzfeld schickte
+					     js/review/review-locations.js fest license:"unknown_other", und genau diesen Wert
+					     wirft api/app/map-features.php wieder aus der Kartennutzlast
+					     (avesmapsSettlementCoatIsPublic). Der Upload meldete Erfolg, der Editor sah das
+					     Bild -- und auf der oeffentlichen Karte erschien es nie.
+					     ⚠️ Der Editor-Teil klappt AUF, statt ein zweites Fenster ueber dem
+					     Bearbeiten-Fenster zu oeffnen (der Ortseditor nimmt ein Modal, aber der steht
+					     nicht schon in einem). -->
 					<div class="label-edit-section" id="settlement-coat-section" hidden><div class="label-edit-section-title">Wappen</div>
 							<div class="settlement-coat">
 								<div id="settlement-coat-preview" class="settlement-coat__preview"></div>
@@ -1471,10 +1482,38 @@
 									<p id="settlement-coat-status" class="settlement-coat__status" role="status" aria-live="polite"></p>
 									<div class="settlement-coat__actions">
 										<button type="button" id="settlement-coat-adopt" class="location-report-form__button location-report-form__button--secondary" hidden>Übernehmen</button>
-										<button type="button" id="settlement-coat-upload" class="location-report-form__button location-report-form__button--secondary">Eigenes hochladen</button>
-										<button type="button" id="settlement-coat-remove" class="location-report-form__button location-report-form__button--secondary" hidden>Entfernen</button>
-										<input type="file" id="settlement-coat-file" accept="image/png,image/jpeg,image/webp,image/gif" hidden />
+										<button type="button" id="settlement-coat-upload" class="location-report-form__button location-report-form__button--secondary" aria-expanded="false" aria-controls="settlement-coat-editor">Ersetzen / hochladen</button>
+										<!-- 🔴 NICHT MEHR `hidden`. „Entfernen" ist nicht „Zuruecksetzen", sondern der
+										     DRITTE ZUSTAND (properties.coat_none): „dieser Ort zeigt kein Wappen, auch
+										     nicht das aus dem Wiki". Solange der Knopf nur bei aktivem Wappen erschien,
+										     liess sich genau der Fall nicht festhalten, fuer den es ihn gibt -- ein Ort
+										     mit einem nicht gemeinfreien Wiki-Wappen (Trallop, Owner-Meldung). -->
+										<button type="button" id="settlement-coat-remove" class="location-report-form__button location-report-form__button--secondary">Entfernen</button>
 									</div>
+								</div>
+							</div>
+							<!-- Datei ODER Bild-URL ODER keins von beiden (dann werden nur die Angaben
+							     gespeichert, Fall #112) -- derselbe Vertrag wie im Ortseditor, derselbe
+							     Endpunkt. ⚠️ SVG gehoert dazu: der Endpunkt nimmt es seit 23.08.2026 an,
+							     die Zwergenreich-Wappen SIND SVG, und nur das accept-Attribut hier hat sie
+							     ausgesperrt.
+							     ⚠️ Die Zeilenform ist .mlf-row aus css/components/media-license-fields.css --
+							     dieselbe, die die Lizenzreihe darunter mitbringt. Eine eigene, gleich
+							     aussehende Zeile waere die zweite Fassung derselben Form (AGENTS §12). -->
+							<div class="settlement-coat__editor" id="settlement-coat-editor" hidden>
+								<div class="mlf-row"><span class="mlf-row__label">Datei</span><input type="file" class="mlf-input" id="settlement-coat-file" accept="image/png,image/jpeg,image/svg+xml,image/gif,image/webp" /></div>
+								<div class="mlf-row"><span class="mlf-row__label">oder Bild-URL</span><input type="url" class="mlf-input" id="settlement-coat-url" placeholder="https://…/wappen.png" autocomplete="off" /></div>
+								<!-- Lizenz · Urheber · Kommentar, gebaut von avesmapsMediaLicenseFieldsMarkup
+								     (js/ui/media-license-fields.js) -- der sechste Dialog dieser Reihe. -->
+								<div id="settlement-coat-fields"></div>
+								<p class="settlement-coat__hint" id="settlement-coat-hint"></p>
+								<p class="settlement-coat__error" id="settlement-coat-error" role="alert" hidden></p>
+								<div class="settlement-coat__editor-actions">
+									<button type="button" id="settlement-coat-cancel" class="location-report-form__button location-report-form__button--secondary">Abbrechen</button>
+									<!-- Gefuellt: die Haupthandlung DIESES Kastens, und es ist immer nur einer
+									     offen -- dieselbe Begruendung wie bei .fs-edit__save im Quellenkasten
+									     darueber (css/features/feature-sources.css). -->
+									<button type="button" id="settlement-coat-save" class="location-report-form__button location-report-form__button--primary">Wappen hochladen</button>
 								</div>
 							</div>
 						</div>
@@ -3434,6 +3473,17 @@
 		<script src="js/ui/dialog-drag.js"></script>
 		<script src="js/ui/filter-bar.js"></script>
 		<script src="js/ui/feature-source-markup.js"></script>
+		<!-- Lizenz · Urheber · Kommentar: der EINE Markup-Bauer der Medien-Dialoge, seit 01.09.2026
+		     auch im Hauptfenster. Sein sechster Dialog ist die Wappen-Box des
+		     Karten-Bearbeiten-Dialogs (js/review/review-locations.js) -- vorher schickte die fest
+		     license:"unknown_other", und genau dieser Wert ist der, den api/app/map-features.php
+		     wieder aus der Kartennutzlast wirft: der Upload gelang, das Wappen erschien nie.
+		     🔴 KATALOG VOR BAUER, und BEIDE vor review-locations.js -- media-license-fields.js
+		     liest AVESMAPS_MEDIA_LICENSES beim Laden. Dieselbe Reihenfolgezusage wie bei
+		     feature-source-markup.js darueber. ⚠️ Die zugehoerigen Regeln kommen ueber
+		     css/components/media-license-fields.css (@import in css/styles.css). -->
+		<script src="js/app/media-licenses.js"></script>
+		<script src="js/ui/media-license-fields.js"></script>
 		<script src="js/ui/suggest-change-button.js"></script>
 		<!-- Die deutschen Namen der Label-Arten -- EINE Tabelle fuer die Suchzeile und die
 		     Infobox. Sie stand vorher in beiden getrennt abgeschrieben; die Abschriften waren

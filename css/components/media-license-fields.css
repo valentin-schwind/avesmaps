@@ -1,0 +1,99 @@
+/* Lizenz · Urheber · Kommentar — die Reihe der Medien-Dialoge (js/ui/media-license-fields.js).
+ *
+ * 💣 WARUM EINE EIGENE DATEI: die Regeln standen bis zum 01.09.2026 in
+ * css/components/editor-page.css, und die binden nur die Editor-SEITEN in html/. Der sechste
+ * Dialog dieser Reihe lebt aber im Hauptfenster (die Wappen-Box des Karten-Bearbeiten-Dialogs,
+ * index.html + js/review/review-locations.js) und sieht editor-page.css nie. Sie dort zu lassen
+ * und im Hauptfenster ein zweites Mal aufzuschreiben waere die Divergenz aus AGENTS.md §12 --
+ * gleicher Selektor, zwei Herkuenfte, irgendwann zwei Werte.
+ *
+ * ⭐ Dieselbe Bauform wie css/components/editor-row.css und css/components/map-status-circle.css:
+ * EINE Datei, zwei Wirte -- editor-page.css importiert sie (fuer die Editorseiten), css/styles.css
+ * importiert sie (fuer index.html).
+ *
+ * Eine Reihe je Angabe, Label links in fester Breite, Feld rechts -- Vorbild ist .ce-row
+ * (html/citymap-editor.html), das strukturell am naechsten an "ein Feld je Zeile" liegt.
+ * 💣 EIGENER Klassenname (.mlf-*), keine Abschrift von .ce-row: dessen Regeln stehen lokal NUR im
+ * <style>-Block von citymap-editor.html. Eine gleichnamige zweite Fassung waere genau die
+ * Divergenz, die political-territory-editor-inline.css dreimal zerschossen hat (AGENTS §10).
+ * ⚠️ Das enge Bild-Raster in html/wiki-sync-settlement-editor.html (.dt-img-cell, 160px breit) stapelt
+ * Label ueber Feld statt nebeneinander (.dt-img-meta .mlf-row, lokal in editor-page.css ueberschrieben,
+ * Phase 4 Aufgabe 3) -- dieselben .mlf-*-Klassen, nur ihr Layout angepasst; keine zweite Fassung der
+ * Regeln selbst, vormals .dt-img-license/.dt-img-note (eigene, jetzt entfernte Mini-Box-Klassen).
+ * ⚠️ Kein Test bewacht die Paritaet zwischen dieser Zeile und .ce-row (html/citymap-editor.html,
+ * Zeile ~283): aendert sich eine der beiden Formen, gegenpruefen, ob die andere mitziehen sollte.
+ *
+ * ⚠️ `.mlf-row` traegt seit 01.09.2026 auch die zwei Zeilen DARUEBER (Datei / Bild-URL in der
+ * Wappen-Box des Karten-Bearbeiten-Dialogs, index.html). Sie sind keine Lizenzangaben, aber
+ * dieselbe Form -- Label links in fester Breite, Feld rechts. Eine zweite, gleich aussehende
+ * Zeilenklasse daneben waere genau die Divergenz, gegen die dieser Dateikopf argumentiert; wer die
+ * Form hier aendert, aendert also auch jene zwei Zeilen. Das ist gewollt.
+ */
+
+.mlf-row {
+	display: flex;
+	align-items: center;
+	gap: var(--space-8);
+	margin-bottom: var(--space-6);
+}
+
+.mlf-row__label {
+	flex: 0 0 var(--avm-field-label-w);
+	color: var(--color-text-muted);
+}
+
+.mlf-select,
+.mlf-input,
+.mlf-textarea {
+	flex: 1 1 auto;
+	min-width: 0;
+	padding: var(--space-4) var(--space-6);
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-md);
+	background: var(--color-panel);
+	color: var(--color-text);
+	font: inherit;
+}
+
+.mlf-select,
+.mlf-input {
+	min-height: var(--avm-control-h);
+}
+
+.mlf-textarea {
+	resize: vertical;
+	min-height: 44px;
+}
+
+.mlf-select:focus-visible,
+.mlf-input:focus-visible,
+.mlf-textarea:focus-visible {
+	border-color: var(--color-border-strong);
+	box-shadow: var(--focus-ring);
+	outline: none;
+}
+
+/* Stille Werte (public:false im Katalog) bleiben waehlbar -- nur die Schrift ist gedaempft, kein
+   disabled (Owner-Entscheid 16.08.2026, siehe js/app/media-licenses.js). */
+.mlf-option--muted {
+	color: var(--color-text-muted);
+	font-style: italic;
+}
+
+/* 🔴 Das AUSWAHLFELD selbst traegt die Kennzeichnung, wenn sein GEWAEHLTER Wert nicht oeffentlich
+   ist (avesmapsMediaLicenseSelectHiddenClass in js/ui/media-license-fields.js) -- sichtbar auch im
+   GESCHLOSSENEN Zustand, anders als .mlf-option--muted, das nur beim Aufklappen wirkt. Bei bis zu
+   zehn Bildern je Ort sah ein stummer Wert ohne dies aus wie ein sichtbarer (Fund aus Phase-4-
+   Aufgabe 3, 16.08.2026). Vorbild fuer Ton und Form: .dt-img-license--hidden, das dieselbe Aussage
+   vorher lokal in html/wiki-sync-settlement-editor.html traf. */
+.mlf-select--hidden {
+	border-color: var(--color-warning);
+	color: var(--color-warning);
+}
+
+/* Die graue Protokollzeile unter den drei Feldern ("hochgeladen von X am TT.MM.JJJJ"). */
+.mlf-protocol {
+	margin-top: var(--space-2);
+	font-size: var(--font-size-caption);
+	color: var(--color-text-muted);
+}

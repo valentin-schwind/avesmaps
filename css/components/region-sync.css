@@ -1407,3 +1407,45 @@
 	gap: 4px;
 	margin-top: 4px;
 }
+
+/* ---- Der aufklappbare Wappen-Editor der Karten-Wappen-Box (01.09.2026) -----------------------
+ * 🔴 Er klappt IM Kasten auf, statt ein zweites Fenster über dem Bearbeiten-Fenster zu öffnen --
+ * der Ortseditor nimmt dafür ein Modal (#seWappenDialog), aber der steht nicht schon selbst in
+ * einem. Zwei gestapelte Modale sind hier die schlechtere Form, nicht die gleichwertige.
+ * ⚠️ Die Feldzeilen darin sind .mlf-row aus css/components/media-license-fields.css -- dieselbe
+ * Form, die die Lizenzreihe mitbringt. Hier stehen nur Hülle, Trennung und die zwei Fußzeilen.
+ */
+.settlement-coat__editor {
+	margin-top: var(--space-10);
+	padding-top: var(--space-10);
+	border-top: 1px solid var(--color-divider);
+}
+
+.settlement-coat__editor[hidden] {
+	display: none;
+}
+
+/* Der Hinweis sagt, was der Knopf gerade tut -- „ohne neue Datei bleibt das Bild, wie es ist" ist
+   nicht zu erraten, und genau dieses Nichterraten war Fall #112 im Ortseditor. */
+.settlement-coat__hint {
+	margin: var(--space-6) 0 0;
+	font-size: var(--font-size-caption);
+	color: var(--color-text-muted);
+}
+
+.settlement-coat__error {
+	margin: var(--space-6) 0 0;
+	font-size: var(--font-size-caption);
+	color: var(--color-danger);
+}
+
+.settlement-coat__error[hidden] {
+	display: none;
+}
+
+.settlement-coat__editor-actions {
+	display: flex;
+	justify-content: flex-end;
+	gap: var(--space-6);
+	margin-top: var(--space-10);
+}

@@ -23,21 +23,42 @@ const fs = require("fs");
 const path = require("path");
 
 const ROOT = path.join(__dirname, "..", "..", "..");
-const lies = (datei) => fs.readFileSync(path.join(ROOT, "html", datei), "utf8");
+// 🔴 PFADE AB DER WURZEL, nicht mehr blosse Dateinamen unter html/ (01.09.2026). Der sechste Dialog
+// dieser Reihe liegt NICHT dort: er ist die Wappen-Box des Karten-Bearbeiten-Dialogs, und die wohnt
+// in index.html mit ihrem Verhalten in js/review/review-locations.js. Solange dieser Leser fest
+// „html/" davorschrieb, konnte der Test sie gar nicht sehen -- ein Dialog, den ein
+// Verdrahtungstest nicht erreicht, ist genau der, in dem die Verdrahtung dann fehlt.
+const lies = (datei) => fs.readFileSync(path.join(ROOT, datei), "utf8");
 
 const zaehleAufrufe = (text, funktionsname) => {
 	const treffer = text.match(new RegExp(funktionsname.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "\\(", "g"));
 	return treffer ? treffer.length : 0;
 };
 
-// Je Datei die Zahl der Lizenz-DIALOGE, die sie trägt -- macht in Summe die fünf aus dem Entwurf:
+// Je Datei die Zahl der Lizenz-DIALOGE, die sie trägt -- macht in Summe die SECHS:
 // Karten (2 Slots teilen sich EINEN Zuhörer), Siedlungsbilder + Siedlungs-Wappen (2 getrennte
-// Zuhörer in derselben Datei), Territoriums-Wappen (1), Literatur-Cover (1).
+// Zuhörer in derselben Datei), Territoriums-Wappen (1), Literatur-Cover (1) und seit dem
+// 01.09.2026 die Wappen-Box des Karten-Bearbeiten-Dialogs (1).
+// ⚠️ Bei der sechsten liegen Markup und Verhalten in ZWEI Dateien: index.html trägt den Kasten,
+// js/review/review-locations.js die Zuhörer. Gezählt wird dort, wo die Aufrufe stehen.
 const DIALOGE = {
-	"citymap-editor.html": 1,
-	"wiki-sync-settlement-editor.html": 2,
-	"wiki-sync-monitor.html": 1,
-	"game-literature-editor.html": 1,
+	"html/citymap-editor.html": 1,
+	"html/wiki-sync-settlement-editor.html": 2,
+	"html/wiki-sync-monitor.html": 1,
+	"html/game-literature-editor.html": 1,
+	"js/review/review-locations.js": 1,
+};
+
+// Wo die Datei steht, die die beiden Funktionen ueberhaupt bereitstellt -- je Dialog-Datei die
+// Seite, die das <script> tragen muss. 💣 Die vier Editorseiten binden es mit fuehrendem Slash,
+// index.html ohne: sie liegt im Wurzelverzeichnis, die Editorseiten in html/. Ein Muster, das
+// „/js/..." verlangt, haette den sechsten Dialog faelschlich als unversorgt gemeldet.
+const LADER = {
+	"html/citymap-editor.html": ["html/citymap-editor.html", '<script src="/js/ui/media-license-fields.js">'],
+	"html/wiki-sync-settlement-editor.html": ["html/wiki-sync-settlement-editor.html", '<script src="/js/ui/media-license-fields.js">'],
+	"html/wiki-sync-monitor.html": ["html/wiki-sync-monitor.html", '<script src="/js/ui/media-license-fields.js">'],
+	"html/game-literature-editor.html": ["html/game-literature-editor.html", '<script src="/js/ui/media-license-fields.js">'],
+	"js/review/review-locations.js": ["index.html", '<script src="js/ui/media-license-fields.js">'],
 };
 
 let checks = 0;
@@ -65,17 +86,33 @@ for (const [datei, erwarteteDialoge] of Object.entries(DIALOGE)) {
 	summeDialoge += erwarteteDialoge;
 }
 
-assert.strictEqual(summeDialoge, 5, "Die Dialogzahl in DIALOGE summiert sich nicht mehr auf fünf -- "
-	+ "diese Konstante selbst nachziehen, wenn ein sechster Lizenz-Dialog dazukommt.");
+assert.strictEqual(summeDialoge, 6, "Die Dialogzahl in DIALOGE summiert sich nicht mehr auf sechs -- "
+	+ "diese Konstante selbst nachziehen, wenn ein siebter Lizenz-Dialog dazukommt.");
 checks++;
 
-// ---- die Datei, die den Katalog um seine Vorschlagsfunktion erweitert, lädt auch alle vier -----------
+// ---- die Datei, die den Katalog um seine Vorschlagsfunktion erweitert, lädt auch jede Seite ----------
 // Kein separates Setup nötig -- media-license-fields.js exportiert die Funktion bereits fürs echte
 // DOM; dieser Test prüft nur, dass jede Seite sie auch BENUTZT.
 for (const datei of Object.keys(DIALOGE)) {
-	assert.ok(/<script src="\/js\/ui\/media-license-fields\.js">/.test(lies(datei)),
-		`${datei} lädt js/ui/media-license-fields.js nicht -- ohne die Datei gibt es die beiden `
-		+ "Funktionen im Browser gar nicht, unabhängig von der Verdrahtung.");
+	const [seite, tag] = LADER[datei];
+	assert.ok(lies(seite).includes(tag),
+		`${seite} lädt js/ui/media-license-fields.js nicht (erwartet: ${tag}) -- ohne die Datei gibt es `
+		+ `die beiden Funktionen im Browser gar nicht, unabhängig von der Verdrahtung in ${datei}.`);
+	checks++;
+	// 🔴 KATALOG VOR BAUER: media-license-fields.js liest AVESMAPS_MEDIA_LICENSES beim Laden. Steht
+	// media-licenses.js dahinter, ist die Optionsliste leer -- und zwar lautlos, denn das Markup
+	// entsteht trotzdem, nur ohne eine einzige Lizenz zur Auswahl.
+	// 🪤 GEMESSEN WERDEN DIE <script>-TAGS, nicht die blossen Dateinamen. Ueber jedem der vier
+	// Ladepaare steht ein Kommentar, der „media-license-fields.js" nennt -- ein indexOf auf den
+	// Dateinamen findet DEN und meldet die Reihenfolge als vertauscht, obwohl sie stimmt. Genau
+	// diese Messung war beim Schreiben dieses Blocks zuerst drin und hat vier heile Seiten
+	// angeschwaerzt.
+	const seitenText = lies(seite);
+	const katalogTag = seitenText.search(/<script src="\/?js\/app\/media-licenses\.js"><\/script>/);
+	const bauerTag = seitenText.search(/<script src="\/?js\/ui\/media-license-fields\.js"><\/script>/);
+	assert.ok(katalogTag !== -1 && katalogTag < bauerTag,
+		`${seite} lädt js/app/media-licenses.js nicht VOR js/ui/media-license-fields.js -- die `
+		+ "Lizenzliste wäre leer, ohne dass irgendetwas fehlschlägt.");
 	checks++;
 }
 

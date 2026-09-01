@@ -851,14 +851,100 @@ function settlementCoatImageSrc(coat) {
 	return /^https?:\/\//i.test(coat.url) ? `/api/app/coat.php?u=${encodeURIComponent(coat.url)}` : coat.url;
 }
 
+// Der zuletzt gelesene coat_info-Stand dieses Dialogs.
+//
+// 💣 DER EDITOR-TEIL WIRD DARAUS BEFUELLT, NIE AUS DEM NICHTS. Der Upload-Zweig von
+// api/edit/wiki/settlement-coat-upload.php schreibt den ganzen coat-Block NEU (Zweig `!$nurAngaben`):
+// ein Formular, das `license`/`author`/`note` nicht mitschickt, setzt die Lizenz auf die
+// Anlege-Vorgabe 'ai_generated' zurueck und LEERT Urheber und Kommentar. „Bild ersetzen" waere damit
+// ein stiller Datenverlust an einer gepflegten Angabe -- deshalb reisen die drei Werte immer mit,
+// und ihr Ausgangswert ist der gespeicherte.
+// ⚠️ `null`, solange nichts gelesen wurde. Ein leeres Objekt waere von „gelesen, aber kein Wappen"
+// nicht zu unterscheiden.
+let settlementCoatInfo = null;
+
+/** Der Wappen-Editor auf oder zu -- der Zustand IST das `hidden` des Kastens, kein zweiter daneben. */
+function setSettlementCoatEditorOpen(open) {
+	const editor = document.getElementById("settlement-coat-editor");
+	const toggle = document.getElementById("settlement-coat-upload");
+	if (editor) {
+		editor.hidden = !open;
+	}
+	if (toggle) {
+		toggle.setAttribute("aria-expanded", open ? "true" : "false");
+	}
+}
+
+/** Liegt an diesem Ort schon ein Wappen? Gemessen wird die ADRESSE -- ein `coat` ohne `url` beschreibt nichts. */
+function settlementCoatHasCurrent() {
+	const current = settlementCoatInfo && settlementCoatInfo.current;
+	return Boolean(current && String(current.url || "").trim() !== "");
+}
+
+/**
+ * Den Editor-Teil aus dem gelesenen Stand aufbauen und aufklappen.
+ *
+ * ⚠️ Der Kasten SAGT, was er kann: mit vorhandenem Wappen heisst der Knopf „Speichern" und der
+ * Hinweis erklaert, dass ohne neue Datei nur die Angaben gespeichert werden (Fall #112). Ohne das
+ * ist nicht zu erraten, dass man ihn auch ohne neues Bild druecken darf -- und genau dieses
+ * Nichterraten war die Meldung, die den Weg im Ortseditor ueberhaupt ausgeloest hat.
+ */
+function openSettlementCoatEditor() {
+	const fieldsEl = document.getElementById("settlement-coat-fields");
+	const fileEl = document.getElementById("settlement-coat-file");
+	const urlEl = document.getElementById("settlement-coat-url");
+	const hintEl = document.getElementById("settlement-coat-hint");
+	const saveEl = document.getElementById("settlement-coat-save");
+	const errorEl = document.getElementById("settlement-coat-error");
+	if (fileEl) {
+		fileEl.value = "";
+	}
+	// 💣 Auch das URL-Feld leeren: eine stehengebliebene Adresse wuerde beim NAECHSTEN Ort
+	// mitgeschickt und ihm ein fremdes Wappen verpassen.
+	if (urlEl) {
+		urlEl.value = "";
+	}
+	if (errorEl) {
+		errorEl.hidden = true;
+		errorEl.textContent = "";
+	}
+	const hatWappen = settlementCoatHasCurrent();
+	const coat = (settlementCoatInfo && settlementCoatInfo.current) || {};
+	if (fieldsEl && typeof avesmapsMediaLicenseFieldsMarkup === "function") {
+		fieldsEl.innerHTML = avesmapsMediaLicenseFieldsMarkup({
+			license: coat.license_status,
+			author: coat.author,
+			note: coat.note,
+			uploaded_by: coat.uploaded_by,
+			uploaded_at: coat.uploaded_at,
+		}, { prefix: "coat", vorgabe: "ai_generated", mitNotiz: true });
+	}
+	// 🔴 „Wappen speichern", nicht bloss „Speichern". Der Quellenkasten daneben beschriftet seinen
+	// Knopf schlicht mit „Speichern" -- er sitzt aber weit oben im Dialog, waehrend die Wappen-Box
+	// das LETZTE Element vor der Speicherleiste des Ortes ist: in der Abnahme standen zwei gefuellte
+	// Knoepfe namens „Speichern" rund 50 px uebereinander, und welcher den Ort und welcher das
+	// Wappen speichert, war ihnen nicht anzusehen.
+	if (saveEl) {
+		saveEl.textContent = hatWappen ? "Wappen speichern" : "Wappen hochladen";
+	}
+	if (hintEl) {
+		hintEl.textContent = hatWappen
+			? "Ohne neue Datei oder URL bleibt das Bild, wie es ist — dann werden nur Lizenz, Urheber und Kommentar gespeichert. Maximale Größe 5 MB."
+			: "Datei ODER URL angeben. Maximale Größe 5 MB.";
+	}
+	setSettlementCoatEditorOpen(true);
+}
+
 async function renderSettlementCoatSection(publicId) {
 	const section = document.getElementById("settlement-coat-section");
 	if (!section) {
 		return;
 	}
+	setSettlementCoatEditorOpen(false);
 	if (!publicId) {
 		section.hidden = true;
 		section.dataset.publicId = "";
+		settlementCoatInfo = null;
 		return;
 	}
 	const preview = document.getElementById("settlement-coat-preview");
@@ -867,6 +953,7 @@ async function renderSettlementCoatSection(publicId) {
 	const removeBtn = document.getElementById("settlement-coat-remove");
 	section.hidden = false;
 	section.dataset.publicId = publicId;
+	settlementCoatInfo = null;
 	if (preview) {
 		preview.className = "settlement-coat__preview";
 		preview.innerHTML = "";
@@ -877,8 +964,10 @@ async function renderSettlementCoatSection(publicId) {
 	if (adoptBtn) {
 		adoptBtn.hidden = true;
 	}
+	// 🔴 „Entfernen" bleibt sichtbar und wird nur DEAKTIVIERT, solange es nichts zu entscheiden
+	// gibt. Ein Knopf, der je nach Zustand verschwindet, sieht aus wie eine fehlende Funktion.
 	if (removeBtn) {
-		removeBtn.hidden = true;
+		removeBtn.disabled = true;
 	}
 	try {
 		const response = await fetch(`${SETTLEMENT_COAT_API_URL}?action=coat_info&public_id=${encodeURIComponent(publicId)}`, { credentials: "same-origin" });
@@ -889,26 +978,43 @@ async function renderSettlementCoatSection(publicId) {
 		if (section.dataset.publicId !== publicId) {
 			return; // Dialog inzwischen weitergeschaltet
 		}
+		settlementCoatInfo = data;
 		const current = data.current && data.current.url ? data.current : null;
 		const wiki = data.wiki && data.wiki.url ? data.wiki : null;
+		// 🔴 DER DRITTE ZUSTAND (properties.coat_none): „hier soll kein Wappen sein" -- zu
+		// unterscheiden von „hier war nie eines". Ohne diese Auskunft aendert sich nach einem Klick
+		// auf „Entfernen" sichtbar NICHTS, und der Knopf ist von einem kaputten nicht zu trennen.
+		const coatNone = data.coat_none === true;
 		if (current) {
 			preview.innerHTML = `<img src="${escapeHtml(settlementCoatImageSrc(current))}" alt="Wappen" />`;
-			status.textContent = current.source === "own" ? "Eigenes Wappen aktiv." : "Gemeinfreies Wiki-Wappen aktiv.";
-			removeBtn.hidden = false;
+			const herkunft = current.source === "own" ? "Eigenes Wappen aktiv." : "Gemeinfreies Wiki-Wappen aktiv.";
+			// ⚠️ Und ob es auch ANKOMMT. Ein Wappen mit stiller Lizenz (unknown_other &co.) wird von
+			// api/app/map-features.php aus der Kartennutzlast geworfen -- im Editor sichtbar, auf der
+			// oeffentlichen Karte nicht. Genau dieser Unterschied war bis zum 01.09.2026 unsichtbar.
+			const stumm = typeof avesmapsMediaLicenseIsPublic === "function"
+				&& !avesmapsMediaLicenseIsPublic(current.license_status);
+			status.textContent = herkunft + (stumm ? " Die Lizenz ist nicht öffentlich — auf der Karte erscheint es nicht." : "");
+			removeBtn.disabled = false;
 			if (wiki && wiki.allowed && (current.source === "own" || current.url !== wiki.url)) {
 				adoptBtn.hidden = false;
 			}
 		} else if (wiki) {
-			preview.className = wiki.allowed ? "settlement-coat__preview" : "settlement-coat__preview settlement-coat__preview--dim";
+			preview.className = wiki.allowed && !coatNone ? "settlement-coat__preview" : "settlement-coat__preview settlement-coat__preview--dim";
 			preview.innerHTML = `<img src="${escapeHtml(settlementCoatImageSrc(wiki))}" alt="Wiki-Wappen" />`;
-			if (wiki.allowed) {
+			if (coatNone) {
+				status.textContent = "Kein Wappen — ausdrücklich so gesetzt. Das Wiki-Wappen bleibt außen vor.";
+			} else if (wiki.allowed) {
 				status.textContent = "Gemeinfreies Wiki-Wappen verfügbar.";
 				adoptBtn.hidden = false;
+				removeBtn.disabled = false;
 			} else {
 				status.textContent = "Wiki-Wappen vorhanden, aber nicht gemeinfrei — nicht übernehmbar.";
+				removeBtn.disabled = false;
 			}
 		} else {
-			status.textContent = "Kein Wappen vorhanden.";
+			status.textContent = coatNone
+				? "Kein Wappen — ausdrücklich so gesetzt."
+				: "Kein Wappen vorhanden.";
 		}
 	} catch (error) {
 		if (status) {
@@ -921,6 +1027,14 @@ async function settlementCoatAction(action) {
 	const section = document.getElementById("settlement-coat-section");
 	const publicId = section?.dataset.publicId || document.getElementById("location-edit-public-id")?.value || "";
 	if (!publicId) {
+		return;
+	}
+	// 🔴 „Entfernen" ist NICHT „Zuruecksetzen": es setzt den dritten Zustand (properties.coat_none,
+	// „dieser Ort hat kein Wappen, und das bleibt so"). Ohne ihn traegt der naechste Abgleich das
+	// Wiki-Wappen wieder ein. Weil das eine Entscheidung ist und keine Anzeigeeinstellung, wird sie
+	// benannt, bevor sie faellt -- derselbe Wortlaut wie im Ortseditor.
+	if (action === "clear_coat" && !window.confirm("Wappen entfernen?\n\nDieser Ort zeigt danach kein Wappen — auch nicht das aus dem Wiki. "
+		+ "Ein neues Wappen hochzuladen hebt das wieder auf.")) {
 		return;
 	}
 	try {
@@ -963,28 +1077,76 @@ async function settlementCoatAction(action) {
 	}
 }
 
-async function uploadOwnSettlementCoat(file) {
+/**
+ * Speichert den Wappen-Editor: Datei ODER Bild-URL ODER nur die drei Angaben.
+ *
+ * 🔴 BIS ZUM 01.09.2026 KONNTE DIESER WEG NUR EINES VON DREIEN, und das mit fester Lizenz
+ * "unknown_other". Der alte Kommentar hier argumentierte, dieser Wert „behauptet nichts, was dieser
+ * Weg nicht weiss" -- richtig, solange es kein Feld gab. Nur ist `unknown_other` genau der Wert, den
+ * api/app/map-features.php wieder aus der Kartennutzlast wirft (avesmapsSettlementCoatIsPublic):
+ * der Upload gelang, die Meldung sagte „hochgeladen", und auf der oeffentlichen Karte erschien das
+ * Wappen NIE. Nichts zu behaupten war hier nicht die vorsichtige Wahl, sondern eine stille Absage.
+ * Jetzt sagt es der Editor -- mit derselben Reihe wie die uebrigen fuenf Dialoge.
+ */
+async function saveSettlementCoat() {
 	const section = document.getElementById("settlement-coat-section");
 	const publicId = section?.dataset.publicId || document.getElementById("location-edit-public-id")?.value || "";
-	if (!publicId || !file) {
+	if (!publicId) {
+		return;
+	}
+	const errorEl = document.getElementById("settlement-coat-error");
+	const zeigeFehler = (text) => {
+		if (errorEl) {
+			errorEl.textContent = text;
+			errorEl.hidden = false;
+		}
+	};
+	if (errorEl) {
+		errorEl.hidden = true;
+		errorEl.textContent = "";
+	}
+	const fileEl = document.getElementById("settlement-coat-file");
+	const urlEl = document.getElementById("settlement-coat-url");
+	const file = fileEl && fileEl.files && fileEl.files[0];
+	const sourceUrl = urlEl ? String(urlEl.value || "").trim() : "";
+	// 🔴 ODER GAR NICHTS -- dann werden nur Lizenz/Urheber/Kommentar geaendert (Fall #112).
+	// ⚠️ Nur wenn wirklich schon ein Bild liegt: ohne Bild gibt es nichts zu beschreiben. Denselben
+	// Riegel zieht der Server noch einmal (avesmapsSettlementCoatMetadataOnly).
+	const hatWappen = settlementCoatHasCurrent();
+	if (!file && sourceUrl === "" && !hatWappen) {
+		zeigeFehler("Bitte eine Bilddatei wählen oder eine Bild-URL angeben.");
 		return;
 	}
 	const status = document.getElementById("settlement-coat-status");
+	// Der Statustext von vorher -- im Fehlerfall wird er zurueckgestellt, statt neu zu rendern.
+	const statusVorher = status ? status.textContent : "";
 	if (status) {
-		status.textContent = "Wappen wird hochgeladen …";
+		status.textContent = hatWappen && !file && sourceUrl === "" ? "Angaben werden gespeichert …" : "Wappen wird hochgeladen …";
 	}
 	try {
 		const form = new FormData();
 		form.append("public_id", publicId);
-		form.append("coat", file);
-		// 🔴 Phase 4 Prüfung, Befund 1: dieser Dialog hat (anders als die fünf mit
-		// js/ui/media-license-fields.js) keine eigenen Lizenzfelder -- ohne "license" fiele der
-		// Endpunkt auf seine Vorgabe 'ai_generated' zurück. Das ist fuer den migrierten Bestand
-		// richtig (Owner-Aussage: die Editoren haben ihre Wappen mit KI erzeugt), aber eine konkrete,
-		// falsifizierbare Behauptung ueber JEDEN kuenftigen Upload hier -- ein hier hochgeladener
-		// echter Scan oder ein gemeinfreies Bild bekaeme sonst stillschweigend "KI-generiert"
-		// zugeschrieben. "unknown_other" behauptet nichts, was dieser Weg nicht weiss.
-		form.append("license", "unknown_other");
+		// ⚠️ Nur EINEN der beiden Wege schicken. Der Server nimmt die Datei zuerst; beide zugleich
+		// waeren nicht falsch, aber die URL wuerde still ignoriert -- und still ignorierte Eingaben
+		// sind genau die Sorte Fehler, die niemand meldet.
+		// 💣 Sonst GAR NICHTS -- weder `coat` noch `coat_url`. Genau daran erkennt der Server den Weg
+		// „nur die Angaben" und laesst Bilddatei, Adresse und Upload-Stempel unberuehrt.
+		if (file) {
+			form.append("coat", file);
+		} else if (sourceUrl !== "") {
+			form.append("coat_url", sourceUrl);
+		}
+		// 💣 Die drei reisen IMMER mit, auch beim blossen Ersetzen des Bildes: der Upload-Zweig des
+		// Endpunkts baut den coat-Block neu auf, und was hier fehlt, ist danach weg (Lizenz zurueck
+		// auf 'ai_generated', Urheber und Kommentar leer). Ihr Ausgangswert kommt aus dem gelesenen
+		// coat_info, nicht aus einem frischen Formular.
+		const fieldsEl = document.getElementById("settlement-coat-fields");
+		const licenseEl = fieldsEl ? fieldsEl.querySelector("[data-coat-license]") : null;
+		const authorEl = fieldsEl ? fieldsEl.querySelector("[data-coat-author]") : null;
+		const noteEl = fieldsEl ? fieldsEl.querySelector("[data-coat-note]") : null;
+		form.append("license", licenseEl ? licenseEl.value : "ai_generated");
+		form.append("author", authorEl ? authorEl.value : "");
+		form.append("note", noteEl ? noteEl.value : "");
 		const response = await fetch("/api/edit/wiki/settlement-coat-upload.php", {
 			method: "POST",
 			credentials: "same-origin",
@@ -994,7 +1156,8 @@ async function uploadOwnSettlementCoat(file) {
 		if (!data || data.ok !== true) {
 			throw new Error(apiErrorMessage(data, "Upload fehlgeschlagen"));
 		}
-		showFeedbackToast?.("Eigenes Wappen hochgeladen.", "success");
+		showFeedbackToast?.(file || sourceUrl !== "" ? "Eigenes Wappen hochgeladen." : "Angaben gespeichert.", "success");
+		setSettlementCoatEditorOpen(false);
 		if (typeof loadChangeLog === "function") {
 			loadChangeLog();
 		}
@@ -1017,8 +1180,15 @@ async function uploadOwnSettlementCoat(file) {
 			}
 		}
 	} catch (error) {
-		showFeedbackToast?.("Fehler: " + (error.message || error), "error");
-		await renderSettlementCoatSection(publicId);
+		// 🔴 DER EDITOR BLEIBT OFFEN und die Absage steht DARIN. Ein Neu-Rendern schloesse ihn und
+		// wuerfe die eingetippten Angaben weg -- bei einer zu grossen Datei, einem abgelehnten Format
+		// oder einer nicht erreichbaren Adresse ist das genau der Moment, in dem man sie noch
+		// braucht. Der alte Weg tat das (er kannte den Editor nicht) und war deshalb doppelt
+		// bestraft: Fehler weg, Eingabe weg.
+		zeigeFehler(error && error.message ? error.message : String(error));
+		if (status) {
+			status.textContent = statusVorher;
+		}
 	}
 }
 
@@ -1036,23 +1206,75 @@ document.addEventListener("click", (event) => {
 		void settlementCoatAction("clear_coat");
 		return;
 	}
-	// Upload-Button oder Klick auf die Vorschau -> Datei-Auswahl öffnen.
-	if (event.target.closest("#settlement-coat-upload") || event.target.closest("#settlement-coat-preview")) {
+	if (event.target.closest("#settlement-coat-save")) {
 		event.preventDefault();
-		document.getElementById("settlement-coat-file")?.click();
+		void saveSettlementCoat();
+		return;
 	}
-});
-
-document.addEventListener("change", (event) => {
-	if (event.target && event.target.id === "settlement-coat-file") {
-		const file = event.target.files && event.target.files[0];
-		event.target.value = ""; // erneutes Auswählen derselben Datei erlauben
-		if (file) {
-			void uploadOwnSettlementCoat(file);
+	if (event.target.closest("#settlement-coat-cancel")) {
+		event.preventDefault();
+		setSettlementCoatEditorOpen(false);
+		return;
+	}
+	// 🔴 Der Knopf und die Vorschau oeffnen den EDITOR, nicht mehr direkt die Datei-Auswahl. Bis zum
+	// 01.09.2026 sprang hier sofort der Dateidialog auf und die gewaehlte Datei ging ohne jede
+	// Rueckfrage raus -- ohne Lizenzangabe, ohne die Moeglichkeit, stattdessen eine Adresse
+	// anzugeben, und ohne Weg, eine falsche Angabe zu korrigieren.
+	// ⚠️ Der Knopf schaltet um (auf/zu), die Vorschau oeffnet nur -- ein Klick auf das Bild, das
+	// gerade bearbeitet wird, soll den Kasten nicht wieder zuklappen.
+	if (event.target.closest("#settlement-coat-upload")) {
+		event.preventDefault();
+		const editor = document.getElementById("settlement-coat-editor");
+		if (editor && !editor.hidden) {
+			setSettlementCoatEditorOpen(false);
+		} else {
+			openSettlementCoatEditor();
 		}
+		return;
+	}
+	if (event.target.closest("#settlement-coat-preview")) {
+		event.preventDefault();
+		openSettlementCoatEditor();
 	}
 });
 
+// Die „nicht oeffentlich"-Kennzeichnung am Auswahlfeld nachziehen und den Kommentar bei
+// „Genehmigung erteilt" vorschlagen -- derselbe Zuhoerer wie in den fuenf uebrigen Dialogen, die
+// Regeln selbst stehen nur in js/ui/media-license-fields.js.
+document.addEventListener("change", (event) => {
+	const sel = event.target && event.target.closest ? event.target.closest("[data-coat-license]") : null;
+	if (!sel || !document.getElementById("settlement-coat-editor")?.contains(sel)) {
+		return;
+	}
+	avesmapsMediaLicenseSyncSelectHidden(sel);
+	const noteEl = document.querySelector("#settlement-coat-fields [data-coat-note]");
+	if (noteEl) {
+		noteEl.value = avesmapsMediaLicenseNoteVorschlag(sel.value, noteEl.value);
+	}
+});
+
+// 💣 DIE WAPPEN-BOX STEHT IN EINEM <form>. Enter in einem Textfeld schickt dort das GANZE
+// Ortsformular ab -- der Editor haette beim Bestaetigen einer Bild-Adresse den Ort gespeichert und
+// den Dialog geschlossen, mit der Adresse ungenutzt im Feld. Enter im Adressfeld heisst hier also:
+// den Wappen-Kasten speichern, sonst nichts.
+document.addEventListener("keydown", (event) => {
+	if (event.key !== "Enter" || !event.target || event.target.id !== "settlement-coat-url") {
+		return;
+	}
+	event.preventDefault();
+	void saveSettlementCoat();
+});
+
+// Node-Export (im Browser wirkungslos -- dort sind es Globals dieser Datei).
+// ⚠️ Die drei Wappen-Funktionen reisen mit, damit ihr Test sie WIRKLICH AUSFUEHRT statt ihren
+// Quelltext zu lesen: die tragende Zusage („Lizenz, Urheber und Kommentar reisen bei JEDEM Weg mit,
+// und der Weg ‚nur die Angaben‘ schickt weder coat noch coat_url") ist eine Aussage ueber die
+// abgeschickte FormData, und die sieht man einem Quelltext nicht an.
 if (typeof module !== "undefined" && module.exports) {
-	module.exports = { buildLocationReportRequestPayload };
+	module.exports = {
+		buildLocationReportRequestPayload,
+		saveSettlementCoat,
+		renderSettlementCoatSection,
+		openSettlementCoatEditor,
+	};
 }

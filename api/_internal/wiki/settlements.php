@@ -585,7 +585,15 @@ function avesmapsWikiSettlementCoatInfo(PDO $pdo, string $publicId): array {
         }
     }
 
-    return ['ok' => true, 'current' => $current, 'wiki' => $wiki];
+    // 🔴 DER DRITTE ZUSTAND REIST MIT (01.09.2026). Ohne ihn kann ein Leser „hier war nie ein
+    // Wappen" nicht von „hier soll ausdruecklich keines sein" (avesmapsWikiSettlementClearCoat)
+    // unterscheiden -- beide sehen als `current: null` gleich aus. Der Karten-Bearbeiten-Dialog
+    // zeigt „Entfernen" seither dauerhaft an, und ohne diese Auskunft aendert sich nach dem Klick
+    // sichtbar NICHTS: ein Knopf, dessen Wirkung man nicht sieht, ist von einem kaputten nicht zu
+    // unterscheiden.
+    // ⚠️ IMMER ein Bool, nie fehlend -- ein `undefined` im Client faellt sonst auf „false", und
+    // genau der Fall ist der interessante.
+    return ['ok' => true, 'current' => $current, 'wiki' => $wiki, 'coat_none' => ($props['coat_none'] ?? false) === true];
 }
 
 // Übernimmt das gemeinfreie Wiki-Wappen eines einzelnen Orts (properties.coat, source=wiki). Gated.

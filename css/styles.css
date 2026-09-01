@@ -51,6 +51,14 @@
    index.html, nicht in einem Editor-iframe, und braucht dieselben Formen. editor-page.css bindet
    dieselbe Datei fuer die sechs Editorseiten -- die Regel steht also genau einmal. */
 @import url("components/editor-body.css");
+
+/* Die Lizenz-Reihe der Medien-Dialoge (Lizenz · Urheber · Kommentar). Dieselbe Reise wie die vier
+   Zeilen darueber und aus demselben Grund: der sechste Dialog dieser Reihe ist die Wappen-Box des
+   Karten-Bearbeiten-Dialogs, und die lebt in index.html, nicht in einem Editor-iframe.
+   editor-page.css bindet dieselbe Datei fuer die Editorseiten -- die Regel steht also genau
+   einmal. */
+@import url("components/media-license-fields.css");
+
 /* Das Fenster „Garetien Importer" (Aufgabe 10) -- Hülle, Kopf, Laufzeile, Fuß. Nutzt die Formen
    aus editor-body.css/editor-row.css darüber. 🔴 Diese Zeile verschwindet mit der Datei beim
    Abbau des Importers (Auftrag §5.5). */
