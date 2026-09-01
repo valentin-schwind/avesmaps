@@ -16,8 +16,8 @@ declare(strict_types=1);
  * Upsert nur Luecken; der falsche Wert blieb stehen.
  *
  * 💣 UND DIE GEGENRICHTUNG IST DIE GEFAEHRLICHE. `sources` ist ein KATALOG. Live gemessen am
- * 01.09.2026 (map-features.php, eine Anfrage): 59.538 Verknuepfungen auf 1.561 zitierte
- * Katalogzeilen -- Median 6 Objekte je Zeile, p95 146, MAXIMUM 1.549. Ein Formular, das die
+ * 01.09.2026 (map-features.php, eine Anfrage): 59.538 Verknuepfungen auf 1.240 zitierte
+ * Katalogzeilen -- Median 14 Objekte je Zeile, p95 171, MAXIMUM 1.549. Ein Formular, das die
  * Katalog-Haelfte wie die Verknuepfungs-Haelfte behandelt, laesst einen Editor mit einem Klick
  * 1.549 Infoboxen umschreiben.
  *
@@ -188,7 +188,7 @@ $zaehl();
 assert($antwort['updated']['usage_count'] === 40, 'die Antwort nennt die Reichweite auch im Erfolgsfall');
 $zaehl();
 
-// ⚠️ Unterhalb der Schwelle wird NICHT gefragt: 34 % der zitierten Zeilen haengen an genau einem
+// ⚠️ Unterhalb der Schwelle wird NICHT gefragt: 17 % der zitierten Zeilen haengen an genau einem
 // Objekt, und dort waere eine Rueckfrage ein Klick fuer nichts.
 $pdo = avesmapsQuellenTestPdo(AVESMAPS_FEATURE_SOURCE_CONFIRM_THRESHOLD);
 $antwort = avesmapsUpdateFeatureSource($pdo, 'settlement', 'ort-1', 7, ['label' => 'Kurz'], 9);

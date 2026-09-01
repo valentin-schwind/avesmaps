@@ -83,7 +83,7 @@ document.documentElement.getAttribute('data-theme')==='dark'?'light':'dark')">He
 
 <div class="reihe">
 <div>
-	<p class="wlabel">Weg A — präziser Link, unbrauchbarer Name (200 Zeilen)</p>
+	<p class="wlabel">Weg A — präziser Link, unbrauchbarer Name (26 Zeilen + 168 wartende)</p>
 	<div class="wirt vorher" style="max-width:380px">
 		<table class="m" style="margin:0">
 			<tr><th>Titel im Katalog</th><th>Adresse</th></tr>
@@ -93,7 +93,7 @@ document.documentElement.getAttribute('data-theme')==='dark'?'light':'dark')">He
 			<tr><td>Briefspiel</td><td>…/baronien/eslamsgrund</td></tr>
 			<tr><td><em>(ohne Titel)</em></td><td>…/baronien/sindelsaum</td></tr>
 		</table>
-		<p style="font-size:12px;margin-top:8px">Die Auswahlliste zeigt <strong>189× „Briefspiel"</strong>.
+		<p style="font-size:12px;margin-top:8px">Die Auswahlliste zeigt <strong>26× „Briefspiel"</strong> plus fünf ohne Titel — und 168 weitere warten als <code>os:</code>-Einträge darauf, ebenfalls Zeilen zu werden.
 		Wer den falschen erwischt, legt einen neuen an — damit er heißt, wie er will.</p>
 	</div>
 </div>
@@ -254,17 +254,100 @@ als <em>Vorschlag</em> für das Häkchen — angehakt wird von einem Menschen.</
 </div>
 </div>
 
-<h2>4 · Der Umfang</h2>
+<h2>4 · Der Umfang — jeder Titel, mit Beispielen</h2>
+
+<div class="note" style="max-width:86ch">💣 <strong>Korrektur meiner eigenen Zahlen (01.09.2026).</strong>
+Alles, was ich vorher gezählt habe, war um das <strong>3,4-fache zu hoch</strong>. Die Kartennutzlast
+mischt zwei Dinge: echte Katalogzeilen und <code>os:</code>-Einträge — das alte Einzelfeld
+<code>properties.other_source</code>, das der Server nur <em>zur Anzeige</em> synthetisiert. Ich hatte
+beide gezählt. Echt sind <strong>1.374</strong> Katalogzeilen (nicht 1.694), auf den Korpus-Domains
+<strong>123</strong> (nicht 425).</div>
+
+<p>⚠️ <strong>Und dabei kam ein neuer Befund heraus:</strong> auf denselben Domains warten
+<strong>295 <code>os:</code>-Einträge</strong> darauf, Katalogzeilen zu werden. Sie sind es noch
+nicht — <code>avesmapsFeatureSourcesTakeoverOtherSource</code> wandelt einen davon um, sobald ein
+Editor genau dieses Objekt öffnet. Bei Weiden allein sind es <strong>168</strong>. Das Problem ist
+also kleiner als behauptet, <em>aber es wächst</em>: jede dieser 295 wird eine weitere Zeile namens
+„Briefspiel".</p>
+
 <table class="m">
-	<tr><th>Domain</th><th>heute</th><th>Titel</th><th>nachher</th><th>Objekte</th></tr>
-	<tr><td>herzogtum-weiden.net</td><td><strong>200</strong></td><td>4</td><td>1</td><td>286</td></tr>
-	<tr><td>wiki.punin.de</td><td>115</td><td>6</td><td>1</td><td>158</td></tr>
-	<tr><td>westlande.de</td><td>77</td><td>5</td><td>1</td><td>87</td></tr>
-	<tr><td>kahet-ni-kemi.de</td><td>16</td><td>2</td><td>1</td><td>20</td></tr>
-	<tr><td>garetien.de</td><td>8</td><td>4</td><td>1</td><td>8</td></tr>
-	<tr><td>übrige vier Domains</td><td>9</td><td>6</td><td>4</td><td>40</td></tr>
-	<tr><td><strong>Summe</strong></td><td><strong>425</strong></td><td><strong>20</strong></td><td><strong>9</strong></td><td><strong>599</strong></td></tr>
+	<tr><th>Domain</th><th>echte Zeilen</th><th>Titel</th><th>Objekte</th><th><code>os:</code> wartend</th></tr>
+	<tr><td>herzogtum-weiden.net</td><td>32</td><td>3</td><td>118</td><td><strong>168</strong></td></tr>
+	<tr><td>wiki.punin.de</td><td>33</td><td>5</td><td>76</td><td>82</td></tr>
+	<tr><td>westlande.de</td><td>39</td><td>4</td><td>49</td><td>38</td></tr>
+	<tr><td>kahet-ni-kemi.de</td><td>16</td><td>2</td><td>20</td><td>0</td></tr>
+	<tr><td>garetien.de</td><td>2</td><td>2</td><td>2</td><td>6</td></tr>
+	<tr><td>liebliches-feld.net</td><td>1</td><td>1</td><td>32</td><td>1</td></tr>
+	<tr><td><strong>Summe</strong></td><td><strong>123</strong></td><td><strong>17</strong></td><td><strong>297</strong></td><td><strong>295</strong></td></tr>
 </table>
+
+<h3>herzogtum-weiden.net · 32 Zeilen</h3>
+<table class="m">
+	<tr><th>Anzahl</th><th>Titel</th><th>Typ</th><th>Beispiel-Adressen (mit Objektzahl)</th></tr>
+	<tr><td>26×</td><td><strong>Briefspiel</strong></td><td>briefspiel / sonstiges</td>
+		<td><code>14</code> …/baronien/hollerheide<br><code>8</code> …/baronien/gfl-salthel<br><code>8</code> …/baronien/fuchshag</td></tr>
+	<tr><td>5×</td><td><em>(ohne Titel)</em></td><td>briefspiel</td>
+		<td><code>1</code> …/baronien/hahnfels<br><code>1</code> …/baronien/nordhag<br><code>1</code> …/baronien/uhdenwald</td></tr>
+	<tr><td>1×</td><td>Briefspiel (Weiden)</td><td>briefspiel</td>
+		<td><code>20</code> …/baronien/hzgl-altentrallop</td></tr>
+</table>
+<p>⚠️ Auch die <em>gut</em> benannte Zeile („Briefspiel (Weiden)", 20 Objekte) zeigt auf eine
+<strong>Baronieseite</strong>, die für 20 Siedlungen herhält — genau der Fall, den du bei Trallop
+gemeldet hast.</p>
+
+<h3>wiki.punin.de · 33 Zeilen</h3>
+<table class="m">
+	<tr><th>Anzahl</th><th>Titel</th><th>Typ</th><th>Beispiel-Adressen</th></tr>
+	<tr><td>24×</td><td><strong>AlmadaWiki</strong></td><td>briefspiel</td>
+		<td><code>7</code> /Königlich_Kornhammer<br><code>5</code> /Baronie_Taubental<br><code>5</code> /Baronie_Brigellan</td></tr>
+	<tr><td>6×</td><td><strong>Briefspiel</strong></td><td>briefspiel / sonstiges</td>
+		<td><code>3</code> <strong>/</strong> (Startseite)<br><code>2</code> /Baronie_Yasamir<br><code>1</code> <strong>/</strong></td></tr>
+	<tr><td>1×</td><td>Almadawiki <span class="lock">· kleines w</span></td><td>briefspiel</td><td><code>4</code> /Baronie_Bangour</td></tr>
+	<tr><td>1×</td><td><em>(ohne Titel)</em></td><td>briefspiel</td><td><code>1</code> /Edlengut_Deokrath</td></tr>
+	<tr><td>1×</td><td>wiki.punin.de - offizieller NSC</td><td>sonstiges</td><td><code>1</code> /Castillo_Wildenfest</td></tr>
+</table>
+<p>⚠️ Hier stehen <strong>drei Schreibweisen desselben Wikis</strong> nebeneinander — „AlmadaWiki",
+„Almadawiki", „Briefspiel" — und vier Zeilen zeigen bereits auf die <strong>Startseite</strong>,
+sind also faktisch schon Korpus-Zeilen mit falschem Namen.</p>
+
+<h3>westlande.de · 39 Zeilen</h3>
+<table class="m">
+	<tr><th>Anzahl</th><th>Titel</th><th>Typ</th><th>Beispiel-Adressen</th></tr>
+	<tr><td>27×</td><td><strong>Albernisches Briefspiel</strong></td><td>briefspiel</td>
+		<td><code>2</code> ?title=Gräflich_Abagund<br><code>2</code> ?title=Gräflich_Abagund<strong>#Siedlungen…</strong><br><code>2</code> ?title=Nardesbroch_(Dorf)</td></tr>
+	<tr><td>10×</td><td><em>(ohne Titel)</em></td><td>briefspiel</td>
+		<td><code>8</code> ?title=<strong>Datei:</strong>Baronie_Hohenfels.jpg<br><code>1</code> ?title=Alvenhoven</td></tr>
+	<tr><td>1×</td><td>Apfeldorn</td><td>briefspiel</td><td><code>1</code> ?title=Apfeldorn</td></tr>
+	<tr><td>1×</td><td>Albernia Wiki</td><td>sonstiges</td><td><code>1</code> /kartenwerk/…_extralarge.<strong>jpg</strong></td></tr>
+</table>
+<p>💣 <strong>Ein ANKER erzeugt eine zweite Zeile.</strong> <code>?title=Gräflich_Abagund</code> und
+<code>…#Siedlungen_im_Land</code> sind für <code>url_hash</code> zwei verschiedene Quellen — dieselbe
+Seite, zweimal im Katalog. Dasselbe gilt für <code>http</code>/<code>https</code>, <code>www.</code>
+und einen Schrägstrich am Ende.</p>
+
+<h3>kahet-ni-kemi.de · 16 Zeilen</h3>
+<table class="m">
+	<tr><th>Anzahl</th><th>Titel</th><th>Beispiel-Adressen</th></tr>
+	<tr><td>9×</td><td>Briefspiel <strong>Ká</strong>het Ni Kemi</td><td><code>2</code> /sssrah.html · <code>2</code> /schattenspin.html</td></tr>
+	<tr><td>7×</td><td>Briefspiel <strong>Kâ</strong>het Ni Kemi</td><td>—</td></tr>
+</table>
+<p>⚠️ Ein einziges Diakritikum spaltet ein Korpus 9:7. Keine Mehrheit, die entscheidet.</p>
+
+<h3>Was das für den Vorschlag heißt</h3>
+<p>Der Befund trägt weiterhin — <strong>aber schwächer, als ich behauptet habe</strong>:</p>
+<ul>
+	<li>✔ <strong>Die Namensdopplung ist real.</strong> 26 Zeilen „Briefspiel", 24 „AlmadaWiki",
+	27 „Albernisches Briefspiel". Wer in der Vorschlagsliste den falschen trifft, legt einen neuen an.</li>
+	<li>✔ <strong>Der Typ ist real kaputt</strong> — dieselbe Domain trägt <code>briefspiel</code> und
+	<code>sonstiges</code> nebeneinander.</li>
+	<li>✔ <strong>Es wächst.</strong> 295 <code>os:</code>-Einträge werden zu Katalogzeilen, sobald
+	jemand die Objekte öffnet.</li>
+	<li>✘ <strong>Aber der Bestand ist klein:</strong> 123 Zeilen, nicht 425. Ein Zusammenlegen ist
+	kein Großeingriff mehr — was den dritten Schritt deutlich entspannt.</li>
+	<li>🔧 <strong>Und eine Frage kommt dazu:</strong> lohnt das Register für 123 Zeilen? Meine
+	Antwort wäre ja — aber wegen der 295 wartenden und der künftigen Einträge, nicht wegen des
+	Bestands. Wenn du das anders siehst, ist das ein berechtigtes Nein.</li>
+</ul>
 
 <h2>5 · Die Fallen</h2>
 <ul>
@@ -290,7 +373,7 @@ als <em>Vorschlag</em> für das Häkchen — angehakt wird von einem Menschen.</
 	Register den Kanon, muss es ihn auch beim Verknüpfen setzen — sonst kippt der erste Editor, der
 	den Haken nicht sieht, den Kanon des ganzen Korpus.</li>
 
-	<li>🔴 <strong>Schritt 3 ist der riskante.</strong> Er fasst 416 Katalogzeilen an. Dafür gibt es
+	<li>🔴 <strong>Schritt 3 ist der riskante.</strong> Er fasst 117 Katalogzeilen an. Dafür gibt es
 	<code>avesmapsMergeSourceInto</code> samt <code>source_merge_log</code> — der einzige Schreibweg
 	mit Protokoll. Erst Register und Fundstelle live, damit alles Neue richtig entsteht; das
 	Aufräumen danach, domainweise, mit Vorschau.</li>

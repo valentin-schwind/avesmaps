@@ -13,40 +13,51 @@ Der Quellenkatalog trägt zwei verschiedene Dinge, und sie haben gegenläufige I
 | | **Werk** (Geographia Aventurica) | **Belegseite** (`herzogtum-weiden.net/…/adlerflug`) |
 |---|---|---|
 | Identität ist | der **Titel** | die **Adresse** |
-| zitiert von | Median 6, bis 1.549 Objekten | genau **einem** |
+| zitiert von | Median 14, bis 1.549 Objekten | genau **einem** |
 | die Adresse ist | Beiwerk (Shop-Link) | die Sache selbst |
-| der Titel ist | die Sache selbst | Beiwerk — und wird 200× wiederholt |
+| der Titel ist | die Sache selbst | Beiwerk — und wird 26-mal wiederholt |
 
-Live gemessen am 01.09.2026 (eine Anfrage an `map-features.php`):
+💣 **KORREKTUR MEINER EIGENEN MESSUNG (01.09.2026).** Die erste Fassung dieses Entwurfs nannte
+durchweg um das **3,4-fache zu hohe** Zahlen. Die Kartennutzlast mischt zwei Dinge: echte
+Katalogzeilen und `os:`-Einträge — das alte Einzelfeld `properties.other_source`, das der Server
+nur **zur Anzeige** synthetisiert (`avesmapsReadFeatureSources`). Ich hatte beide gezählt. Wer aus
+`map-features.php` Katalogzahlen zieht, muss `os:`-Kennungen ausschliessen.
 
-- **455 externe Katalogzeilen, davon 90 % an genau EINEM Objekt.** Über alle Quellen: 34 %.
-- **49 Titel tragen mehr als eine Katalogzeile**, zusammen **478 Zeilen**. Davon heißen
-  **219 wörtlich „Briefspiel"**, 81 „AlmadaWiki", 52 „Albernisches Briefspiel".
-- **35 Katalogzeilen haben gar keinen Titel** und zeigen ihre nackte Adresse.
+Richtig ist: **1.374** echte Katalogzeilen, davon 1.240 zitiert. Median **14** Objekte je Zeile,
+p95 171, Maximum 1.549. **17 %** hängen an genau einem Objekt (nicht 34 %).
 
-Je Domain:
+Auf den Korpus-Domains:
 
-| Domain | Katalogzeilen | verschiedene Titel | Objekte | Typen |
+| Domain | echte Zeilen | Titel | Objekte | `os:` wartend |
 |---|---|---|---|---|
-| herzogtum-weiden.net | **200** | 4 | 286 | 190 × `sonstiges`, 10 × `briefspiel` |
-| wiki.punin.de | 115 | 6 | 158 | 86 × `sonstiges`, 29 × `briefspiel` |
-| westlande.de | 77 | 5 | 87 | 39 × `sonstiges`, 38 × `briefspiel` |
-| kahet-ni-kemi.de | 16 | 2 | 20 | 16 × `briefspiel` |
-| garetien.de | 8 | 4 | 8 | 7 × `sonstiges`, 1 × `briefspiel` |
-| liebliches-feld.net | 2 | 1 | 33 | gemischt |
-| orkenspalter.de / horaswiki.de / wiki.horaswiki.de | 7 | 5 | 7 | gemischt |
+| herzogtum-weiden.net | 32 | 3 | 118 | **168** |
+| wiki.punin.de | 33 | 5 | 76 | 82 |
+| westlande.de | 39 | 4 | 49 | 38 |
+| kahet-ni-kemi.de | 16 | 2 | 20 | 0 |
+| garetien.de | 2 | 2 | 2 | 6 |
+| liebliches-feld.net | 1 | 1 | 32 | 1 |
+| **Summe** | **123** | **17** | **297** | **295** |
 
-🚩 **Auch der TYP ist inkonsistent, nicht nur der Name.** 95 % der Weiden-Zeilen stehen auf
-`sonstiges`, obwohl alle 200 dasselbe Briefspiel sind. Wer nur die Namen vereinheitlicht, hat die
-halbe Arbeit gemacht.
+⚠️ **Der neue Befund steht in der letzten Spalte.** 295 `os:`-Einträge warten darauf,
+Katalogzeilen zu werden — `avesmapsFeatureSourcesTakeoverOtherSource` wandelt einen davon um,
+sobald ein Editor genau dieses Objekt öffnet. Bei Weiden allein 168. **Das Problem ist kleiner als
+behauptet, aber es wächst**: jede dieser 295 wird eine weitere Zeile namens „Briefspiel".
 
-🚩 **Ein Diakritikum spaltet ein Korpus:** „Briefspiel Káhet Ni Kemi" (9 Zeilen) gegen
-„Briefspiel Kâhet Ni Kemi" (7). Bei 9:7 ist nicht einmal klar, welches gewinnen sollte.
+Die Namensdopplung selbst, auf echten Zeilen: **187 Zeilen in 44 Titeln** — davon 26× „Briefspiel"
+(Weiden), 27× „Albernisches Briefspiel", 24× „AlmadaWiki". Dazu 16 Zeilen ganz ohne Titel.
 
-🚩 **Ein Titel ist eine URL:** `https://www.garetien.de/index.php?title=Garetien:Dorf_Sellach`
-steht als Quellenname im Katalog.
+🚩 **Auch der TYP ist inkonsistent, nicht nur der Name.** Dieselbe Domain trägt `briefspiel` und
+`sonstiges` nebeneinander. Wer nur die Namen vereinheitlicht, hat die halbe Arbeit gemacht.
 
----
+🚩 **Ein Diakritikum spaltet ein Korpus:** „Briefspiel Káhet Ni Kemi" (9) gegen „Kâhet" (7). Bei
+9:7 entscheidet nicht einmal die Mehrheit.
+
+🚩 **Ein ANKER erzeugt eine zweite Zeile.** `?title=Gräflich_Abagund` und
+`…#Siedlungen_im_Land` sind für `url_hash` zwei Quellen — dieselbe Seite, zweimal im Katalog.
+Dasselbe gilt für `http`/`https`, `www.` und einen Schrägstrich am Ende.
+
+🚩 **Vier Zeilen zeigen schon auf die STARTSEITE** (`wiki.punin.de/`) — sie sind faktisch
+Korpus-Zeilen mit falschem Namen, und einige zeigen auf Bilddateien statt auf Artikel.
 
 ## 2 · Die Ursache
 
@@ -66,8 +77,8 @@ Identität der Katalogzeile (UNIQUE). Aus einem Briefspiel mit 200 Artikeln werd
 💣 **Das Modell zwingt den Editor zu einer Wahl zwischen zwei Fehlern**, und beide sind live zu
 sehen:
 
-- **Präziser Link, unbrauchbarer Name:** 200 Zeilen „Briefspiel" für Weiden. Der Link stimmt, die
-  Auswahlliste ist unbenutzbar.
+- **Präziser Link, unbrauchbarer Name:** 26 Zeilen „Briefspiel" für Weiden, dazu 5 ganz ohne Titel
+  und 168 wartende `os:`-Einträge. Der Link stimmt, die Auswahlliste ist unbenutzbar.
 - **Brauchbarer Name, falscher Link:** `liebliches-feld.net` hat EINE Zeile „Briefspiel Liebliches
   Feld" mit **32 Objekten** — und ihre Adresse zeigt auf `wiki/Datei:Ponterra_detail`, eine
   beliebige Bildseite. Der Name stimmt, der Link ist für 31 der 32 Objekte falsch.
@@ -89,9 +100,10 @@ feature_sources  = welches Objekt + pages + ref_url   ← neu: die Fundstelle
 beim Wiki die Seite. `pages` und `ref_url` beantworten dieselbe Frage: *wo genau in dieser Quelle*.
 Eine selbstheilende Spalte am selben Ort, an dem `pages` und `note` schon stehen.
 
-**Wirkung:** 425 Katalogzeilen → **9** (eine je Domain), 599 Verknüpfungen bleiben unverändert.
+**Wirkung:** 123 Katalogzeilen → **6** (eine je Domain), 297 Verknüpfungen bleiben unverändert —
+und die 295 wartenden `os:`-Einträge landen gleich richtig, statt 295 neue Zeilen zu erzeugen.
 Die Mehrdeutigkeit verschwindet **von selbst** — es gibt nur noch eine Zeile zum Auswählen.
-Lizenz und Namensnennung stehen einmal statt 200-mal (die Lehre aus dem Lore-Rückbau, AGENTS.md §5).
+Lizenz und Namensnennung stehen einmal statt 26-mal (die Lehre aus dem Lore-Rückbau, AGENTS.md §5).
 
 ### 3.1 Das Register
 
@@ -105,7 +117,7 @@ Eine Zuordnung **Domain → Quelle**, plus was die Domain festlegt:
 | `is_official` | nein |
 | `license` / `attribution` | (wie heute an der Quelle) |
 
-🔴 **Neun Domains decken 425 von 455 externen Zeilen.** Der Rest bleibt der freie Weg.
+🔴 **Sechs Domains decken 123 von 132 externen Zeilen.** Der Rest bleibt der freie Weg.
 
 ### 3.2 Was der Editor noch tut
 
@@ -195,7 +207,7 @@ stehen.
 sie stehen, zeigen sie ihre nackte Adresse. Kein eigener Schritt, nur ein Hinweis darauf, dass die
 Zahl „20 verschiedene Titel" die leeren nicht mitzählt.
 
-🔴 **Der zweite Schritt ist der riskante.** Das Zusammenlegen fasst **416 Katalogzeilen** an. Es
+🔴 **Der zweite Schritt ist der riskante.** Das Zusammenlegen fasst **117 Katalogzeilen** an. Es
 gibt dafür `avesmapsMergeSourceInto` samt `source_merge_log` — es ist der einzige Schreibweg mit
 Protokoll, und er ist genau dafür gebaut. Trotzdem: erst Register und Fundstelle live, damit alles
 NEUE richtig entsteht; das Aufräumen danach, domainweise, mit Vorschau.
@@ -208,7 +220,7 @@ NEUE richtig entsteht; das Aufräumen danach, domainweise, mit Vorschau.
    Wirkt sofort, ändert nichts am Bestand.
 2. **Register bekannter Quellen** — Auflösung beim Einfügen, gesperrte Felder, Rückmeldung.
    Ab hier entsteht nichts Falsches mehr.
-3. **Zusammenlegen je Domain**, mit Vorschau und Protokoll. 416 Zeilen, neun Läufe.
+3. **Zusammenlegen je Domain**, mit Vorschau und Protokoll. 117 Zeilen, sechs Läufe.
 
 ### 5.1 Die Namensnennung macht ZWEI Jobs — und das ist ein eigener Befund
 
@@ -236,9 +248,9 @@ Werte gibt.
 
 🔧 **Offene Fragen für den Owner:**
 - **Gilt die Erlaubnis dem Korpus oder der Seite?** (§5.1 — die wichtigste der drei)
-- Wie heißen die neun Quellen? Vorschlag aus dem Bestand: *Briefspiel (Weiden)*, *AlmadaWiki*,
+- Wie heißen die sechs Quellen? Vorschlag aus dem Bestand: *Briefspiel (Weiden)*, *AlmadaWiki*,
   *Albernisches Briefspiel*, *Briefspiel Káhet Ni Kemi*, *Greifenfurt-Briefspiel*, *Briefspiel
-  Liebliches Feld*, *Horas-Wiki*, *Orkenspalter*. Bei Káhet/Kâhet steht 9:7 — hier entscheidest du.
+  Liebliches Feld*, *Briefspiel Liebliches Feld*. Bei Káhet/Kâhet steht 9:7 — hier entscheidest du.
 - ~~Register als Tabelle oder Konstante?~~ **Beantwortet von §3.3: weder.** Es ist eine Spalte an
   der Quelle, gesetzt durch ein Häkchen beim ersten Eintrag.
 - Bleibt der freie Weg (eigener Name, eigene Adresse) für unbekannte Domains offen? Der Entwurf sagt

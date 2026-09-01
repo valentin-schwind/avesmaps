@@ -9,8 +9,8 @@ const path = require("path");
 // werden." Es gab keinen Weg dafuer -- die Zeile trug nur ein `✕`.
 //
 // 💣 UND WARUM DAS FORMULAR GETEILT IST: `sources` ist ein KATALOG. Live gemessen am 01.09.2026
-// (map-features.php, eine Anfrage): 59.538 Verknuepfungen auf 1.561 zitierte Katalogzeilen --
-// Median 6 Objekte je Zeile, p95 146, MAXIMUM 1.549. `pages`/`reference_kind` gelten nur an
+// (map-features.php, eine Anfrage): 59.538 Verknuepfungen auf 1.240 zitierte Katalogzeilen --
+// Median 14 Objekte je Zeile, p95 171, MAXIMUM 1.549. `pages`/`reference_kind` gelten nur an
 // diesem einen Objekt, die uebrigen fuenf Felder ueberall.
 //
 // Aus der Wurzel des Repos:  node js/review/__tests__/quellen-bearbeiten-form.test.js

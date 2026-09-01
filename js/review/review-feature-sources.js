@@ -427,7 +427,7 @@ function renderFeatureSourceAddRow(escape, tr) {
   // 🔴 Die Lizenz der QUELLE (Owner 27.08.2026: „quellen fehlt das lizenz-feld").
   // ⚠️ Die leere Auswahl heisst „nicht erfasst" und ist die Vorgabe -- NICHT „keine Lizenz".
   // Wer das sagen will, waehlt „Keine freie Lizenz". Die beiden gleichzusetzen waere eine
-  // Rechtsaussage, die niemand getroffen hat, und sie stuende an 1694 Quellen.
+  // Rechtsaussage, die niemand getroffen hat, und sie stuende an 1374 Quellen.
   // 💣 Die Liste kommt aus feature-source-markup.js, nicht aus einer Kopie hier: dieselbe Regel
   // wie bei der Seitenkuerzung -- eine Liste, die einen von zwei Erzeugern bindet, ist keine.
   const lizenzTafel = featureSourceLicenseTable();

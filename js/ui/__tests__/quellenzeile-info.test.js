@@ -35,7 +35,7 @@ const OHNE_RECHTE = { label: "Goldene Flügel", url: "https://f-shop.de/x", type
 
 // ══ A. Das ⓘ erscheint NUR, wo es etwas zu zeigen gibt ══════════════════════════════════════════
 // 🔴 Ein Knopf über einer leeren Tafel ist ein Klick für nichts. Auslöser ist die NAMENSNENNUNG —
-// live gemessen 01.09.2026 tragen 3 von 1694 Katalogzeilen eine.
+// live gemessen 01.09.2026 tragen 3 von 1374 Katalogzeilen eine.
 {
 	const mit = markup.buildSourceListMarkup("", [MIT_RECHTEN]);
 	const ohne = markup.buildSourceListMarkup("", [OHNE_RECHTE]);

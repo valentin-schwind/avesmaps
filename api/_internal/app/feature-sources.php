@@ -152,7 +152,7 @@ function avesmapsEnsureFeatureSourceTables(PDO $pdo): void
     // (`license`) und WEN man nennt (`attribution`). Ein Freitext fuer beides waere bei 239
     // Zeilen 239-mal derselbe Satz -- mit Tippfehlern und nicht auswertbar.
     //
-    // ⚠️ LEER heisst "nicht erfasst", NIE "keine Lizenz". Die 1694 vorhandenen Quellen starten
+    // ⚠️ LEER heisst "nicht erfasst", NIE "keine Lizenz". Die 1374 vorhandenen Quellen starten
     // leer und zeigen wie bisher nichts; wer "keine freie Lizenz" sagen will, sagt es mit dem
     // Schluessel `unfree`. Die beiden zu verwechseln waere eine Rechtsaussage, die niemand
     // getroffen hat.
@@ -885,7 +885,7 @@ function avesmapsAddFeatureSource(PDO $pdo, string $entityType, string $publicId
  * gehoeren der VERKNUEPFUNG und gelten nur an diesem einen Objekt. `label`, `source_type`,
  * `license`, `attribution` und `is_official` gehoeren der KATALOGZEILE und gelten ueberall, wo die
  * Quelle zitiert wird. Live gemessen am 01.09.2026 (map-features.php, eine Anfrage): 59.538
- * Verknuepfungen auf 1.561 zitierte Katalogzeilen — Median 6 Objekte je Zeile, p95 146, MAXIMUM
+ * Verknuepfungen auf 1.240 zitierte Katalogzeilen — Median 14 Objekte je Zeile, p95 171, MAXIMUM
  * 1.549 („Aventurien – Das Lexikon des Schwarzen Auges"). Ein Formular, das beide Haelften in
  * einen Topf wirft, laesst einen Editor mit einem Klick 1.549 Infoboxen umschreiben, ohne dass er
  * es merkt — genau die Richtung, aus der Meldung #105 entstanden ist, nur groesser.

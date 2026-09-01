@@ -51,7 +51,7 @@ var FEATURE_SOURCE_LICENSES = {
  *
  * ⚠️ LEER IST NICHT "KEINE LIZENZ". Eine Quelle ohne Eintrag zeigt gar nichts; wer "keine freie
  * Lizenz" sagen will, sagt es mit dem Schluessel `unfree`. Die beiden zu verwechseln waere eine
- * Rechtsaussage, die niemand getroffen hat -- und sie stuende dann an 1694 Quellen.
+ * Rechtsaussage, die niemand getroffen hat -- und sie stuende dann an 1374 Quellen.
  *
  * ⚠️ Die Namensnennung allein reicht ebenfalls: eine Quelle darf sagen, wen sie nennt, ohne dass
  * jemand die Lizenz eingetragen hat. Beides sind getrennte Angaben, weil CC beides getrennt
@@ -270,7 +270,7 @@ function buildSourceListMarkup(wikiUrl, sources, opts) {
    *
    * 🔴 NUR WO ES ETWAS ZU ZEIGEN GIBT. Ein Knopf, der eine leere Tafel oeffnet, ist ein Klick fuer
    * nichts; die Adresse allein rechtfertigt ihn nicht, denn sie IST schon der Titel-Link. Ausloeser
-   * ist die NAMENSNENNUNG — live gemessen 01.09.2026 tragen 3 von 1694 Katalogzeilen eine.
+   * ist die NAMENSNENNUNG — live gemessen 01.09.2026 tragen 3 von 1374 Katalogzeilen eine.
    *
    * 💣 INLINE-`onclick`, kein delegierter Zuhoerer. Leaflet ruft den Popup-Inhalt bei jedem
    * `_updateContent` neu auf und ersetzt das Markup; ein an einen Behaelter gehaengter Zuhoerer
