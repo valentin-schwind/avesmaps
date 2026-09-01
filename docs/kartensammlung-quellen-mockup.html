@@ -1,0 +1,213 @@
+<title>Die Kartensammlung nennt ihre Quelle (Mockup)</title>
+<style>
+/* Farbwerte 1:1 aus css/base/tokens.css. Dunkel zuerst — die Kartensammlung steht im Infopanel. */
+:root {
+	--panel:#312e26; --panel-soft:#37342b; --panel-muted:#39352b;
+	--text:#eee7da; --text-strong:#f5f0e4; --text-muted:#b4a895;
+	--border:#514a3c; --border-strong:#615a49; --divider:rgba(207,197,171,0.24);
+	--link:#d7c38b; --accent-brown:#c9a97e;
+	--button-soft:#3a362c; --button-soft-text:#eae1cf; --button-soft-border:#585142;
+	--kanon-ja:#cfb767; --kanon-ja-text:#241d14;
+	--kanon-nein:#7fd4c1; --kanon-nein-text:#10312b;
+	--page:#26241e; --radius-sm:5px; --radius-md:8px;
+}
+:root[data-theme="light"] {
+	--panel:#fffdf9; --panel-soft:#faf6ee; --panel-muted:#f1ece1;
+	--text:#2e271e; --text-strong:#3c3327; --text-muted:#706557;
+	--border:#ddd3c3; --border-strong:#cdbfa8; --divider:rgba(125,115,96,0.30);
+	--link:#8f7326; --accent-brown:#7a5a3a;
+	--button-soft:#efe9db; --button-soft-text:#564b3b; --button-soft-border:#cdbda0;
+	--page:#efe7d8;
+}
+*{box-sizing:border-box}
+body{margin:0;padding:26px 24px 80px;background:var(--page);color:var(--text);
+	font-family:"Faculty Glyphic",Arial,sans-serif;font-size:14px;line-height:1.5}
+h1{margin:0 0 4px;font-size:25px;color:var(--text-strong)}
+h2{margin:38px 0 4px;padding-bottom:8px;border-bottom:1px solid var(--divider);font-size:19px;color:var(--text-strong)}
+p{margin:8px 0;color:var(--text-muted);max-width:84ch}
+p strong,li strong{color:var(--text-strong)}
+code{padding:1px 5px;border-radius:var(--radius-sm);background:var(--panel-muted);color:var(--text-strong);
+	font-family:Consolas,monospace;font-size:12px}
+ul{max-width:84ch;padding-left:20px} li{margin:7px 0;color:var(--text-muted)}
+table.m{border-collapse:collapse;margin:10px 0;font-size:13px}
+table.m th,table.m td{padding:5px 16px 5px 0;text-align:left;border-bottom:1px solid var(--divider);color:var(--text-muted)}
+table.m th{color:var(--text-strong);font-weight:700}
+.sw{position:fixed;top:14px;right:16px;padding:6px 12px;border:1px solid var(--button-soft-border);
+	border-radius:var(--radius-md);background:var(--button-soft);color:var(--button-soft-text);
+	font:inherit;font-size:12px;cursor:pointer;z-index:5}
+.wlabel{margin:16px 0 4px;font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--text-muted)}
+.wirt{width:400px;border:1px solid var(--border);border-radius:var(--radius-md);background:var(--panel);padding:12px 14px}
+.breit{width:640px}
+.reihe{display:flex;gap:24px;flex-wrap:wrap;align-items:flex-start}
+
+/* ── Der Streifen (Infopanel) ─────────────────────────────────────────────── */
+.cs-head{font-size:14px;font-weight:700;color:var(--text-strong);margin-bottom:8px}
+.cs-count{color:var(--text-muted);font-weight:400}
+.cs-scroll{display:flex;gap:8px;overflow-x:auto;padding-bottom:4px}
+.cs-card{flex:0 0 96px;text-decoration:none}
+.cs-thumb{display:block;height:64px;border:1px solid var(--border);border-radius:var(--radius-sm);
+	background:var(--panel-muted)}
+.cs-label{display:block;margin-top:4px;font-size:11px;color:var(--link);
+	overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* 🔴 NEU: die Quelle unter dem Titel — gedämpft, einzeilig, kürzt. */
+.cs-src{display:block;font-size:10px;color:var(--text-muted);
+	overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cs-credit{margin-top:8px;padding-top:6px;border-top:1px solid var(--divider);
+	font-size:11px;color:var(--text-muted)}
+.cs-credit a{color:var(--link)}
+
+/* ── Die Zeile (Dialog „Kartensammlung anzeigen") ─────────────────────────── */
+.cr{display:flex;gap:10px;padding:8px 0;border-top:1px solid var(--divider)}
+.cr-thumb{flex:0 0 72px;height:52px;border:1px solid var(--border);border-radius:var(--radius-sm);
+	background:var(--panel-muted)}
+.cr-main{flex:1 1 auto;min-width:0}
+.cr-band{font-size:13px;color:var(--text-strong);font-weight:700}
+.cr-facts{font-size:11px;color:var(--text-muted)}
+/* 🔴 Die Quellenzeile im Dialog — DIESELBE Bauform wie in der Infobox: Titel kürzt, Marken fest. */
+.cr-src{display:flex;align-items:baseline;gap:8px;flex-wrap:nowrap;margin-top:3px;font-size:11px}
+.cr-src-main{flex:1 1 auto;min-width:0;display:flex;align-items:baseline}
+.cr-src-title{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--link)}
+.cr-src-marks{flex:0 0 auto;display:inline-flex;align-items:center;gap:6px}
+.cr-side{flex:0 0 auto;font-size:11px;color:var(--text-muted)}
+.kanon{display:inline-flex;border-radius:999px;overflow:hidden;font-size:10px;
+	text-transform:uppercase;letter-spacing:.03em}
+.kanon b{padding:2px 7px 1px;font-weight:700;background:var(--kanon-ja);color:var(--kanon-ja-text)}
+.kanon i{padding:2px 7px 1px;font-style:normal;background:var(--panel-muted);color:var(--text-muted);
+	text-transform:none;letter-spacing:0}
+.info{width:15px;height:15px;padding:0;display:inline-flex;align-items:center;justify-content:center;
+	border:1px solid var(--button-soft-border);border-radius:999px;background:var(--button-soft);
+	color:var(--button-soft-text);font:inherit;font-size:10px;line-height:1;cursor:pointer}
+.kaputt{color:var(--text-muted)}
+</style>
+
+<button class="sw" onclick="document.documentElement.setAttribute('data-theme',
+  document.documentElement.getAttribute('data-theme')==='light'?'dark':'light')">Hell / Dunkel</button>
+
+<h1>Die Kartensammlung nennt ihre Quelle</h1>
+<p>Live gemessen am 01.09.2026: <strong>633 Stadtkarten tragen eine Quelle, 131 verschiedene
+Publikationen</strong> — und keine davon steht heute an ihrer Karte. Sichtbar ist nur eine
+Pauschalzeile unter dem ganzen Streifen.</p>
+
+<h2>1 · Was heute dasteht</h2>
+<p>Der Streifen zeigt Vorschaubild und Titel, darunter <code>avesmapsCitymapCreditMarkup()</code> —
+<em>eine</em> Zeile für <em>alle</em> Karten:</p>
+<div class="wirt">
+	<div class="cs-head">Kartensammlung von Trallop <span class="cs-count">(4)</span></div>
+	<div class="cs-scroll">
+		<a class="cs-card"><span class="cs-thumb"></span><span class="cs-label">Trallop</span></a>
+		<a class="cs-card"><span class="cs-thumb"></span><span class="cs-label">Trallop, Übersicht</span></a>
+		<a class="cs-card"><span class="cs-thumb"></span><span class="cs-label">Herzogenstadt</span></a>
+		<a class="cs-card"><span class="cs-thumb"></span><span class="cs-label">Umland</span></a>
+	</div>
+	<div class="cs-credit">Bilder © Ulisses Spiele bzw. der jeweiligen Rechteinhaber —
+		<a href="#">im F-Shop ansehen ↗</a></div>
+</div>
+<p class="kaputt">💣 Das ist derselbe Fehler, den die Quellenzeile am 14.08.2026 abgelegt hat und
+der dort als Kommentar im Code steht: <em>„eine Fußnote unter der ganzen Quellenzeile behauptete
+die Lizenz auch für alles andere, was dort steht."</em> Hier liegen 131 verschiedene Werke unter
+einer Pauschale.</p>
+
+<h2>2 · Vorschlag</h2>
+<p><strong>Zwei Orte, zwei Ausführlichkeiten</strong> — die Kachel im Streifen ist 96 px breit, dort
+passt kein Etikett. Die volle Zeile bekommt der Dialog, wo schon die Faktenzeile steht.</p>
+
+<div class="reihe">
+<div>
+	<p class="wlabel">Streifen — die Quelle unter dem Titel</p>
+	<div class="wirt">
+		<div class="cs-head">Kartensammlung von Trallop <span class="cs-count">(4)</span></div>
+		<div class="cs-scroll">
+			<a class="cs-card"><span class="cs-thumb"></span><span class="cs-label">Trallop</span>
+				<span class="cs-src">Land des schwarzen Bären</span></a>
+			<a class="cs-card"><span class="cs-thumb"></span><span class="cs-label">Trallop, Übersicht</span>
+				<span class="cs-src">Reich des Roten Mondes</span></a>
+			<a class="cs-card"><span class="cs-thumb"></span><span class="cs-label">Herzogenstadt</span>
+				<span class="cs-src">Briefspiel (Weiden)</span></a>
+			<a class="cs-card"><span class="cs-thumb"></span><span class="cs-label">Umland</span>
+				<span class="cs-src">Fürsten, Händler, Intriganten</span></a>
+		</div>
+		<div class="cs-credit">Bilder © Ulisses Spiele bzw. der jeweiligen Rechteinhaber —
+			<a href="#">im F-Shop ansehen ↗</a></div>
+	</div>
+</div>
+
+<div>
+	<p class="wlabel">Dialog — die volle Zeile, wie überall sonst</p>
+	<div class="wirt breit">
+		<div class="cr">
+			<span class="cr-thumb"></span>
+			<div class="cr-main">
+				<div class="cr-band">Trallop</div>
+				<div class="cr-facts">Farbig · beschriftet · 1039 BF</div>
+				<div class="cr-src">
+					<span class="cr-src-main"><span class="cr-src-title">Land des schwarzen Bären ↗</span></span>
+					<span class="cr-src-marks"><span class="kanon"><b>Offiziell</b><i>Regionalspielhilfe</i></span></span>
+				</div>
+			</div>
+			<div class="cr-side">F-Shop ↗</div>
+		</div>
+		<div class="cr">
+			<span class="cr-thumb"></span>
+			<div class="cr-main">
+				<div class="cr-band">Herzogenstadt Trallop</div>
+				<div class="cr-facts">Keine weiteren Angaben erfasst.</div>
+				<div class="cr-src">
+					<span class="cr-src-main"><span class="cr-src-title">Briefspiel (Weiden) ↗</span></span>
+					<span class="cr-src-marks"><button class="info">i</button>
+						<span class="kanon"><b style="background:var(--kanon-nein);color:var(--kanon-nein-text)">Inoffiziell</b><i>Briefspiel</i></span></span>
+				</div>
+			</div>
+			<div class="cr-side">keine Fundstelle</div>
+		</div>
+	</div>
+</div>
+</div>
+
+<h2>3 · Die Regeln, die das festlegt</h2>
+<ul>
+	<li>🔴 <strong>Dieselbe Zeile wie überall</strong> — <code>renderFeatureSourceLine("citymap", …)</code>,
+	nicht eine sechste Bauform. Der Kartensammlung eine eigene zu geben wäre genau das Muster, das
+	dieses Projekt bei den Listenzeilen (sieben Rezepturen) und der Wiki-Zuweisung (sechs Fassungen)
+	schon zweimal bezahlt hat. Damit kommen Kanon-Etikett, ⓘ und die Umbruchschwelle gratis mit.</li>
+
+	<li>💣 <strong>Die Kachel im Streifen bekommt NICHT die volle Zeile.</strong> Sie ist 96 px breit —
+	dort passt weder Etikett noch ⓘ, und ein zweites, gekürztes Etikett wäre eine zweite Aussage über
+	dieselbe Sache. Sie bekommt den <em>Titel</em> der Quelle als gedämpfte zweite Zeile, mehr nicht.
+	Die volle Zeile steht im Dialog, wo die Faktenzeile schon lebt.</li>
+
+	<li>🔴 <strong>Die Pauschalzeile bleibt.</strong> Sie sagt etwas anderes: © an den <em>Bildern</em>
+	(Ulisses-Fanrichtlinien, NOTICE.md), nicht die Herkunft der Karte. Sie zu ersetzen hieße, eine
+	Auflage gegen eine Angabe zu tauschen.</li>
+
+	<li>⚠️ <strong>Der Spoiler-Schleier deckt die ganze Zeile</strong> — die Quellenzeile liegt
+	darunter und wird mitverschleiert. Das ist richtig: der Titel der Publikation verrät sonst, was
+	die verdeckte Karte zeigt.</li>
+
+	<li>💣 <strong>Der Streifen liest aus dem DOM, der Dialog aus dem Katalog.</strong>
+	<code>cardShapeFromEl</code> baut seine Form aus <code>data-*</code>-Attributen; kommt die Quelle
+	nur über <code>renderFeatureSourceLine</code>, steht sie im Dialog und fehlt im Streifen. Der
+	Kachel-Titel muss also über ein eigenes <code>data-</code>-Attribut mitreisen — sonst ist die
+	zweite Zeile leer und niemand merkt es.</li>
+
+	<li>🚩 <strong>Fünf Titel tragen HTML</strong> (<code>Landkartenset &lt;br /&gt;Das
+	Dornenreich</code> an 18 Karten, vier weitere). Sie werden erst durch diese Anzeige sichtbar.
+	Behoben im selben Zug: der Katalog-Upsert putzt <code>&lt;br&gt;</code> jetzt weg
+	(<code>avesmapsNormalizeSourceLabel</code>), dazu <code>sql/quellen-titel-br-entfernen.sql</code>
+	für den Bestand.</li>
+
+	<li>🔧 <strong>Offen: reisen die Quellen der Karten überhaupt in der Nutzlast mit?</strong>
+	Gemessen ja — 633 Verknüpfungen unter <code>citymap:&lt;public_id&gt;</code>. Ob
+	<code>renderFeatureSourceLine</code> sie dort auch findet, ist vor dem Bauen einmal zu prüfen;
+	die Kartensammlung ist der einzige Typ, für den die Funktion noch nie gerufen wurde.</li>
+</ul>
+
+<h2>4 · Der Umfang</h2>
+<table class="m">
+	<tr><th>Objektart</th><th>Objekte mit Quellen</th><th>zeigt sie heute?</th></tr>
+	<tr><td>Wege</td><td>2.150</td><td>ja</td></tr>
+	<tr><td>Orte</td><td>2.032</td><td>ja</td></tr>
+	<tr><td>Herrschaftsgebiete</td><td>879</td><td>ja</td></tr>
+	<tr><td><strong>Stadtkarten</strong></td><td><strong>633</strong></td><td><strong>nein</strong></td></tr>
+	<tr><td>Regionen / Label</td><td>609</td><td>ja</td></tr>
+	<tr><td>Kraftlinien</td><td>0 (verdrahtet)</td><td>ja</td></tr>
+</table>

@@ -371,6 +371,31 @@ const AVESMAPS_SOURCE_LICENSES = [
     'unfree',
 ];
 
+/**
+ * Der TITEL einer Katalogquelle -- ohne Markup.
+ *
+ * 💣 WARUM ES DAS GIBT (gemessen 01.09.2026): fuenf Katalogzeilen tragen ein `<br>` MITTEN IM
+ * TITEL, aus dem `{{Infobox Produkt}}`-Feld des Wikis mitgeschleppt -- „Landkartenset <br />Das
+ * Dornenreich" (18 Karten), „Havena-Fanfare<br/>Sonderausgabe" (7), „Meisterschirm<br/>des
+ * Schwarzen Auges" (4), zwei weitere. Das Markup escapet korrekt, also steht dort woertlich
+ * „Landkartenset &lt;br /&gt;Das Dornenreich" statt eines Umbruchs.
+ *
+ * 🔴 DIE REGEL SITZT IM UPSERT, NICHT IM PARSER. Der Katalog hat mehrere Schreiber -- der
+ * Publikations-Abgleich, der Stadtkarten-Abgleich, der Editor, der Import. Eine Regel, die einen
+ * von ihnen bindet, ist keine Regel; und eine reine Datenkorrektur waere ohnehin zwecklos, weil
+ * `avesmapsPublicationReconcileEntity` mit `refreshLabel = true` schreibt und den alten Titel beim
+ * naechsten Lauf zurueckholte.
+ *
+ * ⚠️ Nur `<br>` wird zu einem Leerzeichen, kein allgemeines `strip_tags`: ein Titel darf durchaus
+ * ein `<` tragen („Band <1>"), und was hier verschwindet, verschwindet katalogweit.
+ */
+function avesmapsNormalizeSourceLabel(mixed $value): string
+{
+    $label = preg_replace('#<br\s*/?>#i', ' ', (string) $value) ?? (string) $value;
+
+    return avesmapsNormalizeSingleLine($label, 200);
+}
+
 /** Ein Lizenzschluessel, oder '' -- ein unbekannter wird zu '' und NICHT zu einem geratenen. */
 function avesmapsNormalizeSourceLicense(mixed $value): string
 {
@@ -532,6 +557,8 @@ function avesmapsFeatureSourceUpsert(PDO $pdo, string $url, string $label, strin
     // darueber. Ein spaeterer Aufrufer ohne Angabe (ein Editor, der dieselbe Adresse von Hand
     // nachtraegt) darf nicht loeschen, was einmal erfasst wurde. Wer sie AENDERN will, tut das im
     // Quellen-Editor, wo die Aenderung sichtbar ist.
+    // 🔴 EIN Putzer fuer ALLE Schreiber -- siehe avesmapsNormalizeSourceLabel.
+    $label = avesmapsNormalizeSourceLabel($label);
     $license = avesmapsNormalizeSourceLicense($license);
     $attribution = avesmapsNormalizeSingleLine($attribution, 200);
     $pdo->prepare(

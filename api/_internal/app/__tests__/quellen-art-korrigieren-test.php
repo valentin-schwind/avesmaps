@@ -25,11 +25,16 @@ declare(strict_types=1);
  * und eine SQLite-taugliche Ersatzform waere genau die Verbiegung, vor der AGENTS.md §9 warnt.
  */
 if (ini_get('zend.assertions') !== '1') {
-    fwrite(STDERR, "FATAL: zend.assertions ist nicht '1' -- assert() waere wirkungslos. "
+    
+fwrite(STDERR, "FATAL: zend.assertions ist nicht '1' -- assert() waere wirkungslos. "
         . "Erneut fahren mit: php -d zend.assertions=1 -d assert.exception=1 " . __FILE__ . "\n");
     exit(2);
 }
 
+// ⚠️ bootstrap.php ist neu noetig: `avesmapsNormalizeSourceLabel` kuerzt ueber
+// `avesmapsNormalizeSingleLine`, und die wohnt dort. `feature-sources.php` hing schon vorher zur
+// LAUFZEIT daran (die Namensnennung im Upsert) -- dieser Test hatte den Pfad nur nie betreten.
+require_once __DIR__ . '/../../bootstrap.php';
 require_once __DIR__ . '/../feature-sources.php';
 
 $pruefungen = 0;
@@ -135,6 +140,51 @@ assert($vorgabe('avesmapsAddFeatureSource', 'retype') === false,
 $zaehl();
 assert($vorgabe('avesmapsLinkExistingFeatureSource', 'type') === '',
     'avesmapsLinkExistingFeatureSource: ohne genannte Art wird nur verknuepft');
+$zaehl();
+
+// ══ Der TITEL: `<br>` gehoert nicht in einen Katalogeintrag ═════════════════════════════════════
+// 💣 Live gemessen am 01.09.2026: FUENF Katalogzeilen tragen ein `<br>` mitten im Titel, aus dem
+// `{{Infobox Produkt}}`-Feld des Wikis mitgeschleppt. Das Markup escapet korrekt -- also steht in
+// jeder Infobox woertlich „Landkartenset &lt;br /&gt;Das Dornenreich" statt eines Umbruchs.
+// Betroffen: 18 + 7 + 4 + 2 + 1 = 32 Verknuepfungen.
+assert(avesmapsNormalizeSourceLabel('Landkartenset <br />Das Dornenreich') === 'Landkartenset Das Dornenreich',
+    'ein `<br />` mit Leerzeichen wird zu EINEM Leerzeichen');
+$zaehl();
+assert(avesmapsNormalizeSourceLabel('Havena-Fanfare<br/>Sonderausgabe') === 'Havena-Fanfare Sonderausgabe',
+    'ein `<br/>` ohne Leerzeichen ebenso -- sonst klebten die Woerter aneinander');
+$zaehl();
+assert(avesmapsNormalizeSourceLabel('A<BR>B') === 'A B', 'GROSSSCHREIBUNG zaehlt nicht');
+$zaehl();
+assert(avesmapsNormalizeSourceLabel('A<br>B') === 'A B', 'und die Form ohne Schraegstrich auch nicht');
+$zaehl();
+
+// ⚠️ KEIN allgemeines `strip_tags`. Ein Titel darf ein `<` tragen, und was hier verschwindet,
+// verschwindet katalogweit -- an bis zu 1.549 Objekten gleichzeitig.
+assert(avesmapsNormalizeSourceLabel('Band <1> bleibt') === 'Band <1> bleibt',
+    'ein spitzes Klammernpaar, das kein <br> ist, bleibt unangetastet');
+$zaehl();
+
+// ⚠️ Die Laengengrenze der Spalte gilt weiter (VARCHAR(200)) -- eine stille MySQL-Kuerzung ist im
+// Haus schon einmal teuer geworden (app_setting.setting_value, AGENTS.md §10).
+assert(mb_strlen(avesmapsNormalizeSourceLabel(str_repeat('x', 300))) === 200,
+    'und die Spaltenbreite wird weiterhin eingehalten');
+$zaehl();
+
+// 🔴 DIE REGEL SITZT IM UPSERT, NICHT IM PARSER -- der Katalog hat mehrere Schreiber (Publikations-
+// Abgleich, Stadtkarten-Abgleich, Editor, Import), und eine Regel, die einen von ihnen bindet, ist
+// keine Regel. 🪤 Eine reine DATEN-Korrektur waere ausserdem zwecklos: der Publikations-Abgleich
+// schreibt mit `refreshLabel = true` und holte den alten Titel beim naechsten Lauf zurueck.
+$quelltext = (string) file_get_contents(__DIR__ . '/../feature-sources.php');
+$ohneKommentare = preg_replace('#/\*[\s\S]*?\*/|^\s*//.*$#m', '', $quelltext) ?? '';
+assert(preg_match('/\$label = avesmapsNormalizeSourceLabel\(\$label\);/', $ohneKommentare) === 1,
+    'avesmapsFeatureSourceUpsert putzt den Titel -- damit ALLE Schreiber gebunden sind');
+$zaehl();
+// Und er tut es VOR dem INSERT, nicht irgendwo danach.
+$imUpsert = strpos($ohneKommentare, 'function avesmapsFeatureSourceUpsert');
+$derPutzer = strpos($ohneKommentare, '$label = avesmapsNormalizeSourceLabel($label);');
+$dasInsert = strpos($ohneKommentare, 'INSERT INTO sources');
+assert($imUpsert < $derPutzer && $derPutzer < $dasInsert,
+    'und zwar innerhalb des Upserts und vor dem INSERT');
 $zaehl();
 
 echo "quellen-art-korrigieren-test.php: {$pruefungen} Zusicherungen erfuellt\n";
