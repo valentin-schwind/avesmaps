@@ -109,6 +109,43 @@ try {
                 : '';
             return avesmapsLinkExistingFeatureSource($pdo, $entityType, $entityPublicId, $sourceId, $userId, $pages, $referenceKind, $type);
         })(),
+        // Eine bestehende Zeile aendern. Bis zum 01.09.2026 gab es diesen Weg NICHT -- eine Quelle
+        // liess sich nur anlegen und entfernen, und ein falscher Titel war damit unkorrigierbar
+        // (Owner-Meldung). Entwurf: docs/quellen-bearbeiten-mockup.html.
+        //
+        // 🔴 `fields` traegt NUR, was jemand angefasst hat -- dieselbe Regel wie beim Sammel-
+        // Speichern der Weg-Ebene. Ein vollstaendig mitgeschicktes Formular wuerde jede gewollte
+        // Ausnahme platt machen, und bei einer Katalogzeile gleich an bis zu 1.549 Objekten.
+        'update' => (static function () use ($pdo, $entityType, $entityPublicId, $payload, $userId): array {
+            $sourceId = (int) ($payload['source_id'] ?? 0);
+            if ($sourceId <= 0) {
+                avesmapsErrorResponse(400, 'invalid_request', 'source_id ist erforderlich.');
+            }
+            $fields = $payload['fields'] ?? null;
+            if (!is_array($fields)) {
+                avesmapsErrorResponse(400, 'invalid_request', 'fields muss ein Objekt der geaenderten Felder sein.');
+            }
+            // 🔴 Die Bestaetigung ist ein EIGENER Schluessel, kein Rueckschluss -- dieselbe Form wie
+            // `source_type_chosen` daneben und aus demselben Grund: ein alter Client, der ihn nicht
+            // kennt, darf eine katalogweit zitierte Zeile nicht unbemerkt umschreiben.
+            $confirm = ($payload['confirm_catalog'] ?? false) === true;
+            $ergebnis = avesmapsUpdateFeatureSource($pdo, $entityType, $entityPublicId, $sourceId, $fields, $userId, $confirm);
+            // Die Bibliothek gibt ihren Fehler ZURUECK, statt ihn zu senden -- nur so ist sie ohne
+            // HTTP pruefbar. Der Endpunkt macht daraus die Antwort und behaelt dabei den genauen
+            // Code (`catalog_confirm_required`, `wiki_owned_field`), an dem der Client die
+            // Rueckfrage von einem echten Fehler unterscheidet.
+            if (($ergebnis['ok'] ?? true) !== true) {
+                $fehler = is_array($ergebnis['error'] ?? null) ? $ergebnis['error'] : [];
+                avesmapsErrorResponse(
+                    (int) ($fehler['status'] ?? 400),
+                    (string) ($fehler['code'] ?? 'invalid_request'),
+                    (string) ($fehler['message'] ?? 'Die Quelle konnte nicht geaendert werden.'),
+                    array_diff_key($ergebnis, ['ok' => 1, 'error' => 1])
+                );
+            }
+
+            return $ergebnis;
+        })(),
         'remove' => (static function () use ($pdo, $entityType, $entityPublicId, $payload, $userId): array {
             $sourceId = (int) ($payload['source_id'] ?? 0);
             if ($sourceId <= 0) {

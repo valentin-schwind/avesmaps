@@ -7,8 +7,84 @@ require_once __DIR__ . '/../wiki/namespaces.php';
 // Multi-source system (#1): catalog of distinct sources + element<->source links.
 // Self-healing DDL (project idiom); dedup by url_hash so arbitrary-length URLs get a
 // fixed-length UNIQUE index (avoids the utf8mb4 index-length limit on a long url column).
+/**
+ * Dieselben Tabellen fuer SQLite -- eine ZUSAETZLICHE Fassung, keine Umschrift der Produktionsform
+ * (dasselbe Muster wie `avesmapsEnsureSyncPlanTablesSqlite`, und aus demselben Grund: die Lehre aus
+ * dem 1093-Fall, AGENTS.md §9). Die MySQL-DDL darunter bleibt Zeichen fuer Zeichen, wie sie ist.
+ *
+ * ⚠️ Sie ist NUR fuer Tests da. Produktiv laeuft ausschliesslich MySQL; deshalb steht hier auch
+ * kein `information_schema`-Nachziehen von Spalten -- eine frisch angelegte Testdatenbank hat sie
+ * alle von Anfang an.
+ * 🔴 Die Spaltenliste muss der MySQL-Fassung folgen. Fehlt hier eine, faellt sie nicht auf: der
+ * Test schriebe gegen eine Tabelle ohne die Spalte und meldete einen SQL-Fehler, der wie ein
+ * Fehler im Pruefling aussieht.
+ */
+function avesmapsEnsureFeatureSourceTablesSqlite(PDO $pdo): void
+{
+    $pdo->exec(
+        'CREATE TABLE IF NOT EXISTS sources (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            url TEXT NOT NULL DEFAULT "",
+            url_hash TEXT NOT NULL DEFAULT "",
+            wiki_key TEXT NULL,
+            label TEXT NOT NULL DEFAULT "",
+            source_type TEXT NOT NULL DEFAULT "sonstiges",
+            is_official INTEGER NOT NULL DEFAULT 0,
+            license TEXT NOT NULL DEFAULT "",
+            attribution TEXT NOT NULL DEFAULT "",
+            created_by INTEGER NULL,
+            created_at TEXT NOT NULL DEFAULT "2026-01-01 00:00:00"
+        )'
+    );
+    $pdo->exec(
+        'CREATE TABLE IF NOT EXISTS feature_sources (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            entity_type TEXT NOT NULL,
+            entity_public_id TEXT NOT NULL,
+            source_id INTEGER NOT NULL,
+            status TEXT NOT NULL DEFAULT "approved",
+            origin TEXT NOT NULL DEFAULT "manual",
+            reference_kind TEXT NULL,
+            pages TEXT NULL,
+            note TEXT NULL,
+            created_by INTEGER NULL,
+            created_at TEXT NOT NULL DEFAULT "2026-01-01 00:00:00",
+            UNIQUE (entity_type, entity_public_id, source_id)
+        )'
+    );
+}
+
+/**
+ * Der Treibername -- oder '' , wenn er sich nicht ermitteln laesst.
+ *
+ * 💣 DAS `try` IST NICHT ZIERDE. Mehrere Tests im Haus reichen eine PDO-Unterklasse herein, die
+ * ihren Elternkonstruktor nie ruft (`FakeSearchPdo` in source-search-test.php ueberschreibt nur
+ * `prepare`/`exec`); auf so einem Objekt wirft JEDER `getAttribute` mit „object is uninitialized".
+ * Ohne den Riegel bricht eine blosse Treiberfrage einen fremden, seit Monaten gruenen Test --
+ * genau so geschehen am 01.09.2026, und gefunden hat es der Lauf ueber das GANZE Testfeld, nicht
+ * die eigenen Tests.
+ * ⚠️ Der Rueckfall ist '' und fuehrt damit in den MySQL-Zweig -- also in genau das Verhalten, das
+ * vor dieser Weiche galt.
+ */
+function avesmapsPdoDriverName(PDO $pdo): string
+{
+    try {
+        return (string) $pdo->getAttribute(PDO::ATTR_DRIVER_NAME);
+    } catch (Throwable) {
+        return '';
+    }
+}
+
 function avesmapsEnsureFeatureSourceTables(PDO $pdo): void
 {
+    // 🔴 SQLite kommt ausschliesslich aus Tests. Die MySQL-DDL darunter ist unberuehrt -- hier wird
+    // nichts fuer den Test verbogen, sondern eine zweite Fassung DANEBEN gestellt.
+    if (avesmapsPdoDriverName($pdo) === 'sqlite') {
+        avesmapsEnsureFeatureSourceTablesSqlite($pdo);
+
+        return;
+    }
+
     $pdo->exec(
         "CREATE TABLE IF NOT EXISTS sources (
             id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
@@ -509,6 +585,7 @@ function avesmapsListFeatureSourcesForEdit(PDO $pdo, string $entityType, string 
     avesmapsFeatureSourcesTakeoverOtherSource($pdo, $entityType, $publicId, $userId);
     $stmt = $pdo->prepare(
         "SELECT s.id AS source_id, s.url, s.label, s.source_type, s.is_official, s.license, s.attribution,
+                s.wiki_key,
                 fs.origin, fs.reference_kind, fs.pages
            FROM feature_sources fs JOIN sources s ON s.id = fs.source_id
           WHERE fs.entity_type = :t AND fs.entity_public_id = :id AND fs.status = 'approved'
@@ -521,14 +598,47 @@ function avesmapsListFeatureSourcesForEdit(PDO $pdo, string $entityType, string 
     // 'reference_kind' surfaces a source's coverage classification (ausfuehrlich/ergaenzend/erwaehnung
     // or '') so the editor row can show + round-trip it, and syncFeatureSourcesToClientCache can fold it
     // into the popup globals -> a freshly classified source lands in the right tab without a reload.
-    $sources = array_map(static fn(array $r): array => [
-        'source_id' => (int) $r['source_id'], 'url' => (string) $r['url'], 'label' => (string) $r['label'],
-        'type' => (string) $r['source_type'], 'official' => (int) $r['is_official'] === 1,
-        'origin' => (string) $r['origin'], 'pages' => (string) ($r['pages'] ?? ''),
-        'reference_kind' => (string) ($r['reference_kind'] ?? ''),
-        'license' => (string) ($r['license'] ?? ''),
-        'attribution' => (string) ($r['attribution'] ?? ''),
-    ], $stmt->fetchAll(PDO::FETCH_ASSOC) ?: []);
+    $rows = $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+    // Wie viele Objekte zitieren jede dieser Katalogzeilen? Das Bearbeiten-Formular sagt es an der
+    // Ueberschrift seiner Katalog-Haelfte und entscheidet daran, ob es nachfragt.
+    // ⚠️ EINE gruppierte Abfrage, nicht eine je Zeile: `source_id` ist die DRITTE Spalte des UNIQUE
+    // (entity_type, entity_public_id, source_id) und traegt keinen eigenen Index — je Zeile
+    // korreliert waeren das bei zwanzig Quellen zwanzig Tabellendurchlaeufe statt einem. Die
+    // Tabelle ist klein (59.538 Zeilen, gemessen 01.09.2026); wird das je ein Brennpunkt, ist ein
+    // Index auf (source_id, status) die Antwort, nicht eine zweite Zaehlweise.
+    $usage = [];
+    $ids = array_values(array_unique(array_map(static fn(array $r): int => (int) $r['source_id'], $rows)));
+    if ($ids !== []) {
+        $platzhalter = implode(', ', array_fill(0, count($ids), '?'));
+        $usageStmt = $pdo->prepare(
+            "SELECT source_id, COUNT(*) AS n FROM feature_sources
+              WHERE source_id IN ({$platzhalter}) AND status = 'approved' GROUP BY source_id"
+        );
+        $usageStmt->execute($ids);
+        foreach ($usageStmt->fetchAll(PDO::FETCH_ASSOC) ?: [] as $row) {
+            $usage[(int) $row['source_id']] = (int) $row['n'];
+        }
+    }
+
+    $sources = array_map(static function (array $r) use ($usage): array {
+        $id = (int) $r['source_id'];
+
+        return [
+            'source_id' => $id, 'url' => (string) $r['url'], 'label' => (string) $r['label'],
+            'type' => (string) $r['source_type'], 'official' => (int) $r['is_official'] === 1,
+            'origin' => (string) $r['origin'], 'pages' => (string) ($r['pages'] ?? ''),
+            'reference_kind' => (string) ($r['reference_kind'] ?? ''),
+            'license' => (string) ($r['license'] ?? ''),
+            'attribution' => (string) ($r['attribution'] ?? ''),
+            // Wie viele Objekte diese Katalogzeile zitieren — mindestens dieses eine.
+            'usage_count' => $usage[$id] ?? 1,
+            // 🔴 Pflegt der Wiki-Abgleich Titel und „offiziell" dieser Zeile? Gemessen am
+            // gespeicherten `wiki_key`, nicht am `origin` der VERKNUEPFUNG: dieselbe Katalogzeile
+            // kann an einem Objekt von Hand und an einem anderen vom Abgleich haengen — besitzen
+            // tut sie der Abgleich in beiden Faellen.
+            'wiki_owned' => trim((string) ($r['wiki_key'] ?? '')) !== '',
+        ];
+    }, $rows);
     return [
         'ok' => true,
         'sources' => $sources,
@@ -671,6 +781,272 @@ function avesmapsAddFeatureSource(PDO $pdo, string $entityType, string $publicId
             'label' => $label,
         ];
     }
+
+    return $antwort;
+}
+
+/**
+ * ══ EINE QUELLENZEILE BEARBEITEN — UND SIE HAT ZWEI REICHWEITEN ═══════════════════════════════
+ * Entwurf: docs/quellen-bearbeiten-mockup.html (Owner-GO 01.09.2026)
+ *
+ * 🔴 DAS IST DER GANZE GRUND, WARUM ES DIESE FUNKTION SO SPAET GIBT: `pages` und `reference_kind`
+ * gehoeren der VERKNUEPFUNG und gelten nur an diesem einen Objekt. `label`, `source_type`,
+ * `license`, `attribution` und `is_official` gehoeren der KATALOGZEILE und gelten ueberall, wo die
+ * Quelle zitiert wird. Live gemessen am 01.09.2026 (map-features.php, eine Anfrage): 59.538
+ * Verknuepfungen auf 1.561 zitierte Katalogzeilen — Median 6 Objekte je Zeile, p95 146, MAXIMUM
+ * 1.549 („Aventurien – Das Lexikon des Schwarzen Auges"). Ein Formular, das beide Haelften in
+ * einen Topf wirft, laesst einen Editor mit einem Klick 1.549 Infoboxen umschreiben, ohne dass er
+ * es merkt — genau die Richtung, aus der Meldung #105 entstanden ist, nur groesser.
+ */
+const AVESMAPS_FEATURE_SOURCE_LINK_FIELDS = ['pages', 'reference_kind'];
+const AVESMAPS_FEATURE_SOURCE_CATALOG_FIELDS = ['label', 'source_type', 'license', 'attribution', 'is_official'];
+
+/**
+ * 💣 DIE ZWEI FELDER, DIE DER WIKI-ABGLEICH SELBST PFLEGT — eine Handkorrektur daran waere eine
+ * Luege. `avesmapsPublicationReconcileEntity` (api/_internal/wiki/publication-sync.php) ruft den
+ * Katalog-Upsert mit `refreshLabel = true` und schreibt `is_official` unbedingt; an einer Zeile mit
+ * gesetztem `wiki_key` stuende beim naechsten Lauf wieder der Wikiwert da. Wir bieten die Aenderung
+ * deshalb gar nicht erst an, statt sie anzunehmen und still zuruecknehmen zu lassen.
+ * ⚠️ `source_type`, `license` und `attribution` fasst der Abgleich NICHT an (retype-Vorgabe ist
+ * nein, Lizenz und Namensnennung sind fuellend) — die bleiben auch dort aenderbar.
+ */
+const AVESMAPS_FEATURE_SOURCE_WIKI_OWNED_FIELDS = ['label', 'is_official'];
+
+/**
+ * Ab wie vielen zitierenden Objekten eine Katalogaenderung ausdruecklich bestaetigt werden muss.
+ * 🔴 Darunter NICHT: 530 der 1.561 zitierten Zeilen (34 %) haengen an genau einem Objekt, und dort
+ * waere eine Rueckfrage ein Klick fuer nichts.
+ */
+const AVESMAPS_FEATURE_SOURCE_CONFIRM_THRESHOLD = 10;
+
+/** Welcher Haelfte gehoert ein Feld? 'link' | 'catalog' | '' fuer unbekannt. */
+function avesmapsFeatureSourceFieldScope(string $field): string
+{
+    if (in_array($field, AVESMAPS_FEATURE_SOURCE_LINK_FIELDS, true)) {
+        return 'link';
+    }
+
+    return in_array($field, AVESMAPS_FEATURE_SOURCE_CATALOG_FIELDS, true) ? 'catalog' : '';
+}
+
+/**
+ * Wie viele Objekte zitieren diese Katalogzeile?
+ *
+ * ⚠️ BEWUSST OHNE `avesmapsFeatureSourceLiveEntityClause`. Die Zahl ist eine Warngroesse, keine
+ * oeffentliche Angabe: sie entscheidet nur, ob gefragt wird. Der Live-Filter traegt ein
+ * `COLLATE utf8mb4_unicode_ci` (MySQL-only, siehe die Narbe an der Klausel selbst) und waere gegen
+ * SQLite nicht pruefbar; und eine Zeile, die auch auf weich geloeschte Objekte zeigt, faellt hier
+ * zu GROSS aus — also in die fragende, sichere Richtung.
+ */
+function avesmapsFeatureSourceUsageCount(PDO $pdo, int $sourceId): int
+{
+    $statement = $pdo->prepare(
+        "SELECT COUNT(*) FROM feature_sources WHERE source_id = :sid AND status = 'approved'"
+    );
+    $statement->execute(['sid' => $sourceId]);
+
+    return (int) $statement->fetchColumn();
+}
+
+/** Der Fehlerumschlag dieser Funktion — der Endpunkt macht daraus seine HTTP-Antwort. */
+function avesmapsFeatureSourceUpdateError(int $status, string $code, string $message, array $extra = []): array
+{
+    return array_merge(['ok' => false, 'error' => ['status' => $status, 'code' => $code, 'message' => $message]], $extra);
+}
+
+/**
+ * Eine Quellenzeile aendern. `$fields` enthaelt NUR, was jemand angefasst hat.
+ *
+ * 💣 „NUR WAS ANGEFASST WURDE" IST DIE TRAGENDE REGEL, und sie ist im Haus schon einmal gebrochen
+ * worden: `avesmapsUpsertGameLiterature` stempelte jedes MITGESCHICKTE Feld, und das Formular
+ * schickt alle mit — nach EINEM Speichern trug dort jedes Feld „von Hand". Hier waere der Schaden
+ * groesser: ein leer gelassenes Feld wuerde eine gepflegte Angabe an bis zu 1.549 Objekten
+ * loeschen. Der Client schickt deshalb einen Schluessel nur, wenn sein Wert sich geaendert hat,
+ * und der Server schreibt zusaetzlich nur, was sich WIRKLICH vom Bestand unterscheidet.
+ *
+ * ⚠️ Kein Protokoll (Owner-Entscheid 01.09.2026) — anders als beim Zusammenlegen, das
+ * `source_merge_log` fuehrt. Die Aenderung ist in ihrer Wirkung sichtbar, nicht in ihrer Herkunft.
+ */
+function avesmapsUpdateFeatureSource(PDO $pdo, string $entityType, string $publicId, int $sourceId, array $fields, int $userId, bool $confirmCatalog = false): array
+{
+    avesmapsEnsureFeatureSourceTables($pdo);
+
+    if ($fields === []) {
+        return avesmapsFeatureSourceUpdateError(400, 'invalid_request', 'Es wurde kein Feld zum Aendern geschickt.');
+    }
+    // 🔴 Ein unbekanntes Feld ist ein FEHLER, kein stilles Ueberspringen. Ein Client, der ein Feld
+    // schickt, das dieser Server nicht kennt, glaubt sonst, er habe es gespeichert.
+    foreach (array_keys($fields) as $name) {
+        if (avesmapsFeatureSourceFieldScope((string) $name) === '') {
+            return avesmapsFeatureSourceUpdateError(400, 'unknown_field', 'Unbekanntes Feld: ' . (string) $name);
+        }
+    }
+
+    $linkStatement = $pdo->prepare(
+        "SELECT pages, reference_kind FROM feature_sources
+          WHERE entity_type = :t AND entity_public_id = :id AND source_id = :sid AND status = 'approved' LIMIT 1"
+    );
+    $linkStatement->execute(['t' => $entityType, 'id' => $publicId, 'sid' => $sourceId]);
+    $link = $linkStatement->fetch(PDO::FETCH_ASSOC);
+    if (!is_array($link)) {
+        return avesmapsFeatureSourceUpdateError(404, 'not_found', 'Diese Quelle haengt nicht an diesem Objekt.');
+    }
+
+    $catalogStatement = $pdo->prepare(
+        'SELECT label, source_type, is_official, license, attribution, wiki_key FROM sources WHERE id = :sid LIMIT 1'
+    );
+    $catalogStatement->execute(['sid' => $sourceId]);
+    $catalog = $catalogStatement->fetch(PDO::FETCH_ASSOC);
+    if (!is_array($catalog)) {
+        return avesmapsFeatureSourceUpdateError(404, 'not_found', 'Die Quelle steht nicht im Katalog.');
+    }
+
+    // ---- Normalisieren, und dabei ABLEHNEN statt raten -------------------------------------------
+    $neu = [];
+    foreach ($fields as $name => $wert) {
+        $name = (string) $name;
+        switch ($name) {
+            case 'pages':
+                $neu[$name] = mb_substr(trim((string) $wert), 0, 120);
+                break;
+            case 'reference_kind':
+                $kind = trim((string) $wert);
+                if ($kind !== '' && !in_array($kind, ['ausfuehrlich', 'ergaenzend', 'erwaehnung'], true)) {
+                    return avesmapsFeatureSourceUpdateError(400, 'invalid_request', 'Unbekannte Abdeckung: ' . $kind);
+                }
+                $neu[$name] = $kind;
+                break;
+            case 'label':
+                $label = avesmapsNormalizeSingleLine((string) $wert, 200);
+                // 🔴 Ein LEERER Titel ist keine Korrektur. Die Zeile wuerde in jeder Infobox auf
+                // ihre nackte Adresse zurueckfallen, an bis zu 1.549 Stellen gleichzeitig.
+                if ($label === '') {
+                    return avesmapsFeatureSourceUpdateError(400, 'invalid_request', 'Der Titel darf nicht leer sein.');
+                }
+                $neu[$name] = $label;
+                break;
+            case 'source_type':
+                // 🔴 Hier ist '' KEINE gueltige Eingabe — anders als beim Anlegen. Eine
+                // Katalogzeile TRAEGT immer eine Art; „keine Aussage" hiesse hier, eine
+                // vorhandene Angabe zu loeschen, und das ist keine Korrektur. Das Formular
+                // bietet den leeren Eintrag deshalb gar nicht erst an.
+                $art = avesmapsNormalizeSourceType($wert);
+                if ($art === '') {
+                    return avesmapsFeatureSourceUpdateError(400, 'invalid_request', 'Unbekannte Quellenart.');
+                }
+                $neu[$name] = $art;
+                break;
+            case 'license':
+                // ⚠️ '' ist hier gueltig und heisst „nicht erfasst" — wer eine falsch eingetragene
+                // Lizenz zuruecknehmen will, muss das koennen. Ein UNBEKANNTER Schluessel wird
+                // aber abgelehnt statt auf '' normalisiert: sonst loescht ein Tippfehler die
+                // Angabe, und zwar katalogweit.
+                $lizenz = strtolower(trim((string) $wert));
+                if ($lizenz !== '' && !in_array($lizenz, AVESMAPS_SOURCE_LICENSES, true)) {
+                    return avesmapsFeatureSourceUpdateError(400, 'invalid_request', 'Unbekannte Lizenz: ' . $lizenz);
+                }
+                $neu[$name] = $lizenz;
+                break;
+            case 'attribution':
+                $neu[$name] = avesmapsNormalizeSingleLine((string) $wert, 200);
+                break;
+            case 'is_official':
+                $neu[$name] = $wert === true || $wert === 1 || $wert === '1' ? 1 : 0;
+                break;
+        }
+    }
+
+    // ---- Was aendert sich WIRKLICH? --------------------------------------------------------------
+    $bestand = [
+        'pages' => (string) ($link['pages'] ?? ''),
+        'reference_kind' => (string) ($link['reference_kind'] ?? ''),
+        'label' => (string) ($catalog['label'] ?? ''),
+        'source_type' => (string) ($catalog['source_type'] ?? ''),
+        'license' => (string) ($catalog['license'] ?? ''),
+        'attribution' => (string) ($catalog['attribution'] ?? ''),
+        'is_official' => (int) ($catalog['is_official'] ?? 0),
+    ];
+    $aenderungen = [];
+    foreach ($neu as $name => $wert) {
+        if ($name === 'is_official' ? (int) $bestand[$name] !== (int) $wert : (string) $bestand[$name] !== (string) $wert) {
+            $aenderungen[$name] = $wert;
+        }
+    }
+
+    $katalogAenderungen = array_intersect_key($aenderungen, array_flip(AVESMAPS_FEATURE_SOURCE_CATALOG_FIELDS));
+    $linkAenderungen = array_intersect_key($aenderungen, array_flip(AVESMAPS_FEATURE_SOURCE_LINK_FIELDS));
+    $usage = avesmapsFeatureSourceUsageCount($pdo, $sourceId);
+
+    if ($katalogAenderungen !== []) {
+        $wikiKey = trim((string) ($catalog['wiki_key'] ?? ''));
+        if ($wikiKey !== '') {
+            $gesperrt = array_intersect(array_keys($katalogAenderungen), AVESMAPS_FEATURE_SOURCE_WIKI_OWNED_FIELDS);
+            if ($gesperrt !== []) {
+                return avesmapsFeatureSourceUpdateError(
+                    409,
+                    'wiki_owned_field',
+                    'Titel und „offiziell" pflegt der Wiki-Abgleich — von Hand geaendert stuende dort beim naechsten Lauf wieder der Wikiwert.',
+                    ['fields' => array_values($gesperrt)]
+                );
+            }
+        }
+        // 🔴 DER RIEGEL STEHT HIER, NICHT NUR AM KNOPF. Der Client fragt vorher (er kennt die Zahl
+        // aus der Liste), aber ein ausgegrauter Knopf ist kein Riegel — dieselbe Regel wie beim
+        // Loeschriegel der Uebernahme-Vorschau, der serverseitig in `apply` steht.
+        if ($usage > AVESMAPS_FEATURE_SOURCE_CONFIRM_THRESHOLD && !$confirmCatalog) {
+            return avesmapsFeatureSourceUpdateError(
+                409,
+                'catalog_confirm_required',
+                'Diese Aenderung gilt fuer ' . $usage . ' Objekte und muss bestaetigt werden.',
+                ['usage_count' => $usage, 'fields' => array_keys($katalogAenderungen)]
+            );
+        }
+    }
+
+    if ($linkAenderungen !== []) {
+        $setzen = [];
+        $werte = ['t' => $entityType, 'id' => $publicId, 'sid' => $sourceId];
+        foreach ($linkAenderungen as $name => $wert) {
+            $setzen[] = $name . ' = :' . $name;
+            // ⚠️ Leer wird zu NULL, nicht zu ''. Beide Spalten sind NULL-able und der Lesepfad
+            // vergleicht gegen NULL; ein '' saehe wie eine gesetzte, leere Angabe aus.
+            $werte[$name] = $wert === '' ? null : $wert;
+        }
+        $pdo->prepare(
+            'UPDATE feature_sources SET ' . implode(', ', $setzen)
+            . " WHERE entity_type = :t AND entity_public_id = :id AND source_id = :sid AND status = 'approved'"
+        )->execute($werte);
+    }
+
+    if ($katalogAenderungen !== []) {
+        $setzen = [];
+        $werte = ['sid' => $sourceId];
+        foreach ($katalogAenderungen as $name => $wert) {
+            $setzen[] = $name . ' = :' . $name;
+            $werte[$name] = $wert;
+        }
+        $pdo->prepare('UPDATE sources SET ' . implode(', ', $setzen) . ' WHERE id = :sid')->execute($werte);
+    }
+
+    // 💣 DER STEMPEL IST TRAGEND. Die Quellen reisen in der ETag-zwischengespeicherten
+    // map-features-Nutzlast, und deren ETag haengt allein an `map_revision`. Ohne den Bump
+    // bekaeme jeder warme Browser sein 304 und zeigte die alte Angabe unbegrenzt weiter —
+    // dieselbe Falle, die die Klimaebene und der Wappen-Notaus schon bezahlt haben. `add` und
+    // `remove` bumpen aus genau diesem Grund ebenfalls.
+    // ⚠️ Auch wenn NICHTS geschrieben wurde, kostet ein Bump nur einen Zaehlerschritt — er
+    // unterbleibt hier trotzdem, damit ein wirkungsloses Speichern nicht die halbe Welt 3 MB
+    // neu laden laesst.
+    if ($aenderungen !== []) {
+        avesmapsNextMapRevision($pdo);
+    }
+
+    $antwort = avesmapsListFeatureSourcesForEdit($pdo, $entityType, $publicId, $userId);
+    $antwort['updated'] = [
+        'source_id' => $sourceId,
+        'fields' => array_keys($aenderungen),
+        'catalog_fields' => array_keys($katalogAenderungen),
+        'usage_count' => $usage,
+    ];
 
     return $antwort;
 }

@@ -118,6 +118,37 @@
 	border-color: var(--color-danger-soft-text);
 	outline: none;
 }
+/* ── Der Bearbeiten-Knopf (01.09.2026) ───────────────────────────────────────────────────────
+   ⚠️ WEICH, nicht gefuellt und nicht in der Warnfarbe: er steht in JEDER Zeile, und eine
+   Zeilenhandlung ist nie die Haupthandlung der Seite (§12). Das `✕` daneben traegt seine
+   Warnfarbe zu Recht -- es ist unumkehrbar, das `✎` oeffnet nur ein Formular. */
+.fs-row__edit {
+	flex-shrink: 0;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	border: 1px solid transparent;
+	background: none;
+	color: var(--color-text-muted);
+	border-radius: var(--radius-sm);
+	width: 20px;
+	height: 20px;
+	cursor: pointer;
+	font-size: 12px;
+}
+.fs-row__edit:hover,
+.fs-row__edit:focus-visible,
+.fs-row--open .fs-row__edit {
+	border-color: var(--color-button-soft-border);
+	background: var(--color-button-soft);
+	color: var(--color-button-soft-text);
+	outline: none;
+}
+/* 💣 Die LEERE Zelle der nicht bearbeitbaren Zeilen (Anlege-Puffer). Ohne sie rutscht deren `✕`
+   eine Spalte nach links, unter die Lizenz. */
+.fs-row__edit-cell {
+	display: block;
+}
 /* "Vorschlag" group: a change report's proposed source(s), shown before they exist as real
    feature_sources (js/review/review-feature-sources.js:appendProposedFeatureSources). Reuses the
    same danger-soft tokens as .field--change-proposed's outline so it reads as part of the same
@@ -533,7 +564,7 @@
    rechnete jede Zeile für sich, und genau das soll hier aufhören. */
 .fs-row {
 	display: grid;
-	grid-template-columns: minmax(0, 1fr) 104px 104px 74px 150px 22px;
+	grid-template-columns: minmax(0, 1fr) 104px 104px 74px 150px 22px 22px;
 	align-items: center;
 	gap: 8px;
 	padding: 4px 0;
@@ -585,7 +616,7 @@
 /* Die Spaltenüberschrift der Gruppe — sie steht auf demselben Raster wie ihre Zeilen. */
 .fs-col-heads {
 	display: grid;
-	grid-template-columns: minmax(0, 1fr) 104px 104px 74px 150px 22px;
+	grid-template-columns: minmax(0, 1fr) 104px 104px 74px 150px 22px 22px;
 	gap: 8px;
 	padding: 2px 0 4px;
 	border-bottom: 1px solid var(--color-divider);
@@ -621,10 +652,16 @@
 
    ⚠️ `@container` ersetzt die Media Query, statt neben ihr zu stehen -- zwei Riegel mit
    verschiedenen Massen auf derselben Vorlage waeren zwei Wahrheiten. Bei schmalem FENSTER ist der
-   Kasten ohnehin schmal, der Fall ist also mit abgedeckt. */
-@container fs-liste (max-width: 640px) {
+   Kasten ohnehin schmal, der Fall ist also mit abgedeckt.
+
+   💣 DIE SCHWELLE WANDERT MIT JEDER SPALTE. Am 01.09.2026 kam mit dem `✎` eine siebte dazu, und
+   aus 494 px festem Anteil wurden 524 (104+104+74+150+22+22 plus 6x8 Abstand). Bei den alten
+   640 px blieben dem Titel damit 116 statt 146 px. Beim Bau des Mockups zuerst vergessen -- und
+   der Titel war im 500-px-Dialog prompt wieder UNSICHTBAR, also genau das Bild aus Meldung #104,
+   eine Spalte weiter. Wer eine Spalte ergaenzt, rechnet diese Zahl neu. */
+@container fs-liste (max-width: 670px) {
 	.fs-row {
-		grid-template-columns: 104px 104px 74px minmax(0, 1fr) 22px;
+		grid-template-columns: 104px 104px 74px minmax(0, 1fr) 22px 22px;
 		row-gap: 2px;
 	}
 	.fs-row__link {
@@ -633,6 +670,156 @@
 	.fs-col-heads {
 		display: none;
 	}
+}
+
+/* ══ DER BEARBEITEN-KASTEN (01.09.2026) ══════════════════════════════════════════════════════
+   Entwurf: docs/quellen-bearbeiten-mockup.html
+
+   🔴 ER STEHT IM FLUSS, NICHT SCHWEBEND. Das Widget haengt selbst schon in Dialogen („Ort
+   bearbeiten", „Weg bearbeiten"); ein Fenster ueber dem Fenster ist eine Bauform, die dieses Haus
+   nirgends hat. Er schiebt die Zeilen darunter nach unten -- sichtbar, und ohne etwas zu verdecken.
+
+   🔴 ZWEI BEREICHE, getrennt durch Linie und Ueberschrift, nicht durch gerahmte Kaesten (§12).
+   Oben, was nur an diesem Objekt gilt; unten, was an allen Objekten gilt, die die Quelle zitieren.
+
+   ⚠️ KEIN eigener Hintergrund an der offenen ZEILE -- nur der Knopf zeigt sich gedrueckt. Der
+   Titel-Link steht im hellen Thema schon auf dem normalen Panel bei 4,45 (--color-link auf
+   --color-panel), also knapp unter AA 4,5; ein --color-panel-soft darunter druecke ihn auf 4,19.
+   Dass die Zeile offen ist, sagen der gedrueckte Knopf und der braune Balken hier -- das reicht. */
+.fs-edit {
+	margin: 0 0 4px;
+	padding: 12px 12px 14px;
+	border-left: 3px solid var(--color-accent-brown);
+	border-radius: 0 var(--radius-md) var(--radius-md) 0;
+	background: var(--color-panel-soft);
+}
+.fs-edit__url {
+	margin: 0 0 12px;
+	font-size: 11px;
+	color: var(--color-text-muted);
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+.fs-edit__url b {
+	color: var(--color-text-strong);
+}
+.fs-edit__group + .fs-edit__group {
+	margin-top: 16px;
+}
+.fs-edit__head {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: baseline;
+	gap: 8px;
+	margin-bottom: 10px;
+	padding-bottom: 6px;
+	border-bottom: 1px solid var(--color-divider);
+}
+/* ⚠️ 11px ist die Untergrenze des Hauses (§12) -- hier bewusst genau darauf, nicht darunter. */
+.fs-edit__title {
+	font-size: 11px;
+	font-weight: 700;
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+	color: var(--color-text-strong);
+}
+/* 🔴 Die REICHWEITE, und sie traegt die Zahl. Ohne sie ist „gilt ueberall" ein Wort ohne Groesse. */
+.fs-edit__scope {
+	font-size: 11px;
+	color: var(--color-text-muted);
+}
+.fs-edit__scope b {
+	color: var(--color-accent-brown);
+	font-weight: 700;
+}
+.fs-edit__fields {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 10px 12px;
+}
+.fs-edit .fs-field {
+	display: flex;
+	flex-direction: column;
+	gap: 3px;
+	min-width: 0;
+}
+.fs-edit .fs-field > span {
+	font-size: 11px;
+	color: var(--color-text-muted);
+}
+/* Titel und Namensnennung sind die langen Werte -- sie bekommen den Rest der Zeile. */
+.fs-edit .fs-field--grow {
+	flex: 1 1 240px;
+}
+.fs-edit input[type="text"],
+.fs-edit select {
+	padding: 5px 8px;
+	border: 1px solid var(--color-border-strong);
+	border-radius: var(--radius-md);
+	background: var(--color-panel);
+	color: var(--color-text);
+	font: inherit;
+	font-size: 12px;
+	min-width: 0;
+}
+/* ⚠️ Ein gesperrtes Feld sieht gesperrt aus UND sagt daneben warum (.fs-edit__note--locked).
+   Nur ausgegraut waere es von einem Fehler nicht zu unterscheiden. */
+.fs-edit input[disabled],
+.fs-edit select[disabled] {
+	background: var(--color-panel-muted);
+	color: var(--color-text-muted);
+	cursor: not-allowed;
+}
+.fs-edit .fs-check {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	align-self: end;
+	padding-bottom: 5px;
+	font-size: 12px;
+}
+.fs-edit__note {
+	margin-top: 10px;
+	padding: 8px 10px;
+	border: 1px solid var(--color-warning-soft-border);
+	border-radius: var(--radius-md);
+	background: var(--color-warning-soft);
+	color: var(--color-warning-soft-text);
+	font-size: 12px;
+}
+.fs-edit__foot {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 8px;
+	margin-top: 16px;
+}
+/* Die Haupthandlung DIESES Kastens -- gefuellt. Es ist immer nur einer offen, das multipliziert
+   sich also nicht ueber die Zeilen (§12). */
+.fs-edit__save {
+	padding: 6px 14px;
+	border: 1px solid var(--color-button-border);
+	border-radius: var(--radius-md);
+	background: var(--color-button);
+	color: var(--color-button-text);
+	font: inherit;
+	font-size: 12px;
+	cursor: pointer;
+}
+.fs-edit__cancel {
+	padding: 6px 14px;
+	border: 1px solid var(--color-button-soft-border);
+	border-radius: var(--radius-md);
+	background: var(--color-button-soft);
+	color: var(--color-button-soft-text);
+	font: inherit;
+	font-size: 12px;
+	cursor: pointer;
+}
+.fs-edit__msg {
+	font-size: 12px;
+	color: var(--color-text-muted);
 }
 
 /* ══ DER QUELLENKASTEN UND DAS KANON-ETIKETT (01.09.2026) ═════════════════════════════════════

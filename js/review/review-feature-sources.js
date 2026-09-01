@@ -54,6 +54,13 @@ function featureSourceReferenceKindLabel(kind) {
   return FEATURE_SOURCE_REFERENCE_KIND_LABELS[kind || ""] || FEATURE_SOURCE_REFERENCE_KIND_LABELS[""];
 }
 
+// Ab wie vielen zitierenden Objekten eine Katalogaenderung nachgefragt wird.
+// 💣 SPIEGEL von AVESMAPS_FEATURE_SOURCE_CONFIRM_THRESHOLD (api/_internal/app/feature-sources.php).
+// Zwei Zahlen fuer eine Regel -- der Server ist der Riegel, dieser hier ist die Frage davor. Laufen
+// sie auseinander, fragt der Client entweder umsonst oder der Server lehnt eine Aenderung ab, die
+// der Editor fuer bestaetigt haelt. Zusammengehalten von quellen-bearbeiten-form.test.js.
+const FEATURE_SOURCE_CONFIRM_THRESHOLD = 10;
+
 // Default HTML-escape (DOM-free -- safe under Node). Callers embedded in the browser may
 // still inject a document-based escaper via opts.escape; both behave identically for markup
 // purposes, this one just doesn't need a live DOM to do it.
@@ -142,7 +149,11 @@ function featureSourceLicenseLine(source) {
   return geteilt(source);
 }
 
-function renderFeatureSourceRow(source, escape, tr) {
+// 🔴 Die Zeile traegt seit dem 01.09.2026 ZWEI Knoepfe: `✎` bearbeiten, `✕` entfernen.
+// `bearbeitbar` ist false fuer die noch nicht gespeicherten Zeilen des Anlege-Puffers -- die haengen
+// an keiner Katalogzeile, haben also weder eine Reichweite noch etwas, das ein Server aendern
+// koennte; dort bleibt „entfernen und neu eintragen" der Weg.
+function renderFeatureSourceRow(source, escape, tr, bearbeitbar) {
   const officialMark = source.official ? " *" : "";
   // 🔴 Gekuerzt ANGEZEIGT, vollstaendig im Titel. Eine Wiki-Publikation nennt schnell zwoelf
   // Einzelseiten („S. 16, 19, 27, 28, 39, 63, 96, 102, 104, 105, 114, 122"), und die schoben in
@@ -169,6 +180,14 @@ function renderFeatureSourceRow(source, escape, tr) {
   const license = lizenz.text
     ? '<span class="fs-row__license">' + escape(lizenz.text) + "</span>"
     : '<span class="fs-row__license"></span>';
+  // 💣 Eine LEERE Zelle, wenn nicht bearbeitet werden darf -- nicht gar keine. Das Raster gibt
+  // jeder Zeile dieselbe siebenspaltige Vorlage; faellt eine Zelle weg, rutscht das `✕` unter die
+  // Lizenzspalte. Dieselbe Begruendung wie bei Seiten, Art und Lizenz darueber.
+  const edit = bearbeitbar === false
+    ? '<span class="fs-row__edit-cell"></span>'
+    : '<button type="button" class="fs-row__edit" data-fs-edit-id="' + escape(source.source_id) + '"'
+      + ' title="' + escape(tr("sources.edit", "Bearbeiten")) + '"'
+      + ' aria-label="' + escape(tr("sources.edit", "Bearbeiten")) + '">✎</button>';
   return (
     '<div class="fs-row" data-source-id="' + escape(source.source_id) + '">' +
     '<a class="fs-row__link" href="' + escape(source.url) + '" target="_blank" rel="noopener">' +
@@ -177,8 +196,104 @@ function renderFeatureSourceRow(source, escape, tr) {
     kind +
     pages +
     license +
+    edit +
     '<button type="button" class="fs-row__remove" data-remove-source-id="' + escape(source.source_id) + '">✕</button>' +
     "</div>"
+  );
+}
+
+// ══ DER BEARBEITEN-KASTEN ═══════════════════════════════════════════════════════════════════════
+// Entwurf: docs/quellen-bearbeiten-mockup.html (Owner-GO 01.09.2026)
+//
+// 🔴 ZWEI BEREICHE, durch Linie und Ueberschrift getrennt -- nicht durch gerahmte Kaesten (§12).
+// Oben, was nur an diesem Objekt gilt (Seiten, Abdeckung); unten, was an ALLEN Objekten gilt, die
+// diese Quelle zitieren. Die zweite Ueberschrift traegt die ZAHL: ohne sie ist „gilt ueberall" ein
+// Wort ohne Groesse, und live gemessen steht dahinter ein Median von 6 und ein Maximum von 1.549.
+//
+// 💣 Jedes Eingabefeld traegt seinen Ausgangswert in `data-fs-orig`. Daraus liest der Speichern-
+// Knopf, was sich WIRKLICH geaendert hat, und schickt nur das -- die Regel, an der
+// `avesmapsUpsertGameLiterature` schon einmal gescheitert ist (dort stempelte jedes mitgeschickte
+// Feld, und das Formular schickt alle mit). Am Wert haengt sie, nicht an einem Modulzustand
+// daneben, der beim naechsten Neuzeichnen auseinanderlaufen koennte.
+function renderFeatureSourceEditPanel(source, escape, tr) {
+  const usage = Number(source.usage_count) || 1;
+  const wikiOwned = source.wiki_owned === true;
+  const feld = (name, wert, markup) =>
+    '<label class="fs-field' + (name === "label" || name === "attribution" ? " fs-field--grow" : "") + '">'
+    + "<span>" + escape(wert) + "</span>" + markup + "</label>";
+  const text = (name, wert, platzhalter, gesperrt) =>
+    '<input type="text" data-fs-field="' + name + '" data-fs-orig="' + escape(wert) + '"'
+    + ' value="' + escape(wert) + '"'
+    + (platzhalter ? ' placeholder="' + escape(platzhalter) + '"' : "")
+    + (gesperrt ? " disabled" : "") + ">";
+  const auswahl = (name, wert, eintraege, gesperrt) =>
+    '<select data-fs-field="' + name + '" data-fs-orig="' + escape(wert) + '"' + (gesperrt ? " disabled" : "") + ">"
+    + eintraege.map((e) =>
+      '<option value="' + escape(e.wert) + '"' + (e.wert === wert ? " selected" : "") + ">"
+      + escape(e.text) + "</option>").join("")
+    + "</select>";
+
+  const kindEintraege = FEATURE_SOURCE_REFERENCE_KINDS.map(
+    (k) => ({ wert: k, text: featureSourceReferenceKindLabel(k) })
+  );
+  // 🔴 KEIN leerer Eintrag bei der Art -- anders als in der Eingabezeile. Eine Katalogzeile TRAEGT
+  // immer eine Art; „keine Aussage" hiesse hier, eine vorhandene Angabe zu loeschen, und das ist
+  // keine Korrektur. Der Server lehnt '' an dieser Stelle ebenfalls ab.
+  const typEintraege = FEATURE_SOURCE_TYPES.map((t) => ({ wert: t, text: featureSourceTypeLabel(t) }));
+  const lizenzTafel = featureSourceLicenseTable();
+  const lizenzEintraege = [{ wert: "", text: tr("sources.add.licenseNone", "Lizenz …") }].concat(
+    Object.keys(lizenzTafel).map((k) => ({ wert: k, text: lizenzTafel[k].label }))
+  );
+
+  const kopf = (titel, reichweite) =>
+    '<div class="fs-edit__head"><span class="fs-edit__title">' + escape(titel) + "</span>"
+    + (reichweite ? '<span class="fs-edit__scope">' + reichweite + "</span>" : "") + "</div>";
+
+  const objekte = usage === 1
+    ? escape(tr("sources.edit.scopeOne", "zurzeit nur dieses Objekt"))
+    : escape(tr("sources.edit.scopeMany", "zurzeit ")) + "<b>"
+      + escape(String(usage) + " " + tr("sources.edit.objects", "Objekte")) + "</b>";
+
+  const hinweis = wikiOwned
+    ? '<div class="fs-edit__note fs-edit__note--locked">'
+      + escape(tr("sources.edit.wikiOwned",
+        "Titel und „offiziell“ pflegt der Wiki-Abgleich. Von Hand geändert, stünde beim nächsten Lauf wieder der Wikiwert da — deshalb sind sie hier fest."))
+      + "</div>"
+    : (usage > FEATURE_SOURCE_CONFIRM_THRESHOLD
+      ? '<div class="fs-edit__note">'
+        + escape(tr("sources.edit.catalogWarn", "Diese Felder ändern die Quelle im ganzen Katalog — „Speichern“ fragt vorher nach."))
+        + "</div>"
+      : "");
+
+  return (
+    '<div class="fs-edit" data-fs-edit-panel="' + escape(source.source_id) + '">'
+    + '<p class="fs-edit__url"><b>' + escape(tr("sources.edit.url", "Adresse:")) + "</b> "
+    + escape(source.url || tr("sources.edit.noUrl", "(ohne Adresse — Wiki-Publikation)"))
+    + " — " + escape(tr("sources.edit.urlFixed", "fest")) + "</p>"
+    + '<div class="fs-edit__group">'
+    + kopf(tr("sources.edit.linkScope", "Nur an diesem Objekt"), "")
+    + '<div class="fs-edit__fields">'
+    + feld("pages", tr("sources.colPages", "Seite(n)"), text("pages", String(source.pages || ""), "", false))
+    + feld("reference_kind", tr("sources.colKind", "Abdeckung"), auswahl("reference_kind", String(source.reference_kind || ""), kindEintraege, false))
+    + "</div></div>"
+    + '<div class="fs-edit__group">'
+    + kopf(tr("sources.edit.catalogScope", "Gilt für alle Objekte, die diese Quelle zitieren"), objekte)
+    + '<div class="fs-edit__fields">'
+    + feld("label", tr("sources.colTitle", "Titel"), text("label", String(source.label || ""), "", wikiOwned))
+    + feld("source_type", tr("sources.colType", "Quellenart"), auswahl("source_type", String(source.type || "sonstiges"), typEintraege, false))
+    + feld("license", tr("sources.colLicense", "Lizenz"), auswahl("license", String(source.license || ""), lizenzEintraege, false))
+    + feld("attribution", tr("sources.add.attribution", "Namensnennung"), text("attribution", String(source.attribution || ""), tr("sources.edit.attributionHint", "z. B. VolkoV / garetien.de"), false))
+    + '<label class="fs-check"><input type="checkbox" data-fs-field="is_official" data-fs-orig="'
+    + (source.official ? "1" : "0") + '"' + (source.official ? " checked" : "") + (wikiOwned ? " disabled" : "")
+    + "> " + escape(tr("sources.add.official", "offiziell")) + "</label>"
+    + "</div>" + hinweis + "</div>"
+    + '<div class="fs-edit__foot">'
+    + '<button type="button" class="fs-edit__save" data-fs-edit-save="' + escape(source.source_id) + '">'
+    + escape(tr("sources.edit.save", "Speichern")) + "</button>"
+    + '<button type="button" class="fs-edit__cancel" data-fs-edit-cancel>'
+    + escape(tr("sources.edit.cancel", "Abbrechen")) + "</button>"
+    + '<span class="fs-edit__msg" data-fs-edit-msg></span>'
+    + "</div></div>"
   );
 }
 
@@ -247,7 +362,10 @@ function renderFeatureSourceColumnHeads(anzahl, escape, tr) {
     + kopf("sources.colKind", "Art")
     + kopf("sources.colPages", "Seiten")
     + kopf("sources.colLicense", "Lizenz")
-    + "<span></span>"
+    // 💣 ZWEI leere Zellen -- eine je Knopf (`✎` und `✕`). Die Ueberschrift traegt dieselbe
+    // Rastervorlage wie ihre Zeilen; fehlt eine, stehen ab hier alle Ueberschriften neben ihren
+    // Spalten. Das ist die Falle, an der die Spaltenliste am 24.08.2026 schon einmal haengen blieb.
+    + "<span></span><span></span>"
     + "</div>";
 }
 
@@ -275,7 +393,9 @@ function renderFeatureSourcePendingGroup(pendingSources, escape, tr) {
   }
   const heading =
     '<div class="fs-group-heading">' + escape(tr("sources.pending", "Wird beim Anlegen übernommen")) + "</div>";
-  const rows = pendingSources.map((source) => renderFeatureSourceRow(source, escape, tr)).join("");
+  // ⚠️ KEIN `✎`: diese Zeilen liegen nur im Puffer und haengen an keiner Katalogzeile -- es gibt
+  // weder eine Reichweite zu nennen noch etwas, das ein Server aendern koennte.
+  const rows = pendingSources.map((source) => renderFeatureSourceRow(source, escape, tr, false)).join("");
   return '<div class="fs-group fs-group--pending" data-fs-group="pending">' + heading + rows + "</div>";
 }
 
@@ -369,6 +489,41 @@ function renderFeatureSourceEditorHtml(state, opts) {
   const hint = '<div class="fs-hint">' + tr("sources.hint",
     "Tragt bei Quellen immer den eigentlichen <strong>Veröffentlichungstitel der Quelle</strong> und den Link ein. Achtet darauf, ob es sich um eine offizielle Quelle handelt.") + "</div>";
   return '<div class="fs-editor">' + hint + wikiRow + pendingGroup + wikiAutoGroup + sourceRows + addRow + "</div>";
+}
+
+/**
+ * Nur die Felder, deren Wert sich vom Ausgangswert (`data-fs-orig`) unterscheidet.
+ *
+ * 💣 DAS IST DIE TRAGENDE REGEL DES BEARBEITEN-KASTENS. Ein vollstaendig mitgeschicktes Formular
+ * schriebe jedes Feld -- und weil fuenf davon der KATALOGZEILE gehoeren, machte ein einziges
+ * versehentlich geleertes Feld eine gepflegte Angabe an bis zu 1.549 Objekten platt. Genau in
+ * diese Falle ist `avesmapsUpsertGameLiterature` am 17.08.2026 gelaufen (es stempelte jedes
+ * MITGESCHICKTE Feld, und das Formular schickt alle mit); hier waere der Schaden groesser.
+ *
+ * ⚠️ Gesperrte Felder (`disabled`) reisen NIE mit: ihr Wert ist der Bestand, und der Server lehnt
+ * sie ohnehin ab (`wiki_owned_field`).
+ *
+ * 🔴 Ausserhalb von `mountFeatureSourceEditor`, damit sie ohne DOM und ohne Netz gefahren werden
+ * kann -- sie braucht vom Panel nur `querySelectorAll`. Eine Regel dieses Gewichts darf nicht in
+ * einer Closure liegen, in der sie kein Test je ausfuehrt.
+ */
+function featureSourceChangedFields(panel) {
+  const felder = {};
+  if (!panel || typeof panel.querySelectorAll !== "function") {
+    return felder;
+  }
+  Array.prototype.forEach.call(panel.querySelectorAll("[data-fs-field]"), (el) => {
+    if (el.disabled) {
+      return;
+    }
+    const name = el.getAttribute("data-fs-field");
+    const orig = el.getAttribute("data-fs-orig") || "";
+    const wert = el.type === "checkbox" ? (el.checked ? "1" : "0") : String(el.value || "");
+    if (wert !== orig) {
+      felder[name] = name === "is_official" ? wert === "1" : wert;
+    }
+  });
+  return felder;
 }
 
 // POST helper: returns the parsed JSON body, or null on any transport/parse failure so the
@@ -559,9 +714,15 @@ function mountFeatureSourceEditor(containerEl, entityType, publicIdGetter, opts)
     const publicId = typeof publicIdGetter === "function" ? publicIdGetter() : publicIdGetter;
     const body = Object.assign({ action, entity_type: entityType, entity_public_id: publicId }, extra || {});
     const data = pendingStore ? await pendingStore.request(action, body) : await featureSourceFetch(body);
+    // ⚠️ Auch der FEHLSCHLAG wird festgehalten -- der Bearbeiten-Kasten braucht den Grund
+    // („diese Änderung gilt für 1.042 Objekte", „das pflegt der Wiki-Abgleich"), und der steht nur
+    // hier. 🔴 Der Rueckgabewert bleibt trotzdem `undefined`: mehrere Aufrufer lesen `data.revision`
+    // und wuerden bei einem durchgereichten Fehlerumschlag stillschweigend etwas anderes lesen.
+    letzteAntwort = data || null;
     if (!data || data.ok !== true) {
       return; // keep the prior render on any failure -- never blank the widget
     }
+    letzteQuellen = Array.isArray(data.sources) ? data.sources : [];
     containerEl.innerHTML = renderFeatureSourceEditorHtml(data, opts);
     wireAutocomplete();
     // 💣 DER EINE TRICHTER -- hier muendet JEDE Aktion des Editors (list, add, add_existing, remove).
@@ -638,7 +799,114 @@ function mountFeatureSourceEditor(containerEl, entityType, publicIdGetter, opts)
     };
   }
 
+  // ── Der Bearbeiten-Kasten ────────────────────────────────────────────────────────────────────
+  // 🔴 DER ZUSTAND IST DAS VORHANDENSEIN DES KASTENS IM DOM, sonst nichts. Kein Modulzustand
+  // daneben, der beim naechsten Neuzeichnen auseinanderlaufen kann -- an genau dem sind das
+  // Anzeige-Menue der Karte und die Ansichts-Kacheln schon gescheitert (AGENTS.md §11).
+  // ⚠️ Und darum ueberlebt der Kasten ein `renderFromServer` bewusst NICHT: die Antwort ist die
+  // frische Wahrheit, ein darueber stehengelassenes Formular zeigte die alte.
+  function schliesseBearbeiten() {
+    const offen = containerEl.querySelector("[data-fs-edit-panel]");
+    if (offen) {
+      offen.remove();
+    }
+    containerEl.querySelectorAll(".fs-row--open").forEach((row) => row.classList.remove("fs-row--open"));
+  }
+
+  // Die zuletzt vom Server gelieferten Zeilen -- daraus wird der Kasten gebaut. ⚠️ Nicht aus dem
+  // DOM zurueckgelesen: dort steht die GEKUERZTE Seitenangabe („S. 16 ff."), und die als
+  // Ausgangswert zu nehmen hiesse, beim ersten Speichern 27 Seiten durch drei zu ersetzen.
+  let letzteQuellen = [];
+  // Die zuletzt empfangene Antwort, auch eine abgelehnte -- nur dort steht der Grund einer Absage.
+  let letzteAntwort = null;
+
+  function oeffneBearbeiten(sourceId) {
+    const zeile = containerEl.querySelector('.fs-row[data-source-id="' + sourceId + '"]');
+    const quelle = letzteQuellen.find((s) => String(s.source_id) === String(sourceId));
+    if (!zeile || !quelle) {
+      return;
+    }
+    // ⚠️ EIN Kasten zur Zeit. Zwei offene Formulare auf derselben geteilten Katalogzeile waeren
+    // zwei Wahrheiten, und der zweite ueberschriebe beim Speichern den ersten.
+    const warOffen = containerEl.querySelector('[data-fs-edit-panel="' + sourceId + '"]') !== null;
+    schliesseBearbeiten();
+    if (warOffen) {
+      return; // derselbe Knopf noch einmal = zuklappen
+    }
+    zeile.classList.add("fs-row--open");
+    zeile.insertAdjacentHTML("afterend", renderFeatureSourceEditPanel(quelle, opts && opts.escape ? opts.escape : featureSourceDefaultEscape, tr));
+  }
+
+  function zeigeKastenMeldung(panel, text) {
+    const msg = panel.querySelector("[data-fs-edit-msg]");
+    if (msg) {
+      msg.textContent = text; // textContent: die Meldung zitiert eingetippte Werte
+    }
+  }
+
+  async function speichereBearbeiten(sourceId) {
+    const panel = containerEl.querySelector('[data-fs-edit-panel="' + sourceId + '"]');
+    if (!panel) {
+      return;
+    }
+    const felder = featureSourceChangedFields(panel);
+    if (Object.keys(felder).length === 0) {
+      // ⚠️ Gesagt, nicht verschluckt: ein Knopf, der wortlos nichts tut, ist von einem kaputten
+      // nicht zu unterscheiden -- die Lehre aus #105.
+      zeigeKastenMeldung(panel, tr("sources.edit.nothing", "Nichts geändert."));
+      return;
+    }
+    const quelle = letzteQuellen.find((s) => String(s.source_id) === String(sourceId)) || {};
+    const katalogFelder = Object.keys(felder).filter((n) => n !== "pages" && n !== "reference_kind");
+    const usage = Number(quelle.usage_count) || 1;
+    // 🔴 Die Rueckfrage nennt die ZAHL. „Gilt überall" ohne Groesse ist keine Warnung -- und
+    // der Server verlangt zusaetzlich das Haekchen `confirm_catalog`, der Knopf allein ist kein
+    // Riegel (dieselbe Regel wie beim Loeschriegel der Uebernahme-Vorschau).
+    if (katalogFelder.length > 0 && usage > FEATURE_SOURCE_CONFIRM_THRESHOLD) {
+      const frage = tr("sources.edit.confirm",
+        "„{label}“ wird an {n} Objekten zitiert. Die Änderung gilt überall dort. Fortfahren?")
+        .replace("{label}", String(quelle.label || quelle.url || ""))
+        .replace("{n}", String(usage));
+      if (!window.confirm(frage)) {
+        return;
+      }
+    }
+    const daten = await renderFromServer("update", {
+      source_id: Number(sourceId),
+      fields: felder,
+      confirm_catalog: katalogFelder.length > 0,
+    });
+    // renderFromServer haelt bei einem Fehlschlag die vorige Darstellung -- der Kasten steht also
+    // noch, und die Absage gehoert hinein statt in die Eingabezeile darunter.
+    if (!daten) {
+      const nochDa = containerEl.querySelector('[data-fs-edit-panel="' + sourceId + '"]');
+      if (nochDa) {
+        // 🔴 Den GRUND nennen, nicht „hat nicht geklappt". Der Server unterscheidet
+        // `wiki_owned_field` von `catalog_confirm_required` von einem echten Fehler, und genau
+        // diese Unterscheidung ist das, was der Editor wissen muss.
+        const fehler = letzteAntwort && letzteAntwort.error ? letzteAntwort.error : null;
+        zeigeKastenMeldung(nochDa, (fehler && fehler.message)
+          ? String(fehler.message)
+          : tr("sources.edit.failed", "Konnte nicht gespeichert werden."));
+      }
+    }
+  }
+
   containerEl.addEventListener("click", async (event) => {
+    const editTarget = event.target.closest("[data-fs-edit-id]");
+    if (editTarget) {
+      oeffneBearbeiten(editTarget.getAttribute("data-fs-edit-id"));
+      return;
+    }
+    if (event.target.closest("[data-fs-edit-cancel]")) {
+      schliesseBearbeiten();
+      return;
+    }
+    const saveTarget = event.target.closest("[data-fs-edit-save]");
+    if (saveTarget) {
+      await speichereBearbeiten(saveTarget.getAttribute("data-fs-edit-save"));
+      return;
+    }
     const removeTarget = event.target.closest("[data-remove-source-id]");
     if (removeTarget) {
       const sourceId = Number(removeTarget.getAttribute("data-remove-source-id"));
@@ -878,5 +1146,8 @@ if (typeof window !== "undefined") {
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     renderFeatureSourceEditorHtml, createPendingFeatureSourceStore, syncFeatureSourcesToClientCache,
+    // Der Bearbeiten-Kasten und seine Schwelle -- der Kasten ist rein (kein DOM, kein fetch) und
+    // damit unter Node fahrbar; die Schwelle wird gegen die PHP-Konstante gehalten.
+    renderFeatureSourceEditPanel, FEATURE_SOURCE_CONFIRM_THRESHOLD, featureSourceChangedFields,
   };
 }

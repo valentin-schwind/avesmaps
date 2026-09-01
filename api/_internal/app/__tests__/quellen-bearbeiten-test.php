@@ -1,0 +1,297 @@
+<?php
+
+declare(strict_types=1);
+
+/**
+ * Eine Quellenzeile bearbeiten -- und die ZWEI Reichweiten, die sie in sich traegt.
+ * Ausfuehren (vom Repo-Wurzelverzeichnis):
+ *   php -d zend.assertions=1 -d assert.exception=1 -d extension=php_mbstring.dll \
+ *       -d extension=php_pdo_sqlite.dll api/_internal/app/__tests__/quellen-bearbeiten-test.php
+ * Exit 0 = alle Zusicherungen erfuellt.
+ *
+ * 💣 WARUM ES DAS GIBT (Owner-Meldung 01.09.2026): „Manuelle Quellen koennen nicht editiert
+ * werden." Es gab bis dahin ueberhaupt keinen Weg dafuer -- die Zeile trug nur ein `✕`, der
+ * Endpunkt kannte `list|add|add_existing|remove`. Wer einen falschen Titel korrigieren wollte,
+ * konnte die Adresse erneut eintragen, aber `label`, `license` und `attribution` FUELLEN im
+ * Upsert nur Luecken; der falsche Wert blieb stehen.
+ *
+ * 💣 UND DIE GEGENRICHTUNG IST DIE GEFAEHRLICHE. `sources` ist ein KATALOG. Live gemessen am
+ * 01.09.2026 (map-features.php, eine Anfrage): 59.538 Verknuepfungen auf 1.561 zitierte
+ * Katalogzeilen -- Median 6 Objekte je Zeile, p95 146, MAXIMUM 1.549. Ein Formular, das die
+ * Katalog-Haelfte wie die Verknuepfungs-Haelfte behandelt, laesst einen Editor mit einem Klick
+ * 1.549 Infoboxen umschreiben.
+ *
+ * Gefahren wird gegen eine echte SQLite-Datenbank: die Regeln sind gewoehnliches SQL (SELECT +
+ * UPDATE), also ist hier NICHTS fuer den Test verbogen -- die Falle aus AGENTS.md §9, in der eine
+ * SQLite-taugliche Umschrift eine MySQL-Regression erzwang, trifft hier nicht zu.
+ */
+if (ini_get('zend.assertions') !== '1') {
+    fwrite(STDERR, "FATAL: zend.assertions ist nicht '1' -- assert() waere wirkungslos. "
+        . "Erneut fahren mit: php -d zend.assertions=1 -d assert.exception=1 " . __FILE__ . "\n");
+    exit(2);
+}
+
+/**
+ * 🔴 Der Stempel-Zaehler. `avesmapsUpdateFeatureSource` ruft `avesmapsNextMapRevision` -- die
+ * echte Fassung ist MySQL (`ON DUPLICATE KEY UPDATE`) und liegt in api/_internal/map/features.php,
+ * die dieser Test nicht laedt. Hier steht ein Zaehler an ihrer Stelle, und dass er hochzaehlt IST
+ * eine Zusicherung: die Quellen reisen in der ETag-zwischengespeicherten map-features-Nutzlast,
+ * deren ETag allein an `map_revision` haengt. Ohne Bump bekaeme jeder warme Browser sein 304 und
+ * zeigte die alte Angabe unbegrenzt weiter.
+ */
+$GLOBALS['avesmapsTestRevisionBumps'] = 0;
+function avesmapsNextMapRevision(PDO $pdo): int
+{
+    $GLOBALS['avesmapsTestRevisionBumps']++;
+
+    return $GLOBALS['avesmapsTestRevisionBumps'];
+}
+
+require_once __DIR__ . '/../../bootstrap.php';
+require_once __DIR__ . '/../feature-sources.php';
+
+$pruefungen = 0;
+$zaehl = static function () use (&$pruefungen): void { $pruefungen++; };
+
+/**
+ * Eine frische Datenbank mit einer Quelle und den Verknuepfungen, die sie zitieren.
+ * `$mitObjekten` sagt, an wie vielen Objekten die Katalogzeile haengt (das erste ist immer 'ort-1').
+ */
+function avesmapsQuellenTestPdo(int $mitObjekten = 1, string $wikiKey = ''): PDO
+{
+    $pdo = new PDO('sqlite::memory:');
+    $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+    // 🔴 Die Tabellen kommen aus dem Pruefling selbst (`avesmapsEnsureFeatureSourceTablesSqlite`),
+    // nicht aus einer Abschrift hier. Eine Abschrift liefe beim ersten neuen Feld auseinander --
+    // und zwar so, dass der Test einen SQL-Fehler meldet, der wie ein Fehler im Pruefling aussieht.
+    avesmapsEnsureFeatureSourceTables($pdo);
+    // map_features gehoert einem anderen Modul; hier stehen die Spalten, die der Lesepfad anfasst
+    // (die Uebernahme des alten `other_source` und der Revisionsstand der Liste).
+    $pdo->exec('CREATE TABLE map_features (id INTEGER PRIMARY KEY, public_id TEXT, is_active INTEGER,
+        properties_json TEXT, revision INTEGER)');
+
+    $pdo->prepare('INSERT INTO sources (id, url, url_hash, wiki_key, label, source_type, is_official, license, attribution)
+        VALUES (7, :u, :h, :wk, :l, :t, 1, :lic, :a)')->execute([
+        'u' => 'https://beispiel.de/geographia', 'h' => str_repeat('a', 64),
+        'wk' => $wikiKey !== '' ? $wikiKey : null,
+        'l' => 'Geographia Aventurica', 't' => 'quellenband', 'lic' => '', 'a' => '',
+    ]);
+    for ($i = 1; $i <= $mitObjekten; $i++) {
+        $pdo->prepare("INSERT INTO feature_sources (entity_type, entity_public_id, source_id, status, origin, reference_kind, pages)
+            VALUES ('settlement', :id, 7, 'approved', 'manual', :rk, :p)")->execute([
+            'id' => 'ort-' . $i,
+            'rk' => $i === 1 ? 'ausfuehrlich' : null,
+            'p' => $i === 1 ? '112' : null,
+        ]);
+        $pdo->prepare("INSERT INTO map_features (public_id, is_active, properties_json, revision)
+            VALUES (:id, 1, '{}', 1)")->execute(['id' => 'ort-' . $i]);
+    }
+
+    return $pdo;
+}
+
+/** Die gespeicherte Katalogzeile. */
+function avesmapsQuellenTestKatalog(PDO $pdo): array
+{
+    return $pdo->query('SELECT * FROM sources WHERE id = 7')->fetch(PDO::FETCH_ASSOC);
+}
+
+/** Die gespeicherte Verknuepfung an 'ort-1'. */
+function avesmapsQuellenTestLink(PDO $pdo): array
+{
+    return $pdo->query("SELECT * FROM feature_sources WHERE entity_public_id = 'ort-1'")->fetch(PDO::FETCH_ASSOC);
+}
+
+// ══ 1. Die Zuordnung der Felder zu ihrer Reichweite ═════════════════════════════════════════════
+// 🔴 Das ist die Regel, um die es hier geht. Wandert ein Feld von der einen Haelfte in die andere,
+// aendert sich, wie weit ein Klick reicht -- und niemand saehe es.
+assert(avesmapsFeatureSourceFieldScope('pages') === 'link', 'Seiten gelten nur an diesem Objekt');
+$zaehl();
+assert(avesmapsFeatureSourceFieldScope('reference_kind') === 'link', 'die Abdeckung auch');
+$zaehl();
+foreach (['label', 'source_type', 'license', 'attribution', 'is_official'] as $feld) {
+    assert(avesmapsFeatureSourceFieldScope($feld) === 'catalog', $feld . ' gilt katalogweit');
+    $zaehl();
+}
+assert(avesmapsFeatureSourceFieldScope('url') === '', 'die ADRESSE ist kein Feld dieses Formulars: '
+    . 'url_hash IST die Identitaet der Quelle (UNIQUE). Sie zu aendern ist ein Zusammenlegen '
+    . '(avesmapsMergeSourceInto), kein Bearbeiten.');
+$zaehl();
+assert(avesmapsFeatureSourceFieldScope('status') === '' && avesmapsFeatureSourceFieldScope('origin') === '',
+    'Herkunft und Status gehoeren nicht dem Editor');
+$zaehl();
+
+// ══ 2. Nur an diesem Objekt: Seiten und Abdeckung ═══════════════════════════════════════════════
+$pdo = avesmapsQuellenTestPdo(3);
+$vorher = $GLOBALS['avesmapsTestRevisionBumps'];
+$antwort = avesmapsUpdateFeatureSource($pdo, 'settlement', 'ort-1', 7, ['pages' => '113-115'], 9);
+assert(($antwort['ok'] ?? false) === true, 'die Seitenangabe laesst sich aendern');
+$zaehl();
+assert(avesmapsQuellenTestLink($pdo)['pages'] === '113-115', 'und sie steht in der Verknuepfung');
+$zaehl();
+assert(avesmapsQuellenTestKatalog($pdo)['label'] === 'Geographia Aventurica',
+    'die Katalogzeile bleibt dabei voellig unberuehrt');
+$zaehl();
+assert($antwort['updated']['catalog_fields'] === [], 'und die Antwort sagt, dass nichts katalogweit ging');
+$zaehl();
+assert($GLOBALS['avesmapsTestRevisionBumps'] === $vorher + 1,
+    'DER STEMPEL: ohne map_revision-Bump haelt jeder warme Browser seine 304 und zeigt die alte Angabe weiter');
+$zaehl();
+// ⚠️ Die andere Verknuepfung DERSELBEN Quelle darf sich nicht mitbewegen -- das ist der ganze
+// Sinn der Trennung.
+$andere = $pdo->query("SELECT pages FROM feature_sources WHERE entity_public_id = 'ort-2'")->fetch(PDO::FETCH_ASSOC);
+assert(($andere['pages'] ?? null) === null, 'ort-2 behaelt seine eigene (leere) Seitenangabe');
+$zaehl();
+
+// Leer heisst NULL, nicht ''. Der Lesepfad vergleicht gegen NULL; ein '' saehe wie eine gesetzte,
+// leere Angabe aus.
+avesmapsUpdateFeatureSource($pdo, 'settlement', 'ort-1', 7, ['reference_kind' => ''], 9);
+assert(avesmapsQuellenTestLink($pdo)['reference_kind'] === null, 'eine geleerte Abdeckung wird NULL');
+$zaehl();
+
+// ══ 3. Unveraendert = nicht geschrieben ═════════════════════════════════════════════════════════
+// 💣 DIE TRAGENDE REGEL. `avesmapsUpsertGameLiterature` stempelte einst jedes MITGESCHICKTE Feld,
+// und das Formular schickt alle mit -- danach trug dort jedes Feld „von Hand". Hier waere der
+// Schaden groesser: ein unveraendert mitgeschicktes Feld schriebe an bis zu 1.549 Objekten.
+$pdo = avesmapsQuellenTestPdo(3);
+$vorher = $GLOBALS['avesmapsTestRevisionBumps'];
+$antwort = avesmapsUpdateFeatureSource($pdo, 'settlement', 'ort-1', 7, [
+    'label' => 'Geographia Aventurica',   // unveraendert
+    'source_type' => 'quellenband',       // unveraendert
+    'pages' => '112',                     // unveraendert
+], 9);
+assert($antwort['updated']['fields'] === [], 'nichts hat sich geaendert, also wurde nichts geschrieben');
+$zaehl();
+assert($GLOBALS['avesmapsTestRevisionBumps'] === $vorher,
+    'und ohne Aenderung KEIN Stempel -- sonst laedt die halbe Welt 3 MB fuer ein wirkungsloses Speichern neu');
+$zaehl();
+
+// ══ 4. Katalogweit: die Rueckfrage ist ein SERVER-Riegel ════════════════════════════════════════
+// 🔴 Der Client fragt vorher (er kennt die Zahl aus der Liste), aber ein ausgegrauter Knopf ist
+// kein Riegel -- dieselbe Regel wie beim Loeschriegel der Uebernahme-Vorschau, der serverseitig
+// in `apply` steht und nicht nur am Knopf.
+$pdo = avesmapsQuellenTestPdo(40);
+$antwort = avesmapsUpdateFeatureSource($pdo, 'settlement', 'ort-1', 7, ['label' => 'Geographia Aventurica (2. Auflage)'], 9);
+assert(($antwort['ok'] ?? true) === false, 'ohne Bestaetigung geht eine Katalogaenderung nicht durch');
+$zaehl();
+assert($antwort['error']['code'] === 'catalog_confirm_required', 'und der Code sagt genau, warum');
+$zaehl();
+assert(($antwort['usage_count'] ?? 0) === 40, 'die Absage NENNT die Zahl -- „gilt ueberall" ohne Groesse ist keine Warnung');
+$zaehl();
+assert(avesmapsQuellenTestKatalog($pdo)['label'] === 'Geographia Aventurica', 'und geschrieben wurde nichts');
+$zaehl();
+
+$antwort = avesmapsUpdateFeatureSource($pdo, 'settlement', 'ort-1', 7, ['label' => 'Geographia Aventurica (2. Auflage)'], 9, true);
+assert(($antwort['ok'] ?? false) === true, 'mit Bestaetigung geht sie durch');
+$zaehl();
+assert(avesmapsQuellenTestKatalog($pdo)['label'] === 'Geographia Aventurica (2. Auflage)', 'und steht dann im Katalog');
+$zaehl();
+assert($antwort['updated']['usage_count'] === 40, 'die Antwort nennt die Reichweite auch im Erfolgsfall');
+$zaehl();
+
+// ⚠️ Unterhalb der Schwelle wird NICHT gefragt: 34 % der zitierten Zeilen haengen an genau einem
+// Objekt, und dort waere eine Rueckfrage ein Klick fuer nichts.
+$pdo = avesmapsQuellenTestPdo(AVESMAPS_FEATURE_SOURCE_CONFIRM_THRESHOLD);
+$antwort = avesmapsUpdateFeatureSource($pdo, 'settlement', 'ort-1', 7, ['label' => 'Kurz'], 9);
+assert(($antwort['ok'] ?? false) === true, 'genau auf der Schwelle wird noch nicht gefragt');
+$zaehl();
+
+// ══ 5. Was der Wiki-Abgleich besitzt, wird gar nicht erst angenommen ════════════════════════════
+// 💣 `avesmapsPublicationReconcileEntity` ruft den Upsert mit `refreshLabel = true` und schreibt
+// `is_official` unbedingt. Eine Handkorrektur daran waere beim naechsten Lauf still zurueckgenommen
+// -- also lehnen wir sie ab, statt sie anzunehmen und verschwinden zu lassen.
+$pdo = avesmapsQuellenTestPdo(3, 'wiki:geographia-aventurica');
+foreach (['label' => 'Anderer Titel', 'is_official' => false] as $feld => $wert) {
+    $antwort = avesmapsUpdateFeatureSource($pdo, 'settlement', 'ort-1', 7, [$feld => $wert], 9, true);
+    assert(($antwort['ok'] ?? true) === false && $antwort['error']['code'] === 'wiki_owned_field',
+        $feld . ' gehoert an einer Wiki-Publikation dem Abgleich');
+    $zaehl();
+}
+assert(avesmapsQuellenTestKatalog($pdo)['label'] === 'Geographia Aventurica', 'und nichts davon wurde geschrieben');
+$zaehl();
+// 🔴 Die drei anderen Katalogfelder fasst der Abgleich NICHT an (retype-Vorgabe nein, Lizenz und
+// Namensnennung fuellend) -- die bleiben auch an einer Wiki-Publikation aenderbar.
+$antwort = avesmapsUpdateFeatureSource($pdo, 'settlement', 'ort-1', 7,
+    ['license' => 'cc-by-sa-4.0', 'attribution' => 'Ulisses', 'source_type' => 'regelbuch'], 9, true);
+assert(($antwort['ok'] ?? false) === true, 'Lizenz, Namensnennung und Art bleiben aenderbar');
+$zaehl();
+$katalog = avesmapsQuellenTestKatalog($pdo);
+assert($katalog['license'] === 'cc-by-sa-4.0' && $katalog['attribution'] === 'Ulisses'
+    && $katalog['source_type'] === 'regelbuch', 'und sie stehen danach da');
+$zaehl();
+// ⚠️ Auch die Verknuepfungsfelder bleiben an einer Wiki-Publikation frei -- sie gehoeren diesem
+// Objekt, nicht dem Werk.
+$antwort = avesmapsUpdateFeatureSource($pdo, 'settlement', 'ort-1', 7, ['pages' => '7'], 9);
+assert(($antwort['ok'] ?? false) === true && avesmapsQuellenTestLink($pdo)['pages'] === '7',
+    'die Seitenangabe gehoert diesem Objekt, auch bei einer Wiki-Publikation');
+$zaehl();
+
+// ══ 6. Abgelehnt statt geraten ══════════════════════════════════════════════════════════════════
+$pdo = avesmapsQuellenTestPdo(2);
+$faelle = [
+    [['url' => 'https://andere.de'], 'unknown_field', 'die Adresse ist kein Feld dieses Formulars'],
+    [['status' => 'suppressed'], 'unknown_field', 'ein unbekanntes Feld ist ein Fehler, kein stilles Ueberspringen'],
+    [[], 'invalid_request', 'ohne Feld gibt es nichts zu tun'],
+    [['label' => '   '], 'invalid_request', 'ein LEERER Titel ist keine Korrektur -- die Zeile fiele ueberall auf ihre nackte Adresse zurueck'],
+    [['source_type' => ''], 'invalid_request', 'eine Katalogzeile TRAEGT immer eine Art; "keine Aussage" hiesse hier loeschen'],
+    [['source_type' => 'garetien'], 'invalid_request', 'eine unbekannte Art wird abgelehnt, nicht auf sonstiges gerundet'],
+    [['license' => 'cc-by-tippfehler'], 'invalid_request', 'ein Lizenz-Tippfehler wird abgelehnt, nicht auf "" normalisiert -- '
+        . 'sonst loescht er die Angabe, und zwar katalogweit'],
+    [['reference_kind' => 'quatsch'], 'invalid_request', 'eine unbekannte Abdeckung ebenso'],
+];
+foreach ($faelle as [$felder, $code, $warum]) {
+    $antwort = avesmapsUpdateFeatureSource($pdo, 'settlement', 'ort-1', 7, $felder, 9, true);
+    assert(($antwort['ok'] ?? true) === false && $antwort['error']['code'] === $code, $warum);
+    $zaehl();
+}
+// ⚠️ '' bei der LIZENZ ist dagegen gueltig und heisst „nicht erfasst" -- wer eine falsch
+// eingetragene Lizenz zuruecknehmen will, muss das koennen.
+$pdo2 = avesmapsQuellenTestPdo(2);
+$pdo2->exec("UPDATE sources SET license = 'unfree' WHERE id = 7");
+$antwort = avesmapsUpdateFeatureSource($pdo2, 'settlement', 'ort-1', 7, ['license' => ''], 9, true);
+assert(($antwort['ok'] ?? false) === true && avesmapsQuellenTestKatalog($pdo2)['license'] === '',
+    'eine Lizenz laesst sich auf „nicht erfasst" zuruecknehmen');
+$zaehl();
+
+// ══ 7. Fremdes Objekt, fremde Quelle ════════════════════════════════════════════════════════════
+$antwort = avesmapsUpdateFeatureSource($pdo, 'settlement', 'gibt-es-nicht', 7, ['pages' => '1'], 9);
+assert(($antwort['ok'] ?? true) === false && $antwort['error']['code'] === 'not_found',
+    'eine Quelle, die nicht an DIESEM Objekt haengt, laesst sich von hier nicht aendern');
+$zaehl();
+$antwort = avesmapsUpdateFeatureSource($pdo, 'region', 'ort-1', 7, ['pages' => '1'], 9);
+assert(($antwort['ok'] ?? true) === false && $antwort['error']['code'] === 'not_found',
+    'und der entity_type gehoert zum Schluessel -- eine Region mit derselben id ist ein anderes Objekt');
+$zaehl();
+
+// ══ 8. Die Liste liefert, was der Kasten braucht ════════════════════════════════════════════════
+// ⭐ Ohne zweiten Abruf: Reichweite und Wiki-Besitz reisen mit der ohnehin geholten Liste.
+$pdo = avesmapsQuellenTestPdo(23, 'wiki:x');
+$liste = avesmapsListFeatureSourcesForEdit($pdo, 'settlement', 'ort-1', 9);
+assert(count($liste['sources']) === 1, 'eine Quelle an diesem Objekt');
+$zaehl();
+assert($liste['sources'][0]['usage_count'] === 23, 'und die Liste sagt, wie viele Objekte sie zitieren');
+$zaehl();
+assert($liste['sources'][0]['wiki_owned'] === true, 'und dass der Wiki-Abgleich sie pflegt');
+$zaehl();
+$pdo = avesmapsQuellenTestPdo(1);
+$liste = avesmapsListFeatureSourcesForEdit($pdo, 'settlement', 'ort-1', 9);
+assert($liste['sources'][0]['usage_count'] === 1 && $liste['sources'][0]['wiki_owned'] === false,
+    'ohne wiki_key gehoert die Zeile uns, und sie haengt an genau einem Objekt');
+$zaehl();
+// 🔴 Gemessen am gespeicherten `wiki_key`, NICHT am `origin` der Verknuepfung: dieselbe
+// Katalogzeile kann an einem Objekt von Hand und an einem anderen vom Abgleich haengen --
+// besitzen tut sie der Abgleich in beiden Faellen.
+$pdo = avesmapsQuellenTestPdo(2, 'wiki:x');
+$pdo->exec("UPDATE feature_sources SET origin = 'manual' WHERE entity_public_id = 'ort-1'");
+$liste = avesmapsListFeatureSourcesForEdit($pdo, 'settlement', 'ort-1', 9);
+assert($liste['sources'][0]['wiki_owned'] === true,
+    'eine von Hand gesetzte VERKNUEPFUNG macht die Katalogzeile nicht zu unserer');
+$zaehl();
+// ⚠️ Eine unterdrueckte Verknuepfung zaehlt NICHT mit -- sie wird nirgends angezeigt.
+$pdo = avesmapsQuellenTestPdo(5);
+$pdo->exec("UPDATE feature_sources SET status = 'suppressed' WHERE entity_public_id IN ('ort-4','ort-5')");
+assert(avesmapsFeatureSourceUsageCount($pdo, 7) === 3, 'unterdrueckte Verknuepfungen zaehlen nicht mit');
+$zaehl();
+
+fwrite(STDOUT, "OK -- {$pruefungen} Zusicherungen erfuellt (Quellen bearbeiten).\n");
+exit(0);

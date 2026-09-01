@@ -1,0 +1,543 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Quellen bearbeiten — was hier gilt und was überall (Mockup)</title>
+<style>
+/* Die Farbwerte stammen 1:1 aus css/base/tokens.css — hell aus :root, dunkel aus
+   :root[data-theme="dark"]. Nichts hier ist geraten oder erfunden; ein erfundener
+   Tokenname fällt sonst erst im Produktivcode auf. */
+:root {
+	--panel:              #fffdf9;
+	--panel-soft:         #faf6ee;
+	--panel-muted:        #f1ece1;
+	--text:               #2e271e;
+	--text-strong:        #3c3327;
+	--text-muted:         #706557;
+	--border:             #ddd3c3;
+	--border-strong:      #cdbfa8;
+	--divider:            rgba(125, 115, 96, 0.30);
+	--button:             #5b5548;
+	--button-border:      #635b4d;
+	--button-text:        #f6efe1;
+	--button-soft:        #efe9db;
+	--button-soft-text:   #564b3b;
+	--button-soft-border: #cdbda0;
+	--link:               #8f7326;
+	--accent-brown:       #7a5a3a;
+	--warning-soft:       #faeeda;
+	--warning-soft-border:#ef9f27;
+	--warning-soft-text:  #854f0b;
+	--page-bg:            #efe7d8;
+	--radius-sm: 5px;
+	--radius-md: 8px;
+}
+:root[data-theme="dark"] {
+	--panel:              #312e26;
+	--panel-soft:         #37342b;
+	--panel-muted:        #39352b;
+	--text:               #eee7da;
+	--text-strong:        #f5f0e4;
+	--text-muted:         #b4a895;
+	--border:             #514a3c;
+	--border-strong:      #615a49;
+	--divider:            rgba(207, 197, 171, 0.24);
+	--button:             #6b6456;
+	--button-border:      #7a7361;
+	--button-text:        #f5ebd7;
+	--button-soft:        #3a362c;
+	--button-soft-text:   #eae1cf;
+	--button-soft-border: #585142;
+	--link:               #d7c38b;
+	--accent-brown:       #c9a97e;
+	--warning-soft:       #3b3122;
+	--warning-soft-border:#6d5629;
+	--warning-soft-text:  #e9c684;
+	--page-bg:            #26241e;
+}
+
+* { box-sizing: border-box; }
+
+body {
+	margin: 0;
+	padding: 28px 26px 90px;
+	background: var(--page-bg);
+	color: var(--text);
+	font-family: "Faculty Glyphic", Arial, sans-serif;
+	font-size: 14px;
+	line-height: 1.5;
+}
+h1 { margin: 0 0 4px; font-size: 26px; font-weight: 700; color: var(--text-strong); }
+h2 {
+	margin: 42px 0 4px;
+	padding-bottom: 8px;
+	border-bottom: 1px solid var(--divider);
+	font-size: 20px; font-weight: 700; color: var(--text-strong);
+}
+p, li { max-width: 84ch; }
+p { margin: 8px 0; color: var(--text-muted); }
+p strong, li strong { color: var(--text-strong); }
+code {
+	padding: 1px 5px;
+	border-radius: var(--radius-sm);
+	background: var(--panel-muted);
+	color: var(--text-strong);
+	font-family: "SFMono-Regular", Consolas, monospace;
+	font-size: 12px;
+}
+.lede { font-size: 15px; color: var(--text-muted); max-width: 84ch; }
+
+.themeswitch {
+	position: fixed; top: 14px; right: 16px; z-index: 5;
+	padding: 6px 12px;
+	border: 1px solid var(--button-soft-border);
+	border-radius: var(--radius-md);
+	background: var(--button-soft);
+	color: var(--button-soft-text);
+	font: inherit; font-size: 12px; cursor: pointer;
+}
+
+/* Der Kasten, in dem das Widget steckt — im Editor eine breite Spalte, im Kartendialog 500px. */
+.host {
+	container-type: inline-size;
+	container-name: fs-liste;
+	margin: 14px 0 6px;
+	padding: 14px 16px;
+	border: 1px solid var(--border);
+	border-radius: var(--radius-md);
+	background: var(--panel);
+}
+.host--dialog { max-width: 500px; }
+.hostlabel {
+	margin: 18px 0 0;
+	font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em;
+	color: var(--text-muted);
+}
+
+/* ── Die Quellenzeile: das Raster ist Zeichen für Zeichen das aus
+      css/features/feature-sources.css, nur um EINE Spalte (22px) für das Stift-Symbol
+      erweitert. ────────────────────────────────────────────────────────────────── */
+.fs-col-heads,
+.fs-row {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) 104px 104px 74px 150px 22px 22px;
+	gap: 8px;
+	align-items: center;
+}
+.fs-col-heads {
+	padding: 2px 0 4px;
+	border-bottom: 1px solid var(--divider);
+	font-size: 11px; color: var(--text-muted);
+	text-transform: uppercase; letter-spacing: 0.04em;
+}
+.fs-col-heads span:nth-child(4) { text-align: right; }
+.fs-row { padding: 4px 0; font-size: 12px; }
+.fs-row + .fs-row { border-top: 1px solid var(--divider); }
+.fs-row__link {
+	overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0;
+	color: var(--link); text-decoration: none;
+}
+.fs-row__link:hover { text-decoration: underline; }
+.fs-row__badge, .fs-row__kind {
+	overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+	color: var(--text-muted);
+}
+.fs-row__pages { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.fs-row__license {
+	overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+	color: var(--text-muted); font-size: 11px;
+}
+.fs-row__edit, .fs-row__remove {
+	justify-self: end;
+	width: 22px; height: 22px; padding: 0;
+	border: 1px solid transparent;
+	border-radius: var(--radius-sm);
+	background: none;
+	color: var(--text-muted);
+	font: inherit; font-size: 12px; line-height: 1; cursor: pointer;
+}
+.fs-row__edit:hover, .fs-row__remove:hover {
+	border-color: var(--button-soft-border);
+	background: var(--button-soft);
+	color: var(--button-soft-text);
+}
+/* ⚠️ KEIN eigener Hintergrund an der offenen Zeile — und der Grund ist NICHT der, den man
+   zuerst vermutet. Der Titel-Link steht im hellen Thema schon auf dem normalen Panel bei
+   4,45 (--color-link #8f7326 auf --color-panel #fffdf9), also knapp unter AA 4,5; das ist
+   eine Eigenschaft des Projekt-Tokens und aelter als dieser Entwurf. Ein Hintergrund aus
+   --color-panel-soft druecke ihn auf 4,19 — er verschlimmert eine Lage, die ohnehin am Rand
+   steht. Dass die Zeile offen ist, sagen ohnehin zwei Zeichen: der gedrueckte Stift und der
+   braune Balken des Kastens darunter. Ein drittes kostet Kontrast und traegt nichts.
+   🔧 Der Tokenwert selbst gehoert nicht hierher — er faerbt jeden Link der Seite. */
+.fs-row--open .fs-row__edit {
+	border-color: var(--button-soft-border);
+	background: var(--button-soft);
+	color: var(--button-soft-text);
+}
+
+/* 🔴 DIE SCHWELLE WANDERT MIT DER SIEBTEN SPALTE — 640px waeren zu wenig.
+   Heute: 104+104+74+150+22 = 454 fest, plus 5x8 Abstand = 494; bei 640px Kastenbreite
+   bleiben dem Titel 146px. Mit dem Stift wird daraus 476 fest plus 6x8 = 524 — bei 640px
+   nur noch 116px, und die Zeile beginnt zu klemmen. 670px halten die 146px.
+   💣 Ohne diese Regel ueberhaupt ist der Titel im Kartendialog (500px) nicht gekuerzt,
+   sondern UNSICHTBAR — genau das Bild aus Meldung #104. */
+@container fs-liste (max-width: 670px) {
+	.fs-row {
+		grid-template-columns: 104px 104px 74px minmax(0, 1fr) 22px 22px;
+		row-gap: 2px;
+	}
+	.fs-row__link { grid-column: 1 / -1; }
+	.fs-col-heads { display: none; }
+}
+
+/* ── Der aufgeklappte Bearbeiten-Kasten ──────────────────────────────────────────
+   Er steht IM FLUSS direkt unter seiner Zeile und schiebt den Rest nach unten —
+   kein zweites Fenster: das Widget hängt selbst schon in „Ort bearbeiten“. */
+.fs-edit {
+	margin: 0 0 4px;
+	padding: 12px 12px 14px;
+	border-left: 3px solid var(--accent-brown);
+	background: var(--panel-soft);
+	border-radius: 0 var(--radius-md) var(--radius-md) 0;
+}
+.fs-edit__group + .fs-edit__group { margin-top: 16px; }
+.fs-edit__head {
+	display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px;
+	padding-bottom: 6px; margin-bottom: 10px;
+	border-bottom: 1px solid var(--divider);
+}
+.fs-edit__title {
+	font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em;
+	color: var(--text-strong);
+}
+.fs-edit__scope { font-size: 11px; color: var(--text-muted); }
+.fs-edit__scope b { color: var(--accent-brown); font-weight: 700; }
+
+.fs-edit__fields { display: flex; flex-wrap: wrap; gap: 10px 12px; }
+.fs-field { display: flex; flex-direction: column; gap: 3px; }
+.fs-field > span { font-size: 11px; color: var(--text-muted); }
+.fs-field--grow { flex: 1 1 240px; min-width: 0; }
+.fs-edit input[type="text"], .fs-edit select {
+	padding: 5px 8px;
+	border: 1px solid var(--border-strong);
+	border-radius: var(--radius-md);
+	background: var(--panel);
+	color: var(--text);
+	font: inherit; font-size: 12px;
+}
+.fs-edit input[disabled], .fs-edit select[disabled] {
+	background: var(--panel-muted); color: var(--text-muted); cursor: not-allowed;
+}
+.fs-check { display: flex; align-items: center; gap: 6px; align-self: end; padding-bottom: 5px; font-size: 12px; }
+
+.fs-edit__url {
+	margin: 0 0 12px; font-size: 11px; color: var(--text-muted);
+	overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.fs-edit__url b { color: var(--text-strong); font-weight: 700; }
+
+.fs-edit__foot { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 16px; }
+.btn {
+	padding: 6px 14px;
+	border-radius: var(--radius-md);
+	font: inherit; font-size: 12px; cursor: pointer;
+}
+.btn--main { border: 1px solid var(--button-border); background: var(--button); color: var(--button-text); }
+.btn--soft { border: 1px solid var(--button-soft-border); background: var(--button-soft); color: var(--button-soft-text); }
+
+.note {
+	display: flex; gap: 8px; align-items: flex-start;
+	margin: 10px 0 0; padding: 8px 10px;
+	border: 1px solid var(--warning-soft-border);
+	border-radius: var(--radius-md);
+	background: var(--warning-soft);
+	color: var(--warning-soft-text);
+	font-size: 12px;
+}
+.note b { font-weight: 700; }
+
+.legend { margin: 6px 0 0; font-size: 12px; color: var(--text-muted); }
+ul.rules { max-width: 84ch; padding-left: 20px; }
+ul.rules li { margin: 7px 0; color: var(--text-muted); }
+table.m { border-collapse: collapse; margin: 10px 0; font-size: 13px; }
+table.m th, table.m td { padding: 5px 14px 5px 0; text-align: left; border-bottom: 1px solid var(--divider); color: var(--text-muted); }
+table.m th { color: var(--text-strong); font-weight: 700; }
+table.m td:last-child, table.m th:last-child { text-align: right; padding-right: 0; }
+</style>
+</head>
+<body>
+
+<button class="themeswitch" id="themeswitch" type="button">Dunkel / Hell</button>
+
+<h1>Quellen bearbeiten</h1>
+<p class="lede">Eine Quellenzeile lässt sich heute nur anlegen und entfernen. Was fehlt, ist der
+Weg dazwischen — und der ist deshalb keiner, weil eine Quellenzeile <strong>zwei Reichweiten</strong>
+in sich trägt: was nur an diesem Objekt steht, und was überall steht, wo die Quelle zitiert wird.
+Dieses Mockup zeigt beide getrennt.</p>
+
+<h2>1 &nbsp;Warum das Formular geteilt ist</h2>
+<p>Live gemessen am 01.09.2026 (eine Anfrage an <code>map-features.php</code>): 6.304 Objekte tragen
+zusammen 59.538 Verknüpfungen auf 1.561 zitierte Katalogzeilen.</p>
+<table class="m">
+	<tr><th>Objekte je Katalogzeile</th><th>Zeilen</th></tr>
+	<tr><td>Median</td><td>6</td></tr>
+	<tr><td>p90 / p95</td><td>88 / 146</td></tr>
+	<tr><td>Maximum („Aventurien – Das Lexikon des Schwarzen Auges“)</td><td>1.549</td></tr>
+	<tr><td>nur ein Objekt</td><td>530 (34 %)</td></tr>
+	<tr><td>hundert Objekte und mehr</td><td>137</td></tr>
+</table>
+<p><strong>Titel, Art, Lizenz, Namensnennung und „offiziell“ gehören der Katalogzeile</strong> —
+sie zu ändern schlägt im Mittel auf 38 Objekte durch. <strong>Seiten und Abdeckung gehören der
+Verknüpfung</strong> und wirken nur hier. Ein Formular, das beides in einen Topf wirft, ist genau
+die Falle, vor der AGENTS.md beim Umtypen warnt.</p>
+
+<h2>2 &nbsp;Die Zeile bekommt ein zweites Symbol</h2>
+<p class="hostlabel">Editorspalte, breit — Zustand wie heute plus <code>✎</code></p>
+<div class="host">
+	<div class="fs-col-heads" aria-hidden="true">
+		<span>Titel</span><span>Typ</span><span>Art</span><span>Seiten</span><span>Lizenz</span><span></span><span></span>
+	</div>
+	<div class="fs-row">
+		<a class="fs-row__link" href="#">Geographia Aventurica ↗</a>
+		<span class="fs-row__badge">Quellenband *</span>
+		<span class="fs-row__kind">Ausführlich</span>
+		<span class="fs-row__pages">S. 112</span>
+		<span class="fs-row__license"></span>
+		<button class="fs-row__edit" type="button" title="Bearbeiten">✎</button>
+		<button class="fs-row__remove" type="button" title="Entfernen">✕</button>
+	</div>
+	<div class="fs-row">
+		<a class="fs-row__link" href="#">Briefspiel Rommilyser Mark ↗</a>
+		<span class="fs-row__badge">Briefspiel</span>
+		<span class="fs-row__kind"></span>
+		<span class="fs-row__pages"></span>
+		<span class="fs-row__license">VolkoV / garetien.de, CC BY-NC-SA 3.0</span>
+		<button class="fs-row__edit" type="button" title="Bearbeiten">✎</button>
+		<button class="fs-row__remove" type="button" title="Entfernen">✕</button>
+	</div>
+</div>
+<p class="legend">Das Raster ist das vorhandene (<code>minmax(0,1fr) 104px 104px 74px 150px 22px</code>),
+um eine siebte 22px-Spalte erweitert. Die Spaltenüberschrift trägt dieselbe Vorlage — sie muss
+mitwachsen, sonst stehen die Überschriften ab hier neben ihren Spalten.</p>
+
+<h2>3 &nbsp;Aufgeklappt: zwei Bereiche, durch Linie und Überschrift getrennt</h2>
+<p>Der Kasten steht <strong>im Fluss</strong> unter seiner Zeile und schiebt den Rest nach unten —
+kein zweites Fenster, denn das Widget hängt selbst schon in „Ort bearbeiten“.</p>
+<div class="host">
+	<div class="fs-col-heads" aria-hidden="true">
+		<span>Titel</span><span>Typ</span><span>Art</span><span>Seiten</span><span>Lizenz</span><span></span><span></span>
+	</div>
+	<div class="fs-row fs-row--open">
+		<a class="fs-row__link" href="#">Geographia Aventurica ↗</a>
+		<span class="fs-row__badge">Quellenband *</span>
+		<span class="fs-row__kind">Ausführlich</span>
+		<span class="fs-row__pages">S. 112</span>
+		<span class="fs-row__license"></span>
+		<button class="fs-row__edit" type="button" title="Bearbeiten">✎</button>
+		<button class="fs-row__remove" type="button" title="Entfernen">✕</button>
+	</div>
+	<div class="fs-edit">
+		<p class="fs-edit__url"><b>Adresse:</b> https://ulisses-ebooks.de/product/100144/geographia-aventurica — fest</p>
+
+		<div class="fs-edit__group">
+			<div class="fs-edit__head">
+				<span class="fs-edit__title">Nur an diesem Objekt</span>
+				<span class="fs-edit__scope">gilt für Perricum</span>
+			</div>
+			<div class="fs-edit__fields">
+				<label class="fs-field"><span>Seite(n)</span><input type="text" value="112" size="12"></label>
+				<label class="fs-field"><span>Abdeckung</span>
+					<select><option>Standardquelle</option><option selected>Ausführlich</option><option>Ergänzend</option><option>Nur Erwähnung</option></select>
+				</label>
+			</div>
+		</div>
+
+		<div class="fs-edit__group">
+			<div class="fs-edit__head">
+				<span class="fs-edit__title">Gilt für alle Objekte, die diese Quelle zitieren</span>
+				<span class="fs-edit__scope">zurzeit <b>1.042 Objekte</b></span>
+			</div>
+			<div class="fs-edit__fields">
+				<label class="fs-field fs-field--grow"><span>Titel</span><input type="text" value="Geographia Aventurica"></label>
+				<label class="fs-field"><span>Quellenart</span>
+					<select><option>Art …</option><option>Regionalspielhilfe</option><option selected>Quellenband</option><option>Abenteuer</option><option>Roman</option></select>
+				</label>
+				<label class="fs-field"><span>Lizenz</span>
+					<select><option selected>Lizenz …</option><option>CC BY-SA 4.0</option><option>CC BY-NC-SA 3.0</option><option>Keine freie Lizenz</option></select>
+				</label>
+				<label class="fs-field fs-field--grow"><span>Namensnennung</span><input type="text" value="" placeholder="z. B. VolkoV / garetien.de"></label>
+				<label class="fs-check"><input type="checkbox" checked> offiziell</label>
+			</div>
+			<div class="note">
+				<span aria-hidden="true">⚠️</span>
+				<span>Diese fünf Felder ändern die Quelle <b>im ganzen Katalog</b>. Ab zehn zitierenden
+				Objekten fragt „Speichern“ mit der Zahl nach.</span>
+			</div>
+		</div>
+
+		<div class="fs-edit__foot">
+			<button class="btn btn--main" type="button">Speichern</button>
+			<button class="btn btn--soft" type="button">Abbrechen</button>
+		</div>
+	</div>
+	<div class="fs-row">
+		<a class="fs-row__link" href="#">Briefspiel Rommilyser Mark ↗</a>
+		<span class="fs-row__badge">Briefspiel</span>
+		<span class="fs-row__kind"></span>
+		<span class="fs-row__pages"></span>
+		<span class="fs-row__license">VolkoV / garetien.de, CC BY-NC-SA 3.0</span>
+		<button class="fs-row__edit" type="button" title="Bearbeiten">✎</button>
+		<button class="fs-row__remove" type="button" title="Entfernen">✕</button>
+	</div>
+</div>
+<p class="legend">„Lizenz …“ und „Art …“ heißen weiter <strong>keine Aussage</strong> und sind
+vorausgewählt, wenn nichts erfasst ist — nicht „keine Lizenz“. Dieselbe Form wie in der Eingabezeile.</p>
+
+<h2>4 &nbsp;Der Fall, an dem eine Handkorrektur wirkungslos bliebe</h2>
+<p>Ist die Katalogzeile eine <strong>bekannte Wiki-Publikation</strong> (<code>sources.wiki_key</code>
+gesetzt), pflegt der Publikations-Abgleich zwei ihrer Felder selbst: er ruft den Upsert mit
+<code>refreshLabel = true</code> und schreibt <code>is_official</code> unbedingt. Eine Handkorrektur
+an <b>Titel</b> und <b>offiziell</b> wäre beim nächsten Lauf still zurückgenommen — also wird sie
+gar nicht erst angeboten. <strong>Art, Lizenz und Namensnennung fasst der Abgleich nicht an</strong>
+und bleiben editierbar.</p>
+<div class="host">
+	<div class="fs-row fs-row--open">
+		<a class="fs-row__link" href="#">Die Sieben Gezeichneten ↗</a>
+		<span class="fs-row__badge">Abenteuer *</span>
+		<span class="fs-row__kind">Erwähnung</span>
+		<span class="fs-row__pages">S. 8 ff.</span>
+		<span class="fs-row__license"></span>
+		<button class="fs-row__edit" type="button" title="Bearbeiten">✎</button>
+		<button class="fs-row__remove" type="button" title="Entfernen">✕</button>
+	</div>
+	<div class="fs-edit">
+		<div class="fs-edit__group">
+			<div class="fs-edit__head">
+				<span class="fs-edit__title">Gilt für alle Objekte, die diese Quelle zitieren</span>
+				<span class="fs-edit__scope">zurzeit <b>1.034 Objekte</b></span>
+			</div>
+			<div class="fs-edit__fields">
+				<label class="fs-field fs-field--grow"><span>Titel</span><input type="text" value="Die Sieben Gezeichneten" disabled></label>
+				<label class="fs-field"><span>Quellenart</span>
+					<select><option selected>Abenteuer</option><option>Quellenband</option></select>
+				</label>
+				<label class="fs-field"><span>Lizenz</span><select><option selected>Lizenz …</option><option>Keine freie Lizenz</option></select></label>
+				<label class="fs-check"><input type="checkbox" checked disabled> offiziell</label>
+			</div>
+			<div class="note">
+				<span aria-hidden="true">🔒</span>
+				<span><b>Titel</b> und <b>offiziell</b> pflegt der Wiki-Abgleich. Von Hand geändert,
+				stünde beim nächsten Lauf wieder der Wikiwert da — deshalb sind sie hier fest.</span>
+			</div>
+		</div>
+		<div class="fs-edit__foot">
+			<button class="btn btn--main" type="button">Speichern</button>
+			<button class="btn btn--soft" type="button">Abbrechen</button>
+		</div>
+	</div>
+</div>
+
+<h2>5 &nbsp;Im schmalen Kasten (Kartendialog, 500 px)</h2>
+<p>Der vorhandene <code>@container fs-liste</code> zieht den Titel auf eine eigene Zeile. Der
+Bearbeiten-Kasten braucht keine eigene Regel — seine Felder umbrechen ohnehin. <strong>Aber die
+Schwelle muss von 640 px auf 670 px</strong>: die siebte Spalte kostet 30 px, und bei 640 px
+blieben dem Titel nur noch 116 statt 146 px. Ohne die Anpassung war der Titel in diesem Kasten
+im ersten Entwurf <em>gar nicht</em> zu sehen — das Bild aus Meldung #104.</p>
+<div class="host host--dialog">
+	<div class="fs-row fs-row--open">
+		<a class="fs-row__link" href="#">Geographia Aventurica ↗</a>
+		<span class="fs-row__badge">Quellenband *</span>
+		<span class="fs-row__kind">Ausführlich</span>
+		<span class="fs-row__pages">S. 112</span>
+		<span class="fs-row__license"></span>
+		<button class="fs-row__edit" type="button" title="Bearbeiten">✎</button>
+		<button class="fs-row__remove" type="button" title="Entfernen">✕</button>
+	</div>
+	<div class="fs-edit">
+		<div class="fs-edit__group">
+			<div class="fs-edit__head"><span class="fs-edit__title">Nur an diesem Objekt</span></div>
+			<div class="fs-edit__fields">
+				<label class="fs-field"><span>Seite(n)</span><input type="text" value="112" size="10"></label>
+				<label class="fs-field"><span>Abdeckung</span><select><option selected>Ausführlich</option><option>Ergänzend</option></select></label>
+			</div>
+		</div>
+		<div class="fs-edit__group">
+			<div class="fs-edit__head">
+				<span class="fs-edit__title">Gilt für alle Objekte</span>
+				<span class="fs-edit__scope">zurzeit <b>1.042 Objekte</b></span>
+			</div>
+			<div class="fs-edit__fields">
+				<label class="fs-field fs-field--grow"><span>Titel</span><input type="text" value="Geographia Aventurica"></label>
+				<label class="fs-field"><span>Quellenart</span><select><option selected>Quellenband</option></select></label>
+				<label class="fs-check"><input type="checkbox" checked> offiziell</label>
+			</div>
+		</div>
+		<div class="fs-edit__foot">
+			<button class="btn btn--main" type="button">Speichern</button>
+			<button class="btn btn--soft" type="button">Abbrechen</button>
+		</div>
+	</div>
+</div>
+
+<h2>6 &nbsp;Die Regeln, die dieser Entwurf festlegt</h2>
+<ul class="rules">
+	<li>💣 <strong>Die Adresse ist NICHT editierbar.</strong> <code>url_hash</code> ist der UNIQUE-Schlüssel
+	und damit die Identität der Quelle; sie zu ändern legt entweder eine zweite Zeile an oder läuft in
+	eine Kollision. Wer die Adresse korrigieren will, legt neu an und legt zusammen — dafür gibt es
+	<code>avesmapsMergeSourceInto</code> samt <code>source_merge_log</code>.</li>
+
+	<li>💣 <strong>Titel und „offiziell“ sind bei einer Wiki-Publikation fest</strong>
+	(<code>sources.wiki_key</code> gesetzt): der Publikations-Abgleich schreibt beide unbedingt zurück.
+	Sie trotzdem anzubieten hieße, eine Änderung zu versprechen, die der nächste Lauf still
+	zurücknimmt.</li>
+
+	<li>🔴 <strong>Zwei Reichweiten, sichtbar getrennt</strong> — Linie plus Überschrift, kein
+	gerahmter Kasten (§12). Die zweite Überschrift trägt die <em>Zahl</em> der zitierenden Objekte;
+	ohne sie ist „gilt überall“ ein Wort ohne Größe.</li>
+
+	<li>🔴 <strong>Ab zehn zitierenden Objekten fragt „Speichern“ nach</strong>, und die Rückfrage
+	nennt die Zahl. Darunter nicht — bei einer Quelle an einem Objekt ist eine Rückfrage nur ein
+	Klick für nichts. 34 % der Katalogzeilen hängen an genau einem Objekt.</li>
+
+	<li>💣 <strong>Geschrieben wird nur, was jemand angefasst hat.</strong> Dieselbe Regel wie bei der
+	Weg-Ebene: unberührte Felder reisen gar nicht erst mit, sonst macht ein Speichern jede gewollte
+	Ausnahme platt. Das beseitigt zugleich einen heute lebenden Fehler — <code>is_official</code> wird
+	beim erneuten Eintragen <em>immer</em> überschrieben, also stellt ein Nachtrag ohne Haken eine
+	Quelle katalogweit still auf „nicht offiziell“.</li>
+
+	<li>💣 <strong>Die siebte Spalte zieht den Umbruchpunkt mit.</strong> Das feste Raster wächst um
+	30 px (22 px Knopf + 8 px Abstand), also muss <code>@container fs-liste</code> von 640 px auf
+	670 px — sonst klemmt der Titel im Kartendialog. Beim Bau dieses Mockups zunächst vergessen,
+	und der Titel war im 500-px-Kasten prompt unsichtbar: derselbe Befund wie Meldung #104. Die
+	Spaltenüberschrift <code>.fs-col-heads</code> trägt dieselbe Vorlage und muss mitwachsen.</li>
+
+	<li>💣 <strong>Der Kasten steht im Fluss, nicht schwebend.</strong> Das Widget hängt bereits in
+	Dialogen („Ort bearbeiten“); ein Fenster über dem Fenster ist die Bauform, die dieses Haus
+	sonst nirgends hat.</li>
+
+	<li>⚠️ <strong>Immer nur EIN Kasten offen.</strong> Zwei offene Formulare auf derselben geteilten
+	Katalogzeile wären zwei Wahrheiten, und der zweite überschriebe beim Speichern den ersten.</li>
+
+	<li>⚠️ <strong>Der Zustand ist das <code>hidden</code> des Kastens und sonst nichts</strong> —
+	kein Modulzustand daneben, der auseinanderlaufen kann. Dieselbe Regel wie beim Sammelmenü im
+	Menüband.</li>
+
+	<li>⭐ <strong>Kein zweiter Abruf zum Vorbelegen.</strong> <code>avesmapsListFeatureSourcesForEdit</code>
+	liefert bereits <code>url</code>, <code>label</code>, <code>type</code>, <code>official</code>,
+	<code>license</code>, <code>attribution</code>, <code>pages</code>, <code>reference_kind</code>
+	und <code>origin</code>. Neu ist allein die Zahl der zitierenden Objekte.</li>
+
+	<li>🔧 <strong>Kein Protokoll</strong> (Owner-Entscheid 01.09.2026). Eine Katalogänderung ist damit
+	in ihrer Wirkung sichtbar, nicht in ihrer Herkunft — anders als beim Zusammenlegen, das
+	<code>source_merge_log</code> führt.</li>
+</ul>
+
+<script>
+document.getElementById("themeswitch").addEventListener("click", function () {
+	var root = document.documentElement;
+	root.setAttribute("data-theme", root.getAttribute("data-theme") === "dark" ? "light" : "dark");
+});
+</script>
+</body>
+</html>
