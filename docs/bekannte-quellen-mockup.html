@@ -111,16 +111,41 @@ document.documentElement.getAttribute('data-theme')==='dark'?'light':'dark')">He
 </div>
 </div>
 
-<h2>2 · Die Eingabezeile mit Register</h2>
-<p>Die echte Zeile trägt <strong>acht</strong> Felder. Keines verschwindet — bei bekannter Domain
-werden fünf davon <em>gefüllt und gesperrt</em>, weil sie der Quelle gehören und nicht dieser
+<h2>2 · Der Ablauf, den der Owner beschrieben hat</h2>
+<p>Die echte Zeile trägt <strong>acht</strong> Felder. Keines verschwindet — sie werden nur, sobald
+die Domain bekannt ist, <em>gefüllt und gesperrt</em>, weil sie der Quelle gehören und nicht dieser
 Verknüpfung.</p>
 
-<h3>Bekannte Domain — fünf Felder kommen aus der Quelle</h3>
+<h3>Schritt 1 · Trallop — <code>herzogtum-weiden.net</code> ist noch unbekannt</h3>
+<div class="wirt">
+	<div class="fs-add">
+		<label class="f f--full"><span>Adresse</span>
+			<input type="text" value="https://www.herzogtum-weiden.net/politik/liste-st/staedte/herzogenstadt-trallop"></label>
+		<label class="f f--grow"><span>Quellenname</span><input type="text" value="Briefspiel (Weiden)"></label>
+		<label class="f"><span>Seite(n)</span><input type="text" size="9"></label>
+		<label class="f"><span>Art</span><select><option>Briefspiel</option><option>Art …</option></select></label>
+		<label class="f"><span>Abdeckung</span><select><option>Standardquelle</option><option>Ausführlich</option></select></label>
+		<label class="f"><span>Lizenz</span><select><option>CC BY-NC-SA 3.0</option><option>Lizenz …</option></select></label>
+		<label class="f f--grow"><span>Namensnennung</span><input type="text" value="herzogtum-weiden.net"></label>
+		<label class="f" style="align-self:end;padding-bottom:5px">
+			<span style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-muted)">
+			<input type="checkbox"> offiziell</span></label>
+		<button class="btn">Hinzufügen</button>
+	</div>
+	<div class="note" style="display:flex;gap:8px;align-items:flex-start">
+		<input type="checkbox" checked style="margin-top:2px">
+		<span><strong>Aus herzogtum-weiden.net kommt noch mehr</strong> — beim nächsten Objekt genügt
+		der Link.<br><span style="font-size:11px">Diese Frage stellt sich <strong>genau einmal je
+		Domain</strong>. Ohne Häkchen bleibt es eine gewöhnliche Quelle.</span></span></div>
+</div>
+<p>⭐ <strong>Das ist die ganze Mechanik.</strong> Ein Häkchen beim ersten Mal — danach fragt das
+Formular nie wieder nach einem Namen für diese Domain.</p>
+
+<h3>Schritt 2 · Baliho — dieselbe Domain, eine Woche später</h3>
 <div class="wirt">
 	<div class="fs-add">
 		<label class="f f--full"><span>Adresse der Fundstelle</span>
-			<input type="text" value="https://www.herzogtum-weiden.net/politik/liste-st/staedte/herzogenstadt-trallop"></label>
+			<input type="text" value="https://www.herzogtum-weiden.net/politik/liste-st/staedte/reichsstadt-baliho"></label>
 		<label class="f f--grow"><span>Quellenname <span class="lock">· aus der Quelle</span></span>
 			<input type="text" value="Briefspiel (Weiden)" disabled></label>
 		<label class="f"><span>Seite(n)</span><input type="text" size="9" placeholder="optional"></label>
@@ -139,47 +164,57 @@ Verknüpfung.</p>
 	</div>
 	<div class="note note--ok">✓ <strong>herzogtum-weiden.net</strong> ist bekannt:
 		<strong>Briefspiel (Weiden)</strong> · Briefspiel · inoffiziell · CC BY-NC-SA 3.0 ·
-		herzogtum-weiden.net. Deine Adresse wird als <strong>Fundstelle</strong> an diesem Ort gespeichert.</div>
+		herzogtum-weiden.net. Deine Adresse wird als <strong>Fundstelle</strong> an Baliho gespeichert.</div>
 </div>
-<p>🔴 <strong>Fünf Felder gehören der QUELLE, drei der VERKNÜPFUNG.</strong> Quellenname, Art,
-Lizenz, Namensnennung und „offiziell" beschreiben das Briefspiel — sie stehen einmal dort und
-gelten überall. Fundstelle, Seite(n) und Abdeckung beschreiben <em>diesen</em> Beleg. Genau
-dieselbe Trennung, die der Bearbeiten-Kasten seit dem 01.09.2026 zeigt.</p>
-<p>💣 <strong>Gesperrt, nicht weggelassen.</strong> Ein verschwundenes Feld liest sich wie ein
-Verlust; ein gefülltes graues Feld sagt „das ist schon beantwortet, und zwar so". Und es zeigt dem
-Editor, welche Lizenz er gerade mit übernimmt — heute muss er sie je Zeile selbst richtig
-ankreuzen.</p>
-<p>⚠️ <strong>Wer die gesperrten Werte korrigieren will</strong>, tut das an der Quelle selbst —
-über das <code>✎</code> in der Quellenliste. Dort steht dann auch, an wie vielen Objekten die
-Änderung wirkt. Ein zweiter Änderungsweg in der Eingabezeile wäre genau die Doppelung, die dieses
-Register beseitigen soll.</p>
+<p>🔴 <strong>Der Editor füllt genau ein Feld</strong> — die Adresse, die er ohnehin in der
+Zwischenablage hat. Es gibt keinen Namen zu wählen, also auch keinen falschen zu treffen und keinen
+Grund, „Baliho bei Weiden" zu erfinden. <strong>Und die Frage aus Schritt 1 ist weg</strong>: sie
+stellt sich einmal je Domain.</p>
 
-<h3>Unbekannte Domain — die Zeile von heute, unverändert</h3>
+<h3>Der Unterschied in einem Bild</h3>
+<table class="m">
+	<tr><th></th><th>heute</th><th>nachher</th></tr>
+	<tr><td><strong>Trallop</strong> (erster Ort)</td>
+		<td>Adresse + Name + Art + Lizenz + Nennung + Haken</td>
+		<td>dasselbe, plus <strong>ein Häkchen</strong></td></tr>
+	<tr><td><strong>Baliho</strong> (zweiter Ort)</td>
+		<td><strong>alles noch einmal</strong> — und der Name wird „Baliho bei Weiden"</td>
+		<td><strong>nur die Adresse</strong></td></tr>
+	<tr><td>…und 198 weitere Orte</td>
+		<td>198 weitere Katalogzeilen namens „Briefspiel"</td>
+		<td>198 Fundstellen an <em>einer</em> Quelle</td></tr>
+</table>
+
+<h3>Der Sonderfall · ein Werk, das dort nur zufällig liegt</h3>
+<p>Nicht jede unbekannte Domain ist ein Korpus. Ein Wiki-Aventurica-Artikel <em>ist</em> ein
+einzelnes Werk — dort bleibt das Häkchen leer, und alles verhält sich wie heute.</p>
 <div class="wirt">
 	<div class="fs-add">
 		<label class="f f--full"><span>Adresse</span>
-			<input type="text" value="https://wiki.beispiel-briefspiel.de/Ort_Nordhag"></label>
-		<label class="f f--grow"><span>Quellenname</span><input type="text" placeholder="Name des Briefspiels / Wikis"></label>
-		<label class="f"><span>Seite(n)</span><input type="text" size="9"></label>
-		<label class="f"><span>Art</span>
-			<select><option>Art …</option><option>Briefspiel</option><option>Regionalspielhilfe</option></select></label>
-		<label class="f"><span>Abdeckung</span>
-			<select><option>Standardquelle</option><option>Ausführlich</option></select></label>
-		<label class="f"><span>Lizenz</span>
-			<select><option>Lizenz …</option><option>CC BY-NC-SA 3.0</option><option>Keine freie Lizenz</option></select></label>
-		<label class="f f--grow"><span>Namensnennung</span><input type="text" placeholder="z. B. herzogtum-weiden.net"></label>
+			<input type="text" value="https://de.wiki-aventurica.de/wiki/Kosch_(Regionalspielhilfe)"></label>
+		<label class="f f--grow"><span>Quellenname</span><input type="text" value="Kosch (Regionalspielhilfe)"></label>
+		<label class="f"><span>Seite(n)</span><input type="text" size="9" value="42"></label>
+		<label class="f"><span>Art</span><select><option>Regionalspielhilfe</option></select></label>
+		<label class="f"><span>Abdeckung</span><select><option>Ausführlich</option></select></label>
+		<label class="f"><span>Lizenz</span><select><option>Lizenz …</option></select></label>
+		<label class="f f--grow"><span>Namensnennung</span><input type="text"></label>
 		<label class="f" style="align-self:end;padding-bottom:5px">
 			<span style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-muted)">
-			<input type="checkbox"> offiziell</span></label>
+			<input type="checkbox" checked> offiziell</span></label>
 		<button class="btn">Hinzufügen</button>
 	</div>
-	<div class="note">⚠️ <strong>wiki.beispiel-briefspiel.de</strong> ist noch nicht bekannt. Ist das
-		ein Briefspiel oder Wiki, aus dem noch mehr kommt? Dann trag es <strong>einmal</strong> mit
-		Name, Art, Lizenz und Namensnennung ein — bei jedem weiteren Ort genügt danach der Link.</div>
+	<div class="note" style="display:flex;gap:8px;align-items:flex-start">
+		<input type="checkbox" style="margin-top:2px">
+		<span>Aus <strong>de.wiki-aventurica.de</strong> kommt noch mehr — <strong>nicht angehakt</strong>,
+		denn dort ist jede Adresse ein eigenes Werk.<br><span style="font-size:11px">💣 Wäre das Häkchen
+		hier gesetzt, würden 21 Werke zu einer Zeile — „Mutterglück", „Das Erbe von Blaustein",
+		„Kosch (Regionalspielhilfe)" …</span></span></div>
 </div>
-<p>⭐ So wächst das Register durch Benutzung, statt gepflegt werden zu müssen. Und die fünf Felder,
-die der Editor hier einmal ausfüllt, sind genau die fünf gesperrten von oben — er sieht also beim
-ersten Mal, was er für alle künftigen Belege festlegt.</p>
+<p>💣 <strong>Deshalb darf die Auflösung nicht automatisch sein.</strong> <code>f-shop.de</code>
+trägt 637 Katalogzeilen mit 623 verschiedenen Titeln, <code>ulisses-ebooks.de</code> 245 mit 243 —
+eine Regel „eine Domain, eine Quelle" machte daraus 2 Quellen für 866 Werke.
+⭐ Das Verhältnis Zeilen/Titel trennt beide Fälle messbar (f-shop ≈ 1, Weiden 200/3 ≈ 67) und taugt
+als <em>Vorschlag</em> für das Häkchen — angehakt wird von einem Menschen.</p>
 
 <h2>3 · Was der Besucher sieht</h2>
 <div class="reihe">
