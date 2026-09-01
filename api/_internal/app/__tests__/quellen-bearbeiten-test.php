@@ -360,5 +360,71 @@ $pdo->exec("UPDATE feature_sources SET status = 'suppressed' WHERE entity_public
 assert(avesmapsFeatureSourceUsageCount($pdo, 7) === 3, 'unterdrueckte Verknuepfungen zaehlen nicht mit');
 $zaehl();
 
+// ══ 9. ANGELEGT oder VERKNUEPFT? Die Auskunft, die das Adressfeld verschwieg ════════════════════
+// 🔴 Der Katalog dedupliziert ueber `url_hash` (UNIQUE): eine bekannte Adresse VERKNUEPFT mit der
+// bestehenden Zeile, statt eine neue anzulegen. Richtig und gewollt -- aber bis zum 01.09.2026
+// stumm, waehrend der NAMENS-Weg daneben eine Kachel „bestehende Quelle" zeigt. Owner-Frage:
+// „erkennt er die Quelle beim Einfuegen automatisch, und wenn nicht, legt er eine neue an?"
+// ⚠️ `null` heisst „neu angelegt" und ist die SCHWEIGENDE Antwort: die frische Zeile zeigt genau
+// das Eingetippte, da gibt es nichts zu erklaeren. Dieselbe Regel wie bei `retyped`.
+assert(avesmapsFeatureSourceLinkedReport(null, 'Briefspiel (Weiden)', false) === null,
+    'eine neue Adresse legt an und meldet NICHTS -- sonst Laerm auf dem haeufigen Weg');
+$zaehl();
+
+$bestehend = ['id' => 1316309, 'label' => 'Briefspiel (Weiden)', 'is_official' => 0];
+$bericht = avesmapsFeatureSourceLinkedReport($bestehend, 'Briefspiel (Weiden)', false);
+assert(is_array($bericht) && $bericht['source_id'] === 1316309,
+    'eine bekannte Adresse meldet die getroffene Katalogzeile');
+$zaehl();
+assert($bericht['typed_label'] === '', 'gleicher Titel = nichts verworfen = nichts zu erklaeren');
+$zaehl();
+assert($bericht['official_changed'] === false, 'und der Haken stand schon so');
+$zaehl();
+
+// 🔴 DER FALL, DER OHNE ERKLAERUNG WIE EIN FEHLER AUSSIEHT: man tippt „X" und in der Liste steht
+// „Y". Grund ist, dass `label` beim Verknuepfen nur eine LUECKE fuellt -- der eingetippte Titel
+// wird verworfen (avesmapsSourceUpsertOnDuplicateSql).
+$bericht = avesmapsFeatureSourceLinkedReport($bestehend, 'Baronie Altentrallop', false);
+assert($bericht['label'] === 'Briefspiel (Weiden)', 'der GESPEICHERTE Titel gewinnt');
+$zaehl();
+assert($bericht['typed_label'] === 'Baronie Altentrallop',
+    'und der verworfene wird genannt -- sonst haelt der Editor die Zeile fuer falsch');
+$zaehl();
+
+// ⚠️ Hatte die Katalogzeile gar keinen Titel, gewinnt der eingetippte -- dann wurde nichts
+// verworfen, und es gibt nichts zu melden.
+$bericht = avesmapsFeatureSourceLinkedReport(['id' => 5, 'label' => '', 'is_official' => 0], 'Neuer Titel', false);
+assert($bericht['label'] === 'Neuer Titel' && $bericht['typed_label'] === '',
+    'ohne gespeicherten Titel gewinnt der eingetippte, und nichts wurde verworfen');
+$zaehl();
+
+// 💣 DER HAKEN „offiziell" UEBERSCHREIBT DEN KATALOGWERT UNBEDINGT
+// (`is_official = VALUES(is_official)`). Wer eine bekannte Adresse ohne Haken eintraegt, stellt die
+// Quelle damit UEBERALL auf nicht-offiziell. Das ist hier NICHT geheilt -- aber es wird gesagt.
+$bericht = avesmapsFeatureSourceLinkedReport(
+    ['id' => 7, 'label' => 'Geographia Aventurica', 'is_official' => 1], 'Geographia Aventurica', false);
+assert($bericht['official_changed'] === true && $bericht['official_now'] === false,
+    'ein umgelegter Haken wird gemeldet -- er gilt katalogweit');
+$zaehl();
+$bericht = avesmapsFeatureSourceLinkedReport(['id' => 7, 'label' => 'X', 'is_official' => 0], 'X', true);
+assert($bericht['official_changed'] === true && $bericht['official_now'] === true,
+    'auch in die andere Richtung');
+$zaehl();
+
+// 🪤 Der Aufrufer muss den Bericht wirklich anhaengen -- sonst ist die Regel darueber ein Vakuum.
+$quelltext = (string) file_get_contents(__DIR__ . '/../feature-sources.php');
+$ohneKommentare = preg_replace('#/\*[\s\S]*?\*/|^\s*//.*$#m', '', $quelltext) ?? '';
+assert(str_contains($ohneKommentare, 'avesmapsFeatureSourceLinkedReport($bestehendeZeile, $label, $official)'),
+    'avesmapsAddFeatureSource ruft den Bericht wirklich');
+$zaehl();
+assert(preg_match('/\$antwort\[.linked.\] = \$verknuepft;/', $ohneKommentare) === 1,
+    'und haengt ihn an die Antwort');
+$zaehl();
+// 💣 Die Vorab-Lesung muss UNBEDINGT laufen, nicht nur bei $retype -- sonst weiss niemand, ob
+// verknuepft wurde. Genau so stand sie bis zum 01.09.2026 da.
+assert(preg_match('/\$vorher = \$pdo->prepare\(.SELECT id, label, source_type, is_official FROM sources/', $ohneKommentare) === 1,
+    'die Katalogzeile VOR dem Upsert wird unbedingt gelesen, nicht nur beim Umtypen');
+$zaehl();
+
 fwrite(STDOUT, "OK -- {$pruefungen} Zusicherungen erfuellt (Quellen bearbeiten).\n");
 exit(0);

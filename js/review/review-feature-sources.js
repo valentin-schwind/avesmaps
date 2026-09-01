@@ -502,6 +502,44 @@ function renderFeatureSourceEditorHtml(state, opts) {
 }
 
 /**
+ * Der Satz, der sagt: diese ADRESSE gab es schon, es wurde VERKNUEPFT statt angelegt.
+ *
+ * 🔴 Der Katalog dedupliziert ueber `url_hash` (UNIQUE) -- gewollt und richtig, aber bis zum
+ * 01.09.2026 stumm. Die Kachel „bestehende Quelle" daneben haengt an der NAMENS-Vorschlagsliste;
+ * wer eine Adresse einfuegte, sah nicht, welcher der beiden Faelle eintrat.
+ * ⚠️ `""` (nichts sagen) heisst „neu angelegt" -- die frische Zeile zeigt genau das Eingetippte,
+ * eine Meldung dafuer waere Laerm auf dem haeufigen Weg. Dieselbe Regel wie bei `retyped`.
+ * 🪤 Und NICHT beim Treffer aus der Vorschlagsliste: der laeuft ueber `add_existing`, wo der Editor
+ * die bestehende Quelle ausdruecklich gewaehlt hat -- die Kachel sagt es dort bereits.
+ *
+ * Rein und DOM-frei, damit ein Test ihn wirklich ausfuehrt statt seinen Quelltext zu lesen.
+ */
+function featureSourceLinkedMessage(linked, tr) {
+  const uebersetze = typeof tr === "function" ? tr : featureSourceDefaultTr;
+  if (!linked) {
+    return "";
+  }
+  let text = linked.typed_label
+    // Der eingetippte Titel wurde verworfen -- der Fall, der ohne Erklaerung wie ein Fehler
+    // aussieht: man tippt „X" und in der Liste steht „Y".
+    ? uebersetze("sources.add.linkedRenamed",
+      "Diese Adresse gibt es schon — verknüpft mit „{label}“. Dein Titel „{typed}“ wurde nicht übernommen, denn der Katalog führt sie unter ihrem gespeicherten Namen.")
+      .replace("{label}", String(linked.label || "")).replace("{typed}", String(linked.typed_label))
+    : uebersetze("sources.add.linked",
+      "Diese Adresse gibt es schon — verknüpft mit „{label}“ statt eine neue Quelle anzulegen.")
+      .replace("{label}", String(linked.label || ""));
+  if (linked.official_changed) {
+    // 💣 Der Haken hat den Katalogwert umgelegt, und das gilt ueberall, wo die Quelle steht.
+    text += " " + uebersetze("sources.add.linkedOfficial",
+      "Achtung: „offiziell“ steht jetzt auf {wert} — das gilt überall, wo diese Quelle steht.")
+      .replace("{wert}", linked.official_now
+        ? uebersetze("sources.add.officialYes", "ja")
+        : uebersetze("sources.add.officialNo", "nein"));
+  }
+  return text;
+}
+
+/**
  * Nur die Felder, deren Wert sich vom Ausgangswert (`data-fs-orig`) unterscheidet.
  *
  * 💣 DAS IST DIE TRAGENDE REGEL DES BEARBEITEN-KASTENS. Ein vollstaendig mitgeschicktes Formular
@@ -777,6 +815,25 @@ function mountFeatureSourceEditor(containerEl, entityType, publicIdGetter, opts)
     );
   }
 
+  /**
+   * Sagt, dass eine EINGEFUEGTE ADRESSE mit einer bestehenden Katalogzeile verknuepft wurde,
+   * statt eine neue anzulegen.
+   *
+   * 🔴 Der Katalog dedupliziert ueber `url_hash` (UNIQUE) -- das ist gewollt und richtig, es war
+   * nur stumm. Die Kachel „bestehende Quelle" daneben haengt an der NAMENS-Vorschlagsliste; wer
+   * eine Adresse einfuegt, sah bis zum 01.09.2026 nicht, welcher der beiden Faelle eintrat.
+   * ⚠️ Gemeldet wird NUR das Verknuepfen. Beim Anlegen zeigt die neue Zeile genau das Eingetippte
+   * -- eine Meldung dafuer waere Laerm auf dem haeufigen Weg. Dieselbe Regel wie bei `retyped`.
+   * 🪤 Und NICHT beim Treffer aus der Vorschlagsliste: der laeuft ueber `add_existing`, und dort
+   * hat der Editor die bestehende Quelle ausdruecklich gewaehlt -- die Kachel sagt es bereits.
+   */
+  function zeigeVerknuepfung(daten) {
+    const text = featureSourceLinkedMessage(daten && daten.linked, tr);
+    if (text) {
+      showAddRowNote(text);
+    }
+  }
+
   function readAddRowValues() {
     const urlInput = containerEl.querySelector(".fs-add-url");
     const labelInput = containerEl.querySelector(".fs-add-label");
@@ -970,7 +1027,12 @@ function mountFeatureSourceEditor(containerEl, entityType, publicIdGetter, opts)
         }
         return;
       }
-      zeigeUmtypung(await renderFromServer("add", values));
+      // 🔴 BEIDE Rueckmeldungen, und in dieser Reihenfolge: die Verknuepfung ueberschreibt die
+      // Umtypung in derselben Zeile, weil sie die umfassendere Auskunft ist -- wer erfaehrt,
+      // dass er eine FREMDE Katalogzeile getroffen hat, muss das zuerst wissen.
+      const daten = await renderFromServer("add", values);
+      zeigeUmtypung(daten);
+      zeigeVerknuepfung(daten);
     }
   });
 
@@ -1159,5 +1221,6 @@ if (typeof module !== "undefined" && module.exports) {
     // Der Bearbeiten-Kasten und seine Schwelle -- der Kasten ist rein (kein DOM, kein fetch) und
     // damit unter Node fahrbar; die Schwelle wird gegen die PHP-Konstante gehalten.
     renderFeatureSourceEditPanel, FEATURE_SOURCE_CONFIRM_THRESHOLD, featureSourceChangedFields,
+    featureSourceLinkedMessage,
   };
 }

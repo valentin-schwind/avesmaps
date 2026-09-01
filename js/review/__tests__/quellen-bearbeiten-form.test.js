@@ -24,7 +24,8 @@ const lies = (p) => fs.readFileSync(path.join(wurzel, p), "utf8");
 require(path.join(wurzel, "js/ui/feature-source-markup.js"));
 const modul = require(path.join(wurzel, "js/review/review-feature-sources.js"));
 const { renderFeatureSourceEditorHtml, renderFeatureSourceEditPanel,
-	FEATURE_SOURCE_CONFIRM_THRESHOLD, featureSourceChangedFields } = modul;
+	FEATURE_SOURCE_CONFIRM_THRESHOLD, featureSourceChangedFields,
+	featureSourceLinkedMessage } = modul;
 
 let pruefungen = 0;
 const pruefe = (bedingung, text) => { assert.ok(bedingung, text); pruefungen++; };
@@ -274,6 +275,60 @@ function felderAusHtml(html) {
 		.match(/data-fs-field="([a-z_]+)"/g) || []).map((s) => s.replace(/.*="|"/g, ""));
 	gleich(imKasten.slice().sort(), linkFelder.concat(katalogFelder).sort(),
 		"der Kasten baut genau die Felder, die der Server kennt");
+}
+
+// ══ G. „Verknüpft statt angelegt" — der Satz, den das Adressfeld schuldig blieb ═════════════════
+// 🔴 Der Katalog dedupliziert über `url_hash` (UNIQUE): eine bekannte Adresse verknüpft mit der
+// bestehenden Zeile. Richtig und gewollt, aber bis zum 01.09.2026 stumm — die Kachel „bestehende
+// Quelle" daneben hängt an der NAMENS-Vorschlagsliste, nicht am Adressfeld.
+{
+	const tr = (k, f) => f;
+
+	// ⚠️ Nichts sagen heißt „neu angelegt". Die frische Zeile zeigt genau das Eingetippte; eine
+	// Meldung dafür wäre Lärm auf dem häufigen Weg. Dieselbe Regel wie bei `retyped`.
+	gleich(featureSourceLinkedMessage(null, tr), "", "beim Anlegen wird geschwiegen");
+	gleich(featureSourceLinkedMessage(undefined, tr), "", "und ohne Angabe erst recht");
+
+	const schlicht = featureSourceLinkedMessage(
+		{ source_id: 7, label: "Briefspiel (Weiden)", typed_label: "", official_changed: false }, tr);
+	pruefe(schlicht.includes("gibt es schon"), "beim Verknüpfen wird es gesagt");
+	pruefe(schlicht.includes("Briefspiel (Weiden)"), "und die getroffene Quelle beim Namen genannt");
+	pruefe(!schlicht.includes("offiziell"), "ohne umgelegten Haken kein Wort darüber");
+
+	// 🔴 Der Fall, der ohne Erklärung wie ein Fehler aussieht: man tippt „X", in der Liste steht „Y".
+	const umbenannt = featureSourceLinkedMessage(
+		{ source_id: 7, label: "Briefspiel (Weiden)", typed_label: "Baronie Altentrallop", official_changed: false }, tr);
+	pruefe(umbenannt.includes("Baronie Altentrallop"), "der verworfene Titel wird genannt");
+	pruefe(umbenannt.includes("Briefspiel (Weiden)"), "und der, unter dem die Zeile steht");
+
+	// 💣 Der Haken „offiziell" überschreibt den Katalogwert unbedingt — hat er ihn umgelegt, gilt
+	// das überall, wo die Quelle zitiert wird, und niemand hat es bewusst getan.
+	const haken = featureSourceLinkedMessage(
+		{ source_id: 7, label: "X", typed_label: "", official_changed: true, official_now: false }, tr);
+	pruefe(haken.includes("offiziell"), "ein umgelegter Haken wird gemeldet");
+	pruefe(haken.includes("überall"), "und dass es überall gilt");
+	pruefe(haken.includes("nein"), "samt seinem neuen Wert");
+	const hakenAn = featureSourceLinkedMessage(
+		{ source_id: 7, label: "X", typed_label: "", official_changed: true, official_now: true }, tr);
+	pruefe(hakenAn.includes("ja"), "auch in die andere Richtung");
+
+	// ⚠️ Ohne tr() muss er trotzdem einen Satz liefern — der Vorgabe-Übersetzer gibt den Rückfall
+	// zurück. Ein Bauteil, das ohne i18n-Schicht leer bleibt, wäre unter Node nicht prüfbar.
+	pruefe(featureSourceLinkedMessage({ label: "X", typed_label: "" }).includes("gibt es schon"),
+		"er kommt ohne injizierten Übersetzer aus");
+
+	// 🪤 Und der Aufrufer muss ihn wirklich rufen — sonst ist der Bauer ein Vakuum. Kommentare
+	// vorher weg: ein Quelltext-Test, der die ERKLÄRUNG trifft statt des Aufrufs, ist im Haus schon
+	// mehrfach grün geblieben, ohne etwas zu prüfen.
+	const quelle = lies("js/review/review-feature-sources.js")
+		.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+	pruefe(/zeigeVerknuepfung\(daten\);/.test(quelle), "der Add-Knopf ruft die Meldung");
+	pruefe(/featureSourceLinkedMessage\(daten && daten\.linked, tr\)/.test(quelle),
+		"und sie geht durch den geteilten Bauer");
+	// 🔴 BEIDE Rückmeldungen, und die Verknüpfung ZULETZT: sie überschreibt die Umtypung in
+	// derselben Zeile, weil sie die umfassendere Auskunft ist.
+	pruefe(quelle.indexOf("zeigeVerknuepfung(daten);") > quelle.indexOf("zeigeUmtypung(daten);"),
+		"die Verknüpfung wird nach der Umtypung gesetzt und gewinnt damit die Zeile");
 }
 
 console.log("OK -- " + pruefungen + " Zusicherungen erfuellt (Quellen bearbeiten, Formular).");

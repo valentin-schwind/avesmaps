@@ -456,6 +456,50 @@ function avesmapsSourceUpsertOnDuplicateSql(bool $refreshLabel, bool $retype): s
              attribution = IF(VALUES(attribution) = '', attribution, VALUES(attribution))";
 }
 
+/**
+ * „ANGELEGT oder VERKNUEPFT?" — die Auskunft, die das Adressfeld bis zum 01.09.2026 verschwieg.
+ *
+ * 🔴 Der Katalog dedupliziert ueber `url_hash` (UNIQUE): eine schon bekannte Adresse verknuepft mit
+ * der bestehenden Zeile, statt eine neue anzulegen. Das ist richtig und gewollt — es geschah nur
+ * stumm, waehrend der NAMENS-Weg daneben eine Kachel „bestehende Quelle" zeigt. Owner-Frage:
+ * „erkennt er die Quelle beim Einfuegen automatisch, und wenn nicht, legt er eine neue an?"
+ *
+ * ⚠️ `null` heisst „neu angelegt" und ist die SCHWEIGENDE Antwort: die frische Zeile zeigt genau
+ * das Eingetippte, da gibt es nichts zu erklaeren. Gemeldet wird nur der ueberraschende Fall —
+ * dieselbe Regel wie bei `retyped`.
+ *
+ * 💣 Rein und ohne PDO, weil `avesmapsFeatureSourceUpsert` mit `ON DUPLICATE KEY UPDATE` arbeitet
+ * und damit gegen SQLite nicht fahrbar ist. Eine Regel, die kein Test ausfuehrt, ist keine.
+ *
+ * @param array|null $bestehend die Katalogzeile VOR dem Upsert (id/label/is_official), oder null
+ */
+function avesmapsFeatureSourceLinkedReport(?array $bestehend, string $label, bool $official): ?array
+{
+    if ($bestehend === null) {
+        return null;
+    }
+    $gespeicherterTitel = trim((string) ($bestehend['label'] ?? ''));
+    $eingetippt = trim($label);
+
+    return [
+        'source_id' => (int) ($bestehend['id'] ?? 0),
+        // Der Titel, unter dem die Zeile im Katalog steht — er gewinnt, weil `label` beim
+        // Verknuepfen nur eine Luecke FUELLT (avesmapsSourceUpsertOnDuplicateSql).
+        'label' => $gespeicherterTitel !== '' ? $gespeicherterTitel : $eingetippt,
+        // 🔴 Nur gesetzt, wenn der eingetippte Titel wirklich VERWORFEN wurde. Das ist der Fall,
+        // der ohne Erklaerung wie ein Fehler aussieht: man tippt „X" und in der Liste steht „Y".
+        // ⚠️ Nicht gesetzt, wenn die Katalogzeile gar keinen Titel hatte — dann gewinnt der
+        // eingetippte, es wurde also nichts verworfen.
+        'typed_label' => ($eingetippt !== '' && $gespeicherterTitel !== '' && $eingetippt !== $gespeicherterTitel)
+            ? $eingetippt : '',
+        // 💣 `is_official` ueberschreibt der Upsert UNBEDINGT. Hat der Haken den Katalogwert soeben
+        // umgelegt, gehoert das gesagt: es gilt ueberall, wo die Quelle zitiert wird, und niemand
+        // hat es bewusst getan.
+        'official_changed' => ((int) ($bestehend['is_official'] ?? 0) === 1) !== $official,
+        'official_now' => $official,
+    ];
+}
+
 function avesmapsFeatureSourceUpsert(PDO $pdo, string $url, string $label, string $type, bool $official, int $userId, string $wikiKey = '', bool $refreshLabel = false, string $license = '', string $attribution = '', bool $retype = false): int
 {
     // 💣 DIESE LISTE KUERZTE LAUTLOS. Was nicht darinsteht, wird zu 'sonstiges' -- kein Fehler,
@@ -735,12 +779,22 @@ function avesmapsAddFeatureSource(PDO $pdo, string $entityType, string $publicId
     // dieselbe Falle wie die stille Nicht-Aenderung davor, nur in die andere Richtung.
     // ⚠️ Kein try/catch darum: die Tabellen stehen (avesmapsEnsureFeatureSourceTables lief oben),
     // und ein geschluckter SQL-Fehler saehe hier exakt aus wie „die Art war schon richtig".
-    $vorherigeArt = '';
-    if ($retype) {
-        $vorher = $pdo->prepare('SELECT source_type FROM sources WHERE url_hash = :h LIMIT 1');
-        $vorher->execute(['h' => avesmapsFeatureSourceHash($upsertUrl, $upsertWikiKey)]);
-        $vorherigeArt = (string) ($vorher->fetchColumn() ?: '');
-    }
+    // 🔴 UNBEDINGT, nicht mehr nur bei $retype. Der Katalog dedupliziert ueber `url_hash` (UNIQUE):
+    // eine schon bekannte Adresse VERKNUEPFT mit der bestehenden Zeile, statt eine neue anzulegen --
+    // und das geschah bis zum 01.09.2026 voellig stumm. Die Kachel „bestehende Quelle" haengt an der
+    // NAMENS-Vorschlagsliste (`pickedSourceId`), nicht am Adressfeld; wer eine Adresse einfuegt, sah
+    // also nicht, welcher der beiden Faelle eingetreten war. Owner-Frage: „erkennt er die Quelle
+    // beim Einfuegen automatisch, und wenn nicht, legt er eine neue an?" -- er tut beides, er sagt
+    // es nur nicht.
+    // 💣 Und die Verwechslung ist nicht folgenlos: `label` FUELLT beim Verknuepfen nur eine Luecke,
+    // der eingetippte Titel wird also verworfen und die Zeile erscheint unter fremdem Namen.
+    // `is_official` wird dagegen UNBEDINGT ueberschrieben -- ein Haken, den niemand bewusst gesetzt
+    // hat, gilt danach katalogweit.
+    $vorher = $pdo->prepare('SELECT id, label, source_type, is_official FROM sources WHERE url_hash = :h LIMIT 1');
+    $vorher->execute(['h' => avesmapsFeatureSourceHash($upsertUrl, $upsertWikiKey)]);
+    $bestehendeZeile = $vorher->fetch(PDO::FETCH_ASSOC);
+    $bestehendeZeile = is_array($bestehendeZeile) ? $bestehendeZeile : null;
+    $vorherigeArt = $retype ? (string) ($bestehendeZeile['source_type'] ?? '') : '';
     // ⚠️ Lizenz und Namensnennung reisen mit -- ohne sie kann ausser dem Import niemand etwas
     // eintragen, und das Feld waere Zierde (Owner 27.08.2026).
     $sourceId = avesmapsFeatureSourceUpsert($pdo, $upsertUrl, $label, $type, $official, $userId, $upsertWikiKey, false, $license, $attribution, $retype);
@@ -780,6 +834,17 @@ function avesmapsAddFeatureSource(PDO $pdo, string $entityType, string $publicId
             'to' => $neueArt,
             'label' => $label,
         ];
+    }
+
+    // 🔴 „ANGELEGT oder VERKNUEPFT?" -- die Antwort auf die Frage, die das Adressfeld bis hierher
+    // verschwiegen hat. Gemeldet wird nur der ueberraschende Fall: beim ANLEGEN zeigt die neue Zeile
+    // genau das, was der Editor eingetippt hat, da gibt es nichts zu erklaeren. Beim VERKNUEPFEN
+    // erscheint sie unter dem gespeicherten Titel -- und wer den nicht erwartet, haelt das fuer
+    // einen Fehler. Dieselbe Logik wie bei `retyped` darueber: Schweigen auf dem erwarteten Weg,
+    // Sprache auf dem ueberraschenden.
+    $verknuepft = avesmapsFeatureSourceLinkedReport($bestehendeZeile, $label, $official);
+    if ($verknuepft !== null) {
+        $antwort['linked'] = $verknuepft;
     }
 
     return $antwort;
