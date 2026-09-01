@@ -799,7 +799,17 @@ function avesmapsAddFeatureSource(PDO $pdo, string $entityType, string $publicId
  * es merkt — genau die Richtung, aus der Meldung #105 entstanden ist, nur groesser.
  */
 const AVESMAPS_FEATURE_SOURCE_LINK_FIELDS = ['pages', 'reference_kind'];
-const AVESMAPS_FEATURE_SOURCE_CATALOG_FIELDS = ['label', 'source_type', 'license', 'attribution', 'is_official'];
+/**
+ * 🔴 `url` IST SEIT DEM 01.09.2026 DABEI (Owner: „mach auch, dass die URL korrigiert werden kann").
+ * Hier stand vorher ausdruecklich das Gegenteil -- „die Adresse ist NICHT editierbar, url_hash IST
+ * die Identitaet". Das Argument war richtig und ist es noch; die Folgerung war zu streng. Die
+ * Verknuepfungen zeigen auf `sources.id`, nicht auf den Hash: eine Adresse laesst sich also samt
+ * ihrem Hash umschreiben, und JEDES zitierende Objekt folgt von selbst.
+ * 💣 Was NICHT geht, ist eine Adresse zu nehmen, die schon einer anderen Katalogzeile gehoert --
+ * das waere ein ZUSAMMENLEGEN, und dafuer gibt es `avesmapsMergeSourceInto` samt Protokoll. Der
+ * Upsert wuerde am UNIQUE scheitern; wir sagen es vorher und nennen die andere Zeile.
+ */
+const AVESMAPS_FEATURE_SOURCE_CATALOG_FIELDS = ['url', 'label', 'source_type', 'license', 'attribution', 'is_official'];
 
 /**
  * 💣 DIE ZWEI FELDER, DIE DER WIKI-ABGLEICH SELBST PFLEGT — eine Handkorrektur daran waere eine
@@ -809,8 +819,14 @@ const AVESMAPS_FEATURE_SOURCE_CATALOG_FIELDS = ['label', 'source_type', 'license
  * deshalb gar nicht erst an, statt sie anzunehmen und still zuruecknehmen zu lassen.
  * ⚠️ `source_type`, `license` und `attribution` fasst der Abgleich NICHT an (retype-Vorgabe ist
  * nein, Lizenz und Namensnennung sind fuellend) — die bleiben auch dort aenderbar.
+ *
+ * 🔴 `url` steht aus einem ANDEREN Grund in derselben Liste: bei einer Wiki-Publikation gehoert die
+ * IDENTITAET dem Abgleich. Er rechnet den Hash aus SEINER `chosen_url` (bzw. aus dem `wiki_key`,
+ * wenn es keine gibt) — eine von Hand geaenderte Adresse fuehrt beim naechsten Lauf nicht zu einer
+ * Korrektur, sondern zu einer ZWEITEN Katalogzeile fuer dasselbe Werk. Gleiche Sperre, anderer
+ * Grund; wer die Liste einmal aufteilt, muss beide Gruende mitnehmen.
  */
-const AVESMAPS_FEATURE_SOURCE_WIKI_OWNED_FIELDS = ['label', 'is_official'];
+const AVESMAPS_FEATURE_SOURCE_WIKI_OWNED_FIELDS = ['url', 'label', 'is_official'];
 
 /**
  * Ab wie vielen zitierenden Objekten eine Katalogaenderung ausdruecklich bestaetigt werden muss.
@@ -893,7 +909,7 @@ function avesmapsUpdateFeatureSource(PDO $pdo, string $entityType, string $publi
     }
 
     $catalogStatement = $pdo->prepare(
-        'SELECT label, source_type, is_official, license, attribution, wiki_key FROM sources WHERE id = :sid LIMIT 1'
+        'SELECT url, label, source_type, is_official, license, attribution, wiki_key FROM sources WHERE id = :sid LIMIT 1'
     );
     $catalogStatement->execute(['sid' => $sourceId]);
     $catalog = $catalogStatement->fetch(PDO::FETCH_ASSOC);
@@ -915,6 +931,23 @@ function avesmapsUpdateFeatureSource(PDO $pdo, string $entityType, string $publi
                     return avesmapsFeatureSourceUpdateError(400, 'invalid_request', 'Unbekannte Abdeckung: ' . $kind);
                 }
                 $neu[$name] = $kind;
+                break;
+            case 'url':
+                // 🔴 http(s) UND SONST NICHTS. Die Adresse wird in jeder Infobox als `<a href>`
+                // ausgegeben; ein `javascript:`-Schema waere von dort aus ausfuehrbar. ⚠️ Der
+                // ANLEGE-Weg prueft das bis heute nicht -- das ist eine eigene, aeltere Luecke und
+                // kein Grund, sie hier zu wiederholen.
+                $adresse = trim((string) $wert);
+                if ($adresse === '') {
+                    // Eine leere Adresse ist keine Korrektur: der Hash fiele auf sha256('') und
+                    // koennte mit jeder anderen leeren Zeile kollidieren. URL-lose Quellen entstehen
+                    // ausschliesslich im Wiki-Abgleich, und der ist hier ohnehin gesperrt.
+                    return avesmapsFeatureSourceUpdateError(400, 'invalid_request', 'Die Adresse darf nicht leer sein.');
+                }
+                if (!preg_match('#^https?://#i', $adresse)) {
+                    return avesmapsFeatureSourceUpdateError(400, 'invalid_request', 'Die Adresse muss mit http:// oder https:// beginnen.');
+                }
+                $neu[$name] = $adresse;
                 break;
             case 'label':
                 $label = avesmapsNormalizeSingleLine((string) $wert, 200);
@@ -960,6 +993,7 @@ function avesmapsUpdateFeatureSource(PDO $pdo, string $entityType, string $publi
     $bestand = [
         'pages' => (string) ($link['pages'] ?? ''),
         'reference_kind' => (string) ($link['reference_kind'] ?? ''),
+        'url' => (string) ($catalog['url'] ?? ''),
         'label' => (string) ($catalog['label'] ?? ''),
         'source_type' => (string) ($catalog['source_type'] ?? ''),
         'license' => (string) ($catalog['license'] ?? ''),
@@ -1024,6 +1058,36 @@ function avesmapsUpdateFeatureSource(PDO $pdo, string $entityType, string $publi
         foreach ($katalogAenderungen as $name => $wert) {
             $setzen[] = $name . ' = :' . $name;
             $werte[$name] = $wert;
+        }
+        // 💣 EINE GEAENDERTE ADRESSE ZIEHT IHREN HASH MIT. `url_hash` ist die Identitaet der
+        // Quelle (UNIQUE) und wird aus der Adresse gerechnet -- bliebe er stehen, faende der
+        // naechste Upsert derselben Adresse die Zeile nicht und legte eine zweite an.
+        // 🔴 Gerechnet wird mit `avesmapsFeatureSourceHash`, der EINEN Regel, die auch der Upsert
+        // benutzt. Eine zweite Fassung dieser Zeile spaltet den Katalog.
+        if (array_key_exists('url', $katalogAenderungen)) {
+            $wikiKeyFuerHash = trim((string) ($catalog['wiki_key'] ?? ''));
+            $neuerHash = avesmapsFeatureSourceHash((string) $katalogAenderungen['url'], $wikiKeyFuerHash);
+            // ⚠️ ZUERST FRAGEN, DANN SCHREIBEN. Gehoert die Adresse schon einer anderen Zeile,
+            // waere das ein ZUSAMMENLEGEN und kein Umschreiben -- dafuer gibt es
+            // `avesmapsMergeSourceInto` samt `source_merge_log`. Ohne diese Frage schluege der
+            // UNIQUE zu, und der Editor bekaeme einen nackten Serverfehler statt der Auskunft,
+            // WELCHE Quelle die Adresse schon traegt.
+            $belegt = $pdo->prepare('SELECT id, label FROM sources WHERE url_hash = :h AND id <> :sid LIMIT 1');
+            $belegt->execute(['h' => $neuerHash, 'sid' => $sourceId]);
+            $andere = $belegt->fetch(PDO::FETCH_ASSOC);
+            if (is_array($andere)) {
+                $andererName = trim((string) ($andere['label'] ?? '')) !== ''
+                    ? (string) $andere['label'] : (string) $katalogAenderungen['url'];
+                return avesmapsFeatureSourceUpdateError(
+                    409,
+                    'url_taken',
+                    'Diese Adresse gehoert bereits zur Quelle „' . $andererName . '“. Zwei Quellen mit derselben Adresse '
+                    . 'kann der Katalog nicht fuehren -- die beiden muessen zusammengelegt werden.',
+                    ['conflict_source_id' => (int) $andere['id']]
+                );
+            }
+            $setzen[] = 'url_hash = :url_hash';
+            $werte['url_hash'] = $neuerHash;
         }
         $pdo->prepare('UPDATE sources SET ' . implode(', ', $setzen) . ' WHERE id = :sid')->execute($werte);
     }

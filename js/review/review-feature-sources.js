@@ -219,7 +219,7 @@ function renderFeatureSourceEditPanel(source, escape, tr) {
   const usage = Number(source.usage_count) || 1;
   const wikiOwned = source.wiki_owned === true;
   const feld = (name, wert, markup) =>
-    '<label class="fs-field' + (name === "label" || name === "attribution" ? " fs-field--grow" : "") + '">'
+    '<label class="fs-field' + (name === "url" ? " fs-field--full" : (name === "label" || name === "attribution" ? " fs-field--grow" : "")) + '">'
     + "<span>" + escape(wert) + "</span>" + markup + "</label>";
   const text = (name, wert, platzhalter, gesperrt) =>
     '<input type="text" data-fs-field="' + name + '" data-fs-orig="' + escape(wert) + '"'
@@ -257,7 +257,7 @@ function renderFeatureSourceEditPanel(source, escape, tr) {
   const hinweis = wikiOwned
     ? '<div class="fs-edit__note fs-edit__note--locked">'
       + escape(tr("sources.edit.wikiOwned",
-        "Titel und „offiziell“ pflegt der Wiki-Abgleich. Von Hand geändert, stünde beim nächsten Lauf wieder der Wikiwert da — deshalb sind sie hier fest."))
+        "Adresse, Titel und „offiziell“ gehören bei einer Wiki-Publikation dem Abgleich — von Hand geändert stünde beim nächsten Lauf wieder sein Wert da, und eine geänderte Adresse ergäbe sogar eine zweite Katalogzeile für dasselbe Werk."))
       + "</div>"
     : (usage > FEATURE_SOURCE_CONFIRM_THRESHOLD
       ? '<div class="fs-edit__note">'
@@ -265,11 +265,19 @@ function renderFeatureSourceEditPanel(source, escape, tr) {
         + "</div>"
       : "");
 
+  // 🔴 DIE ADRESSE IST SEIT DEM 01.09.2026 EIN EINGABEFELD (Owner: „mach auch, dass die URL
+  // korrigiert werden kann"). Sie steht in der KATALOG-Haelfte, denn sie gilt ueberall -- und bei
+  // einer Wiki-Publikation ist sie fest, weil dort der Abgleich die Identitaet besitzt.
+  // ⚠️ Sie steht als erstes Feld dieser Haelfte und ueber die volle Breite: eine Adresse ist der
+  // laengste Wert der Zeile (live gemessen bis 120 Zeichen), und in einer halben Spalte sieht man
+  // beim Korrigieren nicht, was man korrigiert.
+  const adresse = wikiOwned
+    ? '<p class="fs-edit__url"><b>' + escape(tr("sources.edit.url", "Adresse:")) + "</b> "
+      + escape(source.url || tr("sources.edit.noUrl", "(ohne Adresse — Wiki-Publikation)"))
+      + "</p>"
+    : "";
   return (
     '<div class="fs-edit" data-fs-edit-panel="' + escape(source.source_id) + '">'
-    + '<p class="fs-edit__url"><b>' + escape(tr("sources.edit.url", "Adresse:")) + "</b> "
-    + escape(source.url || tr("sources.edit.noUrl", "(ohne Adresse — Wiki-Publikation)"))
-    + " — " + escape(tr("sources.edit.urlFixed", "fest")) + "</p>"
     + '<div class="fs-edit__group">'
     + kopf(tr("sources.edit.linkScope", "Nur an diesem Objekt"), "")
     + '<div class="fs-edit__fields">'
@@ -278,7 +286,9 @@ function renderFeatureSourceEditPanel(source, escape, tr) {
     + "</div></div>"
     + '<div class="fs-edit__group">'
     + kopf(tr("sources.edit.catalogScope", "Gilt für alle Objekte, die diese Quelle zitieren"), objekte)
+    + adresse
     + '<div class="fs-edit__fields">'
+    + (wikiOwned ? "" : feld("url", tr("sources.edit.url", "Adresse"), text("url", String(source.url || ""), "https://…", false)))
     + feld("label", tr("sources.colTitle", "Titel"), text("label", String(source.label || ""), "", wikiOwned))
     + feld("source_type", tr("sources.colType", "Quellenart"), auswahl("source_type", String(source.type || "sonstiges"), typEintraege, false))
     + feld("license", tr("sources.colLicense", "Lizenz"), auswahl("license", String(source.license || ""), lizenzEintraege, false))

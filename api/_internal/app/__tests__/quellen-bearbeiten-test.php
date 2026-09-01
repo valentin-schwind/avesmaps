@@ -109,14 +109,13 @@ assert(avesmapsFeatureSourceFieldScope('pages') === 'link', 'Seiten gelten nur a
 $zaehl();
 assert(avesmapsFeatureSourceFieldScope('reference_kind') === 'link', 'die Abdeckung auch');
 $zaehl();
-foreach (['label', 'source_type', 'license', 'attribution', 'is_official'] as $feld) {
+foreach (['url', 'label', 'source_type', 'license', 'attribution', 'is_official'] as $feld) {
     assert(avesmapsFeatureSourceFieldScope($feld) === 'catalog', $feld . ' gilt katalogweit');
     $zaehl();
 }
-assert(avesmapsFeatureSourceFieldScope('url') === '', 'die ADRESSE ist kein Feld dieses Formulars: '
-    . 'url_hash IST die Identitaet der Quelle (UNIQUE). Sie zu aendern ist ein Zusammenlegen '
-    . '(avesmapsMergeSourceInto), kein Bearbeiten.');
-$zaehl();
+// 🔴 Die ADRESSE war am Vormittag des 01.09.2026 noch ausgeschlossen -- mit der Begruendung,
+// `url_hash` sei die Identitaet der Quelle. Die Begruendung stimmt, die Folgerung war zu streng:
+// die Verknuepfungen zeigen auf `sources.id`, nicht auf den Hash. Owner-Entscheid am selben Tag.
 assert(avesmapsFeatureSourceFieldScope('status') === '' && avesmapsFeatureSourceFieldScope('origin') === '',
     'Herkunft und Status gehoeren nicht dem Editor');
 $zaehl();
@@ -229,7 +228,8 @@ $zaehl();
 // ══ 6. Abgelehnt statt geraten ══════════════════════════════════════════════════════════════════
 $pdo = avesmapsQuellenTestPdo(2);
 $faelle = [
-    [['url' => 'https://andere.de'], 'unknown_field', 'die Adresse ist kein Feld dieses Formulars'],
+    [['url' => 'javascript:alert(1)'], 'invalid_request', 'nur http(s): die Adresse wird in jeder Infobox als <a href> ausgegeben'],
+    [['url' => 'beispiel.de/ohne-schema'], 'invalid_request', 'ohne Schema ebenso'],
     [['status' => 'suppressed'], 'unknown_field', 'ein unbekanntes Feld ist ein Fehler, kein stilles Ueberspringen'],
     [[], 'invalid_request', 'ohne Feld gibt es nichts zu tun'],
     [['label' => '   '], 'invalid_request', 'ein LEERER Titel ist keine Korrektur -- die Zeile fiele ueberall auf ihre nackte Adresse zurueck'],
@@ -251,6 +251,73 @@ $pdo2->exec("UPDATE sources SET license = 'unfree' WHERE id = 7");
 $antwort = avesmapsUpdateFeatureSource($pdo2, 'settlement', 'ort-1', 7, ['license' => ''], 9, true);
 assert(($antwort['ok'] ?? false) === true && avesmapsQuellenTestKatalog($pdo2)['license'] === '',
     'eine Lizenz laesst sich auf „nicht erfasst" zuruecknehmen');
+$zaehl();
+
+// ⚠️ Die LEERE Adresse bekommt ihre EIGENE Meldung. Der Schema-Riegel darunter wuerde sie
+// ebenfalls abweisen -- eine Mutationsprobe am 01.09.2026 hat gezeigt, dass eine Pruefung nur auf
+// den Fehlercode diesen Riegel gar nicht misst. Gemessen wird deshalb der TEXT: „muss mit http://
+// beginnen" ist fuer ein leer gelassenes Feld die falsche Auskunft.
+$antwort = avesmapsUpdateFeatureSource($pdo, 'settlement', 'ort-1', 7, ['url' => '   '], 9, true);
+assert(($antwort['ok'] ?? true) === false && $antwort['error']['code'] === 'invalid_request',
+    'eine leere Adresse wird abgelehnt');
+$zaehl();
+assert(str_contains((string) $antwort['error']['message'], 'leer'),
+    'und die Meldung sagt LEER, nicht „muss mit http:// beginnen" -- das waere die falsche Auskunft');
+$zaehl();
+
+// ══ 6b. DIE ADRESSE: sie zieht ihren Hash mit, und eine belegte wird abgelehnt ═════════════════
+// 💣 `url_hash` ist die Identitaet der Quelle. Bliebe er beim Aendern stehen, faende der naechste
+// Upsert derselben Adresse die Zeile nicht und legte eine ZWEITE an -- der Katalog spaltet sich,
+// und zwar lautlos.
+$pdo = avesmapsQuellenTestPdo(3);
+$alterHash = $pdo->query('SELECT url_hash FROM sources WHERE id = 7')->fetchColumn();
+$antwort = avesmapsUpdateFeatureSource($pdo, 'settlement', 'ort-1', 7, ['url' => 'https://beispiel.de/neu'], 9, true);
+assert(($antwort['ok'] ?? false) === true, 'die Adresse laesst sich korrigieren');
+$zaehl();
+$zeile = avesmapsQuellenTestKatalog($pdo);
+assert($zeile['url'] === 'https://beispiel.de/neu', 'und sie steht danach da');
+$zaehl();
+assert($zeile['url_hash'] === hash('sha256', 'https://beispiel.de/neu'),
+    'DER HASH ZIEHT MIT -- sonst legt der naechste Upsert derselben Adresse eine zweite Zeile an');
+$zaehl();
+assert($zeile['url_hash'] !== $alterHash, 'er ist also ein anderer als vorher');
+$zaehl();
+// ⭐ Und ALLE zitierenden Objekte folgen von selbst: die Verknuepfungen zeigen auf `sources.id`,
+// nicht auf den Hash. Genau das macht die Adresse ueberhaupt aenderbar.
+assert(avesmapsFeatureSourceUsageCount($pdo, 7) === 3, 'die drei Verknuepfungen haengen unveraendert dran');
+$zaehl();
+
+// 💣 Eine Adresse, die schon einer ANDEREN Katalogzeile gehoert, waere ein ZUSAMMENLEGEN.
+// Ohne diese Frage schluege der UNIQUE zu, und der Editor bekaeme einen nackten Serverfehler
+// statt der Auskunft, WELCHE Quelle die Adresse schon traegt.
+$pdo->prepare('INSERT INTO sources (id, url, url_hash, label, source_type, is_official, license, attribution)
+    VALUES (8, :u, :h, :l, :t, 0, "", "")')->execute([
+    'u' => 'https://beispiel.de/besetzt', 'h' => hash('sha256', 'https://beispiel.de/besetzt'),
+    'l' => 'Enzyklopaedia Aventurica', 't' => 'quellenband',
+]);
+$antwort = avesmapsUpdateFeatureSource($pdo, 'settlement', 'ort-1', 7, ['url' => 'https://beispiel.de/besetzt'], 9, true);
+assert(($antwort['ok'] ?? true) === false && $antwort['error']['code'] === 'url_taken',
+    'eine belegte Adresse wird abgelehnt, nicht in einen UNIQUE-Fehler gefahren');
+$zaehl();
+assert(str_contains((string) $antwort['error']['message'], 'Enzyklopaedia Aventurica'),
+    'und die Absage NENNT die andere Quelle -- sonst sucht der Editor blind');
+$zaehl();
+assert(avesmapsQuellenTestKatalog($pdo)['url'] === 'https://beispiel.de/neu', 'geschrieben wurde nichts');
+$zaehl();
+// ⚠️ Die eigene Adresse noch einmal zu setzen ist KEINE Kollision -- sonst koennte man ein
+// anderes Feld nicht mehr speichern, solange die Adresse im Formular steht.
+$antwort = avesmapsUpdateFeatureSource($pdo, 'settlement', 'ort-1', 7,
+    ['url' => 'https://beispiel.de/neu', 'label' => 'Anderer Titel'], 9, true);
+assert(($antwort['ok'] ?? false) === true && $antwort['updated']['fields'] === ['label'],
+    'die unveraenderte eigene Adresse loest keine Kollision aus und reist gar nicht erst mit');
+$zaehl();
+
+// 🔴 Bei einer Wiki-Publikation gehoert die IDENTITAET dem Abgleich: er rechnet den Hash aus
+// SEINER chosen_url, eine Handaenderung ergaebe beim naechsten Lauf eine ZWEITE Zeile.
+$pdo = avesmapsQuellenTestPdo(2, 'wiki:x');
+$antwort = avesmapsUpdateFeatureSource($pdo, 'settlement', 'ort-1', 7, ['url' => 'https://beispiel.de/x'], 9, true);
+assert(($antwort['ok'] ?? true) === false && $antwort['error']['code'] === 'wiki_owned_field',
+    'die Adresse einer Wiki-Publikation ist fest');
 $zaehl();
 
 // ══ 7. Fremdes Objekt, fremde Quelle ════════════════════════════════════════════════════════════

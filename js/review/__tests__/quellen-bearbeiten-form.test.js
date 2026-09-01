@@ -104,13 +104,18 @@ const QUELLE = {
 	// 🔴 Ohne die Zahl ist „gilt ueberall" ein Wort ohne Groesse.
 	pruefe(panel.includes("1042"), "und er nennt die Zahl der zitierenden Objekte");
 	pruefe((panel.match(/class="fs-edit__group"/g) || []).length === 2, "genau zwei Bereiche");
-	// 💣 Die Adresse ist NICHT editierbar: url_hash IST die Identitaet der Quelle (UNIQUE).
-	pruefe(!/data-fs-field="url"/.test(panel), "die Adresse ist kein Eingabefeld");
-	pruefe(panel.includes("fest"), "sondern steht als fester Text da");
+	// 🔴 Die Adresse IST seit dem 01.09.2026 ein Eingabefeld (Owner). Sie steht in der
+	// Katalog-Haelfte -- sie gilt ueberall -- und ueber die volle Zeilenbreite, weil sie der
+	// laengste Wert der Zeile ist.
+	pruefe(/data-fs-field="url"/.test(panel), "die Adresse ist ein Eingabefeld");
+	const adressStelle = panel.indexOf('data-fs-field="url"');
+	pruefe(adressStelle > panel.indexOf("Gilt für alle Objekte"),
+		"und sie steht in der KATALOG-Haelfte, nicht bei den Angaben dieses Objekts");
+	pruefe(/fs-field--full/.test(panel), "sie bekommt eine eigene Zeile");
 
 	// Jedes Feld traegt seinen Ausgangswert -- daraus liest der Speichern-Knopf, was sich WIRKLICH
 	// geaendert hat.
-	["pages", "reference_kind", "label", "source_type", "license", "attribution", "is_official"]
+	["pages", "reference_kind", "url", "label", "source_type", "license", "attribution", "is_official"]
 		.forEach((feld) => {
 			pruefe(new RegExp('data-fs-field="' + feld + '"').test(panel), feld + " ist im Kasten");
 			const stelle = panel.indexOf('data-fs-field="' + feld + '"');
@@ -141,6 +146,10 @@ const QUELLE = {
 		const stelle = panel.indexOf('data-fs-field="' + feld + '"');
 		return panel.slice(stelle, panel.indexOf(">", stelle)).includes("disabled");
 	};
+	// 🔴 Bei einer Wiki-Publikation gehoert die IDENTITAET dem Abgleich -- die Adresse wird dort
+	// gar nicht erst als Feld angeboten, sondern nur als Text gezeigt.
+	pruefe(!/data-fs-field="url"/.test(panel), "die Adresse einer Wiki-Publikation ist kein Feld");
+	pruefe(/fs-edit__url/.test(panel), "sie steht dort als Text da");
 	pruefe(feldIstGesperrt("label"), "der Titel ist an einer Wiki-Publikation fest");
 	pruefe(feldIstGesperrt("is_official"), "„offiziell“ ebenso");
 	// 🔴 Die drei anderen Katalogfelder fasst der Abgleich NICHT an.
@@ -151,7 +160,8 @@ const QUELLE = {
 		pruefe(!feldIstGesperrt(feld), feld + " gehoert diesem Objekt, nicht dem Werk");
 	});
 	// ⚠️ Nur ausgegraut waere von einem Fehler nicht zu unterscheiden -- der Grund gehoert daneben.
-	pruefe(panel.includes("Wiki-Abgleich"), "und der Grund steht im Kasten");
+	pruefe(panel.includes("Wiki-Publikation") && panel.includes("Abgleich"),
+		"und der Grund steht im Kasten -- nur ausgegraut waere von einem Fehler nicht zu unterscheiden");
 	pruefe(panel.includes("fs-edit__note--locked"), "als eigener Hinweis, nicht als Warnung");
 }
 
@@ -195,7 +205,7 @@ function felderAusHtml(html) {
 
 {
 	const panel = felderAusHtml(renderFeatureSourceEditPanel(QUELLE, (v) => String(v), (k, f) => f));
-	pruefe(panel._elemente.length === 7, "sieben Formularfelder im Kasten (5 Katalog + 2 Verknuepfung)");
+	pruefe(panel._elemente.length === 8, "acht Formularfelder im Kasten (6 Katalog + 2 Verknuepfung)");
 	// Unberuehrt = NICHTS reist mit. Das ist die ganze Regel.
 	gleich(featureSourceChangedFields(panel), {},
 		"ein unberuehrter Kasten schickt KEIN einziges Feld -- sonst schriebe jedes Speichern alles");
@@ -246,8 +256,16 @@ function felderAusHtml(html) {
 		"die Verknuepfungs-Haelfte sind genau Seiten und Abdeckung");
 	const katalogFelder = php.match(/AVESMAPS_FEATURE_SOURCE_CATALOG_FIELDS = \[([^\]]+)\]/)[1]
 		.match(/'([a-z_]+)'/g).map((s) => s.replace(/'/g, ""));
-	gleich(katalogFelder, ["label", "source_type", "license", "attribution", "is_official"],
-		"und die Katalog-Haelfte die uebrigen fuenf");
+	gleich(katalogFelder, ["url", "label", "source_type", "license", "attribution", "is_official"],
+		"und die Katalog-Haelfte die uebrigen sechs -- die Adresse seit dem 01.09.2026 dabei");
+
+	// 🔴 Und die drei, die einer Wiki-Publikation gehoeren. Zwei davon (Titel, offiziell) schreibt
+	// der Abgleich zurueck; bei der Adresse gehoert ihm die IDENTITAET -- gleiche Sperre, ANDERER
+	// Grund, und wer die Liste je aufteilt, muss beide Gruende mitnehmen.
+	const wikiFelder = php.match(/AVESMAPS_FEATURE_SOURCE_WIKI_OWNED_FIELDS = \[([^\]]+)\]/)[1]
+		.match(/'([a-z_]+)'/g).map((x) => x.replace(/'/g, ""));
+	gleich(wikiFelder, ["url", "label", "is_official"],
+		"Adresse, Titel und offiziell gehoeren bei einer Wiki-Publikation dem Abgleich");
 
 	// 🪤 Der Kasten muss GENAU diese Felder bauen -- keins mehr, keins weniger. Ohne diese
 	// Gegenprobe koennte ein neues Serverfeld im Formular fehlen (unerreichbar) oder ein

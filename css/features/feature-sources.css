@@ -752,6 +752,11 @@
 .fs-edit .fs-field--grow {
 	flex: 1 1 240px;
 }
+/* Die ADRESSE bekommt eine eigene Zeile. Live gemessen wird sie bis 120 Zeichen lang, und in
+   einer halben Spalte sieht man beim Korrigieren nicht, was man korrigiert. */
+.fs-edit .fs-field--full {
+	flex: 1 1 100%;
+}
 .fs-edit input[type="text"],
 .fs-edit select {
 	padding: 5px 8px;
