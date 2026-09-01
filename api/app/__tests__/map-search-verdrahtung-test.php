@@ -31,6 +31,7 @@ require_once __DIR__ . '/../../_internal/app/citymap-search.php';
 require_once __DIR__ . '/../../_internal/app/game-literature-search.php';
 require_once __DIR__ . '/../../_internal/app/lore-search.php';
 require_once __DIR__ . '/../../_internal/app/offmap-search.php';
+require_once __DIR__ . '/../../_internal/wiki/path-naming.php';
 
 $endpunkt = __DIR__ . '/../map-search.php';
 $quelle = (string) file_get_contents($endpunkt);

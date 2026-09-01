@@ -13,6 +13,9 @@ require_once __DIR__ . '/../_internal/app/citymap-search.php';
 require_once __DIR__ . '/../_internal/app/game-literature-search.php';
 require_once __DIR__ . '/../_internal/app/lore-search.php';
 require_once __DIR__ . '/../_internal/app/offmap-search.php';
+// Traegt avesmapsWikiPathNameIsGeneric -- den Riegel gegen maschinelle Wegenamen (s. u.).
+// Abhaengigkeitsfrei, zieht also nichts vom Wiki-Sync-Stapel in diesen heissen Endpunkt.
+require_once __DIR__ . '/../_internal/wiki/path-naming.php';
 
 const AVESMAPS_MAP_SEARCH_MAX_LIMIT = 20;
 // The map section is capped independently of the 20-result limit, so maps never displace map objects.
@@ -464,22 +467,41 @@ function avesmapsBuildSearchEntry(array $row): ?array {
     }
 
     if ($featureType === 'path') {
-        // Spotlight-Policy (Betreiber-Entscheid 2026-07-05): NUR wiki-verlinkte Wege sind suchbar.
-        // Der Wege-Link ist das properties.wiki_path-Objekt (api/_internal/wiki/paths.php); show_label
-        // zaehlt NICHT mehr (Generik-Namen wie "Reichsstrasse-4903" standen sonst in der Suche).
+        // 🔴 SUCHBAR IST EIN WEG, DER EINEN LESBAREN NAMEN HAT -- seit 01.09.2026, Owner-Meldung
+        // „der goblinpfad ist ein manuell angelegter weg mit namen der aber nicht in der suche
+        // auftaucht". Davor war der Riegel „NUR wiki-verlinkte Wege" (Betreiber-Entscheid
+        // 2026-07-05), und der warf mit den Generik-Namen die von Hand benannten gleich mit hinaus:
+        // ein selbst angelegter „Goblinpfad" ohne Wiki-Artikel war ueber die Suche unerreichbar.
+        // 💣 Der GRUND jenes Entscheids bleibt in Kraft -- „Reichsstrasse-4903" gehoert nicht in
+        // die Suche. Nur wird er jetzt am NAMEN gemessen statt am Wiki-Link, und das ist die Frage, die
+        // damals gemeint war. show_label zaehlt weiterhin nicht.
         // ACHTUNG: das top-level wiki_url ist ein angereicherter Namens-Match gegen wiki_sync_pages
         // (map-features.php) und steht NICHT im rohen properties_json -> nicht darauf pruefen.
         $wikiPath = is_array($properties['wiki_path'] ?? null) ? $properties['wiki_path'] : [];
-        if ($wikiPath === []) {
-            return null;
-        }
 
         // R1: der Wiki-Weg benennt den Weg. Altbestaende koennen noch Random-Segmentnamen tragen
         // (z.B. "Reichsstrasse-16" -> Wiki "Reichsstraße 2"); Anzeige + Gruppierung nutzen daher
         // den Wiki-Namen, damit alle Segmente eines Wegs EINE Suchgruppe mit echtem Namen bilden.
         $displayName = avesmapsNormalizeSingleLine((string) ($wikiPath['name'] ?? ''), 160);
         if ($displayName === '') {
-            $displayName = avesmapsNormalizeSingleLine((string) ($properties['display_name'] ?? $properties['original_name'] ?? $name), 160);
+            // 💣 ZEICHENGLEICH ZU getPathTitleName (js/map-features/map-features-path-domain.js):
+            // dieselben zwei Felder in derselben Reihenfolge, danach derselbe Muell-Test. Der Browser
+            // baut seinen Spotlight-Index mit JENER Funktion, und was er dort nicht findet, verwirft
+            // resolveBackendSpotlightEntries STILL -- ein grosszuegigerer Server liefert dann Treffer,
+            // die im Fenster nie erscheinen. Wer hier ein drittes Feld ergaenzt, ergaenzt es dort mit.
+            $ownName = avesmapsNormalizeSingleLine((string) ($properties['display_name'] ?? $properties['original_name'] ?? ''), 160);
+            // 💣 GEMESSEN WIRD GEGEN DIE EIGENE WEGART, nicht gegen alle acht -- sonst faellt ein
+            // Pfad namens „Weg" hier heraus, waehrend die Karte ihn zeichnet und der Browser ihn
+            // indiziert (normalizePathSubtype nimmt in shouldShowRoutePathDisplayName die Wegart DIESES
+            // Wegs). Der Unterschied ist genau ein Wort und war beim Bauen schon einmal falsch.
+            // ⚠️ Bei unbekannter oder leerer Wegart die volle Liste: der Browser leitet sie
+            // dann aus dem NAMEN ab, und die volle Liste trifft dieselben Faelle.
+            $nameSubtypes = in_array($featureSubtype, AVESMAPS_PATH_SUBTYPE_KEYS, true)
+                ? [$featureSubtype]
+                : AVESMAPS_PATH_SUBTYPE_KEYS;
+            if ($ownName !== '' && !avesmapsWikiPathNameIsGeneric($ownName, $nameSubtypes)) {
+                $displayName = $ownName;
+            }
         }
         if ($displayName === '') {
             return null;

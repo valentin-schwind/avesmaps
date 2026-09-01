@@ -32,7 +32,10 @@ require_once __DIR__ . '/core.php';
 require_once __DIR__ . '/../app/ecosystem-label-link.php';
 
 // PATH_SUBTYPE_KEYS as they appear in map_features.feature_subtype (AGENTS.md §2).
-const AVESMAPS_CONFLICT_PATH_SUBTYPES = ['Pfad', 'Weg', 'Gebirgspass', 'Strasse', 'Reichsstrasse', 'Seeweg', 'Flussweg', 'Wuestenpfad'];
+// 💣 Seit 01.09.2026 keine Abschrift mehr, sondern die kanonische Liste aus
+// api/_internal/wiki/path-naming.php (ueber core.php geladen). Der eigene Name bleibt, weil ihn
+// die Regeln dieser Datei tragen -- der INHALT hat nur noch eine Quelle.
+const AVESMAPS_CONFLICT_PATH_SUBTYPES = AVESMAPS_PATH_SUBTYPE_KEYS;
 
 // Which feature_type maps to which conflict-party type. Crossings/junctions carry no wiki identity.
 const AVESMAPS_CONFLICT_FEATURE_TYPES = [

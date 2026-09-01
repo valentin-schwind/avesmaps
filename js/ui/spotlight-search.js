@@ -1130,45 +1130,56 @@ function buildSpotlightRegionEntries() {
 }
 
 function buildSpotlightPathEntries() {
-	// Spotlight-Policy (Betreiber-Entscheid 2026-07-05): NUR wiki-verlinkte Wege sind suchbar --
-	// show_label zaehlt nicht mehr (sonst standen Generik-Namen wie "Reichsstrasse-4903" in der
-	// Suche). Gruppiert wird ueber die Weg-Identitaet wiki_key mit dem Wiki-Namen als Anzeige
+	// 🔴 SUCHBAR IST EIN WEG, DER EINEN LESBAREN NAMEN HAT -- seit 01.09.2026 (Owner: „der goblinpfad
+	// ist ein manuell angelegter weg mit namen der aber nicht in der suche auftaucht ... auch fuer
+	// alle anderen manuell umbenannte objekte"). Davor stand hier
+	// `.filter((path) => !!path?.properties?.wiki_path)` -- die Spotlight-Policy vom 2026-07-05,
+	// „NUR wiki-verlinkte Wege". Ihr Zweck waren die Generik-Namen ("Reichsstrasse-4903"), aber der
+	// Wiki-Link ist dafuer das falsche Mass: er warf jeden von Hand angelegten Weg gleich mit hinaus.
+	// 💣 DER TEST IST getPathTitleName (js/map-features/map-features-path-domain.js), und zwar GENAU
+	// DER, mit dem die Karte den Namen eines Wegs schon ZEICHNET (map-features-path-rendering.js) und
+	// ihn in „Was ist hier?" nennt. Die Suche ist damit keine eigene Regel mehr, sondern dieselbe:
+	// was auf der Karte einen Namen traegt, ist auffindbar. Er liest zuerst den Wiki-Namen und faellt
+	// sonst auf display_name/original_name zurueck -- aber nur, wenn shouldShowRoutePathDisplayName
+	// den Namen fuer echt haelt (nackter Wegtyp, `<Wegtyp>-<n>` und `<wort>-<zahl>` sind keiner).
+	// ⚠️ Serverseitig gespiegelt in api/app/map-search.php (avesmapsWikiPathNameIsGeneric). Beide
+	// Seiten muessen dasselbe sagen: was der Server anbietet und dieser Index nicht kennt, verwirft
+	// resolveBackendSpotlightEntries STILL -- der Treffer erschiene nie im Fenster.
+	// Gruppiert wird ueber die Weg-Identitaet wiki_key mit dem Wiki-Namen als Anzeige
 	// (Altbestaende koennen noch Random-Segmentnamen tragen), und die Gruppe enthaelt ALLE
 	// Segmente des Wegs -- Auswahl highlightet/zoomt damit den ganzen Weg, nicht nur die
 	// gelabelten Teilstuecke.
 	const pathGroups = new Map();
-	pathData
-		.filter((path) => !!path?.properties?.wiki_path)
-		.forEach((path) => {
-			const wikiPath = path.properties.wiki_path;
-			const displayName = String(wikiPath.name || getPathDisplayName(path) || "").trim();
-			if (!displayName) {
-				return;
-			}
+	pathData.forEach((path) => {
+		const wikiPath = path?.properties?.wiki_path || {};
+		const displayName = typeof getPathTitleName === "function" ? getPathTitleName(path) : "";
+		if (!displayName) {
+			return;
+		}
 
-			const subtype = normalizePathSubtype(path.properties?.feature_subtype || path.properties?.name);
-			const groupKey = getSpotlightPathGroupKeyForPath(path, subtype);
-			if (!pathGroups.has(groupKey)) {
-				pathGroups.set(groupKey, {
-					id: `path:${groupKey}`,
-					kind: "path",
-					name: displayName,
-					typeLabel: getSpotlightPathTypeLabel(subtype),
-					subtype,
-					publicIds: [],
-					paths: [],
-					bounds: null,
-					aliases: [subtype, wikiPath.wiki_url],
-				});
-			}
+		const subtype = normalizePathSubtype(path.properties?.feature_subtype || path.properties?.name);
+		const groupKey = getSpotlightPathGroupKeyForPath(path, subtype);
+		if (!pathGroups.has(groupKey)) {
+			pathGroups.set(groupKey, {
+				id: `path:${groupKey}`,
+				kind: "path",
+				name: displayName,
+				typeLabel: getSpotlightPathTypeLabel(subtype),
+				subtype,
+				publicIds: [],
+				paths: [],
+				bounds: null,
+				aliases: [subtype, wikiPath.wiki_url],
+			});
+		}
 
-			const group = pathGroups.get(groupKey);
-			group.paths.push(path);
-			if (getPathPublicId(path)) {
-				group.publicIds.push(getPathPublicId(path));
-			}
-			group.bounds = extendSpotlightBounds(group.bounds, getSpotlightPathBounds(path));
-		});
+		const group = pathGroups.get(groupKey);
+		group.paths.push(path);
+		if (getPathPublicId(path)) {
+			group.publicIds.push(getPathPublicId(path));
+		}
+		group.bounds = extendSpotlightBounds(group.bounds, getSpotlightPathBounds(path));
+	});
 
 	return Array.from(pathGroups.values());
 }

@@ -21,6 +21,11 @@ declare(strict_types=1);
  * comments.
  */
 
+// Die einzige Abhaengigkeit dieser Datei, und sie bricht die Reinheit nicht: path-naming.php ist
+// selbst abhaengigkeitsfrei (kein PDO, kein HTTP, keine Globals) und traegt die Wegenamen-Regeln,
+// darunter avesmapsWikiPathNameIsGeneric fuer avesmapsConflictPathNameIsAuto weiter unten.
+require_once __DIR__ . '/../wiki/path-naming.php';
+
 // Severity. Drives grouping and colour, never behaviour.
 const AVESMAPS_CONFLICT_ERROR = 'error';            // provably wrong
 const AVESMAPS_CONFLICT_DIVERGENCE = 'divergence';  // a decision is needed, not necessarily wrong
@@ -220,27 +225,21 @@ function avesmapsConflictSharedWikiVerdict(array $types): string {
  * cannot have a wiki counterpart, so it must never reach the watchlist -- 2448 of 3721 linkless
  * ways are exactly this.
  *
+ * 💣 Die Regel steht NICHT mehr hier, sondern bei ihrem Erzeuger: avesmapsWikiPathNameIsGeneric()
+ * in api/_internal/wiki/path-naming.php. Seit 01.09.2026 fragt die Kartensuche dieselbe Frage
+ * ("hat diesen Weg ein Mensch benannt?"), und zwei Fassungen einer Frage in derselben Sprache sind
+ * genau der Fehler, den dieses Haus mehrfach bezahlt hat. Diese Funktion bleibt als NAME der
+ * Konfliktzentrale stehen -- §6b spricht von "auto-names", und ihre 2448 sind hier gemessen.
+ *
+ * ⚠️ Damit kennt die Beobachtungsliste seit 01.09.2026 ein drittes Muster: ein allgemeines
+ * `<wort>-<zahl>` ohne Leerzeichen ("Meer-835") gilt jetzt ebenfalls als maschinell. Das ist
+ * dieselbe Aussage, die §6b schon macht ("can never match a wiki page"), nur vollstaendiger --
+ * die Liste wird dadurch kuerzer, nie laenger. Ungemessen am Livebestand (kein Zugriff von hier).
+ *
  * @param list<string> $subtypes the known path subtypes (PATH_SUBTYPE_KEYS)
  */
 function avesmapsConflictPathNameIsAuto(string $name, array $subtypes): bool {
-    $name = trim($name);
-    if ($name === '') {
-        return true; // no name at all is not something an editor can look up either
-    }
-    foreach ($subtypes as $subtype) {
-        $subtype = trim((string) $subtype);
-        if ($subtype === '') {
-            continue;
-        }
-        if ($name === $subtype) {
-            return true;
-        }
-        if (preg_match('/^' . preg_quote($subtype, '/') . '-\d+$/u', $name) === 1) {
-            return true;
-        }
-    }
-
-    return false;
+    return avesmapsWikiPathNameIsGeneric($name, $subtypes);
 }
 
 /**

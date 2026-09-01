@@ -83,3 +83,49 @@ function avesmapsWikiPathNextGenericNameSequence(array $rowSubtypes, array $exis
 
     return $names;
 }
+
+// PATH_SUBTYPE_KEYS (js/config.js) fuer PHP. Hier, weil diese Datei die Wegenamen-Regeln
+// traegt und abhaengigkeitsfrei ist -- die Konfliktzentrale las bis 01.09.2026 eine eigene
+// Abschrift.
+// ⚠️ Die Liste in avesmapsReadPathSubtype (api/_internal/map/features.php) ist bewusst NICHT
+// dieselbe: das ist der SCHREIB-Riegel, und sein Kommentar begruendet, warum er eine eigene
+// Kopie bleibt.
+const AVESMAPS_PATH_SUBTYPE_KEYS = ['Reichsstrasse', 'Strasse', 'Weg', 'Pfad', 'Gebirgspass', 'Wuestenpfad', 'Flussweg', 'Seeweg'];
+
+// Ist dieser Wegname MASCHINELL? Drei Muster, und alle drei muessen hier stehen:
+//   1. der nackte Wegtyp ("Flussweg") -- kein Name, nur eine Art
+//   2. `<Wegtyp>-<n>` -- genau das, was avesmapsWikiPathNextGenericName oben erzeugt
+//   3. `<wort>-<zahl>` allgemein ("Meer-835") -- der Praefix muss nicht der Wegtyp sein
+//
+// 💣 DIE SPIEGELUNG IST TRAGEND: dies ist die PHP-Fassung von shouldShowRoutePathDisplayName
+// (js/routing/route-node.js), und beide Seiten muessen dieselben drei Muster kennen. Der Server
+// entscheidet, was die Kartensuche ANBIETET, der Browser, was er dazu im Index findet -- ist der
+// Server grosszuegiger, faellt sein Treffer beim Aufloesen still weg (resolveBackendSpotlightEntries
+// verwirft, was es lokal nicht gibt), und das sieht wie ein kaputter Klick aus, nicht wie eine Regel.
+// ⚠️ Muster 3 ist der Grund, warum Muster 2 trotzdem einzeln dasteht: es faengt genau den Fall,
+// den der Erzeuger oben baut, und stirbt nicht mit, wenn Muster 3 je enger gefasst wird.
+//
+// @param list<string>|null $subtypes die bekannten Wegarten; null = AVESMAPS_PATH_SUBTYPE_KEYS
+function avesmapsWikiPathNameIsGeneric(string $name, ?array $subtypes = null): bool {
+    $name = trim($name);
+    if ($name === '') {
+        return true; // kein Name ist auch keiner, den jemand nachschlagen kann
+    }
+
+    foreach ($subtypes ?? AVESMAPS_PATH_SUBTYPE_KEYS as $subtype) {
+        $subtype = trim((string) $subtype);
+        if ($subtype === '') {
+            continue;
+        }
+        if ($name === $subtype) {
+            return true;
+        }
+        if (preg_match('/^' . preg_quote($subtype, '/') . '-\d+$/u', $name) === 1) {
+            return true;
+        }
+    }
+
+    // Muster 3. `\S+` heisst: KEIN Leerzeichen -- "Weg-17 nach Gareth" ist ein Name, den jemand
+    // getippt hat, und bleibt einer.
+    return preg_match('/^\S+-\d+$/u', $name) === 1;
+}
