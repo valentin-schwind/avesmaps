@@ -1,6 +1,6 @@
-# Das Wirt-Register — eine Quelle je Briefspiel, die Seite an der Verknüpfung
+# Bekannte Quellen — eine Quelle je Briefspiel, die Seite an der Verknüpfung
 
-**Entwurf, 01.09.2026.** Mockup: `docs/quellen-wirt-register-mockup.html`
+**Entwurf, 01.09.2026.** Mockup: `docs/bekannte-quellen-mockup.html`
 Anlass: Owner-Frage — „ich bräuchte Ideen, wie ich die Briefspieler dazu bringen kann, genaue
 Links zu hinterlegen und konsistente Bezeichner für ihre Quellen zu wählen."
 
@@ -24,9 +24,9 @@ Live gemessen am 01.09.2026 (eine Anfrage an `map-features.php`):
   **219 wörtlich „Briefspiel"**, 81 „AlmadaWiki", 52 „Albernisches Briefspiel".
 - **35 Katalogzeilen haben gar keinen Titel** und zeigen ihre nackte Adresse.
 
-Je Wirt:
+Je Domain:
 
-| Wirt | Katalogzeilen | verschiedene Titel | Objekte | Typen |
+| Domain | Katalogzeilen | verschiedene Titel | Objekte | Typen |
 |---|---|---|---|---|
 | herzogtum-weiden.net | **200** | 4 | 286 | 190 × `sonstiges`, 10 × `briefspiel` |
 | wiki.punin.de | 115 | 6 | 158 | 86 × `sonstiges`, 29 × `briefspiel` |
@@ -48,13 +48,18 @@ steht als Quellenname im Katalog.
 
 ---
 
-## 2 · Die Ursache — und sie steht schon aufgeschrieben
+## 2 · Die Ursache
 
-`api/_internal/import/garetien-uebernahme.php` sagt es wörtlich:
+Ein Kommentar in `api/_internal/import/garetien-uebernahme.php` beschreibt das Ziel bereits richtig:
 
 > „die Beschriftung nennt das **Briefspiel**, die Adresse den **Artikel**"
 
-Das ist genau richtig. Nur liegt die Artikeladresse in `sources.url` — und `url_hash` **IST** die
+⚠️ Das ist **kein Beleg, sondern eine Beobachtung**: der Kommentar stammt selbst aus einem
+Agenten-Commit (`a95bed8fc`, Co-Authored-By: Claude), wie fast alle deutschen Kommentare hier. „Das
+Haus macht es so" trägt als Argument nur, solange es auf eine Entscheidung des Owners oder auf eine
+Messung zurückgeht — nicht auf früheren Agententext. Was hier trägt, sind die Zahlen aus §1.
+
+Der Satz beschreibt das Ziel dennoch genau. Nur liegt die Artikeladresse in `sources.url` — und `url_hash` **IST** die
 Identität der Katalogzeile (UNIQUE). Aus einem Briefspiel mit 200 Artikeln werden damit nicht
 *eine* Quelle mit 200 Fundstellen, sondern **200 Quellen**, die alle denselben Namen tragen wollen.
 
@@ -84,13 +89,13 @@ feature_sources  = welches Objekt + pages + ref_url   ← neu: die Fundstelle
 beim Wiki die Seite. `pages` und `ref_url` beantworten dieselbe Frage: *wo genau in dieser Quelle*.
 Eine selbstheilende Spalte am selben Ort, an dem `pages` und `note` schon stehen.
 
-**Wirkung:** 425 Katalogzeilen → **9** (eine je Wirt), 599 Verknüpfungen bleiben unverändert.
+**Wirkung:** 425 Katalogzeilen → **9** (eine je Domain), 599 Verknüpfungen bleiben unverändert.
 Die Mehrdeutigkeit verschwindet **von selbst** — es gibt nur noch eine Zeile zum Auswählen.
 Lizenz und Namensnennung stehen einmal statt 200-mal (die Lehre aus dem Lore-Rückbau, AGENTS.md §5).
 
 ### 3.1 Das Register
 
-Eine Zuordnung **Wirt → Quelle**, plus was der Wirt festlegt:
+Eine Zuordnung **Domain → Quelle**, plus was die Domain festlegt:
 
 | Feld | Beispiel |
 |---|---|
@@ -100,11 +105,11 @@ Eine Zuordnung **Wirt → Quelle**, plus was der Wirt festlegt:
 | `is_official` | nein |
 | `license` / `attribution` | (wie heute an der Quelle) |
 
-🔴 **Neun Wirte decken 425 von 455 externen Zeilen.** Der Rest bleibt der freie Weg.
+🔴 **Neun Domains decken 425 von 455 externen Zeilen.** Der Rest bleibt der freie Weg.
 
 ### 3.2 Was der Editor noch tut
 
-Er fügt eine Adresse ein. Ist ihr Wirt bekannt:
+Er fügt eine Adresse ein. Ist ihre Domain bekannt:
 
 - Name, Typ, Kanon, Lizenz und Namensnennung werden **gesetzt und gesperrt** — er wählt gar
   keinen Namen mehr, kann also keinen falschen treffen und hat keinen Grund, einen neuen anzulegen.
@@ -116,7 +121,7 @@ Er fügt eine Adresse ein. Ist ihr Wirt bekannt:
 Wiki-Publikationen — eine Adresse wird zur bekannten Identität aufgelöst. Dies ist dieselbe Weiche
 für den anderen Fall, kein zweites System.
 
-Bei **unbekanntem** Wirt bleibt alles wie heute, mit einer Rückfrage: „Ist das ein neues Briefspiel
+Bei einer **unbekannten** Domain bleibt alles wie heute, mit einer Rückfrage: „Ist das ein neues Briefspiel
 oder Wiki? Dann trag es einmal als Quelle ein — danach genügt der Link." So wächst das Register
 durch Benutzung, statt gepflegt werden zu müssen.
 
@@ -128,11 +133,11 @@ durch Benutzung, statt gepflegt werden zu müssen.
 das sind **Werke**, keine Belegseiten: „Mutterglück", „Das Erbe von Blaustein", „Kosch
 (Regionalspielhilfe)", fünf davon offiziell. Ihre Adresse ist zufällig ein Wikiartikel, aber die
 Identität ist der Titel. Sie zusammenzulegen zerstörte 19 Werke zu einer Zeile. ⚠️ Die Regel ist
-also **nicht** „ein Wirt, eine Quelle", sondern „ein Wirt, dessen Seiten BELEGSTELLEN sind" — und
-das entscheidet ein Mensch je Wirt, nicht ein Muster.
+also **nicht** „eine Domain, eine Quelle", sondern „eine Domain, deren Seiten BELEGSTELLEN sind" — und
+das entscheidet ein Mensch je Domain, nicht ein Muster.
 
-💣 **Der Wirt allein reicht als Schlüssel nicht ewig.** `horaswiki.de` und `wiki.horaswiki.de`
-stehen heute als zwei Wirte da, sind aber dasselbe Angebot. Das Register muss mehrere Wirte auf
+💣 **Die Domain allein reicht als Schlüssel nicht ewig.** `horaswiki.de` und `wiki.horaswiki.de`
+stehen heute als zwei Domains da, sind aber dasselbe Angebot. Das Register muss mehrere Domains auf
 dieselbe Quelle zeigen lassen dürfen — sonst entsteht die Doppelung neu, nur eine Ebene höher.
 
 💣 **`is_official` überschreibt der Upsert UNBEDINGT.** Setzt das Register den Kanon, muss es ihn
@@ -156,7 +161,7 @@ Zahl „20 verschiedene Titel" die leeren nicht mitzählt.
 🔴 **Der zweite Schritt ist der riskante.** Das Zusammenlegen fasst **416 Katalogzeilen** an. Es
 gibt dafür `avesmapsMergeSourceInto` samt `source_merge_log` — es ist der einzige Schreibweg mit
 Protokoll, und er ist genau dafür gebaut. Trotzdem: erst Register und Fundstelle live, damit alles
-NEUE richtig entsteht; das Aufräumen danach, wirtweise, mit Vorschau.
+NEUE richtig entsteht; das Aufräumen danach, domainweise, mit Vorschau.
 
 ---
 
@@ -164,9 +169,9 @@ NEUE richtig entsteht; das Aufräumen danach, wirtweise, mit Vorschau.
 
 1. **Fundstelle** (`feature_sources.ref_url`) + Feld in der Eingabezeile + Anzeige.
    Wirkt sofort, ändert nichts am Bestand.
-2. **Wirt-Register** — Auflösung beim Einfügen, gesperrte Felder, Rückmeldung.
+2. **Register bekannter Quellen** — Auflösung beim Einfügen, gesperrte Felder, Rückmeldung.
    Ab hier entsteht nichts Falsches mehr.
-3. **Zusammenlegen je Wirt**, mit Vorschau und Protokoll. 416 Zeilen, neun Läufe.
+3. **Zusammenlegen je Domain**, mit Vorschau und Protokoll. 416 Zeilen, neun Läufe.
 
 🔧 **Offene Fragen für den Owner:**
 - Wie heißen die neun Quellen? Vorschlag aus dem Bestand: *Briefspiel (Weiden)*, *AlmadaWiki*,
@@ -174,5 +179,5 @@ NEUE richtig entsteht; das Aufräumen danach, wirtweise, mit Vorschau.
   Liebliches Feld*, *Horas-Wiki*, *Orkenspalter*. Bei Káhet/Kâhet steht 9:7 — hier entscheidest du.
 - Soll das Register eine Tabelle sein oder eine Konstante im Code? Neun Zeilen, die sich selten
   ändern — eine Konstante wäre ehrlich; eine Tabelle erlaubt Editoren, sie selbst zu erweitern.
-- Bleibt der freie Weg (eigener Name, eigene Adresse) für unbekannte Wirte offen? Der Entwurf sagt
+- Bleibt der freie Weg (eigener Name, eigene Adresse) für unbekannte Domains offen? Der Entwurf sagt
   ja — sonst kann niemand ein neues Briefspiel eintragen.

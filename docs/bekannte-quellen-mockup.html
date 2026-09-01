@@ -1,4 +1,4 @@
-<title>Wirt-Register und Fundstelle (Mockup)</title>
+<title>Bekannte Quellen und Fundstelle (Mockup)</title>
 <style>
 /* Farbwerte 1:1 aus css/base/tokens.css. */
 :root{--panel:#fffdf9;--panel-soft:#faf6ee;--panel-muted:#f1ece1;--text:#2e271e;--text-strong:#3c3327;
@@ -75,8 +75,8 @@ border-radius:0 var(--radius-sm) var(--radius-sm) 0;background:var(--panel-soft)
 <button class="sw" onclick="document.documentElement.setAttribute('data-theme',
 document.documentElement.getAttribute('data-theme')==='dark'?'light':'dark')">Hell / Dunkel</button>
 
-<h1>Wirt-Register und Fundstelle</h1>
-<p>Entwurf: <code>docs/superpowers/specs/2026-09-01-quellen-wirt-register-design.md</code></p>
+<h1>Bekannte Quellen und Fundstelle</h1>
+<p>Entwurf: <code>docs/superpowers/specs/2026-09-01-bekannte-quellen-design.md</code></p>
 
 <h2>1 · Das Problem, in einem Bild</h2>
 <p>Das Modell zwingt den Editor zu einer Wahl zwischen zwei Fehlern — <strong>beide sind live</strong>:</p>
@@ -112,45 +112,74 @@ document.documentElement.getAttribute('data-theme')==='dark'?'light':'dark')">He
 </div>
 
 <h2>2 · Die Eingabezeile mit Register</h2>
+<p>Die echte Zeile trägt <strong>acht</strong> Felder. Keines verschwindet — bei bekannter Domain
+werden fünf davon <em>gefüllt und gesperrt</em>, weil sie der Quelle gehören und nicht dieser
+Verknüpfung.</p>
 
-<h3>Bekannter Wirt — der Editor wählt keinen Namen mehr</h3>
+<h3>Bekannte Domain — fünf Felder kommen aus der Quelle</h3>
 <div class="wirt">
 	<div class="fs-add">
 		<label class="f f--full"><span>Adresse der Fundstelle</span>
 			<input type="text" value="https://www.herzogtum-weiden.net/politik/liste-st/staedte/herzogenstadt-trallop"></label>
-		<label class="f f--grow"><span>Quelle <span class="lock">· vom Wirt gesetzt</span></span>
+		<label class="f f--grow"><span>Quellenname <span class="lock">· aus der Quelle</span></span>
 			<input type="text" value="Briefspiel (Weiden)" disabled></label>
-		<label class="f"><span>Art <span class="lock">· gesetzt</span></span>
+		<label class="f"><span>Seite(n)</span><input type="text" size="9" placeholder="optional"></label>
+		<label class="f"><span>Art <span class="lock">· aus der Quelle</span></span>
 			<select disabled><option>Briefspiel</option></select></label>
-		<label class="f"><span>Kanon <span class="lock">· gesetzt</span></span>
-			<select disabled><option>Inoffiziell</option></select></label>
-		<label class="f"><span>Seite(n)</span><input type="text" size="8" placeholder="optional"></label>
+		<label class="f"><span>Abdeckung</span>
+			<select><option>Standardquelle</option><option>Ausführlich</option><option>Ergänzend</option><option>Nur Erwähnung</option></select></label>
+		<label class="f"><span>Lizenz <span class="lock">· aus der Quelle</span></span>
+			<select disabled><option>CC BY-NC-SA 3.0</option></select></label>
+		<label class="f f--grow"><span>Namensnennung <span class="lock">· aus der Quelle</span></span>
+			<input type="text" value="herzogtum-weiden.net" disabled></label>
+		<label class="f" style="align-self:end;padding-bottom:5px">
+			<span style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-muted)">
+			<input type="checkbox" disabled> offiziell <span class="lock">· aus der Quelle</span></span></label>
 		<button class="btn">Hinzufügen</button>
 	</div>
-	<div class="note note--ok">✓ <strong>herzogtum-weiden.net</strong> ist im Register:
-		<strong>Briefspiel (Weiden)</strong>, Briefspiel, inoffiziell, CC BY-NC-SA 3.0 · herzogtum-weiden.net.
-		Deine Adresse wird als <strong>Fundstelle</strong> an diesem Ort gespeichert.</div>
+	<div class="note note--ok">✓ <strong>herzogtum-weiden.net</strong> ist bekannt:
+		<strong>Briefspiel (Weiden)</strong> · Briefspiel · inoffiziell · CC BY-NC-SA 3.0 ·
+		herzogtum-weiden.net. Deine Adresse wird als <strong>Fundstelle</strong> an diesem Ort gespeichert.</div>
 </div>
-<p>🔴 <strong>Name, Art, Kanon, Lizenz und Nennung sind gesetzt und gesperrt.</strong> Er kann
-keinen falschen treffen und hat keinen Grund, einen neuen anzulegen. Übrig bleibt genau ein Feld,
-das er füllt — <strong>die Fundstelle</strong>. Damit ist der präzise Link nicht mehr die Kür,
-sondern das Einzige, wonach das Formular fragt.</p>
+<p>🔴 <strong>Fünf Felder gehören der QUELLE, drei der VERKNÜPFUNG.</strong> Quellenname, Art,
+Lizenz, Namensnennung und „offiziell" beschreiben das Briefspiel — sie stehen einmal dort und
+gelten überall. Fundstelle, Seite(n) und Abdeckung beschreiben <em>diesen</em> Beleg. Genau
+dieselbe Trennung, die der Bearbeiten-Kasten seit dem 01.09.2026 zeigt.</p>
+<p>💣 <strong>Gesperrt, nicht weggelassen.</strong> Ein verschwundenes Feld liest sich wie ein
+Verlust; ein gefülltes graues Feld sagt „das ist schon beantwortet, und zwar so". Und es zeigt dem
+Editor, welche Lizenz er gerade mit übernimmt — heute muss er sie je Zeile selbst richtig
+ankreuzen.</p>
+<p>⚠️ <strong>Wer die gesperrten Werte korrigieren will</strong>, tut das an der Quelle selbst —
+über das <code>✎</code> in der Quellenliste. Dort steht dann auch, an wie vielen Objekten die
+Änderung wirkt. Ein zweiter Änderungsweg in der Eingabezeile wäre genau die Doppelung, die dieses
+Register beseitigen soll.</p>
 
-<h3>Unbekannter Wirt — der freie Weg bleibt</h3>
+<h3>Unbekannte Domain — die Zeile von heute, unverändert</h3>
 <div class="wirt">
 	<div class="fs-add">
-		<label class="f f--full"><span>Adresse der Fundstelle</span>
+		<label class="f f--full"><span>Adresse</span>
 			<input type="text" value="https://wiki.beispiel-briefspiel.de/Ort_Nordhag"></label>
-		<label class="f f--grow"><span>Quelle</span><input type="text" placeholder="Name des Briefspiels / Wikis"></label>
-		<label class="f"><span>Art</span><select><option>Art …</option><option>Briefspiel</option></select></label>
-		<label class="f"><span>Kanon</span><select><option>Inoffiziell</option><option>Offiziell</option></select></label>
+		<label class="f f--grow"><span>Quellenname</span><input type="text" placeholder="Name des Briefspiels / Wikis"></label>
+		<label class="f"><span>Seite(n)</span><input type="text" size="9"></label>
+		<label class="f"><span>Art</span>
+			<select><option>Art …</option><option>Briefspiel</option><option>Regionalspielhilfe</option></select></label>
+		<label class="f"><span>Abdeckung</span>
+			<select><option>Standardquelle</option><option>Ausführlich</option></select></label>
+		<label class="f"><span>Lizenz</span>
+			<select><option>Lizenz …</option><option>CC BY-NC-SA 3.0</option><option>Keine freie Lizenz</option></select></label>
+		<label class="f f--grow"><span>Namensnennung</span><input type="text" placeholder="z. B. herzogtum-weiden.net"></label>
+		<label class="f" style="align-self:end;padding-bottom:5px">
+			<span style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-muted)">
+			<input type="checkbox"> offiziell</span></label>
 		<button class="btn">Hinzufügen</button>
 	</div>
-	<div class="note">⚠️ <strong>wiki.beispiel-briefspiel.de</strong> kennt das Register noch nicht.
-		Ist das ein Briefspiel oder Wiki, aus dem noch mehr kommt? Dann trag es <strong>einmal</strong>
-		als Quelle ein — danach genügt bei jedem weiteren Ort der Link.</div>
+	<div class="note">⚠️ <strong>wiki.beispiel-briefspiel.de</strong> ist noch nicht bekannt. Ist das
+		ein Briefspiel oder Wiki, aus dem noch mehr kommt? Dann trag es <strong>einmal</strong> mit
+		Name, Art, Lizenz und Namensnennung ein — bei jedem weiteren Ort genügt danach der Link.</div>
 </div>
-<p>⭐ So wächst das Register durch Benutzung, statt gepflegt werden zu müssen.</p>
+<p>⭐ So wächst das Register durch Benutzung, statt gepflegt werden zu müssen. Und die fünf Felder,
+die der Editor hier einmal ausfüllt, sind genau die fünf gesperrten von oben — er sieht also beim
+ersten Mal, was er für alle künftigen Belege festlegt.</p>
 
 <h2>3 · Was der Besucher sieht</h2>
 <div class="reihe">
@@ -192,13 +221,13 @@ sondern das Einzige, wonach das Formular fragt.</p>
 
 <h2>4 · Der Umfang</h2>
 <table class="m">
-	<tr><th>Wirt</th><th>heute</th><th>Titel</th><th>nachher</th><th>Objekte</th></tr>
+	<tr><th>Domain</th><th>heute</th><th>Titel</th><th>nachher</th><th>Objekte</th></tr>
 	<tr><td>herzogtum-weiden.net</td><td><strong>200</strong></td><td>4</td><td>1</td><td>286</td></tr>
 	<tr><td>wiki.punin.de</td><td>115</td><td>6</td><td>1</td><td>158</td></tr>
 	<tr><td>westlande.de</td><td>77</td><td>5</td><td>1</td><td>87</td></tr>
 	<tr><td>kahet-ni-kemi.de</td><td>16</td><td>2</td><td>1</td><td>20</td></tr>
 	<tr><td>garetien.de</td><td>8</td><td>4</td><td>1</td><td>8</td></tr>
-	<tr><td>übrige vier Wirte</td><td>9</td><td>6</td><td>4</td><td>40</td></tr>
+	<tr><td>übrige vier Domains</td><td>9</td><td>6</td><td>4</td><td>40</td></tr>
 	<tr><td><strong>Summe</strong></td><td><strong>425</strong></td><td><strong>20</strong></td><td><strong>9</strong></td><td><strong>599</strong></td></tr>
 </table>
 
@@ -208,11 +237,11 @@ sondern das Einzige, wonach das Formular fragt.</p>
 	19 Titel — aber das sind <em>Werke</em>: „Mutterglück", „Das Erbe von Blaustein", „Kosch
 	(Regionalspielhilfe)", fünf davon offiziell. Ihre Adresse ist zufällig ein Wikiartikel, ihre
 	Identität ist der Titel. Zusammenlegen zerstörte 19 Werke zu einer Zeile. Die Regel ist also
-	nicht „ein Wirt, eine Quelle", sondern „ein Wirt, dessen Seiten <em>Belegstellen</em> sind" —
-	und das entscheidet ein Mensch je Wirt, kein Muster.</li>
+	nicht „eine Domain, eine Quelle", sondern „eine Domain, deren Seiten <em>Belegstellen</em> sind" —
+	und das entscheidet ein Mensch je Domain, kein Muster.</li>
 
-	<li>💣 <strong>Der Wirt allein reicht als Schlüssel nicht.</strong> <code>horaswiki.de</code> und
-	<code>wiki.horaswiki.de</code> sind dasselbe Angebot unter zwei Namen. Mehrere Wirte müssen auf
+	<li>💣 <strong>Die Domain allein reicht als Schlüssel nicht.</strong> <code>horaswiki.de</code> und
+	<code>wiki.horaswiki.de</code> sind dasselbe Angebot unter zwei Namen. Mehrere Domains müssen auf
 	dieselbe Quelle zeigen dürfen — sonst entsteht die Doppelung neu, eine Ebene höher.</li>
 
 	<li>💣 <strong>Auch der TYP ist inkonsistent, nicht nur der Name.</strong> 190 der 200
@@ -229,7 +258,7 @@ sondern das Einzige, wonach das Formular fragt.</p>
 	<li>🔴 <strong>Schritt 3 ist der riskante.</strong> Er fasst 416 Katalogzeilen an. Dafür gibt es
 	<code>avesmapsMergeSourceInto</code> samt <code>source_merge_log</code> — der einzige Schreibweg
 	mit Protokoll. Erst Register und Fundstelle live, damit alles Neue richtig entsteht; das
-	Aufräumen danach, wirtweise, mit Vorschau.</li>
+	Aufräumen danach, domainweise, mit Vorschau.</li>
 </ul>
 
 <h2>6 · Was du entscheiden musst</h2>
