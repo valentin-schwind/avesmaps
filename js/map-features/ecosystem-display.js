@@ -193,8 +193,23 @@ const AVESMAPS_ECOSYSTEM_DISPLAY_KOLLISION_VORGABE = { teil: true, fest: false }
  * Abweichung -- die Vorgabe ist ein Startwert, kein Riegel.
  */
 const AVESMAPS_ECOSYSTEM_DISPLAY_KOLLISION_VORGABE_JE_ART = {
-	berggipfel: { fest: true },   // Owner-Entscheid 02.09.2026
-	vulkan: { fest: true },       // Owner-Entscheid 02.09.2026
+	berggipfel: { fest: true },      // Owner-Entscheid 02.09.2026 -- 56 Beschriftungen
+	vulkan: { fest: true },          // Owner-Entscheid 02.09.2026 -- 20 Beschriftungen
+	// 🔴 DIE DREI DARUNTER HABEN HEUTE NULL BESCHRIFTUNGEN (live gemessen 02.09.2026) -- und genau
+	// deshalb stehen sie hier. Sie sind im Beschriftungsdialog waehlbar, kommen aber noch nicht vor;
+	// die Tafel im Fenster listet nur Arten, die es WIRKLICH gibt, und haette sie erst gezeigt, wenn
+	// die erste angelegt ist. Bis dahin waere sie stillschweigend beweglich auf die Karte gekommen,
+	// Monate nach dem Entscheid, und niemand haette daran gedacht (Owner 02.09.2026: „Berg-/
+	// Huegelkette Felsformation Huegel fest").
+	// ⚠️ Der Eintrag kostet heute nichts und aendert kein einziges Bild -- er wirkt beim ersten
+	// Objekt seiner Art.
+	bergkette: { fest: true },       // Berg-/Huegelkette: ihr Name liegt auf dem Kamm
+	felsformation: { fest: true },   // ein Punkt wie ein Gipfel
+	huegel: { fest: true },          // ebenso
+	// 🔴 `fluss` und `ebene` stehen BEWUSST NICHT hier. Beim Fluss hat der Owner am 02.09.2026
+	// ausdruecklich nicht zugestimmt (er waere der einzige der Gruppe gewesen, der 19 sichtbare
+	// Namen bewegt); die Ebene ist ein Flaechenname ohne Flaeche -- sie beschreibt eine Gegend,
+	// keinen Ort, und darf ausweichen wie ein Waldname.
 };
 
 /**

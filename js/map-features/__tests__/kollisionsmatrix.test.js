@@ -86,17 +86,29 @@ assert.strictEqual(avesmapsEcosystemDisplayKollisionsRolle("wald"), "beweglich",
 assert.deepStrictEqual(AVESMAPS_ECOSYSTEM_DISPLAY_KOLLISION_VORGABE, { teil: true, fest: false },
 	"der Grundwert reproduziert das bisherige Verhalten Ziffer fuer Ziffer");
 
-// 🔴 MIT GENAU ZWEI AUSNAHMEN, UND SIE SIND EIN OWNER-ENTSCHEID (02.09.2026: „berggipfel und
-// vulkan jetzt auf fest stellen"). Ein Gipfel IST sein Punkt. Das ist die einzige Stelle, an der
-// die Vorgabe das Bild bewusst AENDERT -- 76 Beschriftungen, live gemessen.
-// ⚠️ Der Test nennt die zwei beim Namen, statt nur „irgendeine Ausnahme" zu pruefen: wer eine
-// dritte Art dazunimmt, aendert damit das Kartenbild und soll hier vorbeikommen.
+// 🔴 MIT AUSNAHMEN, UND SIE SIND EIN OWNER-ENTSCHEID (02.09.2026: erst „berggipfel und vulkan
+// jetzt auf fest stellen", dann „Berg-/Huegelkette Felsformation Huegel fest"). Diese Namen SIND
+// ihr Punkt bzw. liegen auf ihrem Kamm. Das ist die einzige Stelle, an der die Vorgabe das
+// Kartenbild bewusst AENDERT.
+// ⚠️ DER TEST NENNT SIE BEIM NAMEN, statt nur „irgendeine Ausnahme" zu pruefen: wer eine weitere
+// Art dazunimmt, aendert damit das Kartenbild und soll hier vorbeikommen. Genau das ist beim
+// zweiten Entscheid passiert -- die Liste war der Grund, dass er bewusst nachgezogen wurde.
+const FESTE_ARTEN = ["berggipfel", "bergkette", "felsformation", "huegel", "vulkan"];
 assert.deepStrictEqual(Object.keys(AVESMAPS_ECOSYSTEM_DISPLAY_KOLLISION_VORGABE_JE_ART).sort(),
-	["berggipfel", "vulkan"], "genau zwei Arten weichen vom Grundwert ab");
-["berggipfel", "vulkan"].forEach((art) => {
+	FESTE_ARTEN, "genau diese Arten weichen vom Grundwert ab");
+FESTE_ARTEN.forEach((art) => {
 	assert.deepStrictEqual(avesmapsEcosystemDisplayKollision(art), { teil: true, fest: true },
 		art + " steht ab Werk auf „festgenagelt\"");
 	assert.strictEqual(avesmapsEcosystemDisplayKollisionsRolle(art), "fest");
+});
+
+// 🔴 UND DIE ZWEI, DIE ES AUSDRUECKLICH NICHT SIND. Der Fluss war vorgeschlagen und vom Owner
+// nicht uebernommen (19 sichtbare Namen); die Ebene ist ein Flaechenname ohne Flaeche. Beide
+// stehen hier, damit ein spaeterer „Vollstaendigkeitsschub" sie nicht versehentlich mitnimmt --
+// das waere eine Aenderung am Kartenbild, die niemand entschieden hat.
+["fluss", "ebene"].forEach((art) => {
+	assert.strictEqual(avesmapsEcosystemDisplayKollisionsRolle(art), "beweglich",
+		art + " bleibt beweglich -- bewusst, nicht vergessen");
 });
 
 // ⚠️ Und die Vorgabe ist ein STARTWERT, kein Riegel: wer das Haekchen abnimmt, bekommt seinen
