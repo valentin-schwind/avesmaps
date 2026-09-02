@@ -2187,6 +2187,45 @@ const AVESMAPS_MAP_FEATURES_SOURCE_ENTITY_TYPES = ['settlement', 'region', 'path
 // einer Datenbank ohne die zwei Spalten wuerde die Abfrage werfen -- und der Rueckfall des
 // try-Blocks ist ein LEERER Katalog, also KEINE einzige Quelle mehr auf der ganzen Karte. Der
 // zweite Anlauf ohne die Spalten faellt in die richtige Richtung: Quellen ohne Lizenzangabe.
+/**
+ * Hängt einer Katalogzeile ihren Korpusschlüssel an -- die EINE Stelle, die das tut.
+ *
+ * 💣 ES GIBT ZWEI ERZEUGER VON KATALOGZEILEN, und dass nur einer den Schlüssel setzte, war am
+ * 02.09.2026 live ein Fehler. Neben dieser Datei baut `avesmapsMapFeaturesMergeLegacyOtherSources`
+ * (api/app/map-features.php) Zeilen unter synthetischen `os:`-Kennungen -- die Altquellen aus
+ * `properties.other_source`, die nie in den Katalog übernommen wurden. Genau die tragen die
+ * nichtssagenden Titel, um derentwillen es Variante A gibt: von 186 Zeilen mit dem Titel
+ * „Briefspiel" kamen 182 von dort. Gemessen: 133 Zeilen mit Schlüssel, 290 ohne -- obwohl ihr
+ * Wirt einen Korpus hat. Die Anzeige war damit zu knapp einem Drittel wirksam.
+ * 🔴 Wer einen dritten Erzeuger anlegt, ruft DIESE Funktion. Die vier Zeilen abzuschreiben ist
+ * genau der Weg, auf dem dieser Fehler entstanden ist (AGENTS.md, wieder und wieder: eine Regel,
+ * die einen von mehreren Erzeugern bindet, ist keine Regel).
+ *
+ * ⚠️ Nur bei einem BEKANNTEN Korpus, und das kostet fast nichts: ein kurzer String je Zeile in
+ * einer 3-MB-Nutzlast. Ein Schlüssel ohne Eintrag im Wörterbuch wäre im Browser ein Nachschlagen,
+ * das nie trifft.
+ * ⚠️ `$korpora === []` heißt: kein Korpus-Modul geladen oder keine Korpora erfasst. Dann bleibt
+ * alles, wie es vor dem Umbau war -- Titel vorn. Der Rückfall ist nie ein leerer Name.
+ *
+ * @param array<string,mixed> $eintrag die fertige Katalogzeile
+ * @param array<string,mixed> $korpora Schlüssel -> Korpus, EINMAL gelesen
+ * @return array<string,mixed>
+ */
+function avesmapsFeatureSourceApplyCorpusKey(array $eintrag, string $url, array $korpora): array
+{
+    // Abkuerzung, kein Riegel: den traegt das `isset` unten. Eine Mutationsprobe laesst diese
+    // Zeile durch, und das ist richtig so -- sie spart nur den Aufruf.
+    if ($korpora === [] || !function_exists('avesmapsSourceCorpusKey')) {
+        return $eintrag;
+    }
+    $key = avesmapsSourceCorpusKey($url);
+    if ($key !== '' && isset($korpora[$key])) {
+        $eintrag['corpus'] = $key;
+    }
+
+    return $eintrag;
+}
+
 function avesmapsLoadFeatureSourceCatalog(PDO $pdo): array {
     $abfrage = static function (string $spalten): string {
         return "SELECT s.id, s.url, s.label, s.source_type, s.is_official" . $spalten . "
@@ -2230,18 +2269,7 @@ function avesmapsLoadFeatureSourceCatalog(PDO $pdo): array {
         if ($attribution !== '') {
             $eintrag['attribution'] = $attribution;
         }
-        // 🔴 DER KORPUS-SCHLÜSSEL REIST MIT -- aber NUR, wo es wirklich einen gibt. Er ist die
-        // einzige Verbindung, über die der Browser den Namen des Wirts findet; die registrierbare
-        // Domain dort nachzurechnen wäre eine zweite Wahrheit über `avesmapsSourceCorpusKey`
-        // (AGENTS.md §5), und die liefe beim ersten Sonderfall auseinander.
-        // ⚠️ Nur bei einem BEKANNTEN Korpus, und das kostet fast nichts: live sind das 133 von
-        // 1.384 Katalogzeilen, ein kurzer String je Zeile in einer 3-MB-Nutzlast.
-        if ($korpora !== []) {
-            $key = avesmapsSourceCorpusKey((string) $row['url']);
-            if ($key !== '' && isset($korpora[$key])) {
-                $eintrag['corpus'] = $key;
-            }
-        }
+        $eintrag = avesmapsFeatureSourceApplyCorpusKey($eintrag, (string) $row['url'], $korpora);
         $catalog[(int) $row['id']] = $eintrag;
     }
     return $catalog;

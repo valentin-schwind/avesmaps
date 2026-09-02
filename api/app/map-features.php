@@ -288,6 +288,14 @@ try {
     // payload -- no lazy per-popup fetch. The catalog is shared/deduped (one entry per source);
     // refs point into it by source_id and cover all four entity types (settlement/region/path/
     // territory), including territory which has no map_features row.
+    // Die Korpora: einmal für die Nutzlast, und weiter unten für den ZWEITEN Erzeuger von
+    // Katalogzeilen. `avesmapsLoadFeatureSourceCatalog` liest sie sich selbst -- die Bibliothek
+    // bleibt damit allein benutzbar, und zwei Leser derselben Acht-Zeilen-Tabelle im selben
+    // Anfragelauf können nicht auseinanderlaufen.
+    // 💣 Dass der zweite Erzeuger sie überhaupt nicht kannte, war am 02.09.2026 live der
+    // Fehler: 133 Katalogzeilen trugen ihren Korpus, 290 nicht -- die Anzeige war zu knapp einem
+    // Drittel wirksam.
+    $sourceCorpora = avesmapsLoadSourceCorporaForPayload($pdo);
     $sourceCatalog = avesmapsLoadFeatureSourceCatalog($pdo);
     $featureSourceRefs = avesmapsLoadFeatureSourceRefs($pdo);
     $query = avesmapsBuildMapFeaturesQuery($_GET);
@@ -300,7 +308,10 @@ try {
     // migrated into feature_sources) still renders. Mutates $sourceCatalog/$featureSourceRefs in place
     // before serialization -- restoring the parity the removed lazy per-popup read (avesmapsReadFeatureSources)
     // used to provide, without touching any JS.
-    avesmapsMapFeaturesMergeLegacyOtherSources($rows, $sourceCatalog, $featureSourceRefs);
+    // ⚠️ Die Korpora reisen HEREIN und werden nicht hier drinnen gelesen: diese Funktion
+    // bekommt keine PDO und soll auch keine bekommen -- sie liest nur die schon geholten Zeilen.
+    avesmapsMapFeaturesMergeLegacyOtherSources($rows, $sourceCatalog, $featureSourceRefs,
+        $sourceCorpora);
 
     $features = array_map(
         static fn(array $row): array => avesmapsMapFeatureRowToGeoJsonFeature($row, $wikiLocationLinks, $buildingTypes, $politicalContext, $settlementImagesEnabled, $coatsLocalEnabled, $coatsWikiEnabled),
@@ -396,7 +407,7 @@ try {
         // 💣 UND SIE ENTSCHEIDEN, WELCHER NAME DEM BESUCHER VORN STEHT: bei `form = belegstelle`
         // der Korpusname („Herzogtum Weiden"), sonst weiter der Titel. Ohne diese Zeile bliebe die
         // Anzeige, wie sie war -- was der bewusste Rueckfall ist, wenn das Korpus-Modul fehlt.
-        'source_corpora' => (object) avesmapsLoadSourceCorporaForPayload($pdo),
+        'source_corpora' => (object) $sourceCorpora,
         // 🔴 DAS KANON-ETIKETT, NUR ALS ABWEICHUNG -- und die Nutzlast traegt ihre eigene Legende.
         //
         // 💣 GEMESSEN, NICHT GESCHAETZT (01.09.2026): 11.572 Objekte tragen Quellen. Jedes mit
@@ -1223,7 +1234,7 @@ function avesmapsResolveSettlementPolitical(string $settlementName, array $prope
 // @param list<array<string,mixed>> $rows this payload's raw map_features rows
 // @param array<int|string,array<string,mixed>> $catalog shared source catalog, keyed by source id (mutated)
 // @param array<string,list<array<string,mixed>>> $refs per-entity refs, keyed "<entity_type>:<public_id>" (mutated)
-function avesmapsMapFeaturesMergeLegacyOtherSources(array $rows, array &$catalog, array &$refs): void {
+function avesmapsMapFeaturesMergeLegacyOtherSources(array $rows, array &$catalog, array &$refs, array $korpora = []): void {
     // feature_type -> the entity_type the JS resolver / feature_sources rows are keyed by.
     $entityTypeByFeatureType = ['location' => 'settlement', 'label' => 'region', 'path' => 'path'];
 
@@ -1274,12 +1285,18 @@ function avesmapsMapFeaturesMergeLegacyOtherSources(array $rows, array &$catalog
         // Synthetic id: a NON-numeric string, so it never collides with a real integer sources.id
         // and PHP keeps it a string key (not int-cast) in the (object)-serialized catalog map.
         $syntheticId = 'os:' . $publicId;
-        $catalog[$syntheticId] = [
+        // 💣 DER KORPUS-SCHLÜSSEL GEHÖRT AUCH HIERHIN, und dass er fehlte, war live ein
+        // Fehler: diese Zeilen sind der GROSSE Teil der Korpus-Anzeige, nicht ihr Rest. Von 186
+        // Katalogzeilen mit dem Titel „Briefspiel“ kamen 182 von hier, und ohne Schlüssel las ein
+        // Besucher weiter „Briefspiel“ statt „Herzogtum Weiden“ -- die Anzeige war zu knapp einem
+        // Drittel wirksam. Gerechnet wird er in `avesmapsFeatureSourceApplyCorpusKey`, der EINEN
+        // Stelle, die das tut; abgeschrieben wäre es genau der Weg, auf dem der Fehler entstand.
+        $catalog[$syntheticId] = avesmapsFeatureSourceApplyCorpusKey([
             'url' => $url,
             'label' => is_array($other) ? trim((string) ($other['label'] ?? '')) : '',
             'type' => 'sonstiges',
             'official' => false,
-        ];
+        ], $url, $korpora);
         // Append last: other_source is non-official and buildSourceListMarkup groups official-first,
         // so it renders after the curated sources -- matching the old "legacy appended after catalog".
         $refs[$refKey][] = ['source_id' => $syntheticId];
