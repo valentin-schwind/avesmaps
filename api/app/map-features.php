@@ -382,6 +382,12 @@ try {
         // ref lists stay JSON arrays. Keys: catalog by source_id, refs by "<entity_type>:<public_id>".
         'source_catalog' => (object) $sourceCatalog,
         'feature_sources' => (object) $featureSourceRefs,
+        // 🔴 DIE KORPORA -- Schluessel → Name und Form. Ein Woerterbuch mit acht Eintraegen statt
+        // 133 wiederholter Namen; die Katalogzeile traegt nur ihren Schluessel (`corpus`).
+        // 💣 UND SIE ENTSCHEIDEN, WELCHER NAME DEM BESUCHER VORN STEHT: bei `form = belegstelle`
+        // der Korpusname („Herzogtum Weiden"), sonst weiter der Titel. Ohne diese Zeile bliebe die
+        // Anzeige, wie sie war -- was der bewusste Rueckfall ist, wenn das Korpus-Modul fehlt.
+        'source_corpora' => (object) avesmapsLoadSourceCorporaForPayload($pdo),
         // 🔴 DAS KANON-ETIKETT, NUR ALS ABWEICHUNG -- und die Nutzlast traegt ihre eigene Legende.
         //
         // 💣 GEMESSEN, NICHT GESCHAETZT (01.09.2026): 11.572 Objekte tragen Quellen. Jedes mit

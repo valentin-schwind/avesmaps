@@ -603,6 +603,10 @@ routeDataRequest
 		// in js/ui/popups.js). No lazy per-popup fetch.
 		window.__sourceCatalog = (data && data.source_catalog) || {};
 		window.__featureSourceRefs = (data && data.feature_sources) || {};
+		// 🔴 DIE KORPORA -- Schluessel → { label, form }. Acht Eintraege, und sie entscheiden, welcher
+		// der beiden Namen dem Besucher vorn steht (Entwurf §3.1). ⚠️ Fehlen sie, bleibt die Anzeige
+		// exakt wie vorher: Titel vorn. Der Rueckfall ist der bisherige Zustand, nie ein leerer Name.
+		window.__sourceCorpora = (data && data.source_corpora) || {};
 		// Das Kanon-Etikett je Objekt. 🔴 NUR DIE ABWEICHUNGEN reisen mit, die Regel dazu steht als
 		// `vorgabe` IN der Antwort -- die Nutzlast traegt ihre eigene Legende, statt sie durch
 		// Abwesenheit zu behaupten (api/app/map-features.php).

@@ -83,17 +83,33 @@ pruefungen += 4;
 const tafel = html.slice(html.indexOf('class="fs-src-rights"'));
 assert.ok(/<dd>VolkoV \/ garetien\.de<\/dd>/.test(tafel),
   "die Namensnennung steht als eigener, unverlinkter Text -- jetzt in der Rechtetafel");
-const lizenzLink = html.match(/<a class="fs-src-lic" href="[^"]*creativecommons[^"]*"[^>]*>([\s\S]*?)<\/a>/);
-assert.ok(lizenzLink, "die Lizenz ist eigens verlinkt");
+// ⭐ SEIT DEM 02.09.2026 STEHT AUCH DIE LIZENZ IN DER RECHTETAFEL, nicht mehr in der Zeile
+// (Owner: „lizenz ins ⓘ, über nennung"). Die AUSSAGE dieser Prüfung ist unverändert: sie ist ein
+// eigener Link auf ihre Beschreibung und klebt nicht am Urhebernamen. Nur ihr Ort ist ein anderer.
+// 🔴 Rechtlich trägt das: CC BY-SA 4.0 §3(a)(2) erlaubt die Pflichtangaben ausdrücklich „in any
+// reasonable manner based on the medium" und nennt als Beispiel selbst einen LINK auf eine
+// Ressource, die sie enthält. Eine Tafel auf DERSELBEN Seite, immer vorhanden, einen Klick
+// entfernt, ist mindestens so gut — Bedingung ist, dass das ⓘ IMMER da ist (siehe unten).
+const lizenzLink = tafel.match(/<a href="[^"]*creativecommons[^"]*"[^>]*>([\s\S]*?)<\/a>/);
+assert.ok(lizenzLink, "die Lizenz ist eigens verlinkt -- jetzt in der Rechtetafel");
 assert.ok(!lizenzLink[1].includes("VolkoV"), "der Lizenzlink nennt NICHT auch den Urheber");
 assert.ok(lizenzLink[1].includes("CC BY-NC-SA 3.0"), "sondern nur die Lizenzbeschriftung");
-pruefungen += 3;
+// 💣 Und sie steht ÜBER der Nennung (Owner-Wortlaut). Die Reihenfolge ist eine Aussage: die
+// Lizenz ist die rechtlich tragende Angabe, die Nennung die Zuschreibung.
+assert.ok(tafel.indexOf("<dt>Lizenz</dt>") < tafel.indexOf("<dt>Nennung</dt>"),
+  "die Lizenz steht über der Nennung");
+// ⚠️ In der ZEILE steht sie nicht mehr -- sonst hätte der Umbau nichts bewirkt.
+assert.ok(!/fs-src-lic/.test(html.slice(0, html.indexOf('class="fs-src-rights"'))),
+  "und nicht mehr in der Zeile");
+pruefungen += 5;
 
-// 🔴 Ohne Adresse ein <span>, kein Link ins Leere.
+// 🔴 Ohne Adresse KEIN Link ins Leere -- „Gemeinfrei" und „Keine freie Lizenz" haben nichts zu
+// verlinken. In der Tafel ist das schlicht Text.
 const ohneLink = markup.buildSourceListMarkup("", [
   { label: "Irgendwas", url: "https://example.org/x", type: "sonstiges", license: "unfree" },
 ]);
-assert.ok(ohneLink.includes('<span class="fs-src-lic'), "gemeinfrei/unfrei rendern als span");
+assert.ok(/<dt>Lizenz<\/dt><dd>Keine freie Lizenz<\/dd>/.test(ohneLink),
+  "gemeinfrei/unfrei stehen ohne Link da");
 assert.ok(!/<a[^>]*fs-src-lic/.test(ohneLink), "und nicht als Link");
 pruefungen += 2;
 
@@ -119,8 +135,12 @@ assert.ok(!html.includes("fs-src-lic--attrib"),
 // 💣 Die Rechteangabe muss INNERHALB ihrer Zeile stehen (im selben <li>) -- bei zwei Quellen waere
 // sonst nicht zu sehen, wessen Rechte dort stehen. Das war schon am 27.08.2026 der Punkt, nur
 // damals gegen einen Umbruch und heute gegen eine Tafel unter der Liste.
+// ⭐ Seit dem 02.09.2026 ist das die RECHTETAFEL statt der Lizenzmarke -- die Aussage ist
+// dieselbe: sie liegt im `<li>` IHRER Quelle, nicht unter der Liste.
 const ersteZeile = html.slice(html.indexOf('<li><span class="fs-src-row">'), html.indexOf("</li>"));
-assert.ok(ersteZeile.includes("fs-src-lic"), "die Lizenz steht in der Zeile ihrer Quelle");
+assert.ok(ersteZeile.includes("fs-src-rights"),
+  "die Rechteangabe steht im <li> ihrer Quelle, nicht unter der Liste");
+assert.ok(ersteZeile.includes("CC BY-NC-SA 3.0"), "und trägt deren Lizenz");
 const mitTafel = html.slice(html.indexOf('class="fs-src-rights"'));
 assert.ok(mitTafel.indexOf("</li>") < mitTafel.indexOf("<li>") || mitTafel.indexOf("<li>") === -1,
   "und die Rechtetafel steht im <li> ihrer Quelle, nicht unter der Liste");
@@ -275,19 +295,27 @@ assert.ok(zeile.includes("VolkoV / garetien.de") && zeile.includes("CC BY-NC-SA 
 // 🔴 MELDUNG (30.08.2026), an der ECHTEN Kette gemessen: der Lizenzlink darf den Urheber nicht
 // mitnennen -- genau das war der gemeldete Fehler ("Briefspiel (Garetien) ↗" ging an den Artikel,
 // aber die Namensnennung ging an den Lizenztext statt an den Urheber).
-const zeilenLizenzLink = zeile.match(/<a class="fs-src-lic" href="[^"]*creativecommons[^"]*"[^>]*>([\s\S]*?)<\/a>/);
-assert.ok(zeilenLizenzLink, "die Lizenz ist eigens verlinkt");
+// ⭐ Seit dem 02.09.2026 steht auch die Lizenz in der Rechtetafel derselben Zeile. Die Aussage
+// bleibt: ein eigener Link, der den Urheber NICHT mitnennt.
+const zeilenLizenzLink = zeile.match(/<a href="[^"]*creativecommons[^"]*"[^>]*>([\s\S]*?)<\/a>/);
+assert.ok(zeilenLizenzLink, "die Lizenz ist eigens verlinkt -- in der Rechtetafel");
 assert.ok(!zeilenLizenzLink[1].includes("VolkoV"), "der Lizenzlink nennt nicht auch den Urheber");
 pruefungen += 3;
 
-// 🔴 Und eine Quelle OHNE die Felder bleibt still: leer heisst "nicht erfasst", nie "keine Lizenz".
+// 🔴 Eine Quelle OHNE Lizenz und Nennung bleibt bei diesen Angaben still: leer heisst
+// "nicht erfasst", nie "keine Lizenz".
 const ohneAngabe = kette.renderFeatureSourceLine("settlement", "gareth", "", "region-info-box__link");
 assert.ok(ohneAngabe.includes("Goldene Fluegel"), "sie wird trotzdem genannt");
-assert.ok(!ohneAngabe.includes("fs-src-lic"),
-  "aber ohne Lizenzangabe -- eine leere Angabe behauptet nichts");
-// 🔴 UND OHNE ⓘ: ein Knopf ueber einer leeren Tafel ist ein Klick fuer nichts.
-assert.ok(!ohneAngabe.includes("fs-src-info"),
-  "und ohne ⓘ -- ohne Namensnennung gibt es nichts aufzuklappen");
-pruefungen += 2;
+assert.ok(!/<dt>Lizenz<\/dt>|<dt>Nennung<\/dt>/.test(ohneAngabe),
+  "aber ohne Lizenz- und Nennungszeile -- eine leere Angabe behauptet nichts");
+// 🔴 DAS ⓘ STEHT SEIT DEM 02.09.2026 TROTZDEM DA, und das ist die Umkehr der alten Regel:
+// bis dahin war die Namensnennung sein Ausloeser (live tragen 3 von 1374 Zeilen eine, es war also
+// praktisch nie zu sehen). Jetzt traegt es den KANON, und der ist IMMER bekannt -- es gibt also
+// immer etwas aufzuklappen. Die alte Regel „nur wo es etwas zu zeigen gibt" ist nicht gefallen,
+// sondern erfuellt.
+assert.ok(ohneAngabe.includes("fs-src-info"),
+  "und mit ⓘ -- der Kanon ist immer da, es gibt immer etwas aufzuklappen");
+assert.ok(/<dt>Kanon<\/dt>/.test(ohneAngabe), "und die Tafel traegt ihn");
+pruefungen += 3;
 
 console.log("OK: " + pruefungen + " Pruefungen");

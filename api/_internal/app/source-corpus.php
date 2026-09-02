@@ -458,14 +458,21 @@ function avesmapsSourceCorpusSave(PDO $pdo, string $corpusKey, array $felder, in
                 $stmt->execute(array_merge([$wert], $ids));
             }
             $betroffen = count($ids);
-            // 💣 DER KARTENSTEMPEL. Art, Lizenz und Namensnennung reisen in der ETag-zwischen-
-            // gespeicherten map-features-Nutzlast (`source_catalog`). Ohne den Stempel bekaeme
-            // jeder warme Browser sein 304 und zeigte die alten Werte unbegrenzt weiter -- dieselbe
-            // Falle, die die Klimaebene und der Wappen-Notaus schon bezahlt haben.
-            if (function_exists('avesmapsNextMapRevision')) {
-                avesmapsNextMapRevision($pdo);
-            }
         }
+    }
+
+    // 💣 DER KARTENSTEMPEL -- UND ER GEHOERT HIERHER, NICHT IN DEN DURCHSCHREIB-ZWEIG.
+    // Art, Lizenz und Namensnennung reisen in der ETag-zwischengespeicherten map-features-Nutzlast;
+    // seit dem 02.09.2026 reisen dort ausserdem der NAME und die FORM des Korpus (`source_corpora`),
+    // und die stehen ausdruecklich NICHT in AVESMAPS_SOURCE_CORPUS_OWNED_FIELDS -- eine reine
+    // Umbenennung schrieb also auf keine einzige Quelle durch und stiess den Stempel damit NIE an.
+    // Folge waere gewesen: umbenennen, und jeder warme Browser behaelt den alten Namen ueber sein
+    // 304, unbegrenzt. Solange der Name den Editor nie verliess, war das folgenlos; mit dem
+    // Frontend-Umbau ist es ein echter Fehler.
+    // ⚠️ Er steht deshalb hinter JEDER erfolgreichen Aenderung, nicht nur hinter dem Durchschrieb --
+    // dieselbe Lehre wie bei den Tempowerten (AGENTS.md §10).
+    if ($spalten !== [] && function_exists('avesmapsNextMapRevision')) {
+        avesmapsNextMapRevision($pdo);
     }
 
     // 💣 ZURUECKLESEN, nicht glauben.

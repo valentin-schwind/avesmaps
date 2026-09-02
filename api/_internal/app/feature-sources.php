@@ -2211,6 +2211,9 @@ function avesmapsLoadFeatureSourceCatalog(PDO $pdo): array {
     if ($statement === false) {
         return [];
     }
+    // EINMAL gelesen, nicht je Zeile -- sonst zahlte die Nutzlast 1.384 Volldurchgänge über eine
+    // Tabelle mit acht Zeilen.
+    $korpora = function_exists('avesmapsSourceCorpusReadAll') ? avesmapsSourceCorpusReadAll($pdo) : [];
     $catalog = [];
     foreach ($statement->fetchAll(PDO::FETCH_ASSOC) as $row) {
         $eintrag = [
@@ -2227,9 +2230,47 @@ function avesmapsLoadFeatureSourceCatalog(PDO $pdo): array {
         if ($attribution !== '') {
             $eintrag['attribution'] = $attribution;
         }
+        // 🔴 DER KORPUS-SCHLÜSSEL REIST MIT -- aber NUR, wo es wirklich einen gibt. Er ist die
+        // einzige Verbindung, über die der Browser den Namen des Wirts findet; die registrierbare
+        // Domain dort nachzurechnen wäre eine zweite Wahrheit über `avesmapsSourceCorpusKey`
+        // (AGENTS.md §5), und die liefe beim ersten Sonderfall auseinander.
+        // ⚠️ Nur bei einem BEKANNTEN Korpus, und das kostet fast nichts: live sind das 133 von
+        // 1.384 Katalogzeilen, ein kurzer String je Zeile in einer 3-MB-Nutzlast.
+        if ($korpora !== []) {
+            $key = avesmapsSourceCorpusKey((string) $row['url']);
+            if ($key !== '' && isset($korpora[$key])) {
+                $eintrag['corpus'] = $key;
+            }
+        }
         $catalog[(int) $row['id']] = $eintrag;
     }
     return $catalog;
+}
+
+/**
+ * Die Korpora für die Kartennutzlast: Schlüssel → Name und Form.
+ *
+ * 🔴 EIN WÖRTERBUCH, nicht der Name an jeder Zeile. Acht Einträge statt 133 Wiederholungen -- und
+ * eine Umbenennung wirkt damit an genau einer Stelle.
+ * 💣 NUR `label` und `form`. Art, Lizenz und Nennung stehen bereits AN DER QUELLE (der Korpus
+ * schreibt sie durch), und `updated_by` ist eine Editorenkennung, die in einer öffentlichen
+ * Nutzlast nichts verloren hat.
+ * ⚠️ Fällt offen aus: ohne Korpus-Modul oder bei einem Fehler bleibt die Liste leer, und die
+ * Anzeige verhält sich wie vor dem Umbau (Titel vorn).
+ */
+function avesmapsLoadSourceCorporaForPayload(PDO $pdo): array
+{
+    if (!function_exists('avesmapsSourceCorpusReadAll')) {
+        return [];
+    }
+    $raus = [];
+    foreach (avesmapsSourceCorpusReadAll($pdo) as $key => $korpus) {
+        $raus[$key] = [
+            'label' => (string) ($korpus['label'] ?? $key),
+            'form' => (string) ($korpus['form'] ?? ''),
+        ];
+    }
+    return $raus;
 }
 
 // Per-entity approved source references grouped in PHP (no N+1): { "<entity_type>:<public_id>" =>

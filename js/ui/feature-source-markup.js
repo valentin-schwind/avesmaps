@@ -208,6 +208,19 @@ function buildSourceListMarkup(wikiUrl, sources, opts) {
   // Schicht (M8) sie uebersetzen kann, ohne diese Datei anzufassen.
   var rightsButtonLabel = opts.rightsButtonLabel || "Rechte und Namensnennung";
   var rightsAttributionLabel = opts.rightsAttributionLabel || "Nennung";
+  // Die zwei Saetze, die erklaeren, was das Kanon-Etikett behauptet (Owner-Wortlaut 02.09.2026).
+  // `{art}` ist die Art der Quelle in Klammern -- oder leer, wo sie keine Aussage ist.
+  // 🔴 DIE KORPORA -- Schluessel → { label, form }. Sie entscheiden, welcher der beiden Namen dem
+  // Besucher vorn steht. ⚠️ Fehlen sie (alter Client, Korpus-Modul aus, Fehler beim Lesen), bleibt
+  // die Anzeige exakt wie vor dem Umbau: Titel vorn. Der Rueckfall ist der bisherige Zustand, nie
+  // ein leerer Name.
+  var corpora = (opts.corpora && typeof opts.corpora === "object") ? opts.corpora : {};
+  var rightsKanonLabel = opts.rightsKanonLabel || "Kanon";
+  var rightsTitleLabel = opts.rightsTitleLabel || "Titel";
+  var kanonOfficialText = opts.kanonOfficialText
+    || "Offiziell — bei Ulisses erschienen. In offiziellen Nachschlagwerken nachzulesen.";
+  var kanonUnofficialText = opts.kanonUnofficialText
+    || "Inoffiziell — Fanmaterial{art}. In offiziellen Nachschlagwerken steht es so nicht.";
   var rightsLicenseLabel = opts.rightsLicenseLabel || "Lizenz";
   var rightsUrlLabel = opts.rightsUrlLabel || "Adresse";
   var tableHeaders = opts.tableHeaders || {};
@@ -268,26 +281,54 @@ function buildSourceListMarkup(wikiUrl, sources, opts) {
   /**
    * Der Knopf ⓘ und seine Tafel — sie tragen, was die Zeile nicht mehr traegt.
    *
-   * 🔴 NUR WO ES ETWAS ZU ZEIGEN GIBT. Ein Knopf, der eine leere Tafel oeffnet, ist ein Klick fuer
-   * nichts; die Adresse allein rechtfertigt ihn nicht, denn sie IST schon der Titel-Link. Ausloeser
-   * ist die NAMENSNENNUNG — live gemessen 01.09.2026 tragen 3 von 1374 Katalogzeilen eine.
+   * 🔴 SEIT DEM 02.09.2026 TRAEGT ER IMMER ETWAS, und deshalb steht er auch immer da. Bis dahin war
+   * die NAMENSNENNUNG der Ausloeser -- live tragen 3 von 1374 Katalogzeilen eine, das ⓘ war also
+   * praktisch nie zu sehen. Jetzt traegt es den KANON (immer bekannt), die LIZENZ (aus der Zeile
+   * hierher gewandert, Owner: „lizenz ins ⓘ, über nennung") und bei einer Belegstelle den TITEL
+   * der Seite, weil vorn der Korpusname steht.
+   * 💣 Die alte Regel „nur wo es etwas zu zeigen gibt" ist damit nicht gefallen, sondern erfuellt:
+   * es gibt jetzt immer etwas. Wer den Kanon je wieder herausnimmt, muss den Ausloeser
+   * zurueckbauen -- sonst oeffnet der Knopf bei den meisten Zeilen eine fast leere Tafel.
    *
    * 💣 INLINE-`onclick`, kein delegierter Zuhoerer. Leaflet ruft den Popup-Inhalt bei jedem
    * `_updateContent` neu auf und ersetzt das Markup; ein an einen Behaelter gehaengter Zuhoerer
    * waere danach weg. Dieselbe Begruendung wie bei `avesmapsToggleSourceTab` daneben — die Falle
    * hat dieses Haus 2026-07-08 schon einmal bezahlt („FALLE Popup-Revert").
    */
-  var rechteMarkup = function (s, index) {
+  var rechteMarkup = function (s, index, titelZusatz) {
     var wer = String((s && s.attribution) == null ? "" : s.attribution).trim();
-    if (!wer) { return { knopf: "", tafel: "" }; }
     var id = "fsr-" + index;
     var lizEintrag = FEATURE_SOURCE_LICENSES[String((s && s.license) || "").trim()] || null;
-    var zeilen = '<dt>' + esc(rightsAttributionLabel) + "</dt><dd>" + esc(wer) + "</dd>";
+    // 🔴 DER KANON ZUERST -- er erklaert die Pille, die in der Zeile am auffaelligsten ist.
+    // Wortlaut vom Owner (02.09.2026). Er trifft die Frage, die der Kanon-Entwurf vom 27.08.
+    // selbst stellt ("Gibt es das im gedruckten Aventurien?") und bleibt eine HERKUNFTSANGABE,
+    // keine Wertung -- "die Briefspiele sind der Grund, warum wir die Inhalte haben".
+    // ⚠️ Die Art in Klammern entfaellt bei `sonstiges` und bei fehlender Art: `sonstiges` IST die
+    // Nicht-Aussage (avesmapsNormalizeSourceType), und "Fanmaterial (Sonstiges)" waere eine
+    // Aussage ueber nichts. Es ist derselbe Wert wie die rechte Haelfte der Pille daneben, die
+    // beiden koennen also nicht auseinanderlaufen.
+    var artSchluessel = String((s && s.type) || "").trim();
+    var artZusatz = (artSchluessel === "" || artSchluessel === "sonstiges")
+      ? "" : " (" + typeLabel(artSchluessel) + ")";
+    var zeilen = "<dt>" + esc(rightsKanonLabel) + "</dt><dd>" + esc(
+      (s && s.official === true)
+        ? kanonOfficialText
+        : kanonUnofficialText.replace("{art}", artZusatz)
+    ) + "</dd>";
     if (lizEintrag) {
       zeilen += "<dt>" + esc(rightsLicenseLabel) + "</dt><dd>" + (lizEintrag.url
         ? '<a href="' + esc(lizEintrag.url) + '" target="_blank" rel="noopener">' + esc(lizEintrag.label) +
           ' <span class="fs-src-ext" aria-hidden="true">↗</span></a>'
         : esc(lizEintrag.label)) + "</dd>";
+    }
+    // 🔴 DER TITEL -- nur, wenn vorn der KORPUSNAME steht. Sonst stuende er zweimal da.
+    // Ohne diese Zeile ginge er bei einer Belegstelle ganz verloren, und das waere der teuerste
+    // Fehler dieses Umbaus: die Seite haette dann keinen Namen mehr.
+    if (titelZusatz) {
+      zeilen += "<dt>" + esc(rightsTitleLabel) + "</dt><dd>" + esc(titelZusatz) + "</dd>";
+    }
+    if (wer) {
+      zeilen += "<dt>" + esc(rightsAttributionLabel) + "</dt><dd>" + esc(wer) + "</dd>";
     }
     // 🔴 Die Adresse ist ANKLICKBAR (Owner 01.09.2026). Sie steht hier vollstaendig, waehrend der
     // Titel oben kuerzt -- und ein Link, den man sieht, aber nicht folgen kann, ist eine Sackgasse.
@@ -365,8 +406,32 @@ function buildSourceListMarkup(wikiUrl, sources, opts) {
     return licenseBadgeMarkup(s);
   };
   direct.forEach(function (s, index) {
-    var label = esc(s.label || s.url || "");
-    var namensnennung = lizenzMarkup(s);
+    // 🔴 WELCHER NAME STEHT VORN? Bei einer BELEGSTELLE der Korpusname („Herzogtum Weiden"), bei
+    // einem WERK der Titel („Geographia Aventurica"). Owner-Entscheid, Entwurf §3.1.
+    // 💣 Gemessen, warum das die Anzeige rettet: von 133 Belegstellen-Zeilen heissen live 33
+    // schlicht „Briefspiel", 24 „AlmadaWiki", 32 tragen als Titel den Dateinamen
+    // „Datei : Ponterra detailliert.jpg" -- und 15 gar keinen. Der Titel sagt dem Besucher dort
+    // nichts; der Wirt sagt ihm, WOHER es kommt.
+    // ⚠️ NUR bei `form === "belegstelle"`. Ein WERK-Korpus (f-shop, ulisses: 879 der 1384 Zeilen)
+    // behaelt seinen Titel -- dort waere „f-shop.de" die schlechtere Auskunft. Und ein Korpus ohne
+    // entschiedene Form verhaelt sich wie ein Werk, also wie vor diesem Umbau.
+    // ⚠️ Der Link zeigt weiter auf die GENAUE Seite, nicht auf die Startseite des Wirts: wer auf
+    // „Herzogtum Weiden" klickt, will die Seite ueber DIESES Objekt.
+    var korpus = (s && s.corpus && corpora[s.corpus]) ? corpora[s.corpus] : null;
+    var korpusName = (korpus && korpus.form === "belegstelle") ? String(korpus.label || "").trim() : "";
+    var eigenerTitel = String(s.label || "").trim();
+    var vorn = korpusName !== "" ? korpusName : (eigenerTitel || s.url || "");
+    // Der Titel wandert nur dann ins ⓘ, wenn er vorn NICHT mehr steht -- und nur, wenn es ihn gibt.
+    var titelInsInfo = (korpusName !== "" && eigenerTitel !== "" && eigenerTitel !== korpusName)
+      ? eigenerTitel : "";
+    var label = esc(vorn);
+    // 🔴 DIE LIZENZ IST AUS DER ZEILE IN DAS ⓘ GEWANDERT (Owner 02.09.2026). CC BY-SA 4.0 §3(a)(2)
+    // erlaubt das ausdruecklich: die Pflichtangaben duerfen „in any reasonable manner based on the
+    // medium" erfuellt werden, und als Beispiel nennt die Lizenz selbst einen LINK auf eine
+    // Ressource, die sie enthaelt. Eine Tafel auf DERSELBEN Seite, immer vorhanden, einen Klick
+    // entfernt, ist mindestens so gut. ⚠️ Bedingung dafuer ist, dass das ⓘ IMMER da ist -- siehe
+    // `rechteMarkup`. Wer den Ausloeser je wieder verengt, nimmt die Lizenzangabe mit.
+    var namensnennung = "";
     // 🔴 KEIN STERN MEHR hinter dem Titel -- der Kanon steht rechts als Stempel. Und die
     // Seitenangabe bleibt bei der Quelle, weil sie zu IHR gehoert.
     // 💣 TITEL UND BEIPACK REISEN GETRENNT. Lagen sie in EINEM ellipsierenden Kasten, schnitt die
@@ -398,7 +463,7 @@ function buildSourceListMarkup(wikiUrl, sources, opts) {
     // traegt das Etikett den Namen.
     // ⚠️ Ohne Art bleibt es eine ganze Pille (seit 30.08.2026 darf eine Quelle typlos sein) --
     // dieselbe Regel wie beim Wiki-Artikel weiter oben, der gar keine Katalogzeile ist.
-    var rechte = rechteMarkup(s, index);
+    var rechte = rechteMarkup(s, index, titelInsInfo);
     items.push(zeile(eintrag, meta, rechte.knopf + featureKanonBadgeMarkup(
       { kanon: s.official ? "offiziell" : "inoffiziell", bezeichner_type: s.type },
       esc, kanonLabels, typeLabels

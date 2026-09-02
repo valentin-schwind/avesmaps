@@ -33,23 +33,37 @@ const MIT_RECHTEN = {
 };
 const OHNE_RECHTE = { label: "Goldene Flügel", url: "https://f-shop.de/x", type: "abenteuer", official: true };
 
-// ══ A. Das ⓘ erscheint NUR, wo es etwas zu zeigen gibt ══════════════════════════════════════════
-// 🔴 Ein Knopf über einer leeren Tafel ist ein Klick für nichts. Auslöser ist die NAMENSNENNUNG —
-// live gemessen 01.09.2026 tragen 3 von 1374 Katalogzeilen eine.
+// ══ A. Das ⓘ steht seit dem 02.09.2026 an JEDER Quelle ══════════════════════════════════════════
+// 🔴 UMKEHR EINER REGEL, und sie ist begründet. Auslöser war die NAMENSNENNUNG — live tragen 3 von
+// 1374 Katalogzeilen eine, das ⓘ war also praktisch nie zu sehen. Jetzt trägt die Tafel den KANON
+// (immer bekannt, Owner-Wortlaut vom 02.09.), die LIZENZ (aus der Zeile hierher gewandert) und bei
+// einer Belegstelle den TITEL der Seite, weil vorn der Korpusname steht.
+// 💣 Die alte Regel „ein Knopf über einer leeren Tafel ist ein Klick für nichts" ist damit NICHT
+// gefallen, sondern erfüllt: es gibt jetzt immer etwas. Wer den Kanon je herausnimmt, muss den
+// Auslöser zurückbauen.
 {
 	const mit = markup.buildSourceListMarkup("", [MIT_RECHTEN]);
 	const ohne = markup.buildSourceListMarkup("", [OHNE_RECHTE]);
 	pruefe(mit.includes('class="fs-src-info"'), "eine Quelle mit Namensnennung bekommt ein ⓘ");
-	pruefe(!ohne.includes("fs-src-info"), "eine ohne bekommt keines");
-	pruefe(!ohne.includes("fs-src-rights"), "und auch keine leere Tafel");
+	pruefe(ohne.includes('class="fs-src-info"'), "und eine ohne ebenso -- der Kanon ist immer da");
+	pruefe(/<dt>Kanon<\/dt>/.test(ohne), "ihre Tafel trägt ihn");
+	// ⚠️ Und sie behauptet nichts, was nicht dasteht: ohne Nennung keine Nennungszeile.
+	pruefe(!/<dt>Nennung<\/dt>/.test(ohne), "aber keine leere Nennungszeile");
+	pruefe(ohne.includes("fs-src-rights"), "und eine Tafel, die nicht leer ist");
 
-	// ⚠️ Auch die WIKI-Zeile bekommt keines: der Artikel-Link IST ihre Namensnennung, und ihre
-	// Lizenz steht sichtbar daneben. Es gäbe nichts aufzuklappen.
+	// ⚠️ Die WIKI-Zeile bekommt weiterhin KEINES: der Artikel-Link IST ihre Namensnennung, ihre
+	// Lizenz steht sichtbar daneben, und sie ist gar keine Katalogquelle -- sie hat auch keinen
+	// Kanon aus dem Katalog. Es gäbe dort wirklich nichts aufzuklappen.
+	// 💣 Geprüft wird deshalb die ZAHL: die Quelle darunter bringt ihr eigenes ⓘ mit, ein blosses
+	// „enthält kein fs-src-info" wäre seit dem 02.09.2026 immer falsch.
 	const mitWiki = markup.buildSourceListMarkup("https://wiki.example/Perricum", [OHNE_RECHTE], {
 		wikiLabel: "Wiki Aventurica", wikiLicenseLabel: "CC BY-SA 3.0",
 		wikiLicenseUrl: "https://creativecommons.org/licenses/by-sa/3.0/",
 	});
-	pruefe(!mitWiki.includes("fs-src-info"), "die Wiki-Zeile bekommt kein ⓘ");
+	const wikiZeile = mitWiki.slice(mitWiki.indexOf("<li>"), mitWiki.indexOf("</li>"));
+	pruefe(!wikiZeile.includes("fs-src-info"), "die Wiki-Zeile bekommt kein ⓘ");
+	pruefe((mitWiki.match(/fs-src-info/g) || []).length === 1,
+		"genau eines -- das der Quelle darunter");
 	pruefe(mitWiki.includes("CC BY-SA 3.0"), "ihre Lizenz steht aber weiterhin sichtbar in der Zeile");
 }
 
@@ -81,8 +95,12 @@ const OHNE_RECHTE = { label: "Goldene Flügel", url: "https://f-shop.de/x", type
 	const html = markup.buildSourceListMarkup("", [OHNE_RECHTE, MIT_RECHTEN]);
 	const lis = html.split("<li>").slice(1);
 	pruefe(lis.length === 2, "zwei Quellen, zwei <li>");
-	pruefe(!lis[0].includes("fs-src-rights"), "die Quelle ohne Rechte hat keine Tafel");
-	pruefe(lis[1].includes("fs-src-rights"), "die mit Rechten hat sie in IHREM <li>");
+	// ⭐ Seit dem 02.09.2026 hat JEDE Quelle ihre Tafel (der Kanon ist immer bekannt). Die Aussage
+	// dieser Prüfung ist unverändert und sogar schärfer prüfbar: jede liegt in IHREM <li>.
+	pruefe(lis[0].includes("fs-src-rights") && lis[1].includes("fs-src-rights"),
+		"jede Quelle hat ihre Tafel in IHREM <li>");
+	pruefe(!/<dt>Nennung<\/dt>/.test(lis[0]) && /<dt>Nennung<\/dt>/.test(lis[1]),
+		"und nur die mit Nennung trägt eine -- die Tafel behauptet nichts, was nicht dasteht");
 	pruefe(lis[1].indexOf("fs-src-rights") < lis[1].indexOf("</ul>"), "und damit innerhalb der Liste");
 
 	// 🔴 Zwei Quellen mit Rechten bekommen VERSCHIEDENE ids -- sonst schaltet ein Knopf die
@@ -128,18 +146,25 @@ const OHNE_RECHTE = { label: "Goldene Flügel", url: "https://f-shop.de/x", type
 	const html = markup.buildSourceListMarkup("", [Object.assign({}, MIT_RECHTEN, { license: "cc-by-nc-sa-3.0" })]);
 	pruefe(html.includes('<span class="fs-src-title">'), "der Titel hat einen eigenen Kasten");
 	const main = html.slice(html.indexOf('class="fs-src-main"'), html.indexOf('class="fs-src-marks"'));
-	pruefe(main.indexOf("fs-src-title") < main.indexOf("fs-src-lic"), "Titel vor Lizenz");
+	// ⭐ SEIT DEM 02.09.2026 STEHT DIE LIZENZ IN DER TAFEL, nicht mehr in der Zeile (Owner:
+	// „lizenz ins ⓘ, über nennung"). Damit ist der Zielkonflikt aufgelöst, den diese Prüfung
+	// bewachte: der Titel hat die Zeile für sich und kann nichts mehr abschneiden, was rechtlich
+	// tragend wäre.
+	pruefe(!main.includes("fs-src-lic"), "die Lizenz steht nicht mehr in der Zeile");
+	pruefe(/<dt>Lizenz<\/dt>/.test(html), "sondern in der Tafel");
 
 	const css = lies("css/features/feature-sources.css");
-	// Nur der TITEL trägt die Ellipse -- `.fs-src-main` darf sie nicht mehr haben, sonst schneidet
+	// Nur der TITEL trägt die Ellipse -- `.fs-src-main` darf sie nicht haben, sonst schneidet
 	// sie wieder alles hinten ab.
 	const mainRegel = css.slice(css.indexOf(".fs-src-main {"), css.indexOf("}", css.indexOf(".fs-src-main {")));
 	pruefe(!mainRegel.includes("text-overflow"), "die Ellipse sitzt nicht mehr am ganzen Bereich");
 	const titelRegel = css.slice(css.indexOf(".fs-src-title {"), css.indexOf("}", css.indexOf(".fs-src-title {")));
 	pruefe(titelRegel.includes("text-overflow: ellipsis") && titelRegel.includes("min-width: 0"),
 		"sondern am Titel -- samt min-width:0, ohne das schrumpft ein Flex-Kind nicht");
+	// ⚠️ Die Regel für die Lizenzmarke BLEIBT im CSS: die WIKI-Zeile trägt ihre Lizenz weiterhin
+	// sichtbar (sie ist keine Katalogquelle und hat kein ⓘ). Eine gelöschte Regel nähme ihr die Form.
 	pruefe(/\.fs-src-main > \.fs-src-lic \{[^}]*flex: 0 0 auto/.test(css),
-		"und die Lizenz schrumpft nie");
+		"und die Lizenz der Wiki-Zeile schrumpft nie");
 }
 
 // ══ F. Unterhalb einer Schwelle bricht die Zeile DOCH um — bewusst und gemessen ═════════════════

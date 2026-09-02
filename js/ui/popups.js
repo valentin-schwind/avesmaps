@@ -199,6 +199,10 @@ function resolveFeatureSourceList(entityType, entityPublicId) {
 			pages: ref.pages || "",
 			reference_kind: ref.reference_kind || "",
 			note: ref.note || "",
+			// 🔴 DER KORPUS-SCHLÜSSEL, wo es einen gibt. Er verbindet die Zeile mit dem Wörterbuch
+			// `__sourceCorpora` -- der Browser rechnet die registrierbare Domain NICHT nach: das
+			// wäre eine zweite Wahrheit über `avesmapsSourceCorpusKey` (AGENTS.md §5).
+			corpus: source.corpus || "",
 		});
 	}
 	return resolved;
@@ -245,6 +249,18 @@ function renderFeatureSourceLine(entityType, entityPublicId, wikiUrl, linkClass,
 	const kanon = resolveFeatureKanon(entityType, entityPublicId);
 	const list = window.buildSourceListMarkup(wikiUrl, sources, {
 		linkClass,
+		// 🔴 DIE KORPORA aus der Kartennutzlast. Sie entscheiden, welcher der beiden Namen vorn
+		// steht: bei einer BELEGSTELLE der Korpusname, sonst der Titel (Entwurf §3.1).
+		// ⚠️ `{}` ist der bewusste Rückfall -- ohne sie zeigt die Zeile ihren Titel wie bisher.
+		corpora: (typeof window !== "undefined" && window.__sourceCorpora) || {},
+		rightsKanonLabel: tr("popup.rightsKanon", "Kanon"),
+		rightsTitleLabel: tr("popup.rightsTitle", "Titel"),
+		// Wortlaut vom Owner (02.09.2026). `{art}` ist die Art der Quelle in Klammern -- oder
+		// leer, wo sie keine Aussage ist (`sonstiges`).
+		kanonOfficialText: tr("popup.kanonOfficialText",
+			"Offiziell — bei Ulisses erschienen. In offiziellen Nachschlagwerken nachzulesen."),
+		kanonUnofficialText: tr("popup.kanonUnofficialText",
+			"Inoffiziell — Fanmaterial{art}. In offiziellen Nachschlagwerken steht es so nicht."),
 		// ⚠️ Der Wiki-Artikel ist KEINE Katalogquelle -- sein Kanon ist der des OBJEKTS, weil der
 		// Namensraum dieses Artikels ihn bestimmt hat (avesmapsWikiNamespaceFromWikiUrl).
 		// `undefined` heisst „kein Stempel", nicht „offiziell".
