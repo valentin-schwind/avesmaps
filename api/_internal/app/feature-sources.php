@@ -831,7 +831,8 @@ function avesmapsListFeatureSourcesForEdit(PDO $pdo, string $entityType, string 
     // Verknüpfung stammen oft von verschiedenen Editoren, und genau das ist die Auskunft.
     $namen = avesmapsFeatureSourceEditorNames($pdo, array_merge(
         array_column($rows, 'quelle_von'),
-        array_column($rows, 'beleg_von')
+        array_column($rows, 'beleg_von'),
+        array_column($korpora, 'updated_by')
     ));
     $sources = array_map(static function (array $r) use ($usage, $korpora, $korpusReichweite, $namen): array {
         $id = (int) $r['source_id'];
@@ -853,6 +854,14 @@ function avesmapsListFeatureSourcesForEdit(PDO $pdo, string $entityType, string 
                     'license' => (string) ($korpora[$key]['license'] ?? ''),
                     'attribution' => (string) ($korpora[$key]['attribution'] ?? ''),
                     'is_official' => ($korpora[$key]['is_official'] ?? false) === true,
+                    // ⚠️ Die DRITTE Herkunft. Der Name kommt aus derselben Aufloesung wie die
+                    // zwei anderen -- deshalb reist `updated_by` aus dem Korpus-Leser als ID
+                    // und wird ERST HIER, im Editor-Endpunkt, zu einem Namen.
+                    'updated' => avesmapsFeatureSourceHerkunft(
+                        $korpora[$key]['updated_at'] ?? null,
+                        $korpora[$key]['updated_by'] ?? null,
+                        $namen
+                    ),
                     'sources' => (int) ($korpusReichweite[$key]['sources'] ?? 0),
                     'objects' => (int) ($korpusReichweite[$key]['objects'] ?? 0),
                 ];

@@ -278,6 +278,69 @@
 	color: var(--color-accent-brown);
 	background: var(--color-panel-soft);
 }
+/* ── DER ADRESS-RAHMEN: die Anleitung steht dort, wo sie gilt ────────────────────────────────
+   Owner 02.09.2026, Wortlaut der Aufschrift. Sie ersetzt einen Hinweistext daneben, den beim
+   Einfügen niemand liest.
+   ⚠️ DURCHGEZOGEN, nicht gestrichelt -- der Unterschied trägt: gestrichelt heißt in dieser Zeile
+   „so weit reicht die Wirkung" (der Korpus), durchgezogen heißt „hier fängst du an". Zwei Rahmen
+   mit derselben Kontur wären zwei Aussagen in einer Form. */
+.fs-adresse {
+	position: relative;
+	display: flex;
+	flex-wrap: wrap;
+	align-items: flex-end;
+	gap: 6px;
+	flex: 1 1 100%;
+	border: 1px solid var(--color-accent-brown);
+	border-radius: var(--radius-md);
+	padding: 16px 8px 8px;
+}
+.fs-adresse__l {
+	position: absolute;
+	top: -7px;
+	left: 8px;
+	padding: 0 5px;
+	font-size: 10px;
+	line-height: 1.2;
+	letter-spacing: 0.02em;
+	text-transform: uppercase;
+	color: var(--color-accent-brown);
+	background: var(--color-panel-soft);
+}
+/* 🔴 DAS ADRESSFELD IST DAS EINZIGE, DAS EIN EDITOR WIRKLICH TIPPT -- es trägt deshalb einen
+   kräftigeren Rand als seine Nachbarn. ⚠️ Die drei Zustände sind Rand UND Text, nie Farbe allein:
+   „ungültig" nur rot wäre für rund 8 % der Männer nicht von „gültig" zu unterscheiden. */
+.fs-row--add input[type="text"].fs-add-url {
+	border-color: var(--color-accent-brown);
+}
+.fs-row--add input[type="text"].fs-add-url--gut {
+	border-color: var(--color-success-soft-border);
+}
+.fs-row--add input[type="text"].fs-add-url--schlecht {
+	border-color: var(--color-warning-soft-border);
+	background: var(--color-warning-soft);
+}
+/* Der grüne Haken -- „es wurde etwas gelesen". Er sitzt neben dem Prüfknopf und ist die Hälfte
+   der Antwort, die man aus dem Augenwinkel sieht; die andere steht als Satz darunter. */
+/* 💣 IM Feld, nicht daneben: als Geschwister der Beschriftung landete der Haken im Umbruch
+   der Flex-Zeile und schob den Titel eine Zeile tiefer. Das Feld traegt dafuer rechts Platz,
+   damit eine lange Adresse nicht unter ihm durchlaeuft. */
+.fs-af--url {
+	position: relative;
+}
+.fs-row--add input[type="text"].fs-add-url {
+	padding-right: 26px;
+}
+.fs-add-ok {
+	position: absolute;
+	right: 8px;
+	bottom: 6px;
+	font-size: 14px;
+	line-height: 1;
+	font-weight: 700;
+	pointer-events: none;
+	color: var(--color-success-soft-text);
+}
 /* Die REICHWEITE in der Aufschrift: WELCHER Wirt, und wie weit reicht er. „Gilt für den ganzen
    Korpus" ohne Grösse ist keine Warnung -- dieselbe Regel und dieselbe Bauform wie `.fs-edit__scope`
    im Bearbeiten-Kasten.
@@ -910,17 +973,35 @@
 .fs-edit__url b {
 	color: var(--color-text-strong);
 }
+/* ── DER BEARBEITEN-KASTEN ARBEITET MIT RAHMEN, wie die Eingabezeile ─────────────────────────
+   Owner 02.09.2026: „kannst du im Bearbeiten-Kasten genauso mit rahmen arbeiten wie bei der
+   Eingabeform für neue Quellen".
+   🔴 Bis dahin trennten hier LINIEN (§12: „group by divider, not by framed boxes"), waehrend die
+   Eingabezeile daneben rahmte -- zwei Formensprachen fuer dieselbe Aussage („so weit reicht das
+   hier"), und der Editor sieht beide im selben Fenster. Die Ausnahme von §12 ist begruendet: der
+   Rahmen sagt nicht „das gehoert zusammen", sondern „bis hierher reicht die Wirkung", und genau
+   dafuer gibt es ihn in der Eingabezeile schon.
+   ⚠️ Dieselben Werte wie `.fs-korpus` -- gestrichelt, ohne eigene Flaeche, Aufschrift AUF dem
+   Rahmen. Zwei Rezepturen fuer dieselbe Form waeren die Divergenz, die dieser Umbau beseitigt. */
+.fs-edit__group {
+	position: relative;
+	border: 1px dashed var(--color-accent-brown);
+	border-radius: var(--radius-md);
+	padding: 16px 10px 10px;
+}
 .fs-edit__group + .fs-edit__group {
-	margin-top: 16px;
+	margin-top: 14px;
 }
 .fs-edit__head {
+	position: absolute;
+	top: -7px;
+	left: 8px;
 	display: flex;
 	flex-wrap: wrap;
 	align-items: baseline;
-	gap: 8px;
-	margin-bottom: 10px;
-	padding-bottom: 6px;
-	border-bottom: 1px solid var(--color-divider);
+	gap: 6px;
+	padding: 0 5px;
+	background: var(--color-panel-soft);
 }
 /* ⚠️ 11px ist die Untergrenze des Hauses (§12) -- hier bewusst genau darauf, nicht darunter. */
 .fs-edit__title {

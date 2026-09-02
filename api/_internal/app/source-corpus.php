@@ -243,7 +243,8 @@ function avesmapsSourceCorpusReadAll(PDO $pdo): array
     try {
         avesmapsEnsureSourceCorpusTable($pdo);
         $rows = $pdo->query(
-            'SELECT corpus_key, label, form, source_type, license, attribution, is_official
+            'SELECT corpus_key, label, form, source_type, license, attribution, is_official,
+                    updated_by, updated_at
                FROM source_corpus'
         );
         if ($rows === false) {
@@ -268,6 +269,14 @@ function avesmapsSourceCorpusReadAll(PDO $pdo): array
             'license' => (string) $row['license'],
             'attribution' => (string) $row['attribution'],
             'is_official' => (int) $row['is_official'] === 1,
+            // 🔴 WER DEN KORPUS ZULETZT ANGEFASST HAT -- die DRITTE Reichweite des
+            // Bearbeiten-Kastens. Ohne sie traegt der Kasten zwei Herkuenfte und schweigt
+            // ausgerechnet bei der Gruppe, deren Aenderung am weitesten reicht.
+            // ⚠️ Der NAME wird hier NICHT aufgeloest: dieser Leser laeuft auch im
+            // oeffentlichen Pfad, und ein Editorname gehoert nie in eine Kartennutzlast.
+            // Die Aufloesung macht der Editor-Endpunkt (avesmapsFeatureSourceEditorNames).
+            'updated_by' => $row['updated_by'] === null ? null : (int) $row['updated_by'],
+            'updated_at' => (string) ($row['updated_at'] ?? ''),
             'known' => true,
         ];
     }

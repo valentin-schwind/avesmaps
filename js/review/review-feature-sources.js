@@ -456,7 +456,14 @@ function renderFeatureSourceEditPanel(source, escape, tr) {
     + (eigen.indexOf("is_official") !== -1 ? " checked" : "")
     + "> " + escape(tr("sources.edit.ownField", "nur diese Quelle")) + "</span>"
     + "</label>"
-    + "</div></div>"
+    + "</div>"
+    // Die DRITTE Herkunft -- wer den Korpus zuletzt angefasst hat. Ohne sie schwiege der Kasten
+    // ausgerechnet bei der Gruppe, deren Änderung am weitesten reicht.
+    + featureSourceHerkunftZeile(korpus && korpus.updated, {
+      mitName: "sources.edit.byCorpus", mitNameText: "Korpus zuletzt geändert von {wer} am {wann}",
+      ohneName: "sources.edit.byCorpusAnon", ohneNameText: "Korpus zuletzt geändert am {wann}",
+    }, escape, tr)
+    + "</div>"
     + '<div class="fs-edit__foot">'
     + '<button type="button" class="fs-edit__save" data-fs-edit-save="' + escape(source.source_id) + '">'
     + escape(tr("sources.edit.save", "Speichern")) + "</button>"
@@ -603,10 +610,29 @@ function renderFeatureSourceAddRow(escape, tr) {
     // ⚠️ Die Klassen der Bedienelemente bleiben unveraendert (`.fs-add-url`, `.fs-add-label`, …):
     // an ihnen haengen fuenf Tests und die ganze Verdrahtung. Neu ist nur die Huelle darum.
     '<div class="fs-row fs-row--add" data-fs-add>' +
+    // 🔴 DIE ADRESSE BEKOMMT IHREN EIGENEN RAHMEN, und seine Aufschrift ist die ANLEITUNG (Owner
+    // 02.09.2026, Wortlaut): sie steht dort, wo sie gilt, statt in einem Hinweistext daneben. Der
+    // Rahmen sagt zugleich, wie weit das Einfügen reicht -- Adresse UND Titel entstehen daraus.
+    '<span class="fs-adresse">' +
+    '<span class="fs-adresse__l">' +
+    escape(tr("sources.add.pasteGroup", "Nur Adresse (URL) der Quelle einfügen — automatische Erkennung des Korpus")) +
+    "</span>" +
     // Adresse — das einzige Feld, das der Editor im Normalfall wirklich tippt.
+    // 💣 Der Platzhalter nennt die GENAUE SEITE und warnt vor der Startseite: live zeigen vier
+    // Katalogzeilen auf `wiki.punin.de/`, und eine (`liebliches-feld.net`) auf eine beliebige
+    // Bilddatei -- für 31 der 32 Objekte, an denen sie hängt, ist das die falsche Adresse.
     '<label class="fs-af fs-af--url"><span class="fs-af__l">' +
     escape(tr("sources.add.urlLabel", "Adresse — die genaue Seite")) + "</span>" +
-    '<input type="text" class="fs-add-url" placeholder="https://…"></label>' +
+    '<input type="text" class="fs-add-url" inputmode="url" spellcheck="false" placeholder="' +
+    escape(tr("sources.add.urlPlaceholder", "https://… — die Seite über DIESES Objekt, nicht die Startseite")) +
+    '">' +
+    // ⭐ DER GRÜNE HAKEN (Owner 02.09.2026), und er sitzt IM Feld, nicht daneben. Als Geschwister
+    // der Beschriftung landete er im Umbruch der Flex-Zeile und schob den Titel eine Zeile tiefer
+    // — im Bild gesehen, von keinem Test.
+    // 🔴 Er ist NICHT dasselbe wie der grüne Prüfknopf: der sagt „ich habe nachgesehen", der Haken
+    // sagt „es wurde etwas gelesen". ⚠️ `aria-hidden`, weil der Satz darunter (`data-fs-note`,
+    // `role=status`) es bereits in Worten sagt — ein Vorleser bekäme es sonst zweimal.
+    '<span class="fs-add-ok" data-fs-ok hidden aria-hidden="true">✓</span></label>' +
     // Der Prüfknopf (Owner 02.09.2026). 🔴 Er ist der Grund, warum das Formular NIE auf einen
     // fremden Server wartet: der Abruf ist ein Handgriff, kein Nebeneffekt des Tippens. Einfügen
     // und Enter lösen ihn ebenfalls aus -- das Feld steht in keinem <form>, Enter war bis hierher
@@ -621,6 +647,7 @@ function renderFeatureSourceAddRow(escape, tr) {
     '<label class="fs-af fs-af--grow"><span class="fs-af__l">' +
     escape(tr("sources.add.labelLabel", "Titel — wie diese Seite heißt")) + "</span>" +
     '<input type="text" class="fs-add-label" placeholder="' + escape(tr("sources.add.label", "Quellenname")) + '"></label>' +
+    "</span>" +
     // 🔴 DER KORPUS -- die Sammlung, aus der die Seite stammt. Sein SCHLÜSSEL ist die registrierbare
     // Domain und wird gerechnet, nie getippt; hier steht nur seine BESCHRIFTUNG. Die Meta-Zeile
     // daneben nennt den Schlüssel und die Reichweite, damit sichtbar ist, was eine Umbenennung
@@ -924,6 +951,34 @@ function featureSourceChangedFields(panel) {
     }
   });
   return felder;
+}
+
+/**
+ * Sieht eine Zeichenkette nach einer Web-Adresse aus?
+ *
+ * 🔴 NUR `http`/`https`. Der Katalog verlangt eine anklickbare Quelle; `ftp:` oder `javascript:`
+ * gehören dort nicht hin, und die zweite Form wäre in einer Infobox, die den Wert als Link
+ * ausgibt, ein offenes Scheunentor.
+ * 💣 KEIN `new URL()` ALLEIN. Der Konstruktor nimmt „https://" ohne Wirt klaglos an (Host leer)
+ * und lehnt umgekehrt nichts ab, was ein Mensch als halbe Eingabe erkennt. Geprüft wird deshalb
+ * zusätzlich, dass ein Wirt mit einem Punkt darin dasteht.
+ * ⚠️ Absichtlich GROSSZÜGIG: sie soll Tippfehler auffangen, nicht ungewöhnliche Adressen
+ * verhindern. Eine Validierung, die eine gültige Quelle ablehnt, kostet mehr als sie spart.
+ */
+function featureSourceUrlLooksValid(wert) {
+  const roh = String(wert == null ? "" : wert).trim();
+  if (roh === "") {
+    return false;
+  }
+  try {
+    const adresse = new URL(roh);
+    if (adresse.protocol !== "http:" && adresse.protocol !== "https:") {
+      return false;
+    }
+    return adresse.hostname.indexOf(".") > 0;
+  } catch (e) {
+    return false;
+  }
 }
 
 /**
@@ -1271,6 +1326,31 @@ function mountFeatureSourceEditor(containerEl, entityType, publicIdGetter, opts)
       }
     }
     zeigeBekannteSeite(zustand === "bekannt");
+    // ⭐ Der grüne Haken: „es wurde etwas gelesen". `erreichbar` bekommt ihn NICHT -- dort ist die
+    // Seite zwar da, aber nichts daraus übernommen, und ein Haken darüber wäre eine Zusage.
+    const haken = containerEl.querySelector("[data-fs-ok]");
+    if (haken) {
+      haken.hidden = !(zustand === "gelesen" || zustand === "bekannt");
+    }
+  }
+
+  /**
+   * Sieht das nach einer Adresse aus? — die Rückmeldung BEIM TIPPEN, vor jedem Abruf.
+   *
+   * 🔴 Sie sagt nur, ob die Form stimmt, nie ob es die Seite gibt: das beantwortet der Prüfknopf.
+   * Ein Feld, das „ungültig" behauptet, weil ein fremder Server gerade langsam ist, wäre schlimmer
+   * als keins.
+   * ⚠️ LEER IST KEIN FEHLER, sondern der Anfangszustand -- ein rotes leeres Feld beim Öffnen der
+   * Liste würde jeden Editor in die Irre führen. Deshalb drei Werte, nicht zwei.
+   */
+  function zeigeAdressForm() {
+    const feld = containerEl.querySelector(".fs-add-url");
+    if (!feld) {
+      return;
+    }
+    const wert = String(feld.value || "").trim();
+    feld.classList.toggle("fs-add-url--gut", wert !== "" && featureSourceUrlLooksValid(wert));
+    feld.classList.toggle("fs-add-url--schlecht", wert !== "" && !featureSourceUrlLooksValid(wert));
   }
 
   /**
@@ -1730,6 +1810,7 @@ function mountFeatureSourceEditor(containerEl, entityType, publicIdGetter, opts)
     // geprueft hat.
     uebernehmeKorpus(null);
     setzeAdressZustand(null, "");
+    zeigeAdressForm();
   }
 
   /** Die Rückfrage — sie nennt die ZAHL, denn „gilt überall" ohne Grösse ist keine Warnung. */
@@ -1834,6 +1915,9 @@ function mountFeatureSourceEditor(containerEl, entityType, publicIdGetter, opts)
     // Felder müssen zurück, sonst bleibt die Zeile für eine ANDERE Adresse halb gesperrt.
     urlInput.addEventListener("input", () => {
       setzeAdressZustand(null, "");
+      // Die Formpruefung laeuft beim Tippen -- sie fragt keinen fremden Server und darf
+      // deshalb an jedem Tastendruck haengen, anders als der Abruf daneben.
+      zeigeAdressForm();
       // ⚠️ Und die bekannte Zeile gilt nicht mehr: eine geänderte Adresse meint eine ANDERE Quelle,
       // und eine Korrektur dürfte auf keinen Fall an der alten landen.
       letzteBekannteQuelle = null;
@@ -2318,7 +2402,7 @@ if (typeof module !== "undefined" && module.exports) {
     // und die „ohne Namen nur das Datum"-Regel einzeln geprueft werden koennen.
     featureSourceDatum, featureSourceHerkunftZeile,
     // Die Abweichung: welche Korpusfelder gehören dieser Zeile selbst -- rein, ohne DOM-Zustand.
-    featureSourceOwnFieldsFromPanel,
+    featureSourceOwnFieldsFromPanel, featureSourceUrlLooksValid,
     featureSourceLinkedMessage,
     // Die Adressauskunft der Eingabezeile: rein, damit „Zustand → was der Editor sieht" prüfbar
     // ist, statt nur im Browser zu gelten.

@@ -145,4 +145,37 @@ const quelltext = fs.readFileSync(
 pruefe(/if \(besitz\.geaendert\) \{\n\s*felder\.own_fields = besitz\.liste;/.test(quelltext),
   "`own_fields` reist nur mit, wenn die Haekchen wirklich bewegt wurden");
 
-console.log("OK — " + pruefungen + " Zusicherungen (Abweichung vom Korpus)");
+
+
+// ── 6 · Die Adresse: Rahmen, Formprüfung, grüner Haken (Owner 02.09.2026) ────────────────────
+const { featureSourceUrlLooksValid, renderFeatureSourceEditorHtml } = modul;
+[["https://westlande.de/albernia/index.php?title=Apfeldorn", true],
+ ["http://www.kahet-ni-kemi.de/sssrah.html", true],
+ ["https://", false], ["ftp://x.de", false],
+ // 💣 `javascript:` MUSS durchfallen: der Wert wird in der Infobox als Link ausgegeben.
+ ["javascript:alert(1)", false],
+ ["westlande.de/a", false], ["", false],
+ // ⚠️ Ein Wirt ohne Punkt ist keine Quelle im Netz -- `new URL()` allein liesse ihn durch.
+ ["https://localhost", false]].forEach(([u, soll]) => {
+  gleich(featureSourceUrlLooksValid(u), soll, "Formprüfung: " + (u || "(leer)"));
+});
+
+const zeile = renderFeatureSourceEditorHtml({ wiki_url: "", sources: [] }, {});
+pruefe(/class="fs-adresse"/.test(zeile) && /class="fs-adresse__l"/.test(zeile),
+  "die Adresse steht in einem eigenen Rahmen mit Aufschrift");
+pruefe(/Nur Adresse \(URL\) der Quelle einfügen/.test(zeile),
+  "und die Aufschrift ist die Anleitung -- dort, wo sie gilt");
+// ⚠️ Adresse UND Titel stehen darin: der Titel entsteht aus dem Einfügen, er gehört zur selben
+// Handlung. Seite(n) und Abdeckung NICHT -- die tippt der Editor selbst.
+const rahmenInhalt = zeile.slice(zeile.indexOf('class="fs-adresse"'), zeile.indexOf('fs-af--pages'));
+pruefe(/fs-add-url/.test(rahmenInhalt) && /fs-add-label/.test(rahmenInhalt),
+  "Adresse und Titel liegen im Rahmen");
+pruefe(!/fs-add-pages|fs-add-kind/.test(rahmenInhalt), "Seiten und Abdeckung nicht");
+// 🔴 Der grüne Haken startet VERBORGEN -- er sagt „es wurde etwas gelesen", und vor dem ersten
+// Abruf ist das eine Behauptung.
+pruefe(/data-fs-ok hidden/.test(zeile), "der grüne Haken startet verborgen");
+pruefe(/haken\.hidden = !\(zustand === "gelesen" \|\| zustand === "bekannt"\);/.test(quelltext),
+  "und erscheint nur, wenn wirklich etwas gelesen wurde -- `erreichbar` allein genügt nicht");
+pruefe(/zeigeAdressForm\(\);/.test(quelltext), "die Formprüfung ist beim Tippen verdrahtet");
+
+console.log("OK — " + pruefungen + " Zusicherungen gesamt (Abweichung, Adresse, Haken)");
