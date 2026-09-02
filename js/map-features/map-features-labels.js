@@ -441,7 +441,15 @@ function createLabelIcon(label) {
 		// der die Hervorhebung wieder löscht (ECOSYSTEM_HIGHLIGHT_SOURCES in
 		// map-features-ecosystem-rendering.js) -- ohne sie müsste er JEDES Label verschonen, und ein Klick
 		// auf einen Ortsnamen liesse die alte Fläche stehen.
-		className: `map-label map-label--${label.labelType}${labelHasWikiRegion(label) ? " map-label--has-wiki" : ""}${label.ecosystemRegionPublicId ? " map-label--has-eco-region" : ""}${typeof ecosystemLabelMutedClass === "function" ? ecosystemLabelMutedClass(label) : ""}`,
+		// `map-label--markiert`: „Freie Labels markieren" (Owner 02.09.2026) -- der rote Kasten um die
+		// gewaehlte Labelart. 💣 HIER ALS KLASSE, anders als der rote Schein des Pruefhakens „Keine
+		// Wiki-Zuweisung" zwei Bloecke weiter oben: jener steckt IM BILD (er faerbt die Schrift und
+		// waere aus dem Stylesheet nicht erreichbar), dieser liegt AUSSERHALB des Bildes und ist
+		// deshalb genau das, was eine Klasse leisten kann. Sein Vorteil: er geht nicht in den
+		// Bildcache ein (_mapLabelImageCache), das Umschalten kostet also kein einziges Neurastern.
+		// ⚠️ Und deshalb steht er NICHT in `labelStyle` -- wer ihn dorthin zoege, machte aus einem
+		// Klassenwechsel 1017 neue Canvas-Bilder.
+		className: `map-label map-label--${label.labelType}${labelHasWikiRegion(label) ? " map-label--has-wiki" : ""}${label.ecosystemRegionPublicId ? " map-label--has-eco-region" : ""}${typeof ecosystemLabelMutedClass === "function" ? ecosystemLabelMutedClass(label) : ""}${typeof avesmapsFreieLabelMarke === "function" && avesmapsFreieLabelMarke(label) ? " map-label--markiert" : ""}`,
 		html: `<img src="${image.url}" width="${image.w}" height="${image.h}" style="display:block; transform: translate(calc(-50% + var(--label-offset-x, 0px)), calc(-50% + var(--label-offset-y, 0px))) rotate(${safeRotation}deg);" alt="${escapeHtml(label.text)}">`,
 		iconSize: [0, 0],
 		iconAnchor: [0, 0],
@@ -1543,6 +1551,13 @@ function prepareLabelData(data) {
 	syncLabelVisibility();
 	const beendet = (typeof performance !== "undefined" && typeof performance.now === "function") ? performance.now() : 0;
 	avesmapsLabelStartFesthalten(labelMarkers.length, beendet - begonnen);
+	// Die Zeilen des Felds „Freie Labels markieren" entstehen aus DIESEM Bestand -- Art und Anzahl
+	// sind Daten, keine Auszeichnung. 💣 Der Aufruf gehoert hierher und nicht in den Startlauf: diese
+	// Funktion laeuft auch nach einem Live-Abgleich im Editor, und eine Liste, die den geloeschten
+	// Bestand von vorhin zaehlt, waere schlimmer als keine (sie sieht richtig aus).
+	if (typeof avesmapsFreieLabelMarkierungFeldFuellen === "function") {
+		avesmapsFreieLabelMarkierungFeldFuellen();
+	}
 }
 
 function addCreatedLabelFeature(feature) {

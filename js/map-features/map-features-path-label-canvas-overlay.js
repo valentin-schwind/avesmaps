@@ -561,10 +561,47 @@
 				fenster,
 				halo: kurvenlabelHalo(label),
 				fill: kurvenlabelFarbe(label),
+				// „Freie Labels markieren" (Owner 02.09.2026) -- gefragt wird HIER, beim Rechnen, und nicht
+				// im Maler: die Antwort gilt fuer alle Fenster desselben Namens, und der Maler laeuft je
+				// Fenster. ⚠️ Die Ablage ist nur nach Zoomstufe und Ausschnitt gestempelt -- am Feld gedreht
+				// aendert sich keins von beiden, deshalb wirft avesmapsSyncFreieLabelMarkierung sie
+				// ausdruecklich weg. Ohne das bliebe der gemalte Name ohne seinen Kasten stehen.
+				markiert: typeof avesmapsFreieLabelMarke === "function" && avesmapsFreieLabelMarke(label),
 			});
 			kurvenlabelAblage.gemalt.add(label);
 		}
 		return kurvenlabelAblage;
+	}
+
+	// Der Kasten des Werkzeugs „Freie Labels markieren" um einen gebogenen Namen.
+	//
+	// ⚠️ DASSELBE POLSTER WIE DIE KLICKFLAECHE DARUNTER, keine dritte Zahl daneben: glyphsHullBox
+	// polstert um eine volle Schriftgroesse, und das ist als Rahmen zu weit -- der Kasten stuende
+	// eine Zeilenhoehe neben dem Namen. Abgezogen wird bis auf RAHMEN_PAD, so wie das Klickregister
+	// bis auf WAY_LABEL_CLICK_PAD abzieht.
+	//
+	// 💣 DER FARBTON WIRD AUSGELESEN, NICHT ALS `var()` GESETZT: im 2D-Kontext loest eine
+	// CSS-Variable nicht auf, der Rahmen bliebe schwarz. Das besorgt avesmapsFreieLabelFarbe.
+	const RAHMEN_PAD = 4;
+	function zeichneMarkierungsrahmen(glyphs, fontSize, markiert) {
+		if (!markiert || !Array.isArray(glyphs) || glyphs.length === 0
+			|| typeof glyphsHullBox !== "function" || typeof avesmapsFreieLabelFarbe !== "function") {
+			return;
+		}
+		const huelle = glyphsHullBox(glyphs, fontSize);
+		const weg = (Number(fontSize) || 0) - RAHMEN_PAD;
+		const left = huelle.left + weg;
+		const top = huelle.top + weg;
+		const breite = (huelle.right - weg) - left;
+		const hoehe = (huelle.bottom - weg) - top;
+		if (!(breite > 0) || !(hoehe > 0)) {
+			return;
+		}
+		ctx.save();
+		ctx.strokeStyle = avesmapsFreieLabelFarbe();
+		ctx.lineWidth = 2;
+		ctx.strokeRect(left, top, breite, hoehe);
+		ctx.restore();
 	}
 
 	// DER MALER. Er rechnet nicht mehr -- ausser die Ablage gilt einer anderen Ansicht als der, die
@@ -603,6 +640,18 @@
 				// andere gerechnet wurden.
 				ctx.font = kurvenlabelFont(eintrag.label, f.fontSize);
 				paintGlyphs(f.glyphs, f.chars, eintrag.halo, eintrag.fill);
+				// „Freie Labels markieren" (Owner 02.09.2026) -- der rote Kasten, hier fuer den GEMALTEN
+				// Namen. Am waagerechten Label macht das eine CSS-Klasse (map-label--markiert); ein
+				// gebogener Name ist kein divIcon, sondern Canvas -- sein Marker ist abgemeldet, und nichts,
+				// was drueben am Bild haengt, erreicht ihn.
+				// 💣 OHNE DIESE ZEILEN HAETTE DAS WERKZEUG EIN LOCH, und zwar ein irrefuehrendes: die
+				// Kurvennamen tragen die grossen Landschaften, ein Editor haelt sie fuer „nicht von dieser
+				// Art" statt fuer „nicht gepruet". Dieselbe Begruendung wie beim roten Schein in
+				// kurvenlabelHalo weiter oben.
+				// ⚠️ Es ist ein RECHTECK um die Buchstabenlagen, kein mitgebogener Rahmen: gebogen waere er
+				// aufwendig und saehe an einem stark gekruemmten Namen aus wie ein zweiter Namenszug. Der
+				// Kasten sagt „hier steht einer" -- mehr soll er nicht.
+				zeichneMarkierungsrahmen(f.glyphs, f.fontSize, eintrag.markiert);
 				// Nur ein Name, der auch WIRKLICH etwas tut, bekommt eine Klickflaeche. Sonst zeigte der
 				// Zeiger unten eine Hand ueber Text, der auf nichts antwortet -- und ein Klick liefe ins
 				// Leere, wo er vorher bis zur Karte durchgefallen waere.

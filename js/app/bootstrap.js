@@ -627,6 +627,11 @@ if (IS_EDIT_MODE) {
     document.getElementById("display-group-mapstyle")?.removeAttribute("hidden");
     document.getElementById("mapStyleSelect").value = activeMapStyle;
     document.querySelector('.map-context-menu__group[data-context-action="add-here"]')?.removeAttribute("hidden");
+    // „Freie Labels markieren" (Owner 02.09.2026) -- die Rubrik unter „Mapstil". Aufgedeckt wird
+    // die GRUPPE, wie bei ihren zwei Nachbarn. Die Zeilen des Felds fuellt
+    // avesmapsFreieLabelMarkierungFeldFuellen nach, sobald die Beschriftungen geladen sind
+    // (prepareLabelData) -- hier gibt es noch keine.
+    document.getElementById("display-group-free-labels")?.removeAttribute("hidden");
     document.getElementById("display-group-checks")?.removeAttribute("hidden");
     document.getElementById("toggleCrossingsControl")?.removeAttribute("hidden");
     document.getElementById("toggleCrossings")?.removeAttribute("disabled");

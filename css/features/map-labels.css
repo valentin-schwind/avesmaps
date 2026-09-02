@@ -587,3 +587,25 @@ body.edit-mode .map-label img {
 	pointer-events: none;
 	cursor: text;
 }
+
+/* „Freie Labels markieren" (Owner 02.09.2026) -- der Kasten um die gewaehlte Labelart, damit ein
+   Editor die doppelt vergebenen Namen sieht („Inoscha" steht einmal als freie Beschriftung und
+   einmal als Name seines Flusswegs).
+
+   💣 EIN KASTEN, KEIN SCHEIN -- der rote SCHEIN gehoert dem Pruefhaken „Keine Wiki-Zuweisung"
+   (createLabelIcon brennt ihn ins Bild). Beide sind gleichzeitig einschaltbar und sprechen ueber
+   dieselben Beschriftungen; unterschieden wird an der FORM, nicht am Ton.
+
+   💣 `outline`, NICHT `border`: das Label ist ein 0x0-divIcon (Basisregel ganz oben), sein Bild
+   traegt ein `transform: translate(-50%, -50%)`, und ein Rahmen im Kasten-Modell schoebe genau
+   dieses Bild um seine eigene Breite. Eine outline liegt ausserhalb und bewegt nichts -- der Name
+   bleibt auf dem Fleck, an den ihn der Kollisionsdurchgang gerechnet hat.
+
+   ⚠️ Die Regel greift am <img> UND am <span>: gerastert wird heute ein Bild, aber der Textpfad
+   steht daneben noch (renderMapLabelToImage kann ausfallen), und ein Rahmen, der dann still
+   fehlte, saehe aus wie „diese Art ist nicht dabei". */
+.map-label--markiert img,
+.map-label--markiert span {
+	outline: 2px solid var(--color-check-free-label);
+	outline-offset: 2px;
+}

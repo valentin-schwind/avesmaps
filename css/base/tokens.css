@@ -297,6 +297,30 @@
 	   trotzdem, weil der Merker beim Weg und beim Label lebt (das Konfliktzentrum setzt ihn). */
 	--color-check-no-wiki-checked: rgba(160, 16, 41, 0.42);
 
+	/* „Freie Labels markieren" (Owner 02.09.2026: „alle freien labels vom typ z.B. ‚Fluss‘ markieren
+	   (roter rahmen)"). Ein SCHEINWERFER, kein Befund: er leuchtet die gewaehlte Labelart an, damit ein
+	   Editor die Dubletten selbst sieht -- „Inoscha" steht einmal als freie Beschriftung und einmal als
+	   Name seines Flusswegs da, und welche der beiden weg soll, entscheidet kein Programm.
+	   💣 GEMESSEN GEGEN ALLE DREI ROTS DER KARTE, nicht nur gegen den einen Nachbarn im Diff. Der erste
+	   Entwurf stand auf #e0342f und war von --color-marker-waypoint (#e33b35) nicht zu unterscheiden --
+	   RGB-Abstand 9,7 bei unter 1 Grad Farbtondifferenz. Genau diese Kollision hat --color-path-open-end
+	   ein paar Zeilen weiter oben ausdruecklich vermieden („das Rot gehoert den Reise-Wegpunkten"), und
+	   der Entwurf hier haette sie stillschweigend wieder eingebaut. Jetzt: Wegpunkt 73,5 · offenes
+	   Wegende 64,8 · Wiki-Zuweisung 73,2 -- die einzige freie Nische im Rot der Karte ist der KALTE Rand
+	   (Karmin), weil die drei anderen den neutralen und den warmen schon belegen.
+	   💣 Und die Trennung von --color-check-no-wiki ist die kritischste: die zwei treffen sich auf
+	   DERSELBEN Beschriftung -- der eine faerbt ihren Halo, dieser zieht einen Kasten darum. Waeren es
+	   dieselben Werte, wuesste bei einem roten Namen niemand mehr, welches der zwei Werkzeuge spricht.
+	   ⚠️ Unterschieden wird ohnehin auch an der FORM (Schein gegen Kasten), der Ton ist die zweite
+	   Haelfte -- aber eine Form, die allein tragen muss, ist genau das, worauf sich dieses Projekt beim
+	   Nachbartoken nicht verlassen wollte. Bewacht von freie-label-markierung-verdrahtung.test.js, das
+	   den Abstand zu ALLEN drei misst.
+	   ⚠️ Wird auch im JS gelesen (map-features-freie-label-markierung-check.js): der gebogene Name wird
+	   auf Canvas gemalt, und dort loest `var()` nicht auf. Wer den Wert aendert, aendert ihn HIER; der
+	   Rueckfall im JS ist nur die Notbremse, wenn der Token fehlt.
+	   Gepinnt wie die Ringe darueber: liegt auf den IMMER-hellen Kartenkacheln, kein Dark-Override. */
+	--color-check-free-label: #d1005d;
+
 	/* „Grenze aus Territorien" (Fall #68) -- die Territoriumsumrisse, solange das Fenster offen ist
 	   (leise), und der Umriss unter dem Zeiger (laut). Gepinnt wie die Ringe darueber: beides liegt auf
 	   den IMMER-hellen Kartenkacheln, ein Dark-Override machte sie dort unsichtbar.

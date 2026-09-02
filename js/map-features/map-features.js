@@ -217,6 +217,16 @@ $("#toggleNoWikiAssignment").change(() => {
 	}
 	syncPlannerStateToUrl();
 });
+// „Freie Labels markieren" (Owner 02.09.2026) -- ein `change` am Auswahlfeld, kein Haken.
+// ⚠️ KEIN syncPlannerStateToUrl wie bei allen Nachbarn: das Feld reist bewusst in keinem geteilten
+// Link mit (Begruendung an avesmapsFreieLabelMarkierungWahl). Waere es hier drin, stuende es beim
+// naechsten Teilen im Link, ohne dass es je jemand eingelesen haette -- ein Parameter, den niemand
+// liest, ist schlimmer als keiner: er sieht wie ein Zustand aus.
+$("#freeLabelMarkSelect").change(() => {
+	if (typeof avesmapsSyncFreieLabelMarkierung === "function") {
+		avesmapsSyncFreieLabelMarkierung();
+	}
+});
 $("#toggleNodix").change(() => {
 	syncLocationMarkerVisibility();
 	syncPlannerStateToUrl();

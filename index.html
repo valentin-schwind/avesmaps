@@ -3047,6 +3047,30 @@
 						</select>
 					</label>
 				</div>
+				<!-- „Freie Labels markieren" (Owner 02.09.2026: „alle freien labels vom typ z.B. ‚Fluss‘
+				     markieren (roter rahmen) […] mein ziel ist eigentlich die zu entfernen, die wir doppelt
+				     auf der karte haben (z.B. Inoscha)").
+				     🔴 UNTER „Mapstil" UND NICHT IN DER GRUPPE „Prüfen", und das ist die Aussage: die acht
+				     Haken dort kennen jeder einen BEFUND und rechnen ihn aus. Hier gibt es keinen -- welche
+				     zwei Namen dieselbe Sache meinen, entscheidet ein Mensch. Von den 19 Fluss-Beschriftungen
+				     tragen 6 auch einen gleichnamigen Flussweg, die uebrigen 13 sind berechtigt (live gemessen
+				     02.09.2026); eine Maschine meldete daraus 13 Fehltreffer. Es ist eine Einstellung der
+				     Anzeige wie der Mapstil, kein Pruefhaken.
+				     💣 Die Zeilen entstehen erst aus dem geladenen Bestand (avesmapsFreieLabelMarkierungFeldFuellen),
+				     nicht hier: die Arten samt Anzahl sind Daten, keine Auszeichnung -- eine Liste von Hand
+				     waere beim naechsten neuen Subtyp still unvollstaendig. Die zwei festen Zeilen unten sind
+				     nur der Zustand vor dem Laden.
+				     💣 Die GRUPPE traegt `hidden`, nicht nur das Feld -- sonst stuende im Frontend eine
+				     goldene Ueberschrift ueber einer Trennlinie ueber nichts (dieselbe Falle wie bei „Prüfen"). -->
+				<div class="map-display-menu__group" id="display-group-free-labels" hidden>
+					<p class="map-display-menu__title"><span data-i18n="display.group.freeLabels">Freie Labels markieren</span><span class="avesmaps-scope-hint" data-i18n="ui.editorOnly">nur Editoren</span></p>
+					<label id="freeLabelMarkControl">
+						<select id="freeLabelMarkSelect" class="map-display-menu__select" aria-label="Freie Labels markieren">
+							<option value="">Keine</option>
+							<option value="*">Alle</option>
+						</select>
+					</label>
+				</div>
 			</div>
 			<!-- 💣 Farbe, Kontur, Radius und Schatten kommen NICHT von hier, sondern aus der
 			     gemeinsamen Eckknopf-Regel in css/components/legal-dialog.css, wo dieser Knopf mit
@@ -3468,6 +3492,14 @@
 		     `fetch`, kein Modulzustand -- die fruehe Position kostet also nichts, und der Test faehrt
 		     die Datei einzeln (js/map-features/__tests__/wiki-zuweisung.test.js). -->
 		<script src="js/map-features/wiki-zuweisung.js"></script>
+		<!-- Die reine Regel hinter „Freie Labels markieren" -- „traegt diese Beschriftung den roten
+		     Kasten?". Neben wiki-zuweisung.js, weil beide dieselbe Rolle spielen; und aus demselben
+		     Grund VOR map-features-labels.js: `const` auf Dateiebene wird in einem klassischen Script
+		     nicht gehoistet. Kein DOM, kein `fetch`, kein Modulzustand.
+		     ⚠️ avesmapsLabelArtName (js/ui/label-arten.js) laedt SPAETER und wird bewusst erst beim
+		     Aufruf gefragt -- die Zeilen des Auswahlfelds entstehen, wenn die Beschriftungen da sind,
+		     also lange nach beiden. -->
+		<script src="js/map-features/freie-label-markierung.js"></script>
 		<!-- Das reine Fundament der Beschriftungs-Platzierung (zwoelf Ausweichstellen, Deckel,
 		     Rechteck-Mathe). Nach location-zoom-bands.js, weil es avesmapsLocationLabelSpacing
 		     liest; vor map-features*.js, deren Loeser es ruft. Dieselbe Datei laedt das Fenster
@@ -3804,6 +3836,11 @@
 		     Setzt beim Laden nur window-Funktionen. NACH den vier Zeichnern -- es ruft sie, sie rufen
 		     es nur ueber `typeof`-Riegel zur Laufzeit. -->
 		<script src="js/map-features/map-features-wiki-zuweisung-check.js"></script>
+		<!-- Und daneben der DOM-Teil von „Freie Labels markieren": das Auswahlfeld, der Farbton, das
+		     Nachziehen der zwei Zeichenflaechen. Dieselbe Zweiteilung und dieselbe Stelle wie beim
+		     Nachbarn darueber -- es ruft die Zeichner, sie rufen es nur ueber `typeof`-Riegel zur
+		     Laufzeit. -->
+		<script src="js/map-features/map-features-freie-label-markierung-check.js"></script>
 		<script src="js/map-features/map-features-place-extras.js"></script>
 		<script src="js/map-features/map-features-region-operation-chip.js"></script>
 		<script src="js/map-features/map-features-region-context-menu.js"></script>
