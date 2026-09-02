@@ -17,6 +17,9 @@ require_once __DIR__ . '/../../_internal/wiki/publication-sync.php';
 // disconnects it again on remove. Loaded here so the guarded calls in the app library find it; the
 // library stays usable without it (the calls are function_exists-gated).
 require_once __DIR__ . '/../../_internal/app/game-literature.php';
+// Die Adressauskunft der Eingabezeile (Korpus + Katalogtreffer + optionaler Abruf). Sie zieht
+// source-corpus.php und den Linkchecker nach; beide sind beim Einbinden nebenwirkungsfrei.
+require_once __DIR__ . '/../../_internal/app/source-inspect.php';
 
 try {
     $config = avesmapsLoadApiConfig(avesmapsApiRoot());
@@ -145,6 +148,27 @@ try {
             }
 
             return $ergebnis;
+        })(),
+        // „Was ist das fuer eine Adresse?" -- die Auskunft, die die Eingabezeile beim Einfuegen holt:
+        // steht die Seite schon im Katalog, zu welchem Korpus gehoert sie, und wie heisst sie.
+        // Entwurf: docs/superpowers/specs/2026-09-01-bekannte-quellen-design.md §3.4 + §4.
+        //
+        // 🔴 LESEND. Diese Aktion legt nichts an und aendert nichts -- sie beantwortet eine Frage,
+        // die der Editor stellt, BEVOR er auf „Hinzufuegen" drueckt. Wer hier je etwas schreibt,
+        // macht aus dem Tippen im Adressfeld einen Schreibvorgang.
+        //
+        // ⚠️ `fetch` ist ausdruecklich, nicht abgeleitet: die Oberflaeche fragt beim TIPPEN nur
+        // lokal (Katalog + Korpus, kostet nichts) und erst beim Einfuegen oder auf Knopfdruck nach
+        // draussen. Ein Formular, das bei jedem Tastendruck einen fremden Server anruft, ist
+        // kaputt, sobald der langsam ist.
+        'inspect_url' => (static function () use ($pdo, $payload): array {
+            $url = trim((string) ($payload['url'] ?? ''));
+            if ($url === '') {
+                avesmapsErrorResponse(400, 'invalid_request', 'url ist erforderlich.');
+            }
+            $fetch = ($payload['fetch'] ?? false) === true;
+
+            return ['ok' => true, 'inspect' => avesmapsSourceInspectUrl($pdo, $url, $fetch)];
         })(),
         'remove' => (static function () use ($pdo, $entityType, $entityPublicId, $payload, $userId): array {
             $sourceId = (int) ($payload['source_id'] ?? 0);
