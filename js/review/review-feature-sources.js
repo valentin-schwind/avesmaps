@@ -438,6 +438,15 @@ function renderFeatureSourceAddRow(escape, tr) {
   return (
     '<div class="fs-row fs-row--add" data-fs-add>' +
     '<input type="text" class="fs-add-url" placeholder="' + escape(tr("sources.add.url", "URL")) + '">' +
+    // Der Prüfknopf (Owner 02.09.2026). 🔴 Er ist der Grund, warum das Formular NIE auf einen
+    // fremden Server wartet: der Abruf ist ein Handgriff, kein Nebeneffekt des Tippens. Einfügen
+    // und Enter lösen ihn ebenfalls aus -- das Feld steht in keinem <form>, Enter war bis hierher
+    // wirkungslos, es wird also keine Gewohnheit gebrochen.
+    // 💣 DREI Zustände, nicht zwei: „erreichbar, aber nichts zu lesen" ist weder Erfolg noch
+    // Fehlschlag. Wäre es rot, suchte der Editor einen Fehler am Link, den es nicht gibt.
+    '<button type="button" class="fs-add-check" data-fs-check title="' +
+    escape(tr("sources.add.checkHint", "Adresse prüfen und Titel übernehmen")) + '" aria-label="' +
+    escape(tr("sources.add.checkHint", "Adresse prüfen und Titel übernehmen")) + '">⟳</button>' +
     '<input type="text" class="fs-add-label" placeholder="' + escape(tr("sources.add.label", "Quellenname")) + '">' +
     // Instruction 5a requires the form to SAY which case occurred -- without this an editor cannot
     // tell whether they just referenced the existing source or minted a duplicate.
@@ -537,6 +546,91 @@ function featureSourceLinkedMessage(linked, tr) {
         : uebersetze("sources.add.officialNo", "nein"));
   }
   return text;
+}
+
+/**
+ * Was die Adressauskunft für die Eingabezeile bedeutet: Farbe, Meldung, Titel, Sperre.
+ *
+ * 🔴 REIN -- kein DOM, kein fetch, kein Modulzustand. Genau darum steht sie hier auf Modulebene
+ * und nicht in der Closure von `mountFeatureSourceEditor`: die Zuordnung „Zustand → was der
+ * Editor sieht" ist die eigentliche Regel dieses Umbaus, und eine Regel, die nur im Browser
+ * läuft, ist nicht prüfbar.
+ *
+ * 💣 VIER Zustände hinein, DREI Farben heraus: `bekannt` und `gelesen` tragen dasselbe Grün, weil
+ * für den Editor beides denselben Befund bedeutet -- die Zeile ist fertig. Der Unterschied steht
+ * in der MELDUNG, nicht in der Farbe.
+ *
+ * @returns {{zustand:string, meldung:string, titel:string, titelGewinnt:boolean, sperren:boolean}}
+ */
+function featureSourceInspectView(auskunft, tr) {
+  const uebersetze = typeof tr === "function" ? tr : featureSourceDefaultTr;
+  const daten = auskunft || {};
+  const zustand = String(daten.state || "");
+
+  if (zustand === "bekannt") {
+    const vorhanden = daten.existing || {};
+    const anzahl = Number(vorhanden.usage_count) || 0;
+    // 🔴 Die bestehende Zeile wird VERKNÜPFT, nicht neu angelegt -- das tut der Katalog ohnehin
+    // (`url_hash` ist UNIQUE), es wurde bis zum 01.09.2026 nur nicht gesagt. Jetzt steht es da,
+    // BEVOR jemand Felder ausfüllt, deren Inhalt anschließend verworfen würde.
+    return {
+      zustand: "bekannt",
+      titel: String(vorhanden.label || ""),
+      titelGewinnt: true,
+      sperren: true,
+      meldung: uebersetze("sources.add.checkKnown",
+        "Diese Seite steht schon im Katalog als „{label}“ — sie wird verknüpft. Du füllst nur noch Seite(n) und Abdeckung.")
+        .replace("{label}", String(vorhanden.label || ""))
+        + (anzahl > 0
+          ? " " + uebersetze("sources.add.checkKnownUsage",
+            "Zitiert an {n} Objekten — Änderungen am Eintrag gehen über das ✎.").replace("{n}", String(anzahl))
+          : ""),
+    };
+  }
+
+  if (zustand === "gelesen") {
+    const korpus = daten.corpus || {};
+    const vorschlag = String(korpus.label_suggestion || "");
+    return {
+      zustand: "gelesen",
+      titel: String(daten.title || ""),
+      titelGewinnt: false,
+      sperren: false,
+      meldung: uebersetze("sources.add.checkRead", "Erreichbar — Titel „{title}“ aus der Seite gelesen.")
+        .replace("{title}", String(daten.title || ""))
+        // ⭐ Der `<title>`-Zusatz nennt den Korpus. Er wird VORGESCHLAGEN, nie gesetzt: der Server
+        // liefert ihn nur, wo der Korpus noch unbekannt ist.
+        + (vorschlag !== ""
+          ? " " + uebersetze("sources.add.checkSite", "Die Seite nennt sich „{site}“ — das wäre der Name des Korpus.")
+            .replace("{site}", vorschlag)
+          : ""),
+    };
+  }
+
+  if (zustand === "erreichbar") {
+    // 💣 NICHT rot. Der Link ist in Ordnung; nur der Titel muss von Hand kommen. Wäre das rot,
+    // suchte der Editor einen Fehler am Link, den es nicht gibt.
+    return {
+      zustand: "erreichbar",
+      titel: "",
+      titelGewinnt: false,
+      sperren: false,
+      meldung: uebersetze("sources.add.checkReachable",
+        "Erreichbar, aber auf der Seite war kein Titel zu finden — trag ihn selbst ein."),
+    };
+  }
+
+  const status = Number(daten.http_status) || 0;
+  return {
+    zustand: "unerreichbar",
+    titel: "",
+    titelGewinnt: false,
+    sperren: false,
+    meldung: status > 0
+      ? uebersetze("sources.add.checkDeadStatus", "Die Adresse antwortet mit {status} — stimmt der Link?")
+        .replace("{status}", String(status))
+      : uebersetze("sources.add.checkDead", "Die Adresse war nicht erreichbar — stimmt der Link?"),
+  };
 }
 
 /**
@@ -773,6 +867,7 @@ function mountFeatureSourceEditor(containerEl, entityType, publicIdGetter, opts)
     letzteQuellen = Array.isArray(data.sources) ? data.sources : [];
     containerEl.innerHTML = renderFeatureSourceEditorHtml(data, opts);
     wireAutocomplete();
+    wireAdressPruefung();
     // 💣 DER EINE TRICHTER -- hier muendet JEDE Aktion des Editors (list, add, add_existing, remove).
     // Vorher zeichnete er nur sein eigenes Fenster neu, und die Infobox der Karte liest ihre Quellen
     // aus zwei Fenster-Globals, die AUSSCHLIESSLICH beim Laden der Kartennutzlast geschrieben werden.
@@ -832,6 +927,138 @@ function mountFeatureSourceEditor(containerEl, entityType, publicIdGetter, opts)
     if (text) {
       showAddRowNote(text);
     }
+  }
+
+  // ── Die Adressauskunft ─────────────────────────────────────────────────────────────────────
+  // Entwurf: docs/superpowers/specs/2026-09-01-bekannte-quellen-design.md §3.4 + §4.
+  //
+  // 🔴 DREI ZUSTÄNDE, und jeder heißt genau eine Sache (Owner-Entscheid 02.09.2026 zum Knopf, mit
+  // dieser Korrektur): `gelesen`/`bekannt` grün · `erreichbar` neutral-warm · `unerreichbar` rot.
+  // „Erreichbar, aber nichts zu lesen" ist der Fall, den ein zweifarbiger Knopf falsch erzählt.
+  const ADRESS_ZUSTAENDE = ["bekannt", "gelesen", "erreichbar", "unerreichbar"];
+
+  // 🔴 Die Katalogfelder gehören dem KORPUS bzw. der bekannten Zeile -- was der Editor dort
+  // hineinschreibt, wird entweder verworfen (Titel füllt nur eine Lücke) oder wirkt katalogweit
+  // (`is_official` überschreibt der Upsert UNBEDINGT). Deshalb werden sie gesperrt, statt hinterher
+  // zu erklären, warum die Eingabe nichts bewirkt hat.
+  const ADRESS_KATALOGFELDER = [".fs-add-label", ".fs-add-type", ".fs-add-license", ".fs-add-attribution", ".fs-add-official"];
+
+  function setzeKatalogfelderGesperrt(gesperrt) {
+    ADRESS_KATALOGFELDER.forEach((selektor) => {
+      const el = containerEl.querySelector(selektor);
+      if (el) {
+        el.disabled = Boolean(gesperrt);
+      }
+    });
+    const zeile = containerEl.querySelector("[data-fs-add]");
+    if (zeile) {
+      zeile.classList.toggle("fs-row--add-bekannt", Boolean(gesperrt));
+    }
+  }
+
+  // Setzt Knopffarbe und Meldung. `null` = zurück auf unbestimmt (der Editor tippt weiter).
+  function setzeAdressZustand(zustand, meldung) {
+    const knopf = containerEl.querySelector("[data-fs-check]");
+    if (knopf) {
+      ADRESS_ZUSTAENDE.forEach((z) => knopf.classList.remove("fs-add-check--" + z));
+      if (zustand) {
+        knopf.classList.add("fs-add-check--" + zustand);
+      }
+      knopf.classList.remove("fs-add-check--laeuft");
+    }
+    const note = containerEl.querySelector("[data-fs-note]");
+    if (note) {
+      // textContent: die Meldung zitiert Titel und Adresse, also Fremdtext.
+      note.textContent = meldung || "";
+      note.hidden = !meldung;
+      // 💣 Der Kasten ist von Haus aus BERNSTEIN -- er war die Absage („URL fehlt"). Eine gute
+      // Nachricht darin läse sich wie ein Problem, also folgt seine Farbe demselben Zustand wie
+      // der Knopf. Ohne Zustand bleibt er die Absage, wie bisher.
+      note.classList.remove("fs-add-note--ok", "fs-add-note--bad");
+      if (zustand === "gelesen" || zustand === "bekannt") {
+        note.classList.add("fs-add-note--ok");
+      } else if (zustand === "unerreichbar") {
+        note.classList.add("fs-add-note--bad");
+      }
+    }
+  }
+
+  let adressPruefungLaeuft = false;
+
+  async function pruefeAdresse() {
+    const urlInput = containerEl.querySelector(".fs-add-url");
+    const url = String((urlInput && urlInput.value) || "").trim();
+    if (url === "" || adressPruefungLaeuft) {
+      return;
+    }
+    adressPruefungLaeuft = true;
+    const knopf = containerEl.querySelector("[data-fs-check]");
+    if (knopf) {
+      ADRESS_ZUSTAENDE.forEach((z) => knopf.classList.remove("fs-add-check--" + z));
+      knopf.classList.add("fs-add-check--laeuft");
+    }
+    // 🔴 IMMER über die Leitung, nie über den Anlege-Puffer: der beantwortet Fragen zum OBJEKT,
+    // und diese hier gilt einer ADRESSE. Der Endpunkt lässt sie deshalb auch ohne
+    // `entity_public_id` zu -- sonst könnte man beim Anlegen keinen Link prüfen.
+    const daten = await featureSourceFetch({
+      action: "inspect_url",
+      entity_type: entityType,
+      entity_public_id: typeof publicIdGetter === "function" ? (publicIdGetter() || "") : (publicIdGetter || ""),
+      url,
+      fetch: true,
+    });
+    adressPruefungLaeuft = false;
+    const auskunft = daten && daten.ok === true ? daten.inspect : null;
+    if (!auskunft) {
+      // ⚠️ Ein Fehlschlag der PRÜFUNG ist kein Fehlschlag der Adresse. Der Knopf bleibt farblos,
+      // und „Hinzufügen" bleibt benutzbar -- sonst hinge das Eintragen an einem fremden Server.
+      setzeAdressZustand(null, tr("sources.add.checkFailed", "Die Adresse ließ sich gerade nicht prüfen — eintragen geht trotzdem."));
+      return;
+    }
+    uebernehmeAuskunft(auskunft);
+  }
+
+  function uebernehmeAuskunft(auskunft) {
+    const labelInput = containerEl.querySelector(".fs-add-label");
+    const sicht = featureSourceInspectView(auskunft, tr);
+    setzeKatalogfelderGesperrt(sicht.sperren);
+    // ⚠️ Der Titel wird nur EINGESETZT, wo noch nichts steht -- wer schon getippt hat, meinte das.
+    // 🔴 Ausnahme: eine BEKANNTE Zeile gewinnt immer, denn ihr gespeicherter Titel gewinnt auch im
+    // Katalog (`label` füllt dort nur eine Lücke). Ein abweichender Tippfehler daneben wäre eine
+    // Anzeige, die nach dem Speichern etwas anderes behauptet als die Liste darüber.
+    if (labelInput && sicht.titel !== "" && (sicht.titelGewinnt || String(labelInput.value || "").trim() === "")) {
+      labelInput.value = sicht.titel;
+    }
+    setzeAdressZustand(sicht.zustand, sicht.meldung);
+  }
+
+  // Nach jedem Neuzeichnen: das Adressfeld ist ein neues Element, direkte Listener sind weg.
+  // 🔴 Bewusst NICHT in `wireAutocomplete`: die steigt oben aus, wenn die Vorschlagsliste auf
+  // dieser Oberfläche gar nicht geladen ist -- die Adressprüfung fiele dann still mit aus.
+  function wireAdressPruefung() {
+    const urlInput = containerEl.querySelector(".fs-add-url");
+    if (!urlInput) {
+      return;
+    }
+    // 💣 Beim Einfügen steht der Wert erst NACH dem Ereignis im Feld -- ohne den Aufschub prüften
+    // wir den Stand von davor (meist die leere Zeichenkette).
+    urlInput.addEventListener("paste", () => {
+      setTimeout(pruefeAdresse, 0);
+    });
+    urlInput.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") {
+        // ⚠️ Enter war hier bisher wirkungslos (die Zeile steht in keinem <form>); abgefangen wird
+        // es trotzdem, damit eine umgebende Seite es nicht als Absenden liest.
+        event.preventDefault();
+        pruefeAdresse();
+      }
+    });
+    // Sobald die Adresse wieder verändert wird, gilt die Auskunft nicht mehr -- und die gesperrten
+    // Felder müssen zurück, sonst bleibt die Zeile für eine ANDERE Adresse halb gesperrt.
+    urlInput.addEventListener("input", () => {
+      setzeAdressZustand(null, "");
+      setzeKatalogfelderGesperrt(false);
+    });
   }
 
   function readAddRowValues() {
@@ -982,6 +1209,10 @@ function mountFeatureSourceEditor(containerEl, entityType, publicIdGetter, opts)
     }
     if (event.target.closest("[data-fs-unpick]")) {
       clearPick();
+      return;
+    }
+    if (event.target.closest("[data-fs-check]")) {
+      await pruefeAdresse();
       return;
     }
     const addTarget = event.target.closest("[data-fs-add-submit]");
@@ -1222,5 +1453,8 @@ if (typeof module !== "undefined" && module.exports) {
     // damit unter Node fahrbar; die Schwelle wird gegen die PHP-Konstante gehalten.
     renderFeatureSourceEditPanel, FEATURE_SOURCE_CONFIRM_THRESHOLD, featureSourceChangedFields,
     featureSourceLinkedMessage,
+    // Die Adressauskunft der Eingabezeile: rein, damit „Zustand → was der Editor sieht" prüfbar
+    // ist, statt nur im Browser zu gelten.
+    featureSourceInspectView,
   };
 }

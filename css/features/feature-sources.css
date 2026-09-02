@@ -196,8 +196,76 @@
 	border-radius: 8px;
 	background: var(--color-panel-soft);
 }
+/* 💣 Der Prüfknopf sitzt NEBEN der Adresse, also darf sie nicht mehr 100 % nehmen -- sonst
+   umbricht er auf eine eigene Zeile und steht sinnlos allein da. 36px = 30px Knopf + 6px `gap`
+   der Zeile; wer den Knopf breiter macht, zieht diese Zahl mit. */
 .fs-add-url {
-	flex: 1 1 100%;
+	flex: 1 1 calc(100% - 36px);
+}
+/* Der Prüfknopf (Owner 02.09.2026): einfügen/Enter/Klick prüfen die Adresse und holen den Titel.
+   🔴 DREI Zustände, nicht zwei -- „erreichbar, aber nichts zu lesen" ist weder Erfolg noch
+   Fehlschlag, und ein zweifarbiger Knopf erzählt genau diesen Fall falsch. */
+.fs-add-check {
+	flex: 0 0 30px;
+	width: 30px;
+	height: 27px;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	padding: 0;
+	font: inherit;
+	font-size: 13px;
+	line-height: 1;
+	cursor: pointer;
+	border: 1px solid var(--color-button-soft-border);
+	border-radius: var(--radius-md);
+	background: var(--color-button-soft);
+	color: var(--color-button-soft-text);
+}
+.fs-add-check:hover {
+	background: var(--color-button-soft-hover);
+}
+.fs-add-check--laeuft {
+	opacity: 0.55;
+	cursor: progress;
+}
+/* ⚠️ „bekannt" und „gelesen" tragen dasselbe Grün: für den Editor ist beides derselbe Befund --
+   die Zeile ist fertig. Der UNTERSCHIED steht in der Meldung, nicht in der Farbe. */
+.fs-add-check--bekannt,
+.fs-add-check--gelesen {
+	background: var(--color-success-soft);
+	border-color: var(--color-success-soft-border);
+	color: var(--color-success-soft-text);
+}
+.fs-add-check--erreichbar {
+	background: var(--color-warning-soft);
+	border-color: var(--color-warning-soft-border);
+	color: var(--color-warning-soft-text);
+}
+.fs-add-check--unerreichbar {
+	background: var(--color-danger-soft);
+	border-color: var(--color-danger-soft-border);
+	color: var(--color-danger-soft-text);
+}
+/* Der Meldungskasten folgt demselben Zustand -- ohne Modifier bleibt er die bernsteinfarbene
+   Absage, die er vorher war. */
+.fs-add-note--ok {
+	color: var(--color-success-soft-text);
+	background: var(--color-success-soft);
+	border-color: var(--color-success-soft-border);
+}
+.fs-add-note--bad {
+	color: var(--color-danger-soft-text);
+	background: var(--color-danger-soft);
+	border-color: var(--color-danger-soft-border);
+}
+/* Eine schon bekannte Seite: die Katalogfelder sind gesperrt, weil der Katalog sie ohnehin
+   bestimmt. ⚠️ Sie werden ABGEBLENDET, nicht versteckt -- der Editor soll sehen, was gilt, statt
+   sich zu fragen, wohin die Felder verschwunden sind. */
+.fs-row--add input[disabled],
+.fs-row--add select[disabled] {
+	opacity: 0.5;
+	cursor: not-allowed;
 }
 .fs-add-label {
 	flex: 1 1 120px;

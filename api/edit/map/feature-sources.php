@@ -61,7 +61,12 @@ try {
     if (!in_array($entityType, $allowedTypes, true)) {
         avesmapsErrorResponse(400, 'invalid_request', 'entity_type muss settlement, region, path, territory, citymap, lore, powerline oder ecosystem sein.');
     }
-    if ($entityPublicId === '') {
+    // 🔴 `inspect_url` fragt nach einer ADRESSE, nicht nach einem Objekt -- deshalb steht sie als
+    // einzige ohne `entity_public_id` da. Das ist kein Schlupfloch, sondern der Fall „Quelle beim
+    // Anlegen": dort gibt es das Objekt serverseitig noch gar nicht (der Puffer beantwortet alles
+    // andere lokal), und ein Editor, der dort einen Link einfuegt, soll trotzdem erfahren, ob er
+    // erreichbar ist. ⚠️ Die Faehigkeit `edit` ist oben laengst geprueft; lesend bleibt es ohnehin.
+    if ($entityPublicId === '' && $action !== 'inspect_url') {
         avesmapsErrorResponse(400, 'invalid_request', 'entity_public_id ist erforderlich.');
     }
 
