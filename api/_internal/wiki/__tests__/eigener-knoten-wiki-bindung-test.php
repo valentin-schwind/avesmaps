@@ -401,4 +401,55 @@ try {
 }
 pruefe($geworfen, 'Nur eigene Knoten lassen sich binden.');
 
+// ---- Teil 5: Suche und Vorschlaege -------------------------------------------------------------
+
+$db = bindungDb();
+$db->exec("INSERT INTO political_territory_wiki (wiki_key, name, type, wiki_url) VALUES
+    ('wiki:inoffiziell-t-y-rret', 'Táyârret', 'Tá''akîb', 'https://de.wiki-aventurica.de/wiki/Inoffiziell:T%C3%A1y%C3%A2rret'),
+    ('wiki:garetien', 'Garetien', 'Provinz', 'https://de.wiki-aventurica.de/wiki/Garetien'),
+    ('wiki:inoffiziell-doppelt', 'Doppelt', 'Baronie', 'https://de.wiki-aventurica.de/wiki/Inoffiziell:Doppelt'),
+    ('wiki:doppelt', 'Doppelt', 'Baronie', 'https://de.wiki-aventurica.de/wiki/Doppelt')");
+
+$treffer = avesmapsEigenerKnotenBindungKandidaten($db, 'Táyârret');
+pruefe(count($treffer) === 1 && $treffer[0]['wiki_key'] === 'wiki:inoffiziell-t-y-rret', 'Die Suche findet den Artikel.');
+pruefe($treffer[0]['official'] === false,
+    '🔴 Das Kanon-Etikett kommt aus avesmapsWikiNamespaceIsOfficial, nicht aus einem zweiten Etikett.');
+
+// 🔴 EIN HAUPTRAUM-ARTIKEL BEKOMMT `null`, NICHT `true` -- und das ist die Hausregel, nicht eine
+// Luecke. avesmapsWikiTitleNamespace liest den Raum aus dem PRAEFIX; ein Titel ohne Praefix
+// ("Garetien") liefert `null`, gemessen. Und die Rangfolge des Kanon-Etiketts (feature-sources.php,
+// Owner 27.-31.08.2026) begruendet aus dem Namensraum ausschliesslich „inoffiziell" -- „offiziell"
+// kommt aus einer QUELLE, nie aus einem fehlenden Praefix.
+// ⚠️ Fuer den Kasten heisst das: markiert wird, was Fanmaterial IST; alles andere bleibt
+// unbeschriftet. Genau das braucht der Editor („was handle ich mir ein"), und mehr darf hier
+// niemand behaupten.
+$kanon = avesmapsEigenerKnotenBindungKandidaten($db, 'Garetien');
+pruefe($kanon[0]['official'] === null,
+    'Ein Hauptraum-Artikel traegt KEINE Aussage -- der Namensraum begruendet nur "inoffiziell".');
+pruefe($treffer[0]['official'] === false,
+    'Nur der inoffizielle Raum wird ausdruecklich als solcher benannt.');
+
+// Die eigenen Knoten, gegen die die Vorschlaege laufen.
+$db->exec("INSERT INTO wiki_territory_model (wiki_key, source_origin, metadata_overrides_json) VALUES
+    ('eigener-knoten:knoten068', 'custom', '{\"name\":\"Táyârret\"}'),
+    ('eigener-knoten:knoten070', 'custom', '{\"name\":\"Doppelt\"}'),
+    ('eigener-knoten:knoten071', 'custom', '{\"name\":\"Kennt keiner\"}')");
+
+$vorschlaege = avesmapsEigenerKnotenBindungVorschlaege($db);
+$nachKey = [];
+foreach ($vorschlaege as $v) { $nachKey[$v['own_key']] = $v; }
+
+// 💣 Verglichen wird der NAME, nicht der Titel: der Titel traegt den Namensraum
+// ("Inoffiziell:Táyârret"), der Name nicht. Ueber Titel verglichen faende der Lauf NICHTS.
+pruefe(isset($nachKey['eigener-knoten:knoten068']), 'Der Namensgleiche wird gefunden.');
+pruefe($nachKey['eigener-knoten:knoten068']['target_key'] === 'wiki:inoffiziell-t-y-rret',
+    'Und zwar der inoffizielle Artikel.');
+pruefe($nachKey['eigener-knoten:knoten068']['unique'] === true, 'Ein eindeutiger Treffer ist eindeutig.');
+
+pruefe(isset($nachKey['eigener-knoten:knoten070']), 'Der mehrdeutige Fall steht in der Liste ...');
+pruefe($nachKey['eigener-knoten:knoten070']['unique'] === false,
+    '... aber als MEHRDEUTIG -- zwei Artikel auf einen Namen wird nie vorangehakt.');
+
+pruefe(!isset($nachKey['eigener-knoten:knoten071']), 'Ein Knoten ohne Treffer steht gar nicht in der Liste.');
+
 echo "eigener-knoten-wiki-bindung: {$checks} Zusicherungen gruen.\n";

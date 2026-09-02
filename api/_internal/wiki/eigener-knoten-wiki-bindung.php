@@ -23,6 +23,8 @@ declare(strict_types=1);
 require_once __DIR__ . '/../political/territory.php';
 // avesmapsPoliticalWriteGeometryAuditLog -- die EINE Protokollzeile am Ende der Uebernahme.
 require_once __DIR__ . '/../political/territories-audit.php';
+// avesmapsWikiNamespaceIsOfficial / ...FromWikiUrl -- das Kanon-Etikett der Trefferliste.
+require_once __DIR__ . '/namespaces.php';
 
 /**
  * REIN: die Uebernahme-Vorschau je Feld.
@@ -506,4 +508,106 @@ function avesmapsEigenerKnotenBindungSiedlungenUmschluesseln(PDO $pdo, string $e
     }
 
     return $bewegt;
+}
+
+/**
+ * LESEND: Wiki-Artikel als Bindungskandidaten.
+ *
+ * 🔴 Das Kanon-Etikett ist hier tragend, nicht Zierrat: die Trefferliste mischt Kanon und
+ * Fanmaterial, und ein Editor muss vor dem Klick sehen, was er sich einhandelt. Es kommt aus
+ * avesmapsWikiNamespaceIsOfficial (seit 01.09.2026) -- KEIN zweites Etikett bauen. Der
+ * Rueckgabewert ist `?bool`; `null` heisst "kein Inhaltsraum, die Frage stellt sich nicht".
+ */
+function avesmapsEigenerKnotenBindungKandidaten(PDO $pdo, string $suche, int $limit = 25): array
+{
+    $suche = trim($suche);
+    if ($suche === '') {
+        return [];
+    }
+    $statement = $pdo->prepare(
+        'SELECT wiki_key, name, type, wiki_url, founded_text, dissolved_text
+           FROM political_territory_wiki
+          WHERE name LIKE :q
+          ORDER BY name ASC
+          LIMIT ' . max(1, min(100, $limit))
+    );
+    $statement->execute(['q' => '%' . $suche . '%']);
+
+    $zeilen = [];
+    foreach ($statement->fetchAll(PDO::FETCH_ASSOC) as $r) {
+        $url = (string) ($r['wiki_url'] ?? '');
+        $ns = $url !== '' ? avesmapsWikiNamespaceFromWikiUrl($url) : null;
+        $zeilen[] = [
+            'wiki_key' => (string) $r['wiki_key'],
+            'name' => (string) $r['name'],
+            'type' => (string) ($r['type'] ?? ''),
+            'wiki_url' => $url,
+            'official' => $ns === null ? null : avesmapsWikiNamespaceIsOfficial($ns),
+            'period' => trim(implode(' - ', array_filter([
+                trim((string) ($r['founded_text'] ?? '')),
+                trim((string) ($r['dissolved_text'] ?? '')),
+            ]))),
+        ];
+    }
+
+    return $zeilen;
+}
+
+/**
+ * LESEND: alle eigenen Knoten, zu denen es einen namensgleichen Wiki-Artikel gibt.
+ *
+ * 💣 VERGLICHEN WIRD DER NAME, NICHT DER TITEL. Der Titel traegt den Namensraum
+ * ("Inoffiziell:Táyârret"), der Name nicht ("Táyârret"). Ueber Titel verglichen faende dieser Lauf
+ * KEINEN EINZIGEN Treffer -- und ein leeres Ergebnis sieht aus wie "es gibt nichts zu tun".
+ *
+ * ⚠️ Gefaltet wird mit avesmapsPoliticalSlug, derselben Funktion, die den Schluessel baut. Ein
+ * eigener Namensvergleich liefe ueber kurz oder lang auseinander (die Akzent-Falle: der Browser
+ * zerlegt nach NFD, avesmapsFoldToAscii wirft Akzent samt Grundbuchstaben weg).
+ *
+ * 🔴 `unique` ist FALSCH, sobald zwei Artikel denselben Namen tragen ODER zwei eigene Knoten auf
+ * denselben Artikel zeigen. Nur eindeutige Treffer duerfen vorangehakt werden.
+ */
+function avesmapsEigenerKnotenBindungVorschlaege(PDO $pdo): array
+{
+    $artikelNachName = [];
+    foreach ($pdo->query('SELECT wiki_key, name FROM political_territory_wiki')->fetchAll(PDO::FETCH_ASSOC) as $r) {
+        $artikelNachName[avesmapsPoliticalSlug((string) $r['name'])][] = $r;
+    }
+
+    $eigene = $pdo->query(
+        "SELECT wiki_key, metadata_overrides_json FROM wiki_territory_model
+          WHERE wiki_key LIKE 'eigener-knoten:%'"
+    )->fetchAll(PDO::FETCH_ASSOC);
+
+    // Erst sammeln, damit "zwei eigene Knoten auf einen Artikel" erkennbar wird.
+    $roh = [];
+    $zielZaehler = [];
+    foreach ($eigene as $r) {
+        $ov = json_decode((string) ($r['metadata_overrides_json'] ?? ''), true);
+        $name = is_array($ov) ? trim((string) ($ov['name'] ?? '')) : '';
+        if ($name === '') {
+            continue;
+        }
+        $kandidaten = $artikelNachName[avesmapsPoliticalSlug($name)] ?? [];
+        if ($kandidaten === []) {
+            continue;
+        }
+        $ziel = $kandidaten[0];
+        $roh[] = [
+            'own_key' => (string) $r['wiki_key'],
+            'own_name' => $name,
+            'target_key' => (string) $ziel['wiki_key'],
+            'target_name' => (string) $ziel['name'],
+            'unique' => count($kandidaten) === 1,
+        ];
+        $zielZaehler[(string) $ziel['wiki_key']] = ($zielZaehler[(string) $ziel['wiki_key']] ?? 0) + 1;
+    }
+
+    foreach ($roh as $i => $zeile) {
+        if (($zielZaehler[$zeile['target_key']] ?? 0) > 1) {
+            $roh[$i]['unique'] = false;
+        }
+    }
+
+    return $roh;
 }
