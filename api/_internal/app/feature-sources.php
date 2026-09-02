@@ -2050,8 +2050,12 @@ function avesmapsLoadFeatureSourceRefs(PDO $pdo): array {
 //
 // ⚠️ 'territory' und 'citymap' stehen bewusst NICHT hier und KOENNEN es nicht: die Zuordnung
 // uebersetzt `map_features.feature_type`, und dort gibt es keinen, der ein Territorium oder einen
-// Stadtplan UNTER DESSEN EIGENER public_id fuehrt. Sie erreichen den Namensraum-Rang deshalb nie
-// -- siehe den Absatz „NUR OBJEKTE MIT KARTENZEILE" im Kopf von avesmapsFeatureSourcesDeriveKanon.
+// Stadtplan UNTER DESSEN EIGENER public_id fuehrt.
+// 🔴 FUER TERRITORIEN IST DAS SEIT DEM 02.09.2026 KEINE GRENZE MEHR, und hier stand bis dahin
+// „Sie erreichen den Namensraum-Rang deshalb nie": sie erreichen ihn ueber einen ZWEITEN Leser,
+// avesmapsPoliticalTerritoryWikiNamespaces, der `political_territory.wiki_url` abfragt statt
+// `map_features`. Der Weg fuehrt also nicht durch diese Zuordnung -- deshalb bleibt sie unveraendert,
+// und deshalb stimmt der erste Absatz weiter. STADTPLAENE bleiben aussen vor.
 // ⚠️ Praeziser als „Territorien haben hier gar keine Zeile", was hier zuerst stand: es gibt sehr
 // wohl aktive Zeilen mit `feature_type = 'region'` aus dem alten Seed-Import, die
 // Territoriumsflaechen tragen (api/_internal/political/territories-layer.php liest sie als
@@ -2123,6 +2127,77 @@ function avesmapsMapFeaturesWikiNamespaces(array $features): array
 }
 
 /**
+ * DER VIERTE EINGANG: der Wiki-Namensraum der HERRSCHAFTSGEBIETE.
+ *
+ * 🔴 EIGENE ABFRAGE, WEIL EIN TERRITORIUM KEINE `map_features`-ZEILE HAT. Der Absatz „NUR OBJEKTE
+ * MIT KARTENZEILE" unten beschrieb das bis zum 02.09.2026 als Grenze des Entwurfs -- gemessen am
+ * Dump vom 01.09.2026 sind das **69 von 302** ns-222-Kartenentitaeten. Ein rein aus dem Raum
+ * „Inoffiziell" stammendes Gebiet blieb damit unbeschriftet, obwohl sein Kopf die Kanonzeile
+ * rendert (js/map-features/map-features-region-info-markup.js). Owner 02.09.2026, nachdem die
+ * erste Bindung live war: „territorien muessen jetzt das label offiziell/inoffiziell bekommen".
+ *
+ * 💣 GEJOINT WIRD UEBER `wiki_key`, NICHT UEBER `wiki_id`. Ein frisch gebundener eigener Knoten
+ * traegt seinen Schluessel sofort, seine `wiki_id` aber erst nach dem naechsten
+ * avesmapsWikiSyncRelinkPoliticalTerritoryByWikiKey -- ueber die id gejoint bekaeme ausgerechnet
+ * das eben gebundene Gebiet sein Etikett nicht.
+ * ⚠️ `COALESCE`: die eigene Adresse gewinnt vor der des Wiki-Spiegels. Eine von Hand gesetzte
+ * `wiki_url` ist eine Aussage; die des Spiegels ist die Vorgabe dahinter.
+ * ⚠️ Nur aktive Gebiete -- eine Zeile im Papierkorb beschriftet nichts mehr.
+ *
+ * 💣 DAMIT HAENGT DIE KARTENNUTZLAST AN `political_territory.wiki_url`, und das war sie vorher
+ * NICHT. Das ETag von `api/app/map-features.php` haengt an `map_revision`; wer diese Adresse
+ * aendert, ohne sie anzustossen, laesst einen WARMEN Browser sein altes Etikett behalten (er
+ * revalidiert nur ueber das ETag). Nachgezaehlt am 02.09.2026, welche Schreiber sie anfassen:
+ *   ✅ territory-plan-apply.php und territory-wiki-plan-apply.php -- stossen an (die zwei
+ *      Uebernehmen-Haelften, ueber die ein gesyncter Artikel seine Adresse bekommt);
+ *   ✅ avesmapsEigenerKnotenBindungAnwenden -- stoesst an (api/edit/wiki/sync-monitor.php);
+ *   ⚠️ `update_territory` (api/_internal/political/territories-write.php, der Wiki-Kasten des
+ *      Kartendialogs) -- stoesst NICHT an. Eine dort von Hand gesetzte Adresse aendert das Etikett
+ *      erst, wenn irgendein anderer Kartenschreiber die Revision hochzaehlt. Das passiert im
+ *      Editierbetrieb staendig, ist also kurzlebig -- aber es ist eine Luecke und keine Zusage.
+ *   ⚪ `apply_identity` und `apply_coats` schreiben `wiki_url` NICHT (nur name/type/status/BF bzw.
+ *      coat_of_arms_url) -- sie koennen das Etikett gar nicht aendern.
+ * 🔧 Wer die Luecke schliesst, stoesst in `update_territory` an, wenn sich `wiki_url` WIRKLICH
+ * geaendert hat -- nicht bei jeder Territoriumsaenderung: die Nutzlast ist ~3 MB, und sie war bis
+ * heute von Territoriumsbearbeitungen unabhaengig.
+ *
+ * @return array<string, int> "territory:public_id" => Namensraum
+ */
+function avesmapsPoliticalTerritoryWikiNamespaces(PDO $pdo): array
+{
+    try {
+        $rows = $pdo->query(
+            "SELECT pt.public_id, COALESCE(NULLIF(pt.wiki_url, ''), w.wiki_url) AS wiki_url
+               FROM political_territory pt
+               LEFT JOIN political_territory_wiki w ON w.wiki_key = pt.wiki_key
+              WHERE pt.is_active = 1"
+        )->fetchAll(PDO::FETCH_ASSOC);
+    } catch (Throwable $fehler) {
+        // ⚠️ Ein fehlgeschlagener Leser darf die Kartennutzlast nicht mitreissen -- „kein Etikett"
+        // ist ein gueltiger Zustand. Er wird aber PROTOKOLLIERT, nicht geschluckt: sonst sieht ein
+        // SQL-Fehler exakt aus wie „kein Gebiet ist inoffiziell" (die HY093-Falle von
+        // „Was ist hier?", AGENTS.md §11).
+        error_log('avesmapsPoliticalTerritoryWikiNamespaces: ' . $fehler->getMessage());
+        return [];
+    }
+
+    $out = [];
+    foreach ($rows as $row) {
+        $publicId = (string) ($row['public_id'] ?? '');
+        $wikiUrl = trim((string) ($row['wiki_url'] ?? ''));
+        if ($publicId === '' || $wikiUrl === '') {
+            continue;
+        }
+        $ns = avesmapsWikiNamespaceFromWikiUrl($wikiUrl);
+        if ($ns !== null) {
+            $out['territory:' . $publicId] = $ns;
+        }
+    }
+
+    return $out;
+}
+
+/**
  * DAS KANON-ETIKETT JE OBJEKT -- abgeleitet, nie getippt.
  * ---------------------------------------------------------------------------
  * Entwurf: docs/superpowers/specs/2026-08-27-kanon-etikett-design.md
@@ -2168,15 +2243,19 @@ function avesmapsMapFeaturesWikiNamespaces(array $features): array
  * `sources`-Zeile dafuer anzulegen war der urspruengliche Plan und haette denselben Artikel
  * ZWEIMAL in den Kasten gestellt.
  *
- * ⚠️ NUR OBJEKTE MIT KARTENZEILE ERREICHEN DEN DRITTEN EINGANG -- eine Grenze des Entwurfs,
- * keine Luecke in der Zuordnung. `avesmapsMapFeaturesWikiNamespaces` uebersetzt
- * `map_features.feature_type`; TERRITORIEN und STADTPLAENE haben in dieser Tabelle gar keine
- * Zeile. Aus dem Dump vom 01.09.2026 gezaehlt (dewa_dump_small.xml.bz2, 252.902 Seiten, 6.457 in
- * ns 222): von 302 ns-222-Kartenentitaeten sind 69 TERRITORIEN. Sie rendern eine Kanonzeile
- * (js/map-features/map-features-region-info-markup.js), erreichen Rang 2 aber nie -- ohne eigene
- * Quelle bleiben sie „unbelegt" statt „inoffiziell". Die ersten beiden Eingaenge greifen bei
- * ihnen normal, ihre Quellen stehen ja im selben Katalog. Wer das aufheben will, braucht einen
- * VIERTEN Eingang aus der Territoriumstabelle, nicht einen fuenften Eintrag in der Zuordnung.
+ * ✅ **DER VIERTE EINGANG IST SEIT DEM 02.09.2026 GEBAUT, UND ER GILT DEN TERRITORIEN.**
+ * Hier stand „NUR OBJEKTE MIT KARTENZEILE ERREICHEN DEN DRITTEN EINGANG" -- richtig gemessen,
+ * aber nicht mehr wahr: `avesmapsMapFeaturesWikiNamespaces` uebersetzt weiterhin nur
+ * `map_features.feature_type`, DANEBEN steht jetzt `avesmapsPoliticalTerritoryWikiNamespaces`,
+ * die `political_territory.wiki_url` abfragt. `api/app/map-features.php` reicht BEIDE Mengen
+ * herein. Der damalige Satz nannte auch schon den richtigen Weg: „einen VIERTEN Eingang aus der
+ * Territoriumstabelle, nicht einen fuenften Eintrag in der Zuordnung" -- genau das ist es.
+ * ⚠️ **STADTPLAENE bleiben aussen vor** und die Begruendung gilt fuer sie unveraendert.
+ * 🚩 Die Zahl von damals bleibt als Mass des Zugewinns stehen: aus dem Dump vom 01.09.2026
+ * gezaehlt (252.902 Seiten, 6.457 in ns 222) sind von 302 ns-222-Kartenentitaeten **69
+ * TERRITORIEN** -- die bekamen ohne eigene Quelle gar kein Etikett, obwohl ihr Kopf die Kanonzeile
+ * rendert (js/map-features/map-features-region-info-markup.js). Owner 02.09.2026, direkt nach der
+ * ersten Bindung eines eigenen Knotens an einen ns-222-Artikel.
  *
  * @param array<int|string, array<string, mixed>> $catalog source_id => {label, type, official, …}
  * @param array<string, list<array{source_id:int}>> $refs  "typ:public_id" => Verweise

@@ -310,10 +310,18 @@ try {
     // Grabsteine dort schon herausgefallen sind. Der Kommentarblock ueber
     // avesmapsMapFeaturesWikiNamespaces traegt die Messung. Die Zeilen darunter ergaenzen nur
     // Landschaftszeiger und Kurve -- keine ruehrt `wiki_url` an.
+    // 🔴 ZWEI NAMENSRAUM-LESER, NICHT EINER. Territorien haben keine `map_features`-Zeile; ihre
+    // Adresse steht in `political_territory.wiki_url` und braucht eine eigene Abfrage
+    // (avesmapsPoliticalTerritoryWikiNamespaces). Ohne sie blieb ein rein aus ns 222 stammendes
+    // Gebiet unbeschriftet, obwohl sein Kopf die Kanonzeile rendert -- 69 von 302 ns-222-Objekten,
+    // gemessen am Dump vom 01.09.2026. Owner 02.09.2026.
+    // ⚠️ `+` behaelt bei gleichem Schluessel den LINKEN Wert; die beiden Schluesselraeume sind
+    // disjunkt (`territory:` gegen settlement/region/path/powerline), es kann also nichts kollidieren.
     $featureKanon = avesmapsFeatureSourcesDeriveKanon(
         $sourceCatalog,
         $featureSourceRefs,
         avesmapsMapFeaturesWikiNamespaces($features)
+            + avesmapsPoliticalTerritoryWikiNamespaces($pdo)
     );
     // Landscape membership: fill properties.ecosystem_region_public_id on every label that belongs to a
     // region, resolved from BOTH stored directions. Applied here rather than inside the row builder

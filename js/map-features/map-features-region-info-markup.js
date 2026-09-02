@@ -188,12 +188,13 @@ function createRegionWikiInfoBoxMarkup(regionEntry) {
 	// Das Kanon-Etikett gehoert IN den Titelblock, nie hinter den Kopf: das Wappen liegt links,
 	// und hinter dem Kopf begaenne das Etikett an dessen Kante statt an der des Textes (Owner
 	// 01.09.2026 an Gareth gemeldet -- dasselbe Objekt, dieselbe Ursache wie im Ortspopup).
-	// ⚠️ TERRITORIEN ERREICHEN DEN NAMENSRAUM-RANG NICHT: sie haben keine `map_features`-Zeile, und
-	// avesmapsMapFeaturesWikiNamespaces (api/_internal/app/feature-sources.php) liest ausschliesslich
-	// die. Ein Territorium bekommt sein Etikett also nur aus seinen QUELLEN -- ein rein aus ns 222
-	// stammendes Gebiet ohne Quellzeile bleibt hier unbeschriftet. Aus dem Dump vom 01.09.2026 waeren
-	// das bis zu 69 von 302 ns-222-Kartenentitaeten; der Docblock der Ableitung traegt die Begruendung
-	// und sagt auch, was es kostete, das zu aendern (ein VIERTER Eingang, nicht ein Zuordnungseintrag).
+	// ✅ TERRITORIEN ERREICHEN DEN NAMENSRAUM-RANG SEIT DEM 02.09.2026. Hier stand das Gegenteil,
+	// und es stimmte: sie haben keine `map_features`-Zeile, und avesmapsMapFeaturesWikiNamespaces
+	// liest ausschliesslich die. Daneben steht jetzt avesmapsPoliticalTerritoryWikiNamespaces
+	// (api/_internal/app/feature-sources.php), die `political_territory.wiki_url` abfragt; beide
+	// Mengen gehen in dieselbe Ableitung. Ein rein aus ns 222 stammendes Gebiet OHNE Quellzeile
+	// traegt damit „Inoffiziell │ Wiki Aventurica" -- aus dem Dump vom 01.09.2026 bis zu 69 von 302
+	// ns-222-Kartenentitaeten. An DIESER Zeile aendert sich nichts: sie fragt dieselbe Ablage.
 	const kanonMarkup = typeof renderFeatureKanonBadge === "function"
 		? renderFeatureKanonBadge("territory", regionEntry.territoryPublicId || "")
 		: "";

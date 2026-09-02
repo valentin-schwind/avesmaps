@@ -328,4 +328,49 @@ assert($reihenfolge < $ableitung,
 assert($stelle('avesmapsMapFeaturesMergeLegacyOtherSources($rows') < $ableitung,
     'und NACH dem Altquellen-Sammler, sonst fehlt Objekten mit reiner Altquelle das Etikett');
 
+// ── Gruppe 6: DER VIERTE EINGANG -- Territorien ────────────────────────────────────────────────
+//
+// 🔴 Owner 02.09.2026, direkt nach der ersten Bindung eines eigenen Knotens an einen ns-222-Artikel:
+// „territorien muessen jetzt das label offiziell/inoffiziell bekommen". Bis dahin erreichte ein
+// Territorium den Namensraum-Rang NIE -- es hat keine `map_features`-Zeile, und
+// avesmapsMapFeaturesWikiNamespaces liest ausschliesslich die. Aus dem Dump vom 01.09.2026 waren
+// das 69 von 302 ns-222-Kartenentitaeten.
+
+// 💣 Der Ableiter muss den Schluessel auch OHNE jede Quellzeile finden: ein aus ns 222 uebernommenes
+// Gebiet traegt keine Katalogquelle, sein Artikel steckt allein in der Adresse. Genau dafuer
+// vereinigt avesmapsFeatureSourcesDeriveKanon die Schluessel BEIDER Mengen.
+$nurRaum = avesmapsFeatureSourcesDeriveKanon([], [], ['territory:T-TAY' => 222]);
+assert(($nurRaum['territory:T-TAY']['kanon'] ?? '') === 'inoffiziell',
+    'ein Territorium aus ns 222 ist inoffiziell -- auch ganz ohne Quellzeile');
+assert(($nurRaum['territory:T-TAY']['bezeichner_label'] ?? '') === 'Wiki Aventurica',
+    'und der Bezeichner ist der Korpusname, nicht der Seitentitel');
+
+// 🔴 Eine OFFIZIELLE Quelle schlaegt den Raum -- Owner 31.08.2026: „gibt es was Offizielles, ist
+// uns ns 222 egal". Die Rangfolge gilt fuer Territorien wie fuer alles andere.
+$mitOffizieller = avesmapsFeatureSourcesDeriveKanon(
+    [7 => ['label' => 'Reichsgeographie', 'type' => 'regionalspielhilfe', 'official' => true]],
+    ['territory:T-TAY' => [['source_id' => 7]]],
+    ['territory:T-TAY' => 222]
+);
+assert(($mitOffizieller['territory:T-TAY']['kanon'] ?? '') === 'offiziell',
+    'eine offizielle Quelle schlaegt den inoffiziellen Raum -- auch beim Territorium');
+
+// ⚠️ Der Hauptraum ist KEINE Aussage: ns 0 liefert kein Etikett, nicht „offiziell".
+assert(avesmapsFeatureSourcesDeriveKanon([], [], ['territory:T-GAR' => 0]) === [],
+    'ein Territorium aus dem Hauptraum bekommt kein Etikett aus dem Raum allein');
+
+// 💣 DIE VERDRAHTUNG. Ohne den zweiten Leser im Endpunkt ist die ganze Gruppe hier Theorie: die
+// Territoriumsschluessel kaemen nie in der Ableitung an. Am Zeilenanfang gesucht, aus demselben
+// Grund wie oben -- ein auskommentierter Aufruf ist keine Verdrahtung.
+assert(preg_match('/^[ \t]*\+ avesmapsPoliticalTerritoryWikiNamespaces\(\$pdo\)/m', $endpunkt) === 1,
+    '💣 api/app/map-features.php reicht die Territoriums-Namensraeume NICHT mit herein -- '
+    . 'ohne sie bleibt jedes Gebiet aus ns 222 unbeschriftet.');
+
+// ⚠️ Und der Leser gehoert NEBEN den anderen, nicht in die Zuordnungstabelle: die uebersetzt
+// `map_features.feature_type`, und ein Territorium hat dort keine Zeile. Ein Eintrag 'territory'
+// darin waere wirkungslos und saehe wie eine Loesung aus.
+$lib = (string) file_get_contents(__DIR__ . '/../feature-sources.php');
+assert(preg_match("/AVESMAPS_MAP_FEATURES_KANON_ENTITY_TYPE_BY_FEATURE_TYPE = \[[^\]]*'territory'/s", $lib) !== 1,
+    'territory gehoert NICHT in die feature_type-Zuordnung -- dort haette es keine Wirkung.');
+
 echo "kanon-etikett-test.php: alle Zusicherungen erfuellt\n";

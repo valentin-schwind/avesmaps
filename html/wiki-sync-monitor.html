@@ -287,8 +287,11 @@
   .dt-bindung h4 { margin:0 0 var(--space-4); font-size:var(--font-size-small); }
   /* ⭐ Die Trefferliste selbst hat KEINE Regel hier: sie traegt .dt-picker-list aus
      css/components/editor-page.css -- dieselbe Liste wie der Ortspicker im Bild des Owners. */
-  .dt-bindung__suchzeile { display:flex; align-items:center; gap:var(--space-8); margin-top:var(--space-4); }
-  .dt-bindung__suchzeile .dt-in { flex:1 1 auto; }
+  /* ⭐ Die Suchzeile hat KEINE Regel hier: sie ist eine `.dt-grid`-Zeile in einer
+     `.avm-wiki-assign`-Huelle, und damit greifen die geteilten Regeln aus editor-page.css
+     (`.avm-wiki-assign .dt-grid input[type=search]`) plus die dunkle Feldform des Monitors
+     (`input[type=search]`, oben). Eine eigene Flex-Zeile mit `type="text"` fiel auf den WEISSEN
+     Browser-Standard zurueck -- vom Owner am 02.09.2026 gemeldet. */
   .dt-bindung__folgen { margin:var(--space-4) 0; font-size:var(--font-size-small); color:var(--mut); }
   /* ⚠️ Die Kuerzung der langen Feldbeschriftung steht NICHT hier, sondern in
      css/components/editor-page.css neben der geteilten Regel, die sie erweitert. Ein inliner
@@ -1037,15 +1040,28 @@ function renderDetail(){
   // avesmapsWikiAssignTrefferMarkup. Owner 02.09.2026: „so designen wie hier - wo man die
   // vorauswahl sehen konnte". Nachgebaut waere das die siebte Fassung derselben Liste.
   const bindung = n.wiki_key.indexOf('eigener-knoten:') === 0
-    ? `<div class="dt-bindung">
+    // 🔴 `avm-wiki-assign` an der Huelle ist TRAGEND, nicht Zierrat: erst darunter greifen die
+    // geteilten Regeln aus css/components/editor-page.css -- `.avm-wiki-assign .dt-grid
+    // input[type=search]` (Hoehe, Polster, volle Zellenbreite) und `.avm-wiki-assign button`.
+    // 💣 Und das Feld ist `type="search"`, nicht `type="text"`: die dunkle Hausform des Monitors
+    // haengt an `input[type=search]` (Zeile 99 dieser Datei). Als `type="text"` fiel es auf den
+    // WEISSEN Browser-Standard zurueck -- vom Owner am 02.09.2026 gemeldet („sieht nicht wie im
+    // design plan aus"), und genau das ist der Unterschied.
+    // ⚠️ Die Suchzeile ist eine `.dt-grid`-Zeile mit `.k`-Beschriftung -- dieselbe Bauform, die
+    // avesmapsWikiAssignMarkup fuer den Ortspicker baut, damit „Suchen" links in der schmalen
+    // Spalte steht und das Feld den Rest fuellt.
+    ? `<div class="dt-bindung avm-wiki-assign">
          <div class="dt-grp">
            <span>Wiki-Artikel zuweisen</span>
            <span class="dt-grp__sp"><button type="button" id="bindung-abbruch">Abbrechen</button></span>
          </div>
          <div class="muted" style="font-size:var(--font-size-caption)">Der Knoten bekommt den Schlüssel des Artikels; die bisherige Zeile wandert in den Papierkorb.</div>
-         <label class="dt-bindung__suchzeile">Suchen
-           <input type="text" class="dt-in" id="bindung-suche" placeholder="Artikel suchen …" autocomplete="off">
-         </label>
+         <div class="dt-grid">
+           <div class="k"><label for="bindung-suche">Suchen</label></div>
+           <div><input type="search" id="bindung-suche" autocomplete="off" spellcheck="false"
+                       role="combobox" aria-autocomplete="list" aria-controls="bindung-treffer"
+                       placeholder="Artikel suchen …"></div>
+         </div>
          <div class="dt-picker-list" id="bindung-treffer" role="listbox"></div>
          <div class="dt-hint" id="bindung-hinweis"></div>
          <div id="bindung-vorschau"></div>
@@ -2140,7 +2156,12 @@ async function bindungVorschauOeffnen(zielKey) {
         `<div class="dt-grid">${(plan.fields || []).map(z => `
            <div class="k" title="${esc(z.label)}">${esc(z.label)}</div>
            <div><label><input type="checkbox" data-bind-field="${esc(z.field)}"${z.default_checked ? ' checked' : ''}> ` +
-           (z.own ? `<span class="dt-old">${esc(z.own)}</span><span class="dt-arrow">→</span>` : '') +
+           // ⚠️ Bei GLEICHEN Werten steht der Wert EINMAL da. „Táyârret → Táyârret" mit
+           // durchgestrichener linker Hälfte liest sich wie eine Änderung, obwohl sich nichts
+           // ändert — der Haken sagt dort nur, wer das Feld künftig pflegt (Owner-Bild 02.09.2026).
+           (z.state === 'gleich' || !z.own
+             ? ''
+             : `<span class="dt-old">${esc(z.own)}</span><span class="dt-arrow">→</span>`) +
            `<span class="dt-new">${esc(z.wiki) || '(leer)'}</span></label></div>`).join('')}</div>
          <div class="dt-bindung__folgen">Wandert mit: ${folgen.length ? folgen.join(' · ') : 'nichts'}.
            Der bisherige Knoten geht in den <b>Papierkorb</b>.</div>

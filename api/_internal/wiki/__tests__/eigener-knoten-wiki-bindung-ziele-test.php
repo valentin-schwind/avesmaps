@@ -170,10 +170,16 @@ pruefe(preg_match('/class="dt-bindung[^"]*"/', $monitorText) === 1,
 
 // 💣 Der Kasten erscheint NUR an einem eigenen Knoten -- an einem Wiki-Knoten boete er an, eine
 // Identitaet zu ersetzen, die schon die richtige ist.
-pruefe(
-    preg_match('/eigener-knoten:.{0,400}dt-bindung/s', $monitorText) === 1,
-    'Der Kasten ist an den eigener-knoten-Schluessel gebunden.'
-);
+// 🪤 Gemessen wird die REIHENFOLGE, nicht der ABSTAND. Hier stand `.{0,400}` zwischen Riegel und
+// Markup, und ein dazwischengeschriebener Kommentar hat die Zusicherung umgeworfen, ohne dass sich
+// am Verhalten irgendetwas geaendert haette (02.09.2026). Eine Abstandsgrenze in einem
+// Quelltext-Test misst die Kommentardichte, nicht den Code.
+$riegel = mb_strpos($monitorText, "n.wiki_key.indexOf('eigener-knoten:') === 0");
+$kasten = mb_strpos($monitorText, 'class="dt-bindung avm-wiki-assign"');
+pruefe($riegel !== false && $kasten !== false && $riegel < $kasten,
+    'Der Kasten steht hinter dem eigener-knoten-Riegel -- an einem Wiki-Knoten gibt es ihn nicht.');
+pruefe(substr_count($monitorText, 'class="dt-bindung avm-wiki-assign"') === 1,
+    'Und zwar genau einmal -- ein zweiter Erzeuger liefe am Riegel vorbei.');
 
 // ⚠️ Die Folge wird BENANNT, nicht nur gezaehlt: der Schritt ist nicht per Knopf umkehrbar.
 pruefe(substr_count($monitorText, 'Papierkorb') >= 2,
@@ -203,6 +209,23 @@ pruefe(str_contains($monitorText, 'avesmapsWikiAssignTrefferMarkup(skin,'),
     'Und die Zeile baut dessen Zeilenbauer -- so ist sie Zeichen fuer Zeichen die des Ortspickers.');
 pruefe(str_contains($monitorText, 'class="dt-picker-list"'),
     'Die Liste traegt die geteilte Klasse aus css/components/editor-page.css.');
+
+// 💣 DAS SUCHFELD IST `type="search"` UND STEHT IN EINER `.avm-wiki-assign`-HUELLE. Beides ist
+// tragend: die dunkle Hausform des Monitors haengt an `input[type=search]`, und Hoehe/Polster/Breite
+// an `.avm-wiki-assign .dt-grid input[type=search]` (editor-page.css). Als `type="text"` in einer
+// eigenen Flex-Zeile fiel es auf den WEISSEN Browser-Standard zurueck -- vom Owner am 02.09.2026
+// gemeldet („das suchen feld sieht nicht wie im design plan festgehalten aus").
+pruefe(str_contains($monitorText, 'class="dt-bindung avm-wiki-assign"'),
+    'Der Kasten traegt die Huelle des geteilten Bauteils -- sonst greift keine seiner Regeln.');
+pruefe(preg_match('/<input type="search" id="bindung-suche"/', $monitorText) === 1,
+    'Das Suchfeld ist type="search" -- die dunkle Hausform haengt daran.');
+pruefe(!str_contains($monitorText, 'dt-bindung__suchzeile'),
+    'Und es gibt keine eigene Suchzeilen-Regel mehr daneben.');
+
+// ⚠️ Bei GLEICHEN Werten steht der Wert EINMAL da -- „X → X" mit durchgestrichener linker Haelfte
+// liest sich wie eine Aenderung, obwohl sich nichts aendert.
+pruefe(str_contains($monitorText, "z.state === 'gleich' || !z.own"),
+    'Ein gleicher Wert wird nicht als Aenderung gezeichnet.');
 
 // 🔴 EIN PFAD FUER KLICK UND ENTER. Zwei eigene Rechnungen liefen frueher oder spaeter auseinander.
 pruefe(substr_count($monitorText, 'bindungVorschauOeffnen(') === 3,
