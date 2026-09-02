@@ -1040,11 +1040,14 @@
 	gap: 8px;
 	flex-wrap: nowrap;
 }
-/* 🔴 DIE PILLE WIRD UM 0,75px ANGEHOBEN, UND DAS IST GEMESSEN, NICHT GESCHMACK.
+/* 🔴 DIE PILLE WIRD UM 0,708px ANGEHOBEN, UND DAS IST GEMESSEN, NICHT GESCHMACK.
    Die Zeile richtet an der GRUNDLINIE aus (oben). Chip und Nachbartext teilen sich damit die
    Grundlinie -- aber NICHT die optische Mitte: der Chip setzt 11px VERSAL (Versalhoehe 8,63),
    der Nachbar 12px fett gemischtschriftlich (Versalhoehe 9,5). Auf gemeinsamer Grundlinie liegt
-   die Pillenmitte dadurch 0,75px UNTER der Mitte der Textzeile.
+   die Pillenmitte dadurch UNTER der Mitte der Textzeile.
+   🔴 SEIT 02.09.2026 SETZT DER CHIP 9px, ALSO IST AUCH DIESER WERT NEU GERECHNET (0,75 -> 0,708).
+   Er haengt an denselben zwei Schriftgroessen wie das Polster darueber; wer eine aendert, misst
+   beide neu. Gemessen: ganze Pille 0,01px Restabweichung, Halbpille 0,26px.
 
    ⭐ Warum ein Versatz und nicht das Polster: das Polster verschiebt die PILLE um die
    feststehende Schrift herum -- jede Verbesserung der Zeilenlage verschlechtert die Lage der
@@ -1053,7 +1056,8 @@
    Ein Versatz verschiebt BEIDES gemeinsam: Zeilenlage 0,00, Innenlage unveraendert 0,31.
 
    ⭐ Am Livesystem gemessen, beide Quellenzeilen identisch (Pillenmitte minus Zeilenmitte):
-     ohne Versatz +0,75 | −0,75px → 0,00 | −1px → −0,25
+     11px: ohne Versatz +0,75 | −0,75px → 0,00 | −1px → −0,25
+     9px:  ohne Versatz +0,708 (ganze Pille) bzw. +0,97 (Halbpille) | −0,708px → 0,01 / 0,26
    💣 Die Mitte der Textzeile wird ueber die VERSALHOEHE der Schrift bestimmt, nie ueber die
    Tinte des konkreten Wortes: „Briefspiel (Weiden)" hat Klammern, die hoeher reichen als
    Oberlaengen, „Wiki Aventurica" nicht -- eine glyphenabhaengige Messung gab je Zeile ein
@@ -1065,7 +1069,7 @@
    ⚠️ Der Wert haengt an BEIDEN Schriftgroessen. Wer eine davon aendert, misst neu. */
 .fs-src-row .fs-kanon {
 	position: relative;
-	top: -0.75px;
+	top: -0.708px;
 }
 /* 💣 `min-width: 0` ist die tragende Zeile, und sie muss an JEDEM Flex-/Grid-Kind auf dem Weg
    stehen -- alle stehen per Vorgabe auf `min-width: auto` und weigern sich zu schrumpfen. Fehlt
@@ -1211,8 +1215,26 @@
    ⚠️ Wer nur die INNERE Zentrierung misst, landet bei 2/3 und macht es sichtbar schlechter --
    genau dieser Fehler ist hier schon einmal passiert. Gemessen wird die Pille GEGEN DIE ZEILE,
    in der sie steht.
-   ⚠️ Der Wert haengt an beiden Schriftgroessen (Chip 11px versal, Nachbar 12px). Wer eine davon
-   aendert, rechnet den Mittelweg neu. */
+   ⚠️ Der Wert haengt an beiden Schriftgroessen. Wer eine davon aendert, rechnet den Mittelweg neu.
+
+   🔴 UND GENAU DAS IST AM 02.09.2026 PASSIERT: der Chip ging von 11px auf 9px, also wurde die
+   ganze Rechnung neu gefahren -- dieselbe Methode (Pixelabtast der Tinte gegen die
+   Layout-Grundlinie), dieselben zwei Kriterien, neue Zahlen. Die alten 3px/2px waeren
+   stehengeblieben und HAETTEN AUSGESEHEN, als seien sie gemessen; die Pille saesse 1,46px zu
+   tief in der Zeile (im 3,6x-Vergleich sofort sichtbar). Gegenprobe der Methode: sie
+   reproduziert die alten 11px-Werte (Versalhoehe 8,92 gegen notierte 8,63, Nachbar-Oberlaenge
+   9,58 gegen 9,5).
+   Die zwei Optima bei 9px versal / 12px fettem Nachbarn:
+     · Text mittig IN der Pille   -> Pillenmitte bei Grundlinie − 3,625 (Versalhoehe 7,25)
+     · Pille mittig AUF DER ZEILE -> Pillenmitte bei Grundlinie − 4,792 (Oberlaenge 9,58)
+   Mittelweg − 4,208; 3,5px/1px trifft − 4,083. Gemessene Tabelle (Abstand zum Mittelweg |
+   Innenlage | Zeilenlage):
+     3/2 -> +0,875 | 0,29 | 1,46   3/1   -> +0,375 | 0,21 | 0,96
+     3,5/1 -> +0,125 | 0,46 | 0,71   4/1 -> −0,125 | 0,71 | 0,46
+   ⭐ 3,5/1 und 4/1 liegen gleich weit vom Mittelweg; gewaehlt ist 3,5/1, weil seine Innenlage
+   (0,46) die des alten Zustands (0,43) haelt -- und die Innenlage ist das, was die DREI mittig
+   ausrichtenden Wirte (Objektkopf, Suchtreffer, Konfliktpartei) ueberhaupt zeigen. Die
+   Zeilenlage sieht nur die Quellenzeile, und die korrigiert sich mit ihrem eigenen Versatz. */
 /* 💣 DIE FETTUNG BRAUCHT DIE SYNTHESE, SONST IST SIE EIN LEERLAUF. Die Hausschrift Faculty
    Glyphic liefert NUR Regular, und css/base/base.css schaltet die Kunstfettung deshalb appweit
    ab (`* { font-synthesis-weight: none }`). Ein `font-weight: 700` allein rechnet dort sauber
@@ -1231,13 +1253,13 @@
 	display: inline-flex;
 	align-items: center;
 	flex-shrink: 0;
-	font-size: var(--font-size-caption);
+	font-size: var(--font-size-kanon);
 	font-weight: 700;
 	font-synthesis-weight: auto;
 	letter-spacing: .09em;
 	text-transform: uppercase;
 	line-height: 1;
-	padding: 3px 8px 2px;
+	padding: 3.5px 8px 1px;
 	border-radius: 999px;
 	white-space: nowrap;
 	border: 1px solid transparent;
@@ -1274,9 +1296,26 @@
 	border-color: var(--color-border);
 	max-width: 100%;
 }
+/* 💣 SEIN POLSTER IST NICHT DAS DES CHIPS, UND DAS IST TRAGEND, SEIT DIE ZWEI FELDER
+   VERSCHIEDEN GROSS SETZEN (9px links, 11px rechts). Die zwei Felder sind Flex-Kinder mit
+   `align-items: center`; das HOEHERE bestimmt die Pille. Behielte das Farbfeld das
+   Chip-Polster (3,5/1), waere es 13,5px hoch neben einem 16px hohen Bezeichnerfeld -- und
+   dann steht das Farbfeld als schwebendes Rechteck IN der Kontur, mit Luft oben und unten und
+   ohne die runde linke Kappe. Im Browser gesehen, nicht hergeleitet: 48,6 gegen 57,6 (3,6x).
+   🔴 4,5px/2,5px haelt beide Felder auf 16px -- das Farbfeld fuellt also weiter -- UND
+   reproduziert den Grundlinienversatz der zwei Woerter zueinander, den der alte Zustand hatte
+   (0,5px). Die Alternative 4/3 stellt die zwei Woerter exakt auf eine Grundlinie, laesst die
+   Pille dafuer 0,76px statt 0,26px zu tief in der Zeile sitzen.
+   ⚠️ Wer die Groesse eines der beiden Felder aendert, rechnet DIESEN Wert mit: seine Aufgabe
+   ist die Hoehendifferenz der beiden, nicht die Optik eines einzelnen Feldes.
+   ⭐ Die verworfene Alternative war `align-items: stretch` am Chip plus ein zweites Flex im
+   Farbfeld. Sie fuellt ebenfalls, verschiebt aber die Grundlinie der ganzen Pille (die eines
+   inline-flex ist die des ersten Kindes) -- die Halbpille sass danach 1,26px zu tief in der
+   Quellenzeile, waehrend die ganze Pille richtig stand. Zwei Formen desselben Chips mit zwei
+   verschiedenen Zeilenlagen ist schlimmer als beide leicht daneben. */
 .fs-kanon--split .fs-kanon__state {
 	flex-shrink: 0;
-	padding: 3px 8px 2px;
+	padding: 4.5px 8px 2.5px;
 }
 .fs-kanon--off.fs-kanon--split .fs-kanon__state {
 	background: var(--color-kanon-official);
@@ -1289,7 +1328,12 @@
 /* Das Bezeichnerfeld: gemischtschriftlich, nicht gesperrt -- es ist ein NAME
    („Briefspiel (Garetien)"), und VERSAL gesperrt las er sich wie eine zweite Auszeichnung.
    ⚠️ min-width: 0 + ellipsis: ein langer Bezeichner darf den Kopf nicht aufziehen. */
-/* 💣 UND ES BLEIBT UNGEFETTET, waehrend der Chip es ist. Die Fettung sitzt an .fs-kanon und
+/* 💣 UND ES BLEIBT AUF DER UNTERGRENZE (11px), waehrend das Kanonwort daneben auf 9px geht.
+   Owner 02.09.2026: „nur die, die bold ist" / „die pille ist die absolute ausnahme". Der
+   `font-size` hier ist also kein Wiederholen des Geerbten, sondern die Gegenkraft dazu -- ohne
+   ihn zoege --font-size-kanon vom Chip herunter und der NAME stuende ebenfalls unter der
+   Untergrenze, die fuer ihn weiter gilt.
+   💣 UND ES BLEIBT UNGEFETTET, waehrend der Chip es ist. Die Fettung sitzt an .fs-kanon und
    wuerde hierher VERERBT -- dann traegt der Name dieselbe Auszeichnung wie das Kanonwort, und
    genau das verbietet der Absatz darueber schon fuer VERSAL+gesperrt: eine zweite Auszeichnung
    an einer Stelle, die nur einen Namen nennt. Gefettet wird das Wort, das eine Aussage trifft

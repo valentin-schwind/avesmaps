@@ -174,27 +174,37 @@ for (const t of ["--color-kanon-official", "--color-kanon-official-text", "--col
   pruefe(treffer.length === 2, `${t} muss in hellem UND dunklem Thema definiert sein (gefunden: ${treffer.length})`);
 }
 
-// ---- H1b. Das Polster ist 3px oben / 2px unten -- der Mittelweg aus ZWEI Kriterien -----------
+// ---- H1b. Das Polster ist 3,5px oben / 1px unten -- der Mittelweg aus ZWEI Kriterien ---------
 // 💣 Ich habe es am 01.09.2026 auf 2/3 gedreht, weil die Schrift IN der Pille damit mittiger
 // sitzt. Der Owner meldete sofort „wird immer schlimmer mit der vertikalen ausrichtung" -- das
 // war das falsche Kriterium.
 // 🔴 Die Zeile richtet an der GRUNDLINIE aus; die Chipschrift steht damit fest, und das Polster
-// verschiebt die PILLE um sie herum. Zwei Optima, 0,97px auseinander (Chip 11px versal gegen
-// Nachbar 12px gemischtschriftlich auf derselben Grundlinie): Text mittig in der Pille bei
-// Grundlinie −3,905, Pille mittig auf der Zeile bei −4,875. Mittelweg −4,39; 3/2 trifft −4,335.
-// Zeilenunwucht gemessen: 3/2 -> 1,08px | 2/2 -> 2,08 | 3/3 -> 2,08 | 2/3 -> 3,08.
-// ⚠️ Wer nur die INNERE Zentrierung misst, landet bei 2/3 und macht es sichtbar schlechter.
+// verschiebt die PILLE um sie herum.
+// 🔴 NEU GERECHNET AM 02.09.2026, weil der Chip von 11px auf 9px ging -- der Wert haengt an den
+// Schriftgroessen, und die alten 3/2 haetten gemessen ausgesehen, waehrend die Pille 1,46px zu
+// tief in der Zeile sass. Zwei Optima, 1,17px auseinander (Chip 9px versal, Versalhoehe 7,25,
+// gegen Nachbar 12px fett, Oberlaenge 9,58): Text mittig in der Pille bei Grundlinie −3,625,
+// Pille mittig auf der Zeile bei −4,792. Mittelweg −4,208; 3,5/1 trifft −4,083.
+// Gemessen (Abstand zum Mittelweg): 3/2 -> +0,875 | 3/1 -> +0,375 | 3,5/1 -> +0,125 | 4/1 -> −0,125.
+// ⚠️ Wer nur die INNERE Zentrierung misst, macht es sichtbar schlechter -- das war der
+// zurueckgenommene Versuch vom 01.09.2026 (2/3).
 const chipRegel = nurRegel(css, ".fs-kanon");
-pruefe(/padding:\s*3px\s+8px\s+2px\s*;/.test(chipRegel),
-  "der Chip polstert 3px oben / 2px unten -- der gemessene Mittelweg, nicht die innere Mitte");
+pruefe(/padding:\s*3\.5px\s+8px\s+1px\s*;/.test(chipRegel),
+  "der Chip polstert 3,5px oben / 1px unten -- der gemessene Mittelweg, nicht die innere Mitte");
 pruefe(!/padding:\s*2px\s+8px\s+3px\s*;/.test(css),
   "die auf die innere Mitte optimierte Fassung darf nirgends mehr stehen");
+// 💣 UND DAS FARBFELD DER HALBPILLE POLSTERT ANDERS ALS DER CHIP -- es muss die Hoehe des
+// 11px-Bezeichnerfeldes daneben erreichen, sonst schwebt es als Rechteck in der Kontur (im
+// Browser gesehen: 48,6 gegen 57,6 bei 3,6facher Vergroesserung, linke Rundung weg).
+pruefe(/padding:\s*4\.5px\s+8px\s+2\.5px\s*;/.test(nurRegel(css, ".fs-kanon--split .fs-kanon__state")),
+  "das Farbfeld gleicht die Hoehendifferenz der zwei Schriftgroessen aus");
 
 // ---- H1c. Der Zeilen-Versatz der Pille -----------------------------------------------------
-// 🔴 In der Quellenzeile wird an der GRUNDLINIE ausgerichtet. Chip (11px versal, Versalhoehe
-// 8,63) und Nachbartext (12px fett, 9,5) teilen sie sich -- aber nicht die optische Mitte: die
-// Pillenmitte liegt dadurch 0,75px zu tief. Am Livesystem gemessen, beide Zeilen identisch:
-//     ohne Versatz +0,75 | −0,75px -> 0,00 | −1px -> −0,25
+// 🔴 In der Quellenzeile wird an der GRUNDLINIE ausgerichtet. Chip und Nachbartext teilen sie
+// sich -- aber nicht die optische Mitte, die Pillenmitte liegt dadurch zu tief. Am Livesystem
+// gemessen: bei 11px −0,75px -> 0,00; seit dem Wechsel auf 9px (02.09.2026) −0,708px -> 0,01
+// (ganze Pille) bzw. 0,26 (Halbpille). Der Wert haengt an denselben zwei Schriftgroessen wie
+// das Polster darueber -- wer eine aendert, misst BEIDE neu.
 // ⭐ Ein VERSATZ statt Polster, weil er Pille UND Schrift gemeinsam verschiebt: die Zeilenlage
 // geht auf 0, die Lage der Schrift IN der Pille bleibt unangetastet. Ueber das Polster ging
 // beides nur gegeneinander (Versuch vom 01.09.2026, vom Owner sofort beanstandet).
@@ -202,7 +212,7 @@ pruefe(!/padding:\s*2px\s+8px\s+3px\s*;/.test(css),
 // Grundlinie aus; dort waere er ein Fehler.
 const zeilenRegel = regelAb(css, ".fs-src-row .fs-kanon");
 pruefe(zeilenRegel.length > 0, "die Quellenzeile hebt ihre Pille an");
-pruefe(/top:\s*-0\.75px\s*;/.test(zeilenRegel.slice(0, 140)), "und zwar um genau 0,75px");
+pruefe(/top:\s*-0\.708px\s*;/.test(zeilenRegel.slice(0, 140)), "und zwar um genau 0,708px");
 pruefe(/position:\s*relative\s*;/.test(zeilenRegel.slice(0, 140)),
   "ohne `position: relative` wirkt `top` gar nicht -- der Fehler waere still");
 // ⚠️ Der Versatz darf NICHT am Chip selbst haengen: dann traefe er auch Kopf, Suchtreffer und

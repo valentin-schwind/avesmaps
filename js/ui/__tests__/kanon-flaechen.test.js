@@ -194,12 +194,29 @@ for (const datei of ["css/components/spotlight-search.css", "css/features/review
 	const quelle = lies(...datei.split("/"));
 	pruefe(!/^\.fs-kanon\b/m.test(quelle), `${datei} darf den Chip nicht zweitfassen`);
 }
-// ⚠️ Und die 11px-Untergrenze des Hauses gilt auch fuer ihn (AGENTS.md §12): hier standen 9,5px,
-// vom Nachbarn abgeschrieben — derselbe Weg, auf dem der Fehler schon einmal von einer Liste in
-// die naechste gewandert ist.
+// 🔴 DAS KANONWORT IST DIE EINE AUSNAHME UNTER DER 11px-UNTERGRENZE DES HAUSES (AGENTS.md §12).
+// Owner 02.09.2026: „mach die schrift von offiziell/inoffiziel 9px … die pille ist die absolute
+// ausnahme". Sie steht deshalb unter EIGENEM Namen (--font-size-kanon) und nicht als vierte
+// Sprosse in der Leiter: ein zweiter Leser dieses Tokens waere schon die Ausdehnung der Ausnahme.
+// ⚠️ Die Untergrenze selbst bleibt in Kraft -- hier standen einmal 9,5px, vom Nachbarn
+// abgeschrieben, und DAS war ein Fehler: nicht wegen der Zahl, sondern weil ihn niemand
+// entschieden hatte. Der Unterschied zwischen Ausnahme und Schlamperei ist der Entscheid.
 const fsCss = lies("css", "features", "feature-sources.css");
 const chip = fsCss.slice(fsCss.indexOf(".fs-kanon {"), fsCss.indexOf(".fs-kanon--off"));
-pruefe(/font-size:\s*var\(--font-size-caption\)/.test(chip), "der Chip nimmt die Untergrenze als Token");
+pruefe(/font-size:\s*var\(--font-size-kanon\)/.test(chip), "das Kanonwort nimmt den Ausnahme-Token");
+const tokensFuerKanonToken = lies("css", "base", "tokens.css");
+pruefe(/^\s*--font-size-kanon:\s*9px;/m.test(tokensFuerKanonToken), "und der Token ist mit 9px definiert");
+// 💣 UND DIE AUSNAHME BLEIBT AUF DAS KANONWORT BESCHRAENKT. Das Bezeichnerfeld der Halbpille
+// steht IM selben Chip und erbt den Wert, wenn es ihn nicht selbst setzt -- dann stuende auch
+// der Name („Briefspiel (Garetien)") unter der Untergrenze, fuer die es keinen Entscheid gibt.
+const byGroesse = (() => {
+	const t = /^\.fs-kanon--split \.fs-kanon__by\s*\{/m.exec(fsCss);
+	pruefe(!!t, "das Bezeichnerfeld muss eine eigene Regel haben");
+	const ab = fsCss.slice(t.index);
+	return ab.slice(0, ab.indexOf("}") + 1);
+})();
+pruefe(/font-size:\s*var\(--font-size-caption\)/.test(byGroesse),
+	"der Bezeichner haelt die Untergrenze -- er erbt sonst die Ausnahme vom Chip");
 
 // ---- H1. Die Fettung -- und warum sie ZWEI Zeilen braucht ------------------------------------
 // 💣 EIN `font-weight: 700` IST IN DIESEM REPO EIN LEERLAUF. Die Hausschrift Faculty Glyphic

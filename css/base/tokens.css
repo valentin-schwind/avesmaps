@@ -15,6 +15,15 @@
 
 	/* Typography scale — 7 rungs, 11px floor (see "Typography" in the doc) */
 	--font-size-caption: 11px;  /* labels, pills, meta — the floor */
+	/* 🔴 DIE EINE AUSNAHME UNTER DER UNTERGRENZE, und sie hat einen eigenen Namen, damit sie
+	   sichtbar eine Ausnahme bleibt statt die Leiter nach unten zu verlaengern. Owner
+	   02.09.2026: „mach die schrift von offiziell/inoffiziel 9px … die pille ist die absolute
+	   ausnahme". Sie gilt AUSSCHLIESSLICH dem Kanonwort im Etikett (.fs-kanon) -- ein kurzes,
+	   gefettetes Versalwort auf gefuellter Flaeche; das Bezeichnerfeld daneben bleibt auf der
+	   Untergrenze. Wer einen zweiten Leser fuer diesen Token sucht: es soll keinen geben.
+	   ⚠️ Ein Griff nach diesem Wert an anderer Stelle ist fast immer der Fehler, den
+	   --font-size-caption schon einmal geerbt hat (9,5px, vom Nachbarn abgeschrieben). */
+	--font-size-kanon: 9px;     /* NUR das Kanonwort -- unter der Untergrenze, Owner-Entscheid */
 	--font-size-small: 12px;    /* dense body — the workhorse */
 	--font-size-body: 13px;     /* default controls / body */
 	--font-size-reading: 14px;  /* comfortable reading */
