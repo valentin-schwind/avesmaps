@@ -648,6 +648,58 @@ function avesmapsFeatureSourcesTakeoverOtherSource(PDO $pdo, string $entityType,
     }
 }
 
+/**
+ * Die Namen zu einer Handvoll Nutzerkennungen — für „wer hat das eingetragen".
+ *
+ * 🔴 EINE EIGENE ABFRAGE, KEIN `LEFT JOIN users`. `sources` und `users` teilen sich `id` UND
+ * `created_at`; ein Join machte jede unqualifizierte Spalte mehrdeutig. `api/edit/reports/locations.php`
+ * hat genau das schon einmal mit einer 500 bezahlt und nennt es dort ausdrücklich.
+ *
+ * ⚠️ FÄLLT OFFEN AUS. Gibt es die Tabelle nicht (SQLite-Fixture) oder scheitert die Abfrage, bleibt
+ * die Liste leer — dann steht nur das Datum da. Die Herkunftsangabe ist eine Auskunft, kein Riegel;
+ * sie darf das Öffnen einer Quellenliste niemals verhindern.
+ *
+ * 💣 NUR FÜR DEN EDITOR-ENDPUNKT. Diese Namen dürfen nie in `api/app/…` oder in die Kartennutzlast
+ * geraten — dort läsen sie sich für jeden Besucher. Der Riegel ist die Aufrufstelle: es gibt genau
+ * eine, und die hängt hinter `avesmapsRequireUserWithCapability`.
+ */
+function avesmapsFeatureSourceEditorNames(PDO $pdo, array $ids): array
+{
+    $ids = array_values(array_unique(array_filter(array_map('intval', $ids), static fn(int $i): bool => $i > 0)));
+    if ($ids === []) {
+        return [];
+    }
+    try {
+        $platzhalter = implode(', ', array_fill(0, count($ids), '?'));
+        $stmt = $pdo->prepare("SELECT id, username FROM users WHERE id IN ({$platzhalter})");
+        $stmt->execute($ids);
+        $namen = [];
+        foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) ?: [] as $row) {
+            $namen[(int) $row['id']] = (string) $row['username'];
+        }
+        return $namen;
+    } catch (Throwable $e) {
+        return [];
+    }
+}
+
+/**
+ * Wer und wann — als Paar, oder `null`, wenn beides fehlt.
+ *
+ * ⚠️ Ein Datum ohne Namen ist eine gültige Auskunft (der Bestand von vor der Anmeldepflicht trägt
+ * `created_by = NULL`); ein Namen ohne Datum kann es nicht geben. Fehlt beides, steht `null` da —
+ * die Oberfläche zeigt dann gar keine Zeile statt „unbekannt am unbekannt".
+ */
+function avesmapsFeatureSourceHerkunft(?string $wann, $wer, array $namen): ?array
+{
+    $wann = trim((string) $wann);
+    if ($wann === '') {
+        return null;
+    }
+    $id = (int) $wer;
+    return ['at' => $wann, 'by' => $id > 0 ? ($namen[$id] ?? '') : ''];
+}
+
 // Liste FÜR DEN EDITOR: erst Takeover (konsolidiert other_source), dann alle Katalog-Quellen (mit source_id
 // zum Löschen) + der feste Wiki-Link. Einheitlich -> keine Sonderfälle in der UI.
 function avesmapsListFeatureSourcesForEdit(PDO $pdo, string $entityType, string $publicId, int $userId): array
@@ -656,8 +708,9 @@ function avesmapsListFeatureSourcesForEdit(PDO $pdo, string $entityType, string 
     avesmapsFeatureSourcesTakeoverOtherSource($pdo, $entityType, $publicId, $userId);
     $stmt = $pdo->prepare(
         "SELECT s.id AS source_id, s.url, s.label, s.source_type, s.is_official, s.license, s.attribution,
-                s.wiki_key,
-                fs.origin, fs.reference_kind, fs.pages
+                s.wiki_key, s.created_by AS quelle_von, s.created_at AS quelle_am,
+                fs.origin, fs.reference_kind, fs.pages,
+                fs.created_by AS beleg_von, fs.created_at AS beleg_am
            FROM feature_sources fs JOIN sources s ON s.id = fs.source_id
           WHERE fs.entity_type = :t AND fs.entity_public_id = :id AND fs.status = 'approved'
           ORDER BY s.is_official DESC, s.created_at ASC, s.id ASC"
@@ -705,7 +758,13 @@ function avesmapsListFeatureSourcesForEdit(PDO $pdo, string $entityType, string 
         $korpora = avesmapsSourceCorpusReadAll($pdo);
         $korpusReichweite = avesmapsSourceCorpusUsageAll($pdo);
     }
-    $sources = array_map(static function (array $r) use ($usage, $korpora, $korpusReichweite): array {
+    // Wer hat eingetragen? EINE Abfrage über beide Spalten zusammen — der Katalogeintrag und die
+    // Verknüpfung stammen oft von verschiedenen Editoren, und genau das ist die Auskunft.
+    $namen = avesmapsFeatureSourceEditorNames($pdo, array_merge(
+        array_column($rows, 'quelle_von'),
+        array_column($rows, 'beleg_von')
+    ));
+    $sources = array_map(static function (array $r) use ($usage, $korpora, $korpusReichweite, $namen): array {
         $id = (int) $r['source_id'];
         $korpus = null;
         if ($korpora !== [] || $korpusReichweite !== []) {
@@ -746,6 +805,14 @@ function avesmapsListFeatureSourcesForEdit(PDO $pdo, string $entityType, string 
             // kann an einem Objekt von Hand und an einem anderen vom Abgleich haengen — besitzen
             // tut sie der Abgleich in beiden Faellen.
             'wiki_owned' => trim((string) ($r['wiki_key'] ?? '')) !== '',
+            // 🔴 ZWEI HERKÜNFTE, NICHT EINE — und sie fallen auf die zwei Reichweiten des ✎-Kastens:
+            // `beleg` sagt, wer diese Quelle HIER angehängt hat, `quelle` sagt, wer sie überhaupt in
+            // den Katalog gelegt hat. Bei einer Zeile mit 1.549 Objekten sind das fast nie dieselben.
+            // ⚠️ Nur lesbar (Owner 02.09.2026) — es gibt keinen Schreibweg, und es soll keinen geben.
+            'created' => [
+                'link' => avesmapsFeatureSourceHerkunft($r['beleg_am'] ?? null, $r['beleg_von'] ?? null, $namen),
+                'source' => avesmapsFeatureSourceHerkunft($r['quelle_am'] ?? null, $r['quelle_von'] ?? null, $namen),
+            ],
         ];
     }, $rows);
     return [

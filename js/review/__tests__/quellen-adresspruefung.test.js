@@ -266,15 +266,30 @@ zaehl();
 assert.ok(/data-fs-corpus-meta/.test(html), "und daneben Platz für Schlüssel und Reichweite");
 zaehl();
 
-// 🔴 DER KASTEN STARTET VERBORGEN. Owner 02.09.2026 am Bild: „dieses feld kommt wenn ich eine NEUE
-// quelle erstellen will" — dort fragte er nach Form, Art, Lizenz und Nennung eines Korpus, den es
-// noch gar nicht gab: fünf Reihen Ballast vor der einen Sache, die man tun will, nämlich einen
-// Link einfügen. Der Rahmen war richtig, sein ZEITPUNKT war falsch.
-assert.ok(/data-fs-korpus-gruppe hidden/.test(html),
-  "der Korpuskasten ist verborgen, bis eine Adresse einen Korpus ergibt");
+// 🔴 DER KASTEN STEHT IMMER — und das ist die Rücknahme einer Regel von genau einem Tag.
+// Er startete am 02.09.2026 `hidden` („dieses feld kommt wenn ich eine NEUE quelle erstellen
+// will") und hat dabei Art, Lizenz und Namensnennung mitversteckt, die dem Korpus gar nicht
+// gehören: die leere Maske konnte danach WENIGER als vor dem ganzen Umbau, und der Owner meldete
+// „wieso habe ich jetzt wieder das alte Eingabeformular". Der Riegel gehörte an EIN Feld, nicht
+// an den Kasten. Der Rahmen selbst bleibt (Owner: „finde ich gut, weil man dann weiß: wenn ich da
+// was änder, änderts das für alle quellen aus dem korpus").
+assert.ok(/data-fs-korpus-gruppe>/.test(html),
+  "der Korpuskasten steht immer -- er versteckt sonst Art, Lizenz und Nennung mit");
 zaehl();
-assert.ok(/gruppe\.hidden = !korpus;/.test(quelltextKorr),
-  "er erscheint mit dem Korpus und verschwindet mit ihm");
+assert.ok(!/data-fs-korpus-gruppe hidden/.test(html),
+  "und zwar OHNE hidden -- genau das war der gemeldete Fehler");
+zaehl();
+// 💣 Die Aufschrift trägt die REICHWEITE: „gilt für alle" ohne Grösse ist keine Warnung.
+assert.ok(/data-fs-korpus-scope/.test(html), "die Aufschrift hat Platz für die Reichweite");
+zaehl();
+assert.ok(/welcher, sagt die Adresse/.test(html),
+  "und sie sagt ohne Adresse, worauf sie wartet -- der Anfangstext steht im Markup, nicht in einem Aufruf danach");
+zaehl();
+// Drei Zustände, alle im Umschalter: keine Adresse · neuer Wirt · bekannter Wirt.
+["corpusScopeNone", "corpusScopeNew", "corpusScopeReach"].forEach((schluessel) => {
+  assert.ok(new RegExp("sources\\.add\\." + schluessel).test(quelltextKorr),
+    "Zustand " + schluessel + " ist verdrahtet");
+});
 zaehl();
 // ⚠️ Und beim Ändern der Adresse fällt er weg: er gehört zur ALTEN. Bliebe er stehen, zeigte er
 // die Werte eines Wirts, den der Editor gerade verlassen hat.

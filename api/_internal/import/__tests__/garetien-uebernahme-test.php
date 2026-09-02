@@ -263,10 +263,17 @@ function avesmapsGaretienUebernahmeTestPdo(): PDO
     $pdo->exec('CREATE TABLE sources (id INTEGER PRIMARY KEY AUTOINCREMENT, url TEXT, url_hash TEXT UNIQUE,
         wiki_key TEXT NULL, label TEXT, source_type TEXT, is_official INTEGER DEFAULT 0, created_by INTEGER NULL,
         license TEXT NOT NULL DEFAULT \'\', attribution TEXT NOT NULL DEFAULT \'\', created_at TEXT DEFAULT "2026-01-01")');
+    // ⚠️ `created_at` gehoert dazu, auch wenn dieser Test es nie liest: die Fixture legt die Tabelle
+    // SELBST an, und `avesmapsEnsureFeatureSourceTables` ist danach ein `IF NOT EXISTS`-Nulllauf --
+    // eine fehlende Spalte faellt hier also nicht auf, sondern erst dort, wo die Produktion sie
+    // liest. Am 02.09.2026 war das die Herkunftsangabe der Quellenliste ("wer hat das eingetragen"),
+    // und der Fehler landete in DIESEM Test, nicht in ihrem eigenen. Die Fixture bildet die echte
+    // Tabelle ab, nicht das, was sie gerade braucht.
     $pdo->exec("CREATE TABLE feature_sources (id INTEGER PRIMARY KEY AUTOINCREMENT, entity_type TEXT NOT NULL,
         entity_public_id TEXT NOT NULL, source_id INTEGER NOT NULL, status TEXT DEFAULT 'approved',
         created_by INTEGER NULL, origin TEXT DEFAULT 'manual', reference_kind TEXT NULL, pages TEXT NULL,
-        note TEXT NULL, UNIQUE(entity_type, entity_public_id, source_id))");
+        note TEXT NULL, created_at TEXT NOT NULL DEFAULT \"2026-01-01 00:00:00\",
+        UNIQUE(entity_type, entity_public_id, source_id))");
     // 🔴 AUFGABE 29 (Owner-Entscheid 30.08.2026): "Landschaft" (Flaeche/Berggipfel) weist beim
     // Anlegen den Wiki-Schluessel zu -- avesmapsGaretienWikiLandschaftZuweisung liest dieselbe
     // Tabelle wie die Einzelansicht (garetien-wiki-landschaft.php). LEER PER VORGABE: die vielen

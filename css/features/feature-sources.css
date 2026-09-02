@@ -278,6 +278,30 @@
 	color: var(--color-accent-brown);
 	background: var(--color-panel-soft);
 }
+/* Die REICHWEITE in der Aufschrift: WELCHER Wirt, und wie weit reicht er. „Gilt für den ganzen
+   Korpus" ohne Grösse ist keine Warnung -- dieselbe Regel und dieselbe Bauform wie `.fs-edit__scope`
+   im Bearbeiten-Kasten.
+   ⚠️ Die Versalien der Aufschrift enden hier: ein Eigenname in Versalien („ALBERNIAWIKI") liest
+   sich wie eine Kennung, nicht wie ein Name. */
+.fs-korpus__scope {
+	text-transform: none;
+	letter-spacing: 0;
+	color: var(--color-text-muted);
+}
+/* 🔴 DIE ZWEI FELDER, DIE NUR HIER GELTEN -- hervorgehoben, sobald die Seite schon im Katalog
+   steht (`zeigeBekannteSeite`). Dann sind sie das Einzige, was noch einzutragen ist.
+   💣 SPEZIFITÄT: `.fs-row--add input[type="text"]` weiter unten ist (0,2,1) und setzt die KURZFORM
+   `border`, die `border-color` mit zurücksetzt. Ein blankes `.fs-af--meins input` (0,1,1) verliert
+   dagegen -- die Seitenangabe bliebe ungefärbt, während das <select> daneben brav braun wird, und
+   eine halbe Hervorhebung liest sich als Fehler. Deshalb der Vorfahre im Selektor. */
+.fs-af--meins .fs-af__l {
+	color: var(--color-accent-brown);
+	font-weight: 700;
+}
+.fs-row--add .fs-af--meins input[type="text"],
+.fs-row--add .fs-af--meins select {
+	border-color: var(--color-accent-brown);
+}
 /* 💣 Der Prüfknopf sitzt NEBEN der Adresse, also darf sie nicht mehr 100 % nehmen -- sonst
    umbricht er auf eine eigene Zeile und steht sinnlos allein da. 36px = 30px Knopf + 6px `gap`
    der Zeile; wer den Knopf breiter macht, zieht diese Zahl mit. */
@@ -919,6 +943,17 @@
 	display: flex;
 	flex-wrap: wrap;
 	gap: 10px 12px;
+}
+/* „Hier angehängt von X am TT.MM.JJJJ" — die Herkunft ihrer Reichweite. 🔴 Nur lesbar (Owner
+   02.09.2026), deshalb ein Absatz und kein Feld: ein Eingabefeld, das nichts annimmt, verspricht
+   einen Schreibweg, den es nicht gibt.
+   ⚠️ 11px ist die Untergrenze des Hauses (AGENTS.md §12) -- nicht darunter, so beiläufig die
+   Angabe auch ist. */
+.fs-edit__by {
+	margin: 8px 0 0;
+	font-size: 11px;
+	line-height: 1.4;
+	color: var(--color-text-muted);
 }
 .fs-edit .fs-field {
 	display: flex;

@@ -202,6 +202,41 @@ function renderFeatureSourceRow(source, escape, tr, bearbeitbar) {
   );
 }
 
+/**
+ * Ein Zeitstempel als Datum — „2026-09-02 17:04:00.000" wird „02.09.2026".
+ *
+ * 🔴 KEIN `new Date(...)`. Der Server schickt einen MySQL-Zeitstempel ohne Zonenangabe; `Date`
+ * liest ihn je nach Browser als UTC oder als Ortszeit und verschiebt ihn dabei um Stunden — was
+ * um Mitternacht den TAG ändert. Hier wird nur zerlegt, nie umgerechnet.
+ * ⚠️ Was nicht wie ein Datum aussieht, kommt unverändert zurück statt als „NaN.NaN.NaN".
+ */
+function featureSourceDatum(wann) {
+  const treffer = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(wann == null ? "" : wann).trim());
+  return treffer ? treffer[3] + "." + treffer[2] + "." + treffer[1] : String(wann == null ? "" : wann).trim();
+}
+
+/**
+ * Die Herkunftszeile einer Reichweite: „Eingetragen von Vali am 02.09.2026".
+ *
+ * 🔴 NUR LESBAR (Owner 02.09.2026: „die felder können nur eingesehen, nicht verändert werden").
+ * Deshalb ein `<p>` und kein Feld — es gibt keinen Schreibweg, und ein Eingabefeld, das nichts
+ * annimmt, verspricht einen.
+ * ⚠️ OHNE NAMEN NUR DAS DATUM. Der Bestand von vor der Anmeldepflicht trägt `created_by = NULL`,
+ * und „von unbekannt" ist keine Auskunft, sondern ein Platzhalter, der wie ein Fehler aussieht.
+ * ⚠️ Ohne Datum GAR KEINE Zeile — der Server liefert dann `null` (`avesmapsFeatureSourceHerkunft`).
+ */
+function featureSourceHerkunftZeile(herkunft, wortlaut, escape, tr) {
+  if (!herkunft || !herkunft.at) {
+    return "";
+  }
+  const datum = featureSourceDatum(herkunft.at);
+  const wer = String(herkunft.by == null ? "" : herkunft.by).trim();
+  const text = wer
+    ? tr(wortlaut.mitName, wortlaut.mitNameText).replace("{wer}", wer).replace("{wann}", datum)
+    : tr(wortlaut.ohneName, wortlaut.ohneNameText).replace("{wann}", datum);
+  return '<p class="fs-edit__by">' + escape(text) + "</p>";
+}
+
 // ══ DER BEARBEITEN-KASTEN ═══════════════════════════════════════════════════════════════════════
 // Entwurf: docs/quellen-bearbeiten-mockup.html (Owner-GO 01.09.2026)
 //
@@ -311,14 +346,28 @@ function renderFeatureSourceEditPanel(source, escape, tr) {
     + '<div class="fs-edit__fields">'
     + feld("pages", tr("sources.colPages", "Seite(n)"), text("pages", String(source.pages || ""), "", false))
     + feld("reference_kind", tr("sources.colKind", "Abdeckung"), auswahl("reference_kind", String(source.reference_kind || ""), kindEintraege, false))
-    + "</div></div>"
+    + "</div>"
+    // 🔴 DIE HERKUNFT STEHT AN IHRER REICHWEITE, nicht gesammelt am Fuss. „Wer hat das hier
+    // angehängt" und „wer hat die Quelle angelegt" sind zwei verschiedene Menschen und zwei
+    // verschiedene Zeitpunkte; unter einer gemeinsamen Überschrift wäre nicht zu sehen, welche
+    // Angabe zu welcher Hälfte gehört.
+    + featureSourceHerkunftZeile(source.created && source.created.link, {
+      mitName: "sources.edit.byLink", mitNameText: "Hier angehängt von {wer} am {wann}",
+      ohneName: "sources.edit.byLinkAnon", ohneNameText: "Hier angehängt am {wann}",
+    }, escape, tr)
+    + "</div>"
     + '<div class="fs-edit__group">'
     + kopf(tr("sources.edit.catalogScope", "Gilt für alle Objekte, die diese Quelle zitieren"), objekte)
     + adresse
     + '<div class="fs-edit__fields">'
     + (wikiOwned ? "" : feld("url", tr("sources.edit.url", "Adresse"), text("url", String(source.url || ""), "https://…", false)))
     + feld("label", tr("sources.colTitle", "Titel"), text("label", String(source.label || ""), "", wikiOwned))
-    + "</div>" + hinweis + "</div>"
+    + "</div>"
+    + featureSourceHerkunftZeile(source.created && source.created.source, {
+      mitName: "sources.edit.bySource", mitNameText: "In den Katalog gelegt von {wer} am {wann}",
+      ohneName: "sources.edit.bySourceAnon", ohneNameText: "In den Katalog gelegt am {wann}",
+    }, escape, tr)
+    + hinweis + "</div>"
     // 🔴 DIE DRITTE GRUPPE -- und sie ist eine BERICHTIGUNG, keine Zierde. Art, Lizenz, Nennung
     // und Kanon gehören seit dem 02.09.2026 dem KORPUS: eine Änderung daran trifft jede Quelle
     // dieses Wirts. In der Gruppe darüber gestanden, versprach die Überschrift „gilt für alle
@@ -509,18 +558,34 @@ function renderFeatureSourceAddRow(escape, tr) {
     // ⚠️ VOR dem Korpuskasten, nicht dahinter (Owner-Pfeil im Bild vom 02.09.2026): erst das, was
     // DIESE Fundstelle beschreibt, dann der Wirt. Dieselbe Ordnung wie im Bearbeiten-Kasten, wo
     // „Nur an diesem Objekt" ebenfalls oben steht -- „für edit/neu", sagte der Owner.
-    '<label class="fs-af fs-af--pages"><span class="fs-af__l">' +
+    // ⚠️ `data-fs-meins` markiert die zwei Felder, die NUR an dieser Fundstelle gelten. Bei einer
+    // bekannten Seite sind sie das Einzige, was der Editor noch zu füllen hat — dann werden sie
+    // hervorgehoben. Der Marker steht im Markup, damit die Hervorhebung keine Selektorliste
+    // pflegen muss, die beim nächsten Feld auseinanderläuft.
+    '<label class="fs-af fs-af--pages" data-fs-meins><span class="fs-af__l">' +
     escape(tr("sources.add.pages", "Seite(n)")) + "</span>" +
     '<input type="text" class="fs-add-pages" placeholder="' + escape(tr("sources.add.pagesHint", "optional")) + '"></label>' +
-    '<label class="fs-af fs-af--kind"><span class="fs-af__l">' + escape(tr("sources.add.kindLabel", "Abdeckung")) + "</span>" +
+    '<label class="fs-af fs-af--kind" data-fs-meins><span class="fs-af__l">' + escape(tr("sources.add.kindLabel", "Abdeckung")) + "</span>" +
     '<select class="fs-add-kind" title="' + escape(tr("sources.add.kind", "Abdeckung: Ausführlich/Ergänzend → Offiziell-Tab, Erwähnung → Erwähnt-Tab, sonst normale Quellenzeile")) + '">' + kindOptions + "</select></label>" +
-    // 🔴 VERBORGEN, bis eine Adresse einen Korpus ergibt (Owner 02.09.2026: „dieses feld kommt
-    // wenn ich eine NEUE quelle erstellen will"). Vorher fragt der Kasten nach Form, Art, Lizenz
-    // und Nennung eines Korpus, den es noch gar nicht gibt -- fuenf Reihen Ballast vor der einen
-    // Sache, die man wirklich tun will: einen Link einfuegen. Der Rahmen war richtig, sein
-    // ZEITPUNKT war falsch.
-    '<span class="fs-korpus" data-fs-korpus-gruppe hidden>' +
-    '<span class="fs-korpus__l">' + escape(tr("sources.add.corpusGroup", "Gilt für den ganzen Korpus")) + "</span>" +
+    // 🔴 DER RAHMEN STEHT IMMER. Er war einen Tag lang `hidden`, bis eine Adresse einen Korpus
+    // ergab -- und hat dabei Art, Lizenz und Namensnennung mitversteckt, die mit dem Korpus nichts
+    // zu tun haben: die leere Maske konnte danach WENIGER als vor dem ganzen Umbau (vier Felder),
+    // und der Owner meldete „wieso habe ich jetzt wieder das alte Eingabeformular". Der Riegel
+    // gehörte an EIN Feld (den Korpusnamen), nicht an den Kasten.
+    // 🔴 GEBLIEBEN IST DER RAHMEN SELBST (Owner 02.09.2026: „Gilt für den ganzen Korpus finde ich
+    // gut, weil man dann weiß: wenn ich da was änder, änderts das für alle quellen aus dem
+    // korpus"). Was hier drinsteht, gilt ALLEN Belegen dieses Wirts; was draussen steht, gehört
+    // dieser einen Fundstelle.
+    // 💣 UND DIE AUFSCHRIFT TRÄGT DIE REICHWEITE. „Gilt für den ganzen Korpus" ohne Grösse ist
+    // keine Warnung -- dieselbe Regel wie bei `.fs-edit__scope` im ✎, wo die Zahl seit dem
+    // 01.09.2026 danebensteht. Drei Zustände, siehe `uebernehmeKorpus`.
+    '<span class="fs-korpus" data-fs-korpus-gruppe>' +
+    // ⚠️ Der Anfangstext steht IM MARKUP, nicht in einem Aufruf danach: `uebernehmeKorpus(null)`
+    // läuft beim Zurücksetzen, aber nicht zwangsläufig nach dem ersten Zeichnen -- und ein leerer
+    // Zusatz läse sich als „gilt für alle" ohne jede Einschränkung.
+    '<span class="fs-korpus__l">' + escape(tr("sources.add.corpusGroup", "Gilt für den ganzen Korpus")) +
+    '<span class="fs-korpus__scope" data-fs-korpus-scope> — ' +
+    escape(tr("sources.add.corpusScopeNone", "welcher, sagt die Adresse")) + "</span></span>" +
     '<label class="fs-af fs-af--korpus"><span class="fs-af__l">' +
     escape(tr("sources.add.corpusLabel", "Name des Korpus")) +
     '<span class="fs-af__meta" data-fs-corpus-meta></span></span>' +
@@ -1098,6 +1163,32 @@ function mountFeatureSourceEditor(containerEl, entityType, publicIdGetter, opts)
         note.classList.add("fs-add-note--bad");
       }
     }
+    zeigeBekannteSeite(zustand === "bekannt");
+  }
+
+  /**
+   * Der DRITTE Zustand sieht anders aus als die zwei davor — die Seite steht schon im Katalog.
+   *
+   * 🔴 DER KNOPF IST DAS LAUTESTE SIGNAL, lauter als jede Farbe: aus „Hinzufügen" wird
+   * „Verknüpfen". Es entsteht keine zweite Katalogzeile (`url_hash` ist UNIQUE) -- das tat der
+   * Katalog schon immer, es wurde nur nie gesagt.
+   * 🔴 GESPERRT WIRD NICHTS (Owner 02.09.2026). An einer bekannten Seite stand „Briefspiel" als
+   * Titel -- die kaputte Angabe, die dieser Umbau beseitigen soll -- und sie war gesperrt. Ein
+   * Feld, das den Fehler ZEIGT und ihn nicht ändern lässt, ist schlimmer als eines, das ihn
+   * verschweigt. Hervorgehoben wird stattdessen, was hier NEU einzutragen ist.
+   * ⚠️ Über `data-fs-meins`, nicht über eine Selektorliste: die läuft beim nächsten Feld
+   * auseinander, der Marker im Markup nicht.
+   */
+  function zeigeBekannteSeite(an) {
+    const knopf = containerEl.querySelector("[data-fs-add-submit]");
+    if (knopf) {
+      knopf.textContent = an
+        ? tr("sources.add.link", "Verknüpfen")
+        : tr("sources.add.submit", "Hinzufügen");
+    }
+    Array.prototype.forEach.call(containerEl.querySelectorAll("[data-fs-meins]"), (el) => {
+      el.classList.toggle("fs-af--meins", an === true);
+    });
   }
 
   let adressPruefungLaeuft = false;
@@ -1187,14 +1278,9 @@ function mountFeatureSourceEditor(containerEl, entityType, publicIdGetter, opts)
    */
   function uebernehmeKorpus(korpus) {
     letzterKorpus = korpus || null;
-    // Der Kasten erscheint mit dem Korpus und verschwindet mit ihm -- er ist die Antwort auf eine
-    // Adresse, keine Frage vor ihr.
-    const gruppe = containerEl.querySelector("[data-fs-korpus-gruppe]");
-    if (gruppe) {
-      gruppe.hidden = !korpus;
-    }
     const feld = containerEl.querySelector("[data-fs-corpus]");
     const meta = containerEl.querySelector("[data-fs-corpus-meta]");
+    const scope = containerEl.querySelector("[data-fs-korpus-scope]");
     const marker = (name, an) => {
       const el = containerEl.querySelector('[data-fs-from="' + name + '"]');
       if (el) {
@@ -1207,6 +1293,11 @@ function mountFeatureSourceEditor(containerEl, entityType, publicIdGetter, opts)
       }
       if (meta) {
         meta.textContent = "";
+      }
+      // 🔴 OHNE ADRESSE SAGT DIE AUFSCHRIFT, WORAUF SIE WARTET. Ein blosses „Gilt für den ganzen
+      // Korpus" über einer leeren Maske behauptet einen Wirt, den niemand kennt.
+      if (scope) {
+        scope.textContent = " — " + tr("sources.add.corpusScopeNone", "welcher, sagt die Adresse");
       }
       ["type", "license", "attribution", "official"].forEach((n) => marker(n, false));
       return;
@@ -1222,15 +1313,28 @@ function mountFeatureSourceEditor(containerEl, entityType, publicIdGetter, opts)
     }
     if (meta) {
       // Der Schlüssel bleibt sichtbar NEBEN dem Namen (Owner 01.09.2026: „lass den schlüssel
-      // dranstehen"), und die Reichweite daneben ist die Warnung vor einer Umbenennung.
-      const objekte = Number(korpus.objects) || 0;
+      // dranstehen") -- er ist gerechnet und nicht editierbar, und ohne ihn wäre nicht zu sehen,
+      // WORAN der Name hängt.
+      // ⚠️ Die REICHWEITE stand bis zum 02.09.2026 auch hier. Sie ist an die Aufschrift des
+      // Rahmens gewandert: sie gilt allen fünf Feldern darin, nicht nur dem Namen daneben.
       meta.textContent = " · " + tr("sources.add.corpusKey", "(Korpusschlüssel: {key})")
-        .replace("{key}", String(korpus.corpus_key || "")) + " · "
-        + (objekte === 0
-          ? tr("sources.add.corpusEmpty", "noch keine Einträge")
-          : objekte === 1
-            ? tr("sources.add.corpusOne", "gültig für 1 Objekt")
-            : tr("sources.add.corpusMany", "gültig für {n} Objekte").replace("{n}", String(objekte)));
+        .replace("{key}", String(korpus.corpus_key || ""));
+    }
+    if (scope) {
+      // 🔴 ZWEI ZUSTÄNDE, und der zweite ist kein Warnschild, sondern ein Versprechen: bei einem
+      // NEUEN Wirt trifft die Eingabe niemanden ausser diese eine Quelle -- sie wird der erste
+      // Stand des Korpus, und jede spätere Seite von dort erbt sie.
+      // ⚠️ Gemessen wird an `objects`, nicht an `known`: ein angelegter Korpus ohne Belege trüge
+      // sonst „0 Objekte" und läse sich wie ein Fehler.
+      const objekte = Number(korpus.objects) || 0;
+      const quellen = Number(korpus.sources) || 0;
+      const name = String(korpus.label || korpus.corpus_key || "");
+      scope.textContent = objekte === 0
+        ? " — " + tr("sources.add.corpusScopeNew", "{key} ist neu, du legst ihn hiermit an")
+          .replace("{key}", String(korpus.corpus_key || ""))
+        : " „" + name + "“ — "
+          + tr("sources.add.corpusScopeReach", "{q} Quellen · {n} Objekte")
+            .replace("{q}", String(quellen)).replace("{n}", String(objekte));
     }
     // 🔴 Vorbelegen NUR bei einem bekannten Korpus. Ein frisch aus der Adresse abgeleiteter trägt
     // nichts, was er vorgeben könnte -- dort wäre jeder Marker eine Behauptung.
@@ -2096,6 +2200,9 @@ if (typeof module !== "undefined" && module.exports) {
     // Der Bearbeiten-Kasten und seine Schwelle -- der Kasten ist rein (kein DOM, kein fetch) und
     // damit unter Node fahrbar; die Schwelle wird gegen die PHP-Konstante gehalten.
     renderFeatureSourceEditPanel, FEATURE_SOURCE_CONFIRM_THRESHOLD, featureSourceChangedFields,
+    // Die zwei reinen Helfer der Herkunftszeile -- ohne DOM fahrbar, damit die Datumszerlegung
+    // und die „ohne Namen nur das Datum"-Regel einzeln geprueft werden koennen.
+    featureSourceDatum, featureSourceHerkunftZeile,
     featureSourceLinkedMessage,
     // Die Adressauskunft der Eingabezeile: rein, damit „Zustand → was der Editor sieht" prüfbar
     // ist, statt nur im Browser zu gelten.

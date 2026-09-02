@@ -360,6 +360,67 @@ $pdo->exec("UPDATE feature_sources SET status = 'suppressed' WHERE entity_public
 assert(avesmapsFeatureSourceUsageCount($pdo, 7) === 3, 'unterdrueckte Verknuepfungen zaehlen nicht mit');
 $zaehl();
 
+// ══ 8b. WER HAT DAS EINGETRAGEN -- und zwar ZWEIMAL ═════════════════════════════════════════════
+// 🔴 Owner 02.09.2026: „der editor, der die quelle eingefuegt hat und das datum ... die felder
+// koennen nur eingesehen, nicht veraendert werden."
+// 💣 ZWEI HERKUENFTE, nicht eine, und sie fallen auf die zwei Reichweiten des Kastens: `link` sagt,
+// wer die Quelle HIER angehaengt hat, `source` sagt, wer sie ueberhaupt in den Katalog gelegt hat.
+// Bei einer Zeile mit 1.549 Objekten sind das fast nie dieselben Menschen.
+$pdo = avesmapsQuellenTestPdo(1);
+$liste = avesmapsListFeatureSourcesForEdit($pdo, 'settlement', 'ort-1', 9);
+$herkunft = $liste['sources'][0]['created'] ?? null;
+assert(is_array($herkunft) && array_key_exists('link', $herkunft) && array_key_exists('source', $herkunft),
+    'die Liste traegt beide Herkuenfte');
+$zaehl();
+// ⚠️ OHNE `users`-Tabelle faellt die Namensaufloesung OFFEN aus -- das Datum bleibt, der Name ist
+// leer. Eine Auskunft darf das Oeffnen einer Quellenliste niemals verhindern.
+assert(($herkunft['source']['at'] ?? '') !== '' && ($herkunft['source']['by'] ?? null) === '',
+    'ohne Nutzertabelle steht das Datum da und der Name ist leer -- kein Fatal, kein „unbekannt“');
+$zaehl();
+
+// Jetzt mit Namen: der Katalogeintrag von einem, die Verknuepfung von einem anderen.
+$pdo = avesmapsQuellenTestPdo(1);
+$pdo->exec('CREATE TABLE users (id INTEGER PRIMARY KEY, username TEXT NOT NULL)');
+$pdo->exec("INSERT INTO users (id, username) VALUES (4, 'Vali'), (5, 'Nottel')");
+$pdo->exec('UPDATE sources SET created_by = 4, created_at = "2026-06-14 21:15:00" WHERE id = 7');
+$pdo->exec('UPDATE feature_sources SET created_by = 5, created_at = "2026-09-01 08:30:00"');
+$liste = avesmapsListFeatureSourcesForEdit($pdo, 'settlement', 'ort-1', 9);
+$herkunft = $liste['sources'][0]['created'];
+assert($herkunft['source'] === ['at' => '2026-06-14 21:15:00', 'by' => 'Vali'],
+    'der Katalogeintrag nennt seinen Editor');
+$zaehl();
+assert($herkunft['link'] === ['at' => '2026-09-01 08:30:00', 'by' => 'Nottel'],
+    'die Verknuepfung ihren -- und es ist nicht derselbe');
+$zaehl();
+// 💣 EINE Abfrage fuer beide Spalten, kein `LEFT JOIN users`. `sources` und `users` teilen sich
+// `id` UND `created_at`; ein Join machte jede unqualifizierte Spalte mehrdeutig, und genau das hat
+// `api/edit/reports/locations.php` schon einmal mit einer 500 bezahlt.
+//
+// 🪤 UND DIESE ZUSICHERUNG IST BEIM BAU SCHON EINMAL AM KOMMENTAR ANGESCHLAGEN, der vor genau
+// diesem Join warnt. Deshalb per TOKENIZER geschnitten, nicht mit zwei `preg_replace`: ein
+// Blockkommentar-Entferner sieht ein `/*` in einer Zeilenkommentarzeile und frisst alles bis zum
+// naechsten `*/` -- in `sync-monitor.php` waren das 380 Zeilen echter Code.
+$ohneKommentareTok = static function (string $php): string {
+    $raus = '';
+    foreach (token_get_all($php) as $stueck) {
+        if (is_array($stueck) && in_array($stueck[0], [T_COMMENT, T_DOC_COMMENT], true)) {
+            continue;
+        }
+        $raus .= is_array($stueck) ? $stueck[1] : $stueck;
+    }
+    return $raus;
+};
+$quelltextListe = $ohneKommentareTok((string) file_get_contents(__DIR__ . '/../feature-sources.php'));
+assert(!preg_match('/JOIN\s+users/i', $quelltextListe),
+    'kein JOIN auf users -- die Namen kommen aus einer eigenen Abfrage');
+$zaehl();
+// 🔴 UND SIE DUERFEN NIE OEFFENTLICH WERDEN. Es gibt genau EINEN Aufrufer, und der haengt hinter
+// dem Editor-Riegel. Ein zweiter in `api/app/…` oder in der Kartennutzlast liesse Editorennamen
+// fuer jeden Besucher lesbar werden.
+assert(substr_count($quelltextListe, 'avesmapsFeatureSourceEditorNames($pdo') === 1,
+    'genau ein Aufrufer der Namensaufloesung');
+$zaehl();
+
 // ══ 9. ANGELEGT oder VERKNUEPFT? Die Auskunft, die das Adressfeld verschwieg ════════════════════
 // 🔴 Der Katalog dedupliziert ueber `url_hash` (UNIQUE): eine bekannte Adresse VERKNUEPFT mit der
 // bestehenden Zeile, statt eine neue anzulegen. Richtig und gewollt -- aber bis zum 01.09.2026
