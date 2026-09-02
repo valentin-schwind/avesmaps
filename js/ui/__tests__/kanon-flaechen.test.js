@@ -206,17 +206,26 @@ const chip = fsCss.slice(fsCss.indexOf(".fs-kanon {"), fsCss.indexOf(".fs-kanon-
 pruefe(/font-size:\s*var\(--font-size-kanon\)/.test(chip), "das Kanonwort nimmt den Ausnahme-Token");
 const tokensFuerKanonToken = lies("css", "base", "tokens.css");
 pruefe(/^\s*--font-size-kanon:\s*9px;/m.test(tokensFuerKanonToken), "und der Token ist mit 9px definiert");
-// 💣 UND DIE AUSNAHME BLEIBT AUF DAS KANONWORT BESCHRAENKT. Das Bezeichnerfeld der Halbpille
-// steht IM selben Chip und erbt den Wert, wenn es ihn nicht selbst setzt -- dann stuende auch
-// der Name („Briefspiel (Garetien)") unter der Untergrenze, fuer die es keinen Entscheid gibt.
-const byGroesse = (() => {
+// 🔴 UND DIE AUSNAHME GILT DER GANZEN PILLE, NICHT EINEM WORT DARIN. Das Bezeichnerfeld der
+// Halbpille setzt WEDER eine eigene Groesse NOCH ein eigenes Gewicht -- es erbt beides vom Chip.
+// Owner 02.09.2026: „achte darauf dass alles einheitlich ist, du hast hier schon wieder
+// unterschiede gemacht" -- gemeint war genau dieses Feld, das ich zweimal ausgenommen hatte
+// (erst vom Fettschnitt, dann von den 9px). Jede Ausnahme war fuer sich begruendbar; zusammen
+// ergaben sie eine Pille aus zwei verschieden gesetzten Haelften.
+// 💣 Ein `font-size` oder `font-weight` an dieser Regel teilt den Chip erneut -- und weil beide
+// Werte vom Chip GEERBT werden, sieht das Wiedereinsetzen wie eine harmlose Praezisierung aus.
+const byRegelGanz = (() => {
 	const t = /^\.fs-kanon--split \.fs-kanon__by\s*\{/m.exec(fsCss);
 	pruefe(!!t, "das Bezeichnerfeld muss eine eigene Regel haben");
 	const ab = fsCss.slice(t.index);
 	return ab.slice(0, ab.indexOf("}") + 1);
 })();
-pruefe(/font-size:\s*var\(--font-size-caption\)/.test(byGroesse),
-	"der Bezeichner haelt die Untergrenze -- er erbt sonst die Ausnahme vom Chip");
+pruefe(!/font-size:/.test(byRegelGanz), "der Bezeichner setzt KEINE eigene Groesse -- er erbt die des Chips");
+pruefe(!/font-weight:/.test(byRegelGanz), "und auch kein eigenes Gewicht");
+// ⚠️ Was ihn unterscheiden DARF: Farbe, Versalsatz, Sperrung. Das bleibt und ist der Grund,
+// warum es die Regel ueberhaupt gibt.
+pruefe(/text-transform:\s*none/.test(byRegelGanz), "gemischtschriftlich bleibt er -- er ist ein Name");
+pruefe(/letter-spacing:\s*0/.test(byRegelGanz), "und ungesperrt");
 
 // ---- H1. Die Fettung -- und warum sie ZWEI Zeilen braucht ------------------------------------
 // 💣 EIN `font-weight: 700` IST IN DIESEM REPO EIN LEERLAUF. Die Hausschrift Faculty Glyphic
@@ -245,11 +254,24 @@ pruefe(/font-synthesis-weight:\s*auto\s*;/.test(chipRegel),
 pruefe(/font-synthesis-weight:\s*none\s*;/.test(lies("css", "base", "base.css")),
 	"die appweite Abschaltung steht weiterhin in base.css -- sie ist der Grund fuer die Zeile darueber");
 
-// ⚠️ UND DAS BEZEICHNERFELD BLEIBT UNGEFETTET. Es erbt sonst die Fettung vom Chip, und der Name
-// („Briefspiel (Garetien)") traegt dieselbe Auszeichnung wie das Kanonwort -- dieselbe zweite
-// Auszeichnung, die dort schon fuer VERSAL+gesperrt verworfen wurde.
-pruefe(/font-weight:\s*400\s*;/.test(regelGenau(".fs-kanon--split .fs-kanon__by")),
-	"der Bezeichner bleibt ungefettet, waehrend der Chip es ist");
+// 💣 UND DIE KINDER DES CHIPS BRAUCHEN SIE EIGENS -- VERERBT WIRD SIE HIER NICHT.
+// `font-synthesis-weight` ist zwar eine vererbte Eigenschaft, aber base.css setzt sie per
+// `* { … }` an JEDEM Element, und eine direkt passende Deklaration schlaegt jeden geerbten Wert,
+// egal wie schwach ihr Selektor ist. Das `auto` am Chip erreicht also nur dessen EIGENEN Text.
+// 🔴 Das war live: die ganze Pille stand fett, die Halbpille (deren Text in .fs-kanon__state /
+// .fs-kanon__by liegt) nicht -- ein Bauteil in zwei Fassungen. Owner 02.09.2026: „achte darauf
+// dass alles einheitlich ist, du hast hier schon wieder unterschiede gemacht".
+// 🪤 Am computed value ist es NICHT zu sehen: dort steht in beiden Faellen font-weight 700.
+// Gemessen wird `font-synthesis-weight`, nie `font-weight`.
+const kinderRegel = (() => {
+	const t = /^\.fs-kanon__state,\s*[\r\n]+\.fs-kanon__by\s*\{/m.exec(fsCss);
+	pruefe(!!t, "Farbfeld und Bezeichnerfeld brauchen eine gemeinsame Regel fuer die Kunstfettung");
+	const ab = fsCss.slice(t.index);
+	return ab.slice(0, ab.indexOf("}") + 1);
+})();
+pruefe(/font-synthesis-weight:\s*auto\s*;/.test(kinderRegel),
+	"die zwei Felder der Halbpille heben die appweite Abschaltung selbst auf");
+
 
 // ---- I. Die Suchkachel ist in BEIDEN Themen dunkel ----------------------------------------------
 // 💣 Also traegt das Etikett dort die Fassung fuer dunkle Flaechen, unabhaengig vom Thema der

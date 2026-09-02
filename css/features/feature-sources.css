@@ -1047,7 +1047,8 @@
    die Pillenmitte dadurch UNTER der Mitte der Textzeile.
    🔴 SEIT 02.09.2026 SETZT DER CHIP 9px, ALSO IST AUCH DIESER WERT NEU GERECHNET (0,75 -> 0,708).
    Er haengt an denselben zwei Schriftgroessen wie das Polster darueber; wer eine aendert, misst
-   beide neu. Gemessen: ganze Pille 0,01px Restabweichung, Halbpille 0,26px.
+   beide neu. Gemessen: 0,01px Restabweichung -- fuer BEIDE Chipformen dieselbe, seit die zwei
+   Felder der Halbpille gleich gross setzen.
 
    ⭐ Warum ein Versatz und nicht das Polster: das Polster verschiebt die PILLE um die
    feststehende Schrift herum -- jede Verbesserung der Zeilenlage verschlechtert die Lage der
@@ -1057,7 +1058,7 @@
 
    ⭐ Am Livesystem gemessen, beide Quellenzeilen identisch (Pillenmitte minus Zeilenmitte):
      11px: ohne Versatz +0,75 | −0,75px → 0,00 | −1px → −0,25
-     9px:  ohne Versatz +0,708 (ganze Pille) bzw. +0,97 (Halbpille) | −0,708px → 0,01 / 0,26
+     9px:  ohne Versatz +0,708 (beide Chipformen) | −0,708px → 0,01
    💣 Die Mitte der Textzeile wird ueber die VERSALHOEHE der Schrift bestimmt, nie ueber die
    Tinte des konkreten Wortes: „Briefspiel (Weiden)" hat Klammern, die hoeher reichen als
    Oberlaengen, „Wiki Aventurica" nicht -- eine glyphenabhaengige Messung gab je Zeile ein
@@ -1289,6 +1290,20 @@
    „Stempel + Pille" ("sieht uneinheitlich aus").
    ⚠️ `overflow: hidden` ist tragend: ohne es steht das eckige linke Farbfeld ueber die runde
    Aussenkontur hinaus und der Chip bekommt zwei Ecken. */
+/* 💣 DIE KINDER ERBEN DIE KUNSTFETTUNG NICHT -- UND DAS HAT DIE HALBPILLE EINEN TAG LANG
+   UNGEFETTET GELASSEN, WAEHREND DIE GANZE PILLE FETT WAR. `font-synthesis-weight` ist zwar eine
+   vererbte Eigenschaft, aber css/base/base.css setzt sie per `* { font-synthesis-weight: none }`
+   an JEDEM Element -- und eine direkt passende Deklaration schlaegt jeden geerbten Wert, egal wie
+   schwach ihr Selektor ist. Das `auto` am Chip erreicht also seinen eigenen Text (ganze Pille),
+   aber nicht den Text in `.fs-kanon__state` / `.fs-kanon__by` (Halbpille).
+   🪤 UND ES IST NICHT ZU SEHEN, WENN MAN DEN COMPUTED VALUE PRUEFT: dort steht in beiden Faellen
+   `font-weight: 700`. Gemessen 02.09.2026 -- Chip `auto`, Kinder `none`, Gewicht ueberall 700.
+   Owner: „achte darauf dass alles einheitlich ist, du hast hier schon wieder unterschiede
+   gemacht". Wer die Fettung prueft, prueft `font-synthesis-weight`, nicht `font-weight`. */
+.fs-kanon__state,
+.fs-kanon__by {
+	font-synthesis-weight: auto;
+}
 .fs-kanon--split {
 	padding: 0;
 	overflow: hidden;
@@ -1296,26 +1311,18 @@
 	border-color: var(--color-border);
 	max-width: 100%;
 }
-/* 💣 SEIN POLSTER IST NICHT DAS DES CHIPS, UND DAS IST TRAGEND, SEIT DIE ZWEI FELDER
-   VERSCHIEDEN GROSS SETZEN (9px links, 11px rechts). Die zwei Felder sind Flex-Kinder mit
-   `align-items: center`; das HOEHERE bestimmt die Pille. Behielte das Farbfeld das
-   Chip-Polster (3,5/1), waere es 13,5px hoch neben einem 16px hohen Bezeichnerfeld -- und
-   dann steht das Farbfeld als schwebendes Rechteck IN der Kontur, mit Luft oben und unten und
-   ohne die runde linke Kappe. Im Browser gesehen, nicht hergeleitet: 48,6 gegen 57,6 (3,6x).
-   🔴 4,5px/2,5px haelt beide Felder auf 16px -- das Farbfeld fuellt also weiter -- UND
-   reproduziert den Grundlinienversatz der zwei Woerter zueinander, den der alte Zustand hatte
-   (0,5px). Die Alternative 4/3 stellt die zwei Woerter exakt auf eine Grundlinie, laesst die
-   Pille dafuer 0,76px statt 0,26px zu tief in der Zeile sitzen.
-   ⚠️ Wer die Groesse eines der beiden Felder aendert, rechnet DIESEN Wert mit: seine Aufgabe
-   ist die Hoehendifferenz der beiden, nicht die Optik eines einzelnen Feldes.
-   ⭐ Die verworfene Alternative war `align-items: stretch` am Chip plus ein zweites Flex im
-   Farbfeld. Sie fuellt ebenfalls, verschiebt aber die Grundlinie der ganzen Pille (die eines
-   inline-flex ist die des ersten Kindes) -- die Halbpille sass danach 1,26px zu tief in der
-   Quellenzeile, waehrend die ganze Pille richtig stand. Zwei Formen desselben Chips mit zwei
-   verschiedenen Zeilenlagen ist schlimmer als beide leicht daneben. */
+/* 💣 SEIN POLSTER IST DAS DES CHIPS, ZEICHENGLEICH -- und das ist keine Redundanz, sondern die
+   Bedingung dafuer, dass die Halbpille genauso hoch ist wie die ganze Pille. Die zwei Felder
+   sind Flex-Kinder mit `align-items: center`, das HOEHERE bestimmt die Pille; laeuft eines aus
+   der Reihe, steht das Farbfeld als schwebendes Rechteck in der Kontur, ohne die runde linke
+   Kappe, und die zwei Chipformen stehen verschieden hoch nebeneinander.
+   🔴 Genau das ist am 02.09.2026 einmal gebaut worden (Farbfeld 9px, Bezeichner 11px, Polster
+   4,5/2,5 zum Ausgleich) und vom Owner sofort beanstandet: „achte darauf dass alles einheitlich
+   ist, du hast hier schon wieder unterschiede gemacht". Im Browser waren es 48,6 gegen 57,6
+   (3,6fach) -- die Luft war sichtbar, bevor irgendeine Zahl sie benannt hat. */
 .fs-kanon--split .fs-kanon__state {
 	flex-shrink: 0;
-	padding: 4.5px 8px 2.5px;
+	padding: 3.5px 8px 1px;
 }
 .fs-kanon--off.fs-kanon--split .fs-kanon__state {
 	background: var(--color-kanon-official);
@@ -1328,24 +1335,25 @@
 /* Das Bezeichnerfeld: gemischtschriftlich, nicht gesperrt -- es ist ein NAME
    („Briefspiel (Garetien)"), und VERSAL gesperrt las er sich wie eine zweite Auszeichnung.
    ⚠️ min-width: 0 + ellipsis: ein langer Bezeichner darf den Kopf nicht aufziehen. */
-/* 💣 UND ES BLEIBT AUF DER UNTERGRENZE (11px), waehrend das Kanonwort daneben auf 9px geht.
-   Owner 02.09.2026: „nur die, die bold ist" / „die pille ist die absolute ausnahme". Der
-   `font-size` hier ist also kein Wiederholen des Geerbten, sondern die Gegenkraft dazu -- ohne
-   ihn zoege --font-size-kanon vom Chip herunter und der NAME stuende ebenfalls unter der
-   Untergrenze, die fuer ihn weiter gilt.
-   💣 UND ES BLEIBT UNGEFETTET, waehrend der Chip es ist. Die Fettung sitzt an .fs-kanon und
-   wuerde hierher VERERBT -- dann traegt der Name dieselbe Auszeichnung wie das Kanonwort, und
-   genau das verbietet der Absatz darueber schon fuer VERSAL+gesperrt: eine zweite Auszeichnung
-   an einer Stelle, die nur einen Namen nennt. Gefettet wird das Wort, das eine Aussage trifft
-   („Inoffiziell"), nie das, das eine Herkunft nennt („Briefspiel (Garetien)"). */
+/* 🔴 GROESSE UND GEWICHT ERBT ES VOM CHIP, UND DAS IST EINE ENTSCHEIDUNG, KEINE LUECKE.
+   Owner 02.09.2026: „achte darauf dass alles einheitlich ist, du hast hier schon wieder
+   unterschiede gemacht" -- gemeint war genau dieses Feld. Ich hatte es zweimal ausgenommen:
+   erst vom Fettschnitt (ein Name sei keine Auszeichnung), dann von den 9px (die Untergrenze
+   gelte fuer ihn weiter). Beides war fuer sich begruendbar und in der Summe eine Pille, deren
+   zwei Haelften verschieden gross und verschieden schwer gesetzt waren.
+   🔴 EIN CHIP, EINE SCHRIFT. Was die zwei Felder unterscheidet, ist Farbe, Versalsatz und
+   Sperrung -- nicht Groesse und nicht Gewicht. Wer hier wieder ein `font-size` oder ein
+   `font-weight` eintraegt, teilt den Chip erneut; die Begruendung dafuer muss dann vom Owner
+   kommen, nicht aus der Typografie.
+   ⚠️ Damit steht auch der NAME unter der 11px-Untergrenze. Das ist die Reichweite der
+   Ausnahme, die --font-size-kanon beschreibt: sie gilt der PILLE, nicht einem Wort darin
+   („die pille ist die absolute ausnahme"). */
 .fs-kanon--split .fs-kanon__by {
 	min-width: 0;
-	font-weight: 400;
-	padding: 3px 8px 2px;
+	padding: 3.5px 8px 1px;
 	color: var(--color-text-muted);
 	text-transform: none;
 	letter-spacing: 0;
-	font-size: var(--font-size-caption);
 	overflow: hidden;
 	text-overflow: ellipsis;
 	white-space: nowrap;

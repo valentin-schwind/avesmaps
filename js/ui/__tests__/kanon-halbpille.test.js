@@ -193,11 +193,16 @@ pruefe(/padding:\s*3\.5px\s+8px\s+1px\s*;/.test(chipRegel),
   "der Chip polstert 3,5px oben / 1px unten -- der gemessene Mittelweg, nicht die innere Mitte");
 pruefe(!/padding:\s*2px\s+8px\s+3px\s*;/.test(css),
   "die auf die innere Mitte optimierte Fassung darf nirgends mehr stehen");
-// 💣 UND DAS FARBFELD DER HALBPILLE POLSTERT ANDERS ALS DER CHIP -- es muss die Hoehe des
-// 11px-Bezeichnerfeldes daneben erreichen, sonst schwebt es als Rechteck in der Kontur (im
-// Browser gesehen: 48,6 gegen 57,6 bei 3,6facher Vergroesserung, linke Rundung weg).
-pruefe(/padding:\s*4\.5px\s+8px\s+2\.5px\s*;/.test(nurRegel(css, ".fs-kanon--split .fs-kanon__state")),
-  "das Farbfeld gleicht die Hoehendifferenz der zwei Schriftgroessen aus");
+// 💣 UND DIE DREI POLSTER SIND ZEICHENGLEICH: Chip, Farbfeld und Bezeichnerfeld. Das ist keine
+// Redundanz, sondern die Bedingung dafuer, dass Pille und Halbpille gleich hoch sind und das
+// Farbfeld die Kontur bis in die runde linke Kappe fuellt. Laeuft eines aus der Reihe, schwebt
+// das Farbfeld als Rechteck in der Kontur -- am 02.09.2026 einmal gebaut und vom Owner sofort
+// gesehen: 48,6 gegen 57,6 bei 3,6facher Vergroesserung.
+const polster = /padding:\s*3\.5px\s+8px\s+1px\s*;/;
+pruefe(polster.test(nurRegel(css, ".fs-kanon--split .fs-kanon__state")),
+  "das Farbfeld polstert wie der Chip");
+pruefe(polster.test(nurRegel(css, ".fs-kanon--split .fs-kanon__by")),
+  "und das Bezeichnerfeld ebenso -- sonst bestimmt das hoehere Feld die Pille");
 
 // ---- H1c. Der Zeilen-Versatz der Pille -----------------------------------------------------
 // 🔴 In der Quellenzeile wird an der GRUNDLINIE ausgerichtet. Chip und Nachbartext teilen sie
