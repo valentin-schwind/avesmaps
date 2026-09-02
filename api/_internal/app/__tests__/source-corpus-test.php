@@ -176,6 +176,54 @@ $zaehl();
 assert(avesmapsSourceCorpusForUrl($korpora, '') === null, 'keine Adresse -> kein Korpus, und zwar null');
 $zaehl();
 
+// ══ 5 · Die Reichweite eines Korpus ═════════════════════════════════════════════════════════════
+
+// Zwei Seiten desselben Wirts, eine fremde -- plus eine Adresse, die den Wirtsnamen nur im PFAD
+// fuehrt. 💣 Genau die faengt ein `LIKE '%herzogtum-weiden.net%'` faelschlich mit; gerechnet wird
+// deshalb ueber avesmapsSourceCorpusKey, also ueber DIESELBE Regel wie der Schluessel selbst.
+// ⚠️ Die Reichweite liest `sources` und `feature_sources` -- die legt der Korpus NICHT an
+// (er kennt sie nicht, siehe die Zusicherung am Ende). Hier stehen sie also eigens.
+avesmapsEnsureFeatureSourceTables($pdo);
+$anlegen = $pdo->prepare('INSERT INTO sources (url, url_hash, label, source_type, is_official) VALUES (:u, :h, :l, "sonstiges", 0)');
+$ids = [];
+foreach ([
+    'a' => 'https://www.herzogtum-weiden.net/politik/eins',
+    'b' => 'https://herzogtum-weiden.net/politik/zwei',
+    'c' => 'https://westlande.de/albernia/drei',
+    'd' => 'https://fremd.example/artikel/herzogtum-weiden.net',
+] as $marke => $adresse) {
+    $anlegen->execute(['u' => $adresse, 'h' => hash('sha256', $adresse), 'l' => 'X-' . $marke]);
+    $ids[$marke] = (int) $pdo->lastInsertId();
+}
+$verknuepfen = $pdo->prepare(
+    "INSERT INTO feature_sources (entity_type, entity_public_id, source_id, status) VALUES ('settlement', :id, :sid, 'approved')"
+);
+$verknuepfen->execute(['id' => 'o1', 'sid' => $ids['a']]);
+$verknuepfen->execute(['id' => 'o2', 'sid' => $ids['a']]);
+$verknuepfen->execute(['id' => 'o3', 'sid' => $ids['b']]);
+$verknuepfen->execute(['id' => 'o4', 'sid' => $ids['c']]);
+$verknuepfen->execute(['id' => 'o5', 'sid' => $ids['d']]);
+
+$reichweite = avesmapsSourceCorpusUsage($pdo, 'herzogtum-weiden.net');
+assert($reichweite['sources'] === 2, 'zwei Katalogzeilen gehoeren dem Wirt -- www. zaehlt nicht getrennt');
+$zaehl();
+assert($reichweite['objects'] === 3, 'sie haengen an drei Objekten');
+$zaehl();
+
+// 💣 Die Adresse, die den Namen nur im PFAD fuehrt, gehoert NICHT dazu. Ohne diese Zusicherung
+// sieht ein `LIKE` genauso richtig aus wie die Schluesselregel.
+assert(!in_array($ids['d'], [], true) && avesmapsSourceCorpusKey('https://fremd.example/artikel/herzogtum-weiden.net') === 'fremd.example',
+    'ein Wirtsname im Pfad macht keinen Korpus');
+$zaehl();
+
+// Ein unbekannter Korpus hat die Reichweite null -- und ein leerer Schluessel fragt gar nicht erst.
+assert(avesmapsSourceCorpusUsage($pdo, 'gibtesnicht.de') === ['sources' => 0, 'objects' => 0],
+    'ein unbenutzter Korpus hat Reichweite null');
+$zaehl();
+assert(avesmapsSourceCorpusUsage($pdo, '') === ['sources' => 0, 'objects' => 0],
+    'ein leerer Schluessel fragt die Datenbank gar nicht');
+$zaehl();
+
 // 💣 KEIN ZWEITES QUELLENSYSTEM (AGENTS.md §5). Dieses Modul darf `sources`/`feature_sources`
 // nirgends schreiben -- wer hier Quellen ablegt, baut den Lore-Fehler von 2026-07-21 nach.
 $quelltext = (string) file_get_contents(__DIR__ . '/../source-corpus.php');

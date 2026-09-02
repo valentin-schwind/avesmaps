@@ -270,6 +270,56 @@ function avesmapsSourceCorpusReadAll(PDO $pdo): array
 }
 
 /**
+ * Wie weit reicht ein Korpus: wie viele Katalogzeilen, an wie vielen Objekten.
+ *
+ * 🔴 GERECHNET, NICHT GESPEICHERT -- wie der Schluessel selbst. Es gibt keine Zaehlerspalte, die
+ * mit der Wirklichkeit auseinanderlaufen koennte.
+ *
+ * 💣 Und der Vergleich laeuft ueber `avesmapsSourceCorpusKey`, NICHT ueber ein `LIKE '%domain%'`.
+ * Ein LIKE traefe auch eine Adresse, die den Namen bloss im Pfad fuehrt
+ * (`fremd.example/artikel/herzogtum-weiden.net`), und es waere eine ZWEITE Fassung der
+ * Schluesselregel -- genau die Divergenz, die dieses Haus schon mehrfach bezahlt hat.
+ * ⚠️ Der Preis ist eine Volltabellenabfrage ueber `sources` (1.376 Zeilen live, nur id + url).
+ * Sie laeuft nur, wenn ein Editor eine Adresse prueft -- also auf Knopfdruck, nicht im Zeichenweg.
+ *
+ * @return array{sources:int, objects:int}
+ */
+function avesmapsSourceCorpusUsage(PDO $pdo, string $corpusKey): array
+{
+    if ($corpusKey === '') {
+        return ['sources' => 0, 'objects' => 0];
+    }
+    try {
+        $alle = $pdo->query("SELECT id, url FROM sources WHERE url <> ''");
+        if ($alle === false) {
+            return ['sources' => 0, 'objects' => 0];
+        }
+        $ids = [];
+        foreach ($alle->fetchAll(PDO::FETCH_ASSOC) ?: [] as $row) {
+            if (avesmapsSourceCorpusKey((string) $row['url']) === $corpusKey) {
+                $ids[] = (int) $row['id'];
+            }
+        }
+        if ($ids === []) {
+            return ['sources' => 0, 'objects' => 0];
+        }
+        $platzhalter = implode(',', array_fill(0, count($ids), '?'));
+        $zaehl = $pdo->prepare(
+            "SELECT COUNT(*) FROM feature_sources
+              WHERE status = 'approved' AND source_id IN (" . $platzhalter . ')'
+        );
+        $zaehl->execute($ids);
+
+        return ['sources' => count($ids), 'objects' => (int) $zaehl->fetchColumn()];
+    } catch (Throwable $fehler) {
+        // ⚠️ Laut, nicht still: eine 0 sieht sonst aus wie „dieser Korpus ist neu".
+        error_log('avesmapsSourceCorpusUsage: ' . $fehler->getMessage());
+
+        return ['sources' => 0, 'objects' => 0];
+    }
+}
+
+/**
  * Der Korpus zu einer Adresse — rein, ohne PDO, damit die Regel ohne Datenbank pruefbar ist.
  *
  * 🔴 Ein UNBEKANNTER Korpus ist kein Fehler: er bekommt seinen Schluessel als Beschriftung und die

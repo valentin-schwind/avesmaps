@@ -90,6 +90,53 @@ const bekanntOhne = featureSourceInspectView({ state: "bekannt", existing: { lab
 assert.ok(!/\b0\b/.test(bekanntOhne.meldung), "ohne Zitate wird keine Null behauptet");
 zaehl();
 
+// 💣 Einzahl. Live stand „Zitiert an 1 Objekten" im Kasten (Owner-Bild 02.09.2026) -- das liest
+// sich wie ein Programmierfehler, weil es einer ist.
+const bekanntEins = featureSourceInspectView({ state: "bekannt", existing: { label: "X", usage_count: 1 } });
+assert.ok(/an 1 Objekt\b/.test(bekanntEins.meldung) && !/1 Objekten/.test(bekanntEins.meldung),
+  "eine einzelne Zitierung steht in der Einzahl");
+zaehl();
+
+// ══ 3b · Gesperrt heisst GEFÜLLT ═══════════════════════════════════════════════════════════════
+
+// 💣 Die Zeile sperrt die Katalogfelder, WEIL der Katalog sie bestimmt -- dann muss sie auch
+// zeigen, was er bestimmt. Ein ausgegrautes leeres „Art …" behauptet das Gegenteil.
+// Owner-Meldung 02.09.2026: „der rest fehlt irgendwie".
+const bekanntVoll = featureSourceInspectView({
+  state: "bekannt",
+  existing: {
+    label: "Briefspiel (Weiden)", source_type: "briefspiel", license: "cc-by-nc-sa-3.0",
+    attribution: "VolkoV", is_official: false, usage_count: 118,
+  },
+});
+assert.ok(bekanntVoll.felder, "eine bekannte Seite bringt ihre Katalogwerte mit");
+zaehl();
+assert.strictEqual(bekanntVoll.felder.source_type, "briefspiel", "die Art steht im gesperrten Feld");
+zaehl();
+assert.strictEqual(bekanntVoll.felder.license, "cc-by-nc-sa-3.0", "die Lizenz ebenso");
+zaehl();
+assert.strictEqual(bekanntVoll.felder.attribution, "VolkoV", "die Namensnennung ebenso");
+zaehl();
+assert.strictEqual(bekanntVoll.felder.is_official, false, "und der Kanon-Haken");
+zaehl();
+
+// ⚠️ Nur im bekannten Fall. Bei einer NEUEN Seite gibt es nichts vorzugeben -- dort wäre ein
+// gefülltes Feld eine Behauptung.
+assert.ok(!gelesen.felder && !erreichbar.felder && !tot.felder,
+  "eine neue Seite bringt keine Katalogwerte mit");
+zaehl();
+
+// 🔴 Der Client muss sie auch WIRKLICH einsetzen -- ein Rückgabewert, den niemand liest, ist
+// dieselbe Lücke wie vorher, nur eine Ebene tiefer.
+const quelltextFelder = fs.readFileSync(path.join(__dirname, "..", "review-feature-sources.js"), "utf8")
+  .replace(/\/\*[\s\S]*?\*\//g, "").replace(/^[ \t]*\/\/.*$/gm, "");
+["source_type", "license", "attribution"].forEach((feld) => {
+  assert.ok(new RegExp("sicht\\.felder\\." + feld).test(quelltextFelder),
+    "die Zeile setzt " + feld + " wirklich ein");
+});
+assert.ok(/sicht\.felder\.is_official/.test(quelltextFelder), "und den Haken");
+zaehl();
+
 // ══ 4 · Der Titel ══════════════════════════════════════════════════════════════════════════════
 
 // 🔴 Der gespeicherte Titel einer BEKANNTEN Zeile gewinnt immer -- genau wie im Katalog. Sonst

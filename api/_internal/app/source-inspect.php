@@ -61,12 +61,25 @@ function avesmapsSourceInspectUrl(PDO $pdo, string $url, bool $fetch = true): ar
 
     // ── 1 · Der Korpus (lokal, gerechnet -- kein Abruf, keine Migration) ────────────────────────
     $auskunft['corpus'] = avesmapsSourceCorpusForUrl(avesmapsSourceCorpusReadAll($pdo), $url);
+    // ⚠️ Die Reichweite reist mit: die Eingabezeile schreibt sie neben den Korpusnamen
+    // („gültig für 118 Objekte"), damit sichtbar ist, was eine Umbenennung dort trifft.
+    if (is_array($auskunft['corpus'])) {
+        $auskunft['corpus'] += avesmapsSourceCorpusUsage($pdo, (string) $auskunft['corpus']['corpus_key']);
+    }
 
     // ── 2 · Steht die SEITE schon im Katalog? ───────────────────────────────────────────────────
     // 💣 Gefragt wird ueber `url_hash`, die IDENTITAET der Katalogzeile -- nicht ueber die Adresse
     // als Text. Wer mit `WHERE url = :u` sucht, sucht in einer TEXT-Spalte ohne Index.
     avesmapsEnsureFeatureSourceTables($pdo);
-    $treffer = $pdo->prepare('SELECT id, label, source_type, is_official FROM sources WHERE url_hash = :h LIMIT 1');
+    // 🔴 ALLE Katalogfelder, nicht nur der Titel. Die Oberflaeche SPERRT sie im bekannten Fall --
+    // und ein gesperrtes LEERES Feld behauptet „da steht nichts", wo in Wahrheit etwas steht.
+    // Owner-Meldung 02.09.2026 („der rest fehlt irgendwie"): der Kasten zeigte „Art …",
+    // „Lizenz …" und eine leere Namensnennung, waehrend die Katalogzeile ihre Art laengst trug.
+    // ⚠️ `license`/`attribution` gibt es erst seit dem 27.08.2026; die selbstheilende DDL oben
+    // (`avesmapsEnsureFeatureSourceTables`) legt sie an, bevor diese Abfrage laeuft.
+    $treffer = $pdo->prepare(
+        'SELECT id, label, source_type, is_official, license, attribution FROM sources WHERE url_hash = :h LIMIT 1'
+    );
     $treffer->execute(['h' => avesmapsFeatureSourceHash($url)]);
     $zeile = $treffer->fetch(PDO::FETCH_ASSOC);
     if (is_array($zeile)) {
@@ -76,6 +89,8 @@ function avesmapsSourceInspectUrl(PDO $pdo, string $url, bool $fetch = true): ar
             'label' => (string) $zeile['label'],
             'source_type' => (string) $zeile['source_type'],
             'is_official' => (int) $zeile['is_official'] === 1,
+            'license' => (string) ($zeile['license'] ?? ''),
+            'attribution' => (string) ($zeile['attribution'] ?? ''),
             'usage_count' => avesmapsFeatureSourceUsageCount($pdo, $sourceId),
         ];
         $auskunft['state'] = 'bekannt';

@@ -578,10 +578,27 @@ function featureSourceInspectView(auskunft, tr) {
       titel: String(vorhanden.label || ""),
       titelGewinnt: true,
       sperren: true,
+      // 💣 DIE GESPERRTEN FELDER MÜSSEN ZEIGEN, WAS GILT. Owner-Meldung 02.09.2026 („der rest
+      // fehlt irgendwie"): die Zeile sperrte Art, Lizenz und Namensnennung und liess sie dabei
+      // LEER stehen -- ein gesperrtes leeres Feld behauptet „da steht nichts", wo in Wahrheit
+      // etwas steht. Gesperrt UND gefüllt ist eine Auskunft; gesperrt und leer ist ein Fehler.
+      felder: {
+        label: String(vorhanden.label || ""),
+        source_type: String(vorhanden.source_type || ""),
+        license: String(vorhanden.license || ""),
+        attribution: String(vorhanden.attribution || ""),
+        is_official: Boolean(vorhanden.is_official),
+      },
       meldung: uebersetze("sources.add.checkKnown",
         "Diese Seite steht schon im Katalog als „{label}“ — sie wird verknüpft. Du füllst nur noch Seite(n) und Abdeckung.")
         .replace("{label}", String(vorhanden.label || ""))
-        + (anzahl > 0
+        // ⚠️ Einzahl und Mehrzahl getrennt: „Zitiert an 1 Objekten" stand live da und liest sich
+        // wie ein Programmierfehler -- weil es einer ist.
+        + (anzahl === 1
+          ? " " + uebersetze("sources.add.checkKnownUsageOne",
+            "Zitiert an 1 Objekt — Änderungen am Eintrag gehen über das ✎.")
+          : "")
+        + (anzahl > 1
           ? " " + uebersetze("sources.add.checkKnownUsage",
             "Zitiert an {n} Objekten — Änderungen am Eintrag gehen über das ✎.").replace("{n}", String(anzahl))
           : ""),
@@ -1028,6 +1045,24 @@ function mountFeatureSourceEditor(containerEl, entityType, publicIdGetter, opts)
     // Anzeige, die nach dem Speichern etwas anderes behauptet als die Liste darüber.
     if (labelInput && sicht.titel !== "" && (sicht.titelGewinnt || String(labelInput.value || "").trim() === "")) {
       labelInput.value = sicht.titel;
+    }
+    // 💣 GESPERRT UND GEFÜLLT, nie gesperrt und leer. Ein ausgegrautes „Art …" behauptet, der
+    // Katalog wisse nichts -- dabei sperrt die Zeile genau deshalb, WEIL er es weiß.
+    // Owner-Meldung 02.09.2026: „der rest fehlt irgendwie".
+    if (sicht.felder) {
+      const setzeWert = (selektor, wert) => {
+        const el = containerEl.querySelector(selektor);
+        if (el) {
+          el.value = wert;
+        }
+      };
+      setzeWert(".fs-add-type", sicht.felder.source_type);
+      setzeWert(".fs-add-license", sicht.felder.license);
+      setzeWert(".fs-add-attribution", sicht.felder.attribution);
+      const haken = containerEl.querySelector(".fs-add-official");
+      if (haken) {
+        haken.checked = sicht.felder.is_official;
+      }
     }
     setzeAdressZustand(sicht.zustand, sicht.meldung);
   }
