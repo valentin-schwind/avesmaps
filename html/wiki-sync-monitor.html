@@ -285,10 +285,10 @@
      Der Entwurf nennt zwei Huellen als Obergrenze fuer die Wiki-Zuweisung. */
   .dt-bindung { margin-top:var(--space-8); padding-top:var(--space-4); border-top:1px solid var(--color-divider); }
   .dt-bindung h4 { margin:0 0 var(--space-4); font-size:var(--font-size-small); }
-  .dt-bindung__treffer { max-height:180px; overflow-y:auto; margin-top:var(--space-2); }
-  .dt-bindung__treffer > div { padding:3px 5px; cursor:pointer; border-radius:var(--radius-md); }
-  .dt-bindung__treffer > div:hover { background:var(--color-hover-wash); }
-  .dt-bindung__kanon { font-size:var(--font-size-caption); color:var(--mut); }
+  /* ⭐ Die Trefferliste selbst hat KEINE Regel hier: sie traegt .dt-picker-list aus
+     css/components/editor-page.css -- dieselbe Liste wie der Ortspicker im Bild des Owners. */
+  .dt-bindung__suchzeile { display:flex; align-items:center; gap:var(--space-8); margin-top:var(--space-4); }
+  .dt-bindung__suchzeile .dt-in { flex:1 1 auto; }
   .dt-bindung__folgen { margin:var(--space-4) 0; font-size:var(--font-size-small); color:var(--mut); }
   /* ⚠️ Die Kuerzung der langen Feldbeschriftung steht NICHT hier, sondern in
      css/components/editor-page.css neben der geteilten Regel, die sie erweitert. Ein inliner
@@ -456,6 +456,14 @@
 <!-- Der geteilte Filter-Trichter (avmFilterMenuAttach + Zeitraum-Abschnitt). Ersetzt die lokale
      Trichter-Nachimplementierung dieser Seite und die zwei „Zeige nur"-Zeilen. -->
 <script src="/js/ui/wappen-quelle.js"></script>
+<!-- Die Wiki-Zuweisung — hier NUR fuer ihre Trefferliste: avesmapsWikiAssignSkin("dt") und
+     avesmapsWikiAssignTrefferMarkup bauen die Zeile des Kastens „Wiki-Artikel zuweisen", damit sie
+     Zeichen fuer Zeichen die des Ortspickers ist (Owner 02.09.2026). avesmapsWikiAssignMount wird
+     hier NICHT gerufen: dessen Vertrag ist „Objekt behaelt seine Identitaet und bekommt eine
+     Referenz", und die Bindung eines eigenen Knotens ERSETZT die Identitaet.
+     ⚠️ Die Datei ist beim Laden nebenwirkungsfrei (nur Definitionen), Register und Diff-Rechnung
+     braucht sie erst im Mount -- deshalb steht hier keine der beiden. -->
+<script src="/js/ui/wiki-assign.js"></script>
 <script src="/js/ui/filter-menu.js"></script>
 <!-- Das Sammelmenue im Menueband (Wappen-Knopf) -- abhaengigkeitsfrei wie der Trichter daneben. -->
 <script src="/js/ui/ribbon-menu.js"></script>
@@ -1024,16 +1032,48 @@ function renderDetail(){
   // Der Bindungs-Kasten. 🔴 NUR an einem eigenen Knoten: an einem Wiki-Knoten boete er an, eine
   // Identitaet zu ersetzen, die schon die richtige ist. Entwurf:
   // docs/superpowers/specs/2026-09-02-eigene-knoten-wiki-zuweisung-design.md
+  // 🔴 DIE FORM IST DIE DES ORTSPICKERS, und zwar mit SEINEN Bauteilen: die Klassen kommen aus der
+  // `dt`-Huelle von js/ui/wiki-assign.js (avesmapsWikiAssignSkin), die Zeile baut dessen
+  // avesmapsWikiAssignTrefferMarkup. Owner 02.09.2026: „so designen wie hier - wo man die
+  // vorauswahl sehen konnte". Nachgebaut waere das die siebte Fassung derselben Liste.
   const bindung = n.wiki_key.indexOf('eigener-knoten:') === 0
     ? `<div class="dt-bindung">
-         <h4>Wiki-Artikel zuweisen</h4>
+         <div class="dt-grp">
+           <span>Wiki-Artikel zuweisen</span>
+           <span class="dt-grp__sp"><button type="button" id="bindung-abbruch">Abbrechen</button></span>
+         </div>
          <div class="muted" style="font-size:var(--font-size-caption)">Der Knoten bekommt den Schlüssel des Artikels; die bisherige Zeile wandert in den Papierkorb.</div>
-         <input type="text" class="dt-in" id="bindung-suche" placeholder="Artikelnamen suchen …" autocomplete="off">
-         <div class="dt-bindung__treffer" id="bindung-treffer"></div>
+         <label class="dt-bindung__suchzeile">Suchen
+           <input type="text" class="dt-in" id="bindung-suche" placeholder="Artikel suchen …" autocomplete="off">
+         </label>
+         <div class="dt-picker-list" id="bindung-treffer" role="listbox"></div>
+         <div class="dt-hint" id="bindung-hinweis"></div>
          <div id="bindung-vorschau"></div>
        </div>`
     : '';
   box.innerHTML = head + lic + coatRow + `<div class="dt-actions">${lockBtn}${editBtn}</div>` + `<div class="dt-grid">${rows.join('')}</div>` + bindung;
+
+  // 🔴 DIE VORAUSWAHL: der Kasten oeffnet mit dem NAMEN DES KNOTENS im Suchfeld und den Treffern
+  // dazu (Owner 02.09.2026: „wo man die vorauswahl sehen konnte"). Der wahrscheinliche Fall ist
+  // damit ohne einen Tastendruck erledigt; findet der Name nichts, faellt die Liste auf den
+  // alphabetischen Anfang zurueck, damit sie nie leer dasteht.
+  // ⚠️ Der Fokus bleibt, wo er ist -- renderDetail laeuft bei JEDEM Klick im Baum, und ein Feld,
+  // das sich den Fokus greift, riesse ihn dem Baum bei jeder Auswahl weg.
+  if (bindung !== '') {
+    bindungZiel = null;
+    bindungTreffer = [];
+    bindungAktiv = 0;
+    const feld = $('bindung-suche');
+    if (feld) {
+      feld.value = n.name || '';
+      bindungSuchen(feld.value.trim()).then(() => {
+        if (!bindungTreffer.length && (feld.value || '') !== '') {
+          feld.value = '';
+          return bindungSuchen('');
+        }
+      });
+    }
+  }
 }
 function renderCapResults(){
   if(!capResults.length) return '';
@@ -1943,46 +1983,131 @@ refreshLocalizeCount();
 // sie ERSETZT die Identitaet.
 let bindungZiel = null;
 let bindungSuchTakt = null;
+let bindungTreffer = [];
+let bindungAktiv = 0;
+
+// 🔴 DIE HUELLE IST DIE GETEILTE. avesmapsWikiAssignSkin("dt") liefert genau die Klassen, mit denen
+// der Ortspicker seine Liste baut, und avesmapsWikiAssignTrefferMarkup baut die Zeile. Damit ist das
+// hier KEINE siebte Fassung derselben Liste -- und eine Aenderung an der geteilten Zeile kommt hier
+// von selbst an. Faellt die Datei aus, wird laut geworfen statt still eine Ersatzoptik gebaut.
+function bindungSkin() {
+  if (typeof avesmapsWikiAssignSkin !== 'function') {
+    throw new Error('js/ui/wiki-assign.js ist nicht geladen — die Trefferliste hat keine Hülle.');
+  }
+  return avesmapsWikiAssignSkin('dt');
+}
+
+// Die Meta-Zeile eines Treffers. 🔴 Das Kanon-Etikett steht MIT drin: die Liste mischt Kanon und
+// Fanmaterial, und ein Editor muss vor dem Klick sehen, was er sich einhandelt. `official === null`
+// heisst „keine Aussage" (Hauptraum) — dann steht dort bewusst nichts.
+// ⚠️ „nur gesynct" heisst: der Artikel liegt im Staging, ist aber noch nicht übernommen; seine
+// Werte können sich mit dem nächsten „3 · Übernehmen" ändern. Das gehört vor den Klick.
+function bindungMeta(row) {
+  return [
+    row.official === false ? 'Inoffiziell' : (row.official === true ? 'Kanon' : ''),
+    row.type || '',
+    row.period || '',
+    row.staging_only ? 'nur gesynct' : '',
+  ].filter(Boolean).join(' · ');
+}
+
+function bindungTrefferZeichnen() {
+  const kasten = $('bindung-treffer');
+  const hinweis = $('bindung-hinweis');
+  if (!kasten) return;
+  const skin = bindungSkin();
+  kasten.innerHTML = bindungTreffer.length
+    ? bindungTreffer.map((row, i) => avesmapsWikiAssignTrefferMarkup(skin, {
+        // ⭐ `index` traegt der geteilte Bauer selbst als `data-wa-treffer` hinaus — kein zweites
+        // Attribut daneben, der Klick liest denselben Index wie die Tastatur.
+        index: i,
+        id: 'bindung-treffer-' + i,
+        aktiv: i === bindungAktiv,
+        name: row.name,
+        meta: bindungMeta(row),
+        warnung: '',
+      })).join('')
+    : `<div class="${skin.trefferLeer}">Kein Artikel gefunden. Liegt schon ein Dump-Sync hinter dem letzten Wiki-Stand?</div>`;
+  if (hinweis) {
+    // 🪤 NICHT der geteilte Hinweistext. Der verspricht „Enter zuweisen"; hier zeigt Enter die
+    // VORSCHAU, weil die Übernahme nicht per Knopf umkehrbar ist und je Feld entschieden wird.
+    // Ein geteilter Satz, der das Falsche zusagt, ist schlimmer als ein eigener, der stimmt.
+    hinweis.textContent = (bindungTreffer.length
+      ? bindungTreffer.length + ' Treffer'
+      : 'Keine Treffer') + ' · ↑ ↓ wählen · Enter zeigt die Vorschau · Esc schließt';
+  }
+  const aktivEl = kasten.querySelector('.' + bindungSkin().trefferAktiv);
+  if (aktivEl) try { aktivEl.scrollIntoView({ block: 'nearest' }); } catch (e) {}
+}
+
+async function bindungSuchen(q) {
+  const kasten = $('bindung-treffer');
+  if (!kasten) return;
+  try {
+    const r = await api('wiki_binding_candidates', { method:'POST', body:{ query: q } });
+    bindungTreffer = r.rows || [];
+    bindungAktiv = 0;
+    bindungTrefferZeichnen();
+  } catch (err) {
+    bindungTreffer = [];
+    bindungAktiv = 0;
+    kasten.innerHTML = `<div class="${bindungSkin().trefferLeer}">Suche fehlgeschlagen: ${esc(err.message)}</div>`;
+  }
+}
 
 document.addEventListener('input', (e) => {
   if (e.target.id !== 'bindung-suche') return;
-  const q = e.target.value.trim();
-  const kasten = $('bindung-treffer');
-  if (!kasten) return;
   // ⚠️ Entprellt: jeder Tastendruck ist sonst eine Anfrage, und dieser Endpunkt haengt am
   // Dump-Staging. Die STRATO-Warnung aus CLAUDE.md gilt auch fuer eine Suche.
   clearTimeout(bindungSuchTakt);
-  if (q.length < 2) { kasten.innerHTML = ''; $('bindung-vorschau').innerHTML = ''; return; }
-  bindungSuchTakt = setTimeout(async () => {
-    try {
-      const r = await api('wiki_binding_candidates', { method:'POST', body:{ query: q } });
-      // 🔴 Das Kanon-Etikett steht MIT im Treffer: die Liste mischt Kanon und Fanmaterial, und ein
-      // Editor muss vor dem Klick sehen, was er sich einhandelt. `official === null` heisst
-      // "keine Aussage" (Hauptraum) -- dann steht dort bewusst nichts.
-      const zeilen = r.rows || [];
-      kasten.innerHTML = zeilen.length
-        ? zeilen.map(row => {
-            const kanon = row.official === false ? '<b>Inoffiziell</b>' : (row.official === true ? 'Kanon' : '');
-            // ⚠️ „nur Staging" heisst: der Artikel ist gesynct, aber noch nicht übernommen. Seine
-            // Werte können sich mit dem nächsten „3 · Übernehmen" noch ändern — das gehört vor den
-            // Klick, nicht dahinter.
-            const stand = row.staging_only ? 'nur gesynct' : '';
-            const teile = [kanon, esc(row.type || ''), esc(row.period || ''), stand].filter(Boolean);
-            return `<div data-bind-key="${esc(row.wiki_key)}">${esc(row.name)}` +
-                   (teile.length ? ` <span class="dt-bindung__kanon">${teile.join(' · ')}</span>` : '') +
-                   `</div>`;
-          }).join('')
-        : '<div class="muted">Kein Artikel gefunden. Liegt schon ein Dump-Sync hinter dem letzten Wiki-Stand?</div>';
-    } catch (err) {
-      kasten.innerHTML = `<div class="muted">Suche fehlgeschlagen: ${esc(err.message)}</div>`;
-    }
-  }, 250);
+  const q = e.target.value.trim();
+  bindungSuchTakt = setTimeout(() => bindungSuchen(q), 250);
 });
 
-document.addEventListener('click', async (e) => {
-  const treffer = e.target.closest('[data-bind-key]');
-  if (treffer) {
-    bindungZiel = treffer.getAttribute('data-bind-key');
+// ↑ ↓ wählen · Enter zeigt die Vorschau · Esc schließt — dieselbe Belegung wie im Ortspicker.
+document.addEventListener('keydown', (e) => {
+  if (e.target.id !== 'bindung-suche') return;
+  if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+    if (!bindungTreffer.length) return;
+    e.preventDefault();
+    bindungAktiv = (bindungAktiv + (e.key === 'ArrowDown' ? 1 : -1) + bindungTreffer.length) % bindungTreffer.length;
+    bindungTrefferZeichnen();
+    return;
+  }
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    const treffer = bindungTreffer[bindungAktiv];
+    if (treffer) bindungVorschauOeffnen(treffer.wiki_key);
+    return;
+  }
+  if (e.key === 'Escape') {
+    e.preventDefault();
+    bindungSchliessen();
+  }
+});
+
+// „Abbrechen" und Esc führen an dieselbe Stelle: der Kasten steht wieder leer da, ohne Auswahl.
+function bindungSchliessen() {
+  bindungZiel = null;
+  bindungTreffer = [];
+  bindungAktiv = 0;
+  const feld = $('bindung-suche');
+  if (feld) feld.value = '';
+  const kasten = $('bindung-treffer');
+  if (kasten) kasten.innerHTML = '';
+  const hinweis = $('bindung-hinweis');
+  if (hinweis) hinweis.textContent = '';
+  const vorschau = $('bindung-vorschau');
+  if (vorschau) vorschau.innerHTML = '';
+}
+
+/**
+ * 💣 EIN PFAD FUER KLICK UND ENTER. Zwei Aufrufstellen mit je eigener Rechnung waeren genau die
+ * Bauform, die dieses Haus wiederholt bezahlt hat — die Tastatur bekaeme sonst frueher oder spaeter
+ * eine andere Vorschau als die Maus.
+ */
+async function bindungVorschauOeffnen(zielKey) {
+    bindungZiel = zielKey;
     const n = BYKEY.get(selectedKey);
     if (!n) return;
     const vorschauEl = $('bindung-vorschau');
@@ -2011,6 +2136,20 @@ document.addEventListener('click', async (e) => {
          <button type="button" id="bindung-anwenden">Übernehmen</button>`;
     } catch (err) {
       vorschauEl.innerHTML = `<div class="muted">Vorschau fehlgeschlagen: ${esc(err.message)}</div>`;
+    }
+}
+
+document.addEventListener('click', async (e) => {
+  if (e.target.id === 'bindung-abbruch') { bindungSchliessen(); return; }
+
+  // Der Klick liest DENSELBEN Index wie die Tastatur (data-wa-treffer, vom geteilten Zeilenbauer).
+  const treffer = e.target.closest('[data-wa-treffer]');
+  if (treffer && $('bindung-treffer') && $('bindung-treffer').contains(treffer)) {
+    const i = Number(treffer.getAttribute('data-wa-treffer'));
+    if (bindungTreffer[i]) {
+      bindungAktiv = i;
+      bindungTrefferZeichnen();
+      bindungVorschauOeffnen(bindungTreffer[i].wiki_key);
     }
     return;
   }

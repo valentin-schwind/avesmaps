@@ -441,6 +441,14 @@ pruefe($kanon[0]['official'] === null,
 pruefe($treffer[0]['official'] === false,
     'Nur der inoffizielle Raum wird ausdruecklich als solcher benannt.');
 
+// 🔴 DIE VORAUSWAHL: eine LEERE Suche liefert den Anfang, nicht nichts. Der Kasten oeffnet damit
+// gefuellt (Owner 02.09.2026) -- ein leerer Kasten waere von "es gibt nichts" nicht zu unterscheiden.
+$vorauswahl = avesmapsEigenerKnotenBindungKandidaten($db, '', 3);
+pruefe(count($vorauswahl) === 3, 'Eine leere Suche liefert die Vorauswahl, nicht [].');
+pruefe($vorauswahl[0]['name'] === 'Doppelt', 'Und zwar alphabetisch von vorn.');
+pruefe(count(avesmapsEigenerKnotenBindungKandidaten($db, '', 2)) === 2,
+    '⚠️ Der Deckel gilt auch dort -- ueber 1700 Artikel duerfen nie alle ueber die Leitung.');
+
 // Die eigenen Knoten, gegen die die Vorschlaege laufen.
 $db->exec("INSERT INTO wiki_territory_model (wiki_key, source_origin, metadata_overrides_json) VALUES
     ('eigener-knoten:knoten068', 'custom', '{\"name\":\"Táyârret\"}'),

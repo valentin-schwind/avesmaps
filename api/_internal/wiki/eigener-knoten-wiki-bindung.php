@@ -524,9 +524,13 @@ function avesmapsEigenerKnotenBindungSiedlungenUmschluesseln(PDO $pdo, string $e
 function avesmapsEigenerKnotenBindungKandidaten(PDO $pdo, string $suche, int $limit = 25): array
 {
     $suche = trim($suche);
-    if ($suche === '') {
-        return [];
-    }
+
+    // 🔴 EINE LEERE SUCHE IST KEIN FEHLER, SONDERN DIE VORAUSWAHL. Der Kasten oeffnet mit einer
+    // gefuellten Liste, damit man sieht, dass es etwas zu waehlen GIBT -- dieselbe Form wie der
+    // Ortspicker (Owner 02.09.2026, "wo man die vorauswahl sehen konnte"). Bis dahin gab dieser
+    // Leser hier `[]` zurueck, und ein leerer Kasten ist von "es gibt nichts" nicht zu unterscheiden.
+    // ⚠️ Der Deckel gilt trotzdem: ueber 1700 Artikel duerfen nie alle ueber die Leitung.
+    $wieAlle = $suche === '';
 
     // 🔴 BEIDE TABELLEN, und das ist der Kern. Ein frisch gesyncter Artikel liegt AUSSCHLIESSLICH
     // im Staging: avesmapsWikiDumpPersistTerritoryRecords schreibt political_territory_wiki_test,
@@ -541,14 +545,17 @@ function avesmapsEigenerKnotenBindungKandidaten(PDO $pdo, string $suche, int $li
         ['political_territory_wiki', false],
         [AVESMAPS_WIKI_SYNC_MONITOR_STAGING_TABLE, true],
     ] as [$tabelle, $istStaging]) {
+        // ⚠️ Auch der Alle-Fall bleibt gedeckelt und SORTIERT -- nur so ist das Zusammenfuehren
+        // der zwei Tabellen unten wirklich der globale Anfang: was nicht unter den ersten $limit
+        // seiner eigenen Tabelle steht, kann auch global nicht unter den ersten $limit sein.
         $statement = $pdo->prepare(
             "SELECT wiki_key, name, type, wiki_url, founded_text, dissolved_text
-               FROM {$tabelle}
-              WHERE name LIKE :q
-              ORDER BY name ASC
+               FROM {$tabelle}"
+            . ($wieAlle ? '' : ' WHERE name LIKE :q')
+            . " ORDER BY name ASC
               LIMIT " . max(1, min(100, $limit))
         );
-        $statement->execute(['q' => '%' . $suche . '%']);
+        $statement->execute($wieAlle ? [] : ['q' => '%' . $suche . '%']);
 
         foreach ($statement->fetchAll(PDO::FETCH_ASSOC) as $r) {
             $key = (string) $r['wiki_key'];

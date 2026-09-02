@@ -179,6 +179,36 @@ pruefe(
 pruefe(str_contains($monitorText, 'mehrdeutig'),
     'Und ein mehrdeutiger Fall wird BENANNT, nicht bloss weggelassen.');
 
+// ---- Die Form ist die des Ortspickers, mit SEINEN Bauteilen -------------------------------------
+//
+// 🔴 Owner 02.09.2026: „so designen wie hier - wo man die vorauswahl sehen konnte". Nachgebaut waere
+// das die siebte Fassung derselben Liste -- genau das, was die Wiki-Zuweisung 2026-08-15 beseitigt
+// hat. Diese Zusicherungen halten fest, dass der Kasten die GETEILTEN Bauteile ruft.
+pruefe(str_contains($monitorText, '<script src="/js/ui/wiki-assign.js">'),
+    '💣 Ohne die Datei hat die Trefferliste keine Huelle -- avesmapsWikiAssignSkin waere undefined.');
+pruefe(str_contains($monitorText, 'avesmapsWikiAssignSkin(\'dt\')'),
+    'Die Huelle kommt aus dem geteilten Bauteil, nicht aus abgeschriebenen Klassennamen.');
+pruefe(str_contains($monitorText, 'avesmapsWikiAssignTrefferMarkup(skin,'),
+    'Und die Zeile baut dessen Zeilenbauer -- so ist sie Zeichen fuer Zeichen die des Ortspickers.');
+pruefe(str_contains($monitorText, 'class="dt-picker-list"'),
+    'Die Liste traegt die geteilte Klasse aus css/components/editor-page.css.');
+
+// 🔴 EIN PFAD FUER KLICK UND ENTER. Zwei eigene Rechnungen liefen frueher oder spaeter auseinander.
+pruefe(substr_count($monitorText, 'bindungVorschauOeffnen(') === 3,
+    'Die Vorschau hat EINE Funktion und genau zwei Aufrufer (Klick und Enter).');
+pruefe(str_contains($monitorText, "data-wa-treffer"),
+    'Der Klick liest denselben Index, den der geteilte Zeilenbauer hinausgibt.');
+
+// 🪤 Der Hinweistext ist bewusst NICHT der geteilte: jener verspricht „Enter zuweisen", hier zeigt
+// Enter die VORSCHAU, weil die Uebernahme nicht per Knopf umkehrbar ist.
+pruefe(str_contains($monitorText, 'Enter zeigt die Vorschau'),
+    'Der Hinweis sagt, was Enter WIRKLICH tut.');
+// 🪤 Geprueft wird die HINWEISFORM „· Enter zuweisen ·", nicht das blosse Wortpaar: die Begruendung
+// im Code nennt es woertlich („der geteilte Text verspricht Enter zuweisen"), und ein Test, der am
+// eigenen Kommentar anschlaegt, ist die Falle, die dieses Haus schon zweimal bezahlt hat.
+pruefe(!str_contains($monitorText, '· Enter zuweisen ·'),
+    'Und verspricht nicht das, was das geteilte Bauteil zusagt, hier aber nicht gilt.');
+
 // 🔴 Keine hartkodierte Farbe (AGENTS.md §12): der Kasten nimmt Tokens.
 pruefe(preg_match('/\.dt-bindung[^{]*\{[^}]*#[0-9a-fA-F]{3,8}/', $monitorText) !== 1,
     'Der Bindungs-Kasten kodiert keine Farbe hart -- er nimmt Tokens.');
