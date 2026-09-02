@@ -595,7 +595,7 @@ function featureSourceLinkedMessage(linked, tr) {
  * für den Editor beides denselben Befund bedeutet -- die Zeile ist fertig. Der Unterschied steht
  * in der MELDUNG, nicht in der Farbe.
  *
- * @returns {{zustand:string, meldung:string, titel:string, titelGewinnt:boolean, sperren:boolean}}
+ * @returns {{zustand:string, meldung:string, titel:string, titelGewinnt:boolean}}
  */
 function featureSourceInspectView(auskunft, tr) {
   const uebersetze = typeof tr === "function" ? tr : featureSourceDefaultTr;
@@ -612,7 +612,6 @@ function featureSourceInspectView(auskunft, tr) {
       zustand: "bekannt",
       titel: String(vorhanden.label || ""),
       titelGewinnt: true,
-      sperren: true,
       // 💣 DIE GESPERRTEN FELDER MÜSSEN ZEIGEN, WAS GILT. Owner-Meldung 02.09.2026 („der rest
       // fehlt irgendwie"): die Zeile sperrte Art, Lizenz und Namensnennung und liess sie dabei
       // LEER stehen -- ein gesperrtes leeres Feld behauptet „da steht nichts", wo in Wahrheit
@@ -625,7 +624,7 @@ function featureSourceInspectView(auskunft, tr) {
         is_official: Boolean(vorhanden.is_official),
       },
       meldung: uebersetze("sources.add.checkKnown",
-        "Diese Seite steht schon im Katalog als „{label}“ — sie wird verknüpft. Du füllst nur noch Seite(n) und Abdeckung.")
+        "Diese Seite steht schon im Katalog als „{label}“ — sie wird verknüpft. Stimmt etwas daran nicht, ändere es hier: die Korrektur geht an den Katalogeintrag.")
         .replace("{label}", String(vorhanden.label || ""))
         // ⚠️ Einzahl und Mehrzahl getrennt: „Zitiert an 1 Objekten" stand live da und liest sich
         // wie ein Programmierfehler -- weil es einer ist.
@@ -647,7 +646,6 @@ function featureSourceInspectView(auskunft, tr) {
       zustand: "gelesen",
       titel: String(daten.title || ""),
       titelGewinnt: false,
-      sperren: false,
       meldung: uebersetze("sources.add.checkRead", "Erreichbar — Titel „{title}“ aus der Seite gelesen.")
         .replace("{title}", String(daten.title || ""))
         // ⭐ Der `<title>`-Zusatz nennt den Korpus. Er wird VORGESCHLAGEN, nie gesetzt: der Server
@@ -666,7 +664,6 @@ function featureSourceInspectView(auskunft, tr) {
       zustand: "erreichbar",
       titel: "",
       titelGewinnt: false,
-      sperren: false,
       meldung: uebersetze("sources.add.checkReachable",
         "Erreichbar, aber auf der Seite war kein Titel zu finden — trag ihn selbst ein."),
     };
@@ -677,7 +674,6 @@ function featureSourceInspectView(auskunft, tr) {
     zustand: "unerreichbar",
     titel: "",
     titelGewinnt: false,
-    sperren: false,
     meldung: status > 0
       ? uebersetze("sources.add.checkDeadStatus", "Die Adresse antwortet mit {status} — stimmt der Link?")
         .replace("{status}", String(status))
@@ -989,25 +985,6 @@ function mountFeatureSourceEditor(containerEl, entityType, publicIdGetter, opts)
   // „Erreichbar, aber nichts zu lesen" ist der Fall, den ein zweifarbiger Knopf falsch erzählt.
   const ADRESS_ZUSTAENDE = ["bekannt", "gelesen", "erreichbar", "unerreichbar"];
 
-  // 🔴 Die Katalogfelder gehören dem KORPUS bzw. der bekannten Zeile -- was der Editor dort
-  // hineinschreibt, wird entweder verworfen (Titel füllt nur eine Lücke) oder wirkt katalogweit
-  // (`is_official` überschreibt der Upsert UNBEDINGT). Deshalb werden sie gesperrt, statt hinterher
-  // zu erklären, warum die Eingabe nichts bewirkt hat.
-  const ADRESS_KATALOGFELDER = [".fs-add-label", ".fs-add-type", ".fs-add-license", ".fs-add-attribution", ".fs-add-official"];
-
-  function setzeKatalogfelderGesperrt(gesperrt) {
-    ADRESS_KATALOGFELDER.forEach((selektor) => {
-      const el = containerEl.querySelector(selektor);
-      if (el) {
-        el.disabled = Boolean(gesperrt);
-      }
-    });
-    const zeile = containerEl.querySelector("[data-fs-add]");
-    if (zeile) {
-      zeile.classList.toggle("fs-row--add-bekannt", Boolean(gesperrt));
-    }
-  }
-
   // Setzt Knopffarbe und Meldung. `null` = zurück auf unbestimmt (der Editor tippt weiter).
   function setzeAdressZustand(zustand, meldung) {
     const knopf = containerEl.querySelector("[data-fs-check]");
@@ -1073,7 +1050,12 @@ function mountFeatureSourceEditor(containerEl, entityType, publicIdGetter, opts)
   function uebernehmeAuskunft(auskunft) {
     const labelInput = containerEl.querySelector(".fs-add-label");
     const sicht = featureSourceInspectView(auskunft, tr);
-    setzeKatalogfelderGesperrt(sicht.sperren);
+    // 🔴 NICHT MEHR SPERREN. Owner 02.09.2026: an einer bekannten Seite stand „Briefspiel" als
+    // Titel -- die kaputte Angabe, die dieser Umbau beseitigen soll -- und sie war gesperrt.
+    // Ein Feld, das den Fehler ZEIGT und ihn nicht ändern lässt, ist schlimmer als eines, das
+    // ihn verschweigt. Die Werte stehen weiter da; was der Editor ändert, geht über
+    // `korrigiereBekannteQuelle` an den Katalog.
+    letzteBekannteQuelle = auskunft && auskunft.existing ? auskunft.existing : null;
     // ⚠️ Der Titel wird nur EINGESETZT, wo noch nichts steht -- wer schon getippt hat, meinte das.
     // 🔴 Ausnahme: eine BEKANNTE Zeile gewinnt immer, denn ihr gespeicherter Titel gewinnt auch im
     // Katalog (`label` füllt dort nur eine Lücke). Ein abweichender Tippfehler daneben wäre eine
@@ -1171,6 +1153,70 @@ function mountFeatureSourceEditor(containerEl, entityType, publicIdGetter, opts)
     marker("official", bekannt && korpus.is_official === true);
   }
 
+  // Die zuletzt gemeldete bekannte Katalogzeile -- gebraucht beim Korrigieren (was stand vorher da?).
+  let letzteBekannteQuelle = null;
+
+  /**
+   * Weicht an einer BEKANNTEN Seite ein Katalogfeld vom gespeicherten Stand ab, wird der
+   * Katalogeintrag richtiggestellt, bevor verknüpft wird.
+   *
+   * 🔴 Das ist die Antwort auf „gesperrt und nutzlos". Der Upsert des Anlegens fasst eine bekannte
+   * Zeile nicht an (`label` füllt nur eine Lücke, `source_type` nur auf ausdrückliche Wahl) -- ein
+   * editierbares Feld täte dort also nichts. Statt es deshalb zu sperren, geht die Änderung über
+   * `update`, den EINEN Schreibweg für Katalogfelder, den auch das ✎ benutzt.
+   *
+   * ⚠️ `is_official` bleibt aussen vor: den überschreibt der Upsert ohnehin unbedingt, eine
+   * zusätzliche Korrektur wäre ein zweiter Schreibweg für denselben Wert.
+   *
+   * @returns {Promise<boolean>} true = abgebrochen, der Aufrufer hört auf
+   */
+  async function korrigiereBekannteQuelle(values) {
+    const bekannt = letzteBekannteQuelle;
+    if (!bekannt || !bekannt.source_id) {
+      return false;
+    }
+    const felder = {};
+    const vergleiche = (name, jetzt, vorher) => {
+      if (String(jetzt || "") !== String(vorher || "")) {
+        felder[name] = jetzt;
+      }
+    };
+    vergleiche("label", values.label, bekannt.label);
+    vergleiche("source_type", values.source_type_chosen ? values.source_type : bekannt.source_type, bekannt.source_type);
+    vergleiche("license", values.license, bekannt.license);
+    vergleiche("attribution", values.attribution, bekannt.attribution);
+    if (Object.keys(felder).length === 0) {
+      return false; // nichts angefasst -- normal weiter
+    }
+    // 🔴 Die Rückfrage nennt die ZAHL. „Gilt überall" ohne Grösse ist keine Warnung -- dieselbe
+    // Regel und dieselbe Schwelle wie im Bearbeiten-Kasten.
+    const usage = Number(bekannt.usage_count) || 1;
+    if (usage > FEATURE_SOURCE_CONFIRM_THRESHOLD) {
+      const frage = tr("sources.add.fixConfirm",
+        "„{label}“ wird an {n} Objekten zitiert. Deine Änderung gilt überall dort. Fortfahren?")
+        .replace("{label}", String(bekannt.label || "")).replace("{n}", String(usage));
+      if (typeof window !== "undefined" && typeof window.confirm === "function" && !window.confirm(frage)) {
+        return true;
+      }
+    }
+    const daten = await renderFromServer("update", {
+      source_id: Number(bekannt.source_id),
+      fields: felder,
+      confirm_catalog: true,
+    });
+    if (!daten) {
+      const fehler = letzteAntwort && letzteAntwort.error ? letzteAntwort.error : null;
+      showAddRowNote((fehler && fehler.message)
+        || tr("sources.add.fixFailed", "Der Katalogeintrag ließ sich nicht ändern."));
+      return true;
+    }
+    // ⚠️ `renderFromServer` hat die Zeile neu gezeichnet -- die Eingaben sind weg. Der Editor
+    // bekommt deshalb gesagt, was geschehen ist, statt vor einem leeren Formular zu stehen.
+    showAddRowNote(tr("sources.add.fixed",
+      "Der Katalogeintrag wurde richtiggestellt. Trag die Adresse noch einmal ein, um sie zu verknüpfen."));
+    return true;
+  }
+
   /**
    * Den Korpus umbenennen. 🔴 Das trifft JEDEN Beleg dieses Wirts -- deshalb die Rückfrage, und
    * deshalb steht die Reichweite schon vorher neben dem Feld.
@@ -1239,7 +1285,9 @@ function mountFeatureSourceEditor(containerEl, entityType, publicIdGetter, opts)
     // Felder müssen zurück, sonst bleibt die Zeile für eine ANDERE Adresse halb gesperrt.
     urlInput.addEventListener("input", () => {
       setzeAdressZustand(null, "");
-      setzeKatalogfelderGesperrt(false);
+      // ⚠️ Und die bekannte Zeile gilt nicht mehr: eine geänderte Adresse meint eine ANDERE Quelle,
+      // und eine Korrektur dürfte auf keinen Fall an der alten landen.
+      letzteBekannteQuelle = null;
     });
     // Der Korpusname wird beim Verlassen des Feldes gespeichert, nicht bei jedem Tastendruck --
     // eine Umbenennung, die alle Belege trifft, gehört nicht an ein `input`-Ereignis.
@@ -1412,6 +1460,15 @@ function mountFeatureSourceEditor(containerEl, entityType, publicIdGetter, opts)
     const addTarget = event.target.closest("[data-fs-add-submit]");
     if (addTarget) {
       const values = readAddRowValues();
+      // 🔴 EINE BEKANNTE SEITE WIRD KORRIGIERT, NICHT VERWORFEN (Owner 02.09.2026: „ich kann noch
+      // Titel etc. editieren - nur Name des Korpus"). Vorher waren die Katalogfelder gesperrt,
+      // weil der Upsert sie ohnehin ignoriert -- und damit kam der Editor ausgerechnet an die
+      // kaputte Angabe nicht heran, die er vor sich sah: der gespeicherte Titel war „Briefspiel".
+      // Jetzt gilt, was dasteht: was er ändert, wird VOR dem Verknüpfen am Katalogeintrag
+      // richtiggestellt -- über denselben `update`-Weg wie das ✎, samt seiner Rückfrage.
+      if (await korrigiereBekannteQuelle(values)) {
+        return; // abgebrochen oder fehlgeschlagen -- die Meldung steht schon
+      }
       // A picked catalog row is linked BY ID (instruction 5a, "direkte Zuweisung"): it is already
       // the right source, and a wiki publication may have no URL to re-upsert by at all. Pages and
       // coverage still travel -- those describe this link, not the work.

@@ -324,14 +324,6 @@
 	background: var(--color-danger-soft);
 	border-color: var(--color-danger-soft-border);
 }
-/* Eine schon bekannte Seite: die Katalogfelder sind gesperrt, weil der Katalog sie ohnehin
-   bestimmt. ⚠️ Sie werden ABGEBLENDET, nicht versteckt -- der Editor soll sehen, was gilt, statt
-   sich zu fragen, wohin die Felder verschwunden sind. */
-.fs-row--add input[disabled],
-.fs-row--add select[disabled] {
-	opacity: 0.5;
-	cursor: not-allowed;
-}
 /* Die zwei Felder vom 27.08.2026 nehmen am Umbruchsatz teil wie ihre Nachbarn. Ohne Angabe stand
    die Namensnennung auf der Vorgabebreite eines Textfeldes (194 px, gemessen) und schob den
    Hinzufuegen-Knopf allein auf eine dritte Zeile. */

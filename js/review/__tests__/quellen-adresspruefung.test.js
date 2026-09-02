@@ -1,7 +1,7 @@
 "use strict";
 
 /**
- * Die Eingabezeile prüft ihre Adresse: Knopf, drei Zustände, gesperrte Katalogfelder.
+ * Die Eingabezeile prüft ihre Adresse: Knopf, drei Zustände, Korrektur des Katalogeintrags.
  *
  * Entwurf: docs/superpowers/specs/2026-09-01-bekannte-quellen-design.md §3.4 + §4
  * Owner 02.09.2026: „du kannst das link pasten und enter an sich nehmen und einen refresh button
@@ -67,18 +67,29 @@ zaehl();
 assert.ok(bekannt.meldung !== gelesen.meldung, "der Unterschied steht in der Meldung, nicht in der Farbe");
 zaehl();
 
-// ══ 3 · Die bekannte Seite sperrt die Katalogfelder ═════════════════════════════════════════════
+// ══ 3 · Die bekannte Seite wird KORRIGIERT, nicht gesperrt ══════════════════════════════════════
 
-// 🔴 Was der Editor dort hineinschriebe, würde entweder verworfen (der Titel füllt im Katalog nur
-// eine Lücke) oder wirkte katalogweit (`is_official` überschreibt der Upsert UNBEDINGT). Sperren
-// ist die Antwort DAVOR; eine Meldung danach erklärt nur, warum die Eingabe nichts bewirkt hat.
-assert.strictEqual(bekannt.sperren, true, "eine bekannte Seite sperrt die Katalogfelder");
+// 🪤 HIER STAND BIS ZUM 02.09.2026 DAS GEGENTEIL: „eine bekannte Seite sperrt die Katalogfelder".
+// Die Begründung war für sich richtig -- der Upsert des Anlegens fasst eine bekannte Zeile nicht
+// an, ein editierbares Feld täte dort also nichts -- und sie hat den entscheidenden Fall
+// übersehen. Owner-Bild 02.09.2026: an einer bekannten Seite stand „Briefspiel" als Titel, also
+// genau die kaputte Angabe, die dieser Umbau beseitigen soll, und sie war gesperrt. Ein Feld, das
+// den Fehler ZEIGT und ihn nicht ändern lässt, ist schlimmer als eines, das ihn verschweigt.
+// 🔴 Die Felder bleiben editierbar; eine Änderung geht über `update` an den Katalogeintrag --
+// denselben Weg, den auch das ✎ benutzt, samt seiner Rückfrage ab der Schwelle.
+assert.ok(!("sperren" in bekannt), "es gibt keine Sperre mehr -- auch nicht als Rest im Rückgabewert");
 zaehl();
-assert.strictEqual(gelesen.sperren, false, "eine neue Seite sperrt nichts");
+const quelltextKorr = fs.readFileSync(path.join(__dirname, "..", "review-feature-sources.js"), "utf8");
+assert.ok(/async function korrigiereBekannteQuelle/.test(quelltextKorr), "stattdessen gibt es einen Korrekturweg");
 zaehl();
-assert.strictEqual(erreichbar.sperren, false, "und eine titellose auch nicht");
+// 💣 Und er läuft VOR dem Verknüpfen: danach wäre die Zeile schon angelegt und die Korrektur käme
+// zu spät für genau den Beleg, den der Editor gerade einträgt.
+assert.ok(/korrigiereBekannteQuelle\(values\)[\s\S]{0,140}return;/.test(quelltextKorr),
+  "die Korrektur läuft vor dem Verknüpfen und bricht ab, wenn sie greift");
 zaehl();
-assert.strictEqual(tot.sperren, false, "eine tote erst recht nicht");
+// ⚠️ `is_official` bleibt aussen vor -- den überschreibt der Upsert ohnehin unbedingt, eine
+// zweite Korrektur dafür wäre ein zweiter Schreibweg für denselben Wert.
+assert.ok(!/vergleiche\("is_official"/.test(quelltextKorr), "der Kanon-Haken läuft nicht über die Korrektur");
 zaehl();
 
 // Die Reichweite wird BENANNT -- die Zahl ist die Warnung vor einer Änderung am geteilten Katalog.
@@ -97,10 +108,10 @@ assert.ok(/an 1 Objekt\b/.test(bekanntEins.meldung) && !/1 Objekten/.test(bekann
   "eine einzelne Zitierung steht in der Einzahl");
 zaehl();
 
-// ══ 3b · Gesperrt heisst GEFÜLLT ═══════════════════════════════════════════════════════════════
+// ══ 3b · Die Felder zeigen, was gespeichert ist ═══════════════════════════════════════════════════════════════
 
-// 💣 Die Zeile sperrt die Katalogfelder, WEIL der Katalog sie bestimmt -- dann muss sie auch
-// zeigen, was er bestimmt. Ein ausgegrautes leeres „Art …" behauptet das Gegenteil.
+// 💣 Die Zeile muss zeigen, was der Katalog trägt -- sonst behauptet ein leeres „Art …" das
+// Gegenteil, und der Editor sucht eine Angabe, die längst da ist.
 // Owner-Meldung 02.09.2026: „der rest fehlt irgendwie".
 const bekanntVoll = featureSourceInspectView({
   state: "bekannt",
@@ -111,7 +122,7 @@ const bekanntVoll = featureSourceInspectView({
 });
 assert.ok(bekanntVoll.felder, "eine bekannte Seite bringt ihre Katalogwerte mit");
 zaehl();
-assert.strictEqual(bekanntVoll.felder.source_type, "briefspiel", "die Art steht im gesperrten Feld");
+assert.strictEqual(bekanntVoll.felder.source_type, "briefspiel", "die Art steht im Feld");
 zaehl();
 assert.strictEqual(bekanntVoll.felder.license, "cc-by-nc-sa-3.0", "die Lizenz ebenso");
 zaehl();
@@ -212,10 +223,12 @@ assert.ok(posWireAuto > -1 && posWirePruef > posWireAuto,
   "und steht als eigene Funktion daneben, nicht darin");
 zaehl();
 
-// ⚠️ Ändert sich die Adresse wieder, gilt die Auskunft nicht mehr -- sonst bliebe die Zeile für
-// eine ANDERE Adresse halb gesperrt.
-assert.ok(/addEventListener\("input"[\s\S]{0,220}setzeKatalogfelderGesperrt\(false\)/.test(ohneKommentare),
-  "eine geänderte Adresse hebt die Sperre wieder auf");
+// 💣 Ändert sich die Adresse wieder, gilt die Auskunft nicht mehr -- und vor allem darf die
+// bekannte Katalogzeile nicht stehenbleiben: eine Korrektur landete sonst an der ALTEN Quelle,
+// während der Editor längst eine andere Adresse im Feld hat. Das wäre eine katalogweite Änderung
+// am falschen Eintrag, und niemand sähe es.
+assert.ok(/addEventListener\("input"[\s\S]{0,260}letzteBekannteQuelle = null/.test(ohneKommentare),
+  "eine geänderte Adresse vergisst die bekannte Katalogzeile");
 zaehl();
 
 // 🔴 Die Prüfung geht IMMER über die Leitung, nie über den Anlege-Puffer: der beantwortet Fragen
