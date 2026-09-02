@@ -80,12 +80,21 @@ zaehl();
 assert.ok(!("sperren" in bekannt), "es gibt keine Sperre mehr -- auch nicht als Rest im Rückgabewert");
 zaehl();
 const quelltextKorr = fs.readFileSync(path.join(__dirname, "..", "review-feature-sources.js"), "utf8");
-assert.ok(/async function korrigiereBekannteQuelle/.test(quelltextKorr), "stattdessen gibt es einen Korrekturweg");
+assert.ok(/function korrekturAusZeile\(values\)/.test(quelltextKorr)
+  && /async function wendeKorrekturAn\(korrektur\)/.test(quelltextKorr),
+  "stattdessen gibt es einen Korrekturweg -- gerechnet und angewandt");
 zaehl();
-// 💣 Und er läuft VOR dem Verknüpfen: danach wäre die Zeile schon angelegt und die Korrektur käme
-// zu spät für genau den Beleg, den der Editor gerade einträgt.
-assert.ok(/korrigiereBekannteQuelle\(values\)[\s\S]{0,140}return;/.test(quelltextKorr),
-  "die Korrektur läuft vor dem Verknüpfen und bricht ab, wenn sie greift");
+
+// 💣 GERECHNET VOR, ANGEWANDT NACH dem Verknüpfen -- und die Reihenfolge ist tragend.
+// 🪤 Sie stand am 02.09.2026 zuerst andersherum, und der Server hat es sofort gesagt: „Diese
+// Quelle haengt nicht an diesem Objekt." `update` verlangt die Verknüpfung, und vor dem
+// Hinzufügen gibt es sie nicht. Gerechnet werden MUSS die Korrektur aber vorher: danach hat
+// `renderFromServer` die Zeile neu gezeichnet und die Eingaben sind weg.
+const posRechnen = quelltextKorr.indexOf("const korrektur = korrekturAusZeile(values);");
+const posAdd = quelltextKorr.indexOf('await renderFromServer("add", values)');
+const posAnwenden = quelltextKorr.indexOf("await wendeKorrekturAn(korrektur)");
+assert.ok(posRechnen > -1 && posAdd > posRechnen && posAnwenden > posAdd,
+  "gerechnet vor dem Verknüpfen, angewandt danach");
 zaehl();
 // ⚠️ `is_official` bleibt aussen vor -- den überschreibt der Upsert ohnehin unbedingt, eine
 // zweite Korrektur dafür wäre ein zweiter Schreibweg für denselben Wert.
@@ -291,6 +300,50 @@ zaehl();
 // nichts, was er vorgeben könnte -- dort wäre jeder Marker eine Behauptung.
 assert.ok(/const bekannt = korpus\.known === true;/.test(quelltextFelder),
   "die Vorbelegung hängt an `known`, nicht am blossen Vorhandensein eines Korpus");
+zaehl();
+
+// ══ 8 · Der erste Eintrag einer Domain legt ihren Korpus an ════════════════════════════════════
+
+// 🔴 Owner-Bild 02.09.2026 (IST gegen SOLL): im Korpusfeld stand „westlande.de", während die
+// Meldung darunter schon sagte „Die Seite nennt sich „AlberniaWiki“". Wir kannten den Namen,
+// erzählten ihn in Prosa und trugen ihn nicht ein.
+assert.ok(/korpus\.known === true \? "" : korpus\.label_suggestion/.test(quelltextFelder),
+  "der Vorschlag aus der Seite füllt das Korpusfeld -- aber nur, wenn der Korpus unbekannt ist");
+zaehl();
+
+// 💣 UND OHNE DAS ANLEGEN BLIEBE ES DABEI. Eine Korpuszeile entstand bis dahin NUR beim
+// Umbenennen; wer den vorgeschlagenen Namen stehen liess -- der Normalfall, er stimmt ja --
+// speicherte nichts. Die nächste Seite desselben Wirts sähe wieder die nackte Domain, und
+// Schritt 2 des Entwurfs („alles andere steht schon da") träte nie ein.
+assert.ok(/function korpusAnlageAusZeile\(values\)/.test(quelltextKorr)
+  && /async function legeKorpusAn\(anlage\)/.test(quelltextKorr),
+  "der erste Eintrag einer Domain legt ihren Korpus an");
+zaehl();
+
+// ⚠️ NUR beim ersten Mal: ein bekannter Korpus wird hier nie angefasst. Seine Werte gehören ihm,
+// und eine einzelne Quelle darf sie nicht im Vorbeigehen umschreiben -- umbenannt wird über das
+// Korpusfeld, mit Rückfrage.
+assert.ok(/korpus\.known === true \|\| !korpus\.corpus_key/.test(quelltextKorr),
+  "ein bekannter Korpus wird beim Eintragen nicht überschrieben");
+zaehl();
+
+// ⚠️ Und die FORM bleibt offen: bei einer Zeile sagt das Verhältnis Titel/Zeilen nichts.
+assert.ok(!/felder\.form =/.test(quelltextKorr),
+  "Werk oder Belegstelle wird beim ersten Eintrag NICHT geraten");
+zaehl();
+
+// 💣 Die Farbe der Meldung wird bei JEDER Meldung neu gesetzt. Ohne das Zurücksetzen erbte sie
+// die vorige -- am 02.09.2026 stand „Diese Quelle haengt nicht an diesem Objekt." in GRÜN, weil
+// davor eine Erfolgsmeldung dort gestanden hatte. Eine Fehlermeldung in Grün liest sich wie eine
+// Bestätigung.
+assert.ok(/function showAddRowNote\(message, art\)[\s\S]{0,700}classList\.remove\("fs-add-note--ok", "fs-add-note--bad"\)/
+  .test(quelltextKorr), "jede Meldung setzt ihre Farbe neu");
+zaehl();
+// ⚠️ Und der TEXT überlebt einen Knoten ohne `classList`: die Meldung ist die Hauptsache, die
+// Farbe die Zugabe. Ohne diesen Riegel starb `zeigeUmtypung` an der Dokument-Attrappe eines
+// FREMDEN Tests -- gefunden hat das der Lauf über das ganze Feld, nicht meine eigenen Tests.
+assert.ok(/if \(note\.classList\) \{/.test(quelltextKorr),
+  "eine fehlende classList reisst den Meldungstext nicht mit");
 zaehl();
 
 console.log("OK — " + anzahl + " Zusicherungen (Adressprüfung der Eingabezeile)");

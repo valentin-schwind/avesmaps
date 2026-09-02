@@ -810,11 +810,28 @@ function mountFeatureSourceEditor(containerEl, entityType, publicIdGetter, opts)
 
   // Sagt, warum ein Klick nicht zum Ziel führte. textContent, nicht innerHTML: die Meldung zitiert
   // den eingetippten Quellennamen, also Nutzereingabe.
-  function showAddRowNote(message) {
+  /**
+   * @param {string} art  "ok" grün · "bad" rot · sonst die bernsteinfarbene Absage
+   *
+   * 💣 DIE FARBE MUSS BEI JEDER MELDUNG NEU GESETZT WERDEN. Ohne das Zurücksetzen erbt die
+   * nächste Meldung die Farbe der vorigen -- und am 02.09.2026 stand „Diese Quelle haengt nicht
+   * an diesem Objekt." in GRÜN, weil davor eine Erfolgsmeldung dort gestanden hatte. Eine
+   * Fehlermeldung in Grün ist schlimmer als gar keine: sie liest sich wie eine Bestätigung.
+   */
+  function showAddRowNote(message, art) {
     const note = containerEl.querySelector("[data-fs-note]");
     if (note) {
       note.textContent = message;
       note.hidden = false;
+      // ⚠️ Nur wenn der Knoten eine `classList` hat: die Meldung ist die Hauptsache, die Farbe
+      // die Zugabe. Eine Dokument-Attrappe ohne `classList` (so eine steht in
+      // quellen-art-korrigieren.test.js) darf daran nicht sterben und den TEXT mitreissen.
+      if (note.classList) {
+        note.classList.remove("fs-add-note--ok", "fs-add-note--bad");
+        if (art === "ok" || art === "bad") {
+          note.classList.add("fs-add-note--" + art);
+        }
+      }
     }
   }
 
@@ -1054,7 +1071,7 @@ function mountFeatureSourceEditor(containerEl, entityType, publicIdGetter, opts)
     // Titel -- die kaputte Angabe, die dieser Umbau beseitigen soll -- und sie war gesperrt.
     // Ein Feld, das den Fehler ZEIGT und ihn nicht ändern lässt, ist schlimmer als eines, das
     // ihn verschweigt. Die Werte stehen weiter da; was der Editor ändert, geht über
-    // `korrigiereBekannteQuelle` an den Katalog.
+    // `korrekturAusZeile` + `wendeKorrekturAn` an den Katalog -- NACH dem Verknuepfen.
     letzteBekannteQuelle = auskunft && auskunft.existing ? auskunft.existing : null;
     // ⚠️ Der Titel wird nur EINGESETZT, wo noch nichts steht -- wer schon getippt hat, meinte das.
     // 🔴 Ausnahme: eine BEKANNTE Zeile gewinnt immer, denn ihr gespeicherter Titel gewinnt auch im
@@ -1118,7 +1135,13 @@ function mountFeatureSourceEditor(containerEl, entityType, publicIdGetter, opts)
       return;
     }
     if (feld && String(feld.value || "").trim() === "") {
-      feld.value = String(korpus.label || korpus.corpus_key || "");
+      // 🔴 DER VORSCHLAG AUS DER SEITE GEHT VOR DEM NACKTEN SCHLÜSSEL. Owner-Bild 02.09.2026
+      // (IST gegen SOLL): im Feld stand „westlande.de", während die Meldung darunter schon sagte
+      // „Die Seite nennt sich „AlberniaWiki“". Wir kannten den Namen, erzählten ihn in Prosa und
+      // trugen ihn nicht ein -- der Editor hätte ihn abtippen müssen.
+      // ⚠️ Nur bei einem UNBEKANNTEN Korpus: ein gepflegter Name schlägt jeden Seitenzusatz.
+      feld.value = String((korpus.known === true ? "" : korpus.label_suggestion || "")
+        || korpus.label || korpus.corpus_key || "");
     }
     if (meta) {
       // Der Schlüssel bleibt sichtbar NEBEN dem Namen (Owner 01.09.2026: „lass den schlüssel
@@ -1168,12 +1191,17 @@ function mountFeatureSourceEditor(containerEl, entityType, publicIdGetter, opts)
    * ⚠️ `is_official` bleibt aussen vor: den überschreibt der Upsert ohnehin unbedingt, eine
    * zusätzliche Korrektur wäre ein zweiter Schreibweg für denselben Wert.
    *
-   * @returns {Promise<boolean>} true = abgebrochen, der Aufrufer hört auf
+   * 💣 SIE LAEUFT NACH DEM VERKNUEPFEN, NICHT DAVOR. `update` verlangt, dass die Quelle an DIESEM
+   * Objekt haengt -- vorher gibt es die Verknuepfung noch gar nicht, und der Server antwortet
+   * voellig zu Recht mit „Diese Quelle haengt nicht an diesem Objekt." (Owner-Bild 02.09.2026).
+   * Erst verknuepfen, dann richtigstellen.
+   *
+   * @returns {{source_id:number, felder:object, label:string, usage:number}|null}
    */
-  async function korrigiereBekannteQuelle(values) {
+  function korrekturAusZeile(values) {
     const bekannt = letzteBekannteQuelle;
     if (!bekannt || !bekannt.source_id) {
-      return false;
+      return null;
     }
     const felder = {};
     const vergleiche = (name, jetzt, vorher) => {
@@ -1186,35 +1214,105 @@ function mountFeatureSourceEditor(containerEl, entityType, publicIdGetter, opts)
     vergleiche("license", values.license, bekannt.license);
     vergleiche("attribution", values.attribution, bekannt.attribution);
     if (Object.keys(felder).length === 0) {
-      return false; // nichts angefasst -- normal weiter
+      return null; // nichts angefasst -- normal weiter
     }
+    return {
+      source_id: Number(bekannt.source_id),
+      felder: felder,
+      label: String(bekannt.label || ""),
+      usage: Number(bekannt.usage_count) || 1,
+    };
+  }
+
+  /** Wendet die vorher gerechnete Korrektur an -- NACH dem Verknuepfen. */
+  async function wendeKorrekturAn(korrektur) {
     // 🔴 Die Rückfrage nennt die ZAHL. „Gilt überall" ohne Grösse ist keine Warnung -- dieselbe
     // Regel und dieselbe Schwelle wie im Bearbeiten-Kasten.
-    const usage = Number(bekannt.usage_count) || 1;
+    const usage = korrektur.usage;
     if (usage > FEATURE_SOURCE_CONFIRM_THRESHOLD) {
       const frage = tr("sources.add.fixConfirm",
         "„{label}“ wird an {n} Objekten zitiert. Deine Änderung gilt überall dort. Fortfahren?")
-        .replace("{label}", String(bekannt.label || "")).replace("{n}", String(usage));
+        .replace("{label}", korrektur.label).replace("{n}", String(usage));
       if (typeof window !== "undefined" && typeof window.confirm === "function" && !window.confirm(frage)) {
-        return true;
+        return;
       }
     }
     const daten = await renderFromServer("update", {
-      source_id: Number(bekannt.source_id),
-      fields: felder,
+      source_id: korrektur.source_id,
+      fields: korrektur.felder,
       confirm_catalog: true,
     });
     if (!daten) {
       const fehler = letzteAntwort && letzteAntwort.error ? letzteAntwort.error : null;
       showAddRowNote((fehler && fehler.message)
-        || tr("sources.add.fixFailed", "Der Katalogeintrag ließ sich nicht ändern."));
-      return true;
+        || tr("sources.add.fixFailed", "Der Katalogeintrag ließ sich nicht ändern."), "bad");
+      return;
     }
-    // ⚠️ `renderFromServer` hat die Zeile neu gezeichnet -- die Eingaben sind weg. Der Editor
-    // bekommt deshalb gesagt, was geschehen ist, statt vor einem leeren Formular zu stehen.
+    // ⚠️ Die Quelle HAENGT jetzt -- die Korrektur lief danach. Gesagt wird trotzdem, was am
+    // geteilten Katalog geschehen ist: eine stille Aenderung an einer katalogweit zitierten Zeile
+    // waere dieselbe Falle wie die stille Nicht-Aenderung davor.
     showAddRowNote(tr("sources.add.fixed",
-      "Der Katalogeintrag wurde richtiggestellt. Trag die Adresse noch einmal ein, um sie zu verknüpfen."));
-    return true;
+      "Verknüpft — und der Katalogeintrag wurde dabei richtiggestellt."), "ok");
+  }
+
+  /**
+   * Was der erste Eintrag einer Domain über ihren Korpus verrät — oder `null`, wenn es ihn
+   * schon gibt bzw. nichts zu sagen wäre.
+   *
+   * 🔴 NUR beim ERSTEN Mal. Ein bekannter Korpus wird hier nie angefasst: seine Werte gehören ihm,
+   * und eine einzelne Quelle darf sie nicht im Vorbeigehen umschreiben. Umbenannt wird über das
+   * Korpusfeld, mit Rückfrage.
+   * ⚠️ Die FORM (Werk oder Belegstelle) bleibt bewusst offen. Bei einer Zeile sagt das Verhältnis
+   * Titel/Zeilen nichts -- wer sie hier setzte, ratete und sähe dabei gemessen aus.
+   */
+  function korpusAnlageAusZeile(values) {
+    const korpus = letzterKorpus;
+    if (!korpus || korpus.known === true || !korpus.corpus_key) {
+      return null;
+    }
+    const feld = containerEl.querySelector("[data-fs-corpus]");
+    const name = String((feld && feld.value) || "").trim();
+    const felder = {};
+    if (name !== "" && name !== korpus.corpus_key) {
+      felder.label = name; // der Schlüssel als Name ist keine Aussage, sondern der Rückfall
+    }
+    if (values.source_type_chosen && values.source_type) {
+      felder.source_type = values.source_type;
+    }
+    if (values.license) {
+      felder.license = values.license;
+    }
+    if (values.attribution) {
+      felder.attribution = values.attribution;
+    }
+    if (values.is_official) {
+      felder.is_official = true;
+    }
+    return Object.keys(felder).length > 0 ? { key: korpus.corpus_key, felder: felder } : null;
+  }
+
+  /**
+   * Legt den Korpus an. ⚠️ Still im Erfolgsfall: der Editor hat gerade eine Quelle eingetragen,
+   * und dass dabei nebenbei ein Wirt bekannt wurde, ist keine Nachricht für ihn -- sichtbar wird
+   * es beim NÄCHSTEN Eintrag derselben Domain, und genau dort gehört es hin.
+   * 🔴 Ein Fehlschlag wird dagegen gesagt: sonst wundert sich beim nächsten Mal jemand, warum
+   * nichts vorbelegt ist.
+   */
+  async function legeKorpusAn(anlage) {
+    const daten = await featureSourceFetch({
+      action: "save_corpus",
+      entity_type: entityType,
+      corpus_key: anlage.key,
+      fields: anlage.felder,
+      confirm_corpus: true,
+    });
+    if (!daten || daten.ok !== true) {
+      showAddRowNote(tr("sources.add.corpusNotStored",
+        "Die Quelle steht — aber „{key}“ ließ sich nicht als Korpus merken. Beim nächsten Eintrag von dort ist nichts vorbelegt.")
+        .replace("{key}", anlage.key));
+      return;
+    }
+    letzterKorpus = Object.assign({}, letzterKorpus, daten.corpus || {}, { known: true });
   }
 
   /**
@@ -1461,14 +1559,11 @@ function mountFeatureSourceEditor(containerEl, entityType, publicIdGetter, opts)
     if (addTarget) {
       const values = readAddRowValues();
       // 🔴 EINE BEKANNTE SEITE WIRD KORRIGIERT, NICHT VERWORFEN (Owner 02.09.2026: „ich kann noch
-      // Titel etc. editieren - nur Name des Korpus"). Vorher waren die Katalogfelder gesperrt,
-      // weil der Upsert sie ohnehin ignoriert -- und damit kam der Editor ausgerechnet an die
-      // kaputte Angabe nicht heran, die er vor sich sah: der gespeicherte Titel war „Briefspiel".
-      // Jetzt gilt, was dasteht: was er ändert, wird VOR dem Verknüpfen am Katalogeintrag
-      // richtiggestellt -- über denselben `update`-Weg wie das ✎, samt seiner Rückfrage.
-      if (await korrigiereBekannteQuelle(values)) {
-        return; // abgebrochen oder fehlgeschlagen -- die Meldung steht schon
-      }
+      // Titel etc. editieren - nur Name des Korpus"). Die Katalogfelder waren gesperrt, weil der
+      // Upsert sie ohnehin ignoriert -- und damit kam der Editor ausgerechnet an die kaputte
+      // Angabe nicht heran, die er vor sich sah: der gespeicherte Titel war „Briefspiel".
+      // 💣 Gerechnet wird die Korrektur HIER (die Zeile steht noch), angewandt wird sie NACH dem
+      // Verknüpfen -- siehe `wendeKorrekturAn`.
       // A picked catalog row is linked BY ID (instruction 5a, "direkte Zuweisung"): it is already
       // the right source, and a wiki publication may have no URL to re-upsert by at all. Pages and
       // coverage still travel -- those describe this link, not the work.
@@ -1512,9 +1607,25 @@ function mountFeatureSourceEditor(containerEl, entityType, publicIdGetter, opts)
       // 🔴 BEIDE Rueckmeldungen, und in dieser Reihenfolge: die Verknuepfung ueberschreibt die
       // Umtypung in derselben Zeile, weil sie die umfassendere Auskunft ist -- wer erfaehrt,
       // dass er eine FREMDE Katalogzeile getroffen hat, muss das zuerst wissen.
+      // 🔴 DER ERSTE EINTRAG AUF EINER DOMAIN LEGT IHREN KORPUS AN -- sonst gäbe es ihn NIE.
+      // Bis hierher entstand eine Korpuszeile nur beim Umbenennen; wer den vorgeschlagenen Namen
+      // stehen liess (der Normalfall, er stimmt ja), speicherte nichts. Die nächste Seite desselben
+      // Wirts sah damit wieder die nackte Domain, und Schritt 2 des Entwurfs -- „alles andere steht
+      // schon da" -- trat nie ein. Owner-Bild 02.09.2026, IST gegen SOLL.
+      // ⚠️ VOR dem Anlegen gelesen, denn `renderFromServer` zeichnet die Zeile neu und leert sie.
+      const korpusAusZeile = korpusAnlageAusZeile(values);
+      const korrektur = korrekturAusZeile(values);
       const daten = await renderFromServer("add", values);
       zeigeUmtypung(daten);
       zeigeVerknuepfung(daten);
+      // ⚠️ BEIDES NACH dem Verknüpfen: `update` verlangt die Verknüpfung, und ein Korpus für eine
+      // Quelle, die gar nicht angelegt wurde, wäre eine Leiche.
+      if (daten && korrektur) {
+        await wendeKorrekturAn(korrektur);
+      }
+      if (daten && korpusAusZeile) {
+        await legeKorpusAn(korpusAusZeile);
+      }
     }
   });
 
