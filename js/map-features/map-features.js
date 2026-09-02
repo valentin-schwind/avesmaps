@@ -222,6 +222,16 @@ $("#toggleNoWikiAssignment").change(() => {
 // Link mit (Begruendung an avesmapsFreieLabelMarkierungWahl). Waere es hier drin, stuende es beim
 // naechsten Teilen im Link, ohne dass es je jemand eingelesen haette -- ein Parameter, den niemand
 // liest, ist schlimmer als keiner: er sieht wie ein Zustand aus.
+// Owner 02.09.2026. ⚠️ Nicht bloss die Icons neu bauen wie beim Scheinwerfer nebenan: ein markierter
+// Name ueberspringt sein Zoomband, dieser Haken aendert also die SICHTBARKEIT --
+// avesmapsSyncDoppelteBeschriftungCheck zieht Sichtbarkeit, Icons und Kurvenablage in EINEM Aufruf
+// nach und wirft zuerst seinen Index weg.
+$("#toggleDuplicateLabels").change(() => {
+	if (typeof avesmapsSyncDoppelteBeschriftungCheck === "function") {
+		avesmapsSyncDoppelteBeschriftungCheck();
+	}
+	syncPlannerStateToUrl();
+});
 $("#freeLabelMarkSelect").change(() => {
 	if (typeof avesmapsSyncFreieLabelMarkierung === "function") {
 		avesmapsSyncFreieLabelMarkierung();

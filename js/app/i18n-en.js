@@ -298,6 +298,7 @@ window.AVESMAPS_I18N_EN = {
 	"display.group.checks": "Checks",
 	"display.group.mapstyle": "Map style",
 	"display.group.freeLabels": "Mark free labels",
+	"display.check.duplicateLabels": "Duplicate labels",
 	"display.freeLabels.none": "None",
 	"display.freeLabels.all": "All ({count})",
 	"display.layer.paths": "Roads",

@@ -3026,6 +3026,24 @@
 						     Aussage, nicht die Verzierung.
 						     ⚠️ `stroke-width` als feste SVG-Einheit -- `var()` loest in diesem
 						     Praesentationsattribut nicht auf (siehe --marker-check-ring-width). -->
+						<!-- Owner 02.09.2026, nach dem Scheinwerfer „Freie Labels markieren": „mach den haken
+						     für doppelte beschriftungen". Er steht HIER und nicht bei „Mapstil", weil er einen
+						     BEFUND ausrechnet -- ein Name steht mehrfach auf der Karte -- und nicht bloss eine
+						     gewaehlte Art anleuchtet. Zwei Sorten in einer Regel, live gemessen: 34 Namen zweimal
+						     als Beschriftung (72 Labels) UND 9 Beschriftungen, deren Name auch an einem WEG haengt
+						     -- darunter der gemeldete Fall „Inoscha".
+						     💣 Das Zeichen ist die Legende und zeigt, was der Haken tut: ZWEI versetzte Kaesten,
+						     also derselbe Rahmen zweimal. Farbe fest am Token, kein `stroke="currentColor"`: sie
+						     ist die Aussage, nicht die Verzierung -- und sie ist VIOLETT, weil das Rot der Karte
+						     mit vier Toenen voll ist (Begruendung am Token).
+						     ⚠️ `stroke-width` als feste SVG-Einheit -- `var()` loest in diesem
+						     Praesentationsattribut nicht auf (siehe --marker-check-ring-width). -->
+						<label class="map-display-menu__row" id="toggleDuplicateLabelsControl" hidden>
+							<span class="map-display-menu__glyph" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="M3.5 4.5h11v11h-11z" stroke="var(--color-check-duplicate-label)" stroke-width="2.2"></path><path d="M9.5 8.5h11v11h-11z" stroke="var(--color-check-duplicate-label)" stroke-width="2.2"></path></svg></span>
+							<span class="map-display-menu__name" data-i18n="display.check.duplicateLabels">Doppelte Beschriftungen</span>
+							<input type="checkbox" id="toggleDuplicateLabels" class="map-display-menu__state" />
+							<span class="map-display-menu__eye" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.8-6.5 10-6.5S22 12 22 12s-3.8 6.5-10 6.5S2 12 2 12z"></path><circle cx="12" cy="12" r="2.8"></circle><path class="map-display-menu__eye-slash" d="M3.5 3.5l17 17"></path></svg></span>
+						</label>
 						<label class="map-display-menu__row" id="toggleNoWikiAssignmentControl" hidden>
 							<span class="map-display-menu__glyph" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="M3 20.5h7.5a4 4 0 004-4V12" stroke="var(--color-check-no-wiki)" stroke-width="2.6" stroke-linecap="round"></path><circle cx="17" cy="7" r="4.4" stroke="var(--color-check-no-wiki)" stroke-width="2.8"></circle><path d="M2.5 3.5h6v6h-6z" stroke="var(--color-check-no-wiki)" stroke-width="2.2"></path></svg></span>
 							<span class="map-display-menu__name">Keine Wiki-Zuweisung</span>
@@ -3500,6 +3518,12 @@
 		     Aufruf gefragt -- die Zeilen des Auswahlfelds entstehen, wenn die Beschriftungen da sind,
 		     also lange nach beiden. -->
 		<script src="js/map-features/freie-label-markierung.js"></script>
+		<!-- Die reine Regel hinter „Doppelte Beschriftungen" und der Trichter, der beide
+		     Kasten-Werkzeuge buendelt. Neben ihren Geschwistern und aus demselben Grund VOR
+		     map-features-labels.js: `const` auf Dateiebene wird nicht gehoistet, und
+		     `AVESMAPS_LABEL_MARKIERER` steht auf Dateiebene. -->
+		<script src="js/map-features/doppelte-beschriftung.js"></script>
+		<script src="js/map-features/label-markierungen.js"></script>
 		<!-- Das reine Fundament der Beschriftungs-Platzierung (zwoelf Ausweichstellen, Deckel,
 		     Rechteck-Mathe). Nach location-zoom-bands.js, weil es avesmapsLocationLabelSpacing
 		     liest; vor map-features*.js, deren Loeser es ruft. Dieselbe Datei laedt das Fenster
@@ -3841,6 +3865,10 @@
 		     Nachbarn darueber -- es ruft die Zeichner, sie rufen es nur ueber `typeof`-Riegel zur
 		     Laufzeit. -->
 		<script src="js/map-features/map-features-freie-label-markierung-check.js"></script>
+		<!-- Und der DOM-Teil des Hakens „Doppelte Beschriftungen": Schalter, Index, Nachziehen.
+		     Er braucht `getPathTitleName` (map-features-path-domain.js) -- aber erst zur Laufzeit,
+		     beim Bauen des Index. -->
+		<script src="js/map-features/map-features-doppelte-beschriftung-check.js"></script>
 		<script src="js/map-features/map-features-place-extras.js"></script>
 		<script src="js/map-features/map-features-region-operation-chip.js"></script>
 		<script src="js/map-features/map-features-region-context-menu.js"></script>

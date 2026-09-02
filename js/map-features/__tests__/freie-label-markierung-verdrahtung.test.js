@@ -107,22 +107,32 @@ global.IS_EDIT_MODE = true;
 ist(global.avesmapsFreieLabelMarke({ labelType: "fluss" }), true, "mit Bearbeiten-Modus wieder schon");
 
 // --- die Farbe --------------------------------------------------------------------------------
-ist(global.avesmapsFreieLabelFarbe(), "#abcdef", "der Token wird ausgelesen und getrimmt");
+// 🔴 SIE GEHOERT SEIT DEM 02.09.2026 DEM TRICHTER (label-markierungen.js): es gibt zwei Werkzeuge,
+// die einen Kasten ziehen, und der Maler muss aus der MARKE auf die Farbe schliessen koennen.
+// Geprueft wird sie deshalb drueben in label-markierungen.test.js.
+ist(typeof global.avesmapsFreieLabelFarbe, "undefined",
+	"der Scheinwerfer gibt keine eigene Farbfunktion mehr aus");
 
 // --- das Nachziehen ---------------------------------------------------------------------------
 // 💣 ZWEI Zeichenflaechen in EINEM Aufruf. Zoege nur eine nach, traegt der gerade Name derselben
 // Landschaft den Kasten und der gebogene nicht -- das liest sich wie ein Befund.
 let iconsNeu = 0;
 let ablageWeg = 0;
+let sichtbarkeit = 0;
 global.avesmapsLabelIconsNeuBauen = () => { iconsNeu += 1; };
 global.avesmapsKurvenlabelAblageVerwerfen = () => { ablageWeg += 1; };
+global.syncLabelVisibility = () => { sichtbarkeit += 1; };
 global.avesmapsSyncFreieLabelMarkierung();
 ist(iconsNeu, 1, "die waagerechten Beschriftungen werden neu gebaut");
 ist(ablageWeg, 1, "und die Ablage der gebogenen verworfen");
+// 💣 Seit dem 02.09.2026 hebt eine Markierung das Zoomband auf -- ohne diesen Aufruf kaemen die
+// Funde ausserhalb ihres Bandes erst beim naechsten Zoomschritt auf die Karte.
+ist(sichtbarkeit, 1, "und die Sichtbarkeit wird nachgezogen");
 
 global.IS_EDIT_MODE = false;
 global.avesmapsSyncFreieLabelMarkierung();
 ist(iconsNeu, 1, "ohne Bearbeiten-Modus wird gar nicht nachgezogen");
+ist(sichtbarkeit, 1, "auch die Sichtbarkeit nicht");
 global.IS_EDIT_MODE = true;
 
 // ================================================================================================
@@ -138,17 +148,16 @@ const CSS = fs.readFileSync(path.join(wurzel, "css", "features", "map-labels.css
 const TOKENS = fs.readFileSync(path.join(wurzel, "css", "base", "tokens.css"), "utf8");
 
 // Der waagerechte Name: Klasse am divIcon.
-pruefe(LABEL.includes('avesmapsFreieLabelMarke(label) ? " map-label--markiert" : ""'),
-	"createLabelIcon haengt die Klasse an");
-// Der gebogene Name: Kasten auf dem Canvas.
-pruefe(KURVE.includes("zeichneMarkierungsrahmen(f.glyphs, f.fontSize, eintrag.markiert)"),
-	"der Kurvenmaler zieht den Kasten");
-pruefe(/markiert:\s*typeof avesmapsFreieLabelMarke === "function" && avesmapsFreieLabelMarke\(label\)/.test(KURVE),
-	"und die Ablage merkt sich beim RECHNEN, ob markiert wird");
-// 💣 Der Kasten muss NACH paintGlyphs kommen -- davor maelten die Buchstaben ihn zu.
-const iPaint = KURVE.indexOf("paintGlyphs(f.glyphs, f.chars, eintrag.halo, eintrag.fill)");
-const iRahmen = KURVE.indexOf("zeichneMarkierungsrahmen(f.glyphs");
-pruefe(iPaint > -1 && iRahmen > iPaint, "der Kasten wird NACH den Buchstaben gemalt");
+// 🔴 SEIT DEM 02.09.2026 UEBER DEN TRICHTER, nicht mehr direkt: ein zweites Kasten-Werkzeug
+// („Doppelte Beschriftungen") ist dazugekommen, und der Zeichner darf die Werkzeuge nicht kennen.
+// Dass er wirklich den Trichter fragt, haelt label-markierungen.test.js fest -- hier bleibt nur,
+// dass der Scheinwerfer dort ueberhaupt angemeldet ist.
+const TRICHTER = lies("js", "map-features", "label-markierungen.js");
+pruefe(/marke:\s*"markiert",\s*frage:\s*"avesmapsFreieLabelMarke"/.test(TRICHTER),
+	"der Scheinwerfer steht im Trichter");
+// 🔴 Der gebogene Name gehoert seit dem 02.09.2026 BEIDEN Werkzeugen -- seine Zusicherungen
+// (Trichter gefragt, Kasten nach den Buchstaben gemalt) stehen deshalb in
+// label-markierungen.test.js und nicht mehr hier.
 
 // Das Feld fuellt sich aus dem geladenen Bestand, und der Wechsel zieht nach.
 pruefe(LABEL.includes("avesmapsFreieLabelMarkierungFeldFuellen()"),

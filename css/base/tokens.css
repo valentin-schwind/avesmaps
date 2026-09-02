@@ -321,6 +321,19 @@
 	   Gepinnt wie die Ringe darueber: liegt auf den IMMER-hellen Kartenkacheln, kein Dark-Override. */
 	--color-check-free-label: #d1005d;
 
+	/* Pruefhaken „Doppelte Beschriftungen" (Owner 02.09.2026) -- derselbe Kasten wie beim Scheinwerfer
+	   darueber, aber ein BEFUND statt einer Auswahl, und beide sind gleichzeitig einschaltbar.
+	   💣 DESHALB EIN ANDERER FARBRAUM, NICHT NUR EIN ANDERES ROT: das Rot der Karte ist voll (Wegpunkt,
+	   offenes Wegende, Wiki-Zuweisung, Scheinwerfer), ein fuenfter Ton darin waere von mindestens einem
+	   nicht mehr zu trennen. Violett ist frei -- gemessen: settlement-site 77 · garetien 76 ·
+	   unconnected 132 · free-label 123 · edit-handle 138.
+	   ⚠️ Und die Rangfolge ist gebaut, nicht geraten: der BEFUND schlaegt den Scheinwerfer
+	   (AVESMAPS_LABEL_MARKIERER in js/map-features/label-markierungen.js) -- wer eine Art anleuchtet
+	   und zugleich Dubletten sucht, will bei einem doppelten Namen den Befund sehen.
+	   ⚠️ Wird auch im JS gelesen (Canvas kennt kein `var()`); der Rueckfall dort ist die Notbremse.
+	   Gepinnt wie seine Nachbarn: liegt auf den IMMER-hellen Kartenkacheln, kein Dark-Override. */
+	--color-check-duplicate-label: #6a1b9a;
+
 	/* „Grenze aus Territorien" (Fall #68) -- die Territoriumsumrisse, solange das Fenster offen ist
 	   (leise), und der Umriss unter dem Zeiger (laut). Gepinnt wie die Ringe darueber: beides liegt auf
 	   den IMMER-hellen Kartenkacheln, ein Dark-Override machte sie dort unsichtbar.

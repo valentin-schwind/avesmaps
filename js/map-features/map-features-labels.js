@@ -441,15 +441,19 @@ function createLabelIcon(label) {
 		// der die Hervorhebung wieder löscht (ECOSYSTEM_HIGHLIGHT_SOURCES in
 		// map-features-ecosystem-rendering.js) -- ohne sie müsste er JEDES Label verschonen, und ein Klick
 		// auf einen Ortsnamen liesse die alte Fläche stehen.
-		// `map-label--markiert`: „Freie Labels markieren" (Owner 02.09.2026) -- der rote Kasten um die
-		// gewaehlte Labelart. 💣 HIER ALS KLASSE, anders als der rote Schein des Pruefhakens „Keine
+		// `map-label--markiert` / `map-label--doppelt`: der Kasten um eine Beschriftung. ZWEI Werkzeuge
+		// zeichnen ihn -- der Scheinwerfer „Freie Labels markieren" (karminrot) und der Pruefhaken
+		// „Doppelte Beschriftungen" (violett) --, und welcher gewinnt, entscheidet NICHT diese Zeile,
+		// sondern der Trichter `avesmapsLabelMarkeKlasse` (label-markierungen.js). Zwei Werkzeuge mal
+		// drei Leser waeren sonst sechs Stellen mit derselben Frage.
+		// 💣 HIER ALS KLASSE, anders als der rote Schein des Pruefhakens „Keine
 		// Wiki-Zuweisung" zwei Bloecke weiter oben: jener steckt IM BILD (er faerbt die Schrift und
 		// waere aus dem Stylesheet nicht erreichbar), dieser liegt AUSSERHALB des Bildes und ist
 		// deshalb genau das, was eine Klasse leisten kann. Sein Vorteil: er geht nicht in den
 		// Bildcache ein (_mapLabelImageCache), das Umschalten kostet also kein einziges Neurastern.
 		// ⚠️ Und deshalb steht er NICHT in `labelStyle` -- wer ihn dorthin zoege, machte aus einem
 		// Klassenwechsel 1017 neue Canvas-Bilder.
-		className: `map-label map-label--${label.labelType}${labelHasWikiRegion(label) ? " map-label--has-wiki" : ""}${label.ecosystemRegionPublicId ? " map-label--has-eco-region" : ""}${typeof ecosystemLabelMutedClass === "function" ? ecosystemLabelMutedClass(label) : ""}${typeof avesmapsFreieLabelMarke === "function" && avesmapsFreieLabelMarke(label) ? " map-label--markiert" : ""}`,
+		className: `map-label map-label--${label.labelType}${labelHasWikiRegion(label) ? " map-label--has-wiki" : ""}${label.ecosystemRegionPublicId ? " map-label--has-eco-region" : ""}${typeof ecosystemLabelMutedClass === "function" ? ecosystemLabelMutedClass(label) : ""}${typeof avesmapsLabelMarkeKlasse === "function" ? avesmapsLabelMarkeKlasse(label) : ""}`,
 		html: `<img src="${image.url}" width="${image.w}" height="${image.h}" style="display:block; transform: translate(calc(-50% + var(--label-offset-x, 0px)), calc(-50% + var(--label-offset-y, 0px))) rotate(${safeRotation}deg);" alt="${escapeHtml(label.text)}">`,
 		iconSize: [0, 0],
 		iconAnchor: [0, 0],
@@ -1331,8 +1335,23 @@ function shouldShowLabelMarker(entry, zoomLevel = map.getZoom(), renderBounds = 
 	// Marke auf seinem Regler.
 	// 💣 Wer beides gleich behandelt, nimmt den Editoren entweder ihre Baender weg (Tafel gilt) oder
 	// laesst die Groesse wirkungslos (Tafel raet). Beides ist genau falsch herum.
+	// 🔴 EINE MARKIERUNG HEBT DAS ZOOMBAND AUF (Owner 02.09.2026: „mach dass die anzeigen zoomstufen
+	// unabhängig sind (sprich, dass ich auf allen zoomstufen die markierungen sehe)"). Das nimmt die
+	// Zusage „blendet nichts ein" vom selben Tag zurueck und stellt die aeltere Hausregel wieder her:
+	// ein Pruefhaken ZEIGT seine Funde. Ohne diese Zeile erscheinen die Fluss-Beschriftungen erst ab
+	// Zoom 5, und wer auf Stufe 4 danach sucht, sieht nichts und haelt das Werkzeug fuer kaputt.
+	// 💣 NUR DAS BAND, und das ist der ganze Umfang: die vier `return false` darueber (Labels-Haken,
+	// „Regionname anzeigen", Regionenfilter, Ebenenwahl) bleiben unberuehrt, ebenso das Culling am
+	// Bildrand darunter. Ein Werkzeug, das einen AUSGESCHALTETEN Schalter ueberstimmt, ist keine
+	// Hilfe mehr, sondern eine Ueberraschung -- und das Culling aufzuheben hiesse, 1017 Marker fuer
+	// die ganze Karte zu bauen statt fuer den Ausschnitt.
+	// ⚠️ Der Kurvenriegel steht DARUEBER und gilt weiter: ein gebogener Name bekommt keinen Marker,
+	// er bekommt seinen Kasten gemalt. Seine Sichtbarkeit haengt an derselben Funktion (der
+	// Kandidatenleser fragt mit `mitKurvenriegel = false`), das Band faellt dort also mit.
+	const markiert = typeof avesmapsLabelMarkeHebtZoomband === "function"
+		&& avesmapsLabelMarkeHebtZoomband(entry.label);
 	return (MAP_LABEL_MODES.includes(getSelectedMapLayerMode()) || editorOverride === true)
-		&& avesmapsLabelImBand(entry.label, bandZoom)
+		&& (markiert || avesmapsLabelImBand(entry.label, bandZoom))
 		&& isLatLngInRenderBounds(entry.marker.getLatLng(), renderBounds);
 }
 

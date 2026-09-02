@@ -566,14 +566,14 @@
 				// Fenster. ⚠️ Die Ablage ist nur nach Zoomstufe und Ausschnitt gestempelt -- am Feld gedreht
 				// aendert sich keins von beiden, deshalb wirft avesmapsSyncFreieLabelMarkierung sie
 				// ausdruecklich weg. Ohne das bliebe der gemalte Name ohne seinen Kasten stehen.
-				markiert: typeof avesmapsFreieLabelMarke === "function" && avesmapsFreieLabelMarke(label),
+				marke: typeof avesmapsLabelMarke === "function" ? avesmapsLabelMarke(label) : "",
 			});
 			kurvenlabelAblage.gemalt.add(label);
 		}
 		return kurvenlabelAblage;
 	}
 
-	// Der Kasten des Werkzeugs „Freie Labels markieren" um einen gebogenen Namen.
+	// Der Kasten um einen gebogenen Namen -- fuer BEIDE Werkzeuge, die einen ziehen.
 	//
 	// ⚠️ DASSELBE POLSTER WIE DIE KLICKFLAECHE DARUNTER, keine dritte Zahl daneben: glyphsHullBox
 	// polstert um eine volle Schriftgroesse, und das ist als Rahmen zu weit -- der Kasten stuende
@@ -581,11 +581,11 @@
 	// bis auf WAY_LABEL_CLICK_PAD abzieht.
 	//
 	// 💣 DER FARBTON WIRD AUSGELESEN, NICHT ALS `var()` GESETZT: im 2D-Kontext loest eine
-	// CSS-Variable nicht auf, der Rahmen bliebe schwarz. Das besorgt avesmapsFreieLabelFarbe.
+	// CSS-Variable nicht auf, der Rahmen bliebe schwarz. Das besorgt avesmapsLabelMarkeFarbe.
 	const RAHMEN_PAD = 4;
-	function zeichneMarkierungsrahmen(glyphs, fontSize, markiert) {
-		if (!markiert || !Array.isArray(glyphs) || glyphs.length === 0
-			|| typeof glyphsHullBox !== "function" || typeof avesmapsFreieLabelFarbe !== "function") {
+	function zeichneMarkierungsrahmen(glyphs, fontSize, marke) {
+		if (!marke || !Array.isArray(glyphs) || glyphs.length === 0
+			|| typeof glyphsHullBox !== "function" || typeof avesmapsLabelMarkeFarbe !== "function") {
 			return;
 		}
 		const huelle = glyphsHullBox(glyphs, fontSize);
@@ -598,7 +598,7 @@
 			return;
 		}
 		ctx.save();
-		ctx.strokeStyle = avesmapsFreieLabelFarbe();
+		ctx.strokeStyle = avesmapsLabelMarkeFarbe(marke);
 		ctx.lineWidth = 2;
 		ctx.strokeRect(left, top, breite, hoehe);
 		ctx.restore();
@@ -651,7 +651,7 @@
 				// ⚠️ Es ist ein RECHTECK um die Buchstabenlagen, kein mitgebogener Rahmen: gebogen waere er
 				// aufwendig und saehe an einem stark gekruemmten Namen aus wie ein zweiter Namenszug. Der
 				// Kasten sagt „hier steht einer" -- mehr soll er nicht.
-				zeichneMarkierungsrahmen(f.glyphs, f.fontSize, eintrag.markiert);
+				zeichneMarkierungsrahmen(f.glyphs, f.fontSize, eintrag.marke);
 				// Nur ein Name, der auch WIRKLICH etwas tut, bekommt eine Klickflaeche. Sonst zeigte der
 				// Zeiger unten eine Hand ueber Text, der auf nichts antwortet -- und ein Klick liefe ins
 				// Leere, wo er vorher bis zur Karte durchgefallen waere.

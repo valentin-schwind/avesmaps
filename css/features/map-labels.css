@@ -609,3 +609,13 @@ body.edit-mode .map-label img {
 	outline: 2px solid var(--color-check-free-label);
 	outline-offset: 2px;
 }
+
+/* Derselbe Kasten fuer den Pruefhaken „Doppelte Beschriftungen" -- violett statt karmin, weil das
+   Rot der Karte voll ist (siehe --color-check-duplicate-label). Welcher der beiden eine
+   Beschriftung bekommt, entscheidet der Trichter avesmapsLabelMarkeKlasse, nicht die Kaskade:
+   die zwei Klassen stehen NIE gleichzeitig am selben Element. */
+.map-label--doppelt img,
+.map-label--doppelt span {
+	outline: 2px solid var(--color-check-duplicate-label);
+	outline-offset: 2px;
+}

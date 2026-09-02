@@ -115,6 +115,7 @@ function applyPlannerStateFromUrl() {
 	$("#toggleSparseCrossings").prop("checked", parseBooleanQueryParam(searchParams.get("toggleSparseCrossings"), DEFAULT_PLANNER_STATE.toggleSparseCrossings));
 	$("#toggleOpenPathEnds").prop("checked", parseBooleanQueryParam(searchParams.get("toggleOpenPathEnds"), DEFAULT_PLANNER_STATE.toggleOpenPathEnds));
 	$("#toggleNoWikiAssignment").prop("checked", parseBooleanQueryParam(searchParams.get("toggleNoWikiAssignment"), DEFAULT_PLANNER_STATE.toggleNoWikiAssignment));
+	$("#toggleDuplicateLabels").prop("checked", parseBooleanQueryParam(searchParams.get("toggleDuplicateLabels"), DEFAULT_PLANNER_STATE.toggleDuplicateLabels));
 	$("#toggleNodix").prop("checked", parseBooleanQueryParam(searchParams.get("toggleNodix"), DEFAULT_PLANNER_STATE.toggleNodix));
 	$("#toggleHidden").prop("checked", parseBooleanQueryParam(searchParams.get("toggleHidden"), DEFAULT_PLANNER_STATE.toggleHidden));
 	$("#toggleLabelsWithRegion").prop("checked", parseBooleanQueryParam(searchParams.get("toggleLabelsWithRegion"), DEFAULT_PLANNER_STATE.toggleLabelsWithRegion));
@@ -345,6 +346,9 @@ function buildPlannerSearchParams() {
 
 	if (IS_EDIT_MODE && $("#toggleNoWikiAssignment").is(":checked") !== DEFAULT_PLANNER_STATE.toggleNoWikiAssignment) {
 		searchParams.set("toggleNoWikiAssignment", $("#toggleNoWikiAssignment").is(":checked") ? "1" : "0");
+	}
+	if (IS_EDIT_MODE && $("#toggleDuplicateLabels").is(":checked") !== DEFAULT_PLANNER_STATE.toggleDuplicateLabels) {
+		searchParams.set("toggleDuplicateLabels", $("#toggleDuplicateLabels").is(":checked") ? "1" : "0");
 	}
 
 	if (activeMapStyle !== "stylized") {

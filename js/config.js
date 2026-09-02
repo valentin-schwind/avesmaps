@@ -824,6 +824,7 @@ const DEFAULT_PLANNER_STATE = {
 	toggleSparseCrossings: false,
 	toggleOpenPathEnds: false,
 	toggleNoWikiAssignment: false,
+	toggleDuplicateLabels: false,
 	toggleNodix: false,
 	toggleHidden: false,
 	toggleLabelsWithRegion: false,

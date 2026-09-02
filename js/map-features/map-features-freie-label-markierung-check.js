@@ -64,18 +64,10 @@
 	};
 
 	// --- die Farbe ------------------------------------------------------------------------------
-	// 💣 DER TOKEN WIRD AUSGELESEN, NICHT DURCHGEREICHT. Der gebogene Name wird auf CANVAS gemalt,
-	// und dort loest `var()` nicht auf -- der Rahmen bliebe schwarz. Hausmuster, siehe
-	// avesmapsWikiZuweisungFarbe und avesmapsOpenPathEndStyle. Einmal gelesen und behalten: der Wert
-	// ist in tokens.css gepinnt (kein Dark-Override, er liegt auf den immer hellen Kartenkacheln).
-	let farbe = "";
-	window.avesmapsFreieLabelFarbe = function avesmapsFreieLabelFarbe() {
-		if (!farbe) {
-			farbe = getComputedStyle(document.documentElement)
-				.getPropertyValue("--color-check-free-label").trim() || "#d1005d";
-		}
-		return farbe;
-	};
+	// 🔴 SIE STEHT NICHT MEHR HIER, sondern im Trichter (label-markierungen.js, `avesmapsLabelMarkeFarbe`).
+	// Seit es ZWEI Werkzeuge mit einem Kasten gibt, muss die Stelle, die den Kasten malt, aus der Marke
+	// auf die Farbe schliessen koennen -- eine Farbfunktion je Werkzeug hiesse, dass der Maler die
+	// Werkzeuge kennt. Der Token bleibt `--color-check-free-label`.
 
 	// --- das Auswahlfeld ------------------------------------------------------------------------
 
@@ -143,6 +135,13 @@
 	window.avesmapsSyncFreieLabelMarkierung = function avesmapsSyncFreieLabelMarkierung() {
 		if (!istVerfuegbar()) {
 			return;
+		}
+		// 💣 SEIT DEM 02.09.2026 AUCH DIE SICHTBARKEIT: ein markierter Name ueberspringt sein Zoomband
+		// (Owner: „dass ich auf allen zoomstufen die markierungen sehe"). Ohne diesen Aufruf kaemen die
+		// Funde ausserhalb ihres Bandes erst beim naechsten Zoomschritt auf die Karte -- und das sieht
+		// aus wie ein verschluckter Klick, nicht wie eine fehlende Zeile.
+		if (typeof syncLabelVisibility === "function") {
+			syncLabelVisibility();
 		}
 		if (typeof avesmapsLabelIconsNeuBauen === "function") {
 			avesmapsLabelIconsNeuBauen();
