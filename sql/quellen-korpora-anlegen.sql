@@ -43,29 +43,29 @@ INSERT INTO source_corpus (corpus_key, label, form, source_type, license) VALUES
   ('kahet-ni-kemi.de',     'Káhet Ni Kemi!',     'belegstelle', 'briefspiel', ''),
   ('horaswiki.de',         'LieblichesFeld-Wiki','belegstelle', 'briefspiel', 'cc-by-sa-4.0'),
   ('liebliches-feld.net',  'LieblichesFeld-Wiki','belegstelle', 'briefspiel', 'cc-by-sa-4.0'),
-  ('garetien.de',          'Garetien-Wiki',      'belegstelle', 'briefspiel', 'cc-by-nc-sa-3.0')
+  ('garetien.de',          'Garetien-Wiki',      'belegstelle', 'briefspiel', 'cc-by-nc-sa-3.0'),
+  ('rommilyser-mark.de',   'Rommilyser Mark',    'belegstelle', 'briefspiel', '')
 ON DUPLICATE KEY UPDATE
   label = VALUES(label), form = VALUES(form),
   source_type = VALUES(source_type), license = VALUES(license);
 
--- Gegenprobe: sieben Zeilen, zwei davon mit demselben Namen (horaswiki.de + liebliches-feld.net).
+-- Gegenprobe: acht Zeilen, zwei davon mit demselben Namen (horaswiki.de + liebliches-feld.net).
 SELECT corpus_key, label, form, source_type, license FROM source_corpus ORDER BY label, corpus_key;
 
 -- ── Was hier FEHLT und warum ─────────────────────────────────────────────────────────────────
 --
--- 🔧 rommilyser-mark.de (1 Zeile, 1 Objekt) hat KEINEN Namen aus deiner Liste. Die Seite nennt
---    sich „Rommilyser Mark - Mark Rommilys". „Nordmarken-Wiki" wäre geraten — Rommilys liegt zwar
---    in den Nordmarken, aber das Angebot ist ein eigenes. Bleibt vorerst ohne Korpuszeile und
---    zeigt damit seinen Schlüssel als Namen.
+-- 🔧 Zwei deiner Namen haben (noch) KEIN Korpus im Katalog — sie warten auf Quellen, die es
+--    heute nicht gibt:
+--      Nordmarken-Wiki — keine passende Domain im Bestand.
+--      Kosch-Wiki      — ebenso. ⭐ koschwiki.de ist im Garetien-Import vorgesehen (AGENTS.md);
+--                        der Name wird dort fällig, nicht hier.
 --
--- 🔧 Drei deiner Namen haben (noch) KEIN Korpus im Katalog:
---      Káhet-Ni-Kemi-Projekt  — die Seiten von kahet-ni-kemi.de nennen sich „… - Káhet Ni Kemi",
---                               also ist „Káhet Ni Kemi!" dort der Sitzende. Wofür steht das
---                               „Projekt"? Eine zweite Adresse gibt es im Katalog nicht.
---      Nordmarken-Wiki        — keine passende Domain im Katalog.
---      Kosch-Wiki             — keine passende Domain im Katalog. ⭐ koschwiki.de ist im
---                               Garetien-Import vorgesehen (AGENTS.md); der Name wird dort fällig,
---                               nicht hier.
+-- ⚠️ „Káhet-Ni-Kemi-Projekt" und „Káhet Ni Kemi!" sind DASSELBE (Owner 02.09.2026) — es gibt nur
+--    den einen Wirt kahet-ni-kemi.de, und seine Seiten nennen sich „… - Káhet Ni Kemi".
+--
+-- ⚠️ rommilyser-mark.de ist Joomla und hat eine LEERE `<h1>` — deshalb bringt der Titel-Lauf für
+--    seine eine Zeile nichts, und deshalb steht sie dort unter „keine Überschrift". Der
+--    Korpusname trägt sie trotzdem.
 --
 -- ⚠️ horaswiki.de und liebliches-feld.net tragen bewusst DENSELBEN Namen (Owner-Entscheid). Sie
 --    sind belegt dasselbe Wiki — beide Domains antworten auf `wiki.horaswiki.de/w/api.php` und
