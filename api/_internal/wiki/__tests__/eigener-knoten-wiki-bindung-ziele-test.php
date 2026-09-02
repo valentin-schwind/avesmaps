@@ -170,6 +170,15 @@ pruefe(substr_count($monitorText, 'Papierkorb') >= 2,
 pruefe(str_contains($monitorText, 'nicht per Knopf zurücknehmen'),
     'Und die Bestaetigung sagt, dass es sich nicht per Knopf zuruecknehmen laesst.');
 
+pruefe(str_contains($monitorText, 'wiki_binding_suggest'), 'Der Sammellauf ist verdrahtet.');
+// 🔴 Mehrdeutiges wird NIE vorangehakt -- der Server liefert `unique`, die Oberflaeche liest es.
+pruefe(
+    preg_match('/z\.unique \? \' checked\'/', $monitorText) === 1,
+    'Das Vorhaken haengt an `unique`, nicht an "es gibt einen Treffer".'
+);
+pruefe(str_contains($monitorText, 'mehrdeutig'),
+    'Und ein mehrdeutiger Fall wird BENANNT, nicht bloss weggelassen.');
+
 // 🔴 Keine hartkodierte Farbe (AGENTS.md §12): der Kasten nimmt Tokens.
 pruefe(preg_match('/\.dt-bindung[^{]*\{[^}]*#[0-9a-fA-F]{3,8}/', $monitorText) !== 1,
     'Der Bindungs-Kasten kodiert keine Farbe hart -- er nimmt Tokens.');

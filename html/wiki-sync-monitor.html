@@ -379,6 +379,7 @@
     <div id="ownFoot" class="colfoot">
       <button type="button" id="btnNewOwn" class="btn" title="Legt einen eigenen Knoten (ohne Wiki-Vorlage) an – erscheint links unter „Eigene Knoten“ und kann dann in den Baum gezogen werden">+ Eigener Knoten</button>
       <button type="button" id="btnDelOwn" class="btn" disabled title="Löscht den ausgewählten eigenen Knoten – nur möglich, solange er nicht im Hierarchiemodell platziert ist">🗑 Eigenen Knoten löschen</button>
+      <button type="button" id="bindung-sammellauf" class="btn" title="Sucht zu jedem eigenen Knoten einen namensgleichen Wiki-Artikel und schlägt die Bindung vor. Vorangehakt sind nur eindeutige Treffer.">🔗 Namensgleiche vorschlagen</button>
     </div>
   </div>
   <div class="col" id="right">
@@ -417,6 +418,22 @@
     <div class="modal-actions">
       <button id="wappenCancel">Abbrechen</button>
       <button class="primary" id="wappenUpload">Hochladen</button>
+    </div>
+  </div>
+</div>
+<!-- Sammellauf: namensgleiche Wiki-Artikel vorschlagen. ⭐ Hausform .modal/.modal-box wie die
+     zwei Dialoge daneben -- keine neue Huelle. -->
+<div id="bindung-sammel-modal" class="modal" hidden>
+  <div class="modal-box wide">
+    <div class="modal-title">🔗 Namensgleiche Wiki-Artikel</div>
+    <div class="modal-sub">Vorangehakt sind nur <b>eindeutige</b> Treffer.</div>
+    <div class="muted" style="font-size:var(--font-size-caption)">Jeder gewählte Knoten wandert in den
+      <b>Papierkorb</b>; Geometrie, Quellen und Untergebiete hängen danach am Wiki-Knoten. Das lässt
+      sich nicht per Knopf zurücknehmen.</div>
+    <div id="bindung-sammel-liste" style="max-height:340px; overflow-y:auto; margin-top:var(--space-4)"></div>
+    <div class="modal-actions">
+      <button id="bindung-sammel-abbruch">Abbrechen</button>
+      <button class="primary" id="bindung-sammel-start">Gewählte binden</button>
     </div>
   </div>
 </div>
@@ -2016,6 +2033,68 @@ document.addEventListener('click', async (e) => {
       setStatus('Übernahme fehlgeschlagen: ' + err.message);
     }
   }
+});
+
+// ── Sammellauf: namensgleiche Artikel vorschlagen ──────────────────────────────────────────────
+// 💣 Verglichen wird der NAME, nicht der Titel -- der traegt den Namensraum. Die Rechnung steht
+// serverseitig (avesmapsEigenerKnotenBindungVorschlaege); hier wird nur gelesen und angezeigt.
+$('bindung-sammellauf').addEventListener('click', async () => {
+  setStatus('Suche namensgleiche Artikel …');
+  try {
+    const r = await api('wiki_binding_suggest', { method:'POST', body:{} });
+    const zeilen = r.rows || [];
+    if (!zeilen.length) {
+      setStatus('Kein eigener Knoten hat einen namensgleichen Wiki-Artikel. Liegt schon ein Dump-Sync hinter dem letzten Wiki-Stand?');
+      return;
+    }
+    // 🔴 Vorangehakt ist NUR ein eindeutiger Treffer. Zwei Artikel auf einen Namen oder zwei eigene
+    // Knoten auf einen Artikel bleiben aus und werden als mehrdeutig BENANNT.
+    $('bindung-sammel-liste').innerHTML = zeilen.map(z => `
+      <div class="row" style="cursor:default">
+        <label style="display:flex; gap:6px; align-items:baseline">
+          <input type="checkbox" data-sammel-own="${esc(z.own_key)}"
+            data-sammel-target="${esc(z.target_key)}"${z.unique ? ' checked' : ''}>
+          <span>${esc(z.own_name)} → <b>${esc(z.target_name)}</b>
+          ${z.unique ? '' : '<span class="dt-bindung__kanon">mehrdeutig — bitte einzeln prüfen</span>'}</span>
+        </label>
+      </div>`).join('');
+    $('bindung-sammel-modal').hidden = false;
+    setStatus(`${zeilen.length} Vorschlag/Vorschläge, ${zeilen.filter(z => z.unique).length} davon eindeutig.`);
+  } catch (err) {
+    setStatus('Vorschläge fehlgeschlagen: ' + err.message);
+  }
+});
+
+$('bindung-sammel-abbruch').addEventListener('click', () => { $('bindung-sammel-modal').hidden = true; });
+
+$('bindung-sammel-start').addEventListener('click', async () => {
+  const gewaehlt = [...document.querySelectorAll('[data-sammel-own]:checked')];
+  if (!gewaehlt.length) { setStatus('Nichts angehakt.'); return; }
+  if (!confirm(`${gewaehlt.length} Knoten binden.\n\nJeder bisherige Knoten wandert in den Papierkorb. `
+    + 'Das lässt sich nicht per Knopf zurücknehmen.\n\nFortfahren?')) return;
+  $('bindung-sammel-modal').hidden = true;
+  // ⚠️ EINZELN, nicht gebuendelt: jede Uebernahme ist ihre eigene Transaktion, damit ein
+  // abgelehnter Fall die uebrigen nicht mitreisst.
+  // ⚠️ `fields: []` heisst: nur Schluessel und Artikel-Link, KEINE Felder. Der Sammellauf trifft
+  // keine Feldentscheidung fuer viele Knoten auf einmal -- die trifft der Editor danach einzeln.
+  const berichte = [];
+  for (const el of gewaehlt) {
+    const eigen = el.getAttribute('data-sammel-own');
+    try {
+      const r = await api('wiki_binding_apply', { method:'POST', body:{
+        wiki_key: eigen,
+        target_key: el.getAttribute('data-sammel-target'),
+        fields: [], dry_run: false, confirm: 'apply',
+      } });
+      berichte.push(`${eigen}: ${r.ok ? 'übernommen' : (r.error || 'abgelehnt')}`);
+    } catch (err) {
+      berichte.push(`${eigen}: Fehler — ${err.message}`);
+    }
+  }
+  await loadModel();
+  const gut = berichte.filter(b => b.endsWith('übernommen')).length;
+  setStatus(`${gut} von ${berichte.length} gebunden.`);
+  if (gut < berichte.length) alert(berichte.join('\n'));
 });
 </script>
 </body>
