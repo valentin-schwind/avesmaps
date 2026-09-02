@@ -136,12 +136,17 @@
 	white-space: nowrap;
 }
 
+/* Die Zeile steht ALLEIN im sonst leeren Kasten -- sie braucht deshalb Luft nach oben, sonst klebt
+   sie an der Trennlinie des Eingabefelds. Seitlich fluchtet sie mit dessen 16px, nicht mit den 5px
+   der Trefferliste: sie gehoert zur Eingabe, nicht zu den Treffern.
+   Kursiv, weil sie kein Treffer ist, sondern eine Auskunft ueber die Suche. */
 .spotlight-search__status {
-	min-height: 20px;
 	margin: 0;
-	padding: 0 16px 10px;
+	padding: 13px 16px 15px;
 	color: var(--color-spotlight-text-soft);
 	font-size: 12px;
+	font-style: italic;
+	line-height: 1.4;
 }
 
 .spotlight-path-highlight {
