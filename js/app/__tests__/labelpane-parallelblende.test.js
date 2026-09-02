@@ -89,7 +89,10 @@ assert.ok(/AVESMAPS_ZOOM_DAUER_MS/.test(block), "Der Block liest die gemeinsame 
 
 // 💣 Die Konstanten stehen in js/map-features/zoom-uebergang.js und werden NICHT gehoistet --
 // das Skript muss VOR bootstrap.js geladen werden, sonst steht dort undefined.
-const html = fs.readFileSync(path.join(__dirname, "../../../index.html"), "utf8");
+// 💣 OHNE KOMMENTARE gelesen: ein Dateipfad in einem <!-- --> ist fuer `indexOf` ein
+// frueheres script-Tag. Das dreht eine Reihenfolgepruefung um (falsch ROT) und macht eine
+// Vorhandenseinspruefung falsch GRUEN. Am 02.09.2026 genau so passiert.
+const html = fs.readFileSync(path.join(__dirname, "../../../index.html"), "utf8").replace(/<!--[\s\S]*?-->/g, "");
 assert.ok(html.indexOf("js/map-features/zoom-uebergang.js") < html.indexOf("js/app/bootstrap.js"),
 	"💣 zoom-uebergang.js wird nach bootstrap.js geladen -- der Klon bekaeme 'opacity undefinedms'.");
 

@@ -192,7 +192,10 @@ const i18n = lies("js", "app", "i18n-en.js");
 		"🔴 und niemand in popups.js mehr das Auswahlfeld");
 
 	// Die Ladereihenfolge ist die Zusage dahinter: label-arten.js VOR popups.js.
-	const indexHtml = lies("index.html");
+		// 💣 OHNE KOMMENTARE gelesen: ein Dateipfad in einem <!-- --> ist fuer `indexOf` ein
+	// frueheres script-Tag. Das dreht eine Reihenfolgepruefung um (falsch ROT) und macht eine
+	// Vorhandenseinspruefung falsch GRUEN. Am 02.09.2026 genau so passiert.
+	const indexHtml = lies("index.html").replace(/<!--[\s\S]*?-->/g, "");
 	const artenAb = indexHtml.indexOf("js/ui/label-arten.js");
 	const popupsAb = indexHtml.indexOf("js/ui/popups.js");
 	assert.ok(artenAb !== -1 && popupsAb !== -1 && artenAb < popupsAb,

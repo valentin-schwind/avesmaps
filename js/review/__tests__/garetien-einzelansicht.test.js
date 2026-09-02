@@ -457,7 +457,10 @@ wahr(garetienDetailMarkup(voll).includes("CC BY-NC-SA 3.0"), "und der Spion ist 
 // blieb leer, die Auswahl war gesetzt, die Konsole nannte den Grund). Dieselbe Reihenfolgezusage,
 // die die fuenf Seiten mit dem Quellen-Editor schon tragen (AGENTS.md §11, Quellenliste).
 // ⚠️ Zeilenendenneutral: die Arbeitskopie traegt CRLF, im Tor liegt LF (AGENTS.md §9).
-const indexHtml = fs.readFileSync(path.join(WURZEL, "index.html"), "utf8").replace(/\r\n/g, "\n");
+// 💣 OHNE KOMMENTARE gelesen: ein Dateipfad in einem <!-- --> ist fuer `indexOf` ein
+// frueheres script-Tag. Das dreht eine Reihenfolgepruefung um (falsch ROT) und macht eine
+// Vorhandenseinspruefung falsch GRUEN. Am 02.09.2026 genau so passiert.
+const indexHtml = fs.readFileSync(path.join(WURZEL, "index.html"), "utf8").replace(/\r\n/g, "\n").replace(/<!--[\s\S]*?-->/g, "");
 // 🪤 MIT `src="` gesucht, nicht nur nach dem Dateinamen: sonst erfuellte schon ein Kommentar,
 // der die Datei erwaehnt, die Zusicherung -- und das `<script>` koennte fehlen. Der Anker fuer
 // den Importer darunter macht es mit dem Anfuehrungszeichen schon richtig.

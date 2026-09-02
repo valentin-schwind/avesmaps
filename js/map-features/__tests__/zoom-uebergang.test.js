@@ -132,7 +132,10 @@ assert.ok(/var\(--avesmaps-zoom-dauer\)/.test(labelsCss) && /var\(--avesmaps-zoo
 
 // 💣 Und das Skript muss VOR seinen Lesern geladen werden: `const` auf Dateiebene wird nicht
 // gehoistet, ein zu spaet geladenes zoom-uebergang.js hiesse `undefined` in jedem Wirt.
-const html = lies("index.html");
+// 💣 OHNE KOMMENTARE gelesen: ein Dateipfad in einem <!-- --> ist fuer `indexOf` ein
+// frueheres script-Tag. Das dreht eine Reihenfolgepruefung um (falsch ROT) und macht eine
+// Vorhandenseinspruefung falsch GRUEN. Am 02.09.2026 genau so passiert.
+const html = lies("index.html").replace(/<!--[\s\S]*?-->/g, "");
 const posQuelle = html.indexOf("js/map-features/zoom-uebergang.js");
 assert.ok(posQuelle > 0, "index.html laedt js/map-features/zoom-uebergang.js gar nicht.");
 for (const w of WIRTE.concat(["js/app/bootstrap.js"])) {

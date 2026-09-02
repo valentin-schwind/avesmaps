@@ -33,7 +33,10 @@ function ohneKommentare(quelle) {
 const css = ohneKommentare(read("css", "components", "zoomstufe-anzeige.css"));
 const labelCss = ohneKommentare(read("css", "features", "map-labels.css"));
 const bootstrap = ohneKommentare(read("js", "app", "bootstrap.js"));
-const html = read("index.html");
+// 💣 OHNE KOMMENTARE gelesen: ein Dateipfad in einem <!-- --> ist fuer `indexOf` ein
+// frueheres script-Tag. Das dreht eine Reihenfolgepruefung um (falsch ROT) und macht eine
+// Vorhandenseinspruefung falsch GRUEN. Am 02.09.2026 genau so passiert.
+const html = read("index.html").replace(/<!--[\s\S]*?-->/g, "");
 const styles = read("css", "styles.css");
 
 /** Findet den ERSTEN Block, dessen Selektorliste den gesuchten Selektor enthaelt -- er darf also

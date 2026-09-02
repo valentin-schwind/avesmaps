@@ -14,7 +14,10 @@ const read = (...parts) => fs.readFileSync(path.join(ROOT, ...parts), "utf8");
 
 const src = read("js", "review", "review-api-metrics.js");
 const css = read("css", "components", "visitor-analytics.css");
-const indexHtml = read("index.html");
+// 💣 OHNE KOMMENTARE gelesen: ein Dateipfad in einem <!-- --> ist fuer `indexOf` ein
+// frueheres script-Tag. Das dreht eine Reihenfolgepruefung um (falsch ROT) und macht eine
+// Vorhandenseinspruefung falsch GRUEN. Am 02.09.2026 genau so passiert.
+const indexHtml = read("index.html").replace(/<!--[\s\S]*?-->/g, "");
 // 🪤 Die Unterreiter-Logik sitzt in review-visitor-analytics.js, NICHT in review-status.js --
 // der Bauplan hat die Datei falsch benannt, und ein Test gegen die falsche Datei waere gruen
 // geblieben, waehrend der dritte Reiter tot ist.

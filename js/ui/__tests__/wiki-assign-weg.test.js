@@ -626,7 +626,10 @@ zaehl();
 	assert.ok(kartenDialog.indexOf(rest) === -1, "der Kartendialog greift noch nach dem alten Picker: " + rest);
 	zaehl();
 });
-const indexHtml = fs.readFileSync(path.join(wurzel, "index.html"), "utf8");
+// 💣 OHNE KOMMENTARE gelesen: ein Dateipfad in einem <!-- --> ist fuer `indexOf` ein
+// frueheres script-Tag. Das dreht eine Reihenfolgepruefung um (falsch ROT) und macht eine
+// Vorhandenseinspruefung falsch GRUEN. Am 02.09.2026 genau so passiert.
+const indexHtml = fs.readFileSync(path.join(wurzel, "index.html"), "utf8").replace(/<!--[\s\S]*?-->/g, "");
 ["path-wiki-picker", 'id="path-wiki-remove"', "path-edit-wiki-sync-type"].forEach((rest) => {
 	assert.ok(indexHtml.indexOf(rest) === -1, "index.html traegt noch Reste des alten Weg-Pickers: " + rest);
 	zaehl();
