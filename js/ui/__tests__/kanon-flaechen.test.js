@@ -201,6 +201,39 @@ const fsCss = lies("css", "features", "feature-sources.css");
 const chip = fsCss.slice(fsCss.indexOf(".fs-kanon {"), fsCss.indexOf(".fs-kanon--off"));
 pruefe(/font-size:\s*var\(--font-size-caption\)/.test(chip), "der Chip nimmt die Untergrenze als Token");
 
+// ---- H1. Die Fettung -- und warum sie ZWEI Zeilen braucht ------------------------------------
+// 💣 EIN `font-weight: 700` IST IN DIESEM REPO EIN LEERLAUF. Die Hausschrift Faculty Glyphic
+// liefert nur Regular, und css/base/base.css schaltet die Kunstfettung appweit ab
+// (`* { font-synthesis-weight: none }`, dort begruendet: bei Fliesschrift blutet sie aus).
+// Der computed value steht dann auf 700, gezeichnet wird aber Zeichen fuer Zeichen dasselbe Bild
+// -- live gemessen 02.09.2026: Pillenbreite 82,47px vor wie nach dem Gewicht, und im 4x-Vergleich
+// sind „400" und „700 ohne Synthese" nicht zu unterscheiden.
+// 🔴 Owner 02.09.2026 ausdruecklich als Ausnahme: das Etikett bleibt auf der 11px-Untergrenze
+// (AGENTS.md §12) und wird stattdessen GEFETTET. Die Ausnahme haelt nur, solange BEIDE Zeilen
+// dastehen; wer die zweite fuer ueberfluessig haelt, nimmt die Fettung mit, und nichts wird rot.
+// Genau davor steht diese Zusicherung.
+// 🪤 `indexOf(".fs-kanon {")` traefe `.fs-src-row .fs-kanon {` MIT -- der Selektor enthaelt den
+// anderen als Teilzeichenkette und steht in der Datei frueher. Gesucht wird am ZEILENANFANG und
+// geschnitten an der schliessenden Klammer, nicht nach einer Zeichenzahl.
+const regelGenau = (selektor) => {
+	const t = new RegExp("^" + selektor.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "\\s*\\{", "m").exec(fsCss);
+	pruefe(!!t, `die Regel ${selektor} muss es geben`);
+	const ab = fsCss.slice(t.index);
+	return ab.slice(0, ab.indexOf("}") + 1);
+};
+const chipRegel = regelGenau(".fs-kanon");
+pruefe(/font-weight:\s*700\s*;/.test(chipRegel), "das Kanonwort steht fett");
+pruefe(/font-synthesis-weight:\s*auto\s*;/.test(chipRegel),
+	"und hebt die appweite Abschaltung auf -- ohne diese Zeile ist die Fettung unsichtbar");
+pruefe(/font-synthesis-weight:\s*none\s*;/.test(lies("css", "base", "base.css")),
+	"die appweite Abschaltung steht weiterhin in base.css -- sie ist der Grund fuer die Zeile darueber");
+
+// ⚠️ UND DAS BEZEICHNERFELD BLEIBT UNGEFETTET. Es erbt sonst die Fettung vom Chip, und der Name
+// („Briefspiel (Garetien)") traegt dieselbe Auszeichnung wie das Kanonwort -- dieselbe zweite
+// Auszeichnung, die dort schon fuer VERSAL+gesperrt verworfen wurde.
+pruefe(/font-weight:\s*400\s*;/.test(regelGenau(".fs-kanon--split .fs-kanon__by")),
+	"der Bezeichner bleibt ungefettet, waehrend der Chip es ist");
+
 // ---- I. Die Suchkachel ist in BEIDEN Themen dunkel ----------------------------------------------
 // 💣 Also traegt das Etikett dort die Fassung fuer dunkle Flaechen, unabhaengig vom Thema der
 // Seite. Ohne die Umbelegung hob es sich im HELLEN Thema kaum von der Kachel ab -- im Browser

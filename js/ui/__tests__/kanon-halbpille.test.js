@@ -133,6 +133,16 @@ const regelAb = (quelle, selektor) => {
   assert.ok(t, `Regel ${selektor} muss es geben`);
   return quelle.slice(t.index);
 };
+// 🪤 UND GESCHNITTEN WIRD AN DER SCHLIESSENDEN KLAMMER, NICHT NACH N ZEICHEN. Hier stand
+// `.slice(0, 260)` -- eine Zahl, die zufaellig ueber die Regel reichte. Zwei Deklarationen
+// spaeter (die Fettung, 02.09.2026) lag `padding` dahinter, und die Polsterpruefung fiel um,
+// OBWOHL das Polster unveraendert dastand. Eine Zusicherung, die an einer Zeichenzahl haengt,
+// misst irgendwann etwas anderes als ihren Namen: in die eine Richtung falsch rot, in die
+// andere -- eine Deklaration wandert hinaus -- stillschweigend blind.
+const nurRegel = (quelle, selektor) => {
+  const ab = regelAb(quelle, selektor);
+  return ab.slice(0, ab.indexOf("}") + 1);
+};
 // ---- G. Die Farbe traegt GENAU EINE Bedeutung --------------------------------------------------
 // 🔴 Gold = im Kanon, Blaugruen = nicht. Nirgends sonst. Das rechte Feld ist deshalb NEUTRAL: neben
 // einem blaugruenen INOFFIZIELL stiessen sonst zwei Blaugruen aneinander.
@@ -174,7 +184,7 @@ for (const t of ["--color-kanon-official", "--color-kanon-official-text", "--col
 // Grundlinie −3,905, Pille mittig auf der Zeile bei −4,875. Mittelweg −4,39; 3/2 trifft −4,335.
 // Zeilenunwucht gemessen: 3/2 -> 1,08px | 2/2 -> 2,08 | 3/3 -> 2,08 | 2/3 -> 3,08.
 // ⚠️ Wer nur die INNERE Zentrierung misst, landet bei 2/3 und macht es sichtbar schlechter.
-const chipRegel = regelAb(css, ".fs-kanon").slice(0, 260);
+const chipRegel = nurRegel(css, ".fs-kanon");
 pruefe(/padding:\s*3px\s+8px\s+2px\s*;/.test(chipRegel),
   "der Chip polstert 3px oben / 2px unten -- der gemessene Mittelweg, nicht die innere Mitte");
 pruefe(!/padding:\s*2px\s+8px\s+3px\s*;/.test(css),
@@ -197,7 +207,7 @@ pruefe(/position:\s*relative\s*;/.test(zeilenRegel.slice(0, 140)),
   "ohne `position: relative` wirkt `top` gar nicht -- der Fehler waere still");
 // ⚠️ Der Versatz darf NICHT am Chip selbst haengen: dann traefe er auch Kopf, Suchtreffer und
 // Konfliktpartei, die mittig ausrichten.
-const chipGrund = regelAb(css, ".fs-kanon").slice(0, 260);
+const chipGrund = nurRegel(css, ".fs-kanon");
 pruefe(!/position:\s*relative/.test(chipGrund), "die Grundregel des Chips bleibt unversetzt");
 
 // ---- H2. Alle drei Titelgruppen duerfen SCHRUMPFEN ----------------------------------------------

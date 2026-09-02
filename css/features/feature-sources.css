@@ -1213,6 +1213,20 @@
    in der sie steht.
    ⚠️ Der Wert haengt an beiden Schriftgroessen (Chip 11px versal, Nachbar 12px). Wer eine davon
    aendert, rechnet den Mittelweg neu. */
+/* 💣 DIE FETTUNG BRAUCHT DIE SYNTHESE, SONST IST SIE EIN LEERLAUF. Die Hausschrift Faculty
+   Glyphic liefert NUR Regular, und css/base/base.css schaltet die Kunstfettung deshalb appweit
+   ab (`* { font-synthesis-weight: none }`). Ein `font-weight: 700` allein rechnet dort sauber
+   durch -- computed steht 700 da --, und gezeichnet wird Zeichen fuer Zeichen dasselbe Bild.
+   Live gemessen 02.09.2026: Pillenbreite 82,47px vor wie nach dem Gewicht, und im 4x-Vergleich
+   sind „400" und „700 ohne Synthese" nicht zu unterscheiden. Wer die zweite Zeile wegnimmt,
+   nimmt die Fettung mit -- ohne dass irgendetwas rot wird.
+   🔴 DIE APPWEITE ABSCHALTUNG BLEIBT. Sie gilt der Fliesschrift, wo Kunstfettung ausblutet; hier
+   steht ein 11px-Versalwort auf gefuellter Flaeche, im Browser gegengesehen -- und die
+   Auszeichnung IST die Aufgabe des Etiketts.
+   ⭐ Owner 02.09.2026, ausdruecklich als Ausnahme: die 11px-Untergrenze aus AGENTS.md §12 bleibt,
+   das Etikett steht auf ihr und wird stattdessen gefettet -- nicht groesser gesetzt.
+   ⚠️ Die Breite aendert sich dadurch NICHT (gemessen, s.o.), die Polsterrechnung darueber bleibt
+   also gueltig: sie haengt an den Schriftgroessen, nicht am Gewicht. */
 .fs-kanon {
 	display: inline-flex;
 	align-items: center;
@@ -1275,8 +1289,14 @@
 /* Das Bezeichnerfeld: gemischtschriftlich, nicht gesperrt -- es ist ein NAME
    („Briefspiel (Garetien)"), und VERSAL gesperrt las er sich wie eine zweite Auszeichnung.
    ⚠️ min-width: 0 + ellipsis: ein langer Bezeichner darf den Kopf nicht aufziehen. */
+/* 💣 UND ES BLEIBT UNGEFETTET, waehrend der Chip es ist. Die Fettung sitzt an .fs-kanon und
+   wuerde hierher VERERBT -- dann traegt der Name dieselbe Auszeichnung wie das Kanonwort, und
+   genau das verbietet der Absatz darueber schon fuer VERSAL+gesperrt: eine zweite Auszeichnung
+   an einer Stelle, die nur einen Namen nennt. Gefettet wird das Wort, das eine Aussage trifft
+   („Inoffiziell"), nie das, das eine Herkunft nennt („Briefspiel (Garetien)"). */
 .fs-kanon--split .fs-kanon__by {
 	min-width: 0;
+	font-weight: 400;
 	padding: 3px 8px 2px;
 	color: var(--color-text-muted);
 	text-transform: none;
