@@ -241,5 +241,26 @@ assert(!str_contains($endpunkt, 'function avesmapsSourceCorpusKey'),
     'der Endpunkt rechnet die registrierbare Domain NICHT selbst nach');
 $zaehl();
 
+// ---- 5. DER RIEGEL, DER ZWEIMAL VERGESSEN WURDE ------------------------------------------------
+// 💣 EIN CODEFIX AN DIESER ANTWORT IST ERST LIVE, WENN DIE FASSUNGSNUMMER STEIGT. Der
+// Servervorrat (`avesmapsMapFeaturesCacheFile`) haengt am ETag, und der traegt
+// AVESMAPS_MAP_FEATURES_PAYLOAD_VERSION -- `map_revision` bewegt sich von einer Codeaenderung
+// nicht. Am 02.09.2026 ging genau das ZWEIMAL daneben: nach zwei gruenen Deploys lieferte die
+// Seite Zeichen fuer Zeichen dieselbe alte Nutzlast (133 Zeilen mit Korpus, 290 ohne), und beide
+// Male fiel es erst an der Live-Messung auf, nicht im Testfeld.
+// ⚠️ Gemessen wird, dass die Nummer die Korpus-Aenderung UEBERHOLT hat -- nicht ihr genauer
+// Wert: sie steigt auch aus fremden Gruenden, und ein fester Wert waere beim naechsten Bump einer
+// anderen Sitzung rot, ohne dass hier etwas falsch waere.
+preg_match('/AVESMAPS_MAP_FEATURES_PAYLOAD_VERSION = (\\d+);/', $endpunkt, $treffer);
+assert(isset($treffer[1]) && (int) $treffer[1] >= 21,
+    'die Fassungsnummer der Nutzlast ist seit dem Korpus-Umbau gestiegen -- sonst sieht sie niemand');
+$zaehl();
+// 🔴 Und die Begruendung steht daneben. Eine blosse Zahl sagt dem naechsten Leser nicht,
+// warum sie sich bewegt hat; die Liste darueber ist der einzige Ort, an dem das steht.
+// Gegen den ROHtext, nicht gegen $endpunkt: dort sind die Kommentare ja gerade entfernt.
+assert(str_contains($roh, '// 21 (02.09.2026)'),
+    'und traegt ihren Grund in der Liste ueber der Konstante');
+$zaehl();
+
 fwrite(STDOUT, "OK -- {$pruefungen} Zusicherungen erfuellt (Korpus in der Kartennutzlast).\n");
 exit(0);
