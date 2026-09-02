@@ -517,9 +517,20 @@ wahr(/target="_blank"/.test(beideQuellen), "und auswaerts, wie jeder fremde Link
 // Wirt, derselbe Autor); zweimal derselbe Satz liest sich wie ein Unterschied.
 gleich((beideQuellen.match(/CC BY-NC-SA 3\.0/g) || []).length, 1,
 	"die Lizenzangabe steht genau einmal unter beiden");
-// 🔴 UND DIE UEBERSCHRIFT WIRD PLURAL -- „Die Quellen, die mitreisen" waere die naechste Stufe,
-// aber der Satz danach ist einer; gemeint ist der Wechsel von „Die Quelle" auf „Die Quellen".
-wahr(beideQuellen.includes("Die Quellen, die mitreist"), "die Ueberschrift nennt beide: " + beideQuellen);
+// 🔴 UND DIE UEBERSCHRIFT WIRD PLURAL -- GANZ, nicht halb. Hier stand bis zum 02.09.2026
+// „Die Quellen, die mitreist": der Erzeuger haengte dem Hauptwort ein „n" an und liess das
+// Zeitwort stehen. Die Begruendung daneben („der Satz danach ist einer") war eine Erklaerung
+// fuer einen Grammatikfehler, keine Regel.
+wahr(beideQuellen.includes("Die Quellen, die mitreisen"),
+	"die Ueberschrift nennt beide, im vollen Plural: " + beideQuellen);
+// 🔴 UND JEDE DER BEIDEN SAGT, WAS SIE IST (Owner 02.09.2026: „Außerdem ist unklar, was
+// „Artikel" ist"). Zwei Namen in Anfuehrungszeichen nebeneinander sagen nicht, dass der eine
+// die Sammelquelle auf den Wirt ist und der andere der EIGENE Wiki-Artikel des Objekts.
+wahr(/Sammelquelle „Briefspiel \(Garetien\)"/.test(beideQuellen),
+	"die Sammelquelle ist als solche benannt: " + beideQuellen);
+wahr(/Wiki-Artikel <a /.test(beideQuellen),
+	"und der Artikel als Wiki-Artikel -- das Wort steht AUSSERHALB des Links, verlinkt ist "
+	+ "der Artikelname, nicht seine Erklaerung: " + beideQuellen);
 
 // --- ⚠️ OHNE ARTIKEL bleibt alles wie vorher. 42 % der Zeilen haben keinen (Wege 7 %, Waelder
 // 8 % Abdeckung, live gemessen) -- eine Zeile „kein Artikel" waere eine Auskunft ueber eine

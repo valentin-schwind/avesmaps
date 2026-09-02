@@ -2514,18 +2514,32 @@
 		const lizenz = garetienLizenzZeile(quelle);
 		if (label === "" && artikelLabel === "" && lizenz.text === "") { return ""; }
 		const teile = [];
-		if (label !== "") { teile.push("„" + avesmapsGaretienEscape(label) + "\""); }
+		// 🔴 JEDE DER BEIDEN SAGT, WAS SIE IST (Owner 02.09.2026: „Außerdem ist unklar, was
+		// „Artikel" ist"). Vorher standen hier zwei Namen in Anführungszeichen nebeneinander --
+		// „Briefspiel (Garetien)" · „Praioslob" --, und dass der zweite der EIGENE Wiki-Artikel
+		// des Objekts ist (und der erste die Sammelquelle auf den Wirt), stand nirgends. Der Knopf
+		// „Quelle + Artikel einfügen" nennt dieselben zwei in seinem Tooltip, aus denselben
+		// Feldern (garetienHandlungTitel).
+		if (label !== "") {
+			teile.push("Sammelquelle „" + avesmapsGaretienEscape(label) + "\"");
+		}
 		if (artikelLabel !== "") {
 			// Der Artikel wird VERLINKT -- er ist die einzige der beiden Quellen, die auf eine
 			// konkrete Seite zeigt. ⚠️ Das ↗ kommt aus der CSS-Regel
 			// `.gi-detail a[target="_blank"]::after`, nicht von Hand (wie in der Metazeile).
-			teile.push(artikelUrl !== ""
+			// ⚠️ „Wiki-Artikel" steht AUSSERHALB des Links: verlinkt gehört der Artikelname, nicht
+			// das Wort, das ihn erklärt.
+			teile.push("Wiki-Artikel " + (artikelUrl !== ""
 				? '<a href="' + avesmapsGaretienEscape(artikelUrl) + '" target="_blank" rel="noopener">'
 					+ "„" + avesmapsGaretienEscape(artikelLabel) + "\"</a>"
-				: "„" + avesmapsGaretienEscape(artikelLabel) + "\"");
+				: "„" + avesmapsGaretienEscape(artikelLabel) + "\""));
 		}
 		if (lizenz.text !== "") { teile.push(avesmapsGaretienEscape(lizenz.text)); }
-		return '<p class="gi-sec">Die Quelle' + (artikelLabel !== "" ? "n" : "") + ', die mitreist' + '</p>'
+		// ⚠️ „die mitreisEN" im Plural -- hier stand „Die Quellen, die mitreist", seit der Artikel
+		// am 31.08.2026 als zweite Quelle dazukam und nur das Hauptwort ein „n" bekam.
+		return '<p class="gi-sec">'
+			+ (artikelLabel !== "" ? "Die Quellen, die mitreisen" : "Die Quelle, die mitreist")
+			+ "</p>"
 			+ '<p class="gi-why">'
 			+ teile.join(" · ")
 			+ " — einmal an der Quelle, nicht an jedem Objekt.</p>";
@@ -3262,6 +3276,52 @@
 	// Anfrage aus.
 	let _garetienWikiLandschaftLetzterKey = null;
 
+	// 💣 DAS ERGEBNIS MUSS GEMERKT WERDEN, SONST STEHT „wird gesucht …" FÜR IMMER DA (Owner-Meldung
+	// 02.09.2026: „bei „Die Quelle, die mitreist" steht unten immer Wiki-Landschaft wird gesucht …").
+	//
+	// Der Riegel darüber („EIN Aufruf je Objektwechsel") ist richtig -- aber er allein war die
+	// halbe Regel. Das MARKUP wird bei jedem `garetienDetailRendern` neu gebaut und steht dann
+	// wieder auf dem Wartetext; der Lader feuert kein zweites Mal, weil sein Schlüssel schon passt.
+	// Und ein zweites Rendern kommt garantiert: `garetienDetailRendern` stößt beim Öffnen ZWEI
+	// Abrufe an, und der zweite (`garetienNaeheBeiBedarfLaden`) ruft in seinem `.then()`
+	// ausdrücklich wieder `garetienDetailRendern`. Wessen Antwort zuletzt eintrifft, entscheidet
+	// also, ob die Zeile ihr Ergebnis behält -- ein Wettlauf, den die Nähe meistens gewinnt.
+	//
+	// ⭐ Die Bauform steht schon daneben: `_garetienWikiSucheZustand` (die manuelle Suche) hält ihr
+	// `ergebnis` je Schlüssel und ZEICHNET DARAUS. Genau das tut dieser Speicher, damit der
+	// Wartetext nur noch steht, solange wirklich ein Abruf läuft.
+	// ⚠️ Örtlich und ungeschrieben, wie die manuelle Suche: ein Fensterschließen verwirft ihn, und
+	// beim nächsten Öffnen wird neu gefragt.
+	let _garetienWikiLandschaftErgebnis = {};
+
+	// REIN: der Stand der Zeile „Wiki-Landschaft" -- `null` heißt „es läuft noch".
+	// ⚠️ Gemerkt wird BEIDES, der Anzeigetext UND der `status`: an letzterem hängt, ob die
+	// manuelle Suche darunter aufgeht (`garetienWikiSucheBeiBedarfZeigen`). Nur den Text zu
+	// merken hieße, dass die Suchbox beim nächsten Rendern wieder verschwindet -- derselbe
+	// Fehler eine Zeile tiefer.
+	function garetienWikiLandschaftStand(objekt) {
+		const key = String((objekt && objekt.key) || "");
+		return Object.prototype.hasOwnProperty.call(_garetienWikiLandschaftErgebnis, key)
+			? _garetienWikiLandschaftErgebnis[key]
+			: null;
+	}
+
+	// Trägt den Stand in die schon stehende Zeile nach, ohne sie neu zu bauen.
+	// 💣 GESCHRIEBEN WIRD IN DEN WERT-`<span>`, NICHT IN DIE ZEILE. Die `id` sitzt am `<p>`, und
+	// das trägt „Wiki-Landschaft" als Text VOR dem `<span>`; ein `textContent` am `<p>` löschte die
+	// Beschriftung gleich mit, und übrig bliebe ein Satz ohne Gegenstand. Genau das tat der
+	// bisherige Lader -- es fiel nur nie auf, weil er sein Ergebnis ohnehin nie zu sehen bekam.
+	function garetienWikiLandschaftZeileSchreiben(objekt) {
+		if (!hasDocument) { return; }
+		const zeile = document.getElementById(garetienWikiLandschaftPlatzhalterId(objekt));
+		if (!zeile) { return; }
+		const wert = typeof zeile.querySelector === "function"
+			? zeile.querySelector(".gi-insert__val")
+			: null;
+		const stand = garetienWikiLandschaftStand(objekt);
+		(wert || zeile).textContent = stand === null ? "wird gesucht …" : stand.text;
+	}
+
 	// ---- KORREKTUR B (Owner-Nachtrag 30.08.2026, wörtlich: „kein automatischer Treffer nach
 	// Namen -> TROTZDEM WILL ICH DIE WIKI-SYNC SUCHE!"). Ein Objekt ohne automatischen Treffer ist
 	// GENAU der Fall, in dem ein Mensch suchen will -- die bisherige Zeile war eine Sackgasse.
@@ -3362,6 +3422,14 @@
 	}
 
 	function garetienWikiSucheEinrichten(host, objekt) {
+		// 💣 EINMAL JE KNOTEN. Seit `garetienWikiLandschaftBeiBedarfLaden` den Kasten bei JEDEM
+		// Rendern nachträgt, kann diese Funktion denselben `host` ein zweites Mal sehen -- und drei
+		// doppelt angemeldete Zuhörer schickten dann je Klick zwei Suchen los. Das ist die
+		// Doppelanmeldung aus AGENTS.md §11 („Das Sammelmenü im Menüband"): jede einzelne Zeile
+		// sieht dabei richtig aus. Der Riegel hängt am Knoten, nicht am Objekt -- ein neu gebauter
+		// `host` ist ein neuer Knoten und bekommt seine Zuhörer wie bisher.
+		if (host.dataset && host.dataset.gwsBereit === "1") { return; }
+		if (host.dataset) { host.dataset.gwsBereit = "1"; }
 		host.addEventListener("input", function (ereignis) {
 			const ziel = ereignis && ereignis.target;
 			if (!ziel || !ziel.hasAttribute || !ziel.hasAttribute("data-gws-suche")) { return; }
@@ -3409,6 +3477,16 @@
 	function garetienWikiLandschaftBeiBedarfLaden(objekt) {
 		if (!objekt) { _garetienWikiLandschaftLetzterKey = null; return; }
 		const schluessel = String(objekt.key || "");
+		// 💣 DER FRISCH GEBAUTE KASTEN WIRD ZUERST NACHGETRAGEN, AUCH WENN SCHON GEFRAGT WURDE.
+		// Diese Funktion läuft bei JEDEM `garetienDetailRendern`, das Markup ist also gerade neu
+		// -- die Zeile steht auf dem Wartetext und die manuelle Suche wieder auf `hidden`. Ohne
+		// diesen Vorlauf hinge beides an der EINEN Antwort, die es je Objekt gibt, und wäre nach
+		// dem nächsten Rendern verloren (Owner-Meldung 02.09.2026).
+		const stand = garetienWikiLandschaftStand(objekt);
+		if (stand !== null) {
+			garetienWikiLandschaftZeileSchreiben(objekt);
+			garetienWikiSucheBeiBedarfZeigen(objekt, stand.status);
+		}
 		if (schluessel === _garetienWikiLandschaftLetzterKey) { return; }
 		_garetienWikiLandschaftLetzterKey = schluessel;
 		if (!hasDocument || typeof fetch !== "function") { return; }
@@ -3417,15 +3495,26 @@
 			name: String(objekt.name || ""),
 			subtyp: String(objekt.subtyp || ""),
 		}).then(function (antwort) {
-			if (zustand.detailKey !== schluessel) { return; }
 			const urteil = antwort.wiki_landschaft || {};
-			const feld = document.getElementById(garetienWikiLandschaftPlatzhalterId(objekt));
-			if (feld) { feld.textContent = garetienWikiLandschaftZeileText(urteil); }
+			// 💣 GEMERKT WIRD IMMER, auch wenn der Editor inzwischen weitergeklickt hat: der Wert
+			// gehört dem SCHLÜSSEL, nicht dem gerade offenen Fenster. Klickt er zurück, steht das
+			// Ergebnis sofort da, statt hinter einem Riegel zu verschwinden, der keine zweite
+			// Anfrage mehr zulässt.
+			_garetienWikiLandschaftErgebnis[schluessel] = {
+				text: garetienWikiLandschaftZeileText(urteil),
+				status: String(urteil.status || ""),
+			};
+			if (zustand.detailKey !== schluessel) { return; }
+			garetienWikiLandschaftZeileSchreiben(objekt);
 			garetienWikiSucheBeiBedarfZeigen(objekt, String(urteil.status || ""));
 		}).catch(function () {
+			// ⚠️ Ein Fehlschlag zählt als „kein Treffer" -- er ist GENAU der Fall, in dem der Editor
+			// selbst suchen können muss (Owner-Nachtrag 30.08.2026, KORREKTUR B).
+			_garetienWikiLandschaftErgebnis[schluessel] = {
+				text: "Suche fehlgeschlagen.", status: "kein_treffer",
+			};
 			if (zustand.detailKey !== schluessel) { return; }
-			const feld = document.getElementById(garetienWikiLandschaftPlatzhalterId(objekt));
-			if (feld) { feld.textContent = "Suche fehlgeschlagen."; }
+			garetienWikiLandschaftZeileSchreiben(objekt);
 			garetienWikiSucheBeiBedarfZeigen(objekt, "kein_treffer");
 		});
 	}
@@ -3656,8 +3745,15 @@
 		markup += garetienEingefuegtWirdUeberschrift("Wiki und Quellen");
 		markup += garetienQuellenMarkup(objekt);
 		if (ziel === "region") {
+			// 🔴 DER STAND KOMMT AUS DEM SPEICHER, NICHT FEST AUS DEM WARTETEXT: dieses Markup wird
+			// bei jedem `garetienDetailRendern` neu gebaut, und der Lader feuert je Objekt nur
+			// einmal (siehe `_garetienWikiLandschaftErgebnis`). Fest gesetzt stand hier für immer
+			// „wird gesucht …".
+			const wikiLandschaftStand = garetienWikiLandschaftStand(objekt);
 			markup += '<p class="gi-insert__row" id="' + garetienWikiLandschaftPlatzhalterId(objekt) + '">'
-				+ 'Wiki-Landschaft <span class="gi-insert__val">wird gesucht …</span></p>'
+				+ 'Wiki-Landschaft <span class="gi-insert__val">'
+				+ avesmapsGaretienEscape(wikiLandschaftStand === null ? "wird gesucht …" : wikiLandschaftStand.text)
+				+ "</span></p>"
 				// KORREKTUR B: die manuelle Suche -- verborgen, bis der automatische Treffer oben als
 				// leer/mehrdeutig/fehlgeschlagen feststeht (garetienWikiSucheBeiBedarfZeigen).
 				+ '<div id="' + garetienWikiSucheHostId(objekt) + '" hidden></div>';
@@ -4063,10 +4159,36 @@
 	const AVESMAPS_GARETIEN_HANDLUNG_BESCHRIFTUNG = {
 		neu: "Neu einfügen",
 		name: "Namen ersetzen",
-		quelle: "Nur Quelle + Artikel",
+		quelle: "Quelle + Artikel einfügen",
 		geometrie: "Ausgewählte Segmente ersetzen",
 		ablehnen: "Ablehnen",
 		wieder: "Wieder vorschlagen",
+	};
+
+	/*
+	 * Welcher Knopf welchen Farbton trägt (Owner 02.09.2026, wörtlich: „ich finde „Neu einfügen"
+	 * sollte immer grün und „Ablehnen" immer rot sein ... Der rest sollte eher neutral sein").
+	 *
+	 * 🔴 EINE TAFEL, KEIN `if`. Bis hierher stand der Ton als `name === "ablehnen" ? "danger" : ""`
+	 * mitten in `garetienHandlungBauen` -- ein zweiter farbiger Knopf wäre dort ein zweites `if`
+	 * geworden, und der dritte ein drittes. Die drei Knöpfe, die sich ihren Ton selbst geben
+	 * (`ruecknahme`, `ruecknahme_ablehnen`, `zurueck_offen`), tun das weiterhin an ihrer eigenen
+	 * Bauform -- sie entstehen gar nicht über `garetienHandlungBauen`.
+	 *
+	 * 🔴 SCHRIFT UND RAHMEN, NIE FÜLLUNG -- für BEIDE Töne. Die eine gefüllte Handlung dieses
+	 * Fensters heißt „Angehakte übernehmen" und steht im Fuß; eine Zeilenhandlung ist nie die
+	 * Haupthandlung der Seite (AGENTS.md §12). Das ist zugleich der Riegel gegen eine Kollision,
+	 * die man sonst erst im Browser sieht: `btn--done` („alle Items dieses Knopfes sind
+	 * vorgemerkt") ist eine grüne FÜLLUNG. Wäre „Neu einfügen" ebenfalls gefüllt-grün, wären
+	 * „kann angelegt werden" und „ist schon vorgemerkt" nicht mehr zu unterscheiden.
+	 *
+	 * ⚠️ Grün ist hier DATEN, nicht Chrome (docs/design-language.md): es kodiert „legt etwas an",
+	 * so wie Rot „nimmt etwas heraus" kodiert -- dieselbe Begründung, unter der `btn--done` schon
+	 * grün sein darf.
+	 */
+	const AVESMAPS_GARETIEN_HANDLUNG_TON = {
+		neu: "go",
+		ablehnen: "danger",
 	};
 
 	// Die Knöpfe, die ihre Zahl im Namen tragen. 🔴 „(n)" ist die Zahl der schon ANGEHAKTEN
@@ -4197,6 +4319,109 @@
 		wieder: function () { return true; },
 	};
 
+	/*
+	 * REIN: wie EIN Abschnitt in einem Satz heißt -- „„Rakula"" oder, ohne Namen, seine
+	 * `public_id` („Fläche-057"). Dieselbe Ordnung wie in `garetienGeometrieRueckfrageText`:
+	 * der Name des Editors zuerst, die Kennung als Rückfall.
+	 * ⚠️ OHNE die Klammerkennung hinter dem Namen, anders als dort. Die Rückfrage darf lang sein,
+	 * eine Knopfbeschriftung nicht -- und „Bei „Rakula" (Fluss-118) Quelle + Artikel einfügen (1)"
+	 * ist kein Knopf mehr, sondern ein Satz. Die Kennung steht ohnehin in der Abschnittszeile
+	 * darüber, auf die der Knopf sich bezieht.
+	 */
+	function garetienAbschnittKurzname(abschnitt) {
+		const name = String((abschnitt && abschnitt.name) || "").trim();
+		const publicId = String((abschnitt && abschnitt.public_id) || "").trim();
+		if (name !== "") { return "„" + name + "\""; }
+		return publicId !== "" ? publicId : "diesem Abschnitt";
+	}
+
+	/*
+	 * REIN: WO „Quelle + Artikel" landet -- der Owner will es im Knopf lesen (02.09.2026,
+	 * wörtlich: „Nur „Quelle + Artikel (1)" sollte z.B. „Bei Fläche-057 Quelle + Artikel einfügen
+	 * (1)"").
+	 *
+	 * 🔴 GEZÄHLT WIRD ÜBER DIE ITEMS DES KNOPFES, nicht über `objekt.abschnitte`. Der Knopf wirkt
+	 * auf genau die Abschnitte, für die es ein Quelle-Item gibt (`felder` enthält 'quelle', nicht
+	 * 'name') -- ein Objekt kann sehr wohl sechs getroffene Abschnitte haben und nur an zweien
+	 * eine Quellenlücke. Die Beschriftung nennt sonst ein Ziel, das der Klick nicht anfasst.
+	 * ⚠️ `""` heißt „nichts zu benennen" -- dann bleibt es bei der schlichten Beschriftung. Das ist
+	 * der Fall des ausgegrauten Knopfes, und der sagt seinen Grund ohnehin selbst.
+	 */
+	function garetienQuelleZielText(items) {
+		const ids = [];
+		const nach = {};
+		(items || []).forEach(function (item) {
+			const abschnitt = (item && item.abschnitt) || null;
+			if (!abschnitt) { return; }
+			const publicId = String(abschnitt.public_id || "");
+			if (publicId === "" || Object.prototype.hasOwnProperty.call(nach, publicId)) { return; }
+			nach[publicId] = abschnitt;
+			ids.push(publicId);
+		});
+		if (ids.length === 0) { return ""; }
+		if (ids.length === 1) { return garetienAbschnittKurzname(nach[ids[0]]); }
+		return ids.length + " Abschnitten";
+	}
+
+	/*
+	 * REIN: der Tooltip EINES Knopfes -- er nennt die FOLGE, statt die Beschriftung zu wiederholen
+	 * (Owner 02.09.2026: „einfache tooltips helfen zu verstehen was welcher button eigentlich
+	 * macht").
+	 *
+	 * 🔴 HIER WIRD ERKLÄRT, WAS „ARTIKEL" IST (Owner: „Außerdem ist unklar, was „Artikel" ist").
+	 * Es ist der eigene Wiki-Artikel des Objekts auf dem Wirt (garetien.de/koschwiki.de) -- die
+	 * ZWEITE Quelle neben der Sammelquelle „Briefspiel (Garetien)" (Owner 31.08.2026: „kann man den
+	 * artikel dann als zusaetzliche quelle angeben?"). Genannt wird er BEIM NAMEN, aus denselben
+	 * Daten, aus denen der Abschnitt „Die Quellen, die mitreisen" ihn zeigt -- nicht aus einer
+	 * zweiten Herleitung.
+	 * ⚠️ Bei 42 % der Zeilen gibt es keinen Artikel. Dann sagt der Satz das auch, statt eine
+	 * Quelle zu versprechen, die nicht mitreist.
+	 */
+	function garetienHandlungTitel(name, objekt, zielText) {
+		const o = objekt || {};
+		const objektName = String(o.name || "").trim();
+		const benannt = objektName === "" ? "dieses Objekt" : "„" + objektName + "\"";
+		const ziel = String(zielText || "").trim() === "" ? "den getroffenen Abschnitt" : zielText;
+		const sammel = String(((o.quelle || {}).label) || "").trim();
+		const artikel = String(((o.artikel_quelle || {}).label) || "").trim();
+		const quellenSatz = artikel === ""
+			? (sammel === ""
+				? "die Quellenangabe dieses Laufs"
+				: "die Sammelquelle „" + sammel + "\" (einen eigenen Wiki-Artikel hat dieses "
+					+ "Objekt nicht)")
+			: (sammel === ""
+				? "den Wiki-Artikel „" + artikel + "\""
+				: "die Sammelquelle „" + sammel + "\" und den Wiki-Artikel „" + artikel + "\"");
+
+		switch (name) {
+		case "neu":
+			return garetienNeuIstZusatz(o)
+				? "Legt " + benannt + " ZUSÄTZLICH als eigenes Objekt an, obwohl der Abgleich eine "
+					+ "Übereinstimmung gefunden hat. Das bestehende Objekt bleibt unberührt."
+				: "Legt " + benannt + " als neues Objekt auf der Karte an — mit den Einstellungen "
+					+ "aus „Eingefügt wird\" und den Quellen darunter.";
+		case "quelle":
+			return "Trägt bei " + ziel + " nur die Quellen nach: " + quellenSatz
+				+ ". Name, Verlauf und alle übrigen Felder bleiben unverändert.";
+		case "ablehnen":
+			return "Nimmt " + benannt + " aus dem Arbeitsvorrat — auf der Karte wird nichts "
+				+ "geändert. Über „Wieder vorschlagen\" zurückzuholen.";
+		case "wieder":
+			return "Hebt die Ablehnung auf und stellt " + benannt + " zurück in den Arbeitsvorrat.";
+		case "ruecknahme":
+			return "Löscht wieder von der Karte, was beim Übernehmen angelegt wurde. Nicht mit "
+				+ "einem Knopf umkehrbar.";
+		case "ruecknahme_ablehnen":
+			return "Löscht das Angelegte wieder von der Karte UND lehnt " + benannt + " danach ab, "
+				+ "damit es nicht erneut vorgeschlagen wird. Nicht mit einem Knopf umkehrbar.";
+		case "zurueck_offen":
+			return "Setzt den Vermerk „übernommen\" zurück, damit " + benannt + " wieder im "
+				+ "Arbeitsvorrat steht. Auf der Karte wird nichts geändert.";
+		default:
+			return "";
+		}
+	}
+
 	// REIN: warum ein Knopf ausgegraut ist -- "" heißt „er ist bedienbar".
 	// 💣 Ein ausgegrauter Knopf muss sagen, warum. Ein Knopf ohne Grund ist von einem kaputten
 	// Knopf nicht zu unterscheiden.
@@ -4255,7 +4480,20 @@
 			.filter(function (id) { return id > 0; });
 		const angehakt = items.filter(avesmapsGaretienItemIstAngehakt).length;
 		const grund = garetienHandlungGrund(name, objekt, items);
+		// Wo dieser Knopf hinschreibt -- heute nur bei „Quelle + Artikel" gefragt (Owner
+		// 02.09.2026). ⚠️ Der Tooltip bekommt ihn AUCH, wenn er nicht in die Beschriftung passt:
+		// dort ist Platz für den vollen Satz.
+		const zielText = name === "quelle" ? garetienQuelleZielText(items) : "";
 		let beschriftung = AVESMAPS_GARETIEN_HANDLUNG_BESCHRIFTUNG[name] || name;
+		if (zielText !== "") {
+			// „Bei „Rakula" Quelle + Artikel einfügen" -- der Owner-Wortlaut. Das „Bei …" steht
+			// VORNE, damit die Zahl am Ende bleibt, wo sie bei jedem anderen Knopf auch steht.
+			// ⚠️ OHNE die Beschriftung kleinzuschreiben: „Quelle" ist ein Substantiv und bleibt
+			// gross, auch mitten im Satz („Bei Fläche-057 Quelle + Artikel einfügen (1)", so der
+			// Owner). Ein automatisches `toLowerCase()` auf dem ersten Zeichen ist hier die
+			// englische Gewohnheit, nicht die deutsche Regel.
+			beschriftung = "Bei " + zielText + " " + beschriftung;
+		}
 		if (AVESMAPS_GARETIEN_HANDLUNG_MIT_ZAHL[name]) {
 			beschriftung += " (" + angehakt + ")";
 		}
@@ -4266,10 +4504,10 @@
 		return {
 			name: name,
 			beschriftung: beschriftung,
-			// 🔴 „Ablehnen" trägt --color-danger als SCHRIFT, nie als Füllung: die eine gefüllte
-			// Handlung dieses Fensters heißt „Angehakte übernehmen" und steht im Fuß. Eine
-			// Zeilenhandlung ist nie die Haupthandlung der Seite (AGENTS.md §12).
-			ton: name === "ablehnen" ? "danger" : "",
+			titel: garetienHandlungTitel(name, objekt, zielText),
+			// Der Ton kommt aus der Tafel, nicht aus einem `if` -- siehe
+			// AVESMAPS_GARETIEN_HANDLUNG_TON.
+			ton: AVESMAPS_GARETIEN_HANDLUNG_TON[name] || "",
 			ids: ids,
 			angehakt: angehakt,
 			gesamt: items.length,
@@ -4340,12 +4578,14 @@
 		if (items.length === 0) {
 			return {
 				name: "ruecknahme", beschriftung: "Zurücknehmen", ton: "danger",
+				titel: garetienHandlungTitel("ruecknahme", objekt, ""),
 				ids: [], angehakt: 0, gesamt: 0, erledigt: false, disabled: true,
 				grund: "Verändert ein bestehendes Objekt — nicht rücknehmbar.",
 			};
 		}
 		return {
 			name: "ruecknahme", beschriftung: "Zurücknehmen", ton: "danger",
+			titel: garetienHandlungTitel("ruecknahme", objekt, ""),
 			ids: items.map(function (item) { return item.id; }),
 			angehakt: 0, gesamt: items.length, erledigt: false, disabled: false, grund: "",
 		};
@@ -4383,6 +4623,7 @@
 		const alle = ((objekt && objekt.items) || []).map(function (item) { return item.id; });
 		return {
 			name: "ruecknahme_ablehnen", beschriftung: "Ablehnen", ton: "danger",
+			titel: garetienHandlungTitel("ruecknahme_ablehnen", objekt, ""),
 			ids: items.map(function (item) { return item.id; }),
 			ablehnenIds: alle,
 			angehakt: 0, gesamt: items.length, erledigt: false, disabled: false, grund: "",
@@ -4426,6 +4667,7 @@
 		if (items.length === 0) { return null; }
 		return {
 			name: "zurueck_offen", beschriftung: "Zurück nach Offen", ton: "soft",
+			titel: garetienHandlungTitel("zurueck_offen", objekt, ""),
 			ids: items.map(function (item) { return item.id; }),
 			angehakt: 0, gesamt: items.length, erledigt: false, disabled: false, grund: "",
 		};
@@ -4587,16 +4829,22 @@
 			}
 			let klasse = "btn";
 			if (k.ton === "danger") { klasse += " btn--danger"; }
+			if (k.ton === "go") { klasse += " btn--go"; }
 			if (k.erledigt) { klasse += " btn--done"; }
 			let attribute = ' class="' + klasse + '" type="button"'
 				+ ' data-handlung="' + avesmapsGaretienEscape(k.name) + '"'
 				+ ' data-key="' + schluessel + '"';
 			if (k.disabled) {
+				// 🔴 BEIM GESPERRTEN KNOPF SCHLÄGT DER GRUND DIE ERKLÄRUNG. „Warum kann ich das
+				// gerade nicht" ist die Frage, die dort ansteht -- was der Knopf täte, wenn er
+				// könnte, ist die zweite. Der Grund steht ohnehin auch sichtbar darunter.
 				attribute += ' disabled title="' + avesmapsGaretienEscape(k.grund) + '"';
 				// ⚠️ Ohne die Auslassungspunkte: „Ausgewählte Segmente ersetzen (0) …: kein
 				// Abschnitt ist angehakt …" liest sich wie ein abgebrochener Satz. Das „…" gehört
 				// auf den Knopf (es kündigt die Rückfrage an), nicht in einen Satz über ihn.
 				gruende.push(k.beschriftung.replace(/\s*…$/, "") + ": " + k.grund);
+			} else if (String(k.titel || "") !== "") {
+				attribute += ' title="' + avesmapsGaretienEscape(k.titel) + '"';
 			}
 			return "<button" + attribute + ">" + avesmapsGaretienEscape(k.beschriftung)
 				+ (k.erledigt ? " ✓" : "") + "</button>";
@@ -6188,6 +6436,7 @@
 			garetienWikiLandschaftZeileText,
 			garetienWikiLandschaftPlatzhalterId,
 			garetienWikiLandschaftBeiBedarfLaden,
+			garetienWikiLandschaftStand,
 			// Owner-Auftrag A (30.08.2026): „Imports in der Nähe anzeigen"
 			garetienNaeheKnopfZustand,
 			garetienNaeheMarkup,
@@ -6203,7 +6452,17 @@
 			garetienAbschnittsBeschriftung,
 			garetienAbschnittsGruppen,
 			garetienAbschnittMarkup,
+			// 02.09.2026: Ziel und Tooltip der Knopfleiste -- rein, damit sich am ERGEBNIS messen
+			// laesst, was ein Knopf sagt, statt im Quelltext nach einem `if` zu suchen.
+			garetienAbschnittKurzname,
+			garetienQuelleZielText,
+			garetienHandlungTitel,
+			AVESMAPS_GARETIEN_HANDLUNG_TON,
 			garetienDetailWaehlen,
+			// 02.09.2026: der Test braucht das ERNEUTE Rendern desselben Objekts -- genau daran ist
+			// die Zeile „Wiki-Landschaft" gescheitert, und ohne diesen Export laesst es sich nicht
+			// nachstellen.
+			garetienDetailRendern,
 			garetienListeKlick,
 			// Aufgabe 14
 			avesmapsGaretienFensterSchliessen,

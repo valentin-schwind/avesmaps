@@ -1068,13 +1068,47 @@ html.avesmaps-planner-collapsed .gi-win {
 	border-color: var(--color-danger-soft-border);
 }
 
-/* Der ERLEDIGT-Zustand: alle Items dieses Knopfes sind angehakt. 🔴 Der Zustand steht IM Knopf --
-   „Namen ersetzen (1) ✓" --, nicht in einer Zeile daneben. Gruen ist hier DATEN (erledigt), nicht
-   Chrome; dieselbe weiche Erfolgs-Familie wie ueberall im Haus. */
-.gi-win .btn--done {
-	background: var(--color-success-soft);
-	border-color: var(--color-success-soft-border);
+/* „Neu einfuegen" traegt Gruen -- Owner 02.09.2026 („„Neu einfuegen" sollte immer gruen und
+   „Ablehnen" immer rot sein ... Der rest sollte eher neutral sein"). Genau dieselbe Bauform wie
+   `.btn--danger` daneben: SCHRIFT UND RAHMEN, KEINE FUELLUNG.
+   💣 DIE FUELLUNG IST BEI GRUEN NICHT NUR EINE STILFRAGE, SIE WAERE EINE KOLLISION. Ein paar
+   Zeilen weiter unten faerbt `.btn--done` den Knopf gruen AUS -- das ist der Zustand „alle Items
+   dieses Knopfes sind vorgemerkt". Gefuellt-gruen fuer „kann angelegt werden" machte die zwei
+   Aussagen ununterscheidbar, und zwar lautlos: beide Knoepfe saehen einfach gruen aus.
+   ⚠️ DIESELBE MESSUNG WIE BEIM ROT, ABER MIT UMGEKEHRTEM AUSGANG: genommen wird
+   `--color-success-soft-text`, nicht `--color-success`. Auf dem weichen Knopfgrund
+   (`--color-button-soft`) ergibt `--color-success` im HELLEN Thema 4,22:1 und liegt damit unter
+   den 4,5, die AA fuer 12px (--font-size-small) verlangt; `--color-success-soft-text` ergibt 6,49
+   hell und 6,99 dunkel. 💣 Beim Rot faellt das DUNKLE Thema durch, hier das HELLE -- wer die
+   Begruendung von `.btn--danger` daneben abschreibt statt nachzumessen, bekommt die richtige
+   Farbe aus dem falschen Grund und verteidigt sie beim naechsten Umton in die falsche Richtung.
+   (Genau das ist beim Schreiben dieser Zeile einmal passiert.)
+   ⚠️ Ein GESPERRTER Knopf bleibt grau: `.gi-win .btn:disabled` (weiter oben) traegt (0,3,0) und
+   schlaegt diese Regel (0,2,0) unabhaengig von der Reihenfolge. */
+.gi-win .btn--go {
 	color: var(--color-success-soft-text);
+	border-color: var(--color-success-soft-border);
+}
+
+/* Der ERLEDIGT-Zustand: alle Items dieses Knopfes sind angehakt. 🔴 Der Zustand steht IM Knopf --
+   „Bei „Rakula" Quelle + Artikel einfuegen (1) ✓" --, nicht in einer Zeile daneben.
+   🔴 SEIT 02.09.2026 NEUTRAL GEFUELLT, NICHT GRUEN -- und das ist ein Befund aus dem BROWSER, nicht
+   aus einem Test. Er war die weiche Erfolgs-Familie (Fuellung, Rahmen UND Schrift), und damit war
+   in der Zeile „Bei Fläche-057 Quelle + Artikel einfügen (1) ✓ | Neu einfügen | Ablehnen" der
+   GRUENSTE Knopf ausgerechnet der, der nach der Owner-Regel neutral sein soll -- gruener als
+   „Neu einfügen" daneben, das nur gruene Schrift traegt. Zwei Bedeutungen von Gruen in einer
+   Zeile, und die auffaelligere war die falsche.
+   ⚠️ Die Schrift wird NICHT mehr ueberschrieben: so behaelt „Neu einfügen ✓" sein Gruen und
+   „Quelle + Artikel ✓" sein Neutral -- der Zustand faerbt nicht mehr um, er hebt nur hervor.
+   Unterschieden bleibt er an drei Dingen: Fuellung, Fettung und dem ✓ im Text.
+   ⚠️ Gemessen auf --color-button-soft-active: Grundschrift 5,64 hell / 7,08 dunkel, gruene Schrift
+   5,20 / 5,34 -- beide ueber 4,5. 💣 Die ROTE Schrift kaeme dort auf 4,11 im dunklen Thema; sie
+   kann diesen Zustand heute nicht erreichen (AVESMAPS_GARETIEN_HANDLUNG_HAKT_AN nennt „ablehnen"
+   nicht, und die zwei Ruecknahme-Knoepfe stehen fest auf `erledigt: false`). Wer das aendert, muss
+   hier nachmessen. */
+.gi-win .btn--done {
+	background: var(--color-button-soft-active);
+	border-color: var(--color-button-soft-border);
 	font-weight: var(--font-weight-bold);
 }
 

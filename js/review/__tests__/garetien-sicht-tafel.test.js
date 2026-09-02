@@ -5,10 +5,13 @@
 //
 // Ausfuehren: node js/review/__tests__/garetien-sicht-tafel.test.js
 //
-// 🔴 RULING R3 (Nachtrag §3): `Wege` und `Grenzen` fehlen ABSICHTLICH in der Tafel -- ihre
-// Kartenfarben (Weiss, Grau, Hellwarm) haben KEIN Token (tokens.css:530). `Sonstiges` fehlt aus
-// demselben Grund: ein Sammeltopf ohne eigene Bedeutung hat keine eigene Farbe zu vergeben. Alle
-// drei muessen ueber `neutral: true` laufen, nicht ueber einen erfundenen Tokennamen.
+// 🔴 RULING R3 (Nachtrag §3): `Wege`, `Grenzen` und `Sonstiges` fehlen ABSICHTLICH in der Tafel --
+// sie muessen ueber `neutral: true` laufen, nicht ueber einen erfundenen Tokennamen.
+// 🔴 DIE BEGRUENDUNG HAT SICH AM 02.09.2026 GEAENDERT, DIE REGEL NICHT. Hier stand „ihre
+// Kartenfarben (Weiss, Grau, Hellwarm) haben KEIN Token" -- seit dem 02.09.2026 haben sie eins
+// (`--color-path-reichsstrasse/-strasse/-weg`, Abschnitt 5a). Die Tafel bekommt trotzdem keine
+// Zeile `Wege`: sie greift nur, wenn KEIN `subtyp` vorliegt -- und dann ist gerade nicht bekannt,
+// WELCHE der drei Arten es ist. Eine geratene waere schlimmer als der zurueckhaltende Rueckfall.
 
 "use strict";
 
@@ -144,6 +147,78 @@ Array.from(new Set(ebenenTokens.concat([karte.AVESMAPS_GARETIEN_SICHT_NEUTRAL.to
 	.forEach(function (token) {
 		wahr(tokenDefiniert(token), "Tafel-Token " + token + " steht nicht in css/base/tokens.css");
 	});
+
+// ---- 5a. JEDE Wegart, die der Importer vergeben kann, hat ihr Token (02.09.2026) ----------------
+//
+// 💣 DIE LUECKE, DIE ABSCHNITT 5 NICHT SAH: er prueft die Tokens der EBENEN-Tafel. Der weitaus
+// haeufigere Weg in die Farbe ist aber die HERLEITUNG aus `subtyp` (`--color-path-<subtyp
+// klein>`), und die steht in keiner Tafel -- es gibt dort nichts zu durchlaufen. Live gemeldet am
+// 02.09.2026: „Weg Pulsahain-Reichsstrasse" leitete `--color-path-weg` her, das es nicht gab.
+// Betroffen waren Reichsstrasse, Strasse und Weg -- DREI der fuenf Wegarten, die
+// api/_internal/import/garetien-abgleich.php ueberhaupt vergibt (die zwei uebrigen sind Pfad und
+// Flussweg). Jede importierte Strasse wurde golden gezeichnet, mit einer Konsolenmeldung je Objekt.
+//
+// 🔴 GEPRUEFT WIRD DIE HERLEITUNG, NICHT EINE ZWEITE LISTE. Der Test ruft `sicht()` und liest den
+// Tokennamen, den sie WIRKLICH baut -- eine hier abgeschriebene Liste von Tokennamen liefe beim
+// naechsten Umbau der Herleitung auseinander und wuerde weiter gruen melden.
+// ⚠️ Die Namensquelle ist `PATH_SUBTYPE_KEYS` (js/config.js), die EINE Liste der Wegarten des
+// Hauses -- sie deckt die fuenf des Importers ab und drei weitere, die er heute nicht vergibt.
+// Das ist Absicht: der Deckel darf nicht enger sein als das Vokabular, sonst faellt eine neue
+// Zeile in garetien-abgleich.php still durch.
+// 🪤 `tokenDefiniert` (Abschnitt 5) reicht hier NICHT, und der Mutationstest hat es gezeigt: es
+// sucht ueber die GANZE Datei, findet ein Token also auch dann, wenn es nur im dunklen Block
+// steht. Genau so ueberlebte die Probe das Entfernen des hellen `--color-path-weg`. Eine Farbe,
+// die nur ein Thema kennt, faellt im anderen auf den Wert des ersten zurueck -- und der ist dort
+// gebaut, um sich vom GEGENTEILIGEN Grund abzuheben (dieselbe Lehre wie in
+// js/pages/__tests__/wege-art-farben.test.js). Fuer diese Familie ist „in BEIDEN Bloecken" der
+// Vertrag; die uebrigen Tokens duerfen sehr wohl nur einen Block haben (das dunkle Thema
+// ueberschreibt nur, was es ueberschreiben muss) -- deshalb ein eigener Pruefer statt einer
+// Verschaerfung von `tokenDefiniert`.
+// 💣 KOMMENTARE ZUERST RAUS: tokens.css ERWAEHNT `:root[data-theme="dark"]` schon in seiner
+// Kopfzeile, um zu begruenden, warum das dunkle Thema nicht an `prefers-color-scheme` haengt --
+// ein `indexOf` ueber den Rohtext schnitte den hellen Block nach neun Zeilen ab, und dann fehlte
+// scheinbar JEDES Token.
+const tokensOhneKommentare = tokensCss.replace(/\/\*[\s\S]*?\*\//g, "");
+const dunkelStart = tokensOhneKommentare.indexOf(':root[data-theme="dark"]');
+wahr(dunkelStart > 0, 'Der Block :root[data-theme="dark"] fehlt in css/base/tokens.css');
+const THEMEN_BLOCK = {
+	hell: tokensOhneKommentare.slice(0, dunkelStart),
+	dunkel: tokensOhneKommentare.slice(dunkelStart),
+};
+function tokenImBlock(block, name) {
+	return new RegExp("^\\s*" + name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "\\s*:", "m")
+		.test(block);
+}
+// Die Gegenprobe der Gegenprobe: beide Bloecke muessen wirklich Tokens enthalten, sonst prueft die
+// Schleife darunter zweimal nichts.
+wahr(tokenImBlock(THEMEN_BLOCK.hell, "--color-path-pfad")
+	&& tokenImBlock(THEMEN_BLOCK.dunkel, "--color-path-pfad"),
+	"die Blocktrennung hat nicht funktioniert -- --color-path-pfad steht in beiden Themen");
+
+const konfigJs = fs.readFileSync(path.join(WURZEL, "js", "config.js"), "utf8");
+const wegartenZeile = konfigJs.match(/const PATH_SUBTYPE_KEYS\s*=\s*\[([^\]]*)\]/);
+wahr(wegartenZeile !== null, "PATH_SUBTYPE_KEYS steht nicht (mehr) in js/config.js");
+const WEGARTEN = wegartenZeile[1].split(",")
+	.map(function (t) { return t.trim().replace(/^["']|["']$/g, ""); })
+	.filter(function (t) { return t !== ""; });
+wahr(WEGARTEN.length >= 5, "PATH_SUBTYPE_KEYS wirkt leer gelesen -- dann prueft die Schleife nichts");
+WEGARTEN.forEach(function (art) {
+	// `kind: ""` ist der Weg-Zweig: genau die Form, die garetien-abgleich.php fuer `ziel:'path'`
+	// liefert (`kind => null`).
+	const gebaut = sicht({ ebene: "Wege", typ: art, subtyp: art, kind: "", geometrie_typ: "LineString" });
+	wahr(/^--color-path-[a-z]+$/.test(gebaut.token),
+		"Wegart " + art + " leitet keinen Weg-Tokennamen her, sondern " + gebaut.token);
+	["hell", "dunkel"].forEach(function (thema) {
+		wahr(tokenImBlock(THEMEN_BLOCK[thema], gebaut.token),
+			"Wegart " + art + " leitet " + gebaut.token + " her, aber css/base/tokens.css kennt das "
+			+ "Token im " + thema + "en Thema nicht -- `var()` wird ungueltig, das Objekt faellt "
+			+ "auf Gold zurueck und meldet je Vorkommen einmal in die Konsole "
+			+ "(garetienSichtTokenFehlt).");
+	});
+});
+// Die GEGENPROBE, ohne die die Schleife Vakuum waere: eine erfundene Wegart muss durchfallen.
+wahr(!tokenImBlock(THEMEN_BLOCK.hell, sicht({ subtyp: "Karrenspur", kind: "", geometrie_typ: "LineString" }).token),
+	"eine erfundene Wegart darf kein Token finden -- sonst prueft die Schleife nichts");
 
 // ---- 5b. Eine Siedlungsklasse (30.08.2026) --------------------------------------------------------
 //

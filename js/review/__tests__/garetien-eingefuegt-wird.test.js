@@ -136,6 +136,8 @@ const {
 	garetienWikiLandschaftZeileText,
 	garetienWikiLandschaftPlatzhalterId,
 	garetienDetailWaehlen,
+	garetienDetailRendern,
+	garetienWikiSucheHostId,
 	garetienEingabenZustandZu,
 	garetienEingabenGrundwerte,
 	garetienEingabenAendern,
@@ -1001,6 +1003,122 @@ async function pruefeWikiLandschaftVerdrahtung() {
 	gleich(f3.angefragt[0].rumpf.subtyp, "see", "die eigenen Werte des NEUEN Objekts, nicht die alten");
 	wahr(seePlatzhalter.textContent.startsWith("!"),
 		'Owner-Wortlaut "typ nicht gefunden -> ausrufezeichen" -- das "!" steht am Anfang');
+
+	// ---- L4: DAS ERGEBNIS UEBERLEBT EIN ERNEUTES RENDERN (Owner-Meldung 02.09.2026: „bei „Die
+	// Quelle, die mitreist" steht unten immer Wiki-Landschaft wird gesucht …").
+	//
+	// 🪤 L1-L3 waren gruen und haben den Fehler trotzdem nie gesehen -- BEIDE HAELFTEN GRUEN, DIE
+	// NAHT UNGEPRUEFT. Sie messen `platzhalter.textContent`, und der Platzhalter ist in diesem
+	// Test ein DAUERHAFTES Stub-Objekt: er wird nie neu gebaut. Im Browser baut
+	// `garetienDetailRendern` die ganze Spalte neu (`spalte.innerHTML = …`), die Zeile steht dann
+	// wieder auf dem Wartetext -- und der Lader feuert kein zweites Mal, weil sein Schluessel
+	// schon passt. Ein zweites Rendern kommt dabei GARANTIERT: derselbe Aufruf stoesst auch
+	// `garetienNaeheBeiBedarfLaden` an, und deren `.then()` rendert ausdruecklich noch einmal.
+	//
+	// ⭐ Deshalb misst dieser Abschnitt das MARKUP (`garetien-detailcol`.innerHTML), nicht den
+	// Stub: das Markup ist das, was der Browser wirklich anzeigt.
+	//
+	// Der Ablauf aus der Meldung, Zug fuer Zug: das Objekt ist offen, die Antwort ist da, und
+	// jetzt rendert etwas anderes die Spalte neu (im Browser: das `.then()` von
+	// `garetienNaeheBeiBedarfLaden`).
+	// 💣 Ein `fetch`, das WIRFT -- so faellt auf, wenn dabei doch eine zweite Anfrage losginge.
+	global.fetch = function () { throw new Error("kein zweiter Abruf beim erneuten Rendern"); };
+	garetienDetailRendern([see]);
+	const nachher = ELEMENTE["garetien-detailcol"].innerHTML;
+	wahr(nachher.includes("Wiki-Landschaft"),
+		"die Zeile selbst muss im gerenderten Markup stehen, sonst prueft der Rest nichts");
+	wahr(!nachher.includes("wird gesucht"),
+		"nach der Antwort darf im frisch gebauten Markup KEIN Wartetext mehr stehen -- genau das "
+		+ "war die Meldung vom 02.09.2026");
+	wahr(nachher.includes("Seesumpf"),
+		"das gemerkte Urteil muss beim erneuten Bauen wieder in der Zeile stehen");
+
+	// Und noch einmal -- es darf sich nicht beim zweiten Mal doch noch verlieren.
+	garetienDetailRendern([see]);
+	global.fetch = echtesFetch;
+	const nochmal = ELEMENTE["garetien-detailcol"].innerHTML;
+	wahr(nochmal.includes("Seesumpf") && !nochmal.includes("wird gesucht"),
+		"auch ein zweites, drittes Rendern desselben Objekts behaelt das Urteil");
+
+	// ---- L5: DIE DIFFERENZ, ohne die L4 Vakuum waere -- ein Objekt, dessen Antwort noch NICHT da
+	// ist, zeigt sehr wohl den Wartetext.
+	const nochNichtGefragt = Object.assign({}, huegel, {
+		key: "ggp:Berge:Huegel:Garetien:Testhuegel-noch-nicht-gefragt",
+	});
+	const f4 = machFetch(function () { return { ok: true, wiki_landschaft: {} }; });
+	global.fetch = f4.fn;
+	garetienDetailWaehlen(nochNichtGefragt.key, [nochNichtGefragt]);
+	const waehrend = ELEMENTE["garetien-detailcol"].innerHTML;
+	global.fetch = echtesFetch;
+	wahr(waehrend.includes("wird gesucht"),
+		"solange nichts bekannt ist, MUSS der Wartetext dastehen -- sonst sagt L4 nichts aus");
+	await tick();
+	await tick();
+	// ---- L6: DIE MANUELLE SUCHE KOMMT BEIM ERNEUTEN RENDERN MIT ZURUECK ------------------------
+	//
+	// 💣 SIE HAENGT AN DERSELBEN EINEN ANTWORT wie die Zeile darueber -- und war deshalb nach dem
+	// naechsten Rendern ebenso weg. Der Kasten steht im frisch gebauten Markup auf `hidden`, und
+	// aufgezogen wird er nur von `garetienWikiSucheBeiBedarfZeigen`, das bislang ausschliesslich
+	// aus dem `.then()` des Laders kam. Genau das ist der Fall, in dem der Editor ihn braucht
+	// (Owner-Nachtrag 30.08.2026: „kein automatischer Treffer nach Namen -> TROTZDEM WILL ICH DIE
+	// WIKI-SYNC SUCHE!").
+	//
+	// 🪤 Diese Zusicherung ist nachtraeglich dazugekommen: die Mutationsprobe hat gezeigt, dass
+	// sich der Nachtrag aus `garetienWikiLandschaftBeiBedarfLaden` ENTFERNEN liess, ohne dass ein
+	// einziger Test rot wurde -- die Zeile misst sich am MARKUP, der Kasten aber an einer
+	// DOM-Eigenschaft.
+	const ohneTreffer = Object.assign({}, huegel, {
+		key: "ggp:Berge:Huegel:Garetien:Testhuegel-ohne-treffer",
+	});
+	const suchHost = macheElement(garetienWikiSucheHostId(ohneTreffer));
+	suchHost.hidden = true;
+	ELEMENTE[suchHost.id] = suchHost;
+	ELEMENTE[garetienWikiLandschaftPlatzhalterId(ohneTreffer)] =
+		macheElement(garetienWikiLandschaftPlatzhalterId(ohneTreffer));
+
+	const f5 = machFetch(function () {
+		return { ok: true, wiki_landschaft: { status: "kein_treffer", name: "", art: "" } };
+	});
+	global.fetch = f5.fn;
+	garetienDetailWaehlen(ohneTreffer.key, [ohneTreffer]);
+	await tick();
+	await tick();
+	global.fetch = echtesFetch;
+	gleich(suchHost.hidden, false,
+		"ohne automatischen Treffer geht die manuelle Suche auf -- der Zustand VOR dem erneuten "
+		+ "Rendern");
+
+	// Und jetzt der Zug, der sie bisher verschluckt hat: das Markup wird neu gebaut (der Kasten
+	// steht dann wieder auf `hidden`), ohne dass eine neue Antwort kommt.
+	suchHost.hidden = true;
+	global.fetch = function () { throw new Error("kein zweiter Abruf beim erneuten Rendern"); };
+	garetienDetailRendern([ohneTreffer]);
+	global.fetch = echtesFetch;
+	gleich(suchHost.hidden, false,
+		"💣 und nach dem erneuten Rendern steht sie WIEDER offen -- sonst waere der einzige Weg zur "
+		+ "Wiki-Suche nach dem ersten Listen-Refetch verschwunden");
+
+	// ⚠️ DIE DIFFERENZ: bei einem TREFFER bleibt sie zu -- der Nachtrag zieht sie nicht blind auf.
+	const mitTreffer = Object.assign({}, huegel, {
+		key: "ggp:Berge:Huegel:Garetien:Testhuegel-mit-treffer",
+	});
+	const suchHost2 = macheElement(garetienWikiSucheHostId(mitTreffer));
+	ELEMENTE[suchHost2.id] = suchHost2;
+	ELEMENTE[garetienWikiLandschaftPlatzhalterId(mitTreffer)] =
+		macheElement(garetienWikiLandschaftPlatzhalterId(mitTreffer));
+	const f6 = machFetch(function () {
+		return { ok: true, wiki_landschaft: { status: "passt", name: "Huegel", art: "Hügelland" } };
+	});
+	global.fetch = f6.fn;
+	garetienDetailWaehlen(mitTreffer.key, [mitTreffer]);
+	await tick();
+	await tick();
+	suchHost2.hidden = true;
+	global.fetch = function () { throw new Error("kein zweiter Abruf"); };
+	garetienDetailRendern([mitTreffer]);
+	global.fetch = echtesFetch;
+	gleich(suchHost2.hidden, true,
+		"bei einem Treffer bleibt die manuelle Suche zu -- der Nachtrag zieht sie nicht blind auf");
 }
 
 // =================================================================================================

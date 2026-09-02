@@ -597,12 +597,31 @@
 	   (#f3f0e8). 💣 Die erste Fassung rechnete gegen --color-panel-soft (#faf6ee) und landete bei
 	   4,27 bis 4,38: knapp daneben ist hier unbrauchbar, und nur die Messung in der echten Seite
 	   hat es gezeigt.
-	   ⚠️ Reichsstraße, Straße und Weg haben KEIN Token. Ihre Kartenfarben sind Weiß, Grau und
-	   Hellwarm — als Text wären das keine Farben, sondern Rauschen. Sie tragen die kräftige bzw.
-	   die gedämpfte Schriftfarbe.
+	   🔴 SEIT 02.09.2026 HABEN REICHSSTRASSE, STRASSE UND WEG EIN TOKEN. Hier stand bis dahin
+	   „haben KEIN Token", begründet damit, dass Weiß, Grau und Hellwarm als Text keine Farben
+	   seien, sondern Rauschen. Das galt für die Wegeliste und gilt dort weiter — es galt aber nie
+	   für den ZWEITEN Leser dieser Familie: die Karte des Garetien-Importers leitet ihren Farbton
+	   nach der Hauskonvention als `--color-path-<subtyp>` her (avesmapsGaretienSichtFuer). Für
+	   diese drei gab es nichts, `var()` wurde ungültig, und JEDE importierte Reichsstraße, Straße
+	   und jeder Weg wurde golden statt in seiner Wegart-Farbe gezeichnet — bei einer Konsolen-
+	   meldung je Objekt. Der Importer vergibt genau fünf Wegarten (Flussweg, Reichsstrasse,
+	   Strasse, Weg, Pfad), DREI davon waren betroffen: das war die Mehrheit, kein Sonderfall.
+	   ⚠️ Sie folgen derselben Regel wie ihre fünf Geschwister — der Kartenton, so weit
+	   abgedunkelt/aufgehellt, dass 4,5 erreicht ist. Weil Weiß und Grau abgedunkelt beide zu Grau
+	   werden, trägt die Reichsstraße den KÜHLEN Ton (ihr Kartenrand ist als einziger grau, nicht
+	   weiß), die Straße das reine Neutral und der Weg sein entsättigtes Warm. Gemessen gegen
+	   #f3f0e8: 8,27 / 4,75 / 5,95; jedes Paar dieser Familie liegt bei dE ≥ 10,8 auseinander —
+	   über den bestehenden Nachbarschaften (pfad~wuestenpfad 9,2, flussweg~bach 6,2).
+	   ⚠️ DIE WEGELISTE BEKOMMT SIE NICHT AUTOMATISCH: css/pages/wege-editor.css führt seine Arten
+	   einzeln auf, und wege-art-farben.test.js prüft eine eigene Liste. Wer sie dort haben will,
+	   trägt Regel UND Testliste nach — die Entscheidung „als Text Rauschen" ist damit nicht
+	   aufgehoben, sondern nur nicht mehr die Begründung für ein fehlendes Token.
 	   ⚠️ Blau bei Fluss- und Seeweg ist die Regel, nicht die Ausnahme: docs/design-language.md
 	   („No blue = UI chrome only") erlaubt es ausdrücklich, wo Farbe DATEN kodiert statt
 	   Bedienoberfläche — wie schon bei den Wassertönen der Landschaften-Ebene. */
+	--color-path-reichsstrasse: #3f4750;
+	--color-path-strasse: #6a6a6a;
+	--color-path-weg: #635a4d;
 	--color-path-pfad: #86654e;
 	--color-path-gebirgspass: #965d52;
 	--color-path-wuestenpfad: #7b6a48;
@@ -910,6 +929,11 @@ html.avesmaps-phone {
 	--color-accent-strong: #dcc77e;
 	/* Wegarten im dunklen Thema — dieselben Farbtöne, für den dunklen Panelgrund aufgehellt.
 	   Gemessen 4,7 bis 6,8 (die vorhandene gedämpfte Schrift liegt bei 5,3). */
+	/* Reichsstraße/Straße/Weg — dieselbe Ordnung wie im hellen Thema (kühl / neutral / warm), für
+	   den dunklen Grund aufgehellt. Gemessen gegen #211f19: 12,79 / 7,85 / 9,17. */
+	--color-path-reichsstrasse: #dfe3e9;
+	--color-path-strasse: #b4b3af;
+	--color-path-weg: #cdc0a6;
 	--color-path-pfad: #c79a78;
 	--color-path-gebirgspass: #d99184;
 	--color-path-wuestenpfad: #d8bd85;

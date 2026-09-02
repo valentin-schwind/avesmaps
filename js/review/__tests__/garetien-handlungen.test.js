@@ -41,6 +41,9 @@ const {
 	garetienDetailMarkup,
 	// Aufgabe 9
 	garetienRuecknahmeRueckfrageText, garetienRuecknahmeKlick, garetienRuecknahmeZielSatz,
+	// 02.09.2026: Ton, Ziel und Tooltip der Knopfleiste
+	garetienAbschnittKurzname, garetienQuelleZielText, garetienHandlungTitel,
+	AVESMAPS_GARETIEN_HANDLUNG_TON,
 } = mod;
 
 [["garetienHandlungen", garetienHandlungen], ["garetienHandlungsRumpf", garetienHandlungsRumpf],
@@ -150,6 +153,12 @@ const einer = {
 };
 const strasse = {
 	key: "ggp:Wege:Reichsstrasse:Angbarer", urteil: "ergaenzung", wiki: "ggp",
+	// ⚠️ Name und die zwei Quellen kamen am 02.09.2026 dazu: seit die Knopfleiste ihr ZIEL und
+	// ihre QUELLEN benennt (Tooltips), ist ein Objekt ohne diese Felder kein Alltagsfall mehr,
+	// sondern der Rueckfall -- und der wird weiter unten eigens geprueft (Abschnitt P4).
+	name: "Angbarer Reichsstraße",
+	quelle: { label: "Briefspiel (Garetien)", license: "cc-by-nc-sa-3.0" },
+	artikel_quelle: { label: "Angbarer Reichsstraße", url: "https://www.garetien.de/x" },
 	abschnitte: [1, 2, 3, 4, 5, 6].map((n) => ({ public_id: "w-221" + n, name: "Reichsstrasse 3" })),
 	items: [1, 2, 3, 4, 5, 6].map((n) => ([
 		{ id: 100 + n, anlass: "umbenennung", felder: ["name"], change_type: "changed", selected: 0,
@@ -558,7 +567,10 @@ gleich(knopf(abgelehnt, "wieder").erledigt, false, "und „Wieder vorschlagen\" 
 wahr(!/btn--done[^>]*data-handlung="ablehnen"|data-handlung="ablehnen"[^>]*btn--done/
 	.test(garetienHandlungsMarkup(allesGehakt)),
 	"und auch im Markup traegt „Ablehnen\" die Klasse nicht");
-wahr(/Nur Quelle \+ Artikel \(6\) ✓</.test(leiste), "und sein ✓ steht IM Knopf");
+// ⚠️ Die Beschriftung nennt seit dem 02.09.2026 ihr ZIEL (Owner: „Bei Fläche-057 Quelle +
+// Artikel einfügen (1)"). Bei sechs getroffenen Abschnitten ist das ihre Zahl, nicht ihr Name.
+wahr(/Bei 6 Abschnitten Quelle \+ Artikel einfügen \(6\) ✓</.test(leiste),
+	"und sein ✓ steht IM Knopf, hinter Ziel und Zahl: " + leiste);
 // ⚠️ Der Gegenprobe-Knopf war „Namen ersetzen (0)"; es gibt ihn nicht mehr. „Neu einfuegen"
 // traegt in dieser Lage kein Haekchen und ist damit der nicht-erledigte Zeuge.
 wahr(!/data-handlung="neu"[^>]*btn--done/.test(leiste),
@@ -659,7 +671,11 @@ wahr(!/#[0-9a-fA-F]{3,8}\b/.test(acts.replace(/\/\*[\s\S]*?\*\//g, "")),
 	"keine hartkodierte Farbe -- nur Tokens aus css/base/tokens.css (AGENTS.md §12)");
 wahr(!/\b\d+px\b/.test(acts.replace(/\/\*[\s\S]*?\*\//g, "").replace(/1px solid/g, "")),
 	"keine hartkodierten Abstaende -- nur --space-*/--radius-* (die 1px-Trennlinie ist die Hausform)");
-["--color-danger-soft-text", "--color-success-soft", "--color-divider", "--font-size-caption"]
+// ⚠️ `--color-success-soft` stand hier bis zum 02.09.2026 fuer die Fuellung des Erledigt-
+// Zustands. Die ist seither neutral (`--color-button-soft-active`), und die Erfolgs-Familie
+// traegt nur noch die SCHRIFT von „Neu einfügen" (`--color-success-soft-text`).
+["--color-danger-soft-text", "--color-success-soft-text", "--color-button-soft-active",
+	"--color-divider", "--font-size-caption"]
 	.forEach((token) => {
 		wahr(acts.includes(token + ")"), `das Token ${token} fehlt in der Handlungsleiste`);
 	});
@@ -918,6 +934,180 @@ gleich(garetienHandlungsRumpf("ruecknahme", wegUebernommen, 7), null,
 	"„Zurücknehmen\" hat hier keinen Rumpf -- es hat seine eigene Tür");
 gleich(garetienHandlungsRumpf("ruecknahme_ablehnen", wegUebernommen, 7), null,
 	"und „Ablehnen\" ebenso");
+
+// =================================================================================================
+// P. DIE FARBEN, DAS ZIEL UND DIE TOOLTIPS (Owner 02.09.2026)
+//
+// Woertlich: „kannst du im garetien-importer die farbigen buttons sinnvoll platzieren, ich finde
+// „Neu einfügen" sollte immer grün und „Ablehnen" immer rot sein. Nur „Quelle + Artikel (1)"
+// sollte z.B. „Bei Fläche-057 Quelle + Artikel einfügen (1)" Der rest sollte eher neutral sein.
+// [...] Außerdem ist unklar, was „Artikel" ist [...] einfache tooltips helfen zu verstehen was
+// welcher button eigentlich macht".
+// =================================================================================================
+
+// ---- P1: der Ton haengt an einer TAFEL, und nur zwei Knoepfe tragen einen ----------------------
+tief(Object.keys(AVESMAPS_GARETIEN_HANDLUNG_TON).sort(), ["ablehnen", "neu"],
+	"GENAU zwei Handlungen tragen einen Ton -- „der rest sollte eher neutral sein\"");
+gleich(AVESMAPS_GARETIEN_HANDLUNG_TON.neu, "go", "„Neu einfügen\" ist gruen");
+gleich(AVESMAPS_GARETIEN_HANDLUNG_TON.ablehnen, "danger", "„Ablehnen\" ist rot");
+
+// Und am gebauten Knopf, nicht nur an der Tafel -- sonst koennte sie wirkungslos verdrahtet sein.
+gleich(knopf(strasse, "neu").ton, "go", "der gebaute Knopf traegt den Ton der Tafel");
+gleich(knopf(strasse, "ablehnen").ton, "danger", "und „Ablehnen\" seinen");
+gleich(knopf(strasse, "quelle").ton, "", "💣 „Quelle + Artikel\" bleibt NEUTRAL");
+gleich(knopf(abgelehnt, "wieder").ton, "", "und „Wieder vorschlagen\" ebenso");
+
+// ---- P2: die Klassen im Markup -- und ausdruecklich KEINE Fuellung -----------------------------
+const leisteP = garetienHandlungsMarkup(strasse);
+wahr(/class="btn btn--go"[^>]*data-handlung="neu"/.test(leisteP),
+	"„Neu einfügen\" traegt btn--go: " + leisteP);
+wahr(/class="btn btn--danger"[^>]*data-handlung="ablehnen"/.test(leisteP),
+	"„Ablehnen\" traegt btn--danger: " + leisteP);
+// 💣 DIE GEGENPROBE, die den Sinn traegt: der neutrale Knopf traegt KEINE Tonklasse. Ohne sie
+// koennte die Regel jedem Knopf eine Farbe geben und die Zeilen darueber waeren trotzdem gruen.
+wahr(!/class="[^"]*btn--(go|danger)[^"]*"[^>]*data-handlung="quelle"/.test(leisteP),
+	"„Quelle + Artikel\" traegt weder btn--go noch btn--danger: " + leisteP);
+
+// 💣 UND DIE REGEL, DIE DIE KOLLISION VERHINDERT: `btn--go` faerbt nur Schrift und Rahmen, die
+// FUELLUNG gehoert `btn--done` („alle Items dieses Knopfes sind vorgemerkt"). Gemessen am
+// Stylesheet, denn nur dort steht sie -- ein `background` in .btn--go machte die zwei Aussagen
+// ununterscheidbar, und zwar lautlos.
+const giCss = fs.readFileSync(path.join(WURZEL, "css", "components", "garetien-importer.css"), "utf8");
+const giCssOhneKommentare = giCss.replace(/\/\*[\s\S]*?\*\//g, "");
+const regelGo = (giCssOhneKommentare.match(/\.gi-win \.btn--go\s*\{([^}]*)\}/) || [])[1];
+wahr(typeof regelGo === "string", "css/components/garetien-importer.css hat keine Regel .gi-win .btn--go");
+wahr(/color:\s*var\(--color-success-soft-text\)/.test(regelGo),
+	"btn--go faerbt die Schrift aus der weichen Erfolgs-Familie: " + regelGo);
+wahr(!/background/.test(regelGo),
+	"💣 btn--go darf KEINE Fuellung setzen -- die gehoert btn--done (erledigt), und zwei gruene "
+	+ "Fuellungen waeren nicht mehr zu unterscheiden: " + regelGo);
+const regelDone = (giCssOhneKommentare.match(/\.gi-win \.btn--done\s*\{([^}]*)\}/) || [])[1] || "";
+wahr(/background:\s*var\(--color-/.test(regelDone),
+	"die Gegenprobe: btn--done setzt sehr wohl eine Fuellung -- sonst prueft die Zeile darueber nichts");
+// 🔴 UND SIE IST NEUTRAL, NICHT GRUEN (Befund im Browser, 02.09.2026): war sie die weiche
+// Erfolgs-Fuellung, dann war in der Zeile „Bei Fläche-057 Quelle + Artikel einfügen (1) ✓ |
+// Neu einfügen | Ablehnen" der GRUENSTE Knopf ausgerechnet der, den die Owner-Regel neutral haben
+// will -- gruener als „Neu einfügen", das nur gruene Schrift traegt.
+wahr(!/var\(--color-success/.test(regelDone),
+	"💣 btn--done darf keine Farbe der Erfolgs-Familie tragen -- sonst faerbt der Zustand einen "
+	+ "neutralen Knopf gruener als den gruenen: " + regelDone);
+// ⚠️ Und die Schrift bleibt UNBERUEHRT, damit „Neu einfügen ✓" sein Gruen behaelt.
+wahr(!/(^|;|\s)color:/.test(regelDone),
+	"btn--done ueberschreibt die Schriftfarbe nicht -- sonst verlaere „Neu einfügen ✓\" sein "
+	+ "Gruen: " + regelDone);
+
+// ---- P3: das Ziel steht IM Knopf ---------------------------------------------------------------
+// Der Owner-Fall, Zeichen fuer Zeichen: EIN Abschnitt ohne Namen wird bei seiner Kennung genannt.
+const eineFlaeche = {
+	key: "f", urteil: "ergaenzung", wiki: "ggp", name: "Rakula",
+	quelle: { label: "Briefspiel (Garetien)" }, artikel_quelle: {},
+	abschnitte: [{ public_id: "Fläche-057", name: "", punkte: 9 }],
+	items: [{ id: 31, anlass: "ergaenzung", felder: ["quelle"], change_type: "changed", selected: 1,
+		abschnitt: { public_id: "Fläche-057", name: "" } }],
+};
+gleich(knopf(eineFlaeche, "quelle").beschriftung, "Bei Fläche-057 Quelle + Artikel einfügen (1)",
+	"der Owner-Wortlaut, Zeichen fuer Zeichen");
+// 💣 „Quelle" bleibt GROSS -- ein automatisches Kleinschreiben des ersten Zeichens waere die
+// englische Gewohnheit; im Deutschen ist es ein Substantiv.
+wahr(knopf(eineFlaeche, "quelle").beschriftung.includes(" Quelle + Artikel"),
+	"„Quelle\" bleibt gross geschrieben, auch mitten im Satz");
+
+// Ein BENANNTER Abschnitt wird bei seinem Namen genannt, nicht bei seiner Kennung.
+const einBenannter = JSON.parse(JSON.stringify(eineFlaeche));
+einBenannter.abschnitte[0].name = "Rakula";
+einBenannter.items[0].abschnitt.name = "Rakula";
+gleich(knopf(einBenannter, "quelle").beschriftung, "Bei „Rakula\" Quelle + Artikel einfügen (1)",
+	"ein benannter Abschnitt wird bei seinem Namen genannt");
+
+// MEHRERE werden gezaehlt -- ein Knopf ist kein Satz, und sechs Namen passten nicht hinein.
+gleich(knopf(strasse, "quelle").beschriftung, "Bei 6 Abschnitten Quelle + Artikel einfügen (6)",
+	"mehrere Abschnitte werden gezaehlt");
+
+// 🔴 GEZAEHLT WIRD UEBER DIE ITEMS DIESES KNOPFES, nicht ueber `objekt.abschnitte`. Die Strasse
+// hat sechs getroffene Abschnitte; haette nur einer eine Quellenluecke, muesste der Knopf DIESEN
+// EINEN nennen -- sonst benennt er ein Ziel, das der Klick gar nicht anfasst.
+const strasseEineLuecke = JSON.parse(JSON.stringify(strasse));
+strasseEineLuecke.items = strasseEineLuecke.items.filter(function (i) {
+	return i.felder.indexOf("name") !== -1 || i.abschnitt.public_id === "w-2213";
+});
+gleich(knopf(strasseEineLuecke, "quelle").beschriftung,
+	"Bei „Reichsstrasse 3\" Quelle + Artikel einfügen (1)",
+	"sechs getroffene Abschnitte, EINE Quellenluecke -- benannt wird die Luecke");
+
+// Und die reine Regel dahinter, ohne Knopf drumherum.
+gleich(garetienQuelleZielText([]), "", "ohne Item gibt es nichts zu benennen");
+gleich(garetienAbschnittKurzname({ public_id: "w-1", name: "" }), "w-1", "ohne Namen die Kennung");
+gleich(garetienAbschnittKurzname({ public_id: "w-1", name: "Alke" }), "„Alke\"", "mit Namen der Name");
+gleich(garetienAbschnittKurzname({}), "diesem Abschnitt",
+	"und ohne beides ein Satzteil, der sich einbauen laesst");
+// 💣 DERSELBE ABSCHNITT ZWEIMAL IST EIN ZIEL, NICHT ZWEI. Ein Abschnitt kann mehrere Items
+// tragen; gezaehlt wird, WOHIN geschrieben wird.
+gleich(garetienQuelleZielText([
+	{ abschnitt: { public_id: "w-1", name: "Alke" } },
+	{ abschnitt: { public_id: "w-1", name: "Alke" } },
+]), "„Alke\"", "zwei Items an EINEM Abschnitt sind EIN Ziel");
+
+// ---- P4: die Tooltips -- sie nennen die FOLGE und sagen, was „Artikel" ist ----------------------
+const titelQuelle = knopf(strasse, "quelle").titel;
+wahr(titelQuelle.includes("Wiki-Artikel"),
+	"💣 der Tooltip sagt, was „Artikel\" ist -- genau die Frage des Owners: " + titelQuelle);
+wahr(titelQuelle.includes("Sammelquelle"), "und dass die andere die Sammelquelle ist");
+wahr(titelQuelle.includes("bleiben unverändert"),
+	"und er nennt die FOLGE: es wird sonst nichts angefasst");
+// ⚠️ Die Namen kommen aus DENSELBEN Feldern wie der Abschnitt „Die Quellen, die mitreisen" --
+// nicht aus einer zweiten Herleitung.
+wahr(titelQuelle.includes("Briefspiel (Garetien)"),
+	"die Sammelquelle wird BEIM NAMEN genannt, aus dem Feld des Objekts: " + titelQuelle);
+
+// 💣 UND WENN ES KEINEN ARTIKEL GIBT (42 % der Zeilen), verspricht der Satz auch keinen.
+const ohneArtikel = knopf(eineFlaeche, "quelle").titel;
+wahr(ohneArtikel.includes("hat dieses Objekt nicht"),
+	"ohne Artikel sagt der Satz das, statt eine Quelle zu versprechen: " + ohneArtikel);
+wahr(!ohneArtikel.includes("und den Wiki-Artikel „"), "und er nennt keinen");
+
+// Jeder Knopf, den dieses Fenster bauen kann, hat einen Tooltip -- kein stiller Ausfall.
+[[strasse, "neu"], [strasse, "quelle"], [strasse, "ablehnen"], [abgelehnt, "wieder"]]
+	.forEach(function (paar) {
+		const k = knopf(paar[0], paar[1]);
+		wahr(String(k.titel || "").length > 20,
+			"„" + paar[1] + "\" braucht einen Tooltip, der etwas sagt: " + JSON.stringify(k.titel));
+	});
+// Und die, die sich selbst bauen (uebernommenes Objekt) -- sie gehen nicht durch
+// garetienHandlungBauen und haetten den Tooltip sonst still nicht bekommen.
+const uebernommeneKnoepfe = garetienHandlungen(wegUebernommen);
+wahr(uebernommeneKnoepfe.length > 0, "ein uebernommenes Objekt muss Knoepfe haben, sonst prueft "
+	+ "die Schleife nichts");
+uebernommeneKnoepfe.forEach(function (k) {
+	wahr(String(k.titel || "").length > 20,
+		"auch „" + k.name + "\" (uebernommenes Objekt) braucht einen Tooltip: "
+		+ JSON.stringify(k.titel));
+});
+
+// 💣 DIE TOOLTIPS SIND VERSCHIEDEN. Eine Tafel, die jedem denselben Satz gibt, waere gruen und
+// wertlos.
+const alleTitel = ["neu", "quelle", "ablehnen"].map(function (n) { return knopf(strasse, n).titel; });
+gleich(new Set(alleTitel).size, 3, "drei Knoepfe, drei verschiedene Saetze");
+
+// ---- P5: im Markup -- und der GESPERRTE Knopf zeigt seinen GRUND, nicht die Erklaerung ---------
+// ⚠️ Gemessen an „Ablehnen": bei der Strasse ist „Neu einfügen" GESPERRT (der Lauf traegt fuer
+// sie keinen 'new'-Vorschlag) und traegt deshalb zu Recht seinen Grund statt der Erklaerung.
+wahr(/data-handlung="ablehnen"[^>]*title="Nimmt /.test(leisteP),
+	"ein bedienbarer Knopf traegt seinen Tooltip im title: " + leisteP);
+// Und ein bedienbares „Neu einfügen" ebenso -- am Objekt, das wirklich eines anbietet.
+const leisteNeu = garetienHandlungsMarkup(Object.assign({}, eineFlaeche, {
+	urteil: "neu",
+	items: [{ id: 41, anlass: null, felder: ["name", "quelle"], change_type: "new", selected: 1,
+		abschnitt: null }],
+}));
+wahr(/data-handlung="neu"[^>]*title="Legt „Rakula/.test(leisteNeu),
+	"ein bedienbares „Neu einfügen\" traegt seine Erklaerung: " + leisteNeu);
+// 🔴 Beim gesperrten schlaegt der Grund die Erklaerung: „warum kann ich das gerade nicht" ist die
+// Frage, die dort ansteht. (`deckt` ist das Objekt ohne jeden Vorschlag.)
+const leisteGesperrt = garetienHandlungsMarkup(deckt);
+wahr(/disabled title="[^"]*keinen Vorschlag/.test(leisteGesperrt),
+	"der gesperrte Knopf traegt weiter seinen GRUND im title: " + leisteGesperrt);
+wahr(!/disabled title="Nimmt /.test(leisteGesperrt),
+	"und NICHT die Erklaerung -- sie wuerde den Grund verdraengen: " + leisteGesperrt);
 
 console.log(`garetien-handlungen ok -- ${checks} Zusicherungen`);
 }).catch(function (fehler) {
