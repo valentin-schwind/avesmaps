@@ -20,6 +20,9 @@ require_once __DIR__ . '/../../_internal/app/game-literature.php';
 // Die Adressauskunft der Eingabezeile (Korpus + Katalogtreffer + optionaler Abruf). Sie zieht
 // source-corpus.php und den Linkchecker nach; beide sind beim Einbinden nebenwirkungsfrei.
 require_once __DIR__ . '/../../_internal/app/source-inspect.php';
+// Der Titel-Lauf eines Korpus (vorschlagen / uebernehmen). Zieht source-corpus.php und den
+// Seitentitel-Leser nach; beide sind beim Einbinden nebenwirkungsfrei.
+require_once __DIR__ . '/../../_internal/app/source-corpus-run.php';
 
 try {
     $config = avesmapsLoadApiConfig(avesmapsApiRoot());
@@ -61,16 +64,17 @@ try {
     if (!in_array($entityType, $allowedTypes, true)) {
         avesmapsErrorResponse(400, 'invalid_request', 'entity_type muss settlement, region, path, territory, citymap, lore, powerline oder ecosystem sein.');
     }
-    // 🔴 ZWEI AKTIONEN FRAGEN NACH EINEM WIRT, NICHT NACH EINEM OBJEKT, und stehen deshalb ohne
-    // `entity_public_id` da: `inspect_url` (was ist das fuer eine Adresse?) und `save_corpus` (wie
+    // 🔴 DIESE AKTIONEN FRAGEN NACH EINEM WIRT, NICHT NACH EINEM OBJEKT, und stehen deshalb ohne
+    // `entity_public_id` da: `inspect_url`, `save_corpus` und die zwei des Titel-Laufs (wie
     // heisst dieser Wirt?). Das ist kein Schlupfloch, sondern der Fall „Quelle beim Anlegen": dort
     // gibt es das Objekt serverseitig noch gar nicht (der Puffer beantwortet alles andere lokal),
     // und ein Editor, der dort einen Link einfuegt, soll trotzdem erfahren, ob er erreichbar ist.
-    // ⚠️ HIER STAND „als einzige", solange es eine war -- und eine Zahl liest sich wie eine
-    // vollstaendige Liste, die niemand nachzaehlt (AGENTS.md §11). Wer eine dritte ergaenzt,
-    // ergaenzt sie in DIESER Aufzaehlung.
+    // ⚠️ HIER STAND ZWEIMAL EINE ZAHL -- erst „als einzige", dann „zwei", und beide Male war sie
+    // beim naechsten Zuwachs falsch. Eine Zahl liest sich wie eine vollstaendige Liste, und
+    // niemand zaehlt nach (AGENTS.md §11). Die Liste steht deshalb in der Bedingung selbst; wer
+    // eine Aktion ergaenzt, ergaenzt sie DORT.
     // ⚠️ Die Faehigkeit `edit` ist oben laengst geprueft; `inspect_url` bleibt ohnehin lesend.
-    if ($entityPublicId === '' && !in_array($action, ['inspect_url', 'save_corpus'], true)) {
+    if ($entityPublicId === '' && !in_array($action, ['inspect_url', 'save_corpus', 'corpus_titles_probe', 'corpus_titles_apply'], true)) {
         avesmapsErrorResponse(400, 'invalid_request', 'entity_public_id ist erforderlich.');
     }
 
@@ -205,6 +209,33 @@ try {
             }
 
             return $ergebnis;
+        })(),
+        // „Titel aus den Seiten holen" -- der Lauf, der am 02.09.2026 noch als SQL von Hand lief.
+        // Owner: „warum muss ich das manuell machen, warum kann das eine funktion nicht automatisch?"
+        //
+        // 🔴 ZWEI AKTIONEN, und die Trennung ist die Regel: `corpus_titles_probe` SCHLAEGT VOR und
+        // schreibt nichts, `corpus_titles_apply` schreibt NUR, was der Aufrufer nennt. Dieselbe
+        // Zweiteilung wie bei jeder Uebernahme-Vorschau des Hauses -- sonst waere schon das
+        // Ansehen ein Schreibvorgang.
+        // ⚠️ Beide fragen nach einem WIRT, nicht nach einem Objekt (siehe der Riegel oben).
+        'corpus_titles_probe' => (static function () use ($pdo, $payload): array {
+            $key = trim((string) ($payload['corpus_key'] ?? ''));
+            if ($key === '') {
+                avesmapsErrorResponse(400, 'invalid_request', 'corpus_key ist erforderlich.');
+            }
+            // ⚠️ Begrenzt, und der Client treibt die Wiederholung: STRATO vertraegt keinen langen
+            // Lauf in einem Request (AGENTS.md §9), und jede Zeile holt eine fremde Seite.
+            $offset = max(0, (int) ($payload['offset'] ?? 0));
+
+            return ['ok' => true] + avesmapsSourceCorpusTitleProbe($pdo, $key, $offset);
+        })(),
+        'corpus_titles_apply' => (static function () use ($pdo, $payload): array {
+            $writes = $payload['writes'] ?? null;
+            if (!is_array($writes) || $writes === []) {
+                avesmapsErrorResponse(400, 'invalid_request', 'writes muss eine nichtleere Liste sein.');
+            }
+
+            return ['ok' => true] + avesmapsSourceCorpusTitleApply($pdo, $writes);
         })(),
         'remove' => (static function () use ($pdo, $entityType, $entityPublicId, $payload, $userId): array {
             $sourceId = (int) ($payload['source_id'] ?? 0);
