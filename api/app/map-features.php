@@ -30,6 +30,15 @@ require_once __DIR__ . '/../_internal/app/climate-membership.php';
 // Checked before adding: the library is function definitions plus one const, no top-level code,
 // and its 20 function names do not collide with the 24 in this file.
 require_once __DIR__ . '/../_internal/app/feature-sources.php';
+// 💣 UND DAS KORPUS-MODUL DAHINTER, SONST BLEIBT DIE NEUERUNG STILL WIRKUNGSLOS. Seit dem
+// 02.09.2026 traegt die Nutzlast `source_corpora` und je Katalogzeile ihren `corpus`-Schluessel --
+// beides steht hinter `function_exists('avesmapsSourceCorpusReadAll')`, und ohne diese Zeile ist
+// die Bedingung schlicht falsch: der Server antwortete mit LEEREN Korpora, ohne Fehler, ohne
+// Meldung, und die Karte zeigte weiter „Briefspiel" statt „Herzogtum Weiden". Live gemessen und
+// erst DANACH gefunden -- beide Haelften waren gruen, geprueft war die Naht nicht.
+// 🔴 NACH `feature-sources.php`: `source-corpus.php` haengt AN ihr (es liest
+// AVESMAPS_SOURCE_CORPUS_OWNED_FIELDS und die Quellen-Helfer), nicht umgekehrt.
+require_once __DIR__ . '/../_internal/app/source-corpus.php';
 
 // Aus demselben Grund ausgelagert wie avesmapsMapFeaturesPublicImageUrls() weiter unten: diese
 // Datei ist ein ENDPUNKT und laesst sich fuer einen Test nicht seiteneffektfrei einbinden. Der
