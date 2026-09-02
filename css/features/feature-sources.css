@@ -955,6 +955,31 @@
 	line-height: 1.4;
 	color: var(--color-text-muted);
 }
+/* ── Die Abweichung: dieses Feld gehört der QUELLE, nicht dem Korpus ─────────────────────────
+   🔴 Das Häkchen sitzt AM FELD, nicht in der Überschrift. Die Gruppe heißt weiter „Gilt für den
+   ganzen Korpus"; ein angehaktes Feld wäre ohne diesen Marker eine stille Ausnahme unter einer
+   Überschrift, die das Gegenteil verspricht.
+   ⚠️ 11px ist die Untergrenze des Hauses (AGENTS.md §12). */
+.fs-eigen {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--space-4);
+	margin-top: 3px;
+	font-size: 11px;
+	line-height: 1.3;
+	color: var(--color-text-muted);
+	cursor: pointer;
+}
+/* Angehakt: die Beschriftung wechselt in die Akzentfarbe -- dieselbe Sprache wie beim
+   Wiki-Override, wo „von uns gesetzt" ebenfalls braun steht. */
+.fs-field--eigen > span,
+.fs-check.fs-field--eigen {
+	color: var(--color-accent-brown);
+	font-weight: 700;
+}
+.fs-field--eigen .fs-eigen {
+	color: var(--color-accent-brown);
+}
 .fs-edit .fs-field {
 	display: flex;
 	flex-direction: column;
@@ -1075,15 +1100,15 @@
 	gap: 8px;
 	flex-wrap: nowrap;
 }
-/* 🔴 DIE PILLE WIRD UM 0,708px ANGEHOBEN, UND DAS IST GEMESSEN, NICHT GESCHMACK.
+/* 🔴 DIE PILLE WIRD UM 0,542px ANGEHOBEN, UND DAS IST GEMESSEN, NICHT GESCHMACK.
    Die Zeile richtet an der GRUNDLINIE aus (oben). Chip und Nachbartext teilen sich damit die
    Grundlinie -- aber NICHT die optische Mitte: der Chip setzt 11px VERSAL (Versalhoehe 8,63),
    der Nachbar 12px fett gemischtschriftlich (Versalhoehe 9,5). Auf gemeinsamer Grundlinie liegt
    die Pillenmitte dadurch UNTER der Mitte der Textzeile.
-   🔴 SEIT 02.09.2026 SETZT DER CHIP 9px, ALSO IST AUCH DIESER WERT NEU GERECHNET (0,75 -> 0,708).
-   Er haengt an denselben zwei Schriftgroessen wie das Polster darueber; wer eine aendert, misst
-   beide neu. Gemessen: 0,01px Restabweichung -- fuer BEIDE Chipformen dieselbe, seit die zwei
-   Felder der Halbpille gleich gross setzen.
+   🔴 SEIT 02.09.2026 SETZT DAS FARBIGE FELD 9px, ALSO IST AUCH DIESER WERT NEU GERECHNET
+   (0,75 -> 0,542). Er haengt an denselben Groessen wie das Polster darueber; wer eine aendert,
+   misst beide neu. Gemessen: 0,04px Restabweichung -- fuer BEIDE Chipformen dieselbe, weil sie
+   dieselbe Kastenhoehe haben.
 
    ⭐ Warum ein Versatz und nicht das Polster: das Polster verschiebt die PILLE um die
    feststehende Schrift herum -- jede Verbesserung der Zeilenlage verschlechtert die Lage der
@@ -1093,7 +1118,7 @@
 
    ⭐ Am Livesystem gemessen, beide Quellenzeilen identisch (Pillenmitte minus Zeilenmitte):
      11px: ohne Versatz +0,75 | −0,75px → 0,00 | −1px → −0,25
-     9px:  ohne Versatz +0,708 (beide Chipformen) | −0,708px → 0,01
+     9px:  ohne Versatz +0,542 (beide Chipformen) | −0,542px → 0,04
    💣 Die Mitte der Textzeile wird ueber die VERSALHOEHE der Schrift bestimmt, nie ueber die
    Tinte des konkreten Wortes: „Briefspiel (Weiden)" hat Klammern, die hoeher reichen als
    Oberlaengen, „Wiki Aventurica" nicht -- eine glyphenabhaengige Messung gab je Zeile ein
@@ -1105,7 +1130,7 @@
    ⚠️ Der Wert haengt an BEIDEN Schriftgroessen. Wer eine davon aendert, misst neu. */
 .fs-src-row .fs-kanon {
 	position: relative;
-	top: -0.708px;
+	top: -0.542px;
 }
 /* 💣 `min-width: 0` ist die tragende Zeile, und sie muss an JEDEM Flex-/Grid-Kind auf dem Weg
    stehen -- alle stehen per Vorgabe auf `min-width: auto` und weigern sich zu schrumpfen. Fehlt
@@ -1263,14 +1288,21 @@
    Die zwei Optima bei 9px versal / 12px fettem Nachbarn:
      · Text mittig IN der Pille   -> Pillenmitte bei Grundlinie − 3,625 (Versalhoehe 7,25)
      · Pille mittig AUF DER ZEILE -> Pillenmitte bei Grundlinie − 4,792 (Oberlaenge 9,58)
-   Mittelweg − 4,208; 3,5px/1px trifft − 4,083. Gemessene Tabelle (Abstand zum Mittelweg |
-   Innenlage | Zeilenlage):
-     3/2 -> +0,875 | 0,29 | 1,46   3/1   -> +0,375 | 0,21 | 0,96
-     3,5/1 -> +0,125 | 0,46 | 0,71   4/1 -> −0,125 | 0,71 | 0,46
-   ⭐ 3,5/1 und 4/1 liegen gleich weit vom Mittelweg; gewaehlt ist 3,5/1, weil seine Innenlage
-   (0,46) die des alten Zustands (0,43) haelt -- und die Innenlage ist das, was die DREI mittig
-   ausrichtenden Wirte (Objektkopf, Suchtreffer, Konfliktpartei) ueberhaupt zeigen. Die
-   Zeilenlage sieht nur die Quellenzeile, und die korrigiert sich mit ihrem eigenen Versatz. */
+   Mittelweg − 4,208; 4,25px/2,75px trifft − 4,25. Gemessene Tabelle (Abstand zum Mittelweg |
+   Grundlinienversatz der zwei Woerter in der Halbpille):
+     4/3 -> +0,208 | 0,00   4,25/2,75 -> −0,042 | 0,25   4,5/2,5 -> −0,292 | 0,50
+     4,75/2,25 -> −0,542 | 0,75   5/2 -> −0,792 | 1,00
+
+   💣 DIE SUMME DER BEIDEN WERTE IST NICHT FREI: SIE MUSS 7 SEIN. Das Bezeichnerfeld der
+   Halbpille setzt 11px und polstert 3/2, sein Kasten misst also 16px. Die zwei Felder sind
+   Flex-Kinder mit `align-items: center`, das HOEHERE bestimmt die Pille -- das Farbfeld muss
+   denselben Kasten erreichen, und bei 9px Schrift heisst das 9 + 7. Daran haengt zweierlei
+   zugleich: das Farbfeld fuellt bis in die runde linke Kappe (sonst schwebt es als Rechteck in
+   der Kontur, Owner 02.09.2026 im Bild), UND die ganze Pille wird genauso hoch wie die
+   Halbpille (beide 18px). Frei ist nur die VERTEILUNG auf oben und unten -- sie waehlt die
+   Zeilenlage.
+   ⚠️ Der Wert haengt damit am NACHBARFELD, nicht mehr allein an der eigenen Schrift: wer die
+   Groesse oder das Polster von .fs-kanon__by aendert, rechnet diese Summe neu. */
 /* 💣 DIE FETTUNG BRAUCHT DIE SYNTHESE, SONST IST SIE EIN LEERLAUF. Die Hausschrift Faculty
    Glyphic liefert NUR Regular, und css/base/base.css schaltet die Kunstfettung deshalb appweit
    ab (`* { font-synthesis-weight: none }`). Ein `font-weight: 700` allein rechnet dort sauber
@@ -1295,7 +1327,7 @@
 	letter-spacing: .09em;
 	text-transform: uppercase;
 	line-height: 1;
-	padding: 3.5px 8px 1px;
+	padding: 4.25px 8px 2.75px;
 	border-radius: 999px;
 	white-space: nowrap;
 	border: 1px solid transparent;
@@ -1357,7 +1389,7 @@
    (3,6fach) -- die Luft war sichtbar, bevor irgendeine Zahl sie benannt hat. */
 .fs-kanon--split .fs-kanon__state {
 	flex-shrink: 0;
-	padding: 3.5px 8px 1px;
+	padding: 4.25px 8px 2.75px;
 }
 .fs-kanon--off.fs-kanon--split .fs-kanon__state {
 	background: var(--color-kanon-official);
@@ -1370,22 +1402,24 @@
 /* Das Bezeichnerfeld: gemischtschriftlich, nicht gesperrt -- es ist ein NAME
    („Briefspiel (Garetien)"), und VERSAL gesperrt las er sich wie eine zweite Auszeichnung.
    ⚠️ min-width: 0 + ellipsis: ein langer Bezeichner darf den Kopf nicht aufziehen. */
-/* 🔴 GROESSE UND GEWICHT ERBT ES VOM CHIP, UND DAS IST EINE ENTSCHEIDUNG, KEINE LUECKE.
-   Owner 02.09.2026: „achte darauf dass alles einheitlich ist, du hast hier schon wieder
-   unterschiede gemacht" -- gemeint war genau dieses Feld. Ich hatte es zweimal ausgenommen:
-   erst vom Fettschnitt (ein Name sei keine Auszeichnung), dann von den 9px (die Untergrenze
-   gelte fuer ihn weiter). Beides war fuer sich begruendbar und in der Summe eine Pille, deren
-   zwei Haelften verschieden gross und verschieden schwer gesetzt waren.
-   🔴 EIN CHIP, EINE SCHRIFT. Was die zwei Felder unterscheidet, ist Farbe, Versalsatz und
-   Sperrung -- nicht Groesse und nicht Gewicht. Wer hier wieder ein `font-size` oder ein
-   `font-weight` eintraegt, teilt den Chip erneut; die Begruendung dafuer muss dann vom Owner
-   kommen, nicht aus der Typografie.
-   ⚠️ Damit steht auch der NAME unter der 11px-Untergrenze. Das ist die Reichweite der
-   Ausnahme, die --font-size-kanon beschreibt: sie gilt der PILLE, nicht einem Wort darin
-   („die pille ist die absolute ausnahme"). */
+/* 🔴 ES BLEIBT AUF DER UNTERGRENZE (11px) -- DIE AUSNAHME GILT DEM FARBIGEN FELD, NICHT DEM
+   GANZEN CHIP. Owner 02.09.2026, nachdem ich beide Felder verkleinert hatte: „jetzt hast du
+   die schriftart bei der halben pille rechts auch verkleinert, das war nicht gewollt … ich
+   will dass du die groesse der schriftart im farbigen teil der pille auf 9px setzt. der rest
+   lassen."
+   💣 Der `font-size` hier ist deshalb kein Wiederholen des Geerbten, sondern die Gegenkraft
+   dazu: ohne ihn zoege --font-size-kanon vom Chip herunter und der NAME stuende ebenfalls
+   unter der Untergrenze, fuer die es fuer ihn keinen Entscheid gibt.
+   🔴 DAS GEWICHT ERBT ES DAGEGEN -- kein `font-weight` hier. Genau daran ist der Chip am
+   selben Tag einmal auseinandergefallen (Wort fett, Name nicht), und der Owner hat es im Bild
+   gesehen. Was die zwei Felder unterscheiden DARF, ist Farbe, Versalsatz, Sperrung und seit
+   heute die Groesse -- nicht das Gewicht.
+   ⚠️ Sein Polster (3/2) ist die Bezugsgroesse fuer das Chip-Polster darueber: es bestimmt die
+   Kastenhoehe der Pille. Wer es anfasst, rechnet dort die Summe neu. */
 .fs-kanon--split .fs-kanon__by {
 	min-width: 0;
-	padding: 3.5px 8px 1px;
+	padding: 3px 8px 2px;
+	font-size: var(--font-size-caption);
 	color: var(--color-text-muted);
 	text-transform: none;
 	letter-spacing: 0;

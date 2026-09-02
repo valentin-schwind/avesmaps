@@ -174,42 +174,44 @@ for (const t of ["--color-kanon-official", "--color-kanon-official-text", "--col
   pruefe(treffer.length === 2, `${t} muss in hellem UND dunklem Thema definiert sein (gefunden: ${treffer.length})`);
 }
 
-// ---- H1b. Das Polster ist 3,5px oben / 1px unten -- der Mittelweg aus ZWEI Kriterien ---------
+// ---- H1b. Das Polster ist 4,25px oben / 2,75px unten -- Summe gebunden, Verteilung gewaehlt --
 // 💣 Ich habe es am 01.09.2026 auf 2/3 gedreht, weil die Schrift IN der Pille damit mittiger
 // sitzt. Der Owner meldete sofort „wird immer schlimmer mit der vertikalen ausrichtung" -- das
 // war das falsche Kriterium.
 // 🔴 Die Zeile richtet an der GRUNDLINIE aus; die Chipschrift steht damit fest, und das Polster
 // verschiebt die PILLE um sie herum.
-// 🔴 NEU GERECHNET AM 02.09.2026, weil der Chip von 11px auf 9px ging -- der Wert haengt an den
-// Schriftgroessen, und die alten 3/2 haetten gemessen ausgesehen, waehrend die Pille 1,46px zu
-// tief in der Zeile sass. Zwei Optima, 1,17px auseinander (Chip 9px versal, Versalhoehe 7,25,
-// gegen Nachbar 12px fett, Oberlaenge 9,58): Text mittig in der Pille bei Grundlinie −3,625,
-// Pille mittig auf der Zeile bei −4,792. Mittelweg −4,208; 3,5/1 trifft −4,083.
-// Gemessen (Abstand zum Mittelweg): 3/2 -> +0,875 | 3/1 -> +0,375 | 3,5/1 -> +0,125 | 4/1 -> −0,125.
+// 💣 DIE SUMME IST GEBUNDEN, NUR DIE VERTEILUNG IST GEWAEHLT. Das Bezeichnerfeld setzt 11px und
+// polstert 3/2, sein Kasten misst also 16px; das farbige Feld setzt 9px und muss denselben
+// Kasten erreichen -- 9 + 7. Daran haengt zweierlei: das Farbfeld fuellt bis in die runde linke
+// Kappe (sonst schwebt es als Rechteck in der Kontur, am 02.09.2026 gebaut und vom Owner im
+// Bild gesehen: 48,6 gegen 57,6 bei 3,6facher Vergroesserung), UND ganze Pille und Halbpille
+// werden gleich hoch (beide 18px).
+// 🔴 Die Verteilung waehlt die Zeilenlage. Zwei Optima, 1,17px auseinander (9px versal,
+// Versalhoehe 7,25, gegen Nachbar 12px fett, Oberlaenge 9,58): Text mittig in der Pille bei
+// Grundlinie −3,625, Pille mittig auf der Zeile bei −4,792. Mittelweg −4,208; 4,25/2,75 trifft
+// −4,25. Gemessen (Abstand zum Mittelweg): 4/3 -> +0,208 | 4,25/2,75 -> −0,042 |
+// 4,5/2,5 -> −0,292 | 4,75/2,25 -> −0,542 | 5/2 -> −0,792.
 // ⚠️ Wer nur die INNERE Zentrierung misst, macht es sichtbar schlechter -- das war der
 // zurueckgenommene Versuch vom 01.09.2026 (2/3).
+const polster = /padding:\s*4\.25px\s+8px\s+2\.75px\s*;/;
 const chipRegel = nurRegel(css, ".fs-kanon");
-pruefe(/padding:\s*3\.5px\s+8px\s+1px\s*;/.test(chipRegel),
-  "der Chip polstert 3,5px oben / 1px unten -- der gemessene Mittelweg, nicht die innere Mitte");
+pruefe(polster.test(chipRegel),
+  "der Chip polstert 4,25px oben / 2,75px unten -- Summe 7, damit die Kastenhoehe stimmt");
 pruefe(!/padding:\s*2px\s+8px\s+3px\s*;/.test(css),
   "die auf die innere Mitte optimierte Fassung darf nirgends mehr stehen");
-// 💣 UND DIE DREI POLSTER SIND ZEICHENGLEICH: Chip, Farbfeld und Bezeichnerfeld. Das ist keine
-// Redundanz, sondern die Bedingung dafuer, dass Pille und Halbpille gleich hoch sind und das
-// Farbfeld die Kontur bis in die runde linke Kappe fuellt. Laeuft eines aus der Reihe, schwebt
-// das Farbfeld als Rechteck in der Kontur -- am 02.09.2026 einmal gebaut und vom Owner sofort
-// gesehen: 48,6 gegen 57,6 bei 3,6facher Vergroesserung.
-const polster = /padding:\s*3\.5px\s+8px\s+1px\s*;/;
 pruefe(polster.test(nurRegel(css, ".fs-kanon--split .fs-kanon__state")),
-  "das Farbfeld polstert wie der Chip");
-pruefe(polster.test(nurRegel(css, ".fs-kanon--split .fs-kanon__by")),
-  "und das Bezeichnerfeld ebenso -- sonst bestimmt das hoehere Feld die Pille");
+  "das Farbfeld polstert zeichengleich zum Chip");
+// 🔴 Und das Bezeichnerfeld polstert ANDERS -- es ist die Bezugsgroesse, nicht der Nachahmer.
+pruefe(/padding:\s*3px\s+8px\s+2px\s*;/.test(nurRegel(css, ".fs-kanon--split .fs-kanon__by")),
+  "das Bezeichnerfeld behaelt sein eigenes Polster -- es bestimmt die Kastenhoehe");
 
 // ---- H1c. Der Zeilen-Versatz der Pille -----------------------------------------------------
 // 🔴 In der Quellenzeile wird an der GRUNDLINIE ausgerichtet. Chip und Nachbartext teilen sie
 // sich -- aber nicht die optische Mitte, die Pillenmitte liegt dadurch zu tief. Am Livesystem
-// gemessen: bei 11px −0,75px -> 0,00; seit dem Wechsel auf 9px (02.09.2026) −0,708px -> 0,01
-// (ganze Pille) bzw. 0,26 (Halbpille). Der Wert haengt an denselben zwei Schriftgroessen wie
-// das Polster darueber -- wer eine aendert, misst BEIDE neu.
+// gemessen: bei 11px −0,75px -> 0,00; seit dem Wechsel des farbigen Feldes auf 9px (02.09.2026)
+// −0,542px -> 0,04, fuer BEIDE Chipformen dieselbe Zahl, weil sie dieselbe Kastenhoehe haben.
+// Der Wert haengt an denselben Groessen wie das Polster darueber -- wer eine aendert, misst
+// BEIDE neu.
 // ⭐ Ein VERSATZ statt Polster, weil er Pille UND Schrift gemeinsam verschiebt: die Zeilenlage
 // geht auf 0, die Lage der Schrift IN der Pille bleibt unangetastet. Ueber das Polster ging
 // beides nur gegeneinander (Versuch vom 01.09.2026, vom Owner sofort beanstandet).
@@ -217,7 +219,7 @@ pruefe(polster.test(nurRegel(css, ".fs-kanon--split .fs-kanon__by")),
 // Grundlinie aus; dort waere er ein Fehler.
 const zeilenRegel = regelAb(css, ".fs-src-row .fs-kanon");
 pruefe(zeilenRegel.length > 0, "die Quellenzeile hebt ihre Pille an");
-pruefe(/top:\s*-0\.708px\s*;/.test(zeilenRegel.slice(0, 140)), "und zwar um genau 0,708px");
+pruefe(/top:\s*-0\.542px\s*;/.test(zeilenRegel.slice(0, 140)), "und zwar um genau 0,542px");
 pruefe(/position:\s*relative\s*;/.test(zeilenRegel.slice(0, 140)),
   "ohne `position: relative` wirkt `top` gar nicht -- der Fehler waere still");
 // ⚠️ Der Versatz darf NICHT am Chip selbst haengen: dann traefe er auch Kopf, Suchtreffer und

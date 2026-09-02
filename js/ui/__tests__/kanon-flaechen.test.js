@@ -206,22 +206,25 @@ const chip = fsCss.slice(fsCss.indexOf(".fs-kanon {"), fsCss.indexOf(".fs-kanon-
 pruefe(/font-size:\s*var\(--font-size-kanon\)/.test(chip), "das Kanonwort nimmt den Ausnahme-Token");
 const tokensFuerKanonToken = lies("css", "base", "tokens.css");
 pruefe(/^\s*--font-size-kanon:\s*9px;/m.test(tokensFuerKanonToken), "und der Token ist mit 9px definiert");
-// 🔴 UND DIE AUSNAHME GILT DER GANZEN PILLE, NICHT EINEM WORT DARIN. Das Bezeichnerfeld der
-// Halbpille setzt WEDER eine eigene Groesse NOCH ein eigenes Gewicht -- es erbt beides vom Chip.
-// Owner 02.09.2026: „achte darauf dass alles einheitlich ist, du hast hier schon wieder
-// unterschiede gemacht" -- gemeint war genau dieses Feld, das ich zweimal ausgenommen hatte
-// (erst vom Fettschnitt, dann von den 9px). Jede Ausnahme war fuer sich begruendbar; zusammen
-// ergaben sie eine Pille aus zwei verschieden gesetzten Haelften.
-// 💣 Ein `font-size` oder `font-weight` an dieser Regel teilt den Chip erneut -- und weil beide
-// Werte vom Chip GEERBT werden, sieht das Wiedereinsetzen wie eine harmlose Praezisierung aus.
+// 🔴 UND DIE AUSNAHME GILT DEM FARBIGEN FELD, NICHT DEM GANZEN CHIP. Owner 02.09.2026, nachdem
+// ich beide Felder verkleinert hatte: „jetzt hast du die schriftart bei der halben pille rechts
+// auch verkleinert, das war nicht gewollt … ich will dass du die groesse der schriftart im
+// farbigen teil der pille auf 9px setzt. der rest lassen."
+// 💣 Das Bezeichnerfeld braucht seine Groesse deshalb AUSDRUECKLICH -- sie ist die Gegenkraft zur
+// Vererbung, nicht deren Wiederholung. Faellt die Zeile weg, zieht --font-size-kanon vom Chip
+// herunter und der NAME steht unter der Untergrenze, fuer die es fuer ihn keinen Entscheid gibt.
+// 🔴 DAS GEWICHT ERBT ES DAGEGEN -- kein `font-weight` hier. Genau daran ist der Chip am selben
+// Tag auseinandergefallen (Wort fett, Name nicht), vom Owner im Bild gesehen. Unterscheiden
+// duerfen sich die zwei Felder in Farbe, Versalsatz, Sperrung und Groesse -- nicht im Gewicht.
 const byRegelGanz = (() => {
 	const t = /^\.fs-kanon--split \.fs-kanon__by\s*\{/m.exec(fsCss);
 	pruefe(!!t, "das Bezeichnerfeld muss eine eigene Regel haben");
 	const ab = fsCss.slice(t.index);
 	return ab.slice(0, ab.indexOf("}") + 1);
 })();
-pruefe(!/font-size:/.test(byRegelGanz), "der Bezeichner setzt KEINE eigene Groesse -- er erbt die des Chips");
-pruefe(!/font-weight:/.test(byRegelGanz), "und auch kein eigenes Gewicht");
+pruefe(/font-size:\s*var\(--font-size-caption\)/.test(byRegelGanz),
+	"der Bezeichner haelt die Untergrenze ausdruecklich -- sonst erbt er die Ausnahme");
+pruefe(!/font-weight:/.test(byRegelGanz), "sein Gewicht erbt er dagegen vom Chip");
 // ⚠️ Was ihn unterscheiden DARF: Farbe, Versalsatz, Sperrung. Das bleibt und ist der Grund,
 // warum es die Regel ueberhaupt gibt.
 pruefe(/text-transform:\s*none/.test(byRegelGanz), "gemischtschriftlich bleibt er -- er ist ein Name");
