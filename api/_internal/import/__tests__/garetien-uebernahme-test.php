@@ -107,23 +107,47 @@ final class AvesmapsGaretienUebernahmeTestPdo extends PDO
         $query = preg_replace('~VALUES\(([a-z_]+)\)~i', 'excluded.$1', $query) ?? $query;
 
         // IF(a, b, c) -> CASE WHEN a THEN b ELSE c END, von innen nach aussen.
+        //
+        // 💣 DER ZERLEGER MUSS ZEICHENKETTEN KENNEN. Ohne `$inText` spaltet er auch an einem Komma
+        // INNERHALB eines Literals: `IF(own_fields NOT LIKE '%,is_official,%', a, b)` zerfaellt in
+        // fuenf Teile statt drei, die Schleife bricht ab (`count !== 3`) und laesst JEDES `IF(` der
+        // Anweisung stehen -- SQLite meldet dann „no such function: IF", und zwar an einer Stelle,
+        // die mit dem eigentlichen Feld nichts zu tun hat.
+        // 🪤 UND ES FAELLT LOKAL NICHT AUF: SQLite kennt `IF` seit 3.32 als Alias von `iif`, dieser
+        // Rechner faehrt 3.51. Der Deploy-Runner ist aelter -- gruen hier, rot im Tor. Dieselbe
+        // Klasse Fallgrube wie CRLF gegen LF, nur eine Ebene tiefer (02.09.2026, ein Deploy).
         while (($ab = strpos($query, 'IF(')) !== false) {
             $tiefe = 0;
+            $inText = false;
             $teile = [];
             $stueck = '';
             for ($i = $ab + 3, $n = strlen($query); $i < $n; $i++) {
                 $z = $query[$i];
-                if ($z === '(') { $tiefe++; }
-                if ($z === ')') {
-                    if ($tiefe === 0) { $teile[] = $stueck; break; }
-                    $tiefe--;
+                if ($z === "'") { $inText = !$inText; }
+                if (!$inText) {
+                    if ($z === '(') { $tiefe++; }
+                    if ($z === ')') {
+                        if ($tiefe === 0) { $teile[] = $stueck; break; }
+                        $tiefe--;
+                    }
+                    if ($z === ',' && $tiefe === 0) { $teile[] = $stueck; $stueck = ''; continue; }
                 }
-                if ($z === ',' && $tiefe === 0) { $teile[] = $stueck; $stueck = ''; continue; }
                 $stueck .= $z;
             }
             if (count($teile) !== 3) { break; }
             $ersatz = 'CASE WHEN ' . trim($teile[0]) . ' THEN ' . trim($teile[1]) . ' ELSE ' . trim($teile[2]) . ' END';
             $query = substr($query, 0, $ab) . $ersatz . substr($query, $i + 1);
+        }
+
+        // 🔴 UND HIER DARF KEIN `IF(` MEHR STEHEN. Der Riegel muss sein, weil das Gegenteil auf
+        // DIESEM Rechner unauffaellig ist: SQLite kennt `IF` seit 3.32 als Alias von `iif`, und
+        // was hier durchrutscht, faellt erst im Deploy-Tor auf einer aelteren Fassung um -- dann
+        // als „no such function: IF" mitten in einem Import, der damit nichts zu tun hat.
+        if (str_contains($query, 'IF(')) {
+            throw new RuntimeException(
+                'Die Uebersetzung nach SQLite hat ein IF( stehen lassen -- meist ein Komma INNERHALB '
+                . "eines Literals, an dem der Zerleger faelschlich spaltet:\n" . $query
+            );
         }
 
         // Ein nacktes Spaltenwort auf der rechten Seite meint bei MySQL die ALTE Zeile; SQLite
