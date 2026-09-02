@@ -867,4 +867,44 @@ assert(mb_strlen($valpo['grund'], 'UTF-8') <= 50,
     'kurz: ' . mb_strlen($valpo['grund'], 'UTF-8') . ' Zeichen -- ' . $valpo['grund']);
 $pruefungen += 4;
 
+// =================================================================================================
+// 🔴 DIE HERRSCHAFTSGRENZEN BLEIBEN DRAUSSEN -- OWNER-ENTSCHEID 02.09.2026
+// =================================================================================================
+// Woertlich: „grenzverlaeufe interessieren mich nicht, lass die weg."
+//
+// 💣 Sie fielen schon vorher heraus, aber aus dem FALSCHEN Grund: ihre Typen fehlen in
+// AVESMAPS_GARETIEN_TYP_MAP, also landeten sie im Auffangfall 'unbekannt', und das Fenster schrieb
+// an 3052 Zeilen „Typ ist unbekannt -- weder zugeordnet noch vorgemerkt". Das ist eine EINLADUNG:
+// der naechste Leser haelt es fuer eine Luecke und traegt die Zuordnung nach.
+//
+// 🔴 DER GRUND IST NICHT „kein Gegenstueck", SONDERN DAS GEGENTEIL: wir haben eine eigene
+// politische Ebene (`political_territory`, rund 1384 Gebiete mit BF-Zeitleiste und eigenem
+// Editor). Garetiens Grenzlinien daneben zu legen hiesse, zwei Wahrheiten ueber dieselben Grenzen
+// zu fuehren.
+//
+// Live gemessen 02.09.2026 ueber alle 18 Exportebenen: 2293 Grenzlinien und 759
+// Herrschaftsflaechen -- zusammen 3052 der 4431 uebersprungenen Zeilen (69 %).
+assert(count(AVESMAPS_GARETIEN_GRENZEN_DRAUSSEN) === 20,
+    'die Liste nennt alle sechs Grenzarten und die vierzehn Flaechenarten: '
+    . count(AVESMAPS_GARETIEN_GRENZEN_DRAUSSEN));
+$pruefungen++;
+
+foreach (AVESMAPS_GARETIEN_GRENZEN_DRAUSSEN as $grenzTyp) {
+    assert(avesmapsGaretienMappeTyp($grenzTyp) === null,
+        '🔴 "' . $grenzTyp . '" darf KEINE Zuordnung bekommen -- Owner-Entscheid 02.09.2026. '
+        . 'Wer sie eintraegt, legt Garetiens Grenzen neben unsere politische Ebene.');
+    assert(avesmapsGaretienUeberspringGrund([
+        'typ' => $grenzTyp, 'artikel' => 'Probe', 'anzeige' => 'Probe',
+        'geo_art' => 'koordinaten', 'geo' => '70000 30000, 70100 30100, 70200 30000',
+    ]) !== null, '"' . $grenzTyp . '" wird uebersprungen');
+}
+$pruefungen += 2;
+
+// ⚠️ UND DIE GEGENPROBE: die Liste sperrt nicht pauschal alles, was nach Herrschaft klingt.
+// Ohne sie waere oben nur belegt, dass zwanzig Namen in einer Konstante stehen.
+assert(avesmapsGaretienMappeTyp('Stadt') !== null,
+    'eine Stadt wird weiterhin zugeordnet -- die Sperre gilt den Grenzen, nicht den Orten');
+assert(avesmapsGaretienMappeTyp('Gebirge') !== null, 'und ein Gebirge ebenso');
+$pruefungen += 2;
+
 echo "OK: {$pruefungen} Pruefungen\n";

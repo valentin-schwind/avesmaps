@@ -191,6 +191,38 @@ const AVESMAPS_GARETIEN_TYP_MAP = [
 /** Typen ohne jedes Gegenstueck -- die kommen nie (Entwurf §3.6). */
 const AVESMAPS_GARETIEN_OHNE_GEGENSTUECK = ['Stadtviertel', 'Kontinent', 'Platz'];
 
+/**
+ * 🔴 DIE HERRSCHAFTSGRENZEN UND -FLAECHEN BLEIBEN DRAUSSEN -- OWNER-ENTSCHEID 02.09.2026,
+ * woertlich: „grenzverlaeufe interessieren mich nicht, lass die weg".
+ *
+ * 💣 SIE FIELEN SCHON VORHER HERAUS, ABER AUS DEM FALSCHEN GRUND. Weil ihre Typen in
+ * AVESMAPS_GARETIEN_TYP_MAP fehlen, landeten sie im Auffangfall 'unbekannt', und das Fenster
+ * schrieb an 3052 Zeilen „Typ ist unbekannt -- weder zugeordnet noch vorgemerkt". Das ist eine
+ * EINLADUNG: der naechste Leser haelt es fuer eine Luecke und traegt die Zuordnung nach. Genau so
+ * werden Entscheidungen rueckgaengig gemacht, die niemand aufgeschrieben hat.
+ *
+ * 🔴 DER GRUND IST NICHT „kein Gegenstueck", SONDERN DAS GEGENTEIL: wir haben eine eigene
+ * politische Ebene (`political_territory`, rund 1384 Gebiete mit BF-Zeitleiste, abgeleiteten
+ * Aussengrenzen und eigenem Editor). Garetiens Grenzlinien daneben zu legen hiesse, zwei Wahrheiten
+ * ueber dieselben Grenzen zu fuehren.
+ *
+ * Live gemessen am 02.09.2026 ueber alle 18 Exportebenen: 2293 Grenzlinien (Junkertums-, Baronie-,
+ * Grafschafts-, Provinz-, Reichsgrenze, Grenzzug) und 759 Herrschaftsflaechen -- zusammen 3052 der
+ * 4431 uebersprungenen Zeilen, also 69 % davon.
+ *
+ * ⚠️ DIESE LISTE AENDERT NICHTS AM VERHALTEN -- sie ist der WAECHTER. Wer einen dieser Typen
+ * in AVESMAPS_GARETIEN_TYP_MAP eintraegt, laesst
+ * api/_internal/import/__tests__/garetien-abgleich-test.php rot werden und liest dort, warum.
+ */
+const AVESMAPS_GARETIEN_GRENZEN_DRAUSSEN = [
+    'Reichsgrenze', 'Provinzgrenze', 'Grafschaftsgrenze', 'Baroniegrenze', 'Junkertumsgrenze',
+    'Grenzzug',
+    'GrafschaftsflaecheA', 'GrafschaftsflaecheB', 'GrafschaftsflaecheC', 'GrafschaftsflaecheD',
+    'BaronieflaecheA', 'BaronieflaecheB', 'BaronieflaecheC', 'BaronieflaecheD', 'BaronieflaecheE',
+    'JunkertumsflaecheA', 'JunkertumsflaecheB', 'JunkertumsflaecheC', 'JunkertumsflaecheD',
+    'JunkertumsflaecheE',
+];
+
 // 🔴 HIER STAND EIN SAMMELARTIKEL-RIEGEL, UND ER IST AM 30.08.2026 GEFALLEN.
 //
 // `AVESMAPS_GARETIEN_SAMMELARTIKEL = ['Nachbarprovinzen', 'Raschtulswall']` hat jede Zeile
