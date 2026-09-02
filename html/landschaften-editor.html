@@ -4114,7 +4114,13 @@ function ecoDisplayZeichneAbstaende() {
 // wäre danach ein Spiegel des Fensters und gäbe beim Zurücksetzen den getippten Wert als Vorgabe
 // zurück. Die REGEL bleibt trotzdem eine einzige -- sie steht im Modul und wird nur gefüttert.
 function ecoDisplayKollisionRegel(art) {
-	return avesmapsEcosystemKollisionAus(ecoDisplayTeil("kollision")[art]);
+	// 💣 DIE VORGABE DIESER ART, nicht der Grundwert -- Berggipfel und Vulkan stehen ab Werk auf
+	// „fest" (Owner 02.09.2026). Wer hier den Grundwert nähme, zeigte für die zwei ein leeres
+	// Häkchen, während die Karte sie festnagelt: das Fenster behauptete etwas anderes, als die
+	// Karte tut, und man drückte gegen einen Zustand, der schon gilt.
+	return avesmapsEcosystemKollisionAus(
+		ecoDisplayTeil("kollision")[art], avesmapsEcosystemDisplayKollisionVorgabe(art)
+	);
 }
 
 /** Was die zwei Häkchen zusammen BEDEUTEN -- ausgeschrieben, damit niemand die Matrix im Kopf hat. */
@@ -4136,7 +4142,11 @@ function ecoDisplaySetzKollision(art, feld, wert) {
 	const jetzt = ecoDisplayKollisionRegel(art);
 	const satz = { teil: jetzt.teil, fest: jetzt.fest };
 	satz[feld] = wert;
-	const vorgabe = AVESMAPS_ECOSYSTEM_DISPLAY_KOLLISION_VORGABE;
+	// ⚠️ Verglichen wird gegen die Vorgabe DIESER ART. Gegen den Grundwert verglichen bliebe für
+	// Berggipfel und Vulkan eine Zeile in der Datenbank stehen, die dasselbe sagt wie die Vorgabe --
+	// und die veraltet still, sobald die Vorgabe sich ändert (die Begründung, aus der der
+	// Rücksetzer die Zeile löscht statt sie zu überschreiben).
+	const vorgabe = avesmapsEcosystemDisplayKollisionVorgabe(art);
 	if (satz.teil === vorgabe.teil && satz.fest === vorgabe.fest) {
 		delete ecoDisplayTafel.kollision[art];
 	} else {

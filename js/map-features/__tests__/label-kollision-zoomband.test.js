@@ -113,7 +113,18 @@ loadBrowserScript(path.join(__dirname, "../label-placement.js"));
 // Sie wird ECHT geladen und nicht gestubbt -- ein Stub hier hiesse, den Test gegen erfundene
 // Vorgabewerte zu fahren, waehrend die Karte mit anderen laeuft.
 loadBrowserScript(path.join(__dirname, "../ecosystem-display.js"));
-avesmapsEcosystemDisplayInstall(null);
+// 🔴 SEIT DEM 02.09.2026 MUSS DIESER TEST SEINEN GIPFEL AUSDRUECKLICH BEWEGLICH STELLEN.
+// Ein `berggipfel` steht ab Werk auf „festgenagelt" -- Owner-Entscheid („berggipfel und vulkan
+// jetzt auf fest stellen", AVESMAPS_ECOSYSTEM_DISPLAY_KOLLISION_VORGABE_JE_ART). Mit `null` waere
+// dieser Abschnitt stillschweigend zu einer zweiten Fassung des Festnagel-Falls geworden und
+// haette aufgehoert, das Ausweichen auf dem Ring zu pruefen -- gruen, aber ohne Gegenstand.
+//
+// ⚠️ WAS ER MISST, BLEIBT WAHR: der Ring, die 24 px und der Deckel gelten fuer jede bewegliche
+// Namensart (28 von 30). Nur der KONKRETE Fall „Drei Schwestern" wird auf der Karte nicht mehr so
+// aufgeloest -- der Gipfel steht jetzt fest, und sein Nachbar weicht ihm aus. Der Test behaelt
+// seine gemessene Geometrie trotzdem: sie ist der Beleg fuer die Mechanik, nicht fuer den Fall.
+const BEWEGLICHER_GIPFEL = { kollision: { berggipfel: { teil: true, fest: false } } };
+avesmapsEcosystemDisplayInstall(BEWEGLICHER_GIPFEL);
 loadBrowserScript(path.join(__dirname, "../map-features-label-collisions.js"));
 loadBrowserScript(path.join(__dirname, "../map-features-labels.js"));
 
@@ -158,7 +169,10 @@ global.MAP_LABEL_MODES = ["deregraphic", "ecosystem"];
 // keine erlaubte Stelle mehr und verschwindet -- das alte Verhalten, jetzt aber als EINSTELLUNG
 // und nicht als eingebaute Grenze. Damit haengt genau eine Zahl zwischen „steht" und „weg".
 {
-	avesmapsEcosystemDisplayInstall({ abstaende: { drift: 16 } });
+	// 💣 Die Kollisionsregel MUSS mitgegeben werden: Install ERSETZT die ganze Uebersteuerung,
+	// eine Tafel mit nur `abstaende` liesse den Gipfel auf seine Vorgabe „fest" zurueckfallen --
+	// und dann misst dieser Abschnitt den Deckel gar nicht mehr, sondern das Festnageln.
+	avesmapsEcosystemDisplayInstall({ ...BEWEGLICHER_GIPFEL, abstaende: { drift: 16 } });
 	const ersteBox = macheBox(584, 305, GIPFEL_LABEL_BREITE, GIPFEL_LABEL_HOEHE);
 	const zweiteBox = macheBox(584 - ABSTAND_X, 305 + ABSTAND_Y, GIPFEL_LABEL_BREITE, GIPFEL_LABEL_HOEHE);
 	const erstes = macheLabelEintrag({ publicId: "cc223529", text: "Drei Schwestern", minZoom: 4, maxZoom: 7, box: ersteBox });
@@ -169,7 +183,7 @@ global.MAP_LABEL_MODES = ["deregraphic", "ecosystem"];
 
 	assert.strictEqual(zweites.element.istVersteckt(), true,
 		"mit Deckel 16 bleibt keine freie Stelle -> ausgeblendet (.map-label.is-colliding => display:none)");
-	avesmapsEcosystemDisplayInstall(null);
+	avesmapsEcosystemDisplayInstall(BEWEGLICHER_GIPFEL);
 }
 
 // ---- 2. Die Reihenfolge entscheidet, und sie ist bei Gleichstand die Nutzlast-Reihenfolge ---------

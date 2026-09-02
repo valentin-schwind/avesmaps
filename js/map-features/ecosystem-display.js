@@ -176,6 +176,42 @@ const AVESMAPS_ECOSYSTEM_DISPLAY_ABSTAND_LIMITS = {
 const AVESMAPS_ECOSYSTEM_DISPLAY_KOLLISION_VORGABE = { teil: true, fest: false };
 
 /**
+ * Die Vorgabe JE ART -- die Ausnahmen von der Zeile darueber.
+ *
+ * 🔴 DAS IST KEINE MESSUNG, SONDERN EIN OWNER-ENTSCHEID, UND ER GILT (02.09.2026: „berggipfel und
+ * vulkan jetzt auf fest stellen"). Ein Gipfel IST sein Punkt: er darf nicht danebenrutschen, und
+ * die anderen Namen weichen IHM aus. Dieselbe Bauform und dieselben zwei Arten wie bei
+ * AVESMAPS_ECOSYSTEM_DISPLAY_VORGABE_JE_ART weiter oben („berggipfel und vulkane sollen ab Z4
+ * erscheinen", 27.08.2026) -- dort steht die Begruendung, warum ein Owner-Entscheid in diese Tafel
+ * gehoert und nicht in eine gespeicherte Einstellung: er soll ein „Auf Vorgabe zuruecksetzen"
+ * ueberleben und ohne Datenbankzeile fuer jeden gelten.
+ *
+ * ⚠️ Damit reproduziert die Vorgabe das Bild vom 02.09.2026 NICHT mehr Ziffer fuer Ziffer -- fuer
+ * genau diese zwei Arten (76 Beschriftungen, live gemessen) ist das gewollt und der Zweck des
+ * Umbaus. Fuer die uebrigen 28 Arten gilt der Satz unveraendert.
+ * ⚠️ Das Fenster zeigt die Haekchen entsprechend gesetzt, und wer sie abnimmt, speichert die
+ * Abweichung -- die Vorgabe ist ein Startwert, kein Riegel.
+ */
+const AVESMAPS_ECOSYSTEM_DISPLAY_KOLLISION_VORGABE_JE_ART = {
+	berggipfel: { fest: true },   // Owner-Entscheid 02.09.2026
+	vulkan: { fest: true },       // Owner-Entscheid 02.09.2026
+};
+
+/**
+ * Die Vorgabe einer Namensart: der Grundwert, ueberlagert von ihrer eigenen Zeile.
+ * 🔴 EIN Ort, an dem die zwei zusammenkommen -- der Loeser, das Fenster und der Ruecksetzer im
+ * Fenster fragen alle hier, sonst hielte einer von ihnen weiter den Grundwert fuer die Vorgabe und
+ * legte eine ueberfluessige Zeile in der Datenbank ab (oder loeschte eine noetige).
+ */
+function avesmapsEcosystemDisplayKollisionVorgabe(subtype) {
+	const eigen = AVESMAPS_ECOSYSTEM_DISPLAY_KOLLISION_VORGABE_JE_ART[String(subtype || "")] || {};
+	return {
+		teil: typeof eigen.teil === "boolean" ? eigen.teil : AVESMAPS_ECOSYSTEM_DISPLAY_KOLLISION_VORGABE.teil,
+		fest: typeof eigen.fest === "boolean" ? eigen.fest : AVESMAPS_ECOSYSTEM_DISPLAY_KOLLISION_VORGABE.fest,
+	};
+}
+
+/**
  * Die Kollisionsregel einer Namensart, wie sie WIRKT: `{ teil, fest }`.
  *
  * 🔴 FAELLT OFFEN AUS: alles, was keine ausdrueckliche Uebersteuerung ist (fehlender Schluessel,
@@ -186,7 +222,10 @@ const AVESMAPS_ECOSYSTEM_DISPLAY_KOLLISION_VORGABE = { teil: true, fest: false }
  * Meldung, dieselbe Begruendung wie bei avesmapsEcosystemDisplayAbstand.
  */
 function avesmapsEcosystemDisplayKollision(subtype) {
-	return avesmapsEcosystemKollisionAus(avesmapsEcosystemDisplayTeil("kollision")[String(subtype || "")]);
+	return avesmapsEcosystemKollisionAus(
+		avesmapsEcosystemDisplayTeil("kollision")[String(subtype || "")],
+		avesmapsEcosystemDisplayKollisionVorgabe(subtype)
+	);
 }
 
 /**
@@ -198,11 +237,14 @@ function avesmapsEcosystemDisplayKollision(subtype) {
  * getippten Wert als „Vorgabe" zurueck (am 24.08.2026 im Browser gemessen, von keinem Test).
  * Das Fenster reicht seinen Satz deshalb HEREIN, statt ihn dort abzulegen.
  */
-function avesmapsEcosystemKollisionAus(eigen) {
-	const raus = {
-		teil: AVESMAPS_ECOSYSTEM_DISPLAY_KOLLISION_VORGABE.teil,
-		fest: AVESMAPS_ECOSYSTEM_DISPLAY_KOLLISION_VORGABE.fest,
-	};
+function avesmapsEcosystemKollisionAus(eigen, vorgabe) {
+	// ⚠️ Ohne mitgegebene Vorgabe gilt der Grundwert -- nicht die Zeile einer Art. Ein Aufrufer, der
+	// die Art kennt, MUSS sie hereinreichen (avesmapsEcosystemDisplayKollisionVorgabe); sonst hielte
+	// er den Grundwert fuer die Vorgabe und saehe die Gipfel als beweglich, obwohl sie es nicht sind.
+	const grund = (vorgabe && typeof vorgabe === "object")
+		? vorgabe
+		: AVESMAPS_ECOSYSTEM_DISPLAY_KOLLISION_VORGABE;
+	const raus = { teil: grund.teil !== false, fest: grund.fest === true };
 	if (eigen && typeof eigen === "object" && !Array.isArray(eigen)) {
 		if (typeof eigen.teil === "boolean") { raus.teil = eigen.teil; }
 		if (typeof eigen.fest === "boolean") { raus.fest = eigen.fest; }
@@ -486,4 +528,5 @@ if (typeof globalThis !== "undefined") {
 	globalThis.AVESMAPS_ECOSYSTEM_DISPLAY_ABSTAND_VORGABE = AVESMAPS_ECOSYSTEM_DISPLAY_ABSTAND_VORGABE;
 	globalThis.AVESMAPS_ECOSYSTEM_DISPLAY_ABSTAND_LIMITS = AVESMAPS_ECOSYSTEM_DISPLAY_ABSTAND_LIMITS;
 	globalThis.AVESMAPS_ECOSYSTEM_DISPLAY_KOLLISION_VORGABE = AVESMAPS_ECOSYSTEM_DISPLAY_KOLLISION_VORGABE;
+	globalThis.AVESMAPS_ECOSYSTEM_DISPLAY_KOLLISION_VORGABE_JE_ART = AVESMAPS_ECOSYSTEM_DISPLAY_KOLLISION_VORGABE_JE_ART;
 }

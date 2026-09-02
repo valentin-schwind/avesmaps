@@ -75,34 +75,68 @@ loadBrowserScript(path.join(__dirname, "../map-features-label-collisions.js"));
 // 1. DIE REGEL: die Vorgabe ist das HEUTIGE Bild, und alles Kaputte faellt darauf zurueck.
 // ══════════════════════════════════════════════════════════════════════════════════════════════
 avesmapsEcosystemDisplayInstall(null);
-assert.deepStrictEqual(avesmapsEcosystemDisplayKollision("berggipfel"), { teil: true, fest: false },
+assert.deepStrictEqual(avesmapsEcosystemDisplayKollision("wald"), { teil: true, fest: false },
 	"ohne gespeicherte Tafel gilt die Vorgabe: teilnehmen ja, verschieben ja");
-assert.strictEqual(avesmapsEcosystemDisplayKollisionsRolle("berggipfel"), "beweglich",
-	"und die Rolle heisst dann „beweglich\" -- so zeichnet die Karte heute");
+assert.strictEqual(avesmapsEcosystemDisplayKollisionsRolle("wald"), "beweglich",
+	"und die Rolle heisst dann „beweglich\" -- so zeichnet die Karte");
 
-// 💣 DIE VORGABE MUSS DAS HEUTIGE BILD SEIN. Waere sie „fest" oder „aus", aenderte allein das
-// Ausliefern das Kartenbild fuer 1018 Beschriftungen -- dieselbe Regel wie bei den Zoombaendern
-// (zoombaender-vorgabe.test.js).
+// 💣 DER GRUNDWERT MUSS DAS BISHERIGE BILD SEIN. Waere er „fest" oder „aus", aenderte allein das
+// Ausliefern das Kartenbild fuer alle 1018 Beschriftungen -- dieselbe Regel wie bei den
+// Zoombaendern (zoombaender-vorgabe.test.js).
 assert.deepStrictEqual(AVESMAPS_ECOSYSTEM_DISPLAY_KOLLISION_VORGABE, { teil: true, fest: false },
-	"die Vorgabe reproduziert das heutige Verhalten Ziffer fuer Ziffer");
+	"der Grundwert reproduziert das bisherige Verhalten Ziffer fuer Ziffer");
+
+// 🔴 MIT GENAU ZWEI AUSNAHMEN, UND SIE SIND EIN OWNER-ENTSCHEID (02.09.2026: „berggipfel und
+// vulkan jetzt auf fest stellen"). Ein Gipfel IST sein Punkt. Das ist die einzige Stelle, an der
+// die Vorgabe das Bild bewusst AENDERT -- 76 Beschriftungen, live gemessen.
+// ⚠️ Der Test nennt die zwei beim Namen, statt nur „irgendeine Ausnahme" zu pruefen: wer eine
+// dritte Art dazunimmt, aendert damit das Kartenbild und soll hier vorbeikommen.
+assert.deepStrictEqual(Object.keys(AVESMAPS_ECOSYSTEM_DISPLAY_KOLLISION_VORGABE_JE_ART).sort(),
+	["berggipfel", "vulkan"], "genau zwei Arten weichen vom Grundwert ab");
+["berggipfel", "vulkan"].forEach((art) => {
+	assert.deepStrictEqual(avesmapsEcosystemDisplayKollision(art), { teil: true, fest: true },
+		art + " steht ab Werk auf „festgenagelt\"");
+	assert.strictEqual(avesmapsEcosystemDisplayKollisionsRolle(art), "fest");
+});
+
+// ⚠️ Und die Vorgabe ist ein STARTWERT, kein Riegel: wer das Haekchen abnimmt, bekommt seinen
+// beweglichen Gipfel -- sonst waere der Entscheid eine Sperre statt einer Voreinstellung.
+avesmapsEcosystemDisplayInstall({ kollision: { berggipfel: { teil: true, fest: false } } });
+assert.strictEqual(avesmapsEcosystemDisplayKollisionsRolle("berggipfel"), "beweglich",
+	"die gespeicherte Abweichung schlaegt die Vorgabe je Art");
 
 avesmapsEcosystemDisplayInstall({ kollision: { berggipfel: { teil: true, fest: true } } });
 assert.strictEqual(avesmapsEcosystemDisplayKollisionsRolle("berggipfel"), "fest");
 assert.strictEqual(avesmapsEcosystemDisplayKollisionsRolle("wald"), "beweglich",
 	"eine Art ohne Eintrag bleibt bei der Vorgabe");
 
-avesmapsEcosystemDisplayInstall({ kollision: { berggipfel: { teil: false } } });
-assert.strictEqual(avesmapsEcosystemDisplayKollisionsRolle("berggipfel"), "aus");
-assert.deepStrictEqual(avesmapsEcosystemDisplayKollision("berggipfel"), { teil: false, fest: false },
+avesmapsEcosystemDisplayInstall({ kollision: { wald: { teil: false } } });
+assert.strictEqual(avesmapsEcosystemDisplayKollisionsRolle("wald"), "aus");
+assert.deepStrictEqual(avesmapsEcosystemDisplayKollision("wald"), { teil: false, fest: false },
 	"ein fehlendes Feld faellt einzeln auf die Vorgabe zurueck, nicht die ganze Zeile");
+
+// 💣 UND DAS FEHLENDE FELD FAELLT AUF DIE VORGABE **DIESER ART**, nicht auf den Grundwert.
+// Ein gespeichertes `{teil:false}` an einem Gipfel laesst `fest` auf seiner eigenen Vorgabe (true)
+// stehen -- wer hier den Grundwert naehme, naehme dem Gipfel den Owner-Entscheid weg, sobald
+// jemand das ANDERE Haekchen anfasst. Genau daran ist die erste Fassung dieses Umbaus aufgelaufen.
+avesmapsEcosystemDisplayInstall({ kollision: { berggipfel: { teil: false } } });
+assert.deepStrictEqual(avesmapsEcosystemDisplayKollision("berggipfel"), { teil: false, fest: true },
+	"das nicht genannte Feld behaelt die Vorgabe der ART");
+assert.strictEqual(avesmapsEcosystemDisplayKollisionsRolle("berggipfel"), "aus",
+	"… an der Rolle aendert das nichts: ohne `teil` ist sie „aus\"");
 
 // 🔴 ALLES, WAS KEIN BOOLEAN IST, FAELLT AUF DIE VORGABE. `1` und `"true"` sehen aus wie ja und
 // sind es nicht; der schlimmste Fall eines kaputten Einstellungswertes muss „es bleibt beim Alten"
 // sein und nie „alle Namen verschwinden".
+// ⚠️ Gemessen an `wald`, einer Art OHNE eigene Vorgabezeile -- an einem Gipfel waere „faellt auf
+// die Vorgabe zurueck" von „wird als fest gelesen" nicht zu unterscheiden.
 [{ teil: 1 }, { teil: "false" }, { teil: null }, [], "aus", 7, null].forEach((mist) => {
-	avesmapsEcosystemDisplayInstall({ kollision: { berggipfel: mist } });
-	assert.strictEqual(avesmapsEcosystemDisplayKollisionsRolle("berggipfel"), "beweglich",
+	avesmapsEcosystemDisplayInstall({ kollision: { wald: mist } });
+	assert.strictEqual(avesmapsEcosystemDisplayKollisionsRolle("wald"), "beweglich",
 		"kaputter Wert " + JSON.stringify(mist) + " faellt offen aus");
+	avesmapsEcosystemDisplayInstall({ kollision: { berggipfel: mist } });
+	assert.strictEqual(avesmapsEcosystemDisplayKollisionsRolle("berggipfel"), "fest",
+		"… und am Gipfel auf DESSEN Vorgabe: " + JSON.stringify(mist));
 });
 
 // Die Rolle aus einem MITGEGEBENEN Satz -- der Weg, den das Fenster geht (es darf seine
@@ -138,13 +172,26 @@ function fahre(regel, { gruppeGipfel = "", gruppeWald = "" } = {}) {
 	return { wald, gipfel, belegt };
 }
 
-// ---- 2a. Heute: der Gipfel weicht aus -------------------------------------------------------
-const heute = fahre(null);
-assert.strictEqual(heute.gipfel.element.istVersteckt(), false, "heute bleibt er sichtbar");
+// ---- 2a. Beweglich: der Gipfel weicht aus ----------------------------------------------------
+// 🔴 AUSDRUECKLICH `{teil:true, fest:false}`, NICHT `null`. Seit dem Owner-Entscheid vom 02.09.2026
+// steht ein Gipfel ohne gespeicherte Tafel auf „fest" -- `null` fuehre also den Fall 2b ein zweites
+// Mal, und dieser Abschnitt haette stillschweigend aufgehoert, das Ausweichen zu pruefen.
+// ⚠️ Er bleibt trotzdem stehen: das ist der Zustand, den jede andere Namensart hat, und der
+// gemeldete Ausgangszustand des Gipfels.
+const beweglich = fahre({ teil: true, fest: false });
+assert.strictEqual(beweglich.gipfel.element.istVersteckt(), false, "er bleibt sichtbar");
 assert.notStrictEqual(
-	heute.gipfel.element.versatzX() + heute.gipfel.element.versatzY(), 0,
+	beweglich.gipfel.element.versatzX() + beweglich.gipfel.element.versatzY(), 0,
 	"… aber er WEICHT AUS -- genau der gemeldete Zustand");
-assert.strictEqual(heute.belegt.length, 2, "beide belegen Platz");
+assert.strictEqual(beweglich.belegt.length, 2, "beide belegen Platz");
+
+// Und die Vorgabe allein reicht: OHNE gespeicherte Tafel steht der Gipfel bereits fest.
+const abWerk = fahre(null);
+assert.strictEqual(abWerk.gipfel.element.versatzX(), 0, "ohne Tafel rueckt der Gipfel nicht");
+assert.strictEqual(abWerk.gipfel.element.versatzY(), 0);
+assert.notStrictEqual(
+	abWerk.wald.element.versatzX() + abWerk.wald.element.versatzY(), 0,
+	"… und der Waldname weicht ihm aus -- der Owner-Entscheid wirkt ohne jede Datenbankzeile");
 
 // ---- 2b. „Verschiebung unterdruecken": er steht, die anderen weichen IHM aus -----------------
 const fest = fahre({ teil: true, fest: true });
@@ -190,7 +237,9 @@ const nacheinander = (() => {
 	const wald = macheLabelEintrag({ text: "Farindel", labelType: "wald", box: macheBox(100, 100, BREITE, HOEHE) });
 	const gipfel = macheLabelEintrag({ text: "Drei Schwestern", labelType: "berggipfel", box: macheBox(120, 110, BREITE, HOEHE) });
 	global.labelMarkers = [wald, gipfel];
-	avesmapsEcosystemDisplayInstall(null);
+	// ⚠️ Ausdruecklich beweglich, nicht `null` -- ohne Tafel steht ein Gipfel seit dem 02.09.2026
+	// schon fest, und dann waere „vorher ausgewichen" nie wahr und die Zusicherung Vakuum.
+	avesmapsEcosystemDisplayInstall({ kollision: { berggipfel: { teil: true, fest: false } } });
 	resolveLabelCollisions([]);
 	const vorher = gipfel.element.versatzY();
 	avesmapsEcosystemDisplayInstall({ kollision: { berggipfel: { teil: false } } });
@@ -278,9 +327,20 @@ const zeichnerRumpf = (() => {
 })();
 assert.ok(/ecoDisplayZeichneKollision\(\);/.test(zeichnerRumpf),
 	"der Abschnitt wird in ecoDisplayZeichne() wirklich gezeichnet -- nicht nur irgendwo in der Datei");
-assert.ok(/avesmapsEcosystemKollisionAus\(ecoDisplayTeil\("kollision"\)\[art\]\)/.test(editorCode),
+assert.ok(/avesmapsEcosystemKollisionAus\(\s*ecoDisplayTeil\("kollision"\)\[art\]/.test(editorCode),
 	"💣 das Fenster reicht seinen eigenen Satz HEREIN, statt den Modulzustand zu lesen -- die "
 	+ "Arbeitstafel ins Modul zu schieben machte es zum Spiegel des Fensters (24.08.2026)");
+// 🔴 UND ES NIMMT DIE VORGABE DIESER ART, nicht den Grundwert -- sonst zeigte es fuer Berggipfel
+// und Vulkan ein leeres Haekchen, waehrend die Karte sie festnagelt.
+// 🪤 GEPRUEFT WIRD DIE AUFRUFSTELLE, nicht der blosse Bezeichner: er steht auch im
+// Ruecksetz-Vergleich darunter, und eine Mutationsprobe ist genau dort durchgerutscht -- die
+// Vorgabe aus DIESEM Aufruf entfernt, und der Test blieb gruen. Dieselbe Lehre wie beim
+// Zeichner-Rumpf weiter unten: ein Bezeichner allein sagt nicht, WO er steht.
+assert.ok(/avesmapsEcosystemKollisionAus\([\s\S]{0,120}?avesmapsEcosystemDisplayKollisionVorgabe\(art\)/.test(editorCode),
+	"die Zeile reicht die Vorgabe ihrer ART in die geteilte Regel hinein");
+assert.ok(!/const vorgabe = AVESMAPS_ECOSYSTEM_DISPLAY_KOLLISION_VORGABE;/.test(editorCode),
+	"… und der Ruecksetz-Vergleich ebenfalls, sonst bliebe fuer die zwei Gipfelarten eine Zeile "
+	+ "in der Datenbank stehen, die dasselbe sagt wie die Vorgabe");
 assert.ok(!/avesmapsEcosystemDisplayInstall\(ecoDisplayZumSenden\(\)\)/.test(editorCode),
 	"… und genau dieser Aufruf steht NICHT darin");
 
